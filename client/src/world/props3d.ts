@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { pickSack, sackGeometry, sackMaterial, sackMesh, standingSackGeometry, type SackLabel } from "../game/sackModel";
+import { labelGeo, pickSack, sackGeometry, sackMaterial, sackMesh, standingSackGeometry, type SackLabel } from "../game/sackModel";
 import SACK_SOCKETS from "./props_sack_sockets.json";
 import CITY from "../../../shared/city.json";
 import SPOT_TABLE from "../../../shared/spots.json";
@@ -391,7 +391,7 @@ async function load(): Promise<Props> {
         if (!c.userData.sack) return;
         const m = c as THREE.Mesh;
         const standing = c.userData.sack === "standing";
-        m.geometry = standing ? standingSackGeometry(lot.goods) : sackGeometry(lot.goods);
+        m.geometry = labelGeo(standing ? standingSackGeometry(lot.goods) : sackGeometry(lot.goods), lot);
         m.material = sackMaterial(lot);
       });
     }

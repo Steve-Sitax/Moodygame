@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { OPEN_SACK, openSackGeometry, pickSack, SACK_W, sackMaterial, sackMesh } from "./sackModel";
+import { labelGeo, OPEN_SACK, openSackGeometry, pickSack, SACK_W, sackMaterial, sackMesh } from "./sackModel";
 import STALL_SACKS from "./stalls_sack_sockets.json";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
@@ -90,7 +90,7 @@ function load(): Promise<Parts | null> {
           const lot = pickSack(`stall:${name}:${i}`, r.goods ? [[r.goods, 1]] : "market");
           let m: THREE.Mesh;
           if (r.k === "open") {
-            m = new THREE.Mesh(openSackGeometry(lot.goods), sackMaterial(lot));
+            m = new THREE.Mesh(labelGeo(openSackGeometry(lot.goods), lot), sackMaterial(lot));
             const s = r.h! / (OPEN_SACK.top + 0.02);
             m.scale.set((r.r! * 2) / SACK_W, s, (r.r! * 2) / SACK_W);
           } else m = sackMesh(lot, { standing: r.k === "standing", fit: [r.L!, r.H!, r.W!] });

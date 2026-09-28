@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { psx } from "../retro/psx";
 import { box, cyl } from "../world/geom";
 import type { Mats } from "../world/rijnkaai";
-import { SACK_H, sackGeometry, sackLabelFor, sackMaterial, type SackLabel } from "./sackModel";
+import { labelGeo, SACK_H, sackGeometry, sackLabelFor, sackMaterial, type SackLabel } from "./sackModel";
 
 // Job goods. Claude picks one of these names; the game builds the prop.
 // Placeholders until the Blender kit (docs/05).
@@ -103,7 +103,7 @@ export function makeGoods(kind: Goods, m: Mats, what?: string | SackLabel | null
     case "sacks": {
       // a filled sack lying flat, its mouth tied, the merchant's stencil on top (Steve 2026-09-28: "seem like balloons")
       const label = what && typeof what === "object" ? what : sackLabelFor(typeof what === "string" ? what : null);
-      const s = new THREE.Mesh(sackGeometry(), sackMaterial(label));
+      const s = new THREE.Mesh(labelGeo(sackGeometry(label.goods), label), sackMaterial(label));
       s.name = "sack";
       g.add(s);
       break;

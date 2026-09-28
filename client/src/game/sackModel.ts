@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { psx } from "../retro/psx";
-import { mergeParts } from "../world/staticMerge";
+import { sharedMaterial } from "../world/staticMerge";
 import { SACK_LIE } from "../../../shared/goods";
 import { pickSack, SACK_GOODS, sackOf, type SackLabel, type SackLook } from "../../../shared/goodsCatalog";
 
@@ -158,7 +158,7 @@ export function standingSackGeometry(goods?: string): THREE.BufferGeometry {
  * old models' places on the quays' heaps keep their sizes, so nothing floats or sinks). One model for every sack.
  */
 export function sackMesh(label: SackLabel, opts: { standing?: boolean; fit?: [number, number, number] } = {}): THREE.Mesh {
-  const g = opts.standing ? standingSackGeometry(label.goods) : sackGeometry(label.goods);
+  const g = labelGeo(opts.standing ? standingSackGeometry(label.goods) : sackGeometry(label.goods), label);
   const m = new THREE.Mesh(g, sackMaterial(label));
   m.name = "sack";
   const fit = oneSize(!!opts.standing, opts.fit);
@@ -353,9 +353,113 @@ function fitText(g: CanvasRenderingContext2D, text: string, x: number, y: number
   g.restore();
 }
 
-/** The material of a sack with this stencil (made once per stencil). */
+// ------------------------------------------------------------------ the label sheet (docs/performance.md)
+
+// Every stencil of the goods list on one picture, 8 x 8 cells of 256 px, and one material for every sack (a material
+// used by an InstancedMesh gets its own, on the same picture): sacks of different lots merge into one draw and cost no
+// material switch (2026-09-29, the frame budget: one material per stencil was ~30-60 draws and ~1-1.5 ms a place).
+// A sack's geometry carries its cell in its uv (labelGeo); a stencil not on the sheet keeps a material of its own.
+const SHEET = 2048;
+const CELL = 256;
+const PER = SHEET / CELL;
+const labelKey = (l: SackLabel) => `${l.goods}|${l.what}|${l.from}|${l.mark}|${l.ink ?? ""}`;
+let sheet: { cells: Map<string, number>; mat: THREE.Material; instMat: THREE.Material } | null = null;
+
+/** Every label the goods list can make (goods x origin x mark), in a fixed order. */
+function catalogLabels(): SackLabel[] {
+  const out: SackLabel[] = [];
+  for (const g of Object.values(SACK_GOODS))
+    for (const o of g.origins) for (const mark of o.marks) out.push({ goods: g.id, what: g.what, from: o.from, mark, ink: o.ink });
+  return out;
+}
+
+function sackTexture(canvas: HTMLCanvasElement): THREE.CanvasTexture {
+  const tex = new THREE.CanvasTexture(canvas);
+  // (the bump audit: named for what it is: "sack" reads as fibre, world/bumps.ts)
+  tex.name = "sack hessian";
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.magFilter = THREE.NearestFilter;
+  // (smaller pictures for far off: the stencil stays letters instead of flickering dots; up close as sharp as ever)
+  tex.minFilter = THREE.NearestMipmapLinearFilter;
+  tex.generateMipmaps = true;
+  return tex;
+}
+
+function theSheet(): NonNullable<typeof sheet> {
+  if (sheet) return sheet;
+  const labels = catalogLabels().slice(0, PER * PER);
+  const c = document.createElement("canvas");
+  c.width = c.height = SHEET;
+  const g = c.getContext("2d")!;
+  const cells = new Map<string, number>();
+  labels.forEach((l, i) => {
+    g.drawImage(paint(l), (i % PER) * CELL, Math.floor(i / PER) * CELL);
+    cells.set(labelKey(l), i);
+  });
+  const tex = sackTexture(c);
+  const mat = sharedMaterial(psx(new THREE.MeshLambertMaterial({ map: tex, color: 0xffffff })));
+  mat.name = "sack";
+  const instMat = sharedMaterial(psx(new THREE.MeshLambertMaterial({ map: tex, color: 0xffffff })));
+  instMat.name = "sack (instanced)";
+  return (sheet = { cells, mat, instMat });
+}
+
+/** The cell of a label on the sheet, or -1. */
+function cellOf(label: SackLabel): number {
+  return theSheet().cells.get(labelKey(label)) ?? -1;
+}
+
+const labelGeos = new Map<string, THREE.BufferGeometry>();
+
+/**
+ * A sack geometry (its uv in the one stencil's 0..1, as every sack shape makes it) with its uv moved into this label's
+ * cell of the sheet; made once per shape and label. Every mesh drawn with sackMaterial gets its geometry from here.
+ */
+export function labelGeo(geo: THREE.BufferGeometry, label: SackLabel): THREE.BufferGeometry {
+  const src = (geo.userData.sackSrc as THREE.BufferGeometry | undefined) ?? geo;
+  const cell = cellOf(label);
+  if (cell < 0) return src;
+  const key = `${src.uuid}#${cell}`;
+  let g = labelGeos.get(key);
+  if (g) return g;
+  g = src.clone();
+  const uv = g.getAttribute("uv") as THREE.BufferAttribute;
+  // (exactly the cell, so every texel and every mipmap level down to 1 px a cell is the one the label's own picture
+  // had: the same picture as before the sheet)
+  const s = CELL / SHEET;
+  const u0 = ((cell % PER) * CELL) / SHEET;
+  const v0 = 1 - (Math.floor(cell / PER) * CELL + CELL) / SHEET;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, u0 + uv.getX(i) * s, v0 + uv.getY(i) * s);
+  g.userData = { sackSrc: src };
+  if (src.boundingBox) g.boundingBox = src.boundingBox.clone();
+  if (src.boundingSphere) g.boundingSphere = src.boundingSphere.clone();
+  labelGeos.set(key, g);
+  return g;
+}
+
+/** A sack mesh made before (its geometry from labelGeo) given another label: its cell and the material. */
+export function relabel(mesh: THREE.Mesh, label: SackLabel): void {
+  mesh.geometry = labelGeo(mesh.geometry, label);
+  mesh.material = (mesh as THREE.InstancedMesh).isInstancedMesh ? sackInstMaterial(label) : sackMaterial(label);
+}
+
+/** The material for an InstancedMesh of sacks (its own: docs/performance.md, never shared with plain meshes). */
+export function sackInstMaterial(label: SackLabel): THREE.Material {
+  if (cellOf(label) >= 0) return theSheet().instMat;
+  const key = `inst|${labelKey(label)}`;
+  let m = mats.get(key);
+  if (!m) {
+    m = psx(new THREE.MeshLambertMaterial({ map: (sackMaterial(label) as THREE.MeshLambertMaterial).map, color: 0xffffff }));
+    m.name = "sack (instanced)";
+    mats.set(key, m);
+  }
+  return m;
+}
+
+/** The material of a sack with this stencil: the sheet's for every label of the goods list (use labelGeo). */
 export function sackMaterial(label: SackLabel): THREE.Material {
-  const key = `${label.goods}|${label.what}|${label.from}|${label.mark}|${label.ink ?? ""}`;
+  if (cellOf(label) >= 0) return theSheet().mat;
+  const key = labelKey(label);
   let m = mats.get(key);
   if (m) return m;
   const tex = new THREE.CanvasTexture(paint(label));
@@ -406,7 +510,12 @@ const loadGeos = new Map<string, THREE.BufferGeometry>();
  * across it side by side (end to end where two fit across), the next layer in the dips between them, up to `count`
  * (bottom layer first) or as many as fit. One merged geometry, the one sack model (CLAUDE.md: one model per thing).
  */
-export function sackLoadGeometry(box: THREE.Box3, count = Infinity, goods?: string): THREE.BufferGeometry {
+export function sackLoadGeometry(box: THREE.Box3, count = Infinity, goods?: string, label?: SackLabel): THREE.BufferGeometry {
+  const g = sackLoadShape(box, count, goods);
+  return label ? labelGeo(g, label) : g;
+}
+
+function sackLoadShape(box: THREE.Box3, count: number, goods?: string): THREE.BufferGeometry {
   const key = `${box.min.toArray().map((v) => v.toFixed(2))}|${box.max.toArray().map((v) => v.toFixed(2))}|${count}|${goods ?? ""}`;
   const hit = loadGeos.get(key);
   if (hit) return hit;
@@ -549,7 +658,7 @@ export interface SackRow {
 export function sackFromRow(r: SackRow, lot: SackLabel): THREE.Mesh {
   let m: THREE.Mesh;
   if (r.k === "open") {
-    m = new THREE.Mesh(openSackGeometry(lot.goods), sackMaterial(lot));
+    m = new THREE.Mesh(labelGeo(openSackGeometry(lot.goods), lot), sackMaterial(lot));
     m.scale.set(((r.r ?? 0.2) * 2) / SACK_W, (r.h ?? 0.45) / (OPEN_SACK.top + 0.02), ((r.r ?? 0.2) * 2) / SACK_W);
   } else m = sackMesh(lot, { standing: r.k === "standing", fit: [r.L ?? SACK_L, r.H ?? SACK_H, r.W ?? SACK_W] });
   const M = new THREE.Matrix4().fromArray(r.m);
@@ -579,9 +688,28 @@ export function swapSacks(protos: Map<string, THREE.Object3D>, rows: Record<stri
     g.userData = { ...(protos.get(name)!.userData ?? {}) };
     if (bare) g.add(bare.clone());
     const lot = pickSack(`${seed}:${name}`, place);
-    list.forEach((r) => g.add(sackFromRow(r, r.goods ? pickSack(`${seed}:${name}:${r.goods}`, [[r.goods, 1]]) : lot)));
-    // the sacks of a lot drawn as one mesh (world/staticMerge.ts: a loaded lighter was 28 draw calls of sacks)
-    mergeParts(g, (m) => m.userData.sack !== undefined, { tagged: true });
+    // the model's sacks as one mesh per material (every label of the goods list is on the one sheet: one mesh; a loaded
+    // lighter was 28 draw calls of sacks, 2026-09-29 frame budget; staticMerge's mergeParts only runs with ?merge)
+    const byMat = new Map<THREE.Material, THREE.BufferGeometry[]>();
+    for (const r of list) {
+      const s = sackFromRow(r, r.goods ? pickSack(`${seed}:${name}:${r.goods}`, [[r.goods, 1]]) : lot);
+      s.updateMatrix();
+      const mat = s.material as THREE.Material;
+      let l = byMat.get(mat);
+      if (!l) byMat.set(mat, (l = []));
+      l.push(s.geometry.clone().applyMatrix4(s.matrix));
+    }
+    for (const [mat, geos] of byMat) {
+      const merged = mergeGeometries(geos, false);
+      for (const q of geos) if (q !== merged) q.dispose();
+      if (!merged) continue;
+      merged.computeBoundingBox();
+      merged.computeBoundingSphere();
+      const m = new THREE.Mesh(merged, mat);
+      m.name = "sack";
+      m.userData.sack = "merged";
+      g.add(m);
+    }
     g.updateMatrixWorld(true);
     protos.set(name, g);
   }

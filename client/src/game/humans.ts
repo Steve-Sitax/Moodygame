@@ -5,7 +5,7 @@ import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import { psx } from "../retro/psx";
 import { PUPPET_MOTIONS } from "../../../shared/mpProtocol";
 import { addCaster, removeCaster } from "../world/lanternLights";
-import { hangSack, sackLabelFor, sackMaterial, type SackLabel, type SackSocket } from "./sackModel";
+import { hangSack, relabel, sackLabelFor, type SackLabel, type SackSocket } from "./sackModel";
 import SOCKETS from "./people_sockets.json";
 
 // The people of 1873 as rigged, textured low-poly models (tools/blender/build_people.py,
@@ -187,7 +187,7 @@ export class Human {
 
   /** What the sack it carries says (the pile it came from, the mill's flour). */
   setSackLabel(label: SackLabel): void {
-    if (this.sack) this.sack.material = sackMaterial(label);
+    if (this.sack) relabel(this.sack, label);
   }
 
   constructor(
