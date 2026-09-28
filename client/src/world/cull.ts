@@ -88,6 +88,10 @@ interface Ent {
   why: number;
   /** Outside the view's left or right edge (three.js leaves it out anyway). */
   out: boolean;
+  /** Where its matrix stood when it was judged (the items' px, py, pz: a staged evaluation ends frames later). */
+  mx: number;
+  my: number;
+  mz: number;
 }
 
 /** How far the eye may move (m), and the view turn (rad), before a new full evaluation. */
@@ -97,6 +101,8 @@ const TURN = 0.3;
 const MOVE_SLACK = 0.15;
 /** A full evaluation at least this often (frames): new things, moving ones. */
 const EVERY = 30;
+/** A staged evaluation starts when this share of the slack or the turn is used up (it takes 3 frames). */
+const SOON = 0.55;
 
 const BUCKETS = 128;
 /** The owner mark of a lit lamp's glow in the revealer list. */
@@ -170,6 +176,7 @@ export class Culler {
     this.camStack.length = 0;
     if (!this.enabled || this.opts.paused?.()) {
       this.lastEval = null;
+      this.staged = null;
       return false;
     }
     try {
@@ -179,6 +186,7 @@ export class Culler {
       this.items.length = 0;
       this.active = false;
       this.lastEval = null;
+      this.staged = null;
       const msg = String((e as Error)?.message ?? e);
       if (!this.errors.has(msg)) {
         this.errors.add(msg);
@@ -227,16 +235,47 @@ export class Culler {
       (this.occlusion && !this.opts.noOcclusion?.()) !== L.occ ||
       this.frameNo - L.frame >= EVERY ||
       rectKey !== L.rect;
+    const made = () => ({ x: eye.x, y: eye.y, z: eye.z, az, pitch, fog: fogFar, passes: passKey, lamps, frame: this.frameNo, occ: this.occlusion && !this.opts.noOcclusion?.(), rect: rectKey });
+    let done = false;
     if (fresh) {
-      this.evaluate(camera, eye, az, pitch, fogFar, passes, t0, rect);
-      this.lastEval = { x: eye.x, y: eye.y, z: eye.z, az, pitch, fog: fogFar, passes: passKey, lamps, frame: this.frameNo, occ: this.occlusion && !this.opts.noOcclusion?.(), rect: rectKey };
+      // the last evaluation no longer holds: all of it now (a staged one on its way is dropped)
+      this.staged = null;
+      for (const _ of this.evaluate(camera, eye, az, pitch, fogFar, passes, t0, rect));
+      this.lastEval = made();
+      done = true;
+    } else if (this.staged) {
+      // a staged evaluation: its next slice (the last one makes the new list)
+      if (this.staged.next().done) {
+        this.staged = null;
+        this.lastEval = this.stagedEval;
+        done = true;
+      } else this.refresh();
+    } else if (
+      Culler.staged &&
+      L &&
+      (Math.hypot(eye.x - L.x, eye.y - L.y, eye.z - L.z) > EYE_SLACK * SOON ||
+        turn > TURN * SOON ||
+        Math.abs(pitch - L.pitch) > TURN * SOON ||
+        this.frameNo - L.frame >= EVERY - 4)
+    ) {
+      // (2026-09-28, the uneven frames: a full evaluation was ~7.5 ms in one frame every ~8 frames on the move)
+      // the eye nears the edge of what the last evaluation holds for: a new one from here, a slice a frame, while
+      // the last one still holds (it holds for EYE_SLACK and TURN; SOON of that is used up)
+      this.staged = this.evaluate(camera, eye, az, pitch, fogFar, passes, t0, rect);
+      this.stagedEval = made();
+      this.staged.next();
+      this.refresh();
     } else this.refresh();
     this.active = true;
     this.chainHook();
     this.stats.ms = performance.now() - t0;
-    this.stats.fresh = fresh;
+    this.stats.fresh = done;
     return true;
   }
+  /** Staged evaluations on (off: all in one frame, as before; for comparing). */
+  static staged = true;
+  private staged: Generator<void, void, void> | null = null;
+  private stagedEval: Culler["lastEval"] = null;
 
   /** Between evaluations: a hidden thing that has moved more than MOVE_SLACK is drawn again. */
   private refresh(): void {
@@ -251,9 +290,15 @@ export class Culler {
     items.length = kept;
   }
 
-  /** A full evaluation (see run()): every thing, every pass. */
-  private evaluate(camera: THREE.PerspectiveCamera, eye: THREE.Vector3, azView: number, pitch: number, fogFar: number, passes: MirrorPass[], t0: number, rect: ViewRect | null): void {
+  /**
+   * A full evaluation (see run()): every thing, every pass, in three slices (the horizons; the things and the
+   * houses; the fog and the list): all at once, or one slice a frame (a staged evaluation). The eye is copied.
+   */
+  private *evaluate(camera: THREE.PerspectiveCamera, eyeNow: THREE.Vector3, azView: number, pitch: number, fogFar: number, passes: MirrorPass[], t0: number, rect: ViewRect | null): Generator<void, void, void> {
     const scene = this.scene;
+    const eye = eyeNow.clone();
+    const fov = camera.fov;
+    const aspect = camera.aspect;
     const st = this.stats;
     st.fog = st.occluded = st.water = st.samples = 0;
     st.mirrors = {};
@@ -264,8 +309,8 @@ export class Culler {
     let waterSeen = true;
     const occMain = !!hf;
     let occMirror: MirrorPass | null = null;
-    const vHalf = THREE.MathUtils.degToRad(camera.fov / 2);
-    const hHalf = Math.atan(Math.tan(vHalf) * camera.aspect);
+    const vHalf = THREE.MathUtils.degToRad(fov / 2);
+    const hHalf = Math.atan(Math.tan(vHalf) * aspect);
     // looking well up or down the view spreads round the eye: every direction counts then
     const wide = Math.abs(pitch) + vHalf + TURN > 1.2;
     // the street drawn only through a part of the view (a door, from inside a room: world/inworld.ts):
@@ -301,12 +346,12 @@ export class Culler {
     }
     st.waterSeen = waterSeen;
     const t1 = performance.now();
+    yield;
+    const r1 = performance.now();
 
     // --- 1. every visible thing: its bounds, and the "revealers": things that show past the fog
     // (unfogged lights, additive glows, landmarks with a longer fog reach). A fully fogged thing
     // still hides what stands behind it, so it is only left out where no revealer stands behind it.
-    const items = this.items;
-    items.length = 0;
     const ents = this.ents;
     let ne = 0;
     const rv = this.rv;
@@ -323,7 +368,7 @@ export class Culler {
         const has = this.bounds(o, sph);
         let owner = -1;
         if (!info.exempt && has) {
-          const e = ents[ne] ?? (ents[ne] = { obj: o, info, x: 0, y: 0, z: 0, r: 0, dist: 0, top: NaN, hide: 0, why: 0, out: false });
+          const e = ents[ne] ?? (ents[ne] = { obj: o, info, x: 0, y: 0, z: 0, r: 0, dist: 0, top: NaN, hide: 0, why: 0, out: false, mx: 0, my: 0, mz: 0 });
           e.obj = o;
           e.info = info;
           e.x = sph.center.x;
@@ -335,6 +380,10 @@ export class Culler {
           e.top = NaN;
           e.hide = 0;
           e.why = 0;
+          const me = o.matrixWorld.elements;
+          e.mx = me[12];
+          e.my = me[13];
+          e.mz = me[14];
           owner = ne++;
         }
         if (info.reach > 1 && (has || info.exempt)) {
@@ -418,6 +467,8 @@ export class Culler {
     }
 
     const t3 = performance.now();
+    yield;
+    const r3 = performance.now();
     // --- 3. beyond the fog, where nothing that shows further stands behind it (per eye). The
     // revealers are only gathered when something is beyond the fog, and only those that can stand
     // behind it and still show (within their own fog reach)
@@ -450,7 +501,7 @@ export class Culler {
     // a lit lamp's glow in the fog is added along each ray up to the surface it meets (retro/psx.ts
     // lampScatter): a fogged thing in front of it still cuts the glow short, out to about 14 m round it
     if (nr) for (const l of psxUniforms.uLamps.value) if (l.w > 0.002) this.addRev(l.x, l.y, l.z, 15 + EYE_SLACK + MOVE_SLACK, LAMP);
-    const px = (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))) / 270;
+    const px = (2 * Math.tan(THREE.MathUtils.degToRad(fov / 2))) / 270;
     if (minNear < Infinity) this.indexRevealers(0, eye.x, eye.y, eye.z, px, ents, true);
     for (let i = 0; i < ne && minNear < Infinity; i++) {
       const e = ents[i];
@@ -475,11 +526,12 @@ export class Culler {
 
     const t4 = performance.now();
     // --- 4. the list the render hooks apply, and the numbers
+    const items = this.items;
+    items.length = 0;
     for (let i = 0; i < ne; i++) {
       const e = ents[i];
       if (!e.hide) continue;
-      const me = e.obj.matrixWorld.elements;
-      items.push({ obj: e.obj, orig: e.obj.layers.mask, hide: e.hide, why: e.why, px: me[12], py: me[13], pz: me[14] });
+      items.push({ obj: e.obj, orig: e.obj.layers.mask, hide: e.hide, why: e.why, px: e.mx, py: e.my, pz: e.mz });
       if (e.hide & 1) {
         if (e.why === H_FOG) st.fog++;
         else if (e.why === H_OCC) st.occluded++;
@@ -489,12 +541,13 @@ export class Culler {
     }
     for (let i = ne; i < ents.length; i++) ents[i].obj = scene; // no stale references
     const t5 = performance.now();
-    st.parts = [t1 - t0, t2 - t1, t3 - t2, t4 - t3, t5 - t4].map((x) => +x.toFixed(3));
+    st.parts = [t1 - t0, t2 - r1, t3 - t2, t4 - r3, t5 - t4].map((x) => +x.toFixed(3));
   }
 
   /** Dev: a full evaluation next frame (after a switch was flipped). */
   invalidate(): void {
     this.lastEval = null;
+    this.staged = null;
   }
 
   /** Is this thing hidden in the main view this frame (between prepare and finish)? The mirrors ask (mirror.ts mirrorView). */
