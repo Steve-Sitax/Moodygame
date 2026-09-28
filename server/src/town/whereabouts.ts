@@ -449,7 +449,9 @@ export function whereAt(r: WhereResident, town: WhereTown, day: number, hour: nu
   // stop k: he is there, or it is the last he left; stop k + 1 is the one he walks to once he set off
   const here = stops[k];
   const part = (p: Stop["part"]) => ({ act: p.act, place: p.place, since: Math.max(0, hour - p.start), left: Math.max(0, p.end - hour) });
-  const mill = here.part.act === "work" ? millRun(r, day, hour) : null;
+  // (the mill's man keeps the cart's timetable to its end: he sets off for the evening's place after the sacks are in,
+  // not early as the day plan would have him; millRun is null outside the runs, which lie inside his work)
+  const mill = millRun(r, day, hour);
   if (mill) return { ...part(here.part), from: here.at, to: here.at, ...mill, indoor: false, mps: mill.moving ? CART_MPS : 0, stop: k };
   const w = here.walk;
   if (w && hour < here.arrive) {

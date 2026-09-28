@@ -118,6 +118,21 @@ Checks:
     game has them.
   - Close shots: the dockers' pile on the Rijnkaai, the quay's pyramid, the mill's store.
 
+### The mill's grain run, fixed (2026-09-28, handed over by the grain-mill session)
+
+The other session found that at 13:30 the Kipdorp mill's man walked down the wall stair and on to the dock without his
+dray, and the run never began. Fixed in `client/src/game/mills.ts`, with what the browser showed after it:
+
+| Found | Fixed |
+|---|---|
+| The stair walker went on walking the plan's last leg (to the dock) after the stair | It walks only the flight; at its foot the run takes him on (the other session's line). He leaves with the dray at 13:43 |
+| At the dock after loading, "back to the cart" waited while the town sent him up the way home: he left the loaded dray at the dock | The step waits only while he walks to the cart; else it sends him to it again. He takes the dray with 3 sacks and leads it home |
+| Unseen, at loading time and at the end of the run, he was where the day plan or his last steps had him, not at the stop | Unseen he is at the run's stop too (the sum, `town.ts whereNow` for the whole run); the sum keeps him on the timetable to its end (`whereabouts.ts`: the run before the evening's walk) |
+
+Browser (test stack, a new week in the copy, no `meet`): the grain run from 13:43 (dray out) to the dock, a docker
+handing the 3 sacks up, back with them, stacked into the store 3, 2, 1; unseen 0 m from the town map's dot at the stop
+and on the way; the miller up the stair at 6:00 and at his door; `paths()` and `shaders()` empty.
+
 ## Open
 
 - A run cycle for people.glb (seen runners now hurry with the walk cycle, 2 m/s at most).

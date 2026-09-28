@@ -566,7 +566,9 @@ export class Mills {
       this.crowd.puppetGo(p, want[0], want[1]);
       return true;
     }
-    if (wk && wk.i < wk.legs.length && this.walk(p, wk, dt)) return true;
+    // (only the flight itself: down at its foot, the run or the town takes him on; walking the plan's last leg on, the
+    // man went to the dock without his cart at 13:30 and the run never began: found by the grain-mill session, 2026-09-28)
+    if (wk && wk.i < wk.legs.length && wk.legs[wk.i].stair && this.walk(p, wk, dt)) return true;
     this.walkers.delete(s.r.id);
     if (s.r.trade === "miller") return this.millerBehave(s, m, dt);
     if (s.r.trade !== "miller_man") return false;
@@ -766,10 +768,12 @@ export class Mills {
     const busy = this.crowd.puppetBusy(p);
     switch (k.step) {
       case "to_rig": {
-        if (busy) return;
         // to a step before the horse's head (the rig itself is solid), then the last step onto the place
         const ax = rig.at[0] + Math.sin(rig.at[2]) * 1.4;
         const az = rig.at[1] + Math.cos(rig.at[2]) * 1.4;
+        // (walking there: on; walking elsewhere, the town's goal of the way home, 2026-09-28: he left the cart at the
+        // dock and walked home without it; back to the cart first)
+        if (busy && p.dest && dist(p.dest.x, p.dest.z, ax, az) < 2) return;
         const d = dist(p.x, p.z, ax, az);
         if (d > 1.2 && (k.tries++ < 6 || d > 4)) {
           this.crowd.puppetGo(p, ax, az, CART_PACE);
@@ -798,6 +802,11 @@ export class Mills {
         const w = k.route && k.route[k.ri] ? k.route[k.ri] : to;
         // T1 (2026-09-28): unseen on the way out or back, he is where the run's sum has him (the town map's dot, and
         // after a jump of the clock too: a sleep, a skip), and walks on from there when seen
+        // (and at loading or unloading time, unseen and still on his way, he is at the stop: the timetable's and the map's)
+        if (phase !== "go" && phase !== "back" && !p.shown && dist(p.x, p.z, this.player.x, this.player.z) > 25 && dist(p.x, p.z, to[0], to[1]) > 3) {
+          p.x = to[0];
+          p.z = to[1];
+        }
         const sum = !p.shown && dist(p.x, p.z, this.player.x, this.player.z) > 25 && k.route ? this.sumOnWay(k.m) : null;
         if (sum) {
           const yaw = Math.atan2(sum.next[0] - sum.x, sum.next[1] - sum.z);

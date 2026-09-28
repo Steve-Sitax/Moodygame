@@ -427,7 +427,8 @@ export class Town {
     if (!s.plain) {
       if (s.r.trade !== "miller_man" || s.held || s.trip) return null;
       const w = whereAt(s.r, this.data, day, hour, this.wayOf);
-      return w.cart && w.moving ? w : null;
+      // (on the way, and at the stops of the run: loading, unloading, stacking in the store)
+      return w.cart ? w : null;
     }
     return whereLate(s.r, this.data, day, hour, this.wayOf, s.lag ?? 0);
   }
@@ -844,7 +845,7 @@ export class Town {
     // the trade plan: on the way between two places of his plan, or on his round, the shared sum has him (as the
     // town map does): along the streets, and the puppet walks on to the round's next point when he is drawn
     const on = s.trip ? null : this.whereNow(s);
-    if (on && (on.walked < on.total || on.leg !== undefined)) {
+    if (on && (on.walked < on.total || on.leg !== undefined || on.cart)) {
       s.x = on.x;
       s.z = on.z;
       if (on.leg !== undefined) {
