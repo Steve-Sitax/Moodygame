@@ -115,6 +115,13 @@ export function sackGeometry(goods?: string): THREE.BufferGeometry {
   const parts = [body, neck, cord, tuft];
   for (const p of parts) for (const k of Object.keys(p.attributes)) if (!["position", "normal", "uv"].includes(k)) p.deleteAttribute(k);
   const merged = mergeGeometries(parts)!;
+  // every full sack one size, neck and all (Steve 2026-09-28: "not all sacks are the same size"): the goods change
+  // how it sags and bulges, not how big it is
+  merged.computeBoundingBox();
+  const bb = merged.boundingBox!;
+  merged.scale(SACK_L / (bb.max.x - bb.min.x), SACK_H / (bb.max.y - bb.min.y), SACK_W / (bb.max.z - bb.min.z));
+  merged.computeBoundingBox();
+  merged.translate(0, -merged.boundingBox!.min.y, 0);
   merged.computeBoundingBox();
   merged.computeBoundingSphere();
   merged.name = `sack ${goods ?? ""}`;
@@ -136,7 +143,7 @@ export function standingSackGeometry(goods?: string): THREE.BufferGeometry {
   g.computeBoundingBox();
   const b = g.boundingBox!;
   g.translate(-(b.min.x + b.max.x) / 2, -b.min.y, -(b.min.z + b.max.z) / 2);
-  g.scale(SACK_W / Math.max(0.01, b.max.x - b.min.x), 1, 1);
+  g.scale(SACK_W / Math.max(0.01, b.max.x - b.min.x), SACK_STAND_H / Math.max(0.01, b.max.y - b.min.y), SACK_W / Math.max(0.01, b.max.z - b.min.z));
   g.computeVertexNormals();
   g.computeBoundingBox();
   g.computeBoundingSphere();
@@ -153,11 +160,30 @@ export function sackMesh(label: SackLabel, opts: { standing?: boolean; fit?: [nu
   const g = opts.standing ? standingSackGeometry(label.goods) : sackGeometry(label.goods);
   const m = new THREE.Mesh(g, sackMaterial(label));
   m.name = "sack";
-  if (opts.fit) {
+  const fit = oneSize(!!opts.standing, opts.fit);
+  if (fit) {
     const b = g.boundingBox!;
-    m.scale.set(opts.fit[0] / (b.max.x - b.min.x), opts.fit[1] / (b.max.y - b.min.y), opts.fit[2] / (b.max.z - b.min.z));
+    m.scale.set(fit[0] / (b.max.x - b.min.x), fit[1] / (b.max.y - b.min.y), fit[2] / (b.max.z - b.min.z));
   }
   return m;
+}
+
+/** A full sack standing: its height (a lying one stood up sags a little lower than its length). */
+export const SACK_STAND_H = 0.82;
+
+/**
+ * Every full sack one size (Steve 2026-09-28: "not all sacks are the same size"): lying SACK_L x SACK_W, standing
+ * SACK_W round and SACK_STAND_H high, whatever size the old model's place had. A lying one keeps the height its place
+ * stacks it at (0.26 to 0.32 m: the sacks on it rest where the heap put them). A small bag (a stall's, under 0.7 m
+ * long or 0.55 m high) is not a full sack and keeps its own size.
+ */
+function oneSize(standing: boolean, fit?: [number, number, number]): [number, number, number] | null {
+  if (standing) {
+    if (fit && fit[1] < 0.55) return fit;
+    return [SACK_W, SACK_STAND_H, SACK_W];
+  }
+  if (fit && fit[0] < 0.7) return fit;
+  return [SACK_L, Math.min(0.32, Math.max(0.26, fit?.[1] ?? SACK_H)), SACK_W];
 }
 
 // ------------------------------------------------------------------ the hessian and the stencil
@@ -207,7 +233,7 @@ function paint(label: SackLabel): HTMLCanvasElement {
         const b = Math.floor((x - y + 512) / 14);
         const over = (a + b) % 2 === 0;
         const edge = (x + y) % 14 < 2 || (x - y + 512) % 14 < 2;
-        const v = (over ? 22 : -18) + (edge ? -26 : 0) + (r() - 0.5) * 10;
+        const v = ((over ? 22 : -18) + (edge ? -26 : 0) + (r() - 0.5) * 10) * 0.55;
         g.fillStyle = `rgba(${v > 0 ? 255 : 0},${v > 0 ? 240 : 0},${v > 0 ? 190 : 0},${Math.abs(v) / 110})`;
         g.fillRect(x, y, 2, 2);
       }
@@ -218,7 +244,7 @@ function paint(label: SackLabel): HTMLCanvasElement {
     for (let y = 0; y < H; y += t)
       for (let x = 0; x < W; x += t) {
         const over = (Math.floor(x / t) + Math.floor(y / t)) % 2 === 0;
-        const v = ((over ? 18 : -22) + (r() - 0.5) * 14) * amp;
+        const v = ((over ? 18 : -22) + (r() - 0.5) * 14) * amp * 0.55;
         g.fillStyle = `rgba(${v > 0 ? 255 : 0},${v > 0 ? 235 : 0},${v > 0 ? 200 : 0},${Math.abs(v) / 110})`;
         g.fillRect(x, y, over ? t : Math.max(1, t - 1), over ? Math.max(1, t - 1) : t);
       }
@@ -265,36 +291,6 @@ function paint(label: SackLabel): HTMLCanvasElement {
       g.fillRect(x + 1, y + 1, 3, 1);
     }
   }
-  // the stencil: worn ink, letters broken by the stencil's bridges, the weave showing through
-  const ink = label.ink ?? "#1e1a18";
-  g.save();
-  g.globalAlpha = 0.86;
-  g.fillStyle = ink;
-  g.strokeStyle = ink;
-  g.textAlign = "center";
-  g.textBaseline = "middle";
-  const cx = W * 0.47;
-  const cy = H * 0.5;
-  // the merchant's mark: a diamond with his letters, on the sewn-end side
-  g.lineWidth = 3;
-  g.beginPath();
-  const mx = W * 0.16;
-  g.moveTo(mx, cy - 20);
-  g.lineTo(mx + 20, cy);
-  g.lineTo(mx, cy + 20);
-  g.lineTo(mx - 20, cy);
-  g.closePath();
-  g.stroke();
-  g.font = `bold 13px Georgia, 'Times New Roman', serif`;
-  g.fillText(label.mark, mx, cy + 1);
-  // the goods, big; where from and the weight below, smaller
-  g.font = `bold 27px 'Scheldemist Print', Georgia, 'Times New Roman', serif`;
-  fitText(g, label.what, cx + 18, cy - 12, W * 0.5);
-  g.font = `bold 17px 'Scheldemist Print', Georgia, 'Times New Roman', serif`;
-  fitText(g, label.from, cx + 18, cy + 12, W * 0.5);
-  g.font = `bold 11px Georgia, 'Times New Roman', serif`;
-  g.fillText(`${look.kg} KIL.`, cx + 18, cy + 27);
-  g.restore();
   // dust: flour white over it all, thickest at the seams and ends; salt as a white crust low down and on the seams
   if (look.dust) {
     const n = look.dust === "flour" || look.dust === "coal" ? 900 : 500;
@@ -306,12 +302,41 @@ function paint(label: SackLabel): HTMLCanvasElement {
       g.fillRect(x | 0, y | 0, 1 + ((r() * (low ? 4 : 3)) | 0), 1 + ((r() * 2) | 0));
     }
   }
-  // the stencil's bridges and the wear: thin gaps of cloth through the letters, and patches rubbed off
-  for (let i = 0; i < 26; i++) {
-    const x = cx - W * 0.3 + r() * W * 0.72;
-    const y = cy - 30 + r() * 64;
-    g.fillStyle = `rgba(${base[0] | 0},${base[1] | 0},${base[2] | 0},${0.35 + r() * 0.4})`;
-    g.fillRect(x, y, 1 + ((r() * 2) | 0), 4 + ((r() * 10) | 0));
+  // the stencil (Steve 2026-09-28: "text still not readable"): the goods in one big word across the top of the sack,
+  // most of its length and a hand high; where from under it, on the near slope; the merchant's mark and the weight at
+  // the sewn end. Solid ink, a plain heavy serif: on the screen the sack's top is only some 100 pixels wide.
+  const ink = label.ink ?? "#1e1a18";
+  g.save();
+  g.fillStyle = ink;
+  g.strokeStyle = ink;
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  const cx = W * 0.5;
+  const cy = H * 0.5;
+  g.font = `50px Impact, 'Arial Narrow', 'Arial Black', sans-serif`;
+  fitText(g, label.what, cx, cy, W * 0.4);
+  g.font = `bold 21px Georgia, 'Times New Roman', serif`;
+  fitText(g, label.from, cx, cy + 36, W * 0.44);
+  const mx = W * 0.14;
+  g.lineWidth = 3;
+  g.beginPath();
+  g.moveTo(mx, cy - 18);
+  g.lineTo(mx + 18, cy);
+  g.lineTo(mx, cy + 18);
+  g.lineTo(mx - 18, cy);
+  g.closePath();
+  g.stroke();
+  g.font = `bold 12px Georgia, 'Times New Roman', serif`;
+  g.fillText(label.mark, mx, cy + 1);
+  g.fillText(`${look.kg} KIL.`, mx, cy + 34);
+  g.restore();
+  const cy0 = H * 0.5;
+  // a little wear on the ink: specks of cloth through it (few: the words must read)
+  for (let i = 0; i < 40; i++) {
+    const x = W * 0.2 + r() * W * 0.72;
+    const y = cy0 - 26 + r() * 74;
+    g.fillStyle = `rgba(${base[0] | 0},${base[1] | 0},${base[2] | 0},${0.2 + r() * 0.25})`;
+    g.fillRect(x | 0, y | 0, 1 + ((r() * 2) | 0), 1);
   }
   return c;
 }
@@ -337,8 +362,9 @@ export function sackMaterial(label: SackLabel): THREE.Material {
   tex.name = "sack hessian";
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.magFilter = THREE.NearestFilter;
-  tex.minFilter = THREE.NearestFilter;
-  tex.generateMipmaps = false;
+  // (smaller pictures for far off: the stencil stays letters instead of flickering dots; up close as sharp as ever)
+  tex.minFilter = THREE.NearestMipmapLinearFilter;
+  tex.generateMipmaps = true;
   m = psx(new THREE.MeshLambertMaterial({ map: tex, color: 0xffffff }));
   m.name = "sack";
   mats.set(key, m);
