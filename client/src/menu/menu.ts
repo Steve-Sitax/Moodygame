@@ -461,7 +461,7 @@ function helpHtml(): string {
       <p>You are Jef, new in Antwerp with fifty centimes and a bed at the doss house. Walk to the Rijnkaai: the job board stands on the quay. Work, eat, keep warm, and pay your rent by Sunday.</p>
       <p>The paper map (${k("map")}) shows the town and where you are. Ask people: anyone in the street will talk.</p></section>
     <section><h3>The keys</h3>
-      <p>${k("forward")}${k("left")}${k("back")}${k("right")} walk, ${k("hurry")} hurry, ${k("crouch")} crouch, ${k("jump")} jump, the mouse to look.</p>
+      <p>${k("forward")}${k("left")}${k("back")}${k("right")} walk, ${k("hurry")} hurry, ${k("crouch")} crouch, ${k("jump")} jump (hold to climb onto or over a reachable obstacle), the mouse to look.</p>
       <p>${k("use")} does the first thing the hint on screen offers; ${k("second")}, ${k("third")} and ${k("fourth")} the others. ${k("pockets")} pockets, ${k("lantern")} lantern, ${k("pause")} pause, <kbd>Esc</kbd> this menu.</p>
       <p>In a talk: the digits pick an answer, ${k("talk")} lets you say your own words, ${k("buy")} buys, ${k("haggle")} haggles or says goodbye.</p></section>
     <section><h3>Jobs</h3>

@@ -60,6 +60,8 @@ import { landmarkDoorKeepOut } from "./doorKeep";
 import { tuning } from "../menu/tuning"; // menus: the view distance setting
 import { addPropObject } from "./propSpots";
 import { tempest } from "./tempest";
+import { findMantle, type MantlePoint } from "../../../shared/mantle";
+import { POND_LEVEL, POND_BED, nearPark, pondWater, pondFootprint, pondSwimFree, pondShoreDistance, pondBank, parkObstacleTop, parkObstacleCell } from "../../../shared/parkGeometry";
 
 // The Rijnkaai in the real 1873 city (world/city.ts). Water is at z < 0, the
 // quay edge runs along x (the world is turned 19 deg so it does). Quay top is
@@ -190,6 +192,7 @@ export interface World {
   move(x: number, z: number, dx: number, dz: number, radius: number, feet?: number, laden?: boolean): [number, number];
   /** May the player stand at (x, z) with his feet at `feet`? */
   standFree(x: number, z: number, radius: number, feet: number): boolean;
+  mantle(x:number,y:number,z:number,dx:number,dz:number,base:number):MantlePoint[]|null;
   /** Height of what you stand on at (x, z), given your feet height; far below the water over open water. */
   groundAt(x: number, z: number, radius: number, feet: number): number;
   /** Open water a swimmer of radius r fits in (not a wall, hull, pile or flight of steps). */
@@ -688,13 +691,17 @@ export function buildRijnkaai(): World {
   let waterNearAt = -1e9;
   const eyeAt = new THREE.Vector3();
   const eyeWas = new THREE.Vector3(1e9, 0, 1e9);
+  let pondMirror=false;
   const mirror = createMirror(WATER_Y, {
     name: "water",
+    everyFrame: () => pondMirror,
+    reach: () => pondMirror ? 110 : Infinity,
     enabled: (camera) => {
       // the culler asks without a camera: the last answer
       if (!camera) return waterNear;
       const now = performance.now();
       eyeAt.setFromMatrixPosition(camera.matrixWorld);
+      if(nearPark(eyeAt.x,eyeAt.z))return waterNear=true;
       if (now - waterNearAt < 500 && Math.abs(eyeAt.x - eyeWas.x) + Math.abs(eyeAt.z - eyeWas.z) < 6) return waterNear;
       waterNearAt = now;
       eyeWas.copy(eyeAt);
@@ -1259,6 +1266,7 @@ export function buildRijnkaai(): World {
         continue;
       }
       const f = city.flags(px, pz);
+      if(pondFootprint(px,pz)||pondBank(px,pz)!==null||parkObstacleCell(px,pz))continue;
       if (f !== undefined && (f & WALL) !== 0) return true;
     }
     return false;
@@ -1285,6 +1293,13 @@ export function buildRijnkaai(): World {
   // check keep to isWalkable/isFree above: water and steps are never a path)
   /** What the player may stand on here: a height, or null for open water or a wall. */
   const floorAt = (x: number, z: number, feet?: number): number | null => {
+    if(nearPark(x,z)) {
+      const bridge=parkBridgeHeight(x,z);
+      if(bridge!==null&&(feet===undefined||feet>=bridge-STEP))return bridge;
+      if(pondWater(x,z))return null;
+      const bank=pondBank(x,z);if(bank!==null)return bank;
+      if(parkObstacleCell(x,z))return 0;
+    }
     if (steps.heightAt(x, z) || isWalkable(x, z, feet)) return baseAt(x, z, feet);
     // the last half metre of stone that the coarse walk map counts as water: you fall at the true edge
     const f = city.flags(x, z);
@@ -1315,6 +1330,7 @@ export function buildRijnkaai(): World {
   }
   /** Open water by the walk map: not a wall, not beyond the map, not the lock (its gates and tows). */
   const openWater = (x: number, z: number) => {
+    if(pondWater(x,z))return true;
     {
       const ob = onOpening(x, z);
       if (ob && !ob.closed()) return false;
@@ -1334,6 +1350,11 @@ export function buildRijnkaai(): World {
     return false;
   };
   function swimFree(x: number, z: number, r: number): boolean {
+    if(pondFootprint(x,z)) {
+      if(!pondSwimFree(x,z,r))return false;
+      for(const c of waterDynamic)if(inRect(c,x,z,r))return false;
+      return true;
+    }
     if (!openWater(x, z) || wallWithin(x, z, r)) return false;
     for (let i = 0; i < 8; i++) {
       const a = (i * Math.PI) / 4;
@@ -1413,6 +1434,7 @@ export function buildRijnkaai(): World {
     return false;
   };
   const hits = (x: number, z: number, r: number, feet: number) => {
+    const parkTop=parkObstacleTop(x,z,r);if(parkTop!==null&&parkTop>feet+STEP)return true;
     if (areaHits(x, z, r, feet)) return true;
     const hit = (c: Rect) => inRect(c, x, z, r) && !inside?.has(c);
     // the grid cannot leave out the colliders Jef stands inside: then the plain loop
@@ -1458,7 +1480,8 @@ export function buildRijnkaai(): World {
     const up = raisedAt(x, z, feet);
     if (up) return up.y;
     const f = floorAt(x, z, feet);
-    let g = f ?? LW_MIN - 3;
+    let g = f ?? (pondFootprint(x,z)?POND_BED:LW_MIN - 3);
+    const parkTop=parkObstacleTop(x,z,r*.6);if(parkTop!==null&&parkTop<=feet+STEP)g=Math.max(g,parkTop);
     const consider = (c: Rect) => {
       if (!inRect(c, x, z, r * 0.6)) return;
       const top = c.surface ? c.surface.topAt(x, z, r * 0.6, feet + STEP) : c.top;
@@ -1580,9 +1603,47 @@ export function buildRijnkaai(): World {
 
   /** May the player stand at (x, z) with his feet at `feet`? (Climbing out of the water: a free spot at the top.) */
   const standFree = (x: number, z: number, r: number, feet: number) => {
-    const f = raisedAt(x, z, feet)?.y ?? floorAt(x, z, feet);
-    return f !== null && Math.abs(f - feet) <= STEP && walkFree(x, z, x, z, r, feet, false);
+    const f = groundAt(x,z,r,feet);
+    return Math.abs(f-feet)<=STEP && walkFree(x, z, x, z, r, feet, false);
   };
+
+  let mantleCeilings:ReturnType<typeof buildGroundProbe>|null=null;
+  function mantle(x:number,y:number,z:number,dx:number,dz:number,base:number):MantlePoint[]|null {
+    // Lazy, indexed geometry: queried only during a held climb attempt, never a scene raycast each frame.
+    const clear=(px:number,py:number,pz:number)=>{
+      if(hits(px,pz,.32,py)||wallNear(px,pz,.40,py)||moverAt(px,pz,.32))return false;
+      if(!mantleCeilings)mantleCeilings=buildGroundProbe(buildingRoots(scene),Infinity);
+      for(const [ox,oz] of [[0,0],[.25,0],[-.25,0],[0,.25],[0,-.25]]) {
+        const ceiling=mantleCeilings(px+ox,pz+oz,py+1.72);
+        if(ceiling!==null&&ceiling>py+.15)return false;
+      }
+      return true;
+    };
+    return findMantle({floor:(px,pz,top)=>groundAt(px,pz,.12,top-STEP),clear,
+      stand:(px,py,pz)=>{
+        // Both feet need support: a thin railing can be vaulted, never used as a platform.
+        for(const [ox,oz] of [[0,0],[.18,0],[-.18,0],[0,.18],[0,-.18]]) {
+          if(Math.abs(groundAt(px+ox,pz+oz,0,py)-py)>.12)return false;
+          if(parkObstacleTop(px+ox,pz+oz)!==null&&Math.abs((mantleCeilings?.(px+ox,pz+oz,py+.12)??-Infinity)-py)>.12)return false;
+        }
+        return standFree(px,pz,.32,py)&&clear(px,py,pz);
+      }}, {x,y,z},dx,dz,base);
+  }
+
+  function pondExit(x:number,z:number,reach:number):Exit|null {
+    if(!pondWater(x,z)||pondShoreDistance(x,z)>reach+.5)return null;
+    for(let d=.45;d<=reach+.5;d+=.2)for(let i=0;i<24;i++) {
+      const nx=Math.cos(i*Math.PI/12),nz=Math.sin(i*Math.PI/12),tx=x+nx*d,tz=z+nz*d;
+      if(pondWater(tx,tz)||parkBridgeHeight(tx,tz)!==null)continue;
+      const ty=groundAt(tx,tz,.32,0);
+      if(ty<-.30||ty>.35||!standFree(tx,tz,.32,ty))continue;
+      // No bank exit through rocks, fences, or the rampart beside the pond.
+      let clear=true;
+      for(let t=.15;t<d;t+=.15)if(hits(x+nx*t,z+nz*t,.28,.05)||wallNear(x+nx*t,z+nz*t,.28,0)){clear=false;break;}
+      if(clear)return {kind:"landing",gx:x,gz:z,nx:-nx,nz:-nz,tx,tz,ty};
+    }
+    return null;
+  }
 
   function swimMove(x: number, z: number, dx: number, dz: number, r: number): [number, number] {
     let nx = x + dx;
@@ -1594,6 +1655,7 @@ export function buildRijnkaai(): World {
 
   /** The water surface as drawn: the wave sampled on the sheet's 4 m grid, cut into the same triangles. */
   function waterLevel(x: number, z: number): number {
+    if(nearPark(x,z))return POND_LEVEL;
     const t = psxUniforms.uTime.value;
     const x0 = Math.floor(x / WATER_TILE) * WATER_TILE;
     const z0 = Math.floor(z / WATER_TILE) * WATER_TILE;
@@ -1609,6 +1671,7 @@ export function buildRijnkaai(): World {
 
   const onPierDeck = (x: number, z: number) => x > 5 && x < 9 && z > -12 && z < 0;
   const isWater = (x: number, z: number) => {
+    if(pondWater(x,z)&&parkBridgeHeight(x,z)===null)return true;
     {
       const ob = onOpening(x, z);
       if (ob) return !ob.closed();
@@ -1903,8 +1966,8 @@ export function buildRijnkaai(): World {
       const cz = camera.position.z;
       const inLock = cx > CHAMBER.minX - 6 && cx < CHAMBER.maxX + 6 && cz > CHAMBER.minZ - 4 && cz < CHAMBER.maxZ;
       const nearDock = cx > DOCK.minX - 25 && cx < DOCK.maxX + 25 && cz > DOCK.minZ - 10 && cz < DOCK.maxZ + 25;
-      const nearPark = cx > -370 && cx < -240 && cz > 270 && cz < 355;
-      mirror.setPlane(nearPark ? -0.35 : inLock ? tideWater.chamber : nearDock ? tideWater.dock : tideWater.river);
+      pondMirror=nearPark(cx,cz);
+      mirror.setPlane(pondMirror ? POND_LEVEL : inLock ? tideWater.chamber : nearDock ? tideWater.dock : tideWater.river);
     }
     psxUniforms.uTime.value = t;
     fogMix += (fogTarget - fogMix) * Math.min(1, dt * 0.4);
@@ -2076,7 +2139,8 @@ export function buildRijnkaai(): World {
     swimMove,
     nearestSwim,
     waterLevel,
-    exitNear: (x, z, reach) => steps.exitNear(x, z, reach),
+    exitNear: (x, z, reach) => pondExit(x,z,reach)??steps.exitNear(x, z, reach),
+    mantle,
     boatFree,
     addWaterSolid: (r) => waterDynamic.add(r),
     removeWaterSolid: (r) => waterDynamic.delete(r),

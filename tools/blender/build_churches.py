@@ -4057,7 +4057,7 @@ def park(g, city):
         if at_wall[j]:
             # no rim: the wall's face is the edge; under the water a stone face closes off the wall's foot
             a, b = PV[j], PV[j2]
-            g.face([(a.x, -1.0, a.y), (b.x, -1.0, b.y), (b.x, -0.62, b.y), (a.x, -0.62, a.y)], PSTONE, out=(-n_.x, 0, -n_.y),
+            g.face([(a.x, -2.75, a.y), (b.x, -2.75, b.y), (b.x, -0.62, b.y), (a.x, -0.62, a.y)], PSTONE, out=(-n_.x, 0, -n_.y),
                    shade=0.4)
             continue
         a, b, c, d = PV[j], PV[j2], outer[j2], outer[j]
@@ -4078,8 +4078,8 @@ def park(g, city):
         ya, yb = bank_y[j], bank_y[j2]
         g.face([(a.x, ya, a.y), (b.x, yb, b.y), (c.x, BANK_TOP, c.y)], BANK, out=(0, 1, 0), k=1.3)
         g.face([(a.x, ya, a.y), (c.x, BANK_TOP, c.y), (d.x, BANK_TOP, d.y)], BANK, out=(0, 1, 0), k=1.3)
-        g.face([(a.x, -1.0, a.y), (b.x, -1.0, b.y), (b.x, yb, b.y), (a.x, ya, a.y)], BANK, out=(-n_.x, 0, -n_.y), shade=0.4)
-    for y, mat, sh in ((-0.35, WATER, 0.95), (-1.0, PSTONE, 0.3)):
+        g.face([(a.x, -2.75, a.y), (b.x, -2.75, b.y), (b.x, yb, b.y), (a.x, ya, a.y)], BANK, out=(-n_.x, 0, -n_.y), shade=0.4)
+    for y, mat, sh in ((-0.35, WATER, 0.95), (-2.75, PSTONE, 0.3)):
         for j in range(npd):
             j2 = (j + 1) % npd
             a, b = PV[j], PV[j2]
@@ -4587,6 +4587,7 @@ def park(g, city):
         "water": [[round(x, 3), round(z, 3)] for x, z in pond],
         "water_wall": touch,
         "water_y": -0.35,
+        "bed_y": -2.75,
         "rim_y": BANK_TOP,
         "bridge": bridge,
         "island": island,

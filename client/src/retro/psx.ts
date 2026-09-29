@@ -1350,7 +1350,7 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
     shader.fragmentShader = fs;
   };
   // M7 rendering (world/cull.ts): how far the fog lets this material show, and water (waves reach over the sheet)
-  mat.userData.psx = { fogReach: opts.fogReach ?? 1, water: !!opts.water };
+  mat.userData.psx = { fogReach: opts.fogReach ?? 1, water: !!opts.water, waterCalm: !!opts.waterCalm };
   mat.customProgramCacheKey = () => `psx-${opts.water ? 2 : 0}${opts.waterCalm ? "-pond" : ""}-${opts.noSnap ? 1 : 0}-${opts.atlas ?? 0}-${opts.fogReach ?? 1}${opts.wet ? "-wet" : ""}${opts.puddles ? `-pud${opts.puddles}` : ""}${opts.relief ? `-rel${opts.relief.tile}${opts.relief.id ? `-id${opts.relief.holes ?? 0}` : ""}${opts.relief.reach ? `-r${opts.relief.reach}` : ""}` : ""}${opts.vary ? `-v${opts.vary}` : ""}${opts.detile ? "-dt" : ""}${opts.slabs ? `-slab${opts.slabs.tile}-${opts.slabs.yMax}` : ""}${opts.foot ? `-foot${opts.foot.amount}${opts.foot.vertexWear ? "w" : ""}` : ""}${opts.mottle ? `-mot${opts.mottle}` : ""}${opts.spill === false ? "-nosp" : ""}`;
   return mat;
 }

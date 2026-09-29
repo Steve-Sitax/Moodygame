@@ -235,7 +235,7 @@ export function kerbFront(probe: WallProbe, x: number, z: number, ox: number, oz
  * Only faces within 2.5 m of the street are kept. Null: no face there.
  */
 export type GroundProbe = (x: number, z: number, yTop: number) => number | null;
-export function buildGroundProbe(roots: THREE.Object3D[]): GroundProbe {
+export function buildGroundProbe(roots: THREE.Object3D[], maxHeight=2.5): GroundProbe {
   const tris: number[] = [];
   const v = new THREE.Vector3();
   const p: number[] = new Array(9);
@@ -257,7 +257,7 @@ export function buildGroundProbe(roots: THREE.Object3D[]): GroundProbe {
           p[k * 3 + 2] = v.z;
           low = Math.min(low, v.y);
         }
-        if (low > 2.5 || low < -1.5) continue;
+        if (low > maxHeight || low < -1.5) continue;
         const ax = p[3] - p[0], ay = p[4] - p[1], az = p[5] - p[2];
         const bx = p[6] - p[0], by = p[7] - p[1], bz = p[8] - p[2];
         const nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx;

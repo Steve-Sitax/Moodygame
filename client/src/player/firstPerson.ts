@@ -117,6 +117,9 @@ export class FirstPerson {
   hurrying = false;
   private vy = 0;
   private grounded = true;
+  private jumpHeld=false;
+  private jumpBase=0;
+  private mantleWait=0;
   private eye = EYE;
   onStep: (surface: Surface, hurry: boolean) => void = () => {};
   onLand?: (surface: Surface) => void;
@@ -257,8 +260,16 @@ export class FirstPerson {
     this.hurrying = hurry && len > 0;
     const speed = (hurry ? HURRY : WALK) * this.speedFactor * this.fatigue * (this.crouching ? 0.5 : 1);
 
-    // jump and fall
-    if (k("Space") && this.grounded && !this.laden && !this.crouching) {
+    // Tap to jump, keep holding to try a reachable ledge. Each jump starts only once per press.
+    const space=k("Space"),pressed=space&&!this.jumpHeld;this.jumpHeld=space;
+    if(this.grounded)this.jumpBase=this.y;
+    this.mantleWait=Math.max(0,this.mantleWait-dt);
+    if(space&&!this.laden&&!this.cartStep&&!this.crouching&&this.mantleWait===0) {
+      this.mantleWait=.18;
+      const route=this.world.mantle(this.x,this.y,this.z,-Math.sin(this.yaw),-Math.cos(this.yaw),this.jumpBase);
+      if(route){this.climbTo(route.map((p,i)=>[p.x,p.y,p.z,i===0?.35:i===1?.45:.28]),()=>{this.grounded=true;this.vy=0;this.mantleWait=.25;this.onLand?.(this.world.surfaceAt(this.x,this.z));});return;}
+    }
+    if (pressed && this.grounded && !this.laden && !this.cartStep && !this.crouching) {
       this.vy = JUMP_V;
       this.grounded = false;
     }
@@ -416,7 +427,7 @@ export class FirstPerson {
     const exit = this.world.exitNear(this.x, this.z, 1.2);
     if (exit) {
       const push = len > 0 && (wx * -exit.nx + wz * -exit.nz) / SWIM > 0.5;
-      if (push || k("KeyE")) return this.startClimb(exit);
+      if (push || k("KeyE") || k("Space")) return this.startClimb(exit);
     }
 
     const s = 1 - Math.exp(-dt * 22);

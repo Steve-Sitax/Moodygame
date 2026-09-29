@@ -7,6 +7,7 @@ export const PARK_CLEAN_PAY = 35;
 export interface ParkMess { id: number; x: number; z: number; owner: number|null; }
 export interface ParkShift { ids:number[]; cleaned:number[]; paid:boolean; ready:number; pending:number|null; }
 export interface ParkWorkState {
+  layoutVersion?: number;
   day:number; piles:ParkMess[]; next:number; shifts:Record<string,ParkShift>;
   dogs:Record<string,number>; fed:Record<string,number>; worker:{x:number;z:number};
 }

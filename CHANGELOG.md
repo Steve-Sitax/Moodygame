@@ -8,6 +8,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 ## [Unreleased]
 
 ### New in the game
+- Hold Space to climb onto reachable solid obstacles or vault over them when there is a clear landing. Tall walls, low ceilings and unsafe drops stop the climb.
 - The Dev menu has an optional NPC stress-test toggle and a 1–100× population slider. Normal population stays unchanged; Reset or reloading returns to normal.
 - The Stadspark has fuller autumn trees, hanging willows, a large old oak with squirrels and perching birds, more shrubs and flowers, and reflections in its pond.
 - Ducks, geese and swans swim, graze, feed and fly to other water. Squirrels forage, stop to eat and climb; animals seek shelter, cats stalk unguarded prey, and mothers protect their young.
@@ -26,6 +27,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - The lower parts of the cathedral's aisle windows, behind the houses built against it, are walled up instead of painted ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
 
 ### Fixed
+- Stadspark droppings are scattered over reachable ground, including existing saves; piles reserved for a cleanup job stay put. Pond reflections update every frame and remain visible from all banks. The pond is deeper and you can swim through it, under the bridge, and climb onto its banks ([#34](https://github.com/Steve-Sitax/Moodygame/issues/34)).
 - Carts, horses and omnibuses have more room beside the Eilandje lock, the Vliet post and the Vleeshuis steps. Employers keep out of bus lanes, and buses check obstructions throughout their routes ([#31](https://github.com/Steve-Sitax/Moodygame/issues/31)).
 - Dock workers keep their spacing on shared rounds when a change to the streets alters their journey to work.
 - House doors, their transom trim and window bars show their plank grain in daylight instead of looking nearly black ([#30](https://github.com/Steve-Sitax/Moodygame/issues/30)).

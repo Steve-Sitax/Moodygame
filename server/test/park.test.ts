@@ -14,6 +14,24 @@ const habitat=JSON.parse(readFileSync(new URL('../../client/public/models/park_p
 const fair:ParkEnvironment={hour:13,rain:0,storm:0,people:[],dogs:[],cats:[],boats:[],food:[]};
 
 describe("Stadspark work is engine-owned",()=>{
+  it("scatters daily piles across the park, persists them, and preserves claimed work during migration",()=>{
+    const db=setup();try {
+      const first=parkWork(db);expect(first.piles).toHaveLength(28);
+      expect(parkWork(db).piles).toEqual(first.piles);
+      expect(Math.max(...first.piles.map(p=>p.x))-Math.min(...first.piles.map(p=>p.x))).toBeGreaterThan(45);
+      expect(Math.max(...first.piles.map(p=>p.z))-Math.min(...first.piles.map(p=>p.z))).toBeGreaterThan(35);
+      expect(first.piles.every(p=>walkMap().reachable(p.x,p.z))).toBe(true);
+      parkAction(db,"take",{at:PARK_KEEPER});const before=parkWork(db);
+      const raw=db.prepare("SELECT value_json FROM world_state WHERE key='stadspark-work-v1'").get() as {value_json:string};
+      const old=JSON.parse(raw.value_json);delete old.layoutVersion;
+      for(const p of old.piles)if(p.owner===null){p.x=-300;p.z=300;}
+      db.prepare("UPDATE world_state SET value_json=? WHERE key='stadspark-work-v1'").run(JSON.stringify(old));
+      const migrated=parkWork(db);
+      expect(migrated.piles.filter(p=>p.owner===1)).toEqual(before.piles.filter(p=>p.owner===1));
+      expect(migrated.shift).toEqual(before.shift);
+      db.prepare("UPDATE player SET day=3 WHERE id=1").run();expect(parkWork(db).piles).not.toEqual(first.piles);
+    }finally{db.close();}
+  });
   it("reserves ten reachable piles, checks scooping, pays exactly once, and survives re-reading",()=>{
     const db=setup();
     try {

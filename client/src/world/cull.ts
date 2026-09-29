@@ -729,7 +729,8 @@ export class Culler {
       if (said !== undefined && normal) reach = Math.max(reach, said);
       else if (!fogged || !normal || (m as THREE.ShaderMaterial).isShaderMaterial) reach = Infinity;
       else reach = Math.max(reach, (m.userData?.psx?.fogReach as number | undefined) ?? 1);
-      if (m.userData?.psx?.water) water = true;
+      // The pond is above the tidal water and absent from the city's river visibility mask.
+      if (m.userData?.psx?.water && !m.userData?.psx?.waterCalm) water = true;
       if (!m.userData?.psx) plain = true;
     }
     i = { mat, reach, exempt, water, plain };

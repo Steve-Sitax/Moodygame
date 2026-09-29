@@ -8,6 +8,7 @@ import { pid, positionOf } from "../player/current.ts";
 import { resident, dropTownCache } from "./store.ts";
 import { tidy } from "./population.ts";
 import type { Resident } from "./population.ts";
+import { inPolygon } from "../../../shared/parkGeometry.ts";
 import { walkMap } from "./walkmap.ts";
 
 const KEY="stadspark-work-v1";
@@ -15,17 +16,34 @@ const distance=(a:{x:number;z:number},b:{x:number;z:number})=>Math.hypot(a.x-b.x
 const inPark=(p:{x:number;z:number})=>p.x>-355&&p.x< -248&&p.z>277&&p.z<342;
 const open=(db:DB)=> {const c=clock(db);return c.hour>=7&&c.hour<18&&weather(db)!=="storm";};
 function save(db:DB,s:ParkWorkState) {db.prepare("INSERT INTO world_state(key,value_json) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json").run(KEY,JSON.stringify(s));}
+/** Scatter across reachable ground, persisted once. Never move a player's reserved piles. */
+function scatter(s:ParkWorkState) {
+  let seed=(s.day*2654435761+1873)>>>0;
+  const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
+  const fixed=s.piles.filter(p=>p.owner!==null),moving=s.piles.filter(p=>p.owner===null);
+  const placed=[...fixed];
+  for(const p of moving) {
+    for(let i=0;i<2500;i++) {
+      const x=-354+random()*104,z=279+random()*62;
+      const outline=(CITY as unknown as {decor:{park:{outline:number[][]}}}).decor.park.outline;
+      if(!inPark({x,z})||!inPolygon(x,z,outline)||!walkMap().open(x,z,.45)||!walkMap().reachable(x,z)||placed.some(q=>distance(q,{x,z})<1.4))continue;
+      p.x=x;p.z=z;break;
+    }
+    placed.push(p);
+  }
+  s.layoutVersion=2;
+}
 function read(db:DB):ParkWorkState {
   const day=clock(db).day;
   const row=db.prepare("SELECT value_json FROM world_state WHERE key=?").get(KEY) as {value_json:string}|undefined;
-  if(row) {const s=JSON.parse(row.value_json) as ParkWorkState;if(s.day===day)return s;}
+  if(row) {const s=JSON.parse(row.value_json) as ParkWorkState;if(s.day===day){if(s.layoutVersion!==2){scatter(s);save(db,s);}return s;}}
   const s:ParkWorkState={day,piles:[],next:0,shifts:{},dogs:{},fed:{},worker:{...PARK_KEEPER}};
   const lines=(CITY as unknown as {decor:{park:{lines:Array<{pts:number[][]}>}}}).decor.park.lines;
   for(const line of lines)for(const [x,z] of line.pts) {
     if(s.piles.length>=28)break;
     if(inPark({x,z})&&walkMap().open(x,z,.4)&&s.piles.every(p=>distance(p,{x,z})>2.4))s.piles.push({id:s.next++,x,z,owner:null});
   }
-  save(db,s);return s;
+  scatter(s);save(db,s);return s;
 }
 function checkAt(at:unknown,near?:{x:number;z:number},reach=2.6, player=true):{x:number;z:number} {
   const p=at as {x:number;z:number};

@@ -43,14 +43,14 @@ export interface MirrorOptions {
    * Drawn every frame it is seen, outside the mirrors' budget, as big as before and with no margin (Steve,
    * 2026-09-28: the puddles at his feet showed an older picture lagging behind; the river's far water does not).
    */
-  everyFrame?: boolean;
+  everyFrame?: boolean | (() => boolean);
   /** Its own smallest thing, in pixels of its picture across (default mirrorBudget.minPx). */
   minPx?: number;
   /**
    * Things further than this (m) from its mirrored eye are left out by the culler (world/cull.ts). Its `far` alone
    * does not do it: the oblique near plane on the mirror's plane tilts the far plane away too.
    */
-  reach?: number;
+  reach?: number | (() => number);
 }
 
 /**
@@ -198,11 +198,12 @@ const offColour = new THREE.Color();
 export const neverMirrored: THREE.Object3D[] = [];
 
 export function createMirror(plane0: number, opts: MirrorOptions = {}): Mirror {
+  const everyFrame = () => typeof opts.everyFrame === "function" ? opts.everyFrame() : !!opts.everyFrame;
   let planeY = plane0;
   const baseW = opts.width ?? 320;
   const baseH = opts.height ?? 180;
   // (drawn with a margin round the view: that much bigger, so its pixels stay as fine; mirrorBudget)
-  const grow = opts.everyFrame ? 1 : mirrorBudget.grow;
+  const grow = opts.everyFrame === true ? 1 : mirrorBudget.grow;
   const rt = new THREE.WebGLRenderTarget(Math.round(baseW * mirrorScale * mirrorQuality * grow), Math.round(baseH * mirrorScale * mirrorQuality * grow), {
     magFilter: THREE.NearestFilter,
     minFilter: THREE.NearestFilter,
@@ -228,10 +229,10 @@ export function createMirror(plane0: number, opts: MirrorOptions = {}): Mirror {
       return (2 * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2))) / rt.height;
     },
     get reach() {
-      return mirrorBudget.reachOn ? (opts.reach ?? Infinity) : Infinity;
+      return mirrorBudget.reachOn ? (typeof opts.reach === "function" ? opts.reach() : opts.reach ?? Infinity) : Infinity;
     },
     get minPx() {
-      return opts.minPx ?? (opts.everyFrame ? mirrorBudget.everyMinPx : mirrorBudget.minPx);
+      return opts.minPx ?? (everyFrame() ? mirrorBudget.everyMinPx : mirrorBudget.minPx);
     },
     // (the great storm, uSea past 5.6: the water and the puddles mirror nothing (retro/psx.ts): no second drawing of the town)
     willRender: (eye) => !mirrorsOff && psxUniforms.uSea.value < 5.6 && (!opts.enabled || opts.enabled()) && eye.y > planeY + 0.02,
@@ -322,7 +323,7 @@ export function createMirror(plane0: number, opts: MirrorOptions = {}): Mirror {
     {
       const vh = THREE.MathUtils.degToRad(camera.fov / 2);
       const hh = Math.atan(Math.tan(vh) * camera.aspect);
-      const m = decided && !opts.everyFrame ? mirrorBudget.margin : 0;
+      const m = decided && !everyFrame() ? mirrorBudget.margin : 0;
       cam.fov = THREE.MathUtils.radToDeg(2 * Math.min(1.45, vh + m));
       cam.aspect = Math.tan(Math.min(1.45, hh + m)) / Math.tan(Math.min(1.45, vh + m));
     }
@@ -375,7 +376,7 @@ export function createMirror(plane0: number, opts: MirrorOptions = {}): Mirror {
       if (!surfaces.some((o) => shown(o) && !hid?.(o) && (o.frustumCulled === false || view.intersectsObject(o)))) return 0;
       if (opts.enabled && !opts.enabled(camera)) return 0;
       if (mirrorsOff || !mirrorTurns.on) return MUST;
-      if (opts.everyFrame && mirrorBudget.everyFrame) return FREE;
+      if (everyFrame() && mirrorBudget.everyFrame) return FREE;
       eye.setFromMatrixPosition(camera.matrixWorld);
       if (eye.y <= planeY + 0.02) return 0;
       const age = mirrorFrame - lastFrame;

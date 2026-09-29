@@ -5,6 +5,16 @@ The coordinating Claude session keeps this file current: a line when a helper st
 patch goes live (with its commit), and when Steve decides something. Newest first in each part.
 Git history has the detail of each commit.
 
+## Stadspark traversal follow-up, 2026-09-29
+
+`codex/park-traversal` fixes [issue 34](https://github.com/Steve-Sitax/Moodygame/issues/34): persisted daily random droppings, preserving claimed work; each-frame pond reflections with the correct local water visibility; a 2.4 m deep pond, bank entry/exit and swimming beneath the bridge. Hold Space repeatedly tries a checked climb or vault up to 1.65 m above the takeoff ground. Clearance, headroom, support and safe landing checks refuse impossible climbs. Controls explain holding Space.
+
+Validation: game build, 98 test files / 1,375 tests, then 16 focused tests including two new park-geometry checks; rebuilt churches model and clean park placement check. Browser exercised actual held-Space railing vault, solid obstacle ascent, water entry, bridge crossing and bank exit. North/south/east/west pond pictures inspected and shared. Shader problems and path problems both empty. Reflection counter advanced 30 times over 30 rendered frames. Only the park bed within churches.glb changed; runtime and demo use this one asset, with matching Blender builder and park metadata.
+
+Performance remains deferred to the separate session and [issue 32](https://github.com/Steve-Sitax/Moodygame/issues/32). Local report `data/perf/park-traversal.json`: 90 synchronously rendered walking/turning frames with GPU readback (live RAF yielded no samples in this preview). Park 24.71/26.38 ms; Grote Markt 31.07/29.20; cathedral 27.74/27.83; Handschoenmarkt 27.25/27.65; Vismarkt 27.59/32.20; Rijnkaai 28.50/31.04. The 16.7 ms budget check fails; these are frame-work samples, not a claim of achieved live fps. No appearance-preserving rendering optimisation claimed: changing pond reflections is the requested visual correction.
+
+Swimming, climbing and reflection changes also work in the web demo. The persisted cleanup job still requires the full game server.
+
 ## Stadspark branch, 2026-09-29
 
 Merged into main at Steve's request after `45309c0`. The only conflict was the changelog; both the vehicle/NPC stress entries and the park entries were retained. The combined game build and 36 park/scheduling tests pass. Performance remains explicitly deferred to his separate session.
