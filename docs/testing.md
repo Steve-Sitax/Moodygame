@@ -52,6 +52,9 @@ One call may take at most about 15 s in the preview tool, so `t.run()` does 30 r
 15 game minutes. `t.run` and `t.until` run the client only; the server's clock ticks on in real time (5
 game minutes every 10 s) while the game plays. To move an event through its stages, use `t.skip(min)`: it
 jumps the server's clock on and ticks once, and the stages it passes are played.
+`t.run` steps the world with Jef's camera, as a frame does (issue #8): the lit windows, the wet, the rain and the
+puddles follow the clock in a hidden tab too (`world.ambient.info().hour`, `spillInfo().lit`; checked 2026-09-29 in a
+hidden preview tab: `light(20, "rain")`, `run(20)`: hour 20, rain 1.0, lit 32 -> 87).
 
 ## The kit (`__scheldemist.t`)
 | Call | What it does |
