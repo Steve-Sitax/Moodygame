@@ -1092,11 +1092,24 @@ class Hole:
         self.shape, self.cell, self.depth, self.rmat, self.k, self.sill = shape, cell, depth, rmat, k, sill
         # issue #10: a real opening (a hall behind it): its human label, window or door, its lights, stained colour
         self.real, self.kind, self.lights, self.colour = None, "window", 1, False
+        # issue #28: the part of the church behind it (ZONES), and whether the shell hangs iron bars in it
+        self.zone, self.iron = "hall", True
 
 
-def real(h, label, kind="window", lights=1, colour=False):
-    """Mark a hole as a real opening of the hall behind it (issue #10)."""
-    h.real, h.kind, h.lights, h.colour = label, kind, lights, colour
+# Issue #28: the parts of a church behind its real openings. "hall": the church the halls build (world/gothicHall.ts,
+# carolusHall.ts); "tower": towers, belfries, lanterns, stair towers, the ridge turret; "attic": the roof spaces;
+# "annex": the rooms of the buildings round the church (convents, the Jesuit house, sacristies, the baptistery, the
+# Lady Chapel range's rooms). A window of any part but the hall puts its old pane in "church_<id>_lit_glass_x" (the
+# hall's glass by day, no candlelight at night: world/churches.ts churchGlass) and is seen only from the street.
+ZONES = ("hall", "tower", "attic", "annex")
+
+
+def real(h, label, kind="window", lights=1, colour=False, zone="hall"):
+    """Mark a hole as a real opening of the hall behind it (issue #10), or of another part of the church (#28)."""
+    assert zone in ZONES
+    h.real, h.kind, h.lights, h.colour, h.zone = label, kind, lights, colour, zone
+    if h.cell == "hwin":
+        h.iron = False  # a house's sash window: its bars are the painted sash's
     return h
 
 
@@ -1110,9 +1123,29 @@ def real_opening(W, h, outline):
     """Record a real opening of a wall W (outline (u, y) where the reveal ends, from the bottom left)."""
     um = (h.u0 + h.u1) / 2
     x, _, z = W.pt(um, 0.0)
-    OPENINGS.append(dict(church=CHURCH_OF[W.g.grp], part=W.g.grp, kind=h.kind, label=h.real, glaze="lead" if h.kind == "window" else "", shape="rect",
-                         x=x, z=z, tx=W.t.x, tz=W.t.y, nx=W.n.x, nz=W.n.y, hw=(h.u1 - h.u0) / 2, yb=h.yb, yt=max(y for _, y in outline),
-                         arch=False, depth=h.depth, poly=[(u - um, y) for u, y in outline], lights=h.lights, colour=h.colour))
+    rec = dict(church=CHURCH_OF[W.g.grp], part=W.g.grp, kind=h.kind, label=h.real,
+               glaze=("sash" if not h.iron else "" if h.cell == "open" else "lead") if h.kind == "window" else "", shape="rect",
+               x=x, z=z, tx=W.t.x, tz=W.t.y, nx=W.n.x, nz=W.n.y, hw=(h.u1 - h.u0) / 2, yb=h.yb, yt=max(y for _, y in outline),
+               arch=False, depth=h.depth, poly=[(u - um, y) for u, y in outline], lights=h.lights, colour=h.colour, zone=h.zone)
+    if h.shape == "circle":
+        # (issue #28: a round window, an oculus or a rose: its radius round its middle)
+        rec.update(shape="round", r=(h.u1 - h.u0) / 2, cy=(h.yb + h.yt) / 2)
+    OPENINGS.append(rec)
+
+
+# ---- issue #28: the spaces behind the openings of the parts that are not the hall. Each is written to
+# shared/churchesShell.ts (SHELL_SPACES) in the world's frame, from the same numbers as its shell: its outline (the outer
+# faces' line, world x, z, round its edge in order), its floor and top (world y), which of its edges the room lines
+# (`lined`: 1 its own wall, lined inside; 0 a face of the church or nothing: left as it is), what it holds (`kind`) and
+# numbers of its own (`n`). The halls build them (world/churchSpaces.ts).
+SPACES = []
+
+
+def space(g, sid, kind, zone, label, poly, y0, y1, lined=None, **n):
+    assert zone in ZONES
+    pts = [(float(p[0]), float(p[1])) for p in poly]
+    SPACES.append(dict(id=sid, church=CHURCH_OF[g.grp], kind=kind, zone=zone, label=label, poly=pts, y0=float(y0), y1=float(y1),
+                       lined=list(lined) if lined is not None else [1] * len(pts), n={k: float(v) for k, v in n.items()}))
 
 
 def glazing(W, h, ys):
@@ -1149,9 +1182,9 @@ def opening_markers():
         ob = bpy.data.objects.new("opening_" + o["id"], None)
         ob.empty_display_size = max(0.2, o["hw"])
         ob.location = B((o["x"], (o["yb"] + o["yt"]) / 2, o["z"]))
-        for k in ("kind", "label", "glaze", "shape", "church", "part"):
+        for k in ("kind", "label", "glaze", "shape", "church", "part", "zone"):
             ob[k] = str(o[k])
-        for k in ("hw", "yb", "yt", "nx", "nz", "tx", "tz", "depth"):
+        for k in ("hw", "yb", "yt", "nx", "nz", "tx", "tz", "depth") + (("r", "cy") if "r" in o else ()):
             ob[k] = float(o[k])
         ob["arch"] = 0
         bpy.context.scene.collection.objects.link(ob)
@@ -1162,20 +1195,50 @@ def opening_markers():
         "// frame (the halls move them into theirs: shellOpening.ts inFrame). x, z: its middle on the wall's outer face; (tx, tz)",
         "// along it, (nx, nz) out of it; poly its outline where the reveal ends (u along from the middle, world y); depth the",
         "// reveal's depth into the wall. church: whose; lights: its lights (mullions + 1); colour: stained glass in colours.",
+        "// zone (issue #28): the part of the church behind it: the hall, a tower, an attic or an annex (SHELL_SPACES).",
         "",
         'import type { ShellOpening } from "./shellOpening.js";',
         "",
-        'export type ChurchOpening = ShellOpening & { church: "carolus" | "stpaul" | "stjacob"; lights: number; colour: boolean };',
+        'export type ChurchZone = "hall" | "tower" | "attic" | "annex";',
+        "",
+        'export type ChurchOpening = ShellOpening & { church: "carolus" | "stpaul" | "stjacob"; lights: number; colour: boolean; zone: ChurchZone };',
+        "",
+        "/**",
+        " * Issue #28: a space of a church behind real openings that is not its hall (a belfry, an attic, a convent's wing):",
+        " * poly its outer faces' line (world x, z, round its edge in order); y0 its floor, y1 its top (world y); lined: per",
+        " * edge (poly[i] to poly[i + 1]) 1 where the room lines its own wall, 0 where a face of the church stands (left as it",
+        " * is); kind: what it holds; n: its own numbers (reveal depth, storeys, eave and ridge ...).",
+        " */",
+        "export interface ChurchSpace {",
+        "  id: string;",
+        '  church: "carolus" | "stpaul" | "stjacob";',
+        "  kind: string;",
+        "  zone: ChurchZone;",
+        "  label: string;",
+        "  poly: Array<[number, number]>;",
+        "  y0: number;",
+        "  y1: number;",
+        "  lined: number[];",
+        "  n: Record<string, number>;",
+        "}",
         "",
         "export const SHELL_OPENINGS: ChurchOpening[] = [",
     ]
     for o in OPENINGS:
         parts_ = []
-        for k in ("id", "church", "kind", "part", "label", "glaze", "shape", "x", "z", "tx", "tz", "nx", "nz", "hw", "yb", "yt", "arch", "depth", "lights", "colour"):
+        keys = ("id", "church", "kind", "part", "label", "glaze", "shape", "x", "z", "tx", "tz", "nx", "nz", "hw", "yb", "yt", "arch", "depth", "lights",
+                "colour", "zone") + (("r", "cy") if "r" in o else ())
+        for k in keys:
             v = o[k]
             parts_.append(f"{k}: {json.dumps(v) if isinstance(v, (str, bool)) else f3(float(v))}")
         parts_.append("poly: [" + ", ".join(f"[{f3(u)}, {f3(y)}]" for u, y in o["poly"]) + "]")
         lines.append("  { " + ", ".join(parts_) + " },")
+    lines += ["];", "", "export const SHELL_SPACES: ChurchSpace[] = ["]
+    for s_ in SPACES:
+        nn = ", ".join(f"{k}: {f3(v)}" for k, v in s_["n"].items())
+        lines.append(f"  {{ id: {json.dumps(s_['id'])}, church: {json.dumps(s_['church'])}, kind: {json.dumps(s_['kind'])}, zone: {json.dumps(s_['zone'])}, "
+                     f"label: {json.dumps(s_['label'])}, poly: [" + ", ".join(f"[{f3(x)}, {f3(z)}]" for x, z in s_["poly"]) + "], "
+                     f"y0: {f3(s_['y0'])}, y1: {f3(s_['y1'])}, lined: [{', '.join(str(int(v)) for v in s_['lined'])}], n: {{ {nn} }} }},")
     lines += ["];", ""]
     with open(SHELL_TS, "w", newline="\n") as f:
         f.write("\n".join(lines))
@@ -1283,7 +1346,19 @@ class Wall:
         hh = head_h(h.shape, w)
         ys = h.yt - hh
         g = self.g
-        if h.shape == "rect":
+        if h.shape == "circle":
+            # issue #28: a round window (an oculus, a rose): its box's four corners closed round the circle
+            r, yc, n = w / 2, (h.yb + h.yt) / 2, 16
+            # (from the bottom, up the right side, over the top and down the left, as the other outlines go)
+            outline = [(um + r * math.cos(-math.pi / 2 + 2 * math.pi * i / n), yc + r * math.sin(-math.pi / 2 + 2 * math.pi * i / n)) for i in range(n)]
+            for q in range(4):
+                a0 = -math.pi / 2 + q * math.pi / 2
+                arcq = [(um + r * math.cos(a0 + math.pi / 2 * j / 4), yc + r * math.sin(a0 + math.pi / 2 * j / 4)) for j in range(5)]
+                cu, cy_ = um + r * (1 if q in (0, 1) else -1), yc + r * (1 if q in (1, 2) else -1)
+                g.face([self.pt(cu, cy_)] + [self.pt(u, y) for u, y in arcq], self.mat, out=self.out(), k=self.k)
+            arc = None
+            ys = h.yt
+        elif h.shape == "rect":
             outline = [(h.u0, h.yb), (h.u1, h.yb), (h.u1, h.yt), (h.u0, h.yt)]
             arc = None
         else:
@@ -1314,13 +1389,24 @@ class Wall:
         cell = h.cell or "dark"
         if h.real:
             real_opening(self, h, outline)
-        if cell == "open":  # a real opening (the Carolus's main door: the hall behind it, the leaves hung in the game)
+        # a real opening with nothing in it: the Carolus's main door (the hall behind it, the leaves hung in the game), a
+        # belfry's or a lantern's sound opening (issue #28: its louvres are the belfry's timber, world/churchSpaces.ts)
+        if cell == "open":
             return
-        # issue #10: a real window's pane goes to its church's lit glass (never drawn by the street: the hall's glass)
+        # issue #10: a real window's pane goes to its church's lit glass (never drawn by the street: the hall's glass); a
+        # window of a tower, an attic or an annex to the lit glass of those (#28). (A pane from the Carolus front's own
+        # atlas takes the church atlas's plain window: the lit glass has that picture.)
+        if h.real and cell not in CELL:
+            cell = "hwin"
         mat = ALIT if h.real else cell_mat(cell)
         grp = g.grp
         if h.real:
-            g.grp = grp + "_lit_glass"
+            g.grp = grp + ("_lit_glass" if h.zone == "hall" else "_lit_glass_x")
+        if h.shape == "circle":
+            uvs = [cell_uv(cell, self.fu(u, h.u0, w), (y - h.yb) / (h.yt - h.yb)) for u, y in outline]
+            g.face([self.pt(u, y, h.depth) for u, y in outline], mat, out=self.out(), uvs=uvs, k=self.k * h.k)
+            g.grp = grp
+            return
         part_b = "body" if h.shape != "rect" else "all"
         if ys - h.yb > 1e-4:
             body = [(h.u0, h.yb), (h.u1, h.yb), (h.u1, ys), (h.u0, ys)]
@@ -1330,7 +1416,7 @@ class Wall:
             uvs = [cell_uv(cell, self.fu(u, h.u0, w), (y - ys) / hh, "head") for u, y in arc]
             g.face([self.pt(u, y, h.depth) for u, y in arc], mat, out=self.out(), uvs=uvs, k=self.k * h.k)
         g.grp = grp
-        if h.real:
+        if h.real and h.iron:
             glazing(self, h, ys if arc else None)
 
 
@@ -1377,6 +1463,15 @@ def clock_markers():
         ob["nx"], ob["ny"], ob["nz"] = float(out[0]), float(out[1]), float(out[2])
         bpy.context.scene.collection.objects.link(ob)
     return len(CLOCK_MARKS)
+
+
+def oculus_ring(g, W, uc, yc, r, band, d_front, mat, n=16, k=1.0):
+    """A moulded stone ring round a round window (issue #28), proud of the wall W by -d_front."""
+    for i in range(n):
+        a0, a1 = -math.pi / 2 + 2 * math.pi * i / n, -math.pi / 2 + 2 * math.pi * (i + 1) / n
+        poly = [(uc + r * math.cos(a0), yc + r * math.sin(a0)), (uc + (r + band) * math.cos(a0), yc + (r + band) * math.sin(a0)),
+                (uc + (r + band) * math.cos(a1), yc + (r + band) * math.sin(a1)), (uc + r * math.cos(a1), yc + r * math.sin(a1))]
+        extrude(g, W, poly, d_front, 0.0, mat, skip_edges=(0, 2), k=k)
 
 
 def disc(g, W, uc, yc, r, cell, d_front=-0.2, d_back=0.05, sides=16, side_mat=STONE, k=1.0, crop=1.0):
@@ -1633,23 +1728,27 @@ def box(g, F, a0, a1, s0, s1, y0, y1, mat, skip=(), k=1.0, top_mat=None, bands=(
 
 
 def gable_roof(g, F, a0, a1, s0, s1, ye, yr, mat=SLATE, t=0.22, oe=(0.45, 0.45), og=(0.35, 0.35), caps=(True, True, True, True),
-               shade=0.92):
+               shade=0.92, cutouts=()):
     """A pitched roof, ridge along a. Its underside passes through the wall tops (s0, ye), (s1, ye).
-    caps: fascia at the s0 eave, at the s1 eave, the verge end at a0, at a1."""
+    caps: fascia at the s0 eave, at the s1 eave, the verge end at a0, at a1. cutouts: (a0, a1, s0, s1) boxes left open
+    (issue #28: behind a dormer's window, so it shows the attic)."""
     smid = (s0 + s1) / 2
     half = (s1 - s0) / 2
     m = (yr - ye) / half
     A0, A1 = a0 - og[0], a1 + og[1]
     na = max(1, math.ceil((A1 - A0) / SEG - 1e-9))
+    abreaks = sorted({A0 + (A1 - A0) * i / na for i in range(na + 1)} | {v for c_ in cutouts for v in c_[:2] if A0 < v < A1})
     E = [(s0 - oe[0], ye - oe[0] * m, -1), (s1 + oe[1], ye - oe[1] * m, 1)]
     for side, (es, ey, sg) in enumerate(E):
         ns = max(1, math.ceil(math.hypot(smid - es, yr - ey) / SEG - 1e-9))
-        for i in range(na):
-            aa, ab = A0 + (A1 - A0) * i / na, A0 + (A1 - A0) * (i + 1) / na
-            for j in range(ns):
-                f0, f1 = j / ns, (j + 1) / ns
+        fbreaks = sorted({j / ns for j in range(ns + 1)} | {(v - es) / (smid - es) for c_ in cutouts for v in c_[2:] if 0 < (v - es) / (smid - es) < 1})
+        for aa, ab in zip(abreaks, abreaks[1:]):
+            for f0, f1 in zip(fbreaks, fbreaks[1:]):
                 sa, sb = es + (smid - es) * f0, es + (smid - es) * f1
                 ya, yb = ey + (yr - ey) * f0, ey + (yr - ey) * f1
+                am_, sm_ = (aa + ab) / 2, (sa + sb) / 2
+                if any(c_[0] < am_ < c_[1] and min(c_[2:]) < sm_ < max(c_[2:]) for c_ in cutouts):
+                    continue
                 g.face([F.p(aa, sa, ya + t), F.p(ab, sa, ya + t), F.p(ab, sb, yb + t), F.p(aa, sb, yb + t)], mat,
                        out=F.v(0, sg * m, 1.0), shade=shade)
                 g.face([F.p(aa, sa, ya), F.p(ab, sa, ya), F.p(ab, sb, yb), F.p(aa, sb, yb)], mat, out=F.v(0, -sg * m, -1.0),
@@ -2231,13 +2330,16 @@ def downpipe(g, p, y_top, outv, off=0.16):
     bar(g, (x, 0.02, z), (x + outv[0] * 0.25, 0.14, z + outv[1] * 0.25), 0.13, IRON, shade=0.8)
 
 
-def dormer(g, F, a, s_face, sg, y0, w=1.0, h=1.5, back=1.6, mat=SAND, cell="louv_r", shape="round"):
+def dormer(g, F, a, s_face, sg, y0, w=1.0, h=1.5, back=1.6, mat=SAND, cell="louv_r", shape="round", label=None, zone="attic"):
     """A small dormer on a roof slope that rises away from s_face in the -sg direction (sg = the way out):
-    its front at s_face, its cheeks going back into the roof, a little gabled lead roof."""
+    its front at s_face, its cheeks going back into the roof, a little gabled lead roof. With a label its window is real
+    (issue #28): the attic behind it."""
     s_back = s_face - sg * back
     s0_, s1_ = sorted((s_face, s_back))
-    W = wall(g, F, (a - w / 2 - 0.12, s_face), (a + w / 2 + 0.12, s_face), (0, sg), y0, y0 + h, mat,
-             holes=[Hc(w / 2 + 0.12, w * 0.62, y0 + 0.25, y0 + h - 0.15, shape, cell, depth=0.12, rmat=mat)])
+    hole = Hc(w / 2 + 0.12, w * 0.62, y0 + 0.25, y0 + h - 0.15, shape, cell, depth=0.12, rmat=mat)
+    if label:
+        real(hole, label, zone=zone)
+    W = wall(g, F, (a - w / 2 - 0.12, s_face), (a + w / 2 + 0.12, s_face), (0, sg), y0, y0 + h, mat, holes=[hole])
     for sa in (-1, 1):
         wall(g, F, (a + sa * (w / 2 + 0.12), s_face), (a + sa * (w / 2 + 0.12), s_back), (sa, 0), y0 - 0.9, y0 + h, mat, k=0.85)
     gable_roof(g, F.rot(), s0_, s1_, a - w / 2 - 0.12, a + w / 2 + 0.12, y0 + h, y0 + h + 0.55, mat=LEAD, t=0.08, oe=(0.12, 0.12),
@@ -2334,10 +2436,13 @@ def carolus_sides(g, F, c, D, S, AC, TA0, HE, HR, CE, CR, SE):
     top_y = T3 + 1.0
     for fi, (A, Bq, out) in enumerate(faces):
         L_ = math.hypot(*(Vector(F.P(*Bq)) - Vector(F.P(*A))))
-        holes = [Hc(L_ / 2, 1.6, T2 + 1.9, T2 + 6.6, "round", "louv_r", depth=0.5),
-                 Hc(L_ / 2, 1.0, T1 + 2.4, T1 + 5.8, "round", "round", depth=0.4)]
+        # (issue #28: real: the belfry's sound openings open (its louvres and bells behind), the windows of the tower's rooms)
+        fname = ("east", "west", "north", "south")[fi]
+        holes = [real(Hc(L_ / 2, 1.6, T2 + 1.9, T2 + 6.6, "round", "open", depth=0.5), "the Carolus tower, the belfry, %s opening" % fname, zone="tower"),
+                 real(Hc(L_ / 2, 1.0, T1 + 2.4, T1 + 5.8, "round", "round", depth=0.4), "the Carolus tower, the %s window of its middle room" % fname,
+                      zone="tower")]
         if fi == 0:
-            holes.append(Hc(L_ / 2, 1.0, 3.0, 6.0, "round", "round", depth=0.35))
+            holes.append(real(Hc(L_ / 2, 1.0, 3.0, 6.0, "round", "round", depth=0.35), "the Carolus tower, the ground room's east window", zone="tower"))
         W = wall(g, F, A, Bq, out, FOOT, top_y, SAND, holes=holes)
         for (y0, y1, dep) in ((0.9, T1 + 1.0, 0.2), (T1 + 1.02, T2 + 1.0, 0.22), (T2 + 1.02, T3 + 1.0, 0.2)):
             for u in (0.45, L_ - 0.45):
@@ -2350,6 +2455,12 @@ def carolus_sides(g, F, c, D, S, AC, TA0, HE, HR, CE, CR, SE):
             arch_band(g, W, L_ / 2, 3.0, 6.0 - 0.5, 1.0, 0.18, -0.14)
             ihs_medallion(g, W, L_ / 2, 9.2, R=1.05)
     sq = rect_pts(F, a0, a1, s0, s1)
+    # (the rooms stop under a floor over their windows; the tower's clock in the belfry's top, a rod to each of the four
+    # dials: dials, a bit per edge of the outline)
+    for sid, kind, lab, y0_, y1_ in (("cb_tower_0", "chamber", "the ground room", 0.1, 7.4), ("cb_tower_1", "chamber", "the middle room", T1 + 0.2, T2 - 1.2),
+                                     ("cb_belfry", "belfry", "the belfry", T2 + 0.8, top_y - 0.1)):
+        space(g, sid, kind, "tower", "the Carolus tower, %s" % lab, sq, y0_, y1_, depth=0.5 if kind == "belfry" else 0.4,
+              **(dict(clock=T3 - 1.3, dials=15, bells=2) if kind == "belfry" else {}))
     for yt in (T1 + 1.0, T2 + 1.0, T3 + 1.0):
         ring_stack(g, sq, entab(yt - 1.0, yt, big=0.62))
     g.face([F.p(a0, s0, top_y), F.p(a1, s0, top_y), F.p(a1, s1, top_y), F.p(a0, s1, top_y)], LEAD, out=(0, 1, 0))
@@ -2374,10 +2485,13 @@ def carolus_sides(g, F, c, D, S, AC, TA0, HE, HR, CE, CR, SE):
     R8 = 2.55
     rot8 = math.pi / 8
     L0, L1 = top_y, top_y + 6.4
+    # (issue #28: the lantern's Serlian openings real and open: its louvres and a bell behind them)
+    lan = lambda h, i, what: real(h, "the Carolus tower, the lantern, side %d, %s" % (i // 2 + 1, what), zone="tower")  # noqa: E731
     oct_ = poly_walls(g, tc, R8, 8, rot8, L0 - 0.05, L1, SAND,
-                      holes=lambda i, L: ([Hc(L / 2, 0.8, L0 + 1.0, L0 + 4.2, "round", "louv_r", depth=0.3),
-                                          Hc(L / 2 - 0.62, 0.22, L0 + 1.0, L0 + 3.0, "rect", "louv_r", depth=0.25),
-                                          Hc(L / 2 + 0.62, 0.22, L0 + 1.0, L0 + 3.0, "rect", "louv_r", depth=0.25)] if i % 2 == 0 else []))
+                      holes=lambda i, L: ([lan(Hc(L / 2, 0.8, L0 + 1.0, L0 + 4.2, "round", "open", depth=0.3), i, "the arch"),
+                                          lan(Hc(L / 2 - 0.62, 0.22, L0 + 1.0, L0 + 3.0, "rect", "open", depth=0.25), i, "the left light"),
+                                          lan(Hc(L / 2 + 0.62, 0.22, L0 + 1.0, L0 + 3.0, "rect", "open", depth=0.25), i, "the right light")] if i % 2 == 0 else []))
+    space(g, "cb_lantern", "lantern", "tower", "the Carolus tower, the lantern", oct_, L0 + 0.02, L1 - 0.1, depth=0.3, dome=2.8)
     for i in range(8):
         am = rot8 + 2 * math.pi * (i + 0.5) / 8
         a_, b_ = oct_[i], oct_[(i + 1) % 8]
@@ -2399,7 +2513,9 @@ def carolus_sides(g, F, c, D, S, AC, TA0, HE, HR, CE, CR, SE):
         disc(g, Wd, 0.32, L1 + 1.02, 0.2, "dark", d_front=-0.09, d_back=0.0, sides=8, side_mat=SAND)
     SL0 = L1 + 2.9
     oct2 = poly_walls(g, tc, 0.72, 8, rot8, SL0 - 0.05, SL0 + 1.9, SAND,
-                      holes=lambda i, L: [Hc(L / 2, 0.3, SL0 + 0.4, SL0 + 1.4, "round", "louv_r", depth=0.12)] if i % 2 == 0 else [])
+                      holes=lambda i, L: [real(Hc(L / 2, 0.3, SL0 + 0.4, SL0 + 1.4, "round", "open", depth=0.12),
+                                               "the Carolus tower, the small lantern, opening %d" % (i // 2 + 1), zone="tower")] if i % 2 == 0 else [])
+    space(g, "cb_lantern2", "lantern", "tower", "the Carolus tower, the small lantern", oct2, SL0 + 0.02, SL0 + 1.65, depth=0.12, dome=0.7)
     ring_band(g, oct2, SL0 + 1.7, SL0 + 1.95, 0.12, SAND)
     lathe(g, (tc[0], SL0 + 1.93, tc[1]), [(0.84, 0.0), (0.72, 0.35), (0.45, 0.62), (0.2, 0.75), (0.1, 0.8)], 8, LEAD, rot=rot8)
     lathe(g, (tc[0], SL0 + 2.7, tc[1]), [(0.0, 0.0), (0.2, 0.06), (0.28, 0.25), (0.2, 0.45), (0.0, 0.52)], 8, GILT, rot=rot8)
@@ -2417,10 +2533,14 @@ def carolus_sides(g, F, c, D, S, AC, TA0, HE, HR, CE, CR, SE):
             extrude(g, W, [(uc - w / 2 - 0.2, yb - 0.14), (uc + w / 2 + 0.2, yb - 0.14), (uc + w / 2 + 0.2, yb), (uc - w / 2 - 0.2, yb)], -0.14, 0.0,
                     SAND)
 
+    # (issue #28: every window of the house real: its three storeys of rooms, the attic under its roof, behind them)
+    fl = {1.4: "ground floor", 5.4: "first floor", 9.4: "second floor"}
+    jh = lambda h, what: real(h, "the Jesuit house, %s" % what, zone="annex")  # noqa: E731
     fw = [(hw_ - uc - 0.55, yb) for yb in rows for uc in (hw_ * 0.25, hw_ * 0.75)]
     W = wall(g, F, (M, hs1), (M, hs0), (-1, 0), FOOT, HE, BRICK, top=[(0, HE), (hw_ / 2, HR), (hw_, HE)],
-             holes=[Hc(uc, 1.1, yb, yb + 1.75, "rect", "hwin", depth=0.22) for uc, yb in fw]
-             + [Hc(hw_ / 2, 0.9, HE + 0.6, HE + 2.0, "rect", "hwin", depth=0.2)], bands=hb_)
+             holes=[jh(Hc(uc, 1.1, yb, yb + 1.75, "rect", "hwin", depth=0.22), "the front, %s, window %d" % (fl[yb], 1 + (uc > hw_ / 2))) for uc, yb in fw]
+             + [real(Hc(hw_ / 2, 0.9, HE + 0.6, HE + 2.0, "rect", "hwin", depth=0.2), "the Jesuit house, the front, the attic's gable window", zone="attic")],
+             bands=hb_)
     framed(W, [(uc, 1.1, yb, yb + 1.75) for uc, yb in fw] + [(hw_ / 2, 0.9, HE + 0.6, HE + 2.0)])
     # the gable's coping
     extrude(g, W, [(-0.25, HE - 0.25), (hw_ / 2, HR + 0.45), (hw_ + 0.25, HE - 0.25), (hw_, HE - 0.25), (hw_ / 2, HR - 0.25), (0.0, HE - 0.25)],
@@ -2429,7 +2549,8 @@ def carolus_sides(g, F, c, D, S, AC, TA0, HE, HR, CE, CR, SE):
     sa_ = [a for a in np.arange(2.2, D - 1.5, 3.3)]
     sw = [(a, yb) for yb in rows for a in sa_ if not (yb < 2 and abs(a - D / 2) < 1.8)]
     W = wall(g, F, (M, hs0), (D - M, hs0), (0, -1), FOOT, HE, BRICK,
-             holes=[Hc(a, 1.1, yb, yb + 1.75, "rect", "hwin", depth=0.22) for a, yb in sw] + [Hc(D / 2 - M, 1.5, 0.15, 3.2, "round", "door_r", depth=0.3)],
+             holes=[jh(Hc(a, 1.1, yb, yb + 1.75, "rect", "hwin", depth=0.22), "the street side, %s, window %d" % (fl[yb], 1 + sa_.index(a))) for a, yb in sw]
+             + [Hc(D / 2 - M, 1.5, 0.15, 3.2, "round", "door_r", depth=0.3)],
              bands=hb_)
     framed(W, [(a, 1.1, yb, yb + 1.75) for a, yb in sw])
     arch_band(g, W, D / 2 - M, 0.15, 3.2 - 0.75, 1.5, 0.22, -0.14)
@@ -2439,18 +2560,28 @@ def carolus_sides(g, F, c, D, S, AC, TA0, HE, HR, CE, CR, SE):
     gutter(g, p0, p1, HE - 0.72, F.V(0, -1), 0.45)
     for a in (0.6, D / 2 + 2.4, D - 0.6):
         downpipe(g, F.P(a, hs0), HE - 0.82, F.V(0, -1), 0.45)
-    for a in (5.0, 11.6, 18.2 + 3.0, 27.8):
-        dormer(g, F, a, hs0 + 1.0, -1, 14.3, w=0.9, h=1.4, back=1.4, mat=BRICK, cell="hwin", shape="rect")
+    dorm_a = (5.0, 11.6, 18.2 + 3.0, 27.8)
+    for j, a in enumerate(dorm_a):
+        dormer(g, F, a, hs0 + 1.0, -1, 14.3, w=0.9, h=1.4, back=1.4, mat=BRICK, cell="hwin", shape="rect", label="the Jesuit house, the attic, dormer %d" % (j + 1))
     W = wall(g, F, (D - M, hs0), (D - M, hs1), (1, 0), FOOT, HE, BRICK, top=[(0, HE), (hw_ / 2, HR), (hw_, HE)],
-             holes=[Hc(uc, 1.1, yb, yb + 1.75, "rect", "hwin", depth=0.22) for yb in (5.4, 9.4) for uc in (hw_ * 0.3, hw_ * 0.7)],
+             holes=[jh(Hc(uc, 1.1, yb, yb + 1.75, "rect", "hwin", depth=0.22), "the east end, %s, window %d" % (fl[yb], 1 + (uc > hw_ / 2)))
+                    for yb in (5.4, 9.4) for uc in (hw_ * 0.3, hw_ * 0.7)],
              bands=hb_)
     framed(W, [(uc, 1.1, yb, yb + 1.75) for yb in (5.4, 9.4) for uc in (hw_ * 0.3, hw_ * 0.7)])
     extrude(g, W, [(-0.25, HE - 0.25), (hw_ / 2, HR + 0.45), (hw_ + 0.25, HE - 0.25), (hw_, HE - 0.25), (hw_ / 2, HR - 0.25), (0.0, HE - 0.25)],
             -0.22, 0.05, SAND, back=True, skip_edges=(2, 5))
     W = wall(g, F, (TB, hs1), (D - M, hs1), (0, 1), FOOT, HE, BRICK, bands=hb_,
-             holes=[Hc(a - TB, 1.0, 11.0, 12.4, "rect", "hwin", depth=0.2) for a in np.arange(7.0, D - 2.0, 4.4)])
+             holes=[jh(Hc(a - TB, 1.0, 11.0, 12.4, "rect", "hwin", depth=0.2), "the church side, second floor, window %d" % (j + 1))
+                    for j, a in enumerate(np.arange(7.0, D - 2.0, 4.4))])
     framed(W, [(a - TB, 1.0, 11.0, 12.4) for a in np.arange(7.0, D - 2.0, 4.4)])
-    gable_roof(g, F, M, D - M, hs0, hs1, HE, HR, oe=(0.4, 0.3), og=(0.12, 0.12), caps=(True, True, True, True))
+    # (issue #28: the roof open behind each dormer's window, up to where the dormer's own roof meets it: its cheeks and
+    # roof close the rest)
+    gable_roof(g, F, M, D - M, hs0, hs1, HE, HR, oe=(0.4, 0.3), og=(0.12, 0.12), caps=(True, True, True, True),
+               cutouts=[(a - 0.57, a + 0.57, hs0 + 1.0, hs0 + 1.55) for a in dorm_a])
+    hq = rect_pts(F, M, D - M, hs0, hs1)
+    space(g, "cb_house", "house", "annex", "the Jesuit house", hq, 0.1, HE - 0.2, depth=0.22, floor1=4.62, floor2=8.62, corridor=1.7)
+    space(g, "cb_house_attic", "attic", "attic", "the Jesuit house, the attic", hq, HE - 0.05, HR, eave=HE, ridge=HR, g0=1, depth=0.2,
+          chim0=D * 0.3 - M, chim1=D * 0.72 - M)
     bar(g, F.p(M + 0.04, (hs0 + hs1) / 2, HR + 0.26), F.p(D - M - 0.04, (hs0 + hs1) / 2, HR + 0.26), 0.22, LEAD, h=0.14, shade=0.85)
     for a in (D * 0.3, D * 0.72):
         box(g, F, a - 0.5, a + 0.5, hs0 + hw_ * 0.5 - 0.6, hs0 + hw_ * 0.5 + 0.6, HR - 1.0, HR + 1.3, BRICK, skip=("-y",), top_mat=SAND)
@@ -2459,14 +2590,19 @@ def carolus_sides(g, F, c, D, S, AC, TA0, HE, HR, CE, CR, SE):
     cs0, cs1 = TW, S - M - 0.3
     cw_ = cs1 - cs0
     cp_ = [(FOOT, 0.7, BLUE)]
+    # (issue #28: the front's window real, the chapel's porch room behind it; the rose in the gable a real oculus, the
+    # range's roof space behind it)
     W = wall(g, F, (M, cs0), (M, cs1), (-1, 0), FOOT, CE, SAND, top=[(0, CE), (cw_ / 2, CR), (cw_, CE)], bands=cp_,
-             holes=[Hc(cw_ / 2, 2.0, 0.15, 4.4, "round", "door_r", depth=0.4), Hc(cw_ / 2, 1.6, 5.6, 9.6, "round", "round", depth=0.35)])
+             holes=[Hc(cw_ / 2, 2.0, 0.15, 4.4, "round", "door_r", depth=0.4),
+                    real(Hc(cw_ / 2, 1.6, 5.6, 9.6, "round", "round", depth=0.35), "the Carolus, the Lady Chapel's front, the window over the door", zone="annex"),
+                    real(Hc(cw_ / 2, 1.5, 12.7 - 0.75, 12.7 + 0.75, "circle", "rose", depth=0.3, rmat=SAND), "the Carolus, the Lady Chapel's front, the rose in the gable",
+                         zone="attic")])
     arch_band(g, W, cw_ / 2, 0.15, 4.4 - 1.0, 2.0, 0.26, -0.16)
     arch_band(g, W, cw_ / 2, 5.6, 9.6 - 0.8, 1.6, 0.2, -0.14)
     tri_pediment(g, W, cw_ / 2, 1.55, 4.75, 0.8, -0.34)
     for u in (0.45, cw_ - 0.45):
         pil(g, W, u, 0.7, 0.7, CE - 0.32, dep=0.22)
-    disc(g, W, cw_ / 2, 12.7, 0.75, "rose", d_front=-0.15, d_back=0.05, sides=12, side_mat=SAND)
+    oculus_ring(g, W, cw_ / 2, 12.7, 0.75, 0.18, -0.15, SAND, n=12)
     extrude(g, W, [(-0.3, CE - 0.3), (cw_ / 2, CR + 0.45), (cw_ + 0.3, CE - 0.3), (cw_, CE - 0.3), (cw_ / 2, CR - 0.25), (0.0, CE - 0.3)],
             -0.26, 0.05, SAND, back=True, skip_edges=(2, 5))
     x_, _, z_ = F.p(M + 0.55, (cs0 + cs1) / 2, 0)
@@ -2475,9 +2611,13 @@ def carolus_sides(g, F, c, D, S, AC, TA0, HE, HR, CE, CR, SE):
     ccuts = [(CH[0] - TB, CH[1] - TB, FOOT - 0.1, CH[2])] if (OPEN and CH) else []
     wall(g, F, (TB, cs0), (D - M, cs0), (0, -1), FOOT, CE, SAND, cuts=ccuts)
     ca_ = [a for a in (4.2, 9.4, 14.6, 19.8, 25.0, 30.2) if a < D - 2]
+    # (issue #28: the windows west and east of the chapel's room real too: the porch room and the chapel's sacristy)
     W = wall(g, F, (M, cs1), (D - M, cs1), (0, 1), FOOT, CE, SAND, bands=cp_,
              holes=[real(Hc(a - M, 1.6, 4.4, 9.2, "round", "round", depth=0.35), "the Carolus, the Lady Chapel, window %d" % (j + 1), colour=True)
-                    if (OPEN and CH and CH[0] + 0.8 < a < CH[1] - 0.8) else Hc(a - M, 1.6, 4.4, 9.2, "round", "round", depth=0.35) for j, a in enumerate(ca_)])
+                    if (OPEN and CH and CH[0] + 0.8 < a < CH[1] - 0.8) else
+                    real(Hc(a - M, 1.6, 4.4, 9.2, "round", "round", depth=0.35),
+                         "the Carolus, the Lady Chapel range, the %s's window%s" % (("porch", " %d" % (j + 1)) if a < CH[0] else ("chapel's sacristy", "")), zone="annex")
+                    for j, a in enumerate(ca_)])
     for a in ca_:
         arch_band(g, W, a - M, 4.4, 9.2 - 0.8, 1.6, 0.2, -0.14)
     for a in (1.6, 6.8, 12.0, 17.2, 22.4, 27.6, 32.8):
@@ -2496,7 +2636,17 @@ def carolus_sides(g, F, c, D, S, AC, TA0, HE, HR, CE, CR, SE):
     for a in (0.6, 14.9, D - 0.6):
         downpipe(g, F.P(a, cs1), CE - 0.82, F.V(0, 1), 0.45)
     W = wall(g, F, (D - M, cs1), (D - M, cs0), (1, 0), FOOT, CE, SAND, top=[(0, CE), (cw_ / 2, CR), (cw_, CE)], bands=cp_,
-             holes=[Hc(cw_ / 2, 1.4, 5.2, 9.2, "round", "round", depth=0.35)])
+             holes=[real(Hc(cw_ / 2, 1.4, 5.2, 9.2, "round", "round", depth=0.35), "the Carolus, the Lady Chapel range, the east end's window", zone="annex")])
+    # the rooms of the range either side of the chapel (issue #28): its porch on the square and its sacristy at the
+    # east end, each to the chapel's ceiling (10.2), closed against the chapel's walls (carolusHall.ts: a 12.18 .. 26.42); the
+    # roof space over all of it
+    if OPEN and CH:
+        space(g, "cb_chapel_w", "porch", "annex", "the Carolus, the Lady Chapel's porch", rect_pts(F, M, CH[0] - 0.24, cs0, cs1), 0.15, CH[2],
+              depth=0.35)
+        space(g, "cb_chapel_e", "vestry", "annex", "the Carolus, the Lady Chapel's sacristy", rect_pts(F, CH[1] + 0.24, D - M, cs0, cs1), 0.15, CH[2],
+              depth=0.35)
+        space(g, "cb_chapel_attic", "attic", "attic", "the Carolus, the roof space over the Lady Chapel", rect_pts(F, M, D - M, cs0, cs1), CH[2] + 0.14, CR,
+              eave=CE, ridge=CR, g0=1, depth=0.3)
     arch_band(g, W, cw_ / 2, 5.2, 9.2 - 0.7, 1.4, 0.2, -0.14)
     extrude(g, W, [(-0.3, CE - 0.3), (cw_ / 2, CR + 0.45), (cw_ + 0.3, CE - 0.3), (cw_, CE - 0.3), (cw_ / 2, CR - 0.25), (0.0, CE - 0.3)],
             -0.26, 0.05, SAND, back=True, skip_edges=(2, 5))
@@ -2508,10 +2658,14 @@ def carolus_sides(g, F, c, D, S, AC, TA0, HE, HR, CE, CR, SE):
         wall(g, F, (D - M, s0_), (D - M, s1_), (1, 0), FOOT, LK, BRICK if sg < 0 else SAND)
     # ---- the sacristy behind the left aisle, the garden wall behind the apse
     g.grime = grime_under((7.6,))
-    W = wall(g, F, (AC, -NV), (D - M, -NV), (0, 1), FOOT, 8.0, SAND, holes=[Hc((D - M - AC) / 2, 1.2, 3.0, 6.0, "round", "round", depth=0.3)])
+    # (issue #28: its two windows real, the sacristy behind them; its west side the aisle's end wall)
+    W = wall(g, F, (AC, -NV), (D - M, -NV), (0, 1), FOOT, 8.0, SAND,
+             holes=[real(Hc((D - M - AC) / 2, 1.2, 3.0, 6.0, "round", "round", depth=0.3), "the Carolus, the sacristy, the garden window", zone="annex")])
     arch_band(g, W, (D - M - AC) / 2, 3.0, 6.0 - 0.6, 1.2, 0.18, -0.12)
     W = wall(g, F, (D - M, -AW), (D - M, -NV), (1, 0), FOOT, SE, SAND, top=[(0, SE), (AW - NV, 8.0)],
-             holes=[Hc((AW - NV) / 2, 1.1, 2.6, 5.2, "round", "round", depth=0.3)])
+             holes=[real(Hc((AW - NV) / 2, 1.1, 2.6, 5.2, "round", "round", depth=0.3), "the Carolus, the sacristy, the east window", zone="annex")])
+    space(g, "cb_sacristy", "sacristy", "annex", "the Carolus, the sacristy", [F.P(AC, -NV), F.P(D - M, -NV), F.P(D - M, -AW), F.P(AC, -AW)], 0.15, 7.6,
+          lined=[1, 1, 1, 0], depth=0.3)
     arch_band(g, W, (AW - NV) / 2, 2.6, 5.2 - 0.55, 1.1, 0.16, -0.12)
     lean_to(g, F, AC, D - M, -NV, -AW, 8.0, SE, oe=0.35, og=(0, 0.3), caps=(True, False, True))
     garden_wall(g, [F.P(D - M - 0.2, -NV), F.P(D - M - 0.2, NV)], 3.4, SAND, coping=BLUE)
@@ -2546,7 +2700,9 @@ def carolus(g, fr):
                   real(Hc(u(sg * 9.35), 1.1, 6.7, 8.7, "round", "round", depth=0.4, rmat=SAND),
                        "the Carolus, the front, the round window over the %s side door" % ("east" if sg > 0 else "west")),
                   Hc(u(sg * 4.45), 1.3, 13.6, 18.3, "round", "niche_back", depth=0.7, rmat=SAND, k=0.8),
-                  Hc(u(sg * 9.35), 2.0, 13.6, 17.6, "rect", "win_rect", depth=0.45, rmat=SAND),
+                  # (issue #28: real, the gallery's first bay behind it, open under the aisle's roof: carolusHall.ts)
+                  real(Hc(u(sg * 9.35), 2.0, 13.6, 17.6, "rect", "win_rect", depth=0.4, rmat=SAND),
+                       "the Carolus, the front, the middle storey's %s window" % ("east" if sg > 0 else "west")),
                   Hc(u(sg * 4.1), 1.1, 22.9, 26.4, "round", "niche_back", depth=0.6, rmat=SAND, k=0.8)]
     Wf = wall(g, F, (FA, -AW), (FA, AW), (-1, 0), FOOT, B2, SAND, top=top, holes=holes, bands=soot)
     wall(g, F, (FB, -AW), (FB, AW), (1, 0), AE - 0.6, B2, SAND, top=top, k=0.85)
@@ -2696,9 +2852,13 @@ def carolus(g, fr):
     for sg in (-1, 1):
         s_in, s_out = sg * AW, sg * TW
         s0_, s1_ = min(s_in, s_out), max(s_in, s_out)
-        th = [Hc(1.25, 0.8, 2.6, 4.8, "round", "round", depth=0.35, rmat=SAND), Hc(1.25, 0.8, 6.3, 8.5, "round", "round", depth=0.35, rmat=SAND),
-              Hc(1.25, 0.9, 14.0, 17.0, "round", "round", depth=0.35, rmat=SAND)]
+        # (issue #28: real, the newel stair behind them; its lantern's openings real too)
+        side = "east" if sg > 0 else "west"
+        th = [real(Hc(1.25, w_, yb_, yt_, "round", "round", depth=0.35, rmat=SAND), "the Carolus, the %s stair tower, window %d" % (side, j + 1), zone="tower")
+              for j, (w_, yb_, yt_) in enumerate(((0.8, 2.6, 4.8), (0.8, 6.3, 8.5), (0.9, 14.0, 17.0)))]
         wall(g, F, (FT, s0_), (FT, s1_), (-1, 0), FOOT, B2, SAND, holes=th, bands=soot)
+        space(g, "cb_stair_%s" % side[0], "stair", "tower", "the Carolus, the %s stair tower" % side, rect_pts(F, FT, TB, s0_, s1_), 0.15, B2 - 0.1,
+              depth=0.35, sg=sg)
         wall(g, F, (FB, s_in), (TB, s_in), (0, -sg), FOOT, B2, SAND, k=0.9)
         wall(g, F, (FT, s_out), (TB, s_out), (0, sg), (HE if sg < 0 else CE) - 1.0, B2, SAND, k=0.9)
         wall(g, F, (TB, s0_), (TB, s1_), (1, 0), LK - 0.4, B2, SAND, k=0.85)
@@ -2719,7 +2879,10 @@ def carolus(g, fr):
             skip=("-y",))
         R8 = 1.05
         oc = poly_walls(g, tc, R8, 8, math.pi / 8, B2 + 0.4, B2 + 3.2, SAND,
-                        holes=lambda i, L: [Hc(L / 2, 0.42, B2 + 0.9, B2 + 2.5, "round", "louv_r", depth=0.2)] if i % 2 == 0 else [])
+                        holes=lambda i, L: [real(Hc(L / 2, 0.42, B2 + 0.9, B2 + 2.5, "round", "open", depth=0.2),
+                                                 "the Carolus, the %s stair tower's lantern, opening %d" % (side, i // 2 + 1), zone="tower")] if i % 2 == 0 else [])
+        space(g, "cb_stair_%s_lantern" % side[0], "lantern", "tower", "the Carolus, the %s stair tower's lantern" % side, oc, B2 + 0.42, B2 + 3.1,
+              depth=0.2, dome=1.4)
         ring_band(g, oc, B2 + 2.95, B2 + 3.25, 0.16, BLUE)
         lathe(g, (tc[0], B2 + 3.25, tc[1]), [(1.18, 0.0), (1.1, 0.4), (0.9, 0.85), (0.58, 1.2), (0.25, 1.38), (0.2, 1.52)], 8, SAND,
               rot=math.pi / 8, k=0.95)
@@ -2949,25 +3112,30 @@ def parapet(g, pts, y0, h, mat, closed=False, k=1.0, avoid=()):
             bar(g, (q.x, y0 + 0.14, q.y), (q.x, y0 + h - 0.14, q.y), 0.1, mat, k=k, skip_ends=True)
 
 
-def ridge_turret(g, x, z, y, r, h, mat_wall, mat_roof, k=1.0):
-    """A ridge turret (dakruiter): an open octagonal lantern on the ridge and its lead spire, a cross."""
-    oc = poly_walls(g, (x, z), r, 8, math.pi / 8, y - 0.8, y + 2.6, mat_wall,
-                    holes=lambda i, L: [Hc(L / 2, L * 0.55, y + 0.2, y + 2.1, "pointed", "louv_p", depth=0.12)])
+def ridge_turret(g, x, z, y, r, h, mat_wall, mat_roof, k=1.0, label=None):
+    """A ridge turret (dakruiter): an open octagonal lantern on the ridge and its lead spire, a cross. With a label its
+    openings are real (issue #28): the turret's inside with its bell and louvres behind them (world/churchSpaces.ts)."""
+    def holes(i, L):
+        h = Hc(L / 2, L * 0.55, y + 0.2, y + 2.1, "pointed", "open" if label else "louv_p", depth=0.12)
+        return [real(h, "%s, opening %d" % (label, i + 1), zone="tower") if label else h]
+
+    oc = poly_walls(g, (x, z), r, 8, math.pi / 8, y - 0.8, y + 2.6, mat_wall, holes=holes)
     ring_band(g, oc, y + 2.4, y + 2.75, 0.12, mat_wall)
     lathe(g, (x, y + 2.7, z), [(r * 1.05, 0.0), (r * 0.35, h * 0.55), (r * 0.18, h * 0.8), (0.0, h)], 8, mat_roof, rot=math.pi / 8, k=k)
     cross(g, x, y + 2.7 + h - 0.1, z, 1.2, cell="gilt")
 
 
 def gwall(g, F, A, Bp, out, y0, y1, mat, wins=(), top=None, bands=(), cuts=(), k=1.0, frame=None, hood=0.15, extra=()):
-    """A wall in a frame with Gothic windows: wins = [(u centre, width, sill, head, lights, cell[, label[, colour]])]; their
-    stone parts drawn. A window with a label is real (issue #10): the hall stands behind it."""
+    """A wall in a frame with Gothic windows: wins = [(u centre, width, sill, head, lights, cell[, label[, colour[, zone]]])];
+    their stone parts drawn. A window with a label is real (issue #10): the hall stands behind it, or the part of the church
+    its zone names (#28)."""
     frame = mat if frame is None else frame
     hs = []
     for spec in wins:
         uc, w, yb, yt, lights, cell = spec[:6]
         h = Hc(uc, w, yb, yt, "pointed", cell, depth=0.42, rmat=frame)
         if len(spec) > 6 and spec[6]:
-            real(h, spec[6], lights=lights, colour=len(spec) > 7 and spec[7])
+            real(h, spec[6], lights=lights, colour=len(spec) > 7 and spec[7], zone=spec[8] if len(spec) > 8 else "hall")
         hs.append((h, lights))
     W = wall(g, F, A, Bp, out, y0, y1, mat, top=top, holes=[h for h, _ in hs] + list(extra), bands=bands, cuts=cuts, k=k)
     for h, lights in hs:
@@ -3086,10 +3254,13 @@ def stpaul(g, fr):
     door = Hc(NV, DW, 0.15, DH, "round", "open" if c["OPEN"] else "door_r", depth=0.9, rmat=Wt_)
     if c["OPEN"]:
         real(door, "St Paul's, the west door", kind="door")
+    # (issue #28: the rose in the gable is a real window: the roof space over the nave's vaults behind it)
+    rose_w = real(Hc(NV, 1.9, 22.3 - 0.95, 22.3 + 0.95, "circle", "rose", depth=0.35, rmat=Wt_), "St Paul's, the west rose, in the gable over the nave",
+                  zone="attic")
     Ww = gwall(g, F, (BD, -NV), (BD, NV), (-1, 0), FOOT, NE, B_, top=[(0, NE), (NV, RID), (2 * NV, NE)], frame=Wt_,
-               wins=[(NV, 4.4, 11.4, 18.6, 4, "goth4", "St Paul's, the west front, the great window over the door")], extra=[door],
+               wins=[(NV, 4.4, 11.4, 18.6, 4, "goth4", "St Paul's, the west front, the great window over the door")], extra=[door, rose_w],
                bands=plinth + wb(10.2, NE))
-    disc(g, Ww, NV, 22.3, 0.95, "rose", d_front=-0.14, d_back=0.05, sides=14, side_mat=Wt_)
+    oculus_ring(g, Ww, NV, 22.3, 0.95, 0.2, -0.14, Wt_)
     gable_coping(g, Ww, 0, 2 * NV, NE, RID, Wt_, crockets=False)
     for sg in (-1, 1):
         x, z = F.P(BD - 0.2, sg * (NV - 0.3))
@@ -3192,7 +3363,9 @@ def stpaul(g, fr):
         extra = []
         if sg > 0:
             DNW, DNH = c["DOOR_N"]
-            extra = [Hc((TX1 - TX0) / 2, DNW, 0.15, DNH, "pointed", "door_g", depth=0.9, rmat=Wt_)]
+            extra = [Hc((TX1 - TX0) / 2, DNW, 0.15, DNH, "pointed", "door_g", depth=0.9, rmat=Wt_),
+                     real(Hc((TX1 - TX0) / 2, 2.0, 21.9 - 1.0, 21.9 + 1.0, "circle", "rose", depth=0.35, rmat=Wt_),
+                          "St Paul's, the north transept's rose, in the gable", zone="attic")]
         Wt = gwall(g, F, (TX0, sg * TE), (TX1, sg * TE), (0, sg), FOOT, NE, B_, top=[(0, NE), ((TX1 - TX0) / 2, RID), (TX1 - TX0, NE)],
                    frame=Wt_, extra=extra, bands=plinth + wb(7.0, NE),
                    wins=[((TX1 - TX0) / 2, 4.8, 8.2 if sg > 0 else 4.6, 18.4, 4, "goth4",
@@ -3201,11 +3374,17 @@ def stpaul(g, fr):
             DNW, DNH = c["DOOR_N"]
             gportal(g, Wt, (TX1 - TX0) / 2, DNW, 0.15, DNH - head_h("pointed", DNW), 2, Wt_, P=0.7, gable=True, statues=1, fig_mat=PALE,
                     top_extra=1.0)
-            disc(g, Wt, (TX1 - TX0) / 2, 21.9, 1.0, "rose", d_front=-0.12, d_back=0.05, sides=14, side_mat=Wt_)
+            oculus_ring(g, Wt, (TX1 - TX0) / 2, 21.9, 1.0, 0.2, -0.12, Wt_)
         gable_coping(g, Wt, 0, TX1 - TX0, NE, RID, Wt_)
         for a in (TX0 + 0.6, TX1 - 0.6):
             gbuttress(g, F, a, sg * TE, (0, sg), 0.9, BD - 0.02, 13.0, 19.2, mat=Wt_, pin=2.8)
     gable_roof(g, F.rot(), -TE, TE, TX0, TX1, NE, RID, oe=(0.4, 0.4), og=(0.35, 0.35))
+    # issue #28: the roof spaces over the vaults (their crowns 20.45), behind the two roses: the nave's and the choir's to
+    # the apse, the transept's (g0: the first of the two gable ends among the outline's edges)
+    space(g, "sp_attic_nave", "attic", "attic", "St Paul's, the roof space over the nave and the choir", rect_pts(F, BD, CHE, -NV, NV), 20.45, RID,
+          eave=NE, ridge=RID, g0=1, depth=0.35)
+    space(g, "sp_attic_transept", "attic", "attic", "St Paul's, the roof space over the transept", rect_pts(F, TX0, TX1, -TE, TE), 20.45, RID,
+          eave=NE, ridge=RID, g0=0, depth=0.35)
     # ================= the long choir and the apse
     for sg, a0_ in ((1, TX1), (-1, TX1 + 8.0)):
         W = gwall(g, F, (a0_, sg * NV), (CHE, sg * NV), (0, sg), 7.0, NE, B_, frame=Wt_, bands=wb(NE),
@@ -3238,19 +3417,37 @@ def stpaul(g, fr):
         s_in = NV if sg > 0 else NV + 8.0
         s_out = S - M
         a_st = TX1 if sg > 0 else TX1 + 8.0
+        # (issue #28: every window real, the convent's rooms behind them: two storeys, the upper floor at 4.6; the south
+        # wing runs on west under its roof to the transept, past the tower)
+        wing = "north" if sg > 0 else "south"
+        storey = lambda yb: "ground floor" if yb < 3 else "upper floor"  # noqa: E731
+        wa = list(np.arange(53.5, DE - 1.2, 3.2))
         W = wall(g, F, (TX1, sg * s_out), (DE, sg * s_out), (0, sg), FOOT, VE, B_, bands=plinth + wb(4.6),
-                 holes=[Hc(a - TX1, 1.1, yb, yb + 1.8, "rect", "hwin", depth=0.22) for yb in (1.4, 5.6) for a in np.arange(53.5, DE - 1.2, 3.2)])
-        for a in np.arange(53.5, DE - 1.2, 3.2):
+                 holes=[real(Hc(a - TX1, 1.1, yb, yb + 1.8, "rect", "hwin", depth=0.22),
+                             "St Paul's convent, the %s wing, %s, window %d" % (wing, storey(yb), j + 1), zone="annex")
+                        for yb in (1.4, 5.6) for j, a in enumerate(wa)])
+        for a in wa:
             for yb in (1.4, 5.6):
                 rect_frame(g, W, a - TX1, 1.1, yb, yb + 1.8, 0.12, -0.08, mat=Wt_, ears=0.05)
+        ends = (3.0, (s_out - s_in) - 3.0) if s_out - s_in > 8 else ((s_out - s_in) / 2,)
         wall(g, F, (DE, sg * s_in), (DE, sg * s_out), (1, 0), FOOT, VE, B_, top=[(0, VE), ((s_out - s_in) / 2, VR), (s_out - s_in, VE)],
-             bands=plinth, holes=[Hc(uc, 1.1, yb, yb + 1.8, "rect", "hwin", depth=0.22, rmat=PWHITE) for yb in (1.4, 5.6)
-                                  for uc in ((3.0, (s_out - s_in) - 3.0) if s_out - s_in > 8 else ((s_out - s_in) / 2,))])
+             bands=plinth, holes=[real(Hc(uc, 1.1, yb, yb + 1.8, "rect", "hwin", depth=0.22, rmat=PWHITE),
+                                       "St Paul's convent, the %s wing's east end, %s%s" % (wing, storey(yb), (", window %d" % (j + 1)) if len(ends) > 1 else ""),
+                                       zone="annex")
+                                  for yb in (1.4, 5.6) for j, uc in enumerate(ends)])
         wall(g, F, (a_st if sg < 0 else CHE, sg * s_in), (DE, sg * s_in), (0, -sg), FOOT, VE, B_, bands=plinth)
         ss0, ss1 = sorted((sg * s_in, sg * s_out))
         oe = (0.4, 0.0) if sg < 0 else (0.0, 0.4)
         caps = (sg < 0, sg > 0, False, True)
-        gable_roof(g, F, a_st if sg < 0 else TX1, DE, ss0, ss1, VE, VR, oe=oe, og=(0.0, 0.3), caps=caps)
+        gable_roof(g, F, TX1, DE, ss0, ss1, VE, VR, oe=oe, og=(0.0, 0.3), caps=caps)
+        if sg > 0:
+            space(g, "sp_convent_n", "convent", "annex", "St Paul's convent, the north wing",
+                  [F.P(TX1, s_in), F.P(CHE, s_in), F.P(DE, s_in), F.P(DE, s_out), F.P(TX1, s_out)], 0.15, VE - 0.2, lined=[1, 1, 1, 1, 0],
+                  floor1=4.6, depth=0.22, rooms=5.6, eave=VE, ridge=VR)
+        else:
+            space(g, "sp_convent_s", "convent", "annex", "St Paul's convent, the south wing",
+                  [F.P(TX1, -s_in), F.P(a_st, -s_in), F.P(DE, -s_in), F.P(DE, -s_out), F.P(TX1, -s_out)], 0.15, VE - 0.2, lined=[0, 1, 1, 1, 0],
+                  floor1=4.6, depth=0.22, rooms=s_out - s_in, eave=VE, ridge=VR)
     wall(g, F, (DE, -NV), (DE, -(NV + 8.0)), (1, 0), FOOT, 10.2, B_, top=[(0, 10.2), (8.0, 8.0)], bands=plinth)
     wall(g, F, (CHE, -NV), (DE, -NV), (0, 1), FOOT, 10.2, B_, bands=plinth)
     lean_to(g, F, TX1 + 8.0, DE, -(NV + 8.0), -NV, 8.0, 10.2, oe=0.0, og=(0.0, 0.3), caps=(False, False, True))
@@ -3271,8 +3468,13 @@ def stpaul(g, fr):
             y0 = NE - 1.0
         else:
             y0 = FOOT
-        holes = [Hc(4.0, 0.8, h0, h0 + 1.7, "round", "round", depth=0.3, rmat=Wt_) for h0 in (10.8, 15.6, 20.4) if h0 > y0 + 0.5
-                 and not (fi in (1, 2) and h0 > 20)]
+        # (issue #28: real, the tower's chambers behind them)
+        fname = ("west", "east", "south", "north")[fi]
+        # (the west face over the transept's roof has none: its window at 20.4 stood under that roof, never seen; the north
+        # one stands over the choir's roof, 22.0 .. 23.3)
+        holes = [real(Hc(4.0, 0.8, h0, h0 + (1.3 if fi == 3 else 1.7), "round", "round", depth=0.3, rmat=Wt_),
+                      "St Paul's tower, the %s face, the window at %.0f m" % (fname, h0), zone="tower")
+                 for h0 in ((22.0,) if fi == 3 else (10.8, 15.6)) if h0 > y0 + 0.5 and fi != 0]
         W = wall(g, F, A, Bq, out, y0, T1, B_, bands=[b for b in tb if b[1] > y0 + 0.01], holes=holes)
         for h_ in holes:
             arch_band(g, W, 4.0, h_.yb, h_.yt - 0.4, 0.8, 0.14, -0.1, Wt_)
@@ -3280,15 +3482,23 @@ def stpaul(g, fr):
             disc(g, W, 4.0, 22.0 - 0.3, 1.0, "clock", d_front=-0.12, d_back=0.05, sides=12, side_mat=Wt_)
             clock_mark("stpaul_%d" % fi, W.pt(4.0, 22.0 - 0.3, -0.12), W.out(), 1.0)
     sq = rect_pts(F, TW0, TW1, TS0, TS1)
+    # (the top one has the clock: a rod to the east and the south dial, dials a bit per edge of the outline)
+    for i, (y0_, y1_) in enumerate(((10.2, 15.0), (15.0, 19.8), (19.8, T1))):
+        space(g, "sp_tower_%d" % (i + 1), "clock" if i == 2 else "chamber", "tower", "St Paul's tower, chamber %d" % (i + 1), sq, y0_, y1_, depth=0.3,
+              **(dict(clock=22.0 - 0.3, dials=6) if i == 2 else {}))
     ring_stack(g, sq, [(T1 - 0.2, T1 + 0.05, 0.22, Wt_), (T1 + 0.05, T1 + 0.35, 0.4, Wt_)])
     R8, rot8 = 3.7, math.pi / 8
     oct_ = [(tc[0] + R8 * math.cos(rot8 + 2 * math.pi * i / 8), tc[1] + R8 * math.sin(rot8 + 2 * math.pi * i / 8)) for i in range(8)]
     ring_between(g, tc, sq, oct_, T1 + 0.35, LEAD)
     O1, O2 = T1 + 0.3, T1 + 12.0
     OM = (O1 + O2) / 2
+    # (issue #28: the belfry's sixteen sound openings real and open: its louvres, bells and timber behind them)
     oc = poly_walls(g, tc, R8, 8, rot8, O1, O2, Wt_,
-                    holes=lambda i, L: [Hc(L / 2, 1.1, O1 + 0.9, OM - 0.6, "round", "louv_r", depth=0.4, rmat=Wt_),
-                                        Hc(L / 2, 1.1, OM + 0.6, O2 - 1.3, "round", "louv_r", depth=0.4, rmat=Wt_)])
+                    holes=lambda i, L: [real(Hc(L / 2, 1.1, O1 + 0.9, OM - 0.6, "round", "open", depth=0.4, rmat=Wt_),
+                                             "St Paul's tower, the belfry, lower opening %d" % (i + 1), zone="tower"),
+                                        real(Hc(L / 2, 1.1, OM + 0.6, O2 - 1.3, "round", "open", depth=0.4, rmat=Wt_),
+                                             "St Paul's tower, the belfry, upper opening %d" % (i + 1), zone="tower")])
+    space(g, "sp_belfry", "belfry", "tower", "St Paul's tower, the belfry", oc, O1 + 0.05, O2 - 0.1, depth=0.4, mid=OM, bells=4)
     for i in range(8):
         am = rot8 + 2 * math.pi * i / 8
         # an Ionic three-quarter column at each corner, over both tiers
@@ -3360,7 +3570,9 @@ def stjacob(g, fr):
     door = Hc(NV, DW, 0.15, DH, "pointed", wd, depth=1.4, rmat=G)
     if c["OPEN"]:
         real(door, "St James's, the tower door", kind="door")
-    bel = [(NV + sg * 2.4, 1.9, TY[3] + 1.2, TY[4] - 0.8, 2, "louv_p") for sg in (-1, 1)]
+    # (issue #28: the belfry's sound openings are real, open: the belfry's louvres, bells and timber behind them)
+    bl = lambda face, side: ("St James's tower, the belfry, %s face, %s opening" % (face, side), False, "tower")  # noqa: E731
+    bel = [(NV + sg * 2.4, 1.9, TY[3] + 1.2, TY[4] - 0.8, 2, "open") + bl("west", "north" if sg > 0 else "south") for sg in (-1, 1)]
     Wt = gwall(g, F, (BD, -NV), (BD, NV), (-1, 0), FOOT, TY[5], G, bands=tb, extra=[door],
                wins=[(NV, 5.2, TY[1] + 1.2, TY[3] - 0.6, 4, "goth4", "St James's, the tower's great west window over the door")] + bel)
     pband(g, Wt, NV, DH - head_h("pointed", DW), DW + 0.1, 0.34, -0.3, G, yb=0.15)
@@ -3381,12 +3593,16 @@ def stjacob(g, fr):
         s_ = sg * NV
         # (issue #10: open where the tower hall's arches to the aisles are, world/gothicHall.ts; no face in the hall)
         W = gwall(g, F, (BD, s_), (TW, s_), (0, sg), FOOT, TY[5], G, bands=tb, cuts=[(4.4, 8.0, FOOT - 0.1, 9.2)],
-                  wins=[((TW - BD) / 2 + d, 1.9, TY[3] + 1.2, TY[4] - 0.8, 2, "louv_p") for d in (-2.4, 2.4)])
+                  wins=[((TW - BD) / 2 + d, 1.9, TY[3] + 1.2, TY[4] - 0.8, 2, "open") + bl("north" if sg > 0 else "south", "west" if d < 0 else "east")
+                        for d in (-2.4, 2.4)])
         for d in (-2.4, 2.4):
             blind_panel(g, W, (TW - BD) / 2 + d, 1.8, TY[2] + 0.8, TY[3] - 0.9, G)
             blind_panel(g, W, (TW - BD) / 2 + d, 1.8, TY[4] + 1.0, TY[5] - 1.2, G)
     W = gwall(g, F, (TW, NV), (TW, -NV), (1, 0), RID - 3.0, TY[5], G, bands=[(y - 0.35, y, G) for y in TY[3:5]],
-              wins=[(NV + d, 1.9, TY[3] + 1.2, TY[4] - 0.8, 2, "louv_p") for d in (-2.4, 2.4)])
+              wins=[(NV + d, 1.9, TY[3] + 1.2, TY[4] - 0.8, 2, "open") + bl("east", "south" if d > 0 else "north") for d in (-2.4, 2.4)])
+    # the belfry over the tower hall's vault (its crown 27.75), under the stage of blind panels
+    space(g, "sj_belfry", "belfry", "tower", "St James's tower, the belfry", rect_pts(F, BD, TW, -NV, NV), TY[3] + 0.6, TY[4] - 0.05,
+          depth=0.42, bells=4)
     tq = rect_pts(F, BD, TW, -NV, NV)
     tc = F.P((BD + TW) / 2, 0)
     for y in TY[1:-1]:
@@ -3480,9 +3696,12 @@ def stjacob(g, fr):
     # the baptistery (1804): a round domed chapel south of the tower, in the first chapel's place
     bc = F.P((BD + bays_all[1] + 0.6) / 2, -(AO + CO) / 2)
     Rb = min((bays_all[1] + 0.6 - BD) / 2, (CO - AO) / 2) - 0.1
+    # (issue #28: its four windows real, the round room with its font behind them)
     oc = poly_walls(g, bc, Rb, 12, 0.0, FOOT, 6.6, PWHITE,
-                    holes=lambda i, L: [Hc(L / 2, L * 0.5, 2.4, 5.0, "round", "round", depth=0.3, rmat=PWHITE)] if i % 3 == 1 else [],
+                    holes=lambda i, L: [real(Hc(L / 2, L * 0.5, 2.4, 5.0, "round", "round", depth=0.3, rmat=PWHITE),
+                                             "St James's, the baptistery, window %d" % (i // 3 + 1), zone="annex")] if i % 3 == 1 else [],
                     bands=[(FOOT, 0.7, BLUE)])
+    space(g, "sj_baptistery", "baptistery", "annex", "St James's, the baptistery", oc, 0.15, 6.3, depth=0.3, dome=2.5)
     ring_stack(g, oc, [(6.1, 6.35, 0.14, PWHITE), (6.35, 6.6, 0.26, PWHITE)])
     lathe(g, (bc[0], 6.55, bc[1]), [(Rb * 1.02, 0.0), (Rb * 0.95, 0.9), (Rb * 0.75, 1.8), (Rb * 0.4, 2.5), (0.3, 2.75), (0.3, 3.1)], 12, LEAD)
     lathe(g, (bc[0], 9.6, bc[1]), [(0.0, 0.0), (0.2, 0.1), (0.25, 0.3), (0.0, 0.55)], 8, GILT)
@@ -3527,7 +3746,9 @@ def stjacob(g, fr):
         p0, p1 = F.P(TX0, sg * NV), F.P(TX0, sg * TE)
     gable_roof(g, F.rot(), -TE, TE, TX0, TX1, NE, RID, oe=(0.45, 0.45), og=(0.35, 0.35))
     x, z = F.P((TX0 + TX1) / 2, 0)
-    ridge_turret(g, x, z, RID - 0.6, 1.1, 7.5, G, LEAD)
+    ridge_turret(g, x, z, RID - 0.6, 1.1, 7.5, G, LEAD, label="St James's, the ridge turret over the crossing")
+    space(g, "sj_turret", "turret", "tower", "St James's, the ridge turret", [(x + 1.1 * math.cos(math.pi / 8 + 2 * math.pi * i / 8), z + 1.1 * math.sin(math.pi / 8 + 2 * math.pi * i / 8))
+          for i in range(8)], RID - 0.6, RID - 0.6 + 2.4, depth=0.12, bells=1)
     # ================= choir, apse, ambulatory with its three radiating chapels, flyers
     for sg in (-1, 1):
         gwall(g, F, (TX1, sg * NV), (CHE, sg * NV), (0, sg), 16.5, NE, G,
@@ -3603,10 +3824,16 @@ def stjacob(g, fr):
     # ================= the sacristy (north of the choir) and the churchyard wall with its headstones
     g.grime = grime_under((7.6,))
     SQ0, SQ1, SA1 = AMB, S - M, 68.0
+    # (issue #28: its windows real, the sacristy behind them; its walls against the church are the church's faces)
     gwall(g, F, (TX1, SQ1), (SA1, SQ1), (0, 1), FOOT, 8.0, G, bands=plinth,
-          wins=[(a - TX1, 1.4, 2.6, 6.2, 2, "goth2") for a in (59.5, 63.5)])
+          wins=[(a - TX1, 1.4, 2.6, 6.2, 2, "goth2", "St James's, the sacristy, north window %d" % (j + 1), False, "annex") for j, a in enumerate((59.5, 63.5))])
     gwall(g, F, (SA1, SQ1), (SA1, SQ0), (1, 0), FOOT, 8.0, G, top=[(0, 8.0), ((SQ1 - SQ0) / 2, 12.2), (SQ1 - SQ0, 8.0)], bands=plinth,
-          wins=[((SQ1 - SQ0) / 2, 1.4, 2.6, 6.2, 2, "goth2")])
+          wins=[((SQ1 - SQ0) / 2, 1.4, 2.6, 6.2, 2, "goth2", "St James's, the sacristy, east window", False, "annex")])
+    # (the sacristy's west end past the transept's north front: closed)
+    wall(g, F, (TX1, TE), (TX1, SQ1), (-1, 0), FOOT, 8.0, G, bands=plinth)
+    space(g, "sj_sacristy", "sacristy", "annex", "St James's, the sacristy",
+          [F.P(TX1, SQ0), F.P(CHE, SQ0), F.P(SA1, SQ0), F.P(SA1, SQ1), F.P(TX1, SQ1)], 0.15, 7.6, lined=[0, 0, 1, 1, 0], depth=0.42, eave=8.0,
+          ridge=12.2)
     wall(g, F, (CHE, SQ0), (SA1, SQ0), (0, -1), FOOT, 8.0, G, bands=plinth)
     gable_roof(g, F, TX1, SA1, SQ0, SQ1, 8.0, 12.2, oe=(0.3, 0.4), og=(0.0, 0.3), caps=(True, True, False, True))
     cw = 0.225
@@ -4715,21 +4942,24 @@ def preview(city, objs, park_ring, pond, only=None, context=False, pinfo=None):
               ("churches_carolus_close.png", street_eye(city, fc, 0, -3, (-1, 0), 8), at(Fc, 1, 3, 4.0), 20),
               ("churches_carolus_above.png", at(Fc, -40, -30, 55), at(Fc, Dc / 2, 0, 10), 26),
               ("churches_carolus_back.png", at(Fc, Dc + 38, 26, 30), at(Fc, Dc / 2, 0, 16), 24),
-              ("churches_carolus_top.png", at(Fc, 14, 16, 34), at(Fc, 1.5, 0, 26), 26)]
+              ("churches_carolus_top.png", at(Fc, 14, 16, 34), at(Fc, 1.5, 0, 26), 26),
+              ("churches_carolus_west.png", at(Fc, 8, -Sc - 30, 20), at(Fc, Dc / 2, -16, 8), 22)]
     fp = dict(L["stpaul"]["frame"], _west=True)
     Fp, Dp, Sp = frame_west_end(fp)
     views += [("churches_stpaul_square.png", at(Fp, 42, Sp + 26, 1.7), at(Fp, 50, 0, 16), 16),
               ("churches_stpaul_west.png", at(Fp, -30, -6, 1.7), at(Fp, 10, 0, 14), 16),
               ("churches_stpaul_side.png", at(Fp, 18, Sp + 30, 1.7), at(Fp, 26, 0, 12), 16),
               ("churches_stpaul_above.png", at(Fp, -45, 60, 65), at(Fp, Dp / 2, 0, 10), 26),
-              ("churches_stpaul_tower.png", at(Fp, 42, 34, 16), at(Fp, 55.5, 9.5, 32), 24)]
+              ("churches_stpaul_tower.png", at(Fp, 42, 34, 16), at(Fp, 55.5, 9.5, 32), 24),
+              ("churches_stpaul_east.png", at(Fp, Dp + 40, -40, 45), at(Fp, Dp - 16, 0, 10), 24)]
     fj = dict(L["stjacob"]["frame"], _west=True)
     Fj, Dj, Sj = frame_west_end(fj)
     views += [("churches_stjacob_square.png", at(Fj, 46, -Sj - 30, 1.7), at(Fj, 46, 0, 20), 15),
               ("churches_stjacob_west.png", at(Fj, -34, 8, 1.7), at(Fj, 8, 0, 22), 15),
               ("churches_stjacob_side.png", at(Fj, 18, -Sj - 32, 1.7), at(Fj, 30, 0, 14), 15),
               ("churches_stjacob_above.png", at(Fj, -50, -70, 80), at(Fj, Dj / 2, 0, 10), 26),
-              ("churches_stjacob_east.png", at(Fj, Dj + 40, 30, 28), at(Fj, Dj - 20, 0, 14), 22)]
+              ("churches_stjacob_east.png", at(Fj, Dj + 40, 30, 28), at(Fj, Dj - 20, 0, 14), 22),
+              ("churches_stjacob_south.png", at(Fj, 8, -Sj - 22, 14), at(Fj, 8, -16, 5), 24)]
     pk = city["decor"]["park"]["outline"]
     px = sum(p[0] for p in pk) / len(pk)
     pz = sum(p[1] for p in pk) / len(pk)
