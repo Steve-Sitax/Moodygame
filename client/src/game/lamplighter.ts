@@ -125,8 +125,10 @@ export class Lamplighters {
       const p = this.claimOnWay(round, plan, player) ?? this.town.claimNear(round.lamplighter, player);
       if (!p) return;
       r.p = p;
-      r.idx = plan.atLamp >= 0 ? plan.atLamp : Math.min(round.lamps.length - 1, plan.done);
-      r.done = plan.atLamp >= 0 ? plan.atLamp : plan.done;
+      // (issue #24: taken up in the middle of a stop, the lamps the plan has done stay done: that lamp burning
+      // already (or out, at dawn), he goes on to the next; before, it went dark again until he came back to it)
+      r.done = plan.done;
+      r.idx = plan.atLamp >= plan.done ? plan.atLamp : plan.done;
       r.phase = "walk";
       r.goT = 0;
       this.crowd.puppetLantern(p, false);
