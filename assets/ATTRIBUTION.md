@@ -489,10 +489,16 @@ Made with Codex image generation from our own prompt through `tools/codexImage.m
 Made with Codex image generation from our own prompt through `tools/codexImage.mjs` (Steve's standing OK for Codex,
 `.claude/rule-overrides.md`). No example picture, no third-party images. Turned a quarter (the courses run across the
 walk), resized to 1024 px and saved as a JPEG (quality 90); its height and stone maps `wall_walk_setts_h.png` and
-`wall_walk_setts_id.png` made from it by `tools/textures/setts_maps.py` (joint percentile 60, mud 0.3). The wall's other
+`wall_walk_setts_id.png` made from it by `tools/textures/setts_maps.py` (joint percentile 60, mud 0.3).
+2026-09-29 (issue #3: two stones ran together in the height map): the walk is laid again from its picture by
+`tools/textures/setts_synth.py wall 7`, as the street cobbles and the quay setts (new stone layout, eight courses a tile;
+each stone's face and the soil between cut from the Codex picture; moss in the joints in the picture's own green, small
+tufts of grass drawn in the joints; height and stone maps from the same layout). The Codex picture as it was after the
+steps above (the quarter turn and the JPEG; SHA-256 of that JPEG `7b78b467f6831bd2b6813ee763a6436fb92ac4f7e04e9481b1e4b1ef4ea6b33e`)
+is kept in `tools/textures/src/wall_walk_setts_codex.jpg`; `client/public/textures/wall_walk_setts.jpg` is the laid one. The wall's other
 new pictures (the brick of 1873 in cross bond, the bluestone coping, the lawn's edge and path, the props) are painted by
 `tools/blender/build_wall.py` and packed in `wall.glb`.
 
 | Picture | Where in repo | Prompt, in short | Made | Original PNG SHA-256 |
 |---|---|---|---|---|
-| The walk on top of an old brick rampart: courses of large worn blue-grey granite and bluestone setts, dark joints with soil, moss and small tufts of grass, a few fallen leaves, seamless | `client/public/textures/wall_walk_setts.jpg` (1024 px, 2.4 x 2.4 m) | "Seamless tileable ground texture, seen straight from above ... The paved walk on top of an old brick town rampart in Flanders in autumn, 19th century. Courses of large, roughly dressed, worn blue-grey granite and bluestone setts ..." | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `efd8f59129374e9c956d69aa4d5e5c2a511e73366c9b6049c14bebf1f4afd6b5` |
+| The walk on top of an old brick rampart: courses of large worn blue-grey granite and bluestone setts, dark joints with soil, moss and small tufts of grass, a few fallen leaves, seamless; laid again by `setts_synth.py wall` with the maps `wall_walk_setts_h.png`, `wall_walk_setts_id.png` (2026-09-29) | `tools/textures/src/wall_walk_setts_codex.jpg` (as generated, turned); `client/public/textures/wall_walk_setts.jpg` (1024 px, 2.4 x 2.4 m, the laid one) | "Seamless tileable ground texture, seen straight from above ... The paved walk on top of an old brick town rampart in Flanders in autumn, 19th century. Courses of large, roughly dressed, worn blue-grey granite and bluestone setts ..." | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `efd8f59129374e9c956d69aa4d5e5c2a511e73366c9b6049c14bebf1f4afd6b5` |

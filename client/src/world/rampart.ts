@@ -215,6 +215,9 @@ const LAMP_REACH = 160;
  * The walk's paving: big worn setts in courses across the walk, moss and soil in the joints (the look pass,
  * 2026-09-26: its own Codex picture and the maps tools/textures/setts_maps.py made from it; Steve: "the walk is a flat
  * grey smear"). The stones are big enough to keep their relief further off than the street's (psx relief reach).
+ * 2026-09-29 (issue #3): laid again by tools/textures/setts_synth.py `wall`, one bump per stone; its courses run along
+ * the picture's rows (a stone runs on only from the tile to the left, as the stone map says), so `dress` swaps the
+ * walk's u (along the walk) and v (across it): the courses still run across the walk.
  */
 const WALK_TILE = 2.4;
 /** build_wall.py TILE: metres per repeat of the painted cobble and grass in the glb's uvs. */
@@ -333,7 +336,9 @@ export function loadWall(scene: THREE.Scene): WallModel {
     const k = one && one === walkMat ? GLB_COBBLE / WALK_TILE : one && one === grassMat ? GLB_GRASS / GRASS_TILE : 1;
     const uv = m.geometry.getAttribute("uv") as THREE.BufferAttribute | undefined;
     if (k !== 1 && uv) {
-      for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * k, uv.getY(i) * k);
+      // the walk: u and v swapped (WALK_TILE above), the picture's rows of setts across the walk
+      if (one === walkMat) for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getY(i) * k, uv.getX(i) * k);
+      else for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * k, uv.getY(i) * k);
       uv.needsUpdate = true;
     }
   };
