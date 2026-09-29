@@ -1133,6 +1133,7 @@ function tick(dt: number): void {
   safe("refreshFolk", refreshFolk);
   safe("together.worldFrame", () => together.worldFrame(dt)); // M8b: the moving world run here or shown from the world PC
   safe("world.update", () => world.update(elapsed, dt, player.camera));
+  safe("craneClimb.ride", () => craneClimb.ride()); // up on a working crane: carried before his own step
   safe("ferry.update", () => ferry.update(dt));
   safe("player.update", () => player.update(dt));
   safe("together.frame", () => together.frame(dt)); // M8a: own state out, the others drawn
@@ -2083,8 +2084,10 @@ if (import.meta.env.DEV) {
         safe("step: together.worldFrame", () => together.worldFrame(dt)); // M8b
         // (with the camera, as a frame does: the railway, its cranes and the train only run with one; D1 docks tests)
         safe("step: world.update", () => world.update(elapsed, dt, player.camera));
+        safe("step: craneClimb.ride", () => craneClimb.ride());
         safe("step: ferry.update", () => ferry.update(dt));
         safe("step: player.update", () => player.update(dt));
+        safe("step: craneClimb.update", () => craneClimb.update(dt)); // (the ladders move with the cranes in a test run too)
         safe("step: together.frame", () => together.frame(dt)); // M8a
         safe("step: handcarts.update", () => handcarts.update(dt));
         safe("step: interiors.update", () => interiors.update(dt));

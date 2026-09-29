@@ -34,6 +34,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - The lower parts of the cathedral's aisle windows, behind the houses built against it, are walled up instead of painted ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
 
 ### Fixed
+- You can climb the cranes again, also while they work: the crane does not stop for you. You ride its gallery as the jib turns and the crane rolls; at the top you wait on the ladder until the gallery swings round. The dock cranes' ladders can be reached from the quay again ([#37](https://github.com/Steve-Sitax/Moodygame/issues/37)).
 - Stadspark droppings are scattered over reachable ground, including existing saves; piles reserved for a cleanup job stay put. Pond reflections update every frame and remain visible from all banks. The pond is deeper and you can swim through it, under the bridge, and climb onto its banks ([#34](https://github.com/Steve-Sitax/Moodygame/issues/34)).
 - Carts, horses and omnibuses have more room beside the Eilandje lock, the Vliet post and the Vleeshuis steps. Employers keep out of bus lanes, and buses check obstructions throughout their routes ([#31](https://github.com/Steve-Sitax/Moodygame/issues/31)).
 - Dock workers keep their spacing on shared rounds when a change to the streets alters their journey to work.

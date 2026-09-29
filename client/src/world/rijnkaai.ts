@@ -1429,11 +1429,28 @@ export function buildRijnkaai(): World {
   const raised = new Set<RaisedDeck>();
   /** The lowest of them: anyone walking below it (everyone on the ground) skips them all. */
   let raisedLow = Infinity;
+  /** (x, z) in a deck's own frame (a working crane's gallery turns with its jib: world/railway.ts DeckFrame). */
+  const deckP = { x: 0, z: 0 };
+  const inDeck = (d: RaisedDeck, x: number, z: number, m: number): boolean => {
+    const f = d.frame;
+    if (f) {
+      const dx = x - f.x;
+      const dz = z - f.z;
+      const c = Math.cos(f.rot);
+      const s = Math.sin(f.rot);
+      deckP.x = dx * c - dz * s;
+      deckP.z = dx * s + dz * c;
+    } else {
+      deckP.x = x;
+      deckP.z = z;
+    }
+    return deckP.x > d.minX + m && deckP.x < d.maxX - m && deckP.z > d.minZ + m && deckP.z < d.maxZ - m;
+  };
   const raisedAt = (x: number, z: number, feet: number): RaisedDeck | null => {
     if (feet < raisedLow - 0.8) return null;
     let best: RaisedDeck | null = null;
     for (const d of raised) {
-      if (Math.abs(feet - d.y) < 0.8 && x > d.minX && x < d.maxX && z > d.minZ && z < d.maxZ && (!best || d.y > best.y)) best = d;
+      if (Math.abs(feet - d.y) < 0.8 && (!best || d.y > best.y) && inDeck(d, x, z, 0)) best = d;
     }
     return best;
   };
@@ -1441,7 +1458,7 @@ export function buildRijnkaai(): World {
   const raisedFree = (x: number, z: number, r: number, feet: number) => {
     const m = r * 0.5;
     for (const d of raised) {
-      if (Math.abs(feet - d.y) <= STEP && x > d.minX + m && x < d.maxX - m && z > d.minZ + m && z < d.maxZ - m) return true;
+      if (Math.abs(feet - d.y) <= STEP && inDeck(d, x, z, m)) return true;
     }
     return false;
   };

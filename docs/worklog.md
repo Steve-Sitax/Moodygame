@@ -5,6 +5,10 @@ The coordinating Claude session keeps this file current: a line when a helper st
 patch goes live (with its commit), and when Steve decides something. Newest first in each part.
 Git history has the detail of each commit.
 
+## Cranes climbable while they work, 2026-09-30
+
+[Issue 37](https://github.com/Steve-Sitax/Moodygame/issues/37): since the D1 docks the cranes nearly always work, and the ladder waited for a crane at rest; the dock cranes' ladder feet end over the water. Now the crane works on: the gallery's walk areas are in the jib's frame (`RaisedDeck.frame`), Jef rides its turns and travel (`craneClimb.ride()` right after `world.update`), waits at the ladder top till the gallery is behind it, and at a dock crane climbs from the nearest free quay spot. Browser: crane 0 climbed while working, 32 s ridden through 14 jib angles and 4.8 m of travel without leaving the deck, climbed down; dock crane 3 climbed from the quay. Crane and dock tests pass.
+
 ## Map icons, Esc, vaulting, falls, boats, birds, 2026-09-29 (late)
 
 Steve's list: a clearer map with icons, hover names and kinds to switch off; Esc closes windows as E does; jump over railings, ledges, low shrubs (hold Space, or press again at the top); jump into boats from the quay; pickpocketing only from behind; birds that swim or walk off, then fly, also to the Schelde and the docks, and more of them; fall damage over 3 m (a crane's gallery).

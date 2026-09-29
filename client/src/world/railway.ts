@@ -112,6 +112,17 @@ export interface RaisedDeck {
   minZ: number;
   maxZ: number;
   y: number;
+  /**
+   * (2026-09-30, Steve: "i must be able to climb while crane works, it does not get disturbed") The rect is in a frame
+   * that moves: the world point p lies at frame.x, z + R(rot) p_local (three.js turn about y). None: world metres.
+   */
+  frame?: DeckFrame;
+}
+/** Where a deck's frame stands and how it is turned now (a working crane's jib). */
+export interface DeckFrame {
+  x: number;
+  z: number;
+  rot: number;
 }
 
 /** A place up on a crane for jobs (M3g part 4): the driver's cabin, the gallery. Not in shared/spots.json. */
@@ -138,11 +149,13 @@ export interface CraneLadder {
   face: number;
   /** Feet height at the top (the gallery). */
   top: number;
-  /** The walkable areas up there, in place (they move with the crane). */
+  /** The walkable areas up there, in the jib's frame (`frame`: they move and turn with the crane). */
   decks: RaisedDeck[];
+  /** Where the jib's frame stands and how it is turned now. */
+  frame: DeckFrame;
   /** Its places for jobs, in place. */
   spots: CraneSpot[];
-  /** Standing still with its jib at rest: you may climb. */
+  /** Standing still with its jib at rest (a job's scene uses it; climbing no longer waits for it). */
   ready: boolean;
 }
 
@@ -776,8 +789,9 @@ interface Crane {
   stuck: number;
   roll: number;
   legs: Rect[];
-  /** Its walkable areas up there (DECK_AREAS in place). */
+  /** Its walkable areas up there (DECK_AREAS in the jib's frame, which turns with the jib: deckFrame). */
   decks: RaisedDeck[];
+  deckFrame: DeckFrame;
   /** The train has it (from the approach to the last lift). */
   reserved: boolean;
   /** The player stands at its ladder (seconds), or is on it. */
@@ -987,7 +1001,8 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
       stuck: 0,
       roll: 0,
       legs: CRANE_FEET.map(() => ({ minX: 1e6, maxX: 1e6, minZ: 1e6, maxZ: 1e6 })),
-      decks: DECK_AREAS.map((a) => ({ minX: 1e6, maxX: 1e6, minZ: 1e6, maxZ: 1e6, y: a.y })),
+      deckFrame: { x: 1e6, z: 1e6, rot: 0 },
+      decks: [],
       reserved: false,
       parkFor: 0,
       occupied: false,
@@ -1053,6 +1068,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
       }
     } else c.a = c.shipA;
     if (c.shipA === null && !c.pile) return;
+    c.decks = DECK_AREAS.map((a) => ({ ...a, frame: c.deckFrame }));
     cranes.push(c);
   });
   const pileOn = (p: Pile) => {
@@ -1290,7 +1306,9 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
     c.site.obj.position.x = x;
     c.site.obj.position.z = z;
     CRANE_FEET.forEach(([lx, lz, hx, hz], i) => rectAt(c, { minX: lx - hx, maxX: lx + hx, minZ: lz - hz, maxZ: lz + hz }, c.legs[i]));
-    DECK_AREAS.forEach((a, i) => rectAt(c, a, c.decks[i]));
+    c.deckFrame.x = x;
+    c.deckFrame.z = z;
+    c.deckFrame.rot = c.site.yaw + c.a;
   }
   for (const c of cranes) {
     for (const [x0, z0, x1, z1] of craneRails) {
@@ -1545,8 +1563,9 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
    * runway, hook up, a ring of the bell, slowly along, jib out over the new hold.
    */
   function travelStep(c: Crane, dt: number, player: { x: number; z: number } | null): boolean {
-    if (c.mode === "berth" && (c.parkFor > 0 || c.occupied) && !c.reserved && !c.ops.length) {
-      // someone at the ladder or on the deck: jib to rest, hook up, stand still
+    if (c.mode === "berth" && c.parkFor > 0 && !c.reserved && !c.ops.length) {
+      // asked to stand still (a job's scene): jib to rest, hook up, stand still. (2026-09-30: someone on the ladder or
+      // up on the gallery no longer stops it: he rides along, world/rijnkaai.ts raised decks in the jib's frame)
       c.parkFor -= dt;
       slewTo(c, 0, dt, SLEW * 0.7);
       hoistTo(c, HOOK_REST, dt);
@@ -1573,7 +1592,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
     }
     if (c.mode === "swingIn") {
       // blocked too long on the way in (another crane working next to it): back out over the hold
-      if (c.reserved || c.occupied || c.parkFor > 0 || c.blockT > GIVE_UP) {
+      if (c.reserved || c.parkFor > 0 || c.blockT > GIVE_UP) {
         if (c.blockT > GIVE_UP) c.stat.gaveUp++;
         c.blockT = 0;
         c.target = null;
@@ -2408,6 +2427,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
     // the cranes: hooks, ropes, slings and loads; the piles on the quay
     cranes.forEach((c, i) => {
       c.jib.rotation.y = c.a;
+      c.deckFrame.rot = c.site.yaw + c.a; // the gallery and the cabin turn with it
       // the bogie wheels, turning as it travels
       CRANE_WHEELS.forEach(([lx, lz], k) => {
         const [wx, wz] = toWorld(c, lx, lz);
@@ -2811,8 +2831,14 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
           face: c.site.yaw + Math.PI,
           top: DECK_Y,
           decks: c.decks,
+          frame: c.deckFrame,
           spots: CRANE_SPOTS.map((s) => {
-            const [x, z] = toWorld(c, s.x, s.z);
+            // (up on the gallery: they turn with the jib)
+            const f = c.deckFrame;
+            const co = Math.cos(f.rot);
+            const si = Math.sin(f.rot);
+            const x = f.x + s.x * co + s.z * si;
+            const z = f.z - s.x * si + s.z * co;
             return { id: `${s.kind}_${c.index}`, kind: s.kind, crane: c.index, x, z, y: s.y, label: s.label };
           }),
           ready: c.mode === "berth" && !c.reserved && !c.ops.length && Math.abs(angDiff(0, c.a)) < 0.01 && Math.abs(c.hy - HOOK_REST) < 0.05,

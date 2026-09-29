@@ -55,6 +55,8 @@ export interface ClimbLadder {
   bottom: number;
   top: number;
   done?: (at: "top" | "foot") => void;
+  /** At the top: may he step off now (a working crane's gallery has swung round behind the ladder head)? */
+  canStepOff?: () => boolean;
 }
 
 /** Where a carried player stands (feet), the way the carriage points, and how fast it goes (m/s). */
@@ -565,6 +567,14 @@ export class FirstPerson {
     this.climbLadderRung = this.y;
   }
 
+  /** Carried where he stands (a working crane's gallery turning under him): to (x, z), turned by dYaw. */
+  carryTo(x: number, z: number, dYaw: number): void {
+    this.x = x;
+    this.z = z;
+    this.yaw += dYaw;
+    this.lookYaw += dYaw;
+  }
+
   /** A key held now (the ladder: push into it to start climbing). */
   pressing(code: string): boolean {
     return (this.locked || this.freeInput || this.testInput) && !this.frozen && this.keys.has(code);
@@ -581,7 +591,10 @@ export class FirstPerson {
       this.climbLadderRung = this.y;
       this.onStep("wood", false);
     }
-    if (this.y >= l.top - 1.0) {
+    if (this.y >= l.top - 1.0 && l.canStepOff && !l.canStepOff()) {
+      // (2026-09-30) the crane works on: its gallery is swung away from the ladder head; he waits on the top rungs
+      this.y = l.top - 1.0;
+    } else if (this.y >= l.top - 1.0) {
       // over the edge and onto the deck
       this.climbLadder = null;
       this.x = l.head.x;
