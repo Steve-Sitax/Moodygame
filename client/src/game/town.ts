@@ -725,6 +725,7 @@ export class Town {
         const h = this.world.groundAt(x, z, 0.2, 0);
         return h > -20 ? h : 0;
       },
+      free: (x, z) => this.world.standFree(x, z, 0.2, 0),
     });
     this.droveWalk.update(dt, this.drove, (day - 1) * 1440 + hour * 60, player.x, player.z);
     this.progress(dt, day, hour);

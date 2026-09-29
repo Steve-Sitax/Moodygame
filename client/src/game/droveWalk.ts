@@ -18,7 +18,12 @@ interface Host {
   crowd: Crowd;
   /** The height of the ground an animal at (x, z) stands on. */
   heightAt(x: number, z: number): number;
+  /** Open ground for a body there (no wall, lamp post, stall or bench). */
+  free(x: number, z: number): boolean;
 }
+
+/** Sideways from the way (m), tried in turn for a spot that is free: the wish first, then nearer the middle, then out. */
+const SIDES = (want: number): number[] => [want, want * 0.5, 0, -want * 0.5, -want, 0.9, -0.9, 1.3, -1.3];
 
 export class DroveWalk {
   private id = "";
@@ -26,6 +31,9 @@ export class DroveWalk {
   private pigs: Array<Animal | null> = [];
   private t = 0;
   private lamp: boolean | null = null;
+  /** The side each one walks at now (m right of the way), eased to a free spot: the farmer at 0. */
+  private sides: number[] = [];
+  private manSide = 0;
 
   constructor(private readonly host: Host) {}
 
@@ -36,7 +44,10 @@ export class DroveWalk {
     if (!d || !at || at.phase === "before" || at.phase === "over") return this.clear();
     const line = at.phase === "back" ? null : droveLine(d, at.f);
     const manS = at.phase === "back" ? at.f * d.len : line!.man;
-    const [mx, mz] = this.pointAt(d, manS);
+    // (M7 check 2026-09-29: the way is the walk map's, which does not know the lamp posts, stalls and benches, and a
+    // pig beside it stood in a wall now and then: each one takes the nearest free spot beside the way, eased to)
+    this.manSide = this.ease(this.manSide, this.freeSide(d, manS, 0), dt);
+    const [mx, mz] = this.pointAt(d, manS, this.manSide);
     // near the player: the line is short, the farmer's place tells
     if (Math.hypot(mx - px, mz - pz) > NEAR_M) return this.clear();
     if (d.id !== this.id) {
@@ -85,8 +96,9 @@ export class DroveWalk {
       }
       // at the door they close up to it, the first first
       const s = at.phase === "in" ? Math.min(d.len, line!.pigs[i] + (DROVE_GAP * i * at.minIn) / inBy) : line!.pigs[i];
-      const side = 0.35 * Math.sin(i * 2.1 + this.t * 0.35) + (i % 2 ? 0.25 : -0.25);
-      const [x, z] = this.pointAt(d, s, side);
+      const want = 0.35 * Math.sin(i * 2.1 + this.t * 0.35) + (i % 2 ? 0.25 : -0.25);
+      this.sides[i] = this.ease(this.sides[i] ?? want, this.freeSide(d, s, want), dt);
+      const [x, z] = this.pointAt(d, s, this.sides[i]);
       a.group.position.set(x, this.host.heightAt(x, z), z);
       a.group.rotation.y = this.yawAt(d, s, false) + 0.25 * Math.sin(this.t * 0.8 + i);
       a.play(at.phase === "in" ? (i % 2 ? "sniff" : "idle") : "walk");
@@ -102,6 +114,21 @@ export class DroveWalk {
     const [x2, z2] = wayPoint(d.way, Math.min(1, f + 0.5 / Math.max(1, d.len)));
     const L = Math.hypot(x2 - x, z2 - z) || 1;
     return [x - ((z2 - z) / L) * side, z + ((x2 - x) / L) * side];
+  }
+
+  /** The side (m right of the way) nearest `want` where a body stands free, at `s` metres along. */
+  private freeSide(d: Drove, s: number, want: number): number {
+    for (const side of SIDES(want)) {
+      const [x, z] = this.pointAt(d, s, side);
+      if (this.host.free(x, z)) return side;
+    }
+    return want;
+  }
+
+  /** Towards a new side at a walking step's pace (no jump). */
+  private ease(from: number, to: number, dt: number): number {
+    const step = 1.2 * dt;
+    return Math.abs(to - from) <= step ? to : from + Math.sign(to - from) * step;
   }
 
   private yawAt(d: Drove, s: number, back: boolean): number {
@@ -123,6 +150,8 @@ export class DroveWalk {
     this.man = null;
     for (let i = 0; i < this.pigs.length; i++) this.dropPig(i);
     this.pigs = [];
+    this.sides = [];
+    this.manSide = 0;
     this.id = "";
   }
 

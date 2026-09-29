@@ -142,7 +142,9 @@ export function buildTradeYards(host: Host, data: TownData): THREE.Group {
   // the coal yard: the heap and three baskets beside it
   const cw = SPOTS.canal_west as { x: number; z: number } | undefined;
   if (cw) {
-    const [x, z] = [cw.x - 2.4, cw.z - 0.6];
+    // (against the quay's west side, clear of the walking line down the middle: the drove of pigs and the town walk
+    // it, M7 check 2026-09-29; first placed on it)
+    const [x, z] = [cw.x - 5.2, cw.z - 0.6];
     const y = host.groundAt(x, z, 0.3, 0);
     for (const g of heap()) coal.push(at(plain(g), x, y, z, 0.4));
     for (const [dx, dz] of [
