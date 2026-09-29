@@ -11,6 +11,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - The cathedral's towers are open: behind their lancets and louvres you see the chambers, the bell frames with their bells, and the carillon in the north tower ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
 - The crossing tower and the dormers of the cathedral's great roof have real windows, with the timber frame and the roof space behind them ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
 - Sunlight falls on the floors of the cathedral's chapels round the choir ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
+- The towers, belfries, roof spaces, sacristies, the convent of St Paul's and the Jesuit house of the Carolus show real rooms behind their windows: bells and louvres, trusses, cells ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
+- In the Carolus the round windows over the side doors and the front's middle windows show whole from inside the aisles ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
 
 ### Changed
 - The lower parts of the cathedral's aisle windows, behind the houses built against it, are walled up instead of painted ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
