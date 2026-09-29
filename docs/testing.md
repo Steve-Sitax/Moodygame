@@ -52,6 +52,11 @@ One call may take at most about 15 s in the preview tool, so `t.run()` does 30 r
 15 game minutes. `t.run` and `t.until` run the client only; the server's clock ticks on in real time (5
 game minutes every 10 s) while the game plays. To move an event through its stages, use `t.skip(min)`: it
 jumps the server's clock on and ticks once, and the stages it passes are played.
+`t.run` steps the world with Jef's camera, as a frame does (issue #8): the lit windows, the wet, the rain and the
+puddles follow the clock in a hidden tab too (`world.ambient.info().hour`, `spillInfo().lit`; checked 2026-09-29 in a
+hidden preview tab: `light(20, "rain")`, `run(20)`: hour 20, rain 1.0, lit 32 -> 87). The polls count down in game
+time, so a run sends a heap of calls at its end (about 150 for `run(30)`): at most 8 go to the server at once, the rest
+wait their turn, a GET already on its way is shared (boot/netboot.ts, issue #15; `__apiOpen()` in the tab).
 
 ## The kit (`__scheldemist.t`)
 | Call | What it does |
@@ -65,7 +70,7 @@ jumps the server's clock on and ticks once, and the stages it passes are played.
 | `summon("tobacconist")` | Brings a townsperson 3 m in front of Jef. They wait there, facing him, until `clear()`. Not someone busy in an event: `meet` them there. |
 | `spawn("thief", { walkTo: [x, z] })` | A job figure (thief, stranger, foreman, recipient) 5 m ahead on land. It walks the walk grid and never over the water. |
 | `job({ type: "watch", twist: "thief" })` | Puts that job on today's board, takes it, puts Jef at its start. Types: carry, watch, deliver. M7 short jobs: `items` (1-2 by hand, the engine clamps) and `cart: true` (a cart job: the employer's handcart stands by the goods). Twists: carry (broken_goods, stranger_offer, foreman_watches, thick_fog, heavy_load), watch (thief, bribe, foreman_watches, thick_fog), deliver (stranger_offer, thick_fog). Also `goods`, `from`, `to`, `employer`, `urgent`. Test save only. |
-| `lampJob("market")` | The lamplighter's last lamps (`west`, `market` or `east`; `docs/milestones/lamplighter-job.md`) put on the board, taken, Jef by the spare pole at the first lamp. E takes the pole; lighting works from the round's dusk (about 16:48): `time(16, 50)`. `__scheldemist.jobs.run.info()` shows the lamps lit. Test save only. |
+| `lampJob("market")` | The lamplighter's last lamps (`west`, `market`, `east`, or a town wall round: `wall_rode`, `wall_north`, `wall_keizer`, `wall_kipdorp`, `wall_joris`; `docs/milestones/lamplighter-job.md`) put on the board, taken, Jef by the spare pole at the first lamp. E takes the pole; lighting works from the round's dusk (about 16:48): `time(16, 50)`. `__scheldemist.jobs.run.info()` shows the lamps lit. Test save only. |
 | `event("fish_auction")`, `event("invent")` | Starts an event template now, or asks the director for its own. Jef goes to its place. The engine's rules still hold: no overlap with a running event nearby, so pick another place or wait for the other to end. Test save only. |
 | `tempest({ start, hold })` | The great storm: `start: true` plans it now (it comes a game minute after the next tick: `skip(10)`); `hold: 0..1` holds its look (null: the event's). Returns the phase, the level, the places shut, the town's shelters, who is still out near Jef and whether they run, the storm noises heard. Test save only. |
 | `run(s)`, `until(() => cond, maxS)` | Runs the game now, even with the tab hidden. Figures you spawned move with it. 30 real s at most a call (15 game minutes). |

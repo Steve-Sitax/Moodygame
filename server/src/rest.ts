@@ -24,6 +24,7 @@ import {
 import { endRide } from "./ride.ts";
 import { endRowNight } from "./rowing.ts";
 import { spreadRumours } from "./town/rumours.ts";
+import { wallDressing } from "./town/wallDressing.ts";
 import { homeBed } from "./homes/homes.ts";
 import { asPlayer, onlineIds, pid, setOnlineIds } from "./player/current.ts";
 import { RESET_HOOKS } from "./player/multi.ts";
@@ -188,27 +189,12 @@ function readJson<T>(file: string): T | null {
   }
 }
 
-/** The wall walk's benches from wall.glb's dressing (the glTF's JSON chunk; world/rampart.ts reads the same). */
-function wallBenches(file: string): Array<{ x: number; z: number; y: number }> {
-  try {
-    const b = fs.readFileSync(file);
-    if (b.readUInt32LE(0) !== 0x46546c67) return [];
-    const len = b.readUInt32LE(12);
-    const gltf = JSON.parse(b.subarray(20, 20 + len).toString("utf8")) as { nodes?: Array<{ name?: string; extras?: { dressing?: string } }> };
-    const node = gltf.nodes?.find((n) => n.name === "wall_dressing");
-    const d = node?.extras?.dressing ? (JSON.parse(node.extras.dressing) as { benches?: Array<{ x: number; z: number; y: number }> }) : null;
-    return (d?.benches ?? []).map((q) => ({ x: q.x, z: q.z, y: q.y }));
-  } catch {
-    return [];
-  }
-}
-
 /** Every public bench with a fixed place (shared/sleep.ts fixedBenches), read once. */
 export function benches(): Bench[] {
   if (registry) return registry;
   const models = path.join(PUBLIC_DIR, "models");
   const park = readJson<{ benches?: Array<Array<[number, number]>> }>(path.join(models, "park.json"))?.benches ?? [];
-  registry = fixedBenches({ townplaces: TOWNPLACES as never, stops: STOPS, park, wall: wallBenches(path.join(models, "wall.glb")) });
+  registry = fixedBenches({ townplaces: TOWNPLACES as never, stops: STOPS, park, wall: wallDressing(path.join(models, "wall.glb")).benches });
   return registry;
 }
 

@@ -165,6 +165,23 @@ export function peopleClips(): Map<string, THREE.AnimationClip> | null {
   return template?.clips ?? null;
 }
 
+/**
+ * Let go of the bone textures of a skinned clone (issue #19, 2026-09-29). SkeletonUtils.clone gives each clone its own
+ * skeletons, and three.js makes a small float texture for a skeleton the first time it is drawn (8 x 8 for a person's
+ * 16 bones, 12 x 12 for 36). The clones share the model's geometry and materials, so their dispose() left those
+ * alone, and the bone textures with them: about 20 more on the GPU a minute while walking the town, never given back.
+ */
+export function disposeSkeletons(root: THREE.Object3D): void {
+  const seen = new Set<THREE.Skeleton>();
+  root.traverse((o) => {
+    const s = (o as THREE.SkinnedMesh).isSkinnedMesh ? (o as THREE.SkinnedMesh).skeleton : null;
+    if (s && !seen.has(s)) {
+      seen.add(s);
+      s.dispose();
+    }
+  });
+}
+
 /** A new person of this kind, or null while the models are not loaded. */
 export function makeHuman(kind: HumanKind): Human | null {
   if (!template) {
@@ -314,5 +331,6 @@ export class Human {
     this.mixer.uncacheRoot(this.root);
     removeCaster(this.root);
     this.root.removeFromParent();
+    disposeSkeletons(this.root);
   }
 }

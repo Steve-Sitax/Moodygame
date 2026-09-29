@@ -132,6 +132,9 @@ export class RetroPass {
   /** M7 in the world: rooms drawn over the street through their openings (world/inworld.ts). */
   inWorld: InWorld | null = null;
 
+  /** What waits for its shaders stays out of every pass of a render (world/warmup.ts ShaderWarmer, issue #7). */
+  hold: { hide(): void; show(): void } | null = null;
+
   render(scene: THREE.Scene, camera: THREE.Camera, time: number): void {
     // dev (the frame profiler): the draw calls of each pass too
     const info = this.renderer.info;
@@ -150,9 +153,11 @@ export class RetroPass {
       prof.add(`${name} calls`, info.render.calls - c);
       prof.add(`${name} ktris`, (info.render.triangles - t) / 1000);
     };
+    this.hold?.hide();
     try {
       this.renderInner(scene, camera, time, pass);
     } finally {
+      this.hold?.show();
       info.autoReset = keepReset;
     }
   }

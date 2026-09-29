@@ -395,7 +395,7 @@ export function createMirror(plane0: number, opts: MirrorOptions = {}): Mirror {
     },
   });
 
-  return {
+  const mirror: Mirror = {
     texture: rt.texture,
     matrix,
     attach(mesh) {
@@ -422,4 +422,26 @@ export function createMirror(plane0: number, opts: MirrorOptions = {}): Mirror {
       rt.dispose();
     },
   };
+  if (opts.name) {
+    byName.set(opts.name, mirror);
+    for (const o of waiting.get(opts.name) ?? []) mirror.attach(o);
+    waiting.delete(opts.name);
+  }
+  return mirror;
+}
+
+const byName = new Map<string, Mirror>();
+const waiting = new Map<string, THREE.Object3D[]>();
+/**
+ * A surface whose material shows a mirror's picture is that mirror's surface, wherever it is built (issue #23,
+ * 2026-09-29): psx ground with `puddles` samples the "puddles" mirror (world/city.ts). Drawn into its own mirror it
+ * read the picture it drew into: "Feedback loop formed between Framebuffer and active Texture", and the GPU dropped
+ * the draw (the park's ground, the rond point, the quay tracks, whenever nothing culled them: the loading's draws).
+ * As a surface it is left out of that mirror's pass, and its being in view asks for the mirror. Attached at once, or
+ * when the mirror is made.
+ */
+export function attachToMirror(name: string, ...objs: THREE.Object3D[]): void {
+  const m = byName.get(name);
+  if (m) for (const o of objs) m.attach(o);
+  else waiting.set(name, [...(waiting.get(name) ?? []), ...objs]);
 }

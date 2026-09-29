@@ -896,7 +896,8 @@ export class Crowd {
     this.keepApart(dt);
     for (const p of this.people) {
       const d = Math.hypot(p.x - player.x, p.z - player.z);
-      const inView = d < this.fogFar + 4 && this.inFrustum(p.x, p.z, 1.3 * p.size);
+      const base = this.ground.baseAt?.(p.x, p.z) ?? 0;
+      const inView = d < this.fogFar + 4 && this.inFrustum(p.x, p.z, 1.3 * p.size, base);
       p.shown = inView;
       p.group.visible = inView;
       let y = 0;
@@ -916,7 +917,7 @@ export class Crowd {
       const want = p.state === "sit" ? p.human.sitDrop() * p.size : Math.min(0, lift);
       p.drop += (want - p.drop) * Math.min(1, dt * 4);
       if (inView) y = p.drop + Math.max(0, lift) + (p.state === "sit" ? 0 : p.human.bob() * p.size);
-      p.group.position.set(p.x, y + (this.ground.baseAt?.(p.x, p.z) ?? 0), p.z);
+      p.group.position.set(p.x, y + base, p.z);
       p.group.rotation.y = p.yaw;
       if (p.veh) this.moveVehicle(p, dt, inView);
       else if (p.kind === "carter") this.pushCart(p, dt, inView);
@@ -2370,9 +2371,10 @@ export class Crowd {
     return !this.inFrustum(x, z, 1.5);
   }
 
-  private inFrustum(x: number, z: number, r: number): boolean {
+  /** `base`: the ground under them (a quay's steps, the town wall's walk 6.5 m up: issue #14, a lamplighter up there was hidden from Jef beside him). */
+  private inFrustum(x: number, z: number, r: number, base = this.ground.baseAt?.(x, z) ?? 0): boolean {
     if (!this.camera) return true;
-    this.sphere.center.set(x, 0.9, z);
+    this.sphere.center.set(x, base + 0.9, z);
     this.sphere.radius = r;
     return this.frustum.intersectsSphere(this.sphere);
   }

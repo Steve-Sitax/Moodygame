@@ -5,7 +5,7 @@ import { finishJob, takeJob } from "../src/game.ts";
 import { jobById, TIER_PAY, type LampsTask } from "../src/hooks/jobBoard.ts";
 import { lampHelpNow, lampRounds } from "../src/town/lamplighters.ts";
 import { lampLit, lampLitHelped, roundState, SEEN_PACE } from "../src/town/lampround.ts";
-import { buildLampJob, DONE_BY_H, expireLampJobs, LAMP_JOB_MAX, LAMP_JOB_MIN, LIGHT_S, lightLamp, offerLampJob, STRETCH_MAX_S, stretchOf, TAKE_BY_H, takePole } from "../src/town/lampjob.ts";
+import { buildLampJob, DONE_BY_H, expireLampJobs, LAMP_JOB_MIN, lampPay, LIGHT_S, lightLamp, offerLampJob, STRETCH_MAX_S, stretchMost, stretchOf, stretchWalkM, TAKE_BY_H, takePole } from "../src/town/lampjob.ts";
 import { lampLightAt } from "../src/town/deeds.ts";
 
 // The lamplighter's help (Steve 2026-09-28: "add a job as lamp lighter for the player and get paid. But you can only
@@ -51,11 +51,34 @@ describe("the lamplighter's help: the stretch", () => {
       fit++;
       const k = n - from;
       expect(k, r.id).toBeGreaterThanOrEqual(LAMP_JOB_MIN);
-      expect(k, r.id).toBeLessThanOrEqual(Math.min(LAMP_JOB_MAX, Math.floor(n / 2)));
+      expect(k, r.id).toBeLessThanOrEqual(stretchMost(n));
+      expect(n - k, r.id).toBeGreaterThanOrEqual(4);
+      // (a lamp outside a shut gate of the town wall is never Jef's: he cannot go out through the wicket)
+      expect(r.lamps.slice(from).some((l) => l.wicket), r.id).toBe(false);
       expect(walkOf(k), r.id).toBeLessThanOrEqual(STRETCH_MAX_S);
     }
-    // the west, market and east rounds (the north round ends on the far Sint-Jansplein)
-    expect(fit).toBeGreaterThanOrEqual(3);
+    // the west, market and east rounds (the north round ends on the far Sint-Jansplein), and every round of the town
+    // wall (#14, Steve 2026-09-29: "possibility for more quest routes as lighter")
+    expect(fit).toBeGreaterThanOrEqual(8);
+    for (const r of rounds.filter((x) => x.id.startsWith("wall_"))) expect(stretchOf(r), r.id).toBeGreaterThanOrEqual(0);
+  });
+
+  it("a wall round's job: the round's last lamps on the walk, paid by the lamps and the walk", () => {
+    const db = blankSave();
+    setClock(db, 2, 9);
+    const rounds = lampRounds(db)!.rounds;
+    for (const id of ["wall_rode", "wall_north", "wall_keizer", "wall_kipdorp", "wall_joris"]) {
+      const r = rounds.find((x) => x.id === id)!;
+      const j = buildLampJob(db, id)!;
+      expect(j, id).toBeTruthy();
+      expect(j.employer).toBe(r.lamplighter);
+      expect(j.task.lamps.map((l) => l.id)).toEqual(r.lamps.slice(stretchOf(r)).map((l) => l.id));
+      for (const l of j.task.lamps) expect(Number(l.id.slice(1)), id).toBeGreaterThanOrEqual(1000);
+      const [lo, hi] = TIER_PAY[0];
+      expect(j.pay_c).toBe(Math.max(lo, Math.min(hi, lampPay(j.task.lamps.length, stretchWalkM(r, stretchOf(r))))));
+    }
+    // a longer walk pays more for as many lamps
+    expect(lampPay(6, 250)).toBeGreaterThan(lampPay(6, 120));
   });
 
   it("the job: the lamplighter's own, the round's last lamps, the pole at the first, lighting from the round's dusk, all by 2.25 h later; paid within the band", () => {

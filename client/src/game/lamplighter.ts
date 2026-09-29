@@ -1,4 +1,4 @@
-import { helpHolds, inGrace, lampLit, lampLitHelped, roundState, roundWindow, seenPace, SEEN_STOP_S, type FogDay, type LampHelp, type LampRound, type LampWindow } from "../../../server/src/town/lampround";
+import { alongOf, helpHolds, inGrace, lampLit, lampLitHelped, pointAlong, roundState, roundWindow, seenPace, SEEN_STOP_S, type FogDay, type LampHelp, type LampRound, type LampWindow } from "../../../server/src/town/lampround";
 import type { GasLamps } from "../world/gaslamps";
 import type { Crowd, Puppet } from "./crowd";
 import type { Town } from "./town";
@@ -21,6 +21,8 @@ import { makeWear, setPole, type Wear } from "./wardrobe";
 
 const CLAIM_M = 50;
 const DROP_M = 64;
+/** A long leg is walked mark to mark along the round's own way, this far apart (m). */
+const MARK_M = 20;
 
 interface Run {
   round: LampRound;
@@ -120,11 +122,13 @@ export class Lamplighters {
       this.town.moveHidden(round.lamplighter, plan.x, plan.z, 100);
       r.held = true;
       if (d > CLAIM_M) return;
-      const p = this.town.claimNear(round.lamplighter, player);
+      const p = this.claimOnWay(round, plan, player) ?? this.town.claimNear(round.lamplighter, player);
       if (!p) return;
       r.p = p;
-      r.idx = plan.atLamp >= 0 ? plan.atLamp : Math.min(round.lamps.length - 1, plan.done);
-      r.done = plan.atLamp >= 0 ? plan.atLamp : plan.done;
+      // (issue #24: taken up in the middle of a stop, the lamps the plan has done stay done: that lamp burning
+      // already (or out, at dawn), he goes on to the next; before, it went dark again until he came back to it)
+      r.done = plan.done;
+      r.idx = plan.atLamp >= plan.done ? plan.atLamp : plan.done;
       r.phase = "walk";
       r.goT = 0;
       this.crowd.puppetLantern(p, false);
@@ -166,7 +170,8 @@ export class Lamplighters {
       if (r.goT <= 0 || !this.crowd.puppetBusy(p)) {
         // the way through the streets runs a little longer than the straight line
         r.pace = seenPace(round, r.idx, dl * 1.15, hour, w.w ?? w.kind);
-        this.crowd.puppetGo(p, lamp.sx, lamp.sz, r.pace);
+        const [gx, gz] = this.nextMark(round, r.idx, p);
+        this.crowd.puppetGo(p, gx, gz, r.pace);
         r.goT = 3;
       }
       return;
@@ -179,6 +184,49 @@ export class Lamplighters {
       r.phase = "walk";
       r.goT = 0;
     }
+  }
+
+  /**
+   * Issue #14: he steps out on his round's own way, behind where the plan has him, out of Jef's sight: on the town
+   * wall the street below is no way to his lamp (the walk grid round Jef does not reach the stair). Null: none hidden.
+   */
+  private claimOnWay(round: LampRound, plan: { x: number; z: number }, player: { x: number; z: number }): Puppet | null {
+    if (round.path.length < 2) return null;
+    const at = alongOf(round.path, plan.x, plan.z);
+    // (behind him first; at his first lamp there is no behind: a little ahead, and he walks back to it)
+    for (const back of [26, 32, 40, 48, 20, 14, -26, -32, -40]) {
+      if (at - back < 0 || at - back > round.len) continue;
+      const [x, z] = pointAlong(round.path, at - back);
+      if (Math.hypot(x - player.x, z - player.z) < 12) continue;
+      if (this.crowd.isHidden(x, z) && this.crowd.canStand(x, z)) return this.town.claim(round.lamplighter, { x, z });
+    }
+    return null;
+  }
+
+  /**
+   * Where he walks next on the way to lamp `idx`: his round's own way (the walk map's: a wall's stair, round a block),
+   * a mark every MARK_M along it, so a long leg is walked on the way the engine laid and the walk grid round Jef only
+   * finds the few metres to the next mark. Off his way (stepped out elsewhere), first back onto it.
+   */
+  private nextMark(round: LampRound, idx: number, p: { x: number; z: number }): [number, number] {
+    const lamp = round.lamps[idx];
+    const end = round.at[idx] ?? 0;
+    const start = idx > 0 ? round.at[idx - 1] : 0;
+    if (end - start <= MARK_M || round.path.length < 2) return [lamp.sx, lamp.sz];
+    // the nearest point of this leg (the round may pass a place twice: only this leg)
+    let best = Infinity;
+    let along = start;
+    for (let a = start; a <= end; a += 1) {
+      const [x, z] = pointAlong(round.path, a);
+      const dd = Math.hypot(x - p.x, z - p.z);
+      if (dd < best) {
+        best = dd;
+        along = a;
+      }
+    }
+    if (best > 4) return pointAlong(round.path, along);
+    const mark = Math.ceil((along - start + 6) / MARK_M) * MARK_M + start;
+    return mark >= end - 4 ? [lamp.sx, lamp.sz] : pointAlong(round.path, mark);
   }
 
   private drop(r: Run, release: boolean): void {

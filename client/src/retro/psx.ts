@@ -17,6 +17,39 @@ export const MAX_LAMPS = 6;
  */
 export const MAX_SPILL = 48;
 
+/**
+ * A gas lamp's light under its cap (issue #11, 2026-09-29). The street lamps' point lights (world/rijnkaai.ts gasLamp,
+ * the doss house lantern) and their spilt light (world/gaslamps.ts) shone all round, up the fronts to the second floor:
+ * the town hall's pilasters, whose sides face a lamp beside them, caught it as bright streaks while the front beside
+ * them took it at a slant. The lantern's iron cap (0.34 m wide, 0.24 m over the flame) and the frame's top shade
+ * everything more than about 35 degrees above the flame. A gas lamp's light is told apart by its decay
+ * (GAS_LAMP_DECAY: no other light has it); psxLampCap fades it from 30 to 53 degrees over the flame
+ * (`up`: the sine of the angle over the flame, from the flame to the lit point).
+ */
+export const GAS_LAMP_DECAY = 1.7;
+const lampCapGlsl = /* glsl */ `
+#ifndef PSX_LAMP_CAP
+#define PSX_LAMP_CAP
+float psxLampCap(float decay, float up) {
+  return abs(decay - ${GAS_LAMP_DECAY.toFixed(2)}) < 0.001 ? 1.0 - smoothstep(0.5, 0.8, up) : 1.0;
+}
+#endif
+`;
+/** three.js's light loop with the gas lamps' cap on each point light (lampCapGlsl). */
+const lightsBeginCapped = (() => {
+  const src = THREE.ShaderChunk.lights_fragment_begin;
+  const line = "getPointLightInfo( pointLight, geometryPosition, directLight );";
+  const head = "#if ( NUM_POINT_LIGHTS > 0 ) && defined( RE_Direct )";
+  const out = src
+    .replace(line, `${line}\n\t\tdirectLight.color *= psxLampCap( pointLight.decay, dot( normalize( geometryPosition - pointLight.position ), psxUpView ) );`)
+    .replace(head, `vec3 psxUpView = normalize( ( viewMatrix * vec4( 0.0, 1.0, 0.0, 0.0 ) ).xyz );\n${head}`);
+  if (!out.includes("psxLampCap") || !out.includes("vec3 psxUpView")) {
+    console.warn("psx: three.js's light loop changed; the gas lamps have no cap");
+    return src;
+  }
+  return out;
+})();
+
 export const psxUniforms = {
   uSnapRes: { value: new THREE.Vector2(240, 135) },
   uTime: { value: 0 },
@@ -78,7 +111,7 @@ export const psxUniforms = {
  * with distance and angle), and the room's lamp behind the glass throws the window's shape with its bars as softer,
  * darker stripes further out. Shared by the psx materials and the far pools (world/spill.ts).
  */
-export const spillGlsl = /* glsl */ `
+export const spillGlsl = /* glsl */ `${lampCapGlsl}
 vec3 spillOne(vec3 P, vec3 N, vec4 A, vec4 B, vec4 C, vec4 D) {
   vec3 d = P - A.xyz;
   float dd = dot(d, d);
@@ -92,7 +125,8 @@ vec3 spillOne(vec3 P, vec3 N, vec4 A, vec4 B, vec4 C, vec4 D) {
     // a lamp or a lantern: a point light
     float dl = sqrt(dd);
     float cr = max(dot(N, -d / max(dl, 1e-4)), 0.0);
-    return C.rgb * (A.w * cr * fade / (pow(max(dl, 0.05), D.y) + D.w));
+    // (a gas lamp: nothing over its cap, as its point light: psxLampCap, issue #11)
+    return C.rgb * (A.w * cr * fade * psxLampCap(D.y, d.y / max(dl, 1e-4)) / (pow(max(dl, 0.05), D.y) + D.w));
   }
   float o = dot(d, n);
   if (o < -0.08) return vec3(0.0);
@@ -1098,11 +1132,13 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
         "#include <lights_fragment_begin>",
         /* glsl */ `float psxBumpK = clamp(dot(normal, nonPerturbedNormal), 0.4, 1.0);
       material.diffuseColor /= psxBumpK;
-      #include <lights_fragment_begin>
+      ${lightsBeginCapped}
       #if defined( RE_IndirectDiffuse )
       irradiance *= psxBumpK;
       #endif`,
       );
+      // (the gas lamps' cap on their point lights: psxLampCap, defined once before main)
+      fs = fs.replace("void main() {", `${lampCapGlsl}\nvoid main() {`);
     }
     if (opts.wet && fs.includes("#include <lights_phong_fragment>")) {
       // Dry stone is matte (the quay sheen, 2026-09-27; Steve: "a shine over it and it looks like flat plastic"): the
