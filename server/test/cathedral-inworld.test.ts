@@ -291,3 +291,29 @@ describe("running in the cathedral (the engine's hiss, the kerk's trust)", () =>
     expect(kerk(db)).toBe(-1);
   });
 });
+
+// Issue #28 (interiors are real): the openings of the parts over no hall (the towers, the crossing tower's tiers, the
+// great roof's dormers) and the numbers of the spaces behind them come from one build (build_landmarks.py).
+describe("the cathedral's upper openings (issue #28)", () => {
+  it("every tower lancet, tier window and dormer window is written for the room behind it, apart from the hall's", async () => {
+    const { SHELL_OPENINGS, UPPER_OPENINGS, UPPER_SHELL } = await import("../../shared/cathedralShell.ts");
+    const count = (re: RegExp) => UPPER_OPENINGS.filter((o) => re.test(o.label)).length;
+    expect(UPPER_OPENINGS.every((o) => /^cu_\d{3}$/.test(o.id) && o.kind === "window")).toBe(true);
+    expect(SHELL_OPENINGS.every((o) => /^ct_\d{3}$/.test(o.id))).toBe(true);
+    // the dormers: one window each, on the front the build noted
+    expect(count(/dormer/)).toBe(UPPER_SHELL.dormers.length);
+    // the crossing tower: eight windows a tier
+    expect(count(/lead tier/)).toBe(8 * UPPER_SHELL.crossing.tiers.length);
+    // the octagon's eight open lancets, the south lantern's four
+    expect(count(/octagon/)).toBe(8);
+    expect(count(/south tower's lantern/)).toBe(4);
+    // the square stages: two lancets a face; each tower's first stage's face toward the nave is inside the west bay
+    const stages = UPPER_SHELL.towers.reduce((s, t) => s + t.stages.length, 0);
+    expect(count(/stage/)).toBe(8 * stages - 2 * 2);
+    // every one inside the landmark's rectangle, up over the hall's vaults
+    for (const o of UPPER_OPENINGS) {
+      expect(o.yb).toBeGreaterThan(18);
+      expect(Math.abs(o.x - P.ORIGIN.x)).toBeLessThan(40);
+    }
+  });
+});

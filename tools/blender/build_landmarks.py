@@ -1247,9 +1247,17 @@ def _cath_tower(m, tu, tv, north):
     # of world/cathedralInWorld.ts stands there, under the aisle roofs): not built, nor its east
     # corner buttresses, which would stand in the nave and the aisle
     inner = 0 if north else 2
+    real = isinstance(m, CathMesh)
+    if real:
+        # (issue #28: the stages over the roofs, for world/cathedralUpper.ts; the last is the belfry)
+        CATH_UPPER.setdefault("towers", []).append({"name": "north" if north else "south", "u": tu, "v": tv, "top": ys[nst],
+                                                    "stages": [{"y0": ys[i], "y1": ys[i + 1] - 0.7, "h": hs[i]} for i in range(1, nst)]})
     for i in range(nst):
         y0, y1, h = ys[i], ys[i + 1], hs[i]
-        m.tex_prism(_sq(tu, tv, h), y0, y1 - 0.7, cells[i], skip=(3, 1, inner) if i == 0 else ())
+        if real and i >= 1:
+            _real_stage(m, tu, tv, north, i, y0, y1 - 0.7, h, belfry=(i == nst - 1))
+        else:
+            m.tex_prism(_sq(tu, tv, h), y0, y1 - 0.7, cells[i], skip=(3, 1, inner) if i == 0 else ())
         m.prism(_sq(tu, tv, h + 0.25), y1 - 0.7, y1, STONE, top=(i == nst - 1), top_mat=LEAD, shade=1.05)
         for su in (-1, 1):
             for sv in (-1, 1):
@@ -1307,7 +1315,18 @@ def _cath_tower(m, tu, tv, north):
         m.balustrade_ring(_sq(tu, tv, 5.95), top, 1.2)
         # slate roof, a small open lantern, the needle spire (1475, never replaced)
         m.frustum(_sq(tu, tv, 5.7), top + 0.3, _sq(tu, tv, 1.7), top + 6.0, SLATE)
-        m.tex_prism(_sq(tu, tv, 1.55), top + 6.0, top + 8.8, "openwork")
+        if real:
+            # (issue #28: the small lantern's four open lancets cut through, a bell behind them: world/cathedralUpper.ts)
+            CATH_UPPER["towers"][-1]["lantern"] = {"y0": top + 6.0, "y1": top + 8.8, "h": 1.55}
+            ring = _sq(tu, tv, 1.55)
+            m.reg([tu - 1.55, tu + 1.55], [tv - 1.55, tv + 1.55], top + 6.0, top + 8.8)
+            for fi in range(4):
+                a, b = ring[fi], ring[(fi + 1) % 4]
+                out = ((a[0] + b[0]) / 2 - tu, (a[1] + b[1]) / 2 - tv, 0)
+                _real_face(m, a, b, top + 6.0, top + 8.8, out, "openwork",
+                           lambda k: f"the south tower's lantern, the {_compass(out[0], out[1])} face, the open lancet", 0.2)
+        else:
+            m.tex_prism(_sq(tu, tv, 1.55), top + 6.0, top + 8.8, "openwork")
         m.prism(_sq(tu, tv, 1.8), top + 8.8, top + 9.2, LEAD, top=True)
         m.pyramid(m.ngon(tu, tv, 1.3, 8, math.pi / 8), top + 9.2, top + 19.5, SLATE)
         m.prism(m.ngon(tu, tv, 0.3, 6), top + 19.3, top + 19.9, GILT, top=True)
@@ -1321,7 +1340,12 @@ def _cath_tower(m, tu, tv, north):
         return [(tu + x, tv + y) for x, y in ((a, -(a - c)), (a, a - c), (a - c, a), (-(a - c), a), (-a, a - c),
                                                (-a, -(a - c)), (-(a - c), -a), (a - c, -a))]
     y0, y1, yc = 74.0, 93.5, 83.2
-    r0, r1 = cham(5.0, 1.6), cham(4.8, 1.5)
+    real = isinstance(m, CathMesh)
+    # (issue #28: its faces upright, not leaning in 0.2 m, so its open lancets are cut through a plane; the carillon and
+    # the clockwork behind them, world/cathedralUpper.ts)
+    r0, r1 = cham(5.0, 1.6), (cham(5.0, 1.6) if real else cham(4.8, 1.5))
+    if real:
+        CATH_UPPER["towers"][-1]["oct"] = {"y0": y0, "y1": y1, "yc": yc, "a": 5.0, "c": 1.6, "core": 1.5}
     rm = [_lerp2(p, q, (yc - y0) / (y1 - y0)) for p, q in zip(r0, r1)]
     for i in range(8):
         j = (i + 1) % 8
@@ -1330,17 +1354,24 @@ def _cath_tower(m, tu, tv, north):
         if i % 2 == 0:
             f = m.poly([(r0[i][0], r0[i][1], y0), (r0[j][0], r0[j][1], y0), (rm[j][0], rm[j][1], yc), (rm[i][0], rm[i][1], yc)], STONE)
             m.orient(f, (mu, mv, 0))
-            m.tex([(rm[i][0], rm[i][1], yc), (rm[j][0], rm[j][1], yc), (r1[j][0], r1[j][1], y1), (r1[i][0], r1[i][1], y1)],
-                  "openwork", out=(mu, mv, 0))
+            if real:
+                _real_face(m, rm[i], rm[j], yc, y1, (mu, mv, 0), "openwork",
+                           lambda k: f"the north tower's octagon, the {_compass(mu, mv)} face, the open lancet over the clock", 0.6)
+            else:
+                m.tex([(rm[i][0], rm[i][1], yc), (rm[j][0], rm[j][1], yc), (r1[j][0], r1[j][1], y1), (r1[i][0], r1[i][1], y1)],
+                      "openwork", out=(mu, mv, 0))
             # the clock, 6.4 m across
             L = math.hypot(r0[j][0] - r0[i][0], r0[j][1] - r0[i][1])
             d = ((r0[j][0] - r0[i][0]) / L, (r0[j][1] - r0[i][1]) / L)
             o = (mu / math.hypot(mu, mv), mv / math.hypot(mu, mv))
             m.decal(r0[i], d, o, L / 2 - 3.25, L / 2 + 3.25, 75.6, 82.1, "clock", DISC, off=0.14)
+        elif real:
+            _real_face(m, r0[i], r0[j], y0, y1, (mu, mv, 0), "openwork", lambda k: f"the north tower's octagon, the {_compass(mu, mv)} face, the open lancet", 0.6)
         else:
             m.tex([(r0[i][0], r0[i][1], y0), (r0[j][0], r0[j][1], y0), (r1[j][0], r1[j][1], y1), (r1[i][0], r1[i][1], y1)],
                   "openwork", out=(mu, mv, 0))
-    m.prism(cham(4.95, 1.5), y1 - 0.6, y1, STONE, top=True, top_mat=LEAD, shade=1.05)
+    # (issue #28: over the upright faces a cornice a hair proud of them)
+    m.prism(cham(5.1, 1.62) if real else cham(4.95, 1.5), y1 - 0.6, y1, STONE, top=True, top_mat=LEAD, shade=1.05)
     # four corner turrets on the tower buttresses, tied to the octagon by flyers
     for su in (-1, 1):
         for sv in (-1, 1):
@@ -1417,18 +1448,56 @@ def _house(m, p, d, o, s0, s1, depth, h, rise, cell, chimney=False):
         m.box(c[0] - 0.35, c[0] + 0.35, c[1] - 0.35, c[1] + 0.35, h + rise * 0.6, h + rise + 1.1, BRICK)
 
 
-def _dormer(m, u, side, yb, w=1.3, hf=1.5):
-    """A small dormer in the great roof (ridge along u, slope from HN at NE to 0 at NR)."""
+def _dormer(m, u, side, yb, w=1.3, hf=1.5, label=None):
+    """A small dormer in the great roof (ridge along u, slope from HN at NE to 0 at NR). label (issue #28): its small
+    window is cut through the painted front (the roof space behind it, the slope open under the dormer: _great_roof)."""
     def vr(y):
         return side * (HN - (y - NE) * HN / (NR - NE))
     vf, v1, v2 = vr(yb), vr(yb + 0.62 * hf), vr(yb + hf)
-    m.tex([(u - w / 2, vf, yb), (u + w / 2, vf, yb), (u + w / 2, vf, yb + 0.62 * hf), (u, vf, yb + hf), (u - w / 2, vf, yb + 0.62 * hf)],
-          "dormer", PENT, out=(0, side, 0))
+    if label:
+        p, d, o = (u - w / 2, vf), (1.0, 0.0), (0.0, float(side))
+        # the painted window's glass (32 px cell: x 9 .. 23, rows 17 .. 30), its white cross (x 16, row 23) in the reveal
+        s0, s1 = w * 9 / 32, w * 23 / 32
+        ya, yc = yb + hf * (1 - 29.5 / 31), yb + hf * (1 - 16.5 / 31)
+        hole = [(s0, ya), (s1, ya), (s1, yc), (s0, yc)]
+        loop = [(0.0, yb), (w, yb), (w, yb + 0.62 * hf), (w / 2, yb + hf), (0.0, yb + 0.62 * hf)]
+        _cut_wall(m, p, d, o, 0.0, w, yb, yb + hf, [hole], cell="dormer", loop=loop)
+        _win_reveal(m, p, d, o, hole, 0.12)
+        ym = yb + hf * (1 - 23 / 31)
+        m.d.bar(_wpt(p, d, o, w / 2, -0.06, ya), _wpt(p, d, o, w / 2, -0.06, yc), 0.035, 0.04, HTRIM)
+        m.d.bar(_wpt(p, d, o, s0, -0.06, ym), _wpt(p, d, o, s1, -0.06, ym), 0.035, 0.04, HTRIM)
+        _record(m, p, d, o, w / 2, hole, 0.12, "window", label, glaze="sash", room="upper")
+        CATH_UPPER.setdefault("dormers", []).append({"u": u, "side": side, "yb": yb, "w": w, "hf": hf})
+    else:
+        m.tex([(u - w / 2, vf, yb), (u + w / 2, vf, yb), (u + w / 2, vf, yb + 0.62 * hf), (u, vf, yb + hf), (u - w / 2, vf, yb + 0.62 * hf)],
+              "dormer", PENT, out=(0, side, 0))
     for sg in (-1, 1):
         f = m.poly([(u + sg * w / 2, vf, yb), (u + sg * w / 2, vf, yb + 0.62 * hf), (u + sg * w / 2, v1, yb + 0.62 * hf)], SLATE)
         m.orient(f, (sg, 0, 0))
         f = m.poly([(u + sg * w / 2, vf, yb + 0.62 * hf), (u, vf, yb + hf), (u, v2, yb + hf), (u + sg * w / 2, v1, yb + 0.62 * hf)], SLATE)
         m.orient(f, (sg, side * 0.3, 1))
+
+
+def _great_roof(m, u0, u1, dorms, over=0.5):
+    """The great roof over nave and choir (issue #28), as gable_roof(u0, u1, -HN, HN, NE, NR - NE, along="u", over,
+    skip_gable=(0,)) but each slope open under its dormers (u, side, yb, w, hf): the dormer and the roof space behind
+    it are one. The slope is cut in its own plane, (u, y)."""
+    from mathutils import geometry as mg
+    rise = NR - NE
+    ye = NE - over * rise / HN
+    for vo in (-1, 1):
+        def P(q):
+            return (q[0], vo * (HN - (q[1] - NE) * HN / rise), q[1])
+        loop = [(u0, ye), (u1, ye), (u1, NR), (u0, NR)]
+        holes = [[(u - w / 2, yb), (u + w / 2, yb), (u + w / 2, yb + 0.62 * hf), (u, yb + hf), (u - w / 2, yb + 0.62 * hf)]
+                 for u, side, yb, w, hf, _ in dorms if side == vo]
+        rings = [loop] + holes
+        flat = [q for r in rings for q in r]
+        for t in mg.tessellate_polygon([[Vector((q[0], q[1], 0.0)) for q in r] for r in rings]):
+            f = m.poly([P(flat[i]) for i in t], SLATE)
+            m.orient(f, (0, vo, 1))
+    f = m.poly([(u1, -HN, NE), (u1, HN, NE), (u1, 0, NR)], STONE)
+    m.orient(f, (1, 0, 0))
 
 
 def _aisle_bay(m, ua, ub, side, window=True, flyer=False, real=None, clip=None):
@@ -2047,16 +2116,20 @@ def _clip_poly(poly, y, above=True):
     return ded[k:] + ded[:k]
 
 
-def _cut_wall(m, p, d, o, s0, s1, y0, y1, holes=(), foot=(), mat=STONE, shade=1.0, cell=None):
+def _cut_wall(m, p, d, o, s0, s1, y0, y1, holes=(), foot=(), mat=STONE, shade=1.0, cell=None, loop=None):
     """A wall face (s0..s1 along it, y0..y1) with openings cut through it: `holes` outlines of (s, y) inside the face,
     `foot` openings standing on its foot as _holed_wall's (sc, hw, h, tsp[, round]). Triangulated round the holes'
-    exact outlines. With a cell the wall shows the atlas cell mapped by position (the lantern's faces)."""
+    exact outlines. With a cell the wall shows the atlas cell mapped by position (the lantern's faces). `loop`: the
+    face's own outline (s, y) inside s0..s1, y0..y1 (issue #28: a dormer's gabled front) instead of the rectangle."""
     from mathutils import geometry as mg
-    loop = [(s0, y0)]
-    for hole in sorted(foot):
-        sc, hw, h, tsp = hole[:4]
-        loop += [(sc + s, y0 + y) for s, y in reversed(_arch_outline(hw, h, tsp, rnd=len(hole) > 4 and hole[4]))]
-    loop += [(s1, y0), (s1, y1), (s0, y1)]
+    if loop is not None:
+        loop = list(loop)
+    else:
+        loop = [(s0, y0)]
+        for hole in sorted(foot):
+            sc, hw, h, tsp = hole[:4]
+            loop += [(sc + s, y0 + y) for s, y in reversed(_arch_outline(hw, h, tsp, rnd=len(hole) > 4 and hole[4]))]
+        loop += [(s1, y0), (s1, y1), (s0, y1)]
     rings = [loop] + [list(h) for h in holes]
     flat = [q for r in rings for q in r]
     tris = mg.tessellate_polygon([[Vector((q[0], q[1], 0.0)) for q in r] for r in rings])
@@ -2080,26 +2153,30 @@ def _world_dir(fr, du, dv):
     return (fr.ax[0] * du + fr.n[0] * dv, fr.ax[1] * du + fr.n[1] * dv)
 
 
-def _record(m, p, d, o, sc, hole, depth, kind, label, glaze="lead", part="landmark_cathedral"):
+def _record(m, p, d, o, sc, hole, depth, kind, label, glaze="lead", part="landmark_cathedral", room="hall"):
     """A real opening of the cathedral's shell for cathedral_markers(): its middle on the wall's outer face, the way
-    along the wall and out of it (world), its outline (u from its middle along the wall, world y), its reveal's depth."""
+    along the wall and out of it (world), its outline (u from its middle along the wall, world y), its reveal's depth.
+    room: the hall behind it, or (issue #28) "upper": the towers, the crossing tower's tiers, the roof space."""
     x, _, z = m.f.w(*_wpt(p, d, o, sc, 0.0, 0.0))
     tx, tz = _world_dir(m.f, d[0], d[1])
     nx, nz = _world_dir(m.f, o[0], o[1])
     poly = [(s - sc, y) for s, y in hole]
     CATH_OPENINGS.append(dict(kind=kind, part=part, label=label, glaze=glaze, shape="rect", x=x, z=z, tx=tx, tz=tz, nx=nx, nz=nz,
                               hw=max(abs(q[0]) for q in poly), yb=min(q[1] for q in poly), yt=max(q[1] for q in poly), arch=False,
-                              depth=depth, poly=poly))
+                              depth=depth, poly=poly, room=room))
 
 
-def _win_reveal(m, p, d, o, hole, depth, shade=0.62):
-    """The sides of a hole from the wall's face to `depth` in, each facing into the opening."""
+def _win_reveal(m, p, d, o, hole, depth, shade=0.62, skip_at=None):
+    """The sides of a hole from the wall's face to `depth` in, each facing into the opening. skip_at: a level whose
+    level edges are left out (another hole's sill there)."""
     n = len(hole)
     cs = sum(q[0] for q in hole) / n
     cy = sum(q[1] for q in hole) / n
     for i in range(n):
         a, b = hole[i], hole[(i + 1) % n]
         if abs(a[0] - b[0]) + abs(a[1] - b[1]) < 1e-5:
+            continue
+        if skip_at is not None and abs(a[1] - skip_at) < 1e-4 and abs(b[1] - skip_at) < 1e-4:
             continue
         ms, my = (a[0] + b[0]) / 2, (a[1] + b[1]) / 2
         # (the edge's normal in the wall's plane, turned toward the opening's middle)
@@ -2121,8 +2198,11 @@ def _real_win(m, p, d, o, s0, s1, y0, y1, cell, shape, label, depth=0.3, clip=No
     uv = lambda q: cell_uv(cell, (q[0] - s0) / W, (q[1] - y0) / H)  # noqa: E731
     hole = full if clip is None else _clip_poly(full, clip, above=True)
     if clip is not None:
+        # issue #28: below the house's roof the lights were walled up when the house was built against the church (the
+        # hall's wall is plain there): a masonry infill set back in the window's reveal, no pane
         low = _clip_poly(full, clip, above=False)
-        m.upoly([_wpt(p, d, o, s, 0.06, y) for s, y in low], [uv(q) for q in low], ATLAS, 1.0, (o[0], o[1], 0))
+        _win_reveal(m, p, d, o, low, 0.18, skip_at=clip)
+        m.face([_wpt(p, d, o, s, -0.18, y) for s, y in low], STONE, 0.7, out=(o[0], o[1], 0))
     m.lit.upoly([_wpt(p, d, o, s, -depth, y) for s, y in hole], [uv(q) for q in hole], ATLAS_LIT, 1.0, (o[0], o[1], 0))
     _win_reveal(m, p, d, o, hole, depth)
     if cell in WIN3D:
@@ -2153,12 +2233,103 @@ def _real_lantern(m, ring, y0, y1, names, depth=0.2):
         _record(m, a, d, o, (sa + sb) / 2, hole, depth, "window", f"the crossing tower's lantern, the {names[i]} face, window")
 
 
+# ------------------------------------------------------------------ the parts over no hall (issue #28)
+#
+# Interiors are real (docs/building-with-interior.md): the openings of the parts of the church that stand over no hall
+# are cut through too: the towers' stages over the roofs (their tall lancets; the belfries' with louvres), the north
+# tower's octagon and the south tower's small lantern (open lancets), the crossing tower's three lead tiers (their small
+# windows) and the great roof's dormers. world/cathedralUpper.ts builds the spaces behind them at the shell's size (the
+# chambers and belfries with their floors, stairs, bell frames and bells, the carillon, the tiers' timber frame, the roof
+# space with its trusses) from the numbers noted here in CATH_UPPER, written with the openings to
+# shared/cathedralShell.ts (UPPER_SHELL, UPPER_OPENINGS).
+CATH_UPPER = {}
+WEST_EAVES = 40.0  # the eaves of the west front's roof between the towers
+COMPASS = ("east", "north-east", "north", "north-west", "west", "south-west", "south", "south-east")
+
+# the openings of a painted face, in its cell's pixels (x, y, w, h), and the springing of their arch
+REAL_CELL = {
+    "tower_lancets": [((17, 30, 42, 222), 0.8), ((69, 30, 42, 222), 0.8)],
+    "openwork": [((9, 20, 46, 106), 0.76)],
+    "tier": [((23, 14, 18, 36), 0.68)],
+}
+
+
+def _compass(du, dv):
+    """A way in the landmark's frame (u east, v north) in words."""
+    return COMPASS[int(round(math.degrees(math.atan2(dv, du)) / 45.0)) % 8]
+
+
+def _real_face(m, a, b, y0, y1, out, cell, label, depth, clip=None, louvres=False, shade=1.0):
+    """A face of a painted cell (a tower's stage, the octagon, a lead tier) with its openings cut through (issue #28):
+    the wall round the holes (stone, or the lead tier's own paint), a reveal `depth` deep, the stone of _furnish with the
+    mullions set back into the reveal. Below `clip` (a roof against the face) an opening stays painted as before, behind
+    that roof. louvres: lead-covered boards across the lower part of each (the belfries). label(k): the opening's words."""
+    L = math.hypot(b[0] - a[0], b[1] - a[1])
+    d = ((b[0] - a[0]) / L, (b[1] - a[1]) / L)
+    ol = math.hypot(out[0], out[1])
+    o = (out[0] / ol, out[1] / ol)
+    _, _, cw, ch = CELL[cell]
+    H = y1 - y0
+    holes = []
+    for k, ((px, py, pw, ph), tsp) in enumerate(REAL_CELL[cell]):
+        s0, s1 = px / cw * L, (px + pw) / cw * L
+        yt, yb = y1 - py / ch * H, y1 - (py + ph) / ch * H
+        full = [(s0 + (s1 - s0) * x, yb + (yt - yb) * t) for x, t in arch_shape(tsp, 3)]
+        hole = full if clip is None else _clip_poly(full, clip, above=True)
+        if clip is not None:
+            low = _clip_poly(full, clip, above=False)
+            m.upoly([_wpt(a, d, o, s_, 0.03, y_) for s_, y_ in low], [cell_uv(cell, s_ / L, (y_ - y0) / H) for s_, y_ in low], ATLAS, 1.0, (o[0], o[1], 0))
+        holes.append(hole)
+        _win_reveal(m, a, d, o, hole, depth)
+        _record(m, a, d, o, (s0 + s1) / 2, hole, depth, "window", label(k), glaze="", room="upper")
+        if cell == "tier":
+            # (the painted mullion: a white-painted bar in the reveal)
+            m.d.bar(_wpt(a, d, o, (s0 + s1) / 2, -depth * 0.5, yb), _wpt(a, d, o, (s0 + s1) / 2, -depth * 0.5, yt - 0.06), 0.07, 0.08, HTRIM)
+        if louvres and clip is None:
+            # the belfry's louvres: boards sloping down and out, from the sill to the lower transom
+            ytop = yt - 0.66 * (yt - yb) - 0.15
+            y = yb + 0.25
+            while y + 0.3 < ytop:
+                f = m.poly([_wpt(a, d, o, s0 + 0.03, -0.15, y), _wpt(a, d, o, s1 - 0.03, -0.15, y), _wpt(a, d, o, s1 - 0.03, -0.55, y + 0.3),
+                            _wpt(a, d, o, s0 + 0.03, -0.55, y + 0.3)], LEAD, 0.75)
+                m.orient(f, (o[0], o[1], 1.2))
+                y += 0.45
+    _cut_wall(m, a, d, o, 0.0, L, y0, y1, holes, shade=shade, cell="tier" if cell == "tier" else None)
+    if cell != "tier":
+        _furnish(m, [(a[0], a[1], y0), (b[0], b[1], y0), (b[0], b[1], y1), (a[0], a[1], y1)], cell, (o[0], o[1], 0), shade, real=depth)
+
+
+def _real_stage(m, tu, tv, north, i, y0, y1, h, belfry):
+    """A square stage of a west tower over the roofs (y0 .. y1 its painted face), its lancets cut through (issue #28). The
+    face toward the nave: in the first stage inside the west front's bay (never seen: as it was), in the second over the
+    west front's roof only."""
+    m.reg([tu - h, tu + h], [tv - h, tv + h], y0, y1)
+    ring = _sq(tu, tv, h)
+    inner = 0 if north else 2
+    tname = "north" if north else "south"
+    what = ("", "the first stage over the roofs", "the second stage" + ("" if north else " (the bells)"), "the third stage (the bells)")[i]
+    for fi in range(4):
+        a, b = ring[fi], ring[(fi + 1) % 4]
+        out = ((a[0] + b[0]) / 2 - tu, (a[1] + b[1]) / 2 - tv, 0)
+        if fi == inner and i == 1:
+            m.tex([(a[0], a[1], y0), (b[0], b[1], y0), (b[0], b[1], y1), (a[0], a[1], y1)], "tower_lancets", out=out)
+            continue
+        clip = WEST_EAVES + 0.15 if (fi == inner and i == 2) else None
+        _real_face(m, a, b, y0, y1, out, "tower_lancets",
+                   lambda k: f"the {tname} tower, {what}, the {_compass(out[0], out[1])} face, lancet {k + 1}", 1.0, clip=clip, louvres=belfry)
+
+
 def cathedral_markers():
     """Every real opening of the cathedral (issue #10) as an empty in cathedral.glb (dev/interiorcheck.ts reads them) and
     as a row of shared/cathedralShell.ts. Returns the empties."""
     obs = []
-    for i, o in enumerate(CATH_OPENINGS):
-        o["id"] = f"ct_{i:03d}"
+    # (issue #28: the hall's openings keep their ids in their order, ct_<n>; the upper room's are cu_<n>)
+    count = {"hall": 0, "upper": 0}
+    for o in CATH_OPENINGS:
+        room = o.get("room", "hall")
+        o["id"] = f"{'ct' if room == 'hall' else 'cu'}_{count[room]:03d}"
+        count[room] += 1
+    for o in CATH_OPENINGS:
         ob = bpy.data.objects.new("opening_" + o["id"], None)
         ob.empty_display_size = max(0.2, o["hw"])
         ob.location = B(o["x"], (o["yb"] + o["yt"]) / 2, o["z"])
@@ -2181,17 +2352,48 @@ def cathedral_markers():
         "",
         "export const SHELL_OPENINGS: ShellOpening[] = [",
     ]
-    for o in CATH_OPENINGS:
-        parts_ = []
-        for k in ("id", "kind", "part", "label", "glaze", "shape", "x", "z", "tx", "tz", "nx", "nz", "hw", "yb", "yt", "arch", "depth"):
-            v = o[k]
-            parts_.append(f"{k}: {json.dumps(v) if isinstance(v, (str, bool)) else f3(float(v))}")
-        parts_.append("poly: [" + ", ".join(f"[{f3(u)}, {f3(y)}]" for u, y in o["poly"]) + "]")
-        lines.append("  { " + ", ".join(parts_) + " },")
+
+    def rows(room):
+        for o in CATH_OPENINGS:
+            if o.get("room", "hall") != room:
+                continue
+            parts_ = []
+            for k in ("id", "kind", "part", "label", "glaze", "shape", "x", "z", "tx", "tz", "nx", "nz", "hw", "yb", "yt", "arch", "depth"):
+                v = o[k]
+                parts_.append(f"{k}: {json.dumps(v) if isinstance(v, (str, bool)) else f3(float(v))}")
+            parts_.append("poly: [" + ", ".join(f"[{f3(u)}, {f3(y)}]" for u, y in o["poly"]) + "]")
+            lines.append("  { " + ", ".join(parts_) + " },")
+    rows("hall")
     lines += ["];", ""]
+    # issue #28: the openings of the parts over no hall, and the shell's numbers for the spaces behind them
+    # (world/cathedralUpper.ts), in the landmark's frame: u from the west front (the hall's z), v to the north (its x)
+    lines += [
+        "/** Issue #28: the openings of the towers, the crossing tower's tiers and the great roof's dormers (the upper room). */",
+        "export const UPPER_OPENINGS: ShellOpening[] = [",
+    ]
+    rows("upper")
+    lines += ["];", ""]
+
+    def rnd(v):
+        if isinstance(v, float):
+            return round(v, 3)
+        if isinstance(v, dict):
+            return {k: rnd(x) for k, x in v.items()}
+        if isinstance(v, (list, tuple)):
+            return [rnd(x) for x in v]
+        return v
+    lines += ["/** Issue #28: the shell's numbers for the spaces behind them (u from the west front: the hall's z; v north: its x; y world). */",
+              "export const UPPER_SHELL = {"]
+    for k in sorted(CATH_UPPER):
+        v = rnd(CATH_UPPER[k])
+        if isinstance(v, list) and v and isinstance(v[0], dict):
+            lines += [f"  {k}: ["] + [f"    {json.dumps(x)}," for x in v] + ["  ],"]
+        else:
+            lines.append(f"  {k}: {json.dumps(v)},")
+    lines += ["} as const;", ""]
     with open(CATH_SHELL_TS, "w", newline="\n") as f:
         f.write("\n".join(lines))
-    print(f"[build_landmarks] cathedral: {len(obs)} real openings -> {CATH_SHELL_TS}")
+    print(f"[build_landmarks] cathedral: {len(obs)} real openings ({count['hall']} over the hall, {count['upper']} over the upper room) -> {CATH_SHELL_TS}")
     return obs
 
 
@@ -2245,9 +2447,12 @@ def _gable_trim(m, pts, out, t=0.3, statue=False):
     m.d.finial(c[0] + off[0], c[1] + off[1], c[2] + t * 0.3, max(0.8, t * 4))
 
 
-def _furnish(m, pts, cell, out, shade):
+def _furnish(m, pts, cell, out, shade, real=0.0):
     """The painted stone of a face of the atlas (a tower stage, a buttress, the octagon), built: the openings keep
-    their painted louvres and glass; frames, gablets, colonnettes, niches with statues, string courses are 3D."""
+    their painted louvres and glass; frames, gablets, colonnettes, niches with statues, string courses are 3D.
+    real (issue #28): the openings are cut through (_real_face), this deep: no painted pane, the mullions and transoms
+    set back into the reveal."""
+    ein = -real * 0.45 if real else None
     a0, b0, b1, a1 = pts
     L = math.hypot(b0[0] - a0[0], b0[1] - a0[1])
     if L < 0.3:
@@ -2269,14 +2474,15 @@ def _furnish(m, pts, cell, out, shade):
     if cell == "tower_lancets":
         for x0 in (17, 69):
             s0, s1, yb, yt = S(x0), S(x0 + 42), Y(252), Y(30)
-            m.subdecal(p, d, o, s0, s1, yb, yt, cell, (x0, 30, 42, 222), arch_shape(0.8, 3), off=0.03)
+            if not real:
+                m.subdecal(p, d, o, s0, s1, yb, yt, cell, (x0, 30, 42, 222), arch_shape(0.8, 3), off=0.03)
             _curve_band(m, p, d, o, _arch_curve(s0, s1, yb, yt, 0.8), 0.3, 0.0, 0.34, CARVED, shade * 0.95, caps=False)
             sc = (s0 + s1) / 2
             ysp = yb + 0.8 * (yt - yb)
-            D.bar(_wpt(p, d, o, sc, 0.14, yb), _wpt(p, d, o, sc, 0.14, ysp + 0.3), 0.2, 0.22, CARVED)
+            D.bar(_wpt(p, d, o, sc, ein or 0.14, yb), _wpt(p, d, o, sc, ein or 0.14, ysp + 0.3), 0.2, 0.22, CARVED)
             for tf in (0.4, 0.66):
                 yy = yt - tf * (yt - yb)
-                D.bar(_wpt(p, d, o, s0, 0.12, yy), _wpt(p, d, o, s1, 0.12, yy), 0.22, 0.2, CARVED)
+                D.bar(_wpt(p, d, o, s0 - (0.05 if real else 0.0), ein or 0.12, yy), _wpt(p, d, o, s1 + (0.05 if real else 0.0), ein or 0.12, yy), 0.22, 0.2, CARVED)
             # the crocketed gablet over the lancet
             A = _wpt(p, d, o, S(x0 - 1), 0.4, Y(78))
             T = _wpt(p, d, o, S(x0 + 21), 0.4, Y(14))
@@ -2316,11 +2522,14 @@ def _furnish(m, pts, cell, out, shade):
         _wb(m, p, d, o, 0.0, L, 0.0, 0.14, y0, y0 + 0.18, CARVED, 0.95)
     elif cell == "openwork":
         s0, s1, yb, yt = S(9), S(55), Y(126), Y(20)
-        m.subdecal(p, d, o, s0, s1, yb, yt, cell, (9, 20, 46, 106), arch_shape(0.76, 3), off=0.03)
+        if not real:
+            m.subdecal(p, d, o, s0, s1, yb, yt, cell, (9, 20, 46, 106), arch_shape(0.76, 3), off=0.03)
         if H < 5:
+            if real:  # (the south tower's small lantern: a mullion in the reveal)
+                D.bar(_wpt(p, d, o, (s0 + s1) / 2, ein, yb), _wpt(p, d, o, (s0 + s1) / 2, ein, yb + 0.76 * (yt - yb) + 0.1), 0.1, 0.12, CARVED)
             return
         _curve_band(m, p, d, o, _arch_curve(s0, s1, yb, yt, 0.76), 0.22, 0.0, 0.26, CARVED, shade * 0.95, caps=False)
-        D.bar(_wpt(p, d, o, (s0 + s1) / 2, 0.12, yb), _wpt(p, d, o, (s0 + s1) / 2, 0.12, yb + 0.76 * (yt - yb) + 0.2), 0.18, 0.2, CARVED)
+        D.bar(_wpt(p, d, o, (s0 + s1) / 2, ein or 0.12, yb), _wpt(p, d, o, (s0 + s1) / 2, ein or 0.12, yb + 0.76 * (yt - yb) + 0.2), 0.18, 0.2, CARVED)
         A, T, Bq = _wpt(p, d, o, S(6), 0.34, Y(50)), _wpt(p, d, o, S(32), 0.34, Y(4)), _wpt(p, d, o, S(57), 0.34, Y(50))
         for q in (A, Bq):
             m.bar(q, T, 0.24, 0.26, CARVED, 1.02)
@@ -3083,6 +3292,7 @@ def cathedral(fr, world_north):
     m = CathMesh(lf, detail=True)
     m.lit = CathMesh(lf)
     CATH_OPENINGS.clear()
+    CATH_UPPER.clear()
     nave_bays = [13.8 + i * (T0 - 13.8) / 6 for i in range(7)]
     choir_bays = [T1 + i * (AU - T1) / 3 for i in range(4)]
     sname = {1: "north", -1: "south"}
@@ -3104,18 +3314,25 @@ def cathedral(fr, world_north):
             for u in bays:
                 m.pinnacle(u, v + side * 0.35, NE, 4.2, 0.35)
     # ---- the great roofs: nave and choir in one, the transept across, dormers, crestings
-    m.gable_roof(13.8, AU, -HN, HN, NE, NR - NE, along="u", over=0.5, skip_gable=(0,))
+    # (issue #28: the dormers' windows real, the roof space behind them: world/cathedralUpper.ts; the slopes open under them)
+    dorms = []
+    for side in (-1, 1):
+        for k, (ua, ub) in enumerate(list(zip(nave_bays, nave_bays[1:])) + list(zip(choir_bays, choir_bays[1:]))):
+            part, bay = ("nave", k + 1) if k < 6 else ("choir", k - 5)
+            dorms.append(((ua + ub) / 2, side, 33.2, 1.3, 1.5, f"the {part}'s roof, the {sname[side]} slope, over bay {bay}, dormer"))
+        for k, u in enumerate(nave_bays[1:-1] + choir_bays[1:-1]):
+            part, n = ("nave", k + 1) if k < 5 else ("choir", k - 4)
+            dorms.append((u, side, 38.6, 1.1, 1.3, f"the {part}'s roof, the {sname[side]} slope, the upper row, dormer {n}"))
+    CATH_UPPER["roof"] = {"u0": 13.8, "u1": AU, "cross": [T0, T1], "hn": HN, "ne": NE, "nr": NR, "over": 0.5}
+    _great_roof(m, 13.8, AU, dorms)
     m.gable_roof(T0, T1, -TV, TV, NE, NR - NE, along="v", over=0.5)
     for u0, u1 in ((13.8, AU),):
         f = m.poly([(u0, 0, NR), (u1, 0, NR), (u1, 0, NR + 0.6), (u0, 0, NR + 0.6)], LEAD)
         m.orient(f, (0, 1, 0))
     f = m.poly([(74.6, -TV, NR), (74.6, TV, NR), (74.6, TV, NR + 0.6), (74.6, -TV, NR + 0.6)], LEAD)
     m.orient(f, (1, 0, 0))
-    for side in (-1, 1):
-        for ua, ub in list(zip(nave_bays, nave_bays[1:])) + list(zip(choir_bays, choir_bays[1:])):
-            _dormer(m, (ua + ub) / 2, side, 33.2)
-        for u in nave_bays[1:-1] + choir_bays[1:-1]:
-            _dormer(m, u, side, 38.6, 1.1, 1.3)
+    for u, side, yb, w, hf, label in dorms:
+        _dormer(m, u, side, yb, w, hf, label=label)
 
     # ---- aisles: three on each side under a row of transverse hipped roofs
     # (the houses against the aisles' walls, built at the end: (s0, s1, depth, eaves); issue #10: an aisle window over the
@@ -3234,8 +3451,16 @@ def cathedral(fr, world_north):
     for (pu, pv) in oc(6.4):
         m.pinnacle(pu, pv, 50.5, 4.2, 0.3)
     tiers = [(51.0, 54.8, 5.1), (55.8, 58.9, 4.2), (59.7, 62.3, 3.4)]
+    # (issue #28: each tier's eight windows cut through, the tiers' timber frame behind them: world/cathedralUpper.ts)
+    CATH_UPPER["crossing"] = {"u": cu, "floor": 51.0, "tiers": [list(t) for t in tiers]}
     for i, (y0, y1, r) in enumerate(tiers):
-        m.tex_prism(oc(r), y0, y1, "tier")
+        ring = oc(r)
+        m.reg([q[0] for q in ring], [q[1] for q in ring], y0, y1)
+        for fi in range(8):
+            a, b = ring[fi], ring[(fi + 1) % 8]
+            out = ((a[0] + b[0]) / 2 - cu, (a[1] + b[1]) / 2, 0)
+            _real_face(m, a, b, y0, y1, out, "tier",
+                       lambda k: f"the crossing tower, the {('lowest', 'middle', 'top')[i]} lead tier, the {_compass(out[0], out[1])} face, window", 0.25)
         rn, yn = (tiers[i + 1][2], tiers[i + 1][0]) if i + 1 < len(tiers) else (2.75, y1 + 0.8)
         m.frustum(oc(r + 0.75), y1, oc(rn), yn, LEAD)
         f = m.poly([(p[0], p[1], y1) for p in oc(r + 0.75)], LEAD, 0.7)

@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import * as P from "../../../shared/cathedralPlan";
 import { buildCathedral, WINDOWS } from "./cathedralHall";
+import { buildCathedralUpper } from "./cathedralUpper";
 import { windowOpenings } from "./realOpenings";
 import type { LandmarkRoom } from "./landmarkRooms";
 import { psx } from "../retro/psx";
@@ -33,6 +34,13 @@ export interface CathedralInWorld {
   /** World point <-> the hall's frame. */
   local(x: number, z: number): [number, number];
   world(x: number, z: number): [number, number];
+}
+
+/** The hall's top over a point of its frame (world y): the crossing's lantern and dome, the tall west bay, else its vaults. */
+function hallTop(x: number, z: number): number {
+  if (Math.abs(x) < 6 && Math.abs(z - (P.CROSS0 + P.CROSS1) / 2) < 6) return P.SHELL.lantern.y1 + 0.5;
+  if (Math.abs(x) < P.SHELL.westBay.half && z < P.WEST_BAY.z1) return P.SHELL.westBay.top + 0.5;
+  return P.SHELL.naveEaves + 1.5;
 }
 
 export function createCathedralInWorld(world: World, inWorld: InWorld): CathedralInWorld {
@@ -114,7 +122,8 @@ export function createCathedralInWorld(world: World, inWorld: InWorld): Cathedra
       // street and the street from inside
       ...windowOpenings(WINDOWS, (x, z) => P.toWorld(x, z)),
     ],
-    insideness: (eye) => P.insideness(eye.x - P.ORIGIN.x, eye.z - P.ORIGIN.z),
+    // (issue #28: an eye over the hall's vaults, on or over the roofs, is not in it: the street is drawn round it)
+    insideness: (eye) => (eye.y > hallTop(eye.x - P.ORIGIN.x, eye.z - P.ORIGIN.z) ? 0 : P.insideness(eye.x - P.ORIGIN.x, eye.z - P.ORIGIN.z)),
     reach: 95,
     // (issue #10: from inside only the windows near the eye bring the street in; the far and high ones show the sky's
     // colour through their glass: the street drawn through them all cost ~4 ms a frame in the nave)
@@ -132,6 +141,10 @@ export function createCathedralInWorld(world: World, inWorld: InWorld): Cathedra
     lamps: () => room.lamps,
     scatter: 0.3,
   };
+  // issue #28: the towers' chambers and belfries, the crossing tower's tiers and the roof space, behind their own openings
+  // (a room of its own: world/cathedralUpper.ts; added first: an eye up there is in it, not in the hall under it)
+  const upper = buildCathedralUpper();
+  inWorld.add(upper.room);
   inWorld.add(iw);
 
   // the lit nave's light on the square through the open west door after dark (world/spill.ts)
@@ -175,6 +188,7 @@ export function createCathedralInWorld(world: World, inWorld: InWorld): Cathedra
       void live;
       room.update(t, dt);
       room.setDaylight(day, sky);
+      upper.setDaylight(day, sky);
     },
     local,
     world: (x, z) => P.toWorld(x, z),
