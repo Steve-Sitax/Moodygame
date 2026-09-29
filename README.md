@@ -58,7 +58,7 @@ one of the town's events (a wedding, a house fire, street musicians, the night w
 **The whole game:** download it below.
 
 **[Download the latest version](https://github.com/Steve-Sitax/Moodygame/releases/latest)**. You need to
-install nothing.
+install nothing. What changed in each version: [CHANGELOG.md](CHANGELOG.md).
 
 1. On the download page, pick the file for your computer: Windows (`windows-x64.zip`), Mac with an Apple
    M1 or newer (`mac-arm64.zip`), or Linux (`linux-x64.tar.gz`).

@@ -86,4 +86,6 @@ jobs:
         run: |
           pre=""
           case "$TAG" in *-*) pre="--prerelease" ;; esac
-          gh release create "$TAG" downloads/* --title "Scheldemist $TAG" --notes-file tools/release/notes.md --generate-notes $pre
+          # what changed (this version's part of CHANGELOG.md), then how to play (tools/release/notes.md)
+          { node tools/release/changelog.mjs "$TAG"; echo; echo; cat tools/release/notes.md; } > release-notes.md
+          gh release create "$TAG" downloads/* --title "Scheldemist $TAG" --notes-file release-notes.md --generate-notes $pre

@@ -57,6 +57,7 @@ copy("server/package.json");
 copy("server/package-lock.json");
 copy("LICENSE");
 copy("README.md");
+copy("CHANGELOG.md");
 copy("assets/ATTRIBUTION.md", "ATTRIBUTION.md");
 copy("tools/release/launch.mjs", "launch.mjs");
 

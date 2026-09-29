@@ -1,0 +1,74 @@
+# Changelog
+
+What changed in each version of Scheldemist, for players first. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
+Each release on the [Releases page](https://github.com/Steve-Sitax/Moodygame/releases) carries its part of this file.
+Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moodygame/issues).
+
+## [Unreleased]
+
+## [0.2.0] - 2026-09-29
+
+### New in the game
+- **The great storm.** Now and then a storm comes in off the sea. Every shop and stall shuts, nobody gives out
+  work, and the townspeople run home, into the taverns or under a doorway. Thunder, lightning, rain in sheets,
+  surf over the quay walls, slates and washing torn loose. After it, rain, and the town opens again.
+- **The docks at work.** Cranes feed real piles of goods; dockers carry them and take their breaks. The foreman
+  keeps a book, and dock work is paid by the piece.
+- **A quest book.** Hold up to three jobs at once and follow one. The town map shows the way. A mixed load is
+  paid per job, and you can give a job up.
+- **A town that trades.** Bread runs from the bakeries, fish boxes to the stalls, kegs from the brewery to the
+  taverns, coal to the ovens, grain from the mills. A market that sells out packs up early. When a bakery runs
+  short, there is a rush job to fetch bread from the other one. The map card of a shop or tavern shows its shelf.
+- **Pigs.** At dawn a farmer drives his pigs through the streets to the butcher.
+- **The lamplighter's job.** Light the last lamps of a round at dusk, paid by the lamps you light and the way you
+  walk. Five new rounds on the town wall and five new lamplighters: every one of the town's lamps is now lit by
+  someone who walks to it.
+- **Stealing.** Pickpocket, take what is left lying about, and face the owner when you are caught.
+- **Real windows in the great buildings.** The cathedral, the town hall, the Vleeshuis, the Steen, St Paul's,
+  St James's and the Carolus church: from the street you see into the halls, and from inside you see the street.
+  The cathedral's choir aisles and its five chapels are built and open to walk.
+- **Windows lit by the clock.** The landmarks light room by room in the evening; sun and moon shine into the
+  churches.
+- **Goods that look real.** One sack and one crate everywhere they show (piles, arms, carts, boats), with a
+  stencil that says what is inside and where it comes from.
+- **Play in the browser.** A web demo at https://steve-sitax.github.io/Moodygame/ to walk the town, with the
+  time, the weather and every town event (the storm too) under F8. No talk, jobs or AI there.
+
+### Changed
+- Lamplighter pay counts the walk as well as the lamps (the west round 110 c to 125 c, the market round 100 c to
+  115 c, the east round 80 c to 95 c).
+- Gas lamps have a cap: their light no longer climbs the house fronts above the ground floor.
+- New game no longer keeps a copy of the old week in `data/backups`. Your own saves stay.
+- Falling leaves lie only near trees; in a storm they tear off the trees and the leaf heaps.
+- The town wall's walk has new stones.
+- Faster: fewer draw calls, mirrors on a budget, far people and trees updated in turns.
+
+### Fixed
+- The mills did not load, so their drays and sacks were missing ([#22](https://github.com/Steve-Sitax/Moodygame/issues/22)).
+- Freezes of up to 3 s just after a jump across town ([#7](https://github.com/Steve-Sitax/Moodygame/issues/7)).
+- A blank screen when the page loaded before the server ([#18](https://github.com/Steve-Sitax/Moodygame/issues/18)).
+- The storm's far rain layer never showed ([#20](https://github.com/Steve-Sitax/Moodygame/issues/20)).
+- Bright streaks up the town hall's front at night ([#11](https://github.com/Steve-Sitax/Moodygame/issues/11)).
+- Memory crept up in long sessions ([#19](https://github.com/Steve-Sitax/Moodygame/issues/19)); too many server calls at once ([#15](https://github.com/Steve-Sitax/Moodygame/issues/15)); graphics warnings after load ([#23](https://github.com/Steve-Sitax/Moodygame/issues/23)).
+- Mirrors were drawn every frame inside the cathedral, slowing it down ([#27](https://github.com/Steve-Sitax/Moodygame/issues/27)).
+- A lamp went dark for a moment when its lamplighter came into view ([#24](https://github.com/Steve-Sitax/Moodygame/issues/24)).
+- Crates, barrels and litter stood inside each other or inside walls ([#13](https://github.com/Steve-Sitax/Moodygame/issues/13)); a window's light fell under the ground ([#6](https://github.com/Steve-Sitax/Moodygame/issues/6)).
+- Rooms in some houses and in the Poesje could not be reached on foot, and a garret had a painted window ([#10](https://github.com/Steve-Sitax/Moodygame/issues/10)).
+- Madame Zelie's table did not match the look of the town ([#16](https://github.com/Steve-Sitax/Moodygame/issues/16)).
+- Stones on the town wall's walk ran together ([#3](https://github.com/Steve-Sitax/Moodygame/issues/3)).
+- The web demo's menu threw an error ([#12](https://github.com/Steve-Sitax/Moodygame/issues/12)).
+- Townspeople no longer walk on the spot or lag after a clock jump; carts move smoothly and keep off the walls.
+
+### For developers
+- Flaky and failing tests fixed ([#4](https://github.com/Steve-Sitax/Moodygame/issues/4), [#5](https://github.com/Steve-Sitax/Moodygame/issues/5), [#9](https://github.com/Steve-Sitax/Moodygame/issues/9), [#17](https://github.com/Steve-Sitax/Moodygame/issues/17)); lock files carry the licence ([#2](https://github.com/Steve-Sitax/Moodygame/issues/2)).
+- Test tools: `perfcheck` stops only its own stack ([#21](https://github.com/Steve-Sitax/Moodygame/issues/21)), `t.run` steps the ambient ([#8](https://github.com/Steve-Sitax/Moodygame/issues/8)), the interior check reaches the whole room ([#25](https://github.com/Steve-Sitax/Moodygame/issues/25)), the Steen's path points ([#1](https://github.com/Steve-Sitax/Moodygame/issues/1)).
+- A pre-commit check keeps private data out of the public repo; frame budget rules in `docs/performance.md`.
+
+## [0.1.0] - 2026-09-27
+
+The first release: Antwerp in autumn 1873 to walk, work and talk in, with downloads for Windows, Mac and Linux.
+
+[Unreleased]: https://github.com/Steve-Sitax/Moodygame/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/Steve-Sitax/Moodygame/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/Steve-Sitax/Moodygame/releases/tag/v0.1.0

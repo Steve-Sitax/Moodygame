@@ -15,9 +15,14 @@ so a player installs nothing.
 
 ## Make a release
 1. `npm run build` passes and the game plays well (the milestone's browser check).
-2. `git tag v0.2.0` then `git push origin v0.2.0`.
-3. Wait for the Action (about 10 minutes). The Release is then on
-   https://github.com/Steve-Sitax/Moodygame/releases.
+2. In `CHANGELOG.md` the `## [Unreleased]` lines move under a new `## [0.2.0] - <date>` (and the compare links at
+   the bottom get the new version). `version` in `client/package.json`, `server/package.json` and their lock files
+   becomes the new number. Commit and push.
+3. `git tag v0.2.0` then `git push origin v0.2.0`.
+4. Wait for the Action (about 10 minutes). The Release is then on
+   https://github.com/Steve-Sitax/Moodygame/releases. Its notes are the version's part of `CHANGELOG.md`
+   (`tools/release/changelog.mjs`; the Action stops if that part is missing), then `tools/release/notes.md`
+   (how to play), then GitHub's list of changes. Close the version's milestone on GitHub.
 
 A bad release: delete it on GitHub (and the tag: `git push origin :refs/tags/v0.2.0`), fix, tag a new number.
 
@@ -31,7 +36,7 @@ A bad release: delete it on GitHub (and the tag: `git push origin :refs/tags/v0.
 | `runtime/` | the Node that built it (from setup-node, Node 24) |
 | `server/` | `server/src` and its packages for that system (`npm ci --omit=dev`) |
 | `client/dist` | the built game with its manifest |
-| `shared/`, `LICENSE`, `README.md`, `ATTRIBUTION.md`, `PLAY.txt` | |
+| `shared/`, `LICENSE`, `README.md`, `CHANGELOG.md`, `ATTRIBUTION.md`, `PLAY.txt` | |
 | `data/` | made at first start: the save and the settings, next to the game |
 
 - **Play together is off** at first start (Steve, 2026-09-27); the player turns it on in the menu, Together.
