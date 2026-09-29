@@ -9,6 +9,9 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ### New in the game
 - The Dev menu has an optional NPC stress-test toggle and a 1–100× population slider. Normal population stays unchanged; Reset or reloading returns to normal.
+- The Stadspark has fuller autumn trees, hanging willows, a large old oak with squirrels and perching birds, more shrubs and flowers, and reflections in its pond.
+- Ducks, geese and swans swim, graze, feed and fly to other water. Squirrels forage, stop to eat and climb; animals seek shelter, cats stalk unguarded prey, and mothers protect their young.
+- Visitors feed birds and wealthy neighbours walk their dogs from home to the park and back. Dogs leave mess for the keeper; borrow his tools and clear ten droppings for 35 centimes.
 - The Oostershuis has real windows and doors: look into its warehouse lofts, the tower rooms and the hall; the fanlights over the warehouse doors are glass ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
 - The cellar room to let has a real window under the pavement, onto a light well with an iron grating, instead of a painted view ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
 - The Vleeshuis attic is open: climb the new stair from the painter's studio and look out through its gable windows and dormers. Its turrets and stair tower show their stairs through the slits ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
@@ -24,6 +27,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ### Fixed
 - Carts, horses and omnibuses have more room beside the Eilandje lock, the Vliet post and the Vleeshuis steps. Employers keep out of bus lanes, and buses check obstructions throughout their routes ([#31](https://github.com/Steve-Sitax/Moodygame/issues/31)).
+- Dock workers keep their spacing on shared rounds when a change to the streets alters their journey to work.
 - House doors, their transom trim and window bars show their plank grain in daylight instead of looking nearly black ([#30](https://github.com/Steve-Sitax/Moodygame/issues/30)).
 - Taverns, shops and homes: the rooms behind their windows and open doors are no longer partly hidden by the pavement or the dark inside of the house front ([#29](https://github.com/Steve-Sitax/Moodygame/issues/29)).
 

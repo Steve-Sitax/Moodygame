@@ -55,6 +55,7 @@ import { mountErrands } from "./town/handsRoutes.ts";
 import { mountWalkup } from "./town/walkupRoutes.ts";
 import { mountMills } from "./town/mills.ts";
 import { mountTrade } from "./trade/routes.ts";
+import { mountPark } from "./town/park.ts";
 import { mountLampJob } from "./town/lampjob.ts";
 import { lampHelpNow } from "./town/lamplighters.ts";
 import { mountRoutines } from "./director/routineRoutes.ts";
@@ -239,6 +240,7 @@ mountWalkup(app, { db });
 mountMills(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
 mountTrade(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) }); // T3: the food posts' ledger (trade/ledger.ts)
 // the lamplighter's last lamps: a job for Jef at dusk (town/lampjob.ts)
+mountPark(app, { db, payload: () => jobsPayload() });
 mountLampJob(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
 // M6 AI-composed routines: errands the model plans from Jef's words and steers in check-ins (director/routines.ts)
 mountRoutines(app, { db, payload: () => jobsPayload() });

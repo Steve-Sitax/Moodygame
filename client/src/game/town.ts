@@ -1,3 +1,4 @@
+import { psxUniforms } from "../retro/psx";
 import { DroveWalk } from "./droveWalk";
 import type { Drove } from "../../../shared/drove";
 import { buildTradeYards } from "../world/tradeYards";
@@ -789,6 +790,7 @@ export class Town {
     const err = !first && !storm ? (this.journeys?.errandFor(s.r.id, day, hour) ?? null) : null;
     if (err || s.errand) return this.errandStep(s, err, day, hour);
     let now = this.planNow(s, day, hour);
+    if (now.place === "park" && (psxUniforms.uRain.value > 0.8 || tempest.level > 0.3)) now = { ...now, act: "home", place: "home" };
     // T3 trade: a run the dispatcher sent him on (from his post's door to the other's and back)
     const tr = storm ? null : this.tradeRunOf(s, day, hour, first);
     // D1 docks: a docker on a break: at the tavern nearest his route till it is over (then the day goes on)

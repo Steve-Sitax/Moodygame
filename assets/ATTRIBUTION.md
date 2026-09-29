@@ -502,3 +502,14 @@ new pictures (the brick of 1873 in cross bond, the bluestone coping, the lawn's 
 | Picture | Where in repo | Prompt, in short | Made | Original PNG SHA-256 |
 |---|---|---|---|---|
 | The walk on top of an old brick rampart: courses of large worn blue-grey granite and bluestone setts, dark joints with soil, moss and small tufts of grass, a few fallen leaves, seamless; laid again by `setts_synth.py wall` with the maps `wall_walk_setts_h.png`, `wall_walk_setts_id.png` (2026-09-29) | `tools/textures/src/wall_walk_setts_codex.jpg` (as generated, turned); `client/public/textures/wall_walk_setts.jpg` (1024 px, 2.4 x 2.4 m, the laid one) | "Seamless tileable ground texture, seen straight from above ... The paved walk on top of an old brick town rampart in Flanders in autumn, 19th century. Courses of large, roughly dressed, worn blue-grey granite and bluestone setts ..." | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `efd8f59129374e9c956d69aa4d5e5c2a511e73366c9b6049c14bebf1f4afd6b5` |
+
+## Stadspark additions (2026-09-29)
+
+Original OpenAI image-generation outputs, made with the built-in imagegen tool from our own prompts, without third-party reference images. Full prompts and processing steps: [Stadspark asset notes](concepts/stadspark/README.md).
+
+| Asset | Use | SHA-256 of generated source |
+|---|---|---|
+| `concepts/stadspark/park-examples.png` | Two visual concepts for modelling; not a gameplay screenshot | `fef046025e90d7a00da4f74f485566f0866b50a04060a95a1006f9615665a286` |
+| `concepts/stadspark/foliage-source.png` | Eight transparent foliage/flower clusters, packed into 64-pixel cells by `tools/textures/stadspark_atlas.py`, embedded in `park_plants.glb` | `9b1154d8392e95095410d9f3fc09b63700fee5b9de612fa0fdaf21e4ccbf0f90` |
+
+`park_animals.glb` is original low-poly geometry with vertex colours, authored in `tools/blender/build_park_animals.py`. No downloaded models or new dependencies.

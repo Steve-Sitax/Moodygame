@@ -33,7 +33,7 @@ WATER_KINDS = {"reed", "cattail", "iris"}
 SOFT = {"shrub_ever", "shrub_holly", "shrub_hazel", "shrub_red", "shrub_bare", "sedge", "flowers"}
 # the footprint of each thing (m at scale 1): trunks, shrubs' bodies
 FOOT = {"young_lime": 0.1, "young_maple": 0.1, "young_chestnut": 0.1, "young_elm": 0.1, "old_elm": 0.35, "old_plane": 0.4,
-        "old_bare": 0.33, "weeping": 0.15, "conifer": 0.5, "shrub_ever": 0.7, "shrub_holly": 0.5, "shrub_hazel": 0.6,
+        "old_oak": 1.55, "old_bare": 0.33, "weeping": 0.15, "conifer": 0.5, "shrub_ever": 0.7, "shrub_holly": 0.5, "shrub_hazel": 0.6,
         "shrub_red": 0.55, "shrub_bare": 0.55, "flowers": 0.15, "sedge": 0.15, "reed": 0.2, "cattail": 0.2, "iris": 0.15, "lily": 0.3}
 
 

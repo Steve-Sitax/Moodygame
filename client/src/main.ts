@@ -106,6 +106,8 @@ import { createAlive } from "./world/alive";
 import { BackLife } from "./game/backlife";
 // M7 mills (docs/milestones/M7-mills.md): the millers, the sails in the wind, the flour and grain carts, the mill work (hook)
 import { Mills } from "./game/mills";
+import { ParkWork } from "./game/parkWork";
+import { parkLife } from "./world/parkWildlife";
 import { LampJob } from "./game/lampjob";
 import { setAliveViewHeight } from "./world/alive/common";
 import { bootRestore, type ClientState } from "./game/restoreData";
@@ -508,6 +510,8 @@ mills.load().catch((e) => console.warn("the mills did not load", e));
 const lampJob = new LampJob(world);
 lampJob.hour = () => jobs.day.hourF;
 // M7 night: the employers' quest boxes by their doors (game/questboxes.ts), and the gangs (game/nightlife.ts)
+const parkWork = new ParkWork(world, player, jobs, town, crowd, animals);
+parkLife.boats = () => { const r = rowing.info(); return [...r.lying, ...(r.rowing ? [{ x: r.x, z: r.z }] : [])]; };
 const boxes = new QuestBoxes(world, jobs.people, town);
 boxes.clock = () => ({ day: jobs.day.dayNum, hour: jobs.day.hourF });
 jobs.boxes = boxes;
@@ -1064,6 +1068,7 @@ function quayGoodsKeepClear(): void {
     BOARD_POS,
     DOSS_POS,
     ...town.pathPoints(),
+    ...parkWork.pathPoints(),
     ...deeds.pathPoints(),
     ...rowing.pathPoints(),
     ...trades.pathPoints(),
@@ -1143,6 +1148,7 @@ function tick(dt: number): void {
   safe("together.streetApply", () => together.streetApply(dt)); // M8b: the townspeople other PCs walk
   safe("crowd.update", () => crowd.update(dt, player, player.camera));
   safe("town.update", () => town.update(dt, player));
+  safe("parkWork.update", () => parkWork.update(dt));
   safe("together.streetSend", () => together.streetSend(dt)); // M8b: the ones this PC walks, to the others
   safe("journeys.update", () => journeys.update(dt, player));
   safe("market.update", () => market.update(dt, player, jobs.day.dayNum, jobs.day.hourF));
@@ -1770,6 +1776,7 @@ if (import.meta.env.DEV) {
       if (!can(BOARD_POS.x, BOARD_POS.z, 2.5)) bad.push("hiring board");
       // M3e: every home, workplace, stall front and post of the town
       for (const q of town.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
+      for (const q of parkWork.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       // M3h: the velocipedes, the lanterns, the food tables, the police post
       for (const q of deeds.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       // M3j: the boat hire landings and the boats lying at other steps
@@ -2086,6 +2093,7 @@ if (import.meta.env.DEV) {
         safe("step: together.streetApply", () => together.streetApply(dt)); // M8b
         safe("step: crowd.update", () => crowd.update(dt, player, player.camera));
         safe("step: town.update", () => town.update(dt, player));
+        safe("step: parkWork.update", () => parkWork.update(dt));
         safe("step: together.streetSend", () => together.streetSend(dt)); // M8b
         safe("step: journeys.update", () => journeys.update(dt, player));
         safe("step: market.update", () => market.update(dt, player, jobs.day.dayNum, jobs.day.hourF));

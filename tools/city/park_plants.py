@@ -37,11 +37,11 @@ OUT = os.path.join(ROOT, "client", "public", "models", "park_plants.json")
 
 # how far each kind's trunk or body reaches (m, at scale 1): the solid in the walk map and the room it needs
 BODY = {"young_lime": 0.12, "young_maple": 0.12, "young_chestnut": 0.12, "young_elm": 0.12, "old_elm": 0.4, "old_plane": 0.45,
-        "old_bare": 0.38, "weeping": 0.2, "conifer": 0.7, "shrub_ever": 0.85, "shrub_holly": 0.6, "shrub_hazel": 0.8,
+        "old_oak": 1.6, "old_bare": 0.38, "weeping": 0.2, "conifer": 0.7, "shrub_ever": 0.85, "shrub_holly": 0.6, "shrub_hazel": 0.8,
         "shrub_red": 0.7, "shrub_bare": 0.7}
 # crowns (m, at scale 1): trees keep this far apart
 CROWN = {"young_lime": 1.3, "young_maple": 1.4, "young_chestnut": 1.5, "young_elm": 1.4, "old_elm": 5.0, "old_plane": 5.0,
-         "old_bare": 4.5, "weeping": 2.2, "conifer": 1.2}
+         "old_oak": 7.5, "old_bare": 4.5, "weeping": 2.2, "conifer": 1.2}
 
 
 def pieces(g):
@@ -184,7 +184,7 @@ def main(dry=False):
     lawn_free = lawn_free.difference(hedge_geom.buffer(0.1))
 
     # ---- the old trees kept from the ramparts: along the old rampart line (the wall side) and one on each lawn
-    OLD = [((-345.0, 307.0), "old_elm", 1.15), ((-313.0, 287.0), "old_plane", 1.2), ((-265.0, 296.0), "old_elm", 1.1),
+    OLD = [((-313.0, 287.0), "old_oak", 1.0), ((-345.0, 307.0), "old_elm", 1.15), ((-265.0, 296.0), "old_elm", 1.1),
            ((-270.0, 330.0), "old_bare", 1.05), ((-336.0, 314.0), "old_plane", 1.0)]
     for c, kind, sc in OLD:
         snap_tree(c, kind, sc, clear_path=2.0, reach=5.0)
@@ -193,6 +193,7 @@ def main(dry=False):
     GROUPS = [((-324.0, 287.0), 4), ((-300.0, 289.0), 3), ((-340.0, 301.0), 3), ((-259.0, 302.0), 3), ((-264.0, 318.0), 4),
               ((-281.0, 318.5), 2), ((-277.0, 297.0), 1), ((-306.0, 293.0), 2), ((-328.0, 318.0), 2), ((-285.0, 331.0), 2),
               ((-262.0, 289.5), 2), ((-315.0, 303.5), 1), ((-298.0, 314.5), 1), ((-275.0, 327.0), 2)]
+    GROUPS += [((-338, 309), 4), ((-325, 294), 4), ((-308, 323), 4), ((-292, 328), 4), ((-270, 304), 3)]
     for gi, (c, n) in enumerate(GROUPS):
         kinds = rng.sample(YOUNG, 2)
         got = 0
@@ -237,6 +238,7 @@ def main(dry=False):
             add_plant(p, rng.choice(["shrub_red", "shrub_ever", "shrub_red"]), rng.uniform(0.7, 0.95), clear_path=0.5)
     CLUMPS = [((-333.0, 297.5), 3), ((-293.0, 283.5), 2), ((-269.5, 291.0), 3), ((-261.0, 325.0), 3), ((-297.5, 320.0), 2),
               ((-322.5, 309.0), 2), ((-271.0, 312.5), 2), ((-309.0, 295.0), 2), ((-284.0, 296.0), 2)]
+    CLUMPS += [((-316, 295), 3), ((-302, 322), 4), ((-282, 325), 4), ((-333, 304), 4)]
     for c, n in CLUMPS:
         got = 0
         for k in range(40):
@@ -272,11 +274,11 @@ def main(dry=False):
             hedge.append([round(x0, 2), round(z0, 2), round(x1, 2), round(z1, 2), 0.28, 0.26])
         solids.append(ring_of(e.buffer(0.15)))
         inner_e = e.buffer(-0.4)
-        for k in range(int(e.area * 1.6)):
+        for k in range(int(e.area * 3.5)):
             mnx, mnz, mxx, mxz = inner_e.bounds
             p = Point(rng.uniform(mnx, mxx), rng.uniform(mnz, mxz))
             if inner_e.contains(p):
-                plants.append([round(p.x, 2), round(p.y, 2), "flowers" if rng.random() < 0.55 else "sedge", round(rng.uniform(0.6, 0.95), 3),
+                plants.append([round(p.x, 2), round(p.y, 2), "flowers" if rng.random() < 0.88 else "sedge", round(rng.uniform(0.6, 0.95), 3),
                                round(rng.uniform(0, math.tau), 3), 0.0])
         lawn_free = lawn_free.difference(e.buffer(0.8))
     bed_geom = unary_union(beds) if beds else Polygon()
@@ -301,13 +303,13 @@ def main(dry=False):
             for _ in range(2 if stretch > 0.75 else 1):
                 d = rng.uniform(0.2, 0.9 if stretch > 0.75 else 0.6)
                 c = Point(p.x + nx * d + rng.uniform(-0.3, 0.3), p.y + nz * d + rng.uniform(-0.3, 0.3))
-                if not water.buffer(-0.12).contains(c) or bridge.distance(c) < 3.0:
+                if not water.buffer(-0.12).contains(c) or bridge.distance(c) < 3.0 or furn.distance(c) < 0.45:
                     continue
                 u = rng.random()
                 kind = "reed" if u < 0.45 else ("cattail" if u < 0.75 else ("iris" if u < 0.87 else "sedge"))
                 plants.append([round(c.x, 2), round(c.y, 2), kind, round(rng.uniform(0.6, 0.95), 3), round(rng.uniform(0, math.tau), 3), -0.36])
             # sedge on the bank itself
-            if rng.random() < 0.35:
+            if rng.random() < 0.35 and furn.distance(p) > 1.2:
                 d_in = rng.uniform(0.1, 0.35)
                 c = Point(p.x - nx * d_in, p.y - nz * d_in)
                 if pond.contains(c) and not water.contains(c):

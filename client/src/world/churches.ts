@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
+import { attachToMirror } from "./mirror";
 import CITY from "../../../shared/city.json";
 import { bumpFromMap, psx } from "../retro/psx";
 import type { Rect } from "./geom";
@@ -206,6 +207,17 @@ export function loadChurches(scene: THREE.Scene): ChurchesModel {
         m.geometry.computeBoundingSphere();
         group.add(m);
         parts.push(m);
+        if (m.name.startsWith("park_") && (Array.isArray(m.material) ? m.material : [m.material]).some((mat) => mat.name === "park_water")) {
+          // The shared water shader uses local +Z as up (a rotated PlaneGeometry).
+          // Bake this GLB's Y-up vertices into that same frame; pumps keep their own still water.
+          m.updateMatrix();
+          m.geometry = m.geometry.clone().applyMatrix4(m.matrix).rotateX(Math.PI / 2);
+          m.position.set(0, 0, 0); m.scale.set(1, 1, 1); m.rotation.set(-Math.PI / 2, 0, 0);
+          m.material = psx(new THREE.MeshPhongMaterial({ color: 0x33473b, specular: 0x202b23, shininess: 120 }), { water: true, affine: 0, waterCalm: true });
+          m.material.name = "park_pond_water";
+          m.geometry.computeBoundingSphere();
+          attachToMirror("water", m);
+        }
         // issue #10: each church's lit glass to its hall (world/shellGlass.ts: the hall's stained glass is a copy); issue
         // #28: "_x", the glass of its towers, attics and annexes (world/churchSpaces.ts)
         const lit = /^church_(carolus|stpaul|stjacob)_lit_glass(_x)?$/.exec(m.name);

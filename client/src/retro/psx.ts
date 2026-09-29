@@ -384,6 +384,8 @@ float pudVal(vec2 p) {
 export interface PsxOptions {
   /** Animate vertices as water waves. */
   water?: boolean;
+  /** Sheltered ponds: same water shader, shorter ripples than the open river. */
+  waterCalm?: boolean;
   /** Affine texture warp strength, 0..1. */
   affine?: number;
   /** Skip vertex snap (UI-ish objects like the sky). */
@@ -751,7 +753,7 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
                    + cos(wp.z * 0.55 - t * 0.7 + wp.x * 0.2) * 0.05
                    + cos((wp.x + wp.z) * 1.3 + t * 1.7) * 0.039
                    - cos(wp.x * 3.1 - wp.z * 1.7 + t * 2.3) * 0.04;
-          objectNormal = normalize(vec3(-dx, dz, 1.0));
+          objectNormal = normalize(vec3(-dx * ${opts.waterCalm ? "0.28" : "1.0"}, dz * ${opts.waterCalm ? "0.28" : "1.0"}, 1.0));
         }
         #ifdef USE_TANGENT
         vec3 objectTangent = vec3(tangent.xyz);
@@ -767,10 +769,10 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
                   + sin(wp.x * 0.35 + uTime * 0.9) * 0.07
                   + sin(wp.z * 0.55 - uTime * 0.7 + wp.x * 0.2) * 0.05
                   + sin((wp.x + wp.z) * 1.3 + uTime * 1.7) * 0.02;
-          w *= uSea;
+          w *= uSea * ${opts.waterCalm ? "0.12" : "1.0"};
           // the great storm's chop (waveAt() the same): short steep seas over the swell
           float chop = (sin(wp.x * 0.92 - wp.z * 0.38 + uTime * 2.6) * 0.06 + sin(wp.z * 1.07 + wp.x * 0.55 - uTime * 3.1) * 0.045) * max(0.0, uSea - 3.6);
-          w += chop;
+          w += chop * ${opts.waterCalm ? "0.12" : "1.0"};
           transformed.z += w;
           vWaveH = w / 0.22;
         }`,
@@ -1196,7 +1198,7 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
           // lamps drawn out into long broken streaks by fine ripples (in chunky world pixels)
           vec3 wn = normalize((vec4(normal, 0.0) * viewMatrix).xyz);
           vec2 rp = floor(vPsxWorld.xz * 6.0) / 6.0;
-          vec2 rip = vec2(sin(rp.x * 2.7 + rp.y * 0.9 + uTime * 1.9), sin(rp.y * 3.3 - rp.x * 0.7 - uTime * 1.5)) * 0.06;
+          vec2 rip = vec2(sin(rp.x * 2.7 + rp.y * 0.9 + uTime * 1.9), sin(rp.y * 3.3 - rp.x * 0.7 - uTime * 1.5)) * ${opts.waterCalm ? "0.006 * (1.0 + uRain * 1.5)" : "0.06"};
           vec3 rn = normalize(wn + vec3(rip.x, 0.0, rip.y));
           float cosV = max(dot(rn, -rd), 0.0);
           if (uWaterMirrorOn > 0.5) {
@@ -1204,7 +1206,7 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
             vec4 mr = uWaterMirrorMat * vec4(vPsxWorld, 1.0);
             mr.xy += rip * 0.35 * mr.w;
             vec3 mc = texture2DProj(uWaterMirror, mr).rgb;
-            float f = max(0.22, 0.04 + 0.96 * pow(1.0 - cosV, 5.0));
+            float f = ${opts.waterCalm ? "0.48 + 0.48 * pow(1.0 - cosV, 3.0)" : "max(0.22, 0.04 + 0.96 * pow(1.0 - cosV, 5.0))"};
             // (the great storm: the torn-up water mirrors nothing; Steve 2026-09-28)
             f *= 1.0 - clamp((uSea - 3.6) / 2.0, 0.0, 1.0);
             gl_FragColor.rgb = mix(gl_FragColor.rgb, mc * 0.92, clamp(f, 0.0, 0.9));
@@ -1349,7 +1351,7 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
   };
   // M7 rendering (world/cull.ts): how far the fog lets this material show, and water (waves reach over the sheet)
   mat.userData.psx = { fogReach: opts.fogReach ?? 1, water: !!opts.water };
-  mat.customProgramCacheKey = () => `psx-${opts.water ? 2 : 0}-${opts.noSnap ? 1 : 0}-${opts.atlas ?? 0}-${opts.fogReach ?? 1}${opts.wet ? "-wet" : ""}${opts.puddles ? `-pud${opts.puddles}` : ""}${opts.relief ? `-rel${opts.relief.tile}${opts.relief.id ? `-id${opts.relief.holes ?? 0}` : ""}${opts.relief.reach ? `-r${opts.relief.reach}` : ""}` : ""}${opts.vary ? `-v${opts.vary}` : ""}${opts.detile ? "-dt" : ""}${opts.slabs ? `-slab${opts.slabs.tile}-${opts.slabs.yMax}` : ""}${opts.foot ? `-foot${opts.foot.amount}${opts.foot.vertexWear ? "w" : ""}` : ""}${opts.mottle ? `-mot${opts.mottle}` : ""}${opts.spill === false ? "-nosp" : ""}`;
+  mat.customProgramCacheKey = () => `psx-${opts.water ? 2 : 0}${opts.waterCalm ? "-pond" : ""}-${opts.noSnap ? 1 : 0}-${opts.atlas ?? 0}-${opts.fogReach ?? 1}${opts.wet ? "-wet" : ""}${opts.puddles ? `-pud${opts.puddles}` : ""}${opts.relief ? `-rel${opts.relief.tile}${opts.relief.id ? `-id${opts.relief.holes ?? 0}` : ""}${opts.relief.reach ? `-r${opts.relief.reach}` : ""}` : ""}${opts.vary ? `-v${opts.vary}` : ""}${opts.detile ? "-dt" : ""}${opts.slabs ? `-slab${opts.slabs.tile}-${opts.slabs.yMax}` : ""}${opts.foot ? `-foot${opts.foot.amount}${opts.foot.vertexWear ? "w" : ""}` : ""}${opts.mottle ? `-mot${opts.mottle}` : ""}${opts.spill === false ? "-nosp" : ""}`;
   return mat;
 }
 

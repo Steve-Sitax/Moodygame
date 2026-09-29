@@ -689,6 +689,7 @@ export function buildRijnkaai(): World {
   const eyeAt = new THREE.Vector3();
   const eyeWas = new THREE.Vector3(1e9, 0, 1e9);
   const mirror = createMirror(WATER_Y, {
+    name: "water",
     enabled: (camera) => {
       // the culler asks without a camera: the last answer
       if (!camera) return waterNear;
@@ -1902,7 +1903,8 @@ export function buildRijnkaai(): World {
       const cz = camera.position.z;
       const inLock = cx > CHAMBER.minX - 6 && cx < CHAMBER.maxX + 6 && cz > CHAMBER.minZ - 4 && cz < CHAMBER.maxZ;
       const nearDock = cx > DOCK.minX - 25 && cx < DOCK.maxX + 25 && cz > DOCK.minZ - 10 && cz < DOCK.maxZ + 25;
-      mirror.setPlane(inLock ? tideWater.chamber : nearDock ? tideWater.dock : tideWater.river);
+      const nearPark = cx > -370 && cx < -240 && cz > 270 && cz < 355;
+      mirror.setPlane(nearPark ? -0.35 : inLock ? tideWater.chamber : nearDock ? tideWater.dock : tideWater.river);
     }
     psxUniforms.uTime.value = t;
     fogMix += (fogTarget - fogMix) * Math.min(1, dt * 0.4);
@@ -1960,7 +1962,7 @@ export function buildRijnkaai(): World {
       pt("world.wall", () => wall.update(camera!, fog.far, lampsLit));
       pt("world.guards", () => guards.update(dt, camera!));
       pt("world.churches", () => churches.update(camera!, fog.far));
-      pt("world.parkNature", () => parkNature.update(camera!, fog.far));
+      pt("world.parkNature", () => parkNature.update(camera!, fog.far, dt, dayNow));
       pt("world.prison", () => prison.update(camera!, fog.far, lampsLit)); // M7 prison and squares
       pt("world.townPlaces", () => townPlaces.update(camera!, fog.far));
     }

@@ -5,6 +5,7 @@ import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import { psx } from "../retro/psx";
 import { disposeSkeletons } from "./humans";
 import { dice, hash32, runsHere, share, type SharedAnimal } from "./share";
+import { parkLife } from "../world/parkWildlife";
 import { tempest } from "../world/tempest";
 
 // Dogs and cats (M3e), from client/public/models/animals.glb
@@ -103,6 +104,8 @@ function load(): Promise<Template | null> {
   return loading;
 }
 
+let urineMaterial: THREE.Material | null = null;
+const urineGeometry = new THREE.CylinderGeometry(.0025,.004,.3,4);
 export class Animal {
   readonly root: THREE.Object3D;
   readonly group = new THREE.Group();
@@ -120,12 +123,20 @@ export class Animal {
   private hasLast = false;
   private drop = 0;
   private readonly key: string;
+  toilet: "urinate" | "defecate" | null = null;
+  private rearLeg: THREE.Object3D | null = null;
+  private urine: THREE.Mesh | null = null;
 
   constructor(readonly kind: AnimalKind, src: THREE.Object3D, clips: Map<string, THREE.AnimationClip>) {
     this.species = kind.startsWith("dog") ? "dog" : kind.startsWith("pig") ? "pig" : "cat";
     this.key = kind === "dog_grey" || kind === "pig_spotted" ? kind : this.species;
     this.root = cloneSkinned(src);
     this.group.add(this.root);
+    this.rearLeg = this.root.getObjectByName("hindUpL") ?? null;
+    if(this.species==="dog") {
+      urineMaterial ??= psx(new THREE.MeshLambertMaterial({color:0x877f3b}),{affine:0});urineMaterial.name="dog_urine";
+      this.urine=new THREE.Mesh(urineGeometry,urineMaterial);this.urine.position.set(.17,.17,-.19);this.urine.rotation.z=-.45;this.urine.visible=false;this.group.add(this.urine);
+    }
     this.mixer = new THREE.AnimationMixer(this.root);
     for (const m of ["idle", "walk", "run", "sit", "lie", "sniff"] as AnimalMotion[]) {
       const c = clips.get(`${this.species}_${m}`);
@@ -188,6 +199,9 @@ export class Animal {
     const want = this.motion === "sit" ? -DROP[this.key].sit : this.motion === "lie" ? -DROP[this.key].lie : 0;
     this.drop += (want - this.drop) * Math.min(1, dt * 5);
     this.root.position.y = this.drop;
+    if (this.urine) this.urine.visible=this.toilet==="urinate";
+    if (this.toilet === "urinate" && this.rearLeg) this.rearLeg.rotation.z = 1.1;
+    if (this.toilet === "defecate") this.root.position.y -= 0.08;
   }
 
   dispose(): void {
@@ -296,6 +310,9 @@ const beast = (a: Animal, x: number, z: number, yaw: number, extra: Partial<Beas
 
 export class Animals {
   private beasts: Beast[] = [];
+  parkDeposit: (owner:string,x:number,z:number) => void = () => {};
+  private toilet = new Map<string,{ next:number; left:number; kind:"urinate"|"defecate"; count:number }>();
+  private parkTime = 0;
   private ready = false;
   private readonly frustum = new THREE.Frustum();
   private readonly m4 = new THREE.Matrix4();
@@ -319,6 +336,7 @@ export class Animals {
       else if (dice("stray", i) < 0.6)
         out.push({ id: `a:dog:${key}`, kind: DOGS[Math.floor(dice("dogkind", i) * 4)], x: s.x, z: s.z, yaw: dice("dogyaw", i) * 6.28, night: dice("dognight", i) < 0.33, pose: "sit" });
     });
+    for (const [i, x, z] of [[0,-306,303],[1,-286,292]]) out.push({id:`a:parkcat:${i}`,kind:i===0?"cat_tabby":"cat_ginger",x,z,yaw:0,night:false,pose:"sit"});
     this.haunts = out;
     this.hauntOf = new Map(out.map((h) => [h.id, h]));
   }
@@ -405,6 +423,7 @@ export class Animals {
         }
       }
     }
+    this.parkTime += dt;
     const dogs = this.beasts.filter((b) => b.a.species === "dog");
     for (const b of [...this.beasts]) {
       const d = Math.hypot(b.x - player.x, b.z - player.z);
@@ -420,7 +439,7 @@ export class Animals {
       if (got) this.show(b, got);
       else if (here || b.ownerId) {
         // (a townsperson's dog not sent yet: at his heel as before)
-        if (b.owner) this.follow(b, dt, hidden);
+        if (b.owner) { if (!this.parkToilet(b, dt)) this.follow(b, dt, hidden); }
         // the great storm (world/tempest.ts): strays and cats run for their doorstep and cower there, flat to the stone
         else if (tempest.phase && tempest.level > 0.3) this.storm(b, dt);
         else if (b.shelter) {
@@ -698,6 +717,17 @@ export class Animals {
     return false;
   }
 
+  private parkToilet(b: Beast, dt:number): boolean {
+    if (!b.ownerId || b.remote || Math.hypot(b.x+302,b.z-310)>55 || tempest.level>.3) { b.a.toilet=null; return false; }
+    let t=this.toilet.get(b.ownerId);
+    if (!t) { t={next:this.parkTime+8+hash32(b.ownerId)%20,left:0,kind:"urinate",count:0}; this.toilet.set(b.ownerId,t); }
+    if (t.left<=0 && this.parkTime>=t.next) { t.kind=t.count++%2===0?"urinate":"defecate";t.left=3.2;t.next=this.parkTime+65; }
+    if(t.left<=0){b.a.toilet=null;return false;}
+    b.a.toilet=t.kind;b.a.play(t.kind==="defecate"?"sit":"idle");t.left-=dt;
+    if(t.left<=0 && t.kind==="defecate")this.parkDeposit(b.ownerId,b.x,b.z);
+    return true;
+  }
+
   private cat(b: Beast, dt: number, dogs: Beast[], people: Array<{ x: number; z: number }>): void {
     // what frightens a cat: a dog near, or Jef right on top of it
     let tx = 0;
@@ -750,6 +780,12 @@ export class Animals {
         b.a.play("sit");
         b.timer = rnd(5, 20);
       }
+      return;
+    }
+    const prey = parkLife.ecology?.huntTarget(b);
+    if (prey && Math.hypot(b.x+302,b.z-310)<60) {
+      if (!b.goal || (b.timer -= dt)<=0) { b.timer=1;this.aim(b,prey.x,prey.z,18); }
+      if(b.goal)this.go(b,1.35,dt);
       return;
     }
     if (b.goal) {

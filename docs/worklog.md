@@ -5,6 +5,16 @@ The coordinating Claude session keeps this file current: a line when a helper st
 patch goes live (with its commit), and when Steve decides something. Newest first in each part.
 Git history has the detail of each commit.
 
+## Stadspark branch, 2026-09-29
+
+Merged into main at Steve's request after `45309c0`. The only conflict was the changelog; both the vehicle/NPC stress entries and the park entries were retained. The combined game build and 36 park/scheduling tests pass. Performance remains explicitly deferred to his separate session.
+
+Implemented on `codex/stadspark` in `../MoodyGame-stadspark`: generated concepts and actual foliage textures, fuller planting and veteran oak, visible pond reflections, 46 ambient animals with feeding/flight/climbing/weather behaviour, cats and defending mothers, wealthy household dog walks, dog toilets, keeper and the ten-droppings job (35 c). Player-visible changes and asset provenance are recorded with the code. See [the full handoff](milestones/stadspark-life.md).
+
+Validation: game build and demo build pass; 97 test files / 1,370 tests pass; Blender models rebuilt and park placement check clean. Browser path and shader checks return no problems. Ten actual cleanup interactions paid exactly once; a visitor reached the bank and scattered food. Screenshots shown throughout include the oak, squirrel, waterfowl and clear reflections. Persistent jobs stay out of the limited web demo; ambient wildlife is not multiplayer-synchronised.
+
+Rendering is explicitly deferred to the user's new session: measured park walking 27.02 ms (~37 fps), turning 19.82 ms (~50 fps), before the final geese addition. Other town views also miss the 16.7 ms budget. Measurements and baseline cautions are in the handoff; related [issue 32](https://github.com/Steve-Sitax/Moodygame/issues/32). The temporary baseline worktree is unregistered but its directory remains because automatic approval review blocked cleanup. It contains no save.
+
 ## Waiting for Steve
 
 - Crates and casks, one model each with a label sheet as the sacks (`docs/crates-casks-plan.md`): the whole town at once, or the moving goods first? (Claude: the moving goods first: piles, carts, hands, wagons.)

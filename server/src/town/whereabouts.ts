@@ -36,6 +36,7 @@ export interface WhereResident {
 
 /** What the sum needs of the town. */
 export interface WhereTown {
+  residents?: ReadonlyArray<WhereResident>;
   places: Record<string, { x: number; z: number; r: number; door?: Pt; out?: Pt }>;
   stalls: ReadonlyArray<{ x: number; z: number }>;
   shops: ReadonlyArray<{ id: string; door: Pt; out: Pt }>;
@@ -225,6 +226,29 @@ interface RoundWay {
 
 /** Rounds whose every leg was found, by the route array (the town's data keeps the same arrays). */
 const roundCache = new WeakMap<ReadonlyArray<Pt>, RoundWay>();
+
+// A shared haul is a work round, with evenly spaced starts at the crew's walking pace. Independent
+// arrival times and speeds slowly collapsed the old random offsets into a clump; even a new tree
+// changing one worker's route to work could make four men occupy the same pile.
+const haulCrews = new WeakMap<WhereTown, Map<string, { fraction:number; mps:number }>>();
+function haulStart(r:WhereResident,town:WhereTown):{fraction:number;mps:number}|undefined {
+  if(r.work.kind!=="haul"||!town.residents)return;
+  let crew=haulCrews.get(town);
+  if(!crew) {
+    crew=new Map();const routes=new Map<string,WhereResident[]>();
+    for(const person of town.residents)if(person.work.kind==="haul"&&person.work.a&&person.work.b) {
+      const key=[...person.work.a,...person.work.b].map(n=>n.toFixed(1)).join(",");
+      const people=routes.get(key)??[];people.push(person);routes.set(key,people);
+    }
+    for(const people of routes.values()) {
+      people.sort((a,b)=>a.id.localeCompare(b.id));
+      const mps=Math.min(...people.map(p=>paceOf(p).mps));
+      people.forEach((p,i)=>crew!.set(p.id,{fraction:i/people.length,mps}));
+    }
+    haulCrews.set(town,crew);
+  }
+  return crew.get(r.id);
+}
 
 /**
  * The round on foot, leg by leg along the ways (Steve 2026-09-27: the map had rounds straight through houses and
@@ -497,9 +521,9 @@ export function whereAt(r: WhereResident, town: WhereTown, day: number, hour: nu
   const A = here.at;
   if (A.route && A.route.length > 1) {
     // on his round since he got there, at his walk
-    const walk = paceOf(r).mps;
+    const crew=haulStart(r,town),walk=crew?.mps??paceOf(r).mps;
     // (Steve 2026-09-28: "not bunching like 100 people in one job spot/pile": his own start point on the round)
-    const p = onRound(A.route, (hour - here.arrive) * 60 * perMin(walk), A.loop !== false, way, (hashId(r.id + ":round") & 0xffff) / 0x10000);
+    const p = onRound(A.route, (hour - (crew?here.part.start:here.arrive)) * 60 * perMin(walk), A.loop !== false, way, crew?.fraction??(hashId(r.id + ":round") & 0xffff) / 0x10000);
     return { ...base, x: p.x, z: p.z, yaw: p.yaw, indoor: false, moving: true, leg: p.leg, mps: walk };
   }
   return { ...base, x: here.stand[0], z: here.stand[1], yaw: 0, indoor: A.indoor, moving: false, mps: 0 };

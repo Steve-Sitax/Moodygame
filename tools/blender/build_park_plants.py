@@ -289,6 +289,7 @@ STRIPS = [
     ("park_foliage.png", ["rhodo", "holly", "hazel", "maple", "chestnut", "privet", "twigs", "flowers"]),
     ("park_reeds.png", ["reed", "cattail", "sedge", "iris"]),
     ("park_lilies.png", ["lily"]),
+    ("stadspark_foliage.png", ["elm", "plane", "lime", "willow", "rhodo", "holly", "maple", "flowers"]),
 ]
 
 
@@ -412,10 +413,11 @@ def young(name, seed, cells, height, tints, lat=(7, 9), leaf_size=0.55, spread=1
                        lat_r=0.7, fork=2, fork_ang=0.4, fork_len=0.5, fork_r=0.8),
                   dict(segs=1, sides=3, taper=0.3, up=0.08, wobble=0.15),
               ],
-              leaf=dict(cells=cells, size=leaf_size, p=0.62, at=(0.35, 0.7, 1.0), node_p=0.4, tints=tints))
+              leaf=dict(cells=cells, size=leaf_size * 1.18, p=0.88, at=(0.35, 0.7, 1.0), node_p=0.65, tints=tints))
     t = bt.Tree(name, sp, seed)
     t.grow(Vector((0, 0, 0)), UP.copy(), height, sp["r0"], 0)
     t.leaves()
+    dome_cards(t, cells, 1.35 * spread, height * 0.52, 48, 0.92, [(0.95, 0.95, 0.9), (0.86, 0.89, 0.83)], z0=height * 0.51)
     stake(t)
     return t
 
@@ -427,6 +429,8 @@ def old(name, base, cells, seed, r0, twig=None, leaf_p=None):
     sp["clear"] = 2.8
     L = dict(sp["leaf"])
     L["cells"] = cells
+    L["tints"] = [(0.95, 0.95, 0.90), (0.87, 0.89, 0.82)]
+    L["size"] = L.get("size", 0.8) * 1.18
     if leaf_p is not None:
         L["p"] = leaf_p
     sp["leaf"] = L
@@ -435,28 +439,66 @@ def old(name, base, cells, seed, r0, twig=None, leaf_p=None):
     t = bt.Tree(name, sp, seed)
     t.grow(Vector((0, 0, 0)), UP.copy(), sp["height"] * 1.15, r0, 0)
     t.leaves()
+    if name != "old_bare":
+        for pts, direction, level in t.twigs:
+            top=pts[-1]
+            if top.z < 3.4: continue
+            for _ in range(5):
+                c=top+Vector((t.rng.uniform(-.6,.6),t.rng.uniform(-.6,.6),t.rng.uniform(-.4,.5)))
+                axis=Vector((t.rng.uniform(-1,1),t.rng.uniform(-1,1),t.rng.uniform(.1,1))).normalized()
+                normal=(Vector((c.x,c.y,.8)).normalized()+UP*.5).normalized()
+                t.card(c,axis,t.rng.uniform(.95,1.5),t.rng.choice(cells),normal,t.rng.choice(L["tints"]),t.rng.random()<.5)
+    return t
+
+
+def ancient_oak():
+    """One retained veteran: buttress roots, a wide trunk and six spreading scaffold limbs."""
+    import json
+    anchors = json.load(open(os.path.join(os.path.dirname(__file__), "..", "..", "shared", "parkTreeLife.json")))["old_oak"]
+    t = bt.Tree("old_oak", dict(clear=0.0, bark_tint=(.82,.78,.67)), 1731)
+    rng=t.rng
+    t.tube([Vector((0,0,-.12)),Vector((.06,-.04,.65)),Vector((-.08,.04,2.0)),Vector((0,0,3.35)),Vector((.15,.08,6.4)),Vector((-.1,0,10.4)),Vector((0,0,13.4))], [1.15,.96,.89,.78,.50,.29,.05], 12, 0, True)
+    for i in range(8):
+        a=i*TAU/8;rad=Vector((math.cos(a),math.sin(a),0))
+        t.tube([rad*.65+UP*.8,rad*1.2+UP*.15,rad*1.55-UP*.02],[.23,.15,.035],5,0,True)
+    for i,(x,y,z) in enumerate(anchors["perches"]):
+        end=Vector((x,-z,y));start=Vector((0,0,3.35+i*.75))
+        knee=start*.4+end*.6-UP*.4
+        t.tube([start,knee,end,end*1.19+UP*1.1],[.42-i*.035,.29-i*.025,.14,.035],8,0,True)
+        for j in range(6):
+            a=j*TAU/6+i*.7
+            tip=end+Vector((math.cos(a)*rng.uniform(1.5,2.5),math.sin(a)*rng.uniform(1.5,2.5),rng.uniform(1.4,2.7)))
+            t.tube([end,(end+tip)*.5-UP*.12,tip],[.10,.065,.016],5,0,True)
+            for k in range(32):
+                az=rng.uniform(0,TAU);el=rng.uniform(-.55,1.1);r=rng.uniform(.3,1.7)
+                c=tip+Vector((math.cos(az)*r,math.sin(az)*r,el*1.2))
+                axis=Vector((rng.uniform(-1,1),rng.uniform(-1,1),rng.uniform(.1,1))).normalized()
+                normal=(Vector((c.x,c.y,1)).normalized()+UP*.8).normalized()
+                t.card(c,axis,rng.uniform(1.15,1.8),CELLS["elm"],normal,rng.choice([(.89,.86,.70),(.98,.94,.79),(.85,.89,.75)]),rng.random()<.5)
     return t
 
 
 def weeping():
-    sp = dict(clear=0.7, bark_tint=(0.85, 0.82, 0.72),
-              levels=[
-                  dict(segs=3, sides=6, taper=0.55, wobble=0.04, fork=4, fork_ang=0.75, fork_len=0.8, fork_r=0.65),
-                  dict(segs=3, sides=4, taper=0.5, up=0.1, droop=0.35, wobble=0.1, lat=(2, 3), lat_t=(0.3, 0.9), lat_ang=(0.6, 0.9),
-                       lat_len=0.6, lat_r=0.6, fork=2, fork_ang=0.5, fork_len=0.6, fork_r=0.7),
-                  dict(segs=2, sides=3, taper=0.3, droop=0.5, wobble=0.12),
-              ])
-    t = bt.Tree("weeping", sp, 91)
-    t.grow(Vector((0, 0, 0)), UP.copy(), 2.4, 0.09, 0)
-    rng = t.rng
-    ci = CELLS["willow"]
-    tints = [(0.82, 0.8, 0.66), (0.74, 0.76, 0.62), (0.86, 0.78, 0.6), (0.7, 0.74, 0.64)]
-    for pts, d, _ in t.twigs:
-        for q in (pts[-1],) if rng.random() < 0.6 else (pts[-1], pts[len(pts) // 2]):
-            hang = min(1.7, max(0.5, q.z - 0.6)) * rng.uniform(0.7, 1.0)
-            top = q + Vector((rng.uniform(-0.1, 0.1), rng.uniform(-0.1, 0.1), 0.05))
-            nrm = (Vector((q.x, q.y, 0)).normalized() * 0.7 + UP * 0.6).normalized() if Vector((q.x, q.y)).length > 0.01 else UP
-            rect_card(t, top - UP * hang, UP, rng.uniform(0.4, 0.6), hang, ci, nrm, rng.choice(tints), rng.random() < 0.5)
+    """A branching willow with hanging shoots, not vertical bundles of crossed reeds."""
+    t = bt.Tree("weeping", dict(clear=0.0, bark_tint=(0.86, 0.82, 0.72)), 91)
+    rng, ci = t.rng, CELLS["willow"]
+    t.tube([Vector((0, 0, -.08)), Vector((.09, -.06, 1.5)), Vector((-.12, .10, 3.3)), Vector((.12, .02, 4.5))], [.16, .12, .075, .018], 7, 0, True)
+    tints = [(1.0, 1.0, .94), (.90, .96, .87), (.94, .93, .79)]
+    for k in range(11):
+        az = k * TAU / 11 + rng.uniform(-.15, .15)
+        reach, high = rng.uniform(1.6, 2.7), rng.uniform(3.7, 5.2)
+        radial = Vector((math.cos(az), math.sin(az), 0))
+        pts = [Vector((0, 0, 2.0 + .09*k)), radial*reach*.42 + UP*high,
+               radial*reach*.8 + UP*(high-.12), radial*reach + UP*(high-.65)]
+        t.tube(pts, [.06, .045, .022, .008], 5, 0, True)
+        for j in range(7):
+            f = .35+j*.10
+            top = radial*(reach*f) + Vector((rng.uniform(-.28,.28), rng.uniform(-.28,.28), high - max(0,f-.65)*1.8))
+            length = rng.uniform(1.45, 2.55) * (.7 + f*.3)
+            end = top + radial*.14 - UP*length
+            t.tube([top, (top+end)*.5+radial*.13, end], [.01,.006,.002], 3, 0, False)
+            rect_card(t, end, UP, rng.uniform(.62,.91), length, ci, (radial*.6+UP*.7).normalized(),rng.choice(tints),rng.random()<.5)
+    dome_cards(t, [ci], 1.5, 1.7, 25, .95, tints, z0=3.5, up=.2)
     return t
 
 
@@ -537,6 +579,7 @@ def build_all():
         old("old_elm", "tree_elm", [C["elm"]], 311, 0.3),
         old("old_plane", "tree_plane", [C["plane"]], 313, 0.34, twig=[C["plane_sparse"], C["twigs"]]),
         old("old_bare", "tree_bare", [C["elm"]], 317, 0.28, twig=[C["twigs"]]),
+        ancient_oak(),
         weeping(),
         conifer(),
         shrub("shrub_ever", 401, [C["rhodo"]], 0.95, 1.6, 46, 0.62, GREENISH),
