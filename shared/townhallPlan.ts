@@ -89,8 +89,18 @@ export const ALD_DESK = { x: 14.5, z: 21.4 };
 
 // ---- issue #10: every part behind the shell's windows, storey by storey (local; y of each storey's floor and ceiling)
 /** The storeys' floors and ceilings (local y): the ground floor, the Doric storey, the Ionic storey, the room under the frontispiece's cornice. */
-export const LEVEL_Y = [0, UP, 13.6, 20.5];
-export const CEIL = [UP - 0.3, 13.3, 20.1, 23.8];
+export const LEVEL_Y = [0, UP, 13.6, 20.5, 26.0 - FLOOR_Y, 30.9 - FLOOR_Y];
+export const CEIL = [UP - 0.3, 13.3, 20.1, 23.8, 36.5 - FLOOR_Y, 36.5 - FLOOR_Y];
+/**
+ * Issue #28: the attic under the great roof (world/landmarkHalls.ts townhallAttic; its 54 dormers' windows and the
+ * roof's slopes: shared/stadhuisShell.ts): its floor on the cornice's top (26.0 over the square), and a loft on the
+ * collar beams (30.9) under the upper row of small dormers. Seen through the dormers, not walked (no stair goes up).
+ */
+export const ATTIC = LEVEL_Y[4];
+export const LOFT = LEVEL_Y[5];
+/** The chimneys' stacks through the attic (build_stadhuis.py roof(): u, v of the frame, each 1.2 by 1.7), local middles and half sizes. */
+export const CHIMNEYS: Array<[number, number]> = ([[-26.0, 3.35], [-15.0, -2.65], [15.0, -2.65], [26.0, 3.35], [-20.5, -3.15], [20.5, 3.85]] as Array<[number, number]>).map(([u, v]) => [-u, 12.69 - v]);
+export const CHIMNEY_HALF: [number, number] = [0.65, 0.9];
 /** The inner faces of the outer walls (the linings behind the shell's faces): the wings' front, the sides (|x|), the back, the stair block's back; the frontispiece's rooms. */
 export const INNER = { front: 0.8, side: 33.18, back: 24.2, block: 26.0, fronti: -0.3, frontiX: 5.85, frontiBack: 1.6 };
 /** The locked offices' walls: the partitions every two bays (|x|), the front and back strips' inner walls (z), the sides' strip (|x|) and its partition (z). */
@@ -151,6 +161,9 @@ function lockedParts(): Part[] {
   add("cabinet_above", "the archive over the burgomaster's cabinet", 2, [R(-MID.x0, MID.x0, INNER.front, VEST.maxZ), fr], "middle");
   add("fronti_top", "the small room under the frontispiece's cornice", 3, [R(-INNER.frontiX, INNER.frontiX, INNER.fronti, INNER.frontiBack)], "middle");
   add("block_above", "the room over the landing, in the stair block", 2, [R(-7.5, 7.5, 22.8, INNER.block)], "back");
+  // issue #28: the attic under the roof and its loft under the ridge (behind the dormers)
+  add("attic", "the attic under the roof", 4, [R(-33.3, 33.3, 0.6, 24.2)], "middle");
+  add("loft", "the attic's loft, under the ridge", 5, [R(-28.0, 28.0, 5.9, 18.7)], "middle");
   return out;
 }
 

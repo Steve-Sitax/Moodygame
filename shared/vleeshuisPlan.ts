@@ -48,6 +48,35 @@ export const COL_X = [-12.8, -7.6, -2.4, 2.8, 8.0, 13.2, 18.4, 23.6];
 /** The long stair along the north wall, rising east from the west end to the landing. */
 export const STAIR: Stair = { rect: R(11, 26, 12.3, 14.1), along: "x", foot: 26, head: 11, lo: 0, hi: 1, y0: 0, y1: UP, rise: UP / 50 };
 
+// ---- issue #28: the attic under the roof (world/landmarkHalls.ts buildVleeshuis; the roof, its dormers, the gables'
+// windows: shared/vleeshuisShell.ts). Its floor is the eaves' top (16.8 over the street), over the upper floor's
+// ceiling; a steep stair goes up to it from the studio, along the studio's north side. The wine merchant keeps his empty
+// casks and crates there, and the society its old scenery.
+/** The attic's floor (local y: the eaves, 16.8 world). */
+export const ATTIC = 16.8 - FLOOR_Y;
+/** The attic stair's well through the ceiling and the attic's floor. */
+export const WELL2 = R(17.2, 24.04, 10.7, 11.9);
+/**
+ * The attic stair: from the studio's floor up through the ceiling, rising west (45 degrees, 38 steps). Its walking rect
+ * runs 0.6 m on past its head at the attic's floor (a steep flight: the body's reach ahead would meet the floor's
+ * edge as a wall one step short of the top).
+ */
+export const STAIR2: Stair = { rect: R(WELL2.minX, WELL2.maxX + 0.6, WELL2.minZ, WELL2.maxZ), along: "x", foot: WELL2.minX, head: WELL2.maxX, lo: 1, hi: 2, y0: UP, y1: ATTIC, rise: (ATTIC - UP) / 38 };
+/** The two chimneys' breasts in the attic (build_vleeshuis.py: the stacks at u -16.8 and 18.6, 2.3 m north of the ridge): middles, half sizes. */
+export const CHIMNEYS: Array<[number, number]> = [
+  [-10.85, 9.65],
+  [24.55, 9.65],
+];
+export const CHIMNEY_HALF: [number, number] = [0.5, 0.37];
+/** The corner turrets' top rooms stand in the attic's corners (their walls: shared/vleeshuisShell.ts SHELL_TOWERS), the chimneys' breasts. */
+export const ATTIC_SOLIDS: Rect[] = [
+  R(-17.4, -13.5, -2.7, 1.75),
+  R(-17.7, -14.0, 13.35, 17.1),
+  R(25.7, 29.4, 13.35, 17.1),
+  R(25.75, 29.6, -2.3, 1.5),
+  ...CHIMNEYS.map(([x, z]) => R(x - CHIMNEY_HALF[0], x + CHIMNEY_HALF[0], z - CHIMNEY_HALF[1], z + CHIMNEY_HALF[1])),
+];
+
 // ---- the ground floor: racks of casks along the walls and the column lines, the desk, the tasting table
 /** Stillages of casks: [x0, x1, z] (z the rack's middle), each 1.1 deep. */
 export const RACKS: Array<[number, number, number]> = [
@@ -121,7 +150,21 @@ const level1: Level = {
     R(24.6, 27.4, 1.6, 3.8), // the model's dais
     R(16.6, 18.2, 1.2, 2.2), // the table of pots
     R(26.6, 27.4, 8.0, 9.6), // the stove
+    // issue #28: the attic stair over the studio's floor (its foot is walked onto)
+    R(STAIR2.foot + 0.5, STAIR2.rect.maxX, STAIR2.rect.minZ - 0.15, STAIR2.rect.maxZ),
   ],
+};
+
+/** Issue #28: the attic: its floor round the stair's well (the head of the stair at its west end), the turrets' rooms and the chimneys in it. */
+const level2: Level = {
+  y: ATTIC,
+  floors: [
+    R(-15.1, 27.1, IN.south, STAIR2.rect.minZ),
+    R(-15.1, STAIR2.foot, STAIR2.rect.minZ, IN.north),
+    R(STAIR2.head, 27.1, STAIR2.rect.minZ, IN.north),
+    R(STAIR2.foot, STAIR2.head, STAIR2.rect.maxZ, IN.north),
+  ],
+  solids: ATTIC_SOLIDS,
 };
 
 const U = UP;
@@ -160,8 +203,8 @@ export const PLAN: HallPlan = {
   origin: { x: -121.95, z: 92.4 },
   yaw: 0,
   floorY: FLOOR_Y,
-  levels: [level0, level1],
-  stairs: [STAIR],
+  levels: [level0, level1, level2],
+  stairs: [STAIR, STAIR2],
   doors: [
     { id: "vleeshuis_main", x: 0, z: 0, dir: 1, hw: DOOR.hw, h: DOOR.spring - FLOOR_Y, inner: IN.south, y: 0, leaves: 2, open: (80 * Math.PI) / 180, step: marks.door, archTop: ARCH },
     { id: "vleeshuis_north", x: SHELL.north_door_x, z: 14.7, dir: -1, hw: DOOR.hw, h: DOOR.spring - FLOOR_Y, inner: IN.north, y: 0, leaves: 2, open: (80 * Math.PI) / 180, step: { x: SHELL.north_door_x - 0.5, z: 16.9, yaw: Math.PI }, archTop: ARCH },

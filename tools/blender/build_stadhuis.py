@@ -435,6 +435,107 @@ def real_opening(w, sc, hw, yb, yt, arch, depth, kind, label, glaze="lead"):
                          hw=hw, yb=yb, yt=yt, arch=bool(arch), depth=depth, poly=poly))
 
 
+# Issue #28 (the attic): the 54 dormers of the roof are cut through too, the attic behind them (world/landmarkHalls.ts
+# townhallAttic): their insides (BAYS) and the roof's four slopes (ROOF_FACES) are written with the openings.
+BAYS = []
+ROOF_FACES = []  # (wall, s0, length) of each slope's eave
+
+
+def wdirs(w):
+    """A wall's along and out directions in the world (x, z)."""
+    ax, nn = FR[0].ax, FR[0].n
+    return (ax[0] * w.d[0] + nn[0] * w.d[1], ax[1] * w.d[0] + nn[1] * w.d[1]), (ax[0] * w.o[0] + nn[0] * w.o[1], ax[1] * w.o[0] + nn[1] * w.o[1])
+
+
+def bay(w, sc, hw, depth, back, y0, yc, kind, label):
+    """A dormer's inside, for the room: its front's middle on its outer face (w at e 0), half its width between the
+    room's cheeks, the reveal's depth and the front's back (the room's lining between them), its foot and ceiling."""
+    u, v, _ = w.pt(sc, 0.0, 0.0)
+    x, _, z = FR[0].w((u, v, 0.0))
+    (tx, tz), (nx, nz) = wdirs(w)
+    BAYS.append(dict(kind=kind, label=label, x=x, z=z, tx=tx, tz=tz, nx=nx, nz=nz, hw=hw, depth=depth, back=back, y0=y0, yc=yc))
+
+
+def hole_of(ol):
+    """An outline as a hole: its top and bottom chains as functions of s (left to right)."""
+    smin, smax = min(p[0] for p in ol), max(p[0] for p in ol)
+    n = len(ol)
+    il, ir = min(range(n), key=lambda i: (ol[i][0], ol[i][1])), max(range(n), key=lambda i: (ol[i][0], -ol[i][1]))
+    a, b = [], []
+    i = il
+    while True:
+        a.append(ol[i])
+        if i == ir:
+            break
+        i = (i + 1) % n
+    i = il
+    while True:
+        b.append(ol[i])
+        if i == ir:
+            break
+        i = (i - 1) % n
+    ya = sum(p[1] for p in a) / len(a)
+    yb_ = sum(p[1] for p in b) / len(b)
+    bot, top = (a, b) if ya < yb_ else (b, a)
+    return {"sl": smin, "sr": smax, "bot": bot, "top": top}
+
+
+def _at(chain, s, low):
+    best = None
+    for (s0, y0), (s1, y1) in zip(chain, chain[1:]):
+        if s0 - 1e-6 <= s <= s1 + 1e-6 or s1 - 1e-6 <= s <= s0 + 1e-6:
+            if abs(s1 - s0) < 1e-6:
+                yv = min(y0, y1) if low else max(y0, y1)
+            else:
+                yv = y0 + (y1 - y0) * (s - s0) / (s1 - s0)
+            best = yv if best is None else (min(best, yv) if low else max(best, yv))
+    return best
+
+
+def holed_slope(m, w, s0, s1, y0, y1, holes, e_of, ridge_in, mat, shade):
+    """Issue #28: a hipped slope of the roof as a wall laid on its plane (e as a function of y): from s0 to s1 at the
+    eave, narrowing by as much as it rises in at both ends (the hips), with holes (outlines (s, y)) cut out; in columns
+    cut at every corner of the holes."""
+    notches = [[(s0, y0), (s0 + ridge_in, y1), (s0, y1)], [(s1 - ridge_in, y1), (s1, y0), (s1, y1)]]
+    hs = [hole_of(h) for h in list(holes) + notches]
+    cuts = {s0, s1}
+    for h in hs:
+        for s, _ in h["top"] + h["bot"]:
+            if s0 < s < s1:
+                cuts.add(round(s, 6))
+    cuts = sorted(cuts)
+    out = add(w.out(1.0), (0, 0, 1.0))
+
+    def P(s, yy):
+        return w.pt(s, e_of(yy), yy)
+
+    def piece(sa, sb, ba, bb, ta, tb):
+        if ta - ba < 1e-4 and tb - bb < 1e-4:
+            return
+        if ta - ba < 1e-4:
+            m.face([P(sa, ba), P(sb, bb), P(sb, tb)], mat, shade, out)
+        elif tb - bb < 1e-4:
+            m.face([P(sa, ba), P(sb, bb), P(sa, ta)], mat, shade, out)
+        else:
+            m.face([P(sa, ba), P(sb, bb), P(sb, tb), P(sa, ta)], mat, shade, out)
+
+    for sa, sb in zip(cuts, cuts[1:]):
+        if sb - sa < 1e-5:
+            continue
+        spans = []
+        for h in hs:
+            if h["sl"] <= sa + 1e-6 and sb <= h["sr"] + 1e-6:
+                sm = (sa + sb) / 2
+                spans.append((_at(h["bot"], sm, True), _at(h["bot"], sa, True), _at(h["bot"], sb, True), _at(h["top"], sa, False), _at(h["top"], sb, False)))
+        spans.sort()
+        ya = yb_ = y0
+        cl = lambda v: min(max(v, y0), y1)  # noqa: E731
+        for _, ba, bb, ta, tb in spans:
+            piece(sa, sb, ya, yb_, max(ya, cl(ba)), max(yb_, cl(bb)))
+            ya, yb_ = max(ya, cl(ta)), max(yb_, cl(tb))
+        piece(sa, sb, ya, yb_, y1, y1)
+
+
 def opening_markers():
     """Every real opening as an empty in the glb (dev/interiorcheck.ts reads them) and shared/stadhuisShell.ts."""
     for i, o in enumerate(OPENINGS):
@@ -468,6 +569,24 @@ def opening_markers():
         parts_.append("poly: [" + ", ".join(f"[{f3(u)}, {f3(y)}]" for u, y in o["poly"]) + "]")
         lines.append("  { " + ", ".join(parts_) + " },")
     lines += ["];", ""]
+    # issue #28: what the room builds the attic and the dormers' insides from (shared/shellAttic.ts)
+    pt = lambda q: f"[{f3(q[0])}, {f3(q[1])}]"  # noqa: E731
+    h = (VF - VB + 0.6) / 2
+    lines += [
+        "/** Issue #28: the roof's four slopes (world): each from its eave on the cornice, rising `slope` a metre in, hipped. */",
+        f"export const SHELL_ROOF: ShellRoof = {{ eaves: {f3(CO)}, slope: {f3(RISE / h)}, ridge: {f3(CO + RISE)}, faces: [",
+    ]
+    for w, s0, L in ROOF_FACES:
+        u, v, _ = w.pt(s0, 0.0, 0.0)
+        x, _, z = FR[0].w((u, v, 0.0))
+        (tx, tz), (nx, nz) = wdirs(w)
+        lines.append(f"  {{ a: {pt((x, z))}, t: {pt((tx, tz))}, n: {pt((nx, nz))}, len: {f3(L)}, hip: true }},")
+    lines += ["] };", "", "/** Issue #28: the dormers' insides (world). */", "export const SHELL_BAYS: ShellBay[] = ["]
+    for b in BAYS:
+        lines.append("  { " + ", ".join(f"{k}: {json.dumps(b[k]) if isinstance(b[k], str) else f3(float(b[k]))}" for k in ("kind", "label", "x", "z", "tx", "tz", "nx", "nz", "hw", "depth", "back", "y0", "yc")) + " },")
+    lines += ["];", ""]
+    lines[lines.index('import type { ShellOpening } from "./shellOpening.js";')] = (
+        'import type { ShellOpening } from "./shellOpening.js";\nimport type { ShellBay, ShellRoof } from "./shellAttic.js";')
     with open(SHELL_TS, "w", newline="\n") as fh:
         fh.write("\n".join(lines))
     return len(OPENINGS)
@@ -1543,10 +1662,7 @@ def roof(m, dm):
     r0, r1 = (u0 + h, vm), (u1 - h, vm)
     c = [(u0, v0, y), (u1, v0, y), (u1, v1, y), (u0, v1, y)]
     t0, t1 = (r0[0], r0[1], top), (r1[0], r1[1], top)
-    m.face([c[0], c[1], t1, t0], SLATE, 0.95, (0, -1, 1))
-    m.face([c[2], c[3], t0, t1], SLATE, 1.0, (0, 1, 1))
-    m.face([c[1], c[2], t1], SLATE, 0.97, (1, 0, 1))
-    m.face([c[3], c[0], t0], SLATE, 0.97, (-1, 0, 1))
+    # (issue #28: the four slopes are laid below, after the dormers, each with the dormers cut out of it)
     # the lead: ridge and hips (rolls), the gutter (a box on the cornice's top), downpipes at the back corners
     def roll(a, b, r=0.09):
         d = norm(sub(b, a))
@@ -1571,8 +1687,11 @@ def roof(m, dm):
     def ry(dist):  # the roof's height `dist` in from the eave
         return y + dist * slope
 
-    def dormer(wall, s, yb, wd, hf, big):
-        """A dormer on a slope whose eave is wall's line at e = 0 (e out), rising inward."""
+    holes = {}  # issue #28: per slope (its wall), the dormers' outlines (s, y) cut out of it
+
+    def dormer(wall, s, yb, wd, hf, big, label):
+        """A dormer on a slope whose eave is wall's line at e = 0 (e out), rising inward. Issue #28: its window cut
+        through the front (the attic behind it: BAYS), its outline cut out of the slope (holes)."""
         ef = -(yb - y) / slope  # where the roof is yb high
         ytop = yb + hf
         eb = -(ytop + 0.9 - y) / slope  # its back, where its ridge meets the roof
@@ -1580,11 +1699,22 @@ def roof(m, dm):
         ww = wd / 2
         # the front: stone aedicule (big) or a slate-hung face (small), a cross window in it
         if big:
-            wall.box(m, s - ww - 0.18, s + ww + 0.18, ef - 0.2, ef + 0.08, yb - 0.3, ytop, CARVED, 1.0, back=True)
+            # (the block: its sides and top; its front and back with the window's hole; the reveal to the glass)
             fw = wall.at(ef + 0.08)
-            glass(m, fw, s - ww + 0.12, s + ww - 0.12, yb, ytop - 0.35, 0.01, shade=0.85)
-            fw.box(m, s - 0.05, s + 0.05, 0.0, 0.05, yb, ytop - 0.35, CARVED, 1.0, top=False)
-            fw.box(m, s - ww + 0.12, s + ww - 0.12, 0.0, 0.05, yb + (ytop - yb) * 0.6, yb + (ytop - yb) * 0.6 + 0.08, CARVED, 1.0)
+            bs0, bs1 = s - ww - 0.18, s + ww + 0.18
+            hw_w, yt_w = ww - 0.12, ytop - 0.35
+            ring = [wall.pt(bs0, ef - 0.2, 0)[:2], wall.pt(bs1, ef - 0.2, 0)[:2], wall.pt(bs1, ef + 0.08, 0)[:2], wall.pt(bs0, ef + 0.08, 0)[:2]]
+            m.prism(ring, yb - 0.3, ytop, CARVED, 1.0, top=True, skip=(0, 2))
+            holed_face(m, fw, bs0, bs1, yb - 0.3, ytop, [(s, hw_w, yb, yt_w, False)], CARVED, 1.0)
+            holed_face(m, fw, bs0, bs1, yb - 0.3, ytop, [(s, hw_w + 0.01, yb - 0.01, yt_w + 0.01, False)], CARVED, 0.8, e=-0.28)
+            reveal(m, fw, s, hw_w, yb, yt_w, -0.12, 0.0, CARVED, 0.72)
+            real_opening(fw, s, hw_w, yb, yt_w, False, 0.12, "window", label)
+            glass(m, fw, s - hw_w, s + hw_w, yb, yt_w, -0.12, shade=0.85, lit=True)
+            # the stone cross, in the reveal before the glass
+            fw.box(m, s - 0.05, s + 0.05, -0.11, -0.04, yb, yt_w, CARVED, 1.0, top=False)
+            fw.box(m, s - hw_w, s + hw_w, -0.11, -0.04, yb + (ytop - yb) * 0.6, yb + (ytop - yb) * 0.6 + 0.08, CARVED, 1.0)
+            bay(fw, s, ww + 0.12, 0.12, 0.3, yb - 0.4, ytop - 0.05, "roof", label)
+            holes.setdefault(id(wall), []).append([(s - ww - 0.18, yb + 0.17), (s + ww + 0.18, yb + 0.17), (s + ww + 0.18, ytop), (s, ytop + 0.6), (s - ww - 0.18, ytop)])
             for sg in (-1, 1):
                 fw.box(m, s + sg * (ww + 0.05) - 0.12, s + sg * (ww + 0.05) + 0.12, 0.0, 0.1, yb - 0.3, ytop, CARVED, 1.05)
                 # scrolls beside the aedicule (issue #10: at the dormer's foot; they stood on the ground inside the
@@ -1594,8 +1724,18 @@ def roof(m, dm):
             pediment(m, wall.at(ef - 0.2), s, ww + 0.3, ytop, 0.55, proj=0.36, seg=False)
             yr = ytop + 0.6
         else:
-            wall.box(m, s - ww - 0.08, s + ww + 0.08, ef - 0.1, ef + 0.02, yb - 0.1, ytop, SLATE, 0.9, back=True)
-            glass(m, wall.at(ef + 0.03), s - ww + 0.08, s + ww - 0.08, yb, ytop - 0.1, 0.0, shade=0.85)
+            fw = wall.at(ef + 0.02)
+            bs0, bs1 = s - ww - 0.08, s + ww + 0.08
+            hw_w, yt_w = ww - 0.08, ytop - 0.1
+            ring = [wall.pt(bs0, ef - 0.1, 0)[:2], wall.pt(bs1, ef - 0.1, 0)[:2], wall.pt(bs1, ef + 0.02, 0)[:2], wall.pt(bs0, ef + 0.02, 0)[:2]]
+            m.prism(ring, yb - 0.1, ytop, SLATE, 0.9, top=True, skip=(0, 2))
+            holed_face(m, fw, bs0, bs1, yb - 0.1, ytop, [(s, hw_w, yb, yt_w, False)], SLATE, 0.9)
+            holed_face(m, fw, bs0, bs1, yb - 0.1, ytop, [(s, hw_w + 0.01, yb - 0.01, yt_w + 0.01, False)], SLATE, 0.75, e=-0.12)
+            reveal(m, fw, s, hw_w, yb, yt_w, -0.08, 0.0, OAK, 0.7)
+            real_opening(fw, s, hw_w, yb, yt_w, False, 0.08, "window", label)
+            glass(m, fw, s - hw_w, s + hw_w, yb, yt_w, -0.08, shade=0.85, lit=True)
+            bay(fw, s, ww + 0.02, 0.08, 0.14, yb - 0.2, ytop - 0.05, "roof", label)
+            holes.setdefault(id(wall), []).append([(s - ww - 0.08, yb + 0.09), (s + ww + 0.08, yb + 0.09), (s + ww + 0.08, ytop), (s, ytop + 0.45), (s - ww - 0.08, ytop)])
             yr = ytop + 0.45
         # cheeks (slate) and the little gable roof back into the slope
         for sg in (-1, 1):
@@ -1609,20 +1749,26 @@ def roof(m, dm):
     bw_ = Wall((0, VB - o), (-1, 0), (0, -1))
     ew = Wall((U + o, 0), (0, 1), (1, 0))
     ww = Wall((-U - o, 0), (0, -1), (-1, 0))
+    names = {id(fw_): "the Grote Markt front's roof", id(bw_): "the back's roof", id(ew): "the right side's roof (seen from the Grote Markt)",
+             id(ww): "the left side's roof (seen from the Grote Markt)"}
     for wall, exclude in ((fw_, FW + 2.0), (bw_, 0.0)):
-        for k in range(NB):
-            sc = -U + (k + 0.5) * BW
-            if abs(sc) < exclude + 1.2 or abs(sc) > 30.5:
-                continue
-            dormer(wall, sc, CO + 1.5, 1.2, 1.9, True)
-        for sc in (-24.6, -18.5, -12.3, 12.3, 18.5, 24.6):
-            if abs(sc) < exclude + 1.0:
-                continue
-            dormer(wall, sc, CO + 5.6, 0.7, 1.0, False)
+        big = [sc for sc in (-U + (k + 0.5) * BW for k in range(NB)) if not (abs(sc) < exclude + 1.2 or abs(sc) > 30.5)]
+        # (numbered from the left as one faces the slope)
+        for i, sc in enumerate(sorted(big, key=lambda q: q * wall.d[0])):
+            dormer(wall, sc, CO + 1.5, 1.2, 1.9, True, f"{names[id(wall)]}, a big dormer, {i + 1} of {len(big)} from the left (the attic)")
+        small = [sc for sc in (-24.6, -18.5, -12.3, 12.3, 18.5, 24.6) if not abs(sc) < exclude + 1.0]
+        for i, sc in enumerate(sorted(small, key=lambda q: q * wall.d[0])):
+            dormer(wall, sc, CO + 5.6, 0.7, 1.0, False, f"{names[id(wall)]}, a small dormer in the upper row, {i + 1} of {len(small)} from the left (the attic's loft)")
     for wall in (ew, ww):
-        for sc in (-4.0, 0.0, 4.0):
-            dormer(wall, sc, CO + 1.5, 1.2, 1.9, True)
-        dormer(wall, 0.0, CO + 5.6, 0.7, 1.0, False)
+        for i, sc in enumerate((-4.0, 0.0, 4.0)):
+            dormer(wall, sc, CO + 1.5, 1.2, 1.9, True, f"{names[id(wall)]}, a big dormer, {i + 1} of 3 from the left (the attic)")
+        dormer(wall, 0.0, CO + 5.6, 0.7, 1.0, False, f"{names[id(wall)]}, the small dormer in the upper row (the attic's loft)")
+    # ---- issue #28: the four slopes, each like a wall laid on the roof's plane (a hip on each end), the dormers cut out
+    for wall, shade, a, b in ((fw_, 1.0, u0, u1), (bw_, 0.95, u0, u1), (ew, 0.97, v0, v1), (ww, 0.97, v0, v1)):
+        L = b - a
+        s0 = -(wall.p[0] * wall.d[0] + wall.p[1] * wall.d[1]) + (a if wall.d[0] + wall.d[1] > 0 else -b)
+        holed_slope(m, wall, s0, s0 + L, y, top, holes.get(id(wall), []), lambda yy: -(yy - y) / slope, h, SLATE, shade)
+        ROOF_FACES.append((wall, s0, L))
     # ---- chimneys: tall stone stacks with moulded caps and pots
     for cu, cv in ((-26.0, vm + 3.0), (-15.0, vm - 3.0), (15.0, vm - 3.0), (26.0, vm + 3.0), (-20.5, vm - 3.5), (20.5, vm + 3.5)):
         dist = min(v1 - cv, cv - v0, u1 - cu, cu - u0)

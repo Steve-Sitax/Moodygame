@@ -325,9 +325,11 @@ class Kit:
         """A face on the wall plane at e: four (s, y) corners."""
         return self.m.poly([WP(fr, s, e, y) for s, y in (pa, pb, pc, pd)], mat, shade, out or odir(fr), jit=jit)
 
-    def wall(self, fr, s0, s1, y0, y1, holes=(), e=0.0, mat=BANDS, shade=1.0):
+    def wall(self, fr, s0, s1, y0, y1, holes=(), e=0.0, mat=BANDS, shade=1.0, efn=None, out=None):
         """A wall from s0 to s1, y0 to y1, with holes (outlines) cut out: cut into columns at every corner of the
-        holes, each column from the foot to the first hole, between holes, and from the last to the top."""
+        holes, each column from the foot to the first hole, between holes, and from the last to the top.
+        Issue #28: `efn` (e as a function of y) lays it on a slope (a roof with its dormers cut out), `out` its facing."""
+        self._efn, self._out = efn, out
         hs = [hole_of(h) for h in holes]
         cuts = {s0, s1}
         for h in hs:
@@ -357,12 +359,18 @@ class Kit:
     def _piece(self, fr, sa, sb, ba, bb, ta, tb, e, mat, shade):
         if ta - ba < 1e-4 and tb - bb < 1e-4:
             return
+        efn = getattr(self, "_efn", None)
+        o = getattr(self, "_out", None) or odir(fr)
+
+        def P(s, y):
+            return WP(fr, s, efn(y) if efn else e, y)
+
         if ta - ba < 1e-4:
-            self.m.poly([WP(fr, sa, e, ba), WP(fr, sb, e, bb), WP(fr, sb, e, tb)], mat, shade, odir(fr))
+            self.m.poly([P(sa, ba), P(sb, bb), P(sb, tb)], mat, shade, o)
         elif tb - bb < 1e-4:
-            self.m.poly([WP(fr, sa, e, ba), WP(fr, sb, e, bb), WP(fr, sa, e, ta)], mat, shade, odir(fr))
+            self.m.poly([P(sa, ba), P(sb, bb), P(sa, ta)], mat, shade, o)
         else:
-            self.quad(fr, (sa, ba), (sb, bb), (sb, tb), (sa, ta), e, mat, shade)
+            self.m.poly([P(sa, ba), P(sb, bb), P(sb, tb), P(sa, ta)], mat, shade, o)
 
     def ring(self, fr, A, eA, B_, eB, mat, shade=1.0, skip_bottom=False, jit=0.0):
         """The faces between two outlines of one kind at two depths (a chamfer, a reveal)."""
@@ -488,6 +496,51 @@ def su(fr_, u_or_v):
 # ------------------------------------------------ real openings (issue #10)
 OPENINGS = []
 LIT = [None]  # the lit windows' glass (a VMesh of its own, never drawn)
+# Issue #28 (the attic, the turrets, the stair tower): the windows over the parts with no inside were panes. Now every
+# one of them is cut through too, with a room behind it (world/landmarkHalls.ts buildVleeshuis): the attic under the
+# roof (the gables' small windows and oculi, the wall dormers at the eaves, the roof's dormers), the corner turrets'
+# stair shafts and top rooms, the stair tower's shaft and top room. The numbers the room needs are written with the
+# openings (shared/vleeshuisShell.ts): the dormers' bays, the roof, the towers and the voids cut out of the shell.
+BAYS = []  # the dormers' insides (their fronts, cheeks and ceilings are the room's), world frame
+TOWERS = []  # the turrets and the stair tower with their rooms, world frame
+VOIDS = []  # (polygon in (u, v), y0, y1): the shell's faces inside are cut away before the export (the room is there)
+ROOF_HOLES = {"S": [], "N": []}  # per slope: the dormers' outlines (s, y) cut out of the roof
+
+
+def frame_at(fr_, e):
+    """The same wall frame, its face e further out."""
+    p, d, o = fr_
+    return ((p[0] + o[0] * e, p[1] + o[1] * e), d, o)
+
+
+def wdir(fr_):
+    """A wall frame's along and out directions in the world (x, z)."""
+    _, d, o = fr_
+    ax, nn = m.f.ax, m.f.n
+    return (ax[0] * d[0] + nn[0] * d[1], ax[1] * d[0] + nn[1] * d[1]), (ax[0] * o[0] + nn[0] * o[1], ax[1] * o[0] + nn[1] * o[1])
+
+
+def wxz(u, v):
+    x, _, z = m.f.w(u, v, 0.0)
+    return (x, z)
+
+
+def bay(fr_, c, hw, depth, back, y0, yc, kind, label):
+    """A dormer's inside, for the room: its front's middle on its outer face (fr_ at e 0), half its width between the
+    room's cheeks, the reveal's depth and the front's back (the room's lining between them), its foot and ceiling."""
+    u, v, _ = WP(fr_, c, 0.0, 0.0)
+    (tx, tz), (nx, nz) = wdir(fr_)
+    x, z = wxz(u, v)
+    BAYS.append(dict(kind=kind, label=label, x=x, z=z, tx=tx, tz=tz, nx=nx, nz=nz, hw=hw, depth=depth, back=back, y0=y0, yc=yc))
+
+
+COMPASS = ["west", "north-west", "north", "north-east", "east", "south-east", "south", "south-west"]
+
+
+def compass(dx, dz):
+    """Human words for a way out in the world (+x the Scheldt's side, west; +z north: shared/vleeshuisPlan.ts)."""
+    a = math.atan2(dz, dx)
+    return COMPASS[int(round(a / (math.pi / 4))) % 8]
 
 
 def real_opening(fr_, c, ol, depth, kind, label, glaze="lead"):
@@ -544,6 +597,29 @@ def opening_markers():
         parts_.append("poly: [" + ", ".join(f"[{f3(u)}, {f3(y)}]" for u, y in o["poly"]) + "]")
         lines.append("  { " + ", ".join(parts_) + " },")
     lines += ["];", ""]
+    # issue #28: what the room builds the attic, the dormers' insides and the towers' rooms from (shared/shellAttic.ts)
+    pt = lambda q: f"[{f3(q[0])}, {f3(q[1])}]"  # noqa: E731
+    lines += [
+        "/** Issue #28: the roof's two slopes (world): each from its long side's face at the eaves, rising `slope` a metre in. */",
+        f"export const SHELL_ROOF: ShellRoof = {{ eaves: {f3(H)}, slope: {f3(SLOPE)}, ridge: {f3(H + RISE)}, faces: [",
+    ]
+    for fr_, a_uv in ((S, (U0, V0)), (N, (U1, V1))):
+        (tx, tz), (nx, nz) = wdir(fr_)
+        lines.append(f"  {{ a: {pt(wxz(*a_uv))}, t: {pt((tx, tz))}, n: {pt((nx, nz))}, len: {f3(U1 - U0)}, hip: false }},")
+    lines += ["] };", "", "/** Issue #28: the dormers' insides (world): the wall dormers at the eaves and the roof's dormers. */", "export const SHELL_BAYS: ShellBay[] = ["]
+    for b in BAYS:
+        lines.append("  { " + ", ".join(f"{k}: {json.dumps(b[k]) if isinstance(b[k], str) else f3(float(b[k]))}" for k in ("kind", "label", "x", "z", "tx", "tz", "nx", "nz", "hw", "depth", "back", "y0", "yc")) + " },")
+    lines += ["];", "", "/** Issue #28: the corner turrets and the stair tower (world): their shell's rings, the stair's shaft and the top room. */", "export const SHELL_TOWERS: ShellTower[] = ["]
+    for t in TOWERS:
+        lines.append(
+            f"  {{ id: {json.dumps(t['id'])}, label: {json.dumps(t['label'])}, sides: {t['sides']}, "
+            f"ring: [{', '.join(pt(q) for q in t['ring'])}], ext: {json.dumps(t['ext'])}, "
+            f"top: [{', '.join(pt(q) for q in t['top'])}], topIn: {json.dumps(t['topIn'])}, "
+            f"shaft: [{', '.join(pt(q) for q in t['shaft'])}], room: [{', '.join(pt(q) for q in t['room'])}], "
+            f"y0: {f3(t['y0'])}, ys: {f3(t['ys'])}, yc: {f3(t['yc'])}, door: {t['door']} }},")
+    lines += ["];", ""]
+    lines[lines.index('import type { ShellOpening } from "./shellOpening.js";')] = (
+        'import type { ShellOpening } from "./shellOpening.js";\nimport type { ShellBay, ShellRoof, ShellTower } from "./shellAttic.js";')
     with open(SHELL_TS, "w", newline="\n") as f:
         f.write("\n".join(lines))
     return len(OPENINGS)
@@ -663,22 +739,26 @@ def window_small(fr_, c, yb, h, hw, shut, arch_over=True, oak_frame=False, label
         arch(fr_, c, hw + 0.08, yb + h + 0.02, 0.18, 0.18, 0.03)
     return A
 
-def slit(fr_, c, yb, h=1.44, hw=0.3):
+def slit(fr_, c, yb, h=1.44, hw=0.3, label=None):
     A = outline("rect", c, hw, yb, h)
     Bo = inset("rect", c, hw, yb, h, 0.1, 0.1)
     Ci = outline("rect", c, 0.09, yb + 0.12, h - 0.24)
     K.ring(fr_, A, 0.0, Bo, -0.08, SAND, 1.0, jit=0.03)
     K.wall(fr_, c - hw + 0.1, c + hw - 0.1, yb + 0.1, yb + h - 0.1, [Ci], e=-0.08, mat=SAND, shade=0.95)
     K.ring(fr_, Ci, -0.08, Ci, -0.3, SAND, 0.55)
-    K.pane(fr_, Ci, -0.3, GLASS, 0.7)
+    glass(fr_, Ci, -0.3, 0.7, label is not None)
+    if label:
+        real_opening(fr_, c, Ci, 0.3, "window", label)
     return A
 
-def oculus(fr_, c, yb, d=0.8):
+def oculus(fr_, c, yb, d=0.8, label=None):
     A = outline("circle", c, d / 2, yb, d, seg=4)
     Bo = inset("circle", c, d / 2, yb, d, 0.12, seg=4)
     K.ring(fr_, A, 0.0, Bo, -0.12, SAND, 1.0)
     K.ring(fr_, Bo, -0.12, Bo, -0.3, SAND, 0.6)
-    K.pane(fr_, Bo, -0.3, GLASS, 0.8)
+    glass(fr_, Bo, -0.3, 0.8, label is not None)
+    if label:
+        real_opening(fr_, c, Bo, 0.3, "window", label)
     return A
 
 def grille(fr_, c):
@@ -847,14 +927,19 @@ def vleeshuis():
     long_side(N, DOOR_N, "north")
 
     # ------------------------------------------------ the stepped wall dormers at the eaves (Linnig 1849 and 1855)
+    # (issue #28: their windows cut through, the attic behind them; the roof cut open under each: ROOF_HOLES)
     for fr_ in (S, N):
-        for a, b in zip(BL, BL[1:]):
+        key, sname = ("S", "south") if fr_ is S else ("N", "north")
+        for i, (a, b) in enumerate(zip(BL, BL[1:])):
             sc = su(fr_, (a + b) / 2)
             yd = H + 1.92
-            hol = window_small(fr_, sc, H + 0.34, 1.34, 0.62, int(abs(sc)) % 2 == 1, arch_over=False)
+            lab = f"{sname} side, bay {i + 1}, the wall dormer at the eaves (the attic)"
+            hol = window_small(fr_, sc, H + 0.34, 1.34, 0.62, int(abs(sc)) % 2 == 1, arch_over=False, label=lab)
             K.wall(fr_, sc - 1.2, sc + 1.2, H + 0.06, yd, [hol])
             stepped(fr_, sc - 1.2, sc + 1.2, yd, 2, 0.72, 0.72, 0.3, cope=0.12, finial=False)
             yr = yd + 1.2
+            bay(fr_, sc, 1.14, 0.26, 0.5, H, yd - 0.1, "wall", lab)
+            ROOF_HOLES[key].append([(sc - 1.2, H - 0.2), (sc + 1.2, H - 0.2), (sc + 1.2, yd), (sc, yr), (sc - 1.2, yd)])
             er, ee = -(yr - H) / SLOPE - 0.1, -(yd - H) / SLOPE - 0.05
             for sg in (-1, 1):
                 se = sc + sg * 1.2
@@ -866,16 +951,19 @@ def vleeshuis():
     # ------------------------------------------------ the steep slate roof, four rows of dormers a slope, the ridge
     over = 0.1
     ye = H - over * SLOPE
-    for side, vv in ((-1, V0 - over), (1, V1 + over)):
-        m.poly([(U0 + 0.3, vv, ye), (U1 - 0.3, vv, ye), (U1 - 0.3, VM, H + RISE), (U0 + 0.3, VM, H + RISE)], SLATE, 1.0, (0, side, 1))
+    for side in (-1, 1):
         fr_ = S if side < 0 else N
+        key, sname = ("S", "south") if side < 0 else ("N", "north")
         rows = ((H + 5.2, 1.15, 1.55, (-15.0, -9.0, -3.0, 3.0, 9.0, 15.0)), (H + 7.8, 1.0, 1.35, (-12.0, -6.0, 0.0, 6.0, 12.0)),
                 (H + 10.1, 0.85, 1.15, (-9.0, -3.0, 3.0, 9.0)), (H + 11.9, 0.7, 0.95, (-6.0, 0.0, 6.0)))
-        for yb, w, hf, row in rows:
-            for u in row:
-                if side < 0 and abs(u - TWR[0]) < 2.4 and yb < H + 8:
-                    continue
-                roof_dormer(fr_, su(fr_, u), yb, w, hf)
+        for ri, (yb, w, hf, row) in enumerate(rows):
+            us = [u for u in row if not (side < 0 and abs(u - TWR[0]) < 2.4 and yb < H + 8)]
+            for j, u in enumerate(us):
+                lab = f"the roof's {sname} slope, row {ri + 1} of its dormers, dormer {j + 1} of {len(us)} from the east (the attic)"
+                roof_dormer(fr_, su(fr_, u), yb, w, hf, key, lab)
+        # (issue #28: the slope laid like a wall on the roof's plane, the dormers cut out of it)
+        s0, s1 = sorted((su(fr_, U0 + 0.3), su(fr_, U1 - 0.3)))
+        K.wall(fr_, s0, s1, ye, H + RISE, ROOF_HOLES[key], mat=SLATE, efn=e_roof, out=odir(fr_, SLOPE, 1))
     m.box(U0 + 0.3, U1 - 0.3, VM - 0.13, VM + 0.13, H + RISE - 0.06, H + RISE + 0.14, LEAD, 0.6)
     # two chimneys (the theatre's stove at the east end, the studio's at the west)
     for cu in (-16.8, 18.6):
@@ -918,9 +1006,12 @@ def vleeshuis():
             K.sweep(run, course(SC, 0.16, 0.24), SAND, 1.0)
         K.sweep([WP(fr_, s0, 0, 0)[:2], WP(fr_, s1, 0, 0)[:2]], course(H - 0.22, 0.14, 0.22), SAND, 1.0)
         steps = 10 if front else 9
-        win = {1: (-3.65, -1.75, 3.45, 5.35), 3: (-2.7, 4.4), 5: (-1.9, 3.4), 7: (0.75,)}
+        # (issue #28: the attic's windows now, each under the roof's underside: the fifth step's two a little further in
+        # (they rose over the roof's line at their outer corners), both oculi on the eighth step, low in it (the east
+        # front's stood on the ninth, over the ridge))
+        win = {1: (-3.65, -1.75, 3.45, 5.35), 3: (-2.7, 4.4), 5: (-1.3, 2.8), 7: (0.75,)}
         gw = {k: [su(fr_, v) for v in vs] for k, vs in win.items()}
-        stepped(fr_, s0, s1, H, steps, 1.44, 1.44, 0.5, windows=gw, oculus_row=9 if front else 8, oculus_s=su(fr_, 0.75))
+        stepped(fr_, s0, s1, H, steps, 1.44, 1.44, 0.5, windows=gw, oculus_row=8, oculus_s=su(fr_, 0.75), label=gname)
         for y in (10.2, 15.7):
             for v in (-5.6, 2.6, 7.3):
                 anchor(fr_, su(fr_, v), y, big=y > 12)
@@ -929,21 +1020,24 @@ def vleeshuis():
     rot = math.pi / 6
     tower(-21.4, -7.1, 1.9, 6, rot, H - 0.6, 22.08, 32.2,
           wins=((math.pi * 4 / 3, 4.8, "madonna"), (math.pi, 3.84, "slit"), (math.pi, 8.64, "slit"), (math.pi * 4 / 3, 12.0, "slit"), (math.pi, 13.92, "small")),
-          top_wins=(math.pi, math.pi * 4 / 3, math.pi * 2 / 3))
+          top_wins=(math.pi, math.pi * 4 / 3, math.pi * 2 / 3), name="the south-east corner turret", tid="se")
     for cu, cv, r, sg_u, sg_v in ((-21.8, 8.6, 1.55, -1, 1), (21.6, 8.6, 1.55, 1, 1), (21.7, -7.0, 1.6, 1, -1)):
         out = math.atan2(sg_v, sg_u)
-        tower(cu, cv, r, 6, rot, H - 0.6, 20.64, 27.9, wins=((out, 5.28, "slit"), (out + 0.5 * sg_u * sg_v, 10.08, "slit")), top_wins=(out, out + 1.0, out - 1.0))
+        ns, ew = ("north" if sg_v > 0 else "south"), ("east" if sg_u < 0 else "west")
+        tower(cu, cv, r, 6, rot, H - 0.6, 20.64, 27.9, wins=((out, 5.28, "slit"), (out + 0.5 * sg_u * sg_v, 10.08, "slit")), top_wins=(out, out + 1.0, out - 1.0),
+              name=f"the {ns}-{ew} corner turret", tid=f"{ns[0]}{ew[0]}")
     tu, tv, tr = TWR
     tower(tu, tv, tr, 8, math.pi / 8, 23.52, 26.4, 34.4,
           wins=((-math.pi / 2, 0.0, "door"),) + tuple((-math.pi / 2 + (k % 3 - 1) * math.pi / 4, 3.84 + k * 3.84, "slit") for k in range(5)),
-          top_wins=(-math.pi / 2, -math.pi / 4, -3 * math.pi / 4, 0.0, math.pi), stair=True)
+          top_wins=(-math.pi / 2, -math.pi / 4, -3 * math.pi / 4, 0.0, math.pi), stair=True, name="the stair tower", tid="stair")
     return m
 
 
 
-def stepped(fr, s0, s1, y0, steps, hs, crown, thick, cope=0.16, windows=None, oculus_row=None, oculus_s=None, finial=True):
+def stepped(fr, s0, s1, y0, steps, hs, crown, thick, cope=0.16, windows=None, oculus_row=None, oculus_s=None, finial=True, label=None):
     """A stepped gable with thickness on a wall top: banded rows (the small windows cut through them), plain banded
-    step ends and back, a sandstone coping on every step with a drip, a finial on the crown."""
+    step ends and back, a sandstone coping on every step with a drip, a finial on the crown. Issue #28 (`label`, the
+    gable's name): its windows are the attic's, cut through its back too (a hair wider than the room's lining's hole)."""
     w = (s1 - s0) / (2 * steps + 1)
     rows = []
     for k in range(steps + 1):
@@ -954,12 +1048,21 @@ def stepped(fr, s0, s1, y0, steps, hs, crown, thick, cope=0.16, windows=None, oc
     p, d, o = fr
     for k, (a, b, ya, yb) in enumerate(rows):
         holes = []
-        for c in windows.get(k, ()):
-            holes.append(window_small(fr, c, ya + 0.06, hs - 0.12, 0.6, (k + int(c * 3)) % 3 == 0))
+        back = []
+        wins = sorted(windows.get(k, ()))
+        for i, c in enumerate(wins):
+            lab = f"{label}'s stepped gable, step {k}, small window {i + 1} of {len(wins)} (the attic)" if label else None
+            holes.append(window_small(fr, c, ya + 0.06, hs - 0.12, 0.6, (k + int(c * 3)) % 3 == 0, label=lab))
+            if lab:
+                back.append(outline("rect", c, 0.51, ya + 0.15, hs - 0.3))
         if oculus_row is not None and k == oculus_row:
-            holes.append(oculus(fr, oculus_s, ya + (yb - ya) / 2 - 0.4))
+            yo = ya + 0.18 if label else ya + (yb - ya) / 2 - 0.4
+            lab = f"{label}'s stepped gable, the oculus (the attic)" if label else None
+            holes.append(oculus(fr, oculus_s, yo, label=lab))
+            if lab:
+                back.append(outline("circle", oculus_s, 0.29, yo + 0.11, 0.58, seg=4))
         K.wall(fr, a, b, ya, yb, holes)
-        K.wall(((p[0] + o[0] * -thick, p[1] + o[1] * -thick), d, (-o[0], -o[1])), a, b, ya, yb, mat=BANDS, shade=0.85)
+        K.wall(((p[0] + o[0] * -thick, p[1] + o[1] * -thick), d, (-o[0], -o[1])), a, b, ya, yb, back, mat=BANDS, shade=0.85)
         for sx, sg in ((a, -1), (b, 1)):
             m.poly([WP(fr, sx, 0, ya), WP(fr, sx, -thick, ya), WP(fr, sx, -thick, yb), WP(fr, sx, 0, yb)], BANDS, 0.9, (d[0] * sg, d[1] * sg, 0))
     for k in range(steps):
@@ -980,21 +1083,30 @@ def stepped(fr, s0, s1, y0, steps, hs, crown, thick, cope=0.16, windows=None, oc
     return rows
 
 
-def roof_dormer(fr, s, yb, w, hf):
+def e_roof(y):
+    """How far out of a long side's face the roof's slate stands y high (negative: in)."""
+    return -(y - H) / SLOPE
+
+
+def roof_dormer(fr, s, yb, w, hf, side, label=None):
     """A small dormer on a slope of the main roof (its front where the roof stands yb high): an oak front with a
-    leaded window, slate cheeks, a small pitched slate roof with a lead ridge."""
-    def e_at(y):
-        return -(y - H) / SLOPE
+    leaded window, slate cheeks, a small pitched slate roof with a lead ridge. Issue #28: its window is cut through
+    (the attic behind it), the roof cut open under it (ROOF_HOLES)."""
+    e_at = e_roof
     ef = e_at(yb) + 0.04
     yw = yb + 0.62 * hf
     yt = yb + hf
     e1, e2 = e_at(yw), e_at(yt)
-    front = [(s - w / 2, yb), (s + w / 2, yb), (s + w / 2, yw), (s, yt), (s - w / 2, yw)]
+    frf = frame_at(fr, ef)
     win = outline("rect", s, w / 2 - 0.12, yb + 0.1, 0.62 * hf - 0.18)
-    K.wall(((WP(fr, 0, ef, 0)[0], WP(fr, 0, ef, 0)[1]), fr[1], fr[2]), s - w / 2, s + w / 2, yb, yw, [win], mat=OAK, shade=0.85)
+    K.wall(frf, s - w / 2, s + w / 2, yb, yw, [win], mat=OAK, shade=0.85)
     K.m.poly([WP(fr, s - w / 2, ef, yw), WP(fr, s + w / 2, ef, yw), WP(fr, s, ef, yt)], OAK, 0.85, odir(fr))
     K.ring(fr, win, ef, win, ef - 0.08, OAK, 0.6)
-    K.pane(fr, win, ef - 0.08, GLASS, 1.0)
+    glass(fr, win, ef - 0.08, 1.0, label is not None)
+    if label:
+        real_opening(frf, s, win, 0.08, "window", label)
+        bay(frf, s, w / 2 - 0.06, 0.08, 0.2, yb - 0.3, yw - 0.06, "roof", label)
+        ROOF_HOLES[side].append([(s - w / 2, yb), (s + w / 2, yb), (s + w / 2, yw), (s, yt), (s - w / 2, yw)])
     K.ribbon(fr, [(s, yb + 0.1), (s, yb + 0.62 * hf - 0.08)], 0.05, ef - 0.08, ef - 0.03, OAK, 0.8)
     for sg in (-1, 1):
         x = s + sg * w / 2
@@ -1004,27 +1116,83 @@ def roof_dormer(fr, s, yb, w, hf):
     K.wbox(fr, s - 0.04, s + 0.04, e2, ef + 0.1, yt + 0.01, yt + 0.09, LEAD, 0.6)
 
 
-def tower(cu, cv, r, sides, rot, yb, yt, apex, wins=(), top_wins=(), stair=False):
+def outside_parts(a, b):
+    """The parts (t0, t1) of the segment a -> b (u, v) outside the building's footprint (Liang-Barsky)."""
+    t0, t1 = 0.0, 1.0
+    du, dv = b[0] - a[0], b[1] - a[1]
+    for p_, q_ in ((-du, a[0] - U0), (du, U1 - a[0]), (-dv, a[1] - V0), (dv, V1 - a[1])):
+        if abs(p_) < 1e-12:
+            if q_ < 0:
+                return [(0.0, 1.0)]
+            continue
+        t = q_ / p_
+        if p_ < 0:
+            t0 = max(t0, t)
+        else:
+            t1 = min(t1, t)
+    if t0 >= t1:
+        return [(0.0, 1.0)]
+    out = []
+    if t0 > 1e-4:
+        out.append((0.0, t0))
+    if t1 < 1 - 1e-4:
+        out.append((t1, 1.0))
+    return out
+
+
+# the hall's inside (shared/vleeshuisPlan.ts IN, in u and v): a tower's shaft keeps 0.12 off it (a wall between)
+HALL_IN = (-15.4 - 5.95, 27.4 - 5.95, 0.6 - 6.6, 14.1 - 6.6)
+
+
+def poly_hits_rect(poly, rect, margin):
+    """Does a convex polygon (u, v) overlap the rectangle (u0, u1, v0, v1) grown by margin? (separating axes)"""
+    x0, x1, y0, y1 = rect[0] - margin, rect[1] + margin, rect[2] - margin, rect[3] + margin
+    rp = [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
+    axes = [(1.0, 0.0), (0.0, 1.0)]
+    n = len(poly)
+    for i in range(n):
+        a, b = poly[i], poly[(i + 1) % n]
+        axes.append((b[1] - a[1], a[0] - b[0]))
+    for ax in axes:
+        pa = [q[0] * ax[0] + q[1] * ax[1] for q in poly]
+        pr = [q[0] * ax[0] + q[1] * ax[1] for q in rp]
+        if max(pa) <= min(pr) + 1e-9 or max(pr) <= min(pa) + 1e-9:
+            return False
+    return True
+
+
+def tower(cu, cv, r, sides, rot, yb, yt, apex, wins=(), top_wins=(), stair=False, name="", tid=""):
     """A corbelled stair turret: the plinth, a banded shaft to yb (the faces inside the hall left out), three
     sandstone corbel courses out to the wider top stage (whole, over the roofs) with small windows and white
-    quoins, a corbel table and cornice, a kinked slate spire, a wrought-iron vane."""
+    quoins, a corbel table and cornice, a kinked slate spire, a wrought-iron vane. Issue #28: its slits and windows
+    cut through, the stair's shaft and the top room behind them (VOIDS: the shell's faces there cut away; TOWERS: the
+    numbers the room is built from); the faces partly inside the building drawn where they are outside it."""
     def inside(a, b):
         mu, mv = (a[0] + b[0]) / 2, (a[1] + b[1]) / 2
         return U0 + 0.05 < mu < U1 - 0.05 and V0 + 0.05 < mv < V1 - 0.05
+
+    def fr_of(a, b):
+        L = math.hypot(b[0] - a[0], b[1] - a[1])
+        mid = ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
+        on = math.hypot(mid[0] - cu, mid[1] - cv)
+        return (a, ((b[0] - a[0]) / L, (b[1] - a[1]) / L), ((mid[0] - cu) / on, (mid[1] - cv) / on)), L, math.atan2(mid[1] - cv, mid[0] - cu)
 
     def faces(rad, y0, y1, holes_at=None, skip_inside=True, mat=BANDS, shade=1.0):
         ring = m.ngon(cu, cv, rad, sides, rot)
         for i in range(sides):
             a, b = ring[i], ring[(i + 1) % sides]
+            fr, L, ang = fr_of(a, b)
             if skip_inside and inside(a, b):
+                # (issue #28: the part of it outside the building, so the turret is closed round its shaft)
+                for ta, tb in outside_parts(a, b):
+                    K.wall(fr, ta * L, tb * L, y0, y1, [], mat=mat, shade=shade)
                 continue
-            L = math.hypot(b[0] - a[0], b[1] - a[1])
-            mid = ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
-            on = math.hypot(mid[0] - cu, mid[1] - cv)
-            fr = (a, ((b[0] - a[0]) / L, (b[1] - a[1]) / L), ((mid[0] - cu) / on, (mid[1] - cv) / on))
-            ang = math.atan2(mid[1] - cv, mid[0] - cu)
-            holes = holes_at(fr, L, ang) if holes_at else []
+            holes = holes_at(fr, L, ang, y0, y1) if holes_at else []
             K.wall(fr, 0.0, L, y0, y1, holes, mat=mat, shade=shade)
+
+    def way(fr):
+        (dx, dz) = wdir(fr)[1]
+        return compass(dx, dz)
 
     def near(ang, a):
         return abs((ang - a + math.pi) % (2 * math.pi) - math.pi) < math.pi / sides + 1e-3
@@ -1039,21 +1207,30 @@ def tower(cu, cv, r, sides, rot, yb, yt, apex, wins=(), top_wins=(), stair=False
     ro, ri = m.ngon(cu, cv, r + 0.15, sides, rot), m.ngon(cu, cv, r, sides, rot)
     for i in range(sides):
         a, b = ro[i], ro[(i + 1) % sides]
-        if inside(a, b) or at_door(a, b):
+        if at_door(a, b):
+            continue
+        if inside(a, b):
+            # (issue #28: the plinth closed round the shaft where it stands outside the building)
+            for ta, tb in outside_parts(a, b):
+                pa = (a[0] + (b[0] - a[0]) * ta, a[1] + (b[1] - a[1]) * ta)
+                pb = (a[0] + (b[0] - a[0]) * tb, a[1] + (b[1] - a[1]) * tb)
+                m.poly([(pa[0], pa[1], -0.3), (pb[0], pb[1], -0.3), (pb[0], pb[1], PL + 0.18), (pa[0], pa[1], PL + 0.18)], SAND, 0.72,
+                       ((a[0] + b[0]) / 2 - cu, (a[1] + b[1]) / 2 - cv, 0), jit=0.04)
             continue
         m.poly([(a[0], a[1], -0.3), (b[0], b[1], -0.3), (b[0], b[1], PL), (a[0], a[1], PL)], SAND, 0.72, ((a[0] + b[0]) / 2 - cu, (a[1] + b[1]) / 2 - cv, 0), jit=0.04)
         c, d = ri[(i + 1) % sides], ri[i]
         m.poly([(a[0], a[1], PL), (b[0], b[1], PL), (c[0], c[1], PL + 0.18), (d[0], d[1], PL + 0.18)], SAND, 0.8, ((a[0] + b[0]) / 2 - cu, (a[1] + b[1]) / 2 - cv, 0.5))
 
-    def shaft_holes(fr, L, ang):
+    def shaft_holes(fr, L, ang, lo, hi):
         hs = []
         for a, y0, kind in wins:
-            if not near(ang, a):
+            # (issue #28: each only in the part of the shaft it stands in: the stair tower's shaft is built in two)
+            if not near(ang, a) or not (y0 < hi - 0.5 and (lo < 2.0 or y0 >= lo - 0.5)):
                 continue
             if kind == "slit":
-                hs.append(slit(fr, L / 2, y0))
+                hs.append(slit(fr, L / 2, y0, label=f"{name}, a slit facing {way(fr)}, {y0:.1f} m up (its stair)"))
             elif kind == "small":
-                hs.append(window_small(fr, L / 2, y0, 1.44, 0.6, False))
+                hs.append(window_small(fr, L / 2, y0, 1.44, 0.6, False, label=f"{name}, the small window facing {way(fr)}, {y0:.1f} m up (its stair)"))
             elif kind == "madonna":
                 hs.append(niche(fr, L / 2, y0))
             elif kind == "door":  # the stair's own small door, shut
@@ -1075,10 +1252,38 @@ def tower(cu, cv, r, sides, rot, yb, yt, apex, wins=(), top_wins=(), stair=False
     ys = yy
     yw = math.ceil((ys + 0.5) / VP) * VP  # the windows on a whole band
 
-    def top_holes(fr, L, ang):
-        return [window_small(fr, L / 2, yw, 1.44, 0.46, False, arch_over=False)] if any(near(ang, a) for a in top_wins) else []
+    def top_holes(fr, L, ang, lo=None, hi=None):
+        if not any(near(ang, a) for a in top_wins):
+            return []
+        return [window_small(fr, L / 2, yw, 1.44, 0.46, False, arch_over=False, label=f"{name}, the top room's window facing {way(fr)}")]
 
     faces(R2, ys, yt, top_holes, skip_inside=False)
+
+    # issue #28: the room inside: the stair's shaft from the ground to the top room's floor (as wide as it may be and
+    # keep a wall to the hall), the top room under the spire; the shell's faces inside both cut away (VOIDS)
+    cs = math.cos(math.pi / sides)
+    a_in = r * cs - 0.45  # (the slits' reveals are 0.3 deep: the room's lining behind them at least 0.15)
+    while a_in > 0.5 and poly_hits_rect(m.ngon(cu, cv, a_in / cs, sides, rot), HALL_IN, 0.12):
+        a_in -= 0.01
+    a_top = R2 * cs - 0.45
+    shaft = m.ngon(cu, cv, a_in / cs, sides, rot)
+    room = m.ngon(cu, cv, a_top / cs, sides, rot)
+    VOIDS.append((shaft, 0.1, ys))
+    VOIDS.append((room, ys, yt - 0.5))
+    ring_r = m.ngon(cu, cv, r, sides, rot)
+    ring_t = m.ngon(cu, cv, R2, sides, rot)
+    door_face = -1
+    for i in range(sides):
+        _, _, ang = fr_of(ring_r[i], ring_r[(i + 1) % sides])
+        if any(kind == "door" and near(ang, a) for a, _, kind in wins):
+            door_face = i
+    TOWERS.append(dict(
+        id=tid, label=name, sides=sides,
+        ring=[wxz(*q) for q in ring_r], ext=[not inside(ring_r[i], ring_r[(i + 1) % sides]) for i in range(sides)],
+        top=[wxz(*q) for q in ring_t], topIn=[inside(ring_t[i], ring_t[(i + 1) % sides]) for i in range(sides)],
+        shaft=[wxz(*q) for q in shaft], room=[wxz(*q) for q in room],
+        y0=0.16, ys=ys, yc=yt - 0.5, door=door_face,
+    ))
     for q in m.ngon(cu, cv, R2 + 0.02, sides, rot):  # white stone quoins on the corners, long and short
         y, k = ys, 0
         while y + 0.12 < yt - 0.05:
@@ -1140,6 +1345,80 @@ def niche(fr, c, yb):
     return A
 
 
+def carve(mesh, poly, y0, y1):
+    """Issue #28: cut away the shell's faces inside a void (a convex prism: poly in (u, v), y0..y1 world), where a room
+    of the hall stands now (a turret's shaft, its top room): split the faces near it by the prism's planes, delete the
+    pieces inside. The tower's own walls stand outside it."""
+    bm = mesh.bm
+    pts = [B(*mesh.f.w(u, v, 0.0)) for u, v in poly]
+    n = len(pts)
+    cx, cy = sum(p.x for p in pts) / n, sum(p.y for p in pts) / n
+    planes = []
+    for i in range(n):
+        a, b = pts[i], pts[(i + 1) % n]
+        nx, ny = b.y - a.y, -(b.x - a.x)
+        if (a.x - cx) * nx + (a.y - cy) * ny < 0:
+            nx, ny = -nx, -ny
+        ln = math.hypot(nx, ny)
+        planes.append((Vector((a.x, a.y, 0.0)), Vector((nx / ln, ny / ln, 0.0))))
+    planes.append((Vector((0.0, 0.0, y1)), Vector((0.0, 0.0, 1.0))))
+    planes.append((Vector((0.0, 0.0, y0)), Vector((0.0, 0.0, -1.0))))
+    lo = Vector((min(p.x for p in pts) - 0.01, min(p.y for p in pts) - 0.01, y0 - 0.01))
+    hi = Vector((max(p.x for p in pts) + 0.01, max(p.y for p in pts) + 0.01, y1 + 0.01))
+    return carve_planes(mesh, planes, lo, hi)
+
+
+def attic_void():
+    """Issue #28: the attic's room (world/landmarkHalls.ts buildVleeshuis): over its floor (the eaves' top), under the
+    boards 0.2 under the slate, between the gables' linings (0.85 and 0.75 in from their faces). Its planes (Blender
+    coordinates, pointing out of it) and its box: the shell's faces inside are cut away (the turrets' quoins and the
+    top stages' walls standing in it, the stair tower's, the chimneys' feet): the room's covers are the walls there."""
+    def P(u, v, y):
+        return B(*m.f.w(u, v, y))
+
+    def plane(a, b, c, inside):
+        n = (b - a).cross(c - a)
+        if (inside - a).dot(n) > 0:
+            n = -n
+        return (a, n.normalized())
+
+    y_f = H + 0.02
+    yl = H - 0.2 - 0.02  # the boards' plane at the wall's face (2 cm under them)
+    mid = P((U0 + U1) / 2, VM, H + 2.0)
+    planes = [
+        plane(P(U0, V0, y_f), P(U1, V0, y_f), P(U0, V1, y_f), mid),
+        plane(P(U0, V0, yl), P(U1, V0, yl), P(U0, VM, yl + HALF * SLOPE), mid),
+        plane(P(U0, V1, yl), P(U1, V1, yl), P(U0, VM, yl + HALF * SLOPE), mid),
+        plane(P(U0 + 0.86, V0, 0), P(U0 + 0.86, V1, 0), P(U0 + 0.86, V0, 10), mid),
+        plane(P(U1 - 0.76, V0, 0), P(U1 - 0.76, V1, 0), P(U1 - 0.76, V0, 10), mid),
+    ]
+    cs = [P(u, v, y) for u in (U0, U1) for v in (V0, V1) for y in (H, H + RISE)]
+    lo = Vector((min(c.x for c in cs), min(c.y for c in cs), min(c.z for c in cs)))
+    hi = Vector((max(c.x for c in cs), max(c.y for c in cs), max(c.z for c in cs)))
+    return planes, lo, hi
+
+
+def carve_planes(mesh, planes, lo, hi):
+    """Cut away the faces of the shell inside a convex volume (its planes pointing out, its box lo..hi)."""
+    bm = mesh.bm
+    fixed = set(mesh.fixed)
+
+    def overlaps(f):
+        cs = [v.co for v in f.verts]
+        return all(min(c[k] for c in cs) <= hi[k] and max(c[k] for c in cs) >= lo[k] for k in range(3))
+
+    fs = [f for f in bm.faces if f not in fixed and overlaps(f)]
+    for co, no in planes:
+        if not fs:
+            return 0
+        geom = list({v for f in fs for v in f.verts}) + list({e for f in fs for e in f.edges}) + fs
+        res = bmesh.ops.bisect_plane(bm, geom=geom, dist=1e-5, plane_co=co, plane_no=no)
+        fs = [g for g in res["geom"] if isinstance(g, bmesh.types.BMFace) and g.is_valid]
+    gone = [f for f in fs if all((f.calc_center_median() - co).dot(no) < -1e-4 for co, no in planes)]
+    bmesh.ops.delete(bm, geom=gone, context="FACES")
+    return len(gone)
+
+
 def build():
     global m, K
     city = json.load(open(CITY))
@@ -1156,6 +1435,9 @@ def build():
     K = Kit(m)
     LIT[0] = VMesh(fr)
     vleeshuis()
+    cut = sum(carve(m, poly, y0, y1) for poly, y0, y1 in VOIDS)
+    cut += carve_planes(m, *attic_void())
+    print(f"[build_vleeshuis] {len(VOIDS)} voids (the turrets' and the stair tower's rooms) and the attic: {cut} faces of the shell cut away")
     ob = m.to_object("vleeshuis_shell")
     LIT[0].to_object("vleeshuis_lit_glass")
     n_open = opening_markers()

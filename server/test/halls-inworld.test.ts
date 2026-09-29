@@ -136,6 +136,20 @@ describe("the town hall's plan fits its shell", () => {
           for (const p of a.rects) for (const q of b.rects) if (p.minX < q.maxX - 1e-6 && q.minX < p.maxX - 1e-6 && p.minZ < q.maxZ - 1e-6 && q.minZ < p.maxZ - 1e-6) over.push(`${a.id} ${b.id}`);
     expect(over).toEqual([]);
   });
+
+  it("issue #28: the 54 dormers of the roof: 40 big ones before the attic, 14 small ones before its loft", () => {
+    const rows = inFrame(THS.SHELL_OPENINGS, P.origin, P.yaw);
+    const n: Record<string, number> = {};
+    for (const o of rows) {
+      const d = o.depth + 1.3;
+      const part = TH.partAt(o.x - o.nx * d, o.z - o.nz * d, (o.yb + o.yt) / 2 - TH.FLOOR_Y);
+      if (part && (part.id === "attic" || part.id === "loft")) n[part.id] = (n[part.id] ?? 0) + 1;
+    }
+    expect(n).toEqual({ attic: 40, loft: 14 });
+    // the dormers' insides: one bay each, behind its window, under the ridge
+    expect(THS.SHELL_BAYS.length).toBe(54);
+    for (const b of THS.SHELL_BAYS) expect(b.yc).toBeLessThan(THS.SHELL_ROOF.ridge);
+  });
 });
 
 describe("walking into the town hall", () => {
@@ -313,6 +327,62 @@ describe("walking into the Vleeshuis", () => {
     expect(HP.insideness(P, 0, VH.IN.south + 0.05)).toBeGreaterThan(0.5);
     expect(HP.insideness(P, VH.SHELL.north_door_x, VH.IN.north - 0.05)).toBeGreaterThan(0.5);
     expect(HP.insideness(P, 10, 7)).toBe(1);
+  });
+
+  it("issue #28: up the attic stair from the studio to every part of the attic; never into its well", () => {
+    const miss: string[] = [];
+    const attic: Array<[string, number, number]> = [
+      ["the head of the attic stair", 25.2, 11.3],
+      ["the attic's east end", -13.5, 7.35],
+      ["the attic's west end", 26.5, 7.35],
+      ["under the south slope", 0, 1.2],
+      ["under the north slope", 0, 13.4],
+    ];
+    for (const [n, x, z] of attic) if (!reach(x, z, 2, 0.8)) miss.push(n);
+    expect(miss).toEqual([]);
+    // the well: no floor on the attic's storey; the stair's side is a wall from there
+    expect(HP.walkable(P, 20, 11.3, VH.ATTIC)).toBe(false);
+    expect(HP.levelAt(P, 25.2, 11.3, VH.ATTIC)).toBe(2);
+  });
+});
+
+import * as VS from "../../shared/vleeshuisShell.ts";
+import { inConvex, towersInFrame } from "../../shared/shellAttic.ts";
+
+describe("issue #28: a real space of the Vleeshuis behind every window of its shell", () => {
+  const P = VH.PLAN;
+  const rows = inFrame(VS.SHELL_OPENINGS, P.origin, P.yaw);
+  const towers = towersInFrame(VS.SHELL_TOWERS, P.origin, P.yaw);
+
+  it("the hall's two floors, the attic, or a tower's shaft or top room, just behind each", () => {
+    const miss: string[] = [];
+    const count: Record<string, number> = {};
+    for (const o of rows) {
+      if (o.kind === "door") continue;
+      const d = o.depth + 0.05;
+      const x = o.x - o.nx * d;
+      const z = o.z - o.nz * d;
+      const y = (o.yb + o.yt) / 2;
+      const tower = towers.find((t) => (y < t.ys ? inConvex(t.ring, x, z) : inConvex(t.top, x, z)));
+      const inBody = x > VH.SHELL.east && x < VH.SHELL.west && z > VH.SHELL.south && z < VH.SHELL.north;
+      const zone = tower ? `tower ${tower.id}` : !inBody ? null : y > VH.FLOOR_Y + VH.ATTIC ? "attic" : "hall";
+      if (!zone) miss.push(o.label);
+      else count[zone] = (count[zone] ?? 0) + 1;
+    }
+    expect(miss).toEqual([]);
+    // the attic: 20 in the gables, 14 wall dormers, 35 in the roof; the turrets' slits and windows; the stair tower's 10
+    expect(count.attic).toBe(69);
+    expect(count["tower stair"]).toBe(10);
+    expect(count["tower se"]).toBe(7);
+    for (const t of ["ne", "nw", "sw"]) expect(count[`tower ${t}`]).toBe(5);
+  });
+
+  it("each tower's shaft keeps a wall off the hall, and its room stands inside its walls", () => {
+    for (const t of towers) {
+      for (const [x, z] of t.shaft) expect(x > VH.IN.east - 0.1 && x < VH.IN.west + 0.1 && z > VH.IN.south - 0.1 && z < VH.IN.north + 0.1).toBe(false);
+      for (const [x, z] of t.room) expect(inConvex(t.top, x, z)).toBe(true);
+      expect(t.ys).toBeGreaterThan(VH.FLOOR_Y + VH.UP);
+    }
   });
 });
 

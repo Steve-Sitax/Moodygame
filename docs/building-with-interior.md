@@ -97,6 +97,33 @@ panes over them. Made real the same way, without rebuilding them from the skelet
   the same numbers. A room that draws its own reveal to its single-faced wall meets the shell's reveal there.
 - **Windows with no inside** (towers, attics, parts never built) keep their panes until their rooms are built.
 
+## Attics and towers (issue #28, 2026-09-29)
+
+The Vleeshuis's attic, corner turrets and stair tower and the town hall's attic were built this way:
+
+- **The numbers from the shell.** Besides its openings, the script writes into `shared/<name>Shell.ts` the roof's slopes
+  (`SHELL_ROOF`: each eave's line, the slope, hipped or not), the dormers' insides (`SHELL_BAYS`: each front's middle and
+  way out, the room's cheeks, the reveal's depth, the front's back, its foot and ceiling) and the towers (`SHELL_TOWERS`:
+  the shell's rings, which faces stand outside the building, the stair's shaft and the top room as polygons). Types and
+  the move into a plan's frame: `shared/shellAttic.ts`.
+- **The roof cut open.** A slope with dormers is laid like a wall on its plane (`wall(..., efn=...)` in
+  `build_vleeshuis.py`, `holed_slope` in `build_stadhuis.py`, hips as notches), each dormer's outline cut out of it; a
+  dormer's front block has a real hole with its reveal, its old pane goes to the `_lit` glass.
+- **No shell inside a room: carve it.** `carve()` / `carve_planes()` in `build_vleeshuis.py` split the faces near a room's
+  convex volume by its planes and delete the pieces inside (a turret's shaft and top room, the whole attic under the
+  boards): the building's walls, cornices and roof where a turret stands, its quoins and walls standing in the attic.
+  A tower face partly inside the building is drawn where it stands outside it, so the tower is closed round its shaft.
+- **The room** (`client/src/world/atticKit.ts`): `slopeLining` (boards 0.2 under the slate, the bays and towers cut out),
+  `bay` (the lining behind a dormer's front with its window, cheeks, ceiling), `towerRoom` (the shaft's linings behind the
+  slits, plain walls toward the building, a newel stair; the top room's linings, floor and ceiling; covers 2 cm before the
+  tower's walls where they stand in the attic), `trimAtEnds` + `wallQuad` (a hall's linings stopping short of a turret's
+  shaft in a corner, the hall's inner face closed as a plain wall).
+- **Drawn only where seen**: the attic and tower groups are hidden by the room scene's `onBeforeRender` when the eye is in
+  a part that cannot see them; the windows' `seen` answer per part (a tower's never, the attic's from the attic).
+- **Walked or not**: the Vleeshuis's attic is walked (a stair from the studio, a third storey in the plan); a steep flight's
+  walking rect runs on past its head at the floor's height, or the body's reach meets the floor's edge as a wall. The
+  towers and the town hall's attic are seen, not walked (the town hall's attic and loft are locked parts in its plan).
+
 ## Rebuild
 
     blender -b --factory-startup -P tools/blender/build_<name>.py      (writes the glb and shared/<name>Shell.ts)
