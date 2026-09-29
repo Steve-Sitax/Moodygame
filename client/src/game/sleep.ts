@@ -100,7 +100,7 @@ export class Sleep {
     window.addEventListener("keydown", (e) => this.onKey(e), true);
     // the chooser is worked with the ink cursor; asleep, the mouse does nothing (a key wakes him)
     dialogs.register("sleep chooser", () => this.choosing !== null);
-    dialogs.register("asleep", () => this.state !== "up", { cursor: false });
+    dialogs.register("asleep", () => this.state !== "up", { cursor: false, esc: false });
     void fetch("/models/park.json")
       .then((r) => (r.ok ? r.json() : null))
       .then((d: { benches?: Array<Array<[number, number]>> } | null) => (this.park = d?.benches ?? []))

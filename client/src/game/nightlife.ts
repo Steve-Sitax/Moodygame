@@ -95,7 +95,7 @@ export class Nightlife {
     this.veil.className = "gang-veil";
     document.body.appendChild(this.veil);
     window.addEventListener("keydown", (e) => this.onKey(e), true);
-    dialogs.register("gang", () => !!this.gang && !this.sent); // focus fix: the pause knows it is up (game/dialogs.ts)
+    dialogs.register("gang", () => !!this.gang && !this.sent, { esc: false }); // focus fix: the pause knows it is up (game/dialogs.ts)
   }
 
   /** At a load: a gang already in the street (a reload in the middle of it). */

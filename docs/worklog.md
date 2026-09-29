@@ -13,6 +13,39 @@ The coordinating Claude session keeps this file current: a line when a helper st
 patch goes live (with its commit), and when Steve decides something. Newest first in each part.
 Git history has the detail of each commit.
 
+## Park look pass, 2026-09-30
+
+Steve picked 2A (Claude takes pictures and fixes the weakest parts). Midday pictures from the paths: the planting, the pond, the bridge and the lamps read well; the weakest part was the kilometre of bare brick of the town wall's inner face along the park. New `world/wallClimbers.ts`: 144 patches of ivy (two greens) and Virginia creeper (red, orange-red) on the inner face, rooted at the foot and thinning upward, never at stairs, gates or towers; the same program as the wall's leaf patches (`shaders()` no problems), one mesh per 100 m, hidden beyond the fog. Left for Steve: the wall's plinth of large dark blocks runs round the whole town (a change to wall.glb, Blender).
+
+## Lamp glows and lamp light, 2026-09-30
+
+Steve: "omnibus has big orange glow circles and other stuff also has it ... real light coming off to environment. in park the lamps don't seem to give of the light". The shared glow picture (world/textures.ts glowTexture) is a small bright core with a smooth falloff, filtered smooth. Halos: omnibus 1.3 m to 0.32 m, carried and townspeople's lanterns 0.8-0.9 to about 0.45, pump cart 2.4 to 0.8, Steenpoort lanterns 1.6/1.1 to 0.6/0.7, gas and quay lamp halos 1.8 to 1.1, the doss lantern 1.1 to 0.7. The omnibus's two carriage lamps are lanterns (world/lanternLights.ts addLantern: real lights near the eye, per-pixel spill further). The 13 park lanterns are `lamp` spill sources lit with the street's lamps (their glass glow is then a duplicate). Pictures at 21:00: a park lamp's warm pool on the path; an omnibus lighting the house front. `shaders()` and `spill()` no problems. No light count changed.
+
+## Daylight shadows and jumping on the omnibus, 2026-09-30
+
+Steve picked 1A (retune, sky shade, soft shadows). The sky shade alone hardly showed (every street floor still had full sun), so the sun's shadows from the same baked map came in too (docs/rendering.md, "Daylight and the houses' shadows"). Pictures checked: the back lane at 11:00 clear (floor in the houses' shade, the sun high on the wall), the Grote Markt (the houses' and the cathedral's shadows across the square), a fog day (soft, near the old look), night (unchanged, lamps). Blob under a summoned tobacconist seen. `shaders()` no problems, `paths()` empty. No frame cost above the noise.
+
+Omnibus (`game/ride.ts`, `server/src/ride.ts hopOn`, action "hop"): Space or E by the back step of a rolling omnibus jumps on; 1.8 s later the conductor's card: 1 pay (the engine takes the fare, or the ticket's free change), 2 or Esc refuse, 15 s no answer: refuse. Refused or no money: a curse and he puts you off where there is room. Checked in the browser: jump on, refuse and put off; jump on, pay 5 c (60 to 55), ride on. Not in the web demo (no server). A stop reached before the conductor came no longer puts you off as "ticket run out".
+
+## Cranes climbable while they work, 2026-09-30
+
+[Issue 37](https://github.com/Steve-Sitax/Moodygame/issues/37): since the D1 docks the cranes nearly always work, and the ladder waited for a crane at rest; the dock cranes' ladder feet end over the water. Now the crane works on: the gallery's walk areas are in the jib's frame (`RaisedDeck.frame`), Jef rides its turns and travel (`craneClimb.ride()` right after `world.update`), waits at the ladder top till the gallery is behind it, and at a dock crane climbs from the nearest free quay spot. Browser: crane 0 climbed while working, 32 s ridden through 14 jib angles and 4.8 m of travel without leaving the deck, climbed down; dock crane 3 climbed from the quay. Crane and dock tests pass.
+
+## Map icons, Esc, vaulting, falls, boats, birds, 2026-09-29 (late)
+
+Steve's list: a clearer map with icons, hover names and kinds to switch off; Esc closes windows as E does; jump over railings, ledges, low shrubs (hold Space, or press again at the top); jump into boats from the quay; pickpocketing only from behind; birds that swim or walk off, then fly, also to the Schelde and the docks, and more of them; fall damage over 3 m (a crane's gallery).
+
+- Map (`game/map.ts`, new `game/mapIcons.ts`): every place an ink icon in a badge; the name, distance and way on hover (ink cursor or mouse); an HTML key over the map's corner turns 11 kinds on and off (kept in localStorage; pumps off by default). Only your job's step and the square names are written, and only where they fit. Landmarks and more town places (small taverns, post office, guard room, markets, mills, pumps, workshops) are marks now.
+- Esc (`main.ts`, `game/dialogs.ts`, `game/pause.ts`): the browser keeps the Esc that frees the mouse; with a dialog up that Esc closes, it is sent on to the dialog and no menu opens (quiet pause: click or W). The gang, the menace and sleep keep the old way. The quest book is a registered dialog now; the night sheet and the police cell take Esc. `focusTest` knows the new rule.
+- Vaulting (`shared/mantle.ts`, `world/rijnkaai.ts`): the lift clears the highest top on the way, landings are found up to 2.6 m out, a railing over open water can be vaulted into the river, and a vault may end in a drop onto ground below. A second press in the air tries at once. Low solid obstacles that fail: 97 of 625 before, 32 of 489 after (mostly the fenced grass strips on the squares: the grass is wall in the walk map). Park shrubs are 1.3-2.4 m tall and stay in the way; the town's small bushes were never solid.
+- Falls (`server/src/player/fall.ts`, `POST /api/fall`): the browser reports the height, the engine takes 1-4 health from 3, 5, 8, 12 m; water takes the fall; never below the floor of 1. Off a crane's gallery: hold Space at the rail. Checked: 7.6 m fall, health 8 to 6.
+- Boats (`game/rowing.ts`): Space at the quay's edge before a small boat (up to 3.6 m down) jumps onto her seat, ready to row; E offers the same jump when she lies deeper than a step.
+- Birds (`shared/parkWildlife.ts`): people within 5-6.5 m make them move off; still coming within 2.4-3.2 m, they fly, half to the Schelde or a dock (`TOWN_WATERS`, 9 checked water spots). 28 new ducks and a swan family live there (74 animals in all). Birds over 160 m from the player take one step a second.
+
+Checks: game build and tests; mantle, fall and park tests; browser: map hover and key, Esc on map and book, water vault into a swim, crate vault, crane jump with harm, Space into a boat, dock ducks shown; `shaders()` no problems, `paths()` empty. Found outside the task: [issue 36](https://github.com/Steve-Sitax/Moodygame/issues/36) (focusTest gang case).
+
+Speed: `perfcheck` (data/perf/2026-09-29T21-40-32-090Z.json) is over the 20 ms budget at every place, 22-42 ms walking. Against the 16:57 run the draw calls rose from 760-1330 to 1255-1787 and mirrors from 3.5-5.8 to 7.2-7.9 ms at every place, also at the cathedral and the Handschoenmarkt, where no bird is near: that came with the park merge ([issue 32](https://github.com/Steve-Sitax/Moodygame/issues/32), Steve's other session). This batch adds 4-6 instanced draws only where birds are within 90 m, and nothing to the map's or the jump's frames.
+
 ## Stadspark traversal follow-up, 2026-09-29
 
 Merged and pushed as `366480d`; the player's detached `MoodyGame-play` checkout was refreshed to that commit and its served movement code checked. The demo build passed and [Pages deployment 36626110296](https://github.com/Steve-Sitax/Moodygame/actions/runs/36626110296) succeeded; the live park metadata reports bed -2.75 and water -0.35. The local browser reached Ready and the demo menus worked. Test stack and copied save were removed.

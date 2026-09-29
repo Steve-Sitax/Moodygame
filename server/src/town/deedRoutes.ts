@@ -13,6 +13,7 @@ import { discover, pickPocketOf } from "./pickpocket.ts";
 import { charisma, charismaWords } from "./charisma.ts";
 import { confronts } from "./deeds.ts";
 import { isResident } from "./store.ts";
+import { fall } from "../player/fall.ts";
 
 // The HTTP side of theft and the police (M3h). Mounted by index.ts before the
 // talk route, so a police agent who has come for Jef answers through the same
@@ -90,6 +91,13 @@ export function mountDeeds(app: Hono, deps: DeedDeps): void {
   app.get("/api/police", (c) => c.json({ ...policeView(db), watchers: watchers(db), confronts: confronts(db).map((x) => ({ npc: x.npc, deed: x.deed })), name: charismaWords(charisma(db)) }));
 
   // M9 theft: picking a pocket (town/pickpocket.ts)
+  /** A fall from a height (2026-09-29): the engine's harm, the payload with the new health. */
+  app.post("/api/fall", async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    const r = fall(db, body);
+    if (r.hurt) push();
+    return c.json({ ...r, ...payload() });
+  });
   app.post("/api/pickpocket", async (c) => {
     const body = await c.req.json().catch(() => ({}));
     const r = pickPocketOf(db, body);

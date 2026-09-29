@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { openDb } from "../src/db.ts";
 import { applyHour, resetTickLimit, sleep, tick } from "../src/day.ts";
 import { player } from "../src/game.ts";
-import { alight, board, calls, change, isLine, isStop, ride, RIDE_FARE_C, RIDE_LINES, RIDE_MAX_HOURS, ridePlace, riding, seat } from "../src/ride.ts";
+import { alight, board, calls, change, hopOn, isLine, isStop, ride, RIDE_FARE_C, RIDE_LINES, RIDE_MAX_HOURS, ridePlace, riding, seat } from "../src/ride.ts";
 
 type DB = ReturnType<typeof openDb>;
 const set = (db: DB, sql: string) => db.prepare(`UPDATE player SET ${sql} WHERE id = 1`).run();
@@ -25,6 +25,22 @@ describe("the omnibus fare", () => {
     expect(riding(db)).toBe(false);
     expect(money(db)).toBe(20 - RIDE_FARE_C); // nothing back
     expect(alight(db).text).toBe(""); // getting off twice does nothing
+  });
+
+  it("jumped on between stops (2026-09-30): the conductor's fare, once; no money, no ride; a change still counts", () => {
+    const db = openDb(":memory:");
+    set(db, "money_c = 20");
+    expect(hopOn(db, "markt")).toMatchObject({ fare_c: RIDE_FARE_C, change: false });
+    expect(money(db)).toBe(20 - RIDE_FARE_C);
+    expect(riding(db)).toBe(true);
+    expect(() => hopOn(db, "markt")).toThrow(/already/);
+    alight(db);
+    expect(hopOn(db, "keizer")).toMatchObject({ fare_c: 0, change: true }); // the ticket's free change
+    expect(money(db)).toBe(20 - RIDE_FARE_C);
+    const poor = openDb(":memory:");
+    poor.prepare(`UPDATE player SET money_c = ${RIDE_FARE_C - 1} WHERE id = 1`).run();
+    expect(() => hopOn(poor, "markt")).toThrow(/not enough money/);
+    expect(riding(poor)).toBe(false);
   });
 
   it("no money, no ride; money never goes below 0", () => {

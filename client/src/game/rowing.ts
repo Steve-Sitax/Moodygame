@@ -218,6 +218,16 @@ export class Rowing {
       this.jobs.say(speed > 1 ? "The boat knocks hard against it. No harm done, only your teeth." : "The boat bumps and comes off.");
     };
     jobs.extraActions.push((x, z) => this.keys(x, z));
+    // 2026-09-29 (Steve: "we should also be able to jump in boats from the quay wall, now we just stop moving at
+    // that place"): Space on the quay's edge over a small boat jumps down into her
+    const prevJump = player.onJump; // (the others that use Space first: a rolling omnibus, game/ride.ts)
+    player.onJump = () => {
+      if (prevJump?.()) return true;
+      const j = this.jumpable(player.x, player.z, -Math.sin(player.yaw), -Math.cos(player.yaw));
+      if (!j) return false;
+      void this.board(j.l, { step: true, jump: true });
+      return true;
+    };
     const marks = jobs.map.marks;
     jobs.map.marks = () => [...marks(), ...this.mapMarks()];
     void this.load();
@@ -546,12 +556,43 @@ export class Rowing {
         // off the quay's edge: only when her gunwale is no more than a long step down
         const drop = this.world.baseAt(x, z) - (levelAt(l.x, l.z) + HULLS[b.kind].bow[1] - 0.1);
         if (drop <= 1.3 && d <= 1.3) options.push([d, { key: "KeyE", text, run: () => void this.board(l, { step: true }), at: this.hullAt(l) }]);
+        // deeper down (low water): a jump, E or Space
+        else if (drop <= 3.6 && d <= 2.2) options.push([d, { key: "KeyE", text: `${text}: jump down (E or Space)`, run: () => void this.board(l, { step: true, jump: true }), at: this.hullAt(l) }]);
         continue;
       }
       if (d > 2.0) continue;
       options.push([d, { key: "KeyE", text, run: () => void this.board(l), at: this.hullAt(l) }]);
     }
     return { options };
+  }
+
+  /**
+   * A small boat below the quay's edge he could jump down into (at most 3.6 m down, her hull within
+   * 2.2 m and before him when (fx, fz) is given): not his to keep, only a way in (the engine judges the taking).
+   */
+  private jumpable(x: number, z: number, fx = 0, fz = 0): { l: Lying; b: LooseInfo } | null {
+    const w = this.data;
+    if (!w || this.boat || this.busy || this.player.swimming || this.player.riding || this.player.climbing || this.player.bikeRiding) return null;
+    if (this.jobs.goods.carried || this.player.laden) return null;
+    const quayTop = this.world.baseAt(x, z);
+    if (!(quayTop > -0.6 && this.player.y > quayTop - 0.3 && !this.world.isWater(x, z))) return null;
+    let best: { l: Lying; b: LooseInfo; d: number } | null = null;
+    for (const b of w.boats) {
+      if (b.lost || this.townAway.has(b.id) || b.ridden) continue;
+      const l = this.lying.get(b.id) ?? this.homeLying(b);
+      const d = this.distToHull(l, x, z);
+      if (d > 2.2) continue;
+      const drop = quayTop - (levelAt(l.x, l.z) + HULLS[b.kind].bow[1] - 0.1);
+      if (drop > 3.6) continue;
+      if (fx || fz) {
+        const dx = l.x - x;
+        const dz = l.z - z;
+        const n = Math.hypot(dx, dz) || 1;
+        if ((dx * fx + dz * fz) / n < 0.2) continue;
+      }
+      if (!best || d < best.d) best = { l, b, d };
+    }
+    return best;
   }
 
   /** A boat at her mooring as a Lying (for the prompt's look and the way in): she is instanced, not a copy. */
@@ -667,7 +708,7 @@ export class Rowing {
    * deeds, M7 boats), or one nobody owns. M7 boats: down the ladder at her thwart, or a step down off
    * the quay at high water; the owner who saw it answers (world: game/deeds.ts react).
    */
-  private async board(l: Lying, via: { ladder?: Extract<Mooring["board"], { kind: "ladder" }>; step?: boolean } = {}): Promise<void> {
+  private async board(l: Lying, via: { ladder?: Extract<Mooring["board"], { kind: "ladder" }>; step?: boolean; jump?: boolean } = {}): Promise<void> {
     if (this.busy) return;
     if (this.jobs.goods.carried || this.player.laden) {
       this.jobs.say("Not with that in your arms.");
@@ -728,7 +769,7 @@ export class Rowing {
   }
 
   /** M7 boats: climb down the ladder (or step down off the quay) to her thwart, then `then`. */
-  private climbInto(l: Lying, via: { ladder?: Extract<Mooring["board"], { kind: "ladder" }> }, then: () => void): void {
+  private climbInto(l: Lying, via: { ladder?: Extract<Mooring["board"], { kind: "ladder" }>; jump?: boolean }, then: () => void): void {
     const p = this.player;
     const h = HULL[l.kind];
     const lv = levelAt(l.x, l.z);
@@ -745,6 +786,16 @@ export class Rowing {
       keys.push([tx - nx * 0.2, top, tz - nz * 0.2, 0.35]);
       keys.push([lx, top - 0.3, lz, 0.5]);
       keys.push([lx, foot, lz, Math.max(0.4, (top - 0.3 - foot) / 1.6)]);
+    } else if (via.jump) {
+      // a hop off the edge, out over the gunwale, and down as a fall takes (t = sqrt(2h / g)), knees bent
+      const land = lv + h.seatY - 0.2;
+      keys.push([p.x + (seat[0] - p.x) * 0.35, top + 0.35, p.z + (seat[1] - p.z) * 0.35, 0.22]);
+      keys.push([seat[0], land, seat[1], Math.max(0.3, Math.sqrt((2 * Math.max(0.3, top + 0.35 - land)) / 9.81))]);
+      p.climbTo(keys, () => {
+        this.sfx("thud_wood", new THREE.Vector3(seat[0], lv + 0.3, seat[1]));
+        then();
+      });
+      return;
     } else keys.push([p.x + (seat[0] - p.x) * 0.5, top - 0.2, p.z + (seat[1] - p.z) * 0.5, 0.45]);
     keys.push([seat[0], lv + h.seatY - 0.2, seat[1], 0.45]);
     p.climbTo(keys, then);
@@ -1490,7 +1541,7 @@ export class Rowing {
   // ------------------------------------------------------------------ the map and the path check
 
   private mapMarks(): MapMark[] {
-    return (this.data?.landings ?? []).map((L) => ({ x: L.top[0], z: L.top[1], label: `boats for hire (${L.label.replace(/^the /, "")})`, kind: "shop" as const }));
+    return (this.data?.landings ?? []).map((L) => ({ x: L.top[0], z: L.top[1], label: `boats for hire (${L.label.replace(/^the /, "")})`, kind: "shop" as const, icon: "boat" }));
   }
 
   /** For the path check (CLAUDE.md): the top of every flight with a boat at its foot. */

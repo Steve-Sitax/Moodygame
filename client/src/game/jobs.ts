@@ -22,6 +22,7 @@ import { topLeft } from "./corner";
 import { auditShown, best, bindView, inView, type Target } from "./facing";
 import type { QuestBoxes } from "./questboxes";
 import { dialogs } from "./dialogs";
+import { iconFor } from "./mapIcons";
 import { DEMO } from "../demo/demo";
 
 // The hands and the job (M2, M2b, M3). Everything you do with E and F goes
@@ -235,6 +236,7 @@ export class Jobs {
 
     window.addEventListener("keydown", (e) => this.onKey(e));
     dialogs.register("job board", () => this.boardOpen); // focus fix: the pause knows it is up (game/dialogs.ts)
+    dialogs.register("quest book", () => this.bookOpen);
     connectPush(
       (p) => this.apply(p),
       (o) => this.showOutcome(o),
@@ -647,7 +649,7 @@ export class Jobs {
       })
       .join("");
     b.innerHTML = `<h2>Work &mdash; Rijnkaai</h2>${noMore}<ol>${rows}</ol>
-      <p class="keys">Press a number to take a job &middot; E to step back</p>`;
+      <p class="keys">Press a number to take a job &middot; E or Esc to step back</p>`;
   }
 
   private async take(index: number): Promise<void> {
@@ -762,20 +764,35 @@ export class Jobs {
       const n = this.people.get(id);
       if (n) out.push({ x: n.pos.x, z: n.pos.z, label: `work: ${n.def.name}`, kind: "work", detail: titles.join("; ") });
     }
-    out.push({ x: BOARD_POS.x, z: BOARD_POS.z, label: "hiring board", kind: "place" });
+    out.push({ x: BOARD_POS.x, z: BOARD_POS.z, label: "hiring board", kind: "place", icon: "board" });
     // M7 night: the employers' boxes; the one for the proof in hand is the goal
-    for (const b of this.boxes?.list ?? []) out.push({ x: b.x, z: b.z, label: `${b.name}'s box`, kind: this.held?.employer_npc === b.employer ? "goal" : "place" });
-    out.push({ x: DOSS_POS.x, z: DOSS_POS.z, label: "doss house", kind: "bed" });
+    for (const b of this.boxes?.list ?? []) out.push({ x: b.x, z: b.z, label: `${b.name}'s box`, kind: this.held?.employer_npc === b.employer ? "goal" : "place", icon: this.held?.employer_npc === b.employer ? undefined : "box" });
+    out.push({ x: DOSS_POS.x, z: DOSS_POS.z, label: "doss house", kind: "bed", icon: "bed" });
     const shops: Array<[string, string]> = [["fientje", "Fientje's fish"], ["peeters", "the chandlery"], ["tuur", "Tuur's jenever"]];
     for (const [id, label] of shops) {
       const n = this.people.get(id);
-      if (n && !offered.has(id)) out.push({ x: n.pos.x, z: n.pos.z, label, kind: "shop" });
+      if (n && !offered.has(id)) out.push({ x: n.pos.x, z: n.pos.z, label, kind: "shop", icon: iconFor(label) });
     }
     // the town's shops and taverns (M3e)
     const d = this.town?.data;
     if (d) {
-      for (const sh of d.shops) out.push({ x: sh.door[0], z: sh.door[1], label: sh.label, kind: "shop" });
-      for (const [id, pl] of Object.entries(d.places)) if (id.startsWith("tavern:")) out.push({ x: pl.x, z: pl.z, label: pl.label, kind: "shop" });
+      for (const sh of d.shops) out.push({ x: sh.door[0], z: sh.door[1], label: sh.label, kind: "shop", icon: iconFor(sh.label) });
+      // 2026-09-29 (Steve: icons for the places, kinds to click on and off): the town's other places a player goes to
+      const PLACE_ICONS: Array<[RegExp, string]> = [
+        [/^(tavern|kroeg):/, "tankard"],
+        [/^(dealer_shop|velo_shop|cart_shop)$/, ""],
+        [/^market:/, "market"],
+        [/^post_office$/, "letter"],
+        [/^guardroom:/, "police"],
+        [/^logement$/, "bed"],
+        [/^mill_/, "mill"],
+        [/^landmark:oostershuis$/, "hall"],
+        [/^pump:/, "pump"],
+      ];
+      for (const [id, pl] of Object.entries(d.places)) {
+        const r = PLACE_ICONS.find(([re]) => re.test(id));
+        if (r) out.push({ x: pl.x, z: pl.z, label: pl.label, kind: "shop", icon: r[1] || iconFor(pl.label) });
+      }
     }
     return out;
   }
@@ -854,7 +871,7 @@ export class Jobs {
     const list = this.jobsInHand();
     const { x, z } = this.player;
     if (!list.length) {
-      this.el.book.innerHTML = `<h2>Your book</h2><p class="note-text">No work in hand. The hiring board on the Rijnkaai, or a word with someone who has work.</p><p class="keys">J to close</p>`;
+      this.el.book.innerHTML = `<h2>Your book</h2><p class="note-text">No work in hand. The hiring board on the Rijnkaai, or a word with someone who has work.</p><p class="keys">J or Esc to close</p>`;
       return;
     }
     const rows = list
@@ -873,7 +890,7 @@ export class Jobs {
       })
       .join("");
     this.el.book.innerHTML = `<h2>Your book &mdash; ${list.length} of 3 jobs</h2><ol>${rows}</ol>
-      <p class="keys">A number follows that job &middot; G then G gives up the one asked &middot; M the map &middot; J to close</p>`;
+      <p class="keys">A number follows that job &middot; G then G gives up the one asked &middot; M the map &middot; J or Esc to close</p>`;
   }
 
   private bookKey(e: KeyboardEvent): void {

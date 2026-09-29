@@ -16,6 +16,8 @@ import { loadTownPlaces } from "./townplaces"; // M7 prison and squares
 import { frontFloor as carolusFloor, frontSolids as carolusSolids } from "../../../shared/carolusPlan";
 import { loadWall, rampartHeightAt, rampartKeepOut, wallColliders, wallGuards, wallLamps } from "./rampart";
 import CITY_DATA from "../../../shared/city.json";
+import PARK_DATA from "../../public/models/park.json";
+import { addSpill } from "./spill";
 import { buildCity, doorSpot, edgeZ, WALL, WATER, OUTSIDE, type CityWorld } from "./city";
 import { dressCity, loadProps } from "./props3d";
 import { loadWagons } from "./wagons3d";
@@ -584,6 +586,14 @@ export function buildRijnkaai(): World {
   const churches = loadChurches(scene);
   // the Stadspark planted: trees, shrubs, hedge, reeds, its own ground, ducks and swans (world/parkNature.ts)
   const parkNature = loadParkNature(scene);
+  // (2026-09-30, Steve: "in park the lamps don't seem to give of the light as they should") the park's gas lanterns
+  // light the paths as the street's gas lamps do (world/spill.ts, a lamp each, lit with the street's lamps); their glass
+  // (park_lamp_glow) is then no weak glow of its own (spill.ts marks a glow by a lamp as its duplicate)
+  const parkLamps = ((PARK_DATA as unknown as { lanterns?: number[][][] }).lanterns ?? []).map((poly) => {
+    const x = poly.reduce((a, p) => a + p[0], 0) / poly.length;
+    const z = poly.reduce((a, p) => a + p[1], 0) / poly.length;
+    return addSpill({ kind: "lamp", x, y: 3.2, z, power: 20, ground: 0 });
+  });
   // M7 prison and squares: the prison of 1855 on the wall street (world/prison.ts, tools/blender/build_prison.py)
   const prison = loadPrison(scene);
   // M7 prison and squares: the Sint-Jansplein and the greens (world/townplaces.ts)
@@ -1330,6 +1340,18 @@ export function buildRijnkaai(): World {
       railings.push(rectAround(x, z, 0.3, 0.3));
     }
   }
+  /** The top rail over the quay it stands on (tools/blender/build_city.py rail(): 1.11 m), for a vault over it. */
+  const railTops = new Map<Rect, number>();
+  const railTop = (c: Rect) => {
+    let t = railTops.get(c);
+    if (t === undefined) {
+      const cx = (c.minX + c.maxX) / 2;
+      const cz = (c.minZ + c.maxZ) / 2;
+      t = (floorAt(cx, cz, 1) ?? 0) + 1.11;
+      railTops.set(c, t);
+    }
+    return t;
+  };
   /** Open water by the walk map: not a wall, not beyond the map, not the lock (its gates and tows). */
   const openWater = (x: number, z: number) => {
     if(pondWater(x,z))return true;
@@ -1419,11 +1441,28 @@ export function buildRijnkaai(): World {
   const raised = new Set<RaisedDeck>();
   /** The lowest of them: anyone walking below it (everyone on the ground) skips them all. */
   let raisedLow = Infinity;
+  /** (x, z) in a deck's own frame (a working crane's gallery turns with its jib: world/railway.ts DeckFrame). */
+  const deckP = { x: 0, z: 0 };
+  const inDeck = (d: RaisedDeck, x: number, z: number, m: number): boolean => {
+    const f = d.frame;
+    if (f) {
+      const dx = x - f.x;
+      const dz = z - f.z;
+      const c = Math.cos(f.rot);
+      const s = Math.sin(f.rot);
+      deckP.x = dx * c - dz * s;
+      deckP.z = dx * s + dz * c;
+    } else {
+      deckP.x = x;
+      deckP.z = z;
+    }
+    return deckP.x > d.minX + m && deckP.x < d.maxX - m && deckP.z > d.minZ + m && deckP.z < d.maxZ - m;
+  };
   const raisedAt = (x: number, z: number, feet: number): RaisedDeck | null => {
     if (feet < raisedLow - 0.8) return null;
     let best: RaisedDeck | null = null;
     for (const d of raised) {
-      if (Math.abs(feet - d.y) < 0.8 && x > d.minX && x < d.maxX && z > d.minZ && z < d.maxZ && (!best || d.y > best.y)) best = d;
+      if (Math.abs(feet - d.y) < 0.8 && (!best || d.y > best.y) && inDeck(d, x, z, 0)) best = d;
     }
     return best;
   };
@@ -1431,7 +1470,7 @@ export function buildRijnkaai(): World {
   const raisedFree = (x: number, z: number, r: number, feet: number) => {
     const m = r * 0.5;
     for (const d of raised) {
-      if (Math.abs(feet - d.y) <= STEP && x > d.minX + m && x < d.maxX - m && z > d.minZ + m && z < d.maxZ - m) return true;
+      if (Math.abs(feet - d.y) <= STEP && inDeck(d, x, z, m)) return true;
     }
     return false;
   };
@@ -1445,7 +1484,7 @@ export function buildRijnkaai(): World {
     } else if (staticHit(x, z, r, feet)) return true;
     const dl = dynamic.list;
     for (let i = 0; i < dl.length; i++) if (hit(dl[i]) && blocks(dl[i], feet, x, z, r)) return true;
-    for (const c of railings) if (hit(c)) return true;
+    for (const c of railings) if (hit(c) && feet < railTop(c)) return true;
     for (const c of movers) if (hit(c) && blocks(c, feet, x, z, r)) return true;
     return false;
   };
@@ -1610,7 +1649,26 @@ export function buildRijnkaai(): World {
   };
 
   let mantleCeilings:ReturnType<typeof buildGroundProbe>|null=null;
+  /**
+   * Off a raised deck (a crane's gallery, its cabin: railed all round, 2026-09-29 "jumping of a quay crane"): over its
+   * rail when its edge is within 0.7 m ahead (he stands at it, facing out), out into the air, and down into the water or onto the ground (it hurts).
+   */
+  function deckJump(deck:RaisedDeck,x:number,y:number,z:number,dx:number,dz:number):MantlePoint[]|null {
+    const len=Math.hypot(dx,dz);if(len<.01)return null;dx/=len;dz/=len;
+    let edge=-1;
+    for(let e=.1;e<=.7;e+=.1)if(!raisedAt(x+dx*e,z+dz*e,deck.y)){edge=e;break;}
+    if(edge<0)return null;
+    const tx=x+dx*(edge+.9),tz=z+dz*(edge+.9);
+    if(raisedAt(tx,tz,deck.y))return null;
+    const lift=y+1.2;
+    const up={x,y:lift,z},over={x:tx,y:lift,z:tz};
+    if(swimmable(tx,tz))return [up,over,{x:tx,y:waterLevel(tx,tz),z:tz,water:true}];
+    const ty=groundAt(tx,tz,.32,y-1);
+    if(ty>y-.8||!standFree(tx,tz,.32,ty))return null;
+    return [up,over,{x:tx,y:ty,z:tz,fall:true}];
+  }
   function mantle(x:number,y:number,z:number,dx:number,dz:number,base:number):MantlePoint[]|null {
+    {const deck=raisedAt(x,z,y);if(deck)return deckJump(deck,x,y,z,dx,dz);}
     // Lazy, indexed geometry: queried only during a held climb attempt, never a scene raycast each frame.
     const clear=(px:number,py:number,pz:number)=>{
       if(hits(px,pz,.32,py)||wallNear(px,pz,.40,py)||moverAt(px,pz,.32))return false;
@@ -1621,7 +1679,13 @@ export function buildRijnkaai(): World {
       }
       return true;
     };
-    return findMantle({floor:(px,pz,top)=>groundAt(px,pz,.12,top-STEP),clear,
+    return findMantle({floor:(px,pz,top)=>{
+        let g=groundAt(px,pz,.12,top-STEP);
+        // the railings along the water are only in the city model: their top rail is the top here
+        for(const c of railings)if(inRect(c,px,pz,.12)){const t=railTop(c);if(t<=top)g=Math.max(g,t);}
+        return g;
+      },clear,
+      water:(px,pz)=>swimmable(px,pz)?waterLevel(px,pz):null,
       stand:(px,py,pz)=>{
         // Both feet need support: a thin railing can be vaulted, never used as a platform.
         for(const [ox,oz] of [[0,0],[.18,0],[-.18,0],[0,.18],[0,-.18]]) {
@@ -1870,9 +1934,28 @@ export function buildRijnkaai(): World {
   const SUN_GOLD = new THREE.Color(0xffa24a);
   const SKY_COLD = new THREE.Color(0x8494a6);
   const SKY_WARM = new THREE.Color(0xb49a7c);
-  const SUN_HIGH = new THREE.Vector3(-0.75, 0.9, 0.55);
-  const SUN_LOW = new THREE.Vector3(-0.95, 0.38, 0.35);
   const sunDir = new THREE.Vector3();
+  /** The sky's light by the clock's table (applyDaylight), before the weather's share of it (update). */
+  let skyBase = 1;
+  /**
+   * The sun's way over Antwerp in October (2026-09-29, Steve: "Lighting during day is flat"): up in the south-east, about
+   * 33 degrees at noon, down in the west-south-west; the direction toward it in the world (north is 21 degrees off the
+   * world's axes: shared/city.json frame). Below 6 degrees it lights as at 6: the clock's table takes it away by then.
+   */
+  const SUN_DECL = (-6 * Math.PI) / 180;
+  const SUN_LAT = (51.22 * Math.PI) / 180;
+  const FRAME_TH = (((CITY_DATA as unknown as { frame?: { thetaDeg?: number } }).frame?.thetaDeg ?? 21) * Math.PI) / 180;
+  function sunAt(h: number, out: THREE.Vector3): THREE.Vector3 {
+    const ha = ((h - 11.8) * 15 * Math.PI) / 180;
+    const sinEl = Math.sin(SUN_LAT) * Math.sin(SUN_DECL) + Math.cos(SUN_LAT) * Math.cos(SUN_DECL) * Math.cos(ha);
+    const el = Math.max((6 * Math.PI) / 180, Math.asin(sinEl));
+    const az = Math.atan2(Math.sin(ha), Math.cos(ha) * Math.sin(SUN_LAT) - Math.tan(SUN_DECL) * Math.cos(SUN_LAT)) + Math.PI;
+    const e = Math.cos(el) * Math.sin(az);
+    const n = Math.cos(el) * Math.cos(az);
+    const s = Math.sin(FRAME_TH);
+    const c = Math.cos(FRAME_TH);
+    return out.set(e * s + n * c, Math.sin(el), e * c - n * s);
+  }
   function goldenAt(h: number): number {
     const bump = (h: number, a: number, peak0: number, peak1: number, b: number) =>
       h <= a || h >= b ? 0 : h < peak0 ? THREE.MathUtils.smoothstep(h, a, peak0) : h <= peak1 ? 1 : 1 - THREE.MathUtils.smoothstep(h, peak1, b);
@@ -1894,10 +1977,12 @@ export function buildRijnkaai(): World {
     fog.color.copy(fogFrom.setHex(c0)).lerp(fogTo.setHex(c1), k);
     baseFog.copy(fog.color);
     (scene.background as THREE.Color).copy(fog.color);
-    skyLight.intensity = THREE.MathUtils.lerp(s0, s1, k);
-    sunDay = Math.max(0, (skyLight.intensity - 0.55) / 1.55);
+    skyBase = THREE.MathUtils.lerp(s0, s1, k);
+    skyLight.intensity = skyBase;
+    sunDay = Math.max(0, (skyBase - 0.55) / 1.55);
     dayFar = THREE.MathUtils.lerp(f0, f1, k);
     lampsLit = THREE.MathUtils.lerp(l0, l1, k);
+    for (const l of parkLamps) l.level = lampsLit;
   }
   applyDaylight(dayNow);
 
@@ -1992,13 +2077,20 @@ export function buildRijnkaai(): World {
     (scene.background as THREE.Color).copy(fog.color);
     sun.color.copy(SUN_WHITE).lerp(SUN_GOLD, gold);
     skyLight.color.copy(SKY_COLD).lerp(SKY_WARM, gold * 0.55);
-    sun.position.copy(sunDir.copy(SUN_HIGH).lerp(SUN_LOW, gold));
+    sun.position.copy(sunAt(dayNow, sunDir));
+    psxUniforms.uSunDir.value.copy(sunDir).normalize(); // (the houses' shadows in the shader: retro/psx.ts psxSunShadow)
+    // a clear or misty day: less light from the sky, more from the sun, so the sunny side and the shaded side differ
+    // as they do (a fog day keeps its even grey light)
+    const bright = THREE.MathUtils.clamp(wNow[3] / 0.6, 0, 1);
+    skyLight.intensity = skyBase * (1 - 0.28 * sunDay * bright);
+    // the houses' shadows: hard in a clear day's sun, soft in the glow through fog (retro/psx.ts psxSunShadow)
+    psxUniforms.uSunShade.value = 0.3 + 0.7 * bright;
     // (package 4: the clouds, round the air's colour now; the warm band where the evening sun goes down)
-    pt("world.cloudSky", () => cloudSky.update(dt, t, fog.color, dayNow, weatherNow, wNow[3], skySunXZ.set(SUN_LOW.x, SUN_LOW.z)));
+    pt("world.cloudSky", () => cloudSky.update(dt, t, fog.color, dayNow, weatherNow, wNow[3], skySunXZ.set(sunDir.x, sunDir.z)));
     pt("world.works", () => works.update(t, dt, dayNow, weatherNow, fog.color));
     // the sun: nothing at night, a glow through fog, real light on a clear day (warmer and a
     // little stronger in the golden hour: the low light is what shows)
-    sun.intensity = sunDay * (1.35 - wNow[2]) * 2.6 * (1 + 0.8 * gold) * (1 - 0.7 * tempest.level);
+    sun.intensity = sunDay * (1.35 - wNow[2]) * 2.6 * (1 + 0.8 * gold) * (1 - 0.7 * tempest.level) * (1 + 0.25 * bright);
     psxUniforms.uScatter.value = SCATTER * wNow[2];
     // the job twist "thick fog" always closes in, whatever the weather
     fog.near = THREE.MathUtils.lerp(3 * wNow[0] * tuning.viewFar, 1.5, fogMix) * (1 - 0.45 * tempest.level);
@@ -2277,7 +2369,7 @@ function gasLamp(
     }),
   );
   halo.position.copy(pos);
-  halo.scale.set(1.8, 1.8, 1);
+  halo.scale.set(1.1, 1.1, 1); // (2026-09-30: was 1.8)
   scene.add(halo);
 
   colliders.push(rectAround(x, z, 0.25, 0.25));
@@ -2296,7 +2388,7 @@ function dossLantern(scene: THREE.Scene, m: Mats, glow: THREE.Texture): THREE.Po
     new THREE.SpriteMaterial({ map: glow, color: 0xffb060, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.5, fog: false }),
   );
   halo.position.copy(glass.position);
-  halo.scale.set(1.1, 1.1, 1);
+  halo.scale.set(0.7, 0.7, 1); // (2026-09-30: was 1.1)
   scene.add(halo);
   doorSign(scene, "doss", "BEDS");
   const light = new THREE.PointLight(0xffa048, 7, 10, 1.7);

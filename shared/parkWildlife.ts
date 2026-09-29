@@ -17,7 +17,29 @@ export interface ParkEnvironment {
   hour: number; rain: number; storm: number;
   people: Point[]; boats: Point[]; cats: Point[]; dogs: Point[]; food: Point[];
   waterLevels?: number[];
+  /** Where the player looks from: birds further than FAR_M are stepped once a second, not every frame. */
+  focus?: Point;
 }
+/**
+ * Water beyond the park the waterfowl fly to and from (checked open, swimmable water, 2026-09-29; Steve: "They can
+ * also fly to the Schelde, and the different docks, put some more in the game"): [x, z, radius, flock living there].
+ */
+export const TOWN_WATERS: Array<[number, number, number, "duck" | "swan" | ""]> = [
+  [-146, 50, 2, ""], // the Canal des Brasseurs by the Vismarkt
+  [25, -10, 4, ""], // the Schelde off the Rijnkaai
+  [-116, -10, 4, "duck"], // the Schelde off the Vismarkt
+  [-273.6, -13.4, 4, "duck"], // the Schelde off the Werf
+  [120, -8, 4, ""], // the Schelde off the Petit Bassin
+  [75.6, 51, 4, "duck"], // the Petit Bassin
+  [112.8, 97.7, 4, "duck"], // the south quay of the Petit Bassin
+  [164, 98.6, 4, "swan"], // the dock by the Entrepot
+  [-74.7, 112.6, 3, "duck"], // the Canal des Brasseurs
+];
+/** Birds further than this from the player are stepped coarsely (once a second). */
+export const FAR_M = 160;
+/** A person nearer than WARY makes a bird move off; nearer than CLOSE and still coming, it flies (metres). */
+const WARY: Record<string, number> = { duck: 6, goose: 6.5, swan: 5 };
+const CLOSE: Record<string, number> = { duck: 3, goose: 3.2, swan: 2.4 };
 export const parkDistance = (a: Point, b: Point) => Math.hypot(a.x-b.x, a.z-b.z);
 export function onParkGround(d: ParkHabitat, p: Point): boolean {
   return [d.ground.lawn, d.ground.gravel, d.ground.mud].some(tris => tris.some(t => {
@@ -35,8 +57,14 @@ export class ParkEcology {
   private land = new Set<number>();
   private onLand(p:Point) {return this.land.has(Math.floor(p.x*4)*8192+Math.floor(p.z*4));}
   readonly habitat: ParkHabitat;
+  /** How many homes are the park's own (the rest: TOWN_WATERS). */
+  readonly parkHomes: number;
+  /** Each bird's distance to the person it watches, last step (closing in or not). */
+  private watched = new Map<number, number>();
+  private farLag = 0;
   constructor(habitat: ParkHabitat) {
-    this.habitat={...habitat,birds:[...habitat.birds,[-146,50,2,"duck"],[25,-10,4,"duck"]]};
+    this.parkHomes=habitat.birds.length;
+    this.habitat={...habitat,birds:[...habitat.birds,...TOWN_WATERS.map(([x,z,r]):[number,number,number,string]=>[x,z,r,"duck"])]};
     // Rasterise once. A squirrel's step must not scan thousands of ground triangles every frame.
     for(const triangles of [habitat.ground.lawn,habitat.ground.gravel,habitat.ground.mud])for(const t of triangles) {
       const minX=Math.floor(Math.min(t[0],t[2],t[4])*4),maxX=Math.ceil(Math.max(t[0],t[2],t[4])*4);
@@ -50,6 +78,17 @@ export class ParkEcology {
         const a=this.add(species,x+Math.cos(i)*r*.45,z+Math.sin(i)*r*.45,home);
         a.female=i===0 || i===2; a.young=i>2 || (species==="swan"&&i===2);
         if(i===0)mother=a.id;
+        if(a.young)a.parent=mother;
+      }
+    });
+    // the flocks that live out on the town's water
+    TOWN_WATERS.forEach(([x,z,r,kind],i)=>{
+      if(!kind)return;
+      const home=this.parkHomes+i;let mother=0;
+      for(let k=0;k<(kind==="duck"?5:3);k++) {
+        const a=this.add(kind,x+Math.cos(k)*r*.45,z+Math.sin(k)*r*.45,home);
+        a.female=k===0||k===2;a.young=kind==="swan"?k===2:k>2;
+        if(k===0)mother=a.id;
         if(a.young)a.parent=mother;
       }
     });
@@ -79,14 +118,20 @@ export class ParkEcology {
     if(land&&!this.onLand({x,z})) {a.timer=0;return;}
     a.yaw=Math.atan2(-(p.z-a.z),p.x-a.x);a.x=x;a.z=z;
   }
+  /** Another home to fly to: `away` one of the town's waters, else another of the park's (from the town: the park). */
+  private elsewhere(a:ParkAnimal,away:boolean):number {
+    const n=this.habitat.birds.length,town=n-this.parkHomes;
+    if(away&&town>0){const h=this.parkHomes+Math.floor(this.random()*town);return h===a.home?this.parkHomes+(h-this.parkHomes+1)%town:h;}
+    if(a.home>=this.parkHomes||this.parkHomes<2)return Math.floor(this.random()*Math.max(1,this.parkHomes));
+    return (a.home+1)%this.parkHomes;
+  }
   private fly(a:ParkAnimal,home:number,away=false) {
     const h=this.habitat.birds[home];if(!h)return;
-    if(away) {home=this.habitat.birds.length-1-(a.id%2);}
     const destination=this.habitat.birds[home];
     a.start={x:a.x,z:a.z,y:a.y};a.target={x:destination[0]+Math.cos(a.phase)*destination[2]*.65,z:destination[1]+Math.sin(a.phase)*destination[2]*.65};a.home=home;
     a.duration=Math.max(4,parkDistance(a,a.target)/(a.species==="swan"?6:8));
     // A longer arch reads as a departing/returning flock, without landing on streets or roofs.
-    if(away)a.duration+=12;
+    if(away||parkDistance(a,a.target)>60)a.duration+=12;
     a.flight=0;a.mode="flight";a.timer=away?22:5;
   }
   private hasBrood(a:ParkAnimal) {return this.animals.some(child=>child.parent===a.id&&child.mode!=="caught");}
@@ -101,12 +146,18 @@ export class ParkEcology {
   }
   update(seconds:number,env:ParkEnvironment) {
     if(!Number.isFinite(seconds)||seconds<=0)return;
-    // Fixed small steps keep escape, capture and shore tests independent of frame rate.
+    // Fixed small steps keep escape, capture and shore tests independent of frame rate. Birds far from the player
+    // (out on the docks) take one step a second: nobody sees them closely, and every frame stays cheap.
+    const f=env.focus,near=(a:ParkAnimal)=>!f||parkDistance(a,f)<FAR_M;
     let left=Math.min(seconds,30);
-    while(left>0) {const dt=Math.min(left,.1);this.step(dt,env);left-=dt;}
+    while(left>0) {const dt=Math.min(left,.1);this.step(dt,env,near);left-=dt;}
+    if(f) {
+      this.farLag+=Math.min(seconds,30);
+      if(this.farLag>=1){const dt=Math.min(this.farLag,5);this.farLag=0;this.step(dt,env,a=>!near(a),false);}
+    }
   }
-  private step(dt:number,e:ParkEnvironment) {
-    this.time+=dt;
+  private step(dt:number,e:ParkEnvironment,only:(a:ParkAnimal)=>boolean=()=>true,clock=true) {
+    if(clock)this.time+=dt;
     const shelter=e.storm>.35||e.rain>.8||e.hour<6.5||e.hour>19;
     // Parents decide first, regardless of array order: otherwise the mother flees before her young warn her.
     if(!shelter)for(const child of this.animals)if(child.young&&child.parent!==null&&child.mode!=="caught") {
@@ -114,6 +165,7 @@ export class ParkEcology {
       if(cat&&mother.mode!=="flight"&&parkDistance(child,mother)<6) {mother.mode="defend";mother.timer=5;mother.target={...cat};}
     }
     for(const a of this.animals) {
+      if(!only(a))continue;
       a.timer-=dt;
       if(a.mode==="caught") {if(a.timer<0&&!e.people.some(p=>parkDistance(a,p)<35)) {a.mode="shelter";a.timer=10;}else continue;}
       if(a.species==="squirrel") {this.squirrel(a,dt,e,shelter);continue;}
@@ -137,12 +189,33 @@ export class ParkEcology {
         if(this.random()<.12) {a.mode="caught";a.timer=240;this.note("A cat caught an unguarded duck. The flock scattered.");continue;}
       }
       if(a.mode==="defend"&&a.timer>0&&cat) {a.yaw=Math.atan2(-(cat.z-a.z),cat.x-a.x);continue;}
-      const fear=(cat&&parkDistance(a,cat)<(a.mode==="feed"?1.2:3)?cat:undefined)||e.dogs.find(p=>parkDistance(a,p)<4)||e.boats.find(p=>parkDistance(a,p)<7)||e.people.find(p=>parkDistance(a,p)<2.3);
-      a.alarm=fear?a.alarm+dt:0;
-      if(fear&&!shelter&&a.alarm>(fear===cat ? .65 : .08)) {
+      const fear=(cat&&parkDistance(a,cat)<(a.mode==="feed"?1.2:3)?cat:undefined)||e.dogs.find(p=>parkDistance(a,p)<4)||e.boats.find(p=>parkDistance(a,p)<7);
+      // 2026-09-29 (Steve: "birds / swans / ducks fly away if you come too near. they try to swim or walk away but if
+      // you keep getting closer, they fly"): a person near makes them move off; still coming and close, they fly
+      let person:Point|undefined,pd=Infinity;
+      for(const p of e.people){const d=parkDistance(a,p);if(d<pd){pd=d;person=p;}}
+      if(pd>=(WARY[a.species]??6))person=undefined;
+      const close=CLOSE[a.species]??3,last=this.watched.get(a.id)??pd;
+      if(person)this.watched.set(a.id,pd);else this.watched.delete(a.id);
+      const pressed=!!person&&pd<close&&(pd<last-.002||pd<close*.55);
+      a.alarm=fear||pressed?a.alarm+dt:Math.max(0,a.alarm-dt*.5);
+      if((fear||pressed)&&!shelter&&a.alarm>(fear===cat ? .65 : fear ? .08 : a.species==="swan" ? .9 : .5)) {
         // Unfledged young retreat with their parent on the pond; they cannot fly over the city.
         if(a.young||this.hasBrood(a)) {a.mode="swim";a.target={x:h[0],z:h[1]};this.go(a,a.target,1.9,dt);a.y=this.onLand(a)?.06:waterY;continue;}
-        this.fly(a,(a.home+1)%this.habitat.birds.length);a.alarm=0;continue;
+        // half to another pond of the park, half out to the river or a dock
+        const away=this.random()<.5;
+        this.fly(a,this.elsewhere(a,away),away);a.alarm=0;this.watched.delete(a.id);continue;
+      }
+      if(person&&!shelter) {
+        // off, away from him: swimming within their water, walking on the grass
+        const d=pd||1,wet=!this.onLand(a);
+        let tx=a.x+(a.x-person.x)/d*2.5,tz=a.z+(a.z-person.z)/d*2.5;
+        if(wet){const r=h[2]*1.15,hx=tx-h[0],hz=tz-h[1],hd=Math.hypot(hx,hz);if(hd>r){tx=h[0]+hx/hd*r;tz=h[1]+hz/hd*r;}}
+        a.target={x:tx,z:tz};a.timer=Math.max(a.timer,3);
+        this.go(a,a.target,a.species==="swan"?.6:a.species==="goose"?.85:.9,dt,!wet);
+        a.y=this.onLand(a)?.06:waterY;
+        a.mode=a.y>0?"forage":"swim";
+        continue;
       }
       if(shelter) {a.mode="shelter";this.go(a,{x:h[0],z:h[1]},.35,dt);a.y=waterY;continue;}
       if(a.mode==="shelter") {a.mode="swim";a.timer=5;}
@@ -150,7 +223,7 @@ export class ParkEcology {
       if(food) {a.mode="feed";a.target=food;}
       else if(a.mode==="feed") {a.mode="swim";a.timer=0;}
       if(a.timer<=0&&!food) {
-        if(!a.young&&!this.hasBrood(a)&&this.random()<.22) {this.fly(a,(a.home+1)%this.habitat.birds.length,this.random()<.4);continue;}
+        if(!a.young&&!this.hasBrood(a)&&this.random()<.22) {const away=this.random()<.4;this.fly(a,this.elsewhere(a,away),away);continue;}
         const angle=this.random()*Math.PI*2;
         a.target={x:h[0]+Math.cos(angle)*h[2]*.75,z:h[1]+Math.sin(angle)*h[2]*.75};
         a.mode="swim";a.timer=7+this.random()*13;
@@ -168,9 +241,9 @@ export class ParkEcology {
     }
     // Personal space on the water; landing birds have distinct targets and gently part after arrival.
     for(let i=0;i<this.animals.length;i++) {
-      const a=this.animals[i];if(!["duck","swan","goose"].includes(a.species)||a.mode==="flight"||a.mode==="caught")continue;
+      const a=this.animals[i];if(!only(a)||!["duck","swan","goose"].includes(a.species)||a.mode==="flight"||a.mode==="caught")continue;
       for(let j=i+1;j<this.animals.length;j++) {
-        const b=this.animals[j];if(!["duck","swan","goose"].includes(b.species)||b.mode==="flight"||b.mode==="caught")continue;
+        const b=this.animals[j];if(!only(b)||!["duck","swan","goose"].includes(b.species)||b.mode==="flight"||b.mode==="caught")continue;
         const d=parkDistance(a,b),gap=(a.species==="swan"?.62:.31)+(b.species==="swan"?.62:.31);
         if(d>=gap)continue;
         const dx=d>.001?(a.x-b.x)/d:Math.cos(i*2.399),dz=d>.001?(a.z-b.z)/d:Math.sin(i*2.399),push=(gap-d)*Math.min(.45,dt*2);

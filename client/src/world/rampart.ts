@@ -10,6 +10,7 @@ import { grassPaving, quayPaving, withPictures } from "./paving";
 import type { GasLamps } from "./gaslamps";
 import type { Props } from "./props3d";
 import { buildRampartNature, type RampartNature } from "./rampartNature";
+import { buildWallClimbers, type WallClimbers } from "./wallClimbers";
 import { loadTownWallBumps, townWallBump } from "./townWallBumps";
 import { addProp } from "./propSpots";
 import { buildWallLife, type WallLife } from "./wallLife";
@@ -246,6 +247,7 @@ export function loadWall(scene: THREE.Scene): WallModel {
   let sailT = performance.now() / 1000; // (M7 mills)
   const glows: Array<{ m: THREE.MeshBasicMaterial; day: number }> = [];
   let nature: RampartNature | null = null;
+  let climbers: WallClimbers | null = null;
   let life: WallLife | null = null;
   let lifeT = performance.now();
   let walkMat: THREE.Material | null = null;
@@ -409,6 +411,7 @@ export function loadWall(scene: THREE.Scene): WallModel {
       }
       draco.dispose();
       nature = buildRampartNature(scene, d);
+      climbers = buildWallClimbers(scene); // (the park look pass: ivy and creeper on the inner face)
       life = buildWallLife(scene, d); // (the look pass: crows, the kite)
       dressingOk(d);
     })
@@ -445,6 +448,7 @@ export function loadWall(scene: THREE.Scene): WallModel {
         for (const g of glows) g.m.color.setScalar(g.day + (1 - g.day) * Math.min(1, dark));
       }
       nature?.update(camera, far);
+      climbers?.update(camera, far);
       const now = performance.now();
       life?.update(Math.min(0.1, (now - lifeT) / 1000), camera, darkNow < 0 ? 0 : darkNow);
       lifeT = now;

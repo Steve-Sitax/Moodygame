@@ -10,6 +10,8 @@ interface Entry {
   open: () => boolean;
   /** The mouse works it with the ink cursor (game/cursor.ts); false: the mouse keeps the look (a menace to walk away from). */
   cursor: boolean;
+  /** Esc closes it (or steps back in it), as E does: Esc that lets the mouse go closes it instead of opening the menu. */
+  esc: () => boolean;
 }
 const list: Entry[] = [];
 
@@ -23,8 +25,13 @@ function isUp(d: Entry): boolean {
 
 export const dialogs = {
   /** A panel with its own keys: `open` says whether it is on screen now. */
-  register(name: string, open: () => boolean, opts: { cursor?: boolean } = {}): void {
-    list.push({ name, open, cursor: opts.cursor !== false });
+  register(name: string, open: () => boolean, opts: { cursor?: boolean; esc?: boolean | (() => boolean) } = {}): void {
+    const esc = opts.esc;
+    list.push({ name, open, cursor: opts.cursor !== false, esc: typeof esc === "function" ? esc : () => esc !== false });
+  },
+  /** Is a dialog up that Esc closes (Steve 2026-09-29: "In dialogs esc should be able to exit like E")? */
+  escapable(): boolean {
+    return list.some((d) => isUp(d) && d.esc());
   },
   /** Is any dialog up now? */
   any(): boolean {

@@ -374,7 +374,7 @@ function handLantern(): THREE.Group {
   const L = lanternParts;
   const grp = new THREE.Group();
   const halo = new THREE.Sprite(L.halo);
-  halo.scale.set(0.9, 0.9, 1);
+  halo.scale.set(0.45, 0.45, 1); // (2026-09-30: about the lantern's own size, not a big circle)
   halo.position.y = -0.08;
   grp.add(new THREE.Mesh(L.glass, L.lit), new THREE.Mesh(L.cap, L.iron), halo);
   return grp;

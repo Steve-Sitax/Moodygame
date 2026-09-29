@@ -55,6 +55,8 @@ export interface ClimbLadder {
   bottom: number;
   top: number;
   done?: (at: "top" | "foot") => void;
+  /** At the top: may he step off now (a working crane's gallery has swung round behind the ladder head)? */
+  canStepOff?: () => boolean;
 }
 
 /** Where a carried player stands (feet), the way the carriage points, and how fast it goes (m/s). */
@@ -123,6 +125,12 @@ export class FirstPerson {
   private eye = EYE;
   onStep: (surface: Surface, hurry: boolean) => void = () => {};
   onLand?: (surface: Surface) => void;
+  /** A fall of 3 m or more ended (metres, into water or not): the engine judges the harm (game/deeds.ts). */
+  onFall?: (height: number, water: boolean) => void;
+  /** The highest point since he left the ground (a fall's height is measured from it). */
+  private fallTop = -Infinity;
+  /** Space on the ground, before the jump: true when it was used (a jump down into a boat: game/rowing.ts). */
+  onJump?: () => boolean;
   /** In the Schelde. */
   swimming = false;
   /** Climbing out up a ladder or onto a landing (no control meanwhile). */
@@ -261,14 +269,28 @@ export class FirstPerson {
     const speed = (hurry ? HURRY : WALK) * this.speedFactor * this.fatigue * (this.crouching ? 0.5 : 1);
 
     // Tap to jump, keep holding to try a reachable ledge. Each jump starts only once per press.
+    // 2026-09-29 (Steve: "jump over railings, ledges ... Keeping space pressed or double press at moment of +- highest
+    // point"): in the air, a fresh press tries at once; held, every few frames. From the air the lift is quicker.
     const space=k("Space"),pressed=space&&!this.jumpHeld;this.jumpHeld=space;
     if(this.grounded)this.jumpBase=this.y;
     this.mantleWait=Math.max(0,this.mantleWait-dt);
-    if(space&&!this.laden&&!this.cartStep&&!this.crouching&&this.mantleWait===0) {
-      this.mantleWait=.18;
+    if(space&&!this.laden&&!this.cartStep&&!this.crouching&&(this.mantleWait===0||(pressed&&!this.grounded))) {
+      this.mantleWait=.12;
       const route=this.world.mantle(this.x,this.y,this.z,-Math.sin(this.yaw),-Math.cos(this.yaw),this.jumpBase);
-      if(route){this.climbTo(route.map((p,i)=>[p.x,p.y,p.z,i===0?.35:i===1?.45:.28]),()=>{this.grounded=true;this.vy=0;this.mantleWait=.25;this.onLand?.(this.world.surfaceAt(this.x,this.z));});return;}
+      if(route){
+        const air=!this.grounded,wet=!!route.at(-1)?.water||!!route.at(-1)?.fall;
+        const keys=(wet?route.slice(0,-1):route).map((p,i):[number,number,number,number]=>[p.x,p.y,p.z,i===0?(air?.2:.35):i===1?(air?.35:.45):.28]);
+        this.climbTo(keys,()=>{
+          this.vy=0;this.mantleWait=.25;
+          // over a railing into the water or off a height: he drops from the top of the vault (the fall starts the
+          // swim, or ends on the ground below and may hurt)
+          if(wet){this.grounded=false;this.fallTop=this.y;return;}
+          this.grounded=true;this.onLand?.(this.world.surfaceAt(this.x,this.z));
+        });
+        return;
+      }
     }
+    if (pressed && this.grounded && !this.laden && !this.cartStep && !this.crouching && this.onJump?.()) return;
     if (pressed && this.grounded && !this.laden && !this.cartStep && !this.crouching) {
       this.vy = JUMP_V;
       this.grounded = false;
@@ -303,19 +325,30 @@ export class FirstPerson {
     // walked off an edge (down steps and slopes you stay on your feet)
     if (this.grounded && ground < this.y - 0.12) this.grounded = false;
     if (!this.grounded) {
+      this.fallTop = Math.max(this.fallTop, this.y);
       this.vy -= GRAVITY * dt;
       this.y += this.vy * dt;
       if (this.y <= this.world.waterLevel(this.x, this.z) && this.world.swimmable(this.x, this.z)) {
+        const h = this.fallTop - this.y;
+        this.fallTop = -Infinity;
+        if (h >= 3) this.onFall?.(h, true);
         this.enterWater();
         return;
       }
       if (this.y <= ground) {
+        const h = this.fallTop - ground;
+        this.fallTop = -Infinity;
         this.y = ground;
         this.vy = 0;
         this.grounded = true;
         this.onLand?.(this.world.surfaceAt(this.x, this.z));
+        // 2026-09-29 (Steve: "if we jump off things higher than 3m, we get fall damage"): the engine judges it
+        if (h >= 3) this.onFall?.(h, false);
       }
-    } else this.y = ground; // step up onto low things
+    } else {
+      this.y = ground; // step up onto low things
+      this.fallTop = this.y;
+    }
     // M6 tides: down a flight of steps into deep water (or the tide came up round you): swim
     if (this.grounded && this.y < this.world.waterLevel(this.x, this.z) - WADE && this.world.swimmable(this.x, this.z)) {
       this.enterWater();
@@ -534,6 +567,14 @@ export class FirstPerson {
     this.climbLadderRung = this.y;
   }
 
+  /** Carried where he stands (a working crane's gallery turning under him): to (x, z), turned by dYaw. */
+  carryTo(x: number, z: number, dYaw: number): void {
+    this.x = x;
+    this.z = z;
+    this.yaw += dYaw;
+    this.lookYaw += dYaw;
+  }
+
   /** A key held now (the ladder: push into it to start climbing). */
   pressing(code: string): boolean {
     return (this.locked || this.freeInput || this.testInput) && !this.frozen && this.keys.has(code);
@@ -550,7 +591,10 @@ export class FirstPerson {
       this.climbLadderRung = this.y;
       this.onStep("wood", false);
     }
-    if (this.y >= l.top - 1.0) {
+    if (this.y >= l.top - 1.0 && l.canStepOff && !l.canStepOff()) {
+      // (2026-09-30) the crane works on: its gallery is swung away from the ladder head; he waits on the top rungs
+      this.y = l.top - 1.0;
+    } else if (this.y >= l.top - 1.0) {
       // over the edge and onto the deck
       this.climbLadder = null;
       this.x = l.head.x;
@@ -1213,6 +1257,7 @@ export class FirstPerson {
     this.y = this.world.baseAt(x, z);
     this.vy = 0;
     this.grounded = true;
+    this.fallTop = -Infinity; // put here, not fallen here
     this.swimming = false;
     this.climb = null;
     this.yaw = this.lookYaw = yaw;

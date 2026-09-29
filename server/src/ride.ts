@@ -163,6 +163,31 @@ export function board(db: DB, stop: RideStop, line: RideLine): { fare_c: number;
   return { fare_c: RIDE_FARE_C, change: false, text: `You pay the conductor ${RIDE_FARE_C} c and step up onto the back platform.` };
 }
 
+/**
+ * (2026-09-30, Steve: "jump on the omnibus while it is moving ... Get a dialog to pay, if we don't pay he curses and
+ * kicks us off") Jef jumped onto a rolling omnibus of this line and the conductor came for the fare: he pays it here
+ * (or his ticket's free change covers it). Refusing needs no call: he was never on the conductor's list.
+ */
+export function hopOn(db: DB, line: RideLine): { fare_c: number; change: boolean; text: string } {
+  if (riding(db)) throw new GameError("you are on the omnibus already", 409);
+  const from = RIDE_LINES[line][0] as RideStop;
+  const t = ticket(db);
+  const now = gameMinutes(db);
+  if (t && !t.on && t.line !== line && t.changes < RIDE_CHANGES) {
+    write(db, { since: t.since, line, from, on: true, changes: t.changes + 1 });
+    log(db, "changed_omnibus", from, `Jef jumped onto ${LINE_NAMES[line]} on the way and showed his ticket for a change.`);
+    return { fare_c: 0, change: true, text: "The conductor looks at your ticket and punches it: a change, nothing to pay." };
+  }
+  const p = player(db);
+  if (p.money_c < RIDE_FARE_C) throw new GameError(`not enough money: the fare is ${RIDE_FARE_C} c`, 409);
+  db.transaction(() => {
+    db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = ?").run(RIDE_FARE_C, pid());
+    write(db, { since: now, line, from, on: true, changes: 0 });
+    log(db, "rode_omnibus", from, `Jef jumped onto ${LINE_NAMES[line]} on the way and paid ${RIDE_FARE_C} centimes.`);
+  })();
+  return { fare_c: RIDE_FARE_C, change: false, text: `You count ${RIDE_FARE_C} c into the conductor's hand. He grunts and punches a ticket.` };
+}
+
 /** Get off (at a stop, or put off). Always allowed; the ticket stays good for one change. */
 export function alight(db: DB): { text: string } {
   const t = read(db);

@@ -228,6 +228,17 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
 // ------------------------------------------------------------------ keys
 
 let keyHandler: ((e: KeyboardEvent, typing: boolean) => boolean | void) | null = null;
+/** Keys sent by the game itself while paused (the Esc that let the mouse go, sent on to a dialog): they pass. */
+let passing = false;
+/** Send keys to the game's own listeners although it is paused (`f` dispatches them at once). */
+export function passKeys(f: () => void): void {
+  passing = true;
+  try {
+    f();
+  } finally {
+    passing = false;
+  }
+}
 /**
  * While paused the keys go only here (main.ts: the menu, the pause card, the save panel); the game's own wait.
  * The handler returns true when it went back into the game and the key is for the game too (a dialog's digit
@@ -240,7 +251,7 @@ export function onPausedKey(f: (e: KeyboardEvent, typing: boolean) => boolean | 
 window.addEventListener(
   "keydown",
   (e) => {
-    if (reasons.size === 0) return;
+    if (reasons.size === 0 || passing) return;
     const t = e.target as HTMLElement | null;
     const typing = !!t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT");
     let goOn = false;

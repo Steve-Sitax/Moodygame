@@ -48,7 +48,7 @@ export class Day {
     this.sheet.style.display = "none";
     document.body.appendChild(this.sheet);
     window.addEventListener("keydown", (e) => this.onKey(e), true);
-    dialogs.register("day sheet", () => this.sheetOpen); // focus fix: the pause knows it is up (game/dialogs.ts)
+    dialogs.register("day sheet", () => this.sheetOpen, { esc: () => this.shown === "night" }); // focus fix: the pause knows it is up (game/dialogs.ts)
     this.rest = new Sleep(
       {
         restTick: () => this.restTick(),
@@ -334,7 +334,7 @@ export class Day {
     const title = n.collapsed ? "Dropped asleep" : "Asleep";
     this.sheet.innerHTML = `<h2>${title}</h2><p class="sub">${esc(where)}</p>
       ${n.summary.map((l) => `<p>${esc(l)}</p>`).join("")}
-      <p class="keys">${n.ended ? "E  go on" : "E  get up"}</p>`;
+      <p class="keys">${n.ended ? "E or Esc  go on" : "E or Esc  get up"}</p>`;
   }
 
   private showEnd(e: Ending): void {
@@ -411,7 +411,7 @@ export class Day {
     if (this.shown === "none") return;
     e.stopPropagation(); // while a sheet is up, keys belong to it
     if (e.repeat) return;
-    if (this.shown === "night" && (e.code === "KeyE" || e.code === "Enter")) this.wake();
+    if (this.shown === "night" && (e.code === "KeyE" || e.code === "Enter" || e.code === "Escape")) this.wake();
     else if (this.shown === "end" && e.code === "KeyN" && this.payload?.ending?.epilogue) {
       const end = this.payload.ending;
       if (identity.together && end.kind === "health") void this.newMan();

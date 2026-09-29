@@ -1,7 +1,7 @@
 // menus: the key bindings and the menu's keys, before every other key listener (menu/keys.ts)
 import "./menu/keys";
 // M7 save and pause: first of all, so the pause clock is in place before any other part runs (game/pause.ts)
-import { onPausedKey, pause, real } from "./game/pause";
+import { onPausedKey, passKeys, pause, real } from "./game/pause";
 import { drawAudit, pixelDiff, prof, profTable, pt, quantiles } from "./dev/frameProf";
 import { uniformCache } from "./retro/uniformCache";
 import { matrixSkip } from "./retro/matrixSkip";
@@ -13,7 +13,7 @@ import { bootMark, bootNote, bootProbe } from "./boot/probe";
 // boot: the loading screen (boot/loader.ts): counts the files from here on, holds keys and clicks until the menu is up
 import { booting, finishBoot, runBoot } from "./boot/loader";
 import { dialogs } from "./game/dialogs";
-import { InkCursor } from "./game/cursor";
+import { InkCursor, sendKey } from "./game/cursor";
 import * as THREE from "three";
 import "./style.css";
 // menus: the game's own fonts; the town's canvases are painted after they are in (menu/fonts.ts)
@@ -28,6 +28,7 @@ import { DEMO } from "./demo/demo";
 import { setAmbientViewHeight } from "./world/ambient";
 import { setFireViewHeight } from "./world/fire";
 import { setWallTown } from "./world/wallLife";
+import { createBlobs, type BlobSpot } from "./world/blobs";
 import { rampartStairAt } from "./world/rampart";
 import { puddleAt } from "./world/puddlemask";
 import { setMirrorScale } from "./world/mirror";
@@ -446,6 +447,29 @@ jobs.extraActions.push((x, z) => townLife.keys(x, z));
 townLife.load().catch((e) => console.warn("town life did not load", e));
 // M6 handcart: Jef's own cart (bought, hired, taken), loads by size and weight (game/handcart.ts); first in the key list: holding the shafts, only its keys
 const handcarts = new Handcarts(world, player, jobs, deeds, journeys, homes);
+// 2026-09-29 (Steve: "Lighting during day is flat"): a soft dark patch on the ground under the walkers, Jef, the
+// handcarts and the drays near the eye (world/blobs.ts; the sky's light kept off the stones under them)
+const blobs = createBlobs(world.scene);
+const blobSpots: BlobSpot[] = [];
+function updateBlobs(): void {
+  let n = 0;
+  const put = (x: number, y: number, z: number, r: number) => {
+    const s = blobSpots[n] ?? (blobSpots[n] = { x: 0, y: 0, z: 0, r: 0 });
+    s.x = x;
+    s.y = y;
+    s.z = z;
+    s.r = r;
+    n++;
+  };
+  for (const f of crowd.feet()) put(f.x, f.y, f.z, 0.4);
+  if (!player.swimming && !player.rowing && !player.climbing && !player.climbLadder) put(player.x, world.groundAt(player.x, player.z, 0.3, player.y), player.z, 0.4);
+  for (const q of handcarts.points()) put(q.x, world.groundAt(q.x, q.z, 0.3, player.y), q.z, 0.85);
+  for (const q of world.railway()?.vehicles() ?? []) put(q.x, world.groundAt(q.x, q.z, 0.3, 0.5), q.z, 1.7);
+  for (const q of world.omnibus()?.vehicles() ?? []) put(q.x, world.groundAt(q.x, q.z, 0.3, 0.5), q.z, 1.7);
+  blobSpots.length = n;
+  const h = jobs.day.hourF;
+  blobs.update(blobSpots, player.camera.position, h > 8 && h < 17 ? 1 : h > 6.5 && h < 18.5 ? 0.5 : 0);
+}
 jobs.extraActions.unshift((x, z) => handcarts.keys(x, z));
 handcarts.say = (t) => jobs.say(t);
 handcarts.sfx = (name, at) => sound?.play(name, at);
@@ -917,6 +941,9 @@ document.addEventListener("pointerlockchange", () => {
     syncPause();
     return;
   }
+  // Steve 2026-09-29 ("esc to exit instead of only map key"): the browser keeps the Esc that lets the mouse
+  // go; with a dialog up that Esc closes (the map, a talk, the book), it is sent on to the dialog below
+  const escDialog = dialogs.escapable();
   // at once: nothing moves from the moment the mouse is let go
   syncPause();
   // P: the card is up, not the menu
@@ -927,6 +954,13 @@ document.addEventListener("pointerlockchange", () => {
   real.setTimeout(() => {
     if (hasInput() || pause.has("key")) return;
     const away = !document.hasFocus() || real.now() - lostFocusAt < 600;
+    if (!away && escDialog) {
+      // Esc closed the dialog: the quiet pause, a click or W goes on (the browser gives the mouse back only then)
+      if (dialogs.escapable()) passKeys(() => sendKey("Escape"));
+      quietPause = true;
+      showMenu(false);
+      return;
+    }
     quietPause = away;
     showMenu(!away);
   }, 150);
@@ -1123,6 +1157,7 @@ function tick(dt: number): void {
   safe("refreshFolk", refreshFolk);
   safe("together.worldFrame", () => together.worldFrame(dt)); // M8b: the moving world run here or shown from the world PC
   safe("world.update", () => world.update(elapsed, dt, player.camera));
+  safe("craneClimb.ride", () => craneClimb.ride()); // up on a working crane: carried before his own step
   safe("ferry.update", () => ferry.update(dt));
   safe("player.update", () => player.update(dt));
   safe("together.frame", () => together.frame(dt)); // M8a: own state out, the others drawn
@@ -1144,6 +1179,7 @@ function tick(dt: number): void {
   safe("boxes.update", () => boxes.update(elapsed));
   safe("night.update", () => night.update(dt));
   safe("craneClimb.update", () => craneClimb.update(dt));
+  safe("blobs", () => updateBlobs());
   safe("crowd.setHour", () => crowd.setHour(jobs.day.hour));
   safe("together.streetApply", () => together.streetApply(dt)); // M8b: the townspeople other PCs walk
   safe("crowd.update", () => crowd.update(dt, player, player.camera));
@@ -2074,8 +2110,10 @@ if (import.meta.env.DEV) {
         safe("step: together.worldFrame", () => together.worldFrame(dt)); // M8b
         // (with the camera, as a frame does: the railway, its cranes and the train only run with one; D1 docks tests)
         safe("step: world.update", () => world.update(elapsed, dt, player.camera));
+        safe("step: craneClimb.ride", () => craneClimb.ride());
         safe("step: ferry.update", () => ferry.update(dt));
         safe("step: player.update", () => player.update(dt));
+        safe("step: craneClimb.update", () => craneClimb.update(dt)); // (the ladders move with the cranes in a test run too)
         safe("step: together.frame", () => together.frame(dt)); // M8a
         safe("step: handcarts.update", () => handcarts.update(dt));
         safe("step: interiors.update", () => interiors.update(dt));

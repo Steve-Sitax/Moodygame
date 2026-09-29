@@ -39,7 +39,7 @@ function press(code: string, key: string, up = true): void {
 }
 
 /** Leave the window as the browser does it: the mouse lock goes, the window loses focus. */
-async function leave(how: How): Promise<void> {
+async function leave(how: How, esc = false): Promise<void> {
   const s = S();
   s.player.freeInput = false; // as in play: the game has the mouse lock, not the dev's free input
   if (how === "pkey") {
@@ -52,7 +52,9 @@ async function leave(how: How): Promise<void> {
   if (away) window.dispatchEvent(new Event("blur"));
   document.dispatchEvent(new Event("pointerlockchange"));
   await wait(350); // main.ts looks again after 150 ms
-  if (how === "menu") press("Escape", "Escape"); // the menu is up (Esc with the window in focus): Esc closes it
+  // the menu is up (Esc with the window in focus): Esc closes it. 2026-09-29: with a dialog up that Esc closes, the Esc
+  // that let the mouse go closed the dialog instead, and no menu came (main.ts)
+  if (how === "menu" && !esc) press("Escape", "Escape");
   await wait(100);
 }
 
@@ -79,9 +81,17 @@ async function cycle(dialog: string, how: How, open: () => Promise<unknown> | un
       return r;
     }
     if (before) await before();
-    await leave(how);
+    const esc = how === "menu" && dialogs.escapable();
+    await leave(how, esc);
     r.pausedWhileAway = S().pause.paused;
     r.upWhileAway = isUp();
+    if (esc) {
+      // Esc closed the dialog: the quiet pause, no menu
+      const menu = !document.querySelector("#start")?.classList.contains("hidden");
+      r.ok = r.pausedWhileAway && !r.upWhileAway && !menu;
+      r.note = `Esc closed it${menu ? ", but the menu came up" : ""}`;
+      return r;
+    }
     await comeBack(how);
     press(key[0], key[1]);
     r.playsAfter = !S().pause.paused;

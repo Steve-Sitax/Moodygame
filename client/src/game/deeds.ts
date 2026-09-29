@@ -112,6 +112,13 @@ async function net<T>(method: string, url: string, body?: unknown): Promise<T> {
 }
 
 const WITNESS_R = 45;
+/** Is (x, z) behind someone facing `yaw` (forward sin, cos), well out of the way they look? */
+function behind(r: { x: number; z: number; yaw: number }, x: number, z: number): boolean {
+  const dx = x - r.x;
+  const dz = z - r.z;
+  const d = Math.hypot(dx, dz);
+  return d > 1e-3 && (dx * Math.sin(r.yaw) + dz * Math.cos(r.yaw)) / d < -0.25;
+}
 /** M9: how close he walks up to pick a pocket (m; the server allows a little more). */
 const PICK_REACH = 1.5;
 const BIKE_SAY: Record<BikeEvent, string> = {
@@ -195,6 +202,8 @@ export class Deeds {
     this.velos = new Velocipedes(world, player);
     this.lantern = new HandLantern(world.scene, player);
     player.onBikeEvent = (e) => this.bikeEvent(e);
+    // 2026-09-29 (Steve: "if we jump off things higher than 3m, we get fall damage"): the engine judges the harm
+    player.onFall = (height, water) => void this.fallen(height, water);
     jobs.extraActions.push((x, z) => this.actions(x, z));
     // every new payload: is there a lantern in the pockets?
     const apply = jobs.pockets.apply.bind(jobs.pockets);
@@ -299,13 +308,27 @@ export class Deeds {
     // M9: walk (not run) up to someone in the street: G picks their pocket (the one Jef looks at)
     else if (!this.player.hurrying && !this.jobs.talk.isOpen) {
       const mark = pick(
-        this.town.inStreet(x, z, PICK_REACH).filter((r) => !this.pursuers.has(r.id)),
+        // 2026-09-29 (Steve: "Pickpocket option only comes if you look at the backs of people"): only from behind,
+        // Jef more than about 105 degrees off the way they face
+        this.town.inStreet(x, z, PICK_REACH).filter((r) => !this.pursuers.has(r.id) && behind(r, x, z)),
         (r) => ({ d: Math.hypot(r.x - x, r.z - z), at: { x: r.x, y: this.world.groundAt(r.x, r.z, 0.1, this.player.y) + 1.0, z: r.z } }),
       );
       const who = mark ? this.town.info(mark.it.id) : null;
       if (mark && who) extra.push({ key: "KeyG", text: `pick ${who.first}'s pocket`, run: () => void this.pickPocket(mark.it.id), at: mark.at });
     }
     return { options, extra };
+  }
+
+  /** A fall of 3 m or more: a thud, and the engine's harm (none in water: server/src/player/fall.ts). */
+  private async fallen(height: number, water: boolean): Promise<void> {
+    if (!water) this.jobs.sfx?.("thud_soft", new THREE.Vector3(this.player.x, this.player.y + 0.2, this.player.z));
+    try {
+      const r = await net<JobsPayload & { hurt: number; text: string | null }>("POST", "/api/fall", { height: +height.toFixed(2), water });
+      if (r.hurt || r.text) this.jobs.refresh(r);
+      if (r.text) this.jobs.say(r.text);
+    } catch {
+      /* no server (the web demo): no harm */
+    }
   }
 
   // ------------------------------------------------------------------ M9: picking a pocket
@@ -1023,14 +1046,14 @@ export class Deeds {
     this.player.frozen = true;
     this.sheet.innerHTML = `<h2>Night</h2><p class="sub">${esc(r.night.post.label[0].toUpperCase() + r.night.post.label.slice(1))}</p>
       ${r.night.summary.map((l) => `<p>${esc(l)}</p>`).join("")}
-      <p class="keys">E  out into the morning</p>`;
+      <p class="keys">E or Esc  out into the morning</p>`;
     this.sheet.style.display = "block";
   }
 
   private onSheetKey(e: KeyboardEvent): void {
     if (!this.cell) return;
     e.stopPropagation();
-    if (e.repeat || (e.code !== "KeyE" && e.code !== "Enter")) return;
+    if (e.repeat || (e.code !== "KeyE" && e.code !== "Enter" && e.code !== "Escape")) return;
     const post = this.cell.post;
     const lost = this.cell.summary.some((l) => l.startsWith("Your job is lost"));
     this.cell = null;
