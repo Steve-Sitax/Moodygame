@@ -75,6 +75,11 @@ export interface HallSunSpec {
   walls?: Array<{ a: [number, number]; b: [number, number]; y0: number; y1: number; n: [number, number]; off?: number }>;
   /** only these rects are lit (the floors); else the whole box */
   floors?: Array<{ minX: number; maxX: number; minZ: number; maxZ: number }>;
+  /**
+   * Issue #28: floors of any shape besides (a chapel's five sides, an ambulatory's half ring): (x, z) outlines in order,
+   * each lit in its own frame along its first edge, all in one picture and one mesh (one draw). They may lie outside `floor`.
+   */
+  polys?: Array<Array<[number, number]>>;
   /** the floor light's y (over the floor's own top) */
   y?: number;
   /** strength of the sun's patches and the shafts at a clear noon */
@@ -87,7 +92,7 @@ export interface HallSun {
   /** day 0..1, sky (weather 0.5..1), the room's ambient knob */
   set(day: number, sky: number): void;
   /** Dev: how much floor is lit, the windows that let the sun in, the build's ms. */
-  info(): { litTexels: number; wallTexels: number; texels: number; sunWindows: number; shafts: number; ms: number };
+  info(): { litTexels: number; wallTexels: number; texels: number; polyLit: number; polyTexels: number; sunWindows: number; shafts: number; ms: number };
 }
 
 /**
@@ -341,6 +346,92 @@ export function buildHallSun(frame: THREE.Group, spec: HallSunSpec): HallSun {
   floorMesh.name = "hall_sun_floor";
   group.add(floorMesh);
 
+  // ---- floors of other shapes (issue #28): each traced in a rectangle along its first edge, packed one over the other
+  // in one picture (a texel of dark between), drawn as its own outline (no light past its walls)
+  let polyLit = 0;
+  let polyTexels = 0;
+  if (spec.polys?.length) {
+    type Part = { pts: Array<[number, number]>; ox: number; oz: number; ax: number; az: number; u0: number; v0: number; w: number; h: number; row: number };
+    const parts: Part[] = [];
+    let rows = 0;
+    let PW = 2;
+    for (const pts of spec.polys) {
+      if (pts.length < 3) continue;
+      const [ax0, az0] = [pts[1][0] - pts[0][0], pts[1][1] - pts[0][1]];
+      const al = Math.hypot(ax0, az0) || 1;
+      const ax = ax0 / al;
+      const az = az0 / al;
+      const [ox, oz] = pts[0];
+      // (u along the first edge, v across it)
+      const uvOf = ([x, z]: [number, number]): [number, number] => [(x - ox) * ax + (z - oz) * az, -(x - ox) * az + (z - oz) * ax];
+      const q = pts.map(uvOf);
+      const u0 = Math.min(...q.map((p) => p[0]));
+      const v0 = Math.min(...q.map((p) => p[1]));
+      const w = Math.max(2, Math.ceil((Math.max(...q.map((p) => p[0])) - u0) * res));
+      const h = Math.max(2, Math.ceil((Math.max(...q.map((p) => p[1])) - v0) * res));
+      parts.push({ pts, ox, oz, ax, az, u0, v0, w, h, row: rows });
+      rows += h + 1;
+      PW = Math.max(PW, w);
+    }
+    const PH = Math.max(2, rows);
+    const pd = new Uint8Array(PW * PH * 4);
+    const inside = (pts: Array<[number, number]>, x: number, z: number) => {
+      let c = false;
+      for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+        const [xi, zi] = pts[i];
+        const [xj, zj] = pts[j];
+        if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) c = !c;
+      }
+      return c;
+    };
+    const world = (p: Part, u: number, v: number): [number, number] => [p.ox + u * p.ax - v * p.az, p.oz + u * p.az + v * p.ax];
+    for (const p of parts)
+      for (let j = 0; j < p.h; j++)
+        for (let i = 0; i < p.w; i++) {
+          const [x, z] = world(p, p.u0 + (i + 0.5) / res, p.v0 + (j + 0.5) / res);
+          if (!inside(p.pts, x, z)) continue;
+          polyTexels++;
+          if (!trace(x, 0, z)) continue;
+          polyLit++;
+          const k = ((p.row + j) * PW + i) * 4;
+          pd[k] = Math.min(255, col[0] * 180);
+          pd[k + 1] = Math.min(255, col[1] * 180);
+          pd[k + 2] = Math.min(255, col[2] * 180);
+        }
+    if (polyLit) {
+      const pm = lightMaterial(soften(pd, PW, PH));
+      lightMats.push({ m: pm, k: 1 });
+      const pos: number[] = [];
+      const uvs: number[] = [];
+      for (const p of parts) {
+        // (the outline's own triangles, each vertex at its place in the part's rectangle of the picture)
+        const tris = THREE.ShapeUtils.triangulateShape(p.pts.map(([x, z]) => new THREE.Vector2(x, z)), []);
+        for (const t0 of tris) {
+          // (facing up: (b - a) x (c - a) has y > 0 when the triangle turns clockwise in x, z)
+          const [a, b, c] = t0.map((i) => p.pts[i]);
+          const t = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]) > 0 ? [t0[0], t0[2], t0[1]] : t0;
+          for (const vi of t) {
+            const [x, z] = p.pts[vi];
+            const u = (x - p.ox) * p.ax + (z - p.oz) * p.az - p.u0;
+            const v = -(x - p.ox) * p.az + (z - p.oz) * p.ax - p.v0;
+            pos.push(x, spec.y ?? 0.012, z);
+            // (DataTexture rows run from v 0: row r at v (r + 0.5) / PH)
+            uvs.push((u * res) / PW, (p.row + v * res) / PH);
+          }
+        }
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+      g.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+      g.computeVertexNormals();
+      g.computeBoundingSphere();
+      const pmesh = new THREE.Mesh(g, pm);
+      pmesh.renderOrder = 1;
+      pmesh.name = "hall_sun_floor_shapes";
+      group.add(pmesh);
+    }
+  }
+
   // ---- the walls the sun falls on across the hall (the arcade's wall over its arches, lit through the clerestory)
   let wallLit = 0;
   for (const wr of spec.walls ?? []) {
@@ -443,7 +534,7 @@ export function buildHallSun(frame: THREE.Group, spec: HallSunSpec): HallSun {
   const MOON = new THREE.Color(0.42, 0.55, 0.85);
   const moonC = new THREE.Color();
   const ms = performance.now() - t0;
-  const info = () => ({ litTexels: lit, wallTexels: wallLit, texels: W * H, sunWindows: sunWins.length, shafts: beams.length / 2, ms: Math.round(ms) });
+  const info = () => ({ litTexels: lit, wallTexels: wallLit, texels: W * H, polyLit, polyTexels, sunWindows: sunWins.length, shafts: beams.length / 2, ms: Math.round(ms) });
   // (dev: the halls' checks find it in the room's scene)
   group.userData.sunInfo = info;
   return {

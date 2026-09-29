@@ -128,6 +128,9 @@ const chairBackTex = () =>
   );
 
 let mats: ReturnType<typeof makeMats> | null = null;
+/** Issue #28: the hall's materials, shared by the rooms over it (world/cathedralUpper.ts): no material more. */
+export type CathedralMats = ReturnType<typeof makeMats>;
+export const cathedralMats = (): CathedralMats => (mats ??= makeMats());
 function makeMats() {
   const p = (pics ??= makePics());
   const paint = (key: string, file: string, flip = false): MatDef => {
@@ -1660,6 +1663,15 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
       // (issue #26: the choir's third aisles)
       { minX: A3, maxX: OUT, minZ: CROSS1 + 0.6, maxZ: CHOIR_E },
       { minX: -OUT, maxX: -A3, minZ: CROSS1 + 0.6, maxZ: CHOIR_E },
+    ],
+    // (issue #28: the five chapels' floors and the ambulatory's half ring round the apse, not boxes along the axes)
+    polys: [
+      ...P.CHAPEL_ANGLES.map((ca) => P.CHAPEL_FLOOR.map(([r, sv]) => P.chapelXZ(ca, r, sv))),
+      Array.from({ length: 11 }, (_, i): [number, number] => {
+        const a = -Math.PI / 2 + (Math.PI * i) / 10;
+        const r = P.AMB_IN / Math.cos(Math.PI / 20);
+        return [Math.sin(a) * r, AC + Math.cos(a) * r];
+      }),
     ],
     windows: sunWins,
     piers,
