@@ -3,10 +3,20 @@ import * as P from "../../../shared/cathedralPlan";
 import { pointedAt } from "../../../shared/gothicPlan";
 import { canvasTex, flicker, frameRoom, rand, type Seat } from "./rooms";
 import { glowTexture } from "./textures";
-import { Flames, glass, Kit, lmBasic, lmMat, marble, matOf, pointedProfile, type MatDef, type PieceOpts } from "./landmarkKit";
+import { Flames, glass, Kit, lmBasic, lmMat, marble, pointedProfile, type MatDef, type PieceOpts } from "./landmarkKit";
 import { buildHallSun, type SunWindow } from "./hallSun";
 import { walkGraph, type LandmarkRoom, type Lookable, type Mark } from "./landmarkRooms";
 import { planarUV } from "./carolusHall";
+import { SHELL_OPENINGS } from "../../../shared/cathedralShell";
+import { inFrame, type ShellFace, type ShellOpening } from "../../../shared/shellOpening";
+import { lining } from "./realOpenings";
+import { roomGlassFrom, whenShellGlass } from "./shellGlass";
+
+/**
+ * Issue #10 (interiors are real): the shell's real openings (the windows over the hall and the west door), in the hall's
+ * frame. The hall's walls are lined from the shell's reveals in, cut exactly there; its glass is the shell's old pane.
+ */
+export const WINDOWS: ShellOpening[] = inFrame(SHELL_OPENINGS, P.ORIGIN, 0);
 
 // Onze-Lieve-Vrouwekathedraal inside, as it stood in 1873 (M7 cathedral interior pass, 2026-09-26; the plan in
 // shared/cathedralPlan.ts, set in the world by world/cathedralInWorld.ts). The Brabant Gothic "stone forest": the
@@ -373,42 +383,87 @@ function groin(k: Kit, def: MatDef, rib: MatDef, x0: number, x1: number, z0: num
 }
 
 /**
- * A pointed lancet on a wall's face: the glass (`glassDef`, its picture over the whole opening), the stone frame
- * standing out of the wall round it, the sill, mullions for `lights` > 1. At (x, z) on the face, facing the room (ry).
+ * Issue #10: the hall's side of the shell's windows' glass. The shell's old painted pane (world/shellGlass.ts) is the
+ * glass seen from the street (facing out, see-through); facing in, the same outlines carry the hall's own glass as its
+ * old lancets had it: stained glass (cath_glass.jpg) in most, clear leaded grisaille in two of three clerestory windows,
+ * the transept's high lancets, the outer aisles' west windows (the square behind them) and four of the lantern's, so
+ * the windows glow inside by day and the sky shows through the clear ones. One-sided each: from either side one pane shows, the other side comes through it a little.
+ * At night the hall's lamplight in the leaded panes, seen from the street (a third mesh, facing out, added over the
+ * shell's pane in the hall's own pass: the street's glow of world/landmarkWindows.ts lies under the hall's pass there).
+ * World coordinates (the room's scene). Returns the stained glass, the clear glass and the night's glow.
  */
-function lancet(k: Kit, stone: MatDef, glassDef: MatDef, x: number, z: number, ry: number, w: number, y0: number, y1: number, lights = 1, lead?: MatDef): void {
-  const half = w / 2;
-  const rise = Math.min(0.742 * w, (y1 - y0) * 0.45);
-  const ys = y1 - rise;
-  const outline = (e: number): Array<[number, number]> => {
-    const pts: Array<[number, number]> = [[-half - e, y0 - e]];
-    pts.push([half + e, y0 - e]);
-    for (let i = 0; i <= 12; i++) {
-      const u = half - (w * i) / 12;
-      pts.push([u * (1 + e / half), ys + pointedAt(u, half, rise) + e]);
-    }
-    return pts;
+function hallGlassFrom(src: THREE.Mesh, stained: THREE.Texture, clear: THREE.Texture): THREE.Mesh[] {
+  const g = src.geometry.clone();
+  src.updateWorldMatrix(true, false);
+  g.applyMatrix4(src.matrixWorld);
+  const ng = g.index ? g.toNonIndexed() : g;
+  const pos = ng.getAttribute("position") as THREE.BufferAttribute;
+  const uv = ng.getAttribute("uv") as THREE.BufferAttribute;
+  // the atlas's cells (build_landmarks.py CELL, 512 x 1024; the glTF's v runs down): the great windows' and the lancets'
+  const cells: Array<[number, number, number, number]> = [
+    [256, 0, 128, 256],
+    [384, 0, 64, 128],
+  ];
+  const wins = SHELL_OPENINGS.filter((o) => o.kind === "window");
+  const isClear = (o: ShellOpening) => {
+    const bay = +(/bay (\d+)/.exec(o.label)?.[1] ?? 0);
+    if (/clerestory/.test(o.label)) return (bay - 1) % 3 !== 1;
+    if (/over the aisles, lancet|west gable/.test(o.label)) return true;
+    if (/lantern/.test(o.label)) return /lantern, the (north|south|east|west) face/.test(o.label);
+    return false;
   };
-  const f = new Fr(k, x, z, ry);
-  // the glass, a little in front of the wall
-  const s = new THREE.Shape(outline(0.02).map(([a, b]) => new THREE.Vector2(a, b)));
-  const g = new THREE.ShapeGeometry(s, 1);
-  const uvA = g.getAttribute("uv") as THREE.BufferAttribute;
-  for (let i = 0; i < uvA.count; i++) uvA.setXY(i, (uvA.getX(i) + half) / w, (uvA.getY(i) - y0) / (y1 - y0));
-  f.add(g, glassDef, 0, 0, 0.03, { flat: true });
-  // the frame: a ring 0.2 wide standing 0.24 out of the wall, the glass in its reveal
-  const fr = new THREE.Shape(outline(0.24).map(([a, b]) => new THREE.Vector2(a, b)));
-  fr.holes.push(new THREE.Path(outline(0).map(([a, b]) => new THREE.Vector2(a, b))));
-  const fg = new THREE.ExtrudeGeometry(fr, { depth: 0.24, bevelEnabled: false, curveSegments: 1 });
-  fg.computeVertexNormals();
-  planarUV(fg, 2.4);
-  f.add(fg, stone, 0, 0, 0, { flat: true, tint: 0.92 });
-  f.box(w + 0.6, 0.16, 0.36, 0, y0 - 0.26, 0.14, stone, { tint: 0.85 });
-  if (lead && lights > 1)
-    for (let i = 1; i < lights; i++) {
-      const u = -half + (w * i) / lights;
-      f.box(0.1, ys - y0 + 0.2, 0.12, u, (y0 + ys + 0.2) / 2, 0.08, lead, { flat: true });
+  const out: Array<{ pos: number[]; uv: number[] }> = [
+    { pos: [], uv: [] },
+    { pos: [], uv: [] },
+    { pos: [], uv: [] },
+  ];
+  const c = new THREE.Vector3();
+  for (let t = 0; t + 2 < pos.count; t += 3) {
+    let cu = 0;
+    c.set(0, 0, 0);
+    for (let j = 0; j < 3; j++) {
+      cu += uv.getX(t + j) / 3;
+      c.x += pos.getX(t + j) / 3;
+      c.z += pos.getZ(t + j) / 3;
     }
+    const [cx, cy, cw, ch] = cu < 0.75 ? cells[0] : cells[1];
+    let wi = 0;
+    let best = Infinity;
+    wins.forEach((o, i) => {
+      const dd = Math.hypot(o.x - c.x, o.z - c.z);
+      if (dd < best) [best, wi] = [dd, i];
+    });
+    const o = out[isClear(wins[wi]) ? 1 : 0];
+    // facing in: the triangle turned round; every other window its picture mirrored (not all the same glass)
+    for (const j of [0, 2, 1]) {
+      const x = (uv.getX(t + j) * 512 - cx - 0.5) / (cw - 1);
+      const y = 1 - (uv.getY(t + j) * 1024 - cy - 0.5) / (ch - 1);
+      o.pos.push(pos.getX(t + j), pos.getY(t + j), pos.getZ(t + j));
+      o.uv.push(wi % 2 ? 1 - x : x, y);
+    }
+    // the night's glow: facing out, 1 cm out of the pane
+    for (const j of [0, 1, 2]) {
+      out[2].pos.push(pos.getX(t + j) + wins[wi].nx * 0.01, pos.getY(t + j), pos.getZ(t + j) + wins[wi].nz * 0.01);
+      out[2].uv.push((uv.getX(t + j) * 512 - cx - 0.5) / (cw - 1), 1 - (uv.getY(t + j) * 1024 - cy - 0.5) / (ch - 1));
+    }
+  }
+  g.dispose();
+  if (ng !== g) ng.dispose();
+  return out.map((q, i) => {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(q.pos, 3));
+    geo.setAttribute("uv", new THREE.Float32BufferAttribute(q.uv, 2));
+    geo.computeBoundingSphere();
+    const name = ["cathedral_stained_glass", "cathedral_clear_glass", "cathedral_window_glow"][i];
+    const mat = new THREE.MeshBasicMaterial({ map: i ? clear : stained, color: i === 2 ? 0x000000 : 0x707070, transparent: true, opacity: [0.8, 0.6, 1][i], depthWrite: false, side: THREE.FrontSide });
+    if (i === 2) mat.blending = THREE.AdditiveBlending;
+    mat.name = name;
+    const m = new THREE.Mesh(geo, mat);
+    m.name = name;
+    m.userData.glass = true;
+    m.renderOrder = i === 2 ? 6 : 5;
+    return m;
+  });
 }
 
 // ---------------------------------------------------------------- the furniture
@@ -827,15 +882,18 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
   // the high altar's candles burn at mass only; the chandeliers at dusk
   const altarLit = new Flames(group, 8, 0.2);
   const chand = new Flames(group, 90, 0.18);
-  const glassG = { def: lmBasic("ct_glass_g", { map: glass("grisaille", 31), color: 0x707070, side: THREE.DoubleSide, fog: false }) };
-  const glassC = { def: lmBasic("ct_glass_c", { map: picture("/textures/cath_glass.jpg", { clamp: true }), color: 0x707070, side: THREE.DoubleSide, fog: false }) };
-  const glassC2 = { def: lmBasic("ct_glass_c2", { map: picture("/textures/cath_glass.jpg", { clamp: true, flip: true }), color: 0x707070, side: THREE.DoubleSide, fog: false }) };
+  // (issue #10: the windows' glass, when the shell is in (below): world/shellGlass.ts; see hallGlassFrom)
+  const glasses: { out: THREE.MeshBasicMaterial | null; in: THREE.MeshBasicMaterial[]; glow: THREE.MeshBasicMaterial | null } = { out: null, in: [], glow: null };
+  const { VAULT, WEST_BAY: WB, TE, PORTAL_ZONE: PZ } = P;
+  const HS = VAULT.spring;
+  const HV = VAULT.crown;
+  const FY = P.FLOOR_Y;
 
   // ================= floors: bluestone and grave slabs; the choir white and black marble
   const floor = (x0: number, x1: number, z0: number, z1: number) => k.box(x1 - x0, 0.1, z1 - z0, (x0 + x1) / 2, -0.05, (z0 + z1) / 2, m.floor, { tile: 3.2, flat: true });
   floor(-(A3 - 0.4), A3 - 0.4, W0, WO);
   floor(-OUT, OUT, WO, CROSS0);
-  floor(-TR, TR, CROSS0, CROSS1);
+  floor(-TE, TE, CROSS0, CROSS1);
   floor(-A3, A3, CROSS1, CHOIR_E + 0.6);
   floor(-P.AMB_IN, P.AMB_IN, CHOIR_E + 0.6, AC);
   floor(-D.hw - 0.7, D.hw + 0.7, D.z + 0.05, W0);
@@ -862,7 +920,20 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
 
   // ================= walls (each at least 0.2 m inside the shell's faces: shared/cathedralPlan.ts)
   const wall = (w: number, h: number, d: number, x: number, z: number, def: MatDef = WL, y0 = 0) => k.box(w, h, d, x, y0 + h / 2, z, def, { tile: 2.6 });
-  k.archWall(NAVE * 2, H, 0.8, D.hw * 2, DH, DH + 3.4, 0, 0, W0 - 0.4, WL, { tile: 2.6 });
+  /** A box from x0..x1, y0..y1, z0..z1 (the hall's frame). */
+  const slab = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, def: MatDef = WL) => k.box(x1 - x0, y1 - y0, z1 - z0, (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, def, { tile: 2.6 });
+  // (issue #10, interiors are real: every face of the shell over the hall with windows in it is lined from its reveals'
+  // back to the hall's inner face, cut exactly where the shell's windows are: world/realOpenings.ts lining. `face`: the
+  // shell's outer face (a to c along its windows' way, n out of it); y in the hall's frame)
+  const face = (a: [number, number], c: [number, number], n: [number, number]): ShellFace => ({ a, c, n });
+  const line = (f: ShellFace, from: number, to: number, u0: number, u1: number, y0: number, y1: number) =>
+    lining(k, WL, { face: f, from, to, u0, u1, y0: y0 + FY, y1: y1 + FY }, WINDOWS, FY, 2.6);
+  // the west front: the wall over the doorway up to the great west window, lined from there to the tall west bay's vault
+  const S = P.SHELL;
+  k.archWall(NAVE * 2, WB.wall + 0.1, 0.8, D.hw * 2, DH, DH + 3.4, 0, 0, W0 - 0.4, WL, { tile: 2.6 });
+  line(face([-S.westBay.half, S.portal.face], [S.westBay.half, S.portal.face], [0, -1]), 0.3, WB.z0 - S.portal.face, 0.25, 2 * S.westBay.half - 0.25, WB.wall, WB.top);
+  // (the ledge over the portal, from the west window's wall to the wall over the doorway)
+  slab(-(S.westBay.half - 0.05), S.westBay.half - 0.05, WB.wall, WB.wall + 0.1, WB.z0, W0 - 0.8, ST);
   archRim(k, ST, D.hw * 2, DH, DH + 3.4, 0.35, 0.95, 0, W0 - 0.4, 0);
   for (const s of [-1, 1]) wall(A3 - 0.4 - NAVE, AH, 0.8, (s * (NAVE + A3 - 0.4)) / 2, W0 - 0.4);
   for (const s of [-1, 1]) k.box(0.65, DH, W0 - 0.8 - D.z - 0.03, s * (D.hw + 0.325), DH / 2, (D.z + 0.03 + W0 - 0.8) / 2, m.stoneDark, { tile: 1.2 });
@@ -871,22 +942,93 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
   for (const s of [-1, 1]) {
     wall(0.4, AH, WO - 0.8 - W0, s * (A3 - 0.2), (W0 + WO - 0.8) / 2);
     wall(0.7, AH, P.TOWER_E - WO + 0.8, s * (A3 - 0.05), (WO - 0.8 + P.TOWER_E) / 2);
-    wall(OUT - A3 - 0.35, AH, 0.8, (s * (A3 + 0.35 + OUT)) / 2, WO - 0.4);
-    wall(0.5, AH, CROSS0 - 0.6 - WO + 0.8, s * (OUT + 0.25), (WO - 0.8 + CROSS0 - 0.6) / 2);
-    wall(TR + 0.35 - A3, H, 0.6, (s * (A3 + TR + 0.35)) / 2, CROSS0 - 0.3);
-    wall(TR + 0.35 - A3, H, 0.6, (s * (A3 + TR + 0.35)) / 2, CROSS1 + 0.3);
-    wall(0.35, H, CROSS1 - CROSS0, s * (TR + 0.175), XMID);
+    // the outer aisle: its west gable's wall and its long wall, lined (their windows real)
+    const [ga, gc] = s > 0 ? [S.towerSide, S.aisleWall] : [-S.aisleWall, -S.towerSide];
+    line(face([ga, S.outerGable], [gc, S.outerGable], [0, -1]), 0.3, WO - S.outerGable, s > 0 ? 0.1 : 0.25, S.aisleWall - S.towerSide - (s > 0 ? 0.25 : 0.1), -0.12, AH);
+    line(face([s * S.aisleWall, S.outerGable], [s * S.aisleWall, S.transept[0]], [s, 0]), 0.3, S.aisleWall - OUT, 0.3, S.transept[0] - S.outerGable - 0.25, -0.12, AH);
+    slab(s > 0 ? OUT : -OUT - 0.5, s > 0 ? OUT + 0.5 : -OUT, 0, AH, S.transept[0] - 0.27, CROSS0 - 0.6);
+    {
+      // the outer aisle's west bay beside the tower, under its gable's window, parted from the aisle by a transverse arch
+      // (P.OUTER_ARCH) up to the vault's rib
+      const A = P.OUTER_ARCH;
+      const xa = A3 + 0.35;
+      const hx = (OUT - xa) / 2;
+      const cx = s * (xa + hx);
+      const sh = new THREE.Shape();
+      sh.moveTo(-hx, 0);
+      sh.lineTo(-A.hw, 0);
+      sh.lineTo(-A.hw, A.spring);
+      for (const [px, py] of pointedProfile(A.hw, A.apex - A.spring, 6).slice(1, -1)) sh.lineTo(px, A.spring + py);
+      sh.lineTo(A.hw, A.spring);
+      sh.lineTo(A.hw, 0);
+      sh.lineTo(hx, 0);
+      for (let i = 0; i <= 12; i++) {
+        const x = hx - (2 * hx * i) / 12;
+        sh.lineTo(x, ASPRING + pointedAt(x, hx, AH - ASPRING) - 0.05);
+      }
+      const g = new THREE.ExtrudeGeometry(sh, { depth: 0.6, bevelEnabled: false, curveSegments: 1 });
+      g.computeVertexNormals();
+      planarUV(g, 2.4);
+      k.add(g, ST, cx, 0, BAYS[0] - 0.3, { flat: true, tint: 0.94 });
+      archRim(k, ST, A.hw * 2, A.spring, A.apex, 0.22, 0.72, cx, BAYS[0], 0);
+    }
+    // the transept's west and east walls: over the aisles' roofs lined with their high lancets, beyond the aisles lined
+    // from the floor with the great windows (the shell's faces at T0 and T1); below the aisles' roofs the walls between
+    // the outer aisle and the arm (the Lady altar's, the Sacrament's) and the choir's side
+    const TA = S.aisleEaves - FY; // the aisles' roofs meet the transept's walls
+    const [ta, tc] = s > 0 ? [S.halfNave, S.transeptEnd] : [-S.transeptEnd, -S.halfNave];
+    const mid = S.aisleWall + 0.25;
+    for (const [zf, n, zw] of [[S.transept[0], -1, CROSS0 - 0.3], [S.transept[1], 1, CROSS1 + 0.3]] as Array<[number, number, number]>) {
+      const f = face([ta, zf], [tc, zf], [0, n]);
+      const to = Math.abs(zf - (n < 0 ? CROSS0 : CROSS1));
+      const uMid = s > 0 ? mid - ta : -mid - ta;
+      if (s > 0) {
+        line(f, 0.3, to, 0.25, uMid, TA, 30);
+        line(f, 0.3, to, uMid, tc - ta - 0.25, -0.12, 30);
+      } else {
+        line(f, 0.3, to, uMid, tc - ta - 0.25, TA, 30);
+        line(f, 0.3, to, 0.25, uMid, -0.12, 30);
+      }
+      wall(mid - A3, TA, 0.6, (s * (A3 + mid)) / 2, zw);
+      // (the corner by the crossing, between the crossing's arch and the lining)
+      slab(s > 0 ? S.halfNave - 0.2 : -S.halfNave - 0.3, s > 0 ? S.halfNave + 0.3 : -S.halfNave + 0.2, TA, 30, n < 0 ? zf + 0.25 : CROSS1 - 0.05, n < 0 ? CROSS0 + 0.05 : zf - 0.25);
+    }
+    // the transept's end: the portal's vestibule (TR) with a ledge over it, beside it the corners out to TE, over it the
+    // front's great window; the front lined (its face at the transept's end, the portal's mouth left to the shell)
+    {
+      const x0 = s > 0 ? TR : -TE;
+      const x1 = s > 0 ? TE : -TR;
+      slab(s > 0 ? TR : -TR - 0.35, s > 0 ? TR + 0.35 : -TR, 0, PZ.top, PZ.z0, PZ.z1);
+      slab(x0, x1, 0, PZ.top, PZ.z0, PZ.z0 + 0.3);
+      slab(x0, x1, 0, PZ.top, PZ.z1 - 0.3, PZ.z1);
+      slab(x0, x1, PZ.top - 0.1, PZ.top, PZ.z0, PZ.z1, ST);
+      const f = face([s * S.transeptEnd, S.transept[0]], [s * S.transeptEnd, S.transept[1]], [s, 0]);
+      const L = S.transept[1] - S.transept[0];
+      const to = S.transeptEnd - TE;
+      line(f, 0.3, to, 0.25, PZ.z0 + 0.15 - S.transept[0], -0.12, PZ.top);
+      line(f, 0.3, to, PZ.z1 - 0.15 - S.transept[0], L - 0.25, -0.12, PZ.top);
+      line(f, 0.3, to, 0.25, L - 0.25, PZ.top, 30);
+    }
     for (const z of [CROSS0 - 0.3, CROSS1 + 0.3]) {
-      k.archWall(A2 - NAVE, H, 0.6, A2 - NAVE - 1.6, 6.5, 9.2, (s * (NAVE + A2)) / 2, 0, z, ST, { tile: 2.4 });
-      k.archWall(A3 - A2, H, 0.6, A3 - A2 - 1.6, 6.5, 9.2, (s * (A2 + A3)) / 2, 0, z, ST, { tile: 2.4 });
+      k.archWall(A2 - NAVE, TA, 0.6, A2 - NAVE - 1.6, 6.5, 9.2, (s * (NAVE + A2)) / 2, 0, z, ST, { tile: 2.4 });
+      k.archWall(A3 - A2, TA, 0.6, A3 - A2 - 1.6, 6.5, 9.2, (s * (A2 + A3)) / 2, 0, z, ST, { tile: 2.4 });
       archRim(k, ST, A2 - NAVE - 1.6, 6.5, 9.2, 0.25, 0.72, (s * (NAVE + A2)) / 2, z, 0);
       archRim(k, ST, A3 - A2 - 1.6, 6.5, 9.2, 0.25, 0.72, (s * (A2 + A3)) / 2, z, 0);
     }
     wall(0.6, AH, CHOIR_E + 0.6 - CROSS1 - 0.6, s * (A3 + 0.3), (CROSS1 + 0.6 + CHOIR_E + 0.6) / 2);
     wall(A3 - A2, AH, 0.6, (s * (A2 + A3)) / 2, CHOIR_E + 0.3);
-    // the clerestory walls over the arcades, the walls between the aisles up to the aisles' vaults
-    k.box(0.9, H - AH, CROSS0 - 0.45 - W0, s * NAVE, AH + (H - AH) / 2, (W0 + CROSS0 - 0.45) / 2, WL, { tile: 2.6 });
-    k.box(0.9, H - AH, AC - CROSS1 - 0.45, s * NAVE, AH + (H - AH) / 2, (CROSS1 + 0.45 + AC) / 2, WL, { tile: 2.6 });
+    // the clerestory walls over the arcades (issue #10: lined, the shell's clerestory windows real), the tall west bay's
+    // walls up under its roof; the walls between the aisles up to the aisles' vaults
+    const NX = (x0: number, x1: number): [number, number] => (s > 0 ? [x0, x1] : [-x1, -x0]);
+    const CB = S.choirBays;
+    line(face([s * S.halfNave, P.BAYS[0]], [s * S.halfNave, S.transept[0]], [s, 0]), 0.3, S.halfNave - (NAVE - 0.45), 0.25, S.transept[0] - P.BAYS[0] - 0.25, AH, 30);
+    line(face([s * S.halfNave, CB[0]], [s * S.halfNave, CB[3]], [s, 0]), 0.3, S.halfNave - (NAVE - 0.45), 0.25, CB[3] - CB[0] - 0.25, AH, 30);
+    slab(...NX(NAVE - 0.45, S.westBay.half - 0.05), AH, WB.top, W0, P.BAYS[0]);
+    slab(...NX(NAVE - 0.45, S.westBay.half - 0.05), WB.wall, WB.top, WB.z0, W0);
+    slab(...NX(NAVE - 0.45, NAVE + 0.45), AH, 30, P.BAYS[0] - 0.02, P.BAYS[0] + 0.27);
+    slab(...NX(NAVE - 0.45, NAVE + 0.45), AH, HV + 0.1, S.transept[0] - 0.27, CROSS0 - 0.45);
+    slab(...NX(NAVE - 0.45, NAVE + 0.45), AH, 30, CROSS1 + 0.45, CB[0] + 0.27);
+    slab(...NX(NAVE - 0.5, NAVE + 0.35), AH, 30, CB[3] - 0.2, AC + 0.1);
     k.box(0.7, AH - ASPRING, CROSS0 - 0.3 - W0, s * A2, ASPRING + (AH - ASPRING) / 2, (W0 + CROSS0 - 0.3) / 2, WL, { tile: 2.6 });
     k.box(0.7, AH - ASPRING, CROSS0 - 0.3 - P.TOWER_E, s * A3, ASPRING + (AH - ASPRING) / 2, (P.TOWER_E + CROSS0 - 0.3) / 2, WL, { tile: 2.6 });
     k.box(0.7, AH - ASPRING, CHOIR_E - CROSS1 - 0.3, s * A2, ASPRING + (AH - ASPRING) / 2, (CROSS1 + 0.3 + CHOIR_E) / 2, WL, { tile: 2.6 });
@@ -912,10 +1054,18 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
   }
   // the apse: five faces up to the vault; the ambulatory's ten
   const facetWidth = (a: number, sides: number) => 2 * a * Math.tan(Math.PI / (2 * sides)) + 0.12;
+  // (issue #10: the apse's walls over the ambulatory's roof lined, the shell's high windows real; the half dome over them)
+  const APSE_Y = 20.5;
   for (let i = 0; i < 5; i++) {
     const a = -Math.PI / 2 + (Math.PI / 5) * (i + 0.5);
     const r = (P.APSE_IN + P.APSE_OUT) / 2;
-    k.box(facetWidth(r, 5), SPRING + 0.4, P.APSE_OUT - P.APSE_IN, Math.sin(a) * r, (SPRING + 0.4) / 2, AC + Math.cos(a) * r, WL, { tile: 2.6, ry: a });
+    k.box(facetWidth(r, 5), APSE_Y + 0.1, P.APSE_OUT - P.APSE_IN, Math.sin(a) * r, (APSE_Y + 0.1) / 2, AC + Math.cos(a) * r, WL, { tile: 2.6, ry: a });
+    const corner = (j: number): [number, number] => {
+      const t = -Math.PI / 2 + (Math.PI / 5) * j;
+      return [Math.sin(t) * S.apseR, AC + Math.cos(t) * S.apseR];
+    };
+    const ln = 2 * S.apseR * Math.sin(Math.PI / 10);
+    line(face(corner(i), corner(i + 1), [Math.sin(a), Math.cos(a)]), 0.3, S.apseR * Math.cos(Math.PI / 10) - P.APSE_IN, 0.02, ln - 0.02, APSE_Y, 30);
   }
   for (let i = 0; i < 10; i++) {
     const a = -Math.PI / 2 + (Math.PI / 10) * (i + 0.5);
@@ -935,34 +1085,57 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
       clusterPier(k, ST, m.stoneDark, s * A2, z, 8, 0.52, 10);
       if (z > P.TOWER_E) clusterPier(k, ST, m.stoneDark, s * A3, z, 8, 0.52, 10);
       // the vaulting shafts up the nave wall to the springing (three rolls)
-      for (const dz of [-0.28, 0, 0.28]) k.cyl(0.13, 0.13, SPRING - 8, s * (NAVE - 0.5), 8, z + dz, ST, { seg: 6, tile: 2.4 });
+      for (const dz of [-0.28, 0, 0.28]) k.cyl(0.13, 0.13, HS - 8, s * (NAVE - 0.5), 8, z + dz, ST, { seg: 6, tile: 2.4 });
     }
     for (const z of CHOIR_BAYS) {
       clusterPier(k, ST, m.stoneDark, s * NAVE, z, 8, 0.74, 14);
       clusterPier(k, ST, m.stoneDark, s * A2, z, 8, 0.52, 10);
-      for (const dz of [-0.28, 0, 0.28]) k.cyl(0.13, 0.13, SPRING - 8, s * (NAVE - 0.5), 8, z + dz, ST, { seg: 6, tile: 2.4 });
+      for (const dz of [-0.28, 0, 0.28]) k.cyl(0.13, 0.13, HS - 8, s * (NAVE - 0.5), 8, z + dz, ST, { seg: 6, tile: 2.4 });
     }
     clusterPier(k, ST, m.stoneDark, s * NAVE, CROSS0, 13, 1.12, 20);
     clusterPier(k, ST, m.stoneDark, s * NAVE, CROSS1, 13, 1.12, 20);
-    for (const z of [CROSS0, CROSS1]) k.cyl(0.18, 0.18, SPRING - 13, s * (NAVE - 0.7), 13, z, ST, { seg: 6 });
+    for (const z of [CROSS0, CROSS1]) k.cyl(0.18, 0.18, HS - 13, s * (NAVE - 0.7), 13, z, ST, { seg: 6 });
     for (const [a, b] of between([W0, ...BAYS, CROSS0 - 1.1])) arcade(s * NAVE, a, b, AH, 0.8, 8, 12.2);
     for (const [a, b] of between([W0, ...BAYS, CROSS0 - 0.6])) arcade(s * A2, a, b, ASPRING, 0.6, 8, 11.8, 1.25);
     for (const [a, b] of between([P.TOWER_E, ...BAYS.filter((z) => z > P.TOWER_E), CROSS0 - 0.6])) arcade(s * A3, a, b, ASPRING, 0.6, 8, 11.8, 1.25);
     for (const [a, b] of between([CROSS1 + 1.1, ...CHOIR_BAYS, AC])) arcade(s * NAVE, a, b, AH, 0.8, 8, 11.4);
     for (const [a, b] of between([CROSS1 + 0.6, ...CHOIR_BAYS, CHOIR_E])) arcade(s * A2, a, b, ASPRING, 0.6, 8, 11.8, 1.25);
-    k.archWall(CROSS1 - CROSS0, H, 0.9, CROSS1 - CROSS0 - 2.2, 13, 21.5, s * NAVE, 0, XMID, ST, { ry: Math.PI / 2, tile: 2.4 });
+    k.archWall(CROSS1 - CROSS0, HV + 0.1, 0.9, CROSS1 - CROSS0 - 2.2, 13, 21.5, s * NAVE, 0, XMID, ST, { ry: Math.PI / 2, tile: 2.4 });
     archRim(k, ST, CROSS1 - CROSS0 - 2.2, 13, 21.5, 0.45, 1.06, s * NAVE, XMID, Math.PI / 2);
   }
   for (const z of [CROSS0, CROSS1]) {
-    k.archWall(NAVE * 2, H, 0.9, NAVE * 2 - 2.2, 13, 21.5, 0, 0, z, ST, { tile: 2.4 });
+    k.archWall(NAVE * 2, HV + 0.1, 0.9, NAVE * 2 - 2.2, 13, 21.5, 0, 0, z, ST, { tile: 2.4 });
     archRim(k, ST, NAVE * 2 - 2.2, 13, 21.5, 0.45, 1.06, 0, z, 0);
   }
 
   // ================= the vaults: rib vaults bay by bay
-  const naveZ = [W0, ...BAYS, CROSS0 - 0.45];
-  for (const [a, b] of between(naveZ)) groin(k, m.vault, ST, -(NAVE - 0.45), NAVE - 0.45, a, b, SPRING, H - SPRING, H - SPRING);
+  // (issue #10: the high vaults spring at HS and rise to HV over the shell's clerestory windows; the west bay's under the
+  // west front's roof, over the great west window, a wall between it and the nave's first bay over the nave's vault)
+  const NH = NAVE - 0.45;
+  const naveZ = [BAYS[0], ...BAYS.slice(1), CROSS0 - 0.45];
+  for (const [a, b] of between(naveZ)) groin(k, m.vault, ST, -NH, NH, a, b, HS, HV - HS, HV - HS);
   const choirZ = [CROSS1 + 0.45, ...CHOIR_BAYS, AC];
-  for (const [a, b] of between(choirZ)) groin(k, m.vault, ST, -(NAVE - 0.45), NAVE - 0.45, a, b, SPRING, H - SPRING, H - SPRING);
+  for (const [a, b] of between(choirZ)) groin(k, m.vault, ST, -NH, NH, a, b, HS, HV - HS, HV - HS);
+  groin(k, m.vault, ST, -NH, NH, WB.z0, WB.z1, WB.spring, WB.riseX, WB.riseZ);
+  /** A wall across the nave from the vault's end at `z` (its pointed profile) up to `top`, `t` thick toward `dir`. */
+  const overVault = (z: number, top: number, t: number, dir: 1 | -1) => {
+    const sh = new THREE.Shape();
+    sh.moveTo(-NH, HS);
+    sh.lineTo(-NH, top);
+    sh.lineTo(NH, top);
+    sh.lineTo(NH, HS);
+    for (let i = 1; i < 16; i++) {
+      const x = NH - (2 * NH * i) / 16;
+      sh.lineTo(x, HS + pointedAt(x, NH, HV - HS));
+    }
+    sh.lineTo(-NH, HS);
+    const g = new THREE.ExtrudeGeometry(sh, { depth: t, bevelEnabled: false, curveSegments: 1 });
+    g.computeVertexNormals();
+    planarUV(g, 2.6);
+    k.add(g, WL, 0, 0, dir > 0 ? z : z - t, { flat: true });
+  };
+  overVault(BAYS[0], WB.top, BAYS[0] - WB.z1, -1);
+  overVault(AC, 30.8, 0.3, 1);
   const aisleZ = [W0, ...BAYS, CROSS0 - 0.6];
   const outerZ = [WO, ...BAYS, CROSS0 - 0.6];
   for (const s of [-1, 1]) {
@@ -974,23 +1147,27 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
       [A2 + 0.35, A3, [CROSS1 + 0.6, ...CHOIR_BAYS, CHOIR_E]],
     ];
     for (const [xa, xb, zs] of cells) for (const [a, b] of between(zs)) groin(k, m.vault, ST, s > 0 ? xa : -xb, s > 0 ? xb : -xa, a, b, ASPRING, AH - ASPRING, AH - ASPRING, 6);
-    // the transept's arms: four bays each
-    const xs = [NAVE + 0.45, A2, A3, (A3 + TR) / 2, TR];
-    // (the arm's own barrel runs across its bays; the cross cells are lower, not tall lancets)
-    for (const [a, b] of between(xs)) groin(k, m.vault, ST, s > 0 ? a : -b, s > 0 ? b : -a, CROSS0, CROSS1, SPRING, Math.min(H - SPRING, (b - a) * 0.62), H - SPRING);
+    // the transept's arms: four bays each (issue #10: each window of the shell's west and east walls in a bay of its own,
+    // under the bay's lunette: the two lancets over the aisles, the great window at the arm's end)
+    const xs = [NAVE + 0.45, 15.75, 22.45, 26.7, TE];
+    for (const [a, b] of between(xs)) groin(k, m.vault, ST, s > 0 ? a : -b, s > 0 ? b : -a, CROSS0, CROSS1, HS, HV - HS, HV - HS);
   }
   {
-    // the apse's half dome on five ribs
+    // the apse's half dome on five ribs (issue #10: over the shell's high windows, low)
     const RA = NAVE + 0.1;
-    const prof = pointedProfile(RA, H - SPRING, 6).slice(0, 7);
-    const g = new THREE.LatheGeometry(prof.map(([px, py]) => new THREE.Vector2(-px, SPRING + py)), 5, -Math.PI / 2, Math.PI);
+    const AD = 29.2;
+    const prof: Array<[number, number]> = Array.from({ length: 7 }, (_, j) => {
+      const r = RA * (1 - j / 6);
+      return [-r, pointedAt(r, RA, 1.4)];
+    });
+    const g = new THREE.LatheGeometry(prof.map(([px, py]) => new THREE.Vector2(-px, AD + py)), 5, -Math.PI / 2, Math.PI);
     planarUV(g, 2.6);
     k.add(g, m.vault, 0, 0, AC, { flat: true });
     for (let i = 0; i <= 5; i++) {
       const a = -Math.PI / 2 + (Math.PI * i) / 5;
       for (let j = 0; j + 1 < prof.length; j++) {
-        const [r0, y0] = [-prof[j][0] * 0.97, SPRING + prof[j][1] - 0.1];
-        const [r1, y1] = [-prof[j + 1][0] * 0.97, SPRING + prof[j + 1][1] - 0.1];
+        const [r0, y0] = [-prof[j][0] * 0.97, AD + prof[j][1] - 0.1];
+        const [r1, y1] = [-prof[j + 1][0] * 0.97, AD + prof[j + 1][1] - 0.1];
         const P0 = new THREE.Vector3(Math.sin(a) * r0, y0, AC + Math.cos(a) * r0);
         const P1 = new THREE.Vector3(Math.sin(a) * r1, y1, AC + Math.cos(a) * r1);
         const bx = ribGeo(0.22, 0.2, P0.distanceTo(P1) + 0.04);
@@ -1015,8 +1192,21 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
   // ================= the crossing: open to the lantern, the painted Assumption in its dome
   {
     const LA = 5.2; // the lantern's inner apothem (its outer face inside the shell's crossing tower)
-    const LT = 43; // the dome's springing
+    // (issue #10: the lantern's windows are the shell's, real, high in the crossing tower: the drum's walls rise to them,
+    // lined round them; the painted dome over them, flat, under the tower's lead floor)
+    const LN = S.lantern;
+    const LW = LN.y0 - FY - 0.3; // the drum's walls up to the lining
+    const LT = LN.y1 - FY - 0.1; // the dome's springing, over the windows' heads
     const cr = LA / Math.cos(Math.PI / 8);
+    for (let i = 0; i < 8; i++) {
+      const corner = (j: number): [number, number] => {
+        const t = Math.PI / 8 + (j * Math.PI) / 4;
+        return [Math.sin(t) * LN.r, LN.u + Math.cos(t) * LN.r];
+      };
+      const n = ((i + 1) * Math.PI) / 4;
+      const ln = 2 * LN.r * Math.sin(Math.PI / 8);
+      line(face(corner(i), corner(i + 1), [Math.sin(n), Math.cos(n)]), 0.2, LN.r * Math.cos(Math.PI / 8) - LA, 0.02, ln - 0.02, LW, LT + 0.45);
+    }
     const plate = new THREE.Shape();
     plate.moveTo(-NAVE, CROSS0 - XMID);
     plate.lineTo(NAVE, CROSS0 - XMID);
@@ -1040,11 +1230,10 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
       const w = 2 * LA * Math.tan(Math.PI / 8) + 0.14;
       const px = Math.sin(a) * r;
       const pz = XMID + Math.cos(a) * r;
-      k.box(w, LT - H + 0.3, 0.3, px, H - 0.1 + (LT - H + 0.3) / 2, pz, WL, { ry: a, tile: 2.6 });
-      // a lancet in each face of the drum; string courses
-      lancet(k, ST, i % 2 ? glassC.def : glassG.def, Math.sin(a) * LA, XMID + Math.cos(a) * LA, a + Math.PI, 2.0, 35.5, 41.5, 2, m.iron);
+      k.box(w, LW + 0.1 - (H - 0.1), 0.3, px, (H - 0.1 + LW + 0.1) / 2, pz, WL, { ry: a, tile: 2.6 });
+      // string courses: over the blind arcades, under the windows' sills
       k.box(w, 0.3, 0.3, Math.sin(a) * (LA - 0.1), H + 1.6, XMID + Math.cos(a) * (LA - 0.1), ST, { ry: a, tint: 0.9 });
-      k.box(w, 0.3, 0.34, Math.sin(a) * (LA - 0.12), LT - 0.2, XMID + Math.cos(a) * (LA - 0.12), ST, { ry: a, tint: 0.9 });
+      k.box(w, 0.3, 0.34, Math.sin(a) * (LA - 0.12), LW + 0.2, XMID + Math.cos(a) * (LA - 0.12), ST, { ry: a, tint: 0.9 });
       // blind arcades of the drum's lower storey
       for (const d of [-0.9, 0, 0.9]) {
         const ag = new THREE.Shape();
@@ -1058,57 +1247,26 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
         k.add(g, m.stoneDark, Math.sin(a) * (LA - 0.02) + Math.cos(a) * d, H + 2.2, XMID + Math.cos(a) * (LA - 0.02) - Math.sin(a) * d, { ry: a + Math.PI, flat: true });
       }
     }
-    // the dome: a hemisphere painted from below (the picture laid flat over it, seen as a circle)
+    // the dome: a saucer painted from below (the picture laid flat over it, seen as a circle), low under the tower's floor
     const RD = cr * 0.99;
     const dg = new THREE.SphereGeometry(RD, 20, 8, 0, Math.PI * 2, 0, Math.PI / 2);
-    dg.scale(1, 0.85, 1);
+    dg.scale(1, 0.1, 1);
     const dpos = dg.getAttribute("position") as THREE.BufferAttribute;
     const duv = dg.getAttribute("uv") as THREE.BufferAttribute;
     for (let i = 0; i < dpos.count; i++) duv.setXY(i, 0.5 + dpos.getX(i) / (2 * RD), 0.5 - dpos.getZ(i) / (2 * RD));
     k.add(dg, m.dome, 0, LT, XMID, { flat: true });
-    k.cyl(cr + 0.05, cr + 0.05, 0.35, 0, LT - 0.1, XMID, m.gilt, { seg: 8, open: true, ry: Math.PI / 8 });
+    // a gilt band round its foot, on the walls over the windows' heads
+    k.cyl((LA - 0.03) / Math.cos(Math.PI / 8), (LA - 0.03) / Math.cos(Math.PI / 8), 0.2, 0, LT, XMID, m.gilt, { seg: 8, open: true, ry: Math.PI / 8 });
   }
 
-  // ================= windows: the aisles' tall lancets, the clerestory, the transept ends, the choir, apse, ambulatory, drum
-  const glassDefs = [glassG.def, glassC.def, glassC2.def];
+  // ================= windows (issue #10: the shell's, real: their glass the shell's old panes, above; no painted ones)
   // (the windows the sun and the moon come through: world/hallSun.ts)
-  const sunWins: SunWindow[] = [];
-  const sunWin = (x: number, z: number, nx: number, nz: number, w: number, y0: number, y1: number, lights: number, colour: boolean) => {
-    const rise = Math.min(0.742 * w, (y1 - y0) * 0.45);
-    sunWins.push({ x, z, nx, nz, hw: w / 2, y0, y1, spring: y1 - rise, lights, colour });
-  };
-  const mid = (list: number[]) => between(list).map(([a, b]) => (a + b) / 2);
-  for (const s of [-1, 1]) {
-    const face = (-s * Math.PI) / 2; // the wall at +x faces -x
-    mid([WO, ...BAYS, CROSS0 - 0.6]).forEach((z, i) => {
-      lancet(k, ST, (i + (s > 0 ? 1 : 0)) % 2 ? glassC.def : glassC2.def, s * (OUT - 0.001), z, face, 3.0, 3.2, 13.6, 3, m.iron);
-      sunWin(s * (OUT - 0.001), z, -s, 0, 3.0, 3.2, 13.6, 3, true);
-    });
-    mid([W0, ...BAYS, CROSS0 - 0.45]).forEach((z, i) => {
-      lancet(k, ST, i % 3 === 1 ? glassC.def : glassG.def, s * (NAVE - 0.45), z, face, 3.0, 16.4, 26.2, 3, m.iron);
-      sunWin(s * (NAVE - 0.45), z, -s, 0, 3.0, 16.4, 26.2, 3, i % 3 === 1);
-    });
-    lancet(k, ST, glassC.def, s * (TR - 0.001), XMID, face, 7.0, 7.6, 26.6, 4, m.iron);
-    sunWin(s * (TR - 0.001), XMID, -s, 0, 7.0, 7.6, 26.6, 4, true);
-    mid([CROSS1 + 0.45, ...CHOIR_BAYS, AC]).forEach((z) => lancet(k, ST, glassC2.def, s * (NAVE - 0.45), z, face, 2.8, 16.4, 26.0, 2, m.iron));
-    mid([CROSS1 + 0.6, ...CHOIR_BAYS, CHOIR_E]).forEach((z, i) => {
-      lancet(k, ST, i % 2 ? glassC.def : glassG.def, s * (A3 - 0.001), z, face, 2.8, 3.2, 13.4, 2, m.iron);
-      sunWin(s * (A3 - 0.001), z, -s, 0, 2.8, 3.2, 13.4, 2, i % 2 === 1);
-    });
-    // the transept arms' west walls: a high window over the aisles' ends
-    lancet(k, ST, glassG.def, (s * (A3 + TR)) / 2, CROSS0 + 0.001, 0, 4.0, 17.0, 26.0, 3, m.iron);
-  }
-  // the great west window over the organ
-  lancet(k, ST, glassC.def, 0, W0 + 0.001, 0, 6.0, 19.6, 27.4, 4, m.iron);
-  for (let i = 0; i < 5; i++) {
-    const a = -Math.PI / 2 + (Math.PI / 5) * (i + 0.5);
-    lancet(k, ST, i === 2 ? glassC.def : i % 2 ? glassC2.def : glassC.def, Math.sin(a) * (P.APSE_IN - 0.001), AC + Math.cos(a) * (P.APSE_IN - 0.001), a + Math.PI, 1.9, 12.2, 20.4, 2, m.iron);
-  }
-  for (let i = 0; i < 10; i++) {
-    if (i === 2) continue; // the Resurrection's wall
-    const a = -Math.PI / 2 + (Math.PI / 10) * (i + 0.5);
-    lancet(k, ST, glassDefs[i % 3], Math.sin(a) * (P.AMB_IN - 0.001), AC + Math.cos(a) * (P.AMB_IN - 0.001), a + Math.PI, 2.0, 3.2, 11.6, 2, m.iron);
-  }
+  // (world/hallSun.ts takes the ones facing the sun; not the lantern's, whose light the crossing's ceiling and the high
+  // vaults stop; no shaft from the transept's, whose light would run on through the arm's west wall into the aisles)
+  const sunWins: SunWindow[] = WINDOWS.filter((o) => o.kind === "window" && o.yb < 40).map((o, i) => {
+    const jamb = (o.poly ?? []).filter(([u]) => Math.abs(u) > o.hw - 0.02).reduce((t, [, y]) => Math.max(t, y), o.yb);
+    return { x: o.x - o.nx * o.depth, z: o.z - o.nz * o.depth, nx: -o.nx, nz: -o.nz, hw: o.hw, y0: o.yb - FY, y1: o.yt - FY, spring: jamb - FY, lights: o.hw > 2.2 ? 6 : 2, colour: i % 3 !== 2, shaft: !/transept/.test(o.label) };
+  });
 
   // ================= the doors that stay shut: the side portals in the towers' bases, the transept portals
   const door = (w: number, h: number, x: number, z: number, ry: number) => {
@@ -1233,7 +1391,7 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
   redGlow.scale.set(0.6, 0.6, 1);
   redGlow.position.set(0, 5, AZ - 4);
   group.add(redGlow);
-  k.cyl(0.015, 0.015, H - 5.2, 0, 5.2, AZ - 4, m.iron, { seg: 3 });
+  k.cyl(0.015, 0.015, HV - 0.2 - 5.2, 0, 5.2, AZ - 4, m.iron, { seg: 3 });
   k.cyl(0.2, 0.08, 0.34, 0, 4.85, AZ - 4, m.brass, { seg: 8 });
 
   // ================= Rubens's triptychs on the transept arms' east walls: the Elevation (north), the Descent (south)
@@ -1259,7 +1417,7 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
   P.SIDE_ALTARS.forEach((a, i) => retable(new Fr(k, Math.sign(a.x) * (OUT - 0.01), a.z, (-Math.sign(a.x) * Math.PI) / 2), m, flames, sidePics[i % sidePics.length], 1.7, 2.5, true));
   for (const s of [-1, 1]) {
     // on the west bay's wall of each outer aisle: an epitaph painting in a black and white frame
-    const f = new Fr(k, s * (OUT - 0.02), BAYS[0] + 1.6, (-s * Math.PI) / 2);
+    const f = new Fr(k, s * (OUT - 0.02), (WO + BAYS[0]) / 2, (-s * Math.PI) / 2);
     f.box(2.1, 2.9, 0.1, 0, 3.6, 0.05, m.marbleB);
     f.plane(1.6, 2.3, 0, 3.6, 0.11, s > 0 ? m.epiA : m.epiC);
     giltFrame(f, m.gilt, 1.6, 2.3, 0, 2.45, 0.13, 0.1);
@@ -1336,7 +1494,7 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
     }
   }
   // brass chandeliers over the nave and the crossing (lit at dusk)
-  for (const z of [24, 36, 48, XMID]) chandelier(F0, m, chand, 0, 9.6, z, z === XMID ? H - 0.3 : H - 0.5);
+  for (const z of [24, 36, 48, XMID]) chandelier(F0, m, chand, 0, 9.6, z, z === XMID ? H - 0.3 : HV - 0.3);
 
   k.finish();
 
@@ -1377,10 +1535,10 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
   const piers = [...BAYS, ...CHOIR_BAYS].flatMap((z) => [-1, 1].flatMap((s) => [{ x: s * NAVE, z, r: 0.74, h: 8 }, { x: s * A2, z, r: 0.52, h: 8 }, ...(z > P.TOWER_E && z < CROSS0 ? [{ x: s * A3, z, r: 0.52, h: 8 }] : [])]));
   for (const s of [-1, 1]) for (const z of [CROSS0, CROSS1]) piers.push({ x: s * NAVE, z, r: 1.12, h: 13 });
   const sunLight = buildHallSun(group, {
-    floor: { minX: -TR, maxX: TR, minZ: W0, maxZ: CHOIR_E + 0.6 },
+    floor: { minX: -TE, maxX: TE, minZ: W0, maxZ: CHOIR_E + 0.6 },
     floors: [
       { minX: -OUT, maxX: OUT, minZ: WO, maxZ: CROSS0 },
-      { minX: -TR, maxX: TR, minZ: CROSS0, maxZ: CROSS1 },
+      { minX: -TE, maxX: TE, minZ: CROSS0, maxZ: CROSS1 },
       { minX: -(A3 - 0.4), maxX: A3 - 0.4, minZ: W0, maxZ: WO },
       { minX: -A3, maxX: A3, minZ: CROSS1, maxZ: CHOIR_E + 0.6 },
     ],
@@ -1392,6 +1550,10 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
       { along: "z" as const, at: s * A2, from: W0, to: CROSS0, open: 10 },
       { along: "z" as const, at: s * A3, from: P.TOWER_E, to: CROSS0, open: 10 },
       { along: "z" as const, at: s * A2, from: CROSS1, to: CHOIR_E, open: 10 },
+      // (issue #10: the transept's west wall: the aisles' arches into the arm, beyond them wall; the light of the
+      // transept's front and east windows stops at it)
+      { along: "x" as const, at: CROSS0 - 0.3, from: s > 0 ? NAVE : -A3, to: s > 0 ? A3 : -NAVE, open: 0, solid: [[9.2, 60]] as Array<[number, number]> },
+      { along: "x" as const, at: CROSS0 - 0.3, from: s > 0 ? A3 : -TE, to: s > 0 ? TE : -A3, open: 0 },
     ]),
     // the nave arcades' walls over their arches, up to the clerestory: lit across the nave
     walls: [-1, 1].map((s) => ({ a: [s * (NAVE - 0.4), W0 + 0.3] as [number, number], b: [s * (NAVE - 0.4), CROSS0 - 1.3] as [number, number], y0: 12.35, y1: 16.2, n: [-s, 0] as [number, number] })),
@@ -1430,7 +1592,11 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
     const night = 1 - THREE.MathUtils.smoothstep(day, 0, 0.35);
     const moon = night * THREE.MathUtils.clamp((sky - 0.55) * 2.2, 0.25, 1);
     const g0 = 0.95 * day * sky;
-    for (const d of [glassG.def, glassC.def, glassC2.def]) (matOf(d) as THREE.MeshBasicMaterial).color.setRGB(0.07 + g0 + 0.05 * moon, 0.08 + g0 + 0.08 * moon, 0.1 + g0 + 0.17 * moon);
+    // (issue #10: the stained glass inside as the old panes were; the shell's pane outside as its stone round it by day)
+    for (const q of glasses.in) q.color.setRGB(0.07 + g0 + 0.05 * moon, 0.08 + g0 + 0.08 * moon, 0.1 + g0 + 0.17 * moon);
+    glasses.out?.color.setScalar(0.3 + 1.3 * day * (0.55 + 0.45 * sky));
+    // (the lamplight in the panes after dusk, amber, dim as a church by its candles: world/landmarkWindows.ts)
+    glasses.glow?.color.setRGB(1.0, 0.56, 0.22).multiplyScalar(0.36 * THREE.MathUtils.clamp((0.5 - day) / 0.3, 0, 1));
     sunLight.set(day, sky);
     const d = day * (0.55 + 0.45 * sky);
     // (by day a little less flat fill than before: the sun's patches and the shafts carry the brightness, the far
@@ -1444,6 +1610,20 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
     dayCross.intensity = 12 * d * ambK;
     dayChoir.intensity = 9 * d * ambK;
   };
+  // issue #10: the windows' glass from the shell's old panes, when the shell is in (world/cathedralOutside.ts): the pane
+  // seen from the street facing out, the hall's own glass facing in (see hallGlassFrom); world coordinates
+  whenShellGlass("cathedral", (litGlass) => {
+    // (from the street see-through enough for the hall to show behind the lead: the atlas paints plain leaded glass)
+    const outer = roomGlassFrom(litGlass, { name: "cathedral", opacity: 0.5 });
+    const om = outer.material as THREE.MeshBasicMaterial;
+    om.side = THREE.FrontSide;
+    const inner = hallGlassFrom(litGlass, picture("/textures/cath_glass.jpg", { clamp: true }), glass("grisaille", 31));
+    glasses.out = om;
+    glasses.in = inner.slice(0, 2).map((q) => q.material as THREE.MeshBasicMaterial);
+    glasses.glow = inner[2].material as THREE.MeshBasicMaterial;
+    scene.add(outer, ...inner);
+    glassLight();
+  });
   const room: LandmarkRoom = {
     kind: "landmark",
     landmark: "cathedral",

@@ -39,6 +39,12 @@ export const SHELL = {
   /** The side portals in the towers' bases, and the transept portals (closed). */
   sidePortals: { v: 12.2, doorU: 4.7, hw: 1.25, top: 3.48 },
   transeptPortals: { u: 74.6, doorV: 33.4, hw: 1.75, top: 4.78 },
+  /** Issue #10: the choir's buttresses (u), one bay of the clerestory's windows between each two. */
+  choirBays: [81.9, 90.27, 98.63, 107] as const,
+  /** Issue #10: the crossing tower's octagon over the roofs (its corners' radius, u of its middle), its lantern's windows. */
+  lantern: { r: 6.2, u: 74.6, y0: 44, y1: 50.5 },
+  /** Issue #10: the west front between the towers (its half width, the eaves of its roof). */
+  westBay: { half: 6.2, top: 40 },
 };
 
 // ---- the interior's lines (local metres)
@@ -59,20 +65,38 @@ export const APSE_IN = 5.3; // the apse wall's inner and outer apothem (the shel
 export const APSE_OUT = 5.9;
 export const AMB_IN = 12; // the ambulatory's outer wall (the shell's is 12.84)
 export const AMB_OUT = 12.5;
-export const H = 28.5; // the nave's vault (the eaves are at 30)
+export const H = 28.5; // the nave's old vault line (the eaves are at 30)
+/**
+ * Issue #10 (interiors are real): the high vaults of the nave, the choir and the transept spring higher and rise over the
+ * shell's clerestory windows (22.3 .. 29.1 over the floor), so every real window shows whole from inside.
+ */
+export const VAULT = { spring: 23, crown: 29.5 } as const;
+/**
+ * Issue #10: the tall west bay under the west front's roof, over the great west window (23.5 .. 39.1): over the west wall's
+ * top (wall) it reaches out to z0 over the portal, the west window's wall 1 m thick there.
+ */
+export const WEST_BAY = { z0: 2.2, z1: 13.2, spring: 33.5, riseX: 6.0, riseZ: 5.5, top: 39.7, wall: 22.2 } as const;
+/**
+ * Issue #10: the transept's ends. Over the portals (the transept portals' vestibule, TR) a ledge; beside and over them
+ * the hall reaches out to TE, under the shell's great windows of the transept's fronts and corners.
+ */
+export const TE = 35.15;
+/** Issue #10: the transverse arch across each outer aisle at the first pier line, its west bay (beside the tower) apart. */
+export const OUTER_ARCH = { hw: 2.5, spring: 7.0, apex: 10.0 } as const;
+export const PORTAL_ZONE = { z0: 71.1, z1: 78.1, top: 12.95 } as const;
 export const SPRING = 21;
 export const AH = 15.5; // the aisles' vaults (their eaves are at 16.5)
 export const ASPRING = 12.4; // over the nave arcades' arches (apex 12.2)
 /** The piers of the nave and aisles, one bay per buttress of the shell (u 13.8 .. 67.3, six bays). */
 export const BAYS = [0, 1, 2, 3, 4, 5].map((k) => +(13.8 + (k * (67.3 - 13.8)) / 6).toFixed(2));
-/** The choir's piers. */
-export const CHOIR_BAYS = [86.2, 94.4, 102.6];
+/** The choir's piers (issue #10: on the shell's buttresses, its clerestory's windows between them). */
+export const CHOIR_BAYS = [90.27, 98.63];
 export const RAILZ = CROSS1 + 0.9;
 /** The high altar before the apse, and the retable against its east face. */
 export const AZ = AC - 0.8;
 export const RETABLE_Z = AC + 2.4;
 /** The choir screen's gate (people only), on the north side. */
-export const GATE = { x: NAVE, z0: 90.4, z1: 93.0 };
+export const GATE = { x: NAVE, z0: 91.3, z1: 93.9 };
 /** North is +x (the tall tower, the Elevation of the Cross, the Lady altar). */
 export const NORTH = 1;
 
@@ -100,7 +124,7 @@ export const LADY = { x: NORTH * (A3 + OUT) / 2, z: CROSS0 - 1.2 };
 export const STAND = { x: LADY.x, z: LADY.z - 2.2 };
 export const SACRAMENT = { x: -NORTH * (A3 + OUT) / 2, z: CROSS0 - 1.2 };
 /** Rubens's triptychs on the transept arms' east walls, their altars below. */
-export const TRIPTYCH_X = 25.5;
+export const TRIPTYCH_X = 22.3;
 export const FONT = { x: -9.5, z: W0 + 2.6 };
 export const ORGAN = { z0: W0, z1: W0 + 4.6, y: 7 };
 /** The side altars against the outer aisles' walls, between the confessionals (their fronts toward the aisle). */
@@ -141,7 +165,7 @@ export function inArea(x: number, z: number): boolean {
   // the hall with its walls (all inside the shell, whose footprint the walk map marks as wall)
   if (z < WO - 0.8) return ax < A3;
   if (z < CROSS0 - 0.6) return ax < OUT + 0.5;
-  if (z < CROSS1 + 0.6) return ax < TR + 0.35;
+  if (z < CROSS1 + 0.6) return ax < TE + 0.35;
   if (z < CHOIR_E + 0.6) return ax < A3 + 0.6;
   if (z < AC) return ax < AMB_OUT;
   return inHalfPolygon(x, z, AMB_OUT, 10);
@@ -172,7 +196,8 @@ export function hasFloor(x: number, z: number, doorOpen = true): boolean {
   }
   if (z < WO) return ax < A3 - 0.4;
   if (z < CROSS0) return ax < OUT;
-  if (z < CROSS1) return ax < TR;
+  // (the transept's ends: out to TE beside the portals' vestibule)
+  if (z < CROSS1) return ax < TR || (ax < TE && (z < PORTAL_ZONE.z0 || z > PORTAL_ZONE.z1));
   if (z < CHOIR_E) return ax < A3;
   if (z < AC) return ax < AMB_IN;
   // the sanctuary inside the apse, or the ambulatory round it
@@ -205,6 +230,11 @@ export function solids(): PlanRect[] {
     }
     // the wall along the tower's outer side (the tower's own face stands inside it)
     out.push({ minX: s > 0 ? A3 - 0.4 : -A3 - 0.3, maxX: s > 0 ? A3 + 0.3 : -A3 + 0.4, minZ: WO - 0.8, maxZ: TOWER_E });
+    // the outer aisle's transverse arch at the first pier line: its two jambs
+    {
+      const mid = (A3 + 0.35 + OUT) / 2;
+      for (const [a, b] of [[A3 + 0.3, mid - OUTER_ARCH.hw], [mid + OUTER_ARCH.hw, OUT]]) out.push({ minX: s > 0 ? a : -b, maxX: s > 0 ? b : -a, minZ: BAYS[0] - 0.3, maxZ: BAYS[0] + 0.3 });
+    }
     for (const z of CHOIR_BAYS) {
       out.push(around(s * NAVE, z, 0.92, 0.75));
       out.push(around(s * A2, z, 0.72, 0.55));

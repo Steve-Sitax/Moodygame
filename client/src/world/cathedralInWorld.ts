@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import * as P from "../../../shared/cathedralPlan";
-import { buildCathedral } from "./cathedralHall";
+import { buildCathedral, WINDOWS } from "./cathedralHall";
+import { windowOpenings } from "./realOpenings";
 import type { LandmarkRoom } from "./landmarkRooms";
 import { psx } from "../retro/psx";
 import type { World } from "./rijnkaai";
@@ -16,6 +17,8 @@ import { addSpill } from "./spill";
 
 /** The hall's own air inside: warm, a little hazy with incense, far (the pale stone carries the daylight). */
 const AIR = { color: new THREE.Color(0x2a2620), near: 22, far: 120 };
+/** Issue #10: from inside, windows farther than this (m) do not bring the street in (world/inworld.ts insideReach). */
+const CATH_INSIDE_REACH = 12;
 
 export interface CathedralInWorld {
   room: LandmarkRoom;
@@ -107,9 +110,15 @@ export function createCathedralInWorld(world: World, inWorld: InWorld): Cathedra
         out: new THREE.Vector3(0, 0, -1),
         open: () => leafAngle > 0.08,
       },
+      // issue #10 (interiors are real): every window of the shell over the hall, the hall seen through it from the
+      // street and the street from inside
+      ...windowOpenings(WINDOWS, (x, z) => P.toWorld(x, z)),
     ],
     insideness: (eye) => P.insideness(eye.x - P.ORIGIN.x, eye.z - P.ORIGIN.z),
     reach: 95,
+    // (issue #10: from inside only the windows near the eye bring the street in; the far and high ones show the sky's
+    // colour through their glass: the street drawn through them all cost ~4 ms a frame in the nave)
+    insideReach: CATH_INSIDE_REACH,
     air(k, street) {
       const fog = room.scene.fog as THREE.Fog;
       // from the square the hall shows through the street's own air (so far off it fades exactly as the

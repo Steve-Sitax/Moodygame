@@ -5,6 +5,8 @@ import { bumpFromMap, footDirt, psx } from "../retro/psx";
 import { brickBandTexture, glassTexture, slateTexture } from "./cityTextures";
 import { rand } from "./rooms";
 import type { World } from "./rijnkaai";
+import { shellMarkers } from "./realOpenings";
+import { publishShellGlass } from "./shellGlass";
 
 // The cathedral outside (M7, 2026-09-26; Steve: "cathedral needs more detail, the other churches have 3d statues and
 // cathedral not ... good textures", and the houses against it were flat painted fronts). Its own model,
@@ -17,6 +19,10 @@ import type { World } from "./rijnkaai";
 //     tools/textures/wall_heights.py), painted by the model's vertex colour; trims, doors, shutters and roof tiles
 //     painted here, their bump from their own colour (retro/psx.ts bumpFromMap).
 // The stand-in block of the landmark (world/city.ts) is hidden once the model is in.
+// Issue #10 (interiors are real): the windows over the hall are cut through (the model's empties "opening_<id>" mark them
+// for the interior check); their old painted panes come as a mesh of their own ("landmark_cathedral_lit_glass",
+// cath_atlas_lit) that is never drawn: the hall takes its glass from it (world/shellGlass.ts) and world/landmarkWindows.ts
+// lights a copy of it at night.
 
 /** How far the small things are drawn (m from the eye to the piece's middle). */
 const NEAR = 105;
@@ -320,6 +326,18 @@ export function loadCathedralOutside(world: World): CathedralOutside {
       return m;
     }
     switch (name) {
+      case "cath_atlas_lit": {
+        // (issue #10: never drawn; its picture for the hall's glass and the night's glow)
+        const map = src.map;
+        if (map) {
+          map.magFilter = THREE.NearestFilter;
+          map.minFilter = THREE.NearestFilter;
+          map.generateMipmaps = false;
+        }
+        const m = new THREE.MeshLambertMaterial({ map: map ?? null, vertexColors: true });
+        m.visible = false;
+        return m;
+      }
       case "cath_atlas": {
         const map = src.map;
         if (map) {
@@ -375,6 +393,9 @@ export function loadCathedralOutside(world: World): CathedralOutside {
     .loadAsync("/models/cathedral.glb")
     .then((gltf) => {
       const meshes: THREE.Mesh[] = [];
+      // issue #10: the real openings' markers, for the interior check (dev/interiorcheck.ts)
+      for (const e of shellMarkers(gltf.scene)) group.add(e);
+      let lit: THREE.Mesh | null = null;
       gltf.scene.traverse((o) => {
         const m = o as THREE.Mesh;
         if (!m.isMesh) return;
@@ -400,6 +421,11 @@ export function loadCathedralOutside(world: World): CathedralOutside {
         if (!near) {
           m.onBeforeRender = (r) => fillNow(r);
           group.add(m);
+          if (/_lit_glass$/.test(m.name)) {
+            // (the old panes: glass, never drawn; the interior check looks through them)
+            m.userData.glass = true;
+            lit = m;
+          }
           continue;
         }
         // a piece of the small things: drawn only near (a LOD at the piece's middle, nothing beyond NEAR)
@@ -414,6 +440,10 @@ export function loadCathedralOutside(world: World): CathedralOutside {
         group.add(lod);
       }
       hideStandIn();
+      if (lit) {
+        group.updateMatrixWorld(true);
+        publishShellGlass("cathedral", lit);
+      }
       draco.dispose();
     })
     .catch((e) => console.warn("cathedral.glb did not load", e));
