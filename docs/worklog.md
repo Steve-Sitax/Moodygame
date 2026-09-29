@@ -14,6 +14,8 @@ The demo includes the business shells and shared exterior routines. Its existing
 
 Unrelated audit-tool issue found and filed: [issue 38](https://github.com/Steve-Sitax/Moodygame/issues/38), false interior geometry errors when the checker excludes distant, culled shell walls. Nearby checks pass without geometry changes.
 
+The public Pages browser check also reached Ready, entered Fly mode and showed the rendered quay with no failed resource requests. The first attempt accepted Enter while the room warmup overlay was still present and then stopped responding to preview checks; reloading and waiting for Ready worked. The unguarded early-start keyboard path is recorded as [issue 39](https://github.com/Steve-Sitax/Moodygame/issues/39); the cause of that preview stall is not established. No boot changes are part of this NPC task.
+
 Cleanup limitation: automatic approval review rejected removal of `MoodyGame-npc-routines` as "blocked by policy". Its directory remains; the copied save, test slots, test TLS files and all three temporary listeners have been removed. No retry or workaround was attempted.
 
 What went live, what is being worked on now and by whom, and what waits for Steve.
