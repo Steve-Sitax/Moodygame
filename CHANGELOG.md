@@ -8,6 +8,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 ## [Unreleased]
 
 ### New in the game
+- The Vleeshuis attic is open: climb the new stair from the painter's studio and look out through its gable windows and dormers. Its turrets and stair tower show their stairs through the slits ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
+- The town hall's 54 roof dormers are real windows, with the attic behind them ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
 - The cathedral's towers are open: behind their lancets and louvres you see the chambers, the bell frames with their bells, and the carillon in the north tower ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
 - The crossing tower and the dormers of the cathedral's great roof have real windows, with the timber frame and the roof space behind them ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
 - Sunlight falls on the floors of the cathedral's chapels round the choir ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
