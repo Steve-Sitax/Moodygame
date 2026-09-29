@@ -36,6 +36,9 @@ through ANGLE on Direct3D 11, and there one shader build takes 0.1 to 0.4 s. The
    Light from lit windows, open doors and the lamps and lanterns past the real lights is no light at all
    to three.js: `world/spill.ts` hands the nearest `MAX_SPILL` (retro/psx.ts) to every lit psx material as a
    uniform list and draws the rest as ground pools. A new source never changes a shader: register it there.
+   A gas lamp's light stops under its cap (issue #11, 2026-09-29): in every lit psx material a point light or spill
+   source with decay `GAS_LAMP_DECAY` (1.7, retro/psx.ts) fades out from 30 to 53 degrees over the flame
+   (`psxLampCap`). No other light may use that decay.
 2. **No scene material drawn to the screen.** Draw scenes into a render target (`retro.target`, a
    mirror's target), never with `setRenderTarget(null)`. Only the final retro quad goes to the screen.
 3. **Few shader kinds.** A new shader kind is a new build on every machine. Reuse materials and the
