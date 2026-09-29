@@ -28,7 +28,12 @@ import * as TH from "../../../shared/townhallPlan";
 import * as VH from "../../../shared/vleeshuisPlan";
 import * as OH from "../../../shared/oostershuisPlan";
 import * as ST from "../../../shared/steenPlan";
+import * as VS from "../../../shared/vleeshuisShell";
+import * as SS from "../../../shared/steenShell";
+import { inFrame, type ShellFace } from "../../../shared/shellOpening";
 import { createHallInWorld, type HallInWorld } from "./hallInWorld";
+import { lining, quarries, realGlass, shellPicture, windowOpenings } from "./realOpenings";
+import { planarUV } from "./carolusHall";
 import type { World } from "./rijnkaai";
 import type { InWorld } from "./inworld";
 
@@ -606,6 +611,9 @@ export function buildTownhall(): LandmarkRoom {
  * Liefde en Eendragt used (a small stage at the east end with a painted backcloth, curtains, footlights,
  * benches) and a painter's studio at the west end under the gable's windows (painters rented studios there).
  */
+/** The Vleeshuis's real openings (issue #10), in the hall's frame. */
+const VH_WINDOWS = inFrame(VS.SHELL_OPENINGS, VH.PLAN.origin, VH.PLAN.yaw);
+
 export function buildVleeshuis(): LandmarkRoom {
   const P = VH.PLAN;
   const { scene, group, toWorld } = frameRoom(P.origin, P.yaw, 0x241a12);
@@ -643,47 +651,95 @@ export function buildVleeshuis(): LandmarkRoom {
   box(-DOOR.hw - 0.1, DOOR.hw + 0.1, -0.1, 0, -0.02, Z0, bluestone, 1); // the doorway's sill
   box(NX - DOOR.hw - 0.1, NX + DOOR.hw + 0.1, -0.1, 0, Z1, 14.72, bluestone, 1);
 
-  // ---- the walls: brick below the upper floor, whitewash above; the doorways, the great windows, the cross windows
-  const winHall = glassMat("grisaille", 52);
-  const winUp = glassMat("grisaille", 51);
-  const longWall = (z0: number, z1: number, doorX: number, face: number, dir: 1 | -1) => {
-    // the ground floor (brick): the doorway under the arch's springing, the great windows of the bays but the door's
-    const holes: Array<[number, number, number, number]> = [[doorX - DOOR.hw, doorX + DOOR.hw, -1, DH]];
-    for (const bx of S.bays) if (Math.abs(bx - doorX) > 0.5) holes.push([bx - 1.0, bx + 1.0, 2.8, 7.6]);
-    holed(k, "x", X0 - 0.65, X1 + 0.55, z0, z1, 0, UP, holes, H.brick, 1.2);
-    for (const bx of S.bays) if (Math.abs(bx - doorX) > 0.5) {
-      windowIn(k, "x", bx, face, dir, 2.8, 7.6, 2.0, winHall.def, M.stone);
-      // the lower lights shuttered (a warehouse now)
-      box(bx - 1.0, bx + 1.0, 2.8, 4.2, dir > 0 ? face + 0.02 : face - 0.1, dir > 0 ? face + 0.1 : face - 0.02, M.oakDark, 1);
-    }
-    // the upper floor (whitewash): cross windows in every bay
-    holed(k, "x", X0 - 0.65, X1 + 0.55, z0, z1, UP, CEIL1, S.bays.map((bx) => [bx - 0.8, bx + 0.8, UP + 0.6, UP + 4.3] as [number, number, number, number]), H.plaster, 2);
-    for (const bx of S.bays) windowIn(k, "x", bx, face, dir, UP + 0.6, UP + 4.3, 1.6, winUp.def, M.stone);
-  };
-  // from the doors' planes in: the shell's own reveals (bluestone) stand before them
-  longWall(0, Z0, 0, Z0, 1);
-  longWall(Z1, P.doors[1].z, NX, Z1, -1);
-  const gable = (x0: number, x1: number, face: number, dir: 1 | -1, doors: boolean) => {
-    // the east front's two doors are shut (Blender's leaves): oak doors on the inside; the great windows over them
-    const holes: Array<[number, number, number, number]> = S.eastDoors.map((z) => [z - 1.1, z + 1.1, (doors ? 4.2 : 2.6), 7.6] as [number, number, number, number]);
-    holed(k, "z", Z0 - 0.6, Z1 + 0.6, x0, x1, 0, UP, holes, H.brick, 1.2);
-    for (const z of S.eastDoors) windowIn(k, "z", z, face, dir, doors ? 4.2 : 2.6, 7.6, 2.2, winHall.def, M.stone);
-    if (doors) for (const z of S.eastDoors) {
-      box(face + dir * 0.02, face + dir * 0.1, 0, DH, z - DOOR.hw + 0.1, z + DOOR.hw - 0.1, M.oakDark, 1);
-      box(face + dir * 0.02, face + dir * 0.14, DH, DH + 0.2, z - DOOR.hw, z + DOOR.hw, bluestone, 1);
-    }
-    holed(k, "z", Z0 - 0.6, Z1 + 0.6, x0, x1, UP, CEIL1, S.eastDoors.map((z) => [z - 0.8, z + 0.8, UP + 0.6, UP + 4.3] as [number, number, number, number]), H.plaster, 2);
-    for (const z of S.eastDoors) windowIn(k, "z", z, face, dir, UP + 0.6, UP + 4.3, 1.6, winUp.def, M.stone);
-  };
-  gable(-16.05, X0, X0, 1, true);
-  gable(X1, 27.95, X1, -1, false);
+  // ---- the walls: brick below the upper floor, whitewash above (issue #10, interiors are real: every face of the shell
+  // lined from its reveals' back to the hall's inner face, cut exactly where the shell's windows and doors are; their
+  // glass is the hall's, below)
+  const windows = VH_WINDOWS;
+  const FY = VH.FLOOR_Y;
+  const face = (a: [number, number], c: [number, number], n: [number, number]): ShellFace => ({ a, c, n });
+  const faces: Array<{ f: ShellFace; to: number }> = [
+    { f: face([S.east, S.south], [S.west, S.south], [0, -1]), to: Z0 - S.south },
+    { f: face([S.west, S.north], [S.east, S.north], [0, 1]), to: S.north - Z1 },
+    { f: face([S.east, S.north], [S.east, S.south], [-1, 0]), to: X0 - S.east },
+    { f: face([S.west, S.south], [S.west, S.north], [1, 0]), to: S.west - X1 },
+  ];
+  const DEEP = 0.44; // the great windows' reveals: the lining's front (the shallower ones get a sleeve)
+  for (const { f, to } of faces) {
+    const len = Math.hypot(f.c[0] - f.a[0], f.c[1] - f.a[1]);
+    lining(k, H.brick, { face: f, from: DEEP, to, u0: 0.25, u1: len - 0.25, y0: FY - 0.12, y1: FY + UP }, windows, FY, 1.2);
+    lining(k, H.plaster, { face: f, from: DEEP, to, u0: 0.25, u1: len - 0.25, y0: FY + UP, y1: FY + CEIL1 + 0.12 }, windows, FY, 2);
+  }
+  // the east front's two doors are shut (Blender's leaves, not openings): oak doors on the inside
+  for (const z of S.eastDoors) {
+    box(X0 + 0.02, X0 + 0.1, 0, DH, z - DOOR.hw + 0.1, z + DOOR.hw - 0.1, M.oakDark, 1);
+    box(X0 + 0.02, X0 + 0.14, DH, DH + 0.2, z - DOOR.hw, z + DOOR.hw, bluestone, 1);
+  }
+  // the glass of every real window (the shell has the lead and the tracery)
+  const hallGlass = realGlass(windows, FY, shellPicture("/textures/vleeshuis_glass.jpg"), { name: "vleeshuis", tile: 1.2, opacity: 0.22 });
+  if (hallGlass.mesh) group.add(hallGlass.mesh);
 
   // ---- three aisles of brick vaults on stone columns, the arches along the column lines
   const AW = D / 3;
   // the north aisle is vaulted only east of the long stair; over the stair a timber ceiling, the stairwell open in it
   const VX = STAIR.head - 0.5;
-  for (let i = 0; i < 3; i++) k.vault(AW + 0.05, VAULT.spring, VAULT.rise, (i === 2 ? VX : X1) - X0, X0, Z0 + AW * (i + 0.5), H.vaultBrick, { tile: 1.2, ry: Math.PI / 2 });
-  k.archWall(AW, UP - 0.3 - VAULT.spring + 0.12, 0.25, AW - 0.1, 0, VAULT.rise, VX, VAULT.spring, Z0 + AW * 2.5, H.vaultBrick, { tile: 1.2, ry: Math.PI / 2 });
+  // the middle aisle a pointed barrel; the two outer aisles half vaults rising from the column lines to the long walls
+  // over the great windows' heads (issue #10: the windows are real, and seen whole from inside, not cut off by a vault)
+  k.vault(AW + 0.05, VAULT.spring, VAULT.rise, X1 - X0, X0, Z0 + AW * 1.5, H.vaultBrick, { tile: 1.2, ry: Math.PI / 2 });
+  const HALF_TOP = UP - 0.36;
+  const halfY = (zCol: number, zWall: number, z: number) => VAULT.spring + (HALF_TOP - VAULT.spring) * Math.sqrt(Math.max(0, 1 - ((zWall - z) / (zWall - zCol)) ** 2));
+  const halfVault = (zCol: number, zWall: number, x0: number, x1: number) => {
+    const n = 10;
+    const prof: Array<[number, number]> = [];
+    for (let i = 0; i <= n; i++) {
+      const a = (Math.PI / 2) * (i / n);
+      prof.push([zWall + (zCol - zWall) * Math.cos(a), VAULT.spring + (HALF_TOP - VAULT.spring) * Math.sin(a)]);
+    }
+    const pos: number[] = [];
+    const uvs: number[] = [];
+    const segs = Math.max(1, Math.ceil((x1 - x0) / 4));
+    let acc = 0;
+    const along = [0];
+    for (let i = 1; i < prof.length; i++) along.push((acc += Math.hypot(prof[i][0] - prof[i - 1][0], prof[i][1] - prof[i - 1][1])));
+    for (let s = 0; s < segs; s++) {
+      const xa = x0 + ((x1 - x0) * s) / segs;
+      const xb = x0 + ((x1 - x0) * (s + 1)) / segs;
+      for (let i = 0; i < n; i++) {
+        const [za, ya] = prof[i];
+        const [zb, yb] = prof[i + 1];
+        for (const [px, py, pz, u, v] of [[xa, ya, za, along[i], xa], [xb, yb, zb, along[i + 1], xb], [xa, yb, zb, along[i + 1], xa], [xa, ya, za, along[i], xa], [xb, ya, za, along[i], xb], [xb, yb, zb, along[i + 1], xb]]) {
+          pos.push(px, py, pz);
+          uvs.push(u / 1.2, v / 1.2);
+        }
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+    g.computeVertexNormals();
+    k.add(g, H.vaultBrick, 0, 0, 0, { flat: true });
+  };
+  halfVault(VH.COL_Z[0] - 0.02, Z0, X0, X1);
+  halfVault(VH.COL_Z[1] + 0.02, Z1, X0, VX);
+  {
+    // the north half vault's end over the stair: brick from its curve up to the upper floor's slab
+    const sh = new THREE.Shape();
+    const zc = VH.COL_Z[1] + 0.02;
+    sh.moveTo(zc, VAULT.spring);
+    for (let i = 1; i <= 10; i++) {
+      const z = zc + ((Z1 - zc) * i) / 10;
+      sh.lineTo(z, halfY(zc, Z1, z));
+    }
+    sh.lineTo(Z1, UP - 0.3);
+    sh.lineTo(zc, UP - 0.3);
+    const g = new THREE.ExtrudeGeometry(sh, { depth: 0.25, bevelEnabled: false, curveSegments: 1 });
+    // (shape x is z, y up, extruded along +z: turned so it runs along x)
+    g.applyMatrix4(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 1, 0), new THREE.Vector3(1, 0, 0)));
+    g.computeVertexNormals();
+    planarUV(g, 1.2);
+    k.add(g, H.vaultBrick, VX - 0.125, 0, 0, { flat: true });
+  }
+  /** The vault's underside over a point (for the lanterns' chains). */
+  const vaultTop = (z: number) => (z < VH.COL_Z[0] ? halfY(VH.COL_Z[0], Z0, z) : z > VH.COL_Z[1] ? halfY(VH.COL_Z[1], Z1, z) : VAULT.spring + VAULT.rise * 0.8);
   k.box(X1 - VX, 0.3, STAIR.rect.minZ - 0.2 - VH.COL_Z[1], (VX + X1) / 2, UP - 0.45, (STAIR.rect.minZ - 0.2 + VH.COL_Z[1]) / 2, H.timber, { tile: 1.2 });
   for (let x = VX + 1.5; x < X1; x += 1.6) k.box(0.2, 0.3, STAIR.rect.minZ - 0.2 - VH.COL_Z[1], x, UP - 0.75, (STAIR.rect.minZ - 0.2 + VH.COL_Z[1]) / 2, H.timber);
   for (const z of VH.COL_Z) {
@@ -767,7 +823,7 @@ export function buildVleeshuis(): LandmarkRoom {
   const AZ = [Z0 + AW / 2, Z0 + AW * 1.5, Z0 + AW * 2.5];
   const LANTERNS: Array<[number, number, number]> = [[-10, 2.75, AZ[1]], [-2.5, 2.75, AZ[1]], [5, 2.75, AZ[1]], [12.5, 2.75, AZ[1]], [20, 2.75, AZ[1]], [-8.5, 2.6, AZ[2]], [NX + 1.0, 2.45, AZ[2] + 0.4], [15, 2.6, AZ[0]], [-4.2, 2.6, AZ[0]], [22, 2.6, AZ[2]]];
   for (const [x, y, z] of LANTERNS) {
-    const top = VAULT.spring + VAULT.rise * 0.8;
+    const top = vaultTop(z);
     k.cyl(0.012, 0.012, top - y - 0.2, x, y + 0.2, z, M.iron, { seg: 3 });
     k.cyl(0.09, 0.14, 0.06, x, y + 0.17, z, M.iron, { seg: 6 });
     k.box(0.2, 0.03, 0.2, x, y - 0.17, z, M.iron);
@@ -787,6 +843,8 @@ export function buildVleeshuis(): LandmarkRoom {
   const SX = VH.STAGE.x1;
   k.box(SX - X0, 0.8, D, (X0 + SX) / 2, UP + 0.4, (Z0 + Z1) / 2, H.boards, { tile: 1, flat: true });
   k.plane(D - 2, 4.4, X0 + 0.1, UP + 3, (Z0 + Z1) / 2, H.backdrop, { ry: Math.PI / 2 });
+  // (its canvas's back, seen from the street through the east front's windows)
+  k.plane(D - 2, 4.4, X0 + 0.08, UP + 3, (Z0 + Z1) / 2, H.paper, { ry: -Math.PI / 2 });
   for (const z of [Z0 + 1.2, Z1 - 1.2]) k.box(0.5, 5, 2.4, SX, UP + 2.5, z, H.panel);
   k.box(0.5, 1.0, D, SX, UP + 5.0, (Z0 + Z1) / 2, H.panel);
   for (const s of [-1, 1]) k.box(0.1, 3.9, 1.9, SX - 0.1, UP + 2.75, (Z0 + Z1) / 2 + s * 4.6, H.cloth);
@@ -877,7 +935,7 @@ export function buildVleeshuis(): LandmarkRoom {
   looksAdd(looks, "hoist", NX + 0.4, 11.4, 1.6, "look at the hoist", "A jib on a post over the skids by the north door, a pulley block and a rope. A cask swings slowly on it, going up to be rolled out or coming down to be laid on the stillage.");
   looksAdd(looks, "stage", SX + 1.6, (Z0 + Z1) / 2, 2.2, "look at the stage", "A small stage with a painted castle and town on the backcloth, red curtains looped back, a row of candle footlights. The society Liefde en Eendragt plays here.", U);
   looksAdd(looks, "studio", 21.5, 7.4, 1.8, "look at the canvases", "A studio: canvases turned to the wall, one on each easel half done, a model's platform with a draped chair. The light falls in a grey sheet from the gable's windows.", U);
-  const glasses = [winHall, winUp];
+  const glasses = [{ mat: () => hallGlass.mat }];
   const light = () => {
     const d = day * (0.55 + 0.45 * sky);
     L.hemi.intensity = (2.2 + 1.2 * d) * ambK;
@@ -972,6 +1030,9 @@ export function buildVleeshuis(): LandmarkRoom {
  * of finds from the soil and the river (Roman pots and coins, medieval jugs, seals, fossils), tall cabinets, old
  * carved stones along the walls. A stair at its end goes down to the old prison cell under it, the last stop.
  */
+/** The Steen's real openings (issue #10), in the hall's frame. */
+const ST_WINDOWS = inFrame(SS.SHELL_OPENINGS, ST.PLAN.origin, ST.PLAN.yaw);
+
 export function buildSteen(): LandmarkRoom {
   const P = ST.PLAN;
   const { scene, group, toWorld } = frameRoom(P.origin, P.yaw, 0x26221c);
@@ -989,7 +1050,6 @@ export function buildSteen(): LandmarkRoom {
   const DH = DOOR.spring;
   const box = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, m: MatDef, tile = 1.6) => k.box(x1 - x0, y1 - y0, z1 - z0, (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, m, { tile });
   const floor = lmMat("lm_st_floor", { map: slabs(9), color: 0xd0c8bc }, 0.1, 0.01);
-  const win = glassMat("grisaille", 71);
 
   // ---- floors: the doorway's sill, the gatehouse and the hall (not over the stairwell), the cell's straw
   box(-DOOR.hw - 0.2, DOOR.hw + 0.2, -0.1, 0, -0.3, IN.front, M.stoneDark, 1); // the sill over the gap to the courtyard
@@ -1001,20 +1061,15 @@ export function buildSteen(): LandmarkRoom {
   box(IN.east, -8.0, DOWN - 0.1, DOWN, IN.front, IN.back, floor, 1.2);
   box(IN.east, -8.0, DOWN, DOWN + 0.02, IN.front, IN.back, H.straw, 0.8);
 
-  // ---- the walls: Tournai stone. The lane wall with the doorway (the basket arch's springing) and the barred windows
-  holed(k, "x", IN.east - 0.5, IN.west + 0.5, 0.2, IN.front, 0, CEIL, [
-    [-DOOR.hw, DOOR.hw, -1, DH],
-    ...S.windows.map((x) => [x - 0.7, x + 0.7, S.winY[0], S.winY[1]] as [number, number, number, number]),
-    ...S.smallWindows.map((x) => [x - 0.35, x + 0.35, S.smallY[0], S.smallY[1]] as [number, number, number, number]),
-  ], H.stoneGrey, 1.6);
-  for (const x of S.windows) {
-    windowIn(k, "x", x, 0.45, 1, S.winY[0], S.winY[1], 1.4, win.def, M.stoneDark);
-    for (let i = -2; i <= 2; i++) box(x + i * 0.28 - 0.025, x + i * 0.28 + 0.025, S.winY[0], S.winY[1], 0.52, 0.57, M.iron, 1);
-  }
-  for (const x of S.smallWindows) {
-    windowIn(k, "x", x, 0.45, 1, S.smallY[0], S.smallY[1], 0.7, win.def, M.stoneDark);
-    for (let i = -1; i <= 1; i++) box(x + i * 0.2 - 0.02, x + i * 0.2 + 0.02, S.smallY[0], S.smallY[1], 0.52, 0.56, M.iron, 1);
-  }
+  // ---- the walls: Tournai stone. The lane wall (issue #10, interiors are real): lined from the shell's reveals' back
+  // to the rooms' inner face, cut exactly where the shell's door and barred windows are (the bars are the shell's, the
+  // glass the rooms')
+  const FY = ST.FLOOR_Y;
+  const lane: ShellFace = { a: [S.west, S.face], c: [S.east, S.face], n: [0, -1] };
+  lining(k, H.stoneGrey, { face: lane, from: 0.15, to: IN.front - S.face, u0: 0.25, u1: S.west - S.east - 0.25, y0: FY - 0.12, y1: FY + CEIL + 0.12 }, ST_WINDOWS, FY, 1.6);
+  const steenGlass = realGlass(ST_WINDOWS, FY, quarries(), { name: "steen", tile: 0.64, opacity: 0.22 });
+  if (steenGlass.mesh) group.add(steenGlass.mesh);
+  const win = { mat: () => steenGlass.mat };
   // the doorway's reveal from the door's plane to the wall
   for (const s of [-1, 1]) box(s > 0 ? DOOR.hw : -DOOR.hw - 0.3, s > 0 ? DOOR.hw + 0.3 : -DOOR.hw, 0, DH + 0.3, 0, 0.2, H.stoneGrey, 1.4);
   box(-DOOR.hw - 0.3, DOOR.hw + 0.3, DH, DH + 0.3, 0, 0.2, H.stoneGrey, 1.4);
@@ -1105,13 +1160,12 @@ export function buildSteen(): LandmarkRoom {
   k.cyl(0.16, 0.2, 1.7, GN.x, 0.72 - 0.85, GN.z - 0.1, H.bronze, { seg: 8, rx: -(Math.PI / 2 - 0.1) });
   for (const s of [-1, 1]) k.cyl(0.35, 0.35, 0.08, GN.x + s * 0.5, 0.31, GN.z - 0.35, H.timber, { seg: 10, rz: Math.PI / 2 });
 
-  // ---- the cell: rings and chains in the walls, a bench, straw, a slit of grey light high in the end wall
+  // ---- the cell: rings and chains in the walls, a bench, straw (issue #10: no painted slit of light, the shell has none there)
   for (const [x, z] of [[-13.75, 2.2], [-13.75, 5.2], [-8.05, 3.0]] as Array<[number, number]>) {
     k.cyl(0.12, 0.12, 0.04, x, DOWN + 1.3, z, M.iron, { seg: 6, rz: Math.PI / 2 });
     for (let i = 0; i < 5; i++) k.box(0.05, 0.12, 0.04, x + (x < -10 ? 0.05 : -0.05), DOWN + 1.15 - i * 0.12, z, M.iron);
   }
   k.box(0.45, 0.45, 2.6, IN.east + 0.25, DOWN + 0.22, 3.3, H.timber);
-  k.plane(0.12, 0.7, IN.east + 0.02, DOWN + 1.5, 4.6, win.def, { ry: Math.PI / 2 });
   k.finish();
 
   // light: lamps in the halls, the thin light in the cell
@@ -1134,7 +1188,7 @@ export function buildSteen(): LandmarkRoom {
   looksAdd(looks, "armour", 0.8, 3.6, 1.4, "look at the armour", "A suit of armour on a stand, empty and patient, and racks of halberds and pikes of the town's old militia. For looking at only: the attendant watches your hands.");
   looksAdd(looks, "gun", ST.GUN.x, ST.GUN.z - 1.5, 1.5, "look at the bronze gun", "A small bronze gun on a wooden carriage, green with age, the maker's name and a date cast on the barrel.");
   looksAdd(looks, "stairdown", -8.4, 6.6, 1.2, "look down the stair", "A worn stair goes down into the dark: the old prison cells under the castle. The last stop of the museum.");
-  looksAdd(looks, "cell", -11.2, 3.5, 2.2, "look round the cell", "The old prison of the Steen. Until fifty years ago men waited here for the judges: a low stone ceiling, iron rings in the wall, a bench, a slit of grey light. Names and crosses are scratched into the stone.", DOWN);
+  looksAdd(looks, "cell", -11.2, 3.5, 2.2, "look round the cell", "The old prison of the Steen. Until fifty years ago men waited here for the judges: a low stone ceiling, iron rings in the wall, a bench, straw on the floor. Names and crosses are scratched into the stone.", DOWN);
   const light = () => {
     const d = day * (0.55 + 0.45 * sky);
     L.hemi.intensity = (2.0 + 1.4 * d) * ambK;
@@ -1452,7 +1506,7 @@ export function hallsInWorld(world: World, inWorld: InWorld): HallInWorld[] {
       // the theatre's cross windows over the vaults, on both long sides
       { along: "x" as const, a, face: VH.SHELL.south, out: -1 as const, y0: 10.8 - VH.FLOOR_Y, y1: 14.1 - VH.FLOOR_Y, w: 1.5 },
       { along: "x" as const, a, face: VH.SHELL.north, out: 1 as const, y0: 10.8 - VH.FLOOR_Y, y1: 14.1 - VH.FLOOR_Y, w: 1.5 },
-    ])),
+    ]), 0.3, windowOpenings(VH_WINDOWS, (x, z) => HP.toWorld(VH.PLAN, x, z))),
     createHallInWorld(world, inWorld, OH.PLAN, buildOostershuis(), { color: 0x2a241c, near: 16, far: 70 }, [
       { label: "the gate passage", x: 0, z: 5.0, reach: 1.2 },
       { label: "the storekeeper's desk", x: OH.DESK.x + 1.4, z: OH.DESK.z + 1.0, reach: 1.2 },
@@ -1464,6 +1518,6 @@ export function hallsInWorld(world: World, inWorld: InWorld): HallInWorld[] {
       { label: "the gatehouse, the armour", x: 0.4, z: 3.6, reach: 1.2 },
       { label: "the hall of antiquities", x: -8.2, z: 3.1, reach: 1.2 },
       { label: "the stair down to the cell", x: ST.STAIR.head + 0.6, z: 6.6, reach: 1.0 },
-    ]),
+    ], [], 0.3, windowOpenings(ST_WINDOWS, (x, z) => HP.toWorld(ST.PLAN, x, z))),
   ];
 }

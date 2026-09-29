@@ -44,7 +44,8 @@ const churchCell = (x: number, y: number, w: number, h: number): Cell => [x, CH 
 // build_landmarks.py CELL (y from the top of 512 x 1024): the tower lancets, the great west window, the aisle lancets;
 // the stand-ins' town hall bays, cross windows, the Hanseatic House's bays, the Vleeshuis's upper windows, the Steen's
 const RULES: Rule[] = [
-  { mat: /^(sh_glass|vh_glass|steen_glass|landmark_glass|cath_glass)$/, stained: false, power: 1 },
+  // (issue #10: "_lit", the old panes of the real windows, never drawn themselves: their glass is the room's)
+  { mat: /^(sh_glass|vh_glass|steen_glass|landmark_glass|cath_glass)(_lit)?$/, stained: false, power: 1 },
   {
     mat: /^church_atlas$/,
     size: [256, 256],
@@ -460,6 +461,8 @@ export function createLandmarkWindows(scene: THREE.Scene): LandmarkWindows {
       o.onBeforeRender = fade(o);
       o.name = `${mesh.name}_window_light`;
       o.renderOrder = 2;
+      // (the glass's own light: the interior check looks through it, dev/interiorcheck.ts)
+      o.userData.glass = true;
       // (always drawn, black by day: its shader is built with the town's, not at the first dusk)
       mesh.add(o);
       // the light on the street: the biggest low windows of the building (up to 14 a mesh). Only the ground floor's

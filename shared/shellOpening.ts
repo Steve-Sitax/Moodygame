@@ -39,10 +39,35 @@ export interface ShellOpening {
   cy?: number;
   /** A roof light: its four corners (x, y, z) on the slope's underside. */
   pts?: Array<[number, number, number]>;
+  /**
+   * Issue #10 (the landmarks and churches): an outline of its own where the shape is none of the above (a pointed
+   * gothic window, a basket-arched door): (u along from its middle, world y), from the bottom left along the bottom,
+   * up the right side, over the head and down the left side. `hw`, `yb`, `yt` are its extent.
+   */
+  poly?: Array<[number, number]>;
+}
+
+/** Rows written in the world's frame (the landmarks' shells: shared/*Shell.ts) moved into a plan's frame (hallPlan.ts). */
+export function inFrame(rows: readonly ShellOpening[], origin: { x: number; z: number }, yaw: number): ShellOpening[] {
+  const c = Math.cos(yaw);
+  const s = Math.sin(yaw);
+  const dir = (x: number, z: number): [number, number] => [x * c - z * s, x * s + z * c];
+  return rows.map((o) => {
+    const [x, z] = dir(o.x - origin.x, o.z - origin.z);
+    const [tx, tz] = dir(o.tx, o.tz);
+    const [nx, nz] = dir(o.nx, o.nz);
+    const out: ShellOpening = { ...o, x, z, tx, tz, nx, nz };
+    if (o.pts) out.pts = o.pts.map(([px, py, pz]) => {
+      const [lx, lz] = dir(px - origin.x, pz - origin.z);
+      return [lx, py, lz] as [number, number, number];
+    });
+    return out;
+  });
 }
 
 /** The opening's outline in its wall's plane: (u along from its middle, world y), counter-clockwise seen from outside. */
 export function outline(o: ShellOpening, n = 8): Array<[number, number]> {
+  if (o.poly?.length) return o.poly.map(([u, y]) => [u, y] as [number, number]);
   if (o.shape === "round") {
     const r = o.r ?? o.hw;
     const cy = o.cy ?? (o.yb + o.yt) / 2;

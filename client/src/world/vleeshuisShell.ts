@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { footDirt, psx } from "../retro/psx";
+import { shellMarkers } from "./realOpenings";
 
 // The Vleeshuis of 1873 in detail (the high-quality pass, 2026-09-26): its own model
 // (tools/blender/build_vleeshuis.py -> /models/vleeshuis.glb) with a picture and a matching height map per
@@ -32,6 +33,8 @@ const PICS: Record<string, Pic> = {
   vh_blue: { map: "/textures/vleeshuis_blue.jpg", height: "/textures/vleeshuis_blue_h.png", bump: 1.0, joint: 0.25, lift: 1.35 },
   vh_slate: { map: "/textures/vleeshuis_slate.jpg", height: "/textures/vleeshuis_slate_h.png", bump: 1.2, joint: 0.25, lift: 1.2 },
   vh_glass: { map: "/textures/vleeshuis_glass.jpg", height: "/textures/vleeshuis_glass_h.png", bump: 0.6, joint: 0.1, lift: 1.1 },
+  // issue #10: the old panes of the real windows, never drawn: world/landmarkWindows.ts lights a copy of them at night
+  vh_glass_lit: { map: "/textures/vleeshuis_glass.jpg", bump: 0, joint: 0, lift: 1.1 },
   vh_oak: { map: "/textures/vleeshuis_oak.jpg", height: "/textures/vleeshuis_oak_h.png", bump: 1.2, joint: 0.25, lift: 1.3 },
   vh_madonna: { map: "/textures/vleeshuis_madonna.jpg", height: "/textures/vleeshuis_madonna_h.png", bump: 1.5, joint: 0.2, lift: 1.3 },
   vh_lead: { bump: 0, joint: 0, lift: 1, color: 0x4a4c4e },
@@ -74,6 +77,10 @@ function material(name: string, src: THREE.MeshStandardMaterial): THREE.Material
       m.needsUpdate = true;
     });
   m.name = name;
+  if (name === "vh_glass_lit") {
+    m.visible = false;
+    return m;
+  }
   psx(m, { fogReach: 2.2, affine: 0 });
   // the dirt band at the foot of the walls (retro/psx.ts footDirt)
   footDirt(m, 0.5);
@@ -108,6 +115,8 @@ export function loadVleeshuisShell(scene: THREE.Scene): void {
     .loadAsync("/models/vleeshuis.glb")
     .then((gltf) => {
       const meshes: THREE.Mesh[] = [];
+      // issue #10: the real openings' markers, for the interior check (dev/interiorcheck.ts)
+      for (const e of shellMarkers(gltf.scene)) group.add(e);
       gltf.scene.traverse((o) => {
         const m = o as THREE.Mesh;
         if (!m.isMesh) return;

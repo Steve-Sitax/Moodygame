@@ -45,11 +45,19 @@ CITY = os.path.join(ROOT, "shared", "city.json")
 OUT = os.path.join(ROOT, "client", "public", "models", "steen.glb")
 FEATURES = os.path.join(ROOT, "client", "public", "models", "steen_features.json")
 
-MATS = ["steen_tournai", "steen_sand", "steen_blue", "steen_slate", "steen_brick", "steen_metal", "steen_glass", "steen_atlas", "steen_carve"]
-TOUR, SAND, BLUE, SLATE, BRICK, METAL, GLASS, ATLAS, CARVE = range(9)
+MATS = ["steen_tournai", "steen_sand", "steen_blue", "steen_slate", "steen_brick", "steen_metal", "steen_glass", "steen_atlas", "steen_carve", "steen_glass_lit"]
+TOUR, SAND, BLUE, SLATE, BRICK, METAL, GLASS, ATLAS, CARVE, GLASS_LIT = range(10)
 # metres per repeat of each picture (the game's steenModel.ts loads the pictures; the uv here is world metres / tile)
-TILE = {TOUR: 3.0, SAND: 3.0, BLUE: 1.5, SLATE: 1.5, BRICK: 1.0, METAL: 1.0, GLASS: 0.64}
-FLAT = {METAL, ATLAS, CARVE, GLASS}  # no per-face jitter, no height shading
+TILE = {TOUR: 3.0, SAND: 3.0, BLUE: 1.5, SLATE: 1.5, BRICK: 1.0, METAL: 1.0, GLASS: 0.64, GLASS_LIT: 0.64}
+FLAT = {METAL, ATLAS, CARVE, GLASS, GLASS_LIT}  # no per-face jitter, no height shading
+# Issue #10 (interiors are real, docs/building-with-interior.md): the windows over the museum's rooms (the gatehouse's
+# two small ones, the prison range's three on the courtyard) and its door are real openings: cut through, their bars
+# and mullions here, their glass the room's (world/landmarkHalls.ts buildSteen). Each is written twice: an empty
+# "opening_<id>" in the glb and a row of shared/steenShell.ts (world frame). Their old panes go to a mesh of their own
+# ("steen_lit_glass", steen_glass_lit) that the game never draws: world/landmarkWindows.ts lights a copy at night.
+SHELL_TS = os.path.join(ROOT, "shared", "steenShell.ts")
+OPENINGS = []
+LIT = [None]
 
 # colours in the vertex colour for the metal
 LEAD, IRON, ZINC, GILT, TERRA = (0.42, 0.44, 0.46), (0.16, 0.16, 0.17), (0.55, 0.57, 0.58), (1.6, 1.15, 0.45), (0.95, 0.55, 0.4)
@@ -291,7 +299,8 @@ class Op:
 
     def __init__(self, s, hw, y0, y1, head="flat", depth=0.3, back="glass", frame=0.13, proj=0.07, sill=None, mull=0,
                  transom=None, bars=0, splay=0.0, rev=None, blocks=False, frame_all=False, rise=None, n=8, hood=False, steps=0,
-                 name=None):
+                 name=None, real=None):
+        self.real = real  # a real opening's label (issue #10): its glass is the room's
         self.s, self.hw, self.y0, self.y1, self.head = s, hw, y0, y1, head
         self.steps, self.name = steps, name  # steps: that many stone steps up to a door's sill from the ground (y 0)
         self.depth, self.back, self.frame, self.proj = depth, back, frame, max(proj, 0.06) if frame > 0 else 0.0
@@ -447,7 +456,7 @@ def back_face(m, w, pts2, e, back, shade=1.0):
     pts = [w.P(s, e, y) for s, y in pts2]
     out = w.dir(0, 1, 0)
     if back == "glass":
-        m.poly(pts, GLASS, shade, out)
+        m.poly(pts, GLASS_LIT if m is LIT[0] else GLASS, shade, out)
     elif back.startswith("carve:"):
         m.poly(pts, CARVE, shade, out, uvs=cell_uvs(pts2, back[6:], "carve"))
     else:
@@ -477,7 +486,12 @@ def opening(m, w, op, wall_mat, shade=1.0):
             sh = 0.9 if foot_edge else (0.62 if my > op.ysp else 0.74)
             m.poly([w.P(a[0], ef, a[1]), w.P(b[0], ef, b[1]), w.P(bi[0], -dep, bi[1]), w.P(ai[0], -dep, ai[1])], rev, shade * sh,
                    w.dir(cs - ms, 0, (cy - my) if not foot_edge else 1.0))
-    back_face(m, w, inner, -dep, op.back, 0.85)
+    if op.real:
+        real_opening(m, w, op)
+    if op.real and op.back == "glass":
+        back_face(LIT[0], w, inner, -dep, op.back, 0.85)
+    else:
+        back_face(m, w, inner, -dep, op.back, 0.85)
     # the frame (bluestone surround), as one ring or as voussoirs
     if fw > 0:
         outer = op.loop(g=fw, foot=op.frame_all)
@@ -532,6 +546,59 @@ def opening(m, w, op, wall_mat, shade=1.0):
         for i in range(1, hk + 1):
             y = op.y0 + (top - op.y0) * i / (hk + 1)
             wbox(m, w, op.s - op.hw, op.s + op.hw, eb + 0.018, eb + 0.04, y - 0.02, y + 0.02, METAL, 1.0, "otd", col=IRON)
+
+
+def real_opening(m, w, op):
+    """Record a real opening (issue #10) in world metres: its outline where the reveal ends (a door's up to its
+    springing: the head over its leaves is the room's wall, as it was)."""
+    kind = "window" if op.back == "glass" else "door"
+    if kind == "door":
+        ol = [(op.s - op.hw, op.y0), (op.s + op.hw, op.y0), (op.s + op.hw, op.ysp), (op.s - op.hw, op.ysp)]
+    else:
+        ol = op.loop()
+    x, _, z = m.W(*w.P(op.s, 0, 0))
+    poly = [(s_ - op.s, y_) for s_, y_ in ol]
+    OPENINGS.append(dict(kind=kind, part="steen", label=op.real, glaze="bars" if op.bars else "", shape="rect", x=x, z=z, tx=w.d[0], tz=w.d[1],
+                         nx=w.o[0], nz=w.o[1], hw=max(abs(q[0]) for q in poly), yb=min(q[1] for q in poly), yt=max(q[1] for q in poly), arch=False,
+                         depth=max(op.depth, 0.0), poly=poly))
+
+
+def opening_markers():
+    """Every real opening as an empty in the glb (dev/interiorcheck.ts reads them) and shared/steenShell.ts."""
+    for i, o in enumerate(OPENINGS):
+        o["id"] = f"st_{i:03d}"
+        ob = bpy.data.objects.new("opening_" + o["id"], None)
+        ob.empty_display_size = max(0.2, o["hw"])
+        ob.location = Vector((o["x"], -o["z"], (o["yb"] + o["yt"]) / 2))
+        for k in ("kind", "label", "glaze", "shape", "part"):
+            ob[k] = str(o[k])
+        for k in ("hw", "yb", "yt", "nx", "nz", "tx", "tz", "depth"):
+            ob[k] = float(o[k])
+        ob["arch"] = 0
+        bpy.context.scene.collection.objects.link(ob)
+    f3 = lambda v: f"{v:.3f}".rstrip("0").rstrip(".")  # noqa: E731
+    lines = [
+        "// GENERATED by tools/blender/build_steen.py (issue #10, interiors are real): do not edit. Every real opening of the",
+        "// Steen's shell (client/public/models/steen.glb, whose empties opening_<id> are the same), in the WORLD's frame",
+        "// (world/landmarkHalls.ts moves them into the hall's: shellOpening.ts inFrame). x, z: its middle on the wall's outer",
+        "// face; (tx, tz) along it, (nx, nz) out of it; poly its outline where the reveal ends (u along from the middle,",
+        "// world y); depth the reveal's depth into the wall.",
+        "",
+        'import type { ShellOpening } from "./shellOpening.js";',
+        "",
+        "export const SHELL_OPENINGS: ShellOpening[] = [",
+    ]
+    for o in OPENINGS:
+        parts_ = []
+        for k in ("id", "kind", "part", "label", "glaze", "shape", "x", "z", "tx", "tz", "nx", "nz", "hw", "yb", "yt", "arch", "depth"):
+            v = o[k]
+            parts_.append(f"{k}: {json.dumps(v) if isinstance(v, (str, bool)) else f3(float(v))}")
+        parts_.append("poly: [" + ", ".join(f"[{f3(u)}, {f3(y)}]" for u, y in o["poly"]) + "]")
+        lines.append("  { " + ", ".join(parts_) + " },")
+    lines += ["];", ""]
+    with open(SHELL_TS, "w", newline="\n") as f:
+        f.write("\n".join(lines))
+    return len(OPENINGS)
 
 
 def record(m, w, op):
@@ -1109,6 +1176,8 @@ def materials():
 "steen_brick": (0.45, 0.24, 0.18), "steen_metal": (1, 1, 1), "steen_glass": (0.1, 0.12, 0.12),
             "steen_atlas": (0.4, 0.35, 0.3), "steen_carve": (0.55, 0.5, 0.42)}
     images = {"steen_atlas": packed_image("steen_atlas", paint_atlas()), "steen_glass": packed_image("steen_glass", paint_glass())}
+    images["steen_glass_lit"] = images["steen_glass"]
+    cols["steen_glass_lit"] = cols["steen_glass"]
     for name in MATS:
         mt = bpy.data.materials.new(name)
         mt.diffuse_color = (*cols[name], 1)
@@ -1261,6 +1330,7 @@ def build():
     fr = city["landmarks"]["steen"]["frame"]
     cx, cz = fr["c"]
     m = SM(cx, cz)
+    LIT[0] = SM(cx, cz)
     L, Wd = fr["L"], fr["W"]
     U0, U1, V0, V1 = -L / 2, L / 2, -Wd / 2, Wd / 2  # -17, 17, -8.25, 8.25
     a0, a1, b0, b1 = U0 + 0.25, U1 - 0.25, V0 + 0.25, V1 - 0.25  # the wall faces
@@ -1407,12 +1477,14 @@ def build():
     m.sec = "Charles V's gatehouse on the courtyard"
     gc = -6.5
     DHW, DH = 1.25, 3.6
-    door = Op(gc, DHW, TY, TY + DH, head="four", depth=0.0, back=None, frame=0.22, proj=0.09, sill=False, name="museum door (Charles V's gate, on the courtyard)")
+    door = Op(gc, DHW, TY, TY + DH, head="four", depth=0.0, back=None, frame=0.22, proj=0.09, sill=False, name="museum door (Charles V's gate, on the courtyard)",
+              real="the gatehouse, the museum's door")
     m.door("Steen, museum door (Charles V's gate, on the courtyard)", gc, V1)
     gr = max(8.0, gable_rise(g0, g1, 5, saddle(gc, (g1 - g0) / 2, 5.6), crown=1.0))
     gh_ops = [
         door,
-        *[Op(s, 0.35, TY + 1.4, TY + 2.6, depth=0.15, frame=0.1, bars=1) for s in (g0 + 0.8, g1 - 0.8)],
+        *[Op(s, 0.35, TY + 1.4, TY + 2.6, depth=0.15, frame=0.1, bars=1, real=f"the gatehouse, the small window {side} of the door")
+          for s, side in ((g0 + 0.8, "south"), (g1 - 0.8, "north"))],
         *[Op(s, 0.4, TY + 5.4, TY + 7.6, depth=0.15, frame=0.12, bars=1) for s in (g0 + 0.8, g1 - 0.8)],
         *[Op(s, 0.4, TY + 8.6, TY + 10.6, depth=0.3, frame=0.12, bars=1) for s in (g0 + 0.8, g1 - 0.8)],
         Op(gc, 0.5, GY1 + 1.8, GY1 + 4.0, head="pointed", depth=0.35, frame=0.13, mull=1, bars=1),
@@ -1472,7 +1544,8 @@ def build():
     # ================================================================ the prison range on the courtyard: the museum's hall
     m.sec = "the prison range on the courtyard"
     pr_ops = [
-        *[Op(u, 0.7, TY + 1.2, TY + 3.9, depth=0.15, frame=0.14, mull=1 if k == 2 else 0, transom=TY + 2.6 if k == 2 else None, bars=1)
+        *[Op(u, 0.7, TY + 1.2, TY + 3.9, depth=0.15, frame=0.14, mull=1 if k == 2 else 0, transom=TY + 2.6 if k == 2 else None, bars=1,
+             real=f"the prison range, the hall of antiquities, window {k + 1} on the courtyard")
           for k, u in enumerate((-1.9, 1.3, 4.5))],
         *[Op(u, 0.7, TY + 5.8, TY + 8.7, depth=0.15, frame=0.14, bars=1, hood=True) for u in (-1.9, 1.3, 4.5)],
         Op(1.8, 3.4, TY + 4.35, TY + 5.4, depth=0.03, back="band", frame=0, sill=False),
@@ -1805,13 +1878,15 @@ def main():
     materials()
     m = build()
     finish(m, "steen")
+    finish(LIT[0], "steen_lit_glass")
+    print(f"[build_steen] {opening_markers()} real openings -> {SHELL_TS}")
     # what must stay clear of everything else, for the game's dev check (world/steenModel.ts check(); not loaded in play)
     for f in m.features:
         if "tris" in f:
             f["tris"] = [round(c, 2) for c in f["tris"]]
     json.dump(m.features, open(FEATURES, "w", newline=chr(10)), separators=(",", ":"))
     bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", export_yup=True, export_texcoords=True, export_normals=True,
-                              export_materials="EXPORT", use_selection=False, export_vertex_color="ACTIVE", export_all_vertex_colors=False,
+                              export_materials="EXPORT", use_selection=False, export_vertex_color="ACTIVE", export_all_vertex_colors=False, export_extras=True,
                               export_draco_mesh_compression_enable=True, export_draco_mesh_compression_level=7)
     print(f"[build_steen] -> {OUT} ({os.path.getsize(OUT) // 1024} KB)")
 

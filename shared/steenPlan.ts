@@ -68,7 +68,9 @@ export const CASES: Array<[number, number, boolean]> = [
   [-13.25, 3.6, false],
 ];
 export const CABINETS: Array<[number, number]> = [[-6.3, 4.3], [-10.0, 4.3]];
-export const STONES: Array<[number, number, number]> = [[-13.3, 5.4, 0], [-3.8, 1.5, 1], [-3.8, 7.0, 2], [-12.9, 1.5, 3]];
+// (issue #10, the interior check: the first stone stood at (-13.3, 5.4) and shut the nook past the stairwell's end off
+// from the hall, 6 free places no one reached; it stands in that nook now, the way to it open along the east wall)
+export const STONES: Array<[number, number, number]> = [[-13.3, 6.9, 0], [-3.8, 1.5, 1], [-3.8, 7.0, 2], [-12.9, 1.5, 3]];
 // ---- the gatehouse: arms and armour
 export const ARMOUR: Array<[number, number]> = [[1.6, 2.6], [1.6, 4.6]];
 export const RACK = { x: 1.95, z0: 5.3, z1: 7.2 };

@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { psx, bumpFromMap, footDirt } from "../retro/psx";
+import { shellMarkers } from "./realOpenings";
 
 // Het Steen in detail (Steve, 2026-09-26: "do the steen again in higher quality", "do not forget bump mapping"):
 // tools/blender/build_steen.py -> /models/steen.glb. It replaces the Steen of landmarks.glb (build_landmarks.py
@@ -161,6 +162,15 @@ export function loadSteenModel(scene: THREE.Scene): SteenModel {
       map.wrapS = map.wrapT = THREE.RepeatWrapping;
       map.needsUpdate = true;
     }
+    if (src.name === "steen_glass_lit") {
+      // issue #10: the old panes of the real windows, never drawn (their glass is the room's): world/landmarkWindows.ts
+      // lights a copy of them at night
+      const lit = new THREE.MeshLambertMaterial({ map: map ?? null, vertexColors: true });
+      lit.name = src.name;
+      lit.visible = false;
+      mats.set(src.name, lit);
+      return lit;
+    }
     const m = psx(new THREE.MeshLambertMaterial({ map: map ?? null, vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0 });
     if (map) bumpFromMap(m, src.name === "steen_glass" ? 0.4 : 0.5);
     m.name = src.name;
@@ -173,6 +183,8 @@ export function loadSteenModel(scene: THREE.Scene): SteenModel {
     .loadAsync("/models/steen.glb")
     .then((gltf) => {
       const meshes: THREE.Mesh[] = [];
+      // issue #10: the real openings' markers, for the interior check (dev/interiorcheck.ts)
+      for (const e of shellMarkers(gltf.scene)) group.add(e);
       gltf.scene.traverse((o) => {
         const m = o as THREE.Mesh;
         if (!m.isMesh) return;

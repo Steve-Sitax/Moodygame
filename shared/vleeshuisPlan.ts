@@ -38,7 +38,8 @@ export const UP = 10.0 - FLOOR_Y;
 export const IN = { south: 0.6, north: 14.1, east: -15.4, west: 27.4 };
 /** The vaults over the ground floor: spring, the apex under the upper floor's slab. */
 export const VAULT = { spring: 5.0, rise: 3.6 };
-export const CEIL1 = 15.6;
+/** The upper floor's ceiling (issue #10: over the gables' small windows under the eaves, which light its rooms). */
+export const CEIL1 = 16.2;
 
 /** The columns under the vaults: two rows, the aisles 4.5 m wide. */
 export const COL_Z = [5.1, 9.6];

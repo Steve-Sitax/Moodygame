@@ -29,8 +29,8 @@ export interface Lining {
   y1: number;
   /** A top that is not level (a gable, a slope): (u, world y) points from u0 to u1. */
   top?: Array<[number, number]>;
-  /** Doorways of the room's own cut from the bottom (u0, u1 along the face; top world y; a round head). */
-  doors?: Array<{ u0: number; u1: number; top: number; round?: boolean }>;
+  /** Doorways of the room's own cut from the bottom (u0, u1 along the face; top world y; a round head; or a head of its own, (u, y) left to right). */
+  doors?: Array<{ u0: number; u1: number; top: number; round?: boolean; head?: Array<[number, number]> }>;
   /** Holes of the room's own (u along the face, world y outlines). */
   holes?: Array<Array<[number, number]>>;
 }
@@ -67,10 +67,19 @@ export function lining(k: Kit, def: MatDef, L: Lining, openings: readonly ShellO
     if (o.yt < L.y0 - 1e-3 || o.yb > topAt(um) + 1e-3) continue;
     used.push(o);
     if (o.kind === "door" && o.yb <= L.y0 + 0.05) {
-      doors.push({ u0: um - hw - 0.02, u1: um + hw + 0.02, top: o.arch ? o.yt + 0.02 : o.yt + 0.02, round: o.arch });
+      // a head of its own (a basket arch): its outline over the bottom, left to right, 2 cm wider and higher
+      let head: Array<[number, number]> | undefined;
+      if (o.poly?.length) {
+        const k = (hw + 0.02) / Math.max(1e-6, hw);
+        head = o.poly.filter(([, y]) => y > o.yb + 1e-3).map(([u, y]) => [um + u * k, y + 0.02] as [number, number]).sort((p, q) => p[0] - q[0]);
+      }
+      doors.push({ u0: um - hw - 0.02, u1: um + hw + 0.02, top: o.arch ? o.yt + 0.02 : o.yt + 0.02, round: o.arch, head });
       continue;
     }
     holes.push(outline(o).map(([u, y]) => [um + u, y] as [number, number]));
+    // issue #10: a reveal shallower than the lining's front: a sleeve of the room from the reveal's back to the
+    // lining, so no gap shows between them (its sides only; the glass stays at the reveal's back)
+    if (o.depth < L.from - 0.005) sleeve(k, def, f, um, outline(o, 10), o.depth, L.from, floorY, tint);
   }
   // the right hand: along x up x inward must be right-handed; if it is not, extrude from the inner face outward
   // (never mirror the shape: three.js then turns the hole's sides inside out)
@@ -84,7 +93,9 @@ export function lining(k: Kit, def: MatDef, L: Lining, openings: readonly ShellO
     const b = Math.min(u1, d.u1);
     if (b <= a) continue;
     pts.push(P(a, L.y0));
-    if (d.round) {
+    if (d.head?.length) {
+      for (const [u, y] of d.head) pts.push(P(Math.min(b, Math.max(a, u)), y));
+    } else if (d.round) {
       const r = (b - a) / 2;
       const sp = d.top - r;
       pts.push(P(a, sp));
@@ -123,6 +134,60 @@ export function lining(k: Kit, def: MatDef, L: Lining, openings: readonly ShellO
   return used;
 }
 
+/**
+ * A shell's opening markers (the empties "opening_<id>" its Blender script writes), kept in their world place for the
+ * interior check (dev/interiorcheck.ts): plain objects with the marker's custom properties, for a loader to add to
+ * its group (at the world's origin, not turned).
+ */
+export function shellMarkers(root: THREE.Object3D): THREE.Object3D[] {
+  root.updateMatrixWorld(true);
+  const out: THREE.Object3D[] = [];
+  root.traverse((o) => {
+    if (!/^opening_/.test(o.name)) return;
+    const e = new THREE.Object3D();
+    e.name = o.name;
+    e.userData = { ...o.userData };
+    e.position.setFromMatrixPosition(o.matrixWorld);
+    out.push(e);
+  });
+  return out;
+}
+
+/**
+ * The sides of an opening's hole from depth d0 to d1 into a face (issue #10): the outline (u from the face's start,
+ * world y) swept straight in, each side facing into the opening.
+ */
+function sleeve(k: Kit, def: MatDef, f: ShellFace, um: number, ring: Array<[number, number]>, d0: number, d1: number, floorY: number, tint?: number): void {
+  const len = Math.hypot(f.c[0] - f.a[0], f.c[1] - f.a[1]);
+  const tx = (f.c[0] - f.a[0]) / len;
+  const tz = (f.c[1] - f.a[1]) / len;
+  const at = (u: number, y: number, d: number) => V(f.a[0] + tx * (um + u) - f.n[0] * d, y - floorY, f.a[1] + tz * (um + u) - f.n[1] * d);
+  const cu = ring.reduce((s, p) => s + p[0], 0) / ring.length;
+  const cy = ring.reduce((s, p) => s + p[1], 0) / ring.length;
+  const mid = at(cu, cy, (d0 + d1) / 2);
+  const pos: number[] = [];
+  for (let i = 0; i < ring.length; i++) {
+    const [pu, py] = ring[i];
+    const [qu, qy] = ring[(i + 1) % ring.length];
+    if (Math.hypot(qu - pu, qy - py) < 1e-5) continue;
+    const a = at(pu, py, d0);
+    const b = at(qu, qy, d0);
+    const c = at(qu, qy, d1);
+    const d = at(pu, py, d1);
+    // facing the opening's middle
+    const n = new THREE.Vector3().subVectors(b, a).cross(new THREE.Vector3().subVectors(d, a));
+    const toMid = new THREE.Vector3().subVectors(mid, a);
+    const q = n.dot(toMid) >= 0 ? [a, b, c, a, c, d] : [a, c, b, a, d, c];
+    for (const v of q) pos.push(v.x, v.y, v.z);
+  }
+  if (!pos.length) return;
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.computeVertexNormals();
+  planarUV(g, 1.6);
+  k.add(g, def, 0, 0, 0, { tint: tint ?? 0.8, flat: true });
+}
+
 /** The glass of these openings (windows, slits left bare, roof lights), in the building's frame: a hair behind the shell's bars. */
 export function glassPanes(openings: readonly ShellOpening[], floorY: number, into = 0.006): THREE.BufferGeometry | null {
   const geos: THREE.BufferGeometry[] = [];
@@ -151,6 +216,80 @@ export function glassPanes(openings: readonly ShellOpening[], floorY: number, in
   const out = mergeGeometries(geos, false);
   for (const g of geos) g.dispose();
   return out;
+}
+
+/**
+ * Issue #10: the glass of a landmark's real windows as one mesh of its room (a picture of leaded glass, see-through
+ * a little: the room shows from the street and the street from inside), `userData.glass` for the interior check.
+ * `tile`: metres per repeat of the picture (the shell's own glass picture, as its panes had it). The material is one
+ * the prison's chapel already draws with (MeshBasic, a map, see-through, both sides): no new shader kind.
+ */
+export function realGlass(openings: readonly ShellOpening[], floorY: number, pic: THREE.Texture, opts: { tile?: number; color?: number; opacity?: number; name: string }): { mesh: THREE.Mesh | null; mat: THREE.MeshBasicMaterial } {
+  const mat = new THREE.MeshBasicMaterial({ map: pic, color: opts.color ?? 0x9a9e98, transparent: true, opacity: opts.opacity ?? 0.55, depthWrite: false, side: THREE.DoubleSide });
+  mat.name = `${opts.name}_glass`;
+  const g = glassPanes(openings, floorY);
+  if (!g) return { mesh: null, mat };
+  // glassPanes lays its uv at 0.5 m by 0.83 m: to the picture's tile
+  const tile = opts.tile ?? 1.2;
+  const uv = g.getAttribute("uv") as THREE.BufferAttribute;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) / (2 * tile), uv.getY(i) / (1.2 * tile));
+  const mesh = new THREE.Mesh(g, mat);
+  mesh.name = `${opts.name}_glass`;
+  mesh.userData.glass = true;
+  mesh.renderOrder = 5;
+  return { mesh, mat };
+}
+
+let quarryPic: THREE.Texture | null = null;
+/** Leaded quarries (diamond panes of old greenish glass, 0.64 m a repeat), painted once: for a shell whose glass picture is packed in its glb. */
+export function quarries(): THREE.Texture {
+  if (quarryPic) return quarryPic;
+  const c = document.createElement("canvas");
+  c.width = c.height = 64;
+  const g = c.getContext("2d")!;
+  g.fillStyle = "#9aa89c";
+  g.fillRect(0, 0, 64, 64);
+  // each pane a little different: old glass, uneven
+  for (let i = 0; i < 4; i++)
+    for (let j = 0; j < 4; j++) {
+      const v = 150 + ((i * 37 + j * 71) % 40);
+      g.fillStyle = `rgb(${v - 12}, ${v}, ${v - 8})`;
+      g.beginPath();
+      g.moveTo(i * 16 + 8, j * 16);
+      g.lineTo(i * 16 + 16, j * 16 + 8);
+      g.lineTo(i * 16 + 8, j * 16 + 16);
+      g.lineTo(i * 16, j * 16 + 8);
+      g.closePath();
+      g.fill();
+    }
+  g.strokeStyle = "#2a2c2a";
+  g.lineWidth = 1.5;
+  for (let k = -64; k <= 64; k += 16) {
+    g.beginPath();
+    g.moveTo(k, 0);
+    g.lineTo(k + 64, 64);
+    g.moveTo(k + 64, 0);
+    g.lineTo(k, 64);
+    g.stroke();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.magFilter = THREE.NearestFilter;
+  t.name = "leaded_quarries";
+  quarryPic = t;
+  return t;
+}
+
+/** A picture of the shell's own (its glass), wrapped, for realGlass. */
+export function shellPicture(url: string): THREE.Texture {
+  const t = new THREE.TextureLoader().load(url);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.magFilter = THREE.LinearFilter;
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.name = url.replace(/^.*\//, "").replace(/\.\w+$/, "");
+  return t;
 }
 
 /**
