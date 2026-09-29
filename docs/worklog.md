@@ -14,6 +14,8 @@ The demo includes the business shells and shared exterior routines. Its existing
 
 Unrelated audit-tool issue found and filed: [issue 38](https://github.com/Steve-Sitax/Moodygame/issues/38), false interior geometry errors when the checker excludes distant, culled shell walls. Nearby checks pass without geometry changes.
 
+Cleanup limitation: automatic approval review rejected removal of `MoodyGame-npc-routines` as "blocked by policy". Its directory remains; the copied save, test slots, test TLS files and all three temporary listeners have been removed. No retry or workaround was attempted.
+
 What went live, what is being worked on now and by whom, and what waits for Steve.
 The coordinating Claude session keeps this file current: a line when a helper starts, when a
 patch goes live (with its commit), and when Steve decides something. Newest first in each part.
