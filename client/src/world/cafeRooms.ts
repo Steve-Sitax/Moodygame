@@ -280,7 +280,7 @@ export function buildCafe(opts: { plan: HousePlan; label: string; seed: number; 
       if (round) k.roundTable(tx, z, F, 0.34, M.marble());
       else k.squareTable(tx, z, F, 0.7, 0.7, M.oak());
       // the aisle-side chair, facing the table
-      const ax = tx - ns * 0.62;
+      const ax = tx + ns * 0.62;
       chairSeat(ax, z, tx, z, [[XA, z]], plush);
       if (style === "grand") {
         // on the banquette, facing the table

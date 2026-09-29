@@ -849,7 +849,7 @@ export class Interiors {
     for (const [id, o] of this.occ) {
       if (!o.human && seen) this.dress(o);
       const h = o.human;
-      if (!o.path.length && !o.leaving && room.kind !== "cellar" && !o.p.stand) {
+      if (!o.path.length && !o.leaving && room.kind !== "cellar") {
         if (!o.routine) this.makeRoutine(o);
         const r = o.routine;
         if (r) {

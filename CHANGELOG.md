@@ -39,6 +39,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - The lower parts of the cathedral's aisle windows, behind the houses built against it, are walled up instead of painted ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
 
 ### Fixed
+- Café chairs face their tables from the aisle side, with space to leave the long bench; standing customers also take walking breaks.
 - Adding the backstreet businesses to an older town preserves occupied households and cannot prevent that save from opening.
 - Boat families, bench sitters, shop and café staff, guards, workshop workers and people in landmark halls take local walking and working breaks. Seated people get up and return; prisoners pace inside their cells and window watchers go back indoors.
 - The Stadspark's lamps light the paths round them at night, as the street's gas lamps do.
