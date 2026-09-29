@@ -173,7 +173,9 @@ export class RetroPass {
     if (fresh) scene.matrixWorldAutoUpdate = false;
     try {
       // the mirrors first, at the top level: inside the main pass they cost every material a program look-up (world/mirror.ts)
-      pass("render.mirrors", () => drawMirrorsFirst(this.renderer, scene, camera));
+      // (issue #27: inside a room with no opening in view the street is not drawn at all: nor are its mirrors; they
+      // drew every frame in the cathedral's choir, 8 to 14 ms, for water no one could see)
+      if (!plan || plan.world.draw) pass("render.mirrors", () => drawMirrorsFirst(this.renderer, scene, camera));
       this.renderer.setRenderTarget(this.target);
       if (plan) pass("render.rooms", () => drawPlan(this.renderer, this.target, plan, scene, camera as THREE.PerspectiveCamera, () => cull?.drawHidden(this.renderer, camera)));
       else {
