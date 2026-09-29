@@ -106,6 +106,16 @@ const LANDMARK_HEIGHT: Record<string, number> = {
   hanzehuis: 16,
 };
 
+/**
+ * The landmarks' materials by the name their glb gives them (stone, slate, lead, gilt, brickband, glass; and each
+ * "<building>_atlas" once landmarks.glb is in), for a landmark with a model of its own that keeps their look
+ * (issue #28: world/oostershuisShell.ts). Null until the city is built.
+ */
+let landmarkMats: Record<string, THREE.Material> | null = null;
+export function landmarkMaterials(): Readonly<Record<string, THREE.Material>> | null {
+  return landmarkMats;
+}
+
 export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; quayWall: THREE.Material; wallDecal: THREE.Material }, waterY: number): CityWorld {
   const group = new THREE.Group();
   group.name = "city";
@@ -406,6 +416,7 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
   };
   // (the bump audit, 2026-09-26: names that say what each is, for its bump from its own picture: world/bumps.ts)
   for (const [k, m] of Object.entries(lmMats)) if (!m.name) m.name = `landmark_${k}`;
+  landmarkMats = lmMats;
   stone.name = "standin_stone";
   const lmLoader = new GLTFLoader().setDRACOLoader(new DRACOLoader().setDecoderPath("/draco/"));
   const landmarks = lmLoader.loadAsync("/models/landmarks.glb").then((gltf) => {

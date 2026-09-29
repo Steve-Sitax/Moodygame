@@ -92,6 +92,15 @@ panes over them. Made real the same way, without rebuilding them from the skelet
   but only where the front's own plane is in view (stencil bit 4), never over a passer-by or a shutter before it
   (issue #29). `await __scheldemist.punchcheck({ from, to, old })`: the pixels it clears, and `covered` (room pixels the
   lining or the paving hide) must be 0; `old: true` shows the punch as it was.
+- **An atlas-painted shell rebuilt** (issue #28, the Oostershuis): `tools/blender/build_oostershuis.py` makes the
+  building again as a model of its own (`oostershuis.glb`), every window and door cut through, in the landmarks' own
+  materials (`world/city.ts landmarkMaterials()`, so it looks as before and adds no shader); `world/oostershuisShell.ts`
+  hides the old one of landmarks.glb and moves the clock's live hands over. What is no hall is built behind the windows
+  as simple rooms seen, not walked (`oostershuisPlan.ts` PARTS, `landmarkHalls.ts oostershuisParts`): one kit per wing.
+  A shut door that never opens is a door opening with `open: () => false`, its leaves in the shell's reveal and again
+  from within; a fanlight over it is a window of its own.
+- **A window under the pavement** (issue #28, the cellar home): a light well in the kerb, built in the street's scene,
+  a grating over its mouth, and the kerb's top and the cobbles cut open there at load (`world/pavementCut.ts`).
 - **Windows with no inside** (towers, attics, parts never built) keep their panes until their rooms are built.
 
 ## Rebuild
