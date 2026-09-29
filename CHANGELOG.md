@@ -8,6 +8,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 ## [Unreleased]
 
 ### New in the game
+- The Oostershuis has real windows and doors: look into its warehouse lofts, the tower rooms and the hall; the fanlights over the warehouse doors are glass ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
+- The cellar room to let has a real window under the pavement, onto a light well with an iron grating, instead of a painted view ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
 - The Vleeshuis attic is open: climb the new stair from the painter's studio and look out through its gable windows and dormers. Its turrets and stair tower show their stairs through the slits ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
 - The town hall's 54 roof dormers are real windows, with the attic behind them ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
 - The cathedral's towers are open: behind their lancets and louvres you see the chambers, the bell frames with their bells, and the carillon in the north tower ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
@@ -18,6 +20,9 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ### Changed
 - The lower parts of the cathedral's aisle windows, behind the houses built against it, are walled up instead of painted ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
+
+### Fixed
+- Taverns, shops and homes: the rooms behind their windows and open doors are no longer partly hidden by the pavement or the dark inside of the house front ([#29](https://github.com/Steve-Sitax/Moodygame/issues/29)).
 
 ## [0.2.0] - 2026-09-29
 
