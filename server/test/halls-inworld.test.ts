@@ -389,6 +389,7 @@ describe("issue #28: a real space of the Vleeshuis behind every window of its sh
 // ------------------------------------------------------------------ the Oostershuis
 
 import * as OH from "../../shared/oostershuisPlan.ts";
+import * as OHS from "../../shared/oostershuisShell.ts";
 
 describe("the Oostershuis's plan fits its shell", () => {
   const P = OH.PLAN;
@@ -407,6 +408,45 @@ describe("the Oostershuis's plan fits its shell", () => {
 
   it("every corner of them lies inside the Oostershuis's footprint (city.json)", () => {
     expect(outsideFp(P, LM.hanzehuis.fp, OH.wallRects(), 0)).toEqual([]);
+  });
+
+  it("issue #28: a part of the building stands behind every opening of the shell, every part has one, all inside it", () => {
+    const rows = inFrame(OHS.SHELL_OPENINGS, P.origin, P.yaw);
+    expect(rows.length).toBeGreaterThan(300);
+    const miss: string[] = [];
+    const seen = new Set<string>();
+    for (const o of rows) {
+      // a point 0.6 m behind the reveal's back, at the opening's middle height
+      const d = o.depth + 0.6;
+      const part = OH.partAt(o.x - o.nx * d, o.z - o.nz * d, (o.yb + o.yt) / 2);
+      if (!part) miss.push(o.label);
+      else seen.add(part.id);
+    }
+    expect(miss).toEqual([]);
+    expect(OH.PARTS.filter((p) => !seen.has(p.id)).map((p) => p.id)).toEqual([]);
+    // the hall is the only part walked; its rect is the plan's
+    expect(OH.PARTS.filter((p) => p.walked).map((p) => p.id)).toEqual(["front_0"]);
+    // every part inside the shell's faces (the reveals' back and more), none overlapping another on its storey
+    const bad: string[] = [];
+    const F = OH.FACES;
+    for (const p of OH.PARTS) {
+      const r = p.rect;
+      if (r.minX < F.west + 0.3 || r.maxX > F.east - 0.3 || r.minZ < F.dock + 0.3 || r.maxZ > F.north - 0.3) bad.push(`${p.id} out of the shell`);
+      // not in the court
+      if (r.minX < F.courtE && r.maxX > F.courtW && r.minZ < F.courtN && r.maxZ > F.courtS) bad.push(`${p.id} in the court`);
+    }
+    expect(bad).toEqual([]);
+    for (const a of OH.PARTS)
+      for (const b of OH.PARTS)
+        if (a.id < b.id && a.floor < b.ceil && b.floor < a.ceil) {
+          const [p, q] = [a.rect, b.rect];
+          if (p.minX < q.maxX - 1e-6 && q.minX < p.maxX - 1e-6 && p.minZ < q.maxZ - 1e-6 && q.minZ < p.maxZ - 1e-6) bad.push(`${a.id} ${b.id}`);
+        }
+    expect(bad).toEqual([]);
+    // the gate is the plan's door: its middle and width
+    const gate = rows.find((o) => o.kind === "door" && /the gate/.test(o.label))!;
+    expect(gate.x).toBeCloseTo(P.doors[0].x, 5);
+    expect(gate.hw).toBeCloseTo(P.doors[0].hw, 5);
   });
 
   it("the gateway is the shell's gate: at the back of its portal, its width, under the lintel", () => {

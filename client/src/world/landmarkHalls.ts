@@ -31,6 +31,7 @@ import * as ST from "../../../shared/steenPlan";
 import * as THS from "../../../shared/stadhuisShell";
 import * as VS from "../../../shared/vleeshuisShell";
 import * as SS from "../../../shared/steenShell";
+import * as OHS from "../../../shared/oostershuisShell";
 import { inFrame, type ShellFace, type ShellOpening } from "../../../shared/shellOpening";
 import { createHallInWorld, type HallInWorld } from "./hallInWorld";
 import { lining, quarries, realGlass, shellPicture, windowOpenings } from "./realOpenings";
@@ -38,7 +39,7 @@ import { baysInFrame, grow, inConvex, roofInFrame, towersInFrame, type ShellRoof
 import { bay, floorAround, roofST, slopeLining, towerNotches, towerRoom, trimAtEnds, wallQuad, type AtticSpace } from "./atticKit";
 import { planarUV } from "./carolusHall";
 import type { World } from "./rijnkaai";
-import type { InWorld } from "./inworld";
+import type { InWorld, Opening } from "./inworld";
 
 // The town hall, the Vleeshuis, the Steen and the Oostershuis (M6 landmark interiors), built in
 // code like the cathedral (world/landmarkRooms.ts). Research and sources in
@@ -1743,6 +1744,211 @@ export function buildSteen(): LandmarkRoom {
 
 // ================================================================ the Oostershuis
 
+/** The Oostershuis's real openings (issue #28), in the hall's frame. */
+const OH_WINDOWS = inFrame(OHS.SHELL_OPENINGS, OH.PLAN.origin, OH.PLAN.yaw);
+
+/**
+ * Issue #28 (interiors are real): everything of the Oostershuis behind the shell's windows that is not the hall, at the
+ * shell's true size (shared/oostershuisPlan.ts PARTS): the ground floors of the back and side wings, three lofts over
+ * every wing, the tower's two rooms and its lantern with the bell. The State's warehouse of 1873: brick below,
+ * limewashed lofts, boards on joists, a row of posts under a beam down each wing, goods stacked, the hoist's hatch over
+ * the hall. Seen through the windows, never walked; no lamps (the hall's light is theirs). One kit per wing and one for
+ * the tower (a part out of view is not drawn); every face of the shell lined behind its reveals, cut at its openings.
+ */
+function oostershuisParts(group: THREE.Group): void {
+  const FY = OH.FLOOR_Y;
+  const FA = OH.FACES;
+  const S = OH.STOREYS;
+  const W = OH.WINGS;
+  const names = ["front", "back", "west", "east", "tower"] as const;
+  const kits = {} as Record<(typeof names)[number], Kit>;
+  for (const n of names) {
+    const g = new THREE.Group();
+    g.name = `oostershuis_in_${n}`;
+    group.add(g);
+    const kk = new Kit(g);
+    kk.shadeTop = 4;
+    kits[n] = kk;
+  }
+  // (heights in world metres; the kits stand at the hall's floor)
+  const box = (kk: Kit, x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, m: MatDef, tile = 2) =>
+    kk.box(x1 - x0, y1 - y0, z1 - z0, (x0 + x1) / 2, (y0 + y1) / 2 - FY, (z0 + z1) / 2, m, { tile });
+  const F = (a: [number, number], c: [number, number], n: [number, number]): ShellFace => ({ a, c, n });
+  const line = (kk: Kit, def: MatDef, f: ShellFace, to: number, y0: number, y1: number, u0?: number, u1?: number, tile = 2, from = OH.REVEAL_D) =>
+    lining(kk, def, { face: f, from, to, y0, y1, u0, u1 }, OH_WINDOWS, FY, tile);
+  // the storeys' bands of lining: from under a floor to over its ceiling's boards
+  const band = (i: number): [number, number] => [S[i].floor - 0.12, i < 3 ? S[i + 1].floor : S[3].ceil + 0.2];
+  const wallOf = (i: number) => (i === 0 ? H.brick : H.plaster);
+
+  // ---- the linings: every face of every wing on every storey (the hall's ground floor has its own)
+  const dock = F([FA.west, FA.dock], [FA.east, FA.dock], [0, -1]);
+  const north = F([FA.west, FA.north], [FA.east, FA.north], [0, 1]);
+  const courtS = F([FA.courtW, FA.courtS], [FA.courtE, FA.courtS], [0, 1]);
+  const courtN = F([FA.courtW, FA.courtN], [FA.courtE, FA.courtN], [0, -1]);
+  const ends = ([[FA.west, -1], [FA.east, 1]] as const).map(([x, n]) => ({ x, n, f: F([x, FA.dock], [x, FA.north], [n, 0]) }));
+  for (let i = 0; i < 4; i++) {
+    const [y0, y1] = band(i);
+    const m = wallOf(i);
+    if (i > 0) {
+      line(kits.front, m, dock, OH.LINE.long, y0, y1);
+      line(kits.front, m, courtS, OH.LINE.court, y0, y1);
+    }
+    line(kits.back, m, north, OH.LINE.long, y0, y1);
+    line(kits.back, m, courtN, OH.LINE.court, y0, y1);
+    for (const e of ends) {
+      const side = e.n < 0 ? kits.west : kits.east;
+      // along the end from the dock: the front wing's part, the side wing's, the back wing's
+      if (i > 0) line(kits.front, m, e.f, OH.LINE.end, y0, y1, W.front.minZ - FA.dock, W.front.maxZ - FA.dock);
+      line(side, m, e.f, OH.LINE.end, y0, y1, W.west.minZ - FA.dock, W.west.maxZ - FA.dock);
+      line(kits.back, m, e.f, OH.LINE.end, y0, y1, W.back.minZ - FA.dock, W.back.maxZ - FA.dock);
+      // the side wing's court side (no openings), and its partitions to the long wings (over the hall's back wall)
+      const cx = e.n < 0 ? FA.courtW : FA.courtE;
+      line(side, m, F([cx, FA.courtS], [cx, FA.courtN], [-e.n, 0]), OH.LINE.court, y0, y1, 0, FA.courtN - FA.courtS, 2, 0.02);
+      const [px0, px1] = e.n < 0 ? [W.west.minX, W.west.maxX + OH.LINE.court] : [W.east.minX - OH.LINE.court, W.east.maxX];
+      if (i > 0) box(side, px0, px1, y0, y1, W.front.maxZ, FA.courtS, m, 1.6);
+      box(side, px0, px1, y0, y1, FA.courtN, W.back.minZ, m, 1.6);
+    }
+  }
+
+  // ---- floors, ceilings (the boards up to the next floor over joists), a beam on posts down each wing
+  const wings = [
+    { kk: kits.front, r: W.front, along: "x" as const, from: 1 },
+    { kk: kits.back, r: W.back, along: "x" as const, from: 0 },
+    { kk: kits.west, r: W.west, along: "z" as const, from: 0 },
+    { kk: kits.east, r: W.east, along: "z" as const, from: 0 },
+  ];
+  for (const { kk, r, along, from } of wings) {
+    const mid = along === "x" ? (r.minZ + r.maxZ) / 2 : (r.minX + r.maxX) / 2;
+    const [a0, a1] = along === "x" ? [r.minX, r.maxX] : [r.minZ, r.maxZ];
+    for (let i = from; i < 4; i++) {
+      const s = S[i];
+      if (i === 0) box(kk, r.minX, r.maxX, s.floor - 0.1, s.floor, r.minZ, r.maxZ, H.boards, 1.6);
+      const top = i < 3 ? S[i + 1].floor : s.ceil + 0.2;
+      box(kk, r.minX, r.maxX, s.ceil, top, r.minZ, r.maxZ, H.timber, 1.2);
+      for (let a = a0 + 0.6; a < a1 - 0.2; a += 1.2) {
+        if (along === "x") box(kk, a - 0.11, a + 0.11, s.ceil - 0.25, s.ceil, r.minZ, r.maxZ, H.timber, 1);
+        else box(kk, r.minX, r.maxX, s.ceil - 0.25, s.ceil, a - 0.11, a + 0.11, H.timber, 1);
+      }
+      const beam = (b0: number, b1: number) => (along === "x" ? box(kk, b0, b1, s.ceil - 0.7, s.ceil - 0.25, mid - 0.2, mid + 0.2, H.timber, 1) : box(kk, mid - 0.2, mid + 0.2, s.ceil - 0.7, s.ceil - 0.25, b0, b1, H.timber, 1));
+      beam(a0, a1);
+      for (let a = a0 + 2.6; a < a1 - 1.5; a += 5) {
+        if (along === "x") box(kk, a - 0.2, a + 0.2, s.floor, s.ceil - 0.7, mid - 0.2, mid + 0.2, H.timber, 1);
+        else box(kk, mid - 0.2, mid + 0.2, s.floor, s.ceil - 0.7, a - 0.2, a + 0.2, H.timber, 1);
+      }
+    }
+  }
+  // the hoist's hatch in each loft's floor over the hall's, and its wheel under the top loft's ceiling
+  for (let i = 1; i < 4; i++) box(kits.front, OH.HATCH.x - 1, OH.HATCH.x + 1, S[i].floor, S[i].floor + 0.02, OH.HATCH.z - 1, OH.HATCH.z + 1, M.black, 1);
+  kits.front.cyl(0.45, 0.45, 0.14, OH.HATCH.x, S[3].ceil - 0.9 - FY, OH.HATCH.z, H.timber, { rx: Math.PI / 2, seg: 10 });
+
+  // ---- goods: in every loft and ground floor, stacks between the posts, clear of the windows: crates, corded bales,
+  // casks (the sacks stay in the hall below: the one sack model is some 800 triangles a sack, too many for rooms seen
+  // only through windows)
+  const r = rand(1873);
+  const wood = lmMat("lm_cask", { map: tex().planks, color: 0xd8a870 }, 0.2);
+  const hoop = lmMat("lm_hoop", { color: 0x2a2622, side: THREE.DoubleSide });
+  for (const { kk, r: rc, along, from } of wings) {
+    const mid = along === "x" ? (rc.minZ + rc.maxZ) / 2 : (rc.minX + rc.maxX) / 2;
+    const [a0, a1] = along === "x" ? [rc.minX, rc.maxX] : [rc.minZ, rc.maxZ];
+    // across the wing: the stacks stand either side of the posts' row, a gangway by each wall
+    const at = (a: number, c: number): [number, number] => (along === "x" ? [a, c] : [c, a]);
+    const ry = along === "x" ? 0 : Math.PI / 2;
+    for (let i = from; i < 4; i++) {
+      const y = S[i].floor - FY;
+      for (let a = a0 + 3.2; a < a1 - 3; a += 5 + r() * 2.5) {
+        const kind = r();
+        const c = mid + (r() < 0.5 ? -1 : 1) * 1.3;
+        if (kind < 0.45) {
+          for (let n = 0; n < 3; n++)
+            for (let lvl = 0; lvl < 2; lvl++) {
+              if (lvl && r() < 0.35) continue;
+              const [x, z] = at(a + n * 1.2 - 1.2, c);
+              kk.box(1.1, 0.8, 0.9, x, y + 0.4 + lvl * 0.82, z, H.crate, { tint: 0.9 + r() * 0.2, ry });
+            }
+        } else if (kind < 0.8) {
+          for (let n = 0; n < 3; n++)
+            for (let lvl = 0; lvl < 2; lvl++) {
+              const [x, z] = at(a + n * 1.25 - 1.25, c);
+              kk.box(1.15, 0.9, 0.95, x, y + 0.45 + lvl * 0.92, z, H.bale, { tint: 0.85 + r() * 0.2, ry });
+              for (const d of [-0.3, 0.3]) {
+                const [bx, bz] = at(a + n * 1.25 - 1.25 + d, c);
+                kk.box(0.04, 0.92, 0.97, bx, y + 0.45 + lvl * 0.92, bz, H.rope, { ry });
+              }
+            }
+        } else {
+          for (let n = 0; n < 4; n++) {
+            const [x, z] = at(a + n * 0.8 - 1.2, c);
+            kk.barrel(x, y + 0.48, z, wood, hoop, { tint: 0.85 + r() * 0.3 });
+          }
+        }
+      }
+    }
+  }
+
+  // ---- the tower over the gate: two rooms (boards, a ladder up), the lantern and its bell
+  const T = OH.TOWER;
+  const tk = kits.tower;
+  const th = T.half;
+  const tf = [
+    F([T.x - th, T.z - th], [T.x + th, T.z - th], [0, -1]),
+    F([T.x + th, T.z + th], [T.x - th, T.z + th], [0, 1]),
+    F([T.x - th, T.z + th], [T.x - th, T.z - th], [-1, 0]),
+    F([T.x + th, T.z - th], [T.x + th, T.z + th], [1, 0]),
+  ];
+  const ti = th - T.wall;
+  T.rooms.forEach((room, i) => {
+    const y1 = i === 0 ? T.rooms[1].floor : room.ceil + 0.2;
+    for (const f of tf) line(tk, H.plaster, f, T.wall, room.floor - 0.12, y1);
+    box(tk, T.x - ti, T.x + ti, room.floor - 0.12, room.floor, T.z - ti, T.z + ti, H.boards, 1.2);
+    box(tk, T.x - ti, T.x + ti, room.ceil, y1, T.z - ti, T.z + ti, H.timber, 1.2);
+    // a ladder against the back wall, up through a trap in the ceiling
+    for (const s of [-0.25, 0.25]) box(tk, T.x + s - 0.04, T.x + s + 0.04, room.floor, room.ceil, T.z + ti - 0.3, T.z + ti - 0.22, H.timber, 1);
+    for (let y = room.floor + 0.3; y < room.ceil; y += 0.3) box(tk, T.x - 0.25, T.x + 0.25, y - 0.02, y + 0.02, T.z + ti - 0.28, T.z + ti - 0.24, H.timber, 1);
+  });
+  const L = T.lantern;
+  const lh = L.half;
+  const lf = [
+    F([T.x - lh, T.z - lh], [T.x + lh, T.z - lh], [0, -1]),
+    F([T.x + lh, T.z + lh], [T.x - lh, T.z + lh], [0, 1]),
+    F([T.x - lh, T.z + lh], [T.x - lh, T.z - lh], [-1, 0]),
+    F([T.x + lh, T.z - lh], [T.x + lh, T.z + lh], [1, 0]),
+  ];
+  for (const f of lf) line(tk, H.stoneGrey, f, L.wall, L.floor - 0.05, L.ceil + 0.08, undefined, undefined, 1.2, 0.15);
+  const li = lh - L.wall;
+  box(tk, T.x - li, T.x + li, L.floor - 0.05, L.floor, T.z - li, T.z + li, H.timber, 1);
+  box(tk, T.x - li, T.x + li, L.ceil, L.ceil + 0.08, T.z - li, T.z + li, H.timber, 1);
+  box(tk, T.x - li, T.x + li, L.ceil - 0.18, L.ceil, T.z - 0.06, T.z + 0.06, H.timber, 1);
+  tk.cyl(0.18, 0.36, 0.55, T.x, L.ceil - 0.5 - FY, T.z, M.iron, { seg: 10 });
+
+  for (const kk of Object.values(kits)) kk.finish();
+}
+
+/** For an eye inside the Oostershuis: the street through the hall's own fanlights only (the lofts are never walked). */
+function oostershuisSeen(o: ShellOpening): ((eye: THREE.Vector3) => boolean) | undefined {
+  const d = o.depth + 0.6;
+  const p = OH.partAt(o.x - o.nx * d, o.z - o.nz * d, (o.yb + o.yt) / 2);
+  return p?.walked ? undefined : () => false;
+}
+
+/** The Oostershuis's shut warehouse doors as openings that never open (docs/building-with-interior.md): the street's scene holds their leaves. */
+function shutDoors(rows: readonly ShellOpening[], toWorld: (x: number, z: number) => [number, number]): Opening[] {
+  const out: Opening[] = [];
+  for (const o of rows) {
+    if (o.kind !== "door" || /the gate/.test(o.label)) continue;
+    const box = new THREE.Box3();
+    for (const u of [-o.hw - 0.05, o.hw + 0.05])
+      for (const d of [-0.3, o.depth + 0.5])
+        for (const y of [o.yb - 0.05, o.yt + 0.05]) {
+          const [wx, wz] = toWorld(o.x + o.tx * u - o.nx * d, o.z + o.tz * u - o.nz * d);
+          box.expandByPoint(new THREE.Vector3(wx, y, wz));
+        }
+    const [cx, cz] = toWorld(o.x, o.z);
+    const [ox, oz] = toWorld(o.x + o.nx, o.z + o.nz);
+    out.push({ kind: "door", label: o.label, box, inBox: box, centre: new THREE.Vector3(cx, (o.yb + o.yt) / 2, cz), out: new THREE.Vector3(ox - cx, 0, oz - cz).normalize(), open: () => false });
+  }
+  return out;
+}
+
 /**
  * The Oostershuis, the house of the Hanse's merchants (Cornelis Floris, 1564-68), standing in the world inside
  * its shell (M7 halls; the plan: shared/oostershuisPlan.ts). The Hanse left long ago; from 1815 the building
@@ -1775,23 +1981,33 @@ export function buildOostershuis(): LandmarkRoom {
   box(PASS.wall, IN.east, -0.1, 0, IN.front, IN.back, H.boards, 1.6);
   for (const s of [-1, 1]) box(s > 0 ? PASS.hw : -PASS.wall, s > 0 ? PASS.wall : -PASS.hw, -0.1, 0, ...PASS.open, H.boards, 1.2);
 
-  // ---- the walls: brick; the front with the gateway and the arched warehouse doors (shut, their fanlights glazed)
-  const fan = glassMat("grisaille", 81);
-  holed(k, "x", IN.west - 0.2, IN.east + 0.2, 0.3, IN.front, 0, CEIL, [[-DOOR.hw, DOOR.hw, -1, DOOR.h]], H.brick, 1.6);
-  for (const u of OH.SHELL.bays) {
-    // the arched door seen from within: oak leaves, a round fanlight over them
-    const x = u;
-    box(x - 1.3, x + 1.3, 0, 2.9, IN.front, IN.front + 0.1, M.oakDark, 1);
-    box(x - 0.05, x + 0.05, 0, 2.9, IN.front + 0.1, IN.front + 0.14, M.iron, 1);
-    k.plane(2.4, 0.9, x, 3.4, IN.front + 0.03, fan.def);
-    box(x - 1.45, x + 1.45, 2.9, 3.0, IN.front, IN.front + 0.16, M.stone, 1);
-    box(x - 1.45, x + 1.45, 3.85, 3.95, IN.front, IN.front + 0.16, M.stone, 1);
-  }
+  // ---- the walls (issue #28, interiors are real): the front and the ends lined behind the shell's faces from its
+  // reveals' back (tools/blender/build_oostershuis.py), cut exactly at its openings: the gateway, the warehouse doors
+  // (shut for good in the shell's reveals: their leaves again from within) and the fanlights over them, real windows
+  // onto the hall; the back wall to the court brick
+  const G0 = OH.STOREYS[0];
+  const FA = OH.FACES;
+  const hallBand = { y0: G0.floor - 0.12, y1: G0.ceil + 0.2 };
+  lining(k, H.brick, { face: { a: [FA.west, FA.dock], c: [FA.east, FA.dock], n: [0, -1] }, from: OH.REVEAL_D, to: OH.LINE.long, ...hallBand }, OH_WINDOWS, OH.FLOOR_Y, 1.6);
+  for (const [x, n] of [[FA.west, -1], [FA.east, 1]] as const)
+    lining(k, H.brick, { face: { a: [x, FA.dock], c: [x, FA.north], n: [n, 0] }, from: OH.REVEAL_D, to: OH.LINE.end, u0: IN.front - FA.dock, u1: IN.back - FA.dock, ...hallBand }, OH_WINDOWS, OH.FLOOR_Y, 1.6);
   holed(k, "x", IN.west - 0.2, IN.east + 0.2, IN.back, 9.9, 0, CEIL, [], H.brick, 1.6);
-  for (const x of [IN.west - 0.2, IN.east]) holed(k, "z", 0.3, 9.9, x, x + 0.2, 0, CEIL, [], H.brick, 1.6);
-  // the reveal of the gateway from the gate's plane to the front wall
-  for (const s of [-1, 1]) box(s > 0 ? DOOR.hw : -DOOR.hw - 0.3, s > 0 ? DOOR.hw + 0.3 : -DOOR.hw, 0, DOOR.h + 0.3, 0, 0.3, M.stone, 1.4);
-  box(-DOOR.hw - 0.3, DOOR.hw + 0.3, DOOR.h, DOOR.h + 0.3, 0, 0.3, M.stone, 1.4);
+  for (const o of OH_WINDOWS) {
+    if (o.kind !== "door" || o.yb > 1 || /the gate/.test(o.label) || OH.partAt(o.x - o.nx * 0.9, o.z - o.nz * 0.9, 1)?.id !== "front_0") continue;
+    // a shut warehouse door seen from within: its oak leaves (a hair apart) and straps at the reveal's back, filling
+    // the lining's doorway (2 cm wider than the shell's reveal)
+    const d = o.depth + 0.025;
+    const cx = o.x - o.nx * d;
+    const cz = o.z - o.nz * d;
+    const ry = Math.atan2(-o.tz, o.tx);
+    const w = o.hw + 0.02;
+    const top = o.yt + 0.02 - OH.FLOOR_Y;
+    for (const s of [-1, 1]) {
+      const m = s * (w / 2 + 0.004);
+      k.box(w - 0.008, top, 0.05, cx + o.tx * m, top / 2, cz + o.tz * m, M.oakDark, { tile: 1, ry });
+      for (const y of [0.7, 1.7]) k.box(w - 0.12, 0.08, 0.02, cx + o.tx * m - o.nx * 0.035, y, cz + o.tz * m - o.nz * 0.035, M.iron, { tile: 1, ry });
+    }
+  }
 
   // ---- the gate passage: brick walls with a wide opening to each hall, a brick barrel vault; the court gate barred
   for (const s of [-1, 1]) holed(k, "z", IN.front, IN.back, s > 0 ? PASS.hw : -PASS.wall, s > 0 ? PASS.wall : -PASS.hw, 0, CEIL, [[...PASS.open, -1, 2.9]], H.brick, 1.2);
@@ -1880,6 +2096,12 @@ export function buildOostershuis(): LandmarkRoom {
   // a board over the desk, on the front wall
   k.plane(2.2, 0.35, DESK.x, 2.4, IN.front + 0.18, sign("OOSTERSHUIS", "lm_oh_sign"), {});
   k.finish();
+  // issue #28: the rest of the building behind the shell's windows (the lofts, the other wings, the tower), and the
+  // glass of every window (the shell keeps its stone crosses and the fanlights' iron)
+  oostershuisParts(group);
+  const ohGlass = realGlass(OH_WINDOWS, OH.FLOOR_Y, quarries(), { name: "oostershuis", tile: 0.64, opacity: 0.22 });
+  if (ohGlass.mesh) group.add(ohGlass.mesh);
+  const glasses = [{ mat: () => ohGlass.mat }];
 
   // the hoist: a rope down through the hatch with a hook and a sack, going up and down
   const hoist = new THREE.Group();
@@ -1914,15 +2136,14 @@ export function buildOostershuis(): LandmarkRoom {
   looksAdd(looks, "scale", SCALE.x - 1.2, SCALE.z, 1.4, "look at the scale", "A decimal scale on the floor: a sack goes on the platform, the storekeeper slides a weight along the beam and writes the figure down.");
   looksAdd(looks, "hall", 0, 4.5, 1.4, "look round the hall", "The house of the Hanse's merchants, three hundred years old: once their counting rooms and chambers, now a warehouse of the Belgian State. Forty windows, a great tower over the gate, and in here only dust and goods.");
   looksAdd(looks, "hoist", HATCH.x + 1.2, HATCH.z - 0.6, 1.5, "look up at the hoist", "A rope comes down through a hatch in the ceiling with a hook on it: goods go up and down between the floors on it.");
-  looksAdd(looks, "court", 0, IN.back - 1.2, 1.4, "look at the court gate", "The gate to the court is barred. Through the cracks: cobbles, a pump, the four wings round it, their windows shuttered.");
+  looksAdd(looks, "court", 0, IN.back - 1.2, 1.4, "look at the court gate", "The gate to the court is barred. Through the cracks: cobbles, a pump, the wings round it, rows of windows over dusty lofts.");
   const light = () => {
     const d = day * (0.55 + 0.45 * sky);
     L.hemi.intensity = (2.3 + 2.2 * d) * ambK;
     L.amb.intensity = (0.8 + 0.3 * day) * ambK;
-    fan.mat().color.setScalar(0.12 + 0.9 * day * sky);
     dayFill.intensity = 8 * d;
     shaftMat.opacity = Math.max(0, day - 0.3) * 0.25 * Math.max(0, sky - 0.55) * 2.2;
-    nightAir(L, [fan], day, sky);
+    nightAir(L, glasses, day, sky);
   };
   const room: LandmarkRoom = {
     kind: "landmark",
@@ -2010,7 +2231,7 @@ export function hallsInWorld(world: World, inWorld: InWorld): HallInWorld[] {
       { label: "the scale", x: OH.SCALE.x - 1.1, z: OH.SCALE.z, reach: 1.0 },
       { label: "the west hall under the hoist", x: OH.HATCH.x + 1.2, z: OH.HATCH.z, reach: 1.2 },
       { label: "the east hall", x: 27, z: 5.0, reach: 1.2 },
-    ]),
+    ], [], 0.3, [...windowOpenings(OH_WINDOWS, (x, z) => HP.toWorld(OH.PLAN, x, z), oostershuisSeen), ...shutDoors(OH_WINDOWS, (x, z) => HP.toWorld(OH.PLAN, x, z))]),
     createHallInWorld(world, inWorld, ST.PLAN, buildSteen(), { color: 0x26221c, near: 12, far: 50 }, [
       { label: "the gatehouse, the armour", x: 0.4, z: 3.6, reach: 1.2 },
       { label: "the hall of antiquities", x: -8.2, z: 3.1, reach: 1.2 },

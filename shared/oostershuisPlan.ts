@@ -125,6 +125,76 @@ export const PLAN: HallPlan = {
   sets,
 };
 
+// ---- issue #28 (interiors are real): the whole building behind its real windows (tools/blender/build_oostershuis.py,
+// shared/oostershuisShell.ts). The hall above is the front wing's ground floor; the rest is built as the State's
+// warehouse, seen through the windows, not walked (world/landmarkHalls.ts oostershuisParts): the other wings' ground
+// floors, three lofts over each wing, the tower's two rooms over the gate and its lantern with the bell.
+
+/** The shell's faces (the hall's frame): the long fronts, the ends, the court's four sides. */
+export const FACES = { dock: 0.1, north: 38.1, west: -32, east: 32, courtS: 10.1, courtN: 28.1, courtW: -22, courtE: 22 };
+/** How deep the shell's reveals go (the linings start there) and where the rooms' walls end, by face. */
+export const REVEAL_D = 0.3;
+export const LINE = { long: 0.8, end: 0.4, court: 0.4 };
+/** The storeys (world y): the floor's top, the ceiling's underside (its boards up to the next floor). */
+export const STOREYS = [
+  { floor: FLOOR_Y, ceil: FLOOR_Y + CEIL },
+  { floor: 4.5, ceil: 8.2 },
+  { floor: 8.4, ceil: 11.9 },
+  { floor: 12.1, ceil: 16.2 },
+];
+/** The wings' insides: the front wing's is the hall's; the side wings run between the long wings' partitions. */
+export const WINGS = {
+  front: R(IN.west, IN.east, IN.front, IN.back),
+  back: R(FACES.west + LINE.end, FACES.east - LINE.end, FACES.courtN + LINE.court, FACES.north - LINE.long),
+  west: R(FACES.west + LINE.end, FACES.courtW - LINE.court, FACES.courtS, FACES.courtN),
+  east: R(FACES.courtE + LINE.court, FACES.east - LINE.end, FACES.courtS, FACES.courtN),
+};
+/** The tower over the gate (its faces 3.7 round (0, 4.6)): its two rooms, and the lantern on its roof. */
+export const TOWER = {
+  x: 0,
+  z: 4.6,
+  half: 3.7,
+  wall: 0.5,
+  rooms: [
+    { floor: 21.6, ceil: 25.9 },
+    { floor: 26.1, ceil: 30.8 },
+  ],
+  lantern: { half: 1.0, wall: 0.25, floor: 37.5, ceil: 39.2 },
+};
+
+/** A part of the building: a room with its floor and ceiling (world y); only the hall is walked. */
+export interface Part {
+  id: string;
+  label: string;
+  rect: Rect;
+  floor: number;
+  ceil: number;
+  walked: boolean;
+}
+const WING_NAMES: Record<keyof typeof WINGS, string> = { front: "the front wing on the dock", back: "the back wing", west: "the west wing", east: "the east wing" };
+const STOREY_NAMES = ["the ground floor", "the first loft", "the second loft", "the third loft"];
+const th = TOWER.half - TOWER.wall;
+const lh = TOWER.lantern.half - TOWER.lantern.wall;
+export const PARTS: Part[] = [
+  ...(Object.keys(WINGS) as Array<keyof typeof WINGS>).flatMap((w) =>
+    STOREYS.map((s, i) => ({
+      id: `${w}_${i}`,
+      label: i === 0 && w === "front" ? "the hall on the dock" : `${WING_NAMES[w]}, ${STOREY_NAMES[i]}`,
+      rect: WINGS[w],
+      floor: s.floor,
+      ceil: s.ceil,
+      walked: i === 0 && w === "front",
+    })),
+  ),
+  ...TOWER.rooms.map((r, i) => ({ id: `tower_${i}`, label: `the tower's ${i ? "upper" : "lower"} room`, rect: R(TOWER.x - th, TOWER.x + th, TOWER.z - th, TOWER.z + th), floor: r.floor, ceil: r.ceil, walked: false })),
+  { id: "lantern", label: "the tower's lantern (the bell)", rect: R(TOWER.x - lh, TOWER.x + lh, TOWER.z - lh, TOWER.z + lh), floor: TOWER.lantern.floor, ceil: TOWER.lantern.ceil, walked: false },
+];
+
+/** The part at a point of the hall's frame and a height (world y), if any. */
+export function partAt(x: number, z: number, y: number): Part | null {
+  return PARTS.find((p) => x >= p.rect.minX && x <= p.rect.maxX && z >= p.rect.minZ && z <= p.rect.maxZ && y >= p.floor && y <= p.ceil) ?? null;
+}
+
 /** The hall's walls as boxes (local, for the check that they stand inside the shell). */
 export function wallRects(): Rect[] {
   return [

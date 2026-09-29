@@ -9,6 +9,7 @@ import type { World } from "./rijnkaai";
 import type { InWorld, InWorldRoom, Opening } from "./inworld";
 import { addSpill, type SpillKind, type SpillSource } from "./spill";
 import { lampFog } from "./lampFog";
+import { cutPavement } from "./pavementCut";
 
 // The taverns, the Poesje and the homes in the world (M7, docs/milestones/M7-taverns-homes-inworld.md): the
 // halls' way (world/hallInWorld.ts) for a city house. The room (world/rooms.ts, homeRooms.ts) is built from the
@@ -18,9 +19,10 @@ import { lampFog } from "./lampFog";
 //  - the door's leaf and transom, hung in the street's scene (and the same in the room's), open or shut;
 //  - the panes in the room's scene (drawn after the street, so the room shows through them and the street
 //    through them from inside), a little tinted and a little reflective by day;
-//  - a "punch" for each opening, first in the room's pass: it sets the depth behind the opening to the far
-//    plane, so what the street has behind the facade (the paving runs under the houses, the lining below)
-//    never hides the room; the room draws the reveals, the sill, the leaf and the transom again itself;
+//  - a "punch" for each opening, first in the room's pass seen from outside: it sets the depth behind the opening
+//    to the far plane where the street drew something behind the facade (the paving runs under the houses, the
+//    lining), never over what stands before it (issue #29: PUNCH_MARK and PUNCH, below), so that never hides the
+//    room; the room draws the reveals, the sill, the leaf and the transom again itself;
 //  - a dark lining just inside the house's faces (street scene): what an open door or a window shows when
 //    the room itself is not drawn (too far, over the budget, a mirror's picture);
 //  - warm panes at night over painted windows of a room upstairs (a garret with no dormer to stand behind; issue #10:
@@ -62,13 +64,50 @@ export interface HouseInWorld {
   update(t: number, dt: number, day: number): void;
 }
 
-const PUNCH = new THREE.ShaderMaterial({
-  vertexShader: "void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
-  fragmentShader: "void main() { gl_FragDepth = 1.0; gl_FragColor = vec4(0.0); }",
+// The punch (issue #29). Before, one material wrote gl_FragDepth = 1.0 with the depth test on: the test compares the
+// written depth, so it passed only where the depth was already far, i.e. nowhere it was needed. With the test off (or
+// ALWAYS) alone it would clear the depth over a passer-by, a lamp post or a shutter in front of the window too, and the
+// room would be drawn over them. So two draws of the same quads, one shader program (uFar picks the depth written):
+//  - PUNCH_MARK: the quad at its own depth, the normal test, no colour, no depth: stencil bit 4 set where the facade's
+//    plane is in view, i.e. where what the street drew there lies behind the facade (the lining, the paving, a floor);
+//  - PUNCH: depth ALWAYS, only where bit 4 is set: the depth there set to the far plane, the bit cleared again.
+// Bits 1 and 2 of the stencil are the boats' and the dock water's (world/boats.ts); the write masks keep them.
+export const PUNCH_BIT = 4;
+const PUNCH_VERT = "void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }";
+const PUNCH_FRAG = "uniform float uFar; uniform vec4 uShow; void main() { gl_FragDepth = uFar > 0.5 ? 1.0 : gl_FragCoord.z; gl_FragColor = uShow; }";
+export const PUNCH_MARK = new THREE.ShaderMaterial({
+  name: "house_punch_mark",
+  uniforms: { uFar: { value: 0 }, uShow: { value: new THREE.Vector4(0, 0, 0, 0) } },
+  vertexShader: PUNCH_VERT,
+  fragmentShader: PUNCH_FRAG,
+  colorWrite: false,
+  depthWrite: false,
+  depthTest: true,
+  side: THREE.DoubleSide,
+  stencilWrite: true,
+  stencilRef: PUNCH_BIT,
+  stencilWriteMask: PUNCH_BIT,
+  stencilFuncMask: PUNCH_BIT,
+  stencilFunc: THREE.AlwaysStencilFunc,
+  stencilZPass: THREE.ReplaceStencilOp,
+});
+export const PUNCH = new THREE.ShaderMaterial({
+  name: "house_punch",
+  // (uShow: the dev check colours what the punch clears, dev/punchcheck.ts; never in play)
+  uniforms: { uFar: { value: 1 }, uShow: { value: new THREE.Vector4(0, 0, 0, 0) } },
+  vertexShader: PUNCH_VERT,
+  fragmentShader: PUNCH_FRAG,
   colorWrite: false,
   depthWrite: true,
   depthTest: true,
+  depthFunc: THREE.AlwaysDepth,
   side: THREE.DoubleSide,
+  stencilWrite: true,
+  stencilRef: PUNCH_BIT,
+  stencilWriteMask: PUNCH_BIT,
+  stencilFuncMask: PUNCH_BIT,
+  stencilFunc: THREE.EqualStencilFunc,
+  stencilZPass: THREE.ZeroStencilOp,
 });
 
 /** A window's frame in local terms: along it (unit), its start, the outward normal. */
@@ -312,6 +351,77 @@ export function createHouseInWorld(world: World, inWorld: InWorld, plan: HousePl
     street.add(glowMesh);
   }
 
+  // ---- issue #28, the cellar home: its window under the pavement opens onto a light well in the kerb before the front,
+  // built in the street (it is outside the house): brick sides, an outer wall and a floor, the house's foundation wall
+  // behind with the window's hole, and an iron grating over the mouth; the kerb's top and the cobbles are cut open over
+  // it (world/pavementCut.ts). From the street the well is seen through the grating, and the room through the window at
+  // its foot; from the room, the well and the street over it.
+  const lw = plan.lightWell;
+  if (lw) {
+    // (limewashed brick, as light wells were: what little daylight comes down through the grating is thrown on)
+    const brick = lambert("house_well_brick", { map: tex().brick, color: 0xe4dfd4 }, 0);
+    const iron = lambert("house_leaf_iron", { color: 0x2a2622 }, 0);
+    const wallGeos: THREE.BufferGeometry[] = [];
+    const mid: [number, number, number] = [(lw.x0 + lw.x1) / 2, (lw.y0 + lw.y1) / 2, lw.z0 / 2];
+    const facing = (p: Array<[number, number, number]>) => quadToward(wallGeos, p, mid);
+    facing([[lw.x0, lw.y0, lw.z0], [lw.x0, lw.y0, 0], [lw.x0, lw.y1, 0], [lw.x0, lw.y1, lw.z0]]);
+    facing([[lw.x1, lw.y0, 0], [lw.x1, lw.y0, lw.z0], [lw.x1, lw.y1, lw.z0], [lw.x1, lw.y1, 0]]);
+    facing([[lw.x1, lw.y0, lw.z0], [lw.x0, lw.y0, lw.z0], [lw.x0, lw.y1, lw.z0], [lw.x1, lw.y1, lw.z0]]);
+    facing([[lw.x0, lw.y0, lw.z0], [lw.x1, lw.y0, lw.z0], [lw.x1, lw.y0, 0], [lw.x0, lw.y0, 0]]);
+    // the foundation wall: the house's front under the pavement (the city's wall stands from the street up), facing out,
+    // the window's hole in it; across the front, down to under the cellar's floor
+    const under = plan.windows.filter((w) => w.kind === "hole" && w.y1 < 0);
+    const holesU = under.map((w) => {
+      const xs = [w.a[0], w.b[0]].map((x) => -x).sort((p, q) => p - q);
+      return [xs[0], xs[1], w.y0, w.y1] as [number, number, number, number];
+    });
+    const fGeos: THREE.BufferGeometry[] = [];
+    holedFace(fGeos, -plan.frame.x1, -plan.frame.x0, plan.room.y - 0.15, 0, holesU, (u, y) => [-u, y, 0]);
+    const wg = mergeGeometries([...wallGeos, ...fGeos], false)!;
+    for (const g of [...wallGeos, ...fGeos]) g.dispose();
+    // the brick's picture laid by the face's facing, a repeat every 1.2 m, so its courses run on round the window
+    {
+      const p = wg.getAttribute("position") as THREE.BufferAttribute;
+      const nm = wg.getAttribute("normal") as THREE.BufferAttribute;
+      const uv = wg.getAttribute("uv") as THREE.BufferAttribute;
+      for (let i = 0; i < p.count; i++) {
+        const [x, y, z] = [p.getX(i), p.getY(i), p.getZ(i)];
+        const [u, v] = Math.abs(nm.getY(i)) > 0.7 ? [x, z] : Math.abs(nm.getX(i)) > 0.7 ? [z, y] : [x, y];
+        uv.setXY(i, u / 1.2, v / 1.2);
+      }
+    }
+    const well = new THREE.Mesh(wg, brick);
+    well.name = `house_${plan.id}_light_well`;
+    street.add(well);
+    // the grating: a frame of angle iron round the mouth, bars across it (out from the wall) on two flats, flush with the kerb
+    const gGeos: THREE.BufferGeometry[] = [];
+    const bar = (x0: number, x1: number, z0: number, z1: number, y0: number, y1: number) => {
+      const g = boxGeo(x1 - x0, y1 - y0, z1 - z0, 1);
+      g.translate((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
+      gGeos.push(g);
+    };
+    const top = lw.y1 - 0.002;
+    const fw = 0.04;
+    bar(lw.x0, lw.x1, lw.z0, lw.z0 + fw, top - 0.04, top);
+    bar(lw.x0, lw.x1, -fw - 0.003, -0.003, top - 0.04, top);
+    bar(lw.x0, lw.x0 + fw, lw.z0 + fw, -fw, top - 0.04, top);
+    bar(lw.x1 - fw, lw.x1, lw.z0 + fw, -fw, top - 0.04, top);
+    for (const k of [1, 2]) {
+      const z = lw.z0 + ((-lw.z0) * k) / 3;
+      bar(lw.x0 + fw, lw.x1 - fw, z - 0.015, z + 0.015, top - 0.05, top - 0.02);
+    }
+    const n = Math.round((lw.x1 - lw.x0 - 2 * fw) / 0.075);
+    for (let i = 1; i < n; i++) {
+      const x = lw.x0 + fw + ((lw.x1 - lw.x0 - 2 * fw) * i) / n;
+      bar(x - 0.011, x + 0.011, lw.z0 + fw, -fw, top - 0.03, top);
+    }
+    const grating = new THREE.Mesh(mergeGeometries(gGeos, false)!, iron);
+    for (const g of gGeos) g.dispose();
+    grating.name = `house_${plan.id}_grating`;
+    street.add(grating);
+    cutPavement(world.scene, { label: `${plan.id} light well`, origin: plan.origin, yaw: plan.yaw, x0: lw.x0, x1: lw.x1, z0: lw.z0, z1: 0.03, y0: plan.floorY - 0.05, y1: plan.floorY + lw.y1 + 0.03 });
+  }
+
   // ---- in the room's scene: the reveals of the door and the windows, the sill, the panes and bars, the punches
   const stone = lambert("house_reveal", { map: tex().slate, color: 0x6a6660 }, 0);
   const revealGeos: THREE.BufferGeometry[] = [];
@@ -373,15 +483,22 @@ export function createHouseInWorld(world: World, inWorld: InWorld, plan: HousePl
     const bars = new THREE.Mesh(mergeGeometries(barGeos, false)!, lambert("house_bars", { map: tex().planks, color: 0x3a2c20 }, 0));
     inHouse.add(glass, bars);
   }
-  // the punches: first of all in the room's pass (renderOrder), the door's only while it stands open
-  const doorPunchMesh = new THREE.Mesh(mergeGeometries(doorPunch, false)!, PUNCH);
-  doorPunchMesh.renderOrder = -1000;
-  inHouse.add(doorPunchMesh);
-  if (punchGeos.length) {
-    const wp = new THREE.Mesh(mergeGeometries(punchGeos, false)!, PUNCH);
-    wp.renderOrder = -1000;
-    inHouse.add(wp);
-  }
+  // the punches: first of all in the room's pass (renderOrder: every mark, then every punch), the door's only while it
+  // stands open; only from outside (issue #29: from inside, the street through a window is right as the street drew it,
+  // and a punch there would let another house's room, drawn after, show through that house's own front)
+  const punchPair = (g: THREE.BufferGeometry, name: string): THREE.Group => {
+    const pair = new THREE.Group();
+    pair.name = name;
+    const mark = new THREE.Mesh(g, PUNCH_MARK);
+    mark.renderOrder = -1001;
+    const punch = new THREE.Mesh(g, PUNCH);
+    punch.renderOrder = -1000;
+    pair.add(mark, punch);
+    inHouse.add(pair);
+    return pair;
+  };
+  const doorPunchMesh = punchPair(mergeGeometries(doorPunch, false)!, `house_${plan.id}_door_punch`);
+  const winPunch = punchGeos.length ? punchPair(mergeGeometries(punchGeos, false)!, `house_${plan.id}_window_punch`) : null;
   for (const g of [...revealGeos, ...punchGeos, ...doorPunch, ...glassGeos, ...barGeos]) g.dispose();
   street.updateMatrixWorld(true);
   inHouse.updateMatrixWorld(true);
@@ -414,6 +531,8 @@ export function createHouseInWorld(world: World, inWorld: InWorld, plan: HousePl
     const wf = winFrame(w);
     const e = (s: number, dd: number): [number, number] => [wf.ax + wf.tx * s + wf.ox * dd, wf.az + wf.tz * s + wf.oz * dd];
     const box = wbox([e(-0.05, 0.3), e(wf.len + 0.05, 0.3), e(-0.05, -(w.depth ?? R) - 0.12), e(wf.len + 0.05, -(w.depth ?? R) - 0.12)], w.y0 - 0.05, w.y1 + 0.05);
+    // (issue #28: a window under the pavement is seen down its light well: the well and its mouth are in its box)
+    if (lw && w.y1 < 0) box.union(wbox([[lw.x0, lw.z0 - 0.05], [lw.x1, lw.z0 - 0.05], [lw.x0, 0], [lw.x1, 0]], lw.y0, lw.y1 + 0.3));
     const [mx, mz] = toW(...e(wf.len / 2, 0));
     const [nx, nz] = toW(...e(wf.len / 2, 1));
     openings.push({ kind: "window", label: `${plan.id} window`, box, inBox: box, centre: new THREE.Vector3(mx, plan.floorY + (w.y0 + w.y1) / 2, mz), out: new THREE.Vector3(nx - mx, 0, nz - mz).normalize(), open: () => true });
@@ -446,6 +565,8 @@ export function createHouseInWorld(world: World, inWorld: InWorld, plan: HousePl
   const litKind: SpillKind = plan.kind === "shop" ? "shop" : plan.kind === "tavern" ? "tavern" : "room";
   const spills: Array<{ s: SpillSource; door: boolean }> = [];
   for (const w of plan.windows) {
+    // (issue #28: a window under the pavement lights its light well, not the street)
+    if (w.y1 < 0) continue;
     const wf = winFrame(w);
     const e = (s: number, dd: number): [number, number] => [wf.ax + wf.tx * s + wf.ox * dd, wf.az + wf.tz * s + wf.oz * dd];
     const [mx, mz] = toW(...e(wf.len / 2, 0.02));
@@ -510,9 +631,11 @@ export function createHouseInWorld(world: World, inWorld: InWorld, plan: HousePl
       // over the lit room while the street was already dim, then switched off at once.) Now the sky's own colour at
       // this hour (the street's air), fading with the square of the daylight: no sheet at dusk, no jump.
       const sheen = dayNow * dayNow;
-      pane.opacity = 0.06 + 0.22 * sheen * (1 - k);
+      // (issue #28: a window at the foot of a light well has no sky to show on its glass)
+      pane.opacity = lw ? 0.03 : 0.06 + 0.22 * sheen * (1 - k);
       pane.color.copy(streetFog.color).multiplyScalar(2.2);
-      doorPunchMesh.visible = isOpen();
+      doorPunchMesh.visible = isOpen() && k < 0.5;
+      if (winPunch) winPunch.visible = k < 0.5;
     },
     lamps: () => room.lamps,
     scatter,

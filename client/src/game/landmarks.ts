@@ -21,6 +21,7 @@ import { createCathedralInWorld, type CathedralInWorld } from "../world/cathedra
 import { loadCathedralOutside } from "../world/cathedralOutside";
 import { loadVleeshuisShell } from "../world/vleeshuisShell"; // the Vleeshuis in detail (vleeshuis.glb)
 import { loadStadhuisShell } from "../world/stadhuisShell"; // the town hall in detail (stadhuis.glb)
+import { loadOostershuisShell } from "../world/oostershuisShell"; // issue #28: the Oostershuis with real windows (oostershuis.glb)
 import { createLandmarkWindows, type LandmarkWindows } from "../world/landmarkWindows"; // lit all night
 import * as PLAN from "../../../shared/cathedralPlan";
 import * as HP from "../../../shared/hallPlan";
@@ -339,6 +340,7 @@ export class Landmarks {
     this.halls = hallsInWorld(world, inWorld);
     loadVleeshuisShell(world.scene); // the Vleeshuis in detail: its own model, the old one of landmarks.glb hidden
     loadStadhuisShell(world.scene); // the town hall in detail: its own model, the old one of landmarks.glb hidden
+    loadOostershuisShell(world.scene); // issue #28: the Oostershuis with real windows and doors, the old one hidden
     // the landmarks' and churches' windows glow all night, open or shut (world/landmarkWindows.ts)
     this.windows = createLandmarkWindows(world.scene);
   }

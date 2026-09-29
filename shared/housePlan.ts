@@ -81,6 +81,17 @@ export const ROOM_DOOR = 1.1;
  */
 export const SHOP_DEEP = 8.2;
 export const SHOP_FRONT = 6.6;
+/**
+ * The stone kerb along a street wall (tools/blender/build_city.py KERB_D, KERB_H): the pavement before the houses is
+ * its top, this deep out of the wall and this high over the street's cobbles.
+ */
+export const KERB_D = 0.7;
+export const KERB_H = 0.12;
+/** Issue #28, the cellar home: its light well, this far out of the front (in the kerb, whose front stays) and under its window's sill. */
+export const WELL_OUT = 0.55;
+export const WELL_UNDER = 0.22;
+/** How far the light well reaches past its window on either side. */
+export const WELL_SIDE = 0.1;
 
 export interface HouseFrame {
   origin: { x: number; z: number };
@@ -204,6 +215,12 @@ export interface HousePlan extends HallPlan {
    */
   roof?: HouseRoof;
   dormer?: DormerSpec & { x: number };
+  /**
+   * Issue #28, the cellar home: its window is under the pavement, onto a light well before the front: the well's sides
+   * (local x), how far out it reaches (z, negative: out of the front), its floor and its mouth (the pavement's top),
+   * with an iron grating over the mouth. The pavement and the cobbles are cut open over it (world/pavementCut.ts).
+   */
+  lightWell?: { x0: number; x1: number; z0: number; y0: number; y1: number };
 }
 
 /**
@@ -403,6 +420,7 @@ export function housePlan(entry: InworldEntry, h: CityHouse, gh: number, sh: num
   let roomY = SILL;
   let roomFrame: RoomFrame | undefined;
   let dormer: HousePlan["dormer"];
+  let lightWell: HousePlan["lightWell"];
 
   if (ground) {
     // the taproom (a shop alike): the whole ground floor. Windows: every bay of the front but the door's, and the side
@@ -493,6 +511,12 @@ export function housePlan(entry: InworldEntry, h: CityHouse, gh: number, sh: num
       // issue #10, the garret: behind a dormer of the house's front slope, the room's window cell under the dormer's
       // window (the room turned across when that is where it fits), the one nearest where it would stand without
       let mirror: 1 | -1 = 1;
+      if (entry.cls === "cellar" && win[0]) {
+        // issue #28: the cellar's window opens onto a light well before the front: turned across when that keeps it
+        // (and its well) farther from the street door and its step
+        const gap = (m: 1 | -1) => Math.min(...win.map(([a, b]) => (Math.min(rx + m * a, rx + m * b) > 0 ? Math.min(rx + m * a, rx + m * b) : Math.max(rx + m * a, rx + m * b) < 0 ? -Math.max(rx + m * a, rx + m * b) : 0)));
+        mirror = gap(-1) > gap(1) ? -1 : 1;
+      }
       if (entry.cls === "garret" && dormers && win[0]) {
         const wc = (win[0][0] + win[0][1]) / 2;
         const rx0 = rx;
@@ -576,6 +600,16 @@ export function housePlan(entry: InworldEntry, h: CityHouse, gh: number, sh: num
           const xb = f.su * (g.s1 - f.sd);
           if (Math.min(xa, xb) > roomRect.minX + 0.3 && Math.max(xa, xb) < roomRect.maxX - 0.3) addHole(0, g.s0, g.s1, g.y0, g.y1);
         }
+      } else if (entry.cls === "cellar") {
+        // issue #28: the cellar's window, under the pavement (the house's front below the street is its own foundation
+        // wall, not the city's: no hole to cut there), onto a light well in the kerb before it, a grating over its mouth
+        const wy = homeWindowY("cellar", room.H);
+        for (const [a, b] of win) {
+          const xa = Math.min(rx + mirror * a, rx + mirror * b);
+          const xb = Math.max(rx + mirror * a, rx + mirror * b);
+          windows.push({ a: alongWall(f, 0, sOfX(f, f.su > 0 ? xa : xb)), b: alongWall(f, 0, sOfX(f, f.su > 0 ? xb : xa)), y0: target + wy[0], y1: target + wy[1], out: [0, -1], kind: "hole" });
+          lightWell = { x0: xa - WELL_SIDE, x1: xb + WELL_SIDE, z0: -WELL_OUT, y0: target + wy[0] - WELL_UNDER, y1: KERB_H };
+        }
       } else if (entry.cls === "garret" && dormer) {
         // issue #10: the dormer's window, cut through its front (build_city.py dormer_new leaves its pane out: the room's
         // glass is there), its face `inset` back from the wall line, its reveal the dormer's
@@ -629,6 +663,7 @@ export function housePlan(entry: InworldEntry, h: CityHouse, gh: number, sh: num
     landings,
     well,
     ...(dormer && dormers ? { roof: { ...dormers.roof }, dormer } : {}),
+    ...(lightWell ? { lightWell } : {}),
   };
 }
 

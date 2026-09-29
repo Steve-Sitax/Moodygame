@@ -176,6 +176,36 @@ describe("the rooms fit their houses", () => {
     expect(floor.maxZ).toBe(p.room.rect.maxZ);
   });
 
+  it("the cellar's window is real: under the pavement, onto a light well in the kerb, clear of the street door", () => {
+    // issue #28: no painted view; the window is a hole of the plan (none in the city's wall: it is under the street),
+    // over the room's window cell, and the light well before it lies in the kerb, beside the door's step
+    const p = byId("home:cellar");
+    expect(p.windows.filter((w) => w.kind === "glow")).toEqual([]);
+    const w = p.windows.find((q) => q.kind === "hole")!;
+    expect(w).toBeTruthy();
+    expect(p.holes).toEqual([]);
+    expect(w.y1).toBeLessThan(0);
+    const rf = p.roomFrame!;
+    const c = CLASSES.cellar;
+    expect(w.y0 - rf.y).toBeCloseTo(1.35, 6);
+    const [a0, a1] = c.windows[0];
+    const cell = -c.W / 2 + ((a0 + a1 + 1) / 2) * 0.5;
+    expect(rf.x + rf.mirror * cell).toBeCloseTo((w.a[0] + w.b[0]) / 2, 6);
+    const lw = p.lightWell!;
+    expect(lw).toBeTruthy();
+    expect(lw.x0).toBeLessThan(Math.min(w.a[0], w.b[0]));
+    expect(lw.x1).toBeGreaterThan(Math.max(w.a[0], w.b[0]));
+    expect(lw.z0).toBeGreaterThan(-0.7);
+    expect(lw.y0).toBeLessThan(w.y0);
+    expect(lw.y1).toBeCloseTo(0.12, 6);
+    // inside the house's front, clear of the door's frame and its porch
+    expect(lw.x0).toBeGreaterThan(p.frame.x0 + 0.2);
+    expect(lw.x1).toBeLessThan(p.frame.x1 - 0.2);
+    const porch = p.steps[0].rect;
+    expect(lw.x1 < porch.minX - 0.05 || lw.x0 > porch.maxX + 0.05).toBe(true);
+    expect(Math.min(Math.abs(lw.x0), Math.abs(lw.x1))).toBeGreaterThan(p.door.w / 2 + p.door.J + 0.1);
+  });
+
   it("the ground-floor homes' windows are in their own house's front", () => {
     for (const id of ["home:widow", "home:alley"]) {
       const p = byId(id);
