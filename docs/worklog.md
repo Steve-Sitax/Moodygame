@@ -7,6 +7,8 @@ Git history has the detail of each commit.
 
 ## Stadspark traversal follow-up, 2026-09-29
 
+Merged and pushed as `366480d`; the player's detached `MoodyGame-play` checkout was refreshed to that commit and its served movement code checked. The demo build passed and [Pages deployment 36626110296](https://github.com/Steve-Sitax/Moodygame/actions/runs/36626110296) succeeded; the live park metadata reports bed -2.75 and water -0.35. The local browser reached Ready and the demo menus worked. Test stack and copied save were removed.
+
 `codex/park-traversal` fixes [issue 34](https://github.com/Steve-Sitax/Moodygame/issues/34): persisted daily random droppings, preserving claimed work; each-frame pond reflections with the correct local water visibility; a 2.4 m deep pond, bank entry/exit and swimming beneath the bridge. Hold Space repeatedly tries a checked climb or vault up to 1.65 m above the takeoff ground. Clearance, headroom, support and safe landing checks refuse impossible climbs. Controls explain holding Space.
 
 Validation: game build, 98 test files / 1,375 tests, then 16 focused tests including two new park-geometry checks; rebuilt churches model and clean park placement check. Browser exercised actual held-Space railing vault, solid obstacle ascent, water entry, bridge crossing and bank exit. North/south/east/west pond pictures inspected and shared. Shader problems and path problems both empty. Reflection counter advanced 30 times over 30 rendered frames. Only the park bed within churches.glb changed; runtime and demo use this one asset, with matching Blender builder and park metadata.
@@ -14,6 +16,8 @@ Validation: game build, 98 test files / 1,375 tests, then 16 focused tests inclu
 Performance remains deferred to the separate session and [issue 32](https://github.com/Steve-Sitax/Moodygame/issues/32). Local report `data/perf/park-traversal.json`: 90 synchronously rendered walking/turning frames with GPU readback (live RAF yielded no samples in this preview). Park 24.71/26.38 ms; Grote Markt 31.07/29.20; cathedral 27.74/27.83; Handschoenmarkt 27.25/27.65; Vismarkt 27.59/32.20; Rijnkaai 28.50/31.04. The 16.7 ms budget check fails; these are frame-work samples, not a claim of achieved live fps. No appearance-preserving rendering optimisation claimed: changing pond reflections is the requested visual correction.
 
 Swimming, climbing and reflection changes also work in the web demo. The persisted cleanup job still requires the full game server.
+
+Unrelated startup warning recorded as [issue 35](https://github.com/Steve-Sitax/Moodygame/issues/35): loaded lighter berth approaches fail ten anchorage clearance checks near the Rijnkaai. No boat routes changed here.
 
 ## Stadspark branch, 2026-09-29
 
