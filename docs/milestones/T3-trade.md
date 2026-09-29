@@ -83,7 +83,12 @@ after M7". Decided 2026-09-27: players move the stock, but food never runs out f
   coal", "running low: more sent for", "sold out to the town"), read from the saved ledger; the runs list filters
   by every chain (meat, fish, beer, coal, pigs too).
 
+- **A rush from a shortage** (server `trade/rush.ts`): from 6 to 11 on a working day, a bakery down to its floor while
+  the other has bread to spare puts up a job on the board ("A rush: bread from the bakery by the Rijnkaai"): one
+  crate of 12 loaves by hand from the other's door to its own, eight minutes, paid as the mills pay by the way (85 c
+  from the Rijnkaai to the Steenplein). Taken: the loaves leave the other shelf; brought: they go on his. One a
+  bakery a day. Tests `t3-rush` (2); browser: put up at 8:05, carried, paid 85 c, shelves 2 -> 14 and 58 -> 46.
+
 ## Next
 
-- Jobs from shortage beyond the book: a rush fetch when a shelf is empty in the morning.
 - The goods kit for crates and casks (the sack pattern: one model, a label sheet).

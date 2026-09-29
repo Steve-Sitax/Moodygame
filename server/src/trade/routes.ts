@@ -9,6 +9,7 @@ import { DEV } from "../config.ts";
 import { townTalk } from "../hooks/dialogue.ts";
 import { fishBoxIn, onMillEvents, tradeBought, tradeLedger, tradePrice, tradeView, writeLedger } from "./ledger.ts";
 import { droveOf } from "./drove.ts";
+import { offerRushJobs } from "./rush.ts";
 import { clock } from "../day.ts";
 
 // T3 trade: the posts' ledger wired into the mills (the bake), the goods (the fish boxes), the prices and the buying;
@@ -34,8 +35,9 @@ export function installTrade(): void {
   };
 }
 
-export function mountTrade(app: Hono, deps: { db: DB }): void {
+export function mountTrade(app: Hono, deps: { db: DB; payload?: () => Record<string, unknown>; broadcast?: (m: unknown) => void }): void {
   const { db } = deps;
+  let rushHour = -1;
   installTrade();
   // (T3 chain 3: today's drove of pigs with it, placed by its own clock in the game: shared/drove.ts)
   const drove = () => {
@@ -62,6 +64,12 @@ export function mountTrade(app: Hono, deps: { db: DB }): void {
     await next();
     try {
       tradeLedger(db);
+      // T3: a rush from a shortage (trade/rush.ts), looked at every game hour
+      const h = clock(db).hour;
+      if (h !== rushHour) {
+        rushHour = h;
+        if (offerRushJobs(db).length && deps.payload && deps.broadcast) deps.broadcast({ type: "jobs", ...deps.payload() });
+      }
     } catch (e) {
       console.warn("[trade] tick", e);
     }

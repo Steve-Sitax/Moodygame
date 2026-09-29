@@ -237,7 +237,7 @@ mountErrands(app, { db, payload: () => jobsPayload() });
 mountWalkup(app, { db });
 // M7 mills: the stocks move on with the clock, the mills' work goes up (town/mills.ts)
 mountMills(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
-mountTrade(app, { db }); // T3: the food posts' ledger (trade/ledger.ts)
+mountTrade(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) }); // T3: the food posts' ledger (trade/ledger.ts)
 // the lamplighter's last lamps: a job for Jef at dusk (town/lampjob.ts)
 mountLampJob(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
 // M6 AI-composed routines: errands the model plans from Jef's words and steers in check-ins (director/routines.ts)
