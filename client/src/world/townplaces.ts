@@ -5,6 +5,7 @@ import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import TP from "../../../shared/townplaces.json";
 import { psx } from "../retro/psx";
+import { attachToMirror } from "./mirror";
 import { earthPaving, EDGE_BUMP, edgeStoneTextures, flagPaving, quayPaving, withPictures } from "./paving";
 import { rectAround, type Rect } from "./geom";
 import { buildTrees3D } from "./trees3d";
@@ -175,6 +176,7 @@ function rondGround(group: THREE.Group): void {
   const kerbs = new THREE.Mesh(mergeGeometries([kerb(R.r_walk, 0.3), kerb(R.r_island, 0.3), kerb(R.r_path_in, 0.22), kerb(R.r_path_out, 0.22)])!, kerbMat);
   kerbs.name = "rond_kerbs";
   group.add(pave, road, island, ringPath, kerbs);
+  attachToMirror("puddles", pave, road, island, ringPath); // (their puddles show the street mirror: never drawn into it, issue #23)
 }
 
 // ------------------------------------------------------------------ railings (low iron, drawn in code)

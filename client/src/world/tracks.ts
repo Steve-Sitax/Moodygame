@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { psx } from "../retro/psx";
 import { settsPaving } from "./paving";
+import { attachToMirror } from "./mirror";
 import type { Rect } from "./geom";
 
 // The quay railway (tools/city/design.py DECOR "tracks" and "crane_rails"): iron rails
@@ -259,6 +260,7 @@ export function buildTracks(scene: THREE.Scene, data: TrackData, bridges: Rect[]
   );
   const bandMesh = new THREE.Mesh(bandS.geometry(), bandMat);
   bandMesh.name = "track_setts";
+  attachToMirror("puddles", bandMesh); // (its puddles show the street mirror: never drawn into it, issue #23)
   const railMesh = new THREE.Mesh(railS.geometry(), railMat);
   railMesh.name = "track_rails";
   group.add(bandMesh, railMesh);

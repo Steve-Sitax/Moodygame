@@ -5,6 +5,7 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { psx, psxUniforms } from "../retro/psx";
 import { earthPaving, grassPaving, withPictures, type Paving } from "./paving";
 import { crisp, fallingLeaves, treeMaterial } from "./trees3d";
+import { attachToMirror } from "./mirror";
 
 // The Stadspark planted (the park pass, 2026-09-26; Steve: "the part with the ponds have no trees, bushes..
 // make it look way better, but keep the grungy feel"). Eduard Keilig's English landscape park of 1867-69 on
@@ -234,7 +235,11 @@ export function loadParkNature(scene: THREE.Scene): ParkNature {
       ] as Array<["lawn" | "gravel" | "mud" | "bed" | "under", THREE.Material, number, number]>) {
         mat.name = `park_${kind}`;
         const tris = D.ground[kind] ?? [];
-        if (tris.length) group.add(groundMesh(tris, mat, tile, y, `park_ground_${kind}`));
+        if (!tris.length) continue;
+        const mesh = groundMesh(tris, mat, tile, y, `park_ground_${kind}`);
+        group.add(mesh);
+        // (its puddles show the street mirror: never drawn into it, issue #23)
+        if (kind !== "under") attachToMirror("puddles", mesh);
       }
       // ---- the plants: every kind instanced, bark and leaves
       let barkMap: THREE.Texture | null = null;
