@@ -18,9 +18,10 @@ import { lampFog } from "./lampFog";
 //  - the door's leaf and transom, hung in the street's scene (and the same in the room's), open or shut;
 //  - the panes in the room's scene (drawn after the street, so the room shows through them and the street
 //    through them from inside), a little tinted and a little reflective by day;
-//  - a "punch" for each opening, first in the room's pass: it sets the depth behind the opening to the far
-//    plane, so what the street has behind the facade (the paving runs under the houses, the lining below)
-//    never hides the room; the room draws the reveals, the sill, the leaf and the transom again itself;
+//  - a "punch" for each opening, first in the room's pass seen from outside: it sets the depth behind the opening
+//    to the far plane where the street drew something behind the facade (the paving runs under the houses, the
+//    lining), never over what stands before it (issue #29: PUNCH_MARK and PUNCH, below), so that never hides the
+//    room; the room draws the reveals, the sill, the leaf and the transom again itself;
 //  - a dark lining just inside the house's faces (street scene): what an open door or a window shows when
 //    the room itself is not drawn (too far, over the budget, a mirror's picture);
 //  - warm panes at night over painted windows of a room upstairs (a garret with no dormer to stand behind; issue #10:
@@ -62,13 +63,50 @@ export interface HouseInWorld {
   update(t: number, dt: number, day: number): void;
 }
 
-const PUNCH = new THREE.ShaderMaterial({
-  vertexShader: "void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
-  fragmentShader: "void main() { gl_FragDepth = 1.0; gl_FragColor = vec4(0.0); }",
+// The punch (issue #29). Before, one material wrote gl_FragDepth = 1.0 with the depth test on: the test compares the
+// written depth, so it passed only where the depth was already far, i.e. nowhere it was needed. With the test off (or
+// ALWAYS) alone it would clear the depth over a passer-by, a lamp post or a shutter in front of the window too, and the
+// room would be drawn over them. So two draws of the same quads, one shader program (uFar picks the depth written):
+//  - PUNCH_MARK: the quad at its own depth, the normal test, no colour, no depth: stencil bit 4 set where the facade's
+//    plane is in view, i.e. where what the street drew there lies behind the facade (the lining, the paving, a floor);
+//  - PUNCH: depth ALWAYS, only where bit 4 is set: the depth there set to the far plane, the bit cleared again.
+// Bits 1 and 2 of the stencil are the boats' and the dock water's (world/boats.ts); the write masks keep them.
+export const PUNCH_BIT = 4;
+const PUNCH_VERT = "void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }";
+const PUNCH_FRAG = "uniform float uFar; uniform vec4 uShow; void main() { gl_FragDepth = uFar > 0.5 ? 1.0 : gl_FragCoord.z; gl_FragColor = uShow; }";
+export const PUNCH_MARK = new THREE.ShaderMaterial({
+  name: "house_punch_mark",
+  uniforms: { uFar: { value: 0 }, uShow: { value: new THREE.Vector4(0, 0, 0, 0) } },
+  vertexShader: PUNCH_VERT,
+  fragmentShader: PUNCH_FRAG,
+  colorWrite: false,
+  depthWrite: false,
+  depthTest: true,
+  side: THREE.DoubleSide,
+  stencilWrite: true,
+  stencilRef: PUNCH_BIT,
+  stencilWriteMask: PUNCH_BIT,
+  stencilFuncMask: PUNCH_BIT,
+  stencilFunc: THREE.AlwaysStencilFunc,
+  stencilZPass: THREE.ReplaceStencilOp,
+});
+export const PUNCH = new THREE.ShaderMaterial({
+  name: "house_punch",
+  // (uShow: the dev check colours what the punch clears, dev/punchcheck.ts; never in play)
+  uniforms: { uFar: { value: 1 }, uShow: { value: new THREE.Vector4(0, 0, 0, 0) } },
+  vertexShader: PUNCH_VERT,
+  fragmentShader: PUNCH_FRAG,
   colorWrite: false,
   depthWrite: true,
   depthTest: true,
+  depthFunc: THREE.AlwaysDepth,
   side: THREE.DoubleSide,
+  stencilWrite: true,
+  stencilRef: PUNCH_BIT,
+  stencilWriteMask: PUNCH_BIT,
+  stencilFuncMask: PUNCH_BIT,
+  stencilFunc: THREE.EqualStencilFunc,
+  stencilZPass: THREE.ZeroStencilOp,
 });
 
 /** A window's frame in local terms: along it (unit), its start, the outward normal. */
@@ -373,15 +411,22 @@ export function createHouseInWorld(world: World, inWorld: InWorld, plan: HousePl
     const bars = new THREE.Mesh(mergeGeometries(barGeos, false)!, lambert("house_bars", { map: tex().planks, color: 0x3a2c20 }, 0));
     inHouse.add(glass, bars);
   }
-  // the punches: first of all in the room's pass (renderOrder), the door's only while it stands open
-  const doorPunchMesh = new THREE.Mesh(mergeGeometries(doorPunch, false)!, PUNCH);
-  doorPunchMesh.renderOrder = -1000;
-  inHouse.add(doorPunchMesh);
-  if (punchGeos.length) {
-    const wp = new THREE.Mesh(mergeGeometries(punchGeos, false)!, PUNCH);
-    wp.renderOrder = -1000;
-    inHouse.add(wp);
-  }
+  // the punches: first of all in the room's pass (renderOrder: every mark, then every punch), the door's only while it
+  // stands open; only from outside (issue #29: from inside, the street through a window is right as the street drew it,
+  // and a punch there would let another house's room, drawn after, show through that house's own front)
+  const punchPair = (g: THREE.BufferGeometry, name: string): THREE.Group => {
+    const pair = new THREE.Group();
+    pair.name = name;
+    const mark = new THREE.Mesh(g, PUNCH_MARK);
+    mark.renderOrder = -1001;
+    const punch = new THREE.Mesh(g, PUNCH);
+    punch.renderOrder = -1000;
+    pair.add(mark, punch);
+    inHouse.add(pair);
+    return pair;
+  };
+  const doorPunchMesh = punchPair(mergeGeometries(doorPunch, false)!, `house_${plan.id}_door_punch`);
+  const winPunch = punchGeos.length ? punchPair(mergeGeometries(punchGeos, false)!, `house_${plan.id}_window_punch`) : null;
   for (const g of [...revealGeos, ...punchGeos, ...doorPunch, ...glassGeos, ...barGeos]) g.dispose();
   street.updateMatrixWorld(true);
   inHouse.updateMatrixWorld(true);
@@ -512,7 +557,8 @@ export function createHouseInWorld(world: World, inWorld: InWorld, plan: HousePl
       const sheen = dayNow * dayNow;
       pane.opacity = 0.06 + 0.22 * sheen * (1 - k);
       pane.color.copy(streetFog.color).multiplyScalar(2.2);
-      doorPunchMesh.visible = isOpen();
+      doorPunchMesh.visible = isOpen() && k < 0.5;
+      if (winPunch) winPunch.visible = k < 0.5;
     },
     lamps: () => room.lamps,
     scatter,

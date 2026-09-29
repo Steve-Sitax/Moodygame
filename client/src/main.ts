@@ -1670,6 +1670,35 @@ if (import.meta.env.DEV) {
       const houses = [...interiors.inWorldHouses, ...homes.inWorldHouses] as unknown as Parameters<typeof m.targetsFrom>[2];
       return m.checkInteriors(world.scene, inWorld, m.targetsFrom(inWorld, halls, houses, ["prison_governor"]), only);
     },
+    /**
+     * Issue #29: the city houses' punch in the view now (dev/punchcheck.ts): the pixels it clears, and those where the
+     * linings or the paving still change what a house's room shows (`covered` must be 0). `{ old: true }`: the punch as it was.
+     */
+    punchcheck: async (opts: { old?: boolean; from?: [number, number, number]; to?: [number, number, number]; shot?: string } = {}) => {
+      const m = await import("./dev/punchcheck");
+      const cam = player.camera;
+      const keep = { p: cam.position.clone(), q: cam.quaternion.clone() };
+      if (opts.from && opts.to) {
+        // (as shotFrom: the eye there, the world, the people and the spilt light seen from it)
+        cam.position.set(...opts.from);
+        cam.lookAt(...opts.to);
+        cam.updateMatrixWorld();
+        world.update(elapsed, 0.016, cam);
+        crowd.update(0.0001, player, cam);
+        spill.update(0.0001, cam, true);
+      }
+      const pics: Array<{ name: string; url: string }> = [];
+      const grab = opts.shot ? (what: string) => pics.push({ name: `${opts.shot}_${opts.old ? "old" : "new"}_${what}`, url: canvas.toDataURL("image/jpeg", 0.85) }) : undefined;
+      try {
+        const r = m.punchCheck({ renderer, target: retro.target, draw: () => retro.render(world.scene, cam, elapsed), scene: world.scene, inWorld, grab }, opts);
+        for (const p of pics) await fetch("/api/dev/shot", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) });
+        return { ...r, shots: pics.map((p) => `data/shots/${p.name}.jpg`) };
+      } finally {
+        cam.position.copy(keep.p);
+        cam.quaternion.copy(keep.q);
+        cam.updateMatrixWorld();
+      }
+    },
     /** The landmarks' windows lit at night (world/landmarkWindows.ts): per building, its windows and their light on the street. */
     litWindows: () => landmarks.windows?.info() ?? [],
     /** M7 halls: the checks of the halls in the world (dev/hallcheck.ts): pictures, the walk through a door (pops), holes in a hall. */

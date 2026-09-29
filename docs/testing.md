@@ -91,6 +91,9 @@ house walls, corners, doorways, the walk map and each other; `problems` must be 
 the markets up first: a market day, 10:00), `await __scheldemist.zfight()`
 (faces in one plane that flicker, by cause; the houses list 4 small ones, see M3c pass 5),
 `__scheldemist.shaders()` (the shaders and their light settings; `problems` must be empty, see rendering.md),
+`await __scheldemist.punchcheck({ from: [x, y, z], to: [x, y, z], shot: "name", old })` (issue #29: the city houses' punch
+in that view: the pixels it clears, and `covered`, room pixels the linings or the paving hide, must be 0; `old: true` the
+punch as it was; `shot` saves the view, the view without linings and paving, and the punch in magenta to data/shots),
 `await __scheldemist.bumpaudit({ text: true })` (every material of the street and the rooms, by source: its picture and its relief; `totals.flat` and `totals.weak` should stay near 0, see rendering.md, Bumps),
 `__scheldemist.spill()` (night: every lit window, open door, lamp and lantern in view range, whether it glows and throws
 its light per pixel, as a ground pool or by its own real light, and where its pool starts against its wall; `problems`

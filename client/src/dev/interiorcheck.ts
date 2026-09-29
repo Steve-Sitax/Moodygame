@@ -56,6 +56,8 @@ class TriGrid {
     const two = m0.side === THREE.DoubleSide;
     mesh.updateWorldMatrix(true, false);
     const M = mesh.matrixWorld;
+    // (a mirrored mesh, a home's room turned across: three.js draws its faces the other way round, so do we)
+    const flip = M.determinant() < 0;
     const n = idx ? idx.count : pos.count;
     const v = (i: number) => new THREE.Vector3().fromBufferAttribute(pos, idx ? idx.getX(i) : i).applyMatrix4(M);
     for (let i = 0; i + 2 < n; i += 3) {
@@ -66,6 +68,7 @@ class TriGrid {
       const nn = new THREE.Vector3().subVectors(b, a).cross(new THREE.Vector3().subVectors(c, a));
       if (nn.lengthSq() < 1e-12) continue;
       nn.normalize();
+      if (flip) nn.negate();
       this.tris.push({ a, b, c, n: nn, room, glass, two, name: mesh.name || mesh.parent?.name || "?" });
     }
   }
@@ -289,6 +292,8 @@ function checkOne(scene: THREE.Scene, T: CheckTarget, markers: Marker[]): Interi
   room.scene.traverse((o) => {
     const m = o as THREE.Mesh;
     if (!m.isMesh || (m as unknown as THREE.SkinnedMesh).isSkinnedMesh) return;
+    // (issue #29: a city house's punch lies in its openings and draws nothing: not the room)
+    if (/^house_punch/.test((m.material as THREE.Material).name ?? "")) return;
     grid.add(m, true);
   });
   grid.build(near.clone().expandByScalar(1.0));

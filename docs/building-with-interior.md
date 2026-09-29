@@ -87,6 +87,11 @@ panes over them. Made real the same way, without rebuilding them from the skelet
 - **City houses** (taverns, shops, the Poesje, the homes): their holes are cut by `build_city.py` from
   `shared/inworld_build.json`, which is the house plan's (houses-inworld test); `houseInWorld.ts` writes their markers from
   the same numbers. A room that draws its own reveal to its single-faced wall meets the shell's reveal there.
+  The street draws what lies behind a house's front (the paving under the houses, the house's dark lining) before the
+  room; a "punch" in each opening, first in the room's pass seen from outside, clears the depth there to the far plane,
+  but only where the front's own plane is in view (stencil bit 4), never over a passer-by or a shutter before it
+  (issue #29). `await __scheldemist.punchcheck({ from, to, old })`: the pixels it clears, and `covered` (room pixels the
+  lining or the paving hide) must be 0; `old: true` shows the punch as it was.
 - **Windows with no inside** (towers, attics, parts never built) keep their panes until their rooms are built.
 
 ## Rebuild
