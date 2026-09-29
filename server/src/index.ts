@@ -20,7 +20,7 @@ import { writeEpilogue } from "./hooks/epilogue.ts";
 import { resetTalks } from "./hooks/dialogue.ts";
 import { devJob, jobById, listJobs, makeBoard } from "./hooks/jobBoard.ts";
 import { writeOutcome } from "./hooks/jobOutcome.ts";
-import { finishJob, GameError, holdJob, inHand, jobRumour, player, ReportSchema, saveOutcome, saveProgress, takeJob } from "./game.ts";
+import { finishJob, giveUpJob, GameError, holdJob, inHand, jobRumour, player, ReportSchema, saveOutcome, saveProgress, takeJob } from "./game.ts";
 import { gameMinute } from "./town/deeds.ts";
 import { ensurePersonas, PLACED, npcRow } from "./npcs.ts";
 import { buy, handOverParcel, ITEMS, pockets, useItem, WARES, waresOf } from "./trade.ts";
@@ -324,6 +324,14 @@ app.post("/api/jobs/:id/done", async (c) => {
   broadcast({ type: "jobs", ...jobsPayload() });
   // the words come later; the game never waits for them
   void narrate(res.job.id, res.settlement);
+  return c.json(res);
+});
+
+// T4 the quest book: a job in hand given up (no pay, the employer thinks less of him; its goods go with it)
+app.post("/api/jobs/:id/giveup", (c) => {
+  const res = giveUpJob(db, Number(c.req.param("id")));
+  goods.endJob(res.job.id);
+  broadcast({ type: "jobs", ...jobsPayload() });
   return c.json(res);
 });
 

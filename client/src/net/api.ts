@@ -573,6 +573,8 @@ export const api = {
   mapOff: (off: Array<{ id: string; x: number; z: number; why: string; in?: boolean }>) => call<{ ok: boolean }>("POST", "/api/map/off", { off }, 10_000),
   pick: (id: string) => call<JobsPayload & { took_c: number; felt: boolean; text: string }>("POST", `/api/resident/${id}/pick`),
   catchThief: (id: string) => call<JobsPayload & { back_c: number; text: string }>("POST", `/api/resident/${id}/catch`),
+  /** T4: give up a job in hand (no pay; the employer's trust one down). */
+  giveUp: (id: number) => call<{ settlement: { pay_c: number }; money_c: number }>("POST", `/api/jobs/${id}/giveup`, {}),
   done: (id: number, report: Report) =>
     call<{ job: Job; settlement: Settlement; money_c: number }>("POST", `/api/jobs/${id}/done`, report),
   // M4

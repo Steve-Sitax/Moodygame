@@ -184,6 +184,14 @@ export class Jobs {
     this.extraActions.push((x, z) => this.day.rest.keys(x, z));
     this.map = new CityMap(player);
     this.map.marks = () => this.mapMarks();
+    // T4: the dotted way on the paper map to where the followed job goes now (or back to its man for the pay)
+    this.map.wayGoal = () => {
+      const g = this.run?.goal();
+      if (g && this.active) return { x: g.x, z: g.z };
+      const boss = this.held && !this.heldBox() ? this.people.get(this.held.employer_npc) : null;
+      return boss ? { x: boss.pos.x, z: boss.pos.z } : null;
+    };
+    this.map.askWay = (key) => api.waysByKey([key]).then((r) => (r.ways[key] as Array<[number, number]> | null) ?? null);
     this.day.apply = (p) => this.apply(p);
     this.day.toast = (t) => this.toastMsg(t);
     this.day.onSheet = () => {
@@ -350,7 +358,8 @@ export class Jobs {
       else {
         const where = this.goods.canPlace(px, pz);
         if (where) {
-          const label = this.run?.placeLabel(carried, px, pz) ?? (where === "stack" ? "stack it" : "set it down");
+          const aside = this.asideGoal(carried, px, pz);
+          const label = this.run?.placeLabel(carried, px, pz) ?? (aside ? `set it down here (${aside.title})` : where === "stack" ? "stack it" : "set it down");
           add({ key: "KeyE", text: label, run: () => this.putDown(px, pz), self: true });
         }
       }
@@ -453,6 +462,12 @@ export class Jobs {
     if (!item) return;
     this.sfx(`thud_${GOODS[item.kind].thud}`, new THREE.Vector3(x, item.y, z));
     this.run?.onPlaced(item);
+    // T4: goods of another job in hand, set down at that job's goal: they count for it
+    const aside = this.asideGoal(item, x, z);
+    if (aside) {
+      item.jobId = null;
+      this.tally(aside.id, "delivered");
+    }
     const w = this.watched;
     if (w?.item === item) {
       this.watched = null;
@@ -473,6 +488,7 @@ export class Jobs {
       const jobItem = item.jobId !== null && item.jobId === this.active?.id;
       this.run?.onLost(item, `The gang takes the ${GOODS[item.kind].one} too.`);
       if (!jobItem) this.toastMsg(`The gang takes the ${GOODS[item.kind].one} too.`);
+      if (!jobItem && this.jobInHand(item.jobId)) this.tally(item.jobId!, "lost");
       return;
     }
     const [px, pz] = ahead(this.player, 0.7);
@@ -489,6 +505,7 @@ export class Jobs {
     const jobItem = item.jobId !== null && item.jobId === this.active?.id;
     this.run?.onLost(item);
     if (!jobItem) this.toastMsg("It goes over the edge. The Schelde takes it.");
+    if (!jobItem && this.jobInHand(item.jobId)) this.tally(item.jobId!, "lost");
   }
 
   private updateSinking(dt: number): void {
@@ -789,7 +806,9 @@ export class Jobs {
   private follow(job: Job): void {
     if (this.active?.id === job.id) return;
     if (this.active) {
-      this.run?.dispose();
+      // (set aside: its goods stay where they lie, in his hands or on the cart; the review of 2026-09-29 found
+      // they were wiped from the world when he followed another job)
+      this.run?.dispose(true);
       this.run = null;
       this.active = null;
       this.held = null;
@@ -885,13 +904,76 @@ export class Jobs {
   /** Give up a job in hand: settled with nothing done (no pay; the employer's trust, as the engine rules). */
   private async giveUp(j: Job): Promise<void> {
     try {
-      await api.done(j.id, { delivered: 0, lost: 0, sold: 0, pocketed: false, late: false, left_post_s: 0, thief: "none", bribe_taken: false, seen_away: false });
+      await api.giveUp(j.id);
       if (this.active?.id === j.id) this.dropRun();
       this.toastMsg(`You gave up "${j.title}". ${j.employer_name} will remember.`);
       const p = await api.jobs();
       this.apply(p);
     } catch {
       this.toastMsg("That did not go through. Try again.");
+    }
+  }
+
+  /** T4: a job in hand (followed or set aside) by its id, or null. */
+  jobInHand(id: number | null | undefined): Job | null {
+    if (id == null) return null;
+    return (this.payload?.jobs ?? []).find((j) => j.id === id && j.status === "taken") ?? null;
+  }
+
+  /** T4: the jobs in hand, the followed one first (for the handcart's unloading). */
+  inHand(): Job[] {
+    return this.jobsInHand();
+  }
+
+  /** T4: an item of another carry job in hand, at (x, z) within reach of that job's goal: that job, else null. */
+  private asideGoal(item: Item, x: number, z: number): Job | null {
+    if (item.jobId === null || item.jobId === this.active?.id) return null;
+    const j = this.jobInHand(item.jobId);
+    const t = j?.task as { kind?: string; to?: string } | null;
+    if (!j || t?.kind !== "carry" || !t.to) return null;
+    const to = SPOTS[t.to as keyof typeof SPOTS];
+    return to && Math.hypot(to.x - x, to.z - z) < 2.2 ? j : null;
+  }
+
+  /** The aside tallies, one after another (two crates set down quickly must not both read the old count). */
+  private asideQ: Promise<void> = Promise.resolve();
+
+  /**
+   * T4 (the quest book, mixed loads): goods of a job in hand came to account, delivered at its goal or lost. The
+   * followed job's run counts its own; a job set aside is counted here: its progress saved, and when all its goods
+   * are in, settled and paid at once, as its run would (each job at its own goal).
+   */
+  tally(jobId: number, what: "delivered" | "lost", n = 1): void {
+    if (jobId === this.active?.id && this.run instanceof HaulRun) {
+      if (what === "delivered") this.run.countDelivered(n);
+      else for (let i = 0; i < n; i++) this.run.onLost({ jobId, kind: (this.active.task as { goods?: string } | null)?.goods } as unknown as Item, "");
+      return;
+    }
+    this.asideQ = this.asideQ.then(() => this.tallyAside(jobId, what, n)).catch(() => {});
+  }
+
+  private async tallyAside(jobId: number, what: "delivered" | "lost", n: number): Promise<void> {
+    const j = this.jobInHand(jobId);
+    const t = j?.task as { kind?: string; count?: number; progress?: Progress } | null;
+    if (!j || !t || (t.kind !== "carry" && t.kind !== "deliver")) return;
+    const count = t.kind === "carry" ? (t.count ?? 1) : 1;
+    const p: Progress = { ...(t.progress ?? { delivered: 0, lost: 0, sold: 0 }) };
+    p[what] += n;
+    t.progress = p;
+    await api.progress(j.id, p).catch(() => {});
+    if (p.delivered + p.lost + p.sold < count) {
+      if (what === "delivered") this.toastMsg(`For "${j.title}": ${p.delivered} of ${count} in.`);
+      return;
+    }
+    try {
+      const r = await api.done(j.id, { delivered: p.delivered, lost: p.lost, sold: p.sold, pocketed: false, late: false, left_post_s: 0, thief: "none", bribe_taken: false, seen_away: false });
+      const s = r.settlement;
+      this.toastMsg(`"${j.title}" is done. ${s.pay_c ? `${j.employer_name} pays ${s.pay_c} c` : `${j.employer_name} pays nothing`}${s.extra_c ? `, and ${s.extra_c} c on the side` : ""}.`);
+      this.sfx("coins");
+      this.el.hud.textContent = `${r.money_c} c`;
+      this.apply(await api.jobs());
+    } catch (e) {
+      this.toastMsg(`Not settled: ${(e as Error).message}`);
     }
   }
 

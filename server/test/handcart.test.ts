@@ -325,6 +325,30 @@ describe("a multi-item delivery in one trip, paid by the board's rules", () => {
     expect(part.pay_c).toBe(60);
   });
 
+  it("T4 mixed loads: two jobs' crates on one cart, each unloaded and paid at its own goal", () => {
+    const db = fresh();
+    const c = ownCart(db);
+    const a = carryJob(db, { count: 2, pay: 40 });
+    const b = carryJob(db, { count: 1, pay: 30 });
+    for (let i = 0; i < 2; i++) loadCart(db, c.id, { kind: "crates", job: a, owner: "sooi" }, c.x, c.z);
+    loadCart(db, c.id, { kind: "crates", job: b, owner: "sooi" }, c.x, c.z);
+    expect(jefCarts(db).list[0].load.length).toBe(3);
+    const to = spot("crane_foot");
+    parkAt(db, c.id, to.x + 1.5, to.z + 1.5);
+    // the first job's goods only; the second's stay on the cart
+    const ra = unloadJob(db, c.id, a, to.x + 1, to.z);
+    expect(ra.items.length).toBe(2);
+    expect(jefCarts(db).list[0].load.map((it) => it.job)).toEqual([b]);
+    const report = { delivered: 2, lost: 0, sold: 0, pocketed: false, late: false, left_post_s: 0, thief: "none" as const, bribe_taken: false, seen_away: false };
+    const before = money(db);
+    expect(finishJob(db, a, report, never).settlement.pay_c).toBe(40);
+    // the second job is still in hand and its crate still on the cart; then it too
+    const rb = unloadJob(db, c.id, b, to.x + 1, to.z);
+    expect(rb.items.length).toBe(1);
+    expect(finishJob(db, b, { ...report, delivered: 1 }, never).settlement.pay_c).toBe(30);
+    expect(money(db)).toBe(before + 70);
+  });
+
   it("a deliver job or a foreman's count: one by one, never all at once", () => {
     const db = fresh();
     const c = ownCart(db);

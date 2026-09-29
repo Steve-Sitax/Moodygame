@@ -66,7 +66,8 @@ export interface Run {
   /** Where the job wants you now, for the pointer. */
   goal(): THREE.Vector3 | null;
   hud(): string;
-  dispose(): void;
+  /** `keepGoods`: T4, the run is set aside (another job followed): its goods stay where they are. */
+  dispose(keepGoods?: boolean): void;
   /** M7 save and pause: how far the run has come that the server does not keep (its clock, what happened). */
   snapshot?(): Record<string, unknown>;
   /** M7 save and pause: back to a snapshot, on a run just made for the same job (after a load). */
@@ -654,9 +655,9 @@ export class HaulRun implements Run {
     if (lower < this.toLower.length) this.toLower = this.toLower.slice(this.toLower.length - lower);
   }
 
-  dispose(): void {
+  dispose(keepGoods = false): void {
     const { world, goods } = this.ctx;
-    goods.clearJob(this.job.id);
+    if (!keepGoods) goods.clearJob(this.job.id);
     world.scene.remove(this.mark);
     for (const l of this.lowering) world.scene.remove(l.obj, l.rope);
     this.strangerCall?.cancel();

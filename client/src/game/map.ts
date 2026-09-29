@@ -146,7 +146,7 @@ function drawMark(g: CanvasRenderingContext2D, m: MapMark, u: number, v: number,
 const SCALE = 2; // px per metre on the stored map
 /** The key to the marks in the big map's corner: its size (seven rows). */
 const KEY_W = 180;
-const KEY_H = 7 * 20 + 10;
+const KEY_H = 8 * 20 + 10;
 /** The corner map: metres from Jef to its rim. */
 const MINI_REACH_M = 110;
 
@@ -168,6 +168,14 @@ export class CityMap {
   private listed: MapMark[] = [];
   /** Set by Jobs: the marks to draw. */
   marks: () => MapMark[] = () => [];
+  /** T4 (docs/trade-plan.md, the quest book): where the followed job goes now; the map draws the way on foot to it. */
+  wayGoal: () => { x: number; z: number } | null = () => null;
+  /** Set by Jobs: a way on foot from the server's walk map (POST /api/town/ways), by key "x,z>x,z", or null. */
+  askWay: ((key: string) => Promise<Array<[number, number]> | null>) | null = null;
+  /** The way drawn now: asked from where Jef stood to the goal then; asked again when either moved on. */
+  private way: { pts: Array<[number, number]> | null; gx: number; gz: number; ax: number; az: number } | null = null;
+  private wayBusy = false;
+  private wayAt = 0;
 
   // the corner map
   private readonly mini: HTMLDivElement;
@@ -429,6 +437,9 @@ export class CityMap {
     };
     const marks = this.marks();
     const dist = (m: MapMark) => Math.hypot(m.x - this.player.x, m.z - this.player.z);
+    // T4: the way on foot to the followed job, under the marks
+    const wp = this.wayNow();
+    if (wp) this.drawWay(g, wp, S, 3.5);
     // the list's order: your job first, then the nearest work, then what goes on in town
     const rank: Record<string, number> = { goal: 0, work: 1, event: 2 };
     const quests = marks.filter((m) => QUEST_KINDS.has(m.kind)).sort((a, b) => rank[a.kind] - rank[b.kind] || dist(a) - dist(b));
@@ -546,11 +557,75 @@ export class CityMap {
     this.drawSide(dist);
   }
 
+  /**
+   * T4: the way on foot to the followed job's goal, as the server's walk map finds it (the townspeople's ways): asked
+   * when the goal changes or Jef is 12 m from where it was asked, at most every 1.5 s. The points Jef has passed are
+   * left out (the way from the nearest point on).
+   */
+  private wayNow(): Array<[number, number]> | null {
+    const g = this.wayGoal();
+    if (!g || !this.askWay) {
+      this.way = null;
+      return null;
+    }
+    const { x, z } = this.player;
+    const w = this.way;
+    const same = !!w && Math.hypot(w.gx - g.x, w.gz - g.z) < 2;
+    if ((!same || Math.hypot(w!.ax - x, w!.az - z) > 12) && !this.wayBusy && performance.now() - this.wayAt > 1500) {
+      this.wayBusy = true;
+      this.wayAt = performance.now();
+      const ask = { gx: g.x, gz: g.z, ax: x, az: z };
+      this.askWay(`${Math.round(x)},${Math.round(z)}>${Math.round(g.x)},${Math.round(g.z)}`)
+        .then((pts) => {
+          this.way = { pts: pts && pts.length > 1 ? pts : null, ...ask };
+          if (this.open) this.render();
+        })
+        .catch(() => {})
+        .finally(() => (this.wayBusy = false));
+    }
+    if (!same || !w?.pts) return null;
+    // from the nearest point on (what is behind him is walked)
+    let best = 0;
+    let bd = Infinity;
+    for (let i = 0; i < w.pts.length; i++) {
+      const d = Math.hypot(w.pts[i][0] - x, w.pts[i][1] - z);
+      if (d < bd) {
+        bd = d;
+        best = i;
+      }
+    }
+    return [[x, z], ...w.pts.slice(Math.min(best + 1, w.pts.length - 1))];
+  }
+
+  /** The way drawn in dotted ink, with a pale edge so it reads on the red blocks. */
+  private drawWay(g: CanvasRenderingContext2D, pts: Array<[number, number]>, to: (x: number, z: number) => [number, number], w: number): void {
+    g.save();
+    g.lineJoin = "round";
+    g.lineCap = "round";
+    for (const [style, width, dash] of [
+      ["rgba(230, 220, 196, 0.8)", w + 3, [] as number[]],
+      [INK.goal, w, [w * 2.2, w * 1.8]],
+    ] as const) {
+      g.strokeStyle = style;
+      g.lineWidth = width;
+      g.setLineDash(dash as number[]);
+      g.beginPath();
+      pts.forEach(([x, z], i) => {
+        const [u, v] = to(x, z);
+        if (i) g.lineTo(u, v);
+        else g.moveTo(u, v);
+      });
+      g.stroke();
+    }
+    g.restore();
+  }
+
   /** The key to the marks, in the bottom right corner of the paper. */
   private drawKey(g: CanvasRenderingContext2D, W: number, H: number): void {
-    const rows: Array<[MapMark["kind"] | "you", string]> = [
+    const rows: Array<[MapMark["kind"] | "you" | "way", string]> = [
       ["you", "you"],
       ["goal", "your job: go here"],
+      ["way", "the way there on foot"],
       ["work", "work offered"],
       ["event", "going on in town"],
       ["place", "hiring board, a box"],
@@ -578,7 +653,8 @@ export class CityMap {
         g.lineTo(u - 6, v + 5);
         g.closePath();
         g.fill();
-      } else drawMark(g, { x: 0, z: 0, label: "", kind }, u, v, 0.7);
+      } else if (kind === "way") this.drawWay(g, [[0, 0], [1, 0]], (x) => [u - 9 + x * 20, v], 2.5);
+      else drawMark(g, { x: 0, z: 0, label: "", kind }, u, v, 0.7);
       g.fillStyle = "#2a2420";
       g.font = `14px ${HAND}`;
       g.textAlign = "left";
@@ -710,6 +786,16 @@ export class CityMap {
       const b = du * sn + dv * cs;
       return [R + a, R + b, Math.hypot(a, b)];
     };
+    // T4: the way on foot to the followed job (inside the circle)
+    const wp = this.wayNow();
+    if (wp) {
+      g.save();
+      g.beginPath();
+      g.arc(R, R, r, 0, Math.PI * 2);
+      g.clip();
+      this.drawWay(g, wp, (x, z) => at(x, z) as unknown as [number, number], 2.5 * s);
+      g.restore();
+    }
     const marks = this.marks();
     for (const m of marks) {
       if (QUEST_KINDS.has(m.kind)) continue;

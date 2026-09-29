@@ -308,9 +308,7 @@ export function finishJob(db: DB, id: number, report: Report, rng?: () => number
   if (report.box) s.facts.push(`${j.employer_name} was abed; Jef dropped the proof in the box at the door and took his pay from it.`);
   // M6 ideas: a job that went wrong (ideas/trouble.ts) adds its engine-set pay change and facts
   for (const f of settleExtras) f(db, j, s);
-  // (M7 mills: the engine's mill work is for a townsperson, the miller or the baker: trust goes to their own faction;
-  // the lamplighter's lamps too)
-  const faction = ALL_EMPLOYERS[j.employer_npc]?.faction ?? (j.source === "mill" || j.source === "lamps" ? ((db.prepare("SELECT faction FROM npc WHERE id = ?").get(j.employer_npc) as { faction: string | null } | undefined)?.faction ?? undefined) : undefined);
+  const faction = factionOf(db, j);
   db.transaction(() => {
     db.prepare("UPDATE job SET status = ? WHERE id = ?").run(s.status, id);
     // time passes while the job is played (M5 clock), so no extra hour here
@@ -330,6 +328,33 @@ export function finishJob(db: DB, id: number, report: Report, rng?: () => number
       tone: s.trust_delta > 0 ? 1 : 0,
     });
   }
+  const p = player(db);
+  return { job: job(db, id), settlement: s, money_c: p.money_c };
+}
+
+/** Whose trust a job moves: the employer's faction. (M7 mills: the engine's mill work is for a townsperson, the
+ * miller or the baker: trust goes to their own faction; the lamplighter's lamps too.) */
+function factionOf(db: DB, j: JobRow): string | undefined {
+  return ALL_EMPLOYERS[j.employer_npc]?.faction ?? (j.source === "mill" || j.source === "lamps" ? ((db.prepare("SELECT faction FROM npc WHERE id = ?").get(j.employer_npc) as { faction: string | null } | undefined)?.faction ?? undefined) : undefined);
+}
+
+/**
+ * T4 the quest book: Jef gives up a job in hand (G, G in the book). No pay; the employer's trust one down, as a job let
+ * down; the job's goods go with it. Before, the book sent an empty report as "done", which a carry job refuses ("goods
+ * not all accounted for"), so a carry job could not be given up (found 2026-09-29).
+ */
+export function giveUpJob(db: DB, id: number) {
+  const j = job(db, id);
+  if (!inHand(j)) throw new GameError("that job is not in hand", 409);
+  const s: Settlement = { pay_c: 0, extra_c: 0, trust_delta: -1, caught: false, status: "failed", facts: [`Jef took on "${j.title}" for ${j.employer_name} and gave it up.`] };
+  const faction = factionOf(db, j);
+  db.transaction(() => {
+    db.prepare("UPDATE job SET status = ? WHERE id = ?").run(s.status, id);
+    if (faction) db.prepare("UPDATE faction_trust SET trust = MAX(-5, MIN(10, trust + ?)) WHERE faction = ? AND player_id = ?").run(s.trust_delta, faction, pid());
+    log(db, "failed_job", String(id), s.facts.join(" "));
+    db.prepare("DELETE FROM item WHERE job_id = ?").run(id);
+  })();
+  remember(db, j.employer_npc, `Jef took on my job "${j.title}" and gave it up.`, 4, "seen", null, { gist: `Jef gave up a job for ${j.employer_name}`, tone: -1 });
   const p = player(db);
   return { job: job(db, id), settlement: s, money_c: p.money_c };
 }
