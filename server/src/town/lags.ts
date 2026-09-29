@@ -46,8 +46,19 @@ export class Lags {
     return this.m.size;
   }
 
-  /** Lags let go where the man is at a place of his day on time again (settleLag), and of people no longer in town. */
+  /** The game hour of the last sweep (a jump of the clock between two: sleep, a skip). */
+  private sweptAt = -1;
+
+  /**
+   * Lags let go where the man is at a place of his day on time again (settleLag), and of people no longer in town.
+   * All of them after a jump of the clock (over half an hour between two sweeps, which run every few seconds): a lag
+   * measured across it only measured the jump (M7 sweep 2026-09-29).
+   */
   sweep(town: WhereTown & { residents: ReadonlyArray<WhereResident> }, day: number, hour: number, way: WayOf): void {
+    const nowH = (day - 1) * 24 + hour;
+    const jumped = this.sweptAt >= 0 && Math.abs(nowH - this.sweptAt) > 0.5;
+    this.sweptAt = nowH;
+    if (jumped) this.m.clear();
     if (!this.m.size) return;
     const byId = new Map(town.residents.map((r) => [r.id, r]));
     for (const [id, v] of this.m) {

@@ -1825,22 +1825,29 @@ export class Crowd {
         }
       }
     }
+    if (p.wayHome && near && p.state !== "walk") {
+      // stepped aside, the lane still going by: stand there and wait (M7 sweep 2026-09-29: the step aside's walk
+      // clip went on while he stood)
+      p.human.play(this.stillMotion(p), 0.3);
+      return false;
+    }
     if (p.wayHome && !near) {
       // gone by: back to his place
       const dx = p.wayHome.x - p.x;
       const dz = p.wayHome.z - p.z;
       const d = Math.hypot(dx, dz);
-      if (d < 0.1 || p.state === "walk") {
+      // (back, or the way back shut: stand again; M7 sweep 2026-09-29: the walk back's clip went on for good, the
+      // standing ones "walked" on their spot)
+      const done = () => {
         p.wayHome = null;
+        if (p.state !== "walk") p.human.play(this.stillMotion(p), 0.3);
         return false;
-      }
+      };
+      if (d < 0.1 || p.state === "walk") return p.state === "walk" ? ((p.wayHome = null), false) : done();
       const step = Math.min(d, 1.1 * dt);
       const nx = p.x + (dx / d) * step;
       const nz = p.z + (dz / d) * step;
-      if (!this.ground.isFree(nx, nz, 0.25)) {
-        p.wayHome = null;
-        return false;
-      }
+      if (!this.ground.isFree(nx, nz, 0.25)) return done();
       p.x = nx;
       p.z = nz;
       this.face(p, Math.atan2(dx, dz), dt * 3);
@@ -2015,6 +2022,12 @@ export class Crowd {
       return;
     }
     this.face(p, Math.atan2(mx, mz), dt * (p.veh?.spec.kind === "velo" ? 2.4 : 1.4));
+    // no nearer for a second (someone in the way pushes him back, keepApart): he waits, standing, till the way is
+    // free or he finds another at 2.5 s (M7 sweep 2026-09-29: the walk clip went on while he did not get anywhere)
+    if (p.stuckT > 1) {
+      p.human.play(this.stillMotion(p), 0.3);
+      return;
+    }
     const motion: Motion = p.veh ? this.vehMotion(p, true) : p.loaded && p.handCarry ? "carry" : "walk";
     p.human.play(motion, 0.25);
     if (motion !== "ride") p.human.setPace(p.pace / p.size);
@@ -2405,6 +2418,9 @@ export class Crowd {
   private make(kind: HumanKind, x: number, z: number, role: Role): Person | null {
     const human = this.takeHuman(kind);
     if (!human) return null;
+    // a body from the pool still plays what its last owner did: a walk left on made a new townsperson who stands
+    // "walk" on the spot till the town gave him a pose (M7 sweep 2026-09-29)
+    human.play("idle", 0);
     const group = new THREE.Group();
     group.add(human.root);
     const size = CHILDREN.has(kind) ? rnd(0.9, 1.08) : rnd(0.95, 1.05);

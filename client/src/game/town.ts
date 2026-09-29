@@ -541,6 +541,8 @@ export class Town {
   // ------------------------------------------------------------------ T1 progress reports, T2 held deadline
 
   private lagT = 0;
+  /** The game minute of the last progress turn (a jump of the clock: sleep, a skip). */
+  private lagAt = -1;
   private lagPostT = 0;
   private lagGetT = 0;
   private lagBusy = false;
@@ -561,9 +563,17 @@ export class Town {
     if (this.lagT <= 0) {
       this.lagT = 0.5;
       const now = this.gameMin();
+      // the clock jumped (sleep, a skip, the test kit): everyone was where the sum had him before it, so a lag now
+      // would only measure the jump (M7 sweep 2026-09-29: the people near Jef woke up nearly an hour late). Nobody is
+      // late across a jump; the next reports start from the plain sum.
+      const jumped = this.lagAt >= 0 && Math.abs(now - this.lagAt) > 30;
+      // (a lag grows no faster than the clock runs, as the server keeps it: town/lags.ts)
+      const ranH = jumped || this.lagAt < 0 ? 0 : Math.max(0, now - this.lagAt) / 60 + 0.02;
+      this.lagAt = now;
+      if (jumped) for (const s of this.sims) if (!s.remote) s.lag = 0;
       for (const s of this.sims) {
         if (s.remote) continue;
-        if (s.p && s.plain && !s.held && !s.trip) s.lag = reportLag(s.r, d, day, hour, this.wayOf, s.lag ?? 0, s.p.x, s.p.z);
+        if (s.p && s.plain && !s.held && !s.trip) s.lag = Math.min(reportLag(s.r, d, day, hour, this.wayOf, s.lag ?? 0, s.p.x, s.p.z), (s.lag ?? 0) + ranH);
         else if (s.lag) s.lag = settleLag(s.r, d, day, hour, this.wayOf, s.lag);
         // T2: held, unseen, and nobody has moved or claimed him for an hour: back to his day
         if (!s.held) s.heldAt = undefined;

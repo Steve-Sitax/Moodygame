@@ -548,7 +548,9 @@ export function projectOn(pts: ReadonlyArray<Pt>, x: number, z: number): { s: nu
  * walking (he got there, late or not, and the day goes on as planned); gone too past LAG_MAX_H.
  */
 export function settleLag(r: WhereResident, town: WhereTown, day: number, hour: number, way: WayOf, lagH: number): number {
-  if (!(lagH > 0) || lagH > LAG_MAX_H) return 0;
+  // (at the most, too: every lag is clamped to LAG_MAX_H, so "past" it never came and a man an hour behind stayed an
+  // hour late all day, M7 sweep 2026-09-29: after a jump of the clock, sleep or a skip)
+  if (!(lagH > 0) || lagH >= LAG_MAX_H) return 0;
   const late = whereLate(r, town, day, hour, way, lagH);
   if (late.moving) return lagH;
   const plain = whereAt(r, town, day, hour, way);
@@ -571,5 +573,6 @@ export function reportLag(r: WhereResident, town: WhereTown, day: number, hour: 
   const behind = w.walked - p.s;
   if (Math.abs(behind) < LAG_SLACK_M) return lag;
   const next = lag + behind / perMin(w.mps) / 60;
-  return Math.max(0, Math.min(LAG_MAX_H, next));
+  // (an hour or more behind: he has lost his way and goes by the plain sum, as settleLag)
+  return next >= LAG_MAX_H ? 0 : Math.max(0, next);
 }

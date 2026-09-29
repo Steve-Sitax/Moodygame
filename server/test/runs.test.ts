@@ -137,6 +137,22 @@ describe("progress reports (late, never ahead)", () => {
     expect(settleLag(r, tw, 2, h, serverWay, 0.1)).toBe(0.1);
   });
 
+  it("an hour behind (after a jump of the clock) he goes by the plain sum again, not late all day", () => {
+    const { r, h } = got;
+    // M7 sweep 2026-09-29: a lag clamped at the most was never "past" it and stayed for good
+    expect(settleLag(r, tw, 2, h, serverWay, LAG_MAX_H)).toBe(0);
+  });
+
+  it("the server forgets every lag after a jump of the clock (sleep, a skip)", () => {
+    const L = new Lags();
+    const { r, h } = got;
+    L.sweep(tw as never, 2, h, serverWay);
+    L.report(r.id, 0.2, 24 + h);
+    expect(L.get(r.id)).toBeGreaterThan(0);
+    L.sweep(tw as never, 2, h + 8, serverWay);
+    expect(L.get(r.id)).toBe(0);
+  });
+
   it("the server clamps what a PC reports", () => {
     const L = new Lags();
     // a first report: a quarter of the most at once
