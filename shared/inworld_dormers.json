@@ -1,0 +1,233 @@
+{
+ "about": "tools/blender/build_city.py dormer_new: by house index, the houses of inworld_build.json with a side roof on the street: roof {eave: the front slope's height at the wall line, k: its rise a metre in}; dormers [{s: its middle along the front from the front's first corner, inset: its front's distance back from the wall line, w: its width, yb: its foot, ye: its eaves, yr: its ridge, kind: pitched or flat, win: {w, y0, y1, R: how deep the reveal goes}}], heights in world metres. The dormer inworld_build.json names ('dormer': its s) has no painted pane: its glass is the room's (issue #10)",
+ "houses": {
+  "38": {
+   "roof": {
+    "eave": 12.7824,
+    "k": 1.08627
+   },
+   "dormers": [
+    {
+     "s": 1.625,
+     "inset": 0.4,
+     "w": 1.2,
+     "yb": 13.1569,
+     "ye": 14.7169,
+     "yr": 15.2169,
+     "kind": "pitched",
+     "win": {
+      "w": 0.72,
+      "y0": 13.4369,
+      "y1": 14.5569,
+      "R": 0.07
+     }
+    }
+   ]
+  },
+  "535": {
+   "roof": {
+    "eave": 3.8,
+    "k": 1.10672
+   },
+   "dormers": []
+  },
+  "602": {
+   "roof": {
+    "eave": 9.8,
+    "k": 1.04279
+   },
+   "dormers": []
+  },
+  "820": {
+   "roof": {
+    "eave": 15.8,
+    "k": 1.03553
+   },
+   "dormers": [
+    {
+     "s": 6.3036,
+     "inset": 0.4,
+     "w": 1.2,
+     "yb": 16.1542,
+     "ye": 17.7142,
+     "yr": 18.2142,
+     "kind": "pitched",
+     "win": {
+      "w": 0.72,
+      "y0": 16.4342,
+      "y1": 17.5542,
+      "R": 0.07
+     }
+    },
+    {
+     "s": 1.475,
+     "inset": 0.4,
+     "w": 1.2,
+     "yb": 16.1542,
+     "ye": 17.7142,
+     "yr": 18.2142,
+     "kind": "flat",
+     "win": {
+      "w": 0.72,
+      "y0": 16.4342,
+      "y1": 17.5542,
+      "R": 0.07
+     }
+    }
+   ]
+  },
+  "888": {
+   "roof": {
+    "eave": 15.8,
+    "k": 0.98613
+   },
+   "dormers": [
+    {
+     "s": 1.525,
+     "inset": 0.4,
+     "w": 1.2,
+     "yb": 16.1345,
+     "ye": 17.6945,
+     "yr": 18.1945,
+     "kind": "pitched",
+     "win": {
+      "w": 0.72,
+      "y0": 16.4145,
+      "y1": 17.5345,
+      "R": 0.07
+     }
+    }
+   ]
+  },
+  "913": {
+   "roof": {
+    "eave": 9.8,
+    "k": 1.02832
+   },
+   "dormers": [
+    {
+     "s": 3.5692,
+     "inset": 0.4,
+     "w": 1.2,
+     "yb": 10.1513,
+     "ye": 11.7113,
+     "yr": 12.2113,
+     "kind": "flat",
+     "win": {
+      "w": 0.72,
+      "y0": 10.4313,
+      "y1": 11.5513,
+      "R": 0.07
+     }
+    }
+   ]
+  },
+  "920": {
+   "roof": {
+    "eave": 12.8,
+    "k": 1.18754
+   },
+   "dormers": [
+    {
+     "s": 4.9125,
+     "inset": 0.4,
+     "w": 1.2,
+     "yb": 13.215,
+     "ye": 14.775,
+     "yr": 15.275,
+     "kind": "flat",
+     "win": {
+      "w": 0.72,
+      "y0": 13.495,
+      "y1": 14.615,
+      "R": 0.07
+     }
+    }
+   ]
+  },
+  "940": {
+   "roof": {
+    "eave": 12.8,
+    "k": 0.93906
+   },
+   "dormers": [
+    {
+     "s": 3.1965,
+     "inset": 0.4,
+     "w": 1.2,
+     "yb": 13.1156,
+     "ye": 14.6756,
+     "yr": 15.1756,
+     "kind": "pitched",
+     "win": {
+      "w": 0.72,
+      "y0": 13.3956,
+      "y1": 14.5156,
+      "R": 0.07
+     }
+    }
+   ]
+  },
+  "945": {
+   "roof": {
+    "eave": 15.8,
+    "k": 0.85408
+   },
+   "dormers": [
+    {
+     "s": 4.325,
+     "inset": 0.4,
+     "w": 1.2,
+     "yb": 16.0816,
+     "ye": 17.6416,
+     "yr": 18.1416,
+     "kind": "pitched",
+     "win": {
+      "w": 0.72,
+      "y0": 16.3616,
+      "y1": 17.4816,
+      "R": 0.07
+     }
+    },
+    {
+     "s": 7.2083,
+     "inset": 0.4,
+     "w": 1.2,
+     "yb": 16.0816,
+     "ye": 17.6416,
+     "yr": 18.1416,
+     "kind": "pitched",
+     "win": {
+      "w": 0.72,
+      "y0": 16.3616,
+      "y1": 17.4816,
+      "R": 0.07
+     }
+    }
+   ]
+  },
+  "955": {
+   "roof": {
+    "eave": 12.8,
+    "k": 0.82434
+   },
+   "dormers": [
+    {
+     "s": 2.4723,
+     "inset": 0.4,
+     "w": 1.2,
+     "yb": 13.0697,
+     "ye": 14.6297,
+     "yr": 15.1297,
+     "kind": "pitched",
+     "win": {
+      "w": 0.72,
+      "y0": 13.3497,
+      "y1": 14.4697,
+      "R": 0.07
+     }
+    }
+   ]
+  }
+ }
+}

@@ -125,6 +125,40 @@ export interface HouseWindow {
   out: [number, number];
   /** "hole": cut through (seen through both ways); "glow": a painted window lit from inside at night. */
   kind: "hole" | "glow";
+  /**
+   * Issue #10: a window whose face stands back from the house's wall line (a dormer's front in the roof): how far.
+   * Its ends `a`, `b` lie on that face. Unset: on the wall line.
+   */
+  inset?: number;
+  /** How deep its reveal goes from its face (a dormer's is shallow). Unset: REVEAL. */
+  depth?: number;
+}
+
+/**
+ * Issue #10: a dormer in the front slope of a house's side roof, as tools/blender/build_city.py dormer_new builds it
+ * (shared/inworld_dormers.json): its middle `s` along the front from the front's first corner, its front `inset` back
+ * from the wall line, its width, its foot, eaves and ridge (world y), pitched or flat, and its window: width, heights,
+ * the reveal's depth from the dormer's front.
+ */
+export interface DormerSpec {
+  s: number;
+  inset: number;
+  w: number;
+  yb: number;
+  ye: number;
+  yr: number;
+  kind: "pitched" | "flat";
+  win: { w: number; y0: number; y1: number; R: number };
+}
+/** The front slope of a side roof: its height at the wall line (world y) and its rise a metre in. */
+export interface HouseRoof {
+  eave: number;
+  k: number;
+}
+/** One house of shared/inworld_dormers.json. */
+export interface HouseDormers {
+  roof: HouseRoof;
+  dormers: DormerSpec[];
 }
 
 /** A flight as drawn: its rect, along z, the low end and the high end, heights, steps. */
@@ -163,7 +197,24 @@ export interface HousePlan extends HallPlan {
   landings: Array<{ rect: Rect; y: number }>;
   /** The stairwell's box (local; the whole hall behind the door for the drawing), when there is one. */
   well?: { rect: Rect; y0: number; y1: number };
+  /**
+   * Issue #10, the garret: the front slope of the house's roof over the room, and the dormer in it whose window is the
+   * room's (x: its middle, local), when the house has one the room can stand behind. The build leaves that dormer's
+   * pane out (inworld_build.json "dormer": its s).
+   */
+  roof?: HouseRoof;
+  dormer?: DormerSpec & { x: number };
 }
+
+/**
+ * Issue #10: a garret's ceiling stands this far under the house's roof (a single face in the city's mesh); the house's
+ * dark lining (world/houseInWorld.ts) lies between the two, LINING_UNDER_ROOF under the roof, so that from inside it
+ * never comes between the eye and the dormer's window.
+ */
+export const UNDER_ROOF = 0.06;
+export const LINING_UNDER_ROOF = 0.02;
+/** Issue #10: a garret's floor is walked where its sloping ceiling is at least this high (the eaves are not). */
+export const GARRET_HEAD = 1.8;
 
 // ------------------------------------------------------------------ the frame
 
@@ -325,9 +376,10 @@ const flightSteps = (dy: number, run: number) => {
 
 /**
  * The whole plan of one house. `gh`, `sh`: the city's ground storey and storey heights (city_build.json).
- * `room`: a home's class (shared/homes.ts), for kind "home".
+ * `room`: a home's class (shared/homes.ts), for kind "home". `dormers`: the house's front slope and dormers as the
+ * Blender build made them (shared/inworld_dormers.json), for the garret's window (issue #10).
  */
-export function housePlan(entry: InworldEntry, h: CityHouse, gh: number, sh: number, room?: RoomDef): HousePlan {
+export function housePlan(entry: InworldEntry, h: CityHouse, gh: number, sh: number, room?: RoomDef, dormers?: HouseDormers): HousePlan {
   const f = houseFrame(h);
   const inner = f.inner;
   const tavern = entry.kind === "tavern";
@@ -350,6 +402,7 @@ export function housePlan(entry: InworldEntry, h: CityHouse, gh: number, sh: num
   let roomRect: Rect;
   let roomY = SILL;
   let roomFrame: RoomFrame | undefined;
+  let dormer: HousePlan["dormer"];
 
   if (ground) {
     // the taproom (a shop alike): the whole ground floor. Windows: every bay of the front but the door's, and the side
@@ -437,7 +490,30 @@ export function housePlan(entry: InworldEntry, h: CityHouse, gh: number, sh: num
           if (score > best) [best, rx] = [score, c];
         }
       }
-      roomFrame = { x: rx, z: zr, mirror: 1, y: target, doorWall: 0 };
+      // issue #10, the garret: behind a dormer of the house's front slope, the room's window cell under the dormer's
+      // window (the room turned across when that is where it fits), the one nearest where it would stand without
+      let mirror: 1 | -1 = 1;
+      if (entry.cls === "garret" && dormers && win[0]) {
+        const wc = (win[0][0] + win[0][1]) / 2;
+        const rx0 = rx;
+        let best = Infinity;
+        for (const dm of dormers.dormers) {
+          const dx = f.su * (dm.s - f.sd);
+          for (const m of [1, -1] as const) {
+            const c = dx - m * wc;
+            if (c < inner.minX + W / 2 - 1e-6 || c > inner.maxX - W / 2 + 1e-6) continue;
+            if (Math.abs(dx - c) + dm.w / 2 > W / 2 - 0.05) continue;
+            const score = Math.abs(c - rx0) + (m < 0 ? 1e-3 : 0);
+            if (score < best) {
+              best = score;
+              rx = c;
+              mirror = m;
+              dormer = { ...dm, win: { ...dm.win }, x: dx };
+            }
+          }
+        }
+      }
+      roomFrame = { x: rx, z: zr, mirror, y: target, doorWall: 0 };
       roomRect = R(rx - W / 2, rx + W / 2, zr, zr + D);
       // the lanes: by the door, and reaching the room's door
       const cx = clamp((0 + rx) / 2, inner.minX + LANE, inner.maxX - LANE);
@@ -485,7 +561,9 @@ export function housePlan(entry: InworldEntry, h: CityHouse, gh: number, sh: num
           landings.push({ rect: frontLanding(y1), y: y1 });
         }
         // the room, and the doorway through its back wall onto the front landing
-        if (last) floors.push({ ...roomRect }, R(rx - ROOM_DOOR / 2, rx + ROOM_DOOR / 2, zr + D - 0.05, zL0 + 0.05));
+        // (issue #10: a garret under the front slope is walked only where the slope leaves a man's head room)
+        const walked = dormer && dormers ? { ...roomRect, minZ: Math.max(roomRect.minZ, (target + GARRET_HEAD + UNDER_ROOF - dormers.roof.eave) / dormers.roof.k) } : { ...roomRect };
+        if (last) floors.push(walked, R(rx - ROOM_DOOR / 2, rx + ROOM_DOOR / 2, zr + D - 0.05, zL0 + 0.05));
         levels.push({ y: y1, floors, solids: [] });
       }
       const top = Math.max(...ys);
@@ -498,8 +576,15 @@ export function housePlan(entry: InworldEntry, h: CityHouse, gh: number, sh: num
           const xb = f.su * (g.s1 - f.sd);
           if (Math.min(xa, xb) > roomRect.minX + 0.3 && Math.max(xa, xb) < roomRect.maxX - 0.3) addHole(0, g.s0, g.s1, g.y0, g.y1);
         }
+      } else if (entry.cls === "garret" && dormer) {
+        // issue #10: the dormer's window, cut through its front (build_city.py dormer_new leaves its pane out: the room's
+        // glass is there), its face `inset` back from the wall line, its reveal the dormer's
+        const [ax] = alongWall(f, 0, dormer.s - dormer.win.w / 2);
+        const [bx] = alongWall(f, 0, dormer.s + dormer.win.w / 2);
+        windows.push({ a: [ax, dormer.inset], b: [bx, dormer.inset], y0: dormer.win.y0, y1: dormer.win.y1, out: [0, -1], kind: "hole", inset: dormer.inset, depth: dormer.win.R });
       } else if (entry.cls === "garret") {
-        // the gable's painted window nearest the room's (build_city.py paints the gable as an upper storey)
+        // no dormer the room can stand behind (the city built none there): the gable's painted window nearest the
+        // room's (build_city.py paints the gable as an upper storey), glowing at night
         const k = Math.round((target - gh) / sh) + 1;
         const glass = paintedGlass(f, 0, gh, sh, k);
         const want = rx + (win[0] ? (win[0][0] + win[0][1]) / 2 : 0);
@@ -543,6 +628,7 @@ export function housePlan(entry: InworldEntry, h: CityHouse, gh: number, sh: num
     flights,
     landings,
     well,
+    ...(dormer && dormers ? { roof: { ...dormers.roof }, dormer } : {}),
   };
 }
 

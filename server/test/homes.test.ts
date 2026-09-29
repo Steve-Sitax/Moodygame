@@ -256,7 +256,7 @@ describe("a night at home", () => {
     const k0 = comfortOf("garret", []);
     const done: Placed[] = [
       { id: 1, kind: "stove", gx: 3, gz: 4, rot: 0 },
-      { id: 2, kind: "lamp", gx: 3, gz: 3, rot: 0 },
+      { id: 2, kind: "lamp", gx: 3, gz: 6, rot: 0 },
       { id: 3, kind: "rug", gx: 2, gz: 2, rot: 0 },
     ];
     const k1 = comfortOf("garret", done);
@@ -344,16 +344,24 @@ describe("placing furniture", () => {
     // M7: the garret's door is in its back wall (up the house's stair)
     expect(canPlace("garret", [], "picture", 3, back, 0)).toMatch(/door/);
     expect(canPlace("garret", [], "picture", 3, 3, 0)).toMatch(/wall/);
-    expect(canPlace("garret", [], "picture", 0, 4, 3)).toMatch(/nothing hangs/); // the eaves
-    expect(canPlace("garret", [], "curtains", 5, 0, 2)).toMatch(/window/); // the gable window is too small
+    // issue #10: the garret stands under its house's front slope, down to the floor at the front: the eaves
+    expect(canPlace("garret", [], "picture", 0, 2, 3)).toMatch(/too low/);
+    expect(canPlace("garret", [], "picture", 0, 4, 3)).toBeNull();
+    expect(canPlace("garret", [], "curtains", 5, 0, 2)).toMatch(/window/); // the dormer's window is too small
     expect(canPlace("widow", [], "curtains", 5, 0, 2)).toBeNull();
     expect(canPlace("merchant", [], "curtains", 1, 0, 2)).toMatch(/already/); // the drapes of the dearest room
     expect(canPlace("garret", [], "curtains", 0, back, 0)).toMatch(/window/);
     expect(canPlace("garret", [], "picture", 5, 0, 2)).toMatch(/window/);
-    expect(canPlace("garret", [], "clock", 3, 0, 2)).toBeNull();
+    expect(canPlace("garret", [], "clock", 3, 0, 2)).toMatch(/too low/); // the knee wall under the slope
+    expect(canPlace("alley", [], "clock", 0, 0, 2)).toBeNull();
     expect(canPlace("widow", [], "clock", 3, 0, 2)).toMatch(/door/);
     expect(canPlace("garret", [], "lamp", 3, 4, 0)).toBeNull();
-    expect(canPlace("garret", [], "lamp", 0, 4, 0)).toMatch(/too low/);
+    expect(canPlace("garret", [], "lamp", 0, 4, 0)).toBeNull();
+    expect(canPlace("garret", [], "lamp", 3, 3, 0)).toMatch(/too low/);
+    // nothing stands under the eaves; a rug may lie there
+    expect(canPlace("garret", [], "chair", 3, 3, 0)).toMatch(/too low/);
+    expect(canPlace("garret", [], "chair", 3, 4, 0)).toBeNull();
+    expect(canPlace("garret", [], "rug", 2, 0, 0)).toBeNull();
     expect(canPlace("garret", [{ id: 1, kind: "picture", gx: 5, gz: back, rot: 0 }], "clock", 5, back, 0)).toMatch(/already/);
   });
 

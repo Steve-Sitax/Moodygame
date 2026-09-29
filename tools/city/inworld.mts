@@ -11,12 +11,15 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { housePlan, houseFrame, type CityHouse, type InworldEntry } from "../../shared/housePlan.ts";
+import { housePlan, houseFrame, type CityHouse, type HouseDormers, type InworldEntry } from "../../shared/housePlan.ts";
 import { CLASSES } from "../../shared/homes.ts";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const build = JSON.parse(fs.readFileSync(path.join(root, "shared", "city_build.json"), "utf8")) as { houses: CityHouse[]; ground_h: number; storey_h: number };
 const list = JSON.parse(fs.readFileSync(path.join(root, "shared", "inworld_houses.json"), "utf8")) as { houses: InworldEntry[] };
+// issue #10: the front slopes and dormers the Blender build made (build_city.py writes it; the garret's window is a dormer's)
+const dormersFile = path.join(root, "shared", "inworld_dormers.json");
+const DORMERS = (fs.existsSync(dormersFile) ? JSON.parse(fs.readFileSync(dormersFile, "utf8")).houses : {}) as Record<string, HouseDormers>;
 
 // --repick (after the map is redesigned, 2026-09-25): each entry moves to the nearest house that fits, by its old
 // door: a front on a street, not a storehouse, no covered passage; a tavern at least 5.8 m wide and 10 m deep, a
@@ -36,7 +39,7 @@ if (process.argv.includes("--repick")) {
       const f = houseFrame(h);
       if (f.L < needL || f.depth < needD) return;
       try {
-        housePlan(e, h, build.ground_h, build.storey_h, cls as never);
+        housePlan(e, h, build.ground_h, build.storey_h, cls as never, DORMERS[String(i)]);
       } catch {
         return;
       }
@@ -75,9 +78,10 @@ for (const e of list.houses) {
     console.error(`${e.id}: house ${e.house}'s door is at ${f.origin.x.toFixed(2)}, ${f.origin.z.toFixed(2)}, the list says ${e.door} (${off.toFixed(2)} m off): the plan changed, fix the list`);
     bad++;
   }
-  const p = housePlan(e, h, build.ground_h, build.storey_h, e.cls ? CLASSES[e.cls as keyof typeof CLASSES] : undefined);
-  out.push({ id: e.id, house: e.house, kind: e.kind, door: p.door, holes: p.holes });
-  console.log(`${e.id.padEnd(16)} house ${String(e.house).padStart(3)}  ${f.L.toFixed(2)} x ${f.depth.toFixed(2)} m  door w ${p.door.w}  holes ${p.holes.length}  levels ${p.levels.length}  flights ${p.flights.length}`);
+  const p = housePlan(e, h, build.ground_h, build.storey_h, e.cls ? CLASSES[e.cls as keyof typeof CLASSES] : undefined, DORMERS[String(e.house)]);
+  // (issue #10: "dormer": the s of the dormer whose pane the build leaves out, the garret's window)
+  out.push({ id: e.id, house: e.house, kind: e.kind, door: p.door, holes: p.holes, ...(p.dormer ? { dormer: p.dormer.s } : {}) });
+  console.log(`${e.id.padEnd(16)} house ${String(e.house).padStart(3)}  ${f.L.toFixed(2)} x ${f.depth.toFixed(2)} m  door w ${p.door.w}  holes ${p.holes.length}${p.dormer ? `  dormer at s ${p.dormer.s}` : ""}  levels ${p.levels.length}  flights ${p.flights.length}`);
 }
 if (bad) process.exit(1);
 if (!process.argv.includes("--check")) {

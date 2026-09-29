@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { psx } from "../retro/psx";
 import { Builder, canvasTex, flicker, frameRoom, lambert, mat, mergeStatic, plaster, rand, tex, wallFace, type FaceHole, type Room, type Spot } from "./rooms";
 import type { Rect } from "../../../shared/hallPlan";
-import { homeWindowY, ROOM_DOOR, roomToLocal, SILL, type HousePlan } from "../../../shared/housePlan";
+import { homeWindowY, ROOM_DOOR, roomToLocal, SILL, UNDER_ROOF, type HousePlan } from "../../../shared/housePlan";
 import { makePiece, type Piece } from "./furniture";
 import { createFires, type Fires } from "./fire";
 import { CELL, CLASSES, footprint, FURNITURE, wallOf, type HomeClass, type Placed } from "../../../shared/homes";
@@ -243,6 +243,9 @@ export function buildHome(opts: { plan: HousePlan; cls: HomeClass; seed: number 
   const b = new Builder(stat);
   const garret = cls === "garret";
   const knee = 1.0;
+  // issue #10: a garret behind a dormer of the house's front slope (plan.dormer): its walls, ceilings and the dormer's
+  // bay are built in the house's frame under the house's own roof (garretUnderRoof), its window the dormer's
+  const underRoof = garret && !!plan.dormer && !!plan.roof;
 
   // the windows: cut through the house (the plan's holes, in the room's frame), else painted on the front wall
   const holes = plan.windows.filter((w) => w.kind === "hole");
@@ -259,11 +262,13 @@ export function buildHome(opts: { plan: HousePlan; cls: HomeClass; seed: number 
   const wy1 = win[0]?.y1 ?? wyB;
 
   // floor and ceiling
-  b.box(W, 0.1, D, 0, -0.05, D / 2, L.floor, { tile: cls === "alley" ? 0.8 : 1.4 });
+  if (!underRoof) b.box(W, 0.1, D, 0, -0.05, D / 2, L.floor, { tile: cls === "alley" ? 0.8 : 1.4 });
   const doorHole: FaceHole = { s0: W / 2 - plan.door.w / 2, s1: W / 2 + plan.door.w / 2, y0: -1, y1: plan.door.yt - SILL };
   const backDoor: FaceHole = { s0: W / 2 - ROOM_DOOR / 2, s1: W / 2 + ROOM_DOOR / 2, y0: -1, y1: 2.1 };
   const frontHoles: FaceHole[] = [...(doorWall === 2 ? [doorHole] : []), ...(cut ? win.map((w) => ({ s0: w.x0 + W / 2, s1: w.x1 + W / 2, y0: w.y0, y1: w.y1 })) : [])];
-  if (garret) {
+  if (underRoof) {
+    // (the floor, the walls, the ceilings and the dormer's bay: garretUnderRoof, below, in the house's frame)
+  } else if (garret) {
     // the roof slopes from the knee walls up to the ridge
     const run = W / 2;
     const rise = H - knee;
@@ -287,8 +292,10 @@ export function buildHome(opts: { plan: HousePlan; cls: HomeClass; seed: number 
     else for (const s of [-1, 1]) b.box(0.12, 0.12, D, s * (W / 2 - 0.06), H - 0.06, D / 2, L.beam);
   }
   // the front wall (the street's side) and the back wall (a gable in the garret: up to the ridge; the slopes hide its corners)
-  wallFace(stat, [-W / 2, 0], [W / 2, 0], 0, H, [0, 1], frontHoles, L.wall, L.tile);
-  wallFace(stat, [W / 2, D], [-W / 2, D], 0, H, [0, -1], doorWall === 0 ? [backDoor] : [], L.wall, L.tile);
+  if (!underRoof) {
+    wallFace(stat, [-W / 2, 0], [W / 2, 0], 0, H, [0, 1], frontHoles, L.wall, L.tile);
+    wallFace(stat, [W / 2, D], [-W / 2, D], 0, H, [0, -1], doorWall === 0 ? [backDoor] : [], L.wall, L.tile);
+  }
   if (doorWall === 0) {
     // the doorway through the back wall onto the landing: its reveal, a threshold board
     const dm = lambert("h_doorframe", { map: tex().planks, color: 0x4a3626 });
@@ -306,6 +313,7 @@ export function buildHome(opts: { plan: HousePlan; cls: HomeClass; seed: number 
   // the windows: a painted view of the street where none is cut; sills and bars on the painted ones
   const view = new THREE.MeshBasicMaterial({ map: streetView(cls), color: 0x404040 });
   for (const w of win) {
+    if (underRoof) continue; // (the dormer's sill: garretUnderRoof)
     if (cut) {
       b.box(w.x1 - w.x0 + 0.08, 0.05, 0.14, (w.x0 + w.x1) / 2, w.y0 - 0.02, 0.05, L.beam);
       continue;
@@ -375,6 +383,12 @@ export function buildHome(opts: { plan: HousePlan; cls: HomeClass; seed: number 
     addLight(pc, pc.group, lit);
   }
   mergeStatic(stat, group);
+  if (underRoof) {
+    const env = new THREE.Group();
+    house.add(env);
+    garretUnderRoof(new Builder(env), plan, W, D, H, L);
+    mergeStatic(env, house);
+  }
   // the stair, the landings and the corridor from the street door (the house's frame)
   if (doorWall === 0) {
     const sw = new THREE.Group();
@@ -601,6 +615,106 @@ function buildStairwell(b: Builder, plan: HousePlan, L: Look): void {
     g.add(rail);
   }
   void D;
+}
+
+/**
+ * A flat convex face (a fan of triangles) facing the point `toward` (house frame), textured in metres along its
+ * first edge and across it.
+ */
+function flatFace(g: THREE.Group, pts: Array<[number, number, number]>, toward: [number, number, number], m: THREE.Material, tile: number): void {
+  const v = pts.map((p) => new THREE.Vector3(...p));
+  const n = new THREE.Vector3().subVectors(v[1], v[0]).cross(new THREE.Vector3().subVectors(v[2], v[0]));
+  if (n.lengthSq() < 1e-10) return;
+  if (n.dot(new THREE.Vector3(...toward).sub(v[0])) < 0) v.reverse();
+  const e1 = new THREE.Vector3().subVectors(v[1], v[0]).normalize();
+  const e2 = new THREE.Vector3().subVectors(v[1], v[0]).cross(new THREE.Vector3().subVectors(v[2], v[0])).cross(e1).normalize();
+  const pos: number[] = [];
+  const uv: number[] = [];
+  for (let i = 1; i + 1 < v.length; i++)
+    for (const p of [v[0], v[i], v[i + 1]]) {
+      pos.push(p.x, p.y, p.z);
+      const d = new THREE.Vector3().subVectors(p, v[0]);
+      uv.push(d.dot(e1) / tile, d.dot(e2) / tile);
+    }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+  geo.computeVertexNormals();
+  g.add(new THREE.Mesh(geo, m));
+}
+
+/**
+ * Issue #10: a garret under the house's own front slope, in the house's frame (shared/housePlan.ts: the plan's roof and
+ * dormer, tools/blender/build_city.py dormer_new). The ceiling follows the roof UNDER_ROOF under it from the knee
+ * wall at the front up to the room's height, then runs flat to the back wall; the side walls follow it. Where the
+ * dormer stands, the slope is open into the dormer's bay: its front wall at the back of the dormer window's reveal
+ * (the room's own reveal, houseInWorld.ts, runs from the dormer's front to there), cut at the window, its cheeks and
+ * its flat ceiling a little inside the dormer's. Nothing of the room stands out of the roof or in front of the
+ * dormer: from the street the room shows only through the dormer's window.
+ */
+function garretUnderRoof(b: Builder, plan: HousePlan, W: number, D: number, H: number, L: Look): void {
+  const g = b.group;
+  const rf = plan.roomFrame!;
+  const roof = plan.roof!;
+  const dm = plan.dormer!;
+  const F = rf.y;
+  const xa = rf.x - W / 2;
+  const xb = rf.x + W / 2;
+  const z0 = rf.z;
+  const z1 = rf.z + D;
+  const top = F + H;
+  const ceil = (z: number) => roof.eave + roof.k * z - UNDER_ROOF;
+  const zOf = (y: number) => (y + UNDER_ROOF - roof.eave) / roof.k;
+  const zc = Math.min(z1, zOf(top));
+  // the dormer's bay: a little inside its cheeks and under its eaves; its front at the back of the window's reveal
+  const aw = dm.w / 2 - 0.04;
+  const ax0 = dm.x - aw;
+  const ax1 = dm.x + aw;
+  const zA = dm.inset + dm.win.R;
+  const ya = Math.min(dm.ye - 0.08, top);
+  const zm = Math.min(zc, zOf(ya));
+  const hw = dm.win.w / 2;
+  const mid: [number, number, number] = [rf.x, F + 1.2, (z0 + z1) / 2];
+  // the floor
+  b.box(W, 0.1, D, rf.x, F - 0.05, (z0 + z1) / 2, L.floor, { tile: 1.4 });
+  // the knee wall at the front, as high as the slope leaves it
+  if (ceil(z0) > F + 0.01) flatFace(g, [[xa, F, z0], [xb, F, z0], [xb, ceil(z0), z0], [xa, ceil(z0), z0]], mid, L.wall, L.tile);
+  // the sloping ceiling: open where the dormer's bay rises out of it
+  const slope = (x0: number, x1: number, za: number, zb: number) => {
+    if (x1 - x0 > 1e-3 && zb - za > 1e-3) flatFace(g, [[x0, ceil(za), za], [x1, ceil(za), za], [x1, ceil(zb), zb], [x0, ceil(zb), zb]], [(x0 + x1) / 2, F, (za + zb) / 2], L.ceil, 1.2);
+  };
+  slope(xa, ax0, z0, zc);
+  slope(ax1, xb, z0, zc);
+  slope(ax0, ax1, z0, zA);
+  slope(ax0, ax1, zm, zc);
+  // the flat ceiling to the back wall
+  if (z1 - zc > 1e-3) flatFace(g, [[xa, top, zc], [xb, top, zc], [xb, top, z1], [xa, top, z1]], [rf.x, F, (zc + z1) / 2], L.ceil, 1.2);
+  // the side walls, their tops along the slope and the flat ceiling
+  for (const [x, s] of [[xa, 1], [xb, -1]] as const) {
+    const to: [number, number, number] = [x + s, F + 1, (z0 + z1) / 2];
+    flatFace(g, [[x, F, z0], [x, F, zc], [x, top, zc], [x, ceil(z0), z0]], to, L.wall, L.tile);
+    if (z1 - zc > 1e-3) flatFace(g, [[x, F, zc], [x, F, z1], [x, top, z1], [x, top, zc]], to, L.wall, L.tile);
+  }
+  // the back wall, with the doorway onto the landing
+  wallFace(g, [xb, z1], [xa, z1], F, top, [0, -1], [{ s0: W / 2 - ROOM_DOOR / 2, s1: W / 2 + ROOM_DOOR / 2, y0: F - 1, y1: F + 2.1 }], L.wall, L.tile);
+  // the dormer's bay: its front wall cut at the window (the window's reveal ends here), its cheeks, its ceiling
+  if (zm > zA + 1e-3) {
+    wallFace(g, [ax0, zA], [ax1, zA], ceil(zA), ya, [0, 1], [{ s0: dm.x - hw - ax0, s1: dm.x + hw - ax0, y0: dm.win.y0, y1: dm.win.y1 }], L.wall, L.tile);
+    for (const [x, s] of [[ax0, 1], [ax1, -1]] as const) flatFace(g, [[x, ceil(zA), zA], [x, ya, zA], [x, ya, zm]], [x + s, ya - 0.3, (zA + zm) / 2], L.wall, L.tile);
+    flatFace(g, [[ax0, ya, zA], [ax1, ya, zA], [ax1, ya, zm], [ax0, ya, zm]], [dm.x, F, (zA + zm) / 2], L.ceil, 1.2);
+    // a board for a sill inside the window
+    b.box(2 * hw + 0.08, 0.05, 0.14, dm.x, dm.win.y0 - 0.025, zA + 0.07, L.beam);
+  }
+  // rafters under the slope, clear of the dormer's bay, and the collar beam where the slope meets the flat ceiling
+  const run = zc - z0;
+  const len = Math.hypot(run, ceil(zc) - ceil(z0));
+  const ang = Math.atan2(ceil(zc) - ceil(z0), run);
+  for (let x = xa + 0.35; x < xb - 0.2; x += 0.85) {
+    if (x > ax0 - 0.12 && x < ax1 + 0.12) continue;
+    const r = b.box(0.08, 0.1, len, x, (ceil(z0) + ceil(zc)) / 2 - 0.06, (z0 + zc) / 2, L.beam);
+    r.rotation.x = -ang;
+  }
+  b.box(W - 0.02, 0.12, 0.12, rf.x, top - 0.06, zc + 0.06, L.beam, { tile: 1.2 });
 }
 
 /** A dark red damask paper with a gold figure, for the merchant's walls. */

@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import * as HP from "../../shared/hallPlan.ts";
 import type { Rect } from "../../shared/hallPlan.ts";
-import { housePlan, houseFrame, REVEAL, SILL, type CityHouse, type HousePlan, type InworldEntry } from "../../shared/housePlan.ts";
+import { housePlan, houseFrame, REVEAL, SILL, type CityHouse, type HouseDormers, type HousePlan, type InworldEntry } from "../../shared/housePlan.ts";
 import { CLASSES, type HomeClass } from "../../shared/homes.ts";
 import BUILD from "../../shared/city_build.json" with { type: "json" };
 import LIST from "../../shared/inworld_houses.json" with { type: "json" };
 import SPEC from "../../shared/inworld_build.json" with { type: "json" };
+import DORMERS from "../../shared/inworld_dormers.json" with { type: "json" };
 import { houseDoors } from "../src/town/walkmap.ts";
 
 // M7 taverns and homes in the world (docs/milestones/M7-taverns-homes-inworld.md): the five taverns, the
@@ -19,7 +20,8 @@ import { houseDoors } from "../src/town/walkmap.ts";
 
 const build = BUILD as unknown as { houses: CityHouse[]; ground_h: number; storey_h: number };
 const entries = (LIST as unknown as { houses: InworldEntry[] }).houses;
-const plans: HousePlan[] = entries.map((e) => housePlan(e, build.houses[e.house], build.ground_h, build.storey_h, e.cls ? CLASSES[e.cls as HomeClass] : undefined));
+const dormers = (DORMERS as unknown as { houses: Record<string, HouseDormers> }).houses;
+const plans: HousePlan[] = entries.map((e) => housePlan(e, build.houses[e.house], build.ground_h, build.storey_h, e.cls ? CLASSES[e.cls as HomeClass] : undefined, dormers[String(e.house)]));
 const byId = (id: string) => plans.find((p) => p.id === (id as never))!;
 
 function inPoly(fp: number[][], x: number, z: number): boolean {
@@ -73,13 +75,15 @@ describe("the in-world houses are the town's houses", () => {
   });
 
   it("the Blender build's spec is the plan's (node tools/city/inworld.mts after a change)", () => {
-    const spec = (SPEC as unknown as { houses: Array<{ id: string; house: number; door: unknown; holes: unknown }> }).houses;
+    const spec = (SPEC as unknown as { houses: Array<{ id: string; house: number; door: unknown; holes: unknown; dormer?: number }> }).houses;
     expect(spec.map((s) => s.id)).toEqual(entries.map((e) => e.id));
     for (const p of plans) {
       const s = spec.find((q) => q.id === p.id)!;
       expect(s.house).toBe(p.entry.house);
       expect(s.door).toEqual(p.door);
       expect(s.holes).toEqual(p.holes);
+      // issue #10: the dormer whose pane the build leaves out is the one the plan's room stands behind
+      expect(s.dormer).toEqual(p.dormer?.s);
     }
   });
 
@@ -114,6 +118,62 @@ describe("the rooms fit their houses", () => {
     const cellar = byId("home:cellar");
     expect(cellar.room.y).toBeLessThan(-2);
     expect(byId("poesje").room.y).toBeLessThan(-2);
+  });
+
+  it("the dormers file is the Blender build's for this city plan (build_city.py dormer_new, rect_house)", () => {
+    // issue #10: shared/inworld_dormers.json is written by the build; its numbers follow from city_build.json the way
+    // the build works them out, so a changed plan without a rebuild shows here
+    for (const [i, e] of Object.entries(dormers)) {
+      const h = build.houses[+i];
+      const pitch = (h.pitch! * Math.PI) / 180;
+      const D = h.t[1] - h.t[0];
+      const rise = Math.min((D / 2) * Math.tan(pitch), 6.5);
+      const over = 0.4;
+      const drop = over * Math.tan(pitch);
+      const k = (rise + drop) / (D / 2 + over);
+      expect(e.roof.k, i).toBeCloseTo(k, 4);
+      expect(e.roof.eave, i).toBeCloseTo(h.h - drop + over * k, 3);
+      const yroof = (q: number) => h.h - drop + (q + over) * k;
+      for (const d of e.dormers) {
+        expect(d.yb, i).toBeCloseTo(yroof(d.inset) - 0.06, 3);
+        expect(d.ye, i).toBeCloseTo(yroof(d.inset) + 1.5, 3);
+        expect(d.win.y0, i).toBeCloseTo(d.yb + 0.28, 3);
+        expect(d.win.y1, i).toBeCloseTo(d.ye - 0.16, 3);
+        expect(d.s - d.w / 2, i).toBeGreaterThan(0);
+        expect(d.s + d.w / 2, i).toBeLessThan(h.s[1] - h.s[0]);
+      }
+    }
+  });
+
+  it("the garret's window is its dormer's, the room behind it under the roof", () => {
+    // issue #10: the dormer's window (the build leaves its pane out) is a hole of the plan, its face on the dormer's
+    // front back from the wall line; the room's window cell under it; the room and its bay inside the roof and dormer
+    const p = byId("home:garret");
+    const d = p.dormer!;
+    expect(d).toBeTruthy();
+    const e = dormers[String(p.entry.house)];
+    expect(e.dormers.some((q) => q.s === d.s)).toBe(true);
+    expect(p.windows.filter((w) => w.kind === "glow")).toEqual([]);
+    const w = p.windows.find((q) => q.kind === "hole")!;
+    expect(w.inset).toBe(d.inset);
+    expect(w.depth).toBe(d.win.R);
+    expect(w.a[1]).toBe(d.inset);
+    expect(w.b[1]).toBe(d.inset);
+    expect(Math.abs(w.b[0] - w.a[0])).toBeCloseTo(d.win.w, 6);
+    expect((w.a[0] + w.b[0]) / 2).toBeCloseTo(d.x, 6);
+    expect([w.y0, w.y1]).toEqual([d.win.y0, d.win.y1]);
+    // the class's window cell (shared/homes.ts) under the dormer's window
+    const rf = p.roomFrame!;
+    const c = CLASSES.garret;
+    const [a0, a1] = c.windows[0];
+    const cell = -c.W / 2 + ((a0 + a1 + 1) / 2) * 0.5;
+    expect(rf.x + rf.mirror * cell).toBeCloseTo(d.x, 6);
+    // the dormer's bay inside the room's walls; the room's floor walked only under the roof's head room
+    expect(Math.abs(d.x - rf.x) + d.w / 2).toBeLessThan(c.W / 2);
+    const top = p.levels[p.levels.length - 1];
+    const floor = top.floors.find((f) => f.minX === p.room.rect.minX && f.maxX === p.room.rect.maxX)!;
+    expect(p.roof!.eave + p.roof!.k * floor.minZ - p.room.y).toBeGreaterThan(1.8);
+    expect(floor.maxZ).toBe(p.room.rect.maxZ);
   });
 
   it("the ground-floor homes' windows are in their own house's front", () => {

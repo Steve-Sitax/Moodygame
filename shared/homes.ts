@@ -52,8 +52,14 @@ export interface ClassDef {
   noHang: Array<[Wall, number, number]>;
   /** Heavy curtains already hang at the windows (the merchant's floor): no room for more. */
   drapes?: boolean;
-  /** Where a hanging lamp may go (x cells, inclusive), for the garret's low eaves. */
+  /** Where a hanging lamp may go (x cells, inclusive), for a room with low eaves at its sides. */
   lampCols?: [number, number];
+  /**
+   * Issue #10: rows of cells from the front wall under a roof that slopes down to the floor there (the garret under
+   * its house's front slope, world/homeRooms.ts garretUnderRoof): nothing stands, hangs or is hung from the ceiling
+   * there, and nothing hangs on the front wall (a knee wall). Rugs may lie there.
+   */
+  eaves?: number;
   /** What the room itself gives: its window, its hearth or stove, its furnishing. */
   base: Comfort;
   /** A fire in the room you may warm yourself at (the alley house's hearth, the merchant's stove). */
@@ -103,17 +109,15 @@ export const CLASSES: Record<HomeClass, ClassDef> = {
       { kind: "bed_plank", gx: 0, gz: 5, w: 2, d: 4, rot: 2 },
       { kind: "crate", gx: 6, gz: 8, w: 1, d: 1, rot: 2 },
     ],
-    // a small gable window under the slope: too small for curtains
+    // the dormer's small window in the roof's front slope (issue #10: a real one, world/homeRooms.ts): too small for curtains
     windows: [[5, 5]],
-    noHang: [
-      [1, 0, 8],
-      [3, 0, 8],
-    ],
-    lampCols: [2, 4],
+    noHang: [],
+    // under the house's roof, which runs down to the floor at the front wall: the front four rows are the eaves
+    eaves: 4,
     base: { warmth: 0, light: 1, cheer: 0 },
     fire: false,
     nightFood: 2,
-    notice: "GARRET TO LET under the roof. A plank bed. Light from the gable window.",
+    notice: "GARRET TO LET under the roof. A plank bed. Light from the dormer window.",
     night: "You sleep in your garret under the tiles. The wind walks on the roof, but the door is yours.",
   },
   widow: {
@@ -291,7 +295,7 @@ export type Why = null | string;
  * inside the room; floor pieces not on the fixed furniture, other floor pieces or the
  * doorway, and the way from the door to the bed stays open; rugs not on the fixed furniture
  * or another rug; wall pieces on a wall (by their turn), curtains only at a window, nothing
- * over the door, a window or a hearth; lamps one to a cell, under the ridge in a garret.
+ * over the door, a window or a hearth; lamps one to a cell; nothing under a garret's eaves but a rug.
  */
 export function canPlace(cls: HomeClass, placed: Placed[], kind: string, gx: number, gz: number, rot: number, ignoreId = -1): Why {
   const def = FURNITURE[kind];
@@ -317,6 +321,7 @@ export function canPlace(cls: HomeClass, placed: Placed[], kind: string, gx: num
       if (c.drapes) return "heavy curtains hang there already";
     } else if (overWindow) return "that is the window";
     if (wall === (c.doorWall ?? 2) && a <= c.door[1] && b >= c.door[0]) return "that is the door";
+    if (c.eaves && (wall === 2 || ((wall === 1 || wall === 3) && a < c.eaves))) return "the roof is too low there";
     if (c.noHang.some(([w, f, t]) => w === wall && a <= t && b >= f)) return "nothing hangs there";
     for (const p of others) {
       const pd = FURNITURE[p.kind];
@@ -331,6 +336,7 @@ export function canPlace(cls: HomeClass, placed: Placed[], kind: string, gx: num
   if (cells.some(([x, z]) => x < 0 || z < 0 || x >= nx || z >= nz)) return "it does not fit there";
   if (def.layer === "ceiling") {
     if (c.lampCols && (gx < c.lampCols[0] || gx > c.lampCols[1])) return "the roof is too low there";
+    if (c.eaves && gz < c.eaves) return "the roof is too low there";
     if (others.some((p) => FURNITURE[p.kind].layer === "ceiling" && p.gx === gx && p.gz === gz)) return "a lamp hangs there already";
     return null;
   }
@@ -353,6 +359,7 @@ export function canPlace(cls: HomeClass, placed: Placed[], kind: string, gx: num
     return null;
   }
   // floor
+  if (c.eaves && cells.some(([, z]) => z < c.eaves!)) return "the roof is too low there";
   const floor = layerCells("floor");
   if (cells.some(([x, z]) => floor.has(key(x, z)))) return "something stands there already";
   if (cells.some(([x, z]) => doorRow(cls, z) && x >= c.door[0] && x <= c.door[1])) return "that blocks the door";

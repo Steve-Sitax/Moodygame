@@ -200,7 +200,8 @@
     "yd": 2.35,
     "yt": 2.85
    },
-   "holes": []
+   "holes": [],
+   "dormer": 1.525
   },
   {
    "id": "home:widow",

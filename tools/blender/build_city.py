@@ -77,6 +77,7 @@ SASH = [(4, 0), (5, 0), (6, 0), (7, 0)]
 SASH_CRACKED = (6, 2)  # grime pass 2: a sash with a broken pane and a crack (cityTextures.ts)  # white frame with lace, cream with curtains, dark green, brown
 SHOPWIN = [(4, 1), (5, 1), (6, 1)]  # cream, dark green, brown with wares on a shelf
 DORMWIN = (7, 1)  # a small dormer window
+DORMER_W, DORMER_QF, DORMER_H = 1.2, 0.4, 1.5  # dormer_new: its width, its front's distance back from the wall line, its front's height over the roof there
 SHUTTER = [(4, 2), (5, 2)]  # louvred, panelled: grey, the vertex colour paints them
 FARPIER_ROW = 7  # facade atlas row 7, one cell per style (column = STYLE_ROW): the upper-storey wall with the painted
 # lintel and sill of its window but no window and no shutters, round the windows cut in: seen far off, when the
@@ -127,6 +128,7 @@ class Builder:
         self.rec_win = None  # a list to note a cottage's windows in, or None
         self.rec_yard = None  # (yard windows) a list to note a back wall's windows in, or None
         self.yd = None  # (yard windows) the house's dress while its back wall on a yard is built, or None
+        self.iw_dorm = None  # issue #10: (house index, s of the front's first corner, s of the room's dormer or None) while an in-world house's dormers are built
         # M7 quays pass 2: the small things on the fronts (sills, lintels, shutters, bands, anchors, pipes,
         # gutters) go into a second mesh per chunk, "<chunk>_d", that the game draws only near (city.ts)
         self.dbm = bmesh.new()
@@ -883,8 +885,9 @@ class Builder:
         self.face([W(s0, y1, 0), W(s1, y1, 0), W(s1, y1, -R), W(s0, y1, -R)], MAT_FACADE, flat, rc, (0, -1, 0), 0.4)
         if o.get("kind") != "win":  # (an upper window's inner sill is seen only from above: none)
             self.face([W(s0, y0, 0), W(s1, y0, 0), W(s1, y0, -R), W(s0, y0, -R)], MAT_STONE, flat, (0, 0), (0, 1, 0), 0.72)
-        self.face([W(s0, y0, -R), W(s1, y0, -R), W(s1, y1, -R), W(s0, y1, -R)], MAT_FACADE,
-                  [(0, 0), (1, 0), (1, 1), (0, 1)], glass, f, 0.92)
+        if glass is not None:  # (issue #10: none where a room in the world stands behind it: the glass is the room's)
+            self.face([W(s0, y0, -R), W(s1, y0, -R), W(s1, y1, -R), W(s0, y1, -R)], MAT_FACADE,
+                      [(0, 0), (1, 0), (1, 1), (0, 1)], glass, f, 0.92)
 
     def dress_detail(self, W, ux, uz, f, o, lim, bw):
         """The stone round a window on the wall (near-only mesh): the sill, the head, the shutters."""
@@ -1669,10 +1672,10 @@ class Builder:
         P(s, t) -> (x, z) in the house's frame. False: no room for it under the ridge."""
         row = STYLE_ROW[style]
         wcell = (PART_COL["blind"], row)
-        w, qf = 1.2, 0.4
+        w, qf = DORMER_W, DORMER_QF
         yroof = lambda q: H - drop + (q + over) * k  # noqa: E731
         qof = lambda y: (y - (H - drop)) / k - over  # noqa: E731
-        yb, ye = yroof(qf) - 0.06, yroof(qf) + 1.5
+        yb, ye = yroof(qf) - 0.06, yroof(qf) + DORMER_H
         yr = ye + 0.5
         if qof(yr + 0.05) > D / 2 - 0.3:
             return False
@@ -1686,9 +1689,19 @@ class Builder:
         ww, wy0, wy1, R = 0.72, yb + 0.28, ye - 0.16, 0.07
         op = {"s0": -ww / 2, "s1": ww / 2, "y0": wy0, "y1": wy1}
         self.cut(Wd, -w / 2, w / 2, yb, ye, [op], lambda s, y: (s / BAY, y / BAY), wcell, out)
+        # issue #10: a house whose inside stands in the world (rect_house sets iw_dorm): each dormer is written down
+        # (shared/inworld_dormers.json), and the one its plan names is the room's window: no painted pane in it
+        pane = DORMWIN
+        if self.iw_dorm is not None:
+            hi, s_first, clear = self.iw_dorm
+            s_ = round(ds_ - s_first, 4)
+            INWORLD_DORMERS[str(hi)]["dormers"].append({"s": s_, "inset": qf, "w": w, "yb": round(yb, 4), "ye": round(ye, 4), "yr": round(yr, 4),
+                                                        "kind": kind, "win": {"w": ww, "y0": round(wy0, 4), "y1": round(wy1, 4), "R": R}})
+            if clear is not None and abs(s_ - clear) < 0.01:
+                pane = None
         keep = self.ds
         self.ds = dict(keep or {}, row=row)
-        self.dress_open(Wd, u[0], u[1], out, op, R, DORMWIN)
+        self.dress_open(Wd, u[0], u[1], out, op, R, pane)
         self.ds = keep
         lead = ROOF_CELL["lead"]
         qe = qof(ye)
@@ -2119,6 +2132,23 @@ class Builder:
                     r1 = P(s1 + (adj[(1, "f")] + adj[(1, "b")]) / 2, tm)
                 run = abs(te - tm)
                 drop = over * math.tan(pitch)
+                if side < 0 and iw and iw.get("dormer") is not None and street[0] and not cottage:
+                    # issue #10: the in-world house's dormer whose window is the room's stands in a hole in the front
+                    # slope (dormer_new covers it: its front, its cheeks, its roof), so that nothing of the roof lies
+                    # between its window and the room behind. The slope in a grid round the hole: no T-junction.
+                    dsh = s0 + iw["dormer"]
+                    kq = (rise + drop) / (abs(tm - t0) + over)
+                    ss = [s0, dsh - DORMER_W / 2, dsh + DORMER_W / 2, s1]
+                    ts = [te, t0 + DORMER_QF, t0 + DORMER_QF + DORMER_H / kq, tm]
+                    for i in range(3):
+                        for j in range(3):
+                            if i == 1 and j == 1:
+                                continue
+                            q = [(ss[i], ts[j]), (ss[i + 1], ts[j]), (ss[i + 1], ts[j + 1]), (ss[i], ts[j + 1])]
+                            self.face([(P(s_, t_)[0], H - drop + (rise + drop) * (t_ - te) / (tm - te), P(s_, t_)[1]) for s_, t_ in q], MAT_ROOF,
+                                      [((s_ - s0) / BAY, abs(t_ - te) / math.cos(pitch) / BAY) for s_, t_ in q],
+                                      roof_cell, (nx * side, 1.2, nz * side), shade=1.0)
+                    continue
                 self.face([(a[0], H - drop, a[1]), (b[0], H - drop, b[1]), (r1[0], H + rise, r1[1]), (r0[0], H + rise, r0[1])], MAT_ROOF,
                           [(0, 0), (W / BAY, 0), (W / BAY, run / math.cos(pitch) / BAY), (0, run / math.cos(pitch) / BAY)],
                           roof_cell, (nx * side, 1.2, nz * side), shade=1.0)
@@ -2146,6 +2176,10 @@ class Builder:
                     self.box(gx, H - drop0 - 0.05, gz, W, 0.12, 0.13, ux, uz, MAT_STONE, (0, 0), 0.28, bottom=True)
                     self.detail(False)
                 dorm = []
+                if iw:
+                    # issue #10: the front slope of an in-world house (its height at the wall line, its rise a metre in)
+                    INWORLD_DORMERS[str(h["_i"])] = {"roof": {"eave": round(H - drop0 + over * kslope, 4), "k": round(kslope, 5)}, "dormers": []}
+                    self.iw_dorm = (h["_i"], s0, iw.get("dormer"))
                 if W > 5 and rng.random() < 0.55:
                     ds = rng.uniform(s0 + 1.4, s1 - 1.4)
                     dx_, dz_ = P(ds, t0 + 1.2)
@@ -2166,6 +2200,7 @@ class Builder:
                             continue
                         if self.dormer_new(P, dsb, t0, H, drop0, over, kslope, D, style, kind):
                             dorm.append(dsb)
+                self.iw_dorm = None
             built = set()
             for _ in range(rng.choice([1, 2])):
                 cs = rng.choice([s0 + 0.5, s1 - 0.5])
@@ -3051,6 +3086,10 @@ ID_ALLEY = {}  # id(house) -> a cottage of the back alleys
 OPENINGS = {"poorts": {}, "plain_ground": {}, "cottages": {}}
 YARD_N = {}  # (yard windows) the back walls on the yards and their windows, printed
 YARD_WINDOWS = {}  # (yard windows) by house index, the windows cut into its backs on the yards (shared/city_yard_windows.json)
+# issue #10 (the garret's dormer): by house index, the front slope and the dormers of each house whose inside stands in
+# the world (shared/inworld_dormers.json, read by shared/housePlan.ts); the dormer the plan names in inworld_build.json
+# ("dormer": its s along the front) gets no painted pane: its glass is the room's
+INWORLD_DORMERS = {}
 PASSAGES = []  # the covered passages' insides, as world rectangles (4 corners): no kerb runs in there
 KERBS = []  # the kerb along every street wall: {a, b, f (outward), tint, bld}
 RAIL_POSTS = set()  # railing posts already standing
@@ -3485,6 +3524,16 @@ def main():
                                 "the index in the house's ring (a rect house 0 front, 1 right, 2 back, 3 left; else the footprint's edge "
                                 "from fp[wall]), s from that wall's first corner",
                        "houses": {k: v for k, v in YARD_WINDOWS.items() if v}}, fh, separators=(",", ":"))
+        # issue #10: the front slopes and dormers of the houses whose insides stand in the world (shared/housePlan.ts)
+        with open(os.path.join(ROOT, "shared", "inworld_dormers.json"), "w", encoding="utf-8") as fh:
+            json.dump({"about": "tools/blender/build_city.py dormer_new: by house index, the houses of inworld_build.json with a side roof on "
+                                "the street: roof {eave: the front slope's height at the wall line, k: its rise a metre in}; dormers [{s: "
+                                "its middle along the front from the front's first corner, inset: its front's distance back from the wall "
+                                "line, w: its width, yb: its foot, ye: its eaves, yr: its ridge, kind: pitched or flat, win: {w, y0, y1, R: "
+                                "how deep the reveal goes}}], heights in world metres. The dormer inworld_build.json names ('dormer': its s) "
+                                "has no painted pane: its glass is the room's (issue #10)",
+                       "houses": INWORLD_DORMERS}, fh, indent=1)
+            fh.write("\n")
     node = bpy.data.objects.new("city_openings", None)
     node["openings"] = json.dumps(dict(OPENINGS, about="by house index: poorts {s: [s0, s1] along the front from its first corner, h, kind}; "
                                        "plain_ground [[wall, s0, s1]]: ground bays built as plain wall (no shop window); "

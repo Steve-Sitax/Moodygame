@@ -3,7 +3,7 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import * as HP from "../../../shared/hallPlan";
 import type { Rect } from "../../../shared/hallPlan";
 import type { HousePlan, HouseWindow } from "../../../shared/housePlan";
-import { REVEAL } from "../../../shared/housePlan";
+import { LINING_UNDER_ROOF, REVEAL } from "../../../shared/housePlan";
 import { boxGeo, lambert, mergeStatic, tex, type Room } from "./rooms";
 import type { World } from "./rijnkaai";
 import type { InWorld, InWorldRoom, Opening } from "./inworld";
@@ -23,7 +23,8 @@ import { lampFog } from "./lampFog";
 //    never hides the room; the room draws the reveals, the sill, the leaf and the transom again itself;
 //  - a dark lining just inside the house's faces (street scene): what an open door or a window shows when
 //    the room itself is not drawn (too far, over the budget, a mirror's picture);
-//  - warm panes at night over painted windows of a room upstairs (the garret);
+//  - warm panes at night over painted windows of a room upstairs (a garret with no dormer to stand behind; issue #10:
+//    the garret's window is its dormer's, a hole whose face stands back from the wall line);
 //  - the lit room's light on the street through its windows and its open door (world/spill.ts), as bright as the
 //    kind of room (a shop, a taproom, a home's candle); the lining glows with it when the room itself is not drawn;
 //  - the InWorldRoom (world/inworld.ts): the door and every window an opening; the air blends at the threshold.
@@ -245,11 +246,47 @@ export function createHouseInWorld(world: World, inWorld: InWorld, plan: HousePl
         .map((w) => [Math.min(u(w.a), u(w.b)) - 0.02, Math.max(u(w.a), u(w.b)) + 0.02, w.y0 - 0.02, w.y1 + 0.02]);
     const side = (w: HouseWindow) => Math.abs(w.out[0]) > 0.7;
     const nearX0 = (w: HouseWindow) => Math.abs(w.a[0] - f.x0) < Math.abs(w.a[0] - f.x1);
-    holedFace(geos, x0, x1, bot, top, cut((w) => Math.abs(w.out[1]) > 0.7 && w.a[1] > f.depth / 2, (p) => p[0]), (u, y) => [u, y, z1]);
-    holedFace(geos, 0.1, z1, bot, top, cut((w) => side(w) && nearX0(w), (p) => p[1]), (u, y) => [x0, y, u]);
-    holedFace(geos, 0.1, z1, bot, top, cut((w) => side(w) && !nearX0(w), (p) => p[1]), (u, y) => [x1, y, u]);
+    const roof = plan.roof;
+    if (roof) {
+      // issue #10, the garret under a side roof: the lining stays just under the roof's two slopes (flat at `top`
+      // between them), over the garret's ceiling; its box stood 3.4 m over the garret's floor, out of the front slope,
+      // a dark slab over the roof. Where the dormer stands it rises into the dormer (a little inside its cheeks and
+      // under its eaves), round the room's bay there: from inside, the dormer's window is never behind the lining.
+      const m = LINING_UNDER_ROOF;
+      const yTop = (z: number) => Math.min(top, roof.eave + roof.k * Math.min(z, f.depth - z) - m);
+      const zf = (top + m - roof.eave) / roof.k;
+      const dm = plan.dormer;
+      const bump = dm ? { a: dm.x - dm.w / 2 + 0.02, b: dm.x + dm.w / 2 - 0.02, z0: dm.inset, y: dm.ye - 0.03, z1: (dm.ye - 0.03 + m - roof.eave) / roof.k } : null;
+      const zs = [0.1, zf, f.depth - zf, z1, ...(bump ? [bump.z0, bump.z1] : [])].filter((z) => z >= 0.1 && z <= z1).sort((p, q) => p - q);
+      const top3 = (xa: number, xb: number, za: number, zb: number) => quad(geos, [[xa, yTop(za), za], [xa, yTop(zb), zb], [xb, yTop(zb), zb], [xb, yTop(za), za]]);
+      for (let i = 0; i + 1 < zs.length; i++) {
+        const [za, zb] = [zs[i], zs[i + 1]];
+        if (zb - za < 1e-3) continue;
+        quad(geos, [[x0, bot, za], [x0, bot, zb], [x0, yTop(zb), zb], [x0, yTop(za), za]]);
+        quad(geos, [[x1, bot, zb], [x1, bot, za], [x1, yTop(za), za], [x1, yTop(zb), zb]]);
+        if (bump && za >= bump.z0 - 1e-6 && zb <= bump.z1 + 1e-6) {
+          top3(x0, bump.a, za, zb);
+          top3(bump.b, x1, za, zb);
+        } else top3(x0, x1, za, zb);
+      }
+      if (bump) {
+        for (const x of [bump.a, bump.b]) {
+          const g = new THREE.BufferGeometry();
+          g.setAttribute("position", new THREE.Float32BufferAttribute([x, yTop(bump.z0), bump.z0, x, bump.y, bump.z0, x, bump.y, bump.z1], 3));
+          g.setAttribute("uv", new THREE.Float32BufferAttribute([0, 0, 0, 1, 1, 1], 2));
+          g.computeVertexNormals();
+          geos.push(g);
+        }
+        quad(geos, [[bump.a, bump.y, bump.z0], [bump.b, bump.y, bump.z0], [bump.b, bump.y, bump.z1], [bump.a, bump.y, bump.z1]]);
+      }
+      quad(geos, [[x0, bot, z1], [x1, bot, z1], [x1, yTop(z1), z1], [x0, yTop(z1), z1]]);
+    } else {
+      holedFace(geos, x0, x1, bot, top, cut((w) => Math.abs(w.out[1]) > 0.7 && w.a[1] > f.depth / 2, (p) => p[0]), (u, y) => [u, y, z1]);
+      holedFace(geos, 0.1, z1, bot, top, cut((w) => side(w) && nearX0(w), (p) => p[1]), (u, y) => [x0, y, u]);
+      holedFace(geos, 0.1, z1, bot, top, cut((w) => side(w) && !nearX0(w), (p) => p[1]), (u, y) => [x1, y, u]);
+      quad(geos, [[x0, top, z1], [x1, top, z1], [x1, top, 0.1], [x0, top, 0.1]]);
+    }
     quad(geos, [[x0, bot, 0.1], [x1, bot, 0.1], [x1, bot, z1], [x0, bot, z1]]);
-    quad(geos, [[x0, top, z1], [x1, top, z1], [x1, top, 0.1], [x0, top, 0.1]]);
     const lining = new THREE.Mesh(mergeGeometries(geos, false)!, liningMat);
     for (const g of geos) g.dispose();
     lining.name = `house_lining_${plan.id}`;
@@ -298,22 +335,25 @@ export function createHouseInWorld(world: World, inWorld: InWorld, plan: HousePl
   quad(doorPunch, [[-d.hw + 0.01, dp.hs, R], [d.hw - 0.01, dp.hs, R], [d.hw - 0.01, dp.yt - 0.01, R], [-d.hw + 0.01, dp.yt - 0.01, R]]);
   const holes = plan.windows.filter((w) => w.kind === "hole");
   for (const w of holes) {
+    // (issue #10: a dormer's window has its face back from the wall line, a and b on it, and a shallow reveal)
+    const Rw = w.depth ?? R;
+    const paneAt = Math.min(0.1, Rw - 0.02);
     const wf = winFrame(w);
     const P = (s: number, y: number, dd: number): [number, number, number] => [wf.ax + wf.tx * s - wf.ox * dd, y, wf.az + wf.tz * s - wf.oz * dd];
     const L = wf.len;
-    const mid = P(L / 2, (w.y0 + w.y1) / 2, R / 2);
-    quadToward(revealGeos, [P(0, w.y0, 0), P(0, w.y0, R), P(0, w.y1, R), P(0, w.y1, 0)], mid);
-    quadToward(revealGeos, [P(L, w.y0, R), P(L, w.y0, 0), P(L, w.y1, 0), P(L, w.y1, R)], mid);
-    quadToward(revealGeos, [P(0, w.y1, 0), P(0, w.y1, R), P(L, w.y1, R), P(L, w.y1, 0)], mid);
-    quadToward(revealGeos, [P(0, w.y0, R), P(0, w.y0, 0), P(L, w.y0, 0), P(L, w.y0, R)], mid);
+    const mid = P(L / 2, (w.y0 + w.y1) / 2, Rw / 2);
+    quadToward(revealGeos, [P(0, w.y0, 0), P(0, w.y0, Rw), P(0, w.y1, Rw), P(0, w.y1, 0)], mid);
+    quadToward(revealGeos, [P(L, w.y0, Rw), P(L, w.y0, 0), P(L, w.y1, 0), P(L, w.y1, Rw)], mid);
+    quadToward(revealGeos, [P(0, w.y1, 0), P(0, w.y1, Rw), P(L, w.y1, Rw), P(L, w.y1, 0)], mid);
+    quadToward(revealGeos, [P(0, w.y0, Rw), P(0, w.y0, 0), P(L, w.y0, 0), P(L, w.y0, Rw)], mid);
     quad(punchGeos, [P(0.01, w.y0 + 0.01, 0), P(L - 0.01, w.y0 + 0.01, 0), P(L - 0.01, w.y1 - 0.01, 0), P(0.01, w.y1 - 0.01, 0)]);
-    // the pane, 0.1 in, and its bars: one upright, two across, a frame
-    quad(glassGeos, [P(0, w.y0, 0.1), P(L, w.y0, 0.1), P(L, w.y1, 0.1), P(0, w.y1, 0.1)]);
+    // the pane, 0.1 in (a dormer's in its shallow reveal), and its bars: one upright, two across, a frame
+    quad(glassGeos, [P(0, w.y0, paneAt), P(L, w.y0, paneAt), P(L, w.y1, paneAt), P(0, w.y1, paneAt)]);
     const ry = Math.atan2(wf.ox, wf.oz);
     const bar = (s0: number, s1: number, y0: number, y1: number, t: number) => {
       const g = boxGeo(Math.max(0.01, s1 - s0), y1 - y0, t, 1);
       g.rotateY(ry);
-      const [x, , z] = P((s0 + s1) / 2, 0, 0.1);
+      const [x, , z] = P((s0 + s1) / 2, 0, paneAt);
       g.translate(x, (y0 + y1) / 2, z);
       barGeos.push(g);
     };
@@ -373,7 +413,7 @@ export function createHouseInWorld(world: World, inWorld: InWorld, plan: HousePl
   for (const w of holes) {
     const wf = winFrame(w);
     const e = (s: number, dd: number): [number, number] => [wf.ax + wf.tx * s + wf.ox * dd, wf.az + wf.tz * s + wf.oz * dd];
-    const box = wbox([e(-0.05, 0.3), e(wf.len + 0.05, 0.3), e(-0.05, -R - 0.12), e(wf.len + 0.05, -R - 0.12)], w.y0 - 0.05, w.y1 + 0.05);
+    const box = wbox([e(-0.05, 0.3), e(wf.len + 0.05, 0.3), e(-0.05, -(w.depth ?? R) - 0.12), e(wf.len + 0.05, -(w.depth ?? R) - 0.12)], w.y0 - 0.05, w.y1 + 0.05);
     const [mx, mz] = toW(...e(wf.len / 2, 0));
     const [nx, nz] = toW(...e(wf.len / 2, 1));
     openings.push({ kind: "window", label: `${plan.id} window`, box, inBox: box, centre: new THREE.Vector3(mx, plan.floorY + (w.y0 + w.y1) / 2, mz), out: new THREE.Vector3(nx - mx, 0, nz - mz).normalize(), open: () => true });
@@ -384,7 +424,7 @@ export function createHouseInWorld(world: World, inWorld: InWorld, plan: HousePl
   // "the Blender build's spec is the plan's"): the same numbers, written here; the check then looks through the city's
   // own mesh at each of them.
   {
-    const mark = (id: string, kind: "door" | "window", label: string, a: [number, number], b: [number, number], out: [number, number], yb: number, yt: number) => {
+    const mark = (id: string, kind: "door" | "window", label: string, a: [number, number], b: [number, number], out: [number, number], yb: number, yt: number, depth = R) => {
       const [ax, az] = toW(...a);
       const [bx, bz] = toW(...b);
       const [ox2, oz2] = toW(a[0] + out[0], a[1] + out[1]);
@@ -392,14 +432,15 @@ export function createHouseInWorld(world: World, inWorld: InWorld, plan: HousePl
       const e = new THREE.Object3D();
       e.name = `opening_${id}`;
       e.position.set((ax + bx) / 2, plan.floorY + (yb + yt) / 2, (az + bz) / 2);
-      e.userData = { kind, label, glaze: kind === "window" ? "sash" : "", shape: "rect", hw: len / 2, yb: plan.floorY + yb, yt: plan.floorY + yt, tx: (bx - ax) / len, tz: (bz - az) / len, nx: ox2 - ax, nz: oz2 - az, depth: R, arch: 0 };
+      e.userData = { kind, label, glaze: kind === "window" ? "sash" : "", shape: "rect", hw: len / 2, yb: plan.floorY + yb, yt: plan.floorY + yt, tx: (bx - ax) / len, tz: (bz - az) / len, nx: ox2 - ax, nz: oz2 - az, depth, arch: 0 };
       markers.add(e);
     };
     const markers = new THREE.Group();
     markers.name = `house_${plan.id}_openings`;
     world.scene.add(markers);
     mark(`${plan.id}_door`, "door", `${plan.id}, the street door`, [-d.hw, 0], [d.hw, 0], [0, -1], 0, dp.yt);
-    holes.forEach((w, i) => mark(`${plan.id}_w${i}`, "window", `${plan.id}, window ${i + 1}`, w.a, w.b, w.out, w.y0, w.y1));
+    // (issue #10: a dormer's window is marked on the dormer's front, its depth the dormer's reveal)
+    holes.forEach((w, i) => mark(`${plan.id}_w${i}`, "window", w.inset ? `${plan.id}, the dormer window` : `${plan.id}, window ${i + 1}`, w.a, w.b, w.out, w.y0, w.y1, w.depth ?? R));
   }
   // ---- the lit room's light on the street (world/spill.ts): each window, and the door while it stands open
   const litKind: SpillKind = plan.kind === "shop" ? "shop" : plan.kind === "tavern" ? "tavern" : "room";
