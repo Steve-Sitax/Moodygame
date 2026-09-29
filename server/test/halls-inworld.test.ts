@@ -136,6 +136,20 @@ describe("the town hall's plan fits its shell", () => {
           for (const p of a.rects) for (const q of b.rects) if (p.minX < q.maxX - 1e-6 && q.minX < p.maxX - 1e-6 && p.minZ < q.maxZ - 1e-6 && q.minZ < p.maxZ - 1e-6) over.push(`${a.id} ${b.id}`);
     expect(over).toEqual([]);
   });
+
+  it("issue #28: the 54 dormers of the roof: 40 big ones before the attic, 14 small ones before its loft", () => {
+    const rows = inFrame(THS.SHELL_OPENINGS, P.origin, P.yaw);
+    const n: Record<string, number> = {};
+    for (const o of rows) {
+      const d = o.depth + 1.3;
+      const part = TH.partAt(o.x - o.nx * d, o.z - o.nz * d, (o.yb + o.yt) / 2 - TH.FLOOR_Y);
+      if (part && (part.id === "attic" || part.id === "loft")) n[part.id] = (n[part.id] ?? 0) + 1;
+    }
+    expect(n).toEqual({ attic: 40, loft: 14 });
+    // the dormers' insides: one bay each, behind its window, under the ridge
+    expect(THS.SHELL_BAYS.length).toBe(54);
+    for (const b of THS.SHELL_BAYS) expect(b.yc).toBeLessThan(THS.SHELL_ROOF.ridge);
+  });
 });
 
 describe("walking into the town hall", () => {

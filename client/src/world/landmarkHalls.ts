@@ -269,6 +269,77 @@ function holed(k: Kit, along: "x" | "z", a0: number, a1: number, t0: number, t1:
 
 /** The town hall's real openings (issue #10), in the hall's frame. */
 const TH_WINDOWS = inFrame(THS.SHELL_OPENINGS, TH.PLAN.origin, TH.PLAN.yaw);
+/** Issue #28: its roof and its dormers' insides (shared/stadhuisShell.ts), in the hall's frame. */
+const TH_ROOF = roofInFrame(THS.SHELL_ROOF, TH.PLAN.origin, TH.PLAN.yaw);
+const TH_BAYS = baysInFrame(THS.SHELL_BAYS, TH.PLAN.origin, TH.PLAN.yaw);
+
+/**
+ * Issue #28 (interiors are real): the attic under the town hall's great roof, behind its 54 dormers (seen from the
+ * squares and streets round it, not walked: no stair goes up). Its floor on the cornice's top, boards under the slate on
+ * all four slopes with the dormers' bays open into them (the lining behind each front, cheeks, ceiling), the principal
+ * rafters, a loft on the collars under the upper row of small dormers, the chimneys' breasts. One kit per slope and one
+ * for the rest (a part out of view is not drawn); shared materials; no lamps.
+ */
+function townhallAttic(group: THREE.Group): THREE.Group {
+  const g = new THREE.Group();
+  g.name = "townhall_attic";
+  group.add(g);
+  const FY = TH.FLOOR_Y;
+  const RF = TH_ROOF;
+  const DROP = 0.2;
+  const tA = 1.3;
+  const kMid = new Kit(g);
+  const kits = RF.faces.map(() => new Kit(g));
+  const ceil = (x: number, z: number) => Math.min(...RF.faces.map((f) => RF.eaves + roofST(f, x, z)[1] * RF.slope - DROP));
+  // the eaves' rectangle (local), the attic's floor over it and the loft's inside the slopes at its height
+  const ends = RF.faces.flatMap((f) => [f.a, [f.a[0] + f.t[0] * f.len, f.a[1] + f.t[1] * f.len] as [number, number]]);
+  const x0 = Math.min(...ends.map((p) => p[0]));
+  const x1 = Math.max(...ends.map((p) => p[0]));
+  const z0 = Math.min(...ends.map((p) => p[1]));
+  const z1 = Math.max(...ends.map((p) => p[1]));
+  const slab = (a: number, b: number, c: number, d: number, y: number, t: number) => kMid.box(b - a, t, d - c, (a + b) / 2, y - t / 2, (c + d) / 2, H.boards, { tile: 1.2, flat: true, tint: tA });
+  slab(x0 + 0.05, x1 - 0.05, z0 + 0.05, z1 - 0.05, TH.ATTIC, 0.3);
+  const inL = (TH.LOFT + FY - RF.eaves + DROP) / RF.slope;
+  slab(x0 + inL, x1 - inL, z0 + inL, z1 - inL, TH.LOFT, 0.25);
+  // the bays (in their slope's kit), their holes in the boards; the boards
+  const holesOf = RF.faces.map(() => [] as Array<Array<[number, number]>>);
+  const baysOf = RF.faces.map(() => [] as Array<[number, number]>);
+  for (const b of TH_BAYS) {
+    const i = RF.faces.findIndex((q) => q.n[0] * b.nx + q.n[1] * b.nz > 0.99);
+    const hole = bay(kits[i], H.boards, b, RF, RF.faces[i], DROP, TH_WINDOWS, FY, tA);
+    if (hole) holesOf[i].push(hole);
+    const sc = roofST(RF.faces[i], b.x, b.z)[0];
+    baysOf[i].push([sc - b.hw - 0.3, sc + b.hw + 0.3]);
+  }
+  RF.faces.forEach((f, i) => slopeLining(kits[i], H.boards, RF, f, { s0: 0, s1: f.len, in0: 0.2, drop: DROP, holes: holesOf[i], floorY: FY, tint: tA }));
+  // the principal rafters on the long slopes (where the ridge runs; not across a dormer's bay, nor in the frontispiece's stage)
+  const ridgeIn = (RF.ridge - RF.eaves) / RF.slope;
+  const k3 = Math.hypot(1, RF.slope);
+  const phi = Math.atan(RF.slope);
+  RF.faces.forEach((f, i) => {
+    if (f.len < 2 * ridgeIn + 1) return;
+    for (let s = ridgeIn + 0.3; s < f.len - ridgeIn; s += 3.08) {
+      if (baysOf[i].some(([a, b]) => s > a && s < b)) continue;
+      const iM = (0.2 + ridgeIn) / 2;
+      const x = f.a[0] + f.t[0] * s - f.n[0] * iM;
+      const z = f.a[1] + f.t[1] * s - f.n[1] * iM;
+      if (Math.abs(x) < 7.2 && f.n[1] < 0) continue;
+      // (under the boards: in along the way into the building and down)
+      const d = 0.13 / k3;
+      const y = RF.eaves + iM * RF.slope - DROP - FY - d;
+      kits[i].box(0.18, 0.22, (ridgeIn - 0.2) * k3, x - f.n[0] * RF.slope * d, y, z - f.n[1] * RF.slope * d, H.timber, { rx: f.n[1] < 0 ? -phi : phi, flat: true, tint: tA });
+    }
+  });
+  // the chimneys' breasts, from the floor up to the slate
+  for (const [cx, cz] of TH.CHIMNEYS) {
+    const [hx, hz] = TH.CHIMNEY_HALF;
+    const top = Math.max(...[-1, 1].flatMap((sx) => [-1, 1].map((sz) => ceil(cx + sx * hx, cz + sz * hz)))) + DROP + 0.1 - FY;
+    kMid.box(2 * hx, top - TH.ATTIC, 2 * hz, cx, (top + TH.ATTIC) / 2, cz, M.stone, { tile: 1.6, flat: true, tint: tA });
+  }
+  kMid.finish();
+  for (const k of kits) k.finish();
+  return g;
+}
 
 /**
  * Issue #10 (interiors are real): the town hall's outer walls lined behind every window and door of the shell (from the
@@ -407,6 +478,8 @@ function townhallParts(group: THREE.Group): void {
   // ---- each locked office: its floor and ceiling, and its furniture (a desk before the windows, a chair, a cupboard
   // and a shelf of registers against the inner wall)
   locked.forEach((p, n) => {
+    // (issue #28: the attic and its loft are built in townhallAttic)
+    if (p.level > 3) return;
     const kk = kits[p.side];
     const y = LY[p.level];
     for (const r of p.rects) {
@@ -716,6 +789,18 @@ export function buildTownhall(): LandmarkRoom {
   // issue #10: the outer walls lined behind the shell's windows, the locked offices behind the rest; the glass of every
   // window (the shell keeps its stone crosses, oak frames and lead bars)
   townhallParts(group);
+  // issue #28: the attic, drawn only from outside (no one inside the hall sees it)
+  const attic = townhallAttic(group);
+  {
+    const eye = new THREE.Vector3();
+    const hooked = scene as unknown as { onBeforeRender: (...a: unknown[]) => void };
+    const before = hooked.onBeforeRender;
+    hooked.onBeforeRender = function (this: THREE.Scene, ...a: unknown[]) {
+      (a[2] as THREE.Camera).getWorldPosition(eye);
+      attic.visible = HP.insideness(P, ...HP.toLocal(P, eye.x, eye.z)) < 0.5;
+      before.apply(this, a);
+    };
+  }
   const hallGlass = realGlass(TH_WINDOWS, TH.FLOOR_Y, shellPicture("/textures/stadhuis_glass.jpg"), { name: "stadhuis", tile: 1.0, opacity: 0.22 });
   if (hallGlass.mesh) group.add(hallGlass.mesh);
 
