@@ -240,7 +240,7 @@ function draw(): void {
     panel.innerHTML = sheet(
       "A new game",
       `<p class="lead">Start a new week in Antwerp: a new town, Jef back at the doss house with his fifty centimes.</p>
-       <p>Your saves are kept: you can load any of them later. The server also keeps a copy of this week in <code>data/backups</code>.</p>
+       <p>Your saves are kept: you can load any of them later.</p>
        <p class="msg" aria-live="polite"></p>`,
       `<button class="btn" data-act="back">Back <kbd>Esc</kbd></button><button class="btn primary" data-act="newgame">Start a new week</button>`,
     );

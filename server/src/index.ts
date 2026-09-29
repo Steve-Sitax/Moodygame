@@ -450,13 +450,7 @@ app.post("/api/rent", (c) => {
 });
 
 app.post("/api/new-game", async (c) => {
-  // keep the old week: a copy of the save in data/backups before it is wiped
-  if (DB_FILE !== ":memory:") {
-    const dir = join(dirname(DB_FILE), "backups");
-    mkdirSync(dir, { recursive: true });
-    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-    await db.backup(join(dir, `week-${stamp}.sqlite`)).catch((e: unknown) => console.warn("[new-game] backup failed", e));
-  }
+  // the old week is not kept (Steve 2026-09-29: "remove old saves, make it a rule"); the player's own saves stay
   // M7 save and pause: no model call runs into the new week; the saves stay as they are
   await withGate("loading", () => {
     resetDb(db); // a new week: a new town as well (db.ts)
