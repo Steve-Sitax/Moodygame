@@ -12,6 +12,7 @@ import { buildRampartNature, type RampartNature } from "./rampartNature";
 import { loadTownWallBumps, townWallBump } from "./townWallBumps";
 import { addProp } from "./propSpots";
 import { buildWallLife, type WallLife } from "./wallLife";
+import { wallLampList } from "../../../shared/wallLamps";
 
 // The town wall (Steve, 2026-09-25; tools/city/rampart.py, tools/blender/build_wall.py -> wall.glb).
 // The walk map has the walk on the wall, the bastion tops and the stairs as open ground and the parapets,
@@ -483,25 +484,27 @@ export function wallColliders(d: WallDressing): Rect[] {
 /**
  * The gas lamps on the walk (the town's own model, props.glb gas_lamp) and the lanterns of the guard houses
  * and gates, each one of the town's gas lamps (world/gaslamps.ts): lit at dusk, a halo, a pool of light on
- * the stones, the point lights and the wet streaks when near. Nobody sets them, so they follow the clock.
- * Returns the lamp posts' colliders.
+ * the stones, the point lights and the wet streaks when near. The wall's lamplighters light them one by one
+ * (issue #14: server/src/town/lamplighters.ts, the wall rounds). Returns the lamp posts' colliders.
  */
 export function wallLamps(scene: THREE.Scene, gasLamps: GasLamps, props: Props, d: WallDressing): Rect[] {
   const group = new THREE.Group();
   group.name = "wall_lamps";
   scene.add(group);
   const out: Rect[] = [];
-  let id = 1000; // (the city's lamps are d0.., decor.lamps: these come after, far past them)
-  for (const [x, z, y] of d.lamps) {
+  // (the ids d1000..: shared/wallLamps.ts, the same numbering the server's lamplighter rounds use)
+  for (const l of wallLampList(d)) {
+    const { x, z, y } = l;
+    if (l.kind === "lantern") {
+      gasLamps.addDecor(l.n, new THREE.Object3D(), x, z, { glass: y, ground: rampartHeightAt(x, z) ?? 0 });
+      continue;
+    }
     const obj = props.place("gas_lamp", x, z, 0, group);
     obj.position.y = y;
     obj.updateMatrixWorld(true);
     lampNodes.push(obj);
-    gasLamps.addDecor(id++, obj, x, z, { glass: y + 3.65, ground: y });
+    gasLamps.addDecor(l.n, obj, x, z, { glass: y + 3.65, ground: y });
     out.push({ minX: x - 0.2, maxX: x + 0.2, minZ: z - 0.2, maxZ: z + 0.2 });
-  }
-  for (const [x, y, z] of d.lanterns) {
-    gasLamps.addDecor(id++, new THREE.Object3D(), x, z, { glass: y, ground: rampartHeightAt(x, z) ?? 0 });
   }
   return out;
 }
