@@ -31,11 +31,13 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - In the Carolus the round windows over the side doors and the front's middle windows show whole from inside the aisles ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
 
 ### Changed
+- Lamps and lanterns no longer wear big orange circles: a small soft glow at the glass. The omnibus's carriage lamps now light the street and the house fronts as it drives by.
 - Esc closes the map, the quest book, a talk or any other window, as E does, instead of opening the main menu. Click or press W to walk on.
 - You can only pick a pocket from behind the person.
 - The lower parts of the cathedral's aisle windows, behind the houses built against it, are walled up instead of painted ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
 
 ### Fixed
+- The Stadspark's lamps light the paths round them at night, as the street's gas lamps do.
 - You can climb the cranes again, also while they work: the crane does not stop for you. You ride its gallery as the jib turns and the crane rolls; at the top you wait on the ladder until the gallery swings round. The dock cranes' ladders can be reached from the quay again ([#37](https://github.com/Steve-Sitax/Moodygame/issues/37)).
 - Stadspark droppings are scattered over reachable ground, including existing saves; piles reserved for a cleanup job stay put. Pond reflections update every frame and remain visible from all banks. The pond is deeper and you can swim through it, under the bridge, and climb onto its banks ([#34](https://github.com/Steve-Sitax/Moodygame/issues/34)).
 - Carts, horses and omnibuses have more room beside the Eilandje lock, the Vliet post and the Vleeshuis steps. Employers keep out of bus lanes, and buses check obstructions throughout their routes ([#31](https://github.com/Steve-Sitax/Moodygame/issues/31)).

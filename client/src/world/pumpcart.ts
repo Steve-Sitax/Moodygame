@@ -143,7 +143,7 @@ export function createPumpCart(scene: THREE.Scene, props: Props | null): PumpCar
   body.add(box(0.2, 0.26, 0.2, k.lamp, 0.42, 1.72, 0.55));
   body.add(box(0.26, 0.05, 0.26, k.iron, 0.42, 1.87, 0.55));
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.55, fog: true }));
-  glow.scale.set(2.4, 2.4, 1);
+  glow.scale.set(0.8, 0.8, 1); // (2026-09-30: was 2.4, a big orange circle)
   glow.position.set(0.42, 1.72, 0.55);
   body.add(glow);
   scene.add(group);

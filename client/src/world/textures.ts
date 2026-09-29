@@ -262,21 +262,26 @@ export function signTexture(text: string): THREE.CanvasTexture {
   return t;
 }
 
-/** Soft round glow for the lamp glass (additive sprite). */
+/**
+ * Soft round glow for the lamp glass (additive sprite). 2026-09-30 (Steve: "big orange glow circles ... Make it more
+ * realistic"): a bright small core that falls off smoothly to nothing, filtered smooth: no hard orange disc.
+ */
 export function glowTexture(): THREE.CanvasTexture {
   const c = document.createElement("canvas");
-  c.width = c.height = 32;
+  c.width = c.height = 64;
   const g = c.getContext("2d")!;
-  const grad = g.createRadialGradient(16, 16, 0, 16, 16, 16);
-  grad.addColorStop(0, "rgba(255,220,150,1)");
-  grad.addColorStop(0.25, "rgba(255,170,80,0.55)");
+  const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grad.addColorStop(0, "rgba(255,232,180,1)");
+  grad.addColorStop(0.12, "rgba(255,200,120,0.75)");
+  grad.addColorStop(0.35, "rgba(255,160,70,0.22)");
+  grad.addColorStop(0.7, "rgba(255,140,60,0.05)");
   grad.addColorStop(1, "rgba(255,140,60,0)");
   g.fillStyle = grad;
-  g.fillRect(0, 0, 32, 32);
+  g.fillRect(0, 0, 64, 64);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
-  t.magFilter = THREE.NearestFilter;
-  t.minFilter = THREE.NearestFilter;
+  t.magFilter = THREE.LinearFilter;
+  t.minFilter = THREE.LinearFilter;
   t.generateMipmaps = false;
   return t;
 }

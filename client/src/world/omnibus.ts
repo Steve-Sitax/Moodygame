@@ -7,6 +7,7 @@ import { psx } from "../retro/psx";
 import { makeHuman, type Human, type HumanKind } from "../game/humans";
 import { glowTexture } from "./textures";
 import { lampFog } from "./lampFog";
+import { addLantern, type LanternSource } from "./lanternLights";
 import type { Rect } from "./geom";
 import type { HorsePool } from "./horses";
 import { Kit, type RGB } from "./kit";
@@ -1096,10 +1097,13 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
   const haloPos = new THREE.Float32BufferAttribute(new Float32Array(n * LAMPS.length * 3), 3);
   haloPos.setUsage(THREE.DynamicDrawUsage);
   haloGeo.setAttribute("position", haloPos);
+  // (2026-09-30, Steve: "omnibus has big orange glow circles ... Make it more realistic. make sure it has real light
+  // coming off to environment"): a small soft glow at the glass, no wider than the lamp's hood, and the lamps light
+  // the street as lanterns do (world/lanternLights.ts: the nearest get real lights, the rest light per pixel)
   const haloMat = new THREE.PointsMaterial({
     map: glowTexture(),
     color: 0xffb865,
-    size: 1.3,
+    size: 0.32,
     sizeAttenuation: true,
     transparent: true,
     depthWrite: false,
@@ -1905,6 +1909,8 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
     m.setMatrixAt(i, M);
   };
 
+  /** Each omnibus's two carriage lamps as lanterns that light the street (by the bus's index). */
+  const lampLights = new Map<number, LanternSource[]>();
   function draw(camera?: THREE.Camera): void {
     const far = ((scene.fog as THREE.Fog | null)?.far ?? 40) + 30;
     const cam = camera?.position;
@@ -1942,8 +1948,17 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
         tmp.set(x, y, z).applyMatrix4(b.frame.matrixWorld);
         M2.compose(tmp, b.frame.quaternion, S1);
         glass.setMatrixAt(i * LAMPS.length + k, M2);
-        // a glow in the air round the carriage lamps; the oil lamp inside only lights its glass
-        if (k < 2) tmp.set(x, y, z + 0.12).applyMatrix4(b.frame.matrixWorld);
+        if (k < 2) {
+          // the carriage lamp's light on the street and the walls (oil in a reflector box: a lantern's)
+          let ll = lampLights.get(i);
+          if (!ll) lampLights.set(i, (ll = [addLantern({ power: 0.85 }), addLantern({ power: 0.85 })]));
+          const src = ll[k];
+          src.pos.set(tmp.x, tmp.y, tmp.z);
+          src.ground = tmp.y - y;
+          src.on = b.near ? lit : 0;
+        }
+        // a small glow at the glass of the carriage lamps; the oil lamp inside only lights its glass
+        if (k < 2) tmp.set(x, y, z + 0.06).applyMatrix4(b.frame.matrixWorld);
         else tmp.set(0, -1000, 0);
         haloPos.setXYZ(i * LAMPS.length + k, tmp.x, tmp.y, tmp.z);
       });
@@ -1972,7 +1987,7 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
     // the lamps: dark glass by day, a warm flame after dusk
     glassMat.color.setRGB(0.13 + 0.87 * lit, 0.13 + 0.6 * lit, 0.12 + 0.28 * lit);
     glassFog.value = 1 + 0.3 * lit;
-    haloMat.opacity = 0.7 * lit;
+    haloMat.opacity = 0.55 * lit;
     halos.visible = lit > 0.02 && anyNear;
     opts.horses.show("omnibus", anyNear);
   }

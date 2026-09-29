@@ -5,6 +5,10 @@ The coordinating Claude session keeps this file current: a line when a helper st
 patch goes live (with its commit), and when Steve decides something. Newest first in each part.
 Git history has the detail of each commit.
 
+## Lamp glows and lamp light, 2026-09-30
+
+Steve: "omnibus has big orange glow circles and other stuff also has it ... real light coming off to environment. in park the lamps don't seem to give of the light". The shared glow picture (world/textures.ts glowTexture) is a small bright core with a smooth falloff, filtered smooth. Halos: omnibus 1.3 m to 0.32 m, carried and townspeople's lanterns 0.8-0.9 to about 0.45, pump cart 2.4 to 0.8, Steenpoort lanterns 1.6/1.1 to 0.6/0.7, gas and quay lamp halos 1.8 to 1.1, the doss lantern 1.1 to 0.7. The omnibus's two carriage lamps are lanterns (world/lanternLights.ts addLantern: real lights near the eye, per-pixel spill further). The 13 park lanterns are `lamp` spill sources lit with the street's lamps (their glass glow is then a duplicate). Pictures at 21:00: a park lamp's warm pool on the path; an omnibus lighting the house front. `shaders()` and `spill()` no problems. No light count changed.
+
 ## Daylight shadows and jumping on the omnibus, 2026-09-30
 
 Steve picked 1A (retune, sky shade, soft shadows). The sky shade alone hardly showed (every street floor still had full sun), so the sun's shadows from the same baked map came in too (docs/rendering.md, "Daylight and the houses' shadows"). Pictures checked: the back lane at 11:00 clear (floor in the houses' shade, the sun high on the wall), the Grote Markt (the houses' and the cathedral's shadows across the square), a fog day (soft, near the old look), night (unchanged, lamps). Blob under a summoned tobacconist seen. `shaders()` no problems, `paths()` empty. No frame cost above the noise.

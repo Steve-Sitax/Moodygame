@@ -2770,7 +2770,7 @@ export class Crowd {
     const glass = new THREE.Mesh(this.lanternGeo, this.lanternMat);
     const cap = new THREE.Mesh(this.lanternCapGeo, this.lanternIron);
     const halo = new THREE.Sprite(this.haloMat);
-    halo.scale.set(0.9, 0.9, 1);
+    halo.scale.set(0.45, 0.45, 1); // (2026-09-30, Steve: "big orange glow circles": about the lantern's own size)
     halo.position.y = -0.08;
     g.add(glass, cap, halo);
     this.scene.add(g);

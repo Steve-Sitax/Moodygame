@@ -75,7 +75,7 @@ export function makeLantern(): { group: THREE.Group; glass: THREE.Mesh; halo: TH
   // the tin (base, cap, vent, ring, bars) one mesh (world/staticMerge.ts)
   mergeParts(group, (m) => m.material === P.tin);
   const halo = new THREE.Sprite(P.halo);
-  halo.scale.set(0.8, 0.8, 1);
+  halo.scale.set(0.42, 0.42, 1); // (2026-09-30: about the lantern's own size, not a big circle)
   halo.position.y = 0.11;
   group.add(halo);
   return { group, glass, halo };

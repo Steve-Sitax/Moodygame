@@ -16,6 +16,8 @@ import { loadTownPlaces } from "./townplaces"; // M7 prison and squares
 import { frontFloor as carolusFloor, frontSolids as carolusSolids } from "../../../shared/carolusPlan";
 import { loadWall, rampartHeightAt, rampartKeepOut, wallColliders, wallGuards, wallLamps } from "./rampart";
 import CITY_DATA from "../../../shared/city.json";
+import PARK_DATA from "../../public/models/park.json";
+import { addSpill } from "./spill";
 import { buildCity, doorSpot, edgeZ, WALL, WATER, OUTSIDE, type CityWorld } from "./city";
 import { dressCity, loadProps } from "./props3d";
 import { loadWagons } from "./wagons3d";
@@ -582,6 +584,14 @@ export function buildRijnkaai(): World {
   const churches = loadChurches(scene);
   // the Stadspark planted: trees, shrubs, hedge, reeds, its own ground, ducks and swans (world/parkNature.ts)
   const parkNature = loadParkNature(scene);
+  // (2026-09-30, Steve: "in park the lamps don't seem to give of the light as they should") the park's gas lanterns
+  // light the paths as the street's gas lamps do (world/spill.ts, a lamp each, lit with the street's lamps); their glass
+  // (park_lamp_glow) is then no weak glow of its own (spill.ts marks a glow by a lamp as its duplicate)
+  const parkLamps = ((PARK_DATA as unknown as { lanterns?: number[][][] }).lanterns ?? []).map((poly) => {
+    const x = poly.reduce((a, p) => a + p[0], 0) / poly.length;
+    const z = poly.reduce((a, p) => a + p[1], 0) / poly.length;
+    return addSpill({ kind: "lamp", x, y: 3.2, z, power: 20, ground: 0 });
+  });
   // M7 prison and squares: the prison of 1855 on the wall street (world/prison.ts, tools/blender/build_prison.py)
   const prison = loadPrison(scene);
   // M7 prison and squares: the Sint-Jansplein and the greens (world/townplaces.ts)
@@ -1970,6 +1980,7 @@ export function buildRijnkaai(): World {
     sunDay = Math.max(0, (skyBase - 0.55) / 1.55);
     dayFar = THREE.MathUtils.lerp(f0, f1, k);
     lampsLit = THREE.MathUtils.lerp(l0, l1, k);
+    for (const l of parkLamps) l.level = lampsLit;
   }
   applyDaylight(dayNow);
 
@@ -2355,7 +2366,7 @@ function gasLamp(
     }),
   );
   halo.position.copy(pos);
-  halo.scale.set(1.8, 1.8, 1);
+  halo.scale.set(1.1, 1.1, 1); // (2026-09-30: was 1.8)
   scene.add(halo);
 
   colliders.push(rectAround(x, z, 0.25, 0.25));
@@ -2374,7 +2385,7 @@ function dossLantern(scene: THREE.Scene, m: Mats, glow: THREE.Texture): THREE.Po
     new THREE.SpriteMaterial({ map: glow, color: 0xffb060, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.5, fog: false }),
   );
   halo.position.copy(glass.position);
-  halo.scale.set(1.1, 1.1, 1);
+  halo.scale.set(0.7, 0.7, 1); // (2026-09-30: was 1.1)
   scene.add(halo);
   doorSign(scene, "doss", "BEDS");
   const light = new THREE.PointLight(0xffa048, 7, 10, 1.7);

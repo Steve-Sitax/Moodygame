@@ -274,7 +274,7 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenL
   const glowMat = new THREE.SpriteMaterial({ map: glowTexture(), color: 0xffc47a, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
   const flameMat = new THREE.MeshBasicMaterial({ color: 0xffd08a });
   const lanterns: Array<{ glow: THREE.Sprite; flame: THREE.Mesh; src: LanternSource }> = [];
-  const lantern = (at: THREE.Vector3, size: [number, number], halo = 1.6) => {
+  const lantern = (at: THREE.Vector3, size: [number, number], halo = 0.6) => { // (2026-09-30: was 1.6, a big orange circle)
     const glow = new THREE.Sprite(glowMat);
     glow.position.copy(at);
     glow.scale.setScalar(halo);
@@ -306,7 +306,7 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenL
     const glass = new THREE.Mesh(new THREE.BoxGeometry(0.23, 0.37, 0.23), dark);
     glass.position.copy(at);
     group.add(glass);
-    lantern(at, [0.24, 0.38], 1.1);
+    lantern(at, [0.24, 0.38], 0.7);
   };
   // hung on an iron rod from the crown of the passage's vault (the pointed arch's top at 7.8)
   {

@@ -164,8 +164,8 @@ export function createGasLamps(
         mv.xyz += normalize(-mv.xyz) * 0.45;
         vFogDepth = -mv.z;
         gl_Position = projectionMatrix * mv;
-        // a halo about 1.8 m across, in screen pixels
-        gl_PointSize = aLit < 0.01 ? 0.0 : clamp(1.8 * projectionMatrix[1][1] * uViewH * 0.5 / max(-mv.z, 0.1), 1.0, 96.0);
+        // a halo about 1.1 m across, in screen pixels (2026-09-30: was 1.8, Steve: "big orange glow circles")
+        gl_PointSize = aLit < 0.01 ? 0.0 : clamp(1.1 * projectionMatrix[1][1] * uViewH * 0.5 / max(-mv.z, 0.1), 1.0, 96.0);
       }`,
     fragmentShader: /* glsl */ `
       uniform sampler2D uMap;
