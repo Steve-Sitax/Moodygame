@@ -64,7 +64,30 @@ The prison is the first built this way (milestones/M7-prison-real.md). Copy its 
 | Pictures | from outside through three windows, from inside out, by day (13:00, clear) and by night; look at each |
 | Tests | `server/test/<name>.test.ts`: the plan floods from each door to every part; zones behind every shell opening |
 
-Wait until the model has loaded before the interior check: without its markers it says so.
+Wait until the model has loaded before the interior check: without its markers it says so. Run it near the building
+(`__scheldemist.t.go([x, z])`, `t.run(1)`): the check looks only at meshes drawn now, and the town hides far shells.
+
+## A shell built before this rule (issue #10, 2026-09-29)
+
+The landmarks and churches had their rooms built in code first and their shells in Blender with painted or glazed
+panes over them. Made real the same way, without rebuilding them from the skeleton:
+
+- **Openings in the world frame.** Their scripts work in the landmark's frame, not the plan's: `real_opening()` writes
+  world x, z and directions to `shared/<name>Shell.ts`, and the room takes them with `inFrame(rows, plan.origin,
+  plan.yaw)` (`shared/shellOpening.ts`). A shape that is none of rect, round or quad (a pointed gothic window, a basket
+  arch) carries its outline in `poly` (u from its middle, world y); `lining()` cuts it exactly, a door's head too.
+- **The old panes stay, never drawn.** The panes of the real windows move to a mesh of their own
+  (`<name>_lit_glass`, material `<glass>_lit`) whose material the loader makes invisible: `world/landmarkWindows.ts` lights
+  a copy of it at night as before (the copy is marked glass for the check). An atlas-painted shell hands that mesh to its
+  room as the room's glass (`world/shellGlass.ts`: `publishShellGlass`, `whenShellGlass`, `roomGlassFrom`); a plain
+  glass shell's room makes its own (`realGlass`, `shellPicture`, `quarries` in `world/realOpenings.ts`).
+- **Reveals of different depth on one face**: `lining()` puts a sleeve from a shallower reveal's back to the lining.
+- **A vault or ceiling across a real window**: reshape it (the Vleeshuis's outer aisles have half vaults rising to the
+  long walls), so the window shows whole from inside.
+- **City houses** (taverns, shops, the Poesje, the homes): their holes are cut by `build_city.py` from
+  `shared/inworld_build.json`, which is the house plan's (houses-inworld test); `houseInWorld.ts` writes their markers from
+  the same numbers. A room that draws its own reveal to its single-faced wall meets the shell's reveal there.
+- **Windows with no inside** (towers, attics, parts never built) keep their panes until their rooms are built.
 
 ## Rebuild
 

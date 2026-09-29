@@ -295,6 +295,7 @@ function checkOne(scene: THREE.Scene, T: CheckTarget, markers: Marker[]): Interi
   const doors = room.openings.filter((o) => o.kind === "door").length;
   const report: InteriorReport = { id: T.id, label: T.label, shellOpenings: "none", registered: { doors, windows: room.openings.length - doors }, problems, notes };
   const up = new THREE.Vector3(0, 1, 0);
+  const reach = Math.max(40, rb.getSize(new THREE.Vector3()).length() + 2);
   const fmt = (v: THREE.Vector3) => `${v.x.toFixed(1)}, ${v.y.toFixed(1)}, ${v.z.toFixed(1)}`;
   const regOf = (m: Marker): Opening | undefined =>
     room.openings.find((o) => (m.kind === "door") === (o.kind === "door") && o.box.clone().expandByScalar(0.15).containsPoint(m.c));
@@ -323,7 +324,8 @@ function checkOne(scene: THREE.Scene, T: CheckTarget, markers: Marker[]): Interi
       for (const p of pts) {
         const o = p.clone().addScaledVector(m.n, 0.6);
         const d = m.n.clone().negate();
-        const hits = grid.cast(o, d, 40, (t) => !t.glass);
+        // (issue #25: as far as the room reaches, not 40 m: the cathedral's nave runs 77 m from its west door)
+        const hits = grid.cast(o, d, reach, (t) => !t.glass);
         const h = hits[0];
         // (a ray may cross the room and leave by a window opposite, or meet the shell far across it: the room is there)
         const through = room.openings.some((op) => op !== reg && new THREE.Ray(o, d).intersectsBox(op.box));
