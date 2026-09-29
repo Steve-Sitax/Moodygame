@@ -8,6 +8,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 ## [Unreleased]
 
 ### New in the game
+- Ivy and red autumn Virginia creeper climb the town wall's inner face, along the Stadspark and the streets behind the wall.
 - Daylight has shadow play: the houses throw shadows into the streets and onto the squares, narrow lanes are dimmer at their foot, and people, carts and drays have a soft shadow under them. The sun follows its real October path, from the south-east in the morning to the west in the evening. On fog days the light stays soft.
 - Jump onto a rolling omnibus: run up to its back step and press Space (or E). The conductor comes for the fare: pay, or he curses and puts you off.
 - The town map shows places as small icons. Point at one to see its name, how far it is and which way. The key in the map's corner turns each kind on and off: your job, work, events, food and markets, taverns, shops, services, beds, churches and sights, water pumps, street names. Names no longer print on top of each other.

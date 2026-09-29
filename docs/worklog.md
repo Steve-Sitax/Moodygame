@@ -5,6 +5,10 @@ The coordinating Claude session keeps this file current: a line when a helper st
 patch goes live (with its commit), and when Steve decides something. Newest first in each part.
 Git history has the detail of each commit.
 
+## Park look pass, 2026-09-30
+
+Steve picked 2A (Claude takes pictures and fixes the weakest parts). Midday pictures from the paths: the planting, the pond, the bridge and the lamps read well; the weakest part was the kilometre of bare brick of the town wall's inner face along the park. New `world/wallClimbers.ts`: 144 patches of ivy (two greens) and Virginia creeper (red, orange-red) on the inner face, rooted at the foot and thinning upward, never at stairs, gates or towers; the same program as the wall's leaf patches (`shaders()` no problems), one mesh per 100 m, hidden beyond the fog. Left for Steve: the wall's plinth of large dark blocks runs round the whole town (a change to wall.glb, Blender).
+
 ## Lamp glows and lamp light, 2026-09-30
 
 Steve: "omnibus has big orange glow circles and other stuff also has it ... real light coming off to environment. in park the lamps don't seem to give of the light". The shared glow picture (world/textures.ts glowTexture) is a small bright core with a smooth falloff, filtered smooth. Halos: omnibus 1.3 m to 0.32 m, carried and townspeople's lanterns 0.8-0.9 to about 0.45, pump cart 2.4 to 0.8, Steenpoort lanterns 1.6/1.1 to 0.6/0.7, gas and quay lamp halos 1.8 to 1.1, the doss lantern 1.1 to 0.7. The omnibus's two carriage lamps are lanterns (world/lanternLights.ts addLantern: real lights near the eye, per-pixel spill further). The 13 park lanterns are `lamp` spill sources lit with the street's lamps (their glass glow is then a duplicate). Pictures at 21:00: a park lamp's warm pool on the path; an omnibus lighting the house front. `shaders()` and `spill()` no problems. No light count changed.
