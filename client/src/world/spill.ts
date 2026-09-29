@@ -86,7 +86,16 @@ interface Pool {
   hw: number;
   near: number;
   far: number;
+  /** the ground's version it was laid on (a still source), and when (performance.now) */
+  v: number;
+  t: number;
 }
+
+/**
+ * A still source's pool is laid again when the ground has changed since (issue #6: a doorstep filed after the pool
+ * was laid left it 11 cm under the step), at most this often (ms): carts and stalls come and go all the time.
+ */
+const POOL_RELAY_MS = 2000;
 
 const sources = new Set<SpillSource>();
 /** The graphics budget (setSpillBudget): how many sources are worked out per pixel, and the window bars in the pools. */
@@ -298,9 +307,17 @@ const POOL_ALBEDO = 0.07;
 
 /**
  * `walkGround`: the walk's ground (world.groundAt: it answers only within a step or two of the feet asked with, and
- * not where the walk map stops short of a wall: below -5 then); `base`: the street's own level there (the water: a drop).
+ * not where the walk map stops short of a wall: below -5 then); `base`: the street's own level there (the water: a drop);
+ * `groundVersion`: changes when a collider is put down or taken away (World.solidsVersion): still pools are laid again.
  */
-export function createSpill(scene: THREE.Scene, walkGround: (x: number, z: number, feet: number) => number, base: (x: number, z: number) => number): Spill {
+export function createSpill(
+  scene: THREE.Scene,
+  walkGround: (x: number, z: number, feet: number) => number,
+  base: (x: number, z: number) => number,
+  groundVersion?: () => number,
+): Spill {
+  /** The ground's version this frame (World.solidsVersion: a collider put down or taken away). */
+  let gv = 0;
   const groundAt = (x: number, z: number, feet: number) => {
     const h = walkGround(x, z, feet);
     return h > -5 ? h : base(x, z);
@@ -447,6 +464,18 @@ export function createSpill(scene: THREE.Scene, walkGround: (x: number, z: numbe
     return !!p && (!s.moving || Math.abs(p.x - s.x) + Math.abs(p.z - s.z) < 0.75);
   }
 
+  /** A still source's pool laid on an older ground (it stays drawn until it is laid again: poolRelay). */
+  function poolStale(s: SpillSource): boolean {
+    const p = s.pool;
+    return !!p && !s.moving && p.v !== gv && performance.now() - p.t >= POOL_RELAY_MS;
+  }
+
+  /** Its ground and its pool worked out again at the next poolOf. */
+  function poolRelay(s: SpillSource): void {
+    s.pool = null;
+    s.ground = NaN;
+  }
+
   function poolOf(s: SpillSource): Pool {
     const p = s.pool;
     if (p && poolReady(s)) return p;
@@ -479,7 +508,7 @@ export function createSpill(scene: THREE.Scene, walkGround: (x: number, z: numbe
         }
       }
       const hw = s.hw + Math.min(far * 0.8, 5);
-      pool = { x: s.x, z: s.z, g, y: top + 0.03, cx: s.x, cz: s.z, hw, near: -0.12, far };
+      pool = { x: s.x, z: s.z, g, y: top + 0.03, cx: s.x, cz: s.z, hw, near: -0.12, far, v: gv, t: performance.now() };
     } else {
       // a flame: a disc, shifted away from a drop so it stays on the flat (gaslamps.ts had it so)
       const R = Math.min(s.range * 0.55, 8);
@@ -522,7 +551,7 @@ export function createSpill(scene: THREE.Scene, walkGround: (x: number, z: numbe
           }
         }
       }
-      pool = { x: s.x, z: s.z, g, y: top + 0.03, cx: best.cx, cz: best.cz, hw: best.r, near: best.r, far: best.r };
+      pool = { x: s.x, z: s.z, g, y: top + 0.03, cx: best.cx, cz: best.cz, hw: best.r, near: best.r, far: best.r, v: gv, t: performance.now() };
     }
     s.pool = pool;
     return pool;
@@ -679,6 +708,8 @@ export function createSpill(scene: THREE.Scene, walkGround: (x: number, z: numbe
   return {
     update(dt, camera, snap = false) {
       const t0 = performance.now();
+      // (the ground's version once a frame: a still pool laid on an older ground is laid again, poolReady)
+      gv = groundVersion?.() ?? 0;
       // new glow things are looked for every 2 s while the town comes in, then every 8 s
       scanT -= dt;
       scanAge += dt;
@@ -774,6 +805,9 @@ export function createSpill(scene: THREE.Scene, walkGround: (x: number, z: numbe
           if (pw < 0.02 && !(s.w > 0 && !want.has(s))) continue;
           if (!poolReady(s)) {
             if (fresh >= NEW_POOLS && !snap) continue;
+            fresh++;
+          } else if (poolStale(s) && (fresh < NEW_POOLS || snap)) {
+            poolRelay(s);
             fresh++;
           }
           if (!reachesGround(s)) continue;

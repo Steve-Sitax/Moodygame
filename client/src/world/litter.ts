@@ -68,6 +68,8 @@ export interface Litter {
   stats: { counts: Record<string, number>; solid: number; flat: number; floating: number; triangles: number; gutterMetres: number };
   /** The heaps and stands, for maps and checks. */
   sites: Array<{ kind: string; x: number; z: number }>;
+  /** Every solid bit as laid: where it lies and how far it reaches (the clutter's back walls keep off them). */
+  solids: Array<{ x: number; z: number; r: number }>;
 }
 
 let clockDay = 2;
@@ -406,23 +408,30 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
     let [sx, y, sz] = opts.probe ? settle(x, z, reachAll / 0.6) : settle(x, z, r);
     // a hand off the houses as built: level rays out of its middle, just over the kerb, as far as it
     // reaches (turned any way, at its largest); pushed off a wall face it would stand in, else not here
-    if (opts.probe && p.h > 0.03) {
+    // (its height as it will lie: a model that goes into the ground is set on it below, so it stands its whole height
+    // over the street; issue #13: the broken pot's model lies under its origin, its h is 0, and no ray looked for walls)
+    const ht = p.h - Math.min(0, p.y0);
+    if (opts.probe && ht > 0.03) {
       const reach = p.rxz * 1.15 + 0.03;
-      const yy = y + Math.min(0.13, Math.max(0.02, p.h * 0.6));
+      // (and near its top, up to 30 cm: a sill or a plinth's edge over the lower ray)
+      const low = y + Math.min(0.13, Math.max(0.02, ht * 0.6));
+      const high = y + Math.min(0.3, ht * 0.95);
+      const heights = high > low + 0.03 ? [low, high] : [low];
       const dirs = [0, 1, 2, 3, 4, 5, 6, 7].map((k) => [Math.cos((k * Math.PI) / 4), Math.sin((k * Math.PI) / 4)]);
-      for (const [dx, dz] of dirs) {
-        const d = opts.probe(sx, yy, sz, dx, dz, reach);
-        if (d !== null) {
-          sx -= dx * (reach - d);
-          sz -= dz * (reach - d);
+      for (const yy of heights)
+        for (const [dx, dz] of dirs) {
+          const d = opts.probe(sx, yy, sz, dx, dz, reach);
+          if (d !== null) {
+            sx -= dx * (reach - d);
+            sz -= dz * (reach - d);
+          }
         }
-      }
-      for (const [dx, dz] of dirs) if (opts.probe(sx, yy, sz, dx, dz, reach - 0.02) !== null) return false;
+      for (const yy of heights) for (const [dx, dz] of dirs) if (opts.probe(sx, yy, sz, dx, dz, reach - 0.02) !== null) return false;
       if (Math.hypot(sx - x, sz - z) > 0.02) [sx, y, sz] = settle(sx, sz, reachAll / 0.6);
     }
     if (!solidOk(sx, sz, r, rules)) return false;
     // not before a door with any of it (a heap reaches further than its middle)
-    if (opts.probe && p.h > 0.12 && atDoor(sx, sz, reachAll)) return false;
+    if (opts.probe && ht > 0.12 && atDoor(sx, sz, reachAll)) return false;
     // a model that goes into the ground (the broken pot's shards): on it
     if (p.y0 < -0.005) y -= p.y0;
     const s = 0.85 + R() * 0.3;
@@ -1674,5 +1683,7 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
     update,
     stats: { counts, solid: solidPuts.length, flat: flatPuts.length + gutterGeos.length, floating: floatPuts.length, triangles, gutterMetres: Math.round(gutterMetres) },
     sites,
+    // (issue #13: the clutter's back walls, built after, keep off these)
+    solids: solidPuts.map((p) => ({ x: p.x, z: p.z, r: (protos.get(p.name)?.rxz ?? 0.2) * Math.max(p.sx, p.sz) })),
   };
 }
