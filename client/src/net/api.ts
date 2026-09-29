@@ -557,7 +557,7 @@ export const api = {
   /** Fell into the Schelde: the server takes the cold off your warmth (once per swim). */
   swim: () => call<JobsPayload & { cold: boolean }>("POST", "/api/swim"),
   /** The horse omnibuses (M3g): get on a line at a stop (the server takes the fare, or a change is free) or get off. */
-  ride: (action: "board" | "alight" | "seat" | "timetable", stop: string, line?: string, place?: "inside" | "roof") =>
+  ride: (action: "board" | "hop" | "alight" | "seat" | "timetable", stop: string, line?: string, place?: "inside" | "roof") =>
     call<JobsPayload & { text: string; fare_c?: number; change?: boolean }>("POST", "/api/ride", { action, stop, line, place }),
   newGame: () => call<JobsPayload>("POST", "/api/new-game"),
   devSet: (v: Partial<Record<"day" | "hour" | "minute" | "food" | "warmth" | "health" | "sleep" | "money_c", number>>) =>

@@ -1406,6 +1406,21 @@ export class Crowd {
 
   /** Where everyone walking is now (townspeople included): the train and the omnibus stop for them.
    *  One reused list, refilled on every call: read it now, do not keep or change it. */
+  /** Where each walker's feet are, height too (world/blobs.ts: the soft shadow under them). */
+  feet(): Array<{ x: number; y: number; z: number }> {
+    const out = this.feetOut;
+    const n = this.people.length;
+    for (let i = 0; i < n; i++) {
+      const p = this.people[i];
+      const o = out[i] ?? (out[i] = { x: 0, y: 0, z: 0 });
+      o.x = p.x;
+      o.y = p.group.position.y;
+      o.z = p.z;
+    }
+    out.length = n;
+    return out;
+  }
+  private readonly feetOut: Array<{ x: number; y: number; z: number }> = [];
   positions(): Array<{ x: number; z: number }> {
     const out = this.posOut;
     const n = this.people.length;

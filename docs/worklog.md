@@ -5,6 +5,12 @@ The coordinating Claude session keeps this file current: a line when a helper st
 patch goes live (with its commit), and when Steve decides something. Newest first in each part.
 Git history has the detail of each commit.
 
+## Daylight shadows and jumping on the omnibus, 2026-09-30
+
+Steve picked 1A (retune, sky shade, soft shadows). The sky shade alone hardly showed (every street floor still had full sun), so the sun's shadows from the same baked map came in too (docs/rendering.md, "Daylight and the houses' shadows"). Pictures checked: the back lane at 11:00 clear (floor in the houses' shade, the sun high on the wall), the Grote Markt (the houses' and the cathedral's shadows across the square), a fog day (soft, near the old look), night (unchanged, lamps). Blob under a summoned tobacconist seen. `shaders()` no problems, `paths()` empty. No frame cost above the noise.
+
+Omnibus (`game/ride.ts`, `server/src/ride.ts hopOn`, action "hop"): Space or E by the back step of a rolling omnibus jumps on; 1.8 s later the conductor's card: 1 pay (the engine takes the fare, or the ticket's free change), 2 or Esc refuse, 15 s no answer: refuse. Refused or no money: a curse and he puts you off where there is room. Checked in the browser: jump on, refuse and put off; jump on, pay 5 c (60 to 55), ride on. Not in the web demo (no server). A stop reached before the conductor came no longer puts you off as "ticket run out".
+
 ## Cranes climbable while they work, 2026-09-30
 
 [Issue 37](https://github.com/Steve-Sitax/Moodygame/issues/37): since the D1 docks the cranes nearly always work, and the ladder waited for a crane at rest; the dock cranes' ladder feet end over the water. Now the crane works on: the gallery's walk areas are in the jib's frame (`RaisedDeck.frame`), Jef rides its turns and travel (`craneClimb.ride()` right after `world.update`), waits at the ladder top till the gallery is behind it, and at a dock crane climbs from the nearest free quay spot. Browser: crane 0 climbed while working, 32 s ridden through 14 jib angles and 4.8 m of travel without leaving the deck, climbed down; dock crane 3 climbed from the quay. Crane and dock tests pass.

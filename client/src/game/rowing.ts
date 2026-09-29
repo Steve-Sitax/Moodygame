@@ -220,7 +220,9 @@ export class Rowing {
     jobs.extraActions.push((x, z) => this.keys(x, z));
     // 2026-09-29 (Steve: "we should also be able to jump in boats from the quay wall, now we just stop moving at
     // that place"): Space on the quay's edge over a small boat jumps down into her
+    const prevJump = player.onJump; // (the others that use Space first: a rolling omnibus, game/ride.ts)
     player.onJump = () => {
+      if (prevJump?.()) return true;
       const j = this.jumpable(player.x, player.z, -Math.sin(player.yaw), -Math.cos(player.yaw));
       if (!j) return false;
       void this.board(j.l, { step: true, jump: true });

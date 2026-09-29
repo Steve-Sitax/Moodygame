@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import SKY_BOX from "../../public/textures/skyshade.json";
 
 // PS1-style material patch: vertex snap, affine texture warp, and fog that
 // picks up warm light from the gas lamps (analytic in-scatter per lamp).
@@ -42,13 +43,27 @@ const lightsBeginCapped = (() => {
   const head = "#if ( NUM_POINT_LIGHTS > 0 ) && defined( RE_Direct )";
   const out = src
     .replace(line, `${line}\n\t\tdirectLight.color *= psxLampCap( pointLight.decay, dot( normalize( geometryPosition - pointLight.position ), psxUpView ) );`)
-    .replace(head, `vec3 psxUpView = normalize( ( viewMatrix * vec4( 0.0, 1.0, 0.0, 0.0 ) ).xyz );\n${head}`);
+    .replace(head, `vec3 psxUpView = normalize( ( viewMatrix * vec4( 0.0, 1.0, 0.0, 0.0 ) ).xyz );\n${head}`)
+    // the sun kept off by the houses between it and the point (psxSunShadow, 2026-09-30)
+    .replace(
+      "getDirectionalLightInfo( directionalLight, directLight );",
+      "getDirectionalLightInfo( directionalLight, directLight );\n\t\tdirectLight.color *= psxSunShadow( normalize( ( vec4( geometryNormal, 0.0 ) * viewMatrix ).xyz ) );",
+    );
   if (!out.includes("psxLampCap") || !out.includes("vec3 psxUpView")) {
     console.warn("psx: three.js's light loop changed; the gas lamps have no cap");
     return src;
   }
   return out;
 })();
+
+/** A 1 x 1 white picture: a sampler's stand-in until its own picture is in. */
+function whiteTex(): THREE.DataTexture {
+  const t = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1);
+  t.needsUpdate = true;
+  return t;
+}
+/** The sky map in use (1) or not (0): uSkyOn. How much of the sky's light the houses keep off is in psxSkyShade. */
+export const SKY_SHADE = 1;
 
 export const psxUniforms = {
   uSnapRes: { value: new THREE.Vector2(240, 135) },
@@ -75,6 +90,17 @@ export const psxUniforms = {
   /** Grime and mud on the paving, 1 px per metre (world/dirt.ts), and where it lies: x0, z0, w, h. */
   uDirt: { value: null as THREE.Texture | null },
   uDirtBox: { value: new THREE.Vector4(-348, -80, 556, 388) }, // world/dirt.ts sets it from world/townBox.ts
+  /**
+   * The sky over the streets (2026-09-29, tools/city/skyshade.mjs): R the sky a point on the ground sees past the houses,
+   * G the houses' height round it / 25 m; where it lies (x0, z0, w, h); how much of it to use (0 until it is in).
+   */
+  uSkyShade: { value: whiteTex() as THREE.Texture },
+  uSkyBox: { value: new THREE.Vector4(SKY_BOX.x0, SKY_BOX.z0, SKY_BOX.w, SKY_BOX.h) },
+  uSkyOn: { value: 0 },
+  /** The way to the sun, world (world/rijnkaai.ts): psxSunShadow looks along it over the houses' heights. */
+  uSunDir: { value: new THREE.Vector3(0, 1, 0) },
+  /** How hard the houses' shadows are: a clear day's sun 1, a fog day's glow about 0.3 (world/rijnkaai.ts). */
+  uSunShade: { value: 1 },
   /**
    * The gale (main.ts): the way the wind blows (x, z) and how hard it bends the trees now (0 any calm day; about 0.4 a
    * storm day; up to 3 in the great storm's gusts). The trees lean downwind with it (world/trees3d.ts, rampartNature.ts).
@@ -633,6 +659,46 @@ varying vec3 vPsxWorld;
 #ifdef USE_MAP
 varying vec3 vAffineUv;
 #endif
+uniform sampler2D uSkyShade;
+uniform vec4 uSkyBox;
+uniform float uSkyOn;
+uniform vec3 uSunDir;
+uniform float uSunShade;
+// The sun past the houses (2026-09-30): from the point toward the sun, every 2 m out to 40 m, is a house's height (the
+// sky map's blue) over the ray there? Then the point is in that house's shadow, with a soft edge of half a metre. The
+// start is a little out along its facing, so a wall in the sun is not shaded by its own house.
+float psxSunShadow(vec3 nw) {
+  if (uSkyOn <= 0.0 || uSunDir.y <= 0.02) return 1.0;
+  vec3 p = vPsxWorld + nw * 0.3;
+  float along = length(uSunDir.xz);
+  if (along < 1e-3) return 1.0;
+  vec2 d = uSunDir.xz / along;
+  float rise = uSunDir.y / along;
+  float lit = 1.0;
+  for (int i = 1; i <= 20; i++) {
+    float s = float(i) * 2.0;
+    vec2 uv = (p.xz + d * s - uSkyBox.xy) / uSkyBox.zw;
+    if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) break;
+    float over = texture2D(uSkyShade, uv).b * 30.0 - (p.y + s * rise);
+    lit = min(lit, 1.0 - smoothstep(-0.5, 0.5, over));
+    if (lit <= 0.0) break;
+  }
+  return mix(1.0, lit, uSkyOn * uSunShade);
+}
+// The sky seen past the houses (tools/city/skyshade.mjs): the street's floor in a narrow lane sees a strip of it, the
+// wall's foot there a little more (its own half of the sky is already left out by its facing), the eaves all of it.
+float psxSkyShade(vec3 nw) {
+  if (uSkyOn <= 0.0) return 1.0;
+  vec2 uv = (vPsxWorld.xz + nw.xz * 0.7 - uSkyBox.xy) / uSkyBox.zw;
+  if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) return 1.0;
+  vec4 s = texture2D(uSkyShade, uv);
+  float up = s.g > 0.01 ? clamp(vPsxWorld.y / (s.g * 25.0), 0.0, 1.0) : 1.0;
+  // (2026-09-30, the fog-day picture: a lane went nearly night-dark) the air's own light: never under 30 % of the sky,
+  // and 65 % of the difference; the sun's shadows (psxSunShadow) carry the contrast on a bright day
+  float r = max(s.r, 0.3);
+  float v = mix(clamp(r * 2.0, 0.0, 1.0), r, abs(nw.y));
+  return mix(1.0, mix(v, 1.0, up * up), 0.65 * uSkyOn);
+}
 
 ${LAMP_SCATTER_GLSL}
 // Mirror image of a lamp on the water: only the sharp core, no wide wash.
@@ -689,6 +755,11 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
     shader.uniforms.uScatter = psxUniforms.uScatter;
     shader.uniforms.uAffine = { value: affine };
     shader.uniforms.uBumpRes = psxUniforms.uBumpRes;
+    shader.uniforms.uSkyShade = psxUniforms.uSkyShade;
+    shader.uniforms.uSkyBox = psxUniforms.uSkyBox;
+    shader.uniforms.uSkyOn = psxUniforms.uSkyOn;
+    shader.uniforms.uSunDir = psxUniforms.uSunDir;
+    shader.uniforms.uSunShade = psxUniforms.uSunShade;
     if (opts.vary || opts.foot || opts.mottle) {
       shader.uniforms.uDirt = psxUniforms.uDirt;
       shader.uniforms.uDirtBox = psxUniforms.uDirtBox;
@@ -1136,7 +1207,7 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
       material.diffuseColor /= psxBumpK;
       ${lightsBeginCapped}
       #if defined( RE_IndirectDiffuse )
-      irradiance *= psxBumpK;
+      irradiance *= psxBumpK * psxSkyShade(normalize((vec4(geometryNormal, 0.0) * viewMatrix).xyz));
       #endif`,
       );
       // (the gas lamps' cap on their point lights: psxLampCap, defined once before main)
@@ -1910,3 +1981,15 @@ export function bumpFromMap<T extends THREE.Material>(mat: T, depth = 0.01, shar
   m.needsUpdate = true;
   return mat;
 }
+
+// the sky over the streets (psxSkyShade): used once its picture is in (in a page only: the tests load this module in Node)
+if (typeof document !== "undefined") new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}textures/skyshade.png`, (t) => {
+  t.colorSpace = THREE.NoColorSpace;
+  t.minFilter = t.magFilter = THREE.LinearFilter;
+  t.generateMipmaps = false;
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+  t.flipY = false; // row 0 is the river's side (z0), as the box says
+  t.needsUpdate = true;
+  psxUniforms.uSkyShade.value = t;
+  psxUniforms.uSkyOn.value = SKY_SHADE;
+});

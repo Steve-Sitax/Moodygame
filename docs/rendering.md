@@ -98,6 +98,16 @@ the spilt light), so a stone is lit on the side toward a light and shaded on the
   walls, drawn as quads that multiply what is under them (`dst * (1 + src)`), plus additive shafts. No light, no shadow
   map. A new hall with windows gives its windows, piers, arcade walls and galleries to `buildHallSun`.
 
+## Daylight and the houses' shadows (2026-09-30)
+
+Steve: "Lighting during day is flat, is it realistic to have more shadow play?" Four parts, no new light and no new shader kind:
+- The sun follows its October path over Antwerp (`sunAt` in world/rijnkaai.ts): up in the south-east, about 33 degrees at noon, down in the west. On clear and misty days the sky light is lower and the sun stronger; a fog day keeps its even light.
+- `tools/city/skyshade.mjs` bakes `client/public/textures/skyshade.png` (1 m a pixel, over the town box) from the houses' footprints and eaves (shared/city_build.json) and the landmarks: red the sky a point on the ground sees, green the houses' height round it, blue the houses' own height. Run it again after the houses change.
+- `psxSkyShade` (retro/psx.ts) scales only the sky's and ambient light by the red, never under 30 % and at 65 % strength, fading up the walls. `psxSunShadow` walks 20 steps of 2 m toward the sun over the blue and dims only the sun (`directLight.color` of the directional light), hard on a clear day, 30 % in fog (`uSunShade`).
+- world/blobs.ts: one instanced soft dark patch under the walkers, Jef, the handcarts and the drays within 45 m (one draw).
+
+Measured: no frame cost above the noise (Grote Markt, 3 runs each, on 38.5 ms, off 39.7 ms on a busy PC).
+
 ## Frame time
 The frame budget, where the time goes, the rules for new models, textures, materials, mirrors and every-frame logic,
 and how to prove a speed change: [performance.md](performance.md).

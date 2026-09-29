@@ -1922,9 +1922,28 @@ export function buildRijnkaai(): World {
   const SUN_GOLD = new THREE.Color(0xffa24a);
   const SKY_COLD = new THREE.Color(0x8494a6);
   const SKY_WARM = new THREE.Color(0xb49a7c);
-  const SUN_HIGH = new THREE.Vector3(-0.75, 0.9, 0.55);
-  const SUN_LOW = new THREE.Vector3(-0.95, 0.38, 0.35);
   const sunDir = new THREE.Vector3();
+  /** The sky's light by the clock's table (applyDaylight), before the weather's share of it (update). */
+  let skyBase = 1;
+  /**
+   * The sun's way over Antwerp in October (2026-09-29, Steve: "Lighting during day is flat"): up in the south-east, about
+   * 33 degrees at noon, down in the west-south-west; the direction toward it in the world (north is 21 degrees off the
+   * world's axes: shared/city.json frame). Below 6 degrees it lights as at 6: the clock's table takes it away by then.
+   */
+  const SUN_DECL = (-6 * Math.PI) / 180;
+  const SUN_LAT = (51.22 * Math.PI) / 180;
+  const FRAME_TH = (((CITY_DATA as unknown as { frame?: { thetaDeg?: number } }).frame?.thetaDeg ?? 21) * Math.PI) / 180;
+  function sunAt(h: number, out: THREE.Vector3): THREE.Vector3 {
+    const ha = ((h - 11.8) * 15 * Math.PI) / 180;
+    const sinEl = Math.sin(SUN_LAT) * Math.sin(SUN_DECL) + Math.cos(SUN_LAT) * Math.cos(SUN_DECL) * Math.cos(ha);
+    const el = Math.max((6 * Math.PI) / 180, Math.asin(sinEl));
+    const az = Math.atan2(Math.sin(ha), Math.cos(ha) * Math.sin(SUN_LAT) - Math.tan(SUN_DECL) * Math.cos(SUN_LAT)) + Math.PI;
+    const e = Math.cos(el) * Math.sin(az);
+    const n = Math.cos(el) * Math.cos(az);
+    const s = Math.sin(FRAME_TH);
+    const c = Math.cos(FRAME_TH);
+    return out.set(e * s + n * c, Math.sin(el), e * c - n * s);
+  }
   function goldenAt(h: number): number {
     const bump = (h: number, a: number, peak0: number, peak1: number, b: number) =>
       h <= a || h >= b ? 0 : h < peak0 ? THREE.MathUtils.smoothstep(h, a, peak0) : h <= peak1 ? 1 : 1 - THREE.MathUtils.smoothstep(h, peak1, b);
@@ -1946,8 +1965,9 @@ export function buildRijnkaai(): World {
     fog.color.copy(fogFrom.setHex(c0)).lerp(fogTo.setHex(c1), k);
     baseFog.copy(fog.color);
     (scene.background as THREE.Color).copy(fog.color);
-    skyLight.intensity = THREE.MathUtils.lerp(s0, s1, k);
-    sunDay = Math.max(0, (skyLight.intensity - 0.55) / 1.55);
+    skyBase = THREE.MathUtils.lerp(s0, s1, k);
+    skyLight.intensity = skyBase;
+    sunDay = Math.max(0, (skyBase - 0.55) / 1.55);
     dayFar = THREE.MathUtils.lerp(f0, f1, k);
     lampsLit = THREE.MathUtils.lerp(l0, l1, k);
   }
@@ -2044,13 +2064,20 @@ export function buildRijnkaai(): World {
     (scene.background as THREE.Color).copy(fog.color);
     sun.color.copy(SUN_WHITE).lerp(SUN_GOLD, gold);
     skyLight.color.copy(SKY_COLD).lerp(SKY_WARM, gold * 0.55);
-    sun.position.copy(sunDir.copy(SUN_HIGH).lerp(SUN_LOW, gold));
+    sun.position.copy(sunAt(dayNow, sunDir));
+    psxUniforms.uSunDir.value.copy(sunDir).normalize(); // (the houses' shadows in the shader: retro/psx.ts psxSunShadow)
+    // a clear or misty day: less light from the sky, more from the sun, so the sunny side and the shaded side differ
+    // as they do (a fog day keeps its even grey light)
+    const bright = THREE.MathUtils.clamp(wNow[3] / 0.6, 0, 1);
+    skyLight.intensity = skyBase * (1 - 0.28 * sunDay * bright);
+    // the houses' shadows: hard in a clear day's sun, soft in the glow through fog (retro/psx.ts psxSunShadow)
+    psxUniforms.uSunShade.value = 0.3 + 0.7 * bright;
     // (package 4: the clouds, round the air's colour now; the warm band where the evening sun goes down)
-    pt("world.cloudSky", () => cloudSky.update(dt, t, fog.color, dayNow, weatherNow, wNow[3], skySunXZ.set(SUN_LOW.x, SUN_LOW.z)));
+    pt("world.cloudSky", () => cloudSky.update(dt, t, fog.color, dayNow, weatherNow, wNow[3], skySunXZ.set(sunDir.x, sunDir.z)));
     pt("world.works", () => works.update(t, dt, dayNow, weatherNow, fog.color));
     // the sun: nothing at night, a glow through fog, real light on a clear day (warmer and a
     // little stronger in the golden hour: the low light is what shows)
-    sun.intensity = sunDay * (1.35 - wNow[2]) * 2.6 * (1 + 0.8 * gold) * (1 - 0.7 * tempest.level);
+    sun.intensity = sunDay * (1.35 - wNow[2]) * 2.6 * (1 + 0.8 * gold) * (1 - 0.7 * tempest.level) * (1 + 0.25 * bright);
     psxUniforms.uScatter.value = SCATTER * wNow[2];
     // the job twist "thick fog" always closes in, whatever the weather
     fog.near = THREE.MathUtils.lerp(3 * wNow[0] * tuning.viewFar, 1.5, fogMix) * (1 - 0.45 * tempest.level);

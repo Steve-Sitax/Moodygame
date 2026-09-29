@@ -8,6 +8,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 ## [Unreleased]
 
 ### New in the game
+- Daylight has shadow play: the houses throw shadows into the streets and onto the squares, narrow lanes are dimmer at their foot, and people, carts and drays have a soft shadow under them. The sun follows its real October path, from the south-east in the morning to the west in the evening. On fog days the light stays soft.
+- Jump onto a rolling omnibus: run up to its back step and press Space (or E). The conductor comes for the fare: pay, or he curses and puts you off.
 - The town map shows places as small icons. Point at one to see its name, how far it is and which way. The key in the map's corner turns each kind on and off: your job, work, events, food and markets, taverns, shops, services, beds, churches and sights, water pumps, street names. Names no longer print on top of each other.
 - Jump over railings, crates and low walls: hold Space at the obstacle, or jump and press Space again near the top. Over a railing by the water you land in the river and swim.
 - Jump down into a small boat from the quay: face her and press Space (or E). You land on the seat, ready to row.
