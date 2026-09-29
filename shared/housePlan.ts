@@ -74,6 +74,13 @@ export const LANE = 1.1;
 export const LANDING = 1.2;
 /** A home's own door in its back wall, onto the landing (wide enough for a body with the walk's 0.45 m round it). */
 export const ROOM_DOOR = 1.1;
+/**
+ * A shop in a deep house (more than SHOP_DEEP m inside) is its front SHOP_FRONT m: its back room stays behind a
+ * partition with a shut door (world/shopRooms.ts), and is no floor to walk (issue #10: the interior check found the
+ * back rooms' floors reached by no one).
+ */
+export const SHOP_DEEP = 8.2;
+export const SHOP_FRONT = 6.6;
 
 export interface HouseFrame {
   origin: { x: number; z: number };
@@ -305,6 +312,18 @@ const onto = (r: Rect, m: number): Rect => ({ ...r, minZ: r.minZ - m, maxZ: r.ma
 const stepsFor = (dy: number) => Math.max(2, Math.ceil(Math.abs(dy) / 0.19));
 
 /**
+ * Steps for a flight of `run` m (issue #10, the interior check): as stepsFor, and never more than a step's reach
+ * (hallPlan STEP, 0.36) climbed in 0.25 m along it, so a walk on the 0.25 m grid (the people's, the interior check's
+ * flood) goes up a step or two at a time (docs/building-with-interior.md: a 45 degree stair, 0.18 a step at most).
+ * The homes' 4 m flights of 3 to 3.6 m had 0.181 to 0.188 m steps 0.2 m apart: 0.25 m climbed two of them, 0.362.
+ */
+const flightSteps = (dy: number, run: number) => {
+  let n = stepsFor(dy);
+  while (Math.ceil(0.25 / (run / n) - 1e-9) * (Math.abs(dy) / n) > 0.36 - 0.005) n++;
+  return n;
+};
+
+/**
  * The whole plan of one house. `gh`, `sh`: the city's ground storey and storey heights (city_build.json).
  * `room`: a home's class (shared/homes.ts), for kind "home".
  */
@@ -348,7 +367,8 @@ export function housePlan(entry: InworldEntry, h: CityHouse, gh: number, sh: num
             if (Math.min(za, zb) > 0.6 && Math.max(za, zb) < f.depth - 1.8) addHole(wall, g.s0, g.s1, g.y0, g.y1);
           }
         }
-    levels.push({ y: SILL, floors: [R(-hw, hw, -0.12, REVEAL), { ...roomRect }], solids: [] });
+    const shopFront = entry.kind === "shop" && roomRect.maxZ - roomRect.minZ > SHOP_DEEP ? { ...roomRect, maxZ: roomRect.minZ + SHOP_FRONT } : { ...roomRect };
+    levels.push({ y: SILL, floors: [R(-hw, hw, -0.12, REVEAL), shopFront], solids: [] });
   } else if (entry.kind === "cellar") {
     // the Poesje: a landing inside the door, a flight down along the door's line, the cellar hall below
     const lane = R(clamp(-0.5, inner.minX, inner.maxX - 1.0), clamp(0.5, inner.minX + 1.0, inner.maxX), 0, 0);
@@ -435,7 +455,7 @@ export function housePlan(entry: InworldEntry, h: CityHouse, gh: number, sh: num
       for (let i = 1; i < ys.length; i++) {
         const y0 = ys[i - 1];
         const y1 = ys[i];
-        const n = stepsFor(y1 - y0);
+        const n = flightSteps(y1 - y0, FLIGHT);
         const odd = i % 2 === 1;
         const lane = odd ? laneA : laneB;
         const rect = R(lane.minX, lane.maxX, zL1, zB0);

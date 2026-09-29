@@ -858,7 +858,9 @@ export function buildCellar(opts: { plan: HousePlan }): Room {
   const seats: Seat[] = [];
   const foot: [number, number] = [(lane.minX + lane.maxX) / 2, fl.foot + 0.35];
   let row = 0;
-  for (let z = BZ - 1.3; z > fl.foot + 0.6; z -= 1.0) {
+  // (issue #10, the interior check: the rows 6 cm nearer the booth than they were, so the aisle is reached from the
+  // flight's foot on the people's 0.25 m grid; at BZ - 1.3 the first row left it 1 cm short, 58 places no one reached)
+  for (let z = BZ - 1.24; z > fl.foot + 0.6; z -= 1.0) {
     box(bench0, bench1, FY + 0.4, 0.05, z - 0.15, z + 0.15, wood, { tile: 0.8, solid: true });
     for (const x of [bench0 + 0.1, bench1 - 0.1]) box(x - 0.03, x + 0.03, FY, 0.4, z - 0.12, z + 0.12, dark);
     const k = Math.max(2, Math.floor((bench1 - bench0) / 0.85));

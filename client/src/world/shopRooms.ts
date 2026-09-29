@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { psx } from "../retro/psx";
-import type { HousePlan } from "../../../shared/housePlan";
+import { SHOP_DEEP, SHOP_FRONT, type HousePlan } from "../../../shared/housePlan";
 import { SHOP_LOOK, type ShopTrade } from "../../../shared/shops";
 import { ambientOf, Builder, flicker, frameRoom, holesOn, lambert, mat, mergeStatic, plaster, rand, rectsOf, tex, wallFace, type Room, type Seat, type Spot } from "./rooms";
 import { boardTex, checkerTex, clockFaceTex, Kit, M, marbleTex, mirrorTex, paintingTex, paintMat, picMat, posterTex, rowTex, whiteTilesTex } from "./interiorKit";
@@ -945,7 +945,7 @@ export function buildShop(opts: { plan: HousePlan; trade: ShopTrade; label: stri
   const r = rand(opts.seed);
   const { minX: x0, maxX: x1, minZ: z0, maxZ: zHouse } = I;
   // a deep house keeps its back room behind a partition with a door: the shop is the front 6.6 m
-  const z1 = zHouse - z0 > 8.2 ? z0 + 6.6 : zHouse;
+  const z1 = zHouse - z0 > SHOP_DEEP ? z0 + SHOP_FRONT : zHouse;
   // the counter along the side wall nearer the door, as in the taprooms; but when the door is close to that wall
   // (a narrow shop with its door in the side bay) along the other one, so the way in from the door stays free
   const near0 = x1 < -x0 ? 1 : -1;

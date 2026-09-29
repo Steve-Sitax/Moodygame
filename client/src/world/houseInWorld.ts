@@ -89,6 +89,19 @@ function quad(list: THREE.BufferGeometry[], p: Array<[number, number, number]>, 
 }
 
 /**
+ * A quad facing a point (issue #10: the reveals of a window or a door face into the opening, whichever way its wall
+ * runs; before, a hole cut along -x had its room-side reveals facing into the wall, culled, so from the street the
+ * room showed past the reveal where it turned).
+ */
+function quadToward(list: THREE.BufferGeometry[], p: Array<[number, number, number]>, toward: [number, number, number]): void {
+  const e1 = [p[1][0] - p[0][0], p[1][1] - p[0][1], p[1][2] - p[0][2]];
+  const e2 = [p[2][0] - p[0][0], p[2][1] - p[0][1], p[2][2] - p[0][2]];
+  const n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+  const v = [toward[0] - p[0][0], toward[1] - p[0][1], toward[2] - p[0][2]];
+  quad(list, n[0] * v[0] + n[1] * v[1] + n[2] * v[2] >= 0 ? p : [p[3], p[2], p[1], p[0]]);
+}
+
+/**
  * A flat face [u0, u1] x [y0, y1] with rectangular holes ([ua, ub, ya, yb] each) left open, as quads into a list;
  * `pt(u, y)` gives the local point of face coordinates u (along) and y (up).
  */
@@ -273,9 +286,10 @@ export function createHouseInWorld(world: World, inWorld: InWorld, plan: HousePl
   {
     const l = -d.hw;
     const r = d.hw;
-    quad(revealGeos, [[l, 0, 0], [l, 0, R], [l, dp.yt, R], [l, dp.yt, 0]]);
-    quad(revealGeos, [[r, 0, R], [r, 0, 0], [r, dp.yt, 0], [r, dp.yt, R]]);
-    quad(revealGeos, [[l, dp.yt, 0], [l, dp.yt, R], [r, dp.yt, R], [r, dp.yt, 0]]);
+    const mid: [number, number, number] = [0, dp.yt / 2, R / 2];
+    quadToward(revealGeos, [[l, 0, 0], [l, 0, R], [l, dp.yt, R], [l, dp.yt, 0]], mid);
+    quadToward(revealGeos, [[r, 0, R], [r, 0, 0], [r, dp.yt, 0], [r, dp.yt, R]], mid);
+    quadToward(revealGeos, [[l, dp.yt, 0], [l, dp.yt, R], [r, dp.yt, R], [r, dp.yt, 0]], mid);
     quad(revealGeos, [[l, dp.hs, -0.1], [r, dp.hs, -0.1], [r, dp.hs, R + 0.02], [l, dp.hs, R + 0.02]]);
     quad(revealGeos, [[l, 0, -0.1], [r, 0, -0.1], [r, dp.hs, -0.1], [l, dp.hs, -0.1]]);
   }
@@ -287,10 +301,11 @@ export function createHouseInWorld(world: World, inWorld: InWorld, plan: HousePl
     const wf = winFrame(w);
     const P = (s: number, y: number, dd: number): [number, number, number] => [wf.ax + wf.tx * s - wf.ox * dd, y, wf.az + wf.tz * s - wf.oz * dd];
     const L = wf.len;
-    quad(revealGeos, [P(0, w.y0, 0), P(0, w.y0, R), P(0, w.y1, R), P(0, w.y1, 0)]);
-    quad(revealGeos, [P(L, w.y0, R), P(L, w.y0, 0), P(L, w.y1, 0), P(L, w.y1, R)]);
-    quad(revealGeos, [P(0, w.y1, 0), P(0, w.y1, R), P(L, w.y1, R), P(L, w.y1, 0)]);
-    quad(revealGeos, [P(0, w.y0, R), P(0, w.y0, 0), P(L, w.y0, 0), P(L, w.y0, R)]);
+    const mid = P(L / 2, (w.y0 + w.y1) / 2, R / 2);
+    quadToward(revealGeos, [P(0, w.y0, 0), P(0, w.y0, R), P(0, w.y1, R), P(0, w.y1, 0)], mid);
+    quadToward(revealGeos, [P(L, w.y0, R), P(L, w.y0, 0), P(L, w.y1, 0), P(L, w.y1, R)], mid);
+    quadToward(revealGeos, [P(0, w.y1, 0), P(0, w.y1, R), P(L, w.y1, R), P(L, w.y1, 0)], mid);
+    quadToward(revealGeos, [P(0, w.y0, R), P(0, w.y0, 0), P(L, w.y0, 0), P(L, w.y0, R)], mid);
     quad(punchGeos, [P(0.01, w.y0 + 0.01, 0), P(L - 0.01, w.y0 + 0.01, 0), P(L - 0.01, w.y1 - 0.01, 0), P(0.01, w.y1 - 0.01, 0)]);
     // the pane, 0.1 in, and its bars: one upright, two across, a frame
     quad(glassGeos, [P(0, w.y0, 0.1), P(L, w.y0, 0.1), P(L, w.y1, 0.1), P(0, w.y1, 0.1)]);
@@ -362,6 +377,29 @@ export function createHouseInWorld(world: World, inWorld: InWorld, plan: HousePl
     const [mx, mz] = toW(...e(wf.len / 2, 0));
     const [nx, nz] = toW(...e(wf.len / 2, 1));
     openings.push({ kind: "window", label: `${plan.id} window`, box, inBox: box, centre: new THREE.Vector3(mx, plan.floorY + (w.y0 + w.y1) / 2, mz), out: new THREE.Vector3(nx - mx, 0, nz - mz).normalize(), open: () => true });
+  }
+  // ---- issue #10: the shell's openings as markers for the interior check (dev/interiorcheck.ts), as a Blender shell
+  // writes them (docs/building-with-interior.md). The city house's holes and its door are cut by
+  // tools/blender/build_city.py from shared/inworld_build.json, which is this plan's (server/test/houses-inworld.test.ts:
+  // "the Blender build's spec is the plan's"): the same numbers, written here; the check then looks through the city's
+  // own mesh at each of them.
+  {
+    const mark = (id: string, kind: "door" | "window", label: string, a: [number, number], b: [number, number], out: [number, number], yb: number, yt: number) => {
+      const [ax, az] = toW(...a);
+      const [bx, bz] = toW(...b);
+      const [ox2, oz2] = toW(a[0] + out[0], a[1] + out[1]);
+      const len = Math.hypot(bx - ax, bz - az);
+      const e = new THREE.Object3D();
+      e.name = `opening_${id}`;
+      e.position.set((ax + bx) / 2, plan.floorY + (yb + yt) / 2, (az + bz) / 2);
+      e.userData = { kind, label, glaze: kind === "window" ? "sash" : "", shape: "rect", hw: len / 2, yb: plan.floorY + yb, yt: plan.floorY + yt, tx: (bx - ax) / len, tz: (bz - az) / len, nx: ox2 - ax, nz: oz2 - az, depth: R, arch: 0 };
+      markers.add(e);
+    };
+    const markers = new THREE.Group();
+    markers.name = `house_${plan.id}_openings`;
+    world.scene.add(markers);
+    mark(`${plan.id}_door`, "door", `${plan.id}, the street door`, [-d.hw, 0], [d.hw, 0], [0, -1], 0, dp.yt);
+    holes.forEach((w, i) => mark(`${plan.id}_w${i}`, "window", `${plan.id}, window ${i + 1}`, w.a, w.b, w.out, w.y0, w.y1));
   }
   // ---- the lit room's light on the street (world/spill.ts): each window, and the door while it stands open
   const litKind: SpillKind = plan.kind === "shop" ? "shop" : plan.kind === "tavern" ? "tavern" : "room";

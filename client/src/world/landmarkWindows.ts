@@ -274,6 +274,24 @@ export function createLandmarkWindows(scene: THREE.Scene): LandmarkWindows {
     return top.name || o.name || "?";
   };
 
+  /** The lowest glass of the building a mesh belongs to: every mesh under its top group with a glass rule's material. */
+  function glassFloor(mesh: THREE.Mesh): number {
+    let top: THREE.Object3D = mesh;
+    while (top.parent && top.parent !== scene) top = top.parent;
+    let y = Infinity;
+    const bb = new THREE.Box3();
+    top.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh || m.name.endsWith("_window_light")) return;
+      const list = Array.isArray(m.material) ? m.material : [m.material];
+      if (!list.some((q) => q && ruleOf(q) && !ruleOf(q)!.cells)) return;
+      m.geometry.computeBoundingBox();
+      m.updateWorldMatrix(true, false);
+      y = Math.min(y, bb.copy(m.geometry.boundingBox!).applyMatrix4(m.matrixWorld).min.y);
+    });
+    return y;
+  }
+
   function build(mesh: THREE.Mesh): boolean {
     const g = mesh.geometry;
     const P = g.getAttribute("position") as THREE.BufferAttribute | undefined;
@@ -419,7 +437,9 @@ export function createLandmarkWindows(scene: THREE.Scene): LandmarkWindows {
       });
       win.clear();
       for (const [k, w] of whole) win.set(k, w);
-      const minY = Math.min(...[...win.values()].map((w) => w.box.min.y));
+      // (issue #10: a shell's glass may be two meshes, the drawn panes and the real windows' "_lit" ones: the storeys and
+      // the low windows that light the street are counted from the lowest glass of the whole building, as before)
+      const minY = Math.min(...[...win.values()].map((w) => w.box.min.y), glassFloor(mesh));
       const windows: Win[] = [];
       const full = new Float32Array(tris.length * 3);
       for (const w of win.values()) {

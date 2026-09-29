@@ -338,9 +338,12 @@ function checkOne(scene: THREE.Scene, T: CheckTarget, markers: Marker[]): Interi
       else if (toRoom === 0 && toNothing) problems.push(`${L}: nothing behind it (the street's sky or its fog shows through)`);
       else if (toRoom < pts.length * 0.3) problems.push(`${L}: the room shows through only ${toRoom} of ${pts.length} rays`);
       // the room's lining meets the shell's reveal: from just behind the reveal's back, sideways and down, the room is near
+      // (issue #10: or, for a room that draws its own reveal from the shell's face to its wall, a city house's single
+      // faced walls, just in front of the reveal's back: its own reveal is there, no gap between the two)
       if (m.shape === "rect" || m.shape === "round") {
         const mid = m.shape === "round" ? m.c.y : (m.yb + Math.min(m.yt, m.arch ? m.yt - m.hw : m.yt)) / 2;
         const back = new THREE.Vector3(m.c.x, mid, m.c.z).addScaledVector(m.n, -(m.depth + 0.04));
+        const front = m.depth > 0.06 ? new THREE.Vector3(m.c.x, mid, m.c.z).addScaledVector(m.n, -(m.depth - 0.04)) : null;
         const reachSide = (m.shape === "round" ? (m.r ?? m.hw) : m.hw) + 0.1;
         const dirs: Array<[THREE.Vector3, number, string]> = [
           [m.t.clone(), reachSide, "along"],
@@ -348,7 +351,7 @@ function checkOne(scene: THREE.Scene, T: CheckTarget, markers: Marker[]): Interi
           [up.clone().negate(), mid - (m.shape === "round" ? m.c.y - (m.r ?? m.hw) : m.yb) + 0.1, "down"],
         ];
         if (!(m.kind === "door")) for (const [d, far, what] of dirs) {
-          const h = grid.cast(back, d, far, (t) => t.room && !t.glass)[0];
+          const h = grid.cast(back, d, far, (t) => t.room && !t.glass)[0] ?? (front ? grid.cast(front, d, far, (t) => t.room && !t.glass)[0] : undefined);
           if (!h) {
             problems.push(`${L}: a gap between the shell's reveal and the room's wall (${what}, at ${fmt(back)}): the street shows there`);
             break;
@@ -414,8 +417,9 @@ function checkOne(scene: THREE.Scene, T: CheckTarget, markers: Marker[]): Interi
     if (report.registered.windows > 0) problems.push(`its room has ${report.registered.windows} windows but the shell shows no opening markers (not loaded yet, or an older shell): run the check again`);
     if (panes.size) problems.push(`the shell has no opening markers; ${panes.size} places of its glass over the room are the shell's panes, not windows of the room (e.g. at ${[...panes.values()].slice(0, 3).map((p) => fmt(p.c)).join("; ")})`);
     else notes.push("the shell has no opening markers (an older shell): only its doors are known");
-    for (const p of T.painted ?? []) problems.push(`${p.label}: a painted window over the room (lit at night), not a real one`);
   }
+  // (issue #10: with or without markers: a house's painted windows over its room are never real ones)
+  for (const p of T.painted ?? []) problems.push(`${p.label}: a painted window over the room (lit at night), not a real one`);
   // walking: every walkable floor of the plan is reached on foot from its doors
   if (T.plan && !T.locked) {
     const miss = walkIslands(T.plan);
