@@ -44,21 +44,23 @@ export interface LineDef {
 /** The round along the quays. Checked on the walk map: all open ground. */
 export const QUAY_ROUTE: P[] = [
   [-305, 29.5], [-305, 8.3], [-158, 8.3], [-152, 7.6], [-140, 7.6], [-134, 8.3], [-90, 8.3], [-84, 7.8], [-68, 7.8],
-  [-62, 8.3], [66, 8.3], [76, 15], [76, 37], [-54, 37], [-58, 33], [-58, 12], [-62, 8.3], [-204, 8.3], [-204, 29.5],
+  [-62, 8.3], [66, 8.3], [76, 15], [76, 37], [-54, 37], [-58, 33], [-58, 12], [-62, 8.3],
+  // The return passes the Vliet bridge's post on the same clear bend as the outward trip.
+  [-134, 8.3], [-140, 7.6], [-152, 7.6], [-158, 8.3], [-204, 8.3], [-204, 29.5],
   // (M3i: the Steen stands on the promontory again, restored as in 1890; the round turns inland over the Steenplein)
 ];
 
 /**
  * The Grote Markt ring (a one-way loop; at least 2.0 m from the lane's middle to any wall all round,
  * every corner rounded). In the two-way stretches it keeps its own lane: the canal quay (south at
- * x -89.5, north at x -84.5), the wide street west of the Vleeshuis (x -149 and -145), the street into
+ * x -88.8, north at x -84.5), the wide street west of the Vleeshuis (x -149 and -145), the street into
  * the Handschoenmarkt (west at z 126.2, east at z 129.8), and (M7) the Handschoenmarkt's west end
  * (out at z 132, back at z 139; along the street south of the cathedral out at x -307.8, back at x -304.5). M7: from the Grote Markt it goes out by the gate road (z 150) to the
  * Sint-Jorispoort, along the wall street (x -355 to -361), through the lane at z 247 and back along
  * the cathedral's south side (x -304.5), past the Stadspark's corner.
  */
 export const TOWN_ROUTE: P[] = [
-  [-84.5, 20], [-96, 20], [-96, 38], [-89.5, 45], [-89.5, 114], [-149, 114], [-149, 126.2], [-238, 126.2], [-238, 70],
+  [-84.5, 20], [-96, 20], [-96, 38], [-88.8, 45], [-88.8, 114], [-149, 114], [-149, 126.2], [-238, 126.2], [-238, 70],
   [-280, 70], [-280, 132], [-307.8, 132], [-307.8, 150.5], [-356.5, 149.8], [-361, 214], [-358, 249], [-304.5, 245.5], [-304.5, 139],
   [-275, 139], [-265, 129.8], [-145, 129.8], [-145, 208.5], [-84.5, 208.5],
 ];

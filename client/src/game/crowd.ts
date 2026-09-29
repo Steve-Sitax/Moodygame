@@ -679,6 +679,24 @@ export class Crowd {
   private readonly pool = new Map<HumanKind, Human[]>();
   private readonly grid: NavGrid;
   private readonly budget: number;
+  /** Dev stress load, separate from the named residents and the saved population settings. */
+  private stressMultiplier = 1;
+  private stressBase = 50;
+  private readonly stressPeople = new Set<Person>();
+
+  get stress() {
+    return { multiplier: this.stressMultiplier, base: this.stressBase, extra: this.stressPeople.size, target: (this.stressMultiplier - 1) * this.stressBase };
+  }
+
+  setStressMultiplier(multiplier: number, base = this.stressBase): void {
+    this.stressMultiplier = Number.isFinite(multiplier) ? Math.max(1, Math.min(100, Math.round(multiplier))) : 1;
+    this.stressBase = Math.max(1, Math.min(100, Math.round(base) || 50));
+    const target = this.stress.target;
+    for (const p of this.stressPeople) {
+      if (this.stressPeople.size <= target) break;
+      this.recycle(p);
+    }
+  }
   private readonly radius: number;
   private places: BusyPlace[];
   private hour = 9;
@@ -823,7 +841,7 @@ export class Crowd {
     // --- how many, by the hour
     // M3e: with the town's residents about (puppets), the nameless crowd stays home
     const target = this.anonymous ? Math.round(this.budget * density(this.hour)) : 0;
-    const crowdN = this.people.length - this.puppetCount;
+    const crowdN = this.people.length - this.puppetCount - this.stressPeople.size;
     // (backwards: recycle takes out only the one it is given)
     for (let i = this.people.length - 1; i >= 0; i--) {
       const p = this.people[i];
@@ -845,7 +863,7 @@ export class Crowd {
         this.cullT = this.anonymous ? 1.5 : 0.3;
         // out of sight, and the ones who least belong at this hour first
         const out = this.people
-          .filter((p) => !p.shown && !p.cluster && !p.lead && p.role !== "puppet" && p.role !== "remote")
+          .filter((p) => !this.stressPeople.has(p) && !p.shown && !p.cluster && !p.lead && p.role !== "puppet" && p.role !== "remote")
           .sort((a, b) => this.belongs(a) - this.belongs(b))[0];
         if (out) this.recycle(out);
       }
@@ -871,6 +889,19 @@ export class Crowd {
         const lit = this.people.find((p) => p.lantern && !p.shown && p.role !== "puppet" && p.role !== "remote");
         if (lit) this.dropLantern(lit);
       }
+    }
+
+    // Dev load grows in small batches, keeping the menu responsive enough to turn it down.
+    // Real walkers use the usual pathfinding, avoidance and animation. No extra AI requests.
+    const stressTarget = (this.stressMultiplier - 1) * this.stressBase;
+    for (let i = 0; i < 8 && this.stressPeople.size < stressTarget; i++) {
+      const q = this.gridPoint("street");
+      if (!q || Math.hypot(q.x - player.x, q.z - player.z) < 4 || !this.spaceFree(q.x, q.z, BODY_GAP + 0.1)) continue;
+      const kind = pick<HumanKind>(["docker_a", "docker_b", "docker_c", "wife_a", "wife_b", "gentleman", "boy", "girl"]);
+      const p = this.make(kind, q.x, q.z, "wander");
+      if (!p) break;
+      this.stressPeople.add(p);
+      this.next(p);
     }
 
     // --- groups
@@ -2827,6 +2858,10 @@ export class Crowd {
     this.carts.delete(p);
     p.group.remove(p.human.root);
     this.scene.remove(p.group);
+    if (this.stressPeople.delete(p)) {
+      p.human.dispose();
+      return;
+    }
     let list = this.pool.get(p.kind);
     if (!list) this.pool.set(p.kind, (list = []));
     list.push(p.human);

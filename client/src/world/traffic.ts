@@ -59,7 +59,8 @@ export const TRAFFIC_ROUTES: TrafficRoute[] = [
     // the Eilandje: past the lock, along the storehouses, the north quay of the Petit Bassin
     name: "eilandje",
     // (M6 handcart: the east leg at x 158.6, clear of the farrier's forge at x 160; it clipped it)
-    pts: [[120, 11], [158.6, 11], [158.6, 43], [120, 43]],
+    // Clear the lock gate's moving balance beam at the north-west corner as well as the forge.
+    pts: [[120, 11], [158.6, 11], [158.6, 43], [122, 43], [122, 35], [120, 32]],
     loop: true,
     stops: [{ at: [137.5, 43], secs: 25, chance: 0.7 }],
     vehicles: [

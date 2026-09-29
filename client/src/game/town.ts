@@ -436,7 +436,11 @@ export class Town {
       // M6 handcart: not where a dray or the omnibus passes (the water bailiff stood in the Werf lane)
       const clear = (x: number, z: number) => !laneRects().some((r) => x > r.minX - 0.4 && x < r.maxX + 0.4 && z > r.minZ - 0.4 && z < r.maxZ + 0.4);
       const base = s.r.work.at ?? [sp.x + 1.2, sp.z + 1.2, 0];
-      const off = [[0, 0], [0, 1.4], [0, 2.2], [-1.2, 1.4], [1.2, 1.4], [0, -2.2]].find(([dx, dz]) => clear(base[0] + dx, base[1] + dz)) ?? [0, 0];
+      // A post beside a lane running north/south needs a sideways move. The old six offsets
+      // could all stay in that lane, then silently put the employer back in front of the horses.
+      const offsets: Pt[] = [[0, 0], [0, 1.4], [0, 2.2], [-1.2, 1.4], [1.2, 1.4], [0, -2.2]];
+      for (let r = 2; r <= 12; r += 0.5) for (let k = 0; k < 16; k++) offsets.push([Math.cos(k * Math.PI / 8) * r, Math.sin(k * Math.PI / 8) * r]);
+      const off = offsets.find(([dx, dz]) => clear(base[0] + dx, base[1] + dz) && this.world.isFree(base[0] + dx, base[1] + dz, 0.4)) ?? [0, 0];
       const at = [base[0] + off[0], base[1] + off[1], base[2]];
       const n = this.people.addTownEmployer(
         {

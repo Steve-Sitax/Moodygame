@@ -16,6 +16,8 @@ import {
   SERVICE_FIRST,
   SERVICE_LAST,
   STOPS,
+  QUAY_ROUTE,
+  TOWN_ROUTE,
 } from "../../shared/omnibusLines.ts";
 
 // M7 omnibus routes (docs/milestones/M7-omnibus-routes.md): three lines, the timetable the engine owns.
@@ -26,6 +28,21 @@ const set = (db: DB, sql: string) => db.prepare(`UPDATE player SET ${sql} WHERE 
 beforeEach(() => resetTickLimit());
 
 describe("the omnibus network", () => {
+  it("keeps the return trip off the Vliet post and the carriage off the Vleeshuis steps (#31)", () => {
+    const quay = loopPath(QUAY_ROUTE);
+    const nearPost: number[] = [];
+    for (let i = 0; i < quay.x.length; i++) if (Math.abs(quay.x[i] + 140.8) < 0.3) nearPost.push(quay.z[i]);
+    // Both directions pass the post at z 9.2; the carriage reaches 1 m from its centre.
+    expect(nearPost.length).toBeGreaterThan(1);
+    expect(Math.max(...nearPost)).toBeLessThan(8.2);
+    const town = loopPath(TOWN_ROUTE);
+    let steps = 0;
+    for (let i = 0; i < town.x.length; i++) if (town.z[i] >= 98.5 && town.z[i] <= 101 && town.x[i] > -100 && town.x[i] < -86) {
+      steps++;
+      expect(town.x[i] - 1).toBeGreaterThan(-90.3);
+    }
+    expect(steps).toBeGreaterThan(0);
+  });
   it("every stop lies on its line's round, once or more; every line has its terminus", () => {
     for (const l of LINES) {
       const p = loopPath(l.route, 5);

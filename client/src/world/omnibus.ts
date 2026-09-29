@@ -193,7 +193,7 @@ export interface Omnibuses extends NetMover<OmnibusNet> {
   /** M7: the lines at a stop and the next times their omnibuses are due there (the shared timetable, by the game clock). */
   timetable(stop: string): Array<{ line: LineDef; next: string[]; headwayMin: number }>;
   /** M7 dev: drive every round with the whole rig (body, wheels, horses) against the walls and fixed things; [] is clean. */
-  sweep(): Array<{ line: string; x: number; z: number; what: string }>;
+  sweep(isFree?: (x: number, z: number, radius: number) => boolean): Array<{ line: string; x: number; z: number; what: string }>;
 }
 
 export interface OmnibusOptions {
@@ -814,7 +814,6 @@ const BOARDS: Board[] = [
 
 interface BusState extends Omnibus {
   loop: Loop;
-  watch: Uint8Array;
   stopAt: Array<{ s: number; stop: OmnibusStop }>;
   s: number;
   v: number;
@@ -886,15 +885,13 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
   scene.add(group);
 
   // --- the buses, their lines' paths and stops
-  const loops = new Map<string, { loop: Loop; watch: Uint8Array; stopAt: Array<{ s: number; stop: OmnibusStop }> }>();
+  const loops = new Map<string, { loop: Loop; stopAt: Array<{ s: number; stop: OmnibusStop }> }>();
   for (const l of LINES) {
     const loop = new Loop(l.route, 5);
-    const watch = new Uint8Array(loop.x.length);
-    for (let i = 0; i < loop.x.length; i++) watch[i] = opts.isFree(loop.x[i], loop.z[i], 0.5) ? 1 : 0;
     const stopAt: Array<{ s: number; stop: OmnibusStop }> = [];
     for (const st of STOPS) if (st.line === l.id) for (const s of loop.passes(st.x, st.z, 1.5)) stopAt.push({ s, stop: st });
     stopAt.sort((a, b) => a.s - b.s);
-    loops.set(l.id, { loop, watch, stopAt });
+    loops.set(l.id, { loop, stopAt });
   }
   const buses: BusState[] = [];
   /** M7 timetable: the last departure each line's omnibuses took from its terminus (absolute game minutes). */
@@ -905,7 +902,7 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
     return c ? absMinute(c.day, 0) + c.hour * 60 : null;
   };
   for (const l of LINES) {
-    const { loop, watch, stopAt } = loops.get(l.id)!;
+    const { loop, stopAt } = loops.get(l.id)!;
     for (let k = 0; k < l.buses; k++) {
       const frame = new THREE.Group();
       const driverG = new THREE.Group();
@@ -921,7 +918,6 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
         line: l,
         index: buses.length,
         loop,
-        watch,
         stopAt,
         s: s0,
         v: 0,
@@ -1740,7 +1736,8 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
     for (const r of b.rects) r.minX = r.maxX = 1e6;
     for (const dd of [1.2, 2.6, 4]) {
       const i = Math.floor(lp.wrap(nose + dd) / Loop.STEP);
-      if (!b.watch[i]) continue;
+      // Recheck even where the lane was occupied during loading. A parked cart or employer
+      // at startup must never create a permanent hole in the omnibus's collision checks.
       if (!opts.isFree(lp.x[i], lp.z[i], 0.5)) {
         // (M7: from the queue's gap on it is the omnibus ahead: no hold-up to back from)
         if (dd < queueGap - 0.6) {
@@ -2046,7 +2043,7 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
         headwayMin: lineTiming(line.id).headwayMin,
       }));
     },
-    sweep() {
+    sweep(isFree = opts.isFree) {
       // the rig as it drives: the saloon and platform (tail -2.3 m to the dashboard, 1.0 m each side
       // at the wheels), the pair of horses; against the walk map and every fixed thing (not the
       // omnibuses themselves: their boxes are parked out of the way meanwhile)
@@ -2071,7 +2068,7 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
             lp.at(hs, r2);
             const hy = lp.yaw(hs);
             for (let a = -1.6; a <= 1.61; a += 0.4) for (const w of [-0.85, 0, 0.85]) pts.push([r2.x + Math.sin(hy) * a + Math.cos(hy) * w, r2.z + Math.cos(hy) * a - Math.sin(hy) * w]);
-            const hit = pts.find(([x, z]) => !opts.isFree(x, z, 0));
+            const hit = pts.find(([x, z]) => !isFree(x, z, 0));
             if (!hit) continue;
             const key = `${l.id}:${Math.round(q.x / 4)}:${Math.round(q.z / 4)}`;
             if (key === lastKey) continue;

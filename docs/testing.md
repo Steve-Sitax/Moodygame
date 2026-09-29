@@ -58,6 +58,17 @@ hidden preview tab: `light(20, "rain")`, `run(20)`: hour 20, rain 1.0, lit 32 ->
 time, so a run sends a heap of calls at its end (about 150 for `run(30)`): at most 8 go to the server at once, the rest
 wait their turn, a GET already on its way is shared (boot/netboot.ts, issue #15; `__apiOpen()` in the tab).
 
+## NPC stress testing
+
+In the Dev menu, enable **Extra street NPCs** and move **Population** from 1× to 100×.
+The multiplier uses the normal street limit (50 by default): 100× requests 4,950 extra walkers,
+added gradually on open ground. The menu shows the current and requested extras. They use the
+normal walking, avoidance and animation code, without extra AI requests or saved population changes.
+Turn the toggle off or use **Reset to normal** to remove them; reloading starts at 1×.
+
+Steve, 2026-09-29: higher populations are deliberately for stress testing; no profiling or frame-budget
+gate is needed at those settings. Run the usual performance check at the unchanged default population.
+
 ## The kit (`__scheldemist.t`)
 | Call | What it does |
 |---|---|

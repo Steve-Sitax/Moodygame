@@ -604,6 +604,7 @@ settings = mountSettings(startEl.querySelector(".paper") as HTMLElement, (s) => 
   retro.renderHeight = s.height;
   retro.setPsxColour(s.psxColour);
   town.maxPuppets = STREET_LEVELS[s.street].cap; // M6 population: people in the street
+  crowd.setStressMultiplier(crowd.stress.multiplier, town.maxPuppets);
   resize();
 });
 /**
@@ -644,6 +645,7 @@ if (import.meta.env.DEV || DEMO) {
   mountDevMenu(startEl.querySelector(".paper") as HTMLElement, {
     place: (x, z) => player.place(x, z, 0),
     tide: world.tideDev,
+    population: { read: () => crowd.stress, set: (n) => crowd.setStressMultiplier(n, town.maxPuppets) },
     places: JUMPS,
     events: DEMO ? [...world.devEvents(), ...demoEvents()] : [
       ...world.devEvents(),

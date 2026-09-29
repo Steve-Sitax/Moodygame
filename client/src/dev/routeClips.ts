@@ -2,7 +2,6 @@ import type { World } from "../world/rijnkaai";
 import type { Rect } from "../world/geom";
 import { inRect } from "../world/geom";
 import { trafficLanes, TRAFFIC_ROUTES } from "../world/traffic";
-import { omnibusKeepOut } from "../world/omnibus";
 import { WALL } from "../world/city";
 
 /**
@@ -38,7 +37,7 @@ export function routeClips(world: World, skip: Rect[]): Array<{ route: string; x
       // the body as a round, not a box: a lamp post at the corner of the box is not in the way
       const dx = Math.max(r.minX - x, 0, x - r.maxX);
       const dz = Math.max(r.minZ - z, 0, z - r.maxZ);
-      if (inRect(r, x, z, body) && Math.hypot(dx, dz) < body) {
+      if (inRect(r, x, z, body) && Math.hypot(dx, dz) < body && (!r.surface || r.surface.blocks(x, z, body, 0, 0.36))) {
         seen.add(key);
         out.push({ route, x: +x.toFixed(1), z: +z.toFixed(1), what: `a solid at ${((r.minX + r.maxX) / 2).toFixed(1)}, ${((r.minZ + r.maxZ) / 2).toFixed(1)} (${(r.maxX - r.minX).toFixed(1)} x ${(r.maxZ - r.minZ).toFixed(1)} m)` });
         return;
@@ -51,7 +50,14 @@ export function routeClips(world: World, skip: Rect[]): Array<{ route: string; x
     const body = lane.half >= 1.9 ? 0.95 : 0.7;
     for (let k = 0; k < lane.x.length; k += 4) hit(name, lane.x[k], lane.z[k], body);
   });
-  // the omnibuses: the middle of their lanes (the body is 1.72 m wide: omnibus.ts W)
-  for (const r of omnibusKeepOut()) hit("omnibus", (r.minX + r.maxX) / 2, (r.minZ + r.maxZ) / 2, 0.9);
+  // The whole omnibus, including the horses and the tail cutting across bends. Ignore other
+  // moving rigs: a traffic queue is not a permanent route obstruction. Model bounds alone
+  // are not solids (in particular, the Werf's tree crowns leave the road clear underneath).
+  const fixedFree = (x: number, z: number): boolean => {
+    const f = world.city.flags(x, z);
+    if (f === undefined || f !== 0) return false;
+    return !solids.some((r) => inRect(r, x, z) && (!r.surface || r.surface.blocks(x, z, 0, 0, 0.36)));
+  };
+  for (const h of bus?.sweep(fixedFree) ?? []) out.push({ route: `omnibus ${h.line}`, x: h.x, z: h.z, what: h.what });
   return out;
 }
