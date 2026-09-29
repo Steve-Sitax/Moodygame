@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { clearWalk, groundRound, LocalRound, localWalk, type WalkPoint } from "../../shared/localRound.ts";
+import { clearWalk, groundRound, LocalRound, localWalk, walkVia, type WalkPoint } from "../../shared/localRound.ts";
 import { cellBox, cellPacing } from "../../shared/prisonPlan.ts";
+import { MARKS, ORGAN, peopleFreeAt } from "../../shared/cathedralPlan.ts";
 
 describe("working rounds stay on reachable ground", () => {
   it("walks around furniture through its aisle, including the return", () => {
@@ -57,5 +58,35 @@ describe("working rounds stay on reachable ground", () => {
       expect(moved).toBe(true); expect(returned).toBe(true);
       expect(free((c.x0 + c.x1) / 2, c.z0 - .2)).toBe(false);
     }
+  });
+  it("keeps the organist on the loft and behind its railing throughout a round", () => {
+    const m = MARKS.organist, free = (x: number, z: number) => peopleFreeAt(x, z, m.y!);
+    const { round: r, free: stepFree } = groundRound({ standFree: free }, [m.x, m.z], m.y!, m.yaw, true, 7, 1.8);
+    expect(r.routes.length).toBeGreaterThan(0);
+    let moved = false;
+    for (let i = 0; i < 600; i++) {
+      r.update(.1, false, stepFree);
+      expect(free(r.x, r.z)).toBe(true);
+      if (Math.abs(r.x - m.x) > .5) moved = true;
+    }
+    expect(moved).toBe(true);
+    expect(free(0, ORGAN.balustrade - .1)).toBe(false);
+    expect(free(0, ORGAN.z1 + .2)).toBe(false);
+    expect(free(0, ORGAN.z0 + 1.3)).toBe(false);
+  });
+  it("plans a bench exit around a table rather than rejecting the whole break", () => {
+    const home: WalkPoint = [.3, 0];
+    const free = (x: number, z: number) => x > .22 && x < 4 && Math.abs(z) < 2
+      && (x > .7 || Math.hypot(x - home[0], z - home[1]) < 1.3)
+      && !(x > .45 && x < 1.45 && z > -.55 && z < .55);
+    const via: WalkPoint[] = [[.3, .72], [2, .72]];
+    // The obsolete diagonal crosses the tabletop's clearance.
+    expect(clearWalk([.5, 0], [.95, .62], free)).toBe(false);
+    const route = walkVia(home, via, free)!;
+    expect(route).not.toBeNull();
+    const r = new LocalRound(home, [route], 0, .8);
+    let out = false, back = false;
+    for (let i = 0; i < 650; i++) { r.update(.1, false, free); expect(free(r.x, r.z)).toBe(true); if (r.x > 1.8) out = true; if (out && r.atHome) back = true; }
+    expect(out).toBe(true); expect(back).toBe(true);
   });
 });

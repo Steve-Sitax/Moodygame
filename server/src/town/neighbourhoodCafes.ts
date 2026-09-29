@@ -17,7 +17,7 @@ export function ensureNeighbourhoodCafes(db: DB): number {
     const place = `tavern:${c.id}`, d = doors.find(q => q.house === inworldHouse(place));
     if (!d) throw new Error(`${place}: listed café has no house door`);
     const had = places[place];
-    if (!had && t.residents.some(r => r.home.house === d.house)) throw new Error(`${place}: listed café house is occupied`);
+    if (!had && t.residents.some(r => r.home.house === d.house)) continue;
     places[place] ??= { label: c.label, x: d.sx, z: d.sz, r: 4, district: "town", door: [d.sx, d.sz], out: d.out };
     const rough = place === GANG_CAFE;
     const keeper = t.residents.some(r => r.trade === "publican" && r.work.place === place);

@@ -77,6 +77,8 @@ export interface NewShopDef {
   /** Opening hours (the keeper's working day), Monday to Saturday; Sunday's if any. */
   hours: Array<[number, number]>;
   sunday?: Array<[number, number]>;
+  /** Older saves keep existing households at their addresses. */
+  onlyVacant?: boolean;
 }
 
 export const NEW_SHOPS: NewShopDef[] = [
@@ -89,9 +91,9 @@ export const NEW_SHOPS: NewShopDef[] = [
   { id: "printer_jezuiet", label: "the printer by the Jesuits' church", trade: "printer", x: -112, z: 148, goods: null, kind: "clerk", sex: "m", hours: [[7, 12], [13, 18.5]] },
   { id: "books_kathedraal", label: "the bookseller behind the cathedral", trade: "bookseller", x: -200, z: 164, goods: "wares", kind: "old_man", sex: "m", hours: [[9, 12.5], [14, 19]] },
   { id: "clock_markt", label: "the clockmaker by the Grote Markt", trade: "clockmaker", x: -195, z: 88, goods: null, kind: "old_man", sex: "m", hours: [[8.5, 12.5], [13.5, 18.5]] },
-  { id: "bakery_south", label: "the bakery in the southern lanes", trade: "baker", x: -210.56, z: 236.33, goods: "bread", kind: "baker", sex: "m", hours: [[6, 12.5], [14, 18]], sunday: [[7, 11]] },
-  { id: "grocer_south", label: "the grocer in the southern neighbourhood", trade: "grocer", x: -121.86, z: 260.91, goods: "veg", kind: "shopkeeper", sex: "f", hours: [[7, 12.5], [14, 19]] },
-  { id: "cobbler_east", label: "the cobbler in the eastern back streets", trade: "cobbler", x: 7.31, z: 213.72, goods: null, kind: "old_man", sex: "m", hours: [[8, 12], [13, 18.5]] },
+  { id: "bakery_south", label: "the bakery in the southern lanes", trade: "baker", x: -210.56, z: 236.33, goods: "bread", kind: "baker", sex: "m", hours: [[6, 12.5], [14, 18]], sunday: [[7, 11]], onlyVacant: true },
+  { id: "grocer_south", label: "the grocer in the southern neighbourhood", trade: "grocer", x: -121.86, z: 260.91, goods: "veg", kind: "shopkeeper", sex: "f", hours: [[7, 12.5], [14, 19]], onlyVacant: true },
+  { id: "cobbler_east", label: "the cobbler in the eastern back streets", trade: "cobbler", x: 7.31, z: 213.72, goods: null, kind: "old_man", sex: "m", hours: [[8, 12], [13, 18.5]], onlyVacant: true },
 ];
 
 /** The trade of a shop by its id (the old ones by their server trade). */

@@ -26,8 +26,7 @@ import type { HousePlan } from "../../../shared/housePlan";
 import * as HP from "../../../shared/hallPlan";
 import { dialogs } from "./dialogs";
 import { tempest } from "../world/tempest";
-import { LocalRound, localWalk, roundRoutes, type WalkFree, type WalkPoint } from "../../../shared/localRound";
-import { seatExit } from "./stationRound";
+import { LocalRound, localWalk, roundRoutes, walkVia, type WalkFree, type WalkPoint } from "../../../shared/localRound";
 
 // Inside (M6, M7 in the world): the taverns and the Poesje stand inside their own city houses
 // (shared/housePlan.ts, world/houseInWorld.ts): their doors stand open in opening hours and you walk in;
@@ -911,14 +910,14 @@ export class Interiors {
     const room = this.here?.room, plan = this.here?.house?.plan;
     if (!room || !plan) return;
     const home: WalkPoint = [o.x, o.z];
-    const via = o.seat ? [...o.seat.via].reverse() : [];
-    const exit: WalkPoint = via[via.length - 1] ?? home;
-    const first = via[0] ?? [home[0] + Math.sin(o.yaw + Math.PI) * .8, home[1] + Math.cos(o.yaw + Math.PI) * .8];
-    const yaw = Math.atan2(first[0] - home[0], first[1] - home[1]);
+    const requested = o.seat ? [...o.seat.via].reverse() : [];
     const floor = plan.levels.find(l => l.y === 0)?.floors ?? plan.levels[0].floors;
-    const clear: WalkFree = (x, z) => floor.some(f => x >= f.minX + .22 && x <= f.maxX - .22 && z >= f.minZ + .22 && z <= f.maxZ - .22)
-      && !(room.solids ?? []).some(b => x > b.minX - .2 && x < b.maxX + .2 && z > b.minZ - .2 && z < b.maxZ + .2);
-    o.routineFree = (x, z) => (!!o.seat && seatExit(home, yaw, x, z)) || clear(x, z);
+    const ownSeat = new Set(o.seat ? (room.solids ?? []).filter(b => home[0] >= b.minX - .04 && home[0] <= b.maxX + .04 && home[1] >= b.minZ - .04 && home[1] <= b.maxZ + .04) : []);
+    o.routineFree = (x, z) => floor.some(f => x >= f.minX + .22 && x <= f.maxX - .22 && z >= f.minZ + .22 && z <= f.maxZ - .22)
+      && !(room.solids ?? []).some(b => !(ownSeat.has(b) && Math.hypot(x - home[0], z - home[1]) < 1.3)
+        && x > b.minX - .2 && x < b.maxX + .2 && z > b.minZ - .2 && z < b.maxZ + .2);
+    const via = walkVia(home, requested, o.routineFree) ?? [];
+    const exit: WalkPoint = via[via.length - 1] ?? home;
     const seed = hash(o.p.id);
     const routes = roundRoutes(exit, o.routineFree, seed, o.keeper ? 1.2 : 2.3);
     if (o.keeper) for (const dz of [-1.3, 1.3]) {

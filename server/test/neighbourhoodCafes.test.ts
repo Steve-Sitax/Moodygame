@@ -9,6 +9,9 @@ import { buy } from "../src/trade.ts";
 import { ensurePlayerRow } from "../src/player/multi.ts";
 import { asPlayer } from "../src/player/current.ts";
 import { GANG_CAFE, NEIGHBOURHOOD_CAFES } from "../../shared/neighbourhoodCafes.ts";
+import { inworldHouse } from "../src/town/kept.ts";
+import { houseDoors } from "../src/town/walkmap.ts";
+import { ensureShopsTown, SHOPS_KEY } from "../src/shops/town.ts";
 
 describe("back-street cafés", () => {
   it("have real listed doors, keepers, regulars and working hours in new games", () => {
@@ -62,6 +65,33 @@ describe("back-street cafés", () => {
       expect(asPlayer(1, () => tavernWelcome(db, GANG_CAFE))).toBe(true);
       expect(asPlayer(2, () => tavernWelcome(db, GANG_CAFE))).toBe(false);
       expect(asPlayer(2, () => tavernWelcome(db, "tavern:linde"))).toBe(true);
+    } finally { db.close(); }
+  });
+  it("leaves occupied new-business houses and their households alone in an older save", () => {
+    const db = openDb(":memory:");
+    try {
+      const t = town(db).town, places = { ...t.places };
+      const shopIds = ["bakery_south", "grocer_south", "cobbler_east"];
+      const names = [...shopIds.map(id => `shop:${id}`), ...NEIGHBOURHOOD_CAFES.map(c => `tavern:${c.id}`)];
+      const keep = t.residents.filter(r => !r.id.startsWith("cafe_") && !shopIds.includes(r.work.shop ?? ""));
+      const occupants = keep.slice(0, names.length), doors = houseDoors();
+      for (const [i, name] of names.entries()) {
+        const r = occupants[i], d = doors.find(d => d.house === inworldHouse(name))!;
+        r.home = { house: d.house, x: d.x, z: d.z, sx: d.sx, sz: d.sz };
+        db.prepare("UPDATE resident SET data_json=? WHERE id=?").run(JSON.stringify(r), r.id);
+        delete places[name.startsWith("shop:") ? name.slice(5) : name];
+      }
+      for (const r of t.residents.filter(r => !keep.includes(r))) db.prepare("DELETE FROM resident WHERE id=?").run(r.id);
+      const { residents: _residents, ...rest } = t;
+      db.prepare("UPDATE world_state SET value_json=? WHERE key='town'").run(JSON.stringify({ ...rest, places, shops: t.shops.filter(s => !shopIds.includes(s.id)) }));
+      db.prepare("DELETE FROM world_state WHERE key=?").run(SHOPS_KEY);
+      dropTownCache(db);
+      const before = new Map(keep.map(r => [r.id, JSON.stringify(r.home)]));
+      expect(() => { ensureShopsTown(db); ensureNeighbourhoodCafes(db); }).not.toThrow();
+      const after = town(db).town;
+      for (const r of after.residents) if (before.has(r.id)) expect(JSON.stringify(r.home), r.id).toBe(before.get(r.id));
+      for (const id of shopIds) expect(after.shops.some(s => s.id === id)).toBe(false);
+      for (const c of NEIGHBOURHOOD_CAFES) expect(after.places[`tavern:${c.id}`]).toBeUndefined();
     } finally { db.close(); }
   });
 });

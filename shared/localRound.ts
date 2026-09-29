@@ -44,6 +44,17 @@ export function localWalk(from: WalkPoint, to: WalkPoint, free: WalkFree, radius
   return out;
 }
 
+/** Seat waypoints describe the aisle; each segment still has to go around furniture. */
+export function walkVia(home: WalkPoint, via: WalkPoint[], free: WalkFree): WalkPoint[] | null {
+  const out: WalkPoint[] = []; let at = home;
+  for (const stop of via) {
+    const part = localWalk(at, stop, free, 5);
+    if (!part) return null;
+    out.push(...part); at = stop;
+  }
+  return out;
+}
+
 export class LocalRound {
   readonly home: WalkPoint;
   readonly routes: WalkPoint[][];

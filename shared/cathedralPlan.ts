@@ -126,7 +126,16 @@ export const SACRAMENT = { x: -NORTH * (A3 + OUT) / 2, z: CROSS0 - 1.2 };
 /** Rubens's triptychs on the transept arms' east walls, their altars below. */
 export const TRIPTYCH_X = 22.3;
 export const FONT = { x: -9.5, z: W0 + 2.6 };
-export const ORGAN = { z0: W0, z1: W0 + 4.6, y: 7 };
+export const ORGAN = { z0: W0, z1: W0 + 4.6, balustrade: W0 + 4.55, y: 7 };
+
+/** People in the organ loft use its own floor, case and railing, not the nave below. */
+export function peopleFreeAt(x: number, z: number, feet: number, r = .25): boolean {
+  if (feet < 2) return freeAt(x, z, r, false);
+  if (Math.abs(feet - (ORGAN.y + .25)) > .5) return false;
+  if (Math.abs(x) >= NAVE - .1 - r || z <= ORGAN.z0 + r || z >= ORGAN.balustrade - .17 - r) return false;
+  if (Math.abs(x) < 4.85 + r && z > ORGAN.z0 + .4 - r && z < ORGAN.z0 + 2.25 + r) return false;
+  return ![-4.4, 4.4].some(cx => Math.abs(x - cx) < .3 + r && Math.abs(z - (ORGAN.z0 + 4.2)) < .3 + r);
+}
 /** The side altars against the outer aisles' walls, between the confessionals (their fronts toward the aisle). */
 export const SIDE_ALTARS: Array<{ x: number; z: number }> = [
   ...[BAYS[2], BAYS[4]].map((z) => ({ x: NORTH * (OUT - 0.6), z })),

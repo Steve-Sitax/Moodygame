@@ -185,6 +185,10 @@ export function ensureShopsTown(db: DB): { added: number; moved: number } {
   // 2. the new shops and their keepers
   for (const def of todo) {
     const own = inworldHouse(`shop:${def.id}`);
+    if (def.onlyVacant && own !== undefined && taken.homes.has(own)) {
+      rec.skipped.push({ id: def.id, why: "listed house is an existing household's home" });
+      continue;
+    }
     let d = own !== undefined ? doors.find((q) => q.house === own && freeDoor(q, taken, own)) : undefined;
     if (!d) {
       d = doors
@@ -327,6 +331,7 @@ function moveIntoOwnHouse(
     // who lives there now moves out, each household to the nearest free house (not listed in the world, nobody's)
     const keeperHh = people.find((r) => r.id === f.keeper)?.household;
     const lodgers = people.filter((r) => r.home.house === d.house && r.household !== keeperHh);
+    if (lodgers.length && NEW_SHOPS.find(s => s.id === f.id)?.onlyVacant) continue;
     const byHh = new Map<number, Resident[]>();
     for (const r of lodgers) byHh.set(r.household, [...(byHh.get(r.household) ?? []), r]);
     const plan: Array<{ rs: Resident[]; to: HouseDoor }> = [];

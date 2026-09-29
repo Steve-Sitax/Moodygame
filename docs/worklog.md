@@ -6,7 +6,7 @@ Work in `codex/special-npc-routines`: local working/walking rounds for previousl
 
 Build passes. All 101 test files / 1,385 tests pass, followed by 57 targeted checks after the loft-floor correction. All five new interiors pass the shell/openings/floor check. Browser routes for every primed special figure are nonempty, shader problems are empty, and path checks are clear after temporary moving obstructions. Both gang-café access states were exercised in a copied save. [Full audit and implementation details](milestones/npc-routines.md).
 
-Final integration, performance samples and web-demo deployment follow below when verified.
+Merged into main and pushed as `1508b7e`, preserving the concurrent daylight, climbing, map, lamp and wall-foliage work. The combined build and all 102 test files / 1,391 tests pass. Final read-only review reproduced four edge cases in migration, the organ loft and café benches; corrections and their 36 passing focused tests are described in the audit. Final browser, performance, play-copy refresh and demo deployment verification follow below when complete.
 
 What went live, what is being worked on now and by whom, and what waits for Steve.
 The coordinating Claude session keeps this file current: a line when a helper starts, when a

@@ -1311,7 +1311,7 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
   k.box(NAVE * 2 - 0.2, 0.5, 4.6, 0, P.ORGAN.y, OZ + 2.3, m.stoneDark, { tile: 1.6 });
   {
     // the gallery's front: an oak balustrade with gilt panels, carried on two clustered columns and three arches
-    const gf = new Fr(k, 0, OZ + 4.55, 0);
+    const gf = new Fr(k, 0, P.ORGAN.balustrade, 0);
     gf.box(NAVE * 2 - 0.2, 0.2, 0.3, 0, P.ORGAN.y + 0.3, 0, m.oak);
     gf.box(NAVE * 2 - 0.2, 0.16, 0.34, 0, P.ORGAN.y + 1.35, 0, m.oak);
     for (let u = -5.6; u <= 5.61; u += 0.35) gf.cyl(0.05, 0.06, 0.95, u, P.ORGAN.y + 0.4, 0, m.oakDark, { seg: 5 });
@@ -1763,7 +1763,7 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
     scene,
     group,
     walk: walkJef,
-    peopleFree: (x, z) => P.freeAt(x, z, .25, false),
+    peopleFree: (x, z, feet) => P.peopleFreeAt(x, z, feet),
     seats,
     stands: [],
     exit: { ...P.MARKS.door, yaw: Math.PI },

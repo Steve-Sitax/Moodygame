@@ -285,7 +285,7 @@ export function buildCafe(opts: { plan: HousePlan; label: string; seed: number; 
       if (style === "grand") {
         // on the banquette, facing the table
         const bx = XF(0.3);
-        seats.push({ x: bx, z, yaw: face(bx, z, tx, z), table: tid, h: 0.47, via: [[XA, z + 0.62], [tx, z + 0.62], [bx + ns * 0.2, z]] });
+        seats.push({ x: bx, z, yaw: face(bx, z, tx, z), table: tid, h: 0.47, via: [[XA, z + 0.72], [bx, z + 0.72]] });
       } else {
         // a chair on the front side of the table
         const cz = z - 0.6;
