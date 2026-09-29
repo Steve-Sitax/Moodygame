@@ -2,9 +2,10 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { psx, psxUniforms } from "../retro/psx";
+import { psx } from "../retro/psx";
 import { earthPaving, grassPaving, withPictures, type Paving } from "./paving";
 import { crisp, fallingLeaves, treeMaterial } from "./trees3d";
+import { createParkWildlife } from "./parkWildlife";
 import { attachToMirror } from "./mirror";
 
 // The Stadspark planted (the park pass, 2026-09-26; Steve: "the part with the ponds have no trees, bushes..
@@ -35,13 +36,13 @@ interface PlantsData {
 }
 
 /** How high each tree's leaves start to fall (m over its foot, at scale 1). */
-const LEAF_TOP: Record<string, number> = { old_elm: 9, old_plane: 9, old_bare: 8, weeping: 3.5, conifer: 0 };
+const LEAF_TOP: Record<string, number> = { old_oak: 14, old_elm: 9, old_plane: 9, old_bare: 8, weeping: 3.5, conifer: 0 };
 const FALL_PER_TREE = 4;
 /** Past this distance from the park (m, beyond the fog's end) nothing of it is drawn. */
 const REACH = 40;
 
 export interface ParkNature {
-  update(camera: THREE.Camera, far: number): void;
+  update(camera: THREE.Camera, far: number, dt: number, hour: number): void;
 }
 
 function rand(seed: number): () => number {
@@ -85,57 +86,6 @@ function pave(base: Paving, pic: string): Paving {
   return withPictures(base, { map: `/textures/${pic}.jpg`, height: `/textures/${pic}_h.png` });
 }
 
-/** Ducks and swans: a few boxes each (body, neck, head, bill, tail), coloured per vertex. Faces +x. */
-function birdGeometry(kind: "duck" | "swan"): THREE.BufferGeometry {
-  const parts: THREE.BufferGeometry[] = [];
-  const box = (sx: number, sy: number, sz: number, x: number, y: number, z: number, col: number, rz = 0, round = false) => {
-    // (a body is a squashed octahedron: pointed at breast and tail, round in the water)
-    const g = round ? new THREE.OctahedronGeometry(0.5, 1).scale(sx, sy * 2, sz) : new THREE.BoxGeometry(sx, sy, sz);
-    g.rotateZ(rz);
-    g.translate(x, y, z);
-    const c = new THREE.Color(col);
-    const n = g.getAttribute("position").count;
-    const cols = new Float32Array(n * 3);
-    for (let i = 0; i < n; i++) cols.set([c.r, c.g, c.b], i * 3);
-    g.setAttribute("color", new THREE.Float32BufferAttribute(cols, 3));
-    parts.push(g.index ? g.toNonIndexed() : g);
-  };
-  if (kind === "swan") {
-    box(0.78, 0.16, 0.36, 0, 0.08, 0, 0xd8d4c8, 0, true); // body (a little grey with the town's smoke)
-    box(0.26, 0.1, 0.24, -0.32, 0.16, 0, 0xcfcabd, 0.45, true); // tail up
-    box(0.07, 0.24, 0.07, 0.3, 0.26, 0, 0xd8d4c8, -0.35); // neck, curved: out, then up
-    box(0.07, 0.24, 0.07, 0.35, 0.47, 0, 0xd8d4c8, 0.1);
-    box(0.16, 0.08, 0.08, 0.36, 0.6, 0, 0xd8d4c8); // head
-    box(0.1, 0.045, 0.05, 0.44, 0.565, 0, 0xc0601e); // orange bill
-    box(0.05, 0.05, 0.085, 0.3, 0.58, 0, 0x202020); // the black knob
-  } else {
-    box(0.36, 0.08, 0.17, 0, 0.04, 0, 0x6e5a42, 0, true); // body, brown
-    box(0.12, 0.08, 0.12, -0.15, 0.08, 0, 0x4a3c2c, 0.35); // tail
-    box(0.08, 0.12, 0.08, 0.12, 0.14, 0, 0x2f4f2a); // neck (a drake's green)
-    box(0.1, 0.07, 0.07, 0.15, 0.21, 0, 0x2f4f2a); // head
-    box(0.07, 0.025, 0.04, 0.23, 0.2, 0, 0xb09a30); // bill
-    box(0.02, 0.02, 0.17, 0.1, 0.11, 0, 0xd0d0c8); // white collar
-  }
-  const g = new THREE.BufferGeometry();
-  let count = 0;
-  for (const p of parts) count += p.getAttribute("position").count;
-  const pos = new Float32Array(count * 3);
-  const nor = new Float32Array(count * 3);
-  const col = new Float32Array(count * 3);
-  let o = 0;
-  for (const p of parts) {
-    const n = p.getAttribute("position").count;
-    pos.set(p.getAttribute("position").array as Float32Array, o * 3);
-    nor.set(p.getAttribute("normal").array as Float32Array, o * 3);
-    col.set(p.getAttribute("color").array as Float32Array, o * 3);
-    o += n;
-  }
-  g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-  g.setAttribute("normal", new THREE.BufferAttribute(nor, 3));
-  g.setAttribute("color", new THREE.BufferAttribute(col, 3));
-  return g;
-}
-
 /** Flat fallen leaves: small diamonds lying on the ground, one draw call. */
 function fallenLeaves(spots: Array<[number, number]>, y: number): THREE.InstancedMesh {
   const g = new THREE.BufferGeometry();
@@ -176,7 +126,7 @@ export function loadParkNature(scene: THREE.Scene): ParkNature {
   scene.add(group);
   const centre = new THREE.Vector3(-300, 0, 312);
   let radius = 70;
-  const birds: Array<{ mesh: THREE.InstancedMesh; list: Array<{ x: number; z: number; r: number; ph: number; w: number; bob: number }> }> = [];
+  let wildlife: ReturnType<typeof createParkWildlife> | null = null;
 
   const draco = new DRACOLoader().setDecoderPath("/draco/");
   Promise.all([
@@ -372,23 +322,7 @@ export function loadParkNature(scene: THREE.Scene): ParkNature {
       // and out along the railing's kerb in the street, blown there in drifts
       for (const d of D.drift ?? []) lying.push(d);
       group.add(fallenLeaves(lying, 0.012));
-      // ---- ducks and swans, swimming slow rounds on open water
-      for (const kind of ["duck", "swan"] as const) {
-        const rounds = D.birds.filter((b) => b[3] === kind);
-        if (!rounds.length) continue;
-        const list: Array<{ x: number; z: number; r: number; ph: number; w: number; bob: number }> = [];
-        rounds.forEach(([x, z, rad], i) => {
-          const n = kind === "swan" ? (i === 0 ? 2 : 1) : 2 + (i % 2);
-          for (let k = 0; k < n; k++) list.push({ x, z, r: rad, ph: i * 1.7 + k * (kind === "swan" ? 0.35 : 0.5), w: (kind === "swan" ? 0.05 : 0.09) * (i % 2 ? -1 : 1), bob: r() * 6 });
-        });
-        const mat = psx(new THREE.MeshLambertMaterial({ vertexColors: true }), { affine: 0 });
-        mat.name = `park_${kind}`;
-        const mesh = new THREE.InstancedMesh(birdGeometry(kind), mat, list.length);
-        mesh.name = `park_${kind}s`;
-        mesh.frustumCulled = false;
-        group.add(mesh);
-        birds.push({ mesh, list });
-      }
+      wildlife = createParkWildlife(scene, D);
       // how far the park reaches from its middle (for the distance cut)
       const box = new THREE.Box3().setFromObject(group);
       box.getCenter(centre);
@@ -397,31 +331,11 @@ export function loadParkNature(scene: THREE.Scene): ParkNature {
     })
     .catch((e) => console.warn("the park's plants did not load", e));
 
-  const m4 = new THREE.Matrix4();
-  const q = new THREE.Quaternion();
-  const one = new THREE.Vector3(1, 1, 1);
-  const p = new THREE.Vector3();
-  let lastT = -1;
   return {
-    update(camera, far) {
+    update(camera, far, dt, hour) {
       const near = camera.position.distanceTo(centre) - radius < far + REACH;
       group.visible = near;
-      if (!near) return;
-      const t = psxUniforms.uTime.value;
-      if (t === lastT) return;
-      lastT = t;
-      for (const b of birds) {
-        b.list.forEach((d, i) => {
-          const a = d.ph + t * d.w;
-          p.set(d.x + Math.cos(a) * d.r, -0.36 + Math.sin(t * 1.3 + d.bob) * 0.012, d.z + Math.sin(a) * d.r);
-          // heading along the circle, a little wobble
-          const yaw = -(a + (d.w > 0 ? Math.PI / 2 : -Math.PI / 2)) + Math.sin(t * 0.7 + d.bob) * 0.15;
-          q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-          m4.compose(p, q, one);
-          b.mesh.setMatrixAt(i, m4);
-        });
-        b.mesh.instanceMatrix.needsUpdate = true;
-      }
+      wildlife?.(dt, hour, camera);
     },
   };
 }

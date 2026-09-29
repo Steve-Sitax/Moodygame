@@ -12,7 +12,7 @@
 // Exit code 1 when a place is over the budget. Numbers depend on the machine and on what else runs on it.
 
 import { spawn, execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,6 +29,17 @@ const PLACES = String(opt("places", "grote markt,cathedral,handschoenmarkt,visma
 const OWN = !opt("vite", null);
 const VITE = Number(opt("vite", 5346));
 const SERVER = 8946;
+// A collaborative browser can collect the identical frameProf samples without launching another browser.
+// node tools/perfcheck.mjs --report data/perf/preview.json --budget 16.7
+if (opt("report", null)) {
+  const report = JSON.parse(readFileSync(path.resolve(root, opt("report", "")), "utf8"));
+  if (!Array.isArray(report.rows) || !report.rows.length) throw new Error("performance report has no rows");
+  for (const row of report.rows) {
+    if (typeof row.place !== "string" || !Number.isFinite(row.liveMean) || row.liveMean <= 0 || !Number.isFinite(row.turnMean)) throw new Error("invalid performance row");
+    console.log(`${row.place}: walking ${row.liveMean} ms, turning ${row.turnMean} ms — ${row.liveMean <= BUDGET ? "ok" : `OVER ${BUDGET} ms`}`);
+  }
+  process.exit(report.rows.some(row => row.liveMean > BUDGET) ? 1 : 0);
+}
 const CHROME =
   opt("chrome", null) ??
   process.env.CHROME ??

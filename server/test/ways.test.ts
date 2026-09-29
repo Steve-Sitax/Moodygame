@@ -98,7 +98,8 @@ describe("where a person is (the sum)", () => {
     for (const r of tw.residents.slice(0, 40)) {
       for (const h of [4, 7.3, 12.9, 18.25, 23.5]) {
         const a = whereAt(r, tw, 3, h, serverWay);
-        const b = whereAt(JSON.parse(JSON.stringify(r)), JSON.parse(JSON.stringify({ places: tw.places, stalls: tw.stalls, shops: tw.shops })), 3, h, serverWay);
+        // Shared haul spacing also depends on the crew roster; preserve every input when cloning.
+        const b = whereAt(JSON.parse(JSON.stringify(r)), JSON.parse(JSON.stringify({ residents: tw.residents, places: tw.places, stalls: tw.stalls, shops: tw.shops })), 3, h, serverWay);
         expect([b.x, b.z, b.indoor, b.moving]).toEqual([a.x, a.z, a.indoor, a.moving]);
       }
     }
