@@ -1,5 +1,6 @@
 // The release notes' top (docs/release.md): the part of CHANGELOG.md for one version, from its "## [x.y.z]"
-// heading to the next one, without the heading (the Release has its own title).
+// heading to the next one, without the heading (the Release has its own title). A list item wrapped over
+// several lines is joined into one: GitHub's release page shows every line break.
 //
 //   node tools/release/changelog.mjs v0.2.0     prints that version's part; fails if it has none
 
@@ -17,4 +18,9 @@ if (!version || start < 0) {
 }
 let end = lines.findIndex((l, i) => i > start && (l.startsWith("## [") || /^\[[^\]]+\]: /.test(l)));
 if (end < 0) end = lines.length;
-console.log(lines.slice(start + 1, end).join("\n").trim());
+const out = [];
+for (const l of lines.slice(start + 1, end)) {
+  if (/^\s{2,}\S/.test(l) && out.length && out[out.length - 1].trim()) out[out.length - 1] += " " + l.trim();
+  else out.push(l);
+}
+console.log(out.join("\n").trim());
