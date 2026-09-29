@@ -134,12 +134,71 @@ export const SIDE_ALTARS: Array<{ x: number; z: number }> = [
 ];
 /** The iron stands of votive candles beside the two triptychs' altars. */
 export const TRI_STANDS: Array<{ x: number; z: number }> = [1, -1].map((s) => ({ x: s * (TRIPTYCH_X + 3.6), z: CROSS1 - 1.0 }));
-/** The Resurrection triptych and its altar on the ambulatory's outer wall (its third face on the south side). */
-export const RESURRECTION = (() => {
-  const a = -Math.PI / 2 + (Math.PI / 10) * 2.5;
-  const r = 11.45;
-  return { x: NORTH * Math.sin(a) * r, z: AC + Math.cos(a) * r, a };
+// ---- issue #26: the five chapels round the ambulatory, as the shell's (build_landmarks.py cathedral(): "five
+// radiating chapels, each closed by five sides"), and the choir's third aisle on each side (A3 .. OUT, as the nave's)
+/** The chapels' axes: from the apse's middle, turned from the east (+z) toward the north (+x), as the shell's. */
+export const CHAPEL_ANGLES = [-72, -36, 0, 36, 72].map((d) => (d * Math.PI) / 180);
+/** A chapel's walls, the shell's outer faces: (r out along its axis from the apse's middle, s across it toward the north at a 0). */
+export const CHAPEL_RING: Array<[number, number]> = [[12.6, -3.1], [15, -3.1], [16.9, -2.2], [17.6, 0], [16.9, 2.2], [15, 3.1], [12.6, 3.1]];
+/** The chapels' walls' thickness (the shell's face to the hall's), their tops (the hall's frame), its ceiling's crown. */
+export const CHAPEL = { wall: 0.6, top: 11.2, spring: 10.9, crown: 11.5 } as const;
+/** A point of the hall's frame in a chapel's (r, s), and back. */
+export const chapelRS = (a: number, x: number, z: number): [number, number] => [x * Math.sin(a) + (z - AC) * Math.cos(a), x * Math.cos(a) - (z - AC) * Math.sin(a)];
+export const chapelXZ = (a: number, r: number, s: number): [number, number] => [Math.sin(a) * r + Math.cos(a) * s, AC + Math.cos(a) * r - Math.sin(a) * s];
+/**
+ * A chapel's floor, (r, s): the shell's faces moved in by the walls' thickness, from its mouth at the ambulatory's wall
+ * (AMB_IN) round to the mouth again.
+ */
+export const CHAPEL_FLOOR: Array<[number, number]> = (() => {
+  const R = CHAPEL_RING;
+  const c: [number, number] = [R.reduce((a, p) => a + p[0], 0) / R.length, R.reduce((a, p) => a + p[1], 0) / R.length];
+  // each face's line moved in: a point on it and its way
+  const lines = R.slice(0, -1).map((p, i) => {
+    const q = R[i + 1];
+    const L = Math.hypot(q[0] - p[0], q[1] - p[1]);
+    const d: [number, number] = [(q[0] - p[0]) / L, (q[1] - p[1]) / L];
+    let n: [number, number] = [-d[1], d[0]];
+    if (n[0] * (c[0] - p[0]) + n[1] * (c[1] - p[1]) < 0) n = [-n[0], -n[1]];
+    return { p: [p[0] + n[0] * CHAPEL.wall, p[1] + n[1] * CHAPEL.wall] as [number, number], d };
+  });
+  const meet = (a: (typeof lines)[number], b: (typeof lines)[number]): [number, number] => {
+    const den = a.d[0] * b.d[1] - a.d[1] * b.d[0];
+    const t = ((b.p[0] - a.p[0]) * b.d[1] - (b.p[1] - a.p[1]) * b.d[0]) / den;
+    return [a.p[0] + a.d[0] * t, a.p[1] + a.d[1] * t];
+  };
+  const out: Array<[number, number]> = [[AMB_IN, lines[0].p[1]]];
+  for (let i = 0; i + 1 < lines.length; i++) out.push(meet(lines[i], lines[i + 1]));
+  out.push([AMB_IN, lines[lines.length - 1].p[1]]);
+  return out;
 })();
+/** Which chapel (its index) is (x, z) in, `grow` metres out of its floor (-1: none). */
+export function chapelAt(x: number, z: number, grow = 0): number {
+  for (let i = 0; i < CHAPEL_ANGLES.length; i++) {
+    const [r, s] = chapelRS(CHAPEL_ANGLES[i], x, z);
+    if (r < AMB_IN - 0.6 || r > 18) continue;
+    // a convex floor: inside every edge (the mouth's edge at the ambulatory's wall too)
+    const F = CHAPEL_FLOOR;
+    let inside = true;
+    for (let k = 0; k < F.length && inside; k++) {
+      const p = F[k];
+      const q = F[(k + 1) % F.length];
+      const cross = (q[0] - p[0]) * (s - p[1]) - (q[1] - p[1]) * (r - p[0]);
+      const L = Math.hypot(q[0] - p[0], q[1] - p[1]);
+      // (the floor runs counter-clockwise in (r, s): inside is to the left of each edge)
+      if (cross / L < -grow) inside = false;
+    }
+    if (inside) return i;
+  }
+  return -1;
+}
+/** The chapels' altars on their axes, their fronts toward the ambulatory; the second (south-east) holds the Resurrection. */
+export const CHAPEL_ALTARS: Array<{ x: number; z: number; a: number }> = CHAPEL_ANGLES.map((a) => {
+  const [x, z] = chapelXZ(a, 15.65, 0);
+  return { x, z, a };
+});
+/** The Resurrection triptych and its altar: in the south-east chapel, against its back (issue #26: the ambulatory's
+ * wall where it hung opens into the chapels now). */
+export const RESURRECTION = CHAPEL_ALTARS[1];
 /** The choir stalls (1840s, carved oak) along the choir's screens; a gap on the north side at the clergy's gate. */
 export const STALLS = { x0: 4.3, x1: 5.8, z0: 83.6, z1: 100.6 };
 
@@ -166,9 +225,10 @@ export function inArea(x: number, z: number): boolean {
   if (z < WO - 0.8) return ax < A3;
   if (z < CROSS0 - 0.6) return ax < OUT + 0.5;
   if (z < CROSS1 + 0.6) return ax < TE + 0.35;
-  if (z < CHOIR_E + 0.6) return ax < A3 + 0.6;
+  // (issue #26: the choir's third aisles; the chapels round the ambulatory)
+  if (z < CHOIR_E + 0.6) return ax < OUT + 0.5;
   if (z < AC) return ax < AMB_OUT;
-  return inHalfPolygon(x, z, AMB_OUT, 10);
+  return inHalfPolygon(x, z, AMB_OUT, 10) || chapelAt(x, z, 0.6) >= 0;
 }
 
 /** Inside the apse polygon of apothem a (the five faces round AC, as the shell's)? */
@@ -198,10 +258,11 @@ export function hasFloor(x: number, z: number, doorOpen = true): boolean {
   if (z < CROSS0) return ax < OUT;
   // (the transept's ends: out to TE beside the portals' vestibule)
   if (z < CROSS1) return ax < TR || (ax < TE && (z < PORTAL_ZONE.z0 || z > PORTAL_ZONE.z1));
-  if (z < CHOIR_E) return ax < A3;
+  // (issue #26: the choir's third aisle on each side, behind the transept's east wall)
+  if (z < CHOIR_E) return ax < A3 || (ax < OUT && z > CROSS1 + 0.6);
   if (z < AC) return ax < AMB_IN;
-  // the sanctuary inside the apse, or the ambulatory round it
-  return inHalfPolygon(x, z, APSE_IN, 5) || (!inHalfPolygon(x, z, APSE_OUT, 5) && inHalfPolygon(x, z, AMB_IN, 10));
+  // the sanctuary inside the apse, or the ambulatory round it, or a chapel off it
+  return inHalfPolygon(x, z, APSE_IN, 5) || (!inHalfPolygon(x, z, APSE_OUT, 5) && inHalfPolygon(x, z, AMB_IN, 10)) || chapelAt(x, z) >= 0;
 }
 
 /** The floor's height at (x, z), local (the porch's steps are below 0; the choir and the altar's steps above). */
@@ -238,7 +299,10 @@ export function solids(): PlanRect[] {
     for (const z of CHOIR_BAYS) {
       out.push(around(s * NAVE, z, 0.92, 0.75));
       out.push(around(s * A2, z, 0.72, 0.55));
+      out.push(around(s * A3, z, 0.72, 0.55));
     }
+    // (issue #26) the arcade into the choir's third aisle: its ends at the transept's wall and at the east wall
+    for (const [z0, z1] of [[CROSS1 + 0.3, CROSS1 + 1.25], [CHOIR_E - 0.65, CHOIR_E]]) out.push({ minX: s * A3 - 0.35, maxX: s * A3 + 0.35, minZ: z0, maxZ: z1 });
     // the crossing's great piers, and the arches' feet from the aisles into the transept
     for (const z of [CROSS0, CROSS1]) {
       out.push(around(s * NAVE, z, 1.3));
@@ -275,7 +339,8 @@ export function solids(): PlanRect[] {
   // the side altars, the stands by the triptychs, the Resurrection's altar in the ambulatory
   for (const a of SIDE_ALTARS) out.push(around(a.x, a.z, 0.65, 1.7));
   for (const t of TRI_STANDS) out.push(around(t.x, t.z, 0.4, 0.3));
-  out.push(around(RESURRECTION.x, RESURRECTION.z, 1.1));
+  // (issue #26: the chapels' altars; the Resurrection's in the south-east chapel)
+  for (const c of CHAPEL_ALTARS) out.push(around(c.x, c.z, c === RESURRECTION ? 1.1 : 0.9));
   // the choir stalls (people only walk the choir: its screens and the rail keep Jef out)
   for (const s of [-1, 1]) {
     const runs: Array<[number, number]> = s * NORTH > 0 ? [[STALLS.z0, GATE.z0 - 0.3], [GATE.z1 + 0.3, STALLS.z1]] : [[STALLS.z0, STALLS.z1]];
@@ -371,6 +436,11 @@ export const SETS: Record<string, PlanMark[]> = {
     { x: -TRIPTYCH_X, z: CROSS1 - 2.2, yaw: 0 },
     { x: TR - 3.2, z: (CROSS0 + CROSS1) / 2 - 1.5, yaw: Math.PI / 2 },
     { x: -(TR - 3.2), z: (CROSS0 + CROSS1) / 2 + 1.5, yaw: -Math.PI / 2 },
+    // (issue #26) before the altars of the five chapels round the ambulatory
+    ...CHAPEL_ANGLES.map((a) => {
+      const [x, z] = chapelXZ(a, 13.3, 0);
+      return { x, z, yaw: a };
+    }),
   ],
   beadleRound: [
     { x: -9, z: ROW0 - 1, yaw: 0 },
@@ -408,7 +478,11 @@ export function nodes(): Array<[number, number]> {
     // the ambulatory
     for (const a of [30, 60]) n.push([s * 9 * Math.sin((a * Math.PI) / 180), AC + 9 * Math.cos((a * Math.PI) / 180)]);
     n.push([s * 5.25, ROW0 - 1.2], [s * 5.25, CROSS0 - 2]);
+    // (issue #26) the choir's third aisle
+    for (const z of [85, 94.4, 102.8]) n.push([s * 21.5, z]);
   }
+  // (issue #26) the chapels: in the ambulatory before each, and in it
+  for (const a of CHAPEL_ANGLES) n.push(chapelXZ(a, 9.5, 0), chapelXZ(a, 13.3, 0));
   n.push([0, AC + 9]);
   // through the gate into the choir
   n.push([7.6, (GATE.z0 + GATE.z1) / 2], [4.2, (GATE.z0 + GATE.z1) / 2], [2.2, AZ - 3], [0, RAILZ + 1.4]);

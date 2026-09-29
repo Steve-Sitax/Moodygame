@@ -91,7 +91,8 @@ function flood(start: [number, number], free: (x: number, z: number) => boolean)
   const X0 = -P.TR - 1;
   const Z0 = P.PORCH_Z0 - 0.5;
   const W = Math.ceil((2 * P.TR + 2) / C);
-  const H = Math.ceil((P.AC + P.AMB_OUT + 2 - Z0) / C);
+  // (to the chapels round the ambulatory: issue #26)
+  const H = Math.ceil((P.AC + 18.5 - Z0) / C);
   const seen = new Uint8Array(W * H);
   const at = (i: number, j: number): [number, number] => [X0 + i * C, Z0 + j * C];
   const si = Math.round((start[0] - X0) / C);
@@ -153,6 +154,10 @@ describe("the walk in through the west door", () => {
       ["the outer aisles", P.NORTH * 21.5, 30],
       ["the south outer aisle", -P.NORTH * 21.5, 30],
       ["the transept's north end", P.TR - 1.5, (P.CROSS0 + P.CROSS1) / 2],
+      // issue #26: the choir's third aisles and the five chapels round the ambulatory
+      ["the choir's north outer aisle", P.NORTH * 21.5, 94.4],
+      ["the choir's south outer aisle", -P.NORTH * 21.5, 94.4],
+      ...P.CHAPEL_ANGLES.map((a, i): [string, number, number] => [`chapel ${i + 1}, before its altar`, ...P.chapelXZ(a, 13.3, 0)]),
     ];
     const lost = places.filter(([, x, z, r]) => !jef(x, z, r ?? 0.8)).map(([n]) => n);
     expect(lost).toEqual([]);

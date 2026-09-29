@@ -1015,8 +1015,9 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
       archRim(k, ST, A2 - NAVE - 1.6, 6.5, 9.2, 0.25, 0.72, (s * (NAVE + A2)) / 2, z, 0);
       archRim(k, ST, A3 - A2 - 1.6, 6.5, 9.2, 0.25, 0.72, (s * (A2 + A3)) / 2, z, 0);
     }
-    wall(0.6, AH, CHOIR_E + 0.6 - CROSS1 - 0.6, s * (A3 + 0.3), (CROSS1 + 0.6 + CHOIR_E + 0.6) / 2);
-    wall(A3 - A2, AH, 0.6, (s * (A2 + A3)) / 2, CHOIR_E + 0.3);
+    // (issue #26: the choir's outer aisles open on the A3 arcade into its third aisles (below); their east wall is the
+    // shell's east wall of the third aisle, lined from x 13.25: here only its first metre)
+    slab(...(s > 0 ? [A2, 13.35] : [-13.35, -A2]) as [number, number], 0, AH, CHOIR_E, CHOIR_E + 0.6);
     // the clerestory walls over the arcades (issue #10: lined, the shell's clerestory windows real), the tall west bay's
     // walls up under its roof; the walls between the aisles up to the aisles' vaults
     const NX = (x0: number, x1: number): [number, number] => (s > 0 ? [x0, x1] : [-x1, -x0]);
@@ -1067,10 +1068,33 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
     const ln = 2 * S.apseR * Math.sin(Math.PI / 10);
     line(face(corner(i), corner(i + 1), [Math.sin(a), Math.cos(a)]), 0.3, S.apseR * Math.cos(Math.PI / 10) - P.APSE_IN, 0.02, ln - 0.02, APSE_Y, 30);
   }
+  // the ambulatory's ten faces (issue #26: at every other corner a chapel opens under a pointed arch as wide as the
+  // chapel, its half in each of the two faces there)
+  const MOUTH = { spring: 6.5, apex: 9.8 };
   for (let i = 0; i < 10; i++) {
     const a = -Math.PI / 2 + (Math.PI / 10) * (i + 0.5);
     const r = (P.AMB_IN + P.AMB_OUT) / 2;
-    k.box(facetWidth(r, 10), AH, P.AMB_OUT - P.AMB_IN, Math.sin(a) * r, AH / 2, AC + Math.cos(a) * r, WL, { tile: 2.6, ry: a });
+    const L = facetWidth(r, 10);
+    // the chapel's corner at this face's far end (+u, the way the angle grows) or its near end
+    const sg = i % 2 === 0 ? 1 : -1;
+    const uv = sg * (L / 2 - 0.06);
+    const half = P.CHAPEL_FLOOR[0][1] * -1;
+    const wm = half / Math.cos(Math.PI / 20);
+    const sh = new THREE.Shape();
+    sh.moveTo(-sg * (L / 2), 0);
+    sh.lineTo(uv - sg * wm, 0);
+    for (let j = 0; j <= 8; j++) {
+      const w = wm * (1 - j / 8);
+      sh.lineTo(uv - sg * w, MOUTH.spring + pointedAt(w * Math.cos(Math.PI / 20), half, MOUTH.apex - MOUTH.spring));
+    }
+    sh.lineTo(sg * (L / 2), MOUTH.apex);
+    sh.lineTo(sg * (L / 2), AH);
+    sh.lineTo(-sg * (L / 2), AH);
+    const g = new THREE.ExtrudeGeometry(sh, { depth: P.AMB_OUT - P.AMB_IN, bevelEnabled: false, curveSegments: 1 });
+    g.translate(0, 0, -(P.AMB_OUT - P.AMB_IN) / 2);
+    g.computeVertexNormals();
+    planarUV(g, 2.6);
+    k.add(g, WL, Math.sin(a) * r, 0, AC + Math.cos(a) * r, { ry: a });
   }
 
   // ================= the piers and arcades
@@ -1144,7 +1168,7 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
       [A2 + 0.35, A3 - 0.35, aisleZ],
       [A3 + 0.35, OUT, outerZ],
       [NAVE + 0.4, A2 - 0.35, [CROSS1 + 0.6, ...CHOIR_BAYS, AC]],
-      [A2 + 0.35, A3, [CROSS1 + 0.6, ...CHOIR_BAYS, CHOIR_E]],
+      [A2 + 0.35, A3 - 0.35, [CROSS1 + 0.6, ...CHOIR_BAYS, CHOIR_E]],
     ];
     for (const [xa, xb, zs] of cells) for (const [a, b] of between(zs)) groin(k, m.vault, ST, s > 0 ? xa : -xb, s > 0 ? xb : -xa, a, b, ASPRING, AH - ASPRING, AH - ASPRING, 6);
     // the transept's arms: four bays each (issue #10: each window of the shell's west and east walls in a bay of its own,
@@ -1401,12 +1425,7 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
     triptych(f, m, flames, 3.6, 5.2, 2.6, el ? m.elevation : m.descent, el ? m.elevL : m.descL, el ? m.elevR : m.descR, 0.62);
   }
   for (const t of P.TRI_STANDS) votiveStand(new Fr(k, t.x, t.z, Math.PI), m, flames, 0.8, 16, rnd);
-  // the Resurrection triptych on the ambulatory's wall, its small altar
-  {
-    const R = P.RESURRECTION;
-    const f = new Fr(k, R.x + Math.sin(R.a) * 0.55, R.z + Math.cos(R.a) * 0.55, R.a + Math.PI);
-    triptych(f, m, flames, 1.9, 2.7, 2.3, m.resurrection, m.resL, m.resR, 0.7);
-  }
+  // (the Resurrection triptych: in the south-east chapel, with the chapels below)
 
   // ================= the pulpit (Van der Voort, 1713), against the pier on the south side of the nave
   pulpit(new Fr(k, P.PULPIT.x + 0.3, P.PULPIT.z, Math.PI / 2), m, rnd);
@@ -1496,7 +1515,104 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
   // brass chandeliers over the nave and the crossing (lit at dusk)
   for (const z of [24, 36, 48, XMID]) chandelier(F0, m, chand, 0, 9.6, z, z === XMID ? H - 0.3 : HV - 0.3);
 
+  // ================= issue #26: the choir's third aisle on each side (as the nave's outer aisles: an arcade on the A3
+  // line, rib vaults, the shell's windows real in its long wall and in its east wall) and the five chapels round the
+  // ambulatory, at the shell's own size (shared/cathedralPlan.ts CHAPEL_RING). The two aisles one part, the chapels
+  // another (a Kit each: their pieces merged per material, 4-5 draws), not drawn when out of view; the altars and their
+  // things go with the hall's own pieces (materials it draws anyway: no draw more).
+  const parts: Kit[] = [];
+  const lineIn = (kit: Kit, f: ShellFace, from: number, to: number, u0: number, u1: number, y0: number, y1: number) =>
+    lining(kit, WL, { face: f, from, to, u0, u1, y0: y0 + FY, y1: y1 + FY }, WINDOWS, FY, 2.6);
+  const boxIn = (kit: Kit, x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, def: MatDef = WL) =>
+    kit.box(x1 - x0, y1 - y0, z1 - z0, (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, def, { tile: 2.6 });
+  {
+    const CB = S.choirBays;
+    const q = new Kit(group);
+    q.shadeTop = k.shadeTop;
+    parts.push(q);
+    for (const s of [-1, 1]) {
+      const [x0, x1] = s > 0 ? [A3, OUT] : [-OUT, -A3];
+      q.box(x1 - x0, 0.1, CHOIR_E - CROSS1 - 0.6, (x0 + x1) / 2, -0.05, (CROSS1 + 0.6 + CHOIR_E) / 2, m.floor, { tile: 3.2, flat: true });
+      // its long wall on the shell's (lined, u 81.9 .. 107), its end at the transept's wall, its east wall (the shell's
+      // east wall of the third aisle, x 13 .. 26, lined: its window over the second and third aisles)
+      lineIn(q, face([s * S.aisleWall, CB[0]], [s * S.aisleWall, CB[3]], [s, 0]), 0.3, S.aisleWall - OUT, 0.25, CB[3] - CB[0] - 0.25, -0.12, AH);
+      boxIn(q, s > 0 ? OUT : -OUT - 0.5, s > 0 ? OUT + 0.5 : -OUT, 0, AH, CROSS1 + 0.55, CB[0] + 0.27);
+      const [ea, ec] = s > 0 ? [13, S.aisleWall] : [-S.aisleWall, -13];
+      lineIn(q, face([ea, AC], [ec, AC], [0, 1]), 0.3, AC - CHOIR_E, 0.25, S.aisleWall - 13 - 0.25, -0.12, AH);
+      // the arcade on the A3 line (as the second aisle's on A2), the wall over it up to the vaults, the vaults
+      for (const z of CHOIR_BAYS) clusterPier(q, ST, m.stoneDark, s * A3, z, 8, 0.52, 10);
+      for (const [a, b] of between([CROSS1 + 0.6, ...CHOIR_BAYS, CHOIR_E])) {
+        q.archWall(b - a, ASPRING, 0.6, b - a - 1.25, 8, 11.8, s * A3, 0, (a + b) / 2, ST, { ry: Math.PI / 2, tile: 2.4 });
+        archRim(q, ST, b - a - 1.25, 8, 11.8, 0.26, 0.76, s * A3, (a + b) / 2, Math.PI / 2);
+        groin(q, m.vault, ST, s > 0 ? A3 + 0.35 : -OUT, s > 0 ? OUT : -(A3 + 0.35), a, b, ASPRING, AH - ASPRING, AH - ASPRING, 6);
+      }
+      q.box(0.7, AH - ASPRING, CHOIR_E - CROSS1 - 0.3, s * A3, ASPRING + (AH - ASPRING) / 2, (CROSS1 + 0.3 + CHOIR_E) / 2, WL, { tile: 2.6 });
+    }
+  }
+  {
+    // the chapels: the shell's five-sided walls lined (their four windows real), a floor from the ambulatory's arch in, a
+    // low ribbed ceiling under the chapel's roof, an altar (the south-east one's the Resurrection triptych)
+    const kc = new Kit(group);
+    kc.shadeTop = k.shadeTop;
+    parts.push(kc);
+    const F = P.CHAPEL_FLOOR;
+    const rs = F.reduce((t, [r]) => t + r, 0) / F.length;
+    P.CHAPEL_ANGLES.forEach((ca, ci) => {
+      const xz = (r: number, sv: number) => P.chapelXZ(ca, r, sv);
+      const fsh = new THREE.Shape(F.map(([r, sv]) => new THREE.Vector2(...xz(r, sv))));
+      const fg = new THREE.ExtrudeGeometry(fsh, { depth: 0.1, bevelEnabled: false, curveSegments: 1 });
+      // (the shape's x, y are the frame's x, z: laid flat, its top at the floor)
+      fg.rotateX(Math.PI / 2);
+      fg.computeVertexNormals();
+      planarUV(fg, 3.2);
+      kc.add(fg, m.floor, 0, 0, 0, { flat: true });
+      // the walls: the shell's faces lined, the two side walls on to the ambulatory's
+      const R = P.CHAPEL_RING.map(([r, sv]) => xz(r, sv));
+      const [cx, cz] = xz(15, 0);
+      for (let i = 0; i + 1 < R.length; i++) {
+        const [ax, az] = R[i];
+        const [bx, bz] = R[i + 1];
+        const ln = Math.hypot(bx - ax, bz - az);
+        let n: [number, number] = [-(bz - az) / ln, (bx - ax) / ln];
+        if (n[0] * ((ax + bx) / 2 - cx) + n[1] * ((az + bz) / 2 - cz) < 0) n = [-n[0], -n[1]];
+        const side = i === 0 || i === R.length - 2;
+        lineIn(kc, face(R[i], R[i + 1], n), side ? 0.05 : 0.3, P.CHAPEL.wall, i === 0 ? -0.7 : 0.02, i === R.length - 2 ? ln + 0.7 : ln - 0.02, -0.12, P.CHAPEL.top);
+      }
+      // the ceiling: from the walls at its spring up to its crown over the middle, a rib to each corner
+      const apex = new THREE.Vector3(xz(rs, 0)[0], P.CHAPEL.crown, xz(rs, 0)[1]);
+      const pos: number[] = [];
+      for (let j = 0; j < F.length; j++) {
+        const [a0x, a0z] = xz(...F[j]);
+        const [a1x, a1z] = xz(...F[(j + 1) % F.length]);
+        pos.push(apex.x, apex.y, apex.z, a0x, P.CHAPEL.spring, a0z, a1x, P.CHAPEL.spring, a1z);
+      }
+      const cg = new THREE.BufferGeometry();
+      cg.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+      cg.computeVertexNormals();
+      planarUV(cg, 2.6);
+      kc.add(cg, m.vault, 0, 0, 0, { flat: true, tint: 0.95 });
+      for (let j = 1; j + 1 < F.length; j++) {
+        const [px, pz] = xz(...F[j]);
+        const p0 = new THREE.Vector3(px, P.CHAPEL.spring - 0.1, pz);
+        const bx = ribGeo(0.2, 0.18, p0.distanceTo(apex) + 0.04);
+        bx.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), apex.clone().sub(p0).normalize()));
+        bx.translate((p0.x + apex.x) / 2, (p0.y + apex.y) / 2 - 0.1, (p0.z + apex.z) / 2);
+        kc.add(bx, ST, 0, 0, 0, { flat: true, tint: 0.93 });
+      }
+      // the altar against the chapel's back, its front toward the ambulatory
+      const A = P.CHAPEL_ALTARS[ci];
+      const f = new Fr(k, A.x + Math.sin(A.a) * 0.55, A.z + Math.cos(A.a) * 0.55, A.a + Math.PI);
+      if (A === P.RESURRECTION) triptych(f, m, flames, 1.6, 2.2, 1.6, m.resurrection, m.resL, m.resR, 0.9);
+      else {
+        altarTable(f, m, 1.6, 0.8);
+        crucifix(f, m, 0, 1.17, 0.3, 0.7);
+        candles(f, m, flames, 4, 1.2, 1.17, 0.12, 0.4);
+      }
+    });
+  }
+
   k.finish();
+  for (const q of parts) q.finish();
 
   const altarN = altarLit.count;
   altarLit.showFirst(0);
@@ -1532,7 +1648,7 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
   const triL = [pt(0xffc890, NORTH * P.TRIPTYCH_X, 5, CROSS1 - 5, 12, 1.3), pt(0xffc890, -NORTH * P.TRIPTYCH_X, 5, CROSS1 - 5, 12, 1.3)];
   // the sun through the south glass: patches on the floor in the glass's colours, the piers' and arcades' shadows
   // across them, the shafts from the aisles' lancets and the clerestory (world/hallSun.ts); the moon by night
-  const piers = [...BAYS, ...CHOIR_BAYS].flatMap((z) => [-1, 1].flatMap((s) => [{ x: s * NAVE, z, r: 0.74, h: 8 }, { x: s * A2, z, r: 0.52, h: 8 }, ...(z > P.TOWER_E && z < CROSS0 ? [{ x: s * A3, z, r: 0.52, h: 8 }] : [])]));
+  const piers = [...BAYS, ...CHOIR_BAYS].flatMap((z) => [-1, 1].flatMap((s) => [{ x: s * NAVE, z, r: 0.74, h: 8 }, { x: s * A2, z, r: 0.52, h: 8 }, ...(z > P.TOWER_E ? [{ x: s * A3, z, r: 0.52, h: 8 }] : [])]));
   for (const s of [-1, 1]) for (const z of [CROSS0, CROSS1]) piers.push({ x: s * NAVE, z, r: 1.12, h: 13 });
   const sunLight = buildHallSun(group, {
     floor: { minX: -TE, maxX: TE, minZ: W0, maxZ: CHOIR_E + 0.6 },
@@ -1541,6 +1657,9 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
       { minX: -TE, maxX: TE, minZ: CROSS0, maxZ: CROSS1 },
       { minX: -(A3 - 0.4), maxX: A3 - 0.4, minZ: W0, maxZ: WO },
       { minX: -A3, maxX: A3, minZ: CROSS1, maxZ: CHOIR_E + 0.6 },
+      // (issue #26: the choir's third aisles)
+      { minX: A3, maxX: OUT, minZ: CROSS1 + 0.6, maxZ: CHOIR_E },
+      { minX: -OUT, maxX: -A3, minZ: CROSS1 + 0.6, maxZ: CHOIR_E },
     ],
     windows: sunWins,
     piers,
@@ -1550,6 +1669,8 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
       { along: "z" as const, at: s * A2, from: W0, to: CROSS0, open: 10 },
       { along: "z" as const, at: s * A3, from: P.TOWER_E, to: CROSS0, open: 10 },
       { along: "z" as const, at: s * A2, from: CROSS1, to: CHOIR_E, open: 10 },
+      // (issue #26: the arcade into the choir's third aisle)
+      { along: "z" as const, at: s * A3, from: CROSS1, to: CHOIR_E, open: 10 },
       // (issue #10: the transept's west wall: the aisles' arches into the arm, beyond them wall; the light of the
       // transept's front and east windows stops at it)
       { along: "x" as const, at: CROSS0 - 0.3, from: s > 0 ? NAVE : -A3, to: s > 0 ? A3 : -NAVE, open: 0, solid: [[9.2, 60]] as Array<[number, number]> },
@@ -1572,7 +1693,7 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
     { id: "elevation", x: NORTH * P.TRIPTYCH_X, z: CROSS1 - 3.2, r: 3.5, label: "look at the Elevation of the Cross", text: "Rubens's Elevation of the Cross, the great triptych, back in Antwerp since the French gave it up in 1815. Men strain with ropes and shoulders to heave the cross upright on a slant; on the wings the mourners grieve and the Roman officer gives his orders from the saddle." },
     { id: "descent", x: -NORTH * P.TRIPTYCH_X, z: CROSS1 - 3.2, r: 3.5, label: "look at the Descent from the Cross", text: "Rubens's Descent from the Cross. A pale body slides down a white sheet into many hands; a young man in a red cloak takes its weight. On the wings the Visitation and the Presentation in the Temple. The arquebusiers' guild paid for it, two hundred and sixty years ago." },
     { id: "assumption", x: 0, z: RAILZ - 1.0, r: 2.2, label: "look at the high altar", text: "Over the high altar, in black and white marble and gold, Our Lady rises on clouds among the angels while the apostles stare into her empty tomb: Rubens again, his Assumption. The altar is new, fifty years old, built from the marble of a church the French pulled down. The red lamp before the tabernacle never goes out." },
-    { id: "resurrection", x: RS.x * 0.8, z: AC + (RS.z - AC) * 0.8, r: 2.4, label: "look at the Resurrection", text: "A smaller triptych on the ambulatory wall: Christ bursts from the tomb with a red banner and the guards fall back from the light. A printer's widow had it painted for her husband's grave." },
+    { id: "resurrection", x: RS.x * 0.8, z: AC + (RS.z - AC) * 0.8, r: 2.4, label: "look at the Resurrection", text: "A smaller triptych in a chapel off the ambulatory: Christ bursts from the tomb with a red banner and the guards fall back from the light. A printer's widow had it painted for her husband's grave." },
     { id: "dome", x: 0, z: XMID, r: 3.0, label: "look up into the dome", text: "High over the crossing the lantern opens to a painted dome: rings of clouds and angels climbing toward the light, and Our Lady rising at the top. Painted two hundred years ago; from down here it swims in the dusk and the daylight of the lantern's windows." },
     { id: "pulpit", x: P.PULPIT.x + 1.9, z: P.PULPIT.z, r: 1.9, label: "look at the pulpit", text: "The pulpit is carved oak, all of it: at its foot four women for Europe, Asia, Africa and America with a horse, a camel, a lion and a crocodile; trees rise from them, their branches full of birds, an eagle and a peacock among them; angels blow trumpets on the sounding board. It came from the abbey at Hemiksem when the French closed it." },
     { id: "stalls", x: 0, z: RAILZ - 1.2, r: 1.4, label: "look at the choir stalls", text: "Behind the rail the canons' stalls run down both sides of the choir in new pale oak: pointed arches, gables and pinnacles, carved these thirty years and still not finished. The old stalls went to the fire in the French years." },

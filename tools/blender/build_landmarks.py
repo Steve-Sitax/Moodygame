@@ -3133,19 +3133,21 @@ def cathedral(fr, world_north):
         for i, (ua, ub) in enumerate(zip(nave_bays, nave_bays[1:])):
             _aisle_bay(m, ua, ub, side, real=f"the {sname[side]} outer aisle, bay {i + 1}, window",
                        clip=behind_houses(side, ua + 1.7, ub - 1.7))
-        for ua, ub in zip(choir_bays, choir_bays[1:]):
-            _aisle_bay(m, ua, ub, side)
+        # (issue #26: the choir's third aisle is built inside now: its windows real too)
+        for i, (ua, ub) in enumerate(zip(choir_bays, choir_bays[1:])):
+            _aisle_bay(m, ua, ub, side, real=f"the choir's {sname[side]} outer aisle, bay {i + 1}, window",
+                       clip=behind_houses(side, ua + 1.7, ub - 1.7))
         for u in nave_bays:
             _cbuttress(m, u, side)
         _cbuttress(m, choir_bays[0], side)
         _cbuttress(m, choir_bays[3], side)
         # east wall of the outer choir aisles
         va, vb = sorted((side * 13.0, side * VO))
-        f = m.poly([(AU, va, 0), (AU, vb, 0), (AU, vb, AE), (AU, va, AE)], STONE, 0.95)
-        m.orient(f, (1, 0, 0))
+        hole = _real_win(m, (AU, 0), (0, 1), (1, 0), min(side * 15.5, side * 23.5), max(side * 15.5, side * 23.5), 3.6, 13.6, "lancet",
+                         arch_shape(0.72, 2), f"the choir's {sname[side]} outer aisle, its east wall, window")
+        _cut_wall(m, (AU, 0), (0, 1), (1, 0), va, vb, 0, AE, [hole], shade=0.95)
         _plinth_run(m, (AU, 0), (0, 1), (1, 0), va, vb)
         _wb(m, (AU, 0), (0, 1), (1, 0), va, vb, 0.0, 0.3, AE - 0.55, AE, CARVED, 0.95)
-        m.decal((AU, 0), (0, 1), (1, 0), min(side * 15.5, side * 23.5), max(side * 15.5, side * 23.5), 3.6, 13.6, "lancet", arch_shape(0.72, 2))
         # the outer aisles beside the towers: their own west gable over the houses
         va, vb = sorted((side * 18.2, side * VO))
         # (issue #10: its window is real, the outer aisle's west bay behind it)
@@ -3268,17 +3270,24 @@ def cathedral(fr, world_north):
     # ---- ambulatory: a lean-to ring round the apse
     RA = 13.0
     angs = [math.radians(-90 + 18 * i) for i in range(11)]
-    for a0, a1 in zip(angs, angs[1:]):
+    CE = 12.0  # the chapels' walls' height
+    for k, (a0, a1) in enumerate(zip(angs, angs[1:])):
         p0i, p1i = (AU + HN * math.cos(a0), HN * math.sin(a0)), (AU + HN * math.cos(a1), HN * math.sin(a1))
         p0o, p1o = (AU + RA * math.cos(a0), RA * math.sin(a0)), (AU + RA * math.cos(a1), RA * math.sin(a1))
         am = (a0 + a1) / 2
-        f = m.poly([(p0o[0], p0o[1], 0), (p1o[0], p1o[1], 0), (p1o[0], p1o[1], AE), (p0o[0], p0o[1], AE)], STONE, 0.9)
-        m.orient(f, (math.cos(am), math.sin(am), 0))
+        # (issue #26: a chapel's mouth at each odd corner (-72, -36, 0, 36, 72): the wall open under the chapel's roof as far
+        # as the chapel's side walls (s 3.1 from its axis), the hall's chapel behind it; the rest of the face whole)
+        vo, ve = (p0o, p1o) if k % 2 else (p1o, p0o)
+        t = 3.1 / (RA * math.sin(math.radians(18)))
+        vc = (vo[0] + (ve[0] - vo[0]) * t, vo[1] + (ve[1] - vo[1]) * t)
+        for pa, pb, y0 in ((vc, ve, 0.0), (vo, vc, CE)):
+            f = m.poly([(pa[0], pa[1], y0), (pb[0], pb[1], y0), (pb[0], pb[1], AE), (pa[0], pa[1], AE)], STONE, 0.9)
+            m.orient(f, (math.cos(am), math.sin(am), 0))
         f = m.poly([(p0o[0] + 0.3 * math.cos(a0), p0o[1] + 0.3 * math.sin(a0), AE - 0.1), (p1o[0] + 0.3 * math.cos(a1), p1o[1] + 0.3 * math.sin(a1), AE - 0.1),
                     (p1i[0], p1i[1], 21.2), (p0i[0], p0i[1], 21.2)], SLATE)
         m.orient(f, (math.cos(am), math.sin(am), 1))
-    # five radiating chapels, each closed by five sides
-    CE = 12.0
+    # five radiating chapels, each closed by five sides (issue #26: their windows real, the hall's chapels behind them)
+    cname = {-72: "south", -36: "south-east", 0: "east", 36: "north-east", 72: "north"}
     for ad in (-72, -36, 0, 36, 72):
         a = math.radians(ad)
         e, q = (math.cos(a), math.sin(a)), (-math.sin(a), math.cos(a))
@@ -3289,14 +3298,16 @@ def cathedral(fr, world_north):
         for i in range(len(ring) - 1):
             p0, p1 = ring[i], ring[i + 1]
             mu, mv = (p0[0] + p1[0]) / 2 - AU, (p0[1] + p1[1]) / 2
-            f = m.poly([(p0[0], p0[1], 0), (p1[0], p1[1], 0), (p1[0], p1[1], CE), (p0[0], p0[1], CE)], STONE, 0.95)
-            m.orient(f, (mu, mv, 0))
-            if 1 <= i <= 4:
+            if not 1 <= i <= 4:
+                f = m.poly([(p0[0], p0[1], 0), (p1[0], p1[1], 0), (p1[0], p1[1], CE), (p0[0], p0[1], CE)], STONE, 0.95)
+                m.orient(f, (mu, mv, 0))
+            else:
                 ln = math.hypot(p1[0] - p0[0], p1[1] - p0[1])
                 d = ((p1[0] - p0[0]) / ln, (p1[1] - p0[1]) / ln)
-                o = (mu / math.hypot(mu, mv), mv / math.hypot(mu, mv))
                 o2 = (-d[1], d[0]) if (-d[1] * mu + d[0] * mv) > 0 else (d[1], -d[0])
-                m.decal(p0, d, o2, 0.35, ln - 0.35, 3.0, 10.4, "lancet", arch_shape(0.72, 2))
+                hole = _real_win(m, p0, d, o2, 0.35, ln - 0.35, 3.0, 10.4, "lancet", arch_shape(0.72, 2),
+                                 f"the {cname[ad]} chapel off the ambulatory, window {i}")
+                _cut_wall(m, p0, d, o2, 0.0, ln, 0, CE, [hole], shade=0.95)
                 _plinth_run(m, p0, d, o2, 0.0, ln)
                 _wb(m, p0, d, o2, 0.0, ln, 0.0, 0.3, CE - 0.5, CE, CARVED, 0.95)
         m.pyramid(ring, CE, CE + 5.2, SLATE)
