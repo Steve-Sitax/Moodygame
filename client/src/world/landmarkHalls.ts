@@ -34,6 +34,8 @@ import * as SS from "../../../shared/steenShell";
 import { inFrame, type ShellFace, type ShellOpening } from "../../../shared/shellOpening";
 import { createHallInWorld, type HallInWorld } from "./hallInWorld";
 import { lining, quarries, realGlass, shellPicture, windowOpenings } from "./realOpenings";
+import { baysInFrame, grow, inConvex, roofInFrame, towersInFrame, type ShellRoofFace } from "../../../shared/shellAttic";
+import { bay, floorAround, roofST, slopeLining, towerNotches, towerRoom, trimAtEnds, wallQuad, type AtticSpace } from "./atticKit";
 import { planarUV } from "./carolusHall";
 import type { World } from "./rijnkaai";
 import type { InWorld } from "./inworld";
@@ -825,6 +827,23 @@ export function buildTownhall(): LandmarkRoom {
  */
 /** The Vleeshuis's real openings (issue #10), in the hall's frame. */
 const VH_WINDOWS = inFrame(VS.SHELL_OPENINGS, VH.PLAN.origin, VH.PLAN.yaw);
+/** Issue #28: its roof, its dormers' insides and its towers (shared/vleeshuisShell.ts), in the hall's frame. */
+const VH_ROOF = roofInFrame(VS.SHELL_ROOF, VH.PLAN.origin, VH.PLAN.yaw);
+const VH_BAYS = baysInFrame(VS.SHELL_BAYS, VH.PLAN.origin, VH.PLAN.yaw);
+const VH_TOWERS = towersInFrame(VS.SHELL_TOWERS, VH.PLAN.origin, VH.PLAN.yaw);
+
+/**
+ * Issue #28: for an eye inside the Vleeshuis, can this window be seen from there (world/inworld.ts draws the street only
+ * through those)? The attic's from the attic, the hall's from the hall's two floors, the towers' never (not walked).
+ */
+function vleeshuisSeen(o: ShellOpening): ((eye: THREE.Vector3) => boolean) | undefined {
+  const px = o.x - o.nx * (o.depth + 0.05);
+  const pz = o.z - o.nz * (o.depth + 0.05);
+  const inTower = VH_TOWERS.some((t) => ((o.yb + o.yt) / 2 < t.ys ? inConvex(t.ring, px, pz) : inConvex(t.top, px, pz)));
+  if (inTower) return () => false;
+  const floor = VH.FLOOR_Y + VH.ATTIC - 0.5;
+  return o.yb > floor ? (eye) => eye.y > floor : (eye) => eye.y < floor;
+}
 
 export function buildVleeshuis(): LandmarkRoom {
   const P = VH.PLAN;
@@ -876,10 +895,21 @@ export function buildVleeshuis(): LandmarkRoom {
     { f: face([S.west, S.south], [S.west, S.north], [1, 0]), to: S.west - X1 },
   ];
   const DEEP = 0.44; // the great windows' reveals: the lining's front (the shallower ones get a sleeve)
+  // (issue #28: each lining stops short of the corner turrets' stair shafts, which stand in the walls' corners; the hall's
+  // inner face runs on to its corner as a plain wall there)
+  const shafts = VH_TOWERS.map((t) => grow(t.shaft, 0.03));
   for (const { f, to } of faces) {
     const len = Math.hypot(f.c[0] - f.a[0], f.c[1] - f.a[1]);
-    lining(k, H.brick, { face: f, from: DEEP, to, u0: 0.25, u1: len - 0.25, y0: FY - 0.12, y1: FY + UP }, windows, FY, 1.2);
-    lining(k, H.plaster, { face: f, from: DEEP, to, u0: 0.25, u1: len - 0.25, y0: FY + UP, y1: FY + CEIL1 + 0.12 }, windows, FY, 2);
+    const [u0, u1] = trimAtEnds(f, DEEP, to, 0.25, len - 0.25, shafts);
+    lining(k, H.brick, { face: f, from: DEEP, to, u0, u1, y0: FY - 0.12, y1: FY + UP }, windows, FY, 1.2);
+    lining(k, H.plaster, { face: f, from: DEEP, to, u0, u1, y0: FY + UP, y1: FY + CEIL1 + 0.12 }, windows, FY, 2);
+    const us = [X0, X1].flatMap((x) => [Z0, Z1].map((z) => (x - f.a[0]) * (f.c[0] - f.a[0]) / len + (z - f.a[1]) * (f.c[1] - f.a[1]) / len));
+    const [ha, hb] = [Math.min(...us), Math.max(...us)];
+    for (const [a, b] of [[ha, u0], [u1, hb]] as Array<[number, number]>) {
+      if (b - a < 0.005) continue;
+      wallQuad(k, H.brick, f, to, a, b, FY - 0.12, FY + UP, FY, 1.2);
+      wallQuad(k, H.plaster, f, to, a, b, FY + UP, FY + CEIL1 + 0.12, FY, 2);
+    }
   }
   // the east front's two doors are shut (Blender's leaves, not openings): oak doors on the inside
   for (const z of S.eastDoors) {
@@ -1075,9 +1105,24 @@ export function buildVleeshuis(): LandmarkRoom {
   holed(k, "z", Z0, STAIR.rect.minZ - 0.2, 11.2, 11.4, UP, CEIL1, [[...VH.STUDIO_DOOR, UP - 1, UP + 2.8]], H.plaster, 2);
   k.box(STAIR.foot - 11.4, 1.0, 0.1, (STAIR.foot + 11.4) / 2, UP + 0.5, STAIR.rect.minZ - 0.25, M.oakDark);
   k.box(0.1, 1.0, Z1 - STAIR.rect.minZ + 0.2, STAIR.foot + 0.05, UP + 0.5, (Z1 + STAIR.rect.minZ - 0.2) / 2, M.oakDark);
-  // the roof trusses over the upper floor, the ceiling
-  k.box(X1 - X0 + 1, 0.2, D + 1, (X0 + X1) / 2, CEIL1 + 0.1, (Z0 + Z1) / 2, H.plaster, { tile: 2 });
-  for (let x = X0 + 2; x < X1; x += 3.2) k.box(0.3, 0.35, D, x, CEIL1 - 0.2, (Z0 + Z1) / 2, H.timber);
+  // the roof trusses over the upper floor, the ceiling (issue #28: the attic stair's well through it; into the walls only
+  // a little, clear of the turrets' shafts in the corners)
+  const W2 = VH.WELL2;
+  const ceil = (x0: number, x1: number, z0: number, z1: number) => k.box(x1 - x0, 0.2, z1 - z0, (x0 + x1) / 2, CEIL1 + 0.1, (z0 + z1) / 2, H.plaster, { tile: 2 });
+  ceil(X0 - 0.1, X1 + 0.1, Z0 - 0.1, W2.minZ);
+  ceil(X0 - 0.1, W2.minX, W2.minZ, W2.maxZ);
+  ceil(W2.maxX, X1 + 0.1, W2.minZ, W2.maxZ);
+  ceil(X0 - 0.1, X1 + 0.1, W2.maxZ, Z1 + 0.1);
+  const beam = (x: number, z0: number, z1: number) => k.box(0.3, 0.35, z1 - z0, x, CEIL1 - 0.2, (z0 + z1) / 2, H.timber);
+  for (let x = X0 + 2; x < X1; x += 3.2) {
+    if (x > W2.minX - 0.2 && x < W2.maxX + 0.2) {
+      beam(x, Z0, W2.minZ - 0.05);
+      beam(x, W2.maxZ + 0.05, Z1);
+    } else beam(x, Z0, Z1);
+  }
+  // the attic stair up from the studio, its well's trimmer beams
+  stairSteps(k, VH.STAIR2, H.timber, M.oakDark);
+  for (const z of [W2.minZ - 0.18, W2.maxZ + 0.18]) k.box(W2.maxX - W2.minX + 0.6, 0.35, 0.3, (W2.minX + W2.maxX) / 2, CEIL1 - 0.2, z, H.timber);
   // the painter's studio: easels with canvases by the gable's windows, the model's dais, a table of pots, a stove
   const easel = (x: number, z: number, yaw: number, kind: "portrait" | "landscape", seed: number) => {
     for (const w of [-0.35, 0.35]) k.box(0.05, 2.0, 0.05, x + Math.cos(yaw) * w, UP + 1.0, z - Math.sin(yaw) * w, H.timber, { ry: yaw, rx: 0.12 });
@@ -1098,6 +1143,161 @@ export function buildVleeshuis(): LandmarkRoom {
   k.cyl(0.08, 0.08, CEIL1 - UP - 1.4, 27.0, UP + 1.4, 8.8, M.iron, { seg: 5 });
   for (let i = 0; i < 5; i++) k.box(0.9, 1.1, 0.04, 12.2 + i * 0.15, UP + 0.55, 1.0, H.paper, { ry: 0.2 });
   k.finish();
+
+  // ---- issue #28 (interiors are real): the attic under the roof, behind the gables' small windows and oculi, the wall
+  // dormers at the eaves and the roof's dormers (shared/vleeshuisShell.ts: the roof, the bays); walked, up the attic
+  // stair from the studio. Boards under the slate, the dormers' bays open into them, the gables lined in brick, the
+  // principal rafters with their collars and purlins, the chimneys' breasts; the merchant's empty casks and crates, the
+  // society's old scenery. No lamps: the day through its windows.
+  const atticG = new THREE.Group();
+  atticG.name = "vleeshuis_attic";
+  group.add(atticG);
+  const ka = new Kit(atticG);
+  const AT = VH.ATTIC;
+  const ATW = FY + AT;
+  const DROP = 0.2;
+  const tA = 1.4;
+  const RF = VH_ROOF;
+  const roofCeil = (x: number, z: number) => Math.min(...RF.faces.map((f) => RF.eaves + roofST(f, x, z)[1] * RF.slope - DROP));
+  const notches = towerNotches(VH_TOWERS, ATW);
+  {
+    // the floor: boards over the upper floor's ceiling, round the stair's well, clear of the stair tower's shaft
+    const fb = (x0: number, x1: number, z0: number, z1: number) => ka.box(x1 - x0, AT - CEIL1 - 0.2, z1 - z0, (x0 + x1) / 2, (AT + CEIL1 + 0.2) / 2, (z0 + z1) / 2, H.boards, { tile: 1.2, flat: true, tint: tA });
+    // (out of the stair tower's shaft: round it the floor's top alone, the shaft left out exactly)
+    const st = VH_TOWERS.find((t) => t.id === "stair")!;
+    const sx0 = Math.min(...st.shaft.map((p) => p[0])) - 0.05;
+    const sx1 = Math.max(...st.shaft.map((p) => p[0])) + 0.05;
+    const sz = Math.max(...st.shaft.map((p) => p[1])) + 0.05;
+    fb(X0 - 0.1, sx0, S.south + 0.05, W2.minZ);
+    fb(sx0, sx1, sz, W2.minZ);
+    fb(sx1, X1 + 0.1, S.south + 0.05, W2.minZ);
+    floorAround(ka, H.boards, sx0, sx1, S.south + 0.05, sz, grow(st.shaft, 0.03), AT, 1.2, tA);
+    fb(X0 - 0.1, W2.minX, W2.minZ, W2.maxZ);
+    fb(W2.maxX, X1 + 0.1, W2.minZ, W2.maxZ);
+    fb(X0 - 0.1, X1 + 0.1, W2.maxZ, S.north - 0.05);
+    // the rail round the well (the head of the stair open at its west end)
+    for (const z of [W2.minZ - 0.05, W2.maxZ + 0.05]) {
+      ka.box(W2.maxX - W2.minX, 0.08, 0.08, (W2.minX + W2.maxX) / 2, AT + 0.95, z, M.oakDark, { flat: true, tint: tA });
+      for (let x = W2.minX; x < W2.maxX; x += 1.14) ka.box(0.08, 0.95, 0.08, x, AT + 0.475, z, M.oakDark, { flat: true, tint: tA });
+    }
+    ka.box(0.08, 0.08, W2.maxZ - W2.minZ + 0.1, W2.minX - 0.05, AT + 0.95, (W2.minZ + W2.maxZ) / 2, M.oakDark, { flat: true, tint: tA });
+  }
+  // the dormers' bays (their fronts' linings with the windows, their cheeks and ceilings), open into the roof's boards
+  const holesOf = new Map<ShellRoofFace, Array<Array<[number, number]>>>(RF.faces.map((f) => [f, []]));
+  const baysOn = new Map<ShellRoofFace, Array<[number, number]>>(RF.faces.map((f) => [f, []]));
+  for (const b of VH_BAYS) {
+    const f = RF.faces.find((q) => q.n[0] * b.nx + q.n[1] * b.nz > 0.99)!;
+    const hole = bay(ka, H.boards, b, RF, f, DROP, windows, FY, tA);
+    if (hole) holesOf.get(f)!.push(hole);
+    baysOn.get(f)!.push([b.x - b.hw - 0.35, b.x + b.hw + 0.35]);
+  }
+  // the boards under each slope, from the gables' linings, the bays and the towers cut out
+  for (const f of RF.faces) {
+    const sA = roofST(f, X0, 0)[0];
+    const sB = roofST(f, X1, 0)[0];
+    const holes = [...holesOf.get(f)!, ...notches.map((p) => p.map(([x, z]) => roofST(f, x, z)))];
+    slopeLining(ka, H.boards, RF, f, { s0: Math.min(sA, sB) - 0.05, s1: Math.max(sA, sB) + 0.05, in0: 0.1, drop: DROP, holes, floorY: FY, tint: tA });
+  }
+  // the gables inside: brick from the floor up under the boards, their small windows and oculi cut through, clear of the
+  // corner turrets' top rooms
+  for (const { f, to } of [faces[2], faces[3]]) {
+    const len = Math.hypot(f.c[0] - f.a[0], f.c[1] - f.a[1]);
+    const tx = (f.c[0] - f.a[0]) / len;
+    const tz = (f.c[1] - f.a[1]) / len;
+    const [u0, u1] = trimAtEnds(f, 0.3, to, 0.05, len - 0.05, notches);
+    const at = (u: number) => roofCeil(f.a[0] + tx * u - f.n[0] * to, f.a[1] + tz * u - f.n[1] * to) + 0.05;
+    const uR = ((S.south + S.north) / 2 - f.a[1]) / tz;
+    const top: Array<[number, number]> = [u0, ...(uR > u0 && uR < u1 ? [uR] : []), u1].map((u) => [u, at(u)]);
+    lining(ka, H.brick, { face: f, from: 0.3, to, u0, u1, y0: FY + CEIL1 + 0.15, y1: Math.max(...top.map((q) => q[1])), top }, windows, FY, 1.2, tA);
+  }
+  // the chimneys' breasts, up to the slate
+  for (const [x, z] of VH.CHIMNEYS) {
+    const [hx, hz] = VH.CHIMNEY_HALF;
+    const yTop = Math.max(roofCeil(x, z - hz), roofCeil(x, z + hz)) + DROP + 0.1 - FY;
+    ka.box(2 * hx, yTop - AT, 2 * hz, x, (yTop + AT) / 2, z, H.brick, { tile: 1.2, flat: true, tint: tA });
+  }
+  {
+    // the principal rafters (not across a dormer's bay), their collars and king posts, the purlins
+    const k3 = Math.hypot(1, RF.slope);
+    const phi = Math.atan(RF.slope);
+    const ridgeIn = (RF.ridge - RF.eaves) / RF.slope;
+    const zOf = (f: ShellRoofFace, i: number) => f.a[1] - f.n[1] * i;
+    const yOf = (i: number) => RF.eaves + i * RF.slope - DROP - FY;
+    const under = (f: ShellRoofFace, i: number, d: number): [number, number] => [zOf(f, i) - f.n[1] * RF.slope * d / k3, yOf(i) - d / k3];
+    const collarIn = (24.4 - RF.eaves + DROP) / RF.slope;
+    // (the towers' and the chimneys' footprints: no timber through them)
+    const blocks: Array<Array<[number, number]>> = [
+      ...notches,
+      ...VH.CHIMNEYS.map(([cx, cz]): Array<[number, number]> => {
+        const [hx, hz] = VH.CHIMNEY_HALF;
+        return [[cx - hx - 0.1, cz - hz - 0.1], [cx + hx + 0.1, cz - hz - 0.1], [cx + hx + 0.1, cz + hz + 0.1], [cx - hx - 0.1, cz + hz + 0.1]];
+      }),
+    ];
+    const xSpan = (p: Array<[number, number]>) => [Math.min(...p.map((q) => q[0])) - 0.1, Math.max(...p.map((q) => q[0])) + 0.1];
+    for (let x = X0 + 2; x < X1 - 0.5; x += 3.2) {
+      const has = RF.faces.map((f) => !baysOn.get(f)!.some(([a, b]) => x > a && x < b) && !blocks.some((p) => x > xSpan(p)[0] && x < xSpan(p)[1] && p.some(([, z]) => Math.abs(z - zOf(f, 0)) < 9)));
+      RF.faces.forEach((f, j) => {
+        if (!has[j]) return;
+        const iM = (0.1 + ridgeIn) / 2;
+        const [z, y] = under(f, iM, 0.13);
+        ka.box(0.18, 0.22, (ridgeIn - 0.1) * k3, x, y, z, H.timber, { rx: f.n[1] < 0 ? -phi : phi, flat: true, tint: tA });
+      });
+      if (has.every(Boolean)) {
+        const zc0 = zOf(RF.faces[0], collarIn);
+        const zc1 = zOf(RF.faces[1], collarIn);
+        const yc = 24.4 - FY - 0.13;
+        ka.box(0.18, 0.24, Math.abs(zc1 - zc0), x, yc, (zc0 + zc1) / 2, H.timber, { flat: true, tint: tA });
+        ka.box(0.2, RF.ridge - DROP - FY - yc, 0.2, x, (RF.ridge - DROP - FY + yc) / 2, (zc0 + zc1) / 2, H.timber, { flat: true, tint: tA });
+      }
+    }
+    for (const f of RF.faces)
+      for (const i of [2.4, 6.0]) {
+        const [z, y] = under(f, i, 0.14);
+        // (in pieces between what stands across its line)
+        const cuts = blocks.filter((p) => Math.min(...p.map((q) => q[1])) < z + 0.2 && Math.max(...p.map((q) => q[1])) > z - 0.2).map(xSpan).sort((p, q) => p[0] - q[0]);
+        let x0 = X0;
+        for (const [a, b] of [...cuts, [X1, X1]]) {
+          if (a - x0 > 0.3) ka.box(a - x0, 0.22, 0.2, (x0 + a) / 2, y, z, H.timber, { flat: true, tint: tA });
+          x0 = Math.max(x0, b);
+        }
+      }
+  }
+  {
+    // what is kept up here: the merchant's empty casks and crates, the society's old scenery flats, a coil of rope
+    for (const [x, z, n] of [[-6.5, 2.2, 5], [3.6, 12.8, 4], [14.0, 2.0, 3]] as Array<[number, number, number]>)
+      for (let i = 0; i < n; i++) ka.barrel(x + (i % 3) * 0.8, AT + 0.36 + Math.floor(i / 3) * 0.62, z + Math.floor(i / 3) * 0.3, wood, hoop, { lying: true, ry: Math.PI / 2, tint: 0.6 + r() * 0.2 });
+    for (const [x, z, s] of [[-2.0, 12.9, 0.7], [-1.1, 12.8, 0.55], [-1.6, 12.9, 0.45], [20.5, 1.6, 0.7], [21.3, 1.5, 0.6]] as Array<[number, number, number]>)
+      ka.box(s, s, s, x, AT + s / 2 + (s < 0.5 ? 0.7 : 0), z, H.crate, { ry: r() * 0.4, tint: 0.7 });
+    for (const [x, ry] of [[-12.6, 0.18], [-12.2, 0.12], [-11.8, 0.06]] as Array<[number, number]>) ka.box(0.04, 2.6, 3.2, x, AT + 1.25, 12.2, H.backdrop, { rz: ry, tint: 0.65 });
+    ka.cyl(0.35, 0.35, 0.18, 8.2, AT, 12.9, H.rope, { seg: 8, tint: 0.7 });
+  }
+  ka.finish();
+
+  // ---- issue #28: the towers' rooms: each corner turret's stair shaft and top room, the stair tower's shaft and top
+  // room (shared/vleeshuisShell.ts SHELL_TOWERS); seen through their slits and windows from the street, not walked
+  const towersG = new THREE.Group();
+  towersG.name = "vleeshuis_towers";
+  group.add(towersG);
+  const kt = new Kit(towersG);
+  const atticSpace: AtticSpace = { floor: ATW, ceil: roofCeil };
+  for (const tw of VH_TOWERS) towerRoom(kt, { walls: H.brick, floor: H.boards, steps: M.stone, post: M.stone }, tw, windows, FY, atticSpace);
+  kt.finish();
+  // (drawn only where they can be seen: the attic from the street and from the upper floor and the attic, the towers
+  // from the street and the attic; from the hall's ground floor neither)
+  {
+    const eye = new THREE.Vector3();
+    const hooked = scene as unknown as { onBeforeRender: (...a: unknown[]) => void };
+    const before = hooked.onBeforeRender;
+    hooked.onBeforeRender = function (this: THREE.Scene, ...a: unknown[]) {
+      (a[2] as THREE.Camera).getWorldPosition(eye);
+      const [lx, lz] = HP.toLocal(P, eye.x, eye.z);
+      const inside = HP.insideness(P, lx, lz) >= 0.5;
+      atticG.visible = !inside || eye.y - FY > UP + 0.5;
+      // (the towers' walls in the attic are covered by their rooms' linings: drawn from the attic too)
+      towersG.visible = !inside || eye.y - FY > AT - 1;
+      before.apply(this, a);
+    };
+  }
 
   // light: lanterns in the cellar, the windows, the footlights when they play. The pools under the lanterns are
   // baked into the corners of the ground floor (PS1 vertex light); a few real lights flicker on top of them.
@@ -1718,7 +1918,7 @@ export function hallsInWorld(world: World, inWorld: InWorld): HallInWorld[] {
       // the theatre's cross windows over the vaults, on both long sides
       { along: "x" as const, a, face: VH.SHELL.south, out: -1 as const, y0: 10.8 - VH.FLOOR_Y, y1: 14.1 - VH.FLOOR_Y, w: 1.5 },
       { along: "x" as const, a, face: VH.SHELL.north, out: 1 as const, y0: 10.8 - VH.FLOOR_Y, y1: 14.1 - VH.FLOOR_Y, w: 1.5 },
-    ]), 0.3, windowOpenings(VH_WINDOWS, (x, z) => HP.toWorld(VH.PLAN, x, z))),
+    ]), 0.3, windowOpenings(VH_WINDOWS, (x, z) => HP.toWorld(VH.PLAN, x, z), vleeshuisSeen)),
     createHallInWorld(world, inWorld, OH.PLAN, buildOostershuis(), { color: 0x2a241c, near: 16, far: 70 }, [
       { label: "the gate passage", x: 0, z: 5.0, reach: 1.2 },
       { label: "the storekeeper's desk", x: OH.DESK.x + 1.4, z: OH.DESK.z + 1.0, reach: 1.2 },
