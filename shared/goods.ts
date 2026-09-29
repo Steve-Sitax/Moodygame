@@ -401,6 +401,10 @@ export function townGoods(doors: Record<string, Door>, cargo: readonly CargoRow[
  * has no such pile. The server lays the piles with it at the start and at dawn, and when a crane sets a load on one
  * (docs/milestones/D1-docks.md).
  */
+/** The dockers' pile crate: the props' crate (build_props.py crate_seat, 0.58 by 0.48 m, 0.45 high), as they carry it. */
+export const HAUL_CRATE_LOOK = "p:crate_seat";
+export const HAUL_CRATE_H = 0.454;
+
 export function haulPileItem(r: (typeof HAUL_ROUTES)[number], tag: "a" | "b", i: number, present: readonly GoodsItem[] = []): GoodsItem | null {
   const p = tag === "a" ? r.pile : r.drop;
   if (!p) return null;
@@ -417,8 +421,10 @@ export function haulPileItem(r: (typeof HAUL_ROUTES)[number], tag: "a" | "b", i:
   }
   const rot = rotFor(id, 0);
   const q = placeAt(present, p.kind, r3(x), r3(z)) ?? { x: r3(x), z: r3(z), y: 0, on: [] };
-  // (T3 trade: the Vismarkt's routes carry low boxes of fish, not crates: their own height for the stacking)
-  const h = r.place === "vismarkt" ? { h: FISH_BOX_H } : {};
+  // (T3 trade: the Vismarkt's routes carry low boxes of fish, not crates: their own height for the stacking. The other
+  // crates are the props' crate, the one a docker carries (crowd.ts crate load): the same model on the pile, in his arms
+  // and in Jef's hands; before, a plain box on the pile became the other crate when lifted, M7 check 2026-09-29)
+  const h = r.place === "vismarkt" ? { h: FISH_BOX_H } : p.kind === "crates" ? { look: HAUL_CRATE_LOOK, h: HAUL_CRATE_H } : {};
   return { id, kind: p.kind, owner: null, job: null, x: q.x, z: q.z, y: q.y, on: q.on, rot, by: null, n: 0, rev: 1, home: [q.x, q.z, rot], ...h };
 }
 

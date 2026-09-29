@@ -7,6 +7,7 @@ Git history has the detail of each commit.
 
 ## Waiting for Steve
 
+- Crates and casks, one model each with a label sheet as the sacks (`docs/crates-casks-plan.md`): the whole town at once, or the moving goods first? (Claude: the moving goods first: piles, carts, hands, wagons.)
 - Merging still parts (world/staticMerge.ts, off unless `?merge`): 10-21% fewer draw calls, ~0.4 ms, but ~470 edge
   pixels flip at the Rijnkaai. On, or leave it off? (Claude: leave it off; the gain is small.)
 
@@ -49,7 +50,8 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 
 | Commit | What |
 |---|---|
-| (this) | T3: a rush job from a shortage (a bakery sold out in the morning: a crate of loaves fetched from the other, paid by the way, the shelves move); the town map's card shows a shop's shelf (41ea6b2). t3-rush tests; browser: paid 85 c, shelves moved |
+| (this) | One crate on the dockers' piles (pile, docker's arms, Jef's hands the same props crate; before a plain box that became another crate when lifted); older saves' piles laid out again at dawn. Survey and plan for all crates and casks: `docs/crates-casks-plan.md` (13 crate looks, 12 cask looks; waits for Steve). Drove: pigs and farmer keep off walls and props; the coal yard off the walking line (3eaa361) |
+| ac637c7 | T3: a rush job from a shortage (a bakery sold out in the morning: a crate of loaves fetched from the other, paid by the way, the shelves move); the town map's card shows a shop's shelf (41ea6b2). t3-rush tests; browser: paid 85 c, shelves moved |
 | 7bbc0c6 | T3: the Vismarkt sold out packs up early (down to the afternoon remainder in 45 game minutes; the food floor stays). market test; browser 29 -> 10 stalls |
 | f3fe55e | T3 chain 3 in the open (`docs/milestones/T3-trade.md` part 3): pigs in the animals' builder (pig_pink, pig_spotted, own model and rig, idle/walk/run/sniff); a farmer drives 2-4 pigs from the Kipdorp gate to the butcher by the Vleeshuis at dawn on weekdays (in before the kill at 7), drawn near the player, on the town map. t3-drove tests (5); browser pictures on the way and at the door; shaders clean |
 | 9d51298 | T4 second pass (`docs/milestones/T4-book.md`): mixed loads, each job counted and paid at its own goal (by hand, off the cart, lost); following another job no longer wipes the old job's goods (found this pass); giving up works for carry jobs (new `POST /api/jobs/:id/giveup`: no pay, trust -1; the book sent an empty "done" a carry job refuses); the dotted way on foot on the paper and corner maps. Tests: t4-book, handcart mixed load; browser: aside job paid 90 c at its own goal |

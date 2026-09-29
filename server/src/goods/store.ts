@@ -508,6 +508,16 @@ export class GoodsStore {
           if (home && (Math.abs(it.x - home.x) > 0.01 || Math.abs(it.z - home.z) > 0.01)) gone.push(id);
         }
       }
+      // (an older save's pile crates, plain boxes before the one crate model, shared/goods.ts HAUL_CRATE_LOOK: the
+      // pile laid out again, what nobody holds)
+      if (route.place !== "vismarkt" && (route.pile?.kind === "crates" || route.drop?.kind === "crates")) {
+        for (const tag of ["a", "b"] as const)
+          for (let i = 0; i < HAUL_PILE_N; i++) {
+            const id = `haul:${route.id}${tag}:${i}`;
+            const it = this.items.get(id);
+            if (it && !it.by && it.kind === "crates" && !it.look && !gone.includes(id)) gone.push(id);
+          }
+      }
       for (const id of gone) this.items.delete(id);
       for (const tag of ["a", "b"] as const) {
         let it: GoodsItem | null;

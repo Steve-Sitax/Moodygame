@@ -2263,8 +2263,8 @@ export class Crowd {
       if (p.loadKind === "crate") {
         // a crate held before the chest in both arms (the crate geometry stands on its base)
         s = new THREE.Mesh(this.crateGeo, this.crateMat);
-        s.scale.setScalar(0.82);
-        s.position.set(0, 0.78 * k, 0.34 * k);
+        // (the props' crate at its own size: the same as on the dockers' piles, shared/goods.ts HAUL_CRATE_LOOK)
+        s.position.set(0, 0.74 * k, 0.36 * k);
         s.userData.kind = "crate";
       } else {
         // the one sack model (game/sackModel.ts), held across the arms before the chest
