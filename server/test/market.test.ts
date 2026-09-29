@@ -88,3 +88,18 @@ describe("the stalls re-laid (relayStalls)", () => {
     expect(relayStalls(db).stalls).toBe(0);
   });
 });
+
+describe("T3 trade: a market sold out packs up early", () => {
+  it("from the hour the fish ran out, down to the afternoon remainder in three quarters of an hour; never below it", () => {
+    // a Tuesday at 9: the full market; sold out at 9, by 9:45 only the remainder stands, and it stays till the evening
+    expect(marketShare("vismarkt", 2, 9)).toBe(1);
+    expect(marketShare("vismarkt", 2, 9, 9)).toBe(1);
+    const half = marketShare("vismarkt", 2, 9.375, 9);
+    expect(half).toBeLessThan(1);
+    expect(half).toBeGreaterThan(0.35);
+    expect(marketShare("vismarkt", 2, 9.75, 9)).toBeCloseTo(0.35, 5);
+    expect(marketShare("vismarkt", 2, 15, 9)).toBeCloseTo(0.35, 5);
+    // (not sold out: the clock's own market)
+    expect(marketShare("vismarkt", 2, 9.75, null)).toBe(1);
+  });
+});

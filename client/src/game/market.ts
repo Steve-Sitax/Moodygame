@@ -341,6 +341,10 @@ export function marketKeepOut(): Rect[] {
 // ------------------------------------------------------------------ the market
 
 export class Market {
+  /** T3 trade (set by main): is this market's shelf sold out now (the Vismarkt's fish at its floor)? */
+  soldOutOf: (place: string) => boolean = () => false;
+  /** The hour each market's shelf ran out, by "place:day" (kept for the day: packed stalls do not come back). */
+  private readonly soldOut = new Map<string, number>();
   private built: Built[] = [];
   private ready = false;
   private player = { x: 0, z: 0 };
@@ -787,7 +791,10 @@ export class Market {
       for (const s of this.stalls.states) if (s.keeper && s.open) this.openKeepers.add(s.keeper);
     }
     for (const m of this.built) {
-      const share = marketShare(m.def.place, day, hour);
+      // T3 trade: its shelf sold out today: the stalls pack up early (the afternoon remainder stays)
+      const soldKey = `${m.def.place}:${day}`;
+      if (think && !this.soldOut.has(soldKey) && this.soldOutOf(m.def.place) && marketShare(m.def.place, day, hour) > 0) this.soldOut.set(soldKey, hour);
+      const share = marketShare(m.def.place, day, hour, this.soldOut.get(soldKey) ?? null);
       const n = m.items.length;
       // up in rank order; down again first-up first-down
       const rising = hour < 12;

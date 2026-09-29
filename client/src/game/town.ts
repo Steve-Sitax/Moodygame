@@ -325,6 +325,13 @@ export class Town {
   /** T3 trade: the dispatcher's runs out now (GET /api/trade), asked every few seconds; a man on one walks it. */
   private tradeRuns: TradeRun[] = [];
   private yards: THREE.Group | null = null;
+  /** T3: each post's shelf as the server last said (GET /api/trade). */
+  private readonly postStock = new Map<string, { stock: number; floor: number }>();
+  /** T3: a post's shelf down to its food floor (sold out to the town; players still get the last, dear). */
+  soldOut(post: string): boolean {
+    const p = this.postStock.get(post);
+    return !!p && p.stock <= p.floor + 1;
+  }
   /** T3 chain 3: today's drove of pigs (GET /api/trade), and the layer that draws it near the player. */
   private drove: Drove | null = null;
   private droveWalk: DroveWalk | null = null;
@@ -336,8 +343,9 @@ export class Town {
     this.tradeBusy = true;
     fetch("/api/trade")
       .then((r) => r.json())
-      .then((b: { runs?: TradeRun[]; drove?: Drove | null }) => {
+      .then((b: { runs?: TradeRun[]; drove?: Drove | null; posts?: Array<{ id: string; stock: number; floor: number }> }) => {
         this.tradeRuns = Array.isArray(b.runs) ? b.runs : [];
+        if (Array.isArray(b.posts)) for (const p of b.posts) this.postStock.set(p.id, { stock: p.stock, floor: p.floor });
         this.drove = b.drove && Array.isArray(b.drove.way) ? b.drove : null;
       })
       .catch(() => {})

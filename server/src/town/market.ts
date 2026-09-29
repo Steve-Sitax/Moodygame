@@ -37,11 +37,23 @@ export function marketFor(place: string): MarketDef | null {
   return MARKET_DAYS.find((m) => m.place === place) ?? null;
 }
 
+/** T3 (docs/trade-plan.md): sold out, the stalls pack up down to the afternoon remainder over this long (hours). */
+export const PACK_UP_H = 0.75;
+
 /**
  * How much of the market stands at this hour: 0 (none) to 1 (every stall up). It rises
  * from setup to open and falls from close to gone; stall k of n is up while k < share * n.
+ * `soldOutAt` (T3 trade: the hour its shelf ran out today, or null): from then the stalls pack up early, down to the
+ * afternoon remainder, which stays with the last of it (a hungry player can still buy: the food floor).
  */
-export function marketShare(place: string, day: number, hour: number): number {
+export function marketShare(place: string, day: number, hour: number, soldOutAt: number | null = null): number {
+  const share = marketShareByClock(place, day, hour);
+  const m = marketFor(place);
+  if (soldOutAt === null || !m || hour < soldOutAt || hour < m.open) return share;
+  return Math.min(share, 1 - (1 - m.rest) * Math.min(1, (hour - soldOutAt) / PACK_UP_H));
+}
+
+function marketShareByClock(place: string, day: number, hour: number): number {
   const m = marketFor(place);
   if (!m) return 0;
   const d = ((((day - 1) % 7) + 7) % 7) + 1;

@@ -74,9 +74,13 @@ after M7". Decided 2026-09-27: players move the stock, but food never runs out f
 - **The town map**: the drove in the runs list and on the map ("Driving 4 pigs from the Kipdorp gate to the butcher by
   the Vleeshuis, 120 m to go"), chain "animals"; the chain filter also lists meat, fish, beer and coal now.
 
+- **Sold out, the stalls pack up early** (`server/town/market.ts marketShare(..., soldOutAt)`, client `market.ts`):
+  when the Vismarkt's fish shelf is down to its floor, the fish stalls pack up over three quarters of an hour down to
+  the afternoon remainder (35%), which stays with the last of it till the evening (the food floor: a hungry player
+  can still buy). Kept for the day. Browser: 29 stalls at 9:00, sold out at 9:00, 10 at 9:50.
+
 ## Next
 
 - The map's card: a post's shelf; the runs list by chain.
 - Jobs from shortage beyond the book: a rush fetch when a shelf is empty in the morning.
-- The goods kit for crates and casks (the sack pattern: one model, a label sheet), then the stalls pack up early when
-  their shelf is empty.
+- The goods kit for crates and casks (the sack pattern: one model, a label sheet).

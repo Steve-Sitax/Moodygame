@@ -225,6 +225,8 @@ setWallTown((x, z, r) => town.inStreet(x, z, r)); // (the look pass: the kite on
 // M3i: market days on the Vismarkt and the Grote Markt (game/market.ts), and the working
 // trades: boat yard, farrier, rope walk, cooper, sailmaker, net menders (world/trades.ts)
 const market = new Market(world, crowd, town, stalls);
+// T3 trade: the Vismarkt's fishwives pack up early when the fish is sold out (shared/trade.ts post "vismarkt")
+market.soldOutOf = (place) => place === "vismarkt" && town.soldOut("vismarkt");
 town.market = market;
 animals.scraps = market.scrapSpots();
 const trades = createTrades(world.scene, world.city.flags, { clock: () => ({ day: jobs.day.dayNum, hour: jobs.day.hourF }) });
