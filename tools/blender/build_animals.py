@@ -1,4 +1,4 @@
-"""Build the dogs and cats of Scheldemist in Blender and export them for the game.
+"""Build the dogs, cats and pigs of Scheldemist in Blender and export them for the game.
 
     blender -b --factory-startup -P tools/blender/build_animals.py [-- --preview] [--out PATH]
 
@@ -8,6 +8,11 @@ per variant. Dogs (street mongrels): dog_brown, dog_black, dog_spotted, dog_grey
 cat_tabby, cat_black, cat_ginger, cat_white. PS1-era animals: lofted rings,
 350 to 600 triangles for a dog, 200 to 400 for a cat, one 128x128 texture per
 animal painted here in code (our own work, nothing downloaded).
+
+T3 chain 3 (2026-09-29): the pigs a drover brings through a gate to the butcher's
+yard at dawn: pig_pink and pig_spotted, their own species (a long barrel body on
+short legs, a big head with a flat snout, ears that fall forward, a thin tail
+carried up). Added after the dogs and cats so their paint seeds do not change.
 
 Each species has one skeleton layout and one set of bone names (the same names
 for dogs and cats; the clips are per species). Every bone points straight along
@@ -152,9 +157,31 @@ CAT_J = mirror({
 })
 CAT_TOE = {"front": (0.075, 0.0), "hind": (-0.125, 0.0)}
 
+# Pig (T3 chain 3): a low, deep farm pig: back about 0.65 m, rump to snout about 1.3 m, the belly 0.22 m off
+# the ground on short thick legs (the first try stood high on thin legs and read as a tapir).
+PIG_TAIL_DIR = unit(0, 0.45, -0.89)  # carried up and back
+PIG_J = mirror({
+    "hips": (0, 0.47, -0.40),
+    "spine": (0, 0.475, -0.10),
+    "chest": (0, 0.48, 0.20),
+    "neck": (0, 0.47, 0.34),
+    "head": (0, 0.45, 0.42),
+    "earL": (0.075, 0.55, 0.44),
+    "tail1": (0, 0.50, -0.61),
+    "tail2": along((0, 0.50, -0.61), PIG_TAIL_DIR, 0.07),
+    "frontUpL": (0.095, 0.34, 0.25),
+    "frontLowL": (0.095, 0.19, 0.21),
+    "frontFootL": (0.095, 0.065, 0.25),
+    "hindUpL": (0.095, 0.34, -0.40),
+    "hindLowL": (0.095, 0.20, -0.35),
+    "hindFootL": (0.095, 0.075, -0.41),
+})
+PIG_TOE = {"front": (0.285, 0.0), "hind": (-0.385, 0.0)}
+
 SPECIES = {
     "dog": dict(J=DOG_J, toe=DOG_TOE, tail=["tail1", "tail2"], tail_dir=DOG_TAIL_DIR, tail_len=0.27),
     "cat": dict(J=CAT_J, toe=CAT_TOE, tail=["tail1", "tail2", "tail3"], tail_dir=CAT_TAIL_DIR, tail_len=0.27),
+    "pig": dict(J=PIG_J, toe=PIG_TOE, tail=["tail1", "tail2"], tail_dir=PIG_TAIL_DIR, tail_len=0.15),
 }
 for _sp in SPECIES.values():
     _sp["bones"] = bone_table(_sp["tail"])
@@ -188,6 +215,13 @@ VARIANTS = [
     dict(name="cat_white", sp="cat", k=1.0, girth=1.0, legw=1.0, snout=1.0, ears="cat",
          base=0xe2e0d8, back=0xd8d6ce, belly=0xecebe4, patch=0x626262, grey_tail=True, eye=0x7a9a3a,
          nose=0xd08a88, ear_in=0xe0a8a4),
+    # T3 chain 3: a pale pink farm pig with some dirt on the legs, and a spotted one (black patches)
+    dict(name="pig_pink", sp="pig", k=1.0, girth=1.0, legw=1.0, snout=1.0, ears="pig",
+         base=0xd9a896, back=0xcf9c8a, belly=0xe6bcaa, dirt=0x6e5a44, eye=0x1e1612, nose=0xb87a70,
+         ear_col=0xcf9888, ear_in=0xc4868a),
+    dict(name="pig_spotted", sp="pig", k=0.94, girth=1.03, legw=1.0, snout=0.96, ears="pig",
+         base=0xdcb4a2, back=0xd2a894, belly=0xe8c4b2, patch=0x2a2422, dirt=0x5e4c3a, eye=0x1e1612,
+         nose=0xb07468, ear_col=0xd0a292, ear_in=0xc08a8a),
 ]
 
 
@@ -349,6 +383,17 @@ def trunk_rings(v):
             (0.265, 0.42, 0.078, 0.075, 0.12),
         ]
         cap = (0, 0, 0.03)
+    elif sp == "pig":
+        rows = [  # a barrel: broad rump and belly, the back nearly straight
+            (-0.625, 0.48, 0.05, 0.045, 0.05),
+            (-0.585, 0.48, 0.15, 0.13, 0.16),
+            (-0.45, 0.475, 0.195, 0.16, 0.215),
+            (-0.20, 0.47, 0.21, 0.17, 0.245),
+            (0.05, 0.47, 0.21, 0.175, 0.24),
+            (0.26, 0.475, 0.19, 0.165, 0.20),
+            (0.36, 0.47, 0.165, 0.15, 0.17),
+        ]
+        cap = (0, 0, 0.03)
     else:
         rows = [
             (-0.19, 0.205, 0.018, 0.016, 0.02),
@@ -368,6 +413,10 @@ def trunk_rings(v):
 def neck_rings(v):
     sp = v["sp"]
     g = v["girth"]
+    if sp == "pig":
+        # hardly a neck: a thick collar from the shoulders into the jowls
+        return [ring(0, 0.47, 0.35, 0.17 * g, 0.155, 0.18 * g, w=blend("chest", "neck", 0.5)),
+                ring(0, 0.46, 0.41, 0.145 * g, 0.135, 0.155 * g, w=blend("neck", "head", 0.7))], unit(0, 0.98, -0.2)
     if sp == "dog":
         return [ring(0, 0.425, 0.195, 0.08 * g, 0.08, 0.095 * g, w=blend("chest", "neck", 0.5)),
                 ring(0, 0.49, 0.26, 0.066 * g, 0.065, 0.07 * g, w="neck"),
@@ -390,6 +439,18 @@ def head_rings(v):
             (0.475, 0.527, 0.036, 0.027, 0.036),
         ]
         cap = (0, 0.002, 0.012)
+    elif sp == "pig":
+        # no stop: a long wedge from the jowls to the flat snout disc
+        stop = 0.56
+        rows = [
+            (0.40, 0.46, 0.125, 0.115, 0.135),
+            (0.48, 0.465, 0.12, 0.105, 0.12),
+            (0.56, 0.445, 0.095, 0.08, 0.09),
+            (0.635, 0.42, 0.072, 0.062, 0.066),
+            (0.68, 0.41, 0.068, 0.06, 0.062),
+            (0.69, 0.41, 0.068, 0.06, 0.062),
+        ]
+        cap = (0, 0.0, 0.004)
     else:
         stop = 0.19
         rows = [
@@ -401,7 +462,7 @@ def head_rings(v):
         cap = (0, 0.0, 0.008)
     rs = []
     # dogs: a broader, higher skull than the muzzle (a dog's head reads by its stop)
-    skull = 1.12 if sp == "dog" else 1.0
+    skull = 1.12 if sp == "dog" else 1.0  # (a pig's head has no stop)
     for z, y, ra, rb, rbb in rows:
         big = skull if z <= stop else 1.0
         if z > stop:
@@ -418,7 +479,11 @@ def tail_rings(v):
     t0 = J["tail1"]
     names = spd["tail"]
     seg = [J[n] for n in names]
-    if v["sp"] == "dog":
+    if v["sp"] == "pig":
+        # a thin tail, a tuft at the end (the clips curl it)
+        pts = [(0.0, 0.016, "tail1"), (0.05, 0.012, blend("tail1", "tail2", 0.5)), (0.09, 0.01, "tail2"),
+               (0.13, 0.012, "tail2"), (L, 0.004, "tail2")]
+    elif v["sp"] == "dog":
         # a brush, not a thin whip
         pts = [(0.0, 0.04, "tail1"), (0.065, 0.04, "tail1"), (0.13, 0.036, blend("tail1", "tail2", 0.5)),
                (0.21, 0.028, "tail2"), (L, 0.012, "tail2")]
@@ -442,11 +507,17 @@ def leg_rings(v, which, S):
     tz, _ = spd["toe"][which]
     Bu, Bl, Bf = (f"{which}{p}{S}" for p in ("Up", "Low", "Foot"))
     dog = v["sp"] == "dog"
+    pig = v["sp"] == "pig"
     # the top ring sits inside the body, part way down the upper bone
-    top_y = (0.33 if which == "front" else 0.36) if dog else (0.17 if which == "front" else 0.185)
+    top_y = (0.30 if which == "front" else 0.32) if pig else (0.33 if which == "front" else 0.36) if dog else (0.17 if which == "front" else 0.185)
     f = (up[1] - top_y) / (up[1] - low[1])
     top = (x, top_y, up[2] + (low[2] - up[2]) * f)
-    if dog:
+    if pig:
+        # thick hams and shoulders, thin shanks, small trotters
+        rad = {"front": [(0.085, 0.09), (0.058, 0.062), (0.038, 0.04), (0.035, 0.038, 0.03), (0.037, 0.046, 0.03)],
+               "hind": [(0.095, 0.12), (0.062, 0.072), (0.038, 0.042), (0.035, 0.038, 0.03), (0.037, 0.046, 0.03)]}[which]
+        ph, pb = 0.036, 0.004
+    elif dog:
         rad = {"front": [(0.048, 0.06), (0.036, 0.04), (0.026, 0.028), (0.028, 0.034, 0.024), (0.031, 0.046, 0.026)],
                "hind": [(0.055, 0.085), (0.042, 0.05), (0.025, 0.03), (0.028, 0.034, 0.024), (0.031, 0.046, 0.026)]}[which]
         ph, pb = 0.034, 0.004
@@ -472,6 +543,10 @@ def ear_parts(v, S):
     if kind == "cat":
         wdt, dep = 0.016, 0.012
         tip = (bx + sg * 0.01, by + 0.034, bz - 0.004)
+    elif kind == "pig":
+        # big ears that fall forward over the eyes
+        wdt, dep = 0.085, 0.06
+        tip = (bx + sg * 0.075, by - 0.02, bz + 0.14)
     elif kind == "flop":
         # broad drop ears that frame the head (thin ones vanished into it)
         wdt, dep = 0.05, 0.034
@@ -493,7 +568,7 @@ def ear_parts(v, S):
 def build_body(v):
     b = Body(v["k"])
     sp = v["sp"]
-    dog = sp == "dog"
+    dog = sp != "cat"  # (the pig is built with the dog's segments and caps)
     rs, cap = trunk_rings(v)
     b.loft(rs, "body", 8, fwd=(0, 1, 0), cap0=(0, 0, -0.02 if dog else -0.01), cap1=cap)
     nr, nf = neck_rings(v)
@@ -548,7 +623,8 @@ class Painter:
 def paint(v, seed):
     P = Painter(v, seed)
     sp = v["sp"]
-    dog = sp == "dog"
+    pig = sp == "pig"
+    dog = sp != "cat"  # (the pig is painted as the dogs: eyes, patches, ears; its snout and skin its own)
     base, back, belly = rgb(v["base"]), rgb(v["back"]), rgb(v["belly"])
 
     def fur(U, h, w, bk=1.0, bl=1.0):
@@ -556,7 +632,8 @@ def paint(v, seed):
         tb = (np.clip(d, 0, 1) ** 1.3)[..., None] * bk
         tl = np.clip(-d, 0, 1)[..., None] * bl
         col = base * (1 - tb - tl) + back * tb + belly * tl
-        return col * P.streak(h, w) * P.grain(h, w, 0.035)
+        # (a pig: skin with a few bristles, not fur)
+        return col * P.streak(h, w, 0.025 if pig else 0.08) * P.grain(h, w, 0.03 if pig else 0.035)
 
     def put(out, mask, col, a=1.0):
         m = mask[..., None]
@@ -626,7 +703,11 @@ def paint(v, seed):
                 out[er - 1:er + 2, ec] = rgb(0x0a0a08)
                 out[er + 1, ec - 1:ec + 2] = rgb(v["eye"]) * 0.7
         # nose at the tip (the top half of the last ring), mouth line along the lower sides
-        if dog:
+        if pig:
+            # the flat snout disc and its rim, darker pink
+            out = put(out, V >= hv[-2] + (1 - hv[-2]) * 0.5, rgb(v["nose"]), 1.0)
+            out = put(out, (V >= hv[-3]) & (V < hv[-2]), rgb(v["nose"]), 0.35)
+        elif dog:
             nose_v = hv[-2] + (1 - hv[-2]) * 0.3
             out = put(out, (V >= nose_v) & (ad < w * 0.28), rgb(v["nose"]), 1.0)
             out = put(out, (V >= 0.985), rgb(v["nose"]), 0.8)
@@ -670,6 +751,10 @@ def paint(v, seed):
                 out = put(out, (V < 0.35) & P.blobs(h, w, 5, 0.35), rgb(v["patch"]), 1.0)
             if "blaze" in v and front:
                 out = put(out, V > 0.86, rgb(v["blaze"]) * 0.8, 0.7)  # white toes
+            if pig:
+                # the farm's mud up the shanks, dark trotters
+                out = put(out, V > 0.55, rgb(v["dirt"]) * P.grain(h, w, 0.06), 0.55)
+                out = put(out, V > 0.86, rgb(0x2a2420), 0.9)
             if not dog and sp == "cat" and v["name"] in ("cat_tabby", "cat_ginger"):
                 out = put(out, V > 0.8, rgb(v["belly"]), 0.8)  # pale paws
             return out
@@ -735,7 +820,7 @@ def make_animal(v, idx):
     bpy.context.scene.collection.objects.link(ao)
     bpy.context.view_layer.objects.active = ao
     bpy.ops.object.mode_set(mode="EDIT")
-    blen = 0.06 if v["sp"] == "dog" else 0.03
+    blen = {"dog": 0.06, "pig": 0.08}.get(v["sp"], 0.03)
     for bn, (par, d) in spd["bones"].items():
         eb = arm.edit_bones.new(bn)
         h0 = J[bn]
@@ -980,6 +1065,9 @@ GAITS = {
     ("dog", "run"): dict(duty=0.32, S=0.36, lift=0.10, ph=dict(hindL=0.0, hindR=0.1, frontR=0.42, frontL=0.52), secs=10 / 24),
     ("cat", "walk"): dict(duty=0.62, S=0.13, lift=0.03, ph=dict(hindL=0.0, frontL=0.25, hindR=0.5, frontR=0.75), secs=14 / 24),
     ("cat", "run"): dict(duty=0.32, S=0.17, lift=0.05, ph=dict(hindL=0.0, hindR=0.08, frontR=0.42, frontL=0.5), secs=9 / 24),
+    # the pig: a short-stepping walk and a trot (diagonal pairs together)
+    ("pig", "walk"): dict(duty=0.64, S=0.14, lift=0.04, ph=dict(hindL=0.0, frontL=0.25, hindR=0.5, frontR=0.75), secs=0.7),
+    ("pig", "run"): dict(duty=0.42, S=0.18, lift=0.055, ph=dict(hindL=0.0, frontR=0.0, hindR=0.5, frontL=0.5), secs=0.45),
 }
 
 
@@ -1173,6 +1261,58 @@ def cat_lie(ps, t):
     ps.tail_ground([40, 95, 140 + 6 * math.sin(p)])
 
 
+def pig_idle(ps, t):
+    p = 2 * math.pi * t
+    br = math.sin(4 * p)
+    ps.body(hips=0.4 * math.sin(p), spine=0.3 * br, chest=0.4 * br, neck=-6 + 2 * math.sin(p + 1),
+            head=4 * math.sin(2 * p))
+    ps.stand()
+    look = 12 * math.sin(p) * math.sin(0.5 * p) ** 2
+    ps.q["head"] = RZ(look) @ ps.q["head"]
+    # the tail curled up over the rump, flicking now and then
+    fl = 14 * max(0.0, math.sin(3 * p)) ** 6
+    ps.tail([-40, -70], [fl, 20 + fl])
+    flick = max(0.0, math.sin(2 * p + 2.0)) ** 8
+    ps.q["earL"] = RX(10 * flick)
+    ps.q["earR"] = RX(6 * flick)
+
+
+def pig_walk(ps, t):
+    G = GAITS[("pig", "walk")]
+    p = 2 * math.pi * t
+    ps.body(hips=0.8 * math.sin(2 * p), spine=-0.4 * math.sin(2 * p), chest=0.0,
+            neck=-8 + 2 * math.sin(2 * p + 1.2), head=2 - 2 * math.sin(2 * p + 1.2))
+    legs_gait(ps, t, G, flick=40.0)
+    ps.q["hips"] = RY(3.5 * math.sin(p)) @ ps.q["hips"]
+    ps.q["head"] = RZ(4 * math.sin(p)) @ ps.q["head"]
+    ps.tail([-40, -70], [8 * math.sin(2 * p), 20 + 8 * math.sin(2 * p - 0.8)])
+    ps.q["earL"] = RX(6 * math.sin(2 * p))
+    ps.q["earR"] = RX(6 * math.sin(2 * p + 0.5))
+
+
+def pig_run(ps, t):
+    G = GAITS[("pig", "run")]
+    f = math.cos(2 * math.pi * t * 2)
+    ps.body(hips=1.5 * f, spine=-1.0 * f, chest=0.5 * f, neck=-10 + 3 * f, head=4)
+    legs_gait(ps, t, G, flick=50.0)
+    ps.tail([-30, -60], [10 * f, 25])
+    ps.q["earL"] = RX(12 * f)
+    ps.q["earR"] = RX(12 * f)
+
+
+def pig_sniff(ps, t):
+    """Rooting: the snout down to the ground, pushing about."""
+    p = 2 * math.pi * t
+    ps.body(hips=2, spine=2, chest=3)
+    head_w = 55 + 4 * math.sin(2 * p)
+    na = ps.neck_to(ps.A["chest"], head_w, 0.05, key="nose", lo=-20, hi=135)
+    jit = 4 * math.sin(2 * math.pi * 5 * t) * (0.5 + 0.5 * math.sin(p * 2))
+    ps.body(hips=2, spine=2, chest=3, neck=na, head=head_w - ps.A["chest"] - na + jit)
+    ps.stand()
+    ps.q["head"] = RZ(10 * math.sin(p)) @ ps.q["head"]
+    ps.tail([-40, -70], [6 * math.sin(p), 22])
+
+
 CLIPS = {
     "dog": [("dog_idle", dog_idle, 4.0), ("dog_walk", dog_walk, GAITS[("dog", "walk")]["secs"]),
             ("dog_run", dog_run, GAITS[("dog", "run")]["secs"]), ("dog_sit", dog_sit, 4.0),
@@ -1180,6 +1320,8 @@ CLIPS = {
     "cat": [("cat_idle", cat_idle, 4.0), ("cat_walk", cat_walk, GAITS[("cat", "walk")]["secs"]),
             ("cat_run", cat_run, GAITS[("cat", "run")]["secs"]), ("cat_sit", cat_sit, 4.0),
             ("cat_lie", cat_lie, 5.0)],
+    "pig": [("pig_idle", pig_idle, 4.0), ("pig_walk", pig_walk, GAITS[("pig", "walk")]["secs"]),
+            ("pig_run", pig_run, GAITS[("pig", "run")]["secs"]), ("pig_sniff", pig_sniff, 3.0)],
 }
 
 
@@ -1344,7 +1486,7 @@ def preview(animals, acts):
     x = 0.0
     xs = []
     for ao, mo, v in animals:
-        wdt = 1.0 if v["sp"] == "dog" else 0.55
+        wdt = {"dog": 1.0, "pig": 1.5}.get(v["sp"], 0.55)
         xs.append(x + wdt / 2)
         x += wdt
     for (ao, mo, v), cx in zip(animals, xs):
@@ -1364,7 +1506,7 @@ def preview(animals, acts):
     for ao, _, _ in animals:
         ao.location = B(0, -50, 0)
     placed = []
-    for sp, row_z, gap in (("dog", -0.6, 1.15), ("cat", 0.7, 0.62)):
+    for sp, row_z, gap in (("pig", -2.0, 1.6), ("dog", -0.6, 1.15), ("cat", 0.7, 0.62)):
         src = next(a for a in animals if a[2]["sp"] == sp)
         clips = CLIPS[sp]
         n = len(clips)
@@ -1382,7 +1524,7 @@ def preview(animals, acts):
         a2.rotation_euler = (0, 0, math.radians(90))
     shoot(os.path.join(SHOTS, "animals_side.png"), B(0, 0.3, 20), B(0, 0.3, 0), 0, 2400, 700, 7, ortho=7.2)
     # close-ups per species, three-quarters on, the other species out of the way
-    for sp, gap in (("dog", 1.05), ("cat", 0.52)):
+    for sp, gap in (("dog", 1.05), ("cat", 0.52), ("pig", 1.6)):
         mine = [pl for pl in placed if pl[2] == sp]
         for a2, m2, s2 in placed:
             m2.hide_render = s2 != sp
@@ -1410,7 +1552,7 @@ def main():
         report.append(f"{v['name']} {tris}")
     acts = {}
     infos = {}
-    for sp in ("dog", "cat"):
+    for sp in ("dog", "cat", "pig"):
         first = next(a for a in animals if a[2]["sp"] == sp)
         al, info = make_actions(first[0], first[1], sp)
         acts.update({a.name: a for a in al})

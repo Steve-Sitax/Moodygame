@@ -57,9 +57,25 @@ after M7". Decided 2026-09-27: players move the stock, but food never runs out f
 - Browser: `/api/trade` moves with the clock; the Vismarkt's dockers carry fish boxes (stacked at their own height,
   0.24 m); `carrycheck()`, `shaders()` clean.
 
+## Part 3: chain 3 in the open (done, 2026-09-29)
+
+- **The pigs** (`tools/blender/build_animals.py`, `client/public/models/animals.glb`): a new species in the animals'
+  builder, as the dogs and cats (our own model, rig and code-painted 128 px texture): a low, deep farm pig on short
+  thick legs, a big head with a flat snout disc, ears falling forward, a thin tail curled up; pig_pink and
+  pig_spotted, 442 triangles each; idle, walk, run (a trot) and sniff (rooting). Added after the dogs and cats, so
+  their paint does not change. The first try stood high on thin legs and read as a tapir: made lower and deeper.
+- **The drove** (`shared/drove.ts`, server `trade/drove.ts`): on a weekday a farmer drives two to four pigs (the same
+  on every PC for the day) from just inside the Kipdorp gate along the server's walk map to the butcher by the
+  Vleeshuis, 318 m. He leaves at 3:45 with a lantern, at a pig's pace (0.9 m/s); they are in at the door by about
+  6:45, before the kill at 7; then he walks back out. None on Sunday. Sent with GET `/api/trade` (`drove`).
+- **In the game** (`client/game/droveWalk.ts`): near the player (70 m) the farmer (a crowd figure held by this layer,
+  so the crowd does not push him) walks behind his pigs; the pigs go in a loose line 1.8 m apart, each a little off
+  the middle of the way; at the door they close up and go in one after another, rooting while they wait.
+- **The town map**: the drove in the runs list and on the map ("Driving 4 pigs from the Kipdorp gate to the butcher by
+  the Vleeshuis, 120 m to go"), chain "animals"; the chain filter also lists meat, fish, beer and coal now.
+
 ## Next
 
-- Chain 3 in the open: farmers with animals through the gates at dawn to the butcher's yard (animal models).
 - The map's card: a post's shelf; the runs list by chain.
 - Jobs from shortage beyond the book: a rush fetch when a shelf is empty in the morning.
 - The goods kit for crates and casks (the sack pattern: one model, a label sheet), then the stalls pack up early when

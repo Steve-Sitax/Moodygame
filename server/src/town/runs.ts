@@ -13,8 +13,9 @@ import { along, CART_LEG_NAMES, cartAt, dayPlan, type CartLeg } from "../../../s
 import { CART_SACKS, GRAIN_SACKS, MILLS, runNow, type MillDef } from "../../../shared/mills.ts";
 import { pointAlong, wayLength, type Pt } from "./wayfind.ts";
 import { runAt, wayPoint, type TradeRun } from "../../../shared/trade.ts";
+import { droveAt, droveLine, type Drove } from "../../../shared/drove.ts";
 
-export type Chain = "flour" | "grain" | "casks" | "sacks" | "bread" | "meat" | "fish" | "beer" | "coal";
+export type Chain = "flour" | "grain" | "casks" | "sacks" | "bread" | "meat" | "fish" | "beer" | "coal" | "animals";
 
 export interface RunNow {
   /** "mill_mid:flour", "cart:casks". */
@@ -22,7 +23,7 @@ export interface RunNow {
   chain: Chain;
   /** "the Kipdorp mill's dray". */
   label: string;
-  vehicle: "dray" | "handcart" | "baskets";
+  vehicle: "dray" | "handcart" | "baskets" | "drove";
   /** The townsperson who leads it (the mill's man), or null (the quay's carters are not townspeople). */
   man: string | null;
   /** Where the goods come from and go to. */
@@ -57,6 +58,45 @@ export interface RunsOpts {
   names?: Record<string, string>;
   /** T3: the dispatcher's runs (trade/ledger.ts), placed by their own clock. */
   trade?: TradeRun[];
+  /** T3 chain 3: today's drove of pigs (trade/drove.ts), placed by its own clock. */
+  drove?: Drove | null;
+}
+
+/** T3 chain 3: the farmer and his pigs now (shared/drove.ts), or null when they are not out. */
+function droveRunNow(d: Drove, day: number, hour: number, o: RunsOpts): RunNow | null {
+  const at = droveAt(d, (day - 1) * 1440 + hour * 60);
+  if (at.phase === "before" || at.phase === "over") return null;
+  const to = o.names?.["butcher_vlees"] ?? "the butcher by the Vleeshuis";
+  const s = at.phase === "back" ? at.f * d.len : droveLine(d, at.f).man;
+  const [x, z] = wayPoint(d.way, s / Math.max(1, d.len));
+  const [x2, z2] = wayPoint(d.way, Math.min(1, s / Math.max(1, d.len) + 0.01));
+  const n = d.pigs.length;
+  const togoM = at.phase === "go" ? d.len * (1 - at.f) : at.phase === "back" ? d.len * at.f : 0;
+  const doing =
+    at.phase === "go" ? `Driving ${n} pigs from the Kipdorp gate to ${to}${togo(togoM)}`
+      : at.phase === "in" ? `Driving his pigs in at ${to}'s door`
+        : `Walking back out to the Kipdorp gate${togo(togoM)}`;
+  return {
+    id: d.id,
+    chain: "animals",
+    label: "a farmer with his pigs",
+    vehicle: "drove",
+    man: null,
+    from: "the Kipdorp gate",
+    to,
+    phase: at.phase,
+    doing,
+    x: Math.round(x * 10) / 10,
+    z: Math.round(z * 10) / 10,
+    yaw: at.phase === "back" ? Math.atan2(x - x2, z - z2) : Math.atan2(x2 - x, z2 - z),
+    moving: at.phase !== "in",
+    load: at.phase === "back" ? 0 : n,
+    goods: "pigs",
+    left: Math.round(togoM),
+    minLeft: 0,
+    way: null,
+    posts: ["butcher_vlees"],
+  };
 }
 
 const GOODS_WORDS: Record<string, [string, string]> = { bread: ["loaf", "loaves"], meat: ["portion of meat", "portions of meat"], fish: ["fish", "fish"], beer: ["pint of beer", "pints of beer"], coal: ["basket of coal", "baskets of coal"] };
@@ -286,6 +326,10 @@ export function runsNow(day: number, hour: number, o: RunsOpts = {}): RunNow[] {
   }
   for (const r of o.trade ?? []) {
     const c = tradeRunNow(r, day, hour, o);
+    if (c) out.push(c);
+  }
+  if (o.drove) {
+    const c = droveRunNow(o.drove, day, hour, o);
     if (c) out.push(c);
   }
   return out;

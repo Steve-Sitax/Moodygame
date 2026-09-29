@@ -1057,7 +1057,7 @@
     const trades = [...new Set(people.residents.map((r) => r.label))].sort();
     sel("fTrade", [["", "Every trade"], ...trades.map((t) => [t, t])], "trade");
     sel("fOnly", [["", "Everyone"], ["street", "Out in the street"], ["way", "On their way"], ["run", "On a run"], ["off", "Off their day plan"], ["late", "Late by a hold-up"]], "only");
-    sel("fChain", [["", "Every chain"], ["flour", "Flour (mill to bakery)"], ["grain", "Grain (dock to mill)"], ["casks", "Casks (the Hessenatie)"], ["sacks", "Sacks (the Rijnkaai)"], ["bread", "Bread (bakery to bakery, on foot)"]], "chain");
+    sel("fChain", [["", "Every chain"], ["flour", "Flour (mill to bakery)"], ["grain", "Grain (dock to mill)"], ["casks", "Casks (the Hessenatie)"], ["sacks", "Sacks (the Rijnkaai)"], ["bread", "Bread (bakery to bakery, on foot)"], ["meat", "Meat"], ["fish", "Fish (the Vliet to the stalls)"], ["beer", "Beer (brewery to taverns)"], ["coal", "Coal (the coal yard to the ovens)"], ["animals", "Pigs (the gate to the butcher, at dawn)"]], "chain");
     sel("fPost", [["", "Every post"], ...Object.entries(POSTS)], "post");
   }
   let runsKey = "";

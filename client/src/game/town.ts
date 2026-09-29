@@ -1,3 +1,5 @@
+import { DroveWalk } from "./droveWalk";
+import type { Drove } from "../../../shared/drove";
 import { buildTradeYards } from "../world/tradeYards";
 import { runAt, type TradeRun } from "../../../shared/trade";
 import * as THREE from "three";
@@ -323,6 +325,9 @@ export class Town {
   /** T3 trade: the dispatcher's runs out now (GET /api/trade), asked every few seconds; a man on one walks it. */
   private tradeRuns: TradeRun[] = [];
   private yards: THREE.Group | null = null;
+  /** T3 chain 3: today's drove of pigs (GET /api/trade), and the layer that draws it near the player. */
+  private drove: Drove | null = null;
+  private droveWalk: DroveWalk | null = null;
   private tradeAsk = 0;
   private tradeBusy = false;
   private askTrade(dt: number): void {
@@ -331,7 +336,10 @@ export class Town {
     this.tradeBusy = true;
     fetch("/api/trade")
       .then((r) => r.json())
-      .then((b: { runs?: TradeRun[] }) => (this.tradeRuns = Array.isArray(b.runs) ? b.runs : []))
+      .then((b: { runs?: TradeRun[]; drove?: Drove | null }) => {
+        this.tradeRuns = Array.isArray(b.runs) ? b.runs : [];
+        this.drove = b.drove && Array.isArray(b.drove.way) ? b.drove : null;
+      })
       .catch(() => {})
       .finally(() => (this.tradeBusy = false));
   }
@@ -701,6 +709,16 @@ export class Town {
     }
     this.askWays(dt);
     this.askTrade(dt);
+    // T3 chain 3: the farmer and his pigs, near the player
+    this.droveWalk ??= new DroveWalk({
+      scene: this.world.scene,
+      crowd: this.crowd,
+      heightAt: (x, z) => {
+        const h = this.world.groundAt(x, z, 0.2, 0);
+        return h > -20 ? h : 0;
+      },
+    });
+    this.droveWalk.update(dt, this.drove, (day - 1) * 1440 + hour * 60, player.x, player.z);
     this.progress(dt, day, hour);
     this.thinkT -= dt;
     if (this.thinkT <= 0) {

@@ -1,4 +1,6 @@
 import type { TradeRun } from "../../../shared/trade.ts";
+import type { Drove } from "../../../shared/drove.ts";
+import { droveOf } from "../trade/drove.ts";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import CITY from "../../../shared/city.json" with { type: "json" };
@@ -343,6 +345,8 @@ export interface DbNow {
   sacks?: Record<string, number>;
   /** T3: the dispatcher's runs out now (trade/ledger.ts, world_state "trade"). */
   trade?: TradeRun[];
+  /** T3 chain 3: today's drove of pigs (trade/drove.ts). */
+  drove?: Drove | null;
 }
 
 function hasTable(db: DB, name: string): boolean {
@@ -373,6 +377,7 @@ export function readDbNow(db: DB, day: number): DbNow {
       const runs = tr ? (JSON.parse(tr.value_json) as { runs?: TradeRun[] }).runs : undefined;
       if (Array.isArray(runs)) now.trade = runs;
     }
+    now.drove = droveOf(db, day);
   } catch {
     /* a save being loaded or closed: nothing this second */
   }
@@ -485,7 +490,7 @@ export function runsAt(town: Town | null, clock: MapClock | null, dbNow: DbNow |
   for (const [mill, [, man]] of Object.entries(MILL_PEOPLE)) if (!town || residentOf(town, man)) men[mill] = man;
   const names: Record<string, string> = {};
   for (const s of town?.shops ?? []) names[s.id] = s.label;
-  return runsNow(clock.day, hour, { men, sacks: dbNow?.sacks, names, trade: dbNow?.trade });
+  return runsNow(clock.day, hour, { men, sacks: dbNow?.sacks, names, trade: dbNow?.trade, drove: dbNow?.drove });
 }
 
 /** The run a resident is on now: the mill's man while his sum has him with the cart. */

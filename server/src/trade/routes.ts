@@ -8,6 +8,8 @@ import { POST_BY_ID } from "../../../shared/trade.ts";
 import { DEV } from "../config.ts";
 import { townTalk } from "../hooks/dialogue.ts";
 import { fishBoxIn, onMillEvents, tradeBought, tradeLedger, tradePrice, tradeView, writeLedger } from "./ledger.ts";
+import { droveOf } from "./drove.ts";
+import { clock } from "../day.ts";
 
 // T3 trade: the posts' ledger wired into the mills (the bake), the goods (the fish boxes), the prices and the buying;
 // GET /api/trade for the map, the talk and the checks; stepped on every tick with the clock.
@@ -35,7 +37,15 @@ export function installTrade(): void {
 export function mountTrade(app: Hono, deps: { db: DB }): void {
   const { db } = deps;
   installTrade();
-  app.get("/api/trade", (c) => c.json({ posts: tradeView(db), runs: tradeLedger(db).runs ?? [] }));
+  // (T3 chain 3: today's drove of pigs with it, placed by its own clock in the game: shared/drove.ts)
+  const drove = () => {
+    try {
+      return droveOf(db, clock(db).day);
+    } catch {
+      return null;
+    }
+  };
+  app.get("/api/trade", (c) => c.json({ posts: tradeView(db), runs: tradeLedger(db).runs ?? [], drove: drove() }));
   // dev (the test kit): set a post's shelf, and look again at the next read
   if (DEV)
     app.post("/api/dev/trade", async (c) => {

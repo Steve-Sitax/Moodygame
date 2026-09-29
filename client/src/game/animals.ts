@@ -13,17 +13,24 @@ import { tempest } from "../world/tempest";
 // quay edge and run when a dog comes near. Nobody owns a number here: animals
 // are scenery. Every step is checked against the walk map and colliders.
 
-export type AnimalKind = "dog_brown" | "dog_black" | "dog_spotted" | "dog_grey" | "cat_tabby" | "cat_black" | "cat_ginger" | "cat_white";
+export type AnimalKind = "dog_brown" | "dog_black" | "dog_spotted" | "dog_grey" | "cat_tabby" | "cat_black" | "cat_ginger" | "cat_white" | "pig_pink" | "pig_spotted";
 export type AnimalMotion = "idle" | "walk" | "run" | "sit" | "lie" | "sniff";
 const DOGS: AnimalKind[] = ["dog_brown", "dog_black", "dog_spotted", "dog_grey"];
 const CATS: AnimalKind[] = ["cat_tabby", "cat_black", "cat_ginger", "cat_white"];
 
 /** How far to lower the root so the body rests on the ground (build_animals.py report). */
-const DROP: Record<string, { sit: number; lie: number }> = { dog: { sit: 0.276, lie: 0.23 }, dog_grey: { sit: 0.304, lie: 0.253 }, cat: { sit: 0.131, lie: 0.139 } };
+const DROP: Record<string, { sit: number; lie: number }> = { dog: { sit: 0.276, lie: 0.23 }, dog_grey: { sit: 0.304, lie: 0.253 }, cat: { sit: 0.131, lie: 0.139 }, pig: { sit: 0, lie: 0 }, pig_spotted: { sit: 0, lie: 0 } };
 /** Metres per loop of walk and run (build_animals.py report: the paws stay planted at this). */
-const STRIDE: Record<string, { walk: number; run: number }> = { dog: { walk: 0.452, run: 1.125 }, dog_grey: { walk: 0.497, run: 1.24 }, cat: { walk: 0.21, run: 0.531 } };
+const STRIDE: Record<string, { walk: number; run: number }> = {
+  dog: { walk: 0.452, run: 1.125 },
+  dog_grey: { walk: 0.497, run: 1.24 },
+  cat: { walk: 0.21, run: 0.531 },
+  // T3 chain 3: the pigs (pig_spotted is built at 0.94)
+  pig: { walk: 0.219, run: 0.429 },
+  pig_spotted: { walk: 0.206, run: 0.403 },
+};
 /** Above this ground speed (m/s) the run clip reads better than a hurried walk. */
-const RUN_FROM: Record<string, number> = { dog: 1.3, dog_grey: 1.4, cat: 0.8 };
+const RUN_FROM: Record<string, number> = { dog: 1.3, dog_grey: 1.4, cat: 0.8, pig: 1.2, pig_spotted: 1.2 };
 /** The walk cycle shows from this measured speed (m/s) and stops below the lower one. */
 const MOVE_ON = 0.2;
 const MOVE_OFF = 0.15;
@@ -98,7 +105,7 @@ function load(): Promise<Template | null> {
 export class Animal {
   readonly root: THREE.Object3D;
   readonly group = new THREE.Group();
-  readonly species: "dog" | "cat";
+  readonly species: "dog" | "cat" | "pig";
   private readonly mixer: THREE.AnimationMixer;
   private readonly actions = new Map<AnimalMotion, THREE.AnimationAction>();
   private current: THREE.AnimationAction | null = null;
@@ -114,8 +121,8 @@ export class Animal {
   private readonly key: string;
 
   constructor(readonly kind: AnimalKind, src: THREE.Object3D, clips: Map<string, THREE.AnimationClip>) {
-    this.species = kind.startsWith("dog") ? "dog" : "cat";
-    this.key = kind === "dog_grey" ? "dog_grey" : this.species;
+    this.species = kind.startsWith("dog") ? "dog" : kind.startsWith("pig") ? "pig" : "cat";
+    this.key = kind === "dog_grey" || kind === "pig_spotted" ? kind : this.species;
     this.root = cloneSkinned(src);
     this.group.add(this.root);
     this.mixer = new THREE.AnimationMixer(this.root);
