@@ -79,8 +79,11 @@ after M7". Decided 2026-09-27: players move the stock, but food never runs out f
   the afternoon remainder (35%), which stays with the last of it till the evening (the food floor: a hungry player
   can still buy). Kept for the day. Browser: 29 stalls at 9:00, sold out at 9:00, 10 at 9:50.
 
+- **The town map's card of a shop, tavern or the Vismarkt shows its shelf** ("66 of 90 bread", "8 of 12 baskets of
+  coal", "running low: more sent for", "sold out to the town"), read from the saved ledger; the runs list filters
+  by every chain (meat, fish, beer, coal, pigs too).
+
 ## Next
 
-- The map's card: a post's shelf; the runs list by chain.
 - Jobs from shortage beyond the book: a rush fetch when a shelf is empty in the morning.
 - The goods kit for crates and casks (the sack pattern: one model, a label sheet).

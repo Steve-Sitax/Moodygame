@@ -1,4 +1,4 @@
-import type { TradeRun } from "../../../shared/trade.ts";
+import { POST_BY_ID, type TradeRun } from "../../../shared/trade.ts";
 import type { Drove } from "../../../shared/drove.ts";
 import { droveOf } from "../trade/drove.ts";
 import { readFileSync } from "node:fs";
@@ -354,6 +354,18 @@ function hasTable(db: DB, name: string): boolean {
     return !!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(name);
   } catch {
     return false;
+  }
+}
+
+/** T3 trade: a post's shelf as saved (world_state "trade"), or null (not stepped yet). Read only. */
+function shelfOf(db: DB, post: string): number | null {
+  try {
+    if (!hasTable(db, "world_state")) return null;
+    const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'trade'").get() as { value_json: string } | undefined;
+    const v = row ? (JSON.parse(row.value_json) as { stock?: Record<string, number> }).stock?.[post] : undefined;
+    return typeof v === "number" && Number.isFinite(v) ? v : null;
+  } catch {
+    return null;
   }
 }
 
@@ -859,6 +871,14 @@ export function detail(v: ViewDeps, kind: string, id: string): Detail | null {
       }
     }
     rows.push(["People", `${here.length} here now`]);
+    // T3 trade: the post's shelf (and a bakery's coal), read from the saved ledger (the map never steps it)
+    for (const post of new Set([POST_BY_ID[id], POST_BY_ID[id.replace(/^shop:/, "")], POST_BY_ID[`${id.replace(/^shop:/, "")}:coal`]])) {
+      if (!post) continue;
+      const stock = shelfOf(db, post.id);
+      const n = Math.floor(stock ?? post.start);
+      const unit = post.good === "beer" ? "pints of beer" : post.good === "coal" ? "baskets of coal" : post.good;
+      rows.push([post.good === "coal" ? "Coal" : "Shelf", `${n} of ${post.room} ${unit}${n <= post.floor ? ", sold out to the town (the last kept for players)" : n < post.order ? ", running low: more sent for" : ""}`]);
+    }
     return { kind, id, title: p.label, sub: id.startsWith("tavern:") ? "a tavern" : p.door ? "a shop" : "a place of the town", sections: [{ title: "Now", rows }], links: here.slice(0, 60), at: { x: p.x, z: p.z } };
   }
 
