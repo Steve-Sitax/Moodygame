@@ -13,7 +13,7 @@ The five taverns, the Poesje's cellar and the five homes to let are no longer ro
 | Den Engel | 465, 5.8 x 13.4 m | yes | The taproom. Its front window is cut through. |
 | Het Bassin | 10, 5.9 x 13.5 m, a corner | yes | The taproom. Its front window and three side windows are cut through. |
 | The Poesje | 329, 5.0 x 11.0 m | yes | A landing inside the door, then a flight of 13 steps down to the brick cellar at -2.2 m. Benches in three rows, the booth, the puppets. |
-| Cellar room | 343 (an L-shaped house) | yes | Down a flight to -2.2 m, then along the other lane to the room's door in its back wall. The window is painted and glows at night. |
+| Cellar room | 343 (an L-shaped house) | yes | Down a flight to -2.2 m, then along the other lane to the room's door in its back wall. Its window is under the pavement, onto a light well with an iron grating in the kerb (issue #28; it was painted before). |
 | Garret | 337, 5 storeys | yes | Five flights up a switchback stair, 15.8 m, to the garret under the roof. Its window is the dormer in the front slope, cut through (2026-09-29, issue #10: the room follows the roof, `shared/inworld_dormers.json`). |
 | Widow's room | 432 | yes | The front room on the ground floor, behind the street door. Its window is cut through beside the door. |
 | Alley house | 676 | yes | The one room on the ground floor. Its window is cut through beside the door. |
@@ -90,7 +90,7 @@ Before merging, a taproom cost about 177 draw calls through its door and window.
 - Bubbles and prompts are HTML and are not in the pictures.
 
 ## What is left
-- **Upstairs see-through is limited.** The merchant's windows are cut through. The cellar room's window is painted and glows at night. (The garret's was too until 2026-09-29: now its dormer window is cut through, issue #10.)
+- **Upstairs see-through.** The merchant's windows are cut through. The garret's window is its dormer's, cut through (issue #10). The cellar room's window looks onto a light well under a grating in the kerb; the kerb's top and the cobbles are cut open over it (issue #28, `world/pavementCut.ts`; it was a painted view before).
 - **The ground-floor homes.** The widow's and the alley room are centred on the house's street door, because the rules have the door in the middle of the front row. So each room reaches under its neighbour's footprint by 0.4 to 0.8 m. Nothing shows of that from outside. Their window is a new small one beside the door, next to the painted shop window of the other bay.
 - **Steep stairs.** The ground storey's flight rises 3.62 m in 4.0 m (20 steps of 0.18 m on 0.2 m treads). Each flight reaches 0.4 to 0.5 m onto its landings (`onto`). Without that, a body with the walk's 0.45 m ring round it would take the landing ahead for a wall from the second-last step. In the world Jef walks it smoothly. The plan's own flood needs a 0.15 m grid for it.
 - **Taverns only by their door.** Only the nearest tavern has its drinkers. Another tavern seen at the same time is lit but empty. The budget draws the nearest 4 small rooms; past it, and past 90 m, windows show the dark lining.

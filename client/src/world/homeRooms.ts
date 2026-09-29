@@ -62,19 +62,7 @@ function streetView(cls: HomeClass): THREE.CanvasTexture {
     sky.addColorStop(1, "#b0aca0");
     g.fillStyle = sky;
     g.fillRect(0, 0, 64, 64);
-    if (cls === "cellar") {
-      // at the level of the pavement: cobbles, a doorstep, a pair of boots going by
-      g.fillStyle = "#5a5650";
-      g.fillRect(0, 30, 64, 34);
-      for (let y = 32; y < 64; y += 6) for (let x = (y / 6) % 2 ? 0 : 4; x < 64; x += 8) {
-        g.fillStyle = `rgb(${90 + r() * 30},${88 + r() * 30},${84 + r() * 25})`;
-        g.fillRect(x, y, 7, 5);
-      }
-      g.fillStyle = "#1a1612";
-      g.fillRect(40, 16, 6, 16);
-      g.fillRect(49, 18, 6, 14);
-      return;
-    }
+    // (issue #28: the cellar's window is real, onto its light well under the pavement: no painted view of its own)
     const low = cls === "garret" ? 10 : 22;
     for (let x = -4; x < 64; x += 14) {
       const h = 30 + r() * 20;
@@ -206,8 +194,8 @@ function looks(cls: HomeClass, seed: number): Look {
  * world). On the ground floor (the widow's front room, the alley house) the room's door is the house's street
  * door and its window is cut through the front (mirrored across when the window would fall outside the house);
  * up or down the house's stair (the garret, the merchant's floor, the cellar) its door is in the back wall onto
- * the landing, the windows stay on the street: the merchant's cut through the painted ones, the garret's and
- * the cellar's painted (they glow to the street at night). Walls, floor, ceiling (a garret's roof slopes down to
+ * the landing, the windows stay on the street: the merchant's cut through the painted ones, the garret's its dormer's,
+ * the cellar's under the pavement onto its light well (issue #28). Walls, floor, ceiling (a garret's roof slopes down to
  * knee walls), the room's own furniture (shared/homes.ts), its light, and the pieces Jef owns. The room's frame
  * (x across from its middle, z in from its front wall) is the grid's; the stair, the landings and the corridor
  * from the street door are built in the house's frame.
