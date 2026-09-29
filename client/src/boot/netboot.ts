@@ -74,6 +74,9 @@ const mapped = (url: string): string => {
   const k = keyOf(url);
   return (k !== null && assetMap.get(k)) || url;
 };
+/** The calls to the server on their way now, waiting their turn, and shared GETs (issue #15; dev: `__apiOpen()`). */
+export let apiOpen = (): { open: number; waiting: number; shared: number; calls: number; peakOpen: number; peakWaiting: number } => ({ open: 0, waiting: 0, shared: 0, calls: 0, peakOpen: 0, peakWaiting: 0 });
+if (import.meta.env.DEV) Object.assign(window, { __apiOpen: () => apiOpen() });
 const isApi = (url: string) => {
   const k = keyOf(url);
   return k !== null && k.startsWith("api/");
@@ -97,6 +100,51 @@ const isApi = (url: string) => {
     }
     return r;
   };
+  /**
+   * Issue #15 (2026-09-29, net::ERR_NO_BUFFER_SPACE in a long test session): the game's polls count down in game
+   * time, so one t.run(30) (1,800 steps in one go) sent 87 calls at once: /api/police 15 times, /api/actions/sync 15,
+   * /api/town/ways 11 ... and a long frame does the same on a small scale. Now at most API_OPEN calls to the server
+   * are on their way; the rest wait here in turn (none is dropped), and a GET that is on its way already is shared.
+   */
+  const API_OPEN = 8;
+  let open = 0;
+  const waiting: Array<() => void> = [];
+  let calls = 0;
+  let peakOpen = 0;
+  let peakWaiting = 0;
+  const bounded = (go: () => Promise<Response>, signal?: AbortSignal | null): Promise<Response> => {
+    calls++;
+    const start = (): Promise<Response> => {
+      open++;
+      peakOpen = Math.max(peakOpen, open);
+      const p = go();
+      const next = () => {
+        open--;
+        waiting.shift()?.();
+      };
+      p.then(next, next);
+      return p;
+    };
+    if (open < API_OPEN) return start();
+    // (a call whose time runs out while it waits leaves the line at once: it never goes out)
+    const turn = new Promise<void>((ok, fail) => {
+      waiting.push(ok);
+      signal?.addEventListener(
+        "abort",
+        () => {
+          const i = waiting.indexOf(ok);
+          if (i < 0) return;
+          waiting.splice(i, 1);
+          fail(signal.reason ?? new DOMException("The operation was aborted.", "AbortError"));
+        },
+        { once: true },
+      );
+    });
+    peakWaiting = Math.max(peakWaiting, waiting.length);
+    return turn.then(start);
+  };
+  const sharedGets = new Map<string, Promise<Response>>();
+  apiOpen = () => ({ open, waiting: waiting.length, shared: sharedGets.size, calls, peakOpen, peakWaiting });
   window.fetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
@@ -106,12 +154,24 @@ const isApi = (url: string) => {
     }
     if (!isApi(url)) return orig(input, init);
     const again = !(input instanceof Request) && !(init?.body instanceof ReadableStream);
-    if (identity.token) {
-      const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
-      headers.set(TOKEN_HEADER, identity.token);
-      return with429(() => orig(input, { ...init, headers }), again);
+    const send = () => {
+      if (identity.token) {
+        const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
+        headers.set(TOKEN_HEADER, identity.token);
+        return bounded(() => with429(() => orig(input, { ...init, headers }), again), init?.signal);
+      }
+      return bounded(() => with429(() => orig(input, init), again), init?.signal);
+    };
+    // (the same GET on its way already: the callers share it, each with its own copy of the answer)
+    if (method !== "GET" || input instanceof Request || init?.body) return send();
+    let p = sharedGets.get(url);
+    if (!p) {
+      p = send();
+      sharedGets.set(url, p);
+      const done = () => sharedGets.delete(url);
+      p.then(done, done);
     }
-    return with429(() => orig(input, init), again);
+    return p.then((r) => r.clone());
   };
   // a guest saves nothing of the host's: the autosave's beacon on leaving the tab is not sent
   const beacon = navigator.sendBeacon?.bind(navigator);

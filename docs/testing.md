@@ -54,7 +54,9 @@ game minutes every 10 s) while the game plays. To move an event through its stag
 jumps the server's clock on and ticks once, and the stages it passes are played.
 `t.run` steps the world with Jef's camera, as a frame does (issue #8): the lit windows, the wet, the rain and the
 puddles follow the clock in a hidden tab too (`world.ambient.info().hour`, `spillInfo().lit`; checked 2026-09-29 in a
-hidden preview tab: `light(20, "rain")`, `run(20)`: hour 20, rain 1.0, lit 32 -> 87).
+hidden preview tab: `light(20, "rain")`, `run(20)`: hour 20, rain 1.0, lit 32 -> 87). The polls count down in game
+time, so a run sends a heap of calls at its end (about 150 for `run(30)`): at most 8 go to the server at once, the rest
+wait their turn, a GET already on its way is shared (boot/netboot.ts, issue #15; `__apiOpen()` in the tab).
 
 ## The kit (`__scheldemist.t`)
 | Call | What it does |

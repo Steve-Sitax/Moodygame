@@ -119,6 +119,8 @@ export class Actions {
   private list: PublicAction[] = [];
   private pollT = 0;
   private syncT = 0;
+  /** A sync on its way (issue #15: the kit's runs sent one every SYNC_S of game time, 15 at once). */
+  private syncing = false;
   private dirty = true;
   private busy = false;
   /** People held a moment longer after their talk ended (the bubbles still show). */
@@ -273,13 +275,17 @@ export class Actions {
   }
 
   private async sync(): Promise<void> {
+    if (this.syncing) return;
     const px = this.player.x;
     const pz = this.player.z;
     const people = this.town.inStreet(px, pz, 60).map((s) => ({ id: s.id, x: +s.x.toFixed(1), z: +s.z.toFixed(1) }));
+    this.syncing = true;
     try {
       await api.actionsSync({ x: +px.toFixed(1), z: +pz.toFixed(1), people });
     } catch {
       // next time
+    } finally {
+      this.syncing = false;
     }
   }
 
