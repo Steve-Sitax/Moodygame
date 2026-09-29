@@ -63,6 +63,8 @@ export interface ClutterOptions {
   ground?: GroundProbe;
   /** Shop fronts (street life): the goods by the door are lively.ts's; ours only further along. */
   shops?: Array<{ ax: number; az: number; tx: number; tz: number; ox: number; oz: number; len: number; door: number }>;
+  /** The litter's solid bits (a shard, a bottle, a cabbage) as laid: an alley's back wall is built clear of them. */
+  smalls?: Array<{ x: number; z: number; r: number }>;
 }
 
 export interface StreetEnd {
@@ -652,6 +654,7 @@ export async function createClutter(scene: THREE.Scene, flags: Flags, opts: Clut
   const runways: Rect[] = (decor.crane_rails ?? []).map(([x0, z0, x1, z1]) => ({ minX: Math.min(x0, x1) - 0.9, maxX: Math.max(x0, x1) + 0.9, minZ: Math.min(z0, z1) - 0.9, maxZ: Math.max(z0, z1) + 0.9 }));
   const bridges = bridgeRects(1.5);
   const avoid = [...(opts.avoid ?? []), ...(opts.keepOut ?? [])];
+  const smalls = opts.smalls ?? [];
   const clear: Array<{ x: number; z: number; r: number }> = [];
   for (const d of Object.values(city.doors)) clear.push({ x: d.x + d.out[0] * 1.5, z: d.z + d.out[1] * 1.5, r: Math.min(d.width / 2, 6) + 2 });
   for (const [k, s] of Object.entries(SPOT_TABLE as unknown as Record<string, { x?: number; z?: number }>)) {
@@ -1322,7 +1325,26 @@ export async function createClutter(scene: THREE.Scene, flags: Flags, opts: Clut
     const fr = sideFace(e, -1, e.r);
     const W = fl + fr; // wall face to wall face
     const ef = endFace(e);
-    const fwd = ef !== null ? Math.max(-0.2, Math.min(0.9, ef - 0.34)) : 0;
+    let fwd = ef !== null ? Math.max(-0.2, Math.min(0.9, ef - 0.34)) : 0;
+    // (issue #13: the litter lies already; the wall body, 0.3 m from its front face, goes where none of it lies:
+    // nearest first, out into the alley or back toward the house that ends it, never into that house)
+    const smallIn = (f: number) =>
+      smalls.some((q) => {
+        const rx = q.x - (e.px - e.ax * fr);
+        const rz = q.z - (e.pz - e.az * fr);
+        const t = rx * e.ax + rz * e.az;
+        const d = rx * e.dx + rz * e.dz - f;
+        return t > -0.1 - q.r && t < W + 0.1 + q.r && d > -q.r && d < 0.3 + q.r;
+      });
+    if (smallIn(fwd)) {
+      const top = ef !== null ? Math.min(0.9, ef - 0.34) : 0.9;
+      for (let k = 1; k <= 16; k++) {
+        const f = fwd + (k % 2 ? -1 : 1) * Math.ceil(k / 2) * 0.05;
+        if (f < -0.6 || f > top || smallIn(f)) continue;
+        fwd = f;
+        break;
+      }
+    }
     const ox0 = e.px - e.ax * fr + e.dx * fwd; // the left end of the front face (at the right-hand house... "left" = -a)
     const oz0 = e.pz - e.az * fr + e.dz * fwd;
     e.x = ox0 + e.ax * (W / 2);

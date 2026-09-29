@@ -328,7 +328,8 @@ const typeOf = (p: string) =>
   ({ glb: "model/gltf-binary", json: "application/json", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", ogg: "audio/ogg", wasm: "application/wasm", js: "text/javascript", svg: "image/svg+xml", webp: "image/webp" })[p.split(".").pop()!.toLowerCase()] ?? "application/octet-stream";
 
 async function assetStore(): Promise<void> {
-  if (import.meta.env.DEV) return;
+  // (the web demo has no host and no manifest.json: asking for it was the 404 on its first load, issue #12)
+  if (import.meta.env.DEV || DEMO) return;
   const t0 = performance.now();
   let man: Manifest;
   try {
@@ -469,6 +470,8 @@ void (async () => {
   } catch (e) {
     console.warn("[files] the store failed; the files come over the network", e);
   }
-  void import("./sw").then((m) => m.registerSw(identity.version)); // M8e: the page and the code kept on https (boot/sw.ts)
+  // M8e: the page and the code kept on https (boot/sw.ts), only with a manifest: its version names the worker's cache
+  // (without one the version stayed "dev", and the web demo registered a worker that asked for /manifest.json)
+  if (cacheReport.manifest) void import("./sw").then((m) => m.registerSw(identity.version));
   await import("../main");
 })();

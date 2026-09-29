@@ -4,6 +4,7 @@ import type { FirstPerson } from "../player/firstPerson";
 import type { World } from "../world/rijnkaai";
 import type { Jobs } from "./jobs";
 import { mergeParts } from "../world/staticMerge";
+import { psx } from "../retro/psx";
 import type { Town } from "./town";
 import { esc } from "./runs";
 import { dialogs } from "./dialogs";
@@ -335,10 +336,11 @@ export class Families {
   private buildTable(at: [number, number, number]): void {
     const [x, z, yaw] = at;
     const g = new THREE.Group();
-    const wood = new THREE.MeshLambertMaterial({ color: 0x4a3322 });
-    const cloth = new THREE.MeshLambertMaterial({ color: 0x6e1f1c });
-    const card = new THREE.MeshLambertMaterial({ color: 0xe8e0c8 });
-    const back = new THREE.MeshLambertMaterial({ color: 0x23304a });
+    // psx like the props around it (the PS1 look, fog, lamp glow and spill); named for the bump audit (world/bumps.ts)
+    const wood = psx(new THREE.MeshLambertMaterial({ color: 0x4a3322, name: "zelie table wood" }));
+    const cloth = psx(new THREE.MeshLambertMaterial({ color: 0x6e1f1c, name: "zelie table cloth" }));
+    const card = psx(new THREE.MeshLambertMaterial({ color: 0xe8e0c8, name: "zelie cards paper" }));
+    const back = psx(new THREE.MeshLambertMaterial({ color: 0x23304a, name: "zelie card backs paper" }));
     const top = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.04, 0.52), cloth);
     top.position.y = 0.74;
     g.add(top);

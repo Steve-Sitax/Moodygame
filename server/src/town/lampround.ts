@@ -22,7 +22,10 @@ export const REAL_S_PER_GAME_HOUR = 120;
 export type RPt = [number, number];
 
 export interface RoundLamp {
-  /** "q0".."q5": the six lamps of the Rijnkaai quay; "d0"..: the city's decor lamps (city.json order). */
+  /**
+   * "q0".."q5": the six lamps of the Rijnkaai quay; "d0"..: the city's decor lamps (city.json order); "d1000"..: the
+   * town wall's (shared/wallLamps.ts).
+   */
   id: string;
   /** The lamp post. */
   x: number;
@@ -30,6 +33,12 @@ export interface RoundLamp {
   /** Where he stands at its foot (open, reachable ground). */
   sx: number;
   sz: number;
+  /**
+   * A lamp outside a shut gate of the town wall (a lantern on its field face, the lamp at its bridge's far end;
+   * issue #14): the gate's id. He lights it from the wicket in the gate's leaves (the foot), where the walk ends.
+   * Never part of a player's stretch (town/lampjob.ts): Jef cannot go out.
+   */
+  wicket?: string;
 }
 
 export interface LampRound {
@@ -61,6 +70,11 @@ export const DUSK_SPAN_H = 3.7;
  * squares: four rounds now, 2.4 minutes apart (was three, 3 minutes), so the last window still closes by 20:34.
  */
 export const DUSK_STAGGER_H = 0.04;
+/**
+ * The turns the rounds start in (issue #14): nine rounds since the town wall's five, but four turns, so the last
+ * window still closes by 20:34 (round i starts in turn i % DUSK_SLOTS).
+ */
+export const DUSK_SLOTS = 4;
 export const DAWN_START = 5;
 export const DAWN_SPAN_H = 3.7;
 /**

@@ -868,6 +868,38 @@ interface BakedHeap {
   decals: Array<[string, number, number, number, number]>;
 }
 const bakeFile = BAKE as unknown as { heaps?: BakedHeap[]; rng?: number };
+
+/**
+ * The ground of the baked heaps (issue #13): every model of every heap that stands, its footprint as a box on the
+ * ground plan, as it will be laid. The goods are laid from the bake as they are, after the quay furniture and the
+ * clutter; so those ask the heaps for room with these (their `avoid`), before they set anything down. Resolves when
+ * quaygoods.glb is in (the goods load it anyway); empty with `?quaybake` (the heaps are searched afresh, last).
+ */
+export async function bakedGoodsRects(): Promise<Rect[]> {
+  if (typeof location !== "undefined" && new URLSearchParams(location.search).has("quaybake")) return [];
+  const { protos } = await loadModels();
+  const out: Rect[] = [];
+  for (const h of bakeFile.heaps ?? []) {
+    if (h.g) continue;
+    for (const [name, x, z, yaw] of h.items) {
+      const p = protos.get(name);
+      if (!p || !Number.isFinite(p.minX)) continue;
+      const c = Math.cos(yaw);
+      const s = Math.sin(yaw);
+      let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+      for (const [lx, lz] of [[p.minX, p.minZ], [p.maxX, p.minZ], [p.maxX, p.maxZ], [p.minX, p.maxZ]]) {
+        const wx = x + lx * c + lz * s;
+        const wz = z - lx * s + lz * c;
+        minX = Math.min(minX, wx);
+        maxX = Math.max(maxX, wx);
+        minZ = Math.min(minZ, wz);
+        maxZ = Math.max(maxZ, wz);
+      }
+      out.push({ minX, maxX, minZ, maxZ });
+    }
+  }
+  return out;
+}
 /** The heaps as laid in this build (for the bake). */
 let recorded: { heaps: BakedHeap[]; rng: number } | null = null;
 function pick<T>(r: () => number, table: Array<[T, number]>): T {
@@ -2507,7 +2539,10 @@ function listQuayGoods(puts: Put[], protos: Map<string, Proto>, heaps: Array<{ p
     const pts = proto.parts.filter((q) => q.slot === SOLID).map((q) => q.pos);
     if (!pts.length) return;
     const e = p.m.elements;
-    addProp({ src: "quay goods", name: p.name, x: e[12], y: e[13], z: e[14], yaw: Math.atan2(e[8], e[0]), pts, set, onTop: e[13] > 0.05 });
+    // (issue #13: the rest of a model in pieces that does not reach the ground lies on its own pieces: crates_tied's
+    // rest is the lashings' ends, tied to its two crates' bottom rails 10 cm up. Its chocks or pallet stand on the ground.)
+    const onOwn = p.name.endsWith(".rest") && (pieces.get(p.name.slice(0, -".rest".length))?.parts.length ?? 0) > 0 && (proto.minY ?? 0) > 0.05;
+    addProp({ src: "quay goods", name: p.name, x: e[12], y: e[13], z: e[14], yaw: Math.atan2(e[8], e[0]), pts, set, onTop: e[13] > 0.05 || onOwn });
   };
   heaps.forEach((h, i) => {
     if (!h.gone) for (let k = h.p0; k < h.p1; k++) add(puts[k], `heap ${i}`);

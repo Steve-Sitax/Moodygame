@@ -38,7 +38,7 @@ import { lampFog, type LampFog } from "./lampFog";
 import { createLitter, type Litter } from "./litter";
 import { createClutter } from "./clutter";
 import { createPosters, fetchAiSpots, type Posters } from "./posters";
-import { createQuayGoods, goodsRects, quayGoodsAreas } from "./quaygoods";
+import { bakedGoodsRects, createQuayGoods, goodsRects, quayGoodsAreas } from "./quaygoods";
 import { createStreetLife, type StreetLife } from "./streetlife";
 import { buildGroundProbe, buildingRoots, buildWallProbe } from "./wallprobe";
 import { tradeKeepOut } from "./trades";
@@ -443,6 +443,8 @@ export function buildRijnkaai(): World {
   let street: StreetLife | null = null;
   // bollards, rings, fenders, huts, nets, signs along the quays (world/quayfurniture.ts)
   let quayKit: QuayFurniture | null = null;
+  // the baked goods heaps' ground (world/quaygoods.ts bakedGoodsRects): the quay furniture and the clutter keep off it
+  let goodsRoom: Rect[] = [];
   // the fires in the tar barrels on the quays (world/fire.ts)
   let fires: Fires | null = null;
   // M7 posters: the printed bills on the house walls (world/posters.ts)
@@ -479,11 +481,14 @@ export function buildRijnkaai(): World {
       // (the probe: signs go only where the houses as built have a clear wall)
       return createStreetLife(scene, city.flags, { avoid: [...d.colliders, ...omnibusLane, ...workplaces], probe: buildWallProbe(city.group), bills });
     })
-    .then((sl) => {
+    .then(async (sl) => {
       street = sl;
       colliders.push(...sl.colliders);
+      // (issue #13: the goods' heaps are laid from the bake after these; the quay furniture and the clutter ask them
+      // for room first)
+      goodsRoom = quayGoodsOn ? await bakedGoodsRects().catch(() => []) : [];
       return createQuayFurniture(scene, city.flags, {
-        avoid: [...colliders, ...dynamic, ...omnibusLane, ...craneRunways, ...workplaces], // M3g: nothing on the omnibus lanes or crane runways; M3i: markets, trades
+        avoid: [...colliders, ...dynamic, ...omnibusLane, ...craneRunways, ...workplaces, ...goodsRoom], // M3g: nothing on the omnibus lanes or crane runways; M3i: markets, trades; #13 the goods
         quayInfo: () => ({ flights: steps.flights, ladders: steps.ladders }),
         houseWalls: { clear: sl.clearOnWall, add: sl.addWallItem }, // fixes 2026-09-25: notices off the painted windows
         probe: buildingsProbe(),
@@ -513,11 +518,12 @@ export function buildRijnkaai(): World {
           // (the houses and buildings as built: barrels and crates stand a hand off their real faces)
           probe: buildingsProbe(),
           ground: buildingsGround(),
-          avoid: [...colliders, ...dynamic],
+          avoid: [...colliders, ...dynamic, ...goodsRoom],
           keepOut: [...omnibusLane, ...workplaces], // (it keeps off the crane runways itself; a quay kerb may run under them)
           quayInfo: () => ({ flights: steps.flights, ladders: steps.ladders }),
           sites: street?.sites,
           shops: street?.shops,
+          smalls: l.solids,
         }).then((c) => {
           colliders.push(...c.colliders);
           leaners.push(...c.leaners);

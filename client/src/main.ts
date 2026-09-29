@@ -133,6 +133,8 @@ const spill = createSpill(
   world.scene,
   (x, z, feet) => world.groundAt(x, z, 0, feet),
   (x, z) => (world.isWater(x, z) ? -8 : world.baseAt(x, z)),
+  // (a pool laid before a doorstep or a kerb came in is laid again: issue #6)
+  () => world.solidsVersion(),
 );
 /** How dark it is by the clock, 0..1 (deeds.ts reckons Jef's lantern the same way). */
 function lanternDark(): number {

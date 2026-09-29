@@ -197,9 +197,14 @@ describe("M8e limits on a real server", () => {
       expect(st.limitDropped).toBe(0);
       expect(st.http429).toBe(0);
       // the guest's calls: a burst of 150 at once; over the burst refused with a plain English 429
+      const t0 = Date.now();
       const guestCalls = await Promise.all(Array.from({ length: 150 }, () => s.call("GET", "/api/mp/info", undefined, g)));
+      const took = (Date.now() - t0) / 1000;
       const refused = guestCalls.filter((r) => r.status === 429);
-      expect(refused.length).toBeGreaterThanOrEqual(150 - HTTP_LIMIT.burst - 5);
+      // (the bucket earns `rate` a second while the 150 arrive: on a busy PC that took 0.5 s and more (issue #4), so
+      // the calls let through are the burst plus what it earned in that time, never more)
+      expect(refused.length).toBeGreaterThanOrEqual(150 - HTTP_LIMIT.burst - Math.ceil(HTTP_LIMIT.rate * took) - 1);
+      expect(refused.length).toBeGreaterThan(0);
       expect(refused.length).toBeLessThanOrEqual(150 - HTTP_LIMIT.burst + 5);
       expect(String(refused[0].body.error)).toMatch(/Too many requests from this PC/);
       // the host's: never

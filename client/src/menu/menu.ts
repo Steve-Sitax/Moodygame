@@ -94,7 +94,12 @@ function writeKeysLine(): void {
 /** Buttons other parts put on the paper (Saves' row, the dev menu's Dev): into the list, in their place. */
 function adopt(): void {
   const row = paper.querySelector(":scope > .save-row");
-  if (row) nav.querySelector(".slot-saves")!.replaceWith(row);
+  if (row) {
+    // the web demo put its own item in the Saves' slot: the row (hidden there, game/saves.ts) goes to the list's end
+    const slot = nav.querySelector(".slot-saves");
+    if (slot) slot.replaceWith(row);
+    else nav.append(row);
+  }
   for (const b of paper.querySelectorAll<HTMLButtonElement>(":scope > .settings-btn")) {
     b.classList.remove("settings-btn");
     b.classList.add("menu-item", "menu-dev");

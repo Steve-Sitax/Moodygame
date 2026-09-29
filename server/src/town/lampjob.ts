@@ -21,9 +21,15 @@ import { resident } from "./store.ts";
 // holds, the stretch waits for Jef (lampround.ts helpHolds): the lamplighter ends his round before it, and a
 // lamp burns once Jef has lit it. At the deadline the hold ends and the lamplighter lights what is left.
 
-/** A stretch is 5 to 10 lamps, and never more than half the round (the lamplighter keeps a round of his own). */
+/**
+ * A stretch is 5 to 10 lamps, and never more than half the round (the lamplighter keeps a round of his own); on a
+ * short round (the town wall's Sint-Jorispoort round has 9) the 5 may be more than half when he keeps LAMP_JOB_KEEP.
+ */
 export const LAMP_JOB_MIN = 5;
 export const LAMP_JOB_MAX = 10;
+export const LAMP_JOB_KEEP = 4;
+/** The most lamps a stretch of this round may have. */
+export const stretchMost = (n: number) => Math.min(LAMP_JOB_MAX, Math.max(Math.floor(n / 2), n - LAMP_JOB_KEEP >= LAMP_JOB_MIN ? LAMP_JOB_MIN : 0));
 /** The stretch at Jef's walk with a few seconds a lamp: at most this long (real seconds; a game hour and a quarter). */
 export const STRETCH_MAX_S = 150;
 /** Real seconds a lamp takes him (the pole up into the lantern, the flame, the pole down: game/lampjob.ts). */
@@ -31,9 +37,19 @@ export const LIGHT_S = 3;
 /** The job can be taken until this long after the round's dusk; every lamp must be lit by DONE_BY_H after it. */
 export const TAKE_BY_H = 0.75;
 export const DONE_BY_H = 2.25;
-/** The pay: a base and so much a lamp, within the board's tier band. */
+/**
+ * The pay: a base, so much a lamp and so much for the walk (issue #14: a wall round's lamps lie further apart, up and
+ * down the wall's stairs), within the board's tier band.
+ */
 export const LAMP_BASE_C = 20;
 export const LAMP_EACH_C = 10;
+export const LAMP_PER_50M_C = 5;
+
+/** The stretch's walk in metres, the round's path from its first lamp to the round's last. */
+export const stretchWalkM = (r: LampRound, from: number) => r.at[r.lamps.length - 1] - r.at[from];
+
+/** The pay for a stretch of `n` lamps and `walkM` metres, before the tier band. */
+export const lampPay = (n: number, walkM: number) => round5(LAMP_BASE_C + LAMP_EACH_C * n + LAMP_PER_50M_C * (walkM / 50));
 /** How near the lamp's foot (metres) the server takes him to be (the client offers E within 2.2 m). */
 const REACH_M = 3.2;
 
@@ -52,9 +68,11 @@ const hourNow = (db: DB) => {
  */
 export function stretchOf(r: LampRound): number {
   const n = r.lamps.length;
-  const most = Math.min(LAMP_JOB_MAX, Math.floor(n / 2));
+  const most = stretchMost(n);
   let k = 0;
   for (let t = LAMP_JOB_MIN; t <= most; t++) {
+    // (a lamp outside a shut gate of the town wall is lit from the wicket: never Jef's, he cannot go out)
+    if (r.lamps.slice(n - t).some((l) => l.wicket)) break;
     // the round's own path, from the stretch's first lamp to the last, a little longer through the streets
     const walk = ((r.at[n - 1] - r.at[n - t]) * 1.1) / SEEN_PACE + t * LIGHT_S;
     if (walk > STRETCH_MAX_S) break;
@@ -92,7 +110,7 @@ export function buildLampJob(db: DB, roundId?: string): { title: string; employe
   const open = Math.ceil(r.dusk * 60 - 1e-6) / 60;
   const until = Math.floor((open + DONE_BY_H) * 60 + 1e-6) / 60;
   const [lo, hi] = TIER_PAY[maxTier(db)];
-  const pay_c = Math.max(lo, Math.min(hi, round5(LAMP_BASE_C + LAMP_EACH_C * lamps.length)));
+  const pay_c = Math.max(lo, Math.min(hi, lampPay(lamps.length, stretchWalkM(r, from))));
   const w = WORDS[c.day % WORDS.length];
   const task: LampsTask = { kind: "lamps", goods: "lamps", round: r.id, from, lamps, pole: { x: lamps[0].sx, z: lamps[0].sz }, open, until, take_by: Math.floor((open + TAKE_BY_H) * 60 + 1e-6) / 60, twist: "none", limit_s: null };
   return { title: w.title, employer: r.lamplighter, pay_c, pitch: w.pitch(lamps.length, hhmm(open), hhmm(until)), task, district: npc.district, faction: npc.faction };
@@ -274,7 +292,7 @@ export function mountLampJob(app: Hono, deps: { db: DB; payload: () => Record<st
     return c.json({ ...r, ...payload() });
   });
   if (DEV) {
-    /** Dev: the lamps job now ({ round? }: west, market, east, north; else the day's), offered on today's board. */
+    /** Dev: the lamps job now ({ round? }: west, market, east, north, wall_rode, wall_north, wall_keizer, wall_kipdorp, wall_joris; else the day's), offered on today's board. */
     app.post("/api/dev/lamps/job", async (c) => {
       const b = ((await c.req.json().catch(() => ({}))) ?? {}) as { round?: string };
       const j = buildLampJob(db, typeof b.round === "string" ? b.round : undefined);

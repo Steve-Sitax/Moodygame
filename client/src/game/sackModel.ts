@@ -418,7 +418,8 @@ const labelGeos = new Map<string, THREE.BufferGeometry>();
 export function labelGeo(geo: THREE.BufferGeometry, label: SackLabel): THREE.BufferGeometry {
   const src = (geo.userData.sackSrc as THREE.BufferGeometry | undefined) ?? geo;
   const cell = cellOf(label);
-  if (cell < 0) return src;
+  // (an empty load, no sacks on the bed: sackLoadGeometry(box, 0) has no vertices and no uv to move)
+  if (cell < 0 || !src.getAttribute("uv")) return src;
   const key = `${src.uuid}#${cell}`;
   let g = labelGeos.get(key);
   if (g) return g;
