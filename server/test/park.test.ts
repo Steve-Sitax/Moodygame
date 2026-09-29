@@ -84,7 +84,7 @@ describe("park wildlife",()=>{
     expect(geese).toHaveLength(6);const g=geese[0],food={x:g.x+1,z:g.z};
     sim.update(.1,{...fair,food:[food]});expect(g.mode).toBe("feed");expect(g.target).toEqual(food);
     sim.update(.2,{...fair,boats:[{x:g.x,z:g.z}]});expect(g.mode).toBe("flight");
-    sim.update(g.duration+.1,fair);expect(g.mode).toBe("swim");
+    for(let left=g.duration+.1;left>0;left-=30)sim.update(Math.min(30,left),fair);expect(g.mode).toBe("swim");
     sim.update(.1,{...fair,rain:1});expect(g.mode).toBe("shelter");
     const s=sim.animals.find(a=>a.species==="squirrel")!;
     s.mode="forage";s.target={x:s.x,z:s.z};s.timer=5;
@@ -94,7 +94,7 @@ describe("park wildlife",()=>{
   it("flies away from a boat and lands on another water habitat",()=>{
     const sim=new ParkEcology(habitat),bird=sim.animals.find(a=>a.species==="duck"&&!a.young&&!a.female)!;
     const home=bird.home;sim.update(.1,{...fair,boats:[{x:bird.x,z:bird.z}]});expect(bird.mode).toBe("flight");expect(bird.home).not.toBe(home);
-    sim.update(bird.duration+.1,fair);expect(bird.mode).toBe("swim");expect(bird.y).toBeCloseTo(-.34,1);
+    for(let left=bird.duration+.1;left>0;left-=30)sim.update(Math.min(30,left),fair);expect(bird.mode).toBe("swim");expect(bird.y).toBeCloseTo(-.34,1);
   });
   it("climbs a real trunk when threatened, stays there in a gale, and descends later",()=>{
     const sim=new ParkEcology(habitat),s=sim.animals.find(a=>a.species==="squirrel")!;
@@ -120,6 +120,26 @@ describe("park wildlife",()=>{
     const h=sim.habitat.birds[visitor.home];visitor.x=h[0];visitor.z=h[1];visitor.target={x:h[0],z:h[1]};
     sim.update(.1,{...fair,waterLevels:sim.habitat.birds.map(()=>-4.1)});
     expect(visitor.y).toBeCloseTo(-4.1);
+  });
+  it("moves off from a person first, flies when he keeps coming; flocks live on the docks and far birds step coarsely",()=>{
+    const sim=new ParkEcology(habitat),bird=sim.animals.find(a=>a.species==="duck"&&!a.young&&!a.female&&a.home<sim.parkHomes)!;
+    bird.mode="swim";bird.timer=100;
+    const at={x:bird.x,z:bird.z};
+    // standing 4.5 m off: it swims away, it does not fly
+    const still={x:bird.x+4.5,z:bird.z};
+    for(let i=0;i<20;i++)sim.update(.1,{...fair,people:[still]});
+    expect(bird.mode).not.toBe("flight");expect(Math.hypot(bird.x-still.x,bird.z-still.z)).toBeGreaterThan(4.5);
+    // walking in on it: it flies
+    let p={x:bird.x+3.5,z:bird.z};
+    for(let i=0;i<30&&(bird.mode as string)!=="flight";i++){p={x:p.x-.12,z:p.z};sim.update(.1,{...fair,people:[p]});}
+    expect(bird.mode).toBe("flight");expect(Math.hypot(at.x-bird.x,at.z-bird.z)).toBeLessThan(40);
+    // the town's water has its own flocks, and the homes beyond the park are theirs to fly to
+    expect(sim.animals.filter(a=>a.home>=sim.parkHomes).length).toBeGreaterThanOrEqual(20);
+    expect(sim.habitat.birds.length).toBeGreaterThan(sim.parkHomes+5);
+    // far from the player, a bird is stepped once a second, not ten times
+    const far=sim.animals.find(a=>a.home>=sim.parkHomes&&!a.young&&Math.hypot(a.x+300,a.z-300)>200)!;far.mode="swim";far.timer=100;far.target={x:far.x+3,z:far.z};
+    const x0=far.x;sim.update(.5,{...fair,focus:{x:-300,z:300}});expect(far.x).toBe(x0);
+    sim.update(.6,{...fair,focus:{x:-300,z:300}});expect(far.x).not.toBe(x0);
   });
   it("uses the oak's actual branch anchors for perching birds and climbing squirrels",()=>{
     const sim=new ParkEcology(habitat),bird=sim.animals.find(a=>a.species==="songbird")!;

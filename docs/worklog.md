@@ -5,6 +5,21 @@ The coordinating Claude session keeps this file current: a line when a helper st
 patch goes live (with its commit), and when Steve decides something. Newest first in each part.
 Git history has the detail of each commit.
 
+## Map icons, Esc, vaulting, falls, boats, birds, 2026-09-29 (late)
+
+Steve's list: a clearer map with icons, hover names and kinds to switch off; Esc closes windows as E does; jump over railings, ledges, low shrubs (hold Space, or press again at the top); jump into boats from the quay; pickpocketing only from behind; birds that swim or walk off, then fly, also to the Schelde and the docks, and more of them; fall damage over 3 m (a crane's gallery).
+
+- Map (`game/map.ts`, new `game/mapIcons.ts`): every place an ink icon in a badge; the name, distance and way on hover (ink cursor or mouse); an HTML key over the map's corner turns 11 kinds on and off (kept in localStorage; pumps off by default). Only your job's step and the square names are written, and only where they fit. Landmarks and more town places (small taverns, post office, guard room, markets, mills, pumps, workshops) are marks now.
+- Esc (`main.ts`, `game/dialogs.ts`, `game/pause.ts`): the browser keeps the Esc that frees the mouse; with a dialog up that Esc closes, it is sent on to the dialog and no menu opens (quiet pause: click or W). The gang, the menace and sleep keep the old way. The quest book is a registered dialog now; the night sheet and the police cell take Esc. `focusTest` knows the new rule.
+- Vaulting (`shared/mantle.ts`, `world/rijnkaai.ts`): the lift clears the highest top on the way, landings are found up to 2.6 m out, a railing over open water can be vaulted into the river, and a vault may end in a drop onto ground below. A second press in the air tries at once. Low solid obstacles that fail: 97 of 625 before, 32 of 489 after (mostly the fenced grass strips on the squares: the grass is wall in the walk map). Park shrubs are 1.3-2.4 m tall and stay in the way; the town's small bushes were never solid.
+- Falls (`server/src/player/fall.ts`, `POST /api/fall`): the browser reports the height, the engine takes 1-4 health from 3, 5, 8, 12 m; water takes the fall; never below the floor of 1. Off a crane's gallery: hold Space at the rail. Checked: 7.6 m fall, health 8 to 6.
+- Boats (`game/rowing.ts`): Space at the quay's edge before a small boat (up to 3.6 m down) jumps onto her seat, ready to row; E offers the same jump when she lies deeper than a step.
+- Birds (`shared/parkWildlife.ts`): people within 5-6.5 m make them move off; still coming within 2.4-3.2 m, they fly, half to the Schelde or a dock (`TOWN_WATERS`, 9 checked water spots). 28 new ducks and a swan family live there (74 animals in all). Birds over 160 m from the player take one step a second.
+
+Checks: game build and tests; mantle, fall and park tests; browser: map hover and key, Esc on map and book, water vault into a swim, crate vault, crane jump with harm, Space into a boat, dock ducks shown; `shaders()` no problems, `paths()` empty. Found outside the task: [issue 36](https://github.com/Steve-Sitax/Moodygame/issues/36) (focusTest gang case).
+
+Speed: `perfcheck` (data/perf/2026-09-29T21-40-32-090Z.json) is over the 20 ms budget at every place, 22-42 ms walking. Against the 16:57 run the draw calls rose from 760-1330 to 1255-1787 and mirrors from 3.5-5.8 to 7.2-7.9 ms at every place, also at the cathedral and the Handschoenmarkt, where no bird is near: that came with the park merge ([issue 32](https://github.com/Steve-Sitax/Moodygame/issues/32), Steve's other session). This batch adds 4-6 instanced draws only where birds are within 90 m, and nothing to the map's or the jump's frames.
+
 ## Stadspark traversal follow-up, 2026-09-29
 
 Merged and pushed as `366480d`; the player's detached `MoodyGame-play` checkout was refreshed to that commit and its served movement code checked. The demo build passed and [Pages deployment 36626110296](https://github.com/Steve-Sitax/Moodygame/actions/runs/36626110296) succeeded; the live park metadata reports bed -2.75 and water -0.35. The local browser reached Ready and the demo menus worked. Test stack and copied save were removed.

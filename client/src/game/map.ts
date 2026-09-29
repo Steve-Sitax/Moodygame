@@ -2,6 +2,8 @@ import CITY from "../../../shared/city.json";
 import type { FirstPerson } from "../player/firstPerson";
 import { keyLabel } from "../menu/keys";
 import { dialogs } from "./dialogs";
+import { inkAt } from "./cursor";
+import { CAT_INK, MAP_CATS, MAP_ICONS, drawBadge, type MapCat } from "./mapIcons";
 import { settings } from "./prefs";
 
 // The paper map (M). Drawn from the traced 1873 city (shared/city.json) in the
@@ -16,6 +18,11 @@ import { settings } from "./prefs";
 // numbers and distances (a number key finds it), has a key to its marks, and shows
 // the shop names only where there is room. The round map in the corner (setting
 // "Map in the corner", off by default) turns with Jef and shows the same work.
+//
+// 2026-09-29 (Steve: "map is not very clear, text is over each other. Use icons for poi's and hover over icon
+// says what it is. Also categories click on and off."): every place is an icon (game/mapIcons.ts), its name
+// shows when the cursor is on it; the key beside the map turns each kind on and off (kept in the browser).
+// Only your job's step and the street and square names are written on the paper, and only where there is room.
 
 export interface MapMark {
   x: number;
@@ -24,7 +31,16 @@ export interface MapMark {
   kind: "goal" | "work" | "event" | "place" | "shop" | "bed";
   /** For the list beside the map: what the work is (the job's title, the event's place). */
   detail?: string;
+  /** Its picture (game/mapIcons.ts); none: the kind's own. */
+  icon?: string;
 }
+
+const KIND_ICON: Record<MapMark["kind"], string> = { goal: "goal", work: "work", event: "event", place: "board", shop: "vase", bed: "bed" };
+const iconOf = (m: MapMark) => (m.icon && MAP_ICONS[m.icon] ? m.icon : KIND_ICON[m.kind]);
+const catOf = (m: MapMark): MapCat => MAP_ICONS[iconOf(m)].cat;
+const HIDDEN_KEY = "scheldemist.mapHidden";
+/** A mark as drawn on the big map, in canvas px: the hover finds it. */
+type Hit = { u: number; v: number; r: number; m: MapMark };
 
 /** The marks that are work to go to: listed beside the map, numbered, and kept on the corner map's rim. */
 const QUEST_KINDS: ReadonlySet<MapMark["kind"]> = new Set(["goal", "work", "event"]);
@@ -50,6 +66,7 @@ function en(x: number, z: number): [number, number] {
   return [x * SIN + z * COS, x * COS - z * SIN];
 }
 
+const LANDMARK_ICONS: Record<string, string> = { stadhuis: "hall", hanzehuis: "hall", vleeshuis: "castle", steen: "castle" };
 const LANDMARK_NAMES: Record<string, string> = {
   cathedral: "Cathedral of Our Lady",
   stadhuis: "Town Hall",
@@ -60,6 +77,15 @@ const LANDMARK_NAMES: Record<string, string> = {
   stjacob: "St. James",
   hanzehuis: "Hanseatic House",
 };
+
+/** The landmarks as marks: an icon in the middle of each, its name on hover. */
+const SIGHTS: MapMark[] = Object.entries(data.landmarks).map(([name, l]) => ({
+  x: l.fp.reduce((a, p) => a + p[0], 0) / l.fp.length,
+  z: l.fp.reduce((a, p) => a + p[1], 0) / l.fp.length,
+  label: LANDMARK_NAMES[name] ?? name,
+  kind: "place" as const,
+  icon: LANDMARK_ICONS[name] ?? "church",
+}));
 
 /** Names of places, in world metres, from the map design (shared/city.json places). */
 const PLACES = ((CITY as unknown as { places?: Record<string, { x: number; z: number; kind: string }> }).places ?? {}) as Record<string, { x: number; z: number; kind: string }>;
@@ -82,71 +108,24 @@ const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ESC[c]);
 
 /** One mark, drawn at (u, v) on a 2D canvas, `s` times its size on the big map; `n` its number in the list. */
 function drawMark(g: CanvasRenderingContext2D, m: MapMark, u: number, v: number, s: number, n?: number): void {
-  g.strokeStyle = g.fillStyle = INK[m.kind];
-  g.lineWidth = 3 * s;
-  if (m.kind === "goal") {
-    const r = 8 * s;
-    g.beginPath();
-    g.moveTo(u - r, v - r);
-    g.lineTo(u + r, v + r);
-    g.moveTo(u + r, v - r);
-    g.lineTo(u - r, v + r);
-    g.stroke();
-    g.lineWidth = 1.5 * s;
-    g.beginPath();
-    g.arc(u, v, r * 1.55, 0, Math.PI * 2);
-    g.stroke();
-  } else if (m.kind === "work" || m.kind === "event") {
-    const r = 9 * s;
-    g.fillStyle = "#efe6cc";
-    g.beginPath();
-    if (m.kind === "work") g.arc(u, v, r, 0, Math.PI * 2);
-    else {
-      g.moveTo(u, v - r * 1.2);
-      g.lineTo(u + r * 1.2, v);
-      g.lineTo(u, v + r * 1.2);
-      g.lineTo(u - r * 1.2, v);
-      g.closePath();
-    }
-    g.fill();
-    g.lineWidth = 2.5 * s;
-    g.stroke();
+  drawBadge(g, iconOf(m), u, v, s);
+  if (n !== undefined) {
+    const x = u + 11 * s;
+    const y = v - 10 * s;
     g.fillStyle = INK[m.kind];
-    g.font = `bold ${Math.round(14 * s)}px ${PRINT}`;
+    g.beginPath();
+    g.arc(x, y, 7 * s, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = "#f3ead2";
+    g.font = `bold ${Math.round(11 * s)}px ${PRINT}`;
     g.textAlign = "center";
     g.textBaseline = "middle";
-    g.fillText(m.kind === "work" ? "!" : "?", u, v + 1 * s);
+    g.fillText(String(n), x, y + 0.5 * s);
     g.textBaseline = "alphabetic";
-  } else if (m.kind === "bed") {
-    const r = 6 * s;
-    g.beginPath();
-    g.moveTo(u - r, v + r * 0.7);
-    g.lineTo(u - r, v - r * 0.1);
-    g.lineTo(u, v - r);
-    g.lineTo(u + r, v - r * 0.1);
-    g.lineTo(u + r, v + r * 0.7);
-    g.closePath();
-    g.fill();
-  } else if (m.kind === "place") {
-    const r = 5 * s;
-    g.fillRect(u - r, v - r, r * 2, r * 2);
-  } else {
-    g.beginPath();
-    g.arc(u, v, 4 * s, 0, Math.PI * 2);
-    g.fill();
-  }
-  if (n !== undefined) {
-    g.font = `bold ${Math.round(12 * s)}px ${PRINT}`;
-    g.textAlign = "center";
-    g.fillStyle = INK[m.kind];
-    g.fillText(String(n), u + 13 * s, v - 10 * s);
   }
 }
 
 const SCALE = 2; // px per metre on the stored map
-/** The key to the marks in the big map's corner: its size (seven rows). */
-const KEY_W = 180;
-const KEY_H = 8 * 20 + 10;
 /** The corner map: metres from Jef to its rim. */
 const MINI_REACH_M = 110;
 
@@ -156,6 +135,19 @@ export class CityMap {
   private readonly cv: HTMLCanvasElement;
   private readonly side: HTMLDivElement;
   private readonly keysLine: HTMLParagraphElement;
+  /** The key to the marks over the map's corner: each kind a button that shows or hides it. */
+  private readonly keyEl: HTMLDivElement;
+  /** The name of the mark under the cursor. */
+  private readonly tip: HTMLDivElement;
+  /** The kinds turned off (kept in the browser). */
+  private readonly hidden = new Set<MapCat>();
+  /** The marks drawn now, in canvas px, for the hover (the last drawn is on top). */
+  private hits: Hit[] = [];
+  private hot: MapMark | null = null;
+  /** The real mouse in the window (without the lock); with it the ink cursor (game/cursor.ts). */
+  private readonly mouse = { x: -1, y: -1 };
+  /** The paper's slight turn (style.css), read when the map opens: the hover needs it. */
+  private tilt = 0;
   private readonly base: HTMLCanvasElement;
   private readonly box: { e0: number; n0: number; e1: number; n1: number };
   private zoom = 1;
@@ -192,8 +184,18 @@ export class CityMap {
     this.el.style.display = "none";
     const row = document.createElement("div");
     row.className = "citymap-row";
+    const wrap = document.createElement("div");
+    wrap.className = "citymap-wrap";
     this.cv = document.createElement("canvas");
-    row.appendChild(this.cv);
+    wrap.appendChild(this.cv);
+    this.keyEl = document.createElement("div");
+    this.keyEl.className = "citymap-key";
+    wrap.appendChild(this.keyEl);
+    this.tip = document.createElement("div");
+    this.tip.className = "citymap-tip";
+    this.tip.style.display = "none";
+    wrap.appendChild(this.tip);
+    row.appendChild(wrap);
     this.side = document.createElement("div");
     this.side.className = "citymap-side";
     row.appendChild(this.side);
@@ -217,6 +219,13 @@ export class CityMap {
       n0: Math.min(...pts.map((p) => p[1])),
       n1: Math.max(...pts.map((p) => p[1])),
     };
+    try {
+      const saved = JSON.parse(localStorage.getItem(HIDDEN_KEY) ?? "null") as MapCat[] | null;
+      for (const c of saved ?? MAP_CATS.filter((k) => !k.on).map((k) => k.id)) if (MAP_CATS.some((k) => k.id === c)) this.hidden.add(c);
+    } catch {
+      for (const k of MAP_CATS) if (!k.on) this.hidden.add(k.id);
+    }
+    this.buildKey();
     this.base = this.drawBase();
     window.addEventListener("keydown", (e) => this.onKey(e));
     window.addEventListener("keyup", (e) => this.held.delete(e.code));
@@ -227,6 +236,10 @@ export class CityMap {
     });
     window.addEventListener("mouseup", () => (this.dragging = false));
     document.addEventListener("mousemove", (e) => {
+      if (!document.pointerLockElement) {
+        this.mouse.x = e.clientX;
+        this.mouse.y = e.clientY;
+      }
       if (!this.open || !this.dragging) return;
       const k = this.zoom * 0.5;
       this.pan.u -= e.movementX / k;
@@ -335,29 +348,11 @@ export class CityMap {
     }
     g.fillStyle = "#d8a45a";
     g.strokeStyle = "#5a3a1a";
-    for (const [name, l] of Object.entries(data.landmarks)) {
+    // (their names are icons now, and the place names are written as the map is drawn: never over each other)
+    for (const l of Object.values(data.landmarks)) {
       path(l.fp);
       g.fill();
       g.stroke();
-      const cx = l.fp.reduce((a, p) => a + p[0], 0) / l.fp.length;
-      const cz = l.fp.reduce((a, p) => a + p[1], 0) / l.fp.length;
-      const [u, v] = this.px(cx, cz);
-      g.fillStyle = "#2a2420";
-      g.font = "bold 22px 'Scheldemist Print', Georgia, serif";
-      g.textAlign = "center";
-      g.fillText(LANDMARK_NAMES[name] ?? name, u, v + 7);
-      g.fillStyle = "#d8a45a";
-    }
-    g.fillStyle = "#2a2420";
-    for (const [name, x, z, rot] of PLACE_NAMES) {
-      const [u, v] = this.px(x, z);
-      g.save();
-      g.translate(u, v);
-      g.rotate(rot);
-      g.font = name === name.toUpperCase() ? "bold 30px 'Scheldemist Print', Georgia, serif" : "italic 24px 'Scheldemist Print', Georgia, serif";
-      g.textAlign = "center";
-      g.fillText(name, 0, 0);
-      g.restore();
     }
     // the paper: a faint grain
     for (let i = 0; i < 9000; i++) {
@@ -375,8 +370,17 @@ export class CityMap {
     this.dragging = false;
     if (this.open) {
       this.pan = { u: 0, v: 0 };
-      this.keysLine.innerHTML = `${esc(keyLabel("KeyM"))} or Esc  close &middot; WASD, the arrows or a drag  move &middot; + and - or the wheel  zoom &middot; ${esc(keyLabel("KeyC"))}  back to you &middot; 1 to 9  find`;
+      this.keysLine.innerHTML = `${esc(keyLabel("KeyM"))} or Esc  close &middot; WASD, the arrows or a drag  move &middot; + and - or the wheel  zoom &middot; ${esc(keyLabel("KeyC"))}  back to you &middot; 1 to 9  find &middot; point at a mark for its name &middot; click the key to show or hide`;
+      try {
+        const t = new DOMMatrixReadOnly(getComputedStyle(this.el).transform);
+        this.tilt = Math.atan2(t.b, t.a);
+      } catch {
+        this.tilt = 0;
+      }
       this.render();
+    } else {
+      this.hot = null;
+      this.tip.style.display = "none";
     }
   }
 
@@ -402,6 +406,7 @@ export class CityMap {
         this.pan.v += (dv * 420 * dt) / k;
         this.render();
       } else if (this.redrawT <= 0) this.render(); // the people with work walk about
+      else this.hover();
     }
     this.updateMini(dt);
   }
@@ -435,41 +440,36 @@ export class CityMap {
       const [u, v] = this.px(x, z);
       return [W / 2 + (u - pu) * k, H / 2 + (v - pv) * k];
     };
-    const marks = this.marks();
+    const marks = this.shownMarks();
     const dist = (m: MapMark) => Math.hypot(m.x - this.player.x, m.z - this.player.z);
     // T4: the way on foot to the followed job, under the marks
-    const wp = this.wayNow();
+    const wp = this.hidden.has("job") ? null : this.wayNow();
     if (wp) this.drawWay(g, wp, S, 3.5);
     // the list's order: your job first, then the nearest work, then what goes on in town
     const rank: Record<string, number> = { goal: 0, work: 1, event: 2 };
     const quests = marks.filter((m) => QUEST_KINDS.has(m.kind)).sort((a, b) => rank[a.kind] - rank[b.kind] || dist(a) - dist(b));
     this.listed = quests.slice(0, 9);
     const rest = marks.filter((m) => !QUEST_KINDS.has(m.kind));
-    // labels never on top of each other: the work's first, then the places; the shops' only where there is room
-    // (the key in the corner, the compass and the scale bar take their room first)
+    // nothing written over anything else: the key, the compass and the scale bar take their room first, then
+    // the marks, then your job's step; the street names only where there is still room
+    const kr = this.keyEl.getBoundingClientRect();
+    const cr = this.cv.getBoundingClientRect();
     const taken: Array<[number, number, number, number]> = [
-      [W - KEY_W - 10, H - KEY_H - 10, W, H],
+      [W - kr.width - 16, H - kr.height - 16, W, H],
       [W - 50, 0, W, 34],
       [0, H - 44, 130, H],
     ];
+    if (!cr.width) taken[0] = [W - 230, H - 300, W, H];
     const room = (x: number, y: number, w: number, h: number) => !taken.some(([a, b, c, e]) => x < c && x + w > a && y < e && y + h > b);
-    const label = (text: string, u: number, v: number, font: string, must: boolean) => {
+    const label = (text: string, u: number, v: number, font: string, gap: number, center = false) => {
       g.font = font;
       g.textAlign = "left";
       const w = g.measureText(text).width;
-      // right of the mark, else left, above, below; the work's own name goes on the right when none has room
-      const gap = must ? 17 : 10; // clear of the mark itself (the work's marks are in `taken`)
-      const spots: Array<[number, number]> = [
-        [u + gap, v - 9],
-        [u - gap - w, v - 9],
-        [u - w / 2, v - gap - 17],
-        [u - w / 2, v + gap],
-      ];
-      let at = spots.find(([x, y]) => room(x, y, w, 17) && x > 2 && x + w < W - 2 && y > 2 && y + 17 < H - 2);
-      if (!at) {
-        if (!must) return;
-        at = spots[u + gap + w < W - 2 ? 0 : 1];
-      }
+      const spots: Array<[number, number]> = center
+        ? [[u - w / 2, v - 9], [u - w / 2, v - 26], [u - w / 2, v + 8]]
+        : [[u + gap, v - 9], [u - gap - w, v - 9], [u - w / 2, v - gap - 17], [u - w / 2, v + gap]];
+      const at = spots.find(([x, y]) => room(x, y, w, 17) && x > 2 && x + w < W - 2 && y > 2 && y + 17 < H - 2);
+      if (!at) return;
       const [x, y] = at;
       taken.push([x, y, x + w, y + 17]);
       // a pale edge so the ink reads on the red blocks
@@ -480,30 +480,83 @@ export class CityMap {
       g.fillStyle = ink;
       g.fillText(text, x, y + 14);
     };
-    const inside = (u: number, v: number) => u > 0 && u < W && v > 0 && v < H;
-    // the places and shops under the work
-    for (const m of rest) {
-      const [u, v] = S(m.x, m.z);
-      if (inside(u, v)) drawMark(g, m, u, v, m.kind === "shop" ? 0.9 : 1);
-    }
-    for (const m of quests.slice(9)) {
-      const [u, v] = S(m.x, m.z);
-      if (inside(u, v)) drawMark(g, m, u, v, 1);
-    }
-    // the work: kept at the edge with a pointer when it is off the paper
-    for (let i = this.listed.length - 1; i >= 0; i--) {
+    const inside = (u: number, v: number) => u > -12 && u < W + 12 && v > -12 && v < H + 12;
+    // where each mark goes: the work at the paper's edge when it is off it; the other places moved a little off
+    // one another, and where there is no room at all (zoomed far out) a dot of their kind's colour
+    const placed: Array<{ m: MapMark; u: number; v: number; s: number; n?: number; edge?: number; dot?: boolean }> = [];
+    const free = (u: number, v: number, r: number) => !placed.some((p) => Math.hypot(p.u - u, p.v - v) < r + (p.dot ? 3 : 11 * p.s) - 1);
+    for (let i = 0; i < this.listed.length; i++) {
       const m = this.listed[i];
       const [u, v] = S(m.x, m.z);
       const cu = Math.max(22, Math.min(W - 22, u));
       const cv = Math.max(22, Math.min(H - 22, v));
-      drawMark(g, m, cu, cv, 1.2, i + 1);
-      taken.push([cu - 14, cv - 14, cu + 14, cv + 14]);
-      if (cu !== u || cv !== v) {
-        const a = Math.atan2(v - cv, u - cu);
+      placed.push({ m, u: cu, v: cv, s: 1.15, n: i + 1, edge: cu !== u || cv !== v ? Math.atan2(v - cv, u - cu) : undefined });
+    }
+    for (const m of quests.slice(9)) {
+      const [u, v] = S(m.x, m.z);
+      if (inside(u, v)) placed.push({ m, u, v, s: 1 });
+    }
+    const order = (m: MapMark) => (m.kind === "shop" ? 1 : 0);
+    for (const m of [...rest].sort((a, b) => order(a) - order(b))) {
+      const [u, v] = S(m.x, m.z);
+      if (!inside(u, v)) continue;
+      const s = m.kind === "shop" ? 0.85 : 0.95;
+      const r = 11 * s;
+      let at: [number, number] | null = free(u, v, r) ? [u, v] : null;
+      for (let j = 0; !at && j < 8; j++) {
+        const a = (j * Math.PI) / 4;
+        const nu = u + Math.cos(a) * r * 1.9;
+        const nv = v + Math.sin(a) * r * 1.9;
+        if (free(nu, nv, r)) at = [nu, nv];
+      }
+      placed.push(at ? { m, u: at[0], v: at[1], s } : { m, u, v, s, dot: true });
+    }
+    for (const p of placed) {
+      const r = p.dot ? 4 : 12 * p.s;
+      taken.push([p.u - r, p.v - r, p.u + r + (p.n ? 8 : 0), p.v + r]);
+    }
+    // your job's step, written by its mark
+    for (const p of placed) {
+      if (p.m.kind !== "goal" || p.dot) continue;
+      g.fillStyle = INK.goal;
+      label(p.m.label, p.u, p.v, `bold 15px ${HAND}`, 17);
+    }
+    // the squares, quays, water and gates, where there is room
+    if (!this.hidden.has("names")) {
+      g.fillStyle = "#2a2420";
+      for (const [name, x, z] of PLACE_NAMES) {
+        const [u, v] = S(x, z);
+        if (!inside(u, v)) continue;
+        const big = name === name.toUpperCase();
+        label(name, u, v, big ? `bold 15px ${PRINT}` : `italic 15px ${PRINT}`, 0, true);
+      }
+    }
+    // the marks, the work last (on top)
+    this.hits = [];
+    for (let i = placed.length - 1; i >= 0; i--) {
+      const p = placed[i];
+      if (p.n !== undefined) continue;
+      if (p.dot) {
+        g.fillStyle = CAT_INK[catOf(p.m)];
+        g.beginPath();
+        g.arc(p.u, p.v, 3.5, 0, Math.PI * 2);
+        g.fill();
+        this.hits.push({ u: p.u, v: p.v, r: 5, m: p.m });
+      } else {
+        drawMark(g, p.m, p.u, p.v, p.s);
+        this.hits.push({ u: p.u, v: p.v, r: 11 * p.s + 1, m: p.m });
+      }
+    }
+    for (let i = placed.length - 1; i >= 0; i--) {
+      const p = placed[i];
+      if (p.n === undefined) continue;
+      drawMark(g, p.m, p.u, p.v, p.s, p.n);
+      this.hits.push({ u: p.u, v: p.v, r: 11 * p.s + 2, m: p.m });
+      if (p.edge !== undefined) {
         g.save();
-        g.translate(cu + Math.cos(a) * 18, cv + Math.sin(a) * 18);
-        g.rotate(a);
-        g.fillStyle = INK[m.kind];
+        g.translate(p.u + Math.cos(p.edge) * 18, p.v + Math.sin(p.edge) * 18);
+        g.rotate(p.edge);
+        g.fillStyle = INK[p.m.kind];
         g.beginPath();
         g.moveTo(7, 0);
         g.lineTo(-4, -6);
@@ -512,18 +565,6 @@ export class CityMap {
         g.fill();
         g.restore();
       }
-    }
-    for (let i = 0; i < this.listed.length; i++) {
-      const m = this.listed[i];
-      const [u, v] = S(m.x, m.z);
-      g.fillStyle = INK[m.kind];
-      label(m.label, Math.max(22, Math.min(W - 22, u)), Math.max(22, Math.min(H - 22, v)), `bold 16px ${HAND}`, true);
-    }
-    for (const m of rest) {
-      const [u, v] = S(m.x, m.z);
-      if (!inside(u, v) || (m.kind === "shop" && k < 0.7)) continue;
-      g.fillStyle = INK[m.kind];
-      label(m.label, u, v, `15px ${HAND}`, false);
     }
     // you: an arrow pointing where you look
     const [ux, uy] = S(this.player.x, this.player.z);
@@ -553,7 +594,7 @@ export class CityMap {
     g.fillRect(16, H - 22, bar, 4);
     g.font = `13px ${PRINT}`;
     g.fillText("100 m", 16, H - 28);
-    this.drawKey(g, W, H);
+    this.hover(true);
     this.drawSide(dist);
   }
 
@@ -620,46 +661,112 @@ export class CityMap {
     g.restore();
   }
 
-  /** The key to the marks, in the bottom right corner of the paper. */
-  private drawKey(g: CanvasRenderingContext2D, W: number, H: number): void {
-    const rows: Array<[MapMark["kind"] | "you" | "way", string]> = [
-      ["you", "you"],
-      ["goal", "your job: go here"],
-      ["way", "the way there on foot"],
-      ["work", "work offered"],
-      ["event", "going on in town"],
-      ["place", "hiring board, a box"],
-      ["shop", "shop or tavern"],
-      ["bed", "a bed for the night"],
-    ];
-    const w = KEY_W;
-    const h = KEY_H;
-    const x0 = W - w - 10;
-    const y0 = H - h - 10;
-    g.fillStyle = "rgba(230, 220, 196, 0.92)";
-    g.fillRect(x0, y0, w, h);
-    g.strokeStyle = "#5a4a3a";
-    g.lineWidth = 1;
-    g.strokeRect(x0 + 0.5, y0 + 0.5, w - 1, h - 1);
-    rows.forEach(([kind, text], i) => {
-      const u = x0 + 18;
-      const v = y0 + 15 + i * 20;
-      if (kind === "you") {
-        g.fillStyle = "#101010";
-        g.beginPath();
-        g.moveTo(u + 8, v);
-        g.lineTo(u - 6, v - 5);
-        g.lineTo(u - 3, v);
-        g.lineTo(u - 6, v + 5);
-        g.closePath();
-        g.fill();
-      } else if (kind === "way") this.drawWay(g, [[0, 0], [1, 0]], (x) => [u - 9 + x * 20, v], 2.5);
-      else drawMark(g, { x: 0, z: 0, label: "", kind }, u, v, 0.7);
-      g.fillStyle = "#2a2420";
-      g.font = `14px ${HAND}`;
-      g.textAlign = "left";
-      g.fillText(text, x0 + 36, v + 5);
+  /** The marks of the kinds turned on, the landmarks with them (a town place near a landmark is that landmark). */
+  private shownMarks(): MapMark[] {
+    const all = this.marks();
+    const sights = SIGHTS.filter((l) => !all.some((m) => catOf(m) === "sight" && Math.hypot(m.x - l.x, m.z - l.z) < 30));
+    return [...all, ...sights].filter((m) => !this.hidden.has(catOf(m)));
+  }
+
+  /**
+   * The key to the marks over the paper's bottom right corner: you, the way, then each kind as a button that
+   * shows or hides it (the ink cursor clicks it: game/cursor.ts). Its heading folds it away.
+   */
+  private buildKey(): void {
+    const icon = (draw: (g: CanvasRenderingContext2D) => void) => {
+      const c = document.createElement("canvas");
+      c.width = c.height = 40;
+      const g = c.getContext("2d")!;
+      g.scale(40 / 26, 40 / 26);
+      draw(g);
+      return c.toDataURL();
+    };
+    const you = icon((g) => {
+      g.fillStyle = "#101010";
+      g.beginPath();
+      g.moveTo(22, 13);
+      g.lineTo(5, 6);
+      g.lineTo(9, 13);
+      g.lineTo(5, 20);
+      g.closePath();
+      g.fill();
     });
+    const wayImg = icon((g) => this.drawWay(g, [[0, 0], [1, 0]], (x) => [3 + x * 20, 13], 2.5));
+    const rows = MAP_CATS.map((c) => {
+      const first = Object.entries(MAP_ICONS).find(([, ic]) => ic.cat === c.id)?.[0];
+      const img =
+        c.id === "names"
+          ? icon((g) => {
+              g.fillStyle = "#2a2420";
+              g.font = `bold 13px ${PRINT}`;
+              g.textAlign = "center";
+              g.fillText("Aa", 13, 18);
+            })
+          : icon((g) => drawBadge(g, c.id === "food" ? "bread" : c.id === "shop" ? "hat" : c.id === "sight" ? "church" : first!, 13, 13, 1));
+      return `<button type="button" class="ink-click${this.hidden.has(c.id) ? " off" : ""}" data-cat="${c.id}"><img src="${img}" alt="">${esc(c.label)}</button>`;
+    });
+    this.keyEl.innerHTML = `<button type="button" class="ink-click head" data-fold="1">Key <small>(click to show or hide)</small></button><div class="rows"><p><img src="${you}" alt="">you</p><p><img src="${wayImg}" alt="">the way there on foot</p>${rows.join("")}</div>`;
+    this.keyEl.onclick = (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLElement>("button");
+      if (!b) return;
+      if (b.dataset.fold) this.keyEl.classList.toggle("folded");
+      const c = b.dataset.cat as MapCat | undefined;
+      if (c) {
+        if (this.hidden.has(c)) this.hidden.delete(c);
+        else this.hidden.add(c);
+        b.classList.toggle("off", this.hidden.has(c));
+        try {
+          localStorage.setItem(HIDDEN_KEY, JSON.stringify([...this.hidden]));
+        } catch {
+          /* a private window: not kept */
+        }
+        this.miniLast.x = NaN;
+      }
+      if (this.open) this.render();
+    };
+  }
+
+  /** The mark under the cursor (the ink cursor with the lock, else the real mouse): its name beside it. */
+  private hover(force = false): void {
+    if (!this.open) return;
+    const px = inkAt.on ? inkAt : this.mouse;
+    const r = this.cv.getBoundingClientRect();
+    let hit: Hit | null = null;
+    if (r.width && px.x >= 0) {
+      // back from the window to the canvas: less the paper's slight turn about its middle (style.css)
+      const dx = px.x - (r.left + r.width / 2);
+      const dy = px.y - (r.top + r.height / 2);
+      const c = Math.cos(-this.tilt);
+      const sn = Math.sin(-this.tilt);
+      const lu = dx * c - dy * sn + this.cv.width / 2;
+      const lv = dx * sn + dy * c + this.cv.height / 2;
+      let bd = Infinity;
+      for (const h of this.hits) {
+        const d = Math.hypot(h.u - lu, h.v - lv);
+        if (d <= h.r && d < bd) {
+          bd = d;
+          hit = h;
+        }
+      }
+    }
+    if (!force && hit?.m === this.hot) return;
+    this.hot = hit?.m ?? null;
+    if (!hit) {
+      this.tip.style.display = "none";
+      return;
+    }
+    const m = hit.m;
+    const d = Math.hypot(m.x - this.player.x, m.z - this.player.z);
+    const kind = MAP_CATS.find((c) => c.id === catOf(m))?.label ?? "";
+    const name = m.label.replace(/^./, (c) => c.toUpperCase());
+    this.tip.innerHTML = `<b>${esc(name)}</b>${m.detail ? `<i>${esc(m.detail)}</i>` : ""}<small>${metres(d)} ${way(m.x - this.player.x, m.z - this.player.z)} &middot; ${esc(kind)}</small>`;
+    this.tip.style.display = "block";
+    const tw = this.tip.offsetWidth;
+    const th = this.tip.offsetHeight;
+    const left = hit.u + hit.r + 6 + tw > this.cv.width ? hit.u - hit.r - 6 - tw : hit.u + hit.r + 6;
+    const top = Math.max(0, Math.min(this.cv.height - th, hit.v - th / 2));
+    this.tip.style.left = `${Math.max(0, left)}px`;
+    this.tip.style.top = `${top}px`;
   }
 
   /** The work beside the map, numbered as on it, with how far and which way. */
@@ -787,7 +894,7 @@ export class CityMap {
       return [R + a, R + b, Math.hypot(a, b)];
     };
     // T4: the way on foot to the followed job (inside the circle)
-    const wp = this.wayNow();
+    const wp = this.hidden.has("job") ? null : this.wayNow();
     if (wp) {
       g.save();
       g.beginPath();
@@ -796,7 +903,7 @@ export class CityMap {
       this.drawWay(g, wp, (x, z) => at(x, z) as unknown as [number, number], 2.5 * s);
       g.restore();
     }
-    const marks = this.marks();
+    const marks = this.shownMarks();
     for (const m of marks) {
       if (QUEST_KINDS.has(m.kind)) continue;
       const [u, v, dd] = at(m.x, m.z);

@@ -8,6 +8,11 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 ## [Unreleased]
 
 ### New in the game
+- The town map shows places as small icons. Point at one to see its name, how far it is and which way. The key in the map's corner turns each kind on and off: your job, work, events, food and markets, taverns, shops, services, beds, churches and sights, water pumps, street names. Names no longer print on top of each other.
+- Jump over railings, crates and low walls: hold Space at the obstacle, or jump and press Space again near the top. Over a railing by the water you land in the river and swim.
+- Jump down into a small boat from the quay: face her and press Space (or E). You land on the seat, ready to row.
+- A fall of more than 3 m hurts, more the higher you fall; a fall into water does not. Hold Space at a crane's gallery rail to jump off.
+- Ducks, geese and swans swim or walk away when you come near. Keep coming and they fly: to another pond, or out to the Schelde and the docks. New flocks of ducks live on the Petit Bassin, the Entrepot dock, the canal and the river.
 - Hold Space to climb onto reachable solid obstacles or vault over them when there is a clear landing. Tall walls, low ceilings and unsafe drops stop the climb.
 - The Dev menu has an optional NPC stress-test toggle and a 1–100× population slider. Normal population stays unchanged; Reset or reloading returns to normal.
 - The Stadspark has fuller autumn trees, hanging willows, a large old oak with squirrels and perching birds, more shrubs and flowers, and reflections in its pond.
@@ -24,6 +29,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - In the Carolus the round windows over the side doors and the front's middle windows show whole from inside the aisles ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
 
 ### Changed
+- Esc closes the map, the quest book, a talk or any other window, as E does, instead of opening the main menu. Click or press W to walk on.
+- You can only pick a pocket from behind the person.
 - The lower parts of the cathedral's aisle windows, behind the houses built against it, are walled up instead of painted ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
 
 ### Fixed

@@ -50,7 +50,7 @@ export const ACTIONS: ActionDef[] = [
   { id: "right", code: "KeyD", label: "Step right", also: "turn the boat", group: "Walking" },
   { id: "hurry", code: "ShiftLeft", label: "Hurry", also: "a hard stroke when rowing or swimming (right Shift too)", group: "Walking" },
   { id: "crouch", code: "KeyC", label: "Crouch", also: "left Ctrl too", group: "Walking" },
-  { id: "jump", code: "Space", label: "Jump / hold to climb", group: "Walking" },
+  { id: "jump", code: "Space", label: "Jump / hold to climb or vault (or press again at the top)", group: "Walking" },
   { id: "use", code: "KeyE", label: "Use, take, talk to", also: "the first thing the hint offers", group: "Hands" },
   { id: "second", code: "KeyF", label: "Second choice", also: "fill, lift, fight", group: "Hands" },
   { id: "third", code: "KeyG", label: "Third choice", also: "give, sing along", group: "Hands" },

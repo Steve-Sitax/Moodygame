@@ -1,7 +1,7 @@
 // menus: the key bindings and the menu's keys, before every other key listener (menu/keys.ts)
 import "./menu/keys";
 // M7 save and pause: first of all, so the pause clock is in place before any other part runs (game/pause.ts)
-import { onPausedKey, pause, real } from "./game/pause";
+import { onPausedKey, passKeys, pause, real } from "./game/pause";
 import { drawAudit, pixelDiff, prof, profTable, pt, quantiles } from "./dev/frameProf";
 import { uniformCache } from "./retro/uniformCache";
 import { matrixSkip } from "./retro/matrixSkip";
@@ -13,7 +13,7 @@ import { bootMark, bootNote, bootProbe } from "./boot/probe";
 // boot: the loading screen (boot/loader.ts): counts the files from here on, holds keys and clicks until the menu is up
 import { booting, finishBoot, runBoot } from "./boot/loader";
 import { dialogs } from "./game/dialogs";
-import { InkCursor } from "./game/cursor";
+import { InkCursor, sendKey } from "./game/cursor";
 import * as THREE from "three";
 import "./style.css";
 // menus: the game's own fonts; the town's canvases are painted after they are in (menu/fonts.ts)
@@ -917,6 +917,9 @@ document.addEventListener("pointerlockchange", () => {
     syncPause();
     return;
   }
+  // Steve 2026-09-29 ("esc to exit instead of only map key"): the browser keeps the Esc that lets the mouse
+  // go; with a dialog up that Esc closes (the map, a talk, the book), it is sent on to the dialog below
+  const escDialog = dialogs.escapable();
   // at once: nothing moves from the moment the mouse is let go
   syncPause();
   // P: the card is up, not the menu
@@ -927,6 +930,13 @@ document.addEventListener("pointerlockchange", () => {
   real.setTimeout(() => {
     if (hasInput() || pause.has("key")) return;
     const away = !document.hasFocus() || real.now() - lostFocusAt < 600;
+    if (!away && escDialog) {
+      // Esc closed the dialog: the quiet pause, a click or W goes on (the browser gives the mouse back only then)
+      if (dialogs.escapable()) passKeys(() => sendKey("Escape"));
+      quietPause = true;
+      showMenu(false);
+      return;
+    }
     quietPause = away;
     showMenu(!away);
   }, 150);

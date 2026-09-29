@@ -105,6 +105,9 @@ input.ink-click.ink-hot, textarea.ink-click.ink-hot { box-shadow: 0 0 0 2px rgba
 .ink-cursor.on { display: block; }
 `;
 
+/** Where the ink cursor is now, in window px, and whether it shows (the map's hover names: game/map.ts). */
+export const inkAt = { x: 0, y: 0, on: false };
+
 /** The ink cursor: shown while a dialog is up and the game has the mouse lock; the mouse moves it, a click clicks there. */
 export class InkCursor {
   private readonly el: HTMLDivElement;
@@ -196,6 +199,7 @@ export class InkCursor {
       return;
     }
     this.shown = on;
+    inkAt.on = on;
     this.el.classList.toggle("on", on);
     if (on) {
       // it comes up in the middle of the window, on the dialog
@@ -206,6 +210,8 @@ export class InkCursor {
   }
 
   private place(): void {
+    inkAt.x = this.x;
+    inkAt.y = this.y;
     this.hover();
     this.draw();
   }

@@ -1328,6 +1328,18 @@ export function buildRijnkaai(): World {
       railings.push(rectAround(x, z, 0.3, 0.3));
     }
   }
+  /** The top rail over the quay it stands on (tools/blender/build_city.py rail(): 1.11 m), for a vault over it. */
+  const railTops = new Map<Rect, number>();
+  const railTop = (c: Rect) => {
+    let t = railTops.get(c);
+    if (t === undefined) {
+      const cx = (c.minX + c.maxX) / 2;
+      const cz = (c.minZ + c.maxZ) / 2;
+      t = (floorAt(cx, cz, 1) ?? 0) + 1.11;
+      railTops.set(c, t);
+    }
+    return t;
+  };
   /** Open water by the walk map: not a wall, not beyond the map, not the lock (its gates and tows). */
   const openWater = (x: number, z: number) => {
     if(pondWater(x,z))return true;
@@ -1443,7 +1455,7 @@ export function buildRijnkaai(): World {
     } else if (staticHit(x, z, r, feet)) return true;
     const dl = dynamic.list;
     for (let i = 0; i < dl.length; i++) if (hit(dl[i]) && blocks(dl[i], feet, x, z, r)) return true;
-    for (const c of railings) if (hit(c)) return true;
+    for (const c of railings) if (hit(c) && feet < railTop(c)) return true;
     for (const c of movers) if (hit(c) && blocks(c, feet, x, z, r)) return true;
     return false;
   };
@@ -1608,7 +1620,26 @@ export function buildRijnkaai(): World {
   };
 
   let mantleCeilings:ReturnType<typeof buildGroundProbe>|null=null;
+  /**
+   * Off a raised deck (a crane's gallery, its cabin: railed all round, 2026-09-29 "jumping of a quay crane"): over its
+   * rail when its edge is within 0.7 m ahead (he stands at it, facing out), out into the air, and down into the water or onto the ground (it hurts).
+   */
+  function deckJump(deck:RaisedDeck,x:number,y:number,z:number,dx:number,dz:number):MantlePoint[]|null {
+    const len=Math.hypot(dx,dz);if(len<.01)return null;dx/=len;dz/=len;
+    let edge=-1;
+    for(let e=.1;e<=.7;e+=.1)if(!raisedAt(x+dx*e,z+dz*e,deck.y)){edge=e;break;}
+    if(edge<0)return null;
+    const tx=x+dx*(edge+.9),tz=z+dz*(edge+.9);
+    if(raisedAt(tx,tz,deck.y))return null;
+    const lift=y+1.2;
+    const up={x,y:lift,z},over={x:tx,y:lift,z:tz};
+    if(swimmable(tx,tz))return [up,over,{x:tx,y:waterLevel(tx,tz),z:tz,water:true}];
+    const ty=groundAt(tx,tz,.32,y-1);
+    if(ty>y-.8||!standFree(tx,tz,.32,ty))return null;
+    return [up,over,{x:tx,y:ty,z:tz,fall:true}];
+  }
   function mantle(x:number,y:number,z:number,dx:number,dz:number,base:number):MantlePoint[]|null {
+    {const deck=raisedAt(x,z,y);if(deck)return deckJump(deck,x,y,z,dx,dz);}
     // Lazy, indexed geometry: queried only during a held climb attempt, never a scene raycast each frame.
     const clear=(px:number,py:number,pz:number)=>{
       if(hits(px,pz,.32,py)||wallNear(px,pz,.40,py)||moverAt(px,pz,.32))return false;
@@ -1619,7 +1650,13 @@ export function buildRijnkaai(): World {
       }
       return true;
     };
-    return findMantle({floor:(px,pz,top)=>groundAt(px,pz,.12,top-STEP),clear,
+    return findMantle({floor:(px,pz,top)=>{
+        let g=groundAt(px,pz,.12,top-STEP);
+        // the railings along the water are only in the city model: their top rail is the top here
+        for(const c of railings)if(inRect(c,px,pz,.12)){const t=railTop(c);if(t<=top)g=Math.max(g,t);}
+        return g;
+      },clear,
+      water:(px,pz)=>swimmable(px,pz)?waterLevel(px,pz):null,
       stand:(px,py,pz)=>{
         // Both feet need support: a thin railing can be vaulted, never used as a platform.
         for(const [ox,oz] of [[0,0],[.18,0],[-.18,0],[0,.18],[0,-.18]]) {
