@@ -3,6 +3,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import { psx } from "../retro/psx";
+import { disposeSkeletons } from "./humans";
 import { dice, hash32, runsHere, share, type SharedAnimal } from "./share";
 import { tempest } from "../world/tempest";
 
@@ -193,6 +194,7 @@ export class Animal {
     this.mixer.stopAllAction();
     this.mixer.uncacheRoot(this.root);
     this.group.removeFromParent();
+    disposeSkeletons(this.group); // (its bone textures: game/humans.ts, issue #19)
   }
 }
 const tmp = new THREE.Vector3();

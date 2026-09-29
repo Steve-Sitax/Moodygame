@@ -4,7 +4,7 @@ import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import { psx } from "../retro/psx";
 import { real } from "../game/pause";
-import { peopleClips, whenHumans } from "../game/humans";
+import { disposeSkeletons, peopleClips, whenHumans } from "../game/humans";
 import { CLOTH, HAIR, LEATHER, SKIN, WOOD, type Profile } from "../../../shared/character";
 
 // M7 character: the player's figure, dressed from the townspeople's kit (tools/blender/build_player.py:
@@ -290,6 +290,7 @@ export class PlayerFigure {
     this.mixer.stopAllAction();
     this.mixer.uncacheRoot(this.body);
     this.root.removeFromParent();
+    disposeSkeletons(this.root); // (its bone textures: game/humans.ts, issue #19)
     this.texture.dispose();
     this.material.dispose();
   }
