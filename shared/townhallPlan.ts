@@ -39,13 +39,24 @@ export const FRONT = { z0: 0.3, z1: 1.1 };
 export const DOOR = { hw: SHELL.portal.hw, h: SHELL.portal.lintel - FLOOR_Y };
 
 // ---- the rooms (local)
+// Issue #10 (the shell's windows are real, shared/stadhuisShell.ts): the rooms' side walls stand on the piers between
+// the shell's bays, never across a window. The wings' first bays either side of the frontispiece (x 7.7) belong to the
+// middle part (MID: the wall on the pier at 9.24), so the office, the wedding hall and the Leys hall start there in
+// front of the court (their back parts reach the court's wall at 8.5 as before).
+export const MID = { x0: 9.04, x1: 9.44 };
 export const VEST = R(-5, 5, FRONT.z1, 8.4);
 export const COURT = R(-7.8, 7.8, 8.8, 22.4);
-export const OFFICE = R(8.3, 20.2, FRONT.z1, 16.6);
+export const OFFICE = R(8.5, 21.36, FRONT.z1, 16.6);
 export const LANDING = R(-7.5, 7.5, 22.4, 26.0);
 export const WEDDING = R(8.5, 24.2, FRONT.z1, 16.2);
-export const ALDERMEN = R(8.5, 20.2, 17.0, 24.2);
-export const LEYS = R(-20.2, -8.5, FRONT.z1, 16.2);
+export const ALDERMEN = R(8.5, 21.36, 17.0, 24.2);
+export const LEYS = R(-21.36, -8.5, FRONT.z1, 16.2);
+/** The rooms' floors: in front of the court from the middle part's wall, behind it from the court's wall. */
+const inFront = (r: Rect, s: 1 | -1): Rect[] =>
+  s > 0 ? [R(MID.x1, r.maxX, r.minZ, 8.8), R(r.minX, r.maxX, 8.8, r.maxZ)] : [R(r.minX, -MID.x1, r.minZ, 8.8), R(r.minX, r.maxX, 8.8, r.maxZ)];
+export const OFFICE_FLOORS = inFront(OFFICE, 1);
+export const WEDDING_FLOORS = inFront(WEDDING, 1);
+export const LEYS_FLOORS = inFront(LEYS, -1);
 /** The court's glass roof and the storeys' ceilings (local y). */
 export const GLASS_Y = 19.2;
 export const CEIL0 = UP - 0.3;
@@ -75,11 +86,91 @@ export const CHIMNEY = { x: 14.5, z: WEDDING.maxZ };
 export const CROWN = { x: 17.2, z: 8.6 };
 export const LEYS_TABLE = { x: -14.3, z: 8.6 };
 export const ALD_DESK = { x: 14.5, z: 21.4 };
-/** The facade's bays over the wings (build_landmarks: 22 over the front, the middle four behind the frontispiece). */
-export const BAYS_X = Array.from({ length: 22 }, (_, k) => -(-SHELL.halfL + ((k + 0.5) * 2 * SHELL.halfL) / 22)).filter((x) => Math.abs(x) > 6.6);
-export const OFFICE_WINDOWS = BAYS_X.filter((x) => x > OFFICE.minX + 1.2 && x < OFFICE.maxX - 1.0);
-export const WEDDING_WINDOWS = BAYS_X.filter((x) => x > WEDDING.minX + 1.2 && x < WEDDING.maxX - 1.0);
-export const LEYS_WINDOWS = BAYS_X.filter((x) => x < LEYS.maxX - 1.2 && x > LEYS.minX + 1.0);
+
+// ---- issue #10: every part behind the shell's windows, storey by storey (local; y of each storey's floor and ceiling)
+/** The storeys' floors and ceilings (local y): the ground floor, the Doric storey, the Ionic storey, the room under the frontispiece's cornice. */
+export const LEVEL_Y = [0, UP, 13.6, 20.5];
+export const CEIL = [UP - 0.3, 13.3, 20.1, 23.8];
+/** The inner faces of the outer walls (the linings behind the shell's faces): the wings' front, the sides (|x|), the back, the stair block's back; the frontispiece's rooms. */
+export const INNER = { front: 0.8, side: 33.18, back: 24.2, block: 26.0, fronti: -0.3, frontiX: 5.85, frontiBack: 1.6 };
+/** The locked offices' walls: the partitions every two bays (|x|), the front and back strips' inner walls (z), the sides' strip (|x|) and its partition (z). */
+export const LINES = { x: [15.4, 21.56, 27.72], front: 6.22, back: 18.46, side: 27.72, sideSplit: 12.34 };
+
+/** A part of the town hall behind its windows: a room of the hall (walked) or a locked office (seen, not walked). */
+export interface Part {
+  id: string;
+  label: string;
+  /** Its storey (LEVEL_Y). */
+  level: number;
+  rects: Rect[];
+  locked: boolean;
+  /** Which face of the building it lies on (one kit each: world/landmarkHalls.ts). */
+  side: "front" | "back" | "left" | "right" | "middle";
+}
+
+const LEVEL_NAME = ["the ground floor", "the first floor", "the second floor", "under the frontispiece's cornice"];
+/** The rooms of a strip from `from` to `to` (|x|), split at the partition lines past it (0.2 m walls). */
+const cellsX = (from: number, lines: number[], to: number): Array<[number, number]> => {
+  const out: Array<[number, number]> = [];
+  let a = from;
+  for (const l of lines) {
+    if (l <= a + 1) continue;
+    out.push([a, l - 0.1]);
+    a = l + 0.1;
+  }
+  out.push([a, to]);
+  return out;
+};
+
+function lockedParts(): Part[] {
+  const out: Part[] = [];
+  const add = (id: string, label: string, level: number, rects: Rect[], side: Part["side"]) => out.push({ id, label, level, rects, locked: true, side });
+  const sr = (s: 1 | -1, a: number, b: number, z0: number, z1: number) => (s > 0 ? R(a, b, z0, z1) : R(-b, -a, z0, z1));
+  for (const s of [1, -1] as const) {
+    const sideName = s > 0 ? "left" : "right";
+    for (let L = 0; L <= 2; L++) {
+      // the front strip: from the last room of the hall (or the middle part's wall) to the corner
+      const frontFrom = L === 0 ? (s > 0 ? OFFICE.maxX + 0.4 : MID.x1) : L === 1 ? (s > 0 ? WEDDING.maxX + 0.4 : -LEYS.minX + 0.4) : MID.x1;
+      cellsX(frontFrom, LINES.x, INNER.side).forEach(([a, b], i, all) =>
+        add(`front_${sideName}_${L}_${i}`, `an office on ${LEVEL_NAME[L]}, the Grote Markt front's ${sideName} wing${i === all.length - 1 ? ", the corner" : ""}`, L, [sr(s, a, b, INNER.front, LINES.front - 0.1)], "front"));
+      // the side's strip between the front's and the back's
+      add(`side_${sideName}_${L}_0`, `an office on ${LEVEL_NAME[L]}, the ${sideName} side`, L, [sr(s, LINES.side + 0.1, INNER.side, LINES.front + 0.1, LINES.sideSplit - 0.1)], s > 0 ? "left" : "right");
+      add(`side_${sideName}_${L}_1`, `an office on ${LEVEL_NAME[L]}, the ${sideName} side`, L, [sr(s, LINES.side + 0.1, INNER.side, LINES.sideSplit + 0.1, LINES.back - 0.1)], s > 0 ? "left" : "right");
+      // the back strip: from the aldermen's room (the first floor, left) or the middle part's wall to the corner
+      const backFrom = L === 1 && s > 0 ? ALDERMEN.maxX + 0.4 : MID.x1;
+      cellsX(backFrom, LINES.x, INNER.side).forEach(([a, b], i, all) =>
+        add(`back_${sideName}_${L}_${i}`, `an office on ${LEVEL_NAME[L]}, the back's ${sideName} half${i === all.length - 1 ? ", the corner" : ""}`, L, [sr(s, a, b, LINES.back + 0.1, INNER.back)], "back"));
+    }
+    // the ground floor's small rooms beside the vestibule, behind the wings' first arches
+    add(`beside_${sideName}`, `a small office beside the vestibule (${sideName})`, 0, [sr(s, 5.4, MID.x0, INNER.front, VEST.maxZ)], "middle");
+  }
+  // over the vestibule: the burgomaster's cabinet behind the balcony, the room over it; the room under the frontispiece's
+  // cornice; the room over the landing in the stair block
+  const fr = R(-INNER.frontiX, INNER.frontiX, INNER.fronti, INNER.front);
+  add("cabinet", "the burgomaster's cabinet, behind the balcony", 1, [R(-MID.x0, MID.x0, INNER.front, VEST.maxZ), fr], "middle");
+  add("cabinet_above", "the archive over the burgomaster's cabinet", 2, [R(-MID.x0, MID.x0, INNER.front, VEST.maxZ), fr], "middle");
+  add("fronti_top", "the small room under the frontispiece's cornice", 3, [R(-INNER.frontiX, INNER.frontiX, INNER.fronti, INNER.frontiBack)], "middle");
+  add("block_above", "the room over the landing, in the stair block", 2, [R(-7.5, 7.5, 22.8, INNER.block)], "back");
+  return out;
+}
+
+/** Every part behind the shell's windows: the hall's rooms (walked) and the locked offices. */
+export const PARTS: Part[] = [
+  { id: "vestibule", label: "the vestibule and the porter's lodge", level: 0, rects: [VEST], locked: false, side: "middle" },
+  { id: "office", label: "the clerks' office", level: 0, rects: OFFICE_FLOORS, locked: false, side: "middle" },
+  { id: "wedding", label: "the wedding hall", level: 1, rects: WEDDING_FLOORS, locked: false, side: "middle" },
+  { id: "aldermen", label: "the aldermen's room", level: 1, rects: [ALDERMEN], locked: false, side: "middle" },
+  { id: "leys", label: "the Leys hall", level: 1, rects: LEYS_FLOORS, locked: false, side: "middle" },
+  { id: "landing", label: "the landing in the stair block", level: 1, rects: [LANDING], locked: false, side: "middle" },
+  ...lockedParts(),
+];
+
+/** The part a point (local x, z; local y) lies in, if any. */
+export function partAt(x: number, z: number, y: number): Part | undefined {
+  let level = 0;
+  for (let i = 0; i < LEVEL_Y.length; i++) if (y >= LEVEL_Y[i] - 0.05) level = i;
+  return PARTS.find((p) => p.level === level && p.rects.some((r) => x >= r.minX && x <= r.maxX && z >= r.minZ && z <= r.maxZ));
+}
 
 const around = (x: number, z: number, hx: number, hz = hx): Rect => R(x - hx, x + hx, z - hz, z + hz);
 
@@ -93,8 +184,8 @@ const level0: Level = {
     VEST,
     R(-2.4, 2.4, VEST.maxZ - 0.1, COURT.minZ + 0.1), // the arch into the court
     COURT,
-    R(7.7, 8.4, 10.5, 13.5), // into the office
-    OFFICE,
+    R(7.7, 8.6, 10.5, 13.5), // into the office
+    ...OFFICE_FLOORS,
   ],
   solids: [
     // the stair over the court's floor (its foot is walked onto), the lodge, the board
@@ -105,7 +196,7 @@ const level0: Level = {
     // the office: the counter, the desks, the registers, the bench
     R(COUNTER.x0, COUNTER.x1, COUNTER.z0, COUNTER.z1),
     ...DESKS.map(([x, z]) => R(x - 0.65, x + 0.65, z - 0.35, z + 0.35)),
-    R(19.6, OFFICE.maxX, 1.6, 15.8),
+    R(OFFICE.maxX - 0.6, OFFICE.maxX, 1.6, 15.8),
     R(BENCH.x0, BENCH.x1, BENCH.z - 0.3, OFFICE.maxZ),
     // the main door's leaves standing open along the reveal
     R(-1.45, -1.27, 0, 1.45),
@@ -121,11 +212,11 @@ const level1: Level = {
     R(-7.5, -5.9, 9.0, 22.6),
     R(-7.5, 7.5, 9.0, 10.4),
     R(7.4, 8.6, 12.2, 14.2), // into the wedding hall
-    WEDDING,
+    ...WEDDING_FLOORS,
     R(7.4, 8.6, 19.2, 21.2), // into the aldermen's room
     ALDERMEN,
     R(-8.6, -7.4, 12.2, 14.2), // into the Leys hall
-    LEYS,
+    ...LEYS_FLOORS,
   ],
   solids: [
     R(TABLE.x - 0.7, TABLE.x + 0.7, TABLE.z - 2.2, TABLE.z + 2.2),
@@ -188,16 +279,15 @@ export const PLAN: HallPlan = {
   sets,
 };
 
-/** The hall's walls as boxes (local, for the check that they stand inside the shell). */
+/** The hall's walls as boxes (local, for the check that they stand inside the shell; the linings behind the shell's faces are the shell's own). */
 export function wallRects(): Rect[] {
   return [
-    R(-24.6, 24.6, FRONT.z0, FRONT.z1), // the front wall with the doorway and the windows
-    R(24.2, 24.6, FRONT.z0, 16.6), // the wedding hall's far wall
-    R(20.2, 20.6, 16.6, 24.38), // the aldermen's room's far wall and the office's
-    R(-20.6, -20.2, FRONT.z0, 16.6),
-    R(8.5, 20.6, 24.2, 24.38), // the aldermen's room's back wall
-    R(-7.9, 7.9, 26.0, 26.38), // the landing's back wall in the stair block
-    R(-7.9, -7.5, 22.4, 26.38),
+    R(WEDDING.maxX, WEDDING.maxX + 0.4, FRONT.z0, 16.6), // the wedding hall's far wall
+    R(OFFICE.maxX, OFFICE.maxX + 0.4, FRONT.z0, 24.38), // the office's and the aldermen's room's far walls
+    R(LEYS.minX - 0.4, LEYS.minX, FRONT.z0, 16.6),
+    R(MID.x0, MID.x1, FRONT.z0, 8.8), // the middle part's walls
+    R(-MID.x1, -MID.x0, FRONT.z0, 8.8),
+    R(-7.9, -7.5, 22.4, 26.38), // the landing's side walls in the stair block
     R(7.5, 7.9, 22.4, 26.38),
   ];
 }

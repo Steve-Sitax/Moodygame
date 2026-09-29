@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import * as HP from "../../shared/hallPlan.ts";
 import type { HallPlan, Rect } from "../../shared/hallPlan.ts";
 import * as TH from "../../shared/townhallPlan.ts";
+import * as THS from "../../shared/stadhuisShell.ts";
+import { inFrame } from "../../shared/shellOpening.ts";
 import { LANDMARK_DOORS } from "../../shared/landmarks.ts";
 import CITY from "../../shared/city.json" with { type: "json" };
 
@@ -96,6 +98,43 @@ describe("the town hall's plan fits its shell", () => {
     expect(HP.floorAt(P, sx, sz, -P.floorY)).toBeCloseTo(-P.floorY, 5);
     // the frontispiece's side doors stand before the vestibule's front wall, not in a room
     for (const x of S.sideDoors) expect(Math.abs(x)).toBeLessThan(TH.VEST.maxX);
+  });
+
+  it("issue #10: a part of the hall stands behind every window of the shell, every part has a window, and all stay inside it", () => {
+    const rows = inFrame(THS.SHELL_OPENINGS, P.origin, P.yaw);
+    const miss: string[] = [];
+    const seen = new Set<string>();
+    for (const o of rows) {
+      // a point 1.3 m behind the reveal's back, at the opening's middle height
+      const d = o.depth + 1.3;
+      const part = TH.partAt(o.x - o.nx * d, o.z - o.nz * d, (o.yb + o.yt) / 2 - TH.FLOOR_Y);
+      if (!part) miss.push(o.label);
+      else seen.add(part.id);
+    }
+    expect(miss).toEqual([]);
+    expect(TH.PARTS.filter((p) => !seen.has(p.id)).map((p) => p.id)).toEqual([]);
+    // the main door is the plan's door; the shell's door and the plan's door are the same doorway
+    const door = rows.find((o) => o.kind === "door")!;
+    expect(Math.abs(door.x - P.doors[0].x)).toBeLessThan(0.01);
+    expect(door.hw).toBeCloseTo(P.doors[0].hw, 5);
+    // the parts inside the shell's faces (the wings' front, the sides, the back; the frontispiece's rooms behind its face)
+    const bad: string[] = [];
+    for (const p of TH.PARTS)
+      for (const r of p.rects) {
+        if (Math.max(Math.abs(r.minX), Math.abs(r.maxX)) > S.halfL - 0.5) bad.push(`${p.id} side`);
+        const fronti = Math.max(Math.abs(r.minX), Math.abs(r.maxX)) < 6.4 - 0.2;
+        if (r.minZ < (fronti ? S.frontispiece + 0.5 : S.face + 0.5)) bad.push(`${p.id} front`);
+        const inBlock = Math.max(Math.abs(r.minX), Math.abs(r.maxX)) <= S.stairBlock.hw - 0.2;
+        if (r.maxZ > (inBlock ? S.stairBlock.back : S.back) - 0.3) bad.push(`${p.id} back`);
+      }
+    expect(bad).toEqual([]);
+    // no two parts of one storey overlap
+    const over: string[] = [];
+    for (const a of TH.PARTS)
+      for (const b of TH.PARTS)
+        if (a.id < b.id && a.level === b.level)
+          for (const p of a.rects) for (const q of b.rects) if (p.minX < q.maxX - 1e-6 && q.minX < p.maxX - 1e-6 && p.minZ < q.maxZ - 1e-6 && q.minZ < p.maxZ - 1e-6) over.push(`${a.id} ${b.id}`);
+    expect(over).toEqual([]);
   });
 });
 

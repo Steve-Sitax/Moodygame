@@ -28,9 +28,10 @@ import * as TH from "../../../shared/townhallPlan";
 import * as VH from "../../../shared/vleeshuisPlan";
 import * as OH from "../../../shared/oostershuisPlan";
 import * as ST from "../../../shared/steenPlan";
+import * as THS from "../../../shared/stadhuisShell";
 import * as VS from "../../../shared/vleeshuisShell";
 import * as SS from "../../../shared/steenShell";
-import { inFrame, type ShellFace } from "../../../shared/shellOpening";
+import { inFrame, type ShellFace, type ShellOpening } from "../../../shared/shellOpening";
 import { createHallInWorld, type HallInWorld } from "./hallInWorld";
 import { lining, quarries, realGlass, shellPicture, windowOpenings } from "./realOpenings";
 import { planarUV } from "./carolusHall";
@@ -262,28 +263,219 @@ function holed(k: Kit, along: "x" | "z", a0: number, a1: number, t0: number, t1:
   }
 }
 
-/** A window seen from inside: a pane glowing with the day, a stone frame and a sill, on a wall's inner face (facing `dir` along z or x). */
-function windowIn(k: Kit, along: "x" | "z", a: number, face: number, dir: 1 | -1, y0: number, y1: number, w: number, pane: MatDef, frame: MatDef): void {
-  const ry = along === "x" ? (dir > 0 ? 0 : Math.PI) : dir > 0 ? Math.PI / 2 : -Math.PI / 2;
-  const at = (s: number, off: number): [number, number] => (along === "x" ? [a + s, face + dir * off] : [face + dir * off, a + s]);
-  const [px, pz] = at(0, 0.02);
-  k.plane(w, y1 - y0, px, (y0 + y1) / 2, pz, pane, { ry });
-  // the cross of the mullion and the transom, the frame round it, the sill
-  const bar = (bw: number, bh: number, s: number, y: number) => {
-    const [x, z] = at(s, 0.05);
-    if (along === "x") k.box(bw, bh, 0.08, x, y, z, frame);
-    else k.box(0.08, bh, bw, x, y, z, frame);
+// ================================================================ the town hall
+
+/** The town hall's real openings (issue #10), in the hall's frame. */
+const TH_WINDOWS = inFrame(THS.SHELL_OPENINGS, TH.PLAN.origin, TH.PLAN.yaw);
+
+/**
+ * Issue #10 (interiors are real): the town hall's outer walls lined behind every window and door of the shell (from the
+ * reveals' back to the rooms' inner faces, cut exactly where the shell's openings are), and every part of the building
+ * that is no room of the hall built as a simple locked office at the shell's true size (shared/townhallPlan.ts PARTS):
+ * offices of the 1873 town hall, plastered, boarded, a ceiling at each storey's height, a wall every two bays with a
+ * doorway, a desk, a chair, a cupboard, a shelf of registers. Seen through the windows, never walked. One kit per face
+ * of the building (a part out of view is not drawn); shared materials; no lamps (the hall's light is theirs).
+ */
+function townhallParts(group: THREE.Group): void {
+  const FY = TH.FLOOR_Y;
+  const { LEVEL_Y: LY, CEIL, INNER: IN, LINES: LN, MID } = TH;
+  const kits = {} as Record<TH.Part["side"], Kit>;
+  for (const side of ["front", "back", "left", "right", "middle"] as const) {
+    const g = new THREE.Group();
+    g.name = `townhall_in_${side}`;
+    group.add(g);
+    const kk = new Kit(g);
+    kk.shadeTop = 24;
+    kits[side] = kk;
+  }
+  const box = (kk: Kit, x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, m: MatDef, tile = 2) =>
+    kk.box(x1 - x0, y1 - y0, z1 - z0, (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, m, { tile });
+  const F = (a: [number, number], c: [number, number], n: [number, number]): ShellFace => ({ a, c, n });
+  const line = (kk: Kit, def: MatDef, f: ShellFace, from: number, to: number, band: [number, number], tile = 2) =>
+    lining(kk, def, { face: f, from, to, u0: 0.25, u1: Math.hypot(f.c[0] - f.a[0], f.c[1] - f.a[1]) - 0.25, y0: band[0], y1: band[1] }, TH_WINDOWS, FY, tile);
+  // the storeys' bands of lining (world y): each ends between two rows of windows, the next overlaps it
+  const B: Array<[number, number]> = [[FY - 0.12, 6.98], [6.9, 13.98], [13.8, 20.7], [20.7, 24.4]];
+  const S = TH.SHELL;
+  const W = S.halfL;
+  const FW = 6.4; // the frontispiece's half width (build_stadhuis.py FW)
+  const G0 = S.face - 0.5; // the wings' arcade on the front stands 0.5 out of their face (build_stadhuis.py GF)
+  const sideN = (s: 1 | -1): TH.Part["side"] => (s > 0 ? "left" : "right");
+
+  // ---- the linings: the Grote Markt front's wings (the arcade, then the two storeys), the frontispiece (the vestibule's
+  // stone wall with the main door and the fanlights; the burgomaster's cabinet and the rooms over it), the sides, the
+  // back, the stair block's back (the landing and the room over it)
+  for (const s of [1, -1] as const) {
+    const ends = (a: number, b: number): [[number, number], [number, number]] => (s > 0 ? [[b, 0], [a, 0]] : [[-a, 0], [-b, 0]]);
+    const [a0, c0] = ends(FW, W);
+    line(kits.front, H.plaster, F([a0[0], G0], [c0[0], G0], [0, -1]), 0.45, IN.front - G0, B[0]);
+    for (const b of [B[1], B[2]]) line(kits.front, H.plaster, F([a0[0], S.face], [c0[0], S.face], [0, -1]), 0.12, IN.front - S.face, b);
+    // the sides: the arcade's reveals 0.35 deep, the cross windows' 0.12; the arcade's face reaches round the front's
+    const sx = s * W;
+    const side = (z0: number): ShellFace => (s > 0 ? F([sx, S.back], [sx, z0], [1, 0]) : F([sx, z0], [sx, S.back], [-1, 0]));
+    line(kits[sideN(s)], H.plaster, side(G0), 0.35, W - IN.side, B[0]);
+    for (const b of [B[1], B[2]]) line(kits[sideN(s)], H.plaster, side(S.face), 0.12, W - IN.side, b);
+    // the back beside the stair block
+    const bf = s > 0 ? F([S.stairBlock.hw, S.back], [W, S.back], [0, 1]) : F([-W, S.back], [-S.stairBlock.hw, S.back], [0, 1]);
+    line(kits.back, H.plaster, bf, 0.1, S.back - IN.back, B[0]);
+    for (const b of [B[1], B[2]]) line(kits.back, H.plaster, bf, 0.12, S.back - IN.back, b);
+  }
+  const fronti = F([FW, S.frontispiece], [-FW, S.frontispiece], [0, -1]);
+  line(kits.middle, M.stone, fronti, -S.frontispiece, TH.FRONT.z1 - S.frontispiece, B[0], 1.6);
+  for (const b of [B[1], B[2], B[3]]) line(kits.middle, H.plaster, fronti, 0.35, IN.fronti - S.frontispiece, b);
+  const block = F([-S.stairBlock.hw, S.stairBlock.back], [S.stairBlock.hw, S.stairBlock.back], [0, 1]);
+  line(kits.back, M.stone, block, 0.12, S.stairBlock.back - IN.block, B[1], 1.6);
+  line(kits.back, H.plaster, block, 0.12, S.stairBlock.back - IN.block, B[2]);
+
+  // ---- the frontispiece's rooms: where the linings of its face and the wings' meet, a filler; the cabinet's bay
+  // behind the frontispiece's windows, its side walls; the room under the cornice, its walls
+  const ly = (y: number) => y - FY;
+  const fi = FW - 0.25;
+  for (const s of [1, -1]) {
+    const xs = (a: number, b: number): [number, number] => (s > 0 ? [a, b] : [-b, -a]);
+    const [f0, f1] = xs(fi, FW + 0.25);
+    box(kits.middle, f0, f1, ly(B[0][0]), ly(B[0][1]), 0, TH.FRONT.z1, M.stone, 1.6);
+    box(kits.middle, f0, f1, ly(B[1][0]), ly(B[2][1]), S.face + 0.12, IN.front, H.plaster);
+    const [w0, w1] = xs(IN.frontiX, fi);
+    box(kits.middle, w0, w1, ly(B[1][0]), ly(B[2][1]), IN.fronti, IN.front, H.plaster);
+    box(kits.middle, w0, w1, ly(B[3][0]), ly(B[3][1]), IN.fronti, IN.frontiBack + 0.2, H.plaster);
+  }
+  box(kits.middle, -fi, fi, ly(B[3][0]), ly(B[3][1]), IN.frontiBack, IN.frontiBack + 0.2, H.plaster);
+  // the cabinet's and the archive's back wall, plastered over the court's front wall
+  box(kits.middle, -MID.x0, MID.x0, LY[1] - 0.1, CEIL[2] + 0.1, 8.3, 8.4, H.plaster);
+  // the room over the landing: its side walls, its front wall over the court's
+  for (const s of [1, -1]) box(kits.back, s > 0 ? 7.5 : -7.9, s > 0 ? 7.9 : -7.5, LY[2] - 0.12, CEIL[2] + 0.12, 22.4, 26.38, H.plaster);
+  box(kits.back, -7.5, 7.5, LY[2] - 0.1, CEIL[2] + 0.1, 22.8, 22.9, H.plaster);
+
+  // ---- the locked offices' walls: the strips along the front, the sides and the back, their partitions every two bays
+  // with a doorway, their inner walls with a shut door to each
+  const DW = 0.45;
+  const doorH = 2.15;
+  /** A wall along x (at z t0..t1) or z (at x t0..t1) from a0 to a1, on storey L; doorways [middle, shut]. */
+  const wallL = (kk: Kit, along: "x" | "z", a0: number, a1: number, t0: number, t1: number, L: number, doors: Array<[number, boolean]>) => {
+    holed(kk, along, a0, a1, t0, t1, LY[L], CEIL[L], doors.map(([m]) => [m - DW, m + DW, -1, LY[L] + doorH] as [number, number, number, number]), H.plaster);
+    for (const [m, shut] of doors) {
+      if (!shut) continue;
+      const tm = (t0 + t1) / 2;
+      if (along === "x") box(kk, m - DW, m + DW, LY[L], LY[L] + doorH, tm - 0.03, tm + 0.03, H.panel, 1);
+      else box(kk, tm - 0.03, tm + 0.03, LY[L], LY[L] + doorH, m - DW, m + DW, H.panel, 1);
+    }
   };
-  bar(0.1, y1 - y0, 0, (y0 + y1) / 2);
-  bar(w, 0.1, 0, y0 + (y1 - y0) * 0.62);
-  for (const s of [-1, 1]) bar(0.16, y1 - y0 + 0.2, (s * (w + 0.16)) / 2, (y0 + y1) / 2);
-  bar(w + 0.32, 0.16, 0, y1 + 0.08);
-  const [sx, sz] = at(0, 0.12);
-  if (along === "x") k.box(w + 0.4, 0.1, 0.24, sx, y0 - 0.05, sz, frame);
-  else k.box(0.24, 0.1, w + 0.4, sx, y0 - 0.05, sz, frame);
+  const locked = TH.PARTS.filter((p) => p.locked);
+  for (let L = 0; L <= 2; L++)
+    for (const s of [1, -1] as const) {
+      const mine = (side: TH.Part["side"]) =>
+        locked.filter((p) => p.level === L && p.side === side && Math.sign(p.rects[0].minX + p.rects[0].maxX) === s).map((p) => p.rects[0]);
+      const ax = (r: Rect): [number, number] => (s > 0 ? [r.minX, r.maxX] : [-r.maxX, -r.minX]);
+      const X = (v: number) => s * v;
+      const xr = (a: number, b: number): [number, number] => (s > 0 ? [a, b] : [-b, -a]);
+      // the front strip: its inner wall (a shut door to each office), the partitions between them (a doorway near the inner wall)
+      const fr = mine("front").map(ax).sort((p, q) => p[0] - q[0]);
+      if (fr.length) {
+        const [x0, x1] = xr(fr[0][0], IN.side);
+        wallL(kits.front, "x", x0, x1, LN.front - 0.1, LN.front + 0.1, L, fr.map(([a, b]) => [X((a + b) / 2), true]));
+        for (let i = 0; i + 1 < fr.length; i++) {
+          const [p0, p1] = xr(fr[i][1], fr[i + 1][0]);
+          wallL(kits.front, "z", IN.front, LN.front - 0.1, p0, p1, L, [[LN.front - 1.1, false]]);
+        }
+      }
+      // the back strip: the same, and its first wall on the middle part's pier
+      const bk = mine("back").map(ax).sort((p, q) => p[0] - q[0]);
+      if (bk.length) {
+        const [x0, x1] = xr(bk[0][0] - (Math.abs(bk[0][0] - MID.x1) < 0.01 ? 0.4 : 0), IN.side);
+        wallL(kits.back, "x", x0, x1, LN.back - 0.1, LN.back + 0.1, L, bk.map(([a, b]) => [X((a + b) / 2), true]));
+        if (Math.abs(bk[0][0] - MID.x1) < 0.01) {
+          const [m0, m1] = xr(MID.x0, MID.x1);
+          wallL(kits.back, "z", LN.back + 0.1, IN.back, m0, m1, L, []);
+        }
+        for (let i = 0; i + 1 < bk.length; i++) {
+          const [p0, p1] = xr(bk[i][1], bk[i + 1][0]);
+          wallL(kits.back, "z", LN.back + 0.1, IN.back, p0, p1, L, [[LN.back + 1.1, false]]);
+        }
+      }
+      // the side strip: its inner wall from the front strip's to the back strip's, its partition
+      const sd = mine(sideN(s));
+      if (sd.length) {
+        const [i0, i1] = xr(LN.side - 0.1, LN.side + 0.1);
+        wallL(kits[sideN(s)], "z", LN.front - 0.1, LN.back + 0.1, i0, i1, L, sd.map((r) => [(r.minZ + r.maxZ) / 2, true]));
+        const [p0, p1] = xr(LN.side + 0.1, IN.side);
+        wallL(kits[sideN(s)], "x", p0, p1, LN.sideSplit - 0.1, LN.sideSplit + 0.1, L, [[X(LN.side + 1.1), false]]);
+      }
+    }
+
+  // ---- each locked office: its floor and ceiling, and its furniture (a desk before the windows, a chair, a cupboard
+  // and a shelf of registers against the inner wall)
+  locked.forEach((p, n) => {
+    const kk = kits[p.side];
+    const y = LY[p.level];
+    for (const r of p.rects) {
+      box(kk, r.minX, r.maxX, y - 0.1, y, r.minZ, r.maxZ, H.boards, 1.4);
+      box(kk, r.minX, r.maxX, CEIL[p.level], CEIL[p.level] + 0.25, r.minZ, r.maxZ, H.plaster, 1.2);
+    }
+    const r = p.rects[0];
+    // the way out to the windows: the building's face the office lies on
+    const out: [number, number] = p.side === "left" ? [1, 0] : p.side === "right" ? [-1, 0] : p.side === "back" || p.id === "block_above" ? [0, 1] : [0, -1];
+    const alongZ = out[0] !== 0;
+    const wid = alongZ ? r.maxZ - r.minZ : r.maxX - r.minX;
+    const dep = alongZ ? r.maxX - r.minX : r.maxZ - r.minZ;
+    const cx = (r.minX + r.maxX) / 2 + (out[0] * dep) / 2;
+    const cz = (r.minZ + r.maxZ) / 2 + (out[1] * dep) / 2;
+    // (u along the window wall, w in from it)
+    const at = (u: number, w: number): [number, number] => (alongZ ? [cx - out[0] * w, cz + u] : [cx + u, cz - out[1] * w]);
+    const piece = (u: number, w: number, bw: number, bh: number, bd: number, y0: number, m: MatDef) => {
+      const [x, z] = at(u, w);
+      kk.box(alongZ ? bd : bw, bh, alongZ ? bw : bd, x, y + y0 + bh / 2, z, m, { tile: 1 });
+    };
+    const deskAt = (u: number, w: number) => {
+      piece(u, w, 1.5, 0.06, 0.75, 0.72, H.panel);
+      piece(u, w + 0.05, 1.4, 0.72, 0.6, 0, H.panel);
+      piece(u + 0.2, w, 0.46, 0.02, 0.32, 0.78, H.paper);
+      piece(u - 0.3, w + 0.75, 0.44, 0.46, 0.42, 0, H.panel);
+      piece(u - 0.3, w + 0.95, 0.44, 0.55, 0.05, 0.46, H.panel);
+    };
+    const big = p.id === "cabinet" || p.id === "cabinet_above";
+    if (p.id === "fronti_top") {
+      // a garret: chests and a cupboard of old charters
+      piece(-3.5, dep - 0.5, 1.2, 0.6, 0.6, 0, H.panel);
+      piece(3.2, dep - 0.45, 1.1, 2.0, 0.5, 0, H.panel);
+      piece(-1.2, dep - 0.4, 1.6, 1.8, 0.35, 0, H.books);
+      return;
+    }
+    if (big) {
+      // the cabinet: a long table under the balcony's door, presses of registers along the back wall
+      piece(0, 3.4, 3.2, 0.06, 1.2, 0.72, H.panel);
+      piece(0, 3.4, 3.0, 0.72, 1.0, 0, H.panel);
+      piece(-0.6, 3.4, 0.6, 0.02, 0.4, 0.78, H.paper);
+      for (const u of [-1.2, 0, 1.2]) piece(u, 4.35, 0.44, 0.46, 0.42, 0, H.panel);
+      for (const u of [-7.2, -5.2, -3.2, 3.2, 5.2, 7.2]) piece(u, dep - 0.28, 1.8, 2.2, 0.4, 0, n % 2 ? H.books : H.panel);
+      return;
+    }
+    deskAt(-wid * 0.18, Math.min(1.8, dep * 0.35));
+    if (wid > 5.2) deskAt(wid * 0.22, Math.min(1.8, dep * 0.35));
+    // against the inner wall, clear of its door in the middle
+    piece(-wid / 2 + 0.75, dep - 0.28, 1.0, 2.1, 0.45, 0, H.panel);
+    piece(wid / 2 - 1.1, dep - 0.22, 1.5, 2.0, 0.34, 0, n % 3 === 0 ? H.panel : H.books);
+  });
+
+  for (const kk of Object.values(kits)) kk.finish();
 }
 
-// ================================================================ the town hall
+/**
+ * For an eye inside the town hall: can this window be seen from there at all (world/inworld.ts draws the street only
+ * through those)? A window of a room of the hall from inside that room (the landing's and the vestibule's fanlights from
+ * the court too, and the fanlights from the doorway); a locked office's never (no one inside walks there).
+ */
+function townhallSeen(o: ShellOpening): ((eye: THREE.Vector3) => boolean) | undefined {
+  const d = o.depth + 1.3;
+  const p = TH.partAt(o.x - o.nx * d, o.z - o.nz * d, (o.yb + o.yt) / 2 - TH.FLOOR_Y);
+  if (!p || p.locked) return () => false;
+  return (eye) => {
+    const [x, z] = HP.toLocal(TH.PLAN, eye.x, eye.z);
+    const inCourt = x > -8 && x < 8 && z > 8.4 && z < 22.8;
+    if ((p.id === "landing" || p.id === "vestibule") && inCourt) return true;
+    if (p.id === "vestibule" && Math.abs(x) < 2.5 && z > -0.5 && z < 1.3) return true;
+    return TH.partAt(x, z, eye.y - TH.FLOOR_Y - 1.0)?.id === p.id;
+  };
+}
 
 /**
  * The Stadhuis (Cornelis Floris, 1561-65), as its offices were in 1873, standing in the world inside its
@@ -322,29 +514,28 @@ export function buildTownhall(): LandmarkRoom {
   floor(R(-2.4, 2.4, VEST.maxZ, COURT.minZ), 0, floorM);
   floor(COURT, 0, floorM);
   floor(R(7.8, 8.5, 10.5, 13.5), 0, H.boards);
-  floor(OFFICE, 0, H.boards, 1.4);
-  const slab = (r: Rect) => k.box(r.maxX - r.minX, 0.3, r.maxZ - r.minZ, (r.minX + r.maxX) / 2, UP - 0.15, (r.minZ + r.maxZ) / 2, H.boards, { tile: 1.2, flat: true });
-  slab(R(8.3, 24.6, FRONT.z0, 24.38));
-  slab(R(-20.6, -8.3, FRONT.z0, 16.6));
+  for (const r of TH.OFFICE_FLOORS) floor(r, 0, H.boards, 1.4);
+  // (the boards up to the front wall's inner face, under the arcade's sills; not walked so near the wall)
+  floor(R(TH.MID.x1, OFFICE.maxX, TH.INNER.front, FRONT.z1), 0, H.boards, 1.4);
+  const slab = (r: Rect, t = 0.3) => k.box(r.maxX - r.minX, t, r.maxZ - r.minZ, (r.minX + r.maxX) / 2, UP - t / 2, (r.minZ + r.maxZ) / 2, H.boards, { tile: 1.2, flat: true });
+  // (issue #10: the first floor's rooms by their walls on the piers; 0.1 thick, so the ceilings under them never lie in their plane)
+  slab(R(TH.MID.x0, WEDDING.maxX + 0.4, FRONT.z0, 8.4), 0.1);
+  slab(R(8.3, WEDDING.maxX + 0.4, 8.4, 17.0), 0.1);
+  slab(R(8.3, ALDERMEN.maxX + 0.4, 17.0, 24.38), 0.1);
+  slab(R(LEYS.minX - 0.4, -TH.MID.x0, FRONT.z0, 8.4), 0.1);
+  slab(R(LEYS.minX - 0.4, -8.3, 8.4, 16.6), 0.1);
   slab(R(5.9, 7.8, COURT.minZ, COURT.maxZ));
   slab(R(-7.8, -5.9, COURT.minZ, COURT.maxZ));
   slab(R(-5.9, 5.9, COURT.minZ, 10.4));
   slab(R(-7.9, 7.9, COURT.maxZ, 26.38));
 
-  // ---- the front wall: the doorway's reveal (from the door's plane, where the portal ends), the vestibule, the office
-  const DH = DOOR.h;
-  for (const s of [-1, 1]) box(s > 0 ? DOOR.hw : -DOOR.hw - 0.3, s > 0 ? DOOR.hw + 0.3 : -DOOR.hw, 0, DH + 0.3, 0.0, FRONT.z0, M.stone, 1.6);
-  box(-DOOR.hw - 0.3, DOOR.hw + 0.3, DH, DH + 0.3, 0.0, FRONT.z0, M.stone, 1.6);
-  holed(k, "x", -5.4, 5.4, FRONT.z0, FRONT.z1, 0, C0, [[-DOOR.hw, DOOR.hw, -1, DH]], M.stone, 1.6);
-  // the frontispiece's two side doors, shut from within
+  // ---- the front wall (issue #10): the shell's outer walls lined from their reveals' back, every window and the main
+  // door cut exactly where the shell's are (townhallParts below); the frontispiece's two side doors shut from within,
+  // their fanlights over them windows of the vestibule
   for (const x of TH.SHELL.sideDoors) {
-    box(x - 0.75, x + 0.75, 0, 3.3, FRONT.z1, FRONT.z1 + 0.08, M.oakDark, 1);
-    box(x - 0.9, x + 0.9, 3.3, 3.5, FRONT.z1, FRONT.z1 + 0.14, M.stoneDark, 1);
+    box(x - 0.75, x + 0.75, 0, 3.1, FRONT.z1, FRONT.z1 + 0.08, M.oakDark, 1);
+    box(x - 0.9, x + 0.9, 3.1, 3.3, FRONT.z1, FRONT.z1 + 0.14, M.stoneDark, 1);
   }
-  const winGround = glassMat("grisaille", 43);
-  const winUp = glassMat("grisaille", 42);
-  holed(k, "x", 8.3, 20.6, FRONT.z0, FRONT.z1, 0, C0, TH.OFFICE_WINDOWS.map((x) => [x - 0.75, x + 0.75, 1.0, 5.0] as [number, number, number, number]), H.plaster);
-  for (const x of TH.OFFICE_WINDOWS) windowIn(k, "x", x, FRONT.z1, 1, 1.0, 5.0, 1.5, winGround.def, M.stone);
 
   // ---- the vestibule: its walls and coffered ceiling, the porter's lodge, the notice board
   for (const s of [-1, 1]) wall(s > 0 ? VEST.maxX : VEST.minX - 0.4, s > 0 ? VEST.maxX + 0.4 : VEST.minX, 0, C0, FRONT.z0, VEST.maxZ + 0.4, M.stone, 1.6);
@@ -374,9 +565,12 @@ export function buildTownhall(): LandmarkRoom {
     [19.2, 21.2, UP - 0.1, UP + 3.0], // the aldermen's room
   ]);
   courtWall(-1, [[12.2, 14.2, UP - 0.1, UP + 3.0]]); // the Leys hall
-  // the same walls on to the front, beside the vestibule: the office's and the wedding hall's, the Leys hall's
-  wall(7.8, 8.5, 0, C1, FRONT.z0, COURT.minZ - 0.4, H.plaster);
-  wall(-8.5, -7.8, UP - 0.3, C1, FRONT.z0, COURT.minZ - 0.4, H.plaster);
+  // in front of the court, the middle part's walls on the piers either side (issue #10: never across a window), up
+  // through all three storeys, and their corners to the court's walls
+  for (const s of [-1, 1]) {
+    wall(s > 0 ? TH.MID.x0 : -TH.MID.x1, s > 0 ? TH.MID.x1 : -TH.MID.x0, 0, TH.CEIL[2], FRONT.z0, COURT.minZ, H.plaster);
+    wall(s > 0 ? 8.5 : -TH.MID.x0, s > 0 ? TH.MID.x0 : -8.5, 0, TH.CEIL[2], COURT.minZ - 0.4, COURT.minZ, H.plaster);
+  }
   // the vestibule's back wall to the court: a round-headed arch through it
   holed(k, "x", -7.8, 7.8, VEST.maxZ, COURT.minZ, 0, GY + 0.3, [[-2.4, 2.4, -1, 4.2]], M.stone, 1.6);
   for (let i = 0; i <= 8; i++) {
@@ -387,9 +581,8 @@ export function buildTownhall(): LandmarkRoom {
   // under the landing, and over its ceiling up to the glass
   wall(-7.8, 7.8, 0, UP - 0.3, COURT.maxZ, COURT.maxZ + 0.4, M.stone, 1.6);
   wall(-7.8, 7.8, C1, GY + 0.3, COURT.maxZ, COURT.maxZ + 0.4, M.stone, 1.6);
-  // the landing in the stair block: its walls and ceiling
+  // the landing in the stair block: its walls (the back one the lining behind the shell's two windows) and ceiling
   for (const s of [-1, 1]) wall(s > 0 ? LANDING.maxX : -7.9, s > 0 ? 7.9 : LANDING.minX, UP, C1, COURT.maxZ, 26.38, M.stone, 1.6);
-  wall(-7.9, 7.9, UP, C1, LANDING.maxZ, 26.38, M.stone, 1.6);
   ceiling(R(-7.9, 7.9, COURT.maxZ, 26.38), C1);
   // the arcade's shafts under the galleries, string courses round the court
   for (const [x, z] of TH.SHAFTS) {
@@ -425,7 +618,8 @@ export function buildTownhall(): LandmarkRoom {
   // ---- the clerks' office: the civil registry's counter, desks, shelves of registers, the callers' bench
   wall(OFFICE.maxX, OFFICE.maxX + 0.4, 0, C0, FRONT.z0, OFFICE.maxZ + 0.4, H.plaster);
   wall(8.3, OFFICE.maxX + 0.4, 0, C0, OFFICE.maxZ, OFFICE.maxZ + 0.4, H.plaster);
-  ceiling(R(8.3, OFFICE.maxX + 0.4, FRONT.z0, OFFICE.maxZ + 0.4), C0 - 0.25);
+  ceiling(R(TH.MID.x0, OFFICE.maxX + 0.4, FRONT.z0, 8.4), C0 - 0.25);
+  ceiling(R(8.3, OFFICE.maxX + 0.4, 8.4, OFFICE.maxZ + 0.4), C0 - 0.25);
   const Cn = TH.COUNTER;
   box(Cn.x0, Cn.x1, 0, 1.05, Cn.z0, Cn.z1, H.panel, 1);
   box(Cn.x0 - 0.1, Cn.x1 + 0.1, 1.05, 1.11, Cn.z0 - 0.05, Cn.z1 + 0.05, M.oakDark, 1);
@@ -441,14 +635,22 @@ export function buildTownhall(): LandmarkRoom {
   const bench: Mark[] = TH.PLAN.sets.bench;
 
   // ---- upstairs: the wedding hall (gilded leather over panelling, windows on the square, the chimneypiece)
-  holed(k, "x", 8.3, 24.6, FRONT.z0, FRONT.z1, UP, C1, TH.WEDDING_WINDOWS.map((x) => [x - 0.78, x + 0.78, UP + 1.5, UP + 5.4] as [number, number, number, number]), H.leather, 1.2);
-  for (const x of TH.WEDDING_WINDOWS) windowIn(k, "x", x, FRONT.z1, 1, UP + 1.5, UP + 5.4, 1.56, winUp.def, M.stone);
+  // (issue #10: its front wall is the lining behind the shell's cross windows, townhallParts; the panelling under the
+  // sills and the gilded leather on the piers between the windows and over them)
+  const IF = TH.INNER.front;
   wall(WEDDING.maxX, WEDDING.maxX + 0.4, UP, C1, FRONT.z0, 17.0, H.leather, 1.2);
   wall(8.3, WEDDING.maxX + 0.4, UP, C1, WEDDING.maxZ, 17.0, H.leather, 1.2);
-  box(8.5, WEDDING.maxX, UP, UP + 1.2, FRONT.z1, FRONT.z1 + 0.1, H.panel, 1);
-  box(WEDDING.maxX - 0.1, WEDDING.maxX, UP, UP + 1.2, FRONT.z1, WEDDING.maxZ, H.panel, 1);
-  ceiling(R(8.3, 24.6, FRONT.z0, 17.0), C1);
-  for (let x = 10; x < WEDDING.maxX; x += 2.5) box(x - 0.15, x + 0.15, C1 - 0.35, C1, FRONT.z1, WEDDING.maxZ, M.oakDark, 1);
+  box(TH.MID.x1, WEDDING.maxX, UP, UP + 1.0, IF, IF + 0.1, H.panel, 1);
+  box(WEDDING.maxX - 0.1, WEDDING.maxX, UP, UP + 1.2, IF, WEDDING.maxZ, H.panel, 1);
+  {
+    const wins = TH_WINDOWS.filter((o) => o.nz < -0.9 && Math.abs(o.z - TH.SHELL.face) < 0.05 && o.yb > 7 && o.yb < 9 && o.x > TH.MID.x1 && o.x < WEDDING.maxX).map((o) => o.x).sort((a, b) => a - b);
+    const edges = [TH.MID.x1, ...wins.flatMap((x) => [x - 0.8, x + 0.8]), WEDDING.maxX];
+    for (let i = 0; i + 1 < edges.length; i += 2) if (edges[i + 1] - edges[i] > 0.1) box(edges[i], edges[i + 1], UP + 1.0, C1, IF, IF + 0.04, H.leather, 1.2);
+    box(TH.MID.x1, WEDDING.maxX, 12.2 - TH.FLOOR_Y + 0.05, C1, IF, IF + 0.04, H.leather, 1.2);
+  }
+  ceiling(R(TH.MID.x0, 24.6, FRONT.z0, 8.4), C1);
+  ceiling(R(8.3, 24.6, 8.4, 17.0), C1);
+  for (let x = 10; x < WEDDING.maxX; x += 2.5) box(x - 0.15, x + 0.15, C1 - 0.35, C1, IF, WEDDING.maxZ, M.oakDark, 1);
   // the Floris chimneypiece on the back wall: two alabaster caryatids carry the mantel; a fire burns
   const FX = TH.CHIMNEY.x;
   const FZ = TH.CHIMNEY.z;
@@ -483,27 +685,37 @@ export function buildTownhall(): LandmarkRoom {
 
   // ---- the aldermen's room: a desk, a portrait of the King, shelves
   wall(ALDERMEN.maxX, ALDERMEN.maxX + 0.4, UP, C1, 17.0, 24.38, H.plaster);
-  wall(8.3, ALDERMEN.maxX + 0.4, UP, C1, ALDERMEN.maxZ, 24.38, H.plaster);
   wall(7.8, 8.5, UP, C1, COURT.maxZ, 24.38, H.plaster); // its wall to the landing, behind the court's
   ceiling(R(7.8, ALDERMEN.maxX + 0.4, 17.0, 24.38), C1);
   desk(k, TH.ALD_DESK.x, UP, TH.ALD_DESK.z, 1.8);
   chair(k, TH.ALD_DESK.x, UP, TH.ALD_DESK.z + 0.9, Math.PI, true);
   k.box(0.08, 1.8, 1.4, ALDERMEN.maxX - 0.07, UP + 2.8, 20.6, M.gilt);
   k.plane(1.2, 1.6, ALDERMEN.maxX - 0.12, UP + 2.8, 20.6, paintMat("portrait", 99), { ry: -Math.PI / 2 });
-  for (let x = 10; x < ALDERMEN.maxX - 0.5; x += 2.2) k.box(2.0, 2.4, 0.4, x, UP + 1.2, ALDERMEN.maxZ - 0.22, H.books);
+  // (issue #10: the back wall has the shell's windows now: low cupboards of registers under them, presses on the piers)
+  {
+    const wins = TH_WINDOWS.filter((o) => o.nz > 0.9 && Math.abs(o.z - TH.SHELL.back) < 0.05 && o.yb > 7 && o.yb < 9 && o.x > ALDERMEN.minX && o.x < ALDERMEN.maxX).map((o) => o.x);
+    const Z = ALDERMEN.maxZ;
+    for (const x of wins) k.box(1.4, 0.9, 0.4, x, UP + 0.45, Z - 0.2, H.books);
+    for (let i = 0; i + 1 < wins.length; i++) k.box(1.2, 2.4, 0.4, (wins[i] + wins[i + 1]) / 2, UP + 1.2, Z - 0.2, H.books);
+  }
 
   // ---- the Leys hall: history paintings round the walls (1870), a long table
-  holed(k, "x", -20.6, -8.3, FRONT.z0, FRONT.z1, UP, C1, TH.LEYS_WINDOWS.map((x) => [x - 0.78, x + 0.78, UP + 1.5, UP + 5.4] as [number, number, number, number]), H.plaster);
-  for (const x of TH.LEYS_WINDOWS) windowIn(k, "x", x, FRONT.z1, 1, UP + 1.5, UP + 5.4, 1.56, winUp.def, M.stone);
-  wall(-20.6, LEYS.minX, UP, C1, FRONT.z0, 16.6, H.plaster);
-  wall(-20.6, -8.3, UP, C1, LEYS.maxZ, 16.6, H.plaster);
-  ceiling(R(-20.6, -8.3, FRONT.z0, 16.6), C1);
+  // (issue #10: its front wall is the lining behind the shell's cross windows, townhallParts)
+  wall(LEYS.minX - 0.4, LEYS.minX, UP, C1, FRONT.z0, 16.6, H.plaster);
+  wall(LEYS.minX - 0.4, -8.3, UP, C1, LEYS.maxZ, 16.6, H.plaster);
+  ceiling(R(LEYS.minX - 0.4, -TH.MID.x0, FRONT.z0, 8.4), C1);
+  ceiling(R(LEYS.minX - 0.4, -8.3, 8.4, 16.6), C1);
   for (const [x, z, ry, w] of [[-11.8, LEYS.maxZ - 0.07, Math.PI, 3.6], [-16.8, LEYS.maxZ - 0.07, Math.PI, 3.6], [LEYS.minX + 0.07, 5.0, Math.PI / 2, 4.4], [LEYS.minX + 0.07, 11.0, Math.PI / 2, 4.4]] as Array<[number, number, number, number]>) {
     k.plane(w, 3.0, x, UP + 2.7, z, paintMat("history", Math.round(x * 3 + z)), { ry });
   }
   k.box(1.2, 0.8, 5, TH.LEYS_TABLE.x, UP + 0.4, TH.LEYS_TABLE.z, M.oakDark);
 
   k.finish();
+  // issue #10: the outer walls lined behind the shell's windows, the locked offices behind the rest; the glass of every
+  // window (the shell keeps its stone crosses, oak frames and lead bars)
+  townhallParts(group);
+  const hallGlass = realGlass(TH_WINDOWS, TH.FLOOR_Y, shellPicture("/textures/stadhuis_glass.jpg"), { name: "stadhuis", tile: 1.0, opacity: 0.22 });
+  if (hallGlass.mesh) group.add(hallGlass.mesh);
 
   // light: the day from the glass roof and the windows; lamps and candles at dusk
   const L = lights(scene, 0xd8d8e0, 0x7a6a56, 0x5a4e40);
@@ -537,7 +749,7 @@ export function buildTownhall(): LandmarkRoom {
   let day = 1;
   let sky = 1;
   let ambK = 1;
-  const glasses = [roofGlass, winGround, winUp];
+  const glasses = [roofGlass, { mat: () => hallGlass.mat }];
   const light = () => {
     const d = day * (0.55 + 0.45 * sky);
     L.hemi.intensity = (1.6 + 2.6 * d) * ambK;
@@ -1495,7 +1707,7 @@ export function hallsInWorld(world: World, inWorld: InWorld): HallInWorld[] {
       { label: "the foot of the great stair", x: 0, z: TH.STAIR.foot - 0.8, reach: 1.2 },
       { label: "the registry's counter", x: thm.counter.x, z: thm.counter.z, reach: 1.0 },
       { label: "the callers' bench", x: 10.4, z: TH.BENCH.z - 0.9, reach: 1.2 },
-    ]),
+    ], [], 0.3, windowOpenings(TH_WINDOWS, (x, z) => HP.toWorld(TH.PLAN, x, z), townhallSeen)),
     createHallInWorld(world, inWorld, VH.PLAN, buildVleeshuis(), { color: 0x241a12, near: 12, far: 55 }, [
       { label: "the cellar master's desk", x: VH.PLAN.marks.cellarDesk.x, z: VH.PLAN.marks.cellarDesk.z + 0.4, reach: 1.2 },
       { label: "the tasting table", x: VH.TASTING.x, z: VH.TASTING.z - 1.0, reach: 1.2 },

@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { footDirt, psx } from "../retro/psx";
+import { shellMarkers } from "./realOpenings";
 
 // The town hall of 1873 in detail (the high-quality pass, 2026-09-26): its own model (tools/blender/build_stadhuis.py
 // -> /models/stadhuis.glb) with a picture and a height map per material that follows it
@@ -9,7 +10,9 @@ import { footDirt, psx } from "../retro/psx";
 // assets/ATTRIBUTION.md). It replaces the older town hall of landmarks.glb (build_landmarks.py stadhuis), hidden here.
 // The footprint, the three doors of the frontispiece (the main one open: world/hallInWorld.ts hangs its leaves) and
 // the 22 bays stay where they were, so the hall inside (shared/townhallPlan.ts, world/landmarkHalls.ts) and the walk
-// map fit it unchanged.
+// map fit it unchanged. Issue #10 (interiors are real): its windows are cut through (shared/stadhuisShell.ts, the
+// empties opening_<id>): their glass and the rooms behind them are the hall's; their old panes (sh_glass_lit) are
+// never drawn, only lit at night by world/landmarkWindows.ts.
 //
 // Bumps: three.js's own bump map on the picture's own uv, so every joint, slate edge and lead came of the height map
 // lies under the one drawn; the lowest parts (the joints) are drawn a little darker, as they get less light.
@@ -39,6 +42,8 @@ const PICS: Record<string, Pic> = {
   sh_blue: { map: `${T}bluestone.jpg`, height: `${T}bluestone_h.png`, bump: 0.45, joint: 0.15, lift: 1.3 },
   sh_slate: { map: `${T}slate.jpg`, height: `${T}slate_h.png`, bump: 0.8, joint: 0.3, lift: 1.25 },
   sh_glass: { map: `${T}glass.jpg`, height: `${T}glass_h.png`, bump: 0.6, joint: 0.15, lift: 1.15 },
+  // issue #10: the old panes of the real windows, never drawn: world/landmarkWindows.ts lights a copy of them at night
+  sh_glass_lit: { map: `${T}glass.jpg`, bump: 0, joint: 0, lift: 1.15 },
   sh_oak: { map: `${T}oak.jpg`, height: `${T}oak_h.png`, bump: 0.8, joint: 0.25, lift: 1.3 },
   sh_arms: { map: `${T}arms.png`, height: `${T}arms_h.png`, bump: 0.9, joint: 0.15, lift: 1.2, repeat: false },
   sh_lead: { bump: 0, joint: 0, lift: 1, color: 0x4c5054 },
@@ -85,6 +90,10 @@ function material(name: string, src: THREE.MeshStandardMaterial): THREE.Material
       m.needsUpdate = true;
     });
   m.name = name;
+  if (name === "sh_glass_lit") {
+    m.visible = false;
+    return m;
+  }
   psx(m, { fogReach: 2.2, affine: 0 });
   // the dirt band at the foot of the walls (retro/psx.ts footDirt; weaker by itself on the Grote Markt, a fine square)
   footDirt(m, 0.5);
@@ -119,6 +128,8 @@ export function loadStadhuisShell(scene: THREE.Scene): void {
     .loadAsync("/models/stadhuis.glb")
     .then((gltf) => {
       const meshes: THREE.Mesh[] = [];
+      // issue #10: the real openings' markers, for the interior check (dev/interiorcheck.ts)
+      for (const e of shellMarkers(gltf.scene)) group.add(e);
       gltf.scene.traverse((o) => {
         const m = o as THREE.Mesh;
         if (!m.isMesh) return;

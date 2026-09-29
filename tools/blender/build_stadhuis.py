@@ -42,15 +42,24 @@ CITY = os.path.join(ROOT, "shared", "city.json")
 OUT = os.path.join(ROOT, "client", "public", "models", "stadhuis.glb")
 PREVIEW = os.environ.get("STADHUIS_PREVIEW")  # a folder: render a few views there (the build's own check)
 
-MATS = ["sh_white", "sh_carved", "sh_blue", "sh_slate", "sh_glass", "sh_oak", "sh_lead", "sh_gilt", "sh_arms", "sh_cloth"]
-WHITE, CARVED, BLUE, SLATE, GLASS, OAK, LEAD, GILT, ARMS, CLOTH = range(len(MATS))
+MATS = ["sh_white", "sh_carved", "sh_blue", "sh_slate", "sh_glass", "sh_oak", "sh_lead", "sh_gilt", "sh_arms", "sh_cloth", "sh_glass_lit"]
+WHITE, CARVED, BLUE, SLATE, GLASS, OAK, LEAD, GILT, ARMS, CLOTH, GLASS_LIT = range(len(MATS))
 # metres per repeat of each material's picture (u, v); must match stadhuisShell.ts (it only sets the pictures)
 TILE = {WHITE: (1.8, 1.8), CARVED: (1.2, 1.2), BLUE: (1.2, 1.2), SLATE: (2.0, 2.0), GLASS: (1.0, 1.0), OAK: (1.2, 1.2),
-        LEAD: (1.0, 1.0), GILT: (1.0, 1.0), ARMS: (1.0, 1.0), CLOTH: (1.0, 1.0)}
+        LEAD: (1.0, 1.0), GILT: (1.0, 1.0), ARMS: (1.0, 1.0), CLOTH: (1.0, 1.0), GLASS_LIT: (1.0, 1.0)}
 # the colours Blender shows (the game uses the pictures)
 PREVIEW_RGB = {WHITE: (0.78, 0.74, 0.66), CARVED: (0.82, 0.78, 0.7), BLUE: (0.25, 0.27, 0.29), SLATE: (0.2, 0.22, 0.25),
                GLASS: (0.1, 0.12, 0.13), OAK: (0.18, 0.12, 0.08), LEAD: (0.3, 0.31, 0.32), GILT: (0.8, 0.58, 0.18),
-               ARMS: (0.6, 0.3, 0.2), CLOTH: (1, 1, 1)}
+               ARMS: (0.6, 0.3, 0.2), CLOTH: (1, 1, 1), GLASS_LIT: (0.1, 0.12, 0.13)}
+# Issue #10 (interiors are real, docs/building-with-interior.md): every window of the wings, the frontispiece and the
+# stair block is cut through: the arcade's shop fronts, the cross windows of the Doric and the Ionic storeys, the
+# frontispiece's windows and the portals' fanlights. Their stone crosses, oak frames and lead bars stay here; their
+# glass is the room's (world/landmarkHalls.ts buildTownhall: the town hall's rooms, and simple locked offices behind
+# every other window). Each is written twice: an empty "opening_<id>" in the glb and a row of shared/stadhuisShell.ts
+# (world frame). Their old panes go to a mesh of their own ("stadhuis_lit_glass", sh_glass_lit) that the game never
+# draws: world/landmarkWindows.ts lights a copy of it at night, as before. The main door is written too (a door).
+# Left as they were: the dormers' glass (the attic) and the loggia under the eaves (an open gallery, no glass).
+SHELL_TS = os.path.join(ROOT, "shared", "stadhuisShell.ts")
 
 # ---- the plan (metres, the frame of shared/city.json)
 U = 33.88  # half the front
@@ -398,6 +407,72 @@ class Wall:
         m.sweep(pts, (self.p[0] + self.o[0] * e, self.p[1] + self.o[1] * e, 0.0), self.X, self.Y, self.Z, prof, mat, shade, closed=closed, caps=caps)
 
 
+# ---------------------------------------------------------------- real openings (issue #10)
+
+OPENINGS = []
+LIT = [None]  # the real windows' old glass (a Mesh of its own, never drawn: the night's light is made from it)
+FR = [None]   # the frame (shared/city.json), for the world's coordinates
+
+
+def arch_poly(hw, yb, yt, seg=8):
+    """An arched opening's outline (u from its middle, y): the bottom, the right side, the half circle over to the
+    left springing (the same 8 segments as the shell's hole and reveal)."""
+    ys = yt - hw
+    return [(-hw, yb), (hw, yb)] + [(hw * math.cos(math.pi * k / seg), ys + hw * math.sin(math.pi * k / seg)) for k in range(seg + 1)]
+
+
+def real_opening(w, sc, hw, yb, yt, arch, depth, kind, label, glaze="lead"):
+    """Record a real opening of the shell in the wall w: its middle sc along it on the wall's outer face (e = 0), its
+    outline (hw, yb, yt: yt the crown of an arched one) where the reveal ends, `depth` into the wall."""
+    u, v, _ = w.pt(sc, 0.0, 0.0)
+    f = FR[0]
+    x, _, z = f.w((u, v, 0.0))
+    ax, nn = f.ax, f.n
+    tx, tz = ax[0] * w.d[0] + nn[0] * w.d[1], ax[1] * w.d[0] + nn[1] * w.d[1]
+    nx, nz = ax[0] * w.o[0] + nn[0] * w.o[1], ax[1] * w.o[0] + nn[1] * w.o[1]
+    poly = arch_poly(hw, yb, yt) if arch else [(-hw, yb), (hw, yb), (hw, yt), (-hw, yt)]
+    OPENINGS.append(dict(kind=kind, part="stadhuis_body", label=label, glaze=glaze, shape="rect", x=x, z=z, tx=tx, tz=tz, nx=nx, nz=nz,
+                         hw=hw, yb=yb, yt=yt, arch=bool(arch), depth=depth, poly=poly))
+
+
+def opening_markers():
+    """Every real opening as an empty in the glb (dev/interiorcheck.ts reads them) and shared/stadhuisShell.ts."""
+    for i, o in enumerate(OPENINGS):
+        o["id"] = f"sh_{i:03d}"
+        ob = bpy.data.objects.new("opening_" + o["id"], None)
+        ob.empty_display_size = max(0.2, o["hw"])
+        ob.location = B(o["x"], (o["yb"] + o["yt"]) / 2, o["z"])
+        for k in ("kind", "label", "glaze", "shape", "part"):
+            ob[k] = str(o[k])
+        for k in ("hw", "yb", "yt", "nx", "nz", "tx", "tz", "depth"):
+            ob[k] = float(o[k])
+        ob["arch"] = 1 if o["arch"] else 0
+        bpy.context.scene.collection.objects.link(ob)
+    f3 = lambda v: f"{v:.3f}".rstrip("0").rstrip(".")  # noqa: E731
+    lines = [
+        "// GENERATED by tools/blender/build_stadhuis.py (issue #10, interiors are real): do not edit. Every real opening of",
+        "// the town hall's shell (client/public/models/stadhuis.glb, whose empties opening_<id> are the same), in the WORLD's",
+        "// frame (world/landmarkHalls.ts moves them into the hall's: shellOpening.ts inFrame). x, z: its middle on the wall's",
+        "// outer face; (tx, tz) along it, (nx, nz) out of it; poly its outline where the reveal ends (u along from the middle,",
+        "// world y); depth the reveal's depth into the wall.",
+        "",
+        'import type { ShellOpening } from "./shellOpening.js";',
+        "",
+        "export const SHELL_OPENINGS: ShellOpening[] = [",
+    ]
+    for o in OPENINGS:
+        parts_ = []
+        for k in ("id", "kind", "part", "label", "glaze", "shape", "x", "z", "tx", "tz", "nx", "nz", "hw", "yb", "yt", "arch", "depth"):
+            v = o[k]
+            parts_.append(f"{k}: {json.dumps(v) if isinstance(v, (str, bool)) else f3(float(v))}")
+        parts_.append("poly: [" + ", ".join(f"[{f3(u)}, {f3(y)}]" for u, y in o["poly"]) + "]")
+        lines.append("  { " + ", ".join(parts_) + " },")
+    lines += ["];", ""]
+    with open(SHELL_TS, "w", newline="\n") as fh:
+        fh.write("\n".join(lines))
+    return len(OPENINGS)
+
+
 # ---------------------------------------------------------------- profiles (e out, y up), from the wall's face
 
 def cornice_prof(y0, h, proj):
@@ -475,8 +550,9 @@ def reveal(m, w, sc, hw, yb, yt, e0, e1, mat, shade=0.7, rnd=False, sill=True, s
         m.face([w.pt(sc - hw, e0, yb), w.pt(sc + hw, e0, yb), w.pt(sc + hw, e1, yb), w.pt(sc - hw, e1, yb)], mat, shade * 1.1, (0, 0, 1))
 
 
-def glass(m, w, s0, s1, y0, y1, e, pane=(0.25, 0.25), shade=1.0, arch_top=None):
-    """A leaded light: its own uv, the lead grid starting at its corner (the picture: 4 x 5 panes a tile)."""
+def glass(m, w, s0, s1, y0, y1, e, pane=(0.25, 0.25), shade=1.0, arch_top=None, lit=False):
+    """A leaded light: its own uv, the lead grid starting at its corner (the picture: 4 x 5 panes a tile). `lit`: a
+    real window's (issue #10): its pane goes to the lit glass, never drawn (the glass is the room's)."""
     tw, th = pane[0] * 4, pane[1] * 5
     if arch_top is None:
         pts = [(s0, y0), (s1, y0), (s1, y1), (s0, y1)]
@@ -485,24 +561,30 @@ def glass(m, w, s0, s1, y0, y1, e, pane=(0.25, 0.25), shade=1.0, arch_top=None):
         arc = [(sc + hw * math.cos(math.pi * k / 8), y1 + hw * math.sin(math.pi * k / 8)) for k in range(9)]
         pts = arc if y1 - y0 < 1e-3 else [(s0, y0), (s1, y0)] + arc
     uvs = [((s - s0) / tw, (y - y0) / th) for s, y in pts]
+    if lit:
+        return LIT[0].face([w.pt(s, e, y) for s, y in pts], GLASS_LIT, shade, w.out(), uvs)
     return m.face([w.pt(s, e, y) for s, y in pts], GLASS, shade, w.out(), uvs)
 
 
-def cross_window(m, dm, w, sc, hw, yb, yt, depth=0.12, transom=None, frame=0.15, arch=False, mull=True, shade=1.0):
+def cross_window(m, dm, w, sc, hw, yb, yt, depth=0.12, transom=None, frame=0.15, arch=False, mull=True, shade=1.0, label=None):
     """A stone cross window in a wall face (the hole is made by holed_face): the glass `depth` in, the mullion
-    and transom standing in it, a moulded frame (architrave) round it on the face."""
+    and transom standing in it, a moulded frame (architrave) round it on the face. `label`: a real window (issue
+    #10): recorded, its glass the room's."""
     tr = transom if transom is not None else yb + (yt - yb) * 0.68
+    lit = label is not None
+    if lit:
+        real_opening(w, sc, hw, yb, yt + (hw if arch else 0.0), arch, depth, "window", label)
     # the reveal from the glass to the face
     reveal(m, w, sc, hw, yb, yt, -depth, 0.0, CARVED, 0.72, rnd=arch)
     # the lights
     mw = 0.07 if mull else 0.0
     tt = 0.08
     for s0, s1 in (((sc - hw, sc - mw), (sc + mw, sc + hw)) if mull else ((sc - hw, sc + hw),)):
-        glass(m, w, s0, s1, yb, tr - tt, -depth, shade=0.95)
+        glass(m, w, s0, s1, yb, tr - tt, -depth, shade=0.95, lit=lit)
         if not arch:
-            glass(m, w, s0, s1, tr + tt, yt, -depth, shade=0.95)
+            glass(m, w, s0, s1, tr + tt, yt, -depth, shade=0.95, lit=lit)
     if arch:
-        glass(m, w, sc - hw, sc + hw, tr + tt, yt, -depth, shade=0.95, arch_top=True)
+        glass(m, w, sc - hw, sc + hw, tr + tt, yt, -depth, shade=0.95, arch_top=True, lit=lit)
     # the stone cross (mullion and transom), a little proud of the glass
     if mull:
         w.box(m, sc - mw, sc + mw, -depth, -0.02, yb, yt + (hw if arch else 0), CARVED, 1.0, top=False)
@@ -771,6 +853,21 @@ FRONT_GRID = [-U + k * BW for k in range(NB + 1)]
 SIDE_GRID = [VB + k * (VF - VB) / NS for k in range(NS + 1)]
 
 
+def bay_label(name, w, sc):
+    """Human words for a bay of a wing's wall (issue #10): which face, which side seen from the Grote Markt, which bay."""
+    u, v, _ = w.pt(sc, 0.0, 0.0)
+    side = "left" if u < 0 else "right"
+    if name == "front":
+        return f"the Grote Markt front, the {side} wing, bay {int((abs(u) - (FW - 0.24)) / BW) + 1} from the frontispiece"
+    if name == "back":
+        return f"the back, the {side} half (seen from the Grote Markt), bay {int((abs(u) - (SB + 1.14)) / BW) + 1} from the stair block"
+    return f"the {side} side (seen from the Grote Markt), bay {int((VF - v) / ((VF - VB) / NS)) + 1} from the front"
+
+
+STOREY_WORDS = {"ground": "the arcade's arch (a glazed shop front)", "doric": "the first floor's cross window (the Doric storey)",
+                "ionic": "the second floor's cross window (the Ionic storey)"}
+
+
 def walls():
     """The wings' walls as runs: (name, wall, s0, s1, grid lines in s, corner at s0, corner at s1, part).
     part: 'low' (ground floor and storeys), 'top' (loggia and cornice), or 'both'. Each wall's d points to
@@ -930,6 +1027,8 @@ def ground(m, dm, name, w, s0, s1, grid, c0, c1):
             wg.box(m, i0, i1, 0, rproj + 0.04, AYS - 0.2, AYS, BLUE, 1.02)
         reveal(m, wg, sc, hw, PL, AYS, shop_e - gf, 0.0, BLUE, 0.62, rnd=True, sill=False)
         shop(m, dm, w, sc, hw, AYS, shop_e)
+        # issue #10: the arch is a real window of the room behind (its shop front's oak stays, its glass is the room's)
+        real_opening(wg, sc, hw, PL, AYS + hw, True, gf - shop_e, "window", f"{bay_label(name, w, sc)}, {STOREY_WORDS['ground']}", glaze="sash")
         # the sill of the arch: a bluestone step
         m.face([wg.pt(sc - hw, shop_e - gf, PL), wg.pt(sc + hw, shop_e - gf, PL), wg.pt(sc + hw, 0, PL), wg.pt(sc - hw, 0, PL)], BLUE, 0.9, (0, 0, 1))
 
@@ -943,7 +1042,7 @@ def storeys(m, dm, name, w, s0, s1, grid, c0, c1):
         wholes = [(sc, 0.78, wy0, wy1, False) for a, b, sc in bays]
         holed_face(m, w, s0, s1, y0, y1, wholes, WHITE, 1.0)
         for sc, hw, yb, yt, _ in wholes:
-            cross_window(m, dm, w, sc, hw, yb, yt, depth=0.12, transom=yb + (yt - yb) * 0.66)
+            cross_window(m, dm, w, sc, hw, yb, yt, depth=0.12, transom=yb + (yt - yb) * 0.66, label=f"{bay_label(name, w, sc)}, {STOREY_WORDS[order]}")
             if order == "doric":
                 if not plain:
                     pediment(m, w, sc, hw + 0.28, yt + 0.12, 0.42, proj=0.24, seg=(int(round((abs(sc) + U) / BW)) % 2 == 1))
@@ -1039,11 +1138,11 @@ def shop(m, dm, w, sc, hw, ys, e):
     wi = w.at(e)
     wi.quad(m, sc - hw, sc + hw, PL, PL + 0.9, 0, OAK, 0.55)
     wi.box(m, sc - hw, sc + hw, 0, 0.1, PL + 0.9, PL + 1.0, OAK, 0.6)
-    glass(m, wi, sc - hw + 0.08, sc + hw - 0.08, PL + 1.0, ys - 0.12, -0.02, shade=0.8)
+    glass(m, wi, sc - hw + 0.08, sc + hw - 0.08, PL + 1.0, ys - 0.12, -0.02, shade=0.8, lit=True)
     for x in (sc - hw, sc - 0.035, sc + hw - 0.07):
         wi.box(m, x, x + 0.07, -0.02, 0.06, PL + 1.0, ys, OAK, 0.5, top=False)
     wi.box(m, sc - hw, sc + hw, -0.02, 0.08, ys - 0.12, ys, OAK, 0.55)
-    glass(m, wi, sc - hw, sc + hw, ys, ys, -0.03, shade=0.75, arch_top=True)
+    glass(m, wi, sc - hw, sc + hw, ys, ys, -0.03, shade=0.75, arch_top=True, lit=True)
     for k in range(1, 6):
         a = math.pi * k / 6
         ax = norm(add(wi.along(math.cos(a)), (0, 0, math.sin(a))))
@@ -1070,8 +1169,9 @@ def frontispiece(m, dm, w):
     # ---- the ground storey: rusticated, three round-arched doors (the middle one the entrance)
     doors = [(-3.6, 1.2, 5.2), (0.0, 1.7, 6.2), (3.6, 1.2, 5.2)]
     holed_face(m, w, -FW, FW, 0.0, 6.6, [(sc, hw, 0.0, h - hw, True) for sc, hw, h in doors], BLUE, 0.92)
-    # the body's front wall behind: the doorway (the hall's door plane is the portal's back)
-    holed_face(m, Wall((0, VF), (1, 0), (0, 1)), -FW, FW, 0.0, 6.6, [(0.0, 1.4, 0.0, 5.8 - 1.4, True)], BLUE, 0.6)
+    # (no body's front wall behind the portals, issue #10: the portals' reveals end at the door plane, their leaves close
+    # the side doors, and behind them the vestibule's own wall (the room's lining) stands, cut for the main door and
+    # the three fanlights)
     course = 0.5
     y, k = PL, 0
     while y < 6.05:
@@ -1138,7 +1238,10 @@ def frontispiece(m, dm, w):
                 figure(m, c[0], c[1], (0, 1), 21.0, 2.45, kind)
             holes = holes[:1]
         for sc, hw, yb, yt, rnd in holes:
-            cross_window(m, dm, w, sc, hw, yb, yt, depth=0.35, transom=(yb + 2.8 if sc == 0 and y0 == G else None), arch=rnd, mull=True)
+            where = "the middle" if sc == 0 else ("the left" if sc < 0 else "the right")
+            what = {G: "the first floor's window" if sc else "the first floor's balcony door (glazed)", S1: "the second floor's window", S2: "the window under the cornice"}[y0]
+            cross_window(m, dm, w, sc, hw, yb, yt, depth=0.35, transom=(yb + 2.8 if sc == 0 and y0 == G else None), arch=rnd, mull=True,
+                         label=f"the frontispiece, {where}, {what}")
             if y0 == S1:
                 pediment(m, w, sc, hw + 0.3, yt + 0.14, 0.5, proj=0.26, seg=(sc != 0))
         for x in pairs:
@@ -1189,7 +1292,12 @@ def portal(m, dm, w, sc, hw0, hw1, depth, h0, h1, lintel, name, leaves=True, ste
     wd.box(m, sc - hw1, sc + hw1, 0.0, 0.2, lintel - 0.62, lintel, CARVED, 1.02, bottom=True)
     pts = [(sc - hw1, lintel), (sc + hw1, lintel), (sc + hw1, ys1)] + [(sc + hw1 * math.cos(math.pi * k / 10), ys1 + hw1 * math.sin(math.pi * k / 10)) for k in range(1, 10)] + [(sc - hw1, ys1)]
     uvs = [((s - sc + hw1) / 1.0, (y - lintel) / 1.25) for s, y in pts]
-    m.face([wd.pt(s, 0.01, y) for s, y in pts], GLASS, 0.7, wd.out(), uvs)
+    # issue #10: the fanlight is a real window of the vestibule behind (its lead bars stay, its glass is the room's)
+    LIT[0].face([wd.pt(s, 0.01, y) for s, y in pts], GLASS_LIT, 0.7, wd.out(), uvs)
+    real_opening(w, sc, hw1, lintel, h1, True, depth, "window", f"{name}, its fanlight")
+    if not leaves:
+        # the open door (the game hangs its leaves): its doorway under the lintel
+        real_opening(w, sc, hw1, 0.0, lintel - 0.62, False, depth, "door", name, glaze="")
     for k in range(1, 8):
         a = math.pi * k / 8
         p1 = (sc + hw1 * math.cos(a), ys1 + hw1 * math.sin(a))
@@ -1406,7 +1514,9 @@ def stair_block(m, dm):
         for xa, xb in zip(xs, xs[1:]):
             bw_.hsweep(m, xa + 0.012, xb - 0.012, prof, BLUE, 1.0 - 0.05 * (k % 2))
     for sc, hw, yb, yt, rnd in wins + wins2:
-        cross_window(m, dm, bw_, sc, hw, yb, yt, depth=0.12, arch=rnd)
+        u = bw_.pt(sc, 0, 0)[0]
+        cross_window(m, dm, bw_, sc, hw, yb, yt, depth=0.12, arch=rnd,
+                     label=f"the stair block at the back, the {'left' if u < 0 else 'right'} window, {'the first floor (the landing)' if rnd else 'the second floor'}")
     for w, a, b in ((ew, SBK, VB), (ww, -VB, -SBK)):
         w.quad(m, a, b, 0.0, 6.1, 0, BLUE, 0.9)
         w.quad(m, a, b, 6.1, top, 0, WHITE, 0.95)
@@ -1477,9 +1587,10 @@ def roof(m, dm):
             fw.box(m, s - ww + 0.12, s + ww - 0.12, 0.0, 0.05, yb + (ytop - yb) * 0.6, yb + (ytop - yb) * 0.6 + 0.08, CARVED, 1.0)
             for sg in (-1, 1):
                 fw.box(m, s + sg * (ww + 0.05) - 0.12, s + sg * (ww + 0.05) + 0.12, 0.0, 0.1, yb - 0.3, ytop, CARVED, 1.05)
-                # scrolls beside the aedicule
+                # scrolls beside the aedicule (issue #10: at the dormer's foot; they stood on the ground inside the
+                # building, seen now through the real windows)
                 c = wall.pt(s + sg * (ww + 0.4), ef + 0.0, yb + 0.1)
-                m.extrude([(0, 0), (sg * 0.35, 0), (sg * 0.05, 0.9)], (c[0], c[1], 0.0), wall.along(), (0, 0, 1), wall.out(), -0.1, 0.1, CARVED, 1.0, back=True)
+                m.extrude([(0, 0), (sg * 0.35, 0), (sg * 0.05, 0.9)], (c[0], c[1], c[2]), wall.along(), (0, 0, 1), wall.out(), -0.1, 0.1, CARVED, 1.0, back=True)
             pediment(m, wall.at(ef - 0.2), s, ww + 0.3, ytop, 0.55, proj=0.36, seg=False)
             yr = ytop + 0.6
         else:
@@ -1582,11 +1693,16 @@ def main():
     fr = Frame(city["landmarks"]["stadhuis"]["frame"])
     if city["landmarks"]["stadhuis"]["frame"].get("open", 1) < 0:
         raise SystemExit("the town hall's frame looks away from the Grote Markt: fix the frame")
+    FR[0] = fr
+    LIT[0] = Mesh(fr, "stadhuis_lit_glass")
     body, det = build(fr)
     body.finish()
     det.finish()
+    LIT[0].finish()
+    n_open = opening_markers()
+    print(f"[build_stadhuis] {n_open} real openings -> {SHELL_TS}")
     bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", export_yup=True, export_texcoords=True, export_normals=True,
-                              export_materials="EXPORT", use_selection=False, export_vertex_color="ACTIVE", export_all_vertex_colors=True,
+                              export_materials="EXPORT", use_selection=False, export_vertex_color="ACTIVE", export_all_vertex_colors=True, export_extras=True,
                               export_draco_mesh_compression_enable=True, export_draco_mesh_compression_level=7)
     print(f"[build_stadhuis] -> {OUT} ({os.path.getsize(OUT) // 1024} KB)")
     if PREVIEW:
