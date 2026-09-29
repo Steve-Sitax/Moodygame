@@ -206,12 +206,13 @@ export function loadChurches(scene: THREE.Scene): ChurchesModel {
         m.geometry.computeBoundingSphere();
         group.add(m);
         parts.push(m);
-        // issue #10: each church's lit glass to its hall (world/shellGlass.ts: the hall's stained glass is a copy)
-        const lit = /^church_(carolus|stpaul|stjacob)_lit_glass$/.exec(m.name);
+        // issue #10: each church's lit glass to its hall (world/shellGlass.ts: the hall's stained glass is a copy); issue
+        // #28: "_x", the glass of its towers, attics and annexes (world/churchSpaces.ts)
+        const lit = /^church_(carolus|stpaul|stjacob)_lit_glass(_x)?$/.exec(m.name);
         if (lit) {
           // (glass, never drawn: the interior check looks through it)
           m.userData.glass = true;
-          publishShellGlass(lit[1], m);
+          publishShellGlass(lit[1] + (lit[2] ?? ""), m);
         }
       }
       // a pump in every court of the alleys (its model faces +z: a quarter turn by its place)
@@ -420,5 +421,31 @@ export function churchGlass(id: "carolus" | "stpaul" | "stjacob", scene: THREE.S
     scene.add(outer, lit, inner);
     set(...last);
   });
-  return { set };
+  // issue #28: the glass of the towers, attics and annexes (world/churchSpaces.ts): the same picture, plain panes a
+  // little clearer; no candles behind it at night (the landmark windows' own glow still says where a lamp would be)
+  const extras: Array<(day: number, sky: number, moon: number) => void> = [];
+  whenShellGlass(`${id}_x`, (src) => {
+    const outer = roomGlassFrom(src, { name: `${id}_x_street`, opacity: plain ? 0.4 : 0.6 });
+    const inner = roomGlassFrom(src, { name: `${id}_x_room`, opacity: plain ? 0.4 : 0.6 });
+    // (the same materials' kind as the hall's own glass: no new shader)
+    mat(outer)!.side = THREE.FrontSide;
+    mat(inner)!.side = THREE.BackSide;
+    const src0 = mat(inner)!.map;
+    if (src0 && !plain) mat(inner)!.map = daylightPicture(src0);
+    const setX = (day: number, sky: number, moon: number) => {
+      const g0 = 0.95 * day * sky;
+      mat(inner)!.color.setRGB(0.07 + g0 + 0.05 * moon, 0.08 + g0 + 0.08 * moon, 0.1 + g0 + 0.17 * moon);
+      const o = 0.06 + 0.9 * day * (0.6 + 0.4 * sky);
+      mat(outer)!.color.setRGB(o, o, o * 1.02);
+    };
+    extras.push(setX);
+    setX(...last);
+    scene.add(outer, inner);
+  });
+  return {
+    set(day, sky, moon) {
+      set(day, sky, moon);
+      for (const f of extras) f(day, sky, moon);
+    },
+  };
 }

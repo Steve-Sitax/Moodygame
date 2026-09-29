@@ -11,6 +11,7 @@ import { SHELL_OPENINGS, type ChurchOpening } from "../../../shared/churchesShel
 import { inFrame, type ShellFace } from "../../../shared/shellOpening";
 import { lining, windowOpenings, type Lining } from "./realOpenings";
 import { CHURCH_INSIDE_REACH, churchGlass, sunWindowsOf } from "./churches";
+import { buildChurchSpaces } from "./churchSpaces";
 import type { World } from "./rijnkaai";
 import type { InWorld } from "./inworld";
 
@@ -376,7 +377,7 @@ export function buildCarolusHall(): LandmarkRoom {
   LIN(C.wash, face([-SH.aisle, 0], [SH.aisle, 0], [0, -1]), { from: 0.4, to: IN.west, u0: 0.25, u1: 2 * SH.aisle - 0.25, y0: W(-0.04), y1: W(HT.spring + HT.vaultR + 0.4) });
   // ---- the aisles' outer walls, lined behind the shell's (its reveals 0.35 deep, the old wall's inner face kept): the
   // gallery windows over the aisles, the Lady Chapel's arch in the south one
-  const galleryWins = rows.filter((o) => o.kind === "window" && Math.abs(Math.abs(o.x) - SH.aisle) < 0.05);
+  const galleryWins = rows.filter((o) => o.kind === "window" && o.zone === "hall" && Math.abs(Math.abs(o.x) - SH.aisle) < 0.05);
   for (const sg of [-1, 1]) {
     const doors: Lining["doors"] = sg > 0 ? [{ u0: CHAPEL.door[0], u1: CHAPEL.door[1], top: W(CHAPEL.doorSpring + (CHAPEL.door[1] - CHAPEL.door[0]) / 2), round: true }] : [];
     LIN(C.wash, face([sg * SH.aisle, 0], [sg * SH.aisle, IN.east + 1], [sg, 0]), { from: 0.35, to: SH.aisle - IN.aisle, u0: IN.west - 0.3, u1: IN.east + 0.25, y0: W(-0.12), y1: W(HT.galleryCeil + 0.12), doors });
@@ -410,9 +411,44 @@ export function buildCarolusHall(): LandmarkRoom {
       box(x - 0.4, x + 0.4, -0.12, HT.cap, z - 0.2, z + 0.2, C.stone, 1.6);
       box(x - 0.4, x + 0.4, HT.galleryTop - 0.02, HT.upperCap, z - 0.2, z + 0.2, C.stone, 1.6);
     }
-    // the gallery's floor over the aisle, its stucco ceiling, the balustrade on the arcade
-    box(sg < 0 ? -IN.aisle : x + IN.arcadeHalf, sg < 0 ? x - IN.arcadeHalf : IN.aisle, HT.gallery, HT.galleryTop, IN.west, IN.east, C.plaster, 3.0);
-    box(sg < 0 ? -IN.aisle : x + IN.arcadeHalf, sg < 0 ? x - IN.arcadeHalf : IN.aisle, HT.galleryCeil, HT.galleryCeil + 0.12, IN.west, IN.east, C.plaster, 3.0);
+    // the gallery's floor over the aisle, its stucco ceiling, the balustrade on the arcade. Issue #28: from the second
+    // bay on: the first bay of each aisle stands open from its floor to a ceiling under the aisle's roof, so the round
+    // window over the side door (6.1..8.1, the gallery's floor crossed it) and the front's middle-storey window over it
+    // (13.0..17.0, over the gallery's ceiling) read whole; a balustrade closes the gallery's end over it
+    const gx0 = sg < 0 ? -IN.aisle : x + IN.arcadeHalf;
+    const gx1 = sg < 0 ? x - IN.arcadeHalf : IN.aisle;
+    box(gx0, gx1, HT.gallery, HT.galleryTop, BAYS[1], IN.east, C.plaster, 3.0);
+    box(gx0, gx1, HT.galleryCeil, HT.galleryCeil + 0.12, BAYS[1], IN.east, C.plaster, 3.0);
+    {
+      const zb = BAYS[1];
+      box(gx0, gx1, HT.gallery - 0.25, HT.galleryTop, zb - 0.1, zb, C.stone, 1.2);
+      box(gx0, gx1, HT.galleryTop, HT.galleryTop + 0.14, zb - 0.1, zb + 0.1, C.stone, 1.2);
+      box(gx0, gx1, HT.galleryTop + 0.86, HT.galleryTop + 1.0, zb - 0.11, zb + 0.11, C.stone, 1.2);
+      for (let xx = gx0 + 0.25; xx < gx1 - 0.15; xx += 0.32) k.cyl(0.05, 0.08, 0.72, xx, HT.galleryTop + 0.14, zb, C.marbleW, { seg: 5 });
+      // the first bay's ceiling under the aisle's lean-to roof (build_churches.py CF: AE 15.4 at the aisle's wall, AH 18.6
+      // at the nave's; its underside through them), 0.15 under it; the walls round it up to it
+      const roof = (ax: number) => 15.4 + ((18.6 - 15.4) * (12.8 - ax)) / (12.8 - 6.5) - FY - 0.15;
+      const xa = sg * 12.75;
+      const xb = sg * (IN.arcade + IN.arcadeHalf);
+      const ceil = new THREE.BufferGeometry();
+      const pts = [
+        [xa, roof(12.75), IN.west - 0.1],
+        [xb, roof(IN.arcade + IN.arcadeHalf), IN.west - 0.1],
+        [xb, roof(IN.arcade + IN.arcadeHalf), zb + 0.1],
+        [xa, roof(12.75), zb + 0.1],
+      ];
+      // (facing down into the bay)
+      const q = pts.map(([a, b, c]) => new THREE.Vector3(a, b, c));
+      const up = new THREE.Vector3().subVectors(q[1], q[0]).cross(new THREE.Vector3().subVectors(q[2], q[0])).y > 0;
+      ceil.setAttribute("position", new THREE.Float32BufferAttribute((up ? [0, 2, 1, 0, 3, 2] : [0, 1, 2, 0, 2, 3]).flatMap((i) => pts[i]), 3));
+      ceil.computeVertexNormals();
+      planarUV(ceil, 3.0);
+      k.add(ceil, C.plaster, 0, 0, 0, { flat: true, tint: 0.9 });
+      // the aisle wall's lining on up to it, the wall over the upper arcade to it, the gallery's end wall over its ceiling
+      box(Math.min(sg * 12.25, sg * 12.5), Math.max(sg * 12.25, sg * 12.5), HT.galleryCeil, roof(12.25) + 0.05, IN.west - 0.1, zb + 0.1, C.wash);
+      box(Math.min(sg * IN.arcade, xb), Math.max(sg * IN.arcade, xb), HT.spring, roof(IN.arcade) + 0.05, IN.west - 0.1, zb + 0.1, C.wash);
+      box(gx0, gx1, HT.galleryCeil, roof(IN.arcade) + 0.05, zb - 0.1, zb + 0.1, C.wash, 2.4, 0.95);
+    }
     for (let i = 0; i + 1 < BAYS.length; i++) {
       const z0 = BAYS[i] + (i === 0 ? 0.45 : 0.5);
       const z1 = BAYS[i + 1] - (i === BAYS.length - 2 ? 0.45 : 0.5);
@@ -586,12 +622,24 @@ export function buildCarolusHall(): LandmarkRoom {
     for (const z of [12.5, 23.3]) figure(k, C.statue, 13.2, 0, z, 2.1, Math.PI / 2);
   }
   k.finish();
+  // ---- issue #28: the church's parts behind its other real windows (the tower's rooms, belfry and lanterns, the stair
+  // towers, the Jesuit house, the sacristy, the Lady Chapel range's porch, sacristy and roof space:
+  // world/churchSpaces.ts), seen from the street only
+  buildChurchSpaces({
+    church: "carolus",
+    group,
+    origin: P.origin,
+    yaw: P.yaw,
+    floorY: FY,
+    rows,
+    mats: { wall: C.wash, stone: C.stone, timber: M.oak, oak: C.oak, floor: C.floor, vault: C.plaster, iron: C.iron, bronze: C.brass, dark: C.dark, marbleW: C.marbleW, marbleB: C.marbleB, gilt: C.gilt, statue: C.statue, linen: M.linen, red: C.red, blue: M.blue, pictures: [P_SIDE, P_LADY] },
+  });
 
   // ---- lights: daylight from the gallery windows, candles, the chandeliers
   // the sun through the gallery windows over the galleries' floors into the nave, the Lady Chapel's and the apse's
   // coloured glass; the columns' shadows; the moon by night (world/hallSun.ts)
   // (issue #10: the shell's real windows, at their glass; no shaft through a wall of the hall)
-  const sunWins = sunWindowsOf(rows, FY, { yaw: CP.PLAN.yaw, lines: wallLines });
+  const sunWins = sunWindowsOf(rows.filter((o) => o.zone === "hall"), FY, { yaw: CP.PLAN.yaw, lines: wallLines });
   const sunLight = buildHallSun(group, {
     floor: { minX: -IN.aisle, maxX: CHAPEL.x1, minZ: IN.west, maxZ: IN.east },
     floors: [
@@ -608,7 +656,7 @@ export function buildCarolusHall(): LandmarkRoom {
       { along: "z" as const, at: IN.aisle + 0.12, from: CHAPEL.door[0], to: CHAPEL.door[1], open: CHAPEL.doorSpring },
       { along: "z" as const, at: IN.aisle + 0.12, from: CHAPEL.door[1], to: CHAPEL.z1, open: -1 },
     ],
-    slabs: [-1, 1].map((sg) => ({ minX: sg < 0 ? -IN.aisle : IN.arcade + IN.arcadeHalf, maxX: sg < 0 ? -(IN.arcade + IN.arcadeHalf) : IN.aisle, minZ: IN.west, maxZ: IN.east, y: HT.galleryTop })),
+    slabs: [-1, 1].map((sg) => ({ minX: sg < 0 ? -IN.aisle : IN.arcade + IN.arcadeHalf, maxX: sg < 0 ? -(IN.arcade + IN.arcadeHalf) : IN.aisle, minZ: BAYS[1], maxZ: IN.east, y: HT.galleryTop })),
     power: 1.1,
   });
   const hemi = new THREE.HemisphereLight(0xd8d4cc, 0x4a4036, 1.1);
@@ -737,7 +785,9 @@ export function carolusInWorld(
   hooks: { roomSound(k: string | null): void; say(t: string): void; jef(): { x: number; z: number; place(x: number, z: number, yaw: number): void } },
 ): CarolusInWorld {
   // (issue #10: every real window of the shell an opening of the hall: the hall from the street, the street from inside)
-  const hall = createHallInWorld(world, inWorld, CP.PLAN, buildCarolusHall(), { color: 0x2a2620, near: 18, far: 90 }, CAROLUS_POINTS, [], 0.3, windowOpenings(carolusRows(), (x, z) => HP.toWorld(CP.PLAN, x, z)));
+  // (#28: the windows of its tower, stair towers and annexes too, seen from the street only: from inside they bring no street in)
+  const hallOnly = (o: { id: string; zone?: string }) => (o.zone === "hall" ? undefined : () => false);
+  const hall = createHallInWorld(world, inWorld, CP.PLAN, buildCarolusHall(), { color: 0x2a2620, near: 18, far: 90 }, CAROLUS_POINTS, [], 0.3, windowOpenings(carolusRows(), (x, z) => HP.toWorld(CP.PLAN, x, z), hallOnly));
   // (from inside, only the windows near the eye bring the street in: churches.ts CHURCH_INSIDE_REACH)
   const iw = inWorld.all.find((r) => r.id === "carolus");
   if (iw) iw.insideReach = CHURCH_INSIDE_REACH;

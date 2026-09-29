@@ -11,6 +11,7 @@ import { createHallInWorld, type HallInWorld } from "./hallInWorld";
 import { altar, C, chandelier, figure, PIC, planarUV } from "./carolusHall";
 import { lining, windowOpenings, type Lining } from "./realOpenings";
 import { CHURCH_INSIDE_REACH, churchGlass, sunWindowsOf } from "./churches";
+import { buildChurchSpaces } from "./churchSpaces";
 import { psx } from "../retro/psx";
 import type { World } from "./rijnkaai";
 import type { InWorld } from "./inworld";
@@ -562,7 +563,7 @@ export function buildGothicHall(h: GothicHall): LandmarkRoom {
       for (let zz = ch.z0 + 1.0; zz < ch.z1 - 0.5; zz += 1.6)
         box(Math.min(ch.x, sg * L.aisle), Math.max(ch.x, sg * L.aisle), ch.ceil - 0.22, ch.ceil, zz - 0.1, zz + 0.1, G.oakPlain, 1.2, 1.3);
       // a small altar in each chapel under its window (the shell's)
-      for (const w of rows.filter((o) => o.kind === "window" && Math.abs(o.x - sg * SH.chapel) < 0.05 && o.z > ch.z0 && o.z < ch.z1)) {
+      for (const w of rows.filter((o) => o.kind === "window" && o.zone === "hall" && Math.abs(o.x - sg * SH.chapel) < 0.05 && o.z > ch.z0 && o.z < ch.z1)) {
         box(ch.x - sg * 0.9, ch.x - sg * 0.1, 0, 1.0, w.z - 1.0, w.z + 1.0, G.marbleB, 1.2);
         box(ch.x - sg * 0.95, ch.x - sg * 0.05, 1.0, 1.08, w.z - 1.05, w.z + 1.05, G.marbleW, 1.2);
         for (const d of [-0.5, 0.5]) {
@@ -968,6 +969,17 @@ export function buildGothicHall(h: GothicHall): LandmarkRoom {
     }
   }
   k.finish();
+  // ================= issue #28: the church's parts behind its other real windows (the towers' rooms and belfries, the
+  // roof spaces, St Paul's convent, St James's baptistery and sacristy: world/churchSpaces.ts), seen from the street only
+  buildChurchSpaces({
+    church: h.id,
+    group,
+    origin: P.origin,
+    yaw: P.yaw,
+    floorY: FY,
+    rows,
+    mats: { wall: G.wash, stone: S, timber: M.oak, oak: G.oak, floor: G.floor, vault: G.vault, iron: G.iron, bronze: G.brass, dark: G.dark, marbleW: G.marbleW, marbleB: G.marbleB, gilt: G.gilt, statue: G.statue, linen: M.linen, red: M.red, blue: M.blue, pictures: [pics.chapel, pics.side] },
+  });
 
   // ================= light: daylight through the windows, the candles, the chandeliers
   // the sun through the south windows on the floor, the columns' and arcades' shadows across it, the shafts; the
@@ -982,7 +994,7 @@ export function buildGothicHall(h: GothicHall): LandmarkRoom {
     },
     floors,
     // (issue #10: the shell's real windows, at their glass)
-    windows: sunWindowsOf(rows, FY, { yaw: P.yaw, lines: wallLines }),
+    windows: sunWindowsOf(rows.filter((o) => o.zone === "hall"), FY, { yaw: P.yaw, lines: wallLines }),
     piers: [
       ...colsZ.flatMap((zz) => [-1, 1].map((sg) => ({ x: sg * L.nave, z: zz, r: 0.5, h: H.cap }))),
       ...L.tx.flatMap((zz) => [-1, 1].map((sg) => ({ x: sg * L.nave, z: zz, r: 0.62, h: H.naveSpring }))),
@@ -990,7 +1002,7 @@ export function buildGothicHall(h: GothicHall): LandmarkRoom {
     screens: [-1, 1].map((sg) => ({ along: "z" as const, at: sg * L.nave, from: z0n, to: L.tx[0], open: H.cap + H.arcRise * 0.5 })),
     // the arcades' walls over their arches, up to the clerestory's sills: lit across the nave
     walls: [-1, 1].map((sg) => {
-      const sill = Math.min(...rows.filter((o) => o.kind === "window" && Math.abs(Math.abs(o.x) - SH.nave) < 0.05).map((o) => o.yb - FY), H.naveSpring);
+      const sill = Math.min(...rows.filter((o) => o.kind === "window" && o.zone === "hall" && Math.abs(Math.abs(o.x) - SH.nave) < 0.05).map((o) => o.yb - FY), H.naveSpring);
       const x = sg * (SH.nave - SH.lining);
       return { a: [x, z0n + 0.3] as [number, number], b: [x, L.tx[0] - 0.7] as [number, number], y0: H.cap + H.arcRise + 0.15, y1: sill - 0.25, n: [-sg, 0] as [number, number] };
     }),
@@ -1105,9 +1117,12 @@ export function gothicInWorld(
   inWorld: InWorld,
   hooks: { roomSound(k: string | null): void; say(t: string): void; jef(): { x: number; z: number; place(x: number, z: number, yaw: number): void } },
 ): GothicInWorld {
-  // (issue #10: every real window of the shell an opening of the hall: the hall from the street, the street from inside)
+  // (issue #10: every real window of the shell an opening of the hall: the hall from the street, the street from inside;
+  // #28: the windows of its towers, attics and annexes too, seen from the street only: from inside the hall they bring
+  // no street in)
+  const hallOnly = (o: { id: string; zone?: string }) => (o.zone === "hall" ? undefined : () => false);
   const halls = GOTHIC.map((g) =>
-    createHallInWorld(world, inWorld, g.plan, buildGothicHall(g), { color: 0x2a2620, near: 22, far: 110 }, g.points, [], 0.3, windowOpenings(churchRows(g), (x, z) => HP.toWorld(g.plan, x, z))),
+    createHallInWorld(world, inWorld, g.plan, buildGothicHall(g), { color: 0x2a2620, near: 22, far: 110 }, g.points, [], 0.3, windowOpenings(churchRows(g), (x, z) => HP.toWorld(g.plan, x, z), hallOnly)),
   );
   // (from inside, only the windows near the eye bring the street in: churches.ts CHURCH_INSIDE_REACH)
   for (const g of GOTHIC) {

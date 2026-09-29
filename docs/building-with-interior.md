@@ -84,6 +84,14 @@ panes over them. Made real the same way, without rebuilding them from the skelet
 - **Reveals of different depth on one face**: `lining()` puts a sleeve from a shallower reveal's back to the lining.
 - **A vault or ceiling across a real window**: reshape it (the Vleeshuis's outer aisles have half vaults rising to the
   long walls), so the window shows whole from inside.
+- **Parts that are not the hall** (issue #28, the three churches): each real opening carries a `zone` (hall, tower,
+  attic, annex); the script writes the spaces behind the others too (`SHELL_SPACES` in `shared/churchesShell.ts`: outline,
+  floor, top, which edges it lines, what it holds) and the hall builds them in its own scene, a Kit per part
+  (`world/churchSpaces.ts`: linings, floors, belfries with bells and louvres, roof spaces with trusses, rooms with their
+  furniture). Their windows are openings of the hall seen from the street only (`windowOpenings(..., seen)` answers
+  false inside), their panes a glass mesh of their own (`_lit_glass_x`), no sun through them. A window whose outside is
+  another roof (a tower's face under a transept's roof) is left out; a dormer's window needs the roof behind it cut
+  (`gable_roof(cutouts=...)`).
 - **City houses** (taverns, shops, the Poesje, the homes): their holes are cut by `build_city.py` from
   `shared/inworld_build.json`, which is the house plan's (houses-inworld test); `houseInWorld.ts` writes their markers from
   the same numbers. A room that draws its own reveal to its single-faced wall meets the shell's reveal there.
