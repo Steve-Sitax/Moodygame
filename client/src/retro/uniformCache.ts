@@ -21,18 +21,24 @@ interface ArrayUniform {
 const patched = new WeakSet<object>();
 /**
  * Dev: `on` off, every array uniform goes the three.js way again; `globals` off, the shared psx uniforms are sent at
- * every material switch again (the pixel diff).
+ * every material switch again (the pixel diff); `ready` off, a program still being built is patched at once (the
+ * frames of issue #7, to compare).
  */
-export const uniformCache = { on: true, globals: true };
+export const uniformCache = { on: true, globals: true, ready: true };
 if (import.meta.env.DEV) Object.assign(window, { __uniformCache: uniformCache });
 
 /** Patch the array uniforms of every program not seen yet (cheap: call it once a frame). */
 export function cacheArrayUniforms(renderer: THREE.WebGLRenderer): void {
-  const progs = renderer.info.programs as unknown as Array<{ getUniforms(): { seq: object[] } }> | null;
+  const progs = renderer.info.programs as unknown as Array<{ getUniforms(): { seq: object[] }; isReady(): boolean }> | null;
   if (!progs) return;
-  if (!installed && progs.length) installGlobals(renderer, progs[0].getUniforms().constructor as unknown as UniformsClass);
+  if (!installed && progs.length && (!uniformCache.ready || progs[0].isReady())) installGlobals(renderer, progs[0].getUniforms().constructor as unknown as UniformsClass);
   for (const p of progs) {
     if (patched.has(p)) continue;
+    // (issue #7: a program the warm-up is still building waits here. Asking for its uniforms waits for the driver's
+    // link: 0.3 to 1.2 s frames after a jump, in every frame that came before the build was done. isReady() asks
+    // without waiting; the program is patched in the first frame after it is ready. A draw that uses it earlier
+    // sends its lists the three.js way: the same picture)
+    if (uniformCache.ready && !p.isReady()) continue;
     patched.add(p);
     for (const s of p.getUniforms().seq) {
       const u = s as ArrayUniform;

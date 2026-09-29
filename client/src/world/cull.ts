@@ -132,6 +132,12 @@ export class Culler {
   occlusion = true;
   /** Dev view: the hidden things drawn through the walls in colour after the frame. */
   view = false;
+  /**
+   * Things whose shaders are still being built (world/warmup.ts, issue #7): they stand on their own layer for the
+   * render, and a pass that puts its list's layers back leaves them there (one judged before its hold began).
+   */
+  holds: ReadonlyMap<THREE.Object3D, unknown> | null = null;
+  holdMask = 0;
   stats: CullStats = { things: 0, fog: 0, occluded: 0, water: 0, mirrors: {}, waterSeen: true, ms: 0, samples: 0, parts: [0, 0, 0, 0, 0], fresh: false };
   private hf: Heightfield | null = null;
   private readonly horizon = new Horizon(700, EYE_SLACK);
@@ -699,6 +705,7 @@ export class Culler {
         it.obj.layers.mask = !main ? L_OTHER : it.why === H_OCC ? L_OCC : it.why === H_FOG && (it.obj as THREE.Mesh).isMesh && !(it.obj as THREE.SkinnedMesh).isSkinnedMesh ? L_FOG : L_OTHER;
       } else it.obj.layers.mask = it.orig;
     }
+    if (this.holds?.size) for (const o of this.holds.keys()) o.layers.mask = this.holdMask;
   }
 
   private info(o: THREE.Object3D): Info {

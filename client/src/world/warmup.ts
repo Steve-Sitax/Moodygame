@@ -57,12 +57,32 @@ function singlePassDecals(o: Drawn): void {
   for (const m of materialsOf(o)) if (m.transparent && m.side === THREE.DoubleSide && !m.forceSinglePass && m.name.endsWith("decal")) m.forceSinglePass = true;
 }
 
+/**
+ * The layer no camera looks at (the culler's are bits 28 to 30, world/cull.ts): an object whose shader is still
+ * being built stands on it for the length of each render (issue #7).
+ */
+export const L_HOLD = 1 << 27;
+/** A hold never lasts longer than this (ms): a build that never reports ready is drawn anyway. */
+const HOLD_MAX_MS = 4000;
+
 export class ShaderWarmer {
   /** What each object was built as, and in which scene (a person who goes indoors is built again for the room's lights). */
   private readonly seen = new WeakMap<THREE.Object3D, { scene: THREE.Scene; material: THREE.Material | THREE.Material[]; sig: number }>();
   /** Warm-ups whose shaders are still being built. */
   pending = 0;
-  stats = { runs: 0, objects: 0, lastSyncMs: 0, lastReadyMs: 0 };
+  stats = { runs: 0, objects: 0, lastSyncMs: 0, lastReadyMs: 0, held: 0, heldMaxMs: 0 };
+  /**
+   * Hold what the warm-up found until its shaders are ready (issue #7, 2026-09-29). The warm-up starts a build with
+   * compileAsync, but the object stood in the scene all along: the next frame drew it, and three.js asked the driver
+   * for the half-built program, which waits for the link (ANGLE on D3D11: 0.3 to 8 s in a trace after a jump, the
+   * frame blocked in getProgramParameter). So the objects of a run wait out of every pass until their build is
+   * ready. Off during the loading (the loading screen waits for the builds itself).
+   */
+  holding = false;
+  /** The objects on hold now: when they were held, and by which run (a later run's hold is not let go by an earlier one). */
+  private readonly held = new Map<THREE.Object3D, { t: number; run: number }>();
+  /** The layers the held objects had before the render (put back after it). */
+  private readonly masks = new Map<THREE.Object3D, number>();
 
   constructor(
     private readonly renderer: THREE.WebGLRenderer,
@@ -96,10 +116,47 @@ export class ShaderWarmer {
     return list;
   }
 
+  /** The objects on hold now (the culler keeps them out of its passes too). */
+  get holds(): ReadonlyMap<THREE.Object3D, unknown> {
+    return this.held;
+  }
+
+  /** Before a render: every held object out of view (onto the layer no camera sees). */
+  hide(): void {
+    if (!this.held.size) return;
+    const now = performance.now();
+    for (const [o, h] of this.held) {
+      if (now - h.t > HOLD_MAX_MS) {
+        this.held.delete(o);
+        continue;
+      }
+      if (!this.masks.has(o)) this.masks.set(o, o.layers.mask);
+      o.layers.mask = L_HOLD;
+    }
+  }
+
+  /** After a render: the held objects' layers back as they were. */
+  show(): void {
+    if (!this.masks.size) return;
+    for (const [o, m] of this.masks) o.layers.mask = m;
+    this.masks.clear();
+  }
+
+  private release(list: THREE.Object3D[], run: number): void {
+    const now = performance.now();
+    for (const o of list) {
+      const h = this.held.get(o);
+      if (!h || h.run !== run) continue;
+      this.held.delete(o);
+      this.stats.heldMaxMs = Math.max(this.stats.heldMaxMs, Math.round(now - h.t));
+    }
+  }
+
   /** Build the shaders of every object not built yet, in the street and in every room; resolves when they are ready. */
   warm(): Promise<void> {
     const t0 = performance.now();
     const jobs: Array<Promise<unknown>> = [];
+    const fresh: THREE.Object3D[] = [];
     let objects = 0;
     const keep = this.renderer.getRenderTarget();
     this.renderer.setRenderTarget(this.target());
@@ -108,6 +165,7 @@ export class ShaderWarmer {
         const list = this.fresh(scene);
         if (!list.length) return;
         objects += list.length;
+        if (this.holding) fresh.push(...list);
         const before = new Map<THREE.Material, number>();
         for (const o of list) for (const m of materialsOf(o as Drawn)) before.set(m, versionOf(m));
         jobs.push(this.renderer.compileAsync(bag(list), this.camera, scene));
@@ -131,10 +189,20 @@ export class ShaderWarmer {
     this.stats.objects += objects;
     this.stats.lastSyncMs = +(performance.now() - t0).toFixed(1);
     this.pending++;
+    // (a build already made is ready at once: its promise settles before the next frame, so the hold costs no frame)
+    const run = this.stats.runs;
+    if (fresh.length) {
+      const now = performance.now();
+      for (const o of fresh) this.held.set(o, { t: now, run });
+      this.stats.held += fresh.length;
+    }
     return Promise.all(jobs)
       .then(() => {
         this.stats.lastReadyMs = +(performance.now() - t0).toFixed(0);
       })
-      .finally(() => this.pending--);
+      .finally(() => {
+        this.pending--;
+        this.release(fresh, run);
+      });
   }
 }

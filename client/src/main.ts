@@ -40,7 +40,7 @@ import { InWorld } from "./world/inworld";
 import { loadHousePlans } from "./world/houses";
 import { LanternLights } from "./world/lanternLights";
 import { createSpill, setSpillBudget, spillBudget } from "./world/spill";
-import { ShaderWarmer } from "./world/warmup";
+import { L_HOLD, ShaderWarmer } from "./world/warmup";
 import { FirstPerson } from "./player/firstPerson";
 // M7 character: the player's profile and the body dressed from it (player/profile.ts, player/body.ts)
 import { PlayerBody } from "./player/body";
@@ -1281,11 +1281,18 @@ requestAnimationFrame(frame);
 // a second for what comes later (the town, the market, the houses' rooms). Then, once the city's
 // shaders are ready, one draw of everything sends every house chunk and texture to the GPU.
 const warmer = new ShaderWarmer(renderer, world.scene, player.camera, () => retro.target, inWorld);
-const warm = () =>
-  warmer.warm().catch((e) => {
+// (issue #7: what a run finds after the loading waits out of the passes until its shaders are ready; the loading
+// screen waits for them itself)
+retro.hold = warmer;
+cull.holds = warmer.holds;
+cull.holdMask = L_HOLD;
+const warm = () => {
+  warmer.holding = !booting();
+  return warmer.warm().catch((e) => {
     if (!frameErrors.has(`warm-up: ${e}`)) console.warn("[warm-up]", e);
     frameErrors.add(`warm-up: ${e}`);
   });
+};
 void warm();
 setInterval(() => void warm(), 500);
 world.city.ready.then(async () => {
@@ -1838,7 +1845,7 @@ if (import.meta.env.DEV) {
       const problems: string[] = [];
       if (Object.keys(sets).length > 2) problems.push(`${Object.keys(sets).length} light settings (the street and the rooms should be 2): a room over ROOM_POINT_LIGHTS, or street lights that come and go`);
       if (screen.length) problems.push(`${screen.length} scene shaders drawn to the screen, not into the retro target: ${screen.slice(0, 8).join(", ")}`);
-      return { programs: renderer.info.programs?.length ?? 0, lightSettings: sets, warmer: { ...warmer.stats, pending: warmer.pending }, problems };
+      return { programs: renderer.info.programs?.length ?? 0, lightSettings: sets, warmer: { ...warmer.stats, pending: warmer.pending, onHold: warmer.holds.size }, problems };
     },
     /** Time n frames with the GPU finished each frame; draw calls and triangles of one frame. */
     perf(n = 30) {

@@ -11,6 +11,12 @@ through ANGLE on Direct3D 11, and there one shader build takes 0.1 to 0.4 s. The
   the houses' rooms, a person gone indoors, a material that gets its texture late). It uses
   `compileAsync`: the driver builds the shaders side by side in the background. On the first screen
   the picture holds until they are ready. In the game the frames always draw.
+- **Held until built** (issue #7, 2026-09-29). `compileAsync` only starts a build; the first frame that touches a
+  program still linking waits for the driver (0.3 to 2.5 s after a jump, in `getProgramInfoLog` behind
+  `getUniforms`). So an object the warm-up finds after the loading stays on a layer no camera sees (`L_HOLD`) for
+  every pass of each render until its build is ready (`ShaderWarmer.hide/show`, called by `retro/retroPass.ts`; the
+  culler keeps it there too), and the uniform cache (`retro/uniformCache.ts`) patches a program only once
+  `isReady()`. A build that was ready already costs no frame. `shaders().warmer`: `held`, `heldMaxMs`, `onHold`.
 - **Into the retro target.** The game draws into a render target (linear colour). A shader built for
   the screen (sRGB) is a second, useless copy. The warm-up sets `retro.target` before it compiles.
 - **Rooms share one light setting.** Every room in the world (`world/inworld.ts`) is drawn with
