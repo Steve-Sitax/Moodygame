@@ -27,13 +27,14 @@ describe("T3: the food posts' ledger", () => {
   it("the town buys through the open hours down to the floor, never below; nothing on a Sunday", () => {
     const l: Ledger = { at: at(2, 0), stock: Object.fromEntries(POSTS.map((p) => [p.id, p.start])), sold: {} };
     stepLedger(l, at(2, 23));
-    for (const p of POSTS) {
+    // (the shelves the town buys from; the yards make, the ovens burn at the bake)
+    for (const p of POSTS.filter((q) => q.perHour > 0)) {
       expect(l.stock[p.id]).toBeGreaterThanOrEqual(p.floor - 1e-9);
       expect(l.stock[p.id]).toBeLessThan(p.start + (p.good === "meat" ? killPortions(2) : 0));
     }
     const sun: Ledger = { at: at(7, 0), stock: Object.fromEntries(POSTS.map((p) => [p.id, p.start])), sold: {} };
     stepLedger(sun, at(7, 23));
-    for (const p of POSTS) expect(sun.stock[p.id]).toBe(p.start);
+    for (const p of POSTS.filter((q) => !q.sunday)) expect(sun.stock[p.id]).toBe(p.start);
   });
 
   it("the butcher's kill at 7 fills the meat shelf on a weekday", () => {

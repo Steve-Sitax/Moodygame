@@ -1,3 +1,4 @@
+import { buildTradeYards } from "../world/tradeYards";
 import { runAt, type TradeRun } from "../../../shared/trade";
 import * as THREE from "three";
 import { api, type JobsPayload, type Pt, type TownData, type TownPlace, type TownResident } from "../net/api";
@@ -134,6 +135,8 @@ export interface Sim {
   breakTil?: number;
   /** T3 trade: the dispatcher's run he is on (its id). */
   tradeRun?: string;
+  /** T5: the run whose load he has taken up at the source's door (no keg or basket before he has been there). */
+  tradeGot?: string;
   /** The last walk has ended and the pause there has begun. */
   arrived: boolean;
   tries: number;
@@ -319,6 +322,7 @@ export class Town {
 
   /** T3 trade: the dispatcher's runs out now (GET /api/trade), asked every few seconds; a man on one walks it. */
   private tradeRuns: TradeRun[] = [];
+  private yards: THREE.Group | null = null;
   private tradeAsk = 0;
   private tradeBusy = false;
   private askTrade(dt: number): void {
@@ -332,19 +336,39 @@ export class Town {
       .finally(() => (this.tradeBusy = false));
   }
 
+  /** T3 trade: what a man on a run has on him: on the way out and at the unloading a load, going back nothing. */
+  private tradeLoad(p: Puppet, tr: { run: TradeRun; phase: string } | null): void {
+    const loaded = !!tr && (tr.phase === "go" || tr.phase === "unload");
+    if (tr?.run.good === "beer") {
+      this.crowd.puppetCarry(p, null);
+      this.crowd.puppetLoad(p, loaded, "keg");
+    } else {
+      if (p.loadKind === "keg") this.crowd.puppetLoad(p, false, "keg");
+      this.crowd.puppetCarry(p, loaded ? "basket" : null);
+    }
+  }
+
   /** T3 trade: the run this townsperson is on now, its part and where he stands for it (the doors' steps). */
-  private tradeRunOf(s: Sim, day: number, hour: number): { run: TradeRun; phase: "load" | "go" | "unload" | "back"; x: number; z: number; yaw: number } | null {
+  private tradeRunOf(s: Sim, day: number, hour: number, first = false): { run: TradeRun; phase: "load" | "go" | "unload" | "back"; x: number; z: number; yaw: number } | null {
     const run = this.tradeRuns.find((r) => r.man === s.r.id);
     if (!run || run.way.length < 2) return null;
     const at = runAt(run, (day - 1) * 1440 + hour * 60);
     if (at.phase === "over") return null;
     const [ax, az] = run.way[0];
     const [bx, bz] = run.way[run.way.length - 1];
-    const atB = at.phase === "go" || at.phase === "unload";
+    // T5 (the night's walkthrough, 2026-09-29): a man sent while across town took the keg up out of thin air and
+    // went straight to the tavern. He takes the load up at the source's door: till he has been there he goes there
+    // first (late, then; the server's shelves keep their own time). At the start everyone is where the clock says.
+    let phase = at.phase;
+    if (s.tradeGot !== run.id && phase !== "back") {
+      if (first || Math.hypot(s.x - ax, s.z - az) < 2.5) s.tradeGot = run.id;
+      else phase = "load";
+    }
+    const atB = phase === "go" || phase === "unload";
     const [x, z] = atB ? [bx, bz] : [ax, az];
     // (facing the door he loads or unloads at: back along the way's first or last step)
     const [px, pz] = atB ? run.way[run.way.length - 2] : run.way[1];
-    return { run, phase: at.phase, x, z, yaw: Math.atan2(x - px, z - pz) };
+    return { run, phase, x, z, yaw: Math.atan2(x - px, z - pz) };
   }
   private player = { x: 0, z: 0, yaw: 0 };
   /** The trade plan: the ways on foot by key (null: the server found none), and the keys to ask for. */
@@ -374,6 +398,8 @@ export class Town {
       }
     }
     this.data = d;
+    // T5 beer and coal: the taverns' cellar hatches, the coal yard, the brewery's kegs (world/tradeYards.ts)
+    if (!this.yards) this.yards = buildTradeYards({ scene: this.world.scene, groundAt: (x, z, r, f) => this.world.groundAt(x, z, r, f), addCollider: (r) => this.world.addCollider(r), free: (x, z) => !this.world.onRails(x, z, 1.2) && this.world.standFree(x, z, 0.25, 0), wall: (x, z) => this.world.groundAt(x, z, 0.2, 0) > -0.5 && !this.world.standFree(x, z, 0.1, 0) }, d);
     this.crowd.anonymous = false;
     void this.loadWays();
     for (const r of d.residents) {
@@ -723,7 +749,7 @@ export class Town {
     if (err || s.errand) return this.errandStep(s, err, day, hour);
     let now = this.planNow(s, day, hour);
     // T3 trade: a run the dispatcher sent him on (from his post's door to the other's and back)
-    const tr = storm ? null : this.tradeRunOf(s, day, hour);
+    const tr = storm ? null : this.tradeRunOf(s, day, hour, first);
     // D1 docks: a docker on a break: at the tavern nearest his route till it is over (then the day goes on)
     const brk = storm || tr ? null : this.dockBreak(s, now);
     if (brk) now = { ...now, act: "tavern", place: brk };
@@ -757,7 +783,7 @@ export class Town {
       s.plain = false;
       s.tradeRun = tr.run.id;
     } else s.tradeRun = undefined;
-    if (s.p && (tr || prevKey.includes("|trade:"))) this.crowd.puppetCarry(s.p, tr && (tr.phase === "go" || tr.phase === "unload") ? "basket" : null);
+    if (s.p && (tr || prevKey.includes("|trade:"))) this.tradeLoad(s.p, tr);
     s.step = 0;
     s.tries = 0;
     s.wait = 0;
@@ -1302,17 +1328,17 @@ export class Town {
   private direct(s: Sim): void {
     const p = s.p!;
     const g = s.goal;
-    // T3 trade: drawn on the way out of a run, the baskets are on his arm
-    if (s.tradeRun) {
-      const c = this.clock();
-      const tr = this.tradeRunOf(s, c.day, c.hour);
-      if (tr) this.crowd.puppetCarry(p, tr.phase === "go" || tr.phase === "unload" ? "basket" : null);
-    }
     if (s.trip && this.journeys) {
       this.journeys.direct(s);
       return;
     }
     this.crowd.puppetLoad(p, false);
+    // T3 trade: drawn on the way out of a run, the load is on him (T5: a keg of beer in his arms, else baskets)
+    if (s.tradeRun) {
+      const c = this.clock();
+      const tr = this.tradeRunOf(s, c.day, c.hour);
+      if (tr) this.tradeLoad(p, tr);
+    }
     const pace = this.paceOf(s);
     switch (g.mode) {
       case "haul": {

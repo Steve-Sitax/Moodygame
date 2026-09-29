@@ -1,3 +1,4 @@
+import { setKegModel } from "../game/kegModel";
 import { modelCollider, modelShape } from "./modelCollision";
 import { TOWN } from "./townBox";
 import * as THREE from "three";
@@ -260,6 +261,31 @@ async function loadModels(): Promise<{ protos: Map<string, Proto>; solidMap: THR
     t.needsUpdate = true;
   }
   return { protos, solidMap, decalMap };
+}
+
+/** A model's solid parts as one geometry (its own frame: foot at y = 0). */
+function protoGeometry(proto: Proto): THREE.BufferGeometry {
+  const parts = proto.parts.filter((p) => p.slot === SOLID);
+  const n = parts.reduce((a, p) => a + p.pos.length / 3, 0);
+  const pos = new Float32Array(n * 3);
+  const nor = new Float32Array(n * 3);
+  const uv = new Float32Array(n * 2);
+  const col = new Float32Array(n * 3);
+  let o = 0;
+  for (const p of parts) {
+    pos.set(p.pos, o * 3);
+    nor.set(p.nor, o * 3);
+    uv.set(p.uv, o * 2);
+    col.set(p.col, o * 3);
+    o += p.pos.length / 3;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  g.setAttribute("normal", new THREE.BufferAttribute(nor, 3));
+  g.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+  g.setAttribute("color", new THREE.BufferAttribute(col, 3));
+  g.computeBoundingSphere();
+  return g;
 }
 
 /** The house walls and corners carried in streetlife.glb (its JSON chunk only). */
@@ -1805,6 +1831,9 @@ export async function createClutter(scene: THREE.Scene, flags: Flags, opts: Clut
   );
   solidMat.name = "clutter_solid";
   decalMat.name = "clutter_decal";
+  // T5 beer: the keg model for the brewery's kegs and the one its man carries (game/kegModel.ts: one model per thing)
+  const kegProto = protos.get("keg");
+  if (kegProto) setKegModel(protoGeometry(kegProto), solidMat);
   const buckets = new Map<string, { slot: number; n: number; items: Array<{ part: Part; m: THREE.Matrix4; shade: number }> }>();
   // (2026-09-28, CLAUDE.md one model per thing: the sacks against the walls are the one sack model, game/sackModel.ts)
   const withSacks = sackPuts(puts, CLUTTER_SACKS as Record<string, SackRow[]>, (n) => protos.has(n), "quay", "clutter", CHUNK);

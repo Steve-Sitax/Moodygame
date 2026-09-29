@@ -1,8 +1,9 @@
 import type { DB } from "../db.ts";
+import SPOT_TABLE from "../../../shared/spots.json" with { type: "json" };
 import { clock } from "../day.ts";
 import { resident, town } from "../town/store.ts";
 import { MILLS, type StockEvent } from "../../../shared/mills.ts";
-import { DISPATCH_EVERY_MIN, FISH_PER_BOX, KILL_AT, LAST_LINE, LOAVES_PER_SACK, POSTS, POST_BY_ID, RUN_MAX, WARE_GOOD, demandFactor, killPortions, postOpen, runAt, stockPrice, type Post, type TradeRun } from "../../../shared/trade.ts";
+import { BAKE_COAL, BAKE_COAL_SUNDAY, coalOf, DISPATCH_EVERY_MIN, FISH_PER_BOX, KILL_AT, LAST_LINE, LOAVES_PER_SACK, POSTS, POST_BY_ID, RUN_MAX, WARE_GOOD, demandFactor, killPortions, postOpen, runAt, stockPrice, type Post, type TradeRun } from "../../../shared/trade.ts";
 import { wayBetween } from "../town/ways.ts";
 import { wayLength } from "../town/wayfind.ts";
 import { activityAt } from "../town/schedule.ts";
@@ -73,8 +74,10 @@ export function stepLedger(l: Ledger, to: number): void {
       let s = l.stock[p.id] ?? p.start;
       // the butcher's morning kill in his yard (weekdays)
       if (p.good === "meat" && ha < KILL_AT && hb >= KILL_AT && day % 7 !== 0) s = Math.min(p.room, s + killPortions(day));
+      // T5: a yard makes its goods on a weekday morning (the brewery's kegs, the coal barge's baskets)
+      if (p.makes && ha < p.makes.at && hb >= p.makes.at && day % 7 !== 0) s = Math.min(p.room, s + p.makes.n);
       // the town's buying, down to the floor
-      if (postOpen(p, day, ha) && s > p.floor) {
+      if (p.perHour > 0 && postOpen(p, day, ha) && s > p.floor) {
         const want = (p.perHour * demandFactor(p.good, ha) * STEP) / 60;
         const took = Math.min(want, s - p.floor);
         s -= took;
@@ -104,9 +107,22 @@ export function tradeLedger(db: DB): Ledger {
 
 // ------------------------------------------------------------------ the dispatcher (T3 part 2)
 
-/** Where a post's goods go in and out: the step before its shop door. */
-function postDoor(db: DB, id: string): [number, number] | null {
-  const s = town(db).town.shops.find((q) => q.id === id);
+/** Where a post's goods go in and out: the step before its shop door, the tavern's cellar hatch, a yard's spot. */
+export function postDoor(db: DB, id: string): [number, number] | null {
+  const p = POST_BY_ID[id];
+  const d = p?.door ?? {};
+  if (d.spot) {
+    const s = (SPOT_TABLE as unknown as Record<string, { x: number; z: number; dir?: [number, number] }>)[d.spot];
+    return s ? [s.x + (s.dir?.[0] ?? 0) * 1.2, s.z + (s.dir?.[1] ?? 0) * 1.2] : null;
+  }
+  if (d.tavern) {
+    const t = town(db).town.places[`tavern:${d.tavern}`] as { x: number; z: number; out?: [number, number] } | undefined;
+    if (!t) return null;
+    const [ox, oz] = t.out ?? [0, -1];
+    // (the cellar hatch: in the pavement before the door, a step to its right)
+    return [t.x + ox * 1.6 - oz * 1.1, t.z + oz * 1.6 + ox * 1.1];
+  }
+  const s = town(db).town.shops.find((q) => q.id === (d.shop ?? id));
   if (!s) return null;
   return [s.door[0] + s.out[0] * 1.4, s.door[1] + s.out[1] * 1.4];
 }
@@ -125,9 +141,17 @@ export function settleRuns(l: Ledger, now: number): void {
   l.runs = l.runs.filter((r) => runAt(r, now).phase !== "over");
 }
 
-/** The source post's man for a run: one of its people at work now, not its master (he bakes), not out already. */
+/**
+ * The source post's man for a run: one of its people at work now, not its master (he bakes), not out already. T5: the
+ * brewery's kegs go with the canal's working men (the brewer's draymen and the quay's), the coal with the coalman.
+ */
 function carrierFor(db: DB, from: string, day: number, hour: number, busy: Set<string>): string | null {
-  const people = town(db).town.residents.filter((r) => r.work.shop === from && !busy.has(r.id) && r.age >= 12 && activityAt(r.sched, day, hour).act === "work");
+  const free = (r: { id: string; age: number; sched: Parameters<typeof activityAt>[0] }) => !busy.has(r.id) && r.age >= 16 && r.age <= 60 && activityAt(r.sched, day, hour).act === "work";
+  const all = town(db).town.residents;
+  if (from === "brewery") return all.find((r) => free(r) && r.work.place === "canal" && r.sex === "m")?.id ?? null;
+  if (from === "coalyard") return (all.find((r) => free(r) && r.trade === "coalman") ?? all.find((r) => free(r) && r.work.place === "canal" && r.sex === "m"))?.id ?? null;
+  const shop = POST_BY_ID[from]?.door?.shop ?? from;
+  const people = all.filter((r) => r.work.shop === shop && !busy.has(r.id) && r.age >= 12 && activityAt(r.sched, day, hour).act === "work");
   const pick = people.find((r) => r.trade !== "baker") ?? people[0];
   return pick?.id ?? null;
 }
@@ -149,10 +173,12 @@ export function dispatch(db: DB, l: Ledger, now: number): TradeRun[] {
     const coming = l.runs.filter((r) => r.to === p.id && !r.done).reduce((a, r) => a + r.n, 0);
     const have = l.stock[p.id] ?? p.start;
     if (have + coming >= p.order || coming > 0) continue;
-    const src = POSTS.filter((q) => q.id !== p.id && q.good === p.good && (l.stock[q.id] ?? q.start) > q.order + 10).sort((a, b) => (l.stock[b.id] ?? 0) - (l.stock[a.id] ?? 0))[0];
+    // (a yard sends from what it has; another shelf only from well over its own order level)
+    const spare = (q: Post) => (l.stock[q.id] ?? q.start) - (q.makes ? 0 : q.order + 5);
+    const src = POSTS.filter((q) => q.id !== p.id && q.good === p.good && (!!q.makes || q.perHour > 0) && spare(q) > (q.makes ? 0 : 5)).sort((a, b) => Number(!!b.makes) - Number(!!a.makes) || spare(b) - spare(a))[0];
     if (!src) continue;
-    const n = Math.floor(Math.min(RUN_MAX[p.good], (l.stock[src.id] ?? 0) - src.order - 5, p.room - have));
-    if (n < 6) continue;
+    const n = Math.floor(Math.min(RUN_MAX[p.good], spare(src), p.room - have));
+    if (n < Math.min(6, RUN_MAX[p.good])) continue;
     const man = carrierFor(db, src.id, day, hour, busy);
     const a = postDoor(db, src.id);
     const b = postDoor(db, p.id);
@@ -184,7 +210,21 @@ export function onMillEvents(db: DB, events: readonly StockEvent[]): void {
   for (const e of events) {
     if ((e.what !== "bake" && e.what !== "short") || e.n <= 0) continue;
     const m = MILLS.find((q) => q.id === e.mill);
-    if (m && POST_BY_ID[m.bakery]) supply(db, m.bakery, e.n * LOAVES_PER_SACK);
+    if (!m || !POST_BY_ID[m.bakery]) continue;
+    // T5: the oven burns its coal; with too little the bake is short (the rest of the dough is not baked)
+    const coal = coalOf(m.bakery);
+    let share = 1;
+    if (coal) {
+      const day = Math.floor(e.at / 1440) + 1;
+      const need = day % 7 === 0 ? BAKE_COAL_SUNDAY : BAKE_COAL;
+      const l = tradeLedger(db);
+      const have = l.stock[coal.id] ?? coal.start;
+      const used = Math.min(need, have);
+      l.stock[coal.id] = have - used;
+      write(db, l);
+      share = need > 0 ? used / need : 1;
+    }
+    supply(db, m.bakery, Math.round(e.n * LOAVES_PER_SACK * share));
   }
 }
 

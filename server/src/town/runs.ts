@@ -14,7 +14,7 @@ import { CART_SACKS, GRAIN_SACKS, MILLS, runNow, type MillDef } from "../../../s
 import { pointAlong, wayLength, type Pt } from "./wayfind.ts";
 import { runAt, wayPoint, type TradeRun } from "../../../shared/trade.ts";
 
-export type Chain = "flour" | "grain" | "casks" | "sacks" | "bread" | "meat" | "fish";
+export type Chain = "flour" | "grain" | "casks" | "sacks" | "bread" | "meat" | "fish" | "beer" | "coal";
 
 export interface RunNow {
   /** "mill_mid:flour", "cart:casks". */
@@ -59,7 +59,7 @@ export interface RunsOpts {
   trade?: TradeRun[];
 }
 
-const GOODS_WORDS: Record<string, [string, string]> = { bread: ["loaf", "loaves"], meat: ["portion of meat", "portions of meat"], fish: ["fish", "fish"] };
+const GOODS_WORDS: Record<string, [string, string]> = { bread: ["loaf", "loaves"], meat: ["portion of meat", "portions of meat"], fish: ["fish", "fish"], beer: ["pint of beer", "pints of beer"], coal: ["basket of coal", "baskets of coal"] };
 
 /** T3: a dispatcher's run on foot now (its man with baskets), or null when it is over. */
 function tradeRunNow(r: TradeRun, day: number, hour: number, o: RunsOpts): RunNow | null {

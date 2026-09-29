@@ -6,7 +6,7 @@
 // players move the stock, but food never runs out for a player: the last units are a floor kept for players, and at
 // the floor the shop still sells, dear. Townspeople stop buying at the floor.
 
-export type TradeGood = "bread" | "meat" | "fish";
+export type TradeGood = "bread" | "meat" | "fish" | "beer" | "coal";
 
 export interface Post {
   id: string;
@@ -26,6 +26,15 @@ export interface Post {
   perHour: number;
   /** At the start of a week. */
   start: number;
+  /** T5: a yard that makes the good each weekday morning (the brewery, the coal barge's yard): at this hour, this many. */
+  makes?: { at: number; n: number };
+  /**
+   * Where its goods go in and out: a shop's door (its id in town.shops, the default: the post's id), a tavern's
+   * (town.places "tavern:<id>": the cellar hatch before it), or a job spot (shared/spots.json).
+   */
+  door?: { shop?: string; tavern?: string; spot?: string };
+  /** T5: the unit the ledger counts and the unit a run carries (a keg is 60 pints; a basket of coal is one). */
+  per?: number;
 }
 
 export const POSTS: Post[] = [
@@ -33,12 +42,28 @@ export const POSTS: Post[] = [
   { id: "bakery_steen", label: "the bakery on the Steenplein", good: "bread", room: 90, order: 20, floor: 4, open: [5.5, 18.5], sunday: false, perHour: 4.5, start: 66 },
   { id: "butcher_vlees", label: "the butcher by the Vleeshuis", good: "meat", room: 40, order: 10, floor: 3, open: [6.5, 18.5], sunday: false, perHour: 2.5, start: 20 },
   { id: "vismarkt", label: "the fish stalls of the Vismarkt", good: "fish", room: 80, order: 15, floor: 4, open: [6, 17], sunday: false, perHour: 5, start: 14 },
+  // T5 beer (chain 5): the taverns pour pints (a keg is 60); open from 9:30 to 2 at night (the hours wrap past 24)
+  ...(
+    [
+      ["ankere", "In de Ankere"],
+      ["schipke", "Het Schipke"],
+      ["vliet", "De Vliet"],
+      ["engel", "Den Engel"],
+      ["bassin", "Het Bassin"],
+    ] as const
+  ).map(([id, label]): Post => ({ id: `tavern:${id}`, label, good: "beer", room: 240, order: 90, floor: 12, open: [9.5, 26], sunday: true, perHour: 6, start: 180, door: { tavern: id }, per: 60 })),
+  { id: "brewery", label: "the brewery on the Canal des Brasseurs", good: "beer", room: 1200, order: 0, floor: 0, open: [6, 18], sunday: false, perHour: 0, start: 600, makes: { at: 6, n: 840 }, door: { spot: "brewery_yard" }, per: 60 },
+  // T5 coal (chain 6): the bakeries' ovens burn two baskets a bake; the coal barge's yard on the canal's west quay
+  { id: "bakery_rijn:coal", label: "the oven of the bakery by the Rijnkaai", good: "coal", room: 12, order: 5, floor: 0, open: [6, 18], sunday: false, perHour: 0, start: 8, door: { shop: "bakery_rijn" } },
+  { id: "bakery_steen:coal", label: "the oven of the bakery on the Steenplein", good: "coal", room: 12, order: 5, floor: 0, open: [6, 18], sunday: false, perHour: 0, start: 8, door: { shop: "bakery_steen" } },
+  { id: "coalyard", label: "the coal yard on the canal's west quay", good: "coal", room: 40, order: 0, floor: 0, open: [6, 18], sunday: false, perHour: 0, start: 14, makes: { at: 7, n: 12 }, door: { spot: "canal_west" } },
 ];
 
 export const POST_BY_ID: Record<string, Post> = Object.fromEntries(POSTS.map((p) => [p.id, p]));
 
 /** Which wares come off which good's shelf. */
 export const WARE_GOOD: Record<string, TradeGood> = {
+  beer: "beer",
   bread: "bread",
   roll: "bread",
   peperkoek: "bread",
@@ -65,6 +90,8 @@ export function killPortions(day: number): number {
 
 /** The busier hours of the town's buying (bread early, fish at the morning market, meat before dinner). */
 export function demandFactor(good: TradeGood, hour: number): number {
+  // the taverns: the evening and the night, a pint at dinner
+  if (good === "beer") return hour >= 18 || hour < 2 ? 2 : hour >= 12 && hour < 14 ? 1.2 : 0.6;
   if (good === "bread") return hour < 9 ? 2 : hour < 12 ? 1 : 0.6;
   if (good === "fish") return hour < 10 ? 1.8 : hour < 13 ? 1 : 0.5;
   return hour >= 10 && hour < 13 ? 1.6 : 0.8;
@@ -73,6 +100,8 @@ export function demandFactor(good: TradeGood, hour: number): number {
 /** Is the post open to the town at this hour of this day (day 7, 14 ... Sundays)? */
 export function postOpen(p: Post, day: number, hour: number): boolean {
   if (day % 7 === 0 && !p.sunday) return false;
+  // (hours past 24: open after midnight till then)
+  if (p.open[1] > 24) return hour >= p.open[0] || hour < p.open[1] - 24;
   return hour >= p.open[0] && hour < p.open[1];
 }
 
@@ -98,6 +127,8 @@ export function stockPrice(list: number, p: Post, stock: number, hour: number): 
 
 /** What a seller says when the shelf is at the floor (the player still gets his food, dear). */
 export const LAST_LINE: Record<TradeGood, string> = {
+  beer: "\"The last of the keg. The brewer's man is late; that one costs you.\"",
+  coal: "",
   bread: "\"The last loaves. The flour did not come; it costs you.\"",
   meat: "\"The last of this morning's. Dearer now.\"",
   fish: "\"That is the last of the boxes. You pay for it.\"",
@@ -171,5 +202,12 @@ export function wayPoint(way: ReadonlyArray<readonly [number, number]>, f: numbe
 
 /** When a post sends for more from another of the same good: short (under its order level, nothing on the way), in its open hours. */
 export const DISPATCH_EVERY_MIN = 15;
-/** The most a run carries (two big baskets of bread: 24 loaves). */
-export const RUN_MAX: Record<TradeGood, number> = { bread: 24, meat: 10, fish: 12 };
+/** The most a run carries (two big baskets of bread: 24 loaves; one keg of beer in a man's arms: 60 pints). */
+export const RUN_MAX: Record<TradeGood, number> = { bread: 24, meat: 10, fish: 12, beer: 60, coal: 6 };
+
+/** T5: baskets of coal the bake burns (the oven heated once a night), and on Sunday. */
+export const BAKE_COAL = 2;
+export const BAKE_COAL_SUNDAY = 1;
+
+/** T5: the coal post of a bakery (its oven), or null. */
+export const coalOf = (bakery: string): Post | null => POST_BY_ID[`${bakery}:coal`] ?? null;

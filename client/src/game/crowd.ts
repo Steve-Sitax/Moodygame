@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { fishBoxMesh } from "./fishBox";
+import { KEG, kegMesh } from "./kegModel";
 import { labelGeo, relabel, sackLabelFor, sackMaterial, sackMesh, sackOf, standingSackGeometry, type SackLabel } from "./sackModel";
 import { psx } from "../retro/psx";
 import { addLantern, lanternDarkAt, removeLantern, type LanternSource } from "../world/lanternLights";
@@ -177,7 +178,7 @@ interface Person {
   /** What the sack he carries says (the pile or the mill it came from). */
   sackLabel?: SackLabel;
   /** What the load in his hands is (puppetLoad). */
-  loadKind?: "sack" | "crate" | "fishbox";
+  loadKind?: "sack" | "crate" | "fishbox" | "keg";
   cluster: Cluster | null;
   partner: Person | null;
   /** No new chat before this runs out. */
@@ -1020,7 +1021,7 @@ export class Crowd {
 
   /** A sack on the shoulder while walking (dockers between the quay and the door). */
   /** A load in the hands: a sack on the shoulder, or (the dockers of shared/hauls.ts at a pile of crates) a crate held before him. */
-  puppetLoad(p: Puppet, on: boolean, kind: "sack" | "crate" | "fishbox" = "sack", label?: SackLabel): void {
+  puppetLoad(p: Puppet, on: boolean, kind: "sack" | "crate" | "fishbox" | "keg" = "sack", label?: SackLabel): void {
     p.handCarry = true;
     if (on && p.sack && p.sack.userData.kind !== kind) this.setLoad(p, false);
     p.loadKind = kind;
@@ -2227,6 +2228,16 @@ export class Crowd {
     if (on && !p.sack) {
       const k = p.human.scale;
       let s: THREE.Mesh;
+      if (p.loadKind === "keg") {
+        // T5 beer: a keg of 60 pints on its side in both arms before him (the one keg model, game/kegModel.ts)
+        const b = kegMesh();
+        b.rotation.z = Math.PI / 2;
+        b.position.set(KEG.h / 2, 0.92 * k, 0.4 * k);
+        b.userData.kind = "keg";
+        p.group.add(b);
+        p.sack = b as unknown as THREE.Mesh;
+        return;
+      }
       if (p.loadKind === "fishbox") {
         // T3 trade: a box of fish from the Vliet, held low before him in both arms (game/fishBox.ts)
         const b = fishBoxMesh(this.crateMat);
