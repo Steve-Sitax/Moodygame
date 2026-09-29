@@ -41,6 +41,8 @@ const EVENTS = [
   { id: "night_watch", day: 1, hour: 22 },
   { id: "burglary", day: 1, hour: 23 },
   { id: "smuggling", day: 1, hour: 23 },
+  // the great storm (docs/milestones/M7-tempest.md): last, as it turns the weather; its frames carry the sky and the shut shops
+  { id: "tempest", day: 1, hour: 12, weather: "clear" },
 ];
 const routes = JSON.parse(fs.readFileSync(path.join(root, "client", "src", "demo", "routes.json"), "utf8"));
 
@@ -154,10 +156,15 @@ try {
       if (!at && events[0]) at = { x: events[0].x ?? events[0].stages?.[0]?.x, z: events[0].z ?? events[0].stages?.[0]?.z };
       const frame = { events, actions, convos };
       if (ev.id === "wedding" || ev.id === "funeral") frame.landmark = await get("landmark/cathedral");
+      if (ev.id === "tempest") {
+        frame.weather = (await get("jobs"))?.clock?.weather;
+        frame.closed = a?.closed ?? [];
+      }
       frames.push(frame);
     }
     // the event has ended: nothing of it may linger into the next recording
     const file = { template: ev.id, title: plan.title, where: plan.where, start: { day: ev.day, hour: ev.hour, minute: 0 }, weather: ev.weather ?? "mist", at, frames };
+    if (ev.id === "tempest") file.after = (await get("jobs"))?.clock?.weather; // the sky it leaves behind (rain)
     const body = JSON.stringify(file);
     fs.writeFileSync(path.join(out, "demo", "events", `${ev.id}.json`), body);
     recorded.push(`${ev.id} ${frames.length}`);

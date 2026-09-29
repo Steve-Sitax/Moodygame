@@ -609,7 +609,7 @@ settings = mountSettings(startEl.querySelector(".paper") as HTMLElement, (s) => 
  * was recorded when the demo was built, at its own hour; Jef is put on free ground near it, facing it.
  */
 function demoEvents(): Array<{ label: string; run: () => Promise<string> }> {
-  const all = ["musicians", "fish_auction", "quarrel", "scuffle", "house_fire", "hiring", "wedding", "funeral", "emigrant_ship", "street_robbery", "tavern_brawl", "night_watch", "burglary", "smuggling"];
+  const all = ["musicians", "fish_auction", "quarrel", "scuffle", "house_fire", "hiring", "wedding", "funeral", "emigrant_ship", "street_robbery", "tavern_brawl", "night_watch", "burglary", "smuggling", "tempest"];
   return all.map((t) => ({
     label: `Event: ${t.replace(/_/g, " ")}`,
     run: () =>
@@ -629,6 +629,7 @@ function demoEvents(): Array<{ label: string; run: () => Promise<string> }> {
                 player.place(px, pz, Math.atan2(x - px, z - pz) - Math.PI, 0);
                 return `${String(r.title)} at ${String(r.where)}: it starts now, right in front of you. Close this and watch.`;
               }
+          if (t === "tempest") return `${String(r.title)}: it comes now, over the whole town. Close this and stay outside.`;
           return `${String(r.title)} at ${String(r.where)}: it starts now.`;
         })
         .catch((e) => String(e)),

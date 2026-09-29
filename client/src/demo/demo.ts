@@ -75,7 +75,17 @@ interface Recording {
   start: { day: number; hour: number; minute: number };
   weather: JobsPayload["clock"]["weather"];
   at: { x: number; z: number } | null;
-  frames: Array<{ events: unknown[]; actions: unknown[]; convos: Array<{ id: number; at: number }>; landmark?: unknown }>;
+  frames: Array<{
+    events: unknown[];
+    actions: unknown[];
+    convos: Array<{ id: number; at: number }>;
+    landmark?: unknown;
+    /** The great storm: the sky and the shut shops at this tick (it turns the weather itself). */
+    weather?: JobsPayload["clock"]["weather"];
+    closed?: string[];
+  }>;
+  /** The great storm: the sky it leaves behind. */
+  after?: JobsPayload["clock"]["weather"];
 }
 let replay: { rec: Recording; i: number } | null = null;
 /** A talk line shows once per id and only while fresh: stamped with the time it is first played back. */
@@ -89,7 +99,7 @@ async function actionsNow(): Promise<unknown> {
     if (!convoAt.has(c.id)) convoAt.set(c.id, now);
     return { ...c, at: convoAt.get(c.id)! };
   });
-  return { actions: f.actions, convos, events: f.events, closed: base.closed ?? [] };
+  return { actions: f.actions, convos, events: f.events, closed: f.closed ?? base.closed ?? [] };
 }
 async function startRecording(template: string): Promise<Response> {
   let rec: Recording;
@@ -106,7 +116,7 @@ async function startRecording(template: string): Promise<Response> {
   clock.day = rec.start.day;
   clock.hour = rec.start.hour;
   clock.minute = rec.start.minute;
-  clock.weather = rec.weather;
+  clock.weather = rec.frames[0]?.weather ?? rec.weather;
   held = true;
   demoPush.onJobs?.(await jobsPayload());
   const id = (rec.frames[0]?.events[0] as { id?: number } | undefined)?.id ?? 0;
@@ -159,7 +169,11 @@ async function answer(method: string, route: string, body: string | null): Promi
   if (method === "POST" && (route === "actions/sync" || /^actions\/\d+\/report$/.test(route))) return json({});
   if (route === "tick" && method === "POST") {
     stepClock();
-    if (replay && ++replay.i >= replay.rec.frames.length) replay = null; // the event is over
+    if (replay && ++replay.i >= replay.rec.frames.length) {
+      // the event is over
+      if (replay.rec.after) clock.weather = replay.rec.after;
+      replay = null;
+    } else if (replay) clock.weather = replay.rec.frames[replay.i].weather ?? clock.weather;
     return json({ ...(await jobsPayload()), advanced: true });
   }
   if (route === "town/ways" && method === "POST") return json({ ways: {} });

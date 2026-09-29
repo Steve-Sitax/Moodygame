@@ -95,4 +95,4 @@ calls: about 0.5 ms. `shaders()` problems empty.
   shelters, who is still out near Jef and running, the storm noises heard; `t.tempest({ hold: 1 })` holds the
   look. The Dev menu has "Event: tempest".
 
-Not in the web demo: the demo has no server and no director events, so the storm cannot start there. The rain fix (streaks as long as a frame's fall, bright heads) is in every rain, the demo's too.
+In the web demo too (Steve 2026-09-29): F8, "Event: tempest". The demo build records it like the other events, with the weather and the shut shops of each tick (`tools/demo/build.mjs`, `demo/demo.ts`), and puts Jef on the Grote Markt. The taverns filling up is not in the demo (no rooms from the server there).
