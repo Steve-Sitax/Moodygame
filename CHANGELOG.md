@@ -22,6 +22,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - The lower parts of the cathedral's aisle windows, behind the houses built against it, are walled up instead of painted ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
 
 ### Fixed
+- House doors, their transom trim and window bars show their plank grain in daylight instead of looking nearly black ([#30](https://github.com/Steve-Sitax/Moodygame/issues/30)).
 - Taverns, shops and homes: the rooms behind their windows and open doors are no longer partly hidden by the pavement or the dark inside of the house front ([#29](https://github.com/Steve-Sitax/Moodygame/issues/29)).
 
 ## [0.2.0] - 2026-09-29

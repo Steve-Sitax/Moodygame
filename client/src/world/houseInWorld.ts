@@ -164,8 +164,10 @@ function holedFace(list: THREE.BufferGeometry[], u0: number, u1: number, y0: num
 
 /** The door's leaf with its panels, knob and straps, hinged at the group's origin, reaching toward `dir` (+1/-1 along x). */
 function makeLeaf(w: number, h: number, dir: number): THREE.Group {
-  const oak = lambert("house_leaf", { map: tex().planks, color: 0x5a4030 }, 0);
-  const panelM = lambert("house_leaf_panel", { map: tex().planks, color: 0x463222 }, 0);
+  // The plank map is already dark brown (roughly 55-80 per channel). A dark tint
+  // multiplies it down to near black even under the midday sun.
+  const oak = lambert("house_leaf", { map: tex().planks, color: 0xdec3a5 }, 0);
+  const panelM = lambert("house_leaf_panel", { map: tex().planks, color: 0xbea17f }, 0);
   const iron = lambert("house_leaf_iron", { color: 0x2a2622 }, 0);
   const g = new THREE.Group();
   const leaf = new THREE.Mesh(boxGeo(w - 0.02, h, 0.06, 1.2), oak);
@@ -245,7 +247,7 @@ export function createHouseInWorld(world: World, inWorld: InWorld, plan: HousePl
   });
   // the transom over the leaf: glass behind a glazing bar (warm from inside at night)
   const transomMat = new THREE.MeshBasicMaterial({ color: 0x1c2228 });
-  const oak = lambert("house_leaf", { map: tex().planks, color: 0x5a4030 }, 0);
+  const oak = lambert("house_leaf", { map: tex().planks, color: 0xdec3a5 }, 0);
   for (const parent0 of [street, inHouse]) {
     const parent = new THREE.Group();
     parent0.add(parent);
@@ -480,7 +482,7 @@ export function createHouseInWorld(world: World, inWorld: InWorld, plan: HousePl
   if (glassGeos.length) {
     const glass = new THREE.Mesh(mergeGeometries(glassGeos, false)!, pane);
     glass.renderOrder = 5;
-    const bars = new THREE.Mesh(mergeGeometries(barGeos, false)!, lambert("house_bars", { map: tex().planks, color: 0x3a2c20 }, 0));
+    const bars = new THREE.Mesh(mergeGeometries(barGeos, false)!, lambert("house_bars", { map: tex().planks, color: 0x9a8064 }, 0));
     inHouse.add(glass, bars);
   }
   // the punches: first of all in the room's pass (renderOrder: every mark, then every punch), the door's only while it
