@@ -5,6 +5,10 @@ import CITY from "../../../shared/city.json";
 import { bumpFromMap, psx } from "../retro/psx";
 import type { Rect } from "./geom";
 import { withPicture } from "./quayStone";
+import { shellMarkers } from "./realOpenings";
+import { publishShellGlass, roomGlassFrom, whenShellGlass } from "./shellGlass";
+import type { SunWindow } from "./hallSun";
+import type { ChurchOpening } from "../../../shared/churchesShell";
 
 const CAROLUS_PICTURES: Record<string, string> = {
   carolus_sand: "/textures/carolus_sandstone.jpg",
@@ -135,6 +139,15 @@ export function loadChurches(scene: THREE.Scene): ChurchesModel {
       withPicture(map, picture);
     }
     let m: THREE.Material;
+    // issue #10: the real windows' old panes (the atlas's cells), never drawn: their glass is the hall's (a copy by
+    // world/shellGlass.ts), and world/landmarkWindows.ts lights a copy of them at night
+    if (src.name === "church_atlas_lit") {
+      m = new THREE.MeshLambertMaterial({ map: map ?? null, vertexColors: true });
+      m.visible = false;
+      m.name = src.name;
+      mats.set(src.name, m);
+      return m;
+    }
     if (src.name.endsWith("_glow")) m = psx(new THREE.MeshBasicMaterial({ map: map ?? null, color: map ? 0xffffff : 0xffd890 }), { affine: 0 });
     // gilding (the Carolus's cross, pots, rays, pineapples): a little light of its own, so it reads as gold in the grey
     else if (src.name === "church_gilt")
@@ -167,6 +180,8 @@ export function loadChurches(scene: THREE.Scene): ChurchesModel {
     .then((gltf) => {
       let pumpSrc: THREE.Object3D | null = null;
       const meshes: THREE.Mesh[] = [];
+      // issue #10: the real openings' markers, for the interior check (dev/interiorcheck.ts)
+      for (const e of shellMarkers(gltf.scene)) group.add(e);
       gltf.scene.traverse((o) => {
         const m = o as THREE.Mesh;
         if (!m.isMesh) return;
@@ -191,6 +206,13 @@ export function loadChurches(scene: THREE.Scene): ChurchesModel {
         m.geometry.computeBoundingSphere();
         group.add(m);
         parts.push(m);
+        // issue #10: each church's lit glass to its hall (world/shellGlass.ts: the hall's stained glass is a copy)
+        const lit = /^church_(carolus|stpaul|stjacob)_lit_glass$/.exec(m.name);
+        if (lit) {
+          // (glass, never drawn: the interior check looks through it)
+          m.userData.glass = true;
+          publishShellGlass(lit[1], m);
+        }
       }
       // a pump in every court of the alleys (its model faces +z: a quarter turn by its place)
       if (pumpSrc) {
@@ -229,4 +251,174 @@ export function loadChurches(scene: THREE.Scene): ChurchesModel {
       for (const o of scene.children) if (o.name === "city") for (const c of o.children) if (/^(landmark|standin)_(carolus|stpaul|stjacob)/.test(c.name)) c.visible = false;
     },
   };
+}
+
+// ---- issue #10 (interiors are real): a church hall's stained glass is the shell's old panes (the atlas's cells, a mesh
+// "church_<id>_lit_glass" published above), moved into the hall's scene. Copies of the same triangles: the street's
+// side (front faces: by day the painted glass as the town always saw it; after dark the glass lit from within, in the
+// candles' amber) and the hall's side (back faces: the same cells as daylight through them, the stone and the lead dark
+// against it). See-through (0.8; the Carolus's plain panes 0.4) so the hall shows from the street and the street from
+// inside; one material each of the kind the prison's chapel draws with (MeshBasic, a map): no new shader kind.
+
+const daylightPics = new Map<THREE.Texture, THREE.Texture>();
+
+/** The atlas as seen from inside by day: the glass lit (its own colours), the painted stone and lead dark. */
+function daylightPicture(src: THREE.Texture): THREE.Texture {
+  const have = daylightPics.get(src);
+  if (have) return have;
+  const img = src.image as (CanvasImageSource & { width: number; height: number }) | undefined;
+  if (!img || !img.width) return src;
+  const c = document.createElement("canvas");
+  c.width = img.width;
+  c.height = img.height;
+  const g = c.getContext("2d", { willReadFrequently: true })!;
+  g.drawImage(img, 0, 0);
+  const d = g.getImageData(0, 0, c.width, c.height);
+  const px = d.data;
+  for (let p = 0; p < px.length; p += 4) {
+    const r = px[p] / 255;
+    const gg = px[p + 1] / 255;
+    const b = px[p + 2] / 255;
+    const mx = Math.max(r, gg, b);
+    const mn = Math.min(r, gg, b);
+    const lum = 0.3 * r + 0.55 * gg + 0.15 * b;
+    const sat = mx > 0 ? (mx - mn) / mx : 0;
+    // the glass (dark or stained in the painting: the town's side of it) lit by the day behind it; the lead lines
+    // in it stay darker; the painted tracery and frame are stone, against the light
+    const glassy = lum < 0.3 || (sat > 0.45 && lum < 0.5);
+    const k = glassy ? 3.4 : 0.32;
+    const lift = glassy && lum > 0.06 ? 0.14 : 0;
+    px[p] = Math.min(255, (r * k + lift) * 255);
+    px[p + 1] = Math.min(255, (gg * k + lift) * 255);
+    px[p + 2] = Math.min(255, (b * k + lift * 0.9) * 255);
+  }
+  g.putImageData(d, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.flipY = src.flipY;
+  t.colorSpace = src.colorSpace;
+  t.wrapS = src.wrapS;
+  t.wrapT = src.wrapT;
+  t.magFilter = THREE.NearestFilter;
+  t.minFilter = THREE.NearestMipmapLinearFilter;
+  t.name = "church_glass_daylight";
+  daylightPics.set(src, t);
+  return t;
+}
+
+/**
+ * The sun's and the moon's way in (world/hallSun.ts): a church's real windows (in its hall's frame) at their glass.
+ * `walls`: the hall's walls behind the shell (its linings' inner faces, hall frame) and the plan's yaw: a window whose
+ * shaft (from its glass down along the light to the floor) would pass through one of them draws none (it would stand
+ * out of the church over a roof); its light on the floor stays.
+ */
+export function sunWindowsOf(rows: readonly ChurchOpening[], floorY: number, walls?: { yaw: number; lines: Array<[[number, number], [number, number]]> }): SunWindow[] {
+  // (hallSun.ts SUN_TOWARD: the light travels the other way; turned into the hall's frame as shellOpening.ts inFrame)
+  const sun = new THREE.Vector3(-0.806, Math.tan(Math.PI / 6), 0.591).normalize();
+  const c = Math.cos(walls?.yaw ?? 0);
+  const s = Math.sin(walls?.yaw ?? 0);
+  const dx = -sun.x * c + sun.z * s;
+  const dz = -sun.x * s - sun.z * c;
+  const cross = (a: [number, number], b: [number, number], p: [number, number], q: [number, number]) => {
+    const d1 = (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]);
+    const d2 = (b[0] - a[0]) * (q[1] - a[1]) - (b[1] - a[1]) * (q[0] - a[0]);
+    const d3 = (q[0] - p[0]) * (a[1] - p[1]) - (q[1] - p[1]) * (a[0] - p[0]);
+    const d4 = (q[0] - p[0]) * (b[1] - p[1]) - (q[1] - p[1]) * (b[0] - p[0]);
+    return d1 * d2 < 0 && d3 * d4 < 0;
+  };
+  return rows
+    .filter((o) => o.kind === "window")
+    .map((o) => {
+      const x = o.x - o.nx * o.depth;
+      const z = o.z - o.nz * o.depth;
+      const spring = (o.poly?.[2]?.[1] ?? o.yt) - floorY;
+      const y = (o.yb - floorY + Math.min(o.yt - floorY, spring)) / 2;
+      const run = y / sun.y;
+      const end: [number, number] = [x + dx * run, z + dz * run];
+      // (its own face's lining it starts in: the lines through the window's own face are not in its way)
+      const own = (a: [number, number], b: [number, number]) => {
+        const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+        return Math.abs(((x - a[0]) * (b[1] - a[1]) - (z - a[1]) * (b[0] - a[0])) / L) < 0.8 && (x - a[0]) * (b[0] - a[0]) + (z - a[1]) * (b[1] - a[1]) > -L;
+      };
+      const shaft = !walls || !walls.lines.some(([a, b]) => !own(a, b) && cross(a, b, [x, z], end));
+      return {
+        x,
+        z,
+        nx: -o.nx,
+        nz: -o.nz,
+        hw: o.hw,
+        y0: o.yb - floorY,
+        y1: o.yt - floorY,
+        // (the outline's third point: the right side's top, where the head springs)
+        spring,
+        lights: o.lights,
+        colour: o.colour,
+        shaft,
+      };
+    });
+}
+
+/**
+ * From inside a church, only its windows within this many metres bring the street in (world/inworld.ts insideReach):
+ * the high and far ones show the hall's air behind their stained glass, which lets little through. The whole town drawn
+ * through all of a church's windows cost about 6 ms a frame (issue #10, frameProf inside each church).
+ */
+export const CHURCH_INSIDE_REACH = 12;
+
+export interface ChurchGlass {
+  /** The hall's daylight (0..1), the sky (0.5..1) and the moon's share by night: the glass's brightness each side. */
+  set(day: number, sky: number, moon: number): void;
+}
+
+/** A church hall's stained glass, from its shell's lit glass when that has loaded (added to the hall's scene). */
+export function churchGlass(id: "carolus" | "stpaul" | "stjacob", scene: THREE.Scene): ChurchGlass {
+  const m: { inner: THREE.Mesh | null; outer: THREE.Mesh | null; lit: THREE.Mesh | null } = { inner: null, outer: null, lit: null };
+  let last: [number, number, number] = [1, 1, 0];
+  // (the Gothic churches' windows are stained glass; the Carolus's, as its shell paints them, plain leaded panes: see
+  // through them more, and from inside as they are painted, grey glass and its leads, not lit up)
+  const plain = id === "carolus";
+  const opacity = plain ? 0.4 : 0.8;
+  const mat = (q: THREE.Mesh | null) => (q ? (q.material as THREE.MeshBasicMaterial) : null);
+  const set = (day: number, sky: number, moon: number) => {
+    last = [day, sky, moon];
+    const g0 = 0.95 * day * sky;
+    // (inside: the old halls' glass, lit by the day, the moon's blue by night)
+    mat(m.inner)?.color.setRGB(0.07 + g0 + 0.05 * moon, 0.08 + g0 + 0.08 * moon, 0.1 + g0 + 0.17 * moon);
+    // the street's side: by day the painted glass under the street's light; after dark the same glass lit from within
+    // by the hall's candles, fading in over the dusk (the landmark windows' glow, world/landmarkWindows.ts, lies on the
+    // street's side of the window, and the hall is drawn over it: the hall's own glass carries that light here)
+    const night = 1 - THREE.MathUtils.smoothstep(day, 0.08, 0.4);
+    const o = 0.06 + 0.9 * day * (0.6 + 0.4 * sky);
+    const om = mat(m.outer);
+    if (om && m.outer) {
+      om.color.setRGB(o, o, o * 1.02);
+      om.opacity = opacity * (1 - night);
+      m.outer.visible = night < 0.99;
+    }
+    const lm = mat(m.lit);
+    if (lm && m.lit) {
+      lm.color.setRGB(1.0, 0.42, 0.1).multiplyScalar(plain ? 0.95 : 1.15);
+      lm.opacity = 0.8 * night;
+      m.lit.visible = night > 0.01;
+    }
+  };
+  whenShellGlass(id, (src) => {
+    const outer = roomGlassFrom(src, { name: `${id}_street`, opacity });
+    const lit = roomGlassFrom(src, { name: `${id}_street_lit`, opacity: 0 });
+    const inner = roomGlassFrom(src, { name: `${id}_hall`, opacity });
+    mat(outer)!.side = THREE.FrontSide;
+    mat(lit)!.side = THREE.FrontSide;
+    mat(inner)!.side = THREE.BackSide;
+    const src0 = mat(inner)!.map;
+    const lightPic = src0 ? daylightPicture(src0) : null;
+    if (lightPic && !plain) mat(inner)!.map = lightPic;
+    if (lightPic) mat(lit)!.map = lightPic;
+    // (the lit glass over the day's)
+    lit.renderOrder = outer.renderOrder + 1;
+    m.outer = outer;
+    m.lit = lit;
+    m.inner = inner;
+    scene.add(outer, lit, inner);
+    set(...last);
+  });
+  return { set };
 }

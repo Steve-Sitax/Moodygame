@@ -73,15 +73,23 @@ SHOTS = os.path.join(ROOT, "data", "shots")
 MATS = ["church_stone", "church_greystone", "church_brick", "church_slate", "church_lead", "church_atlas",
         "park_stone", "park_water", "park_iron", "park_wood", "park_lamp_glow",
         "carolus_sand", "carolus_blue", "carolus_art", "church_gilt", "carolus_pale", "pj_brick", "pj_white", "pj_brabant",
-        "park_bank", "park_rock", "park_iron_white"]
+        "park_bank", "park_rock", "park_iron_white", "church_atlas_lit"]
 (STONE, GREY, BRICK, SLATE, LEAD, ATLAS, PSTONE, WATER, IRON, WOOD, GLOW, SAND, BLUE, ART, GILT, PALE, PBRICK, PWHITE,
- PBRAB, BANK, ROCK, WIRON) = range(len(MATS))
+ PBRAB, BANK, ROCK, WIRON, ALIT) = range(len(MATS))
+# Issue #10 (interiors are real, docs/building-with-interior.md): the windows over the three churches' halls are cut
+# through. Their stone mullions and a few iron saddle bars stay in the shell (glazing()); their painted panes (the
+# atlas cells, as before) go to a mesh of their own per church, "church_<id>_lit_glass" with the material
+# church_atlas_lit (the same picture), that the street never draws: the hall behind takes a copy as its own stained
+# glass (world/shellGlass.ts), world/landmarkWindows.ts lights a copy of it at night. Each real opening (and each
+# church's open door) is written twice: an empty "opening_<id>" in the glb and a row of shared/churchesShell.ts.
+SHELL_TS = os.path.join(ROOT, "shared", "churchesShell.ts")
 # metres per texture repeat (u, v); carolus_sand and carolus_blue take pictures in the game (world/churches.ts:
 # client/public/textures/carolus_sandstone.jpg, carolus_bluestone.jpg), one repeat each
 TILE = {STONE: (2.4, 2.4), GREY: (2.4, 2.4), BRICK: (2.4, 1.8), SLATE: (1.6, 1.6), LEAD: (0.8, 0.8), ATLAS: (1.0, 1.0),
         PSTONE: (1.2, 1.2), WATER: (2.0, 2.0), IRON: (1.0, 1.0), WOOD: (1.2, 1.2), GLOW: (1.0, 1.0),
         SAND: (3.6, 3.6), BLUE: (3.0, 3.0), ART: (1.0, 1.0), GILT: (0.6, 0.6), PALE: (1.2, 1.2),
-        PBRICK: (2.0, 2.0), PWHITE: (3.2, 3.2), PBRAB: (3.4, 3.4), BANK: (1.6, 1.6), ROCK: (1.4, 1.4), WIRON: (1.0, 1.0)}
+        PBRICK: (2.0, 2.0), PWHITE: (3.2, 3.2), PBRAB: (3.4, 3.4), BANK: (1.6, 1.6), ROCK: (1.4, 1.4), WIRON: (1.0, 1.0),
+        ALIT: (1.0, 1.0)}
 ART_DIR = os.path.join(ROOT, "tools", "blender", "art")
 
 SEG = 4.0  # longest face edge on walls and roofs (the game's textures swim on big faces)
@@ -968,13 +976,18 @@ def make_materials():
         "park_iron_white": lambda: paint_iron_white(np.random.default_rng(1870)),
     }
     for name in MATS:
-        arr = np.clip(paint[name](), 0, 1)
-        h, w, _ = arr.shape
-        img = bpy.data.images.new(name + "_tex", w, h, alpha=False)
-        rgba = np.ones((h, w, 4), dtype=np.float32)
-        rgba[..., :3] = arr
-        img.pixels.foreach_set(rgba.ravel())
-        img.pack()
+        if name == "church_atlas_lit":
+            # (issue #10: the real windows' old panes keep the atlas's own picture; nothing new is painted, so the
+            # random pictures of the others stay as they were)
+            img = bpy.data.images["church_atlas_tex"]
+        else:
+            arr = np.clip(paint[name](), 0, 1)
+            h, w, _ = arr.shape
+            img = bpy.data.images.new(name + "_tex", w, h, alpha=False)
+            rgba = np.ones((h, w, 4), dtype=np.float32)
+            rgba[..., :3] = arr
+            img.pixels.foreach_set(rgba.ravel())
+            img.pack()
         m = bpy.data.materials.new(name)
         nt = m.node_tree
         bsdf = nt.nodes.get("Principled BSDF")
@@ -1077,6 +1090,96 @@ class Hole:
     def __init__(self, u0, u1, yb, yt, shape="rect", cell=None, depth=0.3, rmat=STONE, k=1.0, sill=True):
         self.u0, self.u1, self.yb, self.yt = u0, u1, yb, yt
         self.shape, self.cell, self.depth, self.rmat, self.k, self.sill = shape, cell, depth, rmat, k, sill
+        # issue #10: a real opening (a hall behind it): its human label, window or door, its lights, stained colour
+        self.real, self.kind, self.lights, self.colour = None, "window", 1, False
+
+
+def real(h, label, kind="window", lights=1, colour=False):
+    """Mark a hole as a real opening of the hall behind it (issue #10)."""
+    h.real, h.kind, h.lights, h.colour = label, kind, lights, colour
+    return h
+
+
+# ---- real openings (issue #10)
+OPENINGS = []
+CHURCH_OF = {"church_carolus": "carolus", "church_stpaul": "stpaul", "church_stjacob": "stjacob"}
+ID_OF = {"carolus": "cb", "stpaul": "sp", "stjacob": "sj"}
+
+
+def real_opening(W, h, outline):
+    """Record a real opening of a wall W (outline (u, y) where the reveal ends, from the bottom left)."""
+    um = (h.u0 + h.u1) / 2
+    x, _, z = W.pt(um, 0.0)
+    OPENINGS.append(dict(church=CHURCH_OF[W.g.grp], part=W.g.grp, kind=h.kind, label=h.real, glaze="lead" if h.kind == "window" else "", shape="rect",
+                         x=x, z=z, tx=W.t.x, tz=W.t.y, nx=W.n.x, nz=W.n.y, hw=(h.u1 - h.u0) / 2, yb=h.yb, yt=max(y for _, y in outline),
+                         arch=False, depth=h.depth, poly=[(u - um, y) for u, y in outline], lights=h.lights, colour=h.colour))
+
+
+def glazing(W, h, ys):
+    """A real window's iron in the shell (issue #10): saddle bars across it every 0.62 m under its head (the stone
+    mullions are gwin's), and a slim iron mullion up the middle of a window that has none of stone; a little in front
+    of the glass (the hall's, at the reveal's back)."""
+    g = W.g
+    d = h.depth - 0.04
+    w = h.u1 - h.u0
+    top = ys if ys is not None else h.yt
+    n = max(1, int((top - h.yb - 0.25) / 0.62))
+    for i in range(1, n + 1):
+        y = h.yb + (top - h.yb) * i / (n + 1)
+        # (not at the interior check's sight lines through it, dev/interiorcheck.ts: 0.18 and 0.54 of its height)
+        for f in (0.18, 0.54):
+            if abs(y - (h.yb + f * (h.yt - h.yb))) < 0.06:
+                y += 0.12
+        # (none along gwin's stone transom)
+        if h.lights >= 2 and ys is not None and ys - h.yb > 3.2 and abs(y - (h.yb + (ys - h.yb) * 0.48)) < 0.16:
+            continue
+        bar(g, W.pt(h.u0 + 0.004, y, d), W.pt(h.u1 - 0.004, y, d), 0.03, IRON, skip_ends=True, shade=0.55)
+    if h.lights <= 1 and w > 0.7:
+        um = (h.u0 + h.u1) / 2
+        bar(g, W.pt(um, h.yb + 0.004, d - 0.02), W.pt(um, h.yt - 0.02, d - 0.02), 0.045, IRON, skip_ends=True, shade=0.55)
+
+
+def opening_markers():
+    """Every real opening as an empty in the glb (dev/interiorcheck.ts reads them) and shared/churchesShell.ts."""
+    count = {}
+    for o in OPENINGS:
+        c = o["church"]
+        o["id"] = f"{ID_OF[c]}_{count.get(c, 0):03d}"
+        count[c] = count.get(c, 0) + 1
+        ob = bpy.data.objects.new("opening_" + o["id"], None)
+        ob.empty_display_size = max(0.2, o["hw"])
+        ob.location = B((o["x"], (o["yb"] + o["yt"]) / 2, o["z"]))
+        for k in ("kind", "label", "glaze", "shape", "church", "part"):
+            ob[k] = str(o[k])
+        for k in ("hw", "yb", "yt", "nx", "nz", "tx", "tz", "depth"):
+            ob[k] = float(o[k])
+        ob["arch"] = 0
+        bpy.context.scene.collection.objects.link(ob)
+    f3 = lambda v: f"{v:.3f}".rstrip("0").rstrip(".")  # noqa: E731
+    lines = [
+        "// GENERATED by tools/blender/build_churches.py (issue #10, interiors are real): do not edit. Every real opening of the",
+        "// three churches' shells (client/public/models/churches.glb, whose empties opening_<id> are the same), in the WORLD's",
+        "// frame (the halls move them into theirs: shellOpening.ts inFrame). x, z: its middle on the wall's outer face; (tx, tz)",
+        "// along it, (nx, nz) out of it; poly its outline where the reveal ends (u along from the middle, world y); depth the",
+        "// reveal's depth into the wall. church: whose; lights: its lights (mullions + 1); colour: stained glass in colours.",
+        "",
+        'import type { ShellOpening } from "./shellOpening.js";',
+        "",
+        'export type ChurchOpening = ShellOpening & { church: "carolus" | "stpaul" | "stjacob"; lights: number; colour: boolean };',
+        "",
+        "export const SHELL_OPENINGS: ChurchOpening[] = [",
+    ]
+    for o in OPENINGS:
+        parts_ = []
+        for k in ("id", "church", "kind", "part", "label", "glaze", "shape", "x", "z", "tx", "tz", "nx", "nz", "hw", "yb", "yt", "arch", "depth", "lights", "colour"):
+            v = o[k]
+            parts_.append(f"{k}: {json.dumps(v) if isinstance(v, (str, bool)) else f3(float(v))}")
+        parts_.append("poly: [" + ", ".join(f"[{f3(u)}, {f3(y)}]" for u, y in o["poly"]) + "]")
+        lines.append("  { " + ", ".join(parts_) + " },")
+    lines += ["];", ""]
+    with open(SHELL_TS, "w", newline="\n") as f:
+        f.write("\n".join(lines))
+    return count
 
 
 def Hc(uc, w, yb, yt, shape="rect", cell=None, **kw):
@@ -1209,16 +1312,26 @@ class Wall:
             pts = [self.pt(pu, py), self.pt(qu, qy), self.pt(qu, qy, h.depth), self.pt(pu, py, h.depth)]
             g.face(pts, h.rmat, out=self.inplane(nu, ny), k=self.k * kk)
         cell = h.cell or "dark"
+        if h.real:
+            real_opening(self, h, outline)
         if cell == "open":  # a real opening (the Carolus's main door: the hall behind it, the leaves hung in the game)
             return
+        # issue #10: a real window's pane goes to its church's lit glass (never drawn by the street: the hall's glass)
+        mat = ALIT if h.real else cell_mat(cell)
+        grp = g.grp
+        if h.real:
+            g.grp = grp + "_lit_glass"
         part_b = "body" if h.shape != "rect" else "all"
         if ys - h.yb > 1e-4:
             body = [(h.u0, h.yb), (h.u1, h.yb), (h.u1, ys), (h.u0, ys)]
             uvs = [cell_uv(cell, self.fu(u, h.u0, w), (y - h.yb) / (ys - h.yb), part_b) for u, y in body]
-            g.face([self.pt(u, y, h.depth) for u, y in body], cell_mat(cell), out=self.out(), uvs=uvs, k=self.k * h.k)
+            g.face([self.pt(u, y, h.depth) for u, y in body], mat, out=self.out(), uvs=uvs, k=self.k * h.k)
         if arc:
             uvs = [cell_uv(cell, self.fu(u, h.u0, w), (y - ys) / hh, "head") for u, y in arc]
-            g.face([self.pt(u, y, h.depth) for u, y in arc], cell_mat(cell), out=self.out(), uvs=uvs, k=self.k * h.k)
+            g.face([self.pt(u, y, h.depth) for u, y in arc], mat, out=self.out(), uvs=uvs, k=self.k * h.k)
+        g.grp = grp
+        if h.real:
+            glazing(self, h, ys if arc else None)
 
 
 def extrude(g, W, poly, d_front, d_back, mat, side_mat=None, back=False, k=1.0, front_uv=None, cell=None, skip_edges=()):
@@ -1687,7 +1800,7 @@ CF = dict(FA=0.9, FB=1.9, NV=6.5, AW=12.8, TW=15.3, FT=1.4, TB=4.4, Y0=0.6,
           NE=20.8, RID=25.2, AE=15.4, AH=18.6, LK=10.6,
           TA=-2.2, TS=10.9, RISE=0.15, TREAD=0.3, FLIGHTS=((-2.6, 2.6), (-10.9, -8.4), (8.4, 10.9)),
           DOOR=(3.4, 7.2), SIDE=9.35, END=0.15,
-          OPEN=True, CHAPEL=(12.4, 25.4, 10.2))
+          OPEN=True, CHAPEL=(12.4, 26.2, 10.2))
 # OPEN: the main door a real opening and the Lady Chapel's room cut out of the shell (the interior in the game:
 # client/src/world/carolusHall.ts); CHAPEL: that room's a0, a1 and its ceiling
 
@@ -2157,12 +2270,14 @@ def carolus_sides(g, F, c, D, S, AC, TA0, HE, HR, CE, CR, SE):
     # ---- the aisles: the walls, their upper part (seen over the low ranges) with windows, pilasters, a cornice
     g.grime = grime_under((15.1, 20.4))
     win_a = [a for a in (6.4, 10.2, 14.0, 17.8, 21.6, 25.4)]
-    gal = lambda a0, a1: [Hc(a - a0, 1.7, 11.0, 14.2, "round", "round", depth=0.35) for a in win_a if a0 + 1.2 < a < a1 - 1.2]  # noqa: E731
+    # (issue #10: real, the galleries behind them)
+    gal = lambda a0, a1, side: [real(Hc(a - a0, 1.7, 11.0, 14.2, "round", "round", depth=0.35), "the Carolus, the %s gallery, window %d" % (side, j + 1))  # noqa: E731
+                                for j, a in enumerate(win_a) if a0 + 1.2 < a < a1 - 1.2]
     CH = c.get("CHAPEL")  # the Lady Chapel's room (a0, a1, y1): cut out of the walls it stands in
     for sg in (-1, 1):
         a_end = AC if sg < 0 else TA0
         cuts = [(CH[0] - TB, CH[1] - TB, FOOT - 0.1, CH[2])] if (OPEN and CH and sg > 0) else []
-        W = wall(g, F, (TB, sg * AW), (a_end, sg * AW), (0, sg), FOOT, AE, SAND, holes=gal(TB, a_end), cuts=cuts)
+        W = wall(g, F, (TB, sg * AW), (a_end, sg * AW), (0, sg), FOOT, AE, SAND, holes=gal(TB, a_end, "east" if sg > 0 else "west"), cuts=cuts)
         for a in win_a:
             if TB + 1.2 < a < a_end - 1.2:
                 arch_band(g, W, a - TB, 11.0, 14.2 - 0.85, 1.7, 0.2, -0.14)
@@ -2199,7 +2314,8 @@ def carolus_sides(g, F, c, D, S, AC, TA0, HE, HR, CE, CR, SE):
         a, b = P[i], P[i + 1]
         mid = ((a[0] + b[0]) / 2 - AC, (a[1] + b[1]) / 2)
         L = math.hypot(b[0] - a[0], b[1] - a[1])
-        W = wall(g, F, a, b, mid, FOOT, NE, SAND, holes=[Hc(L / 2, 1.5, 11.0, 18.5, "round", "round", depth=0.4)] if 1 <= i <= 3 else [])
+        W = wall(g, F, a, b, mid, FOOT, NE, SAND,
+                 holes=[real(Hc(L / 2, 1.5, 11.0, 18.5, "round", "round", depth=0.4), "the Carolus, the apse, window %d" % i, colour=True)] if 1 <= i <= 3 else [])
         if 1 <= i <= 3:
             arch_band(g, W, L / 2, 11.0, 18.5 - 0.75, 1.5, 0.22, -0.14)
         for u, on in ((0.3, i > 0), (L - 0.3, i < 4)):
@@ -2360,7 +2476,8 @@ def carolus_sides(g, F, c, D, S, AC, TA0, HE, HR, CE, CR, SE):
     wall(g, F, (TB, cs0), (D - M, cs0), (0, -1), FOOT, CE, SAND, cuts=ccuts)
     ca_ = [a for a in (4.2, 9.4, 14.6, 19.8, 25.0, 30.2) if a < D - 2]
     W = wall(g, F, (M, cs1), (D - M, cs1), (0, 1), FOOT, CE, SAND, bands=cp_,
-             holes=[Hc(a - M, 1.6, 4.4, 9.2, "round", "round", depth=0.35) for a in ca_])
+             holes=[real(Hc(a - M, 1.6, 4.4, 9.2, "round", "round", depth=0.35), "the Carolus, the Lady Chapel, window %d" % (j + 1), colour=True)
+                    if (OPEN and CH and CH[0] + 0.8 < a < CH[1] - 0.8) else Hc(a - M, 1.6, 4.4, 9.2, "round", "round", depth=0.35) for j, a in enumerate(ca_)])
     for a in ca_:
         arch_band(g, W, a - M, 4.4, 9.2 - 0.8, 1.6, 0.2, -0.14)
     for a in (1.6, 6.8, 12.0, 17.2, 22.4, 27.6, 32.8):
@@ -2420,12 +2537,14 @@ def carolus(g, fr):
     # ---- the front: a slab 1 m thick, the ground and middle storeys full width, the crown over the nave
     top = [(0, B2), (u(-6.5), B2), (u(-6.5), C2), (u(6.5), C2), (u(6.5), B2), (u(AW), B2)]
     DW, DH = c["DOOR"]
-    holes = [Hc(u(0), DW, Y0, Y0 + DH, "round", "open" if c.get("OPEN") else "door_main", depth=FB - FA, rmat=BLUE),
+    holes = [real(Hc(u(0), DW, Y0, Y0 + DH, "round", "open", depth=FB - FA, rmat=BLUE), "the Carolus, the main door", kind="door") if c.get("OPEN")
+             else Hc(u(0), DW, Y0, Y0 + DH, "round", "door_main", depth=FB - FA, rmat=BLUE),
              Hc(u(0), 1.8, 22.6, 26.9, "round", "niche_back", depth=0.7, rmat=SAND, k=0.8)]
     for sg in (-1, 1):
         holes += [Hc(u(sg * 4.45), 1.4, 3.0, 7.9, "round", "niche_back", depth=0.75, rmat=SAND, k=0.8),
                   Hc(u(sg * 9.35), 1.9, Y0, Y0 + 4.1, "rect", "door_side", depth=0.5, rmat=BLUE),
-                  Hc(u(sg * 9.35), 1.1, 6.7, 8.7, "round", "round", depth=0.4, rmat=SAND),
+                  real(Hc(u(sg * 9.35), 1.1, 6.7, 8.7, "round", "round", depth=0.4, rmat=SAND),
+                       "the Carolus, the front, the round window over the %s side door" % ("east" if sg > 0 else "west")),
                   Hc(u(sg * 4.45), 1.3, 13.6, 18.3, "round", "niche_back", depth=0.7, rmat=SAND, k=0.8),
                   Hc(u(sg * 9.35), 2.0, 13.6, 17.6, "rect", "win_rect", depth=0.45, rmat=SAND),
                   Hc(u(sg * 4.1), 1.1, 22.9, 26.4, "round", "niche_back", depth=0.6, rmat=SAND, k=0.8)]
@@ -2840,9 +2959,16 @@ def ridge_turret(g, x, z, y, r, h, mat_wall, mat_roof, k=1.0):
 
 
 def gwall(g, F, A, Bp, out, y0, y1, mat, wins=(), top=None, bands=(), cuts=(), k=1.0, frame=None, hood=0.15, extra=()):
-    """A wall in a frame with Gothic windows: wins = [(u centre, width, sill, head, lights, cell)]; their stone parts drawn."""
+    """A wall in a frame with Gothic windows: wins = [(u centre, width, sill, head, lights, cell[, label[, colour]])]; their
+    stone parts drawn. A window with a label is real (issue #10): the hall stands behind it."""
     frame = mat if frame is None else frame
-    hs = [(Hc(uc, w, yb, yt, "pointed", cell, depth=0.42, rmat=frame), lights) for uc, w, yb, yt, lights, cell in wins]
+    hs = []
+    for spec in wins:
+        uc, w, yb, yt, lights, cell = spec[:6]
+        h = Hc(uc, w, yb, yt, "pointed", cell, depth=0.42, rmat=frame)
+        if len(spec) > 6 and spec[6]:
+            real(h, spec[6], lights=lights, colour=len(spec) > 7 and spec[7])
+        hs.append((h, lights))
     W = wall(g, F, A, Bp, out, y0, y1, mat, top=top, holes=[h for h, _ in hs] + list(extra), bands=bands, cuts=cuts, k=k)
     for h, lights in hs:
         gwin(g, W, h, lights, frame, hood=hood, k=k)
@@ -2958,8 +3084,11 @@ def stpaul(g, fr):
     # ================= the west front (17th century, its top rebuilt 1680-81) and the Baroque portal of 1734
     DW, DH = c["DOOR_W"]
     door = Hc(NV, DW, 0.15, DH, "round", "open" if c["OPEN"] else "door_r", depth=0.9, rmat=Wt_)
+    if c["OPEN"]:
+        real(door, "St Paul's, the west door", kind="door")
     Ww = gwall(g, F, (BD, -NV), (BD, NV), (-1, 0), FOOT, NE, B_, top=[(0, NE), (NV, RID), (2 * NV, NE)], frame=Wt_,
-               wins=[(NV, 4.4, 11.4, 18.6, 4, "goth4")], extra=[door], bands=plinth + wb(10.2, NE))
+               wins=[(NV, 4.4, 11.4, 18.6, 4, "goth4", "St Paul's, the west front, the great window over the door")], extra=[door],
+               bands=plinth + wb(10.2, NE))
     disc(g, Ww, NV, 22.3, 0.95, "rose", d_front=-0.14, d_back=0.05, sides=14, side_mat=Wt_)
     gable_coping(g, Ww, 0, 2 * NV, NE, RID, Wt_, crockets=False)
     for sg in (-1, 1):
@@ -2997,18 +3126,19 @@ def stpaul(g, fr):
     for sg in (-1, 1):
         s_a, s_b = sorted((sg * NV, sg * AO))
         gwall(g, F, (BD, s_a), (BD, s_b), (-1, 0), FOOT, AE, B_, frame=Wt_, bands=plinth + wb(6.8, AE),
-              wins=[((AO - NV) / 2, 2.6, 3.4, 9.2, 2, "goth2")])
+              wins=[((AO - NV) / 2, 2.6, 3.4, 9.2, 2, "goth2", "St Paul's, the %s aisle's west window" % ("north" if sg > 0 else "south"))])
         gbuttress(g, F, BD, sg * AO, (-1, 0), 1.0, BD - 0.02, 7.0, 9.8, mat=Wt_, pin=2.4)
         prof = []
         for i in range(nb):
             prof += [(bays[i] - BD, AE), ((bays[i] + bays[i + 1]) / 2 - BD, AR)]
         prof.append((TX0 - BD, AE))
         if sg < 0:
-            wins = [((bays[i] + bays[i + 1]) / 2 - BD, 2.8, 3.2, 12.9, 4, "goth4") for i in range(nb)]
+            wins = [((bays[i] + bays[i + 1]) / 2 - BD, 2.8, 3.2, 12.9, 4, "goth4", "St Paul's, the south aisle, bay %d" % (i + 1)) for i in range(nb)]
             W = gwall(g, F, (BD, sg * AO), (TX0, sg * AO), (0, sg), FOOT, AR, B_, top=prof, frame=Wt_, wins=wins, bands=plinth + wb(AE))
         else:
-            W = gwall(g, F, (BD, sg * AO), (TX0, sg * AO), (0, sg), CL - 0.6, AR, B_, top=prof, frame=Wt_, bands=wb(AE),
-                      wins=[((bays[0] + bays[1]) / 2 - BD, 2.4, CH + 0.4, 13.1, 2, "goth2")])
+            # (from over the chapels' ceiling, under their roof: issue #10, no face of the shell in the hall)
+            W = gwall(g, F, (BD, sg * AO), (TX0, sg * AO), (0, sg), CL - 0.3, AR, B_, top=prof, frame=Wt_, bands=wb(AE),
+                      wins=[((bays[0] + bays[1]) / 2 - BD, 2.4, CH + 0.4, 13.1, 2, "goth2", "St Paul's, the north aisle, bay 1, over the chapels")])
             for i in range(1, nb):
                 blind_panel(g, W, (bays[i] + bays[i + 1]) / 2 - BD, 2.4, CH + 0.4, 13.1, Wt_)
         for i in range(nb):
@@ -3019,7 +3149,7 @@ def stpaul(g, fr):
         # the north chapels along the nave
         if sg > 0:
             gwall(g, F, (BD, CO), (TX0, CO), (0, 1), FOOT, CL, B_, frame=Wt_, bands=plinth + wb(CL),
-                  wins=[((bays[i] + bays[i + 1]) / 2 - BD, 1.6, 2.0, 5.8, 2, "goth2") for i in range(nb)])
+                  wins=[((bays[i] + bays[i + 1]) / 2 - BD, 1.6, 2.0, 5.8, 2, "goth2", "St Paul's, a north chapel, bay %d" % (i + 1)) for i in range(nb)])
             gwall(g, F, (BD, AO), (BD, CO), (-1, 0), FOOT, CH, B_, top=[(0, CH), (CO - AO, CL)], frame=Wt_, bands=plinth)
             for a in bays[1:-1]:
                 gbuttress(g, F, a, CO, (0, 1), 0.8, BD - 0.02, 5.6, None, mat=Wt_, pin=1.8)
@@ -3034,7 +3164,8 @@ def stpaul(g, fr):
                        caps=(first, False, caps_end[0], caps_end[1]))
         # the clerestory: four-light windows, a white stone cornice
         W = gwall(g, F, (BD, sg * NV), (TX0, sg * NV), (0, sg), AE - 0.5, NE, B_, frame=Wt_, bands=wb(NE),
-                  wins=[((bays[i] + bays[i + 1]) / 2 - BD, 2.4, 15.2, 19.6, 3, "goth4") for i in range(nb)])
+                  wins=[((bays[i] + bays[i + 1]) / 2 - BD, 2.4, 15.2, 19.6, 3, "goth4",
+                         "St Paul's, the nave's clerestory, %s side, bay %d" % ("north" if sg > 0 else "south", i + 1)) for i in range(nb)])
         p0, p1 = F.P(BD, sg * NV), F.P(TX0, sg * NV)
         ring_stack(g, [p0, p1], [(NE - 0.3, NE - 0.1, 0.16, Wt_), (NE - 0.1, NE + 0.02, 0.26, Wt_)], closed=False,
                    side=open_side(p0, p1, F.V(0, sg)), caps=(False, False))
@@ -3046,11 +3177,16 @@ def stpaul(g, fr):
     TE = S - BD
     for sg in (-1, 1):
         s_a, s_b = sorted((sg * NV, sg * TE))
-        gwall(g, F, (TX0, s_a), (TX0, s_b), (-1, 0), FOOT, NE, B_, frame=Wt_, bands=plinth + wb(NE),
-              wins=[((TE - NV) * (0.78 if sg > 0 else 0.22), 2.0, 11.0, 17.8, 2, "goth2")])
+        # (issue #10: no face of the shell inside the hall: where the aisle, and on the north the chapels, run on
+        # into the transept's arm, the west face stands only over their roofs)
+        ua = (0.0, AO - NV) if sg > 0 else (TE - AO, TE - NV)
+        wcut = [(ua[0], ua[1], FOOT - 0.1, AE)] + ([(AO - NV, TE - NV, FOOT - 0.1, CL)] if sg > 0 else [])
+        gwall(g, F, (TX0, s_a), (TX0, s_b), (-1, 0), FOOT, NE, B_, frame=Wt_, bands=plinth + wb(NE), cuts=wcut,
+              wins=[((TE - NV) * (0.78 if sg > 0 else 0.22), 2.0, 11.0, 17.8, 2, "goth2",
+                     "St Paul's, the %s transept's west face" % ("north" if sg > 0 else "south"))])
         if sg > 0:
             gwall(g, F, (TX1, NV), (TX1, TE), (1, 0), FOOT, NE, B_, frame=Wt_, bands=plinth + wb(NE),
-                  wins=[((TE - NV) / 2, 2.0, 11.0, 17.8, 2, "goth2")])
+                  wins=[((TE - NV) / 2, 2.0, 11.0, 17.8, 2, "goth2", "St Paul's, the north transept's east face")])
         else:
             gwall(g, F, (TX1, -TE), (TX1, -(NV + 8.0)), (1, 0), FOOT, NE, B_, frame=Wt_, bands=plinth + wb(NE))
         extra = []
@@ -3059,7 +3195,8 @@ def stpaul(g, fr):
             extra = [Hc((TX1 - TX0) / 2, DNW, 0.15, DNH, "pointed", "door_g", depth=0.9, rmat=Wt_)]
         Wt = gwall(g, F, (TX0, sg * TE), (TX1, sg * TE), (0, sg), FOOT, NE, B_, top=[(0, NE), ((TX1 - TX0) / 2, RID), (TX1 - TX0, NE)],
                    frame=Wt_, extra=extra, bands=plinth + wb(7.0, NE),
-                   wins=[((TX1 - TX0) / 2, 4.8, 8.2 if sg > 0 else 4.6, 18.4, 4, "goth4")])
+                   wins=[((TX1 - TX0) / 2, 4.8, 8.2 if sg > 0 else 4.6, 18.4, 4, "goth4",
+                          "St Paul's, the %s transept's great window" % ("north" if sg > 0 else "south"), True)])
         if sg > 0:
             DNW, DNH = c["DOOR_N"]
             gportal(g, Wt, (TX1 - TX0) / 2, DNW, 0.15, DNH - head_h("pointed", DNW), 2, Wt_, P=0.7, gable=True, statues=1, fig_mat=PALE,
@@ -3072,7 +3209,8 @@ def stpaul(g, fr):
     # ================= the long choir and the apse
     for sg, a0_ in ((1, TX1), (-1, TX1 + 8.0)):
         W = gwall(g, F, (a0_, sg * NV), (CHE, sg * NV), (0, sg), 7.0, NE, B_, frame=Wt_, bands=wb(NE),
-                  wins=[(a - a0_, 2.0, 11.2, 19.2, 2, "goth2") for a in (55.0, 60.2, 65.4) if a > a0_ + 1.5])
+                  wins=[(a - a0_, 2.0, 11.2, 19.2, 2, "goth2", "St Paul's, the choir, %s side, window %d" % ("north" if sg > 0 else "south", j + 1), True)
+                        for j, a in enumerate((55.0, 60.2, 65.4)) if a > a0_ + 1.5])
         p0, p1 = F.P(a0_, sg * NV), F.P(CHE, sg * NV)
         ring_stack(g, [p0, p1], [(NE - 0.3, NE - 0.1, 0.16, Wt_), (NE - 0.1, NE + 0.02, 0.26, Wt_)], closed=False,
                    side=open_side(p0, p1, F.V(0, sg)), caps=(False, False))
@@ -3084,7 +3222,7 @@ def stpaul(g, fr):
         a, b = P5[i], P5[i + 1]
         mid = ((a[0] + b[0]) / 2 - CHE, (a[1] + b[1]) / 2)
         L = math.hypot(b[0] - a[0], b[1] - a[1])
-        gwall(g, F, a, b, mid, FOOT, NE, B_, frame=Wt_, bands=plinth + wb(NE), wins=[(L / 2, 1.8, 10.4, 18.6, 2, "goth2")])
+        gwall(g, F, a, b, mid, FOOT, NE, B_, frame=Wt_, bands=plinth + wb(NE), wins=[(L / 2, 1.8, 10.4, 18.6, 2, "goth2", "St Paul's, the apse, window %d" % (i + 1), True)])
     AP = [F.P(a, s) for a, s in P5]
     ring_stack(g, AP, [(NE - 0.3, NE - 0.1, 0.16, Wt_), (NE - 0.1, NE + 0.02, 0.26, Wt_)], closed=False, side=open_side(AP[1], AP[2], F.V(1, 0)),
                caps=(False, False))
@@ -3220,9 +3358,11 @@ def stjacob(g, fr):
     wd = "open" if c["OPEN"] else "door_g"
     # the west face: the portal (a broad basket arch in a frame), the great window, the belfry's two lights, blind panels
     door = Hc(NV, DW, 0.15, DH, "pointed", wd, depth=1.4, rmat=G)
+    if c["OPEN"]:
+        real(door, "St James's, the tower door", kind="door")
     bel = [(NV + sg * 2.4, 1.9, TY[3] + 1.2, TY[4] - 0.8, 2, "louv_p") for sg in (-1, 1)]
     Wt = gwall(g, F, (BD, -NV), (BD, NV), (-1, 0), FOOT, TY[5], G, bands=tb, extra=[door],
-               wins=[(NV, 5.2, TY[1] + 1.2, TY[3] - 0.6, 4, "goth4")] + bel)
+               wins=[(NV, 5.2, TY[1] + 1.2, TY[3] - 0.6, 4, "goth4", "St James's, the tower's great west window over the door")] + bel)
     pband(g, Wt, NV, DH - head_h("pointed", DW), DW + 0.1, 0.34, -0.3, G, yb=0.15)
     pband(g, Wt, NV, DH - head_h("pointed", DW), DW + 0.8, 0.3, -0.5, G, yb=0.15)
     # the Baroque shell over the portal (late 17th century): a fan of ribs in a round frame
@@ -3239,7 +3379,8 @@ def stjacob(g, fr):
     for sg in (-1, 1):
         # the tower's side faces (seen over the aisles), the east face over the nave roof
         s_ = sg * NV
-        W = gwall(g, F, (BD, s_), (TW, s_), (0, sg), FOOT, TY[5], G, bands=tb,
+        # (issue #10: open where the tower hall's arches to the aisles are, world/gothicHall.ts; no face in the hall)
+        W = gwall(g, F, (BD, s_), (TW, s_), (0, sg), FOOT, TY[5], G, bands=tb, cuts=[(4.4, 8.0, FOOT - 0.1, 9.2)],
                   wins=[((TW - BD) / 2 + d, 1.9, TY[3] + 1.2, TY[4] - 0.8, 2, "louv_p") for d in (-2.4, 2.4)])
         for d in (-2.4, 2.4):
             blind_panel(g, W, (TW - BD) / 2 + d, 1.8, TY[2] + 0.8, TY[3] - 0.9, G)
@@ -3287,16 +3428,18 @@ def stjacob(g, fr):
         s_a, s_b = sorted((sg * NV, sg * AO))
         top = [(0, AH), (AO - NV, AE)] if sg > 0 else [(0, AE), (AO - NV, AH)]
         gwall(g, F, (BD, s_a), (BD, s_b), (-1, 0), FOOT, AH, G, top=top, bands=plinth,
-              wins=[((AO - NV) / 2, 3.2, 5.6, 13.0, 4, "goth4")])
+              wins=[((AO - NV) / 2, 3.2, 5.6, 13.0, 4, "goth4", "St James's, the %s aisle's west window" % ("north" if sg > 0 else "south"))])
         if sg > 0:
             s_a, s_b = sorted((sg * AO, sg * CO))
             top = [(0, CH), (CO - AO, CL)]
-            gwall(g, F, (BD, s_a), (BD, s_b), (-1, 0), FOOT, CH, G, top=top, bands=plinth, wins=[((CO - AO) / 2, 1.6, 2.2, 6.4, 2, "goth2")])
+            gwall(g, F, (BD, s_a), (BD, s_b), (-1, 0), FOOT, CH, G, top=top, bands=plinth,
+                  wins=[((CO - AO) / 2, 1.6, 2.2, 6.4, 2, "goth2", "St James's, the north chapels' west window")])
         for s_, h1, h2 in ((sg * AO, 9.0, 13.5),) + (((sg * CO, 5.4, 7.2),) if sg > 0 else ()):
             gbuttress(g, F, BD, s_, (-1, 0), 1.0, BD - 0.02, h1, h2, mat=G, pin=2.4)
         # the chapels' outer wall along the nave, windows between buttresses (the south's first bay is the baptistery)
         a_ch0 = BD if sg > 0 else bays_all[1] + 0.6
-        wins = [((bays_all[i] + bays_all[i + 1]) / 2 - a_ch0, 2.0, 2.2, 7.0, 2, "goth2") for i in range(len(bays_all) - 1)
+        wins = [((bays_all[i] + bays_all[i + 1]) / 2 - a_ch0, 2.0, 2.2, 7.0, 2, "goth2",
+                 "St James's, a %s chapel, bay %d" % ("north" if sg > 0 else "south", i + 1)) for i in range(len(bays_all) - 1)
                 if (bays_all[i] + bays_all[i + 1]) / 2 > a_ch0 + 1.2]
         gwall(g, F, (a_ch0, sg * CO), (TX0, sg * CO), (0, sg), FOOT, CL, G, bands=plinth, wins=wins)
         p0, p1 = F.P(a_ch0, sg * CO), F.P(TX0, sg * CO)
@@ -3304,14 +3447,16 @@ def stjacob(g, fr):
                    caps=(True, False))
         # the aisle's upper wall over the chapels' roof, the clerestory, flying buttresses from the aisle's piers
         W = gwall(g, F, (BD, sg * AO), (TX0, sg * AO), (0, sg), CH - 0.6, AE, G,
-                  wins=[((bays_all[i] + bays_all[i + 1]) / 2 - BD, 2.4, CH + 0.8, AE - 0.7, 3, "goth4") for i in range(len(bays_all) - 1)])
+                  wins=[((bays_all[i] + bays_all[i + 1]) / 2 - BD, 2.4, CH + 0.8, AE - 0.7, 3, "goth4",
+                         "St James's, the %s aisle, bay %d, over the chapels" % ("north" if sg > 0 else "south", i + 1)) for i in range(len(bays_all) - 1)])
         p0, p1 = F.P(BD, sg * AO), F.P(TX0, sg * AO)
         ring_stack(g, [p0, p1], [(AE - 0.4, AE - 0.15, 0.18, G), (AE - 0.15, AE, 0.42, G)], closed=False, side=open_side(p0, p1, F.V(0, sg)),
                    caps=(True, False))
         parapet(g, [F.P(BD + 0.2, sg * (AO + 0.16)), F.P(TX0 - 0.2, sg * (AO + 0.16))], AE, 0.85, G,
                 avoid=[F.P(a, sg * (AO + 0.16)) for a in bays[1:-1]])
         W = gwall(g, F, (TW, sg * NV), (TX0, sg * NV), (0, sg), AH - 0.6, NE, G,
-                  wins=[((bays[i] + bays[i + 1]) / 2 - TW, 2.6, 20.4, 25.6, 3, "goth4") for i in range(5)])
+                  wins=[((bays[i] + bays[i + 1]) / 2 - TW, 2.6, 20.4, 25.6, 3, "goth4",
+                         "St James's, the nave's clerestory, %s side, bay %d" % ("north" if sg > 0 else "south", i + 1)) for i in range(5)])
         p0, p1 = F.P(TW, sg * NV), F.P(TX0, sg * NV)
         ring_stack(g, [p0, p1], [(NE - 0.45, NE - 0.15, 0.2, G), (NE - 0.15, NE, 0.42, G)], closed=False, side=open_side(p0, p1, F.V(0, sg)),
                    caps=(False, False))
@@ -3346,16 +3491,25 @@ def stjacob(g, fr):
     # ================= transept: great windows, gables with crockets, corner turrets; the south portal (1864)
     for sg in (-1, 1):
         s_a, s_b = sorted((sg * NV, sg * TE))
-        gwall(g, F, (TX0, s_a), (TX0, s_b), (-1, 0), CL - 0.6, NE, G,
-              wins=[((TE - NV) - (22.0 - NV) if sg > 0 else 22.0 - NV, 2.4, 15.8, 23.8, 3, "goth4")])
-        gwall(g, F, (TX1, s_a), (TX1, s_b), (1, 0), AMBE - 0.6, NE, G,
-              wins=[((TE - NV) - (21.0 - NV) if sg > 0 else 21.0 - NV, 2.4, 15.0, 23.4, 3, "goth4")])
+        # (issue #10: from the ground, but only over the roofs where the aisle and the chapels run on into the arm: no
+        # face of the shell in the hall, and none missing beyond the chapels)
+        ua = (0.0, AO - NV) if sg > 0 else (TE - AO, TE - NV)
+        uc = (AO - NV, CO - NV) if sg > 0 else (TE - CO, TE - AO)
+        gwall(g, F, (TX0, s_a), (TX0, s_b), (-1, 0), FOOT, NE, G, bands=plinth, cuts=[(ua[0], ua[1], FOOT - 0.1, AE), (uc[0], uc[1], FOOT - 0.1, CL)],
+              wins=[((TE - NV) - (22.0 - NV) if sg > 0 else 22.0 - NV, 2.4, 15.8, 23.8, 3, "goth4",
+                     "St James's, the %s transept's west face" % ("north" if sg > 0 else "south"))])
+        # (issue #10: from the ground beyond the choir's aisle, where there was no face)
+        ub = (0.0, AMB - NV) if sg > 0 else (TE - AMB, TE - NV)
+        gwall(g, F, (TX1, s_a), (TX1, s_b), (1, 0), FOOT, NE, G, bands=plinth, cuts=[(ub[0], ub[1], FOOT - 0.1, AMBE - 0.6)],
+              wins=[((TE - NV) - (21.0 - NV) if sg > 0 else 21.0 - NV, 2.4, 15.0, 23.4, 3, "goth4",
+                     "St James's, the %s transept's east face" % ("north" if sg > 0 else "south"))])
         extra = []
         if sg < 0:
             DSW, DSH = c["DOOR_S"]
             extra = [Hc((TX1 - TX0) / 2, DSW, 0.15, DSH, "pointed", "door_g", depth=1.0, rmat=G)]
         Wt = gwall(g, F, (TX0, sg * TE), (TX1, sg * TE), (0, sg), FOOT, NE, G, top=[(0, NE), ((TX1 - TX0) / 2, RID), (TX1 - TX0, NE)],
-                   bands=plinth, extra=extra, wins=[((TX1 - TX0) / 2, 5.6, 10.2 if sg < 0 else 5.4, 23.6, 6, "goth4")])
+                   bands=plinth, extra=extra, wins=[((TX1 - TX0) / 2, 5.6, 10.2 if sg < 0 else 5.4, 23.6, 6, "goth4",
+                                                     "St James's, the %s transept's great window" % ("north" if sg > 0 else "south"), True)])
         if sg < 0:
             gportal(g, Wt, (TX1 - TX0) / 2, DSW, 0.15, DSH - head_h("pointed", DSW), 3, G, P=0.9, gable=True, statues=1, fig_mat=PALE, top_extra=1.2)
         # (the coping from the corner turrets up: they stand on its feet)
@@ -3376,12 +3530,13 @@ def stjacob(g, fr):
     ridge_turret(g, x, z, RID - 0.6, 1.1, 7.5, G, LEAD)
     # ================= choir, apse, ambulatory with its three radiating chapels, flyers
     for sg in (-1, 1):
-        gwall(g, F, (TX1, sg * NV), (CHE, sg * NV), (0, sg), 16.5, NE, G, wins=[((CHE - TX1) / 2, 2.2, 18.0, 25.4, 2, "goth2")])
+        gwall(g, F, (TX1, sg * NV), (CHE, sg * NV), (0, sg), 16.5, NE, G,
+              wins=[((CHE - TX1) / 2, 2.2, 18.0, 25.4, 2, "goth2", "St James's, the choir's clerestory, %s side" % ("north" if sg > 0 else "south"), True)])
         p0, p1 = F.P(TX1, sg * NV), F.P(CHE, sg * NV)
         ring_stack(g, [p0, p1], [(NE - 0.45, NE - 0.15, 0.2, G), (NE - 0.15, NE, 0.34, G)], closed=False, side=open_side(p0, p1, F.V(0, sg)),
                    caps=(False, False))
         gwall(g, F, (TX1, sg * AMB), (CHE, sg * AMB), (0, sg), FOOT, AMBE, G, bands=plinth,
-              wins=[((CHE - TX1) / 2, 2.6, 3.0, 10.2, 3, "goth4")])
+              wins=[((CHE - TX1) / 2, 2.6, 3.0, 10.2, 3, "goth4", "St James's, the %s choir aisle's window" % ("north" if sg > 0 else "south"))])
         lean_to(g, F, TX1, CHE, sg * AMB, sg * NV, AMBE, 17.0, oe=0.4, og=(0.0, 0.0), caps=(True, False, False))
         fly(g, F.p((TX1 + CHE) / 2, sg * (AMB + 0.2), AMBE + 1.6), F.p((TX1 + CHE) / 2, sg * (NV + 0.05), NE - 3.0), 0.4, 0.55, G)
         gbuttress(g, F, (TX1 + CHE) / 2, sg * AMB, (0, sg), 1.0, 0.8, 8.0, 11.5, mat=G, pin=3.4)
@@ -3390,7 +3545,7 @@ def stjacob(g, fr):
         a, b = P5[i], P5[i + 1]
         mid = ((a[0] + b[0]) / 2 - CHE, (a[1] + b[1]) / 2)
         L = math.hypot(b[0] - a[0], b[1] - a[1])
-        gwall(g, F, a, b, mid, 16.5, NE, G, wins=[(L / 2, 2.0, 18.0, 25.4, 2, "goth2")])
+        gwall(g, F, a, b, mid, 16.5, NE, G, wins=[(L / 2, 2.0, 18.0, 25.4, 2, "goth2", "St James's, the apse's clerestory, window %d" % (i + 1), True)])
     AP = [F.P(a, s) for a, s in P5]
     ring_stack(g, AP, [(NE - 0.45, NE - 0.15, 0.2, G), (NE - 0.15, NE, 0.34, G)], closed=False, side=open_side(AP[1], AP[2], F.V(1, 0)),
                caps=(False, False))
@@ -3411,18 +3566,20 @@ def stjacob(g, fr):
             q2 = q3 + md * dp - tn * 0.9
             wall(g, F, tuple(a), tuple(q0), tuple(md), FOOT, AMBE, G, bands=plinth)
             wall(g, F, tuple(q3), tuple(b), tuple(md), FOOT, AMBE, G, bands=plinth)
-            for p_, q_ in ((q0, q1), (q1, q2), (q2, q3)):
+            cname = {1: "the south-east radiating chapel", 2: "Rubens's chapel in the axis", 3: "the north-east radiating chapel"}[i]
+            for j, (p_, q_) in enumerate(((q0, q1), (q1, q2), (q2, q3))):
                 nrm = Vector((q_.y - p_.y, -(q_.x - p_.x)))
                 if nrm.dot(md) < 0:
                     nrm = -nrm
                 Lq = (q_ - p_).length
                 gwall(g, F, tuple(p_), tuple(q_), tuple(nrm), FOOT, AMBE - 1.0, G, bands=plinth,
-                      wins=[(Lq / 2, min(1.6, Lq * 0.55), 2.6, AMBE - 2.4, 2, "goth2")] if Lq > 1.5 else [])
+                      wins=[(Lq / 2, min(1.6, Lq * 0.55), 2.6, AMBE - 2.4, 2, "goth2", "St James's, %s, window %d" % (cname, j + 1))] if Lq > 1.5 else [])
             pts = [F.p(p_.x, p_.y, AMBE - 1.0) for p_ in (q0, q1, q2, q3)]
             ctr = (q0 + q3) / 2
             pyramid(g, pts, F.p(ctr.x, ctr.y, AMBE + 1.4), SLATE, shade=0.9)
         else:
-            gwall(g, F, a, b, mid, FOOT, AMBE, G, bands=plinth, wins=[(L / 2, 3.0, 2.8, 10.4, 3, "goth4")])
+            gwall(g, F, a, b, mid, FOOT, AMBE, G, bands=plinth,
+                  wins=[(L / 2, 3.0, 2.8, 10.4, 3, "goth4", "St James's, the ambulatory, %s side" % ("south" if i == 0 else "north"))])
     for P_ in PA[1:-1]:
         rd = Vector((P_[0] - CHE, P_[1])).normalized()
         gbuttress(g, F, P_[0], P_[1], (rd.x, rd.y), 0.9, 0.8, 8.0, 11.0, mat=G, pin=3.0)
@@ -4686,6 +4843,7 @@ def main():
     fill_check(g, city)
     objs = g.to_objects()
     print(f"[build_churches] {clock_markers()} clock faces for live hands")
+    print(f"[build_churches] real openings (issue #10): {opening_markers()} -> {SHELL_TS}")
     export()
     with open(PARK_JSON, "w", newline="\n") as f:
         json.dump(info, f, separators=(",", ":"))

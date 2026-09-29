@@ -47,14 +47,16 @@ const RULES: Rule[] = [
   // (issue #10: "_lit", the old panes of the real windows, never drawn themselves: their glass is the room's)
   { mat: /^(sh_glass|vh_glass|steen_glass|landmark_glass|cath_glass)(_lit)?$/, stained: false, power: 1 },
   {
-    mat: /^church_atlas$/,
+    // (issue #10: church_atlas_lit, the churches' real windows' old panes)
+    mat: /^church_atlas(_lit)?$/,
     size: [256, 256],
     cells: [churchCell(0, 0, 64, 128), churchCell(0, 128, 32, 96), churchCell(32, 128, 32, 80), churchCell(192, 64, 64, 64), churchCell(96, 96, 32, 48)],
     stained: true,
     power: 1,
   },
   {
-    mat: /^cath_atlas$/,
+    // (issue #10: "_lit", the cathedral's real windows' old panes, never drawn themselves: their glass is the hall's)
+    mat: /^cath_atlas(_lit)?$/,
     size: [512, 1024],
     cells: [
       [0, 0, 128, 256],

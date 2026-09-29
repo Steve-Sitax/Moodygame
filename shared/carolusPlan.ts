@@ -122,10 +122,20 @@ export const BAYS = [1.5, 4.6, 7.67, 10.74, 13.81, 16.89, 19.96, 23.03, 26.1];
 export const HT = { cap: 4.3, gallery: 6.4, galleryTop: 6.7, upperCap: 11.2, entab: 13.6, spring: 14.2, galleryCeil: 14.4, vaultR: 6.2 } as const;
 /** The main door: the shell's round-arched opening 3.4 wide, springing 5.5 over the sill. */
 export const DOOR = { hw: 1.7, spring: 5.5, h: 7.2 } as const;
-/** The gallery windows over the aisles (local z, and their sill and head over the floor), the shell's. */
-export const GALLERY_WINDOWS = { z: [5.5, 9.3, 13.1, 16.9, 20.7, 24.5], y0: 10.4, y1: 13.6, w: 1.7 } as const;
-/** The Lady Chapel: its room (the shell's chapel range, cut open), the arch from the south aisle, its ceiling. */
-export const CHAPEL = { x0: 12.55, x1: 20.8, z0: 11.5, z1: 24.5, door: [13.8, 17.2] as const, doorSpring: 4.6, ceil: 9.6, windows: [13.7, 18.9] } as const;
+/**
+ * The Lady Chapel: its room (the shell's chapel range, cut open: build_churches.py CF CHAPEL, a 12.4..26.2), the arch
+ * from the south aisle, its ceiling. Issue #10: its outer wall lined behind the shell's (at SHELL.chapel), its three
+ * windows the shell's (the third, at its east end, half over the altar's wall before: the room now runs past it).
+ */
+export const CHAPEL = { x0: 12.55, x1: 20.6, z0: 11.5, z1: 25.3, door: [13.8, 17.2] as const, doorSpring: 4.6, ceil: 9.6 } as const;
+/**
+ * Issue #10 (interiors are real): the shell's faces the hall's walls line (local; build_churches.py CF): the front at
+ * FA (z 0), the aisles' outer walls at AW, the apse's corners at NV round its middle (IN.apse), the Lady Chapel's outer
+ * wall (the chapel range's, from a M). The windows are cut through the shell (shared/churchesShell.ts).
+ */
+export const SHELL = { aisle: 12.8, apse: 6.5, chapel: 21.16, chapelFrom: -0.75 } as const;
+/** The apse's shallow half dome over its windows' heads (17.9), up to the barrel vault's crown. */
+export const APSE_DOME = { spring: 18.0, rise: 2.4 } as const;
 /** The communion rail, the gate in it; the sanctuary's floor (three steps up). */
 export const RAIL = { z0: 25.5, z1: 25.8, gate: 0.7 } as const;
 export const SANCTUARY = 0.45;
@@ -157,8 +167,10 @@ const floors: HRect[] = [
   R(-IN.choir, IN.choir, IN.east, IN.apse), // the choir
   R(-4.5, 4.5, IN.apse, 30.8), // the apse
   R(-1.7, 1.7, 30.8, 32.8),
-  R(CHAPEL.x0, CHAPEL.x1, CHAPEL.z0, CHAPEL.z1), // the Lady Chapel
-  R(IN.aisle, CHAPEL.x0, CHAPEL.door[0], CHAPEL.door[1]), // its arch through the aisle wall
+  // the Lady Chapel (from 0.2 m in from the aisle wall's chapel side: a place hard by that wall on the aisle's side is
+  // not free because the chapel's floor is behind it, dev/interiorcheck.ts walks)
+  R(CHAPEL.x0 + 0.2, CHAPEL.x1, CHAPEL.z0, CHAPEL.z1),
+  R(IN.aisle, CHAPEL.x0 + 0.2, CHAPEL.door[0], CHAPEL.door[1]), // its arch through the aisle wall
 ];
 const col = (x: number, z: number, h: number) => R(x - h, x + h, z - h, z + h);
 const solids: HRect[] = [
@@ -221,7 +233,7 @@ export const PLAN: HallPlan = {
       }),
     },
   ],
-  area: [R(-12.6, 12.6, -1.7, IN.apse), R(-5.9, 5.9, IN.apse, 33.2), R(12.2, 21.0, 11.3, 24.7)],
+  area: [R(-12.6, 12.6, -1.7, IN.apse), R(-5.9, 5.9, IN.apse, 33.2), R(12.2, 21.0, 11.3, CHAPEL.z1 + 0.2)],
   // the sanctuary's three steps up from the choir, and its floor
   steps: [
     { rect: R(-IN.choir, IN.choir, IN.east, IN.east + 0.3), y: 0.15 },

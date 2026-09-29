@@ -3,10 +3,14 @@ import * as HP from "../../../shared/hallPlan";
 import * as CP from "../../../shared/carolusPlan";
 import { canvasTex, flicker, frameRoom, rand } from "./rooms";
 import { Flames, Kit, lmMat, marble, matOf, painting, type MatDef } from "./landmarkKit";
-import { glassMat, M, paintMat, walkGraph, type LandmarkRoom } from "./landmarkRooms";
-import { buildHallSun, type SunWindow } from "./hallSun";
+import { M, paintMat, walkGraph, type LandmarkRoom } from "./landmarkRooms";
+import { buildHallSun } from "./hallSun";
 import { createHallInWorld, type HallInWorld } from "./hallInWorld";
 import { withPicture } from "./quayStone";
+import { SHELL_OPENINGS, type ChurchOpening } from "../../../shared/churchesShell";
+import { inFrame, type ShellFace } from "../../../shared/shellOpening";
+import { lining, windowOpenings, type Lining } from "./realOpenings";
+import { CHURCH_INSIDE_REACH, churchGlass, sunWindowsOf } from "./churches";
 import type { World } from "./rijnkaai";
 import type { InWorld } from "./inworld";
 
@@ -319,6 +323,11 @@ export function chandelier(k: Kit, flames: Flames, x: number, y: number, z: numb
   }
 }
 
+/** The shell's real openings of the Carolus (shared/churchesShell.ts), in its hall's frame. */
+export function carolusRows(): ChurchOpening[] {
+  return inFrame(SHELL_OPENINGS.filter((o) => o.church === "carolus"), CP.PLAN.origin, CP.PLAN.yaw) as ChurchOpening[];
+}
+
 /** The church inside, built from the plan at the shell's place (its group in the world by the plan's frame). */
 export function buildCarolusHall(): LandmarkRoom {
   const P = CP.PLAN;
@@ -334,20 +343,23 @@ export function buildCarolusHall(): LandmarkRoom {
   const r = rand(1615);
   const { IN, HT, BAYS, CHAPEL, DOOR, RAIL, CHAIRS, PULPIT } = CP;
   const flames = new Flames(group, 200, 0.14);
-  const win = glassMat("grisaille", 83);
-  const winC = glassMat("colour", 84);
   const box = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, m: MatDef, tile = 2.4, tint?: number) =>
     k.box(x1 - x0, y1 - y0, z1 - z0, (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, m, { tile, tint });
-  const pane = (x: number, z: number, y0: number, y1: number, w: number, ry: number, def: MatDef) => {
-    const s = new THREE.Shape();
-    for (const [u, y] of [[-w / 2, y0], [w / 2, y0], ...head({ u0: -w / 2, u1: w / 2, y0, spring: y1 - w / 2, round: true }).reverse()] as Array<[number, number]>)
-      if (u === -w / 2 && y === y0) s.moveTo(u, y);
-      else s.lineTo(u, y);
-    const g = new THREE.ShapeGeometry(s, 1);
-    const uv = g.getAttribute("uv") as THREE.BufferAttribute;
-    for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) + w / 2) / w, (uv.getY(i) - y0) / (y1 - y0));
-    k.add(g, def, x, 0, z, { ry, flat: true });
+  // ---- issue #10 (interiors are real): the hall's walls behind the shell's faces are linings (world/realOpenings.ts),
+  // from the windows' reveals' back to the hall's inner face, cut exactly where the shell's windows and door are; the
+  // glass is the shell's old panes, moved in (churches.ts churchGlass). Linings' heights in world metres.
+  const FY = CP.FLOOR_Y;
+  const W = (y: number) => y + FY;
+  const rows = carolusRows();
+  const face = (a: [number, number], c: [number, number], n: [number, number]): ShellFace => ({ a, c, n });
+  const wallLines: Array<[[number, number], [number, number]]> = [];
+  const LIN = (def: MatDef, f: ShellFace, o: { from: number; to: number; u0: number; u1: number; y0: number; y1: number; doors?: Lining["doors"] }) => {
+    const fl = Math.hypot(f.c[0] - f.a[0], f.c[1] - f.a[1]);
+    const P = (u: number): [number, number] => [f.a[0] + ((f.c[0] - f.a[0]) * u) / fl - f.n[0] * o.to, f.a[1] + ((f.c[1] - f.a[1]) * u) / fl - f.n[1] * o.to];
+    wallLines.push([P(o.u0), P(o.u1)]);
+    lining(k, def, { face: f, from: o.from, to: o.to, u0: o.u0, u1: o.u1, y0: o.y0, y1: o.y1, doors: o.doors }, rows, FY, 2.4);
   };
+  const { SHELL: SH, APSE_DOME } = CP;
 
   // ---- floors: marble in the nave, the aisles, the doorway (the shell's sill is the doorway's first metre), the choir and the chapel
   box(-DOOR.hw - 0.05, DOOR.hw + 0.05, -0.1, 0, 1.0, IN.west, C.floor, 1.6);
@@ -359,18 +371,18 @@ export function buildCarolusHall(): LandmarkRoom {
   box(CHAPEL.x0, CHAPEL.x1, -0.1, 0, CHAPEL.z0, CHAPEL.z1, C.floor, 1.6);
   box(IN.aisle, CHAPEL.x0, -0.1, 0, CHAPEL.door[0], CHAPEL.door[1], C.marbleW, 1.2);
 
-  // ---- the west wall with the door's arch (a little wider than the shell's, which hides its edge)
-  panel(k, C.wash, [-12.55, 1.2], [12.55, 1.2], -0.12, HT.spring + HT.vaultR + 0.4, 0.6, [{ u0: 12.55 - DOOR.hw - 0.05, u1: 12.55 + DOOR.hw + 0.05, y0: -0.12, spring: DOOR.spring, round: true }], [], 2.4);
-  // ---- the aisles' outer walls: the gallery windows over the aisles, the Lady Chapel's arch in the south one
-  const gw = CP.GALLERY_WINDOWS;
+  // ---- the west wall: the front lined behind its face from the reveals' back (its round windows over the side doors,
+  // 0.4 deep) to the wall's inner face, cut at the door (the shell's, from the sill) and at those windows
+  LIN(C.wash, face([-SH.aisle, 0], [SH.aisle, 0], [0, -1]), { from: 0.4, to: IN.west, u0: 0.25, u1: 2 * SH.aisle - 0.25, y0: W(-0.04), y1: W(HT.spring + HT.vaultR + 0.4) });
+  // ---- the aisles' outer walls, lined behind the shell's (its reveals 0.35 deep, the old wall's inner face kept): the
+  // gallery windows over the aisles, the Lady Chapel's arch in the south one
+  const galleryWins = rows.filter((o) => o.kind === "window" && Math.abs(Math.abs(o.x) - SH.aisle) < 0.05);
   for (const sg of [-1, 1]) {
-    const x = sg * (IN.aisle + 0.125);
-    const wins: Hole[] = gw.z.map((z) => ({ u0: z - gw.w / 2 - IN.west, u1: z + gw.w / 2 - IN.west, y0: gw.y0, spring: gw.y1 - gw.w / 2, round: true }));
-    const doors: Hole[] = sg > 0 ? [{ u0: CHAPEL.door[0] - IN.west, u1: CHAPEL.door[1] - IN.west, y0: -0.12, spring: CHAPEL.doorSpring, round: true }] : [];
-    panel(k, C.wash, [x, IN.west], [x, IN.east + 0.25], -0.12, HT.galleryCeil + 0.12, 0.25, doors, wins, 2.4);
-    for (const z of gw.z) {
-      pane(sg * (IN.aisle + 0.2), z, gw.y0, gw.y1, gw.w, sg < 0 ? Math.PI / 2 : -Math.PI / 2, win.def);
-      box(sg < 0 ? -IN.aisle : IN.aisle - 0.3, sg < 0 ? -IN.aisle + 0.3 : IN.aisle, gw.y0 - 0.12, gw.y0, z - gw.w / 2 - 0.1, z + gw.w / 2 + 0.1, C.stone, 1.2);
+    const doors: Lining["doors"] = sg > 0 ? [{ u0: CHAPEL.door[0], u1: CHAPEL.door[1], top: W(CHAPEL.doorSpring + (CHAPEL.door[1] - CHAPEL.door[0]) / 2), round: true }] : [];
+    LIN(C.wash, face([sg * SH.aisle, 0], [sg * SH.aisle, IN.east + 1], [sg, 0]), { from: 0.35, to: SH.aisle - IN.aisle, u0: IN.west - 0.3, u1: IN.east + 0.25, y0: W(-0.12), y1: W(HT.galleryCeil + 0.12), doors });
+    for (const o of galleryWins.filter((q) => Math.sign(q.x) === sg)) {
+      // the stone sill inside
+      box(sg < 0 ? -IN.aisle : IN.aisle - 0.3, sg < 0 ? -IN.aisle + 0.3 : IN.aisle, o.yb - FY - 0.12, o.yb - FY, o.z - o.hw - 0.1, o.z + o.hw + 0.1, C.stone, 1.2);
     }
     // the oak panelling along the aisle wall (the confessionals stand in it)
     for (let z = IN.west + 0.6; z < IN.east - 0.4; z += 2.4) {
@@ -434,28 +446,39 @@ export function buildCarolusHall(): LandmarkRoom {
   }
   box(-1.4, 1.4, HT.galleryTop + 1.4, HT.galleryTop + 3.2, 1.75, 2.75, C.oak, 1.2);
 
-  // ---- the barrel vault with its transverse arches; the choir's arch; the half dome of the apse
+  // ---- the barrel vault with its transverse arches; the choir's arch; the half dome of the apse (issue #10: raised
+  // over the shell's apse windows' heads, a shallow dome up to the barrel's crown; a wall closes the apse's taller
+  // space over the choir's arch)
   k.vault(HT.vaultR * 2, HT.spring, HT.vaultR, IN.apse - IN.west, 0, IN.west, C.vault, { tile: 3.0 });
   for (const z of BAYS.slice(1)) archRing(k, C.vault, 0, HT.spring, z, HT.vaultR - 0.34, HT.vaultR + 0.05, 0.6, 0.9);
   archRing(k, C.wash, 0, HT.spring, IN.apse, IN.apseR, HT.vaultR + 0.05, 0.4, 0.92);
+  const domeY = APSE_DOME.spring;
   {
     const g = new THREE.SphereGeometry(IN.apseR + 0.05, 14, 6, 0, Math.PI, 0, Math.PI / 2);
+    g.scale(1, APSE_DOME.rise / (IN.apseR + 0.05), 1);
     g.computeVertexNormals();
     planarUV(g, 3.0);
-    k.add(g, C.vault, 0, HT.spring, IN.apse, { flat: true, tint: 0.95 });
+    k.add(g, C.vault, 0, domeY, IN.apse, { flat: true, tint: 0.95 });
+    const xw = IN.apseR + 0.6;
+    panel(k, C.wash, [-xw, IN.apse + 0.24], [xw, IN.apse + 0.24], HT.spring - 0.1, domeY + APSE_DOME.rise + 0.3, 0.06,
+      [{ u0: xw - IN.apseR, u1: xw + IN.apseR, y0: HT.spring - 0.1, spring: HT.spring, round: true }], [], 2.4);
   }
-  // the apse's five walls, windows in the three middle ones; the sanctuary's cornice
+  // the apse's five sides lined behind the shell's (the inner faces where the old walls' were), windows in the three
+  // middle ones; grey stone pilasters at its corners, the sanctuary's cornice under the half dome
+  const cos10 = Math.cos(Math.PI / 10);
+  const R0 = IN.apseR + 0.12;
   for (let i = 0; i < 5; i++) {
     const a0 = -Math.PI / 2 + (Math.PI * i) / 5;
     const a1 = -Math.PI / 2 + (Math.PI * (i + 1)) / 5;
-    const R0 = IN.apseR + 0.12;
+    const s0: [number, number] = [Math.sin(a0) * SH.apse, IN.apse + Math.cos(a0) * SH.apse];
+    const s1: [number, number] = [Math.sin(a1) * SH.apse, IN.apse + Math.cos(a1) * SH.apse];
+    const Ls = Math.hypot(s1[0] - s0[0], s1[1] - s0[1]);
+    const am = (a0 + a1) / 2;
+    LIN(C.wash, face(s0, s1, [Math.sin(am), Math.cos(am)]), { from: 0.4, to: SH.apse * cos10 - (R0 * cos10 - 0.12), u0: -0.25, u1: Ls + 0.25, y0: W(-0.12), y1: W(domeY + 0.3) });
     const p0: [number, number] = [Math.sin(a0) * R0 * -1, IN.apse + Math.cos(a0) * R0];
     const p1: [number, number] = [Math.sin(a1) * R0 * -1, IN.apse + Math.cos(a1) * R0];
     const L = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]);
-    const wins: Hole[] = i >= 1 && i <= 3 ? [{ u0: L / 2 - 0.75, u1: L / 2 + 0.75, y0: 8.4, spring: 12.2, round: true }] : [];
-    panel(k, C.wash, p0, p1, -0.12, HT.spring + 0.3, 0.24, [], wins, 2.4);
     {
-      // grey stone pilasters at the apse's corners and a cornice round it under the half dome
       const tx = (p1[0] - p0[0]) / L;
       const tz = (p1[1] - p0[1]) / L;
       let nx = -tz;
@@ -464,20 +487,12 @@ export function buildCarolusHall(): LandmarkRoom {
       const mz = (p0[1] + p1[1]) / 2;
       if (nx * (0 - mx) + nz * (IN.apse - mz) < 0) [nx, nz] = [-nx, -nz];
       const fry = Math.atan2(-tz, tx);
-      k.box(L - 0.36, 0.32, 0.3, mx + nx * 0.25, HT.spring - 0.2, mz + nz * 0.25, C.stone, { ry: fry, tile: 1.6 });
-      if (i >= 1) k.box(0.6, HT.spring - 0.01, 0.34, p0[0] + nx * 0.2 + tx * 0.05, (HT.spring - 0.01) / 2 - 0.005, p0[1] + nz * 0.2 + tz * 0.05, C.stone, { ry: fry, tile: 1.6 });
-    }
-    if (wins.length) {
-      const mx = (p0[0] + p1[0]) / 2;
-      const mz = (p0[1] + p1[1]) / 2;
-      const ry = Math.atan2(-(p1[1] - p0[1]), p1[0] - p0[0]);
-      const nx = mx * 0.985;
-      const nz = IN.apse + (mz - IN.apse) * 0.985 + 0.0;
-      pane(nx, nz, 8.4, 12.95, 1.5, ry + Math.PI, winC.def);
+      k.box(L - 0.36, 0.32, 0.3, mx + nx * 0.25, domeY - 0.2, mz + nz * 0.25, C.stone, { ry: fry, tile: 1.6 });
+      if (i >= 1) k.box(0.6, domeY - 0.01, 0.34, p0[0] + nx * 0.2 + tx * 0.05, (domeY - 0.01) / 2 - 0.005, p0[1] + nz * 0.2 + tz * 0.05, C.stone, { ry: fry, tile: 1.6 });
     }
   }
   // the returns between the apse and the choir's walls
-  for (const sg of [-1, 1]) box(sg < 0 ? -6.05 : IN.apseR - 0.1, sg < 0 ? -IN.apseR + 0.1 : 6.05, -0.12, HT.spring + 0.28, IN.apse - 0.12, IN.apse + 0.12, C.wash);
+  for (const sg of [-1, 1]) box(sg < 0 ? -6.05 : IN.apseR - 0.1, sg < 0 ? -IN.apseR + 0.1 : 6.05, -0.12, domeY + 0.3, IN.apse - 0.12, IN.apse + 0.12, C.wash);
 
   // ---- the high altar: marble, black columns, the tall painting in its gilded frame (the frame of the change machine)
   altar(k, flames, 0, 31.4, 5.6, 11.0, P_ALTAR, 0, true, CP.SANCTUARY);
@@ -537,9 +552,8 @@ export function buildCarolusHall(): LandmarkRoom {
   // ---- the Lady Chapel: marble walls, a coffered ceiling with small paintings, the altar, the rail, benches, candles
   {
     const { x0, x1, z0, z1, ceil } = CHAPEL;
-    const cw: Hole[] = CHAPEL.windows.map((z) => ({ u0: z - 0.8 - (z0 - 0.25), u1: z + 0.8 - (z0 - 0.25), y0: 3.8, spring: 8.6 - 0.8, round: true }));
-    panel(k, C.panel, [x1 + 0.125, z0 - 0.25], [x1 + 0.125, z1 + 0.25], -0.12, ceil + 0.12, 0.25, [], cw, 2.0);
-    for (const z of CHAPEL.windows) pane(x1 + 0.1, z, 3.8, 8.6, 1.6, -Math.PI / 2, winC.def);
+    // (its outer wall lined behind the shell's, cut at the shell's three windows)
+    LIN(C.panel, face([SH.chapel, SH.chapelFrom], [SH.chapel, z1 + 1], [1, 0]), { from: 0.35, to: SH.chapel - x1, u0: z0 - 0.25 - SH.chapelFrom, u1: z1 + 0.25 - SH.chapelFrom, y0: W(-0.12), y1: W(ceil + 0.12) });
     box(x0 + 0.03, x1 + 0.1, -0.12, ceil + 0.08, z0 - 0.22, z0, C.panel, 2.0);
     box(x0 + 0.03, x1 + 0.1, -0.12, ceil + 0.08, z1, z1 + 0.22, C.panel, 2.0);
     // the aisle wall's chapel side, clad in marble round the arch
@@ -576,19 +590,8 @@ export function buildCarolusHall(): LandmarkRoom {
   // ---- lights: daylight from the gallery windows, candles, the chandeliers
   // the sun through the gallery windows over the galleries' floors into the nave, the Lady Chapel's and the apse's
   // coloured glass; the columns' shadows; the moon by night (world/hallSun.ts)
-  const sunWins: SunWindow[] = [];
-  const gw2 = CP.GALLERY_WINDOWS;
-  for (const sg of [-1, 1]) for (const z of gw2.z) sunWins.push({ x: sg * (IN.aisle - 0.05), z, nx: -sg, nz: 0, hw: gw2.w / 2, y0: gw2.y0, y1: gw2.y1, spring: gw2.y1 - gw2.w / 2, lights: 2 });
-  for (const z of CHAPEL.windows) sunWins.push({ x: CHAPEL.x1 + 0.05, z, nx: -1, nz: 0, hw: 0.8, y0: 3.8, y1: 8.6, spring: 7.8, lights: 2, colour: true });
-  for (let i = 1; i <= 3; i++) {
-    const R0 = IN.apseR + 0.12;
-    const a0 = -Math.PI / 2 + (Math.PI * i) / 5;
-    const a1 = -Math.PI / 2 + (Math.PI * (i + 1)) / 5;
-    const mx = (-Math.sin(a0) * R0 - Math.sin(a1) * R0) / 2;
-    const mz = IN.apse + (Math.cos(a0) * R0 + Math.cos(a1) * R0) / 2;
-    const n = Math.hypot(mx, mz - IN.apse);
-    sunWins.push({ x: mx * 0.985, z: IN.apse + (mz - IN.apse) * 0.985, nx: -mx / n, nz: -(mz - IN.apse) / n, hw: 0.75, y0: 8.4, y1: 12.95, spring: 12.2, lights: 1, colour: true });
-  }
+  // (issue #10: the shell's real windows, at their glass; no shaft through a wall of the hall)
+  const sunWins = sunWindowsOf(rows, FY, { yaw: CP.PLAN.yaw, lines: wallLines });
   const sunLight = buildHallSun(group, {
     floor: { minX: -IN.aisle, maxX: CHAPEL.x1, minZ: IN.west, maxZ: IN.east },
     floors: [
@@ -617,6 +620,8 @@ export function buildCarolusHall(): LandmarkRoom {
   const AMB_DAY = new THREE.Color(0x5a5048);
   const AMB_NIGHT = new THREE.Color(0x262c40);
   scene.add(hemi, amb);
+  // the stained glass: the shell's old panes, moved into the hall (issue #10), lit by the day or the moon
+  const glass = churchGlass("carolus", scene);
   const pt = (c: number, x: number, y: number, z: number, d: number) => {
     const l = new THREE.PointLight(c, 0, d, 1.5);
     l.position.set(x, y, z);
@@ -641,8 +646,7 @@ export function buildCarolusHall(): LandmarkRoom {
     amb.intensity = (0.2 + 0.65 * day) * ambK;
     amb.color.copy(AMB_DAY).lerp(AMB_NIGHT, night);
     dayFill.intensity = 9 * d;
-    const g0 = 0.95 * day * sky;
-    for (const g of [win, winC]) g.mat().color.setRGB(0.07 + g0 + 0.05 * moon, 0.08 + g0 + 0.08 * moon, 0.1 + g0 + 0.17 * moon);
+    glass.set(day, sky, moon);
     sunLight.set(day, sky);
   };
   const free = (x: number, z: number) => HP.freeAt(P, x, z, 0.25, false);
@@ -732,7 +736,11 @@ export function carolusInWorld(
   inWorld: InWorld,
   hooks: { roomSound(k: string | null): void; say(t: string): void; jef(): { x: number; z: number; place(x: number, z: number, yaw: number): void } },
 ): CarolusInWorld {
-  const hall = createHallInWorld(world, inWorld, CP.PLAN, buildCarolusHall(), { color: 0x2a2620, near: 18, far: 90 }, CAROLUS_POINTS);
+  // (issue #10: every real window of the shell an opening of the hall: the hall from the street, the street from inside)
+  const hall = createHallInWorld(world, inWorld, CP.PLAN, buildCarolusHall(), { color: 0x2a2620, near: 18, far: 90 }, CAROLUS_POINTS, [], 0.3, windowOpenings(carolusRows(), (x, z) => HP.toWorld(CP.PLAN, x, z)));
+  // (from inside, only the windows near the eye bring the street in: churches.ts CHURCH_INSIDE_REACH)
+  const iw = inWorld.all.find((r) => r.id === "carolus");
+  if (iw) iw.insideReach = CHURCH_INSIDE_REACH;
   let inside = false;
   let open = true;
   return {

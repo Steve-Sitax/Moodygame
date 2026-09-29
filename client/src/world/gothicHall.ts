@@ -1,12 +1,16 @@
 import * as THREE from "three";
 import * as HP from "../../../shared/hallPlan";
-import { GOTHIC, pointedAt, type GothicHall, type GWindow } from "../../../shared/gothicPlan";
+import { GOTHIC, pointedAt, type GothicHall } from "../../../shared/gothicPlan";
+import { SHELL_OPENINGS, type ChurchOpening } from "../../../shared/churchesShell";
+import { inFrame, type ShellFace } from "../../../shared/shellOpening";
 import { canvasTex, flicker, frameRoom, rand } from "./rooms";
 import { Flames, Kit, lmMat, marble, painting, type MatDef } from "./landmarkKit";
-import { glassMat, M, walkGraph, type LandmarkRoom } from "./landmarkRooms";
+import { M, walkGraph, type LandmarkRoom } from "./landmarkRooms";
 import { buildHallSun } from "./hallSun";
 import { createHallInWorld, type HallInWorld } from "./hallInWorld";
 import { altar, C, chandelier, figure, PIC, planarUV } from "./carolusHall";
+import { lining, windowOpenings, type Lining } from "./realOpenings";
+import { CHURCH_INSIDE_REACH, churchGlass, sunWindowsOf } from "./churches";
 import { psx } from "../retro/psx";
 import type { World } from "./rijnkaai";
 import type { InWorld } from "./inworld";
@@ -242,39 +246,6 @@ function pier(k: Kit, stone: MatDef, x: number, z: number, y1: number, r: number
   k.cyl(r * 1.9, r * 1.9, 0.6, x, 0, z, stone, { seg: 8 });
 }
 
-/** A glass pane in a window (a pointed head), on a wall across x at z or along z at x, facing the room. */
-function pane(k: Kit, w: GWindow, def: MatDef, lead: MatDef): void {
-  const half = w.w / 2;
-  const ys = w.y1 - 0.742 * w.w;
-  // (a little larger than the hole: seen at a slant from close by, the glass still covers the opening's edge)
-  const e = 0.09;
-  const s = new THREE.Shape();
-  s.moveTo(-half - e, w.y0 - e);
-  s.lineTo(half + e, w.y0 - e);
-  for (let i = 0; i <= 10; i++) {
-    const u = half - (w.w * i) / 10;
-    s.lineTo(u * (1 + e / half), ys + pointedAt(u, half, 0.742 * w.w) + e);
-  }
-  s.lineTo(-half - e, w.y0 - e);
-  const g = new THREE.ShapeGeometry(s, 1);
-  const uv = g.getAttribute("uv") as THREE.BufferAttribute;
-  for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) + half) / w.w, (uv.getY(i) - w.y0) / (w.y1 - w.y0));
-  // the face looks at the room: a wall across x (at z) facing +z or -z, a wall along z (at x) facing +x or -x
-  const ry = w.wall === "x" ? (w.inward > 0 ? 0 : Math.PI) : w.inward > 0 ? Math.PI / 2 : -Math.PI / 2;
-  const [px, pz] = w.wall === "x" ? [w.c, w.at + w.inward * 0.02] : [w.at + w.inward * 0.02, w.c];
-  k.add(g, def, px, 0, pz, { ry, flat: true });
-  // a second pane inside the reveal: seen along the wall from close by, the eye slips past the first one's edge
-  // into the opening, and there it meets glass instead of the sky
-  const [bx, bz] = w.wall === "x" ? [w.c, w.at - w.inward * 0.15] : [w.at - w.inward * 0.15, w.c];
-  k.add(g.clone(), def, bx, 0, bz, { ry, flat: true });
-  // the lights' mullions, a transom
-  for (let i = 1; i < w.lights; i++) {
-    const u = -half + (w.w * i) / w.lights;
-    const [mx, mz] = w.wall === "x" ? [w.c + u, w.at + w.inward * 0.07] : [w.at + w.inward * 0.07, w.c - u * (w.inward > 0 ? 1 : -1)];
-    k.box(w.wall === "x" ? 0.09 : 0.09, ys - w.y0 + 0.3, 0.09, mx, (w.y0 + ys + 0.3) / 2, mz, lead);
-  }
-}
-
 /** A carved oak confessional against a wall along z at x (its face toward -sg), middle at z. */
 function confessional(k: Kit, x: number, sg: number, z: number): void {
   const ry = sg < 0 ? Math.PI / 2 : -Math.PI / 2;
@@ -374,10 +345,15 @@ function statueOnColumn(k: Kit, x: number, z: number, y: number, face: number): 
   k.cyl(0.32, 0.0, 0.8, x + fx * 0.55, y + 2.1, z, G.white, { seg: 6 });
 }
 
+/** The shell's real openings of a church (shared/churchesShell.ts), in its hall's frame. */
+export function churchRows(h: GothicHall): ChurchOpening[] {
+  return inFrame(SHELL_OPENINGS.filter((o) => o.church === h.id), h.plan.origin, h.plan.yaw) as ChurchOpening[];
+}
+
 /** The church inside, built from its plan at the shell's place. */
 export function buildGothicHall(h: GothicHall): LandmarkRoom {
   const P = h.plan;
-  const { L, H } = h;
+  const { L, H, S: SH } = h;
   ribEdges.clear();
   const { scene, group, toWorld } = frameRoom(P.origin, P.yaw, 0x2a2622);
   scene.background = null;
@@ -393,70 +369,118 @@ export function buildGothicHall(h: GothicHall): LandmarkRoom {
   const S = paul ? G.white : G.sand; // the columns', arcades' and ribs' stone
   const WALL = G.wash;
   const flames = new Flames(group, 320, 0.14);
-  const glassG = glassMat("grisaille", paul ? 91 : 93);
-  const glassC = glassMat("colour", paul ? 92 : 94);
-  const lead = G.iron;
   const box = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, m: MatDef, tile = 2.4, tint?: number) =>
     k.box(x1 - x0, y1 - y0, z1 - z0, (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, m, { tile, tint });
   const pics = paul ? PICS.paul : PICS.james;
   const arcTop = H.aisleSpring + H.aisleRise; // the arcade walls reach the aisles' vault crowns
+  // the aisles' vaults across and along (issue #10: St Paul's lower, under the valleys of the aisles' row of cross
+  // gables, 10.5 over the street at each bay's line: from inside, through the real windows, the street's roofs are drawn
+  // too, and a vault over them was hidden by them)
+  const aisleRiseX = paul ? 1.85 : H.aisleRise * 0.8;
+  const aisleRiseZ = paul ? 4.5 : H.aisleRise;
   const naveTop = H.naveSpring + H.naveRise;
   const z0n = L.tower ? L.tower.z1 : L.west; // where the nave's arcades begin
-  const winOn = (wall: "x" | "z", at: number) => h.windows.filter((w) => w.wall === wall && Math.abs(w.at - at) < 0.3);
-  const holesOf = (ws: GWindow[], toU: (c: number) => number): Opening[] =>
-    ws.map((w) => ({ u0: toU(w.c) - w.w / 2, u1: toU(w.c) + w.w / 2, y0: w.y0, spring: w.y1 - 0.742 * w.w, head: "pointed" as const, rise: 0.742 * w.w }));
+
+  // ---- issue #10 (interiors are real): every wall of the hall behind a face of the shell is a lining
+  // (world/realOpenings.ts), from the windows' reveals' back (SH.reveal) to the hall's inner face (SH.lining in),
+  // cut exactly where the shell's windows and doors are; the glass is the shell's old panes, moved in (churchGlass).
+  // Heights of the linings in world metres (W: from the hall's floor).
+  const FY = P.floorY;
+  const W = (y: number) => y + FY;
+  const rows = churchRows(h);
+  const face = (a: [number, number], c: [number, number], n: [number, number]): ShellFace => ({ a, c, n });
+  type LOpts = { from?: number; to?: number; u0: number; u1: number; y0: number; y1: number; top?: Array<[number, number]>; doors?: Lining["doors"] };
+  // (the linings' inner faces as lines: the sun's shafts do not pass through them, churches.ts sunWindowsOf)
+  const wallLines: Array<[[number, number], [number, number]]> = [];
+  const LIN = (def: MatDef, f: ShellFace, o: LOpts) => {
+    const to = o.to ?? SH.lining;
+    const fl = Math.hypot(f.c[0] - f.a[0], f.c[1] - f.a[1]);
+    const P = (u: number): [number, number] => [f.a[0] + ((f.c[0] - f.a[0]) * u) / fl - f.n[0] * to, f.a[1] + ((f.c[1] - f.a[1]) * u) / fl - f.n[1] * to];
+    wallLines.push([P(o.u0), P(o.u1)]);
+    return lining(k, def, { face: f, from: o.from ?? SH.reveal, to, u0: o.u0, u1: o.u1, y0: o.y0, y1: o.y1, top: o.top, doors: o.doors }, rows, FY, 2.6);
+  };
+  /** A pointed arch of the room's own cut from a lining's bottom (u along its face, local springing and rise). */
+  const arch = (u0: number, u1: number, spring: number, rise: number) => {
+    const o: Opening = { u0, u1, y0: 0, spring, head: "pointed", rise };
+    return { u0, u1, top: W(spring + rise), head: headPts(o).map(([u, y]) => [u, W(y)] as [number, number]) };
+  };
+  const cos10 = Math.cos(Math.PI / 10);
+  /** A corner of a five-sided end (the apse's, the ambulatory's) round (0, cz) at circumradius R. */
+  const fivePt = (i: number, R: number, cz: number): [number, number] => {
+    const a = -Math.PI / 2 + (Math.PI * i) / 5;
+    return [-Math.sin(a) * R, cz + Math.cos(a) * R];
+  };
+  const outOf = (p: [number, number], q: [number, number], c: [number, number]): [number, number] => {
+    const mx = (p[0] + q[0]) / 2 - c[0];
+    const mz = (p[1] + q[1]) / 2 - c[1];
+    const l = Math.hypot(mx, mz);
+    return [mx / l, mz / l];
+  };
+  const len = (p: [number, number], q: [number, number]) => Math.hypot(q[0] - p[0], q[1] - p[1]);
 
   // ================= floors
   for (const f of P.levels[0].floors) {
     if (f.maxZ <= 0.001) continue; // the porch is the street's
     box(f.minX, f.maxX, -0.12, 0, f.minZ, f.maxZ, G.floor, SLAB_TILE);
   }
-  // the choir and the apse (and the ambulatory) under the parts Jef does not walk: floored all the same, a little lower
+  // the choir and the apse (and the ambulatory with its chapels) under the parts Jef does not walk: floored all the
+  // same, a little lower
   {
-    const xr = L.amb ?? L.choir + 0.2;
-    box(-xr, xr, -0.16, -0.035, L.tx[1], L.apse.z + (L.amb ?? L.apse.r) + 0.3, G.floor, SLAB_TILE);
+    const xr = SH.amb ? SH.amb + 0.2 : L.choir + 0.2;
+    box(-xr, xr, -0.16, -0.035, L.tx[1], L.apse.z + (SH.amb ? SH.amb + 1.7 : L.apse.r + 0.3), G.floor, SLAB_TILE);
   }
-  // ================= the west wall(s): the doorway (a little wider than the shell's), the windows
-  const dw = h.door;
-  const westHalf = L.tower ? L.tower.half + 0.66 : L.aisle + 0.25;
-  wallG(k, WALL, [-westHalf, dw.inner / 2 + 0.05], [westHalf, dw.inner / 2 + 0.05], -0.12, L.tower ? 21 : naveTop + 0.5, dw.inner - 0.1,
-    [{ u0: westHalf - dw.hw - 0.06, u1: westHalf + dw.hw + 0.06, y0: -0.12, spring: dw.spring, head: dw.round ? "round" : "pointed", rise: 0.742 * (2 * dw.hw + 0.12) }],
-    holesOf(winOn("x", L.west).filter((w) => Math.abs(w.c) < westHalf), (c) => c + westHalf));
-  for (const w of winOn("x", L.west).filter((w) => Math.abs(w.c) < westHalf)) pane(k, w, glassG.def, lead);
-  if (L.tower) {
-    // the aisles' own west walls beside the tower
-    for (const sg of [-1, 1]) {
-      const a0 = sg * (L.tower.half + 0.6);
-      const a1 = sg * (L.aisle + 0.25);
-      const ws = h.windows.filter((w) => w.wall === "x" && w.at < 1 && Math.sign(w.c) === sg);
-      const [ua, ub] = sg < 0 ? [a1, a0] : [a0, a1];
-      wallG(k, WALL, [ua, 0.3], [ub, 0.3], -0.12, H.aisleSpring + H.aisleRise + 0.3, 0.5, [], holesOf(ws, (c) => c - ua));
-      for (const w of ws) pane(k, { ...w, at: 0.55 }, glassG.def, lead);
-    }
-    // the north chapels' west wall
-    wallG(k, WALL, [-20.45, 0.3], [-L.aisle - 0.25, 0.3], -0.12, H.chapelCeil + 0.2, 0.5, [], []);
+  // ================= the west front: lined behind the shell's face, cut at its door and its windows
+  if (paul) {
+    // one face from the south aisle's corner to the north chapels': over the nave to the vault, the aisles to their
+    // vaults' crowns, the chapels to their ceiling
+    const u1 = SH.aisle + SH.chapel - 0.25;
+    const A = W(H.aisleSpring + aisleRiseX + 0.3); // (over the aisles' vaults, under their roofs)
+    const N = W(naveTop + 0.5);
+    const C = W(H.chapelCeil + 0.2);
+    LIN(WALL, face([SH.aisle, 0], [-SH.chapel, 0], [0, -1]), {
+      to: L.west,
+      u0: 0.25,
+      u1,
+      y0: W(-0.04),
+      y1: N,
+      top: [[0.25, A], [SH.aisle - SH.nave, A], [SH.aisle - SH.nave, N], [SH.aisle + SH.nave, N], [SH.aisle + SH.nave, A], [2 * SH.aisle, A], [2 * SH.aisle, C], [u1, C]],
+    });
   } else {
-    for (const ch of L.chapels) if (ch.z0 < 1.5) wallG(k, WALL, [ch.side * (Math.abs(ch.x) + 0.35), ch.z0 / 2 + 0.05], [ch.side * (L.aisle + 0.25), ch.z0 / 2 + 0.05], -0.12, ch.ceil + 0.2, ch.z0 - 0.1, [], []);
+    // the tower's west face (the door, the great window over it) to the tower hall's vault; the aisles' and the
+    // north chapels' west fronts (their ends tucked into the tower hall's side walls)
+    LIN(WALL, face([SH.nave, 0], [-SH.nave, 0], [0, -1]), { to: L.west, u0: 0.1, u1: 2 * SH.nave - 0.1, y0: W(-0.04), y1: W(H.towerSpring! + H.towerRise! + 0.4) });
+    LIN(WALL, face([SH.aisle, 0], [SH.nave, 0], [0, -1]), { u0: 0.25, u1: SH.aisle - SH.nave + 0.1, y0: W(-0.12), y1: W(arcTop + 0.3) });
+    const u1 = SH.chapel - SH.nave - 0.25;
+    LIN(WALL, face([-SH.nave, 0], [-SH.chapel, 0], [0, -1]), {
+      u0: -0.1,
+      u1,
+      y0: W(-0.12),
+      y1: W(arcTop + 0.3),
+      top: [[-0.1, W(arcTop + 0.3)], [SH.aisle - SH.nave, W(arcTop + 0.3)], [SH.aisle - SH.nave, W(H.chapelCeil + 0.2)], [u1, W(H.chapelCeil + 0.2)]],
+    });
   }
-  // ================= the tower hall (St James): its side walls with arches to the aisles, the great arch to the nave, its vault
+  // ================= the tower hall (St James): its side walls with arches to the aisles, the great arch to the nave,
+  // its vault (issue #10: raised over the great west window's head, which it had cut across)
   if (L.tower) {
     const T = L.tower;
+    const top = H.towerSpring! + H.towerRise! + 0.4;
     for (const sg of [-1, 1]) {
-      const x = sg * (T.half + 0.3);
+      const x = sg * (T.half + 0.32); // (its outer face 2 cm before the shell's tower face, in the aisle)
       // (to the east wall's middle: that wall's ends close these, no two faces in one plane)
       const [za, zb] = sg < 0 ? [T.z1 + 0.25, 0.3] : [0.3, T.z1 + 0.25];
       const toU = (zz: number) => (sg < 0 ? za - zz : zz - za);
       const o = [4.4, 8.0].map(toU).sort((p, q) => p - q);
-      wallG(k, S, [x, za], [x, zb], -0.12, 20.9, 0.6, [{ u0: o[0], u1: o[1], y0: -0.12, spring: 6.0, head: "pointed", rise: 2.8 }], [], 2.4);
+      wallG(k, S, [x, za], [x, zb], -0.12, top, 0.6, [{ u0: o[0], u1: o[1], y0: -0.12, spring: 6.0, head: "pointed", rise: 2.8 }], [], 2.4);
     }
     // (its ends 6 cm proud of the side walls' faces, inside the arcade walls)
-    wallG(k, S, [-T.half - 0.66, T.z1 + 0.3], [T.half + 0.66, T.z1 + 0.3], -0.12, naveTop + 0.4, 0.6,
+    wallG(k, S, [-T.half - 0.66, T.z1 + 0.3], [T.half + 0.66, T.z1 + 0.3], -0.12, top, 0.6,
       [{ u0: 1.06, u1: 2 * T.half + 0.26, y0: -0.12, spring: 11.5, head: "pointed", rise: 5.6 }], [], 2.4);
-    groin(k, G.vault, S, -T.half, T.half, 1.4, T.z1, 14.0, 5.0, 5.0);
-    // the font by the door
+    groin(k, G.vault, S, -T.half, T.half, 1.4, T.z1, H.towerSpring!, H.towerRise!, H.towerRise!);
   }
-  // ================= the arcades: columns, pointed arches, the walls over them up to the vault, the clerestory
+  // ================= the arcades: columns, pointed arches, the walls over them; the clerestory lined behind the shell
   const colsZ = L.bays.slice(1, -1).filter((b) => b > z0n + 0.5);
+  // (the arcade walls up to where the shell's clerestory face begins over the aisles' roofs; the linings from there)
+  const clereFoot = paul ? arcTop + 0.9 : 18.75;
   for (const sg of [-1, 1]) {
     const x = sg * L.nave;
     const zs = [z0n, ...colsZ, L.tx[0]];
@@ -470,216 +494,317 @@ export function buildGothicHall(h: GothicHall): LandmarkRoom {
       const q = toU(zs[i + 1] - (i === zs.length - 2 ? 0.75 : 0.55));
       openings.push({ u0: Math.min(p, q), u1: Math.max(p, q), y0: -0.12, spring: H.cap, head: "pointed", rise: H.arcRise });
     }
-    const clere = holesOf(winOn("z", x), toU);
-    wallG(k, S, [x, za], [x, zb], -0.12, naveTop + 0.3, 0.7, openings, clere, 2.6);
-    for (const w of winOn("z", x)) pane(k, { ...w, at: x - sg * 0.36 }, glassG.def, lead);
+    // (the arcade wall from the clerestory lining's inner face to 0.35 past the arcade's line, under the aisles' roofs)
+    const xin = SH.nave - SH.lining;
+    const xout = L.nave + 0.35;
+    const xw = sg * ((xin + xout) / 2);
+    const [wa, wb]: [[number, number], [number, number]] = [
+      [xw, za],
+      [xw, zb],
+    ];
+    wallG(k, S, wa, wb, -0.12, clereFoot, xout - xin, openings, [], 2.6);
+    // the clerestory, lined behind the shell's face, flush with the arcade wall
+    const z0c = L.tower ? L.tower.z1 : 0;
+    LIN(S, face([sg * SH.nave, z0c], [sg * SH.nave, L.tx[0]], [sg, 0]), {
+      u0: L.tower ? 0.1 : L.west - 0.2,
+      u1: L.tx[0] - z0c + 0.1,
+      y0: W(clereFoot),
+      y1: W(naveTop + 0.3),
+    });
     for (const zz of colsZ) {
       column(k, S, x, zz, 0, H.cap, 0.5);
       if (!paul) statueOnColumn(k, x, zz, H.cap - 2.8, -sg);
     }
-    // the triforium's openwork parapet along the nave, over the aisles' crowns
+    // the triforium's openwork parapet along the nave, over the aisles' crowns, before the wall's face
     const yt = arcTop + 0.4;
-    box(x - sg * 0.35 - 0.12, x - sg * 0.35 + 0.12, yt, yt + 0.12, zs[0] + 0.3, zs[zs.length - 1] - 0.3, S, 2.4);
-    box(x - sg * 0.35 - 0.12, x - sg * 0.35 + 0.12, yt + 0.9, yt + 1.02, zs[0] + 0.3, zs[zs.length - 1] - 0.3, S, 2.4);
-    for (let zz = zs[0] + 0.5; zz < zs[zs.length - 1] - 0.4; zz += 0.45) k.box(0.1, 0.78, 0.1, x - sg * 0.35, yt + 0.51, zz, S);
+    const xp = sg * (xin - 0.12);
+    box(xp - 0.12, xp + 0.12, yt, yt + 0.12, zs[0] + 0.3, zs[zs.length - 1] - 0.3, S, 2.4);
+    box(xp - 0.12, xp + 0.12, yt + 0.9, yt + 1.02, zs[0] + 0.3, zs[zs.length - 1] - 0.3, S, 2.4);
+    for (let zz = zs[0] + 0.5; zz < zs[zs.length - 1] - 0.4; zz += 0.45) k.box(0.1, 0.78, 0.1, xp, yt + 0.51, zz, S);
   }
   // the crossing's four piers
   for (const zz of L.tx) for (const sg of [-1, 1]) pier(k, S, sg * L.nave, zz, H.naveSpring, 0.62);
-  // ================= the aisles' outer walls: arches into the chapels, the windows over them
+  // ================= the aisles' outer walls: lined behind the shell's, arches into the chapels, the windows over them
+  // St Paul's aisles' walls under their row of cross gables: the linings' tops follow the gables (a little over)
+  const gables: Array<[number, number]> | undefined = paul
+    ? L.bays.flatMap((b, i) => (i + 1 < L.bays.length ? [[b, W(10.5 - FY + 0.25)], [(b + L.bays[i + 1]) / 2, W(14.5 - FY + 0.25)]] : [[b, W(10.5 - FY + 0.25)]])) as Array<[number, number]>
+    : undefined;
   for (const sg of [-1, 1]) {
-    const x = sg * (L.aisle + 0.12);
-    // (to inside the transept's west wall: no end face in that wall's face)
-    const za = sg < 0 ? L.tx[0] - 0.1 : L.west - (L.tower ? 0.8 : 0);
-    const zb = sg < 0 ? L.west - (L.tower ? 0.8 : 0) : L.tx[0] - 0.1;
-    const toU = (zz: number) => (sg < 0 ? za - zz : zz - za);
     const ch = L.chapels.find((c) => c.side === sg);
-    const openings: Opening[] = [];
+    const doors: Lining["doors"] = [];
     if (ch) {
       const bs = [ch.z0, ...L.bays.slice(1, -1).filter((b) => b > ch.z0 + 0.5 && b < ch.z1 - 0.5), ch.z1];
       for (let i = 0; i + 1 < bs.length; i++) {
-        const p = toU(bs[i] + (i === 0 ? 0.05 : 0.3));
-        const q = toU(bs[i + 1] - (i === bs.length - 2 ? 0.05 : 0.3));
-        openings.push({ u0: Math.min(p, q), u1: Math.max(p, q), y0: -0.12, spring: ch.ceil - 1.8, head: "pointed", rise: 1.7 });
+        const p = bs[i] + (i === 0 ? 0.05 : 0.3);
+        const q = i === bs.length - 2 ? Math.min(bs[i + 1] - 0.05, L.tx[0] - 0.3) : bs[i + 1] - 0.3;
+        doors.push(arch(p, q, ch.ceil - 1.8, 1.7));
       }
     }
-    const ws = winOn("z", sg * L.aisle);
-    wallG(k, WALL, [x, za], [x, zb], -0.12, arcTop + 0.2, 0.25, openings, holesOf(ws, toU), 2.6);
-    for (const w of ws) pane(k, { ...w, at: sg * (L.aisle - 0.02) }, paul && sg > 0 ? glassG.def : glassG.def, lead);
+    LIN(WALL, face([sg * SH.aisle, 0], [sg * SH.aisle, L.tx[0]], [sg, 0]), {
+      u0: 0.25,
+      u1: L.tx[0] + SH.reveal + 0.1,
+      y0: W(-0.12),
+      y1: gables ? W(14.5 - FY + 0.25) : W(arcTop + 0.3),
+      top: gables,
+      doors,
+    });
     if (ch) {
-      // the chapels: their outer wall with windows, their partitions, a flat panelled ceiling
-      const xo = ch.x + sg * 0.12;
-      // (a little past both ends, into the walls that close the row of chapels, so no seam opens at the corners)
-      const [ca, cb] = sg < 0 ? [ch.z1 + 0.15, ch.z0 - 0.15] : [ch.z0 - 0.15, ch.z1 + 0.15];
-      const toUc = (zz: number) => (sg < 0 ? ca - zz : zz - ca);
-      // (only its own: St Paul's transept end stands in the same line)
-      const cws = winOn("z", ch.x).filter((w) => w.c > ch.z0 && w.c < ch.z1);
-      wallG(k, WALL, [xo, ca], [xo, cb], -0.12, ch.ceil + 0.12, 0.25, [], holesOf(cws, toUc), 2.6);
-      for (const w of cws) pane(k, { ...w, at: ch.x - sg * 0.02 }, glassG.def, lead);
+      // the chapels: their outer wall lined (St Paul's north chapels in one line with the transept's north end, lined
+      // below), their partitions, a flat panelled ceiling
+      const zc0 = paul ? 0 : ch.side < 0 ? 0 : ch.z0 - 0.25;
+      if (!paul)
+        LIN(WALL, face([sg * SH.chapel, zc0], [sg * SH.chapel, L.tx[0]], [sg, 0]), { u0: 0.25, u1: L.tx[0] + SH.reveal + 0.1 - zc0, y0: W(-0.12), y1: W(ch.ceil + 0.12) });
       for (const b of L.bays.slice(1, -1).filter((b) => b > ch.z0 + 0.5 && b < ch.z1 - 0.5))
-        // (2 cm inside the arches' reveals: not in their faces)
-        box(Math.min(ch.x, sg * L.aisle), Math.max(ch.x, sg * L.aisle), -0.12, ch.ceil + 0.05, b - 0.28, b + 0.28, WALL);
+        // (into both linings: no seam; 2 cm inside the arches' reveals: not in their faces)
+        box(Math.min(ch.x, sg * L.aisle) - 0.1, Math.max(ch.x, sg * L.aisle) + 0.1, -0.12, ch.ceil + 0.05, b - 0.28, b + 0.28, WALL);
       box(Math.min(ch.x, sg * L.aisle) - 0.1, Math.max(ch.x, sg * L.aisle) + 0.1, ch.ceil, ch.ceil + 0.14, ch.z0 - 0.1, ch.z1 + 0.1, G.vault, 2.4, 1.45);
       // its ceiling's beams across each chapel
       for (let zz = ch.z0 + 1.0; zz < ch.z1 - 0.5; zz += 1.6)
         box(Math.min(ch.x, sg * L.aisle), Math.max(ch.x, sg * L.aisle), ch.ceil - 0.22, ch.ceil, zz - 0.1, zz + 0.1, G.oakPlain, 1.2, 1.3);
-      for (const w of cws) {
-        // a small altar in each chapel under its window
-        box(ch.x - sg * 0.9, ch.x - sg * 0.1, 0, 1.0, w.c - 1.0, w.c + 1.0, G.marbleB, 1.2);
-        box(ch.x - sg * 0.95, ch.x - sg * 0.05, 1.0, 1.08, w.c - 1.05, w.c + 1.05, G.marbleW, 1.2);
+      // a small altar in each chapel under its window (the shell's)
+      for (const w of rows.filter((o) => o.kind === "window" && Math.abs(o.x - sg * SH.chapel) < 0.05 && o.z > ch.z0 && o.z < ch.z1)) {
+        box(ch.x - sg * 0.9, ch.x - sg * 0.1, 0, 1.0, w.z - 1.0, w.z + 1.0, G.marbleB, 1.2);
+        box(ch.x - sg * 0.95, ch.x - sg * 0.05, 1.0, 1.08, w.z - 1.05, w.z + 1.05, G.marbleW, 1.2);
         for (const d of [-0.5, 0.5]) {
-          k.cyl(0.022, 0.022, 0.26, ch.x - sg * 0.5, 1.08, w.c + d, G.wax, { seg: 4 });
-          flames.addFlame(ch.x - sg * 0.5, 1.4, w.c + d);
+          k.cyl(0.022, 0.022, 0.26, ch.x - sg * 0.5, 1.08, w.z + d, G.wax, { seg: 4 });
+          flames.addFlame(ch.x - sg * 0.5, 1.4, w.z + d);
         }
       }
-      if (!paul && sg > 0) box(L.aisle, ch.x, -0.12, ch.ceil + 0.1, ch.z0 - 0.5, ch.z0, WALL); // the baptistery's wall
+      if (!paul && sg > 0) box(L.aisle - 0.1, ch.x + 0.1, -0.12, ch.ceil + 0.1, ch.z0 - 0.5, ch.z0, WALL); // the baptistery's wall
     }
   }
   // ================= the vaults: the nave bay by bay, the aisles, the crossing and the arms, the choir, the apse
+  // (each a little into the linings round it: no seam at the walls)
   const naveBays = [z0n, ...colsZ, L.tx[0]];
   for (let i = 0; i + 1 < naveBays.length; i++) groin(k, G.vault, S, -L.nave + 0.35, L.nave - 0.35, naveBays[i], naveBays[i + 1], H.naveSpring, H.naveRise, H.naveRise);
-  const aisleBays = [L.tower ? 0.55 : L.west, ...L.bays.slice(1, -1).filter((b) => b > 0.8), L.tx[0]];
+  const aisleBays = [L.tower ? 0.55 : L.west, ...L.bays.slice(1, -1).filter((b) => b > 0.8), L.tx[0] + SH.reveal + 0.1];
   for (const sg of [-1, 1])
     for (let i = 0; i + 1 < aisleBays.length; i++) {
       // (beside St James's tower the aisle's vault meets the tower's side wall)
       const xi = L.tower && aisleBays[i + 1] <= L.tower.z1 + 0.01 ? L.tower.half + 0.6 : L.nave + 0.35;
-      const [xa, xb] = sg < 0 ? [-L.aisle, -xi] : [xi, L.aisle];
-      groin(k, G.vault, S, xa, xb, aisleBays[i], aisleBays[i + 1], H.aisleSpring, H.aisleRise * 0.8, H.aisleRise);
+      const [xa, xb] = sg < 0 ? [-L.aisle - 0.1, -xi] : [xi, L.aisle + 0.1];
+      groin(k, G.vault, S, xa, xb, aisleBays[i], aisleBays[i + 1], H.aisleSpring, aisleRiseX, aisleRiseZ);
     }
   groin(k, G.vault, S, -L.nave + 0.35, L.nave - 0.35, L.tx[0], L.tx[1], H.naveSpring, H.naveRise, H.naveRise);
   for (const sg of [-1, 1]) {
-    const xs = [L.nave - 0.35, (L.nave + L.arm) / 2, L.arm].map((v) => sg * v);
-    for (let i = 0; i + 1 < xs.length; i++) groin(k, G.vault, S, Math.min(xs[i], xs[i + 1]), Math.max(xs[i], xs[i + 1]), L.tx[0], L.tx[1], H.naveSpring, H.naveRise, H.naveRise);
+    // (the arms' vaults end in their west and east faces' linings, behind the shell's faces)
+    const xs = [L.nave - 0.35, (L.nave + L.arm) / 2, L.arm + 0.1].map((v) => sg * v);
+    for (let i = 0; i + 1 < xs.length; i++)
+      groin(k, G.vault, S, Math.min(xs[i], xs[i + 1]), Math.max(xs[i], xs[i + 1]), L.tx[0] + SH.reveal + 0.05, L.tx[1] - SH.reveal - 0.05, H.naveSpring, H.naveRise, H.naveRise);
   }
   // ================= the transept: its ends with the great windows, its west and east faces over the aisles
+  const T0 = L.tx[0];
+  const T1 = L.tx[1];
+  const armTop = W(naveTop + 0.3);
   for (const sg of [-1, 1]) {
-    const x = sg * (L.arm + 0.12);
-    const [za, zb] = sg < 0 ? [L.tx[1], L.tx[0]] : [L.tx[0], L.tx[1]];
-    const toU = (zz: number) => (sg < 0 ? za - zz : zz - za);
-    // (only its own: St Paul's north chapels stand in the same line)
-    const ws = winOn("z", sg * L.arm).filter((w) => w.c > L.tx[0] && w.c < L.tx[1]);
-    wallG(k, WALL, [x, za], [x, zb], -0.12, naveTop + 0.4, 0.25, [], holesOf(ws, toU), 2.6);
-    for (const w of ws) pane(k, { ...w, at: sg * (L.arm - 0.02) }, glassC.def, lead);
-    for (const [zz, dir] of [[L.tx[0], 1], [L.tx[1], -1]] as Array<[number, number]>) {
-      const zw = zz - dir * 0.12;
-      const inner = zz === L.tx[1] && L.amb ? L.amb : dir > 0 ? L.aisle : L.choir + 0.35;
-      const x0 = sg * (L.nave + 0.35);
-      const x1 = sg * (L.arm + 0.25);
-      const [ua, ub] = sg < 0 ? [x1, x0] : [x0, x1];
-      const toUx = (xx: number) => xx - ua;
-      const ws2 = h.windows.filter((w) => w.wall === "x" && Math.abs(w.at - zz) < 0.3 && Math.sign(w.c) === sg);
-      // the opening where the aisle (or the choir aisle) meets the arm
-      const oa = toUx(sg * (L.nave + 0.35));
-      const ob = toUx(sg * inner);
-      const openings: Opening[] =
-        zz === L.tx[0] || L.amb ? [{ u0: Math.min(oa, ob), u1: Math.max(oa, ob), y0: -0.12, spring: dir > 0 ? H.aisleSpring : (H.ambSpring ?? H.aisleSpring), head: "pointed", rise: (dir > 0 ? H.aisleRise : (H.ambRise ?? 2)) * 0.76 }] : [];
-      wallG(k, WALL, [ua, zw], [ub, zw], -0.12, naveTop + 0.3, 0.25, openings, holesOf(ws2, toUx), 2.6);
-      for (const w of ws2) pane(k, { ...w, at: zz - dir * 0.02 }, glassG.def, lead);
+    // the arm's end (St Paul's north end is lined with the north chapels, in one line)
+    if (!(paul && sg < 0)) LIN(WALL, face([sg * SH.arm, T0], [sg * SH.arm, T1], [sg, 0]), { u0: 0.25, u1: T1 - T0 - 0.25, y0: W(-0.12), y1: armTop });
+    // the arm's west face: the arch from the aisle, the window over the aisle's roof (u from the face's start)
+    {
+      const [a, c]: [[number, number], [number, number]] = sg < 0 ? [[-SH.nave, T0], [-SH.arm, T0]] : [[SH.arm, T0], [SH.nave, T0]];
+      const toU = (x: number) => (sg < 0 ? -SH.nave - x : SH.arm - x);
+      const ua = toU(sg * (L.nave + 0.35));
+      const ub = toU(sg * L.aisle);
+      LIN(WALL, face(a, c, [0, -1]), {
+        u0: sg < 0 ? 0 : 0.25,
+        u1: sg < 0 ? SH.arm - SH.nave - 0.25 : SH.arm - SH.nave,
+        y0: W(-0.12),
+        y1: armTop,
+        doors: [arch(Math.min(ua, ub), Math.max(ua, ub), H.aisleSpring - 0.2, Math.min(H.aisleRise * 0.76, aisleRiseX - 0.1))], // (under the aisle's vault's end)
+      });
     }
+    // the arm's east face: St James's arches into the choir's aisles; St Paul's north one lined, its south one a wall
+    // against the tower (the shell has no face there under the tower's)
+    if (paul && sg > 0) {
+      const zq = T1 - SH.lining + 0.125;
+      wallG(k, WALL, [SH.nave - 0.45, zq], [L.arm + 0.25, zq], -0.12, naveTop + 0.3, 0.25, [], [], 2.6);
+      wallLines.push([[SH.nave - 0.45, T1 - SH.lining], [L.arm + 0.25, T1 - SH.lining]]);
+    } else {
+      const [a, c]: [[number, number], [number, number]] = sg < 0 ? [[-SH.nave, T1], [-SH.arm, T1]] : [[SH.arm, T1], [SH.nave, T1]];
+      const toU = (x: number) => (sg < 0 ? -SH.nave - x : SH.arm - x);
+      const doors: Lining["doors"] = [];
+      if (L.amb) {
+        const ua = toU(sg * (L.nave + 0.35));
+        const ub = toU(sg * L.amb);
+        doors.push(arch(Math.min(ua, ub), Math.max(ua, ub), H.ambSpring ?? H.aisleSpring, (H.ambRise ?? 2) * 0.76));
+      }
+      LIN(WALL, face(a, c, [0, 1]), { u0: sg < 0 ? 0 : 0.25, u1: sg < 0 ? SH.arm - SH.nave - 0.25 : SH.arm - SH.nave, y0: W(-0.12), y1: armTop, doors });
+    }
+  }
+  if (paul) {
+    // the north chapels' outer wall and the north arm's end: one face of the shell, lined together (the chapels to
+    // their ceiling, the arm to its vault)
+    const ch = L.chapels[0];
+    LIN(WALL, face([-SH.chapel, 0], [-SH.chapel, T1], [-1, 0]), {
+      u0: 0.25,
+      u1: T1 - 0.25,
+      y0: W(-0.12),
+      y1: armTop,
+      top: [[0.25, W(ch.ceil + 0.12)], [ch.z1, W(ch.ceil + 0.12)], [ch.z1, armTop], [T1 - 0.25, armTop]],
+    });
   }
   // ================= the choir, its apse (and St James's choir aisles and ambulatory)
   const cz0 = L.tx[1];
   const cz1 = L.apse.z;
+  const chFoot = L.amb ? 16.35 : -0.12; // (St James's choir: an arcade to its aisles under the clerestory)
   for (const sg of [-1, 1]) {
     const x = sg * (L.choir + 0.12);
     const [za, zb] = sg < 0 ? [cz1, cz0] : [cz0, cz1];
     const toU = (zz: number) => (sg < 0 ? za - zz : zz - za);
-    const ws = winOn("z", sg * L.choir);
     if (L.amb) {
-      // an arcade to the choir aisle, a clerestory over it
+      // an arcade to the choir aisle, the clerestory over it lined behind the shell's
       const mid = (cz0 + cz1) / 2;
       const openings: Opening[] = [
         { u0: Math.min(toU(cz0 + 0.8), toU(mid - 0.55)), u1: Math.max(toU(cz0 + 0.8), toU(mid - 0.55)), y0: -0.12, spring: H.cap, head: "pointed", rise: H.arcRise },
         { u0: Math.min(toU(mid + 0.55), toU(cz1 - 0.3)), u1: Math.max(toU(mid + 0.55), toU(cz1 - 0.3)), y0: -0.12, spring: H.cap, head: "pointed", rise: H.arcRise },
       ];
-      wallG(k, S, [x, za], [x, zb], -0.12, naveTop + 0.3, 0.5, openings, holesOf(ws, toU), 2.6);
+      wallG(k, S, [x, za], [x, zb], -0.12, chFoot, 0.5, openings, [], 2.6);
       column(k, S, sg * L.choir, mid, 0, H.cap, 0.45);
-      // the choir aisle's outer wall with its windows, its vault
-      const xo = sg * (L.amb + 0.12);
-      const aws = winOn("z", sg * L.amb);
-      wallG(k, WALL, [xo, za], [xo, zb], -0.12, (H.ambSpring ?? 7) + (H.ambRise ?? 3) + 0.3, 0.25, [], holesOf(aws, toU), 2.6);
-      for (const w of aws) pane(k, { ...w, at: sg * (L.amb - 0.02) }, glassG.def, lead);
-      groin(k, G.vault, S, sg < 0 ? -L.amb : L.choir + 0.35, sg < 0 ? -L.choir - 0.35 : L.amb, cz0, cz1, H.ambSpring ?? 7, (H.ambRise ?? 3) * 0.8, H.ambRise ?? 3);
-    } else {
-      wallG(k, WALL, [x, za], [x, zb], -0.12, naveTop + 0.3, 0.25, [], holesOf(ws, toU), 2.6);
+      // the choir aisle's outer wall (lined), its vault
+      LIN(WALL, face([sg * SH.amb!, cz0], [sg * SH.amb!, cz1], [sg, 0]), { u0: -0.5, u1: cz1 - cz0 + 0.25, y0: W(-0.12), y1: W(H.ambCeil! + 0.2) });
+      groin(k, G.vault, S, sg < 0 ? -L.amb - 0.1 : L.choir + 0.35, sg < 0 ? -L.choir - 0.35 : L.amb + 0.1, cz0, cz1, H.ambSpring ?? 7, (H.ambRise ?? 3) * 0.8, H.ambRise ?? 3);
     }
-    for (const w of ws) pane(k, { ...w, at: sg * (L.choir - 0.02) }, glassC.def, lead);
+    // the choir's side lined behind the shell's (St James's from the clerestory's foot, flush with the arcade wall)
+    LIN(L.amb ? S : WALL, face([sg * SH.choir, cz0], [sg * SH.choir, cz1], [sg, 0]), {
+      to: L.amb ? SH.choir - (L.choir + 0.12 - 0.25) : SH.lining,
+      u0: -SH.lining,
+      u1: cz1 - cz0 + 0.25,
+      y0: W(chFoot),
+      y1: W(naveTop + 0.3),
+    });
   }
   {
     const nb = Math.max(1, Math.round((cz1 - cz0) / 6.5));
     for (let i = 0; i < nb; i++)
-      groin(k, G.vault, S, -L.choir, L.choir, cz0 + ((cz1 - cz0) * i) / nb, cz0 + ((cz1 - cz0) * (i + 1)) / nb, H.naveSpring, H.naveRise * (L.choir / L.nave), H.naveRise);
+      groin(k, G.vault, S, -L.choir - 0.1, L.choir + 0.1, cz0 + ((cz1 - cz0) * i) / nb, cz0 + ((cz1 - cz0) * (i + 1)) / nb, H.naveSpring, H.naveRise * (L.choir / L.nave), H.naveRise);
   }
-  // the apse: five walls (St James: an arcade on columns into the ambulatory under a clerestory), windows, a ribbed half dome
-  const R5 = L.apse.r + 0.12;
-  const domeY = L.amb ? H.naveSpring + 0.2 : 19.0;
-  const apsePt = (i: number): [number, number] => {
-    const a = -Math.PI / 2 + (Math.PI * i) / 5;
-    return [-Math.sin(a) * R5, cz1 + Math.cos(a) * R5];
-  };
+  // the apse: five sides lined behind the shell's (St James: an arcade on columns into the ambulatory under the
+  // clerestory), a ribbed half dome over the windows' heads (St James's shallow, under the choir's vault's crown)
+  const apseC: [number, number] = [0, cz1];
+  const R5 = L.apse.r + 0.12; // (St James's arcade walls' line)
+  const apsePt = (i: number): [number, number] => fivePt(i, R5, cz1);
+  const shellApse = (i: number): [number, number] => fivePt(i, SH.apse, cz1);
+  const apseIn = L.amb ? SH.apse - (SH.apse * cos10 - (R5 * cos10 - 0.225)) / cos10 : L.apse.r; // the lining's inner corners
+  const domeY = L.amb ? H.apseSpring! : 19.0;
+  const domeR = L.amb ? apseIn : L.apse.r;
+  const domeH = L.amb ? H.apseRise! : domeR;
   for (let i = 0; i < 5; i++) {
-    const p0 = apsePt(i);
-    const p1 = apsePt(i + 1);
-    const Lw = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]);
-    const clere = L.amb
-      ? [{ u0: Lw / 2 - 1.0, u1: Lw / 2 + 1.0, y0: 12.6, spring: 19.0 - 1.48, head: "pointed" as const, rise: 1.48 }]
-      : [{ u0: Lw / 2 - 0.9, u1: Lw / 2 + 0.9, y0: 10.4, spring: 18.6 - 1.34, head: "pointed" as const, rise: 1.34 }];
-    const openings: Opening[] = L.amb ? [{ u0: 0.5, u1: Lw - 0.5, y0: -0.12, spring: H.cap, head: "pointed", rise: H.arcRise }] : [];
-    wallG(k, L.amb ? S : WALL, p0, p1, -0.12, domeY + 0.1, L.amb ? 0.45 : 0.25, openings, clere, 2.6);
-    const mx = (p0[0] + p1[0]) / 2;
-    const mz = (p0[1] + p1[1]) / 2;
-    const ry = Math.atan2(p1[0] - p0[0], p1[1] - p0[1]);
-    const c0 = clere[0];
-    const pw: GWindow = { wall: "x", at: 0, c: 0, w: c0.u1 - c0.u0, y0: c0.y0, y1: c0.spring + (c0.rise ?? 1), inward: 1, lights: 2 };
-    // the pane turned into the wall's plane
-    const g2 = new THREE.PlaneGeometry(pw.w, pw.y1 - pw.y0);
-    k.add(g2, glassC.def, mx * 0.995, (pw.y0 + pw.y1) / 2, cz1 + (mz - cz1) * 0.995, { ry: ry + Math.PI / 2, flat: true });
-    if (L.amb) column(k, S, p0[0], p0[1], 0, H.cap, 0.4);
+    const p0 = shellApse(i);
+    const p1 = shellApse(i + 1);
+    const Lw = len(p0, p1);
+    LIN(L.amb ? S : WALL, face(p0, p1, outOf(p0, p1, apseC)), {
+      to: L.amb ? SH.apse * cos10 - (R5 * cos10 - 0.225) : SH.lining,
+      u0: -0.25,
+      u1: Lw + 0.25,
+      y0: W(L.amb ? 16.35 : -0.12),
+      y1: W(domeY + 0.2),
+    });
+    if (L.amb) {
+      // the arcade into the ambulatory, the wall over it to the clerestory's foot
+      const a0 = apsePt(i);
+      const a1 = apsePt(i + 1);
+      const La = len(a0, a1);
+      wallG(k, S, a0, a1, -0.12, 16.35, 0.45, [{ u0: 0.5, u1: La - 0.5, y0: -0.12, spring: H.cap, head: "pointed", rise: H.arcRise }], [], 2.6);
+      column(k, S, a0[0], a0[1], 0, H.cap, 0.4);
+    }
   }
   {
-    const gdome = new THREE.SphereGeometry(R5, 16, 8, 0, Math.PI, 0, Math.PI / 2);
+    const gdome = new THREE.SphereGeometry(domeR, 16, 8, 0, Math.PI, 0, Math.PI / 2);
+    gdome.scale(1, domeH / domeR, 1);
     gdome.computeVertexNormals();
     planarUV(gdome, 3.0);
     k.add(gdome, G.vault, 0, domeY, cz1, { flat: true, tint: 0.95 });
+    const Rr = domeR - 0.12;
+    const Hr = domeH * (Rr / domeR);
     for (let i = 0; i <= 5; i++) {
       const a = -Math.PI / 2 + (Math.PI * i) / 5;
       for (let j = 0; j < 5; j++) {
         const t0 = (Math.PI / 2) * (j / 5);
         const t1 = (Math.PI / 2) * ((j + 1) / 5);
-        const P0 = new THREE.Vector3(-Math.sin(a) * Math.cos(t0) * (R5 - 0.12), domeY + Math.sin(t0) * (R5 - 0.12), cz1 + Math.cos(a) * Math.cos(t0) * (R5 - 0.12));
-        const P1 = new THREE.Vector3(-Math.sin(a) * Math.cos(t1) * (R5 - 0.12), domeY + Math.sin(t1) * (R5 - 0.12), cz1 + Math.cos(a) * Math.cos(t1) * (R5 - 0.12));
-        const len = P0.distanceTo(P1);
-        const bx = new THREE.BoxGeometry(0.2, 0.18, len);
+        const P0 = new THREE.Vector3(-Math.sin(a) * Math.cos(t0) * Rr, domeY + Math.sin(t0) * Hr, cz1 + Math.cos(a) * Math.cos(t0) * Rr);
+        const P1 = new THREE.Vector3(-Math.sin(a) * Math.cos(t1) * Rr, domeY + Math.sin(t1) * Hr, cz1 + Math.cos(a) * Math.cos(t1) * Rr);
+        const bl = P0.distanceTo(P1);
+        const bx = new THREE.BoxGeometry(0.2, 0.18, bl);
         bx.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), P1.clone().sub(P0).normalize()));
         bx.translate((P0.x + P1.x) / 2, (P0.y + P1.y) / 2, (P0.z + P1.z) / 2);
         k.add(bx, S, 0, 0, 0, { flat: true });
       }
     }
+    // the wall over the choir's vault's end, closing the apse's taller space toward the choir (seen from the apse)
+    const xw = domeR + 0.25;
+    wallG(k, WALL, [-xw, cz1 + 0.07], [xw, cz1 + 0.07], H.naveSpring - 0.3, domeY + domeH + 0.3, 0.1,
+      [{ u0: xw - L.choir - 0.1, u1: xw + L.choir + 0.1, y0: H.naveSpring - 0.3, spring: H.naveSpring, head: "pointed", rise: H.naveRise * (L.choir / L.nave) }], [], 2.6);
   }
   if (L.amb) {
-    // the ambulatory's outer walls round the apse (the three radiating chapels' openings in the middle ones), a flat vault
-    const RA = L.amb + 0.12;
-    const ambPt = (i: number): [number, number] => {
-      const a = -Math.PI / 2 + (Math.PI * i) / 5;
-      return [-Math.sin(a) * RA, cz1 + Math.cos(a) * RA];
-    };
+    // ---- the ambulatory: its five sides lined behind the shell's; the three radiating chapels (1626-38) open off the
+    // middle ones (the shell's bays, 1.5 m out, their windows lined; Rubens's in the axis), railed off; a flat
+    // panelled ceiling over its windows' heads, closed toward the choir's aisles over their vaults
+    const RA = SH.amb!;
+    const ceil = H.ambCeil!;
+    const chCeil = 10.2; // the radiating chapels' ceiling, over their windows' heads (9.6 over the street)
+    const ambPt = (i: number): [number, number] => fivePt(i, RA, cz1);
+    const iron = G.iron;
     for (let i = 0; i < 5; i++) {
-      const p0 = ambPt(i);
-      const p1 = ambPt(i + 1);
-      const Lw = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]);
-      const hole: Opening = i >= 1 && i <= 3 ? { u0: Lw / 2 - 0.8, u1: Lw / 2 + 0.8, y0: 2.6, spring: 9.6 - 1.19, head: "pointed", rise: 1.19 } : { u0: Lw / 2 - 1.5, u1: Lw / 2 + 1.5, y0: 2.8, spring: 10.4 - 2.23, head: "pointed", rise: 2.23 };
-      wallG(k, WALL, p0, p1, -0.12, (H.ambSpring ?? 7) + (H.ambRise ?? 3) + 0.4, 0.25, [], i === 2 ? [] : [hole], 2.6);
-      if (i !== 2) {
-        const mx = (p0[0] + p1[0]) / 2;
-        const mz = (p0[1] + p1[1]) / 2;
-        const ry = Math.atan2(p1[0] - p0[0], p1[1] - p0[1]);
-        const g2 = new THREE.PlaneGeometry(hole.u1 - hole.u0, hole.spring + (hole.rise ?? 1) - hole.y0);
-        k.add(g2, glassG.def, mx * 0.995, (hole.y0 + hole.spring + (hole.rise ?? 1)) / 2, cz1 + (mz - cz1) * 0.995, { ry: ry + Math.PI / 2, flat: true });
+      const a = ambPt(i);
+      const b = ambPt(i + 1);
+      const Lw = len(a, b);
+      const md = outOf(a, b, apseC);
+      const radiating = i >= 1 && i <= 3;
+      LIN(WALL, face(a, b, md), { u0: -0.25, u1: Lw + 0.25, y0: W(-0.12), y1: W(ceil + 0.2), doors: radiating ? [{ u0: 0.9, u1: Lw - 0.9, top: W(chCeil) }] : [] });
+      if (!radiating) continue;
+      // the chapel's bay: q0 .. q3 on the ambulatory's side, 1.5 m out (build_churches.py stjacob)
+      const tn: [number, number] = [(b[0] - a[0]) / Lw, (b[1] - a[1]) / Lw];
+      const q0: [number, number] = [a[0] + tn[0] * 0.9, a[1] + tn[1] * 0.9];
+      const q3: [number, number] = [b[0] - tn[0] * 0.9, b[1] - tn[1] * 0.9];
+      const q1: [number, number] = [q0[0] + md[0] * 1.5 + tn[0] * 0.9, q0[1] + md[1] * 1.5 + tn[1] * 0.9];
+      const q2: [number, number] = [q3[0] + md[0] * 1.5 - tn[0] * 0.9, q3[1] + md[1] * 1.5 - tn[1] * 0.9];
+      const sides: Array<[[number, number], [number, number], number, number]> = [
+        [q0, q1, 0, 0.3],
+        [q1, q2, -0.3, 0.3],
+        [q2, q3, -0.3, 0],
+      ];
+      const nOf = (p: [number, number], q: [number, number]): [number, number] => {
+        const d = [q[0] - p[0], q[1] - p[1]];
+        const l = Math.hypot(d[0], d[1]);
+        const n: [number, number] = [d[1] / l, -d[0] / l];
+        return n[0] * md[0] + n[1] * md[1] >= 0 ? n : [-n[0], -n[1]];
+      };
+      for (const [p, q, e0, e1] of sides) LIN(WALL, face(p, q, nOf(p, q)), { u0: e0, u1: len(p, q) + e1, y0: W(-0.12), y1: W(chCeil + 0.12) });
+      // the mouth's jambs: from the ambulatory's lining to the bay's side linings (the corner behind them closed)
+      for (const [qq, qn] of [[q0, nOf(q0, q1)], [q3, nOf(q2, q3)]] as Array<[[number, number], [number, number]]>) {
+        const A = [qq[0] - md[0] * SH.lining, qq[1] - md[1] * SH.lining];
+        const B = [qq[0] - qn[0] * SH.lining, qq[1] - qn[1] * SH.lining];
+        const y0 = -0.12;
+        const y1 = chCeil + 0.1;
+        const pos = [A[0], y0, A[1], B[0], y0, B[1], B[0], y1, B[1], A[0], y0, A[1], B[0], y1, B[1], A[0], y1, A[1]];
+        const both = [...pos, ...[0, 2, 1, 3, 5, 4].flatMap((v) => pos.slice(v * 3, v * 3 + 3))];
+        const gq = new THREE.BufferGeometry();
+        gq.setAttribute("position", new THREE.Float32BufferAttribute(both, 3));
+        gq.computeVertexNormals();
+        planarUV(gq, 2.6);
+        k.add(gq, WALL, 0, 0, 0, { flat: true });
       }
+      // its ceiling (the bay's outline, into the linings)
+      const sh = new THREE.Shape([q0, q1, q2, q3].map(([x, zz]) => new THREE.Vector2(x, zz)));
+      const gc = new THREE.ShapeGeometry(sh, 1);
+      gc.rotateX(Math.PI / 2);
+      gc.translate(0, chCeil, 0);
+      planarUV(gc, 2.4);
+      k.add(gc, G.vault, 0, 0, 0, { flat: true, tint: 0.92 });
+      // the iron rail across its mouth, on the ambulatory's side (the bay is shallow: Rubens's altar table stands in the mouth)
+      const mx = (q0[0] + q3[0]) / 2 + md[0] * (-SH.lining - 0.1);
+      const mz = (q0[1] + q3[1]) / 2 + md[1] * (-SH.lining - 0.1);
+      const w = len(q0, q3) - 0.2;
+      const ry = Math.atan2(-tn[1], tn[0]);
+      k.box(w, 0.05, 0.05, mx, 1.0, mz, iron, { ry });
+      k.box(w, 0.04, 0.04, mx, 0.15, mz, iron, { ry });
+      for (let s = -w / 2; s <= w / 2 + 1e-6; s += 0.15) k.box(0.025, 0.85, 0.025, mx + tn[0] * s, 0.575, mz + tn[1] * s, iron);
     }
-    // the ambulatory's ceiling: a flat panelled vault round the apse
+    // the ambulatory's ceiling: a flat panelled vault round the apse, into the linings
     const sh = new THREE.Shape();
+    const RAin = RA - SH.lining / cos10 + 0.1;
     for (let i = 0; i <= 5; i++) {
-      const [x, zz] = ambPt(i);
+      const [x, zz] = fivePt(i, RAin, cz1);
       if (i === 0) sh.moveTo(x, zz - cz1);
       else sh.lineTo(x, zz - cz1);
     }
@@ -689,9 +814,18 @@ export function buildGothicHall(h: GothicHall): LandmarkRoom {
     }
     const gc = new THREE.ShapeGeometry(sh, 1);
     gc.rotateX(Math.PI / 2);
-    gc.translate(0, (H.ambSpring ?? 7) + (H.ambRise ?? 3) * 0.75, cz1);
+    gc.translate(0, ceil, cz1);
     planarUV(gc, 2.4);
     k.add(gc, G.vault, 0, 0, 0, { flat: true, tint: 0.92 });
+    // over the choir's aisles' vaults' ends: a wall up to the ambulatory's ceiling
+    for (const sg of [-1, 1]) {
+      const xa = sg < 0 ? -(RA - SH.lining + 0.1) : R5;
+      const xb = sg < 0 ? -R5 : RA - SH.lining + 0.1;
+      const ga = sg < 0 ? -L.amb - 0.1 : L.choir + 0.35;
+      const gb = sg < 0 ? -L.choir - 0.35 : L.amb + 0.1;
+      wallG(k, WALL, [xa, cz1 + 0.06], [xb, cz1 + 0.06], (H.ambSpring ?? 7) - 0.3, ceil + 0.05, 0.1,
+        [{ u0: ga - xa, u1: gb - xa, y0: (H.ambSpring ?? 7) - 0.3, spring: H.ambSpring ?? 7, head: "pointed", rise: (H.ambRise ?? 3) * 0.8 }], [], 2.6);
+    }
   }
   // ================= furnishing
   const F = h.F;
@@ -747,6 +881,24 @@ export function buildGothicHall(h: GothicHall): LandmarkRoom {
   k.cyl(0.52, 0.3, 0.32, F.font.x, 0.85, F.font.z, G.marbleW, { seg: 10 });
   k.cyl(0.05, 0.4, 0.8, F.font.x, 1.17, F.font.z, G.oak, { seg: 8 });
   k.cyl(0.0, 0.07, 0.25, F.font.x, 1.97, F.font.z, G.gilt, { seg: 6 });
+  {
+    // the oak draught porch inside the west door (shared/gothicPlan.ts porch): a panelled front with its double door
+    // shut (the way in is by the sides), a doorway each side, a cornice, a carved crest with a gilt figure
+    const { x, z0, z1, t, door, h: ph, doorH } = h.porch;
+    box(-x, x, 0, ph, z1 - t, z1, G.oak, 1.2);
+    for (const s of [-1, 1]) {
+      const [xa, xb] = s < 0 ? [-x, -x + t] : [x - t, x];
+      box(xa, xb, 0, ph, z0, door[0], G.oak, 1.2);
+      box(xa, xb, 0, ph, door[1], z1, G.oak, 1.2);
+      box(xa, xb, doorH, ph, door[0], door[1], G.oak, 1.2);
+      // the leaves of the front's shut double door, and the panels' frames
+      box(s * 0.9 - 0.42, s * 0.9 + 0.42, 0.1, 2.5, z1 - t - 0.03, z1 - t, G.oakPlain, 1.2);
+      box(s * 0.9 - 0.42, s * 0.9 + 0.42, 0.1, 2.5, z1, z1 + 0.03, G.oakPlain, 1.2);
+    }
+    box(-x - 0.12, x + 0.12, ph, ph + 0.16, z0, z1 + 0.12, G.oak, 1.2);
+    box(-0.9, 0.9, ph + 0.16, ph + 0.62, z1 - 0.06, z1 + 0.04, G.oak, 1.2);
+    figure(k, G.gilt, 0, ph + 0.16, z1 - 0.3, 0.9, 0, true);
+  }
   // the organ: St Paul's on its west gallery (on two columns), St James's on the marble choir screen
   const O = F.organ;
   if (!O.screen) {
@@ -779,6 +931,29 @@ export function buildGothicHall(h: GothicHall): LandmarkRoom {
   });
   // the brass chandeliers over the nave and the crossing
   for (const zz of [(z0n + L.tx[0]) * 0.35, (z0n + L.tx[0]) * 0.65, (L.tx[0] + L.tx[1]) / 2]) chandelier(k, flames, 0, 10.5, zz, H.naveSpring + H.naveRise - 0.3);
+  // brass crown chandeliers (lichtkronen) over the aisles, one a bay, hung low on three chains: an open ring of brass
+  // with its candles on the rim (unlit by day)
+  {
+    const cy = paul ? 6.2 : 7.0;
+    const R = 1.2;
+    const xc = (L.nave + 0.35 + L.aisle) / 2;
+    const bayZ = [L.tower ? 0.55 : L.west, ...L.bays.slice(1, -1).filter((b) => b > 0.8), L.tx[0]];
+    for (const sg of [-1, 1])
+      for (let i = 0; i + 1 < bayZ.length; i++) {
+        const x = sg * xc;
+        const zz = (bayZ[i] + bayZ[i + 1]) / 2;
+        k.cyl(R, R, 0.3, x, cy, zz, G.brass, { seg: 16, open: true });
+        k.cyl(R + 0.05, R + 0.05, 0.06, x, cy + 0.3, zz, G.brass, { seg: 16, open: true });
+        for (let j = 0; j < 8; j++) {
+          const a = (j / 8) * Math.PI * 2;
+          k.cyl(0.028, 0.028, 0.24, x + Math.cos(a) * R, cy + 0.36, zz + Math.sin(a) * R, G.wax, { seg: 4 });
+        }
+        for (let j = 0; j < 3; j++) {
+          const a = (j / 3) * Math.PI * 2 + 0.3;
+          k.cyl(0.012, 0.012, H.aisleSpring + 0.8 - cy, x + Math.cos(a) * R * 0.95, cy + 0.3, zz + Math.sin(a) * R * 0.95, G.iron, { seg: 3 });
+        }
+      }
+  }
   // candle stands before the side altars
   for (const a of F.altars.filter((q) => q.face !== 0)) {
     const sx = a.face === 2 ? 0 : -a.face;
@@ -806,18 +981,8 @@ export function buildGothicHall(h: GothicHall): LandmarkRoom {
       maxZ: Math.max(...floors.map((f) => f.maxZ)),
     },
     floors,
-    windows: h.windows.map((w) => ({
-      x: w.wall === "z" ? w.at : w.c,
-      z: w.wall === "z" ? w.c : w.at,
-      nx: w.wall === "z" ? w.inward : 0,
-      nz: w.wall === "x" ? w.inward : 0,
-      hw: w.w / 2,
-      y0: w.y0,
-      y1: w.y1,
-      spring: w.y1 - 0.742 * w.w,
-      lights: w.lights,
-      colour: !!w.colour,
-    })),
+    // (issue #10: the shell's real windows, at their glass)
+    windows: sunWindowsOf(rows, FY, { yaw: P.yaw, lines: wallLines }),
     piers: [
       ...colsZ.flatMap((zz) => [-1, 1].map((sg) => ({ x: sg * L.nave, z: zz, r: 0.5, h: H.cap }))),
       ...L.tx.flatMap((zz) => [-1, 1].map((sg) => ({ x: sg * L.nave, z: zz, r: 0.62, h: H.naveSpring }))),
@@ -825,8 +990,8 @@ export function buildGothicHall(h: GothicHall): LandmarkRoom {
     screens: [-1, 1].map((sg) => ({ along: "z" as const, at: sg * L.nave, from: z0n, to: L.tx[0], open: H.cap + H.arcRise * 0.5 })),
     // the arcades' walls over their arches, up to the clerestory's sills: lit across the nave
     walls: [-1, 1].map((sg) => {
-      const sill = Math.min(...h.windows.filter((w) => w.wall === "z" && Math.abs(Math.abs(w.at) - L.nave) < 0.5).map((w) => w.y0), H.naveSpring);
-      const x = sg * (L.nave - 0.35);
+      const sill = Math.min(...rows.filter((o) => o.kind === "window" && Math.abs(Math.abs(o.x) - SH.nave) < 0.05).map((o) => o.yb - FY), H.naveSpring);
+      const x = sg * (SH.nave - SH.lining);
       return { a: [x, z0n + 0.3] as [number, number], b: [x, L.tx[0] - 0.7] as [number, number], y0: H.cap + H.arcRise + 0.15, y1: sill - 0.25, n: [-sg, 0] as [number, number] };
     }),
     power: 1.1,
@@ -840,6 +1005,8 @@ export function buildGothicHall(h: GothicHall): LandmarkRoom {
   const AMB_DAY = new THREE.Color(0x5a5048);
   const AMB_NIGHT = new THREE.Color(0x262c40);
   scene.add(hemi, amb);
+  // the stained glass: the shell's old panes, moved into the hall (issue #10), lit by the day or the moon
+  const glass = churchGlass(h.id, scene);
   const pt = (c: number, x: number, y: number, zz: number, d: number) => {
     const l = new THREE.PointLight(c, 0, d, 1.5);
     l.position.set(x, y, zz);
@@ -865,8 +1032,7 @@ export function buildGothicHall(h: GothicHall): LandmarkRoom {
     amb.intensity = (0.2 + 0.6 * day) * ambK;
     amb.color.copy(AMB_DAY).lerp(AMB_NIGHT, night);
     dayFill.intensity = 12 * d;
-    const g0 = 0.95 * day * sky;
-    for (const gm of [glassG, glassC]) gm.mat().color.setRGB(0.07 + g0 + 0.05 * moon, 0.08 + g0 + 0.08 * moon, 0.1 + g0 + 0.17 * moon);
+    glass.set(day, sky, moon);
     sunLight.set(day, sky);
   };
   const free = (x: number, zz: number) => HP.freeAt(P, x, zz, 0.25, false);
@@ -939,7 +1105,15 @@ export function gothicInWorld(
   inWorld: InWorld,
   hooks: { roomSound(k: string | null): void; say(t: string): void; jef(): { x: number; z: number; place(x: number, z: number, yaw: number): void } },
 ): GothicInWorld {
-  const halls = GOTHIC.map((g) => createHallInWorld(world, inWorld, g.plan, buildGothicHall(g), { color: 0x2a2620, near: 22, far: 110 }, g.points));
+  // (issue #10: every real window of the shell an opening of the hall: the hall from the street, the street from inside)
+  const halls = GOTHIC.map((g) =>
+    createHallInWorld(world, inWorld, g.plan, buildGothicHall(g), { color: 0x2a2620, near: 22, far: 110 }, g.points, [], 0.3, windowOpenings(churchRows(g), (x, z) => HP.toWorld(g.plan, x, z))),
+  );
+  // (from inside, only the windows near the eye bring the street in: churches.ts CHURCH_INSIDE_REACH)
+  for (const g of GOTHIC) {
+    const iw = inWorld.all.find((r) => r.id === (g.plan.id as string));
+    if (iw) iw.insideReach = CHURCH_INSIDE_REACH;
+  }
   let inside = -1;
   let open = true;
   return {
