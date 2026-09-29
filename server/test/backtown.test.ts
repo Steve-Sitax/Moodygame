@@ -143,8 +143,8 @@ describe("the back of town's people", () => {
     expect(count(3, 22)).toBeGreaterThan(20);
     expect(count(7, 13)).toBeGreaterThan(60);
     expect(count(7, 18)).toBeGreaterThan(50);
-    // (the town as it was had next to nobody there: the measurement that started this)
-    expect(before(3, 13)).toBeLessThan(15);
+    // The new back-street businesses bring some of the original roster here too.
+    expect(count(3, 13)).toBeGreaterThan(before(3, 13) + 50);
     // the watch only by night, with a round of the back's corners
     for (const w of of("watchman")) {
       expect(activityAt(w.sched, 3, 14).act).toBe("home");

@@ -28,6 +28,7 @@ export interface Lookable {
 }
 
 export interface LandmarkRoom extends Room {
+  peopleFree?(x: number, z: number, feet: number): boolean;
   landmark: LandmarkId;
   /** Named places people go to (the altar, the pulpit, a desk, the stage). */
   marks: Record<string, Mark>;

@@ -1,5 +1,6 @@
 import { toMe } from "../player/profile"; // M7 character: lines said to the player follow the profile
 import * as THREE from "three";
+import { groundRound } from "./stationRound";
 import "./landmarks.css";
 import type { FirstPerson } from "../player/firstPerson";
 import type { JobsPayload, Pt } from "../net/api";
@@ -147,6 +148,7 @@ const ROLES: Record<LandmarkId, Record<string, RoleSpec>> = {
 };
 
 interface Fig {
+  routine?: ReturnType<typeof groundRound>;
   p: InPerson;
   spec: RoleSpec;
   human: Human | null;
@@ -609,6 +611,7 @@ export class Landmarks {
 
   /** Where this person goes and how they come there (at once, or walking in from the door). */
   private place(f: Fig, at: boolean): void {
+    f.routine = undefined;
     const room = this.here!.room;
     const s = f.spec;
     f.rest = null;
@@ -672,6 +675,8 @@ export class Landmarks {
     return f.human ? f.human.canSit : !(f.p.sex === "f" || ["baker", "shopkeeper", "publican"].includes(f.kind));
   }
 
+  routineInfo() { return { place: this.here?.id, people: [...this.figs.values()].map(f => ({ id: f.p.id, role: f.p.role, x: f.x, z: f.z, routes: f.loop?.length ?? f.routine?.round.routes.length ?? null, walking: !!f.path.length || !!f.routine?.round.walking, held: !!f.hold || !!this.now?.service })) }; }
+
   private seatHeld(s: Seat): boolean {
     // Jef's seats are the chairs at the row ends: held if someone sits there
     for (const f of this.figs.values()) if (f.rest && Math.hypot(f.rest.x - s.x, f.rest.z - s.z) < 0.3 && !f.leaving) return true;
@@ -710,6 +715,18 @@ export class Landmarks {
       const jl = EVENT_ROLES.has(f.p.role) ? this.jefLocal() : null;
       const hurry = jl && Math.hypot(jl.x - f.x, jl.z - f.z) > 20 ? 2.4 : 1;
       const pace = (f.spec.speed ?? WALK) * (f.leaving ? 1.1 : 1) * hurry;
+      if (this.now?.service) f.routine?.round.update(dt, true);
+      if (!f.path.length && !f.loop && !f.leaving && !EVENT_ROLES.has(f.p.role) && !this.now?.service && room.peopleFree) {
+        const rest = this.restSpot(f);
+        if (rest) {
+          f.routine ??= groundRound({ standFree: (x, z, _r, y) => room.peopleFree!(x, z, y) }, [rest.x, rest.z], rest.y ?? 0, rest.yaw, !!f.spec.sit && this.canSit(f), hash(id), 1.8);
+          const { round: r, free } = f.routine;
+          const j = this.jefLocal();
+          r.update(dt, this.talking === id || (f.p.role === "confessor" && this.panel.isOpen) || (j !== null && Math.hypot(j.x - r.x, j.z - r.z) < .9), free);
+          f.x = r.x; f.z = r.z;
+          f.yaw = r.walking ? r.yaw : r.atHome ? rest.yaw : r.yaw;
+        }
+      }
       if (f.path.length) {
         const [tx, tz] = f.path[0];
         const dx = tx - f.x;
@@ -748,12 +765,12 @@ export class Landmarks {
           f.wait = (f.spec.pause ?? 5) * (0.7 + ((hash(f.p.id + f.li) % 60) / 100));
         }
       }
-      const walking = f.path.length > 0;
+      const walking = f.path.length > 0 || !!f.routine?.round.walking;
       const rest = this.restSpot(f);
-      const atRest = !walking && !!rest && Math.hypot(rest.x - f.x, rest.z - f.z) < 0.2;
+      const atRest = !walking && (!f.routine || f.routine.round.atHome) && !!rest && Math.hypot(rest.x - f.x, rest.z - f.z) < 0.2;
       f.seated = atRest && !!f.spec.sit && this.canSit(f);
       // floor: the room's, or the mark's own (a loft, a stage)
-      const markY = atRest && rest?.y !== undefined ? rest.y : null;
+      const markY = (atRest || !!f.routine) && rest?.y !== undefined ? rest.y : null;
       f.y = markY ?? room.peopleFloor?.(f.x, f.z) ?? 0;
       const h = f.human;
       if (!h) continue;

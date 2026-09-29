@@ -21,6 +21,8 @@ export interface TavernDoor {
   door: Pt;
   out: Pt;
   open: boolean;
+  welcome?: boolean;
+  greeting?: string;
   keeper: { id: string; name: string; first: string; kind: string } | null;
 }
 
@@ -47,6 +49,8 @@ export interface TavernState {
   place: string;
   label: string;
   open: boolean;
+  welcome?: boolean;
+  greeting?: string;
   keeper: { id: string; name: string; first: string; kind: string } | null;
   patrons: Person[];
   tipsy: number;

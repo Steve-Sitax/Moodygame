@@ -7,6 +7,8 @@ import { GameError, log, player } from "../game.ts";
 import { SYSTEM } from "../hooks/jobBoard.ts";
 import { relationship, remember, topMemories, trustText } from "../npcs.ts";
 import { pid } from "../player/current.ts";
+import { GANG_CAFE } from "../../../shared/neighbourhoodCafes.ts";
+import { tavernWelcome } from "./welcome.ts";
 import { pstate, setPstate } from "../player/multi.ts";
 import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 import { TRADES } from "../town/places.ts";
@@ -78,7 +80,10 @@ export interface TavernNow {
   open: boolean;
   keeper: { id: string; name: string; first: string; kind: string } | null;
   patrons: Array<{ id: string; name: string; first: string; kind: string; sex: "m" | "f"; age: number; stand?: boolean; role?: string }>;
+  welcome: boolean;
+  greeting: string;
 }
+
 
 /**
  * M6 ballads: others who come into a tavern by the engine's own plan, not their schedule (the
@@ -95,6 +100,10 @@ export function tavernNow(db: DB, place: string): TavernNow {
     place,
     label: tavernLabel(db, place),
     open,
+    welcome: tavernWelcome(db, place),
+    greeting: place === GANG_CAFE ? tavernWelcome(db, place)
+      ? 'A man by the bar nods. "One of ours. Pull up a chair."'
+      : 'The room falls quiet. "This is our place. Finish looking and leave. Earn the lads\' trust before you come drinking here."' : "",
     keeper: k ? { id: k.id, name: k.name, first: k.first, kind: k.kind } : null,
     patrons: [
       ...regulars.map((r) => ({ id: r.id, name: r.name, first: r.first, kind: r.kind, sex: r.sex, age: r.age })),
@@ -105,6 +114,7 @@ export function tavernNow(db: DB, place: string): TavernNow {
 
 function needOpen(db: DB, place: string): void {
   if (!keeperAtWork(db, place)) throw new GameError(`${tavernLabel(db, place)} is shut`, 409);
+  if (!tavernWelcome(db, place)) throw new GameError('"We do not serve strangers here. Best be on your way."', 409);
 }
 
 function needPatron(db: DB, place: string, id: string): Resident {

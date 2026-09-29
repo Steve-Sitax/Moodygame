@@ -8,6 +8,8 @@ import type { ShellOpening } from "../../../shared/shellOpening";
 import type { World } from "./rijnkaai";
 import type { InWorld, Opening } from "./inworld";
 import { lambert, tex } from "./rooms";
+import * as HP from "../../../shared/hallPlan";
+import { groundRound } from "../game/stationRound";
 
 /** The prison panes' sky sheen by full day (the houses' take the air's own colour: houseInWorld.ts). */
 const PANE_DAY = new THREE.Color(0x56646e);
@@ -222,7 +224,7 @@ export function prisonInWorld(
       })
       .catch(() => {});
   };
-  type Fig = { h: Human | null; kind: HumanKind; x: number; z: number; yaw: number; y: number; motion: "idle" | "sit" | "walk" | "behind"; inHall: THREE.Group | null; on: () => boolean; seat: number };
+  type Fig = { routine?: ReturnType<typeof groundRound>; pacing?: (x: number, z: number) => boolean; h: Human | null; kind: HumanKind; x: number; z: number; yaw: number; y: number; motion: "idle" | "sit" | "walk" | "behind"; inHall: THREE.Group | null; on: () => boolean; seat: number };
   const figs: Fig[] = [];
   const fig = (kind: HumanKind, x: number, z: number, yaw: number, motion: Fig["motion"], inHall: boolean | THREE.Group, on: () => boolean, seat = 0.45, y = 0) =>
     figs.push({ h: null, kind, x, z, yaw, y, motion, inHall: inHall === true ? room.group : inHall === false ? null : inHall, on, seat });
@@ -237,7 +239,9 @@ export function prisonInWorld(
   fig("police", PP.PARTS.ring.x, PP.PARTS.ring.z, 0, "behind", false, () => !!state?.exercise && has("yard"));
   // a man at his oakum in the open cell, on the edge of his bed; another in wing B's open cell
   fig("docker_c", 18.0, 16.1, Math.PI / 2, "sit", true, () => true, 0.55);
+  figs.at(-1)!.pacing = PP.cellPacing("A", "S", 4);
   fig("old_man", -15.2, 22.4, -Math.PI / 2, "sit", true, () => true, 0.55);
+  figs.at(-1)!.pacing = PP.cellPacing("B", "N", 3);
   // M7 prison real: the clerk in the registry and the director in his room by day, a warder in wing B and one on its
   // gallery, the governor at his desk in the evening (seen through his window)
   fig("police", M_.corridorB.x, M_.corridorB.z, M_.corridorB.yaw, "idle", true, () => !!state?.dayShift && has("chief"));
@@ -305,6 +309,8 @@ export function prisonInWorld(
       }
       // the figures: in the hall's scene (its frame) or the street's (world)
       for (const f of figs) {
+        const [fxw, fzw] = toW(f.x, f.z);
+        if (Math.hypot(jef.x - fxw, jef.z - fzw) > 130) { if (f.h) f.h.root.visible = false; continue; }
         const on = f.on();
         if (!on) {
           if (f.h) f.h.root.visible = false;
@@ -318,14 +324,24 @@ export function prisonInWorld(
           f.h.play(f.motion, 0);
         }
         const h = f.h;
+        f.routine ??= groundRound({ standFree: (x, z, _r, y) => {
+          if (f.pacing) return f.pacing(x, z);
+          if (f.inHall) return HP.freeAt(f.inHall === governor.room.group ? PP.GOV_PLAN : PP.PLAN, x, z, .25, false, () => true, y);
+          const [wx, wz] = toW(x, z); return world.standFree(wx, wz, .25, 0);
+        } }, [f.x, f.z], f.y, f.yaw, f.motion === "sit", figs.indexOf(f) * 7, f.kind === "police" ? 2 : 1.2);
+        const { round: r, free } = f.routine;
+        const visitorAtGrille = f.kind === "docker_a" && !!visitor;
+        r.update(dt, visitorAtGrille || Math.hypot(jx - r.x, jz - r.z) < .9, free);
+        const sitting = r.atHome && f.motion === "sit";
+        h.play(r.walking ? "walk" : r.atHome ? f.motion : "behind"); h.setPace(r.speed);
         h.root.visible = true;
         if (f.inHall) {
-          h.root.position.set(f.x, f.y + (f.motion === "sit" ? h.sitDrop(f.seat) : 0), f.z);
-          h.root.rotation.y = f.yaw;
+          h.root.position.set(r.x, f.y + (sitting ? h.sitDrop(f.seat) : 0), r.z);
+          h.root.rotation.y = r.walking ? r.yaw : r.atHome ? f.yaw : r.yaw;
         } else {
-          const [wx, wz] = toW(f.x, f.z);
+          const [wx, wz] = toW(r.x, r.z);
           h.root.position.set(wx, 0, wz);
-          h.root.rotation.y = f.yaw + PP.YAW;
+          h.root.rotation.y = (r.walking ? r.yaw : r.atHome ? f.yaw : r.yaw) + PP.YAW;
         }
         h.update(Math.min(dt, 0.1));
       }
@@ -407,7 +423,8 @@ export function prisonInWorld(
       return null;
     },
     info() {
-      return { state, doorOpen, inside, visitor, figs: figs.map((f) => ({ kind: f.kind, on: f.on(), drawn: !!f.h?.root.visible })), ring: ringers.filter((q) => q.h?.root.visible).length, windows: { prison: built.windows.length, chapel: chapel.windows.length, governor: governor.windows.length } };
+      return { state, doorOpen, inside, visitor, figs: figs.map((f) => ({ kind: f.kind, on: f.on(), drawn: !!f.h?.root.visible,
+        x: f.routine?.round.x ?? f.x, z: f.routine?.round.z ?? f.z, routes: f.routine?.round.routes.length ?? null, walking: f.routine?.round.walking ?? false })), ring: ringers.filter((q) => q.h?.root.visible).length, windows: { prison: built.windows.length, chapel: chapel.windows.length, governor: governor.windows.length } };
     },
     halls: () => [hall, chapelHall, govHall],
   };

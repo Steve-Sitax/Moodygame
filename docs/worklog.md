@@ -1,5 +1,13 @@
 # Work log
 
+## Special NPC routines and neighbourhood businesses, 2026-09-30
+
+Work in `codex/special-npc-routines`: local working/walking rounds for previously fixed boat families, bench sitters, original employers, night posts, guards, workshop staff, café/shop occupants, landmark and prison figures, backstreet groups and window watchers. Three additional shops and two real cafés in the southern/eastern neighbourhoods. De Zwarte Kat checks each player's smugglers trust, warns outsiders to leave and refuses their purchases. Existing-save migration preserves residents' homes and the original town generator's random sequence.
+
+Build passes. All 101 test files / 1,385 tests pass, followed by 57 targeted checks after the loft-floor correction. All five new interiors pass the shell/openings/floor check. Browser routes for every primed special figure are nonempty, shader problems are empty, and path checks are clear after temporary moving obstructions. Both gang-café access states were exercised in a copied save. [Full audit and implementation details](milestones/npc-routines.md).
+
+Final integration, performance samples and web-demo deployment follow below when verified.
+
 What went live, what is being worked on now and by whom, and what waits for Steve.
 The coordinating Claude session keeps this file current: a line when a helper starts, when a
 patch goes live (with its commit), and when Steve decides something. Newest first in each part.

@@ -54,7 +54,7 @@ export function mountInteriors(app: Hono, deps: InteriorDeps): void {
       .filter(([k, p]) => k.startsWith("tavern:") && p.door)
       .map(([k, p]) => {
         const now = tavernNow(db, k);
-        return { place: k, label: p.label, door: p.door, out: p.out ?? [0, -1], open: now.open, keeper: now.keeper };
+        return { place: k, label: p.label, door: p.door, out: p.out ?? [0, -1], open: now.open, keeper: now.keeper, welcome: now.welcome, greeting: now.greeting };
       });
     const d = poesjeDoor(db);
     return c.json({

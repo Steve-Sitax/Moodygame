@@ -190,16 +190,10 @@ function cellDoor(k: Kit, x: number, z: number, y: number, side: 1 | -1, open = 
 
 /** A cell's things (inside its walls): the iron bed with straw and blanket, the hinged table and stool, the shelf
  * with the Bible and the tin mug, the bucket, the tap, the rules on a board, a gas jet; a man's oakum if held. */
-function cellThings(k: Kit, x0: number, x1: number, zDoor: number, zBack: number, y: number, flames: Flames, occupied: boolean, seed: number): void {
-  const into = Math.sign(zBack - zDoor);
-  const xm = (x0 + x1) / 2;
-  const bx = x0 + 0.42;
-  const bz0 = zDoor + into * 0.55;
-  const bz1 = zBack - into * 0.05;
-  const bl = Math.abs(bz1 - bz0);
-  const bzc = (bz0 + bz1) / 2;
+function cellThings(k: Kit, c: ReturnType<typeof PP.cellBox>, row: "N" | "S", flames: Flames, occupied: boolean, seed: number): void {
+  const { x0, x1, zDoor, zBack, into, xm, bx, bl, bzc, folded, tx, tz } = PP.cellFurniture(c, row, seed);
+  const y = c.y0;
   // by day half the beds stand folded against the wall (the rule), the rest are down
-  const folded = seed % 3 === 0;
   if (folded) {
     k.box(0.08, 1.7, 0.7, x0 + 0.06, y + 0.95, bzc, C.iron);
     k.box(0.1, 1.5, 0.62, x0 + 0.12, y + 0.95, bzc, C.straw, { tile: 0.8 });
@@ -208,8 +202,6 @@ function cellThings(k: Kit, x0: number, x1: number, zDoor: number, zBack: number
     k.box(0.66, 0.1, bl - 0.08, bx, y + 0.53, bzc, C.straw, { tile: 0.8 });
     k.box(0.68, 0.04, bl * 0.6, bx, y + 0.6, bzc - into * bl * 0.15, C.blanket);
   }
-  const tx = x1 - 0.35;
-  const tz = zBack - into * 0.35;
   k.box(0.55, 0.04, 0.6, tx, y + 0.78, tz, C.plank);
   k.box(0.04, 0.76, 0.04, tx - 0.2, y + 0.38, tz, C.iron);
   k.box(0.32, 0.45, 0.32, tx - 0.3, y + 0.225, tz - into * 0.6, C.plank);
@@ -878,9 +870,8 @@ function buildWing(k: Kit, wing: "A" | "B", flames: Flames, windows: ShellOpenin
           continue;
         }
         const c = PP.cellBox(wing, row, s, kk);
-        const [zDoor, zBack] = row === "S" ? [c.z1, c.z0] : [c.z0, c.z1];
         const occupied = (kk + s * 2 + (row === "N" ? 1 : 0)) % 5 !== 2;
-        cellThings(k, c.x0 + 0.02, c.x1 - 0.02, zDoor, zBack, c.y0, flames, occupied, kk * 7 + s * 3 + (row === "N" ? 11 : 0) + (wing === "B" ? 5 : 0));
+        cellThings(k, c, row, flames, occupied, kk * 7 + s * 3 + (row === "N" ? 11 : 0) + (wing === "B" ? 5 : 0));
       }
 
   // ---- the galleries over the corridor, the bridges and the landings, the scissor stair

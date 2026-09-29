@@ -64,6 +64,9 @@ interface Kit {
   sway: number;
   /** The head's turn toward Jef now (radians, off the body's way). */
   head: number;
+  breakWait?: number;
+  breakPhase?: "out" | "pause" | "back";
+  breakMotion?: string;
 }
 
 interface Group {
@@ -400,6 +403,7 @@ export class BackLife {
       this.settle(s, k);
       return true;
     }
+    if (k.kind !== "pump" && this.groupBreak(s, k, dt)) return true;
     switch (k.kind) {
       case "pump":
         return this.pump(s, k);
@@ -415,6 +419,31 @@ export class BackLife {
         return this.step(s, k);
     }
     return true;
+  }
+
+  /** The card game and doorstep chat have breaks; the chairs and tables stay put. */
+  private groupBreak(s: Sim, k: Kit, dt: number): boolean {
+    const p = s.p!, g = s.goal;
+    if (k.phase !== "at") return false;
+    k.breakWait ??= 22 + h01(s.r.id) * 25;
+    if (k.breakPhase && this.crowd.puppetBusy(p)) return true;
+    if (k.breakPhase === "out") { k.breakPhase = "pause"; k.breakWait = 5; this.stand(p, k, "behind", null); return true; }
+    if (k.breakPhase === "back") {
+      if (dist(p.x, p.z, g.x, g.z) > .6) { this.crowd.puppetGo(p, g.x, g.z); return true; }
+      k.breakPhase = undefined; k.breakWait = 25 + h01(s.r.id) * 25; k.t = 0;
+      this.stand(p, k, k.breakMotion ?? "idle", g.yaw ?? null); return true;
+    }
+    if ((k.breakWait -= dt) > 0) return k.breakPhase === "pause";
+    if (k.breakPhase === "pause") { k.breakPhase = "back"; this.crowd.puppetGo(p, g.x, g.z); return true; }
+    if (this.speaking.has(s.r.id) || dist(p.x, p.z, this.player.x, this.player.z) < 1.5) { k.breakWait = 3; return false; }
+    for (let i = 0; i < 10; i++) {
+      const a = (h01(s.r.id) + i / 10) * Math.PI * 2;
+      const at = this.free(g.x + Math.sin(a) * 2.3, g.z + Math.cos(a) * 2.3);
+      if (!at || !this.crowd.canStand(...at)) continue;
+      k.breakMotion = k.motion; k.breakPhase = "out";
+      this.crowd.puppetGo(p, ...at, .75); return true;
+    }
+    k.breakWait = 5; return false;
   }
 
   /** Arrived at the slot: the props of the place, and the first pose. */

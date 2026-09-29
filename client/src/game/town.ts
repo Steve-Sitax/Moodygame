@@ -114,6 +114,7 @@ export interface Goal {
 }
 
 export interface Sim {
+  stationRound?: { key: string; x: number; z: number; phase: "rest" | "out" | "pause" | "back"; wait: number };
   /** Unseen: the time since his last coarse step (he takes one every COARSE_EVERY frames; Town.update). */
   coarseDt?: number;
   r: TownResident;
@@ -1446,6 +1447,7 @@ export class Town {
         return;
       case "stand":
       case "tavern":
+        if (this.stationRound(s, dt)) return;
         if (busy) return;
         if (!at(g.x, g.z, 1.4) && s.tries < 3) return this.retry(s);
         if (g.motion === "sit") {
@@ -1647,6 +1649,7 @@ export class Town {
   private guard(s: Sim, dt: number, busy: boolean): void {
     const p = s.p!;
     const g = s.goal;
+    if (!this.reliefWait(s) && this.stationRound(s, dt)) return;
     if (busy) return;
     if (dist(p.x, p.z, g.x, g.z) > 0.7) {
       const wait = this.reliefWait(s);
@@ -1674,6 +1677,34 @@ export class Town {
       this.crowd.puppetStand(p, g.motion ?? "idle", g.yaw ?? null);
       s.wait = rnd(6, 14);
     }
+  }
+
+  /** Shop posts, beggars, waiting travellers and sentries take a few steps and return to their work. */
+  private stationRound(s: Sim, dt: number): boolean {
+    const p = s.p!, g = s.goal;
+    if (s.held) return true;
+    const key = `${s.key}:${g.x}:${g.z}`;
+    let r = s.stationRound;
+    if (!r || r.key !== key) r = s.stationRound = { key, x: g.x, z: g.z, phase: "rest", wait: 18 + s.h * 24 };
+    if (this.crowd.puppetBusy(p)) return r.phase !== "rest";
+    if (r.phase === "out") { r.phase = "pause"; r.wait = 4 + s.h * 5; this.crowd.puppetStand(p, "behind", null); return true; }
+    if (r.phase === "back") {
+      if (dist(p.x, p.z, g.x, g.z) > .8) { this.crowd.puppetGo(p, g.x, g.z); return true; }
+      r.phase = "rest"; r.wait = 22 + s.h * 20; s.wait = 0;
+      return false;
+    }
+    if ((r.wait -= dt) > 0) return r.phase === "pause";
+    if (r.phase === "pause") { r.phase = "back"; this.crowd.puppetGo(p, g.x, g.z); return true; }
+    // Do not leave while answering Jef or before reaching the post.
+    if (dist(p.x, p.z, g.x, g.z) > 1 || dist(p.x, p.z, this.player.x, this.player.z) < 2) { r.wait = 3; return false; }
+    for (let i = 0; i < 8; i++) {
+      const a = (s.h + i / 8) * Math.PI * 2, d = s.r.work.kind === "stall" ? 1.5 : 2.5;
+      const x = g.x + Math.sin(a) * d, z = g.z + Math.cos(a) * d;
+      if (!this.crowd.canStand(x, z) || !this.world.standFree(x, z, .3, p.group.position.y)) continue;
+      r.x = x; r.z = z; r.phase = "out";
+      this.crowd.puppetGo(p, x, z, .8); return true;
+    }
+    r.wait = 5; return false;
   }
 
   /**

@@ -1,0 +1,19 @@
+# Special NPC routines and back-neighbourhood businesses
+
+2026-09-30, branch `codex/special-npc-routines`.
+
+The audit covered every caller of `makeHuman`: boat families; the original quay employers and night posts; Steen bench sitters, angler, painter, children and attendant; workshop workers; wall sentries and the railway-gate keeper; tavern/shop occupants; landmark halls and prison staff; standing town roles; backstreet gatherings; and window watchers. Transport passengers, rowing crews, the arriving ferry, shunters, drivers and conductors already have journeys or operating duties. The park keeper already walks to clean mess and seeks shelter. Those existing duties remain.
+
+Small rounds use checked local routes, walking at a normal pace, a pause at the stop and a checked return. Planning happens on starting a round, rather than searching the whole town each frame. Seated characters step out of their own chair before using the aisle. Conversations pause movement. Cafés keep reserved chairs while customers stretch their legs; the keeper stays behind the counter. Workshop workers walk between their stations instead of switching positions. Rope spinning pauses when its helper leaves the wheel.
+
+Boat families work and walk on their own deck, following the moving hull and its sheer. They stay aboard, going below at night or in a storm. Their model remains the shared town human. Wall posts, the rail keeper and the eight Steen figures all have reachable routes. Prisoners use an NPC-only cell floor, bounded by their walls and the same furniture positions that draw the room; player access is unchanged. Landmark staff keep the height of their floor or loft. Active church services and conversations retain their held poses.
+
+Three shops occupy vacant real houses: bakery_south (543), grocer_south (334), cobbler_east (219). In de Linde (595) and De Zwarte Kat (440) have a publican and three regulars each, with home, work and drinking schedules. The additive migration keeps the town generator's random sequence and existing residents' homes unchanged. New game and existing-save tests cover this. The city model and its generated openings were rebuilt from the house plans.
+
+De Zwarte Kat belongs to the smugglers. Each visiting player's faction trust is checked by the engine: trust 3 or more permits service. Others get a warning, a leave action and ten seconds before being put outside. Both tavern service and direct ware purchases enforce the rule; multiplayer players have independent trust.
+
+Validation before integration: game build; all 101 test files / 1,385 tests pass. A further 57 focused geometry, landmark, migration and routine checks pass after the final loft-height correction. Browser inspection primed all eight wall posts, fourteen original/night posts, eight Steen figures, all nine workshop staff and four boat families. Every primed round has a reachable route. Both seated inmates walked and returned inside their cells. Town-hall staff and waiting callers, church staff outside services, café customers and keepers have working rounds. Actual screenshots were shown during the work.
+
+All five new business interiors pass `interiorcheck`, with real shell openings and no reported gaps or blocked floors. Browser shader problems and path problems are empty. A path sample briefly included a quest box while another moving body blocked its approach; the later nearby and night checks are clear. The gang-café browser check confirms warning expiry puts an outsider outside, and trust 4 permits staying with a welcome greeting. Local visual evidence is in `data/shots/backstreet-bakery.jpg`, `cafe-linde-lived-in.jpg`, `cafe-zwarte-kat.jpg` and `npc-barge-deck.jpg`.
+
+Performance and final integrated-game/demo verification are recorded in `docs/worklog.md`. This is a behaviour/content change; broad rendering optimisation remains the separate task tracked in issue 32.

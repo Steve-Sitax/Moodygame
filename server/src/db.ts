@@ -14,6 +14,7 @@ import { ensurePressTown } from "./paper/town.ts";
 import { ensureNightTown } from "./night/givers.ts";
 // M7 shops: the new shops and their keepers, the old shops into their own houses (shops/town.ts)
 import { ensureShopsTown } from "./shops/town.ts";
+import { ensureNeighbourhoodCafes } from "./town/neighbourhoodCafes.ts";
 import { ensureLamplighters } from "./town/lamplighters.ts";
 import { ensureHomesTown, HOMES_SCHEMA, HOMES_TABLES } from "./homes/town.ts";
 import { ensureVisitors } from "./town/visitors.ts";
@@ -187,6 +188,7 @@ export function openDb(file: string): DB {
   ensureNightTown(db);
   // M7 shops: the butcher, the colonial goods, the apothecary, the barber ... and their keepers (shops/town.ts); in place, once
   ensureShopsTown(db);
+  ensureNeighbourhoodCafes(db);
   // M7 back of town: the poor quarter round the court pumps and corners, the better streets, the watch (town/backtown.ts); in place, once
   ensureBackTown(db);
   // M7 walk-up: the standing roles (customs at the Entrepot, the lock and by night; a police patrol per beat day and night; thieves on the quays) (town/standing.ts); in place, once
@@ -300,6 +302,7 @@ export function resetDb(db: DB): void {
   ensureLively(db);
   ensureNightTown(db);
   ensureShopsTown(db);
+  ensureNeighbourhoodCafes(db);
   ensureBackTown(db);
   ensureStanding(db);
   ensureWallFolk(db);

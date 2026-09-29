@@ -233,9 +233,9 @@ const market = new Market(world, crowd, town, stalls);
 market.soldOutOf = (place) => place === "vismarkt" && town.soldOut("vismarkt");
 town.market = market;
 animals.scraps = market.scrapSpots();
-const trades = createTrades(world.scene, world.city.flags, { clock: () => ({ day: jobs.day.dayNum, hour: jobs.day.hourF }) });
+const trades = createTrades(world.scene, world.city.flags, { clock: () => ({ day: jobs.day.dayNum, hour: jobs.day.hourF }), standFree: world.standFree });
 // visitors at the Steen (the Museum of Antiquities), the attendant, a painter, an angler (world/steenlife.ts)
-const steenLife = createSteenLife(world.scene, crowd);
+const steenLife = createSteenLife(world.scene, crowd, world);
 // M7 alive (hook): leaves in the wind, birds, bats, moths, drips, mist, buoys, thunder (world/alive/)
 const alive = createAlive(world.scene, world, () => sound);
 /** The room the great storm's rain was last fitted round (world/tempest.ts roomBox). */
@@ -1532,6 +1532,7 @@ if (import.meta.env.DEV) {
     market,
     trades,
     steenLife,
+    specialNpcRoutines: () => ({ posts: jobs.people.list.map(n => n.routineInfo()), guards: world.guardRoutines(), railGate: world.railGate().routineInfo(), boats: rowing.life?.info(), trades: trades.info(), steen: steenLife.info(), rooms: interiors.routineInfo(), landmarks: landmarks.routineInfo(), prison: prison.info() }),
     ride,
     craneClimb,
     deeds,

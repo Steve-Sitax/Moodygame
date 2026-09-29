@@ -280,6 +280,7 @@ export interface World {
   railway(): Railway | null;
   /** The railway gate of the Werf store, where the goods train comes and goes (M3g). */
   railGate(): RailGate;
+  guardRoutines(): Array<{ x: number; z: number; routes: number | null; walking: boolean }>;
   /** The horse omnibuses, quay and town lines (M3g); null until loaded. */
   omnibus(): Omnibuses | null;
   /** Where the people walking are (the crowd and the town): bridges never open under them. */
@@ -421,6 +422,7 @@ export function buildRijnkaai(): World {
     tex: { brick: tex.brick, stone: tex.quayWall, slate: tex.slate, planks: tex.planks },
     addCollider: (r) => dynamic.add(r),
     removeCollider: (r) => dynamic.delete(r),
+    standFree: (x, z, r, y) => standFree(x, z, r, y),
   });
   colliders.push(...railGate.colliders);
   const propsKeepOut: Rect[] = [
@@ -577,7 +579,7 @@ export function buildRijnkaai(): World {
   const wall = loadWall(scene);
   // the town wall pass 2: the second mill, the capstan and the benches on the walk (world/rampart.ts)
   wall.dressing.then((d) => colliders.push(...wallColliders(d))).catch(() => {});
-  const guards = wallGuards(scene, (x, z) => rampartHeightAt(x, z) ?? 0);
+  const guards = wallGuards(scene, (x, z) => rampartHeightAt(x, z) ?? 0, (x, z, r, y) => standFree(x, z, r, y));
   // the churches of the angled streets, the Stadspark, the pumps of the alleys' courts (world/churches.ts)
   const churches = loadChurches(scene);
   // the Stadspark planted: trees, shrubs, hedge, reeds, its own ground, ducks and swans (world/parkNature.ts)
@@ -2077,6 +2079,7 @@ export function buildRijnkaai(): World {
     moverAt,
     onRails: (x, z, r = 0) => railBand.some((c) => inRect(c, x, z, r)),
     isFree,
+    guardRoutines: () => guards.info(),
     solids: () => [...colliders, ...dynamic].filter((c) => (c.top ?? Infinity) > STEP),
     // (the fixed list only grows: its length and the count of changes to the others)
     solidsVersion: () => {

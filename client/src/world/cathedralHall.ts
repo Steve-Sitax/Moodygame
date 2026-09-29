@@ -1763,6 +1763,7 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
     scene,
     group,
     walk: walkJef,
+    peopleFree: (x, z) => P.freeAt(x, z, .25, false),
     seats,
     stands: [],
     exit: { ...P.MARKS.door, yaw: Math.PI },

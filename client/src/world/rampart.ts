@@ -4,6 +4,7 @@ import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import CITY from "../../../shared/city.json";
 import { psx } from "../retro/psx";
 import type { Rect } from "./geom";
+import { groundRound } from "../game/stationRound";
 import { makeHuman, type Human } from "../game/humans";
 import { grassPaving, quayPaving, withPictures } from "./paving";
 import type { GasLamps } from "./gaslamps";
@@ -525,6 +526,7 @@ interface Guard {
   b?: [number, number];
   toB?: boolean;
   wait?: number;
+  routine?: ReturnType<typeof groundRound>;
 }
 
 /**
@@ -532,7 +534,7 @@ interface Guard {
  * side of the arch, facing the street. (The rounds of the walk and the sentry boxes on it are townspeople
  * with a day since the look pass: server/src/town/wallfolk.ts.)
  */
-export function wallGuards(scene: THREE.Scene, heightAt: (x: number, z: number) => number) {
+export function wallGuards(scene: THREE.Scene, heightAt: (x: number, z: number) => number, standFree: (x: number, z: number, r: number, y: number) => boolean) {
   const group = new THREE.Group();
   group.name = "wall_guards";
   scene.add(group);
@@ -562,6 +564,14 @@ export function wallGuards(scene: THREE.Scene, heightAt: (x: number, z: number) 
         }
         const h = gd.human;
         h.root.visible = true;
+        if (gd.kind === "post") {
+          gd.routine ??= groundRound({ standFree }, [gd.x, gd.z], heightAt(gd.x, gd.z), gd.yaw, false, guards.indexOf(gd) * 7, 2);
+          const { round: r, free } = gd.routine;
+          r.update(dt, !!camera && Math.hypot(camera.position.x - r.x, camera.position.z - r.z) < .9, free);
+          gd.x = r.x; gd.z = r.z;
+          h.play(r.walking ? "walk" : "behind"); h.setPace(r.speed);
+          if (r.walking) gd.yaw = r.yaw;
+        }
         if (gd.kind === "round") {
           const [tx, tz] = gd.toB ? gd.b! : gd.a!;
           const d = Math.hypot(tx - gd.x, tz - gd.z);
@@ -588,5 +598,6 @@ export function wallGuards(scene: THREE.Scene, heightAt: (x: number, z: number) 
         h.update(Math.min(dt, 0.1));
       }
     },
+    info: () => guards.map(g => ({ x: g.x, z: g.z, routes: g.routine?.round.routes.length ?? null, walking: g.routine?.round.walking ?? false })),
   };
 }

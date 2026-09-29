@@ -168,6 +168,32 @@ export function cellBox(wing: "A" | "B", row: "N" | "S", storey: number, k: numb
 /** Is this cell the passage to a yard door (wing, row S, ground floor, the door's place)? */
 export const isYardPassage = (row: "N" | "S", storey: number, k: number) => row === "S" && storey === 0 && Math.abs(CELLS[k] - YARD_DOOR.x) < 0.2;
 
+/** The furniture's actual positions, shared by the model and the inmates' small pacing area. */
+export function cellFurniture(c: ReturnType<typeof cellBox>, row: "N" | "S", seed: number) {
+  const x0 = c.x0 + .02, x1 = c.x1 - .02;
+  const [zDoor, zBack] = row === "S" ? [c.z1, c.z0] : [c.z0, c.z1];
+  const into = Math.sign(zBack - zDoor), xm = (x0 + x1) / 2;
+  const bx = x0 + .42, bz0 = zDoor + into * .55, bz1 = zBack - into * .05;
+  const bl = Math.abs(bz1 - bz0), bzc = (bz0 + bz1) / 2;
+  return { x0, x1, zDoor, zBack, into, xm, bx, bz0, bz1, bl, bzc, folded: seed % 3 === 0, tx: x1 - .35, tz: zBack - into * .35 };
+}
+
+/** NPC-only floor: a prisoner cannot pace through furniture or the cell's walls. */
+export function cellPacing(wing: "A" | "B", row: "N" | "S", k: number): (x: number, z: number) => boolean {
+  const c = cellBox(wing, row, 0, k);
+  const f = cellFurniture(c, row, k * 7 + (row === "N" ? 11 : 0) + (wing === "B" ? 5 : 0));
+  const occupied = (k + (row === "N" ? 1 : 0)) % 5 !== 2;
+  const blocks = [
+    f.folded ? [f.x0, f.x0 + .17, f.bzc - .35, f.bzc + .35] : [f.bx - .36, f.bx + .36, Math.min(f.bz0, f.bz1), Math.max(f.bz0, f.bz1)],
+    [f.tx - .275, f.tx + .275, f.tz - .3, f.tz + .3],
+    [f.tx - .46, f.tx - .14, f.tz - f.into * .6 - .16, f.tz - f.into * .6 + .16],
+    [f.x1 - .41, f.x1 - .09, f.zDoor + f.into * .35 - .16, f.zDoor + f.into * .35 + .16],
+    ...(occupied ? [[f.xm - .1, f.xm + .4, f.bzc - .2, f.bzc + .2], [f.xm + .3, f.xm + .7, f.bzc + f.into * .4 - .2, f.bzc + f.into * .4 + .2]] : []),
+  ];
+  return (x, z) => x > c.x0 + .25 && x < c.x1 - .25 && z > c.z0 + .25 && z < c.z1 - .25
+    && !blocks.some(([x0, x1, z0, z1]) => x > x0 - .25 && x < x1 + .25 && z > z0 - .25 && z < z1 + .25);
+}
+
 const marks: Record<string, Mark> = {
   door: { x: 0, z: -2.0, yaw: Math.PI },
   inside: { x: 0, z: 1.6, yaw: 0 },

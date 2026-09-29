@@ -1445,7 +1445,7 @@ export class Rowing {
     }
     // M7 boats: the lines of the boats at their moorings near the eye; copies far off are not drawn
     this.ropes();
-    this.life?.update(dt, this.player.camera.position);
+    this.life?.update(dt, this.player.camera.position, this.jobs.day.hourF, !!this.data?.storm);
     // a new boat at a berth once nobody is looking
     this.syncT -= dt;
     if (this.data && this.syncT <= 0) {

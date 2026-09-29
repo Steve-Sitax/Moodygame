@@ -5,6 +5,8 @@ import { addLantern, removeLantern, type LanternSource } from "../world/lanternL
 import { lampFog } from "../world/lampFog";
 import { box, cyl, rectAround } from "../world/geom";
 import { DECK, type World } from "../world/rijnkaai";
+import { LocalRound, roundRoutes } from "../../../shared/localRound";
+import type { Rect } from "../world/geom";
 import type { FirstPerson } from "../player/firstPerson";
 import { api } from "../net/api";
 import { Human, makeHuman, whenHumans, type HumanKind } from "./humans";
@@ -150,17 +152,22 @@ export class Npc {
   /** Seconds left of a hand gesture, and the pause before the next one. */
   private gesture = 0;
   private gestureWait = 1 + Math.random() * 2;
+  private round: LocalRound | null = null;
+  private anchor: { x: number; z: number; yaw: number };
+  private collider: Rect | null = null;
+  private readonly roundFree = (x: number, z: number) => this.world.standFree(x, z, .3, this.pos.y);
 
-  constructor(readonly def: NpcDef, world: World) {
+  constructor(readonly def: NpcDef, private readonly world: World) {
     this.pos = new THREE.Vector3(def.x, def.y ?? 0, def.z);
     this.facing = def.yaw;
     this.home = { x: def.x, z: def.z, yaw: def.yaw };
+    this.anchor = { ...this.home };
     for (const o of def.build(mat)) this.body.add(o);
     this.group.add(this.body);
     this.group.position.copy(this.pos);
     this.group.rotation.y = def.yaw;
     world.scene.add(this.group);
-    if (!def.y) world.addCollider(rectAround(def.x, def.z, 0.35, 0.35));
+    if (!def.y) { this.collider = rectAround(def.x, def.z, .35, .35); world.addCollider(this.collider); }
     whenHumans(() => {
       const h = makeHuman(def.model ?? (def.id as HumanKind));
       if (!h) return;
@@ -173,6 +180,8 @@ export class Npc {
 
   /** At the post, or gone home (hidden, and nobody to talk to). */
   setPresent(on: boolean): void {
+    if (on && !this.present) this.round = null;
+    if (this.collider && on !== this.present) (on ? this.world.addCollider : this.world.removeCollider)(this.collider);
     this.present = on;
     this.group.visible = on;
   }
@@ -183,7 +192,9 @@ export class Npc {
    */
   nightPost(at: { x: number; z: number; yaw: number } | null): void {
     const to = at ?? this.home;
-    if (this.pos.x === to.x && this.pos.z === to.z) return;
+    if (this.anchor.x === to.x && this.anchor.z === to.z) return;
+    this.anchor = { ...to };
+    this.round = null;
     this.pos.set(to.x, this.pos.y, to.z);
     this.group.position.copy(this.pos);
     this.def.yaw = to.yaw;
@@ -222,6 +233,8 @@ export class Npc {
     return Math.hypot(this.pos.x - x, this.pos.z - z);
   }
 
+  routineInfo() { return { id: this.id, present: this.present, x: this.pos.x, z: this.pos.z, routes: this.round?.routes.length ?? null, walking: this.round?.walking ?? false }; }
+
   /** Look at a point (eased). */
   lookAt(x: number, z: number): void {
     this.facing = Math.atan2(x - this.pos.x, z - this.pos.z);
@@ -230,8 +243,31 @@ export class Npc {
   update(dt: number, player: FirstPerson, now: number): void {
     const d = this.distTo(player.x, player.z);
     if (this.def.onDeck) this.pos.y = DECK.y;
+    if (this.collider) this.world.removeCollider(this.collider);
+    const free = this.roundFree;
+    if (!this.round) {
+      const seed = [...this.id].reduce((a, c) => a + c.charCodeAt(0), 0);
+      let home: [number, number] = [this.anchor.x, this.anchor.z];
+      if (!free(...home)) {
+        outer: for (const d of [.4, .8, 1.2]) for (let i = 0; i < 16; i++) {
+          const a = i * Math.PI / 8, q: [number, number] = [home[0] + Math.sin(a) * d, home[1] + Math.cos(a) * d];
+          if (free(...q)) { home = q; break outer; }
+        }
+      }
+      let routes = roundRoutes(home, free, seed, this.def.onDeck ? 1.1 : 2.5);
+      if (!routes.length) routes = roundRoutes(home, free, seed, .8);
+      this.round = new LocalRound(home, routes, seed);
+    }
+    this.round.update(dt, d < 3.2, free);
+    this.pos.x = this.round.x; this.pos.z = this.round.z;
+    if (this.collider) {
+      this.collider.minX = this.pos.x - .35; this.collider.maxX = this.pos.x + .35;
+      this.collider.minZ = this.pos.z - .35; this.collider.maxZ = this.pos.z + .35;
+      this.world.addCollider(this.collider);
+    }
     this.group.position.copy(this.pos);
-    if (d < 6) this.lookAt(player.x, player.z);
+    if (this.round.walking) this.facing = this.round.yaw;
+    else if (d < 6) this.lookAt(player.x, player.z);
     else this.facing = this.def.yaw;
     const cur = this.group.rotation.y;
     const diff = Math.atan2(Math.sin(this.facing - cur), Math.cos(this.facing - cur));
@@ -254,7 +290,8 @@ export class Npc {
   /** Idle; when you stand close, now and then a few words with the hands. */
   private animate(dt: number, d: number): void {
     const h = this.human!;
-    if (this.def.talks && d < 3.2) {
+    if (this.round?.walking) { h.play("walk"); h.setPace(this.round.speed); }
+    else if (this.def.talks && d < 3.2) {
       if (this.gesture > 0) {
         this.gesture -= dt;
         if (this.gesture <= 0) {

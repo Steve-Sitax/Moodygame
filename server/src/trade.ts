@@ -13,6 +13,7 @@ import { LIVELY_ITEMS, LIVELY_USE_TEXT, LIVELY_WARES } from "./town/livelyWares.
 // M7 shops: the new shops' wares, and more for the old ones (shops/wares.ts)
 import { SHOP_ITEMS, SHOP_SERVICE_LINE, SHOP_USE_TEXT, SHOP_WARES, SHOP_WARES_MORE } from "./shops/wares.ts";
 import { shopTrade } from "../../shared/shops.ts";
+import { tavernWelcome } from "./interiors/welcome.ts";
 
 // Buying, pockets and eating (M3b). Prices and effects are engine numbers
 // (docs/03: shop prices are engine code). Pockets hold small things only;
@@ -265,6 +266,8 @@ export const haggleHooks = {
 };
 
 export function buy(db: DB, npc: string, kind: string): { line: string; bought: string; price_c: number } {
+  const seller = resident(db, npc);
+  if (seller && !tavernWelcome(db, seller.work.place)) throw new GameError('"We do not serve strangers here. Best be on your way."', 409);
   const listed = waresOf(db, npc).find((w) => w.kind === kind);
   if (!listed) throw new GameError("they do not sell that", 404);
   if (!atWork(db, npc)) throw new GameError("the shop is shut; come back in working hours", 409);

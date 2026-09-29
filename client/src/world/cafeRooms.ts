@@ -33,6 +33,8 @@ export const CAFE_STYLE: Record<string, CafeStyle> = {
   "tavern:vliet": "brown",
   "tavern:engel": "grand",
   "tavern:bassin": "coffee",
+  "tavern:linde": "brown",
+  "tavern:zwarte_kat": "sailors",
 };
 
 const face = (x: number, z: number, tx: number, tz: number) => Math.atan2(tx - x, tz - z);

@@ -355,15 +355,18 @@ export const EVENT_SIZE_DEFAULT = 100;
  * (population.ts, without the garrison and the people other parts add in place: the press, the
  * homes, the lamplighters, the visitors, the emigrants, about 50 more; M6 lively: the dog carts, the
  * street sellers, the stalls' keepers, nuns, beguines, beggars and travellers, 25 more; M7 back of town: the
- * households of the back streets, their groups and gangs, the watch, town/backtown.ts: BACK_ABOUT; M7 shops: the nine new shopkeepers, shops/town.ts). Normal is the town as it was.
+ * households of the back streets, their groups and gangs, the watch, town/backtown.ts: BACK_ABOUT;
+ * shops and neighbourhood cafes: BUSINESS_ABOUT). Normal is the town as it was.
  */
 export type TownSize = "small" | "normal" | "large" | "very_large";
 /** M7 back of town (town/backtown.ts): how many people the back of town adds to a new town of each size. */
 export const BACK_ABOUT: Record<TownSize, number> = { small: 180, normal: 565, large: 590, very_large: 615 };
+/** Twelve added shops and eight residents of the two back-street cafés. */
+const BUSINESS_ABOUT = 20;
 export const TOWN_SIZES: Record<TownSize, { label: string; target: number; about: number }> = {
-  small: { label: "Small", target: 100, about: 175 + BACK_ABOUT.small + 9 },
-  normal: { label: "Normal", target: 190, about: 265 + BACK_ABOUT.normal + 9 },
-  large: { label: "Large", target: 300, about: 375 + BACK_ABOUT.large + 9 },
-  very_large: { label: "Very large", target: 450, about: 525 + BACK_ABOUT.very_large + 9 },
+  small: { label: "Small", target: 100, about: 175 + BACK_ABOUT.small + BUSINESS_ABOUT },
+  normal: { label: "Normal", target: 190, about: 265 + BACK_ABOUT.normal + BUSINESS_ABOUT },
+  large: { label: "Large", target: 300, about: 375 + BACK_ABOUT.large + BUSINESS_ABOUT },
+  very_large: { label: "Very large", target: 450, about: 525 + BACK_ABOUT.very_large + BUSINESS_ABOUT },
 };
 export const TOWN_SIZE_DEFAULT: TownSize = "normal";

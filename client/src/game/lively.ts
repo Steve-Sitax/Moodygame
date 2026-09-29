@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { psx } from "../retro/psx";
+import { REAL_S_PER_GAME_MIN } from "../../../shared/clock";
 import type { Rect } from "../world/geom";
 import type { World } from "../world/rijnkaai";
 import type { Crowd, Puppet } from "./crowd";
@@ -234,7 +235,7 @@ export class Lively {
   /** Dev: games set by hand on a pitch (devGames). */
   private forced = new Map<string, { boys: ChildGame; girls: ChildGame }>();
   private wets: Wet[] = [];
-  private windows = new Map<string, { h: Human; g: THREE.Group }>();
+  private windows = new Map<string, { h: Human; g: THREE.Group; x: number; z: number; ox: number; oz: number; seed: number }>();
   private cats: Array<{ a: Animal; x: number; z: number; y: number; yaw: number; house: number; shown: boolean }> = [];
   // (M8f sync pass 3: `id` among the players' PCs; the PC of the nearest player runs each, the others draw it)
   private hens: Array<{ id: string; body: THREE.Group; head: THREE.Object3D; legs: THREE.Object3D[]; hx: number; hz: number; x: number; z: number; yaw: number; t: number; tx: number; tz: number; peck: number }> = [];
@@ -2103,10 +2104,19 @@ export class Lively {
         g.rotation.set(0.38, Math.atan2(ox, oz), 0, "YXZ");
         g.scale.setScalar(1);
         this.world.scene.add(g);
-        this.windows.set(id, { h, g });
+        this.windows.set(id, { h, g, x: g.position.x, z: g.position.z, ox, oz, seed: h01(id) * 52 });
       }
     }
-    for (const w of this.windows.values()) w.h.update(dt);
+    for (const w of this.windows.values()) {
+      const phase = ((day * 1440 + hour * 60) * REAL_S_PER_GAME_MIN + w.seed) % 52;
+      const inside = phase >= 23 && phase < 48;
+      const retreat = phase >= 22 && phase < 23 ? phase - 22 : phase >= 48 && phase < 49 ? 49 - phase : inside ? 1 : 0;
+      w.g.visible = !inside;
+      w.g.position.set(w.x - w.ox * retreat * .8, GROUND_H - .4, w.z - w.oz * retreat * .8);
+      w.g.rotation.x = .38 * (1 - retreat);
+      w.h.play(retreat > 0 && !inside ? "walk" : "lean"); w.h.setPace(.8);
+      if (!inside) w.h.update(dt);
+    }
   }
 
   private updateCats(dt: number, player: { x: number; z: number }, fogFar: number): void {

@@ -257,6 +257,51 @@
     -195.3,
     87.7
    ]
+  },
+  {
+   "id": "shop:bakery_south",
+   "kind": "shop",
+   "house": 543,
+   "door": [
+    -210.557365775,
+    236.332809725
+   ]
+  },
+  {
+   "id": "shop:grocer_south",
+   "kind": "shop",
+   "house": 334,
+   "door": [
+    -121.862232525,
+    260.907469675
+   ]
+  },
+  {
+   "id": "shop:cobbler_east",
+   "kind": "shop",
+   "house": 219,
+   "door": [
+    7.3052634,
+    213.7236664
+   ]
+  },
+  {
+   "id": "tavern:linde",
+   "kind": "tavern",
+   "house": 595,
+   "door": [
+    -180.7975,
+    205
+   ]
+  },
+  {
+   "id": "tavern:zwarte_kat",
+   "kind": "tavern",
+   "house": 440,
+   "door": [
+    -59.2758322,
+    261.5046793
+   ]
   }
  ]
 }

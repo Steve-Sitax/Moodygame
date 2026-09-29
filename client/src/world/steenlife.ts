@@ -6,6 +6,8 @@ import type { Crowd, Puppet } from "../game/crowd";
 import { glowTexture } from "./textures";
 import { addLantern, type LanternSource } from "./lanternLights";
 import type { Rect } from "./geom";
+import { groundRound } from "../game/stationRound";
+import type { World } from "./rijnkaai";
 import { water } from "./tide";
 import { loadSteenModel, type SteenModel } from "./steenModel";
 import { addPropObject } from "./propSpots";
@@ -57,6 +59,7 @@ interface Figure {
   hours: P;
   h: Human | null;
   root: THREE.Group;
+  routine?: ReturnType<typeof groundRound>;
 }
 
 const face = (fx: number, fz: number, tx: number, tz: number) => Math.atan2(tx - fx, tz - fz);
@@ -82,14 +85,14 @@ function figures(): Figure[] {
   const sailor = benchSeat(BENCHES[1], 0.4);
   return [
     // the attendant, in his coat, beside the open door up on the courtyard
-    f("clerk", STEEN_DOOR.x - 2.8, STEEN_DOOR.z + 0.85, 0.15, "behind", [9.5, 16.5], undefined, TY),
+    f("clerk", STEEN_DOOR.x - 2.8, STEEN_DOOR.z + 1.65, 0.15, "behind", [9.5, 16.5], undefined, TY),
     // the painter on his stool
     f("gentleman", PAINTER[0], PAINTER[1], PAINTER_YAW, "sit", [10, 16], 0.45),
     // the old man fishing over the east railing
     f("old_man", ANGLER[0], ANGLER[1], ANGLER_YAW, "sit", [7, 17.5], 0.42),
     // children at the west railing, watching the ships
-    f("boy", -213.1, -12.2, -Math.PI / 2, "idle", [11, 17]),
-    f("girl", -213.1, -13.3, -Math.PI / 2 + 0.3, "idle", [11, 17]),
+    f("boy", -213.1, -17.5, -Math.PI / 2, "idle", [11, 17]),
+    f("girl", -213.1, -18.6, -Math.PI / 2 + 0.3, "idle", [11, 17]),
     // a couple at the west railing, watching the river
     f("clerk", -213.2, -22.6, -Math.PI / 2, "lean", [9, 18]),
     f("wife_a", -213.1, -21.4, -Math.PI / 2 + 0.2, "idle", [9, 18]),
@@ -131,7 +134,7 @@ export interface SteenLife {
   model: SteenModel;
 }
 
-export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenLife {
+export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null, world: Pick<World, "standFree">): SteenLife {
   const group = new THREE.Group();
   group.name = "steenlife";
   scene.add(group);
@@ -543,7 +546,17 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenL
     for (const f of figs) {
       const on = near && hour >= f.hours[0] && hour < f.hours[1];
       show(f, on);
-      if (f.h && Math.hypot(f.x - cx, f.z - cz) < 60) f.h.update(dt);
+      if (f.h && Math.hypot(f.x - cx, f.z - cz) < 60) {
+        f.routine ??= groundRound(world, [f.x, f.z], f.y, f.yaw, f.seat !== undefined, figs.indexOf(f) * 7, f.y ? 1.5 : 2.5);
+        const { round: r, free } = f.routine;
+        r.update(dt, Math.hypot(cx - r.x, cz - r.z) < .9, free);
+        const sitting = r.atHome && f.seat !== undefined;
+        f.h.play(r.walking ? "walk" : r.atHome ? f.motion : "behind");
+        f.h.setPace(r.speed);
+        f.root.position.set(r.x, f.y + (sitting ? f.h.sitDrop(f.seat!) : 0), r.z);
+        f.root.rotation.y = r.walking ? r.yaw : r.atHome ? f.yaw : r.yaw;
+        f.h.update(dt);
+      }
     }
     easel.visible = hour >= 10 && hour < 16;
     if (fishLine && fishFloat && near) {
@@ -553,7 +566,8 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenL
       a.setY(1, y);
       a.needsUpdate = true;
     }
-    rod.visible = hour >= 7 && hour < 17.5;
+    rod.visible = hour >= 7 && hour < 17.5 && (figs[2].routine?.round.atHome ?? true);
+    if (fishFloat) fishFloat.visible = rod.visible;
     doorway.visible = open;
     for (const l of lanterns) {
       l.glow.visible = night;
@@ -577,6 +591,7 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenL
     info: () => ({
       model: model.info(),
       figures: figs.filter((f) => f.h).map((f) => f.kind),
+      routines: figs.map(f => ({ kind: f.kind, x: f.root.position.x, z: f.root.position.z, routes: f.routine?.round.routes.length ?? null, walking: f.routine?.round.walking ?? false })),
       visitors: visitors.map((v) => ({ kind: v.kind, state: v.state, x: v.p ? +v.p.x.toFixed(1) : null, z: v.p ? +v.p.z.toFixed(1) : null, t: +v.t.toFixed(1) })),
       doorOpen: doorway.visible,
       lantern: lanterns[0].glow.visible,

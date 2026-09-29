@@ -26,6 +26,8 @@ import type { HousePlan } from "../../../shared/housePlan";
 import * as HP from "../../../shared/hallPlan";
 import { dialogs } from "./dialogs";
 import { tempest } from "../world/tempest";
+import { LocalRound, localWalk, roundRoutes, type WalkFree, type WalkPoint } from "../../../shared/localRound";
+import { seatExit } from "./stationRound";
 
 // Inside (M6, M7 in the world): the taverns and the Poesje stand inside their own city houses
 // (shared/housePlan.ts, world/houseInWorld.ts): their doors stand open in opening hours and you walk in;
@@ -51,6 +53,8 @@ type Occ = {
   path: Pt[];
   leaving: boolean;
   gone: boolean;
+  routine?: LocalRound;
+  routineFree?: WalkFree;
 };
 
 interface Line {
@@ -116,6 +120,7 @@ export class Interiors {
   private syncing = false;
   private firstSync = true;
   private chatT = 20;
+  private unwelcomeT = 0;
   private infoT = 0;
   private tipsyNow = 0;
   private tipsyTarget = 0;
@@ -459,6 +464,8 @@ export class Interiors {
     const room = this.room!;
     const w = this.jefAt();
     if (!w) return [];
+    if (this.info?.taverns.find(t => t.place === this.here?.place)?.welcome === false)
+      return [{ key: "KeyE", text: "leave before the lads lose patience", run: () => this.leave(), self: true }];
     if (this.jefSeat) {
       const out: Action[] = [{ key: "KeyE", text: "stand up", run: () => this.standUp(), self: true }];
       const mate = this.dicePartner();
@@ -602,6 +609,7 @@ export class Interiors {
     this.jefIn = inNow;
     if (!h) return;
     if (!inNow) {
+      this.unwelcomeT = 0;
       if (this.jefSeat) this.standUp();
       this.dice.close();
       this.caption.classList.remove("on");
@@ -621,6 +629,12 @@ export class Interiors {
       return;
     }
     if (h.kind === "tavern") {
+      const door = this.info?.taverns.find(t => t.place === h.place);
+      if (door?.greeting) {
+        this.say(door.greeting);
+        this.unwelcomeT = door.welcome === false ? 10 : 0;
+        return;
+      }
       const n = [...this.occ.values()].filter((o) => !o.keeper && !o.gone && !o.leaving).length;
       // words for the hour (QA 2026-09-24: "Quiet tonight" at one in the afternoon)
       const hr = this.jobs.day.hourF;
@@ -711,7 +725,9 @@ export class Interiors {
         o.leaving = true;
         const via = o.seat ? [...o.seat.via].reverse() : [];
         this.free(o);
-        o.path = [...via, [room.entry.x, room.entry.z], [room.exit.x, room.exit.z]];
+        o.path = (o.routineFree ? localWalk([o.x, o.z], [room.entry.x, room.entry.z], o.routineFree) : null) ?? [...via, [room.entry.x, room.entry.z]];
+        o.path.push([room.exit.x, room.exit.z]);
+        o.routine = undefined;
       }
     }
     for (const p of list) {
@@ -834,6 +850,18 @@ export class Interiors {
     for (const [id, o] of this.occ) {
       if (!o.human && seen) this.dress(o);
       const h = o.human;
+      if (!o.path.length && !o.leaving && room.kind !== "cellar" && !o.p.stand) {
+        if (!o.routine) this.makeRoutine(o);
+        const r = o.routine;
+        if (r) {
+          const j = this.jefAt();
+          const paused = speaking === id || (talkingTo && o.keeper) || (this.jefIn && j !== null && Math.hypot(j.x - r.x, j.z - r.z) < 1.1);
+          r.update(dt, paused, o.routineFree);
+          o.x = r.x; o.z = r.z;
+          if (r.walking) o.yaw = r.yaw;
+          else if (r.atHome) o.yaw = (o.seat ?? o.stand)?.yaw ?? o.yaw;
+        }
+      }
       if (o.path.length) {
         const [tx, tz] = o.path[0];
         const dx = tx - o.x;
@@ -863,8 +891,8 @@ export class Interiors {
       if (!h) continue;
       h.root.visible = seen;
       if (!seen) continue;
-      const walking = o.path.length > 0;
-      const sitting = !walking && !!o.seat;
+      const walking = o.path.length > 0 || !!o.routine?.walking;
+      const sitting = !walking && !!o.seat && (!o.routine || o.routine.atHome);
       if (walking) {
         h.play("walk");
         h.setPace(WALK_IN);
@@ -878,6 +906,32 @@ export class Interiors {
       h.update(dt);
     }
   }
+
+  private makeRoutine(o: Occ): void {
+    const room = this.here?.room, plan = this.here?.house?.plan;
+    if (!room || !plan) return;
+    const home: WalkPoint = [o.x, o.z];
+    const via = o.seat ? [...o.seat.via].reverse() : [];
+    const exit: WalkPoint = via[via.length - 1] ?? home;
+    const first = via[0] ?? [home[0] + Math.sin(o.yaw + Math.PI) * .8, home[1] + Math.cos(o.yaw + Math.PI) * .8];
+    const yaw = Math.atan2(first[0] - home[0], first[1] - home[1]);
+    const floor = plan.levels.find(l => l.y === 0)?.floors ?? plan.levels[0].floors;
+    const clear: WalkFree = (x, z) => floor.some(f => x >= f.minX + .22 && x <= f.maxX - .22 && z >= f.minZ + .22 && z <= f.maxZ - .22)
+      && !(room.solids ?? []).some(b => x > b.minX - .2 && x < b.maxX + .2 && z > b.minZ - .2 && z < b.maxZ + .2);
+    o.routineFree = (x, z) => (!!o.seat && seatExit(home, yaw, x, z)) || clear(x, z);
+    const seed = hash(o.p.id);
+    const routes = roundRoutes(exit, o.routineFree, seed, o.keeper ? 1.2 : 2.3);
+    if (o.keeper) for (const dz of [-1.3, 1.3]) {
+      const path = localWalk(home, [home[0], home[1] + dz], o.routineFree, 3);
+      if (path) routes.unshift(path);
+    }
+    // Work behind the bar/counter stays on that side; patrons use the aisle.
+    const ownX = room.keeper?.x;
+    const kept = o.keeper && ownX !== undefined ? routes.filter(r => r.every(p => Math.abs(p[0] - ownX) < .45)) : routes;
+    o.routine = new LocalRound(home, kept.map(r => [...via, ...r]), seed, WALK_IN, o.keeper ? 16 : 30);
+  }
+
+  routineInfo() { return { place: this.here?.place, people: [...this.occ.values()].map(o => ({ id: o.p.id, keeper: o.keeper, x: o.x, z: o.z, routes: o.routine?.routes.length ?? null, walking: !!o.path.length || !!o.routine?.walking, leaving: o.leaving, seated: !!o.seat && (!o.routine || o.routine.atHome) })) }; }
 
   // ------------------------------------------------------------------ Jef sits
 
@@ -1290,6 +1344,11 @@ export class Interiors {
       void this.sync(here);
     }
     if (here.kind === "tavern" && this.jefIn) {
+      if (this.unwelcomeT > 0) {
+        this.unwelcomeT -= dt;
+        if (this.unwelcomeT <= 0) this.putOut('"You heard him." Two regulars show you to the door.');
+        return;
+      }
       this.chatT -= dt;
       if (this.chatT <= 0) {
         this.chatT = 28 + Math.random() * 22;
@@ -1325,6 +1384,10 @@ export class Interiors {
         const st = await interiorApi.tavern(here.place);
         if (this.here !== here) return;
         if (Number.isFinite(st.tipsy)) this.tipsyTarget = st.tipsy;
+        const door = this.info?.taverns.find(t => t.place === here.place);
+        if (door) { door.welcome = st.welcome; door.greeting = st.greeting; }
+        if (st.welcome === false && this.jefIn && this.unwelcomeT <= 0) { this.say(st.greeting ?? '"Best be on your way."'); this.unwelcomeT = 10; }
+        else if (st.welcome !== false) this.unwelcomeT = 0;
         const hw = this.houses.get(here.place);
         if (hw) hw.house.doorOpen = st.open;
         if (!st.open) {

@@ -5,9 +5,10 @@ import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { psx } from "../retro/psx";
 import { lampFog } from "./lampFog";
 import type { Rect } from "./geom";
+import { LocalRound, localWalk, roundRoutes, type WalkFree, type WalkPoint } from "../../../shared/localRound";
+import { seatExit } from "../game/stationRound";
 import { makeHuman, whenHumans, type Human, type HumanKind, type Motion } from "../game/humans";
 import { addPropObject } from "./propSpots";
-import { REAL_S_PER_GAME_MIN } from "../../../shared/clock";
 
 /** A worker with two places stays this long at his own (real seconds), then the alt's seconds at the other. */
 const MAIN_S = 20;
@@ -356,7 +357,7 @@ export const SITES: Site[] = [
     ],
     area: [-2.5, 45, -1.6, 1.8],
     workers: [
-      { kind: "boy", at: [0.45, 0.62], yaw: Math.PI, motion: "carry" },
+      { kind: "boy", at: [0.45, 0.85], yaw: Math.PI, motion: "carry" },
       { kind: "sailor", at: [ROPE.walkFrom - ROPE.x0, 0], yaw: -HALF_PI, motion: "walk" },
     ],
     reach: [-1.0, 1.3],
@@ -413,7 +414,7 @@ export const SITES: Site[] = [
     area: [-3.0, 3.6, -0.5, 1.9],
     workers: [
       { kind: "old_woman", at: [-1.7, 0.8], yaw: Math.PI, motion: "talk" },
-      { kind: "fishwife_b", at: [1.5, 0.75], yaw: Math.PI, motion: "idle" },
+      { kind: "fishwife_b", at: [1.1, 0.8], yaw: Math.PI, motion: "idle" },
     ],
     reach: [0, 1.4],
   },
@@ -461,6 +462,7 @@ function siteColliders(): Rect[] {
 export interface TradesOptions {
   /** Game day (1-7, 7 Sunday) and hour with fraction: who is at work. */
   clock?: () => { day: number; hour: number };
+  standFree?: (x: number, z: number, radius: number, y: number) => boolean;
 }
 
 export interface Trades {
@@ -474,14 +476,14 @@ export interface Trades {
   /** Points a path must reach (main.ts paths()). */
   pathPoints(): Array<{ label: string; x: number; z: number; reach: number }>;
   /** Dev: where each is, who is at work. */
-  info(): Array<{ id: string; x: number; z: number; workers: number; shown: boolean }>;
+  info(): Array<{ id: string; x: number; z: number; workers: number; shown: boolean; routines: Array<{ kind: string; x: number; z: number; routes: number | null; walking: boolean }> }>;
 }
 
 interface Placed {
   site: Site;
   group: THREE.Group;
   /** `off`: where in his round of the two places a worker is (0..1, by the site and his number: sync pass 2). */
-  people: Array<{ w: Worker; h: Human | null; root: THREE.Group; t: number; atAlt: boolean; off: number }>;
+  people: Array<{ w: Worker; h: Human | null; root: THREE.Group; t: number; atAlt: boolean; off: number; round?: LocalRound; free?: WalkFree }>;
 }
 
 const working = (day: number, hour: number) => day % 7 !== 0 && hour >= 7 && hour < 18.5;
@@ -631,25 +633,32 @@ export function createTrades(scene: THREE.Scene, _flags: (x: number, z: number) 
         }
         if (!w.h) continue;
         if (p.site.id === "ropewalk" && w.w.kind === "sailor") continue; // the spinner: below
-        if (w.w.alt) {
-          // now and then to the other place (the farrier to the anvil, the caulker to his pot): by the game's clock,
-          // MAIN_S at his place then the alt's seconds at the other, so every PC has him at the same one (sync pass 2;
-          // was a dice roll of 14 to 26 s)
-          const [ax, az, ayaw, am, secs] = w.w.alt;
-          const cyc = MAIN_S + secs;
-          const now = (day * 1440 + hour * 60) * REAL_S_PER_GAME_MIN;
-          const alt = (((now + w.off * cyc) % cyc) + cyc) % cyc >= MAIN_S;
-          if (alt !== w.atAlt) {
-            w.atAlt = alt;
-            if (alt) {
-              place(w, ax, az, ayaw);
-              w.h.play(am, 0.3);
-            } else {
-              place(w, w.w.at[0], w.w.at[1], w.w.yaw);
-              w.h.play(w.w.motion, 0.3);
-            }
+        if (!w.round) {
+          const home = w.w.at;
+          w.free = (x, z) => {
+            if (w.w.seat && seatExit(home, w.w.yaw, x, z)) return true;
+            const [a, b, c, d] = p.site.area;
+            if (x < a + .2 || x > b - .2 || z < c + .2 || z > d - .2) return false;
+            if (p.site.boxes.some(q => x > q[0] - .2 && x < q[1] + .2 && z > q[2] - .2 && z < q[3] + .2)) return false;
+            const [wx, wz] = toWorld(p.site, x, z);
+            return opts.standFree?.(wx, wz, .2, 0) ?? true;
+          };
+          const exit: WalkPoint = w.w.seat ? [home[0] + Math.sin(w.w.yaw) * .85, home[1] + Math.cos(w.w.yaw) * .85] : home;
+          const routes = roundRoutes(exit, w.free, Math.floor(w.off * 100), 1.5);
+          if (w.w.alt) {
+            const path = localWalk(exit, [w.w.alt[0], w.w.alt[1]], w.free, 8);
+            if (path) routes.unshift(path);
           }
+          w.round = new LocalRound(home, routes.map(r => w.w.seat ? [exit, ...r] : r), Math.floor(w.off * 100), .65, MAIN_S);
         }
+        const r = w.round;
+        const [wx, wz] = toWorld(p.site, r.x, r.z);
+        r.update(dt, Math.hypot(cx - wx, cz - wz) < .85, w.free);
+        const alt = w.w.alt && Math.hypot(r.x - w.w.alt[0], r.z - w.w.alt[1]) < .3;
+        w.h.play(r.walking ? "walk" : r.atHome ? w.w.motion : alt ? w.w.alt![3] : "behind");
+        w.h.setPace(r.speed);
+        w.root.position.set(r.x, r.atHome && w.w.seat ? w.h.sitDrop(w.w.seat) : 0, r.z);
+        w.root.rotation.y = r.walking ? r.yaw : r.atHome ? w.w.yaw : alt ? w.w.alt![2] : r.yaw;
         if (d < 30 || Math.floor(t * 15) !== Math.floor((t - dt) * 15)) w.h.update(d < 30 ? dt : 1 / 15);
       }
       if (p.site.id === "ropewalk") rope(p, dt, staff);
@@ -682,6 +691,7 @@ export function createTrades(scene: THREE.Scene, _flags: (x: number, z: number) 
       setYarns(ropeX);
       return;
     }
+    if (boy?.round && !boy.round.atHome) { spinner.h.play("idle"); setYarns(ropeX); return; }
     if (!ropeBack) {
       ropeX += dt * 0.45;
       if (ropeX >= ROPE.walkTo) ropeBack = true;
@@ -716,7 +726,8 @@ export function createTrades(scene: THREE.Scene, _flags: (x: number, z: number) 
       const [x, z] = toWorld(s, s.reach[0], s.reach[1]);
       return { label: s.label, x, z, reach: 2.2 };
     }),
-    info: () => placed.map((p) => ({ id: p.site.id, x: p.site.x, z: p.site.z, workers: p.people.filter((w) => w.h).length, shown: p.group.visible })),
+    info: () => placed.map((p) => ({ id: p.site.id, x: p.site.x, z: p.site.z, workers: p.people.filter((w) => w.h).length, shown: p.group.visible,
+      routines: p.people.filter(w => w.h).map(w => ({ kind: w.w.kind, x: w.root.position.x, z: w.root.position.z, routes: w.w.kind === "sailor" && p.site.id === "ropewalk" ? 1 : w.round?.routes.length ?? null, walking: w.h?.motion === "walk" })) })),
   };
 }
 

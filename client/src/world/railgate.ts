@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { psx } from "../retro/psx";
 import { makeHuman, type Human } from "../game/humans";
 import type { Rect } from "./geom";
+import { groundRound } from "../game/stationRound";
 import { Kit, type RGB } from "./kit";
 import type { NetMover } from "../net/mp/world";
 
@@ -26,6 +27,7 @@ export interface RailGateNet {
 }
 
 export interface RailGate extends NetMover<RailGateNet> {
+  routineInfo(): { x: number; z: number; routes: number | null; walking: boolean };
   /** x of the facade (the leaves hang there), and the track's z. */
   readonly x: number;
   readonly z: number;
@@ -51,6 +53,7 @@ export interface RailGateOptions {
   /** For the open leaves' colliders. */
   addCollider: (r: Rect) => void;
   removeCollider: (r: Rect) => void;
+  standFree: (x: number, z: number, r: number, y: number) => boolean;
 }
 
 // the gatehouse on the store's east wall (x -318), round the track at z 4
@@ -205,7 +208,7 @@ export function createRailGate(scene: THREE.Scene, opts: RailGateOptions): RailG
   // --- the keeper at his lodge door
   let keeper: Human | null = null;
   const keeperG = new THREE.Group();
-  keeperG.position.set(FACE + 1.3, 0, 8.0);
+  keeperG.position.set(FACE + 1.3, 0, 10.7);
   keeperG.rotation.y = -2.2; // toward the gate
   group.add(keeperG);
 
@@ -221,11 +224,13 @@ export function createRailGate(scene: THREE.Scene, opts: RailGateOptions): RailG
   const sweep = { minX: FACE, maxX: FACE + reach + 0.4, minZ: OPEN_S - 0.4, maxZ: OPEN_N + 0.4 };
 
   let amount = 0;
+  let keeperRound: ReturnType<typeof groundRound> | null = null;
   let wantOpen = false;
   // M8b: run by another PC, the leaves go as its state says (net/mp/world.ts); the first state rings no bell
   let netRemote = false;
   let netFresh = false;
   const api: RailGate = {
+    routineInfo: () => ({ x: keeperG.position.x, z: keeperG.position.z, routes: keeperRound?.round.routes.length ?? null, walking: keeperRound?.round.walking ?? false }),
     x: FACE,
     z: 4,
     reach,
@@ -262,7 +267,16 @@ export function createRailGate(scene: THREE.Scene, opts: RailGateOptions): RailG
       const far = ((scene.fog as THREE.Fog | null)?.far ?? 40) + 30;
       const near = !camera || Math.hypot(camera.position.x - FACE, camera.position.z - 4) < far;
       group.visible = near;
-      if (near) keeper?.update(Math.min(dt, 0.1));
+      if (near && keeper) {
+        keeperRound ??= groundRound({ standFree: (x, z, r, y) => opts.standFree(x, z, r, y) && !at({ x, z }) }, [FACE + 1.3, 10.7], 0, Math.PI, false, 11, 2);
+        const { round: r, free } = keeperRound;
+        // Keep the keeper outside the swept leaves, as well as the player.
+        r.update(dt, !!player && Math.hypot(player.x - r.x, player.z - r.z) < .9, (x, z) => free(x, z) && !at({ x, z }));
+        keeperG.position.set(r.x, 0, r.z);
+        keeperG.rotation.y = r.walking ? r.yaw : Math.PI;
+        keeper.play(r.walking ? "walk" : wantOpen !== (amount > .99) ? "talk" : "behind");
+        keeper.setPace(r.speed); keeper.update(Math.min(dt, .1));
+      }
     },
     colliders: [house],
     group,
