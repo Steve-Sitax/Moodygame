@@ -267,6 +267,13 @@ source, and no font is renamed or changed (OFL: Reserved Font Names untouched; o
 | Scheldemist Black | UnifrakturMaguntia 400 | j. 'mach' wust (c) 2010, Peter Wiegel (c) 2009, Reserved Font Name UnifrakturMaguntia | the newspaper's masthead | OFL-1.1 |
 | Scheldemist Mono | Courier Prime 400, 700 | The Courier Prime Project Authors (Alan Dague-Greene, Quote-Unquote Apps) (c) 2015 | telegrams, keys in the menus | OFL-1.1 |
 
+The Godot game (`godot/fonts/`, 2026-10-03) reads the same faces from copies of the packages' own Latin woff2 files
+(Godot cannot read them out of `node_modules`), unchanged and under their own names, each beside its package's
+`LICENSE` (the OFL text and the copyright): `kalam-latin-400-normal.woff2`, `kalam-latin-700-normal.woff2`
+(`kalam-LICENSE.txt`; @fontsource/kalam 5.3.0), `old-standard-tt-latin-400-normal.woff2`,
+`old-standard-tt-latin-700-normal.woff2` (`old-standard-tt-LICENSE.txt`; @fontsource/old-standard-tt 5.3.0).
+Loaded by `godot/src/Game/Pen.cs` (`Fonts`) for the HUD.
+
 The menus' one picture, made with Codex image generation from our own prompt through `tools/codexImage.mjs` (no
 example picture, no third-party images); turned grey and resized to 880 px:
 
