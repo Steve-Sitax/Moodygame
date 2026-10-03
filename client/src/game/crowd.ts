@@ -297,6 +297,10 @@ const angDiff = (a: number, b: number) => Math.atan2(Math.sin(a - b), Math.cos(a
 /** Two bodies keep this far apart, middle to middle (m; shoulders about half a metre), eased apart at up to BODY_SHOVE m/s (keepApart). */
 const BODY_GAP = 0.6;
 const BODY_SHOVE = 1.2;
+/** A load on the shoulder or in the arms keeps this much more room each (fixes 2026-10-03: a sack went through the man beside him). */
+const LOAD_GAP = 0.15;
+/** The widest gap two bodies keep (both loaded): the quick test before the exact one. */
+const MAX_GAP = BODY_GAP + 2 * LOAD_GAP;
 /** A townsperson standing in one of these may be eased aside; any other pose is a task on its spot (scrub, lace, rope, wash ...). */
 const FREE_POSES = new Set<Motion>(["idle", "fold", "talk", "walk", "carry", "behind", "pockets", "smoke"]);
 
@@ -307,6 +311,52 @@ const DRAY_SIDE = 0.85;
 
 /** A straightened way keeps this far off the solids (a body 0.25 m, and the 0.35 m between the samples of a line). */
 const NEAR_M = 0.4;
+/** A solid with a top below the feet + this is stepped onto (world/rijnkaai.ts STEP). */
+const SHAPE_STEP = 0.36;
+
+/**
+ * Fixes 2026-10-03 (Steve: dockers in one another before Het Schipke): a solid with a model's shape (a portal
+ * crane, a tree) closes only the 1 m cells round its parts at body height, not its whole box: under a portal
+ * crane the box covered the street, the dockers' haul ends lay under it and found no way, and stood in one
+ * another waiting. Per solid, its world cells, kept while its box stays put (a travelling crane works them out
+ * again when it has moved).
+ */
+interface ShapeCells {
+  minX: number;
+  minZ: number;
+  maxX: number;
+  maxZ: number;
+  i0: number;
+  j0: number;
+  w: number;
+  mask: Uint8Array;
+}
+const shapeCells = new WeakMap<Rect, ShapeCells>();
+/** Working out new shapes stops at this much time in one build (a park's trees took 20 ms at once); the rest wait. */
+const SHAPE_MS = 1.5;
+/** The shape's cells, or null when there is no time left in this build (`until`, performance.now()). */
+function shapeCellsOf(c: Rect, B: number, until: number, base?: (x: number, z: number) => number): ShapeCells | null {
+  const had = shapeCells.get(c);
+  if (had && had.minX === c.minX && had.minZ === c.minZ && had.maxX === c.maxX && had.maxZ === c.maxZ) return had;
+  if (performance.now() > until) return null;
+  const i0 = Math.floor(c.minX - B);
+  const j0 = Math.floor(c.minZ - B);
+  const w = Math.floor(c.maxX + B) - i0 + 1;
+  const h = Math.floor(c.maxZ + B) - j0 + 1;
+  const mask = new Uint8Array(w * h);
+  for (let j = 0; j < h; j++) {
+    const z = j0 + j + 0.5;
+    if (z < c.minZ - B || z > c.maxZ + B) continue;
+    for (let i = 0; i < w; i++) {
+      const x = i0 + i + 0.5;
+      if (x < c.minX - B || x > c.maxX + B) continue;
+      if (c.surface!.blocks(x, z, B, base?.(x, z) ?? 0, SHAPE_STEP)) mask[j * w + i] = 1;
+    }
+  }
+  const out = { minX: c.minX, minZ: c.minZ, maxX: c.maxX, maxZ: c.maxZ, i0, j0, w, mask };
+  shapeCells.set(c, out);
+  return out;
+}
 
 /** A square window of 1 m cells round a point: open (1) or not (0), plus A*. */
 class NavGrid {
@@ -340,6 +390,10 @@ class NavGrid {
   private readonly closed: Int32Array;
   private readonly heap: Int32Array;
   private search = 0;
+  /** Some model shapes were closed by their box in the last build (no time to work them out yet): build again soon. */
+  shapesPending = false;
+  /** The ground's height (the feet of a model's shape), from the last build. */
+  private base?: (x: number, z: number) => number;
 
   constructor(readonly half: number) {
     this.n = Math.ceil(half * 2);
@@ -356,8 +410,11 @@ class NavGrid {
   }
 
   /** Rebuild round (cx, cz). False while the walk map is not in. */
-  build(flags: CrowdGround["flags"], cx: number, cz: number, solids: Rect[] = [], narrow?: (x: number, z: number) => boolean): boolean {
+  build(flags: CrowdGround["flags"], cx: number, cz: number, solids: Rect[] = [], narrow?: (x: number, z: number) => boolean, base?: (x: number, z: number) => number): boolean {
     if (flags(cx, cz) === undefined) return false;
+    this.base = base;
+    this.shapesPending = false;
+    const until = performance.now() + SHAPE_MS;
     const n = this.n;
     this.cx = Math.round(cx);
     this.cz = Math.round(cz);
@@ -410,6 +467,24 @@ class NavGrid {
       const i1 = Math.min(n - 1, Math.floor(c.maxX + B - this.x0));
       const j0 = Math.max(0, Math.floor(c.minZ - B - this.z0));
       const j1 = Math.min(n - 1, Math.floor(c.maxZ + B - this.z0));
+      if (c.surface) {
+        // a model's shape: only the cells its parts reach at body height
+        if (i0 > i1 || j0 > j1) continue;
+        const s = shapeCellsOf(c, B, until, base);
+        if (s) {
+          for (let iz = j0; iz <= j1; iz++) {
+            const j = Math.floor(this.z0 + iz + 0.5) - s.j0;
+            if (j < 0 || j * s.w >= s.mask.length) continue;
+            for (let ix = i0; ix <= i1; ix++) {
+              const i = Math.floor(this.x0 + ix + 0.5) - s.i0;
+              if (i >= 0 && i < s.w && s.mask[j * s.w + i]) this.open[iz * n + ix] = 0;
+            }
+          }
+          continue;
+        }
+        // no time for this one now: its box, as before, until the next build
+        this.shapesPending = true;
+      }
       for (let iz = j0; iz <= j1; iz++) {
         const z = this.z0 + iz + 0.5;
         if (z < c.minZ - B || z > c.maxZ + B) continue;
@@ -512,10 +587,10 @@ class NavGrid {
     return x > this.x0 + margin && z > this.z0 + margin && x < this.x0 + this.n - margin && z < this.z0 + this.n - margin;
   }
 
-  /** The nearest open cell centre within r cells, or null. */
-  nearestOpen(x: number, z: number, r = 3): V | null {
+  /** The nearest open cell centre within r cells (and where `ok` says yes), or null. */
+  nearestOpen(x: number, z: number, r = 3, ok?: (x: number, z: number) => boolean): V | null {
     const c = this.cell(x, z);
-    if (c >= 0 && this.open[c]) return { x, z };
+    if (c >= 0 && this.open[c] && (!ok || ok(x, z))) return { x, z };
     const ix0 = Math.floor(x - this.x0);
     const iz0 = Math.floor(z - this.z0);
     for (let d = 1; d <= r; d++) {
@@ -525,7 +600,7 @@ class NavGrid {
           const ix = ix0 + dx;
           const iz = iz0 + dz;
           if (ix < 0 || iz < 0 || ix >= this.n || iz >= this.n) continue;
-          if (this.open[iz * this.n + ix]) return { x: this.x0 + ix + 0.5, z: this.z0 + iz + 0.5 };
+          if (this.open[iz * this.n + ix] && (!ok || ok(this.x0 + ix + 0.5, this.z0 + iz + 0.5))) return { x: this.x0 + ix + 0.5, z: this.z0 + iz + 0.5 };
         }
       }
     }
@@ -545,7 +620,11 @@ class NavGrid {
       // near a solid: clear of it by a body's width (the cell may be open while its corner is not)
       const k = this.cell(x, z);
       if (k >= 0 && this.near[k]) {
-        for (const r of this.nearList.get(k)!) if (x > r.minX - NEAR_M && x < r.maxX + NEAR_M && z > r.minZ - NEAR_M && z < r.maxZ + NEAR_M) return false;
+        for (const r of this.nearList.get(k)!) {
+          if (!(x > r.minX - NEAR_M && x < r.maxX + NEAR_M && z > r.minZ - NEAR_M && z < r.maxZ + NEAR_M)) continue;
+          // a model's shape (a portal crane, a tree): its parts, not its box (fixes 2026-10-03)
+          if (!r.surface || r.surface.blocks(x, z, NEAR_M, this.base?.(x, z) ?? 0, SHAPE_STEP)) return false;
+        }
       }
     }
     return true;
@@ -821,9 +900,9 @@ export class Crowd {
     const ver = this.ground.solidsVersion?.();
     let solids: Rect[] | null = null;
     const changed = ver !== undefined ? ver !== this.solidVersion && this.gridAge > 0.5 : (solids = this.ground.solids?.() ?? []).length !== this.solidCount;
-    if (!g.built || Math.hypot(player.x - g.cx, player.z - g.cz) > 20 || this.gridAge > 60 || changed) {
+    if (!g.built || Math.hypot(player.x - g.cx, player.z - g.cz) > 20 || this.gridAge > 60 || changed || (g.shapesPending && this.gridAge > 0.25)) {
       solids ??= this.ground.solids?.() ?? [];
-      if (!g.build(this.ground.flags, player.x, player.z, solids, this.ground.narrow)) return;
+      if (!g.build(this.ground.flags, player.x, player.z, solids, this.ground.narrow, this.ground.baseAt && ((x, z) => this.ground.baseAt!(x, z)))) return;
       this.gridAge = 0;
       this.solidCount = solids.length;
       this.solidVersion = ver ?? -1;
@@ -1397,6 +1476,20 @@ export class Crowd {
     return this.grid.built ? this.grid.nearestOpen(x, z, 4) : null;
   }
 
+  /** Does someone stand or walk within a body's gap of (x, z)? */
+  someoneAt(x: number, z: number): boolean {
+    for (const q of this.people) if (Math.abs(q.x - x) < BODY_GAP && Math.abs(q.z - z) < BODY_GAP && Math.hypot(q.x - x, q.z - z) < BODY_GAP) return true;
+    return false;
+  }
+
+  /**
+   * The nearest open grid point where nobody is yet (fixes 2026-10-03: townspeople who appeared at one
+   * open point, the crew of a haul whose end was shut, all stood in one another), or null.
+   */
+  openNearFree(x: number, z: number): V | null {
+    return this.grid.built ? this.grid.nearestOpen(x, z, 4, (a, b) => !this.someoneAt(a, b)) : null;
+  }
+
   /** The walk on the grid round Jef from a to b (corner points), or null (fixes 2026-09-24: where a townsperson steps out on the way to an event). */
   pathOn(ax: number, az: number, bx: number, bz: number): V[] | null {
     if (!this.grid.built || !this.grid.inside(bx, bz, 2)) return null;
@@ -1690,18 +1783,18 @@ export class Crowd {
         const q = list[j];
         let dx = q.x - p.x;
         let dz = q.z - p.z;
-        if (dx > BODY_GAP || dx < -BODY_GAP || dz > BODY_GAP || dz < -BODY_GAP) continue;
-        const gap = BODY_GAP * Math.min(1, (p.size + q.size) / 2);
-        let d = Math.hypot(dx, dz);
+        if (dx > MAX_GAP || dx < -MAX_GAP || dz > MAX_GAP || dz < -MAX_GAP) continue;
+        const gap = BODY_GAP * Math.min(1, (p.size + q.size) / 2) + (p.sack || p.loaded ? LOAD_GAP : 0) + (q.sack || q.loaded ? LOAD_GAP : 0);
+        const d = Math.hypot(dx, dz);
         if (d >= gap || p.lead === q || q.lead === p) continue;
         const wq = this.shoveWeight(q);
         if (wp + wq === 0) continue;
         if (d < 1e-3) {
-          // on the very same spot: apart in a way of their own (the same on every PC)
+          // on the very same spot: apart in a way of their own (the same on every PC); the overlap is the
+          // whole gap (fixes 2026-10-03: d was set to 1 here, so the push was 0 and they stayed in one another)
           const a = ((p.id * 7 + q.id * 13) % 360) * (Math.PI / 180);
           dx = Math.sin(a);
           dz = Math.cos(a);
-          d = 1;
         } else {
           dx /= d;
           dz /= d;

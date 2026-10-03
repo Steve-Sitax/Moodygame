@@ -1285,6 +1285,8 @@ export class Town {
       const side = lead?.p ? { x: lead.p.x - Math.cos(lead.p.yaw) * 0.62, z: lead.p.z + Math.sin(lead.p.yaw) * 0.62 } : null;
       let at: { x: number; z: number } | null =
         side && this.crowd.canStand(side.x, side.z) ? side : this.crowd.canStand(s.x, s.z) ? { x: s.x, z: s.z } : this.crowd.openNear(s.x, s.z);
+      // never inside someone already there (fixes 2026-10-03): the nearest open point nobody stands on
+      if (at && this.crowd.someoneAt(at.x, at.z)) at = this.crowd.openNearFree(at.x, at.z) ?? at;
       if (!at) continue;
       if (!isHumanKind(s.kind)) s.kind = KIND_FALLBACK[s.kind] ?? "docker_a";
       const p = this.crowd.addPuppet(s.kind, at.x, at.z, Math.atan2(this.anchor(s)[0] - at.x, this.anchor(s)[1] - at.z), this.paceOf(s));
