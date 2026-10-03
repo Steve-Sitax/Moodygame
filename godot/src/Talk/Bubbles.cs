@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text.Json;
 using Godot;
 using Scheldemist.Net;
-using Scheldemist.Ui.Dialogs;
+using Scheldemist.Windows;
 
 namespace Scheldemist.Talks;
 

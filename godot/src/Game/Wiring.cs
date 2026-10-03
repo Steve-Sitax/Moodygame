@@ -15,11 +15,15 @@ public partial class Wiring : Node
     public override void _Ready()
     {
         if (TownMap.I != null) TownMap.I.OpenChanged += open => mapOpen = open;
+        // the game's own windows on the menus' list (Ui/Dialogs.cs): while one is up, Esc is theirs and no menu opens.
+        // They draw their own ink cursor and take their own keys.
+        Scheldemist.Ui.Dialogs.Register("windows", DialogUp, cursor: false, esc: () => Scheldemist.Windows.Dialogs.I is { Escapable: true });
+        Scheldemist.Ui.Dialogs.Register("map", () => mapOpen, cursor: false);
         // time runs while Jef plays: walking with the mouse taken, or in a window (a talk, a shop), as in the browser
         GameState.I.PlayingWhen = () => DialogUp() || (Input.MouseMode == Input.MouseModeEnum.Captured && Main.I?.Cam is not null and not Scheldemist.Player.FlyCam);
     }
 
-    private static bool DialogUp() => Scheldemist.Ui.Dialogs.Dialogs.I is { Any: true };
+    private static bool DialogUp() => Scheldemist.Windows.Dialogs.I is { Any: true };
 
     public override void _Process(double delta)
     {

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Godot;
 
-namespace Scheldemist.Ui.Dialogs;
+namespace Scheldemist.Windows;
 
 /// <summary>
 /// A panel with its own keys (a talk, a list with number keys, a page to read, the dice): what the stack needs to
