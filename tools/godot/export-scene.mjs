@@ -7,7 +7,8 @@
 // its own (godot, 8947/5347), opens the game in headless Chrome (the recipe of tools/perfcheck.mjs), goes to each
 // place, measures it there (frameProf, the browser's numbers for the comparison), then exports the scene with
 // three's GLTFExporter. Written: <out>.glb, <out>.json (the copies of every InstancedMesh, the places' cameras, the
-// fog, the lights, the browser's frame times). The stack is stopped and its save deleted at the end.
+// fog, the lights, the browser's frame times), <out>_tex/ (the pictures the psx options name, the dirt map, the sky
+// map), <out>_lights.json (the lamps, the lit windows and their light on the street). The stack is stopped and its save deleted at the end.
 
 import { spawn, execFileSync } from "node:child_process";
 import { copyFileSync, createWriteStream, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -247,6 +248,25 @@ async function sharedTextures() {
   for (const f of ["skyshade.png", "skyshade.json"]) copyFileSync(path.join(root, "client/public/textures", f), path.join(`${out}_tex`, f));
   return Object.keys(boxes);
 }
+// The lights of the night as plain data (godot/src/World/Lights.cs): every still spill source (world/spill.ts: the gas
+// lamps, the painted windows with their hours, the rooms' windows and doors, the lanterns and glows), and the painted
+// windows' panes (world/ambient.ts: three corners, the hours it is lit, its tone and kind). Take it at night
+// (--hour 21), so a room's lamp and a glow carry their night's level.
+const LIGHTS = `(async () => {
+  const spill = (await import("/src/world/spill.ts")).spillBake();
+  const panes = [];
+  const r = (v) => Math.round(v * 1000) / 1000;
+  __scheldemist.world.scene.traverse((o) => {
+    if (o.name !== "ambient_windows") return;
+    const p = o.geometry.attributes.position.array, l = o.geometry.attributes.aLit.array, t = o.geometry.attributes.aTone.array;
+    // (a pane is two triangles 0 1 2, 0 2 3: its corners 0, 1 and 3 are vertices 0, 1 and 5)
+    for (let i = 0; i < p.length / 18; i++) {
+      const v = (k) => [r(p[i * 18 + k * 3]), r(p[i * 18 + k * 3 + 1]), r(p[i * 18 + k * 3 + 2])];
+      panes.push([...v(0), ...v(1), ...v(5), r(l[i * 24]), r(l[i * 24 + 1]), r(l[i * 24 + 2]), r(l[i * 24 + 3]), r(t[i * 12]), t[i * 12 + 1]]);
+    }
+  });
+  return JSON.stringify({ spill, panes });
+})()`;
 const UNIFORMS = `(() => { const o = {}; for (const [k, u] of Object.entries(__scheldemist.psxUniforms)) { const v = u.value; if (typeof v === "number" || typeof v === "boolean") o[k] = v; else if (v && v.isColor) o[k] = v.getHex(); else if (Array.isArray(v) && v.length <= 8 && v[0] && v[0].toArray) o[k] = v.map((x) => x.toArray()); else if (v && v.toArray && !v.isTexture && !v.isMatrix4) o[k] = v.toArray(); } return o; })()`;
 
 const t0 = Date.now();
@@ -277,6 +297,11 @@ try {
   }
   if (REF_ONLY) {
     const shared = await sharedTextures();
+    if (args.includes("--lights")) {
+      const lights = JSON.parse(await ev(LIGHTS));
+      writeFileSync(`${out}_lights.json`, JSON.stringify({ made: new Date().toISOString(), hour: HOUR, weather: WEATHER, ...lights }));
+      log("the lights:", lights.spill.length, "spill sources,", lights.panes.length, "panes ->", `${out}_lights.json`);
+    }
     writeFileSync(`${out}_ref${TAG}.json`, JSON.stringify({ made: new Date().toISOString(), hour: HOUR, weather: WEATHER, places, facts: await ev(FACTS), uniforms: await ev(UNIFORMS) }));
     log("ref only: pictures, the light's numbers", `${out}_ref${TAG}.json`, "and the shared pictures", shared.join(", "));
     throw new Error("ref only: no export");
@@ -302,6 +327,12 @@ try {
   const inst = await ev(`JSON.stringify(window.__exp.inst)`);
   writeFileSync(`${out}.json`, JSON.stringify({ made: new Date().toISOString(), places, facts, counts: exp.counts, uniforms, instances: JSON.parse(inst) }));
   stripInstancing(`${out}.glb`);
+  // the lights of the night, taken at night (a room's lamp and a glow carry their night's level)
+  await ev(`__scheldemist.t.light(21, "mist").then(() => 1)`);
+  await ev(`new Promise((r) => __scheldemist.real.setTimeout(r, 25000))`, 60_000);
+  const lights = JSON.parse(await ev(LIGHTS));
+  writeFileSync(`${out}_lights.json`, JSON.stringify({ made: new Date().toISOString(), hour: 21, weather: "mist", ...lights }));
+  log("the lights:", lights.spill.length, "spill sources,", lights.panes.length, "panes");
   log("written", `${out}.glb`, (received / 1e6).toFixed(1), "MB", JSON.stringify(exp.counts));
 } catch (e) {
   console.error(e);
