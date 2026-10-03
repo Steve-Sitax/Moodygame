@@ -10,6 +10,12 @@ public partial class Wiring : Node
     private double wait;
     private Scheldemist.Town.Townspeople? people;
 
+    public override void _Ready()
+    {
+        // Jef stands still under the open map
+        if (TownMap.I != null) TownMap.I.OpenChanged += open => { if (Scheldemist.Player.Jef.I != null) Scheldemist.Player.Jef.I.Frozen = open; };
+    }
+
     public override void _Process(double delta)
     {
         if ((wait -= delta) > 0) return;
