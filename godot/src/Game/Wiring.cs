@@ -10,14 +10,21 @@ public partial class Wiring : Node
     private double wait;
     private Scheldemist.Town.Townspeople? people;
 
+    private bool mapOpen;
+
     public override void _Ready()
     {
-        // Jef stands still under the open map
-        if (TownMap.I != null) TownMap.I.OpenChanged += open => { if (Scheldemist.Player.Jef.I != null) Scheldemist.Player.Jef.I.Frozen = open; };
+        if (TownMap.I != null) TownMap.I.OpenChanged += open => mapOpen = open;
+        // time runs while Jef plays: walking with the mouse taken, or in a window (a talk, a shop), as in the browser
+        GameState.I.PlayingWhen = () => DialogUp() || (Input.MouseMode == Input.MouseModeEnum.Captured && Main.I?.Cam is not null and not Scheldemist.Player.FlyCam);
     }
+
+    private static bool DialogUp() => Scheldemist.Ui.Dialogs.Dialogs.I is { Any: true };
 
     public override void _Process(double delta)
     {
+        // Jef stands still under the open map and while a window is up
+        if (Scheldemist.Player.Jef.I != null) Scheldemist.Player.Jef.I.Frozen = mapOpen || DialogUp();
         if ((wait -= delta) > 0) return;
         wait = 1;
         var s = GameState.I;
