@@ -239,22 +239,34 @@ public sealed class Puppet
     internal string PMotion = "idle";
     internal double? PYaw;
     internal bool Repath;
-    /// <summary>Carrying a load (later: the sack or box in the hands; today only the wider berth).</summary>
+    /// <summary>Carrying a load (the wider berth; in the hands when HandCarry).</summary>
     public bool Loaded;
+    /// <summary>Dockers who pick up and put down a load at each end (the others carry by their build: the shoulder sack, the truck).</summary>
+    public bool HandCarry;
+    /// <summary>How far ahead of him his cart reaches, and how wide it is (0: no cart).</summary>
+    public double Nose, Reach = 0.25;
+    internal Node3D? LoadNode;
+    internal string LoadKind = "sack";
+    internal Node3D? Lantern;
+    internal LanternPool.Source? Light;
+    internal PushCart? Cart;
 }
 
 /// <summary>
 /// The people in the street (the browser's game/crowd.ts, the part the town's residents use): Townspeople says where
 /// each one goes and what they do there; the crowd walks them on its grid (A*, keep right, go round the player, stuck
 /// checks, bodies keep apart), draws and animates them and keeps the bodies in a pool.
+/// Loads in the hands, the carter's handcart and lanterns: People/Carried.cs.
 /// Not ported yet: the nameless crowd (it stays home once the town is in), vehicles and giving way to them, the
-/// opening bridges' gate, lanterns, loads in the hands, the groups sitting on crates.
+/// opening bridges' gate, the groups sitting on crates.
 /// </summary>
 public sealed class Crowd
 {
     private const double BodyGap = 0.6, BodyShove = 1.2, LoadGap = 0.15, MaxGap = BodyGap + 2 * LoadGap;
     private const double AnimNear = 25, AnimFar = 45;
     private static readonly HashSet<string> Children = new() { "boy", "girl" };
+    /// <summary>People whose load is part of their build: the sack truck, the shoulder sack, the handcart.</summary>
+    public static readonly HashSet<string> Laden = new() { "porter", "docker_sack", "carter" };
     private static readonly HashSet<string> WalkClips = new() { "walk", "carry", "push", "ride" };
     /// <summary>A townsperson standing in one of these may be eased aside; any other pose is a task on its spot.</summary>
     private static readonly HashSet<string> FreePoses = new() { "idle", "fold", "talk", "walk", "carry", "behind", "pockets", "smoke" };
@@ -334,6 +346,8 @@ public sealed class Crowd
             if (inView) y = p.Drop + Math.Max(0, lift) + (p.State == "sit" ? 0 : p.Human.Bob() * p.Size);
             p.Group.Position = new Vector3((float)p.X, (float)(y + ground), (float)p.Z);
             p.Group.Rotation = new Vector3(0, (float)p.Yaw, 0);
+            if (p.Kind == "carter") PushTheCart(p, dt, inView, ground);
+            if (p.Lantern != null) PlaceLantern(p, d, ground, camera);
         }
         Drawn = drawn;
         Animated = animated;
@@ -362,7 +376,10 @@ public sealed class Crowd
         group.Position = new Vector3((float)x, (float)map.BaseAt(x, z), (float)z);
         group.Rotation = new Vector3(0, (float)yaw, 0);
         group.Visible = false;
-        var p = new Puppet { Id = nextId++, Kind = kind, Human = human, Group = group, X = x, Z = z, Yaw = yaw, Pace = pace, Size = sz };
+        var p = new Puppet { Id = nextId++, Kind = kind, Human = human, Group = group, X = x, Z = z, Yaw = yaw, Pace = pace, Size = sz, Loaded = Laden.Contains(kind) };
+        // a cart goes before its man: its front must fit too (crowd.ts CART: how far ahead, how wide)
+        if (kind == "porter") (p.Nose, p.Reach) = (0.9, 0.35);
+        else if (kind == "carter") (p.Nose, p.Reach) = (3.3, 0.6);
         people.Add(p);
         return p;
     }
@@ -400,6 +417,80 @@ public sealed class Crowd
             return;
         }
         GoTo(p, (tx, tz));
+    }
+
+    /// <summary>A load in the arms: a sack, a crate, a box of fish, a keg (crowd.ts puppetLoad); off: put down.</summary>
+    public void PuppetLoad(Puppet p, bool on, string kind = "sack")
+    {
+        p.HandCarry = true;
+        if (p.LoadNode != null && (!on || p.LoadKind != kind))
+        {
+            p.LoadNode.QueueFree();
+            p.LoadNode = null;
+        }
+        p.LoadKind = kind;
+        p.Loaded = on;
+        if (on && p.LoadNode == null && (p.LoadNode = Carried.Load(kind, p.Human.Scale)) != null) p.Group.AddChild(p.LoadNode);
+    }
+
+    /// <summary>A lantern in hand (police at night, people going home after dark).</summary>
+    public void PuppetLantern(Puppet p, bool on)
+    {
+        if (on && p.Lantern == null)
+        {
+            p.Lantern = Carried.Lantern();
+            parent.AddChild(p.Lantern);
+            p.Light = LanternPool.I?.Add();
+        }
+        else if (!on && p.Lantern != null) DropLantern(p);
+    }
+
+    private static void DropLantern(Puppet p)
+    {
+        p.Lantern?.QueueFree();
+        p.Lantern = null;
+        LanternPool.I?.Remove(p.Light);
+        p.Light = null;
+    }
+
+    private void PlaceLantern(Puppet p, double d, double ground, Camera3D? camera)
+    {
+        var l = p.Lantern!;
+        // a light carries further in the fog than the one who carries it; the lantern itself is drawn with its carrier only
+        bool near = d < FogDistance * 1.8;
+        l.Visible = p.Shown;
+        if (p.Light != null) p.Light.On = near;
+        if (!near) return;
+        var hand = p.Shown ? p.Human.Hand(true) : null;
+        l.Position = hand != null
+            ? new Vector3(hand.Value.X, hand.Value.Y - 0.1f * p.Size, hand.Value.Z)
+            : new Vector3((float)(p.X + Math.Cos(p.Yaw) * -0.25), (float)(ground + 0.75 * p.Size), (float)(p.Z - Math.Sin(p.Yaw) * -0.25));
+        // the flame, in the middle of the glass
+        if (p.Light != null) p.Light.Pos = l.Position - new Vector3(0, 0.08f, 0);
+        if (p.Shown && camera != null) Carried.FaceHalo(l, camera.GlobalPosition);
+    }
+
+    /// <summary>A carter's handcart in place of the one in his model: on its own wheels, tipped up to his grip, swinging round behind him on a bend.</summary>
+    private void PushTheCart(Puppet p, double dt, bool shown, double ground)
+    {
+        if (p.Cart == null)
+        {
+            if (!PushCart.Has) return;
+            p.Cart = new PushCart(parent);
+        }
+        bool walking = p.Human.Motion is "walk" or "carry";
+        double hx = p.X + Math.Sin(p.Yaw) * 0.5, hz = p.Z + Math.Cos(p.Yaw) * 0.5, hy = 0.9;
+        if (shown && p.Human.Hand(false) is { } hl && p.Human.Hand(true) is { } hr)
+        {
+            // only the reach ahead of the body is taken from the pose (the hands sway; the cart does not)
+            var mid = (hl + hr) * 0.5f;
+            double ahead = Math.Clamp((mid.X - p.X) * Math.Sin(p.Yaw) + (mid.Z - p.Z) * Math.Cos(p.Yaw), 0.25, 0.75);
+            hx = p.X + Math.Sin(p.Yaw) * ahead;
+            hz = p.Z + Math.Cos(p.Yaw) * ahead;
+            hy = Math.Clamp(mid.Y - ground, 0.7, 1.1);
+        }
+        p.Cart.Push(dt, hx, hz, hy, p.Yaw, walking ? 1 : 0, ground);
+        p.Cart.Root.Visible = shown;
     }
 
     /// <summary>Is (x, z) inside the walk grid round the viewer (a puppet can be sent straight there)?</summary>
@@ -465,6 +556,9 @@ public sealed class Crowd
         if (!people.Remove(p)) return;
         if (p.Follower != null) p.Follower.Lead = null;
         if (p.Lead != null) p.Lead.Follower = null;
+        if (p.Lantern != null) DropLantern(p);
+        p.Cart?.Dispose();
+        p.Cart = null;
         p.Group.RemoveChild(p.Human.Root);
         p.Group.QueueFree();
         if (!pool.TryGetValue(p.Kind, out var list)) pool[p.Kind] = list = new List<Human>();
@@ -864,7 +958,9 @@ public sealed class Crowd
         // the last leg may leave the grid (it keeps half a metre off the walls) for a spot the colliders allow:
         // a doorstep, a corner, a bench by a wall
         bool lastLeg = p.Pi == p.Path.Count - 1;
-        bool TryMove(double x, double z) => StepFree(p, x, z) && (lastLeg || grid.IsOpen(x, z) || !grid.IsOpen(p.X, p.Z));
+        bool TryMove(double x, double z) => StepFree(p, x, z) && (lastLeg || grid.IsOpen(x, z) || !grid.IsOpen(p.X, p.Z))
+            // a cart before the man: its front must fit too
+            && (p.Nose == 0 || map.Free(x + ux * p.Nose, z + uz * p.Nose));
         if (TryMove(p.X + mx * step, p.Z + mz * step))
         {
             p.X += mx * step;
@@ -906,7 +1002,7 @@ public sealed class Crowd
             p.Human.Play(StillMotion(p), 0.3f);
             return;
         }
-        p.Human.Play("walk", 0.25f);
+        p.Human.Play(p.Loaded && p.HandCarry ? "carry" : "walk", 0.25f);
         p.Human.SetPace((float)(p.Pace / p.Size));
     }
 

@@ -44,6 +44,7 @@ public partial class PostedPeople : Node
         internal LocalRound? Round;
         internal double Facing, Gesture, GestureWait;
         internal Node3D? LanternNode;
+        internal LanternPool.Source? Light;
     }
 
     /// <summary>The Rijnkaai's own hours at the post (shared/night.ts POST_HOURS); anyone else is always there.</summary>
@@ -181,6 +182,11 @@ public partial class PostedPeople : Node
         n.Present = on;
         n.Group.Visible = on;
         if (n.Solid != null) n.Solid.CollisionLayer = on ? Solid.Layer : 0;
+        if (!on)
+        {
+            n.Lantern = false;
+            Lantern(n);
+        }
     }
 
     /// <summary>After dark, someone with work for Jef stands by a lamp near the post; null: back to the post.</summary>
@@ -313,9 +319,37 @@ public partial class PostedPeople : Node
             n.Group.Position = new Vector3((float)n.X, (float)n.Y, (float)n.Z);
             n.Group.Rotation = new Vector3(0, (float)n.Yaw, 0);
             if (n.Solid != null) n.Solid.Position = n.Group.Position;
+            Lantern(n);
             // in the fog nobody sees his hands move
             if (Whereabouts.Hypot(n.X - cam.X, n.Z - cam.Z) < fog + 4) Animate(n, delta, d);
         }
+    }
+
+    /// <summary>A lit lantern in the right hand, and its light on the world (Carried.cs).</summary>
+    private static void Lantern(Posted n)
+    {
+        if (n.Lantern && n.LanternNode == null)
+        {
+            n.LanternNode = Carried.Lantern();
+            Main.I.View.AddChild(n.LanternNode);
+            n.Light = LanternPool.I?.Add();
+        }
+        else if (!n.Lantern && n.LanternNode != null)
+        {
+            n.LanternNode.QueueFree();
+            n.LanternNode = null;
+            LanternPool.I?.Remove(n.Light);
+            n.Light = null;
+        }
+        if (n.LanternNode == null) return;
+        var hand = n.Human!.Hand(true);
+        n.LanternNode.Position = hand != null ? hand.Value - new Vector3(0, 0.12f, 0) : new Vector3((float)n.X + 0.3f, (float)n.Y + 0.75f, (float)n.Z + 0.15f);
+        if (n.Light != null)
+        {
+            n.Light.Pos = n.LanternNode.Position - new Vector3(0, 0.08f, 0);
+            n.Light.On = true;
+        }
+        Carried.FaceHalo(n.LanternNode, Main.I.Cam.GlobalPosition);
     }
 
     /// <summary>Idle; when Jef stands close, now and then a few words with the hands.</summary>

@@ -27,7 +27,7 @@ namespace Scheldemist.Town;
 ///
 /// Not ported yet (each is a later step of the port; the hooks are named as in town.ts): journeys (velocipedes, carts, the omnibus, boats), the dispatcher's trade runs, the
 /// mills' carts, the docks' real loads, the back streets' and lively's own goals, the market's browsing, the great
-/// storm, thieves at Jef's pocket, lanterns, dogs at heel, the stalls' awnings, played together.
+/// storm, thieves at Jef's pocket, dogs at heel, the stalls' awnings, played together.
 /// </summary>
 [GamePart(200)]
 public partial class Townspeople : Node
@@ -95,6 +95,8 @@ public partial class Townspeople : Node
         /// <summary>How far behind his day he is (game hours), held up in view (Whereabouts.ReportLag).</summary>
         public double Lag;
         public double CoarseDt;
+        /// <summary>A lantern in his hand now.</summary>
+        public bool Lamp;
         internal HiddenWay? Hw;
         internal Station? Round;
     }
@@ -148,6 +150,7 @@ public partial class Townspeople : Node
     private readonly HashSet<string> wayAsked = new();
     private readonly ConcurrentQueue<Action> inbox = new();
     private readonly Random rng = new();
+    private LanternPool? lanterns;
     private System.Net.Http.HttpClient? http;
     private string server = "";
     private double wayAskT, thinkT, spawnT, lagT, lagAt = -1;
@@ -216,6 +219,7 @@ public partial class Townspeople : Node
             return;
         }
         Crowd = new Crowd(main.View, Walk);
+        lanterns = new LanternPool(main.View);
         var facts = main.World.Facts.RootElement.GetProperty("facts");
         if (facts.TryGetProperty("fog", out var fog) && fog.ValueKind == JsonValueKind.Object && fog.TryGetProperty("far", out var far) && far.ValueKind == JsonValueKind.Number) Crowd.FogDistance = far.GetDouble();
         if (server == "")
@@ -476,6 +480,8 @@ public partial class Townspeople : Node
         ulong t0 = Time.GetTicksUsec();
         Step(delta, cp.X, cp.Z, body);
         Crowd.Update(delta, cp.X, cp.Z, body, cam);
+        lanterns?.Update(delta, cp, hour);
+        Carried.LanternLook(hour, Time.GetTicksMsec() / 1000.0);
         LogicMs = (Time.GetTicksUsec() - t0) / 1000.0;
     }
 
@@ -539,7 +545,11 @@ public partial class Townspeople : Node
         // a publican (or a drinker) whose tavern opens or shuts gets his goal again, the key unchanged
         string tavPlace = now.Act == "tavern" ? now.Place : now.Act == "work" && s.R.Work.Kind == "tavern" ? s.R.Work.Place : now.Act == "work" && s.R.Work.Kind == "shop" && s.R.Work.Shop != null ? $"shop:{s.R.Work.Shop}" : "";
         string tav = tavPlace != "" ? (TavernInside(tavPlace) ? "in" : "out") : "";
-        if (key == s.Key && tav == s.Tav) return;
+        if (key == s.Key && tav == s.Tav)
+        {
+            Lanterns(s);
+            return;
+        }
         s.Tav = tav;
         s.Key = key;
         s.Goal = GoalFor(s, now);
@@ -580,6 +590,23 @@ public partial class Townspeople : Node
             s.OutAt = NowMs;
         }
         if (s.P != null) Direct(s);
+        Lanterns(s);
+    }
+
+    private static bool IsNight(double h) => h >= 19 || h < 6.5;
+    /// <summary>The garrison and the customs: no lanterns (a rifle, a book).</summary>
+    private static readonly HashSet<string> Garrison = new() { "soldier", "sentry", "corporal", "customs" };
+
+    /// <summary>After dark the police and the lamplighters carry a lantern, half of those going home, and some of the others (town.ts lanterns).</summary>
+    private void Lanterns(Sim s)
+    {
+        if (s.P == null) return;
+        bool carrier = s.R.Trade is "police" or "lamplighter";
+        bool on = IsNight(hour) && s.R.Age >= 14 && s.R.Trade != "thief" && !Garrison.Contains(s.R.Trade)
+            && (carrier || s.Goal.Mode == "home" ? s.H < 0.5 || carrier : s.H < 0.3);
+        if (on == s.Lamp) return;
+        s.Lamp = on;
+        Crowd!.PuppetLantern(s.P, on);
     }
 
     private TownPlace? Place(string? id) => id != null && Data!.Places.TryGetValue(id, out var p) ? p : null;
@@ -849,6 +876,7 @@ public partial class Townspeople : Node
             s.Wait = 0;
             alive++;
             Direct(s);
+            Lanterns(s);
         }
     }
 
@@ -857,6 +885,8 @@ public partial class Townspeople : Node
     {
         if (s.P != null && remove) Crowd!.RemovePuppet(s.P);
         s.P = null;
+        // (the lantern went with the puppet: drawn again, he takes it up again)
+        s.Lamp = false;
     }
 
     /// <summary>His pace in the street: his own (the same the sum walks him by unseen). On a leg the sum has him running he hurries, as fast as the walk can look.</summary>
@@ -881,13 +911,16 @@ public partial class Townspeople : Node
         var g = s.Goal;
         var crowd = Crowd!;
         double pace = PaceOf(s);
+        if (g.Mode != "haul" && p.HandCarry) crowd.PuppetLoad(p, false);
         switch (g.Mode)
         {
             case "haul":
             {
                 // (drawn where the sum has him, he walks on the way he was going; at first, to the quay end)
                 var q = s.ToB ? g.B!.Value : g.A!.Value;
-                p.Loaded = s.ToB;
+                // (drawn on his way in, he carries what he took up unseen: a sack, a crate, a box of fish)
+                var hr = HaulRoute.Of(g.A, g.B, 1);
+                crowd.PuppetLoad(p, s.ToB && !Crowd.Laden.Contains(s.Kind), hr?.CarryKind ?? "sack");
                 crowd.PuppetGo(p, q.X, q.Z, pace);
                 break;
             }
@@ -978,14 +1011,33 @@ public partial class Townspeople : Node
                 }
                 var a = g.A!.Value;
                 var b = g.B!.Value;
+                // (the load comes off a pile and goes in at a door or onto a pile: HaulRoutes.cs; the piles' own
+                // loads, taken off and put on for real, come with the goods)
+                var route = HaulRoute.Of(g.A, g.B, 1);
+                string carry = route?.CarryKind ?? "sack";
+                bool bare = Crowd.Laden.Contains(s.Kind);
                 if (!s.Arrived)
                 {
-                    // at an end: take up or put down the load (the piles and the loads themselves come with the goods)
+                    // at an end: face the pile or the door, and take up or put down the load
                     s.Arrived = true;
                     s.Wait = Rnd(1.5, 3.5);
-                    bool nearA = At(a.X, a.Z, 2.5);
-                    if (!nearA && At(b.X, b.Z, 2.5)) p.Loaded = false;
-                    crowd.PuppetStand(p, nearA ? "crouch" : "idle", null);
+                    bool nearA = At(a.X, a.Z, 2.5), nearB = !nearA && At(b.X, b.Z, 2.5);
+                    double? yaw = null;
+                    bool bend = false;
+                    if (route != null && nearA)
+                    {
+                        yaw = route.AYaw;
+                        bend = true;
+                    }
+                    else if (route != null && nearB)
+                    {
+                        var to = route.Door ?? route.Drop;
+                        yaw = to != null ? Math.Atan2(to.Value.X - route.B.X, to.Value.Z - route.B.Z) : null;
+                        bend = route.Into == "pile";
+                        // set down: in at the door, onto the pile, at the fish bank
+                        crowd.PuppetLoad(p, false, carry);
+                    }
+                    crowd.PuppetStand(p, bend ? "crouch" : "idle", yaw);
                     return;
                 }
                 if ((s.Wait -= dt) > 0) return;
@@ -1000,9 +1052,9 @@ public partial class Townspeople : Node
                 // loaded from the pile to the door, back empty
                 s.ToB = atA;
                 s.Tries = 0;
-                p.Loaded = s.ToB;
-                var to = s.ToB ? b : a;
-                crowd.PuppetGo(p, to.X, to.Z);
+                crowd.PuppetLoad(p, s.ToB && !bare, carry);
+                var dest = s.ToB ? b : a;
+                crowd.PuppetGo(p, dest.X, dest.Z);
                 return;
             }
             case "patrol":

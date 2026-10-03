@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using Godot;
+using Scheldemist.People;
 using Scheldemist.Player;
 
 namespace Scheldemist.Town;
@@ -39,6 +40,9 @@ public partial class PeopleTest : Node
     private readonly Dictionary<string, object> jefRow = new();
     private readonly Dictionary<string, object> postedRow = new();
     private int postedStep;
+    private readonly Dictionary<string, object> goodsRow = new();
+    private readonly List<(Puppet p, string what)> exhibits = new();
+    private int goodsStep;
     private double jefMin;
     private int jefBlocked;
     private (double x, double z) jefFrom;
@@ -342,7 +346,7 @@ public partial class PeopleTest : Node
                 {
                     if (t < 3) break;
                     postedRow["note"] = "no posted people";
-                    Next("done");
+                    Next("goods");
                     break;
                 }
                 if (frames < 3) break;
@@ -392,7 +396,7 @@ public partial class PeopleTest : Node
                 var n = posted.Get("sooi");
                 if (n == null || !n.Present)
                 {
-                    Next("done");
+                    Next("goods");
                     break;
                 }
                 if (frames == 1)
@@ -417,6 +421,89 @@ public partial class PeopleTest : Node
                 };
                 jef.ClearKeys();
                 jef.ToggleFly();
+                Next("goods");
+                break;
+            }
+            case "goods":
+            {
+                // carried goods and tools, each close: a row of walkers on the Grote Markt with a sack, a crate, a box of
+                // fish and a keg in the arms, the docker with the sack on his shoulder, the porter with his sack truck,
+                // the carter pushing his handcart
+                if (!town.Data!.Places.TryGetValue("grote_markt", out var gm))
+                {
+                    Next("done");
+                    break;
+                }
+                town.SetClock(1, 10.5);
+                string[][] show = { new[] { "docker_a", "sack" }, new[] { "docker_b", "crate" }, new[] { "docker_c", "fishbox" }, new[] { "docker_a", "keg" }, new[] { "docker_sack", "" }, new[] { "porter", "" }, new[] { "carter", "" } };
+                exhibits.Clear();
+                // a free lane to walk along
+                (double x, double z, double dx, double dz) lane = (gm.X, gm.Z, 0, 1);
+                for (int i = 0; i < 16; i++)
+                {
+                    double a = i * Math.PI / 8;
+                    bool ok = true;
+                    for (double d = -4; d <= 30 && ok; d += 1)
+                        for (double w = -13; w <= 13 && ok; w += 2) ok = town.Walk!.Free(gm.X + Math.Cos(a) * w + Math.Sin(a) * d, gm.Z - Math.Sin(a) * w + Math.Cos(a) * d);
+                    if (!ok) continue;
+                    lane = (gm.X, gm.Z, Math.Sin(a), Math.Cos(a));
+                    break;
+                }
+                for (int i = 0; i < show.Length; i++)
+                {
+                    // side by side across the lane, 2.4 m apart (the cart is wide), all walking the same way
+                    double off = (i - show.Length / 2.0) * 3.6;
+                    double x = lane.x + lane.dz * off, z = lane.z - lane.dx * off;
+                    var p = crowd!.AddPuppet(show[i][0], x, z, Math.Atan2(lane.dx, lane.dz), 1.0, 1f);
+                    if (p == null) continue;
+                    if (show[i][1] != "") crowd.PuppetLoad(p, true, show[i][1]);
+                    crowd.PuppetGo(p, x + lane.dx * 28, z + lane.dz * 28, 1.0);
+                    exhibits.Add((p, show[i][1] != "" ? show[i][1] : show[i][0]));
+                }
+                goodsStep = 0;
+                Next("goodswalk");
+                break;
+            }
+            case "goodswalk":
+            {
+                if (t < 3 && goodsStep == 0)
+                {
+                    frames = 0;
+                    break;
+                }
+                if (goodsStep >= exhibits.Count)
+                {
+                    goodsRow["shown"] = exhibits.Select(e => e.what).ToList();
+                    goodsRow["loadsInArms"] = exhibits.Count(e => e.p.LoadNode != null);
+                    goodsRow["cartsPushed"] = exhibits.Count(e => e.p.Cart != null);
+                    goodsRow["sacksHungOnBones"] = exhibits.Count(e => e.p.Human.Root.FindChild("sack_on_*", true, false) != null);
+                    // night: two of them take a lantern
+                    town.SetClock(1, 22.5);
+                    foreach (var e in exhibits.Take(5).Skip(3)) crowd!.PuppetLantern(e.p, true);
+                    Next("goodsnight");
+                    break;
+                }
+                model = exhibits[goodsStep].p;
+                if (exhibits[goodsStep].what is "carter" or "porter") Close(3.4, -1.25);
+                else Close(2.4, 0.75);
+                if (frames < 40) break;
+                Shot($"people_carry_{exhibits[goodsStep].what}.png");
+                goodsStep++;
+                Next("goodswalk");
+                break;
+            }
+            case "goodsnight":
+            {
+                model = exhibits[Math.Min(3, exhibits.Count - 1)].p;
+                Close(3.2, 0.5);
+                if (t < 2.5) break;
+                Shot("people_lantern.png");
+                goodsRow["lanternLightsInThePool"] = LanternPool.Pool;
+                goodsRow["lanternLightsLit"] = LanternPool.I?.Lit ?? 0;
+                goodsRow["lanternsCarried"] = LanternPool.I?.Sources ?? 0;
+                goodsRow["townspeopleWithALanternDrawn"] = town.Sims.Count(s => s.Lamp);
+                foreach (var e in exhibits) crowd!.RemovePuppet(e.p);
+                exhibits.Clear();
                 Next("done");
                 break;
             }
@@ -434,6 +521,7 @@ public partial class PeopleTest : Node
                     whereCheck = where,
                     jef = jefRow,
                     postedPeople = postedRow,
+                    carried = goodsRow,
                     places = rows,
                 }, new JsonSerializerOptions { WriteIndented = true }));
                 GD.Print("peopletest: written " + Path.Combine(dir, "peopletest.json"));
@@ -452,7 +540,7 @@ public partial class PeopleTest : Node
         {
             double a = p.Yaw + turn + off;
             double x = p.X + Math.Sin(a) * dist, z = p.Z + Math.Cos(a) * dist;
-            if (!town.Walk.Free(x, z) || !town.Walk.Open(x, z)) continue;
+            if ((!town.Walk.Free(x, z) || !town.Walk.Open(x, z)) && exhibits.Count == 0) continue;
             Main.I.Cam.LookAtFromPosition(new Vector3((float)x, (float)(y + 1.35), (float)z), new Vector3((float)p.X, (float)(y + 0.95 * p.Size), (float)p.Z), Vector3.Up);
             return;
         }

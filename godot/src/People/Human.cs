@@ -89,6 +89,10 @@ public static class Humans
             Scale[name] = hips >= 0 ? sk!.GetBoneRest(hips).Origin.Y / 0.95f : 1;
             foreach (var n in World.BakedWorld.All(root))
                 if (n is MeshInstance3D mi) mi.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
+            // the docker's shoulder sack and the porter's sack-truck sack are the one sack model, hung where
+            // people.glb had its own; the carter's handcart goes on its own wheels (Carried.cs)
+            Carried.HangSack(name, root);
+            if (name == "carter" && PushCart.Has) PushCart.HideBakedCart(root);
         }
         // rotations only, by bone name: the skeletons differ in size, so bone positions stay each body's own
         clips = new AnimationLibrary();
@@ -242,6 +246,23 @@ public sealed class Human
     {
         mixer.SpeedScale = SpeedOf(Motion);
         mixer.Advance(dt);
+    }
+
+    private Skeleton3D? skeleton;
+    private int handL = -2, handR = -2;
+
+    /// <summary>Where a hand is now, in the world (null: this body has no such bone).</summary>
+    public Vector3? Hand(bool right)
+    {
+        skeleton ??= Root.GetNodeOrNull<Skeleton3D>("Skeleton3D");
+        if (skeleton == null) return null;
+        if (handL == -2)
+        {
+            handL = skeleton.FindBone("handL");
+            handR = skeleton.FindBone("handR");
+        }
+        int b = right ? handR : handL;
+        return b < 0 ? null : skeleton.GlobalTransform * skeleton.GetBoneGlobalPose(b).Origin;
     }
 
     public void Dispose()
