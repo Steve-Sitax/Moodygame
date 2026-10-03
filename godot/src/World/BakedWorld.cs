@@ -32,6 +32,7 @@ public partial class BakedWorld : Node3D
         Facts = JsonDocument.Parse(File.ReadAllText(Path.ChangeExtension(glbPath, ".json")));
         texDir = Path.Combine(Path.GetDirectoryName(glbPath) ?? ".", Path.GetFileNameWithoutExtension(glbPath) + "_tex");
         gltf = ReadJsonChunk(glbPath);
+        Psx.LoadShared(texDir); // the sky map and the dirt map every psx material reads
 
         var doc = new GltfDocument();
         var state = new GltfState();
@@ -90,7 +91,14 @@ public partial class BakedWorld : Node3D
             for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
             {
                 var m = mi.Mesh.SurfaceGetMaterial(s);
-                if (m == null || !made.TryGetValue(m, out var psx)) continue;
+                // (no material in the file: three's exporter leaves a ShaderMaterial out altogether, e.g. the houses' grime
+                // decals, and Godot gives the face a plain material of its own: a white face lit by the sun only)
+                if (m == null || (m is BaseMaterial3D && !made.ContainsKey(m)))
+                {
+                    unported = true;
+                    continue;
+                }
+                if (!made.TryGetValue(m, out var psx)) continue;
                 if (psx == null)
                 {
                     unported = true;
@@ -183,6 +191,8 @@ public partial class BakedWorld : Node3D
             VertexColor: vertexColour || Flag("vertexColors", false),
             Add: transparent && (int)Num(three, "blending", 1) == 2,
             Fog: Flag("fog", true));
+        // the psx options the browser made it with (relief, wet, puddles, patches, the foot of the walls ...)
+        if (hasPsx) kind = Psx.WithOptions(kind, bake);
         var m = new ShaderMaterial { Shader = Psx.ShaderOf(kind), ResourceName = bm.ResourceName };
         kinds[m] = kind;
         var albedo = bm.AlbedoColor;
@@ -199,6 +209,7 @@ public partial class BakedWorld : Node3D
         if (alphaTest > 0) m.SetShaderParameter("alpha_cut", alphaTest);
         m.SetShaderParameter("uv_xform", new Vector4(bm.Uv1Scale.X, bm.Uv1Scale.Y, bm.Uv1Offset.X, bm.Uv1Offset.Y));
         m.RenderPriority = bm.RenderPriority;
+        if (hasPsx) Psx.ApplyOptions(m, kind, bake, texDir);
         return m;
     }
 
