@@ -82,7 +82,8 @@ public partial class Daylight : Node
     private Color baseFog;
     private float[] wTarget = WeatherOf("clear");
     private readonly float[] wNow = { 1, 1, 1, 0 };
-    private float manualRain, pudBase = 0.34f, pudFixed = -1, sea = 1;
+    private float manualRain, pudBase = 0.34f, pudFixed = -1, sea = 1, bakeSky = 1.3936f;
+    private static readonly Color FillWarm = new(0.62f, 0.6f, 0.56f);
     private DirectionalLight3D sun = null!;
     private Godot.Environment env = null!;
 
@@ -100,6 +101,17 @@ public partial class Daylight : Node
         // the one sun: always there, dark at night (light counts never change: docs/rendering.md)
         sun = new DirectionalLight3D { Name = "sun", ShadowEnabled = false, LightEnergy = 0 };
         main.View.AddChild(sun);
+
+        // the cathedral's stone takes a fill light from the sky (cathedralOutside.ts skyFill), baked as it was at the
+        // bake's hour: it follows the sky from here on
+        foreach (var l in main.World.Facts.RootElement.GetProperty("facts").GetProperty("lights").EnumerateArray())
+            if (l.GetProperty("type").GetString() == "HemisphereLight") bakeSky = l.GetProperty("intensity").GetSingle();
+        var seen = new System.Collections.Generic.HashSet<Material>();
+        foreach (var n in BakedWorld.All(main.World))
+            if (n is MeshInstance3D mi && mi.Mesh != null)
+                for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
+                    if (mi.Mesh.SurfaceGetMaterial(s) is ShaderMaterial m && seen.Add(m) && (m.ResourceName.StartsWith("cath_") || m.ResourceName == "gilt") && m.GetShaderParameter("emission").VariantType != Variant.Type.Nil)
+                        m.SetShaderParameter("fill", 1f);
 
         string h = main.Arg("hour"), w = main.Arg("weather");
         if (h != "" && float.TryParse(h, System.Globalization.CultureInfo.InvariantCulture, out float hour)) SetTime(hour);
@@ -262,6 +274,9 @@ public partial class Daylight : Node
         rs("psx_fog_far", FogFar);
         rs("psx_hemi_sky", skyCol * (SkyIntensity / MathF.PI));
         rs("psx_hemi_ground", Ground * (SkyIntensity / MathF.PI));
+        var fillNow = skyCol.Lerp(FillWarm, 0.6f) * SkyIntensity;
+        var fillBake = SkyCold.Lerp(FillWarm, 0.6f) * bakeSky;
+        rs("psx_fill", new Vector4(fillNow.R / fillBake.R, fillNow.G / fillBake.G, fillNow.B / fillBake.B, 1));
         rs("psx_sun_dir", SunDir);
         // the houses' shadows: hard in a clear day's sun, soft in the glow through fog
         rs("psx_sun_shade", 0.3f + 0.7f * bright);

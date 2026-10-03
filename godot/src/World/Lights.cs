@@ -358,7 +358,9 @@ void fragment() {
         }
 
         // --- the landmarks' windows: lit all night, each fading by its own distance in the fog
-        float level = Mathf.Clamp((night - 0.5f) / 0.3f, 0, 1);
+        // (the day by the clock as the landmarks count it, main.ts: full from 9:30 to 15:30, gone by 6:30 and 18:30)
+        float dayK = Mathf.Clamp(day.Hour < 12 ? (day.Hour - 6.5f) / 3 : (18.5f - day.Hour) / 3, 0, 1);
+        float level = Mathf.Clamp((0.5f - dayK) / 0.3f, 0, 1);
         float breath = 0.94f + 0.04f * MathF.Sin(t * 1.3f) + 0.02f * MathF.Sin(t * 3.7f);
         foreach (var (m, tint, centre, radius) in landmark)
         {

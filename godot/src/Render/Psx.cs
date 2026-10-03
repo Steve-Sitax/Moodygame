@@ -68,8 +68,16 @@ public static class Psx
         ("psx_dirt_box", RenderingServer.GlobalShaderParameterType.Vec4, new Vector4(-365, -80, 594, 433)),
         // how many spill sources are in the list now (the rows of psx_spill)
         ("psx_spill_n", RenderingServer.GlobalShaderParameterType.Int, 0),
+        // the sky's fill light now against the bake's (cathedralOutside.ts skyFill: an emissive that follows the sky)
+        ("psx_fill", RenderingServer.GlobalShaderParameterType.Vec4, new Vector4(1, 1, 1, 1)),
     };
     private static bool globalsIn;
+    /// <summary>
+    /// Dev, to measure what a feature costs: -- --psx-off relief,ground,wall,shade,spill leaves those out (the paving's
+    /// relief and slabs; wet, puddles and patches; the foot of the walls and the mottle; the houses' shadows and sky
+    /// shade; the spilt light).
+    /// </summary>
+    private static readonly HashSet<string> Off = new((Array.IndexOf(OS.GetCmdlineUserArgs(), "--psx-off") is var i and >= 0 && i + 1 < OS.GetCmdlineUserArgs().Length ? OS.GetCmdlineUserArgs()[i + 1] : "").Split(',', StringSplitOptions.RemoveEmptyEntries));
     private static ImageTexture? skyShade, dirt, spill;
     private static Image? spillImage;
     private static readonly float[] SpillData = new float[MaxSpill * 4 * 4];
@@ -118,7 +126,7 @@ public static class Psx
             var j = JsonDocument.Parse(File.ReadAllText(file)).RootElement;
             return new Vector4(j.GetProperty("x0").GetSingle(), j.GetProperty("z0").GetSingle(), j.GetProperty("w").GetSingle(), j.GetProperty("h").GetSingle());
         }
-        if (Find("skyshade.png") is { } sky)
+        if (Find("skyshade.png") is { } sky && !Off.Contains("shade"))
         {
             skyShade = ImageTexture.CreateFromImage(Image.LoadFromFile(sky));
             RenderingServer.GlobalShaderParameterSet("psx_sky_shade", skyShade.GetRid());
@@ -162,7 +170,7 @@ public static class Psx
     public static void SetSpill(int count, Func<int, (Vector4 a, Vector4 b, Vector4 c, Vector4 d)> at)
     {
         EnsureGlobals();
-        count = Math.Min(count, MaxSpill);
+        count = Off.Contains("spill") ? 0 : Math.Min(count, MaxSpill);
         for (int i = 0; i < count; i++)
         {
             var (a, b, c, d) = at(i);
@@ -617,6 +625,9 @@ uniform vec4 albedo : source_color = vec4(1.0);
 uniform sampler2D tex : source_color, filter_nearest_mipmap, repeat_enable, hint_default_white;
 uniform vec3 emission : source_color = vec3(0.0);
 uniform sampler2D emission_tex : source_color, filter_nearest_mipmap, repeat_enable, hint_default_white;
+// 1: its emission is the sky's fill light (baked at midday): it follows the sky and the model's vertex colour
+uniform float fill = 0.0;
+global uniform vec4 psx_fill;
 uniform float affine = 1.0;
 uniform float fog_reach = 1.0;
 uniform float alpha_cut = 0.5;
@@ -895,7 +906,7 @@ void fragment() {
         if (k.Blend || k.Add) c.Append("	ALPHA = c.a;\n");
         if (lit)
             c.Append(@"	ALBEDO = c.rgb * k3;
-	EMISSION = (emission * texture(emission_tex, uv).rgb + c.rgb * (sky + spilt)) * k3 + ad + halo;
+	EMISSION = (emission * texture(emission_tex, uv).rgb * mix(vec3(1.0), psx_fill.rgb * COLOR.rgb, fill) + c.rgb * (sky + spilt)) * k3 + ad + halo;
 	FOG = vec4(fogc + halo, fog_k);
 }
 
@@ -950,16 +961,16 @@ void light() {
     public static Kind WithOptions(Kind k, JsonElement bake)
     {
         if (bake.ValueKind != JsonValueKind.Object || Has(bake, "water", out _)) return k;
-        bool relief = Has(bake, "relief", out var r);
+        bool relief = Has(bake, "relief", out var r) && !Off.Contains("relief");
+        k = k with { Far = Num(bake, "fogReach", 1) > 1 };
         return k with
         {
             Relief = relief ? (Has(r, "id", out _) ? 2 : 1) : 0,
             Parallax = relief && Num(r, "depth", 0) > 0,
-            Detile = Has(bake, "detile", out _),
-            Ground = Has(bake, "wet", out _) || Has(bake, "vary", out _) || Has(bake, "puddles", out _),
-            Wall = Has(bake, "foot", out _) || Num(bake, "mottle", 0) > 0,
-            Slabs = Has(bake, "slabs", out _),
-            Far = Num(bake, "fogReach", 1) > 1,
+            Detile = Has(bake, "detile", out _) && !Off.Contains("ground"),
+            Ground = (Has(bake, "wet", out _) || Has(bake, "vary", out _) || Has(bake, "puddles", out _)) && !Off.Contains("ground"),
+            Wall = (Has(bake, "foot", out _) || Num(bake, "mottle", 0) > 0) && !Off.Contains("wall"),
+            Slabs = Has(bake, "slabs", out _) && !Off.Contains("relief"),
         };
     }
 
