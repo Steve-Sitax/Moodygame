@@ -160,6 +160,31 @@ const EXPORT = `(() => {
     const { GLTFExporter } = await import("/node_modules/three/examples/jsm/exporters/GLTFExporter.js");
     const s = __scheldemist, scene = s.world.scene;
     scene.updateMatrixWorld(true);
+    // The rooms (world/inworld.ts): in the browser each inside is a scene of its own, drawn over the street through
+    // its openings. In Godot they stand in the same world, inside their shells: each room's scene goes into the export
+    // as a group "ROOM_<id>", with what its scene had of its own in the extras (its lights, its air, its openings).
+    const Object3D = Object.getPrototypeOf(scene.constructor);
+    const rooms = (s.retro && s.retro.inWorld && s.retro.inWorld.all) || [];
+    window.__roomLights = (root) => {
+      const out = [];
+      root.traverse((o) => { if (o.isLight) out.push({ type: o.type, color: o.color.getHex(), ground: o.groundColor ? o.groundColor.getHex() : null, intensity: o.intensity, distance: o.distance ?? null, decay: o.decay ?? null, pos: o.getWorldPosition(o.position.clone()).toArray().map((v) => Math.round(v * 1000) / 1000) }); });
+      return out;
+    };
+    for (const r of rooms) {
+      const g = new Object3D();
+      g.name = "ROOM_" + r.id;
+      const f = r.scene.fog;
+      g.userData.room = {
+        id: r.id, reach: r.reach, budgeted: !!r.budgeted,
+        fog: f ? { color: f.color.getHex(), near: f.near, far: f.far } : null,
+        lights: window.__roomLights(r.scene),
+        openings: r.openings.map((o) => ({ kind: o.kind, label: o.label, open: !!o.open(), centre: o.centre.toArray(), out: o.out.toArray(), box: [...o.box.min.toArray(), ...o.box.max.toArray()] })),
+      };
+      r.scene.updateMatrixWorld(true);
+      while (r.scene.children.length) g.add(r.scene.children[0]);
+      scene.add(g);
+    }
+    scene.updateMatrixWorld(true);
     // every InstancedMesh: one mesh in the glb, its copies in the json (Godot makes a MultiMesh of them).
     // What three knows and glTF does not goes into userData (glTF extras): hidden nodes, the material's kind and
     // switches, the psx options (retro/psx.ts bake). The houses' atlas cell rides as the second uv.
@@ -186,7 +211,7 @@ const EXPORT = `(() => {
       m.userData.three = {
         type: m.type, name: m.name || "", depthWrite: m.depthWrite, depthTest: m.depthTest, opacity: m.opacity, transparent: m.transparent,
         alphaTest: m.alphaTest, side: m.side, blending: m.blending, fog: m.fog !== false, vertexColors: !!m.vertexColors,
-        offset: m.polygonOffset ? [m.polygonOffsetFactor, m.polygonOffsetUnits] : null,
+        offset: m.polygonOffset ? [m.polygonOffsetFactor, m.polygonOffsetUnits] : null, colorWrite: m.colorWrite !== false,
         emissive: m.emissive ? m.emissive.getHex() : 0, emissiveIntensity: m.emissiveIntensity ?? 0,
         specular: m.specular ? m.specular.getHex() : 0, shininess: m.shininess ?? 0, flat: !!m.flatShading,
       };
@@ -350,7 +375,10 @@ const LIGHTS = `(async () => {
       panes.push([...v(0), ...v(1), ...v(5), r(l[i * 24]), r(l[i * 24 + 1]), r(l[i * 24 + 2]), r(l[i * 24 + 3]), r(t[i * 12]), t[i * 12 + 1]]);
     }
   });
-  return JSON.stringify({ spill, panes });
+  // the rooms' own lights now (at night: the lamps lit), for the rooms the export put in the world as ROOM_<id>
+  const rooms = [];
+  for (const o of __scheldemist.world.scene.children) if (o.name.startsWith("ROOM_") && window.__roomLights) rooms.push({ id: o.name.slice(5), lights: window.__roomLights(o) });
+  return JSON.stringify({ spill, panes, rooms });
 })()`;
 const UNIFORMS = `(() => { const o = {}; for (const [k, u] of Object.entries(__scheldemist.psxUniforms)) { const v = u.value; if (typeof v === "number" || typeof v === "boolean") o[k] = v; else if (v && v.isColor) o[k] = v.getHex(); else if (Array.isArray(v) && v.length <= 8 && v[0] && v[0].toArray) o[k] = v.map((x) => x.toArray()); else if (v && v.toArray && !v.isTexture && !v.isMatrix4) o[k] = v.toArray(); } return o; })()`;
 
