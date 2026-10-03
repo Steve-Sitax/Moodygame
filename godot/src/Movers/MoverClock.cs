@@ -55,6 +55,7 @@ public partial class MoverClock : Node
         // what moves is claimed before the still world is made solid (World/Solid.cs, the next part)
         Bridges.Claims();
         Lock.Claims();
+        Railway.Claims();
     }
 
     private static void Read()
@@ -146,7 +147,7 @@ public static class Mv
     /// A solid that moves with `owner` (a bridge's leaf, a lock gate, a wagon): a kinematic body on the still
     /// world's layer, with the drawn triangles of the meshes under it as its shape. Jef walks on it and into it.
     /// </summary>
-    public static AnimatableBody3D Body(Node3D owner, string name = "solid")
+    public static AnimatableBody3D Body(Node3D owner, string name = "solid", Func<MeshInstance3D, bool>? only = null)
     {
         var body = new AnimatableBody3D { Name = name, SyncToPhysics = false, CollisionLayer = Solid.Layer, CollisionMask = 0 };
         // physics takes no stretched shapes: a stretched owner (a lock gate) gets its body beside it, following it,
@@ -165,7 +166,7 @@ public static class Mv
         var inv = plain.AffineInverse();
         foreach (var c in BakedWorld.All(owner))
         {
-            if (c is not MeshInstance3D { Mesh: not null, Visible: true } mi) continue;
+            if (c is not MeshInstance3D { Mesh: not null, Visible: true } mi || (only != null && !only(mi))) continue;
             if (mi.Mesh.GetSurfaceCount() == 0 || mi.Mesh is ArrayMesh am && am.SurfaceGetPrimitiveType(0) != Mesh.PrimitiveType.Triangles) continue;
             var rel = inv * mi.GlobalTransform;
             var faces = mi.Mesh.GetFaces();

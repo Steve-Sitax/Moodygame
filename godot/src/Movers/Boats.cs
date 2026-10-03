@@ -410,6 +410,38 @@ public partial class Boats : Node
         MoverCost.End("boats");
     }
 
+    /// <summary>Is a moored hull under (x, z)? (The cranes look for a hold under the hook: rijnkaai.ts hullAt.)</summary>
+    public bool HullAt(float x, float z) => HullIdAt(x, z) >= 0;
+
+    /// <summary>Which moored hull lies under (x, z): a number of its own, or -1 for open water or the quay.</summary>
+    public int HullIdAt(float x, float z)
+    {
+        static bool In(float px, float pz, float bx, float bz, float yaw, float len, float beam)
+        {
+            float dx = px - bx, dz = pz - bz, s = MathF.Sin(yaw), c = MathF.Cos(yaw);
+            float along = dx * s + dz * c, across = dx * c - dz * s;
+            return Math.Abs(along) < len / 2 - 0.5f && Math.Abs(across) < beam / 2 - 0.2f;
+        }
+        for (int ri = 0; ri < rows.Count; ri++)
+        {
+            var r = rows[ri];
+            var d = Dims(r.Kind);
+            if (d.Length < 9) continue; // a small boat has no hold
+            for (int i = 0; i < r.N; i++)
+                if (In(x, z, r.X[i], r.Z[i], r.Yaw[i], d.Length, d.Beam)) return ri * 1000 + i;
+        }
+        for (int fi = 0; fi < floats.Count; fi++)
+        {
+            var f = floats[fi];
+            if (f.Kind == "pontoon_section" || !f.Outer.Visible || f.Outer.GetParent() != Mv.Town) continue;
+            var d = Dims(f.Kind);
+            if (d.Length < 9) continue;
+            var o = f.Outer.Position;
+            if (In(x, z, o.X, o.Z, f.Outer.Rotation.Y, d.Length, d.Beam)) return 1000000 + fi;
+        }
+        return -1;
+    }
+
     /// <summary>The live place of boat i of the row nearest to a point (the self-test, life aboard).</summary>
     private (Row Row, int I)? Nearest(Vector3 p, string? kindHas = null)
     {
