@@ -32,8 +32,8 @@ psx_snap_res={
 "value": Vector2(240, 135)
 }
 psx_fog_color={
-"type": "color",
-"value": Color(0.55, 0.58, 0.6, 1)
+"type": "vec4",
+"value": Vector4(0.55, 0.58, 0.6, 1)
 }
 psx_fog_near={
 "type": "float",
@@ -44,12 +44,12 @@ psx_fog_far={
 "value": 160.0
 }
 psx_hemi_sky={
-"type": "color",
-"value": Color(0.2, 0.25, 0.3, 1)
+"type": "vec4",
+"value": Vector4(0.2, 0.25, 0.3, 1)
 }
 psx_hemi_ground={
-"type": "color",
-"value": Color(0.02, 0.02, 0.015, 1)
+"type": "vec4",
+"value": Vector4(0.02, 0.02, 0.015, 1)
 }
 psx_time={
 "type": "float",

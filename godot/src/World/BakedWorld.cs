@@ -21,6 +21,9 @@ public partial class BakedWorld : Node3D
     public Dictionary<string, object> Report { get; } = new();
     /// <summary>Meshes with a shader of the browser's own (sky, glows, fire): hidden until their part is ported.</summary>
     public List<string> Unported { get; } = new();
+    /// <summary>How far Load is, for the loading screen (Load may run beside the main thread): "read", "parse", "build", "materials", "done"; and how many of the scene's nodes have their materials.</summary>
+    public volatile string Stage = "";
+    public volatile int StageDone, StageTotal;
 
     private JsonElement gltf;
     private string texDir = "";
@@ -31,17 +34,22 @@ public partial class BakedWorld : Node3D
         ulong t0 = Time.GetTicksMsec();
         Facts = JsonDocument.Parse(File.ReadAllText(Path.ChangeExtension(glbPath, ".json")));
         texDir = Path.Combine(Path.GetDirectoryName(glbPath) ?? ".", Path.GetFileNameWithoutExtension(glbPath) + "_tex");
+        Stage = "read";
         gltf = ReadJsonChunk(glbPath);
+        Psx.LoadShared(texDir); // the sky map and the dirt map every psx material reads
+        Stage = "parse";
 
         var doc = new GltfDocument();
         var state = new GltfState();
         var err = doc.AppendFromFile(glbPath, state);
         if (err != Error.Ok) return err;
+        Stage = "build";
         var scene = doc.GenerateScene(state);
         if (scene == null) return Error.ParseError;
         scene.Name = "town";
         AddChild(scene);
         Report["glbMs"] = (double)(Time.GetTicksMsec() - t0);
+        Stage = "materials";
 
         // hidden nodes: Godot keeps a glTF node's extras as the node's "extras" meta
         int hidden = 0;
@@ -67,8 +75,11 @@ public partial class BakedWorld : Node3D
 
         var instances = Facts.RootElement.GetProperty("instances");
         int meshes = 0, lights = 0, copies = 0, multi = 0;
-        foreach (var n in All(scene).ToList())
+        var nodes = All(scene).ToList();
+        StageTotal = nodes.Count;
+        foreach (var n in nodes)
         {
+            StageDone++;
             if (n is Light3D l)
             {
                 // the game's own lights come with their parts (the sun, the lamps, the lanterns)
@@ -90,7 +101,14 @@ public partial class BakedWorld : Node3D
             for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
             {
                 var m = mi.Mesh.SurfaceGetMaterial(s);
-                if (m == null || !made.TryGetValue(m, out var psx)) continue;
+                // (no material in the file: three's exporter leaves a ShaderMaterial out altogether, e.g. the houses' grime
+                // decals, and Godot gives the face a plain material of its own: a white face lit by the sun only)
+                if (m == null || (m is BaseMaterial3D && !made.ContainsKey(m)))
+                {
+                    unported = true;
+                    continue;
+                }
+                if (!made.TryGetValue(m, out var psx)) continue;
                 if (psx == null)
                 {
                     unported = true;
@@ -138,6 +156,7 @@ public partial class BakedWorld : Node3D
         Report["copies"] = copies;
         Report["unported"] = Unported.Count;
         Report["readyMs"] = (double)(Time.GetTicksMsec() - t0);
+        Stage = "done";
         return Error.Ok;
     }
 
@@ -183,7 +202,10 @@ public partial class BakedWorld : Node3D
             VertexColor: vertexColour || Flag("vertexColors", false),
             Add: transparent && (int)Num(three, "blending", 1) == 2,
             Fog: Flag("fog", true));
+        // the psx options the browser made it with (relief, wet, puddles, patches, the foot of the walls ...)
+        if (hasPsx) kind = Psx.WithOptions(kind, bake);
         var m = PsxMaterial(bm, kind, hasPsx ? Num(bake, "affine", 1) : 0, hasPsx ? Num(bake, "fogReach", 1) : 1, alphaTest, transparent ? (float)Num(three, "opacity", bm.AlbedoColor.A) : null);
+        if (hasPsx) Psx.ApplyOptions(m, kind, bake, texDir);
         kinds[m] = kind;
         return m;
     }

@@ -7,10 +7,11 @@
 // its own (godot, 8947/5347), opens the game in headless Chrome (the recipe of tools/perfcheck.mjs), goes to each
 // place, measures it there (frameProf, the browser's numbers for the comparison), then exports the scene with
 // three's GLTFExporter. Written: <out>.glb, <out>.json (the copies of every InstancedMesh, the places' cameras, the
-// fog, the lights, the browser's frame times). The stack is stopped and its save deleted at the end.
+// fog, the lights, the browser's frame times), <out>_tex/ (the pictures the psx options name, the dirt map, the sky
+// map), <out>_lights.json (the lamps, the lit windows and their light on the street). The stack is stopped and its save deleted at the end.
 
 import { spawn, execFileSync } from "node:child_process";
-import { createWriteStream, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, createWriteStream, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
@@ -25,6 +26,13 @@ const opt = (k, d) => {
 const root = path.resolve(opt("root", here));
 const out = path.resolve(here, opt("out", "godot/baked/town"));
 const PLACES = String(opt("places", "vismarkt,grote markt,cathedral,handschoenmarkt,rijnkaai")).split(",");
+// --hour 21 --weather rain: the clock and the weather of the pictures and the facts (the bake itself: 13, clear).
+// With --ref-only nothing is exported: the browser's picture at each place (<out>_ref_<place>[_<hour>_<weather>].png),
+// the light's numbers at that hour (<out>_ref[_<hour>_<weather>].json) and the shared pictures (<out>_tex/dirt.png).
+const HOUR = Number(opt("hour", 13));
+const WEATHER = String(opt("weather", "clear"));
+const TAG = HOUR === 13 && WEATHER === "clear" ? "" : `_${HOUR}_${WEATHER}`;
+const REF_ONLY = args.includes("--ref-only");
 // (--ports 8947,5347,5399: the test stack's server and vite, and the receiver; another set lets two bakes run at once)
 const [SERVER, VITE, RECV] = String(opt("ports", "8947,5347,5399")).split(",").map(Number);
 const CHROME = ["C:/Program Files/Google/Chrome/Application/chrome.exe", "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe", "/usr/bin/google-chrome"].find((p) => existsSync(p));
@@ -74,7 +82,7 @@ const recv = http.createServer((req, res) => {
   res.setHeader("access-control-allow-headers", "*");
   if (req.method !== "POST") return res.end();
   // "/glb": the scene; "/tex/<uuid>": a texture the psx options name (height maps, stone ids, slabs)
-  const tex = /^\/tex\/([a-zA-Z0-9-]+)$/.exec(req.url ?? "");
+  const tex = /^\/tex\/([a-zA-Z0-9_-]+)$/.exec(req.url ?? "");
   if (tex) mkdirSync(`${out}_tex`, { recursive: true });
   // "/walk": the walk dump (townspeople: godot/src/Town/WalkMap.cs)
   const f = createWriteStream(tex ? path.join(`${out}_tex`, `${tex[1]}.png`) : req.url === "/walk" ? `${out}_walk.bin` : `${out}.glb`);
@@ -139,7 +147,7 @@ async function openGame() {
 const FACTS = `(() => {
   const s = __scheldemist, scene = s.world.scene, cam = s.player.camera;
   const lights = [];
-  scene.traverse((o) => { if (o.isLight) lights.push({ type: o.type, color: o.color.getHex(), ground: o.groundColor ? o.groundColor.getHex() : null, name: o.name, intensity: o.intensity, pos: o.getWorldPosition(o.position.clone()).toArray(), visible: o.visible }); });
+  scene.traverse((o) => { if (o.isLight) lights.push({ type: o.type, color: o.color.getHex(), ground: o.groundColor ? o.groundColor.getHex() : null, name: o.name, intensity: o.intensity, distance: o.distance ?? null, decay: o.decay ?? null, pos: o.getWorldPosition(o.position.clone()).toArray(), visible: o.visible }); });
   const f = scene.fog;
   return { fog: f ? { color: f.color.getHex(), near: f.near, far: f.far, density: f.density } : null,
     background: scene.background && scene.background.isColor ? scene.background.getHex() : null,
@@ -296,6 +304,51 @@ async function walkDump() {
   writeFileSync(`${out}_walk.json`, JSON.stringify({ made: new Date().toISOString(), ...wk.facts }));
   log("written", `${out}_walk.bin`, JSON.stringify({ ...wk.facts, sellers: Object.keys(wk.facts.sellers).length }));
 }
+// the pictures every psx material shares, made by the game as it starts (world/dirt.ts): posted as <out>_tex/<name>.png,
+// with where they lie in <out>_tex/<name>.json. The sky map is a file of the client: copied.
+const SHARED_TEX = `(async () => {
+  const u = __scheldemist.psxUniforms, out = {};
+  for (const [name, tex, box] of [["dirt", u.uDirt.value, u.uDirtBox.value]]) {
+    const im = tex && tex.image;
+    if (!im || !im.data) continue;
+    const c = document.createElement("canvas");
+    c.width = im.width; c.height = im.height;
+    const d = new ImageData(im.width, im.height);
+    d.data.set(im.data);
+    c.getContext("2d").putImageData(d, 0, 0);
+    const blob = await new Promise((r) => c.toBlob(r, "image/png"));
+    await fetch("http://127.0.0.1:${RECV}/tex/" + name, { method: "POST", body: blob });
+    out[name] = { x0: box.x, z0: box.y, w: box.z, h: box.w };
+  }
+  return out;
+})()`;
+async function sharedTextures() {
+  const boxes = await ev(SHARED_TEX);
+  mkdirSync(`${out}_tex`, { recursive: true });
+  for (const [name, box] of Object.entries(boxes)) writeFileSync(path.join(`${out}_tex`, `${name}.json`), JSON.stringify(box));
+  for (const f of ["skyshade.png", "skyshade.json"]) copyFileSync(path.join(root, "client/public/textures", f), path.join(`${out}_tex`, f));
+  return Object.keys(boxes);
+}
+// The lights of the night as plain data (godot/src/World/Lights.cs): every still spill source (world/spill.ts: the gas
+// lamps, the painted windows with their hours, the rooms' windows and doors, the lanterns and glows), and the painted
+// windows' panes (world/ambient.ts: three corners, the hours it is lit, its tone and kind). Take it at night
+// (--hour 21), so a room's lamp and a glow carry their night's level.
+const LIGHTS = `(async () => {
+  const spill = (await import("/src/world/spill.ts")).spillBake();
+  const panes = [];
+  const r = (v) => Math.round(v * 1000) / 1000;
+  __scheldemist.world.scene.traverse((o) => {
+    if (o.name !== "ambient_windows") return;
+    const p = o.geometry.attributes.position.array, l = o.geometry.attributes.aLit.array, t = o.geometry.attributes.aTone.array;
+    // (a pane is two triangles 0 1 2, 0 2 3: its corners 0, 1 and 3 are vertices 0, 1 and 5)
+    for (let i = 0; i < p.length / 18; i++) {
+      const v = (k) => [r(p[i * 18 + k * 3]), r(p[i * 18 + k * 3 + 1]), r(p[i * 18 + k * 3 + 2])];
+      panes.push([...v(0), ...v(1), ...v(5), r(l[i * 24]), r(l[i * 24 + 1]), r(l[i * 24 + 2]), r(l[i * 24 + 3]), r(t[i * 12]), t[i * 12 + 1]]);
+    }
+  });
+  return JSON.stringify({ spill, panes });
+})()`;
+const UNIFORMS = `(() => { const o = {}; for (const [k, u] of Object.entries(__scheldemist.psxUniforms)) { const v = u.value; if (typeof v === "number" || typeof v === "boolean") o[k] = v; else if (v && v.isColor) o[k] = v.getHex(); else if (Array.isArray(v) && v.length <= 8 && v[0] && v[0].toArray) o[k] = v.map((x) => x.toArray()); else if (v && v.toArray && !v.isTexture && !v.isMatrix4) o[k] = v.toArray(); } return o; })()`;
 
 const t0 = Date.now();
 const log = (...a) => console.log(`[${((Date.now() - t0) / 1000).toFixed(0)}s]`, ...a);
@@ -306,24 +359,35 @@ try {
   started = true;
   await openGame();
   await ev(`(__scheldemist.free(true), 1)`);
-  await ev(`__scheldemist.t.light(13, "clear").then(() => 1)`);
-  await ev(`new Promise((r) => __scheldemist.real.setTimeout(r, 20000))`, 60_000);
+  await ev(`__scheldemist.t.light(${HOUR}, ${JSON.stringify(WEATHER)}).then(() => 1)`);
+  // (the light eases to the hour; the wet ground and the puddles take longer)
+  await ev(`new Promise((r) => __scheldemist.real.setTimeout(r, ${TAG ? 45000 : 20000}))`, 90_000);
   await walkDump();
   const places = [];
   for (const place of args.includes("--walk-only") ? [] : PLACES) {
     await ev(`Promise.resolve(__scheldemist.t.go(${JSON.stringify(place)})).then(() => 1)`);
     await ev(`__scheldemist.frameProf({ n: 30 }).then(() => 1)`);
-    const turn = await ev(`__scheldemist.frameProf({ n: 90, top: 80, turn: 2 })`);
+    const turn = REF_ONLY ? { frame: { mean: 0, p95: 0 }, parts: [] } : await ev(`__scheldemist.frameProf({ n: 90, top: 80, turn: 2 })`);
     const cam = await ev(CAMERA);
     // the browser's own picture there, to set Godot's beside it
     await ev(`__scheldemist.frameProf({ n: 3 }).then(() => 1)`);
     const png = await send("Page.captureScreenshot", { format: "png" });
-    if (png.result?.data) writeFileSync(`${out}_ref_${place.replace(/ /g, "_")}.png`, Buffer.from(png.result.data, "base64"));
+    if (png.result?.data) writeFileSync(`${out}_ref_${place.replace(/ /g, "_")}${TAG}.png`, Buffer.from(png.result.data, "base64"));
     const part = (n) => turn.parts.find((p) => p.part === n)?.mean ?? 0;
     places.push({ place, ...cam, browser: { frameMean: turn.frame.mean, frameP95: turn.frame.p95, render: part("render"), mirrors: part("render.mirrors"), calls: part("render calls") } });
     log(place, "browser turning frame", turn.frame.mean, "ms, render", part("render"), "ms, calls", part("render calls"));
   }
-  if (args.includes("--ref-only")) throw new Error("ref only: no export");
+  if (REF_ONLY) {
+    const shared = await sharedTextures();
+    if (args.includes("--lights")) {
+      const lights = JSON.parse(await ev(LIGHTS));
+      writeFileSync(`${out}_lights.json`, JSON.stringify({ made: new Date().toISOString(), hour: HOUR, weather: WEATHER, ...lights }));
+      log("the lights:", lights.spill.length, "spill sources,", lights.panes.length, "panes ->", `${out}_lights.json`);
+    }
+    writeFileSync(`${out}_ref${TAG}.json`, JSON.stringify({ made: new Date().toISOString(), hour: HOUR, weather: WEATHER, places, facts: await ev(FACTS), uniforms: await ev(UNIFORMS) }));
+    log("ref only: pictures, the light's numbers", `${out}_ref${TAG}.json`, "and the shared pictures", shared.join(", "));
+    throw new Error("ref only: no export");
+  }
   if (args.includes("--walk-only")) throw "walk only";
   // the export, from the first place, everything the game would draw without the culler
   await ev(`Promise.resolve(__scheldemist.t.go(${JSON.stringify(PLACES[0])})).then(() => 1)`);
@@ -332,7 +396,8 @@ try {
   await ev(`__scheldemist.frameProf({ n: 6 }).then(() => 1)`);
   const facts = await ev(FACTS);
   // the shared psx values at this moment (13:00, clear): the numbers the Godot shader starts from
-  const uniforms = await ev(`(() => { const o = {}; for (const [k, u] of Object.entries(__scheldemist.psxUniforms)) { const v = u.value; if (typeof v === "number" || typeof v === "boolean") o[k] = v; else if (v && v.isColor) o[k] = v.getHex(); else if (v && v.toArray && !v.isTexture && !v.isMatrix4) o[k] = v.toArray(); } return o; })()`);
+  const uniforms = await ev(UNIFORMS);
+  await sharedTextures();
   await ev(EXPORT);
   let exp = null;
   for (let i = 0; i < 900; i++) {
@@ -345,6 +410,12 @@ try {
   const inst = await ev(`JSON.stringify(window.__exp.inst)`);
   writeFileSync(`${out}.json`, JSON.stringify({ made: new Date().toISOString(), places, facts, counts: exp.counts, uniforms, instances: JSON.parse(inst) }));
   stripInstancing(`${out}.glb`);
+  // the lights of the night, taken at night (a room's lamp and a glow carry their night's level)
+  await ev(`__scheldemist.t.light(21, "mist").then(() => 1)`);
+  await ev(`new Promise((r) => __scheldemist.real.setTimeout(r, 25000))`, 60_000);
+  const lights = JSON.parse(await ev(LIGHTS));
+  writeFileSync(`${out}_lights.json`, JSON.stringify({ made: new Date().toISOString(), hour: 21, weather: "mist", ...lights }));
+  log("the lights:", lights.spill.length, "spill sources,", lights.panes.length, "panes");
   log("written", `${out}.glb`, (received / 1e6).toFixed(1), "MB", JSON.stringify(exp.counts));
 } catch (e) {
   if (e !== "walk only") {
