@@ -25,9 +25,8 @@ const opt = (k, d) => {
 const root = path.resolve(opt("root", here));
 const out = path.resolve(here, opt("out", "godot/baked/town"));
 const PLACES = String(opt("places", "vismarkt,grote markt,cathedral,handschoenmarkt,rijnkaai")).split(",");
-const VITE = 5347;
-const SERVER = 8947;
-const RECV = 5399;
+// (--ports 8947,5347,5399: the test stack's server and vite, and the receiver; another set lets two bakes run at once)
+const [SERVER, VITE, RECV] = String(opt("ports", "8947,5347,5399")).split(",").map(Number);
 const CHROME = ["C:/Program Files/Google/Chrome/Application/chrome.exe", "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe", "/usr/bin/google-chrome"].find((p) => existsSync(p));
 if (!CHROME) throw new Error("no Chrome found");
 mkdirSync(path.dirname(out), { recursive: true });
@@ -66,7 +65,7 @@ if (args.includes("--strip-only")) {
   stripInstancing(`${out}.glb`);
   process.exit(0);
 }
-const stack = (cmd) => execFileSync(process.execPath, [path.join(root, "tools/teststack.mjs"), cmd, "godot", "--server", String(SERVER), "--vite", String(VITE)], { stdio: "inherit", timeout: 180_000 });
+const stack = (cmd) => execFileSync(process.execPath, [path.join(root, "tools/teststack.mjs"), cmd, `godot${SERVER}`, "--server", String(SERVER), "--vite", String(VITE)], { stdio: "inherit", timeout: 180_000 });
 
 // ---- the receiver: the page posts the glb here
 let received = 0;
