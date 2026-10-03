@@ -32,6 +32,15 @@ it), `--hour 13.5` and `--day 1` (the clock), `--models <dir>`, `--walk <town_wa
 `--snap <dir> --views "name:x,y,z,yaw,pitch,hour,weather;..."` (test pictures from chosen views, hours and weathers
 in one run, with the frame time: `src/Dev/Snap.cs`), `--psx-off relief,ground,wall,shade,spill` (a psx feature left
 out, to measure its cost).
+state, one tick, a picture with the HUD and `nettest.json` in `<dir>`, quit; the server is gone afterwards),
+`--talktest <dir> --no-ai` (the talk part's own test: every window opened and worked by script through the real
+keys, a picture of each and `talktest.json` in `<dir>`, quit; `--talktest <dir> --talktest-ai` instead is one talk
+with a typed line and a model's answer, two model calls). The browser's pictures of the same windows:
+`node tools/godot/talk-refs.mjs --out godot/baked/talkref` (a test stack with no AI on 8954 and 5354).
+The menus' options: `--prefs <file>` (the settings kept somewhere else than the player's own folder; the keys go
+beside it), `--no-mainmenu` (no loading screen and no menus: the town at once, as before), `--menutest <dir>` (the
+menus' own test, below). A run with `--shots` or another part's `--...test` has no menus either, and keeps the
+picture as it was (720 lines, wobble on) whatever the player's settings say.
 
 ## How it is built
 - **The baked town** (`src/World/BakedWorld.cs`). The browser game builds its world in code (67,000 lines). The bake
@@ -121,6 +130,60 @@ out, to measure its cost).
   places, clicks a kind off and on, shows a way, closes it, and writes pictures and `maptest.json` to `<dir>`.
   `--mapat x,z,yawDeg` stands where the browser's picture was taken: `node tools/godot/map-ref.mjs` makes that
   picture (a test stack and headless Chrome) and prints the place.
+
+- **The dialogs** (`src/Ui/Dialogs/`): the browser's `game/dialogs.ts` and `game/cursor.ts`. `Dialogs.I` is a
+  stack: the keys go to the dialog on top and to nothing under it, each dialog closes on its own keys (E and Esc
+  for most), the mouse is free as the quill while one is up and taken again after. A dialog is a class with
+  `IDialog` that calls `Dialogs.I.Open(this)` and `Close(this)`; its paper is a `Sheet` (`Paper.cs`): CSS sizes,
+  the sepia filter, lines with a number badge and keys in a keys line that can be clicked. The player's part reads
+  `Dialogs.I.Any` (Jef stands still, and the game still plays); the menus' part sets `KeyLabel` and `Remap`
+  (changeable keys) and asks `Escapable` before Esc opens the menu.
+- **The windows with people and things** (`src/Talk/`, from `game/talk.ts`, `pockets.ts`, `bubbles.ts`, `press.ts`,
+  the bill and notebook of `ideas.ts`, the dice of `interiors.ts`). Other parts open them:
+  `Talk.I.Open(id, name, title)` (E at someone; `shopOnly: true` for F at a seller), `Shop.I.Open(shopId)`,
+  `Pockets.I.Toggle()` (I does it by itself), `Press.I.Read(item)`, `OpenBerg()`, `OpenPost()`, `OpenBill(id)`,
+  `Dice.I.Sit(place, patron, first)`, `Bubbles.I.Show(convo)` and `Bubbles.I.Say(() => point, name, text)`. The
+  hooks they leave for the parts not ported yet are named at the top of each file (`Talk.OnOpen`, `Work`,
+  `OnTakeWork`, `OnReply`; `Bubbles.PositionOf`, `InfoOf`, `Speak`; `Dice.Sfx`).
+  `Fonts.Print`, `Fonts.PrintItalic`, `Fonts.Slab`, `Fonts.Mono` (`godot/fonts/`, the browser's own faces).
+- **The paper kit** (`src/Ui/`): what every screen of paper and ink is built from, the browser's `menu/menu.css`
+  carried over. Sizes are CSS pixels: `Kit.Px(16)` is 16 CSS px at the window's scale (the CSS `--ui`, times the
+  Text size setting); a screen builds itself in real pixels and builds again on `Kit.LookChanged`.
+  - `Kit` (`Kit.cs`): the colours (`Kit.Paper`, `Kit.Ink`, `Kit.Rust` ...), and the makers of small parts:
+    `Kit.Text(...)` a line, `Kit.Rich(...)` a paragraph with bold and italics, `Kit.Para(...)`, `Kit.Heading(...)`,
+    `Kit.Row(label, control, note)` a setting's row, `Kit.Side(a, b)` controls side by side, `Kit.Input(...)` a
+    text box, `Kit.Rule(width)` the printer's rule, `Kit.DrawCaps(...)` small caps, `Kit.Picture("res://ui/x.jpg")`.
+  - `PaperCard`: a piece of paper with its content (kinds: `Plain` the old cards, `Title`, `Sheet`, `Boot`), with
+    `Pad(left, top, right, bottom)` and `Tilt`. A Godot container takes a child's turn away: centre a tilted paper
+    with `new Centred(card)`, not a CenterContainer.
+  - `InkButton`: every button (`Look.Btn`, `Primary`, `Seg`, `Tab`, `MenuItem`, `MenuPlay`, `KeyCap`, `Chip`,
+    `ModeCard`, `Swatch`, `Plain`); `Seg` a row of choices; `Tick` on and off; `InkSlider`; `Select` a list to
+    pick from; `KeyedText` a paragraph with keys drawn in it (`"{E} use"`).
+  - `Sheet`: a paper in the middle with a head, a scrolling `Body` and a `Foot`; `AddBack()` gives "Back [Esc]".
+  - `Dialogs`: the stack (`Dialogs.Open(sheet)`, Esc closes the top one, the keys move in it: Up and Down from
+    control to control, Left and Right change a choice) and the list of the game's own dialogs
+    (`Dialogs.Register("talk", () => open, close: Close)`): while one is up in play the mouse moves the ink quill
+    (`InkCursor`) instead of the view, it cannot leave the window, and Esc closes the dialog, not the game.
+- **The menus** (`src/Menu/`, the browser's `menu/`, `boot/loader.ts`, `game/pause.ts`, `saves.ts`, `prefs.ts`):
+  - `Loading`: the loading screen. Main shows it first, reads the town beside the main thread, and the card follows
+    the real steps (the town's file, the scene, the materials counted, the server's first state, the first frames).
+  - `MainMenu` (a game part): the handbill, into the game and out of it. `MainMenu.I.Entered`, `.InPlay`, the
+    events `WalkedIn` and `WorldReplaced(how, client)` (a save loaded, a new week: every part starts again from
+    the server). A part that takes pictures of the bare town runs with `--no-mainmenu`.
+  - `Pause`: reasons to be paused ("menu", "key", "saving", "loading"). Paused: the scene tree stands still and the
+    server's gate is shut (`POST /api/pause`). A node that must go on sets `ProcessMode = Always`.
+  - `Prefs` (the settings, `user://settings.json`), `Keys` (the bindings, `user://keys.json`), `Apply` (what each
+    setting does: the list is at the top of `Apply.cs`), `Tuning` (mouse speed, head bob, view distance, bubble
+    size, for the parts that use them). Ask for a key by its action: `Keys.Is(e, "use")`, `Keys.Down("forward")`,
+    `Keys.Label("use")`.
+  - `Saves` (the list, save, load, Continue, autosaves; `Saves.Capture` is the walking part's hook for what a save
+    keeps of Jef), `SettingsSheet`, `AiSheet`, `Sheets` (Help, Credits, New game, Quit), `CharacterSheet` with
+    `Character.cs` (the port of `shared/character.ts`: keep the two in step). `CharacterSheet.MakePreview` is the
+    people's part's hook for the turning figure; until then a flat dummy in the chosen colours stands there.
+  - The test: `-- --no-ai --port 8953 --db <dir>/menutest.sqlite --prefs <dir>/settings.json --menutest <dir>`
+    walks through every screen by script, checks what each step did, saves a picture of each and `menutest.json`,
+    and quits (1 when a check failed). The browser's pictures to lay beside them:
+    `node tools/godot/menu-refs.mjs --out godot/baked/menu-ref`.
 
 ## Rules
 - The engine owns all numbers; the Godot game shows them and asks the server, as the browser does.
