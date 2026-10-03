@@ -26,11 +26,15 @@ public static class Psx
     /// The switches that make another shader. Relief: 0 none, 1 a height map, 2 with stone ids. Ground: wet stone,
     /// puddles, patches and dirt (their amounts are uniforms). Wall: the foot's dirt and the mottle. Water: 1 the
     /// river and the docks (waves, foam at the walls, the dark mirror), 2 a sheltered pond (the same, calmer).
+    /// Indoor: a room's own light instead of the sky's and the sun's (World/Rooms.cs gives it per mesh).
     /// </summary>
     public record struct Kind(bool Unlit, bool Blend, bool Scissor, bool TwoSided, bool DepthWrite, bool Snap, int Atlas, bool VertexColor, bool Add, bool Fog,
-        int Relief = 0, bool Parallax = false, bool Detile = false, bool Ground = false, bool Wall = false, bool Slabs = false, bool Far = false, int Water = 0);
+        int Relief = 0, bool Parallax = false, bool Detile = false, bool Ground = false, bool Wall = false, bool Slabs = false, bool Far = false, int Water = 0, bool Indoor = false);
 
     private static readonly Dictionary<Kind, Shader> Shaders = new();
+    private static readonly Dictionary<Shader, Kind> Kinds = new();
+    /// <summary>The switches a psx shader was made with (a part that needs the same material with one more).</summary>
+    public static Kind? KindOf(Shader? s) => s != null && Kinds.TryGetValue(s, out var k) ? k : null;
 
     /// <summary>A hex colour (sRGB, as the TypeScript writes them) as the linear colour the shaders count in.</summary>
     public static Color Hex(int h) => new Color(((h >> 16) & 255) / 255f, ((h >> 8) & 255) / 255f, (h & 255) / 255f).SrgbToLinear();
@@ -754,6 +758,8 @@ varying float fog_depth;
 varying vec3 world;
 ");
         if (lit) c.Append("varying float sun_lit;\n");
+        // a room's own light (three's HemisphereLight and AmbientLight of the room's scene, over pi), set per mesh
+        if (k.Indoor && lit) c.Append("instance uniform vec3 room_sky = vec3(0.3);\ninstance uniform vec3 room_ground = vec3(0.1);\ninstance uniform vec3 room_ambient = vec3(0.0);\n");
         if (k.Atlas > 0) c.Append("varying vec2 cell;\n");
         if (k.Ground) c.Append("uniform float vary = 0.0;\nuniform float puddles = 0.0;\n");
         if (k.Wall) c.Append("uniform float foot = 0.0;\nuniform float foot_wear = 0.0;\nuniform float mottle = 0.0;\n");
@@ -997,6 +1003,12 @@ void fragment() {
 	// the light spilt from lamps, lit windows and doors (world/spill.ts), as point lights would give it
 	vec3 spilt = psx_spill_n > 0 ? psx_spill_at(world, nw) / PI : vec3(0.0);
 ");
+            if (k.Indoor)
+                c.Append(@"	// inside: the room's own light; no sun, no street lamp through the walls (its lamps are real lights)
+	sky = (mix(room_ground, room_sky, nw.y * 0.5 + 0.5) + room_ambient) * bump_k;
+	sun_lit = 0.0;
+	spilt = vec3(0.0);
+");
             if (k.Water > 0) c.Append("	spilt = vec3(0.0); // (the water takes no spilt light: its lamps are mirror images)\n");
         }
         c.Append("	float fog_k = smoothstep(psx_fog_near, psx_fog_far * fog_reach, fog_depth);\n");
@@ -1155,6 +1167,7 @@ void light() {
 ");
         s = new Shader { Code = c.ToString() };
         Shaders[k] = s;
+        Kinds[s] = k;
         return s;
     }
 

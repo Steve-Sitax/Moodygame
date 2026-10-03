@@ -86,7 +86,8 @@ public partial class Snap : Node
         if (frame > Wait) times.Add((now - last) / 1000.0);
         last = now;
         frame++;
-        if (frame < Wait + Timed) return;
+        // (the first view waits for the loading screen to go)
+        if (frame < Wait + Timed + (view == 0 ? 240 : 0)) return;
         string name = views[view][0];
         Main.I.GetViewport().GetTexture().GetImage().SavePng(System.IO.Path.Combine(dir, name + ".png"));
         times.Sort();

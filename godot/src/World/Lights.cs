@@ -375,7 +375,9 @@ void fragment() {
             float lvl = s.Lamp ? Mathf.Clamp(s.G, 0, 1)
                 : s.Sched is { } l ? Math.Max(Smooth(hourN, l[0], l[0] + 0.12f) * (1 - Smooth(hourN, l[1], l[1] + 0.12f)), Smooth(hourN, l[2], l[2] + 0.12f) * (1 - Smooth(hourN, l[3], l[3] + 0.12f))) * night
                 : s.Kind == "doss" ? 0.92f + MathF.Sin(t * 5.1f) * 0.04f + MathF.Sin(t * 13.7f) * 0.03f
-                : s.Kind is "glow" or "lantern" or "lamp" ? s.Level * dark
+                : s.Kind == "lamp" ? (s.Level > 0 ? dark : 0) // (a lamp that is not a street gas lamp: lit with them)
+                : s.Kind is "glow" or "lantern" ? s.Level * dark
+                : s.Kind is "shop" or "tavern" or "room" or "door" ? s.Level * night * (Rooms.I?.LitAt(s.At) ?? 1)
                 : s.Level * night;
             return s.Now = s.Power * lvl;
         }

@@ -361,7 +361,7 @@ async function sharedTextures() {
 // The lights of the night as plain data (godot/src/World/Lights.cs): every still spill source (world/spill.ts: the gas
 // lamps, the painted windows with their hours, the rooms' windows and doors, the lanterns and glows), and the painted
 // windows' panes (world/ambient.ts: three corners, the hours it is lit, its tone and kind). Take it at night
-// (--hour 21), so a room's lamp and a glow carry their night's level.
+// (--hour 18.33: dark, and the shops and taverns still open), so a room's lamp and a glow carry their lit level.
 const LIGHTS = `(async () => {
   const spill = (await import("/src/world/spill.ts")).spillBake();
   const panes = [];
@@ -376,8 +376,15 @@ const LIGHTS = `(async () => {
     }
   });
   // the rooms' own lights now (at night: the lamps lit), for the rooms the export put in the world as ROOM_<id>
+  // (after the export the rooms stand in the world as ROOM_<id>; in a run without export they are still scenes of their own)
   const rooms = [];
-  for (const o of __scheldemist.world.scene.children) if (o.name.startsWith("ROOM_") && window.__roomLights) rooms.push({ id: o.name.slice(5), lights: window.__roomLights(o) });
+  const roomLights = (root) => {
+    const out = [];
+    root.traverse((o) => { if (o.isLight) out.push({ type: o.type, color: o.color.getHex(), ground: o.groundColor ? o.groundColor.getHex() : null, intensity: o.intensity, distance: o.distance ?? null, decay: o.decay ?? null, pos: o.getWorldPosition(o.position.clone()).toArray().map((v) => Math.round(v * 1000) / 1000) }); });
+    return out;
+  };
+  for (const o of __scheldemist.world.scene.children) if (o.name.startsWith("ROOM_")) rooms.push({ id: o.name.slice(5), lights: roomLights(o) });
+  if (!rooms.length) for (const r of (__scheldemist.retro && __scheldemist.retro.inWorld && __scheldemist.retro.inWorld.all) || []) rooms.push({ id: r.id, lights: roomLights(r.scene) });
   return JSON.stringify({ spill, panes, rooms });
 })()`;
 const UNIFORMS = `(() => { const o = {}; for (const [k, u] of Object.entries(__scheldemist.psxUniforms)) { const v = u.value; if (typeof v === "number" || typeof v === "boolean") o[k] = v; else if (v && v.isColor) o[k] = v.getHex(); else if (Array.isArray(v) && v.length <= 8 && v[0] && v[0].toArray) o[k] = v.map((x) => x.toArray()); else if (v && v.toArray && !v.isTexture && !v.isMatrix4) o[k] = v.toArray(); } return o; })()`;
@@ -443,10 +450,11 @@ try {
   writeFileSync(`${out}.json`, JSON.stringify({ made: new Date().toISOString(), places, facts, counts: exp.counts, uniforms, instances: JSON.parse(inst) }));
   stripInstancing(`${out}.glb`);
   // the lights of the night, taken at night (a room's lamp and a glow carry their night's level)
-  await ev(`__scheldemist.t.light(21, "mist").then(() => 1)`);
+  // (18:20: dark, the lamps lit, and the shops and taverns still open with theirs)
+  await ev(`__scheldemist.t.light(18.33, "mist").then(() => 1)`);
   await ev(`new Promise((r) => __scheldemist.real.setTimeout(r, 25000))`, 60_000);
   const lights = JSON.parse(await ev(LIGHTS));
-  writeFileSync(`${out}_lights.json`, JSON.stringify({ made: new Date().toISOString(), hour: 21, weather: "mist", ...lights }));
+  writeFileSync(`${out}_lights.json`, JSON.stringify({ made: new Date().toISOString(), hour: 18.33, weather: "mist", ...lights }));
   log("the lights:", lights.spill.length, "spill sources,", lights.panes.length, "panes");
   log("written", `${out}.glb`, (received / 1e6).toFixed(1), "MB", JSON.stringify(exp.counts));
 } catch (e) {

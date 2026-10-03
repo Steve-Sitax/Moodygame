@@ -51,8 +51,8 @@ public partial class Mirrors : Node
     {
         ProcessPriority = 80; // after the camera, the daylight and the water have moved
         Psx.EnsureGlobals();
-        river = Make("water", 160, 1.5f, Mathf.DegToRad(12), false, All & ~WaterLayer & ~NoMirror);
-        puddles = Make("puddles", 50, 1, 0, true, All & ~GroundLayer & ~NoMirror);
+        river = Make("water", 160, 1.5f, Mathf.DegToRad(12), false, All & ~WaterLayer & ~NoMirror & ~Rooms.RoomLayer);
+        puddles = Make("puddles", 50, 1, 0, true, All & ~GroundLayer & ~NoMirror & ~Rooms.RoomLayer);
         Psx.Set("psx_water_mirror", river.View.GetTexture().GetRid());
         Psx.Set("psx_mirror", puddles.View.GetTexture().GetRid());
         // the surfaces: the water's sheets (Waters made the river's), the paving that holds puddles
