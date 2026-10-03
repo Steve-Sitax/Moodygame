@@ -36,6 +36,10 @@ public partial class PeopleTest : Node
     private JsonElement placeFacts;
     private double waited;
     private bool aimed;
+    private readonly Dictionary<string, object> jefRow = new();
+    private double jefMin;
+    private int jefBlocked;
+    private (double x, double z) jefFrom;
     private int shotAt;
     private readonly Dictionary<Puppet, (double x, double z, bool walk)> before = new();
 
@@ -50,8 +54,8 @@ public partial class PeopleTest : Node
         Directory.CreateDirectory(dir);
         town = GetParent().GetNode<Townspeople>("Townspeople");
         if (Main.I.Arg("hour", "") == "") town.SetClock(1, 10.5);
-        // the test's camera stands in the street at eye height: it is not a body to walk round
-        town.PlayerBody = () => null;
+        // the pictures are taken from the free camera (no body to walk round); Jef comes back for his own part of the test
+        if (Scheldemist.Player.Jef.I is { Fly: false } jef) jef.ToggleFly();
         DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled);
         Engine.MaxFps = 0;
     }
@@ -156,7 +160,7 @@ public partial class PeopleTest : Node
             case "warm":
                 if (!Go() && rows.Count > 0)
                 {
-                    Next("done");
+                    Next(Scheldemist.Player.Jef.I != null ? "jef" : "done");
                     break;
                 }
                 if (place >= wanted.Count)
@@ -268,6 +272,65 @@ public partial class PeopleTest : Node
                 rows.Add(row);
                 Next("warm");
                 break;
+            case "jef":
+            {
+                // Jef among the people: he stands in a walker's way (they stop short and go round), then walks into
+                // the crowd (the standing step aside). Nobody ends up in him.
+                var jef = Scheldemist.Player.Jef.I;
+                var cp = Main.I.Cam.GlobalPosition;
+                model = crowd!.Walking.Where(p => p.State == "walk" && p.Path.Count > 0).OrderBy(p => Whereabouts.Hypot(p.X - cp.X, p.Z - cp.Z)).FirstOrDefault();
+                if (model == null)
+                {
+                    jefRow["note"] = "nobody walking";
+                    Next("done");
+                    break;
+                }
+                var to = model.Path[Math.Min(model.Pi, model.Path.Count - 1)];
+                double dx = to.x - model.X, dz = to.z - model.Z, len = Math.Max(0.01, Whereabouts.Hypot(dx, dz));
+                double ahead = Math.Min(3.5, len * 0.6);
+                if (jef.Fly) jef.ToggleFly();
+                jef.TestInput = true;
+                jef.ClearKeys();
+                jef.Place((float)(model.X + dx / len * ahead), (float)(model.Z + dz / len * ahead), (float)Math.Atan2(dx, dz), 0, (float)town.Walk!.BaseAt(model.X, model.Z));
+                jefRow["inTheWayOf"] = model.Kind;
+                jefMin = double.PositiveInfinity;
+                jefBlocked = 0;
+                Next("jefstand");
+                break;
+            }
+            case "jefstand":
+            case "jefwalk":
+            {
+                var jef = Scheldemist.Player.Jef.I;
+                foreach (var p in crowd!.Walking)
+                {
+                    jefMin = Math.Min(jefMin, Whereabouts.Hypot(p.X - jef.X, p.Z - jef.Z));
+                    if (p.State == "blocked") jefBlocked++;
+                }
+                if (phase == "jefstand")
+                {
+                    if (frames == 400) Shot("people_jef_stand.png");
+                    if (t < 7) break;
+                    jefRow["standing"] = new Dictionary<string, object> { ["nearestAnyoneCameM"] = Math.Round(jefMin, 2), ["framesSomeoneWaitedForHim"] = jefBlocked, ["theWalkerGotPast"] = Whereabouts.Hypot(model!.X - jef.X, model.Z - jef.Z) > 1.2 };
+                    // into the crowd: towards where most of them are
+                    var near = crowd.Walking.OrderBy(p => Whereabouts.Hypot(p.X - jef.X, p.Z - jef.Z)).Take(12).ToList();
+                    double cx = near.Average(p => p.X), cz = near.Average(p => p.Z);
+                    jef.Place(jef.X, jef.Z, (float)Math.Atan2(jef.X - cx, jef.Z - cz), 0, jef.Y);
+                    jef.SetKey(Key.W, true);
+                    jefMin = double.PositiveInfinity;
+                    jefBlocked = 0;
+                    jefFrom = (jef.X, jef.Z);
+                    Next("jefwalk");
+                    break;
+                }
+                if (frames == 600) Shot("people_jef_walk.png");
+                if (t < 6) break;
+                jef.ClearKeys();
+                jefRow["walking"] = new Dictionary<string, object> { ["nearestAnyoneCameM"] = Math.Round(jefMin, 2), ["framesSomeoneWaitedForHim"] = jefBlocked, ["jefWalkedM"] = Math.Round(Whereabouts.Hypot(jef.X - jefFrom.x, jef.Z - jefFrom.z), 1), ["overlaps"] = crowd.Overlaps() };
+                jef.ToggleFly();
+                Next("done");
+                break;
+            }
             case "done":
                 File.WriteAllText(Path.Combine(dir, "peopletest.json"), JsonSerializer.Serialize(new
                 {
@@ -279,6 +342,7 @@ public partial class PeopleTest : Node
                     peopleModelLoadMs = Math.Round(People.Humans.LoadMs, 1),
                     routesWorkedOut = Whereabouts.RoutesMade,
                     whereCheck = where,
+                    jef = jefRow,
                     places = rows,
                 }, new JsonSerializerOptions { WriteIndented = true }));
                 GD.Print("peopletest: written " + Path.Combine(dir, "peopletest.json"));

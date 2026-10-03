@@ -128,7 +128,7 @@ public partial class Townspeople : Node
     public int MaxPuppets = 50;
     /// <summary>Is this tavern or shop ("shop:id") open in the world, so its people go in at the door? The rooms' part sets it; until then they stand before the door.</summary>
     public Func<string, bool> TavernInside = _ => false;
-    /// <summary>The player's body on the ground (walkers stop for it and go round); null: the camera, when it is at eye height.</summary>
+    /// <summary>The player's body on the ground (walkers stop for it and go round); null: Jef, while he walks (not the free camera).</summary>
     public Func<(double x, double z)?>? PlayerBody;
     public Crowd? Crowd { get; private set; }
     public WalkMap? Walk { get; private set; }
@@ -468,8 +468,10 @@ public partial class Townspeople : Node
         var cam = Main.I.Cam;
         var cp = cam.GlobalPosition;
         (double x, double z)? body = null;
+        // Jef's body: walkers stop short of him and go round, the standing step aside when he walks into them
+        // (the browser's rule, crowd.ts: nobody is solid for him but the people at their posts, PostedPeople.cs)
         if (PlayerBody != null) body = PlayerBody();
-        else if (cp.Y - Walk!.BaseAt(cp.X, cp.Z) < 2.5) body = (cp.X, cp.Z);
+        else if (Scheldemist.Player.Jef.I is { Fly: false, Swimming: false } jef) body = (jef.X, jef.Z);
         if (Paused) return;
         ulong t0 = Time.GetTicksUsec();
         Step(delta, cp.X, cp.Z, body);
