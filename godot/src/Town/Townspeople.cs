@@ -136,6 +136,10 @@ public partial class Townspeople : Node
     public int MaxPuppets = 50;
     /// <summary>Is this tavern or shop ("shop:id") open in the world, so its people go in at the door? The rooms' part sets it; until then they stand before the door.</summary>
     public Func<string, bool> TavernInside = _ => false;
+    /// <summary>The doors' part: does this house's door ("tavern:x", "shop:id") stand open now? Not set (or null): open while its keeper is at work. People pass a door's place whatever its state.</summary>
+    public Func<string, bool?>? DoorAt;
+    /// <summary>The people inside the houses that stand in the world with their rooms (Indoors.cs).</summary>
+    public Indoors? Indoors { get; private set; }
     /// <summary>The player's body on the ground (walkers stop for it and go round); null: Jef, while he walks (not the free camera).</summary>
     public Func<(double x, double z)?>? PlayerBody;
     public Crowd? Crowd { get; private set; }
@@ -313,6 +317,7 @@ public partial class Townspeople : Node
     {
         http?.Dispose();
         Crowd?.Dispose();
+        Indoors?.Dispose();
         Models.ModelLibrary.FreeAll();
     }
 
@@ -399,8 +404,24 @@ public partial class Townspeople : Node
             if (Walk!.Sellers.TryGetValue(sh.Keeper, out var v)) sellerSpots[sh.Keeper] = (v[0], v[1], v[2]);
             else sellerSpots[sh.Keeper] = (sh.Wall.X + sh.Out.X * 0.9, sh.Wall.Z + sh.Out.Z * 0.9, Math.Atan2(sh.Out.X, sh.Out.Z));
         }
+        Indoors = new Indoors(this);
+        TavernInside = Indoors.Open;
+        // the other parts' hooks: where someone stands (the bubbles over a talk in the street, the map's marks of people with work)
+        if (Scheldemist.Talks.Bubbles.I is { } bubbles)
+        {
+            bubbles.PositionOf ??= id => PositionOf(id) is { } q ? new Vector3((float)q.x, (float)Walk!.BaseAt(q.x, q.z), (float)q.z) : null;
+            bubbles.InfoOf ??= id => d.Residents.FirstOrDefault(r => r.Id == id) is { } r ? (r.Sex, r.Age) : null;
+        }
+        if (Scheldemist.Game.TownMap.I is { } map) map.PersonAt ??= id => PositionOf(id) is { } q ? new Vector2((float)q.x, (float)q.z) : null;
         Status = "in";
         GD.Print($"townspeople: {d.Residents.Count} residents, {employers.Count} of them employers at their posts, {d.Places.Count} places");
+    }
+
+    /// <summary>Where someone is now, by id: a townsperson in the street or indoors (his door), or one of the people at their posts. Null: not known.</summary>
+    public (double x, double z)? PositionOf(string id)
+    {
+        if (byId.TryGetValue(id, out var s)) return s.P != null ? (s.P.X, s.P.Z) : (s.X, s.Z);
+        return PostedPeople.I?.Get(id) is { } n ? (n.X, n.Z) : null;
     }
 
     /// <summary>The way on foot for the sum (not known until the server sent it; null and known: there is none, he is simply there).</summary>
@@ -524,10 +545,13 @@ public partial class Townspeople : Node
         if (PlayerBody != null) body = PlayerBody();
         else if (Scheldemist.Player.Jef.I is { Fly: false, Swimming: false } jef) body = (jef.X, jef.Z);
         if (Paused) return;
+        // how far the fog lets one see now (the sky's part)
+        if (Scheldemist.World.Daylight.I is { } sky) Crowd.FogDistance = sky.FogFar;
         ulong t0 = Time.GetTicksUsec();
         Step(delta, cp.X, cp.Z, body);
         Crowd.Update(delta, cp.X, cp.Z, body, cam);
         lanterns?.Update(delta, cp, hour);
+        Indoors?.Update(delta, cp);
         Carried.LanternLook(hour, Time.GetTicksMsec() / 1000.0);
         LogicMs = (Time.GetTicksUsec() - t0) / 1000.0;
     }

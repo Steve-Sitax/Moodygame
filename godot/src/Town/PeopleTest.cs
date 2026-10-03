@@ -45,6 +45,8 @@ public partial class PeopleTest : Node
     private int goodsStep;
     private readonly Dictionary<string, object> layersRow = new();
     private Townspeople.Sim? millMan;
+    private readonly Dictionary<string, object> roomsRow = new();
+    private Indoors.House? room;
     private double jefMin;
     private int jefBlocked;
     private (double x, double z) jefFrom;
@@ -144,6 +146,12 @@ public partial class PeopleTest : Node
         double ms = (now - last) / 1000.0;
         last = now;
         var crowd = town.Crowd;
+        // the test holds the clock: the sky follows it (clear weather: the pictures are to be seen)
+        if (Scheldemist.World.Daylight.I is { } sky)
+        {
+            sky.SetTime((float)town.Hour);
+            if (sky.Weather != "clear") sky.SetWeather("clear");
+        }
         switch (phase)
         {
             case "load":
@@ -569,7 +577,7 @@ public partial class PeopleTest : Node
                 var man = men.FirstOrDefault(s => s.R.Work.Place == "mill_ne") ?? men.FirstOrDefault();
                 if (man == null)
                 {
-                    Next("done");
+                    Next("rooms");
                     break;
                 }
                 millMan = man;
@@ -585,7 +593,7 @@ public partial class PeopleTest : Node
                     if (t > 8)
                     {
                         layersRow["millManDrawn"] = false;
-                        Next("done");
+                        Next("rooms");
                     }
                     break;
                 }
@@ -602,11 +610,60 @@ public partial class PeopleTest : Node
                     ["offTheCartsWayM"] = w?.Way != null ? Math.Round(Whereabouts.ProjectOn(w.Way, millMan.P.X, millMan.P.Z).off, 2) : -1,
                     ["behindTheTimetableM"] = w != null ? Math.Round(Whereabouts.Hypot(w.X - millMan.P.X, w.Z - millMan.P.Z), 1) : -1,
                 };
-                Next("done");
+                Next("rooms");
                 break;
             }
 
-            case "done":
+                        case "rooms":
+            {
+                // rooms: the people of the taverns and shops that stand in the world go in at the door and are seen inside
+                town.SetClock(1, 12.2);
+                if (t < 1.2) break;
+                var indoors = town.Indoors;
+                if (indoors == null || indoors.Houses.Count == 0)
+                {
+                    roomsRow["note"] = "no houses with rooms";
+                    Next("done");
+                    break;
+                }
+                var busiest = indoors.Houses.Where(h => indoors.Open(h.Id)).OrderByDescending(h => indoors.Inside(h).Count).FirstOrDefault();
+                roomsRow["housesWithRooms"] = indoors.Houses.Count;
+                roomsRow["openNow"] = indoors.Houses.Count(h => indoors.Open(h.Id));
+                roomsRow["peopleInsideThem"] = indoors.Houses.Sum(h => indoors.Inside(h).Count);
+                roomsRow["standingBeforeATavernDoor"] = town.Sims.Count(s => s.Goal.Mode == "tavern");
+                if (busiest == null)
+                {
+                    Next("done");
+                    break;
+                }
+                room = busiest;
+                roomsRow["shown"] = $"{busiest.Id}: {indoors.Inside(busiest).Count} inside";
+                // from the street, looking in at the door
+                var d = busiest.Door;
+                var o = busiest.Out;
+                Main.I.Cam.LookAtFromPosition(new Vector3((float)(d.X + o.X * 4.5), (float)town.Walk!.BaseAt(d.X + o.X * 2, d.Z + o.Z * 2) + 1.6f, (float)(d.Z + o.Z * 4.5)), new Vector3((float)(d.X - o.X * 3), 1.2f, (float)(d.Z - o.Z * 3)), Vector3.Up);
+                Next("roomsdoor");
+                break;
+            }
+            case "roomsdoor":
+            {
+                if (t < 2.5) break;
+                Shot("people_rooms_from_street.png");
+                roomsRow["figuresDrawnInside"] = town.Indoors!.Drawn;
+                // inside, from just within the door
+                var d = room!.Door;
+                var o = room.Out;
+                var y = (float)town.Walk!.BaseAt(d.X - o.X * 1.5, d.Z - o.Z * 1.5);
+                Main.I.Cam.LookAtFromPosition(new Vector3((float)(d.X - o.X * 0.9), y + 1.6f, (float)(d.Z - o.Z * 0.9)), new Vector3((float)(d.X - o.X * 5), y + 1.1f, (float)(d.Z - o.Z * 5)), Vector3.Up);
+                Next("roomsin");
+                break;
+            }
+            case "roomsin":
+                if (t < 1.5) break;
+                Shot("people_rooms_inside.png");
+                Next("done");
+                break;
+case "done":
                 File.WriteAllText(Path.Combine(dir, "peopletest.json"), JsonSerializer.Serialize(new
                 {
                     ok = true,
@@ -621,6 +678,7 @@ public partial class PeopleTest : Node
                     postedPeople = postedRow,
                     carried = goodsRow,
                     layers = layersRow,
+                    rooms = roomsRow,
                     places = rows,
                 }, new JsonSerializerOptions { WriteIndented = true }));
                 GD.Print("peopletest: written " + Path.Combine(dir, "peopletest.json"));
