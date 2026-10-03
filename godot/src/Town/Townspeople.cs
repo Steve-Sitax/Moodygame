@@ -145,6 +145,8 @@ public partial class Townspeople : Node
     private readonly Dictionary<string, Game> games = new();
     private readonly Dictionary<string, Pt[]?> ways = new();
     private readonly HashSet<string> wayAsk = new();
+    /// <summary>Asked for, the answer not in yet.</summary>
+    private readonly HashSet<string> wayAsked = new();
     private readonly ConcurrentQueue<Action> inbox = new();
     private readonly Random rng = new();
     private System.Net.Http.HttpClient? http;
@@ -353,7 +355,7 @@ public partial class Townspeople : Node
     {
         string k = Whereabouts.WayKey(ax, az, bx, bz);
         known = ways.TryGetValue(k, out var w);
-        if (!known) wayAsk.Add(k);
+        if (!known && !wayAsked.Contains(k)) wayAsk.Add(k);
         return w;
     }
 
@@ -365,7 +367,11 @@ public partial class Townspeople : Node
         wayAskT = wayAsk.Count > 60 ? 1 : 3;
         wayAsk.RemoveWhere(k => ways.ContainsKey(k));
         var keys = wayAsk.Take(60).ToList();
-        foreach (var k in keys) wayAsk.Remove(k);
+        foreach (var k in keys)
+        {
+            wayAsk.Remove(k);
+            wayAsked.Add(k);
+        }
         if (keys.Count == 0) return;
         _ = Task.Run(async () =>
         {
@@ -376,7 +382,11 @@ public partial class Townspeople : Node
                 var got = ParseWays(await res.Content.ReadAsStringAsync().ConfigureAwait(false));
                 inbox.Enqueue(() =>
                 {
-                    foreach (var k in keys) ways[k] = got.GetValueOrDefault(k);
+                    foreach (var k in keys)
+                    {
+                        wayAsked.Remove(k);
+                        ways[k] = got.GetValueOrDefault(k);
+                    }
                     Whereabouts.WaysLearnt();
                 });
             }
@@ -384,14 +394,21 @@ public partial class Townspeople : Node
             {
                 inbox.Enqueue(() =>
                 {
-                    foreach (var k in keys) wayAsk.Add(k);
+                    foreach (var k in keys)
+                    {
+                        wayAsked.Remove(k);
+                        wayAsk.Add(k);
+                    }
                 });
             }
         });
     }
 
-    /// <summary>Ways still asked for (a check waits for none).</summary>
-    public int WaysWaiting => waysIn ? wayAsk.Count : -1;
+    /// <summary>For a check: a resident's day as he keeps it, one stop after the other.</summary>
+    public string DescribeDay(Resident r, int day) => Whereabouts.DescribeDay(r, Data!, day, WayOf);
+
+    /// <summary>Ways still asked for or on their way here (a check waits for none); -1: the town's ways are not in yet.</summary>
+    public int WaysWaiting => waysIn ? wayAsk.Count + wayAsked.Count : -1;
 
     /// <summary>Where the shared sum puts a person now, late by his progress reports, or null when his goal is not his plan's own.</summary>
     public Whereabouts.Where? WhereNow(Sim s) => Data == null || !s.Plain ? null : Whereabouts.WhereLate(s.R, Data, day, hour, WayOf, s.Lag);

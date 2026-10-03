@@ -464,6 +464,10 @@ public static class Whereabouts
         return arr;
     }
 
+    /// <summary>For a check: his day as he keeps it, one stop a line (the part, when he gets there, the walk there).</summary>
+    public static string DescribeDay(Resident r, TownData town, int day, WayOf way) =>
+        string.Join(" | ", DayRoute(r, town, day, way).Select(s => FormattableString.Invariant($"{s.Part.Act}:{s.Part.Place} {s.Part.Start:F2}-{s.Part.End:F2} at {s.At.X:F1},{s.At.Z:F1} arrive {s.Arrive:F3} walk {(s.Walk == null ? "none" : $"{s.Walk.Total:F1} m {s.Walk.Pts.Length} pts")}")));
+
     /// <summary>His running pace, if he is one who runs at all (the young and children), else null.</summary>
     private static double? RunPace(Resident r)
     {

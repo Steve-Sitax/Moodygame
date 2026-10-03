@@ -148,8 +148,10 @@ public partial class PeopleTest : Node
                 waited += delta;
                 if (waited < 1 && frames > 1) break;
                 waited = 0;
+                // (a sum that asked for a way is worked out again once it is in: compared only when nothing is asked for)
+                bool settled = town.WaysWaiting == 0;
                 where = WhereCheck(Path.Combine(dir, "where_expected.json"));
-                if (town.WaysWaiting == 0 || t > 60) Next("warm");
+                if ((settled && town.WaysWaiting == 0) || t > 60) Next("warm");
                 break;
             case "warm":
                 if (!Go() && rows.Count > 0)
