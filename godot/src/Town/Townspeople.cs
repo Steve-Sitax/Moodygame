@@ -1,0 +1,1363 @@
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
+using System.Threading.Tasks;
+using Godot;
+using Scheldemist.People;
+using Scheldemist.World;
+
+namespace Scheldemist.Town;
+
+/// <summary>
+/// The town (the browser's game/town.ts): the residents the server made (homes, families, trades, schedules) living
+/// by the game clock. Everyone is simulated cheaply by schedule: where they should be now, and a walk there along
+/// the way on foot the server found (Whereabouts.cs: the same sum the server's town map and the browser use). Only
+/// those near the viewer become people in the street: puppets of the crowd (Crowd.cs), which walks them on its grid.
+/// Here each one gets told what to do: come out of their door, walk to work, stand at the stall, walk between the
+/// quay and the door, walk the beat, play tag, stand at the tavern door, walk home and go in.
+///
+/// Options: --server http://127.0.0.1:PORT (the town comes from its /api/town, the ways from /api/town/ways),
+/// --hour 13.5 and --day 1 (the clock, until the game state part sets it: SetClock), --walk file (the bake's walk
+/// dump, town_walk.json; else beside the town, else baked/town_walk.json).
+///
+/// Not ported yet (each is a later step of the port; the hooks are named as in town.ts): the board's employers as
+/// people.ts stands them (here they keep their own day plan), journeys (velocipedes, carts, the omnibus, boats), the dispatcher's trade runs, the
+/// mills' carts, the docks' real loads, the back streets' and lively's own goals, the market's browsing, the great
+/// storm, thieves at Jef's pocket, lanterns, dogs at heel, the stalls' awnings, played together.
+/// </summary>
+[GamePart(200)]
+public partial class Townspeople : Node
+{
+    private const double SpawnR = 55;
+    /// <summary>A person due in the street in view steps in at once beyond this (m), nearer after a wait.</summary>
+    private const double DueFar = 40;
+    /// <summary>A running townsperson seen in the street hurries at most this fast (m/s): the walk cycle, sped up, still reads.</summary>
+    private const double SeenRunMax = 2.0;
+    private const double DueWaitMs = 2500;
+    private const double DueNear = 20;
+    private const double DueNearWaitMs = 8000;
+    /// <summary>With the street full, someone due this much nearer (m) than the farthest drawn one takes his place.</summary>
+    private const double SwapGap = 12;
+    private const double DespawnR = 68;
+    /// <summary>Unseen and off their plan, people cross town at this pace (m/s).</summary>
+    private const double HiddenSpeed = 6;
+    /// <summary>The unseen take a coarse step every this many frames, in turns.</summary>
+    private const int CoarseEvery = 4;
+    /// <summary>A way not sent by the server after this many seconds: an unseen walker goes straight on meanwhile.</summary>
+    private const double WayWaitS = 20;
+
+    public sealed class Goal
+    {
+        /// <summary>home, inside, church, stand, haul, patrol, roam, play, market, loiter, tavern, stroll, thief, guard, inspect.</summary>
+        public string Mode = "home";
+        public double X, Z;
+        public double? Yaw;
+        public string? Motion;
+        /// <summary>Spread over this radius (market, play, loiter, stroll).</summary>
+        public double? R;
+        public Pt[]? Route;
+        public Pt? A, B;
+        public string? Place;
+        public double[]? Faces;
+    }
+
+    public sealed class Sim
+    {
+        public Resident R = null!;
+        public string Kind = "";
+        public double X, Z;
+        public bool Inside;
+        /// <summary>The door they went in at (to come out of it again).</summary>
+        public Pt Door;
+        public string Key = "";
+        public Goal Goal = new();
+        public Puppet? P;
+        public int Step;
+        public double Wait;
+        public bool ToB;
+        /// <summary>The last walk has ended and the pause there has begun.</summary>
+        public bool Arrived;
+        public int Tries;
+        public string Tav = "";
+        public double OutAt;
+        /// <summary>0-1, stable per person (spread, who talks when).</summary>
+        public double H;
+        public int Ph;
+        public double? Face;
+        /// <summary>His goal is his day plan's own, so unseen he walks the shared sum (Whereabouts.cs).</summary>
+        public bool Plain;
+        public double? DueAt;
+        public double DueLast;
+        /// <summary>How far behind his day he is (game hours), held up in view (Whereabouts.ReportLag).</summary>
+        public double Lag;
+        public double CoarseDt;
+        internal HiddenWay? Hw;
+        internal Station? Round;
+    }
+
+    internal sealed class HiddenWay
+    {
+        public double Tx, Tz, Asked;
+        public string Key = "";
+        public Pt[]? Pts;
+        public int I = 1;
+        public bool Straight;
+    }
+
+    internal sealed class Station
+    {
+        public string Key = "";
+        public double X, Z, Wait;
+        public string Phase = "rest";
+    }
+
+    private sealed class Game
+    {
+        public Sim? It, Last;
+        public double Frozen;
+    }
+
+    /// <summary>The town as the server gave it; null until it is in.</summary>
+    public TownData? Data { get; private set; }
+    /// <summary>How many townspeople walk in the street round the viewer at once (the browser's Settings, "People in the street").</summary>
+    public int MaxPuppets = 50;
+    /// <summary>Is this tavern or shop ("shop:id") open in the world, so its people go in at the door? The rooms' part sets it; until then they stand before the door.</summary>
+    public Func<string, bool> TavernInside = _ => false;
+    /// <summary>The player's body on the ground (walkers stop for it and go round); null: the camera, when it is at eye height.</summary>
+    public Func<(double x, double z)?>? PlayerBody;
+    public Crowd? Crowd { get; private set; }
+    public WalkMap? Walk { get; private set; }
+    public IReadOnlyList<Sim> Sims => sims;
+    /// <summary>The board's employers: residents who stand at their post like Sooi (the browser's people.ts; here still walked as townspeople).</summary>
+    public IReadOnlyList<Resident> EmployerResidents => employers;
+    public string Status { get; private set; } = "off";
+    public int BakedHidden { get; private set; }
+
+    private readonly List<Sim> sims = new();
+    private readonly Dictionary<string, Sim> byId = new();
+    private readonly List<Resident> employers = new();
+    private readonly Dictionary<string, (double x, double z, double yaw)> sellerSpots = new();
+    private readonly Dictionary<string, Game> games = new();
+    private readonly Dictionary<string, Pt[]?> ways = new();
+    private readonly HashSet<string> wayAsk = new();
+    /// <summary>Asked for, the answer not in yet.</summary>
+    private readonly HashSet<string> wayAsked = new();
+    private readonly ConcurrentQueue<Action> inbox = new();
+    private readonly Random rng = new();
+    private System.Net.Http.HttpClient? http;
+    private string server = "";
+    private double wayAskT, thinkT, spawnT, lagT, lagAt = -1;
+    private int coarseTurn;
+    private bool filled, waysIn;
+    private double px, pz;
+    private int day = 1;
+    private double hour = 13;
+    /// <summary>The clock runs on by itself at the game's rate (a game hour is two real minutes: shared/clock.ts).</summary>
+    public bool ClockRuns = true;
+
+    /// <summary>A check: the town stands still (no steps, no clips), to time a frame without its logic.</summary>
+    public bool Paused;
+    /// <summary>What the town's and the crowd's logic took in the last frame (ms): the plan, the walking, the clips.</summary>
+    public double LogicMs { get; private set; }
+
+    public int Day => day;
+    public double Hour => hour;
+
+    /// <summary>Set the game clock (day 1 = Monday; hour with its fraction). The game state part calls this once it is in.</summary>
+    public void SetClock(int day, double hour)
+    {
+        this.day = day;
+        this.hour = hour;
+    }
+
+    /// <summary>The viewer was moved by a jump (a test, a fast travel): the street round him fills at once, as at the start.</summary>
+    public void Refill() => filled = false;
+
+    private double Rnd(double a, double b) => a + rng.NextDouble() * (b - a);
+    private static double Dist(double ax, double az, double bx, double bz) => Math.Sqrt((ax - bx) * (ax - bx) + (az - bz) * (az - bz));
+    private static double NowMs => Time.GetTicksMsec();
+    private static double Hash01(string s) => Whereabouts.HashId(s) / 4294967296.0;
+
+    /// <summary>Fallbacks if people.glb is older than the town (it should not be).</summary>
+    private static readonly Dictionary<string, string> KindFallback = new()
+    {
+        ["baker"] = "docker_c", ["shopkeeper"] = "recipient", ["publican"] = "foreman", ["clerk"] = "gentleman", ["old_man"] = "docker_b", ["beggar"] = "thief",
+        ["wife_a"] = "fishwife_a", ["wife_b"] = "fishwife_b", ["shopwife"] = "maid", ["old_woman"] = "fishwife_b", ["urchin"] = "boy", ["girl_b"] = "girl",
+        ["soldier"] = "police", ["soldier_b"] = "police", ["sentry"] = "police", ["customs"] = "police",
+    };
+
+    public override void _Ready()
+    {
+        var main = Main.I;
+        server = main.Arg("server", "").TrimEnd('/');
+        hour = double.TryParse(main.Arg("hour", "13"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var h) ? h : 13;
+        day = int.TryParse(main.Arg("day", "1"), out var d) ? d : 1;
+        if (!Humans.Ready)
+        {
+            Status = "no people.glb (node tools/godot/models.mjs)";
+            GD.PrintErr("townspeople: " + Status);
+            return;
+        }
+        string townGlb = main.Arg("town", OS.GetEnvironment("SCHELDEMIST_BAKE") is { Length: > 0 } b ? b : ProjectSettings.GlobalizePath("res://baked/town.glb"));
+        string[] tries = { main.Arg("walk", ""), Path.Combine(Path.GetDirectoryName(townGlb) ?? ".", Path.GetFileNameWithoutExtension(townGlb) + "_walk.json"), ProjectSettings.GlobalizePath("res://baked/town_walk.json") };
+        foreach (var t in tries)
+        {
+            if (t == "" || (Walk = WalkMap.Load(t)) == null) continue;
+            break;
+        }
+        if (Walk == null)
+        {
+            Status = "no walk dump (node tools/godot/export-scene.mjs --walk-only)";
+            GD.PrintErr("townspeople: " + Status);
+            return;
+        }
+        Crowd = new Crowd(main.View, Walk);
+        var facts = main.World.Facts.RootElement.GetProperty("facts");
+        if (facts.TryGetProperty("fog", out var fog) && fog.ValueKind == JsonValueKind.Object && fog.TryGetProperty("far", out var far) && far.ValueKind == JsonValueKind.Number) Crowd.FogDistance = far.GetDouble();
+        if (server == "")
+        {
+            Status = "no server (--server http://127.0.0.1:PORT): no townspeople";
+            GD.Print("townspeople: " + Status);
+            return;
+        }
+        http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+        Status = "loading";
+        _ = LoadTown();
+    }
+
+    /// <summary>The four of the Rijnkaai (the browser's people.ts): they stand where the bake has them until their part is ported.</summary>
+    private static readonly HashSet<string> Fixed = new() { "sooi", "peeters", "tuur", "fientje" };
+
+    /// <summary>
+    /// The townspeople frozen into the bake (whoever the browser's crowd drew at that moment: an unnamed group at the
+    /// scene's root holding the model's root, named after its kind): hidden; the live ones are drawn instead. Figures
+    /// of other parts stay as they are until those parts are ported: the people on the omnibuses and drays, at the
+    /// Steen, aboard the ships, at the trades (they hang under their part's own node), and the Rijnkaai's four.
+    /// </summary>
+    private void HideBaked()
+    {
+        var scene = Main.I.World.GetChildCount() > 0 ? Main.I.World.GetChild(0) : null;
+        foreach (var n in BakedWorld.All(Main.I.World).ToList())
+        {
+            if (n is not Skeleton3D) continue;
+            Node? a = n.GetParent();
+            for (int up = 0; up < 3 && a != null; up++, a = a.GetParent())
+            {
+                string kind = a.Name.ToString().TrimEnd('0', '1', '2', '3', '4', '5', '6', '7', '8', '9');
+                if (!Humans.IsKind(kind)) continue;
+                if (!Fixed.Contains(kind) && a.GetParent() is Node3D group && group.GetParent() == scene)
+                {
+                    if (group.Visible) BakedHidden++;
+                    group.Visible = false;
+                }
+                break;
+            }
+        }
+    }
+
+    public override void _ExitTree()
+    {
+        http?.Dispose();
+        Crowd?.Dispose();
+        Models.ModelLibrary.FreeAll();
+    }
+
+    // ------------------------------------------------------------------ the server (never waited for in a frame)
+
+    private async Task LoadTown()
+    {
+        // the server may still be starting: ask again, waiting longer each time
+        for (int wait = 2000; ; wait = Math.Min(wait * 2, 30_000))
+        {
+            try
+            {
+                string json = await http!.GetStringAsync(server + "/api/town").ConfigureAwait(false);
+                var d = TownData.Parse(json);
+                inbox.Enqueue(() => TownIn(d));
+                break;
+            }
+            catch (Exception e)
+            {
+                GD.Print($"townspeople: the town did not load ({e.Message}); again in {wait / 1000} s");
+                await Task.Delay(wait).ConfigureAwait(false);
+            }
+        }
+        for (int wait = 2000; ; wait = Math.Min(wait * 2, 30_000))
+        {
+            try
+            {
+                string json = await http!.GetStringAsync(server + "/api/town/ways").ConfigureAwait(false);
+                var got = ParseWays(json);
+                inbox.Enqueue(() =>
+                {
+                    foreach (var (k, w) in got)
+                    {
+                        ways[k] = w;
+                        wayAsk.Remove(k);
+                    }
+                    waysIn = true;
+                    Whereabouts.WaysLearnt();
+                });
+                break;
+            }
+            catch (Exception e)
+            {
+                GD.Print($"townspeople: the town's ways did not load ({e.Message}); again in {wait / 1000} s");
+                await Task.Delay(wait).ConfigureAwait(false);
+            }
+        }
+    }
+
+    private static Dictionary<string, Pt[]?> ParseWays(string json)
+    {
+        var o = new Dictionary<string, Pt[]?>();
+        using var doc = JsonDocument.Parse(json);
+        foreach (var e in doc.RootElement.GetProperty("ways").EnumerateObject())
+            o[e.Name] = e.Value.ValueKind == JsonValueKind.Array ? e.Value.EnumerateArray().Select(p => new Pt(p[0].GetDouble(), p[1].GetDouble())).ToArray() : null;
+        return o;
+    }
+
+    private void TownIn(TownData d)
+    {
+        Data = d;
+        HideBaked();
+        foreach (var r in d.Residents)
+        {
+            // the kind is checked against people.glb when they first step out
+            var s = new Sim { R = r, Kind = r.Kind, X = r.HomeSx, Z = r.HomeSz, Inside = true, Door = new Pt(r.HomeSx, r.HomeSz), Goal = new Goal { Mode = "home", X = r.HomeSx, Z = r.HomeSz }, H = Hash01(r.Id) };
+            sims.Add(s);
+            byId[r.Id] = s;
+        }
+        // The board's employers stand at their post like Sooi (the browser's people.ts takes them out of the town's
+        // list). Until that part is ported they stay in it: by their own day plan, arms folded at their post.
+        foreach (var (id, _) in d.Employers)
+            if (byId.TryGetValue(id, out var s)) employers.Add(s.R);
+        // where the keepers stand (game/stalls.ts): behind the stall; by the shop's table (the bake's spots), else on the step
+        foreach (var st in d.Stalls)
+            if (st.Keeper != null) sellerSpots[st.Keeper] = (st.X - st.Face.X * 1.15, st.Z - st.Face.Z * 1.15, Math.Atan2(st.Face.X, st.Face.Z));
+        foreach (var sh in d.Shops)
+        {
+            if (sh.Goods == null) continue;
+            if (Walk!.Sellers.TryGetValue(sh.Keeper, out var v)) sellerSpots[sh.Keeper] = (v[0], v[1], v[2]);
+            else sellerSpots[sh.Keeper] = (sh.Wall.X + sh.Out.X * 0.9, sh.Wall.Z + sh.Out.Z * 0.9, Math.Atan2(sh.Out.X, sh.Out.Z));
+        }
+        Status = "in";
+        GD.Print($"townspeople: {d.Residents.Count} residents, {employers.Count} of them employers at their posts, {d.Places.Count} places");
+    }
+
+    /// <summary>The way on foot for the sum (not known until the server sent it; null and known: there is none, he is simply there).</summary>
+    private Pt[]? WayOf(double ax, double az, double bx, double bz, out bool known)
+    {
+        string k = Whereabouts.WayKey(ax, az, bx, bz);
+        known = ways.TryGetValue(k, out var w);
+        if (!known && !wayAsked.Contains(k)) wayAsk.Add(k);
+        return w;
+    }
+
+    private void AskWays(double dt)
+    {
+        wayAskT -= dt;
+        if (wayAskT > 0 || wayAsk.Count == 0 || !waysIn) return;
+        // (every 3 s; every second while many wait)
+        wayAskT = wayAsk.Count > 60 ? 1 : 3;
+        wayAsk.RemoveWhere(k => ways.ContainsKey(k));
+        var keys = wayAsk.Take(60).ToList();
+        foreach (var k in keys)
+        {
+            wayAsk.Remove(k);
+            wayAsked.Add(k);
+        }
+        if (keys.Count == 0) return;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var body = new StringContent(JsonSerializer.Serialize(new { keys }), Encoding.UTF8, "application/json");
+                var res = await http!.PostAsync(server + "/api/town/ways", body).ConfigureAwait(false);
+                var got = ParseWays(await res.Content.ReadAsStringAsync().ConfigureAwait(false));
+                inbox.Enqueue(() =>
+                {
+                    foreach (var k in keys)
+                    {
+                        wayAsked.Remove(k);
+                        ways[k] = got.GetValueOrDefault(k);
+                    }
+                    Whereabouts.WaysLearnt();
+                });
+            }
+            catch (Exception)
+            {
+                inbox.Enqueue(() =>
+                {
+                    foreach (var k in keys)
+                    {
+                        wayAsked.Remove(k);
+                        wayAsk.Add(k);
+                    }
+                });
+            }
+        });
+    }
+
+    /// <summary>For a check: a resident's day as he keeps it, one stop after the other.</summary>
+    public string DescribeDay(Resident r, int day) => Whereabouts.DescribeDay(r, Data!, day, WayOf);
+
+    /// <summary>Ways still asked for or on their way here (a check waits for none); -1: the town's ways are not in yet.</summary>
+    public int WaysWaiting => waysIn ? wayAsk.Count + wayAsked.Count : -1;
+
+    /// <summary>Where the shared sum puts a person now, late by his progress reports, or null when his goal is not his plan's own.</summary>
+    public Whereabouts.Where? WhereNow(Sim s) => Data == null || !s.Plain ? null : Whereabouts.WhereLate(s.R, Data, day, hour, WayOf, s.Lag);
+
+    /// <summary>The plain sum for anyone (a check against the server's own).</summary>
+    public Whereabouts.Where? WhereOf(Resident r, int day, double hour) => Data == null ? null : Whereabouts.WhereAt(r, Data, day, hour, WayOf);
+
+    private double GameMin => (day - 1) * 1440 + hour * 60;
+
+    /// <summary>Twice a second: the people walked here on their way keep how far behind the sum they are; a lag no longer needed goes.</summary>
+    private void Progress(double dt)
+    {
+        lagT -= dt;
+        if (lagT > 0) return;
+        lagT = 0.5;
+        double now = GameMin;
+        // the clock jumped (sleep, a skip, a test): nobody is late across a jump
+        bool jumped = lagAt >= 0 && Math.Abs(now - lagAt) > 30;
+        double ranH = jumped || lagAt < 0 ? 0 : Math.Max(0, now - lagAt) / 60 + 0.02;
+        lagAt = now;
+        foreach (var s in sims)
+        {
+            if (jumped) s.Lag = 0;
+            if (s.P != null && s.Plain) s.Lag = Math.Min(Whereabouts.ReportLag(s.R, Data!, day, hour, WayOf, s.Lag, s.P.X, s.P.Z), s.Lag + ranH);
+            else if (s.Lag > 0) s.Lag = Whereabouts.SettleLag(s.R, Data!, day, hour, WayOf, s.Lag);
+        }
+    }
+
+    // ------------------------------------------------------------------ per frame
+
+    public override void _Process(double delta)
+    {
+        while (inbox.TryDequeue(out var a)) a();
+        if (Data == null || Crowd == null) return;
+        if (ClockRuns)
+        {
+            hour += delta / 120;
+            if (hour >= 24)
+            {
+                hour -= 24;
+                day = day % 7 + 1;
+            }
+        }
+        var cam = Main.I.Cam;
+        var cp = cam.GlobalPosition;
+        (double x, double z)? body = null;
+        if (PlayerBody != null) body = PlayerBody();
+        else if (cp.Y - Walk!.BaseAt(cp.X, cp.Z) < 2.5) body = (cp.X, cp.Z);
+        if (Paused) return;
+        ulong t0 = Time.GetTicksUsec();
+        Step(delta, cp.X, cp.Z, body);
+        Crowd.Update(delta, cp.X, cp.Z, body, cam);
+        LogicMs = (Time.GetTicksUsec() - t0) / 1000.0;
+    }
+
+    private void Step(double dt, double vx, double vz, (double x, double z)? body)
+    {
+        px = vx;
+        pz = vz;
+        AskWays(dt);
+        Progress(dt);
+        thinkT -= dt;
+        if (thinkT <= 0)
+        {
+            thinkT = 0.25;
+            foreach (var s in sims) Reschedule(s, !filled);
+        }
+        foreach (var g in games.Values) g.Frozen -= dt;
+        coarseTurn = (coarseTurn + 1) % CoarseEvery;
+        int n = 0;
+        // (a list of its own: a person who goes in at a door leaves the crowd inside the loop)
+        for (int i = 0; i < sims.Count; i++)
+        {
+            var s = sims[i];
+            n++;
+            if (s.P != null && !Crowd!.Alive(s.P)) Lose(s);
+            if (s.P != null)
+            {
+                s.X = s.P.X;
+                s.Z = s.P.Z;
+                Behave(s, dt, body);
+                if (s.P != null && Dist(s.X, s.Z, vx, vz) > DespawnR) Lose(s, true);
+            }
+            else if (!s.Inside)
+            {
+                // the unseen take turns, each one every CoarseEvery frames with the time since; where the shared sum
+                // puts him comes from the clock, so he is where he would have been
+                s.CoarseDt += dt;
+                if (n % CoarseEvery == coarseTurn)
+                {
+                    Coarse(s, s.CoarseDt);
+                    s.CoarseDt = 0;
+                }
+                continue;
+            }
+            s.CoarseDt = 0;
+        }
+        spawnT -= dt;
+        if (spawnT <= 0)
+        {
+            spawnT = 0.3;
+            Spawn(!filled);
+            filled = true;
+        }
+    }
+
+    // ------------------------------------------------------------------ the schedule
+
+    private void Reschedule(Sim s, bool first)
+    {
+        var now = PlanNow(s);
+        string key = $"{now.Act}:{now.Place}";
+        // a publican (or a drinker) whose tavern opens or shuts gets his goal again, the key unchanged
+        string tavPlace = now.Act == "tavern" ? now.Place : now.Act == "work" && s.R.Work.Kind == "tavern" ? s.R.Work.Place : now.Act == "work" && s.R.Work.Kind == "shop" && s.R.Work.Shop != null ? $"shop:{s.R.Work.Shop}" : "";
+        string tav = tavPlace != "" ? (TavernInside(tavPlace) ? "in" : "out") : "";
+        if (key == s.Key && tav == s.Tav) return;
+        s.Tav = tav;
+        s.Key = key;
+        s.Goal = GoalFor(s, now);
+        s.Step = 0;
+        s.Tries = 0;
+        s.Wait = 0;
+        bool goesIn = s.Goal.Mode is "home" or "inside" or "church";
+        var on = first ? WhereNow(s) : null;
+        if (on != null && on.Walked < on.Total)
+        {
+            // the start, and he is on his way (where the town map has him too)
+            s.Inside = false;
+            s.X = on.X;
+            s.Z = on.Z;
+        }
+        else if (first)
+        {
+            // the start: everyone is where the clock says, no walking
+            if (goesIn)
+            {
+                s.Inside = true;
+                s.Door = new Pt(s.Goal.X, s.Goal.Z);
+            }
+            else
+            {
+                var a = Anchor(s);
+                s.Inside = false;
+                s.X = a.X;
+                s.Z = a.Z;
+            }
+        }
+        else if (s.Inside && !(goesIn && s.Door.X == s.Goal.X && s.Door.Z == s.Goal.Z))
+        {
+            // out of the door they went in at
+            s.Inside = false;
+            s.X = s.Door.X;
+            s.Z = s.Door.Z;
+            s.OutAt = NowMs;
+        }
+        if (s.P != null) Direct(s);
+    }
+
+    private TownPlace? Place(string? id) => id != null && Data!.Places.TryGetValue(id, out var p) ? p : null;
+
+    /// <summary>A point in a place, the same for the same person (no jumping about).</summary>
+    private static Pt Spot(TownPlace pl, Sim s, double spread = 0.65)
+    {
+        double a = s.H * Math.PI * 2 * 7;
+        double d = Math.Sqrt(Hash01(s.R.Id + "d")) * pl.R * spread;
+        return new Pt(pl.X + Math.Cos(a) * d, pl.Z + Math.Sin(a) * d);
+    }
+
+    private Goal GoalFor(Sim s, Now now)
+    {
+        // (only a goal of the plan's own is walked by the shared sum unseen; the mills', the back streets' and lively's goals come with their parts)
+        s.Plain = true;
+        var r = s.R;
+        var w = r.Work;
+        Goal Home() => new() { Mode = "home", X = r.HomeSx, Z = r.HomeSz };
+        switch (now.Act)
+        {
+            case "home":
+                return Home();
+            case "church":
+            {
+                var c = Place("church");
+                return new Goal { Mode = "church", X = c?.X ?? -262, Z = c?.Z ?? 142 };
+            }
+            case "tavern":
+            {
+                var t = Place(now.Place);
+                if (t == null) return Home();
+                // in at the open door: inside they drink at the tables, seen through the windows
+                if (TavernInside(now.Place)) return new Goal { Mode = "inside", X = t.X, Z = t.Z };
+                double ox = t.Out?.X ?? 0, oz = t.Out?.Z ?? -1;
+                // a half ring before the door, facing it
+                double a = (s.H - 0.5) * 2.4;
+                double x = t.X + ox * 2.2 + (Math.Cos(a) * ox - Math.Sin(a) * oz) * 0.8 - oz * (s.H - 0.5) * 3;
+                double z = t.Z + oz * 2.2 + (Math.Sin(a) * ox + Math.Cos(a) * oz) * 0.8 + ox * (s.H - 0.5) * 3;
+                return new Goal { Mode = "tavern", X = x, Z = z, Yaw = Math.Atan2(t.X - x, t.Z - z), Motion = "idle" };
+            }
+            case "play":
+            case "market":
+            case "stroll":
+            case "loiter":
+            {
+                // soldiers walking out: their round of the town, the pair side by side (Pair)
+                if (now.Act == "stroll" && r.Trade == "soldier" && w.Route is { Length: > 0 }) return new Goal { Mode = "roam", X = w.Route[0].X, Z = w.Route[0].Z, Route = w.Route, Place = now.Place };
+                var pl = Place(now.Place) ?? Place(w.Place) ?? Place("rijnkaai")!;
+                var q = Spot(pl, s);
+                return new Goal { Mode = now.Act, X = q.X, Z = q.Z, R = pl.R, Place = now.Place };
+            }
+        }
+        switch (w.Kind)
+        {
+            case "stall":
+            case "shop":
+            {
+                // the keeper and his wife serve inside while the shop's room stands open in the world
+                var sp = w.Kind == "shop" && w.Shop != null ? Place(w.Shop) : null;
+                if (sp != null && TavernInside($"shop:{w.Shop}")) return new Goal { Mode = "inside", X = sp.Door?.X ?? sp.X, Z = sp.Door?.Z ?? sp.Z };
+                if (sellerSpots.TryGetValue(r.Id, out var at)) return new Goal { Mode = "stand", X = at.x, Z = at.z, Yaw = at.yaw, Motion = "idle" };
+                break;
+            }
+            case "haul":
+                if (w.A != null && w.B != null) return new Goal { Mode = "haul", X = w.A.Value.X, Z = w.A.Value.Z, A = w.A, B = w.B };
+                break;
+            case "patrol":
+                if (w.Route is { Length: > 0 }) return new Goal { Mode = "patrol", X = w.Route[0].X, Z = w.Route[0].Z, Route = w.Route };
+                break;
+            case "roam":
+                if (r.Trade == "thief" && w.Route is { Length: > 0 }) return new Goal { Mode = "thief", X = w.Route[0].X, Z = w.Route[0].Z, Route = w.Route };
+                if (r.Trade is "child" or "street_child")
+                {
+                    var pl = Place(w.Place) ?? Place("play:vismarkt")!;
+                    var q = Spot(pl, s);
+                    return new Goal { Mode = "play", X = q.X, Z = q.Z, R = pl.R, Place = w.Place };
+                }
+                if (w.Route is { Length: > 0 }) return new Goal { Mode = "roam", X = w.Route[0].X, Z = w.Route[0].Z, Route = w.Route };
+                break;
+            case "inside":
+                return w.Door != null ? new Goal { Mode = "inside", X = w.Door.Value.X, Z = w.Door.Value.Z } : Home();
+            case "tavern":
+            {
+                // the publican stands behind his counter while the tavern is open
+                var t = Place(w.Place);
+                if (t != null && TavernInside(w.Place)) return new Goal { Mode = "inside", X = t.X, Z = t.Z };
+                break;
+            }
+            case "guard":
+                // a sentry at his post, rifle at the shoulder; the corporal in front, watching his men
+                if (w.At != null) return new Goal { Mode = "guard", X = w.At[0], Z = w.At[1], Yaw = w.At[2], Motion = r.Trade == "corporal" ? "fold" : "idle" };
+                break;
+            case "inspect":
+                if (w.Route is { Length: > 0 }) return new Goal { Mode = "inspect", X = w.Route[0].X, Z = w.Route[0].Z, Route = w.Route, Faces = w.Faces };
+                break;
+            case "wait":
+                // emigrants: on the family's chest (men), or standing beside it
+                if (w.At != null) return new Goal { Mode = "stand", X = w.At[0], Z = w.At[1], Yaw = w.At[2], Motion = w.Seat ? "sit" : "idle" };
+                break;
+        }
+        if (w.At != null) return new Goal { Mode = "stand", X = w.At[0], Z = w.At[1], Yaw = w.At[2], Motion = w.Motion ?? (w.Kind == "post" ? "fold" : "idle") };
+        {
+            var pl = Place(w.Place) ?? Place("rijnkaai")!;
+            var q = Spot(pl, s);
+            return new Goal { Mode = "loiter", X = q.X, Z = q.Z, R = pl.R, Place = w.Place };
+        }
+    }
+
+    /// <summary>Where their goal is (a trip's end): the stand, the door, the first point of a round.</summary>
+    public Pt Anchor(Sim s)
+    {
+        var g = s.Goal;
+        if (g.Mode == "haul" && g.A != null) return g.A.Value;
+        if (g.Route is { Length: > 0 }) return g.Route[s.Step % g.Route.Length];
+        return new Pt(g.X, g.Z);
+    }
+
+    /// <summary>Nobody sees them: a walk to where they should be, along the way on foot (the last steps straight).</summary>
+    private void Coarse(Sim s, double dt)
+    {
+        // on the way between two places of his plan, or on his round, the shared sum has him (as the town map does)
+        var on = WhereNow(s);
+        if (on != null && (on.Walked < on.Total || on.Leg != null))
+        {
+            s.X = on.X;
+            s.Z = on.Z;
+            if (on.Leg != null)
+            {
+                s.Step = on.Leg.Value;
+                s.ToB = on.Leg == 1;
+            }
+            else s.ToB = false; // (on his way to work he comes empty-handed to where he takes the loads up)
+            return;
+        }
+        // (the pairs on a round keep together unseen too)
+        var lead = s.Goal.Mode is "roam" or "patrol" ? LeadOf(s) : null;
+        if (lead != null) s.Step = lead.Step;
+        var t = lead != null ? new Pt(lead.X + 0.6, lead.Z) : Anchor(s);
+        double d = Dist(s.X, s.Z, t.X, t.Z);
+        if (d < 0.5)
+        {
+            s.Hw = null;
+            if (s.Goal.Mode is "home" or "inside" or "church")
+            {
+                s.Inside = true;
+                s.Door = t;
+            }
+            else if (s.Goal.Route is { Length: > 0 } && s.Goal.Mode != "thief") s.Step++;
+            return;
+        }
+        // along the streets, never through a house (a partner keeping up with his lead: straight on)
+        if (lead != null)
+        {
+            double k = Math.Min(1, HiddenSpeed * dt / d);
+            s.X += (t.X - s.X) * k;
+            s.Z += (t.Z - s.Z) * k;
+        }
+        else HiddenStep(s, t.X, t.Z, HiddenSpeed, dt);
+    }
+
+    /// <summary>One step of an unseen walk to (tx, tz) along the way on foot the server found, at `speed`; the last metres straight.</summary>
+    private void HiddenStep(Sim s, double tx, double tz, double speed, double dt)
+    {
+        var hw = s.Hw;
+        if (hw == null || Math.Abs(hw.Tx - tx) > 1 || Math.Abs(hw.Tz - tz) > 1) hw = s.Hw = new HiddenWay { Tx = tx, Tz = tz, Key = Whereabouts.WayKey(s.X, s.Z, tx, tz), Asked = NowMs };
+        if (hw.Pts == null && !hw.Straight)
+        {
+            // (one way asked for per walk, by where it began: he waits for it where he stands)
+            bool known = ways.TryGetValue(hw.Key, out var w);
+            if (w != null)
+            {
+                hw.Pts = w;
+                // (from the point of the way nearest him on)
+                int best = 0;
+                for (int i = 0; i < w.Length; i++)
+                    if (Dist(w[i].X, w[i].Z, s.X, s.Z) < Dist(w[best].X, w[best].Z, s.X, s.Z)) best = i;
+                hw.I = Math.Min(w.Length - 1, best + 1);
+            }
+            else if (!known && NowMs - hw.Asked < WayWaitS * 1000)
+            {
+                wayAsk.Add(hw.Key);
+                return;
+            }
+            else hw.Straight = true;
+        }
+        double left = speed * dt;
+        var pts = hw.Pts;
+        while (left > 0)
+        {
+            bool onWay = pts != null && hw.I < pts.Length;
+            double qx = onWay ? pts![hw.I].X : tx, qz = onWay ? pts![hw.I].Z : tz;
+            double d = Dist(s.X, s.Z, qx, qz);
+            if (d <= left)
+            {
+                s.X = qx;
+                s.Z = qz;
+                left -= d;
+                if (pts == null || hw.I >= pts.Length) return;
+                hw.I++;
+            }
+            else
+            {
+                s.X += (qx - s.X) / d * left;
+                s.Z += (qz - s.Z) / d * left;
+                return;
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ into the street and out
+
+    private void Spawn(bool anywhere)
+    {
+        var crowd = Crowd!;
+        int alive = sims.Count(s => s.P != null);
+        if (alive > MaxPuppets)
+        {
+            // the setting went down: the farthest go back to their schedule, out of sight
+            foreach (var s in sims.Where(s => s.P != null && crowd.IsHidden(s.X, s.Z)).OrderByDescending(s => Dist(s.X, s.Z, px, pz)).Take(Math.Min(4, alive - MaxPuppets)).ToList()) Lose(s, true);
+            return;
+        }
+        var want = sims.Where(s => s.P == null && !s.Inside && Dist(s.X, s.Z, px, pz) < SpawnR).OrderBy(s => Dist(s.X, s.Z, px, pz)).ToList();
+        if (alive >= MaxPuppets)
+        {
+            // Full: the nearest who is due in the street takes the place of the farthest drawn one out of sight.
+            // A couple a turn, and only for someone clearly nearer.
+            if (want.Count == 0) return;
+            double near = Dist(want[0].X, want[0].Z, px, pz);
+            var gone = sims.Where(s => s.P != null && Dist(s.X, s.Z, px, pz) > near + SwapGap && (crowd.IsHidden(s.X, s.Z) || Dist(s.X, s.Z, px, pz) > DueFar)).OrderByDescending(s => Dist(s.X, s.Z, px, pz)).Take(2).ToList();
+            foreach (var s in gone) Lose(s, true);
+            alive -= gone.Count;
+            if (alive >= MaxPuppets) return;
+        }
+        foreach (var s in want)
+        {
+            if (alive >= MaxPuppets) break;
+            double d = Dist(s.X, s.Z, px, pz);
+            bool fresh = NowMs - s.OutAt < 4000;
+            // people appear out of sight, or step out of their own door
+            if (!anywhere && !fresh && !crowd.IsHidden(s.X, s.Z))
+            {
+                // nobody stays unseen for ever because the viewer looks at his spot. Far off he steps in at once
+                // (small, in the haze); nearer after a moment of looking.
+                double t = NowMs;
+                if (s.DueAt == null || t - s.DueLast > 1000) s.DueAt = t;
+                s.DueLast = t;
+                if (d < DueFar && t - s.DueAt < (d < DueNear ? DueNearWaitMs : DueWaitMs)) continue;
+            }
+            s.DueAt = null;
+            if (!anywhere && d < 3) continue;
+            // two soldiers walking out: the second appears at his comrade's side
+            var lead = s.Goal.Mode is "roam" or "patrol" ? LeadOf(s) : null;
+            (double x, double z)? side = lead?.P != null ? (lead.P.X - Math.Cos(lead.P.Yaw) * 0.62, lead.P.Z + Math.Sin(lead.P.Yaw) * 0.62) : null;
+            (double x, double z)? at = side != null && crowd.CanStand(side.Value.x, side.Value.z) ? side : crowd.CanStand(s.X, s.Z) ? (s.X, s.Z) : crowd.OpenNear(s.X, s.Z);
+            // never inside someone already there: the nearest open point nobody stands on
+            if (at != null && crowd.SomeoneAt(at.Value.x, at.Value.z)) at = crowd.OpenNearFree(at.Value.x, at.Value.z) ?? at;
+            if (at == null) continue;
+            if (!Humans.IsKind(s.Kind)) s.Kind = KindFallback.GetValueOrDefault(s.Kind, "docker_a");
+            var a = Anchor(s);
+            var p = crowd.AddPuppet(s.Kind, at.Value.x, at.Value.z, Math.Atan2(a.X - at.Value.x, a.Z - at.Value.z), PaceOf(s));
+            if (p == null) return;
+            s.P = p;
+            s.X = at.Value.x;
+            s.Z = at.Value.z;
+            s.Tries = 0;
+            s.Wait = 0;
+            alive++;
+            Direct(s);
+        }
+    }
+
+    /// <summary>Back to the schedule only (out of range, or in at the door).</summary>
+    private void Lose(Sim s, bool remove = false)
+    {
+        if (s.P != null && remove) Crowd!.RemovePuppet(s.P);
+        s.P = null;
+    }
+
+    /// <summary>His pace in the street: his own (the same the sum walks him by unseen). On a leg the sum has him running he hurries, as fast as the walk can look.</summary>
+    private double PaceOf(Sim s)
+    {
+        var on = WhereNow(s);
+        if (on is { Run: true } && on.Walked < on.Total) return Math.Min(on.Mps, SeenRunMax);
+        return Whereabouts.PaceOf(s.R).mps;
+    }
+
+    /// <summary>The part of his day he is at or walking to now: the day as he keeps it, late by his progress reports.</summary>
+    private Now PlanNow(Sim s)
+    {
+        var w = Whereabouts.WhereLate(s.R, Data!, day, hour, WayOf, s.Lag);
+        return new Now(w.Act, w.Place, w.Since, w.Left);
+    }
+
+    /// <summary>Tell a puppet where to go for its goal.</summary>
+    private void Direct(Sim s)
+    {
+        var p = s.P!;
+        var g = s.Goal;
+        var crowd = Crowd!;
+        double pace = PaceOf(s);
+        switch (g.Mode)
+        {
+            case "haul":
+            {
+                // (drawn where the sum has him, he walks on the way he was going; at first, to the quay end)
+                var q = s.ToB ? g.B!.Value : g.A!.Value;
+                p.Loaded = s.ToB;
+                crowd.PuppetGo(p, q.X, q.Z, pace);
+                break;
+            }
+            case "patrol":
+            case "roam":
+            case "thief":
+            case "inspect":
+            {
+                var q = g.Route![s.Step % g.Route.Length];
+                // soldiers walking out take it easy
+                crowd.PuppetGo(p, q.X, q.Z, g.Mode == "thief" ? 0.9 : s.R.Trade == "soldier" && g.Mode == "roam" ? pace * 0.8 : pace);
+                s.Ph = 0;
+                break;
+            }
+            case "guard":
+            {
+                // the relief: to the waiting spot while the old sentry still stands at the post
+                var w = ReliefWait(s);
+                crowd.PuppetGo(p, w?.X ?? g.X, w?.Z ?? g.Z, pace);
+                break;
+            }
+            default:
+                crowd.PuppetGo(p, g.X, g.Z, pace);
+                break;
+        }
+    }
+
+    // ------------------------------------------------------------------ what they do there
+
+    private void Behave(Sim s, double dt, (double x, double z)? body)
+    {
+        var p = s.P!;
+        var g = s.Goal;
+        var crowd = Crowd!;
+        if (Pair(s, dt)) return;
+        bool busy = crowd.PuppetBusy(p);
+        bool At(double x, double z, double r = 1.0) => Dist(p.X, p.Z, x, z) < r;
+        switch (g.Mode)
+        {
+            case "home":
+            case "inside":
+            case "church":
+                if (busy) return;
+                if (At(g.X, g.Z, 1.3))
+                {
+                    // in at the door, and gone
+                    s.Inside = true;
+                    s.Door = new Pt(g.X, g.Z);
+                    Lose(s, true);
+                }
+                else Retry(s);
+                return;
+            case "stand":
+            case "tavern":
+                if (StationRound(s, dt, body)) return;
+                if (busy) return;
+                if (!At(g.X, g.Z, 1.4) && s.Tries < 3)
+                {
+                    Retry(s);
+                    return;
+                }
+                if (g.Motion == "sit")
+                {
+                    // emigrants: sit down on the chest (the last step onto the seat itself), and stay sat
+                    if (p.State != "sit")
+                    {
+                        p.X = g.X;
+                        p.Z = g.Z;
+                        crowd.PuppetSit(p, g.Yaw);
+                    }
+                    return;
+                }
+                if ((s.Wait -= dt) <= 0)
+                {
+                    // sellers call out now and then; drinkers take turns talking; the emigrant women talk among themselves
+                    bool talky = g.Mode == "tavern" || s.R.Work.Kind is "stall" or "shop" or "wait";
+                    bool talking = talky && rng.NextDouble() < (g.Mode == "tavern" ? 0.4 : 0.25);
+                    crowd.PuppetStand(p, talking ? "talk" : g.Motion ?? "idle", g.Yaw);
+                    s.Wait = talking ? Rnd(2.5, 5) : Rnd(4, 10);
+                }
+                return;
+            case "haul":
+            {
+                if (busy)
+                {
+                    s.Arrived = false;
+                    return;
+                }
+                var a = g.A!.Value;
+                var b = g.B!.Value;
+                if (!s.Arrived)
+                {
+                    // at an end: take up or put down the load (the piles and the loads themselves come with the goods)
+                    s.Arrived = true;
+                    s.Wait = Rnd(1.5, 3.5);
+                    bool nearA = At(a.X, a.Z, 2.5);
+                    if (!nearA && At(b.X, b.Z, 2.5)) p.Loaded = false;
+                    crowd.PuppetStand(p, nearA ? "crouch" : "idle", null);
+                    return;
+                }
+                if ((s.Wait -= dt) > 0) return;
+                bool atA = At(a.X, a.Z, 2.5), atB = At(b.X, b.Z, 2.5);
+                if (!atA && !atB)
+                {
+                    var q = s.ToB ? b : a;
+                    if (s.Tries++ < 3) crowd.PuppetGo(p, q.X, q.Z);
+                    else Retry(s);
+                    return;
+                }
+                // loaded from the pile to the door, back empty
+                s.ToB = atA;
+                s.Tries = 0;
+                p.Loaded = s.ToB;
+                var to = s.ToB ? b : a;
+                crowd.PuppetGo(p, to.X, to.Z);
+                return;
+            }
+            case "patrol":
+            case "roam":
+            case "thief":
+            {
+                if (busy)
+                {
+                    s.Arrived = false;
+                    return;
+                }
+                if (!s.Arrived)
+                {
+                    s.Arrived = true;
+                    s.Wait = g.Mode == "patrol" ? Rnd(1, 4) : Rnd(3, 12);
+                    // two soldiers walking out stop and talk, the one at his side listening
+                    var mate = s.R.Trade == "soldier" && s.R.Mate != null ? byId.GetValueOrDefault(s.R.Mate) : null;
+                    bool talk = mate?.P != null && Dist(mate.P.X, mate.P.Z, p.X, p.Z) < 2 && rng.NextDouble() < 0.6;
+                    crowd.PuppetStand(p, s.R.Trade == "police" ? "behind" : talk ? "talk" : "idle", talk ? Math.Atan2(mate!.P!.X - p.X, mate.P.Z - p.Z) : null);
+                    return;
+                }
+                if ((s.Wait -= dt) > 0) return;
+                s.Step++;
+                var q = g.Route![s.Step % g.Route.Length];
+                crowd.PuppetGo(p, q.X, q.Z);
+                return;
+            }
+            case "guard":
+                Guard(s, dt, busy, body);
+                return;
+            case "inspect":
+                Inspect(s, dt, busy);
+                return;
+            case "play":
+                Play(s, dt);
+                return;
+            case "market":
+            case "stroll":
+            case "loiter":
+                if (busy) return;
+                if ((s.Wait -= dt) > 0) return;
+                if (rng.NextDouble() < 0.45 || g.Mode == "stroll")
+                {
+                    double a = rng.NextDouble() * Math.PI * 2;
+                    double d = rng.NextDouble() * (g.R ?? 8) * 0.7;
+                    var pl = Place(g.Place);
+                    crowd.PuppetGo(p, (pl?.X ?? g.X) + Math.Cos(a) * d, (pl?.Z ?? g.Z) + Math.Sin(a) * d, g.Mode == "stroll" ? 0.9 : null);
+                    s.Wait = Rnd(2, 6);
+                }
+                else
+                {
+                    // stop and talk to someone near, or just stand
+                    var other = sims.FirstOrDefault(o => o != s && o.P != null && Dist(o.X, o.Z, p.X, p.Z) < 2.2);
+                    double? yaw = other != null ? Math.Atan2(other.X - p.X, other.Z - p.Z) : null;
+                    crowd.PuppetStand(p, other != null && rng.NextDouble() < 0.5 ? "talk" : "idle", yaw);
+                    s.Wait = Rnd(4, 12);
+                }
+                return;
+        }
+    }
+
+    // ---- the garrison and the customs (server town/garrison.ts)
+
+    /// <summary>Two soldiers walking out: the one with the higher id walks at his comrade's side.</summary>
+    private Sim? LeadOf(Sim s)
+    {
+        string? m = s.R.Mate;
+        if (m == null || (s.R.Trade != "soldier" && s.R.Work.Kind != "round") || string.CompareOrdinal(m, s.R.Id) > 0) return null;
+        return byId.TryGetValue(m, out var l) && !l.Inside && l.Key == s.Key ? l : null;
+    }
+
+    /// <summary>Keep with the comrade (true: the crowd walks him now). Lets go when they part.</summary>
+    private bool Pair(Sim s, double dt)
+    {
+        var p = s.P!;
+        var crowd = Crowd!;
+        var l = s.Goal.Mode == "roam" ? LeadOf(s) : null;
+        if (l?.P != null)
+        {
+            double d = Dist(l.P.X, l.P.Z, p.X, p.Z);
+            if (d < 14)
+            {
+                crowd.PuppetFollow(p, l.P);
+                s.Step = l.Step;
+                return true;
+            }
+            // too far to fall in beside him: catch up first
+            if (crowd.PuppetFollowing(p)) crowd.PuppetFollow(p, null);
+            if ((s.Wait -= dt) <= 0)
+            {
+                s.Wait = 1;
+                crowd.PuppetGo(p, l.P.X, l.P.Z, 1.8); // a quick step to catch up
+            }
+            return true;
+        }
+        if (crowd.PuppetFollowing(p))
+        {
+            crowd.PuppetFollow(p, null);
+            s.Wait = 0;
+            s.Arrived = false;
+            Direct(s);
+        }
+        return false;
+    }
+
+    /// <summary>A sentry at his post. The relief waits a step in front of the old man, facing him, until he marches in; then takes the post.</summary>
+    private void Guard(Sim s, double dt, bool busy, (double x, double z)? body)
+    {
+        var p = s.P!;
+        var g = s.Goal;
+        var crowd = Crowd!;
+        if (ReliefWait(s) == null && StationRound(s, dt, body)) return;
+        if (busy) return;
+        if (Dist(p.X, p.Z, g.X, g.Z) > 0.7)
+        {
+            var wait = ReliefWait(s);
+            if (wait != null)
+            {
+                if (Dist(p.X, p.Z, wait.Value.X, wait.Value.Z) > 0.7 && s.Tries < 3)
+                {
+                    s.Tries++;
+                    crowd.PuppetGo(p, wait.Value.X, wait.Value.Z);
+                    return;
+                }
+                if ((s.Wait -= dt) <= 0)
+                {
+                    crowd.PuppetStand(p, rng.NextDouble() < 0.5 ? "talk" : "idle", Math.Atan2(g.X - p.X, g.Z - p.Z));
+                    s.Wait = Rnd(1.5, 3);
+                }
+                return;
+            }
+            if (s.Tries < 5)
+            {
+                s.Tries++;
+                s.Wait = 0;
+                crowd.PuppetGo(p, g.X, g.Z);
+                return;
+            }
+        }
+        if ((s.Wait -= dt) <= 0)
+        {
+            crowd.PuppetStand(p, g.Motion ?? "idle", g.Yaw);
+            s.Wait = Rnd(6, 14);
+        }
+    }
+
+    /// <summary>Shop posts, beggars, waiting travellers and sentries take a few steps and return to their work.</summary>
+    private bool StationRound(Sim s, double dt, (double x, double z)? body)
+    {
+        var p = s.P!;
+        var g = s.Goal;
+        var crowd = Crowd!;
+        string key = FormattableString.Invariant($"{s.Key}:{g.X}:{g.Z}");
+        var r = s.Round;
+        if (r == null || r.Key != key) r = s.Round = new Station { Key = key, X = g.X, Z = g.Z, Wait = 18 + s.H * 24 };
+        if (crowd.PuppetBusy(p)) return r.Phase != "rest";
+        if (r.Phase == "out")
+        {
+            r.Phase = "pause";
+            r.Wait = 4 + s.H * 5;
+            crowd.PuppetStand(p, "behind", null);
+            return true;
+        }
+        if (r.Phase == "back")
+        {
+            if (Dist(p.X, p.Z, g.X, g.Z) > 0.8)
+            {
+                crowd.PuppetGo(p, g.X, g.Z);
+                return true;
+            }
+            r.Phase = "rest";
+            r.Wait = 22 + s.H * 20;
+            s.Wait = 0;
+            return false;
+        }
+        if ((r.Wait -= dt) > 0) return r.Phase == "pause";
+        if (r.Phase == "pause")
+        {
+            r.Phase = "back";
+            crowd.PuppetGo(p, g.X, g.Z);
+            return true;
+        }
+        // do not leave while answering the player or before reaching the post
+        if (Dist(p.X, p.Z, g.X, g.Z) > 1 || (body != null && Dist(p.X, p.Z, body.Value.x, body.Value.z) < 2))
+        {
+            r.Wait = 3;
+            return false;
+        }
+        for (int i = 0; i < 8; i++)
+        {
+            double a = (s.H + i / 8.0) * Math.PI * 2, d = s.R.Work.Kind == "stall" ? 1.5 : 2.5;
+            double x = g.X + Math.Sin(a) * d, z = g.Z + Math.Cos(a) * d;
+            if (!crowd.CanStand(x, z)) continue;
+            r.X = x;
+            r.Z = z;
+            r.Phase = "out";
+            crowd.PuppetGo(p, x, z, 0.8);
+            return true;
+        }
+        r.Wait = 5;
+        return false;
+    }
+
+    /// <summary>The old sentry still stands at this man's post: where the relief waits for him, a step in front and a step to the side, facing him. null: the post is free.</summary>
+    private Pt? ReliefWait(Sim s)
+    {
+        var g = s.Goal;
+        if (g.Mode != "guard" || s.R.Trade != "sentry") return null;
+        if (!sims.Any(o => o != s && o.P != null && o.Goal.Mode == "guard" && o.R.Trade == s.R.Trade && Dist(o.P.X, o.P.Z, g.X, g.Z) < 0.9)) return null;
+        double yaw = g.Yaw ?? 0;
+        return new Pt(g.X + Math.Sin(yaw) * 1.2 - Math.Cos(yaw) * 1.2, g.Z + Math.Cos(yaw) * 1.2 + Math.Sin(yaw) * 1.2);
+    }
+
+    /// <summary>A customs officer: at each landing he writes in his book, looks the goods over, goes on. (Walking up to the nearest goods comes with the goods.)</summary>
+    private void Inspect(Sim s, double dt, bool busy)
+    {
+        var p = s.P!;
+        var g = s.Goal;
+        var crowd = Crowd!;
+        if (busy) return;
+        switch (s.Ph)
+        {
+            case 0:
+                s.Face = g.Faces != null && g.Faces.Length > 0 ? g.Faces[s.Step % g.Route!.Length % g.Faces.Length] : null;
+                s.Ph = 2;
+                s.Wait = 0;
+                return;
+            case 2:
+                if (s.Wait <= 0)
+                {
+                    crowd.PuppetStand(p, "write", s.Face);
+                    s.Wait = Rnd(7, 14);
+                }
+                if ((s.Wait -= dt) <= 0)
+                {
+                    // look the goods over, then write again or go on
+                    crowd.PuppetStand(p, rng.NextDouble() < 0.5 ? "behind" : "idle", s.Face);
+                    s.Wait = Rnd(3, 6);
+                    s.Ph = 3;
+                }
+                return;
+            default:
+                if ((s.Wait -= dt) > 0) return;
+                if (rng.NextDouble() < 0.3)
+                {
+                    s.Ph = 2;
+                    return;
+                }
+                s.Step++;
+                Direct(s);
+                return;
+        }
+    }
+
+    /// <summary>The way did not work out: try again, then give up and stand.</summary>
+    private void Retry(Sim s)
+    {
+        // far off (beyond the grid round the viewer): they are on their way, not stuck
+        var a = Anchor(s);
+        if (!Crowd!.OnGrid(a.X, a.Z))
+        {
+            Direct(s);
+            return;
+        }
+        if (++s.Tries > 3)
+        {
+            // they cannot get there from here: once nobody sees them, they simply are there
+            if (Crowd.IsHidden(s.X, s.Z))
+            {
+                Lose(s, true);
+                s.X = a.X;
+                s.Z = a.Z;
+            }
+            return;
+        }
+        Direct(s);
+    }
+
+    // ---- children: they look for each other, then play tag
+
+    private void Play(Sim s, double dt)
+    {
+        var p = s.P!;
+        var crowd = Crowd!;
+        string key = s.Goal.Place ?? "";
+        if (!games.TryGetValue(key, out var game)) games[key] = game = new Game();
+        if ((s.Wait -= dt) > 0) return;
+        s.Wait = 0.5;
+        // everyone at tag on this square; not a girl or boy of fifteen dressed as grown (only watches)
+        var kids = sims.Where(o => o.P != null && o.P.Human.Scale < 0.9 && o.Goal.Mode == "play" && o.Goal.Place == key && !o.Inside).ToList();
+        int near = kids.Count(o => Dist(o.X, o.Z, p.X, p.Z) < 30);
+        if (near < 2)
+        {
+            // alone: go and find the others (the nearest child out playing anywhere near)
+            var other = sims.Where(o => o != s && o.Goal.Mode == "play" && !o.Inside && (o.P == null || o.P.Human.Scale < 0.9)).OrderBy(o => Dist(o.X, o.Z, p.X, p.Z)).FirstOrDefault();
+            double od = other != null ? Dist(other.X, other.Z, p.X, p.Z) : 0;
+            if (other != null && od < 45 && od > 2) crowd.PuppetGo(p, other.X, other.Z, 1.4);
+            else if (!crowd.PuppetBusy(p))
+            {
+                crowd.PuppetStand(p, "idle", null);
+                s.Wait = Rnd(2, 4);
+            }
+            return;
+        }
+        if (game.It?.P == null || !kids.Contains(game.It)) game.It = kids[rng.Next(kids.Count)];
+        if (s == game.It)
+        {
+            if (game.Frozen > 0)
+            {
+                crowd.PuppetStand(p, "idle", null);
+                return;
+            }
+            // no tagging back the one who just caught you (unless there is nobody else)
+            var prey = kids.Where(o => o != s && (o != game.Last || kids.Count == 2)).OrderBy(o => Dist(o.X, o.Z, p.X, p.Z)).FirstOrDefault();
+            if (prey == null) return;
+            if (Dist(prey.X, prey.Z, p.X, p.Z) < 0.95)
+            {
+                // tag! within arm's reach, a hand out to the other one, who is it now and counts to three
+                game.Last = s;
+                game.It = prey;
+                game.Frozen = 1.5;
+                crowd.PuppetStand(p, "talk", Math.Atan2(prey.X - p.X, prey.Z - p.Z));
+                s.Wait = 1.2;
+                return;
+            }
+            crowd.PuppetGo(p, prey.X, prey.Z, 2.4);
+        }
+        else
+        {
+            var it = game.It;
+            double d = Dist(it.X, it.Z, p.X, p.Z);
+            // they keep to the play place
+            double R = Math.Max(6, Math.Min(14, s.Goal.R ?? 10));
+            (double, double) Inside(double x, double z)
+            {
+                double dx = x - s.Goal.X, dz = z - s.Goal.Z, k = Math.Sqrt(dx * dx + dz * dz);
+                return k > R ? (s.Goal.X + dx / k * R, s.Goal.Z + dz / k * R) : (x, z);
+            }
+            if (d < 6)
+            {
+                double L = d == 0 ? 1 : d;
+                // away from it; cornered (a wall or a house that way), off to one side instead of running on the spot
+                double ax = (p.X - it.X) / L, az = (p.Z - it.Z) / L;
+                double jx = Rnd(-1.5, 1.5), jz = Rnd(-1.5, 1.5);
+                (double x, double z)? to = null;
+                foreach (double turn in new[] { 0, 0.8, -0.8, 1.6, -1.6 })
+                {
+                    double c = Math.Cos(turn), sn = Math.Sin(turn);
+                    var q = Inside(p.X + (ax * c - az * sn) * 4 + jx, p.Z + (ax * sn + az * c) * 4 + jz);
+                    if (crowd.CanStand(q.Item1, q.Item2) && Dist(q.Item1, q.Item2, p.X, p.Z) > 1.5)
+                    {
+                        to = q;
+                        break;
+                    }
+                }
+                if (to != null) crowd.PuppetGo(p, to.Value.x, to.Value.z, 2.2);
+                else if (!crowd.PuppetBusy(p)) crowd.PuppetStand(p, "idle", Math.Atan2(it.X - p.X, it.Z - p.Z));
+            }
+            else if (!crowd.PuppetBusy(p))
+            {
+                if (rng.NextDouble() < 0.5)
+                {
+                    // skip about near where they are, keeping an eye on it
+                    double a = rng.NextDouble() * Math.PI * 2;
+                    var (fx, fz) = Inside(p.X + Math.Cos(a) * Rnd(2, 4), p.Z + Math.Sin(a) * Rnd(2, 4));
+                    crowd.PuppetGo(p, fx, fz, Rnd(1.3, 2));
+                }
+                else crowd.PuppetStand(p, rng.NextDouble() < 0.5 ? "talk" : "idle", Math.Atan2(it.X - p.X, it.Z - p.Z));
+                s.Wait = Rnd(0.8, 2);
+            }
+        }
+    }
+}

@@ -302,6 +302,8 @@ example picture, no third-party images); turned grey and resized to 880 px:
 | Package | Version | Licence |
 |---|---|---|
 | concurrently | 10.0.5 | MIT |
+| @gltf-transform/core, @gltf-transform/extensions (the Godot port's model step, `tools/godot/models.mjs`) | 4.5.1 | MIT |
+| draco3dgltf (Google Draco, the decoder for that step) | 1.5.7 | Apache-2.0 |
 
 ## Codex pictures: the shops and the cafes (M7 shops, 2026-09-26)
 

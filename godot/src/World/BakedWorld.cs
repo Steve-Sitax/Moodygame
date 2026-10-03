@@ -183,10 +183,17 @@ public partial class BakedWorld : Node3D
             VertexColor: vertexColour || Flag("vertexColors", false),
             Add: transparent && (int)Num(three, "blending", 1) == 2,
             Fog: Flag("fog", true));
-        var m = new ShaderMaterial { Shader = Psx.ShaderOf(kind), ResourceName = bm.ResourceName };
+        var m = PsxMaterial(bm, kind, hasPsx ? Num(bake, "affine", 1) : 0, hasPsx ? Num(bake, "fogReach", 1) : 1, alphaTest, transparent ? (float)Num(three, "opacity", bm.AlbedoColor.A) : null);
         kinds[m] = kind;
+        return m;
+    }
+
+    /// <summary>The psx material of a glTF material with these switches: the baked town's, and the models a part loads itself (Models/ModelLibrary.cs).</summary>
+    public static ShaderMaterial PsxMaterial(BaseMaterial3D bm, Psx.Kind kind, double affine = 1, double fogReach = 1, double alphaTest = 0, float? opacity = null)
+    {
+        var m = new ShaderMaterial { Shader = Psx.ShaderOf(kind), ResourceName = bm.ResourceName };
         var albedo = bm.AlbedoColor;
-        if (transparent) albedo.A = (float)Num(three, "opacity", albedo.A);
+        if (opacity != null) albedo.A = opacity.Value;
         m.SetShaderParameter("albedo", albedo);
         if (bm.AlbedoTexture != null) m.SetShaderParameter("tex", bm.AlbedoTexture);
         if (bm.EmissionEnabled)
@@ -194,8 +201,8 @@ public partial class BakedWorld : Node3D
             m.SetShaderParameter("emission", new Vector3(bm.Emission.R, bm.Emission.G, bm.Emission.B) * bm.EmissionEnergyMultiplier);
             if (bm.EmissionTexture != null) m.SetShaderParameter("emission_tex", bm.EmissionTexture);
         }
-        m.SetShaderParameter("affine", hasPsx ? Num(bake, "affine", 1) : 0);
-        m.SetShaderParameter("fog_reach", hasPsx ? Num(bake, "fogReach", 1) : 1);
+        m.SetShaderParameter("affine", affine);
+        m.SetShaderParameter("fog_reach", fogReach);
         if (alphaTest > 0) m.SetShaderParameter("alpha_cut", alphaTest);
         m.SetShaderParameter("uv_xform", new Vector4(bm.Uv1Scale.X, bm.Uv1Scale.Y, bm.Uv1Offset.X, bm.Uv1Offset.Y));
         m.RenderPriority = bm.RenderPriority;

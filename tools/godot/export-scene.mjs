@@ -76,7 +76,8 @@ const recv = http.createServer((req, res) => {
   // "/glb": the scene; "/tex/<uuid>": a texture the psx options name (height maps, stone ids, slabs)
   const tex = /^\/tex\/([a-zA-Z0-9-]+)$/.exec(req.url ?? "");
   if (tex) mkdirSync(`${out}_tex`, { recursive: true });
-  const f = createWriteStream(tex ? path.join(`${out}_tex`, `${tex[1]}.png`) : `${out}.glb`);
+  // "/walk": the walk dump (townspeople: godot/src/Town/WalkMap.cs)
+  const f = createWriteStream(tex ? path.join(`${out}_tex`, `${tex[1]}.png`) : req.url === "/walk" ? `${out}_walk.bin` : `${out}.glb`);
   req.on("data", (c) => (received += c.length));
   req.pipe(f);
   f.on("finish", () => res.end("ok"));
@@ -215,6 +216,87 @@ const EXPORT = `(() => {
   return 1;
 })()`;
 
+// ---- in the page: where a townsperson can walk and how high the ground is (the Godot townspeople keep the game's
+// walk grid: docs/godot-port.md). Three layers over the walk map's area, x by z, row by row along z:
+//   open: 1 m cells, as game/crowd.ts NavGrid.build opens them (bit 1: by the walk map, half a metre off walls and
+//         water; bit 2: not within a body's width of a solid standing there at bake time)
+//   free: 0.25 m cells, World.isFree for a walker's body (0.25 m; 0.15 m on the wall's narrow stairs)
+//   base: 0.5 m cells, World.baseAt in centimetres (int16)
+// Posted as one file (<out>_walk.bin); its sizes and the sellers' spots (game/stalls.ts) go to <out>_walk.json.
+const WALK = `(() => {
+  window.__walk = { state: "running", note: "" };
+  (async () => {
+    const s = __scheldemist, w = s.world, g = s.crowd.ground;
+    const W = { x0: -480, z0: -80, w: 820, d: 560 };
+    for (let i = 0; i < 200 && g.flags(0, 0) === undefined; i++) await new Promise((r) => s.real.setTimeout(r, 250));
+    const pause = () => new Promise((r) => s.real.setTimeout(r, 0));
+    const open = new Uint8Array(W.w * W.d);
+    const R = 0.5, D = R * Math.SQRT1_2;
+    for (let iz = 0; iz < W.d; iz++) {
+      const z = W.z0 + iz + 0.5;
+      for (let ix = 0; ix < W.w; ix++) {
+        const x = W.x0 + ix + 0.5;
+        const [r, d] = g.narrow && g.narrow(x, z) ? [0.3, 0.3 * Math.SQRT1_2] : [R, D];
+        const f = g.flags;
+        if (f(x, z) === 0 && f(x + r, z) === 0 && f(x - r, z) === 0 && f(x, z + r) === 0 && f(x, z - r) === 0 && f(x + d, z + d) === 0 && f(x - d, z + d) === 0 && f(x + d, z - d) === 0 && f(x - d, z - d) === 0) open[iz * W.w + ix] = 3;
+      }
+    }
+    const B = 0.45, STEP = 0.36;
+    const solids = g.solids ? g.solids() : [];
+    for (const c of solids) {
+      const i0 = Math.max(0, Math.floor(c.minX - B - W.x0)), i1 = Math.min(W.w - 1, Math.floor(c.maxX + B - W.x0));
+      const j0 = Math.max(0, Math.floor(c.minZ - B - W.z0)), j1 = Math.min(W.d - 1, Math.floor(c.maxZ + B - W.z0));
+      for (let iz = j0; iz <= j1; iz++) {
+        const z = W.z0 + iz + 0.5;
+        if (z < c.minZ - B || z > c.maxZ + B) continue;
+        for (let ix = i0; ix <= i1; ix++) {
+          const x = W.x0 + ix + 0.5;
+          if (x < c.minX - B || x > c.maxX + B) continue;
+          if (c.surface && !c.surface.blocks(x, z, B, g.baseAt ? g.baseAt(x, z) : 0, STEP)) continue;
+          open[iz * W.w + ix] &= 1;
+        }
+      }
+    }
+    await pause();
+    const fw = W.w * 4, fd = W.d * 4;
+    const free = new Uint8Array(fw * fd);
+    for (let iz = 0; iz < fd; iz++) {
+      const z = W.z0 + (iz + 0.5) * 0.25;
+      for (let ix = 0; ix < fw; ix++) {
+        const x = W.x0 + (ix + 0.5) * 0.25;
+        if (g.isFree(x, z, g.narrow && g.narrow(x, z) ? 0.15 : 0.25)) free[iz * fw + ix] = 1;
+      }
+      if (iz % 64 === 0) { window.__walk.note = "free " + iz + "/" + fd; await pause(); }
+    }
+    const bw = W.w * 2, bd = W.d * 2;
+    const base = new Int16Array(bw * bd);
+    for (let iz = 0; iz < bd; iz++) {
+      const z = W.z0 + (iz + 0.5) * 0.5;
+      for (let ix = 0; ix < bw; ix++) base[iz * bw + ix] = Math.max(-32000, Math.min(32000, Math.round(w.baseAt(W.x0 + (ix + 0.5) * 0.5, z) * 100)));
+      if (iz % 64 === 0) { window.__walk.note = "base " + iz + "/" + bd; await pause(); }
+    }
+    const sellers = {};
+    if (s.stalls && s.stalls.sellerSpots) for (const [id, v] of s.stalls.sellerSpots) sellers[id] = [Math.round(v.x * 100) / 100, Math.round(v.z * 100) / 100, Math.round(v.yaw * 1000) / 1000];
+    window.__walk.facts = { ...W, openRes: 1, freeRes: 0.25, baseRes: 0.5, open: open.length, free: free.length, base: base.length, solids: solids.length, sellers };
+    await fetch("http://127.0.0.1:${RECV}/walk", { method: "POST", body: new Blob([open, free, base]) });
+    window.__walk.state = "done";
+  })().catch((e) => { window.__walk.state = "failed"; window.__walk.note = String(e && e.stack || e); });
+  return 1;
+})()`;
+async function walkDump() {
+  await ev(WALK);
+  let wk = null;
+  for (let i = 0; i < 600; i++) {
+    await sleep(1000);
+    wk = await ev(`(() => { const e = window.__walk; return { state: e.state, note: e.note, facts: e.facts }; })()`, 600_000).catch(() => null);
+    if (wk && wk.state !== "running") break;
+    if (i % 15 === 14) log("walk dump...", wk?.note ?? "(page busy)");
+  }
+  if (wk?.state !== "done") throw new Error(`walk dump failed: ${wk?.note}`);
+  writeFileSync(`${out}_walk.json`, JSON.stringify({ made: new Date().toISOString(), ...wk.facts }));
+  log("written", `${out}_walk.bin`, JSON.stringify({ ...wk.facts, sellers: Object.keys(wk.facts.sellers).length }));
+}
+
 const t0 = Date.now();
 const log = (...a) => console.log(`[${((Date.now() - t0) / 1000).toFixed(0)}s]`, ...a);
 let code = 0;
@@ -226,8 +308,9 @@ try {
   await ev(`(__scheldemist.free(true), 1)`);
   await ev(`__scheldemist.t.light(13, "clear").then(() => 1)`);
   await ev(`new Promise((r) => __scheldemist.real.setTimeout(r, 20000))`, 60_000);
+  await walkDump();
   const places = [];
-  for (const place of PLACES) {
+  for (const place of args.includes("--walk-only") ? [] : PLACES) {
     await ev(`Promise.resolve(__scheldemist.t.go(${JSON.stringify(place)})).then(() => 1)`);
     await ev(`__scheldemist.frameProf({ n: 30 }).then(() => 1)`);
     const turn = await ev(`__scheldemist.frameProf({ n: 90, top: 80, turn: 2 })`);
@@ -241,6 +324,7 @@ try {
     log(place, "browser turning frame", turn.frame.mean, "ms, render", part("render"), "ms, calls", part("render calls"));
   }
   if (args.includes("--ref-only")) throw new Error("ref only: no export");
+  if (args.includes("--walk-only")) throw "walk only";
   // the export, from the first place, everything the game would draw without the culler
   await ev(`Promise.resolve(__scheldemist.t.go(${JSON.stringify(PLACES[0])})).then(() => 1)`);
   const cull = await ev(`(() => { try { const c = __scheldemist.cull; if (!c) return "no culling switch"; c.enabled = false; return "culler off"; } catch (e) { return String(e); } })()`);
@@ -263,8 +347,10 @@ try {
   stripInstancing(`${out}.glb`);
   log("written", `${out}.glb`, (received / 1e6).toFixed(1), "MB", JSON.stringify(exp.counts));
 } catch (e) {
-  console.error(e);
-  code = 1;
+  if (e !== "walk only") {
+    console.error(e);
+    code = 1;
+  }
 } finally {
   try {
     ws?.close();
