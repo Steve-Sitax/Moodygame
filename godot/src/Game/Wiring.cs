@@ -3,7 +3,7 @@ using Scheldemist.World;
 
 namespace Scheldemist.Game;
 
-/// <summary>What one part needs from another, in one place: the tide and the townspeople follow the game's clock.</summary>
+/// <summary>What one part needs from another, in one place: the tide, the daylight, the weather and the townspeople follow the game's clock.</summary>
 [GamePart(900)]
 public partial class Wiring : Node
 {
@@ -24,6 +24,11 @@ public partial class Wiring : Node
         // (--hour or a part's own test holds the clock: then the server's is not passed on)
         if (s == null || !s.Live || Main.I.Arg("hour") != "" || Main.I.Arg("peopletest") != "") return;
         Tide.Set((int)s.Day, (float)s.HourF);
+        if (Daylight.I != null)
+        {
+            Daylight.I.SetTime((float)s.HourF);
+            if (Main.I.Arg("weather") == "") Daylight.I.SetWeather(s.Weather);
+        }
         people ??= Main.I.GetNodeOrNull<Scheldemist.Town.Townspeople>("Townspeople");
         people?.SetClock((int)s.Day, s.HourF);
     }
