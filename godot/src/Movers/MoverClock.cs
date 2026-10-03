@@ -52,6 +52,9 @@ public partial class MoverClock : Node
         if (h != "" && double.TryParse(h, NumberStyles.Float, CultureInfo.InvariantCulture, out double hour))
             Hold(hour, int.TryParse(Main.I.Arg("day"), out int d) ? d : -1);
         Read();
+        // what moves is claimed before the still world is made solid (World/Solid.cs, the next part)
+        Bridges.Claims();
+        Lock.Claims();
     }
 
     private static void Read()
@@ -86,6 +89,9 @@ public static class Mv
     /// <summary>A baked node's name as the TypeScript gave it: Godot's import adds a number to a name used twice.</summary>
     public static string Plain(Node n)
     {
+        // (a name that itself ends in a number, draw_beam_6, cannot be told from a counted one: the model's own name, kept
+        // in the node's extras, says it)
+        if (n.HasMeta("extras") && n.GetMeta("extras").AsGodotDictionary().TryGetValue("name", out var own) && own.VariantType == Variant.Type.String) return own.AsString();
         string s = n.Name.ToString();
         int e = s.Length;
         while (e > 0 && char.IsDigit(s[e - 1])) e--;
@@ -134,6 +140,51 @@ public static class Mv
                 return (t ^ (t >> 14)) / 4294967296.0;
             }
         };
+    }
+
+    /// <summary>
+    /// A solid that moves with `owner` (a bridge's leaf, a lock gate, a wagon): a kinematic body on the still
+    /// world's layer, with the drawn triangles of the meshes under it as its shape. Jef walks on it and into it.
+    /// </summary>
+    public static AnimatableBody3D Body(Node3D owner, string name = "solid")
+    {
+        var body = new AnimatableBody3D { Name = name, SyncToPhysics = false, CollisionLayer = Solid.Layer, CollisionMask = 0 };
+        // physics takes no stretched shapes: a stretched owner (a lock gate) gets its body beside it, following it,
+        // with the stretch worked into the triangles
+        var plain = owner.GlobalTransform.Orthonormalized();
+        bool stretched = !owner.GlobalTransform.Basis.Scale.IsEqualApprox(Vector3.One);
+        if (stretched)
+        {
+            owner.GetParent().AddChild(body);
+            body.GlobalTransform = plain;
+            var follow = new RemoteTransform3D { Name = name + "_follow", UpdateScale = false, UseGlobalCoordinates = true };
+            owner.AddChild(follow);
+            follow.RemotePath = follow.GetPathTo(body);
+        }
+        else owner.AddChild(body);
+        var inv = plain.AffineInverse();
+        foreach (var c in BakedWorld.All(owner))
+        {
+            if (c is not MeshInstance3D { Mesh: not null, Visible: true } mi) continue;
+            if (mi.Mesh.GetSurfaceCount() == 0 || mi.Mesh is ArrayMesh am && am.SurfaceGetPrimitiveType(0) != Mesh.PrimitiveType.Triangles) continue;
+            var rel = inv * mi.GlobalTransform;
+            var faces = mi.Mesh.GetFaces();
+            if (faces.Length < 3) continue;
+            for (int i = 0; i < faces.Length; i++) faces[i] = rel * faces[i];
+            var shape = new ConcavePolygonShape3D { BackfaceCollision = true };
+            shape.SetFaces(faces);
+            body.AddChild(new CollisionShape3D { Shape = shape });
+        }
+        return body;
+    }
+
+    /// <summary>A solid box that moves with `owner` (in the owner's frame): cheaper than its triangles.</summary>
+    public static AnimatableBody3D BoxBody(Node3D owner, Aabb box, string name = "solid")
+    {
+        var body = new AnimatableBody3D { Name = name, SyncToPhysics = false, CollisionLayer = Solid.Layer, CollisionMask = 0 };
+        owner.AddChild(body);
+        body.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = box.Size }, Position = box.GetCenter() });
+        return body;
     }
 
     public static float Clamp01(float x) => x < 0 ? 0 : x > 1 ? 1 : x;
