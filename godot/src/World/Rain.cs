@@ -133,7 +133,7 @@ void fragment() {
         m.CustomAabb = new Aabb(new Vector3(-1e5f, -1e3f, -1e5f), new Vector3(2e5f, 2e3f, 2e5f));
         mat = new ShaderMaterial { Shader = new Shader { Code = Code }, RenderPriority = 3 };
         m.SurfaceSetMaterial(0, mat);
-        mesh = new MeshInstance3D { Name = "ambient_rain", Mesh = m, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off, Visible = false };
+        mesh = new MeshInstance3D { Name = "ambient_rain", Mesh = m, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off, Visible = false, Layers = Mirrors.NoMirror };
         Main.I.View.AddChild(mesh);
     }
 

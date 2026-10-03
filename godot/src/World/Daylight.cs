@@ -72,6 +72,8 @@ public partial class Daylight : Node
     public float Rain { get; private set; }
     public float Wet { get; private set; }
     public float Puddle { get; private set; }
+    /// <summary>The sea state (psx uSea): fog 0.85, clear 1.1, rain 1.5, a storm 3.6 and more.</summary>
+    public float Sea => sea;
     /// <summary>The wind (x, z) in m/s-ish (ambient.ts WIND): rain slants with it.</summary>
     public Vector2 Wind { get; private set; }
     /// <summary>The sun's light as three.js has it (colour, intensity), for a part that wants the number.</summary>

@@ -74,6 +74,14 @@ public static class Psx
         // where the shore map (the distance from the water to the nearest quay wall) and the foul water map lie
         ("psx_shore_box", RenderingServer.GlobalShaderParameterType.Vec4, new Vector4(-425, -80, 714, 493)),
         ("psx_foul_box", RenderingServer.GlobalShaderParameterType.Vec4, new Vector4(-365, -80, 594, 433)),
+        // the mirrors (World/Mirrors.cs): world -> the river's picture and the puddles', 1 while each is drawn, and each
+        // mirror's own camera with its plane's height (nothing under a mirror's plane is drawn in it)
+        ("psx_water_mirror_mat", RenderingServer.GlobalShaderParameterType.Mat4, Projection.Identity),
+        ("psx_water_mirror_on", RenderingServer.GlobalShaderParameterType.Float, 0f),
+        ("psx_mirror_mat", RenderingServer.GlobalShaderParameterType.Mat4, Projection.Identity),
+        ("psx_mirror_on", RenderingServer.GlobalShaderParameterType.Float, 0f),
+        ("psx_mir0", RenderingServer.GlobalShaderParameterType.Vec4, new Vector4(0, -1e6f, 0, 0)),
+        ("psx_mir1", RenderingServer.GlobalShaderParameterType.Vec4, new Vector4(0, -1e6f, 0, 0)),
     };
     private static bool globalsIn;
     /// <summary>
@@ -104,6 +112,8 @@ public static class Psx
         foul = Flat(Colors.Black);
         RenderingServer.GlobalShaderParameterAdd("psx_shore", RenderingServer.GlobalShaderParameterType.Sampler2D, shore.GetRid());
         RenderingServer.GlobalShaderParameterAdd("psx_foul", RenderingServer.GlobalShaderParameterType.Sampler2D, foul.GetRid());
+        RenderingServer.GlobalShaderParameterAdd("psx_water_mirror", RenderingServer.GlobalShaderParameterType.Sampler2D, foul.GetRid());
+        RenderingServer.GlobalShaderParameterAdd("psx_mirror", RenderingServer.GlobalShaderParameterType.Sampler2D, foul.GetRid());
     }
 
     private static ImageTexture Flat(Color c)
@@ -441,6 +451,9 @@ vec3 psx_spill_at(vec3 P, vec3 N) {
 
     /// <summary>Wet ground: a lamp as a streak toward the eye, the rain's rings, the spill sources mirrored (psx.ts).</summary>
     private const string WetGlsl = @"
+global uniform sampler2D psx_mirror : source_color, filter_nearest, repeat_disable;
+global uniform mat4 psx_mirror_mat;
+global uniform float psx_mirror_on;
 global uniform float psx_wet;
 global uniform float psx_rain;
 global uniform float psx_puddle;
@@ -517,6 +530,9 @@ global uniform sampler2D psx_shore : filter_linear, repeat_disable;
 global uniform vec4 psx_shore_box;
 global uniform sampler2D psx_foul : filter_linear, repeat_disable;
 global uniform vec4 psx_foul_box;
+global uniform sampler2D psx_water_mirror : source_color, filter_nearest, repeat_disable;
+global uniform mat4 psx_water_mirror_mat;
+global uniform float psx_water_mirror_on;
 uniform vec3 spec_color = vec3(0.0);
 uniform float shininess = 120.0;
 // 1: the river's sheet, which runs under the Petit Bassin and the lock: not drawn there (their water has its own level)
@@ -720,6 +736,8 @@ global uniform vec4 psx_hemi_ground;
 global uniform float psx_time;
 global uniform sampler2D psx_dirt : filter_linear, repeat_disable;
 global uniform vec4 psx_dirt_box;
+global uniform vec4 psx_mir0;
+global uniform vec4 psx_mir1;
 uniform vec4 albedo : source_color = vec4(1.0);
 uniform sampler2D tex : source_color, filter_nearest_mipmap, repeat_enable, hint_default_white;
 uniform vec3 emission : source_color = vec3(0.0);
@@ -788,6 +806,8 @@ void vertex() {
 }
 
 void fragment() {
+	// in a mirror's picture (its camera: World/Mirrors.cs) nothing under the mirror's plane is drawn
+	if ((world.y < psx_mir0.w - 0.02 && distance(CAMERA_POSITION_WORLD, psx_mir0.xyz) < 0.02) || (world.y < psx_mir1.w - 0.02 && distance(CAMERA_POSITION_WORLD, psx_mir1.xyz) < 0.02)) discard;
 	vec3 to_frag = world - CAMERA_POSITION_WORLD;
 	float len = length(to_frag);
 	vec3 rd = to_frag / max(len, 1e-4);
@@ -1037,9 +1057,18 @@ void fragment() {
 			float wk = clamp((psx_sea - 0.85) / 2.75, 0.0, 1.0);
 			float gust = smoothstep(mix(0.42, 0.18, wk), mix(0.78, 0.5, wk), pud_val(pp * 0.3 - wd * psx_time * mix(0.5, 1.4, wk)));
 			float wind = clamp(psx_sea, 0.6, 2.0);
-			// (no street in it yet: dark water with a little of the sky's grey at a slant)
-			vec3 refl = fogc * 0.3;
+			// fine crests across the wind that run with it, in gust patches that drift downwind; between the gusts a
+			// puddle is a still, sharp mirror; faded out from 10 to 30 m, where a ripple is under a pixel
+			float ph = dot(pp, wd) * mix(30.0, 13.0, wk) - psx_time * mix(7.5, 9.0, wk);
+			vec2 ripp = vec2(sin(ph + pud_val(pp * 1.9) * 5.0), sin(ph * 0.87 + 1.7 + pud_val(pp * 2.6 + 9.0) * 5.0));
+			vec2 wob = (wd * ripp.x + vec2(-wd.y, wd.x) * ripp.y * 0.45) * (0.0006 + gust * (0.0045 + 0.006 * wk * wk)) * wind * (1.0 - smoothstep(10.0, 30.0, len));
+			if (psx_rain > 0.001) wob += vec2(rain_rings(pp * 1.4, psx_time * 1.2, psx_rain)) * 0.012;
+			vec4 mr = psx_mirror_mat * vec4(world, 1.0);
+			// the street itself mirrored (World/Mirrors.cs); reflections off: dark water with a little of the sky's grey
+			vec3 refl = psx_mirror_on > 0.5 ? texture(psx_mirror, (vec2(mr.x, -mr.y) / mr.w + wob) * 0.5 + 0.5).rgb * 1.1 : fogc * 0.3;
 			refl *= 1.0 - 0.12 * gust * min(1.0, wind - 0.6);
+			// (the great storm: the puddles are all rain-splash and wind; no picture in them)
+			refl = mix(refl, fogc * 0.3, 0.85 * clamp((psx_sea - 3.6) / 2.0, 0.0, 1.0));
 			vec3 rr = vec3(rd.x, -rd.y, rd.z);
 			refl += psx_lamp_color.rgb * lamp_streaks(world, rr) * 0.8;
 ");
@@ -1060,8 +1089,18 @@ void fragment() {
 		vec2 rip = vec2(sin(rp.x * 2.7 + rp.y * 0.9 + psx_time * 1.9), sin(rp.y * 3.3 - rp.x * 0.7 - psx_time * 1.5)) * " + (k.Water == 2 ? "0.006 * (1.0 + psx_rain * 1.5)" : "0.06") + @";
 		vec3 rn = normalize(nw + vec3(rip.x, 0.0, rip.y));
 		float cos_v = max(dot(rn, -rd), 0.0);
-		{
-			// (no mirror yet: the sky's grey at a slant)
+		if (psx_water_mirror_on > 0.5) {
+			// the quays, ships and sky mirrored (World/Mirrors.cs), shaken by the ripples
+			vec4 mr = psx_water_mirror_mat * vec4(world, 1.0);
+			vec2 muv = (vec2(mr.x, -mr.y) / mr.w + rip * 0.35) * 0.5 + 0.5;
+			vec3 mc = texture(psx_water_mirror, muv).rgb;
+			float f = " + (k.Water == 2 ? "0.48 + 0.48 * pow(1.0 - cos_v, 3.0)" : "max(0.22, 0.04 + 0.96 * pow(1.0 - cos_v, 5.0))") + @";
+			// (the great storm: the torn-up water mirrors nothing)
+			f = clamp(f * (1.0 - clamp((psx_sea - 3.6) / 2.0, 0.0, 1.0)), 0.0, 0.9);
+			k3 *= 1.0 - f;
+			ad = ad * (1.0 - f) + mc * 0.92 * f;
+		} else {
+			// (no mirror: the sky's grey at a slant)
 			float t = clamp(pow(1.0 - cos_v, 4.0) * 0.8, 0.0, 0.75);
 			k3 *= 1.0 - t;
 			ad = ad * (1.0 - t) + fogc * 1.08 * t;

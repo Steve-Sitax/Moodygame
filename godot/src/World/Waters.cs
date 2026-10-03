@@ -19,7 +19,9 @@ public partial class Waters : Node
     private MeshInstance3D? river;
     private readonly List<MeshInstance3D> dock = new();
     private MeshInstance3D? chamber;
-    private float level = float.NaN;
+    private static float level = float.NaN;
+    /// <summary>Where the river's sheet lies now (it follows the tide at 0.6 m a second at most).</summary>
+    public static float Level => float.IsNaN(level) ? Tide.River : level;
 
     /// <summary>The river sheet's material (the mirror's part sets its picture on it and on the basins').</summary>
     public static readonly List<ShaderMaterial> Materials = new();
