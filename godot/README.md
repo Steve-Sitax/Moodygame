@@ -16,6 +16,10 @@ The Godot game (Godot 4.7.2, C#, .NET 8). The plan and the decisions: `docs/godo
 Options after `--`: `--town <glb>` (or the environment variable `SCHELDEMIST_BAKE`) for a bake somewhere else,
 `--shots <dir>` (a picture and the frame time at each baked place, then quit), `--no-<part>` and `--only a,b`
 (game parts off).
+The server's options: `--server http://127.0.0.1:PORT` (use a server that runs already, start none), `--port N`
+(the first port to try; default 8800), `--db <file>` (another save), `--no-ai` (the server makes no model calls:
+walk-around mode), `--nettest <dir>` (the net part's own test: start the server with no AI, wait for the first
+state, one tick, a picture with the HUD and `nettest.json` in `<dir>`, quit; the server is gone afterwards).
 
 ## How it is built
 - **The baked town** (`src/World/BakedWorld.cs`). The browser game builds its world in code (67,000 lines). The bake
@@ -34,6 +38,25 @@ Options after `--`: `--town <glb>` (or the environment variable `SCHELDEMIST_BAK
   `Cam`, `Ui`, `Arg`). No edits to `Main.cs` for a new part.
 - **The server stays in Node** (`server/`): the game talks to it over the same HTTP and WebSocket API as the
   browser (`client/src/net/api.ts`).
+  - `src/Net/ServerProcess.cs` starts it with the game (`node src/index.ts` in `server/`, a free port from 8800,
+    never 8787 or 5173: Steve's own game) and stops it with the game, its whole process tree (on Windows a job
+    object: the server ends even when the game is ended by force). Where Node and the server are is in one place,
+    `ServerPaths`: a checkout, or later the download's `runtime/` and `server/` beside the program. Its log:
+    `data/godot-server.log`. It does not come up in 90 s: the reason shows on screen.
+  - `src/Net/Api.cs` is the client: every call of `api.ts` with a time limit, and the push channel (`/ws`) that
+    comes back by itself. `await ServerLink.I.Api.Jobs()` from the main thread goes on on the main thread; the
+    push events and `Api.Run(call, ok, fail)` are handed over there too. The payloads are records in
+    `src/Net/Payloads.cs` (the server's snake_case names).
+  - `src/Net/ServerLink.cs` is the part that holds both (`ServerLink.I.Api`, `ServerLink.I.WhenUp(...)`), feeds
+    the store, and asks for the clock's tick every 10 s while Jef plays.
+- **The store** (`src/Game/GameState.cs`): what the server last said, for every part: `GameState.I.HourF` (the
+  running clock), `.Day`, `.Weekday`, `.Weather`, `.Food` ..., `.Money`, `.Pockets`, with events
+  (`ClockChanged`, `WeatherChanged`, `NeedsChanged`, `MoneyChanged`, `Message` ...). `GameState.I` is never null:
+  before the server has spoken it holds 13:00 on a clear Monday and `Live` is false. The player's part sets
+  `PlayingWhen` (time runs only while Jef plays), the rooms' part `Where` (the cold).
+- **The HUD** (`src/Game/Hud.cs`): the browser's papers as Controls under `Main.I.Ui`, the CSS sizes times the
+  browser's `--ui`. A line in the middle of the screen: `GameState.I.Say("...")`. Fonts: `Fonts.Hand`,
+  `Fonts.Print` (`godot/fonts/`, the browser's own faces).
 
 ## Rules
 - The engine owns all numbers; the Godot game shows them and asks the server, as the browser does.
