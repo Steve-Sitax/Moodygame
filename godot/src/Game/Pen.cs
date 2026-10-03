@@ -6,7 +6,8 @@ namespace Scheldemist.Game;
 
 /// <summary>
 /// The game's own fonts (client/src/menu/fonts.ts; the files in godot/fonts, licences in assets/ATTRIBUTION.md):
-/// the hand (Kalam) for notes and the HUD, the print (Old Standard TT) for reading.
+/// the hand (Kalam) for notes and the HUD, the print (Old Standard TT) for reading, the slab (Alfa Slab One) for
+/// titles, the mono (Courier Prime) for keys.
 /// </summary>
 public static class Fonts
 {
@@ -14,7 +15,11 @@ public static class Fonts
     public static Font HandBold => handBold ??= Load("kalam-latin-700-normal.woff2");
     public static Font Print => print ??= Load("old-standard-tt-latin-400-normal.woff2");
     public static Font PrintBold => printBold ??= Load("old-standard-tt-latin-700-normal.woff2");
-    private static Font? hand, handBold, print, printBold;
+    public static Font PrintItalic => printItalic ??= Load("old-standard-tt-latin-400-italic.woff2");
+    public static Font Slab => slab ??= Load("alfa-slab-one-latin-400-normal.woff2");
+    public static Font Mono => mono ??= Load("courier-prime-latin-400-normal.woff2");
+    public static Font MonoBold => monoBold ??= Load("courier-prime-latin-700-normal.woff2");
+    private static Font? hand, handBold, print, printBold, printItalic, slab, mono, monoBold;
 
     private static Font Load(string file)
     {

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Threading.Tasks;
 using Godot;
 using Scheldemist.Player;
 using Scheldemist.World;
@@ -15,8 +16,17 @@ namespace Scheldemist;
 /// </summary>
 public partial class Main : Node
 {
-    private const int Lines = 720;
     private const int FxLines = 270;
+    // the settings (src/Menu/Apply.cs): the lines drawn (0: the full window), the render scale, the PS1 wobble
+    private int lines = 720;
+    private float renderScale = 1;
+    private bool wobble = true;
+    private bool psxColour = true;
+    /// <summary>The snap grid the psx shaders have now (`psx_snap_res`): coarse with the wobble on, too fine to see with it off.</summary>
+    public Vector2 SnapGrid { get; private set; }
+    /// <summary>The town is in and the parts are made.</summary>
+    public bool Loaded { get; private set; }
+    private List<Node> parts = new();
 
     /// <summary>The running game, for its parts (src/GamePart.cs).</summary>
     public static Main I { get; private set; } = null!;
@@ -67,8 +77,43 @@ public partial class Main : Node
         GetViewport().SizeChanged += Resize;
 
         world = new BakedWorld();
+        Ui = new CanvasLayer { Layer = 10 };
+        AddChild(Ui);
+        // the menus (src/Menu): the settings first (the picture's size), then the loading screen while the town
+        // loads; a run that takes its own pictures (--shots, another part's test) has neither
+        bool menus = Menu.MainMenu.Wanted(this);
+        if (menus) Menu.Apply.Early();
+        var boot = menus ? Menu.Loading.Show(this) : null;
+        parts = GamePartAttribute.Make(this).ToList();
+        // the server needs no town: it comes up while the town loads
+        foreach (var part in parts.Where(p => p is Net.ServerLink)) AddChild(part);
+        LoadTown(town, boot != null);
+    }
+
+    /// <summary>
+    /// Read and build the town, then make the parts. With the loading screen up the work is done beside the main
+    /// thread (the town is not in the tree yet), so the screen goes on drawing and shows how far it is.
+    /// </summary>
+    private async void LoadTown(string town, bool beside)
+    {
+        Error err;
+        if (beside)
+        {
+            // two frames first: the loading screen is on the glass before the work starts
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            try
+            {
+                err = await Task.Run(() => world.Load(town));
+            }
+            catch (Exception e)
+            {
+                GD.PrintErr(e.ToString());
+                err = Error.Failed;
+            }
+        }
+        else err = world.Load(town);
         view.AddChild(world);
-        var err = world.Load(town);
         if (err != Error.Ok)
         {
             GD.PrintErr($"the baked town did not load ({err}): {town}. Bake it: node tools/godot/export-scene.mjs");
@@ -82,8 +127,6 @@ public partial class Main : Node
         cam = new FlyCam { Fov = c0.GetProperty("fov").GetSingle(), Near = Math.Max(0.05f, c0.GetProperty("near").GetSingle()), Far = c0.GetProperty("far").GetSingle(), Current = true };
         view.AddChild(cam);
         Cam = cam;
-        Ui = new CanvasLayer { Layer = 10 };
-        AddChild(Ui);
         places = world.Facts.RootElement.GetProperty("places");
         Go(0);
         Resize();
@@ -92,7 +135,22 @@ public partial class Main : Node
             DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled);
             Engine.MaxFps = 0;
         }
-        foreach (var part in GamePartAttribute.Make(this)) AddChild(part);
+        foreach (var part in parts.Where(p => p.GetParent() == null)) AddChild(part);
+        Loaded = true;
+    }
+
+    /// <summary>
+    /// The picture's settings (src/Menu/Apply.cs): the lines the world is drawn at (0: as many as the window has),
+    /// times the render scale; the PS1 wobble (corners jump to a coarse grid) and the PS1 colours (32 steps with a
+    /// dither, or 256).
+    /// </summary>
+    public void SetPicture(int lines, float scale, bool wobble, bool psxColour)
+    {
+        this.lines = lines;
+        renderScale = scale;
+        this.wobble = wobble;
+        this.psxColour = psxColour;
+        if (view != null) Resize();
     }
 
     private void Resize()
@@ -100,13 +158,17 @@ public partial class Main : Node
         var win = GetViewport().GetVisibleRect().Size;
         if (win.Y < 1) return;
         float aspect = win.X / win.Y;
-        int h = (int)Math.Min(Lines, win.Y);
+        // retroPass.ts resize, menu/apply.ts: the chosen lines (never more than the window has), times the scale
+        int h = lines > 0 ? (int)Math.Min(lines, win.Y) : (int)win.Y;
+        if (renderScale < 0.999f) h = Math.Max(90, (int)MathF.Round(h * renderScale));
         var size = new Vector2I(Math.Max(1, (int)MathF.Round(h * aspect)), h);
         view.Size = size;
         retro.SetShaderParameter("res", new Vector2(size.X, size.Y));
         retro.SetShaderParameter("fx_res", new Vector2(MathF.Round(FxLines * aspect), FxLines));
-        // the snap grid of the 270-line picture, halved (main.ts)
-        RenderingServer.GlobalShaderParameterSet("psx_snap_res", new Vector2(MathF.Round(FxLines * aspect) * 0.5f, FxLines * 0.5f));
+        retro.SetShaderParameter("levels", psxColour ? 32f : 256f);
+        // the snap grid of the 270-line picture, halved (main.ts); wobble off: a grid too fine to see
+        SnapGrid = wobble ? new Vector2(MathF.Round(FxLines * aspect) * 0.5f, FxLines * 0.5f) : new Vector2(1e5f, 1e5f);
+        RenderingServer.GlobalShaderParameterSet("psx_snap_res", SnapGrid);
     }
 
     private void Go(int i)

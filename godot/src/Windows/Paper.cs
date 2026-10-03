@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 using Godot;
 using Scheldemist.Game;
 
-namespace Scheldemist.Ui.Dialogs;
+namespace Scheldemist.Windows;
 
 /// <summary>
 /// What the browser's style sheet does to a colour and a size (client/src/style.css), so a paper built here looks

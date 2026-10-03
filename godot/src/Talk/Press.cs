@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Godot;
 using Scheldemist.Game;
 using Scheldemist.Net;
-using Scheldemist.Ui.Dialogs;
+using Scheldemist.Windows;
 
 namespace Scheldemist.Talks;
 
