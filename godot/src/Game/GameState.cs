@@ -108,7 +108,9 @@ public partial class GameState : Node
     /// stops the clock too).
     /// </summary>
     public Func<bool>? PlayingWhen { get; set; }
-    public bool Playing => Ending == null && (PlayingWhen?.Invoke() ?? (Input.MouseMode == Input.MouseModeEnum.Captured && Main.I?.Cam is not null and not FlyCam));
+    /// <summary>day.ts hold: a sheet is up (the night, the end, a night in the cell): the clock waits.</summary>
+    public bool Hold { get; set; }
+    public bool Playing => Ending == null && !Hold && (PlayingWhen?.Invoke() ?? (Input.MouseMode == Input.MouseModeEnum.Captured && Main.I?.Cam is not null and not FlyCam));
 
     /// <summary>M7 warmth: where Jef is (a room's id, or null outside) and whether his lantern is lit; sent with each tick. Set by the rooms' part.</summary>
     public Func<WhereReport> Where { get; set; } = () => new WhereReport(null, false);
@@ -178,6 +180,8 @@ public partial class GameState : Node
     {
         var was = Payload;
         int moneyWas = Money;
+        // a reply sent before the epilogue was written may come in after the push that brought it: the epilogue stays
+        if (was?.Ending is { Epilogue: not null } had && p.Ending is { Epilogue: null } e && e.Kind == had.Kind && e.Day == had.Day) p = p with { Ending = had };
         WarnNeeds(was, p);
         if (was == null || was.Clock.Minute != p.Clock.Minute || was.Clock.Hour != p.Clock.Hour) shownAt = PlayNow;
         Payload = p;
