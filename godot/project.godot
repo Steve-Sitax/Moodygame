@@ -1,0 +1,22 @@
+; Scheldemist in Godot (docs/godot-port.md). Engine: Godot 4.7.2, C#.
+config_version=5
+
+[application]
+
+config/name="Scheldemist"
+run/main_scene="res://spike/spike.tscn"
+config/features=PackedStringArray("4.7", "C#", "Forward Plus")
+
+[display]
+
+window/size/viewport_width=1600
+window/size/viewport_height=900
+window/vsync/vsync_mode=0
+
+[dotnet]
+
+project/assembly_name="Scheldemist"
+
+[rendering]
+
+scaling_3d/scale=0.8

@@ -1,5 +1,9 @@
 # Work log
 
+## The Godot port, 2026-10-03
+
+Steve: port the game to Godot against the stutter; everything that works now, an easy start, a simple install. He picked C#. Worktree `MoodyGame-godot`, branch `godot-port`; plan, decisions and the proof in [godot-port.md](godot-port.md). Proof (G0): the scene the browser game builds, exported to one glb and drawn by Godot 4.7.2 at the five perfcheck places: 2.6-2.9 ms a frame with two mirror views, against 18-22 ms of drawing in headless Chrome (28-31 ms whole frame). Pictures looked at. Not in the proof: the game's logic, the per-pixel shader work, the rooms. The server stays in Node; the web demo stays the old Three.js one. Next: G1 (the base: server start, real models, walking).
+
 ## People inside each other, 2026-10-03
 
 Steve (new game, 6:30): dockers in one another before Het Schipke, a sack through the man behind. Reproduced on a copy of his save: six hauliers of the Het Schipke run (wf-3) with both ends under the two portal cranes parked there; the walk grid closed a shaped solid's whole box, so no way, thousands of tries, and they stood on one open cell. Lead from GPT Sol 6.1 (high): `keepApart` set d = 1 for two on the very same spot, so the push was 0. Fixed in `client/src/game/crowd.ts` and `town.ts`: the grid closes only the cells a model's parts reach at body height (cached per solid, at most 1.5 ms of new shapes a build), straightened ways test the parts too; people on one spot are pushed apart; a load keeps 0.15 m more room; a townsperson never appears where someone stands. Check: no overlaps at Het Schipke at 6:40 (the crew carries again) or at five busy places; `paths()` and `stuck()` empty. Grid rebuild 3-4 ms as before (cold area at most 4.6 ms, was 22 ms before the cap). perfcheck over 20 ms at all five places, the same as the runs before this change (issue #32).

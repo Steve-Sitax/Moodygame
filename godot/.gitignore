@@ -1,0 +1,4 @@
+.godot/
+*.import
+spike/data/*
+!spike/data/.gdignore
