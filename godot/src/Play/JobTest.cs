@@ -49,9 +49,6 @@ public partial class JobTest : Node
         Jef.I.TestInput = true;
         GameState.I.PlayingWhen = () => false; // the clock stands still unless a step lets it run
         script = Script().GetEnumerator();
-        // (until the jobs' part is in: the board's own entry)
-        var (bx, bz) = Spots.Board;
-        Interact.I.Add(new Vector3(bx, 1.55f, bz), 2.6f, "read the hiring board", () => GameState.I.Say("The board is bare. Nobody has come by yet."));
     }
 
     // ------------------------------------------------------------------ the runner
@@ -211,6 +208,29 @@ public partial class JobTest : Node
                 yield return s;
         foreach (var s in More())
             yield return s;
+
+        Step("frames", "the frame time at the Vismarkt with these parts on: no vsync, Jef turning once round (the budget here is 5 ms)");
+        DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled);
+        Engine.MaxFps = 0;
+        Stand(-118, 36, -118, 30);
+        yield return 1.0;
+        measuring = true;
+        for (int i = 0; i < 240; i++)
+        {
+            Jef.I.Yaw += Mathf.Tau / 240;
+            yield return null;
+        }
+        measuring = false;
+        if (frameMs.Count > 0)
+        {
+            var sorted = frameMs.OrderBy(v => v).ToList();
+            double mean = frameMs.Average();
+            Note("mean_ms", Math.Round(mean, 2));
+            Note("p95_ms", Math.Round(sorted[(int)(sorted.Count * 0.95)], 2));
+            Note("draw_calls", RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalDrawCallsInFrame));
+            Check(mean < 5, $"{mean:0.00} ms a frame at the Vismarkt: over the 5 ms asked");
+        }
+        Shot("7-vismarkt");
     }
 
     /// <summary>The prompt: at the hiring board, looking at it and looking away.</summary>
@@ -294,10 +314,331 @@ public partial class JobTest : Node
         doors.Release(open);
     }
 
-    /// <summary>The later steps (the job, the day): added with their parts.</summary>
+    /// <summary>The later steps: the jobs, then the day.</summary>
     private IEnumerable<object?> More()
     {
-        yield break;
+        if (Only("carry"))
+            foreach (var s in CarryStep())
+                yield return s;
+        if (Only("deliver"))
+            foreach (var s in DeliverStep())
+                yield return s;
+        if (Only("watch"))
+            foreach (var s in WatchStep())
+                yield return s;
+        if (Only("day"))
+            foreach (var s in DayStep())
+                yield return s;
+    }
+
+    private Dictionary<string, object?> Needs() => new() { ["food"] = GameState.I.Food, ["warmth"] = GameState.I.Warmth, ["sleep"] = GameState.I.Sleep, ["health"] = GameState.I.Health, ["money_c"] = GameState.I.Money };
+
+    /// <summary>The day: eat from the pockets, pay the rent, sleep in the doss house, a bench, a need at zero and the night that comes by itself.</summary>
+    private IEnumerable<object?> DayStep()
+    {
+        var api = ServerLink.I!.Api!;
+        var day = Day.I;
+
+        Step("eat", "a herring bought from Fientje (the shop window is the talk part's: asked straight of the server), eaten from the pockets (I, then 1)");
+        var buy = api.Buy("fientje", "herring");
+        yield return When(() => buy.IsCompleted, 10, "the herring bought");
+        if (!buy.IsCompletedSuccessfully)
+        {
+            Fail($"the herring was not sold: {buy.Exception?.GetBaseException().Message}");
+        }
+        else
+        {
+            GameState.I.Apply(buy.Result);
+            Note("bought", new Dictionary<string, object?> { ["line"] = buy.Result.Line, ["price_c"] = buy.Result.PriceC });
+            var fientje = Folk.At("fientje") ?? new Vector3(45.2f, 0, 10.2f);
+            Stand(fientje.X - 1.8f, fientje.Z + 0.4f, fientje.X, fientje.Z);
+            yield return 0.5;
+            var before = Needs();
+            Check(day.Key_(Key.I, Key.I) && day.PocketsOpen, "I did not open the pockets");
+            yield return 0.6;
+            Note("pockets", GameState.I.Pockets.Select(p => $"{p.Name} ({p.Use ?? p.Note ?? "-"})").ToList());
+            Shot("6-pockets");
+            int at = GameState.I.Pockets.ToList().FindIndex(p => p.Kind == "herring");
+            double food = GameState.I.Food;
+            day.Key_(Key.Key1 + at, Key.Key1 + at);
+            yield return When(() => GameState.I.Food != food || !GameState.I.Pockets.Any(p => p.Kind == "herring"), 8, "the herring eaten");
+            yield return 0.6;
+            Note("needs_before", before);
+            Note("needs_after", Needs());
+            Check(GameState.I.Food > food, "the food need did not rise");
+            Check(!day.PocketsOpen && !Jef.I.Frozen, "the pockets stayed up, or Jef stayed frozen");
+            Shot("6-eaten");
+        }
+
+        Step("bench", "a bench of the town: E offers to sleep on it, and the chooser says what a bench costs");
+        var bench = day.Benches.FirstOrDefault(b => b.Id == "steen:1") ?? day.Benches.FirstOrDefault();
+        if (bench == null) Fail("no benches known");
+        else
+        {
+            Stand(bench.X + 0.9f, bench.Z + 0.5f, bench.X, bench.Z, Down(1.0f, 0.45f));
+            yield return 0.8;
+            Note("bench", $"{bench.Id}: {bench.Label}");
+            Note("prompt_at_bench", Interact.I.Text);
+            Check(Interact.I.Text.Contains("sleep on the bench"), $"no key at the bench: \"{Interact.I.Text}\"");
+            Interact.I.Press(Key.E);
+            yield return 0.6;
+            Shot("6-bench-chooser");
+            Check(day.Busy, "the chooser did not come up");
+            day.Key_(Key.Escape, Key.Escape);
+            yield return 0.3;
+            Check(!day.Busy && !Jef.I.Frozen, "Esc did not close the chooser");
+        }
+
+        Step("rent", "at the doss house door: F pays the week's rent, and the landlady says so");
+        var (dx, dz) = Spots.Doss;
+        var (ax, az) = Spots.DossDoor;
+        Stand(dx, dz, ax, az);
+        yield return 0.8;
+        Note("prompt_at_doss", Interact.I.Text);
+        Check(Interact.I.Text.Contains("sleep in the doss house") && Interact.I.Text.Contains("pay the week's rent"), $"the doss house keys are not both there: \"{Interact.I.Text}\"");
+        Shot("6-doss");
+        int money = GameState.I.Money;
+        Interact.I.Press(Key.F);
+        yield return 1.5;
+        Note("money_before", money);
+        Note("money_after", GameState.I.Money);
+        Note("rent_paid", GameState.I.RentPaid);
+        Shot("6-rent");
+
+        Step("sleep", "E at the doss house: the chooser, four hours' sleep by the server's clock, awake again on the step");
+        var needs = Needs();
+        string clock = $"{GameState.I.Weekday} {GameState.I.Hour}:{GameState.I.Minute:00}";
+        Check(Interact.I.Press(Key.E) && day.Busy, $"E did not bring the chooser: \"{Interact.I.Text}\"");
+        yield return 0.6;
+        Shot("6-sleep-chooser");
+        day.Key_(Key.Key3, Key.Key3); // four hours
+        yield return When(() => day.Asleep || day.LastError != "", 10, "asleep");
+        if (!day.Asleep) Note("refused", day.LastError);
+        else
+        {
+            yield return 1.3;
+            Shot("6-asleep");
+            yield return When(() => !day.Asleep, 40, "the hour's sleep over");
+            yield return 1.6;
+            Note("woke", day.LastWoke == null ? null : new Dictionary<string, object?> { ["reason"] = day.LastWoke.Reason, ["slept_min"] = day.LastWoke.SleptMin, ["lines"] = day.LastWoke.Lines });
+            Note("clock_before", clock);
+            Note("clock_after", $"{GameState.I.Weekday} {GameState.I.Hour}:{GameState.I.Minute:00}");
+            Note("needs_before", needs);
+            Note("needs_after", Needs());
+            Check(!Jef.I.Frozen, "awake, but still frozen");
+            Shot("6-woke");
+        }
+
+        Step("zero", "a need at zero: the warning, the dragging legs, and the night that comes by itself when sleep runs out");
+        var low = api.DevSet(new Dictionary<string, double> { ["sleep"] = 2, ["food"] = 0 });
+        yield return When(() => low.IsCompleted, 8, "the needs set low");
+        if (low.IsCompletedSuccessfully) GameState.I.Apply(low.Result);
+        yield return 0.6;
+        Note("said_at_zero_food", said.ToList());
+        Note("fatigue_at_sleep_2", Jef.I.Fatigue);
+        Check(Jef.I.Fatigue < 1, "dead tired, but he walks as fast as ever");
+        Shot("6-starving");
+        var zero = api.DevSet(new Dictionary<string, double> { ["sleep"] = 0, ["hour"] = 14, ["minute"] = 55 });
+        yield return When(() => zero.IsCompleted, 8, "sleep set to zero");
+        if (zero.IsCompletedSuccessfully) GameState.I.Apply(zero.Result);
+        // one tick of the clock, as while he plays: the hour turns and the server judges
+        ServerLink.I.Tick();
+        yield return When(() => day.SheetOpen, 12, "the night sheet after he dropped");
+        if (day.SheetOpen)
+        {
+            yield return 0.6;
+            Shot("6-dropped");
+            Note("needs_after_the_night", Needs());
+            day.Key_(Key.E, Key.E);
+            yield return 0.8;
+            Check(!day.SheetOpen && !Jef.I.Frozen, "E did not get him up");
+            Shot("6-morning");
+        }
+    }
+
+    private static float Down(float dist, float height = 0.35f) => MathF.Atan2(height - Jef.Eye, Math.Max(0.3f, dist));
+
+    private Dictionary<string, object?> Settled(DoneReply r) => new()
+    {
+        ["status"] = r.Settlement.Status, ["pay_c"] = r.Settlement.PayC, ["extra_c"] = r.Settlement.ExtraC, ["trust_delta"] = r.Settlement.TrustDelta, ["facts"] = r.Settlement.Facts, ["money_c"] = r.MoneyC,
+    };
+
+    /// <summary>A carry job from the board to the pay: read the board, take it, fetch each crate, carry it, set it down, get paid.</summary>
+    private IEnumerable<object?> CarryStep()
+    {
+        Step("board", "E at the hiring board opens it; a number takes the job; the task card comes up");
+        var jobs = Jobs.I;
+        var goods = Goods.I;
+        yield return When(() => goods.Loaded, 20, "the goods from the server");
+        var (bx, bz) = Spots.Board;
+        Stand(bx, bz - 1.8f, bx, bz);
+        yield return 0.6;
+        Check(Interact.I.Press(Key.E) && jobs.BoardOpen, "E did not open the board");
+        yield return 0.6;
+        Shot("3-board");
+        var list = jobs.VisibleJobs();
+        Note("board", list.Select((j, i) => $"{i + 1}. {j.Title} ({j.PayC} c, {j.Status})").ToList());
+        int at = list.FindIndex(j => j.TaskType == "carry" && j.Status == "offered" && j.Title.Contains("crates"));
+        if (at < 0)
+        {
+            Fail("no carry job with crates on the board");
+            yield break;
+        }
+        var job = list[at];
+        int moneyBefore = GameState.I.Money;
+        jobs.BoardKey(Key.Key1 + at);
+        yield return When(() => jobs.Active?.Id == job.Id, 10, "the job taken");
+        yield return When(() => !jobs.BoardOpen, 5, "the board put away once the job is taken");
+        Note("took", $"{job.Id} {job.Title}");
+        var task = JobTask.Of(job)!;
+        var to = Spots.Get(task.To)!;
+        yield return When(() => goods.Items.Count(i => i.JobId == job.Id) >= task.Count, 10, "the job's goods laid out by the server");
+        yield return 0.8;
+        Note("task_card", jobs.TaskText);
+        Shot("3-job-taken");
+
+        for (int n = 0; n < task.Count; n++)
+        {
+            Step($"carry {n + 1}", "to the goods, lift one (E), carry it to the goal (slower, no jump), set it down (E)");
+            var item = goods.Items.Where(i => i.JobId == job.Id).OrderBy(i => i.X).FirstOrDefault();
+            if (item == null)
+            {
+                Fail("no goods of the job lie anywhere");
+                yield break;
+            }
+            // beside the crate, on the side the quay is
+            Stand(item.X, item.Z + 1.25f, item.X, item.Z, Down(1.25f));
+            yield return 0.6;
+            Note("at_goods", new[] { Math.Round(Jef.I.X, 2), Math.Round(Jef.I.Y, 2), Math.Round(Jef.I.Z, 2) });
+            Note("prompt_at_goods", Interact.I.Text);
+            if (n == 0) Shot("3-goods");
+            Check(Interact.I.Press(Key.E) && goods.Carried == item, $"E did not lift it: \"{Interact.I.Text}\" {goods.LastRefusal}");
+            yield return 0.8;
+            Check(goods.Carried == item, $"the server took it back: {goods.LastRefusal}");
+            Check(Jef.I.Laden && Jef.I.SpeedFactor < 1, "carrying, but not laden or not slower");
+            Note("speed_factor", Jef.I.SpeedFactor);
+            Jef.I.Pitch = 0;
+            yield return 0.3;
+            if (n == 0) Shot("3-carrying");
+            // carry it: on foot along the quay; where the way is shut (a crane, a pile) he is set down by the goal instead
+            float gx = to.X + 1.7f, gz = to.Z + (n == 0 ? -0.45f : 0.55f);
+            var start = new Vector2(Jef.I.X, Jef.I.Z);
+            double t0 = total;
+            foreach (var s in Walk(Jef.I.X, 3.5f, 0.6f, 25, false, must: false)) yield return s;
+            foreach (var s in Walk(gx, gz, 0.5f, 60, false, must: false)) yield return s;
+            float speedSeen = (float)((new Vector2(Jef.I.X, Jef.I.Z) - start).Length() / Math.Max(0.1, total - t0));
+            bool walked = Dist(gx, gz) < 0.9f;
+            Note("walked_there", walked);
+            Note("metres_a_second", Math.Round(speedSeen, 2));
+            if (!walked) Stand(gx, gz, to.X, gz);
+            LookAt(to.X, gz, Down(1.0f, 0.0f));
+            yield return 0.5;
+            Note("prompt_at_goal", Interact.I.Text);
+            Check(Interact.I.Text.Contains("set it down here"), $"no key to set it down at the goal: \"{Interact.I.Text}\"");
+            if (n == 0) Shot("3-at-goal");
+            Check(Interact.I.Press(Key.E) && goods.Carried == null, "E did not set it down");
+            yield return 0.8;
+            Check(!Jef.I.Laden && Jef.I.SpeedFactor == 1, "hands empty, but still laden or slow");
+            Note("task_card", jobs.TaskText);
+            if (n == 0) Shot("3-set-down");
+        }
+        Step("paid", "all goods in: the server settles, the employer pays, the money on the HUD moves");
+        yield return When(() => jobs.LastDone != null, 10, "the server's settlement");
+        yield return 1.0;
+        if (jobs.LastDone is { } done) Note("server", Settled(done));
+        Note("money_before", moneyBefore);
+        Note("money_after", GameState.I.Money);
+        Check(GameState.I.Money > moneyBefore, "no money came");
+        Check(jobs.Active == null, "the job is still in hand");
+        LookAt(to.X, to.Z, Down(2.0f, 0.3f));
+        yield return 0.4;
+        Shot("3-paid");
+    }
+
+    /// <summary>A delivery: the parcel from the employer's hand into the pocket, to the recipient, paid.</summary>
+    private IEnumerable<object?> DeliverStep()
+    {
+        Step("deliver", "a parcel taken from Tuur (F), carried in the pocket to the mate on the Anna Maria, given (E), paid");
+        var jobs = Jobs.I;
+        var job = GameState.I.Jobs.FirstOrDefault(j => j.TaskType == "deliver" && j.Status == "offered" && j.EmployerNpc == "tuur");
+        if (job == null)
+        {
+            Fail("Tuur's parcel is not on the board");
+            yield break;
+        }
+        int moneyBefore = GameState.I.Money;
+        jobs.TakeJob(job);
+        yield return When(() => jobs.Active?.Id == job.Id, 10, "the job taken");
+        var tuur = Folk.At("tuur");
+        if (tuur == null)
+        {
+            Fail("nobody knows where Tuur is");
+            yield break;
+        }
+        Stand(tuur.Value.X + 0.2f, tuur.Value.Z + 1.5f, tuur.Value.X, tuur.Value.Z, 0, tuur.Value.Y);
+        yield return 0.8;
+        Note("task_card", jobs.TaskText);
+        Note("prompt_at_tuur", Interact.I.Text);
+        Shot("4-deliver-employer");
+        Check(Interact.I.Press(Key.F), $"no F to take the parcel: \"{Interact.I.Text}\"");
+        yield return When(() => GameState.I.Pockets.Any(p => p.JobId == job.Id), 8, "the parcel in the pocket");
+        Note("pockets", GameState.I.Pockets.Select(p => p.Name).ToList());
+        yield return 0.5;
+        var goal = jobs.Run?.Goal();
+        if (goal == null)
+        {
+            Fail("the job has no goal with the parcel in the pocket");
+            yield break;
+        }
+        var g = goal.Value;
+        Stand(g.X + 0.3f, g.Z + 1.6f, g.X, g.Z, 0, g.Y);
+        yield return 0.8;
+        Note("at_recipient", new[] { Math.Round(Jef.I.X, 2), Math.Round(Jef.I.Y, 2), Math.Round(Jef.I.Z, 2) });
+        Note("prompt_at_recipient", Interact.I.Text);
+        Shot("4-deliver-recipient");
+        var before = jobs.LastDone;
+        Check(Interact.I.Press(Key.E), $"no E to give the parcel: \"{Interact.I.Text}\"");
+        yield return When(() => jobs.LastDone != before, 10, "the server's settlement");
+        yield return 0.8;
+        if (jobs.LastDone is { } done) Note("server", Settled(done));
+        Note("money_before", moneyBefore);
+        Note("money_after", GameState.I.Money);
+        Check(GameState.I.Money > moneyBefore, "no money came");
+        Shot("4-deliver-paid");
+    }
+
+    /// <summary>A watch: stand at the post until the bell (the clock run fast), paid.</summary>
+    private IEnumerable<object?> WatchStep()
+    {
+        Step("watch", "a watch at the post until the bell (run at eight times the speed), then paid");
+        var jobs = Jobs.I;
+        var job = GameState.I.Jobs.FirstOrDefault(j => j.TaskType == "watch" && j.Status == "offered");
+        if (job == null)
+        {
+            Fail("no watch on the board");
+            yield break;
+        }
+        int moneyBefore = GameState.I.Money;
+        var task = JobTask.Of(job)!;
+        var post = Spots.Get(task.Post)!;
+        jobs.TakeJob(job);
+        yield return When(() => jobs.Active?.Id == job.Id, 10, "the job taken");
+        Stand(post.X - 2.5f, post.Z - 1.5f, post.X, post.Z, Down(3));
+        yield return When(() => Goods.I.Items.Any(i => i.JobId == job.Id), 8, "the pile at the post");
+        yield return 0.8;
+        Note("task_card", jobs.TaskText);
+        Note("pile", Goods.I.Items.Count(i => i.JobId == job.Id));
+        Shot("5-watch");
+        var before = jobs.LastDone;
+        Engine.TimeScale = 8;
+        yield return When(() => jobs.LastDone != before, task.DurationS + 20, "the bell and the server's settlement");
+        Engine.TimeScale = 1;
+        yield return 0.8;
+        if (jobs.LastDone is { } done) Note("server", Settled(done));
+        Note("money_before", moneyBefore);
+        Note("money_after", GameState.I.Money);
+        Check(GameState.I.Money > moneyBefore, "no money came");
+        Shot("5-watch-paid");
     }
 
     // ------------------------------------------------------------------ the end
