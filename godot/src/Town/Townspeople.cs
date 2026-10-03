@@ -221,6 +221,19 @@ public partial class Townspeople : Node
         if (facts.TryGetProperty("fog", out var fog) && fog.ValueKind == JsonValueKind.Object && fog.TryGetProperty("far", out var far) && far.ValueKind == JsonValueKind.Number) Crowd.FogDistance = far.GetDouble();
         if (server == "")
         {
+            // the server the game started itself (Net/ServerLink.cs)
+            if (Scheldemist.Net.ServerLink.I is { } link)
+            {
+                Status = "waiting for the server";
+                link.WhenUp(() =>
+                {
+                    server = link.Api.Url.TrimEnd('/');
+                    http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+                    Status = "loading";
+                    _ = LoadTown();
+                });
+                return;
+            }
             Status = "no server (--server http://127.0.0.1:PORT): no townspeople";
             GD.Print("townspeople: " + Status);
             return;
