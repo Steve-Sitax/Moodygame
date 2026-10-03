@@ -78,7 +78,6 @@ public partial class Main : Node
         GD.Print($"town in: {JsonSerializer.Serialize(world.Report)}");
 
         var facts = world.Facts.RootElement.GetProperty("facts");
-        Daylight(facts);
         var c0 = facts.GetProperty("camera");
         cam = new FlyCam { Fov = c0.GetProperty("fov").GetSingle(), Near = Math.Max(0.05f, c0.GetProperty("near").GetSingle()), Far = c0.GetProperty("far").GetSingle(), Current = true };
         view.AddChild(cam);
@@ -95,56 +94,6 @@ public partial class Main : Node
         }
         foreach (var part in GamePartAttribute.Make(this)) AddChild(part);
     }
-
-    /// <summary>The fog, the sky's light and the sun as the bake found them (13:00, clear). The clock and the weather come with world/ambient.</summary>
-    private void Daylight(JsonElement facts)
-    {
-        var fog = Hex(0x8f989c);
-        float near = 20, far = 160;
-        if (facts.GetProperty("fog").ValueKind == JsonValueKind.Object)
-        {
-            var f = facts.GetProperty("fog");
-            fog = Hex(f.GetProperty("color").GetInt32());
-            if (f.TryGetProperty("near", out var a) && a.ValueKind == JsonValueKind.Number) near = a.GetSingle();
-            if (f.TryGetProperty("far", out var b) && b.ValueKind == JsonValueKind.Number) far = b.GetSingle();
-        }
-        RenderingServer.GlobalShaderParameterSet("psx_fog_color", fog);
-        RenderingServer.GlobalShaderParameterSet("psx_fog_near", near);
-        RenderingServer.GlobalShaderParameterSet("psx_fog_far", far);
-        var env = new Godot.Environment
-        {
-            BackgroundMode = Godot.Environment.BGMode.Color,
-            BackgroundColor = fog,
-            AmbientLightSource = Godot.Environment.AmbientSource.Disabled,
-            TonemapMode = Godot.Environment.ToneMapper.Linear,
-        };
-        view.AddChild(new WorldEnvironment { Environment = env });
-
-        // three's lights give colour x intensity / pi on a matt face; Godot's give colour x energy
-        Color sky = Hex(0x8494a6) * 1.1f / MathF.PI, ground = Hex(0x2a2822) * 1.1f / MathF.PI;
-        foreach (var l in facts.GetProperty("lights").EnumerateArray())
-        {
-            string type = l.GetProperty("type").GetString() ?? "";
-            float k = l.GetProperty("intensity").GetSingle() / MathF.PI;
-            var col = Hex(l.GetProperty("color").GetInt32());
-            if (type == "HemisphereLight")
-            {
-                sky = col * k;
-                if (l.TryGetProperty("ground", out var g) && g.ValueKind == JsonValueKind.Number) ground = Hex(g.GetInt32()) * k;
-            }
-            else if (type == "DirectionalLight")
-            {
-                var p = l.GetProperty("pos");
-                var sun = new DirectionalLight3D { LightColor = col, LightEnergy = k, ShadowEnabled = false };
-                view.AddChild(sun);
-                sun.LookAtFromPosition(new Vector3(p[0].GetSingle(), p[1].GetSingle(), p[2].GetSingle()), Vector3.Zero, Vector3.Up);
-            }
-        }
-        RenderingServer.GlobalShaderParameterSet("psx_hemi_sky", sky);
-        RenderingServer.GlobalShaderParameterSet("psx_hemi_ground", ground);
-    }
-
-    private static Color Hex(int h) => new Color(((h >> 16) & 255) / 255f, ((h >> 8) & 255) / 255f, (h & 255) / 255f).SrgbToLinear();
 
     private void Resize()
     {

@@ -15,11 +15,51 @@ public static class Psx
 
     private static readonly Dictionary<Kind, Shader> Shaders = new();
 
+    /// <summary>A hex colour (sRGB, as the TypeScript writes them) as the linear colour the shaders count in.</summary>
+    public static Color Hex(int h) => new Color(((h >> 16) & 255) / 255f, ((h >> 8) & 255) / 255f, (h & 255) / 255f).SrgbToLinear();
+
+    /// <summary>
+    /// The values every psx material reads (the browser's psxUniforms), as global shader uniforms. The first ones are
+    /// in project.godot; the rest are added here, before the first shader is made, so a new one needs no project edit.
+    /// Colours are linear numbers (plain vec4: no conversion on the way).
+    /// </summary>
+    private static readonly (string name, RenderingServer.GlobalShaderParameterType type, Variant value)[] Added =
+    {
+        ("psx_sun_dir", RenderingServer.GlobalShaderParameterType.Vec3, new Vector3(0, 1, 0)),
+        ("psx_sun_shade", RenderingServer.GlobalShaderParameterType.Float, 1f),
+        ("psx_scatter", RenderingServer.GlobalShaderParameterType.Float, 0f),
+        ("psx_wet", RenderingServer.GlobalShaderParameterType.Float, 0f),
+        ("psx_rain", RenderingServer.GlobalShaderParameterType.Float, 0f),
+        ("psx_puddle", RenderingServer.GlobalShaderParameterType.Float, 0f),
+        ("psx_sea", RenderingServer.GlobalShaderParameterType.Float, 1f),
+    };
+    private static bool globalsIn;
+
+    private static void EnsureGlobals()
+    {
+        if (globalsIn) return;
+        globalsIn = true;
+        foreach (var (name, type, value) in Added) RenderingServer.GlobalShaderParameterAdd(name, type, value);
+    }
+
+    /// <summary>Set one of the shared values (a colour as its linear numbers).</summary>
+    public static void Set(string name, Variant value)
+    {
+        EnsureGlobals();
+        if (value.VariantType == Variant.Type.Color)
+        {
+            var c = value.AsColor();
+            value = new Vector4(c.R, c.G, c.B, c.A);
+        }
+        RenderingServer.GlobalShaderParameterSet(name, value);
+    }
+
     public static int ShaderCount => Shaders.Count;
 
     public static Shader ShaderOf(Kind k)
     {
         if (Shaders.TryGetValue(k, out var s)) return s;
+        EnsureGlobals();
         var modes = new List<string> { "diffuse_lambert", "specular_disabled", "vertex_lighting", "ambient_light_disabled" };
         if (k.Unlit) modes.Add("unshaded");
         if (k.TwoSided) modes.Add("cull_disabled");
@@ -30,11 +70,11 @@ public static class Psx
         c.Append("shader_type spatial;\nrender_mode ").Append(string.Join(", ", modes)).Append(";\n");
         c.Append(@"
 global uniform vec2 psx_snap_res;
-global uniform vec4 psx_fog_color : source_color;
+global uniform vec4 psx_fog_color;
 global uniform float psx_fog_near;
 global uniform float psx_fog_far;
-global uniform vec4 psx_hemi_sky : source_color;
-global uniform vec4 psx_hemi_ground : source_color;
+global uniform vec4 psx_hemi_sky;
+global uniform vec4 psx_hemi_ground;
 uniform vec4 albedo : source_color = vec4(1.0);
 uniform sampler2D tex : source_color, filter_nearest_mipmap, repeat_enable;
 uniform vec3 emission : source_color = vec3(0.0);
