@@ -472,3 +472,134 @@ public sealed record OutcomeMsg
 
 /// <summary>Anything else the server pushes (actions, events, convo, gate, loaded, resync ...): its type, and the whole message.</summary>
 public sealed record PushMsg(string Type, JsonElement Body);
+
+// ---- M4: townspeople who act, conversations in the street, the director's events (api.ts ActionsPayload)
+
+public sealed record PublicAction
+{
+    public int Id { get; init; }
+    public string Npc { get; init; } = "";
+    public string Name { get; init; } = "";
+    /// <summary>"none", "follow", "go_to", "wait", "talk_to", "look_for", "fetch_police", "give", "stop" or "attend".</summary>
+    public string Kind { get; init; } = "";
+    public string Target { get; init; } = "";
+    public string? TargetName { get; init; }
+    public double? TargetX { get; init; }
+    public double? TargetZ { get; init; }
+    /// <summary>"talk", "director", "event" or "engine".</summary>
+    public string Source { get; init; } = "";
+    public int? EventId { get; init; }
+    public string Phase { get; init; } = "";
+    public double Until { get; init; }
+    public double MaxM { get; init; }
+    public int Order { get; init; }
+    public string? Role { get; init; }
+    public string? Lead { get; init; }
+    public int N { get; init; }
+    public double MinutesLeft { get; init; }
+    /// <summary>M8d: the player it is about; null: the host, or an event's.</summary>
+    public int? ForPlayer { get; init; }
+}
+
+public sealed record ConvoLine
+{
+    public string Who { get; init; } = "";
+    public string Name { get; init; } = "";
+    public string Text { get; init; } = "";
+}
+
+public sealed record Convo
+{
+    public int Id { get; init; }
+    public string A { get; init; } = "";
+    public string B { get; init; } = "";
+    public string AName { get; init; } = "";
+    public string BName { get; init; } = "";
+    public string Purpose { get; init; } = "";
+    public List<ConvoLine> Lines { get; init; } = new();
+    public string Source { get; init; } = "";
+    public string Outcome { get; init; } = "";
+    public double At { get; init; }
+    public int? EventId { get; init; }
+}
+
+public sealed record EventCue
+{
+    public string Source { get; init; } = "";
+    public double EveryS { get; init; }
+    public double Pitch { get; init; }
+    public double Level { get; init; }
+}
+
+public sealed record EventStage
+{
+    public string Op { get; init; } = "";
+    public double Minutes { get; init; }
+    public string Sound { get; init; } = "none";
+    public string Mood { get; init; } = "";
+    public string Props { get; init; } = "none";
+    public double X { get; init; }
+    public double Z { get; init; }
+    public string Label { get; init; } = "";
+    public string Text { get; init; } = "";
+    public int Count { get; init; }
+    public List<string> Leads { get; init; } = new();
+    public List<EventCue>? Cues { get; init; }
+    /// <summary>M7 funeral ("depart"): the road out, the hearse, the groups going home; as the server sent them.</summary>
+    public JsonElement? Exit { get; init; }
+    public List<double[]>? Route { get; init; }
+    public bool? Hearse { get; init; }
+    public JsonElement? Groups { get; init; }
+}
+
+public sealed record EventLead
+{
+    public string Role { get; init; } = "";
+    public string Id { get; init; } = "";
+    public string Name { get; init; } = "";
+    public int N { get; init; }
+}
+
+public sealed record TownEvent
+{
+    public int Id { get; init; }
+    public string Title { get; init; } = "";
+    public string Template { get; init; } = "";
+    public string Place { get; init; } = "";
+    public double X { get; init; }
+    public double Z { get; init; }
+    public double R { get; init; }
+    /// <summary>"planned", "running", "done" or "cancelled".</summary>
+    public string Status { get; init; } = "";
+    public int Stage { get; init; }
+    public List<EventStage> Stages { get; init; } = new();
+    public List<string> People { get; init; } = new();
+    public List<EventLead> Leads { get; init; } = new();
+    /// <summary>M4b: a scuffle or a robbery as the engine set it up (api.ts EventScene), as sent.</summary>
+    public JsonElement? Scene { get; init; }
+    public double StageLeft { get; init; }
+    public double StartsIn { get; init; }
+    public double EndsIn { get; init; }
+    public string Source { get; init; } = "";
+    public List<string?>? Acts { get; init; }
+    public JsonElement? Fire { get; init; }
+    public JsonElement? Hiring { get; init; }
+    public JsonElement? Tempest { get; init; }
+}
+
+public sealed record ActionsPayload
+{
+    public List<PublicAction> Actions { get; init; } = new();
+    public List<Convo> Convos { get; init; } = new();
+    public List<TownEvent> Events { get; init; } = new();
+    public List<string> Closed { get; init; } = new();
+}
+
+/// <summary>The server's pause and save gate (save/gate.ts): what "gate" pushes and /api/pause answers.</summary>
+public sealed record GateState
+{
+    public bool Paused { get; init; }
+    /// <summary>"open", "saving" or "loading".</summary>
+    public string Mode { get; init; } = "open";
+    public int InFlight { get; init; }
+}

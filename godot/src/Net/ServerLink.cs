@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Godot;
@@ -34,6 +35,118 @@ public partial class ServerLink : Node
     public event Action<TickReply>? Ticked;
 
     private event Action? up;
+
+    // ------------------------------------------------------------------ the pause (game/pause.ts)
+
+    private readonly HashSet<string> reasons = new();
+    /// <summary>Paused now: nothing progresses, here or on the server.</summary>
+    public bool Paused => reasons.Count > 0;
+    /// <summary>Played together (the Together part sets it): the menu and the pause key do not pause; only the host's "Pause all" does.</summary>
+    public bool Together { get; private set; }
+    /// <summary>The pause began (true) or ended (false).</summary>
+    public event Action<bool>? PauseChanged;
+    /// <summary>Stop the scene tree too while paused (every part with the default process mode stands still). The menus' part may turn it off and freeze what it wants itself.</summary>
+    public bool FreezeTree { get; set; } = true;
+
+    /// <summary>
+    /// Add or take away one reason to be paused ("menu", "key", "saving", "loading", "boot", "host"); the game plays
+    /// when there is none. The server hears it, the push channel keeps its messages until the unpause, the clock in
+    /// the corner stands.
+    /// </summary>
+    public void SetPause(string reason, bool on)
+    {
+        if (Together && on && reason is "menu" or "key") return; // M8a
+        bool was = Paused;
+        if (on) reasons.Add(reason);
+        else reasons.Remove(reason);
+        bool now = Paused;
+        if (was == now) return;
+        Api?.SetPaused(now);
+        GameState.I.SetPaused(now);
+        if (FreezeTree && IsInsideTree()) GetTree().Paused = now;
+        PauseChanged?.Invoke(now);
+    }
+
+    public void SetTogether(bool on)
+    {
+        Together = on;
+        GameState.I.Together = on;
+        if (!on) return;
+        SetPause("menu", false);
+        SetPause("key", false);
+    }
+
+    // ------------------------------------------------------------------ Jef's place for the host's town map (net/mp/together.ts soloMap)
+
+    private bool mapOn;
+    private double mapAcc;
+    private bool mapBusy;
+    private readonly Dictionary<string, (double X, double Z)> soloWas = new();
+    /// <summary>The town map's address on this PC (the host's own game only), or empty.</summary>
+    public string MapUrl { get; private set; } = "";
+    /// <summary>Jef is out of sight indoors or in a menu ("away" on the map). Set by the rooms' or the menus' part.</summary>
+    public Func<bool> Away { get; set; } = () => false;
+    /// <summary>The townspeople this game moves unseen off their day plan, for the map (town.offPlan()); set by the townspeople's part. Sent once a second.</summary>
+    public Func<IEnumerable<MapOff>>? OffPlan { get; set; }
+    /// <summary>How many times the map took Jef's place (the checks).</summary>
+    public int MapReports { get; private set; }
+    private double offAcc;
+    private bool offBusy;
+
+    /// <summary>How Jef moves now, in the words the server and the other players know (shared/mpProtocol.ts MpMode).</summary>
+    public static string ModeOf(Scheldemist.Player.Jef j) =>
+        j.Fly ? "fly" : j.Climbing ? "ladder" : j.Swimming ? "swim" : j.Crouching ? "crouch" : "walk";
+
+    /// <summary>Played alone there is no movement socket: four times a second the game says where Jef is, and the townspeople it draws round him.</summary>
+    private void SoloMap(double delta)
+    {
+        var api = Api;
+        var jef = Scheldemist.Player.Jef.I;
+        if (api == null || !mapOn || Together || jef == null || !GameState.I.Live) return;
+        mapAcc += delta;
+        if (mapAcc >= 0.25 && !mapBusy)
+        {
+            double span = mapAcc;
+            mapAcc = 0;
+            var people = new List<Dictionary<string, object?>>();
+            var town = Main.I.GetNodeOrNull<Scheldemist.Town.Townspeople>("Townspeople");
+            if (town != null)
+            {
+                var seen = new HashSet<string>();
+                foreach (var sim in town.Sims)
+                {
+                    if (sim.P is not { } q) continue;
+                    string id = sim.R.Id;
+                    double speed = soloWas.TryGetValue(id, out var was) ? Math.Min(8, Math.Sqrt((q.X - was.X) * (q.X - was.X) + (q.Z - was.Z) * (q.Z - was.Z)) / Math.Max(0.05, span)) : 0;
+                    soloWas[id] = (q.X, q.Z);
+                    seen.Add(id);
+                    string motion = q.Human.Motion ?? "idle";
+                    people.Add(new Dictionary<string, object?>
+                    {
+                        ["id"] = id, ["x"] = Math.Round(q.X, 1), ["z"] = Math.Round(q.Z, 1), ["yaw"] = Math.Round(q.Yaw, 2), ["speed"] = Math.Round(speed, 1),
+                        ["motion"] = motion, ["sit"] = q.State == "sit", ["lantern"] = false, ["sack"] = q.Loaded, ["bought"] = null, ["vehicle"] = null,
+                    });
+                    if (people.Count >= 80) break;
+                }
+                foreach (string id in new List<string>(soloWas.Keys))
+                    if (!seen.Contains(id)) soloWas.Remove(id);
+            }
+            mapBusy = true;
+            var body = new Dictionary<string, object?> { ["x"] = jef.X, ["y"] = jef.Y, ["z"] = jef.Z, ["yaw"] = jef.Yaw, ["mode"] = ModeOf(jef), ["away"] = Away(), ["people"] = people };
+            api.Run(api.Post<OkReply>("api/map/me", body), r =>
+            {
+                mapBusy = false;
+                if (r.Ok) MapReports++;
+            }, _ => mapBusy = false);
+        }
+        offAcc += delta;
+        if (offAcc >= 1 && !offBusy && OffPlan != null)
+        {
+            offAcc = 0;
+            offBusy = true;
+            api.Run(api.MapOff(System.Linq.Enumerable.Take(OffPlan(), 400)), _ => offBusy = false, _ => offBusy = false);
+        }
+    }
     private readonly CancellationTokenSource stopping = new();
     private double sinceTick;
     private double sinceWhere;
@@ -56,6 +169,8 @@ public partial class ServerLink : Node
 
     public override void _Ready()
     {
+        // the link lives through a pause: the channel is pumped, the unpause is heard
+        ProcessMode = ProcessModeEnum.Always;
         var main = Main.I;
         int port = int.TryParse(main.Arg("port"), out int p) ? p : ServerProcess.FirstPort;
         var opt = new ServerOptions
@@ -109,6 +224,14 @@ public partial class ServerLink : Node
         // the state now (the browser's first api.jobs()); the push channel's welcome brings it too
         api.Run(api.Jobs(), state.Apply, e => GD.PrintErr($"the first state did not come: {e.Message}"));
         api.ConnectPush();
+        if (Paused) api.SetPaused(true);
+        // the host's own game has a town map on this PC: Jef's place goes to it
+        if (!api.Guest)
+            api.Run(api.Get<Dictionary<string, string>>("api/map"), m =>
+            {
+                MapUrl = m.TryGetValue("url", out string? u) ? u : "";
+                mapOn = MapUrl != "";
+            }, _ => { });
         var waiting = up;
         up = null;
         waiting?.Invoke();
@@ -135,7 +258,9 @@ public partial class ServerLink : Node
         api.Pump();
         // day.ts: a tick every 10 s while Jef plays; through a door (or the lantern up or down) the server hears of it now
         var state = GameState.I;
-        if (!state.Playing)
+        if (Paused) return;
+        SoloMap(delta);
+        if (!state.Playing || Together)
         {
             sinceTick = 0;
             return;

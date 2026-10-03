@@ -118,8 +118,27 @@ public partial class GameState : Node
 
     // ------------------------------------------------------------------ the running clock (day.ts hourF)
 
-    private ulong shownAt = Time.GetTicksMsec();
+    private ulong shownAt = PlayNow;
     private bool wasOn;
+
+    // game/pause.ts: the game's own clock is real time less the time spent paused
+    private static ulong pausedAt;
+    private static ulong pausedTotal;
+    private static bool paused;
+    /// <summary>Milliseconds of play: real time less the time spent paused. A part that counts real seconds reads this.</summary>
+    public static ulong PlayNow => (paused ? pausedAt : Time.GetTicksMsec()) - pausedTotal;
+    public bool Paused => paused;
+    /// <summary>Played together: the town's clock runs on behind a window or the menu.</summary>
+    public bool Together { get; set; }
+
+    /// <summary>The link's word that the game is paused or plays again (ServerLink.SetPause).</summary>
+    public void SetPaused(bool on)
+    {
+        if (on == paused) return;
+        if (on) pausedAt = Time.GetTicksMsec();
+        else pausedTotal += Time.GetTicksMsec() - pausedAt;
+        paused = on;
+    }
 
     /// <summary>The hour with its fraction, run on smoothly between the server's ticks (half a game minute a real second), never past the next tick.</summary>
     public double HourF
@@ -128,8 +147,9 @@ public partial class GameState : Node
         {
             var c = Payload?.Clock;
             if (c == null) return 13;
-            bool on = Playing;
-            ulong now = Time.GetTicksMsec();
+            // paused, the clock stands where it was on screen (PlayNow stands still)
+            bool on = Playing || paused || Together;
+            ulong now = PlayNow;
             // back in play after a time out of it: the run on starts again from here
             if (on && !wasOn) shownAt = Math.Max(shownAt, now);
             wasOn = on;
@@ -159,7 +179,7 @@ public partial class GameState : Node
         var was = Payload;
         int moneyWas = Money;
         WarnNeeds(was, p);
-        if (was == null || was.Clock.Minute != p.Clock.Minute || was.Clock.Hour != p.Clock.Hour) shownAt = Time.GetTicksMsec();
+        if (was == null || was.Clock.Minute != p.Clock.Minute || was.Clock.Hour != p.Clock.Hour) shownAt = PlayNow;
         Payload = p;
         moneyOver = null;
         if (was == null) FirstState?.Invoke();

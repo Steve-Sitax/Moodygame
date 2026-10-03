@@ -5,8 +5,8 @@ using Godot;
 namespace Scheldemist.Game;
 
 /// <summary>
-/// What lies in a pocket, as a small ink drawing (game/pockets.ts ICON), 32 by 32. A kind with no drawing of its
-/// own yet (the shops' wares, game/shopIcons.ts) shows the parcel, as the browser does for a kind it does not know.
+/// What lies in a pocket, as a small ink drawing (game/pockets.ts ICON, game/shopIcons.ts), 32 by 32. A kind with
+/// no drawing of its own shows the parcel, as in the browser.
 /// </summary>
 public partial class PocketIcon : Control
 {
@@ -130,7 +130,9 @@ public partial class PocketIcon : Control
                 g.FillRect(11, 7, 10, 5);
                 foreach (int y in new[] { 15, 18, 21, 24 }) g.FillRect(11, y, y == 21 ? 7 : 10, 0.9f);
                 break;
-            default: // parcel
+            default:
+                // what the shops sell (game/shopIcons.ts); a kind with no drawing at all is a parcel
+                if (ShopIcons.Draw(g, this, kind, s)) break;
                 g.StrokeRect(6, 9, 20, 15);
                 g.BeginPath();
                 g.MoveTo(16, 9);

@@ -51,6 +51,21 @@ public sealed class Api : IDisposable
     /// <summary>This game's name on the push channel (the browser's tab name): the server lets go of its pause when the channel closes.</summary>
     public string ClientId { get; } = "godot-" + Guid.NewGuid().ToString("N")[..8];
 
+    /// <summary>
+    /// A guest's token from the join (net/mp/identity.ts); null: this is the host's own game on the host PC. It rides
+    /// on every call (the X-Scheldemist-Player header) and says who the push channel is for (its "hello").
+    /// </summary>
+    public string? Token { get; set; }
+    public bool Guest => Token != null;
+    public const string TokenHeader = "X-Scheldemist-Player";
+
+    // M8e review 4 (net/mp/link.ts): a call the host answered 429 is tried again after its Retry-After
+    private const int Retry429 = 2;
+    private const double RetryAfterMaxS = 5;
+    // issue #15 (boot/netboot.ts): at most so many calls to the server on their way; the rest wait their turn
+    private const int ApiOpen = 8;
+    private readonly SemaphoreSlim open = new(ApiOpen, ApiOpen);
+
     private readonly HttpClient http;
     private readonly ConcurrentQueue<Action> inbox = new();
     private readonly CancellationTokenSource closing = new();
@@ -69,17 +84,7 @@ public sealed class Api : IDisposable
     public void Pump()
     {
         while (inbox.TryDequeue(out var a))
-        {
-            try
-            {
-                a();
-            }
-            catch (Exception e)
-            {
-                // a handler that throws must not take the later messages with it
-                Failed?.Invoke(e);
-            }
-        }
+            Safe(a); // a handler that throws must not take the later messages with it
     }
 
     /// <summary>A handler threw while a message was handed over.</summary>
@@ -114,10 +119,30 @@ public sealed class Api : IDisposable
         string url = path.TrimStart('/');
         try
         {
-            using var req = new HttpRequestMessage(method, url);
-            if (body != null) req.Content = new StringContent(JsonSerializer.Serialize(body, body.GetType(), Json), Encoding.UTF8, "application/json");
-            using var res = await http.SendAsync(req, HttpCompletionOption.ResponseContentRead, limit.Token).ConfigureAwait(false);
-            string text = await res.Content.ReadAsStringAsync(limit.Token).ConfigureAwait(false);
+            string? json = body == null ? null : JsonSerializer.Serialize(body, body.GetType(), Json);
+            HttpResponseMessage? got = null;
+            string text;
+            // (a call whose time runs out while it waits its turn never goes out)
+            await open.WaitAsync(limit.Token).ConfigureAwait(false);
+            try
+            {
+                for (int tries = 0; ; tries++)
+                {
+                    using var req = new HttpRequestMessage(method, url);
+                    if (json != null) req.Content = new StringContent(json, Encoding.UTF8, "application/json");
+                    if (Token is { } token) req.Headers.TryAddWithoutValidation(TokenHeader, token);
+                    got?.Dispose();
+                    got = await http.SendAsync(req, HttpCompletionOption.ResponseContentRead, limit.Token).ConfigureAwait(false);
+                    if ((int)got.StatusCode != 429 || RetryAfterMs(got, tries) is not { } wait) break;
+                    await Task.Delay(wait, limit.Token).ConfigureAwait(false);
+                }
+                text = await got.Content.ReadAsStringAsync(limit.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                open.Release();
+            }
+            using var res = got;
             if (!res.IsSuccessStatusCode)
             {
                 string? said = null;
@@ -152,6 +177,93 @@ public sealed class Api : IDisposable
             throw new ApiException($"the game server does not answer (/{url})", 0, e);
         }
     }
+
+    /// <summary>link.ts retryAfterMs: how long to wait before a call answered 429 goes again, or null: not again.</summary>
+    private static int? RetryAfterMs(HttpResponseMessage r, int tries)
+    {
+        if (tries >= Retry429) return null;
+        double s = 1;
+        if (r.Headers.TryGetValues("Retry-After", out var v))
+        {
+            string h = string.Join("", v).Trim();
+            if (h != "" && !double.TryParse(h, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out s)) return null;
+        }
+        if (double.IsNaN(s) || s < 0 || s > RetryAfterMaxS) return null;
+        return Math.Max(200, (int)Math.Round(s * 1000));
+    }
+
+    // ------------------------------------------------------------------ the pause (game/pause.ts)
+
+    private readonly List<Action> held = new();
+    private bool? told;
+    private Task telling = Task.CompletedTask;
+    private readonly object tellLock = new();
+
+    /// <summary>
+    /// The game is paused: the server hears it (its clock, ticks and model calls stop), and what it pushes
+    /// meanwhile is kept and handed over after the unpause, in order. "gate" and "loaded" always come at once.
+    /// Main thread. The reasons to pause, and "never when played together", are ServerLink's.
+    /// </summary>
+    public bool Paused { get; private set; }
+
+    public void SetPaused(bool on)
+    {
+        if (on == Paused) return;
+        Paused = on;
+        TellServer();
+        if (on) return;
+        var now = held.ToArray();
+        held.Clear();
+        foreach (var a in now) Safe(a);
+    }
+
+    /// <summary>In order, the last word wins; a server away simply does not hear it.</summary>
+    private void TellServer()
+    {
+        lock (tellLock)
+        {
+            telling = telling.ContinueWith(async _ =>
+            {
+                bool on = Paused;
+                if (told == on) return;
+                try
+                {
+                    await Call<JsonElement>(HttpMethod.Post, "api/pause", new Dictionary<string, object?> { ["on"] = on, ["client"] = ClientId }, 5000).ConfigureAwait(false);
+                    told = on;
+                }
+                catch (ApiException)
+                {
+                    // the server is away: its tick waits for this game anyway
+                }
+            }, TaskScheduler.Default).Unwrap();
+        }
+    }
+
+    /// <summary>After the push channel came back: the server let go of our pause when it dropped.</summary>
+    private void ResendPause()
+    {
+        told = null;
+        TellServer();
+    }
+
+    private void Safe(Action a)
+    {
+        try
+        {
+            a();
+        }
+        catch (Exception e)
+        {
+            Failed?.Invoke(e);
+        }
+    }
+
+    /// <summary>Hand a pushed message over on the main thread; paused, it waits for the unpause.</summary>
+    private void Hand(Action a) => inbox.Enqueue(() =>
+    {
+        if (Paused) held.Add(a);
+        else a();
+    });
 
     // ------------------------------------------------------------------ the calls of api.ts
 
@@ -223,7 +335,9 @@ public sealed class Api : IDisposable
     public Task<DoneReply> Done(int id, Report report) => Post<DoneReply>($"api/jobs/{id}/done", report);
     // M4
     /// <summary>Townspeople who act, street conversations, the director's events (api.ts ActionsPayload).</summary>
-    public Task<JsonElement> Actions() => Get<JsonElement>("api/actions");
+    public Task<ActionsPayload> Actions() => Get<ActionsPayload>("api/actions");
+    /// <summary>The server's pause and save gate now.</summary>
+    public Task<GateState> Gate() => Get<GateState>("api/pause");
     public Task<OkReply> ActionsSync(double x, double z, IEnumerable<PersonAt> people) => Post<OkReply>("api/actions/sync", new { x, z, people });
     /// <summary>phase: "arrived", "lost", "blocked" or "done". The reply is the game state with the action in "action".</summary>
     public Task<JsonElement> ActionReport(int id, string phase, double? x = null, double? z = null, bool? found = null, string? why = null)
@@ -281,7 +395,7 @@ public sealed class Api : IDisposable
         int attempt = 0;
         bool dropped = false;
         var rand = new Random();
-        var wsUrl = new Uri((Url.StartsWith("https", StringComparison.Ordinal) ? "wss" : "ws") + Url[Url.IndexOf("://", StringComparison.Ordinal)..] + "/ws?client=" + Uri.EscapeDataString(ClientId));
+        var wsUrl = new Uri((Url.StartsWith("https", StringComparison.Ordinal) ? "wss" : "ws") + Url[Url.IndexOf("://", StringComparison.Ordinal)..] + "/ws?client=" + Uri.EscapeDataString(ClientId) + (Guest ? "&guest=1" : ""));
         while (!stop.IsCancellationRequested)
         {
             using var ws = new ClientWebSocket();
@@ -292,11 +406,16 @@ public sealed class Api : IDisposable
                     connect.CancelAfter(ConnectMs);
                     await ws.ConnectAsync(wsUrl, connect.Token).ConfigureAwait(false);
                 }
+                // M8c: a guest's game says whose it is in its first message; the host's on the host PC needs nothing
+                if (Token is { } token)
+                    await ws.SendAsync(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new Dictionary<string, string> { ["type"] = "hello", ["token"] = token })), WebSocketMessageType.Text, true, stop).ConfigureAwait(false);
                 attempt = 0;
                 inbox.Enqueue(() =>
                 {
                     Linked = true;
                     LinkChanged?.Invoke(true);
+                    // the server let go of our pause when the channel dropped: say it again
+                    if (Paused) ResendPause();
                 });
                 if (dropped)
                 {
@@ -412,20 +531,20 @@ public sealed class Api : IDisposable
                 case "jobs":
                 {
                     var p = JsonSerializer.Deserialize<JobsPayload>(text, Json);
-                    if (p != null) inbox.Enqueue(() => JobsPushed?.Invoke(p));
+                    if (p != null) Hand(() => JobsPushed?.Invoke(p));
                     return;
                 }
                 case "outcome":
                 {
                     var o = JsonSerializer.Deserialize<OutcomeMsg>(text, Json);
-                    if (o != null) inbox.Enqueue(() => OutcomePushed?.Invoke(o));
+                    if (o != null) Hand(() => OutcomePushed?.Invoke(o));
                     return;
                 }
                 default:
                 {
                     var m = new PushMsg(type, doc.RootElement.Clone());
                     if (type is "gate" or "loaded") inbox.Enqueue(() => SystemPushed?.Invoke(m));
-                    else inbox.Enqueue(() => OtherPushed?.Invoke(m));
+                    else Hand(() => OtherPushed?.Invoke(m));
                     return;
                 }
             }
