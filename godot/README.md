@@ -20,6 +20,9 @@ The server's options: `--server http://127.0.0.1:PORT` (use a server that runs a
 (the first port to try; default 8800), `--db <file>` (another save), `--no-ai` (the server makes no model calls:
 walk-around mode), `--nettest <dir>` (the net part's own test: start the server with no AI, wait for the first
 state, one tick, a picture with the HUD and `nettest.json` in `<dir>`, quit; the server is gone afterwards).
+(game parts off), `--walktest <dir>` (Jef is walked along a few routes by script; what happened goes to
+`<dir>/walktest.json` with two pictures a route, then quit; `--walkspeed 2` runs it faster, `--walkonly a,b` picks
+routes), `--solidlazy` (make the walls near the camera only), `--city <json>` (`shared/city.json` somewhere else).
 
 ## How it is built
 - **The baked town** (`src/World/BakedWorld.cs`). The browser game builds its world in code (67,000 lines). The bake
@@ -33,6 +36,16 @@ state, one tick, a picture with the HUD and `nettest.json` in `<dir>`, quit; the
   `Kind` or a uniform, not a new shader file.
 - **The screen** (`src/Main.cs`, `shaders/retro.gdshader`): the world is drawn at 720 lines into `Main.I.View`,
   then full screen through the retro pass (grade, grain, dither).
+- **What is solid** (`src/World/Solid.cs`): Jef walks on Godot's physics (Jolt) over the baked meshes themselves.
+  Left out, as the browser leaves them out: hidden nodes, glows, decals, leaves, the water's sheets, litter, and the
+  frozen copies of what moves (people, animals, boats, vehicles: their parts bring their own). A part that puts a
+  solid thing in the world gives it a body on `Solid.Layer`. The whole town is made solid while loading (1.9 s).
+- **Jef** (`src/Player/Jef.cs`): the browser's `player/firstPerson.ts` with the same numbers. His body is solid
+  from a step (0.36 m) over his feet up to 1.75 m; his feet stand on the highest thing under them that is no more
+  than a step up, so kerbs and stairs are walked and anything higher is a wall. Water is where
+  `shared/city.json` says (`src/World/Water.cs`), at the tide's level (`src/World/Tide.cs`, the browser's
+  `world/tide.ts`); the ways out of it are in `src/World/QuayExits.cs`; vaulting is `shared/mantle.ts`
+  (`src/Player/Mantle.cs`). F is the free camera. Other parts read `Jef.I` (X, Y, Z, Yaw, Swimming, the events).
 - **Game parts** (`src/GamePart.cs`): a Node class with `[GamePart(order)]` is made and added under Main when the
   town is in. A new part is a new file under `src/<Area>/`; it reaches the rest through `Main.I` (`View`, `World`,
   `Cam`, `Ui`, `Arg`). No edits to `Main.cs` for a new part.
