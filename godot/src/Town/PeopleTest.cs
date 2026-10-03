@@ -43,6 +43,8 @@ public partial class PeopleTest : Node
     private readonly Dictionary<string, object> goodsRow = new();
     private readonly List<(Puppet p, string what)> exhibits = new();
     private int goodsStep;
+    private readonly Dictionary<string, object> layersRow = new();
+    private Townspeople.Sim? millMan;
     private double jefMin;
     private int jefBlocked;
     private (double x, double z) jefFrom;
@@ -504,6 +506,102 @@ public partial class PeopleTest : Node
                 goodsRow["townspeopleWithALanternDrawn"] = town.Sims.Count(s => s.Lamp);
                 foreach (var e in exhibits) crowd!.RemovePuppet(e.p);
                 exhibits.Clear();
+                Next("layers");
+                break;
+            }
+            case "layers":
+            {
+                // the layers over the day plan. First the calls at the shops this hour, then the great storm on the Grote Markt
+                town.SetClock(1, 10.5);
+                if (t < 0.8) break;
+                layersRow["callingAtAShopThisHour"] = town.Sims.Count(s => s.Key.Contains("|shop@"));
+                if (town.Data!.Places.TryGetValue("grote_markt", out var gm))
+                {
+                    Main.I.Cam.LookAtFromPosition(new Vector3((float)gm.X + 14, 1.7f, (float)gm.Z + 10), new Vector3((float)gm.X - 6, 1.0f, (float)gm.Z - 4), Vector3.Up);
+                    town.Refill();
+                }
+                Next("stormcalm");
+                break;
+            }
+            case "stormcalm":
+                if (t < 5) break;
+                layersRow["outBeforeTheStorm"] = town.Sims.Count(s => !s.Inside);
+                town.SetStorm(1);
+                Next("storm");
+                break;
+            case "storm":
+            {
+                if (frames == 900) Shot("people_storm_running.png");
+                if (t < 14) break;
+                Shot("people_storm.png");
+                var by = town.Sims.GroupBy(s => s.Shelter ?? "none").ToDictionary(g => g.Key, g => g.Count());
+                layersRow["storm"] = new Dictionary<string, object>
+                {
+                    ["shelter"] = by,
+                    ["stillOut"] = town.Sims.Count(s => !s.Inside),
+                    ["drawnRunning"] = crowd!.Walking.Count(p => p.State == "walk" && p.Pace >= 2.2),
+                    ["drawnUnderADoorway"] = town.Sims.Count(s => s.P != null && s.Shelter is "under" or "tavern" && s.P.State == "stand"),
+                };
+                // someone pressed into a doorway, close
+                model = town.Sims.Where(s => s.P is { Shown: true, State: "stand" } && s.Shelter is "under" or "tavern").Select(s => s.P).FirstOrDefault();
+                Next(model != null ? "stormdoor" : "stormover");
+                break;
+            }
+            case "stormdoor":
+                Close(3.0, 0.3);
+                if (frames < 30) break;
+                Shot("people_storm_doorway.png");
+                Next("stormover");
+                break;
+            case "stormover":
+                town.SetStorm(0);
+                if (t < 0.8) break;
+                layersRow["afterTheStormStillSheltering"] = town.Sims.Count(s => s.Shelter != null);
+                Next("mill");
+                break;
+            case "mill":
+            {
+                // the mills' flour runs at dawn: the north mill's man pushes the handcart to the bakery
+                town.SetClock(1, 5.2);
+                if (t < 0.8) break;
+                var men = town.Sims.Where(s => s.MillRun).ToList();
+                layersRow["millMenOnARun"] = men.Count;
+                var man = men.FirstOrDefault(s => s.R.Work.Place == "mill_ne") ?? men.FirstOrDefault();
+                if (man == null)
+                {
+                    Next("done");
+                    break;
+                }
+                millMan = man;
+                Main.I.Cam.LookAtFromPosition(new Vector3((float)man.X + 5, (float)town.Walk!.BaseAt(man.X, man.Z) + 1.6f, (float)man.Z + 5), new Vector3((float)man.X, 1, (float)man.Z), Vector3.Up);
+                town.Refill();
+                Next("millshot");
+                break;
+            }
+            case "millshot":
+            {
+                if (millMan?.P == null)
+                {
+                    if (t > 8)
+                    {
+                        layersRow["millManDrawn"] = false;
+                        Next("done");
+                    }
+                    break;
+                }
+                model = millMan.P;
+                Close(3.6, -1.2);
+                if (t < 6) break;
+                Shot("people_mill_cart.png");
+                var w = town.WhereNow(millMan);
+                layersRow["millMan"] = new Dictionary<string, object>
+                {
+                    ["mill"] = millMan.R.Work.Place,
+                    ["run"] = w?.Cart != null ? $"{w.Cart.Value.kind}, {w.Cart.Value.phase}" : "none",
+                    ["pushesTheHandcart"] = millMan.P.Pushes && millMan.P.Cart != null,
+                    ["offTheCartsWayM"] = w?.Way != null ? Math.Round(Whereabouts.ProjectOn(w.Way, millMan.P.X, millMan.P.Z).off, 2) : -1,
+                    ["behindTheTimetableM"] = w != null ? Math.Round(Whereabouts.Hypot(w.X - millMan.P.X, w.Z - millMan.P.Z), 1) : -1,
+                };
                 Next("done");
                 break;
             }
@@ -522,6 +620,7 @@ public partial class PeopleTest : Node
                     jef = jefRow,
                     postedPeople = postedRow,
                     carried = goodsRow,
+                    layers = layersRow,
                     places = rows,
                 }, new JsonSerializerOptions { WriteIndented = true }));
                 GD.Print("peopletest: written " + Path.Combine(dir, "peopletest.json"));
@@ -565,21 +664,16 @@ public partial class PeopleTest : Node
                 missing++;
                 continue;
             }
-            // (the mill's man on a run with his cart goes by the cart's timetable: shared/mills.ts, not ported yet)
-            if (e.GetProperty("cart").GetBoolean())
-            {
-                cart++;
-                continue;
-            }
+            if (e.GetProperty("cart").GetBoolean()) cart++;
             n++;
             double hour = e.GetProperty("hour").GetDouble();
             var w = town.WhereOf(r, day, hour)!;
             double d = Whereabouts.Hypot(w.X - e.GetProperty("x").GetDouble(), w.Z - e.GetProperty("z").GetDouble());
-            bool ok = d < 0.01 && w.Indoor == e.GetProperty("indoor").GetBoolean() && w.Moving == e.GetProperty("moving").GetBoolean() && w.Act == e.GetProperty("act").GetString() && w.Place == e.GetProperty("place").GetString() && w.Stop == e.GetProperty("stop").GetInt32();
+            bool ok = d < 0.01 && (w.Cart != null) == e.GetProperty("cart").GetBoolean() && w.Indoor == e.GetProperty("indoor").GetBoolean() && w.Moving == e.GetProperty("moving").GetBoolean() && w.Act == e.GetProperty("act").GetString() && w.Place == e.GetProperty("place").GetString() && w.Stop == e.GetProperty("stop").GetInt32();
             worst = Math.Max(worst, d);
             if (ok) same++;
             else if (wrong.Count < 12) wrong.Add($"{id} at {hour}: {d:F2} m off, {w.Act}:{w.Place} stop {w.Stop} moving {w.Moving} (server {e.GetProperty("act").GetString()}:{e.GetProperty("place").GetString()} stop {e.GetProperty("stop").GetInt32()} moving {e.GetProperty("moving").GetBoolean()})");
         }
-        return new Dictionary<string, object> { ["answers"] = n, ["same"] = same, ["worstM"] = Math.Round(worst, 3), ["onACartRunSkipped"] = cart, ["notInThisTown"] = missing, ["waysStillAskedFor"] = town.WaysWaiting, ["different"] = wrong };
+        return new Dictionary<string, object> { ["answers"] = n, ["same"] = same, ["worstM"] = Math.Round(worst, 3), ["ofThemOnACartRun"] = cart, ["notInThisTown"] = missing, ["waysStillAskedFor"] = town.WaysWaiting, ["different"] = wrong };
     }
 }

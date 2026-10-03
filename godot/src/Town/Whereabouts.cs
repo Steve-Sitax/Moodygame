@@ -14,7 +14,7 @@ public readonly record struct Now(string Act, string Place, double Since, double
 /// the same sum, so they agree on where a person is that nobody sees. His day plan says what he does now and since
 /// when; he left the place of the part before and walks the way on foot (found by the server on its walk map:
 /// streets, never through a house) to the place of this part, at his own pace.
-/// Not ported yet: the mill's man on a run with his cart (shared/mills.ts runNow): he keeps his day plan.
+/// The mill's man goes by his cart's timetable (shared/mills.ts runNow; the tables: SharedData.cs).
 /// </summary>
 public static class Whereabouts
 {
@@ -213,6 +213,8 @@ public static class Whereabouts
         public int Stop;
         /// <summary>On his way: its points, from where he set off.</summary>
         public Pt[]? Way;
+        /// <summary>The mill's man on a run with the cart: which mill, what he takes ("flour", "grain"), and the phase (load, go, unload, back, store).</summary>
+        public (Mill mill, string kind, string phase)? Cart;
     }
 
     internal readonly record struct Part(string Act, string Place, double Start, double End);
@@ -338,6 +340,58 @@ public static class Whereabouts
             if (q.Start > h) end = Math.Min(end, q.Start);
         }
         return (new Part("home", "home", start, end), h - start, end - h);
+    }
+
+    /// <summary>A mill's two runs of a day (shared/mills.ts runsOf): the flour to the bakery at dawn, the grain from the dock after dinner.</summary>
+    public static (string kind, string phase, double since, double left)? RunNow(Mill m, int day, double hour)
+    {
+        if (day % 7 == 0) return null;
+        double Leg(double way) => way / SharedData.CartPace / 120;
+        double b = Leg(m.WayBakery), g = Leg(m.WayGrain), L = SharedData.LoadH;
+        double f0 = SharedData.FlourOut, g0 = SharedData.GrainOut;
+        var phases = new (string kind, string phase, double from, double to)[]
+        {
+            ("flour", "load", f0, f0 + L), ("flour", "go", f0 + L, f0 + L + b), ("flour", "unload", f0 + L + b, f0 + L + b + L), ("flour", "back", f0 + L + b + L, f0 + L + b + L + b),
+            ("grain", "go", g0, g0 + g), ("grain", "load", g0 + g, g0 + g + L), ("grain", "back", g0 + g + L, g0 + g + L + g), ("grain", "store", g0 + g + L + g, g0 + g + L + g + L),
+        };
+        foreach (var p in phases)
+            if (hour >= p.from && hour < p.to) return (p.kind, p.phase, hour - p.from, p.to - hour);
+        return null;
+    }
+
+    /// <summary>
+    /// The mill's man on a run (whereabouts.ts millRun): along the cart's way on the way out and back, at the stop
+    /// while loading or unloading, at the cart's stand in the store. False when he is not on a run.
+    /// </summary>
+    private static bool MillRun(Resident r, int day, double hour, Where o)
+    {
+        if (r.Trade != "miller_man") return false;
+        var m = SharedData.Mills.FirstOrDefault(q => q.Id == r.Work.Place);
+        if (m == null || RunNow(m, day, hour) is not { } run) return false;
+        o.Cart = (m, run.kind, run.phase);
+        o.Indoor = false;
+        if (run.phase is "go" or "back")
+        {
+            var route = run.kind == "flour" ? m.RouteBakery : m.RouteDock;
+            var way = run.phase == "back" ? Enumerable.Reverse(route).ToArray() : route;
+            double f = run.since / Math.Max(1e-6, run.since + run.left);
+            double total = WayLength(way);
+            (o.X, o.Z, o.Yaw) = PointAlong(way, f * total);
+            o.Moving = true;
+            o.Walked = f * total;
+            o.Total = total;
+            o.Way = way;
+            o.Mps = SharedData.CartPace;
+            return true;
+        }
+        var at = (run.kind == "flour" && run.phase == "load") || (run.kind == "grain" && run.phase == "store") ? m.Park : run.kind == "flour" ? m.StopBakery : m.StopDock;
+        o.X = at.X;
+        o.Z = at.Z;
+        o.Yaw = 0;
+        o.Moving = false;
+        o.Walked = o.Total = 0;
+        o.Mps = 0;
+        return true;
     }
 
     private static bool Same(Anchor a, Anchor b) => Math.Abs(a.X - b.X) < 0.5 && Math.Abs(a.Z - b.Z) < 0.5;
@@ -499,6 +553,12 @@ public static class Whereabouts
         var here = stops[k];
         var prev = k > 0 ? stops[k - 1].At : here.At;
         var o = new Where { Act = here.Part.Act, Place = here.Part.Place, Since = Math.Max(0, hour - here.Part.Start), Left = Math.Max(0, here.Part.End - hour), From = prev, To = here.At, Stop = k };
+        // (the mill's man keeps the cart's timetable to its end: he sets off for the evening's place after the sacks are in)
+        if (MillRun(r, day, hour, o))
+        {
+            o.From = o.To = here.At;
+            return o;
+        }
         var w = here.Walk;
         if (w != null && hour < here.Arrive)
         {
@@ -587,6 +647,8 @@ public static class Whereabouts
     {
         double lag = Math.Max(0, Math.Min(LagMaxH, double.IsNaN(lagH) ? 0 : lagH));
         var w = WhereLate(r, town, day, hour, way, lag);
+        // (the mill's man keeps the cart's timetable: he is never late by the sum)
+        if (w.Cart != null) return 0;
         if (!w.Moving || w.Way == null || w.Leg != null || !(w.Mps > 0)) return SettleLag(r, town, day, hour, way, lag);
         var p = ProjectOn(w.Way, x, z);
         if (p.off > LagOffWayM) return lag;

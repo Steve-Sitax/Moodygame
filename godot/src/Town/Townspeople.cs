@@ -25,9 +25,11 @@ namespace Scheldemist.Town;
 /// --hour 13.5 and --day 1 (the clock, until the game state part sets it: SetClock), --walk file (the bake's walk
 /// dump, town_walk.json; else beside the town, else baked/town_walk.json).
 ///
-/// Not ported yet (each is a later step of the port; the hooks are named as in town.ts): journeys (velocipedes, carts, the omnibus, boats), the dispatcher's trade runs, the
-/// mills' carts, the docks' real loads, the back streets' and lively's own goals, the market's browsing, the great
-/// storm, thieves at Jef's pocket, dogs at heel, the stalls' awnings, played together.
+/// The great storm's shelter (SetStorm), the calls at the shops (ShopCalls.cs) and the mill's man with his cart are in.
+/// Not ported yet (each is a later step of the port; the hooks are named as in town.ts): journeys (velocipedes,
+/// carts, the omnibus, boats), the dispatcher's trade runs, the mills' own people at their work and the dray's
+/// horse, the docks' real loads, the back streets' and lively's own goals, the market's browsing, thieves at Jef's
+/// pocket, dogs at heel, the stalls' awnings, played together.
 /// </summary>
 [GamePart(200)]
 public partial class Townspeople : Node
@@ -97,6 +99,11 @@ public partial class Townspeople : Node
         public double CoarseDt;
         /// <summary>A lantern in his hand now.</summary>
         public bool Lamp;
+        /// <summary>The great storm: where he runs to in it ("stay", "home", "tavern", "under"; null: no storm), and the tavern.</summary>
+        public string? Shelter;
+        public string ShelterPlace = "";
+        /// <summary>On a run with the mill's cart (the game minute of his last order).</summary>
+        public bool MillRun;
         internal HiddenWay? Hw;
         internal Station? Round;
     }
@@ -151,6 +158,35 @@ public partial class Townspeople : Node
     private readonly ConcurrentQueue<Action> inbox = new();
     private readonly Random rng = new();
     private LanternPool? lanterns;
+    private readonly ShopCalls shopCalls = new();
+    private double stormLevel;
+    private int stormEvent;
+    private List<string>? taverns;
+    private List<(double x, double z, double sx, double sz)>? doorList;
+
+    /// <summary>The great storm: how fast they run for shelter (m/s), the walk cycle sped up as far as it still reads as a run.</summary>
+    private const double StormRun = 2.3;
+    /// <summary>A doorway farther than this (m) is no shelter; they run home. Within the second of the cathedral, they go in there.</summary>
+    private const double StormDoorM = 70, StormChurchM = 80;
+
+    /// <summary>
+    /// The great storm (world/tempest.ts, shared/tempest.ts): while its level is over 0 everyone out in it runs for
+    /// shelter (home, the nearest tavern, the cathedral, under a doorway), nobody calls at a shop, and the park
+    /// empties. 0 ends it and the day goes on. A new storm is a new roll of who goes where (`storm`: its number;
+    /// by default the next one).
+    /// </summary>
+    public void SetStorm(double level, int storm = -1)
+    {
+        bool was = stormLevel > 0, on = level > 0;
+        stormLevel = Math.Max(0, level);
+        if (on && !was) stormEvent = storm >= 0 ? storm : stormEvent + 1;
+        else if (on && storm >= 0) stormEvent = storm;
+    }
+
+    public double StormLevel => stormLevel;
+
+    /// <summary>Is it raining hard enough to empty the park? (the weather part may set it; else the store's weather says)</summary>
+    public Func<bool> Raining = () => Scheldemist.Game.GameState.I.Weather is "rain" or "storm";
     private System.Net.Http.HttpClient? http;
     private string server = "";
     private double wayAskT, thinkT, spawnT, lagT, lagAt = -1;
@@ -428,7 +464,18 @@ public partial class Townspeople : Node
     public int WaysWaiting => waysIn ? wayAsk.Count + wayAsked.Count : -1;
 
     /// <summary>Where the shared sum puts a person now, late by his progress reports, or null when his goal is not his plan's own.</summary>
-    public Whereabouts.Where? WhereNow(Sim s) => Data == null || !s.Plain ? null : Whereabouts.WhereLate(s.R, Data, day, hour, WayOf, s.Lag);
+    public Whereabouts.Where? WhereNow(Sim s)
+    {
+        if (Data == null) return null;
+        if (!s.Plain)
+        {
+            // the mill's man on the way with his cart, and at the stops of the run (the cart's timetable, as the town map has it)
+            if (!s.MillRun) return null;
+            var w = Whereabouts.WhereAt(s.R, Data, day, hour, WayOf);
+            return w.Cart != null ? w : null;
+        }
+        return Whereabouts.WhereLate(s.R, Data, day, hour, WayOf, s.Lag);
+    }
 
     /// <summary>The plain sum for anyone (a check against the server's own).</summary>
     public Whereabouts.Where? WhereOf(Resident r, int day, double hour) => Data == null ? null : Whereabouts.WhereAt(r, Data, day, hour, WayOf);
@@ -541,9 +588,20 @@ public partial class Townspeople : Node
     private void Reschedule(Sim s, bool first)
     {
         var now = PlanNow(s);
-        string key = $"{now.Act}:{now.Place}";
+        // the great storm: no calls at the shops, everyone out of it
+        bool storm = stormLevel > 0;
+        if (now.Place == "park" && (stormLevel > 0.3 || Raining())) now = now with { Act = "home", Place = "home" };
+        (s.Shelter, s.ShelterPlace) = storm ? ShelterFor(s.R, now) : (null, "");
+        bool sheltered = s.Shelter != null && s.Shelter != "stay";
+        // a call at a shop this hour (the engine's roll): in at its door, out at the hour's end
+        var call = storm ? null : shopCalls.CallOf(Data!, s.R, day, hour);
+        // the mill's man with the cart (flour to the bakery at dawn, grain from the dock after dinner)
+        var run = storm || s.R.Trade != "miller_man" ? null : Whereabouts.WhereAt(s.R, Data!, day, hour, WayOf).Cart;
+        string key = sheltered
+            ? $"storm{stormEvent}:{s.Shelter}{(s.Shelter == "tavern" ? $":{s.ShelterPlace}" : "")}"
+            : FormattableString.Invariant($"{now.Act}:{now.Place}{(call != null ? $"|shop@{call.Value.X},{call.Value.Z}" : "")}{(storm ? $"|storm{stormEvent}" : "")}{(run != null ? $"|mill:{run.Value.kind}" : "")}");
         // a publican (or a drinker) whose tavern opens or shuts gets his goal again, the key unchanged
-        string tavPlace = now.Act == "tavern" ? now.Place : now.Act == "work" && s.R.Work.Kind == "tavern" ? s.R.Work.Place : now.Act == "work" && s.R.Work.Kind == "shop" && s.R.Work.Shop != null ? $"shop:{s.R.Work.Shop}" : "";
+        string tavPlace = s.Shelter == "tavern" ? s.ShelterPlace : now.Act == "tavern" ? now.Place : now.Act == "work" && s.R.Work.Kind == "tavern" ? s.R.Work.Place : now.Act == "work" && s.R.Work.Kind == "shop" && s.R.Work.Shop != null ? $"shop:{s.R.Work.Shop}" : "";
         string tav = tavPlace != "" ? (TavernInside(tavPlace) ? "in" : "out") : "";
         if (key == s.Key && tav == s.Tav)
         {
@@ -552,7 +610,15 @@ public partial class Townspeople : Node
         }
         s.Tav = tav;
         s.Key = key;
-        s.Goal = GoalFor(s, now);
+        s.Goal = call != null ? new Goal { Mode = "inside", X = call.Value.X, Z = call.Value.Z } : GoalFor(s, now);
+        if (call != null) s.Plain = false;
+        s.MillRun = run != null && !sheltered;
+        if (s.MillRun)
+        {
+            s.Goal = new Goal { Mode = "millrun", X = s.X, Z = s.Z };
+            s.Plain = false;
+        }
+        if (s.P != null && !s.MillRun) s.P.Pushes = false;
         s.Step = 0;
         s.Tries = 0;
         s.Wait = 0;
@@ -622,7 +688,11 @@ public partial class Townspeople : Node
     private Goal GoalFor(Sim s, Now now)
     {
         // (only a goal of the plan's own is walked by the shared sum unseen; the mills', the back streets' and lively's goals come with their parts)
-        s.Plain = true;
+        s.Plain = false;
+        // the great storm: out of it, running (and nobody stands about at a door, in the park or at the mill)
+        if (StormGoal(s) is { } stormGoal) return stormGoal;
+        // (the mill's people: the man goes with the mill's own cart, off the plan's sum)
+        s.Plain = s.R.Trade is not ("miller" or "miller_man");
         var r = s.R;
         var w = r.Work;
         Goal Home() => new() { Mode = "home", X = r.HomeSx, Z = r.HomeSz };
@@ -716,6 +786,101 @@ public partial class Townspeople : Node
         }
     }
 
+    // ------------------------------------------------------------------ the great storm
+
+    private static readonly HashSet<string> StayWork = new() { "tavern", "inside", "guard" };
+    private const double TavernRunM = 260;
+
+    /// <summary>
+    /// Where a resident goes when the storm breaks (shared/tempest.ts shelterFor): fixed per person and per storm.
+    /// Those under a roof stay; children run home; of the rest four in ten run home, three into the nearest tavern,
+    /// the others press into a doorway.
+    /// </summary>
+    private (string kind, string place) ShelterFor(Resident r, Now now)
+    {
+        taverns ??= Data!.Places.Keys.Where(id => id.StartsWith("tavern:")).ToList();
+        if (r.Work.Kind == "tavern" && r.Work.Place.StartsWith("tavern:") && r.Age >= 14) return now.Act == "work" ? ("stay", "") : ("tavern", r.Work.Place);
+        if (now.Act == "tavern" && now.Place.StartsWith("tavern:")) return ("tavern", now.Place);
+        if (now.Act is "home" or "church" or "tavern") return ("stay", "");
+        if (now.Act == "work" && StayWork.Contains(r.Work.Kind)) return ("stay", "");
+        if (r.Age < 14 || r.Trade is "child" or "street_child") return ("home", "");
+        double h = Hash01($"{r.Id}:tempest:{stormEvent}");
+        if (h < 0.42) return ("home", "");
+        if (h < 0.74)
+        {
+            Data!.Places.TryGetValue(now.Act == "work" ? r.Work.Place : now.Place, out var from);
+            double fx = from?.X ?? r.HomeSx, fz = from?.Z ?? r.HomeSz;
+            string best = "";
+            double bd = TavernRunM;
+            foreach (var id in taverns)
+            {
+                var p = Data.Places[id];
+                double d = Dist(p.X, p.Z, fx, fz);
+                if (d < bd)
+                {
+                    bd = d;
+                    best = id;
+                }
+            }
+            return best != "" ? ("tavern", best) : ("home", "");
+        }
+        return ("under", "");
+    }
+
+    /// <summary>The storm's goal: home, into the nearest tavern (or the cathedral, near it), or pressed into the nearest doorway. Null: under a roof already, or no storm.</summary>
+    private Goal? StormGoal(Sim s)
+    {
+        if (s.Shelter == null || s.Shelter == "stay") return null;
+        var r = s.R;
+        var home = new Goal { Mode = "home", X = r.HomeSx, Z = r.HomeSz };
+        if (s.Shelter == "home") return home;
+        if (s.Shelter == "tavern")
+        {
+            var t = Place(s.ShelterPlace);
+            if (t == null) return home;
+            if (TavernInside(s.ShelterPlace)) return new Goal { Mode = "inside", X = t.X, Z = t.Z };
+            return UnderDoor(s, t.Door ?? new Pt(t.X, t.Z), t.Out ?? new Pt(0, -1));
+        }
+        // under: the cathedral when it is near, else the nearest door
+        var c = Place("church");
+        if (c != null && Dist(s.X, s.Z, c.X, c.Z) < StormChurchM) return new Goal { Mode = "church", X = c.X, Z = c.Z };
+        if (doorList == null)
+        {
+            // every front door in town with its step (the residents' homes, one per house)
+            doorList = new List<(double, double, double, double)>();
+            var seen = new HashSet<(double, double)>();
+            foreach (var q in sims)
+                if (seen.Add((q.R.HomeX, q.R.HomeZ))) doorList.Add((q.R.HomeX, q.R.HomeZ, q.R.HomeSx, q.R.HomeSz));
+        }
+        (double x, double z, double sx, double sz)? best = null;
+        double bd = StormDoorM;
+        foreach (var d in doorList)
+        {
+            double dd = Dist(s.X, s.Z, d.sx, d.sz);
+            if (dd < bd)
+            {
+                bd = dd;
+                best = d;
+            }
+        }
+        if (best == null) return home;
+        var b = best.Value;
+        double L = Dist(b.sx, b.sz, b.x, b.z);
+        if (L == 0) L = 1;
+        return UnderDoor(s, new Pt(b.x, b.z), new Pt((b.sx - b.x) / L, (b.sz - b.z) / L));
+    }
+
+    private static readonly string[] StormPoses = { "fold", "wall", "pockets", "fold", "behind" };
+
+    /// <summary>Close in under a door's lintel, a little to one side, facing out into the rain.</summary>
+    private static Goal UnderDoor(Sim s, Pt door, Pt o)
+    {
+        // (along the front either side of the door, and a second rank a little out when the first is full)
+        double side = (Hash01(s.R.Id + "door") - 0.5) * 2.4;
+        double off = 0.55 + (Hash01(s.R.Id + "rank") < 0.3 ? 0.55 : 0);
+        return new Goal { Mode = "stand", X = door.X + o.X * off - o.Z * side, Z = door.Z + o.Z * off + o.X * side, Yaw = Math.Atan2(o.X, o.Z), Motion = StormPoses[(int)Math.Floor(Hash01(s.R.Id + "storm") * StormPoses.Length)] };
+    }
+
     /// <summary>Where their goal is (a trip's end): the stand, the door, the first point of a round.</summary>
     public Pt Anchor(Sim s)
     {
@@ -730,7 +895,7 @@ public partial class Townspeople : Node
     {
         // on the way between two places of his plan, or on his round, the shared sum has him (as the town map does)
         var on = WhereNow(s);
-        if (on != null && (on.Walked < on.Total || on.Leg != null))
+        if (on != null && (on.Walked < on.Total || on.Leg != null || on.Cart != null))
         {
             s.X = on.X;
             s.Z = on.Z;
@@ -892,6 +1057,8 @@ public partial class Townspeople : Node
     /// <summary>His pace in the street: his own (the same the sum walks him by unseen). On a leg the sum has him running he hurries, as fast as the walk can look.</summary>
     private double PaceOf(Sim s)
     {
+        // the great storm: anyone out in it runs for his door, also one whose day had him on his way home anyway
+        if (s.Shelter != null && (s.Shelter != "stay" || s.Goal.Mode is "home" or "inside" or "church")) return Math.Max(Whereabouts.PaceOf(s.R).mps, StormRun);
         var on = WhereNow(s);
         if (on is { Run: true } && on.Walked < on.Total) return Math.Min(on.Mps, SeenRunMax);
         return Whereabouts.PaceOf(s.R).mps;
@@ -935,6 +1102,9 @@ public partial class Townspeople : Node
                 s.Ph = 0;
                 break;
             }
+            case "millrun":
+                s.Wait = 0;
+                break;
             case "guard":
             {
                 // the relief: to the waiting spot while the old sentry still stands at the post
@@ -1080,6 +1250,24 @@ public partial class Townspeople : Node
                 s.Step++;
                 var q = g.Route![s.Step % g.Route.Length];
                 crowd.PuppetGo(p, q.X, q.Z);
+                return;
+            }
+            case "millrun":
+            {
+                // with the mill's cart: along its way at the cart's pace, standing by it while it is loaded and unloaded
+                // (the north mill's handcart he pushes himself; the Kipdorp mill's dray and its horse are the movers' part)
+                if ((s.Wait -= dt) > 0) return;
+                s.Wait = 0.5;
+                var w = WhereNow(s);
+                if (w?.Cart == null) return;
+                p.Pushes = w.Cart.Value.mill.Cart == "handcart";
+                if (w.Moving && w.Way != null)
+                {
+                    var ahead = Whereabouts.PointAlong(w.Way, Math.Min(w.Total, w.Walked + 6));
+                    crowd.PuppetGo(p, ahead.x, ahead.z, SharedData.CartPace);
+                }
+                else if (!busy || At(w.X, w.Z, 1.5)) crowd.PuppetStand(p, "idle", null);
+                else crowd.PuppetGo(p, w.X, w.Z, SharedData.CartPace);
                 return;
             }
             case "guard":

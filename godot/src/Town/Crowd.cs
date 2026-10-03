@@ -250,6 +250,8 @@ public sealed class Puppet
     internal Node3D? Lantern;
     internal LanternPool.Source? Light;
     internal PushCart? Cart;
+    /// <summary>Pushes a handcart (the mill's man on a run): the cart on its own wheels before him, the push clips.</summary>
+    public bool Pushes;
 }
 
 /// <summary>
@@ -346,7 +348,12 @@ public sealed class Crowd
             if (inView) y = p.Drop + Math.Max(0, lift) + (p.State == "sit" ? 0 : p.Human.Bob() * p.Size);
             p.Group.Position = new Vector3((float)p.X, (float)(y + ground), (float)p.Z);
             p.Group.Rotation = new Vector3(0, (float)p.Yaw, 0);
-            if (p.Kind == "carter") PushTheCart(p, dt, inView, ground);
+            if (p.Kind == "carter" || p.Pushes) PushTheCart(p, dt, inView, ground);
+            else if (p.Cart != null)
+            {
+                p.Cart.Dispose();
+                p.Cart = null;
+            }
             if (p.Lantern != null) PlaceLantern(p, d, ground, camera);
         }
         Drawn = drawn;
@@ -478,7 +485,7 @@ public sealed class Crowd
             if (!PushCart.Has) return;
             p.Cart = new PushCart(parent);
         }
-        bool walking = p.Human.Motion is "walk" or "carry";
+        bool walking = p.Human.Motion is "walk" or "carry" or "push";
         double hx = p.X + Math.Sin(p.Yaw) * 0.5, hz = p.Z + Math.Cos(p.Yaw) * 0.5, hy = 0.9;
         if (shown && p.Human.Hand(false) is { } hl && p.Human.Hand(true) is { } hr)
         {
@@ -1002,7 +1009,7 @@ public sealed class Crowd
             p.Human.Play(StillMotion(p), 0.3f);
             return;
         }
-        p.Human.Play(p.Loaded && p.HandCarry ? "carry" : "walk", 0.25f);
+        p.Human.Play(p.Pushes ? "push" : p.Loaded && p.HandCarry ? "carry" : "walk", 0.25f);
         p.Human.SetPace((float)(p.Pace / p.Size));
     }
 
