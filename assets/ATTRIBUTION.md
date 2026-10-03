@@ -278,6 +278,12 @@ Loaded by `godot/src/Game/Pen.cs` (`Fonts`) for the HUD. For the talk window, th
 @fontsource/alfa-slab-one 5.3.0), `unifrakturmaguntia-latin-400-normal.woff2` (`unifrakturmaguntia-LICENSE.txt`;
 @fontsource/unifrakturmaguntia 5.3.0), `courier-prime-latin-400-normal.woff2` (`courier-prime-LICENSE.txt`;
 @fontsource/courier-prime 5.3.0).
+Loaded by `godot/src/Game/Pen.cs` (`Fonts`) for the HUD. For the menus (2026-10-03) the same way:
+`old-standard-tt-latin-400-italic.woff2` (@fontsource/old-standard-tt 5.3.0), `alfa-slab-one-latin-400-normal.woff2`
+(`alfa-slab-one-LICENSE.txt`; @fontsource/alfa-slab-one 5.3.0), `courier-prime-latin-400-normal.woff2` and
+`courier-prime-latin-700-normal.woff2` (`courier-prime-LICENSE.txt`; @fontsource/courier-prime 5.3.0).
+The Godot menus also read copies of two of our own pictures listed below, unchanged: `godot/ui/quay_woodcut.jpg`
+(of `client/public/ui/quay_woodcut.jpg`) and `godot/ui/loading.jpg` (of `client/public/boot/loading.jpg`).
 
 The menus' one picture, made with Codex image generation from our own prompt through `tools/codexImage.mjs` (no
 example picture, no third-party images); turned grey and resized to 880 px:
