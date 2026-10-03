@@ -308,13 +308,17 @@ async function walkDump() {
 // with where they lie in <out>_tex/<name>.json. The sky map is a file of the client: copied.
 const SHARED_TEX = `(async () => {
   const u = __scheldemist.psxUniforms, out = {};
-  for (const [name, tex, box] of [["dirt", u.uDirt.value, u.uDirtBox.value]]) {
+  // (the dirt on the paving; the distance from the water to the nearest quay wall, world/quaysteps.ts; the foul water, world/litter.ts)
+  for (const [name, tex, box] of [["dirt", u.uDirt.value, u.uDirtBox.value], ["shore", u.uShore.value, u.uShoreBox.value], ["foul", u.uFoul.value, u.uFoulBox.value]]) {
     const im = tex && tex.image;
     if (!im || !im.data) continue;
     const c = document.createElement("canvas");
     c.width = im.width; c.height = im.height;
+    if (im.width < 2) continue; // (the stand-in until its own picture is in)
     const d = new ImageData(im.width, im.height);
-    d.data.set(im.data);
+    const step = im.data.length / (im.width * im.height);
+    if (step === 4) d.data.set(im.data);
+    else for (let i = 0; i < im.width * im.height; i++) d.data.set([im.data[i * step], im.data[i * step], im.data[i * step], 255], i * 4);
     c.getContext("2d").putImageData(d, 0, 0);
     const blob = await new Promise((r) => c.toBlob(r, "image/png"));
     await fetch("http://127.0.0.1:${RECV}/tex/" + name, { method: "POST", body: blob });

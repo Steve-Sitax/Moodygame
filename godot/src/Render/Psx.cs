@@ -24,10 +24,11 @@ public static class Psx
 {
     /// <summary>
     /// The switches that make another shader. Relief: 0 none, 1 a height map, 2 with stone ids. Ground: wet stone,
-    /// puddles, patches and dirt (their amounts are uniforms). Wall: the foot's dirt and the mottle.
+    /// puddles, patches and dirt (their amounts are uniforms). Wall: the foot's dirt and the mottle. Water: 1 the
+    /// river and the docks (waves, foam at the walls, the dark mirror), 2 a sheltered pond (the same, calmer).
     /// </summary>
     public record struct Kind(bool Unlit, bool Blend, bool Scissor, bool TwoSided, bool DepthWrite, bool Snap, int Atlas, bool VertexColor, bool Add, bool Fog,
-        int Relief = 0, bool Parallax = false, bool Detile = false, bool Ground = false, bool Wall = false, bool Slabs = false, bool Far = false);
+        int Relief = 0, bool Parallax = false, bool Detile = false, bool Ground = false, bool Wall = false, bool Slabs = false, bool Far = false, int Water = 0);
 
     private static readonly Dictionary<Kind, Shader> Shaders = new();
 
@@ -70,6 +71,9 @@ public static class Psx
         ("psx_spill_n", RenderingServer.GlobalShaderParameterType.Int, 0),
         // the sky's fill light now against the bake's (cathedralOutside.ts skyFill: an emissive that follows the sky)
         ("psx_fill", RenderingServer.GlobalShaderParameterType.Vec4, new Vector4(1, 1, 1, 1)),
+        // where the shore map (the distance from the water to the nearest quay wall) and the foul water map lie
+        ("psx_shore_box", RenderingServer.GlobalShaderParameterType.Vec4, new Vector4(-425, -80, 714, 493)),
+        ("psx_foul_box", RenderingServer.GlobalShaderParameterType.Vec4, new Vector4(-365, -80, 594, 433)),
     };
     private static bool globalsIn;
     /// <summary>
@@ -78,7 +82,7 @@ public static class Psx
     /// shade; the spilt light).
     /// </summary>
     private static readonly HashSet<string> Off = new((Array.IndexOf(OS.GetCmdlineUserArgs(), "--psx-off") is var i and >= 0 && i + 1 < OS.GetCmdlineUserArgs().Length ? OS.GetCmdlineUserArgs()[i + 1] : "").Split(',', StringSplitOptions.RemoveEmptyEntries));
-    private static ImageTexture? skyShade, dirt, spill;
+    private static ImageTexture? skyShade, dirt, spill, shore, foul;
     private static Image? spillImage;
     private static readonly float[] SpillData = new float[MaxSpill * 4 * 4];
 
@@ -95,6 +99,11 @@ public static class Psx
         RenderingServer.GlobalShaderParameterAdd("psx_sky_shade", RenderingServer.GlobalShaderParameterType.Sampler2D, skyShade.GetRid());
         RenderingServer.GlobalShaderParameterAdd("psx_dirt", RenderingServer.GlobalShaderParameterType.Sampler2D, dirt.GetRid());
         RenderingServer.GlobalShaderParameterAdd("psx_spill", RenderingServer.GlobalShaderParameterType.Sampler2D, spill.GetRid());
+        // (until theirs are in: no wall anywhere near, clean water everywhere)
+        shore = Flat(Colors.White);
+        foul = Flat(Colors.Black);
+        RenderingServer.GlobalShaderParameterAdd("psx_shore", RenderingServer.GlobalShaderParameterType.Sampler2D, shore.GetRid());
+        RenderingServer.GlobalShaderParameterAdd("psx_foul", RenderingServer.GlobalShaderParameterType.Sampler2D, foul.GetRid());
     }
 
     private static ImageTexture Flat(Color c)
@@ -141,6 +150,19 @@ public static class Psx
             if (Box(Find("dirt.json")) is { } b) RenderingServer.GlobalShaderParameterSet("psx_dirt_box", b);
         }
         else GD.Print("psx: no dirt.png: the paving is clean (bake again, or node tools/godot/export-scene.mjs --ref-only)");
+        if (Find("shore.png") is { } sh)
+        {
+            shore = ImageTexture.CreateFromImage(Image.LoadFromFile(sh));
+            RenderingServer.GlobalShaderParameterSet("psx_shore", shore.GetRid());
+            if (Box(Find("shore.json")) is { } b) RenderingServer.GlobalShaderParameterSet("psx_shore_box", b);
+        }
+        else GD.Print("psx: no shore.png: no foam at the quay walls (node tools/godot/export-scene.mjs --ref-only)");
+        if (Find("foul.png") is { } fl)
+        {
+            foul = ImageTexture.CreateFromImage(Image.LoadFromFile(fl));
+            RenderingServer.GlobalShaderParameterSet("psx_foul", foul.GetRid());
+            if (Box(Find("foul.json")) is { } b) RenderingServer.GlobalShaderParameterSet("psx_foul_box", b);
+        }
     }
 
     /// <summary>Set one of the shared values (a colour as its linear numbers).</summary>
@@ -196,6 +218,34 @@ public static class Psx
     }
 
     public static int ShaderCount => Shaders.Count;
+
+    private static ShaderMaterial? cap;
+    /// <summary>
+    /// The water cap (the browser's boats.ts capMaterial): the invisible lid over a hull's rail. It draws nothing but
+    /// marks its pixels, and the water is not drawn there: no water inside an open boat or over a low deck in a swell.
+    /// </summary>
+    public static ShaderMaterial Cap()
+    {
+        if (cap != null) return cap;
+        cap = new ShaderMaterial
+        {
+            ResourceName = "cap",
+            RenderPriority = -11,
+            Shader = new Shader
+            {
+                Code = @"
+shader_type spatial;
+render_mode unshaded, blend_mix, depth_draw_never, cull_disabled, fog_disabled;
+stencil_mode write, compare_always, 1;
+void fragment() {
+	ALBEDO = vec3(0.0);
+	ALPHA = 0.0;
+}
+",
+            },
+        };
+        return cap;
+    }
 
     // ------------------------------------------------------------------ the shader's parts
 
@@ -461,6 +511,44 @@ vec3 psx_spill_wet(vec3 P, vec3 rr, float pud) {
 }
 ";
 
+    /// <summary>The water's own parts (psx.ts): a lamp's mirror image, the foul water's scum noise, where the basins lie.</summary>
+    private const string WaterGlsl = @"
+global uniform sampler2D psx_shore : filter_linear, repeat_disable;
+global uniform vec4 psx_shore_box;
+global uniform sampler2D psx_foul : filter_linear, repeat_disable;
+global uniform vec4 psx_foul_box;
+uniform vec3 spec_color = vec3(0.0);
+uniform float shininess = 120.0;
+// 1: the river's sheet, which runs under the Petit Bassin and the lock: not drawn there (their water has its own level)
+uniform float river = 0.0;
+varying float wave_h;
+varying float spec_k;
+// mirror image of a lamp on the water: only the sharp core, no wide wash
+float lamp_reflect(vec3 ro, vec3 rd, vec4 l) {
+	if (l.w <= 0.0) return 0.0;
+	vec3 q = l.xyz - ro;
+	float t0 = dot(q, rd);
+	if (t0 < 0.0) return 0.0;
+	float h = length(q - rd * t0) + 0.6;
+	return l.w * min(half_scatter(60.0 - t0, h) - half_scatter(-t0, h), 4.0);
+}
+float lamp_reflects(vec3 P, vec3 rr) {
+	return lamp_reflect(P, rr, psx_lamp0) + lamp_reflect(P, rr, psx_lamp1) + lamp_reflect(P, rr, psx_lamp2) + lamp_reflect(P, rr, psx_lamp3) + lamp_reflect(P, rr, psx_lamp4) + lamp_reflect(P, rr, psx_lamp5);
+}
+float foul_hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+float foul_val(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	vec2 u = f * f * (3.0 - 2.0 * f);
+	return mix(mix(foul_hash(i), foul_hash(i + vec2(1.0, 0.0)), u.x), mix(foul_hash(i + vec2(0.0, 1.0)), foul_hash(i + vec2(1.0, 1.0)), u.x), u.y);
+}
+// the Petit Bassin between its walls, and the lock from the river gates' V to the dock (world/tide.ts, rijnkaai.ts)
+bool in_basin(vec2 p) {
+	if (p.x > 104.0 && p.x < 116.0 && p.y < 47.0) return p.y >= 7.0 + clamp(min(p.x - 104.3, 115.7 - p.x), 0.0, 5.7) * 0.26795;
+	return p.x > 70.0 && p.x < 170.0 && p.y > 46.0 && p.y < 110.0;
+}
+";
+
     /// <summary>The foot of the walls and the mottle (psx.ts footGlsl), in world space from the face's own normal.</summary>
     private const string FootGlsl = @"
 // along the wall, in metres (the ground's xz on the wall's own line)
@@ -604,6 +692,16 @@ vec3 ground_tilt(vec3 wp, vec2 uv, vec2 slope) {
         bool bump = k.Relief > 0 || k.Slabs;
         bool noise = k.Ground || k.Wall || k.Detile;
         var modes = new List<string> { "specular_disabled", "ambient_light_disabled" };
+        // (the water's waves are worked out from the world point; its highlight is its own, in light())
+        if (k.Water > 0)
+        {
+            modes.Add("world_vertex_coords");
+            modes.Remove("specular_disabled");
+            // drawn after the solid world and the boats' caps (Cap below), before every other see-through thing
+            modes.Add("blend_mix");
+            modes.Add("depth_draw_always");
+        }
+        string calm = k.Water == 2 ? "0.28" : "1.0", amp = k.Water == 2 ? "0.12" : "1.0";
         if (k.Unlit) modes.Add("unshaded");
         if (k.TwoSided) modes.Add("cull_disabled");
         if (k.Add) modes.Add("blend_add");
@@ -611,6 +709,7 @@ vec3 ground_tilt(vec3 wp, vec2 uv, vec2 slope) {
         if (k.Blend || k.Add) modes.Add(k.DepthWrite ? "depth_draw_always" : "depth_draw_never");
         var c = new StringBuilder();
         c.Append("shader_type spatial;\nrender_mode ").Append(string.Join(", ", modes)).Append(";\n");
+        if (k.Water > 0) c.Append("stencil_mode read, compare_not_equal, 1;\n");
         c.Append(@"
 global uniform vec2 psx_snap_res;
 global uniform vec4 psx_fog_color;
@@ -644,14 +743,34 @@ varying vec3 world;
         c.Append(LampScatterGlsl);
         if (lit || k.Ground) c.Append(SkyGlsl).Append(SpillGlsl);
         if (noise) c.Append(NoiseGlsl);
-        if (k.Ground) c.Append(WetGlsl);
+        if (k.Ground || k.Water > 0) c.Append(WetGlsl);
+        if (k.Water > 0) c.Append(WaterGlsl);
         if (k.Wall) c.Append(FootGlsl);
         if (k.Relief > 0) c.Append(ReliefGlsl(k.Relief > 1));
         if (k.Relief > 0) c.Append(TiltGlsl);
         c.Append(@"
 void vertex() {
-	vec4 view = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
-	fog_depth = -view.z;
+");
+        if (k.Water > 0)
+            c.Append(@"	// a long slow swell under shorter waves (waveAt in the browser is the same sum); the normal from their slopes
+	vec3 wp = VERTEX;
+	float t = psx_time;
+	float sw = cos(wp.x * 0.11 + wp.z * 0.07 + t * 0.45);
+	float dx = sw * 0.018 + cos(wp.x * 0.35 + t * 0.9) * 0.045 + cos(wp.z * 0.55 - t * 0.7 + wp.x * 0.2) * 0.016 + cos((wp.x + wp.z) * 1.3 + t * 1.7) * 0.039 + cos(wp.x * 3.1 - wp.z * 1.7 + t * 2.3) * 0.07;
+	float dz = sw * 0.012 + cos(wp.z * 0.55 - t * 0.7 + wp.x * 0.2) * 0.05 + cos((wp.x + wp.z) * 1.3 + t * 1.7) * 0.039 - cos(wp.x * 3.1 - wp.z * 1.7 + t * 2.3) * 0.04;
+	NORMAL = normalize(vec3(-dx * " + calm + @", 1.0, -dz * " + calm + @"));
+	float w = sin(wp.x * 0.11 + wp.z * 0.07 + t * 0.45) * 0.08 + sin(wp.x * 0.35 + t * 0.9) * 0.07 + sin(wp.z * 0.55 - t * 0.7 + wp.x * 0.2) * 0.05 + sin((wp.x + wp.z) * 1.3 + t * 1.7) * 0.02;
+	w *= psx_sea * " + amp + @";
+	// the great storm's chop: short steep seas over the swell
+	w += (sin(wp.x * 0.92 - wp.z * 0.38 + t * 2.6) * 0.06 + sin(wp.z * 1.07 + wp.x * 0.55 - t * 3.1) * 0.045) * max(0.0, psx_sea - 3.6) * " + amp + @";
+	VERTEX.y += w;
+	wave_h = w / 0.22;
+	// (the same picture tiles everywhere: 4 m, drifting slowly)
+	UV = vec2(wp.x, -wp.z) / 4.0 + psx_time * vec2(0.004, 0.011);
+	vec4 view = VIEW_MATRIX * vec4(VERTEX, 1.0);
+");
+        else c.Append("	vec4 view = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);\n");
+        c.Append(@"	fog_depth = -view.z;
 	world = (INV_VIEW_MATRIX * view).xyz;
 	POSITION = PROJECTION_MATRIX * view;
 ");
@@ -721,6 +840,39 @@ void fragment() {
 	c = mix(c, texture(tex, uv2), dm);
 ");
         c.Append("	c *= albedo;\n");
+        if (k.Water > 0)
+            c.Append(@"	{
+		if (river > 0.5 && in_basin(world.xz)) discard;
+		// far off, the ripples melt into one dark tone (no shimmer at the fog line)
+		vec2 wxz = world.xz;
+		c.rgb = mix(albedo.rgb * vec3(0.045, 0.062, 0.05), c.rgb, 1.0 - smoothstep(10.0, 70.0, len));
+		// wave crests a shade lighter, troughs darker
+		c.rgb *= 1.0 + clamp(wave_h * 0.18, -0.45, 0.7);
+		// along the walls: lighter, silty water and foam lapping at the stone, in 20 cm pixels
+		float shore = texture(psx_shore, (wxz - psx_shore_box.xy) / psx_shore_box.zw).r * 8.0;
+		vec2 cl = floor(wxz * 5.0);
+		float n = fract(sin(dot(cl, vec2(12.9898, 78.233))) * 43758.5453);
+		float lap = 0.5 + 0.5 * sin(psx_time * 1.1 + wxz.x * 0.45 + wxz.y * 0.3);
+		float reach = (0.2 + 0.5 * lap) * (0.45 + 0.75 * n);
+		// the great storm: the surf reaches far out from the walls, churned white
+		float storm_k = clamp((psx_sea - 3.6) / 2.4, 0.0, 1.0);
+		reach *= 1.0 + 3.5 * storm_k;
+		float foam = step(shore, reach) * (0.55 + 0.45 * step(0.5, n));
+		float silt = 1.0 - smoothstep(0.2, 2.5, shore);
+		c.rgb *= 1.0 + silt * 0.45;
+		c.rgb = mix(c.rgb, vec3(0.3, 0.32, 0.29) + 0.12 * storm_k, foam * (0.8 + 0.15 * storm_k));
+		if (storm_k > 0.0) {
+			// whitecaps: the crests break white, in streaks blown downwind, flickering as they break
+			float crest = wave_h * 0.22 / max(psx_sea, 1.0);
+			vec2 wc = floor(wxz * vec2(3.0, 5.0));
+			float wn = fract(sin(dot(wc + floor(psx_time * 3.0), vec2(12.9898, 78.233))) * 43758.5453);
+			c.rgb = mix(c.rgb, vec3(0.42, 0.45, 0.44), smoothstep(0.45, 0.8, crest + wn * 0.35) * storm_k * 0.85);
+		}
+		// foul water (the vlieten, the canal, by the fish market): browner and duller
+		float foul_d = texture(psx_foul, (wxz - psx_foul_box.xy) / psx_foul_box.zw).r;
+		c.rgb = mix(c.rgb, c.rgb * vec3(0.85, 0.74, 0.5), foul_d);
+	}
+");
         if (k.Slabs)
             c.Append(@"	{
 		// pavements, kerbs and door steps: slabs in world metres with their own relief
@@ -825,6 +977,7 @@ void fragment() {
 	// the light spilt from lamps, lit windows and doors (world/spill.ts), as point lights would give it
 	vec3 spilt = psx_spill_n > 0 ? psx_spill_at(world, nw) / PI : vec3(0.0);
 ");
+            if (k.Water > 0) c.Append("	spilt = vec3(0.0); // (the water takes no spilt light: its lamps are mirror images)\n");
         }
         c.Append("	float fog_k = smoothstep(psx_fog_near, psx_fog_far * fog_reach, fog_depth);\n");
         if (k.Far)
@@ -899,11 +1052,46 @@ void fragment() {
 	}
 ");
         }
+        if (k.Water > 0)
+            c.Append(@"	{
+		// a dark mirror: the misty sky at low angles, black water looking down, the gas lamps drawn out into long
+		// broken streaks by fine ripples (in chunky world pixels)
+		vec2 rp = floor(world.xz * 6.0) / 6.0;
+		vec2 rip = vec2(sin(rp.x * 2.7 + rp.y * 0.9 + psx_time * 1.9), sin(rp.y * 3.3 - rp.x * 0.7 - psx_time * 1.5)) * " + (k.Water == 2 ? "0.006 * (1.0 + psx_rain * 1.5)" : "0.06") + @";
+		vec3 rn = normalize(nw + vec3(rip.x, 0.0, rip.y));
+		float cos_v = max(dot(rn, -rd), 0.0);
+		{
+			// (no mirror yet: the sky's grey at a slant)
+			float t = clamp(pow(1.0 - cos_v, 4.0) * 0.8, 0.0, 0.75);
+			k3 *= 1.0 - t;
+			ad = ad * (1.0 - t) + fogc * 1.08 * t;
+		}
+		float foul = texture(psx_foul, (world.xz - psx_foul_box.xy) / psx_foul_box.zw).r;
+		if (foul > 0.01) {
+			// the vlieten and the canal were open sewers: murky water that mirrors less, a dull skin of scum in patches
+			vec2 sp = world.xz * 0.8 + vec2(psx_time * 0.03, psx_time * 0.017);
+			float scum = smoothstep(0.5, 0.68, foul_val(sp) * 0.7 + foul_val(sp * 3.1 + 7.7) * 0.3) * foul;
+			float t = foul * 0.45;
+			k3 *= 1.0 - t;
+			ad = ad * (1.0 - t) + fogc * vec3(0.3, 0.28, 0.22) * t;
+			t = scum * 0.8;
+			k3 *= 1.0 - t;
+			ad = ad * (1.0 - t) + (fogc * vec3(0.26, 0.23, 0.17) + vec3(0.03, 0.024, 0.014)) * t;
+		}
+		vec3 rr = reflect(rd, rn);
+		float dash = 0.5 + 0.5 * sin(rp.y * 7.0 + rp.x * 1.3 + psx_time * 2.2);
+		ad += psx_lamp_color.rgb * (lamp_reflects(world, rr) * 0.09 + lamp_streaks(world, rr) * 0.5 * dash * dash);
+		// rain on the water: rings that catch the sky
+		if (psx_rain > 0.001) ad += (fogc * 0.7 + 0.015) * rain_rings(world.xz, psx_time, psx_rain) * 0.6 * psx_rain;
+		spec_k = dot(k3, vec3(0.333));
+	}
+");
         c.Append(@"	// the lamps' glow in the air between the eye and the surface
 	vec3 halo = psx_lamp_color.rgb * psx_glow(CAMERA_POSITION_WORLD, rd, glow_reach(len, psx_fog_far, rd)) * psx_scatter * (0.35 + 0.65 * fog_k);
 ");
         if (!k.Fog) c.Append("	fog_k = 0.0;\n	halo = vec3(0.0);\n");
         if (k.Blend || k.Add) c.Append("	ALPHA = c.a;\n");
+        if (k.Water > 0) c.Append("	ALPHA = 1.0;\n");
         if (lit)
             c.Append(@"	ALBEDO = c.rgb * k3;
 	EMISSION = (emission * texture(emission_tex, uv).rgb * mix(vec3(1.0), psx_fill.rgb * COLOR.rgb, fill) + c.rgb * (sky + spilt)) * k3 + ad + halo;
@@ -915,7 +1103,11 @@ void light() {
 	float a = ATTENUATION;
 	if (LIGHT_IS_DIRECTIONAL) a *= sun_lit;
 	DIFFUSE_LIGHT += max(dot(NORMAL, LIGHT), 0.0) * a * LIGHT_COLOR / PI;
-}
+" + (k.Water > 0 ? @"	// the water's highlight (three's Blinn-Phong): the sun and a real light glint on the waves
+	vec3 hv = normalize(LIGHT + VIEW);
+	vec3 fr = spec_color + (1.0 - spec_color) * pow(1.0 - max(dot(VIEW, hv), 0.0), 5.0);
+	SPECULAR_LIGHT += max(dot(NORMAL, LIGHT), 0.0) * a * LIGHT_COLOR * fr * (0.25 * (shininess * 0.5 + 1.0) / PI * pow(max(dot(NORMAL, hv), 0.0), shininess)) * spec_k;
+" : "") + @"}
 ");
         else
             c.Append(@"	ALBEDO = c.rgb * k3 + ad + halo;
@@ -960,7 +1152,8 @@ void light() {
     /// </summary>
     public static Kind WithOptions(Kind k, JsonElement bake)
     {
-        if (bake.ValueKind != JsonValueKind.Object || Has(bake, "water", out _)) return k;
+        if (bake.ValueKind != JsonValueKind.Object) return k;
+        if (Has(bake, "water", out _)) return k with { Water = Has(bake, "waterCalm", out _) ? 2 : 1 };
         bool relief = Has(bake, "relief", out var r) && !Off.Contains("relief");
         k = k with { Far = Num(bake, "fogReach", 1) > 1 };
         return k with
@@ -978,6 +1171,14 @@ void light() {
     public static void ApplyOptions(ShaderMaterial m, Kind k, JsonElement bake, string texDir)
     {
         if (bake.ValueKind != JsonValueKind.Object) return;
+        if (k.Water > 0)
+        {
+            // (the browser's water: the deep Schelde's highlight, the pond's; World/Waters.cs finds its sheets by this mark)
+            var sp = Hex(k.Water == 2 ? 0x202b23 : 0x3a342a);
+            m.SetShaderParameter("spec_color", new Vector3(sp.R, sp.G, sp.B));
+            m.SetMeta("psx_water", k.Water);
+            m.RenderPriority = -10;
+        }
         if (k.Relief > 0 && Has(bake, "relief", out var r))
         {
             if (Tex(r.GetProperty("height"), texDir) is { } h) m.SetShaderParameter("relief_h", h);

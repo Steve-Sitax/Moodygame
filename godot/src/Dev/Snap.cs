@@ -40,6 +40,8 @@ public partial class Snap : Node
             int c = one.IndexOf(':');
             views.Add(new[] { one[..c] }.Concat(one[(c + 1)..].Split(',')).ToArray());
         }
+        // (the pictures are taken from the free camera: Jef gives it up)
+        if (Player.Jef.I is { Fly: false } jef) jef.ToggleFly();
         DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled);
         Engine.MaxFps = 0;
         ProcessPriority = -100;
@@ -68,7 +70,11 @@ public partial class Snap : Node
             if (cam is Player.FlyCam fly) fly.Face(q);
             else cam.Quaternion = q;
         }
-        if (a.Length > 6 && a[6] != "") Daylight.I.SetTime(F(a[6]));
+        if (a.Length > 6 && a[6] != "")
+        {
+            Daylight.I.SetTime(F(a[6]));
+            Tide.Set(1, F(a[6])); // (Monday's tide at that hour)
+        }
         if (a.Length > 7 && a[7] != "") Daylight.I.SetWeather(a[7]);
         Daylight.I.Settle();
     }
