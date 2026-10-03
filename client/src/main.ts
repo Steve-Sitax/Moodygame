@@ -19,7 +19,7 @@ import "./style.css";
 // menus: the game's own fonts; the town's canvases are painted after they are in (menu/fonts.ts)
 import "./menu/fonts";
 import { RetroPass } from "./retro/retroPass";
-import { psxUniforms } from "./retro/psx";
+import { psxBakeTextures, psxUniforms } from "./retro/psx";
 import { mountSettings, STREET_LEVELS, type GameSettings } from "./game/settings";
 import { wireSettings } from "./menu/apply"; // menus
 import { settings as prefs } from "./game/prefs";
@@ -2198,7 +2198,7 @@ if (import.meta.env.DEV) {
 
 // M7 rendering, dev: the culler and the renderer for checks (__scheldemist.cull), and the view's numbers
 if (import.meta.env.DEV) {
-  Object.assign((window as unknown as { __scheldemist: object }).__scheldemist, { cull, renderer, retro, lanternLights, alive });
+  Object.assign((window as unknown as { __scheldemist: object }).__scheldemist, { cull, renderer, retro, lanternLights, alive, psxBakeTextures, psxUniforms });
   // light spilt from windows, doors, lamps and lanterns (world/spill.ts): __scheldemist.spill() lists every lit source
   // in view range, whether it spills and glows, and `problems` (must be empty); .spillInfo() the counts
   Object.assign((window as unknown as { __scheldemist: object }).__scheldemist, {

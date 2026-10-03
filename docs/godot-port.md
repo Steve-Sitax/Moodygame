@@ -17,6 +17,16 @@ also let someone download and get it running with a simple install."
 - **What changes for players**: someone who joins a shared game needs the download too (no browser tab). The look
   is rebuilt in Godot's shaders: close to the browser's, not the same pixel for pixel.
 
+- **The world is baked, not ported** (2026-10-03): the browser game builds its world in 67,000 lines of three.js
+  code. `tools/godot/export-scene.mjs` runs that code and writes the scene it made (one glb with every node, the
+  hidden ones marked, each material's psx options, the copies of every InstancedMesh). Godot loads that
+  (`godot/src/World/BakedWorld.cs`). What stands still needs no port. What moves or changes (people, boats, doors,
+  lamps, clocks, goods) is ported to C# and takes its nodes over by name. The world's code stays in `client/` as the
+  bake's source: a change to the still world is made there and baked again.
+- **Jef walks on Godot's physics** over the baked meshes, not on the browser's own walk rules; water, ladders and
+  the town's edge come from the game's data. Townspeople keep the game's walk grid (baked).
+- How to run and how the Godot code is laid out: `godot/README.md`.
+
 ## The proof (2026-10-03)
 The question before weeks of work: does Godot draw this town fast enough? `tools/godot/export-scene.mjs` runs the
 browser game on a test stack in headless Chrome, measures five places (`frameProf`, 90 turning frames), and writes
@@ -59,6 +69,7 @@ Each step ends with a run of the Godot game, pictures looked at, and the frame t
 | Step | What | From (browser client) |
 |---|---|---|
 | G0 | The proof above | done 2026-10-03 |
+| G1a | The baked town in Godot with the psx material (snap, affine, atlas, fog, sky light), the retro screen pass, a free camera: done 2026-10-03, 1.4 ms a frame at the Vismarkt (921 draws), the picture beside the browser's | `retro/psx.ts`, `retro/retroPass.ts` |
 | G1 | The base: the game starts the server, loads the real models (Draco taken out at build time), the ground, quays and walk map from `shared/city.json`; Jef walks, collides, climbs, swims | `shared/`, `world/city.ts`, `world/rijnkaai.ts`, `player/` |
 | G2 | The look: the psx shader (snap, affine, dither, 720 lines), fog, sky, day and night, weather, water, mirrors, lamps and spill, rooms behind real openings | `retro/`, `world/ambient.ts`, `mirror.ts`, `spill.ts`, the room files |
 | G3 | The town alive: people, crowd, ways, animals, carts, boats, trains, cranes, the lock, omnibus | `game/town.ts`, `crowd.ts`, `lively.ts`, `world/boats.ts`, `railway.ts` ... |

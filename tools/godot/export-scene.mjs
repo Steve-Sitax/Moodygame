@@ -23,7 +23,7 @@ const opt = (k, d) => {
   return i >= 0 ? args[i + 1] : d;
 };
 const root = path.resolve(opt("root", here));
-const out = path.resolve(here, opt("out", "godot/spike/town"));
+const out = path.resolve(here, opt("out", "godot/baked/town"));
 const PLACES = String(opt("places", "vismarkt,grote markt,cathedral,handschoenmarkt,rijnkaai")).split(",");
 const VITE = 5347;
 const SERVER = 8947;
@@ -74,7 +74,10 @@ const recv = http.createServer((req, res) => {
   res.setHeader("access-control-allow-origin", "*");
   res.setHeader("access-control-allow-headers", "*");
   if (req.method !== "POST") return res.end();
-  const f = createWriteStream(`${out}.glb`);
+  // "/glb": the scene; "/tex/<uuid>": a texture the psx options name (height maps, stone ids, slabs)
+  const tex = /^\/tex\/([a-zA-Z0-9-]+)$/.exec(req.url ?? "");
+  if (tex) mkdirSync(`${out}_tex`, { recursive: true });
+  const f = createWriteStream(tex ? path.join(`${out}_tex`, `${tex[1]}.png`) : `${out}.glb`);
   req.on("data", (c) => (received += c.length));
   req.pipe(f);
   f.on("finish", () => res.end("ok"));
@@ -136,7 +139,7 @@ async function openGame() {
 const FACTS = `(() => {
   const s = __scheldemist, scene = s.world.scene, cam = s.player.camera;
   const lights = [];
-  scene.traverse((o) => { if (o.isLight) lights.push({ type: o.type, color: o.color.getHex(), intensity: o.intensity, pos: o.getWorldPosition(o.position.clone()).toArray(), visible: o.visible }); });
+  scene.traverse((o) => { if (o.isLight) lights.push({ type: o.type, color: o.color.getHex(), ground: o.groundColor ? o.groundColor.getHex() : null, name: o.name, intensity: o.intensity, pos: o.getWorldPosition(o.position.clone()).toArray(), visible: o.visible }); });
   const f = scene.fog;
   return { fog: f ? { color: f.color.getHex(), near: f.near, far: f.far, density: f.density } : null,
     background: scene.background && scene.background.isColor ? scene.background.getHex() : null,
@@ -147,24 +150,66 @@ const EXPORT = `(() => {
   window.__exp = { state: "running", note: "" };
   (async () => {
     const { GLTFExporter } = await import("/node_modules/three/examples/jsm/exporters/GLTFExporter.js");
-    const scene = __scheldemist.world.scene;
+    const s = __scheldemist, scene = s.world.scene;
     scene.updateMatrixWorld(true);
-    // every InstancedMesh: one mesh in the glb, its copies in the json (Godot makes a MultiMesh of them)
+    // every InstancedMesh: one mesh in the glb, its copies in the json (Godot makes a MultiMesh of them).
+    // What three knows and glTF does not goes into userData (glTF extras): hidden nodes, the material's kind and
+    // switches, the psx options (retro/psx.ts bake). The houses' atlas cell rides as the second uv.
     const inst = {};
+    const mats = new Set();
     let n = 0, meshes = 0, skinned = 0;
     scene.traverse((o) => {
-      if (o.isMesh) meshes++;
+      if (!o.visible) o.userData.hidden = true;
+      if (o.renderOrder) o.userData.ro = o.renderOrder;
+      if (o.isMesh || o.isLine || o.isPoints) {
+        if (o.isMesh) meshes++;
+        for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m) mats.add(m);
+        const g = o.geometry;
+        if (g && g.attributes.cell && !g.attributes.uv1) g.setAttribute("uv1", g.attributes.cell);
+      }
       if (o.isSkinnedMesh) skinned++;
       if (o.isInstancedMesh) {
         o.name = "INST" + n++ + "_" + (o.name || "x").replace(/[^a-zA-Z0-9]/g, "");
         inst[o.name] = { count: o.count, m: Array.from(o.instanceMatrix.array.subarray(0, o.count * 16), (v) => Math.round(v * 1e4) / 1e4) };
+        if (o.instanceColor) inst[o.name].c = Array.from(o.instanceColor.array.subarray(0, o.count * 3), (v) => Math.round(v * 1e3) / 1e3);
       }
     });
+    for (const m of mats)
+      m.userData.three = {
+        type: m.type, name: m.name || "", depthWrite: m.depthWrite, depthTest: m.depthTest, opacity: m.opacity, transparent: m.transparent,
+        alphaTest: m.alphaTest, side: m.side, blending: m.blending, fog: m.fog !== false, vertexColors: !!m.vertexColors,
+        offset: m.polygonOffset ? [m.polygonOffsetFactor, m.polygonOffsetUnits] : null,
+        emissive: m.emissive ? m.emissive.getHex() : 0, emissiveIntensity: m.emissiveIntensity ?? 0,
+        specular: m.specular ? m.specular.getHex() : 0, shininess: m.shininess ?? 0, flat: !!m.flatShading,
+      };
     window.__exp.inst = inst;
-    window.__exp.counts = { meshes, skinned, instanced: n };
-    const glb = await new GLTFExporter().parseAsync(scene, { binary: true, onlyVisible: ${opt("all", null) ? "false" : "true"}, maxTextureSize: 1024 });
+    window.__exp.counts = { meshes, skinned, instanced: n, materials: mats.size };
+    // the textures the psx options name
+    let k = 0;
+    for (const [uuid, t] of s.psxBakeTextures) {
+      const im = t.image;
+      if (!im) continue;
+      const w = im.width, h = im.height;
+      const c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      const x = c.getContext("2d");
+      if (im.data) {
+        const d = new ImageData(w, h);
+        const step = im.data.length / (w * h);
+        for (let i = 0; i < w * h; i++) {
+          const a = step === 1 ? [im.data[i], im.data[i], im.data[i], 255] : [im.data[i * step], im.data[i * step + 1], im.data[i * step + 2], step > 3 ? im.data[i * step + 3] : 255];
+          d.data.set(a, i * 4);
+        }
+        x.putImageData(d, 0, 0);
+      } else x.drawImage(im, 0, 0);
+      const blob = await new Promise((r) => c.toBlob(r, "image/png"));
+      await fetch("http://127.0.0.1:${RECV}/tex/" + uuid, { method: "POST", body: blob });
+      window.__exp.note = "textures " + ++k;
+    }
+    window.__exp.counts.psxTextures = k;
+    const glb = await new GLTFExporter().parseAsync(scene, { binary: true, onlyVisible: false, maxTextureSize: 2048 });
     window.__exp.note = "posting " + glb.byteLength;
-    await fetch("http://127.0.0.1:${RECV}/", { method: "POST", body: new Blob([glb]) });
+    await fetch("http://127.0.0.1:${RECV}/glb", { method: "POST", body: new Blob([glb]) });
     window.__exp.bytes = glb.byteLength;
     window.__exp.state = "done";
   })().catch((e) => { window.__exp.state = "failed"; window.__exp.note = String(e && e.stack || e); });
@@ -188,16 +233,23 @@ try {
     await ev(`__scheldemist.frameProf({ n: 30 }).then(() => 1)`);
     const turn = await ev(`__scheldemist.frameProf({ n: 90, top: 80, turn: 2 })`);
     const cam = await ev(CAMERA);
+    // the browser's own picture there, to set Godot's beside it
+    await ev(`__scheldemist.frameProf({ n: 3 }).then(() => 1)`);
+    const png = await send("Page.captureScreenshot", { format: "png" });
+    if (png.result?.data) writeFileSync(`${out}_ref_${place.replace(/ /g, "_")}.png`, Buffer.from(png.result.data, "base64"));
     const part = (n) => turn.parts.find((p) => p.part === n)?.mean ?? 0;
     places.push({ place, ...cam, browser: { frameMean: turn.frame.mean, frameP95: turn.frame.p95, render: part("render"), mirrors: part("render.mirrors"), calls: part("render calls") } });
     log(place, "browser turning frame", turn.frame.mean, "ms, render", part("render"), "ms, calls", part("render calls"));
   }
+  if (args.includes("--ref-only")) throw new Error("ref only: no export");
   // the export, from the first place, everything the game would draw without the culler
   await ev(`Promise.resolve(__scheldemist.t.go(${JSON.stringify(PLACES[0])})).then(() => 1)`);
   const cull = await ev(`(() => { try { const c = __scheldemist.cull; if (!c) return "no culling switch"; c.enabled = false; return "culler off"; } catch (e) { return String(e); } })()`);
   log(cull);
   await ev(`__scheldemist.frameProf({ n: 6 }).then(() => 1)`);
   const facts = await ev(FACTS);
+  // the shared psx values at this moment (13:00, clear): the numbers the Godot shader starts from
+  const uniforms = await ev(`(() => { const o = {}; for (const [k, u] of Object.entries(__scheldemist.psxUniforms)) { const v = u.value; if (typeof v === "number" || typeof v === "boolean") o[k] = v; else if (v && v.isColor) o[k] = v.getHex(); else if (v && v.toArray && !v.isTexture && !v.isMatrix4) o[k] = v.toArray(); } return o; })()`);
   await ev(EXPORT);
   let exp = null;
   for (let i = 0; i < 900; i++) {
@@ -208,7 +260,7 @@ try {
   }
   if (exp?.state !== "done") throw new Error(`export failed: ${exp?.note}`);
   const inst = await ev(`JSON.stringify(window.__exp.inst)`);
-  writeFileSync(`${out}.json`, JSON.stringify({ made: new Date().toISOString(), places, facts, counts: exp.counts, instances: JSON.parse(inst) }));
+  writeFileSync(`${out}.json`, JSON.stringify({ made: new Date().toISOString(), places, facts, counts: exp.counts, uniforms, instances: JSON.parse(inst) }));
   stripInstancing(`${out}.glb`);
   log("written", `${out}.glb`, (received / 1e6).toFixed(1), "MB", JSON.stringify(exp.counts));
 } catch (e) {

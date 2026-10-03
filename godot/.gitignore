@@ -2,3 +2,5 @@
 *.import
 spike/data/*
 !spike/data/.gdignore
+baked/*
+!baked/.gdignore
