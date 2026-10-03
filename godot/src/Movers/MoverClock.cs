@@ -65,7 +65,6 @@ public partial class MoverClock : Node
             Tide.Set(Day, (float)HourF);
         }
         else HourF = s.HourF;
-        Sea = s.Weather == "storm" ? 2.6f : s.Weather == "rain" ? 1.4f : 1;
     }
 
     public override void _Process(double delta)
@@ -74,6 +73,10 @@ public partial class MoverClock : Node
         T += Dt;
         Frame++;
         Read();
+        // the sea: a storm raises the waves, the boats roll (rijnkaai.ts update)
+        string w = GameState.I.Weather;
+        float sea = w == "storm" ? 3.6f : w == "rain" ? 1.5f : w == "clear" ? 1.1f : 0.85f;
+        Sea += (sea - Sea) * (float)Math.Min(1, Dt * 0.05);
     }
 }
 
