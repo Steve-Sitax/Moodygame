@@ -174,6 +174,22 @@ export function addSpill(init: SpillInit): SpillSource {
   return s;
 }
 
+/**
+ * Every still source as plain data, for the Godot port's bake (tools/godot/export-scene.mjs writes them to
+ * <out>_lights.json; godot/src/World/Lights.cs reads them). `level`: what its owner has set now (a room's lamp, a
+ * glow's own light); the scheduled ones (the painted windows) carry their hours and the gas lamps follow the clock.
+ */
+export function spillBake(): Array<Record<string, unknown>> {
+  const r = (v: number, k = 1000) => Math.round(v * k) / k;
+  return [...sources]
+    .filter((s) => !s.moving && !s.dup)
+    .map((s) => ({
+      kind: s.kind, label: s.label, at: [r(s.x), r(s.y), r(s.z)], n: [r(s.nx), r(s.nz)], half: [r(s.hw), r(s.hh)],
+      color: [r(s.color.r, 1e4), r(s.color.g, 1e4), r(s.color.b, 1e4)], power: r(s.power), range: s.range, decay: s.decay, depth: s.depth, soft: s.soft, bars: s.bars,
+      sched: s.sched ?? null, level: r(s.kind === "glow" ? (s.glow?.() ?? 0) : s.sched ? 0 : Math.max(0, Math.min(1, s.level))),
+    }));
+}
+
 export function removeSpill(s: SpillSource | null | undefined): void {
   if (s) sources.delete(s);
 }
