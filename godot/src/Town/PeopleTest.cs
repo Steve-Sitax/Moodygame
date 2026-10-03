@@ -37,6 +37,8 @@ public partial class PeopleTest : Node
     private double waited;
     private bool aimed;
     private readonly Dictionary<string, object> jefRow = new();
+    private readonly Dictionary<string, object> postedRow = new();
+    private int postedStep;
     private double jefMin;
     private int jefBlocked;
     private (double x, double z) jefFrom;
@@ -213,7 +215,7 @@ public partial class PeopleTest : Node
                 if (frames < 245) break;
                 row["residents"] = town.Data!.Residents.Count;
                 row["simulated"] = town.Sims.Count;
-                row["employersAmongThem"] = town.EmployerResidents.Count;
+                row["employersAtPosts"] = town.EmployerResidents.Count;
                 row["outInTheStreet"] = town.Sims.Count(s => !s.Inside);
                 row["drawn"] = town.Sims.Count(s => s.P != null);
                 row["inView"] = crowd!.Drawn;
@@ -328,9 +330,97 @@ public partial class PeopleTest : Node
                 jef.ClearKeys();
                 jefRow["walking"] = new Dictionary<string, object> { ["nearestAnyoneCameM"] = Math.Round(jefMin, 2), ["framesSomeoneWaitedForHim"] = jefBlocked, ["jefWalkedM"] = Math.Round(Whereabouts.Hypot(jef.X - jefFrom.x, jef.Z - jefFrom.z), 1), ["overlaps"] = crowd.Overlaps() };
                 jef.ToggleFly();
+                Next("posted");
+                break;
+            }
+            case "posted":
+            {
+                // the people at their posts: Sooi at the Hessenatie's door and the fish merchant on the Vismarkt, close;
+                // Jef walks at Sooi and is held (he is solid), and Sooi turns to look at him
+                var posted = Scheldemist.People.PostedPeople.I;
+                if (posted == null || posted.List.Count == 0)
+                {
+                    if (t < 3) break;
+                    postedRow["note"] = "no posted people";
+                    Next("done");
+                    break;
+                }
+                if (frames < 3) break;
+                postedRow["posted"] = posted.List.Count;
+                postedRow["atTheirPostNow"] = posted.List.Where(n => n.Present).Select(n => n.Id).ToList();
+                postedRow["notInTheTownsList"] = posted.List.Count(n => n.Resident != null && town.Sims.All(s => s.R != n.Resident));
+                postedStep = 0;
+                Next("postedshots");
+                break;
+            }
+            case "postedshots":
+            {
+                var posted = Scheldemist.People.PostedPeople.I!;
+                string[] who = { "sooi", "vishandel", "fientje" };
+                if (postedStep >= who.Length)
+                {
+                    Next("postedjef");
+                    break;
+                }
+                var n = posted.Get(who[postedStep]);
+                if (n == null || !n.Present)
+                {
+                    postedStep++;
+                    break;
+                }
+                if (frames == 1)
+                {
+                    // from his front, a little to the side, on ground a body fits on
+                    foreach (double off in new[] { 0.4, -0.4, 0.9, -0.9, 0 })
+                    {
+                        double a = n.Anchor.yaw + off, x = n.X + Math.Sin(a) * 2.8, z = n.Z + Math.Cos(a) * 2.8;
+                        if (off != 0 && !town.Walk!.Free(x, z)) continue;
+                        Main.I.Cam.LookAtFromPosition(new Vector3((float)x, (float)n.Y + 1.4f, (float)z), new Vector3((float)n.X, (float)n.Y + 0.95f, (float)n.Z), Vector3.Up);
+                        break;
+                    }
+                }
+                if (frames < 400) break;
+                Shot($"people_posted_{n.Id}.png");
+                postedStep++;
+                Next("postedshots");
+                break;
+            }
+            case "postedjef":
+            {
+                var posted = Scheldemist.People.PostedPeople.I!;
+                var jef = Scheldemist.Player.Jef.I;
+                var n = posted.Get("sooi");
+                if (n == null || !n.Present)
+                {
+                    Next("done");
+                    break;
+                }
+                if (frames == 1)
+                {
+                    // four metres to his left, walking straight at him
+                    double a = n.Anchor.yaw + Math.PI / 2, x = n.X + Math.Sin(a) * 4, z = n.Z + Math.Cos(a) * 4;
+                    if (jef.Fly) jef.ToggleFly();
+                    jef.TestInput = true;
+                    jef.ClearKeys();
+                    jef.Place((float)x, (float)z, (float)Math.Atan2(x - n.X, z - n.Z), 0, (float)n.Y);
+                    jef.SetKey(Key.W, true);
+                    jefMin = double.PositiveInfinity;
+                }
+                jefMin = Math.Min(jefMin, Whereabouts.Hypot(n.X - jef.X, n.Z - jef.Z));
+                if (t < 6) break;
+                Shot("people_posted_sooi_looks_at_jef.png");
+                double facing = Math.Atan2(jef.X - n.X, jef.Z - n.Z);
+                postedRow["jefWalkedAtSooi"] = new Dictionary<string, object>
+                {
+                    ["nearestHeGotM"] = Math.Round(jefMin, 2),
+                    ["sooiLooksAtHimOffByRad"] = Math.Round(Math.Abs(Math.Atan2(Math.Sin(facing - n.Yaw), Math.Cos(facing - n.Yaw))), 2),
+                };
+                jef.ClearKeys();
+                jef.ToggleFly();
                 Next("done");
                 break;
             }
+
             case "done":
                 File.WriteAllText(Path.Combine(dir, "peopletest.json"), JsonSerializer.Serialize(new
                 {
@@ -343,6 +433,7 @@ public partial class PeopleTest : Node
                     routesWorkedOut = Whereabouts.RoutesMade,
                     whereCheck = where,
                     jef = jefRow,
+                    postedPeople = postedRow,
                     places = rows,
                 }, new JsonSerializerOptions { WriteIndented = true }));
                 GD.Print("peopletest: written " + Path.Combine(dir, "peopletest.json"));

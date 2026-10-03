@@ -25,8 +25,7 @@ namespace Scheldemist.Town;
 /// --hour 13.5 and --day 1 (the clock, until the game state part sets it: SetClock), --walk file (the bake's walk
 /// dump, town_walk.json; else beside the town, else baked/town_walk.json).
 ///
-/// Not ported yet (each is a later step of the port; the hooks are named as in town.ts): the board's employers as
-/// people.ts stands them (here they keep their own day plan), journeys (velocipedes, carts, the omnibus, boats), the dispatcher's trade runs, the
+/// Not ported yet (each is a later step of the port; the hooks are named as in town.ts): journeys (velocipedes, carts, the omnibus, boats), the dispatcher's trade runs, the
 /// mills' carts, the docks' real loads, the back streets' and lively's own goals, the market's browsing, the great
 /// storm, thieves at Jef's pocket, lanterns, dogs at heel, the stalls' awnings, played together.
 /// </summary>
@@ -133,7 +132,7 @@ public partial class Townspeople : Node
     public Crowd? Crowd { get; private set; }
     public WalkMap? Walk { get; private set; }
     public IReadOnlyList<Sim> Sims => sims;
-    /// <summary>The board's employers: residents who stand at their post like Sooi (the browser's people.ts; here still walked as townspeople).</summary>
+    /// <summary>The board's employers: residents who stand at their post like Sooi (the browser's people.ts; People/PostedPeople.cs stands them).</summary>
     public IReadOnlyList<Resident> EmployerResidents => employers;
     public string Status { get; private set; } = "off";
     public int BakedHidden { get; private set; }
@@ -243,14 +242,11 @@ public partial class Townspeople : Node
         _ = LoadTown();
     }
 
-    /// <summary>The four of the Rijnkaai (the browser's people.ts): they stand where the bake has them until their part is ported.</summary>
-    private static readonly HashSet<string> Fixed = new() { "sooi", "peeters", "tuur", "fientje" };
-
     /// <summary>
-    /// The townspeople frozen into the bake (whoever the browser's crowd drew at that moment: an unnamed group at the
-    /// scene's root holding the model's root, named after its kind): hidden; the live ones are drawn instead. Figures
-    /// of other parts stay as they are until those parts are ported: the people on the omnibuses and drays, at the
-    /// Steen, aboard the ships, at the trades (they hang under their part's own node), and the Rijnkaai's four.
+    /// The people frozen into the bake whom the game now draws live (whoever the browser's crowd and its people.ts
+    /// drew at that moment: an unnamed group at the scene's root holding the model's root, named after its kind):
+    /// hidden. Figures of other parts stay as they are until those parts are ported: the people on the omnibuses and
+    /// drays, at the Steen, aboard the ships, at the trades (they hang under their part's own node).
     /// </summary>
     private void HideBaked()
     {
@@ -263,7 +259,7 @@ public partial class Townspeople : Node
             {
                 string kind = a.Name.ToString().TrimEnd('0', '1', '2', '3', '4', '5', '6', '7', '8', '9');
                 if (!Humans.IsKind(kind)) continue;
-                if (!Fixed.Contains(kind) && a.GetParent() is Node3D group && group.GetParent() == scene)
+                if (a.GetParent() is Node3D group && group.GetParent() == scene)
                 {
                     if (group.Visible) BakedHidden++;
                     group.Visible = false;
@@ -346,10 +342,14 @@ public partial class Townspeople : Node
             sims.Add(s);
             byId[r.Id] = s;
         }
-        // The board's employers stand at their post like Sooi (the browser's people.ts takes them out of the town's
-        // list). Until that part is ported they stay in it: by their own day plan, arms folded at their post.
+        // the board's employers stand at their post like Sooi (People/PostedPeople.cs), not in the crowd
         foreach (var (id, _) in d.Employers)
-            if (byId.TryGetValue(id, out var s)) employers.Add(s.R);
+        {
+            if (!byId.TryGetValue(id, out var s)) continue;
+            employers.Add(s.R);
+            byId.Remove(id);
+            sims.Remove(s);
+        }
         // where the keepers stand (game/stalls.ts): behind the stall; by the shop's table (the bake's spots), else on the step
         foreach (var st in d.Stalls)
             if (st.Keeper != null) sellerSpots[st.Keeper] = (st.X - st.Face.X * 1.15, st.Z - st.Face.Z * 1.15, Math.Atan2(st.Face.X, st.Face.Z));
