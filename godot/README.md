@@ -19,7 +19,11 @@ Options after `--`: `--town <glb>` (or the environment variable `SCHELDEMIST_BAK
 The server's options: `--server http://127.0.0.1:PORT` (use a server that runs already, start none), `--port N`
 (the first port to try; default 8800), `--db <file>` (another save), `--no-ai` (the server makes no model calls:
 walk-around mode), `--nettest <dir>` (the net part's own test: start the server with no AI, wait for the first
-state, one tick, a picture with the HUD and `nettest.json` in `<dir>`, quit; the server is gone afterwards).
+state, one tick, a picture with the HUD and `nettest.json` in `<dir>`, quit; the server is gone afterwards),
+`--talktest <dir> --no-ai` (the talk part's own test: every window opened and worked by script through the real
+keys, a picture of each and `talktest.json` in `<dir>`, quit; `--talktest <dir> --talktest-ai` instead is one talk
+with a typed line and a model's answer, two model calls). The browser's pictures of the same windows:
+`node tools/godot/talk-refs.mjs --out godot/baked/talkref` (a test stack with no AI on 8954 and 5354).
 
 ## How it is built
 - **The baked town** (`src/World/BakedWorld.cs`). The browser game builds its world in code (67,000 lines). The bake
@@ -57,6 +61,21 @@ state, one tick, a picture with the HUD and `nettest.json` in `<dir>`, quit; the
 - **The HUD** (`src/Game/Hud.cs`): the browser's papers as Controls under `Main.I.Ui`, the CSS sizes times the
   browser's `--ui`. A line in the middle of the screen: `GameState.I.Say("...")`. Fonts: `Fonts.Hand`,
   `Fonts.Print` (`godot/fonts/`, the browser's own faces).
+
+- **The dialogs** (`src/Ui/Dialogs/`): the browser's `game/dialogs.ts` and `game/cursor.ts`. `Dialogs.I` is a
+  stack: the keys go to the dialog on top and to nothing under it, each dialog closes on its own keys (E and Esc
+  for most), the mouse is free as the quill while one is up and taken again after. A dialog is a class with
+  `IDialog` that calls `Dialogs.I.Open(this)` and `Close(this)`; its paper is a `Sheet` (`Paper.cs`): CSS sizes,
+  the sepia filter, lines with a number badge and keys in a keys line that can be clicked. The player's part reads
+  `Dialogs.I.Any` (Jef stands still, and the game still plays); the menus' part sets `KeyLabel` and `Remap`
+  (changeable keys) and asks `Escapable` before Esc opens the menu.
+- **The windows with people and things** (`src/Talk/`, from `game/talk.ts`, `pockets.ts`, `bubbles.ts`, `press.ts`,
+  the bill and notebook of `ideas.ts`, the dice of `interiors.ts`). Other parts open them:
+  `Talk.I.Open(id, name, title)` (E at someone; `shopOnly: true` for F at a seller), `Shop.I.Open(shopId)`,
+  `Pockets.I.Toggle()` (I does it by itself), `Press.I.Read(item)`, `OpenBerg()`, `OpenPost()`, `OpenBill(id)`,
+  `Dice.I.Sit(place, patron, first)`, `Bubbles.I.Show(convo)` and `Bubbles.I.Say(() => point, name, text)`. The
+  hooks they leave for the parts not ported yet are named at the top of each file (`Talk.OnOpen`, `Work`,
+  `OnTakeWork`, `OnReply`; `Bubbles.PositionOf`, `InfoOf`, `Speak`; `Dice.Sfx`).
 
 ## Rules
 - The engine owns all numbers; the Godot game shows them and asks the server, as the browser does.
