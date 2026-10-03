@@ -122,6 +122,13 @@ public static class ModelLibrary
         m.Materials = made.Count;
     }
 
+    /// <summary>At the game's end: the kept scenes go (they are in no tree, so nothing else frees them).</summary>
+    public static void FreeAll()
+    {
+        foreach (var m in Loaded.Values) m?.Scene.Free();
+        Loaded.Clear();
+    }
+
     /// <summary>For a check: the tree under a node, one line each.</summary>
     public static IEnumerable<string> Describe(Node n, int depth = 0)
     {
