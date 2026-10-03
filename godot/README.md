@@ -57,6 +57,25 @@ state, one tick, a picture with the HUD and `nettest.json` in `<dir>`, quit; the
 - **The HUD** (`src/Game/Hud.cs`): the browser's papers as Controls under `Main.I.Ui`, the CSS sizes times the
   browser's `--ui`. A line in the middle of the screen: `GameState.I.Say("...")`. Fonts: `Fonts.Hand`,
   `Fonts.Print` (`godot/fonts/`, the browser's own faces).
+- **The town map** (`src/Game/TownMap.cs`, `MapIcons.cs`, `MapBase.cs`): the browser's paper map (`game/map.ts`,
+  `mapIcons.ts`). M opens it; M, E or Esc close it. The city's picture is drawn once from `shared/city.json` on
+  another thread; the badges are drawn once into one picture. Closed it costs nothing; open, a drawing takes about
+  0.5 ms, twice a second and while the map moves. The kinds turned off are kept in `user://map.json`.
+  - `TownMap.I.Open`, `.Toggle()`, `.Show()`, `.Close()`, `.OpenChanged`: the window. `CanOpen = () => ...` says
+    whether M may open it now. A window stack that sends the keys itself sets `OwnKeys = false`.
+  - `TownMap.I.AddMarks(() => marks)`: more marks (events, the employers' boxes, people with work).
+    `JobMarks = () => marks` and `WayGoal = () => where`: the job's step and where the dotted way leads, from the
+    part that runs the job (until then a guess from the store's jobs). `PersonAt = id => where` for people with
+    work. `SetMovers(list)`: omnibuses, ships, trains (the browser's map shows none; here a small dart each).
+- **Finding the way** (`src/World/Ways.cs`): `Ways.Path(from, to)` gives the corners of the way on foot between two
+  places, (x, z) in world metres, or null; `Ways.Length(path)`, `Ways.PointAlong(path, d)`, `Ways.Flags(x, z)`
+  (Wall, Water, Outside), `Ways.Open`, `Ways.Reachable`, `Ways.NearestOpen`. It reads the walk map picture
+  (`client/public/city/walk.png`) and searches as the server does (`server/src/town/wayfind.ts`, `ways.ts`,
+  `walkmap.ts`): the same ways, with no call to the server. Safe from any thread; `Ways.Warm()` reads the map ahead.
+- **The map's test**: `-- --no-ai --maptest <dir>` opens the map with the M key, moves and zooms it, points at
+  places, clicks a kind off and on, shows a way, closes it, and writes pictures and `maptest.json` to `<dir>`.
+  `--mapat x,z,yawDeg` stands where the browser's picture was taken: `node tools/godot/map-ref.mjs` makes that
+  picture (a test stack and headless Chrome) and prints the place.
 
 ## Rules
 - The engine owns all numbers; the Godot game shows them and asks the server, as the browser does.
