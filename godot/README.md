@@ -6,8 +6,10 @@ The Godot game (Godot 4.7.2, C#, .NET 8). The plan and the decisions: `docs/godo
 ## Run it
 1. Once: `npm run setup` in the repo root (the server and the bake need their packages), and a save
    (`data/game.sqlite`: start the server once).
-2. Bake the town: `node tools/godot/export-scene.mjs` (about 2 minutes; writes `godot/baked/town.glb`, `town.json`,
-   `town_tex/`, 500 MB, not in git). Bake again when the browser's world code changes.
+2. Bake the town: `node tools/godot/export-scene.mjs` (about 3 minutes; writes `godot/baked/town.glb`, `town.json`,
+   `town_tex/` (with the dirt map and the sky map), `town_lights.json` (the lamps, the lit windows and their light on
+   the street), 500 MB, not in git). Bake again when the browser's world code changes. `--ref-only --hour 21
+   --weather rain` writes only the browser's picture and light numbers at that hour (and, with `--lights`, the lights).
 3. Build: `dotnet build godot`.
 4. Run: the Godot console program with `--path godot`. Use the real program in the WinGet package folder
    (`...\WinGet\Packages\GodotEngine.GodotEngine.Mono_...\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64_console.exe`);
@@ -26,6 +28,10 @@ routes), `--solidlazy` (make the walls near the camera only), `--city <json>` (`
 (game parts off). The townspeople: `--server http://127.0.0.1:PORT` (a running game server: the town comes from
 it), `--hour 13.5` and `--day 1` (the clock), `--models <dir>`, `--walk <town_walk.json>`, `--peopletest <dir>` and
 `--parade <dir>` (their checks, below).
+(game parts off), `--hour 21 --weather fog|mist|clear|rain|storm` (the clock and the weather of the run),
+`--snap <dir> --views "name:x,y,z,yaw,pitch,hour,weather;..."` (test pictures from chosen views, hours and weathers
+in one run, with the frame time: `src/Dev/Snap.cs`), `--psx-off relief,ground,wall,shade,spill` (a psx feature left
+out, to measure its cost).
 
 ## How it is built
 - **The baked town** (`src/World/BakedWorld.cs`). The browser game builds its world in code (67,000 lines). The bake
@@ -37,6 +43,12 @@ it), `--hour 13.5` and `--day 1` (the clock), `--models <dir>`, `--walk <town_wa
   (`Psx.Kind`), shared; the rest are uniforms. The values every material reads are global shader uniforms
   (`psx_*` in `project.godot`), set once a frame, like the browser's `psxUniforms`. A new feature is a switch in
   `Kind` or a uniform, not a new shader file.
+- **The light over the day** (`src/World/`): `Daylight.cs` is the clock's and the weather's light (the fog, the sky's
+  two colours, the sun's way, the rain, the wet, the puddles: `Daylight.I.SetTime(hour)`, `SetWeather(name)`; the
+  other parts read `Hour`, `Night`, `LampsLit`, `FogColor` ...); `Sky.cs` the cloud dome; `Lights.cs` the gas lamps,
+  the lit windows and their light on the street (no Godot light: the nearest 48 sources go to every lit psx material
+  as a list, `Psx.SetSpill`; the six lamps whose glow hangs in the fog, `Psx.SetLamps`); `Rain.cs` the rain. A part
+  that brings a real Godot light (Jef's lantern, a room's lamps) just adds it: the psx material takes it in `light()`.
 - **The screen** (`src/Main.cs`, `shaders/retro.gdshader`): the world is drawn at 720 lines into `Main.I.View`,
   then full screen through the retro pass (grade, grain, dither).
 - **What is solid** (`src/World/Solid.cs`): Jef walks on Godot's physics (Jolt) over the baked meshes themselves.
