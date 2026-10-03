@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using Godot;
 using Scheldemist.Game;
 using Scheldemist.World;
@@ -43,6 +44,12 @@ public partial class MoverClock : Node
         heldDay = day;
         heldAt = T;
         Read();
+        // the light and the townspeople of that hour too (a test's pictures are lit by the hour it sets)
+        if (hour >= 0 && Daylight.I != null)
+        {
+            Daylight.I.SetTime((float)hour);
+            Daylight.I.Settle();
+        }
     }
 
     public override void _Ready()
@@ -234,6 +241,30 @@ public partial class MoverDump : Node
 {
     public override void _Ready()
     {
+        string md = Main.I.Arg("modeldump");
+        if (md != "")
+        {
+            // `--modeldump boats:schooner,barque_sail file`: the model library's tree of those top nodes
+            var parts = md.Split(':');
+            var model = Scheldemist.Models.ModelLibrary.Get(parts[0]);
+            var o = new System.Text.StringBuilder();
+            if (model != null)
+            {
+                o.Append("roots: ").Append(string.Join(", ", model.Roots.Keys)).Append('\n');
+                if (parts.Length > 1)
+                    foreach (string r in parts[1].Split(','))
+                        if (model.Roots.TryGetValue(r, out var root))
+                            foreach (var n in BakedWorld.All(root))
+                            {
+                                string ex = n.HasMeta("extras") ? Json.Stringify(n.GetMeta("extras")).Replace("\n", "") : "";
+                                string mats = n is MeshInstance3D { Mesh: not null } mi ? " mats: " + string.Join("|", Enumerable.Range(0, mi.Mesh.GetSurfaceCount()).Select(i => mi.Mesh.SurfaceGetMaterial(i)?.ResourceName ?? "?")) + $" prim {(mi.Mesh as ArrayMesh)?.SurfaceGetPrimitiveType(0)}" : "";
+                                o.Append($"{root.GetPathTo(n)} [{n.GetType().Name}]{mats} {ex[..Math.Min(140, ex.Length)]}\n");
+                            }
+            }
+            System.IO.File.WriteAllText(Main.I.Arg("dumptree", "modeldump.txt"), o.ToString());
+            GetTree().Quit();
+            return;
+        }
         string f = Main.I.Arg("dumptree");
         if (f == "") return;
         var want = new HashSet<string>(Main.I.Arg("dumpof").Split(',', StringSplitOptions.RemoveEmptyEntries));

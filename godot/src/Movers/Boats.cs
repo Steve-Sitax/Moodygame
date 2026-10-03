@@ -179,10 +179,11 @@ public partial class Boats : Node
         return f;
     }
 
-    /// <summary>Is there a model of this kind (or one that stands in for it)?</summary>
+    /// <summary>Is there a model of this kind: a frozen vessel of the bake, or the model file's own (the model library)?</summary>
     public string? KindFor(string kind)
     {
         if (templates.ContainsKey(kind)) return kind;
+        if (FromLibrary(kind)) return kind;
         if (StandIn.TryGetValue(kind, out var alts))
             foreach (var a in alts)
                 if (templates.ContainsKey(a))
@@ -194,10 +195,59 @@ public partial class Boats : Node
         return null;
     }
 
+    /// <summary>The kinds made from boats.glb through the model library (the bake had no copy of them).</summary>
+    public readonly HashSet<string> Library = new();
+    private Node3D? shelf;
+
+    /// <summary>
+    /// A kind the bake has no frozen copy of (none sailed at bake time: a barque under sail, a schooner): its model
+    /// from boats.glb through the model library, as the browser's loader sets it up (boats.ts loadModelSet): the
+    /// water cap hidden, the rigging of its "rig" extra as lines, a group round it that is placed.
+    /// </summary>
+    private bool FromLibrary(string kind)
+    {
+        var model = Scheldemist.Models.ModelLibrary.Get("boats", new Scheldemist.Models.ModelLibrary.Look(TwoSided: true, Affine: 0.6));
+        var inner = model?.Copy(kind);
+        if (inner == null) return false;
+        inner.Name = kind;
+        inner.Transform = Transform3D.Identity;
+        foreach (var n in BakedWorld.All(inner))
+            if (n is MeshInstance3D mi && n.Name.ToString().EndsWith("_cap")) mi.Visible = false;
+        if (inner.HasMeta("extras") && inner.GetMeta("extras").AsGodotDictionary().TryGetValue("rig", out var rig) && Rope != null)
+        {
+            try
+            {
+                var f = System.Text.Json.JsonSerializer.Deserialize<float[]>(rig.AsString()) ?? Array.Empty<float>();
+                var pts = new Vector3[f.Length / 3];
+                for (int i = 0; i < pts.Length; i++) pts[i] = new Vector3(f[i * 3], f[i * 3 + 2], -f[i * 3 + 1]); // Blender's z up
+                if (pts.Length >= 2)
+                {
+                    var arr = new Godot.Collections.Array();
+                    arr.Resize((int)Mesh.ArrayType.Max);
+                    arr[(int)Mesh.ArrayType.Vertex] = pts;
+                    var lines = new ArrayMesh();
+                    lines.AddSurfaceFromArrays(Mesh.PrimitiveType.Lines, arr);
+                    lines.SurfaceSetMaterial(0, Rope);
+                    inner.AddChild(new MeshInstance3D { Name = kind + "_rigging", Mesh = lines });
+                }
+            }
+            catch (System.Text.Json.JsonException) { /* no rigging then */ }
+        }
+        var outer = new Node3D { Name = kind, Visible = false };
+        outer.AddChild(inner);
+        // kept under the town, out of sight: the source of every copy of this kind
+        shelf ??= new Node3D { Name = "boat_models", Visible = false };
+        if (shelf.GetParent() == null) Mv.Town.AddChild(shelf);
+        shelf.AddChild(outer);
+        templates[kind] = (outer, inner);
+        Library.Add(kind);
+        return true;
+    }
+
     /// <summary>
     /// A new copy of a vessel under `parent` (the browser's boats.place): it floats and bobs with the rest; its owner
-    /// moves the group. Null when the bake has no such model. The model library takes over here: until then a copy
-    /// of the frozen baked vessel, or of the nearest kind when the bake has none (Missing lists those).
+    /// moves the group. A copy of the bake's frozen vessel of that kind (it has the browser's own materials), else of
+    /// the model file's through the model library; null when neither has it.
     /// </summary>
     public Float? Place(string kind, Node parent, float scale = 1)
     {
@@ -210,8 +260,7 @@ public partial class Boats : Node
         outer.Scale = Vector3.One * scale;
         parent.AddChild(outer);
         var inner = (Node3D)outer.GetChild(srcInner.GetIndex());
-        var f = Register(outer, inner, kind);
-        return f;
+        return Register(outer, inner, kind);
     }
 
     /// <summary>A baked vessel as a float (the parts that take a baked boat over ask for it by its group).</summary>

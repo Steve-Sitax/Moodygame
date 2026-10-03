@@ -326,6 +326,24 @@ public partial class River : Node
                 return (mid + new Vector3(-(float)pick.Hz * d, 9, (float)pick.Hx * d) + new Vector3((float)pick.Hx, 0, (float)pick.Hz) * d * 0.4f, mid + Vector3.Up * 4);
             },
         });
+        // a kind the bake has no frozen copy of, made from boats.glb through the model library
+        Boats.Float? made = null;
+        MoversTest.Add(new MoversTest.Probe
+        {
+            Name = "ship_from_the_model_file",
+            Hour = 13,
+            Gap = 3,
+            MinMove = 0.002,
+            Start = () =>
+            {
+                made = Boats.I.Place("barque_sail", group);
+                if (made != null) made.Outer.Position = new Vector3(30, Tide.River, -62);
+                if (made != null) made.Outer.Rotation = new Vector3(0, -MathF.PI / 2, 0);
+            },
+            Where = () => made == null ? (Vector3.Zero, 0, "boats.glb has no barque_sail") : (made.Inner.GlobalPosition, made.Inner.Rotation.Z, $"a barque under sail from boats.glb ({(Boats.I.Library.Contains("barque_sail") ? "the model library" : "a baked copy")})"),
+            View = () => (new Vector3(78, 14, -18), new Vector3(30, 12, -62)),
+            End = () => made?.Outer.QueueFree(),
+        });
         MoversTest.Add(new MoversTest.Probe
         {
             Name = "river_liner_at_anchor",
