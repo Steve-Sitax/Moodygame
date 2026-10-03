@@ -107,7 +107,8 @@ public sealed class Api : IDisposable
     public Task<T> Put<T>(string path, object? body = null, int timeoutMs = DefaultTimeoutMs) => Call<T>(HttpMethod.Put, path, body, timeoutMs);
 
     /// <summary>api.ts call(): JSON out, JSON back, a time limit; the server's own "error" text when it refuses.</summary>
-    public async Task<T> Call<T>(HttpMethod method, string path, object? body, int timeoutMs)
+    /// <param name="refusalToo">A 409 with a body is an answer too (the goods: what the server refused, and the items as they are).</param>
+    public async Task<T> Call<T>(HttpMethod method, string path, object? body, int timeoutMs, bool refusalToo = false)
     {
         using var limit = CancellationTokenSource.CreateLinkedTokenSource(closing.Token);
         limit.CancelAfter(timeoutMs);
@@ -118,7 +119,7 @@ public sealed class Api : IDisposable
             if (body != null) req.Content = new StringContent(JsonSerializer.Serialize(body, body.GetType(), Json), Encoding.UTF8, "application/json");
             using var res = await http.SendAsync(req, HttpCompletionOption.ResponseContentRead, limit.Token).ConfigureAwait(false);
             string text = await res.Content.ReadAsStringAsync(limit.Token).ConfigureAwait(false);
-            if (!res.IsSuccessStatusCode)
+            if (!res.IsSuccessStatusCode && !(refusalToo && (int)res.StatusCode == 409))
             {
                 string? said = null;
                 try
@@ -249,6 +250,10 @@ public sealed class Api : IDisposable
     public Task<TownLifeReply> FireLeave() => Post<TownLifeReply>("api/fire/leave");
     public Task<TownLifeReply> HiringStand(double x, double z) => Post<TownLifeReply>("api/hiring/stand", new { x, z });
 
+    /// <summary>M8f: every liftable thing of the town as the server has it (shared/goods.ts; the records are in Play/GoodsData.cs).</summary>
+    public Task<T> Goods<T>() => Get<T>("api/goods", 10_000);
+    /// <summary>M8f: ask to lift, put down, hand over ... (shared/goods.ts GoodsAsk). A refusal (409) comes back as an answer with its reason.</summary>
+    public Task<T> GoodsAsk<T>(object ask) => Call<T>(HttpMethod.Post, "api/goods", ask, DefaultTimeoutMs, refusalToo: true);
     private static string Esc(string id) => Uri.EscapeDataString(id);
 
     // ------------------------------------------------------------------ the push channel
