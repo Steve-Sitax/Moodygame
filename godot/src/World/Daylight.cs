@@ -124,6 +124,9 @@ public partial class Daylight : Node
     /// <summary>Rain on top of the weather 0-1 (a job twist, or dev).</summary>
     public void SetRain(float amount) => manualRain = Mathf.Clamp(amount, 0, 1);
 
+    /// <summary>After Settle(): a part that eases on its own (the sky's deck, the lamps) jumps too.</summary>
+    public event Action? Settled;
+
     /// <summary>Everything at its target now: no easing (the first frame, a test picture).</summary>
     public void Settle()
     {
@@ -135,6 +138,7 @@ public partial class Daylight : Node
         pudBase = PudTarget();
         sea = SeaTarget();
         Step(0);
+        Settled?.Invoke();
         var f = FogColor.LinearToSrgb();
         GD.Print($"daylight: {Hour:0.##} h, {Weather}: fog #{f.ToHtml(false)} {FogNear:0.#}-{FogFar:0.#} m, sky {SkyIntensity:0.###}, sun {SunIntensity:0.###} from ({SunDir.X:0.###}, {SunDir.Y:0.###}, {SunDir.Z:0.###}), lamps {LampsLit:0.##}, night {Night:0.##}, rain {Rain:0.##}, wet {Wet:0.##}, puddles {Puddle:0.##}");
     }

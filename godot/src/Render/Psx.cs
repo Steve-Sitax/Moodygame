@@ -32,10 +32,67 @@ public static class Psx
         ("psx_rain", RenderingServer.GlobalShaderParameterType.Float, 0f),
         ("psx_puddle", RenderingServer.GlobalShaderParameterType.Float, 0f),
         ("psx_sea", RenderingServer.GlobalShaderParameterType.Float, 1f),
+        // the nearest lit gas lamps (the browser's uLamps, MAX_LAMPS 6): xyz the flame, w its brightness now
+        ("psx_lamp0", RenderingServer.GlobalShaderParameterType.Vec4, NoLamp),
+        ("psx_lamp1", RenderingServer.GlobalShaderParameterType.Vec4, NoLamp),
+        ("psx_lamp2", RenderingServer.GlobalShaderParameterType.Vec4, NoLamp),
+        ("psx_lamp3", RenderingServer.GlobalShaderParameterType.Vec4, NoLamp),
+        ("psx_lamp4", RenderingServer.GlobalShaderParameterType.Vec4, NoLamp),
+        ("psx_lamp5", RenderingServer.GlobalShaderParameterType.Vec4, NoLamp),
+        ("psx_lamp_color", RenderingServer.GlobalShaderParameterType.Vec4, new Vector4(1.0f, 0.62f, 0.28f, 1)),
     };
     private static bool globalsIn;
+    public const int MaxLamps = 6;
+    private static readonly Vector4 NoLamp = new(0, -999, 0, 0);
 
-    private static void EnsureGlobals()
+    /// <summary>
+    /// The lamps' light scattered toward the eye by the air (psx.ts LAMP_SCATTER_GLSL), for the psx fog and for the
+    /// shaders of their own (the sky, the rain): psx_glow(eye, ray, metres) is the sum over the six lamps.
+    /// </summary>
+    public const string LampScatterGlsl = @"
+global uniform vec4 psx_lamp0;
+global uniform vec4 psx_lamp1;
+global uniform vec4 psx_lamp2;
+global uniform vec4 psx_lamp3;
+global uniform vec4 psx_lamp4;
+global uniform vec4 psx_lamp5;
+global uniform vec4 psx_lamp_color;
+global uniform float psx_scatter;
+// how far along a ray the glow is gathered: to the surface, never past 1.5 fog-fars, nor out of the low air the
+// lamps light (16 m over the eye)
+float glow_reach(float len, float far, vec3 rd) {
+	return min(min(len, far * 1.5), 16.0 / max(rd.y, 0.01));
+}
+float half_scatter(float t, float h) {
+	float h2 = h * h;
+	return 0.5 * (t / (h2 * (h2 + t * t)) + atan(t / h) / (h2 * h));
+}
+float lamp_scatter(vec3 ro, vec3 rd, float len, vec3 p) {
+	vec3 q = p - ro;
+	float t0 = dot(q, rd);
+	float d = length(q - rd * t0);
+	float h = d + 1.2;
+	float tight = half_scatter(len - t0, h) - half_scatter(-t0, h);
+	float hw = d + 2.5;
+	float wide = (atan((len - t0) / hw) - atan(-t0 / hw)) / hw;
+	// fog throws light on forward: a lamp ahead glows, one beside the eye a third as much, one behind an eighth
+	vec3 x = rd * clamp(t0 - hw, 0.0, len) - q;
+	float phase = 0.12 + 0.88 * smoothstep(-0.5, 1.0, dot(normalize(x + vec3(0.0, 1e-4, 0.0)), -rd));
+	return (tight + wide * 0.165 * smoothstep(14.0, 4.0, d)) * phase;
+}
+float psx_glow(vec3 ro, vec3 rd, float len) {
+	float g = 0.0;
+	if (psx_lamp0.w > 0.0) g += psx_lamp0.w * lamp_scatter(ro, rd, len, psx_lamp0.xyz);
+	if (psx_lamp1.w > 0.0) g += psx_lamp1.w * lamp_scatter(ro, rd, len, psx_lamp1.xyz);
+	if (psx_lamp2.w > 0.0) g += psx_lamp2.w * lamp_scatter(ro, rd, len, psx_lamp2.xyz);
+	if (psx_lamp3.w > 0.0) g += psx_lamp3.w * lamp_scatter(ro, rd, len, psx_lamp3.xyz);
+	if (psx_lamp4.w > 0.0) g += psx_lamp4.w * lamp_scatter(ro, rd, len, psx_lamp4.xyz);
+	if (psx_lamp5.w > 0.0) g += psx_lamp5.w * lamp_scatter(ro, rd, len, psx_lamp5.xyz);
+	return g;
+}
+";
+
+    public static void EnsureGlobals()
     {
         if (globalsIn) return;
         globalsIn = true;
