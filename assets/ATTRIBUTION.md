@@ -272,7 +272,18 @@ The Godot game (`godot/fonts/`, 2026-10-03) reads the same faces from copies of 
 `LICENSE` (the OFL text and the copyright): `kalam-latin-400-normal.woff2`, `kalam-latin-700-normal.woff2`
 (`kalam-LICENSE.txt`; @fontsource/kalam 5.3.0), `old-standard-tt-latin-400-normal.woff2`,
 `old-standard-tt-latin-700-normal.woff2` (`old-standard-tt-LICENSE.txt`; @fontsource/old-standard-tt 5.3.0).
-Loaded by `godot/src/Game/Pen.cs` (`Fonts`) for the HUD.
+Loaded by `godot/src/Game/Pen.cs` (`Fonts`) for the HUD. For the talk window, the papers and the bills
+(`godot/src/Ui/Dialogs/Paper.cs`, `PaperFonts`), copied the same way: `old-standard-tt-latin-400-italic.woff2`
+(the same package and licence file), `alfa-slab-one-latin-400-normal.woff2` (`alfa-slab-one-LICENSE.txt`;
+@fontsource/alfa-slab-one 5.3.0), `unifrakturmaguntia-latin-400-normal.woff2` (`unifrakturmaguntia-LICENSE.txt`;
+@fontsource/unifrakturmaguntia 5.3.0), `courier-prime-latin-400-normal.woff2` (`courier-prime-LICENSE.txt`;
+@fontsource/courier-prime 5.3.0).
+Loaded by `godot/src/Game/Pen.cs` (`Fonts`) for the HUD. For the menus (2026-10-03) the same way:
+`old-standard-tt-latin-400-italic.woff2` (@fontsource/old-standard-tt 5.3.0), `alfa-slab-one-latin-400-normal.woff2`
+(`alfa-slab-one-LICENSE.txt`; @fontsource/alfa-slab-one 5.3.0), `courier-prime-latin-400-normal.woff2` and
+`courier-prime-latin-700-normal.woff2` (`courier-prime-LICENSE.txt`; @fontsource/courier-prime 5.3.0).
+The Godot menus also read copies of two of our own pictures listed below, unchanged: `godot/ui/quay_woodcut.jpg`
+(of `client/public/ui/quay_woodcut.jpg`) and `godot/ui/loading.jpg` (of `client/public/boot/loading.jpg`).
 
 The menus' one picture, made with Codex image generation from our own prompt through `tools/codexImage.mjs` (no
 example picture, no third-party images); turned grey and resized to 880 px:
@@ -302,6 +313,8 @@ example picture, no third-party images); turned grey and resized to 880 px:
 | Package | Version | Licence |
 |---|---|---|
 | concurrently | 10.0.5 | MIT |
+| @gltf-transform/core, @gltf-transform/extensions (the Godot port's model step, `tools/godot/models.mjs`) | 4.5.1 | MIT |
+| draco3dgltf (Google Draco, the decoder for that step) | 1.5.7 | Apache-2.0 |
 
 ## Codex pictures: the shops and the cafes (M7 shops, 2026-09-26)
 

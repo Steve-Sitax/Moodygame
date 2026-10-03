@@ -11,6 +11,9 @@
     "host": "node tools/host.mjs"
   },
   "devDependencies": {
-    "concurrently": "^10.0.5"
+    "@gltf-transform/core": "^4.5.1",
+    "@gltf-transform/extensions": "^4.5.1",
+    "concurrently": "^10.0.5",
+    "draco3dgltf": "^1.5.7"
   }
 }
