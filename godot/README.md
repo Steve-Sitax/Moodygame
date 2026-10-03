@@ -32,6 +32,11 @@ it), `--hour 13.5` and `--day 1` (the clock), `--models <dir>`, `--walk <town_wa
 `--snap <dir> --views "name:x,y,z,yaw,pitch,hour,weather;..."` (test pictures from chosen views, hours and weathers
 in one run, with the frame time: `src/Dev/Snap.cs`), `--psx-off relief,ground,wall,shade,spill` (a psx feature left
 out, to measure its cost).
+state, one tick, a picture with the HUD and `nettest.json` in `<dir>`, quit; the server is gone afterwards),
+`--talktest <dir> --no-ai` (the talk part's own test: every window opened and worked by script through the real
+keys, a picture of each and `talktest.json` in `<dir>`, quit; `--talktest <dir> --talktest-ai` instead is one talk
+with a typed line and a model's answer, two model calls). The browser's pictures of the same windows:
+`node tools/godot/talk-refs.mjs --out godot/baked/talkref` (a test stack with no AI on 8954 and 5354).
 
 ## How it is built
 - **The baked town** (`src/World/BakedWorld.cs`). The browser game builds its world in code (67,000 lines). The bake
@@ -121,6 +126,21 @@ out, to measure its cost).
   places, clicks a kind off and on, shows a way, closes it, and writes pictures and `maptest.json` to `<dir>`.
   `--mapat x,z,yawDeg` stands where the browser's picture was taken: `node tools/godot/map-ref.mjs` makes that
   picture (a test stack and headless Chrome) and prints the place.
+
+- **The dialogs** (`src/Ui/Dialogs/`): the browser's `game/dialogs.ts` and `game/cursor.ts`. `Dialogs.I` is a
+  stack: the keys go to the dialog on top and to nothing under it, each dialog closes on its own keys (E and Esc
+  for most), the mouse is free as the quill while one is up and taken again after. A dialog is a class with
+  `IDialog` that calls `Dialogs.I.Open(this)` and `Close(this)`; its paper is a `Sheet` (`Paper.cs`): CSS sizes,
+  the sepia filter, lines with a number badge and keys in a keys line that can be clicked. The player's part reads
+  `Dialogs.I.Any` (Jef stands still, and the game still plays); the menus' part sets `KeyLabel` and `Remap`
+  (changeable keys) and asks `Escapable` before Esc opens the menu.
+- **The windows with people and things** (`src/Talk/`, from `game/talk.ts`, `pockets.ts`, `bubbles.ts`, `press.ts`,
+  the bill and notebook of `ideas.ts`, the dice of `interiors.ts`). Other parts open them:
+  `Talk.I.Open(id, name, title)` (E at someone; `shopOnly: true` for F at a seller), `Shop.I.Open(shopId)`,
+  `Pockets.I.Toggle()` (I does it by itself), `Press.I.Read(item)`, `OpenBerg()`, `OpenPost()`, `OpenBill(id)`,
+  `Dice.I.Sit(place, patron, first)`, `Bubbles.I.Show(convo)` and `Bubbles.I.Say(() => point, name, text)`. The
+  hooks they leave for the parts not ported yet are named at the top of each file (`Talk.OnOpen`, `Work`,
+  `OnTakeWork`, `OnReply`; `Bubbles.PositionOf`, `InfoOf`, `Speak`; `Dice.Sfx`).
 
 ## Rules
 - The engine owns all numbers; the Godot game shows them and asks the server, as the browser does.
