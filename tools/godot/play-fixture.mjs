@@ -10,7 +10,7 @@ const output = path.resolve(folder ?? ".");
 const database = path.resolve(file ?? ".");
 if (!output.startsWith(path.join(root, "godot", "baked") + path.sep) || database !== path.join(output, "test.sqlite"))
   throw new Error("play fixture requires <this worktree>/godot/baked/<output>/test.sqlite");
-if (!fs.existsSync(database) || !/^http:\/\/127\.0\.0\.1:(?:893|896)[0-9]$/.test(url ?? "")) throw new Error("missing test database or wrong test port");
+if (!fs.existsSync(database) || !/^http:\/\/127\.0\.0\.1:(?:893|894|896)[0-9]$/.test(url ?? "")) throw new Error("missing test database or wrong test port");
 const response = await fetch(`${url}/api/press`, { signal: AbortSignal.timeout(6000) });
 if (!response.ok) throw new Error(`press: ${response.status}`);
 const { post } = await response.json();
