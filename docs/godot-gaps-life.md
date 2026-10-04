@@ -12,3 +12,10 @@ Wildlife increment verified on the shared next bake, fresh seed 1873, no AI, por
 checks passed. The pressed duck moved away 1.703 m before flying. Both close daytime pictures were inspected:
 `godot/baked/life-checks/wildlife/peopletest/animals_ducks_move_off.png` and `animals_duck_flight.png`.
 The run quit normally and its temporary database was removed. The shader and final combined runs remain pending.
+
+Walk-up increment: the focused job check passed in 91.2 seconds. The server chose resident `bk072`,
+Dries Van Camp; he first drew at (-159.645, 63.632), walked into reach at the Vismarkt and was released
+back to his schedule. `godot/baked/life-checks/walkup/jobtest/walkup-resident.png` was inspected.
+The caller, destination, real resident and released action owner are checked. The default full job
+check retains its frame checks; `--job-features-only` permits a focused behavior check. No speaker
+output or WASAPI error occurred with the engine's Dummy driver. Historical WASAPI cause remains uncertain.

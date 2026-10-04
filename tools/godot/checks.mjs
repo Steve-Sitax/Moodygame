@@ -10,7 +10,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const args = process.argv.slice(2);
 const opt = (name, fallback) => { const i = args.indexOf(`--${name}`); if (i < 0) return fallback; if (!args[i + 1] || args[i + 1].startsWith("--")) throw new Error(`--${name} needs a value`); return args[i + 1]; };
 const all = ["devtest", "paths", "stuck", "shaders", "perfcheck", "clocks", "interiors"];
-const extras = ["pixelcheck", "windows", "peopletest", "jobtest", "placestest", "eventtest", "ridetest", "playtest", "deedstest"];
+const extras = ["pixelcheck", "windows", "peopletest", "jobtest", "placestest", "eventtest", "ridetest", "playtest", "deedstest", "soundtest"];
 const selected = opt("only", all.join(",")).split(",");
 if (selected.some(name => ![...all, ...extras].includes(name))) throw new Error("--only: " + [...all, ...extras].join(","));
 const town = path.resolve(opt("town", "godot/baked/town.glb"));
@@ -79,6 +79,7 @@ async function nextPort() {
 }
 function numbers(name, report) {
   switch (name) {
+    case "soundtest": return `${report.rows} sound rows, ${report.problems?.length ?? "?"} problems`;
     case "jobtest": return `${report.steps?.length ?? "?"} steps, Vismarkt frame ${report.frame_ms?.mean ?? "?"} ms`;
     case "placestest": case "playtest": return `${report.steps?.length ?? "?"} steps; ${report.error ?? ""}`;
     case "deedstest": return `${report.checks?.length ?? "?"} checks; ${report.error ?? ""}`;
@@ -100,7 +101,7 @@ const table = [];
 try {
   if (!args.includes("--no-build")) {
     if (await run("dotnet", ["build", path.join(root, "godot")], 120000)) throw new Error("dotnet build failed");
-    if (await run(godot, ["--headless", "--path", path.join(root, "godot"), "--import"], 120000, path.join(out, "import.log"))) throw new Error("Godot import failed");
+    if (await run(godot, ["--headless", "--audio-driver", "Dummy", "--path", path.join(root, "godot"), "--import"], 120000, path.join(out, "import.log"))) throw new Error("Godot import failed");
   }
   for (const name of selected) {
     console.log(`Running ${name} (one Godot window, timeout ${timeout / 1000} s)`);
@@ -137,9 +138,9 @@ try {
       // Never accept an old report if this run fails before writing one.
       rmSync(path.join(dir, name + ".json"), { force: true });
       if (name === "peopletest" && await run(process.execPath, [path.join(root, "tools/godot/wherecheck.mjs"), "--server", url, "--out", path.join(dir, "where_expected.json")], 120000, path.join(dir, "reference.log"))) throw new Error("whereabouts reference failed");
-      const code = await run(godot, ["--path", path.join(root, "godot"), "--", "--town", town, "--models", models, "--server", url, "--port", String(ownPort), "--db", database, "--no-ai", "--dev", "--hour", "13", "--weather", "clear", "--no-mainmenu", "--prefs", path.join(scratch, "prefs.json"), `--${name}`, dir, ...extraArgs], timeout, path.join(dir, "run.log"), { SCHELDEMIST_USER_DATA: path.join(scratch, "user"), SCHELDEMIST_MAP_PORT: "0" });
+      const code = await run(godot, ["--audio-driver", "Dummy", "--path", path.join(root, "godot"), "--", "--town", town, "--models", models, "--server", url, "--port", String(ownPort), "--db", database, "--no-ai", "--dev", "--hour", "13", "--weather", "clear", "--no-mainmenu", "--prefs", path.join(scratch, "prefs.json"), `--${name}`, dir, ...extraArgs], timeout, path.join(dir, "run.log"), { SCHELDEMIST_USER_DATA: path.join(scratch, "user"), SCHELDEMIST_MAP_PORT: "0" });
       const report = JSON.parse(readFileSync(path.join(dir, name + ".json"), "utf8"));
-      table.push({ check: name, result: code === 0 && report.ok === true ? "PASS" : "FAIL", finds: numbers(name, report), report: path.join(dir, name + ".json") });
+      table.push({ check: name, result: code === 0 && (name === "soundtest" ? report.problems?.length === 0 : report.ok === true) ? "PASS" : "FAIL", finds: numbers(name, report), report: path.join(dir, name + ".json") });
     } catch (e) { table.push({ check: name, result: "ERROR", finds: e.message }); }
     finally {
       await stop(server); children.delete(server);

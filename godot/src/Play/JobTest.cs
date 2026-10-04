@@ -214,6 +214,8 @@ public partial class JobTest : Node
         foreach (var s in More())
             yield return s;
 
+        if(Main.I.Flag("job-features-only"))yield break;
+
         Step("frames", "the frame time at the Vismarkt with these parts on: no vsync, Jef turning once round (the budget here is 5 ms)");
         var midday = link.Api!.DevSet(new Dictionary<string, double> { ["hour"] = 13, ["minute"] = 0 });
         yield return When(() => midday.IsCompleted, 10, "midday for the frame check");
@@ -327,6 +329,7 @@ public partial class JobTest : Node
     /// <summary>The later steps: the jobs, then the day.</summary>
     private IEnumerable<object?> More()
     {
+        if (Only("walkup")) foreach(var s in WalkupStep()) yield return s;
         if (Only("carry"))
             foreach (var s in CarryStep())
                 yield return s;
@@ -339,6 +342,29 @@ public partial class JobTest : Node
         if (Only("day"))
             foreach (var s in DayStep())
                 yield return s;
+    }
+
+    private IEnumerable<object?> WalkupStep()
+    {
+        Step("walkup", "the engine selects a resident, who walks up and returns to the town afterwards");
+        var town=Main.I.GetNodeOrNull<Scheldemist.Town.Townspeople>("Townspeople");
+        yield return When(()=>town?.Data!=null&&Walkups.I!=null,30,"the town and walk-up executor");
+        if(Walkups.I==null||town==null){Fail("walk-up executor missing");yield break;}
+        Stand(-118,36,-118,30);yield return 1.5;
+        Note("caller",new{Jef.I.X,Jef.I.Z});
+        var call=Walkups.I.Summon("hand","twist","job:test:walkup",Jef.I.X+2,Jef.I.Z,40);
+        try
+        {
+            yield return When(()=>call.Present||call.Gone,90,"the engine-selected resident draws");
+            Check(call.Present&&call.Who!=null,"no engine-selected resident came");
+            Note("npc",call.Who);Note("name",call.Name);
+            Note("first_position",new[]{call.Position.X,call.Position.Y,call.Position.Z});
+            yield return When(()=>call.Present&&!call.Moving||call.Gone,45,"the resident reaches Jef");
+            Check(call.Present&&call.Distance(Jef.I.X,Jef.I.Z)<4,"walk-up stopped out of reach");
+            if(call.Present){var p=call.Position;LookAt(p.X,p.Z,0);yield return .5;Shot("walkup-resident");}
+        }
+        finally {call.Dispose();}
+        Check(call.Who==null||town.ActionPerson(call.Who)?.ActionOwner==null,"walk-up did not release its resident");
     }
 
     private Dictionary<string, object?> Needs() => new() { ["food"] = GameState.I.Food, ["warmth"] = GameState.I.Warmth, ["sleep"] = GameState.I.Sleep, ["health"] = GameState.I.Health, ["money_c"] = GameState.I.Money };
