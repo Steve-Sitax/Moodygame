@@ -7,12 +7,16 @@ public partial class Townspeople
     // game/town.ts claim/release/moveHidden. The crowd still owns walking and body separation.
     public Sim? ActionPerson(string id) => byId.TryGetValue(id, out var s) ? s : null;
 
-    public void ActionHold(Sim s)
+    public bool ActionHold(Sim s, object? owner = null, bool preempt = false)
     {
-        if (s.ActionHeld) return;
+        owner ??= this;
+        if (s.ActionHeld && !ReferenceEquals(s.ActionOwner, owner) && !preempt) return false;
+        if (s.ActionHeld && ReferenceEquals(s.ActionOwner, owner)) return true;
+        s.ActionOwner = owner;
         s.ActionHeld = true; s.Plain = false; s.Inside = false;
         s.Hw = null; s.Round = null; s.CoarseDt = 0;
         s.Goal.Mode = "action"; s.Goal.X = s.X; s.Goal.Z = s.Z;
+        return true;
     }
     public void ActionInside(Sim s, double x, double z)
     {
@@ -51,9 +55,10 @@ public partial class Townspeople
         s.Goal.X = s.X; s.Goal.Z = s.Z;
     }
 
-    public void ActionRelease(Sim s)
+    public void ActionRelease(Sim s, object? owner = null)
     {
-        s.ActionHeld = false; s.Key = ""; s.Plain = false;
+        if (!ReferenceEquals(s.ActionOwner, owner ?? this)) return;
+        s.ActionOwner = null; s.ActionHeld = false; s.Key = ""; s.Plain = false;
         if (s.P != null && Crowd != null) { Crowd.PuppetFollow(s.P, null); s.P.Human.Root.Rotation = Godot.Vector3.Zero; }
         Reschedule(s, false);
     }

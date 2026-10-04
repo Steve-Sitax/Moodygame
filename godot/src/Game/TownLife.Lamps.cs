@@ -37,8 +37,8 @@ public partial class TownLife
     private void DropLamp(LampRun r, bool release)
     {
         r.Wear?.QueueFree(); r.Wear = null;
-        if (r.Person?.P != null) town?.ActionHide(r.Person);
-        if (release && r.Person != null) town?.ActionRelease(r.Person);
+        if (r.Person?.P != null && ReferenceEquals(r.Person.ActionOwner, r)) town?.ActionHide(r.Person);
+        if (release && r.Person != null) town?.ActionRelease(r.Person, r);
     }
     private void DropRounds() { foreach (var r in LampRuns) DropLamp(r, true); LampRuns.Clear(); }
     public static void WindowsOf(LampRound round, LampsFog? fog, List<LampWindow> result)
@@ -108,13 +108,13 @@ public partial class TownLife
                 Lights.I.SetLampLit(round.Lamps[k].Id, on);
             }
             if (Actors.I?.NpcOwned(round.Lamplighter) == false) continue;
-            if (window is not { } active) { if (r.Person?.ActionHeld == true) town.ActionRelease(r.Person); continue; }
+            if (window is not { } active) { if (r.Person?.ActionHeld == true) town.ActionRelease(r.Person, r); continue; }
             var plan = Planned(r, active, hour);
             if (holds && active.On && (r.PartDone || r.Person?.P == null && plan.done >= cut)) { r.PartDone = true; DropLamp(r, true); continue; }
             r.Person ??= town.ActionPerson(round.Lamplighter);
             bool acting = false; if (Actors.I != null) foreach (var action in Actors.I.Runs) if (action.Action.Npc == round.Lamplighter) { acting = true; break; }
             if (r.Person == null || acting) continue;
-            var person = r.Person; town.ActionHold(person);
+            var person = r.Person; if (!town.ActionHold(person, r)) continue;
             if (person.P == null)
             {
                 person.X = plan.x; person.Z = plan.z;

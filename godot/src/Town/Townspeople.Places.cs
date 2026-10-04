@@ -6,23 +6,26 @@ namespace Scheldemist.Town;
 public partial class Townspeople
 {
     // A family walking to its lighter belongs to that scene until it boards or the scene resets.
-    // Keep its id lookup; remove it from the schedule loop so two owners never walk the same body.
+    // Keep the simulation in the shared registry; its owned hold bypasses the schedule.
     private readonly Dictionary<string, Sim> placesClaimed = new();
+    public object LighterOwner => placesClaimed;
     public Sim? ClaimForLighter(string id)
     {
-        if (placesClaimed.TryGetValue(id, out var held)) return held;
         if (!byId.TryGetValue(id, out var s)) return null;
-        sims.Remove(s); placesClaimed[id] = s; return s;
+        if (!ActionHold(s, placesClaimed)) return null;
+        placesClaimed[id] = s; return s;
     }
     public void HideForLighter(string id)
     {
-        if (placesClaimed.TryGetValue(id,out var s) && s.P != null) { Crowd?.RemovePuppet(s.P); s.P=null; }
+        if (placesClaimed.TryGetValue(id,out var s) && ReferenceEquals(s.ActionOwner, placesClaimed) && s.P != null) { Crowd?.RemovePuppet(s.P); s.P=null; }
     }
     public void ReleaseFromLighter(string id, bool boarded)
     {
         if (!placesClaimed.Remove(id, out var s)) return;
+        if (!ReferenceEquals(s.ActionOwner, placesClaimed)) return;
+        ActionRelease(s, placesClaimed);
         if (s.P != null) { Crowd?.RemovePuppet(s.P); s.P = null; }
-        if (boarded) { byId.Remove(id); peopleInfo.Remove(id); Data?.Residents.Remove(s.R); }
+        if (boarded) { sims.Remove(s); byId.Remove(id); peopleInfo.Remove(id); Data?.Residents.Remove(s.R); }
         else { s.Key = "lighter-released"; if (!sims.Contains(s)) sims.Add(s); }
     }
     public void ReadEmigrantArrivals(JsonElement raw, HashSet<string> familyIds)

@@ -84,6 +84,7 @@ public partial class Emigrants : Node
     }
     public override void _Process(double dt)
     {
+        using var frameCost = Scheldemist.Dev.FrameCost.Track("Play.Emigrants");
         if((poll-=dt)<=0 && ServerLink.I?.Up==true){poll=6;_ = Load();}
         if(Info==null||town?.Crowd==null||River.I?.Anchorage is not {} a)return;
         if((think-=dt)<=0)
@@ -96,7 +97,7 @@ public partial class Emigrants : Node
         foreach(var c in crossings.Values)
         {
             if(c.Reported)continue;c.Time+=(float)dt;var t=a.Tows[c.Tow];bool gone=t.Stop!=1||t.Phase!="dwell";
-            for(int k=c.Walkers.Count-1;k>=0;k--){var w=c.Walkers[k];var p=w.Sim.P;if(gone||c.Time>45||p==null||!town.Crowd.Alive(p)||new Vector2((float)p.X-w.To.X,(float)p.Z-w.To.Y).Length()<1.3f){Aboard(c,w.Id,w.Sim);c.Walkers.RemoveAt(k);}}
+            for(int k=c.Walkers.Count-1;k>=0;k--){var w=c.Walkers[k];var p=w.Sim.P;if(!ReferenceEquals(w.Sim.ActionOwner, town.LighterOwner)&&town.ClaimForLighter(w.Id)==null)continue;if(gone||c.Time>45||p==null||!town.Crowd.Alive(p)||new Vector2((float)p.X-w.To.X,(float)p.Z-w.To.Y).Length()<1.3f){Aboard(c,w.Id,w.Sim);c.Walkers.RemoveAt(k);}}
             if(c.Walkers.Count==0 && c.Time>=0){c.Reported=true;_ = Report(c);}
         }
         foreach(var entry in decks)
@@ -109,7 +110,7 @@ public partial class Emigrants : Node
         }
     }
     private bool LoadingTow(int tow) {foreach(var c in crossings.Values)if(c.Tow==tow&&!c.Reported)return true;return false;}
-    private EmigrantFamily? NextFamily() {EmigrantFamily? next=null;foreach(var f in Info!.Families)if(f.BoardingToday&&!f.WaitingForJef&&!crossings.ContainsKey(f.Household)&&(next==null||f.ArrivedAt<next.ArrivedAt))next=f;return next;}
+    private EmigrantFamily? NextFamily() {EmigrantFamily? next=null;foreach(var f in Info!.Families)if(f.BoardingToday&&!f.WaitingForJef&&!f.Members.Any(id=>town!.ActionPerson(id)?.ActionHeld==true)&&!crossings.ContainsKey(f.Household)&&(next==null||f.ArrivedAt<next.ArrivedAt))next=f;return next;}
     private Deck DeckFor(int tow){if(decks.TryGetValue(tow,out var d))return d;d=new();Main.I.View.AddChild(d.Group);decks.Add(tow,d);return d;}
     private void Start(EmigrantFamily f,int tow,Anchorage.Tow t)
     {

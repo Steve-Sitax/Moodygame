@@ -106,6 +106,7 @@ public partial class Townspeople : Node
         public bool MillRun;
         /// <summary>An action owns this resident until it releases him; his day must not pull him away.</summary>
         public bool ActionHeld;
+        public object? ActionOwner;
         internal string GamePlace = "", GameKind = "", PropBase = "", PropGame = "", PropKey = "";
         internal int GameDay = -1, GameSlice = -1, ScheduleStorm = -1;
         internal string ScheduleAct = "", SchedulePlace = "", ScheduleLife = "", ScheduleShelter = "", ScheduleRun = "";
@@ -575,6 +576,7 @@ public partial class Townspeople : Node
 
     public override void _Process(double delta)
     {
+        using var frameCost = Scheldemist.Dev.FrameCost.Track("Town.Townspeople");
         while (inbox.TryDequeue(out var a)) a();
         if (Data == null || Crowd == null) return;
         if (ClockRuns)

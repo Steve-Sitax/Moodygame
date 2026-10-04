@@ -89,7 +89,7 @@ public partial class Actors : Node
             if (r.Phase != a.Phase || r.Action?.TargetX != a.TargetX || r.Action?.TargetZ != a.TargetZ) { r.Reported = false; r.Repath = 0; r.Best = double.PositiveInfinity; r.Stuck = 0; r.Replans = 0; r.GaveUp = false; r.Anchored = false; }
             r.Action = a; r.Phase = a.Phase;
             r.Person ??= town?.ActionPerson(a.Npc);
-            if (r.Person != null) town!.ActionHold(r.Person);
+            if (r.Person != null) town!.ActionHold(r.Person, this, true);
         }
         for (int i = Runs.Count - 1; i >= 0; i--)
         {
@@ -107,8 +107,8 @@ public partial class Actors : Node
     {
         if (r.Bus != null) { Scheldemist.Movers.Omnibus.I?.RemoveResident(r.Action.Npc); if (r.Person != null) town?.ActionOutside(r.Person); }
         if (GodotObject.IsInstanceValid(r.Wear)) r.Wear!.QueueFree(); r.Wear = null;
-        if (r.Person != null && !HeldElsewhere(r.Person)) town?.ActionRelease(r.Person);
-        if (r.Other != null && !HeldElsewhere(r.Other)) town?.ActionRelease(r.Other);
+        if (r.Person != null && !HeldElsewhere(r.Person)) town?.ActionRelease(r.Person, this);
+        if (r.Other != null && !HeldElsewhere(r.Other)) town?.ActionRelease(r.Other, this);
     }
     public void Reset() { npcOwners.Clear(); if (town != null && ordinaryCapacity > 0) town.MaxPuppets = ordinaryCapacity; while (Runs.Count > 0) { var r = Runs[^1]; Runs.RemoveAt(Runs.Count - 1); End(r); } Events.I?.Reset(); }
     public override void _Process(double delta)
@@ -155,7 +155,7 @@ public partial class Actors : Node
         if (RoomMovement?.Invoke(r, dt) == true) return;
         var a = r.Action; var s = r.Person ??= town!.ActionPerson(a.Npc);
         if (s == null) return;
-        if (!s.ActionHeld) town!.ActionHold(s);
+        if (!ReferenceEquals(s.ActionOwner, this)) town!.ActionHold(s, this, true);
         if (a.Kind == "attend" && a.Phase == "in")
         {
             if (!r.Indoors) { town!.ActionInside(s, a.TargetX ?? s.X, a.TargetZ ?? s.Z); r.Indoors = true; }
@@ -235,7 +235,7 @@ public partial class Actors : Node
             {
                 Stand(p, x, z, "talk");
                 r.Other ??= town.ActionPerson(a.Target);
-                if (r.Other != null) { town.ActionHold(r.Other); var other = town.ActionClaim(r.Other); if (other != null) Stand(other, p.X, p.Z, "talk"); }
+                if (r.Other != null) { town.ActionHold(r.Other, this, true); var other = town.ActionClaim(r.Other); if (other != null) Stand(other, p.X, p.Z, "talk"); }
             }
             else if (d > 2.3) { Go(r, p, x + (p.X - x) / d * 1.5, z + (p.Z - z) / d * 1.5, d > 12 ? 1.9 : 1.4); Stuck(r, d, dt, 12); }
             else { Stand(p, x, z, "talk"); Report(r, "arrived"); }
