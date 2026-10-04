@@ -122,11 +122,36 @@ public partial class Boats : Node
     public IReadOnlyList<Float> Floats => floats;
     public int MooredBoats => rows.Sum(r => r.N);
 
+    /// <summary>A live moored hull nearest a point, for its family and lanterns (boats.ts nearMoored).</summary>
+    public (string Kind, Func<Transform3D> World)? NearMoored(Vector3 at, params string[] kinds)
+    {
+        Row? row = null; int index = 0; float best = float.MaxValue;
+        foreach (var r in rows)
+            if (kinds.Length == 0 || kinds.Contains(r.Kind))
+                for (int i = 0; i < r.N; i++)
+                {
+                    float d = new Vector2(r.X[i]-at.X, r.Z[i]-at.Z).LengthSquared();
+                    if (d < best) { best = d; row = r; index = i; }
+                }
+        return row == null ? null : (row.Kind, () => row.World[index]);
+    }
+
+    /// <summary>The live hull frames of all moored boats, allocated once by the part drawing their lanterns.</summary>
+    public IEnumerable<(string Kind, Func<Transform3D> World)> MooredFrames()
+    {
+        foreach (var row in rows)
+            for (int i=0;i<row.N;i++) { int index=i; yield return (row.Kind, () => row.World[index]); }
+    }
+
     public override void _Ready()
     {
         I = this;
         ProcessPriority = -50; // the boats' owners (the river, the lock ...) place theirs after this
         Collect(Mv.Town);
+        // Browser water caps write only the water stencil. Godot has no such pass: they must not draw white lids.
+        foreach (var n in BakedWorld.All(Mv.Town))
+            if (n is MeshInstance3D mi && mi.Mesh?.GetSurfaceCount()==1 && mi.Mesh.SurfaceGetMaterial(0)?.ResourceName=="cap") mi.Visible=false;
+            else if (n is MultiMeshInstance3D im && im.Multimesh?.Mesh?.GetSurfaceCount()==1 && im.Multimesh.Mesh.SurfaceGetMaterial(0)?.ResourceName=="cap") im.Visible=false;
         foreach (var top in Mv.Town.GetChildren())
         {
             string n = Mv.Plain(top);
@@ -251,6 +276,7 @@ public partial class Boats : Node
     /// </summary>
     public Float? Place(string kind, Node parent, float scale = 1)
     {
+        if (!Library.Contains(kind)) FromLibrary(kind);
         string? k = KindFor(kind);
         if (k == null) return null;
         var (src, srcInner) = templates[k];
@@ -319,6 +345,14 @@ public partial class Boats : Node
     {
         var byKey = new Dictionary<string, Row>();
         var rope = Rope;
+        bool small = Mv.Plain(group) == "small_boats";
+        uint[] seeds = { 3, 4, 5, 8, 6, 7, 31, 32, 33, 34 }; // rijnkaai.ts moor calls, in scene order
+        int groupIndex = Mv.Tops("moored").IndexOf(group);
+        int boatCount = group.GetChildren().OfType<MultiMeshInstance3D>()
+            .Where(n => RowName.IsMatch(n.Name.ToString()))
+            .GroupBy(n => $"{RowName.Match(n.Name.ToString()).Groups[1].Value}:{n.Multimesh.InstanceCount}:{n.Multimesh.GetInstanceTransform(0).Origin.X:0.00}:{n.Multimesh.GetInstanceTransform(0).Origin.Z:0.00}")
+            .Sum(k => k.First().Multimesh.InstanceCount);
+        var motion = Mv.Rng(small ? (uint)(1873 ^ boatCount) : (groupIndex >= 0 && groupIndex < seeds.Length ? seeds[groupIndex] : 1873u) ^ 0x5bd1e995u);
         foreach (var c in group.GetChildren())
         {
             if (c is not MultiMeshInstance3D mmi || mmi.Multimesh == null) continue;
@@ -340,7 +374,7 @@ public partial class Boats : Node
                     X = new float[n], Z = new float[n], Yaw = new float[n], Floor = new float[n], List = new float[n],
                     P0 = new float[n], P1 = new float[n], P2 = new float[n], World = new Transform3D[n],
                 };
-                var r = Mv.Rng((uint)(key.GetHashCode() & 0x7fffffff));
+                var r = motion;
                 for (int i = 0; i < n; i++)
                 {
                     var t = mm.GetInstanceTransform(i);
@@ -351,7 +385,7 @@ public partial class Boats : Node
                     row.P0[i] = (float)r() * 6.283f;
                     row.P1[i] = (float)r() * 6.283f;
                     row.P2[i] = (float)r() * 6.283f;
-                    row.List[i] = ((float)r() - 0.5f) * 0.1f;
+                    row.List[i] = ((float)r() - 0.5f) * (small ? 0.1f : 0.08f);
                     row.Mid += t.Origin / n;
                 }
                 byKey[key] = row;
@@ -526,7 +560,7 @@ public partial class Boats : Node
                     Gap = 2.5,
                     MinMove = 0.003,
                     Where = () => (row.World[i].Origin, row.World[i].Basis.GetEuler().Z, $"a moored {row.Kind} at the Rijnkaai, the river at {Tide.River:0.00}"),
-                    View = () => (new Vector3(row.X[i] + 16, 3.5f, row.Z[i] - 24), new Vector3(row.X[i], Tide.River + 1.5f, row.Z[i])),
+                    View = () => (row.World[i].Origin + new Vector3(5, 2.4f, -6), row.World[i].Origin + Vector3.Up * .35f),
                 });
         }
         var brig = floats.FirstOrDefault(f => f.Kind == "brig");
@@ -538,7 +572,7 @@ public partial class Boats : Node
                 Gap = 3,
                 MinMove = 0.002,
                 Where = () => (brig.Inner.GlobalPosition, brig.Inner.Rotation.Z, "the Anna Maria (brig) at her berth"),
-                View = () => (brig.Outer.GlobalPosition + new Vector3(30, 12, -26), brig.Outer.GlobalPosition + new Vector3(0, 5, 0)),
+                View = () => (brig.Outer.GlobalPosition + new Vector3(16, 14, -30), brig.Outer.GlobalPosition + new Vector3(0, 9, 0)),
             });
         var small = Nearest(new Vector3(-76, 0, 40), null);
         foreach (var r in rows)

@@ -165,6 +165,7 @@ public static class OmnibusLines
     private const double PlanSpeed = 2.5, PlanStopS = 9, RealSPerMin = 2;
     private static readonly Dictionary<string, (int RoundMin, int HeadwayMin)> timings = new();
     private static readonly Dictionary<string, Loop> loops = new();
+    private static readonly Dictionary<string, Dictionary<string,int>> offsets = new();
 
     public static Loop LoopOf(Line l)
     {
@@ -195,6 +196,19 @@ public static class OmnibusLines
         double t = ServiceFirst + k * h;
         return t <= ServiceLast ? day * 1440 + t : (day + 1) * 1440 + ServiceFirst;
     }
+    public static double Due(Line line,string stop,double now)
+    {
+        if(!offsets.TryGetValue(line.Id,out var map))
+        {
+            var lp=LoopOf(line);
+            var calls=Stops.Where(s=>s.Line==line.Id).SelectMany(s=>lp.Passes(s.X,s.Z,1.5f).Select(p=>(S:p,Id:s.Id))).OrderBy(c=>c.S).ToList();
+            float start=calls.FirstOrDefault(c=>c.Id==line.Terminus).S;
+            map=new(); int i=0;
+            foreach(var c in calls.OrderBy(c=>lp.Wrap(c.S-start))) {map.TryAdd(c.Id,(int)Math.Floor((lp.Wrap(c.S-start)/PlanSpeed+i*PlanStopS)/RealSPerMin+.5)); i++;}
+            offsets[line.Id]=map;
+        }
+        return map.TryGetValue(stop,out int off)?NextSlot(line,now-off)+off:double.PositiveInfinity;
+    }
 }
 
 /// <summary>
@@ -205,9 +219,7 @@ public static class OmnibusLines
 /// shut and for the goods train on the rails it crosses; a bridge does not open under it. The wheels turn, the
 /// fore-carriage steers, the horses walk or trot. Solid for Jef.
 ///
-/// Not ported yet (the browser has them): passengers getting on and off and the people waiting at the stops (the
-/// baked ones stand frozen at their stops), Jef's ride (game/ride.ts), backing off when blocked, stopping for
-/// townspeople and things in the street, the carriage lamps' light on the street.
+/// Not ported yet: Jef's ride (game/ride.ts), backing off when blocked and the town's trip-owner connection.
 /// </summary>
 [GamePart(46)]
 public partial class Omnibus : Node
@@ -235,6 +247,7 @@ public partial class Omnibus : Node
         public List<(float S0, float S1, Bridges.Rect Rect)> Zones = new();
         public Dictionary<Bridges.Rect, List<float>> Spans = new();
         public bool Near;
+        public Action<Vector3, float>[] Lights = Array.Empty<Action<Vector3, float>>();
     }
 
     private readonly List<Bus> buses = new();
@@ -301,6 +314,7 @@ public partial class Omnibus : Node
                 b.Body = NewBox($"omnibus_body_{b.Index}", new Vector3(2.0f, 2.6f, 6.2f));
                 b.Team = NewBox($"omnibus_team_{b.Index}", new Vector3(2.2f, 2.0f, 3.2f));
                 Crew(b);
+                if (World.Lights.I != null) b.Lights = Enumerable.Range(0, 2).Select(i => World.Lights.I.AddMoving($"omnibus {b.Index} lamp {i}", new Color(1, 0.72f, 0.35f), 0.85f)).ToArray();
                 Zones(b);
                 FindNext(b);
                 Place(b, 0);
@@ -308,8 +322,9 @@ public partial class Omnibus : Node
             }
         }
         Bridges.Busy.Add(OnDeck);
+        WaitersReady(group);
         GD.Print($"omnibuses: {buses.Count} on {OmnibusLines.Lines.Length} lines ({string.Join(", ", OmnibusLines.Lines.Select(l => $"{l.Board} {OmnibusLines.LoopOf(l).Length:0} m, every {OmnibusLines.Timing(l).HeadwayMin} min"))})");
-        if (MoversTest.On) Probes();
+        if (MoversTest.On) { Probes(); PeopleProbe(); }
     }
 
     private AnimatableBody3D NewBox(string name, Vector3 size)
@@ -332,6 +347,7 @@ public partial class Omnibus : Node
         if (b.Driver != null)
         {
             driverG.AddChild(b.Driver.Root);
+            Carters.HideBakedCart(b.Driver);
             b.Driver.Start();
             if (b.Driver.CanSit) b.Driver.Play("sit", 0);
             b.Driver.Root.Position = new Vector3(0, 2.28f + b.Driver.SitDrop(0), 0);
@@ -548,6 +564,15 @@ public partial class Omnibus : Node
                 }
             }
         }
+        foreach(var p in StreetPeople.Walking())
+        {
+            if(Math.Abs(p.X-b.Pc.X)>5 || Math.Abs(p.Z-b.Pc.Y)>5) continue;
+            for(float dd=0;dd<=3;dd+=1)
+            {
+                var pa=lp.At(nose+dd);
+                if(new Vector2((float)p.X-pa.X,(float)p.Z-pa.Y).Length()<1.1f) {lim=Math.Min(lim,Math.Max(0,dd-1.5f)); b.WaitWhy="people"; break;}
+            }
+        }
         return lim;
     }
 
@@ -582,7 +607,7 @@ public partial class Omnibus : Node
         {
             b.V = 0;
             b.DwellT -= dt;
-            if (b.DwellT <= 0 && OnTime(b))
+            if (b.DwellT <= 0 && !waiters.Any(w=>w.Bus==b) && OnTime(b))
             {
                 b.DepartAt = null;
                 b.At = null;
@@ -612,6 +637,8 @@ public partial class Omnibus : Node
                 b.At = st.Stop;
                 b.DwellT = Dwell;
                 b.V = 0;
+                Arrive(b);
+                CallWaiters(b);
             }
         }
         Place(b, dt);
@@ -652,6 +679,7 @@ public partial class Omnibus : Node
             Move(b, dt);
             float dist = new Vector2(b.Pa.X - cam.X, b.Pa.Y - cam.Z).Length();
             b.Near = dist < far;
+            PeopleStep(b,dt);
             float cy = MathF.Cos(b.HorseYaw), sy = MathF.Sin(b.HorseYaw), amp = Math.Min(1, b.V / 0.8f);
             bool trot = b.V > 1.9f;
             for (int k = 0; k < 2; k++)
@@ -678,7 +706,12 @@ public partial class Omnibus : Node
             rearM?.Put(i, b.Pa.X, RRear, b.Pa.Y, b.Yaw, b.RollR);
             foreM?.Put(i, b.Pb.X, 0, b.Pb.Y, b.ForeYaw);
             frontM?.Put(i, b.Pb.X, RFront, b.Pb.Y, b.ForeYaw, b.RollF);
-            for (int k = 0; k < Lamps.Length; k++) lampsM?.Set(i * Lamps.Length + k, new Transform3D(xf.Basis, xf * Lamps[k]));
+            for (int k = 0; k < Lamps.Length; k++)
+            {
+                var at = xf * Lamps[k];
+                lampsM?.Set(i * Lamps.Length + k, new Transform3D(xf.Basis, at));
+                if (k < b.Lights.Length) b.Lights[k](at, b.Near ? Daylight.I?.LampsLit ?? 0 : 0);
+            }
             b.Frame.Visible = b.Near;
             if (b.Near)
             {
@@ -697,6 +730,7 @@ public partial class Omnibus : Node
         interiorM?.Commit();
         farGlassM?.Commit();
         lampsM?.Commit();
+        WaitersStep(dt);
         MoverCost.End("omnibus");
     }
 
@@ -780,7 +814,7 @@ public partial class Omnibus : Node
             View = () =>
             {
                 var b = buses[0];
-                return (new Vector3(b.Pa.X + 9, 4, b.Pa.Y - 9), new Vector3(b.Pa.X, 1.5f, b.Pa.Y));
+                return (new Vector3(b.Pa.X - 7, 4.5f, b.Pa.Y - 12), new Vector3(b.Pa.X+2, 1.5f, b.Pa.Y));
             },
         });
     }

@@ -263,8 +263,9 @@ public partial class Clocks : Node
         foreach (var d in dials)
         {
             if (!IsInstanceValid(d.Node)) continue;
-            int off = Math.Min(((d.Shows - m12) % 720 + 720) % 720, ((m12 - d.Shows) % 720 + 720) % 720);
-            list.Add(new Row(d.Kind, d.Where, d.Node.GlobalPosition, d.Node.GlobalTransform.Basis.Z.Normalized(), d.Node.IsVisibleInTree(), Hm(Math.Max(0, d.Shows)), off, d.Shows >= 0 && off <= 1));
+            var (hour,minute)=Read(d); int actual=hour*60+minute;
+            int off = Math.Min(((actual - m12) % 720 + 720) % 720, ((m12 - actual) % 720 + 720) % 720);
+            list.Add(new Row(d.Kind, d.Where, d.Node.GlobalPosition, d.Node.GlobalTransform.Basis.Z.Normalized(), d.Node.IsVisibleInTree(), Hm(actual), off, d.Shows >= 0 && off <= 1));
         }
         return list;
     }

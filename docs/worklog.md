@@ -282,3 +282,7 @@ Earlier batches: the git log before f5291a4 and the milestone notes in `docs/mil
 - Players choose their own AI; Steve's machine keeps typed lines on Claude.
 - Quality: before a building or prop patch goes live, close shots of every changed part and an
   automatic clip/overlap check that lists nothing.
+
+## Godot movers (2026-10-04)
+
+The movers worktree has live omnibus boarding, stop waiters and families aboard moored boats. Lamps feed the existing light pool and live traffic feeds the map. Close clear midday pictures exposed a lighting problem outside this part: [issue 42](https://github.com/Steve-Sitax/Moodygame/issues/42). Details and test evidence are in docs/milestones/godot-movers.md.

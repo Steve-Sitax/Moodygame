@@ -96,6 +96,14 @@ public sealed class Copies
         dirty = false;
         RenderingServer.MultimeshSetBuffer(Mm.GetRid(), buf);
     }
+
+    public void Tint(int i, Color color)
+    {
+        if (!Mm.UseColors || i<0 || i>=Count) return;
+        int o=i*stride+12;
+        buf[o]=color.R; buf[o+1]=color.G; buf[o+2]=color.B; buf[o+3]=color.A;
+        dirty=true;
+    }
 }
 
 /// <summary>
@@ -364,5 +372,8 @@ public partial class HorsePool : Node
         foreach (var m in legs) m?.Commit();
     }
 
-    public override void _Process(double delta) => Commit();
+    public override void _Process(double delta)
+    {
+        MoverCost.Begin("horse_buffers"); Commit(); MoverCost.End("horse_buffers");
+    }
 }
