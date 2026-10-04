@@ -235,6 +235,7 @@ public partial class Snap : Node
                 foreach (var (size, what) in hits.OrderBy(h => h.Item1).Take(60)) GD.Print($"whatray {name} {one} {size:0} {what}");
             }
         if (ShipWater.I is { } sw) GD.Print($"snap {name} ship water: {sw.Info}");
+        if (Debris.I is { } db) GD.Print($"snap {name} debris: {db.Info}");
         if (Gutters.I is { } gt) GD.Print($"snap {name} eaves drops: {gt.DropInfo}");
         if (Breath.I is { } br) GD.Print($"snap {name} horses' breath: {br.HorseInfo}");
         if (Lightning.I is { } lg) GD.Print($"snap {name} lightning: {lg.Info}, flash {Daylight.I.Flash:0.00}");
