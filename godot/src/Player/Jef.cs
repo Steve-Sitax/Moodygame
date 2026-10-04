@@ -118,6 +118,7 @@ public partial class Jef : Node, Mantle.IWorld
         public int I;
         public float T;
         public Action? Then;
+        public Func<Transform3D>? Frame;
     }
     private ClimbRun? climb;
 
@@ -695,9 +696,9 @@ public partial class Jef : Node, Mantle.IWorld
     }
 
     /// <summary>A climb along key points (x, y, z, seconds each): no control meanwhile. `then` runs at the end instead of landing.</summary>
-    public void ClimbTo(IEnumerable<(Vector3, float)> keys, Action? then)
+    public void ClimbTo(IEnumerable<(Vector3, float)> keys, Action? then, Func<Transform3D>? frame = null)
     {
-        climb = new ClimbRun { From = new Vector3(X, Y, Z), Keys = keys.ToList(), Then = then };
+        climb = new ClimbRun { From = frame == null ? new Vector3(X, Y, Z) : frame().AffineInverse() * new Vector3(X, Y, Z), Keys = keys.ToList(), Then = then, Frame = frame };
         Swimming = false;
         Blocked = false;
         vel = Vector2.Zero;
@@ -716,7 +717,8 @@ public partial class Jef : Node, Mantle.IWorld
         }
         if (c.I >= c.Keys.Count)
         {
-            (X, Y, Z) = (c.From.X, c.From.Y, c.From.Z);
+            var end = c.Frame == null ? c.From : c.Frame() * c.From;
+            (X, Y, Z) = (end.X, end.Y, end.Z);
             climb = null;
             if (c.Then != null) c.Then();
             else
@@ -732,6 +734,7 @@ public partial class Jef : Node, Mantle.IWorld
             var (p, dur) = c.Keys[c.I];
             float k = Mathf.SmoothStep(0, 1, c.T / dur);
             var at = c.From.Lerp(p, k);
+            if (c.Frame != null) at = c.Frame() * at;
             (X, Y, Z) = (at.X, at.Y, at.Z);
         }
         // hand over hand: a small pull on every rung

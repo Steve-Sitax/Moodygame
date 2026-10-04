@@ -124,6 +124,7 @@ public partial class River : Node
             }
         }
         Anchorage = new Anchorage(group, forAnchorage, 1873);
+        if(MoversTest.On)Anchorage.YieldProbes();
         // Bound the fleet by MaxShips and make every possible model while loading, never at a lane entrance.
         foreach (var (kind, _) in Big.Concat(Small))
             foreach (string name in kind.Parts)

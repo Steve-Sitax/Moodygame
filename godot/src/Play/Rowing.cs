@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Godot;
 using Scheldemist.Game;
@@ -18,7 +19,7 @@ public partial class Rowing:Node,RowPhysics.IWorld
 {
     public static Rowing I {get;private set;}=null!;
     public sealed class Drawn
-    {public string Key="",Kind="rowboat";public float X,Z,Yaw;public bool Drift;public Node3D Root=null!,Oars=null!;public readonly Node3D[] Pivot=new Node3D[2],Dip=new Node3D[2],Feather=new Node3D[2];public readonly float[] Shipped=new float[2];public RowPhysics.Hull Hull;}
+    {public string Key="",Kind="rowboat";public float X,Z,Yaw;public bool Drift;public double LastMoved;public Vector2 LastPosition;public Node3D Root=null!,Oars=null!;public readonly Node3D[] Pivot=new Node3D[2],Dip=new Node3D[2],Feather=new Node3D[2];public readonly float[] Shipped=new float[2];public RowPhysics.Hull Hull;public Func<Transform3D> Frame=null!;}
     public RowWorld Data {get;private set;}=new();
     public readonly Dictionary<string,Drawn> Drawings=new();
     public Drawn? Boat {get;private set;}
@@ -38,6 +39,7 @@ public partial class Rowing:Node,RowPhysics.IWorld
     private float pollT,bumpT;
     private int epoch,notice=-1;
     private bool polling,strokePending;
+    private RowSaved? savedRow;
     private static readonly string[] Kinds={"rowboat","punt","workboat","dinghy","shipsboat","gig","bumboat","eelboat","oldboat"};
     private const float Out=2,In=.7f,Blade=.55f;
     public Rowing(){I=this;drive=Drive;rowWhere=()=>new(Rower.X,Rower.Z);}
@@ -57,7 +59,7 @@ public partial class Rowing:Node,RowPhysics.IWorld
     }
     private (int Kind,int Sub,float Heading)? Gear()=>Boat!=null?(MpProtocol.GearRowboat,Array.IndexOf(Kinds,Boat.Kind),Rower.Heading):otherGear?.Invoke();
     private void Clear(){ReleaseNavigation();if(Jef.I.Drive==drive){Jef.I.Drive=null;Jef.I.DrivenEye=Jef.Eye;Jef.I.DrivenRoll=0;}Boat=null;}
-    private void Replaced(string how,ClientState? client){epoch++;Clear();foreach(var d in Drawings.Values)d.Root.QueueFree();Drawings.Clear();Boats.I.PlayerShowSmall();_=Load(true);}
+    private void Replaced(string how,ClientState? client){savedRow=RideSaves.Read<RowSaved>(client,"row");epoch++;Clear();foreach(var d in Drawings.Values)d.Root.QueueFree();Drawings.Clear();Boats.I.PlayerShowSmall();_=Load(true);}
     public override void _ExitTree(){Clear();Jef.I.OnJump=oldJump;Boats.I.PlayerShowSmall();if(Together.I is {} together)together.Gear=otherGear;if(Scheldemist.Menu.MainMenu.I is {} menu)menu.WorldReplaced-=Replaced;}
     public async Task Load(bool restore=false)
     {
@@ -65,18 +67,24 @@ public partial class Rowing:Node,RowPhysics.IWorld
         try
         {
             var data=await api.RowWorld();if(e!=epoch)return;
+            if(restore&&savedRow==null){var state=await api.GetClientState();if(e!=epoch)return;savedRow=state.Client is {} raw?RideSaves.Read<RowSaved>(raw.Deserialize<ClientState>(Api.Json),"row"):null;}
+            if(restore&&data.On!=null&&savedRow is {} back&&Array.IndexOf(Kinds,back.Kind)>=0)
+            {string kind=data.On=="hire"?data.Hire?.Kind??"":data.Boats.FirstOrDefault(b=>b.Id==data.On&&b.Mine&&!b.Lost)?.Kind??"";
+                if(kind==back.Kind&&data.On==back.What&&float.IsFinite(back.X)&&float.IsFinite(back.Z)&&float.IsFinite(back.Yaw)){Apply(data);string key=data.On=="hire"?"mine":data.On;var boat=Drawings.TryGetValue(key,out var existing)?existing:Make(key,kind,back.X,back.Z,back.Yaw);boat.X=back.X;boat.Z=back.Z;boat.Yaw=back.Yaw;Sit(boat);savedRow=null;return;}
+            }
+            savedRow=null;
             if(restore&&data.On!=null)
             {var home=data.On=="hire"?data.Hire?.Left??data.Landings.Where(l=>l.Id==data.Hire?.Landing).Select(l=>new RowPlace{X=l.X,Z=l.Z,Yaw=l.Yaw}).FirstOrDefault():data.Boats.Where(b=>b.Id==data.On).Select(b=>new RowPlace{X=b.X,Z=b.Z,Yaw=b.Yaw}).FirstOrDefault();
                 if(home!=null){var left=await api.RowLeave(home.X,home.Z,home.Yaw,true);if(e!=epoch)return;data=left.Row;}}
             Apply(data);
         }
-        catch(ApiException ex){GameState.I.Say(ex.Message);}finally{polling=false;}
+        catch(ApiException ex){GameState.I.Say(ex.Message);}finally{polling=false;if(e!=epoch&&IsInsideTree())_=Load(true);}
     }
     private Drawn Make(string key,string kind,float x,float z,float yaw)
     {
         var obj=models?.Copy(kind)??throw new InvalidOperationException("missing boat model "+kind);root.AddChild(obj);obj.Transform=Transform3D.Identity;
         foreach(var n in BakedWorld.All(obj))if(n is Node3D c&&(c.Name.ToString().EndsWith("_cap")||c.Name.ToString().EndsWith("_stow")))c.Visible=false;
-        var d=new Drawn{Key=key,Kind=kind,X=x,Z=z,Yaw=yaw,Root=obj,Hull=RowPhysics.Hull.Of(kind),Oars=new Node3D{Name="row_oars"}};obj.AddChild(d.Oars);
+        var d=new Drawn{Key=key,Kind=kind,X=x,Z=z,Yaw=yaw,Root=obj,Hull=RowPhysics.Hull.Of(kind),Oars=new Node3D{Name="row_oars"}};obj.AddChild(d.Oars);d.Frame=()=>d.Root.GlobalTransform;
         for(int i=0;i<2;i++)
         {
             float side=i==0?1:-1;var pin=d.Hull.Pin;var p=new Node3D{Name=i==0?"port":"starboard",Position=new(pin.X*side,pin.Y,pin.Z)};var dip=new Node3D();var feather=new Node3D();d.Oars.AddChild(p);p.AddChild(dip);dip.AddChild(feather);d.Pivot[i]=p;d.Dip[i]=dip;d.Feather[i]=feather;
@@ -164,7 +172,7 @@ public partial class Rowing:Node,RowPhysics.IWorld
         {
             if(d.Key=="mine"){var r=await ServerLink.I!.Api!.RowBoard(d.X,d.Z);if(e!=epoch)return;Apply(r.Row);Answered?.Invoke("board",r);}
             else{var b=Data.Boats.FirstOrDefault(b=>b.Id==d.Key&&b.Mine);if(b==null)return;var r=await ServerLink.I!.Api!.RowMountMine(b,Jef.I.X,Jef.I.Z);if(e!=epoch)return;GameState.I.Apply(r);var w=await ServerLink.I.Api.RowWorld();if(e!=epoch)return;Apply(w);Answered?.Invoke("board",r);}
-            if(jump||Jef.I.Swimming){climbing=true;var at=SeatOf(d);var j=Jef.I;var head=jump?new Vector3(j.X+(at.X-j.X)*.35f,j.Y+.35f,j.Z+(at.Z-j.Z)*.35f):new Vector3(at.X,at.Y+.35f,at.Z);j.ClimbTo(new[]{(head,jump?.22f:.6f),(at,jump?Math.Max(.3f,MathF.Sqrt(2*Math.Max(.3f,j.Y+.35f-at.Y)/9.81f)):.35f)},()=>{if(e==epoch)Sit(d);Busy=false;});}else Sit(d);
+            climbing=true;ClimbInto(d,jump,e);
         }
         catch(ApiException ex){GameState.I.Say(ex.Message);}finally{if(!climbing)Busy=false;}
     }
@@ -208,7 +216,7 @@ public partial class Rowing:Node,RowPhysics.IWorld
     {
         var d=Boat;if(d==null||!Navigate())return false;var j=Jef.I;float before=Rower.Heading;
         bool caught=Rower.Step(dt,this,j.KeyDown(Key.W)||j.KeyDown(Key.Up),j.KeyDown(Key.S)||j.KeyDown(Key.Down),j.KeyDown(Key.A)||j.KeyDown(Key.Left),j.KeyDown(Key.D)||j.KeyDown(Key.Right),j.KeyDown(Key.Shift),out float bump);
-        if(caught&&!strokePending)_=Stroke(Rower.Hard);bumpT-=dt;if(bump>.45f&&bumpT<=0){bumpT=1.2f;GameState.I.Say("The boat bumps against something. Back water and pull clear.");}
+        if(caught){Scheldemist.Audio.Soundscape.I?.SwimStroke();if(!strokePending)_=Stroke(Rower.Hard);}bumpT-=dt;if(bump>.45f&&bumpT<=0){bumpT=1.2f;Scheldemist.Audio.Soundscape.I?.Play(bump>1?"thud_wood":"thud_soft",new(Rower.X,Rower.Y,Rower.Z));GameState.I.Say("The boat bumps against something. Back water and pull clear.");}
         d.X=Rower.X;d.Z=Rower.Z;d.Yaw=Rower.Heading;d.Root.Transform=new(new Basis(Vector3.Up,d.Yaw)*new Basis(Vector3.Right,Rower.Pitch)*new Basis(Vector3.Back,Rower.Roll),new(d.X,Rower.Y,d.Z));
         PoseOars(d);j.Carry(Rower.Seat,Rower.Heading-before);j.DrivenEye=.78f;j.DrivenRoll=-Rower.Roll*MathF.Cos(j.Yaw-(Rower.Heading+MathF.PI));return true;
     }
@@ -231,6 +239,7 @@ public partial class Rowing:Node,RowPhysics.IWorld
         using var frameCost = Scheldemist.Dev.FrameCost.Track("Play.Rowing");
         float dt=(float)Math.Min(delta,.1);pollT+=dt;if(pollT>(Boat!=null||Data.Hire!=null?3:10)&&!Busy){pollT=0;_=Load();}
         NavigationTraffic(dt);
+        foreach(var hull in Drawings.Values){var at=new Vector2(hull.X,hull.Z);if(at.DistanceSquaredTo(hull.LastPosition)>.01f){hull.LastMoved=MoverClock.T;hull.LastPosition=at;}}
         foreach(var d in Drawings.Values)if(d!=Boat)
         {if(d.Drift){var c=((RowPhysics.IWorld)this).Current(d.X,d.Z);d.X+=c.X*dt;d.Z+=c.Y*dt;}d.Root.Position=new(d.X,BoatWater.At(d.X,d.Z),d.Z);d.Root.Rotation=new(0,d.Yaw,0);}
     }

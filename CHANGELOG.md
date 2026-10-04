@@ -13,6 +13,17 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - In the Godot version, the town's small life in the air is back: moths round the lit gas lamps on a still night, cats' eyes in the dark lanes, breath in the cold, water running from broken gutters with the damp stains under them, the great storm's surf bursting up the river walls and its rain splashing on the stones, and the white veils of heavier rain that each gust brings.
 
 - In the Godot version, the breweries, the sugar refinery and the gasworks smoke from their tall stacks by their working hours, and steamers and barges smoke from their funnels and stoves as in the browser game.
+- The Godot ferryman guides idle passengers around the ferry deck and onto the pontoon, then gives walking control back.
+
+- Godot railway crews accompany the horses and gate; cranes replenish docker piles, make room for higher-priority neighbours, and trains stop for loose goods. River tows back out of verified blocked water and slow for rowing boats.
+
+- Godot event actors use the server’s NPC ownership and the browser puppet pose format when playing together.
+
+- Godot save/load keeps Jef aboard his omnibus, ship, crane, rowing boat, handcart or velocipede; rowing reboarding follows the moving thwart.
+
+- The St. Anna ferry has night navigation lamps and warm saloon windows; moving carts and ships feed the Godot soundscape.
+
+- Climbing onto a moving ship follows its deck throughout the climb.
 
 - In the Godot version, lamps in rooms, shops and taverns and the lanterns people carry now glow the warm amber of the browser game instead of a deep red-orange, and a lantern left in the street lights the stones in the same colour ([#48](https://github.com/Steve-Sitax/Moodygame/issues/48)).
 

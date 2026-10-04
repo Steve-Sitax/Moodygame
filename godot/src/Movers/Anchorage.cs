@@ -14,10 +14,9 @@ namespace Scheldemist.Movers;
 /// then in to a berth on the Rijnkaai (the tug walks the lighter in sideways against the wall, and out again),
 /// and back. Before they cross a lane they wait until no ship on it will be over their crossing; after a while
 /// they take the right of way and the ships stop for them (River reads Obstacles).
-/// Not ported yet: stopping for rowing boats (the rowing part is not ported), and the watchdog that makes a tow
-/// back off astern when it and a ship have waited on each other for over a minute.
+/// Rowing hulls and the astern watchdog use the same live loop clearance as the browser.
 /// </summary>
-public sealed class Anchorage
+public sealed partial class Anchorage
 {
     private static readonly (double X, double Z, double Yaw) LinerAt0 = (0, -140, -Math.PI / 2);
     private static readonly (double A, double P, double Ph)[] Sheer = { (0.075, 190, 0.7), (0.03, 71, 2.1) };
@@ -55,7 +54,8 @@ public sealed class Anchorage
     public sealed class Tow
     {
         public TrainPart Lighter = null!, Tug = null!;
-        public double Lb, Tb, Width, Len, TugOff, S, V, Dwell, Crab, Waited;
+        public double Lb, Tb, Width, Len, TugOff, S, V, Dwell, Crab, Waited, Blocked, Back, Hold;
+        public int Backs;
         public int Stop, Committed = -1;
         /// <summary>"run", "in" (walking in to the wall), "dwell", "out".</summary>
         public string Phase = "dwell";
@@ -417,6 +417,7 @@ public sealed class Anchorage
                 }
                 continue;
             }
+            if(tow.Back>0||tow.Hold>0){BackOff(tow,dt);continue;}
             double target = Cruise;
             double sStop = stops[tow.Stop];
             double toStop = Ahead(tow.S, sStop);
@@ -471,14 +472,15 @@ public sealed class Anchorage
                     }
                 }
             }
+            AvoidRowers(tow,t,dt,ref target);
             // a ship under way coming across its bow (not once it has decided to cross a lane)
             var head = tow.Lighter.Boat.Outer;
             double fx = Math.Sin(head.Rotation.Y), fz = Math.Cos(head.Rotation.Y);
             bool crossing = tow.Committed >= 0 || Crossing(tow) >= 0;
-            if (!crossing)
-                foreach (var m in traffic)
+            foreach (var m in traffic)
                 {
-                    if (m.V < 0.3) continue;
+                    if(m.V<.3){double ahead=OnWayAhead(tow,m);if(ahead>=0){if(StoppedFor(tow,m)&&tow.V<.3&&CanBack(tow,6)){tow.Back=6;tow.Committed=-1;}target=Math.Min(target,Math.Max(0,(ahead-4)*.06));tow.Why="waits for a ship";}continue;}
+                    if(crossing)continue;
                     double best = double.PositiveInfinity, bestAlong = 0;
                     for (double k = 0; k <= 1.0001; k += 0.25)
                     {
@@ -503,6 +505,7 @@ public sealed class Anchorage
             if (tow.Waited > WatchdogS && tow.Why == "waits for room")
                 foreach (var o in Tows)
                     if (o != tow && o.Phase == "run") o.Waited = Math.Max(o.Waited, RelaxS + 1);
+            TryWatchdog(tow,traffic);
             if (toStop < 3 && tow.V * dt >= toStop - 0.02)
             {
                 // made fast at the stop

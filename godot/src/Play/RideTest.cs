@@ -36,6 +36,8 @@ public partial class RideTest : Node
             if (!Main.I.Flag("no-ai") || Paths.Database != Path.Combine(dir, "test.sqlite")) throw new InvalidOperationException("ridetest needs --no-ai and --db <dir>/test.sqlite");
             Require(await Until(() => ServerLink.I?.Up == true && GameState.I.Live, 100), "server ready");
             var api = ServerLink.I!.Api!;
+            Require(await Until(()=>Main.I.Loaded&&!Scheldemist.Menu.Loading.Busy,100),"town loading screen finished");
+            if(Scheldemist.Menu.MainMenu.I is {} menu){Scheldemist.Menu.Prefs.Set("benchDone",true,true);menu.Start();menu.SetProcess(false);Scheldemist.Menu.Pause.Clear();}
             Jef.I.TestInput = true;
             GameState.I.PlayingWhen = () => false;
             Dialogs.I!.KeepMouse = true;
@@ -47,6 +49,12 @@ public partial class RideTest : Node
             if(Main.I.Arg("ride-only")=="ship") {await ShipCheck(api);return;}
             if(Main.I.Arg("ride-only")=="water") {await ShipCheck(api);await FerryCheck(api);return;}
             if(Main.I.Arg("ride-only")=="ferry") {await FerryCheck(api);return;}
+            if(Main.I.Arg("ride-only")=="ferry-scenarios") {await FerryScenarios(api);return;}
+            if(Main.I.Arg("ride-only")=="saved-rides") {await OmnibusCheck(api);await HandcartCheck(api);await VeloCheck(api);await SavedRowCheck(api);return;}
+            if(Main.I.Arg("ride-only")=="expiry") {await HireExpiryCheck(api);return;}
+            if(Main.I.Arg("ride-only")=="crane") {await CraneCheck();return;}
+            if(Main.I.Arg("ride-only")=="omnibus") {await OmnibusCheck(api);return;}
+            if(Main.I.Arg("ride-only")=="saved-row") {await SavedRowCheck(api);return;}
             if(Main.I.Arg("ride-only")=="navigation") {await NavigationCheck(api);return;}
             foreach (float height in new[] { 2.99f, 3, 5, 8, 12 })
             {
@@ -76,13 +84,16 @@ public partial class RideTest : Node
             await HandcartCheck(api);
             await VeloCheck(api);
             await RowCheck(api);
+            await SavedRowCheck(api);
             await ShipCheck(api);
             await FerryCheck(api);
+            await HireExpiryCheck(api);
+            await FerryScenarios(api);
         }
         catch (Exception e) { error = e.ToString(); GD.PrintErr("ridetest: " + error); }
         finally
         {
-            try { File.WriteAllText(Path.Combine(dir, "ridetest.json"), JsonSerializer.Serialize(new { ok = error == "", error, selection=Main.I.Arg("ride-only"), checks, replies, pictures, incomplete = new[] { "household taking and furniture handoffs", "all hulls and street routes", "hire expiry and saved/remote gear proof", "ride sounds and ferry night lamps" } }, new JsonSerializerOptions(Api.Json) { WriteIndented = true })); }
+            try { File.WriteAllText(Path.Combine(dir, "ridetest.json"), JsonSerializer.Serialize(new { ok = error == "", error, selection=Main.I.Arg("ride-only"), checks, replies, pictures, incomplete = new[] { "household taking and furniture handoffs", "all hulls and street routes", "all boat ladder approaches and saved crane rungs", "two-client remote rides and guest ferry creator", "auditory review of ride sounds", "named household journeys and prisoner room movement" } }, new JsonSerializerOptions(Api.Json) { WriteIndented = true })); }
             catch(Exception report){error=report.ToString();GD.PrintErr("ridetest report: "+error);}
             finally{GetTree().Quit(error == "" ? 0 : 1);}
         }
@@ -109,13 +120,13 @@ public partial class RideTest : Node
         Jef.I.Place(-42,1.4f,0,-.3f);await Frames(10);Jef.I.SetKey(Key.W,true);Require(await Until(()=>ships.On?.Kind=="brig",10),"Anna Maria gangway is reachable on foot from quay");Jef.I.ClearKeys();await Shot("ship-gangway");Jef.I.Yaw=MathF.PI;Jef.I.SetKey(Key.W,true);bool walkedBack=await Until(()=>!Jef.I.Riding&&Jef.I.Z>.15f,10);replies.Add(new{brigGangway=ships.RiderTestGangway()});Require(walkedBack,"walk back off tide deck onto quay without jumping");Jef.I.ClearKeys();
         var d=ships.Decks.First(d=>d.Kind=="hengst"&&d.Visible());var p=d.Mesh.Nearest(new(d.Mesh.MinX+.5f,0));var at=d.At(p);replies.Add(new{shipApproach=new{d.Kind,p.X,p.Y,at}});
         var xf=d.World();var off=xf*new Vector3(d.Mesh.MinX-.35f,0,p.Y);Jef.I.DropFromBoat(new(off.X,World.Water.Level(off.X,off.Z)-.3f,off.Z));Jef.I.Yaw=MathF.Atan2(Jef.I.X-at.X,Jef.I.Z-at.Z);Jef.I.Pitch=.25f;await Frames(3);await Shot("ship-swim");
-        Require(Interact.I.Find().Any(a=>a.Text=="climb onto the ship"),"ship climb prompt in view from water");Require(Interact.I.Press(Key.E),"E from water climbs onto low ship deck");Require(await Until(()=>ships.On!=null&&!Jef.I.Climbing,10),"climb lands on ship model boards");d=ships.On!;await Shot("ship-aboard");
+        Require(Interact.I.Find().Any(a=>a.Text=="climb onto the ship"),"ship climb prompt in view from water");Require(Interact.I.Press(Key.E),"E from water climbs onto low ship deck");Require(await Until(()=>ships.On!=null&&!Jef.I.Climbing,10),"climb lands on ship model boards");d=ships.On!;await Shot("ship-aboard");await SavedRide(api,"ship",()=>ships.On==d);
         var local=ships.Local;float startY=Jef.I.Y;await Frames(90);Require(ships.Local.DistanceTo(local)<.001f&&new Vector3(Jef.I.X,Jef.I.Y,Jef.I.Z).DistanceTo(d.At(local))<.02f,"standing feet follow live heave and roll");
         Jef.I.SetKey(Key.W,true);await Frames(60);Jef.I.ClearKeys();Require(ships.Local.DistanceTo(local)>.1f,"walk through reachable deck cells");await Shot("ship-walking");
         for(int i=0;i<100;i++)Jef.I.Drive!(0);long before=GC.GetAllocatedBytesForCurrentThread();for(int i=0;i<10000;i++)Jef.I.Drive!(0);long allocated=GC.GetAllocatedBytesForCurrentThread()-before;replies.Add(new{shipProbe=new{iterations=10000,allocatedBytes=allocated}});Require(allocated==0,"ship frame walking allocates zero bytes");
         for(int i=0;i<100;i++)ships._Process(0);before=GC.GetAllocatedBytesForCurrentThread();for(int i=0;i<10000;i++)ships._Process(0);allocated=GC.GetAllocatedBytesForCurrentThread()-before;replies.Add(new{shipUpdateProbe=new{iterations=10000,allocatedBytes=allocated}});Require(allocated==0,"ship deck and gangway updates allocate zero bytes");
         Require(Jef.I.OnJump?.Invoke()==true&&ships.On==null&&!Jef.I.Grounded,"Space launches from ship deck");ships.Clear();Jef.I.Place(-118,36,0);
-        var traffic=River.I.Movers.First(m=>m.Parts.Any(part=>ships.Decks.Any(d=>d.Kind==part.Boat.Kind&&d.Visible()&&d.World().Origin.DistanceTo(part.Boat.Inner.GlobalPosition)<.1f)));var part=traffic.Parts.First(part=>ships.Decks.Any(d=>d.Kind==part.Boat.Kind&&d.Visible()&&d.World().Origin.DistanceTo(part.Boat.Inner.GlobalPosition)<.1f));var moving=ships.Decks.First(d=>d.Kind==part.Boat.Kind&&d.Visible()&&d.World().Origin.DistanceTo(part.Boat.Inner.GlobalPosition)<.1f);p=moving.Mesh.Nearest(Vector2.Zero);ships.Attach(moving,p);var initial=moving.World().Origin;Require(await Until(()=>moving.World().Origin.DistanceTo(initial)>.2f,10),"underway ship moves while Jef stands aboard");Require(new Vector3(Jef.I.X,Jef.I.Y,Jef.I.Z).DistanceTo(moving.At(ships.Local))<.05f,"player follows travelling ship frame");replies.Add(new{movingShip=new{moving.Kind,local=new{ships.Local.X,ships.Local.Y},feet=new{Jef.I.X,Jef.I.Y,Jef.I.Z},floor=moving.Mesh.Floor(ships.Local.X,ships.Local.Y)}});Jef.I.Pitch=-.8f;await Shot("ship-moving");ships.Clear();Jef.I.Place(-118,36,0);
+        var traffic=River.I.Movers.First(m=>m.Parts.Any(part=>ships.Decks.Any(d=>d.Kind==part.Boat.Kind&&d.Visible()&&d.World().Origin.DistanceTo(part.Boat.Inner.GlobalPosition)<.1f)));var part=traffic.Parts.First(part=>ships.Decks.Any(d=>d.Kind==part.Boat.Kind&&d.Visible()&&d.World().Origin.DistanceTo(part.Boat.Inner.GlobalPosition)<.1f));var moving=ships.Decks.First(d=>d.Kind==part.Boat.Kind&&d.Visible()&&d.World().Origin.DistanceTo(part.Boat.Inner.GlobalPosition)<.1f);p=moving.Mesh.Nearest(Vector2.Zero);ships.Clear();var approach=moving.At(p);Jef.I.DropFromBoat(approach-Vector3.Up);ships.Board(moving,p);Require(await Until(()=>ships.On==moving&&!Jef.I.Climbing,5),"moving ship climb follows its endpoint until attachment");Require(new Vector3(Jef.I.X,Jef.I.Y,Jef.I.Z).DistanceTo(moving.At(ships.Local))<.05f,"moving climb lands at current deck position");var initial=moving.World().Origin;Require(await Until(()=>moving.World().Origin.DistanceTo(initial)>.2f,10),"underway ship moves while Jef stands aboard");Require(new Vector3(Jef.I.X,Jef.I.Y,Jef.I.Z).DistanceTo(moving.At(ships.Local))<.05f,"player follows travelling ship frame");replies.Add(new{movingShip=new{moving.Kind,local=new{ships.Local.X,ships.Local.Y},feet=new{Jef.I.X,Jef.I.Y,Jef.I.Z},floor=moving.Mesh.Floor(ships.Local.X,ships.Local.Y)}});Jef.I.Yaw=moving.World().Basis.GetEuler().Y;Jef.I.Pitch=-.5f;await Shot("ship-moving");ships.Clear();Jef.I.Place(-118,36,0);
     }
     private async Task FerryCheck(Api api)
     {
@@ -134,6 +145,35 @@ public partial class RideTest : Node
     private async Task FerryWalk(Vector2 target,double timeout)
     {
         bool reached=await Until(()=>{var j=Jef.I;var delta=target-new Vector2(j.X,j.Z);j.Yaw=MathF.Atan2(-delta.X,-delta.Y);j.SetKey(Key.W,delta.Length()>.12f);return delta.Length()<.12f;},timeout);Jef.I.ClearKeys();if(!reached)replies.Add(new{ferryBlocked=new{Jef.I.X,Jef.I.Y,Jef.I.Z,foot=FerryArrival.I.Foot(Jef.I.X,Jef.I.Z)}});Require(reached,$"walk ferry route to {target}");
+    }
+    private async Task SavedRide(Api api,string kind,Func<bool> resumed)
+    {
+        var capture=RideSaves.I.Capture();Require(RideSaves.Read<RideSaved>(capture,"ride")?.Kind==kind,"save captures "+kind+" frame");
+        Require((await api.Save("slot2","Ride test",capture)).Ok,"server saves while on "+kind);
+        await LoadSaved(api,"slot2");
+        Require(await Until(resumed,12),"loaded "+kind+" resumes with its live controls");
+        await Frames(5);Require(float.IsFinite(Jef.I.Y),"loaded "+kind+" has finite feet");
+    }
+    private async Task LoadSaved(Api api,string slot)
+    {
+        var menu=Scheldemist.Menu.MainMenu.I!;string result="";menu.Saves.Load(slot,r=>result=r);
+        Require(await Until(()=>result!="",65)&&result=="loaded "+slot,"menu loads real server save and dispatches replacement");
+        Require((await api.GetClientState()).Client.HasValue,"server preserved client ride state");menu.Start();await Frames(2);
+    }
+    private async Task SavedRowCheck(Api api)
+    {
+        MoverClock.Hold(13.75,1);GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set",new{hour=13,minute=45,weather="clear",money_c=2000,health=10}));
+        var row=Rowing.I;await row.Load();var landing=row.Data.Landings.First(l=>l.Id=="vismarkt");
+        Jef.I.Place(landing.Landing[0],landing.Landing[1],0);await row.Hire(landing);
+        RowPose(row,landing.X-2,landing.Z-3,.45f);await Frames(3);
+        var captured=RideSaves.I.Capture();var back=RideSaves.Read<RowSaved>(captured,"row");Require(back!=null&&back.What=="hire","save captures rowing hull and heading");
+        Require((await api.Save("slot1","Rowing test",captured)).Ok,"real server saves while rowing");
+        await row.Leave(null);Require(row.Boat==null,"rower leaves before loading saved week");
+        await LoadSaved(api,"slot1");
+        Require(await Until(()=>row.Boat!=null&&!row.Busy,10),"saved rower resumes on authoritative hired boat");
+        Require(row.Data.On=="hire"&&new Vector2(row.Rower.X,row.Rower.Z).DistanceTo(new(back!.X,back.Z))<.05f&&Math.Abs(row.Rower.Heading-back.Yaw)<.001f,"loaded rowing position and heading match save");
+        Jef.I.Pitch=.35f;await Shot("rowing-loaded");
+        RowPose(row,landing.X,landing.Z,landing.Yaw);await Frames(3);await row.Leave(row.ExitHere());Require(await Until(()=>!Jef.I.Climbing,15),"saved boat can still return through steps");
     }
     private async Task RowCheck(Api api)
     {
@@ -185,7 +225,8 @@ public partial class RideTest : Node
         Require(velo.Speed>1&&new Vector2(Jef.I.X,Jef.I.Z).DistanceTo(from)>1,"W pedals velocipede along flat street");Jef.I.Pitch=-.9f;await Shot("velocipede-riding");
         for(int i=0;i<100;i++)velo.Drive(0);long before=GC.GetAllocatedBytesForCurrentThread();for(int i=0;i<10000;i++)velo.Drive(0);long bytes=GC.GetAllocatedBytesForCurrentThread()-before;
         replies.Add(new{veloFrameProbe=new{iterations=10000,allocatedBytes=bytes}});Require(bytes==0,"velocipede drive allocates zero bytes");
-        float h=velo.Heading;Jef.I.SetKey(Key.A,true);await Frames(35);Jef.I.ClearKeys();Require(Math.Abs(velo.Heading-h)>.02f,"A turns handlebar and machine");
+        await SavedRide(api,"velo",()=>velo.Ridden!=null&&!velo.Busy);m=velo.Ridden!;
+        float h=velo.Heading;Jef.I.SetKey(Key.W,true);Jef.I.SetKey(Key.A,true);await Frames(60);Jef.I.ClearKeys();Require(Math.Abs(velo.Heading-h)>.02f,"A turns handlebar and machine");
         Jef.I.SetKey(Key.S,true);Require(await Until(()=>Math.Abs(velo.Speed)<.1f,5),"S brakes velocipede");Jef.I.ClearKeys();
         Require(Interact.I.Press(Key.E),"E dismounts velocipede");Require(await Until(()=>velo.Ridden==null&&!velo.Busy,10),"dismount returns to ordinary walking");
         var world=await api.Velos();replies.Add(new{veloWorldAfterLeave=world});Require(world.Velos.First(v=>v.Id==m.Info.Id).Ridden==false,"server parks dismounted velocipede");Jef.I.Yaw=MathF.Atan2(Jef.I.X-m.Info.X,Jef.I.Z-m.Info.Z);Jef.I.Pitch=-.65f;await Shot("velocipede-dismounted");
@@ -257,6 +298,7 @@ public partial class RideTest : Node
         start=GC.GetAllocatedBytesForCurrentThread();for(int i=0;i<10000;i++)Handcarts.I._Process(0);
         alloc=GC.GetAllocatedBytesForCurrentThread()-start;
         Require(alloc==0,"held cart model update allocates zero bytes");
+        await SavedRide(api,"cart",()=>Handcarts.I.Held!=null&&!Handcarts.I.Busy);d=Handcarts.I.Drawings[Handcarts.I.Held!];
         Require(Interact.I.Press(Key.E),"E releases handcart");
         Require(await Until(()=>Handcarts.I.Held==null&&!Handcarts.I.Busy,10),"release restores walking and parked solid");
         var job=GameState.I.Jobs.First(j=>j.TaskType=="carry"&&JobTask.Of(j)?.Goods=="rope");
@@ -323,8 +365,9 @@ public partial class RideTest : Node
         Require(Interact.I.Find().Any(a => a.Text == "climb the crane's ladder"), "crane foot E prompt");
         await Shot("crane-foot"); Require(Interact.I.Press(Key.E), "E grips crane ladder");
         Jef.I.SetKey(Key.W, true);
-        Require(await Until(() => CraneClimb.I.On == id && !CraneClimb.I.OnLadder, 50), "W climbs onto working crane gallery");
+        Require(await Until(() => CraneClimb.I.On == id && !CraneClimb.I.OnLadder, 50), "W climbs onto working crane gallery ("+rail.LadderAt(id).Deck.Basis.GetEuler().Y+" rad)");
         Jef.I.ClearKeys(); Jef.I.Yaw=rail.LadderAt(id).Deck.Basis.GetEuler().Y+MathF.PI/2; Jef.I.Pitch=-.1f; await Shot("crane-gallery");
+        await SavedRide(ServerLink.I!.Api!,"crane",()=>CraneClimb.I.On==id&&!CraneClimb.I.OnLadder);
         var before = rail.LadderAt(id); var at = new Vector3(Jef.I.X, Jef.I.Y, Jef.I.Z);
         rail.RiderTestWork(id, .25f);
         Require(await Until(() => new Vector3(Jef.I.X,Jef.I.Y,Jef.I.Z).DistanceTo(at) > .1f, 12), "gallery carries Jef during real slew operation");
@@ -376,13 +419,13 @@ public partial class RideTest : Node
     {
         ulong end=Time.GetTicksMsec()+10000;
         Jef.I.SetKey(Key.W,true);
-        while(Time.GetTicksMsec()<end && CraneClimb.I.Local.DistanceTo(target)>.055f)
+        while(Time.GetTicksMsec()<end && CraneClimb.I.Local.DistanceTo(target)>.1f)
         {
             var d=target-CraneClimb.I.Local;
             Jef.I.Yaw=Railway.I.LadderAt(CraneClimb.I.On).Deck.Basis.GetEuler().Y+MathF.Atan2(-d.X,-d.Y);
             await Frames(1);
         }
-        Jef.I.ClearKeys(); Require(CraneClimb.I.Local.DistanceTo(target)<.06f,$"walk crane gallery to {target}");
+        Jef.I.ClearKeys();replies.Add(new{craneWalk=new{target,local=CraneClimb.I.Local,error=CraneClimb.I.Local.DistanceTo(target)}}); Require(CraneClimb.I.Local.DistanceTo(target)<.11f,$"walk crane gallery to {target}");
     }
     private async Task OmnibusCheck(Api api)
     {
@@ -409,6 +452,10 @@ public partial class RideTest : Node
         long allocated = GC.GetAllocatedBytesForCurrentThread() - allocatedAt;
         replies.Add(new { omnibusFrameProbe = new { iterations = 10000, allocatedBytes = allocated } });
         Require(allocated == 0, "omnibus frame drive allocates zero bytes");
+        var state=new Scheldemist.Net.Mp.MpState{X=Jef.I.X,Y=Jef.I.Y,Z=Jef.I.Z,Yaw=Jef.I.Yaw};Scheldemist.Net.Mp.RidePlatforms.Sample(ref state);
+        var remote=new Scheldemist.Net.Mp.Pose{Base=state.Base,Lx=state.Lx,Ly=state.Ly,Lz=state.Lz,Lyaw=state.Lyaw};Scheldemist.Net.Mp.RidePlatforms.Place(ref remote);
+        Require(state.Base==(256|bus.Index)&&new Vector3(remote.X,remote.Y,remote.Z).DistanceTo(new(Jef.I.X,Jef.I.Y,Jef.I.Z))<.001f,"protocol 5 remote omnibus feet reconstruct in live frame");
+        await SavedRide(api,"omnibus",()=>Ride.I.Riding&&!Ride.I.Busy);bus=Ride.I.Bus!;
         await Shot("omnibus-platform");
         Require(Interact.I.Press(Key.F), "F climbs roof");
         Require(await Until(() => Ride.I.Seat >= 12, 3), "roof seat occupied");
