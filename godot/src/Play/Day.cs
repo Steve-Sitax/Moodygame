@@ -262,6 +262,9 @@ public partial class Day : Node
         chooser.Open();
     }
 
+    /// <summary>The homes owner offers this only at the bed in the leased room.</summary>
+    public void ChooseHome(string label) => Choose(new Place("home", label, null));
+
     private Sheet? WriteChooser()
     {
         var p = choosing;

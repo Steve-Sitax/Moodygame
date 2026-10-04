@@ -1,0 +1,1651 @@
+{
+  "homes": [
+    {
+      "id": "cellar",
+      "origin": {
+        "x": -106.52613805,
+        "z": 146.82378975
+      },
+      "yaw": -2.878466449395186,
+      "floor_y": 0,
+      "room_frame": {
+        "x": -0.48750237919693773,
+        "z": 0.2,
+        "mirror": -1,
+        "y": -2.2,
+        "doorWall": 0
+      },
+      "definition": {
+        "label": "a cellar room",
+        "week_c": 100,
+        "W": 3.5,
+        "D": 4,
+        "H": 2.1,
+        "door": [
+          2,
+          4
+        ],
+        "doorWall": 0,
+        "fixed": [
+          {
+            "kind": "bed_straw",
+            "gx": 0,
+            "gz": 4,
+            "w": 2,
+            "d": 4,
+            "rot": 2
+          },
+          {
+            "kind": "crate",
+            "gx": 6,
+            "gz": 7,
+            "w": 1,
+            "d": 1,
+            "rot": 2
+          }
+        ],
+        "windows": [
+          [
+            5,
+            6
+          ]
+        ],
+        "noHang": [],
+        "base": {
+          "warmth": 0,
+          "light": 0,
+          "cheer": 0
+        },
+        "fire": false,
+        "nightFood": 2,
+        "notice": "CELLAR ROOM TO LET. Dry enough. A straw bed and a crate.",
+        "night": "You sleep on the straw in your cellar, your own door bolted. Damp, but nobody snores but you."
+      }
+    },
+    {
+      "id": "garret",
+      "origin": {
+        "x": -114.61500000000001,
+        "z": 118
+      },
+      "yaw": 0,
+      "floor_y": 0,
+      "room_frame": {
+        "x": -2.049999999999996,
+        "z": 0.2,
+        "mirror": -1,
+        "y": 15.8,
+        "doorWall": 0
+      },
+      "definition": {
+        "label": "a garret room",
+        "week_c": 140,
+        "W": 3.5,
+        "D": 4.5,
+        "H": 2.4,
+        "door": [
+          2,
+          4
+        ],
+        "doorWall": 0,
+        "fixed": [
+          {
+            "kind": "bed_plank",
+            "gx": 0,
+            "gz": 5,
+            "w": 2,
+            "d": 4,
+            "rot": 2
+          },
+          {
+            "kind": "crate",
+            "gx": 6,
+            "gz": 8,
+            "w": 1,
+            "d": 1,
+            "rot": 2
+          }
+        ],
+        "windows": [
+          [
+            5,
+            5
+          ]
+        ],
+        "noHang": [],
+        "eaves": 4,
+        "base": {
+          "warmth": 0,
+          "light": 1,
+          "cheer": 0
+        },
+        "fire": false,
+        "nightFood": 2,
+        "notice": "GARRET TO LET under the roof. A plank bed. Light from the dormer window.",
+        "night": "You sleep in your garret under the tiles. The wind walks on the roof, but the door is yours."
+      }
+    },
+    {
+      "id": "widow",
+      "origin": {
+        "x": -172.7229011,
+        "z": 73.8149956
+      },
+      "yaw": -2.85788094464496,
+      "floor_y": 0,
+      "room_frame": {
+        "x": 0,
+        "z": 0.2,
+        "mirror": -1,
+        "y": 0.18,
+        "doorWall": 2
+      },
+      "definition": {
+        "label": "a room at a widow's",
+        "week_c": 220,
+        "W": 3.5,
+        "D": 4.5,
+        "H": 2.7,
+        "door": [
+          2,
+          4
+        ],
+        "fixed": [
+          {
+            "kind": "bed",
+            "gx": 0,
+            "gz": 5,
+            "w": 2,
+            "d": 4,
+            "rot": 2
+          },
+          {
+            "kind": "washstand",
+            "gx": 6,
+            "gz": 8,
+            "w": 1,
+            "d": 1,
+            "rot": 3
+          },
+          {
+            "kind": "chair_plain",
+            "gx": 6,
+            "gz": 5,
+            "w": 1,
+            "d": 1,
+            "rot": 3
+          }
+        ],
+        "windows": [
+          [
+            5,
+            6
+          ]
+        ],
+        "noHang": [
+          [
+            0,
+            3,
+            3
+          ]
+        ],
+        "base": {
+          "warmth": 2,
+          "light": 1,
+          "cheer": 2
+        },
+        "fire": false,
+        "nightFood": 1,
+        "notice": "A CLEAN ROOM TO LET to a quiet single man. Bed and linen. Coffee in the morning. Ask the widow.",
+        "night": "You sleep between the widow's linen sheets. In the morning there is coffee and a heel of bread."
+      }
+    },
+    {
+      "id": "alley",
+      "origin": {
+        "x": -213.29000000000002,
+        "z": 304.44
+      },
+      "yaw": -3.141592653589793,
+      "floor_y": 0,
+      "room_frame": {
+        "x": 0,
+        "z": 0.2,
+        "mirror": -1,
+        "y": 0.18,
+        "doorWall": 2
+      },
+      "definition": {
+        "label": "a small house in an alley",
+        "week_c": 320,
+        "W": 4.5,
+        "D": 5,
+        "H": 2.5,
+        "door": [
+          3,
+          5
+        ],
+        "fixed": [
+          {
+            "kind": "bedstee",
+            "gx": 0,
+            "gz": 8,
+            "w": 4,
+            "d": 2,
+            "rot": 2
+          },
+          {
+            "kind": "hearth",
+            "gx": 0,
+            "gz": 3,
+            "w": 1,
+            "d": 2,
+            "rot": 1
+          },
+          {
+            "kind": "chest",
+            "gx": 8,
+            "gz": 9,
+            "w": 1,
+            "d": 1,
+            "rot": 2
+          }
+        ],
+        "windows": [
+          [
+            6,
+            7
+          ]
+        ],
+        "noHang": [
+          [
+            3,
+            2,
+            5
+          ],
+          [
+            0,
+            0,
+            3
+          ]
+        ],
+        "base": {
+          "warmth": 2,
+          "light": 1,
+          "cheer": 1
+        },
+        "fire": true,
+        "nightFood": 2,
+        "notice": "HOUSE TO LET in the alley. One room down, a box bed, its own hearth.",
+        "night": "You sleep in the box bed of your own house, the hearth's last embers ticking. The alley is quiet."
+      }
+    },
+    {
+      "id": "merchant",
+      "origin": {
+        "x": -36.84061395,
+        "z": 113.57343555
+      },
+      "yaw": 0.15656860502851688,
+      "floor_y": 0,
+      "room_frame": {
+        "x": -1.4550100079501525,
+        "z": 0.2,
+        "mirror": 1,
+        "y": 3.8,
+        "doorWall": 0
+      },
+      "definition": {
+        "label": "a merchant's upper floor",
+        "week_c": 900,
+        "W": 6,
+        "D": 6,
+        "H": 3.1,
+        "door": [
+          4,
+          7
+        ],
+        "doorWall": 0,
+        "fixed": [
+          {
+            "kind": "bed_fine",
+            "gx": 0,
+            "gz": 8,
+            "w": 3,
+            "d": 4,
+            "rot": 2
+          },
+          {
+            "kind": "alcove",
+            "gx": 0,
+            "gz": 7,
+            "w": 4,
+            "d": 1,
+            "rot": 2
+          },
+          {
+            "kind": "wardrobe",
+            "gx": 10,
+            "gz": 11,
+            "w": 2,
+            "d": 1,
+            "rot": 2
+          },
+          {
+            "kind": "bookcase",
+            "gx": 8,
+            "gz": 11,
+            "w": 2,
+            "d": 1,
+            "rot": 2
+          },
+          {
+            "kind": "desk",
+            "gx": 5,
+            "gz": 0,
+            "w": 2,
+            "d": 2,
+            "rot": 0
+          },
+          {
+            "kind": "mantel",
+            "gx": 11,
+            "gz": 5,
+            "w": 1,
+            "d": 3,
+            "rot": 3
+          },
+          {
+            "kind": "armchair",
+            "gx": 9,
+            "gz": 4,
+            "w": 1,
+            "d": 1,
+            "rot": 1
+          },
+          {
+            "kind": "armchair",
+            "gx": 9,
+            "gz": 8,
+            "w": 1,
+            "d": 1,
+            "rot": 1
+          },
+          {
+            "kind": "table_fine",
+            "gx": 5,
+            "gz": 5,
+            "w": 2,
+            "d": 2,
+            "rot": 0
+          }
+        ],
+        "windows": [
+          [
+            1,
+            3
+          ],
+          [
+            8,
+            10
+          ]
+        ],
+        "drapes": true,
+        "noHang": [
+          [
+            0,
+            8,
+            11
+          ],
+          [
+            1,
+            5,
+            7
+          ],
+          [
+            3,
+            2,
+            5
+          ]
+        ],
+        "base": {
+          "warmth": 4,
+          "light": 3,
+          "cheer": 4
+        },
+        "fire": true,
+        "nightFood": 2,
+        "notice": "FIRST FLOOR TO LET over the counting house. Two tall windows on the river, a marble fireplace, a bed in an alcove, furnished.",
+        "night": "You sleep in the alcove bed on the first floor, the fire ticking as it dies. Ships' lights move on the ceiling."
+      }
+    }
+  ],
+  "counters": [
+    {
+      "id": "tavern:ankere",
+      "kind": "tavern",
+      "origin": {
+        "x": -54.825,
+        "z": 46
+      },
+      "yaw": 0,
+      "floor_y": 0.18,
+      "rect": {
+        "minX": -4.974999999999999,
+        "maxX": 1.5249999999999997,
+        "minZ": 0.2,
+        "maxZ": 11.3
+      },
+      "counter": {
+        "x": -0.3250000000000004,
+        "z": 4.2
+      },
+      "stand": {
+        "x": -1.0750000000000004,
+        "z": 4.2
+      }
+    },
+    {
+      "id": "tavern:schipke",
+      "kind": "tavern",
+      "origin": {
+        "x": -238.225,
+        "z": 14
+      },
+      "yaw": 0,
+      "floor_y": 0.18,
+      "rect": {
+        "minX": -4.675,
+        "maxX": 1.425,
+        "minZ": 0.2,
+        "maxZ": 11.8
+      },
+      "counter": {
+        "x": -0.42500000000000004,
+        "z": 4.2
+      },
+      "stand": {
+        "x": -1.175,
+        "z": 4.2
+      }
+    },
+    {
+      "id": "tavern:vliet",
+      "kind": "tavern",
+      "origin": {
+        "x": -112.195,
+        "z": 50
+      },
+      "yaw": 0,
+      "floor_y": 0.18,
+      "rect": {
+        "minX": -4.125000000000003,
+        "maxX": 4.125000000000003,
+        "minZ": 0.2,
+        "maxZ": 11.430000000000001
+      },
+      "counter": {
+        "x": -2.2750000000000026,
+        "z": 4.2
+      },
+      "stand": {
+        "x": -1.5250000000000026,
+        "z": 4.2
+      }
+    },
+    {
+      "id": "tavern:engel",
+      "kind": "tavern",
+      "origin": {
+        "x": -222,
+        "z": 72.56750000000001
+      },
+      "yaw": 1.5707963267948966,
+      "floor_y": 0.18,
+      "rect": {
+        "minX": -4.352499999999995,
+        "maxX": 1.3174999999999983,
+        "minZ": 0.2,
+        "maxZ": 13.110000000000001
+      },
+      "counter": {
+        "x": -0.5325000000000017,
+        "z": 4.2
+      },
+      "stand": {
+        "x": -1.2825000000000017,
+        "z": 4.2
+      }
+    },
+    {
+      "id": "tavern:bassin",
+      "kind": "tavern",
+      "origin": {
+        "x": 78.535,
+        "z": 126
+      },
+      "yaw": 0,
+      "floor_y": 0.18,
+      "rect": {
+        "minX": -4.194999999999999,
+        "maxX": 1.265,
+        "minZ": 0.2,
+        "maxZ": 13.34
+      },
+      "counter": {
+        "x": -0.5850000000000002,
+        "z": 4.2
+      },
+      "stand": {
+        "x": -1.3350000000000002,
+        "z": 4.2
+      }
+    },
+    {
+      "id": "shop:bakery_rijn",
+      "kind": "shop",
+      "origin": {
+        "x": -0.664167925,
+        "z": 77.330408175
+      },
+      "yaw": 1.632866440672769,
+      "floor_y": 0.18,
+      "rect": {
+        "minX": -3.8874825173163616,
+        "maxX": 1.1624941724387876,
+        "minZ": 0.2,
+        "maxZ": 11.23
+      },
+      "counter": {
+        "x": -1.9874825173163617,
+        "z": 3.3499999999999996
+      },
+      "stand": {
+        "x": -1.2874825173163615,
+        "z": 3.3499999999999996
+      }
+    },
+    {
+      "id": "shop:bakery_steen",
+      "kind": "shop",
+      "origin": {
+        "x": -200,
+        "z": 41.7725
+      },
+      "yaw": 1.5707963267948966,
+      "floor_y": 0.18,
+      "rect": {
+        "minX": -5.117500000000002,
+        "maxX": 1.572500000000001,
+        "minZ": 0.2,
+        "maxZ": 10.15
+      },
+      "counter": {
+        "x": -3.2175000000000025,
+        "z": 3.3499999999999996
+      },
+      "stand": {
+        "x": -2.5175000000000023,
+        "z": 3.3499999999999996
+      }
+    },
+    {
+      "id": "shop:grocer_canal",
+      "kind": "shop",
+      "origin": {
+        "x": -60,
+        "z": 76.91749999999999
+      },
+      "yaw": 1.5707963267948966,
+      "floor_y": 0.18,
+      "rect": {
+        "minX": -4.5925,
+        "maxX": 1.3975000000000002,
+        "minZ": 0.2,
+        "maxZ": 9.64
+      },
+      "counter": {
+        "x": -2.6925000000000003,
+        "z": 3.3499999999999996
+      },
+      "stand": {
+        "x": -1.9925000000000002,
+        "z": 3.3499999999999996
+      }
+    },
+    {
+      "id": "shop:chandler_werf",
+      "kind": "shop",
+      "origin": {
+        "x": -280.5475,
+        "z": 14
+      },
+      "yaw": 0,
+      "floor_y": 0.18,
+      "rect": {
+        "minX": -4.8625,
+        "maxX": 1.4875,
+        "minZ": 0.2,
+        "maxZ": 11.8
+      },
+      "counter": {
+        "x": -2.9625,
+        "z": 3.3499999999999996
+      },
+      "stand": {
+        "x": -2.2624999999999997,
+        "z": 3.3499999999999996
+      }
+    },
+    {
+      "id": "shop:tobacco_markt",
+      "kind": "shop",
+      "origin": {
+        "x": -222,
+        "z": 67.0575
+      },
+      "yaw": 1.5707963267948966,
+      "floor_y": 0.18,
+      "rect": {
+        "minX": -3.7825000000000015,
+        "maxX": 1.1275000000000006,
+        "minZ": 0.2,
+        "maxZ": 11.350000000000001
+      },
+      "counter": {
+        "x": -1.8825000000000016,
+        "z": 3.3499999999999996
+      },
+      "stand": {
+        "x": -1.1825000000000014,
+        "z": 3.3499999999999996
+      }
+    },
+    {
+      "id": "shop:pawn_vis",
+      "kind": "shop",
+      "origin": {
+        "x": -133,
+        "z": 74.74249999999999
+      },
+      "yaw": 1.5707963267948966,
+      "floor_y": 0.18,
+      "rect": {
+        "minX": -5.057500000000004,
+        "maxX": 1.5525000000000013,
+        "minZ": 0.2,
+        "maxZ": 11.530000000000001
+      },
+      "counter": {
+        "x": -3.1575000000000037,
+        "z": 3.3499999999999996
+      },
+      "stand": {
+        "x": -2.4575000000000036,
+        "z": 3.3499999999999996
+      }
+    },
+    {
+      "id": "shop:cobbler_lane",
+      "kind": "shop",
+      "origin": {
+        "x": -32.302301199999995,
+        "z": 72.63950917499999
+      },
+      "yaw": 0.09633924198950025,
+      "floor_y": 0.18,
+      "rect": {
+        "minX": -4.067487294993464,
+        "maxX": 1.2224957649978212,
+        "minZ": 0.2,
+        "maxZ": 11.32
+      },
+      "counter": {
+        "x": -2.1674872949934643,
+        "z": 3.3499999999999996
+      },
+      "stand": {
+        "x": -1.467487294993464,
+        "z": 3.3499999999999996
+      }
+    },
+    {
+      "id": "shop:draper_markt",
+      "kind": "shop",
+      "origin": {
+        "x": -220.16,
+        "z": 124
+      },
+      "yaw": -3.141592653589793,
+      "floor_y": 0.18,
+      "rect": {
+        "minX": -5.32000000000001,
+        "maxX": 1.6400000000000035,
+        "minZ": 0.2,
+        "maxZ": 11.24
+      },
+      "counter": {
+        "x": -3.42000000000001,
+        "z": 3.3499999999999996
+      },
+      "stand": {
+        "x": -2.72000000000001,
+        "z": 3.3499999999999996
+      }
+    },
+    {
+      "id": "shop:butcher_vlees",
+      "kind": "shop",
+      "origin": {
+        "x": -92,
+        "z": 69.015
+      },
+      "yaw": -1.5707963267948966,
+      "floor_y": 0.18,
+      "rect": {
+        "minX": -3.865000000000001,
+        "maxX": 1.1550000000000005,
+        "minZ": 0.2,
+        "maxZ": 9.9
+      },
+      "counter": {
+        "x": -1.9650000000000012,
+        "z": 3.3499999999999996
+      },
+      "stand": {
+        "x": -1.265000000000001,
+        "z": 3.3499999999999996
+      }
+    },
+    {
+      "id": "shop:colonial_steen",
+      "kind": "shop",
+      "origin": {
+        "x": -200,
+        "z": 48.755
+      },
+      "yaw": 1.5707963267948966,
+      "floor_y": 0.18,
+      "rect": {
+        "minX": -4.794999999999997,
+        "maxX": 1.4649999999999992,
+        "minZ": 0.2,
+        "maxZ": 10.81
+      },
+      "counter": {
+        "x": -2.8949999999999974,
+        "z": 3.3499999999999996
+      },
+      "stand": {
+        "x": -2.194999999999997,
+        "z": 3.3499999999999996
+      }
+    },
+    {
+      "id": "shop:apothecary_markt",
+      "kind": "shop",
+      "origin": {
+        "x": -212.98,
+        "z": 124
+      },
+      "yaw": -3.141592653589793,
+      "floor_y": 0.18,
+      "rect": {
+        "minX": -4.77999999999999,
+        "maxX": 1.4599999999999966,
+        "minZ": 0.2,
+        "maxZ": 9.65
+      },
+      "counter": {
+        "x": -2.8799999999999897,
+        "z": 3.3499999999999996
+      },
+      "stand": {
+        "x": -2.1799999999999895,
+        "z": 3.3499999999999996
+      }
+    },
+    {
+      "id": "shop:barber_lane",
+      "kind": "shop",
+      "origin": {
+        "x": -0.32921955,
+        "z": 82.67462105000001
+      },
+      "yaw": 1.632866440672769,
+      "floor_y": 0.18,
+      "rect": {
+        "minX": -3.564983896684067,
+        "maxX": 1.0549946322280224,
+        "minZ": 0.2,
+        "maxZ": 10.99
+      },
+      "counter": {
+        "x": -1.6649838966840669,
+        "z": 3.3499999999999996
+      },
+      "stand": {
+        "x": -0.9649838966840667,
+        "z": 3.3499999999999996
+      }
+    },
+    {
+      "id": "shop:hatter_markt",
+      "kind": "shop",
+      "origin": {
+        "x": -304,
+        "z": 93.1125
+      },
+      "yaw": 1.5707963267948966,
+      "floor_y": 0.18,
+      "rect": {
+        "minX": -5.2974999999999985,
+        "maxX": 1.6324999999999996,
+        "minZ": 0.2,
+        "maxZ": 9.67
+      },
+      "counter": {
+        "x": -3.3974999999999986,
+        "z": 3.3499999999999996
+      },
+      "stand": {
+        "x": -2.6974999999999985,
+        "z": 3.3499999999999996
+      }
+    },
+    {
+      "id": "shop:roaster_canal",
+      "kind": "shop",
+      "origin": {
+        "x": -31.980838,
+        "z": 105.720123
+      },
+      "yaw": -2.9849928561156833,
+      "floor_y": 0.18,
+      "rect": {
+        "minX": -4.2249852629554585,
+        "maxX": 4.2249852629554585,
+        "minZ": 0.2,
+        "maxZ": 10.42
+      },
+      "counter": {
+        "x": -2.3249852629554586,
+        "z": 3.3499999999999996
+      },
+      "stand": {
+        "x": -1.6249852629554584,
+        "z": 3.3499999999999996
+      }
+    },
+    {
+      "id": "shop:printer_jezuiet",
+      "kind": "shop",
+      "origin": {
+        "x": -111.91577565,
+        "z": 148.27096175
+      },
+      "yaw": -2.878466449395186,
+      "floor_y": 0.18,
+      "rect": {
+        "minX": -3.917493301645557,
+        "maxX": 1.1724977672151857,
+        "minZ": 0.2,
+        "maxZ": 12.270000000000001
+      },
+      "counter": {
+        "x": -2.017493301645557,
+        "z": 3.3499999999999996
+      },
+      "stand": {
+        "x": -1.3174933016455568,
+        "z": 3.3499999999999996
+      }
+    },
+    {
+      "id": "shop:books_kathedraal",
+      "kind": "shop",
+      "origin": {
+        "x": -200,
+        "z": 164.2125
+      },
+      "yaw": 1.5707963267948966,
+      "floor_y": 0.18,
+      "rect": {
+        "minX": -4.187499999999996,
+        "maxX": 1.2624999999999986,
+        "minZ": 0.2,
+        "maxZ": 10.680000000000001
+      },
+      "counter": {
+        "x": -2.2874999999999956,
+        "z": 3.3499999999999996
+      },
+      "stand": {
+        "x": -1.5874999999999955,
+        "z": 3.3499999999999996
+      }
+    },
+    {
+      "id": "shop:clock_markt",
+      "kind": "shop",
+      "origin": {
+        "x": -195.28390175,
+        "z": 87.684893
+      },
+      "yaw": 0.28371170894483355,
+      "floor_y": 0.18,
+      "rect": {
+        "minX": -4.712484296677396,
+        "maxX": 1.4374947655591328,
+        "minZ": 0.2,
+        "maxZ": 8.930000000000001
+      },
+      "counter": {
+        "x": -2.8124842966773964,
+        "z": 3.3499999999999996
+      },
+      "stand": {
+        "x": -2.1124842966773962,
+        "z": 3.3499999999999996
+      }
+    },
+    {
+      "id": "shop:bakery_south",
+      "kind": "shop",
+      "origin": {
+        "x": -210.557365775,
+        "z": 236.332809725
+      },
+      "yaw": 1.6705913483247723,
+      "floor_y": 0.18,
+      "rect": {
+        "minX": -4.892527595673482,
+        "maxX": 1.4975091985578273,
+        "minZ": 0.2,
+        "maxZ": 13.16
+      },
+      "counter": {
+        "x": -2.9925275956734825,
+        "z": 3.3499999999999996
+      },
+      "stand": {
+        "x": -2.2925275956734823,
+        "z": 3.3499999999999996
+      }
+    },
+    {
+      "id": "shop:grocer_south",
+      "kind": "shop",
+      "origin": {
+        "x": -121.862232525,
+        "z": 260.907469675
+      },
+      "yaw": 3.0468206109279627,
+      "floor_y": 0.18,
+      "rect": {
+        "minX": -5.417485947806171,
+        "maxX": 1.6724953159353906,
+        "minZ": 0.2,
+        "maxZ": 10.56
+      },
+      "counter": {
+        "x": -3.5174859478061715,
+        "z": 3.3499999999999996
+      },
+      "stand": {
+        "x": -2.8174859478061713,
+        "z": 3.3499999999999996
+      }
+    },
+    {
+      "id": "shop:cobbler_east",
+      "kind": "shop",
+      "origin": {
+        "x": 7.305263399999999,
+        "z": 213.72366639999998
+      },
+      "yaw": 2.4667642535921703,
+      "floor_y": 0.18,
+      "rect": {
+        "minX": -4.6599740322216245,
+        "maxX": 1.419991344073875,
+        "minZ": 0.2,
+        "maxZ": 9.600000000000001
+      },
+      "counter": {
+        "x": -2.7599740322216246,
+        "z": 3.3499999999999996
+      },
+      "stand": {
+        "x": -2.0599740322216245,
+        "z": 3.3499999999999996
+      }
+    },
+    {
+      "id": "tavern:linde",
+      "kind": "tavern",
+      "origin": {
+        "x": -180.7975,
+        "z": 205
+      },
+      "yaw": -3.141592653589793,
+      "floor_y": 0.18,
+      "rect": {
+        "minX": -4.787500000000004,
+        "maxX": 1.4625000000000015,
+        "minZ": 0.2,
+        "maxZ": 12.33
+      },
+      "counter": {
+        "x": -0.3874999999999986,
+        "z": 4.2
+      },
+      "stand": {
+        "x": -1.1374999999999986,
+        "z": 4.2
+      }
+    },
+    {
+      "id": "tavern:zwarte_kat",
+      "kind": "tavern",
+      "origin": {
+        "x": -59.275832199999996,
+        "z": 261.50467929999996
+      },
+      "yaw": 0.18321388012281647,
+      "floor_y": 0.18,
+      "rect": {
+        "minX": -4.329985104656008,
+        "maxX": 1.3099950348853355,
+        "minZ": 0.2,
+        "maxZ": 11.620000000000001
+      },
+      "counter": {
+        "x": -0.5400049651146646,
+        "z": 4.2
+      },
+      "stand": {
+        "x": -1.2900049651146646,
+        "z": 4.2
+      }
+    }
+  ],
+  "furniture": {
+    "chair": {
+      "name": "a rush-seated chair",
+      "price_c": 60,
+      "carry": "arms",
+      "layer": "floor",
+      "w": 1,
+      "d": 1,
+      "comfort": {
+        "cheer": 1
+      },
+      "note": "Rush seat, one leg mended."
+    },
+    "table": {
+      "name": "a deal table",
+      "price_c": 150,
+      "carry": "arms",
+      "layer": "floor",
+      "w": 2,
+      "d": 2,
+      "comfort": {
+        "cheer": 1
+      },
+      "note": "Scrubbed pine, rings from other men's pots."
+    },
+    "rug": {
+      "name": "a rag rug",
+      "price_c": 80,
+      "carry": "arms",
+      "layer": "rug",
+      "w": 3,
+      "d": 2,
+      "comfort": {
+        "warmth": 1,
+        "cheer": 1
+      },
+      "note": "Woven from old coats. Keeps the cold off the floor."
+    },
+    "stove": {
+      "name": "a cast-iron stove",
+      "price_c": 400,
+      "carry": "arms",
+      "layer": "floor",
+      "w": 2,
+      "d": 2,
+      "comfort": {
+        "warmth": 3
+      },
+      "note": "A little pot-bellied stove, pipe included. Heavy."
+    },
+    "plant": {
+      "name": "a geranium in a pot",
+      "price_c": 15,
+      "carry": "arms",
+      "layer": "floor",
+      "w": 1,
+      "d": 1,
+      "comfort": {
+        "cheer": 1
+      },
+      "note": "Red, a bit leggy. Wants the light."
+    },
+    "birdcage": {
+      "name": "a finch in a cage",
+      "price_c": 70,
+      "carry": "arms",
+      "layer": "floor",
+      "w": 1,
+      "d": 1,
+      "comfort": {
+        "cheer": 1
+      },
+      "note": "A chaffinch in a wicker cage on a stand. It sings at dawn."
+    },
+    "picture": {
+      "name": "a framed print",
+      "price_c": 40,
+      "carry": "pocket",
+      "layer": "wall",
+      "w": 1,
+      "d": 1,
+      "comfort": {
+        "cheer": 1
+      },
+      "note": "The cathedral spire in a black frame. Hang it on a wall."
+    },
+    "lamp": {
+      "name": "a hanging oil lamp",
+      "price_c": 90,
+      "carry": "pocket",
+      "layer": "ceiling",
+      "w": 1,
+      "d": 1,
+      "comfort": {
+        "light": 2
+      },
+      "note": "Brass font, glass chimney. Hang it from a beam."
+    },
+    "clock": {
+      "name": "a wall clock",
+      "price_c": 250,
+      "carry": "pocket",
+      "layer": "wall",
+      "w": 1,
+      "d": 1,
+      "comfort": {
+        "cheer": 1
+      },
+      "note": "A Black Forest clock. It ticks; the hour is the town's."
+    },
+    "curtains": {
+      "name": "a pair of curtains",
+      "price_c": 50,
+      "carry": "pocket",
+      "layer": "wall",
+      "w": 2,
+      "d": 1,
+      "comfort": {
+        "warmth": 1
+      },
+      "note": "Faded red wool. For a window."
+    }
+  },
+  "mills": [
+    {
+      "id": "mill_mid",
+      "label": "the Kipdorp mill",
+      "tower": [
+        -59.98,
+        380
+      ],
+      "r": 3.35,
+      "door": [
+        -60,
+        375.6
+      ],
+      "capstan": [
+        -60,
+        371.8
+      ],
+      "yard": "mill_yard",
+      "park": [
+        -144.2,
+        334.5,
+        3.141592653589793
+      ],
+      "cart": "dray",
+      "bakery": "bakery_steen",
+      "bakeryDoor": "bakery_steen_door",
+      "grain": "canal_quay",
+      "stair": {
+        "out": [
+          -136,
+          347.5
+        ],
+        "foot": [
+          -134.6,
+          348.9
+        ],
+        "head": [
+          -122.9,
+          349.4
+        ],
+        "top": [
+          -121.5,
+          351.5
+        ]
+      },
+      "stops": {
+        "bakery": [
+          -207,
+          36.3
+        ],
+        "dock": [
+          -63,
+          98.5
+        ]
+      },
+      "routes": {
+        "bakery": [
+          [
+            -144.2,
+            334.5
+          ],
+          [
+            -144.5,
+            317.5
+          ],
+          [
+            -144.5,
+            299.5
+          ],
+          [
+            -144.5,
+            281.5
+          ],
+          [
+            -144.5,
+            263.5
+          ],
+          [
+            -144.5,
+            245.5
+          ],
+          [
+            -144.5,
+            227.5
+          ],
+          [
+            -144.5,
+            209.5
+          ],
+          [
+            -155.5,
+            196.5
+          ],
+          [
+            -164.5,
+            181.5
+          ],
+          [
+            -172.5,
+            165.5
+          ],
+          [
+            -176.5,
+            148.5
+          ],
+          [
+            -181.5,
+            132.5
+          ],
+          [
+            -187.5,
+            129.5
+          ],
+          [
+            -201.5,
+            125.5
+          ],
+          [
+            -202.5,
+            108.5
+          ],
+          [
+            -202.5,
+            90.5
+          ],
+          [
+            -202.5,
+            72.5
+          ],
+          [
+            -202.5,
+            54.5
+          ],
+          [
+            -205.1,
+            41.8
+          ],
+          [
+            -207,
+            36.3
+          ]
+        ],
+        "dock": [
+          [
+            -144.2,
+            334.5
+          ],
+          [
+            -144.5,
+            317.5
+          ],
+          [
+            -144.5,
+            299.5
+          ],
+          [
+            -144.5,
+            281.5
+          ],
+          [
+            -144.5,
+            263.5
+          ],
+          [
+            -144.5,
+            245.5
+          ],
+          [
+            -144.5,
+            227.5
+          ],
+          [
+            -141.5,
+            211.5
+          ],
+          [
+            -134.5,
+            209.5
+          ],
+          [
+            -117.5,
+            208.5
+          ],
+          [
+            -99.5,
+            208.5
+          ],
+          [
+            -91.5,
+            203.5
+          ],
+          [
+            -91.5,
+            185.5
+          ],
+          [
+            -89.5,
+            168.5
+          ],
+          [
+            -86.5,
+            153.5
+          ],
+          [
+            -80,
+            153.5
+          ],
+          [
+            -72,
+            153.5
+          ],
+          [
+            -65.2,
+            153.5
+          ],
+          [
+            -65.5,
+            146.5
+          ],
+          [
+            -67.5,
+            132.5
+          ],
+          [
+            -67.5,
+            114.5
+          ],
+          [
+            -63,
+            98.5
+          ]
+        ]
+      },
+      "way": {
+        "bakery": 337,
+        "grain": 311,
+        "stair": 95
+      }
+    },
+    {
+      "id": "mill_ne",
+      "label": "the north mill",
+      "tower": [
+        239.83,
+        332.69
+      ],
+      "r": 2.96,
+      "door": [
+        236.6,
+        330
+      ],
+      "capstan": null,
+      "yard": "mill_ne_yard",
+      "park": [
+        222,
+        232,
+        3.141592653589793
+      ],
+      "cart": "handcart",
+      "bakery": "bakery_rijn",
+      "bakeryDoor": "bakery_rijn_door",
+      "grain": "bassin_south",
+      "stair": {
+        "out": [
+          222.8,
+          241.5
+        ],
+        "foot": [
+          223.24,
+          243.7
+        ],
+        "head": [
+          221.8,
+          255.3
+        ],
+        "top": [
+          222.5,
+          257.3
+        ]
+      },
+      "stops": {
+        "bakery": [
+          -4.5,
+          72.2
+        ],
+        "dock": [
+          123.5,
+          118.8
+        ]
+      },
+      "routes": {
+        "bakery": [
+          [
+            222,
+            232
+          ],
+          [
+            222.5,
+            214.5
+          ],
+          [
+            223.5,
+            197.5
+          ],
+          [
+            223.5,
+            179.5
+          ],
+          [
+            223.5,
+            161.5
+          ],
+          [
+            218.5,
+            153.5
+          ],
+          [
+            206.5,
+            149.5
+          ],
+          [
+            205.5,
+            132.5
+          ],
+          [
+            200.5,
+            124.5
+          ],
+          [
+            183.5,
+            123.5
+          ],
+          [
+            165.5,
+            123.5
+          ],
+          [
+            148.5,
+            121.5
+          ],
+          [
+            130.5,
+            121.5
+          ],
+          [
+            112.5,
+            121.5
+          ],
+          [
+            94.5,
+            121.5
+          ],
+          [
+            76.5,
+            121.5
+          ],
+          [
+            60.5,
+            114.5
+          ],
+          [
+            43.5,
+            111.5
+          ],
+          [
+            26.5,
+            109.5
+          ],
+          [
+            9.5,
+            107.5
+          ],
+          [
+            0.5,
+            102.5
+          ],
+          [
+            -3.5,
+            85.5
+          ],
+          [
+            -5.3,
+            77.7
+          ],
+          [
+            -4.5,
+            72.2
+          ]
+        ],
+        "dock": [
+          [
+            222,
+            232
+          ],
+          [
+            222.5,
+            214.5
+          ],
+          [
+            223.5,
+            197.5
+          ],
+          [
+            223.5,
+            179.5
+          ],
+          [
+            223.5,
+            161.5
+          ],
+          [
+            218.5,
+            153.5
+          ],
+          [
+            206.5,
+            149.5
+          ],
+          [
+            205.5,
+            132.5
+          ],
+          [
+            200.5,
+            124.5
+          ],
+          [
+            183.5,
+            123.5
+          ],
+          [
+            165.5,
+            123.5
+          ],
+          [
+            148.5,
+            121.5
+          ],
+          [
+            130.5,
+            121.5
+          ],
+          [
+            123.5,
+            118.8
+          ]
+        ]
+      },
+      "way": {
+        "bakery": 361,
+        "grain": 208,
+        "stair": 100
+      }
+    }
+  ]
+}

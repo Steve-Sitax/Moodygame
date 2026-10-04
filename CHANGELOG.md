@@ -7,6 +7,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Godot homes have rent notices, numbered rent choices, an own key and bed, and furniture carried home and placed on the room grid with E and R.
 - Godot restores the rampart's real walkways and mill floors, with distance culling instead of keeping the bake's distant wall hidden.
 - Godot's interior check now tests the rooms actually in the town and their views out through the windows ([#45](https://github.com/Steve-Sitax/Moodygame/issues/45)).
 - Godot keeps the same daylight and window light picture with less work per frame.
