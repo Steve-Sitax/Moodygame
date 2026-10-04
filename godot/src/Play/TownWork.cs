@@ -17,17 +17,18 @@ public partial class TownWork : Node
     public bool InChain { get; private set; }
     private bool busy, loading, dead;
     private double poll;
-    private int chainEvent;
+    private int chainEvent,generation;
     private Vector2 chainAt;
     private readonly List<Interact.Entry> prompts = new();
-    public override void _Ready() { I = this; }
+    public override void _Ready() { I = this;if(Scheldemist.Menu.MainMenu.I is {} menu)menu.WorldReplaced+=Reset; }
+    private void Reset(string how,ClientState? state){generation++;InChain=false;poll=0;foreach(var p in prompts)p.Dispose();prompts.Clear();}
     public override void _Process(double delta) { if (InChain && !busy && chainAt.DistanceTo(new(Jef.I.X, Jef.I.Z)) > 2.8f) { InChain = false; _ = Call("leave", chainEvent); } if ((poll -= delta) <= 0 && ServerLink.I?.Up == true) { poll = 2; _ = Load(); } }
     public async Task Load()
     {
-        if (loading || dead || ServerLink.I?.Api is not { } api) return; loading = true;
+        if (loading || dead || ServerLink.I?.Api is not { } api) return; loading = true;int g=generation;
         try
         {
-            var world = await api.Actions(); if (dead) return;
+            var world = await api.Actions(); if (dead||g!=generation) return;
             foreach (var p in prompts) p.Dispose(); prompts.Clear(); bool foundChain = false;
             foreach (var e in world.Events)
             {
@@ -58,16 +59,16 @@ public partial class TownWork : Node
     private static bool AlreadyHiring(JsonElement hire) { foreach (var spot in hire.GetProperty("spots").EnumerateArray()) if (spot.TryGetProperty("jef", out var jef) && jef.GetBoolean()) return true; return false; }
     public async Task Call(string action, int ev)
     {
-        if (busy || dead || ServerLink.I?.Api is not { } api) return; busy = true;
+        if (busy || dead || ServerLink.I?.Api is not { } api) return; busy = true;int g=generation;
         try
         {
             var r = action == "join" ? await api.FireJoin(Jef.I.X, Jef.I.Z) : action == "leave" ? await api.FireLeave() : await api.HiringStand(Jef.I.X, Jef.I.Z);
-            if (dead) return; GameState.I.Apply(r); GameState.I.Say(r.Result.Ok ? r.Result.Text ?? "" : r.Result.Why ?? "");
+            if (dead||g!=generation) return; GameState.I.Apply(r); GameState.I.Say(r.Result.Ok ? r.Result.Text ?? "" : r.Result.Why ?? "");
             if (r.Result.Ok && action is "join" or "leave") { InChain = action == "join"; chainEvent = ev; chainAt = new(Jef.I.X, Jef.I.Z); }
             poll = 0;
         }
         catch (ApiException e) { GameState.I.Say(e.Message); }
         finally { busy = false; }
     }
-    public override void _ExitTree() { dead = true; foreach (var p in prompts) p.Dispose(); }
+    public override void _ExitTree() { dead = true;generation++;if(Scheldemist.Menu.MainMenu.I is {} menu)menu.WorldReplaced-=Reset; foreach (var p in prompts) p.Dispose(); }
 }

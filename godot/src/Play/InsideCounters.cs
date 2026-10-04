@@ -26,9 +26,10 @@ public partial class InsideCounters : Node
     private readonly List<Interact.Entry> prompts = new();
     private double poll;
     private bool loading, dead;
+    private int generation;
     public override void _Ready()
     {
-        I = this;
+        I = this;if(Scheldemist.Menu.MainMenu.I is {} menu)menu.WorldReplaced+=Reset;
         using var doc = JsonDocument.Parse(File.ReadAllText(ProjectSettings.GlobalizePath("res://assets/places.json")));
         foreach (var item in doc.RootElement.GetProperty("counters").EnumerateArray())
         {
@@ -39,15 +40,16 @@ public partial class InsideCounters : Node
             prompts.Add(Interact.I.Add(c.At, c.Kind == "shop" ? 1.4f : 1.2f, () => Available(c) ? c.Kind == "tavern" ? "buy at the counter" : "talk to " + c.Name : null, () => { if (c.Kind == "tavern") Open(c); else Talk.I!.Open(c.Keeper, c.Name, c.Label); }, Key.F));
         }
     }
+    private void Reset(string how,ClientState? state){generation++;poll=0;foreach(var c in Counters)c.Open=false;}
     private static bool Available(Counter c) => c.Open && c.Keeper != "" && MathF.Abs(Jef.I.Y - (c.At.Y - 1.2f)) < 0.6f;
     private static void Open(Counter c) { if (c.Id == "shop:pawn_vis") _ = Press.I!.OpenBerg(); else Talk.I!.Open(c.Keeper, c.Name, c.Label, true); }
     public override void _Process(double delta) { if ((poll -= delta) <= 0 && ServerLink.I?.Up == true) { poll = 15; _ = Load(); } }
     public async Task Load()
     {
-        if (loading || dead || ServerLink.I?.Api is not { } api) return; loading = true;
+        if (loading || dead || ServerLink.I?.Api is not { } api) return; loading = true;int g=generation;
         try
         {
-            var taverns = await api.InsideDoors(); var shops = await api.ShopDoors(); if (dead) return;
+            var taverns = await api.InsideDoors(); var shops = await api.ShopDoors(); if (dead||g!=generation) return;
             foreach (var c in Counters)
             {
                 foreach (var info in c.Kind == "shop" ? shops.Shops : taverns.Taverns)
@@ -63,5 +65,5 @@ public partial class InsideCounters : Node
         catch (ApiException) { }
         finally { loading = false; }
     }
-    public override void _ExitTree() { dead = true; foreach (var p in prompts) p.Dispose(); }
+    public override void _ExitTree() { dead = true;generation++;if(Scheldemist.Menu.MainMenu.I is {} menu)menu.WorldReplaced-=Reset; foreach (var p in prompts) p.Dispose(); }
 }

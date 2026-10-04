@@ -26,7 +26,7 @@ public partial class Ballads : Node
     private double poll, lineTime, locate;
     private bool loading, buying, dead;
     private string songKey = "";
-    private int askedDay = -1, index = -1;
+    private int askedDay = -1, index = -1, generation;
     private Townspeople? town;
     private Vector3? singerAt;
     private Label tag = null!;
@@ -37,12 +37,13 @@ public partial class Ballads : Node
     public int Sung { get; private set; }
     public override void _Ready()
     {
-        I = this; town = GetParent().GetNodeOrNull<Townspeople>("Townspeople");
+        I = this;if(Scheldemist.Menu.MainMenu.I is {} menu)menu.WorldReplaced+=Reset; town = GetParent().GetNodeOrNull<Townspeople>("Townspeople");
         tag = new Label { Visible = false, MouseFilter = Control.MouseFilterEnum.Ignore, LabelSettings = new LabelSettings { Font = PaperFonts.Hand, FontSize = 21, FontColor = Css.Ink, OutlineColor = Css.Hex("e3d4ad"), OutlineSize = 5 } }; Main.I.Ui.AddChild(tag);
         page = new Window("ballad sheet", WriteSheet, (code, _) => { if (code is "KeyE" or "KeyI" or "Escape") page.Close(); });
         previousRead = Pockets.I!.OnRead; Pockets.I.OnRead = Read;
         buy = Interact.I.Add(Vector3.Zero, 2.6f, () => !buying && Info is { HaveSheet: false, Ballad: not null, Singing.Status: "running" } && singerAt != null ? $"buy a ballad sheet from {Info.Singer!.First} ({Info.PriceC} c)" : null, () => _ = Buy(), Key.G);
     }
+    private void Reset(string how,ClientState? state){generation++;Info=null;askedDay=-1;songKey="";song.Clear();index=-1;singerAt=null;Sung=0;poll=0;tag.Visible=false;page.Close();}
     private void Read(PocketItem item) { if (item.Kind == "ballad") _ = ReadSheet(item.Ref ?? Info?.Day ?? 0); else previousRead?.Invoke(item); }
     public async Task ReadSheet(int day) { try { sheet = await ServerLink.I!.Api!.BalladSheet(day); if (!dead) page.Open(); } catch (ApiException e) { GameState.I.Say(e.Message); } }
     private Sheet? WriteSheet()
@@ -57,12 +58,12 @@ public partial class Ballads : Node
     }
     public async Task Load()
     {
-        if (loading || dead || ServerLink.I?.Api is not { } api) return; loading = true;
+        if (loading || dead || ServerLink.I?.Api is not { } api) return; loading = true;int g=generation;
         try
         {
             var next = await api.BalladInfo();
             if (next.Singing != null && next.Ballad == null && !next.Writing && askedDay != next.Day) { askedDay = next.Day; next = await api.BalladToday(); }
-            if (dead) return; Info = next;
+            if (dead||g!=generation) return; Info = next;
             string key = next.Day + ":" + next.Ballad?.Title;
             if (key != songKey) { songKey = key; song.Clear(); index = -1; lineTime = 2; if (next.Ballad is { } b) foreach (var v in b.Verses) { for (int i = 0; i < v.Count; i++) song.Add(Tune(v[i], i, false, next.Day)); for (int i = 0; i < b.Chorus.Count; i++) song.Add(Tune(b.Chorus[i], i, true, next.Day)); } }
         }
@@ -91,9 +92,9 @@ public partial class Ballads : Node
             var l = song[index]; lineTime = (Soundscape.I?.Sing(pos.X, pos.Z, new VoiceOf(Info.Singer.Sex, Info.Singer.Age), l.Notes, 0.34) ?? l.Seconds) + 0.4;
             tag.Text = Info.Singer.First + (l.Chorus ? ", all together: " : ": ") + l.Text; Sung++;
         }
-        if (index < 0 || Main.I.Cam.IsPositionBehind(pos)) { tag.Visible = false; return; }
+        if (page.IsOpen || index < 0 || Main.I.Cam.IsPositionBehind(pos)) { tag.Visible = false; return; }
         tag.Visible = true; tag.Position = Main.I.Cam.UnprojectPosition(pos + Vector3.Up * 1.85f) - new Vector2(tag.Size.X / 2, tag.Size.Y);
     }
     public async Task Buy() { if (buying || ServerLink.I?.Api is not { } api) return; buying = true; try { var r = await api.BalladBuy(); if (dead) return; GameState.I.Apply(r); GameState.I.Say(r.Text); await Load(); } catch (ApiException e) { GameState.I.Say(e.Message); } finally { buying = false; } }
-    public override void _ExitTree() { dead = true; buy?.Dispose(); page.Close(); tag.QueueFree(); if (Pockets.I != null) Pockets.I.OnRead = previousRead; }
+    public override void _ExitTree() { dead = true;generation++;if(Scheldemist.Menu.MainMenu.I is {} menu)menu.WorldReplaced-=Reset; buy?.Dispose(); page.Close(); tag.QueueFree(); if (Pockets.I != null) Pockets.I.OnRead = previousRead; }
 }
