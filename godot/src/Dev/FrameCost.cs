@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
@@ -13,6 +14,7 @@ public static class FrameCost
     private sealed class Total { public double Ms; public long Bytes; public int Calls; public double Max; }
     private static readonly Dictionary<string, Total> totals = new();
     private static int frames;
+    private static readonly ConcurrentDictionary<Type, string> continuationNames = new();
     public static void Frame() { if (Enabled) frames++; }
     public static void InstallContext()
     {
@@ -23,11 +25,14 @@ public static class FrameCost
     {
         public override void Post(SendOrPostCallback callback, object? state)
         {
+            var source = state as Delegate ?? callback;
+            var type = source.Target?.GetType() ?? source.Method.DeclaringType ?? state?.GetType() ?? typeof(object);
+            string name = continuationNames.GetOrAdd(type, static t => "Continuation:" + t.FullName);
             inner.Post(_ =>
             {
                 var previous = Current;
                 SetSynchronizationContext(this);
-                try { using var scope = Track("Continuation:" + (state?.GetType().FullName ?? callback.Method.DeclaringType?.FullName)); callback(state); }
+                try { using var scope = Track(name); callback(state); }
                 finally { SetSynchronizationContext(previous); }
             }, null);
         }

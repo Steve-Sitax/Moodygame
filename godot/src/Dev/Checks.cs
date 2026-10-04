@@ -298,7 +298,9 @@ public partial class Checks : Node
             At(name); await Frames(120); FrameCost.Clear();
             Picture("perf-" + name.Replace(' ', '-'));
             var still = await MeasureFrames(90);
+            FrameCost.Clear();
             var turn = await MeasureFrames(90, turn: true, seconds: seconds);
+            var turnTop = FrameCost.Report();
             At(name); await Frames(30);
             // Six seconds of actual walking frames, as tools/perfcheck.mjs; no synthetic logic-only timing.
             var start = new Vector2(Jef.I.X, Jef.I.Z);
@@ -313,7 +315,7 @@ public partial class Checks : Node
                 && live.Over16 == 0 && turn.Over16 == 0 && live.Max <= 16 && turn.Max <= 16
                 && live.MeanBytes <= 512 && turn.MeanBytes <= 512 && live.MedianBytes == 0 && turn.MedianBytes == 0;
             rows.Add(new { place = name, liveMean = mean, liveP95 = live.P95, liveMax = live.Max, liveWallMax = live.WallMax, over16 = live.Over16, mainOver16 = mainTimes.Count(t => t > 16), collections = live.Collections, slowFrames = slow, fps = Math.Round(1000 / live.WallMean), over33 = live.Over33, stillMean = still.Mean, turnMean = turn.Mean, turnP95 = turn.P95,
-                calls = turn.Calls, top = FrameCost.Report(), rendering = new { setupCpu = lastWindow.RenderSetup / live.Samples, viewports = lastWindow.Render.Select(p => new { viewport = p.Key, cpu = p.Value.cpu / live.Samples, gpu = p.Value.gpu / live.Samples }).ToArray() }, ok = meanTarget && hardLimit, meanTarget, hardLimit, still, turn, live, liveSamples = live.Samples, liveWallMean = live.WallMean, liveWallP95 = live.WallP95, walkedMetres = start.DistanceTo(new Vector2(Jef.I.X, Jef.I.Z)) });
+                calls = turn.Calls, top = FrameCost.Report(), turnTop, rendering = new { setupCpu = lastWindow.RenderSetup / live.Samples, viewports = lastWindow.Render.Select(p => new { viewport = p.Key, cpu = p.Value.cpu / live.Samples, gpu = p.Value.gpu / live.Samples }).ToArray() }, ok = meanTarget && hardLimit, meanTarget, hardLimit, still, turn, live, liveSamples = live.Samples, liveWallMean = live.WallMean, liveWallP95 = live.WallP95, walkedMetres = start.DistanceTo(new Vector2(Jef.I.X, Jef.I.Z)) });
         }
         return new { ok = rows.All(r => JsonSerializer.SerializeToElement(r).GetProperty("ok").GetBoolean()), at = DateTime.UtcNow, gpu = RenderingServer.GetVideoAdapterName(), budget = 5, targetMean = 3, p95Budget = 5, maximumFrame = 16, managedMeanBudget = 512, managedMedianBudget = 0, metric = "active main frame: first physics/process signal through RenderingServer.FramePostDraw, including renderer submission; wall frame time recorded separately", rows,
             notCovered = new[] { "per-part browser frameProf breakdown and GPU-finish synchronisation", "night, rain and population stress settings", "walking can meet walls; displacement is reported" } };

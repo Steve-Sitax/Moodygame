@@ -10,7 +10,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const args = process.argv.slice(2);
 const opt = (name, fallback) => { const i = args.indexOf(`--${name}`); if (i < 0) return fallback; if (!args[i + 1] || args[i + 1].startsWith("--")) throw new Error(`--${name} needs a value`); return args[i + 1]; };
 const all = ["devtest", "paths", "stuck", "shaders", "perfcheck", "clocks", "interiors"];
-const extras = ["pixelcheck", "windows", "peopletest", "jobtest", "placestest", "eventtest", "ridetest", "playtest"];
+const extras = ["pixelcheck", "windows", "peopletest", "jobtest", "placestest", "eventtest", "ridetest", "playtest", "deedstest"];
 const selected = opt("only", all.join(",")).split(",");
 if (selected.some(name => ![...all, ...extras].includes(name))) throw new Error("--only: " + [...all, ...extras].join(","));
 const town = path.resolve(opt("town", "godot/baked/town.glb"));
@@ -81,6 +81,7 @@ function numbers(name, report) {
   switch (name) {
     case "jobtest": return `${report.steps?.length ?? "?"} steps, Vismarkt frame ${report.frame_ms?.mean ?? "?"} ms`;
     case "placestest": case "playtest": return `${report.steps?.length ?? "?"} steps; ${report.error ?? ""}`;
+    case "deedstest": return `${report.checks?.length ?? "?"} checks; ${report.error ?? ""}`;
     case "eventtest": return `${report.stages?.length ?? "?"} stages, ${report.failures?.length ?? "?"} failures`;
     case "ridetest": return `${report.checks?.length ?? "?"} checks; ${report.error ?? ""}`;
     case "devtest": return `${report.steps?.filter(s => s.ok).length ?? 0}/${report.steps?.length ?? 0} steps`;
@@ -106,7 +107,7 @@ try {
     const dir = path.join(out, name); mkdirSync(dir, { recursive: true });
     const scratch = mkdtempSync(path.join(out, "test-town-"));
     // These fixtures require their own database beside their report. Never reuse an existing database.
-    const fixtureDatabase = ["placestest", "ridetest", "playtest"].includes(name);
+    const fixtureDatabase = ["placestest", "ridetest", "playtest", "deedstest"].includes(name);
     const database = path.join(fixtureDatabase ? dir : scratch, "test.sqlite");
     let ownsDatabase = false;
     let server;
