@@ -1,5 +1,20 @@
 # Work log
 
+## Godot milestone checks, 2026-10-04
+
+G8 on `godot/checks`: the HUD arrow clears the cards; the server-backed development kit, baked-map paths,
+crowd stalls/contacts, material kinds and lights, five-place frame budget, marked clocks and room-opening
+checks run through `tools/godot/checks.mjs`. Fresh seed-1873 test towns only, own ports, no AI, no bake.
+Dev 4/4, shader problems 0, performance walking means 1.32–2.14 ms. Gates still fail: 295/8,747 path targets,
+six crowd oscillation findings, zero overlaps, 56 solid contacts; clocks 0/14 moving; no registered live rooms (1,461
+opening probes are diagnostic). Findings handed off as issues
+[#43](https://github.com/Steve-Sitax/Moodygame/issues/43),
+[#44](https://github.com/Steve-Sitax/Moodygame/issues/44),
+[#45](https://github.com/Steve-Sitax/Moodygame/issues/45) and
+[#46](https://github.com/Steve-Sitax/Moodygame/issues/46).
+Build/import and pre-commit checks pass; all 22 local pictures inspected. Full numbers, coverage limits
+and shared-file audit: [G8 report](godot-G8-checks.md).
+
 ## Godot jobs restart, 2026-10-04
 
 Finished the interrupted jobs/day tie-ins on `godot/jobs`, with `godot-port` merged through `11c2ca5`.
@@ -298,6 +313,29 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 | a1dbf4b | Shop walls: plaster that does not shimmer |
 
 Earlier batches: the git log before f5291a4 and the milestone notes in `docs/milestones/`.
+
+## Godot sound: remove first-use hitches (2026-10-04)
+
+Merged `godot-port` into `godot/sound` first, fast-forward to `d16f387`, then fixed
+[#41](https://github.com/Steve-Sitax/Moodygame/issues/41) entirely in the sound worktree. Recordings are decoded
+on a loading worker; constant synth beds, player pools, runtime methods/constructors and native first-use paths
+are prepared before readiness. Dynamic graph construction runs on the render worker. The completion queue
+publishes complete callbacks without a producer wait on the frame thread, and preserves FIFO ordering.
+
+The stricter sound test includes gameplay triggers and weather activation. Final silent run on port 8885:
+28,473 frames, mean 0.0270 ms, p99 0.0581 ms, worst 0.268 ms, **zero above 0.3 ms** (earlier worst 7.205 ms,
+11 above budget). All 156 sound rows and 62 wiring checks pass, including 4,096 callbacks from four workers.
+All 70 decoded recording peaks/RMS match at displayed rounding; largest actual peak error 0.000497 dB.
+Above-full-scale thunder headroom is preserved; the existing short PCM remains unchanged. Configured gains
+match the earlier JSON. Unseeded measured peaks differ between identical runs too; every literal difference
+is retained instead of claiming exact repeatability. Full investigation and before-frame list:
+[sound report](godot-port-sound.md); local evidence in `godot/baked/soundtest-release/`.
+
+`dotnet build godot`, `npm run build` and the sample/budget comparison checker pass. Existing warnings remain.
+No shaders, models, sound assets, synthesis graphs or browser code changed. Owned test processes stopped.
+Automatic approval review rejected deletion of the generated test SQLite files as "blocked by policy"
+without a more specific reason; those ignored files remain in the soundtest evidence directories.
+Commit only; no push or integration merge after the initial requested merge.
 
 ## Rules added today (in CLAUDE.md)
 

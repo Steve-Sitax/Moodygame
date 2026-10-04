@@ -182,7 +182,9 @@ public partial class Soundscape : Godot.Node
     private List<Live> live = new();
     private List<Cart> carts = new();
     private readonly List<(VehicleSound v, LoopVoice? voice)> vehicles = new();
+    private readonly List<double> vehicleDistances = new(16);
     private List<ShipSound> shipSounds = new();
+    private readonly List<ShipSound> steamShips = new(16);
     private double shipTickAt;
     private readonly Dictionary<string, double> greeted = new();
     private readonly HashSet<string> bedsStarted = new();
@@ -213,6 +215,18 @@ public partial class Soundscape : Godot.Node
     // the cost of the sound part on the main thread (the budget: 0.3 ms a frame)
     private double costSum, costMax, costMaxAt, testMs;
     private int costN;
+    private static readonly string[] FrameSteps = { "ready", "timers", "wiring", "state", "camera", "update", "street", "mix", "howl" };
+    private double stepTestMs;
+    private readonly double[] frameSteps = new double[FrameSteps.Length];
+    private string frameSound = "none";
+    private long frameStepAt;
+    private void Step(int i)
+    {
+        long t = Stopwatch.GetTimestamp();
+        frameSteps[i] = (t - frameStepAt) * 1000.0 / Stopwatch.Frequency - (testMs - stepTestMs);
+        stepTestMs = testMs;
+        frameStepAt = t;
+    }
 
     /// <summary>Menus: the levels of music (the organ, ballads, a tavern's song), voices, the town's sounds, and Jef's own; 0..1 each.</summary>
     public void SetMix(IReadOnlyDictionary<string, double> levels)
@@ -234,14 +248,18 @@ public partial class Soundscape : Godot.Node
         set => AudioServer.SetBusMute(0, value <= 0);
     }
 
-    public override void _Ready()
+    public override async void _Ready()
     {
         I = this;
+        if (Main.I.Arg("soundtest") != "") Speaker = 0;
         mixRate = (int)AudioServer.GetMixRate();
         MakeBuses();
         CacheBakedRooms();
         var sw = Stopwatch.StartNew();
-        LoadAll();
+        // The tree keeps drawing the loading screen while files, decoders and graphs are prepared.
+        await Task.Run(() => { WarmCode(); Emitters.Load(); LoadAll(); });
+        if (!IsInstanceValid(this) || !IsInsideTree()) return;
+        WarmPlayers();
         double loadMs = sw.Elapsed.TotalMilliseconds;
 
         // water bed: sits on the quay edge nearest the player (panner 4 m, rolloff 1.2)
@@ -269,7 +287,7 @@ public partial class Soundscape : Godot.Node
 
         // the made beds: built once, off the main thread
         int rate = mixRate;
-        Task.Run(() =>
+        await Task.Run(() =>
         {
             try
             {
@@ -296,6 +314,7 @@ public partial class Soundscape : Godot.Node
                     Add(waterSpot, water.stream, "water bed", water.scale, from: Rnd() * 20);
                     Add(windSpot, wind.stream, "wind bed", wind.scale, from: Rnd() * 15);
                 });
+                downpourLoop = RenderLoop(c => { LoopNoise(c, White, "bandpass", 2600, 0.35, 0.9, 3 / 43.0); LoopNoise(c, Brown, "lowpass", 700, 0.5, 0.5, 2 / 43.0); return 0; }, rate, 43);
                 // the organ's chords too: they take a few seconds to build, and nobody should wait for them at the door
                 var organ = ToWav(OrganSynth.RenderLoop(22050), 22050, true);
                 ready.Enqueue(() =>
@@ -310,6 +329,9 @@ public partial class Soundscape : Godot.Node
             }
         });
 
+        if (!IsInstanceValid(this) || !IsInsideTree()) return;
+        while (ready.TryDequeue(out var fn)) fn();
+        StartHowl();
         now = 0;
         nextHorn = now + Rand(9, 16); // first one early, then 40-90 s
         nextGull = now + Rand(4, 10);
@@ -341,7 +363,38 @@ public partial class Soundscape : Godot.Node
             ownRain = true;
             SetRain(rn);
         }
-        GD.Print($"sound in: {buf.Count} recordings, {steps["stone"].Count + steps["wood"].Count} steps, {live.Count} places, {failed.Count} failed, {unpacked} short ones unpacked, {loadMs:0} ms, mix {mixRate} Hz");
+        GD.Print($"sound in: {buf.Count} recordings, {steps["stone"].Count + steps["wood"].Count} steps, {live.Count} places, {failed.Count} failed, {unpacked} recordings unpacked, {loadMs:0} ms, mix {mixRate} Hz");
+        // Exercise native getters and generic helpers too, before the loading card lets play begin.
+        bool auto = Auto, chance = Chance;
+        Auto = Chance = false;
+        Prepared = true;
+        var keep = new HashSet<Spot>(spots);
+        double hornAt = hornOkAt;
+        hornOkAt = double.MaxValue;
+        // Start/stop the layered paths once while loading: this also warms their closed generic helpers.
+        foreach (var def in Loops.Values) StopVoice(StartVoice(0, 1, 0, def));
+        SetMovingShips(new[] { new MovingShip { Id = "warm", Kind = "paddle", X = 0, Z = 0, Steam = true } });
+        SetMovingShips(Array.Empty<MovingShip>());
+        SetVehicles(new[] { new VehicleSound("dray", 0, 0, "go") });
+        SetVehicles(Array.Empty<VehicleSound>());
+        EventSound("bells", 0, 0, 40).Stop();
+        EventSound("music", 0, 0, 4).Stop();
+        EventCues(new[] { new CueSpec("drum", 1, 1, 1) }, 0, 0, 4).Stop();
+        foreach (var sp in spots.ToArray()) if (!keep.Contains(sp)) DropSpot(sp);
+        timers.Clear();
+        hornOkAt = hornAt;
+        howlPlayer!.VolumeDb = -100;
+        howlGain = howlGainT = 0.01;
+        FeedHowl(1 / 60.0);
+        howlGain = howlGainT = 0;
+        FeedHowl(1 / 60.0);
+        howlPlayer.VolumeDb = 0;
+        Array.Clear(howlState);
+        for (int i = 0; i < 4; i++) _Process(1 / 60.0);
+        Auto = auto;
+        Chance = chance;
+        costSum = costMax = costMaxAt = 0;
+        costN = 0;
         if (Main.I.Arg("soundtest") != "") StartTest(Main.I.Arg("soundtest"));
     }
 
@@ -352,29 +405,47 @@ public partial class Soundscape : Godot.Node
         return sp;
     }
 
+    /// <summary>Files, PCM, pooled players and the constant synth beds are ready; loading waits for this.</summary>
+    public bool Prepared { get; private set; }
+
     public override void _Process(double delta)
     {
+        if (!Prepared) return;
         long t0 = Stopwatch.GetTimestamp();
+        frameStepAt = t0;
+        stepTestMs = testMs;
+        frameSound = "none";
+        int gc0 = GC.CollectionCount(0), gc1 = GC.CollectionCount(1), gc2 = GC.CollectionCount(2);
         double before = now;
         now = clockWatch.Elapsed.TotalSeconds;
         double dt = Math.Min(0.25, now - before);
         while (ready.TryDequeue(out var fn)) fn();
+        Step(0);
         RunTimers();
+        Step(1);
         Wire();
+        Step(2);
         FollowState();
+        Step(3);
         TestPlaceCamera();
+        Step(4);
         if (Main.I.Cam != null && IsInstanceValid(Main.I.Cam)) Update(Main.I.Cam);
+        Step(5);
         TickStreet(dt);
+        Step(6);
         MixTick(dt);
+        Step(7);
         FeedHowl(dt);
+        Step(8);
         double ms = Stopwatch.GetElapsedTime(t0).TotalMilliseconds - testMs;
         testMs = 0;
         TestTick();
+        ms += test?.TakeCallCost() ?? 0;
         testMs = 0;
         costSum += ms;
         if (ms > costMax) (costMax, costMaxAt) = (ms, now);
         costN++;
-        test?.FrameCost(ms);
+        test?.FrameCost(ms, gc0, gc1, gc2);
     }
 
     /// <summary>Godot's sound always runs: nothing to wake (the browser's audio context starts on a click).</summary>
@@ -618,10 +689,12 @@ public partial class Soundscape : Godot.Node
     }
 
     /// <summary>People near (x, z) with someone to talk to: full within `near` m, none past `far` m.</summary>
+    private readonly List<Vector2> closePeople = new(256);
     private double Talkers(double x, double z, double near, double far)
     {
         double box = far + TalkM;
-        var close = new List<Vector2>();
+        var close = closePeople;
+        close.Clear();
         foreach (var p in people)
         {
             double dx = p.X - x, dz = p.Y - z;
@@ -689,7 +762,8 @@ public partial class Soundscape : Godot.Node
             vehicles.RemoveAt(vehicles.Count - 1);
         }
         // only the nearest few rolling ones get a voice (VehicleCap)
-        var near = new List<double>();
+        var near = vehicleDistances;
+        near.Clear();
         foreach (var v in list)
         {
             double d = Hyp(v.X - px, v.Z - pz);
@@ -1036,15 +1110,17 @@ public partial class Soundscape : Godot.Node
     private LoopVoice? StartVoice(double x, double y, double z, LoopDef def)
     {
         if (!Finite(x, z) || !double.IsFinite(y)) return null;
-        var layers = def.Layers.Where(l => l.name == "hiss" ? hissLoop != null : buf.ContainsKey(l.name)).ToArray();
-        if (layers.Length == 0) return null;
+        bool available = false;
+        foreach (var layer in def.Layers) if (layer.name == "hiss" ? hissLoop != null : buf.ContainsKey(layer.name)) { available = true; break; }
+        if (!available) return null;
         // (the loops go to the street itself, past the Sound settings' groups, as in the browser)
         var spot = NewSpot(x, y, z, def.Ref, def.Rolloff, def.Reach, def.Wet, def.Lowpass, "Street", def.Radius, def.Occl);
         spot.Hold = true;
         spot.Level = spot.LevelT = 0;
         var voice = new LoopVoice { Spot = spot };
-        foreach (var (name, g) in layers)
+        foreach (var (name, g) in def.Layers)
         {
+            if (name == "hiss" ? hissLoop == null : !buf.ContainsKey(name)) continue;
             V v;
             if (name == "hiss") v = Add(spot, hissLoop!.Value.stream, "hiss", g * hissLoop.Value.scale, from: Rnd() * 2.9, rawPeak: hissLoop.Value.scale * 0.95);
             else
@@ -1137,16 +1213,18 @@ public partial class Soundscape : Godot.Node
     public void SetMovingShips(IReadOnlyList<MovingShip> list)
     {
         double px = listenerPos.X, pz = listenerPos.Z;
-        var ids = new HashSet<string>(list.Select(s => s.Id));
         for (int i = shipSounds.Count - 1; i >= 0; i--)
         {
-            if (ids.Contains(shipSounds[i].Ship.Id)) continue;
+            bool present = false;
+            foreach (var ship in list) if (ship.Id == shipSounds[i].Ship.Id) { present = true; break; }
+            if (present) continue;
             StopVoice(shipSounds[i].Voice);
             shipSounds.RemoveAt(i);
         }
         foreach (var ship in list)
         {
-            var s = shipSounds.Find(q => q.Ship.Id == ship.Id);
+            ShipSound? s = null;
+            foreach (var q in shipSounds) if (q.Ship.Id == ship.Id) { s = q; break; }
             if (s == null)
             {
                 s = new ShipSound { Ship = ship, NextCall = now + Rand(5, 30) };
@@ -1205,7 +1283,9 @@ public partial class Soundscape : Godot.Node
         }
 
         // two steamers meeting greet each other: one whistles, the other answers
-        var steam = shipSounds.Where(s => s.Ship.Steam && s.D < 300).ToList();
+        var steam = steamShips;
+        steam.Clear();
+        foreach (var s in shipSounds) if (s.Ship.Steam && s.D < 300) steam.Add(s);
         for (int i = 0; i < steam.Count; i++)
             for (int j = i + 1; j < steam.Count; j++)
             {
@@ -1467,11 +1547,8 @@ public partial class Soundscape : Godot.Node
         bool child = voice.Age < 13;
         double f0 = (child ? 262 : voice.Sex == "f" ? 220 : 131) * (voice.Age >= 60 ? 0.94 : 1);
         double end = 0;
-        MadeAt(spot, (c, dest, t0) =>
-        {
-            end = Ballad.SingPhrase(c, dest, f0, child ? 1.3 : voice.Sex == "f" ? 1.15 : 1, notes, beat, t0) - t0;
-            return end + 0.1;
-        }, "sung line", 0.2);
+        foreach (var note in notes) end += note.Beats * beat;
+        MadeAt(spot, (c, dest, t0) => Ballad.SingPhrase(c, dest, f0, child ? 1.3 : voice.Sex == "f" ? 1.15 : 1, notes, beat, t0) - t0 + 0.1, "sung line", 0.2);
         Log("ballad line");
         return end;
     }
@@ -1575,8 +1652,9 @@ public partial class Soundscape : Godot.Node
         bool on = true;
         var mine = new List<Timer>();
         double endAt = now + secs;
-        foreach (var cue in cues.Take(4))
+        for (int cueIndex = 0; cueIndex < Math.Min(4, cues.Count); cueIndex++)
         {
+            var cue = cues[cueIndex];
             void Fire()
             {
                 if (!on) return;
@@ -1588,15 +1666,20 @@ public partial class Soundscape : Godot.Node
                 int near = group || one ? PeopleNear(spot.X, spot.Z, 15) : 0;
                 double level = group ? Chatter(near) : one ? (near >= 1 ? 1 : 0) : 1;
                 bool far = d > (group ? 35 : one ? 60 : spot.Max) || level <= 0;
-                double len = 0;
+                double firedAt = now;
+                void Schedule(double len)
+                {
+                    if (!on || cue.EverySeconds <= 0) return;
+                    double wait = Math.Max(cue.EverySeconds * Rand(0.75, 1.3), len + 0.6);
+                    double left = Math.Max(0, firedAt + wait - now);
+                    if (firedAt + wait < endAt) mine.Add(After(left, Fire));
+                }
                 if (!far)
                 {
-                    len = MadeAt(spot, (c, dest, t0) => Audio.EventCues.PlayCue(c, dest, cue, t0), "cue " + cue.Source, 0.9 * level, 0.5);
+                    MadeAt(spot, (c, dest, t0) => Audio.EventCues.PlayCue(c, dest, cue, t0), "cue " + cue.Source, 0.9 * level, 0.5, built: Schedule);
                     Log($"cue {cue.Source}");
                 }
-                if (cue.EverySeconds <= 0) return;
-                double wait = Math.Max(cue.EverySeconds * Rand(0.75, 1.3), len + 0.6);
-                if (now + wait < endAt) mine.Add(After(wait, Fire));
+                else Schedule(0);
             }
             mine.Add(After(Rand(0.2, 2.5), Fire));
         }
@@ -2058,7 +2141,7 @@ public partial class Soundscape : Godot.Node
                     ".wav" => AudioStreamWav.LoadFromFile(path),
                     _ => AudioStreamOggVorbis.LoadFromFile(path),
                 };
-                if (s != null) return Unpacked(s, rel);
+                if (s != null && Unpacked(s, rel) is { } pcm) return pcm;
             }
         }
         catch (Exception e)
@@ -2070,44 +2153,77 @@ public partial class Soundscape : Godot.Node
     }
 
     /// <summary>
-    /// A short recording that is played once (a step, a thud, a bell) is decoded at the start and kept as plain
-    /// samples: starting an Ogg stream costs the main thread about half a millisecond each time (its decoder is set
-    /// up anew), starting plain samples next to nothing. The long ones and the loops stay Ogg (decoded as they play).
+    /// Decode recordings during loading: no Ogg/MP3 decoder setup in a gameplay frame. Keep loop points and
+    /// native sample rates for long recordings; the original short one-shots keep their existing PCM exactly.
     /// </summary>
-    private AudioStream Unpacked(AudioStream s, string rel)
+    private AudioStream? Unpacked(AudioStream s, string rel)
     {
         double len = s.GetLength();
-        if (rel.Contains("-loop") || len <= 0 || len > 8 || s is AudioStreamWav) return s;
+        if (len <= 0 || s is AudioStreamWav) return s;
+        bool loop = rel.Contains("-loop");
+        // Keep the old short one-shots exactly as they were. For longer recordings keep their native rate,
+        // avoiding an extra resampling pass when pitch or playback position changes.
+        int rate = !loop && len <= 8 ? mixRate : s is AudioStreamOggVorbis ogg ? (int)ogg.PacketSequence.SamplingRate : mixRate;
         try
         {
             var pb = s.InstantiatePlayback();
             pb.Start(0);
-            int want = (int)(len * mixRate) + 64, n = 0;
-            var bytes = new byte[want * 2];
+            int want = !loop && len <= 8 ? (int)(len * mixRate) + 64 : (int)Math.Round(len * rate) + (loop ? 0 : 64), n = 0;
+            bool legacy = !loop && len <= 8;
+            double sourcePeak = 0, pcmPeak = 0, sourceSum = 0, pcmSum = 0;
+            var samples = new float[want];
             while (n < want)
             {
-                var a = pb.MixAudio(1, Math.Min(8192, want - n));
-                if (a.Length == 0) break;
-                for (int i = 0; i < a.Length; i++)
+                var block = pb.MixAudio((float)mixRate / rate, Math.Min(8192, want - n));
+                if (block.Length == 0) break;
+                for (int i = 0; i < block.Length; i++)
                 {
-                    short v = (short)Math.Clamp(Math.Round((a[i].X + a[i].Y) * 0.5f * 32767), -32768, 32767);
-                    bytes[(n + i) * 2] = (byte)v;
-                    bytes[(n + i) * 2 + 1] = (byte)(v >> 8);
+                    float source = (block[i].X + block[i].Y) * 0.5f;
+                    samples[n + i] = source;
+                    sourcePeak = Math.Max(sourcePeak, Math.Abs(source));
+                    sourceSum += (double)source * source;
                 }
-                n += a.Length;
+                n += block.Length;
             }
             pb.Stop();
-            if (n < mixRate / 100) return s;
+            if (n < rate / 100) return null;
+            // Ogg can decode above full scale. Newly unpacked recordings must keep that headroom: store them
+            // lower and restore it on the voice. Existing short PCM retains its original quantization/clipping.
+            double scale = !legacy && sourcePeak > 1 ? sourcePeak / 0.95 : 1;
+            var bytes = new byte[n * 2];
+            for (int i = 0; i < n; i++)
+            {
+                float sample = scale == 1 ? samples[i] : (float)(samples[i] / scale);
+                short v = (short)Math.Clamp(Math.Round(sample * 32767), -32768, 32767);
+                double plain = v / 32768.0 * scale;
+                pcmPeak = Math.Max(pcmPeak, Math.Abs(plain));
+                pcmSum += plain * plain;
+                bytes[i * 2] = (byte)v;
+                bytes[i * 2 + 1] = (byte)(v >> 8);
+            }
+            double DbRound(double value) => Math.Round(20 * Math.Log10(Math.Max(value, 1e-12)), 1);
+            double beforePeak = legacy ? pcmPeak : sourcePeak, beforeSum = legacy ? pcmSum : sourceSum;
+            decodeLevels.Add(new { file = rel, rate, seconds = len, wasPcmBefore = legacy, playbackScale = scale,
+                sourcePeakDb = DbRound(beforePeak), pcmPeakDb = DbRound(pcmPeak),
+                sourceRmsDb = DbRound(Math.Sqrt(beforeSum / n)), pcmRmsDb = DbRound(Math.Sqrt(pcmSum / n)),
+                peakDifferenceDb = 20 * Math.Log10(pcmPeak / Math.Max(beforePeak, 1e-12)),
+                rmsDifferenceDb = 10 * Math.Log10(pcmSum / Math.Max(beforeSum, 1e-24)) });
             unpacked++;
-            return new AudioStreamWav { Format = AudioStreamWav.FormatEnum.Format16Bits, MixRate = mixRate, Stereo = false, Data = bytes.AsSpan(0, n * 2).ToArray() };
+            var stream = new AudioStreamWav { Format = AudioStreamWav.FormatEnum.Format16Bits, MixRate = rate, Stereo = false,
+                Data = bytes, LoopMode = loop ? AudioStreamWav.LoopModeEnum.Forward : AudioStreamWav.LoopModeEnum.Disabled,
+                LoopBegin = 0, LoopEnd = n };
+            if (scale != 1) recordingScales[stream] = scale;
+            return stream;
         }
         catch (Exception e)
         {
-            GD.PrintErr($"[sound] {rel}: kept as Ogg ({e.Message})");
-            return s;
+            GD.PrintErr($"[sound] {rel}: could not prepare PCM ({e.Message})");
+            return null;
         }
     }
     private int unpacked;
+    private readonly List<object> decodeLevels = new();
+    private readonly Dictionary<AudioStream, double> recordingScales = new();
 
     /// <summary>The recordings. A file that fails stays silent. The "-loop" files loop cleanly.</summary>
     private void LoadAll()
@@ -2160,25 +2276,7 @@ public partial class Soundscape : Godot.Node
         }
         stormBeds = (StormBed("galeTrees", "Ambience"), StormBed("rainHeavy", "Ambience"), StormBed("windInside", "RoomAmbience"));
         downpourSpot = Bed("Ambience", 0, 1.5);
-        int rate = mixRate;
-        Task.Run(() =>
-        {
-            try
-            {
-                // the great storm's downpour in the open: broad noise, a hiss with body
-                var w = RenderLoop(c => { LoopNoise(c, White, "bandpass", 2600, 0.35, 0.9, 3 / 43.0); LoopNoise(c, Brown, "lowpass", 700, 0.5, 0.5, 2 / 43.0); return 0; }, rate, 43);
-                ready.Enqueue(() =>
-                {
-                    downpourLoop = w;
-                    Add(downpourSpot, w.stream, "downpour", w.scale, from: Rnd() * 30);
-                });
-            }
-            catch (Exception e)
-            {
-                GD.PrintErr($"[sound] the downpour: {e}");
-            }
-        });
-        StartHowl();
+        if (downpourLoop is { } w) Add(downpourSpot, w.stream, "downpour", w.scale, from: Rnd() * 30);
     }
 
     /// <summary>
