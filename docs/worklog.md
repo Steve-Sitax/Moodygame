@@ -417,3 +417,9 @@ The movers worktree has live omnibus boarding, stop waiters and families aboard 
 ## 2026-10-04: Godot download check
 
 `godot/download`: centralized disk paths, compiled server with portable Node, Windows zip and real unpacked net/menu tests passed; all 52 targeted AI-setup/save-pause tests passed. Test saves and unpacked folders were removed. Linux and macOS game exports also passed; native download runs remain. Details: `docs/godot-download-check.md`. Shutdown resource warnings seen in source and exported tests are already tracked in [issue #40](https://github.com/Steve-Sitax/Moodygame/issues/40). No bake, push, tag, Release or workflow run.
+
+## 2026-10-04: Godot events and actors
+
+The events worktree connects engine stages, held actors, event props/sound/marks/closures, lead dress, scuffle/robbery, wedding/requiem figures, hearses, fire/hiring, storm and family menace choices. It builds and ran all sixteen templates; the bounded self-test and final evidence follow in the next commit. Browser parity gaps and exact shared hooks are listed in docs/godot-events.md. No push, merge or shared bake writes.
+
+The final event check passed 16 kinds and 50 stages, with 68 inspected pictures and actual cue playback for all 13 cue-bearing kinds. Grote Markt event logic: 239 frames, 0.00985 ms mean, 0.013 ms p95/max, 0 B mean/p95; network setup, shared crowd animation and rendering are outside that measurement. Separate family UI fixtures and an eight-stage funeral/fire repeat passed (14 more inspected pictures, including the hearse and pump). Family typing now pauses the decision timer; peaceful outcomes do not dim the screen. Evidence: godot/baked/events-proof/release, family and vehicles. All test databases removed and owned processes stopped. Builds and 194 relevant server tests passed. Shared edits and unfinished parity work: docs/godot-events.md.

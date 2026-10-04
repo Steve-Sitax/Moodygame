@@ -15,6 +15,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - Godot ships and lock boats are prepared before play, and moving traffic makes far less garbage, avoiding collection pauses while movers switch or spawn.
 - In Godot, the post clerk gives out rounds of letters and telegram errands. Their door prompts, quest book, map and payments now work, including resuming a round.
 - F at the post and Berg clerks opens their counters in Godot. Talking and haggling in walk-around mode now keep typing off when there is no AI.
+- In Godot, typing a reply pauses the menace decision timer, and a peaceful outcome keeps the screen clear.
 
 - A Windows Godot download now starts from its executable, with the town, models, sounds and game server included.
 
@@ -24,6 +25,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - The Godot job arrow and its distance stay clear of the clock and job cards.
 
 ### New in the game
+- In Godot, town events gather people, put out props, close stalls, play their sounds and leave when finished. Weddings, funerals, street quarrels, robbery, hiring, the storm and the fire have their visible actors.
 - In Godot, visiting family members use the server's names and daily plans, and Zelie's fortune-telling table has its cloth, cards and stool.
 - The Godot version has doorstep cats and stray dogs, dogs following their owners, and park birds that move away, then fly when pressed. Doorstep chores and children's games follow the town's daily plans.
 - The Godot version draws the server's occupants in the five landmark halls, with their seats and shared floor plans, and provides room visitors for the homes part.

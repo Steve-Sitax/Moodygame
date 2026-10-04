@@ -212,9 +212,10 @@ fallback cannot certify room floors, containment, seams, shader-only cutouts, or
   `WhereNow` returns a resident's reused result; copy its fields when retaining them across another query.
   Crowd positions and collision checks run every frame; bone animation runs at 120 Hz within eight metres,
   60 Hz within 25 metres, then 15 and 8 Hz farther away. Home visitors leave at least 0.9 m around Jef.
-  Later round: `game/actions.ts` reserves residents and sends them to event rings and columns; `game/events.ts`
-  presents stage props, sound cues and stall closures. The existing thief route does not apply theft outcomes.
-  Family menace choices, dream text and veil messages reach `FamilyPeople.ActionReceived` for presentation.
+  `Game/Actors.cs` reserves residents and sends them to the server's event rings and columns;
+  `Game/Events.cs` presents stage props, sound cues, map marks and stall closures. Hearses, lead dress,
+  fire and hiring scenes, and family menace choices use the existing people and paper hooks.
+  Remaining parity work and the bounded `--eventtest <dir>` check: [events handoff](../docs/godot-events.md).
 - **The server stays in Node** (`server/`): the game talks to it over the same HTTP and WebSocket API as the
   browser (`client/src/net/api.ts`).
   - `src/Net/ServerProcess.cs` starts it with the game (`node src/index.ts` in `server/`, a free port from 8800,

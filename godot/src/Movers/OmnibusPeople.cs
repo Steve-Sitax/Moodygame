@@ -21,6 +21,11 @@ public partial class Omnibus
     private readonly Random passengerDice=new(1873); // browser uses Math.random for unnamed people only
     private static readonly string[] PassengerKinds={"gentleman","clerk","old_man","priest","sailor_b","docker_a","porter","docker_b"};
     public event Action<Bus,string,Vector3>? ResidentOff;
+    /// <summary>An errand or event ended before its resident got off. Only that trip owner may cancel it.</summary>
+    public void RemoveResident(string id)
+    {
+        foreach (var list in passengers.Values) for (int i = list.Count - 1; i >= 0; i--) if (list[i].Id == id) { list[i].Human.Dispose(); list[i].Root.QueueFree(); list.RemoveAt(i); }
+    }
     public IReadOnlyList<Passenger> Passengers(Bus bus)=>passengers.GetValueOrDefault(bus)??(IReadOnlyList<Passenger>)Array.Empty<Passenger>();
     private static (Vector3 At,float Yaw) SeatAt(int i)=> (new(i<6?-.6f:.6f,1.26f,-.63f+(i%6)*.64f),i<6?MathF.PI/2:-MathF.PI/2);
     private static Vector2[] SeatPath(int i)

@@ -104,6 +104,8 @@ public partial class Townspeople : Node
         public string ShelterPlace = "";
         /// <summary>On a run with the mill's cart (the game minute of his last order).</summary>
         public bool MillRun;
+        /// <summary>An action owns this resident until it releases him; his day must not pull him away.</summary>
+        public bool ActionHeld;
         internal string GamePlace = "", GameKind = "", PropBase = "", PropGame = "", PropKey = "";
         internal int GameDay = -1, GameSlice = -1, ScheduleStorm = -1;
         internal string ScheduleAct = "", SchedulePlace = "", ScheduleLife = "", ScheduleShelter = "", ScheduleRun = "";
@@ -640,6 +642,7 @@ public partial class Townspeople : Node
             }
             else if (!s.Inside)
             {
+                if (s.ActionHeld) continue;
                 // the unseen take turns, each one every CoarseEvery frames with the time since; where the shared sum
                 // puts him comes from the clock, so he is where he would have been
                 s.CoarseDt += dt;
@@ -665,6 +668,7 @@ public partial class Townspeople : Node
 
     private void Reschedule(Sim s, bool first)
     {
+        if (s.ActionHeld) return;
         var now = PlanNow(s);
         // the great storm: no calls at the shops, everyone out of it
         bool storm = stormLevel > 0;
@@ -1153,7 +1157,7 @@ public partial class Townspeople : Node
             s.Tries = 0;
             s.Wait = 0;
             alive++;
-            Direct(s);
+            if (!s.ActionHeld) Direct(s);
             Lanterns(s);
         }
     }
@@ -1235,6 +1239,7 @@ public partial class Townspeople : Node
 
     private void Behave(Sim s, double dt, (double x, double z)? body)
     {
+        if (s.ActionHeld) return;
         var p = s.P!;
         var g = s.Goal;
         var crowd = Crowd!;

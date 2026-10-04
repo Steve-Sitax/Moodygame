@@ -39,6 +39,14 @@ public partial class MarketStalls : Node
     private Node3D root = null!;
     private bool loaded;
     private double wait;
+    private readonly HashSet<string> eventClosed = new();
+    /// <summary>game/events.ts: closed places stay covered even when their keepers are at work.</summary>
+    public void SetEventClosed(IEnumerable<string> places)
+    {
+        if (eventClosed.SetEquals(places)) return;
+        eventClosed.Clear(); foreach (var place in places) eventClosed.Add(place);
+        if (loaded && model != null) UpdateHours(true);
+    }
     public override void _Ready()
     {
         I = this; town = GetParent().GetNodeOrNull<Townspeople>("Townspeople");
@@ -171,7 +179,7 @@ public partial class MarketStalls : Node
         bool changed = force;
         foreach (var s in List)
         {
-            bool open = keepers.TryGetValue(s.Keeper, out var r) && Whereabouts.ActivityAt(r.Sched, currentTown.Day, currentTown.Hour).Act == "work";
+            bool open = !eventClosed.Contains(s.Label) && keepers.TryGetValue(s.Keeper, out var r) && Whereabouts.ActivityAt(r.Sched, currentTown.Day, currentTown.Hour).Act == "work";
             if (s.Open != open) { s.Open = open; changed = true; }
         }
         if (!changed) return;

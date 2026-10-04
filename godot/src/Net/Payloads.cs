@@ -549,7 +549,7 @@ public sealed record EventStage
     public JsonElement? Exit { get; init; }
     public List<double[]>? Route { get; init; }
     public bool? Hearse { get; init; }
-    public JsonElement? Groups { get; init; }
+    public List<EventGroup>? Groups { get; init; }
 }
 
 public sealed record EventLead
@@ -576,15 +576,15 @@ public sealed record TownEvent
     public List<string> People { get; init; } = new();
     public List<EventLead> Leads { get; init; } = new();
     /// <summary>M4b: a scuffle or a robbery as the engine set it up (api.ts EventScene), as sent.</summary>
-    public JsonElement? Scene { get; init; }
+    public EventScene? Scene { get; init; }
     public double StageLeft { get; init; }
     public double StartsIn { get; init; }
     public double EndsIn { get; init; }
     public string Source { get; init; } = "";
     public List<string?>? Acts { get; init; }
-    public JsonElement? Fire { get; init; }
-    public JsonElement? Hiring { get; init; }
-    public JsonElement? Tempest { get; init; }
+    public FireView? Fire { get; init; }
+    public HiringView? Hiring { get; init; }
+    public TempestView? Tempest { get; init; }
 }
 
 public sealed record ActionsPayload
