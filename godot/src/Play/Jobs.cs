@@ -834,6 +834,24 @@ public partial class Jobs : Node
     private double noteLeft;
     private OutcomeMsg? noteMsg;
     private string lastTask = "\u0000";
+    private readonly List<string> taskLines = new(8), asideLines = new(4), shownLines = new(12);
+    private readonly List<Job> taskJobs = new(4);
+    private readonly NodePath hudPath = new("Hud");
+    private Control? hudRoot, hudClock;
+    private int tickMetres = int.MinValue;
+    private readonly bool cacheHud = !Main.I.Flag("uncached-hud");
+    private Control? ClockCard()
+    {
+        if (!Scheldemist.Dev.SpeedComparison.Cached || !cacheHud)
+        {
+            var original = Main.I.Ui.GetNodeOrNull<Control>("Hud");
+            return original != null && original.GetChildCount() > 0 ? original.GetChild(0) as Control : null;
+        }
+        if (hudRoot != null && GodotObject.IsInstanceValid(hudRoot) && hudClock != null && GodotObject.IsInstanceValid(hudClock)) return hudClock;
+        hudRoot = Main.I.Ui.GetNodeOrNull<Control>(hudPath);
+        hudClock = hudRoot != null && hudRoot.GetChildCount() > 0 ? hudRoot.GetChild(0) as Control : null;
+        return hudClock;
+    }
 
     private void BuildUi()
     {
@@ -845,6 +863,7 @@ public partial class Jobs : Node
         taskCard = null;
         note = null;
         lastTask = "\u0000";
+        shownLines.Clear(); tickMetres = int.MinValue; hudRoot = hudClock = null;
         if (noteMsg != null && noteLeft > 0) WriteNote(noteMsg);
 
         // .tick: the ink arrow at the top edge, the metres under it
@@ -872,17 +891,29 @@ public partial class Jobs : Node
     }
     private void RenderTask()
     {
-        var lines = run?.Hud() ?? new List<string>();
+        bool cached = Scheldemist.Dev.SpeedComparison.Cached && cacheHud && (run is HaulRun or WatchRun || active?.Source != "night");
+        List<string> lines;
+        if (cached)
+        {
+            taskLines.Clear();
+            IReadOnlyList<string>? current = run switch { HaulRun haul => haul.CachedHud(), WatchRun watch => watch.CachedHud(), null => null, _ => run.Hud() };
+            if (current != null) for (int i = 0; i < current.Count; i++) taskLines.Add(current[i]);
+            lines = taskLines;
+        }
+        else lines = run?.Hud() ?? new List<string>();
         if (lines.Count > 0 && active?.Source == "night") lines.Add("Done before five, or not at all");
         // T4: one short line a job in hand besides the followed one
-        var also = new List<string>();
-        foreach (var j in InHand())
+        var also = cached ? asideLines : new List<string>();
+        also.Clear();
+        var inHand = cached ? TaskJobs() : InHand();
+        foreach (var j in inHand)
         {
             if (j.Id == active?.Id) continue;
             also.Add($"and: {j.Title}{(GoalOf(j) is { } g ? $" – {Metres(RunWords.Dist(g.X, g.Z, Jef.I.X, Jef.I.Z))}" : "")}");
         }
         if (lines.Count == 0 && also.Count > 0) also.Add("J: your book, to follow one");
-        string full = string.Join("\n", lines.Concat(also));
+        if (cached && lastTask != "\u0000" && SameTaskLines(lines, also)) return;
+        string full = cached ? JoinTaskLines(lines, also) : string.Join("\n", lines.Concat(also));
         if (full == lastTask) return;
         lastTask = full;
         TaskText = full;
@@ -895,11 +926,7 @@ public partial class Jobs : Node
         for (int i = 0; i < lines.Count; i++) widest = Math.Max(widest, (i == 0 ? Fonts.PrintBold : Fonts.Print).GetStringSize(lines[i], HorizontalAlignment.Left, -1, Mathf.RoundToInt(15 * s)).X);
         foreach (string a in also) widest = Math.Max(widest, Fonts.Print.GetStringSize(a, HorizontalAlignment.Left, -1, Mathf.RoundToInt(12 * s)).X);
         float w = Math.Min(380 * s, widest + 28 * s + 4);
-        var sh = new Sheet(s, w, Css.Hex("d8cfb8"), (14, 8, 14, 8), 0.8f, sepia: 0.3f, shadow: 12, drop: 3, shadowAlpha: 0.6f)
-        {
-            // under the clock's card, whatever its height (Game/Hud.cs)
-            Where = (_, _) => Main.I.Ui.GetNodeOrNull<Control>("Hud") is { } hud && hud.GetChildCount() > 0 && hud.GetChild(0) is Control clock ? new Vector2(18, clock.Position.Y + clock.Size.Y + 10 * s) : new Vector2(18, 16 + 60 * s),
-        };
+        var sh = MakeTaskSheet(s, w);
         sh.Card.MouseFilter = Control.MouseFilterEnum.Ignore;
         sh.Card.SelfModulate = new Color(1, 1, 1, 0.92f);
         for (int i = 0; i < lines.Count; i++) sh.Text(i == 0 ? $"[b]{Css.Esc(lines[i])}[/b]" : Css.Esc(lines[i]), Face.Print, 15, lineHeight: 1.35f);
@@ -907,6 +934,53 @@ public partial class Jobs : Node
         taskCard = sh;
         ui.AddChild(sh.Card);
         sh.Place();
+    }
+    private Sheet MakeTaskSheet(float s, float width) => new(s, width, Css.Hex("d8cfb8"), (14, 8, 14, 8), 0.8f, sepia: 0.3f, shadow: 12, drop: 3, shadowAlpha: 0.6f)
+    {
+        // Create this closure only when the paper changes, retaining the scale at its construction.
+        Where = (_, _) => ClockCard() is { } clock ? new Vector2(18, clock.Position.Y + clock.Size.Y + 10 * s) : new Vector2(18, 16 + 60 * s),
+    };
+    private List<Job> TaskJobs()
+    {
+        taskJobs.Clear();
+        var jobs = GameState.I.Jobs;
+        for (int index = 0; index < jobs.Count; index++)
+        {
+            var job = jobs[index];
+            if (job.Status != "taken" || job.Id == active?.Id) continue;
+            int i = taskJobs.Count;
+            while (i > 0 && taskJobs[i - 1].Id > job.Id) i--;
+            taskJobs.Insert(i, job);
+        }
+        return taskJobs;
+    }
+    private bool SameTaskLines(List<string> lines, List<string> also)
+    {
+        if (shownLines.Count != lines.Count + also.Count) return false;
+        for (int i = 0; i < lines.Count; i++) if (shownLines[i] != lines[i]) return false;
+        for (int i = 0; i < also.Count; i++) if (shownLines[lines.Count + i] != also[i]) return false;
+        return true;
+    }
+    private string JoinTaskLines(List<string> lines, List<string> also)
+    {
+        shownLines.Clear(); shownLines.AddRange(lines); shownLines.AddRange(also);
+        return string.Join("\n", shownLines);
+    }
+    public bool SameRunHud()
+    {
+        bool same = run switch { HaulRun haul => haul.Hud().SequenceEqual(haul.CachedHud()), WatchRun watch => watch.Hud().SequenceEqual(watch.CachedHud()), _ => true };
+        if (run is not HaulRun carry) return same;
+        bool cached = Scheldemist.Dev.SpeedComparison.Cached;
+        try
+        {
+            Scheldemist.Dev.SpeedComparison.Cached = false; var original = carry.Goal();
+            Scheldemist.Dev.SpeedComparison.Cached = true;
+            if (!same || original != carry.Goal()) return false;
+            var lying = Goods.I.Lying.GetEnumerator();
+            foreach (var item in Goods.I.Items) if (!lying.MoveNext() || item != lying.Current) return false;
+            return !lying.MoveNext();
+        }
+        finally { Scheldemist.Dev.SpeedComparison.Cached = cached; }
     }
 
     /// <summary>.note: the employer's word on how it went, bottom 9%, at most min(560px, 80vw), padding 10 18, turned 0.6 degrees.</summary>
@@ -1004,20 +1078,26 @@ public partial class Jobs : Node
         float left = win.X * (0.5f + x * 0.42f);
         // Keep the top-edge pointer outside the top-left paper column, including its distance label.
         float paperRight = 0;
-        if (Main.I.Ui.GetNodeOrNull<Control>("Hud") is { } hud && hud.GetChildCount() > 0 && hud.GetChild(0) is Control clock)
+        if (ClockCard() is { } clock)
             paperRight = clock.Position.X + clock.Size.X;
         if (taskCard != null) paperRight = Math.Max(paperRight, taskCard.Card.Position.X + taskCard.Card.Size.X);
         left = Math.Clamp(left, Math.Min(win.X / 2, paperRight + tickDist.Size.X / 2 + 12), win.X * 0.92f);
         tick.Position = new Vector2(left - tick.Size.X / 2, 4);
         tick.Turn = MathF.Abs(a) > MathF.PI / 2 ? (a > 0 ? 90 : -90) : 0;
         tickDist.Position = new Vector2(left - tickDist.Size.X / 2, 4 + tick.Size.Y - 2);
-        string words = Metres(d);
-        if (tickDist.Text != words) tickDist.Text = words;
+        int metres = RoundedMetres(d);
+        if (!Scheldemist.Dev.SpeedComparison.Cached || !cacheHud || tickMetres != metres)
+        {
+            tickMetres = metres;
+            string words = Metres(d);
+            if (tickDist.Text != words) tickDist.Text = words;
+        }
         bool windowUp = Dialogs.I is { Any: true };
         float want = d > 6 && !windowUp ? 0.55f + 0.25f * Math.Min(1, MathF.Abs(a)) : 0;
         tick.Modulate = tickDist.Modulate = new Color(1, 1, 1, Mathf.MoveToward(tick.Modulate.A, want, dt / 0.6f));
     }
 
     /// <summary>map.ts metres: a distance in round metres.</summary>
-    public static string Metres(float d) => $"{(d < 100 ? Math.Max(5, (int)MathF.Round(d / 5) * 5) : (int)MathF.Round(d / 10) * 10)} m";
+    private static int RoundedMetres(float d) => d < 100 ? Math.Max(5, (int)MathF.Round(d / 5) * 5) : (int)MathF.Round(d / 10) * 10;
+    public static string Metres(float d) => $"{RoundedMetres(d)} m";
 }

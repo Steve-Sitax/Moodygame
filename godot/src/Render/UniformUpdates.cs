@@ -49,6 +49,7 @@ public static class UniformUpdates
         globals[name] = value;
         RenderingServer.GlobalShaderParameterSet(Name(name), value);
     }
+    public static Variant LatestGlobal(string name) => globals[name];
     /// <summary>Dev A/B: resend the exact last values, without advancing the scene's clocks.</summary>
     public static void Replay()
     {

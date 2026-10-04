@@ -84,9 +84,10 @@ public static class RunWords
     /// <summary>runs.ts bellIn: the time left to the bell in game minutes.</summary>
     public static string BellIn(double realSecs)
     {
-        int m = Math.Max(1, (int)Math.Ceiling(Math.Max(0, realSecs) * ClockRate.GameMinPerRealS));
+        int m = BellMinutes(realSecs);
         return m < 60 ? $"{m} min" : $"{m / 60} h {m % 60:00} min";
     }
+    public static int BellMinutes(double realSecs) => Math.Max(1, (int)Math.Ceiling(Math.Max(0, realSecs) * ClockRate.GameMinPerRealS));
 
     public static string Cap(string s) => s.Length == 0 ? s : char.ToUpperInvariant(s[0]) + s[1..];
     public static float Dist(float ax, float az, float bx, float bz) => MathF.Sqrt((ax - bx) * (ax - bx) + (az - bz) * (az - bz));
@@ -131,7 +132,16 @@ public sealed class HaulRun : IRun
     private bool IsMine(Item it) => it.JobId == job.Id;
     /// <summary>A parcel travels in the pocket, not in the hands.</summary>
     private bool Pocketed => task.Kind == "deliver" && task.Goods == "parcel";
-    private bool ParcelInPocket => Pocketed && GameState.I.Pockets.Any(p => p.JobId == job.Id);
+    private bool ParcelInPocket
+    {
+        get
+        {
+            if (!Pocketed) return false;
+            if (!Scheldemist.Dev.SpeedComparison.Cached) return GameState.I.Pockets.Any(p => p.JobId == job.Id);
+            foreach (var pocket in GameState.I.Pockets) if (pocket.JobId == job.Id) return true;
+            return false;
+        }
+    }
 
     public HaulRun(Job job, JobTask task, RunCtx ctx)
     {
@@ -405,13 +415,33 @@ public sealed class HaulRun : IRun
         }
         Vector3? best = null;
         float bestD = float.PositiveInfinity;
-        foreach (var it in Goods.I.Items)
+        if (Scheldemist.Dev.SpeedComparison.Cached)
+        {
+            foreach (var it in Goods.I.Lying)
+            {
+                if (!IsMine(it)) continue;
+                float d = RunWords.Dist(Jef.I.X, Jef.I.Z, it.X, it.Z);
+                if (d < bestD) (best, bestD) = (new Vector3(it.X, it.Y, it.Z), d);
+            }
+        }
+        else foreach (var it in Goods.I.Items)
         {
             if (!IsMine(it)) continue;
             float d = RunWords.Dist(Jef.I.X, Jef.I.Z, it.X, it.Z);
             if (d < bestD) (best, bestD) = (new Vector3(it.X, it.Y, it.Z), d);
         }
         return best;
+    }
+
+    private (bool mine, bool waiting, string employer, string to, string from, int delivered, int lost, int sold, bool late, int minutes)? hudState;
+    private List<string> hud = new();
+    internal IReadOnlyList<string> CachedHud()
+    {
+        var carried = Goods.I.Carried;
+        var state = ((carried != null && IsMine(carried)) || ParcelInPocket, waitingHandover, Folk.NameOf(job.EmployerNpc, job.EmployerName), to?.Label ?? task.To, from?.Label ?? task.From,
+            delivered, lost, sold, late, task.LimitS is { } limit && limit > 0 ? RunWords.BellMinutes(limit - t) : 0);
+        if (hudState is not { } old || !old.Equals(state)) { hudState = state; hud = Hud(); }
+        return hud;
     }
 
     public List<string> Hud()
@@ -511,6 +541,14 @@ public sealed class WatchRun : IRun
 
     public Vector3? Goal() => ended || Near() ? null : new Vector3(post.X, 0, post.Z);
 
+    private (bool near, int minutes)? hudState;
+    private List<string> hud = new();
+    internal IReadOnlyList<string> CachedHud()
+    {
+        var state = (Near(), RunWords.BellMinutes(task.DurationS - t));
+        if (hudState is not { } old || old != state) { hudState = state; hud = Hud(); }
+        return hud;
+    }
     public List<string> Hud() => new()
     {
         job.Title,

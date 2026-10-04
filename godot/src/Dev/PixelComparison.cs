@@ -35,12 +35,40 @@ public static class PixelComparison
     }
     public static async Task<object> Run(Checks check)
     {
-        var rows = new List<object>(); int total = 0, controlPixels = 0, actionChecks = 0, actionDifferences = 0, floorChecks = 0, floorDifferences = 0, roomChecks = 0, roomDifferences = 0, routeChecks = 0, routeDifferences = 0;
+        var rows = new List<object>(); int total = 0, controlPixels = 0, actionChecks = 0, actionDifferences = 0, floorChecks = 0, floorDifferences = 0, roomChecks = 0, roomDifferences = 0, routeChecks = 0, routeDifferences = 0, hudChecks = 0, hudDifferences = 0;
         object scheduleProof = SpeedComparison.ScheduleProof();
+        var cases = new List<(double hour, string weather, string place, string scenario)>();
         foreach (var (hour, weather) in new[] { (13.0, "clear"), (22.0, "mist") })
         foreach (string place in new[] { "grote markt", "cathedral", "handschoenmarkt", "vismarkt", "rijnkaai" })
+            cases.Add((hour, weather, place, "idle"));
+        foreach (string scenario in new[] { "carry", "watch" })
+        foreach (var (hour, weather) in new[] { (13.0, "clear"), (22.0, "mist") }) cases.Add((hour, weather, "vismarkt", scenario));
+        string activeScenario = "idle";
+        foreach (var (hour, weather, place, scenario) in cases)
         {
+            if (scenario != activeScenario)
+            {
+                if (Play.Jobs.I.Active is { } active)
+                {
+                    await Net.ServerLink.I!.Api!.GiveUp(active.Id);
+                    Game.GameState.I.Apply(await Net.ServerLink.I.Api.Jobs());
+                }
+                await Kit.I.Job(scenario == "carry" ? "{\"type\":\"carry\",\"items\":2,\"goods\":\"crates\"}" : "{\"type\":\"watch\",\"goods\":\"crates\",\"duration_s\":1200}");
+                activeScenario = scenario;
+            }
             await Kit.I.Light(hour, weather); check.At(place); await check.Frames(120);
+            hudChecks++; if (!Play.Jobs.I.SameRunHud()) hudDifferences++;
+            foreach (var door in Play.Doors.I.All)
+            {
+                bool previous = SpeedComparison.Cached;
+                try
+                {
+                    SpeedComparison.Cached = false; var original = Play.Doors.I.Get(door.Id);
+                    SpeedComparison.Cached = true;
+                    if (original != Play.Doors.I.Get(door.Id)) throw new InvalidOperationException("door lookup differs from original");
+                }
+                finally { SpeedComparison.Cached = previous; }
+            }
             foreach (var resident in Kit.I.People!.Data!.Residents) { routeChecks++; if (!Kit.I.People.SameDayRoute(resident)) routeDifferences++; }
             actionChecks++; if (!Play.Interact.I.SameActions()) actionDifferences++;
             var jef = Player.Jef.I;
@@ -59,7 +87,7 @@ public static class PixelComparison
             Main.I.PictureTime(12); Main.I.GetTree().Paused = true;
             try
             {
-                string name = place.Replace(' ', '_') + (hour == 13 ? "_day" : "_night");
+                string name = place.Replace(' ', '_') + (hour == 13 ? "_day" : "_night") + (scenario == "idle" ? "" : "_" + scenario);
                 UniformUpdates.Cached = false;
                 SpeedComparison.Cached = false;
                 Daylight.I.RepeatLight(); Lights.I._Process(0); Rooms.I.RepeatVisibility(); Play.Jobs.I._Process(0); Play.Interact.I.RepeatPrompt(); UniformUpdates.Replay(); NodeUpdates.Replay(); await Draw(check);
@@ -72,17 +100,17 @@ public static class PixelComparison
                 string after = check.Picture(name + "_after");
                 int different = Different(a, b); total += different;
                 // A deliberately wrong fog colour must be detected by the same readback and comparison.
-                var fog = RenderingServer.GlobalShaderParameterGet("psx_fog_color");
+                var fog = UniformUpdates.LatestGlobal("psx_fog_color");
                 Psx.Set("psx_fog_color", new Vector4(1, 0, 1, 1)); await Draw(check);
                 using var wrong = Main.I.GetViewport().GetTexture().GetImage();
                 int control = Different(b, wrong); controlPixels += control;
                 Psx.Set("psx_fog_color", fog);
-                rows.Add(new { place, hour, weather, different, control, before, after, size = new[] { a.GetWidth(), a.GetHeight() } });
+                rows.Add(new { place, hour, weather, scenario, different, control, before, after, size = new[] { a.GetWidth(), a.GetHeight() } });
                 GD.Print($"pixelcheck: {name}, {different} pixels differ, control {control}");
             }
             finally { UniformUpdates.Cached = cached; SpeedComparison.Cached = speedCached; Main.I.PictureTime(-1); Main.I.GetTree().Paused = false; }
         }
-        return new { ok = total == 0 && controlPixels > 0 && actionDifferences == 0 && floorDifferences == 0 && roomDifferences == 0 && routeDifferences == 0 && System.Text.Json.JsonSerializer.SerializeToElement(scheduleProof).GetProperty("ok").GetBoolean(), differentPixels = total, controlPixels, comparisons = rows, scheduleProof, actionProof = new { actionChecks, actionDifferences }, floorProof = new { floorChecks, floorDifferences }, roomProof = new { roomChecks, roomDifferences }, routeProof = new { routeChecks, routeDifferences },
-            method = "RGBA8 full screen including retro grain, paused scene and fixed grain; uncached/cached uniform and unchanged-node-pose replay, live spill/far buffers; deliberately wrong fog colour as positive control" };
+        return new { ok = total == 0 && controlPixels > 0 && actionDifferences == 0 && floorDifferences == 0 && roomDifferences == 0 && routeDifferences == 0 && hudDifferences == 0 && System.Text.Json.JsonSerializer.SerializeToElement(scheduleProof).GetProperty("ok").GetBoolean(), differentPixels = total, controlPixels, comparisons = rows, scheduleProof, actionProof = new { actionChecks, actionDifferences }, floorProof = new { floorChecks, floorDifferences }, roomProof = new { roomChecks, roomDifferences }, routeProof = new { routeChecks, routeDifferences }, hudProof = new { hudChecks, hudDifferences },
+            method = "RGBA8 full screen including retro grain, paused scene and fixed grain; original/cached uniforms, node poses, reflections, rooms, interaction prompts and active-job HUD; exact schedule, route, floor, room, action and job comparisons; deliberately wrong fog colour as positive control" };
     }
 }

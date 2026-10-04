@@ -66,6 +66,20 @@ public partial class Goods : Node
     /// <summary>What the server answered to a goods request (the scripted checks keep it as evidence).</summary>
     public event Action<object, GoodsReply>? Answered;
     public IEnumerable<Item> Items => all.Values.Where(i => i.S.Lies);
+    internal LyingItems Lying => new(all);
+    internal readonly struct LyingItems(Dictionary<string, Item> items)
+    {
+        public Enumerator GetEnumerator() => new(items.GetEnumerator());
+        internal struct Enumerator(Dictionary<string, Item>.Enumerator entries)
+        {
+            public readonly Item Current => entries.Current.Value;
+            public bool MoveNext()
+            {
+                while (entries.MoveNext()) if (entries.Current.Value.S.Lies) return true;
+                return false;
+            }
+        }
+    }
     public IReadOnlyDictionary<string, Item> All => all;
     /// <summary>The mover that shows goods on a cart. False leaves them to another carrier.</summary>
     public Func<Item, bool>? ShowHeld { get; set; }
