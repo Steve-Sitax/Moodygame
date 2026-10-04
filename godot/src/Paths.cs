@@ -25,7 +25,7 @@ public static class Paths
     public static string MapSettings => Path.Combine(Data, "map.json");
     public static string ServerLog => Path.Combine(Data, "godot-server.log");
     public static string WalkAiSetup => Path.Combine(Data, "godot-no-ai.ai-config.json");
-    public static string PublicDir => Path.Combine(Root, "client", Packaged ? "dist" : "public");
+    public static string PublicDir => Path.Combine(Root, "client", Directory.Exists(Path.Combine(Root, "client/public")) ? "public" : "dist");
     public static string Audio => Path.Combine(PublicDir, "audio");
     public static string Textures => Path.Combine(PublicDir, "textures");
     public static string TownFacts(string town) => Path.ChangeExtension(town, ".json");
