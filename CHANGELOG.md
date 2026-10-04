@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- A Windows Godot download now starts from its executable, with the town, models, sounds and game server included.
+
 - Godot downloads can carry the compiled server and portable Node, with matching SQLite packages and no compiler needed to play.
 
 - The Godot game keeps saves, AI settings and logs in your own user folder, and uses one set of paths in source runs and downloads.
