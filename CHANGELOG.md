@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Godot Poesje spectators return to town when you leave the cellar behind and reappear when you return, without charging for another ticket that day.
+
 - In Godot, emigrant mothers carry and hush their babies, departing passengers wave, and a Red Star Line notice shows the boarding day. Camp luggage keeps clear of tracks, omnibus routes and market fields.
 
 - In Godot multiplayer, an arrested player appears at the police cell while other players continue walking, then leaves at dawn. Tavern rounds keep the engine’s three-round limit.

@@ -67,7 +67,8 @@ public partial class Poesje : Node
         using var frameCost = Scheldemist.Dev.FrameCost.Track("Play.Poesje");
         UpdateAudience(dt);
         float dx=Jef.I.X-origin.X,dz=Jef.I.Z-origin.Z,x=dx*MathF.Cos(yaw)-dz*MathF.Sin(yaw),z=dx*MathF.Sin(yaw)+dz*MathF.Cos(yaw);Inside=x>minX&&x<maxX&&z>foot&&z<maxZ&&MathF.Abs(Jef.I.Y-floor)<.6f;
-        if(Inside&&!wasInside){if(paidDay!=GameState.I.Day)_ = Enter();else Start();}wasInside=Inside;clock+=dt;
+        if(!Inside&&new Vector2(Jef.I.X-origin.X,Jef.I.Z-origin.Z).Length()>70&&AudienceCount+ReservedAudience>0)ClearAudience();
+        if(Inside&&!wasInside){if(paidDay!=GameState.I.Day||AudienceCount+ReservedAudience==0)_ = Enter();else Start();}wasInside=Inside;clock+=dt;
         if(knockSound>=0&&(knockSound-=dt)<=0){knockSound=-1;Soundscape.I?.Play("thud_wood",StageAt);}
         float wanted=Inside&&stage is >=1 and <=3?1:0;curtain+=(wanted-curtain)*Math.Min(1,dt*4);foreach(var c in curtains)Scheldemist.Render.NodeUpdates.Position(c.Node,c.At+Vector3.Right*(float)curtain*1.05f*c.Sign);
         if(!Inside){caption.Visible=false;foreach(var p in puppets)p.Group.Visible=false;return;}
