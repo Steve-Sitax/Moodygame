@@ -153,8 +153,8 @@ public static class Carried
     private static Mesh? glass, cap, halo;
     private static ShaderMaterial? lit, haloMat;
 
-    /// <summary>A small lantern with a warm glow (crowd.ts giveLantern, people.ts handLantern): the glass, the cap, the halo.</summary>
-    public static Node3D Lantern()
+    /// <summary>Make the lantern's meshes and materials at load, so no new shader kind appears when the first lantern is handed out.</summary>
+    public static void Prepare()
     {
         if (glass == null)
         {
@@ -176,6 +176,12 @@ public static class Carried
             cap = new CylinderMesh { TopRadius = 0, BottomRadius = 0.075f, Height = 0.07f, RadialSegments = 4, Rings = 1, Material = iron };
             halo = new QuadMesh { Size = new Vector2(0.45f, 0.45f), Material = haloMat };
         }
+    }
+
+    /// <summary>A small lantern with a warm glow (crowd.ts giveLantern, people.ts handLantern): the glass, the cap, the halo.</summary>
+    public static Node3D Lantern()
+    {
+        Prepare();
         var g = new Node3D { Name = "lantern" };
         g.AddChild(new MeshInstance3D { Mesh = glass, Position = new Vector3(0, -0.08f, 0), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
         g.AddChild(new MeshInstance3D { Mesh = cap, Position = new Vector3(0, 0.035f, 0), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });

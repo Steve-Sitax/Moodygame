@@ -257,6 +257,12 @@ public partial class Townspeople : Node
     public override void _Ready()
     {
         var main = Main.I;
+        // the lanterns' materials in the scene from the first frame (no new shader kind when the first is handed out)
+        Carried.Prepare();
+        var warmLantern = Carried.Lantern();
+        warmLantern.Name = "lantern_warm";
+        warmLantern.Visible = false;
+        AddChild(warmLantern);
         server = main.Arg("server", "").TrimEnd('/');
         hour = double.TryParse(main.Arg("hour", "13"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var h) ? h : 13;
         day = int.TryParse(main.Arg("day", "1"), out var d) ? d : 1;
