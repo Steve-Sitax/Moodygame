@@ -54,6 +54,7 @@ public partial class Press : Node, IDialog
     public override void _Ready()
     {
         if (Dialogs.I is { } d) d.Resized += Redraw;
+        if (Scheldemist.Menu.MainMenu.I is { } menu) menu.WorldReplaced += WorldReplaced;
         if (Pockets.I is { } p) p.OnRead = it => _ = Read(it);
         ServerLink.I?.WhenUp(() =>
         {
@@ -65,6 +66,7 @@ public partial class Press : Node, IDialog
     public override void _ExitTree()
     {
         if (Dialogs.I is { } d) d.Resized -= Redraw;
+        if (Scheldemist.Menu.MainMenu.I is { } menu) menu.WorldReplaced -= WorldReplaced;
         if (ServerLink.I?.Api is { } api) api.OtherPushed -= OnPush;
         if (I == this) I = null;
     }
@@ -74,6 +76,13 @@ public partial class Press : Node, IDialog
         if (page != null) again?.Invoke();
     }
 
+    private void WorldReplaced(string how, Scheldemist.Net.ClientState? client)
+    {
+        Close();
+        Info = null;
+        _ = Load();
+    }
+
     /// <summary>GET /api/press; an answer without the paper (the server still starting) is no answer: asked again.</summary>
     private async Task Load()
     {
@@ -81,7 +90,7 @@ public partial class Press : Node, IDialog
         {
             try
             {
-                var inf = await ServerLink.I!.Api!.Get<PressInfo>("api/press");
+                var inf = await ServerLink.I!.Api!.PressInfo();
                 if (inf.Paper != null && inf.Corners != null)
                 {
                     Info = inf;

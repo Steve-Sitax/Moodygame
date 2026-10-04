@@ -10,7 +10,7 @@ The audit covers every TypeScript module in `game/`, `menu/` and `net/`, and the
 | Water entry, swimming, cold, ladders, mantle, falls | `main.ts`, `game/deeds.ts`, `player/firstPerson.ts` | `Player/Jef.cs`, `Player/Mantle.cs`, `World/QuayExits.cs`: partial | Fall damage reporting and jumping aboard boats need parity checks |
 | E nearest facing thing; F secondary action; numbered clickable keys | `game/jobs.ts`, `reach.ts`, `facing.ts`, `runs.ts`, `cursor.ts` | `Play/Interact.cs`, `Windows/Paper.cs`: present | Every new owner must register its prompts |
 | E talk, B buy, W work, 1–3 answer, T own words; mood and note | `game/talk.ts`, `bubbles.ts` | `Talk/Talk.cs`, `Talk/Bubbles.cs`: present | Review no-AI typing gates; missing action owners below |
-| H haggle then ware number; server prices after purchase | `game/talk.ts`, `net/api.ts` | `Talk/Talk.cs`, `Net/Api.cs`: present | No-AI shop-only opens must hide typing; real AI proof is outside this no-AI batch |
+| H haggle then ware number; server prices after purchase | `game/talk.ts`, `net/api.ts` | `Talk/Talk.cs`, `Net/Api.cs`: present; no-AI gate corrected in this batch | Real AI price/story proof is outside this no-AI batch |
 | Police visit, choices / T story, fine, let off, pursuit | `game/deeds.ts`, `talk.ts` | Ordinary `Talk/Talk.cs` only: partial | Deeds owner, witness reports, visit arrival, verdict handling |
 | Police cell and release at prison | `game/deeds.ts`, `sleep.ts`, `day.ts` | `Game/DaySheets.cs`: night papers only | Arrest/cell integration, together held cell, release position |
 | Food, medicine, drinks at seller; server money and needs | `game/talk.ts`, `pockets.ts` | `Talk/Talk.cs`, `Shop.cs`, `Pockets.cs`: present | Shop interior counters must expose their actions |
@@ -23,10 +23,10 @@ The audit covers every TypeScript module in `game/`, `menu/` and `net/`, and the
 | Carry, deliver, watch, employer handover and payment | `game/runs.ts`, `jobs.ts` | `Play/Runs.cs`, `Jobs.cs`: present | Twist walk-ups coordinated with events helper |
 | Trouble card, numbered choices, E errand, refusal | `game/ideas.ts`, `follower.ts`, `walkup.ts` | `Play/Trouble.cs`: partial | Physical walk-up, stranger/foreman/thief follow-up belongs to events helper |
 | E handcart grips, load/unload, E release, F unload, rent/own/lent | `game/handcart.ts`, `cartPhysics.ts`, `goods.ts` | NPC carts in `Movers/StreetRig.cs` only | Entire player cart owner, server calls, physical pushing, save/gear |
-| Pawn medal/lantern, redeem; numbered Berg counter, ticket reading | `game/press.ts` | `Talk/Press.cs`, `PressPayloads.cs`: window present | F clerk and E interior counter connection absent |
+| Pawn medal/lantern, redeem; numbered Berg counter, ticket reading | `game/press.ts` | `Talk/Press.cs`, `Play/PressWorld.cs`: F clerk works; pawn/redeem verified | E at the pawn interior's actual counter still needs the interior owner |
 | Buy newspaper from newsboy; read, shipping, wanted jobs, discard | `game/press.ts`, `pockets.ts` | `Talk/Press.cs`, `Pockets.cs`: window/trade present | Newsboys’ nearby cries |
-| F post counter, collect waiting mail, take round | `game/press.ts` | `Talk/Press.cs`: window present | Physical counter prompt absent |
-| E fetch letters, E put under each door, E send telegram | `game/press.ts` LettersRun | No run (`Play/Runs.cs` explicitly excludes letters) | Server-backed postal run, task card, goal/map, restore |
+| F post counter, collect waiting mail, take round | `game/press.ts` | `Talk/Press.cs`, `Play/PressWorld.cs`: F clerk / E counter connected | Waiting-mail window existed before; no new collection behaviour |
+| E fetch letters, E put under each door, E send telegram | `game/press.ts` LettersRun | `Play/Letters.cs`, `Play/Jobs.cs`, `Net/Api.Play.cs`: implemented and verified | Both 3- and 5-door rounds, telegram fee/pay, task card, book/map and restoration work; continuous walking route not checked here |
 | Read own letters, T take errand | `game/press.ts` | `Talk/Press.cs`: present | Errand run above |
 | Write / reply to letter at post; choose person, type, send | `game/ideas.ts` | No owner | Paper composer, AI gate, typed API, hostile-line check |
 | Read wall posters / wanted bills | `game/ideas.ts` | `Talk/Press.cs` has `OpenBill` only | World poster prompts and changing text |
@@ -73,3 +73,69 @@ Supporting source modules (`animals`, `crowd`, `humans`, `people`, `figures`, `p
 1. Inventory committed before source changes.
 2. Existing haggling and paper windows are retained. First implementation batch targets the absent money/work hooks: Berg/post world prompts and the postal delivery/telegram run, then the no-AI typing gate.
 3. Remaining rows stay explicitly incomplete until server-backed checks and viewed pictures prove them. No AI gift/hire acceptance is claimed from a no-AI run.
+
+## Implementation handoff
+
+The postal run mirrors browser `press.ts`: pickup within 3.2 m, delivery within 2.4 m, wire within 3.2 m; each request includes the job, stop and Jef's actual position. Task state is read back from the server. The engine counts done stops, charges the wire fee and settles pay/trust through the existing jobs code. Taking from the board, a letter or the post counter goes through `Jobs.TakeJob`. The quest book can follow/set aside postal work, and restoration keeps server pickup/door state. A disposed run ignores an answer still on its way. The HUD strings are cached after a task reply; the per-frame postal update, goal and card reads allocate no managed memory.
+
+The existing paper windows are reused. `PressWorld` registers F at the two clerks and E at the server's post-counter point; it refreshes positions four times a second. `Press` refetches its town/counter metadata after world replacement. T/H stay off with `--no-ai`, in the AI sheet's walk mode, or after a server `free: false` reply. H no longer opens a picker that can lead into typing without AI. Prices and ordinary numbered choices remain the server's.
+
+| Check | Result / numbers | Evidence relative to this worktree |
+|---|---|---|
+| Initial real-window player run | 40/40 checks, 5 letters paid 105 c; telegram fee 50 c / pay 90 c; medal loan 70 c / redemption 74 c | `godot/baked/play-proof/playtest.json`, 17 viewed PNGs |
+| Corrected task-card run | 40/40, no literal bold tags; 5 letters and wire completed | `godot/baked/play-final/playtest.json`, 17 PNGs reviewed in `contact-sheet.jpg` |
+| Final seed-1873 run | 37/37, 3 letters paid 70 c; wire fee 50 c / pay 90 c, both jobs +1 trust; loan 70 c / redeem 74 c | `godot/baked/play-handoff/playtest.json`, 15 PNGs reviewed in `contact-sheet.jpg` |
+| Server safeguards | Wrong door refused (409); hostile haggle and talk refused with money unchanged; UI typing disabled | Same JSON; `choices-only.png` |
+| Postal allocation probe | 10,000 update + goal + HUD reads: 0 managed bytes | `replies.postal_frame_probe` in final JSON |
+| Build/import | `dotnet build godot`, headless import, `npm run build` pass; existing `Render/Grime.cs` nullable warning retained | `play-proof/import.log`; build console |
+| Whole-game frame gate | Failed in first run at 3/5 places; component-disabled run failed at 4/5. Other helpers' Godot windows were running, so no uncontended budget or regression claim | `godot/baked/play-perf/perfcheck.json`, `play-perf-baseline/perfcheck.json`; [issue #47](https://github.com/Steve-Sitax/Moodygame/issues/47) |
+
+Final pictures include `berg-counter.png`, `pawned.png`, `redeemed.png`, `post-counter.png`, `letters-pickup.png`, `letter-door-1.png` through `letter-door-3.png`, `letters-book.png`, `letters-map.png`, `letters-paid.png`, `telegram-pickup.png`, `telegram-send.png`, `telegram-paid.png`, and `choices-only.png`. They are close, 13:45/clear views. Existing dark street lighting remains [issue #42](https://github.com/Steve-Sitax/Moodygame/issues/42). No shader, lamp or lighting fix is part of this branch.
+
+Repeat from this worktree: `dotnet build godot`, then `node tools/godot/play-check.mjs`. It imports once, checks PERF-LOCK before every engine launch, opens a real window, uses seed 1873, port 8930 and map port 8931, writes pictures and server replies, times out after four minutes and removes its database. `--no-import --out another-proof --port 8932` repeats on the last import. `--mode perfcheck` and `--mode talktest` run those existing checks with the same bounded process/database wrapper. The final exit has no engine/server ERROR, exception or resource-leak lines. No own Node/Godot processes or test databases remain.
+
+Limits: the script places Jef at the real server goal and summons clerks through the existing dev kit. It proves prompt routing and engine calls, not a continuous on-foot route through every house. A deterministic telegram job is inserted into **only** `<this worktree>/godot/baked/<output>/test.sqlite` by `tools/godot/play-fixture.mjs`; its pickup, fee and settlement use real server routes. No test edits a live save, bakes town geometry or accepts gifts/hired work without AI. `--playtest` currently covers this branch's counter/postal/gating batch, not the entire inventory.
+
+Shared-file audit: **`Net/Api.cs` only** from the named shared-file list, changed by one word (`partial`) so its typed postal methods live in `Api.Play.cs`. No edits to `Main.cs`, `BakedWorld.cs`, `Solid.cs`, `Jef.cs`, `Wiring.cs`, `Psx.cs` or shaders. Integration files also touched: `Play/Jobs.cs` for postal following, cards/book/map and settlement; `Talk/Talk.cs` and `TalkTest.cs` for no-AI typing; `Talk/Press.cs` for typed metadata and load/reset. No server gameplay source, shared bake, packages or model assets changed. Dependency installs were normal directories, and their lockfile noise was restored.
+
+Next helper: police/deeds and their visit/cell integration, gift/treat/hire player controls alongside the events helper's routine executor, player handcart, thieves/gang, then local boat/omnibus/velocipede rides. Wall posters, lost objects/notebooks and letter writing still need their world/composer owners. Homes, landmark player actions, ballads, emigrant work and special job kinds remain as listed above. This is deliberately a partial port.
+
+## Browser key source index
+
+Literal key codes found across all requested modules, to complement the action/window table. Number ranges, mouse actions and remappable movement are documented by their owning rows above; this index also includes dev-only key mentions. Read the listed browser handler when adding a missing owner.
+
+| Browser file | Literal codes |
+|---|---|
+| `main.ts` | `ArrowDown`, `ArrowLeft`, `ArrowRight`, `ArrowUp`, `Enter`, `Escape`, `F8`, `F9`, `KeyA`, `KeyD`, `KeyE`, `KeyP`, `KeyS`, `KeyW`, `Space`, `Tab` |
+| `game/ballads.ts` | `Escape`, `KeyE`, `KeyG`, `KeyI` |
+| `game/craneclimb.ts` | `ArrowUp`, `KeyE`, `KeyW` |
+| `game/cursor.ts` | `Enter`, `Escape`, `Tab` |
+| `game/day.ts` | `Enter`, `Escape`, `KeyE`, `KeyN` |
+| `game/deeds.ts` | `Enter`, `Escape`, `KeyE`, `KeyG`, `KeyL` |
+| `game/devmenu.ts` | `Escape`, `F8`, `F9` |
+| `game/families.ts` | `Enter`, `Escape`, `KeyP`, `KeyT` |
+| `game/follower.ts` | `KeyE` |
+| `game/handcart.ts` | `KeyE`, `KeyF`, `KeyG` |
+| `game/hands.ts` | `KeyF`, `KeyG` |
+| `game/homes.ts` | `KeyE`, `KeyF`, `KeyG`, `KeyR` |
+| `game/ideas.ts` | `Enter`, `Escape`, `KeyE`, `KeyG` |
+| `game/interiors.ts` | `Escape`, `KeyE`, `KeyF`, `KeyG` |
+| `game/jobs.ts` | `Escape`, `KeyE`, `KeyF`, `KeyG`, `KeyJ`, `KeyM` |
+| `game/lampjob.ts` | `KeyE` |
+| `game/landmarks.ts` | `Enter`, `Escape`, `KeyE`, `KeyF` |
+| `game/map.ts` | `ArrowDown`, `ArrowLeft`, `ArrowRight`, `ArrowUp`, `Escape`, `KeyA`, `KeyC`, `KeyD`, `KeyM`, `KeyS`, `KeyW` |
+| `game/mills.ts` | `KeyE` |
+| `game/nightlife.ts` | `KeyF`, `KeyH`, `KeyP`, `KeyR` |
+| `game/parkWork.ts` | `KeyE`, `KeyF`, `KeyG` |
+| `game/pockets.ts` | `Escape`, `KeyI` |
+| `game/press.ts` | `Escape`, `KeyD`, `KeyE`, `KeyF`, `KeyT` |
+| `game/ride.ts` | `Digit1`, `Digit2`, `Escape`, `KeyE`, `KeyF`, `Space` |
+| `game/rowing.ts` | `KeyE`, `Space` |
+| `game/runs.ts` | `KeyE`, `KeyF`, `KeyG` |
+| `game/saves.ts` | `Enter` |
+| `game/sleep.ts` | `Escape`, `KeyE`, `KeyP` |
+| `game/talk.ts` | `Enter`, `Escape`, `KeyB`, `KeyE`, `KeyH`, `KeyT`, `KeyW` |
+| `game/townlife.ts` | `KeyE` |
+| `menu/keys.ts` | `Backspace`, `Enter`, `Escape`, `KeyA`, `KeyB`, `KeyC`, `KeyD`, `KeyE`, `KeyF`, `KeyG`, `KeyH`, `KeyI`, `KeyJ`, `KeyL`, `KeyM`, `KeyN`, `KeyP`, `KeyR`, `KeyS`, `KeyT`, `KeyW`, `Space`, `Tab` |
+| `menu/menu.ts` | `ArrowDown`, `ArrowLeft`, `ArrowRight`, `ArrowUp`, `Enter`, `Escape`, `F8`, `F9`, `Space`, `Tab` |
+| `net/mp/together.ts` | `F5` |

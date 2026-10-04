@@ -1,5 +1,16 @@
 # Work log
 
+## Godot player inventory and postal work, 2026-10-04
+
+`godot/play2` inventories the browser's player actions and the Godot gaps, then adds clerk counter prompts and
+server-backed letter/telegram runs through the existing job book, map and paper windows. The final fixed-seed
+real-window check passes 37 steps with 15 reviewed pictures; postal update/goal/HUD reads allocate zero bytes
+over 10,000 iterations. Typed talk/haggling stay off without AI. Builds and import pass. Full inventory,
+numbers, paths, remaining work and shared-file audit: [player handoff](godot-play-inventory.md).
+The whole-game performance gate exceeded 5 ms with other Godot windows running; a component-disabled
+run also failed. No isolated frame-budget pass is claimed. Logged as
+[issue #47](https://github.com/Steve-Sitax/Moodygame/issues/47). No live save or other worktree was changed.
+
 ## Godot milestone checks, 2026-10-04
 
 G8 on `godot/checks`: the HUD arrow clears the cards; the server-backed development kit, baked-map paths,

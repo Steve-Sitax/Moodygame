@@ -7,6 +7,9 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- In Godot, the post clerk gives out rounds of letters and telegram errands. Their door prompts, quest book, map and payments now work, including resuming a round.
+- F at the post and Berg clerks opens their counters in Godot. Talking and haggling in walk-around mode now keep typing off when there is no AI.
+
 - A Windows Godot download now starts from its executable, with the town, models, sounds and game server included.
 
 - Godot downloads can carry the compiled server and portable Node, with matching SQLite packages and no compiler needed to play.
