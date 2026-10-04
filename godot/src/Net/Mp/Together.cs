@@ -695,7 +695,8 @@ public partial class Together : Node
             }
             var pose = sampled.Value;
             RidePlatforms.Place(ref pose);
-            HideCorrection(id, ref pose, dt);
+            // A rider stands on the platform as this game draws it: no walking-jump smoothing off its floor.
+            if ((pose.Base >> 8) == 0) HideCorrection(id, ref pose, dt); else shown.Remove(id);
             f.Place(pose, dt);
             looks[id] = pose.Yaw;
             PlaceGear(id, pose, dt, f.Shown);

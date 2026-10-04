@@ -7,6 +7,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- In the Godot version's play together, a player riding the omnibus is drawn on the bus floor as the other player sees it, instead of lagging behind it when the bus jumps.
 - In the Godot version, townspeople with a long way to go take the omnibus: they walk to the stop, wait, take a real seat, get off at the right stop and walk on. Jef can ride along with them.
 - In the Godot version, Jef can save while on a dockside crane's ladder and load back onto the same rung; the crane no longer waits for him when he is riding it.
 - In the Godot version, the prison has its people again: warders at their posts, prisoners pacing their cells, the exercise ring in the yard in exercise hours, and townspeople sent into the prison walk its real corridors.
