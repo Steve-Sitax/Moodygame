@@ -5,7 +5,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Godot;
 using Scheldemist.Net;
-using Scheldemist.Ui.Dialogs;
+using Scheldemist.Windows;
 
 namespace Scheldemist.Game;
 
