@@ -7,6 +7,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Godot's lamp updates and idle job display avoid temporary allocations while walking; performance checks now report complete frames and their worst peaks.
 - A Windows Godot download now starts from its executable, with the town, models, sounds and game server included.
 
 - Godot downloads can carry the compiled server and portable Node, with matching SQLite packages and no compiler needed to play.

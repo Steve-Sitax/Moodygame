@@ -22,14 +22,17 @@ public partial class Lights
     private const float FarReach = 3, FarMax = 260, PoolAlbedo = 0.07f;
     private readonly List<Src> poolList = new();
     private readonly List<(Src s, float size, float gain)> farList = new();
+    private readonly List<(Src s, float d, float size, float gain, int order)> farCandidates = new();
     private readonly Dictionary<Src, float> groundOf = new();
     private MultiMesh? poolMM, farMM;
     private Image? poolImage;
     private ImageTexture? poolTex;
     private readonly float[] poolData = new float[MaxPools * 4 * 4];
     private float[] farBuf = Array.Empty<float>();
+    private readonly byte[] poolBytes = new byte[MaxPools * 4 * 4 * 4];
     private WalkMap? walk;
     private bool walkTried;
+    private readonly bool farOff = Main.I.Flag("no-far-lights");
 
     /// <summary>Counts for a check: the ground pools and the far glows drawn now.</summary>
     public (int pools, int far) FarInfo => (poolMM?.VisibleInstanceCount ?? 0, farMM?.VisibleInstanceCount ?? 0);
@@ -171,20 +174,25 @@ void fragment() {
         }
         farList.Clear();
         float view = Math.Min(FarMax, day.FogFar * FarReach);
-        var cand = new List<(Src s, float d, float size, float gain)>();
+        farCandidates.Clear();
         foreach (var s in sources)
         {
             if (FarKind(s) is not { } k) continue;
             float d = s.At.DistanceTo(eye);
             if (d > view || d < day.FogFar * 0.4f) continue;
             if (Now(s) < 0.02f * s.Power) continue;
-            cand.Add((s, d, k.size, k.gain));
+            farCandidates.Add((s, d, k.size, k.gain, farCandidates.Count));
         }
-        foreach (var c in cand.OrderBy(c => c.d).Take(MaxFar)) farList.Add((c.s, c.size, c.gain));
+        farCandidates.Sort((a, b) => { int d = a.d.CompareTo(b.d); return d != 0 ? d : a.order.CompareTo(b.order); });
+        for (int i = 0; i < Math.Min(farCandidates.Count, MaxFar); i++) { var c = farCandidates[i]; farList.Add((c.s, c.size, c.gain)); }
+        if (compareSelections && !farCandidates.OrderBy(c => c.order).OrderBy(c => c.d).Take(MaxFar).Select(c => (c.s, c.size, c.gain)).SequenceEqual(farList))
+            throw new InvalidOperationException("far glow selection differs from original");
     }
 
     private void UpdateFar(Vector3 eye, Daylight day)
     {
+        using var frameCost = Dev.FrameCost.Track("Lights.Far");
+        if (farOff) { if (poolMM != null) poolMM.VisibleInstanceCount = 0; if (farMM != null) farMM.VisibleInstanceCount = 0; return; }
         if (poolMM == null || farMM == null || poolImage == null || poolTex == null) return;
         // the pools: each a quad on the ground, out from its wall, as big as its light reaches
         int n = 0;
@@ -206,7 +214,7 @@ void fragment() {
         poolMM.VisibleInstanceCount = n;
         if (n > 0)
         {
-            var bytes = new byte[poolData.Length * 4];
+            var bytes = UniformUpdates.Cached ? poolBytes : new byte[poolData.Length * 4];
             Buffer.BlockCopy(poolData, 0, bytes, 0, bytes.Length);
             poolImage.SetData(MaxPools, 4, false, Image.Format.Rgbaf, bytes);
             poolTex.Update(poolImage);

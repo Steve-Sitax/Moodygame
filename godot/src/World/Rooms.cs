@@ -275,6 +275,7 @@ public partial class Rooms : Node
 
     public override void _Process(double delta)
     {
+        using var frameCost = Scheldemist.Dev.FrameCost.Track("Rooms");
         var day = Daylight.I;
         var cam = Main.I.View.GetCamera3D();
         if (day == null || cam == null || rooms.Count == 0) return;
@@ -319,12 +320,12 @@ public partial class Rooms : Node
                 {
                     r.TransomK = tk;
                     var tc = new Color(0.11f * skyL + 0.5f * lit, 0.13f * skyL + 0.34f * lit, 0.16f * skyL + 0.12f * lit).LinearToSrgb();
-                    foreach (var m in r.Transoms) m.SetShaderParameter("albedo", tc);
+                    foreach (var m in r.Transoms) Scheldemist.Render.UniformUpdates.Material(m, "albedo", tc);
                     foreach (var (g, m) in r.Glows)
                     {
                         g.Visible = lit > 0.01f;
                         var a = m.GetShaderParameter("albedo").AsColor();
-                        m.SetShaderParameter("albedo", new Color(a.R, a.G, a.B, lit * 0.8f));
+                        Scheldemist.Render.UniformUpdates.Material(m, "albedo", new Color(a.R, a.G, a.B, lit * 0.8f));
                     }
                 }
             }
@@ -358,7 +359,7 @@ public partial class Rooms : Node
         // the glass: a little of the sky on it from outside by day (the street's air, by the square of the daylight)
         var fog = day.FogColor * 2.2f;
         var glass = new Color(fog.R, fog.G, fog.B, 0.06f + 0.22f * dayK * dayK);
-        foreach (var m in panes) m.SetShaderParameter("albedo", glass);
+        foreach (var m in panes) Scheldemist.Render.UniformUpdates.Material(m, "albedo", glass);
     }
 
     private static float Dist(Aabb box, Vector3 p)

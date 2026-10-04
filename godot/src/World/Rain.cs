@@ -152,6 +152,7 @@ void fragment() {
 
     public override void _Process(double delta)
     {
+        using var frameCost = Scheldemist.Dev.FrameCost.Track("Rain");
         var day = Daylight.I;
         if (day == null) return;
         mesh.Visible = day.Rain > 0.01f;

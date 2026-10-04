@@ -402,6 +402,7 @@ public partial class Hud : Node
 
     public override void _Process(double delta)
     {
+        using var frameCost = Dev.FrameCost.Track("HUD");
         // the clock in the corner runs on a minute every two real seconds
         sinceClock += delta;
         if (sinceClock >= 0.25)

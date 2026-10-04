@@ -180,10 +180,11 @@ public partial class Jobs : Node
 
     public override void _Process(double delta)
     {
+        using var frameCost = Dev.FrameCost.Track("Jobs");
         float dt = (float)Math.Min(delta, 0.1);
         if (GameState.I.Playing || Jef.I.TestInput) run?.Update(dt);
         UpdateSinking(dt);
-        RenderTask();
+        if (!TaskEmpty()) RenderTask();
         UpdatePointer(dt);
         if (noteLeft > 0 && (noteLeft -= delta) <= 0) DropNote();
     }
@@ -838,6 +839,13 @@ public partial class Jobs : Node
     }
 
     /// <summary>.task: under the clock in the top left corner, at most 380px wide, padding 8 14, turned 0.8 degrees.</summary>
+    private bool TaskEmpty()
+    {
+        if (!Render.UniformUpdates.Cached || run != null || lastTask != "") return false;
+        var jobs = GameState.I.Jobs;
+        for (int i = 0; i < jobs.Count; i++) if (jobs[i].Status == "taken") return false;
+        return true;
+    }
     private void RenderTask()
     {
         var lines = run?.Hud() ?? new List<string>();

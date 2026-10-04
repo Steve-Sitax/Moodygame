@@ -5,6 +5,7 @@ shader_type canvas_item;
 uniform vec2 res = vec2(1280.0, 720.0);
 uniform vec2 fx_res = vec2(480.0, 270.0);
 uniform float levels = 32.0;
+uniform float picture_time = -1.0;
 
 float bayer4(vec2 p) {
 	ivec2 i = ivec2(mod(p, 4.0));
@@ -28,7 +29,7 @@ void fragment() {
 	c = pow(c, vec3(1.08));
 	vec2 d = UV - 0.5;
 	c *= 1.0 - dot(d, d) * 0.95;
-	float g = hash(fx + floor(TIME * 12.0)) - 0.5;
+	float g = hash(fx + floor((picture_time >= 0.0 ? picture_time : TIME) * 12.0)) - 0.5;
 	c += g * 0.018;
 	float lv = levels - 1.0;
 	c = floor(c * lv + 0.5 + bayer4(fx)) / lv;

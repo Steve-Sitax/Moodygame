@@ -723,6 +723,7 @@ public partial class MainMenu : Node
 
     public override void _Process(double delta)
     {
+        using var frameCost = Dev.FrameCost.Track("Menus");
         if (I != this) return;
         // the link's inbox is emptied here too: its own _Process may stand still for a frame at a pause's edge
         ServerLink.I?.Api?.Pump();

@@ -49,6 +49,8 @@ public partial class Main : Node
     private SubViewport view = null!;
     private TextureRect screen = null!;
     private ShaderMaterial retro = null!;
+    /// <summary>Dev picture comparisons hold the screen grain at a fixed instant; -1 restores real time.</summary>
+    public void PictureTime(float seconds) => retro.SetShaderParameter("picture_time", seconds);
     private FlyCam cam = null!;
     private BakedWorld world = null!;
 

@@ -158,14 +158,15 @@ void fragment() {
 
     public override void _Process(double delta)
     {
+        using var frameCost = Scheldemist.Dev.FrameCost.Track("ChimneySmoke");
         var day = Daylight.I;
         if (mat == null || day == null) return;
         float level = Curve(day.Hour) + Cold.GetValueOrDefault(day.Weather, 0);
-        mat.SetShaderParameter("smoke", level);
-        mat.SetShaderParameter("wind", day.Wind);
+        Scheldemist.Render.UniformUpdates.Material(mat, "smoke", level);
+        Scheldemist.Render.UniformUpdates.Material(mat, "wind", day.Wind);
         var fog = day.FogColor;
         float night = day.Night, dayK = 1 - night;
-        mat.SetShaderParameter("col", new Vector3(fog.R * (0.4f + 0.75f * night) + 0.018f * dayK, fog.G * (0.4f + 0.75f * night) + 0.015f * dayK, fog.B * (0.4f + 0.75f * night) + 0.012f * dayK));
+        Scheldemist.Render.UniformUpdates.Material(mat, "col", new Vector3(fog.R * (0.4f + 0.75f * night) + 0.018f * dayK, fog.G * (0.4f + 0.75f * night) + 0.015f * dayK, fog.B * (0.4f + 0.75f * night) + 0.012f * dayK));
         Info = (Info.chimneys, level);
     }
 }

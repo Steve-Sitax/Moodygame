@@ -77,6 +77,7 @@ void fragment() {
 
     public override void _Process(double delta)
     {
+        using var frameCost = Scheldemist.Dev.FrameCost.Track("Blobs");
         var cam = Main.I.View.GetCamera3D();
         if (cam == null || Daylight.I == null) return;
         var eye = cam.GlobalPosition;
@@ -100,6 +101,6 @@ void fragment() {
         mm.VisibleInstanceCount = n;
         float h = Daylight.I.Hour;
         float day = h > 8 && h < 17 ? 1 : h > 6.5f && h < 18.5f ? 0.5f : 0;
-        mat.SetShaderParameter("opacity", 0.28f + 0.2f * day);
+        Scheldemist.Render.UniformUpdates.Material(mat, "opacity", 0.28f + 0.2f * day);
     }
 }

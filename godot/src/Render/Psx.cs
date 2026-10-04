@@ -47,6 +47,7 @@ public static class Psx
     public const int MaxLamps = 6;
     /// <summary>The spill sources worked out per pixel (psx.ts MAX_SPILL).</summary>
     public const int MaxSpill = 48;
+    private static readonly string[] LampNames = new[] { "psx_lamp0", "psx_lamp1", "psx_lamp2", "psx_lamp3", "psx_lamp4", "psx_lamp5" };
     private static readonly Vector4 NoLamp = new(0, -999, 0, 0);
 
     /// <summary>
@@ -105,6 +106,7 @@ public static class Psx
     private static ImageTexture? skyShade, dirt, spill, shore, foul;
     private static Image? spillImage;
     private static readonly float[] SpillData = new float[MaxSpill * 4 * 4];
+    private static readonly byte[] SpillBytes = new byte[MaxSpill * 4 * 4 * 4];
 
     public static void EnsureGlobals()
     {
@@ -201,14 +203,14 @@ public static class Psx
             var c = value.AsColor();
             value = new Vector4(c.R, c.G, c.B, c.A);
         }
-        RenderingServer.GlobalShaderParameterSet(name, value);
+        UniformUpdates.Global(name, value);
     }
 
     /// <summary>The six lamps whose glow hangs in the air (psx.ts uLamps): flame and brightness; the rest dark.</summary>
     public static void SetLamps(IReadOnlyList<Vector4> lamps)
     {
         EnsureGlobals();
-        for (int i = 0; i < MaxLamps; i++) RenderingServer.GlobalShaderParameterSet("psx_lamp" + i, i < lamps.Count ? lamps[i] : NoLamp);
+        for (int i = 0; i < MaxLamps; i++) UniformUpdates.Global(LampNames[i], i < lamps.Count ? lamps[i] : NoLamp);
     }
 
     /// <summary>
@@ -228,11 +230,11 @@ public static class Psx
             Put(i, 2, c);
             Put(i, 3, d);
         }
-        var bytes = new byte[SpillData.Length * 4];
+        var bytes = UniformUpdates.Cached ? SpillBytes : new byte[SpillData.Length * 4];
         Buffer.BlockCopy(SpillData, 0, bytes, 0, bytes.Length);
         spillImage!.SetData(MaxSpill, 4, false, Image.Format.Rgbaf, bytes);
         spill!.Update(spillImage);
-        RenderingServer.GlobalShaderParameterSet("psx_spill_n", count);
+        UniformUpdates.Global("psx_spill_n", count);
     }
 
     private static void Put(int i, int row, Vector4 v)
