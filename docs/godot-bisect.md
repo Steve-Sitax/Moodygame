@@ -108,6 +108,7 @@ control. No production speed fix was accepted.
 | wrap-gameplay / ridetest | PASS | 196 checks;  |
 | wrap-gameplay / playtest | PASS | 37 steps;  |
 | wrap-gameplay / deedstest | FAIL | 23/24 checks; lost property lies in street |
+| wrap-deeds-retry / deedstest | PASS | 67 checks;  |
 | wrap-events-a / eventtest | PASS | 36 stages, 0 failures |
 | wrap-events-b / eventtest | PASS | 34 stages, 0 failures |
 | wrap-required / devtest | PASS | 4/4 steps |
@@ -118,17 +119,31 @@ control. No production speed fix was accepted.
 | wrap-required / pixelcheck | PASS | 14 comparisons, 0 changed pixels; positive control 3897847 |
 
 Job has 16/17 passing steps; its only failure is the 5 ms frame budget (7.62 ms
-mean, 10.42 ms p95). Deeds stops after 23 passing checks at `lost property lies
-in street`; one unchanged retry is pending. Both eight-kind event batches pass, with 36 and 34
+mean, 10.42 ms p95). The first deeds run stopped after 23 passing checks at `lost property lies
+in street`. The unchanged retry passes all 67 checks. Both reports are retained;
+the intermittent first failure has not been diagnosed or hidden. Both eight-kind event batches pass, with 36 and 34
 stages and zero failures respectively.
 The full sustained performance gate also fails: walking means are 6.571 /
 7.045 / 7.334 / 5.671 / 5.044 ms. Rijnkaai walking reaches 19.005 ms and
 Vismarkt turning 16.954 ms. No timing limit was relaxed.
 
 Raw verification reports are under `godot/baked/bisect/wrap-*/run-1/`.
-Each completed batch removed its lock and disposable database. Final cleanup
-is pending the remaining tests. No push or merge was performed. Every commit
-runs the repository pre-commit hook and stages explicit paths only.
+Every completed batch removed its lock and disposable database. The final
+read-only audit finds zero owned Godot/Node/dotnet processes, zero listeners on
+8960–8969, zero owned SQLite files, and no shared PERF-LOCK. No temporary
+worktrees were created; none with the owned bisect-tmp prefix remain. Historical
+checkouts were all performed in this worktree and the branch is `godot/bisect`.
+
+Automatic approval review rejected the combined generated-UID/test-database
+cleanup command as "blocked by policy" before execution. The audit confirms
+that no test database remains. The 52 generated untracked `.cs.uid` files are
+retained; no source candidate remains in the tracked checkout. Ignored JSON,
+screenshots, logs and diagnostic scratch files remain as evidence.
+
+No push or merge was performed. Every commit passed the repository pre-commit
+hook and staged explicit paths only. The retained diff from `7c0a12b` is this
+report, its docs index link, and the perfcheck-only scene inventory. Production
+optimization resumes only in a later pass; the timing failures above are deferred.
 
 ## Rejected and inconclusive experiments
 
