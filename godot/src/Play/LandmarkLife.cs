@@ -144,7 +144,7 @@ public partial class LandmarkLife : Node
     {
         if(HallPeople.I == null)return null;
         foreach(var h in HallPeople.I.Halls)if(h.Id=="cathedral")
-        { foreach(var f in h.Figures.Values)if(f.Role=="preacher")return f; foreach(var f in h.Figures.Values)if(f.Role=="celebrant")return f; }
+        { foreach(var f in h.Figures.Values)if(f.Role=="preacher"&&!f.Leaving)return f; foreach(var f in h.Figures.Values)if(f.Role=="celebrant"&&!f.Leaving)return f; }
         return null;
     }
     public async Task HearSermon()
@@ -173,7 +173,10 @@ public partial class LandmarkLife : Node
             return;
         }
         if(sermon==null)return;
-        if(here?.Id!="cathedral" || preacher==null || !IsInstanceValid(preacher.Group)) {EndSermon();return;}
+        if(here?.Id!="cathedral") {EndSermon();return;}
+        // A refreshed service roster may replace the priest while he climbs.
+        // Retry with its live figure instead of treating an interrupted sermon as heard.
+        if(preacher==null || !IsInstanceValid(preacher.Group) || preacher.Leaving) {EndSermon();sermonDay=-1;return;}
         var h=here; var pulpit=h.Mark("pulpit"); pulpit.Y=h.Origin.Y; var foot=h.Mark("pulpitFoot");
         float yaw=h.Yaw+h.Plan.GetProperty("marks").GetProperty("pulpit").GetProperty("yaw").GetSingle();
         if(sermonStage==1)

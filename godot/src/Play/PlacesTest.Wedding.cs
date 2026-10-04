@@ -20,7 +20,7 @@ public partial class PlacesTest
     }
     private async Task AdvanceIndoor(Api api,int minutes)
     {
-        GameState.I.Apply(await api.Post<JobsPayload>("api/dev/advance",new {minutes}));GameState.I.Apply(await api.Tick());Events.I!.Apply(await api.Actions());
+        GameState.I.Apply(await api.Post<JobsPayload>("api/dev/advance",new {minutes}));GameState.I.Apply(await api.Tick());Actors.I!.Apply(await api.Actions());
     }
     private async Task WeddingAndHall(Api api)
     {
