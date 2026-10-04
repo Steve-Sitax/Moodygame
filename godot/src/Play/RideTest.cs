@@ -41,6 +41,7 @@ public partial class RideTest : Node
             Dialogs.I!.KeepMouse = true;
             await api.Post<OkReply>("api/arrival/ashore");
             Jef.I.Place(-118, 36, 0);
+            if(Main.I.Arg("ride-only")=="cart") {await HandcartCheck(api);return;}
             foreach (float height in new[] { 2.99f, 3, 5, 8, 12 })
             {
                 GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { hour = 13, minute = 45, weather = "clear", health = 10 }));
@@ -66,13 +67,119 @@ public partial class RideTest : Node
             Falls.I.Answered -= Fell;
             await OmnibusCheck(api);
             await CraneCheck();
+            await HandcartCheck(api);
         }
         catch (Exception e) { error = e.ToString(); GD.PrintErr("ridetest: " + error); }
         finally
         {
-            File.WriteAllText(Path.Combine(dir, "ridetest.json"), JsonSerializer.Serialize(new { ok = error == "", error, checks, replies, pictures, incomplete = new[] { "handcart", "rowing", "ship frames", "velocipede", "ferry" } }, new JsonSerializerOptions(Api.Json) { WriteIndented = true }));
+            File.WriteAllText(Path.Combine(dir, "ridetest.json"), JsonSerializer.Serialize(new { ok = error == "", error, selection=Main.I.Arg("ride-only"), checks, replies, pictures, incomplete = new[] { "rowing", "ship frames", "velocipede", "ferry" } }, new JsonSerializerOptions(Api.Json) { WriteIndented = true }));
             GetTree().Quit(error == "" ? 0 : 1);
         }
+    }
+    private async Task CartFixture(Api api,HandcartInfo c,float x,float z,float yaw)
+    {
+        await api.CartHold(c.Id,c.X,c.Z);
+        var p=new Vector2(c.X,c.Z);var goal=new Vector2(x,z);
+        while(p.DistanceTo(goal)>50){p=p.MoveToward(goal,50);await api.CartAt(c.Id,p.X,p.Y,yaw);}
+        var r=await api.CartRelease(c.Id,x,z,yaw);Handcarts.I.Apply(r.Carts);
+        replies.Add(new {cartFixture=r.Carts});
+    }
+    private async Task HandcartCheck(Api api)
+    {
+        var world=new CartTestWorld();var pose=new CartPhysics.Pose(0,0,0);
+        Require(CartPhysics.Misfit(pose,world)==0,"empty whole cart fits flat open ground");
+        world.Wall=.6f;Require(CartPhysics.Misfit(pose,world)>0,"cart bed side catches a wall");
+        world.Wall=float.PositiveInfinity;world.StepHeight=.1f;Require(CartPhysics.Misfit(pose,world)>0,"cart refuses ground ten centimetres above its feet");
+        world.StepHeight=0;world.WaterZ=4;
+        var stopped=CartPhysics.Step(pose,new(0,.5f),0,.1f,world);
+        Require(stopped.X==pose.X&&stopped.Z==pose.Z,"whole cart stops before a wheel hangs over water");
+        world.WaterZ=float.PositiveInfinity;world.Wall=.1f;
+        Require(CartPhysics.Step(pose,new(-.5f,0),0,.1f,world).X<0,"wedged cart may move towards clearer ground");
+        GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set",new {hour=13,minute=45,money_c=2000,health=10}));
+        await Handcarts.I.Load();
+        Require(await Until(()=>Handcarts.I.View.Shop!=null&&Goods.I.Loaded,15),"wheelwright and goods ready");
+        Require(!((CartPhysics.IWorld)Handcarts.I).Water(7,-6),"wooden pier is dry ground for handcart wheels");
+        using(var city=JsonDocument.Parse(File.ReadAllText(Scheldemist.World.Water.CityJson())))
+        {var rail=city.RootElement.GetProperty("decor").GetProperty("crane_rails")[0];Require(Handcarts.I.OnRails((rail[0].GetSingle()+rail[2].GetSingle())/2,(rail[1].GetSingle()+rail[3].GetSingle())/2),"crane runway is kept clear of parked carts");}
+        var shop=Handcarts.I.View.Shop!;Handcarts.I.Answered+=(action,reply)=>replies.Add(new {cart=action,reply});
+        Goods.I.Answered+=(ask,reply)=>replies.Add(new {cartGoodsAsk=ask,reply});
+        var bought=await api.Buy(shop.Id,"handcart_used");GameState.I.Apply(bought);replies.Add(new {cartBuy=bought});
+        Require(bought.PriceC==200&&GameState.I.Money==1800,"server sells owned used handcart");
+        await Handcarts.I.Load();
+        Require(await Until(()=>Handcarts.I.Drawings.Count==1,10),"owned cart drawn from model library");
+        var d=Handcarts.I.Drawings.Values.Single();
+        await CartFixture(api,d.Info,-118,36,0);
+        Jef.I.Place(-118,33.3f,MathF.PI,.15f);await Frames(12);
+        await Shot("handcart-grips");
+        Require(Interact.I.Press(Key.E),"E grips owned handcart");
+        Require(await Until(()=>Handcarts.I.Held!=null&&!Handcarts.I.Busy,10),"held cart confirmed by server");
+        var from=new Vector2(Jef.I.X,Jef.I.Z);Jef.I.SetKey(Key.W,true);await Frames(90);Jef.I.ClearKeys();await Frames(15);
+        Require(new Vector2(Jef.I.X,Jef.I.Z).DistanceTo(from)>.3f,"W pushes whole cart on flat street");
+        await Shot("handcart-pushing");
+        for(int i=0;i<100;i++)Jef.I.CartStep!(new(Jef.I.X,Jef.I.Z),new(Jef.I.X,Jef.I.Z),0);
+        long start=GC.GetAllocatedBytesForCurrentThread();ulong t0=Time.GetTicksUsec();
+        for(int i=0;i<10000;i++)Jef.I.CartStep!(new(Jef.I.X,Jef.I.Z),new(Jef.I.X,Jef.I.Z),0);
+        long alloc=GC.GetAllocatedBytesForCurrentThread()-start;
+        double micros=(Time.GetTicksUsec()-t0)/10000.0;
+        Require(alloc==0,"whole-cart physics allocates zero bytes");replies.Add(new {cartPhysicsProbe=new {iterations=10000,allocatedBytes=alloc,microsecondsPerCall=micros}});
+        for(int i=0;i<100;i++)Handcarts.I._Process(0);
+        start=GC.GetAllocatedBytesForCurrentThread();for(int i=0;i<10000;i++)Handcarts.I._Process(0);
+        alloc=GC.GetAllocatedBytesForCurrentThread()-start;
+        Require(alloc==0,"held cart model update allocates zero bytes");
+        Require(Interact.I.Press(Key.E),"E releases handcart");
+        Require(await Until(()=>Handcarts.I.Held==null&&!Handcarts.I.Busy,10),"release restores walking and parked solid");
+        var job=GameState.I.Jobs.First(j=>j.TaskType=="carry"&&JobTask.Of(j)?.Goods=="rope");
+        await Jobs.I.TakeJob(job);
+        Require(await Until(()=>Goods.I.All.Values.Count(it=>it.JobId==job.Id)==2,12),"two server job goods ready for cart");
+        await Frames(12);for(int i=0;i<5&&Dialogs.I!.Any;i++)Dialogs.I.SendKey("Escape");await Frames(4);
+        var items=Goods.I.All.Values.Where(it=>it.JobId==job.Id).OrderBy(it=>it.Id).ToArray();
+        // Fixture only moves the cart through server position reports; loading uses the real goods owner.
+        await CartFixture(api,d.Info,items[0].X+3,items[0].Z+4,0);
+        foreach(var item in items)
+        {
+            Jef.I.Place(item.X+.2f,item.Z+.7f,0);await Frames(12);Goods.I.Lift(item);
+            Require(await Until(()=>Goods.I.Carried==item,5),"job good in Jef's arms");
+            await Frames(20);
+            var confirmed=await api.Goods<GoodsList>();
+            Require(confirmed.Items.Any(g=>g.Id==item.Id&&g.ByPlayer==Goods.I.Me),"server confirms good in Jef's arms");
+            Jef.I.Place(d.X,d.Z-1.8f,MathF.PI,.1f);await Frames(12);
+            replies.Add(new {cartCarryPrompt=new {acts=Interact.I.Find().Select(a=>a.Text).ToArray(),carried=Goods.I.Carried?.S,cart=d.Info,at=new {Jef.I.X,Jef.I.Y,Jef.I.Z},localCart=new {d.X,d.Z,d.Yaw}}});
+            Require(Interact.I.Find().Any(a=>a.Text.Contains("on the cart")),"carried good offers cart loading");
+            Require(Interact.I.Press(Key.E),"E loads carried good");
+            Require(await Until(()=>!Handcarts.I.Busy&&Goods.I.Carried==null&&d.Info.Load.Any(l=>l.Gid==item.Id),10),"server moves real good onto cart");
+            Require(item.Obj?.GetParent()==d.Bed&&item.Obj.Visible,"one original good model on bed");
+        }
+        Jef.I.Place(d.X+1.8f,d.Z-2,MathF.Atan2(1.8f,-2),-.4f);await Frames(20);
+        Require(Goods.I.Carried==null,"loading leaves both hands free after the goods pushes arrive");
+        await Shot("handcart-loaded");
+        Require(Interact.I.Press(Key.G),"G unloads top good into arms");
+        Require(await Until(()=>Goods.I.Carried!=null&&!Handcarts.I.Busy,10),"unloaded good retains server identity");
+        Require(Interact.I.Press(Key.E),"E reloads same good");
+        Require(await Until(()=>Goods.I.Carried==null&&d.Info.Load.Count==2&&!Handcarts.I.Busy,10),"two goods restored on bed");
+        var to=Spots.Get(JobTask.Of(job)!.To)!;await CartFixture(api,d.Info,to.X,to.Z+3,0);
+        Jef.I.Place(d.X,d.Z-2.6f,MathF.PI,.1f);await Frames(12);
+        Require(Interact.I.Press(Key.E),"E grips loaded handcart at goal");
+        Require(await Until(()=>Handcarts.I.Held!=null&&!Handcarts.I.Busy,10),"loaded grip confirmed");
+        int money=GameState.I.Money;
+        Require(Interact.I.Press(Key.F),"F unloads entire allowed job at goal");
+        Require(await Until(()=>d.Info.Load.Count==0&&!Handcarts.I.Busy,10),"server empties the job's load");
+        Require(await Until(()=>GameState.I.Jobs.Any(j=>j.Id==job.Id&&j.Status=="done"),10),"bulk unloading settles real carry job");
+        Require(GameState.I.Money>money,"server pays bulk delivery");
+        await Shot("handcart-unloaded");await Handcarts.I.Release(true);
+        var rented=await api.Buy(shop.Id,"handcart_hire");GameState.I.Apply(rented);replies.Add(new {cartHire=rented});await Handcarts.I.Load();
+        Require(await Until(()=>Handcarts.I.Drawings.Values.Any(c=>c.Info.Kind=="hire"&&c.Info.MinutesLeft==840),10),"server rents handcart for fourteen game hours");
+        var hire=Handcarts.I.Drawings.Values.First(c=>c.Info.Kind=="hire");
+        await CartFixture(api,hire.Info,-118,36,0);Jef.I.Place(-118,33.3f,MathF.PI);await Frames(12);
+        Require(Interact.I.Press(Key.E),"E grips hired handcart");Require(await Until(()=>Handcarts.I.Held==hire.Info.Id&&!Handcarts.I.Busy,10),"hired cart uses same grip physics");
+        await Shot("handcart-hired");await Handcarts.I.Release(true);
+    }
+    private sealed class CartTestWorld : CartPhysics.IWorld
+    {
+        public float Wall=float.PositiveInfinity,WaterZ=float.PositiveInfinity,StepHeight;
+        public bool Water(float x,float z)=>z>WaterZ;
+        public float Base(float x,float z)=>StepHeight;
+        public bool Free(float x,float z,float r)=>x+r<Wall;
+        public int People(CartPhysics.Pose p)=>0;
     }
     private async Task CraneCheck()
     {

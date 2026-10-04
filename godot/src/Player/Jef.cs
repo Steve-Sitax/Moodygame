@@ -435,7 +435,14 @@ public partial class Jef : Node, Mantle.IWorld
         vel.Y += (wz - vel.Y) * a;
 
         float wanted = vel.Length() * dt;
+        var cartFrom = new Vector2(X, Z);
         float moved = MoveBy(vel.X * dt, vel.Y * dt, Y);
+        if (CartStep != null)
+        {
+            var p = CartStep(cartFrom, new Vector2(X, Z), dt);
+            X = p.X; Z = p.Y; Body.GlobalPosition = new Vector3(X, Y, Z);
+            moved = p.DistanceTo(cartFrom);
+        }
         Blocked = len > 0 && wanted > 1e-5f && moved < wanted * 0.3f;
 
         float ground = GroundAt(X, Z, Y);
