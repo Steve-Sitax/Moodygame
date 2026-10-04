@@ -420,7 +420,7 @@ public partial class Soundscape : Godot.Node
         double before = now;
         now = clockWatch.Elapsed.TotalSeconds;
         double dt = Math.Min(0.25, now - before);
-        while (ready.TryDequeue(out var fn)) fn();
+        while (ready.TryDequeue(out var fn)) { using var callbackCost = Dev.FrameCost.Callback(fn); fn(); }
         Step(0);
         RunTimers();
         Step(1);

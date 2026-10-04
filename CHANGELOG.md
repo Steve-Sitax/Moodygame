@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Godot checks now measure sustained turning and walking, GC generations and managed allocation medians, enforce the full performance limits, and run jobs, places, events, rides and play against disposable local test towns.
+
 - Godot avoids allocating inactive collision and lamp checks, repeated sound wiring closures, bus names and home-door lookups during steady play.
 
 - Godot skips identical mover instance-buffer uploads, while retaining every pose, colour and visible instance.

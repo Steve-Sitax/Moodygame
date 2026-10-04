@@ -184,7 +184,11 @@ public partial class Daylight : Node
         GD.Print($"daylight: {Hour:0.##} h, {Weather}: fog #{f.ToHtml(false)} {FogNear:0.#}-{FogFar:0.#} m, sky {SkyIntensity:0.###}, sun {SunIntensity:0.###} from ({SunDir.X:0.###}, {SunDir.Y:0.###}, {SunDir.Z:0.###}), lamps {LampsLit:0.##}, night {Night:0.##}, rain {Rain:0.##}, wet {Wet:0.##}, puddles {Puddle:0.##}");
     }
 
-    public override void _Process(double delta) => Step((float)delta);
+    public override void _Process(double delta)
+    {
+        using var cost = Scheldemist.Dev.FrameCost.Track("World.Daylight");
+        Step((float)delta);
+    }
 
     private static float Smooth(float x, float a, float b)
     {

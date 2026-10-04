@@ -27,10 +27,13 @@ public partial class Checks : Node
     private long frameAllocatedAt;
     private bool timingConnected;
     private FrameCost.Scope processCost, submitCost;
-    private sealed class Window
+    private readonly List<(string name, Rid rid)> renderViews = new();
+    private sealed class Window(int capacity)
     {
-        public readonly List<double> Main = new(8192), Wall = new(8192), Calls = new(8192);
-        public readonly List<long> Bytes = new(8192);
+        public readonly List<double> Main = new(capacity), Wall = new(capacity), Calls = new(capacity);
+        public readonly List<long> Bytes = new(capacity);
+        public readonly Dictionary<string, (double cpu, double gpu)> Render = new();
+        public double RenderSetup;
         public int Frames;
         public ulong Until, Last;
         public bool Turn;
@@ -58,10 +61,23 @@ public partial class Checks : Node
         if (mode == "shaders") renderAudit = new RenderAudit();
         if (mode == "perfcheck")
         {
+            if (Main.I.Flag("profile-parts"))
+            {
+                var rootViewport = GetViewport().GetViewportRid();
+                renderViews.Add(("window", rootViewport));
+                RenderingServer.ViewportSetMeasureRenderTime(rootViewport, true);
+                foreach (var node in BakedWorld.All(Main.I))
+                    if (node is Viewport viewport)
+                    {
+                        var rid = viewport.GetViewportRid();
+                        renderViews.Add((viewport.Name.ToString(), rid));
+                        RenderingServer.ViewportSetMeasureRenderTime(rid, true);
+                    }
+            }
             GetTree().ProcessFrame += BeginFrame;
             GetTree().PhysicsFrame += BeginFrame;
             RenderingServer.FramePostDraw += EndFrame;
-            RenderingServer.FramePreDraw += BeforeDraw;
+            if (Main.I.Flag("profile-parts")) RenderingServer.FramePreDraw += BeforeDraw;
             timingConnected = true;
         }
     }
@@ -87,6 +103,15 @@ public partial class Checks : Node
             w.Main.Add(lastMainMs); w.Wall.Add((now - w.Last) / 1000.0);
             w.Bytes.Add(GC.GetAllocatedBytesForCurrentThread() - frameAllocatedAt);
             w.Calls.Add(RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalDrawCallsInFrame));
+            if (renderViews.Count > 0)
+            {
+                w.RenderSetup += RenderingServer.GetFrameSetupTimeCpu();
+                foreach (var (name, rid) in renderViews)
+                {
+                    var old = w.Render.GetValueOrDefault(name);
+                    w.Render[name] = (old.cpu + RenderingServer.ViewportGetMeasuredRenderTimeCpu(rid), old.gpu + RenderingServer.ViewportGetMeasuredRenderTimeGpu(rid));
+                }
+            }
         }
         w.Last = now;
         if (w.Main.Count < w.Frames || w.Until > now) return;
@@ -248,7 +273,7 @@ public partial class Checks : Node
     private sealed record Measure(double Mean, double P95, double Max, double WallMean, double WallP95, double WallMax, double Calls, int Over16, int Over33, int Samples, double ProcessMs, double PhysicsMs, int Collections, double MeanBytes, long P95Bytes, long MedianBytes, int Gen1Collections, int Gen2Collections);
     private async Task<Measure> MeasureFrames(int n, bool turn = false, bool walk = false, int seconds = 0)
     {
-        var w = new Window { Frames = n, Turn = turn, Until = seconds == 0 ? 0 : Time.GetTicksUsec() + (ulong)seconds * 1_000_000 };
+        var w = new Window(Math.Max(8192, seconds * 1000)) { Frames = n, Turn = turn, Until = seconds == 0 ? 0 : Time.GetTicksUsec() + (ulong)seconds * 1_000_000 };
         int collections = GC.CollectionCount(0);
         int gen1 = GC.CollectionCount(1), gen2 = GC.CollectionCount(2);
         Jef.I.SetKey(Key.W, walk);
@@ -264,26 +289,33 @@ public partial class Checks : Node
     private async Task<object> Perf()
     {
         Engine.MaxFps = 0;
+        int seconds = int.TryParse(Main.I.Arg("perf-seconds", "6"), out int duration) && duration >= 2 && duration <= 60 ? duration : throw new ArgumentException("perf-seconds must be 2..60");
+        if (Main.I.Arg("perf-job") is { Length: > 0 } job)
+            await Kit.I.Job(job == "carry" ? "{\"type\":\"carry\",\"items\":2,\"goods\":\"crates\"}" : job == "watch" ? "{\"type\":\"watch\",\"goods\":\"crates\",\"duration_s\":1200}" : throw new ArgumentException("perf-job must be carry or watch"));
         var rows = new List<object>();
         foreach (string name in (Main.I.Arg("perf-places") is { Length: > 0 } chosen ? chosen.Split(',') : Places))
         {
             At(name); await Frames(120); FrameCost.Clear();
             Picture("perf-" + name.Replace(' ', '-'));
             var still = await MeasureFrames(90);
-            var turn = await MeasureFrames(90, turn: true);
+            var turn = await MeasureFrames(90, turn: true, seconds: seconds);
             At(name); await Frames(30);
             // Six seconds of actual walking frames, as tools/perfcheck.mjs; no synthetic logic-only timing.
             var start = new Vector2(Jef.I.X, Jef.I.Z);
             FrameCost.Clear();
-            var live = await MeasureFrames(1, walk: true, seconds: 6);
+            var live = await MeasureFrames(1, walk: true, seconds: seconds);
             var mainTimes = lastWindow.Main.Order().ToArray();
             var wallTimes = lastWindow.Wall.Order().ToArray();
             var slow = lastWindow.Main.Select((v, i) => new { frame = i, main = v, wall = lastWindow.Wall[i] }).Where(s => s.wall > 16 || s.main > 16).ToArray();
             double mean = Math.Round(mainTimes.Average(), 3);
+            bool meanTarget = mean < 3 && turn.Mean < 3;
+            bool hardLimit = mean < 5 && turn.Mean < 5 && live.P95 < 5 && turn.P95 < 5
+                && live.Over16 == 0 && turn.Over16 == 0 && live.Max <= 16 && turn.Max <= 16
+                && live.MeanBytes <= 512 && turn.MeanBytes <= 512 && live.MedianBytes == 0 && turn.MedianBytes == 0;
             rows.Add(new { place = name, liveMean = mean, liveP95 = live.P95, liveMax = live.Max, liveWallMax = live.WallMax, over16 = live.Over16, mainOver16 = mainTimes.Count(t => t > 16), collections = live.Collections, slowFrames = slow, fps = Math.Round(1000 / live.WallMean), over33 = live.Over33, stillMean = still.Mean, turnMean = turn.Mean, turnP95 = turn.P95,
-                calls = turn.Calls, top = FrameCost.Report(), ok = mean < 5, still, turn, live, liveSamples = live.Samples, liveWallMean = live.WallMean, liveWallP95 = live.WallP95, walkedMetres = start.DistanceTo(new Vector2(Jef.I.X, Jef.I.Z)) });
+                calls = turn.Calls, top = FrameCost.Report(), rendering = new { setupCpu = lastWindow.RenderSetup / live.Samples, viewports = lastWindow.Render.Select(p => new { viewport = p.Key, cpu = p.Value.cpu / live.Samples, gpu = p.Value.gpu / live.Samples }).ToArray() }, ok = meanTarget && hardLimit, meanTarget, hardLimit, still, turn, live, liveSamples = live.Samples, liveWallMean = live.WallMean, liveWallP95 = live.WallP95, walkedMetres = start.DistanceTo(new Vector2(Jef.I.X, Jef.I.Z)) });
         }
-        return new { ok = rows.All(r => JsonSerializer.SerializeToElement(r).GetProperty("ok").GetBoolean()), at = DateTime.UtcNow, gpu = RenderingServer.GetVideoAdapterName(), budget = 5, metric = "active main frame: first physics/process signal through RenderingServer.FramePostDraw, including renderer submission; wall frame time recorded separately", rows,
+        return new { ok = rows.All(r => JsonSerializer.SerializeToElement(r).GetProperty("ok").GetBoolean()), at = DateTime.UtcNow, gpu = RenderingServer.GetVideoAdapterName(), budget = 5, targetMean = 3, p95Budget = 5, maximumFrame = 16, managedMeanBudget = 512, managedMedianBudget = 0, metric = "active main frame: first physics/process signal through RenderingServer.FramePostDraw, including renderer submission; wall frame time recorded separately", rows,
             notCovered = new[] { "per-part browser frameProf breakdown and GPU-finish synchronisation", "night, rain and population stress settings", "walking can meet walls; displacement is reported" } };
     }
 }

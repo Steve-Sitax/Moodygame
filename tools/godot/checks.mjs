@@ -10,8 +10,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const args = process.argv.slice(2);
 const opt = (name, fallback) => { const i = args.indexOf(`--${name}`); if (i < 0) return fallback; if (!args[i + 1] || args[i + 1].startsWith("--")) throw new Error(`--${name} needs a value`); return args[i + 1]; };
 const all = ["devtest", "paths", "stuck", "shaders", "perfcheck", "clocks", "interiors"];
+const extras = ["pixelcheck", "windows", "peopletest", "jobtest", "placestest", "eventtest", "ridetest", "playtest"];
 const selected = opt("only", all.join(",")).split(",");
-if (selected.some(name => ![...all, "pixelcheck", "windows", "peopletest"].includes(name))) throw new Error("--only: " + [...all, "pixelcheck", "windows", "peopletest"].join(","));
+if (selected.some(name => ![...all, ...extras].includes(name))) throw new Error("--only: " + [...all, ...extras].join(","));
 const town = path.resolve(opt("town", "godot/baked/town.glb"));
 const perfLock = path.resolve(opt("perf-lock", path.join(path.dirname(town), path.basename(path.dirname(town)) === "next" ? "../PERF-LOCK" : "PERF-LOCK")));
 const models = path.resolve(opt("models", path.join(path.dirname(town), "models")));
@@ -45,12 +46,12 @@ async function stop(child) {
 async function cleanup() { await Promise.all([...children].map(stop)); }
 for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, async () => { await cleanup(); process.exit(130); });
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
-async function run(exe, argv, limit, logFile) {
+async function run(exe, argv, limit, logFile, environment = {}) {
   if (exe === godot) while (existsSync(perfLock)) {
     console.log("PERF-LOCK present; no Godot run started; checking again in 60 seconds");
     await pause(60000);
   }
-  const child = spawn(exe, argv, { cwd: root, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
+  const child = spawn(exe, argv, { cwd: root, windowsHide: true, stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, ...environment } });
   children.add(child);
   let text = "", timedOut = false;
   child.stdout.on("data", b => { text += b; }); child.stderr.on("data", b => { text += b; });
@@ -78,6 +79,10 @@ async function nextPort() {
 }
 function numbers(name, report) {
   switch (name) {
+    case "jobtest": return `${report.steps?.length ?? "?"} steps, Vismarkt frame ${report.frame_ms?.mean ?? "?"} ms`;
+    case "placestest": case "playtest": return `${report.steps?.length ?? "?"} steps; ${report.error ?? ""}`;
+    case "eventtest": return `${report.stages?.length ?? "?"} stages, ${report.failures?.length ?? "?"} failures`;
+    case "ridetest": return `${report.checks?.length ?? "?"} checks; ${report.error ?? ""}`;
     case "devtest": return `${report.steps?.filter(s => s.ok).length ?? 0}/${report.steps?.length ?? 0} steps`;
     case "paths": return `${report.unreachable?.length ?? "?"} unreachable / ${report.checkedCount ?? "?"} targets`;
     case "stuck": return `${report.stuck?.length ?? "?"} stuck, ${report.overlaps?.length ?? "?"} overlaps, ${report.insideSolids?.length ?? "?"} solid findings; ${report.gameHours ?? "?"} h`;
@@ -100,13 +105,19 @@ try {
     console.log(`Running ${name} (one Godot window, timeout ${timeout / 1000} s)`);
     const dir = path.join(out, name); mkdirSync(dir, { recursive: true });
     const scratch = mkdtempSync(path.join(out, "test-town-"));
+    // These fixtures require their own database beside their report. Never reuse an existing database.
+    const fixtureDatabase = ["placestest", "ridetest", "playtest"].includes(name);
+    const database = path.join(fixtureDatabase ? dir : scratch, "test.sqlite");
+    let ownsDatabase = false;
     let server;
     let serverText = "";
     try {
+      if (existsSync(database)) throw new Error("test database already exists: " + database);
+      ownsDatabase = true;
       const ownPort = await nextPort();
       const config = path.join(scratch, "walk.json");
       writeFileSync(config, JSON.stringify({ version: 1, mode: "walk", typedLines: "same", callsPerDay: 120, default: { provider: "recommended" }, kinds: {}, connections: { anthropic_api: {}, openai_compat: { baseUrl: "https://api.openai.com/v1" }, ollama: { baseUrl: "http://127.0.0.1:11434" } } }));
-      server = spawn(process.execPath, ["src/index.ts"], { cwd: path.join(root, "server"), windowsHide: true, stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, SCHELDEMIST_DATA: scratch, SCHELDEMIST_TOWN_SEED: String(seed), SCHELDEMIST_DB: path.join(scratch, "test.sqlite"), SCHELDEMIST_AI_CONFIG: config, SCHELDEMIST_PORT: String(ownPort), SCHELDEMIST_CLIENT_PORT: String(ownPort), SCHELDEMIST_MAP_PORT: "0" } });
+      server = spawn(process.execPath, ["src/index.ts"], { cwd: path.join(root, "server"), windowsHide: true, stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, SCHELDEMIST_DATA: scratch, SCHELDEMIST_TOWN_SEED: String(seed), SCHELDEMIST_DB: database, SCHELDEMIST_AI_CONFIG: config, SCHELDEMIST_PORT: String(ownPort), SCHELDEMIST_CLIENT_PORT: String(ownPort), SCHELDEMIST_MAP_PORT: "0" } });
       children.add(server);
       server.stdout.on("data", b => { serverText += b; }); server.stderr.on("data", b => { serverText += b; });
       server.on("error", e => { serverText += e.message; });
@@ -125,7 +136,7 @@ try {
       // Never accept an old report if this run fails before writing one.
       rmSync(path.join(dir, name + ".json"), { force: true });
       if (name === "peopletest" && await run(process.execPath, [path.join(root, "tools/godot/wherecheck.mjs"), "--server", url, "--out", path.join(dir, "where_expected.json")], 120000, path.join(dir, "reference.log"))) throw new Error("whereabouts reference failed");
-      const code = await run(godot, ["--path", path.join(root, "godot"), "--", "--town", town, "--models", models, "--server", url, "--no-ai", "--hour", "13", "--weather", "clear", "--no-mainmenu", "--prefs", path.join(scratch, "prefs.json"), `--${name}`, dir, ...extraArgs], timeout, path.join(dir, "run.log"));
+      const code = await run(godot, ["--path", path.join(root, "godot"), "--", "--town", town, "--models", models, "--server", url, "--port", String(ownPort), "--db", database, "--no-ai", "--dev", "--hour", "13", "--weather", "clear", "--no-mainmenu", "--prefs", path.join(scratch, "prefs.json"), `--${name}`, dir, ...extraArgs], timeout, path.join(dir, "run.log"), { SCHELDEMIST_USER_DATA: path.join(scratch, "user"), SCHELDEMIST_MAP_PORT: "0" });
       const report = JSON.parse(readFileSync(path.join(dir, name + ".json"), "utf8"));
       table.push({ check: name, result: code === 0 && report.ok === true ? "PASS" : "FAIL", finds: numbers(name, report), report: path.join(dir, name + ".json") });
     } catch (e) { table.push({ check: name, result: "ERROR", finds: e.message }); }
@@ -137,7 +148,11 @@ try {
       // Windows can hold SQLite handles briefly after taskkill returns. Retry before recording a cleanup error.
       try {
         for (let attempt = 0; ; attempt++) {
-          try { rmSync(scratch, { recursive: true, force: true }); break; }
+          try {
+            if (fixtureDatabase && ownsDatabase) for (const suffix of ["", "-wal", "-shm", "-journal"])
+              rmSync(database + suffix, { force: true });
+            rmSync(scratch, { recursive: true, force: true }); break;
+          }
           catch (e) { if (attempt === 19 || !["EPERM", "EBUSY", "ENOTEMPTY"].includes(e.code)) throw e; await pause(500); }
         }
       }
