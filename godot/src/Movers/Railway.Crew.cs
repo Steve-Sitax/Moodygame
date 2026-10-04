@@ -54,6 +54,11 @@ public partial class Railway
     private void CrewProbes()
     {
         YieldProbes();FeedProbe();
+        if(shunter!=null)MoversTest.Add(new(){Name="railway_shunter_harness",Hour=13,Gap=3,MinMove=.1,MinTurn=0,
+            Start=()=>TestAt(40),Ready=()=>shunter.Root.Visible&&v>.1f,
+            Where=()=> (shunter.Root.Position,head,"shunter accompanies the prepared horse harness"),
+            View=()=>{var f=HorseFrame(0);var at=new Vector3(f.X,1.15f,f.Z);return(at+new Vector3(4,1.3f,4),at);},
+            Check=()=>!shunter.Root.Visible||harness.Mesh.GetSurfaceCount()==0?"shunter or prepared harness missing":""});
         if(keeper!=null)MoversTest.Add(new(){Name="railway_keeper",Hour=13,Gap=3,MinMove=.1,MinTurn=0,Start=()=>keeperTime=0,Where=()=> (keeper.Root.Position,keeperTime,"keeper walks outside gate sweep"),View=()=> (keeper.Root.Position+new Vector3(3,2,3),keeper.Root.Position+Vector3.Up)});
     }
 }

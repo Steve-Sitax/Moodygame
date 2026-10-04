@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Godot;
 using Scheldemist.Play;
+using Scheldemist.World;
 
 namespace Scheldemist.Movers;
 
@@ -61,8 +62,27 @@ public sealed partial class Anchorage
         if(tow.Waited<=WatchdogS||tow.Why=="waits for room"||tow.Why=="stops for a rowing boat"||!ShipStopsNear(tow,traffic)||!CanBack(tow,14))return false;
         tow.Back=14;tow.Backs++;tow.Committed=-1;return true;
     }
+    private void RowingProbe()
+    {
+        if(Tows.Count==0)return;var tow=Tows[0];Rowing.Drawn? hull=null;Vector3 oldAt=default;float oldX=0,oldZ=0;double moved=0,blocked=0,target=1.8;bool wasProcessing=false,visible=false;string error="";
+        MoversTest.Add(new(){Name="tow_rowing_lookahead",Hour=13,Gap=2,MaxWait=35,MinMove=0,
+            Ready=()=>{
+                if(hull!=null)return true;if(Rowing.I==null)return false;
+                foreach(var b in Rowing.I.Drawings.Values)if(b!=Rowing.I.Boat&&b.Root.Visible){hull=b;break;}
+                if(hull==null)return false;oldAt=hull.Root.Position;oldX=hull.X;oldZ=hull.Z;moved=hull.LastMoved;visible=hull.Root.Visible;blocked=tow.Blocked;wasProcessing=Rowing.I.IsProcessing();Rowing.I.SetProcess(false);
+                var p=PathMiddle(tow,0);hull.X=(float)p.X;hull.Z=(float)p.Z;hull.Root.Position=new(hull.X,BoatWater.At(hull.X,hull.Z),hull.Z);hull.LastMoved=MoverClock.T;tow.Blocked=0;target=1.8;AvoidRowers(tow,MoverClock.T,0,ref target);
+                if(target!=0)error="visible rowing hull did not stop bow look-ahead";
+                tow.Blocked=91;hull.LastMoved=MoverClock.T-61;double abandoned=1.8;AvoidRowers(tow,MoverClock.T,0,ref abandoned);
+                if(abandoned!=1.8)error="abandoned idle hull still held tow after timeout";return true;
+            },
+            Where=()=> (hull?.Root.Position??Vector3.Zero,target,"live rowing hull stops look-ahead; abandoned hull times out"),
+            View=()=>{var at=hull?.Root.Position??Vector3.Zero;return(at+new Vector3(6,3,6),at+Vector3.Up*.5f);},
+            Check=()=>hull==null?"no real rowing hull available":error,
+            End=()=>{if(hull!=null){hull.X=oldX;hull.Z=oldZ;hull.LastMoved=moved;hull.Root.Position=oldAt;hull.Root.Visible=visible;Rowing.I.SetProcess(wasProcessing);}tow.Blocked=blocked;}});
+    }
     internal void YieldProbes()
     {
+        RowingProbe();
         if(Tows.Count==0)return;var tow=Tows[0];double oldS=0,oldV=0,oldDwell=0;string oldPhase="";
         MoversTest.Add(new(){Name="tow_watchdog_astern",Hour=13,Gap=3,MinMove=.5,MinTurn=0,
             Start=()=>{oldS=tow.S;oldV=tow.V;oldDwell=tow.Dwell;oldPhase=tow.Phase;tow.Phase="run";tow.V=0;tow.Hold=0;
@@ -73,4 +93,3 @@ public sealed partial class Anchorage
             End=()=>{tow.S=oldS;tow.V=oldV;tow.Dwell=oldDwell;tow.Phase=oldPhase;tow.Back=tow.Hold=tow.Waited=0;}});
     }
 }
-
