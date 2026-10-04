@@ -53,6 +53,19 @@ public sealed record CounterKeeper(string Id, string Name, string First);
 public sealed record InsideDoor(string Place, string Label, bool Open, CounterKeeper? Keeper);
 public sealed record InsideDoors(List<InsideDoor> Taverns);
 public sealed record ShopDoors(List<InsideDoor> Shops);
+public sealed record InsidePerson(string Id, string Name, string First, string Kind, string Sex, int Age, bool Stand, string? Role);
+public sealed record TavernView(string Place, bool Open, List<InsidePerson> Patrons);
+public sealed record EmigrantProp(string Kind, float X, float Z, float Yaw);
+public sealed record EmigrantBaby(string Mother, string Child);
+public sealed record EmigrantFamily(int N, int Household, string Surname, string From, int Slot, List<string> Members, string Head, EmigrantBaby? Baby, List<EmigrantProp> Props, int BoardDay, bool BoardingToday, bool WaitingForJef, double ArrivedAt, string? Luggage);
+public sealed record EmigrantShip(bool Today, float From, float To, int Next);
+public sealed record EmigrantBoarded(int Household, string Surname, string By);
+public sealed record EmigrantView(int Day, float Hour, EmigrantShip Ship, List<EmigrantFamily> Families, List<EmigrantBoarded> Boarded);
+public sealed record EmigrantBoard(bool Ok, string? Why, EmigrantView View);
+public sealed record PlayLine(string Who, string Text);
+public sealed record PoesjePlay(string State, string? Title, string? Third, List<PlayLine>? Lines);
+public sealed record PoesjeView(bool Open, int PriceC, PoesjePlay Play, List<InsidePerson> Audience);
+public sealed record PoesjeTicket : JobsPayload { public int PaidC { get; init; } public string Line { get; init; } = ""; }
 public sealed partial class Api
 {
     public Task<PlacesReply> LampPole(LampAsk ask) => Post<PlacesReply>("api/lamps/pole", ask);
@@ -79,4 +92,10 @@ public sealed partial class Api
     public Task<SermonReply> SermonHeard() => Post<SermonReply>("api/sermon/heard", new { });
     public Task<InsideDoors> InsideDoors() => Get<InsideDoors>("api/interiors");
     public Task<ShopDoors> ShopDoors() => Get<ShopDoors>("api/shops");
+    public Task<TavernView> Tavern(string place) => Get<TavernView>("api/interior/" + Esc(place));
+    public Task<EmigrantView> Emigrants() => Get<EmigrantView>("api/emigrants");
+    public Task<EmigrantBoard> EmigrantBoard(int household) => Post<EmigrantBoard>("api/emigrants/board", new { household });
+    public Task<PoesjeView> Poesje() => Get<PoesjeView>("api/poesje");
+    public Task<PoesjeTicket> PoesjeEnter() => Post<PoesjeTicket>("api/poesje/enter");
+    public Task<PoesjePlay> PoesjePlay() => Post<PoesjePlay>("api/poesje/play", new { }, TalkTimeoutMs);
 }

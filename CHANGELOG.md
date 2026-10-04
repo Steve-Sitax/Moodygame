@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Godot taverns have physical table seats and arrived patrons as dice partners; E stands up again.
+
 - Godot players can buy at real shop and tavern counters, hear the ballad singer and keep his verse-and-chorus sheet in their pockets.
 - Godot adds town-hall notices, cathedral candles and a timed Sunday sermon, plus joining the hiring stand and the fire bucket line.
 - Godot dock piecework, lamplighting, mill turns and park cleaning pay through the server, and finished work can wait for an employer's night box.
