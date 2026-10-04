@@ -53,7 +53,7 @@ public partial class ShipWalk:Node
         return best;
     }
     public void Board(Deck d,Vector2 p,bool climb=true)
-    {if(Jef.I.Riding||Jef.I.Laden)return;var at=d.At(p);int e=epoch;if(climb)Jef.I.ClimbTo(new[]{(at+Vector3.Up*.2f,.7f),(at,.3f)},()=>{if(e==epoch)Attach(d,p);});else Attach(d,p);}
+    {if(Jef.I.Riding||Jef.I.Laden)return;var at=new Vector3(p.X,d.Mesh.Floor(p.X,p.Y),p.Y);int e=epoch;if(climb)Jef.I.ClimbTo(new[]{(at+Vector3.Up*.2f,.7f),(at,.3f)},()=>{if(e==epoch&&d.Visible())Attach(d,p);},d.World);else Attach(d,p);}
     public void Attach(Deck d,Vector2 p)
     {On=d;Local=d.Mesh.Nearest(p);lastYaw=d.World().Basis.GetEuler().Y;Jef.I.DrivenEye=Jef.Eye;Jef.I.Drive=drive;Jef.I.Carry(d.At(Local));}
     private void Replaced(string how,ClientState? client)=>Clear();
