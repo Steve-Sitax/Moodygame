@@ -234,7 +234,8 @@ fallback cannot certify room floors, containment, seams, shader-only cutouts, or
   `export-scene.mjs` now appends that exact browser flood and its full `paths()` findings to the walk binary.
   `PathCheck` uses it when present and also tests plans and current residents. Older bakes explicitly retain
   their quarter-metre crowd mask: merely resampling the old half-metre height centres aliases narrow stairs
-  and falsely disconnects the wall walks. The shared `next` bake predates the browser flood layer.
+  and falsely disconnects the wall walks. The coordinator's walk-only `next` rebake now includes the exact
+  browser flood, made 2026-10-04 at 05:04 UTC, with `browserUnreachable: []`.
   `StuckWatch` follows the browser's walking-clip rule, checks a stable actual destination, and probes from ground height
   rather than animation bob/crouch height, with zero physics margin. It reports actual collider names and bounds.
   To investigate an older report, put its JSON at `<stuck output>/original-solid-cases.json`; `solidReplay`
@@ -250,11 +251,21 @@ fallback cannot certify room floors, containment, seams, shader-only cutouts, or
   rather than the older 894-resident, 5,364-answer reference. Vismarkt/Grote Markt people and animal cost:
   0.842/0.821 ms; allocation medians 0 B/frame, means 34.187/17.533 B/frame including occasional schedule/roster
   work. Build, both TypeScript checks and 80 relevant server tests pass. The pre-commit check passes.
-  Exact live browser parity remains unverified: T3 preview could not reach the fresh test server, so no alternate
-  browser was launched without the requested permission. The shared bake lacks the new exact flood layer;
-  the accepted path report explicitly identifies its legacy mask. A walk-only rebake from this code is needed
-  to verify the exact browser rule. An earlier sound-enabled path run wrote a passing report then crashed during
-  soundscape shutdown; soundscape was disabled for the accepted people checks.
+  Exact-flood follow-up after merging `godot-port` at a895ece: r144 (Jules Goossens) has a night roaming
+  route whose first stop is (-150.7,30.7). Its nearest browser-reached cell is (-150.5,32.5), 1.811 m away;
+  his other three stops are directly reached. The route already passed its 2.4 m check, but its duplicate
+  schedule anchor failed the generic 1.7 m reach. Schedule route anchors now use the same round reach,
+  or 2 m for haul ends. The label resolves an omitted work place to `night`. The browser also approaches
+  route stops through `crowd.grid.nearestOpen`; neither the plan data, walk map nor collision geometry
+  required a change. Whereabouts and all per-frame people code are unchanged.
+  Follow-up evidence: `baked/people-paths/r144/summary.json`, fresh seed 1873, shared `next` town/models,
+  no AI, sound enabled, ports 8950/8952, 240-second limits. Paths: 0 unreachable / 8,739 targets
+  (supplied before: 1 / 8,739), using 417,088 reached browser cells, resolution 0.5 m and start (10,12).
+  Stuck: 886 watched, 720 walking, three game hours, 0 stuck, 0 overlaps, 0 solid findings
+  (supplied joined-game before: 0/0/0). Build and normal shutdown pass; fresh test databases are deleted.
+  An earlier sound-enabled path run wrote a passing report then crashed during soundscape shutdown;
+  soundscape was disabled for the original accepted people checks. The joined movers fix now waits for
+  sound preparation before short checks exit.
 - **The server stays in Node** (`server/`): the game talks to it over the same HTTP and WebSocket API as the
   browser (`client/src/net/api.ts`).
   - `src/Net/ServerProcess.cs` starts it with the game (`node src/index.ts` in `server/`, a free port from 8800,
