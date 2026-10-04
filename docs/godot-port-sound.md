@@ -6,7 +6,9 @@ browser game makes and how each is done in Godot. The numbers (gains, reaches, t
 ## How it is built in Godot
 
 - **Recordings** stay where they are (`client/public/audio/`, licences in `assets/ATTRIBUTION.md`) and are loaded at
-  run time with `AudioStreamOggVorbis.LoadFromFile`. The folder comes from one place (`AudioPaths.Audio`: option
+  run time with `AudioStreamOggVorbis.LoadFromFile`. Short one-shots (up to 8 seconds) are decoded once to mono PCM
+  at load, to avoid setting up an Ogg decoder on each step or impact; long recordings and loops stay compressed.
+  The folder comes from one place (`AudioPaths.Audio`: option
   `--audio <dir>`, or the environment variable `SCHELDEMIST_AUDIO`, or `../client/public/audio` beside the project).
 - **Made sounds** are built by the same graph as in the browser: `Wa.cs` is a small Web Audio that runs ahead of time
   (oscillators, noise, biquad filters with the Web Audio formulas, gains, and the AudioParam timeline:
@@ -29,7 +31,26 @@ browser game makes and how each is done in Godot. The numbers (gains, reaches, t
   Godot has no convolver: `AudioEffectReverb`, set to the same length and to the same level for noise (measured in
   the self-test). Close, not the same tail.
 - **Compressor**: Web Audio's (threshold -18 dB, ratio 3, knee 30 dB) is nearly straight up to full level and adds
-  0.9 dB. Godot: compressor at -18 dB, 1.1 to 1, +0.9 dB, and a limiter under it.
+  0.9 dB. Godot: compressor at -18 dB, 1.04 to 1, +0.9 dB, and a limiter under it.
+
+## Connections to the game
+
+`SoundWiring.cs` subscribes to the store's clock and weather events and follows `HourF` four times a second.
+`--hour`, `--weather` and `--rain` hold their own inputs. Rain comes from `Daylight.I.Rain`; street murmur comes
+from the townspeople's positions. Jef's step, landing, splash and stroke events call the sound; the browser's
+timber pier, pontoon, gangway and deck give wood steps, stone elsewhere. `Bubbles.I.Speak` calls the made voice,
+and `Dice.I.Sfx` calls `Play`. No change to Main, Jef or the shared Wiring was needed.
+
+The mixer reuses the menus' Master, Music, Ambience, Voices and Effects buses. Room categories, the organ and
+the outdoor echo follow the same settings. Baked house linings supply room bounds; a roof ray identifies the
+cathedral, churches, town hall and Steen. `InteriorAt` and `SurfaceAt` let the rooms and moving decks supply
+their exact answers when those parts are ported. This fallback uses box bounds for houses, not the browser's
+threshold blending.
+
+Still to connect as their game parts arrive: room occupancy, exact puddle positions, moving ships and vehicles,
+railway triggers, animals, street trades and event cues. Their sound methods are ported and tested. Daylight
+currently exposes rain but no great-storm event level or gust; `TempestNow` accepts that level, gust and shelter
+from the event/wind parts. An ordinary storm day does not turn on the great storm's howl.
 
 ## The sounds
 
@@ -168,3 +189,33 @@ Counts: 119 sounds; 62 from recordings (76 files), 57 made in code.
 `-- --soundtest <dir>` (see `godot/README.md`): plays every trigger once and the layers at three hours and in rain,
 records the master bus with the speaker muted after the recorder, and writes `soundtest.wav` and `soundtest.json`.
 The results of the last run are at the end of this note.
+
+## Check on 2026-10-04
+
+The restarted sound worktree was merged with `godot-port` (`a7702eb`), then the wiring and test fixes were
+committed (`e31d717`). `dotnet build godot` passes (the existing Townspeople nullability warning remains).
+The console editor imported the new script once. No bake, new sound assets or new dependencies.
+
+Full silent run on the shared town, with no AI and the server on 8962:
+
+- 119 sound implementations: 62 sampled (76 files), 57 made in code.
+- 156 trigger and measurement rows: 154 played; the 23:00 tower-bell and clear-day foghorn rows correctly stayed
+  silent. Every row has peak, RMS and duration results. No gain, duration or layer mismatches.
+- 61 wiring checks passed, including 33 baked rooms, tavern/shop kinds, the settings' room and echo levels and
+  mutes, store inputs and command-line overrides. Three hours, rain and the great storm's five layer rows passed.
+- 49 named recordings and 10 step variants loaded; no failed files. 29 short recordings decoded once at load.
+- Stereo WAV: 474.9 seconds, 48 kHz. Results: `godot/baked/soundtest-final/soundtest.json` and `soundtest.wav`
+  in this worktree (generated evidence, not committed).
+- Sound frame cost over 28,492 frames: mean 0.0255 ms, p95 0.0404 ms, p99 0.0542 ms. Eleven frames exceeded
+  0.3 ms; worst 7.205 ms before the first trigger row. Individual trigger calls are reported separately;
+  the most expensive was the paddle-steamer loop start, 5.27 ms. The average and p99 fit the budget; a strict
+  worst-frame limit is not proven. Startup, decoder starts and runtime scheduling still need profiling if that
+  limit must hold for every frame.
+
+The earlier failed run exposed a test listener error: Jef put the camera back at his feet between sound frames.
+The test now disables his processing and places the listener before the sound update. It also predicts the
+louder channel for lateral sources rather than applying the centre's 0.7071 to every position. It returns exit
+code 1 for mismatches. The speakers remained muted after the recorder throughout.
+
+Godot still prints the existing font/CanvasItem/ObjectDB cleanup warnings at exit. No Main.cs, Jef.cs,
+Game/Wiring.cs, Psx.cs or shader was changed. The pending game-part connections are listed above.

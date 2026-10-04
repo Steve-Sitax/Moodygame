@@ -18,6 +18,12 @@ The Godot game (Godot 4.7.2, C#, .NET 8). The plan and the decisions: `docs/godo
 Options after `--`: `--town <glb>` (or the environment variable `SCHELDEMIST_BAKE`) for a bake somewhere else,
 `--shots <dir>` (a picture and the frame time at each baked place, then quit), `--no-<part>` and `--only a,b`
 (game parts off).
+Sound: `--audio <dir>` (or `SCHELDEMIST_AUDIO`) picks the existing recordings' folder; by default it is
+`client/public/audio` beside this project. `--soundtest <absolute dir>` records every sound trigger and the
+layers at three hours, in rain and in the great storm; writes `soundtest.wav` and `soundtest.json`, then quits
+(1 if a check failed). The speakers stay muted after the recorder. Allow about eight minutes for the full run.
+`--soundtest-only wiring,jef,rooms,life,layers` selects a shorter check. Always give tests their own `--db` and
+`--prefs` files. Use absolute output paths: Godot's working folder is the project folder.
 The server's options: `--server http://127.0.0.1:PORT` (use a server that runs already, start none), `--port N`
 (the first port to try; default 8800), `--db <file>` (another save), `--no-ai` (the server makes no model calls:
 walk-around mode), `--nettest <dir>` (the net part's own test: start the server with no AI, wait for the first

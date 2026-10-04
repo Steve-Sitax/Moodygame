@@ -2,6 +2,16 @@
 
 ## The Godot port, 2026-10-03
 
+2026-10-04, sound restart: merged the current integration branch into `godot/sound` (`a7702eb`), preserved and
+finished the sound wiring (`e31d717`). All 119 sound implementations are present (62 sampled, 57 made). Store,
+rain, Jef, townspeople, bubbles, dice, room filtering and menu volumes are connected without changes to Main,
+Jef or the shared Wiring. Full silent sound test: 156 rows, 61 wiring checks and five layer rows, no mismatches;
+two triggers correctly silent. 474.9 s stereo WAV at 48 kHz. Sound frame mean 0.0255 ms, p99 0.0542 ms; 11
+frames over 0.3 ms, worst 7.205 ms before the first trigger. The strict worst-frame budget is still unproven.
+Game-part producers still to connect: moving traffic, animals, trades/events, exact rooms/puddles and the great
+storm's event level. Details and evidence paths: [godot-port-sound.md](godot-port-sound.md). Built and imported,
+server dependencies installed locally; no new assets, packages, bake, push or merge into the integration branch.
+
 Steve: port the game to Godot against the stutter; everything that works now, an easy start, a simple install. He picked C#. Worktree `MoodyGame-godot`, branch `godot-port`; plan, decisions and the proof in [godot-port.md](godot-port.md). Proof (G0): the scene the browser game builds, exported to one glb and drawn by Godot 4.7.2 at the five perfcheck places: 2.6-2.9 ms a frame with two mirror views, against 18-22 ms of drawing in headless Chrome (28-31 ms whole frame). Pictures looked at. Not in the proof: the game's logic, the per-pixel shader work, the rooms. The server stays in Node; the web demo stays the old Three.js one. Next: G1 (the base: server start, real models, walking).
 
 Steve, same day: "i stated the goal clearly and you stop to ask. Dont stop unless it is needed for important descicions." So the steps go on back to back. G1a done (`7d4bc9a`): the world is baked from the browser's own scene, not ported (every node, hidden ones marked, each material's psx options); Godot loads it, the psx material and the retro screen pass are in; 1.4 ms a frame at the Vismarkt. Five helpers started, each in its own worktree and branch off `godot-port`: `godot/walk` (Jef walks on Godot physics, swims, ladders), `godot/net` (the game starts the Node server, the API client, the game state, the HUD), `godot/sky` (daylight by the clock, sky, the psx material's ground and wall features, lamps, rain), `godot/people` (models without Draco, people drawn and animated, where everyone is by the clock), `godot/sound` (the soundscape). The coordinating session merges them and prepares the download (G7).
