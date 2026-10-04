@@ -1,5 +1,20 @@
 # Work log
 
+## Godot milestone checks, 2026-10-04
+
+G8 on `godot/checks`: the HUD arrow clears the cards; the server-backed development kit, baked-map paths,
+crowd stalls/contacts, material kinds and lights, five-place frame budget, marked clocks and room-opening
+checks run through `tools/godot/checks.mjs`. Fresh seed-1873 test towns only, own ports, no AI, no bake.
+Dev 4/4, shader problems 0, performance walking means 1.32–2.14 ms. Gates still fail: 295/8,747 path targets,
+six crowd oscillation findings, zero overlaps, 56 solid contacts; clocks 0/14 moving; no registered live rooms (1,461
+opening probes are diagnostic). Findings handed off as issues
+[#43](https://github.com/Steve-Sitax/Moodygame/issues/43),
+[#44](https://github.com/Steve-Sitax/Moodygame/issues/44),
+[#45](https://github.com/Steve-Sitax/Moodygame/issues/45) and
+[#46](https://github.com/Steve-Sitax/Moodygame/issues/46).
+Build/import and pre-commit checks pass; all 22 local pictures inspected. Full numbers, coverage limits
+and shared-file audit: [G8 report](godot-G8-checks.md).
+
 ## Godot jobs restart, 2026-10-04
 
 Finished the interrupted jobs/day tie-ins on `godot/jobs`, with `godot-port` merged through `11c2ca5`.
