@@ -114,6 +114,20 @@ No batching code is accepted as a production fix on this evidence. A fused
 compressed-position decode is being tested to distinguish decode rounding from
 culling/material effects; it must still pass zero pixels.
 
+The fused decode also failed: eight pixels differ. All batching production source
+and its replay hooks were removed. Candidates and logs remain only in the ignored
+measurement folder.
+
+A first compiler-optimization diagnostic (Debug assembly with `Optimize=true`)
+walks at 5.045 / 5.728 / 5.857 / 4.119 / 3.457 ms, and its ordinary fourteen-case
+pixel comparison passes with zero differences. It still fails the requested mean,
+p95 and maximum limits: Grote Markt turns reach 27.060 ms and Vismarkt 20.896 ms.
+The ordinary in-process pixel check cannot alone compare two compiler builds.
+A separate cross-build control therefore freezes simulation and shader clocks
+before the first frame, with fresh identical seed-1873 towns. That flag is restricted
+to pixelcheck and cannot be used to obtain timing results. Acceptance of the
+compiler setting awaits the direct image comparison.
+
 ## Measured results
 
 Three independent runs; each cell lists run 1 / 2 / 3. Walking is six seconds after 90 standing and 90 turning frames for every revision, including latest. The temporary historical probe only adds inventory outside sampled frames and standardizes the turn duration. Draw calls are the mean during turning; scene counts are after walking. Physics bodies/shapes include Solid’s directly created static bodies plus the scene tree.
