@@ -133,9 +133,24 @@ public partial class EventTest : Node
                         if (s?.P != null) drawn++;
                         if (town.PositionOf(id) is { } p && Whereabouts.Hypot(p.x - stage.X, p.z - stage.Z) < live.Event.R + 6) there++;
                     }
-                    int atTargets = 0;
+                    int atTargets = 0, indoorAttended = 0;
                     foreach (var run in Actors.I.Runs) if (run.Action.EventId == plan.Id && town.PositionOf(run.Action.Npc) is { } at && Whereabouts.Hypot(at.x - (run.Action.TargetX ?? stage.X), at.z - (run.Action.TargetZ ?? stage.Z)) < live.Event.R + 6) atTargets++;
-                    there = Math.Max(there, atTargets);
+                    // Ceremony targets are doorway anchors. Once the engine accepts an indoor arrival,
+                    // the hall owns the actual nave/chair position, which is farther from that anchor.
+                    if (kind is "wedding" or "funeral" && stage.Op == "enter" && Scheldemist.People.HallPeople.I is { } halls)
+                    {
+                        var cathedral = halls.Halls.First(h => h.Id == "cathedral");
+                        foreach (var run in Actors.I.Runs)
+                            if (run.Action.EventId == plan.Id && run.Action.Phase == "inside" && run.Indoors &&
+                                run.Person is { Inside: true, ActionHeld: true } person && ReferenceEquals(person.ActionOwner, Actors.I) &&
+                                cathedral.Figures.TryGetValue(run.Action.Npc, out var figure) && figure.Ceremony && !figure.Leaving)
+                            {
+                                var p = figure.Group.GlobalPosition - cathedral.Origin;
+                                Check(p.Z > 5.65 && p.Z < 140 && Math.Abs(p.X) < 32 && Math.Abs(p.Y) < 2, "indoor attendee outside assigned nave: " + run.Action.Npc);
+                                if (p.Z > 5.65 && p.Z < 140 && Math.Abs(p.X) < 32 && Math.Abs(p.Y) < 2) indoorAttended++;
+                            }
+                    }
+                    there = Math.Max(there, atTargets + indoorAttended);
                     maxThere = Math.Max(maxThere, there); propsEver |= live.Props.Count > 0; cuesExpected |= stage.Cues?.Count > 0; soundExpected |= stage.Sound != "none";
                     if (Soundscape.I != null) foreach (string rung in Soundscape.I.Rung) cueFired |= rung.StartsWith("cue ", StringComparison.Ordinal);
                     string picture = Path.Combine(dir, kind + "-" + live.Event.Stage + "-" + stage.Op + ".png");
@@ -148,7 +163,7 @@ public partial class EventTest : Node
                             inside = s?.Inside, owns = ReferenceEquals(s?.ActionOwner, Actors.I), targetX = r.Action.TargetX, targetZ = r.Action.TargetZ,
                             r.Replans, r.GaveUp, r.BusWait, onBus = r.Bus != null };
                     }).ToArray();
-                    rows.Add(new { kind, stage = live.Event.Stage, op = stage.Op, soundKind = stage.Sound, propsKind = stage.Props, people = ids.Count, held, drawn, there, props = live.Props.Count, positions, sound = live.Sound != null, cues = live.Cues != null, picture, left = live.Left, fire = TownLife.I?.FiresDrawn, buckets = TownLife.I?.BucketCount, chainHands = TownLife.I?.ChainHands, hearses = Hearses.I?.Count, sounds = Soundscape.I?.Rung.ToArray() });
+                    rows.Add(new { kind, stage = live.Event.Stage, op = stage.Op, soundKind = stage.Sound, propsKind = stage.Props, people = ids.Count, held, drawn, there, indoorAttended, props = live.Props.Count, positions, sound = live.Sound != null, cues = live.Cues != null, picture, left = live.Left, fire = TownLife.I?.FiresDrawn, buckets = TownLife.I?.BucketCount, chainHands = TownLife.I?.ChainHands, hearses = Hearses.I?.Count, sounds = Soundscape.I?.Rung.ToArray() });
                     if (stageIndex == 0) foreach (var lead in live.Event.Leads)
                     {
                         if (town.ActionPerson(lead.Id)?.P is not { } actor) continue;

@@ -34,6 +34,7 @@ public partial class HallPeople : Node
         public int GridGeneration;
         public readonly PriorityQueue<int, float> GridQueue = new(4096);
         public double Poll;
+        public int RosterVersion;
         public readonly Dictionary<string, Figure> Figures = new();
     }
     public sealed class Figure
@@ -79,7 +80,7 @@ public partial class HallPeople : Node
     }
     private void Roster(Hall h, JsonElement reply)
     {
-        h.Loading = false;
+        h.Loading = false; h.RosterVersion++;
         EventRoster(h, reply);
         var want = reply.GetProperty("people").EnumerateArray().Take(100).ToList();
         foreach (var id in h.Figures.Keys.Where(id => !want.Any(p => p.GetProperty("id").GetString() == id)).ToList())
@@ -134,7 +135,16 @@ public partial class HallPeople : Node
         h.HadRoster = true;
     }
     public Vector3? PositionOf(string id) { if (town?.ActionPerson(id) is { ActionHeld: true, Inside: false }) return null; foreach (var h in Halls) if (h.Figures.TryGetValue(id, out var f)) return f.Group.GlobalPosition; return null; }
-    private void PollHall(Hall h, Api api) => api.Run(api.Get<JsonElement>("api/landmark/" + h.Id), reply => Roster(h, reply), _ => h.Loading = false);
+    private void PollHall(Hall h, Api api)
+    {
+        int version = h.RosterVersion;
+        api.Run(api.Get<JsonElement>("api/landmark/" + h.Id), reply =>
+        {
+            // A fresh explicit roster (including a ceremony/time change) supersedes an in-flight poll.
+            h.Loading = false;
+            if (h.RosterVersion == version) Roster(h, reply);
+        }, _ => h.Loading = false);
+    }
     public long AllocatedBytesLastFrame { get; private set; }
     public override void _Process(double delta)
     {

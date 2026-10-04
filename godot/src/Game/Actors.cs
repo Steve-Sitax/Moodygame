@@ -183,7 +183,9 @@ public partial class Actors : Node
             double distance = Whereabouts.Hypot(s.X - x, s.Z - z);
             if (a.Kind != "wait")
             {
-                if (r.HiddenPace == 0) r.HiddenPace = attend ? Math.Max(6, distance / 6) : 6;
+                // A later stage can move the destination across town. Reuse no slower unseen pace
+                // than the new trip needs; do not inherit a nearby gathering's walking speed.
+                r.HiddenPace = attend ? Math.Max(r.HiddenPace, Math.Max(6, distance / 6)) : 6;
                 town!.ActionMoveHidden(s, x, z, r.HiddenPace * dt);
             }
             double jefDistance = Whereabouts.Hypot(s.X - Main.I.Cam.GlobalPosition.X, s.Z - Main.I.Cam.GlobalPosition.Z);

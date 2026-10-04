@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Godot event attendees keep up with a later destination across town, and an older hall reply cannot replace a newer ceremony roster.
+
 - Godot event props find a nearby clear patch when a house or live fixture blocks their original spot; reserved street actors replace retained indoor figures.
 
 - Godot tavern and cathedral seats keep Jef still and retain their seated camera height when the ride controls are loaded.

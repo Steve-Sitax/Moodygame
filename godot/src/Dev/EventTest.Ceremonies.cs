@@ -7,6 +7,7 @@ using Scheldemist.Game;
 using Scheldemist.Net;
 using Scheldemist.People;
 using Scheldemist.Player;
+using Scheldemist.Town;
 
 namespace Scheldemist.Dev;
 
@@ -71,6 +72,8 @@ public partial class EventTest
         int flock = cath.Figures.Values.Count(f => f.Role == "worshipper");
         Check(flock > 0 && cath.Figures.Values.Any(f => f.Role == "preacher"), "sermon has no crowd or preacher");
         int entered = hall.CeremonyEntered; await Wait(72);
+        foreach (var f in cath.Figures.Values.Where(f=>f.Role=="worshipper" && f.Moving))
+            GD.Print("sermon pending " + f.Id + " from=" + f.Group.Position + " target=" + f.Target + " goal=" + f.CeremonyGoal + " path=" + f.Path.Count + " owned=" + Actors.I!.NpcOwned(f.Id) + " held=" + Main.I.GetNode<Townspeople>("Townspeople").ActionPerson(f.Id)?.ActionHeld + " inside=" + Main.I.GetNode<Townspeople>("Townspeople").ActionPerson(f.Id)?.Inside);
         Check(hall.CeremonyEntered > entered, "sermon crowd did not walk to chairs");
         Check(!cath.Figures.Values.Any(f => f.Role == "worshipper" && f.Moving && !f.Leaving), "sermon worshipper still walking after entry window");
         await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
