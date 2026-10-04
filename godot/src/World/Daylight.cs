@@ -96,7 +96,9 @@ public partial class Daylight : Node
     {
         bool cached = UniformUpdates.Cached && lightSent;
         if (!cached || lastBackground != background) env.BackgroundColor = background;
-        if (!cached || lastSunColor != color) sun.LightColor = color;
+        // (a Godot light's colour is sRGB, as the TypeScript writes it; the colours here are linear: given as they
+        // were, the sun went through the curve twice and lit everything a dull orange, the people and carts most)
+        if (!cached || lastSunColor != color) sun.LightColor = color.LinearToSrgb();
         if (!cached || lastSunEnergy != energy) sun.LightEnergy = energy;
         if (!cached || lastSunDirection != direction)
             sun.LookAtFromPosition(direction * 100, Vector3.Zero, MathF.Abs(direction.Y) > 0.99f ? Vector3.Forward : Vector3.Up);
