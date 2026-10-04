@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Godot reports the real room to the server, so sleeping and waking in your rented home and shelter inside shops and halls use the same rules as the browser.
+
 - Godot emigrants wait with their luggage at the camp, accept carry work and board the working lighter for the liner when the server allows it.
 
 - In Godot the Poesje takes its evening ticket once a day, opens its real curtains and performs the server's play with puppets and spoken captions.
