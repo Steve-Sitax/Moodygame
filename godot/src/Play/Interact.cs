@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using Godot;
 using Scheldemist.Game;
 using Scheldemist.Player;
@@ -78,6 +79,7 @@ public partial class Interact : Node
         public Action Run = () => { };
         /// <summary>Lower wins a tie against other things as near (the browser gives a thief -20).</summary>
         public float Priority;
+        internal readonly Act Prompt = new();
         public Vector3 At => Node != null && GodotObject.IsInstanceValid(Node) ? Node.GlobalPosition + Place : Place;
         public void Dispose() => I?.Remove(this);
     }
@@ -92,6 +94,12 @@ public partial class Interact : Node
     public string Text { get; private set; } = "";
 
     private List<Act> acts = new();
+    private readonly List<Act> scratchActs = new(4);
+    private readonly List<Offers> scratchOffers = new(32);
+    private readonly List<Key> optionKeys = new(4);
+    private readonly Dictionary<Key, (float Rank, Act Act)> bestByKey = new(4);
+    private readonly StringBuilder prompt = new(256);
+    private readonly List<(Key Key, string Name, string Text)> promptLines = new(4);
     private Label label = null!;
     private float uiScale;
     private double actsT;
@@ -195,6 +203,9 @@ public partial class Interact : Node
 
     /// <summary>Everything the keys can do right now, most specific first.</summary>
     public List<Act> Find()
+        => Scheldemist.Dev.SpeedComparison.Cached ? FindCached(new List<Act>(4)) : FindOriginal();
+
+    private List<Act> FindOriginal()
     {
         var found = new List<Act>();
         var jef = Jef.I;
@@ -252,10 +263,79 @@ public partial class Interact : Node
         return found;
     }
 
+    private static void Take(List<Act> found, Act a)
+    {
+        foreach (var old in found) if (old.Key == a.Key) return;
+        if (InView(a)) found.Add(a);
+    }
+    private void Option(float distance, Act act)
+    {
+        // Preserve key insertion order even when its first option is out of view.
+        if (!optionKeys.Contains(act.Key)) optionKeys.Add(act.Key);
+        if (Rank(act, distance) is not { } rank || !(rank < float.PositiveInfinity)) return;
+        if (!bestByKey.TryGetValue(act.Key, out var old) || rank < old.Rank) bestByKey[act.Key] = (rank, act);
+    }
+    private List<Act> FindCached(List<Act> found, bool borrowEntries = false)
+    {
+        using var cost = Scheldemist.Dev.FrameCost.Track("Interact.Find");
+        found.Clear(); scratchOffers.Clear(); optionKeys.Clear(); bestByKey.Clear();
+        var jef = Jef.I;
+        if (jef == null || jef.Fly || IsShut) return found;
+        float x = jef.X, z = jef.Z;
+        foreach (var provider in providers)
+        {
+            using var callbackCost = Scheldemist.Dev.FrameCost.Callback(provider);
+            if (provider(x, z) is { } offers) scratchOffers.Add(offers);
+        }
+        foreach (var offers in scratchOffers)
+            if (offers.Only != null) { foreach (var act in offers.Only) Take(found, act); return found; }
+        foreach (var offers in scratchOffers)
+            if (offers.First != null) foreach (var act in offers.First) Take(found, act);
+        foreach (var e in entries)
+        {
+            var at = e.At;
+            float d = MathF.Sqrt((at.X - x) * (at.X - x) + (at.Z - z) * (at.Z - z));
+            if (d >= e.Reach) continue;
+            string? text = e.Label();
+            if (string.IsNullOrEmpty(text)) continue;
+            var act = borrowEntries ? e.Prompt : new Act();
+            act.Key = e.Key; act.Text = text; act.Run = e.Run; act.X = at.X; act.Y = at.Y; act.Z = at.Z;
+            Option(d + e.Priority, act);
+        }
+        foreach (var offers in scratchOffers)
+            if (offers.Options != null) foreach (var (distance, act) in offers.Options) Option(distance, act);
+        if (bestByKey.TryGetValue(Key.E, out var first)) Take(found, first.Act);
+        foreach (var key in optionKeys) if (key != Key.E && bestByKey.TryGetValue(key, out var best)) Take(found, best.Act);
+        foreach (var offers in scratchOffers)
+            if (offers.Extra != null) foreach (var act in offers.Extra) Take(found, act);
+        return found;
+    }
+
+    private void RefreshActs()
+    {
+        if (!Scheldemist.Dev.SpeedComparison.Cached) { acts = FindOriginal(); return; }
+        acts = FindCached(scratchActs, true);
+    }
+
+    /// <summary>Same-state verification of the prompt selection, without pressing any key.</summary>
+    public bool SameActions()
+    {
+        var original = FindOriginal(); var current = FindCached(new List<Act>(4));
+        if (original.Count != current.Count) return false;
+        for (int i = 0; i < original.Count; i++)
+        {
+            var a = original[i]; var b = current[i];
+            if (a.Key != b.Key || a.Text != b.Text || a.X != b.X || a.Y != b.Y || a.Z != b.Z || a.Self != b.Self || a.Cone != b.Cone || a.Run.Method != b.Run.Method) return false;
+        }
+        return true;
+    }
+
+    public void RepeatPrompt() { actsT = 0; _Process(0); }
+
     /// <summary>Press a key as the player does (the checks too): the list is asked afresh, then the key's deed runs. False: nothing for that key.</summary>
     public bool Press(Key key)
     {
-        acts = Find();
+        RefreshActs();
         var act = acts.FirstOrDefault(a => a.Key == key);
         if (act == null) return false;
         act.Run();
@@ -345,14 +425,34 @@ public partial class Interact : Node
             actsT = 0.1;
             actsAt = sig;
             actsShut = shut;
-            acts = Find();
+            RefreshActs();
         }
-        string text = shut ? "" : string.Join("\n", acts.Select(a => $"{KeyName(a.Key)}  {a.Text}"));
+        string text = Scheldemist.Dev.SpeedComparison.Cached ? PromptText(shut) : shut ? "" : string.Join("\n", acts.Select(a => $"{KeyName(a.Key)}  {a.Text}"));
         if (text != Text)
         {
             Text = text;
             label.Text = text;
         }
         label.Visible = text != "";
+    }
+    private string PromptText(bool shut)
+    {
+        if (shut) { promptLines.Clear(); return ""; }
+        bool changed = promptLines.Count != acts.Count;
+        for (int i = 0; i < acts.Count && !changed; i++)
+        {
+            var act = acts[i]; var line = promptLines[i];
+            changed = line.Key != act.Key || line.Text != act.Text || line.Name != KeyName(act.Key);
+        }
+        if (!changed) return Text;
+        prompt.Clear(); promptLines.Clear();
+        foreach (var act in acts)
+        {
+            string name = KeyName(act.Key);
+            if (prompt.Length > 0) prompt.Append('\n');
+            prompt.Append(name).Append("  ").Append(act.Text);
+            promptLines.Add((act.Key, name, act.Text));
+        }
+        return prompt.ToString();
     }
 }

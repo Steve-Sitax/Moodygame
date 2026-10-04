@@ -191,6 +191,14 @@ public static class Keys
         ["Insert"] = "Ins", ["Delete"] = "Del", ["Home"] = "Home", ["End"] = "End", ["PageUp"] = "PgUp", ["PageDown"] = "PgDn",
     };
 
+    private static readonly string[] signs = MakeSigns();
+    private static string[] MakeSigns()
+    {
+        var result = new string[127];
+        for (int i = 33; i < result.Length; i++) result[i] = ((char)i).ToString().ToUpperInvariant();
+        return result;
+    }
+
     /// <summary>The name on the key (keys.ts codeName): the letter printed on it on the player's own keyboard layout.</summary>
     public static string CodeName(string code)
     {
@@ -202,7 +210,7 @@ public static class Keys
             var label = DisplayServer.KeyboardGetLabelFromPhysical(key);
             // a key with a sign on it (AZERTY: the M key's place says ","): Godot's key numbers are the signs' own
             long sign = (long)label;
-            if (sign > 32 && sign < 127) return ((char)sign).ToString().ToUpperInvariant();
+            if (sign > 32 && sign < 127) return Scheldemist.Dev.SpeedComparison.Cached ? signs[sign] : ((char)sign).ToString().ToUpperInvariant();
             string l = OS.GetKeycodeString(label);
             if (l.Length == 1 && !char.IsWhiteSpace(l[0])) return l.ToUpperInvariant();
         }
