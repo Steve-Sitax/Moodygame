@@ -141,7 +141,7 @@ public partial class EventTest : Node
                     {
                         var cathedral = halls.Halls.First(h => h.Id == "cathedral");
                         foreach (var run in Actors.I.Runs)
-                            if (run.Action.EventId == plan.Id && run.Action.Phase == "inside" && run.Indoors &&
+                            if (run.Action.EventId == plan.Id && (run.Action.Phase is "inside" or "in") && run.Indoors &&
                                 run.Person is { Inside: true, ActionHeld: true } person && ReferenceEquals(person.ActionOwner, Actors.I) &&
                                 cathedral.Figures.TryGetValue(run.Action.Npc, out var figure) && figure.Ceremony && !figure.Leaving)
                             {
