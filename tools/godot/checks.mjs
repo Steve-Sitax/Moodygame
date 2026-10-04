@@ -44,25 +44,11 @@ async function stop(child) {
 async function cleanup() { await Promise.all([...children].map(stop)); }
 for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, async () => { await cleanup(); process.exit(130); });
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
-async function waitForGodot() {
-  const lock = opt("perf-lock", path.join(path.dirname(town), "..", "PERF-LOCK"));
-  const until = Date.now() + 600000;
-  let announced = false;
-  while (existsSync(lock) || (process.platform === "win32" && /Godot_v[^\r\n]*\.exe/i.test(execFileSync("tasklist.exe", ["/FI", "IMAGENAME eq Godot*", "/FO", "CSV", "/NH"], { windowsHide: true, encoding: "utf8" })))) {
-    if (!announced) { console.log("Waiting for PERF-LOCK / another Godot run to finish"); announced = true; }
-    if (Date.now() > until) throw new Error("Godot run slot remained occupied for ten minutes");
-    await pause(1000);
-  }
-}
 async function run(exe, argv, limit, logFile) {
-<<<<<<< HEAD
   if (exe === godot) while (existsSync(perfLock)) {
     console.log("PERF-LOCK present; no Godot run started; checking again in 60 seconds");
     await pause(60000);
   }
-=======
-  if (exe === godot) await waitForGodot();
->>>>>>> godot/people
   const child = spawn(exe, argv, { cwd: root, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
   children.add(child);
   let text = "", timedOut = false;
