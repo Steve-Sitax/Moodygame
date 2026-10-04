@@ -54,3 +54,27 @@ public sealed record HiringResult { public bool Picked { get; init; } public str
 public sealed record DirectorReply { public bool Ok { get; init; } public int Id { get; init; } public string Title { get; init; } = ""; public string Why { get; init; } = ""; }
 public sealed record ActionProposalReply { public string Line { get; init; } = ""; public int? ActionId { get; init; } public string? Refused { get; init; } }
 public sealed record EventsReply { public List<TownEvent> Events { get; init; } = new(); public List<string> Closed { get; init; } = new(); }
+
+public sealed record TownLifeData
+{
+    public int Day { get; init; }
+    public List<LampRound> Rounds { get; init; } = new();
+    public LampsFog? Fog { get; init; }
+    public List<FireSoot> Soot { get; init; } = new();
+}
+public sealed record FireSoot
+{
+    public int Event { get; init; } public int Day { get; init; } public int House { get; init; } public int Storeys { get; init; }
+    public double[] Door { get; init; } = new double[2]; public double[] Out { get; init; } = new double[2];
+}
+public sealed record RoundLamp
+{
+    public string Id { get; init; } = "";
+    public double X { get; init; } public double Z { get; init; } public double Sx { get; init; } public double Sz { get; init; }
+}
+public sealed record LampRound
+{
+    public string Id { get; init; } = ""; public string Lamplighter { get; init; } = "";
+    public List<RoundLamp> Lamps { get; init; } = new(); public List<double[]> Path { get; init; } = new();
+    public List<double> At { get; init; } = new(); public double Len { get; init; } public double Dusk { get; init; }
+}

@@ -26,6 +26,8 @@ public partial class TownLife : Node
         public readonly List<EventHorse> Horses = new(2);
         public double PumpLength;
         public FireView View = null!;
+        public readonly Vector2?[] Hands = new Vector2?[64];
+        public readonly List<Vector2> FullHands = new(64), BackHands = new(64);
         public readonly List<Interact.Entry> Entries = new();
         public float Flame;
     }
@@ -48,22 +50,25 @@ public partial class TownLife : Node
     {
         I = this; town = GetParent().GetNodeOrNull<Townspeople>("Townspeople");
         buckets = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, Mesh = new CylinderMesh { TopRadius = 0.16f, BottomRadius = 0.12f, Height = 0.32f, RadialSegments = 7, Rings = 1, Material = Goods.I.Plain(0x9a7448) }, InstanceCount = 64, VisibleInstanceCount = 0 };
+        PrepareSoot();
         bucketNode = new MultiMeshInstance3D { Multimesh = buckets, Name = "chain_buckets" }; Main.I.View.AddChild(bucketNode);
     }
     public override void _Process(double delta)
     {
-        ulong start = Time.GetTicksUsec(); long before = GC.GetAllocatedBytesForCurrentThread(); clock += delta;
+        ulong start = Time.GetTicksUsec(); long before = GC.GetAllocatedBytesForCurrentThread(); clock += delta; PollLife(delta);
         if (Events.I == null || town?.Walk == null) return;
+        WalkLamps(delta);
         foreach (var f in fires) f.Seen = false;
         int count = 0; bool hired = false;
         foreach (var live in Events.I.List)
         {
             var ev = live.Event; if (ev.Status != "running") continue;
-            if (ev.Fire != null) count = Fire(live, count);
+            if (ev.Fire != null) count = Fire(live, count, delta);
             if (ev.Hiring != null) { Hiring(live); hired = true; }
         }
         if (!hired && hireEntries.Count > 0) { foreach (var entry in hireEntries) entry.Dispose(); hireEntries.Clear(); hireEvent = 0; hireStage = -1; }
         for (int i = fires.Count - 1; i >= 0; i--) if (!fires[i].Seen) { Drop(fires[i]); fires.RemoveAt(i); }
+        DrawSoot();
         buckets.VisibleInstanceCount = count;
         if (inChain is { } at && Scheldemist.Player.Jef.I is { } j && Whereabouts.Hypot(j.X - at.x, j.Z - at.z) > 2.8 && !asking)
         {
@@ -71,7 +76,7 @@ public partial class TownLife : Node
         }
         LogicMs = (Time.GetTicksUsec() - start) / 1000.0; AllocatedBytes = GC.GetAllocatedBytesForCurrentThread() - before;
     }
-    private int Fire(Events.Live live, int count)
+    private int Fire(Events.Live live, int count, double delta)
     {
         var ev = live.Event; var v = ev.Fire!; FireLive? f = null;
         foreach (var old in fires) if (old.Id == ev.Id) { f = old; break; }
@@ -121,16 +126,8 @@ public partial class TownLife : Node
                 f.Hose.Basis = new Basis(new Quaternion(Vector3.Back, (b - a).Normalized()));
             }
         }
-        if (act == "fire_chain" && v.Chain.Count > 1)
-        {
-            for (int i = 0; i < v.Chain.Count && count < 64; i++)
-            {
-                int next = (i + 1) % v.Chain.Count;
-                double k = (clock * 0.65 + i * 0.17) % 1;
-                double x = v.Chain[i][0] + (v.Chain[next][0] - v.Chain[i][0]) * k, z = v.Chain[i][1] + (v.Chain[next][1] - v.Chain[i][1]) * k;
-                buckets.SetInstanceTransform(count++, new Transform3D(Basis.Identity, new Vector3((float)x, (float)town!.Walk!.BaseAt(x, z) + 1, (float)z)));
-            }
-        }
+        if (act is "fire_brigade" or "fire_chain" or "fire_down") count = Chain(f, ev.Id, act, count, delta);
+        SetSoot(ev.Id, v.Door, v.Out, v.Storeys, act switch { "fire_start" => 0.15f * t, "fire_brigade" => 0.15f + 0.2f * t, "fire_chain" => 0.35f + 0.4f * t, _ => 0.75f + 0.1f * t });
         return count;
     }
     private static List<(Vector3 at, float size)> FireSpots(FireView v)
@@ -189,6 +186,6 @@ public partial class TownLife : Node
         asking = true; ServerLink.I!.Api!.Run(call, reply => { asking = false; GameState.I.Apply(reply); GameState.I.Say(reply.Result.Text ?? reply.Result.Why ?? ""); if (!reply.Result.Ok) inChain = null; }, e => { asking = false; inChain = null; GameState.I.Say(e.Message); });
     }
     private static void Drop(FireLive f) { f.Alarm?.Stop(); f.Fx?.Free(); f.Pump?.QueueFree(); f.Hose?.QueueFree(); foreach (var entry in f.Entries) entry.Dispose(); }
-    public void Reset() { foreach (var f in fires) Drop(f); fires.Clear(); foreach (var entry in hireEntries) entry.Dispose(); hireEntries.Clear(); said.Clear(); inChain = null; hireEvent = 0; hireStage = -1; buckets.VisibleInstanceCount = 0; }
-    public override void _ExitTree() { foreach (var f in fires) Drop(f); foreach (var entry in hireEntries) entry.Dispose(); bucketNode.QueueFree(); if (I == this) I = null; }
+    public void Reset() { ResetLife(); foreach (var f in fires) Drop(f); fires.Clear(); foreach (var entry in hireEntries) entry.Dispose(); hireEntries.Clear(); said.Clear(); inChain = null; hireEvent = 0; hireStage = -1; buckets.VisibleInstanceCount = 0; }
+    public override void _ExitTree() { ResetLife(); foreach (var s in sootPool) s.Node.QueueFree(); foreach (var f in fires) Drop(f); foreach (var entry in hireEntries) entry.Dispose(); bucketNode.QueueFree(); if (I == this) I = null; }
 }

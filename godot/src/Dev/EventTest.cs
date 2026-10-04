@@ -141,7 +141,7 @@ public partial class EventTest : Node
                     string picture = Path.Combine(dir, kind + "-" + live.Event.Stage + "-" + stage.Op + ".png");
                     await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
                     GetViewport().GetTexture().GetImage().SavePng(picture);
-                    rows.Add(new { kind, stage = live.Event.Stage, op = stage.Op, soundKind = stage.Sound, propsKind = stage.Props, people = ids.Count, held, drawn, there, props = live.Props.Count, sound = live.Sound != null, cues = live.Cues != null, picture, left = live.Left, fire = TownLife.I?.FiresDrawn, buckets = TownLife.I?.BucketCount, hearses = Hearses.I?.Count, sounds = Soundscape.I?.Rung.ToArray() });
+                    rows.Add(new { kind, stage = live.Event.Stage, op = stage.Op, soundKind = stage.Sound, propsKind = stage.Props, people = ids.Count, held, drawn, there, props = live.Props.Count, sound = live.Sound != null, cues = live.Cues != null, picture, left = live.Left, fire = TownLife.I?.FiresDrawn, buckets = TownLife.I?.BucketCount, chainHands = TownLife.I?.ChainHands, hearses = Hearses.I?.Count, sounds = Soundscape.I?.Rung.ToArray() });
                     if (stageIndex == 0) foreach (var lead in live.Event.Leads)
                     {
                         if (town.ActionPerson(lead.Id)?.P is not { } actor) continue;
@@ -150,6 +150,12 @@ public partial class EventTest : Node
                         Jef.I.Place((float)close.X, (float)close.Z, yaw, -0.08f, (float)town.Walk!.BaseAt(close.X, close.Z));
                         await Frames(4); await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
                         GetViewport().GetTexture().GetImage().SavePng(Path.Combine(dir, kind + "-lead-" + lead.Role + ".png"));
+                    }
+                    if (kind == "house_fire" && stageIndex == 2)
+                    {
+                        await Wait(20);
+                        Check(TownLife.I!.ChainHands >= 2 && TownLife.I.BucketCount > 0, "no buckets passed between chain hands");
+                        rows.Add(new { kind = "chain", hands = TownLife.I.ChainHands, buckets = TownLife.I.BucketCount });
                     }
                     if (kind == "house_fire" && stageIndex == 1) await PropPicture("fire_pump", "house_fire-pump.png");
                     if (kind == "funeral" && stage.Op == "depart") await PropPicture("event_hearse", "funeral-hearse.png");
@@ -174,10 +180,23 @@ public partial class EventTest : Node
                 await Advance(api, 10); await Frames(5);
                 var remains = Events.I.Find(plan.Id); Check(remains == null || remains.Props.Count == 0 && remains.Sound == null && remains.Cues == null, "props or sound survived the end");
                 foreach (string id in ids) Check(town.ActionPerson(id)?.ActionHeld != true || Actors.I.Runs.Any(r => r.Action.EventId != plan.Id && (r.Action.Npc == id || r.Other?.R.Id == id)), "still held after event without another engine action: " + id);
+                if (kind == "house_fire")
+                {
+                    var life = (await api.TownLife()).Deserialize<TownLifeData>(Api.Json)!;
+                    TownLife.I!.ApplyLife(life); await Frames(3);
+                    Check(life.Soot.Any(s => s.Event == plan.Id) && TownLife.I.SootOpacity(plan.Id) > 0, "engine's soot did not survive fire");
+                    await PropPicture("soot_0", "house_fire-soot.png");
+                    TownLife.I.ApplyLife(life with { Day = life.Day + 2 }); await Frames(2);
+                    Check(Math.Abs(TownLife.I.SootOpacity(plan.Id) - (0.85f / 3 + 0.05f)) < 0.001, "soot did not fade over three days");
+                    TownLife.I.ApplyLife(life with { Soot = new() }); await Frames(2);
+                    Check(TownLife.I.SootCount == 0, "expired soot remained");
+                    rows.Add(new { kind = "soot", persisted = true, day2Opacity = 0.85f / 3 + 0.05f, expired = true });
+                }
                 rows.Add(new { kind, ended = true, propsEver, maxThere, released = ids.Count(id => town.ActionPerson(id)?.ActionHeld != true), reassigned = ids.Count(id => town.ActionPerson(id)?.ActionHeld == true), cueFired, soundStarts = Events.I.SoundStarts - soundBefore, cueStarts = Events.I.CueStarts - cueBefore });
                 GD.Print("eventtest finished " + kind);
             }
             if (only.Length == 0 || only.Contains("family_ui")) await FamilyUi();
+            if (only.Length == 0 || only.Contains("lamps")) await Lamps(api);
             if (only.Length == 0 || only.Contains("dreams")) await Dreams();
         }
         catch (Exception e) { failures.Add(current + ": " + e); GD.PrintErr(e); }
@@ -193,6 +212,30 @@ public partial class EventTest : Node
             GetTree().Quit(failures.Count == 0 ? 0 : 1);
         }
     }
+    private async Task Lamps(Api api)
+    {
+        current = "lamps";
+        var data = (await api.TownLife()).Deserialize<TownLifeData>(Api.Json)!;
+        Check(data.Rounds.Count > 0, "engine supplied no rounds"); if (data.Rounds.Count == 0) return;
+        var round = data.Rounds[0];
+        GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { hour = (int)round.Dusk, minute = (int)Math.Round((round.Dusk % 1) * 60), weather = "clear", food = 10, warmth = 10, sleep = 10, health = 10 }));
+        TownLife.I!.ApplyLife(data);
+        var lamp = round.Lamps[0]; var q = ViewNear(lamp.Sx, lamp.Sz, 4);
+        Jef.I.Place((float)q.X, (float)q.Z, MathF.Atan2((float)(q.X - lamp.Sx), (float)(q.Z - lamp.Sz)), -0.1f);
+        await Wait(18);
+        Check(TownLife.I.LampsWorked > 0, "nearby lamplighter did not finish a lamp stop");
+        var run = TownLife.I.LampRuns[0];
+        Check(run.Person?.P != null && run.Wear != null, "lamplighter missing body and pole");
+        await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+        GetViewport().GetTexture().GetImage().SavePng(Path.Combine(dir, "lamplighter-round.png"));
+        var windows = new List<TownLife.LampWindow>();
+        TownLife.WindowsOf(round, new LampsFog { Start = true }, windows);
+        Check(windows.Count == 0, "fog from midnight incorrectly walked dawn or dusk");
+        TownLife.WindowsOf(round, new LampsFog { Turns = new() { new FogTurn { H = 10, Fog = true }, new FogTurn { H = 14, Fog = false } } }, windows);
+        Check(windows.Any(w => w.Fog && w.On && w.Start == 10), "daytime fog did not light lamps");
+        rows.Add(new { kind = "lamps", rounds = data.Rounds.Count, lamps = data.Rounds.Sum(r => r.Lamps.Count), worked = TownLife.I.LampsWorked, fogWindows = windows.Count });
+    }
+
     private async Task Dreams()
     {
         current = "dreams";
