@@ -87,7 +87,8 @@ public static class BuildingAudit
         Hit? best = null;
         foreach (var model in models)
         {
-            if (!model.Node.IsVisibleInTree()) continue;
+            // Goods and crowd parts can detach a baked node after this inventory was read.
+            if (!GodotObject.IsInstanceValid(model.Node) || !model.Node.IsInsideTree() || !model.Node.IsVisibleInTree()) continue;
             var inverse = model.Node.GlobalTransform.AffineInverse();
             var o = inverse * origin; var d = inverse.Basis * direction;
             if (!model.Bounds.IntersectsSegment(o, o + d * far)) continue;
