@@ -35,12 +35,13 @@ public static class PixelComparison
     }
     public static async Task<object> Run(Checks check)
     {
-        var rows = new List<object>(); int total = 0, controlPixels = 0, actionChecks = 0, actionDifferences = 0, floorChecks = 0, floorDifferences = 0, roomChecks = 0, roomDifferences = 0;
+        var rows = new List<object>(); int total = 0, controlPixels = 0, actionChecks = 0, actionDifferences = 0, floorChecks = 0, floorDifferences = 0, roomChecks = 0, roomDifferences = 0, routeChecks = 0, routeDifferences = 0;
         object scheduleProof = SpeedComparison.ScheduleProof();
         foreach (var (hour, weather) in new[] { (13.0, "clear"), (22.0, "mist") })
         foreach (string place in new[] { "grote markt", "cathedral", "handschoenmarkt", "vismarkt", "rijnkaai" })
         {
             await Kit.I.Light(hour, weather); check.At(place); await check.Frames(120);
+            foreach (var resident in Kit.I.People!.Data!.Residents) { routeChecks++; if (!Kit.I.People.SameDayRoute(resident)) routeDifferences++; }
             actionChecks++; if (!Play.Interact.I.SameActions()) actionDifferences++;
             var jef = Player.Jef.I;
             for (int x = -4; x <= 4; x++) for (int z = -4; z <= 4; z++)
@@ -81,7 +82,7 @@ public static class PixelComparison
             }
             finally { UniformUpdates.Cached = cached; SpeedComparison.Cached = speedCached; Main.I.PictureTime(-1); Main.I.GetTree().Paused = false; }
         }
-        return new { ok = total == 0 && controlPixels > 0 && actionDifferences == 0 && floorDifferences == 0 && roomDifferences == 0 && System.Text.Json.JsonSerializer.SerializeToElement(scheduleProof).GetProperty("ok").GetBoolean(), differentPixels = total, controlPixels, comparisons = rows, scheduleProof, actionProof = new { actionChecks, actionDifferences }, floorProof = new { floorChecks, floorDifferences }, roomProof = new { roomChecks, roomDifferences },
+        return new { ok = total == 0 && controlPixels > 0 && actionDifferences == 0 && floorDifferences == 0 && roomDifferences == 0 && routeDifferences == 0 && System.Text.Json.JsonSerializer.SerializeToElement(scheduleProof).GetProperty("ok").GetBoolean(), differentPixels = total, controlPixels, comparisons = rows, scheduleProof, actionProof = new { actionChecks, actionDifferences }, floorProof = new { floorChecks, floorDifferences }, roomProof = new { roomChecks, roomDifferences }, routeProof = new { routeChecks, routeDifferences },
             method = "RGBA8 full screen including retro grain, paused scene and fixed grain; uncached/cached uniform and unchanged-node-pose replay, live spill/far buffers; deliberately wrong fog colour as positive control" };
     }
 }

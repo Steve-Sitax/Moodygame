@@ -513,7 +513,7 @@ public partial class Townspeople : Node
                         ways[k] = got.GetValueOrDefault(k);
                         planChanged |= planWaysPending.Remove(k);
                     }
-                    if (planChanged) Whereabouts.WaysLearnt();
+                    if (planChanged) Whereabouts.WaysLearnt(keys);
                 });
             }
             catch (Exception)
@@ -532,6 +532,7 @@ public partial class Townspeople : Node
 
     /// <summary>For a check: a resident's day as he keeps it, one stop after the other.</summary>
     public string DescribeDay(Resident r, int day) => Whereabouts.DescribeDay(r, Data!, day, wayOf);
+    public bool SameDayRoute(Resident r) => Whereabouts.SameDayRoute(r, Data!, day, wayOf);
 
     /// <summary>Ways still asked for or on their way here (a check waits for none); -1: the town's ways are not in yet.</summary>
     public int PlanWaysWaiting => planWaysPending.Count;

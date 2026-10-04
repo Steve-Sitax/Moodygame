@@ -474,9 +474,32 @@ public static class Whereabouts
     /// <summary>Routes worked out and routes found in the cache (the frame cost: a route is worked out once a day per person).</summary>
     public static int RoutesMade, RouteHits, RoutesUnknown;
     private static int wayGen;
+    private readonly record struct PathKey(long Ax, long Az, long Bx, long Bz);
+    private static readonly Dictionary<Resident, HashSet<PathKey>> partialWays = new();
+    private static PathKey PathOf(double ax, double az, double bx, double bz) => new(JsRound(ax), JsRound(az), JsRound(bx), JsRound(bz));
+    private static bool ReadPath(string key, out PathKey path)
+    {
+        var text = key.AsSpan(); int a = text.IndexOf(','), b = text.IndexOf('>'), c = text.LastIndexOf(',');
+        if (a > 0 && b > a && c > b && long.TryParse(text[..a], NumberStyles.Integer, CultureInfo.InvariantCulture, out long ax)
+            && long.TryParse(text[(a + 1)..b], NumberStyles.Integer, CultureInfo.InvariantCulture, out long az)
+            && long.TryParse(text[(b + 1)..c], NumberStyles.Integer, CultureInfo.InvariantCulture, out long bx)
+            && long.TryParse(text[(c + 1)..], NumberStyles.Integer, CultureInfo.InvariantCulture, out long bz))
+        { path = new(ax, az, bx, bz); return true; }
+        path = default; return false;
+    }
     /// <summary>The way function knows more ways now: routes worked out without them are worked out again.</summary>
     public static void WaysLearnt() => wayGen++;
-    public static void Forget() { RoundCache.Clear(); HaulRoutes.Clear(); wayGen++; }
+    public static void WaysLearnt(IReadOnlyCollection<string> keys)
+    {
+        int previous = wayGen++;
+        if (!Scheldemist.Dev.SpeedComparison.Cached) return;
+        var changed = new HashSet<PathKey>();
+        foreach (string key in keys) { if (!ReadPath(key, out var path)) return; changed.Add(path); }
+        foreach (var (resident, missing) in partialWays)
+            if (resident.PartialRoute is { } route && route.gen == previous && !missing.Overlaps(changed))
+                resident.PartialRoute = (route.day, wayGen, route.stops);
+    }
+    public static void Forget() { RoundCache.Clear(); HaulRoutes.Clear(); partialWays.Clear(); wayGen++; }
 
     /// <summary>
     /// His day as he keeps it: he sets off early enough to be at the next part at its hour, at his pace; a young one
@@ -497,11 +520,21 @@ public static class Whereabouts
         }
         RoutesMade++;
         bool known = true;
+        HashSet<PathKey>? missing = null;
+        if (Scheldemist.Dev.SpeedComparison.Cached && partialWays.TryGetValue(r, out missing)) missing.Clear();
         Walk? WalkOf(Anchor a, Anchor b, string leg, bool run)
         {
             if (Same(a, b)) return null;
             var pts = way(a.X, a.Z, b.X, b.Z, out bool k);
-            if (!k) known = false;
+            if (!k)
+            {
+                known = false;
+                if (Scheldemist.Dev.SpeedComparison.Cached)
+                {
+                    if (missing == null) partialWays[r] = missing = new();
+                    missing.Add(PathOf(a.X, a.Z, b.X, b.Z));
+                }
+            }
             if (pts == null) return null;
             double total = WayLength(pts);
             var p = PaceOf(r, leg);
@@ -564,10 +597,42 @@ public static class Whereabouts
         }
         else
         {
+            if (Scheldemist.Dev.SpeedComparison.Cached) partialWays.Remove(r);
             if (r.RouteCache.Count > 8) r.RouteCache.Clear();
             r.RouteCache[day] = arr;
         }
         return arr;
+    }
+
+    /// <summary>Exact same-state check against rebuilding the route with the original schedule path.</summary>
+    public static bool SameDayRoute(Resident r, TownData town, int day, WayOf way)
+    {
+        var current = DayRoute(r, town, day, way);
+        bool hadRoute = r.RouteCache.TryGetValue(day, out var saved); var partial = r.PartialRoute;
+        bool cached = Scheldemist.Dev.SpeedComparison.Cached;
+        Stop[] original;
+        try
+        {
+            r.RouteCache.Remove(day); r.PartialRoute = null;
+            Scheldemist.Dev.SpeedComparison.Cached = false;
+            original = DayRoute(r, town, day, way);
+        }
+        finally
+        {
+            Scheldemist.Dev.SpeedComparison.Cached = cached; r.PartialRoute = partial;
+            if (hadRoute) r.RouteCache[day] = saved!; else r.RouteCache.Remove(day);
+        }
+        if (original.Length != current.Length) return false;
+        for (int i = 0; i < current.Length; i++)
+        {
+            var a = original[i]; var b = current[i];
+            if (a.Part != b.Part || a.Arrive != b.Arrive || a.Leave != b.Leave || a.Stand != b.Stand
+                || a.At.X != b.At.X || a.At.Z != b.At.Z || a.At.Indoor != b.At.Indoor || a.At.Loop != b.At.Loop || a.At.Route != b.At.Route) return false;
+            var x = a.Walk; var y = b.Walk;
+            if ((x == null) != (y == null)) return false;
+            if (x != null && y != null && (x.Pts != y.Pts || x.Total != y.Total || x.Mps != y.Mps || x.Hours != y.Hours || x.Dep != y.Dep || x.Run != y.Run)) return false;
+        }
+        return true;
     }
 
     /// <summary>For a check: his day as he keeps it, one stop a line (the part, when he gets there, the walk there).</summary>
