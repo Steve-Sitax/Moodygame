@@ -10,12 +10,12 @@ public partial class Jobs
     private void RestoreIndoor(ClientState? saved)
     {
         millProgress.Clear();
-        if (saved?.More == null || !saved.More.TryGetValue("indoor_work", out var state)) return;
+        if (saved?.More == null || !saved.More.TryGetValue("indoor_work", out var state)||state.ValueKind!=JsonValueKind.Object) return;
         try
         {
-            if (state.TryGetProperty("mills", out var mills)) foreach (var pair in mills.EnumerateObject())
+            if (state.TryGetProperty("mills", out var mills)&&mills.ValueKind==JsonValueKind.Object) foreach (var pair in mills.EnumerateObject())
                 if (int.TryParse(pair.Name, out int id) && pair.Value.Deserialize<MillWork.State>(Api.Json) is {} progress) millProgress[id] = progress;
-            if (state.TryGetProperty("followed", out var followed) && followed.TryGetInt32(out int job)) followId = job;
+            if (state.TryGetProperty("followed", out var followed) && followed.ValueKind == JsonValueKind.Number && followed.TryGetInt32(out int job)) followId = job;
         }
         catch (JsonException) { millProgress.Clear(); }
     }

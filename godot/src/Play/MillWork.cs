@@ -26,6 +26,9 @@ public sealed class MillWork : IRun
     private bool ended;
     private readonly List<string> hud = new();
     public bool Calling => call >= 0;
+    public bool Turning => turning >= 0;
+    public bool Capstan => capstan;
+    public float TurnFraction => (float)Math.Clamp(turning / 5, 0, 1);
     public int Turns => turns;
     public sealed record State(double T, double Away, int Turns, int Calls);
     public State Snapshot() => new(t, away, turns, calls);
