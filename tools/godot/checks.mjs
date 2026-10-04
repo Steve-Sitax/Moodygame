@@ -85,7 +85,7 @@ try {
     try {
       const ownPort = await nextPort();
       const config = path.join(scratch, "walk.json");
-      writeFileSync(config, JSON.stringify({ version: 1, mode: "walk", typedLines: "same", callsPerDay: 120, default: { provider: "recommended" }, kinds: {}, connections: {} }));
+      writeFileSync(config, JSON.stringify({ version: 1, mode: "walk", typedLines: "same", callsPerDay: 120, default: { provider: "recommended" }, kinds: {}, connections: { anthropic_api: {}, openai_compat: { baseUrl: "https://api.openai.com/v1" }, ollama: { baseUrl: "http://127.0.0.1:11434" } } }));
       server = spawn(process.execPath, ["src/index.ts"], { cwd: path.join(root, "server"), windowsHide: true, stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, SCHELDEMIST_TOWN_SEED: String(seed), SCHELDEMIST_DB: path.join(scratch, "test.sqlite"), SCHELDEMIST_AI_CONFIG: config, SCHELDEMIST_PORT: String(ownPort), SCHELDEMIST_CLIENT_PORT: String(ownPort), SCHELDEMIST_MAP_PORT: "0" } });
       children.add(server);
       server.stdout.on("data", b => { serverText += b; }); server.stderr.on("data", b => { serverText += b; });
@@ -98,6 +98,10 @@ try {
         await pause(250);
       }
       if (!ready) throw new Error("fresh test server did not start");
+      if (serverText.includes("AI settings file not valid")) throw new Error("server rejected the no-AI test settings");
+      const ai = await (await fetch(url + "/api/ai/config", { signal: AbortSignal.timeout(5000) })).json();
+      if (ai.mode !== "walk") throw new Error("test server is not in no-AI walk-around mode");
+      serverText += "\n[checks] verified no-AI walk-around mode\n";
       // Never accept an old report if this run fails before writing one.
       rmSync(path.join(dir, name + ".json"), { force: true });
       const code = await run(godot, ["--path", path.join(root, "godot"), "--", "--town", town, "--models", models, "--server", url, "--no-ai", "--hour", "13", "--weather", "clear", "--no-mainmenu", "--prefs", path.join(scratch, "prefs.json"), `--${name}`, dir], timeout, path.join(dir, "run.log"));
@@ -109,7 +113,9 @@ try {
       writeFileSync(path.join(dir, "server.log"), serverText);
       // Only the exact temporary directory created by this run, inside its output folder.
       if (path.dirname(scratch) !== out || !path.basename(scratch).startsWith("test-town-")) throw new Error("unsafe scratch path");
-      rmSync(scratch, { recursive: true, force: true });
+      // Windows can hold SQLite handles briefly after taskkill returns. Retry before recording a cleanup error.
+      try { rmSync(scratch, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }); }
+      catch (e) { table.push({ check: name + " cleanup", result: "ERROR", finds: e.message }); }
     }
     console.log(`${table.at(-1).check}: ${table.at(-1).result} — ${table.at(-1).finds}`);
   }
