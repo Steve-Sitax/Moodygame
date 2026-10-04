@@ -6,6 +6,7 @@ public sealed record HushReply : JobsPayload
 {
     public bool Counted { get; init; }
     public int Strike { get; init; }
+    public int Delta { get; init; }
     public string Line { get; init; } = "";
     public string Speaker { get; init; } = "";
     public bool Leave { get; init; }

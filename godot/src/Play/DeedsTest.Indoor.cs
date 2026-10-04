@@ -39,13 +39,13 @@ public partial class DeedsTest
             var awake=await guest.Tick(new WhereReport("street",false),false,new Pos3(10,12,0));
             Check(awake.Rest==null,"second player can keep walking while host is held");
             bool refused=false;try{await api.Wake();}catch(ApiException e){refused=e.Status==409;}
-            Check(refused || (await api.Police()).Held,"wake key cannot release held prisoner");await Frames(90);await Shot("two-player-held-cell");
+            Check(refused || (await api.Police()).Held,"wake key cannot release held prisoner");await Until(()=>false,1.4);await Shot("two-player-held-cell");
             // Only the multiplayer world's real tick advances each player's rest.
             // dev/advance moves its clock but deliberately does not spend a prisoner's sleep.
             var heldAt=await api.Tick(GameState.I.Where(),true,new Pos3(Jef.I.X,Jef.I.Z,Jef.I.Y));GameState.I.Apply(heldAt);replies.Add(new{cellHeldAt=new{heldAt.Clock,heldAt.Rest,heldAt.Woke}});
             Check(heldAt.Rest?.At is {} cellAt&&new Vector2(Jef.I.X-(float)cellAt.X,Jef.I.Z-(float)cellAt.Z).Length()<.1f,"held player occupies engine cell position for the other player");
             bool released=await Until(()=>!Day.I.Asleep,45);replies.Add(new{cellReleaseProbe=new{released,clock=(await api.Jobs()).Clock,police=await api.Police(),Scheldemist.Net.Mp.Together.I!.PausedAll}});Check(released,"held cell releases at world dawn");await Deeds.I.Poll();
-            Check((await api.Police()).Cell,"dawn presents prison summary");await Deeds.I.ShowCell();await Frames(90);await Shot("two-player-cell-dawn");await Deeds.I.LeaveCell();
+            Check((await api.Police()).Cell,"dawn presents prison summary");await Deeds.I.ShowCell();await Until(()=>false,1.4);await Shot("two-player-cell-dawn");await Deeds.I.LeaveCell();
             Check(!(await api.Police()).Held && !(await api.Police()).Cell,"prison summary acknowledged after world dawn");
             replies.Add(new { heldCell=new { guestId=joined.GetProperty("id").GetInt32(),secondPlayerAwake=true,released=await api.Police() } });
         }
