@@ -26,6 +26,7 @@ public partial class BakedWorld : Node3D
     public volatile int StageDone, StageTotal;
 
     private JsonElement gltf;
+    private string glb = "";
     private string texDir = "";
     private readonly Dictionary<string, Texture2D> psxTextures = new();
     private ShaderMaterial? invisible;
@@ -37,6 +38,7 @@ public partial class BakedWorld : Node3D
         texDir = Paths.TownTextures(glbPath);
         Stage = "read";
         gltf = ReadJsonChunk(glbPath);
+        glb = glbPath;
         Psx.LoadShared(texDir); // the sky map and the dirt map every psx material reads
         Stage = "parse";
 
@@ -123,7 +125,8 @@ public partial class BakedWorld : Node3D
             if (unported)
             {
                 mi.Visible = false;
-                Unported.Add(name);
+                // (three's nameless meshes read as Mesh123: the list names them by their parent too)
+                Unported.Add(name.StartsWith("Mesh") && name.Length > 4 && char.IsDigit(name[4]) ? $"{mi.GetParent()?.Name}/{name}" : name);
             }
             if (allInvisible) mi.Visible = false;
             if (!inst) continue;
@@ -197,6 +200,16 @@ public partial class BakedWorld : Node3D
             return invisible;
         }
         string type = hasThree ? three.GetProperty("type").GetString() ?? "" : "";
+        // (a landmark's window light copied into its room left the exporter without its three extras: it is the same
+        // additive, unfogged light as the shell's own, landmarkWindows.ts matFor)
+        if (!hasThree && name == "landmark_window_light")
+        {
+            var lk = new Psx.Kind(Unlit: true, Blend: true, Scissor: false, TwoSided: false, DepthWrite: false, Snap: hasPsx, Atlas: 0, VertexColor: true, Add: true, Fog: false);
+            var lm = PsxMaterial(bm, lk, 0, 1, 0, 1);
+            lm.SetShaderParameter("albedo", new Color(0, 0, 0, 1));
+            kinds[lm] = lk;
+            return lm;
+        }
         // (three's exporter writes a ShaderMaterial as a bare default material, without the extras)
         if (!hasThree || type is "ShaderMaterial" or "RawShaderMaterial") return null;
 
@@ -244,6 +257,44 @@ public partial class BakedWorld : Node3D
         m.SetShaderParameter("uv_xform", new Vector4(bm.Uv1Scale.X, bm.Uv1Scale.Y, bm.Uv1Offset.X, bm.Uv1Offset.Y));
         m.RenderPriority = bm.RenderPriority;
         return m;
+    }
+
+    /// <summary>
+    /// A vertex attribute of a baked mesh as floats, straight from the glb (Godot's importer drops the browser's own
+    /// attributes: _ASEED, _AAGE ...): the node's first primitive, `attr` as named in the file ("POSITION", "_ASEED").
+    /// `nth`: which of the nodes of that name. Null when there is none. For a part's load, not a frame.
+    /// </summary>
+    public float[]? Attribute(string node, string attr, int nth = 0)
+    {
+        if (glb == "") return null;
+        var nodes = gltf.GetProperty("nodes");
+        int seen = 0;
+        foreach (var nd in nodes.EnumerateArray())
+        {
+            if (!nd.TryGetProperty("name", out var nm) || nm.GetString() != node || !nd.TryGetProperty("mesh", out var mi)) continue;
+            if (seen++ < nth) continue;
+            var prim = gltf.GetProperty("meshes")[mi.GetInt32()].GetProperty("primitives")[0];
+            if (!prim.GetProperty("attributes").TryGetProperty(attr, out var ai)) return null;
+            var acc = gltf.GetProperty("accessors")[ai.GetInt32()];
+            if (acc.GetProperty("componentType").GetInt32() != 5126) return null; // (floats only)
+            int comps = acc.GetProperty("type").GetString() switch { "SCALAR" => 1, "VEC2" => 2, "VEC3" => 3, "VEC4" => 4, _ => 0 };
+            int count = acc.GetProperty("count").GetInt32();
+            var bv = gltf.GetProperty("bufferViews")[acc.GetProperty("bufferView").GetInt32()];
+            long off = (bv.TryGetProperty("byteOffset", out var bo) ? bo.GetInt64() : 0) + (acc.TryGetProperty("byteOffset", out var ao) ? ao.GetInt64() : 0);
+            int stride = bv.TryGetProperty("byteStride", out var bs) ? bs.GetInt32() : comps * 4;
+            using var f = File.OpenRead(glb);
+            var head = new byte[20];
+            f.ReadExactly(head);
+            long bin = 20 + BitConverter.ToInt32(head, 12) + 8; // (the json chunk, then the bin chunk's own header)
+            var raw = new byte[(long)stride * (count - 1) + comps * 4];
+            f.Seek(bin + off, SeekOrigin.Begin);
+            f.ReadExactly(raw);
+            var outv = new float[count * comps];
+            for (int i = 0; i < count; i++)
+                for (int c = 0; c < comps; c++) outv[i * comps + c] = BitConverter.ToSingle(raw, i * stride + c * 4);
+            return outv;
+        }
+        return null;
     }
 
     private static int CountHidden(JsonElement gltf)
