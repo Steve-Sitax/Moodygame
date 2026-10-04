@@ -282,3 +282,5 @@ Earlier batches: the git log before f5291a4 and the milestone notes in `docs/mil
 - Players choose their own AI; Steve's machine keeps typed lines on Claude.
 - Quality: before a building or prop patch goes live, close shots of every changed part and an
   automatic clip/overlap check that lists nothing.
+
+2026-10-04: Godot net restart finished the guest link, smooth player figures and remote gear, Together handbill, and two-process self-test. Solo, day, menu and multiplayer checks pass; zero camera snaps on both players. Browser movement code still joins. Remaining M8 world/people adapters and measurements are in [the net handoff](godot-net.md). No push or merge back.

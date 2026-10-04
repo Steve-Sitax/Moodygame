@@ -195,3 +195,27 @@ picture as it was (720 lines, wobble on) whatever the player's settings say.
   is 16.7 ms a frame on PCX with everything on.
 - Comments say what the code is for, in the plain English of the rest of the repo; name the TypeScript file a part
   comes from.
+
+## Together (net part, round two)
+
+The handbill's Together paper hosts a game for the house, shows the address and code, joins another host,
+and lets a guest go home. Each PC needs the Godot download; no models are fetched from the host.
+The first join needs the address and code; a remembered guest token lets later visits use the address alone.
+`Together.I.Host()`, `Join(address, code, name)` and `Leave()` are the other parts' public calls.
+A code alone passed to `Join(code)` applies to the server this game already knows; it cannot locate another PC.
+
+Test with the console program (all paths after `--`):
+
+```
+-- --town D:/Code/MoodyGame-godot/godot/baked/town.glb --models D:/Code/MoodyGame-godot/godot/baked/models --no-ai --port 8974 --mptest <absolute-output-dir>
+```
+
+It starts a Godot host and a second Godot guest, walks both by `Jef.SetKey`, checks the pause and separate
+player state, saves `mp_host.png`, `mp_guest.png` and `mptest.json`, returns the guest to its own game, and
+quits both. The databases and test token are disposable and deleted; no existing player save is opened.
+The guest's own server after leaving starts at port 8967 (or the next free port).
+`--host` and `--join <address> --seat 2 [--code CODE --name Anna]` also work outside the test.
+
+The menu check is `--togethertest <dir> --db <fresh-test.sqlite> --prefs <dir>/settings.json --port 8980 --no-ai`.
+It checks the handbill, join fields, hosting, no pause together and all three remote gear models.
+Details, measurements and remaining hooks: [net part handoff](../docs/godot-net.md).
