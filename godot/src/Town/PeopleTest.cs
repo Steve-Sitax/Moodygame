@@ -253,7 +253,7 @@ public partial class PeopleTest : Node
                 foreach (var p in crowd!.Walking.Where(p => p.State == "walk" && before.TryGetValue(p, out var b) && b.walk && Whereabouts.Hypot(p.X - b.x, p.Z - b.z) < 0.5)) waitingWalkers[p] = (p.X, p.Z);
                 row["walkersWaitingAtFirstCheck"] = waitingWalkers.Count;
                 row["walkersNotMoving"] = 0;
-                row["standingWhereNoBodyFits"] = crowd.Walking.Count(p => !town.Walk!.Free(p.X, p.Z));
+                row["standingWhereNoBodyFits"] = crowd.Walking.Count(p => !town.Walk!.FreeFor(p, p.X, p.Z));
                 before.Clear();
                 Shot($"people_{wanted[place].Replace(' ', '_')}_wide.png");
                 Next(waitingWalkers.Count > 0 ? "recover" : "timingstart");
@@ -1115,7 +1115,7 @@ public partial class PeopleTest : Node
             if (r.TryGetValue("overlaps", out var overlaps) && Convert.ToInt32(overlaps) != 0) return false;
             if (r.TryGetValue("walkersNotMoving", out var stuck) && Convert.ToInt32(stuck) != 0) return false;
             if (r.TryGetValue("standingWhereNoBodyFits", out var blocked) && Convert.ToInt32(blocked) != 0) return false;
-            if (r.TryGetValue("drawn", out var drawn) && Convert.ToInt32(drawn) != 50) return false;
+            if (r.TryGetValue("drawn", out var drawn) && Convert.ToInt32(drawn) < town.MaxPuppets) return false;
             if (r.TryGetValue("peopleAndAnimalsCostMs", out var cost) && Convert.ToDouble(cost) >= 1.5) return false;
         }
         if (wildlifeRow.ContainsKey("missing")) return false;

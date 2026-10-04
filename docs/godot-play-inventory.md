@@ -162,7 +162,10 @@ The upstairs resident appeared above 3 m and retreated. Automatic home entry pas
 unchanged-money/needs checks. Wildlife and real walk-up evidence is in `godot-gaps-life.md`.
 The shader pass reports 0 new kinds and 0 problems. Full sound: 158 rows, all wiring true, mean 0.0249 ms,
 p95 0.0373 ms; failures are a far-off bell 5.3 dB above prediction and one mixer frame at 2.081 ms.
-The sound gate is not claimed as passing. Final updated picture/job checks are pending.
+The sound gate is not claimed as passing. Combined-branch repeat: 5,370 whereabouts matches,
+six game pictures, 74 park animals, no blocked or overlapping walkers, and all 21 job gameplay
+steps passed. Full people and job frame gates remain open; the full sound repeat passed 159 level
+and wiring rows but had one 2.052 ms mixer frame. See `godot-gaps-life.md`.
 
 Moving-gap ferry proof: 17 checks with Soundscape enabled in `moving-guidance-sound-repeat`, two inspected pictures, real solo creator and guided gangway exit, model night navigation lamps and saloon panes. Vehicle/ship Soundscape inputs allocate 0 B across 100 warmed gathers. Guest creator and auditory review remain open.
 

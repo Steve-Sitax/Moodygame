@@ -57,3 +57,30 @@ is not claimed as passing. The pure source parity checks passed again: 1,200 pud
 Restart check: the focused 48-row sound hook suite kept all producer wiring true and loaded the same
 49 recordings, but a dray-wheel start took 0.365 ms against the 0.3 ms frame gate. The test
 reported that one frame as its only problem. This remains an open timing gate, not a wiring failure.
+
+After merging `godot-port` (look and moving parts), `MovingSounds` owns the live vehicle/ship lists
+and the moving branch's railway crew owns the railway cues. `LifeSound` retains room floors,
+puddles, animal/trade and great-storm producers. Live mover and railway producers pause only
+during the isolated sound recording; otherwise they double count the test's scripted sounds.
+The repeated full sound test then checked 159 rows: all level and wiring rows passed, 49 recordings
+loaded with no decoder failures, mean 0.0269 ms/p95 0.0407 ms across 28,699 frames. One mixer
+frame took 2.052 ms against the 0.3 ms gate. The full sound gate remains open on timing alone.
+
+The combined full job check passed 21 gameplay steps out of 22, including real stranger and briber
+actors and trouble delivery. Its Vismarkt frame step failed at 8.86 ms against 5 ms. The focused
+tempest event passed four stages and started 14 placed gale sounds. The full event check reached
+burglary after finishing the first 13 event kinds, then hit its 600-second bound; a separate
+burglary/smuggling/night-watch tail passed 12 stages with no failures.
+
+The ride test runner now starts Godot with Dummy audio even when the soundscape is disabled. A
+focused cart run started without WASAPI errors and passed server/cart purchase and grip checks,
+then failed its flat-street W movement assertion; [issue #57](https://github.com/Steve-Sitax/Moodygame/issues/57)
+tracks that separate ride problem. The temporary database was removed. This check shows the
+runner no longer touches WASAPI; it does not diagnose the old physical-device invalidation.
+
+The final combined people repeat matched all 5,370 whereabouts answers, showed six child games
+and 74 park animals, and found zero blocked walkers, stuck walkers or body overlaps at Vismarkt
+and Grote Markt. The full people gate still failed the measured 1.5 ms life cost at Grote Markt
+(1.626 ms on that run; the previous repeat measured 0.614 ms there). This features-first branch
+does not claim the variable frame-cost gate as passing.
+The combined shader check passed with zero new kinds and zero problems.

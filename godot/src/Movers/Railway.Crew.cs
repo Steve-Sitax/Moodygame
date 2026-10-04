@@ -46,7 +46,7 @@ public partial class Railway
     {if(state=="shed")return;foreach(var w in wagons)output.Add(new("dray",w.X,w.Z,v>.08f?"go":"stop"));}
     private void UpdateSounds()
     {
-        var sound=Soundscape.I;bool ready=sound?.Prepared==true;
+        var sound=Soundscape.I;bool ready=sound?.Prepared==true&&Main.I.Arg("soundtest")=="";
         if(ready&&gate.WantOpen&&!soundGate)sound!.GateBell(Gate.Face,4);soundGate=gate.WantOpen;
         for(int i=0;i<wagons.Count;i++)for(int j=0;j<2;j++){float s=head-wagons[i].Front-LBuf/2+(j==0?Wb/2:-Wb/2);int k=i*2+j;if(ready&&state!="shed"&&s>soundAxles[k]&&MathF.Floor(s/9)!=MathF.Floor(soundAxles[k]/9)){var at=line.At(s);if(at.X>-345)sound!.RailClack(at.X,at.Y);}soundAxles[k]=s;}
         foreach(var c in cranes){var previous=craneSounds[c];bool hoist=c.Ops.Count>0&&c.Ops[0].T==OpT.Hoist&&Math.Abs(c.Ops[0].V-c.Hy)>.5f,travel=c.Mode=="travel";previous.At.X=c.X;previous.At.Z=c.Z;if(ready&&hoist&&!previous.Hoisting)sound!.CraneWork(previous.At);if(ready&&travel&&!previous.Travelling)sound!.GateBell(c.X,c.Z);craneSounds[c]=(previous.At,hoist,travel);}
