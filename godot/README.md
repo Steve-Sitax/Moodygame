@@ -43,6 +43,10 @@ state, one tick, a picture with the HUD and `nettest.json` in `<dir>`, quit; the
 keys, a picture of each and `talktest.json` in `<dir>`, quit; `--talktest <dir> --talktest-ai` instead is one talk
 with a typed line and a model's answer, two model calls). The browser's pictures of the same windows:
 `node tools/godot/talk-refs.mjs --out godot/baked/talkref` (a test stack with no AI on 8954 and 5354).
+`--deedstest <absolute dir> --no-ai` checks police, theft, lantern, ideas, gifts, tavern rounds, hired help and night gangs
+against a fresh test server; it writes `deedstest.json` and close PNGs, then quits. Run it with
+`node tools/godot/deeds-check.mjs --out deeds-proof` from its worktree. The runner waits for `PERF-LOCK`, uses ports
+8980/8981, bounds each Godot process and removes its test database.
 The menus' options: `--prefs <file>` (the settings kept somewhere else than the player's own folder; the keys go
 beside it), `--no-mainmenu` (no loading screen and no menus: the town at once, as before), `--menutest <dir>` (the
 menus' own test, below). A run with `--shots` or another part's `--...test` has no menus either, and keeps the

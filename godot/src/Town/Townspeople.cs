@@ -1113,7 +1113,7 @@ public partial class Townspeople : Node
             return;
         }
         var want = spawnWanted; want.Clear();
-        foreach (var person in sims) if (person.P == null && !person.Inside && Dist(person.X, person.Z, px, pz) < SpawnR) want.Add(person);
+        foreach (var person in sims) if (person.P == null && !person.Inside && !person.ActionHeld && Dist(person.X, person.Z, px, pz) < SpawnR) want.Add(person);
         spawnOrder.FarFirst = false; want.Sort(spawnOrder);
         if (alive >= MaxPuppets)
         {

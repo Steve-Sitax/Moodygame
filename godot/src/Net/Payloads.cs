@@ -325,6 +325,15 @@ public sealed record TalkLine
     public List<Ware>? Wares { get; init; }
     /// <summary>False: the choices only, no typing (no AI).</summary>
     public bool? Free { get; init; }
+    public GiftHandover? Handover { get; init; }
+}
+
+public sealed record GiftHandover
+{
+    public string Item { get; init; } = "";
+    public string Name { get; init; } = "";
+    public bool Eaten { get; init; }
+    public bool Warmed { get; init; }
 }
 
 public sealed record Npc

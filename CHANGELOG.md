@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Godot adds street deeds: police visits and prison release, pocket thieves, night gangs, lanterns, gifts and tavern rounds, hired helpers, lost property, notebooks, letters and meeting doors.
+
 - Godot lamplighters put away their pole when another scene takes over and rebuild it when their street body returns.
 
 - Godot event attendees keep up with a later destination across town, and an older hall reply cannot replace a newer ceremony roster.
