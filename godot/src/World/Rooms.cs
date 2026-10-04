@@ -28,7 +28,7 @@ namespace Scheldemist.World;
 /// Not yet: the room's own air when the eye is inside (the street's fog is used), people inside lit by the room.
 /// </summary>
 [GamePart(50)]
-public partial class Rooms : Node
+public partial class Rooms : Node, Dev.IInteriorAuditSource
 {
     public static Rooms I { get; private set; } = null!;
     /// <summary>The rooms' meshes: their lamps light only these.</summary>
@@ -51,6 +51,7 @@ public partial class Rooms : Node
         public readonly List<Lamp> Lamps = new();
         /// <summary>The middles of its doors and windows: the room shows from the street only near one of them.</summary>
         public readonly List<Vector3> Openings = new();
+        public readonly List<(string kind, Aabb box, bool open)> AuditOpenings = new();
         public readonly List<GeometryInstance3D> Meshes = new();
         public Vector3 SkyDay, GroundDay, AmbDay, SkyLit, GroundLit, AmbLit;
         public bool? Open;
@@ -70,6 +71,11 @@ public partial class Rooms : Node
     private readonly HashSet<ShaderMaterial> panes = new();
     private double lookT;
     private int maxRooms = 4;
+    private readonly List<Dev.InteriorAuditTarget> auditTargets = new();
+    public IReadOnlyList<Dev.InteriorAuditTarget> InteriorAuditTargets => auditTargets;
+    /// <summary>A visibility check pins its room while visiting its openings; normal distance culling resumes afterwards.</summary>
+    public string? AuditRoom { get; set; }
+    private readonly string off = Main.I.Arg("room-off");
 
     private static string Key(string s) => Regex.Replace(s, "[^A-Za-z0-9]", "_");
 
@@ -103,12 +109,27 @@ public partial class Rooms : Node
             {
                 var c = o.GetProperty("centre");
                 room.Openings.Add(new Vector3(c[0].GetSingle(), c[1].GetSingle(), c[2].GetSingle()));
+                var openingBox = o.GetProperty("box");
+                var min = new Vector3(openingBox[0].GetSingle(), openingBox[1].GetSingle(), openingBox[2].GetSingle());
+                var max = new Vector3(openingBox[3].GetSingle(), openingBox[4].GetSingle(), openingBox[5].GetSingle());
+                room.AuditOpenings.Add((o.GetProperty("kind").GetString() ?? "window", new Aabb(min, max - min), o.GetProperty("open").GetBoolean()));
             }
             Dress(room);
             if (houses.TryGetValue("house_" + Key(room.Id), out var house)) Doors(room, house);
             Light(room, info.GetProperty("lights"), lit.TryGetValue(room.Id, out var l) ? l : (JsonElement?)null);
             rooms.Add(room);
             byId[room.Id] = room;
+        }
+        var markers = BakedWorld.All(Main.I.World).OfType<Node3D>().Where(n => n.Name.ToString().StartsWith("opening_") && n.HasMeta("extras") && n.GetMeta("extras").AsGodotDictionary().ContainsKey("kind")).ToArray();
+        foreach (var r in rooms)
+        {
+            // The browser room registry calls slits and roof lights windows; shell markers retain their precise kind.
+            var openings = markers.Where(n => r.AuditOpenings.Any(o => o.kind == (n.GetMeta("extras").AsGodotDictionary()["kind"].AsString() == "door" ? "door" : "window") && o.box.Grow(0.15f).HasPoint(n.GlobalPosition))).ToArray();
+            // City walls are shared chunks, rather than children of a house's marker group.
+            var bounds = r.Box;
+            foreach (var o in r.AuditOpenings) bounds = bounds.Merge(o.box);
+            var shut = openings.Where(n => r.AuditOpenings.Any(o => o.kind == "door" && !o.open && o.box.Grow(0.15f).HasPoint(n.GlobalPosition))).ToArray();
+            auditTargets.Add(new(r.Id, Main.I.World, r.Root, openings, bounds, r.AuditOpenings.Select(o => o.box).ToArray(), shut));
         }
         if (rooms.Count == 0) GD.Print("rooms: none in this bake (bake again: the rooms go into the export as ROOM_<id>)");
         else GD.Print($"rooms: {rooms.Count} in the world ({rooms.Sum(r => r.Meshes.Count)} meshes, {rooms.Sum(r => r.Lamps.Count)} lamps, {rooms.Count(r => r.Lining != null)} linings, {panes.Count} glass)");
@@ -291,7 +312,7 @@ public partial class Rooms : Node
         // which rooms are shown: within reach of the eye (a house: the nearest few, the settings' "rooms"); the rest
         // show their dark lining. Looked at four times a second.
         lookT -= delta;
-        if (lookT <= 0)
+        if (lookT <= 0 || AuditRoom != null)
         {
             lookT = 0.25;
             float far = day.FogFar + 10;
@@ -300,7 +321,8 @@ public partial class Rooms : Node
             foreach (var r in rooms)
             {
                 // (a hall is seen as far as the fog lets its nearest opening show)
-                bool show = r.Budgeted ? near.Contains(r) : Near(r) < Math.Min(r.Reach, far);
+                bool show = AuditRoom != null ? r.Id == AuditRoom : r.Budgeted ? near.Contains(r) : Near(r) < Math.Min(r.Reach, far);
+                if (off.Contains("meshes")) show = false;
                 if (r.Root.Visible != show) r.Root.Visible = show;
                 if (r.Lining != null && r.Lining.Visible == show) r.Lining.Visible = !show;
             }
@@ -339,7 +361,7 @@ public partial class Rooms : Node
             if (MathF.Abs(k - r.LampK) > 0.004f || r.Level is > 0.001f and < 0.999f)
             {
                 r.LampK = k;
-                foreach (var l in r.Lamps) l.Light.LightEnergy = Mathf.Lerp(l.Day * (r.Budgeted ? r.Level : 1), l.Lit, k);
+                foreach (var l in r.Lamps) l.Light.LightEnergy = off.Contains("lamps") ? 0 : Mathf.Lerp(l.Day * (r.Budgeted ? r.Level : 1), l.Lit, k);
             }
             // from the bright street by day a room looks dim through its windows
             bool inside = r.Box.HasPoint(eye);

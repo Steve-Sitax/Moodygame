@@ -11,7 +11,7 @@ const args = process.argv.slice(2);
 const opt = (name, fallback) => { const i = args.indexOf(`--${name}`); if (i < 0) return fallback; if (!args[i + 1] || args[i + 1].startsWith("--")) throw new Error(`--${name} needs a value`); return args[i + 1]; };
 const all = ["devtest", "paths", "stuck", "shaders", "perfcheck", "clocks", "interiors"];
 const selected = opt("only", all.join(",")).split(",");
-if (selected.some(name => ![...all, "pixelcheck"].includes(name))) throw new Error("--only: " + [...all, "pixelcheck"].join(","));
+if (selected.some(name => ![...all, "pixelcheck", "windows"].includes(name))) throw new Error("--only: " + [...all, "pixelcheck", "windows"].join(","));
 const town = path.resolve(opt("town", "godot/baked/town.glb"));
 const models = path.resolve(opt("models", path.join(path.dirname(town), "models")));
 const out = path.resolve(opt("out", "godot/baked/checks"));
@@ -29,11 +29,14 @@ mkdirSync(out, { recursive: true });
 const children = new Set();
 async function stop(child) {
   if (!child || child.exitCode !== null || child.signalCode !== null) return;
+  const closed = new Promise(resolve => child.once("close", resolve));
   if (process.platform === "win32") await new Promise(resolve => {
     const kill = spawn("taskkill.exe", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true });
     kill.on("close", resolve); kill.on("error", resolve);
   });
   else child.kill("SIGKILL");
+  // taskkill's exit does not mean the child's SQLite handles and output pipes have closed yet.
+  await Promise.race([closed, new Promise(resolve => setTimeout(resolve, 5000))]);
 }
 async function cleanup() { await Promise.all([...children].map(stop)); }
 for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, async () => { await cleanup(); process.exit(130); });
@@ -71,6 +74,7 @@ function numbers(name, report) {
     case "clocks": return `${report.running ?? "?"}/${report.total ?? "?"} running`;
     case "interiors": return `${report.openings ?? "?"} openings, ${report.blocked ?? "?"} blocked, ${report.empty ?? "?"} empty; ${report.registeredRooms ?? "?"} live rooms registered`;
     case "pixelcheck": return `${report.comparisons?.length ?? "?"} comparisons, ${report.differentPixels ?? "?"} changed pixels; positive control ${report.controlPixels ?? "?"}`;
+    case "windows": return `${report.pictures?.length ?? "?"} close pictures through windows`;
   }
 }
 const table = [];
@@ -117,7 +121,12 @@ try {
       // Only the exact temporary directory created by this run, inside its output folder.
       if (path.dirname(scratch) !== out || !path.basename(scratch).startsWith("test-town-")) throw new Error("unsafe scratch path");
       // Windows can hold SQLite handles briefly after taskkill returns. Retry before recording a cleanup error.
-      try { rmSync(scratch, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }); }
+      try {
+        for (let attempt = 0; ; attempt++) {
+          try { rmSync(scratch, { recursive: true, force: true }); break; }
+          catch (e) { if (attempt === 19 || !["EPERM", "EBUSY", "ENOTEMPTY"].includes(e.code)) throw e; await pause(500); }
+        }
+      }
       catch (e) { table.push({ check: name + " cleanup", result: "ERROR", finds: e.message }); }
     }
     console.log(`${table.at(-1).check}: ${table.at(-1).result} — ${table.at(-1).finds}`);

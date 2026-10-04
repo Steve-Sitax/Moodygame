@@ -38,7 +38,7 @@ public partial class Checks : Node
     private static readonly string[] Places = { "grote markt", "cathedral", "handschoenmarkt", "vismarkt", "rijnkaai" };
     public override void _Ready()
     {
-        foreach (string m in new[] { "devtest", "paths", "stuck", "shaders", "perfcheck", "clocks", "interiors", "pixelcheck" })
+        foreach (string m in new[] { "devtest", "paths", "stuck", "shaders", "perfcheck", "clocks", "interiors", "pixelcheck", "windows" })
             if (Main.I.Flag(m))
             {
                 if (mode != "") throw new ArgumentException("one Godot check per run");
@@ -119,6 +119,7 @@ public partial class Checks : Node
                 "clocks" => await BuildingAudit.Clocks(this, Frames),
                 "interiors" => await BuildingAudit.Interiors(this, Frames),
                 "pixelcheck" => await PixelComparison.Run(this),
+                "windows" => await RoomPictures.Run(this),
                 _ => throw new InvalidOperationException("unknown check")
             };
             Finish(report);
