@@ -17,6 +17,35 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 - In Godot, family dreams appear on the night paper, including dreams that arrive before it opens.
 
+- Godot has a bounded places self-test covering work, home sleep and furniture, counters and dice, songs, the cathedral, emigrant boarding and the Poesje, with server replies and close pictures.
+
+- The Godot preacher stands inside the pulpit bowl at the browser's climb height, instead of adding the plan marker's height twice.
+
+- Starting or loading a week refreshes Godot's song, counters, dock book, hiring stand and bucket-line state; a late reply from the previous week cannot restore those old choices.
+
+- Cart jobs can be taken and followed in Godot, with the employer's server-owned cart loan returned when the job ends.
+
+- Godot cathedral chairs charge the chair woman's centime once per service; the curate's confessional has a kneeling paper and an AI typing gate. At Sunday high mass the priest climbs the real pulpit and preaches before trust is awarded.
+
+- The emigrant tender keeps its real hull visible as families board in Godot, even when the bake camera hid it.
+
+- E inside Godot's five landmark halls describes the paintings, cases, casks, stairs, scale and other objects using the browser's own prompts.
+
+- A parcel can be collected from its sleeping employer's named, lit work box in Godot, then delivered and paid through that box.
+
+- Godot reports the real room to the server, so sleeping and waking in your rented home and shelter inside shops and halls use the same rules as the browser.
+
+- Godot emigrants wait with their luggage at the camp, accept carry work and board the working lighter for the liner when the server allows it.
+
+- In Godot the Poesje takes its evening ticket once a day, opens its real curtains and performs the server's play with puppets and spoken captions.
+
+- Godot taverns have physical table seats and arrived patrons as dice partners; E stands up again.
+
+- Godot players can buy at real shop and tavern counters, hear the ballad singer and keep his verse-and-chorus sheet in their pockets.
+- Godot adds town-hall notices, cathedral candles and a timed Sunday sermon, plus joining the hiring stand and the fire bucket line.
+- Godot dock piecework, lamplighting, mill turns and park cleaning pay through the server, and finished work can wait for an employer's night box.
+- Godot homes have rent notices, numbered rent choices, an own key and bed, and furniture carried home and placed on the room grid with E and R.
+- Godot restores the rampart's real walkways and mill floors, with distance culling instead of keeping the bake's distant wall hidden.
 - Godot's interior check now tests the rooms actually in the town and their views out through the windows ([#45](https://github.com/Steve-Sitax/Moodygame/issues/45)).
 - Godot keeps the same daylight and window light picture with less work per frame.
 - Godot's cathedral and church windows now show their real rooms through the glass; old painted panes no longer cover them.

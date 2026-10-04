@@ -214,18 +214,23 @@ public sealed class HaulRun : IRun
         if (!waitingHandover) return o;
         if (task.Kind == "deliver")
         {
+            if (NightBoxes.I.Away(job.EmployerNpc) && NightBoxes.I.Boxes.TryGetValue(job.EmployerNpc,out var box))
+            {
+                if (RunWords.Dist(x,z,box.At.X,box.At.Z)<2.2f) o.Add(Act.At(Key.F,$"take the {Noun} from {box.Name}'s box",box.At+Vector3.Up*1.2f,()=>TakeParcel(true)));
+                return o;
+            }
             var e = Folk.At(job.EmployerNpc);
             if (e != null && Folk.Dist(job.EmployerNpc, x, z) < RunWords.ReachPerson)
-                o.Add(Act.At(Key.F, $"take the {Noun} from {Folk.NameOf(job.EmployerNpc, job.EmployerName)}", e.Value + new Vector3(0, 1.3f, 0), TakeParcel));
+                o.Add(Act.At(Key.F, $"take the {Noun} from {Folk.NameOf(job.EmployerNpc, job.EmployerName)}", e.Value + new Vector3(0, 1.3f, 0), () => TakeParcel()));
         }
         else if (toLower.Count > 0 && lowering.Count == 0 && Spots.Get("ship_gangway") is { } gw && RunWords.Dist(x, z, gw.X, gw.Z) < 5)
             o.Add(Act.AtGround(Key.F, "call up to the ship for the cargo", gw.X, gw.Z, CallShip));
         return o;
     }
 
-    private void TakeParcel()
+    private void TakeParcel(bool fromBox = false)
     {
-        Folk.LookAt?.Invoke(job.EmployerNpc, Jef.I.X, Jef.I.Z);
+        if (!fromBox) Folk.LookAt?.Invoke(job.EmployerNpc, Jef.I.X, Jef.I.Z);
         if (Pocketed)
         {
             // the parcel goes into the pocket; the server keeps it (pockets are engine state)
@@ -395,7 +400,7 @@ public sealed class HaulRun : IRun
         if ((carried != null && IsMine(carried)) || ParcelInPocket) return recipient != null ? recipient.Position : new Vector3(to.X, 0, to.Z);
         if (waitingHandover)
         {
-            if (task.Kind == "deliver") return Folk.At(job.EmployerNpc);
+            if (task.Kind == "deliver") return NightBoxes.I.Away(job.EmployerNpc) && NightBoxes.I.Boxes.TryGetValue(job.EmployerNpc,out var box) ? box.At : Folk.At(job.EmployerNpc);
             return Spots.Get("ship_gangway") is { } gw ? new Vector3(gw.X, 0, gw.Z) : null;
         }
         Vector3? best = null;
