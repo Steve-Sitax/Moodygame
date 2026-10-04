@@ -12,21 +12,16 @@ using System.Threading.Tasks;
 
 namespace Scheldemist.Net;
 
-/// <summary>
-/// Where the game server and its Node are: the one place that knows. From a checkout: `node` from the PATH and
-/// `server/` beside the Godot project. In the download (later, G7): `runtime/node` and `server/` beside the game's
-/// program, as tools/package.mjs lays them out for the browser game today. Each can be set from outside:
-/// SCHELDEMIST_NODE (the Node program), SCHELDEMIST_ROOT (the folder that holds server/, shared/ and data/).
-/// </summary>
+/// <summary>The disk locations resolved once by Paths, passed to the background server launcher.</summary>
 public sealed record ServerPaths
 {
-    /// <summary>The folder that holds server/, shared/, client/ and data/.</summary>
+    /// <summary>The read-only game folder with server/, shared/ and client/.</summary>
     public string Root { get; init; } = "";
     /// <summary>The Node program (a path, or "node" for the one on the PATH).</summary>
     public string Node { get; init; } = "node";
-    public string ServerDir => Path.Combine(Root, "server");
-    /// <summary>What Node runs, seen from ServerDir (Node 24 runs TypeScript as it is).</summary>
-    public string Entry { get; init; } = "src/index.ts";
+    public string ServerDir { get; init; } = "";
+    /// <summary>JavaScript in a download, TypeScript in development, relative to ServerDir.</summary>
+    public string Entry { get; init; } = "";
     public string DataDir { get; init; } = "";
     /// <summary>The download: the server runs in production mode and never builds the browser game.</summary>
     public bool Packaged { get; init; }
@@ -41,7 +36,7 @@ public sealed record ServerOptions
     public string External { get; init; } = "";
     /// <summary>The first port to try (--port). Never one of ServerProcess.Forbidden.</summary>
     public int FirstPort { get; init; } = ServerProcess.FirstPort;
-    /// <summary>Another save than data/game.sqlite (--db): SCHELDEMIST_DB.</summary>
+    /// <summary>Another save than the user folder's game.sqlite (--db): SCHELDEMIST_DB.</summary>
     public string Db { get; init; } = "";
     /// <summary>No model calls (--no-ai): the server runs in walk-around mode (docs/ai-setup.md) from a settings file of its own.</summary>
     public bool NoAi { get; init; }

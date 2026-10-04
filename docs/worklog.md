@@ -282,3 +282,8 @@ Earlier batches: the git log before f5291a4 and the milestone notes in `docs/mil
 - Players choose their own AI; Steve's machine keeps typed lines on Claude.
 - Quality: before a building or prop patch goes live, close shots of every changed part and an
   automatic clip/overlap check that lists nothing.
+
+
+## 2026-10-04: Godot download check
+
+`godot/download`: centralized disk paths, compiled server with portable Node, Windows zip and real unpacked net/menu tests passed; all 52 targeted AI-setup/save-pause tests passed. Test saves and unpacked folders were removed. Linux and macOS game exports also passed; native download runs remain. Details: `docs/godot-download-check.md`. Shutdown resource warnings seen in source and exported tests are already tracked in [issue #40](https://github.com/Steve-Sitax/Moodygame/issues/40). No bake, push, tag, Release or workflow run.
