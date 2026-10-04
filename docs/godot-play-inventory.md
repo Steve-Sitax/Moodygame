@@ -7,7 +7,7 @@ The audit covers every TypeScript module in `game/`, `menu/` and `net/`, and the
 | Player feature / window / default keys and prompts | Browser source | Godot source / status at audit | Missing or next check |
 |---|---|---|---|
 | Walk, turn, run, crouch, jump; remappable movement keys | `player/firstPerson.ts`, `menu/keys.ts`, `main.ts` | `Player/Jef.cs`, `Menu/Keys.cs`: present | Transport-specific movement below is absent |
-| Water entry, swimming, cold, ladders, mantle, falls | `main.ts`, `game/deeds.ts`, `player/firstPerson.ts` | `Player/Jef.cs`, `Player/Mantle.cs`, `World/QuayExits.cs`: partial | Fall damage reporting and jumping aboard boats need parity checks |
+| Water entry, swimming, cold, ladders, mantle, falls | `main.ts`, `game/deeds.ts`, `player/firstPerson.ts` | `Player/Jef.cs`, `Player/Mantle.cs`, `World/QuayExits.cs`, `Play/Falls.cs`: fall reporting implemented | 11 server checks pass at 2.99/3/5/8/12 m, water takes the fall; physical-height and boat jumps still need checks; [ride handoff](milestones/godot-rides.md) |
 | E nearest facing thing; F secondary action; numbered clickable keys | `game/jobs.ts`, `reach.ts`, `facing.ts`, `runs.ts`, `cursor.ts` | `Play/Interact.cs`, `Windows/Paper.cs`: present | Every new owner must register its prompts |
 | E talk, B buy, W work, 1–3 answer, T own words; mood and note | `game/talk.ts`, `bubbles.ts` | `Talk/Talk.cs`, `Talk/Bubbles.cs`: present | Review no-AI typing gates; missing action owners below |
 | H haggle then ware number; server prices after purchase | `game/talk.ts`, `net/api.ts` | `Talk/Talk.cs`, `Net/Api.cs`: present; no-AI gate corrected in this batch | Real AI price/story proof is outside this no-AI batch |
