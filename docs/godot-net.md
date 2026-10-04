@@ -120,3 +120,9 @@ pause owner, the duplicate gate DTO/call was removed, and Pause all uses the imm
 
 All test databases, test tokens and test host configuration files were removed after the checks. No Node or
 Godot process started for these checks was left running; the test HTTP and map ports had no remaining listeners.
+
+## Moving-gap event adapter (2026-10-04)
+
+Actors now asks for NPC claims once per second, releases ended action actors, and waits for the server's numeric owner rows. Both the primary actor and an acquired action partner are included. Owned action figures send the browser's kind-3 puppet batches at 10 Hz; remote action figures use the existing RemoteTrack buffer and ownership handoff resets it. Position, yaw, velocity, motion, height scale, carry/lantern/sit and snap flags use the existing 24-byte entry. Lantern and carry flags reach the existing crowd hooks; bought props and household vehicles are not encoded here. Remote ordinary residents and non-Actors scene bodies remain with the people's net adapter.
+
+`node tools/godot/puppet-wire.mjs` passes five comparisons against the real `shared/mpProtocol.ts` browser encoder/decoder and the actual C# codec. `moving-events/eventtest.json` passes seven in-engine packet and interpolation assertions. This is wire/adapter evidence, not two-live-client ownership, contention, release or event playback proof. The latter remains open, as do real prisoner-room movement and household journeys. The adapter changes only Actors, its ownership partial, new Actors.Replication and EventPuppets, and the one EventTest selector. No server protocol changed.

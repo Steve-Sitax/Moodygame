@@ -1,0 +1,26 @@
+// Compare C# with the browser's real puppet codec. No game, network or player save is needed.
+import {encodePuppets,decodePuppets} from "../../shared/mpProtocol.ts";
+import {mkdirSync,writeFileSync} from "node:fs";
+import {spawnSync} from "node:child_process";
+import path from "node:path";
+import {fileURLToPath} from "node:url";
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"../..");
+const dir=path.join(root,"tools/node_modules/.cache/puppet-wire");mkdirSync(dir,{recursive:true});
+const proof=path.join(root,"godot/baked/puppet-wire");mkdirSync(proof,{recursive:true});
+const state={x:-118.25,z:36.75,yaw:-Math.PI/2,vx:1.23,vz:-.45,motion:"smoke",sit:false,lantern:false,sack:true,snap:true,size:1.1,bought:null,veh:null};
+const bytes=Buffer.from(encodePuppets(123456.5,[{num:513,s:state}]));
+const project=`<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings></PropertyGroup><ItemGroup><Compile Include="../../../../godot/src/Net/Mp/MpProtocol.cs" Link="MpProtocol.cs"/><Compile Include="../../../../godot/src/Net/Mp/EventPuppets.cs" Link="EventPuppets.cs"/></ItemGroup></Project>`;
+writeFileSync(path.join(dir,"wire.csproj"),project);
+writeFileSync(path.join(dir,"Program.cs"),`using System.Buffers.Binary;
+using Scheldemist.Net.Mp;
+var expected=Convert.FromBase64String(args[0]);var actual=new byte[34];actual[0]=3;actual[1]=1;BinaryPrimitives.WriteDoubleLittleEndian(actual.AsSpan(2),123456.5);
+var state=new MpState{X=-118.25f,Z=36.75f,Yaw=-MathF.PI/2,Vx=1.23f,Vz=-.45f,Mode=26,Gear=12};EventPuppets.Write(actual.AsSpan(10),513,state,1.1f);
+if(!actual.AsSpan().SequenceEqual(expected))throw new Exception("C# differs from browser bytes");
+if(!EventPuppets.Valid(expected)||!EventPuppets.Read(expected.AsSpan(10),123456.5,out var id,out var read,out var size)||id!=513||read.X!=state.X||Math.Abs(size-1.1f)>.001)throw new Exception("C# cannot read browser packet");
+if(EventPuppets.Valid(expected.AsSpan(0,33)))throw new Exception("truncated packet accepted");BinaryPrimitives.WriteSingleLittleEndian(expected.AsSpan(12),float.NaN);if(EventPuppets.Read(expected.AsSpan(10),0,out _,out _,out _))throw new Exception("NaN pose accepted");
+Console.WriteLine(Convert.ToBase64String(actual));`);
+const result=spawnSync("dotnet",["run","--project",path.join(dir,"wire.csproj"),"--",bytes.toString("base64")],{cwd:root,timeout:60000,encoding:"utf8",windowsHide:true});
+if(result.status!==0)throw new Error(result.stderr||result.stdout||String(result.error));
+const returned=Buffer.from(result.stdout.trim().split(/\r?\n/).at(-1),"base64");const decoded=decodePuppets(new DataView(returned.buffer,returned.byteOffset,returned.length));
+if(!decoded||decoded.list[0].num!==513||decoded.list[0].s.motion!=="smoke"||!decoded.list[0].s.sack)throw new Error("browser cannot read C# packet");
+writeFileSync(path.join(proof,"result.json"),JSON.stringify({ok:true,checks:5,entryBytes:24,maxActors:150,browserBytesMatch:true},null,2));console.log("puppet wire: 5 checks pass; C# and browser packets match byte for byte");

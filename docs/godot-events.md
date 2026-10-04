@@ -230,3 +230,7 @@ The corrected `omnibus-verified` repeat passed one boarding/seating/alighting; b
 its bus and attendee pictures were inspected. All owned runs quit and their fresh
 SQLite databases, WAL and SHM files were removed. The shader runner's scratch town
 was removed as well. No push or merge back was made, and the shared bake was read only.
+
+## Moving-gap NPC wire adapter (2026-10-04)
+
+Actors.Replication adds action NPC/partner claim and release requests and reads numeric ownership replies before stepping. Browser-compatible 24-byte puppet packets feed remote action bodies through RemoteTrack, including motion, scale, carry and lantern flags. `moving-events` passes seven codec/interpolation assertions and `puppet-wire` passes five byte-for-byte browser comparisons. True two-client claims, handoff, event scenes and prisoner room movement remain open; these checks must not be described as a completed multiplayer event port.

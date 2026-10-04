@@ -151,3 +151,5 @@ Literal key codes found across all requested modules, to complement the action/w
 Moving-gap ferry proof: 14 checks in `moving-ferry-scenarios`, two inspected pictures, real solo creator and guided gangway exit, model night navigation lamps and saloon panes. Vehicle/ship Soundscape inputs allocate 0 B across 100 warmed gathers. Guest creator and auditory review remain open.
 
 Moving-gap save proof: 126 omnibus/cart/velocipede/rowing checks, 23 ship checks, 39 focused crane checks, 24 rowing checks and eight expiry checks. The crane cabin is reached on foot and exited through its door. A longer dock-crane alignment repeat timed out and remains open. Saved rungs, household journeys, prisoner movement and two-client transport remain open. See `milestones/godot-rides.md` for exact local artifacts and scope.
+
+Moving-gap event network status: action NPC/partner claims, releases and kind-3 puppet batches are wired. Seven in-engine wire/interpolation checks and five comparisons with the real browser codec pass. Two-client ownership/event playback, non-Actors scene figures and real prison-room walking remain open.
