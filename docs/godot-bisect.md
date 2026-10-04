@@ -1,7 +1,12 @@
 # Godot frame-time bisect — 2026-10-04
 
 Worktree `D:/Code/MoodyGame-godot-bisect`, branch `godot/bisect`, starting at `7c0a12b`.
-Status: measurement preparation; no performance fix has been made yet.
+Status: six historical revisions measured three times; no performance fix made yet.
+The next revision, `ee92f5b`, fails its unchanged C# build with seven errors: the
+places code reads JSON properties from the typed `FireView` and `HiringView`.
+Timing this revision requires exactly the subsequent `f2818f5` compile fix to
+TownWork/PlacesTest, which will be labelled in the results. The original build
+failure remains in the evidence. The unmodified revision cannot be timed.
 
 ## Method
 
