@@ -147,3 +147,5 @@ Literal key codes found across all requested modules, to complement the action/w
 | `menu/keys.ts` | `Backspace`, `Enter`, `Escape`, `KeyA`, `KeyB`, `KeyC`, `KeyD`, `KeyE`, `KeyF`, `KeyG`, `KeyH`, `KeyI`, `KeyJ`, `KeyL`, `KeyM`, `KeyN`, `KeyP`, `KeyR`, `KeyS`, `KeyT`, `KeyW`, `Space`, `Tab` |
 | `menu/menu.ts` | `ArrowDown`, `ArrowLeft`, `ArrowRight`, `ArrowUp`, `Enter`, `Escape`, `F8`, `F9`, `Space`, `Tab` |
 | `net/mp/together.ts` | `F5` |
+
+Moving-gap ferry proof: 14 checks in `moving-ferry-scenarios`, two inspected pictures, real solo creator and guided gangway exit, model night navigation lamps and saloon panes. Vehicle/ship Soundscape inputs allocate 0 B across 100 warmed gathers. Guest creator and auditory review remain open.

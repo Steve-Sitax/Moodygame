@@ -26,6 +26,10 @@ public partial class FerryArrival:Node
     public Vector2 MissingAt {get;private set;}
     public int MissingPerson {get;private set;}
     public Vector3 VesselPosition=>ferry.Position;
+    public bool OnDeck=>Jef.I.Drive==drive;
+    public bool VisibleVessel=>ferry!=null&&ferry.IsVisibleInTree();
+    public float VesselSpeed=>speed;
+    public float VesselHeading=>yaw;
     public event Action<string,ArrivalReply>? Answered;
     private sealed class Passenger {public Human? Human;public Vector2 P;public Vector2[] Way=Array.Empty<Vector2>();public int Step,PortStep;public float At,Speed,Wait,Push;public bool Off;}
     private readonly Passenger[] people=new Passenger[5];
@@ -51,6 +55,7 @@ public partial class FerryArrival:Node
         landingDeck=MeshDeck.Flat(-2.05f,2.05f,-59.75f,-5.9f,1.8f,obstacles.ToArray(),.25f);
         ferry=model.Copy("ferry")!;landing=model.Copy("landing_stage")!;Main.I.View.AddChild(ferry);Main.I.View.AddChild(landing);ferry.Transform=Transform3D.Identity;landing.Transform=Transform3D.Identity;ferry.Visible=false;
         foreach(var n in BakedWorld.All(Main.I.World))if(n is Node3D n3&&(n3.Name.ToString() is "landing_stage" or "pontoon_section" or "pontoon_gangway"))n3.Visible=false;
+        Movers.BoatLamps.I?.AddFerry(()=>ferry.GlobalTransform,()=>ferry.IsVisibleInTree());
         foreach(var f in Movers.Boats.I.Floats)if(f.Kind=="pontoon_section")f.Outer.Visible=false;
         Material? wood=null,rope=null;foreach(var n in BakedWorld.All(model.Scene))if(n is MeshInstance3D{Mesh:not null} m)for(int i=0;i<m.Mesh.GetSurfaceCount();i++){var mat=m.Mesh.SurfaceGetMaterial(i);if(mat?.ResourceName=="wood"||mat?.ResourceName=="deck")wood=mat;if(mat?.ResourceName=="rope")rope=mat;}
         var mesh=new BoxMesh{Size=new(1,.06f,1)};plank=MakePlank(wood,rope??wood);Main.I.View.AddChild(plank);

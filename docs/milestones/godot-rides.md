@@ -107,3 +107,7 @@ Shared implementation files changed across this branch: `Player/Jef.cs` (ride/ju
 ## Moving gaps: moving climb endpoint (2026-10-04)
 
 `godot/gaps-moving` uses the shared next bake read-only, ports 8905/8906. Ship climbs interpolate in the live deck frame, including translation, yaw, heave and roll. `Jef.ClimbTo` accepts an optional frame; fixed landings keep their original behavior. The server-backed ship repeat passed 16 checks, including climbing onto an underway hull and landing within 5 cm of its current deck position. Both 10,000-call allocation probes remain zero. Five PNGs in `godot/baked/moving-ship` were viewed; the existing underway camera points too high and needs a clearer replacement. No light or material change. Shared file: `Player/Jef.cs`, optional frame and two transform reads.
+
+## Moving gaps: ferry and sound (2026-10-04)
+
+`godot/baked/moving-ferry-scenarios/ridetest.json` passes 14 checks: real solo character submission, ferry boarding, warnings at 35/75 seconds, guidance at 115 seconds and actual gangway exit, fixed-pool night lamps and model saloon panes. Both close pictures were inspected. MovingSounds supplies the existing Soundscape vehicle and ship hooks with reusable lists; 100 warmed gathers allocate zero bytes. This verifies sound inputs, not an auditory review. The true guest creator still needs two-client proof. Smoke is left to the existing `godot/gaps-look` branch. No runtime light or shader kinds are created.

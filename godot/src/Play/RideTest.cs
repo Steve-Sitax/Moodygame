@@ -36,6 +36,7 @@ public partial class RideTest : Node
             if (!Main.I.Flag("no-ai") || Paths.Database != Path.Combine(dir, "test.sqlite")) throw new InvalidOperationException("ridetest needs --no-ai and --db <dir>/test.sqlite");
             Require(await Until(() => ServerLink.I?.Up == true && GameState.I.Live, 100), "server ready");
             var api = ServerLink.I!.Api!;
+            Require(await Until(()=>Main.I.Loaded&&!Scheldemist.Menu.Loading.Busy,100),"town loading screen finished");
             Jef.I.TestInput = true;
             GameState.I.PlayingWhen = () => false;
             Dialogs.I!.KeepMouse = true;
@@ -46,6 +47,7 @@ public partial class RideTest : Node
             if(Main.I.Arg("ride-only")=="row") {await RowCheck(api);return;}
             if(Main.I.Arg("ride-only")=="ship") {await ShipCheck(api);return;}
             if(Main.I.Arg("ride-only")=="water") {await ShipCheck(api);await FerryCheck(api);return;}
+            if(Main.I.Arg("ride-only")=="ferry-scenarios") {await FerryScenarios(api);return;}
             if(Main.I.Arg("ride-only")=="ferry") {await FerryCheck(api);return;}
             if(Main.I.Arg("ride-only")=="navigation") {await NavigationCheck(api);return;}
             foreach (float height in new[] { 2.99f, 3, 5, 8, 12 })

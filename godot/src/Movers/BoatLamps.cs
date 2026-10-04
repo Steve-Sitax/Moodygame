@@ -12,6 +12,7 @@ namespace Scheldemist.Movers;
 [GamePart(50)]
 public partial class BoatLamps : Node
 {
+    public static BoatLamps I {get;private set;}=null!;
     private sealed record Lamp(Func<Transform3D> World, Func<bool> Visible, Vector3 Local, int Kind, float Phase, Action<Vector3,float>? Spill);
     private readonly List<Lamp> lamps=new();
     private readonly Dictionary<string,(Vector3 At,int Kind)[]> points=new();
@@ -45,11 +46,13 @@ public partial class BoatLamps : Node
     }
     public override void _Ready()
     {
+        I=this;
         if (Boats.I==null) {SetProcess(false); return;}
         foreach (var hull in Boats.I.MooredFrames()) Add(hull.Kind,hull.World,()=>true);
         Register();
         var mesh=new SphereMesh {Radius=.12f,Height=.24f,RadialSegments=6,Rings=3};
         mesh.Material=BakedWorld.PsxMaterial(new StandardMaterial3D {AlbedoColor=new Color(1,1,1)},new Psx.Kind(Unlit:true,Blend:true,Scissor:false,TwoSided:false,DepthWrite:false,Snap:true,Atlas:0,VertexColor:true,Add:true,Fog:true));
+        PrepareWindows(mesh.Material);
         var mm=new MultiMesh {TransformFormat=MultiMesh.TransformFormatEnum.Transform3D,UseColors=true,Mesh=mesh,InstanceCount=Math.Max(512,lamps.Count+128)};
         var node=new MultiMeshInstance3D {Name="live_boat_lanterns",Multimesh=mm};
         Mv.Town.AddChild(node); draw=new Copies(node); draw.ZeroAll(); draw.Commit();
@@ -76,8 +79,10 @@ public partial class BoatLamps : Node
         if (lit<=.005f)
         {
             if (burning) { draw.ZeroAll(); foreach (var l in lamps) l.Spill?.Invoke(Vector3.Down*999,0); draw.Commit(); }
+            UpdateWindows(0);
             burning=false; MoverCost.End("boat_lamps"); return;
         }
+        UpdateWindows(lit);
         burning=true;
         var eye=Main.I.Cam.GlobalPosition; float far=(Daylight.I?.FogFar??200)+15;
         for (int i=0;i<lamps.Count;i++)

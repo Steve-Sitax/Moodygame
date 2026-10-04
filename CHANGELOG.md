@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The St. Anna ferry has night navigation lamps and warm saloon windows; moving carts and ships feed the Godot soundscape.
+
 - Climbing onto a moving ship follows its deck throughout the climb.
 
 - In the Godot version, lamps in rooms, shops and taverns and the lanterns people carry now glow the warm amber of the browser game instead of a deep red-orange, and a lantern left in the street lights the stones in the same colour ([#48](https://github.com/Steve-Sitax/Moodygame/issues/48)).
