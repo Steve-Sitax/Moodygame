@@ -65,6 +65,15 @@ public partial class Lights : Node
 
     private const float Fade = 2.2f, Power = 26;
 
+    /// <summary>A vehicle's lantern in the existing fixed spill slots. Allocate once; move and dim it in place.</summary>
+    public Action<Vector3, float> AddMoving(string label, Color color, float power)
+    {
+        var source = new Src { Kind = "mover", Label = label, At = new Vector3(0, -999, 0), Color = V(color),
+            Half = new Vector2(0.1f, 0.1f), Power = power * 7, Range = 9, Decay = 1.7f };
+        sources.Add(source);
+        return (at, level) => { source.At = at; source.Level = level; };
+    }
+
     public override void _Ready()
     {
         I = this;
@@ -474,6 +483,7 @@ void fragment() {
         {
             float lvl = s.Lamp ? Mathf.Clamp(s.G, 0, 1)
                 : s.Sched is { } l ? Math.Max(Smooth(hourN, l[0], l[0] + 0.12f) * (1 - Smooth(hourN, l[1], l[1] + 0.12f)), Smooth(hourN, l[2], l[2] + 0.12f) * (1 - Smooth(hourN, l[3], l[3] + 0.12f))) * night
+                : s.Kind == "mover" ? s.Level
                 : s.Kind == "doss" ? 0.92f + MathF.Sin(t * 5.1f) * 0.04f + MathF.Sin(t * 13.7f) * 0.03f
                 : s.Kind == "lamp" ? (s.Level > 0 ? dark : 0) // (a lamp that is not a street gas lamp: lit with them)
                 : s.Kind is "glow" or "lantern" ? s.Level * dark
