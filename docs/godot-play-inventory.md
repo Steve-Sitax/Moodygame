@@ -40,8 +40,8 @@ The audit covers every TypeScript module in `game/`, `menu/` and `net/`, and the
 | Velocipede E mount/dismount, crash/steps/edge, buy/rent | `game/deeds.ts`, `velocipedes.ts` | `Net/Mp/RemoteGear.cs` draws remote only | Local riding physics, maker counter, deeds and gear |
 | Rowing boat E enter/leave, oars, docking/tow/anchor | `game/rowing.ts`, `boatMoorings.ts` | `Movers/Boats.cs`, `Anchorage.cs`: world boats only | Local boat control, server ownership/position, avoidance, mooring |
 | Swim/climb/jump onto ships, tide decks and moving frame | `game/rowing.ts`, `lifeAboard.ts`, `main.ts` | World tide and hull movement present | Player deck/frame and jump integration |
-| Omnibus stops E board; conductor fare, hop on/off; roof/inside | `game/ride.ts`, `net/api.ts` | `Movers/Omnibus.cs`, `Net/Api.Ride`: world/core API present | Jef seats, conductor window, local ride state/gear |
-| Read stop timetable | `game/ride.ts` | API only | Stop prompt/window |
+| Omnibus stops E board; conductor fare, hop on/off; roof/inside | `game/ride.ts`, `net/api.ts` | `Play/Ride.cs`, `Player/Jef.Transport.cs`, `Movers/Omnibus.Player.cs`: implemented | Server-backed E/Space hop, pay/refuse, roof/inside, moving platform and alight checks pass; free-change/expiry/load and remote host need wider checks |
+| Read stop timetable | `game/ride.ts` | `Play/RideStops.cs`, `Play/Ride.cs`, `Net/Api.Transport.cs`: implemented | E at the real stop post opens server timetable on paper; verified at Rijnkaai |
 | E crane ladder, climb cabin, E down | `game/craneclimb.ts` | `Movers/Cranes.cs` world motion only | Local ladder/deck and reachable cabin |
 | E bench/bed sleep chooser, hours, wake key, collapse/night sheet | `game/day.ts`, `sleep.ts` | `Play/Day.cs`, `Game/DaySheets.cs`: present | Home beds below; police cell owner above |
 | Doss-house rent and week ending, immutable ending paper | `game/day.ts`, `sleep.ts` | `Play/Day.cs`, `Game/DaySheets.cs`: present | Existing tests cover; retain single sheet owner |

@@ -37,7 +37,7 @@ public partial class Omnibus
         int seat;
         if (human.CanSit)
         {
-            var free=Enumerable.Range(0,12).Where(i=>list.All(p=>p.Seat!=i)).ToArray();
+            var free=Enumerable.Range(0,12).Where(i=>!PlayerSeat(bus,i) && list.All(p=>p.Seat!=i)).ToArray();
             if (free.Length==0) {human.Dispose(); return false;}
             uint hash=0x811c9dc5; foreach (char c in id) hash=unchecked((hash^c)*0x01000193);
             seat=free[hash%(uint)free.Length];

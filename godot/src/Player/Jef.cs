@@ -243,6 +243,7 @@ public partial class Jef : Node, Mantle.IWorld
     {
         if (Fly) return;
         float dt = (float)Math.Min(delta, 0.05);
+        if (Drive != null && Drive(dt)) { Body.GlobalPosition = new Vector3(X, Y, Z); Look(dt, 0, 0, DrivenEye); return; }
         // the ground a few metres round him is solid before he steps on it (the rest is made a little every frame)
         if (Solid.I.Ensure(new Vector3(X, Y, Z), 14) > 0) holdTick = Engine.GetPhysicsFrames() + 1;
         if (Engine.GetPhysicsFrames() <= holdTick)
@@ -385,6 +386,7 @@ public partial class Jef : Node, Mantle.IWorld
         // fresh press tries at once; held, every few frames.
         bool space = K(Key.Space), pressed = space && !jumpHeld;
         jumpHeld = space;
+        if (pressed && !Laden && OnJump?.Invoke() == true) return;
         if (Grounded) jumpBase = Y;
         mantleWait = Math.Max(0, mantleWait - dt);
         if (space && !Laden && !Crouching && (mantleWait == 0 || (pressed && !Grounded)))
