@@ -51,6 +51,8 @@ public partial class PeopleTest : Node
     private List<(string kind, double x, double z, string? owner)> beastShots = new();
     private int beastStep;
     private readonly Dictionary<string, object> wildlifeRow = new();
+    private readonly Dictionary<string, object> hallsRow = new();
+    private int hallStep;
     private ParkWildlife.Beast? bird;
     private Pt birdStart;
     private List<Node3D> hiddenForTiming = new();
@@ -163,8 +165,13 @@ public partial class PeopleTest : Node
         switch (phase)
         {
             case "load":
-                if (town.Data != null && town.WaysWaiting >= 0) Next(Main.I.Arg("peoplechecks", "where"));
+                if (town.Data != null && town.WaysWaiting >= 0) Next(Main.I.Flag("peopleadvance") ? "advance" : Main.I.Arg("peoplechecks", "where"));
                 else if (t > 90) Fail("the town did not load: " + town.Status);
+                break;
+            case "advance":
+                if (frames != 1) break;
+                if (Scheldemist.Net.ServerLink.I?.Api is not { } testApi) { Fail("the test has no server"); break; }
+                testApi.Run(testApi.Post<JsonElement>("api/dev/set", new { day = 1, hour = 13, minute = 0 }), _ => Next(Main.I.Arg("peoplechecks", "where")), e => Fail("test clock setting: " + e.Message));
                 break;
             case "where":
                 // every way the sums ask for must be in before they are compared (asked for in the background)
@@ -179,7 +186,7 @@ public partial class PeopleTest : Node
                 // (a sum that asked for a way is worked out again once it is in: compared only when nothing is asked for)
                 bool settled = town.WaysWaiting == 0;
                 where = WhereCheck(Path.Combine(dir, "where_expected.json"));
-                if ((settled && town.WaysWaiting == 0) || t > 60) Next("warm");
+                if ((where.TryGetValue("answers", out var checkedAnswers) && (int)checkedAnswers > 0 && (int)checkedAnswers == (int)where["same"]) || (settled && town.WaysWaiting == 0) || t > 60) Next("warm");
                 break;
             case "reference":
                 if (File.Exists(Path.Combine(dir, "where_expected.json"))) Next("where");
@@ -271,7 +278,7 @@ public partial class PeopleTest : Node
                 town.Paused = true;
                 foreach (var p in crowd.Walking) p.Group.Visible = false;
                 hiddenForTiming = (PostedPeople.I?.List.Where(n => n.Present).Select(n => n.Group) ?? Enumerable.Empty<Node3D>())
-                    .Concat(town.Indoors?.Groups ?? Enumerable.Empty<Node3D>()).Concat(Scheldemist.People.Animals.I?.Groups ?? Enumerable.Empty<Node3D>()).Concat(ParkWildlife.I?.Groups ?? Enumerable.Empty<Node3D>()).Where(g => g.Visible).ToList();
+                    .Concat(town.Indoors?.Groups ?? Enumerable.Empty<Node3D>()).Concat(HallPeople.I?.Groups ?? Enumerable.Empty<Node3D>()).Concat(HomeVisitors.I?.Groups ?? Enumerable.Empty<Node3D>()).Concat(Scheldemist.People.Animals.I?.Groups ?? Enumerable.Empty<Node3D>()).Concat(ParkWildlife.I?.Groups ?? Enumerable.Empty<Node3D>()).Where(g => g.Visible).ToList();
                 foreach (var g in hiddenForTiming) g.Visible = false;
                 row["postedIndoorsAndAnimalsDrawn"] = hiddenForTiming.Count;
                 times.Clear();
@@ -622,6 +629,7 @@ public partial class PeopleTest : Node
             }
             case "millshot":
             {
+                Scheldemist.World.Daylight.I?.SetTime(12);
                 if (millMan?.P == null)
                 {
                     if (t > 8)
@@ -729,7 +737,7 @@ public partial class PeopleTest : Node
             case "roomsin":
                 if (t < 1.5) break;
                 Shot("people_rooms_inside.png");
-                Next("animals");
+                Next("halls");
                 break;
             case "animals":
             {
@@ -846,12 +854,58 @@ public partial class PeopleTest : Node
                     rooms = roomsRow,
                     animals = animalsRow,
                     wildlife = wildlifeRow,
+                    halls = hallsRow,
                     places = rows,
                 }, new JsonSerializerOptions { WriteIndented = true }));
                 GD.Print("peopletest: written " + Path.Combine(dir, "peopletest.json"));
                 SetProcess(false);
                 GetTree().Quit(ChecksPass() ? 0 : 1);
                 break;
+            case "halls":
+                if (frames != 1) break;
+                if (Scheldemist.Net.ServerLink.I?.Api is not { } hallApi) { Fail("the hall test has no server"); break; }
+                // The test's own isolated server chooses the rosters; advance it through its supported dev route.
+                hallApi.Run(hallApi.Post<JsonElement>("api/dev/set", new { day = 1, hour = 13, minute = 0 }), _ => Next("hallview"), e => Fail("hall clock setting: " + e.Message));
+                break;
+            case "hallview":
+            {
+                town.SetClock(1, 13);
+                if (HallPeople.I == null) { Fail("the hall part is missing"); break; }
+                if (hallStep >= HallPeople.I.Halls.Count) { Next("homevisit"); break; }
+                var h = HallPeople.I.Halls[hallStep];
+                if (frames == 1) { Main.I.Cam.Position = h.Origin + new Vector3(0, 1.6f, 6); h.Poll = 0; }
+                if (t < 6) break;
+                hallsRow[h.Id] = h.Figures.Count;
+                var f = h.Figures.Values.FirstOrDefault();
+                if (f != null) Main.I.Cam.LookAtFromPosition(f.Group.Position + new Vector3(2, 1.6f, 2), f.Group.Position + Vector3.Up, Vector3.Up);
+                else Main.I.Cam.LookAtFromPosition(h.Origin + new Vector3(0, 1.6f, 6), h.Origin + new Vector3(0, 1, 15), Vector3.Up);
+                Next("hallshot"); break;
+            }
+            case "hallshot":
+                if (t < 1) break;
+                Shot("people_hall_" + HallPeople.I!.Halls[hallStep].Id + ".png");
+                hallStep++; Next("hallview"); break;
+            case "homevisit":
+            {
+                if (HomeVisitors.I is not { } homes) { Fail("the home visitor part is missing"); break; }
+                var home = homes.Homes.First(h => h.Value.Count > 0);
+                Main.I.Cam.Position = home.Value[0] + new Vector3(0, 1.6f, 0);
+                bool made = homes.Visit(home.Key, town.Data!.Residents.First(r => r.Kind == "old_woman"));
+                roomsRow["homeVisitorMade"] = made;
+                roomsRow["home"] = home.Key;
+                if (!made) { Fail("no reachable home visitor spot"); break; }
+                var at = homes.Groups.First().Position;
+                var cameraSpot = home.Value.Where(p => p.DistanceTo(at) >= 1.2 && Jef.I!.StandFree(p.X, p.Z, p.Y)).OrderBy(p => Math.Abs(p.DistanceTo(at) - 2)).FirstOrDefault(at + new Vector3(0, 0, 1.2f));
+                Main.I.Cam.LookAtFromPosition(cameraSpot + new Vector3(0, 1.5f, 0), at + Vector3.Up, Vector3.Up);
+                Next("homevisitshot"); break;
+            }
+            case "homevisitshot":
+                if (t < 1) break;
+                Shot("people_home_visitor.png"); Next("homevisitend"); break;
+            case "homevisitend":
+                if (t < 14) break;
+                roomsRow["homeVisitorLeft"] = HomeVisitors.I!.Drawn == 0;
+                Next(Main.I.Arg("peoplechecks") is "halls" or "homevisit" ? "done" : "animals"); break;
         }
     }
 
@@ -916,6 +970,7 @@ public partial class PeopleTest : Node
         }
         if (wildlifeRow.ContainsKey("missing")) return false;
         if (wildlifeRow.TryGetValue("flewWhenPressed", out var flight) && !(bool)flight) return false;
+        if (hallsRow.Count > 0 && hallsRow.Values.All(v => Convert.ToInt32(v) == 0)) return false;
         return true;
     }
 }

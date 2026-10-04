@@ -173,6 +173,8 @@ public sealed class Indoors
                     var g = new Node3D { Name = "indoors_" + s.R.Id };
                     g.AddChild(human.Root);
                     Main.I.View.AddChild(g);
+                    var body = new StaticBody3D { CollisionLayer = Solid.Layer, CollisionMask = 0 };
+                    body.AddChild(new CollisionShape3D { Shape = new CylinderShape3D { Radius = 0.3f, Height = 1.5f }, Position = new Vector3(0, 0.75f, 0) }); g.AddChild(body);
                     human.Start();
                     double yaw = Math.Atan2(h.Door.X - at.X, h.Door.Z - at.Z);
                     g.Position = new Vector3((float)at.X, (float)town.Walk!.BaseAt(at.X, at.Z), (float)at.Z);
@@ -212,6 +214,7 @@ public sealed class Indoors
 
     /// <summary>For a check: every figure drawn inside.</summary>
     public IEnumerable<Node3D> Groups => Houses.SelectMany(h => h.Figures.Values.Select(f => f.Group));
+    public Vector3? PositionOf(string id) => Houses.SelectMany(h => h.Figures).FirstOrDefault(p => p.Key == id).Value?.Group.GlobalPosition;
 
     public void Dispose()
     {

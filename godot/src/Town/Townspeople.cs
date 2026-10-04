@@ -413,7 +413,7 @@ public partial class Townspeople : Node
         // the other parts' hooks: where someone stands (the bubbles over a talk in the street, the map's marks of people with work)
         if (Scheldemist.Talks.Bubbles.I is { } bubbles)
         {
-            bubbles.PositionOf ??= id => PositionOf(id) is { } q ? new Vector3((float)q.x, (float)Walk!.BaseAt(q.x, q.z), (float)q.z) : null;
+            bubbles.PositionOf ??= id => HomeVisitors.I?.PositionOf(id) ?? HallPeople.I?.PositionOf(id) ?? Indoors.PositionOf(id) ?? (PositionOf(id) is { } q ? new Vector3((float)q.x, (float)Walk!.BaseAt(q.x, q.z), (float)q.z) : null);
             bubbles.InfoOf ??= id => d.Residents.FirstOrDefault(r => r.Id == id) is { } r ? (r.Sex, r.Age) : null;
         }
         if (Scheldemist.Game.TownMap.I is { } map) map.PersonAt ??= id => PositionOf(id) is { } q ? new Vector2((float)q.x, (float)q.z) : null;
@@ -424,6 +424,9 @@ public partial class Townspeople : Node
     /// <summary>Where someone is now, by id: a townsperson in the street or indoors (his door), or one of the people at their posts. Null: not known.</summary>
     public (double x, double z)? PositionOf(string id)
     {
+        if (HomeVisitors.I?.PositionOf(id) is { } visitor) return (visitor.X, visitor.Z);
+        if (HallPeople.I?.PositionOf(id) is { } hall) return (hall.X, hall.Z);
+        if (Indoors?.PositionOf(id) is { } room) return (room.X, room.Z);
         if (byId.TryGetValue(id, out var s)) return s.P != null ? (s.P.X, s.P.Z) : (s.X, s.Z);
         return PostedPeople.I?.Get(id) is { } n ? (n.X, n.Z) : null;
     }

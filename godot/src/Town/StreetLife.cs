@@ -23,6 +23,8 @@ public partial class Townspeople
     }
     public int DoorPlans => doorLife.Count;
     public int Browsing => browsing.Count;
+    /// <summary>The street-life scenery supplies its actual Madonna and reachable prayer spot.</summary>
+    public Func<double, double, (double x, double z, double sx, double sz)?>? MadonnaAt;
 
     private void ReadDoorLife(JsonElement plan)
     {
@@ -87,10 +89,27 @@ public partial class Townspeople
         if (DoorLifeOf(s, now) is { } act)
         {
             if (act == "flowers_church" && Place("church") is { } church) return new Goal { Mode = "church", X = church.X, Z = church.Z };
-            double ox = r.HomeSx - r.HomeX, oz = r.HomeSz - r.HomeZ;
+            if (act == "flowers")
+            {
+                if (MadonnaAt?.Invoke(r.HomeSx, r.HomeSz) is not { } m) return null;
+                return new Goal { Mode = "stand", X = m.sx, Z = m.sz, Yaw = Math.Atan2(m.x - m.sx, m.z - m.sz), Motion = "cross" };
+            }
+            bool work = now.Act == "work" && r.Work.Door != null;
+            double dx = work ? r.Work.Door!.Value.X : r.HomeX, dz = work ? r.Work.Door!.Value.Z : r.HomeZ;
+            double ox = work ? 0 : r.HomeSx - r.HomeX, oz = work ? 0 : r.HomeSz - r.HomeZ;
+            if (work)
+            {
+                double best = -1;
+                for (int i = 0; i < 8; i++)
+                {
+                    double a = i * Math.PI / 4, distance = 0;
+                    for (double d = 0.5; d <= 6 && Walk!.Free(dx + Math.Sin(a) * d, dz + Math.Cos(a) * d); d += 0.5) distance = d;
+                    if (distance > best) { best = distance; ox = Math.Sin(a); oz = Math.Cos(a); }
+                }
+            }
             double len = Math.Max(0.1, Whereabouts.Hypot(ox, oz));
             ox /= len; oz /= len;
-            double x = r.HomeX + ox * 0.95, z = r.HomeZ + oz * 0.95;
+            double x = dx + ox * (act == "scrub" ? 0.75 : 0.95), z = dz + oz * (act == "scrub" ? 0.75 : 0.95);
             if (act is "lace" or "knit") { x -= oz * 1.25; z += ox * 1.25; }
             var q = LifeFree(x, z);
             if (q == null) return null;
