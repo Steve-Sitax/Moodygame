@@ -53,6 +53,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - The lower parts of the cathedral's aisle windows, behind the houses built against it, are walled up instead of painted ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
 
 ### Fixed
+- In the Godot port, sound recordings, player pools and first-use audio work are prepared while the town loads, so a bell, voice, loop or storm does not hitch the first walk ([#41](https://github.com/Steve-Sitax/Moodygame/issues/41)).
 - Townspeople no longer stand inside each other. Dockers waiting by Het Schipke stood in one another, sacks through the next man: a dock crane parked over their way counted as a solid block, so they found no path and waited on one spot. People now walk under the cranes, step apart when they meet on one spot, keep more room with a sack, and never appear inside someone else.
 - Café chairs face their tables from the aisle side, with space to leave the long bench; standing customers also take walking breaks.
 - Adding the backstreet businesses to an older town preserves occupied households and cannot prevent that save from opening.
