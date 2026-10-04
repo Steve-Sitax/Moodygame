@@ -261,7 +261,7 @@ const EXPORT = `(() => {
     }
     for (const m of mats)
       m.userData.three = {
-        type: m.type, name: m.name || "", depthWrite: m.depthWrite, depthTest: m.depthTest, opacity: m.opacity, transparent: m.transparent,
+        type: m.type, name: m.name || "", visible: m.visible !== false, depthWrite: m.depthWrite, depthTest: m.depthTest, opacity: m.opacity, transparent: m.transparent,
         alphaTest: m.alphaTest, side: m.side, blending: m.blending, fog: m.fog !== false, vertexColors: !!m.vertexColors,
         offset: m.polygonOffset ? [m.polygonOffsetFactor, m.polygonOffsetUnits] : null, colorWrite: m.colorWrite !== false,
         emissive: m.emissive ? m.emissive.getHex() : 0, emissiveIntensity: m.emissiveIntensity ?? 0,

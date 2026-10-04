@@ -28,6 +28,7 @@ public partial class BakedWorld : Node3D
     private JsonElement gltf;
     private string texDir = "";
     private readonly Dictionary<string, Texture2D> psxTextures = new();
+    private ShaderMaterial? invisible;
 
     public Error Load(string glbPath)
     {
@@ -98,6 +99,7 @@ public partial class BakedWorld : Node3D
             bool inst = name.StartsWith("INST") && instances.TryGetProperty(name, out _);
             bool colours = inst && instances.GetProperty(name).TryGetProperty("c", out _);
             bool unported = false;
+            bool allInvisible = mi.Mesh.GetSurfaceCount() > 0;
             for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
             {
                 var m = mi.Mesh.SurfaceGetMaterial(s);
@@ -115,6 +117,7 @@ public partial class BakedWorld : Node3D
                     continue;
                 }
                 if (colours && psx is ShaderMaterial sm) psx = WithVertexColour(sm);
+                if (!psx.HasMeta("baked_invisible")) allInvisible = false;
                 mi.Mesh.SurfaceSetMaterial(s, psx);
             }
             if (unported)
@@ -122,6 +125,7 @@ public partial class BakedWorld : Node3D
                 mi.Visible = false;
                 Unported.Add(name);
             }
+            if (allInvisible) mi.Visible = false;
             if (!inst) continue;
             var e = instances.GetProperty(name);
             int count = e.GetProperty("count").GetInt32();
@@ -182,6 +186,16 @@ public partial class BakedWorld : Node3D
         JsonElement three = default, psx = default, bake = default;
         bool hasThree = j.TryGetProperty("extras", out var ex) && ex.TryGetProperty("three", out three);
         bool hasPsx = hasThree && ex.TryGetProperty("psx", out psx) && psx.TryGetProperty("bake", out bake) && bake.ValueKind == JsonValueKind.Object;
+        string name = j.TryGetProperty("name", out var mn) ? mn.GetString() ?? "" : bm.ResourceName;
+        // Earlier bakes omitted Material.visible. These are the browser's explicitly hidden stand-in panes;
+        // its real room glass and additive landmark_window_light copies must still be drawn.
+        bool oldPane = name is "cath_atlas_lit" or "church_atlas_lit" or "sh_glass_lit" or "vh_glass_lit" or "steen_glass_lit" or "landmark_glass_lit";
+        if (hasThree && three.TryGetProperty("visible", out var visible) ? visible.ValueKind == JsonValueKind.False : oldPane)
+        {
+            invisible ??= new ShaderMaterial { Shader = new Shader { Code = "shader_type spatial; render_mode unshaded, depth_draw_never; void fragment() { discard; }" }, ResourceName = "baked_invisible" };
+            invisible.SetMeta("baked_invisible", true);
+            return invisible;
+        }
         string type = hasThree ? three.GetProperty("type").GetString() ?? "" : "";
         // (three's exporter writes a ShaderMaterial as a bare default material, without the extras)
         if (!hasThree || type is "ShaderMaterial" or "RawShaderMaterial") return null;
