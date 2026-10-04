@@ -8,8 +8,8 @@ const args = process.argv.slice(2);
 const opt = (key, fallback) => { const i = args.indexOf(`--${key}`); return i < 0 ? fallback : args[i + 1]; };
 const dir = path.resolve(root, "godot/baked", opt("out", "deeds-proof"));
 if (!dir.startsWith(path.join(root, "godot/baked") + path.sep)) throw new Error("output must stay inside this worktree's baked folder");
-const port = Number(opt("port", "8980"));
-if (!Number.isInteger(port) || port < 8980 || port > 8983) throw new Error("port must be 8980..8983 (map uses the next port)");
+const port = Number(opt("port", "8900"));
+if (!Number.isInteger(port) || port < 8900 || port > 8903) throw new Error("port must be 8900..8903 (map uses the next port)");
 const engine = opt("godot", "C:/Users/steve/AppData/Local/Microsoft/WinGet/Packages/GodotEngine.GodotEngine.Mono_Microsoft.Winget.Source_8wekyb3d8bbwe/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe");
 const town = opt("town", "D:/Code/MoodyGame-godot/godot/baked/next/town.glb");
 const models = opt("models", "D:/Code/MoodyGame-godot/godot/baked/models");
@@ -18,7 +18,8 @@ if (!["deedstest", "perfcheck", "talktest"].includes(mode)) throw new Error("mod
 const lock = "D:/Code/MoodyGame-godot/godot/baked/PERF-LOCK";
 mkdirSync(dir, { recursive: true });
 async function waitLock() {
-  while (existsSync(lock)) { console.log("PERF-LOCK held; checking again in 60 seconds"); await new Promise(resolve => setTimeout(resolve, 60000)); }
+  const deadline = Date.now() + 30 * 60 * 1000;
+  while (existsSync(lock)) { if (Date.now() >= deadline) throw new Error("PERF-LOCK remained held for 30 minutes; no Godot started"); console.log("PERF-LOCK held; checking again in 60 seconds"); await new Promise(resolve => setTimeout(resolve, 60000)); }
 }
 async function run(argv, timeout, log) {
   await waitLock();

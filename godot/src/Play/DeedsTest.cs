@@ -28,8 +28,9 @@ public partial class DeedsTest : Node
             Check(await Until(()=>GameState.I.Live && Scheldemist.Dev.Kit.I.People?.Data!=null,100),"server and town ready");
             var api=ServerLink.I!.Api!; Jef.I.TestInput=true; GameState.I.PlayingWhen=()=>false; Dialogs.I!.KeepMouse=true;
             Deeds.I.Answered+=Reply;
-            await api.Post<OkReply>("api/arrival/ashore");
+            await api.Post<OkReply>("api/arrival/ashore");Jef.I.Place(10,12,0);Check(await Until(()=>FerryArrival.I.Ashore&&!Jef.I.Riding,15),"arrival drive released on quay before test placements");
             GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set",new { hour=13,minute=45,weather="clear",money_c=500,food=10,warmth=10,sleep=10,health=10 }));
+            if(Main.I.Arg("deedstest-only")=="held") { await HeldCell(api); return; }
             if(Main.I.Arg("deedstest-only")=="gang") { await GangFeatures(api); return; }
             if(Main.I.Arg("deedstest-only")=="hands") { await HandsFeatures(api,Scheldemist.Dev.Kit.I.People!.Sims.First(s=>s.R.Trade!="thief").R.Id); return; }
             await Deeds.I.Load();
@@ -72,6 +73,7 @@ public partial class DeedsTest : Node
             Check(!(await api.Police()).Cell,"cell acknowledged"); await Shot("prison-release");
             // Other deed/people checks are appended by their owning features.
             await OtherFeatures(api,mark);
+            await HeldCell(api);
         }
         catch(Exception e) { error=e.ToString(); GD.PrintErr("deedstest: "+error); }
         finally
@@ -150,7 +152,12 @@ public partial class DeedsTest : Node
         GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set",new { hour=21,minute=0,weather="clear",money_c=500 }));
         Jef.I.Place(10,12,0); await Frames(8);
         bool robbed=false;
-        foreach(var thief in Scheldemist.Dev.Kit.I.People!.Sims.Where(s=>s.R.Trade=="thief").Take(4))
+        // A failed pick still consumes one of the engine's two attempts that night.
+        // Try fresh nights rather than forcing a random result or bypassing that cap.
+        for(int night=1;night<=7&&!robbed;night++)
+        {
+        GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set",new { day=night,hour=21,minute=0,money_c=500 }));
+        foreach(var thief in Scheldemist.Dev.Kit.I.People!.Sims.Where(s=>s.R.Trade=="thief").Take(2))
         {
             int money=GameState.I.Money;
             await Deeds.I.Rob(thief.R.Id);
@@ -162,7 +169,9 @@ public partial class DeedsTest : Node
             Interact.I.Press(Key.E); Check(await Until(()=>GameState.I.Money>=money,8),"stolen money recovered"); await Shot("thief-caught");
             Scheldemist.Dev.Kit.I.Clear(); break;
         }
+        }
         Check(robbed,"night thief takes from Jef's pocket");
+        GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set",new {day=2,hour=21,minute=0}));
         await HandsFeatures(api,mark);
         await GangFeatures(api);
     }
@@ -208,10 +217,13 @@ public partial class DeedsTest : Node
         Check(Interact.I.Find().Any(a=>a.Key==Key.G&&a.Text.Contains("round")),"G stand round prompt");
         int before=GameState.I.Money; await Hands.I.Round(place);
         Check(Hands.I.LastRound is { PaidC: > 0 } && GameState.I.Money==before-Hands.I.LastRound.PaidC,"server charges a round for two"); await Shot("treat-round");
+        for(int round=2;round<=3;round++){before=GameState.I.Money;await Hands.I.Round(place);Check(Hands.I.LastRound?.Rounds==round&&Hands.I.LastRound.PaidC>0&&GameState.I.Money==before-Hands.I.LastRound.PaidC,"tavern round "+round+" uses engine cap and price");}
+        before=GameState.I.Money;await Hands.I.Round(place);Check(GameState.I.Money==before,"fourth tavern round cannot charge past engine limit");
         await TavernSeats.I.Load(); seat=tav.Seats.First(s=>s.Occupant==null);
         TavernSeats.I.Sit(seat); await Frames(8);
         Check(TavernSeats.I.Sitting!=null,"Jef sits beside the guest");
-        Check(Interact.I.Find().Any(a=>a.Key==Key.F&&a.Text.StartsWith("talk to ")),"F table talk with guest"); await Shot("treat-table"); TavernSeats.I.Stand();
+        Check(Interact.I.Find().Any(a=>a.Key==Key.F&&a.Text.StartsWith("talk to ")),"F table talk with guest"); await Shot("treat-table");
+        TavernSeats.I.Stand();
         Jef.I.Place(10,12,0); await Frames(8);
         Check(await Until(()=>!Hands.I.Treats.Any(t=>t.Inside==place),12),"guest leaves when Jef does");
         GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set",new { hour=13,minute=45,weather="clear",money_c=500 }));

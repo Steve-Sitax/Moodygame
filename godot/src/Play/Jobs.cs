@@ -122,14 +122,14 @@ public partial class Jobs : Node
         }
         // a save loaded, a new week: the server's game is another one; the job in hand is taken up again from it
         if (Scheldemist.Menu.MainMenu.I is { } menu)
-            menu.WorldReplaced += (_, _) => RestoreWorld();
+            menu.WorldReplaced += (_, saved) => RestoreWorld(saved);
         BuildUi();
         GetViewport().SizeChanged += BuildUi;
         if (st.Payload != null) Apply(st.Payload);
     }
 
     /// <summary>A load or new week: forget the old run and resume the server's job, including saved progress.</summary>
-    public void RestoreWorld()
+    public void RestoreWorld(ClientState? saved = null)
     {
         board.Close();
         book.Close();
@@ -140,6 +140,7 @@ public partial class Jobs : Node
         watched = null;
         finishing = taking = false;
         asideProgress.Clear();
+        RestoreIndoor(saved);
         Goods.I.Reset();
         if (GameState.I.Payload != null) Apply(GameState.I.Payload);
     }
@@ -704,6 +705,7 @@ public partial class Jobs : Node
         if (active?.Id == job.Id) return;
         if (active != null)
         {
+            KeepIndoor();
             run?.Dispose(true);
             run = null;
             active = null;
@@ -735,7 +737,9 @@ public partial class Jobs : Node
             ThickFog = on => Daylight.I?.SetThickFog(on),
         };
         if (NightBoxes.Held(job)) { run = new ProofWork(job, ctx); return; }
-        if (mill != null) { run = new MillWork(job, mill, ctx); return; }
+        if (mill != null) { var work = new MillWork(job, mill, ctx);
+            if (millProgress.TryGetValue(job.Id, out var saved)) work.Restore(saved);
+            run = work; return; }
         if (lamps != null) { run = new LampWork(job, lamps, ctx); return; }
         if (letters != null)
         {

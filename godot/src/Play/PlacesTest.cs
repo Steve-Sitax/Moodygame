@@ -22,7 +22,7 @@ public partial class PlacesTest : Node
     public override void _Process(double dt) {pausedRoom?.Indoors?.Update(dt,Main.I.Cam.GlobalPosition);if(pictureAt is {} p && pictureTarget is {} target){Main.I.Cam.GlobalPosition=p;Main.I.Cam.LookAt(target,Vector3.Up);}}
     private readonly List<object> steps = new(), replies = new();
     private readonly List<string> pictures = new();
-    public override void _Ready() { if(Main.I.Flag("places-baseline"))foreach(var child in GetParent().GetChildren())if(child is Node n && n is HomeLife or HomeFurniture or Ballads or InsideCounters or LandmarkLife or CathedralComfort or Emigrants or Poesje or ParkWork or DockWork or NightBoxes or TownWork or TavernSeats or WorkWall)n.SetProcess(false); dir = Main.I.Arg("placestest"); if (dir != "") { dir = Path.GetFullPath(dir); Directory.CreateDirectory(dir);var a=Scheldemist.Movers.River.I.Anchorage;if(a!=null){quayTow=a.Tows.FindIndex(t=>t.Stop==1);if(quayTow>=0)quayS=a.Tows[quayTow].S;} _ = Run(); } }
+    public override void _Ready() { ProcessPriority=1000; if(Main.I.Flag("places-baseline"))foreach(var child in GetParent().GetChildren())if(child is Node n && n is HomeLife or HomeFurniture or Ballads or InsideCounters or LandmarkLife or CathedralComfort or Emigrants or Poesje or ParkWork or DockWork or NightBoxes or TownWork or TavernSeats or WorkWall)n.SetProcess(false); dir = Main.I.Arg("placestest"); if (dir != "") { dir = Path.GetFullPath(dir); Directory.CreateDirectory(dir);var a=Scheldemist.Movers.River.I.Anchorage;if(a!=null){quayTow=a.Tows.FindIndex(t=>t.Stop==1);if(quayTow>=0)quayS=a.Tows[quayTow].S;} _ = Run(); } }
     private void Answer(LampAsk ask, PlacesReply reply) => replies.Add(new { ask, reply });
     private async Task Run()
     {
@@ -36,10 +36,17 @@ public partial class PlacesTest : Node
             Jef.I.TestInput = true; GameState.I.PlayingWhen = () => false; Dialogs.I!.KeepMouse = true;
             var api = ServerLink.I!.Api!;
             LampWork.Answered += Answer;
-            await api.Post<OkReply>("api/arrival/ashore");
+            await api.Post<OkReply>("api/arrival/ashore");Jef.I.Place(10,12,0);Check(await Until(()=>FerryArrival.I.Ashore&&!Jef.I.Riding,15),"arrival drive released on quay before test placements");
             GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { hour = 13, minute = 45, weather = "clear", food = 10, sleep = 10, warmth = 10, health = 10, money_c = 500 }));
             string only = Main.I.Arg("places-only");
-            if (only is not ("" or "lamps" or "homes" or "park" or "mill" or "docks" or "counters" or "ballads" or "night" or "homes-work" or "places" or "landmarks" or "townwork" or "seats" or "emigrants" or "poesje" or "cart")) throw new InvalidOperationException("unknown places-only selection");
+            if (only is not ("" or "lamps" or "homes" or "park" or "mill" or "docks" or "counters" or "ballads" or "night" or "homes-work" or "places" or "landmarks" or "townwork" or "seats" or "emigrants" or "poesje" or "cart" or "wedding" or "indoor" or "indoor-life")) throw new InvalidOperationException("unknown places-only selection");
+            // The indoor and wedding selections use fresh worlds: the wedding director
+            // can still own the curate after a fixture jumps backwards to Sunday.
+            // Prove civil work before later fixtures reserve residents or jump to Sunday.
+            if (only is "" or "indoor-life" or "wedding") await WeddingAndHall(api);
+            // The Sunday hush fixture bars this player by absolute world minute;
+            // all church checks finish before later job fixtures reserve the clergy.
+            if (only is "" or "indoor" or "landmarks") await Landmarks(api);
             if (only == "" || only == "lamps") {
             var fixture = await api.Post<JsonElement>("api/dev/lamps/job", new { round = "west" }); replies.Add(new { lampFixture = fixture });
             GameState.I.Apply(await api.Jobs());
@@ -72,18 +79,17 @@ public partial class PlacesTest : Node
             Check(Jobs.I.LastDone!.Settlement.PayC == fixture.GetProperty("pay_c").GetInt32(), "full round pays server wage");
             await Shot("lamps-paid");
             }
-            if (only is "" or "homes-work" or "homes") await Homes(api);
+            if (only is "" or "indoor" or "homes-work" or "homes") await Homes(api);
             if (only is "" or "homes-work" or "park") await Park(api);
-            if (only is "" or "homes-work" or "mill") await Mill(api);
+            if (only is "" or "indoor" or "homes-work" or "mill") {await Mill(api);await Mill(api,"mill_ne");}
             if (only is "" or "places" or "docks") await Docks(api);
             if (only is "" or "places" or "counters") await Counters(api);
             if (only is "" or "places" or "ballads") await Ballad(api);
             if (only is "" or "places" or "night") await Night(api);
-            if (only is "" or "landmarks") await Landmarks(api);
             if (only is "" or "townwork") await TownWorkTest(api);
-            if (only is "" or "seats") await Seats(api);
-            if (only is "" or "emigrants") await EmigrantTest(api);
-            if (only is "" or "poesje") await PoesjeTest(api);
+            if (only is "" or "indoor" or "indoor-life" or "seats") await Seats(api);
+            if (only is "" or "indoor" or "indoor-life" or "emigrants") await EmigrantTest(api);
+            if (only is "" or "indoor" or "indoor-life" or "poesje") await PoesjeTest(api);
             if (only is "" or "cart") await CartJobTest(api);
         }
         catch (Exception e) { error = e.ToString(); GD.PrintErr("placestest: " + error); }
@@ -144,6 +150,7 @@ public partial class PlacesTest : Node
         replies.Add(new { furniturePlaced = HomeLife.I.Info }); await Shot("home-furnished");
         bool refused = false; try { await api.HomePlace(new(place.Id, -1, -1, 0)); } catch (ApiException e) { refused = e.Status == 400 || e.Status == 409; replies.Add(new { furnitureBadPlace = e.Message, e.Status }); }
         Check(refused, "engine refuses furniture outside room");
+        await FurnitureLife(api,f);
     }
     private void ParkAnswer(string action, ParkAsk ask, ParkReply reply) => replies.Add(new { action, ask, reply });
     private async Task Park(Api api)
@@ -171,36 +178,45 @@ public partial class PlacesTest : Node
         Interact.I.Press(Key.G); Check(await Until(() => GameState.I.Money == money - 1, 8), "bird grain costs server centime");
         ParkWork.Answered -= ParkAnswer;
     }
-    private async Task Mill(Api api)
+    private async Task Mill(Api api,string mill="mill_mid")
     {
-        var fixture = await api.Post<JsonElement>("api/dev/mills/job", new { mill = "mill_mid", kind = "help" }); replies.Add(new { millFixture = fixture });
+        var fixture = await api.Post<JsonElement>("api/dev/mills/job", new { mill, kind = "help" }); replies.Add(new { millFixture = fixture });
         GameState.I.Apply(await api.Jobs()); int id = fixture.GetProperty("id").GetInt32();
         await Jobs.I.TakeJob(GameState.I.Jobs.First(j => j.Id == id)); Check(Jobs.I.Run is MillWork, "mill work followed");
         var run = (MillWork)Jobs.I.Run!; var task = MillTask.Of(Jobs.I.Active!)!;
         Probe("mill", run);
+        Jef.I.Place(task.Post.X, task.Post.Z, 0, near: 6.5f);
+        run.Update(12);
+        var savedMill = run.Snapshot();
+        var restoredMill = new MillWork(Jobs.I.Active!, task, new RunCtx()); restoredMill.Restore(savedMill);
+        Check(restoredMill.Snapshot() == savedMill, "mill snapshot restores elapsed time and completed calls");
+        restoredMill.Dispose();
+        Check(Jobs.I.IndoorSnapshot().GetProperty("mills").TryGetProperty(id.ToString(), out _), "active mill included in save capture");
         // Advance only this run's work timer in the test; the five-second turns use real rendered frames.
         for (int i = 0; i < task.Turns; i++)
         {
-            Jef.I.Place(task.Post.X, task.Post.Z, 0, near: 40); await Frames(15);
-            replies.Add(new { millFloor = new { Jef.I.X, Jef.I.Z, Jef.I.Y } });
+            Jef.I.Place(task.Post.X, task.Post.Z, 0, near: 6.5f);
+            await Frames(15);
+            replies.Add(new { millFloor = new { Jef.I.X, Jef.I.Z, Jef.I.Y, sourceBase=Main.I.GetNode<Scheldemist.Town.Townspeople>("Townspeople").Walk?.BaseAt(task.Post.X,task.Post.Z),drive=Jef.I.Drive?.Method.Name,transport=Jef.I.TransportFloor?.Method.DeclaringType?.Name,ray = Scheldemist.World.Solid.I.NameAt(new(task.Post.X,40,task.Post.Z),new(task.Post.X,-1,task.Post.Z)), ground = Jef.I.GroundAt(task.Post.X,task.Post.Z,40) } });
             if (Jef.I.Y <= 3) {
                 replies.Add(new { millMeshes = Scheldemist.World.BakedWorld.All(Main.I.World).OfType<MeshInstance3D>().Where(m => { var b = m.GlobalTransform * m.GetAabb(); return task.Post.X >= b.Position.X && task.Post.X <= b.End.X && task.Post.Z >= b.Position.Z && task.Post.Z <= b.End.Z; }).Select(m => new { name = m.Name.ToString(), parent = m.GetParent().Name.ToString(), box = (m.GlobalTransform * m.GetAabb()).ToString(), m.Visible }).ToArray() });
-                await Shot("mill-floor-missing");
+                await Shot(mill+"-floor-missing");
             }
             Check(Jef.I.Y > 3, "mill wall floor " + (i + 1));
             for (int k = 0; k < task.DurationS + 2 && !run.Calling; k++) run.Update(1);
             Check(run.Calling, "mill wind call " + (i + 1));
             var stand = run.Stand;
             float floor = Jef.I.Y;
-            await At(stand.X, stand.Z, stand.X - 1.25f, stand.Z, floor + 0.9f, floor); await Frames(15);
-            await Shot("mill-call-" + (i + 1));
-            Check(Interact.I.Find().Any(a => a.Text.StartsWith("lean on the capstan")), "capstan prompt");
-            if (i == 0) await Shot("mill-capstan"); Interact.I.Press(Key.E);
+            await At(stand.X, stand.Z, stand.X - (run.Capstan?1.25f:0), stand.Z, floor + (run.Capstan?.9f:1.4f), floor); await Frames(15);
+            await Shot(mill+"-call-" + (i + 1));
+            Check(Interact.I.Find().Any(a => a.Text.StartsWith(run.Capstan?"lean on the capstan":"haul on the chain")), run.Capstan?"capstan prompt":"chain prompt");
+            if (i == 0) await Shot(mill+"-capstan"); Interact.I.Press(Key.E);
+            Check(run.Turning,"mill work starts hand animation");await Shot(mill+"-turn-hands-"+(i+1));
             int n = i + 1; Check(await Until(() => run.Turns == n, 9), "mill turn " + n);
         }
         for (int k = 0; k < task.DurationS + 2 && Jobs.I.LastDone?.Job.Id != id; k++) run.Update(1);
         Check(await Until(() => Jobs.I.LastDone?.Job.Id == id, 15), "mill settlement");
-        replies.Add(new { millSettlement = Jobs.I.LastDone }); Check(Jobs.I.LastDone!.Settlement.PayC == fixture.GetProperty("pay_c").GetInt32(), "mill server full wage"); await Shot("mill-paid");
+        replies.Add(new { millSettlement = Jobs.I.LastDone }); Check(Jobs.I.LastDone!.Settlement.PayC == fixture.GetProperty("pay_c").GetInt32(), "mill server full wage"); await Shot(mill+"-paid");
     }
     private void Check(bool ok, string name) { steps.Add(new { name, ok }); GD.Print($"placestest: {(ok ? "ok" : "FAIL")} {name}"); if (!ok) throw new InvalidOperationException(name); }
     private void Probe(string name, IRun run)
@@ -217,8 +233,8 @@ public partial class PlacesTest : Node
         Check(Interact.I.Find().Any(a => a.Text.Contains("Sooi for his book")), "dock book prompt");
         await Shot("dock-book"); Interact.I.Press(Key.F);
         Check(await Until(() => DockWork.I.InBook, 8), "dock book signed"); replies.Add(new { dockBook = await api.DockBook() });
-        Goods.I.Load(); Check(await Until(() => Goods.I.Items.Any(i => i.Id.StartsWith("haul:") && i.Obj != null), 12), "piecework goods exist");
-        var item = Goods.I.Items.First(i => i.Id.StartsWith("haul:") && i.Obj != null);
+        Goods.I.Load(); Check(await Until(() => Goods.I.Items.Any(i => i.Id.StartsWith("haul:") && i.Id.LastIndexOf("a:",StringComparison.Ordinal)>=5 && i.Obj != null), 12), "piecework goods exist");
+        var item = Goods.I.Items.First(i => i.Id.StartsWith("haul:") && i.Id.LastIndexOf("a:",StringComparison.Ordinal)>=5 && i.Obj != null);
         await At(item.X, item.Z + 0.9f, item.X, item.Z, item.Y + 0.4f);
         Check(Interact.I.Find().Any(a => a.Text.StartsWith("lift")), "dock piece lift prompt"); Interact.I.Press(Key.E);
         bool carried = await Until(() => Goods.I.Carried != null, 8);
@@ -259,7 +275,8 @@ public partial class PlacesTest : Node
         Scheldemist.Dev.Kit.I.Summon(info.Singer!.Id); await Frames(20);
         var at = Folk.At(info.Singer.Id)!.Value; await At(at.X, at.Z + 1.3f, at.X, at.Z, at.Y + 1.3f);
         Check(await Until(() => Ballads.I.Sung > 0, 12), "ballad sung through soundscape"); await Shot("ballad-singer");
-        Check(Interact.I.Find().Any(a => a.Text.StartsWith("buy a ballad sheet")), "ballad sheet purchase prompt");
+        at=Folk.At(info.Singer.Id)!.Value;await At(at.X,at.Z+1.1f,at.X,at.Z,at.Y+1.3f);
+        Check(await Until(()=>Interact.I.Find().Any(a => a.Text.StartsWith("buy a ballad sheet")),3), "ballad sheet purchase prompt");
         int money = GameState.I.Money; Interact.I.Press(Key.G);
         Check(await Until(() => GameState.I.Pockets.Any(p => p.Kind == "ballad"), 10), "ballad sheet in pockets");
         Check(GameState.I.Money == money - info.PriceC, "ballad server price");
@@ -293,10 +310,24 @@ public partial class PlacesTest : Node
         GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { day = 7, hour = 9, minute = 15 })); await api.LandmarkHere("cathedral");
         var pulpit = LandmarkLife.I.Point("cathedral", "pulpit"); await At(stand.X, stand.Z + 1, pulpit.X, pulpit.Z, pulpit.Y + 2.4f, stand.Y);
         var chair=CathedralComfort.I.Chairs.First(c=>c.At.DistanceTo(stand)>4);money=GameState.I.Money;await At(chair.At.X,chair.At.Z+.65f,chair.At.X,chair.At.Z,chair.At.Y+.6f,chair.At.Y);CathedralComfort.I.Sit(chair);Check(await Until(()=>CathedralComfort.I.ChairReply!=null,8),"cathedral chair engine reply");Check(GameState.I.Money==money-1,"mass chair costs engine centime");await Shot("cathedral-chair");CathedralComfort.I.Stand();
-        await At(stand.X,stand.Z+1,pulpit.X,pulpit.Z,pulpit.Y+2.4f,stand.Y);await LandmarkLife.I.Load();Check(await Until(()=>Scheldemist.People.HallPeople.I!.Halls.First(h=>h.Id=="cathedral").Figures.Values.Any(f=>f.Role=="preacher"),15),"cathedral physical preacher");await LandmarkLife.I.HearSermon(); Check(LandmarkLife.I.SermonResult == null, "sermon has no premature trust");
+        await At(stand.X,stand.Z+1,pulpit.X,pulpit.Z,pulpit.Y+2.4f,stand.Y);await LandmarkLife.I.Load();var massRoster=await api.Get<JsonElement>("api/landmark/cathedral");Scheldemist.People.HallPeople.I!.ApplyHall("cathedral",massRoster);
+        var massHall=Scheldemist.People.HallPeople.I.Halls.First(h=>h.Id=="cathedral");bool preacher=await Until(()=>massHall.Figures.Values.Any(f=>f.Role=="preacher"),15);replies.Add(new{massRoster,preacher,figures=massHall.Figures.Values.Select(f=>new{f.Id,f.Role}).ToArray()});Check(preacher,"cathedral physical preacher");await LandmarkLife.I.HearSermon(); Check(LandmarkLife.I.SermonResult == null, "sermon has no premature trust");
         Check(await Until(() => LandmarkLife.I.HeardLines > 0, 12), "sermon timed spoken caption"); Check(LandmarkLife.I.PreacherInPulpit,"preacher climbed real pulpit");pictureAt=pulpit+new Vector3(4,1.5f,4);pictureTarget=pulpit+Vector3.Up*1.1f;await Shot("cathedral-sermon");pictureAt=pictureTarget=null;
+        Check(Scheldemist.Audio.Soundscape.I!.OrganOn,"cathedral service organ uses existing sound hook");
         Check(await Until(() => LandmarkLife.I.SermonResult != null, 65), "sermon completion reported to engine"); Check(LandmarkLife.I.SermonResult!.Delta == 1, "sermon server trust"); replies.Add(new { sermon = await api.Sermon(), heard = LandmarkLife.I.SermonResult });
+        Check(LandmarkLife.I.NodsShown>0,"present congregation nods during sermon");
         Check((await api.SermonHeard()).Delta == 0, "sermon trust only once"); await Shot("cathedral-sermon-heard");
+        var congregation=Scheldemist.People.HallPeople.I!.Halls.First(h=>h.Id=="cathedral");var nave=LandmarkLife.I.LocalPoint("cathedral",0,18);await At(nave.X,nave.Z,nave.X,nave.Z+1,nave.Y+1.3f,nave.Y);Check(await Until(()=>LandmarkLife.I.Here=="cathedral",5),"hush check stands on open nave floor");
+        await api.LandmarkHere("cathedral");await LandmarkLife.I.RunHush();replies.Add(new{hushProbe=new{LandmarkLife.I.Here,LandmarkLife.I.LastWitnesses,last=LandmarkLife.I.LastHush}});Check(await Until(()=>LandmarkLife.I.LastHush?.Counted==true,8),"running hush uses real nearby congregation and engine verdict");replies.Add(new{hush=LandmarkLife.I.LastHush});await Shot("cathedral-hush");
+        int lost=LandmarkLife.I.LastHush!.Delta;
+        for(int strike=2;strike<=3;strike++)
+        {
+            GameState.I.Apply(await api.Post<JobsPayload>("api/dev/advance",new{minutes=15}));await api.LandmarkHere("cathedral");await LandmarkLife.I.RunHush();
+            Check(LandmarkLife.I.LastHush?.Strike==strike,"cathedral running strike "+strike+" follows engine cooldown");lost+=LandmarkLife.I.LastHush!.Delta;replies.Add(new{hush=LandmarkLife.I.LastHush});
+        }
+        Check(lost>=-2&&LandmarkLife.I.LastHush!.Leave,"third running strike uses engine trust cap and dismissal");
+        Check(await Until(()=>new Vector2(Jef.I.X+262,Jef.I.Z-144.3f).Length()<.1f,6),"beadle puts player outside west door");await Shot("cathedral-put-out");
+        Check((await api.LandmarkNow("cathedral")).Barred,"engine bars cathedral return for an hour");
         GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { day = 1, hour = 13, minute = 45 }));
     }
     private async Task Seats(Api api)
@@ -323,7 +354,7 @@ public partial class PlacesTest : Node
         Check(seatedFeet.DistanceTo(new Vector2(Jef.I.X,Jef.I.Z))<.01f,"seated movement stays frozen");
         Check(Interact.I.Find().Any(a=>a.Text.StartsWith("play pitjesbak with")),"dice partner at occupied table"); Interact.I.Press(Key.G); Check(await Until(()=>Scheldemist.Talks.Dice.I!.IsOpen,10),"dice seat accepted by engine"); await Shot("tavern-dice");
         string before=Scheldemist.Talks.Dice.I!.Line; Scheldemist.Talks.Dice.I.OnKey("Digit1","1"); Check(await Until(()=>Scheldemist.Talks.Dice.I.Line!=before && !Scheldemist.Talks.Dice.I.Busy,12),"numbered dice throw"); replies.Add(new{dice=Scheldemist.Talks.Dice.I.Line,state=await api.Jobs()}); await Shot("tavern-dice-thrown");
-        Scheldemist.Talks.Dice.I.Close(); Interact.I.Press(Key.E); Check(TavernSeats.I.Sitting==null,"stand up releases player seat");
+        Scheldemist.Talks.Dice.I.Close();Check(Interact.I.Find().Any(a=>a.Text=="talk to the person at your table"),"seated F talk to ordinary table partner");await TavernSeats.I.Overhear(false);Check(await Until(()=>TavernSeats.I.TableLinesShown>0,15),"server table conversation spoken by present patron");await Shot("tavern-table-talk"); Interact.I.Press(Key.E); Check(TavernSeats.I.Sitting==null,"stand up releases player seat");
         foreach(var m in moved){m.Sim.Inside=m.Inside;m.Sim.Goal=m.Goal;m.Sim.Key=m.Key;}town.Paused=false;pausedRoom=null;
     }
     private async Task CartJobTest(Api api)
@@ -340,17 +371,21 @@ public partial class PlacesTest : Node
         var p=Poesje.I;var v=p.ViewAt;var aim=p.StageAt;await At(v.X,v.Z,aim.X,aim.Z,aim.Y,v.Y);
         Check(await Until(()=>p.Ticket!=null&&p.Play?.Lines!=null,40),"Poesje engine play and ticket");
         replies.Add(new{ticket=p.Ticket,play=p.Play});Check(GameState.I.Money==money-p.Ticket!.PaidC,"Poesje engine ticket price");
+        replies.Add(new{poesjeAudience=new{p.AudienceCount,p.ReservedAudience,expected=info.Audience.Count}});Check(p.AudienceCount+p.ReservedAudience==info.Audience.Count,"Poesje audience drawn from engine roster without stealing held actors");
+        if(p.FreeBench is {} bench){await At(bench.X,bench.Z+.65f,bench.X,bench.Z,bench.Y+.44f,bench.Y);Check(Interact.I.Find().Any(a=>a.Text=="sit on the Poesje bench"),"Poesje free physical bench prompt");Interact.I.Press(Key.E);Check(p.Seated,"Poesje bench freezes player at seated eye");await Shot("poesje-audience-seat");Interact.I.Press(Key.E);Check(!p.Seated,"Poesje bench stand releases player");await At(v.X,v.Z,aim.X,aim.Z,aim.Y,v.Y);}
         Check(p.CurtainCount==2,"two baked Poesje curtains");Check(await Until(()=>p.Spoken>0,15),"Poesje first spoken line");await Shot("poesje-show");
-        Check(await Until(()=>p.Spoken==p.Play!.Lines!.Count,100),"Poesje whole play spoken");await Shot("poesje-last-line");
+        Check(await Until(()=>p.Spoken==p.Play!.Lines!.Count,100),"Poesje whole play spoken");await Shot("poesje-last-line");Check(p.KnocksShown==p.Play!.Lines!.Count(l=>System.Text.RegularExpressions.Regex.IsMatch(l.Text,"knock|whack|stick|thwack|bonk",System.Text.RegularExpressions.RegexOptions.IgnoreCase)),"Poesje stick hits follow engine play lines");
         int paid=GameState.I.Money;await At(v.X+20,v.Z,aim.X,aim.Z,1);await At(v.X,v.Z,aim.X,aim.Z,aim.Y,v.Y);await Frames(30);
         Check(GameState.I.Money==paid,"Poesje reentry paid once per day");
+        await At(v.X+85,v.Z,aim.X,aim.Z,1);Check(await Until(()=>p.AudienceCount+p.ReservedAudience==0,5),"Poesje audience releases its actor holds when cellar is far away");
+        await At(v.X,v.Z,aim.X,aim.Z,aim.Y,v.Y);Check(await Until(()=>p.AudienceCount+p.ReservedAudience==info.Audience.Count,12),"Poesje return restores audience without a second ticket");Check(GameState.I.Money==paid,"Poesje far return remains paid once per day");
     }
     private async Task EmigrantTest(Api api)
     {
         // Hold the real lighter's departure during the short deterministic loading window.
         GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set",new{hour=13,minute=45,weather="clear"})); Scheldemist.World.Daylight.I!.SetTime(13.75f);Scheldemist.World.Daylight.I.Settle();
         var a=Scheldemist.Movers.River.I.Anchorage!; if(quayTow>=0){var tow=a.Tows[quayTow];tow.S=quayS;tow.Stop=1;tow.Phase="dwell";tow.Crab=1;tow.Dwell=180;}
-        await At(31,27,31,29,1); await Emigrants.I.Load(); Check(await Until(()=>Emigrants.I.CampCount>0,12),"emigrant camp from engine"); replies.Add(new{emigrants=await api.Emigrants()});Check(await Until(()=>Emigrants.I.CampProp!=null,8),"camp luggage visible");var campAt=Emigrants.I.CampProp!.Value;await At(campAt.X,campAt.Z+2.3f,campAt.X,campAt.Z,campAt.Y+.35f);await Shot("emigrant-camp");
+        await At(31,27,31,29,1); await Emigrants.I.Load(); Check(await Until(()=>Emigrants.I.CampCount>0,12),"emigrant camp from engine");Check(Emigrants.I.NoticeText.Contains("EMIGRANTS BOARD"),"emigrant notice follows engine ship day");var notice=Emigrants.I.NoticeAt;await At(notice.X,notice.Z+2,notice.X,notice.Z,notice.Y);await Shot("emigrant-notice");if(Emigrants.I.Info!.Families.Any(f=>f.Baby!=null)){Check(await Until(()=>Emigrants.I.BabyAt!=null,12),"emigrant babies visible in mothers’ arms");var baby=Emigrants.I.BabyAt!.Value;pictureAt=baby+new Vector3(1.5f,.7f,-1.5f);pictureTarget=baby;await Shot("emigrant-mother-baby");pictureAt=pictureTarget=null;} replies.Add(new{emigrants=await api.Emigrants()});Check(await Until(()=>Emigrants.I.CampProp!=null,8),"camp luggage visible");var campAt=Emigrants.I.CampProp!.Value;await At(campAt.X,campAt.Z+2.3f,campAt.X,campAt.Z,campAt.Y+.35f);await Shot("emigrant-camp");
         Emigrants.I.SetProcess(false);
         GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set",new{day=2,hour=9,minute=0}));replies.Add(new{shipFixture=await api.Post<JsonElement>("api/dev/emigrants",new{ship_today=true})});await api.Tick();GameState.I.Apply(await api.Jobs());
         var info=await api.Emigrants();var f=info.Families.First(f=>f.BoardingToday);var j=GameState.I.Jobs.First(j=>j.EmployerNpc==f.Head && j.TaskType=="carry" && j.Status=="offered");await Jobs.I.TakeJob(j);Check(Jobs.I.Run is HaulRun,"emigrant luggage follows carry run");
@@ -362,7 +397,8 @@ public partial class PlacesTest : Node
         var head=Folk.At(f.Head);if(head!=null)await At(head.Value.X,head.Value.Z+1.3f,head.Value.X,head.Value.Z,head.Value.Y+1.3f);
         Check(await Until(()=>Jobs.I.LastDone?.Job.Id==j.Id,12),"emigrant luggage settled");replies.Add(new{emigrantPay=Jobs.I.LastDone});await Shot("emigrant-luggage-paid");
         var boarded=new List<int>();void Answer(int hh,EmigrantBoard reply){boarded.Add(hh);replies.Add(new{household=hh,board=reply});}Emigrants.I.Answered+=Answer;
-        try {await At(28,4,28,-3,1);await Emigrants.I.Load();Emigrants.I.SetProcess(true);Check(await Until(()=>boarded.Contains(f.Household),65),"family boards real tender and engine records it");Check(Emigrants.I.AboardCount>0,"family figures on lighter deck");var deckAt=Emigrants.I.DeckPerson!.Value;replies.Add(new{deckPoint=deckAt.ToString(),tows=a.Tows.Select(t=>new{outer=t.Lighter.Boat.Outer.GlobalPosition.ToString(),visible=t.Lighter.Boat.Outer.IsVisibleInTree(),inner=t.Lighter.Boat.Inner.IsVisibleInTree(),nodes=Scheldemist.World.BakedWorld.All(t.Lighter.Boat.Outer).OfType<Node3D>().Select(n=>new{name=n.Name.ToString(),visible=n.Visible,inTree=n.IsVisibleInTree()}).ToArray()}).ToArray()});pictureAt=deckAt+new Vector3(2,4,-4);pictureTarget=deckAt+Vector3.Up*.8f;await Shot("emigrants-tender");pictureAt=pictureTarget=null;
+        try {if(quayTow>=0){var tow=a.Tows[quayTow];tow.S=quayS;tow.Stop=1;tow.Phase="dwell";tow.Crab=1;tow.Dwell=180;}await At(28,4,28,-3,1);await Emigrants.I.Load();Emigrants.I.SetProcess(true);bool completedBoarding=await Until(()=>boarded.Contains(f.Household),65);replies.Add(new{boardingProbe=new{Emigrants.I.AboardCount,Emigrants.I.CampCount,info=Emigrants.I.Info,tows=a.Tows.Select(t=>new{t.Stop,t.Phase,t.Crab,t.Dwell}).ToArray(),claimed=Main.I.GetNode<Scheldemist.Town.Townspeople>("Townspeople").Sims.Where(s=>f.Members.Contains(s.R.Id)).Select(s=>new{s.R.Id,s.ActionHeld,owner=s.ActionOwner?.GetType().Name}).ToArray()}});Check(completedBoarding,"family boards real tender and engine records it");Check(Emigrants.I.AboardCount>0,"family figures on lighter deck");var deckAt=Emigrants.I.DeckPerson!.Value;replies.Add(new{deckPoint=deckAt.ToString(),tows=a.Tows.Select(t=>new{outer=t.Lighter.Boat.Outer.GlobalPosition.ToString(),visible=t.Lighter.Boat.Outer.IsVisibleInTree(),inner=t.Lighter.Boat.Inner.IsVisibleInTree(),nodes=Scheldemist.World.BakedWorld.All(t.Lighter.Boat.Outer).OfType<Node3D>().Select(n=>new{name=n.Name.ToString(),visible=n.Visible,inTree=n.IsVisibleInTree()}).ToArray()}).ToArray()});pictureAt=deckAt+new Vector3(2,4,-4);pictureTarget=deckAt+Vector3.Up*.8f;await Shot("emigrants-tender");pictureAt=pictureTarget=null;
+            foreach(var tow in a.Tows)if(tow.Stop==1)tow.Phase="out";Check(await Until(()=>Emigrants.I.WavingCount>0,5),"departing emigrants wave from tender");pictureAt=deckAt+new Vector3(2,2,-3);pictureTarget=deckAt+Vector3.Up*1.1f;await Shot("emigrants-wave");pictureAt=pictureTarget=null;
             // The same mover is brought to its existing liner stop; no server boarding rule is bypassed.
             foreach(var t in a.Tows) if(t.Stop==1){t.Stop=0;t.Phase="dwell";}Check(await Until(()=>Emigrants.I.LinerTransfers>0,5),"tender empties at liner");replies.Add(new{linerTransfers=Emigrants.I.LinerTransfers,emigrants=await api.Emigrants()});
         }finally{Emigrants.I.Answered-=Answer;Emigrants.I.SetProcess(true);}

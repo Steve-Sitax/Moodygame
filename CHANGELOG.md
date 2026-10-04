@@ -24,6 +24,25 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - The St. Anna ferry has night navigation lamps and warm saloon windows; moving carts and ships feed the Godot soundscape.
 
 - Climbing onto a moving ship follows its deck throughout the climb.
+- Godot Poesje spectators return to town when you leave the cellar behind and reappear when you return, without charging for another ticket that day.
+
+- In Godot, emigrant mothers carry and hush their babies, departing passengers wave, and a Red Star Line notice shows the boarding day. Camp luggage keeps clear of tracks, omnibus routes and market fields.
+
+- In Godot multiplayer, an arrested player appears at the police cell while other players continue walking, then leaves at dawn. Tavern rounds keep the engine’s three-round limit.
+
+- The Godot Poesje now has a seated and standing audience, a bench for you, and puppet stick hits timed to the play.
+
+- In Godot taverns, patrons talk at their tables and F lets you speak to an ordinary table companion.
+
+- Godot hanging lamps fit the room’s ceiling and their glass glows in a dark room.
+
+- Godot churchgoers nod and whisper during the sermon, the organ follows the service, and running among them draws the beadle’s warning.
+
+- Godot home stoves warm you, placed clocks show the time and hanging lamps light the room. Furniture can go onto a lent handcart and return to your household.
+
+- Godot shows your hands leaning on a mill capstan or hauling its chain when the wind calls.
+
+- Godot keeps completed mill work when you follow another job or load a saved game.
 
 - In the Godot version, lamps in rooms, shops and taverns and the lanterns people carry now glow the warm amber of the browser game instead of a deep red-orange, and a lantern left in the street lights the stones in the same colour ([#48](https://github.com/Steve-Sitax/Moodygame/issues/48)).
 
