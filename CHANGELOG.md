@@ -8,6 +8,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 ## [Unreleased]
 
 ### New in the game
+- The Godot port has roaming horse drays and handcarts, and the Rijnkaai goods carts follow their working-day rounds. The horses step, the wheels roll and the carters walk with their loads.
 - In the Godot port, six horse omnibuses follow their three lines, stop at their bays and wait for the morning timetable at night. Their wheels turn and their carriage lamps follow dusk.
 - The back neighbourhoods have a bakery, grocer and cobbler, plus In de Linde and De Zwarte Kat. The latter welcomes players trusted by the smugglers; outsiders are warned to leave and refused service.
 - Ivy and red autumn Virginia creeper climb the town wall's inner face, along the Stadspark and the streets behind the wall.
