@@ -189,7 +189,9 @@ public partial class Interact : Node
 
     // ------------------------------------------------------------------ finding (jobs.ts findAll)
 
-    public bool IsShut => Shut.Any(f => f());
+    private readonly bool menus = Scheldemist.Menu.MainMenu.Wanted(Main.I);
+    /// <summary>No keys of the hands now: a window is up (the dialogs' stack, the map), or the menus have the game.</summary>
+    public bool IsShut => Scheldemist.Windows.Dialogs.I is { Any: true } || Scheldemist.Game.TownMap.I is { Open: true } || (menus && Scheldemist.Menu.MainMenu.I is { Entered: false }) || Shut.Any(f => f());
 
     /// <summary>Everything the keys can do right now, most specific first.</summary>
     public List<Act> Find()
@@ -265,7 +267,12 @@ public partial class Interact : Node
     {
         if (e is not InputEventKey { Pressed: true, Echo: false } k) return;
         if (Jef.I == null || Jef.I.TestInput) return;
-        var key = k.PhysicalKeycode;
+        // the keys as the player bound them (Menu/Keys.cs): use, second, third and fourth choice
+        Key key = Key.None;
+        foreach (var (godot, action) in Actions)
+            if (Scheldemist.Menu.Keys.Is(e, action))
+                key = godot;
+        if (key == Key.None) return;
         // the list shown may be a tenth of a second old: asked afresh for the key pressed
         if (!acts.Any(a => a.Key == key)) return;
         if (Press(key)) GetViewport().SetInputAsHandled();
@@ -314,13 +321,17 @@ public partial class Interact : Node
         label.Position = new Vector2((win.X - w) / 2, win.Y * 0.78f - win.Y * 0.4f);
     }
 
-    /// <summary>menu/keys.ts codeName for the keys the game uses.</summary>
-    public static string KeyName(Key k) => k switch
+    /// <summary>An act's key is one of the four choices of the hands; the player may have bound another key to it.</summary>
+    private static readonly (Key Key, string Action)[] Actions = { (Key.E, "use"), (Key.F, "second"), (Key.G, "third"), (Key.R, "fourth") };
+
+    /// <summary>menu/keys.ts keyLabel: the name of the key bound to an act's choice now.</summary>
+    public static string KeyName(Key k)
     {
-        Key.Space => "Space",
-        Key.Escape => "Esc",
-        _ => OS.GetKeycodeString(k),
-    };
+        foreach (var (godot, action) in Actions)
+            if (godot == k)
+                return Scheldemist.Menu.Keys.Label(action);
+        return OS.GetKeycodeString(k);
+    }
 
     public override void _Process(double delta)
     {

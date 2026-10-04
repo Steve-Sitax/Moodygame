@@ -1,32 +1,22 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
-using Scheldemist.World;
+using Scheldemist.Town;
 
 namespace Scheldemist.Play;
 
 /// <summary>
-/// The people the hands deal with (employers, foremen, recipients), until the townspeople's part is merged:
-/// where a person is, by id. The townspeople's part sets `Folk.Where` (one line) and every job follows the real
-/// people; until then the Rijnkaai's five stand where the bake froze them (game/people.ts NPCS: the nodes named
-/// sooi, peeters, tuur, fientje, sailor), and a job's recipient is a plain stand-in figure.
-/// The talk and shop windows come the same way: `Folk.OpenTalk` and `Folk.OpenShop` are set by the talk part
-/// (`Folk.OpenTalk = (id, name) => Talk.I.Open(id, name)`); not set, no "talk to" key is offered.
+/// The people the hands deal with (employers, recipients, owners of goods, anyone to talk to): where a person is,
+/// by id. The townspeople are the town part's (Town/Townspeople.cs: a resident is in the street while he has a
+/// body near Jef); the Rijnkaai's four (Sooi, the widow Peeters, Tuur, Fientje) and the sailor stand where the
+/// bake froze them until their own part walks them (game/people.ts NPCS). A job's recipient who is nobody of the
+/// town ("the mate of the Anna Maria") is a plain stand-in figure.
 /// </summary>
 public static class Folk
 {
-    /// <summary>"Where is this person now?" (feet; null: not in the street). Set by the townspeople's part.</summary>
-    public static Func<string, Vector3?>? Where;
-    /// <summary>A person's name by id, from the townspeople's part.</summary>
-    public static Func<string, string?>? Name;
-    /// <summary>Turn a person to look at a point (he looks at Jef when handing something over).</summary>
+    /// <summary>Turn a person to look at a point (he looks at Jef when handing something over). Set by the part that walks him.</summary>
     public static Action<string, float, float>? LookAt;
-    /// <summary>Open the talk window with a person. Set by the talk part.</summary>
-    public static Action<string, string>? OpenTalk;
-    /// <summary>Open a seller's wares. Set by the talk part.</summary>
-    public static Action<string, string>? OpenShop;
-    /// <summary>The talk or shop window is up (no keys meanwhile).</summary>
-    public static Func<bool>? TalkOpen;
 
     /// <summary>game/people.ts NPCS: the Rijnkaai's own people, and where they stand when the bake has no figure of them.</summary>
     private static readonly Dictionary<string, (string Name, Func<Vector3> At)> Known = new()
@@ -38,6 +28,9 @@ public static class Folk
         ["sailor"] = ("a sailor", () => new Vector3(-38.5f, 0, -4.6f)),
     };
     private static readonly Dictionary<string, Vector3?> found = new();
+    private static Townspeople? town;
+    private static Dictionary<string, Townspeople.Sim>? byId;
+    private static int simCount = -1;
 
     private static Vector3 Door(string name, float d, float side)
     {
@@ -45,22 +38,42 @@ public static class Folk
         return new Vector3(x, 0, z);
     }
 
-    /// <summary>Where the person stands (feet), or null when nobody knows.</summary>
+    private static Townspeople? Town => town ??= Main.I.GetChildren().OfType<Townspeople>().FirstOrDefault();
+
+    private static Townspeople.Sim? Sim(string id)
+    {
+        var t = Town;
+        if (t == null) return null;
+        if (byId == null || simCount != t.Sims.Count)
+        {
+            simCount = t.Sims.Count;
+            byId = new Dictionary<string, Townspeople.Sim>();
+            foreach (var s in t.Sims) byId[s.R.Id] = s;
+        }
+        return byId.GetValueOrDefault(id);
+    }
+
+    /// <summary>Where the person stands (feet), or null: nobody knows him, or he is indoors.</summary>
     public static Vector3? At(string id)
     {
-        if (Where != null) return Where(id);
-        if (!Known.TryGetValue(id, out var k)) return null;
-        if (found.TryGetValue(id, out var at)) return at;
-        // the bake's frozen figure of him
-        var node = Main.I.World.FindChild(id, true, false) as Node3D;
-        at = node != null ? node.GlobalPosition : k.At();
-        found[id] = at;
-        return at;
+        if (Known.TryGetValue(id, out var k))
+        {
+            if (found.TryGetValue(id, out var at)) return at;
+            // the bake's frozen figure of him
+            var node = Main.I.World.FindChild(id, true, false) as Node3D;
+            at = node != null ? node.GlobalPosition : k.At();
+            found[id] = at;
+            return at;
+        }
+        var sim = Sim(id);
+        if (sim == null || sim.Inside) return null;
+        if (sim.P != null) return new Vector3((float)sim.P.X, sim.P.Group.GlobalPosition.Y, (float)sim.P.Z);
+        return new Vector3((float)sim.X, 0, (float)sim.Z);
     }
 
     public static bool Present(string id) => At(id) != null;
 
-    public static string NameOf(string id, string fallback = "") => Name?.Invoke(id) ?? (Known.TryGetValue(id, out var k) ? k.Name : fallback);
+    public static string NameOf(string id, string fallback = "") => Known.TryGetValue(id, out var k) ? k.Name : Sim(id)?.R.Name is { Length: > 0 } n ? n : fallback;
 
     public static float Dist(string id, float x, float z)
     {
@@ -68,12 +81,60 @@ public static class Folk
         return at == null ? float.PositiveInfinity : MathF.Sqrt((at.Value.X - x) * (at.Value.X - x) + (at.Value.Z - z) * (at.Value.Z - z));
     }
 
-    /// <summary>The Rijnkaai's people, for the "talk to" key.</summary>
-    public static IEnumerable<string> Talkers => new[] { "sooi", "peeters", "tuur", "fientje" };
+    /// <summary>Someone within reach to talk to: who, where he stands, how far; Fixed: one of the Rijnkaai's own.</summary>
+    public sealed record Person(string Id, string Name, string? Title, Vector3 At, float Dist, bool Fixed);
+
+    /// <summary>people.ts and town.ts nearestTalker: the people in reach of (x, z), each a candidate for "talk to".</summary>
+    public static IEnumerable<Person> Near(float x, float z, float reach)
+    {
+        foreach (string id in new[] { "sooi", "peeters", "tuur", "fientje" })
+        {
+            float d = Dist(id, x, z);
+            if (d < reach) yield return new Person(id, Known[id].Name, null, At(id)!.Value, d, true);
+        }
+        var t = Town;
+        if (t == null) yield break;
+        foreach (var s in t.Sims)
+        {
+            // only who has a body in the street now
+            if (s.P == null || s.Inside) continue;
+            float dx = (float)s.P.X - x, dz = (float)s.P.Z - z;
+            if (MathF.Abs(dx) >= reach || MathF.Abs(dz) >= reach) continue;
+            float d = MathF.Sqrt(dx * dx + dz * dz);
+            if (d < reach) yield return new Person(s.R.Id, s.R.Name, s.R.Label != "" ? s.R.Label : null, new Vector3((float)s.P.X, s.P.Group.GlobalPosition.Y, (float)s.P.Z), d, false);
+        }
+    }
+
+    /// <summary>A figure a job brings (game/figures.ts Figure): a person of people.glb standing at a place.</summary>
+    public sealed class Figure
+    {
+        public Node3D Node = null!;
+        internal Scheldemist.People.Human? Human;
+        public Vector3 Position => Node.Position;
+        public void Update(float dt) => Human?.Update(dt);
+        /// <summary>Turn to look at (x, z).</summary>
+        public void Face(float x, float z) => Node.Rotation = new Vector3(0, MathF.Atan2(x - Node.Position.X, z - Node.Position.Z), 0);
+        public void Remove()
+        {
+            if (GodotObject.IsInstanceValid(Node)) Node.QueueFree();
+        }
+    }
+
+    /// <summary>A figure of a kind of people.glb ("recipient", "stranger", "foreman", "thief"), feet at (x, y, z); the grey-box stand-in when the models are not there.</summary>
+    public static Figure MakeFigure(string kind, float x, float z, float y = 0)
+    {
+        var h = Scheldemist.People.Humans.Make(kind);
+        if (h == null) return new Figure { Node = StandIn(kind, x, z, y, 0x2a3440) };
+        h.Root.Name = "figure_" + kind;
+        h.Root.Position = new Vector3(x, y, z);
+        Main.I.View.AddChild(h.Root);
+        h.Start();
+        return new Figure { Node = h.Root, Human = h };
+    }
 
     /// <summary>
-    /// A plain stand-in figure (people.ts' grey-box shapes: a coat and a head), feet at (x, y, z), for a person the
-    /// townspeople's part will bring. Solid like a person is not: he is walked round by the eye only.
+    /// A plain stand-in figure (people.ts' grey-box shapes: a coat, a head, a cap), feet at (x, y, z), until (or if
+    /// not) the model loads.
     /// </summary>
     public static Node3D StandIn(string name, float x, float z, float y = 0, uint coat = 0x4a4036)
     {

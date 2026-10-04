@@ -94,9 +94,10 @@ public static class RunWords
 
 /// <summary>
 /// Carry and deliver (runs.ts HaulRun). The goods are the server's: it lays them out at the place they are fetched
-/// from; the run counts what is delivered, lost and sold. The people of the twists (the stranger who buys, the
-/// foreman who watches, the thief who follows) come with the townspeople's part: until then those twists do not
-/// play, and the recipient of a delivery is a stand-in figure at the place.
+/// from; the run counts what is delivered, lost and sold. The employer who hands a parcel over is a person of the
+/// town (Folk); the recipient waits at the place as a figure of people.glb. The people of the twists (the stranger
+/// who buys, the foreman who watches, the thief who follows) are called from the town by the browser's walk-up
+/// (game/walkup.ts): that is not ported, so those twists do not play yet.
 /// </summary>
 public sealed class HaulRun : IRun
 {
@@ -122,7 +123,7 @@ public sealed class HaulRun : IRun
     private float lowerTimer;
     private readonly int count;
     private readonly MeshInstance3D? mark;
-    private Node3D? recipient;
+    private Folk.Figure? recipient;
     private readonly Spot? to, from;
 
     private bool IsCarry => task.Kind == "carry";
@@ -191,12 +192,12 @@ public sealed class HaulRun : IRun
             float g = Jef.I.GroundAt(x, z, 2.5f);
             y = float.IsFinite(g) ? g : 0;
         }
-        recipient = Folk.StandIn("recipient", x, z, y, 0x2a3440);
-        if (from != null) recipient.Rotation = new Vector3(0, MathF.Atan2(from.X - x, from.Z - z), 0);
+        recipient = Folk.MakeFigure("recipient", x, z, y);
+        if (from != null) recipient.Face(from.X, from.Z);
     }
 
     private float RecipientDist(float x, float z) => recipient == null ? float.PositiveInfinity : RunWords.Dist(recipient.Position.X, recipient.Position.Z, x, z);
-    private Vector3 Chest(Node3D n) => n.Position + new Vector3(0, 1.3f, 0);
+    private static Vector3 Chest(Folk.Figure f) => f.Position + new Vector3(0, 1.3f, 0);
 
     // ---- empty hands
 
@@ -246,6 +247,7 @@ public sealed class HaulRun : IRun
 
     private void GiveParcel()
     {
+        recipient?.Face(Jef.I.X, Jef.I.Z);
         ctx.Toast($"{RunWords.Cap(task.Recipient)} takes the parcel, weighs it in one hand, and turns away.");
         delivered++;
         Changed();
@@ -297,6 +299,7 @@ public sealed class HaulRun : IRun
     private void HandIn(Item item)
     {
         if (Goods.I.Carried == item) Goods.I.DropCarried("handed");
+        recipient?.Face(Jef.I.X, Jef.I.Z);
         ctx.Toast($"{RunWords.Cap(task.Recipient)} takes it without a word and turns away.");
         delivered++;
         Changed();
@@ -346,6 +349,7 @@ public sealed class HaulRun : IRun
             ctx.Toast("A bell rings over the water. You are late.");
         }
         MakeRecipient();
+        recipient?.Update(dt);
 
         // cargo swung down from the ship's rail, one at a time
         var gw = Spots.Get("ship_gangway");
@@ -429,7 +433,7 @@ public sealed class HaulRun : IRun
         mark?.QueueFree();
         foreach (var l in lowering) l.Obj.QueueFree();
         lowering.Clear();
-        recipient?.QueueFree();
+        recipient?.Remove();
         recipient = null;
         if (task.Twist == "thick_fog") ctx.ThickFog(false);
     }

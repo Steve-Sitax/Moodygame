@@ -37,11 +37,12 @@ public sealed class Item
 /// The goods of the quays (game/goods.ts GoodsWorld, M8f): the server keeps the list, this draws it and asks the
 /// server to lift, put down and hand over. The game shows a lift at once and undoes it when the server says no.
 ///
-/// What is drawn: a job's goods and the town's plain crates, barrels and fish boxes. Their models are the bake's
-/// own nodes (`goods &lt;id&gt;`, taken over by name) or copies of them; kinds the bake has no single node of (a sack, a
-/// coil of rope, hides, a chest, a parcel) are plain stand-ins until the model files are decoded
-/// (tools/godot/models.mjs). The casks, big crates and sacks of the quay heaps lie in the bake's merged meshes
-/// (goods_casks, goods_sacks, quaygoods): they stay scenery, solid, and are not offered to lift yet.
+/// What is drawn: a job's goods, the town's plain crates, barrels and fish boxes, and the casks and big crates of
+/// the piles. A job's goods are built as the browser builds them (props.ts makeGoods: the bake's own crate and
+/// barrel, sack and rope copied from the model library, the other kinds from plain shapes); the bake's single goods (`goods &lt;id&gt;`) are taken over by
+/// name; the casks and big crates come from the model library (props.glb), and the bake's merged copy of them
+/// (goods_casks) is hidden. The sacks and the quay heaps' pieces lie in the bake's merged meshes (goods_sacks,
+/// quaygoods), where one cannot be taken out of the heap: they stay scenery, solid, and are not offered to lift yet.
 /// A lying item is solid (a box on Solid's layer); in Jef's hands it hangs before the camera as in the browser
 /// (props.ts hold), he walks slower and cannot jump (Jef.Laden).
 /// </summary>
@@ -62,6 +63,8 @@ public partial class Goods : Node
     public bool Loaded { get; private set; }
     public Item? Carried { get; private set; }
     public string LastRefusal { get; private set; } = "";
+    /// <summary>What the server answered to a goods request (the scripted checks keep it as evidence).</summary>
+    public event Action<object, GoodsReply>? Answered;
     public IEnumerable<Item> Items => all.Values.Where(i => i.S.Lies);
     public IReadOnlyDictionary<string, Item> All => all;
 
@@ -73,8 +76,9 @@ public partial class Goods : Node
     public Goods()
     {
         I = this;
-        // the bake's single goods are lifted and set down: their solid boxes come from here
-        Solid.Leave.Add(n => n.Name.ToString().StartsWith("goods ", StringComparison.Ordinal));
+        // the bake's single goods are lifted and set down: their solid boxes come from here. The casks and big
+        // crates of the piles lie merged in the bake (goods_casks): drawn here one by one from the model library.
+        Solid.Leave.Add(n => n.Name.ToString().StartsWith("goods ", StringComparison.Ordinal) || (HaveProps && n.Name.ToString().StartsWith("goods_casks", StringComparison.Ordinal)));
     }
 
     public override void _Ready()
@@ -84,6 +88,10 @@ public partial class Goods : Node
         foreach (var n in BakedWorld.All(Main.I.World))
             if (n is Node3D n3 && n.Name.ToString().StartsWith("goods ", StringComparison.Ordinal))
                 baked[n.Name.ToString()] = n3;
+        if (HaveProps)
+            foreach (var n in BakedWorld.All(Main.I.World))
+                if (n is Node3D merged && n.Name.ToString().StartsWith("goods_casks", StringComparison.Ordinal))
+                    merged.Visible = false;
         crate = baked.FirstOrDefault(k => k.Key.StartsWith("goods own_sooi", StringComparison.Ordinal)).Value;
         barrel = baked.FirstOrDefault(k => k.Key.StartsWith("goods own_peeters", StringComparison.Ordinal) || k.Key.StartsWith("goods own_tuur", StringComparison.Ordinal)).Value;
         Doors.I.HandsFull = () => Carried != null;
@@ -171,10 +179,18 @@ public partial class Goods : Node
         }
     }
 
+    private static bool? haveProps;
+    /// <summary>The decoded props.glb is there (tools/godot/models.mjs): the casks and the big crates are drawn from it.</summary>
+    private static bool HaveProps => haveProps ??= System.IO.File.Exists(System.IO.Path.Combine(Scheldemist.Models.ModelLibrary.Dir, "props.glb"));
+
+    /// <summary>goods.ts body: the props.glb model of a look ("cask" is the barrel, "p:crate_big" the model named), or null.</summary>
+    private static string? PropOf(string? look) => look == "cask" ? "barrel" : look != null && look.StartsWith("p:", StringComparison.Ordinal) ? look[2..] : null;
+
     /// <summary>Can this item be shown here as a thing of its own (see the class's words)?</summary>
     private bool Showable(GoodsItem s)
     {
         if (baked.ContainsKey(Spots.BakedName("goods " + s.Id))) return true;
+        if (PropOf(s.Look) is { } prop) return HaveProps && Scheldemist.Models.ModelLibrary.Get("props")?.Roots.ContainsKey(prop) == true;
         if (!string.IsNullOrEmpty(s.Look)) return false;
         // the town's own sacks lie in the bake's merged heap; a job's are new
         if (s.Kind == "sacks") return s.Id.StartsWith("job:", StringComparison.Ordinal) || s.Id.StartsWith("spawn:", StringComparison.Ordinal);
@@ -216,7 +232,17 @@ public partial class Goods : Node
             Release();
             if (why != "" && why != "handed" && why != "sold" && why != "sunk" && why != "end") Lost?.Invoke(it, why == "taken" || why == "snatched" ? "" : why);
         }
-        if (it.Obj != null && !sinking.Contains(it.Obj)) it.Obj.QueueFree();
+        if (it.Obj != null && !sinking.Contains(it.Obj))
+        {
+            // The bake's single goods are also the source for another week or a loaded save.
+            if (baked.Values.Contains(it.Obj))
+            {
+                Solidify(it, false);
+                if (it.Obj.GetParent() != root) it.Obj.Reparent(root, false);
+                it.Obj.Visible = false;
+            }
+            else it.Obj.QueueFree();
+        }
         it.Obj = null;
     }
 
@@ -250,7 +276,16 @@ public partial class Goods : Node
             own.Reparent(root, true);
             return own;
         }
-        var g = MakeGoods(s.Kind);
+        Node3D? g = null;
+        if (PropOf(s.Look) is { } prop && Scheldemist.Models.ModelLibrary.Get("props")?.Copy(prop) is { } model)
+        {
+            // the model under a node of its own: the item's place and turn are the node's, the model keeps its scale
+            g = new Node3D();
+            model.Transform = Transform3D.Identity;
+            model.Scale = Vector3.One * (float)(s.Sc ?? 1);
+            g.AddChild(model);
+        }
+        g ??= MakeGoods(s.Kind);
         g.Name = name;
         root.AddChild(g);
         return g;
@@ -259,6 +294,23 @@ public partial class Goods : Node
     /// <summary>props.ts makeGoods: a job's goods as a model, its origin at its base.</summary>
     public Node3D MakeGoods(string kind)
     {
+        // The same decoded model lies on the ground and travels in the hands.
+        string? prop = kind switch { "crates" => "crate", "barrels" => "barrel", "sacks" => "sack", "rope" => "rope_coil", _ => null };
+        if (prop != null && Scheldemist.Models.ModelLibrary.Get("props")?.Copy(prop) is { } model)
+        {
+            model.Transform = Transform3D.Identity;
+            var size = kind switch
+            {
+                "crates" => new Vector3(0.7f, 0.7f, 0.7f),
+                "barrels" => new Vector3(0.67f, 0.9f, 0.67f),
+                "sacks" => new Vector3(0.88f, 0.3f, 0.5f),
+                _ => new Vector3(0.76f, 0.3f, 0.76f),
+            };
+            Fit(model, size);
+            var goods = new Node3D();
+            goods.AddChild(model);
+            return goods;
+        }
         if (kind == "crates" && crate != null) return Copy(crate);
         if (kind == "barrels" && barrel != null) return Copy(barrel);
         var g = new Node3D();
@@ -307,6 +359,28 @@ public partial class Goods : Node
                 break;
         }
         return g;
+    }
+
+    // The prop library's root may contain Blender's placement offsets. Fit the detached copy at its feet,
+    // to the browser's goods dimensions, before it is used on the ground or before the camera.
+    private static void Fit(Node3D model, Vector3 size)
+    {
+        Aabb? box = null;
+        void Bounds(Node node, Transform3D parent)
+        {
+            var at = node is Node3D n ? parent * n.Transform : parent;
+            if (node is MeshInstance3D { Mesh: not null } mesh)
+            {
+                var b = at * mesh.GetAabb();
+                box = box is { } previous ? previous.Merge(b) : b;
+            }
+            foreach (var child in node.GetChildren()) Bounds(child, at);
+        }
+        Bounds(model, Transform3D.Identity);
+        if (box is not { } bounds) return;
+        model.Scale = new Vector3(size.X / Math.Max(0.001f, bounds.Size.X), size.Y / Math.Max(0.001f, bounds.Size.Y), size.Z / Math.Max(0.001f, bounds.Size.Z));
+        var center = bounds.GetCenter();
+        model.Position = new Vector3(-center.X, -bounds.Position.Y, -center.Z) * model.Scale;
     }
 
     /// <summary>A copy of a bake's goods node (the same meshes and materials), at the origin.</summary>
@@ -363,7 +437,9 @@ public partial class Goods : Node
         it.Obj.Visible = true;
         it.Obj.Position = new Vector3(g.HoldX, g.HoldY, g.HoldZ);
         it.Obj.Rotation = new Vector3(0.05f, 0.08f, 0);
-        it.Obj.Scale = Vector3.One;
+        // goods.ts toHands: a big model is held smaller, so it does not fill the view
+        float size = PropOf(it.S.Look) != null ? Math.Max(0.7f, 0.7f * (float)(it.S.Sc ?? 1) * 1.3f) : 0.7f;
+        it.Obj.Scale = Vector3.One * Math.Min(1, 0.95f / Math.Max(0.3f, size));
     }
 
     /// <summary>In another's hands or on a cart: shown by the part that walks him (not yet here).</summary>
@@ -449,6 +525,7 @@ public partial class Goods : Node
         }
         api.Run(api.GoodsAsk<GoodsReply>(ask), r =>
         {
+            Answered?.Invoke(ask, r);
             if (!r.Ok) LastRefusal = r.Why ?? r.Error ?? "";
             foreach (var s in r.Items) Apply(s, !r.Ok, r.Ok ? "" : LastRefusal);
             if (r.Ok && r.Gone != null)
@@ -552,6 +629,16 @@ public partial class Goods : Node
             Forget(it.Id, "end");
         }
         _ = Ask(new { op = "end", job });
+    }
+
+    /// <summary>The server's game is another one (a save loaded, a new week): everything goes, the list is asked again.</summary>
+    public void Reset()
+    {
+        foreach (string id in all.Keys.ToList()) Forget(id, "");
+        Release();
+        Loaded = false;
+        tries = 0;
+        Load();
     }
 
     /// <summary>The item is no longer this job's (delivered: it is the employer's, lying at his door).</summary>

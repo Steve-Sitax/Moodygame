@@ -7,24 +7,25 @@ using Godot;
 using Scheldemist.Game;
 using Scheldemist.Net;
 using Scheldemist.Player;
+using Scheldemist.Windows;
 using Scheldemist.World;
 
 namespace Scheldemist.Play;
 
 /// <summary>
-/// The day's needs by hand (game/day.ts, game/sleep.ts, game/pockets.ts): the pockets (I: eat, drink or read with
-/// 1-6), a bed in the doss house and the benches of the town (E, then how long: 1, 2, 4, 8 hours or until
-/// morning), the week's rent at the doss house door (F), the sheet after a night that came by itself, the word
-/// at midnight, the week's end. The server decides everything: what a herring does, how the needs fall, who is
-/// robbed on a bench, when Jef drops where he stands; this asks and shows. (GameState says the warnings when a
-/// need runs low; the clock's tick is ServerLink's.) Dead tired, he walks slower (Jef.Fatigue).
+/// The day's needs by hand (game/day.ts, game/sleep.ts): a bed in the doss house and the benches of the town (E,
+/// then how long: 1, 2, 4, 8 hours or until morning), the week's rent at the doss house door (F), the sheet after a
+/// night that came by itself, the word at midnight, the week's end. The server decides everything: how the needs
+/// fall, who is robbed on a bench, when Jef drops where he stands; this asks and shows. (Eating and drinking are
+/// the pockets' window, Talk/Pockets.cs; GameState says the warnings when a need runs low; the clock's tick is
+/// ServerLink's.) Dead tired, he walks slower (Jef.Fatigue). The papers stand on the dialog stack, on the paper kit.
 ///
 /// The browser has no pump to drink from (its pumps are the washerwomen's, the fire engine's and a map icon), so
 /// none is here. Benches: the Sint-Jansplein, the greens, the Steen and the Stadspark (shared/townplaces.json,
 /// client/public/models/park.json); the benches at omnibus stops, on the wall walk and by house doors come with
 /// the parts that place them (Day.I.AddBench).
 /// </summary>
-[GamePart(68)]
+[GamePart(330)]
 public partial class Day : Node
 {
     public static Day I { get; private set; } = null!;
@@ -41,16 +42,13 @@ public partial class Day : Node
     /// <summary>A bench another part places (an omnibus stop, the wall walk, a house door).</summary>
     public void AddBench(Bench b) => benches.Add(b);
 
-    /// <summary>The paper or letter in the pocket is to be read: the press part's reader. Not set: its note is said.</summary>
-    public Action<PocketItem>? Read;
     /// <summary>After a night at home Jef wakes in his own room (the homes' part).</summary>
     public Action<string>? WakeHome;
 
-    public bool PocketsOpen { get; private set; }
     /// <summary>The chooser is up, or he is asleep: no other keys.</summary>
-    public bool Busy => choosing != null || asleep;
+    public bool Busy => chooser.IsOpen || asleep;
     public bool Asleep => asleep;
-    public bool SheetOpen => shown != "";
+    public bool SheetOpen => sheet.IsOpen;
     /// <summary>What the server last said to a sleep or a wake, for the checks.</summary>
     public RestEnd? LastWoke { get; private set; }
     public string LastError { get; private set; } = "";
@@ -58,11 +56,13 @@ public partial class Day : Node
     private sealed record Place(string Kind, string Label, string? Bench);
     private Place? choosing;
     private bool asleep, cell, waking;
+    private RestView? rest;
     private double sinceStep;
     private bool stepBusy;
     private string shown = ""; // "night" or "end"
     private Night? night;
-    private double unfreezeIn;
+    private Window chooser = null!, sheet = null!, sleeping = null!;
+    private bool wired;
 
     public Day()
     {
@@ -71,12 +71,12 @@ public partial class Day : Node
 
     public override void _Ready()
     {
+        chooser = new Window("sleep chooser", WriteChooser, ChooserKey);
+        sheet = new Window("night sheet", WriteSheet, SheetKey);
+        // asleep, the mouse does nothing and Esc is the menu's: a key wakes him
+        sleeping = new Window("asleep", () => null, AsleepKey) { Cursor = false, EscCloses = false };
         LoadBenches();
         var st = GameState.I;
-        st.PocketsChanged += () =>
-        {
-            if (PocketsOpen) RenderPockets();
-        };
         st.NeedsChanged += Tired;
         st.NightCame += ShowNight;
         st.DayTurned += Midnight;
@@ -89,16 +89,28 @@ public partial class Day : Node
         st.Woke += GetUp;
         st.Changed += p =>
         {
-            if (p.Ending != null && shown != "night") ShowEnd(p.Ending);
+            if (p.Ending != null && shown != "night") ShowEnd();
+            else if (p.Ending == null && shown == "end") CloseSheet();
         };
         Interact.I.AddProvider(Keys);
-        Interact.I.Shut.Add(() => PocketsOpen || Busy || SheetOpen);
-        // asleep, or with a sheet up, the waking day's clock does not tick (a tick without "asleep" would end the sleep)
-        var was = st.PlayingWhen;
-        st.PlayingWhen = () => !Busy && !SheetOpen && (was?.Invoke() ?? (Input.MouseMode == Input.MouseModeEnum.Captured && Main.I.Cam is not FlyCam));
-        BuildUi();
-        GetViewport().SizeChanged += BuildUi;
+        BuildFade();
+        GetViewport().SizeChanged += BuildFade;
         Tired();
+        if (Scheldemist.Menu.MainMenu.I is { } menu)
+            menu.WorldReplaced += (_, _) =>
+            {
+                choosing = null;
+                chooser.Close();
+                sleeping.Close();
+                CloseSheet();
+                asleep = cell = waking = stepBusy = false;
+                rest = null;
+                night = null;
+                LastWoke = null;
+                LastError = "";
+                fadeWant = 0;
+                Tired();
+            };
     }
 
     private static void Toast(string text) => GameState.I.Say(text);
@@ -180,7 +192,13 @@ public partial class Day : Node
         if (best != null)
         {
             var b = best;
-            o.Options.Add((bd + 0.2f, Act.At(Key.E, "sleep on the bench", new Vector3(b.X, b.Y + 0.45f, b.Z), () => Choose(new Place("bench", b.Label, b.Id)))));
+            // someone sits or lies there already? (sleep.ts: a person within 0.9 m of the bench)
+            bool taken = Folk.Near(b.X, b.Z, 0.9f).Any();
+            o.Options.Add((bd + 0.2f, Act.At(Key.E, taken ? "the bench is taken" : "sleep on the bench", new Vector3(b.X, b.Y + 0.45f, b.Z), () =>
+            {
+                if (taken) Toast("Someone is on that bench already.");
+                else Choose(new Place("bench", b.Label, b.Id));
+            })));
         }
         // the doss house bed, paid by the week, at any hour and for as long as he chooses
         var (dx, dz) = Spots.Doss;
@@ -198,134 +216,6 @@ public partial class Day : Node
         return o;
     }
 
-    /// <summary>A key for the papers of this part (the checks press it too). True: it was taken.</summary>
-    public bool Key_(Key k, Key typed)
-    {
-        if (shown == "night")
-        {
-            if (k is Key.E or Key.Enter or Key.Escape) Wake();
-            return true;
-        }
-        if (shown == "end")
-        {
-            if (k == Key.N && GameState.I.Ending?.Epilogue != null) NewWeek();
-            return true;
-        }
-        if (asleep)
-        {
-            // any key wakes him (not Esc, not P, not the keys that only hold others)
-            if (k is Key.Escape or Key.P or Key.Shift or Key.Ctrl or Key.Alt or Key.Meta) return false;
-            if (!cell) WakeNow();
-            return true;
-        }
-        if (choosing != null)
-        {
-            if (k is Key.E or Key.Escape) CloseChooser();
-            int n = Digit(typed);
-            if (n >= 1 && n <= 4) LieDown(new[] { 1, 2, 4, 8 }[n - 1]);
-            else if (n == 5) LieDown("morning");
-            return true;
-        }
-        if (PocketsOpen)
-        {
-            if (k is Key.I or Key.Escape) ClosePockets();
-            int n = Digit(typed);
-            if (n >= 1 && n <= 6) Use(n - 1);
-            return true;
-        }
-        if (k == Key.I && !Jef.I.Frozen && !Jef.I.Fly)
-        {
-            OpenPockets();
-            return true;
-        }
-        return false;
-    }
-
-    private static int Digit(Key k) => k >= Key.Key0 && k <= Key.Key9 ? (int)(k - Key.Key0) : k >= Key.Kp0 && k <= Key.Kp9 ? (int)(k - Key.Kp0) : -1;
-
-    public override void _UnhandledInput(InputEvent e)
-    {
-        if (Jef.I.TestInput || e is not InputEventKey { Pressed: true, Echo: false } k) return;
-        if (Key_(k.PhysicalKeycode, k.Keycode)) GetViewport().SetInputAsHandled();
-    }
-
-    // ------------------------------------------------------------------ the pockets (game/pockets.ts)
-
-    private PanelContainer pocketCard = null!;
-    private VBoxContainer pocketBody = null!;
-
-    public void OpenPockets()
-    {
-        PocketsOpen = true;
-        Jef.I.Frozen = true;
-        pocketCard.Visible = true;
-        RenderPockets();
-    }
-
-    public void ClosePockets()
-    {
-        PocketsOpen = false;
-        Jef.I.Frozen = false;
-        pocketCard.Visible = false;
-    }
-
-    private void RenderPockets()
-    {
-        foreach (var c in pocketBody.GetChildren())
-        {
-            pocketBody.RemoveChild(c);
-            c.QueueFree();
-        }
-        float w = pocketBody.CustomMinimumSize.X;
-        pocketBody.AddChild(Paper.Text("Pockets", Fonts.Hand, 20));
-        var items = GameState.I.Pockets;
-        if (items.Count == 0)
-        {
-            var l = Paper.Text("Your pockets are empty. Lint, and a button.", Fonts.Print, 15, 1, true);
-            l.CustomMinimumSize = new Vector2(w, 0);
-            pocketBody.AddChild(l);
-        }
-        for (int i = 0; i < items.Count; i++)
-        {
-            var it = items[i];
-            var row = Paper.Row(8);
-            row.AddChild(Paper.Text((i + 1).ToString(), Fonts.HandBold, 16));
-            var name = Paper.Text(it.Name, Fonts.Print, 15);
-            name.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-            row.AddChild(name);
-            row.AddChild(Paper.Text(it.Use ?? it.Note ?? "", Fonts.Hand, 13, 0.85f));
-            pocketBody.AddChild(row);
-        }
-        pocketBody.AddChild(Paper.Text("1-6 eat, drink or read · I to close", Fonts.Hand, 14, 0.9f, false, HorizontalAlignment.Right));
-        pocketCard.ResetSize();
-    }
-
-    /// <summary>pockets.ts use: eat it, drink it, read it. The panel closes at once.</summary>
-    public void Use(int index)
-    {
-        var items = GameState.I.Pockets;
-        ClosePockets();
-        if (index < 0 || index >= items.Count) return;
-        var it = items[index];
-        if (it.Use == "read")
-        {
-            if (Read != null) Read(it);
-            else Toast(it.Note ?? $"{RunWords.Cap(it.Name)}: to be read by a lamp, when there is time.");
-            return;
-        }
-        if (it.Use == null)
-        {
-            Toast(it.Note ?? "Not yours to use.");
-            return;
-        }
-        var api = ServerLink.I?.Api;
-        api?.Run(api.Use(it.Id), r =>
-        {
-            Toast(r.Text);
-            GameState.I.Apply(r);
-        }, e => Toast(e.Message));
-    }
-
     // ------------------------------------------------------------------ the rent
 
     private void Rent()
@@ -338,7 +228,15 @@ public partial class Day : Node
         }, e => Toast(e.Message));
     }
 
-    // ------------------------------------------------------------------ sleep (game/sleep.ts)
+    // ------------------------------------------------------------------ the papers
+
+    /// <summary>.night.paper: left 50%, top 50%, min(520px, 86vw) (620 for the week's end), padding 28 44, turned -0.8 degrees.</summary>
+    private Sheet NightPaper(float width = 520, float widest = 0.86f)
+    {
+        var win = GetViewport().GetVisibleRect().Size;
+        float s = Dialogs.I!.Ui;
+        return new Sheet(s, Math.Min(width * s, win.X * widest) + 88 * s, Css.Hex("d8cfb8"), (44, 28, 44, 28), -0.8f, sepia: 0.3f, contrast: 0.95f, shadow: 30, drop: 6, maxHeight: win.Y * 0.9f) { Where = Window.Middle };
+    }
 
     private static string Span(double minutes)
     {
@@ -348,29 +246,45 @@ public partial class Day : Node
 
     private static string Clock(int h, int m) => $"{h}:{m:00}";
 
+    // ------------------------------------------------------------------ sleep (game/sleep.ts)
+
     private void Choose(Place p)
     {
         choosing = p;
-        Jef.I.Frozen = true;
+        chooser.Open();
+    }
+
+    private Sheet? WriteChooser()
+    {
+        var p = choosing;
+        if (p == null) return null;
         var (h, m) = GameState.I.Shown;
         int now = h * 60 + m;
         int toMorning = ((MorningHour * 60 - now) + 1440 - 1) % 1440 + 1;
-        string title = p.Kind == "bench" ? "Sleep on the bench" : p.Kind == "doss" ? "A bed in the doss house" : "Go to bed";
-        var lines = new List<(string, bool)>();
-        if (p.Kind == "bench") lines.Add(("A hard bench in the open: less rest, the cold goes into your coat at once, and a sleeper in the street is easy pickings.", false));
-        lines.Add(("1   Sleep for 1 hour", true));
-        lines.Add(("2   Sleep for 2 hours", true));
-        lines.Add(("3   Sleep for 4 hours", true));
-        lines.Add(("4   Sleep for 8 hours", true));
-        lines.Add(($"5   Sleep until morning ({MorningHour}:00, {Span(toMorning)})", true));
-        Sheet(title, $"{p.Label} · it is {Clock(h, m)}", lines, "E or Esc  never mind");
+        var sh = NightPaper();
+        sh.Text($"[b]{(p.Kind == "bench" ? "Sleep on the bench" : p.Kind == "doss" ? "A bed in the doss house" : "Go to bed")}[/b]", Face.Hand, 26, bottom: 4);
+        sh.Text($"{Css.Esc(p.Label)} · it is {Clock(h, m)}", Face.Hand, 13, 0.7f, bottom: 12);
+        if (p.Kind == "bench") sh.Text("A hard bench in the open: less rest, the cold goes into your coat at once, and a sleeper in the street is easy pickings.", Face.Print, 15, lineHeight: 1.45f, bottom: 8);
+        sh.Row(1, "Sleep for 1 hour", face: Face.Hand, size: 16);
+        sh.Row(2, "Sleep for 2 hours", face: Face.Hand, size: 16);
+        sh.Row(3, "Sleep for 4 hours", face: Face.Hand, size: 16);
+        sh.Row(4, "Sleep for 8 hours", face: Face.Hand, size: 16);
+        sh.Row(5, $"Sleep until morning ({MorningHour}:00, {Span(toMorning)})", face: Face.Hand, size: 16);
+        sh.Keys("E or Esc  never mind", Face.Hand, top: 12, bottom: 0);
+        return sh;
     }
 
-    private void CloseChooser()
+    private void ChooserKey(string code, string key)
     {
-        choosing = null;
-        Jef.I.Frozen = false;
-        sheet.Visible = false;
+        if (code is "KeyE" or "Escape")
+        {
+            choosing = null;
+            chooser.Close();
+            return;
+        }
+        int n = Dialogs.Digit(key);
+        if (n >= 1 && n <= 4) LieDown(new[] { 1, 2, 4, 8 }[n - 1]);
+        else if (n == 5) LieDown("morning");
     }
 
     private void LieDown(object hours)
@@ -379,9 +293,14 @@ public partial class Day : Node
         var api = ServerLink.I?.Api;
         if (p == null || api == null) return;
         choosing = null;
-        sheet.Visible = false;
+        chooser.Close();
         var jef = Jef.I;
         var pos = new Pos3(jef.X, jef.Z, jef.Y);
+        void Refused(ApiException e)
+        {
+            LastError = e.Message;
+            Toast(RunWords.Cap(e.Message));
+        }
         // the server hears where he stands first (the doss house step, the bench), then the sleep
         api.Run(api.Tick(GameState.I.Where(), null, pos), _ =>
         {
@@ -389,19 +308,8 @@ public partial class Day : Node
             {
                 GameState.I.Apply(r);
                 if (r.Rest != null) Sleeping(r.Rest);
-                else jef.Frozen = false;
-            }, e =>
-            {
-                LastError = e.Message;
-                jef.Frozen = false;
-                Toast(RunWords.Cap(e.Message));
-            });
-        }, e =>
-        {
-            LastError = e.Message;
-            jef.Frozen = false;
-            Toast(RunWords.Cap(e.Message));
-        });
+            }, Refused);
+        }, Refused);
     }
 
     private void Sleeping(RestView r)
@@ -409,14 +317,15 @@ public partial class Day : Node
         asleep = true;
         cell = r.Place == "cell";
         waking = false;
-        Jef.I.Frozen = true;
         sinceStep = 0;
         fadeWant = 1;
+        sleeping.Open();
         ShowRest(r);
     }
 
     private void ShowRest(RestView r)
     {
+        rest = r;
         string where = r.Place switch { "bench" => "On the bench", "doss" => "In the doss house", "home" => "In your own bed", _ => "In the cell at the police post" };
         restLine.Text = $"{where} · {Clock(r.Now.Hour, r.Now.Minute)} · {Span(r.SleptMin)} of {Span(r.PlannedMin)}";
         restSmall.Text = r.Place == "cell" ? "the door is unlocked at dawn; the town goes on outside" : "any key: wake up";
@@ -437,11 +346,12 @@ public partial class Day : Node
         }, _ => stepBusy = false);
     }
 
-    /// <summary>A key wakes him: only the time slept counts.</summary>
-    private void WakeNow()
+    /// <summary>Any key wakes him (not P, not the keys that only hold others; Esc is the menu's): only the time slept counts.</summary>
+    private void AsleepKey(string code, string key)
     {
+        if (code is "Escape" or "KeyP" || code.StartsWith("Shift", StringComparison.Ordinal) || code.StartsWith("Control", StringComparison.Ordinal) || code.StartsWith("Alt", StringComparison.Ordinal) || code.StartsWith("Meta", StringComparison.Ordinal)) return;
         var api = ServerLink.I?.Api;
-        if (api == null || waking) return;
+        if (api == null || waking || cell) return;
         waking = true;
         api.Run(api.Wake(), r =>
         {
@@ -458,8 +368,10 @@ public partial class Day : Node
     {
         if (!asleep) return;
         asleep = false;
+        rest = null;
         LastWoke = woke;
         fadeWant = 0;
+        sleeping.Close();
         // from the doss house he steps out of the alley gate, facing the river
         if (woke?.Place == "doss")
         {
@@ -467,9 +379,8 @@ public partial class Day : Node
             Jef.I.Place(x, z - 0.4f, 0);
         }
         if (woke?.Place == "home" && woke.Home != null) WakeHome?.Invoke(woke.Home);
-        unfreezeIn = 0.9;
         if (woke != null && woke.Ended == null && woke.Place != "cell" && woke.Lines.Count > 0) Toast(string.Join(" ", woke.Lines));
-        if (woke?.Ended != null) ShowEnd(GameState.I.Ending ?? woke.Ended);
+        if (woke?.Ended != null) ShowEnd();
     }
 
     // ------------------------------------------------------------------ the sheets: a night that came, midnight, the end
@@ -481,30 +392,62 @@ public partial class Day : Node
         Toast(string.Join(" ", lines));
     }
 
-    private void OpenSheet(string kind)
-    {
-        if (shown == "")
-        {
-            Jobs.I?.CloseBoard();
-            if (PocketsOpen) ClosePockets();
-        }
-        shown = kind;
-        Jef.I.Frozen = true;
-    }
-
     private void ShowNight(Night n)
     {
         night = n;
-        OpenSheet("night");
-        string where = n.Where == "home" ? $"Your own room: {n.Place ?? "home"}" : n.Where == "bed" ? "The doss house, Sint-Andries" : n.Collapsed == true ? "Where you dropped, on the stones" : "Rough, under a tarpaulin";
-        Sheet(n.Collapsed == true ? "Dropped asleep" : "Asleep", where, n.Summary.Select(l => (l, false)).ToList(), n.Ended != null ? "E or Esc  go on" : "E or Esc  get up");
+        shown = "night";
+        Jobs.I?.CloseBoard();
+        sheet.Open();
     }
 
-    private void ShowEnd(Ending e)
+    private void ShowEnd()
     {
-        OpenSheet("end");
-        if (e.Epilogue != null) Sheet(e.Epilogue.Title, "", e.Epilogue.Paragraphs.Select(p => (p, false)).ToList(), "N  start a new week");
-        else Sheet(e.Kind == "health" ? $"The end of {GameState.I.PlayerName}" : "Sunday night", "", new List<(string, bool)> { ("Somebody is writing down what became of him …", false) }, "");
+        shown = "end";
+        Jobs.I?.CloseBoard();
+        sheet.Open();
+    }
+
+    private void CloseSheet()
+    {
+        shown = "";
+        sheet.Close();
+    }
+
+    private Sheet? WriteSheet()
+    {
+        if (shown == "night" && night is { } n)
+        {
+            var sh = NightPaper();
+            string where = n.Where == "home" ? $"Your own room: {n.Place ?? "home"}" : n.Where == "bed" ? "The doss house, Sint-Andries" : n.Collapsed == true ? "Where you dropped, on the stones" : "Rough, under a tarpaulin";
+            sh.Text($"[b]{(n.Collapsed == true ? "Dropped asleep" : "Asleep")}[/b]", Face.Hand, 26, bottom: 4);
+            sh.Text(Css.Esc(where), Face.Hand, 13, 0.7f, bottom: 12);
+            foreach (string l in n.Summary) sh.Text(Css.Esc(l), Face.Print, 16, lineHeight: 1.45f, bottom: 8);
+            sh.Keys(n.Ended != null ? "E or Esc  go on" : "E or Esc  get up", Face.Hand, top: 12, bottom: 0);
+            return sh;
+        }
+        if (shown == "end" && GameState.I.Ending is { } e)
+        {
+            var sh = NightPaper(620, 0.9f);
+            if (e.Epilogue != null)
+            {
+                sh.Text($"[b]{Css.Esc(e.Epilogue.Title)}[/b]", Face.Hand, 26, bottom: 4);
+                foreach (string p in e.Epilogue.Paragraphs) sh.Text(Css.Esc(p), Face.Print, 16, lineHeight: 1.45f, bottom: 8);
+                sh.Keys("N  start a new week", Face.Hand, top: 12, bottom: 0);
+            }
+            else
+            {
+                sh.Text($"[b]{(e.Kind == "health" ? $"The end of {Css.Esc(GameState.I.PlayerName)}" : "Sunday night")}[/b]", Face.Hand, 26, bottom: 4);
+                sh.Text("[i]Somebody is writing down what became of him …[/i]", Face.Print, 16, 0.7f, lineHeight: 1.45f, bottom: 8);
+            }
+            return sh;
+        }
+        return null;
+    }
+
+    private void SheetKey(string code, string key)
+    {
+        if (shown == "night" && code is "KeyE" or "Enter" or "Escape") Wake();
+        else if (shown == "end" && code == "KeyN" && GameState.I.Ending?.Epilogue != null) NewWeek();
     }
 
     private void Wake()
@@ -514,12 +457,10 @@ public partial class Day : Node
         if (n?.Ended != null)
         {
             // the week is over: the epilogue sheet, or wait for it
-            ShowEnd(GameState.I.Ending ?? n.Ended);
+            ShowEnd();
             return;
         }
-        shown = "";
-        sheet.Visible = false;
-        Jef.I.Frozen = false;
+        CloseSheet();
         // from the doss house you step out of the alley gate, facing the river; rough, he gets up where he lay
         if (n?.Where == "bed")
         {
@@ -540,119 +481,70 @@ public partial class Day : Node
         Toast($"{st.Weekday} {Clock(st.Hour, st.Minute)}. {(dark ? "Still dark." : sky)}{(n?.Turned == true ? " New work is on the board." : "")}");
     }
 
+    /// <summary>N on the week's end: the menus' new game when they are there (the character sheet first), else straight of the server.</summary>
     private void NewWeek()
     {
+        if (Scheldemist.Menu.MainMenu.I is { } menu && Scheldemist.Menu.MainMenu.Wanted(Main.I))
+        {
+            CloseSheet();
+            Scheldemist.Menu.Sheets.NewGame(menu);
+            return;
+        }
         var api = ServerLink.I?.Api;
         api?.Run(api.NewGame(), p =>
         {
-            shown = "";
-            sheet.Visible = false;
-            Jef.I.Frozen = false;
+            CloseSheet();
             GameState.I.Apply(p);
-            Goods.I.Load();
+            Goods.I.Reset();
         }, e => Toast(e.Message));
     }
 
-    // ------------------------------------------------------------------ the papers
+    // ------------------------------------------------------------------ the dark of a sleep (.sleep-fade)
 
-    private Control? ui;
-    private PanelContainer sheet = null!;
-    private VBoxContainer sheetBody = null!;
-    private ColorRect fade = null!;
+    private ColorRect? fade;
     private Label restLine = null!, restSmall = null!;
     private float fadeWant;
 
-    private void BuildUi()
+    private void BuildFade()
     {
-        bool pockets = PocketsOpen;
-        ui?.QueueFree();
-        ui = new Control { Name = "Day", MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = 30 };
-        ui.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-        Main.I.Ui.AddChild(ui);
-        var win = GetViewport().GetVisibleRect().Size;
-        float s = Paper.UiNow;
-
-        // .sleep-fade: the dark of a sleep, the line of where and how long
-        fade = new ColorRect { Color = new Color(0.02f, 0.02f, 0.03f, 1), MouseFilter = Control.MouseFilterEnum.Ignore, Modulate = new Color(1, 1, 1, asleep ? 1 : 0) };
+        fade?.QueueFree();
+        float s = Css.Ui(GetViewport().GetVisibleRect().Size.X);
+        fade = new ColorRect { Name = "SleepFade", Color = new Color(0.02f, 0.02f, 0.03f, 1), MouseFilter = Control.MouseFilterEnum.Ignore, Modulate = new Color(1, 1, 1, asleep ? 1 : 0), ZIndex = 10 };
         fade.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-        var col = Paper.Column(Paper.Px(6));
+        var col = new VBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore, Alignment = BoxContainer.AlignmentMode.Center };
+        col.AddThemeConstantOverride("separation", Mathf.RoundToInt(6 * s));
         col.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-        col.Alignment = BoxContainer.AlignmentMode.Center;
+        Label Chalk(float size) => new()
+        {
+            LabelSettings = new LabelSettings { Font = Fonts.Hand, FontSize = Mathf.RoundToInt(size * s), FontColor = new Color("d8cfb8") },
+            HorizontalAlignment = HorizontalAlignment.Center,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
         restLine = Chalk(20);
         restSmall = Chalk(14);
         col.AddChild(restLine);
         col.AddChild(restSmall);
         fade.AddChild(col);
-        ui.AddChild(fade);
-
-        // .pocket-panel: right 14px, bottom 64px, min(340px, 80vw)
-        pocketCard = Paper.Make(Paper.Sheet, 16, 10, 8, 0.5f, 24, 6);
-        pocketBody = Paper.Column(Paper.Px(3));
-        pocketBody.CustomMinimumSize = new Vector2(Math.Min(340 * s, win.X * 0.8f) - Paper.Px(32), 0);
-        pocketCard.AddChild(pocketBody);
-        pocketCard.Visible = false;
-        pocketCard.Resized += () =>
-        {
-            var w = GetViewport().GetVisibleRect().Size;
-            pocketCard.Position = new Vector2(w.X - Paper.Px(14) - pocketCard.Size.X, w.Y - Paper.Px(64) - pocketCard.Size.Y);
-        };
-        ui.AddChild(pocketCard);
-
-        // .night: the sheet in the middle (the chooser, the night, the week's end)
-        sheet = Paper.Make(Paper.Sheet, 30, 20, 14, -0.8f, 40, 8);
-        sheetBody = Paper.Column(Paper.Px(6));
-        sheetBody.CustomMinimumSize = new Vector2(Math.Min(520 * s, win.X * 0.84f) - Paper.Px(60), 0);
-        sheet.AddChild(sheetBody);
-        Paper.Centre(sheet);
-        sheet.Visible = false;
-        ui.AddChild(sheet);
-
-        if (pockets)
-        {
-            pocketCard.Visible = true;
-            RenderPockets();
-        }
-        if (lastSheet is { } l) Sheet(l.Title, l.Sub, l.Lines, l.Keys);
-    }
-
-    private Label Chalk(float size) => new()
-    {
-        LabelSettings = new LabelSettings { Font = Fonts.Hand, FontSize = Paper.Px(size), FontColor = new Color("d8cfb8") },
-        HorizontalAlignment = HorizontalAlignment.Center,
-        MouseFilter = Control.MouseFilterEnum.Ignore,
-    };
-
-    private (string Title, string Sub, List<(string, bool)> Lines, string Keys)? lastSheet;
-
-    /// <summary>The sheet in the middle: a title, a line under it, the paragraphs (or the choices, in the hand), the keys.</summary>
-    private void Sheet(string title, string sub, List<(string Text, bool Choice)> lines, string keys)
-    {
-        lastSheet = (title, sub, lines, keys);
-        foreach (var c in sheetBody.GetChildren())
-        {
-            sheetBody.RemoveChild(c);
-            c.QueueFree();
-        }
-        float w = sheetBody.CustomMinimumSize.X;
-        sheetBody.AddChild(Paper.Text(title, Fonts.Hand, 26, 1, false, HorizontalAlignment.Center));
-        if (sub != "") sheetBody.AddChild(Paper.Text(sub, Fonts.Hand, 14, 0.8f, false, HorizontalAlignment.Center));
-        foreach (var (text, choice) in lines)
-        {
-            var l = Paper.Text(text, choice ? Fonts.Hand : Fonts.Print, choice ? 17 : 16, 1, true);
-            l.CustomMinimumSize = new Vector2(w, 0);
-            sheetBody.AddChild(l);
-        }
-        if (keys != "") sheetBody.AddChild(Paper.Text(keys, Fonts.Hand, 14, 0.9f, false, HorizontalAlignment.Right));
-        sheet.Visible = true;
-        sheet.ResetSize();
+        Main.I.Ui.AddChild(fade);
+        if (rest != null) ShowRest(rest);
     }
 
     public override void _Process(double delta)
     {
-        if (!sheet.Visible) lastSheet = null;
+        if (!wired)
+        {
+            // (after every part's _Ready: Game/Wiring.cs says when time runs; asleep, or with the night's sheet up, the
+            // waking day's clock does not tick, as in the browser: a tick without "asleep" would end the sleep)
+            wired = true;
+            var was = GameState.I.PlayingWhen;
+            if (Main.I.Arg("jobtest") == "") GameState.I.PlayingWhen = () => !asleep && !sheet.IsOpen && !chooser.IsOpen && (was?.Invoke() ?? (Input.MouseMode == Input.MouseModeEnum.Captured && Main.I.Cam is not FlyCam));
+        }
         // .sleep-fade: 1.1 s in, and out again
-        float a = fade.Modulate.A;
-        if (a != fadeWant) fade.Modulate = new Color(1, 1, 1, Mathf.MoveToward(a, fadeWant, (float)delta / 1.1f));
+        if (fade != null)
+        {
+            float a = fade.Modulate.A;
+            if (a != fadeWant) fade.Modulate = new Color(1, 1, 1, Mathf.MoveToward(a, fadeWant, (float)delta / 1.1f));
+        }
         if (asleep)
         {
             sinceStep += delta;
@@ -662,6 +554,5 @@ public partial class Day : Node
                 SleepStep();
             }
         }
-        if (unfreezeIn > 0 && (unfreezeIn -= delta) <= 0 && !Busy && !SheetOpen && !PocketsOpen && !(Jobs.I?.BoardOpen ?? false)) Jef.I.Frozen = false;
     }
 }

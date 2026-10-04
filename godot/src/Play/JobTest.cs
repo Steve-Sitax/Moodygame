@@ -7,6 +7,8 @@ using Godot;
 using Scheldemist.Game;
 using Scheldemist.Net;
 using Scheldemist.Player;
+using Scheldemist.Talks;
+using Scheldemist.Windows;
 
 namespace Scheldemist.Play;
 
@@ -354,19 +356,20 @@ public partial class JobTest : Node
             Stand(fientje.X - 1.8f, fientje.Z + 0.4f, fientje.X, fientje.Z);
             yield return 0.5;
             var before = Needs();
-            Check(day.Key_(Key.I, Key.I) && day.PocketsOpen, "I did not open the pockets");
+            Pockets.I!.Toggle();
+            Check(Pockets.I.IsOpen && Dialogs.I!.Top == Pockets.I, "I did not open the pockets");
             yield return 0.6;
             Note("pockets", GameState.I.Pockets.Select(p => $"{p.Name} ({p.Use ?? p.Note ?? "-"})").ToList());
             Shot("6-pockets");
             int at = GameState.I.Pockets.ToList().FindIndex(p => p.Kind == "herring");
             double food = GameState.I.Food;
-            day.Key_(Key.Key1 + at, Key.Key1 + at);
+            Dialogs.I!.SendKey("Digit" + (at + 1));
             yield return When(() => GameState.I.Food != food || !GameState.I.Pockets.Any(p => p.Kind == "herring"), 8, "the herring eaten");
             yield return 0.6;
             Note("needs_before", before);
             Note("needs_after", Needs());
             Check(GameState.I.Food > food, "the food need did not rise");
-            Check(!day.PocketsOpen && !Jef.I.Frozen, "the pockets stayed up, or Jef stayed frozen");
+            Check(!Pockets.I!.IsOpen && !Jef.I.Frozen, "the pockets stayed up, or Jef stayed frozen");
             Shot("6-eaten");
         }
 
@@ -384,7 +387,7 @@ public partial class JobTest : Node
             yield return 0.6;
             Shot("6-bench-chooser");
             Check(day.Busy, "the chooser did not come up");
-            day.Key_(Key.Escape, Key.Escape);
+            Dialogs.I!.SendKey("Escape");
             yield return 0.3;
             Check(!day.Busy && !Jef.I.Frozen, "Esc did not close the chooser");
         }
@@ -411,7 +414,7 @@ public partial class JobTest : Node
         Check(Interact.I.Press(Key.E) && day.Busy, $"E did not bring the chooser: \"{Interact.I.Text}\"");
         yield return 0.6;
         Shot("6-sleep-chooser");
-        day.Key_(Key.Key3, Key.Key3); // four hours
+        Dialogs.I!.SendKey("Digit3"); // four hours
         yield return When(() => day.Asleep || day.LastError != "", 10, "asleep");
         if (!day.Asleep) Note("refused", day.LastError);
         else
@@ -449,7 +452,7 @@ public partial class JobTest : Node
             yield return 0.6;
             Shot("6-dropped");
             Note("needs_after_the_night", Needs());
-            day.Key_(Key.E, Key.E);
+            Dialogs.I!.SendKey("KeyE");
             yield return 0.8;
             Check(!day.SheetOpen && !Jef.I.Frozen, "E did not get him up");
             Shot("6-morning");
@@ -486,7 +489,7 @@ public partial class JobTest : Node
         }
         var job = list[at];
         int moneyBefore = GameState.I.Money;
-        jobs.BoardKey(Key.Key1 + at);
+        Dialogs.I!.SendKey("Digit" + (at + 1));
         yield return When(() => jobs.Active?.Id == job.Id, 10, "the job taken");
         yield return When(() => !jobs.BoardOpen, 5, "the board put away once the job is taken");
         Note("took", $"{job.Id} {job.Title}");
@@ -567,7 +570,7 @@ public partial class JobTest : Node
             yield break;
         }
         int moneyBefore = GameState.I.Money;
-        jobs.TakeJob(job);
+        _ = jobs.TakeJob(job);
         yield return When(() => jobs.Active?.Id == job.Id, 10, "the job taken");
         var tuur = Folk.At("tuur");
         if (tuur == null)
@@ -621,7 +624,7 @@ public partial class JobTest : Node
         int moneyBefore = GameState.I.Money;
         var task = JobTask.Of(job)!;
         var post = Spots.Get(task.Post)!;
-        jobs.TakeJob(job);
+        _ = jobs.TakeJob(job);
         yield return When(() => jobs.Active?.Id == job.Id, 10, "the job taken");
         Stand(post.X - 2.5f, post.Z - 1.5f, post.X, post.Z, Down(3));
         yield return When(() => Goods.I.Items.Any(i => i.JobId == job.Id), 8, "the pile at the post");
