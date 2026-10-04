@@ -58,12 +58,13 @@ public partial class TogetherMenuTest : Node
             await Shot("together-join");
             Dialogs.CloseAll();
             var tg = Together.I!;
-            await tg.Host(false);
+            await tg.Host(true);
             await Until(() => tg.PlayerId == 1 && tg.On);
             TogetherSheet.Open();
             await Until(() => tg.House != null);
             await Shot("together-host");
             report["host_address"] = tg.House?.Multiplayer == true;
+            report["open_to_house"] = tg.House?.Lan == true;
             Dialogs.CloseAll();
             menu.Start();
             menu.KeyPause(true);

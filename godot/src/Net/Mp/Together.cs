@@ -186,7 +186,7 @@ public partial class Together : Node
         api.Run(api.Get<MpInfo>("api/mp/info"), info =>
         {
             if (info.Multiplayer) StartSession();
-            else if (Main.I.Flag("host")) _ = Host(Main.I.Flag("house"));
+            else if (Main.I.Flag("host")) _ = Host(true);
             if (info.PausedAll) SetPausedAll(true);
         }, e => GD.PrintErr($"together: {e.Message}"));
     }
@@ -262,7 +262,7 @@ public partial class Together : Node
     // ------------------------------------------------------------------ for the menu
 
     /// <summary>Play together from this game: the others come in with the code. lan: open to the house too (else this PC only).</summary>
-    public async Task<HostView> Host(bool lan = false)
+    public async Task<HostView> Host(bool lan = true)
     {
         if (ServerLink.I?.Api is not { } api) throw new ApiException("The game server is not up yet.", 0);
         if (api.Guest) throw new ApiException("You are a guest in another game: go home first.", 0);

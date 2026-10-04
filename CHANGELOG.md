@@ -35,6 +35,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - In the Carolus the round windows over the side doors and the front's middle windows show whole from inside the aisles ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
 
 ### Changed
+- Godot hosting opens to the home network by default, including the `--host` shortcut.
 - Godot night, waking and week-ending papers use the shared game window stack alongside the menus.
 - Lamps and lanterns no longer wear big orange circles: a small soft glow at the glass. The omnibus's carriage lamps now light the street and the house fronts as it drives by.
 - Esc closes the map, the quest book, a talk or any other window, as E does, instead of opening the main menu. Click or press W to walk on.
