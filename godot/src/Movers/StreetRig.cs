@@ -109,7 +109,16 @@ public static class Carters
         if (cart) HideBakedCart(man);
         frame.AddChild(man.Root);
         man.Start();
+        grips.GetValue(man, ReadGrip);
         return man;
+    }
+
+    private sealed record Grip(Skeleton3D? Skeleton, int Left, int Right);
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Human, Grip> grips = new();
+    private static Grip ReadGrip(Human man)
+    {
+        var sk = man.Root.GetNodeOrNull<Skeleton3D>("Skeleton3D");
+        return new Grip(sk, sk?.FindBone("handL") ?? -1, sk?.FindBone("handR") ?? -1);
     }
 
     /// <summary>Hands sway; only their forward reach and height move the cart (traffic.ts handsOf).</summary>
@@ -118,8 +127,9 @@ public static class Carters
         float reach = 0.5f, height = 0.9f;
         if (man != null && frame.Visible)
         {
-            var sk = man.Root.GetNodeOrNull<Skeleton3D>("Skeleton3D");
-            int l = sk?.FindBone("handL") ?? -1, r = sk?.FindBone("handR") ?? -1;
+            var grip = grips.GetValue(man, ReadGrip);
+            var sk = grip.Skeleton;
+            int l = grip.Left, r = grip.Right;
             if (l >= 0 && r >= 0)
             {
                 var p = sk!.GlobalTransform * ((sk.GetBoneGlobalPose(l).Origin + sk.GetBoneGlobalPose(r).Origin) / 2);

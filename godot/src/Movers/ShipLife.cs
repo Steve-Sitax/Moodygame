@@ -16,18 +16,19 @@ public partial class ShipLife : Node
         public float Yaw;
         public bool Walking,AtHome=true;
         private readonly Vector2[] route;
+        private readonly Vector2[] back;
         private Vector2[] path=Array.Empty<Vector2>();
         private bool outbound;
         private int next,index;
         private float wait;
-        public Round(Vector2 home,Vector2[] route,int seed) { At=Home=home; this.route=route; wait=4+seed%19; }
+        public Round(Vector2 home,Vector2[] route,int seed) { At=Home=home; this.route=route; back=route.Take(route.Length-1).Reverse().Append(home).ToArray(); wait=4+seed%19; }
         public void Step(float dt)
         {
             Walking=false; dt=Math.Min(dt,0.15f);
             if (path.Length==0)
             {
                 if ((wait-=dt)>0) return;
-                if (outbound) { path=route.Take(route.Length-1).Reverse().Append(Home).ToArray(); outbound=false; }
+                if (outbound) { path=back; outbound=false; }
                 else { path=route; outbound=true; next++; }
                 index=0;
             }

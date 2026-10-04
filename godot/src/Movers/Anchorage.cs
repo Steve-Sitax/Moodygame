@@ -34,7 +34,7 @@ public sealed class Anchorage
     private const double RelaxS = 20, YieldM = 28, WatchdogS = 60, BerthWaitMax = 420, HoldAhead = 22, Keep = 25;
     private static readonly (string Lane, double Z, double XMin)[] LaneZ = { ("up", -84, double.NegativeInfinity), ("down", -100, double.NegativeInfinity), ("near", -36, -55) };
 
-    public sealed class Obstacle
+    public struct Obstacle
     {
         public double X, Z, Yaw, Len, Beam, V;
         public bool Soft;
@@ -272,7 +272,7 @@ public sealed class Anchorage
     }
 
     /// <summary>Can the tow cross zone z now? level 0: the strict rule; 1: the right of way (after RelaxS); 2: after WatchdogS, ships nearer still must stop.</summary>
-    private bool Clear(Tow tow, Zone z, IReadOnlyList<River.Mover> traffic, int level)
+    private bool Clear(Tow tow, Zone z, List<River.Mover> traffic, int level)
     {
         bool relaxed = level > 0;
         double yieldM = level > 1 ? YieldM / 2 : YieldM;
@@ -313,7 +313,7 @@ public sealed class Anchorage
                     continue;
                 }
                 double s1 = double.PositiveInfinity, s2 = double.NegativeInfinity;
-                foreach (double k in new[] { 1, 0.5 })
+                for (double k = 1; k >= 0.5; k -= 0.5)
                 {
                     double ta = (st.X - pad - hi) / (uu * k), tb = (st.X + pad - lo) / (uu * k);
                     s1 = Math.Min(s1, Math.Min(ta, tb));
@@ -353,7 +353,7 @@ public sealed class Anchorage
     }
 
     /// <summary>A committed tow's speed so that it comes into each lane only after a ship too near to stop is through.</summary>
-    private double Pace(Tow tow, Zone z, IReadOnlyList<River.Mover> traffic)
+    private double Pace(Tow tow, Zone z, List<River.Mover> traffic)
     {
         double best = double.PositiveInfinity, half = tow.Len / 2;
         foreach (var st in z.Strips)
@@ -377,7 +377,7 @@ public sealed class Anchorage
         return best;
     }
 
-    public void Update(double t, double dt, IReadOnlyList<River.Mover> traffic)
+    public void Update(double t, double dt, List<River.Mover> traffic)
     {
         if (!ok) return;
         PlaceLiner(t);
@@ -474,7 +474,7 @@ public sealed class Anchorage
             // a ship under way coming across its bow (not once it has decided to cross a lane)
             var head = tow.Lighter.Boat.Outer;
             double fx = Math.Sin(head.Rotation.Y), fz = Math.Cos(head.Rotation.Y);
-            bool crossing = tow.Committed >= 0 || zones.Any(z => Ahead(z.S0, tow.S) <= z.S1 - z.S0 + tow.Len);
+            bool crossing = tow.Committed >= 0 || Crossing(tow) >= 0;
             if (!crossing)
                 foreach (var m in traffic)
                 {
@@ -537,11 +537,11 @@ public sealed class Anchorage
             Obstacles.Add(new Obstacle { X = q.Lx, Z = q.Lz, Yaw = q.Yaw, Len = tow.Lighter.Len, Beam = tow.Lb, V = tow.V });
             Obstacles.Add(new Obstacle { X = q.Tx, Z = q.Tz, Yaw = q.Yaw, Len = tow.Tug.Len, Beam = tow.Tb, V = tow.V });
             double fx = Math.Sin(q.Yaw), fz = Math.Cos(q.Yaw);
-            foreach (double k in new[] { 0.4, -0.4 })
+            for (double k = 0.4; k >= -0.4; k -= 0.8)
                 lash.Add(
                     new Vector3((float)(q.Lx + fx * tow.Lighter.Len * k), y + 1.0f, (float)(q.Lz + fz * tow.Lighter.Len * k)),
                     new Vector3((float)(q.Tx + fx * tow.Tug.Len * k * 0.9), y + 1.3f, (float)(q.Tz + fz * tow.Tug.Len * k * 0.9)));
-            int zi = tow.Committed >= 0 ? tow.Committed : zones.FindIndex(z => Ahead(z.S0, tow.S) <= z.S1 - z.S0 + tow.Len);
+            int zi = tow.Committed >= 0 ? tow.Committed : Crossing(tow);
             if (zi >= 0 && tow.Phase == "run")
                 foreach (var st in zones[zi].Strips)
                 {
@@ -552,5 +552,12 @@ public sealed class Anchorage
                 }
         }
         lash.Commit();
+    }
+
+    private int Crossing(Tow tow)
+    {
+        for (int i = 0; i < zones.Count; i++)
+            if (Ahead(zones[i].S0, tow.S) <= zones[i].S1 - zones[i].S0 + tow.Len) return i;
+        return -1;
     }
 }

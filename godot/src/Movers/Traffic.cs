@@ -35,7 +35,7 @@ public partial class Traffic : Node
     private readonly Copies?[] legs = new Copies?[4];
     private readonly Dictionary<string, Copies?> loads = new();
     private readonly HorseGait.Pose pose = new();
-    private readonly PhysicsShapeQueryParameters3D query = new() { Shape = new SphereShape3D { Radius = 0.45f }, CollisionMask = Solid.Layer, CollideWithAreas = false };
+    private MoverOverlap overlap = null!;
     private uint seed = 1873;
     private float Rand() { unchecked { seed = seed * 1664525 + 1013904223; } return (float)(seed / 4294967296.0); }
 
@@ -44,6 +44,8 @@ public partial class Traffic : Node
         I = this;
         var g = Mv.Top("traffic");
         if (g == null) { SetProcess(false); return; }
+        using var queryDefaults = new PhysicsShapeQueryParameters3D();
+        overlap = new MoverOverlap(queryDefaults.Margin);
         bed = Copies.Find(g, "trdraybed"); fore = Copies.Find(g, "trdrayfore");
         rear = Copies.Find(g, "trwheelsrear"); front = Copies.Find(g, "trwheelsfront"); horse = Copies.Find(g, "trhorsebody");
         string[] names = { "trlegfront", "trlegfrontlo", "trleghind", "trleghindlo" };
@@ -130,10 +132,7 @@ public partial class Traffic : Node
 
     private bool Free(Vehicle v,Vector2 p,float radius = 0.45f)
     {
-        query.Exclude = v.Exclude;
-        query.Transform = new Transform3D(Basis.Identity,new Vector3(p.X,0.9f,p.Y));
-        ((SphereShape3D)query.Shape).Radius = radius;
-        return Main.I.View.FindWorld3D().DirectSpaceState.IntersectShape(query,1).Count == 0;
+        return overlap.Free(v,v.Exclude,p,radius);
     }
 
     private string? Blocked(Vehicle v)
@@ -180,8 +179,11 @@ public partial class Traffic : Node
             v.Wait=why is "player" or "thing"?v.Wait+dt:0;
             if (v.Want==0 && v.Wait>6)
             {
-                foreach (float side in new[] {-1.7f,1.7f})
+                for (int i=0;i<2;i++)
+                {
+                    float side=i==0?-1.7f:1.7f;
                     if (SideClear(v,side)) { v.Want=side; v.Gone=0; v.Wait=0; break; }
+                }
             }
             else if (v.Want!=0)
             {
@@ -246,7 +248,7 @@ public partial class Traffic : Node
             }
             else
             {
-                foreach (var m in new[] {bed,fore,rear,front,horse}) m?.Zero(v.Index);
+                bed?.Zero(v.Index); fore?.Zero(v.Index); rear?.Zero(v.Index); front?.Zero(v.Index); horse?.Zero(v.Index);
                 loads[v.Load]?.Zero(v.LoadIndex);
                 foreach (var m in legs) { m?.Zero(v.Index*2); m?.Zero(v.Index*2+1); }
             }
@@ -268,7 +270,7 @@ public partial class Traffic : Node
     {
         MoverCost.Begin("traffic");
         foreach (var v in vehicles) Move(v,(float)MoverClock.Dt);
-        foreach (var m in new[] {bed,fore,rear,front,horse}) m?.Commit();
+        bed?.Commit(); fore?.Commit(); rear?.Commit(); front?.Commit(); horse?.Commit();
         foreach (var m in legs) m?.Commit();
         foreach (var m in loads.Values) m?.Commit();
         MoverCost.End("traffic");

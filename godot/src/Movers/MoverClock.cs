@@ -298,3 +298,30 @@ public partial class MoverDump : Node
         GetTree().Quit();
     }
 }
+
+/// <summary>Reusable immediate overlap query; native results stay native instead of making result arrays.</summary>
+public sealed class MoverOverlap
+{
+    private readonly SphereShape3D sphere = new();
+    private readonly ShapeCast3D cast;
+    private object? owner;
+    public MoverOverlap(float margin = 0)
+    {
+        cast = new ShapeCast3D { Name = "mover_overlap", Shape = sphere, Enabled = false,
+            TargetPosition = Vector3.Zero, CollisionMask = Solid.Layer, CollideWithAreas = false, Margin = margin, MaxResults = 1 };
+        Main.I.View.AddChild(cast);
+    }
+    public bool Free(object who, Godot.Collections.Array<Rid> exclude, Vector2 at, float radius)
+    {
+        if (owner != who)
+        {
+            owner = who;
+            cast.ClearExceptions();
+            for (int i=0;i<exclude.Count;i++) cast.AddExceptionRid(exclude[i]);
+        }
+        if (sphere.Radius != radius) sphere.Radius = radius;
+        cast.GlobalPosition = new Vector3(at.X, 0.9f, at.Y);
+        cast.ForceShapecastUpdate();
+        return !cast.IsColliding();
+    }
+}

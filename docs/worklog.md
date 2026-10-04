@@ -1,5 +1,13 @@
 # Work log
 
+## Godot clock coverage and mover allocations, 2026-10-04
+
+On `godot/movers`, merged `godot-port` at `5f2589a` and used the shared next bake. Clocks pass 96/96 in both the independent runner and moverstest, with identical registry paths and zero displayed-time errors. The kit updates a held mover clock when setting the server hour; immutable hand meshes rotate at game-minute boundaries. The independent marker scan finds no missing face, including room/shop and clockmaker-window clocks. This addresses [#44](https://github.com/Steve-Sitax/Moodygame/issues/44).
+
+Allocation/collection instrumentation reproduced the stutter: all twelve slow baseline updates coincided with generation-0/1 collections. Removed recurring arrays, closures, boxed enumeration, native physics-result wrappers and bone-name/path lookups; preloaded ship/lock/bridge variants and horse curves. The new-bake baseline tour peak was 44.217 ms (the older handoff was 31.892 ms); the final 67,851-frame tour peaks at 14.243 ms, mean 0.6219 ms. Managed allocations average 8.19 B/frame, median/p95 0 B, with 99.44% zero-allocation frames. Warm Rijnkaai mean/peak: 0.7101/1.707 ms. The self-test enforces both tour and warm 16 ms maxima. Rare passenger boarding still allocates; the numbers bracket mover updates, not GPU or unrelated work.
+
+All 37 mover cases pass. Clock runner passes cleanly on port 8915 after its short-check startup guard waits for background audio initialization before quitting. `dotnet build godot`, `npm run build`, syntax and whitespace checks pass. PERF-LOCK was honored before every Godot launch; runs were serial, bounded and used ports 8915–8917. Test databases removed and no own process left. Details and local artifacts: [movers milestone](milestones/godot-movers.md), [clock follow-up](godot-G8-checks.md).
+
 ## Godot milestone checks, 2026-10-04
 
 G8 on `godot/checks`: the HUD arrow clears the cards; the server-backed development kit, baked-map paths,

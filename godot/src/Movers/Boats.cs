@@ -97,6 +97,7 @@ public partial class Boats : Node
         public float Floor = float.NaN;
         public float[] M = null!;
         public float P0, P1, P2;
+        internal bool Prepared;
     }
 
     private sealed class Row
@@ -179,7 +180,7 @@ public partial class Boats : Node
         }
     }
 
-    private Float Register(Node3D outer, Node3D inner, string kind)
+    private Float Register(Node3D outer, Node3D inner, string kind, bool prepared = false)
     {
         var f = new Float
         {
@@ -187,11 +188,8 @@ public partial class Boats : Node
             Outer = outer,
             Inner = inner,
             Draft = DraftOf(kind),
-            List = ((float)rand() - 0.5f) * 0.08f,
             M = Motion.GetValueOrDefault(kind) ?? Motion["lighter"],
-            P0 = (float)rand() * MathF.Tau,
-            P1 = (float)rand() * MathF.Tau,
-            P2 = (float)rand() * MathF.Tau,
+            Prepared = true,
             Heel = Heel.GetValueOrDefault(kind),
         };
         if (outer.HasMeta("extras"))
@@ -201,7 +199,19 @@ public partial class Boats : Node
         }
         floats.Add(f);
         templates.TryAdd(kind, (outer, inner));
+        if (!prepared) Activate(f);
         return f;
+    }
+
+    /// <summary>Consume the original motion dice only on first use, preserving poses despite eager model creation.</summary>
+    public void Activate(Float f)
+    {
+        if (!f.Prepared) return;
+        f.Prepared = false;
+        f.List = ((float)rand() - 0.5f) * 0.08f;
+        f.P0 = (float)rand() * MathF.Tau;
+        f.P1 = (float)rand() * MathF.Tau;
+        f.P2 = (float)rand() * MathF.Tau;
     }
 
     /// <summary>Is there a model of this kind: a frozen vessel of the bake, or the model file's own (the model library)?</summary>
@@ -274,7 +284,7 @@ public partial class Boats : Node
     /// moves the group. A copy of the bake's frozen vessel of that kind (it has the browser's own materials), else of
     /// the model file's through the model library; null when neither has it.
     /// </summary>
-    public Float? Place(string kind, Node parent, float scale = 1)
+    public Float? Place(string kind, Node parent, float scale = 1, bool prepared = false)
     {
         if (!Library.Contains(kind)) FromLibrary(kind);
         string? k = KindFor(kind);
@@ -286,7 +296,7 @@ public partial class Boats : Node
         outer.Scale = Vector3.One * scale;
         parent.AddChild(outer);
         var inner = (Node3D)outer.GetChild(srcInner.GetIndex());
-        return Register(outer, inner, kind);
+        return Register(outer, inner, kind, prepared);
     }
 
     /// <summary>A baked vessel as a float (the parts that take a baked boat over ask for it by its group).</summary>

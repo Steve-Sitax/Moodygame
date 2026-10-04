@@ -433,8 +433,9 @@ public partial class Railway : Node
     private float? HoldAngle(Crane c, float x, float z, int kmax = 14)
     {
         for (int k = 0; k <= kmax; k++)
-            foreach (int sgn in k > 0 ? new[] { 1, -1 } : new[] { 1 })
+            for (int side=0;side<(k>0?2:1);side++)
             {
+                int sgn=side==0?1:-1;
                 float ca = sgn * k * 0.09f, wa = c.Yaw + ca;
                 if (Boats.I.HullAt(x + MathF.Sin(wa) * RHook, z + MathF.Cos(wa) * RHook))
                 {
@@ -1175,12 +1176,15 @@ public partial class Railway : Node
         bool back = head > gateBackTip - 16 && head - trainLen < gateBackFace + 0.5f;
         gate.WantOpen = state != "shed" && (outW || back);
         if (gate.Amount < 0.99f)
-            foreach (float stopAt in new[] { gateOutFace - 0.8f, gateBackTip - 1.5f })
+            for (int gateEnd = 0; gateEnd < 2; gateEnd++)
+            {
+                float stopAt = gateEnd == 0 ? gateOutFace - 0.8f : gateBackTip - 1.5f;
                 if (head <= stopAt + 0.01f && head > stopAt - 60 && stopAt < lim)
                 {
                     lim = Math.Max(head, stopAt);
                     waitWhy = "gate";
                 }
+            }
         // an opening bridge ahead that is not shut
         void Bridge(Bridges.Rect rect, bool closed)
         {
@@ -1193,7 +1197,10 @@ public partial class Railway : Node
                 }
         }
         if (Bridges.I != null)
-            foreach (var br in Bridges.I.List) Bridge(br.Rect, br.Closed);
+        {
+            var bridges = Bridges.I.List;
+            for (int i=0;i<bridges.Count;i++) Bridge(bridges[i].Rect, bridges[i].Closed);
+        }
         if (Lock.I != null) Bridge(Lock.BridgeRect, Lock.I.BridgeClosed);
         // Jef on the line ahead or at the horses' heads
         var jef = Jef.I;

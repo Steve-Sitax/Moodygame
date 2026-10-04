@@ -93,3 +93,25 @@ Final warm Rijnkaai cost: **0.6186 ms mean, 0.752 ms p95, 1.281 ms peak**, 1,351
 The mover timing recorder now stores a fixed 65,536-frame percentile window, plus lifetime sum/count/maximum. Ordinary play cannot grow an unbounded list of timing samples. JSON `combined.samples` reports the percentile sample count; `combined.frames`, mean and maximum still include all measured frames. The railway reuses its drawing index dictionary rather than allocating it every frame.
 
 The final 37-case tour exercised the ring past its capacity: 71,582 total frames and 65,537 percentile samples including the current frame. The separate warm benchmark used all 1,351 of its frames. Both reports preserve their full-period means and peaks.
+
+## New bake: all clocks and collection pauses (2026-10-04)
+
+Merged `godot-port` at `5f2589a` before this batch. All runs use the shared `baked/next/town.glb` and `baked/models`, no AI, disposable test databases, bounded timeouts and ports 8915–8917. The shared `baked/PERF-LOCK` was checked before every Godot launch; no launch occurred while it existed. The checks runner now enforces the same guard, checking again every 60 seconds.
+
+The new bake contains 96 real clock-hand meshes, including the room/shop clocks and clockmaker's window absent from the older 14-face inventory. The clocks check changed the server's time while `--hour` still held `MoverClock` at its launch hour. `Kit.Light` now resets that held clock too. Both checks read `Clocks.Dials`/`Report`, and an independent marker scan fails for any omitted face. Actual hand transforms are read, rather than trusting the cached displayed minute. The shared browser minute/hour formulas and hand shape are retained. Each dial's two hands and hub are built once; game-minute changes rotate immutable hands instead of rebuilding surfaces.
+
+The reported 31.892 ms tour peak was reproduced with allocation/collection counters on the new bake. Its 62,289-frame baseline peaked at 44.217 ms; every one of its twelve update spikes above 8 ms coincided with a generation-0 and generation-1 collection. This identifies collection pauses, rather than an unmeasured guess about JIT or collider creation. The recurring allocations included lamp-registration closures, boxed bridge/street enumerators, captured bus/anchorage predicates, physics-result wrappers, temporary arrays, bone-name/path lookups and minute-by-minute clock meshes. Ship/lock/bridge variants, boat dimensions and horse curves now prepare during loading; their original motion dice are consumed on first use. Immediate native overlap casts reuse their shapes and results. Human hands still follow current bone poses, with their skeleton and bone indices cached.
+
+| Measurement | Baseline, new bake | Final, new bake |
+|---|---:|---:|
+| Whole-tour combined mover mean / p95 / peak, ms | 0.6987 / 0.902 / 44.217 | 0.6219 / 0.802 / 14.243 |
+| Whole-tour measured frames | 62,289 | 67,851 |
+| Managed bytes per mover frame, mean | approximately 6,715.93 (sum of per-part means) | 8.19 |
+| Managed bytes per mover frame, median / p95 | not recorded by the baseline | 0 / 0 |
+| Frames with zero mover allocations | not recorded by the baseline | 67,469 / 67,851 (99.44%) |
+| Warm Rijnkaai mean / p95 / peak, ms | 0.7189 / 0.967 / 2.234 | 0.7101 / 0.881 / 1.707 |
+| Warm managed bytes/frame, mean / median / p95 | approximately 4,065 mean | 15.79 / 0 / 0 |
+
+Final artifacts: `godot/baked/movers-final/moverstest.json` and `godot/baked/clocks-movers-final/clocks/clocks.json`. The 37 mover cases pass and all 96 clocks run. The test now fails a tour or warm combined mover update above 16 ms, as well as the existing 1 ms warm mean budget. Allocation measurement brackets each update with `GC.GetAllocatedBytesForCurrentThread`; JSON includes per-part bytes and bounded frame percentiles. Rare boarding/route transitions still allocate (tour maximum 22,704 B); steady updates have zero allocations. These timings cover the combined mover updates, including startup and spawn/switch work inside them, not renderer/GPU time or unrelated game systems.
+
+`dotnet build godot`, `npm run build`, JavaScript syntax and whitespace checks pass. Close tower pictures show the advancing hands. No shared Main, BakedWorld, Solid, Psx or shader file changed. Test databases and own processes are removed after the checks. No push or outgoing merge.

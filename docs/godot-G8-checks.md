@@ -98,3 +98,11 @@ node tools/godot/checks.mjs --town D:/Code/MoodyGame-godot/godot/baked/town.glb 
 The runner builds/imports, uses separate ports and new test saves, opens one bounded window at a time,
 reports every mode even after a failure, and returns nonzero if any gate fails. No new packages. Commits
 passed the pre-commit hook. Nothing pushed or merged.
+
+## Clock follow-up on the new bake (2026-10-04)
+
+After merging `godot-port` at `5f2589a`, the movers follow-up uses `baked/next/town.glb` and the shared models. The independent runner on port 8915 passes: **96/96 running**, all showing 13:30 with `offBy: 0`, no missing markers and no problems. The movers tour reads the same live registry and reports the same 96 paths, all running. None of the 96 markers was excluded as a false clock. Tower/church and room/shop/clockmaker-window hands use the same minute/hour formula and immutable hand transforms.
+
+The prior check could keep the launch `--hour` while the kit changed the server's hour. The kit now moves the held mover clock too. The check reads actual hand angles and requires motion between 13:00 and 13:30, then separately checks that every clock marker has an owner in the registry. Unmarked painted faces remain outside the inventory. Short checks now wait for `Soundscape.Prepared`: an initial successful clock audit crashed on exit while the background sound-bed task was still creating native WAV resources. The rerun exits normally.
+
+Artifacts: `godot/baked/clocks-movers-final/clocks/clocks.json` and `godot/baked/movers-final/moverstest.json`. The 37-case tour passes, including the 16 ms combined mover-update gate; performance and allocation details are in [the movers milestone](milestones/godot-movers.md). No other G8 gate was rerun or reclassified in this batch.

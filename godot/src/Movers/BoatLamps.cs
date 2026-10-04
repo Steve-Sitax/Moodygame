@@ -21,6 +21,7 @@ public partial class BoatLamps : Node
     private long seed=91;
     private float lit;
     private bool burning;
+    private int floatCount = -1;
     private (Vector3 At,int Kind)[] Points(string kind)
     {
         if (points.TryGetValue(kind,out var p)) return p;
@@ -63,6 +64,8 @@ public partial class BoatLamps : Node
     }
     private void Register()
     {
+        if (floatCount == Boats.I.Floats.Count) return;
+        floatCount = Boats.I.Floats.Count;
         foreach (var f in Boats.I.Floats)
             if (registered.Add(f)) Add(f.Kind,()=>f.Inner.GlobalTransform,()=>IsInstanceValid(f.Outer) && f.Outer.IsVisibleInTree());
     }

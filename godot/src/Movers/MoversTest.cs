@@ -179,6 +179,8 @@ public partial class MoversTest : Node
     {
         var costs=MoverCost.Report();
         if (Convert.ToDouble(costs["all"],CultureInfo.InvariantCulture)>=1) {failed=true; GD.PrintErr("moverstest: Rijnkaai mover mean exceeds 1 ms");}
+        if (MoverCost.Maximum(costs) > 16) { failed=true; GD.PrintErr("moverstest: a warm mover update frame exceeds 16 ms"); }
+        if (MoverCost.Maximum(tourCost) > 16) { failed=true; GD.PrintErr("moverstest: a tour mover update frame exceeds 16 ms"); }
         var clocks=Clocks.I?.Report();
         if (clocks?.Any(c=>!c.Running)==true) failed=true;
         foreach (var c in clocks??new()) GD.Print($"clock: {c.Where} at {c.At}: {c.Shows}, {(c.Running?"running":"FAILED")}");
@@ -189,7 +191,7 @@ public partial class MoversTest : Node
             ["moversMsPerFrame"] = tourCost,
             ["rijnkaaiMsPerFrame"] = costs,
             ["mapMarkers"] = MoverMap.Marks().ToList(),
-            ["clocks"] = Clocks.I == null ? null : Clocks.I.Report().Select(r => new { where = r.Where, at = V(r.At), shows = r.Shows, running = r.Running, shown = r.Shown }).ToList(),
+            ["clocks"] = Clocks.I == null ? null : Clocks.I.Report().Select(r => new { path = r.Path, where = r.Where, at = V(r.At), shows = r.Shows, running = r.Running, shown = r.Shown }).ToList(),
             ["movers"] = rows,
         };
         File.WriteAllText(Path.Combine(dir, "moverstest.json"), JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }));
@@ -206,6 +208,10 @@ public static class MoverCost
 {
     private static readonly Dictionary<string, (double Sum, long N, double Max)> cost = new();
     private static readonly Dictionary<string, ulong> open = new();
+    private static readonly Dictionary<string, long> allocatedAt = new();
+    private static readonly Dictionary<string, (long Sum, long Max)> allocated = new();
+    private static readonly List<object> spikes = new();
+    private static int gc0, gc1, gc2;
     private static ulong measuredFrame=ulong.MaxValue;
     private static double frameMs;
     // Keep profiling bounded during ordinary play; lifetime means/maxima still include every frame.
@@ -213,28 +219,48 @@ public static class MoverCost
     private static readonly double[] frames=new double[FrameSamples];
     private static long frameCount;
     private static double frameSum,frameMax;
+    private static long frameBytes, bytesSum, bytesMax, zeroFrames;
+    private static readonly long[] bytesFrames=new long[FrameSamples];
 
-    public static void Begin(string part) => open[part] = Time.GetTicksUsec();
+    public static void Begin(string part)
+    {
+        gc0=GC.CollectionCount(0);gc1=GC.CollectionCount(1);gc2=GC.CollectionCount(2);
+        open[part] = Time.GetTicksUsec();
+        allocatedAt[part] = GC.GetAllocatedBytesForCurrentThread();
+    }
 
     public static void End(string part)
     {
         double ms = (Time.GetTicksUsec() - open[part]) / 1000.0;
+        long bytes = GC.GetAllocatedBytesForCurrentThread() - allocatedAt[part];
+        var a = allocated.GetValueOrDefault(part);
+        allocated[part] = (a.Sum + bytes, Math.Max(a.Max, bytes));
+        int g0=GC.CollectionCount(0),g1=GC.CollectionCount(1),g2=GC.CollectionCount(2);
+        if(ms>8 && spikes.Count<128) spikes.Add(new {part,ms,bytes,frame=MoverClock.Frame,gc=new[]{g0-gc0,g1-gc1,g2-gc2}});
+        gc0=g0;gc1=g1;gc2=g2;
         if(measuredFrame!=MoverClock.Frame)
         {
             if(measuredFrame!=ulong.MaxValue)
             {
                 frames[frameCount%FrameSamples]=frameMs;frameCount++;
                 frameSum+=frameMs;frameMax=Math.Max(frameMax,frameMs);
+                bytesFrames[(frameCount-1)%FrameSamples]=frameBytes;
+                bytesSum+=frameBytes;bytesMax=Math.Max(bytesMax,frameBytes);
+                if(frameBytes==0) zeroFrames++;
             }
-            measuredFrame=MoverClock.Frame; frameMs=0;
+            measuredFrame=MoverClock.Frame; frameMs=0; frameBytes=0;
         }
         frameMs+=ms;
+        frameBytes+=bytes;
         var c = cost.GetValueOrDefault(part);
         cost[part] = (c.Sum + ms, c.N + 1, Math.Max(c.Max, ms));
     }
 
     /// <summary>Forget what was measured (after loading: the first frames are not the game's pace).</summary>
-    public static void Reset() {cost.Clear(); frameCount=0;frameSum=frameMax=0;measuredFrame=ulong.MaxValue; frameMs=0;}
+    public static void Reset() {cost.Clear(); allocated.Clear(); spikes.Clear(); frameCount=0;frameSum=frameMax=0;measuredFrame=ulong.MaxValue; frameMs=0; frameBytes=bytesSum=bytesMax=zeroFrames=0;}
+
+    private sealed record Timing(double mean, double p95, double max, long frames, int samples);
+    public static double Maximum(Dictionary<string,object>? report) => report != null && report.TryGetValue("combined", out var c) && c is Timing t ? t.max : 0;
 
     public static Dictionary<string, object> Report()
     {
@@ -244,13 +270,17 @@ public static class MoverCost
         {
             double mean = c.N > 0 ? c.Sum / c.N : 0;
             all += mean;
-            r[k] = new { mean = Math.Round(mean, 4), max = Math.Round(c.Max, 3) };
+            var a=allocated.GetValueOrDefault(k);
+            r[k] = new { mean = Math.Round(mean, 4), max = Math.Round(c.Max, 3), bytesMean=Math.Round(a.Sum/(double)c.N,2),bytesMax=a.Max };
         }
         r["all"] = Math.Round(all, 4);
+        r["spikes"] = spikes.ToArray();
         if(measuredFrame!=ulong.MaxValue)
         {
             var f=frames.Take((int)Math.Min(frameCount,FrameSamples)).Append(frameMs).OrderBy(n=>n).ToArray();
-            r["combined"] = new {mean=Math.Round((frameSum+frameMs)/(frameCount+1),4),p95=Math.Round(f[(int)((f.Length-1)*.95)],4),max=Math.Round(Math.Max(frameMax,frameMs),4),frames=frameCount+1,samples=f.Length};
+            r["combined"] = new Timing(Math.Round((frameSum+frameMs)/(frameCount+1),4),Math.Round(f[(int)((f.Length-1)*.95)],4),Math.Round(Math.Max(frameMax,frameMs),4),frameCount+1,f.Length);
+            var b=bytesFrames.Take((int)Math.Min(frameCount,FrameSamples)).Append(frameBytes).OrderBy(n=>n).ToArray();
+            r["allocatedBytesPerFrame"] = new { mean=Math.Round((bytesSum+frameBytes)/(double)(frameCount+1),2), median=b[b.Length/2], p95=b[(int)((b.Length-1)*.95)], max=Math.Max(bytesMax,frameBytes), zeroFrames=zeroFrames+(frameBytes==0?1:0), frames=frameCount+1 };
         }
         return r;
     }

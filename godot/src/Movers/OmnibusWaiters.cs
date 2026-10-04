@@ -10,12 +10,26 @@ namespace Scheldemist.Movers;
 public static class StreetPeople
 {
     private static Townspeople? town;
+    private static bool found;
     internal static readonly List<Puppet> TestPeople=new();
-    public static IEnumerable<Puppet> Walking()
+    public readonly struct Walkers
     {
-        town??=Main.I.GetNodeOrNull<Townspeople>("Townspeople");
-        var live=town?.Crowd?.Walking??(IReadOnlyList<Puppet>)Array.Empty<Puppet>();
-        return TestPeople.Count>0 && MoversTest.On ? live.Concat(TestPeople) : live;
+        private readonly IReadOnlyList<Puppet> live;
+        public Walkers(IReadOnlyList<Puppet> live) { this.live=live; }
+        public Enumerator GetEnumerator() => new(live);
+        public struct Enumerator
+        {
+            private readonly IReadOnlyList<Puppet> live;
+            private int index;
+            public Enumerator(IReadOnlyList<Puppet> live) { this.live=live; index=-1; }
+            public Puppet Current => index<live.Count?live[index]:TestPeople[index-live.Count];
+            public bool MoveNext() => ++index<live.Count+TestPeople.Count;
+        }
+    }
+    public static Walkers Walking()
+    {
+        if (!found) { town=Main.I.GetNodeOrNull<Townspeople>("Townspeople"); found=true; }
+        return new(town?.Crowd?.Walking??Array.Empty<Puppet>());
     }
 }
 
@@ -67,7 +81,12 @@ public partial class Omnibus
     private int WantAt(Post post)
     {
         double hour=MoverClock.HourF,now=NowMin;
-        if(hour<6.5 || hour>=21.5 || !OmnibusLines.Lines.Where(l=>OmnibusLines.Stops.Any(s=>s.Line==l.Id && s.Id==post.Id)).Any(l=>OmnibusLines.Due(l,post.Id,now)-now<150)) return 0;
+        if(hour<6.5 || hour>=21.5) return 0;
+        bool due=false;
+        foreach(var l in OmnibusLines.Lines)
+            foreach(var s in OmnibusLines.Stops)
+                if(s.Line==l.Id && s.Id==post.Id && OmnibusLines.Due(l,post.Id,now)-now<150) {due=true;break;}
+        if(!due) return 0;
         int h=unchecked((int)Math.Floor(hour)*73856093 ^ MoverClock.Day*19349663);
         foreach(char c in post.Id) h=unchecked(h*31+c);
         return (int)(Math.Abs((long)h)%4)-(hour<8 || hour>19?1:0);
@@ -103,7 +122,8 @@ public partial class Omnibus
             {
                 float d=p.At.DistanceTo(new(eye.X,eye.Z));
                 if(d>60) {for(int i=waiters.Count-1;i>=0;i--) if(waiters[i].Post==p)Drop(waiters[i]);continue;}
-                int n=waiters.Count(w=>w.Post==p && w.Bus==null);
+                int n=0;
+                foreach(var w in waiters) if(w.Post==p && w.Bus==null) n++;
                 if(n<Math.Max(0,WantAt(p)) && d>18 && waiters.Count<8) AddWaiter(p,n);
             }
         }

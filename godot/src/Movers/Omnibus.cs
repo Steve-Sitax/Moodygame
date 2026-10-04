@@ -257,6 +257,7 @@ public partial class Omnibus : Node
     private readonly Dictionary<string, double> lastSlot = new();
     private Copies? bodyM, paintM, rearM, foreM, frontM, interiorM, farGlassM, lampsM;
     private ShaderMaterial? lampMat;
+    private static readonly StringName Albedo = "albedo";
     private const int HorseIndex = 2;
     public IReadOnlyList<Bus> Buses => buses;
 
@@ -327,6 +328,10 @@ public partial class Omnibus : Node
         }
         Bridges.Busy.Add(OnDeck);
         WaitersReady(group);
+        foreach(var line in OmnibusLines.Lines)
+            foreach(var stop in OmnibusLines.Stops)
+                if(stop.Line==line.Id) OmnibusLines.Due(line,stop.Id,NowMin);
+        overlap = new MoverOverlap();
         GD.Print($"omnibuses: {buses.Count} on {OmnibusLines.Lines.Length} lines ({string.Join(", ", OmnibusLines.Lines.Select(l => $"{l.Board} {OmnibusLines.LoopOf(l).Length:0} m, every {OmnibusLines.Timing(l).HeadwayMin} min"))})");
         if (MoversTest.On) { Probes(); PeopleProbe(); }
     }
@@ -509,7 +514,10 @@ public partial class Omnibus : Node
             }
         }
         if (Bridges.I != null)
-            foreach (var br in Bridges.I.List) Bridge(br.Rect, br.Closed);
+        {
+            var bridges = Bridges.I.List;
+            for (int i=0;i<bridges.Count;i++) Bridge(bridges[i].Rect, bridges[i].Closed);
+        }
         if (Lock.I != null) Bridge(Lock.BridgeRect, Lock.I.BridgeClosed);
         var rail = Railway.I;
         if (rail != null && rail.Running)
@@ -595,13 +603,11 @@ public partial class Omnibus : Node
         return lim;
     }
 
-    private readonly PhysicsShapeQueryParameters3D freeQuery=new() {Shape=new SphereShape3D(),CollisionMask=Solid.Layer,Margin=0};
+    private MoverOverlap? overlap;
     private static readonly float[] AheadSamples={1.2f,2.6f,4f},BehindSamples={.8f,2f,3.2f};
     private bool Free(Bus b,Vector2 p,float radius)
     {
-        freeQuery.Exclude=b.Exclude; ((SphereShape3D)freeQuery.Shape).Radius=radius;
-        freeQuery.Transform=new Transform3D(Basis.Identity,new Vector3(p.X,.9f,p.Y));
-        return Main.I.View.FindWorld3D().DirectSpaceState.IntersectShape(freeQuery,1).Count==0;
+        return overlap!.Free(b,b.Exclude,p,radius);
     }
     private bool BehindClear(Bus b)
     {
@@ -643,8 +649,9 @@ public partial class Omnibus : Node
         if (b.At != null)
         {
             b.V = 0;
-            if(!Passengers(b).Any(p=>p.State=="out") && !waiters.Any(w=>w.Bus==b)) b.DwellT -= dt;
-            if (b.DwellT <= 0 && !waiters.Any(w=>w.Bus==b) && OnTime(b))
+            bool boarding = Boarding(b);
+            if(!Alighting(b) && !boarding) b.DwellT -= dt;
+            if (b.DwellT <= 0 && !boarding && OnTime(b))
             {
                 b.DepartAt = null;
                 b.At = null;
@@ -662,7 +669,9 @@ public partial class Omnibus : Node
         {
             float r = Room(b);
             if(r<=.01f && b.WaitWhy is "blocked" or "train") b.BlockT+=dt; else b.BlockT=0;
-            bool inRails=b.Zones.Any(z=>lp.Wrap(b.S+Nose-z.S0)<lp.Wrap(z.S1-z.S0)+(Nose-Tail)+1);
+            bool inRails=false;
+            foreach (var z in b.Zones)
+                if(lp.Wrap(b.S+Nose-z.S0)<lp.Wrap(z.S1-z.S0)+(Nose-Tail)+1) { inRails=true; break; }
             if(b.BlockT>(inRails?8:b.WaitWhy=="train"?float.PositiveInfinity:60)) {b.BlockT=0; b.BackM=9;}
             float vmax = Cruise;
             for (int dd = 0; dd <= 10; dd += 2)
@@ -689,6 +698,18 @@ public partial class Omnibus : Node
             }
         }
         Place(b, dt);
+    }
+
+    private bool Boarding(Bus b)
+    {
+        foreach(var w in waiters) if(w.Bus==b) return true;
+        return false;
+    }
+    private bool Alighting(Bus b)
+    {
+        var list=Passengers(b);
+        for(int i=0;i<list.Count;i++) if(list[i].State=="out") return true;
+        return false;
     }
 
     /// <summary>The pose from the fields (s, v): the frame, the gait, the bodies.</summary>
@@ -768,7 +789,7 @@ public partial class Omnibus : Node
         }
         if (interiorM != null) interiorM.Node.Visible = anyInside;
         float lit = Daylight.I?.LampsLit ?? 0;
-        lampMat?.SetShaderParameter("albedo", new Color(0.13f + 0.87f * lit, 0.13f + 0.6f * lit, 0.12f + 0.28f * lit));
+        lampMat?.SetShaderParameter(Albedo, new Color(0.13f + 0.87f * lit, 0.13f + 0.6f * lit, 0.12f + 0.28f * lit));
         bodyM?.Commit();
         paintM?.Commit();
         rearM?.Commit();

@@ -11,6 +11,9 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - Godot keeps the same daylight and window light picture with less work per frame.
 - Godot's cathedral and church windows now show their real rooms through the glass; old painted panes no longer cover them.
 - Godot's lamp updates and idle job display avoid temporary allocations while walking; performance checks now report complete frames and their worst peaks.
+- Godot clock hands follow the game's time on tower, church, town-hall, station, shop and room clocks, including the clockmaker's window ([#44](https://github.com/Steve-Sitax/Moodygame/issues/44)).
+- Godot ships and lock boats are prepared before play, and moving traffic makes far less garbage, avoiding collection pauses while movers switch or spawn.
+
 - A Windows Godot download now starts from its executable, with the town, models, sounds and game server included.
 
 - Godot downloads can carry the compiled server and portable Node, with matching SQLite packages and no compiler needed to play.

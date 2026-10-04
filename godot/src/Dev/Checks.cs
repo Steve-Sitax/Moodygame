@@ -98,7 +98,8 @@ public partial class Checks : Node
         if (Time.GetTicksMsec() - began > 240_000) { Finish(new { ok = false, problems = new[] { "check exceeded its four-minute limit" } }); return; }
         if (running) return;
         if (Kit.I.Error != "") { Finish(new { ok = false, problems = new[] { Kit.I.Error } }); return; }
-        if (!Kit.I.IsReady) return;
+        // Short checks must not quit while background audio tasks still create native resources.
+        if (!Kit.I.IsReady || Audio.Soundscape.I is { Prepared: false }) return;
         running = true;
         _ = Run();
     }
