@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Godot players can buy at real shop and tavern counters, hear the ballad singer and keep his verse-and-chorus sheet in their pockets.
+- Godot adds town-hall notices, cathedral candles and a timed Sunday sermon, plus joining the hiring stand and the fire bucket line.
 - Godot dock piecework, lamplighting, mill turns and park cleaning pay through the server, and finished work can wait for an employer's night box.
 - Godot homes have rent notices, numbered rent choices, an own key and bed, and furniture carried home and placed on the room grid with E and R.
 - Godot restores the rampart's real walkways and mill floors, with distance culling instead of keeping the bake's distant wall hidden.
