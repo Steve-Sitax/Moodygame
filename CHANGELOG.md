@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Godot home stoves warm you, placed clocks show the time and hanging lamps light the room. Furniture can go onto a lent handcart and return to your household.
+
 - Godot shows your hands leaning on a mill capstan or hauling its chain when the wind calls.
 
 - Godot keeps completed mill work when you follow another job or load a saved game.
