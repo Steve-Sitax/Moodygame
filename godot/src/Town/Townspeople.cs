@@ -712,6 +712,7 @@ public partial class Townspeople : Node
             Lanterns(s);
             return;
         }
+        string journeyFrom = s.Key;
         s.Tav = tav;
         s.Key = key;
         s.Goal = call != null ? new Goal { Mode = "inside", X = call.Value.X, Z = call.Value.Z } : GoalFor(s, now);
@@ -759,6 +760,7 @@ public partial class Townspeople : Node
             s.Z = s.Door.Z;
             s.OutAt = NowMs;
         }
+        if (!first && !storm && !s.MillRun && journeyFrom.Length > 0 && Scheldemist.Play.ResidentJourneys.I?.Begin(s, journeyFrom) == true) return;
         if (s.P != null) Direct(s);
         Lanterns(s);
     }

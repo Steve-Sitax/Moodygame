@@ -73,7 +73,7 @@ public partial class Omnibus
             MoversTest.Add(new MoversTest.Probe {Name="omnibus_waiter",Hour=13,Gap=3,MaxWait=5,
                 Start=()=> {var post=Posts.First(p=>p.Id=="rijnkaai");AddWaiter(post,1);person=waiters[^1];var st=bus.StopAt.First(s=>s.Stop.Id=="rijnkaai");bus.S=st.S;bus.At=st.Stop;bus.V=0;bus.DwellT=7;Place(bus,0);CallWaiters(bus);},
                 Ready=()=>person?.Bus!=null,
-                Where=()=> {var w=person!;var p=Passengers(bus).FirstOrDefault(p=>p.Id=="waiter:"+w.Id);return(p?.Root.GlobalPosition??w.Root.GlobalPosition,w.T,p!=null?"the waiter is aboard":"the waiter walks to the step");},
+                Where=()=> {var w=person!;var p=Passengers(bus).FirstOrDefault(p=>p.Id=="waiter:"+w.Id);bool here=GodotObject.IsInstanceValid(w.Root);return(p?.Root.GlobalPosition??(here?w.Root.GlobalPosition:bus.Frame.GlobalPosition),w.T,p!=null?"the waiter is aboard":here?"the waiter walks to the step":"the waiter did not get a place");},
                 View=()=> {var at=bus.Frame.GlobalTransform*new Vector3(0,1,-1.5f);return(at+new Vector3(-4,2,5),at);}});
         }
     }
@@ -107,10 +107,11 @@ public partial class Omnibus
     {
         if(bus.At==null) return;
         var post=Posts.Where(p=>p.Id==bus.At.Id).MinBy(p=>p.At.DistanceSquaredTo(new Vector2(bus.At.X,bus.At.Z)));
-        int room=12-Passengers(bus).Count(p=>p.Seat>=0),n=0;
+        // Seats and the two standing places (OmnibusPeople.BoardResident): a waiter who would not fit waits for the next bus.
+        int room=12-Passengers(bus).Count(p=>p.Seat>=0),stand=2-Passengers(bus).Count(p=>p.Seat<0),n=0;
         foreach(var w in waiters)
-            if(w.Post==post && w.Bus==null && n<room)
-            {if(OmnibusLines.Lines.Count(l=>OmnibusLines.Stops.Any(s=>s.Id==post!.Id && s.Line==l.Id))>1 && passengerDice.NextDouble()<.4)continue;w.Bus=bus;w.T=0;w.Root.Position=new(w.Root.Position.X,0,w.Root.Position.Z);n++;}
+            if(w.Post==post && w.Bus==null && (w.Human.CanSit ? n<room : stand>0))
+            {if(OmnibusLines.Lines.Count(l=>OmnibusLines.Stops.Any(s=>s.Id==post!.Id && s.Line==l.Id))>1 && passengerDice.NextDouble()<.4)continue;w.Bus=bus;w.T=0;w.Root.Position=new(w.Root.Position.X,0,w.Root.Position.Z);if(w.Human.CanSit)n++;else stand--;}
     }
     private void WaitersStep(float dt)
     {

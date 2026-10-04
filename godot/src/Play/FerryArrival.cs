@@ -90,6 +90,8 @@ public partial class FerryArrival:Node
         }
         var start=ferryDeck.Nearest(new(-.2f,5.6f));var place=ferry.Transform*new Vector3(start.X,ferryDeck.Floor(start.X,start.Y),start.Y);Jef.I.Place(place.X,place.Z,MathF.PI+.25f,-.02f,place.Y);Jef.I.Drive=drive;Jef.I.Carry(place);Jef.I.DrivenEye=Jef.Eye;
     }
+    // Passengers still on the pontoon when the ferry has gone walk on to the quay; frozen there they would block the way.
+    private bool Walking(){if(passengers==null||!passengers.Visible)return false;foreach(var p in people)if(p.Step<p.Way.Length)return true;return false;}
     private void Stop(){Stage="gone";Ashore=true;if(ferry!=null)ferry.Visible=plank.Visible=passengers.Visible=false;if(Jef.I.Drive==drive)Jef.I.Drive=null;}
     private Vector2 PortPoint(float localX){var p=ferry.Transform*new Vector3(localX,deckY,portZ);return new(p.X,p.Z);}
     public Vector2 Port=>PortPoint(side-.3f);
@@ -148,7 +150,7 @@ public partial class FerryArrival:Node
     public override void _Process(double delta)
     {
         using var frameCost = Scheldemist.Dev.FrameCost.Track("Play.FerryArrival");
-        if(ferry==null)return;float dt=(float)Math.Min(delta,.05);UpdateModels(dt);ferryman?.Update(dt);if(Stage=="gone"||!(GameState.I.Playing||Jef.I.TestInput))return;Time+=dt;phaseT+=dt;
+        if(ferry==null)return;float dt=(float)Math.Min(delta,.05);UpdateModels(dt);ferryman?.Update(dt);if(Stage=="gone"&&!Walking()||!(GameState.I.Playing||Jef.I.TestInput))return;Time+=dt;phaseT+=dt;
         if(Stage=="waiting"&&Time>=3.4f){Stage="moored";phaseT=0;GameState.I.Say("Step ashore: walk down the gangway onto the landing stage.");}
         if(!Ashore&&Jef.I.Drive!=drive&&!Jef.I.Climbing&&Jef.I.Z>-58.93f)_=ReportAshore();
         if(!Ashore){if(nag==0&&Time>=35){nag++;GameState.I.Say("The ferryman: \"This is Antwerp. Down the plank with you, we go back across.\"");}if(nag==1&&Time>=75){nag++;GameState.I.Say("The ferryman: \"Come on, off you get. I have the next crossing to make.\"");}if(Time>=115&&!guideOnce){guideOnce=true;BeginGuide();guide=true;}}

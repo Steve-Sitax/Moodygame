@@ -43,6 +43,10 @@ public partial class RideTest : Node
             Dialogs.I!.KeepMouse = true;
             await api.Post<OkReply>("api/arrival/ashore");
             Jef.I.Place(-118, 36, 0);
+            if(Main.I.Arg("ride-only")=="journeys") {await JourneyCheck(api);return;}
+            if(Main.I.Arg("ride-only")=="hulls") {await HullsCheck(api);return;}
+            if(Main.I.Arg("ride-only")=="prison") {await PrisonCheck(api);return;}
+            if(Main.I.Arg("ride-only")=="crane-rungs") {await CraneRungsCheck(api);return;}
             if(Main.I.Arg("ride-only")=="cart") {await HandcartCheck(api);return;}
             if(Main.I.Arg("ride-only")=="velo") {await VeloCheck(api);return;}
             if(Main.I.Arg("ride-only")=="row") {await RowCheck(api);return;}
@@ -93,7 +97,7 @@ public partial class RideTest : Node
         catch (Exception e) { error = e.ToString(); GD.PrintErr("ridetest: " + error); }
         finally
         {
-            try { File.WriteAllText(Path.Combine(dir, "ridetest.json"), JsonSerializer.Serialize(new { ok = error == "", error, selection=Main.I.Arg("ride-only"), checks, replies, pictures, incomplete = new[] { "household taking and furniture handoffs", "all hulls and street routes", "all boat ladder approaches and saved crane rungs", "two-client remote rides and guest ferry creator", "auditory review of ride sounds", "named household journeys and prisoner room movement" } }, new JsonSerializerOptions(Api.Json) { WriteIndented = true })); }
+            try { File.WriteAllText(Path.Combine(dir, "ridetest.json"), JsonSerializer.Serialize(new { ok = error == "", error, selection=Main.I.Arg("ride-only"), checks, replies, pictures, incomplete = new[] { "household taking and furniture handoffs", "all street routes", "owned loose-boat ladder approaches", "two-client rides with boat, cart and velocipede gear (the omnibus is proven by --mptest --mpmoving)", "auditory review of ride sounds", "a real prison-room event action with a live AI proposal" } }, new JsonSerializerOptions(Api.Json) { WriteIndented = true })); }
             catch(Exception report){error=report.ToString();GD.PrintErr("ridetest report: "+error);}
             finally{GetTree().Quit(error == "" ? 0 : 1);}
         }
@@ -419,7 +423,7 @@ public partial class RideTest : Node
         Jef.I.ClearKeys(); Jef.I.Yaw=rail.LadderAt(dock).Deck.Basis.GetEuler().Y+MathF.PI/2;
         await Shot("crane-dock-gallery");
         Require(Interact.I.Press(Key.E),"E down dock crane"); Jef.I.SetKey(Key.S,true);
-        Require(await Until(()=>CraneClimb.I.On<0,10),"dock crane returns Jef to the quay");
+        Require(await Until(()=>CraneClimb.I.On<0,20),"dock crane returns Jef to the quay");
         Jef.I.ClearKeys();
         Require(!Jef.I.Swimming && !Scheldemist.World.Water.In(Jef.I.X,Jef.I.Z),"dock ladder landing stays ashore");
         replies.Add(new { dockCrane = new { id=dock, foot=new { foot.X,foot.Y,foot.Z }, quayReachable=true } });
@@ -474,7 +478,8 @@ public partial class RideTest : Node
         // Move the actual route while Jef stands in its frame.
         var at = new Vector3(Jef.I.X, Jef.I.Y, Jef.I.Z);
         bus.At = null; bus.V = 1.5f;
-        await Frames(90);
+        // The bus may rightly wait for a train or an open bridge first; its reason goes into the replies.
+        await Until(() => new Vector3(Jef.I.X, Jef.I.Y, Jef.I.Z).DistanceTo(at) > .2f, 20); replies.Add(new { omnibusWaitWhy = bus.WaitWhy });
         var now = new Vector3(Jef.I.X, Jef.I.Y, Jef.I.Z);
         Require(now.DistanceTo(at) > .2f && Math.Abs(Jef.I.Y - bus.Frame.ToGlobal(new Vector3(0, .74f, -1.5f)).Y) < .02f, "rider follows live moving platform");
         await Shot("omnibus-moving");

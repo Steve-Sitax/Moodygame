@@ -253,6 +253,7 @@ public partial class MpTest : Node
             info.ArgumentList.Add(Main.I.Arg("town"));
         }
         foreach (string f in new[] { "mptest-guest.json", "mptest-guest-home.json", "mptest-start.json", "mptest.json", "mp_host.png", "mp_guest.png" }) File.Delete(Path.Combine(dir, f));
+        if (Main.I.Flag("mpmoving")) info.ArgumentList.Add("--mpmoving");
         info.ArgumentList.Add("--models");
         info.ArgumentList.Add(Models.ModelLibrary.Dir);
         if (OS.GetCmdlineArgs().Contains("--verbose")) info.ArgumentList.Insert(0, "--verbose");
@@ -267,6 +268,7 @@ public partial class MpTest : Node
         double t0 = tg.ServerNow + 3000;
         File.WriteAllText(Path.Combine(dir, "mptest-start.json"), JsonSerializer.Serialize(new { t0 }));
         bool ok = await Play(t0, 2, WalkS + 0.3, WalkS + 2.0, "mp_host.png");
+        if (ok && Main.I.Flag("mpmoving")) ok = await HostMoving();
 
         // the guest's own numbers, its going home, and its end
         string gfile = Path.Combine(dir, "mptest-guest.json"), hfile = Path.Combine(dir, "mptest-guest-home.json");
@@ -313,6 +315,7 @@ public partial class MpTest : Node
         double t0 = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(start)).GetProperty("t0").GetDouble();
         bool ok = await Play(t0, 1, WalkS + 2.4, WalkS + 4.2, "mp_guest.png");
         if (!ok) return false;
+        if (Main.I.Flag("mpmoving") && !await GuestMoving()) return false;
         doc["ok"] = true;
         File.WriteAllText(Path.Combine(dir, "mptest-guest.json"), JsonSerializer.Serialize(doc, new JsonSerializerOptions(Api.Json) { WriteIndented = true }));
         // home again: his own game (the scene loads again, his own server starts)
