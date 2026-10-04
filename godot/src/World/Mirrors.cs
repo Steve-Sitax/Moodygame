@@ -30,6 +30,7 @@ public partial class Mirrors : Node
     private sealed class Mirror
     {
         public string Name = "";
+        public string On = "", Matrix = "";
         public SubViewport View = null!;
         public Camera3D Cam = null!;
         public float PlaneY, Far, Grow = 1, Margin;
@@ -80,7 +81,8 @@ public partial class Mirrors : Node
         var cam = new Camera3D { Name = "mirror_cam_" + name, CullMask = mask, KeepAspect = Camera3D.KeepAspectEnum.Height };
         vp.AddChild(cam);
         cam.Current = true;
-        return new Mirror { Name = name, View = vp, Cam = cam, Far = far, Grow = grow, Margin = margin, EveryFrame = everyFrame };
+        string uniform = name == "water" ? "psx_water_mirror" : "psx_mirror";
+        return new Mirror { Name = name, On = uniform + "_on", Matrix = uniform + "_mat", View = vp, Cam = cam, Far = far, Grow = grow, Margin = margin, EveryFrame = everyFrame };
     }
 
     // where the water lies, every 4 m over the town (shared/city.json through Water.In), made once
@@ -131,6 +133,7 @@ public partial class Mirrors : Node
 
     public override void _Process(double delta)
     {
+        using var frameCost = Scheldemist.Dev.FrameCost.Track("Mirrors");
         var view = Main.I.View;
         var cam = view.GetCamera3D();
         if (cam == null || Daylight.I == null) return;
@@ -157,7 +160,7 @@ public partial class Mirrors : Node
         var eye = cam.GlobalPosition;
         if (!on || eye.Y <= m.PlaneY + 0.02f)
         {
-            Psx.Set(name + "_on", 0f);
+            Psx.Set(m.On, 0f);
             m.LastFrame = -10;
             return;
         }
@@ -182,15 +185,17 @@ public partial class Mirrors : Node
         var to = eye + look;
         var up = basis.Y;
         m.Cam.LookAtFromPosition(mEye, new Vector3(to.X, 2 * m.PlaneY - to.Y, to.Z), new Vector3(up.X, -up.Y, up.Z));
-        m.Cam.Near = cam.Near;
-        m.Cam.Far = Math.Min(cam.Far, m.Far);
+        float near = cam.Near, far = Math.Min(cam.Far, m.Far);
+        if (!UniformUpdates.Cached || m.Cam.Near != near) m.Cam.Near = near;
+        if (!UniformUpdates.Cached || m.Cam.Far != far) m.Cam.Far = far;
         // (a picture a frame old still covers the water after a turn: a margin on every side)
-        m.Cam.Fov = Mathf.RadToDeg(2 * Math.Min(1.45f, Mathf.DegToRad(cam.Fov / 2) + m.Margin));
+        float fov = Mathf.RadToDeg(2 * Math.Min(1.45f, Mathf.DegToRad(cam.Fov / 2) + m.Margin));
+        if (!UniformUpdates.Cached || m.Cam.Fov != fov) m.Cam.Fov = fov;
         m.View.RenderTargetUpdateMode = SubViewport.UpdateMode.Once;
         // world -> the picture (the psx material takes x and y over w, halves them and turns y)
         var vp = m.Cam.GetCameraProjection() * new Projection(m.Cam.GlobalTransform.AffineInverse());
-        Psx.Set(name + "_mat", vp);
-        Psx.Set(name + "_on", 1f);
+        Psx.Set(m.Matrix, vp);
+        Psx.Set(m.On, 1f);
         Psx.Set(clip, new Vector4(mEye.X, mEye.Y, mEye.Z, m.PlaneY));
     }
 }

@@ -118,6 +118,7 @@ void fragment() {
 
     public override void _Process(double delta)
     {
+        using var frameCost = Scheldemist.Dev.FrameCost.Track("Mist");
         var day = Daylight.I;
         var cam = Main.I.View.GetCamera3D();
         if (day == null || cam == null) return;
@@ -130,8 +131,8 @@ void fragment() {
         float wind = day.Wind.Length();
         float target = when * byWeather * Math.Clamp(1.4f - wind * 0.6f, 0, 1) * (1 - Math.Min(1, day.Rain * 3));
         amt += (target - amt) * Math.Min(1, dt <= 0 ? 1 : dt * 0.2f);
-        mat.SetShaderParameter("amt", amt);
-        mat.SetShaderParameter("night", day.Night);
+        Scheldemist.Render.UniformUpdates.Material(mat, "amt", amt);
+        Scheldemist.Render.UniformUpdates.Material(mat, "night", day.Night);
         if (amt <= 0.01f)
         {
             if (mm.VisibleInstanceCount != 0) mm.VisibleInstanceCount = 0;

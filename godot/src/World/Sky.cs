@@ -148,6 +148,7 @@ void fragment() {
 
     public override void _Process(double delta)
     {
+        using var frameCost = Scheldemist.Dev.FrameCost.Track("Sky");
         var day = Daylight.I;
         if (day == null) return;
         float dt = (float)delta, t = Time.GetTicksMsec() / 1000f;
@@ -166,17 +167,17 @@ void fragment() {
         float airL = 0.2126f * air.R + 0.7152f * air.G + 0.0722f * air.B;
         // a clear or a misty evening: the warm band (fog and rain close it off)
         float open = Math.Max(day.Clear, day.Weather == "mist" ? 0.45f : day.Weather == "fog" ? 0.15f : 0);
-        mat.SetShaderParameter("air", new Vector3(air.R, air.G, air.B));
-        mat.SetShaderParameter("drift", drift);
-        mat.SetShaderParameter("cover", cur.cover);
-        mat.SetShaderParameter("dark", cur.dark);
-        mat.SetShaderParameter("night", night);
-        mat.SetShaderParameter("stars", night * day.Clear * (1 - cur.dark));
-        mat.SetShaderParameter("fog_sky", 1 - Smooth(airL, 0.035f, 0.08f));
-        mat.SetShaderParameter("warm", Bump(hour, 16.2f, 17.3f, 18.3f, 19.1f) * open * (1 - cur.dark * 0.8f));
-        mat.SetShaderParameter("cold", Bump(hour, 5.4f, 6.4f, 7.4f, 8.6f) * open * (1 - cur.dark * 0.8f));
+        Scheldemist.Render.UniformUpdates.Material(mat, "air", new Vector3(air.R, air.G, air.B));
+        Scheldemist.Render.UniformUpdates.Material(mat, "drift", drift);
+        Scheldemist.Render.UniformUpdates.Material(mat, "cover", cur.cover);
+        Scheldemist.Render.UniformUpdates.Material(mat, "dark", cur.dark);
+        Scheldemist.Render.UniformUpdates.Material(mat, "night", night);
+        Scheldemist.Render.UniformUpdates.Material(mat, "stars", night * day.Clear * (1 - cur.dark));
+        Scheldemist.Render.UniformUpdates.Material(mat, "fog_sky", 1 - Smooth(airL, 0.035f, 0.08f));
+        Scheldemist.Render.UniformUpdates.Material(mat, "warm", Bump(hour, 16.2f, 17.3f, 18.3f, 19.1f) * open * (1 - cur.dark * 0.8f));
+        Scheldemist.Render.UniformUpdates.Material(mat, "cold", Bump(hour, 5.4f, 6.4f, 7.4f, 8.6f) * open * (1 - cur.dark * 0.8f));
         var s = new Vector2(day.SunDir.X, day.SunDir.Z);
-        if (s.LengthSquared() > 1e-6f) mat.SetShaderParameter("sun_xz", s.Normalized());
+        if (s.LengthSquared() > 1e-6f) Scheldemist.Render.UniformUpdates.Material(mat, "sun_xz", s.Normalized());
         var cam = Main.I.View.GetCamera3D();
         if (cam != null) dome.GlobalPosition = new Vector3(cam.GlobalPosition.X, 0, cam.GlobalPosition.Z);
     }

@@ -270,6 +270,7 @@ public partial class ServerLink : Node
 
     public override void _Process(double delta)
     {
+        using var frameCost = Dev.FrameCost.Track("Net");
         if (joining is { IsCompleted: true } j && joiningApi is { } ja)
         {
             joining = null;

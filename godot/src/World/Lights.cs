@@ -47,12 +47,30 @@ public partial class Lights : Node
     private readonly List<Src> sources = new();
     private readonly List<Src> lamps = new();
     private readonly List<Src> ranked = new();
+    private readonly List<(Src lamp, float distance, int order)> nearLamps = new();
+    private readonly HashSet<Src> near = new(), want = new();
+    private readonly List<Src> on = new();
+    private readonly List<Vector4> lampValues = new(MaxLampValues);
+    private readonly bool compareSelections = Main.I.Flag("pixelcheck");
+    private const int MaxLampValues = Psx.MaxLamps;
+    private bool InSlot(Src lamp, bool weighted = false)
+    {
+        foreach (var s in lampSlots) if (s.lamp == lamp && (!weighted || s.w > 0)) return true;
+        return false;
+    }
+    private (Vector4 a, Vector4 b, Vector4 c, Vector4 d) SpillAt(int i)
+    {
+        var s = on[i];
+        return (new Vector4(s.At.X, s.At.Y, s.At.Z, s.Now * s.W), new Vector4(s.N.X, s.N.Y, s.Half.X, s.Half.Y), new Vector4(s.Color.X, s.Color.Y, s.Color.Z, s.Bars), new Vector4(s.Range, s.Decay, s.Depth, s.Soft));
+    }
+    private Func<int, (Vector4 a, Vector4 b, Vector4 c, Vector4 d)> spillAt = null!;
     private readonly Src?[] slots = new Src?[Psx.MaxSpill];
     private readonly (Src? lamp, float w)[] lampSlots = new (Src?, float)[Psx.MaxLamps - 1];
     private readonly List<(ShaderMaterial m, Src? lamp)> glass = new();
     private readonly Dictionary<string, Src> byId = new();
     private MultiMesh? haloMM;
     private readonly List<(ShaderMaterial m, Vector3 tint, Vector3 centre, float radius)> landmark = new();
+    private readonly Dictionary<ShaderMaterial, List<(GeometryInstance3D node, bool visible)>> landmarkNodes = new();
     private ShaderMaterial? paneMat, haloMat;
     private MeshInstance3D? panes;
     private float t, rankT, glassV = -1;
@@ -77,6 +95,7 @@ public partial class Lights : Node
     public override void _Ready()
     {
         I = this;
+        spillAt = SpillAt;
         ProcessPriority = 40; // after the daylight
         Daylight.I.Settled += () => snap = true;
         string? file = new[] { Paths.TownSide("_lights.json"), Path.Combine(Paths.Baked, "town_lights.json") }.FirstOrDefault(File.Exists);
@@ -91,6 +110,14 @@ public partial class Lights : Node
         // the doss house lantern (rijnkaai.ts): a real light in the browser, always burning
         sources.Add(new Src { Kind = "doss", Label = "doss house lantern", At = new Vector3(-180.96f, 2.9f, 39.5f), Half = new Vector2(0.1f, 0.1f), Color = V(Psx.Hex(0xffa048)), Power = 7, Range = 10, Decay = 1.7f, Level = 1 });
         lamps.AddRange(sources.Where(s => s.Lamp));
+        nearLamps.Capacity = lamps.Count;
+        near.EnsureCapacity(lampSlots.Length);
+        want.EnsureCapacity(Psx.MaxSpill);
+        on.Capacity = Psx.MaxSpill;
+        ranked.Capacity = sources.Count;
+        farCandidates.Capacity = sources.Count;
+        farList.Capacity = MaxFar;
+        poolList.Capacity = MaxPools;
         foreach (var l in lamps) byId[l.Id] = l;
         BuildHalos();
         BuildFar();
@@ -298,8 +325,14 @@ void fragment() {
             if (n is not MeshInstance3D mi || mi.Mesh == null) continue;
             for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
             {
-                if (mi.Mesh.SurfaceGetMaterial(s) is not ShaderMaterial m || !seen.Add(m)) continue;
+                if (mi.Mesh.SurfaceGetMaterial(s) is not ShaderMaterial m) continue;
                 string name = m.ResourceName;
+                if (name == "landmark_window_light" && mi.Mesh.GetSurfaceCount() == 1 && Psx.KindOf(m.Shader) is { Unlit: true, Add: true, Fog: false, DepthWrite: false, Ground: false, Wall: false, Water: 0, Far: false })
+                {
+                    if (!landmarkNodes.TryGetValue(m, out var nodes)) landmarkNodes[m] = nodes = new();
+                    nodes.Add((mi, mi.Visible));
+                }
+                if (!seen.Add(m)) continue;
                 if (name == "landmark_window_light")
                 {
                     var box = mi.GlobalTransform * mi.GetAabb();
@@ -334,6 +367,7 @@ void fragment() {
 
     public override void _Process(double delta)
     {
+        using var frameCost = Scheldemist.Dev.FrameCost.Track("Lights");
         var day = Daylight.I;
         var cam = Main.I.View.GetCamera3D();
         if (day == null || cam == null) return;
@@ -371,14 +405,28 @@ void fragment() {
             foreach (var (m, lamp) in glass)
             {
                 float gv = lamp == null ? v : Mathf.Clamp(lamp.Lit * v, 0, 1);
-                m.SetShaderParameter("albedo", new Color(fog.R * 0.8f * (1 - gv) + 1.0f * gv, fog.G * 0.8f * (1 - gv) + 0.72f * gv, fog.B * 0.8f * (1 - gv) + 0.38f * gv));
-                m.SetShaderParameter("fog_reach", 1 + 0.6f * gv);
+                Scheldemist.Render.UniformUpdates.Material(m, "albedo", new Color(fog.R * 0.8f * (1 - gv) + 1.0f * gv, fog.G * 0.8f * (1 - gv) + 0.72f * gv, fog.B * 0.8f * (1 - gv) + 0.38f * gv));
+                Scheldemist.Render.UniformUpdates.Material(m, "fog_reach", 1 + 0.6f * gv);
             }
         }
         // the psx lamp slots (the glow in the fog, the streaks on wet stone): the lit lamps nearest the eye
-        var near = lamps.Where(l => l.B >= 0.01f)
-            .Select(l => (l, d: l.At.DistanceTo(eye) * (Ahead(l.At, eye, look) > -0.3f ? 1 : 1.4f) - (Array.Exists(lampSlots, s => s.lamp == l && s.w > 0) ? 3 : 0)))
-            .OrderBy(x => x.d).Take(lampSlots.Length).Select(x => x.l).ToHashSet();
+        nearLamps.Clear(); near.Clear();
+        for (int i = 0; i < lamps.Count; i++)
+        {
+            var l = lamps[i];
+            if (l.B < 0.01f) continue;
+            float d = l.At.DistanceTo(eye) * (Ahead(l.At, eye, look) > -0.3f ? 1 : 1.4f) - (InSlot(l, true) ? 3 : 0);
+            nearLamps.Add((l, d, i));
+        }
+        nearLamps.Sort((a, b) => { int d = a.distance.CompareTo(b.distance); return d != 0 ? d : a.order.CompareTo(b.order); });
+        for (int i = 0; i < Math.Min(nearLamps.Count, lampSlots.Length); i++) near.Add(nearLamps[i].lamp);
+        if (compareSelections)
+        {
+            var original = lamps.Where(l => l.B >= 0.01f)
+                .Select(l => (l, d: l.At.DistanceTo(eye) * (Ahead(l.At, eye, look) > -0.3f ? 1 : 1.4f) - (Array.Exists(lampSlots, s => s.lamp == l && s.w > 0) ? 3 : 0)))
+                .OrderBy(x => x.d).Take(lampSlots.Length).Select(x => x.l);
+            if (!original.SequenceEqual(near)) throw new InvalidOperationException("lamp selection differs from original");
+        }
         for (int i = 0; i < lampSlots.Length; i++)
         {
             var (l, w) = lampSlots[i];
@@ -389,21 +437,21 @@ void fragment() {
         }
         foreach (var l in near)
         {
-            if (Array.Exists(lampSlots, s => s.lamp == l)) continue;
+            if (InSlot(l)) continue;
             int free = Array.FindIndex(lampSlots, s => s.lamp == null);
             if (free >= 0) lampSlots[free] = (l, snap ? 1 : 0);
         }
-        var list = new List<Vector4>();
-        foreach (var (l, w) in lampSlots) list.Add(l == null || w <= 0 ? new Vector4(0, -999, 0, 0) : new Vector4(l.At.X, l.At.Y, l.At.Z, l.B * w));
-        list.Add(Lantern ?? new Vector4(0, -999, 0, 0));
-        Psx.SetLamps(list);
+        lampValues.Clear();
+        foreach (var (l, w) in lampSlots) lampValues.Add(l == null || w <= 0 ? new Vector4(0, -999, 0, 0) : new Vector4(l.At.X, l.At.Y, l.At.Z, l.B * w));
+        lampValues.Add(Lantern ?? new Vector4(0, -999, 0, 0));
+        Psx.SetLamps(lampValues);
 
         // --- the painted windows
         if (panes != null)
         {
             panes.Visible = night > 0.02f;
-            paneMat!.SetShaderParameter("hour_n", hourN);
-            paneMat.SetShaderParameter("night", night);
+            Scheldemist.Render.UniformUpdates.Material(paneMat!, "hour_n", hourN);
+            Scheldemist.Render.UniformUpdates.Material(paneMat!, "night", night);
         }
 
         // --- the landmarks' windows: lit all night, each fading by its own distance in the fog
@@ -415,7 +463,12 @@ void fragment() {
         {
             float dist = Math.Max(0, eye.DistanceTo(centre) - radius * 0.5f);
             var c = tint * (level * 1.35f * breath * (1 - Smooth(dist, day.FogNear, day.FogFar * 2)));
-            m.SetShaderParameter("albedo", new Color(c.X, c.Y, c.Z, 1));
+            Scheldemist.Render.UniformUpdates.Material(m, "albedo", new Color(c.X, c.Y, c.Z, 1));
+            if (landmarkNodes.TryGetValue(m, out var nodes)) foreach (var (node, originallyVisible) in nodes)
+            {
+                bool visible = originallyVisible && (!UniformUpdates.Cached || c != Vector3.Zero);
+                if (node.Visible != visible) node.Visible = visible;
+            }
         }
 
         // --- the light on the street (spill.ts): every source's power now, the nearest ranked ten times a second
@@ -447,7 +500,8 @@ void fragment() {
         }
         else foreach (var s in slots) if (s != null) Now(s);
         RankRest(ranking, eye, day);
-        var want = new HashSet<Src>(ranked.Take(Psx.MaxSpill));
+        want.Clear();
+        for (int i = 0; i < Math.Min(ranked.Count, Psx.MaxSpill); i++) want.Add(ranked[i]);
         for (int i = 0; i < slots.Length; i++)
         {
             var s = slots[i];
@@ -463,12 +517,9 @@ void fragment() {
             slots[free] = s;
             s.W = snap ? 1 : 0.0001f;
         }
-        var on = slots.Where(s => s != null && s.W > 0 && s.Now > 0).ToList();
-        Psx.SetSpill(on.Count, i =>
-        {
-            var s = on[i]!;
-            return (new Vector4(s.At.X, s.At.Y, s.At.Z, s.Now * s.W), new Vector4(s.N.X, s.N.Y, s.Half.X, s.Half.Y), new Vector4(s.Color.X, s.Color.Y, s.Color.Z, s.Bars), new Vector4(s.Range, s.Decay, s.Depth, s.Soft));
-        });
+        on.Clear();
+        foreach (var s in slots) if (s != null && s.W > 0 && s.Now > 0) on.Add(s);
+        Psx.SetSpill(on.Count, spillAt);
         UpdateFar(eye, day);
         Info = (sources.Count, ranked.Count, on.Count, lamps.Count, Info.panes);
         snap = false;

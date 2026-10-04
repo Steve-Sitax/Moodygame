@@ -11,13 +11,15 @@ const args = process.argv.slice(2);
 const opt = (name, fallback) => { const i = args.indexOf(`--${name}`); if (i < 0) return fallback; if (!args[i + 1] || args[i + 1].startsWith("--")) throw new Error(`--${name} needs a value`); return args[i + 1]; };
 const all = ["devtest", "paths", "stuck", "shaders", "perfcheck", "clocks", "interiors"];
 const selected = opt("only", all.join(",")).split(",");
-if (selected.some(name => !all.includes(name))) throw new Error("--only: " + all.join(","));
+if (selected.some(name => ![...all, "pixelcheck", "windows"].includes(name))) throw new Error("--only: " + [...all, "pixelcheck", "windows"].join(","));
 const town = path.resolve(opt("town", "godot/baked/town.glb"));
 const models = path.resolve(opt("models", path.join(path.dirname(town), "models")));
 const out = path.resolve(opt("out", "godot/baked/checks"));
 const godot = opt("godot", process.env.SCHELDEMIST_GODOT ?? path.join(process.env.LOCALAPPDATA ?? "", "Microsoft/WinGet/Packages/GodotEngine.GodotEngine.Mono_Microsoft.Winget.Source_8wekyb3d8bbwe/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe"));
 const timeout = Number(opt("timeout", "240")) * 1000;
 const seed = Number(opt("seed", "1873"));
+const extraArgs = JSON.parse(opt("args", "[]"));
+if (!Array.isArray(extraArgs) || extraArgs.some(a => typeof a !== "string")) throw new Error("--args must be a JSON array of Godot user arguments");
 if (!Number.isInteger(seed) || seed <= 0 || seed > 2147483647) throw new Error("--seed must be 1..2147483647");
 let port = Number(opt("port", "8980"));
 if (!Number.isInteger(port) || port < 8900 || port > 64000) throw new Error("--port must be 8900..64000");
@@ -27,11 +29,14 @@ mkdirSync(out, { recursive: true });
 const children = new Set();
 async function stop(child) {
   if (!child || child.exitCode !== null || child.signalCode !== null) return;
+  const closed = new Promise(resolve => child.once("close", resolve));
   if (process.platform === "win32") await new Promise(resolve => {
     const kill = spawn("taskkill.exe", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true });
     kill.on("close", resolve); kill.on("error", resolve);
   });
   else child.kill("SIGKILL");
+  // taskkill's exit does not mean the child's SQLite handles and output pipes have closed yet.
+  await Promise.race([closed, new Promise(resolve => setTimeout(resolve, 5000))]);
 }
 async function cleanup() { await Promise.all([...children].map(stop)); }
 for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, async () => { await cleanup(); process.exit(130); });
@@ -68,6 +73,8 @@ function numbers(name, report) {
     case "perfcheck": return report.rows?.map(r => `${r.place} ${r.liveMean}/${r.liveP95} ms`).join("; ") ?? "no rows";
     case "clocks": return `${report.running ?? "?"}/${report.total ?? "?"} running`;
     case "interiors": return `${report.openings ?? "?"} openings, ${report.blocked ?? "?"} blocked, ${report.empty ?? "?"} empty; ${report.registeredRooms ?? "?"} live rooms registered`;
+    case "pixelcheck": return `${report.comparisons?.length ?? "?"} comparisons, ${report.differentPixels ?? "?"} changed pixels; positive control ${report.controlPixels ?? "?"}`;
+    case "windows": return `${report.pictures?.length ?? "?"} close pictures through windows`;
   }
 }
 const table = [];
@@ -104,7 +111,7 @@ try {
       serverText += "\n[checks] verified no-AI walk-around mode\n";
       // Never accept an old report if this run fails before writing one.
       rmSync(path.join(dir, name + ".json"), { force: true });
-      const code = await run(godot, ["--path", path.join(root, "godot"), "--", "--town", town, "--models", models, "--server", url, "--no-ai", "--hour", "13", "--weather", "clear", "--no-mainmenu", "--prefs", path.join(scratch, "prefs.json"), `--${name}`, dir], timeout, path.join(dir, "run.log"));
+      const code = await run(godot, ["--path", path.join(root, "godot"), "--", "--town", town, "--models", models, "--server", url, "--no-ai", "--hour", "13", "--weather", "clear", "--no-mainmenu", "--prefs", path.join(scratch, "prefs.json"), `--${name}`, dir, ...extraArgs], timeout, path.join(dir, "run.log"));
       const report = JSON.parse(readFileSync(path.join(dir, name + ".json"), "utf8"));
       table.push({ check: name, result: code === 0 && report.ok === true ? "PASS" : "FAIL", finds: numbers(name, report), report: path.join(dir, name + ".json") });
     } catch (e) { table.push({ check: name, result: "ERROR", finds: e.message }); }
@@ -114,7 +121,12 @@ try {
       // Only the exact temporary directory created by this run, inside its output folder.
       if (path.dirname(scratch) !== out || !path.basename(scratch).startsWith("test-town-")) throw new Error("unsafe scratch path");
       // Windows can hold SQLite handles briefly after taskkill returns. Retry before recording a cleanup error.
-      try { rmSync(scratch, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }); }
+      try {
+        for (let attempt = 0; ; attempt++) {
+          try { rmSync(scratch, { recursive: true, force: true }); break; }
+          catch (e) { if (attempt === 19 || !["EPERM", "EBUSY", "ENOTEMPTY"].includes(e.code)) throw e; await pause(500); }
+        }
+      }
       catch (e) { table.push({ check: name + " cleanup", result: "ERROR", finds: e.message }); }
     }
     console.log(`${table.at(-1).check}: ${table.at(-1).result} — ${table.at(-1).finds}`);

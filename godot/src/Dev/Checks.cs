@@ -25,11 +25,20 @@ public partial class Checks : Node
     private ulong frameStart;
     private double lastMainMs;
     private bool timingConnected;
+    private sealed class Window
+    {
+        public readonly List<double> Main = new(8192), Wall = new(8192), Calls = new(8192);
+        public int Frames;
+        public ulong Until, Last;
+        public bool Turn;
+        public readonly TaskCompletionSource<bool> Done = new();
+    }
+    private Window? window;
     private Townspeople Town => Kit.I.People ?? throw new InvalidOperationException("town part missing");
     private static readonly string[] Places = { "grote markt", "cathedral", "handschoenmarkt", "vismarkt", "rijnkaai" };
     public override void _Ready()
     {
-        foreach (string m in new[] { "devtest", "paths", "stuck", "shaders", "perfcheck", "clocks", "interiors" })
+        foreach (string m in new[] { "devtest", "paths", "stuck", "shaders", "perfcheck", "clocks", "interiors", "pixelcheck", "windows" })
             if (Main.I.Flag(m))
             {
                 if (mode != "") throw new ArgumentException("one Godot check per run");
@@ -52,8 +61,28 @@ public partial class Checks : Node
             timingConnected = true;
         }
     }
-    private void BeginFrame() { if (frameStart == 0) frameStart = Time.GetTicksUsec(); }
-    private void EndFrame() { if (frameStart != 0) lastMainMs = (Time.GetTicksUsec() - frameStart) / 1000.0; frameStart = 0; }
+    private void BeginFrame()
+    {
+        if (frameStart != 0) return;
+        frameStart = Time.GetTicksUsec();
+        if (window is { Turn: true }) Jef.I.Yaw += Mathf.DegToRad(2);
+    }
+    private void EndFrame()
+    {
+        ulong now = Time.GetTicksUsec();
+        if (frameStart != 0) lastMainMs = (now - frameStart) / 1000.0;
+        frameStart = 0;
+        if (window is not { } w) return;
+        // A persistent signal subscriber collects complete rendered frames, without a task/list per frame.
+        if (w.Last != 0)
+        {
+            w.Main.Add(lastMainMs); w.Wall.Add((now - w.Last) / 1000.0);
+            w.Calls.Add(RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalDrawCallsInFrame));
+        }
+        w.Last = now;
+        if (w.Main.Count < w.Frames || w.Until > now) return;
+        window = null; w.Done.SetResult(true);
+    }
     public override void _ExitTree()
     {
         if (!timingConnected) return;
@@ -89,6 +118,8 @@ public partial class Checks : Node
                 "perfcheck" => await Perf(),
                 "clocks" => await BuildingAudit.Clocks(this, Frames),
                 "interiors" => await BuildingAudit.Interiors(this, Frames),
+                "pixelcheck" => await PixelComparison.Run(this),
+                "windows" => await RoomPictures.Run(this),
                 _ => throw new InvalidOperationException("unknown check")
             };
             Finish(report);
@@ -197,46 +228,41 @@ public partial class Checks : Node
         }
         return renderAudit!.Report();
     }
-    private sealed record Measure(double Mean, double P95, double WallMean, double WallP95, double Calls, int Over33, int Samples);
-    private async Task<Measure> MeasureFrames(int n, bool turn = false, bool walk = false)
+    private sealed record Measure(double Mean, double P95, double Max, double WallMean, double WallP95, double WallMax, double Calls, int Over16, int Over33, int Samples, double ProcessMs, double PhysicsMs, int Collections);
+    private async Task<Measure> MeasureFrames(int n, bool turn = false, bool walk = false, int seconds = 0)
     {
-        var cpu = new List<double>(); var wall = new List<double>(); var calls = new List<double>();
+        var w = new Window { Frames = n, Turn = turn, Until = seconds == 0 ? 0 : Time.GetTicksUsec() + (ulong)seconds * 1_000_000 };
+        int collections = GC.CollectionCount(0);
         Jef.I.SetKey(Key.W, walk);
-        ulong last = Time.GetTicksUsec();
-        for (int i = 0; i < n; i++)
-        {
-            if (turn) Jef.I.Yaw += Mathf.DegToRad(2);
-            await Frames(1);
-            ulong now = Time.GetTicksUsec(); wall.Add((now - last) / 1000.0); last = now;
-            cpu.Add(lastMainMs);
-            calls.Add(RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalDrawCallsInFrame));
-        }
+        window = w;
+        await w.Done.Task;
         Jef.I.ClearKeys();
+        lastWindow = w;
         double P95(List<double> a) => a.Order().ElementAt(Math.Min(a.Count - 1, (int)(a.Count * 0.95)));
-        return new(Math.Round(cpu.Average(), 3), Math.Round(P95(cpu), 3), Math.Round(wall.Average(), 3), Math.Round(P95(wall), 3), Math.Round(calls.Average()), wall.Count(t => t > 33), n);
+        return new(Math.Round(w.Main.Average(), 3), Math.Round(P95(w.Main), 3), Math.Round(w.Main.Max(), 3), Math.Round(w.Wall.Average(), 3), Math.Round(P95(w.Wall), 3), Math.Round(w.Wall.Max(), 3), Math.Round(w.Calls.Average()), w.Wall.Count(t => t > 16), w.Wall.Count(t => t > 33), w.Main.Count,
+            Performance.GetMonitor(Performance.Monitor.TimeProcess) * 1000, Performance.GetMonitor(Performance.Monitor.TimePhysicsProcess) * 1000, GC.CollectionCount(0) - collections);
     }
+    private Window lastWindow = null!;
     private async Task<object> Perf()
     {
         Engine.MaxFps = 0;
         var rows = new List<object>();
-        foreach (string name in Places)
+        foreach (string name in (Main.I.Arg("perf-places") is { Length: > 0 } chosen ? chosen.Split(',') : Places))
         {
-            At(name); await Frames(120);
+            At(name); await Frames(120); FrameCost.Clear();
             Picture("perf-" + name.Replace(' ', '-'));
             var still = await MeasureFrames(90);
             var turn = await MeasureFrames(90, turn: true);
             At(name); await Frames(30);
             // Six seconds of actual walking frames, as tools/perfcheck.mjs; no synthetic logic-only timing.
-            var live = new List<Measure>(); ulong end = Time.GetTicksMsec() + 6000;
-            Jef.I.SetKey(Key.W, true);
             var start = new Vector2(Jef.I.X, Jef.I.Z);
-            while (Time.GetTicksMsec() < end) live.Add(await MeasureFrames(1, walk: true));
-            Jef.I.ClearKeys();
-            var mainTimes = live.Select(s => s.Mean).Order().ToArray();
-            var wallTimes = live.Select(s => s.WallMean).Order().ToArray();
+            var live = await MeasureFrames(1, walk: true, seconds: 6);
+            var mainTimes = lastWindow.Main.Order().ToArray();
+            var wallTimes = lastWindow.Wall.Order().ToArray();
+            var slow = lastWindow.Main.Select((v, i) => new { frame = i, main = v, wall = lastWindow.Wall[i] }).Where(s => s.wall > 16 || s.main > 16).ToArray();
             double mean = Math.Round(mainTimes.Average(), 3);
-            rows.Add(new { place = name, liveMean = mean, liveP95 = mainTimes[(int)(mainTimes.Length * 0.95)], fps = Math.Round(1000 / wallTimes.Average()), over33 = wallTimes.Count(t => t > 33), stillMean = still.Mean, turnMean = turn.Mean, turnP95 = turn.P95,
-                calls = turn.Calls, top = Array.Empty<string>(), ok = mean < 5, still, turn, liveSamples = live.Count, liveWallMean = Math.Round(wallTimes.Average(), 3), liveWallP95 = wallTimes[(int)(wallTimes.Length * 0.95)], walkedMetres = start.DistanceTo(new Vector2(Jef.I.X, Jef.I.Z)) });
+            rows.Add(new { place = name, liveMean = mean, liveP95 = live.P95, liveMax = live.Max, liveWallMax = live.WallMax, over16 = live.Over16, mainOver16 = mainTimes.Count(t => t > 16), collections = live.Collections, slowFrames = slow, fps = Math.Round(1000 / live.WallMean), over33 = live.Over33, stillMean = still.Mean, turnMean = turn.Mean, turnP95 = turn.P95,
+                calls = turn.Calls, top = FrameCost.Report(), ok = mean < 5, still, turn, liveSamples = live.Samples, liveWallMean = live.WallMean, liveWallP95 = live.WallP95, walkedMetres = start.DistanceTo(new Vector2(Jef.I.X, Jef.I.Z)) });
         }
         return new { ok = rows.All(r => JsonSerializer.SerializeToElement(r).GetProperty("ok").GetBoolean()), at = DateTime.UtcNow, gpu = RenderingServer.GetVideoAdapterName(), budget = 5, metric = "active main frame: first physics/process signal through RenderingServer.FramePostDraw, including renderer submission; wall frame time recorded separately", rows,
             notCovered = new[] { "per-part browser frameProf breakdown and GPU-finish synchronisation", "night, rain and population stress settings", "walking can meet walls; displacement is reported" } };

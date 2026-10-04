@@ -64,7 +64,7 @@ public partial class MainMenu : Node
     public static bool Wanted(Main main)
     {
         if (main.Flag("no-mainmenu")) return false;
-        foreach (string check in new[] { "paths", "stuck", "shaders", "perfcheck", "clocks", "interiors", "devtest" })
+        foreach (string check in new[] { "paths", "stuck", "shaders", "perfcheck", "clocks", "interiors", "devtest", "pixelcheck", "windows" })
             if (main.Flag(check)) return false;
         string only = main.Arg("only");
         if (only != "" && !only.Split(',').Contains("mainmenu")) return false;
@@ -723,6 +723,7 @@ public partial class MainMenu : Node
 
     public override void _Process(double delta)
     {
+        using var frameCost = Dev.FrameCost.Track("Menus");
         if (I != this) return;
         // the link's inbox is emptied here too: its own _Process may stand still for a frame at a pause's edge
         ServerLink.I?.Api?.Pump();

@@ -1,5 +1,8 @@
 # Godot G8 checks, 2026-10-04
 
+Follow-up: [rooms and frame cost](godot-rooms-perf.md) wires the live room registry, tests real aperture views,
+fixes hidden painted panes, and records three clean before/after measurements on the new shared bake.
+
 Implemented and run on `godot/checks`, in `D:/Code/MoodyGame-godot-checks`, from `godot-port` at cbb53c5.
 The checks are working; the milestone gates are not all green. Faults in the other parts are reported below,
 not fixed here. The shared town and decoded models were read without rebaking. Every server used a new test

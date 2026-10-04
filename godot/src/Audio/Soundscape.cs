@@ -410,6 +410,7 @@ public partial class Soundscape : Godot.Node
 
     public override void _Process(double delta)
     {
+        using var frameCost = Dev.FrameCost.Track("Sound");
         if (!Prepared) return;
         long t0 = Stopwatch.GetTimestamp();
         frameStepAt = t0;
