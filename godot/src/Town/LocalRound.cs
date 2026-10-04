@@ -112,7 +112,7 @@ public sealed class LocalRound
             if ((wait -= dt) > 0) return;
             if (outbound)
             {
-                path = returnPath.ToList();
+                path.Clear(); path.AddRange(returnPath);
                 outbound = false;
             }
             else
@@ -125,8 +125,10 @@ public sealed class LocalRound
                             wait = 3;
                             return;
                         }
-                returnPath = route.Take(route.Count - 1).Reverse().Append(Home).ToList();
-                path = route.ToList();
+                returnPath.Clear();
+                for (int i = route.Count - 2; i >= 0; i--) returnPath.Add(route[i]);
+                returnPath.Add(Home);
+                path.Clear(); path.AddRange(route);
                 outbound = true;
             }
         }

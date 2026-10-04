@@ -26,10 +26,10 @@ namespace Scheldemist.Town;
 /// dump, town_walk.json; else beside the town, else baked/town_walk.json).
 ///
 /// The great storm's shelter (SetStorm), the calls at the shops (ShopCalls.cs) and the mill's man with his cart are in.
-/// Not ported yet (each is a later step of the port; the hooks are named as in town.ts): journeys (velocipedes,
-/// carts, the omnibus, boats), the dispatcher's trade runs, the mills' own people at their work and the dray's
-/// horse, the docks' real loads, the back streets' and lively's own goals, the market's browsing, thieves at Jef's
-/// pocket, dogs at heel, the stalls' awnings, played together.
+/// StreetLife supplies the back streets, door routines, children's games and market browsing; Animals supplies
+/// dogs at heel; MarketStalls opens and covers the displays. HallPeople and HomeVisitors supply room figures.
+/// Still separate: vehicle journeys and horses, the dispatcher's trade runs, thieves at Jef's pocket, event
+/// scenes and director actions, and shared animal states when playing together.
 /// </summary>
 [GamePart(200)]
 public partial class Townspeople : Node
@@ -104,7 +104,13 @@ public partial class Townspeople : Node
         public string ShelterPlace = "";
         /// <summary>On a run with the mill's cart (the game minute of his last order).</summary>
         public bool MillRun;
+        internal string GamePlace = "", GameKind = "", PropBase = "", PropGame = "", PropKey = "";
+        internal int GameDay = -1, GameSlice = -1, ScheduleStorm = -1;
+        internal string ScheduleAct = "", SchedulePlace = "", ScheduleLife = "", ScheduleShelter = "", ScheduleRun = "";
+        internal Pt? ScheduleCall;
+        internal bool ScheduleStormOn;
         internal HiddenWay? Hw;
+        internal readonly HiddenWay HiddenBuffer = new();
         internal Station? Round;
     }
 
@@ -150,12 +156,27 @@ public partial class Townspeople : Node
     public string Status { get; private set; } = "off";
     public int BakedHidden { get; private set; }
 
+    private readonly Whereabouts.WayOf wayOf;
+    public Townspeople() { wayOf = WayOf; }
+    public long AllocatedBytesLastFrame { get; private set; }
+    public readonly long[] AllocationParts = new long[5];
     private readonly List<Sim> sims = new();
     private readonly Dictionary<string, Sim> byId = new();
+    private readonly Dictionary<string, Resident> peopleInfo = new();
     private readonly List<Resident> employers = new();
+    private readonly Dictionary<string, string> shopPlaces = new();
+    private string ShopPlace(string id) { if (!shopPlaces.TryGetValue(id, out var value)) shopPlaces[id] = value = "shop:" + id; return value; }
     private readonly Dictionary<string, (double x, double z, double yaw)> sellerSpots = new();
     private readonly Dictionary<string, Game> games = new();
     private readonly Dictionary<string, Pt[]?> ways = new();
+    private readonly HashSet<string> planWaysPending = new();
+    private readonly Dictionary<(long, long, long, long), string> wayNames = new();
+    private string WayName(double ax, double az, double bx, double bz)
+    {
+        var key = ((long)Whereabouts.JsRound(ax), (long)Whereabouts.JsRound(az), (long)Whereabouts.JsRound(bx), (long)Whereabouts.JsRound(bz));
+        if (!wayNames.TryGetValue(key, out var name)) wayNames[key] = name = Whereabouts.WayKey(ax, az, bx, bz);
+        return name;
+    }
     private readonly HashSet<string> wayAsk = new();
     /// <summary>Asked for, the answer not in yet.</summary>
     private readonly HashSet<string> wayAsked = new();
@@ -320,6 +341,8 @@ public partial class Townspeople : Node
         Crowd?.Dispose();
         Indoors?.Dispose();
         Humans.Forget();
+        Animal.Forget();
+        Whereabouts.Forget();
         Models.ModelLibrary.FreeAll();
     }
 
@@ -387,6 +410,7 @@ public partial class Townspeople : Node
         HideBaked();
         foreach (var r in d.Residents)
         {
+            peopleInfo[r.Id] = r;
             // the kind is checked against people.glb when they first step out
             var s = new Sim { R = r, Kind = r.Kind, X = r.HomeSx, Z = r.HomeSz, Inside = true, Door = new Pt(r.HomeSx, r.HomeSz), Goal = new Goal { Mode = "home", X = r.HomeSx, Z = r.HomeSz }, H = Hash01(r.Id) };
             sims.Add(s);
@@ -415,7 +439,7 @@ public partial class Townspeople : Node
         if (Scheldemist.Talks.Bubbles.I is { } bubbles)
         {
             bubbles.PositionOf ??= id => HomeVisitors.I?.PositionOf(id) ?? HallPeople.I?.PositionOf(id) ?? Indoors.PositionOf(id) ?? (PositionOf(id) is { } q ? new Vector3((float)q.x, (float)Walk!.BaseAt(q.x, q.z), (float)q.z) : null);
-            bubbles.InfoOf ??= id => d.Residents.FirstOrDefault(r => r.Id == id) is { } r ? (r.Sex, r.Age) : null;
+            bubbles.InfoOf ??= id => peopleInfo.TryGetValue(id, out var r) ? (r.Sex, r.Age) : null;
         }
         if (Scheldemist.Game.TownMap.I is { } map) map.PersonAt ??= id => PositionOf(id) is { } q ? new Vector2((float)q.x, (float)q.z) : null;
         Status = "in";
@@ -435,9 +459,9 @@ public partial class Townspeople : Node
     /// <summary>The way on foot for the sum (not known until the server sent it; null and known: there is none, he is simply there).</summary>
     private Pt[]? WayOf(double ax, double az, double bx, double bz, out bool known)
     {
-        string k = Whereabouts.WayKey(ax, az, bx, bz);
+        string k = WayName(ax, az, bx, bz);
         known = ways.TryGetValue(k, out var w);
-        if (!known && !wayAsked.Contains(k)) wayAsk.Add(k);
+        if (!known) { planWaysPending.Add(k); if (!wayAsked.Contains(k)) wayAsk.Add(k); }
         return w;
     }
 
@@ -455,6 +479,12 @@ public partial class Townspeople : Node
             wayAsked.Add(k);
         }
         if (keys.Count == 0) return;
+        RequestWays(keys);
+    }
+
+    // Keep the request closure out of the per-frame AskWays call.
+    private void RequestWays(List<string> keys)
+    {
         _ = Task.Run(async () =>
         {
             try
@@ -464,12 +494,14 @@ public partial class Townspeople : Node
                 var got = ParseWays(await res.Content.ReadAsStringAsync().ConfigureAwait(false));
                 inbox.Enqueue(() =>
                 {
+                    bool planChanged = false;
                     foreach (var k in keys)
                     {
                         wayAsked.Remove(k);
                         ways[k] = got.GetValueOrDefault(k);
+                        planChanged |= planWaysPending.Remove(k);
                     }
-                    Whereabouts.WaysLearnt();
+                    if (planChanged) Whereabouts.WaysLearnt();
                 });
             }
             catch (Exception)
@@ -487,12 +519,13 @@ public partial class Townspeople : Node
     }
 
     /// <summary>For a check: a resident's day as he keeps it, one stop after the other.</summary>
-    public string DescribeDay(Resident r, int day) => Whereabouts.DescribeDay(r, Data!, day, WayOf);
+    public string DescribeDay(Resident r, int day) => Whereabouts.DescribeDay(r, Data!, day, wayOf);
 
     /// <summary>Ways still asked for or on their way here (a check waits for none); -1: the town's ways are not in yet.</summary>
+    public int PlanWaysWaiting => planWaysPending.Count;
     public int WaysWaiting => waysIn ? wayAsk.Count + wayAsked.Count : -1;
 
-    /// <summary>Where the shared sum puts a person now, late by his progress reports, or null when his goal is not his plan's own.</summary>
+    /// <summary>The shared sum now, late by progress reports; borrowed until the next query for this resident. Null for a goal outside the plan.</summary>
     public Whereabouts.Where? WhereNow(Sim s)
     {
         if (Data == null) return null;
@@ -500,14 +533,14 @@ public partial class Townspeople : Node
         {
             // the mill's man on the way with his cart, and at the stops of the run (the cart's timetable, as the town map has it)
             if (!s.MillRun) return null;
-            var w = Whereabouts.WhereAt(s.R, Data, day, hour, WayOf);
+            var w = Whereabouts.WhereAt(s.R, Data, day, hour, wayOf, s.R.WhereValue);
             return w.Cart != null ? w : null;
         }
-        return Whereabouts.WhereLate(s.R, Data, day, hour, WayOf, s.Lag);
+        return Whereabouts.WhereLate(s.R, Data, day, hour, wayOf, s.Lag, s.R.WhereValue);
     }
 
     /// <summary>The plain sum for anyone (a check against the server's own).</summary>
-    public Whereabouts.Where? WhereOf(Resident r, int day, double hour) => Data == null ? null : Whereabouts.WhereAt(r, Data, day, hour, WayOf);
+    public Whereabouts.Where? WhereOf(Resident r, int day, double hour) => Data == null ? null : Whereabouts.WhereAt(r, Data, day, hour, wayOf);
 
     private double GameMin => (day - 1) * 1440 + hour * 60;
 
@@ -525,8 +558,8 @@ public partial class Townspeople : Node
         foreach (var s in sims)
         {
             if (jumped) s.Lag = 0;
-            if (s.P != null && s.Plain) s.Lag = Math.Min(Whereabouts.ReportLag(s.R, Data!, day, hour, WayOf, s.Lag, s.P.X, s.P.Z), s.Lag + ranH);
-            else if (s.Lag > 0) s.Lag = Whereabouts.SettleLag(s.R, Data!, day, hour, WayOf, s.Lag);
+            if (s.P != null && s.Plain) s.Lag = Math.Min(Whereabouts.ReportLag(s.R, Data!, day, hour, wayOf, s.Lag, s.P.X, s.P.Z), s.Lag + ranH);
+            else if (s.Lag > 0) s.Lag = Whereabouts.SettleLag(s.R, Data!, day, hour, wayOf, s.Lag);
         }
     }
 
@@ -556,11 +589,18 @@ public partial class Townspeople : Node
         // how far the fog lets one see now (the sky's part)
         if (Scheldemist.World.Daylight.I is { } sky) Crowd.FogDistance = sky.FogFar;
         ulong t0 = Time.GetTicksUsec();
+        long allocatedAt = GC.GetAllocatedBytesForCurrentThread();
         Step(delta, cp.X, cp.Z, body);
+        long mark = GC.GetAllocatedBytesForCurrentThread(); AllocationParts[0] = mark - allocatedAt;
         Crowd.Update(delta, cp.X, cp.Z, body, cam);
+        long next = GC.GetAllocatedBytesForCurrentThread(); AllocationParts[1] = next - mark; mark = next;
         lanterns?.Update(delta, cp, hour);
+        next = GC.GetAllocatedBytesForCurrentThread(); AllocationParts[2] = next - mark; mark = next;
         Indoors?.Update(delta, cp);
+        next = GC.GetAllocatedBytesForCurrentThread(); AllocationParts[3] = next - mark; mark = next;
         Carried.LanternLook(hour, Time.GetTicksMsec() / 1000.0);
+        next = GC.GetAllocatedBytesForCurrentThread(); AllocationParts[4] = next - mark;
+        AllocatedBytesLastFrame = GC.GetAllocatedBytesForCurrentThread() - allocatedAt;
         LogicMs = (Time.GetTicksUsec() - t0) / 1000.0;
     }
 
@@ -628,13 +668,21 @@ public partial class Townspeople : Node
         // a call at a shop this hour (the engine's roll): in at its door, out at the hour's end
         var call = storm ? null : shopCalls.CallOf(Data!, s.R, day, hour);
         // the mill's man with the cart (flour to the bakery at dawn, grain from the dock after dinner)
-        var run = storm || s.R.Trade != "miller_man" ? null : Whereabouts.WhereAt(s.R, Data!, day, hour, WayOf).Cart;
+        var run = storm || s.R.Trade != "miller_man" ? null : Whereabouts.WhereAt(s.R, Data!, day, hour, wayOf, s.R.WhereValue).Cart;
+        string life = storm ? "" : LifeKey(s, now);
+        string tavPlace = s.Shelter == "tavern" ? s.ShelterPlace : now.Act == "tavern" ? now.Place : now.Act == "work" && s.R.Work.Kind == "tavern" ? s.R.Work.Place : now.Act == "work" && s.R.Work.Kind == "shop" && s.R.Work.Shop != null ? ShopPlace(s.R.Work.Shop) : "";
+        string tav = tavPlace != "" ? (TavernInside(tavPlace) ? "in" : "out") : "";
+        string runKind = run?.kind ?? "";
+        if (!first && s.Key.Length > 0 && s.ScheduleAct == now.Act && s.SchedulePlace == now.Place && s.ScheduleCall == call
+            && s.ScheduleLife == life && s.ScheduleStormOn == storm && s.ScheduleStorm == stormEvent
+            && s.ScheduleShelter == (s.Shelter ?? "") && s.ScheduleRun == runKind && s.Tav == tav)
+        { Lanterns(s); return; }
+        s.ScheduleAct = now.Act; s.SchedulePlace = now.Place; s.ScheduleCall = call; s.ScheduleLife = life;
+        s.ScheduleStormOn = storm; s.ScheduleStorm = stormEvent; s.ScheduleShelter = s.Shelter ?? ""; s.ScheduleRun = runKind;
         string key = sheltered
             ? $"storm{stormEvent}:{s.Shelter}{(s.Shelter == "tavern" ? $":{s.ShelterPlace}" : "")}"
-            : FormattableString.Invariant($"{now.Act}:{now.Place}{(call != null ? $"|shop@{call.Value.X},{call.Value.Z}" : "")}{(storm ? $"|storm{stormEvent}" : LifeKey(s, now))}{(run != null ? $"|mill:{run.Value.kind}" : "")}");
+            : FormattableString.Invariant($"{now.Act}:{now.Place}{(call != null ? $"|shop@{call.Value.X},{call.Value.Z}" : "")}{(storm ? $"|storm{stormEvent}" : life)}{(run != null ? $"|mill:{run.Value.kind}" : "")}");
         // a publican (or a drinker) whose tavern opens or shuts gets his goal again, the key unchanged
-        string tavPlace = s.Shelter == "tavern" ? s.ShelterPlace : now.Act == "tavern" ? now.Place : now.Act == "work" && s.R.Work.Kind == "tavern" ? s.R.Work.Place : now.Act == "work" && s.R.Work.Kind == "shop" && s.R.Work.Shop != null ? $"shop:{s.R.Work.Shop}" : "";
-        string tav = tavPlace != "" ? (TavernInside(tavPlace) ? "in" : "out") : "";
         if (key == s.Key && tav == s.Tav)
         {
             Lanterns(s);
@@ -970,7 +1018,12 @@ public partial class Townspeople : Node
     private void HiddenStep(Sim s, double tx, double tz, double speed, double dt)
     {
         var hw = s.Hw;
-        if (hw == null || Math.Abs(hw.Tx - tx) > 1 || Math.Abs(hw.Tz - tz) > 1) hw = s.Hw = new HiddenWay { Tx = tx, Tz = tz, Key = Whereabouts.WayKey(s.X, s.Z, tx, tz), Asked = NowMs };
+        if (hw == null || Math.Abs(hw.Tx - tx) > 1 || Math.Abs(hw.Tz - tz) > 1)
+        {
+            hw = s.Hw = s.HiddenBuffer;
+            hw.Tx = tx; hw.Tz = tz; hw.Key = WayName(s.X, s.Z, tx, tz); hw.Asked = NowMs;
+            hw.Pts = null; hw.I = 1; hw.Straight = false;
+        }
         if (hw.Pts == null && !hw.Straight)
         {
             // (one way asked for per walk, by where it began: he waits for it where he stands)
@@ -1017,24 +1070,45 @@ public partial class Townspeople : Node
 
     // ------------------------------------------------------------------ into the street and out
 
+    private readonly List<Sim> spawnWanted = new(1024), spawnGone = new(64), playKids = new(64);
+    private readonly SpawnOrder spawnOrder = new();
+    private sealed class SpawnOrder : IComparer<Sim>
+    {
+        public double X, Z; public bool FarFirst;
+        public int Compare(Sim? a, Sim? b)
+        {
+            int order = Dist(a!.X, a.Z, X, Z).CompareTo(Dist(b!.X, b.Z, X, Z));
+            return FarFirst ? -order : order;
+        }
+    }
     private void Spawn(bool anywhere)
     {
         var crowd = Crowd!;
-        int alive = sims.Count(s => s.P != null);
+        int alive = 0;
+        foreach (var person in sims) if (person.P != null) alive++;
+        spawnOrder.X = px; spawnOrder.Z = pz;
         if (alive > MaxPuppets)
         {
             // the setting went down: the farthest go back to their schedule, out of sight
-            foreach (var s in sims.Where(s => s.P != null && crowd.IsHidden(s.X, s.Z)).OrderByDescending(s => Dist(s.X, s.Z, px, pz)).Take(Math.Min(4, alive - MaxPuppets)).ToList()) Lose(s, true);
+            spawnGone.Clear();
+            foreach (var person in sims) if (person.P != null && crowd.IsHidden(person.X, person.Z)) spawnGone.Add(person);
+            spawnOrder.FarFirst = true; spawnGone.Sort(spawnOrder);
+            for (int i = 0; i < Math.Min(spawnGone.Count, Math.Min(4, alive - MaxPuppets)); i++) Lose(spawnGone[i], true);
             return;
         }
-        var want = sims.Where(s => s.P == null && !s.Inside && Dist(s.X, s.Z, px, pz) < SpawnR).OrderBy(s => Dist(s.X, s.Z, px, pz)).ToList();
+        var want = spawnWanted; want.Clear();
+        foreach (var person in sims) if (person.P == null && !person.Inside && Dist(person.X, person.Z, px, pz) < SpawnR) want.Add(person);
+        spawnOrder.FarFirst = false; want.Sort(spawnOrder);
         if (alive >= MaxPuppets)
         {
             // Full: the nearest who is due in the street takes the place of the farthest drawn one out of sight.
             // A couple a turn, and only for someone clearly nearer.
             if (want.Count == 0) return;
             double near = Dist(want[0].X, want[0].Z, px, pz);
-            var gone = sims.Where(s => s.P != null && Dist(s.X, s.Z, px, pz) > near + SwapGap && (crowd.IsHidden(s.X, s.Z) || Dist(s.X, s.Z, px, pz) > DueFar)).OrderByDescending(s => Dist(s.X, s.Z, px, pz)).Take(2).ToList();
+            var gone = spawnGone; gone.Clear();
+            foreach (var person in sims) if (person.P != null && Dist(person.X, person.Z, px, pz) > near + SwapGap && (crowd.IsHidden(person.X, person.Z) || Dist(person.X, person.Z, px, pz) > DueFar)) gone.Add(person);
+            spawnOrder.FarFirst = true; gone.Sort(spawnOrder);
+            if (gone.Count > 2) gone.RemoveRange(2, gone.Count - 2);
             foreach (var s in gone) Lose(s, true);
             alive -= gone.Count;
             if (alive >= MaxPuppets) return;
@@ -1100,7 +1174,7 @@ public partial class Townspeople : Node
     /// <summary>The part of his day he is at or walking to now: the day as he keeps it, late by his progress reports.</summary>
     private Now PlanNow(Sim s)
     {
-        var w = Whereabouts.WhereLate(s.R, Data!, day, hour, WayOf, s.Lag);
+        var w = Whereabouts.WhereLate(s.R, Data!, day, hour, wayOf, s.Lag, s.R.WhereValue);
         return new Now(w.Act, w.Place, w.Since, w.Left);
     }
 
@@ -1329,7 +1403,8 @@ public partial class Townspeople : Node
                 else
                 {
                     // stop and talk to someone near, or just stand
-                    var other = sims.FirstOrDefault(o => o != s && o.P != null && Dist(o.X, o.Z, p.X, p.Z) < 2.2);
+                    Sim? other = null;
+                    foreach (var person in sims) if (person != s && person.P != null && Dist(person.X, person.Z, p.X, p.Z) < 2.2) { other = person; break; }
                     double? yaw = other != null ? Math.Atan2(other.X - p.X, other.Z - p.Z) : null;
                     crowd.PuppetStand(p, other != null && rng.NextDouble() < 0.5 ? "talk" : "idle", yaw);
                     s.Wait = Rnd(4, 12);
@@ -1429,9 +1504,9 @@ public partial class Townspeople : Node
         var p = s.P!;
         var g = s.Goal;
         var crowd = Crowd!;
-        string key = FormattableString.Invariant($"{s.Key}:{g.X}:{g.Z}");
+        string key = s.Key;
         var r = s.Round;
-        if (r == null || r.Key != key) r = s.Round = new Station { Key = key, X = g.X, Z = g.Z, Wait = 18 + s.H * 24 };
+        if (r == null || r.Key != key || r.X != g.X || r.Z != g.Z) r = s.Round = new Station { Key = key, X = g.X, Z = g.Z, Wait = 18 + s.H * 24 };
         if (crowd.PuppetBusy(p)) return r.Phase != "rest";
         if (r.Phase == "out")
         {
@@ -1485,7 +1560,9 @@ public partial class Townspeople : Node
     {
         var g = s.Goal;
         if (g.Mode != "guard" || s.R.Trade != "sentry") return null;
-        if (!sims.Any(o => o != s && o.P != null && o.Goal.Mode == "guard" && o.R.Trade == s.R.Trade && Dist(o.P.X, o.P.Z, g.X, g.Z) < 0.9)) return null;
+        bool occupied = false;
+        foreach (var other in sims) if (other != s && other.P != null && other.Goal.Mode == "guard" && other.R.Trade == s.R.Trade && Dist(other.P.X, other.P.Z, g.X, g.Z) < 0.9) { occupied = true; break; }
+        if (!occupied) return null;
         double yaw = g.Yaw ?? 0;
         return new Pt(g.X + Math.Sin(yaw) * 1.2 - Math.Cos(yaw) * 1.2, g.Z + Math.Cos(yaw) * 1.2 + Math.Sin(yaw) * 1.2);
     }
@@ -1557,6 +1634,7 @@ public partial class Townspeople : Node
 
     // ---- children: they look for each other, then play tag
 
+    private static readonly double[] PlayEscapeAngles = { 0, 0.8, -0.8, 1.6, -1.6 };
     private void Play(Sim s, double dt)
     {
         var p = s.P!;
@@ -1566,12 +1644,15 @@ public partial class Townspeople : Node
         if ((s.Wait -= dt) > 0) return;
         s.Wait = 0.5;
         // everyone at tag on this square; not a girl or boy of fifteen dressed as grown (only watches)
-        var kids = sims.Where(o => o.P != null && o.P.Human.Scale < 0.9 && o.Goal.Mode == "play" && o.Goal.Place == key && !o.Inside).ToList();
-        int near = kids.Count(o => Dist(o.X, o.Z, p.X, p.Z) < 30);
+        var kids = playKids; kids.Clear(); int near = 0;
+        foreach (var kid in sims) if (kid.P != null && kid.P.Human.Scale < 0.9 && kid.Goal.Mode == "play" && kid.Goal.Place == key && !kid.Inside)
+        { kids.Add(kid); if (Dist(kid.X, kid.Z, p.X, p.Z) < 30) near++; }
         if (near < 2)
         {
             // alone: go and find the others (the nearest child out playing anywhere near)
-            var other = sims.Where(o => o != s && o.Goal.Mode == "play" && !o.Inside && (o.P == null || o.P.Human.Scale < 0.9)).OrderBy(o => Dist(o.X, o.Z, p.X, p.Z)).FirstOrDefault();
+            Sim? other = null; double nearest = double.PositiveInfinity;
+            foreach (var kid in sims) if (kid != s && kid.Goal.Mode == "play" && !kid.Inside && (kid.P == null || kid.P.Human.Scale < 0.9))
+            { double distance = Dist(kid.X, kid.Z, p.X, p.Z); if (distance < nearest) { nearest = distance; other = kid; } }
             double od = other != null ? Dist(other.X, other.Z, p.X, p.Z) : 0;
             if (other != null && od < 45 && od > 2) crowd.PuppetGo(p, other.X, other.Z, 1.4);
             else if (!crowd.PuppetBusy(p))
@@ -1590,7 +1671,9 @@ public partial class Townspeople : Node
                 return;
             }
             // no tagging back the one who just caught you (unless there is nobody else)
-            var prey = kids.Where(o => o != s && (o != game.Last || kids.Count == 2)).OrderBy(o => Dist(o.X, o.Z, p.X, p.Z)).FirstOrDefault();
+            Sim? prey = null; double nearest = double.PositiveInfinity;
+            foreach (var kid in kids) if (kid != s && (kid != game.Last || kids.Count == 2))
+            { double distance = Dist(kid.X, kid.Z, p.X, p.Z); if (distance < nearest) { nearest = distance; prey = kid; } }
             if (prey == null) return;
             if (Dist(prey.X, prey.Z, p.X, p.Z) < 0.95)
             {
@@ -1622,7 +1705,7 @@ public partial class Townspeople : Node
                 double ax = (p.X - it.X) / L, az = (p.Z - it.Z) / L;
                 double jx = Rnd(-1.5, 1.5), jz = Rnd(-1.5, 1.5);
                 (double x, double z)? to = null;
-                foreach (double turn in new[] { 0, 0.8, -0.8, 1.6, -1.6 })
+                foreach (double turn in PlayEscapeAngles)
                 {
                     double c = Math.Cos(turn), sn = Math.Sin(turn);
                     var q = Inside(p.X + (ax * c - az * sn) * 4 + jx, p.Z + (ax * sn + az * c) * 4 + jz);

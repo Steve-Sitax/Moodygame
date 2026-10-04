@@ -184,19 +184,21 @@ public static class Carried
     }
 
     /// <summary>All lanterns breathe together, gently; lit after dark (a horn pane by day). Once a frame.</summary>
+    private static readonly StringName AlbedoParameter = "albedo";
     public static void LanternLook(double hour, double timeS)
     {
         if (lit == null) return;
         float dark = (float)LanternPool.DarkAt(hour);
         float flick = 0.4f + 0.06f * MathF.Sin((float)timeS * 13f);
-        haloMat!.SetShaderParameter("albedo", new Color(new Color(1, 0.69f, 0.376f).SrgbToLinear(), flick * dark));
-        lit.SetShaderParameter("albedo", new Color(0.42f + 0.58f * dark, 0.35f + 0.4f * dark, 0.27f + 0.17f * dark).SrgbToLinear());
+        haloMat!.SetShaderParameter(AlbedoParameter, new Color(new Color(1, 0.69f, 0.376f).SrgbToLinear(), flick * dark));
+        lit.SetShaderParameter(AlbedoParameter, new Color(0.42f + 0.58f * dark, 0.35f + 0.4f * dark, 0.27f + 0.17f * dark).SrgbToLinear());
     }
 
     /// <summary>The halo faces the eye (a sprite in the browser).</summary>
+    private static readonly NodePath HaloPath = "halo";
     public static void FaceHalo(Node3D lantern, Vector3 eye)
     {
-        if (lantern.GetNodeOrNull<Node3D>("halo") is not { } h) return;
+        if (lantern.GetNodeOrNull<Node3D>(HaloPath) is not { } h) return;
         var p = h.GlobalPosition;
         if (p.DistanceSquaredTo(eye) > 1e-4f) h.LookAt(p - (eye - p), Vector3.Up);
     }
@@ -275,12 +277,24 @@ public sealed class LanternPool
         return v;
     }
 
+    private readonly List<Source> nearest = new(Pool);
     public void Update(double dt, Vector3 eye, double hour)
     {
         t += dt;
         float dark = (float)DarkAt(hour);
         // the nearest burning ones want a light
-        var want = dark > 0.02f ? sources.Where(s => s.On).OrderBy(s => s.Pos.DistanceSquaredTo(eye)).Take(Pool).ToList() : new List<Source>();
+        var want = nearest;
+        want.Clear();
+        if (dark > 0.02f) foreach (var source in sources)
+        {
+            if (!source.On) continue;
+            float distance = source.Pos.DistanceSquaredTo(eye);
+            int at = 0;
+            while (at < want.Count && want[at].Pos.DistanceSquaredTo(eye) <= distance) at++;
+            if (at >= Pool) continue;
+            if (want.Count == Pool) want.RemoveAt(Pool - 1);
+            want.Insert(at, source);
+        }
         for (int i = 0; i < Pool; i++)
         {
             var s = slots[i];

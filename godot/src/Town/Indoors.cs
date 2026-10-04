@@ -15,8 +15,8 @@ namespace Scheldemist.Town;
 /// before it (the browser's game/interiors.ts tavernOpen), and are seen inside, through the door and the windows.
 /// Here they stand about the room on its floor (the walk dump knows the rooms' floors), the keeper at the back,
 /// turning to talk to one another. The browser seats them at the tables and the counter by the room's own plan
-/// (interiors.ts, shared/housePlan.ts), and keeps the homes' routines (homes.ts) and the landmark halls' people
-/// (landmarks.ts): those plans are not ported yet.
+/// (interiors.ts, shared/housePlan.ts): their seated table allocation still needs porting. Home visitors and
+/// landmark rosters live in HomeVisitors and HallPeople.
 /// Whether a door stands open is the doors' part: Townspeople.DoorAt answers when it is set; until then a house is
 /// open while its keeper is at work.
 /// </summary>
@@ -31,6 +31,7 @@ public sealed class Indoors
         public Resident? Keeper;
         internal List<Pt>? Spots;
         internal readonly Dictionary<string, Figure> Figures = new();
+        internal readonly List<Townspeople.Sim> Wanted = new(PerHouse);
     }
 
     internal sealed class Figure
@@ -143,9 +144,31 @@ public sealed class Indoors
     }
 
     /// <summary>Who is inside this house now: those who went in at its door (the keeper first).</summary>
-    public List<Townspeople.Sim> Inside(House h) => town.Sims
-        .Where(s => s.Inside && s.Goal.Mode == "inside" && Math.Abs(s.Goal.X - h.Goal.X) < 0.6 && Math.Abs(s.Goal.Z - h.Goal.Z) < 0.6)
-        .OrderBy(s => s.R == h.Keeper ? 0 : 1).ThenBy(s => s.R.Id, StringComparer.Ordinal).ToList();
+    private sealed class InsideOrder : IComparer<Townspeople.Sim>
+    {
+        public Resident? Keeper;
+        public int Compare(Townspeople.Sim? a, Townspeople.Sim? b)
+        {
+            int keeper = (a!.R == Keeper ? 0 : 1).CompareTo(b!.R == Keeper ? 0 : 1);
+            return keeper != 0 ? keeper : StringComparer.Ordinal.Compare(a.R.Id, b.R.Id);
+        }
+    }
+    private readonly InsideOrder insideOrder = new();
+    private readonly List<string> removed = new(PerHouse);
+    private static readonly List<Pt> NoSpots = new();
+    public List<Townspeople.Sim> Inside(House h)
+    {
+        var want = h.Wanted;
+        want.Clear();
+        for (int i = 0; i < town.Sims.Count; i++)
+        {
+            var s = town.Sims[i];
+            if (s.Inside && s.Goal.Mode == "inside" && Math.Abs(s.Goal.X - h.Goal.X) < 0.6 && Math.Abs(s.Goal.Z - h.Goal.Z) < 0.6) want.Add(s);
+        }
+        insideOrder.Keeper = h.Keeper;
+        want.Sort(insideOrder);
+        return want;
+    }
 
     public void Update(double dt, Vector3 eye)
     {
@@ -158,15 +181,33 @@ public sealed class Indoors
             double d = Whereabouts.Hypot(h.Door.X - eye.X, h.Door.Z - eye.Z);
             if (roster)
             {
-                var want = d < DrawR ? Inside(h).Take(PerHouse).ToList() : new List<Townspeople.Sim>();
-                var spots = want.Count > 0 ? SpotsOf(h) : new List<Pt>();
-                foreach (var id in h.Figures.Keys.Where(id => want.All(s => s.R.Id != id)).ToList()) Drop(h, id);
+                var want = h.Wanted;
+                if (d < DrawR) { Inside(h); if (want.Count > PerHouse) want.RemoveRange(PerHouse, want.Count - PerHouse); }
+                else want.Clear();
+                var spots = want.Count > 0 ? SpotsOf(h) : NoSpots;
+                removed.Clear();
+                foreach (string id in h.Figures.Keys)
+                {
+                    bool keep = false;
+                    foreach (var person in want) if (person.R.Id == id) { keep = true; break; }
+                    if (!keep) removed.Add(id);
+                }
+                foreach (string id in removed) Drop(h, id);
+                int total = 0;
+                foreach (var house in Houses) total += house.Figures.Count;
                 for (int i = 0; i < want.Count && i < spots.Count; i++)
                 {
                     var s = want[i];
-                    if (h.Figures.ContainsKey(s.R.Id) || Houses.Sum(q => q.Figures.Count) >= MostFigures) continue;
+                    if (h.Figures.ContainsKey(s.R.Id) || total >= MostFigures) continue;
                     // the keeper at the back; the others on the spots nobody has yet
-                    int spot = Enumerable.Range(0, spots.Count).First(k => h.Figures.Values.All(f => f.Spot != k));
+                    int spot = 0;
+                    for (; spot < spots.Count; spot++)
+                    {
+                        bool taken = false;
+                        foreach (var figure in h.Figures.Values) if (figure.Spot == spot) { taken = true; break; }
+                        if (!taken) break;
+                    }
+                    if (spot == spots.Count) continue;
                     var human = Humans.Make(Humans.IsKind(s.Kind) ? s.Kind : "docker_a");
                     if (human == null) continue;
                     var at = spots[spot];
@@ -175,6 +216,7 @@ public sealed class Indoors
                     Main.I.View.AddChild(g);
                     var body = new StaticBody3D { CollisionLayer = Solid.Layer, CollisionMask = 0 };
                     body.AddChild(new CollisionShape3D { Shape = new CylinderShape3D { Radius = 0.3f, Height = 1.5f }, Position = new Vector3(0, 0.75f, 0) }); g.AddChild(body);
+                    total++;
                     human.Start();
                     double yaw = Math.Atan2(h.Door.X - at.X, h.Door.Z - at.Z);
                     g.Position = new Vector3((float)at.X, (float)town.Walk!.BaseAt(at.X, at.Z), (float)at.Z);
@@ -185,14 +227,21 @@ public sealed class Indoors
             if (h.Figures.Count == 0) continue;
             drawn += h.Figures.Count;
             if (d > AnimR) continue;
-            var list = h.Figures.Values.ToList();
+            var list = h.Figures.Values;
             foreach (var f in list)
             {
                 if ((f.Wait -= dt) <= 0)
                 {
                     // a word with the nearest other, or a look to the door
                     var p = f.Group.Position;
-                    var other = list.Where(o => o != f).OrderBy(o => o.Group.Position.DistanceSquaredTo(p)).FirstOrDefault();
+                    Figure? other = null;
+                    float distance = float.PositiveInfinity;
+                    foreach (var candidate in list)
+                    {
+                        if (candidate == f) continue;
+                        float gap = candidate.Group.Position.DistanceSquaredTo(p);
+                        if (gap < distance) { other = candidate; distance = gap; }
+                    }
                     bool talk = other != null && rng.NextDouble() < 0.5;
                     f.Want = other != null && rng.NextDouble() < 0.8 ? Math.Atan2(other.Group.Position.X - p.X, other.Group.Position.Z - p.Z) : Math.Atan2(h.Door.X - p.X, h.Door.Z - p.Z);
                     f.Human.Play(talk ? "talk" : f.Human.Woman || rng.NextDouble() < 0.5 ? "idle" : "fold", 0.4f);
@@ -214,7 +263,11 @@ public sealed class Indoors
 
     /// <summary>For a check: every figure drawn inside.</summary>
     public IEnumerable<Node3D> Groups => Houses.SelectMany(h => h.Figures.Values.Select(f => f.Group));
-    public Vector3? PositionOf(string id) => Houses.SelectMany(h => h.Figures).FirstOrDefault(p => p.Key == id).Value?.Group.GlobalPosition;
+    public Vector3? PositionOf(string id)
+    {
+        foreach (var h in Houses) if (h.Figures.TryGetValue(id, out var figure)) return figure.Group.GlobalPosition;
+        return null;
+    }
 
     public void Dispose()
     {

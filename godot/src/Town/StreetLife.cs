@@ -12,7 +12,10 @@ namespace Scheldemist.Town;
 // The server supplies the door plans; only their display and the browser's stable game choice live here.
 public partial class Townspeople
 {
-    private readonly Dictionary<string, JsonElement> doorLife = new();
+    private readonly record struct DoorRoutine(int Day, double From, double To, string Act, string Where, string Key);
+    private readonly Dictionary<string, DoorRoutine[]> doorLife = new();
+    private static readonly string[] GirlsGames = { "rope", "hopscotch", "tag", "rope", "hopscotch", "hoops" };
+    private static readonly string[] BoysGames = { "tag", "hoops", "tops", "marbles", "hoops", "tag" };
     private readonly Dictionary<string, Browse> browsing = new();
     private readonly Dictionary<string, (Puppet puppet, string key, Node3D prop)> lifeProps = new();
     private sealed class Browse
@@ -28,7 +31,12 @@ public partial class Townspeople
 
     private void ReadDoorLife(JsonElement plan)
     {
-        foreach (var p in plan.GetProperty("door").EnumerateObject()) doorLife[p.Name] = p.Value.Clone();
+        foreach (var p in plan.GetProperty("door").EnumerateObject())
+        {
+            var entries = new DoorRoutine[p.Value.GetArrayLength()]; int n = 0;
+            foreach (var seg in p.Value.EnumerateArray()) { string act = seg[3].GetString()!; entries[n++] = new DoorRoutine(seg[0].GetInt32(), seg[1].GetDouble(), seg[2].GetDouble(), act, seg[4].GetString()!, "|door:" + act); }
+            doorLife[p.Name] = entries;
+        }
     }
 
     // doorlife.ts h01 (different from the town's hash).
@@ -44,18 +52,21 @@ public partial class Townspeople
 
     public string GameOf(Sim s)
     {
-        string key = $"{s.Goal.Place}:{day}:{(int)Math.Floor(hour / 2)}";
-        string[] games = s.R.Sex == "f" ? new[] { "rope", "hopscotch", "tag", "rope", "hopscotch", "hoops" } : new[] { "tag", "hoops", "tops", "marbles", "hoops", "tag" };
-        return games[(int)(LifeHash(key + (s.R.Sex == "f" ? ":g" : "")) * games.Length)];
+        int slice = (int)Math.Floor(hour / 2);
+        if (s.GameDay == day && s.GameSlice == slice && s.GamePlace == (s.Goal.Place ?? "")) return s.GameKind;
+        s.GameDay = day; s.GameSlice = slice; s.GamePlace = s.Goal.Place ?? "";
+        string key = $"{s.Goal.Place}:{day}:{slice}";
+        var games = s.R.Sex == "f" ? GirlsGames : BoysGames;
+        return s.GameKind = games[(int)(LifeHash(key + (s.R.Sex == "f" ? ":g" : "")) * games.Length)];
     }
 
     private string? DoorLifeOf(Sim s, Now now)
     {
         if (!doorLife.TryGetValue(s.R.Id, out var plan)) return null;
-        foreach (var seg in plan.EnumerateArray())
+        foreach (var seg in plan)
         {
-            if (seg[0].GetInt32() != (day - 1) % 7 + 1 || hour < seg[1].GetDouble() || hour >= seg[2].GetDouble()) continue;
-            string act = seg[3].GetString()!, where = seg[4].GetString()!;
+            if (seg.Day != (day - 1) % 7 + 1 || hour < seg.From || hour >= seg.To) continue;
+            string act = seg.Act, where = seg.Where;
             if (where == "home" ? now.Act != "home" : now.Act != "work") continue;
             if (Raining() && act is "scrub" or "lace" or "knit") return null;
             // The upper-floor window needs its own room opening; leave its resident inside until that is ported.
@@ -64,7 +75,12 @@ public partial class Townspeople
         return null;
     }
 
-    private string LifeKey(Sim s, Now now) => DoorLifeOf(s, now) is { } act ? "|door:" + act : "";
+    private string LifeKey(Sim s, Now now)
+    {
+        var act = DoorLifeOf(s, now);
+        if (act != null && doorLife.TryGetValue(s.R.Id, out var plan)) foreach (var seg in plan) if (seg.Act == act) return seg.Key;
+        return "";
+    }
     private (double x, double z)? LifeFree(double x, double z)
     {
         // Goals are chosen across the whole town, even when the viewer's local grid is elsewhere.
@@ -141,6 +157,8 @@ public partial class Townspeople
             Motion = kind == "pump" ? "wash" : kind == "step" ? "smoke" : kind == "corner" ? "pockets" : kind == "cards" ? "crouch" : "talk" };
     }
 
+    internal bool GamePropDrawn(Sim s) => lifeProps.TryGetValue(s.R.Id, out var prop) && prop.puppet == s.P && prop.key == s.PropKey && GodotObject.IsInstanceValid(prop.prop);
+    private static readonly ModelLibrary.Look LifeLook = new(TwoSided: true, Affine: 0, VertexColor: true);
     private void LifeProp(Sim s, string key, string model, string name, Vector3 offset)
     {
         if (lifeProps.TryGetValue(s.R.Id, out var old))
@@ -149,7 +167,7 @@ public partial class Townspeople
             if (GodotObject.IsInstanceValid(old.prop)) old.prop.QueueFree();
             lifeProps.Remove(s.R.Id);
         }
-        var prop = ModelLibrary.Get(model, new ModelLibrary.Look(TwoSided: true, Affine: 0, VertexColor: true))?.Copy(name);
+        var prop = ModelLibrary.Get(model, LifeLook)?.Copy(name);
         if (prop == null) return;
         prop.Position = offset;
         s.P!.Group.AddChild(prop);
@@ -160,7 +178,9 @@ public partial class Townspeople
     {
         var p = s.P!;
         var g = s.Goal;
-        if (lifeProps.TryGetValue(s.R.Id, out var old) && (old.puppet != p || old.key != s.Key + (g.Mode == "play" ? GameOf(s) : "")))
+        string gameKey = g.Mode == "play" ? GameOf(s) : "";
+        if (s.PropBase != s.Key || s.PropGame != gameKey) { s.PropBase = s.Key; s.PropGame = gameKey; s.PropKey = s.Key + gameKey; }
+        if (lifeProps.TryGetValue(s.R.Id, out var old) && (old.puppet != p || old.key != s.PropKey))
         {
             if (GodotObject.IsInstanceValid(old.prop)) old.prop.QueueFree();
             lifeProps.Remove(s.R.Id);
@@ -172,7 +192,7 @@ public partial class Townspeople
             string game = GameOf(s);
             if (game == "tag") return false;
             if (Crowd!.PuppetBusy(p)) return true;
-            if (game is "hoops" or "tops") LifeProp(s, s.Key + game, "lively", game == "hoops" ? "hoop" : "top", new Vector3(0, 0, 0.5f));
+            if (game is "hoops" or "tops") LifeProp(s, s.PropKey, "lively", game == "hoops" ? "hoop" : "top", new Vector3(0, 0, 0.5f));
             if ((s.Wait -= dt) <= 0)
             {
                 Crowd.PuppetStand(p, game == "rope" ? "rope" : game == "hopscotch" ? "hop" : game == "marbles" ? "crouch" : "idle", g.Yaw);
@@ -190,10 +210,16 @@ public partial class Townspeople
         return false;
     }
 
+    private readonly List<TownStall> browseTargets = new(32);
+    private readonly Dictionary<string, string> marketPlaces = new();
     private bool BrowseStep(Sim s, double dt)
     {
-        string place = (s.Goal.Place ?? "").Replace("market:", "");
-        var targets = Data!.Stalls.Where(t => t.Place == place && t.Keeper != null && byId.TryGetValue(t.Keeper, out var keeper) && PlanNow(keeper).Act == "work").ToList();
+        string id = s.Goal.Place ?? "";
+        if (!marketPlaces.TryGetValue(id, out string? place)) marketPlaces[id] = place = id.Replace("market:", "");
+        var targets = browseTargets;
+        targets.Clear();
+        foreach (var stall in Data!.Stalls)
+            if (stall.Place == place && stall.Keeper != null && byId.TryGetValue(stall.Keeper, out var keeper) && PlanNow(keeper).Act == "work") targets.Add(stall);
         if (targets.Count == 0) return false;
         if (!browsing.TryGetValue(s.R.Id, out var b)) browsing[s.R.Id] = b = new Browse();
         b.Time -= dt;

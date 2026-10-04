@@ -33,6 +33,9 @@ public partial class PeopleTest : Node
     private ulong last;
     private readonly List<double> times = new();
     private readonly List<double> logic = new();
+    private readonly List<double> allocations = new(256), animalAllocations = new(256), wildlifeAllocations = new(256);
+    private readonly List<double> allAllocations = new(640);
+    private readonly long[] allocationParts = new long[5];
     private Puppet? model;
     private JsonElement placeFacts;
     private double waited;
@@ -65,6 +68,10 @@ public partial class PeopleTest : Node
     private int shotAt;
     private readonly Dictionary<Puppet, (double x, double z, bool walk)> before = new();
     private readonly List<Puppet> timingPeople = new();
+    private readonly Dictionary<Puppet, (double x, double z)> waitingWalkers = new();
+    private readonly string[] childGames = { "rope", "tops", "hoops", "tag", "marbles", "hopscotch" };
+    private int childGame;
+    private Townspeople.Sim? playingChild;
 
     public override void _Ready()
     {
@@ -148,9 +155,11 @@ public partial class PeopleTest : Node
     private static Dictionary<string, object> Stats(List<double> v)
     {
         var s = v.OrderBy(x => x).ToList();
-        return new Dictionary<string, object> { ["mean"] = Math.Round(s.Average(), 3), ["p95"] = Math.Round(s[(int)(s.Count * 0.95)], 3), ["max"] = Math.Round(s[^1], 3) };
+        return new Dictionary<string, object> { ["min"] = s[0], ["median"] = s[s.Count / 2], ["zeroSamples"] = s.Count(n => n == 0), ["mean"] = Math.Round(s.Average(), 3), ["p95"] = Math.Round(s[(int)(s.Count * 0.95)], 3), ["max"] = Math.Round(s[^1], 3) };
     }
 
+    private readonly int[] collectionsAt = new int[3];
+    private float pictureHour = -1;
     public override void _Process(double delta)
     {
         t += delta;
@@ -162,8 +171,11 @@ public partial class PeopleTest : Node
         // the test holds the clock: the sky follows it (clear weather: the pictures are to be seen)
         if (Scheldemist.World.Daylight.I is { } sky)
         {
-            sky.SetTime((float)town.Hour);
+            float wantedHour = (float)(town.Hour >= 19.5 || town.Hour < 5 ? town.Hour : 12);
+            bool changed = Math.Abs(wantedHour - pictureHour) > 0.1f || sky.Weather != "clear";
+            sky.SetTime(wantedHour);
             if (sky.Weather != "clear") sky.SetWeather("clear");
+            if (changed) { pictureHour = wantedHour; sky.SetRain(0); sky.SetThickFog(false); sky.Settle(); }
         }
         switch (phase)
         {
@@ -195,10 +207,11 @@ public partial class PeopleTest : Node
                 if (File.Exists(Path.Combine(dir, "where_expected.json"))) Next("where");
                 else if (t > 60) Fail("the server reference file did not arrive");
                 break;
+            case "crowds":
             case "warm":
                 if (!Go() && rows.Count > 0)
                 {
-                    Next(Scheldemist.Player.Jef.I != null ? "jef" : "done");
+                    Next(Main.I.Arg("peoplechecks") == "crowds" ? "done" : Scheldemist.Player.Jef.I != null ? "jef" : "done");
                     break;
                 }
                 if (place >= wanted.Count)
@@ -234,16 +247,33 @@ public partial class PeopleTest : Node
                     foreach (var p in crowd!.Walking) before[p] = (p.X, p.Z, p.State == "walk");
                 if (t < 7) break;
                 // walkers who did not get anywhere in four seconds, and bodies where no body fits
-                row["walkersNotMoving"] = crowd!.Walking.Count(p => p.State == "walk" && before.TryGetValue(p, out var b) && b.walk && Whereabouts.Hypot(p.X - b.x, p.Z - b.z) < 0.5);
+                waitingWalkers.Clear();
+                foreach (var p in crowd!.Walking.Where(p => p.State == "walk" && before.TryGetValue(p, out var b) && b.walk && Whereabouts.Hypot(p.X - b.x, p.Z - b.z) < 0.5)) waitingWalkers[p] = (p.X, p.Z);
+                row["walkersWaitingAtFirstCheck"] = waitingWalkers.Count;
+                row["walkersNotMoving"] = 0;
                 row["standingWhereNoBodyFits"] = crowd.Walking.Count(p => !town.Walk!.Free(p.X, p.Z));
                 before.Clear();
                 Shot($"people_{wanted[place].Replace(' ', '_')}_wide.png");
+                Next(waitingWalkers.Count > 0 ? "recover" : "timingstart");
+                break;
+            case "recover":
+                // A person may wait for someone crossing or go round a prop. Fail only if they still cannot
+                // proceed after the normal detour and replan window; arrival or leaving the view also counts.
+                if (t < 12) break;
+                var blockedWalkers = waitingWalkers.Where(pair => crowd!.Walking.Contains(pair.Key) && crowd.PuppetBusy(pair.Key) && Whereabouts.Hypot(pair.Key.X - pair.Value.x, pair.Key.Z - pair.Value.z) < 0.5).Select(pair => pair.Key).ToList();
+                row["walkersNotMoving"] = blockedWalkers.Count;
+                row["blockedWalkers"] = blockedWalkers.Select(p => new { kind = p.Kind, p.X, p.Z, p.State, goal = town.Sims.FirstOrDefault(s => s.P == p)?.Goal.Mode, waypoint = p.Pi, path = p.Path.Count, p.StuckT, p.Replans }).ToArray();
+                Next("timingstart");
+                break;
+            case "timingstart":
+                if (town.PlanWaysWaiting > 0 && t < 60) break;
+                if (t < 3) break;
                 times.Clear();
                 logic.Clear();
                 Next("time");
                 break;
             case "time":
-                if (frames == 1)
+                if (crowd!.Walking.Count < 50)
                 {
                     // Time exactly 50 bodies, even when the chosen hour puts fewer residents near this view.
                     var eye = Main.I.Cam.GlobalPosition;
@@ -257,12 +287,21 @@ public partial class PeopleTest : Node
                     }
                     town.MaxPuppets = 50 - timingPeople.Count;
                 }
+                if (frames == 5) for (int i = 0; i < 3; i++) collectionsAt[i] = GC.CollectionCount(i);
                 if (frames > 5)
                 {
                     times.Add(ms);
                     logic.Add(town.LogicMs);
+                    allocations.Add(town.AllocatedBytesLastFrame);
+                    for (int i = 0; i < 5; i++) allocationParts[i] += town.AllocationParts[i];
+                    animalAllocations.Add(Scheldemist.People.Animals.I?.AllocatedBytesLastFrame ?? 0);
+                    wildlifeAllocations.Add(ParkWildlife.I?.AllocatedBytesLastFrame ?? 0);
+                    allAllocations.Add(town.AllocatedBytesLastFrame + (Scheldemist.People.Animals.I?.AllocatedBytesLastFrame ?? 0)
+                        + (ParkWildlife.I?.AllocatedBytesLastFrame ?? 0) + (PostedPeople.I?.AllocatedBytesLastFrame ?? 0)
+                        + (HallPeople.I?.AllocatedBytesLastFrame ?? 0) + (HomeVisitors.I?.AllocatedBytesLastFrame ?? 0)
+                        + (MarketStalls.I?.AllocatedBytesLastFrame ?? 0) + (FamilyPeople.I?.AllocatedBytesLastFrame ?? 0));
                 }
-                if (frames < 245) break;
+                if (frames < 605) break;
                 row["residents"] = town.Data!.Residents.Count;
                 row["simulated"] = town.Sims.Count;
                 row["employersAtPosts"] = town.EmployerResidents.Count;
@@ -276,6 +315,15 @@ public partial class PeopleTest : Node
                 row["feetOffTheGroundMaxM"] = Math.Round(crowd.Walking.Max(p => Math.Abs(p.Group.Position.Y - town.Walk!.BaseAt(p.X, p.Z))), 3);
                 row["frame"] = Stats(times);
                 row["logicMs"] = Stats(logic);
+                row["allocationSamples"] = allocations.Count;
+                row["collectionsDuringSample"] = Enumerable.Range(0, 3).Select(i => GC.CollectionCount(i) - collectionsAt[i]).ToArray();
+                row["townAllocationPartsMean"] = allocationParts.Select(n => (double)n / allocations.Count).ToArray();
+                Array.Clear(allocationParts);
+                row["allPeopleBytesPerFrame"] = Stats(allAllocations); allAllocations.Clear();
+                row["townBytesPerFrame"] = Stats(allocations);
+                row["animalBytesPerFrame"] = Stats(animalAllocations);
+                row["wildlifeBytesPerFrame"] = Stats(wildlifeAllocations);
+                allocations.Clear(); animalAllocations.Clear(); wildlifeAllocations.Clear();
                 row["drawCalls"] = RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalDrawCallsInFrame);
                 // the same view without them
                 town.Paused = true;
@@ -289,7 +337,7 @@ public partial class PeopleTest : Node
                 break;
             case "bare":
                 if (frames > 5) times.Add(ms);
-                if (frames < 245) break;
+                if (frames < 605) break;
                 row["frameWithoutPeople"] = Stats(times);
                 row["drawCallsWithoutPeople"] = RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalDrawCallsInFrame);
                 row["peopleAndAnimalsCostMs"] = Math.Round((double)((Dictionary<string, object>)row["frame"])["mean"] - (double)((Dictionary<string, object>)row["frameWithoutPeople"])["mean"], 3);
@@ -668,7 +716,7 @@ public partial class PeopleTest : Node
                 layersRow["childrenGames"] = town.Sims.Where(s => s.Goal.Mode == "play").GroupBy(town.GameOf).ToDictionary(g => g.Key, g => g.Count());
                 layersRow["streetRounds"] = town.Sims.Count(s => s.R.Work.Kind == "round" && s.Goal.Mode == "patrol");
                 var door = town.Sims.FirstOrDefault(s => s.Key.Contains("|door:") && s.Goal.Motion == "lace");
-                if (door == null) { Next("marketstalls"); break; }
+                if (door == null) { Next("games"); break; }
                 Main.I.Cam.LookAtFromPosition(new Vector3((float)door.Goal.X + 4, 1.6f, (float)door.Goal.Z + 3), new Vector3((float)door.Goal.X, 1, (float)door.Goal.Z), Vector3.Up);
                 town.Refill();
                 // A close exhibit of the server's actual door routine; the whole town still runs normally.
@@ -690,7 +738,26 @@ public partial class PeopleTest : Node
                 Shot("people_door_lace.png");
                 foreach (var e in exhibits) crowd!.RemovePuppet(e.p);
                 exhibits.Clear();
-                Next("marketstalls");
+                Next("games");
+                break;
+
+            case "games":
+                town.SetClock(1, 14.5);
+                if (childGame >= childGames.Length) { layersRow["gamePictures"] = childGame; Next(Main.I.Arg("peoplechecks") == "games" ? "homevisit" : "marketstalls"); break; }
+                if (t < 1) break;
+                if (playingChild == null)
+                {
+                    playingChild = town.Sims.Where(s => s.Goal.Mode == "play" && s.R.Age < 16 && (s.Kind == "boy" || s.Kind == "girl") && town.GameOf(s) == childGames[childGame]).OrderBy(s => Math.Abs(s.X - s.Goal.X) + Math.Abs(s.Z - s.Goal.Z)).FirstOrDefault();
+                    if (playingChild == null) { Fail("no child playing " + childGames[childGame]); break; }
+                    Main.I.Cam.Position = new Vector3((float)playingChild.Goal.X + 3, (float)town.Walk!.BaseAt(playingChild.Goal.X, playingChild.Goal.Z) + 1.6f, (float)playingChild.Goal.Z + 3);
+                    town.Refill();
+                }
+                if (playingChild.P == null) { if (t > 8) Fail("the " + childGames[childGame] + " player did not draw"); break; }
+                model = playingChild.P; Close(2.6, 0.5);
+                if (CrowdBusyGame(playingChild)) { if (t > 45) Fail("the " + childGames[childGame] + " player did not begin the game"); break; }
+                if (t < 5) break;
+                Shot("people_game_" + childGames[childGame] + ".png");
+                playingChild = null; childGame++; Next("games");
                 break;
 
             case "marketstalls":
@@ -925,7 +992,14 @@ public partial class PeopleTest : Node
                 if (HomeVisitors.I is not { } homes) { Fail("the home visitor part is missing"); break; }
                 var home = homes.Homes.First(h => h.Value.Count > 0);
                 Main.I.Cam.Position = home.Value[0] + new Vector3(0, 1.6f, 0);
+                var homeJef = Jef.I!;
+                if (homeJef.Fly) homeJef.ToggleFly();
+                homeJef.TestInput = true; homeJef.ClearKeys();
+                var jefSpot = home.Value.First(p => homeJef.StandFree(p.X, p.Z, p.Y));
+                homeJef.Place(jefSpot.X, jefSpot.Z, 0, 0, jefSpot.Y);
                 bool made = homes.Visit(home.Key, town.Data!.Residents.First(r => r.Kind == "old_woman"));
+                if (made) { var visitor = homes.Groups.First().Position; roomsRow["homeVisitorGapToJefM"] = Math.Round(Whereabouts.Hypot(visitor.X - homeJef.X, visitor.Z - homeJef.Z), 3); }
+                homeJef.ToggleFly();
                 roomsRow["homeVisitorMade"] = made;
                 roomsRow["home"] = home.Key;
                 if (!made) { Fail("no reachable home visitor spot"); break; }
@@ -940,21 +1014,30 @@ public partial class PeopleTest : Node
             case "homevisitend":
                 if (t < 14) break;
                 roomsRow["homeVisitorLeft"] = HomeVisitors.I!.Drawn == 0;
-                Next(Main.I.Arg("peoplechecks") is "halls" or "homevisit" ? "done" : "animals"); break;
+                Next(Main.I.Arg("peoplechecks") is "halls" or "homevisit" or "games" ? "done" : "animals"); break;
         }
     }
 
     /// <summary>The camera at eye height, `dist` metres from the model, `turn` round from his front (or near that, on open ground), looking at his chest.</summary>
+    private bool CrowdBusyGame(Townspeople.Sim s) => childGames[childGame] == "tag" ? false
+        : childGames[childGame] == "hoops" ? !town.GamePropDrawn(s)
+        : town.Crowd!.PuppetBusy(s.P!) || s.P!.Human.Motion is "walk" or "carry" || (childGames[childGame] == "tops" && !town.GamePropDrawn(s));
+
     private void Close(double dist, double turn)
     {
         var p = model!;
         double y = town.Walk!.BaseAt(p.X, p.Z);
-        foreach (double off in new[] { 0, 0.35, -0.35, 0.7, -0.7 })
+        foreach (double off in new[] { 0, 0.35, -0.35, 0.7, -0.7, 1.05, -1.05, 1.4, -1.4, 1.75, -1.75, 2.1, -2.1, 2.45, -2.45, Math.PI })
         {
             double a = p.Yaw + turn + off;
             double x = p.X + Math.Sin(a) * dist, z = p.Z + Math.Cos(a) * dist;
-            if ((!town.Walk.Free(x, z) || !town.Walk.Open(x, z)) && exhibits.Count == 0) continue;
-            Main.I.Cam.LookAtFromPosition(new Vector3((float)x, (float)(y + 1.35), (float)z), new Vector3((float)p.X, (float)(y + 0.95 * p.Size), (float)p.Z), Vector3.Up);
+            if (!town.Walk.Free(x, z) || !town.Walk.Open(x, z)) continue;
+            var eye = new Vector3((float)x, (float)(y + 1.35), (float)z);
+            var target = new Vector3((float)p.X, (float)(y + 0.95 * p.Size), (float)p.Z);
+            // Picture phases only: reject an angle whose view crosses a wall or cart.
+            using var ray = PhysicsRayQueryParameters3D.Create(eye, target, Scheldemist.World.Solid.Layer);
+            if (Main.I.View.FindWorld3D().DirectSpaceState.IntersectRay(ray).Count > 0) continue;
+            Main.I.Cam.LookAtFromPosition(eye, target, Vector3.Up);
             return;
         }
         double fa = p.Yaw + turn;
@@ -1011,6 +1094,7 @@ public partial class PeopleTest : Node
         if (stallsRow.TryGetValue("openDay", out var openDay) && ((int)openDay <= 0 || Convert.ToInt32(stallsRow["openNight"]) >= (int)openDay)) return false;
         if (familiesRow.TryGetValue("visitorsPatchedFromServer", out var visitors) && (Convert.ToInt32(visitors) == 0 || !(bool)familiesRow["fortuneTable"])) return false;
         if (roomsRow.TryGetValue("homeVisitorMade", out var made) && (!(bool)made || !(bool)roomsRow["homeVisitorLeft"])) return false;
+        if (roomsRow.TryGetValue("homeVisitorGapToJefM", out var homeGap) && Convert.ToDouble(homeGap) < 0.9) return false;
         return true;
     }
 }

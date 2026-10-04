@@ -17,6 +17,7 @@ public sealed class NavGrid
     private readonly int[] from, stamp, closed, heap;
     private int search;
     private WalkMap? map;
+    private readonly List<(double x, double z)> pathCells = new(512);
 
     public NavGrid(int half)
     {
@@ -107,8 +108,9 @@ public sealed class NavGrid
     /// A* over the open cells, straightened into a few waypoints. Null if there is no way. The way ends on the target
     /// itself, or where the target is off the grid and `standAt` says no body stands there, on the open cell nearest.
     /// </summary>
-    public List<(double x, double z)>? Path(double sx, double sz, double tx, double tz, int maxExpand = 9000, Func<double, double, bool>? standAt = null)
+    public List<(double x, double z)>? Path(double sx, double sz, double tx, double tz, int maxExpand = 9000, Func<double, double, bool>? standAt = null, List<(double x, double z)>? output = null)
     {
+        output?.Clear();
         var s0 = NearestOpen(sx, sz, 2);
         var t0 = NearestOpen(tx, tz, 2);
         if (s0 == null || t0 == null) return null;
@@ -188,12 +190,13 @@ public sealed class NavGrid
                 }
         }
         if (!found) return null;
-        var cells = new List<(double x, double z)>();
+        var cells = pathCells;
+        cells.Clear();
         for (int c = t; c != -1; c = from[c]) cells.Add((X0 + c % n + 0.5, Z0 + c / n + 0.5));
         cells.Reverse();
         if (IsOpen(tx, tz) || standAt == null || standAt(tx, tz)) cells[^1] = (tx, tz);
         // string pulling: keep only the corners
-        var o = new List<(double x, double z)>();
+        var o = output ?? new List<(double x, double z)>();
         var anchor = (x: sx, z: sz);
         for (int i = 1; i < cells.Count; i++)
         {
@@ -285,7 +288,9 @@ public sealed class Crowd
     private double viewX, viewZ;
     /// <summary>The player's body on the ground, when there is one (a walker stops for it and goes round).</summary>
     private (double x, double z)? body;
-    private Godot.Collections.Array<Plane>? frustum;
+    private readonly Plane[] frustum = new Plane[6];
+    private bool hasFrustum;
+    private readonly Func<double, double, bool> standFree, noPerson;
 
     /// <summary>How far the fog lets one see (the browser's scene.fog.far).</summary>
     public double FogDistance = 40;
@@ -297,6 +302,8 @@ public sealed class Crowd
     {
         this.parent = parent;
         this.map = map;
+        standFree = map.Free;
+        noPerson = NoPersonAt;
         grid = new NavGrid(radius + 12);
     }
 
@@ -318,7 +325,13 @@ public sealed class Crowd
             grid.Build(map, vx, vz);
             gridAge = 0;
         }
-        frustum = camera?.GetFrustum();
+        hasFrustum = camera != null;
+        if (camera != null)
+        {
+            var projection = camera.GetCameraProjection();
+            var transform = camera.GetCameraTransform();
+            for (int i = 0; i < 6; i++) frustum[i] = transform * projection.GetProjectionPlane((Projection.Planes)i);
+        }
         pathBudget = 3;
         foreach (var p in people) Think(p, dt);
         KeepApart(dt);
@@ -334,9 +347,10 @@ public sealed class Crowd
             if (inView)
             {
                 drawn++;
-                // near ones every frame, far ones at 15 fps, the farthest at 8
+                // Body motion stays at the frame rate. Bones need no hundreds of updates a second:
+                // close figures at 120 Hz, the nearby crowd at 60, far ones at 15 and the farthest at 8.
                 p.AnimAcc += dt;
-                if (d < AnimNear || p.AnimAcc >= (d < AnimFar ? 1.0 / 15 : 1.0 / 8))
+                if (p.AnimAcc >= (d < 8 ? 1.0 / 120 : d < AnimNear ? 1.0 / 60 : d < AnimFar ? 1.0 / 15 : 1.0 / 8))
                 {
                     p.Human.Update((float)p.AnimAcc);
                     p.AnimAcc = 0;
@@ -601,6 +615,7 @@ public sealed class Crowd
     public (double x, double z)? OpenNear(double x, double z) => grid.Built ? grid.NearestOpen(x, z, 4) : null;
 
     /// <summary>Does someone stand or walk within a body's gap of (x, z)?</summary>
+    private bool NoPersonAt(double x, double z) => !SomeoneAt(x, z);
     public bool SomeoneAt(double x, double z)
     {
         foreach (var q in people)
@@ -609,14 +624,14 @@ public sealed class Crowd
     }
 
     /// <summary>The nearest open grid point where nobody is yet, or null.</summary>
-    public (double x, double z)? OpenNearFree(double x, double z) => grid.Built ? grid.NearestOpen(x, z, 4, (a, b) => !SomeoneAt(a, b)) : null;
+    public (double x, double z)? OpenNearFree(double x, double z) => grid.Built ? grid.NearestOpen(x, z, 4, noPerson) : null;
 
     /// <summary>The walk on the grid round the viewer from a to b (corner points), or null.</summary>
-    public List<(double x, double z)>? PathOn(double ax, double az, double bx, double bz)
+    public List<(double x, double z)>? PathOn(double ax, double az, double bx, double bz, List<(double x, double z)>? output = null)
     {
         if (!grid.Built || !grid.Inside(bx, bz, 2)) return null;
         var a = grid.NearestOpen(ax, az, 6);
-        return a != null ? grid.Path(a.Value.x, a.Value.z, bx, bz, 6000) : null;
+        return a != null ? grid.Path(a.Value.x, a.Value.z, bx, bz, 6000, null, output) : null;
     }
 
     /// <summary>The overlap check (the browser's `__scheldemist.overlaps()`): pairs whose middles are nearer than `min` m.</summary>
@@ -631,7 +646,7 @@ public sealed class Crowd
 
     private bool InFrustum(double x, double z, double r, double ground)
     {
-        if (frustum == null) return true;
+        if (!hasFrustum) return true;
         var c = new Vector3((float)x, (float)(ground + 0.9), (float)z);
         foreach (var pl in frustum)
             if (pl.DistanceTo(c) > r) return false;
@@ -975,22 +990,19 @@ public sealed class Crowd
         // the last leg may leave the grid (it keeps half a metre off the walls) for a spot the colliders allow:
         // a doorstep, a corner, a bench by a wall
         bool lastLeg = p.Pi == p.Path.Count - 1;
-        bool TryMove(double x, double z) => StepFree(p, x, z) && (lastLeg || grid.IsOpen(x, z) || !grid.IsOpen(p.X, p.Z))
-            // a cart before the man: its front must fit too
-            && (p.Nose == 0 || map.Free(x + ux * p.Nose, z + uz * p.Nose));
-        if (TryMove(p.X + mx * step, p.Z + mz * step))
+        if (TryMove(p, p.X + mx * step, p.Z + mz * step, lastLeg, ux, uz))
         {
             p.X += mx * step;
             p.Z += mz * step;
         }
-        else if (TryMove(p.X + ux * step, p.Z + uz * step))
+        else if (TryMove(p, p.X + ux * step, p.Z + uz * step, lastLeg, ux, uz))
         {
             p.X += ux * step;
             p.Z += uz * step;
             mx = ux;
             mz = uz;
         }
-        else if (Slide(p, ux, uz, step, TryMove) is { } slid)
+        else if (Slide(p, ux, uz, step, lastLeg) is { } slid)
         {
             // a wall's corner the grid rounds too tightly: along the wall instead of giving up the way
             mx = slid.x;
@@ -1024,13 +1036,17 @@ public sealed class Crowd
     }
 
     /// <summary>Blocked straight on: a step turned up to 70 degrees either way, if one is free (the way it went).</summary>
-    private static (double x, double z)? Slide(Puppet p, double ux, double uz, double step, Func<double, double, bool> tryMove)
+    private static readonly double[] SlideAngles = { 0.6, -0.6, 1.2, -1.2 };
+    private bool TryMove(Puppet p, double x, double z, bool lastLeg, double ux, double uz) => StepFree(p, x, z)
+        && (lastLeg || grid.IsOpen(x, z) || !grid.IsOpen(p.X, p.Z))
+        && (p.Nose == 0 || map.Free(x + ux * p.Nose, z + uz * p.Nose));
+    private (double x, double z)? Slide(Puppet p, double ux, double uz, double step, bool lastLeg)
     {
-        foreach (double a in new[] { 0.6, -0.6, 1.2, -1.2 })
+        foreach (double a in SlideAngles)
         {
             double c = Math.Cos(a), sn = Math.Sin(a);
             double x = ux * c - uz * sn, z = ux * sn + uz * c;
-            if (tryMove(p.X + x * step, p.Z + z * step))
+            if (TryMove(p, p.X + x * step, p.Z + z * step, lastLeg, ux, uz))
             {
                 p.X += x * step;
                 p.Z += z * step;
@@ -1048,7 +1064,7 @@ public sealed class Crowd
         double fx0 = t.x - p.X, fz0 = t.z - p.Z, fl = Hyp(fx0, fz0);
         if (fl == 0) fl = 1;
         double fx = fx0 / fl, fz = fz0 / fl;
-        foreach (int s in new[] { 1, -1 })
+        for (int s = 1; s >= -1; s -= 2)
         {
             double rx = -fz * s, rz = fx * s;
             var a = (x: p.X + rx * 1.2, z: p.Z + rz * 1.2);
@@ -1112,7 +1128,7 @@ public sealed class Crowd
             return;
         }
         pathBudget--;
-        var path = grid.Path(p.X, p.Z, dest.x, dest.z, 9000, map.Free);
+        var path = grid.Path(p.X, p.Z, dest.x, dest.z, 9000, standFree, p.Path);
         if (path is { Count: > 0 })
         {
             p.Path = path;

@@ -23,6 +23,7 @@ public partial class FamilyPeople : Node
     private Api? api;
     private Townspeople? town;
     private JsonElement visit;
+    private string visitNpc = "";
     private double visitLeft, retry;
     private bool busy;
     public override void _Ready() { I = this; town = GetParent().GetNodeOrNull<Townspeople>("Townspeople"); }
@@ -31,7 +32,7 @@ public partial class FamilyPeople : Node
         if (state.TryGetProperty("visitors", out var visitors)) foreach (var visitor in visitors.EnumerateArray()) Patch(visitor);
         if (state.TryGetProperty("visitor", out var one)) Patch(one);
         if (state.TryGetProperty("fortune", out var fortune) && fortune.ValueKind == JsonValueKind.Object && fortune.TryGetProperty("at", out var at) && at.ValueKind == JsonValueKind.Array && Table == null) MakeTable(at);
-        if (state.TryGetProperty("visit", out var incoming) && incoming.ValueKind == JsonValueKind.Object) { visit = incoming.Clone(); visitLeft = 180; }
+        if (state.TryGetProperty("visit", out var incoming) && incoming.ValueKind == JsonValueKind.Object) { visit = incoming.Clone(); visitNpc = incoming.GetProperty("npc").GetString()!; visitLeft = 180; }
         ActionReceived?.Invoke(state.Clone());
     }
     private void Patch(JsonElement visitor)
@@ -70,7 +71,14 @@ public partial class FamilyPeople : Node
         foreach (var p in crowd.Walking.Where(p => !town.Walk.Free(p.X, p.Z)).ToList())
             if (crowd.OpenNearFree(p.X, p.Z) is { } safe) { p.X = safe.x; p.Z = safe.z; }
     }
+    public long AllocatedBytesLastFrame { get; private set; }
     public override void _Process(double delta)
+    {
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        ProcessFrame(delta);
+        AllocatedBytesLastFrame = GC.GetAllocatedBytesForCurrentThread() - before;
+    }
+    private void ProcessFrame(double delta)
     {
         if (town?.Data == null || town.Paused) return;
         if (api == null && ServerLink.I?.Api is { } link) { api = link; api.OtherPushed += Push; }
@@ -80,7 +88,7 @@ public partial class FamilyPeople : Node
             api.Run(api.Get<JsonElement>("api/families/state"), state => { busy = false; Loaded = true; Apply(state); }, _ => { busy = false; retry = 5; });
         }
         if (visit.ValueKind != JsonValueKind.Object || (visitLeft -= delta) <= 0 || Scheldemist.Player.Jef.I is not { } jef || Scheldemist.Talks.Talk.I is not { IsOpen: false } talk || Scheldemist.Windows.Dialogs.I?.Any == true) return;
-        var at = town.PositionOf(visit.GetProperty("npc").GetString()!);
+        var at = town.PositionOf(visitNpc);
         if (at != null && Whereabouts.Hypot(at.Value.x - jef.X, at.Value.z - jef.Z) > 8) return;
         talk.Open(visit.GetProperty("npc").GetString()!, visit.GetProperty("name").GetString()!, visit.GetProperty("title").GetString()); visit = default;
     }

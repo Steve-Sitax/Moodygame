@@ -168,6 +168,7 @@ public sealed class Human
             string? clip = own != null && own.TryGetValue(m, out var o) && lengths.ContainsKey(o) ? o : woman && lengths.ContainsKey(m + "_f") ? m + "_f" : lengths.ContainsKey(m) ? m : null;
             if (clip == null) continue;
             actions[m] = clip;
+            if (!animationNames.ContainsKey(clip)) animationNames[clip] = new StringName(clip);
             stride[m] = Humans.Stride.GetValueOrDefault(clip, 1.2f) * scale;
         }
     }
@@ -182,6 +183,7 @@ public sealed class Human
         if (current != null) mixer.Seek(Humans.Rng.NextDouble() * lengths[current], true);
     }
 
+    private readonly Dictionary<string, StringName> animationNames = new();
     public void Play(string m, float fade = 0.3f)
     {
         if (Motion == m) return;
@@ -189,7 +191,7 @@ public sealed class Human
         Motion = m;
         if (next == current) return;
         mixer.SpeedScale = SpeedOf(m);
-        mixer.Play(next, current != null ? fade : 0);
+        mixer.Play(animationNames[next], current != null ? fade : 0);
         current = next;
     }
 

@@ -70,7 +70,7 @@ public partial class PostedPeople : Node
         I = this;
     }
 
-    public Posted? Get(string id) => list.FirstOrDefault(n => n.Id == id);
+    public Posted? Get(string id) { foreach (var person in list) if (person.Id == id) return person; return null; }
 
     private static bool InSpan(double h, (double from, double to) s)
     {
@@ -201,11 +201,16 @@ public partial class PostedPeople : Node
     }
 
     /// <summary>Who is at the post now, where, and who shows a light (town.ts postEmployers).</summary>
+    private Func<double, double, bool>? walkFree;
+    private readonly HashSet<string> offered = new(), accepted = new();
     private void Posts(int day, double hour)
     {
         bool dark = IsNight(hour);
-        var open = OpenWork ?? new HashSet<string>(GameState.I.Jobs.Where(j => j.Status == "offered").Select(j => j.EmployerNpc));
-        var taken = TakenWork ?? new HashSet<string>(GameState.I.Jobs.Where(j => j.Status == "taken").Select(j => j.EmployerNpc));
+        offered.Clear(); accepted.Clear();
+        foreach (var job in GameState.I.Jobs)
+        { if (job.Status == "offered") offered.Add(job.EmployerNpc); else if (job.Status == "taken") accepted.Add(job.EmployerNpc); }
+        var open = OpenWork ?? offered;
+        var taken = TakenWork ?? accepted;
         foreach (var n in list)
         {
             if (n.Resident == null)
@@ -266,7 +271,14 @@ public partial class PostedPeople : Node
         }
     }
 
+    public long AllocatedBytesLastFrame { get; private set; }
     public override void _Process(double delta)
+    {
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        ProcessFrame(delta);
+        AllocatedBytesLastFrame = GC.GetAllocatedBytesForCurrentThread() - before;
+    }
+    private void ProcessFrame(double delta)
     {
         if (town?.Paused == true) return;
         if (town?.Data == null || town.Walk == null) return;
@@ -283,7 +295,7 @@ public partial class PostedPeople : Node
         {
             if (!n.Present) continue;
             double d = jef != null ? Whereabouts.Hypot(n.X - jef.X, n.Z - jef.Z) : double.PositiveInfinity;
-            Func<double, double, bool> free = town.Walk.Free;
+            var free = walkFree ??= town.Walk.Free;
             if (n.Round == null)
             {
                 int seed = n.Id.Sum(c => (int)c);

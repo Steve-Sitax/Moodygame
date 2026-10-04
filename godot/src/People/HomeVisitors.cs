@@ -31,7 +31,7 @@ public partial class HomeVisitors : Node
         foreach (var home in data.RootElement.GetProperty("homes").EnumerateArray())
             spots[home.GetProperty("id").GetString()!] = home.GetProperty("spots").EnumerateArray().Select(p => new Vector3(p.GetProperty("x").GetSingle(), p.GetProperty("y").GetSingle(), p.GetProperty("z").GetSingle())).ToList();
     }
-    public Vector3? PositionOf(string id) => visitors.Values.FirstOrDefault(v => v.id == id).group?.GlobalPosition;
+    public Vector3? PositionOf(string id) { foreach (var v in visitors.Values) if (v.id == id) return v.group.GlobalPosition; return null; }
     /// <summary>Pass the server's person, or null when the room is left. The homes helper can supply its furniture free-space check.</summary>
     public bool Visit(string home, Resident? person, double seconds = 14)
     {
@@ -39,7 +39,10 @@ public partial class HomeVisitors : Node
         if (person == null) return true;
         if (!spots.TryGetValue(home, out var candidates)) return false;
         var eye = Main.I.Cam.GlobalPosition;
-        var options = candidates.Where(p => (SpotFree?.Invoke(p) ?? Scheldemist.Player.Jef.I?.StandFree(p.X, p.Z, p.Y) ?? false) && visitors.Values.All(v => v.group.Position.DistanceTo(p) >= 0.7f)).OrderBy(p => p.DistanceSquaredTo(eye)).ToList();
+        var jef = Scheldemist.Player.Jef.I;
+        var options = candidates.Where(p => (SpotFree?.Invoke(p) ?? jef?.StandFree(p.X, p.Z, p.Y) ?? false)
+            && (jef == null || jef.Fly || Math.Abs(jef.Y - p.Y) > 1.8 || Whereabouts.Hypot(jef.X - p.X, jef.Z - p.Z) >= 0.9)
+            && visitors.Values.All(v => v.group.Position.DistanceTo(p) >= 0.7f)).OrderBy(p => p.DistanceSquaredTo(eye)).ToList();
         if (options.Count == 0) return false;
         var human = Humans.Make(Humans.IsKind(person.Kind) ? person.Kind : "docker_a");
         if (human == null) return false;
@@ -51,18 +54,28 @@ public partial class HomeVisitors : Node
         visitors[home] = (human, group, person.Id, time + Math.Max(0, seconds));
         return true;
     }
+    private readonly List<string> expired = new(8);
+    public long AllocatedBytesLastFrame { get; private set; }
     public override void _Process(double delta)
+    {
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        ProcessFrame(delta);
+        AllocatedBytesLastFrame = GC.GetAllocatedBytesForCurrentThread() - before;
+    }
+    private void ProcessFrame(double delta)
     {
         if (town?.Paused == true) return;
         time += delta;
-        foreach (var id in visitors.Keys.ToList())
+        expired.Clear();
+        foreach (var pair in visitors)
         {
-            var v = visitors[id];
-            if (time >= v.until) { Visit(id, null); continue; }
+            var v = pair.Value;
+            if (time >= v.until) { expired.Add(pair.Key); continue; }
             bool near = Main.I.Cam.GlobalPosition.DistanceTo(v.group.Position) < 45;
             v.group.Visible = near;
             if (near) v.human.Update((float)Math.Min(delta, 0.1));
         }
+        foreach (string id in expired) Visit(id, null);
     }
     public override void _ExitTree() { foreach (var home in visitors.Keys.ToList()) Visit(home, null); if (I == this) I = null; }
 }

@@ -25,6 +25,7 @@ public sealed class Animal
     private static ModelLibrary.Model? model;
     private static AnimationLibrary? clips;
     private static readonly Dictionary<string, float> Lengths = new();
+    private readonly Dictionary<string, (StringName name, float length)> clipNames = new();
     private static bool tried;
     private static readonly Random Rng = new();
 
@@ -65,6 +66,8 @@ public sealed class Animal
         }
     }
 
+    public static void Forget() { model = null; clips = null; tried = false; Lengths.Clear(); }
+
     public static Animal? Make(string kind) => Ready && model!.Copy(kind) is { } root ? new Animal(kind, root) : null;
 
     public readonly string Kind, Species;
@@ -87,6 +90,7 @@ public sealed class Animal
         Species = kind.StartsWith("dog") ? "dog" : kind.StartsWith("pig") ? "pig" : "cat";
         key = kind is "dog_grey" or "pig_spotted" ? kind : Species;
         this.root = root;
+        foreach (var entry in Lengths) if (entry.Key.StartsWith(Species + "_")) clipNames[entry.Key[(Species.Length + 1)..]] = (new StringName(entry.Key), entry.Value);
         Group.Name = kind;
         Group.AddChild(root);
         mixer = new AnimationPlayer { Name = "clips", CallbackModeProcess = AnimationMixer.AnimationCallbackModeProcess.Manual };
@@ -116,11 +120,11 @@ public sealed class Animal
     private void Show(string m, float fade = 0.25f)
     {
         if (Motion == m) return;
-        string clip = Lengths.ContainsKey($"{Species}_{m}") ? $"{Species}_{m}" : $"{Species}_idle";
+        var clip = clipNames.GetValueOrDefault(m, clipNames["idle"]);
         bool first = Motion == null;
         Motion = m;
         mixer.SpeedScale = 1;
-        mixer.Play(clip, first ? 0 : fade);
+        mixer.Play(clip.name, first ? 0 : fade);
     }
 
     public void Update(float dt)
@@ -145,7 +149,7 @@ public sealed class Animal
                 Show(m, 0.2f);
                 // one loop of the clip is one stride: loops per second = speed / stride
                 var s = Stride[key];
-                mixer.SpeedScale = Speed * Lengths.GetValueOrDefault($"{Species}_{m}", 1) / (m == "run" ? s.run : s.walk);
+                mixer.SpeedScale = Speed * clipNames[m].length / (m == "run" ? s.run : s.walk);
             }
             else if (going || Motion == null) Show("idle", 0.2f);
         }
@@ -196,7 +200,11 @@ public partial class Animals : Node
     private Townspeople? town;
     private readonly Random rng = new();
     private double spawnT;
-    private Godot.Collections.Array<Plane>? frustum;
+    private readonly Plane[] frustum = new Plane[6];
+    private readonly List<Beast> dogs = new(32);
+    private readonly List<(double x, double z)> routeScratch = new(256);
+    private Vector3 eyeNow;
+    private double fogNow;
 
     public int Count => beasts.Count;
     public int Shown { get; private set; }
@@ -227,7 +235,8 @@ public partial class Animals : Node
     }
 
     private double Rnd(double a, double b) => a + rng.NextDouble() * (b - a);
-    private T Pick<T>(params T[] xs) => xs[rng.Next(xs.Length)];
+    private static readonly string[] SitIdle = { "sit", "idle" }, RestPoses = { "sit", "sit", "sniff", "lie", "idle" }, SniffPoses = { "sniff", "sniff", "idle", "sit", "lie" }, SniffIdle = { "sniff", "idle" }, SitLie = { "sit", "lie", "sit" };
+    private T Pick<T>(T[] xs) => xs[rng.Next(xs.Length)];
     private static double AngDiff(double a, double b) => Math.Atan2(Math.Sin(a - b), Math.Cos(a - b));
     private static double Hyp(double a, double b) => Math.Sqrt(a * a + b * b);
 
@@ -272,31 +281,35 @@ public partial class Animals : Node
 
     private bool InView(double x, double z, double y)
     {
-        if (frustum == null) return true;
+
         var c = new Vector3((float)x, (float)y + 0.4f, (float)z);
         foreach (var pl in frustum)
             if (pl.DistanceTo(c) > 1) return false;
         return true;
     }
 
+    public long AllocatedBytesLastFrame { get; private set; }
+    public void FillThreats(List<Pt> cats, List<Pt> dogs)
+    {
+        foreach (var b in beasts) (b.A.Species == "cat" ? cats : dogs).Add(new Pt(b.X, b.Z));
+    }
     public override void _Process(double delta)
     {
         if (town?.Data == null || town.Walk == null || town.Crowd == null || town.Paused || !Animal.Ready) return;
+        long allocated = GC.GetAllocatedBytesForCurrentThread();
         ulong t0 = Time.GetTicksUsec();
         double dt = Math.Min(delta, 0.1);
         if (haunts == null) MakeHaunts();
         var cam = Main.I.Cam;
         var eye = cam.GlobalPosition;
-        frustum = cam.GetFrustum();
+        var projection = cam.GetCameraProjection();
+        var transform = cam.GetCameraTransform();
+        for (int i = 0; i < 6; i++) frustum[i] = transform * projection.GetProjectionPlane((Projection.Planes)i);
+        eyeNow = eye;
         double fogFar = town.Crowd.FogDistance;
         bool night = town.Hour >= 19 || town.Hour < 6.5;
         (double x, double z)? jef = Scheldemist.Player.Jef.I is { Fly: false } j ? (j.X, j.Z) : null;
-        bool Hidden(double x, double z)
-        {
-            double d = Hyp(x - eye.X, z - eye.Z);
-            if (d < 8) return false;
-            return d > fogFar + 3 || !InView(x, z, town.Walk.BaseAt(x, z));
-        }
+        fogNow = fogFar;
         // the town's strays and cats near: made at their haunts; the townspeople's dogs come out with them
         spawnT -= dt;
         if (spawnT <= 0)
@@ -304,7 +317,7 @@ public partial class Animals : Node
             spawnT = 0.5;
             foreach (var h in haunts!)
             {
-                if (Hyp(h.X - eye.X, h.Z - eye.Z) > ReachR || (h.Night && !night) || beasts.Any(b => b.Id == h.Id)) continue;
+                if (Hyp(h.X - eye.X, h.Z - eye.Z) > ReachR || (h.Night && !night) || HasBeast(h.Id)) continue;
                 var an = Animal.Make(h.Kind);
                 if (an == null) break;
                 Main.I.View.AddChild(an.Group);
@@ -316,10 +329,12 @@ public partial class Animals : Node
                 }
                 else beasts.Add(new Beast { A = an, X = h.X, Z = h.Z, Yaw = h.Yaw, Timer = Dice("dogtimer", h.X, h.Z) * 3, Id = h.Id });
             }
-            foreach (var s in town.Sims)
+            for (int person = 0; person < town.Sims.Count; person++)
             {
+                var s = town.Sims[person];
                 if (s.R.DogLook == null) continue;
-                var mine = beasts.FirstOrDefault(b => b.Owner == s);
+                Beast? mine = null;
+                foreach (var beast in beasts) if (beast.Owner == s) { mine = beast; break; }
                 if (s.P == null)
                 {
                     if (mine != null) DropBeast(mine);
@@ -336,17 +351,19 @@ public partial class Animals : Node
             }
         }
         bool storm = town.StormLevel > 0.3;
-        var dogs = beasts.Where(b => b.A.Species == "dog").ToList();
+        dogs.Clear();
+        foreach (var beast in beasts) if (beast.A.Species == "dog") dogs.Add(beast);
         int shown = 0;
-        foreach (var b in beasts.ToList())
+        for (int index = beasts.Count - 1; index >= 0; index--)
         {
+            var b = beasts[index];
             double d = Hyp(b.X - eye.X, b.Z - eye.Z);
             if (b.Owner == null && d > DropR)
             {
                 DropBeast(b);
                 continue;
             }
-            if (b.Owner != null) Follow(b, dt, Hidden);
+            if (b.Owner != null) Follow(b, dt);
             // the great storm: strays and cats run for their doorstep and cower there, flat to the stone
             else if (storm) Storm(b, dt);
             else if (b.Shelter != 0)
@@ -372,6 +389,7 @@ public partial class Animals : Node
                 b.A.Update((float)dt);
             }
         }
+        AllocatedBytesLastFrame = GC.GetAllocatedBytesForCurrentThread() - allocated;
         Shown = shown;
         LogicMs = (Time.GetTicksUsec() - t0) / 1000.0;
     }
@@ -444,13 +462,13 @@ public partial class Animals : Node
         if (Free(x, z) && LineFree(b.X, b.Z, x, z))
         {
             b.Goal = (x, z);
-            b.Route = new List<(double, double)> { (x, z) };
+            b.Route.Clear(); b.Route.Add((x, z));
             b.Stuck = 0;
             return true;
         }
         var q = crowd.OpenNear(x, z);
         if (q == null || !crowd.CanStand(q.Value.x, q.Value.z)) return false;
-        var way = crowd.PathOn(b.X, b.Z, q.Value.x, q.Value.z);
+        var way = crowd.PathOn(b.X, b.Z, q.Value.x, q.Value.z, routeScratch);
         if (way == null || way.Count == 0) return false;
         // the grid keeps half a metre off the walls: from a doorstep, first out onto it
         if (!crowd.CanStand(b.X, b.Z))
@@ -467,12 +485,18 @@ public partial class Animals : Node
         }
         if (len > maxLen) return false;
         b.Goal = q;
-        b.Route = way;
+        b.Route.Clear(); b.Route.AddRange(way);
         b.Stuck = 0;
         return true;
     }
 
-    private void Follow(Beast b, double dt, Func<double, double, bool> hidden)
+    private bool HasBeast(string id) { foreach (var beast in beasts) if (beast.Id == id) return true; return false; }
+    private bool Hidden(double x, double z)
+    {
+        double d = Hyp(x - eyeNow.X, z - eyeNow.Z);
+        return d >= 8 && (d > fogNow + 3 || !InView(x, z, town!.Walk!.BaseAt(x, z)));
+    }
+    private void Follow(Beast b, double dt)
     {
         var o = b.Owner!.P;
         if (o == null) return;
@@ -486,7 +510,7 @@ public partial class Animals : Node
             if (q != null) (tx, tz) = q.Value;
         }
         double d = Hyp(tx - b.X, tz - b.Z);
-        if ((d > 12 || b.Lost > 2) && hidden(b.X, b.Z) && hidden(tx, tz))
+        if ((d > 12 || b.Lost > 2) && Hidden(b.X, b.Z) && Hidden(tx, tz))
         {
             // lost the way round a corner: catch up where nobody sees it
             b.X = tx;
@@ -513,7 +537,7 @@ public partial class Animals : Node
                 if (!Aim(b, tx, tz, 60))
                 {
                     b.Goal = (tx, tz);
-                    b.Route = new List<(double, double)> { (tx, tz) };
+                    b.Route.Clear(); b.Route.Add((tx, tz));
                 }
             }
             else if (b.Route.Count == 1)
@@ -532,7 +556,7 @@ public partial class Animals : Node
                 b.Route.Clear();
                 b.Stuck = 0;
                 b.Hold = near ? 1.5 : 0.6;
-                b.A.Play(near ? Pick("sit", "idle") : "idle");
+                b.A.Play(near ? Pick(SitIdle) : "idle");
             }
             else b.Lost = Math.Max(0, b.Lost - dt);
             b.Timer = Rnd(2, 6);
@@ -545,7 +569,7 @@ public partial class Animals : Node
             b.Yaw += AngDiff(o.Yaw, b.Yaw) * Math.Min(1, dt * 3);
             if ((b.Timer -= dt) <= 0)
             {
-                b.A.Play(walking ? "idle" : Pick("sit", "sit", "sniff", "lie", "idle"));
+                b.A.Play(walking ? "idle" : Pick(RestPoses));
                 b.Timer = Rnd(4, 10);
             }
         }
@@ -560,7 +584,7 @@ public partial class Animals : Node
             {
                 b.Goal = null;
                 b.Route.Clear();
-                b.A.Play(r == "there" ? Pick("sniff", "sniff", "idle", "sit", "lie") : Pick("sniff", "idle"));
+                b.A.Play(r == "there" ? Pick(SniffPoses) : Pick(SniffIdle));
                 b.Timer = r == "there" ? Rnd(2, 9) : Rnd(0.5, 2);
             }
             return;
@@ -613,15 +637,16 @@ public partial class Animals : Node
     /// <summary>A way out for a frightened cat: away from the fright, or as near that as the walls allow.</summary>
     private bool Flee(Beast b, double ux, double uz)
     {
-        foreach (double turn in new[] { 0, 0.6, -0.6, 1.2, -1.2, 1.9, -1.9 })
+        foreach (double turn in EscapeAngles)
         {
             double c = Math.Cos(turn), s = Math.Sin(turn), dx = ux * c - uz * s, dz = ux * s + uz * c;
-            foreach (double dist in new[] { 7.0, 4.0 })
+            for (double dist = 7; dist >= 4; dist -= 3)
                 if (Aim(b, b.X + dx * dist, b.Z + dz * dist, dist * 2.5)) return true;
         }
         return false;
     }
 
+    private static readonly double[] EscapeAngles = { 0, 0.6, -0.6, 1.2, -1.2, 1.9, -1.9 };
     private void Cat(Beast b, double dt, List<Beast> dogs, (double x, double z)? jef)
     {
         // what frightens a cat: a dog near, or Jef right on top of it
@@ -695,7 +720,7 @@ public partial class Animals : Node
             {
                 b.Goal = null;
                 b.Route.Clear();
-                b.A.Play(Pick("sit", "lie", "sit"));
+                b.A.Play(Pick(SitLie));
                 b.Timer = r == "there" ? Rnd(8, 25) : Rnd(2, 6);
             }
             return;

@@ -29,8 +29,11 @@ public partial class MarketStalls : Node
     public readonly List<Stall> List = new();
     public int OpenCount => List.Count(s => s.Open);
     public double RebuildMs { get; private set; }
+    private Dictionary<string, Resident>? keepers;
     private readonly Dictionary<string, List<Part>> parts = new();
     private readonly Dictionary<Mesh, MultiMeshInstance3D> batches = new();
+    private readonly Dictionary<Mesh, MultiMesh> batchMeshes = new();
+    private readonly Dictionary<Mesh, List<Transform3D>> instances = new();
     private Townspeople? town;
     private ModelLibrary.Model? model;
     private Node3D root = null!;
@@ -105,6 +108,7 @@ public partial class MarketStalls : Node
             town.Walk.AddBox(table.X, table.Z, -half, half, z0, z1, table.Yaw);
         }
         var eye = Main.I.Cam.GlobalPosition; town.Crowd!.RebuildGrid(eye.X, eye.Z);
+        PrepareBatches();
         UpdateHours(true);
     }
     private static (double x, double z, double scale, bool awning, Pt side)? ShopSpot(JsonElement houses, Pt wall, Pt outward)
@@ -140,39 +144,61 @@ public partial class MarketStalls : Node
         var side = new Pt(sx * sign, sz * sign);
         return (wall.X + side.X * l.centre, wall.Z + side.Z * l.centre, l.scale, l.awning, side);
     }
+    private void PrepareBatches()
+    {
+        var capacities = new Dictionary<Mesh, int>();
+        foreach (var stall in List) for (int layer = 0; layer < 3; layer++)
+        {
+            var names = layer == 0 ? stall.Always : layer == 1 ? stall.Day : stall.Night;
+            foreach (string name in names) foreach (var part in Parts(name)) capacities[part.Mesh] = capacities.GetValueOrDefault(part.Mesh) + 1;
+        }
+        foreach (var (mesh, capacity) in capacities)
+        {
+            instances[mesh] = new List<Transform3D>(capacity);
+            var mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, Mesh = mesh, InstanceCount = capacity, VisibleInstanceCount = 0 };
+            var batch = new MultiMeshInstance3D { Multimesh = mm, Visible = false };
+            batchMeshes[mesh] = mm; batches[mesh] = batch; root.AddChild(batch);
+        }
+    }
+    private void AddInstances(string[] names, Transform3D at)
+    {
+        foreach (string name in names) foreach (var part in parts[name]) instances[part.Mesh].Add(at * part.Local);
+    }
     private void UpdateHours(bool force = false)
     {
-        var keepers = town!.Data!.Residents.ToDictionary(r => r.Id);
+        var currentTown = town!;
+        keepers ??= currentTown.Data!.Residents.ToDictionary(r => r.Id);
         bool changed = force;
         foreach (var s in List)
         {
-            bool open = keepers.TryGetValue(s.Keeper, out var r) && Whereabouts.ActivityAt(r.Sched, town.Day, town.Hour).Act == "work";
+            bool open = keepers.TryGetValue(s.Keeper, out var r) && Whereabouts.ActivityAt(r.Sched, currentTown.Day, currentTown.Hour).Act == "work";
             if (s.Open != open) { s.Open = open; changed = true; }
         }
         if (!changed) return;
         ulong started = Time.GetTicksUsec();
-        var instances = new Dictionary<Mesh, List<Transform3D>>();
+        foreach (var transforms in instances.Values) transforms.Clear();
         foreach (var s in List)
         {
-            var at = new Transform3D(new Basis(Vector3.Up, (float)s.Yaw).Scaled(new Vector3((float)s.Scale, 1, 1)), new Vector3((float)s.X, (float)town.Walk!.BaseAt(s.X, s.Z), (float)s.Z));
-            foreach (var name in s.Always.Concat(s.Open ? s.Day : s.Night))
-                foreach (var part in Parts(name))
-                {
-                    if (!instances.TryGetValue(part.Mesh, out var list)) instances[part.Mesh] = list = new();
-                    list.Add(at * part.Local);
-                }
+            var at = new Transform3D(new Basis(Vector3.Up, (float)s.Yaw).Scaled(new Vector3((float)s.Scale, 1, 1)), new Vector3((float)s.X, (float)currentTown.Walk!.BaseAt(s.X, s.Z), (float)s.Z));
+            AddInstances(s.Always, at);
+            AddInstances(s.Open ? s.Day : s.Night, at);
         }
-        foreach (var batch in batches.Values) batch.Visible = false;
         foreach (var (mesh, transforms) in instances)
         {
-            if (!batches.TryGetValue(mesh, out var batch)) { batch = new MultiMeshInstance3D(); batches[mesh] = batch; root.AddChild(batch); }
-            var mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, Mesh = mesh, InstanceCount = transforms.Count };
+            var batch = batches[mesh]; var mm = batchMeshes[mesh];
             for (int i = 0; i < transforms.Count; i++) mm.SetInstanceTransform(i, transforms[i]);
-            batch.Multimesh = mm; batch.Visible = true;
+            mm.VisibleInstanceCount = transforms.Count; batch.Visible = transforms.Count > 0;
         }
         RebuildMs = (Time.GetTicksUsec() - started) / 1000.0;
     }
+    public long AllocatedBytesLastFrame { get; private set; }
     public override void _Process(double delta)
+    {
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        ProcessFrame(delta);
+        AllocatedBytesLastFrame = GC.GetAllocatedBytesForCurrentThread() - before;
+    }
+    private void ProcessFrame(double delta)
     {
         if (town?.Data == null || town.Paused) return;
         if (!loaded) Load();

@@ -57,6 +57,8 @@ public sealed class Resident
     // kept answers of the shared sum (Whereabouts.cs): his day routes, by day
     internal Dictionary<int, Whereabouts.Stop[]> RouteCache = new();
     internal (int day, int gen, Whereabouts.Stop[] stops)? PartialRoute;
+    internal readonly Whereabouts.Where WhereValue = new(), WhereSecond = new();
+    internal uint? RoundHash;
 }
 
 public sealed class TownPlace

@@ -172,13 +172,18 @@ fallback cannot certify room floors, containment, seams, shader-only cutouts, or
   generating that file: another helper may already occupy the requested port. The file must have the same town
   seed. `--peopleadvance` sets the test's server to Monday 13:00 through its dev route. `--peoplechecks halls`
   checks the five landmark rosters and a home visitor; `homevisit` checks the visitor alone, `wildlife` the birds,
-  `marketstalls` the open and covered displays, and `families` the server's strangers and Zelie's table.
+  `marketstalls` the open and covered displays, `families` the server's strangers and Zelie's table, and `crowds`
+  the two squares alone. `games` takes a close picture of each of the six children's games and checks a home
+  visitor's clearance from Jef. A walker waiting at the first four-second check gets twelve seconds to complete a
+  detour, arrive or leave the view; the report names anyone still blocked. For isolated test towns pass
+  `--db <test-directory>/people.sqlite` so checks use their own database.
   The complete test checks all 50 drawn bodies and fails for overlaps, a missed bird flight, mismatched sums or
   people-and-animal frame cost of 1.5 ms or more. Unrelated live route requests may still be pending after every
   comparison answer matches.
-  Checked 2026-10-04: 5,202 of 5,202 server answers matched, including seven cart-run answers; 50 drawn at both
-  squares, zero overlaps and stuck walkers. With active hall rosters, people and animals cost 1.136 ms at the
-  Grote Markt and 1.291 ms at Vismarkt. The five halls drew 2, 4, 7, 5 and 4 people respectively (town hall,
+  Checked 2026-10-04 after merging the current parts: 5,364 of 5,364 server answers matched, including seven
+  cart-run answers; 50 drawn at both squares, zero overlaps and blocked walkers. With active hall rosters,
+  people and animals cost 1.033 ms at the Grote Markt and 1.083 ms at Vismarkt. The five halls drew 2, 4, 7, 5
+  and 4 people respectively (town hall,
   Vleeshuis, Steen, Oostershuis, cathedral). Wildlife: 74 animals, the pressed duck walked off then flew.
   Remaining: complete game and street props, window gossip, menace and dream presentation,
   home-remark wiring, dressed and lit rooms, higher-floor/event cathedral
@@ -193,6 +198,23 @@ fallback cannot certify room floors, containment, seams, shader-only cutouts, or
   a visiting relative's talk when Jef is nearby and free. `ActionReceived` passes family director messages to
   later presentation work. The close family test patched five visitors and drew the table. The table and all
   stall displays have solid bodies and close their footprints in `WalkMap`; the local crowd grid is rebuilt.
+  `--peopletest` measures allocations with `GC.GetAllocatedBytesForCurrentThread()` around each people part,
+  over 600 frames per square after the requested day-plan ways have arrived. `townBytesPerFrame` covers the
+  schedule, crowd, lantern pool, indoor figures and lantern materials; `allPeopleBytesPerFrame` also covers
+  posted figures, animals, wildlife, halls, home visitors, stalls and families. The report includes mean,
+  median, p95, maximum and the count of zero-allocation frames; collection counts cover the whole managed game.
+  In the complete run the town averaged 6.893 B/frame at Grote Markt and 6.947 at Vismarkt, with zero median and
+  p95 in both places. All people and animals averaged 17.373 and 12.480 B/frame respectively; 562 and 565 of
+  600 frames allocated nothing. One Gen 0 and one Gen 1 collection occurred per sample across the game; the
+  maximum town update was 2.924 ms at Grote Markt and 1.127 ms at Vismarkt. First-use models and new server replies can
+  still allocate when the roster changes. `townAllocationPartsMean` orders the schedule, crowd, lights, rooms and
+  lantern materials. Route searches, roster selection, frustum planes and stall batches reuse their buffers.
+  `WhereNow` returns a resident's reused result; copy its fields when retaining them across another query.
+  Crowd positions and collision checks run every frame; bone animation runs at 120 Hz within eight metres,
+  60 Hz within 25 metres, then 15 and 8 Hz farther away. Home visitors leave at least 0.9 m around Jef.
+  Later round: `game/actions.ts` reserves residents and sends them to event rings and columns; `game/events.ts`
+  presents stage props, sound cues and stall closures. The existing thief route does not apply theft outcomes.
+  Family menace choices, dream text and veil messages reach `FamilyPeople.ActionReceived` for presentation.
 - **The server stays in Node** (`server/`): the game talks to it over the same HTTP and WebSocket API as the
   browser (`client/src/net/api.ts`).
   - `src/Net/ServerProcess.cs` starts it with the game (`node src/index.ts` in `server/`, a free port from 8800,

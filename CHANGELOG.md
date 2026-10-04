@@ -52,6 +52,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - In the Carolus the round windows over the side doors and the front's middle windows show whole from inside the aisles ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
 
 ### Changed
+- Godot townspeople and animals reuse their frame buffers and whereabouts answers, removing the crowd's steady garbage allocations; nearby bodies keep moving at the frame rate while bone animations run at a bounded rate.
 - Godot collapse and week-ending papers have one owner: getting up closes the night completely, and chosen sleep says its wake lines once.
 - Returning home from a Godot Together game clears the old resident and people-model caches before using fresh bodies. The reusable talk input is freed at shutdown, clearing the scripted tests' resource leaks ([#40](https://github.com/Steve-Sitax/Moodygame/issues/40)).
 - The Godot job test now checks the quest book, map, restored goods, talk, drinking, trouble choices and extra errands, and records server state and goods replies beside its pictures.

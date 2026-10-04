@@ -97,6 +97,13 @@ public static class Whereabouts
         return h;
     }
 
+    private static uint HashSuffix(string id, string suffix)
+    {
+        uint h = unchecked((HashId(id) ^ ':') * 16777619u);
+        foreach (char c in suffix) h = unchecked((h ^ c) * 16777619u);
+        return h;
+    }
+
     /// <summary>
     /// A person's own pace in m/s of real time, the same seen and unseen: fixed per person, and on a leg (`leg`: a
     /// key of that walk) he either walks or runs (the young may run, children most; the old go slower).
@@ -104,12 +111,12 @@ public static class Whereabouts
     public static (double mps, bool run) PaceOf(Resident r, string leg = "")
     {
         int age = r.Age;
-        double h = (HashId(r.Id + ":pace") & 0xffff) / 65536.0; // 0-1, his own
+        double h = (HashSuffix(r.Id, "pace") & 0xffff) / 65536.0; // 0-1, his own
         double walk = age < 13 ? 1.25 : age < 30 ? 1.4 : age < 50 ? (r.Sex == "f" ? 1.25 : 1.35) : age < 65 ? 1.15 : 0.95;
         if (r.Trade is "soldier" or "sentry" or "corporal") walk = 1.3; // the marching step
         walk *= 0.92 + h * 0.16;
         double runs = age < 13 ? 0.45 : age < 30 ? 0.3 : age < 45 ? 0.1 : 0;
-        bool run = leg != "" && runs > 0 && (HashId($"{r.Id}:{leg}") & 0xffff) / 65536.0 < runs;
+        bool run = leg != "" && runs > 0 && (HashSuffix(r.Id, leg) & 0xffff) / 65536.0 < runs;
         return (run ? (age < 13 ? 2.4 : age < 30 ? 2.7 : 2.3) * (0.95 + h * 0.1) : walk, run);
     }
 
@@ -231,9 +238,11 @@ public static class Whereabouts
         public List<Pt> Pts = new();
         public List<double> Starts = new();
         public double Total;
+        public int Generation;
+        public bool Complete;
     }
 
-    /// <summary>Rounds whose every leg was found, by the route array (the town's data keeps the same arrays).</summary>
+    /// <summary>Rounds by their kept route array; incomplete rounds are refreshed when their requested ways arrive.</summary>
     private static readonly Dictionary<Pt[], RoundWay> RoundCache = new(ReferenceEqualityComparer.Instance);
 
     // A shared haul is a work round, with evenly spaced starts at the crew's walking pace.
@@ -265,10 +274,10 @@ public static class Whereabouts
         return crew.TryGetValue(r.Id, out var c) ? c : null;
     }
 
-    /// <summary>The round on foot, leg by leg along the ways. A leg with no way yet is a step straight to its end (kept out of the cache until found).</summary>
+    /// <summary>The round on foot, leg by leg along the ways. A leg with no way yet is a step straight to its end, cached until new ways arrive.</summary>
     private static RoundWay RoundWayOf(Pt[] pts, bool loop, WayOf way)
     {
-        if (RoundCache.TryGetValue(pts, out var hit)) return hit;
+        if (RoundCache.TryGetValue(pts, out var hit) && (hit.Complete || hit.Generation == wayGen)) return hit;
         var rw = new RoundWay();
         bool whole = true;
         double d = 0;
@@ -283,7 +292,8 @@ public static class Whereabouts
             d += WayLength(leg);
         }
         rw.Total = WayLength(rw.Pts);
-        if (whole) RoundCache[pts] = rw;
+        rw.Complete = whole; rw.Generation = wayGen;
+        RoundCache[pts] = rw;
         return rw;
     }
 
@@ -342,21 +352,29 @@ public static class Whereabouts
         return (new Part("home", "home", start, end), h - start, end - h);
     }
 
-    /// <summary>A mill's two runs of a day (shared/mills.ts runsOf): the flour to the bakery at dawn, the grain from the dock after dinner.</summary>
+    private static readonly Dictionary<Pt[], Pt[]> reversedMillRoutes = ReverseMillRoutes();
+    private static Dictionary<Pt[], Pt[]> ReverseMillRoutes()
+    {
+        var routes = new Dictionary<Pt[], Pt[]>();
+        foreach (var mill in SharedData.Mills)
+        {
+            var bakery = (Pt[])mill.RouteBakery.Clone(); Array.Reverse(bakery); routes[mill.RouteBakery] = bakery;
+            var dock = (Pt[])mill.RouteDock.Clone(); Array.Reverse(dock); routes[mill.RouteDock] = dock;
+        }
+        return routes;
+    }
+    /// <summary>A mill's two runs of a day (shared/mills.ts runsOf): flour to the bakery at dawn, grain from the dock after dinner.</summary>
     public static (string kind, string phase, double since, double left)? RunNow(Mill m, int day, double hour)
     {
         if (day % 7 == 0) return null;
-        double Leg(double way) => way / SharedData.CartPace / 120;
-        double b = Leg(m.WayBakery), g = Leg(m.WayGrain), L = SharedData.LoadH;
+        double b = m.WayBakery / SharedData.CartPace / 120, g = m.WayGrain / SharedData.CartPace / 120, L = SharedData.LoadH;
         double f0 = SharedData.FlourOut, g0 = SharedData.GrainOut;
-        var phases = new (string kind, string phase, double from, double to)[]
-        {
-            ("flour", "load", f0, f0 + L), ("flour", "go", f0 + L, f0 + L + b), ("flour", "unload", f0 + L + b, f0 + L + b + L), ("flour", "back", f0 + L + b + L, f0 + L + b + L + b),
-            ("grain", "go", g0, g0 + g), ("grain", "load", g0 + g, g0 + g + L), ("grain", "back", g0 + g + L, g0 + g + L + g), ("grain", "store", g0 + g + L + g, g0 + g + L + g + L),
-        };
-        foreach (var p in phases)
-            if (hour >= p.from && hour < p.to) return (p.kind, p.phase, hour - p.from, p.to - hour);
-        return null;
+        (string kind, string phase, double since, double left)? Phase(string kind, string phase, double from, double to) =>
+            hour >= from && hour < to ? (kind, phase, hour - from, to - hour) : null;
+        return Phase("flour", "load", f0, f0 + L) ?? Phase("flour", "go", f0 + L, f0 + L + b)
+            ?? Phase("flour", "unload", f0 + L + b, f0 + L + b + L) ?? Phase("flour", "back", f0 + L + b + L, f0 + L + b + L + b)
+            ?? Phase("grain", "go", g0, g0 + g) ?? Phase("grain", "load", g0 + g, g0 + g + L)
+            ?? Phase("grain", "back", g0 + g + L, g0 + g + L + g) ?? Phase("grain", "store", g0 + g + L + g, g0 + g + L + g + L);
     }
 
     /// <summary>
@@ -366,14 +384,15 @@ public static class Whereabouts
     private static bool MillRun(Resident r, int day, double hour, Where o)
     {
         if (r.Trade != "miller_man") return false;
-        var m = SharedData.Mills.FirstOrDefault(q => q.Id == r.Work.Place);
+        Mill? m = null;
+        foreach (var mill in SharedData.Mills) if (mill.Id == r.Work.Place) { m = mill; break; }
         if (m == null || RunNow(m, day, hour) is not { } run) return false;
         o.Cart = (m, run.kind, run.phase);
         o.Indoor = false;
         if (run.phase is "go" or "back")
         {
             var route = run.kind == "flour" ? m.RouteBakery : m.RouteDock;
-            var way = run.phase == "back" ? Enumerable.Reverse(route).ToArray() : route;
+            var way = run.phase == "back" ? reversedMillRoutes[route] : route;
             double f = run.since / Math.Max(1e-6, run.since + run.left);
             double total = WayLength(way);
             (o.X, o.Z, o.Yaw) = PointAlong(way, f * total);
@@ -426,6 +445,7 @@ public static class Whereabouts
     private static int wayGen;
     /// <summary>The way function knows more ways now: routes worked out without them are worked out again.</summary>
     public static void WaysLearnt() => wayGen++;
+    public static void Forget() { RoundCache.Clear(); HaulRoutes.Clear(); wayGen++; }
 
     /// <summary>
     /// His day as he keeps it: he sets off early enough to be at the next part at its hour, at his pace; a young one
@@ -527,7 +547,7 @@ public static class Whereabouts
     {
         int age = r.Age;
         if (age >= 45) return null;
-        double h = (HashId(r.Id + ":pace") & 0xffff) / 65536.0;
+        double h = (HashSuffix(r.Id, "pace") & 0xffff) / 65536.0;
         return (age < 13 ? 2.4 : age < 30 ? 2.7 : 2.3) * (0.95 + h * 0.1);
     }
 
@@ -536,7 +556,7 @@ public static class Whereabouts
     /// running between two places, or at one (indoors, at his stand, on his round since he got there). Act, Place,
     /// Since and Left are those of the part he is at or walking to (the game sets his goal by them).
     /// </summary>
-    public static Where WhereAt(Resident r, TownData town, int day, double hour, WayOf way)
+    public static Where WhereAt(Resident r, TownData town, int day, double hour, WayOf way, Where? reuse = null)
     {
         var stops = DayRoute(r, town, day, way);
         int k = stops.Length - 1;
@@ -552,7 +572,11 @@ public static class Whereabouts
         // stop k: he is there, or it is the last he left; stop k + 1 is the one he walks to once he set off
         var here = stops[k];
         var prev = k > 0 ? stops[k - 1].At : here.At;
-        var o = new Where { Act = here.Part.Act, Place = here.Part.Place, Since = Math.Max(0, hour - here.Part.Start), Left = Math.Max(0, here.Part.End - hour), From = prev, To = here.At, Stop = k };
+        var o = reuse ?? new Where();
+        o.X = o.Z = o.Yaw = o.Walked = o.Total = o.Mps = 0;
+        o.Indoor = o.Moving = o.Run = false; o.Leg = null; o.Cart = null; o.Way = null;
+        o.Act = here.Part.Act; o.Place = here.Part.Place; o.Since = Math.Max(0, hour - here.Part.Start);
+        o.Left = Math.Max(0, here.Part.End - hour); o.From = prev; o.To = here.At; o.Stop = k;
         // (the mill's man keeps the cart's timetable to its end: he sets off for the evening's place after the sacks are in)
         if (MillRun(r, day, hour, o))
         {
@@ -583,7 +607,8 @@ public static class Whereabouts
             var crew = HaulStart(r, town);
             double walk = crew?.mps ?? PaceOf(r).mps;
             // (his own start point on the round: "not bunching like 100 people in one job spot/pile")
-            var p = OnRound(A.Route, (hour - (crew != null ? here.Part.Start : here.Arrive)) * 60 * PerMin(walk), A.Loop, way, crew?.fraction ?? (HashId(r.Id + ":round") & 0xffff) / 65536.0);
+            r.RoundHash ??= HashId(r.Id + ":round");
+            var p = OnRound(A.Route, (hour - (crew != null ? here.Part.Start : here.Arrive)) * 60 * PerMin(walk), A.Loop, way, crew?.fraction ?? (r.RoundHash.Value & 0xffff) / 65536.0);
             (o.X, o.Z, o.Yaw) = (p.x, p.z, p.yaw);
             o.Moving = true;
             o.Leg = p.leg;
@@ -608,8 +633,8 @@ public static class Whereabouts
     private const double LagOffWayM = 6;
 
     /// <summary>The sum with his lag: his day as he keeps it, that much late.</summary>
-    public static Where WhereLate(Resident r, TownData town, int day, double hour, WayOf way, double lagH) =>
-        WhereAt(r, town, day, hour - (lagH > 0 ? Math.Min(lagH, LagMaxH) : 0), way);
+    public static Where WhereLate(Resident r, TownData town, int day, double hour, WayOf way, double lagH, Where? reuse = null) =>
+        WhereAt(r, town, day, hour - (lagH > 0 ? Math.Min(lagH, LagMaxH) : 0), way, reuse);
 
     /// <summary>The metres along a way of the point on it nearest (x, z), and how far off it that point is.</summary>
     public static (double s, double off) ProjectOn(IReadOnlyList<Pt> pts, double x, double z)
@@ -633,9 +658,9 @@ public static class Whereabouts
     public static double SettleLag(Resident r, TownData town, int day, double hour, WayOf way, double lagH)
     {
         if (!(lagH > 0) || lagH >= LagMaxH) return 0;
-        var late = WhereLate(r, town, day, hour, way, lagH);
+        var late = WhereLate(r, town, day, hour, way, lagH, r.WhereValue);
         if (late.Moving) return lagH;
-        var plain = WhereAt(r, town, day, hour, way);
+        var plain = WhereAt(r, town, day, hour, way, r.WhereSecond);
         return !plain.Moving && plain.Stop == late.Stop ? 0 : lagH;
     }
 
@@ -646,7 +671,7 @@ public static class Whereabouts
     public static double ReportLag(Resident r, TownData town, int day, double hour, WayOf way, double lagH, double x, double z)
     {
         double lag = Math.Max(0, Math.Min(LagMaxH, double.IsNaN(lagH) ? 0 : lagH));
-        var w = WhereLate(r, town, day, hour, way, lag);
+        var w = WhereLate(r, town, day, hour, way, lag, r.WhereValue);
         // (the mill's man keeps the cart's timetable: he is never late by the sum)
         if (w.Cart != null) return 0;
         if (!w.Moving || w.Way == null || w.Leg != null || !(w.Mps > 0)) return SettleLag(r, town, day, hour, way, lag);

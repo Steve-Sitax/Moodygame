@@ -15,7 +15,7 @@ public sealed class ShopCalls
     private static readonly HashSet<string> StrollShops = new() { "tobacconist", "bookseller", "hatter", "clockmaker", "roaster", "apothecary", "draper", "colonial" };
     private static readonly HashSet<string> IdleShops = new() { "tobacconist", "barber", "roaster", "butcher", "cobbler", "chandler", "pawnbroker", "hatter", "printer", "bookseller" };
 
-    private string key = "";
+    private (int day, int hour, int residents, int shops) key;
     private Dictionary<string, string> map = new();
     private Dictionary<string, Pt> doors = new();
 
@@ -41,7 +41,7 @@ public sealed class ShopCalls
     public Pt? CallOf(TownData d, Resident r, int day, double hour)
     {
         int hr = (int)Math.Floor(hour);
-        string k = $"{day}:{hr}:{d.Residents.Count}:{d.Shops.Count}";
+        var k = (day, hr, d.Residents.Count, d.Shops.Count);
         if (k != key)
         {
             key = k;

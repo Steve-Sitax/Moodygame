@@ -23,6 +23,11 @@ public partial class HallPeople : Node
         public JsonElement Plan, Roles;
         public Vector3 Origin;
         public double Yaw;
+        public string[] GridRows = Array.Empty<string>();
+        public readonly List<Vector3> RouteNodes = new(256), RouteResult = new(64);
+        public float[] RouteDistance = Array.Empty<float>();
+        public int[] RoutePrevious = Array.Empty<int>();
+        public bool[] RouteUsed = Array.Empty<bool>();
         public bool Loading;
         public double Poll;
         public readonly Dictionary<string, Figure> Figures = new();
@@ -54,7 +59,9 @@ public partial class HallPeople : Node
         {
             string id = p.GetProperty("id").GetString()!;
             var o = p.GetProperty("origin");
-            Halls.Add(new Hall { Id = id, Plan = p, Roles = data.RootElement.GetProperty("roles").GetProperty(id), Origin = new Vector3(o.GetProperty("x").GetSingle(), p.GetProperty("floorY").GetSingle(), o.GetProperty("z").GetSingle()), Yaw = p.GetProperty("yaw").GetDouble() });
+            int routeCapacity = p.GetProperty("nodes").GetArrayLength() + 2;
+            var rows = p.TryGetProperty("freeGrid", out var freeGrid) ? freeGrid.GetProperty("rows").EnumerateArray().Select(row => row.GetString()!).ToArray() : Array.Empty<string>();
+            Halls.Add(new Hall { RouteDistance = new float[routeCapacity], RoutePrevious = new int[routeCapacity], RouteUsed = new bool[routeCapacity], GridRows = rows, Id = id, Plan = p, Roles = data.RootElement.GetProperty("roles").GetProperty(id), Origin = new Vector3(o.GetProperty("x").GetSingle(), p.GetProperty("floorY").GetSingle(), o.GetProperty("z").GetSingle()), Yaw = p.GetProperty("yaw").GetDouble() });
         }
     }
     private static Vector3 World(Hall h, JsonElement mark)
@@ -103,8 +110,16 @@ public partial class HallPeople : Node
             fig.RestLift = lift; occupied.Add(fig.Target); h.Figures[id] = fig;
         }
     }
-    public Vector3? PositionOf(string id) => Halls.SelectMany(h => h.Figures.Values).FirstOrDefault(f => f.Id == id)?.Group.GlobalPosition;
+    public Vector3? PositionOf(string id) { foreach (var h in Halls) if (h.Figures.TryGetValue(id, out var f)) return f.Group.GlobalPosition; return null; }
+    private void PollHall(Hall h, Api api) => api.Run(api.Get<JsonElement>("api/landmark/" + h.Id), reply => Roster(h, reply), _ => h.Loading = false);
+    public long AllocatedBytesLastFrame { get; private set; }
     public override void _Process(double delta)
+    {
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        ProcessFrame(delta);
+        AllocatedBytesLastFrame = GC.GetAllocatedBytesForCurrentThread() - before;
+    }
+    private void ProcessFrame(double delta)
     {
         if (town?.Data == null || town.Paused) return;
         ulong started = Time.GetTicksUsec(); var eye = Main.I.Cam.GlobalPosition;
@@ -115,7 +130,7 @@ public partial class HallPeople : Node
             if (near && !h.Loading && h.Poll <= 0 && ServerLink.I?.Api is { } api)
             {
                 h.Loading = true; h.Poll = 5;
-                api.Run(api.Get<JsonElement>("api/landmark/" + h.Id), reply => Roster(h, reply), _ => h.Loading = false);
+                PollHall(h, api);
             }
             foreach (var f in h.Figures.Values)
             {
@@ -128,7 +143,8 @@ public partial class HallPeople : Node
                         var p = f.Group.Position; float step = (float)(f.Speed * delta);
                         // Only same-floor steps along verified straight segments; furniture and walls come from the plan.
                         var to = p.MoveToward(f.Target, step);
-                        bool occupied = h.Figures.Values.Any(o => o != f && Math.Abs(o.Group.Position.Y - to.Y) < 0.5 && new Vector2(o.Group.Position.X - to.X, o.Group.Position.Z - to.Z).Length() < 0.7f);
+                        bool occupied = false;
+                        foreach (var other in h.Figures.Values) if (other != f && Math.Abs(other.Group.Position.Y - to.Y) < 0.5 && new Vector2(other.Group.Position.X - to.X, other.Group.Position.Z - to.Z).Length() < 0.7f) { occupied = true; break; }
                         if (!FreeSegment(h, p, to) || occupied) { f.Moving = false; f.Path.Clear(); f.Wait = 1; f.Human.Play(f.Motion); }
                         else { f.Group.Position = to; f.Group.Rotation = new Vector3(0, MathF.Atan2(f.Target.X - p.X, f.Target.Z - p.Z), 0); if (to.DistanceTo(f.Target) < 0.05f) { if (f.Path.Count > 0) f.Target = f.Path.Dequeue(); else { f.Moving = false; f.Wait = 5; f.Human.Play(f.Motion); } } }
                     }
@@ -159,38 +175,44 @@ public partial class HallPeople : Node
                 int ix = (int)Math.Round((x - grid.GetProperty("x").GetDouble()) / grid.GetProperty("step").GetDouble()), iz = (int)Math.Round((z - grid.GetProperty("z").GetDouble()) / grid.GetProperty("step").GetDouble());
                 var rows = grid.GetProperty("rows");
                 if (iz < 0 || iz >= rows.GetArrayLength()) return false;
-                string row = rows[iz].GetString()!;
+                string row = h.GridRows[iz];
                 if (ix < 0 || ix >= row.Length || row[ix] != '1') return false;
                 continue;
             }
             bool In(JsonElement r, double margin) => x >= r.GetProperty("minX").GetDouble() - margin && x <= r.GetProperty("maxX").GetDouble() + margin && z >= r.GetProperty("minZ").GetDouble() - margin && z <= r.GetProperty("maxZ").GetDouble() + margin;
-            var floor = levels.EnumerateArray().Where(l => Math.Abs(l.GetProperty("y").GetDouble() - p.Y) < 0.4).ToList();
-            if (!floor.Any(l => l.GetProperty("floors").EnumerateArray().Any(r => In(r, -0.3)))) return false;
-            if (floor.Any(l => l.GetProperty("solids").EnumerateArray().Any(r => In(r, 0.3)))) return false;
+            bool onFloor = false;
+            foreach (var level in levels.EnumerateArray())
+            {
+                if (Math.Abs(level.GetProperty("y").GetDouble() - p.Y) >= 0.4) continue;
+                foreach (var rect in level.GetProperty("floors").EnumerateArray()) if (In(rect, -0.3)) onFloor = true;
+                foreach (var rect in level.GetProperty("solids").EnumerateArray()) if (In(rect, 0.3)) return false;
+            }
+            if (!onFloor) return false;
         }
         return true;
     }
     private static List<Vector3> Route(Hall h, Vector3 from, Vector3 to)
     {
-        if (FreeSegment(h, from, to)) return new() { to };
-        var nodes = new List<Vector3> { from, to };
+        var result = h.RouteResult; result.Clear();
+        if (FreeSegment(h, from, to)) { result.Add(to); return result; }
+        var nodes = h.RouteNodes; nodes.Clear(); nodes.Add(from); nodes.Add(to);
         foreach (var p in h.Plan.GetProperty("nodes").EnumerateArray())
         {
             double c = Math.Cos(h.Yaw), s = Math.Sin(h.Yaw), x = p[0].GetDouble(), z = p[1].GetDouble();
             nodes.Add(new Vector3(h.Origin.X + (float)(x * c + z * s), from.Y, h.Origin.Z + (float)(-x * s + z * c)));
         }
-        var dist = Enumerable.Repeat(float.PositiveInfinity, nodes.Count).ToArray();
-        var previous = Enumerable.Repeat(-1, nodes.Count).ToArray(); var used = new bool[nodes.Count]; dist[0] = 0;
+        var dist = h.RouteDistance; var previous = h.RoutePrevious; var used = h.RouteUsed;
+        Array.Fill(dist, float.PositiveInfinity); Array.Fill(previous, -1); Array.Clear(used); dist[0] = 0;
         for (int k = 0; k < nodes.Count; k++)
         {
             int at = -1;
             for (int i = 0; i < nodes.Count; i++) if (!used[i] && (at < 0 || dist[i] < dist[at])) at = i;
             if (at < 0 || float.IsPositiveInfinity(dist[at])) break;
-            if (at == 1) { var result = new List<Vector3>(); for (int i = 1; i != 0; i = previous[i]) result.Add(nodes[i]); result.Reverse(); return result; }
+            if (at == 1) { for (int i = 1; i != 0; i = previous[i]) result.Add(nodes[i]); result.Reverse(); return result; }
             used[at] = true;
             for (int i = 0; i < nodes.Count; i++) if (!used[i]) { float d = dist[at] + nodes[at].DistanceTo(nodes[i]); if (d < dist[i] && FreeSegment(h, nodes[at], nodes[i])) { dist[i] = d; previous[i] = at; } }
         }
-        return new();
+        return result;
     }
     public override void _ExitTree() { foreach (var g in Groups) g.QueueFree(); data?.Dispose(); if (I == this) I = null; }
 }
