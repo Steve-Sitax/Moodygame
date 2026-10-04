@@ -99,12 +99,12 @@ public partial class Bubbles : Node
     /// <summary>A conversation to show (once; the same id again is ignored). at: the speaker's feet, instead of the town's place for them.</summary>
     public void Show(Convo c, Func<Vector3>? at = null) => Add(c, at, false);
 
-    /// <summary>One line over a point (the head itself).</summary>
-    public void Say(Func<Vector3> head, string name, string text, string who = "")
+    /// <summary>One line over a head, or the resident's live position when head is null.</summary>
+    public void Say(Func<Vector3>? head, string name, string text, string who = "")
     {
         int id = -1_000_000 - seenOrder.Count - plays.Count;
         while (seen.Contains(id)) id--;
-        Add(new Convo { Id = id, A = who, B = who, AName = name, BName = name, Purpose = "chat", Lines = new() { new ConvoLine { Who = who, Name = name, Text = text } }, Source = "engine" }, head, true);
+        Add(new Convo { Id = id, A = who, B = who, AName = name, BName = name, Purpose = "chat", Lines = new() { new ConvoLine { Who = who, Name = name, Text = text } }, Source = "engine" }, head, head != null);
     }
 
     private void Add(Convo c, Func<Vector3>? at, bool head)

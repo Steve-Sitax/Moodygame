@@ -133,7 +133,7 @@ public partial class LifeSound : Node
             if(cried.GetValueOrDefault(s.R.Id)>stamp)continue;cried[s.R.Id]=stamp+18+Whereabouts.HashId(s.R.Id)%15;
             sound.Sing(p.X,p.Z,new(s.R.Sex,s.R.Age),cry.Notes,cry.Beat);CryStarts++;
             if(s.R.Trade=="ragman")sound.EventSound("handbell",p.X,p.Z,3);
-            Talks.Bubbles.I?.Say(()=>p.Group.GlobalPosition+Vector3.Up*1.75f,s.R.First,cry.Words,s.R.Id);
+            Talks.Bubbles.I?.Say(null,s.R.First,cry.Words,s.R.Id);
             string? work=s.R.Trade=="grinder"?"grind":s.R.Trade=="mussel_seller"?"rattle":s.R.Trade=="milk_woman"?"clink":null;
             if(work!=null){sound.StreetWork(work,p.X,p.Z,work=="grind"?2.4:work=="rattle"?1.2:1);WorkStarts++;}
         }

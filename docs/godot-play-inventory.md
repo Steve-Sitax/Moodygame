@@ -180,3 +180,7 @@ Moving-gap mover status: tow watchdog, loose-goods rail stopping, crane priority
 Final moving-gap handoff, exact evidence and shared-file list: `milestones/godot-rides.md`, section "Moving gap final handoff". This is a partial feature handoff; named journeys, prisoner-room movement and live multiplayer validation remain open. Shader repeat passes; mover timing reports fail as recorded.
 
 Indoor gap final evidence: `godot/baked/indoor-core-proof/placestest.json` **171/171** with **49** reviewed pictures; fresh-world `indoor-wedding-proof/placestest.json` **30/30** with **8** pictures; `indoor-deeds-proof-complete/deedstest.json` **82/82** with **30** pictures. The latter includes three rounds plus cap refusal and two authenticated live players for held-cell/world-dawn release. `indoor-shaders/shaders.json` stays at **103** programs over **534** samples. See [places final proof](godot-places.md#final-indoor-proof) for commands, engine numbers, source hooks and remaining limits. Wedding and Sunday sermon fixtures use separate fresh worlds because a backwards clock jump after the wedding can leave the curate claimed by the existing event director.
+Life retry: trade speech no longer retains a freed puppet. Seven equipment/movement rows passed
+with no managed exception under diagnostic OpenGL. Its seven inspected pictures are unusable and
+native shader errors remain, so no new visual pass is claimed. Vulkan/D3D12 startup blocks normal
+validation; [#59](https://github.com/Steve-Sitax/Moodygame/issues/59) records the evidence.

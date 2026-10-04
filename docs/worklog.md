@@ -505,3 +505,10 @@ The final event check passed 16 kinds and 50 stages, with 68 inspected pictures 
 The `godot/gaps-life` merge verified the street life, job and sound producers on the shared next bake.
 The ride runner's Dummy audio removed WASAPI use during tests. Its unrelated owned-handcart flat-street
 push check failed after grip: [issue #57](https://github.com/Steve-Sitax/Moodygame/issues/57).
+
+## Life retry graphics blocker, 2026-10-04
+
+Fixed trade cries retaining a disposed puppet; seven trade logic rows pass in diagnostic OpenGL,
+with no managed exceptions. Its inspected images fail visual review. Normal Vulkan startup crashes
+before game loading, and D3D12 fails command-queue initialization. Filed [#59](https://github.com/Steve-Sitax/Moodygame/issues/59).
+No cause is attributed to the overlay or driver yet. Checks now reject ERROR logs/nonzero exits.
