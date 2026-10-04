@@ -268,7 +268,7 @@ public partial class Checks : Node
             var slow = lastWindow.Main.Select((v, i) => new { frame = i, main = v, wall = lastWindow.Wall[i] }).Where(s => s.wall > 16 || s.main > 16).ToArray();
             double mean = Math.Round(mainTimes.Average(), 3);
             rows.Add(new { place = name, liveMean = mean, liveP95 = live.P95, liveMax = live.Max, liveWallMax = live.WallMax, over16 = live.Over16, mainOver16 = mainTimes.Count(t => t > 16), collections = live.Collections, slowFrames = slow, fps = Math.Round(1000 / live.WallMean), over33 = live.Over33, stillMean = still.Mean, turnMean = turn.Mean, turnP95 = turn.P95,
-                calls = turn.Calls, top = FrameCost.Report(), ok = mean < 5, still, turn, liveSamples = live.Samples, liveWallMean = live.WallMean, liveWallP95 = live.WallP95, walkedMetres = start.DistanceTo(new Vector2(Jef.I.X, Jef.I.Z)) });
+                calls = turn.Calls, top = FrameCost.Report(), ok = mean < 5, still, turn, live, liveSamples = live.Samples, liveWallMean = live.WallMean, liveWallP95 = live.WallP95, walkedMetres = start.DistanceTo(new Vector2(Jef.I.X, Jef.I.Z)) });
         }
         return new { ok = rows.All(r => JsonSerializer.SerializeToElement(r).GetProperty("ok").GetBoolean()), at = DateTime.UtcNow, gpu = RenderingServer.GetVideoAdapterName(), budget = 5, metric = "active main frame: first physics/process signal through RenderingServer.FramePostDraw, including renderer submission; wall frame time recorded separately", rows,
             notCovered = new[] { "per-part browser frameProf breakdown and GPU-finish synchronisation", "night, rain and population stress settings", "walking can meet walls; displacement is reported" } };
