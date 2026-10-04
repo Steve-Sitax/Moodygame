@@ -87,3 +87,9 @@ dotnet build godot
 Use a bounded launch and one window at a time. `--moversonly train,crane` narrows the runtime check; the model/human/goods test fixtures do not write server state or touch saved games. `moverstest.json` records both samples, picture names, assertions, all clock faces and per-frame simultaneous costs.
 
 Final warm Rijnkaai cost: **0.6186 ms mean, 0.752 ms p95, 1.281 ms peak**, 1,351 frames. The complete tour mean is 0.6623 ms, peak 31.892 ms; those longer-run stalls are recorded, not dropped. This meets the mean budget, not the strict every-frame bound. The final report contains all 14 running clock faces and 25 live map markers. The benchmark measures the C# mover updates on the main thread; it is not the renderer or whole-engine frame cost. The two build warnings and the shutdown resource warnings are unchanged from integration. No own Godot or Node process remains.
+
+## Bounded timing samples (2026-10-04)
+
+The mover timing recorder now stores a fixed 65,536-frame percentile window, plus lifetime sum/count/maximum. Ordinary play cannot grow an unbounded list of timing samples. JSON `combined.samples` reports the percentile sample count; `combined.frames`, mean and maximum still include all measured frames. The railway reuses its drawing index dictionary rather than allocating it every frame.
+
+The final 37-case tour exercised the ring past its capacity: 71,582 total frames and 65,537 percentile samples including the current frame. The separate warm benchmark used all 1,351 of its frames. Both reports preserve their full-period means and peaks.

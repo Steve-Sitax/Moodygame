@@ -208,7 +208,11 @@ public static class MoverCost
     private static readonly Dictionary<string, ulong> open = new();
     private static ulong measuredFrame=ulong.MaxValue;
     private static double frameMs;
-    private static readonly List<double> frames=new();
+    // Keep profiling bounded during ordinary play; lifetime means/maxima still include every frame.
+    private const int FrameSamples=65536;
+    private static readonly double[] frames=new double[FrameSamples];
+    private static long frameCount;
+    private static double frameSum,frameMax;
 
     public static void Begin(string part) => open[part] = Time.GetTicksUsec();
 
@@ -217,7 +221,11 @@ public static class MoverCost
         double ms = (Time.GetTicksUsec() - open[part]) / 1000.0;
         if(measuredFrame!=MoverClock.Frame)
         {
-            if(measuredFrame!=ulong.MaxValue) frames.Add(frameMs);
+            if(measuredFrame!=ulong.MaxValue)
+            {
+                frames[frameCount%FrameSamples]=frameMs;frameCount++;
+                frameSum+=frameMs;frameMax=Math.Max(frameMax,frameMs);
+            }
             measuredFrame=MoverClock.Frame; frameMs=0;
         }
         frameMs+=ms;
@@ -226,7 +234,7 @@ public static class MoverCost
     }
 
     /// <summary>Forget what was measured (after loading: the first frames are not the game's pace).</summary>
-    public static void Reset() {cost.Clear(); frames.Clear(); measuredFrame=ulong.MaxValue; frameMs=0;}
+    public static void Reset() {cost.Clear(); frameCount=0;frameSum=frameMax=0;measuredFrame=ulong.MaxValue; frameMs=0;}
 
     public static Dictionary<string, object> Report()
     {
@@ -239,8 +247,11 @@ public static class MoverCost
             r[k] = new { mean = Math.Round(mean, 4), max = Math.Round(c.Max, 3) };
         }
         r["all"] = Math.Round(all, 4);
-        var f=frames.Append(frameMs).OrderBy(n=>n).ToArray();
-        if(f.Length>0) r["combined"] = new {mean=Math.Round(f.Average(),4),p95=Math.Round(f[(int)((f.Length-1)*.95)],4),max=Math.Round(f[^1],4),frames=f.Length};
+        if(measuredFrame!=ulong.MaxValue)
+        {
+            var f=frames.Take((int)Math.Min(frameCount,FrameSamples)).Append(frameMs).OrderBy(n=>n).ToArray();
+            r["combined"] = new {mean=Math.Round((frameSum+frameMs)/(frameCount+1),4),p95=Math.Round(f[(int)((f.Length-1)*.95)],4),max=Math.Round(Math.Max(frameMax,frameMs),4),frames=frameCount+1,samples=f.Length};
+        }
         return r;
     }
 
