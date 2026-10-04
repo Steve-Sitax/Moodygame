@@ -1,5 +1,19 @@
 # Work log
 
+## Godot daylight: the sun's colour and the test clock, 2026-10-04
+
+On `godot/daylight` (from `godot-port` at `cc2f843`). Issue #42 (dark clear midday, movers worst): `Daylight.cs`
+gave the sun its linear colour, but a Godot light reads sRGB, so the sun went through the curve twice (green and
+blue at about 0.73 and 0.43 of the browser's): every sunlit face dull orange and darker. Movers use the same psx
+material and lights as the still town (the omnibus frames are the bake's own materials); they showed it most
+because they are seen close on their sunny side. After the fix the ground and house fronts at the five places
+match the browser's `town_ref_*` within a few levels (before: blue 10-20 % low). The general darkness of a clear
+midday is the browser's own level. Night (sun off) unchanged; differences equal run-to-run lamp flicker.
+`--hour`/`--weather` now set the server's clock and sky at link time (`ServerLink.TestClock`, `/api/dev/set`):
+nettest at `--hour 13` shows 13:05 on the HUD. Checks: shaders PASS, pixelcheck PASS (a same-build A/B: 0 changed
+pixels), jobtest 16/17 (frames 6.0 ms, the same on `cc2f843`: #49). Same colour fault on the room lamps and
+Jef's lantern, left for a night comparison: #48. Pictures under `godot/baked/dl/compare/` (not in git).
+
 ## Godot clock coverage and mover allocations, 2026-10-04
 
 On `godot/movers`, merged `godot-port` at `5f2589a` and used the shared next bake. Clocks pass 96/96 in both the independent runner and moverstest, with identical registry paths and zero displayed-time errors. The kit updates a held mover clock when setting the server hour; immutable hand meshes rotate at game-minute boundaries. The independent marker scan finds no missing face, including room/shop and clockmaker-window clocks. This addresses [#44](https://github.com/Steve-Sitax/Moodygame/issues/44).
