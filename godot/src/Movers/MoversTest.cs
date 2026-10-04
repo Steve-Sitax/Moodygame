@@ -56,6 +56,10 @@ public partial class MoversTest : Node
     private double firstHour;
     private readonly List<Dictionary<string, object?>> rows = new();
     private bool failed;
+    private bool readyFailed;
+    private bool benchmark;
+    private bool measuring;
+    private Dictionary<string,object>? tourCost;
 
     public override void _Ready()
     {
@@ -90,6 +94,14 @@ public partial class MoversTest : Node
 
     public override void _Process(double delta)
     {
+        if (benchmark)
+        {
+            clock+=delta;
+            cam.LookAtFromPosition(new Vector3(32,2.2f,29),new Vector3(27,1.5f,13));
+            if (!measuring && clock>2) { measuring=true; clock=0; MoverCost.Reset(); }
+            if (measuring && clock>4) Finish();
+            return;
+        }
         if (at >= todo.Count) return;
         clock += delta;
         if (at < 0 || stage == 4)
@@ -100,11 +112,12 @@ public partial class MoversTest : Node
             clock = 0;
             if (at >= todo.Count)
             {
-                Finish();
+                tourCost=MoverCost.Report(); benchmark=true; clock=0; MoverClock.Hold(13.5);
                 return;
             }
             var np = todo[at];
-            if (Math.Abs(MoverClock.HourF - np.Hour) > 0.2 || at == 0) MoverClock.Hold(np.Hour);
+            if (at == 0 || np.Hour != todo[at-1].Hour) MoverClock.Hold(np.Hour);
+            readyFailed=false;
             np.Start?.Invoke();
             return;
         }
@@ -116,7 +129,7 @@ public partial class MoversTest : Node
                 waited = clock;
                 bool ready = p.Ready == null ? clock > 1.2 : clock > 0.6 && p.Ready();
                 if (!ready && clock < p.MaxWait) return;
-                if (!ready) { failed = true; GD.PrintErr($"moverstest: {p.Name} was not ready after {p.MaxWait} seconds"); }
+                if (!ready) { readyFailed = failed = true; GD.PrintErr($"moverstest: {p.Name} was not ready after {p.MaxWait} seconds"); }
                 stage = 1;
                 clock = 0;
                 return;
@@ -137,6 +150,7 @@ public partial class MoversTest : Node
                 Shot($"{p.Name}_b.png");
                 double moved = first.At.DistanceTo(second.At), turned = Math.Abs(second.Turn - first.Turn);
                 string problem = p.Check?.Invoke() ?? "";
+                if (readyFailed) problem=$"not ready after {p.MaxWait} seconds; "+problem;
                 bool ok = (moved >= p.MinMove || turned >= p.MinTurn) && problem == "";
                 if (!ok) failed = true;
                 rows.Add(new Dictionary<string, object?>
@@ -163,11 +177,18 @@ public partial class MoversTest : Node
 
     private void Finish()
     {
+        var costs=MoverCost.Report();
+        if (Convert.ToDouble(costs["all"],CultureInfo.InvariantCulture)>=1) {failed=true; GD.PrintErr("moverstest: Rijnkaai mover mean exceeds 1 ms");}
+        var clocks=Clocks.I?.Report();
+        if (clocks?.Any(c=>!c.Running)==true) failed=true;
+        foreach (var c in clocks??new()) GD.Print($"clock: {c.Where} at {c.At}: {c.Shows}, {(c.Running?"running":"FAILED")}");
         var report = new Dictionary<string, object?>
         {
             ["ok"] = !failed && rows.Count > 0,
             ["made"] = DateTime.UtcNow.ToString("s", CultureInfo.InvariantCulture) + "Z",
-            ["moversMsPerFrame"] = MoverCost.Report(),
+            ["moversMsPerFrame"] = tourCost,
+            ["rijnkaaiMsPerFrame"] = costs,
+            ["mapMarkers"] = MoverMap.Marks().ToList(),
             ["clocks"] = Clocks.I == null ? null : Clocks.I.Report().Select(r => new { where = r.Where, at = V(r.At), shows = r.Shows, running = r.Running, shown = r.Shown }).ToList(),
             ["movers"] = rows,
         };

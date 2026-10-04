@@ -505,7 +505,7 @@ public partial class Lock : Node
             Hour = 14,
             Gap = 3,
             MaxWait = 60,
-            Start = OutNow,
+            Start = () => {bridgeAngle=0; bridge?.Set(0); gateOpen[0]=gateOpen[1]=0; flat=Tide.Dock; want=boatWant=inside=false; mode=null; OutNow();},
             Ready = () => Lift > 0.2f,
             Where = () => (bridge!.Nose, bridgeAngle, Note()),
             View = () => (new Vector3(126, 7, 4), new Vector3(110, 4, 17.5f)),

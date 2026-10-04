@@ -27,3 +27,9 @@ Boat lanterns use the model library's lamp points and one pooled additive mesh. 
 Build passes. The nine focused tie-in probes in godot/baked/tie-ins passed. The later 33-probe run in godot/baked/movers-verified passed boarding, passengers, families, lanterns and all 14 clocks, but found two contaminated self-test fixtures (the raised lock bridge and a crane reserved by an earlier train test). Those fixtures are being corrected separately. The warm Rijnkaai mean was 0.7262 ms per frame; the omnibus maximum was 1.131 ms, so this is an average budget measurement, not a guarantee for every frame.
 
 The town's close midday pictures remain very dark: outside the mover port, tracked at https://github.com/Steve-Sitax/Moodygame/issues/42. Shutdown resource warnings are already tracked in issue 40. The boat and omnibus lamps can be inspected at night. Named resident trip ownership and Jef boarding remain integration work; BoardResident and ResidentOff expose the live omnibus seats, and GoodsDrays.BedOf exposes the goods beds.
+
+## Mover self-test (2026-10-04)
+
+--moverstest writes two close pictures and world positions for 33 cases, including a minute-hand mesh, tides, traffic, opening leaves, gates, wagon solids, crane clearance, boarding and lamps. --moversonly selects name prefixes. The final six seconds measure the movers at the Rijnkaai after warming the view; a mean at or above 1 ms fails. Clock reports read the actual mesh hands on all 14 faces.
+
+Fixtures reset the raised lock bridge and clear train reservations before testing crane travel. The focused correction run godot/baked/fixtures-final passed all five cases: lock bridge 1.346 m and travelling crane 2.382 m. Both pictures of the bridge, crane, moored hull and Anna Maria were inspected. The quay train check queries each wagon's live physics body, and crane probes test the nine-part clearance sums.

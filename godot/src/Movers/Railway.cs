@@ -303,6 +303,7 @@ public partial class Railway : Node
     public string State => state;
     public float Speed => v;
     public string WaitWhy => waitWhy;
+    public float HeadYaw => line == null ? 0 : line.Yaw(head);
     public Vector3 HeadAt
     {
         get
@@ -1405,6 +1406,7 @@ public partial class Railway : Node
             Ready = () => v > 0.6f,
             Where = () => (HeadAt, head, $"the goods train, {state}, {v:0.00} m/s{(waitWhy != "" ? ", waits for the " + waitWhy : "")}, wagons loaded: {string.Join(" ", wagons.Select(w => w.Slots.Count(s => s)))}"),
             View = () => (HeadAt + new Vector3(9, 4.5f, 12), HeadAt + new Vector3(-9, 1.2f, 0)),
+            Check = TrainSolids,
         });
         MoversTest.Add(new MoversTest.Probe
         {
@@ -1412,6 +1414,12 @@ public partial class Railway : Node
             Hour = 10,
             Gap = 6,
             MaxWait = 240,
+            Start = () =>
+            {
+                StartTrip();
+                var st=stops.FirstOrDefault(s=>s.Crane.ShipA!=null && s.Crane.Ops.Count==0 && s.Crane.Mode=="berth");
+                if(st!=null && Prepare(st)) {stops=new List<Stop>{st}; stopI=0; Queue(st); head=st.Head-2; v=Creep; st.Crane.Stay=360;}
+            },
             Ready = () => state == "work" && working != null && working.Crane.Ops.Count > 0 && working.Crane.Ops[0].T is OpT.Slew or OpT.Hoist && working.Crane.Carry != null,
             Where = () =>
             {
@@ -1422,7 +1430,7 @@ public partial class Railway : Node
             View = () =>
             {
                 var c = working?.Crane ?? cranes[0];
-                return (new Vector3(c.X + 17, 9, c.Z + 20), new Vector3(c.X, 6, c.Z - 2));
+                return CraneView(c);
             },
         });
         MoversTest.Add(new MoversTest.Probe
@@ -1449,11 +1457,18 @@ public partial class Railway : Node
             MaxWait = 150,
             Start = () =>
             {
-                foreach (var c in cranes) c.Stay = Math.Min(c.Stay, 1);
+                // Previous probes may have reserved a crane for the train. Start an idle yard.
+                state = "shed"; shedT = 300; working = null; stops.Clear(); v = 0;
+                foreach (var c in cranes)
+                {
+                    c.Reserved = false; c.Ops.Clear(); c.Carry = null;
+                    c.Mode = "berth"; c.Target = null; c.Speed = 0; c.BlockT = 0; c.Stay = 0;
+                }
             },
             Ready = () => (mover = cranes.FirstOrDefault(c => c.Mode == "travel" && c.Speed > 0.2f)) != null,
             Where = () => mover == null ? (Vector3.Zero, 0, "no crane travels") : (new Vector3(mover.X, 0, mover.Z), mover.Pos, $"crane {mover.Index} travels along its runway to {mover.Target:0.0} at {mover.Speed:0.00} m/s, jib at {mover.A:0.00}, hook at {mover.Hy:0.0} m; nearest other crane's room {NearestRoom(mover):0.0} m"),
-            View = () => mover == null ? (new Vector3(0, 10, 30), new Vector3(0, 5, 4)) : (new Vector3(mover.X + (mover.Axis == 'x' ? 14 : 24), 8, mover.Z + (mover.Axis == 'x' ? 26 : 12)), new Vector3(mover.X, 6, mover.Z)),
+            View = () => mover == null ? (new Vector3(0, 10, 30), new Vector3(0, 5, 4)) : CraneView(mover),
+            Check = CraneClear,
         });
         Crane? swinger = null;
         MoversTest.Add(new MoversTest.Probe
@@ -1468,7 +1483,8 @@ public partial class Railway : Node
             },
             Ready = () => (swinger = cranes.FirstOrDefault(c => c.Mode == "berth" && c.Ops.Count == 0 && Math.Abs(CraneGeo.AngDiff(c.IdleTo, c.A)) > 0.15)) != null,
             Where = () => swinger == null ? (Vector3.Zero, 0, "no crane swings") : (new Vector3(swinger.X + MathF.Sin(swinger.Yaw + swinger.A) * RHook, swinger.Hy, swinger.Z + MathF.Cos(swinger.Yaw + swinger.A) * RHook), swinger.A, $"crane {swinger.Index} swings its jib from {swinger.A:0.00} to {swinger.IdleTo:0.00}"),
-            View = () => swinger == null ? (new Vector3(0, 10, 30), new Vector3(0, 5, 4)) : (new Vector3(swinger.X + 16, 10, swinger.Z + (swinger.Axis == 'z' ? 4 : 24)), new Vector3(swinger.X, 7, swinger.Z - 3)),
+            View = () => swinger == null ? (new Vector3(0, 10, 30), new Vector3(0, 5, 4)) : CraneView(swinger),
+            Check = CraneClear,
         });
     }
 
@@ -1477,5 +1493,19 @@ public partial class Railway : Node
         double best = 999;
         foreach (var o in c.Near) best = Math.Min(best, CraneGeo.CraneGap(PartsOf(c), PartsOf(o)));
         return best;
+    }
+
+    private string CraneClear()=>cranes.Any(c=>NearestRoom(c)<-.02)?"crane capsules overlap":"";
+    private static (Vector3 Eye,Vector3 Look) CraneView(Crane c) =>
+        (new Vector3(c.X+(c.Z<20?10:c.X<120?18:-18),8,c.Z+(c.Z<20?-20:8)),new Vector3(c.X,6,c.Z));
+    private string TrainSolids()
+    {
+        var space=Main.I.View.FindWorld3D().DirectSpaceState;
+        foreach(var w in wagons)
+        {
+            var q=new PhysicsShapeQueryParameters3D {Shape=new SphereShape3D {Radius=.1f},CollisionMask=Solid.Layer,Transform=new Transform3D(Basis.Identity,w.Body.GlobalPosition+Vector3.Up)};
+            if(!space.IntersectShape(q,32).Any(h=>h["rid"].AsRid()==w.Body.GetRid())) return "a wagon has no live physics body";
+        }
+        return "";
     }
 }
