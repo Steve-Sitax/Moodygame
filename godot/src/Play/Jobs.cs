@@ -970,6 +970,12 @@ public partial class Jobs : Node
         float x = Math.Clamp(-a / (MathF.PI / 2), -1, 1);
         var win = GetViewport().GetVisibleRect().Size;
         float left = win.X * (0.5f + x * 0.42f);
+        // Keep the top-edge pointer outside the top-left paper column, including its distance label.
+        float paperRight = 0;
+        if (Main.I.Ui.GetNodeOrNull<Control>("Hud") is { } hud && hud.GetChildCount() > 0 && hud.GetChild(0) is Control clock)
+            paperRight = clock.Position.X + clock.Size.X;
+        if (taskCard != null) paperRight = Math.Max(paperRight, taskCard.Card.Position.X + taskCard.Card.Size.X);
+        left = Math.Clamp(left, Math.Min(win.X / 2, paperRight + tickDist.Size.X / 2 + 12), win.X * 0.92f);
         tick.Position = new Vector2(left - tick.Size.X / 2, 4);
         tick.Turn = MathF.Abs(a) > MathF.PI / 2 ? (a > 0 ? 90 : -90) : 0;
         tickDist.Position = new Vector2(left - tickDist.Size.X / 2, 4 + tick.Size.Y - 2);
