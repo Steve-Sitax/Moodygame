@@ -57,6 +57,7 @@ const cp=housePlan(cellarEntry,build.houses[cellarEntry.house],build.ground_h,bu
 const cr=cp.room.rect, bz=cr.maxZ-2, cx=(cr.minX+cr.maxX)/2;
 const cellar={origin:cp.origin,yaw:cp.yaw,floor_y:cp.floorY+cp.room.y,rect:cr,foot:cp.flights[0].foot,stage:{x:cx,z:bz,feet_y:cp.floorY+cp.room.y+1.01}};
 mkdirSync(new URL('../../godot/assets/', import.meta.url), { recursive: true });
-writeFileSync(file, JSON.stringify({ homes, counters, cellar, looks, furniture: FURNITURE, mills: MILLS }, null, 2) + '\n');
+const cathedralSeats=[];for(let r=0;r<P.ROWS;r++)for(const side of [-1,1])cathedralSeats.push({x:side*P.CHAIR_X[0],z:P.ROW0+r*P.ROWD+.1,yaw:0,h:.46});
+writeFileSync(file, JSON.stringify({ cathedralSeats, homes, counters, cellar, looks, furniture: FURNITURE, mills: MILLS }, null, 2) + '\n');
 
 

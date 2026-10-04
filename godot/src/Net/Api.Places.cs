@@ -4,6 +4,11 @@ using System.Threading.Tasks;
 
 namespace Scheldemist.Net;
 
+public sealed record ConfessionBegin(string Line,string Priest);
+public sealed record ConfessionReply(string Line,string? Penance,string Source,string? Gated);
+public sealed record ConfessionEnd(string Line);
+public sealed record JobCart(string Id,string Kind,int? Job,string? Lender,float X,float Z);
+public sealed record JobCarts(List<JobCart> List);
 public sealed record LampPoint(string Id, float X, float Z, float Sx, float Sz, bool Done);
 public sealed record WorkPoint(float X, float Z, string Label);
 public sealed record LampsTask
@@ -46,8 +51,9 @@ public sealed record BalladSheet(string Title, List<List<string>> Verses, List<s
 public sealed record DockBook(bool Book, bool Ok, string Line);
 public sealed record LandmarkPerson(string Id, string Name, string First, string Role, string? Title);
 public sealed record LandmarkPoster(string Heading, string Body, string Footer);
-public sealed record LandmarkView(string Id, bool Open, List<LandmarkPerson> People, List<string> Register, List<LandmarkPoster> Posters, JsonElement? Wedding, JsonElement? Civil, JsonElement? Confession);
-public sealed record SermonView(int Day, List<string> Lines, bool Heard);
+public sealed record LandmarkView(string Id, bool Open, List<LandmarkPerson> People, List<string> Register, List<LandmarkPoster> Posters, JsonElement? Wedding, JsonElement? Civil, JsonElement? Confession) { public JsonElement? Service { get; init; } }
+public sealed record SermonGossip(string Id, string Name, string? To, string Text);
+public sealed record SermonView(int Day, List<string> Lines, bool Heard) { public List<string> Nodders { get; init; } = new(); public SermonGossip? Gossip { get; init; } }
 public sealed record SermonReply : JobsPayload { public int Delta { get; init; } public string Text { get; init; } = ""; }
 public sealed record CounterKeeper(string Id, string Name, string First);
 public sealed record InsideDoor(string Place, string Label, bool Open, CounterKeeper? Keeper);
@@ -85,6 +91,10 @@ public sealed partial class Api
     public Task<BalladSheet> BalladSheet(int day) => Get<BalladSheet>("api/ballad/sheet/" + day);
     public Task<DockBook> DockBook() => Get<DockBook>("api/docks/book");
     public Task<DockBook> DockSign() => Post<DockBook>("api/docks/book");
+    public Task<PlacesReply> LandmarkChair() => Post<PlacesReply>("api/landmark/chair",new{});
+    public Task<ConfessionBegin> ConfessionBegin() => Post<ConfessionBegin>("api/landmark/confess/begin",new{});
+    public Task<ConfessionReply> Confess(string text) => Post<ConfessionReply>("api/landmark/confess",new{text},TalkTimeoutMs);
+    public Task<ConfessionEnd> ConfessionEnd() => Post<ConfessionEnd>("api/landmark/confess/end",new{});
     public Task<LandmarkView> LandmarkNow(string id) => Get<LandmarkView>("api/landmark/" + id);
     public Task<OkReply> LandmarkHere(string? id) => Post<OkReply>("api/landmark/here", new { id });
     public Task<PlacesReply> LandmarkCandle() => Post<PlacesReply>("api/landmark/candle", new { });
@@ -95,6 +105,7 @@ public sealed partial class Api
     public Task<TavernView> Tavern(string place) => Get<TavernView>("api/interior/" + Esc(place));
     public Task<EmigrantView> Emigrants() => Get<EmigrantView>("api/emigrants");
     public Task<EmigrantBoard> EmigrantBoard(int household) => Post<EmigrantBoard>("api/emigrants/board", new { household });
+    public Task<JobCarts> JobCartLoans() => Get<JobCarts>("api/cart");
     public Task<PoesjeView> Poesje() => Get<PoesjeView>("api/poesje");
     public Task<PoesjeTicket> PoesjeEnter() => Post<PoesjeTicket>("api/poesje/enter");
     public Task<PoesjePlay> PoesjePlay() => Post<PoesjePlay>("api/poesje/play", new { }, TalkTimeoutMs);

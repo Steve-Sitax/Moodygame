@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Godot cathedral chairs charge the chair woman's centime once per service; the curate's confessional has a kneeling paper and an AI typing gate. At Sunday high mass the priest climbs the real pulpit and preaches before trust is awarded.
+
 - The emigrant tender keeps its real hull visible as families board in Godot, even when the bake camera hid it.
 
 - E inside Godot's five landmark halls describes the paintings, cases, casks, stairs, scale and other objects using the browser's own prompts.
