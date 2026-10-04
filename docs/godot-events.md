@@ -234,3 +234,6 @@ was removed as well. No push or merge back was made, and the shared bake was rea
 ## Moving-gap NPC wire adapter (2026-10-04)
 
 Actors.Replication adds action NPC/partner claim and release requests and reads numeric ownership replies before stepping. Browser-compatible 24-byte puppet packets feed remote action bodies through RemoteTrack, including motion, scale, carry and lantern flags. `moving-events` passes seven codec/interpolation assertions and `puppet-wire` passes five byte-for-byte browser comparisons. True two-client claims, handoff, event scenes and prisoner room movement remain open; these checks must not be described as a completed multiplayer event port.
+
+
+Final adapter regression: `moving-events-final` passes the seven wire assertions and six real requested action scenarios (follow, wait, go_to, look_for, talk_to, fetch_police). All six action pictures inspected. This remains single-client evidence; no claim of live remote event completion.

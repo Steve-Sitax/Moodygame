@@ -126,3 +126,47 @@ Together adds the protocol-5 omnibus local frame (base 1, bus index), with a sub
 The 115-second guide uses the browser deck path and gangway waypoints at 1.1 m/s, faces along its walk and releases at the landing. A one-shot latch prevents the guide restarting while the ashore reply is in flight. Small waypoint moves use a normalized direction, preventing an asymptotically slow hinge approach. The pontoon's existing drive remains until the normal quay exit.
 
 `moving-guidance-repeat/ridetest.json` passes 17 checks, including the actual solo creator, both nags, night lamps, guide release and manual walking from landing to quay. Both pictures were inspected. The sound-enabled repeat released the guide successfully but ran out of the old 35-second wall-clock allowance six metres short of the pontoon end; the fixture now allows 75 seconds. Auditory review and guest creator remain open.
+
+
+## Moving gap final handoff (2026-10-04)
+
+Worktree: D:/Code/MoodyGame-godot-gaps-moving, branch godot/gaps-moving. Nothing pushed or merged. Every code item is committed with the required author trailer; explicit-path pre-commit checks passed. The shared bake was read only, PERF-LOCK was observed and only ports 8905–8909 were used. Own test databases and processes are gone. Unrelated import-generated .cs.uid files remain untracked.
+
+Final evidence (local ignored artifacts, overlapping checks):
+
+| Artifact under godot/baked | Outcome | Inspected pictures |
+|---|---|---:|
+| moving-saved-rides | 126 checks pass: real save/menu-load while on omnibus, cart, velocipede and rowing boat | 19 |
+| moving-crane | 39 checks pass: reachable gallery/cabin, movement carrying, door exit and saved crane frame | 8 |
+| moving-ship-final | 23 checks pass: live moving climb, deck/gangway and saved ship frame | 5 |
+| moving-row | 24 checks pass: rowing and live swimming/quay boarding | 6 |
+| moving-expiry | 8 checks pass: mounted hires retained, released overdue hires collected on server tick | 0 |
+| moving-velo | 32 checks pass | 5 |
+| moving-guidance-sound-repeat | 17 checks pass with Soundscape enabled; solo creator, both nags, guide release, night lamps and walk to quay; 100 warmed sound gathers allocate 0 B | 2 |
+| moving-movers-final | Four feature assertions pass; overall timing fails | 8 |
+| moving-feeds-final | One actual server-confirmed crane pile refill; overall timing fails | 2 |
+| moving-rowing-crew | Two feature assertions pass; overall timing fails | 4 |
+| moving-events-final | Seven wire/interpolation assertions and six requested action scenarios pass | 6 |
+| puppet-wire | Five real browser/C# codec comparisons pass | 0 |
+| moving-shaders-final | Pass: 103 initial/final programs, zero new shader kinds | 0 |
+
+All 65 pictures listed above were inspected. Images remain local. Build passes with the two existing Grime/Deeds nullable warnings. npm run build and whitespace checks pass. The mover failures are not hidden: warm means 1.4859 ms and 1.3457 ms in the obstruction/crew tours, and an 18.091 ms peak in the pile-feed tour. Per Steve's instruction no optimisation pass was made.
+
+Still open for implementation: named household transport journeys and Jef travelling alongside them; actual prisoner hall/cell movement; live two-client remote rides, guest ferry creator and action NPC contention/handoff/release/event playback. The action network adapter and omnibus local-frame hooks are wired, but those are not live multiplayer proof. Still open for wider proof/detail: saved crane rungs, all nine rowing hulls and owned loose-boat ladders, occupied rowing traffic encounters, all cooperative portal retreat pairs and crane/pile pairs, exact chain-link harness geometry, auditory review. The long dock-crane gallery alignment repeat timed out; the focused cabin repeat passes. Steam/smoke was left to the existing godot/gaps-look branch, without reading or editing its worktree.
+
+Existing shared source files touched by this helper (new partial owners are listed by git, not included here):
+
+- Player/Jef.cs: optional live climb frame.
+- Audio/SoundWiring.cs: transport wood footsteps.
+- Menu/MainMenu.cs: capture ride state in client saves; retain the actual menu load/replacement path in ride tests.
+- Net/Mp/Together.cs: omnibus local-frame sampling and placement.
+- Game/Actors.cs and Actors.Ownership.cs: claim/remote adapter hooks and numeric ownership.
+- Dev/EventTest.cs: puppet test selector.
+- Movers/BoatLamps.cs: ferry registration into the fixed pool.
+- Movers/Anchorage.cs, River.cs and Railway.cs: yielding, crew/feed/sound/obstruction hooks and probe registration.
+- Play/ShipWalk.cs, Ride.cs, Handcarts.cs, Velocipedes.cs, Rowing.cs and CraneClimb.cs: saved-state and live approach hooks.
+- Play/FerryArrival.cs and RideTest.cs: arrival stats/guidance and extended ride checks.
+- tools/godot/ride-check.mjs: own-port/lock/timeouts/disposable database guard, test selectors and optional sound.
+- CHANGELOG.md, docs/godot-play-inventory.md, docs/godot-net.md, docs/godot-events.md and the ride/mover milestone handoffs.
+
+No shared Main.cs, BakedWorld.cs, Solid.cs, Psx.cs, shader or server production rule was edited by this helper. New typed calls are isolated in Net/Api.Moving.cs.

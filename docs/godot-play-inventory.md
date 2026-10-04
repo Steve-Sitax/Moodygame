@@ -148,7 +148,7 @@ Literal key codes found across all requested modules, to complement the action/w
 | `menu/menu.ts` | `ArrowDown`, `ArrowLeft`, `ArrowRight`, `ArrowUp`, `Enter`, `Escape`, `F8`, `F9`, `Space`, `Tab` |
 | `net/mp/together.ts` | `F5` |
 
-Moving-gap ferry proof: 14 checks in `moving-ferry-scenarios`, two inspected pictures, real solo creator and guided gangway exit, model night navigation lamps and saloon panes. Vehicle/ship Soundscape inputs allocate 0 B across 100 warmed gathers. Guest creator and auditory review remain open.
+Moving-gap ferry proof: 17 checks with Soundscape enabled in `moving-guidance-sound-repeat`, two inspected pictures, real solo creator and guided gangway exit, model night navigation lamps and saloon panes. Vehicle/ship Soundscape inputs allocate 0 B across 100 warmed gathers. Guest creator and auditory review remain open.
 
 Moving-gap save proof: 126 omnibus/cart/velocipede/rowing checks, 23 ship checks, 39 focused crane checks, 24 rowing checks and eight expiry checks. The crane cabin is reached on foot and exited through its door. A longer dock-crane alignment repeat timed out and remains open. Saved rungs, household journeys, prisoner movement and two-client transport remain open. See `milestones/godot-rides.md` for exact local artifacts and scope.
 
@@ -156,3 +156,6 @@ Moving-gap event network status: action NPC/partner claims, releases and kind-3 
 
 
 Moving-gap mover status: tow watchdog, loose-goods rail stopping, crane priority yielding, railway crew/harness and host docker-pile feeds are implemented. Four controlled mover assertions and one real server pile refill pass; overall mover reports still fail timing limits. Ten pictures inspected. Named resident journeys, all crane/pile combinations and active-rowing runtime proof remain open; see milestones/godot-movers.md.
+
+
+Final moving-gap handoff, exact evidence and shared-file list: `milestones/godot-rides.md`, section "Moving gap final handoff". This is a partial feature handoff; named journeys, prisoner-room movement and live multiplayer validation remain open. Shader repeat passes; mover timing reports fail as recorded.
