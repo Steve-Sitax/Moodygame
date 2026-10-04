@@ -67,6 +67,7 @@ public partial class Main : Node
     public override void _Ready()
     {
         I = this;
+        Dev.FrameCost.InstallContext();
         Paths.Initialize();
         string town = Paths.Town;
         shots = Paths.TestOutput("shots");

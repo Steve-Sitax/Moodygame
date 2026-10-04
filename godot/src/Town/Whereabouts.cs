@@ -334,6 +334,35 @@ public static class Whereabouts
     /// </summary>
     private static (Part part, double since, double left) PartAt(Resident r, int day, double h)
     {
+        using var profileCost = Scheldemist.Dev.FrameCost.Track("Town.PartAt");
+        return Scheldemist.Dev.SpeedComparison.Cached ? PartAtDirect(r, day, h) : PartAtOriginal(r, day, h);
+    }
+
+    private static (Part part, double since, double left) PartAtDirect(Resident r, int day, double h)
+    {
+        int b0 = (int)Math.Floor(h / 24);
+        Part? hit = null;
+        double start = h - 24, end = h + 24;
+        for (int k = b0 - 1; k <= b0 + 1; k++)
+        {
+            var segments = (((day + k) % 7) + 7) % 7 == 0 ? r.Sched.Sunday : r.Sched.Day;
+            foreach (var g in segments)
+            {
+                var q = new Part(g.Act, g.Where ?? (g.Act == "work" ? "work" : "home"), g.A + 24 * k, g.B + 24 * k);
+                // Retain the original stable tie order and gap boundaries, including overnight parts.
+                if (h >= q.Start && h < q.End && (hit == null || q.Start > hit.Value.Start)) hit = q;
+                if (q.End <= h) start = Math.Max(start, q.End);
+                if (q.Start > h) end = Math.Min(end, q.Start);
+            }
+        }
+        return hit != null ? (hit.Value, h - hit.Value.Start, hit.Value.End - h)
+            : (new Part("home", "home", start, end), h - start, end - h);
+    }
+
+    public static bool SamePartAt(Resident r, int day, double hour) => PartAtDirect(r, day, hour) == PartAtOriginal(r, day, hour);
+
+    private static (Part part, double since, double left) PartAtOriginal(Resident r, int day, double h)
+    {
         Seg[] SegsOf(int d) => ((d % 7) + 7) % 7 == 0 ? r.Sched.Sunday : r.Sched.Day;
         int b0 = (int)Math.Floor(h / 24);
         var list = new List<Part>();
@@ -455,6 +484,7 @@ public static class Whereabouts
     /// </summary>
     private static Stop[] DayRoute(Resident r, TownData town, int day, WayOf way)
     {
+        using var profileCost = Scheldemist.Dev.FrameCost.Track("Town.DayRoute");
         if (r.RouteCache.TryGetValue(day, out var hit))
         {
             RouteHits++;

@@ -218,6 +218,7 @@ public sealed partial class Api : IDisposable
     {
         try
         {
+            using var callbackCost = Dev.FrameCost.Callback(a);
             a();
         }
         catch (Exception e)

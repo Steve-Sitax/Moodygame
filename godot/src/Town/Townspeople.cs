@@ -580,7 +580,7 @@ public partial class Townspeople : Node
     public override void _Process(double delta)
     {
         using var frameCost = Scheldemist.Dev.FrameCost.Track("Town.Townspeople");
-        while (inbox.TryDequeue(out var a)) a();
+        while (inbox.TryDequeue(out var a)) { using var callbackCost = Scheldemist.Dev.FrameCost.Callback(a); a(); }
         if (Data == null || Crowd == null) return;
         if (ClockRuns)
         {

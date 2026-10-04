@@ -26,6 +26,7 @@ public partial class Checks : Node
     private double lastMainMs;
     private long frameAllocatedAt;
     private bool timingConnected;
+    private FrameCost.Scope processCost, submitCost;
     private sealed class Window
     {
         public readonly List<double> Main = new(8192), Wall = new(8192), Calls = new(8192);
@@ -60,6 +61,7 @@ public partial class Checks : Node
             GetTree().ProcessFrame += BeginFrame;
             GetTree().PhysicsFrame += BeginFrame;
             RenderingServer.FramePostDraw += EndFrame;
+            RenderingServer.FramePreDraw += BeforeDraw;
             timingConnected = true;
         }
     }
@@ -67,11 +69,14 @@ public partial class Checks : Node
     {
         if (frameStart != 0) return;
         frameStart = Time.GetTicksUsec();
+        FrameCost.Frame();
+        processCost = FrameCost.Track("Engine.process-and-physics");
         frameAllocatedAt = GC.GetAllocatedBytesForCurrentThread();
         if (window is { Turn: true }) Jef.I.Yaw += Mathf.DegToRad(2);
     }
     private void EndFrame()
     {
+        submitCost.Dispose();
         ulong now = Time.GetTicksUsec();
         if (frameStart != 0) lastMainMs = (now - frameStart) / 1000.0;
         frameStart = 0;
@@ -87,11 +92,17 @@ public partial class Checks : Node
         if (w.Main.Count < w.Frames || w.Until > now) return;
         window = null; w.Done.SetResult(true);
     }
+    private void BeforeDraw()
+    {
+        processCost.Dispose();
+        submitCost = FrameCost.Track("Engine.render-submission");
+    }
     public override void _ExitTree()
     {
         if (!timingConnected) return;
         if (GetTree() != null) { GetTree().ProcessFrame -= BeginFrame; GetTree().PhysicsFrame -= BeginFrame; }
         RenderingServer.FramePostDraw -= EndFrame;
+        RenderingServer.FramePreDraw -= BeforeDraw;
     }
     public override void _Process(double delta)
     {
@@ -234,11 +245,12 @@ public partial class Checks : Node
         }
         return renderAudit!.Report();
     }
-    private sealed record Measure(double Mean, double P95, double Max, double WallMean, double WallP95, double WallMax, double Calls, int Over16, int Over33, int Samples, double ProcessMs, double PhysicsMs, int Collections, double MeanBytes, long P95Bytes);
+    private sealed record Measure(double Mean, double P95, double Max, double WallMean, double WallP95, double WallMax, double Calls, int Over16, int Over33, int Samples, double ProcessMs, double PhysicsMs, int Collections, double MeanBytes, long P95Bytes, long MedianBytes, int Gen1Collections, int Gen2Collections);
     private async Task<Measure> MeasureFrames(int n, bool turn = false, bool walk = false, int seconds = 0)
     {
         var w = new Window { Frames = n, Turn = turn, Until = seconds == 0 ? 0 : Time.GetTicksUsec() + (ulong)seconds * 1_000_000 };
         int collections = GC.CollectionCount(0);
+        int gen1 = GC.CollectionCount(1), gen2 = GC.CollectionCount(2);
         Jef.I.SetKey(Key.W, walk);
         window = w;
         await w.Done.Task;
@@ -246,7 +258,7 @@ public partial class Checks : Node
         lastWindow = w;
         double P95(List<double> a) => a.Order().ElementAt(Math.Min(a.Count - 1, (int)(a.Count * 0.95)));
         return new(Math.Round(w.Main.Average(), 3), Math.Round(P95(w.Main), 3), Math.Round(w.Main.Max(), 3), Math.Round(w.Wall.Average(), 3), Math.Round(P95(w.Wall), 3), Math.Round(w.Wall.Max(), 3), Math.Round(w.Calls.Average()), w.Wall.Count(t => t > 16), w.Wall.Count(t => t > 33), w.Main.Count,
-            Performance.GetMonitor(Performance.Monitor.TimeProcess) * 1000, Performance.GetMonitor(Performance.Monitor.TimePhysicsProcess) * 1000, GC.CollectionCount(0) - collections, Math.Round(w.Bytes.Average(), 1), w.Bytes.Order().ElementAt(Math.Min(w.Bytes.Count - 1, (int)(w.Bytes.Count * 0.95))));
+            Performance.GetMonitor(Performance.Monitor.TimeProcess) * 1000, Performance.GetMonitor(Performance.Monitor.TimePhysicsProcess) * 1000, GC.CollectionCount(0) - collections, Math.Round(w.Bytes.Average(), 1), w.Bytes.Order().ElementAt(Math.Min(w.Bytes.Count - 1, (int)(w.Bytes.Count * 0.95))), w.Bytes.Order().ElementAt(w.Bytes.Count / 2), GC.CollectionCount(1) - gen1, GC.CollectionCount(2) - gen2);
     }
     private Window lastWindow = null!;
     private async Task<object> Perf()
@@ -262,6 +274,7 @@ public partial class Checks : Node
             At(name); await Frames(30);
             // Six seconds of actual walking frames, as tools/perfcheck.mjs; no synthetic logic-only timing.
             var start = new Vector2(Jef.I.X, Jef.I.Z);
+            FrameCost.Clear();
             var live = await MeasureFrames(1, walk: true, seconds: 6);
             var mainTimes = lastWindow.Main.Order().ToArray();
             var wallTimes = lastWindow.Wall.Order().ToArray();

@@ -21,6 +21,7 @@ const timeout = Number(opt("timeout", "240")) * 1000;
 const seed = Number(opt("seed", "1873"));
 const extraArgs = JSON.parse(opt("args", "[]"));
 if (!Array.isArray(extraArgs) || extraArgs.some(a => typeof a !== "string")) throw new Error("--args must be a JSON array of Godot user arguments");
+if (args.includes("--profile-parts")) extraArgs.push("--profile-parts");
 if (!Number.isInteger(seed) || seed <= 0 || seed > 2147483647) throw new Error("--seed must be 1..2147483647");
 let port = Number(opt("port", "8980"));
 if (!Number.isInteger(port) || port < 8900 || port > 64000) throw new Error("--port must be 8900..64000");

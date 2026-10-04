@@ -315,6 +315,7 @@ public sealed class Crowd
 
     public void Update(double dt, double vx, double vz, (double x, double z)? playerBody, Camera3D? camera)
     {
+        using var profileCost = Scheldemist.Dev.FrameCost.Track("Town.Crowd");
         map.RefreshBodies();
         viewX = vx;
         viewZ = vz;

@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Godot creates less temporary garbage while finding townspeople's daily walks, avoiding the measured route-learning hitch without changing their schedules.
+
 - Godot lamplighters put away their pole when another scene takes over and rebuild it when their street body returns.
 
 - Godot event attendees keep up with a later destination across town, and an older hall reply cannot replace a newer ceremony roster.
