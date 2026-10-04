@@ -5,6 +5,8 @@ using System.Linq;
 using System.Text.Json;
 using Godot;
 using Scheldemist.Player;
+using Scheldemist.People;
+using Scheldemist.Town;
 using Scheldemist.World;
 
 namespace Scheldemist.Movers;
@@ -25,7 +27,7 @@ namespace Scheldemist.Movers;
 ///
 /// Not ported yet (the browser has them): the shunter at the horses' heads and the gate's keeper (people), the
 /// horses' harness chains, a crane making way for another by asking, the
-/// dockers' piles the cranes feed, the walkable crane cabin, stopping for townspeople and things left on the rails.
+/// dockers' piles the cranes feed, the walkable crane cabin, stopping for things left on the rails.
 /// </summary>
 [GamePart(45)]
 public partial class Railway : Node
@@ -289,6 +291,7 @@ public partial class Railway : Node
     private Copies? wheels, links, hooks, ropes, slings, craneWheels;
     private readonly Dictionary<string, Copies?> goodsMesh = new();
     private readonly Dictionary<string, int> gcount = new();
+    private readonly Dictionary<string,int> drawIndices=new(3);
     private readonly AnimatableBody3D[] horseBodies = new AnimatableBody3D[2];
     private float gateOutFace = -1, gateOutTip = -1, gateBackFace = -1, gateBackTip = -1, hideX;
     private List<Stop> stops = new();
@@ -300,6 +303,9 @@ public partial class Railway : Node
     private readonly List<CraneGeo.Capsule> trainCaps = new();
     private readonly List<CraneGeo.Capsule> mastCaps = new();
     private readonly Dictionary<Bridges.Rect, List<(float A, float B)>> spans = new();
+    private readonly HashSet<long> hookRailBand = new();
+    private static long RailKey(float x,float z)=>((long)MathF.Floor(x)+4096)*8192+(long)MathF.Floor(z)+4096;
+    private bool HookOverRails(Crane c)=>hookRailBand.Contains(RailKey(c.X+MathF.Sin(c.Yaw+c.A)*RHook,c.Z+MathF.Cos(c.Yaw+c.A)*RHook));
     private bool ok;
 
     public string State => state;
@@ -344,6 +350,10 @@ public partial class Railway : Node
         pts.AddRange(b);
         pts.Add((West, b[^1].Z));
         line = new Line(pts);
+        for(int i=0;i<line.X.Length;i+=4)
+            if(line.X[i]>=-316)
+                for(int dx=-4;dx<=4;dx++) for(int dz=-4;dz<=4;dz++)
+                    if(dx*dx+dz*dz<=13) hookRailBand.Add(RailKey(line.X[i]+dx,line.Z[i]+dz));
 
         gate = new Gate(this);
         hideX = Gate.Face - 5.2f;
@@ -747,6 +757,16 @@ public partial class Railway : Node
                     c.Speed = Math.Min(c.Speed, 0.05f);
                 }
             }
+            float co=MathF.Cos(c.Yaw),si=MathF.Sin(c.Yaw);
+            float leading=Math.Sign(dir*(c.Axis=='x'?co:-si))*1.25f;
+            foreach(var foot in CraneFeet)
+            {
+                float lx=foot.X+leading;
+                float x=c.X+lx*co+foot.Z*si,z=c.Z-lx*si+foot.Z*co;
+                foreach(var person in StreetPeople.Walking())
+                    if(Math.Abs(person.X-x)<1.1 && Math.Abs(person.Z-z)<1.1)
+                        {want=0;c.Speed=0;c.Blocked=true;break;}
+            }
             c.Speed += Math.Clamp(want - c.Speed, -0.4f * dt, 0.15f * dt);
             if (c.Speed < 0.002f && want == 0) c.Speed = 0;
             float step = Math.Min(c.Speed * dt, dist);
@@ -809,8 +829,9 @@ public partial class Railway : Node
                     c.Idle = Math.Min(c.Idle, 3 + (float)c.R() * 5);
                 }
             }
-            float dh = HookRest - c.Hy;
-            if (Math.Abs(dh) > 1e-3f) TryMove(c, c.Pos, c.A, Math.Abs(dh) < 0.005f ? HookRest : c.Hy + dh * Math.Min(1, dt * 0.5f));
+            float rest=HookOverRails(c)?Math.Max(Travel,Math.Min(c.Hy,TravelHook)):HookRest;
+            float dh = rest - c.Hy;
+            if (Math.Abs(dh) > 1e-3f) TryMove(c, c.Pos, c.A, Math.Abs(dh) < 0.005f ? rest : c.Hy + dh * Math.Min(1, dt * 0.5f));
             return;
         }
         if (c.BlockT > 45)
@@ -1190,6 +1211,16 @@ public partial class Railway : Node
                     break;
                 }
             }
+        var ahead=line.At(head+3);
+        foreach(var p in StreetPeople.Walking())
+        {
+            if(Math.Abs(p.X-ahead.X)>5 || Math.Abs(p.Z-ahead.Y)>5) continue;
+            for(float d=0;d<=3;d++)
+            {
+                var q=line.At(head+d); double dx=p.X-q.X,dz=p.Z-q.Y;
+                if(dx*dx+dz*dz<1.1*1.1) {lim=Math.Min(lim,Math.Max(head,head+d-1.5f));waitWhy="people";break;}
+            }
+        }
         return lim;
     }
 
@@ -1307,7 +1338,7 @@ public partial class Railway : Node
     {
         bool hidden = state == "shed";
         foreach (string g in Goods) gcount[g] = 0;
-        var idx = new Dictionary<string, int>(3);
+        var idx = drawIndices; idx.Clear();
         Vector3? prevRear = null;
         for (int i = 0; i < wagons.Count; i++)
         {
@@ -1471,6 +1502,24 @@ public partial class Railway : Node
                 return CraneView(c);
             },
         });
+        Puppet? walker=null;
+        MoversTest.Add(new MoversTest.Probe
+        {
+            Name="train_yields_to_a_person",Hour=10,Gap=3,MinMove=0,MaxWait=10,
+            Start=()=>
+            {
+                TestAt(-20);var at=line.At(head+.7f);
+                var frame=new Node3D {Name="rail_test_walker",Position=new Vector3(at.X,0,at.Y)};AddChild(frame);
+                var human=Carters.Make(frame,"docker_b");
+                if(human!=null) {walker=new Puppet {Id=-1873,Kind="docker_b",Human=human,Group=frame,X=at.X,Z=at.Y};StreetPeople.TestPeople.Add(walker);}
+                else frame.QueueFree();
+            },
+            Ready=()=>walker!=null && v<.02f && waitWhy=="people",
+            Where=()=>(HeadAt,head,$"train waits for a live docker ahead of its horses: {waitWhy}, {v:0.00} m/s"),
+            View=()=>{var at=HeadAt+Vector3.Up;return (at+new Vector3(7,4,8),at);},
+            Check=()=>waitWhy!="people" || v>=.02f?"the train did not yield to the person":"",
+            End=()=>{if(walker!=null) {StreetPeople.TestPeople.Remove(walker);walker.Group.QueueFree();walker=null;}}
+        });
         MoversTest.Add(new MoversTest.Probe
         {
             Name = "rail_gate",
@@ -1550,6 +1599,7 @@ public partial class Railway : Node
         (new Vector3(c.X+(c.Z<20?10:c.X<120?18:-18),8,c.Z+(c.Z<20?-20:8)),new Vector3(c.X,6,c.Z));
     private string TrainSolids()
     {
+        string clearance=CraneClear(); if(clearance!="") return clearance;
         var space=Main.I.View.FindWorld3D().DirectSpaceState;
         foreach(var w in wagons)
         {

@@ -10,10 +10,12 @@ namespace Scheldemist.Movers;
 public static class StreetPeople
 {
     private static Townspeople? town;
+    internal static readonly List<Puppet> TestPeople=new();
     public static IEnumerable<Puppet> Walking()
     {
         town??=Main.I.GetNodeOrNull<Townspeople>("Townspeople");
-        return town?.Crowd?.Walking??Array.Empty<Puppet>();
+        var live=town?.Crowd?.Walking??(IReadOnlyList<Puppet>)Array.Empty<Puppet>();
+        return TestPeople.Count>0 && MoversTest.On ? live.Concat(TestPeople) : live;
     }
 }
 
