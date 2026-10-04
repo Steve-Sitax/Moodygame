@@ -4,6 +4,7 @@ namespace Scheldemist.Movers;
 
 public partial class Railway
 {
+    public static System.Collections.Generic.List<(float X,float Z)> RiderRailLine(System.Text.Json.JsonElement line)=>SmoothLine(line);
     /// <summary>Snapshots of the live portal and jib, without stopping their work or allocating lists.</summary>
     public readonly record struct Ladder(int Id, Vector3 Foot, Vector3 Hang, Vector3 Head, float Face, Transform3D Deck, string Mode, int Lifts);
     public int LadderCount => cranes.Count;

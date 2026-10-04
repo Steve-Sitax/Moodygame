@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Buy or hire a velocipede in Godot, pedal and steer through town, brake at steps and water, and get up after a wheel catches in the rails.
+
 - In Godot, buy or hire a handcart, push it by its shafts, load the real goods onto its bed, and unload a carry job at its goal for payment.
 - In Godot, climb a working crane from the quay, walk its gallery into the cabin, ride its turns and travel, and climb back down.
 - In Godot, board an omnibus at its back step, hop aboard a moving one, pay or refuse the conductor, sit inside or on the roof, and read the stop timetable.

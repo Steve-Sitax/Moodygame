@@ -42,6 +42,7 @@ public partial class RideTest : Node
             await api.Post<OkReply>("api/arrival/ashore");
             Jef.I.Place(-118, 36, 0);
             if(Main.I.Arg("ride-only")=="cart") {await HandcartCheck(api);return;}
+            if(Main.I.Arg("ride-only")=="velo") {await VeloCheck(api);return;}
             foreach (float height in new[] { 2.99f, 3, 5, 8, 12 })
             {
                 GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { hour = 13, minute = 45, weather = "clear", health = 10 }));
@@ -68,13 +69,55 @@ public partial class RideTest : Node
             await OmnibusCheck(api);
             await CraneCheck();
             await HandcartCheck(api);
+            await VeloCheck(api);
         }
         catch (Exception e) { error = e.ToString(); GD.PrintErr("ridetest: " + error); }
         finally
         {
-            File.WriteAllText(Path.Combine(dir, "ridetest.json"), JsonSerializer.Serialize(new { ok = error == "", error, selection=Main.I.Arg("ride-only"), checks, replies, pictures, incomplete = new[] { "rowing", "ship frames", "velocipede", "ferry" } }, new JsonSerializerOptions(Api.Json) { WriteIndented = true }));
+            File.WriteAllText(Path.Combine(dir, "ridetest.json"), JsonSerializer.Serialize(new { ok = error == "", error, selection=Main.I.Arg("ride-only"), checks, replies, pictures, incomplete = new[] { "rowing", "ship frames", "ferry" } }, new JsonSerializerOptions(Api.Json) { WriteIndented = true }));
             GetTree().Quit(error == "" ? 0 : 1);
         }
+    }
+    private async Task VeloFixture(Api api,Velocipedes.Machine m,float x,float z,float yaw)
+    {
+        var mounted=await api.VeloMount(m.Info,m.Info.X,m.Info.Z);replies.Add(new{veloFixtureMount=mounted});
+        var left=await api.VeloLeave(m.Info.Id,x,z,yaw,false);replies.Add(new{veloFixtureLeave=left});await Velocipedes.I.Load();
+    }
+    private async Task VeloCheck(Api api)
+    {
+        GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set",new {hour=13,minute=45,weather="clear",money_c=2000,health=10}));
+        await Velocipedes.I.Load();Require(await Until(()=>Velocipedes.I.Ownership?.Shop!=null,15),"velocipede maker ready");
+        var velo=Velocipedes.I;var shop=velo.Ownership!.Shop!;velo.Answered+=(action,reply)=>replies.Add(new{velocipede=action,reply});
+        var buy=await api.Buy(shop.Id,"velocipede_used");GameState.I.Apply(buy);replies.Add(new{veloBuy=buy});
+        Require(buy.PriceC==600&&GameState.I.Money==1400,"server sells owned used velocipede");await velo.Load();
+        Require(velo.Machines.Values.Any(m=>m.Info.Own&&m.Info.Mine),"owned velocipede drawn from model library");var m=velo.Machines.Values.First(m=>m.Info.Own&&m.Info.Mine);
+        await VeloFixture(api,m,-118,36,0);Jef.I.Place(-118.8f,36,-MathF.PI/2,-.65f);await Frames(15);await Shot("velocipede-parked");
+        Require(Interact.I.Press(Key.E),"E mounts owned velocipede");Require(await Until(()=>velo.Ridden==m&&!velo.Busy,10),"server confirms mounted velocipede");
+        var from=new Vector2(Jef.I.X,Jef.I.Z);Jef.I.SetKey(Key.W,true);Require(await Until(()=>new Vector2(Jef.I.X,Jef.I.Z).DistanceTo(from)>2,8),"velocipede travels two metres");Jef.I.ClearKeys();
+        replies.Add(new{veloPedal=new{from=new{from.X,from.Y},Jef.I.X,Jef.I.Y,Jef.I.Z,velo.Speed,velo.LastEvent,velo.Heading}});
+        Require(velo.Speed>1&&new Vector2(Jef.I.X,Jef.I.Z).DistanceTo(from)>1,"W pedals velocipede along flat street");Jef.I.Pitch=-.9f;await Shot("velocipede-riding");
+        for(int i=0;i<100;i++)velo.Drive(0);long before=GC.GetAllocatedBytesForCurrentThread();for(int i=0;i<10000;i++)velo.Drive(0);long bytes=GC.GetAllocatedBytesForCurrentThread()-before;
+        replies.Add(new{veloFrameProbe=new{iterations=10000,allocatedBytes=bytes}});Require(bytes==0,"velocipede drive allocates zero bytes");
+        float h=velo.Heading;Jef.I.SetKey(Key.A,true);await Frames(35);Jef.I.ClearKeys();Require(Math.Abs(velo.Heading-h)>.02f,"A turns handlebar and machine");
+        Jef.I.SetKey(Key.S,true);Require(await Until(()=>Math.Abs(velo.Speed)<.1f,5),"S brakes velocipede");Jef.I.ClearKeys();
+        Require(Interact.I.Press(Key.E),"E dismounts velocipede");Require(await Until(()=>velo.Ridden==null&&!velo.Busy,10),"dismount returns to ordinary walking");
+        var world=await api.Velos();replies.Add(new{veloWorldAfterLeave=world});Require(world.Velos.First(v=>v.Id==m.Info.Id).Ridden==false,"server parks dismounted velocipede");Jef.I.Yaw=MathF.Atan2(Jef.I.X-m.Info.X,Jef.I.Z-m.Info.Z);Jef.I.Pitch=-.65f;await Shot("velocipede-dismounted");
+        // A real raised slab across the route: the wheels must refuse a 20 cm step.
+        await VeloFixture(api,m,-118,36,0);Jef.I.Place(-118.8f,36,-MathF.PI/2);await Frames(12);await velo.Mount(m);
+        var step=new StaticBody3D{CollisionLayer=Scheldemist.World.Solid.Layer,CollisionMask=0,Position=new(-118,.1f,38)};
+        step.AddChild(new CollisionShape3D{Shape=new BoxShape3D{Size=new(4,.2f,1)}});Main.I.View.AddChild(step);await Frames(3);
+        Jef.I.SetKey(Key.W,true);Require(await Until(()=>velo.LastEvent=="steps",8),"velocipede refuses a real twenty-centimetre step");Jef.I.ClearKeys();Require(Jef.I.Z<38,"wheels stay below refused step");await velo.Leave();step.QueueFree();await Frames(3);
+        await VeloFixture(api,m,-118,1.5f,MathF.PI);Jef.I.Place(-118.8f,1.5f,MathF.PI/2);await Frames(12);await velo.Mount(m);
+        Jef.I.SetKey(Key.W,true);Require(await Until(()=>velo.LastEvent=="edge",10),"velocipede stops short of quay water edge");Jef.I.ClearKeys();Require(!Jef.I.Swimming&&Jef.I.Z>-.5f,"edge refusal keeps rider ashore");await Shot("velocipede-edge");await velo.Leave();
+        var hire=await api.Buy(shop.Id,"velocipede_hire");GameState.I.Apply(hire);replies.Add(new{veloHire=hire});await velo.Load();
+        Require(hire.PriceC==30&&velo.Ownership!.List.Any(v=>v.Kind=="hire"&&v.MinutesLeft==840),"server rents velocipede for fourteen game hours");
+        var rentedId=velo.Ownership!.List.First(v=>v.Kind=="hire").Id;var rented=velo.Machines[rentedId];
+        await VeloFixture(api,rented,-118,36,0);Jef.I.Place(-118.8f,36,-MathF.PI/2,-.65f);await Frames(12);Require(Interact.I.Press(Key.E),"E mounts hired velocipede");Require(await Until(()=>velo.Ridden==rented&&!velo.Busy,10),"hired machine uses same riding controls");await velo.Leave();
+        await VeloFixture(api,m,-180,4+1.435f/2,-MathF.PI/2);Jef.I.Place(-180,5.8f,0,-.5f);await Frames(12);await velo.Mount(m);velo.RiderTestRisk(true);
+        Jef.I.SetKey(Key.W,true);Jef.I.SetKey(Key.Shift,true);
+        Require(await Until(()=>velo.LastEvent=="fall"&&!velo.Busy,15),"fast wheel in real rail groove throws rider with fixture dice");Jef.I.ClearKeys();velo.RiderTestRisk(false);
+        Require(velo.Ridden==null&&m.Info.Down,"crash leaves machine down and rider beside it");Jef.I.Yaw=MathF.Atan2(Jef.I.X-m.Info.X,Jef.I.Z-m.Info.Z);Jef.I.Pitch=-.55f;await Shot("velocipede-crash");
+        Require(await Until(()=>!Jef.I.Riding,5),"rider gets up after crash");world=await api.Velos();replies.Add(new{veloAfterCrash=world});Require(world.Velos.First(v=>v.Id==m.Info.Id).Down,"server records crashed velocipede on its side");
     }
     private async Task CartFixture(Api api,HandcartInfo c,float x,float z,float yaw)
     {

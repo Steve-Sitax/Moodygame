@@ -10,6 +10,7 @@ public partial class Jef
     public Func<float, bool>? Drive;
     public Func<bool>? OnJump;
     public float DrivenEye = Eye;
+    public float DrivenRoll;
     public bool Riding => Drive != null;
     public bool KeyDown(Key key) => K(key);
     public void LaunchFromRide()
