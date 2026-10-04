@@ -1,5 +1,21 @@
 # Work log
 
+## Godot shader hash and the Steen's courtyard windows, 2026-10-04
+
+On `godot/gaps-look` (merged `godot-port` at `ab0d1dd`).
+- [#58](https://github.com/Steve-Sitax/Moodygame/issues/58): `Psx.HashGlsl` (hash without sin) in every psx shader,
+  the alive parts, the paper card and `retro.gdshader`. Before (two runs) and after, 12 views on Vulkan: grain,
+  dither, smoke, breath, walls, shore and gutters within the runs' own spread; cobbles and rain rings the same look
+  with other stones and rings. Pictures `godot/baked/look/cmp2/hash58_sheet.png`, runs `hb4`, `hb5`, `ha3`.
+- [#56](https://github.com/Steve-Sitax/Moodygame/issues/56): the browser had the same hole (old panes undrawn
+  since issue #10, no room behind as seen from the street). Fixed in the browser (`steenModel.ts`) and in Godot for
+  the current bake (`RoomlessPanes.cs`). Pictures `cmp2/steen56_sheet.png` (browser before, browser after, Godot
+  after; day, night). The web demo needs the browser change after the merge (docs/web-demo.md).
+- Found on the way: the Overwolf overlay's Vulkan layers crash Godot at start on Steve's PC (the test runs set the
+  layers' own off switches); leaked windows-mcp servers had filled the commit memory (stopped by the coordinator).
+  The worktree needed `client/public/draco` for the browser's Steen (copied for the check, removed after).
+Checks: shaders PASS (104 programs, 0 new kinds, 0 problems), browser build PASS. No push or merge.
+
 ## Godot look gaps, round 2: sky, landmark rooms, storm, what the bake hid, 2026-10-04
 
 On `godot/gaps-look` (merged `godot-port` at `30df71b`). Each beside the browser's picture from the same view
