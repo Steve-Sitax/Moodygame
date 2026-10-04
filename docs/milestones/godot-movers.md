@@ -49,3 +49,9 @@ All 36 probes pass in `godot/baked/movers-proof/moverstest.json`. All 72 picture
 Individual far moored boats update in eight turns, and far street vehicles reuse front-obstruction queries for four turns. Nearby vehicles and player/people/queue checks still run every frame. The warm Rijnkaai measurement is 0.7206 ms mean, 0.949 ms at the 95th percentile, 16.921 ms maximum over 1,138 frames. This meets the mean budget, not a strict every-frame 1 ms bound. Whole-tour mean is 0.7002 ms, with 37.378 ms peak. The report records peaks explicitly. No claim is made that the no-serverlink test verifies town resident journey ownership or network goods loading.
 
 Build succeeds with the integration branch's two nullable warnings in Grime.cs and Townspeople.cs. The incoming merge is godot-port at 2edc812. There were no bake, shader, Psx, live checkout or integration worktree edits. Shutdown resource warnings remain issue 40; dark clear-day lighting remains issue 42.
+
+## Crane clearance against ships and wagons (2026-10-04)
+
+The browser's one-metre tall cells above 4 m are now collected once from moored model meshes. Each crane keeps only cells within reach of its runway, with tide and grounding floors applied at each trial step. Hold angles must be clear at the highest spring tide. Jibs keep the browser's 1 m margin from those cells. The other cranes' falls also keep that margin from the train's wagon and horse capsules; the booked working crane can lower its hook into a wagon.
+
+`godot/baked/crane-margin-proof/moverstest.json` passes all four focused train/crane probes. The crane checks now include actual ship and passing-train clearance as well as mutual crane parts. Both pictures of every probe were inspected. Build passes. Warm Rijnkaai combined cost in that run: mean 0.5768 ms, p95 0.708 ms, peak 0.983 ms over 1,453 frames. No shared file changed.

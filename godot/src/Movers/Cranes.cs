@@ -124,15 +124,18 @@ public static class CraneGeo
     }
 
     /// <summary>The free room between a crane's jib and fall and some other things (the train's cars).</summary>
-    public static double ThingsGap(Capsule[] a, List<Capsule> things)
+    public static double ThingsGap(Capsule[] a, List<Capsule> things, int only = -1)
     {
         double gap = double.PositiveInfinity;
         for (int i = 0; i < 2; i++)
+        {
+            if(only>=0 && a[i].Kind!=only) continue;
             foreach (var q in things)
             {
                 double g = SegDist(a[i], q) - a[i].R - q.R;
                 if (g < gap) gap = g;
             }
+        }
         return gap;
     }
 

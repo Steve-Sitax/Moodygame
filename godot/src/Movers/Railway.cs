@@ -24,7 +24,7 @@ namespace Scheldemist.Movers;
 /// cranes nearer than the margin (shared/cranes.ts: CraneGeo).
 ///
 /// Not ported yet (the browser has them): the shunter at the horses' heads and the gate's keeper (people), the
-/// horses' harness chains, the ships' masts in the cranes' way, a crane making way for another by asking, the
+/// horses' harness chains, a crane making way for another by asking, the
 /// dockers' piles the cranes feed, the walkable crane cabin, stopping for townspeople and things left on the rails.
 /// </summary>
 [GamePart(45)]
@@ -272,6 +272,7 @@ public partial class Railway : Node
         public List<(float P, float A)> Berths = new();
         public bool Reserved, Blocked;
         public List<Crane> Near = new();
+        public List<(float X,float Z,float Top,float Floor)> Masts = new();
         public CraneGeo.Capsule[] Parts = new CraneGeo.Capsule[CraneGeo.PartCount];
         public float PartsPos = float.NaN, PartsA, PartsHy, PartsLoad;
         public int Lifts, Trips;
@@ -297,6 +298,7 @@ public partial class Railway : Node
     private Stop? working;
     private string waitWhy = "";
     private readonly List<CraneGeo.Capsule> trainCaps = new();
+    private readonly List<CraneGeo.Capsule> mastCaps = new();
     private readonly Dictionary<Bridges.Rect, List<(float A, float B)>> spans = new();
     private bool ok;
 
@@ -424,13 +426,19 @@ public partial class Railway : Node
             foreach (int sgn in k > 0 ? new[] { 1, -1 } : new[] { 1 })
             {
                 float ca = sgn * k * 0.09f, wa = c.Yaw + ca;
-                if (Boats.I.HullAt(x + MathF.Sin(wa) * RHook, z + MathF.Cos(wa) * RHook)) return ca;
+                if (Boats.I.HullAt(x + MathF.Sin(wa) * RHook, z + MathF.Cos(wa) * RHook))
+                {
+                    var pose=new CraneGeo.Pose {X=x,Z=z,Yaw=c.Yaw,A=ca,Hy=c.Hy};
+                    CraneGeo.Parts(pose,tryParts);
+                    if(MastRoom(c,pose,true)>=CraneGeo.JibGap) return ca;
+                }
             }
         return null;
     }
 
     private void MakeCranes(JsonElement rails)
     {
+        var tall=Boats.I.TallMoored().ToArray();
         var sites = Mv.Tops("portal_crane");
         for (int i = 0; i < sites.Count; i++)
         {
@@ -494,6 +502,10 @@ public partial class Railway : Node
                 for (int j = 0; j < line.X.Length; j += 4)
                     if (Math.Abs(line.Z[j] - c.Z) > 2.0f && Math.Abs(line.Z[j] - c.Z) < 3.4f && line.X[j] > c.Pos && line.X[j] - 4.5f < c.Hi)
                         c.Hi = Math.Max(c.Pos, line.X[j] - 4.5f);
+            var start=SiteAt(c,c.Axis==' '?c.Pos:c.Lo); var end=SiteAt(c,c.Axis==' '?c.Pos:c.Hi);
+            var runway=new CraneGeo.Capsule(start.X,0,start.Z,end.X,0,end.Z,0,6);
+            c.Masts=tall.Where(m=>CraneGeo.SegDist(runway,new CraneGeo.Capsule(m.X,0,m.Z,m.X,0,m.Z,0,6))<RHook+3.5).ToList();
+            if(c.ShipA!=null && HoldAngle(c,c.X,c.Z) is {} clear) c.ShipA=c.A=clear;
             if (c.Axis != ' ')
             {
                 // its berths: the places along the runway with a hold under the hook, one for each ship (the squarest swing)
@@ -560,6 +572,19 @@ public partial class Railway : Node
     private readonly CraneGeo.Capsule[] tryParts = new CraneGeo.Capsule[CraneGeo.PartCount];
     private readonly double[] after = new double[64], before = new double[64];
 
+    private double MastRoom(Crane c,in CraneGeo.Pose p,bool high=false)
+    {
+        mastCaps.Clear(); double s=Math.Sin(p.Yaw+p.A),co=Math.Cos(p.Yaw+p.A);
+        foreach(var m in c.Masts)
+        {
+            double dx=m.X-p.X,dz=m.Z-p.Z,t=Math.Clamp(dx*s+dz*co,0,11.6);
+            if(Math.Sqrt(Math.Pow(dx-s*t,2)+Math.Pow(dz-co*t,2))>.75+.75+CraneGeo.JibGap+.6) continue;
+            float water=Math.Max(high?Math.Max(Tide.HwMax,Tide.DockY):Tide.LevelAt(m.X,m.Z),m.Floor);
+            mastCaps.Add(new CraneGeo.Capsule(m.X,water+4,m.Z,m.X,water+m.Top,m.Z,.75,6));
+        }
+        return CraneGeo.ThingsGap(tryParts,mastCaps,0);
+    }
+
     /// <summary>The room to every crane near: for each, the jibs' and cabins' room less the margin, then the portals'.</summary>
     private int RoomOf(Crane c, in CraneGeo.Pose p, double[] o)
     {
@@ -577,6 +602,8 @@ public partial class Railway : Node
             o[n++] = CraneGeo.CraneGap(tryParts, PartsOf(other)) - CraneGeo.JibGap;
             o[n++] = CraneGeo.PortalRoom(p, PoseOf(other, other.Pos, other.A, other.Hy)) - CraneGeo.PortalGap;
         }
+        o[n++]=MastRoom(c,p)-CraneGeo.JibGap;
+        o[n++]=!c.Reserved && c.Ops.Count==0 ? CraneGeo.ThingsGap(tryParts,trainCaps,1)-CraneGeo.JibGap : double.PositiveInfinity;
         return n;
     }
 
@@ -1208,6 +1235,16 @@ public partial class Railway : Node
         }
         else gate.WantOpen = false;
         gate.Update(dt);
+        trainCaps.Clear();
+        if(state!="shed")
+        {
+            foreach(var w in wagons)
+            {
+                var p=WagonAt(w,head);
+                trainCaps.Add(CraneGeo.Car(p.X,p.Z,p.Yaw,LBody/2-1.6,1.9,1.6));
+            }
+            for(int i=0;i<2;i++) {var p=HorseFrame(i);trainCaps.Add(CraneGeo.Car(p.X,p.Z,p.Yaw,.6,1.3,1));}
+        }
         foreach (var c in cranes) c.Blocked = false;
         foreach (var c in cranes) UpdateCrane(c, dt, state == "work" && stopped && working?.Crane == c);
         foreach (var c in cranes) c.BlockT = c.Blocked ? c.BlockT + dt : 0;
@@ -1498,7 +1535,17 @@ public partial class Railway : Node
         return best;
     }
 
-    private string CraneClear()=>cranes.Any(c=>NearestRoom(c)<-.02)?"crane capsules overlap":"";
+    private string CraneClear()
+    {
+        foreach(var c in cranes)
+        {
+            if(NearestRoom(c)<-.02) return "crane capsules overlap";
+            int n=RoomOf(c,PoseOf(c,c.Pos,c.A,c.Hy),after);
+            if(after[n-2]<-.02) return $"crane {c.Index} jib fouls a moored ship's tall cell by {-after[n-2]:0.00} m";
+            if(after[n-1]<-.02) return $"crane {c.Index} fall fouls the passing train by {-after[n-1]:0.00} m";
+        }
+        return "";
+    }
     private static (Vector3 Eye,Vector3 Look) CraneView(Crane c) =>
         (new Vector3(c.X+(c.Z<20?10:c.X<120?18:-18),8,c.Z+(c.Z<20?-20:8)),new Vector3(c.X,6,c.Z));
     private string TrainSolids()

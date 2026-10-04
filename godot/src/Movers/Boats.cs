@@ -319,6 +319,49 @@ public partial class Boats : Node
         return dims[kind] = (hi.Z - lo.Z, hi.X - lo.X, top);
     }
 
+    /// <summary>boats.ts tall: one-metre plan cells above four metres, built once from each model.</summary>
+    private readonly Dictionary<string, Vector3[]> tall = new();
+    private Vector3[] Tall(string kind)
+    {
+        if(tall.TryGetValue(kind,out var found)) return found;
+        string? k=KindFor(kind); if(k==null) return tall[kind]=Array.Empty<Vector3>();
+        var inner=templates[k].Inner; var inv=inner.GlobalTransform.AffineInverse();
+        var cells=new Dictionary<(int X,int Z),float>();
+        foreach(var n in BakedWorld.All(inner))
+            if(n is MeshInstance3D {Mesh:not null} mi)
+            {
+                var xf=inv*mi.GlobalTransform;
+                for(int s=0;s<mi.Mesh.GetSurfaceCount();s++)
+                    foreach(var v0 in mi.Mesh.SurfaceGetArrays(s)[(int)Mesh.ArrayType.Vertex].AsVector3Array())
+                    {
+                        var v=xf*v0; if(v.Y<4) continue;
+                        var cell=((int)MathF.Floor(v.X),(int)MathF.Floor(v.Z));
+                        if(!cells.TryGetValue(cell,out float y)||v.Y>y) cells[cell]=v.Y;
+                    }
+            }
+        return tall[kind]=cells.Select(c=>new Vector3(c.Key.X+.5f,c.Value,c.Key.Z+.5f)).ToArray();
+    }
+
+    /// <summary>rijnkaai.ts addTall: fixed mooring plans, top above water, and the grounding floor.</summary>
+    public IEnumerable<(float X,float Z,float Top,float Floor)> TallMoored()
+    {
+        foreach(var row in rows)
+            for(int i=0;i<row.N;i++)
+                foreach(var p in Tall(row.Kind))
+                {
+                    float c=MathF.Cos(row.Yaw[i]),s=MathF.Sin(row.Yaw[i]);
+                    yield return (row.X[i]+p.X*c+p.Z*s,row.Z[i]-p.X*s+p.Z*c,p.Y,float.NegativeInfinity);
+                }
+        // Single ships directly under the town are moored; river, anchorage and lock ships have their own owners.
+        foreach(var f in floats)
+            if(f.Outer.GetParent()==Mv.Town)
+                foreach(var p in Tall(f.Kind))
+                {
+                    var q=f.Outer.GlobalTransform*p;
+                    yield return (q.X,q.Z,p.Y,float.IsNaN(f.Floor)?float.NegativeInfinity:f.Floor);
+                }
+    }
+
     private Material? rope;
     private bool ropeSought;
     /// <summary>The ropes' material (rigging, hawsers, chains): the one the baked ships' rigging is drawn with.</summary>
