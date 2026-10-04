@@ -4,6 +4,8 @@ config_version=5
 [application]
 
 config/name="Scheldemist"
+config/use_custom_user_dir=true
+config/custom_user_dir_name="Scheldemist"
 run/main_scene="res://main.tscn"
 config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 
@@ -22,6 +24,8 @@ project/assembly_name="Scheldemist"
 3d/physics_engine="Jolt Physics"
 
 [rendering]
+
+textures/vram_compression/import_etc2_astc=true
 
 scaling_3d/scale=0.8
 

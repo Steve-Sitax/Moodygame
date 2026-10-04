@@ -1,0 +1,14 @@
+{
+  "extends": "../../server/tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "typeRoots": ["../../server/node_modules/@types"],
+    "rewriteRelativeImportExtensions": true,
+    "rootDir": "../..",
+    "outDir": "../../godot/dist/server-build",
+    "sourceMap": false,
+    "declaration": false
+  },
+  "include": ["../../server/src/**/*.ts"],
+  "exclude": ["../../server/test", "../../server/scripts"]
+}

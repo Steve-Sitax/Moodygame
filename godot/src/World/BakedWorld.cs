@@ -32,8 +32,8 @@ public partial class BakedWorld : Node3D
     public Error Load(string glbPath)
     {
         ulong t0 = Time.GetTicksMsec();
-        Facts = JsonDocument.Parse(File.ReadAllText(Path.ChangeExtension(glbPath, ".json")));
-        texDir = Path.Combine(Path.GetDirectoryName(glbPath) ?? ".", Path.GetFileNameWithoutExtension(glbPath) + "_tex");
+        Facts = JsonDocument.Parse(File.ReadAllText(Paths.TownFacts(glbPath)));
+        texDir = Paths.TownTextures(glbPath);
         Stage = "read";
         gltf = ReadJsonChunk(glbPath);
         Psx.LoadShared(texDir); // the sky map and the dirt map every psx material reads

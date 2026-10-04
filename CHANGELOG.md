@@ -7,6 +7,12 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- A Windows Godot download now starts from its executable, with the town, models, sounds and game server included.
+
+- Godot downloads can carry the compiled server and portable Node, with matching SQLite packages and no compiler needed to play.
+
+- The Godot game keeps saves, AI settings and logs in your own user folder, and uses one set of paths in source runs and downloads.
+
 ### New in the game
 - In the Godot port, jobs use the shared paper windows, people, pockets and map. The quest book follows work in hand, and sleep has its own chooser. Goods use the decoded models and survive a loaded save or new week. Trouble on a job offers the server's choices and extra errands.
 - The Godot game has the harbour's soundscape, footsteps, made voices and room echoes. Its clock, rain, townspeople, speech bubbles and dice feed the sound, and the Sound settings control the mix.

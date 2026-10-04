@@ -76,7 +76,7 @@ Each step ends with a run of the Godot game, pictures looked at, and the frame t
 | G4 | Play: jobs, goods, talk, shops, needs, map, book, menus, saves, the AI setup, events and the director's scenes | `game/`, `menu/`, `net/` |
 | G5 | Sound | `audio/` |
 | G6 | Play together | `net/mp/`, server `mp/` |
-| G7 | The download: one file per system (Godot export with the server and Node inside), a double click starts it; the release Action | `tools/package.mjs`, `docs/release.md` |
+| G7 | The download: Windows zip and real launch/save/menu checks done; Linux/macOS game exports done, native package runs still to check; release Action draft (`docs/godot-download-check.md`) | `tools/package.mjs`, `docs/release.md` |
 | G8 | The checks: paths, shaders, stuck, props, perfcheck, the test kit, in Godot | `dev/` |
 
 Size: the client is about 142,000 lines of TypeScript; `shared/` 12,000. The server (64,000) stays.

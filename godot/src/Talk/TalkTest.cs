@@ -30,7 +30,7 @@ public partial class TalkTest : Node
 
     public override void _Ready()
     {
-        dir = Main.I.Arg("talktest");
+        dir = Paths.TestOutput("talktest");
         if (dir == "") return;
         Directory.CreateDirectory(dir);
         GameState.I.Message += m => said.Add(m);

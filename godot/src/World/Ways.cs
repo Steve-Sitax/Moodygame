@@ -56,8 +56,7 @@ public static class Ways
     private static string failed = "";
 
     /// <summary>The folder that holds shared/ and client/ (the checkout, or the download's own).</summary>
-    public static string Root => root ??= ServerPaths.Find(ProjectSettings.GlobalizePath("res://"), System.IO.Path.GetDirectoryName(OS.GetExecutablePath()) ?? "").Root;
-    private static string? root;
+    public static string Root => Paths.Root;
 
     /// <summary>Why the walk map could not be read ("" when it is in, or not asked for yet).</summary>
     public static string Error => failed;
@@ -92,7 +91,7 @@ public static class Ways
 
     private static Grid Load()
     {
-        using var city = JsonDocument.Parse(File.ReadAllBytes(System.IO.Path.Combine(Root, "shared", "city.json")));
+        using var city = JsonDocument.Parse(File.ReadAllBytes(Paths.City));
         var info = city.RootElement.GetProperty("walk");
         var g = new Grid
         {
@@ -104,8 +103,7 @@ public static class Ways
         };
         string rel = (info.GetProperty("file").GetString() ?? "/city/walk.png").TrimStart('/');
         // the server's PUBLIC_DIR: client/public in a checkout, client/dist in the download
-        string file = System.IO.Path.Combine(Root, "client", "public", rel);
-        if (!File.Exists(file)) file = System.IO.Path.Combine(Root, "client", "dist", rel);
+        string file = Paths.Public(rel);
         var img = Image.LoadFromFile(file) ?? throw new IOException($"not a picture: {file}");
         if (img.GetWidth() != g.W || img.GetHeight() != g.H) throw new IOException($"{file} is {img.GetWidth()} x {img.GetHeight()}, the map says {g.W} x {g.H}");
         img.Convert(Image.Format.Rgb8);

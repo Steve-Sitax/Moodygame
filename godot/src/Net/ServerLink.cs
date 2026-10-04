@@ -164,7 +164,6 @@ public partial class ServerLink : Node
         Scheldemist.Menu.Pause.Changed += OnPause;
         var main = Main.I;
         int port = int.TryParse(main.Arg("port"), out int p) ? p : ServerProcess.FirstPort;
-        var paths = ServerPaths.Find(ProjectSettings.GlobalizePath("res://"), System.IO.Path.GetDirectoryName(OS.GetExecutablePath()) ?? "");
         // a guest: into another PC's game (the menu's Together screen, or --join address --seat 2 --code X --name N)
         join = Mp.Together.Pending;
         if (join == null && main.Arg("join") != "" && !Mp.Together.LeftAsGuest)
@@ -182,6 +181,7 @@ public partial class ServerLink : Node
             // a test never spends model calls
             NoAi = main.Flag("no-ai") || main.Arg("nettest") != "" || main.Arg("mptest") != "",
         };
+        var paths = Paths.Server;
         SetStatus(join != null ? $"Looking for the host's game at {opt.External}..." : opt.External != "" ? $"Looking for the game server at {opt.External}..." : "Starting the game server...", "");
         // the game must never leave its server behind: the tree's end, the window's close and the program's end all stop it
         AppDomain.CurrentDomain.ProcessExit += OnProcessExit;

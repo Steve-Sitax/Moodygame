@@ -10,18 +10,17 @@ namespace Scheldemist.Audio;
 /// <summary>Where the sound's files are: one place, so the packaged game can point somewhere else.</summary>
 public static class AudioPaths
 {
-    private static string Beside(string rel) => Path.GetFullPath(Path.Combine(ProjectSettings.GlobalizePath("res://"), rel));
     private static string Pick(string arg, string env, string rel)
     {
         string a = Main.I?.Arg(arg) ?? "";
         if (a != "") return a;
         string e = OS.GetEnvironment(env);
-        return e != "" ? e : Beside(rel);
+        return e != "" ? e : rel;
     }
-    /// <summary>The recordings (the browser's /audio): --audio dir, or SCHELDEMIST_AUDIO, or client/public/audio beside the project.</summary>
-    public static string Audio => Pick("audio", "SCHELDEMIST_AUDIO", "../client/public/audio");
-    /// <summary>The game's shared data (city.json): --shared dir, or SCHELDEMIST_SHARED, or shared/ beside the project.</summary>
-    public static string Shared => Pick("shared", "SCHELDEMIST_SHARED", "../shared");
+    /// <summary>The recordings (the browser's /audio): --audio dir, or SCHELDEMIST_AUDIO, or Paths.Audio (client/public/audio in development, the download's copy when packaged).</summary>
+    public static string Audio => Pick("audio", "SCHELDEMIST_AUDIO", Scheldemist.Paths.Audio);
+    /// <summary>The game's shared data (city.json): --shared dir, or SCHELDEMIST_SHARED, or Paths' shared folder.</summary>
+    public static string Shared => Pick("shared", "SCHELDEMIST_SHARED", Path.GetDirectoryName(Scheldemist.Paths.Shared("city.json"))!);
 }
 
 /// <summary>A place a sound comes from (audio/emitters.ts). Kinds: cathedral, bridge, pontoon, smithy, cooper, crane, ship, pump, tavern, market, lamp.</summary>
