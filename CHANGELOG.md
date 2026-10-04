@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Godot churchgoers nod and whisper during the sermon, the organ follows the service, and running among them draws the beadle’s warning.
+
 - Godot home stoves warm you, placed clocks show the time and hanging lamps light the room. Furniture can go onto a lent handcart and return to your household.
 
 - Godot shows your hands leaning on a mill capstan or hauling its chain when the wind calls.
