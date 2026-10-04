@@ -645,6 +645,7 @@ public partial class Omnibus : Node
 
     private void Move(Bus b, float dt)
     {
+        if (PlayerHeld(b)) return;
         var lp = b.Loop;
         if (b.At != null)
         {

@@ -207,6 +207,7 @@ public partial class Jobs : Node
         if (carried != null)
         {
             var only = new List<Act>();
+            if (CartCarryAction?.Invoke(carried, x, z) is { } cartAction) only.Add(cartAction);
             if (run != null) only.AddRange(run.CarryActions(carried));
             var (px, pz) = Goods.Ahead(0.95f);
             if (OverWater(px, pz)) only.Add(Act.Me(Key.E, "let it fall into the Schelde", () => Drown(px, pz)));

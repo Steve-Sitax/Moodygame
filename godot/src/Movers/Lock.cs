@@ -360,7 +360,7 @@ public partial class Lock : Node
         }
         else if (boatWant)
         {
-            target = Math.Abs(flat - Tide.River) < Math.Abs(flat - Tide.Dock) ? 0 : 1;
+            target = PlayerTarget(Math.Abs(flat - Tide.River) < Math.Abs(flat - Tide.Dock) ? 0 : 1);
             wantGate[target] = true;
         }
         if (want || boatWant)

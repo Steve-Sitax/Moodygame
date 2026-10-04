@@ -46,6 +46,20 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - Godot dock piecework, lamplighting, mill turns and park cleaning pay through the server, and finished work can wait for an employer's night box.
 - Godot homes have rent notices, numbered rent choices, an own key and bed, and furniture carried home and placed on the room grid with E and R.
 - Godot restores the rampart's real walkways and mill floors, with distance culling instead of keeping the bake's distant wall hidden.
+- In Godot, arrive on the St. Anna ferry, walk its gangway and landing stage into town, and receive the first work hint as the ferry leaves.
+
+- In Godot, climb out of the water onto ship decks, ride their tide and travel, and walk Anna Maria's gangway from the quay and back.
+
+- In Godot, hail lifting bridges and the lock keeper from a rowing boat, wait for clear gates, and survive a boat broken by a bridge or passing ship.
+
+- In Godot, hire a rowing boat, pull and feather the oars, dock at steps or ladders, and climb or jump back into a boat left on the water.
+
+- Buy or hire a velocipede in Godot, pedal and steer through town, brake at steps and water, and get up after a wheel catches in the rails.
+
+- In Godot, buy or hire a handcart, push it by its shafts, load the real goods onto its bed, and unload a carry job at its goal for payment.
+- In Godot, climb a working crane from the quay, walk its gallery into the cabin, ride its turns and travel, and climb back down.
+- In Godot, board an omnibus at its back step, hop aboard a moving one, pay or refuse the conductor, sit inside or on the roof, and read the stop timetable.
+- In Godot, falls onto stone now report their measured height to the server for injuries; water takes the fall.
 - Godot's interior check now tests the rooms actually in the town and their views out through the windows ([#45](https://github.com/Steve-Sitax/Moodygame/issues/45)).
 - Godot keeps the same daylight and window light picture with less work per frame.
 - Godot's cathedral and church windows now show their real rooms through the glass; old painted panes no longer cover them.

@@ -243,6 +243,7 @@ public partial class Jef : Node, Mantle.IWorld
     {
         if (Fly) return;
         float dt = (float)Math.Min(delta, 0.05);
+        if (Drive != null && Drive(dt)) { Body.GlobalPosition = new Vector3(X, Y, Z); Look(dt, 0, DrivenRoll, DrivenEye); return; }
         // the ground a few metres round him is solid before he steps on it (the rest is made a little every frame)
         if (Solid.I.Ensure(new Vector3(X, Y, Z), 14) > 0) holdTick = Engine.GetPhysicsFrames() + 1;
         if (Engine.GetPhysicsFrames() <= holdTick)
@@ -283,6 +284,7 @@ public partial class Jef : Node, Mantle.IWorld
     /// </summary>
     public float GroundAt(float x, float z, float feet, float r = Radius * 0.6f)
     {
+        float deck = TransportFloor?.Invoke(x, z, feet) ?? float.NegativeInfinity;
         float top = feet + Step;
         castQ.Shape = Disk(r);
         float y0 = top + 0.015f; // the disk's middle; its underside 5 mm over the step height
@@ -296,11 +298,11 @@ public partial class Jef : Node, Mantle.IWorld
             {
                 // the disk starts in something (a slope steeper than a step): ask a ray down the middle
                 var ray = Space.IntersectRay(PhysicsRayQueryParameters3D.Create(new Vector3(x, top, z), new Vector3(x, top - 60, z), Solid.Layer));
-                return ray.Count > 0 ? ray["position"].AsVector3().Y : float.NegativeInfinity;
+                return Math.Max(deck, ray.Count > 0 ? ray["position"].AsVector3().Y : float.NegativeInfinity);
             }
-            return start - 0.01f - hit[0] * len;
+            return Math.Max(deck, start - 0.01f - hit[0] * len);
         }
-        return float.NegativeInfinity;
+        return deck;
     }
 
     /// <summary>The body (from a step over the feet up to 1.75 m) fits at (x, z) with the feet at y.</summary>
@@ -385,6 +387,7 @@ public partial class Jef : Node, Mantle.IWorld
         // fresh press tries at once; held, every few frames.
         bool space = K(Key.Space), pressed = space && !jumpHeld;
         jumpHeld = space;
+        if (pressed && !Laden && OnJump?.Invoke() == true) return;
         if (Grounded) jumpBase = Y;
         mantleWait = Math.Max(0, mantleWait - dt);
         if (space && !Laden && !Crouching && (mantleWait == 0 || (pressed && !Grounded)))
@@ -433,7 +436,14 @@ public partial class Jef : Node, Mantle.IWorld
         vel.Y += (wz - vel.Y) * a;
 
         float wanted = vel.Length() * dt;
+        var cartFrom = new Vector2(X, Z);
         float moved = MoveBy(vel.X * dt, vel.Y * dt, Y);
+        if (CartStep != null)
+        {
+            var p = CartStep(cartFrom, new Vector2(X, Z), dt);
+            X = p.X; Z = p.Y; Body.GlobalPosition = new Vector3(X, Y, Z);
+            moved = p.DistanceTo(cartFrom);
+        }
         Blocked = len > 0 && wanted > 1e-5f && moved < wanted * 0.3f;
 
         float ground = GroundAt(X, Z, Y);
