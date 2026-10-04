@@ -87,7 +87,6 @@ public partial class LifeSound : Node
     {
         if (sound==null || !sound.Prepared || town?.Paused==true || Main.I.Arg("soundtest")!="") return;
         if ((poll-=delta)>0) return; poll=.25;
-        CollectVehicles(); CollectShips(); sound.SetVehicles(vehicles); sound.SetMovingShips(ships);
         RoomPeople(); Trades(); HorseSnorts(); Gale(.25);
     }
     public void CollectVehicles()

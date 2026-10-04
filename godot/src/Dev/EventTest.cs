@@ -234,6 +234,7 @@ public partial class EventTest : Node
                 GD.Print("eventtest finished " + kind);
             }
             if (only.Length == 0 || only.Contains("family_ui")) await FamilyUi();
+            if (only.Length == 0 || only.Contains("puppets")) PuppetWire();
             if (only.Length == 0 || only.Contains("actions")) await RequestedActions(api, town);
             if (only.Length == 0 || only.Contains("crowd100")) await Crowd100(town);
             if (only.Length == 0 || only.Contains("omnibus")) await TransitProof(town);

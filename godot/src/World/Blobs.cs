@@ -27,6 +27,11 @@ public partial class Blobs : Node
     private ShaderMaterial mat = null!;
     private readonly bool test = Main.I.Arg("blobtest") != "";
 
+    private MultiMeshInstance3D node = null!;
+
+    /// <summary>Dev: draw them or not (a before-and-after picture).</summary>
+    public bool Shown { get => node.Visible; set => node.Visible = value; }
+
     /// <summary>How many are drawn now (a check).</summary>
     public int Count => mm.VisibleInstanceCount;
 
@@ -60,7 +65,7 @@ void fragment() {
         mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, Mesh = quad, InstanceCount = Max, VisibleInstanceCount = 0 };
         // (they move with the people: never culled by an old box)
         mm.CustomAabb = new Aabb(new Vector3(-2000, -50, -2000), new Vector3(4000, 200, 4000));
-        Main.I.View.AddChild(new MultiMeshInstance3D { Name = "ground_blobs", Multimesh = mm, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+        Main.I.View.AddChild(node = new MultiMeshInstance3D { Name = "ground_blobs", Multimesh = mm, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
     }
 
     public override void _ExitTree()

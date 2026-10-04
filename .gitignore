@@ -5,6 +5,7 @@ dist/
 
 # local game data (M2+): save file, WAL files, the empty AI work folder
 data/
+.test-stacks/
 *.db
 *.db-journal
 *.sqlite

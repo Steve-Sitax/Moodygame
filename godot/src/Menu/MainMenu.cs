@@ -64,6 +64,7 @@ public partial class MainMenu : Node
     public static bool Wanted(Main main)
     {
         if (main.Flag("no-mainmenu")) return false;
+        if (main.Flag("ride-saves-menu")) return true;
         foreach (string check in new[] { "paths", "stuck", "shaders", "perfcheck", "clocks", "interiors", "devtest", "pixelcheck", "windows" })
             if (main.Flag(check)) return false;
         string only = main.Arg("only");

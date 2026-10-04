@@ -26,6 +26,10 @@ public partial class FerryArrival:Node
     public Vector2 MissingAt {get;private set;}
     public int MissingPerson {get;private set;}
     public Vector3 VesselPosition=>ferry.Position;
+    public bool OnDeck=>Jef.I.Drive==drive;
+    public bool VisibleVessel=>ferry!=null&&ferry.IsVisibleInTree();
+    public float VesselSpeed=>speed;
+    public float VesselHeading=>yaw;
     public event Action<string,ArrivalReply>? Answered;
     private sealed class Passenger {public Human? Human;public Vector2 P;public Vector2[] Way=Array.Empty<Vector2>();public int Step,PortStep;public float At,Speed,Wait,Push;public bool Off;}
     private readonly Passenger[] people=new Passenger[5];
@@ -38,7 +42,7 @@ public partial class FerryArrival:Node
     private Vector2 ferrymanAt;
     private float side=2.304f,portZ=4.5f,deckY=1.35f,x=-244.5f,z=-63.25f,yaw=-MathF.PI/2,phaseT,speed;
     private bool reporting,guide;
-    private int epoch,nag,guideStep;
+    private int epoch,nag;
     public FerryArrival(){I=this;drive=Drive;waterFree=WaterFree;Solid.Leave.Add(n=>n.Name.ToString() is "landing_stage" or "pontoon_section" or "pontoon_gangway");}
     public override void _Ready()
     {
@@ -51,6 +55,7 @@ public partial class FerryArrival:Node
         landingDeck=MeshDeck.Flat(-2.05f,2.05f,-59.75f,-5.9f,1.8f,obstacles.ToArray(),.25f);
         ferry=model.Copy("ferry")!;landing=model.Copy("landing_stage")!;Main.I.View.AddChild(ferry);Main.I.View.AddChild(landing);ferry.Transform=Transform3D.Identity;landing.Transform=Transform3D.Identity;ferry.Visible=false;
         foreach(var n in BakedWorld.All(Main.I.World))if(n is Node3D n3&&(n3.Name.ToString() is "landing_stage" or "pontoon_section" or "pontoon_gangway"))n3.Visible=false;
+        Movers.BoatLamps.I?.AddFerry(()=>ferry.GlobalTransform,()=>ferry.IsVisibleInTree());
         foreach(var f in Movers.Boats.I.Floats)if(f.Kind=="pontoon_section")f.Outer.Visible=false;
         Material? wood=null,rope=null;foreach(var n in BakedWorld.All(model.Scene))if(n is MeshInstance3D{Mesh:not null} m)for(int i=0;i<m.Mesh.GetSurfaceCount();i++){var mat=m.Mesh.SurfaceGetMaterial(i);if(mat?.ResourceName=="wood"||mat?.ResourceName=="deck")wood=mat;if(mat?.ResourceName=="rope")rope=mat;}
         var mesh=new BoxMesh{Size=new(1,.06f,1)};plank=MakePlank(wood,rope??wood);Main.I.View.AddChild(plank);
@@ -75,7 +80,7 @@ public partial class FerryArrival:Node
     private async Task Made(){try{var r=await ServerLink.I!.Api!.ArrivalMade();Answered?.Invoke("made",r);Start();}catch(ApiException ex){GameState.I.Say(ex.Message);}}
     public void Start()
     {
-        ShipWalk.I.Clear();Stage="waiting";Ashore=false;Time=phaseT=speed=0;nag=PassengersOff=MissingFootSamples=guideStep=0;WorstFootError=0;guide=false;x=-244.5f;z=-63.25f;yaw=-MathF.PI/2;ferry.Visible=plank.Visible=passengers.Visible=true;
+        ShipWalk.I.Clear();Stage="waiting";Ashore=false;Time=phaseT=speed=0;nag=PassengersOff=MissingFootSamples=0;WorstFootError=0;guide=false;guideOnce=false;guideWay=null;guideAt=0;x=-244.5f;z=-63.25f;yaw=-MathF.PI/2;ferry.Visible=plank.Visible=passengers.Visible=true;
         Vector2[] locals={new(-.6f,3.4f),new(.6f,6),new(-.9f,6.2f),new(-.3f,7.6f),new(.5f,8.4f)};UpdateModels(0);
         for(int i=0;i<people.Length;i++)
         {
@@ -108,7 +113,7 @@ public partial class FerryArrival:Node
     {
         var j=Jef.I;float dx=(j.KeyDown(Key.D)?1:0)-(j.KeyDown(Key.A)?1:0),dz=(j.KeyDown(Key.S)?1:0)-(j.KeyDown(Key.W)?1:0);if(j.Frozen)dx=dz=0;
         var step=new Vector2(dx,dz).LimitLength()*Jef.Walk*dt;float c=MathF.Cos(j.Yaw),s=MathF.Sin(j.Yaw);var to=new Vector2(j.X+step.X*c+step.Y*s,j.Z-step.X*s+step.Y*c);
-        if(guide){var target=guideStep==0?Port:new Vector2(-249,-58.5f);var v=target-new Vector2(j.X,j.Z);if(v.Length()<.15f)guideStep=1;to=new Vector2(j.X,j.Z)+v.LimitLength()*Math.Min(Jef.Walk*dt,v.Length());}
+        if(guide){var target=GuideTarget();var v=target-new Vector2(j.X,j.Z);if(v.LengthSquared()>.000001f)j.Yaw=MathF.Atan2(-v.X,-v.Y);to=new Vector2(j.X,j.Z)+v.Normalized()*Math.Min(1.1f*dt,v.Length());}
         float floor=Foot(to.X,to.Y);if(!float.IsFinite(floor)){to=new(to.X,j.Z);floor=Foot(to.X,to.Y);if(!float.IsFinite(floor)){to=new(j.X,j.Z-step.X*s+step.Y*c);floor=Foot(to.X,to.Y);}if(!float.IsFinite(floor)){to=new(j.X,j.Z);floor=Foot(j.X,j.Z);}}
         foreach(var passenger in people)if(passenger.Human?.Root.Visible==true&&!(Math.Abs(j.X-passenger.P.X)<.6f&&Math.Abs(j.Z-passenger.P.Y)<.6f)&&Math.Abs(to.X-passenger.P.X)<.22f+Jef.Radius&&Math.Abs(to.Y-passenger.P.Y)<.22f+Jef.Radius){to=new(j.X,j.Z);floor=Foot(j.X,j.Z);break;}
         if(float.IsFinite(floor))j.Carry(new(to.X,floor,to.Y));
@@ -146,7 +151,7 @@ public partial class FerryArrival:Node
         if(ferry==null)return;float dt=(float)Math.Min(delta,.05);UpdateModels(dt);ferryman?.Update(dt);if(Stage=="gone"||!(GameState.I.Playing||Jef.I.TestInput))return;Time+=dt;phaseT+=dt;
         if(Stage=="waiting"&&Time>=3.4f){Stage="moored";phaseT=0;GameState.I.Say("Step ashore: walk down the gangway onto the landing stage.");}
         if(!Ashore&&Jef.I.Drive!=drive&&!Jef.I.Climbing&&Jef.I.Z>-58.93f)_=ReportAshore();
-        if(!Ashore){if(nag==0&&Time>=35){nag++;GameState.I.Say("The ferryman: \"This is Antwerp. Down the plank with you, we go back across.\"");}if(nag==1&&Time>=75){nag++;GameState.I.Say("The ferryman: \"Come on, off you get. I have the next crossing to make.\"");}if(Time>=115)guide=true;}
+        if(!Ashore){if(nag==0&&Time>=35){nag++;GameState.I.Say("The ferryman: \"This is Antwerp. Down the plank with you, we go back across.\"");}if(nag==1&&Time>=75){nag++;GameState.I.Say("The ferryman: \"Come on, off you get. I have the next crossing to make.\"");}if(Time>=115&&!guideOnce){guideOnce=true;BeginGuide();guide=true;}}
         for(int i=0;i<people.Length;i++)
         {
             var p=people[i];if(p.Step>=p.Way.Length)continue;var v=p.Way[p.Step]-p.P;float distance=v.Length();bool walking=false;

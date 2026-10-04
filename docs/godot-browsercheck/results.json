@@ -1,0 +1,325 @@
+{
+  "checks": {
+    "loaded": {
+      "boot": {
+        "js": 1331,
+        "boot:run": 5464,
+        "city": 13085,
+        "boot:files": 23640,
+        "boot:textures": 24516,
+        "boot:shaders": 24646,
+        "boot:lights": 25679,
+        "boot:doors": 25897,
+        "menu": 26165
+      },
+      "canvas": [
+        1280,
+        800
+      ]
+    },
+    "graphics": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5090 (0x00002B85) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "arrival": {
+      "stage": "gone",
+      "measureMs": 0,
+      "t": 0,
+      "idle": 0,
+      "aboard": null,
+      "jefOff": false,
+      "plankUp": 1,
+      "gangway": {
+        "lxSide": 2.31,
+        "hDeck": 1.35,
+        "lx0": 2,
+        "lz": 4.5
+      },
+      "ferry": null,
+      "passengers": [],
+      "landing": {
+        "built": true,
+        "oldHidden": true,
+        "deck": -2.11,
+        "lamps": [
+          "-249.9,-0.1,-44.6 lit 1.00",
+          "-247.5,0.8,-58.9 lit 1.00",
+          "-247.4,0.8,-30.0 lit 1.00",
+          "-250.6,0.8,-8.5 lit 1.00"
+        ],
+        "colliders": 11,
+        "piles": [
+          "-246.3,-7.4",
+          "-246.3,-52.0",
+          "-251.7,-7.4",
+          "-251.7,-52.0"
+        ]
+      }
+    },
+    "jobTaken": "took \"Test: watch\" (followed); {\"kind\":\"watch\",\"goods\":\"barrels\",\"post\":\"west_sheds\",\"duration_s\":90,\"twist\":\"thief\"}",
+    "jobBefore": {
+      "active": {
+        "id": 16,
+        "day": 1,
+        "title": "Test: watch",
+        "employer_npc": "sooi",
+        "district": "rijnkaai",
+        "task_type": "watch",
+        "pay_c": 80,
+        "risk": "medium",
+        "tier": 1,
+        "required_faction": "naties",
+        "pitch": "Stand by the barrels at the west sheds till the bell. Keep your eyes open and your mouth shut.",
+        "source": "dev",
+        "status": "taken",
+        "outcome_text": null,
+        "taken_by": 1,
+        "employer_name": "Sooi",
+        "task": {
+          "kind": "watch",
+          "goods": "barrels",
+          "post": "west_sheds",
+          "duration_s": 90,
+          "twist": "thief"
+        },
+        "playable": true
+      },
+      "run": "<b>Test: watch</b><br>Stand watch at the Vismarkt<br>The bell in 45 min",
+      "money": 50
+    },
+    "jobAfter": {
+      "job": {
+        "id": 16,
+        "day": 1,
+        "title": "Test: watch",
+        "employer_npc": "sooi",
+        "district": "rijnkaai",
+        "task_type": "watch",
+        "pay_c": 80,
+        "risk": "medium",
+        "tier": 1,
+        "required_faction": "naties",
+        "pitch": "Stand by the barrels at the west sheds till the bell. Keep your eyes open and your mouth shut.",
+        "source": "dev",
+        "status": "done",
+        "outcome_text": "Sooi counts it over and pays 80 centimes. \"Good. Come back tomorrow.\"",
+        "taken_by": 1,
+        "employer_name": "Sooi",
+        "task": {
+          "kind": "watch",
+          "goods": "barrels",
+          "post": "west_sheds",
+          "duration_s": 90,
+          "twist": "thief"
+        },
+        "playable": true
+      },
+      "player": {
+        "name": "Jef",
+        "money_c": 145,
+        "day": 1,
+        "hour": 13,
+        "district": "rijnkaai",
+        "food": 10,
+        "warmth": 10,
+        "health": 10,
+        "sleep": 10
+      }
+    },
+    "paths": [],
+    "shaders": {
+      "programs": 230,
+      "lightSettings": {
+        "dir 1, point 12, hemi 1, point shadows 1": 129,
+        "dir 0, point 10, hemi 1, point shadows 0": 22
+      },
+      "warmer": {
+        "runs": 59,
+        "objects": 6814,
+        "lastSyncMs": 3.9,
+        "lastReadyMs": 4,
+        "held": 642,
+        "heldMaxMs": 64,
+        "pending": 0,
+        "onHold": 0
+      },
+      "problems": []
+    },
+    "go:vismarkt": {
+      "target": {
+        "key": "vismarkt",
+        "label": "Vismarkt",
+        "x": -118,
+        "z": 30,
+        "kind": "jump"
+      },
+      "result": "at -118, 36",
+      "at": [
+        -118,
+        36
+      ]
+    },
+    "stuck:vismarkt": {
+      "stuck": [],
+      "watched": 48,
+      "walking": 31,
+      "seconds": 12
+    },
+    "go:grote markt": {
+      "target": {
+        "key": "grote markt",
+        "label": "Grote Markt",
+        "x": -254,
+        "z": 90,
+        "kind": "jump"
+      },
+      "result": "at -254, 96",
+      "at": [
+        -254,
+        96
+      ]
+    },
+    "stuck:grote markt": {
+      "stuck": [],
+      "watched": 32,
+      "walking": 24,
+      "seconds": 12
+    },
+    "go:cathedral": {
+      "target": {
+        "key": "cathedral",
+        "label": "Cathedral",
+        "x": -262,
+        "z": 138,
+        "kind": "jump"
+      },
+      "result": "at -262, 144",
+      "at": [
+        -262,
+        144
+      ]
+    },
+    "stuck:cathedral": {
+      "stuck": [],
+      "watched": 35,
+      "walking": 18,
+      "seconds": 12
+    },
+    "go:handschoenmarkt": {
+      "target": {
+        "key": "handschoenmarkt",
+        "label": "the Handschoenmarkt",
+        "x": -250,
+        "z": 135,
+        "kind": "place"
+      },
+      "result": "at -250, 141",
+      "at": [
+        -250,
+        141
+      ]
+    },
+    "stuck:handschoenmarkt": {
+      "stuck": [],
+      "watched": 35,
+      "walking": 21,
+      "seconds": 12
+    },
+    "go:rijnkaai": {
+      "target": {
+        "key": "rijnkaai",
+        "label": "Rijnkaai",
+        "x": 20,
+        "z": 20,
+        "kind": "jump"
+      },
+      "result": "at 20, 26",
+      "at": [
+        20,
+        26
+      ]
+    },
+    "stuck:rijnkaai": {
+      "stuck": [],
+      "watched": 24,
+      "walking": 18,
+      "seconds": 12
+    },
+    "townhall_close": {
+      "at": [
+        -257,
+        63
+      ],
+      "target": [
+        -257,
+        60.69
+      ]
+    },
+    "cathedral_close": {
+      "at": [
+        -262,
+        147
+      ],
+      "target": [
+        -262,
+        149.53
+      ]
+    },
+    "vleeshuis_close": {
+      "at": [
+        -121.95,
+        90
+      ],
+      "target": [
+        -121.95,
+        92.4
+      ]
+    },
+    "speaker": {
+      "id": "r001",
+      "name": "Rosalie Jacobs",
+      "summon": "Rosalie Jacobs (housewife) waits in front of you: E to talk; clear() lets them go",
+      "meet": "by Rosalie Jacobs (housewife)"
+    },
+    "talkBefore": {
+      "text": "Rosalie Jacobs neutral\n\nRosalie Jacobs: What is it?\n\n1 Is there any work going?\n2 What do people say about me?\n3 Good day to you.\n\n1-3 answer · T say it your way · E step away",
+      "busy": false,
+      "choices": [
+        "Is there any work going?",
+        "What do people say about me?",
+        "Good day to you."
+      ],
+      "free": true
+    },
+    "talkAfter": {
+      "text": "Rosalie Jacobs neutral\n\nRosalie Jacobs: What is it?\n\nYou: Is there any work going?\n\nRosalie Jacobs: Go and see Lowie Jacobs at the Entrepot door. Wanted a hand this morning: cotton bales to the entrepot.\n\n1 What do people say about me?\n2 What do you do here?\n3 Good day to you.\n\n1-3 answer · T say it your way · E step away",
+      "busy": false,
+      "lines": [
+        {
+          "who": "Rosalie Jacobs",
+          "text": "What is it?"
+        },
+        {
+          "who": "You",
+          "text": "Is there any work going?"
+        },
+        {
+          "who": "Rosalie Jacobs",
+          "text": "Go and see Lowie Jacobs at the Entrepot door. Wanted a hand this morning: cotton bales to the entrepot."
+        }
+      ]
+    }
+  },
+  "views": [
+    "vismarkt",
+    "grote_markt",
+    "cathedral",
+    "handschoenmarkt",
+    "rijnkaai",
+    "townhall_close",
+    "cathedral_close",
+    "vleeshuis_close",
+    "npc_close",
+    "talk_choices",
+    "talk_reply"
+  ],
+  "errors": [],
+  "corePass": true
+}

@@ -39,6 +39,7 @@ public partial class Velocipedes:Node
     private bool polling;
     private bool testRisk;
     private int epoch,notice=-1;
+    private RideSaved? savedRide;
     public Velocipedes(){I=this;drive=Drive;}
     public void RiderTestRisk(bool on)
     {if(Main.I.Arg("ridetest")=="")throw new InvalidOperationException("velo dice fixture outside ridetest");testRisk=on;}
@@ -56,7 +57,7 @@ public partial class Velocipedes:Node
     }
     private (int Kind,int Sub,float Heading)? Gear()=>Ridden!=null?(MpProtocol.GearVelo,0,Heading+MathF.PI):otherGear?.Invoke();
     private void Replaced(string how,ClientState? client)
-    {epoch++;Clear();foreach(var m in Machines.Values)m.Root.QueueFree();Machines.Clear();counter?.Dispose();counter=null;_=Load(true);}
+    {savedRide=RideSaves.Read<RideSaved>(client,"ride");epoch++;Clear();foreach(var m in Machines.Values)m.Root.QueueFree();Machines.Clear();counter?.Dispose();counter=null;_=Load(true);}
     public override void _ExitTree()
     {Clear();counter?.Dispose();if(Together.I is {} together)together.Gear=otherGear;if(Scheldemist.Menu.MainMenu.I is {} menu)menu.WorldReplaced-=Replaced;}
     public async Task Load(bool restore=false)
@@ -65,6 +66,10 @@ public partial class Velocipedes:Node
         try
         {
             var v=await api.Velos();var own=await api.VeloTransport();if(e!=epoch)return;
+            if(restore&&savedRide==null){savedRide=await RideSaves.ReadRide(api);if(e!=epoch)return;}
+            if(restore&&savedRide is {Kind:"velo"} back&&v.Velos.Exists(m=>m.Id==back.Id&&m.Mine&&m.Ridden))
+            {Ownership=own.Jef;Apply(v);if(Machines.TryGetValue(back.Id,out var machine)){Ridden=machine;x=back.X;z=back.Z;y=Floor(x,z,Jef.I.Y);if(!float.IsFinite(y))y=0;Heading=back.Yaw;Speed=Steer=FallT=0;machine.Solid.CollisionLayer=0;Jef.I.Drive=drive;Jef.I.DrivenEye=1.86f;Jef.I.Carry(new(x,y,z));savedRide=null;return;}}
+            savedRide=null;
             if(restore)foreach(var m in v.Velos)if(m.Mine&&m.Ridden){await api.VeloLeave(m.Id,m.X,m.Z,m.Yaw,false);if(e!=epoch)return;}
             if(restore)v=await api.Velos();if(e!=epoch)return;
             Ownership=own.Jef;Apply(v);
@@ -72,7 +77,7 @@ public partial class Velocipedes:Node
             if(counter==null&&Ownership?.Shop is {} shop&&shop.Step.Length>=2)
                 counter=Interact.I.Add(new Interact.Entry{Place=new(shop.Step[0],1.4f,shop.Step[1]),Reach=2.4f,Label=()=>"the velocipede maker's wares",Run=()=>Scheldemist.Talks.Shop.I?.OpenAt(shop.Id,shop.Label)});
         }
-        catch(ApiException ex){GameState.I.Say(ex.Message);}finally{polling=false;}
+        catch(ApiException ex){GameState.I.Say(ex.Message);}finally{polling=false;if(e!=epoch&&IsInsideTree())_=Load(true);}
     }
     public void Apply(VeloWorld world)
     {
@@ -85,7 +90,7 @@ public partial class Velocipedes:Node
                 m.Solid=new StaticBody3D{CollisionLayer=Solid.Layer,CollisionMask=0};node.AddChild(m.Solid);
                 m.Solid.AddChild(new CollisionShape3D{Shape=new BoxShape3D{Size=new(.5f,1.1f,1.7f)},Position=new(0,.55f,0)});Machines[v.Id]=m;
             }
-            m.Info=v;if(m==Ridden)continue;Park(m);
+            m.Info=v;if(m==Ridden&&(!v.Mine||!v.Ridden))Clear();if(m==Ridden)continue;Park(m);
         }
         var gone=new List<string>();foreach(var pair in Machines)if(!present.Contains(pair.Key))gone.Add(pair.Key);
         foreach(string id in gone){var m=Machines[id];if(m==Ridden){Clear();GameState.I.Say("You get off. The velocipede is gone.");}m.Root.QueueFree();Machines.Remove(id);}

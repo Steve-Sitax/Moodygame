@@ -37,20 +37,3 @@ public partial class Lock
         Soundscape.I?.ShipSignal(new MovingShip { Id = "lock", Kind = boat.Kind, X = at.X, Z = at.Z, Steam = Boats.IsSteam(boat.Kind), Heading = boat.Outer.Rotation.Y, Speed = lastV }, "lock");
     }
 }
-public partial class Railway
-{
-    private readonly float[] soundAxles = new float[10];
-    private bool soundRailReady;
-    private void SoundRailJoints()
-    {
-        if(Main.I.Arg("soundtest")!="")return;
-        for (int i = 0; i < wagons.Count; i++) for (int j = 0; j < 2; j++)
-        {
-            float s = head - wagons[i].Front - LBuf / 2 + (j == 0 ? Wb / 2 : -Wb / 2); int k = i * 2 + j;
-            if (soundRailReady && state != "shed" && s > soundAxles[k] && Math.Floor(s / 9) != Math.Floor(soundAxles[k] / 9))
-            { var at = line.At(s); if (at.X > -345) Soundscape.I?.RailClack(at.X, at.Y); }
-            soundAxles[k] = s;
-        }
-        soundRailReady = true;
-    }
-}

@@ -53,7 +53,7 @@ public partial class Actors : Node
     public override void _Ready()
     {
         I = this;
-        if (Scheldemist.Net.Mp.Together.I is { } together) together.OtherText += OwnershipText;
+        if (Scheldemist.Net.Mp.Together.I is { } together) {together.OtherText += OwnershipText;together.OtherBatch+=ReplicaBatch;}
         town = GetParent().GetNodeOrNull<Townspeople>("Townspeople");
         applied = PollApplied; pollFailed = _ => polling = false; syncFailed = _ => syncing = false; synced = _ => syncing = false;
         if (Scheldemist.Movers.Omnibus.I != null) Scheldemist.Movers.Omnibus.I.ResidentOff += OffBus;
@@ -116,7 +116,7 @@ public partial class Actors : Node
         if (r.Person != null && !HeldElsewhere(r.Person)) town?.ActionRelease(r.Person, this);
         if (r.Other != null && !HeldElsewhere(r.Other)) town?.ActionRelease(r.Other, this);
     }
-    public void Reset() { npcOwners.Clear(); if (town != null && ordinaryCapacity > 0) town.MaxPuppets = ordinaryCapacity; while (Runs.Count > 0) { var r = Runs[^1]; Runs.RemoveAt(Runs.Count - 1); End(r); } Events.I?.Reset(); }
+    public void Reset() { ClearReplicas();npcOwners.Clear(); if (town != null && ordinaryCapacity > 0) town.MaxPuppets = ordinaryCapacity; while (Runs.Count > 0) { var r = Runs[^1]; Runs.RemoveAt(Runs.Count - 1); End(r); } Events.I?.Reset(); }
     public override void _Process(double delta)
     {
         if (town?.Data == null || town.Crowd == null) return;
@@ -135,6 +135,7 @@ public partial class Actors : Node
             foreach (var s in town.Sims) if (NpcOwned(s.R.Id) && s.P != null && !s.Inside && Whereabouts.Hypot(s.P.X - j.X, s.P.Z - j.Z) < 60) syncPeople.Add(new PersonAt(s.R.Id, Math.Round(s.P.X, 1), Math.Round(s.P.Z, 1)));
             api.Run(api.ActionsSync(j.X, j.Z, syncPeople), synced, syncFailed);
         }
+        Replicate(delta);
         ulong start = Time.GetTicksUsec(); long before = GC.GetAllocatedBytesForCurrentThread(); clock += delta;
         foreach (var r in Runs)
         {
@@ -467,7 +468,7 @@ public partial class Actors : Node
         if (api != null) api.OtherPushed -= Push;
         if (Scheldemist.Movers.Omnibus.I != null) Scheldemist.Movers.Omnibus.I.ResidentOff -= OffBus;
         if (Scheldemist.Menu.MainMenu.I != null) Scheldemist.Menu.MainMenu.I.WorldReplaced -= Replaced;
-        if (Scheldemist.Net.Mp.Together.I is { } together) together.OtherText -= OwnershipText;
+        if (Scheldemist.Net.Mp.Together.I is { } together) {together.OtherText -= OwnershipText;together.OtherBatch-=ReplicaBatch;}
         Reset(); if (I == this) I = null;
     }
 }

@@ -105,6 +105,7 @@ public partial class Soundscape
     private string PlayerSurface(Vector3 p)
     {
         if (SurfaceAt != null) return SurfaceAt(p);
+        if (Scheldemist.Play.ShipWalk.I?.On!=null || Scheldemist.Play.Ride.I?.Riding==true || Scheldemist.Play.FerryArrival.I?.OnDeck==true) return "wood";
         if (roomKind != null) return roomKind is "tavern" or "home" or "shop" ? "wood" : "stone";
         return TimberAt(p.X, p.Z) ? "wood" : "stone";
     }

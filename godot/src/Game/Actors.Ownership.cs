@@ -19,10 +19,11 @@ public partial class Actors
     public void OwnershipText(string type, JsonElement message)
     {
         if (type != "owners" || !message.TryGetProperty("list", out var list)) return;
-        if (message.TryGetProperty("full", out var full) && full.GetBoolean()) npcOwners.Clear();
+        if (message.TryGetProperty("full", out var full) && full.GetBoolean()) {npcOwners.Clear();foreach(var replica in replicas.Values)replica.Owner=0;}
         foreach (var row in list.EnumerateArray())
         {
             string id = row[1].GetString() ?? ""; int owner = row[2].GetInt32();
+            ReplicaOwner(id,(ushort)row[0].GetInt32(),owner);
             if (owner == 0) npcOwners.Remove(id); else npcOwners[id] = owner;
         }
     }
