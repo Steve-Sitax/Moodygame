@@ -7,6 +7,8 @@ using Godot;
 using Scheldemist.Game;
 using Scheldemist.Net;
 using Scheldemist.Player;
+using Scheldemist.People;
+using Scheldemist.Windows;
 using Scheldemist.Town;
 
 namespace Scheldemist.Play;
@@ -19,6 +21,7 @@ public partial class NightBoxes : Node
     public sealed record Box(string Employer, string Name, Vector3 At);
     public readonly Dictionary<string, Box> Boxes = new();
     private readonly List<Node3D> models = new();
+    private readonly List<(Label3D Sign,Node3D Lamp,LanternPool.Source? Light)> fittings=new();
     private Townspeople? town;
     private TownData? built;
     private readonly Dictionary<string, Resident> residents = new();
@@ -36,13 +39,16 @@ public partial class NightBoxes : Node
             root.AddChild(new MeshInstance3D { Mesh = post, Position = new(0, 0.575f, 0) });
             root.AddChild(new MeshInstance3D { Mesh = box, Position = new(0, 1.1f, 0) });
             root.AddChild(new MeshInstance3D { Mesh = slot, Position = new(0, 1.15f, -0.132f) });
+            var sign=new Label3D{Text="WORK DONE: PROOF HERE",Font=PaperFonts.Hand,FontSize=40,PixelSize=.0012f,Position=new(0,.85f,-.135f),Rotation=new(0,MathF.PI,0),Modulate=new Color(.91f,.86f,.73f),OutlineSize=2};root.AddChild(sign);
+            var lamp=Carried.Lantern();lamp.Position=new(.18f,1.55f,.1f);lamp.Visible=false;root.AddChild(lamp);fittings.Add((sign,lamp,LanternPool.I?.Add()));
         }
     }
     public override void _Process(double delta)
     {
         if ((poll -= delta) > 0) return; poll = 0.5;
+        int litIndex=0;foreach(var b in Boxes.Values){var f=fittings[litIndex++];bool on=(GameState.I.HourF>=19||GameState.I.HourF<6.5)&&Away(b.Employer);f.Lamp.Visible=on;if(f.Light!=null){f.Light.Pos=models[litIndex-1].ToGlobal(new(.18f,1.45f,.1f));f.Light.On=on;}}
         if (town?.Data is not { } data || town.Walk == null || data == built) return;
-        built = data; Boxes.Clear(); residents.Clear(); foreach (var r in data.Residents) residents[r.Id] = r; foreach (var m in models) m.Visible = false;
+        built = data; Boxes.Clear(); residents.Clear(); foreach (var r in data.Residents) residents[r.Id] = r; foreach (var m in models) m.Visible = false;foreach(var f in fittings){f.Lamp.Visible=false;if(f.Light!=null)f.Light.On=false;}
         var ids = new List<string> { "sooi", "peeters", "tuur" }; ids.AddRange(data.Employers.Select(e => e.id));
         foreach (string id in ids)
         {
@@ -64,7 +70,7 @@ public partial class NightBoxes : Node
             }
             if (placed is not { } point || Boxes.Count >= models.Count) continue;
             var b = new Box(id, resident?.Name ?? Folk.NameOf(id, id), point); models[Boxes.Count].Position = point;
-            models[Boxes.Count].Rotation = new(0, MathF.Atan2(at.Value.X - point.X, at.Value.Z - point.Z), 0); models[Boxes.Count].Visible = true; Boxes[id] = b;
+            models[Boxes.Count].Rotation = new(0, MathF.Atan2(at.Value.X - point.X, at.Value.Z - point.Z), 0); models[Boxes.Count].Visible = true;fittings[Boxes.Count].Sign.Text=b.Name.ToUpperInvariant()+"\nwork done: proof here"; Boxes[id] = b;
         }
     }
     public static bool Held(Job job) => job.Task is { } t && t.TryGetProperty("held", out var report) && report.ValueKind == JsonValueKind.Object;
@@ -78,7 +84,7 @@ public partial class NightBoxes : Node
         return residents.TryGetValue(id, out var r) && Whereabouts.ActivityAt(r.Sched, GameState.I.Day, h).Act != "work";
     }
     public bool ShouldHold(Job job, Report report) => report.Box != true && !Held(job) && job.Source != "night" && Boxes.ContainsKey(job.EmployerNpc) && Away(job.EmployerNpc);
-    public override void _ExitTree() { foreach (var m in models) m.QueueFree(); }
+    public override void _ExitTree() { foreach (var m in models) m.QueueFree();foreach(var f in fittings)LanternPool.I?.Remove(f.Light); }
 }
 
 public partial class Jobs
