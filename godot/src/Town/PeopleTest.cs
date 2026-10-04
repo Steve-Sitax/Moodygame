@@ -70,6 +70,8 @@ public partial class PeopleTest : Node
     private readonly List<Puppet> timingPeople = new();
     private readonly Dictionary<Puppet, (double x, double z)> waitingWalkers = new();
     private readonly string[] childGames = { "rope", "tops", "hoops", "tag", "marbles", "hopscotch" };
+    private readonly string[] trades={"milk_woman","baker_boy","grinder","ragman","coalman","mussel_seller","broom_seller"};
+    private int tradeStep;private Townspeople.Sim? workingTrade;private Vector2 tradeStart;
     private int childGame;
     private Townspeople.Sim? playingChild;
 
@@ -251,7 +253,7 @@ public partial class PeopleTest : Node
                 foreach (var p in crowd!.Walking.Where(p => p.State == "walk" && before.TryGetValue(p, out var b) && b.walk && Whereabouts.Hypot(p.X - b.x, p.Z - b.z) < 0.5)) waitingWalkers[p] = (p.X, p.Z);
                 row["walkersWaitingAtFirstCheck"] = waitingWalkers.Count;
                 row["walkersNotMoving"] = 0;
-                row["standingWhereNoBodyFits"] = crowd.Walking.Count(p => !town.Walk!.Free(p.X, p.Z));
+                row["standingWhereNoBodyFits"] = crowd.Walking.Count(p => !town.Walk!.FreeFor(p, p.X, p.Z));
                 before.Clear();
                 Shot($"people_{wanted[place].Replace(' ', '_')}_wide.png");
                 Next(waitingWalkers.Count > 0 ? "recover" : "timingstart");
@@ -741,14 +743,41 @@ public partial class PeopleTest : Node
                 Next("games");
                 break;
 
+            case "trades":
+                if(tradeStep>=trades.Length){Next("done");break;}
+                if(t<1)break;
+                if(workingTrade==null){workingTrade=town.Sims.FirstOrDefault(s=>s.R.Trade==trades[tradeStep]);if(workingTrade==null){Fail("no working "+trades[tradeStep]);break;}var work=workingTrade.R.Sched.Day.First(seg=>seg.Act=="work");town.SetClock(1,(work.A+work.B)/2);Main.I.Cam.Position=new((float)workingTrade.R.Work.Route![0].X+4,1.6f,(float)workingTrade.R.Work.Route[0].Z+4);town.Refill();}
+                if(workingTrade.P is not {} trader||Main.I.GetNode<StreetTrades>("StreetTrades") is not {} equipment||!equipment.HasKit(workingTrade.R.Id)){if(workingTrade.P==null){Main.I.Cam.Position=new((float)workingTrade.X+4,(float)town.Walk!.BaseAt(workingTrade.X,workingTrade.Z)+1.6f,(float)workingTrade.Z+4);town.Refill();}if(t>35)Fail("trade equipment did not draw: "+trades[tradeStep]+" "+workingTrade.Goal.Mode);break;}
+                if(tradeStart==default){tradeStart=new((float)trader.X,(float)trader.Z);t=1;}
+                if(t<5)break;
+                if(new Vector2((float)trader.X,(float)trader.Z).DistanceTo(tradeStart)<.2){if(t>35)Fail("trade walker is blocked by equipment");break;}
+                model=trader;layersRow[trades[tradeStep]+" equipment"]=true;Next("tradeshot");break;
+            case "tradeshot":
+                if(workingTrade?.P is {} tp)
+                {
+                    model=tp;Close(3.8,1.2);
+                    if(Main.I.GetNode<StreetTrades>("StreetTrades").KitPosition(workingTrade.R.Id) is {} equipmentAt)
+                    {
+                        var target=(equipmentAt+new Vector3((float)tp.X,equipmentAt.Y,(float)tp.Z))*.5f+Vector3.Up*1.2f;
+                        for(int angle=0;angle<16;angle++){double a=tp.Yaw+1.2+angle*Math.PI/8;var eye=target+new Vector3((float)Math.Sin(a)*3.3f,.3f,(float)Math.Cos(a)*3.3f);if(!town.Walk!.Free(eye.X,eye.Z))continue;using var ray=PhysicsRayQueryParameters3D.Create(eye,target,World.Solid.Layer);if(Main.I.View.FindWorld3D().DirectSpaceState.IntersectRay(ray).Count>0)continue;Main.I.Cam.LookAtFromPosition(eye,target,Vector3.Up);break;}
+                    }
+                }
+                if(t<1)break;
+                Shot("people_trade_"+trades[tradeStep]+".png");workingTrade=null;tradeStart=default;tradeStep++;Next("trades");break;
+
             case "games":
                 town.SetClock(1, 14.5);
                 if (childGame >= childGames.Length) { layersRow["gamePictures"] = childGame; Next(Main.I.Arg("peoplechecks") == "games" ? "homevisit" : "marketstalls"); break; }
                 if (t < 1) break;
                 if (playingChild == null)
                 {
-                    playingChild = town.Sims.Where(s => s.Goal.Mode == "play" && s.R.Age < 16 && (s.Kind == "boy" || s.Kind == "girl") && town.GameOf(s) == childGames[childGame]).OrderBy(s => Math.Abs(s.X - s.Goal.X) + Math.Abs(s.Z - s.Goal.Z)).FirstOrDefault();
-                    if (playingChild == null) { Fail("no child playing " + childGames[childGame]); break; }
+                    playingChild = town.Sims.Where(s => s.Goal.Mode == "play" && s.R.Age < 16 && (s.Kind == "boy" || s.Kind == "girl") && town.GameOf(s) == childGames[childGame] && (childGames[childGame] is "tag" or "hoops" || town.HasGamePitch(s))).OrderBy(s => Math.Abs(s.X - s.Goal.X) + Math.Abs(s.Z - s.Goal.Z)).FirstOrDefault();
+                    if (playingChild == null)
+                    {
+                        playingChild=town.Sims.FirstOrDefault(s=>s.Goal.Mode=="play"&&s.R.Age<16&&(s.Kind=="boy"||s.Kind=="girl")&&town.HasGamePitch(s));
+                        if(playingChild==null){Fail("no usable child game pitch for "+childGames[childGame]);break;}
+                        town.ForceGame(playingChild.Goal.Place!,childGames[childGame]);layersRow["forced "+childGames[childGame]]=playingChild.Goal.Place!;
+                    }
                     Main.I.Cam.Position = new Vector3((float)playingChild.Goal.X + 3, (float)town.Walk!.BaseAt(playingChild.Goal.X, playingChild.Goal.Z) + 1.6f, (float)playingChild.Goal.Z + 3);
                     town.Refill();
                 }
@@ -757,6 +786,7 @@ public partial class PeopleTest : Node
                 if (CrowdBusyGame(playingChild)) { if (t > 45) Fail("the " + childGames[childGame] + " player did not begin the game"); break; }
                 if (t < 5) break;
                 Shot("people_game_" + childGames[childGame] + ".png");
+                town.ForceGame(playingChild.Goal.Place!,null);
                 playingChild = null; childGame++; Next("games");
                 break;
 
@@ -906,6 +936,8 @@ public partial class PeopleTest : Node
                 var wildlife = ParkWildlife.I;
                 if (wildlife == null || wildlife.List.Count == 0) { wildlifeRow["missing"] = true; Next("done"); break; }
                 wildlifeRow["animals"] = wildlife.List.Count;
+                var ecology=wildlife.EcologyChecks(); wildlifeRow["ecology"]=ecology;
+                foreach(var check in ecology) if(!check.Value) { Fail(check.Key); return; }
                 wildlifeRow["kinds"] = wildlife.List.GroupBy(a => a.Species).ToDictionary(g => g.Key, g => g.Count());
                 bird = wildlife.List.First(a => a.Species == "duck" && !a.Young && !wildlife.List.Any(b => b.Parent == a.Id));
                 birdStart = new Pt(bird.X, bird.Z);
@@ -1019,9 +1051,7 @@ public partial class PeopleTest : Node
     }
 
     /// <summary>The camera at eye height, `dist` metres from the model, `turn` round from his front (or near that, on open ground), looking at his chest.</summary>
-    private bool CrowdBusyGame(Townspeople.Sim s) => childGames[childGame] == "tag" ? false
-        : childGames[childGame] == "hoops" ? !town.GamePropDrawn(s)
-        : town.Crowd!.PuppetBusy(s.P!) || s.P!.Human.Motion is "walk" or "carry" || (childGames[childGame] == "tops" && !town.GamePropDrawn(s));
+    private bool CrowdBusyGame(Townspeople.Sim s) => !town.GameReady(s);
 
     private void Close(double dist, double turn)
     {
@@ -1085,7 +1115,7 @@ public partial class PeopleTest : Node
             if (r.TryGetValue("overlaps", out var overlaps) && Convert.ToInt32(overlaps) != 0) return false;
             if (r.TryGetValue("walkersNotMoving", out var stuck) && Convert.ToInt32(stuck) != 0) return false;
             if (r.TryGetValue("standingWhereNoBodyFits", out var blocked) && Convert.ToInt32(blocked) != 0) return false;
-            if (r.TryGetValue("drawn", out var drawn) && Convert.ToInt32(drawn) != 50) return false;
+            if (r.TryGetValue("drawn", out var drawn) && Convert.ToInt32(drawn) < town.MaxPuppets) return false;
             if (r.TryGetValue("peopleAndAnimalsCostMs", out var cost) && Convert.ToDouble(cost) >= 1.5) return false;
         }
         if (wildlifeRow.ContainsKey("missing")) return false;

@@ -50,7 +50,9 @@ cathedral, churches, town hall and Steen. `InteriorAt` and `SurfaceAt` let the r
 their exact answers when those parts are ported. This fallback uses box bounds for houses, not the browser's
 threshold blending.
 
-Still to connect as their game parts arrive: room occupancy, exact puddle positions, moving ships and vehicles,
+The gaps-life increment now connects room occupancy, home/counter/hall floor predicates, ground-material puddle masks, moving vehicles and river/canal/lock ships, railway joints/gates/crane hooks, cat/bird/horse sounds, street trade cries/work and great-storm gust/shelter producers. Storm shelter and house-front positions use the browser's own `Ways.Flags`; puddles and gusts pass 1,200/600 source parity samples. New rooms use baked floor triangles instead of a world box where no exact gameplay floor owner exists. See `godot-gaps-life.md` for the run findings.
+
+Original sound handoff (superseded producer list): room occupancy, exact puddle positions, moving ships and vehicles,
 railway triggers, animals, street trades and event cues. Their sound methods are ported and tested. Daylight
 currently exposes rain but no great-storm event level or gust; `TempestNow` accepts that level, gust and shelter
 from the event/wind parts. An ordinary storm day does not turn on the great storm's howl.

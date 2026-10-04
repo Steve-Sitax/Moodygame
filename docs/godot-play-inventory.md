@@ -21,7 +21,7 @@ The audit covers every TypeScript module in `game/`, `menu/` and `net/`, and the
 | E hiring board; 1–9 take; J quest book; task card, map goal | `game/jobs.ts`, `runs.ts` | `Play/Jobs.cs`, `Paper.cs`, `Tick.cs`: present | Kinds outside carry/watch/deliver require their own runs |
 | Lift/put down goods, carry slowdown/no jump, mixed loads | `game/goods.ts`, `props.ts`, `sackModel.ts`, `fishBox.ts`, `kegModel.ts` | `Play/Goods.cs`, `GoodsData.cs`: present | Loose quay pile feeds, handcart attachments |
 | Carry, deliver, watch, employer handover and payment | `game/runs.ts`, `jobs.ts` | `Play/Runs.cs`, `Jobs.cs`: present | Twist walk-ups coordinated with events helper |
-| Trouble card, numbered choices, E errand, refusal | `game/ideas.ts`, `follower.ts`, `walkup.ts` | `Play/Trouble.cs`: partial | Physical walk-up, stranger/foreman/thief follow-up belongs to events helper |
+| Trouble card, numbered choices, E errand, refusal | `game/ideas.ts`, `follower.ts`, `walkup.ts` | `Play/Trouble.cs`, `Walkups.cs`: physical walk-up present | Real resident arrival/release verified; actor twist follow-up and trouble integration checks pending in gaps-life |
 | E handcart grips, load/unload, E release, F unload, rent/own/lent | `game/handcart.ts`, `cartPhysics.ts`, `goods.ts` | `Play/Handcarts.cs`, `CartPhysics.cs`, `Net/Api.Handcart.cs`: partial | Owned/hired E grip/release, original goods on bed, G lift, F bulk carry delivery/payment pass; lent placement/return and furniture load/unload/household move pass through `IndoorCartLink`; household theft, expiry and save/remote gear need wider tests |
 | Pawn medal/lantern, redeem; numbered Berg counter, ticket reading | `game/press.ts` | `Talk/Press.cs`, `Play/PressWorld.cs`: F clerk works; pawn/redeem verified | E at the pawn interior's actual counter still needs the interior owner |
 | Buy newspaper from newsboy; read, shipping, wanted jobs, discard | `game/press.ts`, `pockets.ts` | `Talk/Press.cs`, `Pockets.cs`: window/trade present | Newsboys’ nearby cries |
@@ -147,6 +147,25 @@ Literal key codes found across all requested modules, to complement the action/w
 | `menu/keys.ts` | `Backspace`, `Enter`, `Escape`, `KeyA`, `KeyB`, `KeyC`, `KeyD`, `KeyE`, `KeyF`, `KeyG`, `KeyH`, `KeyI`, `KeyJ`, `KeyL`, `KeyM`, `KeyN`, `KeyP`, `KeyR`, `KeyS`, `KeyT`, `KeyW`, `Space`, `Tab` |
 | `menu/menu.ts` | `ArrowDown`, `ArrowLeft`, `ArrowRight`, `ArrowUp`, `Enter`, `Escape`, `F8`, `F9`, `Space`, `Tab` |
 | `net/mp/together.ts` | `F5` |
+
+## Life gap pass (godot/gaps-life)
+
+This pass owns street/game props and window residents, automatic home remarks, animal capture/ecology,
+job walk-ups and actor twists, and the sound producers. Existing dock/lamp/mill/park piecework is retained;
+individual landmark jobs need evidence. Implementation and checked evidence are recorded in
+`docs/godot-gaps-life.md`; rows remain partial until the real-server checks pass.
+
+Life gap evidence (2026-10-04): six child games passed with their props and real motions; the marbles
+fixture uses the browser-equivalent forced game on a usable pitch. All six close pictures were inspected.
+Seven working trades passed equipment and movement checks (milk, bread, grinder, rags, coal, mussels, brooms).
+The upstairs resident appeared above 3 m and retreated. Automatic home entry passed once-per-day, exit and
+unchanged-money/needs checks. Wildlife and real walk-up evidence is in `godot-gaps-life.md`.
+The shader pass reports 0 new kinds and 0 problems. Full sound: 158 rows, all wiring true, mean 0.0249 ms,
+p95 0.0373 ms; failures are a far-off bell 5.3 dB above prediction and one mixer frame at 2.081 ms.
+The sound gate is not claimed as passing. Combined-branch repeat: 5,370 whereabouts matches,
+six game pictures, 74 park animals, no blocked or overlapping walkers, and all 21 job gameplay
+steps passed. Full people and job frame gates remain open; the full sound repeat passed 159 level
+and wiring rows but had one 2.052 ms mixer frame. See `godot-gaps-life.md`.
 
 Moving-gap ferry proof: 17 checks with Soundscape enabled in `moving-guidance-sound-repeat`, two inspected pictures, real solo creator and guided gangway exit, model night navigation lamps and saloon panes. Vehicle/ship Soundscape inputs allocate 0 B across 100 warmed gathers. Guest creator and auditory review remain open.
 

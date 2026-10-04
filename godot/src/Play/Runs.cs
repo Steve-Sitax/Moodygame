@@ -98,9 +98,9 @@ public static class RunWords
 /// from; the run counts what is delivered, lost and sold. The employer who hands a parcel over is a person of the
 /// town (Folk); the recipient waits at the place as a figure of people.glb. The people of the twists (the stranger
 /// who buys, the foreman who watches, the thief who follows) are called from the town by the browser's walk-up
-/// (game/walkup.ts): that is not ported, so those twists do not play yet.
+/// (game/walkup.ts), using the engine's selected resident and the original goods model.
 /// </summary>
-public sealed class HaulRun : IRun
+public sealed partial class HaulRun : IRun
 {
     private readonly Job job;
     private readonly JobTask task;
@@ -179,6 +179,7 @@ public sealed class HaulRun : IRun
             Main.I.View.AddChild(mark);
         }
         if (task.Twist == "thick_fog") ctx.ThickFog(true);
+        StartTwists();
     }
 
     private async System.Threading.Tasks.Task LayOut(bool lay, bool fromShip)
@@ -218,6 +219,7 @@ public sealed class HaulRun : IRun
         float x = Jef.I.X, z = Jef.I.Z;
         if (ParcelInPocket)
         {
+            StrangerAction(o, null);
             if (recipient != null && RecipientDist(x, z) < RunWords.ReachPerson) o.Add(Act.At(Key.E, $"give the parcel to {task.Recipient}", Chest(recipient), GiveParcel));
             return o;
         }
@@ -281,6 +283,7 @@ public sealed class HaulRun : IRun
     {
         var o = new List<Act>();
         if (ended || !IsMine(item)) return o;
+        StrangerAction(o, item);
         if (recipient != null && RecipientDist(Jef.I.X, Jef.I.Z) < RunWords.ReachPerson) o.Add(Act.At(Key.E, $"hand it to {task.Recipient}", Chest(recipient), () => HandIn(item)));
         if (item.Broken && !pocketed) o.Add(Act.Me(Key.F, "fill your pockets", Pocket));
         return o;
@@ -356,6 +359,8 @@ public sealed class HaulRun : IRun
 
     public void Update(float dt)
     {
+        if (ended) return;
+        StepTwists(dt);
         t += dt;
         if (task.LimitS is { } limit && limit > 0 && !late && t > limit)
         {
@@ -470,6 +475,7 @@ public sealed class HaulRun : IRun
         lowering.Clear();
         recipient?.Remove();
         recipient = null;
+        stranger?.Dispose(); foreman?.Dispose();
         if (task.Twist == "thick_fog") ctx.ThickFog(false);
     }
 }
@@ -479,7 +485,7 @@ public sealed class HaulRun : IRun
 /// man are townspeople called from where they are: they come with the townspeople's part. Until then the watch is
 /// the post, the pile, the time away from it and the bell.
 /// </summary>
-public sealed class WatchRun : IRun
+public sealed partial class WatchRun : IRun
 {
     private readonly Job job;
     private readonly JobTask task;
@@ -509,8 +515,8 @@ public sealed class WatchRun : IRun
 
     private bool Near() => RunWords.Dist(Jef.I.X, Jef.I.Z, post.X, post.Z) < 7;
 
-    public List<Act> Actions() => new();
-    public List<Act> CarryActions(Item item) => new();
+    public List<Act> Actions() => TwistActions();
+    public List<Act> CarryActions(Item item) => TwistActions();
     public string? PlaceLabel(Item item, float x, float z) => null;
     public void OnLifted(Item item) { }
     public void OnPlaced(Item item) { }
@@ -520,6 +526,7 @@ public sealed class WatchRun : IRun
     {
         if (ended) return;
         t += dt;
+        WatchTwists(dt);
         if (!Near())
         {
             away += dt;
@@ -535,7 +542,7 @@ public sealed class WatchRun : IRun
             ended = true;
             ctx.Sfx("bell", null);
             ctx.Toast("The bell. Your watch is over.");
-            ctx.Finish(new Report { LeftPostS = Math.Round(away), Thief = "none", BribeTaken = false, SeenAway = false });
+            ctx.Finish(new Report { LeftPostS = Math.Round(away), Thief = thiefState == "chased" ? "chased" : thiefState == "stole" || bribeTaken ? "stole" : "none", BribeTaken = bribeTaken, SeenAway = seenAway });
         }
     }
 
@@ -560,6 +567,7 @@ public sealed class WatchRun : IRun
     {
         ended = true;
         // the goods stay; they are the employer's, no longer part of a job
+        thief?.Dispose(); briber?.Dispose(); foreman?.Dispose();
         Goods.I.ClearJob(job.Id);
         if (task.Twist == "thick_fog") ctx.ThickFog(false);
     }

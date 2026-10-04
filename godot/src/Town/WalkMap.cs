@@ -26,12 +26,13 @@ public sealed class WalkMap
         public Aabb Box, World;
         public Transform3D Inverse;
         public bool Transit, Active;
+        public Puppet? Owner;
     }
     private static readonly List<BodyBox> bodies = new();
     private ulong[] bodyBits = Array.Empty<ulong>();
     private int bodyWords;
     /// <summary>Live boxes absent from the static browser dump: piles, carts and posted people.</summary>
-    public static void RegisterBody(Node3D node, Aabb box, bool transit = false) => bodies.Add(new() { Node = node, Box = box, Transit = transit });
+    public static void RegisterBody(Node3D node, Aabb box, bool transit = false, Puppet? owner = null) => bodies.Add(new() { Node = node, Box = box, Transit = transit, Owner = owner });
     public void RefreshBodies()
     {
         for (int i = bodies.Count - 1; i >= 0; i--)
@@ -55,7 +56,7 @@ public sealed class WalkMap
             for (int z = z0; z <= z1; z++) for (int x = x0; x <= x1; x++) bodyBits[(z * tileW + x) * bodyWords + i / 64] |= 1ul << (i % 64);
         }
     }
-    private bool BodyFree(double x, double z, bool ignoreTransit = false)
+    private bool BodyFree(double x, double z, bool ignoreTransit = false, Puppet? owner = null)
     {
         int ix = (int)Math.Floor((x - X0) / 8), iz = (int)Math.Floor((z - Z0) / 8);
         if (ix < 0 || iz < 0 || ix >= tileW || iz >= (D + 7) / 8 || bodyWords == 0) return true;
@@ -68,7 +69,7 @@ public sealed class WalkMap
             {
                 int i = word * 64 + BitOperations.TrailingZeroCount(bits); bits &= bits - 1;
                 var b = bodies[i];
-                if (ignoreTransit && b.Transit) continue;
+                if ((owner != null && b.Owner == owner) || (ignoreTransit && b.Transit)) continue;
                 if (x < b.World.Position.X - 0.3 || x > b.World.End.X + 0.3 || z < b.World.Position.Z - 0.3 || z > b.World.End.Z + 0.3) continue;
                 if (double.IsNaN(feet)) feet = BaseAt(x, z);
                 if (b.World.End.Y <= feet + 0.36 || b.World.Position.Y >= feet + 1.75) continue;
@@ -77,6 +78,11 @@ public sealed class WalkMap
             }
         }
         return true;
+    }
+    public bool FreeFor(Puppet owner, double x, double z)
+    {
+        int ix = (int)Math.Floor((x-X0)*4), iz = (int)Math.Floor((z-Z0)*4);
+        return ix>=0 && iz>=0 && ix<W*4 && iz<D*4 && free[iz*W*4+ix]!=0 && BodyFree(x,z,owner:owner);
     }
     public double X0, Z0;
     public int W, D;

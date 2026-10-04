@@ -345,9 +345,11 @@ public partial class Animals : Node
                 if (a == null) break;
                 Main.I.View.AddChild(a.Group);
                 a.Start();
-                // at her side if there is room, else where she stands (it steps out from there)
-                bool side = Free(s.P.X + 0.8, s.P.Z + 0.8);
-                beasts.Add(new Beast { A = a, X = s.P.X + (side ? 0.8 : 0), Z = s.P.Z + (side ? 0.8 : 0), Owner = s, Speed = 0, Id = "dog:" + s.R.Id });
+                // Wait for a clear side rather than beginning inside the owner's body.
+                (double x, double z)? side = null;
+                for (int k=0;k<8;k++) { double angle=k*Math.PI/4,x=s.P.X+Math.Cos(angle)*1.15,z=s.P.Z+Math.Sin(angle)*1.15; if (Free(x,z)) { side=(x,z);break; } }
+                if (side == null) { a.Dispose(); continue; }
+                beasts.Add(new Beast { A = a, X = side.Value.x, Z = side.Value.z, Owner = s, Speed = 0, Id = "dog:" + s.R.Id });
             }
         }
         bool storm = town.StormLevel > 0.3;
@@ -594,6 +596,8 @@ public partial class Animals : Node
         bool toJef = jef != null && rng.NextDouble() < 0.15 && Hyp(jef.Value.x - b.X, jef.Value.z - b.Z) < 20;
         b.Speed = rng.NextDouble() < 0.25 ? Rnd(2.2, 3.2) : Rnd(0.8, 1.3);
         bool ok = toJef && Aim(b, jef!.Value.x + Rnd(-1, 1), jef.Value.z + Rnd(-1, 1));
+        if (!toJef && rng.NextDouble() < .5) foreach (var scrap in MarketScraps)
+        { double d=Hyp(scrap.X-b.X,scrap.Y-b.Z); if(d<30&&d>1) { ok=Aim(b,scrap.X+Rnd(-.4,.4),scrap.Y+Rnd(-.4,.4));break; } }
         for (int i = 0; !ok && i < 6; i++)
         {
             double a = rng.NextDouble() * Math.PI * 2, r = Rnd(4, 14);
@@ -676,6 +680,7 @@ public partial class Animals : Node
         {
             if (b.Scared <= 0)
             {
+                Scheldemist.Audio.LifeAnimalSounds.Hiss(b.X,b.Z);
                 b.Goal = null;
                 b.Route.Clear();
                 b.Timer = 0;

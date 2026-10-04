@@ -7,6 +7,19 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Godot's isolated sound check keeps passing traffic and railway sounds out of its scripted recording; ride checks use silent Dummy audio so they do not open a Windows output device.
+
+- In Godot, street games, travelling trades and upstairs neighbours have their own visible props and movements; traffic, rooms, puddles, animals and the great storm now drive placed sounds.
+
+- Watch and haul job twists now bring townspeople to Jef: bribes, theft, parcel offers and foremen use real actors and the original goods.
+
+- Closing Godot during sound loading now lets the audio workers finish before the engine tears down, preventing a crash on very quick exits.
+
+- In Godot, entering your rented room brings a neighbour's remark about its comfort and furniture. The server chooses who visits; they leave when you leave and speak once a day.
+
+- In Godot, people summoned for jobs walk in from the living town and return to their day when the encounter ends, using reachable street points around doors and piers.
+
+- In Godot, ducks defend their young from cats, unguarded ducks can be caught, and caught birds return only when nobody is watching. Stray dogs seek the fish-market scraps, owned dogs wait for a clear place beside their owner, and nearby cats and fleeing birds make their own sounds.
 - Townspeople's outdoor activity spots stay on reachable ground instead of landing inside houses or the park pond; path snapping also keeps room for their bodies at lane edges.
 - In the Godot version, the townspeople and Jef have their soft shadow on the ground again, as in the browser game.
 

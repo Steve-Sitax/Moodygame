@@ -459,3 +459,9 @@ The movers worktree has live omnibus boarding, stop waiters and families aboard 
 The events worktree connects engine stages, held actors, event props/sound/marks/closures, lead dress, scuffle/robbery, wedding/requiem figures, hearses, fire/hiring, storm and family menace choices. It builds and ran all sixteen templates; the bounded self-test and final evidence follow in the next commit. Browser parity gaps and exact shared hooks are listed in docs/godot-events.md. No push, merge or shared bake writes.
 
 The final event check passed 16 kinds and 50 stages, with 68 inspected pictures and actual cue playback for all 13 cue-bearing kinds. Grote Markt event logic: 239 frames, 0.00985 ms mean, 0.013 ms p95/max, 0 B mean/p95; network setup, shared crowd animation and rendering are outside that measurement. Separate family UI fixtures and an eight-stage funeral/fire repeat passed (14 more inspected pictures, including the hearse and pump). Family typing now pauses the decision timer; peaceful outcomes do not dim the screen. Evidence: godot/baked/events-proof/release, family and vehicles. All test databases removed and owned processes stopped. Builds and 194 relevant server tests passed. Shared edits and unfinished parity work: docs/godot-events.md.
+
+## Godot life gap integration, 2026-10-04
+
+The `godot/gaps-life` merge verified the street life, job and sound producers on the shared next bake.
+The ride runner's Dummy audio removed WASAPI use during tests. Its unrelated owned-handcart flat-street
+push check failed after grip: [issue #57](https://github.com/Steve-Sitax/Moodygame/issues/57).

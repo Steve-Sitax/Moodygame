@@ -9,7 +9,7 @@ const opt = (key, fallback) => { const i = args.indexOf(`--${key}`); return i < 
 const dir = path.resolve(root, "godot/baked", opt("out", "ride-proof"));
 if (!dir.startsWith(path.join(root, "godot/baked") + path.sep)) throw new Error("output must stay inside this worktree's baked folder");
 const port = Number(opt("port", "8905"));
-if (!Number.isInteger(port) || port < 8905 || port > 8908) throw new Error("port must be 8905..8908 (map uses the next port)");
+if (!Number.isInteger(port) || !((port >= 8905 && port <= 8908) || (port >= 8910 && port <= 8913))) throw new Error("port must be 8905..8908 or 8910..8913 (map uses the next port)");
 const engine = opt("godot", "C:/Users/steve/AppData/Local/Microsoft/WinGet/Packages/GodotEngine.GodotEngine.Mono_Microsoft.Winget.Source_8wekyb3d8bbwe/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe");
 const town = opt("town", "D:/Code/MoodyGame-godot/godot/baked/next/town.glb");
 const models = opt("models", "D:/Code/MoodyGame-godot/godot/baked/models");
@@ -41,8 +41,8 @@ async function run(argv, timeout, log) {
   } finally { clearTimeout(timer); await stop(); }
 }
 try {
-  if (!args.includes("--no-import")) await run(["--headless", "--path", "godot", "--import"], 180000, "import.log");
-  await run(["--path", "godot", "--log-file", path.join(dir, "engine.log"), "--", "--town", town, "--models", models, "--no-ai", ...(mode==="ridetest"?["--ride-saves-menu"]:["--no-mainmenu"]), ...(args.includes("--sound")?[]:["--no-soundscape"]), "--port", String(port), "--db", path.join(dir, "test.sqlite"), "--prefs", path.join(dir, "settings.json"), "--dev", "--hour", "13.75", "--weather", "clear", ...(args.includes("--baseline") ? ["--no-pressworld"] : []), ...(mode==="ridetest"?["--ride-only",opt("only","all")]:mode==="eventtest"?["--eventonly",opt("only","")]:mode==="moverstest"?["--moversonly",opt("only","")]:[]), "--" + mode, dir], opt("only", "all")==="all" ? 360000 : 240000, "run.log");
+  if (!args.includes("--no-import")) await run(["--headless", "--audio-driver", "Dummy", "--path", "godot", "--import"], 180000, "import.log");
+  await run(["--audio-driver", "Dummy", "--path", "godot", "--log-file", path.join(dir, "engine.log"), "--", "--town", town, "--models", models, "--no-ai", ...(mode==="ridetest"?["--ride-saves-menu"]:["--no-mainmenu"]), ...(args.includes("--sound")?[]:["--no-soundscape"]), "--port", String(port), "--db", path.join(dir, "test.sqlite"), "--prefs", path.join(dir, "settings.json"), "--dev", "--hour", "13.75", "--weather", "clear", ...(args.includes("--baseline") ? ["--no-pressworld"] : []), ...(mode==="ridetest"?["--ride-only",opt("only","all")]:mode==="eventtest"?["--eventonly",opt("only","")]:mode==="moverstest"?["--moversonly",opt("only","")]:[]), "--" + mode, dir], opt("only", "all")==="all" ? 360000 : 240000, "run.log");
 } finally {
   for (const suffix of ["", "-wal", "-shm", "-journal"]) rmSync(path.join(dir, "test.sqlite" + suffix), { force: true });
 }

@@ -214,6 +214,8 @@ public partial class JobTest : Node
         foreach (var s in More())
             yield return s;
 
+        if(Main.I.Flag("job-features-only"))yield break;
+
         Step("frames", "the frame time at the Vismarkt with these parts on: no vsync, Jef turning once round (the budget here is 5 ms)");
         var midday = link.Api!.DevSet(new Dictionary<string, double> { ["hour"] = 13, ["minute"] = 0 });
         yield return When(() => midday.IsCompleted, 10, "midday for the frame check");
@@ -327,6 +329,11 @@ public partial class JobTest : Node
     /// <summary>The later steps: the jobs, then the day.</summary>
     private IEnumerable<object?> More()
     {
+        if (Only("walkup")) foreach(var s in WalkupStep()) yield return s;
+        if (Only("home-remark")) foreach(var s in HomeRemarkStep()) yield return s;
+        if (Only("window")) foreach(var s in WindowStep()) yield return s;
+        if (Only("actor-stranger")) foreach(var s in ActorStrangerStep()) yield return s;
+        if (Only("actor-twist")) foreach(var s in ActorTwistStep()) yield return s;
         if (Only("carry"))
             foreach (var s in CarryStep())
                 yield return s;
@@ -339,6 +346,29 @@ public partial class JobTest : Node
         if (Only("day"))
             foreach (var s in DayStep())
                 yield return s;
+    }
+
+    private IEnumerable<object?> WalkupStep()
+    {
+        Step("walkup", "the engine selects a resident, who walks up and returns to the town afterwards");
+        var town=Main.I.GetNodeOrNull<Scheldemist.Town.Townspeople>("Townspeople");
+        yield return When(()=>town?.Data!=null&&Walkups.I!=null,30,"the town and walk-up executor");
+        if(Walkups.I==null||town==null){Fail("walk-up executor missing");yield break;}
+        Stand(-118,36,-118,30);yield return 1.5;
+        Note("caller",new{Jef.I.X,Jef.I.Z});
+        var call=Walkups.I.Summon("hand","twist","job:test:walkup",Jef.I.X+2,Jef.I.Z,40);
+        try
+        {
+            yield return When(()=>call.Present||call.Gone,90,"the engine-selected resident draws");
+            Check(call.Present&&call.Who!=null,"no engine-selected resident came");
+            Note("npc",call.Who);Note("name",call.Name);
+            Note("first_position",new[]{call.Position.X,call.Position.Y,call.Position.Z});
+            yield return When(()=>call.Present&&!call.Moving||call.Gone,45,"the resident reaches Jef");
+            Check(call.Present&&call.Distance(Jef.I.X,Jef.I.Z)<4,"walk-up stopped out of reach");
+            if(call.Present){var p=call.Position;LookAt(p.X,p.Z,0);yield return .5;Shot("walkup-resident");}
+        }
+        finally {call.Dispose();}
+        Check(call.Who==null||town.ActionPerson(call.Who)?.ActionOwner==null,"walk-up did not release its resident");
     }
 
     private Dictionary<string, object?> Needs() => new() { ["food"] = GameState.I.Food, ["warmth"] = GameState.I.Warmth, ["sleep"] = GameState.I.Sleep, ["health"] = GameState.I.Health, ["money_c"] = GameState.I.Money };
@@ -683,9 +713,9 @@ public partial class JobTest : Node
         Note("task_card", jobs.TaskText);
         Note("pile", Goods.I.Items.Count(i => i.JobId == job.Id));
         Shot("5-watch");
+        var before = jobs.LastDone;
         if (Only("trouble"))
             foreach (var s in TroubleStep()) yield return s;
-        var before = jobs.LastDone;
         Engine.TimeScale = 8;
         yield return When(() => jobs.LastDone != before, task.DurationS + 20, "the bell and the server's settlement");
         Engine.TimeScale = 1;
@@ -709,7 +739,7 @@ public partial class JobTest : Node
         yield return When(() => load.IsCompleted, 10, "the trouble fetched");
         var t = Trouble.I.View;
         if (t == null) { Fail("the server did not send trouble"); yield break; }
-        Trouble.I.Show(t); // the walk-up hook: its speaker is before Jef
+        yield return When(()=>Trouble.I.IsOpen,100,"the trouble speaker reaches Jef");
         yield return 0.6;
         Check(Trouble.I.IsOpen && Jef.I.Frozen && Dialogs.I!.Top?.DialogName == "trouble", "the trouble card is not on top");
         Dialogs.I!.SendKey("Escape");
@@ -728,8 +758,8 @@ public partial class JobTest : Node
             Note("server_step", Trouble.I.LastReply);
             Shot("5-trouble-step");
         }
-        var post = Spots.Get(JobTask.Of(Jobs.I.Active!)!.Post)!;
-        Stand(post.X - 2.5f, post.Z - 1.5f, post.X, post.Z, Down(3));
+        var post = Jobs.I.Active is {} active ? Spots.Get(JobTask.Of(active)?.Post) : null;
+        if(post!=null)Stand(post.X - 2.5f, post.Z - 1.5f, post.X, post.Z, Down(3));
     }
 
     // ------------------------------------------------------------------ the end
