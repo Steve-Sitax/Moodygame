@@ -7,6 +7,9 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Godot clock hands follow the game's time on tower, church, town-hall, station, shop and room clocks, including the clockmaker's window ([#44](https://github.com/Steve-Sitax/Moodygame/issues/44)).
+- Godot ships and lock boats are prepared before play, and moving traffic makes far less garbage, avoiding collection pauses while movers switch or spawn.
+
 - A Windows Godot download now starts from its executable, with the town, models, sounds and game server included.
 
 - Godot downloads can carry the compiled server and portable Node, with matching SQLite packages and no compiler needed to play.

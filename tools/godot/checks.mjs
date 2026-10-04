@@ -13,6 +13,7 @@ const all = ["devtest", "paths", "stuck", "shaders", "perfcheck", "clocks", "int
 const selected = opt("only", all.join(",")).split(",");
 if (selected.some(name => !all.includes(name))) throw new Error("--only: " + all.join(","));
 const town = path.resolve(opt("town", "godot/baked/town.glb"));
+const perfLock = path.resolve(opt("perf-lock", path.join(path.dirname(town), path.basename(path.dirname(town)) === "next" ? "../PERF-LOCK" : "PERF-LOCK")));
 const models = path.resolve(opt("models", path.join(path.dirname(town), "models")));
 const out = path.resolve(opt("out", "godot/baked/checks"));
 const godot = opt("godot", process.env.SCHELDEMIST_GODOT ?? path.join(process.env.LOCALAPPDATA ?? "", "Microsoft/WinGet/Packages/GodotEngine.GodotEngine.Mono_Microsoft.Winget.Source_8wekyb3d8bbwe/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe"));
@@ -37,6 +38,10 @@ async function cleanup() { await Promise.all([...children].map(stop)); }
 for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, async () => { await cleanup(); process.exit(130); });
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function run(exe, argv, limit, logFile) {
+  if (exe === godot) while (existsSync(perfLock)) {
+    console.log("PERF-LOCK present; no Godot run started; checking again in 60 seconds");
+    await pause(60000);
+  }
   const child = spawn(exe, argv, { cwd: root, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
   children.add(child);
   let text = "", timedOut = false;

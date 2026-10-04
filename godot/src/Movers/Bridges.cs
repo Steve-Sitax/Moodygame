@@ -65,7 +65,7 @@ public sealed class DrawBridge
             var basis = new Basis(Vector3.Up, spec.Yaw) * new Basis(Vector3.Back, ang);
             leaf.Basis = basis;
             beam.Basis = basis;
-            foreach (int side in new[] { -1, 1 })
+            for (int side = -1; side <= 1; side += 2)
             {
                 var a = beam.Transform * new Vector3(spec.L, 0, side * (spec.Half + 0.05f));
                 var b = leaf.Transform * new Vector3(spec.L - 0.3f, 0.1f, side * (spec.Half + 0.02f));
@@ -198,6 +198,9 @@ public partial class Bridges : Node
                 passages["canal"].Boats.TryAdd(f.Kind, new TrainPart { Boat = f, Len = Boats.I.Dims(f.Kind).Length });
             }
         GD.Print($"bridges: {ctls.Count} opening bridges ({string.Join(", ", ctls.Select(c => $"{c.Key} {c.Draw!.Leaves} leaves"))})");
+        foreach (var p in passages.Values)
+            foreach (string kind in p.Kinds)
+                if (BoatFor(p, kind) is { } boat) boat.Boat.Outer.Visible = false;
         if (MoversTest.On) Probes();
     }
 
@@ -206,7 +209,7 @@ public partial class Bridges : Node
     private TrainPart? BoatFor(Passage p, string kind)
     {
         if (p.Boats.TryGetValue(kind, out var b)) return b;
-        var f = Boats.I?.Place(kind, group);
+        var f = Boats.I?.Place(kind, group, prepared:true);
         if (f == null) return null;
         f.Outer.Position = new Vector3(400, Tide.River, -200);
         b = new TrainPart { Boat = f, Len = Boats.I!.Dims(kind).Length };
@@ -225,6 +228,7 @@ public partial class Bridges : Node
             p.Part = BoatFor(p, kind);
             if (p.Part == null) return;
             p.Part.Boat.Outer.Visible = true;
+            Boats.I.Activate(p.Part.Boat);
             p.Speed = SpeedOf.GetValueOrDefault(kind, 0.9);
             p.S = 0;
             p.Kind = kind;

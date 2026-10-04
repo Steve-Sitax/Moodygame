@@ -81,6 +81,7 @@ public partial class Kit : Node
         if (hour < 0 || hour >= 24 || !new[] { "clear", "fog", "mist", "rain", "storm" }.Contains(weather)) throw new ArgumentException("hour 0..24 and a known weather required");
         var p = await Api.Post<JobsPayload>("api/dev/set", new { hour = (int)hour, minute = (int)Math.Round((hour % 1) * 60), weather, food = 10, warmth = 10, sleep = 10, health = 10 });
         GameState.I.Apply(p);
+        if (Movers.MoverClock.Held) Movers.MoverClock.Hold(hour, GameState.I.Day);
         Daylight.I.SetTime((float)hour);
         Daylight.I.SetWeather(weather);
         Daylight.I.Settle();

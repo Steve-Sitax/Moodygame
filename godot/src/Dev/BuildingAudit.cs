@@ -38,15 +38,20 @@ public static class BuildingAudit
     }
     public static async Task<object> Clocks(Checks check, Func<int, Task> frames)
     {
-        var dials = BakedWorld.All(Main.I.View).OfType<Node3D>().Where(Clock).ToArray();
+        var registry = Movers.Clocks.I;
+        if (registry == null) return new { ok = false, total = 0, running = 0, problems = new[] { "live clock registry is unavailable" } };
         await Kit.I.Light(13); await frames(30);
-        var first = dials.ToDictionary(n => n.GetInstanceId(), Fingerprint);
+        var first = registry.Dials.ToDictionary(d => d.Node.GetInstanceId(), d => Fingerprint(d.Node));
         await Kit.I.Light(13.5); await frames(60);
-        var list = dials.Select(n => new { where = n.GetPath().ToString(), at = new[] { n.GlobalPosition.X, n.GlobalPosition.Y, n.GlobalPosition.Z }, shown = n.IsVisibleInTree(), running = first[n.GetInstanceId()] != Fingerprint(n), source = "liveClock extras / clock_face / clock_hands" }).ToArray();
-        var problems = list.Where(d => !d.running).Select(d => "clock did not change from 13:00 to 13:30: " + d.where).ToList();
+        var rows = registry.Report();
+        var list = registry.Dials.Select((d, i) => new { where = d.Node.GetPath().ToString(), at = new[] { d.Node.GlobalPosition.X, d.Node.GlobalPosition.Y, d.Node.GlobalPosition.Z }, shown = rows[i].Shown, shows = rows[i].Shows, offBy = rows[i].OffBy, running = rows[i].Running && first[d.Node.GetInstanceId()] != Fingerprint(d.Node), source = "shared live clock registry: hand angles and motion" }).ToArray();
+        var problems = list.Where(d => !d.running).Select(d => "clock did not follow the game from 13:00 to 13:30: " + d.where).ToList();
+        // An independent marker inventory prevents an omitted clock from disappearing from the check.
+        var claimed = registry.Dials.Select(d => d.Node.GetInstanceId()).ToHashSet();
+        problems.AddRange(BakedWorld.All(Main.I.View).OfType<Node3D>().Where(Clock).Where(n => !claimed.Contains(n.GetInstanceId())).Select(n => "clock marker missing from live registry: " + n.GetPath()));
         if (list.Length == 0) problems.Add("no clock faces found: missing clock inventory");
         return new { ok = problems.Count == 0, total = list.Length, running = list.Count(d => d.running), hours = new[] { 13, 13.5 }, list, problems,
-            notCovered = new[] { "painted clock faces without markers or liveClock metadata", "whether moved hands show the correct time (this fallback tests motion only)", "GPU-only clock animation that does not change mesh vertices or transforms" } };
+            notCovered = new[] { "painted clock faces without markers or liveClock metadata" } };
     }
     private sealed record Surface(Vector3[] Vertices, int[] Indices, string Material);
     private sealed record Model(MeshInstance3D Node, Aabb Bounds, Surface[] Surfaces);

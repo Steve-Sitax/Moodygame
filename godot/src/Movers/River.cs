@@ -124,6 +124,19 @@ public partial class River : Node
             }
         }
         Anchorage = new Anchorage(group, forAnchorage, 1873);
+        // Bound the fleet by MaxShips and make every possible model while loading, never at a lane entrance.
+        foreach (var (kind, _) in Big.Concat(Small))
+            foreach (string name in kind.Parts)
+            {
+                string key = PoolKey(name, kind.Scale);
+                if (!pool.TryGetValue(key, out var free)) pool[key] = free = new List<TrainPart>(MaxShips);
+                while (free.Count < MaxShips)
+                {
+                    var f = Boats.I.Place(name, group, kind.Scale, prepared:true);
+                    if (f == null) break;
+                    Give(new TrainPart { Boat=f, Len=Boats.I.Dims(name).Length*kind.Scale, PoolKey=key });
+                }
+            }
         // the river is never empty: a few ships already under way
         for (int i = 0, n = 0; i < 20 && n < Math.Min(5, MaxShips); i++)
             if (Spawn(false)) n++;
@@ -135,18 +148,24 @@ public partial class River : Node
 
     private TrainPart? Take(string name, float scale = 1)
     {
-        string key = $"{name}@{scale.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+        string key = PoolKey(name, scale);
         if (pool.TryGetValue(key, out var free) && free.Count > 0)
         {
             var p = free[^1];
             free.RemoveAt(free.Count - 1);
             p.Boat.Outer.Visible = true;
+            Boats.I.Activate(p.Boat);
             return p;
         }
-        var f = Boats.I.Place(name, group, scale);
-        if (f == null) return null;
-        f.Outer.Position = new Vector3(600, Tide.River, -400);
-        return new TrainPart { Boat = f, Len = Boats.I.Dims(name).Length * scale, PoolKey = key };
+        return null; // a bounded pool cannot create a model on a playing frame
+    }
+
+    private static readonly Dictionary<(string, float), string> poolKeys = new();
+    private static string PoolKey(string name, float scale)
+    {
+        if (!poolKeys.TryGetValue((name, scale), out var key))
+            poolKeys[(name, scale)] = key = $"{name}@{scale.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+        return key;
     }
 
     private void Give(TrainPart p)
@@ -328,6 +347,7 @@ public partial class River : Node
         });
         // a kind the bake has no frozen copy of, made from boats.glb through the model library
         Boats.Float? made = null;
+        TrainPart? modelPart = null;
         MoversTest.Add(new MoversTest.Probe
         {
             Name = "ship_from_the_model_file",
@@ -336,13 +356,14 @@ public partial class River : Node
             MinMove = 0.002,
             Start = () =>
             {
-                made = Boats.I.Place("barque_sail", group);
+                modelPart = Take("barque_sail");
+                made = modelPart?.Boat;
                 if (made != null) made.Outer.Position = new Vector3(30, Tide.River, -62);
                 if (made != null) made.Outer.Rotation = new Vector3(0, -MathF.PI / 2, 0);
             },
             Where = () => made == null ? (Vector3.Zero, 0, "boats.glb has no barque_sail") : (made.Inner.GlobalPosition, made.Inner.Rotation.Z, $"a barque under sail from boats.glb ({(Boats.I.Library.Contains("barque_sail") ? "the model library" : "a baked copy")})"),
             View = () => (new Vector3(78, 14, -18), new Vector3(30, 12, -62)),
-            End = () => made?.Outer.QueueFree(),
+            End = () => { if (modelPart != null) Give(modelPart); },
         });
         MoversTest.Add(new MoversTest.Probe
         {

@@ -76,6 +76,7 @@ public partial class Lock : Node
     private readonly List<Gate> gates = new();
     private float bridgeAngle;
     private readonly float[] gateOpen = { 0, 0 };
+    private readonly bool[] wantGate = new bool[2];
     private bool want, boatWant, inside;
     private float flat = Tide.DockY;
     private Spline curve = null!;
@@ -176,6 +177,8 @@ public partial class Lock : Node
             Show(cur);
             Place(cur!.Offs[^1], 1);
         }
+        // Keep the initial train's baked hulls and dice; prepare the remaining variants before play.
+        foreach (var names in fitting) TrainFor(names);
         ShowLock(1);
         GD.Print($"lock: {gates.Count} gate leaves, a bridge of {bridge.Leaves} leaves, {fitting.Count} kinds of tow fit the chamber ({string.Join(", ", fitting.Select(f => string.Join("+", f)))})");
         if (MoversTest.On) Probes();
@@ -212,7 +215,7 @@ public partial class Lock : Node
             // the bake's frozen lock boats first, then copies (the model library takes over in Boats.Place)
             var f = bakedBoats.FirstOrDefault(b => b.Kind == n);
             if (f != null) bakedBoats.Remove(f);
-            else f = Boats.I.Place(n, group);
+            else f = Boats.I.Place(n, group, prepared:true);
             if (f == null) return null;
             f.Outer.Visible = false;
             objs.Add(f);
@@ -228,7 +231,11 @@ public partial class Lock : Node
     private void Show(Train? t)
     {
         foreach (var tr in trains.Values)
-            foreach (var o in tr.Objs) o.Outer.Visible = tr == t;
+            foreach (var o in tr.Objs)
+            {
+                o.Outer.Visible = tr == t;
+                if (tr == t) Boats.I.Activate(o);
+            }
     }
 
     /// <summary>Route position where the route crosses z in the channel.</summary>
@@ -341,7 +348,7 @@ public partial class Lock : Node
                 }
         const float bridgeSpeed = 0.07f, gateSpeed = 0.05f;
         float ease = 0.25f + 0.75f * MathF.Sin(MathF.PI * Mv.Clamp01(bridgeAngle / OpenBridge));
-        bool[] wantGate = { false, false };
+        wantGate[0] = wantGate[1] = false;
         int target = -1;
         int near = dir > 0 ? 0 : 1;
         bool levelGo = want && mode == "level";

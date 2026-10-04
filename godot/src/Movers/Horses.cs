@@ -201,6 +201,15 @@ public static class HorseGait
     private const int BobN = 240, BobW = BobN / 8, AmpSteps = 10;
     private static readonly Dictionary<long, float[]> bobCache = new();
 
+    // Every amplitude used by the train/bus pool and the quay drays, before any moving frame.
+    public static void Warm()
+    {
+        for (int a=0;a<=AmpSteps;a++)
+        {
+            BobCurve(false,a,null); BobCurve(true,a,null); BobCurve(false,a,1.35f);
+        }
+    }
+
     private static float[] BobCurve(bool trot, int a, float? stride)
     {
         long key = (trot ? 1L : 0) | ((long)a << 1) | ((long)(stride == null ? 0 : (int)MathF.Round(stride.Value * 50) + 1) << 8);
@@ -312,6 +321,7 @@ public partial class HorsePool : Node
     public override void _Ready()
     {
         I = this;
+        HorseGait.Warm();
         var g = Mv.Top("horses");
         if (g == null) return;
         body = Copies.Find(g, "horsebody");

@@ -10,7 +10,7 @@ namespace Scheldemist.Movers;
 /// <summary>
 /// Every clock in the game shows the game's own time (Steve, 2026-09-26): the browser's world/clockHands.ts. The
 /// bake holds each dial's hands as one small mesh named clock_hands (the hour hand, the minute hand and the hub),
-/// laid at the bake's hour. This part takes them over: once a game minute every dial's hands are laid again, the
+/// laid at the bake's hour. This part splits them once while loading: each game minute the two hands turn, the
 /// minute hand jumping a minute like a tower clock's, the hour hand going on with the minutes. A room or a shop
 /// that builds its own clock calls Clocks.AddDial. The check: Clocks.I.Report() (printed once at the start).
 /// </summary>
@@ -29,6 +29,7 @@ public partial class Clocks : Node
         public MeshInstance3D Node = null!;
         public ArrayMesh Mesh = null!;
         public Material? Mat;
+        public MeshInstance3D HourHand = null!, MinuteHand = null!;
         public string Kind = "", Where = "";
         /// <summary>Lengths in metres: the hour hand, the minute hand, the hands' width, the hair they stack by.</summary>
         public float Hour, Minute, W, Step;
@@ -79,7 +80,7 @@ public partial class Clocks : Node
         I = this;
         foreach (var n in BakedWorld.All(Main.I.World))
         {
-            if (n is not MeshInstance3D { Mesh: not null } mi || Mv.Plain(n) != "clock_hands") continue;
+            if (n is not MeshInstance3D { Mesh: not null } mi || !IsClock(n)) continue;
             if (mi.Mesh.GetSurfaceCount() < 1) continue;
             var v = mi.Mesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array();
             if (v.Length != Verts)
@@ -114,6 +115,9 @@ public partial class Clocks : Node
         foreach (var r in rep)
             GD.Print(string.Create(CultureInfo.InvariantCulture, $"clocks:   {r.Where} at ({r.At.X:0.0}, {r.At.Y:0.0}, {r.At.Z:0.0}) shows {r.Shows}, {(r.Running ? "runs" : "DOES NOT RUN")}{(r.Shown ? "" : " (its model is hidden now)")}"));
     }
+
+    private static bool IsClock(Node n) => Mv.Plain(n) == "clock_hands" ||
+        n.HasMeta("extras") && n.GetMeta("extras").AsGodotDictionary().TryGetValue("liveClock", out var live) && live.AsBool();
 
     private static string WhereOf(Node n)
     {
@@ -152,6 +156,13 @@ public partial class Clocks : Node
     /// <summary>Lay the hands at this minute of the 12 hours (0..719), in the face's plane (x right, y up, z out).</summary>
     private void Lay(Dial d, int m12)
     {
+        if (d.Shows >= 0)
+        {
+            d.HourHand.Rotation = new Vector3(0, 0, -m12 / 720f * MathF.Tau);
+            d.MinuteHand.Rotation = new Vector3(0, 0, -(m12 % 60) / 60f * MathF.Tau);
+            d.Shows = m12;
+            return;
+        }
         void Hand(int o, float ang, float len, float half, float z)
         {
             float dx = MathF.Sin(ang), dy = MathF.Cos(ang), px = MathF.Cos(ang), py = -MathF.Sin(ang);
@@ -161,10 +172,8 @@ public partial class Clocks : Node
             pos[o + 2] = new Vector3(dx * len, dy * len, z);
             pos[o + 3] = new Vector3(-px * half + dx * at, -py * half + dy * at, z);
         }
-        float minuteAng = m12 % 60 / 60f * MathF.Tau;
-        float hourAng = m12 / 720f * MathF.Tau;
-        Hand(0, hourAng, d.Hour, d.W * 0.62f, 0);
-        Hand(4, minuteAng, d.Minute, d.W * 0.45f, d.Step);
+        Hand(0, 0, d.Hour, d.W * 0.62f, 0);
+        Hand(4, 0, d.Minute, d.W * 0.45f, d.Step);
         float hub = d.W * 0.55f;
         pos[8] = new Vector3(0, 0, d.Step * 2);
         for (int i = 0; i < HubN; i++)
@@ -172,19 +181,29 @@ public partial class Clocks : Node
             float t = i / (float)HubN * MathF.Tau;
             pos[9 + i] = new Vector3(MathF.Cos(t) * hub, MathF.Sin(t) * hub, d.Step * 2);
         }
-        var arr = new Godot.Collections.Array();
-        arr.Resize((int)Mesh.ArrayType.Max);
-        arr[(int)Mesh.ArrayType.Vertex] = pos;
-        arr[(int)Mesh.ArrayType.Normal] = Normals;
-        arr[(int)Mesh.ArrayType.TexUV] = Uvs;
-        arr[(int)Mesh.ArrayType.Color] = White;
-        arr[(int)Mesh.ArrayType.Index] = Index;
-        d.Mesh.ClearSurfaces();
-        d.Mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arr);
-        if (d.Mat != null) d.Mesh.SurfaceSetMaterial(0, d.Mat);
-        // the hands sweep the whole face: one box for every minute, so the culler never drops them
-        d.Mesh.CustomAabb = new Aabb(new Vector3(-d.Minute, -d.Minute, 0), new Vector3(d.Minute * 2, d.Minute * 2, d.Step * 3));
-        d.Shows = m12;
+        ArrayMesh Piece(int start, int count, int[] indices)
+        {
+            using var arr = new Godot.Collections.Array();
+            arr.Resize((int)Mesh.ArrayType.Max);
+            arr[(int)Mesh.ArrayType.Vertex] = pos.Skip(start).Take(count).ToArray();
+            arr[(int)Mesh.ArrayType.Normal] = Normals.Take(count).ToArray();
+            arr[(int)Mesh.ArrayType.TexUV] = Uvs.Take(count).ToArray();
+            arr[(int)Mesh.ArrayType.Color] = White.Take(count).ToArray();
+            arr[(int)Mesh.ArrayType.Index] = indices;
+            var mesh = new ArrayMesh();
+            mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arr);
+            if (d.Mat != null) mesh.SurfaceSetMaterial(0, d.Mat);
+            mesh.CustomAabb = new Aabb(new Vector3(-d.Minute, -d.Minute, 0), new Vector3(d.Minute * 2, d.Minute * 2, d.Step * 3));
+            return mesh;
+        }
+        // Build once at loading. Minute changes rotate the two immutable hands; no mesh/collider rebuild.
+        d.HourHand = new MeshInstance3D { Name = "hour_hand", Mesh = Piece(0, 4, Index.Take(6).ToArray()) };
+        d.MinuteHand = new MeshInstance3D { Name = "minute_hand", Mesh = Piece(4, 4, Index.Take(6).ToArray()) };
+        d.Node.AddChild(d.HourHand);
+        d.Node.AddChild(d.MinuteHand);
+        d.Node.Mesh = d.Mesh = Piece(8, 9, Index.Skip(12).Select(i => i - 8).ToArray());
+        d.Shows = 0;
+        Lay(d, m12);
     }
 
     private void Tick(bool force)
@@ -253,7 +272,7 @@ public partial class Clocks : Node
 
     private static string Hm(int m) => $"{m / 60}:{m % 60:00}";
 
-    public record struct Row(string Kind, string Where, Vector3 At, Vector3 Facing, bool Shown, string Shows, int OffBy, bool Running);
+    public record struct Row(string Path, string Kind, string Where, Vector3 At, Vector3 Facing, bool Shown, string Shows, int OffBy, bool Running);
 
     /// <summary>The browser's __scheldemist.clocks(): every dial, where, the time it shows against the game's.</summary>
     public List<Row> Report()
@@ -265,16 +284,17 @@ public partial class Clocks : Node
             if (!IsInstanceValid(d.Node)) continue;
             var (hour,minute)=Read(d); int actual=hour*60+minute;
             int off = Math.Min(((actual - m12) % 720 + 720) % 720, ((m12 - actual) % 720 + 720) % 720);
-            list.Add(new Row(d.Kind, d.Where, d.Node.GlobalPosition, d.Node.GlobalTransform.Basis.Z.Normalized(), d.Node.IsVisibleInTree(), Hm(actual), off, d.Shows >= 0 && off <= 1));
+            list.Add(new Row(d.Node.GetPath().ToString(), d.Kind, d.Where, d.Node.GlobalPosition, d.Node.GlobalTransform.Basis.Z.Normalized(), d.Node.IsVisibleInTree(), Hm(actual), off, d.Shows >= 0 && off <= 1));
         }
         return list;
     }
 
-    /// <summary>The angle of a dial's minute and hour hand as its mesh has them now (read back from the points: the self-test's proof).</summary>
+    /// <summary>Read the actual hand transforms against their immutable upward mesh tips, rather than the cached time.</summary>
     public (int Hour12, int Minute) Read(Dial d)
     {
-        var v = d.Mesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array();
-        float ha = MathF.Atan2(v[2].X, v[2].Y), ma = MathF.Atan2(v[6].X, v[6].Y);
+        var h = d.HourHand.Transform.Basis * Vector3.Up;
+        var m = d.MinuteHand.Transform.Basis * Vector3.Up;
+        float ha = MathF.Atan2(h.X, h.Y), ma = MathF.Atan2(m.X, m.Y);
         if (ha < 0) ha += MathF.Tau;
         if (ma < 0) ma += MathF.Tau;
         int minute = (int)MathF.Round(ma / MathF.Tau * 60) % 60;
