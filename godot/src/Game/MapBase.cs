@@ -77,7 +77,7 @@ public sealed class MapBase
     /// <summary>Read the town and draw its picture. root: the folder that holds shared/ (Ways.Root).</summary>
     public static MapBase Make(string root)
     {
-        using var doc = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(root, "shared", "city.json")));
+        using var doc = JsonDocument.Parse(File.ReadAllBytes(Paths.City));
         var city = doc.RootElement;
         var m = new MapBase();
         float th = city.GetProperty("frame").GetProperty("thetaDeg").GetSingle() * MathF.PI / 180;
@@ -111,7 +111,7 @@ public sealed class MapBase
                 var o = d.Value.GetProperty("out");
                 m.Doors[d.Name] = (d.Value.GetProperty("x").GetSingle(), d.Value.GetProperty("z").GetSingle(), o[0].GetSingle(), o[1].GetSingle());
             }
-        string spots = Path.Combine(root, "shared", "spots.json");
+        string spots = Paths.Shared("spots.json");
         if (File.Exists(spots))
         {
             using var sd = JsonDocument.Parse(File.ReadAllBytes(spots));

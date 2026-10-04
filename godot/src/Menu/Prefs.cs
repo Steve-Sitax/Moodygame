@@ -89,8 +89,7 @@ public static class Prefs
     {
         get
         {
-            string other = Main.I?.Arg("prefs") ?? "";
-            return other != "" ? Path.GetFullPath(other) : ProjectSettings.GlobalizePath("user://settings.json");
+            return Paths.Prefs;
         }
     }
 

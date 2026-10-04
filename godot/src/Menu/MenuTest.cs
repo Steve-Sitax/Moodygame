@@ -35,7 +35,7 @@ public partial class MenuTest : Node
 
     public override void _Ready()
     {
-        dir = Main.I.Arg("menutest");
+        dir = Paths.TestOutput("menutest");
         if (dir == "") return;
         Directory.CreateDirectory(dir);
         _ = Run();

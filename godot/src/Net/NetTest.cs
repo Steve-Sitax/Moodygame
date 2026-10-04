@@ -32,7 +32,7 @@ public partial class NetTest : Node
 
     public override void _Ready()
     {
-        dir = Main.I.Arg("nettest");
+        dir = Paths.TestOutput("nettest");
         if (dir == "")
         {
             SetProcess(false);

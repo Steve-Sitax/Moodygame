@@ -27,38 +27,11 @@ public sealed record ServerPaths
     public string ServerDir => Path.Combine(Root, "server");
     /// <summary>What Node runs, seen from ServerDir (Node 24 runs TypeScript as it is).</summary>
     public string Entry { get; init; } = "src/index.ts";
-    public string DataDir => Path.Combine(Root, "data");
+    public string DataDir { get; init; } = "";
     /// <summary>The download: the server runs in production mode and never builds the browser game.</summary>
     public bool Packaged { get; init; }
 
-    /// <summary>
-    /// projectDir: the Godot project's folder (res://) when run from a checkout; exeDir: the folder of the game's
-    /// program. The download is tried first (a server/ beside the program), then the checkout (server/ one up from
-    /// the Godot project).
-    /// </summary>
-    public static ServerPaths Find(string projectDir, string exeDir)
-    {
-        string node = Environment.GetEnvironmentVariable("SCHELDEMIST_NODE") ?? "";
-        string root = Environment.GetEnvironmentVariable("SCHELDEMIST_ROOT") ?? "";
-        bool win = OperatingSystem.IsWindows();
-        bool packaged = false;
-        if (root == "")
-        {
-            if (exeDir != "" && File.Exists(Path.Combine(exeDir, "server", "src", "index.ts")))
-            {
-                root = exeDir;
-                packaged = true;
-            }
-            else root = Path.GetFullPath(Path.Combine(projectDir, ".."));
-        }
-        else packaged = !Directory.Exists(Path.Combine(root, "godot"));
-        if (node == "")
-        {
-            string own = Path.Combine(root, "runtime", win ? "node.exe" : "node");
-            node = File.Exists(own) ? own : "node";
-        }
-        return new ServerPaths { Root = root, Node = node, Packaged = packaged };
-    }
+
 }
 
 /// <summary>What the game asks of its server at start.</summary>
@@ -203,7 +176,7 @@ public sealed class ServerProcess : IDisposable
         Url = $"http://127.0.0.1:{port}";
         Own = true;
         Directory.CreateDirectory(paths.DataDir);
-        LogFile = Path.Combine(paths.DataDir, "godot-server.log");
+        LogFile = Paths.ServerLog;
         try
         {
             log = new StreamWriter(new FileStream(LogFile, FileMode.Create, System.IO.FileAccess.Write, FileShare.ReadWrite)) { AutoFlush = true };
@@ -231,7 +204,9 @@ public sealed class ServerProcess : IDisposable
         // the host's town map (server mapview/): its own port by this game's, never 8790 (Steve's running game); none if taken
         int map = port + 1000;
         info.Environment["SCHELDEMIST_MAP_PORT"] = !Forbidden.Contains(map) && IsFree(map) ? map.ToString() : "0";
-        if (opt.Db != "") info.Environment["SCHELDEMIST_DB"] = Path.GetFullPath(opt.Db);
+        info.Environment["SCHELDEMIST_DB"] = Paths.Database;
+        info.Environment["SCHELDEMIST_DATA"] = paths.DataDir;
+        info.Environment["SCHELDEMIST_AI_CONFIG"] = Paths.AiSetup;
         if (paths.Packaged)
         {
             info.Environment["NODE_ENV"] = "production";
@@ -253,7 +228,7 @@ public sealed class ServerProcess : IDisposable
     /// <summary>A settings file that says "walk around, no AI" (docs/ai-setup.md), for tests: the player's own data/ai-config.json is not touched.</summary>
     private static string WalkConfig(ServerPaths paths)
     {
-        string f = Path.Combine(paths.DataDir, "godot-no-ai.ai-config.json");
+        string f = Paths.WalkAiSetup;
         File.WriteAllText(f, "{\"version\":1,\"mode\":\"walk\",\"typedLines\":\"same\",\"callsPerDay\":120,\"default\":{\"provider\":\"recommended\"},\"kinds\":{},\"connections\":{\"anthropic_api\":{},\"openai_compat\":{\"baseUrl\":\"https://api.openai.com/v1\"},\"ollama\":{\"baseUrl\":\"http://127.0.0.1:11434\"}}}\n");
         return f;
     }

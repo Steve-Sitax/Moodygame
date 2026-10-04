@@ -41,7 +41,7 @@ public partial class PeopleTest : Node
 
     public override void _Ready()
     {
-        dir = Main.I.Arg("peopletest", "");
+        dir = Paths.TestOutput("peopletest");
         if (dir == "")
         {
             SetProcess(false);

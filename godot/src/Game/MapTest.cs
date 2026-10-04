@@ -31,7 +31,7 @@ public partial class MapTest : Node
 
     public override void _Ready()
     {
-        dir = Main.I.Arg("maptest");
+        dir = Paths.TestOutput("maptest");
         if (dir == "")
         {
             SetProcess(false);

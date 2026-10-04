@@ -116,7 +116,7 @@ public partial class TownMap : Node
 
     private static Font LoadItalic()
     {
-        const string path = "res://fonts/old-standard-tt-latin-400-italic.woff2";
+        string path = Paths.Font("old-standard-tt-latin-400-italic.woff2");
         if (ResourceLoader.Exists(path) && GD.Load<Font>(path) is { } f) return f;
         var raw = new FontFile();
         if (raw.LoadDynamicFont(ProjectSettings.GlobalizePath(path)) == Error.Ok) return raw;
@@ -170,7 +170,7 @@ public partial class TownMap : Node
     private readonly double[] partMs = new double[3];
 
     /// <summary>Where the kinds turned off are kept ("user://map.json"; the self-test keeps its own).</summary>
-    public string SettingsFile { get; set; } = "user://map.json";
+    public string SettingsFile { get; set; } = Paths.MapSettings;
 
     public TownMap()
     {

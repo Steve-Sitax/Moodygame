@@ -27,7 +27,7 @@ public partial class Snap : Node
 
     public override void _Ready()
     {
-        dir = Main.I.Arg("snap");
+        dir = Paths.TestOutput("snap");
         string v = Main.I.Arg("views");
         if (dir == "" || v == "")
         {

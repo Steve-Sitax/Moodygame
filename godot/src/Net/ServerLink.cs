@@ -66,7 +66,7 @@ public partial class ServerLink : Node
             // a test never spends model calls
             NoAi = main.Flag("no-ai") || main.Arg("nettest") != "",
         };
-        var paths = ServerPaths.Find(ProjectSettings.GlobalizePath("res://"), System.IO.Path.GetDirectoryName(OS.GetExecutablePath()) ?? "");
+        var paths = Paths.Server;
         SetStatus(opt.External != "" ? $"Looking for the game server at {opt.External}..." : "Starting the game server...", "");
         // the game must never leave its server behind: the tree's end, the window's close and the program's end all stop it
         AppDomain.CurrentDomain.ProcessExit += OnProcessExit;

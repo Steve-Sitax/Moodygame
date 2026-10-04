@@ -64,9 +64,7 @@ public partial class Lights : Node
         I = this;
         ProcessPriority = 40; // after the daylight
         Daylight.I.Settled += () => snap = true;
-        string town = Main.I.Arg("town", OS.GetEnvironment("SCHELDEMIST_BAKE") is { Length: > 0 } b ? b : ProjectSettings.GlobalizePath("res://baked/town.glb"));
-        string name = Path.GetFileNameWithoutExtension(town) + "_lights.json";
-        string? file = new[] { Path.Combine(Path.GetDirectoryName(town) ?? ".", name), ProjectSettings.GlobalizePath("res://baked/" + name) }.FirstOrDefault(File.Exists);
+        string? file = new[] { Paths.TownSide("_lights.json"), Path.Combine(Paths.Baked, "town_lights.json") }.FirstOrDefault(File.Exists);
         int paneCount = 0;
         if (file != null)
         {
@@ -74,7 +72,7 @@ public partial class Lights : Node
             foreach (var e in j.GetProperty("spill").EnumerateArray()) sources.Add(Read(e));
             paneCount = BuildPanes(j.GetProperty("panes"));
         }
-        else GD.Print("lights: no " + name + " beside the bake: no lamps or lit windows (node tools/godot/export-scene.mjs --ref-only --lights --hour 21)");
+        else GD.Print("lights: no " + Paths.TownSide("_lights.json") + " beside the bake: no lamps or lit windows (node tools/godot/export-scene.mjs --ref-only --lights --hour 21)");
         // the doss house lantern (rijnkaai.ts): a real light in the browser, always burning
         sources.Add(new Src { Kind = "doss", Label = "doss house lantern", At = new Vector3(-180.96f, 2.9f, 39.5f), Half = new Vector2(0.1f, 0.1f), Color = V(Psx.Hex(0xffa048)), Power = 7, Range = 10, Decay = 1.7f, Level = 1 });
         lamps.AddRange(sources.Where(s => s.Lamp));

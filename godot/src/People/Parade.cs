@@ -24,7 +24,7 @@ public partial class Parade : Node
 
     public override void _Ready()
     {
-        dir = Main.I.Arg("parade", "");
+        dir = Paths.TestOutput("parade");
         if (dir == "" || !Humans.Ready)
         {
             SetProcess(false);

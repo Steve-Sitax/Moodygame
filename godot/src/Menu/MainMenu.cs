@@ -325,7 +325,7 @@ public partial class MainMenu : Node
         col.AddChild(Margin(sub, 6, 0, 14));
         // the wood engraving of the quay, printed on the paper; smaller on a short window, gone there in play
         cut = null;
-        if (Kit.Picture("res://ui/quay_woodcut.jpg") is { } tex)
+        if (Kit.Picture(Paths.MenuPicture) is { } tex)
         {
             float share = win.Y <= 900 ? 0.66f : 0.86f;
             float cw = inner * share;

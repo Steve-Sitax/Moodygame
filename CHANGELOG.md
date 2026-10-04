@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The Godot game keeps saves, AI settings and logs in your own user folder, and uses one set of paths in source runs and downloads.
+
 ### New in the game
 - The back neighbourhoods have a bakery, grocer and cobbler, plus In de Linde and De Zwarte Kat. The latter welcomes players trusted by the smugglers; outsiders are warned to leave and refused service.
 - Ivy and red autumn Virginia creeper climb the town wall's inner face, along the Stadspark and the streets behind the wall.
