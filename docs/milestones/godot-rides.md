@@ -119,3 +119,10 @@ RideSaves stores feet plus local ride state in the server's existing client-stat
 The browser hire rule is preserved: an expired mounted/held hire remains with Jef until he releases it; a later server tick collects it. No client timer takes possessions away. Rowing climbs now have separate swimming, quay-jump, steps and owned-boat ladder approaches with a live final thwart. The hire/swim/jump/steps approaches pass; every owned loose-boat ladder and all nine hull kinds remain open. Warm 10,000-call ride/ship/rowing/cart probes still allocate zero bytes.
 
 Together adds the protocol-5 omnibus local frame (base 1, bus index), with a sub-millimetre local/world reconstruction check. Existing boat/cart/velocipede gear hooks remain chained. Actual two-client ride and guest-ferry creator proof remains open. Named household transport journeys and prisoner room walking are not implemented by this batch. Smoke stays with the look helper.
+
+
+## Ferry guide completion (2026-10-04)
+
+The 115-second guide uses the browser deck path and gangway waypoints at 1.1 m/s, faces along its walk and releases at the landing. A one-shot latch prevents the guide restarting while the ashore reply is in flight. Small waypoint moves use a normalized direction, preventing an asymptotically slow hinge approach. The pontoon's existing drive remains until the normal quay exit.
+
+`moving-guidance-repeat/ridetest.json` passes 17 checks, including the actual solo creator, both nags, night lamps, guide release and manual walking from landing to quay. Both pictures were inspected. The sound-enabled repeat released the guide successfully but ran out of the old 35-second wall-clock allowance six metres short of the pontoon end; the fixture now allows 75 seconds. Auditory review and guest creator remain open.

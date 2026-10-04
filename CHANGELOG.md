@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The Godot ferryman guides idle passengers around the ferry deck and onto the pontoon, then gives walking control back.
+
 - Godot railway crews accompany the horses and gate; cranes replenish docker piles, make room for higher-priority neighbours, and trains stop for loose goods. River tows back out of verified blocked water and slow for rowing boats.
 
 - Godot event actors use the server’s NPC ownership and the browser puppet pose format when playing together.
