@@ -29,6 +29,7 @@ public partial class FamilyScenes : Node
     private Label veilText = null!;
     private string dream = "", waitingDream = "";
     private double dreamWait;
+    private static bool CanType => !Main.I.Flag("no-ai") && Scheldemist.Menu.AiSheet.Mode != "walk";
     public override void _Ready()
     {
         I = this;
@@ -60,7 +61,7 @@ public partial class FamilyScenes : Node
         {
             menace = m.GetProperty("action").GetInt32(); npc = m.GetProperty("npc").GetString() ?? ""; name = m.GetProperty("name").GetString() ?? ""; demand = m.GetProperty("demand_c").GetInt32();
             left = 12; asking = typing = false; input.Visible = false; panel.Visible = true;
-            message.Text = name + " means you harm. Get clear of him, talk [T]" + (demand > 0 ? " or pay " + demand + " centimes [P]." : ".") + " People about, or an agent near, would stop him.";
+            message.Text = name + " means you harm. Get clear of him" + (CanType ? ", talk [T]" : "") + (demand > 0 ? " or pay " + demand + " centimes [P]." : ".") + " People about, or an agent near, would stop him.";
             if (m.TryGetProperty("line", out var line)) GameState.I.Say(line.GetString() ?? "");
         }
         if (state.TryGetProperty("menace_end", out var end) && end.ValueKind == JsonValueKind.Object) End(end.TryGetProperty("text", out var text) ? text.GetString() ?? "" : "", end.TryGetProperty("outcome", out var outcome) ? outcome.GetString() ?? "" : "");
@@ -86,7 +87,7 @@ public partial class FamilyScenes : Node
     private void Answer(string how, string? words = null)
     {
         if (menace == 0 || asking || ServerLink.I?.Api is not { } api) return;
-        if (how == "talk" && string.IsNullOrWhiteSpace(words)) return;
+        if (how == "talk" && (!CanType || string.IsNullOrWhiteSpace(words))) return;
         asking = true; typing = false; input.Visible = false; input.ReleaseFocus();
         api.Run(api.FamilyMenace(menace, how, words), reply =>
         {
@@ -114,7 +115,7 @@ public partial class FamilyScenes : Node
         if (menace == 0 || asking || e is not InputEventKey { Pressed: true, Echo: false } key) return;
         if (DaySheets.I is { Shown: not "none" } || Scheldemist.Talks.Talk.I?.IsOpen == true) return;
         if (typing && key.Keycode == Key.Escape) { typing = false; input.Visible = false; input.ReleaseFocus(); GetViewport().SetInputAsHandled(); }
-        else if (!typing && key.Keycode == Key.T) { typing = true; typeLeft = 45; input.Text = ""; input.Visible = true; input.GrabFocus(); GetViewport().SetInputAsHandled(); }
+        else if (!typing && key.Keycode == Key.T && CanType) { typing = true; typeLeft = 45; input.Text = ""; input.Visible = true; input.GrabFocus(); GetViewport().SetInputAsHandled(); }
         else if (!typing && key.Keycode == Key.P && demand > 0) { Answer("pay"); GetViewport().SetInputAsHandled(); }
     }
     public override void _ExitTree() { if (DaySheets.I != null) DaySheets.I.NightOpened -= PutDream; GetViewport().SizeChanged -= Layout; if (FamilyPeople.I != null) FamilyPeople.I.ActionReceived -= Apply; if (Scheldemist.Menu.MainMenu.I != null) Scheldemist.Menu.MainMenu.I.WorldReplaced -= Replaced; panel.QueueFree(); veil.QueueFree(); if (I == this) I = null; }

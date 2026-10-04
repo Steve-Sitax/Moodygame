@@ -23,6 +23,9 @@ public partial class TavernSeats : Node
     public sealed class Room { public string Id = ""; public Vector3 Origin; public float Yaw; public bool Open; public readonly List<Seat> Seats = new(); }
     public readonly List<Room> Rooms = new();
     public Seat? Sitting { get; private set; }
+    public Func<Act?>? GuestAction { get; set; }
+    private readonly Offers seatedOffers = new() { Only = new() };
+    private Act standAction = null!, diceAction = null!;
     private readonly List<Interact.Entry> prompts = new();
     private static readonly HashSet<string> Standers = new() { "peeters", "fientje", "fishwife_a", "fishwife_b", "maid", "girl", "wife_a", "wife_b", "shopwife", "old_woman", "girl_b", "baker", "shopkeeper", "publican", "docker_sack", "porter", "carter", "sentry" };
     private Townspeople? town;
@@ -48,15 +51,25 @@ public partial class TavernSeats : Node
                 prompts.Add(Interact.I.Add(seat.At + Vector3.Up*.45f, 1.05f, () => Sitting == null && r.Open && seat.Occupant == null && MathF.Abs(Jef.I.Y-r.Origin.Y)<.6f ? seat.Table==9 ? "sit at the counter" : "sit down at the table" : null, () => Sit(seat)));
             }
         }
-        Interact.I.AddProvider((_, _) => Sitting == null ? null : new Offers { Only = mate == null ? new() { Act.Me(Key.E,"stand up",Stand) } : new() { Act.Me(Key.E,"stand up",Stand), Act.Me(Key.G,"play pitjesbak with "+mate.First,()=>_ = PlayDice()) } });
+        standAction = Act.Me(Key.E, "stand up", Stand);
+        diceAction = Act.Me(Key.G, "play pitjesbak", () => _ = PlayDice());
+        Interact.I.AddProvider(SeatedKeys);
         if (Scheldemist.Menu.MainMenu.I is { } menu) menu.WorldReplaced += Reset;
+    }
+    private Offers? SeatedKeys(float x, float z)
+    {
+        if (Sitting == null) return null;
+        var only = seatedOffers.Only!; only.Clear(); only.Add(standAction);
+        if (mate != null) only.Add(diceAction);
+        if (GuestAction?.Invoke() is { } guest) only.Add(guest);
+        return seatedOffers;
     }
     private void Reset(string how, ClientState? state) { generation++; Stand(); foreach (var r in Rooms) { r.Open=false; foreach(var s in r.Seats)s.Occupant=null; } poll=0; }
     private static Vector3 World(Room r, float x, float z) => r.Origin + new Vector3(x*MathF.Cos(r.Yaw)+z*MathF.Sin(r.Yaw),0,-x*MathF.Sin(r.Yaw)+z*MathF.Cos(r.Yaw));
     private static uint Hash(string id) { uint h=2166136261; foreach(char c in id) h=unchecked((h^c)*16777619); return h; }
     public void Sit(Seat seat) { if (seat.Occupant!=null || Sitting!=null || !seat.Room.Open) return; returnAt=new(Jef.I.X,Jef.I.Y,Jef.I.Z); Sitting=seat; Jef.I.X=seat.At.X; Jef.I.Z=seat.At.Z; yaw=seat.Yaw+MathF.PI; pitch=0; Jef.I.Frozen=true; FindMate(); }
     public void Stand() { if(Sitting==null)return; Sitting=null; mate=null; Dice.I?.Close(); Jef.I.Frozen=false; Jef.I.Place(returnAt.X,returnAt.Z,yaw,pitch,returnAt.Y); }
-    private void FindMate() { mate=null; if(Sitting is not {} s)return; float best=2.6f; foreach(var q in s.Room.Seats) if(q.Occupant is {} who && HasFigure(s.Room.Id,who.Id)) { float d=q.Table==s.Table?0:new Vector2(q.At.X-s.At.X,q.At.Z-s.At.Z).Length(); if(d<best){best=d;mate=who;} } }
+    private void FindMate() { var previous=mate; mate=null; if(Sitting is not {} s)return; float best=2.6f; foreach(var q in s.Room.Seats) if(q.Occupant is {} who && HasFigure(s.Room.Id,who.Id)) { float d=q.Table==s.Table?0:new Vector2(q.At.X-s.At.X,q.At.Z-s.At.Z).Length(); if(d<best){best=d;mate=who;} } if(mate!=previous && mate!=null)diceAction.Text="play pitjesbak with "+mate.First; }
     private bool HasFigure(string room,string id) { if(town?.Indoors is not {} indoors)return false; foreach(var h in indoors.Houses)if(h.Id==room)return h.Figures.ContainsKey(id);return false; }
     private async Task PlayDice() { if(diceBusy || Sitting==null || mate==null)return; diceBusy=true; try { await Dice.I!.Sit(Sitting.Room.Id,mate.Id,mate.First); } finally{diceBusy=false;} }
     public override void _Input(InputEvent e) { if(Sitting!=null && Dialogs.I?.Top==null && e is InputEventMouseMotion m) { yaw-=m.Relative.X*Jef.TurnSens*Jef.I.LookSens; pitch=Math.Clamp(pitch-m.Relative.Y*Jef.TurnSens*Jef.I.LookSens*(Jef.I.InvertY?-1:1),-1.35f,1.35f); } }

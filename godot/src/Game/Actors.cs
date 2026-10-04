@@ -82,6 +82,8 @@ public partial class Actors : Node
         foreach (var r in Runs) r.Seen = false;
         foreach (var a in p.Actions)
         {
+            // Step routines have their own client executor and server step acknowledgements.
+            if (a.Kind == "routine") continue;
             Run? r = null;
             foreach (var run in Runs) if (run.Action.Id == a.Id) { r = run; break; }
             if (r == null) { r = new Run { TravelHash = Whereabouts.HashId(a.Npc + ":" + a.EventId) }; Runs.Add(r); }

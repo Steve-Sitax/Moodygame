@@ -98,8 +98,13 @@ public static class PathCheck
             if (s.Work.Route != null) foreach (var q in s.Work.Route) PtAdd("work route " + s.Id, q, 2.4, "server /api/town residents");
             foreach (var seg in s.Sched.Day.Concat(s.Sched.Sunday).Distinct())
             {
-                var anchor = Whereabouts.AnchorOf(s, data, seg.Act, seg.Where ?? (seg.Act == "work" ? "work" : "home"));
-                Add("plan " + s.Id + " " + seg.Act + " " + seg.Where, anchor.X, anchor.Z, 1.7, "Town/Whereabouts.cs");
+                var place = seg.Where ?? (seg.Act == "work" ? "work" : "home");
+                var anchor = Whereabouts.AnchorOf(s, data, seg.Act, place);
+                // A work anchor with a route is its first stop, already checked above as a
+                // haul end (2 m) or round point (2.4 m, browser town.pathPoints()). Applying
+                // the generic 1.7 m plan reach to that same stop creates a false failure.
+                double reach = anchor.Route is { Length: > 0 } ? s.Work.Kind == "haul" ? 2 : 2.4 : 1.7;
+                Add("plan " + s.Id + " " + seg.Act + " " + (place == "work" ? s.Work.Place : place), anchor.X, anchor.Z, reach, "Town/Whereabouts.cs");
             }
         }
         foreach (var s in data.Shops) PtAdd("shop " + s.Id, s.Door, 1.8, "server /api/town shops");
