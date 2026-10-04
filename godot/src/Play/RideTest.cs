@@ -44,6 +44,7 @@ public partial class RideTest : Node
             if(Main.I.Arg("ride-only")=="cart") {await HandcartCheck(api);return;}
             if(Main.I.Arg("ride-only")=="velo") {await VeloCheck(api);return;}
             if(Main.I.Arg("ride-only")=="row") {await RowCheck(api);return;}
+            if(Main.I.Arg("ride-only")=="ship") {await ShipCheck(api);return;}
             if(Main.I.Arg("ride-only")=="navigation") {await NavigationCheck(api);return;}
             foreach (float height in new[] { 2.99f, 3, 5, 8, 12 })
             {
@@ -73,13 +74,31 @@ public partial class RideTest : Node
             await HandcartCheck(api);
             await VeloCheck(api);
             await RowCheck(api);
+            await ShipCheck(api);
         }
         catch (Exception e) { error = e.ToString(); GD.PrintErr("ridetest: " + error); }
         finally
         {
-            File.WriteAllText(Path.Combine(dir, "ridetest.json"), JsonSerializer.Serialize(new { ok = error == "", error, selection=Main.I.Arg("ride-only"), checks, replies, pictures, incomplete = new[] { "rowing", "ship frames", "ferry" } }, new JsonSerializerOptions(Api.Json) { WriteIndented = true }));
-            GetTree().Quit(error == "" ? 0 : 1);
+            try { File.WriteAllText(Path.Combine(dir, "ridetest.json"), JsonSerializer.Serialize(new { ok = error == "", error, selection=Main.I.Arg("ride-only"), checks, replies, pictures, incomplete = new[] { "ferry", "household taking and furniture handoffs", "all hulls and street routes", "hire expiry and saved/remote gear proof", "ride sounds" } }, new JsonSerializerOptions(Api.Json) { WriteIndented = true })); }
+            catch(Exception report){error=report.ToString();GD.PrintErr("ridetest report: "+error);}
+            finally{GetTree().Quit(error == "" ? 0 : 1);}
         }
+    }
+    private async Task ShipCheck(Api api)
+    {
+        MoverClock.Hold(13.75,1);
+        GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set",new{hour=13,minute=45,weather="clear",health=10}));
+        var ships=ShipWalk.I;Require(ships.Decks.Count>10,"live ship decks loaded from model floors");
+        Jef.I.Place(-42,1.4f,0,-.3f);await Frames(10);Jef.I.SetKey(Key.W,true);Require(await Until(()=>ships.On?.Kind=="brig",10),"Anna Maria gangway is reachable on foot from quay");Jef.I.ClearKeys();await Shot("ship-gangway");Jef.I.Yaw=MathF.PI;Jef.I.SetKey(Key.W,true);bool walkedBack=await Until(()=>!Jef.I.Riding&&Jef.I.Z>.15f,10);replies.Add(new{brigGangway=ships.RiderTestGangway()});Require(walkedBack,"walk back off tide deck onto quay without jumping");Jef.I.ClearKeys();
+        var d=ships.Decks.First(d=>d.Kind=="hengst"&&d.Visible());var p=d.Mesh.Nearest(new(d.Mesh.MinX+.5f,0));var at=d.At(p);replies.Add(new{shipApproach=new{d.Kind,p.X,p.Y,at}});
+        var xf=d.World();var off=xf*new Vector3(d.Mesh.MinX-.35f,0,p.Y);Jef.I.DropFromBoat(new(off.X,World.Water.Level(off.X,off.Z)-.3f,off.Z));Jef.I.Yaw=MathF.Atan2(Jef.I.X-at.X,Jef.I.Z-at.Z);Jef.I.Pitch=.25f;await Frames(3);await Shot("ship-swim");
+        Require(Interact.I.Find().Any(a=>a.Text=="climb onto the ship"),"ship climb prompt in view from water");Require(Interact.I.Press(Key.E),"E from water climbs onto low ship deck");Require(await Until(()=>ships.On!=null&&!Jef.I.Climbing,10),"climb lands on ship model boards");d=ships.On!;await Shot("ship-aboard");
+        var local=ships.Local;float startY=Jef.I.Y;await Frames(90);Require(ships.Local.DistanceTo(local)<.001f&&new Vector3(Jef.I.X,Jef.I.Y,Jef.I.Z).DistanceTo(d.At(local))<.02f,"standing feet follow live heave and roll");
+        Jef.I.SetKey(Key.W,true);await Frames(60);Jef.I.ClearKeys();Require(ships.Local.DistanceTo(local)>.1f,"walk through reachable deck cells");await Shot("ship-walking");
+        for(int i=0;i<100;i++)Jef.I.Drive!(0);long before=GC.GetAllocatedBytesForCurrentThread();for(int i=0;i<10000;i++)Jef.I.Drive!(0);long allocated=GC.GetAllocatedBytesForCurrentThread()-before;replies.Add(new{shipProbe=new{iterations=10000,allocatedBytes=allocated}});Require(allocated==0,"ship frame walking allocates zero bytes");
+        for(int i=0;i<100;i++)ships._Process(0);before=GC.GetAllocatedBytesForCurrentThread();for(int i=0;i<10000;i++)ships._Process(0);allocated=GC.GetAllocatedBytesForCurrentThread()-before;replies.Add(new{shipUpdateProbe=new{iterations=10000,allocatedBytes=allocated}});Require(allocated==0,"ship deck and gangway updates allocate zero bytes");
+        Require(Jef.I.OnJump?.Invoke()==true&&ships.On==null&&!Jef.I.Grounded,"Space launches from ship deck");ships.Clear();Jef.I.Place(-118,36,0);
+        var traffic=River.I.Movers.First(m=>m.Parts.Any(part=>ships.Decks.Any(d=>d.Kind==part.Boat.Kind&&d.Visible()&&d.World().Origin.DistanceTo(part.Boat.Inner.GlobalPosition)<.1f)));var part=traffic.Parts.First(part=>ships.Decks.Any(d=>d.Kind==part.Boat.Kind&&d.Visible()&&d.World().Origin.DistanceTo(part.Boat.Inner.GlobalPosition)<.1f));var moving=ships.Decks.First(d=>d.Kind==part.Boat.Kind&&d.Visible()&&d.World().Origin.DistanceTo(part.Boat.Inner.GlobalPosition)<.1f);p=moving.Mesh.Nearest(Vector2.Zero);ships.Attach(moving,p);var initial=moving.World().Origin;Require(await Until(()=>moving.World().Origin.DistanceTo(initial)>.2f,10),"underway ship moves while Jef stands aboard");Require(new Vector3(Jef.I.X,Jef.I.Y,Jef.I.Z).DistanceTo(moving.At(ships.Local))<.05f,"player follows travelling ship frame");replies.Add(new{movingShip=new{moving.Kind,local=new{ships.Local.X,ships.Local.Y},feet=new{Jef.I.X,Jef.I.Y,Jef.I.Z},floor=moving.Mesh.Floor(ships.Local.X,ships.Local.Y)}});Jef.I.Pitch=-.8f;await Shot("ship-moving");ships.Clear();Jef.I.Place(-118,36,0);
     }
     private async Task NavigationCheck(Api api)
     {
@@ -441,6 +460,7 @@ public partial class RideTest : Node
     private async Task Shot(string name)
     {
         await Frames(8);
+        await Until(()=>Math.Abs(Mathf.AngleDifference(Jef.I.Cam.Rotation.Y,Jef.I.Yaw))<.025f&&Math.Abs(Jef.I.Cam.Rotation.X-Jef.I.Pitch)<.025f,1.2);
         string file = Path.Combine(dir, name + ".png");
         GetViewport().GetTexture().GetImage().SavePng(file);
         pictures.Add(file);

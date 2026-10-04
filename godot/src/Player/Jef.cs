@@ -284,6 +284,7 @@ public partial class Jef : Node, Mantle.IWorld
     /// </summary>
     public float GroundAt(float x, float z, float feet, float r = Radius * 0.6f)
     {
+        float deck = TransportFloor?.Invoke(x, z, feet) ?? float.NegativeInfinity;
         float top = feet + Step;
         castQ.Shape = Disk(r);
         float y0 = top + 0.015f; // the disk's middle; its underside 5 mm over the step height
@@ -297,11 +298,11 @@ public partial class Jef : Node, Mantle.IWorld
             {
                 // the disk starts in something (a slope steeper than a step): ask a ray down the middle
                 var ray = Space.IntersectRay(PhysicsRayQueryParameters3D.Create(new Vector3(x, top, z), new Vector3(x, top - 60, z), Solid.Layer));
-                return ray.Count > 0 ? ray["position"].AsVector3().Y : float.NegativeInfinity;
+                return Math.Max(deck, ray.Count > 0 ? ray["position"].AsVector3().Y : float.NegativeInfinity);
             }
-            return start - 0.01f - hit[0] * len;
+            return Math.Max(deck, start - 0.01f - hit[0] * len);
         }
-        return float.NegativeInfinity;
+        return deck;
     }
 
     /// <summary>The body (from a step over the feet up to 1.75 m) fits at (x, z) with the feet at y.</summary>

@@ -73,3 +73,15 @@ The rower checks the browser's actual lifting-leaf underside (including the lock
 Shared edit: `Movers/Lock.cs` wraps its existing boat-request gate selection in `PlayerTarget` (one line). The approach/chamber logic and leaf underside accessor live in the owned partial files `Lock.Rowing.cs` and `Bridges.Player.cs`. Their per-frame loops use concrete lists and cached callbacks. No shader, material or light is made while rowing.
 
 The combined ride check also exposed a cart interaction priority of zero. The cart now supplies its actual nearest-part distance, as the browser does. Test vehicles park clear of the next fixture, and each scenario resets its picture/tide hour to midday without stopping the movers.
+
+## Ship decks and Anna Maria's gangway
+
+`ShipWalk.cs` loads walkable floor/headroom cells from each original large-hull model, follows moored and travelling live frames, and offers E from water or quay to climb aboard. Space boards a reachable ship after the existing rowboat/omnibus handlers have had their turn; Space aboard launches Jef's ordinary jump. Deck movement stays within cells with room for a body and preserves the frame's heave, roll, yaw and translation. Replacing the week clears local riding and cancels an old climb callback.
+
+Anna Maria's baked gangway is claimed from Solid before construction, then tilted at its live deck height. Its four-metre plank follows the browser's length and half-width. Walking down it has a dedicated floor: ordinary native body collision against the quay wall otherwise traps Jef while the low-tide ramp is below street level. He can walk from the quay to her deck and back without jumping, including while carrying goods at their ordinary pace. The deck head is measured once at load.
+
+The ship portion of `godot/baked/ride-all-final/ridetest.json` passes 12 feature checks; its five close midday/clear pictures (`ship-gangway`, `ship-swim`, `ship-aboard`, `ship-walking`, `ship-moving`) were inspected. The live underway frame moves more than 0.2 m while Jef remains on its model floor; 10,000 frame walking calls allocate zero managed bytes. The test positions the swimmer at a moored hengst and directly attaches to an underway vessel, so it does not claim a continuous swim/jump approach to every moving hull. The moving picture looks down across the side deck and rail.
+
+Shared edit: `Player/Jef.cs` takes the highest permitted transport/native ground at its three floor returns (one callback declaration in `Jef.Transport.cs`). This preserves native ground above a deck while supporting tide floors. No Main, BakedWorld, Solid implementation, Mantle, Wiring, Interact or additional Movers implementation edit. No new material, shader kind or light during play. Still to prove: every hull's floor and obstacle layout, a climb endpoint that follows a ship during the climb, swimmer hull clearance at all moving hulls, saved/remote frame restoration and deck footsteps.
+
+The final `ride-water-final` check also tests 10,000 ship deck/gangway update calls with zero managed bytes; its five ship pictures were inspected. The combined check remains the 194-check full transport proof.

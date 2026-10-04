@@ -9,6 +9,7 @@ public partial class Jef
     /// <summary>A ride owns translation while the normal mouse look remains live.</summary>
     public Func<float, bool>? Drive;
     public Func<bool>? OnJump;
+    public Func<float,float,float,float>? TransportFloor;
     public float DrivenEye = Eye;
     public float DrivenRoll;
     public bool Riding => Drive != null;
