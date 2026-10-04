@@ -906,6 +906,8 @@ public partial class PeopleTest : Node
                 var wildlife = ParkWildlife.I;
                 if (wildlife == null || wildlife.List.Count == 0) { wildlifeRow["missing"] = true; Next("done"); break; }
                 wildlifeRow["animals"] = wildlife.List.Count;
+                var ecology=wildlife.EcologyChecks(); wildlifeRow["ecology"]=ecology;
+                foreach(var check in ecology) if(!check.Value) { Fail(check.Key); return; }
                 wildlifeRow["kinds"] = wildlife.List.GroupBy(a => a.Species).ToDictionary(g => g.Key, g => g.Count());
                 bird = wildlife.List.First(a => a.Species == "duck" && !a.Young && !wildlife.List.Any(b => b.Parent == a.Id));
                 birdStart = new Pt(bird.X, bird.Z);
