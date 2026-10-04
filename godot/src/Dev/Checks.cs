@@ -24,10 +24,12 @@ public partial class Checks : Node
     private bool running;
     private ulong frameStart;
     private double lastMainMs;
+    private long frameAllocatedAt;
     private bool timingConnected;
     private sealed class Window
     {
         public readonly List<double> Main = new(8192), Wall = new(8192), Calls = new(8192);
+        public readonly List<long> Bytes = new(8192);
         public int Frames;
         public ulong Until, Last;
         public bool Turn;
@@ -65,6 +67,7 @@ public partial class Checks : Node
     {
         if (frameStart != 0) return;
         frameStart = Time.GetTicksUsec();
+        frameAllocatedAt = GC.GetAllocatedBytesForCurrentThread();
         if (window is { Turn: true }) Jef.I.Yaw += Mathf.DegToRad(2);
     }
     private void EndFrame()
@@ -77,6 +80,7 @@ public partial class Checks : Node
         if (w.Last != 0)
         {
             w.Main.Add(lastMainMs); w.Wall.Add((now - w.Last) / 1000.0);
+            w.Bytes.Add(GC.GetAllocatedBytesForCurrentThread() - frameAllocatedAt);
             w.Calls.Add(RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalDrawCallsInFrame));
         }
         w.Last = now;
@@ -230,7 +234,7 @@ public partial class Checks : Node
         }
         return renderAudit!.Report();
     }
-    private sealed record Measure(double Mean, double P95, double Max, double WallMean, double WallP95, double WallMax, double Calls, int Over16, int Over33, int Samples, double ProcessMs, double PhysicsMs, int Collections);
+    private sealed record Measure(double Mean, double P95, double Max, double WallMean, double WallP95, double WallMax, double Calls, int Over16, int Over33, int Samples, double ProcessMs, double PhysicsMs, int Collections, double MeanBytes, long P95Bytes);
     private async Task<Measure> MeasureFrames(int n, bool turn = false, bool walk = false, int seconds = 0)
     {
         var w = new Window { Frames = n, Turn = turn, Until = seconds == 0 ? 0 : Time.GetTicksUsec() + (ulong)seconds * 1_000_000 };
@@ -242,7 +246,7 @@ public partial class Checks : Node
         lastWindow = w;
         double P95(List<double> a) => a.Order().ElementAt(Math.Min(a.Count - 1, (int)(a.Count * 0.95)));
         return new(Math.Round(w.Main.Average(), 3), Math.Round(P95(w.Main), 3), Math.Round(w.Main.Max(), 3), Math.Round(w.Wall.Average(), 3), Math.Round(P95(w.Wall), 3), Math.Round(w.Wall.Max(), 3), Math.Round(w.Calls.Average()), w.Wall.Count(t => t > 16), w.Wall.Count(t => t > 33), w.Main.Count,
-            Performance.GetMonitor(Performance.Monitor.TimeProcess) * 1000, Performance.GetMonitor(Performance.Monitor.TimePhysicsProcess) * 1000, GC.CollectionCount(0) - collections);
+            Performance.GetMonitor(Performance.Monitor.TimeProcess) * 1000, Performance.GetMonitor(Performance.Monitor.TimePhysicsProcess) * 1000, GC.CollectionCount(0) - collections, Math.Round(w.Bytes.Average(), 1), w.Bytes.Order().ElementAt(Math.Min(w.Bytes.Count - 1, (int)(w.Bytes.Count * 0.95))));
     }
     private Window lastWindow = null!;
     private async Task<object> Perf()

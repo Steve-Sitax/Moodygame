@@ -24,7 +24,8 @@ public partial class TownWork : Node
     private readonly List<Interact.Entry> prompts = new();
     public override void _Ready() { I = this; Interact.I.AddProvider(HiringOffers);if(Scheldemist.Menu.MainMenu.I is {} menu)menu.WorldReplaced+=Reset; }
     private void Reset(string how,ClientState? state){generation++;InChain=false;hiring=null;poll=0;foreach(var p in prompts)p.Dispose();prompts.Clear();}
-    public override void _Process(double delta) { if (InChain && !busy && chainAt.DistanceTo(new(Jef.I.X, Jef.I.Z)) > 2.8f) { InChain = false; _ = Call("leave", chainEvent); } if ((poll -= delta) <= 0 && ServerLink.I?.Up == true) { poll = 2; _ = Load(); } }
+    public override void _Process(double delta) {
+        using var frameCost = Scheldemist.Dev.FrameCost.Track("Play.TownWork"); if (InChain && !busy && chainAt.DistanceTo(new(Jef.I.X, Jef.I.Z)) > 2.8f) { InChain = false; _ = Call("leave", chainEvent); } if ((poll -= delta) <= 0 && ServerLink.I?.Up == true) { poll = 2; _ = Load(); } }
     public async Task Load()
     {
         if (loading || dead || ServerLink.I?.Api is not { } api) return; loading = true;int g=generation;

@@ -241,6 +241,7 @@ public partial class Jef : Node, Mantle.IWorld
 
     public override void _Process(double delta)
     {
+        using var frameCost = Scheldemist.Dev.FrameCost.Track("Player.Jef");
         if (Fly) return;
         float dt = (float)Math.Min(delta, 0.05);
         if (Drive != null && Drive(dt)) { Body.GlobalPosition = new Vector3(X, Y, Z); Look(dt, 0, DrivenRoll, DrivenEye); return; }

@@ -52,6 +52,7 @@ public partial class TownLife : Node
     }
     public override void _Process(double delta)
     {
+        using var frameCost = Scheldemist.Dev.FrameCost.Track("Game.TownLife");
         clock += delta; PollLife(delta);
         ulong start = Time.GetTicksUsec(); long before = GC.GetAllocatedBytesForCurrentThread();
         if (Events.I == null || town?.Walk == null) return;

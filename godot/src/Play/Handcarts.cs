@@ -272,6 +272,7 @@ public partial class Handcarts : Node, CartPhysics.IWorld
     {int n=0;foreach(var person in StreetPeople.Walking())for(int i=0;i<11;i++){var q=CartPhysics.Point(p,i);if(new Vector2((float)person.X-q.X,(float)person.Z-q.Y).Length()<q.Z+.25f)n++;}return n;}
     public override void _Process(double delta)
     {
+        using var frameCost = Scheldemist.Dev.FrameCost.Track("Play.Handcarts");
         float dt=(float)delta;pollT+=dt;seenT+=dt;
         if(Held!=null&&Drawings.TryGetValue(Held,out var d))
         {
@@ -287,7 +288,7 @@ public partial class Handcarts : Node, CartPhysics.IWorld
             cart.Root.Visible=new Vector2(cart.X-Jef.I.X,cart.Z-Jef.I.Z).LengthSquared()<70*70;
             cart.Hold+=((cart.Info.Id==Held?1:0)-cart.Hold)*Math.Min(1,dt*3);
             float rho=MathF.Sqrt(.18f*.18f+2.15f*2.15f),want=(MathF.Atan2(.18f,2.15f)-MathF.Asin(.31f/rho))*cart.Hold;
-            cart.Tilt+=(want-cart.Tilt)*Math.Min(1,dt*6);cart.Bed.Rotation=new(cart.Tilt,0,0);
+            cart.Tilt+=(want-cart.Tilt)*Math.Min(1,dt*6);Scheldemist.Render.NodeUpdates.Rotation(cart.Bed,new(cart.Tilt,0,0));
         }
         int? job=Jobs.I.Active?.Id;if(job!=jobSeen){jobSeen=job;pollT=Math.Max(pollT,11);}
         if(pollT>12&&!Busy){pollT=0;_ = Load();}

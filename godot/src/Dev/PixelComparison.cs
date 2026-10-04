@@ -47,11 +47,11 @@ public static class PixelComparison
             {
                 string name = place.Replace(' ', '_') + (hour == 13 ? "_day" : "_night");
                 UniformUpdates.Cached = false;
-                Daylight.I.RepeatLight(); Lights.I._Process(0); Play.Jobs.I._Process(0); UniformUpdates.Replay(); await Draw(check);
+                Daylight.I.RepeatLight(); Lights.I._Process(0); Play.Jobs.I._Process(0); UniformUpdates.Replay(); NodeUpdates.Replay(); await Draw(check);
                 using var a = Main.I.GetViewport().GetTexture().GetImage();
                 string before = check.Picture(name + "_before");
                 UniformUpdates.Cached = true;
-                Daylight.I.RepeatLight(); Lights.I._Process(0); Play.Jobs.I._Process(0); UniformUpdates.Replay(); await Draw(check);
+                Daylight.I.RepeatLight(); Lights.I._Process(0); Play.Jobs.I._Process(0); UniformUpdates.Replay(); NodeUpdates.Replay(); await Draw(check);
                 using var b = Main.I.GetViewport().GetTexture().GetImage();
                 string after = check.Picture(name + "_after");
                 int different = Different(a, b); total += different;
@@ -67,6 +67,6 @@ public static class PixelComparison
             finally { UniformUpdates.Cached = cached; Main.I.PictureTime(-1); Main.I.GetTree().Paused = false; }
         }
         return new { ok = total == 0 && controlPixels > 0, differentPixels = total, controlPixels, comparisons = rows,
-            method = "RGBA8 full screen including retro grain, paused scene and fixed grain; uncached/cached uniform replay and live spill/far buffers; deliberately wrong fog colour as positive control" };
+            method = "RGBA8 full screen including retro grain, paused scene and fixed grain; uncached/cached uniform and unchanged-node-pose replay, live spill/far buffers; deliberately wrong fog colour as positive control" };
     }
 }

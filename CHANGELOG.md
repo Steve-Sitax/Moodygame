@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Godot avoids needless pose updates to resting carts, closed puppet-show curtains and ferry fixtures while keeping the same picture.
+
 - Godot events keep their townspeople reserved when lamplighter rounds stop; emigrant boarding uses the same reservations and waits for people busy in an event.
 
 - In Godot, standing for hire and joining a bucket chain have one prompt owner; the hiring choice works while looking around among the men.

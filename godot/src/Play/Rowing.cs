@@ -202,6 +202,7 @@ public partial class Rowing:Node,RowPhysics.IWorld
     }
     public override void _Process(double delta)
     {
+        using var frameCost = Scheldemist.Dev.FrameCost.Track("Play.Rowing");
         float dt=(float)Math.Min(delta,.1);pollT+=dt;if(pollT>(Boat!=null||Data.Hire!=null?3:10)&&!Busy){pollT=0;_=Load();}
         NavigationTraffic(dt);
         foreach(var d in Drawings.Values)if(d!=Boat)

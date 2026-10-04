@@ -132,16 +132,17 @@ public partial class FerryArrival:Node
         root.AddChild(new MeshInstance3D{Mesh=rails.Commit(),MaterialOverride=rope});return root;
     }
     private static void Span(Node3D n,Vector3 a,Vector3 b,float width)
-    {var delta=b-a;var forward=delta.Normalized();var right=Vector3.Right;var up=forward.Cross(right).Normalized();n.Transform=new(new Basis(right*width,up,forward*delta.Length()),(a+b)/2);}
+    {var delta=b-a;var forward=delta.Normalized();var right=Vector3.Right;var up=forward.Cross(right).Normalized();Scheldemist.Render.NodeUpdates.Transform(n,new(new Basis(right*width,up,forward*delta.Length()),(a+b)/2));}
     private void UpdateModels(float dt)
     {
-        float water=Water.Level(x,z),landWater=Water.Level(-249,-30);ferry.Transform=new(new Basis(Vector3.Up,yaw),new(x,water,z));landing.Position=new(-249,landWater,0);
-        if(ferryman!=null){ferryman.Root.Position=new(ferrymanAt.X,ferryDeck.Floor(ferrymanAt.X,ferrymanAt.Y),ferrymanAt.Y);}
+        float water=Water.Level(x,z),landWater=Water.Level(-249,-30);Scheldemist.Render.NodeUpdates.Transform(ferry,new(new Basis(Vector3.Up,yaw),new(x,water,z)));Scheldemist.Render.NodeUpdates.Position(landing,new(-249,landWater,0));
+        if(ferryman!=null){Scheldemist.Render.NodeUpdates.Position(ferryman.Root,new(ferrymanAt.X,ferryDeck.Floor(ferrymanAt.X,ferrymanAt.Y),ferrymanAt.Y));}
         var port=ferry.Transform*new Vector3(side-.3f,deckY,portZ);var end=new Vector3(-249,landWater+1.8f,-59.53f);float angle=Stage=="hauling"?Math.Clamp(phaseT/3.2f,0,1)*1.2f:Stage=="waiting"?(1-Math.Clamp((Time-.6f)/2.8f,0,1))*1.2f:Stage is "leaving" or "gone"?1.2f:0;
         var offset=end-port;end=port+new Vector3(offset.X,offset.Y+MathF.Sin(angle)*offset.Length(),offset.Z*MathF.Cos(angle));Span(plank,port,end,1);Span(quayPlank,new(-249,landWater+1.8f,-6),new(-249,0,.1f),1.5f);
     }
     public override void _Process(double delta)
     {
+        using var frameCost = Scheldemist.Dev.FrameCost.Track("Play.FerryArrival");
         if(ferry==null)return;float dt=(float)Math.Min(delta,.05);UpdateModels(dt);ferryman?.Update(dt);if(Stage=="gone"||!(GameState.I.Playing||Jef.I.TestInput))return;Time+=dt;phaseT+=dt;
         if(Stage=="waiting"&&Time>=3.4f){Stage="moored";phaseT=0;GameState.I.Say("Step ashore: walk down the gangway onto the landing stage.");}
         if(!Ashore&&Jef.I.Drive!=drive&&!Jef.I.Climbing&&Jef.I.Z>-58.93f)_=ReportAshore();

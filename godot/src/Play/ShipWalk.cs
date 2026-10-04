@@ -87,6 +87,7 @@ public partial class ShipWalk:Node
     }
     public override void _Process(double delta)
     {
+        using var frameCost = Scheldemist.Dev.FrameCost.Track("Play.ShipWalk");
         if(floats!=Boats.I.Floats.Count)CollectFloats();UpdateGangway();var j=Jef.I;if(On!=null&&(j.Drive!=drive||new Vector3(j.X,j.Y,j.Z).DistanceTo(On.At(Local))>3)){Clear();return;}
         if(j.Riding||j.Swimming||j.Climbing||!j.Grounded)return;
         if(float.IsFinite(RampFloor(j.X,j.Z))){j.Drive=rampDrive;return;}

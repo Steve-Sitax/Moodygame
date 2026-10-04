@@ -735,6 +735,7 @@ public partial class Omnibus : Node
 
     public override void _Process(double delta)
     {
+        using var frameCost = Scheldemist.Dev.FrameCost.Track("Movers.Omnibus");
         if (buses.Count == 0) return;
         MoverCost.Begin("omnibus");
         float dt = (float)MoverClock.Dt;

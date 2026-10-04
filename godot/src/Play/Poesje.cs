@@ -62,9 +62,10 @@ public partial class Poesje : Node
     private void Reset(string how,ClientState? state){generation++;wasInside=false;Inside=false;busy=false;paidDay=-1;Play=null;Ticket=null;Spoken=0;stage=0;caption.Visible=false;foreach(var p in puppets)p.Group.Visible=false;}
     public override void _Process(double dt)
     {
+        using var frameCost = Scheldemist.Dev.FrameCost.Track("Play.Poesje");
         float dx=Jef.I.X-origin.X,dz=Jef.I.Z-origin.Z,x=dx*MathF.Cos(yaw)-dz*MathF.Sin(yaw),z=dx*MathF.Sin(yaw)+dz*MathF.Cos(yaw);Inside=x>minX&&x<maxX&&z>foot&&z<maxZ&&MathF.Abs(Jef.I.Y-floor)<.6f;
         if(Inside&&!wasInside){if(paidDay!=GameState.I.Day)_ = Enter();else Start();}wasInside=Inside;clock+=dt;
-        float wanted=Inside&&stage is >=1 and <=3?1:0;curtain+=(wanted-curtain)*Math.Min(1,dt*4);foreach(var c in curtains)c.Node.Position=c.At+Vector3.Right*(float)curtain*1.05f*c.Sign;
+        float wanted=Inside&&stage is >=1 and <=3?1:0;curtain+=(wanted-curtain)*Math.Min(1,dt*4);foreach(var c in curtains)Scheldemist.Render.NodeUpdates.Position(c.Node,c.At+Vector3.Right*(float)curtain*1.05f*c.Sign);
         if(!Inside){caption.Visible=false;foreach(var p in puppets)p.Group.Visible=false;return;}
         if(Play?.Lines==null||stage==0)return;
         foreach(var p in puppets){bool third=p.Role==thirdRole;p.Group.Visible=p.Role is "neus" or "schele"||third;if(p.Group.Visible){bool speaking=index>=0&&index<Play.Lines.Count&&(Play.Lines[index].Who==p.Role||Play.Lines[index].Who=="third"&&third);p.Body.Position=Vector3.Up*(speaking?(float)Math.Abs(Math.Sin(clock*8))*.025f:0);p.Arm.Rotation=new((float)Math.Sin(clock*7)*(speaking?.5f:.05f),0,.25f);}}
