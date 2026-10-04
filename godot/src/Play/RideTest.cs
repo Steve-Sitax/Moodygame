@@ -65,13 +65,85 @@ public partial class RideTest : Node
             Require(landed == 1 && measured >= 5 && measured < 5.5 && GameState.I.Payload!.Player.Health == 8, "physical landing reports once with measured height");
             Falls.I.Answered -= Fell;
             await OmnibusCheck(api);
+            await CraneCheck();
         }
         catch (Exception e) { error = e.ToString(); GD.PrintErr("ridetest: " + error); }
         finally
         {
-            File.WriteAllText(Path.Combine(dir, "ridetest.json"), JsonSerializer.Serialize(new { ok = error == "", error, checks, replies, pictures, incomplete = new[] { "handcart", "rowing", "ship frames", "velocipede", "crane", "ferry" } }, new JsonSerializerOptions(Api.Json) { WriteIndented = true }));
+            File.WriteAllText(Path.Combine(dir, "ridetest.json"), JsonSerializer.Serialize(new { ok = error == "", error, checks, replies, pictures, incomplete = new[] { "handcart", "rowing", "ship frames", "velocipede", "ferry" } }, new JsonSerializerOptions(Api.Json) { WriteIndented = true }));
             GetTree().Quit(error == "" ? 0 : 1);
         }
+    }
+    private async Task CraneCheck()
+    {
+        var rail = Railway.I; Require(rail.LadderCount == 10, "ten live crane ladders");
+        int id = Enumerable.Range(0, rail.LadderCount).First(i => CraneClimb.I.FootOf(i) != null);
+        rail.RiderTestWork(id, 0);
+        var foot = CraneClimb.I.FootOf(id)!.Value; var l = rail.LadderAt(id);
+        Jef.I.Place(foot.X, foot.Z, l.Face, .25f); await Frames(12);
+        Require(Interact.I.Find().Any(a => a.Text == "climb the crane's ladder"), "crane foot E prompt");
+        await Shot("crane-foot"); Require(Interact.I.Press(Key.E), "E grips crane ladder");
+        Jef.I.SetKey(Key.W, true);
+        Require(await Until(() => CraneClimb.I.On == id && !CraneClimb.I.OnLadder, 50), "W climbs onto working crane gallery");
+        Jef.I.ClearKeys(); Jef.I.Yaw=rail.LadderAt(id).Deck.Basis.GetEuler().Y+MathF.PI/2; Jef.I.Pitch=-.1f; await Shot("crane-gallery");
+        var before = rail.LadderAt(id); var at = new Vector3(Jef.I.X, Jef.I.Y, Jef.I.Z);
+        rail.RiderTestWork(id, .25f);
+        Require(await Until(() => new Vector3(Jef.I.X,Jef.I.Y,Jef.I.Z).DistanceTo(at) > .1f, 12), "gallery carries Jef during real slew operation");
+        l = rail.LadderAt(id); var local = l.Deck.AffineInverse() * new Vector3(Jef.I.X,Jef.I.Y,Jef.I.Z);
+        Require(new Vector2(local.X, local.Z).DistanceTo(CraneClimb.I.Local) < .01f && Math.Abs(Jef.I.Y-6.42f)<.02f, "feet keep live gallery frame");
+        await Shot("crane-turning");
+        for(int i=0;i<100;i++) Jef.I.Drive!(0);
+        long allocAt=GC.GetAllocatedBytesForCurrentThread();
+        for(int i=0;i<10000;i++) Jef.I.Drive!(0);
+        long allocated=GC.GetAllocatedBytesForCurrentThread()-allocAt;
+        replies.Add(new { craneFrameProbe = new { iterations=10000,allocatedBytes=allocated } });
+        Require(allocated==0,"crane gallery drive allocates zero bytes");
+        foreach(var p in new[] { new Vector2(0,-1.7f), new Vector2(1.58f,-1.7f), new Vector2(1.58f,-.7f), new Vector2(.8f,-.7f), new Vector2(.8f,1.08f), new Vector2(.2f,1.08f) }) await WalkCrane(p);
+        Require(Math.Abs(Jef.I.Y-6.54f)<.02f, "cabin reached on foot through its door");
+        Jef.I.Yaw=rail.LadderAt(id).Deck.Basis.GetEuler().Y+MathF.PI; Jef.I.Pitch=-.1f;
+        await Shot("crane-cabin");
+        foreach(var p in new[] { new Vector2(.8f,1.08f), new Vector2(.8f,-.7f), new Vector2(1.58f,-.7f), new Vector2(1.58f,-1.7f), new Vector2(0,-1.7f), new Vector2(0,-2.45f) }) await WalkCrane(p);
+        at = new Vector3(Jef.I.X,Jef.I.Y,Jef.I.Z);
+        Require(rail.RiderTestTravel(id),"crane has travelling runway");
+        Require(await Until(()=>new Vector3(Jef.I.X,Jef.I.Y,Jef.I.Z).DistanceTo(at)>.2f,12),"gallery carries Jef during real runway travel");
+        await Shot("crane-travel");
+        rail.RiderTestWork(id,0);
+        Require(await Until(() => Interact.I.Find().Any(a=>a.Text=="climb down the ladder"), 20), "gallery comes round to ladder head");
+        Require(Interact.I.Press(Key.E), "E starts climb down"); Jef.I.SetKey(Key.S,true);
+        Require(await Until(() => CraneClimb.I.On<0 && !Jef.I.Riding, 10), "S climbs down onto free quay ground");
+        Jef.I.ClearKeys(); await Shot("crane-down");
+        replies.Add(new { crane = new { id, before, after = rail.LadderAt(id), foot = new { foot.X, foot.Y, foot.Z }, cabinReachable = true } });
+        // The dock portals face away from the quay: their literal ladder foot is over water.
+        int dock = 3; l = rail.LadderAt(dock);
+        Scheldemist.World.Solid.I.Ensure(l.Foot, 14);
+        await Frames(12);
+        var reachable = CraneClimb.I.FootOf(dock);
+        Require(reachable != null && !Scheldemist.World.Water.In(reachable.Value.X, reachable.Value.Z), "dock crane ladder has a quay-side foot");
+        foot = reachable!.Value; rail.RiderTestWork(dock, 0);
+        Jef.I.Place(foot.X,foot.Z,l.Face,.25f); await Frames(12);
+        Require(Interact.I.Press(Key.E) && CraneClimb.I.On==dock,"E reaches dock crane ladder from the quay");
+        await Shot("crane-dock-ladder");
+        Jef.I.SetKey(Key.W,true);
+        Require(await Until(()=>!CraneClimb.I.OnLadder,50),"dock crane gallery reached from quay ladder");
+        Jef.I.ClearKeys(); Jef.I.Yaw=rail.LadderAt(dock).Deck.Basis.GetEuler().Y+MathF.PI/2;
+        await Shot("crane-dock-gallery");
+        Require(Interact.I.Press(Key.E),"E down dock crane"); Jef.I.SetKey(Key.S,true);
+        Require(await Until(()=>CraneClimb.I.On<0,10),"dock crane returns Jef to the quay");
+        Jef.I.ClearKeys();
+        Require(!Jef.I.Swimming && !Scheldemist.World.Water.In(Jef.I.X,Jef.I.Z),"dock ladder landing stays ashore");
+        replies.Add(new { dockCrane = new { id=dock, foot=new { foot.X,foot.Y,foot.Z }, quayReachable=true } });
+    }
+    private async Task WalkCrane(Vector2 target)
+    {
+        ulong end=Time.GetTicksMsec()+10000;
+        Jef.I.SetKey(Key.W,true);
+        while(Time.GetTicksMsec()<end && CraneClimb.I.Local.DistanceTo(target)>.055f)
+        {
+            var d=target-CraneClimb.I.Local;
+            Jef.I.Yaw=Railway.I.LadderAt(CraneClimb.I.On).Deck.Basis.GetEuler().Y+MathF.Atan2(-d.X,-d.Y);
+            await Frames(1);
+        }
+        Jef.I.ClearKeys(); Require(CraneClimb.I.Local.DistanceTo(target)<.06f,$"walk crane gallery to {target}");
     }
     private async Task OmnibusCheck(Api api)
     {

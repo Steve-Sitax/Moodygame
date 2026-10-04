@@ -7,6 +7,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- In Godot, climb a working crane from the quay, walk its gallery into the cabin, ride its turns and travel, and climb back down.
 - In Godot, board an omnibus at its back step, hop aboard a moving one, pay or refuse the conductor, sit inside or on the roof, and read the stop timetable.
 - In Godot, falls onto stone now report their measured height to the server for injuries; water takes the fall.
 - Godot's interior check now tests the rooms actually in the town and their views out through the windows ([#45](https://github.com/Steve-Sitax/Moodygame/issues/45)).
