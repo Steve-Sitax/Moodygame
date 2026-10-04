@@ -45,6 +45,7 @@ public partial class HallPeople : Node
         public string Motion = "idle";
         public bool Moving;
         public float RestLift;
+        public Node3D? EventWear;
     }
     public readonly List<Hall> Halls = new();
     public IEnumerable<Node3D> Groups => Halls.SelectMany(h => h.Figures.Values.Select(f => f.Group));
@@ -72,6 +73,7 @@ public partial class HallPeople : Node
     private void Roster(Hall h, JsonElement reply)
     {
         h.Loading = false;
+        EventRoster(h, reply);
         var want = reply.GetProperty("people").EnumerateArray().Take(24).ToList();
         foreach (var id in h.Figures.Keys.Where(id => !want.Any(p => p.GetProperty("id").GetString() == id)).ToList()) { h.Figures[id].Group.QueueFree(); h.Figures.Remove(id); }
         var occupied = new List<Vector3>();
@@ -84,8 +86,9 @@ public partial class HallPeople : Node
             var points = new List<Vector3>();
             var marks = new List<JsonElement>();
             bool loop = spec.TryGetProperty("loop", out var loopName);
-            if (spec.TryGetProperty("at", out var at) && h.Plan.GetProperty("marks").TryGetProperty(at.GetString()!, out var mark)) marks.Add(mark);
+            if (spec.TryGetProperty("at", out var at) && EventMark(h, at.GetString()!, out var mark)) marks.Add(mark);
             else if ((spec.TryGetProperty("set", out var setName) || loop) && h.Plan.GetProperty("sets").TryGetProperty((loop ? loopName : setName).GetString()!, out var set)) marks.AddRange(set.EnumerateArray());
+            else if (spec.TryGetProperty("set", out setName) && setName.GetString() == "funeralChairs") foreach (var chair in h.Plan.GetProperty("sets").GetProperty("chairs").EnumerateArray()) if (chair.GetProperty("z").GetDouble() < 32 && Math.Abs(chair.GetProperty("x").GetDouble()) > 1) marks.Add(chair);
             points.AddRange(marks.Select(m => World(h, m)));
             if (points.Count == 0) continue;
             int first = (int)(Whereabouts.HashId(id) % (uint)points.Count);
@@ -108,6 +111,7 @@ public partial class HallPeople : Node
             }
             var fig = new Figure { Id = id, Role = role, Kind = kind, Human = human, Group = group, Target = points[first], Index = first, Loop = loop ? points : new List<Vector3>(), Motion = motion, Speed = spec.TryGetProperty("speed", out var speed) ? speed.GetDouble() : 0.7, Wait = spec.TryGetProperty("pause", out var pause) ? pause.GetDouble() : 5 };
             fig.RestLift = lift; occupied.Add(fig.Target); h.Figures[id] = fig;
+            EventDress(fig);
         }
     }
     public Vector3? PositionOf(string id) { foreach (var h in Halls) if (h.Figures.TryGetValue(id, out var f)) return f.Group.GlobalPosition; return null; }
@@ -157,6 +161,7 @@ public partial class HallPeople : Node
                 }
                 f.Human.Root.Position = new Vector3(0, f.Moving ? f.Human.Bob() : f.RestLift + f.Human.MotionLift(), 0);
                 f.Human.Update((float)Math.Min(delta, 0.1));
+                if (f.EventWear != null) Game.LeadLooks.Grip(f.EventWear, EventRole(f.Role));
             }
         }
         LogicMs = (Time.GetTicksUsec() - started) / 1000.0;
@@ -214,5 +219,5 @@ public partial class HallPeople : Node
         }
         return result;
     }
-    public override void _ExitTree() { foreach (var g in Groups) g.QueueFree(); data?.Dispose(); if (I == this) I = null; }
+    public override void _ExitTree() { bier?.QueueFree(); foreach (var g in Groups) g.QueueFree(); data?.Dispose(); if (I == this) I = null; }
 }

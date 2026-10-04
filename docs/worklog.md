@@ -397,3 +397,7 @@ The movers worktree has live omnibus boarding, stop waiters and families aboard 
 ## 2026-10-04: Godot download check
 
 `godot/download`: centralized disk paths, compiled server with portable Node, Windows zip and real unpacked net/menu tests passed; all 52 targeted AI-setup/save-pause tests passed. Test saves and unpacked folders were removed. Linux and macOS game exports also passed; native download runs remain. Details: `docs/godot-download-check.md`. Shutdown resource warnings seen in source and exported tests are already tracked in [issue #40](https://github.com/Steve-Sitax/Moodygame/issues/40). No bake, push, tag, Release or workflow run.
+
+## 2026-10-04: Godot events and actors
+
+The events worktree connects engine stages, held actors, event props/sound/marks/closures, lead dress, scuffle/robbery, wedding/requiem figures, hearses, fire/hiring, storm and family menace choices. It builds and ran all sixteen templates; the bounded self-test and final evidence follow in the next commit. Browser parity gaps and exact shared hooks are listed in docs/godot-events.md. No push, merge or shared bake writes.

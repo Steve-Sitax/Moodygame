@@ -304,6 +304,12 @@ public sealed class Api : IDisposable
     // M4
     /// <summary>Townspeople who act, street conversations, the director's events (api.ts ActionsPayload).</summary>
     public Task<ActionsPayload> Actions() => Get<ActionsPayload>("api/actions");
+    public Task<EventsReply> Events() => Get<EventsReply>("api/events");
+    public Task<DirectorReply> DevEvent(string template) => Post<DirectorReply>("api/dev/director", new { template });
+    public Task<JsonElement> FamilyMenace(int id, string how, string? text = null)
+        => Post<JsonElement>($"api/families/menace/{id}" + (text == null ? "" : "/talk"), text == null ? new { how } : (object)new { text }, TalkTimeoutMs);
+    public Task<ActionProposalReply> DevAction(string npc, string kind, string target = "", int minutes = 30, string reason = "")
+        => Post<ActionProposalReply>("api/dev/action", new { npc, kind, target, minutes, reason });
     public Task<OkReply> ActionsSync(double x, double z, IEnumerable<PersonAt> people) => Post<OkReply>("api/actions/sync", new { x, z, people });
     /// <summary>phase: "arrived", "lost", "blocked" or "done". The reply is the game state with the action in "action".</summary>
     public Task<JsonElement> ActionReport(int id, string phase, double? x = null, double? z = null, bool? found = null, string? why = null)

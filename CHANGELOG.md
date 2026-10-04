@@ -15,6 +15,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - The Godot job arrow and its distance stay clear of the clock and job cards.
 
 ### New in the game
+- In Godot, town events gather people, put out props, close stalls, play their sounds and leave when finished. Weddings, funerals, street quarrels, robbery, hiring, the storm and the fire have their visible actors.
 - In Godot, visiting family members use the server's names and daily plans, and Zelie's fortune-telling table has its cloth, cards and stool.
 - The Godot version has doorstep cats and stray dogs, dogs following their owners, and park birds that move away, then fly when pressed. Doorstep chores and children's games follow the town's daily plans.
 - The Godot version draws the server's occupants in the five landmark halls, with their seats and shared floor plans, and provides room visitors for the homes part.
