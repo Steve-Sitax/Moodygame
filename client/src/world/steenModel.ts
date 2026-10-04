@@ -162,15 +162,10 @@ export function loadSteenModel(scene: THREE.Scene): SteenModel {
       map.wrapS = map.wrapT = THREE.RepeatWrapping;
       map.needsUpdate = true;
     }
-    if (src.name === "steen_glass_lit") {
-      // issue #10: the old panes of the real windows, never drawn (their glass is the room's): world/landmarkWindows.ts
-      // lights a copy of them at night
-      const lit = new THREE.MeshLambertMaterial({ map: map ?? null, vertexColors: true });
-      lit.name = src.name;
-      lit.visible = false;
-      mats.set(src.name, lit);
-      return lit;
-    }
+    // steen_glass_lit, the old panes of the five courtyard windows by the museum door (issue #10 left them undrawn: their
+    // glass was to be the room's): no room stands behind them, only the hall's faint beams of light, and the fog showed
+    // through (issue #56, Steve 2026-10-04: dark leaded glass, the cheap outside fix). Drawn as the Steen's own glass;
+    // world/landmarkWindows.ts still lights a copy of them at night, 3 cm in front.
     const m = psx(new THREE.MeshLambertMaterial({ map: map ?? null, vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0 });
     if (map) bumpFromMap(m, src.name === "steen_glass" ? 0.4 : 0.5);
     m.name = src.name;

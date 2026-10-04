@@ -15,6 +15,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - In the Godot version, the prison has its people again: warders at their posts, prisoners pacing their cells, the exercise ring in the yard in exercise hours, and townspeople sent into the prison walk its real corridors.
 - In Godot, a Sunday sermon retries with the current priest if a service refresh interrupts his climb or speech.
 
+- The five windows by the Steen's museum door now show dark leaded glass like the rest of the Steen, by day and at night, instead of the fog behind them (browser and Godot; [#56](https://github.com/Steve-Sitax/Moodygame/issues/56)).
+- In the Godot version, the random patterns in water foam, rain rings, cobbles, walls, smoke and the screen's grain no longer go flat in patches on some graphics cards ([#58](https://github.com/Steve-Sitax/Moodygame/issues/58)).
 - Godot's isolated sound check keeps passing traffic and railway sounds out of its scripted recording; ride checks use silent Dummy audio so they do not open a Windows output device.
 
 - In Godot, street games, travelling trades and upstairs neighbours have their own visible props and movements; traffic, rooms, puddles, animals and the great storm now drive placed sounds.

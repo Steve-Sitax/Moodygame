@@ -38,7 +38,8 @@ if (!CHROME) throw new Error("no Chrome found");
 mkdirSync(out, { recursive: true });
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const stack = (cmd) => execFileSync(process.execPath, [path.join(root, "tools/teststack.mjs"), cmd, `look${SERVER}`, "--server", String(SERVER), "--vite", String(VITE)], { stdio: "inherit", timeout: 180_000 });
+// (--fresh: a new town, not a copy of the save: a checkout without one)
+const stack = (cmd) => execFileSync(process.execPath, [path.join(root, "tools/teststack.mjs"), cmd, `look${SERVER}`, "--server", String(SERVER), "--vite", String(VITE), ...(args.includes("--fresh") ? ["--fresh"] : [])], { stdio: "inherit", timeout: 180_000 });
 const PORT = 9400 + Math.floor(Math.random() * 400);
 const profile = path.join(os.tmpdir(), `scheldemist-look-${PORT}`);
 let chrome = null;

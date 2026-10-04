@@ -111,7 +111,8 @@ global uniform float psx_fog_near;
 global uniform float psx_fog_far;
 uniform float wet_k = 0.0;
 varying float fog_depth;
-float hash12(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+// (a hash without sin: issue #58)
+float hash12(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
 float vnoise(vec2 p) {
 	vec2 i = floor(p), f = fract(p);
 	f = f * f * (3.0 - 2.0 * f);
