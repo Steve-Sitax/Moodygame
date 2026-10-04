@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Closing Godot during sound loading now lets the audio workers finish before the engine tears down, preventing a crash on very quick exits.
+
 - In Godot, entering your rented room brings a neighbour's remark about its comfort and furniture. The server chooses who visits; they leave when you leave and speak once a day.
 
 - In Godot, people summoned for jobs walk in from the living town and return to their day when the encounter ends, using reachable street points around doors and piers.

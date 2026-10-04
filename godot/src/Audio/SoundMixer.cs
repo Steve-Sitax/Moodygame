@@ -707,7 +707,7 @@ public partial class Soundscape
         sp.Pending++;
         rendering++;
         double t0 = now;
-        Task.Run(() =>
+        _ = AudioWork(() =>
         {
             (AudioStreamWav? stream, double scale, double seconds, double peak) r = default;
             try

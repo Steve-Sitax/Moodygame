@@ -25,3 +25,10 @@ Irma Meeus (`bk146`) appeared with the engine fallback remark. Money, food and w
 by the remark. Leaving dismissed the visitor; re-entry made no second request that day. The close
 `godot/baked/life-checks/home/jobtest/home-neighbour.png` was inspected. Furniture and floor ownership
 remain with the places helper.
+
+Audio shutdown: a 1.9-second window check reproduced a native `AudioStreamWav` constructor crash after
+the success report, while the background startup beds were still being built. Audio workers are now
+owned until exit, and no new worker starts after exit begins. The same quick window check then exited
+cleanly. This is an evidenced project lifecycle bug; it does not establish the cause of the old WASAPI
+output-device invalidation documented in `godot-jobs.md`. Dummy runs cannot reproduce a Windows device
+invalidation, and `--no-soundscape` alone does not disable the engine's output driver.
