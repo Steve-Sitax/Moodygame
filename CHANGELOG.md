@@ -7,6 +7,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- In the Godot version, the town hall, the Oostershuis, the Vleeshuis and the Steen light their windows room by room through the night as in the browser game (clerks going home, late meetings, the porter, a watchman going round), and the Steen's lanterns burn by its gate and museum door after dusk ([#52](https://github.com/Steve-Sitax/Moodygame/issues/52)).
 - In the Godot version, the sky at midday is a plain grey overcast again: large flat grey shapes no longer hang over the roofs, and the works' chimneys smoke in fuller, darker plumes ([#55](https://github.com/Steve-Sitax/Moodygame/issues/55)).
 - Townspeople's outdoor activity spots stay on reachable ground instead of landing inside houses or the park pond; path snapping also keeps room for their bodies at lane edges.
 - In the Godot version, the townspeople and Jef have their soft shadow on the ground again, as in the browser game.

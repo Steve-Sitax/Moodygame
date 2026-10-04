@@ -192,8 +192,9 @@ public partial class Snap : Node
                 foreach (var nd in BakedWorld.All(Main.I.View))
                     if (nd is GeometryInstance3D gi && gi.IsVisibleInTree() && (gi.GlobalTransform * gi.GetAabb()).IntersectsSegment(o, o + d * 5000))
                         hits.Add(((gi.GlobalTransform * gi.GetAabb()).Size.Length(), $"{(gi.GlobalTransform * gi.GetAabb()).GetCenter().DistanceTo(o):0} m {gi.GetPath().ToString().Split('/').TakeLast(3).Aggregate((x, y) => x + "/" + y)} {gi.GetClass()} mat {(gi.MaterialOverride ?? (gi as MeshInstance3D)?.Mesh?.SurfaceGetMaterial(0))?.ResourceName}"));
-                foreach (var (size, what) in hits.OrderBy(h => h.Item1).Take(25)) GD.Print($"whatray {name} {one} {size:0} {what}");
+                foreach (var (size, what) in hits.OrderBy(h => h.Item1).Take(60)) GD.Print($"whatray {name} {one} {size:0} {what}");
             }
+        if (LandmarkRooms.I is { } lr) GD.Print($"snap {name} landmark rooms: {string.Join(", ", lr.Info.Select(i => $"{i.building} {i.lit}/{i.windows}"))}; steen lanterns {lr.LanternInfo.lit}/{lr.LanternInfo.lanterns}");
         times.Sort();
         GD.Print($"snap {name} air: wind {Daylight.I.Wind.Length():0.00}, night life {NightLife.I?.Info}, surf {Surf.I?.Info}, gutters {Gutters.I?.Info}, breath {Breath.I?.Info}, blobs {Blobs.I?.Count}");
         GD.Print($"snap {name}: {times.Average():0.00} ms a frame (p95 {times[(int)(times.Count * 0.95)]:0.00}), {RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalDrawCallsInFrame)} draws, {Render.Psx.ShaderCount} psx shaders");
