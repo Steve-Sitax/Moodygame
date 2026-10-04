@@ -1,5 +1,7 @@
 # The Godot port
 
+Where it stands now, how to test it and what is open: [godot-status.md](godot-status.md).
+
 Steve, 2026-10-03: "we are going to port the game to godot. It keeps stuttering and in godot there is a much better
 chance to run smoothly. The goal is to have everything working that works now and to be able to start it easily and
 also let someone download and get it running with a simple install."
@@ -70,13 +72,13 @@ Each step ends with a run of the Godot game, pictures looked at, and the frame t
 |---|---|---|
 | G0 | The proof above | done 2026-10-03 |
 | G1a | The baked town in Godot with the psx material (snap, affine, atlas, fog, sky light), the retro screen pass, a free camera: done 2026-10-03, 1.4 ms a frame at the Vismarkt (921 draws), the picture beside the browser's | `retro/psx.ts`, `retro/retroPass.ts` |
-| G1 | The base: the game starts the server, loads the real models (Draco taken out at build time), the ground, quays and walk map from `shared/city.json`; Jef walks, collides, climbs, swims | `shared/`, `world/city.ts`, `world/rijnkaai.ts`, `player/` |
-| G2 | The look: the psx shader (snap, affine, dither, 720 lines), fog, sky, day and night, weather, water, mirrors, lamps and spill, rooms behind real openings | `retro/`, `world/ambient.ts`, `mirror.ts`, `spill.ts`, the room files |
-| G3 | The town alive: people, crowd, ways, animals, carts, boats, trains, cranes, the lock, omnibus | `game/town.ts`, `crowd.ts`, `lively.ts`, `world/boats.ts`, `railway.ts` ... |
-| G4 | Play: jobs, goods, talk, shops, needs, map, book, menus, saves, the AI setup, events and the director's scenes | `game/`, `menu/`, `net/` |
-| G5 | Sound | `audio/` |
-| G6 | Play together | `net/mp/`, server `mp/` |
+| G1 | Done 2026-10-04. The base: the game starts the server, loads the real models (Draco taken out at build time), the ground, quays and walk map from `shared/city.json`; Jef walks, collides, climbs, swims | `shared/`, `world/city.ts`, `world/rijnkaai.ts`, `player/` |
+| G2 | Done 2026-10-04. The look: the psx shader (snap, affine, dither, 720 lines), fog, sky, day and night, weather, water, mirrors, lamps and spill, rooms behind real openings | `retro/`, `world/ambient.ts`, `mirror.ts`, `spill.ts`, the room files |
+| G3 | Done 2026-10-04. The town alive: people, crowd, ways, animals, carts, boats, trains, cranes, the lock, omnibus | `game/town.ts`, `crowd.ts`, `lively.ts`, `world/boats.ts`, `railway.ts` ... |
+| G4 | Done 2026-10-05, gaps listed in godot-play-inventory.md. Play: jobs, goods, talk, shops, needs, map, book, menus, saves, the AI setup, events and the director's scenes | `game/`, `menu/`, `net/` |
+| G5 | Done 2026-10-04. Sound | `audio/` |
+| G6 | Done 2026-10-04 (two Godot players; a browser guest can still join). Play together | `net/mp/`, server `mp/` |
 | G7 | The download: Windows zip and real launch/save/menu checks done; Linux/macOS game exports done, native package runs still to check; release Action draft (`docs/godot-download-check.md`) | `tools/package.mjs`, `docs/release.md` |
-| G8 | The checks: paths, shaders, stuck, props, perfcheck, the test kit, in Godot | `dev/` |
+| G8 | Done 2026-10-04 (`tools/godot/checks.mjs`). The checks: paths, shaders, stuck, props, perfcheck, the test kit, in Godot | `dev/` |
 
 Size: the client is about 142,000 lines of TypeScript; `shared/` 12,000. The server (64,000) stays.
