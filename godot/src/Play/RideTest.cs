@@ -43,6 +43,10 @@ public partial class RideTest : Node
             Dialogs.I!.KeepMouse = true;
             await api.Post<OkReply>("api/arrival/ashore");
             Jef.I.Place(-118, 36, 0);
+            if(Main.I.Arg("ride-only")=="journeys") {await JourneyCheck(api);return;}
+            if(Main.I.Arg("ride-only")=="hulls") {await HullsCheck(api);return;}
+            if(Main.I.Arg("ride-only")=="prison") {await PrisonCheck(api);return;}
+            if(Main.I.Arg("ride-only")=="crane-rungs") {await CraneRungsCheck(api);return;}
             if(Main.I.Arg("ride-only")=="cart") {await HandcartCheck(api);return;}
             if(Main.I.Arg("ride-only")=="velo") {await VeloCheck(api);return;}
             if(Main.I.Arg("ride-only")=="row") {await RowCheck(api);return;}
@@ -93,7 +97,7 @@ public partial class RideTest : Node
         catch (Exception e) { error = e.ToString(); GD.PrintErr("ridetest: " + error); }
         finally
         {
-            try { File.WriteAllText(Path.Combine(dir, "ridetest.json"), JsonSerializer.Serialize(new { ok = error == "", error, selection=Main.I.Arg("ride-only"), checks, replies, pictures, incomplete = new[] { "household taking and furniture handoffs", "all hulls and street routes", "all boat ladder approaches and saved crane rungs", "two-client remote rides and guest ferry creator", "auditory review of ride sounds", "named household journeys and prisoner room movement" } }, new JsonSerializerOptions(Api.Json) { WriteIndented = true })); }
+            try { File.WriteAllText(Path.Combine(dir, "ridetest.json"), JsonSerializer.Serialize(new { ok = error == "", error, selection=Main.I.Arg("ride-only"), checks, replies, pictures, incomplete = new[] { "household taking and furniture handoffs", "all street routes", "owned loose-boat ladder approaches", "two-client rides with boat, cart and velocipede gear (the omnibus is proven by --mptest --mpmoving)", "auditory review of ride sounds", "a real prison-room event action with a live AI proposal" } }, new JsonSerializerOptions(Api.Json) { WriteIndented = true })); }
             catch(Exception report){error=report.ToString();GD.PrintErr("ridetest report: "+error);}
             finally{GetTree().Quit(error == "" ? 0 : 1);}
         }
