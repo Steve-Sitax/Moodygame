@@ -43,6 +43,8 @@ if (system === 'mac') { run('ditto',['-x','-k',program,out]); fs.rmSync(program)
 if (system === 'linux') fs.chmodSync(program,0o755);
 fs.mkdirSync(path.join(out,'baked'));
 for (const file of ['town.glb','town.json','town_walk.json','town_walk.bin','town_lights.json','town_tex','models']) fs.cpSync(path.join(baked,file),path.join(out,'baked',file),{recursive:true});
+// Game data the C# reads as plain files beside res:// (places, indoor keep-outs): an export does not pack them.
+fs.cpSync(path.join(root,'godot','assets'),path.join(out,'assets'),{recursive:true,filter:src=>fs.statSync(src).isDirectory()||src.endsWith('.json')});
 buildServer(out);
 for (const [from,to] of [['LICENSE','LICENSE'],['assets/ATTRIBUTION.md','ATTRIBUTION.md'],['CHANGELOG.md','CHANGELOG.md']]) fs.copyFileSync(path.join(root,from),path.join(out,to));
 const license = await fetch(`https://raw.githubusercontent.com/nodejs/node/${process.version}/LICENSE`);
