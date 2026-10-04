@@ -38,32 +38,21 @@ public partial class ServerLink : Node
 
     // ------------------------------------------------------------------ the pause (game/pause.ts)
 
-    private readonly HashSet<string> reasons = new();
-    /// <summary>Paused now: nothing progresses, here or on the server.</summary>
-    public bool Paused => reasons.Count > 0;
+    /// <summary>Paused now: nothing progresses, here or on the server. The reasons are Menu.Pause's.</summary>
+    public bool Paused => Scheldemist.Menu.Pause.Paused;
     /// <summary>Played together (the Together part sets it): the menu and the pause key do not pause; only the host's "Pause all" does.</summary>
     public bool Together { get; private set; }
     /// <summary>The pause began (true) or ended (false).</summary>
     public event Action<bool>? PauseChanged;
-    /// <summary>Stop the scene tree too while paused (every part with the default process mode stands still). The menus' part may turn it off and freeze what it wants itself.</summary>
-    public bool FreezeTree { get; set; } = true;
 
-    /// <summary>
-    /// Add or take away one reason to be paused ("menu", "key", "saving", "loading", "boot", "host"); the game plays
-    /// when there is none. The server hears it, the push channel keeps its messages until the unpause, the clock in
-    /// the corner stands.
-    /// </summary>
-    public void SetPause(string reason, bool on)
+    /// <summary>Add or take away one reason to be paused ("menu", "key", "saving", "loading", "host"): Menu.Pause.Set.</summary>
+    public void SetPause(string reason, bool on) => Scheldemist.Menu.Pause.Set(reason, on);
+
+    /// <summary>The pause changed: the push channel keeps its messages until the unpause, the clock in the corner stands.</summary>
+    private void OnPause(bool now)
     {
-        if (Together && on && reason is "menu" or "key") return; // M8a
-        bool was = Paused;
-        if (on) reasons.Add(reason);
-        else reasons.Remove(reason);
-        bool now = Paused;
-        if (was == now) return;
-        Api?.SetPaused(now);
+        Api?.HoldPushes(now);
         GameState.I.SetPaused(now);
-        if (FreezeTree && IsInsideTree()) GetTree().Paused = now;
         PauseChanged?.Invoke(now);
     }
 
@@ -71,10 +60,11 @@ public partial class ServerLink : Node
     {
         Together = on;
         GameState.I.Together = on;
-        if (!on) return;
-        SetPause("menu", false);
-        SetPause("key", false);
+        Scheldemist.Menu.Pause.Together = on;
     }
+
+    /// <summary>A word about the line for the middle of the screen ("Connection lost, trying again..."); empty: none.</summary>
+    public void Note(string text) => SetStatus(text, Error);
 
     // ------------------------------------------------------------------ Jef's place for the host's town map (net/mp/together.ts soloMap)
 
@@ -171,18 +161,28 @@ public partial class ServerLink : Node
     {
         // the link lives through a pause: the channel is pumped, the unpause is heard
         ProcessMode = ProcessModeEnum.Always;
+        Scheldemist.Menu.Pause.Changed += OnPause;
         var main = Main.I;
         int port = int.TryParse(main.Arg("port"), out int p) ? p : ServerProcess.FirstPort;
+        var paths = ServerPaths.Find(ProjectSettings.GlobalizePath("res://"), System.IO.Path.GetDirectoryName(OS.GetExecutablePath()) ?? "");
+        // a guest: into another PC's game (the menu's Together screen, or --join address --seat 2 --code X --name N)
+        join = Mp.Together.Pending;
+        if (join == null && main.Arg("join") != "" && !Mp.Together.LeftAsGuest)
+        {
+            int seat = int.TryParse(main.Arg("seat"), out int n) ? Math.Max(2, n) : 2;
+            string[] names = { "Anna", "Piet", "Mie", "Tist", "Lien", "Rik", "Wannes" };
+            join = new Mp.JoinAsk(main.Arg("join"), main.Arg("code") == "" ? null : main.Arg("code"), main.Arg("name", names[Math.Min(names.Length - 1, seat - 2)]), seat);
+        }
         var opt = new ServerOptions
         {
-            External = main.Arg("server"),
+            External = join != null ? Mp.Together.AddressOf(join.Address) : main.Arg("server"),
             FirstPort = port,
-            Db = main.Arg("db"),
+            // A test uses a fresh database: no player save is opened.
+            Db = main.Arg("db") != "" ? main.Arg("db") : main.Arg("mptest") != "" ? Mp.MpTest.TestDb(main) : "",
             // a test never spends model calls
-            NoAi = main.Flag("no-ai") || main.Arg("nettest") != "",
+            NoAi = main.Flag("no-ai") || main.Arg("nettest") != "" || main.Arg("mptest") != "",
         };
-        var paths = ServerPaths.Find(ProjectSettings.GlobalizePath("res://"), System.IO.Path.GetDirectoryName(OS.GetExecutablePath()) ?? "");
-        SetStatus(opt.External != "" ? $"Looking for the game server at {opt.External}..." : "Starting the game server...", "");
+        SetStatus(join != null ? $"Looking for the host's game at {opt.External}..." : opt.External != "" ? $"Looking for the game server at {opt.External}..." : "Starting the game server...", "");
         // the game must never leave its server behind: the tree's end, the window's close and the program's end all stop it
         AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
         var stop = stopping.Token;
@@ -191,6 +191,11 @@ public partial class ServerLink : Node
 
     /// <summary>The start's outcome, taken up on the main thread (_Process).</summary>
     private Task<ServerProcess>? starting;
+    /// <summary>This game is a guest in another PC's game: what it asked to come in with (null: its own game).</summary>
+    public Mp.JoinAsk? JoinedAs => join;
+    private Mp.JoinAsk? join;
+    private Task? joining;
+    private Api? joiningApi;
 
     private void Started(Task<ServerProcess> t)
     {
@@ -199,6 +204,7 @@ public partial class ServerLink : Node
             if (stopping.IsCancellationRequested) return;
             var e = t.Exception?.GetBaseException();
             string why = e is ServerStartException ? e.Message : $"The game server did not start: {e?.Message ?? "stopped"}";
+            if (join != null) why = $"The host's PC does not answer at {Mp.Together.AddressOf(join.Address)}. Is the game running there, and open to others?";
             GD.PrintErr(why);
             SetStatus("", why);
             return;
@@ -212,19 +218,34 @@ public partial class ServerLink : Node
         GD.Print($"game server {(Server.Own ? $"started (pid {Server.Pid})" : "found")}: {Server.Url}");
         var api = new Api(Server.Url);
         api.Failed += e => GD.PrintErr($"a push handler failed: {e}");
+        if (join != null)
+        {
+            // the host must know this player before the first call: the token from the join rides on all of them
+            SetStatus("Asking the host...", "");
+            joiningApi = api;
+            var ask = join;
+            joining = Task.Run(() => Mp.Together.JoinAsync(api, ask));
+            return;
+        }
+        Linked(api);
+    }
+
+    private void Linked(Api api)
+    {
         var state = GameState.I;
         api.JobsPushed += state.Apply;
         api.LinkChanged += on =>
         {
             if (!on && Error == "") SetStatus("Connection lost, trying again...", "");
             else if (on) SetStatus("", Error);
+            if (on) Scheldemist.Menu.Pause.Reconnected();
         };
         Api = api;
         SetStatus("", "");
         // the state now (the browser's first api.jobs()); the push channel's welcome brings it too
         api.Run(api.Jobs(), state.Apply, e => GD.PrintErr($"the first state did not come: {e.Message}"));
         api.ConnectPush();
-        if (Paused) api.SetPaused(true);
+        if (Paused) api.HoldPushes(true);
         // the host's own game has a town map on this PC: Jef's place goes to it
         if (!api.Guest)
             api.Run(api.Get<Dictionary<string, string>>("api/map"), m =>
@@ -245,8 +266,23 @@ public partial class ServerLink : Node
         StatusChanged?.Invoke();
     }
 
+    private double pauseRetry;
+
     public override void _Process(double delta)
     {
+        if (joining is { IsCompleted: true } j && joiningApi is { } ja)
+        {
+            joining = null;
+            joiningApi = null;
+            if (j.Status == TaskStatus.RanToCompletion) Linked(ja);
+            else
+            {
+                string why = j.Exception?.GetBaseException().Message ?? "The host did not let you in.";
+                GD.PrintErr($"join: {why}");
+                ja.Dispose();
+                SetStatus("", why);
+            }
+        }
         if (starting is { IsCompleted: true })
         {
             var t = starting;
@@ -256,11 +292,12 @@ public partial class ServerLink : Node
         var api = Api;
         if (api == null) return;
         api.Pump();
+        if ((pauseRetry += delta) >= 2) { pauseRetry = 0; Scheldemist.Menu.Pause.Resend(); }
         // day.ts: a tick every 10 s while Jef plays; through a door (or the lantern up or down) the server hears of it now
         var state = GameState.I;
         if (Paused) return;
         SoloMap(delta);
-        if (!state.Playing || Together)
+        if (!state.Playing)
         {
             sinceTick = 0;
             return;
@@ -317,9 +354,13 @@ public partial class ServerLink : Node
         if (down) return;
         down = true;
         stopping.Cancel();
+        Scheldemist.Menu.Pause.Changed -= OnPause;
         AppDomain.CurrentDomain.ProcessExit -= OnProcessExit;
         Api?.Dispose();
         Api = null;
+        joiningApi?.Dispose();
+        joiningApi = null;
+        Scheldemist.Menu.Pause.ForgetServer();
         // a start still on its way: it ends by the cancel and stops what it started; one that just came up is stopped here
         var t = starting;
         starting = null;

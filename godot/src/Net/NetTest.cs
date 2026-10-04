@@ -117,8 +117,8 @@ public partial class NetTest : Node
                 // the pause: the server hears it (its gate says paused), a push meanwhile waits, the unpause lets it through
                 if (frames == 1)
                 {
-                    link!.FreezeTree = false; // (this test runs on while paused)
-                    link.SetPause("key", true);
+                    ProcessMode = ProcessModeEnum.Always; // (this test runs on while paused)
+                    link!.SetPause("key", true);
                     pauseAsked = total;
                 }
                 if (pausedSeen == null && total - pauseAsked > 0.4 && !gateBusy)

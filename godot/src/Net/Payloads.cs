@@ -594,12 +594,3 @@ public sealed record ActionsPayload
     public List<TownEvent> Events { get; init; } = new();
     public List<string> Closed { get; init; } = new();
 }
-
-/// <summary>The server's pause and save gate (save/gate.ts): what "gate" pushes and /api/pause answers.</summary>
-public sealed record GateState
-{
-    public bool Paused { get; init; }
-    /// <summary>"open", "saving" or "loading".</summary>
-    public string Mode { get; init; } = "open";
-    public int InFlight { get; init; }
-}

@@ -192,58 +192,25 @@ public sealed class Api : IDisposable
         return Math.Max(200, (int)Math.Round(s * 1000));
     }
 
-    // ------------------------------------------------------------------ the pause (game/pause.ts)
+    // ------------------------------------------------------------------ the pause's hold (game/pause.ts)
 
     private readonly List<Action> held = new();
-    private bool? told;
-    private Task telling = Task.CompletedTask;
-    private readonly object tellLock = new();
 
     /// <summary>
-    /// The game is paused: the server hears it (its clock, ticks and model calls stop), and what it pushes
-    /// meanwhile is kept and handed over after the unpause, in order. "gate" and "loaded" always come at once.
-    /// Main thread. The reasons to pause, and "never when played together", are ServerLink's.
+    /// The game is paused: what the server pushes meanwhile is kept and handed over after the unpause, in order.
+    /// "gate" and "loaded" always come at once. Main thread. The pause itself (its reasons, the word to the server)
+    /// is Menu.Pause; the link passes it on to here.
     /// </summary>
     public bool Paused { get; private set; }
 
-    public void SetPaused(bool on)
+    public void HoldPushes(bool on)
     {
         if (on == Paused) return;
         Paused = on;
-        TellServer();
         if (on) return;
         var now = held.ToArray();
         held.Clear();
         foreach (var a in now) Safe(a);
-    }
-
-    /// <summary>In order, the last word wins; a server away simply does not hear it.</summary>
-    private void TellServer()
-    {
-        lock (tellLock)
-        {
-            telling = telling.ContinueWith(async _ =>
-            {
-                bool on = Paused;
-                if (told == on) return;
-                try
-                {
-                    await Call<JsonElement>(HttpMethod.Post, "api/pause", new Dictionary<string, object?> { ["on"] = on, ["client"] = ClientId }, 5000).ConfigureAwait(false);
-                    told = on;
-                }
-                catch (ApiException)
-                {
-                    // the server is away: its tick waits for this game anyway
-                }
-            }, TaskScheduler.Default).Unwrap();
-        }
-    }
-
-    /// <summary>After the push channel came back: the server let go of our pause when it dropped.</summary>
-    private void ResendPause()
-    {
-        told = null;
-        TellServer();
     }
 
     private void Safe(Action a)
@@ -336,8 +303,6 @@ public sealed class Api : IDisposable
     // M4
     /// <summary>Townspeople who act, street conversations, the director's events (api.ts ActionsPayload).</summary>
     public Task<ActionsPayload> Actions() => Get<ActionsPayload>("api/actions");
-    /// <summary>The server's pause and save gate now.</summary>
-    public Task<GateState> Gate() => Get<GateState>("api/pause");
     public Task<OkReply> ActionsSync(double x, double z, IEnumerable<PersonAt> people) => Post<OkReply>("api/actions/sync", new { x, z, people });
     /// <summary>phase: "arrived", "lost", "blocked" or "done". The reply is the game state with the action in "action".</summary>
     public Task<JsonElement> ActionReport(int id, string phase, double? x = null, double? z = null, bool? found = null, string? why = null)
@@ -414,8 +379,6 @@ public sealed class Api : IDisposable
                 {
                     Linked = true;
                     LinkChanged?.Invoke(true);
-                    // the server let go of our pause when the channel dropped: say it again
-                    if (Paused) ResendPause();
                 });
                 if (dropped)
                 {
@@ -543,7 +506,7 @@ public sealed class Api : IDisposable
                 default:
                 {
                     var m = new PushMsg(type, doc.RootElement.Clone());
-                    if (type is "gate" or "loaded") inbox.Enqueue(() => SystemPushed?.Invoke(m));
+                    if (type is "gate" or "loaded" or "mp_pause_all") inbox.Enqueue(() => SystemPushed?.Invoke(m));
                     else Hand(() => OtherPushed?.Invoke(m));
                     return;
                 }
