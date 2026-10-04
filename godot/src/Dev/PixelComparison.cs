@@ -37,6 +37,8 @@ public static class PixelComparison
     {
         var rows = new List<object>(); int total = 0, controlPixels = 0, actionChecks = 0, actionDifferences = 0, floorChecks = 0, floorDifferences = 0, roomChecks = 0, roomDifferences = 0, routeChecks = 0, routeDifferences = 0, hudChecks = 0, hudDifferences = 0;
         object scheduleProof = SpeedComparison.ScheduleProof();
+        int deedsChecks = 0, deedsDifferences = 0;
+        int providerChecks = 0, providerDifferences = 0;
         var cases = new List<(double hour, string weather, string place, string scenario)>();
         foreach (var (hour, weather) in new[] { (13.0, "clear"), (22.0, "mist") })
         foreach (string place in new[] { "grote markt", "cathedral", "handschoenmarkt", "vismarkt", "rijnkaai" })
@@ -58,6 +60,40 @@ public static class PixelComparison
             }
             await Kit.I.Light(hour, weather); check.At(place); await check.Frames(120);
             hudChecks++; if (!Play.Jobs.I.SameRunHud()) hudDifferences++;
+            var people = Kit.I.People!;
+            void Provider(bool same) { providerChecks++; if (!same) providerDifferences++; }
+            Provider(Play.Doors.I.SameKeys(Player.Jef.I.X, Player.Jef.I.Z));
+            Provider(Play.Ride.I.SameKeys(Player.Jef.I.X, Player.Jef.I.Z));
+            Provider(Play.Rowing.I.SameKeys(Player.Jef.I.X, Player.Jef.I.Z));
+            Provider(Play.Velocipedes.I.SameKeys(Player.Jef.I.X, Player.Jef.I.Z));
+            foreach (var door in Play.Doors.I.All)
+            {
+                Provider(Play.Doors.I.SameKeys(door.Step.X, door.Step.Y));
+                Provider(Play.Doors.I.SameKeys(door.Step.X + 1.8f, door.Step.Y));
+            }
+            foreach (var bus in Movers.Omnibus.I.Buses)
+            {
+                var step = Play.Ride.StepOf(bus);
+                Provider(Play.Ride.I.SameKeys(step.X, step.Z));
+            }
+            foreach (var landing in Play.Rowing.I.Data.Landings)
+                Provider(Play.Rowing.I.SameKeys(landing.Landing[0], landing.Landing[1]));
+            foreach (var boat in Play.Rowing.I.Drawings.Values)
+                Provider(Play.Rowing.I.SameKeys(boat.X, boat.Z));
+            int residentIndex = 0;
+            foreach (var resident in people.Simulations)
+            {
+                deedsChecks++;
+                if (!ReferenceEquals(resident, people.Sims[residentIndex++])) deedsDifferences++;
+                if (resident.P is not { } person || resident.Inside) continue;
+                foreach (float side in new[] { -1.3f, 1.3f })
+                {
+                    deedsChecks++;
+                    if (!Play.Deeds.I.SameKeys((float)person.X + MathF.Sin((float)person.Yaw) * side, (float)person.Z + MathF.Cos((float)person.Yaw) * side)) deedsDifferences++;
+                }
+            }
+            deedsChecks++;
+            if (residentIndex != people.Sims.Count || !Play.Deeds.I.SameKeys(Player.Jef.I.X, Player.Jef.I.Z)) deedsDifferences++;
             foreach (var door in Play.Doors.I.All)
             {
                 bool previous = SpeedComparison.Cached;
@@ -110,7 +146,7 @@ public static class PixelComparison
             }
             finally { UniformUpdates.Cached = cached; SpeedComparison.Cached = speedCached; Main.I.PictureTime(-1); Main.I.GetTree().Paused = false; }
         }
-        return new { ok = total == 0 && controlPixels > 0 && actionDifferences == 0 && floorDifferences == 0 && roomDifferences == 0 && routeDifferences == 0 && hudDifferences == 0 && System.Text.Json.JsonSerializer.SerializeToElement(scheduleProof).GetProperty("ok").GetBoolean(), differentPixels = total, controlPixels, comparisons = rows, scheduleProof, actionProof = new { actionChecks, actionDifferences }, floorProof = new { floorChecks, floorDifferences }, roomProof = new { roomChecks, roomDifferences }, routeProof = new { routeChecks, routeDifferences }, hudProof = new { hudChecks, hudDifferences },
+        return new { ok = total == 0 && controlPixels > 0 && actionDifferences == 0 && floorDifferences == 0 && roomDifferences == 0 && routeDifferences == 0 && hudDifferences == 0 && deedsDifferences == 0 && providerDifferences == 0 && System.Text.Json.JsonSerializer.SerializeToElement(scheduleProof).GetProperty("ok").GetBoolean(), differentPixels = total, controlPixels, comparisons = rows, scheduleProof, actionProof = new { actionChecks, actionDifferences }, floorProof = new { floorChecks, floorDifferences }, roomProof = new { roomChecks, roomDifferences }, routeProof = new { routeChecks, routeDifferences }, hudProof = new { hudChecks, hudDifferences }, deedsProof = new { deedsChecks, deedsDifferences }, providerProof = new { providerChecks, providerDifferences },
             method = "RGBA8 full screen including retro grain, paused scene and fixed grain; original/cached uniforms, node and MultiMesh poses, reflections, rooms, interaction prompts and active-job HUD; exact schedule, route, floor, room, action and job comparisons; deliberately wrong fog colour as positive control" };
     }
 }

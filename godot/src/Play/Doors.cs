@@ -74,6 +74,7 @@ public partial class Doors : Node
     }
 
     private readonly List<Door> doors = new();
+    private readonly Offers keyOffers = new() { Options = new() };
     public IReadOnlyList<Door> All => doors;
     public Door? Get(string id)
     {
@@ -420,6 +421,37 @@ public partial class Doors : Node
     // ------------------------------------------------------------------ E at a shut door (interiors.ts keys, landmarks.ts keys)
 
     private Offers? Keys(float x, float z)
+    {
+        return Dev.SpeedComparison.Cached ? KeysCached(x, z) : KeysOriginal(x, z);
+    }
+    public bool SameKeys(float x, float z) => Dev.OfferComparison.Same(() => KeysOriginal(x, z), () => KeysCached(x, z));
+    private Offers? KeysCached(float x, float z)
+    {
+        var jef = Jef.I;
+        if (jef == null || jef.Swimming || jef.Climbing) return null;
+        var options = keyOffers.Options!; options.Clear();
+        foreach (var d in doors)
+        {
+            if (!d.Known || d.Target > 0 || d.Kind is "church" or "hall" or "house" or "home") continue;
+            float distance = new Vector2(d.Step.X - x, d.Step.Y - z).Length();
+            if (d.Kind == "landmark")
+            {
+                if (distance > ReachLandmark || MathF.Abs(jef.Y - (d.Middle.Y - 1.1f)) > 1.6f) continue;
+                options.Add((distance - 0.25f, DoorAction(d, new Vector3(d.Middle.X, d.Middle.Y + 0.1f, d.Middle.Z))));
+            }
+            else if (!(distance > ReachDoor) && d.Kind is "shop" or "tavern" or "poesje")
+                options.Add((distance - 0.2f, DoorAction(d, new Vector3(d.Middle.X, jef.Y + 1.1f, d.Middle.Z))));
+        }
+        return options.Count > 0 ? keyOffers : null;
+    }
+    private static Act DoorAction(Door door, Vector3 at) => door.Kind switch
+    {
+        "landmark" => Act.At(Key.E, $"try the door of {LandmarkLabel.GetValueOrDefault(door.Landmark, door.Label)}", at, () => GameState.I.Say(ClosedText.GetValueOrDefault(door.Landmark, "The door is shut."))),
+        "shop" => Act.At(Key.E, $"try the door of {door.Label}", at, () => GameState.I.Say($"The shutters are up at {door.Label}. {(door.Keeper != null ? $"{door.Keeper} opens again in the morning." : "Nobody answers.")}")),
+        "tavern" => Act.At(Key.E, $"try the door of {door.Label}", at, () => GameState.I.Say($"The door of {door.Label} is barred. {(door.Keeper != null ? $"{door.Keeper} opens again later." : "Nobody answers.")}")),
+        _ => Act.At(Key.E, "read the board by the cellar door", at, () => GameState.I.Say($"A painted board: \"POESJE. Every evening from seven. {door.PriceC} centimes.\" The door is shut."))
+    };
+    private Offers? KeysOriginal(float x, float z)
     {
         var jef = Jef.I;
         if (jef == null || jef.Swimming || jef.Climbing) return null;

@@ -99,6 +99,26 @@ public partial class Velocipedes:Node
     }
     private Offers Keys(float px,float pz)
     {
+        if(!Scheldemist.Dev.SpeedComparison.Cached||FallT>0||Busy||Ridden!=null)return KeysOriginal(px,pz);
+        return WalkingKeys();
+    }
+    private readonly Offers walkingOffers = new() { Options = new() }, emptyOffers = new();
+    public bool SameKeys(float x,float z)=>Scheldemist.Dev.OfferComparison.Same(()=>KeysOriginal(x,z),()=>FallT>0||Busy||Ridden!=null?KeysOriginal(x,z):WalkingKeys());
+    private Offers WalkingKeys()
+    {
+        var j=Jef.I;if(j.Riding||j.Laden||j.Swimming||j.Climbing)return emptyOffers;
+        var options=walkingOffers.Options!;options.Clear();
+        foreach(var machine in Machines.Values)
+        {
+            if(!machine.Info.Mine||machine.Info.Ridden)continue;
+            float distance=new Vector2(j.X-machine.Info.X,j.Z-machine.Info.Z).Length();
+            if(distance<1.7f)options.Add((distance,MountAction(machine)));
+        }
+        return walkingOffers;
+    }
+    private Act MountAction(Machine machine)=>Act.At(Key.E,"get on the velocipede",new(machine.Info.X,.8f,machine.Info.Z),()=>_=Mount(machine));
+    private Offers KeysOriginal(float px,float pz)
+    {
         if(FallT>0||Busy)return new(){Only=new()};
         if(Ridden!=null)return new(){Only=new(){Act.Me(Key.E,"get off the velocipede",()=>_=Leave())}};
         var j=Jef.I;if(j.Riding||j.Laden||j.Swimming||j.Climbing)return new();

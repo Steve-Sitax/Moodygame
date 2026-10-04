@@ -95,6 +95,32 @@ public partial class Ride : Node, IDialog
     }
     private Offers? Keys(float x, float z)
     {
+        if (!Scheldemist.Dev.SpeedComparison.Cached || Riding) return KeysOriginal(x, z);
+        return WalkingKeys(x, z);
+    }
+    private readonly Offers walkingOffers = new() { Options = new() };
+    public bool SameKeys(float x, float z) => Scheldemist.Dev.OfferComparison.Same(() => KeysOriginal(x, z), () => Riding ? KeysOriginal(x, z) : WalkingKeys(x, z));
+    private Offers? WalkingKeys(float x, float z)
+    {
+        if (!Eligible || Omnibus.I == null) return null;
+        var options = walkingOffers.Options!; options.Clear();
+        foreach (var b in Omnibus.I.Buses)
+        {
+            var s = StepOf(b); float distance = new Vector2(s.X - x, s.Z - z).Length();
+            if (b.At != null && distance <= 2.8f) options.Add((distance - .5f, BoardAction(b, s)));
+        }
+        if (RollingNear() is { } rolling) options.Add((-.5f, HopAction(rolling, StepOf(rolling))));
+        return walkingOffers;
+    }
+    private Act BoardAction(Omnibus.Bus bus, Vector3 step)
+    {
+        int fare = GameState.I.Payload?.Ride?.FareC ?? 0;
+        bool change = GameState.I.Payload?.Ride?.Change is { } c && c.FromLine != bus.Line.Id;
+        return Act.AtGround(Key.E, $"get on the {bus.Line.Board} omnibus ({(change ? "a free change" : fare + " c")})", step.X, step.Z, () => _ = Board(bus));
+    }
+    private Act HopAction(Omnibus.Bus bus, Vector3 step) => Act.AtGround(Key.E, "jump onto the " + bus.Line.Board + " omnibus (E or Space)", step.X, step.Z, () => Hop(bus));
+    private Offers? KeysOriginal(float x, float z)
+    {
         if (Riding)
         {
             var only = new List<Act>();

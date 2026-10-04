@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Godot keeps distant door and ride candidates from allocating prompts during walking and turning, retaining the same reach, text and actions.
+
 - Godot deeds scan residents without boxing their enumerator and read nearby prompt heights only when needed, preserving theft and catch actions.
 
 - The Godot places check waits for furniture's timed refresh instead of assuming a fixed number of uncapped frames.

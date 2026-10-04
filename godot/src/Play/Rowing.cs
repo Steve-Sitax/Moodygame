@@ -106,6 +106,32 @@ public partial class Rowing:Node,RowPhysics.IWorld
     }
     private Offers Keys(float x,float z)
     {
+        if(!Scheldemist.Dev.SpeedComparison.Cached || Busy || Boat!=null)return KeysOriginal(x,z);
+        return WalkingKeys(x,z);
+    }
+    private readonly Offers walkingOffers = new() { Options = new() }, emptyOffers = new();
+    public bool SameKeys(float x,float z)=>Scheldemist.Dev.OfferComparison.Same(()=>KeysOriginal(x,z),()=>Busy||Boat!=null?KeysOriginal(x,z):WalkingKeys(x,z));
+    private Offers WalkingKeys(float x,float z)
+    {
+        var j=Jef.I;if(j.Riding||j.Climbing)return emptyOffers;
+        var options=walkingOffers.Options!;options.Clear();
+        foreach(var landing in Data.Landings)
+        {
+            float distance=new Vector2(x-landing.Landing[0],z-landing.Landing[1]).Length();
+            if(!j.Swimming&&distance<2.4f&&j.Y<Water.Level(x,z)+3.2f)options.Add((distance,HireAction(landing)));
+        }
+        foreach(var drawing in Drawings.Values)
+        {
+            if(drawing.Key.StartsWith("berth:")||drawing==Boat)continue;
+            var at=SeatOf(drawing);float distance=HullDistance(drawing,x,z),drop=j.Y-at.Y;
+            if(distance<(j.Swimming?1.4f:drop>1.3f?2.2f:2)&&drop<3.6f)options.Add((distance,BoardAction(drawing,at,drop)));
+        }
+        return walkingOffers;
+    }
+    private Act HireAction(RowLanding landing)=>Act.At(Key.E,$"hire a {landing.Kind.Replace("rowboat","rowing boat")} from {landing.Waterman} ({Data.Fees.HireC} c)",new(landing.X,Water.Level(landing.X,landing.Z)+.7f,landing.Z),()=>_=Hire(landing));
+    private Act BoardAction(Drawn drawing,Vector3 at,float drop)=>Act.At(Key.E,Jef.I.Swimming?"climb into your boat":drop>1.3f?"jump down into your boat":"get into your boat",new(at.X,at.Y+.35f,at.Z),()=>_=Board(drawing,drop>1.3f));
+    private Offers KeysOriginal(float x,float z)
+    {
         if(Busy)return new(){Only=new()};if(Boat!=null){var exit=ExitHere();return new(){Only=new(){Act.Me(Key.E,exit?.Ladder==true?"climb out up the ladder":exit!=null?"step out and tie up the boat":"go over the side into the water",()=>_=Leave(exit))}};}
         var j=Jef.I;if(j.Riding||j.Climbing)return new();var options=new List<(float,Act)>();
         foreach(var l in Data.Landings)
