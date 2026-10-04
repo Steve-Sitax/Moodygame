@@ -129,7 +129,7 @@ void fragment() {
         groundOf.Clear();
         groundOf.EnsureCapacity(sources.Count);
         foreach (var source in sources) Ground(source);
-        Main.I.World.Unported.RemoveAll(u => u is "far_glow" or "gas_lamp_halos" or "ambient_windows" || (u.StartsWith("INST") && u.EndsWith("spillgroundpools")));
+        Main.I.World.Unported.RemoveAll(u => u is "far_glow" or "gas_lamp_halos" || u.StartsWith("ambient_windows") || (u.StartsWith("INST") && u.EndsWith("spillgroundpools")));
     }
 
     /// <summary>Which sources get a far glow, how big (m across) and how bright (1 = a gas lamp's halo): farGlow.ts farKind.</summary>
@@ -142,18 +142,26 @@ void fragment() {
         return (Math.Min(2.4f, 0.8f + Math.Max(s.Half.X, s.Half.Y) * 1.4f), s.Kind is "garret" or "upper" ? 0.2f : 0.3f);
     }
 
+    private void Walk()
+    {
+        if (walkTried) return;
+        walkTried = true;
+        string town = Main.I.Arg("town", OS.GetEnvironment("SCHELDEMIST_BAKE") is { Length: > 0 } b ? b : ProjectSettings.GlobalizePath("res://baked/town.glb"));
+        walk = WalkMap.Load(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(town) ?? ".", System.IO.Path.GetFileNameWithoutExtension(town) + "_walk.json"));
+    }
+
+    /// <summary>The ground at a place as the browser's world has it (the walk map's: baseAt), NaN where none.</summary>
+    public float GroundAt(float x, float z)
+    {
+        Walk();
+        return walk != null ? (float)walk.BaseAt(x, z) : float.NaN;
+    }
+
     /// <summary>The street under a source, a step out from its wall (the walk map's ground), worked out once.</summary>
     private float Ground(Src s)
     {
         if (groundOf.TryGetValue(s, out var g)) return g;
-        if (!walkTried)
-        {
-            walkTried = true;
-            {
-                string town = Main.I.Arg("town", OS.GetEnvironment("SCHELDEMIST_BAKE") is { Length: > 0 } b ? b : ProjectSettings.GlobalizePath("res://baked/town.glb"));
-                walk = WalkMap.Load(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(town) ?? ".", System.IO.Path.GetFileNameWithoutExtension(town) + "_walk.json"));
-            }
-        }
+        Walk();
         float x = s.At.X + s.N.X * 1.2f, z = s.At.Z + s.N.Y * 1.2f;
         g = walk != null ? (float)walk.BaseAt(x, z) : 0;
         // (a source below the walk's ground there, a cellar's or the water's: no pool)

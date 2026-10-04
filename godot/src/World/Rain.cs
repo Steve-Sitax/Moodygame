@@ -10,7 +10,7 @@ namespace Scheldemist.World;
 /// the gas lamps near them; close drops only (far off, rain is the weather's thicker air). How much falls is
 /// Daylight.Rain (psx_rain): showers come and go on a rain day, a storm never quite stops. The wet stone, the rings
 /// in the puddles and the darker sky are the psx material's and the sky's. One draw; hidden when it is dry.
-/// Not here: the great storm's sheets and gusts (world/tempest.ts), and no rain under a roof.
+/// Not here: the great storm's far sheets (RainSheets.cs). The gusts' veils (Air.Gusts) are in both.
 /// </summary>
 [GamePart(40)]
 public partial class Rain : Node
@@ -36,6 +36,7 @@ global uniform vec4 psx_lamp_color;
 uniform vec2 wind = vec2(0.9, 0.35);
 uniform float expo = 0.02;
 uniform vec4 room = vec4(1.0, 1.0, 0.0, 0.0);
+GUSTS
 varying vec3 col;
 varying float alpha;
 varying float seg;
@@ -85,6 +86,8 @@ void vertex() {
 		float along = dot(head.xz, wd) - psx_time * length(wind) * 1.1;
 		float cu = 0.5 + 0.5 * sin(along * 0.21 + sin(dot(head.xz, vec2(-wd.y, wd.x)) * 0.09) * 2.0) * sin(along * 0.083 + 1.3);
 		alpha *= mix(1.0, 0.3 + 1.1 * smoothstep(0.25, 0.8, cu), psx_storm);
+		// and each gust brings its veil: a wall of heavier rain sweeping across with the gust's front
+		alpha *= 1.0 + 0.9 * min(gust_veil(head.xz), 2.5) * psx_storm;
 	}
 	// in a room: no rain in it, only out of the windows (its box in x and z)
 	if (room.z > room.x && head.x > room.x && head.x < room.z && head.z > room.y && head.z < room.w) alpha = 0.0;
@@ -144,7 +147,7 @@ void fragment() {
         m.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays, null, null, (Mesh.ArrayFormat)((long)Mesh.ArrayCustomFormat.RgbaFloat << (int)Mesh.ArrayFormat.FormatCustom0Shift));
         // (the drops go where the eye goes: never culled by where the mesh was made)
         m.CustomAabb = new Aabb(new Vector3(-1e5f, -1e3f, -1e5f), new Vector3(2e5f, 2e3f, 2e5f));
-        mat = new ShaderMaterial { Shader = new Shader { Code = Code }, RenderPriority = 3 };
+        mat = new ShaderMaterial { Shader = new Shader { Code = Code.Replace("GUSTS", Air.Gusts.Glsl) }, RenderPriority = 3 };
         m.SurfaceSetMaterial(0, mat);
         mesh = new MeshInstance3D { Name = "ambient_rain", Mesh = m, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off, Visible = false, Layers = Mirrors.NoMirror };
         Main.I.View.AddChild(mesh);
@@ -162,6 +165,7 @@ void fragment() {
         mat.SetShaderParameter("expo", expo);
         // (the great storm: harder, about twice the gale's wind)
         mat.SetShaderParameter("wind", day.Wind * (1 + 0.9f * day.Storm));
+        if (day.Storm > 0) Air.Gusts.Send(mat);
         // no rain round the eye under a roof: the room's box (World/Rooms.cs)
         var box = Rooms.I?.Around(Main.I.View.GetCamera3D()?.GlobalPosition ?? Vector3.Zero);
         mat.SetShaderParameter("room", box is { } bx ? new Vector4(bx.Position.X, bx.Position.Z, bx.End.X, bx.End.Z) : new Vector4(1, 1, 0, 0));

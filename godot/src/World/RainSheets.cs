@@ -9,7 +9,7 @@ namespace Scheldemist.World;
 /// over by the wind and thick and thin in sweeping curtains, and on the far one grey billows of rain rolling by.
 /// Walls nearer than a layer hide it (the depth test): in a lane the rain is what falls in the lane. Drawn only while
 /// it pours in the great storm (Daylight.Storm), none in a room round the eye. One draw, one shader, made at the start.
-/// Not here: the gusts' white veils (the browser's wind fronts are not ported).
+/// Each gust brings its white veil across the square (Air.Gusts, the browser's wind fronts).
 /// </summary>
 [GamePart(34)]
 public partial class RainSheets : Node
@@ -31,6 +31,7 @@ uniform vec2 wind = vec2(1.0, 0.0);
 uniform float expo = 0.02;
 uniform float night = 0.0;
 uniform vec4 room = vec4(1.0, 1.0, 0.0, 0.0);
+GUSTS
 varying vec3 l;
 varying vec3 w;
 varying float fog_depth;
@@ -63,19 +64,21 @@ void fragment() {
 	float y = w.y + psx_time * fall * (0.9 + 0.2 * h1) + h2 * 37.0;
 	float f = fract(y / sp);
 	float len = clamp(fall * expo * 1.2 / sp, 0.05, 0.6);
-	float streak = step(f, len) * (1.0 - 0.85 * f / len) * step(h1, amt * 0.9 + 0.1);
+	// (the gusts' veils: a white wall of rain comes across the square with each gust)
+	float veil = min(gust_veil(w.xz), 2.5);
+	float streak = step(f, len) * (1.0 - 0.85 * f / len) * step(h1, amt * (0.9 + 0.3 * veil) + 0.1);
 	// the curtains, as the near drops have them
 	vec2 wd = normalize(wind + vec2(1e-4));
 	float along = dot(w.xz, wd) - psx_time * length(wind) * 1.1;
 	float c = 0.5 + 0.5 * sin(along * 0.21 + sin(dot(w.xz, vec2(-wd.y, wd.x)) * 0.09) * 2.0) * sin(along * 0.083 + 1.3);
-	float curtain = 0.3 + 1.1 * smoothstep(0.25, 0.8, c);
+	float curtain = (0.3 + 1.1 * smoothstep(0.25, 0.8, c)) * (1.0 + 1.1 * veil);
 	float k = smoothstep(psx_fog_near, psx_fog_far, fog_depth);
 	float a = thin * streak * curtain * amt * (R < 12.0 ? 0.8 : 0.6) * (1.0 - 0.5 * k);
 	// the rain so thick it rolls by in grey clouds, on the far layer only
 	if (R > 12.0) {
 		vec2 hp = vec2(along * 0.08, w.y * 0.12 + dot(w.xz, vec2(-wd.y, wd.x)) * 0.05);
 		float billow = 0.5 + 0.25 * sin(hp.x * 3.1 + sin(hp.y * 2.3) * 1.7) + 0.25 * sin(hp.x * 1.3 - hp.y * 1.9 + 2.0);
-		a += smoothstep(0.4, 0.95, billow) * 0.12 * amt;
+		a += smoothstep(0.4, 0.95, billow) * (0.12 + 0.2 * veil) * amt;
 	}
 	if (a < 0.004) discard;
 	ALBEDO = mix(psx_fog_color.rgb * 1.45 + 0.03, psx_fog_color.rgb, k * 0.6) * (1.0 - 0.3 * night);
@@ -86,7 +89,7 @@ void fragment() {
     public override void _Ready()
     {
         ProcessPriority = 55;
-        mat = new ShaderMaterial { Shader = new Shader { Code = Code }, RenderPriority = 2 };
+        mat = new ShaderMaterial { Shader = new Shader { Code = Code.Replace("GUSTS", Air.Gusts.Glsl) }, RenderPriority = 2 };
         var st = new SurfaceTool();
         st.Begin(Mesh.PrimitiveType.Triangles);
         foreach (float r in new[] { 9f, 17f })
@@ -124,6 +127,7 @@ void fragment() {
         mat.SetShaderParameter("expo", expo);
         mat.SetShaderParameter("wind", day.Wind * (1 + 0.9f * day.Storm));
         mat.SetShaderParameter("night", day.Night);
+        Air.Gusts.Send(mat);
         var box = Rooms.I?.Around(eye);
         mat.SetShaderParameter("room", box is { } b ? new Vector4(b.Position.X, b.Position.Z, b.End.X, b.End.Z) : new Vector4(1, 1, 0, 0));
     }
