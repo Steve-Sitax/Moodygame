@@ -21,6 +21,36 @@ public partial class Soundscape
     private void TestTick() => test?.Tick();
     private void TestPlaceCamera() => test?.PlaceCamera();
 
+    // Exercise real concurrent publication and per-worker ordering. This runs after recording, outside play.
+    private static bool CheckReadyQueue()
+    {
+        const int workers = 4, count = 1024;
+        var queue = new ReadyQueue();
+        var next = new int[workers];
+        int received = 0;
+        bool ordered = true;
+        var writers = new System.Threading.Tasks.Task[workers];
+        for (int p = 0; p < workers; p++)
+        {
+            int producer = p;
+            writers[p] = System.Threading.Tasks.Task.Run(() =>
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    int value = i;
+                    queue.Enqueue(() => { ordered &= next[producer]++ == value; received++; });
+                }
+            });
+        }
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        while (received < workers * count && watch.Elapsed.TotalSeconds < 5)
+        {
+            if (queue.TryDequeue(out var fn)) fn();
+            else System.Threading.Thread.Yield();
+        }
+        return ordered && received == workers * count && System.Threading.Tasks.Task.WaitAll(writers, 1000) && !queue.TryDequeue(out _);
+    }
+
     private Dictionary<string, bool> WiringChecks()
     {
         var checks = new Dictionary<string, bool>
@@ -38,6 +68,7 @@ public partial class Soundscape
             ["baked taverns found"] = rooms.Any(r => r.kind == "tavern"),
             ["baked shops found"] = rooms.Any(r => r.kind == "shop"),
             ["speakers stayed muted"] = Speaker == 0,
+            ["worker callbacks preserve FIFO under contention"] = CheckReadyQueue(),
         };
         foreach (var room in rooms)
         {
@@ -154,8 +185,28 @@ public partial class Soundscape
         private Vector3 pos = new(-118, 1.7f, 12);
         private AudioStreamWav sine = null!, noise = null!;
         private double noiseRms;
-        private readonly List<double> frameCosts = new();
-        public void FrameCost(double ms) => frameCosts.Add(ms);
+        private readonly List<double> frameCosts = new(36000);
+        private readonly List<object> overBudget = new();
+        private double callCost;
+        private double frameCallCost;
+        private string callName = "none";
+        private readonly double[] lastProf = new double[ProfNames.Length];
+        public double TakeCallCost() { frameCallCost = callCost; callCost = 0; return frameCallCost; }
+        public void FrameCost(double ms, int gc0, int gc1, int gc2)
+        {
+            frameCosts.Add(ms);
+            if (ms <= 0.3) { Array.Copy(s.prof, lastProf, lastProf.Length); return; }
+            var starts = s.prof.Select((p, i) => Math.Round(p - lastProf[i], 4)).ToArray();
+            Array.Copy(s.prof, lastProf, lastProf.Length);
+            var steps = FrameSteps.Select((n, i) => new { step = n, ms = Math.Round(s.frameSteps[i], 4) }).ToArray();
+            var row = new { frame = frameCosts.Count, at_s = Math.Round(s.now, 3), ms = Math.Round(ms, 4),
+                trigger = callName != "none" ? callName : cur?.Name ?? (at < 0 ? "startup" : "gap/layers"), sound = s.frameSound, steps,
+                trigger_ms = Math.Round(frameCallCost, 4),
+                starts = ProfNames.Select((n, i) => new { step = n, ms = starts[i] }).ToArray(),
+                gc = new[] { GC.CollectionCount(0) - gc0, GC.CollectionCount(1) - gc1, GC.CollectionCount(2) - gc2 } };
+            overBudget.Add(row);
+            GD.Print("sound over budget: " + JsonSerializer.Serialize(row));
+        }
         private int calBus = -1;
         private AudioStreamPlayer clock = null!;
         private double clockLast, clockBase;
@@ -430,8 +481,9 @@ public partial class Soundscape
                 Add("events", $"cue: {cue}", () =>
                 {
                     var spot = s.NewSpot(L.X, 1.5, L.Z - 5, 3, 1.15, 75, 0.3, 14000, s.Bus("voices"), 100);
-                    double len = s.MadeAt(spot, (c, dest, t0) => Audio.EventCues.PlayCue(c, dest, new CueSpec(cue, 0, 1, 1), t0), "cue " + cue, 0.9, 0.5);
-                    cur!.Extra["cueSeconds"] = Math.Round(len, 2);
+                    var item = cur!;
+                    s.MadeAt(spot, (c, dest, t0) => Audio.EventCues.PlayCue(c, dest, new CueSpec(cue, 0, 1, 1), t0), "cue " + cue, 0.9, 0.5,
+                        built: len => item.Extra["cueSeconds"] = Math.Round(len, 2));
                 }, cue is "hymn" ? 4.5 : 2.4, cue is "cheer" or "laughter" or "applause" or "shout" or "cry" or "hymn" or "fiddle" or "drum" or "whistle" or "glass" or "clatter" or "crackle" or "horse" ? 0.9 : double.NaN);
             Add("events", "cues on a stage (a drum every second, 5 s)", () => s.EventCues(new[] { new CueSpec("drum", 1, 1, 1) }, L.X, L.Z - 5, 5), 6, after: it => it.Extra["hits"] = it.Voices.Count);
 
@@ -521,6 +573,7 @@ public partial class Soundscape
             {
                 cur.Extra["decode"] = e.Message;
             }
+            raw *= v.StreamScale;
             double level = v.Level * sp.Level;
             double pan = sp.Flat ? 1 : sp.Pan * GodotCentre;
             double expected = Expect(sp, v, raw, level);
@@ -558,6 +611,7 @@ public partial class Soundscape
 
         public void Tick()
         {
+            callName = "none";
             if (done) return;
             A();
             PlaceCamera();
@@ -610,6 +664,8 @@ public partial class Soundscape
                     long c0 = System.Diagnostics.Stopwatch.GetTimestamp();
                     cur.Do();
                     cur.CallMs = System.Diagnostics.Stopwatch.GetElapsedTime(c0).TotalMilliseconds - s.testMs;
+                    // Calibration constructs its own nodes/buffers; gameplay triggers are part of this frame's budget.
+                    if (cur.Group != "measure") { callCost += cur.CallMs; callName = cur.Name; }
                 }
                 catch (Exception e)
                 {
@@ -680,12 +736,19 @@ public partial class Soundscape
                 var q = Emitters.NearestQuay(L.X, L.Z);
                 if (double.IsFinite(q.d)) pos = new Vector3((float)q.x, 1.7f, (float)q.z);
                 Main.I.Cam.GlobalTransform = new Transform3D(Basis.Identity, pos);
+                long updateAt = System.Diagnostics.Stopwatch.GetTimestamp();
+                double updateTest = s.testMs;
                 s.Update(Main.I.Cam);
+                callCost += System.Diagnostics.Stopwatch.GetElapsedTime(updateAt).TotalMilliseconds - (s.testMs - updateTest);
             }
+            long stateAt = System.Diagnostics.Stopwatch.GetTimestamp();
+            double stateTest = s.testMs;
             s.SetClock(l.hour);
             s.SetWeather(l.weather);
             s.SetRain(l.rain);
             s.SetTempest(l.tempest, l.tempest > 0 ? 1.5 : 0, 0);
+            callCost += System.Diagnostics.Stopwatch.GetElapsedTime(stateAt).TotalMilliseconds - (s.testMs - stateTest);
+            callName = l.name;
             s.Settle();
             layerNow = (l.name, A(), 0);
             next = s.now + (l.tempest > 0 ? 6 : 4.5);
@@ -879,6 +942,7 @@ public partial class Soundscape
                 cost["p95Ms"] = Math.Round(frameCosts[(int)((frameCosts.Count - 1) * 0.95)], 4);
                 cost["p99Ms"] = Math.Round(frameCosts[(int)((frameCosts.Count - 1) * 0.99)], 4);
                 cost["framesOverBudget"] = frameCosts.Count(x => x > 0.3);
+                cost["overBudget"] = overBudget;
             }
             double maxAt = Convert.ToDouble(cost["maxAt_s"]);
             cost["maxDuring"] = items.FirstOrDefault(i => maxAt >= i.W0 - 0.05 && maxAt <= i.W1 + 0.35)?.Name ?? "the layers, or before the first row";
@@ -889,13 +953,13 @@ public partial class Soundscape
             var wetRow = items.Find(i => i.Name == "church: the organ");
             if (dry != null && wetRow != null && dry.T1 > 0)
                 measured["organ with the hall's echo, dB over the organ alone (browser: about 1.7)"] = Math.Round(D(Measure(wetRow.T0 + 4, wetRow.T1).rms) - D(Measure(dry.T0 + 4, dry.T1).rms), 1);
-            if (Convert.ToDouble(cost["meanMs"]) > 0.3) problems.Add($"the sound part costs {cost["meanMs"]} ms a frame on the main thread (budget 0.3)");
+            if (frameCosts.Any(x => x > 0.3)) problems.Add($"{cost["framesOverBudget"]} sound frames exceeded 0.3 ms (worst {cost["maxMs"]} ms; see cost.overBudget)");
             var outp = new Dictionary<string, object?>
             {
                 ["when"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
                 ["mixRate"] = s.mixRate,
                 ["recording"] = new Dictionary<string, object?> { ["file"] = "soundtest.wav", ["seconds"] = Math.Round(pcm.Length / 2.0 / Math.Max(1, rate), 1), ["rate"] = rate },
-                ["loaded"] = new Dictionary<string, object?> { ["recordings"] = s.buf.Count, ["steps"] = s.StepSamples, ["failed"] = s.failed.ToArray() },
+                ["loaded"] = new Dictionary<string, object?> { ["recordings"] = s.buf.Count, ["steps"] = s.StepSamples, ["failed"] = s.failed.ToArray(), ["decodedLevels"] = s.decodeLevels },
                 ["constants"] = new Dictionary<string, object?> { ["panMakeup"] = PanMakeup, ["godotCentre"] = GodotCentre, ["panStrength"] = PanStrength },
                 ["measured"] = measured,
                 ["cost"] = cost,

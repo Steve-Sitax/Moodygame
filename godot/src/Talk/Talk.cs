@@ -91,6 +91,8 @@ public partial class Talk : Node, IDialog
     public override void _ExitTree()
     {
         if (Dialogs.I is { } d) d.Resized -= Render;
+        // Kept between papers, the typing box can be outside every tree when the game ends.
+        if (GodotObject.IsInstanceValid(input) && input.GetParent() == null) input.Free();
         if (I == this) I = null;
     }
 

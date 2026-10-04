@@ -243,7 +243,9 @@ public partial class MpTest : Node
         // the guest: a second game, on this PC, with nothing but the host's address
         string exe = OS.GetExecutablePath();
         var info = new ProcessStartInfo { FileName = exe, UseShellExecute = false, CreateNoWindow = false };
-        foreach (string a in new[] { "--path", ProjectSettings.GlobalizePath("res://"), "--position", "120,120", "--", "--join", link.Server!.Url, "--seat", "2", "--port", "8967", "--no-ai", "--mptest", dir })
+        // Keep the guest's own server beside the test host's port, including after it leaves.
+        string guestPort = (new Uri(link.Server!.Url).Port + 1).ToString();
+        foreach (string a in new[] { "--path", ProjectSettings.GlobalizePath("res://"), "--log-file", Path.Combine(dir, "guest-engine.log"), "--position", "120,120", "--", "--join", link.Server.Url, "--seat", "2", "--port", guestPort, "--prefs", Path.Combine(dir, "guest-settings.json"), "--no-ai", "--mptest", dir })
             info.ArgumentList.Add(a);
         if (Main.I.Arg("town") != "")
         {
@@ -253,6 +255,7 @@ public partial class MpTest : Node
         foreach (string f in new[] { "mptest-guest.json", "mptest-guest-home.json", "mptest-start.json", "mptest.json", "mp_host.png", "mp_guest.png" }) File.Delete(Path.Combine(dir, f));
         info.ArgumentList.Add("--models");
         info.ArgumentList.Add(Models.ModelLibrary.Dir);
+        if (OS.GetCmdlineArgs().Contains("--verbose")) info.ArgumentList.Insert(0, "--verbose");
         other = Process.Start(info);
         if (other == null) return Fail("the second game did not start");
         if (OperatingSystem.IsWindows()) otherJob = WinJob.KillOnClose(other);
@@ -313,6 +316,8 @@ public partial class MpTest : Node
         doc["ok"] = true;
         File.WriteAllText(Path.Combine(dir, "mptest-guest.json"), JsonSerializer.Serialize(doc, new JsonSerializerOptions(Api.Json) { WriteIndented = true }));
         // home again: his own game (the scene loads again, his own server starts)
+        // Fill the hands' resident cache too; after reload it must read the new town's bodies.
+        _ = Scheldemist.Play.Folk.Near(0, 0, 10_000).Count();
         Jef.I.ClearKeys();
         tg.Leave();
         return true;
@@ -324,10 +329,23 @@ public partial class MpTest : Node
         if (ServerLink.I is not { } link) return Fail("no link");
         if (!await Until(() => (st.Live && link.Up) || link.Error != "", 110) || link.Error != "") return Fail(link.Error != "" ? link.Error : "no first state at home");
         await Frames(30);
+        doc["home_people"] = Scheldemist.Play.Folk.Near(0, 0, 10_000).Count();
+        // A scene reload must also replace the cached source of new walking bodies.
+        var body = People.Humans.Make("clerk");
+        if (body == null) return Fail("no player body after going home");
+        Main.I.View.AddChild(body.Root);
+        body.Start();
+        body.Update(1f / 60);
+        await Frames(2);
+        bool bodyOk = GodotObject.IsInstanceValid(body.Root) && body.Motion == "idle";
+        doc["home_body"] = bodyOk;
+        body.Dispose();
+        if (!bodyOk) return Fail("the body after going home did not animate");
+
         doc["server"] = new Dictionary<string, object?> { ["url"] = link.Server?.Url, ["own"] = link.Server?.Own, ["guest"] = link.Api!.Guest };
         doc["together"] = Together.I?.On;
         doc["name"] = st.PlayerName;
-        return link.Server is { Own: true } && !link.Api.Guest;
+        return link.Server is { Own: true } && !link.Api.Guest && Together.I?.On != true && st.Money == 50;
     }
 
     private void StopOther()

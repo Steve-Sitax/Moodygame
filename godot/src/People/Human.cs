@@ -74,6 +74,16 @@ public static class Humans
 
     public static double LoadMs => model?.LoadMs ?? 0;
 
+    /// <summary>The town is leaving: the model library frees its sources, so no old body may be copied again.</summary>
+    public static void Forget()
+    {
+        model = null;
+        clips = null;
+        tried = false;
+        Scale.Clear();
+        ClipLength.Clear();
+    }
+
     private static void Load()
     {
         tried = true;

@@ -9,6 +9,9 @@ at the restart; nothing was pushed or merged back.
   calls are retained. Pause has one owner (`Menu.Pause`); pushes wait during pause and the server is told again
   after reconnection, also in runs without the menus.
 - Night, waking, midnight, rent and the week's ending use `Scheldemist.Windows`, the game window stack.
+  After integration, `Game/DaySheets.cs` is their only owner. `Play/Day.cs` keeps the chooser, active rest
+  and fade; it sets `SleepShown` while resting and says that rest's wake lines itself. Midnight's words
+  during a chosen sleep are kept for waking, as in the browser's `day.ts`.
 - Godot hosts and guests use the unchanged server and protocol 5. Local walking is local; the received batches
   only position other players. Player profiles, money, needs and jobs come through each player's token.
 - Other players have bodies from `people.glb`, motion and name tags. Each has the browser's jitter buffer:
@@ -84,7 +87,28 @@ reconstruction and carried-goods placement need the owning transport/goods parts
 
 Bodies currently choose a man or woman from the appearance code; the full browser clothing palette is not yet
 applied. This run checked a LAN-capable menu and loopback joining; another physical PC and bad-line Godot
-movement were not exercised. Normal test exits retain the existing Godot native resource-leak notices.
+movement were not exercised. The original exits retained Godot native resource-leak notices; the fixes
+branch traced these to the reusable talk input kept outside the tree and frees it at exit.
+
+Returning home reloads the scene. `Folk` kept the old town and resident index: `Interact._Process` called
+`Folk.Near`, which read a freed street body's position. `Townspeople._ExitTree` now clears that cache before
+disposing the crowd, and also clears the `Humans` body/animation cache before freeing the model library:
+otherwise a later `Humans.Make` duplicates a disposed source node. The two-player test fills and rereads the
+resident cache across the reload, and creates and animates a fresh body after returning home. Its guest port
+follows the host test's port, and its settings and engine log stay in the test folder.
+`Paths.Initialize` now selects the same disposable host/guest database as `ServerLink`: the merged download
+paths had otherwise ignored that test choice. The home check also requires solo play and the fresh player's
+50 centimes, so sharing the host's database cannot pass.
+
+The post-merge fixes run on 2026-10-04 passed `mptest`, `nettest`, all 67 `menutest` checks,
+`daytest` and all 17 `jobtest` steps on the same build. Evidence is in the ignored
+`godot/baked/fixes-proof/<test>/` folders. The multiplayer host used 8944; the guest returned to its own
+server on 8945, read the new residents and animated a fresh body. Both camera-snap counters were zero.
+Net checked first state by call and push, pause holding, resumed pushes and 14 town-map reports.
+Day checked one night paper, closing it, rent, midnight and an ending that stays open on Esc.
+All final logs, including the guest engine log, had no ERROR lines, disposed-object exceptions or leaks.
+Each run had a timeout and ran alone. `SCHELDEMIST_MAP_PORT=8948` kept the map inside the test port range;
+the guest's map stayed off while that port was taken. Test databases were deleted and all test processes stopped.
 
 ## Shared files
 

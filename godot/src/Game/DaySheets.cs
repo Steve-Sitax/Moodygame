@@ -65,6 +65,7 @@ public partial class DaySheets : Node, IDialog
         st.Woke += OnWoke;
         st.Changed += OnState;
         if (Dialogs.I != null) Dialogs.I.Resized += Render;
+        if (Scheldemist.Menu.MainMenu.I is { } menu) menu.WorldReplaced += WorldReplaced;
         // his own end comes as a push too (the epilogue once it is written)
         ServerLink.I?.WhenUp(() => ServerLink.I!.Api!.OtherPushed += OnPush);
     }
@@ -77,6 +78,7 @@ public partial class DaySheets : Node, IDialog
         st.Woke -= OnWoke;
         st.Changed -= OnState;
         if (Dialogs.I != null) Dialogs.I.Resized -= Render;
+        if (Scheldemist.Menu.MainMenu.I is { } menu) menu.WorldReplaced -= WorldReplaced;
         if (ServerLink.I?.Api is { } api) api.OtherPushed -= OnPush;
         Drop();
         if (I == this) I = null;
@@ -91,6 +93,8 @@ public partial class DaySheets : Node, IDialog
         else if (p.Ending == null && Shown == "end") Close();
     }
 
+    private void WorldReplaced(string how, ClientState? client) => Close();
+
     private void OnPush(PushMsg m)
     {
         if (m.Type != "ending") return;
@@ -103,7 +107,8 @@ public partial class DaySheets : Node, IDialog
     {
         var parts = new List<string> { $"Midnight. {(GameState.I.Live ? GameState.I.Weekday : "A new day")} begins. New work goes up on the board." };
         parts.AddRange(t.Lines);
-        GameState.I.Say(string.Join(" ", parts));
+        // The chosen sleep already carries midnight's words in its wake lines (day.ts restTick).
+        if (!SleepShown) GameState.I.Say(string.Join(" ", parts));
         Midnight?.Invoke(t);
     }
 
@@ -132,6 +137,7 @@ public partial class DaySheets : Node, IDialog
 
     private void Open(string kind)
     {
+        Scheldemist.Play.Jobs.I?.CloseBoard();
         Shown = kind;
         GameState.I.Hold = true;
         Dialogs.I?.Open(this);

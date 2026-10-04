@@ -14,6 +14,47 @@ opening probes are diagnostic). Findings handed off as issues
 [#46](https://github.com/Steve-Sitax/Moodygame/issues/46).
 Build/import and pre-commit checks pass; all 22 local pictures inspected. Full numbers, coverage limits
 and shared-file audit: [G8 report](godot-G8-checks.md).
+## Godot merge fixes, 2026-10-04
+
+On `godot/fixes`, based on `godot-port` at `5fa227e`, fixed the two merged regressions without changing
+server rules or numbers. `Day` and `DaySheets` both opened the tick's night: E closed the top paper but
+left the other paper holding the clock and Jef. `Day` now owns chosen sleep, its chooser and fade;
+`DaySheets` owns tick night/waking/midnight/ending and rent. Chosen sleep marks `SleepShown` until its
+wake lines have been said. Named day/reset handlers are disconnected on exit.
+
+The two disposed-object errors came from `Interact._Process` through `Jobs.Keys` into `Folk.Near`,
+which read a freed street body's position after the guest left Together. The resident cache is cleared
+before the crowd is freed. The new body-after-home check also exposed `Humans.Make` copying a freed
+model source; the body/animation cache is cleared before the model library is freed. The multiplayer
+test fills and rereads the resident cache across reload and creates and animates a new body afterward.
+
+The shutdown RID/ObjectDB leaks were the reusable talk `LineEdit` left outside the tree. It is freed
+on exit when detached, clearing [issue #40](https://github.com/Steve-Sitax/Moodygame/issues/40) in all
+final checks. The merged download paths also bypassed the multiplayer test's database choice;
+`Paths` now chooses separate disposable host/guest saves. Home requires solo play and a fresh player.
+The guest port follows the host's test port; its settings and engine log stay in the test folder.
+The server launcher respects the existing map-port environment override for isolated checks.
+
+Final checks ran one at a time with timeouts, fresh test saves and isolated user/settings folders,
+using game ports within 8940-8949 and map port 8948:
+
+| Check | Result |
+|---|---|
+| `dotnet build godot` | Passed; existing `Townspeople.cs` nullable warning remains |
+| Headless import | Passed |
+| `npm run build` | Passed |
+| `jobtest` | 17/17, 35 pictures, 224.1 s; 240 minutes chosen sleep; zero warning and fatigue 0.75 |
+| `mptest` | Passed; new residents/body at home, solo server, no camera snaps |
+| `menutest` | 67 checks, no failures |
+| `nettest` | Passed; call/push, pause/resume, 14 map reports |
+| `daytest` | Passed; one night paper, close, rent, midnight, ending survives Esc |
+
+The jobs frame check measured 2.79 ms mean and 3.52 ms p95. Final logs, including the multiplayer
+guest's engine log, had no ERROR lines, disposed-object exceptions or resource-leak warnings.
+The collapse/waking, walking pair, menu and ending pictures were inspected. Evidence stays outside
+git in `godot/baked/fixes-proof/`. Test databases were deleted; no test processes or listeners remain.
+Server dependencies were installed in this worktree with npm, without junctions. No push or merge.
+Ownership and causes are documented in [jobs](godot-jobs.md), [net](godot-net.md) and the Godot README.
 
 ## Godot jobs restart, 2026-10-04
 
@@ -313,6 +354,29 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 | a1dbf4b | Shop walls: plaster that does not shimmer |
 
 Earlier batches: the git log before f5291a4 and the milestone notes in `docs/milestones/`.
+
+## Godot sound: remove first-use hitches (2026-10-04)
+
+Merged `godot-port` into `godot/sound` first, fast-forward to `d16f387`, then fixed
+[#41](https://github.com/Steve-Sitax/Moodygame/issues/41) entirely in the sound worktree. Recordings are decoded
+on a loading worker; constant synth beds, player pools, runtime methods/constructors and native first-use paths
+are prepared before readiness. Dynamic graph construction runs on the render worker. The completion queue
+publishes complete callbacks without a producer wait on the frame thread, and preserves FIFO ordering.
+
+The stricter sound test includes gameplay triggers and weather activation. Final silent run on port 8885:
+28,473 frames, mean 0.0270 ms, p99 0.0581 ms, worst 0.268 ms, **zero above 0.3 ms** (earlier worst 7.205 ms,
+11 above budget). All 156 sound rows and 62 wiring checks pass, including 4,096 callbacks from four workers.
+All 70 decoded recording peaks/RMS match at displayed rounding; largest actual peak error 0.000497 dB.
+Above-full-scale thunder headroom is preserved; the existing short PCM remains unchanged. Configured gains
+match the earlier JSON. Unseeded measured peaks differ between identical runs too; every literal difference
+is retained instead of claiming exact repeatability. Full investigation and before-frame list:
+[sound report](godot-port-sound.md); local evidence in `godot/baked/soundtest-release/`.
+
+`dotnet build godot`, `npm run build` and the sample/budget comparison checker pass. Existing warnings remain.
+No shaders, models, sound assets, synthesis graphs or browser code changed. Owned test processes stopped.
+Automatic approval review rejected deletion of the generated test SQLite files as "blocked by policy"
+without a more specific reason; those ignored files remain in the soundtest evidence directories.
+Commit only; no push or integration merge after the initial requested merge.
 
 ## Rules added today (in CLAUDE.md)
 

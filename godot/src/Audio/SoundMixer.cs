@@ -1,7 +1,9 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using Godot;
 
 namespace Scheldemist.Audio;
@@ -89,6 +91,50 @@ public partial class Soundscape
     private readonly Stack<AudioStreamPlayer3D> free3d = new();
     private readonly Stack<AudioStreamPlayer> free2d = new();
     private int made3d, made2d;
+
+    /// <summary>Compile the audio paths during loading, including first-use graph builders and timer closures.</summary>
+    private static void WarmCode()
+    {
+        foreach (var type in typeof(Soundscape).Assembly.GetTypes())
+        {
+            if (type.Namespace != typeof(Soundscape).Namespace || type.ContainsGenericParameters) continue;
+            foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+                if (!method.IsAbstract && !method.ContainsGenericParameters && method.GetMethodBody() != null)
+                    RuntimeHelpers.PrepareMethod(method.MethodHandle);
+            foreach (var ctor in type.GetConstructors(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static))
+                if (ctor.GetMethodBody() != null) RuntimeHelpers.PrepareMethod(ctor.MethodHandle);
+        }
+    }
+
+    /// <summary>No scene nodes or native player initialization when a sound first plays.</summary>
+    private void WarmPlayers()
+    {
+        var silence = new AudioStreamWav { Format = AudioStreamWav.FormatEnum.Format8Bits, MixRate = 8000, Data = new byte[256] };
+        for (int i = 0; i < 128; i++)
+        {
+            var p = Take3d();
+            p.Stream = silence;
+            p.VolumeDb = -100;
+            p.Play();
+            p.Stop();
+            warmed3d.Add(p);
+        }
+        foreach (var p in warmed3d) free3d.Push(p);
+        warmed3d.Clear();
+        for (int i = 0; i < 48; i++)
+        {
+            var p = Take2d();
+            p.Stream = silence;
+            p.VolumeDb = -100;
+            p.Play();
+            p.Stop();
+            warmed2d.Add(p);
+        }
+        foreach (var p in warmed2d) free2d.Push(p);
+        warmed2d.Clear();
+    }
+    private readonly List<AudioStreamPlayer3D> warmed3d = new(128);
+    private readonly List<AudioStreamPlayer> warmed2d = new(48);
 
     private int AddBus(string name, string send, double gain = 1, params AudioEffect[] fx)
     {
@@ -186,7 +232,11 @@ public partial class Soundscape
         AddChild(flatHolder);
     }
 
-    private static string Cap(string k) => char.ToUpperInvariant(k[0]) + k[1..];
+    private static string Cap(string k) => k switch
+    {
+        "ambience" => "Ambience", "voices" => "Voices", "music" => "Music", "effects" => "Effects",
+        _ => char.ToUpperInvariant(k[0]) + k[1..],
+    };
     private static readonly string[] Kinds = { "ambience", "voices", "music", "effects" };
 
     /// <summary>A kind's bus: the street's, or the room's while Indoors runs.</summary>
@@ -220,7 +270,7 @@ public partial class Soundscape
     {
         public AudioStream Stream = null!;
         public string What = "";
-        public double Gain = 1, Pitch = 1, From, Start, Len = double.PositiveInfinity;
+        public double Gain = 1, StreamScale = 1, Pitch = 1, From, Start, Len = double.PositiveInfinity;
         public Env? Env;
         /// <summary>A level that follows a target (the browser's setTargetAtTime on a gain).</summary>
         public double Level = 1, LevelT = 1, LevelTau = 0.5;
@@ -388,7 +438,7 @@ public partial class Soundscape
     /// <summary>Add a stream to a place. `delay` s from now; `len` s it plays (real seconds), after which it is freed.</summary>
     private V Add(Spot sp, AudioStream stream, string what, double gain, double pitch = 1, double from = 0, double len = double.PositiveInfinity, double delay = 0, Env? env = null, double rawPeak = -1)
     {
-        var v = new V { Stream = stream, What = what, Gain = gain, Pitch = pitch, From = from, Start = now + Math.Max(0, delay), Len = len, Env = env, RawPeak = rawPeak };
+        var v = new V { Stream = stream, What = what, Gain = gain, StreamScale = recordingScales.GetValueOrDefault(stream, 1), Pitch = pitch, From = from, Start = now + Math.Max(0, delay), Len = len, Env = env, RawPeak = rawPeak };
         sp.Voices.Add(v);
         sp.Had = true;
         if (delay <= 0) Begin(sp, v);
@@ -397,6 +447,7 @@ public partial class Soundscape
 
     private void Begin(Spot sp, V v)
     {
+        frameSound = v.What;
         v.Started = true;
         v.Start = now;
         // (the gain by distance is right from the first sample: a place made this frame has not been through MixTick yet)
@@ -460,7 +511,7 @@ public partial class Soundscape
         p.Bus = bus;
     }
 
-    private double VoiceGain(Spot sp, V v) => v.Gain * (v.Env?.At(now - v.Start) ?? 1) * v.Level * sp.Level * sp.Fog * sp.Pan;
+    private double VoiceGain(Spot sp, V v) => v.Gain * v.StreamScale * (v.Env?.At(now - v.Start) ?? 1) * v.Level * sp.Level * sp.Fog * sp.Pan;
 
     private void Volumes(Spot sp, V v, bool first = false)
     {
@@ -566,7 +617,49 @@ public partial class Soundscape
 
     // ------------------------------------------------------------------ made sounds: from a graph to a player
 
-    private readonly ConcurrentQueue<Action> ready = new();
+    // Publish fully initialized nodes. ConcurrentQueue.TryDequeue can spin behind a producer that has reserved
+    // a slot but not published it yet; a preempted render worker must never make the frame thread wait.
+    private sealed class ReadyQueue
+    {
+        private sealed class Work
+        {
+            public readonly Action Fn;
+            public Work? Next;
+            public Work(Action fn) => Fn = fn;
+        }
+        private Work? published, pending;
+        public void Enqueue(Action fn)
+        {
+            var work = new Work(fn);
+            Work? before;
+            do
+            {
+                before = Volatile.Read(ref published);
+                work.Next = before;
+            } while (Interlocked.CompareExchange(ref published, work, before) != before);
+        }
+        // One consumer (the frame thread). Reverse each detached batch to preserve publication order.
+        // No lock, spin or wait on a producer on this side; a not-yet-published callback waits for another frame.
+        public bool TryDequeue(out Action fn)
+        {
+            if (pending == null)
+            {
+                var batch = Interlocked.Exchange(ref published, null);
+                while (batch != null)
+                {
+                    var next = batch.Next;
+                    batch.Next = pending;
+                    pending = batch;
+                    batch = next;
+                }
+            }
+            if (pending == null) { fn = null!; return false; }
+            fn = pending.Fn;
+            pending = pending.Next;
+            return true;
+        }
+    }
+    private readonly ReadyQueue ready = new();
     private int mixRate = 44100;
     /// <summary>Renders asked for and not yet in (dev: Graph).</summary>
     private int rendering;
@@ -605,25 +698,12 @@ public partial class Soundscape
     }
 
     /// <summary>
-    /// Build a made sound's graph now (the same calls as the browser), render it on a worker thread, and play it at
-    /// the place when it is in. The recordings it asks for beside it (Wa.Extras) start at once. Returns the length the
-    /// maker gave.
+    /// Build and render a made sound's graph on a worker. Start its recordings at the original requested times
+    /// when the graph is ready, and its buffer when rendered. `built` receives the maker's length on the main thread.
     /// </summary>
-    private double MadeAt(Spot sp, Make make, string what, double gain = 1, double tail = 0.1, double delay = 0)
+    private void MadeAt(Spot sp, Make make, string what, double gain = 1, double tail = 0.1, double delay = 0, Action<double>? built = null)
     {
-        var c = NewCtx();
-        double len = make(c, c.Destination, 0);
-        foreach (var e in c.Extras)
-        {
-            if (!buf.TryGetValue(e.Sample, out var s)) continue;
-            double real = Math.Min(e.Secs, Math.Max(0, s.GetLength() - e.From)) / e.Rate;
-            if (real <= 0) continue;
-            double f = Math.Min(e.Fade, real / 2);
-            var env = f > 0 ? new Env((0, 0), (f, 1), (Math.Max(f, real - f), 1), (real, 0)) : null;
-            if (e.Lowpass > 0) sp.SrcLp = Math.Min(sp.SrcLp, e.Lowpass);
-            Add(sp, s, e.Sample, gain * e.Gain, e.Rate, e.From, real, delay + e.At, env);
-        }
-        if (!c.Destination.HasInputs) return len;
+        frameSound = what;
         sp.Pending++;
         rendering++;
         double t0 = now;
@@ -632,7 +712,25 @@ public partial class Soundscape
             (AudioStreamWav? stream, double scale, double seconds, double peak) r = default;
             try
             {
-                r = ToWav(c.Render(len + tail), c.Rate);
+                // Graph construction allocates nodes and timelines too, so it belongs beside rendering.
+                var c = NewCtx();
+                double len = make(c, c.Destination, 0);
+                if (built != null || c.Extras.Count > 0) ready.Enqueue(() =>
+                {
+                    if (sp.Dropped) return;
+                    built?.Invoke(len);
+                    foreach (var e in c.Extras)
+                    {
+                        if (!buf.TryGetValue(e.Sample, out var s)) continue;
+                        double real = Math.Min(e.Secs, Math.Max(0, s.GetLength() - e.From)) / e.Rate;
+                        if (real <= 0) continue;
+                        double f = Math.Min(e.Fade, real / 2);
+                        var env = f > 0 ? new Env((0, 0), (f, 1), (Math.Max(f, real - f), 1), (real, 0)) : null;
+                        if (e.Lowpass > 0) sp.SrcLp = Math.Min(sp.SrcLp, e.Lowpass);
+                        Add(sp, s, e.Sample, gain * e.Gain, e.Rate, e.From, real, Math.Max(0, delay + e.At - (now - t0)), env);
+                    }
+                });
+                if (c.Destination.HasInputs) r = ToWav(c.Render(len + tail), c.Rate);
             }
             catch (Exception e)
             {
@@ -646,7 +744,6 @@ public partial class Soundscape
                 Add(sp, r.stream, what, gain * r.scale, 1, 0, r.seconds + 0.02, Math.Max(0, delay - (now - t0)), null, r.peak);
             });
         });
-        return len;
     }
 
     /// <summary>A bed that never changes, rendered once as a loop: `seconds` long, the last second crossfaded into the first.</summary>

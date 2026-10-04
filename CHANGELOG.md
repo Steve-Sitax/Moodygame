@@ -15,17 +15,14 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - The Godot job arrow and its distance stay clear of the clock and job cards.
 
 ### New in the game
-<<<<<<< HEAD
 - In Godot, visiting family members use the server's names and daily plans, and Zelie's fortune-telling table has its cloth, cards and stool.
 - The Godot version has doorstep cats and stray dogs, dogs following their owners, and park birds that move away, then fly when pressed. Doorstep chores and children's games follow the town's daily plans.
 - The Godot version draws the server's occupants in the five landmark halls, with their seats and shared floor plans, and provides room visitors for the homes part.
 - In Godot, market stalls and shop tables put their goods out while their keepers work, then roll up the awning and cover the table. Shop tables fit beside the door without passing the house corner.
-=======
 - In the Godot port, jobs use the shared paper windows, people, pockets and map. The quest book follows work in hand, and sleep has its own chooser. Goods use the decoded models and survive a loaded save or new week. Trouble on a job offers the server's choices and extra errands.
 - The Godot game has the harbour's soundscape, footsteps, made voices and room echoes. Its clock, rain, townspeople, speech bubbles and dice feed the sound, and the Sound settings control the mix.
 - The Godot handbill has a Together paper for hosting, joining with an address and code, and going home.
 - Godot players can host and join a shared town, see each other walking with names and gear, and return to their own game. Each player keeps their own money and needs.
->>>>>>> godot-port
 - The back neighbourhoods have a bakery, grocer and cobbler, plus In de Linde and De Zwarte Kat. The latter welcomes players trusted by the smugglers; outsiders are warned to leave and refused service.
 - Ivy and red autumn Virginia creeper climb the town wall's inner face, along the Stadspark and the streets behind the wall.
 - Daylight has shadow play: the houses throw shadows into the streets and onto the squares, narrow lanes are dimmer at their foot, and people, carts and drays have a soft shadow under them. The sun follows its real October path, from the south-east in the morning to the west in the evening. On fog days the light stays soft.
@@ -51,7 +48,10 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - In the Carolus the round windows over the side doors and the front's middle windows show whole from inside the aisles ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
 
 ### Changed
+- Godot collapse and week-ending papers have one owner: getting up closes the night completely, and chosen sleep says its wake lines once.
+- Returning home from a Godot Together game clears the old resident and people-model caches before using fresh bodies. The reusable talk input is freed at shutdown, clearing the scripted tests' resource leaks ([#40](https://github.com/Steve-Sitax/Moodygame/issues/40)).
 - The Godot job test now checks the quest book, map, restored goods, talk, drinking, trouble choices and extra errands, and records server state and goods replies beside its pictures.
+- The Godot multiplayer check uses separate disposable host and guest saves, including when the guest returns home.
 - Godot hosting opens to the home network by default, including the `--host` shortcut.
 - Godot night, waking and week-ending papers use the shared game window stack alongside the menus.
 - Lamps and lanterns no longer wear big orange circles: a small soft glow at the glass. The omnibus's carriage lamps now light the street and the house fronts as it drives by.
@@ -60,6 +60,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - The lower parts of the cathedral's aisle windows, behind the houses built against it, are walled up instead of painted ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
 
 ### Fixed
+- In the Godot port, sound recordings, player pools and first-use audio work are prepared while the town loads, so a bell, voice, loop or storm does not hitch the first walk ([#41](https://github.com/Steve-Sitax/Moodygame/issues/41)).
 - Townspeople no longer stand inside each other. Dockers waiting by Het Schipke stood in one another, sacks through the next man: a dock crane parked over their way counted as a solid block, so they found no path and waited on one spot. People now walk under the cranes, step apart when they meet on one spot, keep more room with a sack, and never appear inside someone else.
 - Café chairs face their tables from the aisle side, with space to leave the long bench; standing customers also take walking breaks.
 - Adding the backstreet businesses to an older town preserves occupied households and cannot prevent that save from opening.

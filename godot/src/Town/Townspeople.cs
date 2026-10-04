@@ -316,8 +316,10 @@ public partial class Townspeople : Node
     public override void _ExitTree()
     {
         http?.Dispose();
+        Scheldemist.Play.Folk.Forget();
         Crowd?.Dispose();
         Indoors?.Dispose();
+        Humans.Forget();
         Models.ModelLibrary.FreeAll();
     }
 
