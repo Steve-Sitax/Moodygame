@@ -27,10 +27,12 @@ public partial class FamilyScenes : Node
     private LineEdit input = null!;
     private ColorRect veil = null!;
     private Label veilText = null!;
-    private string dream = "";
+    private string dream = "", waitingDream = "";
+    private double dreamWait;
     public override void _Ready()
     {
         I = this;
+        if (DaySheets.I != null) DaySheets.I.NightOpened += PutDream;
         ProcessPriority = 950; // after Wiring: a focused reply field keeps Jef still
         town = GetParent().GetNodeOrNull<Townspeople>("Townspeople");
         if (FamilyPeople.I != null) FamilyPeople.I.ActionReceived += Apply;
@@ -67,11 +69,12 @@ public partial class FamilyScenes : Node
         if (state.TryGetProperty("dream", out var incoming))
         {
             string? next = incoming.ValueKind == JsonValueKind.String ? incoming.GetString() : incoming.ValueKind == JsonValueKind.Object && incoming.TryGetProperty("text", out var text) ? text.GetString() : null;
-            if (!string.IsNullOrEmpty(next) && next != dream) { dream = next; GameState.I.Say("You dreamt: " + dream); }
+            if (!string.IsNullOrEmpty(next) && next != dream) { dream = next; waitingDream = next; dreamWait = 120; PutDream(); if (waitingDream != "") GameState.I.Say("You dreamt: " + dream); }
         }
     }
+    private void PutDream() { if (waitingDream != "" && DaySheets.I?.PutDream(waitingDream) == true) waitingDream = ""; }
     private void Veil(string text) { veil.Visible = true; veilText.Text = text; veilLeft = 6 + text.Length / 40.0; }
-    private void Replaced(string how, ClientState? client) { End(""); veil.Visible = false; dream = ""; }
+    private void Replaced(string how, ClientState? client) { End(""); veil.Visible = false; dream = waitingDream = ""; dreamWait = 0; }
     private void End(string text, string outcome = "")
     {
         if (menace == 0) return;
@@ -94,6 +97,7 @@ public partial class FamilyScenes : Node
     }
     public override void _Process(double delta)
     {
+        if (waitingDream != "") { if ((dreamWait -= delta) <= 0) waitingDream = ""; else PutDream(); }
         if (typing && Scheldemist.Player.Jef.I is { } player) player.Frozen = true;
         if (veil.Visible && (veilLeft -= delta) <= 0) veil.Visible = false;
         if (menace == 0 || asking || Scheldemist.Player.Jef.I is not { } j) return;
@@ -112,5 +116,5 @@ public partial class FamilyScenes : Node
         else if (!typing && key.Keycode == Key.T) { typing = true; typeLeft = 45; input.Text = ""; input.Visible = true; input.GrabFocus(); GetViewport().SetInputAsHandled(); }
         else if (!typing && key.Keycode == Key.P && demand > 0) { Answer("pay"); GetViewport().SetInputAsHandled(); }
     }
-    public override void _ExitTree() { GetViewport().SizeChanged -= Layout; if (FamilyPeople.I != null) FamilyPeople.I.ActionReceived -= Apply; if (Scheldemist.Menu.MainMenu.I != null) Scheldemist.Menu.MainMenu.I.WorldReplaced -= Replaced; panel.QueueFree(); veil.QueueFree(); if (I == this) I = null; }
+    public override void _ExitTree() { if (DaySheets.I != null) DaySheets.I.NightOpened -= PutDream; GetViewport().SizeChanged -= Layout; if (FamilyPeople.I != null) FamilyPeople.I.ActionReceived -= Apply; if (Scheldemist.Menu.MainMenu.I != null) Scheldemist.Menu.MainMenu.I.WorldReplaced -= Replaced; panel.QueueFree(); veil.QueueFree(); if (I == this) I = null; }
 }

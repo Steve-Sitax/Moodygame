@@ -40,6 +40,15 @@ public partial class DaySheets : Node, IDialog
     /// <summary>The words on the paper now, for the checks.</summary>
     public IReadOnlyList<string> Lines => lines;
 
+    /// <summary>Families may attach the server's dream to the open night paper.</summary>
+    public event Action? NightOpened;
+    private string nightDream = "";
+    public bool PutDream(string text)
+    {
+        if (Shown != "night") return false;
+        nightDream = text; Render(); return true;
+    }
+
     private Sheet? sheet;
     private ColorRect? dim;
     private Night? night;
@@ -147,6 +156,7 @@ public partial class DaySheets : Node, IDialog
     {
         Shown = "none";
         night = null;
+        nightDream = "";
         endShown = null;
         GameState.I.Hold = false;
         Dialogs.I?.Close(this);
@@ -166,6 +176,7 @@ public partial class DaySheets : Node, IDialog
         night = n;
         Open("night");
         Render();
+        NightOpened?.Invoke();
     }
 
     private void ShowEnd(Ending e)
@@ -224,6 +235,7 @@ public partial class DaySheets : Node, IDialog
             lines.Add(where);
             sh.Text(Css.Esc(where), Face.Hand, 13, 0.7f, bottom: 12);
             foreach (string l in n.Summary) Para(l);
+            if (nightDream != "") Para("You dream. " + nightDream, 0.9f, true);
             sh.Keys(n.Ended != null ? "E or Esc  go on" : "E or Esc  get up", Face.Print, top: 12, bottom: 0);
         }
         else if (endShown is { } e)

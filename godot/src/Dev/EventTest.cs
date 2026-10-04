@@ -178,6 +178,7 @@ public partial class EventTest : Node
                 GD.Print("eventtest finished " + kind);
             }
             if (only.Length == 0 || only.Contains("family_ui")) await FamilyUi();
+            if (only.Length == 0 || only.Contains("dreams")) await Dreams();
         }
         catch (Exception e) { failures.Add(current + ": " + e); GD.PrintErr(e); }
         finally
@@ -187,11 +188,28 @@ public partial class EventTest : Node
             double mean = costs.Count == 0 ? 0 : costs.Average(), p95 = costs.Count == 0 ? 0 : costs[(int)((costs.Count - 1) * 0.95)];
             if (costs.Count > 0) Check(mean < 0.5, "events and actors exceed 0.5 ms mean: " + mean);
             if (allocations.Count > 0) Check(allocations[(int)((allocations.Count - 1) * 0.95)] == 0, "steady frames allocate managed memory");
-            File.WriteAllText(Path.Combine(dir, "eventtest.json"), JsonSerializer.Serialize(new { ok = failures.Count == 0, failures, stages = rows, frame = new { count = costs.Count, meanMs = mean, p95Ms = p95, maxMs = costs.Count == 0 ? 0 : costs[^1], meanBytes = allocations.Count == 0 ? 0 : allocations.Average(), p95Bytes = allocations.Count == 0 ? 0 : allocations[(int)((allocations.Count - 1) * 0.95)] }, notCovered = new[] { "AI-invented event content (no AI in this test)", "Multiplayer ownership and actual omnibus attendance", "Full indoor ceremony choreography and exit walks", "Persistent soot, lamplighter rounds and night-sheet dreams", "Individual player-requested actions and family menace choices" } }, new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(Path.Combine(dir, "eventtest.json"), JsonSerializer.Serialize(new { ok = failures.Count == 0, failures, stages = rows, frame = new { count = costs.Count, meanMs = mean, p95Ms = p95, maxMs = costs.Count == 0 ? 0 : costs[^1], meanBytes = allocations.Count == 0 ? 0 : allocations.Average(), p95Bytes = allocations.Count == 0 ? 0 : allocations[(int)((allocations.Count - 1) * 0.95)] }, notCovered = new[] { "AI-invented event content (no AI in this test)", "Multiplayer ownership and actual omnibus attendance", "Full indoor ceremony choreography and exit walks", "Persistent soot and lamplighter rounds", "Individual player-requested actions and family menace choices" } }, new JsonSerializerOptions { WriteIndented = true }));
             GD.Print("eventtest wrote " + dir + " failures=" + failures.Count);
             GetTree().Quit(failures.Count == 0 ? 0 : 1);
         }
     }
+    private async Task Dreams()
+    {
+        current = "dreams";
+        void Push(string text) { using var doc = JsonDocument.Parse(JsonSerializer.Serialize(new { dream = text })); FamilyPeople.I!.ActionReceived?.Invoke(doc.RootElement); }
+        Push("The river carries a small light.");
+        GameState.I.Apply(new TickReply { Night = new Night { Where = "rough", Summary = new() { "You sleep beneath a tarpaulin." } } });
+        await Frames(3);
+        Check(DaySheets.I!.Lines.Contains("You dream. The river carries a small light."), "waiting dream missing from night paper");
+        Push("The bells sound across the water."); await Frames(3);
+        Check(DaySheets.I.Lines.Count(x => x.StartsWith("You dream.")) == 1 && DaySheets.I.Lines.Contains("You dream. The bells sound across the water."), "open paper did not replace dream once");
+        await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+        GetViewport().GetTexture().GetImage().SavePng(Path.Combine(dir, "night-dream.png"));
+        DaySheets.I.OnKey("Escape", "Escape"); await Frames(2);
+        Check(DaySheets.I.Shown == "none", "dream kept night paper open");
+        rows.Add(new { kind = "dreams", waiting = true, replacement = true, closed = true, presentationFixtures = true });
+    }
+
     private async Task FamilyUi()
     {
         current = "family_ui";
