@@ -51,7 +51,8 @@ async function run(exe, argv, limit, logFile, environment = {}) {
     console.log("PERF-LOCK present; no Godot run started; checking again in 60 seconds");
     await pause(60000);
   }
-  const child = spawn(exe, argv, { cwd: root, windowsHide: true, stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, ...environment } });
+  const driver = opt("driver", "");
+  const child = spawn(exe, exe === godot && driver && !argv.includes("--headless") ? ["--rendering-driver", driver, ...argv] : argv, { cwd: root, windowsHide: true, stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, ...environment } });
   children.add(child);
   let text = "", timedOut = false;
   child.stdout.on("data", b => { text += b; }); child.stderr.on("data", b => { text += b; });
@@ -138,7 +139,7 @@ try {
       // Never accept an old report if this run fails before writing one.
       rmSync(path.join(dir, name + ".json"), { force: true });
       if (name === "peopletest" && await run(process.execPath, [path.join(root, "tools/godot/wherecheck.mjs"), "--server", url, "--out", path.join(dir, "where_expected.json")], 120000, path.join(dir, "reference.log"))) throw new Error("whereabouts reference failed");
-      const code = await run(godot, ["--audio-driver", "Dummy", "--path", path.join(root, "godot"), "--", "--town", town, "--models", models, "--server", url, "--port", String(ownPort), "--db", database, "--no-ai", "--dev", "--hour", "13", "--weather", "clear", "--no-mainmenu", "--prefs", path.join(scratch, "prefs.json"), `--${name}`, dir, ...extraArgs], timeout, path.join(dir, "run.log"), { SCHELDEMIST_USER_DATA: path.join(scratch, "user"), SCHELDEMIST_MAP_PORT: "0" });
+      const code = await run(godot, ["--audio-driver", "Dummy", "--path", path.join(root, "godot"), "--", "--town", town, "--models", models, "--server", url, "--port", String(ownPort), "--db", database, "--no-ai", "--dev", "--hour", "13", "--weather", "clear", ...(name === "ridetest" ? [] : ["--no-mainmenu"]), "--prefs", path.join(scratch, "prefs.json"), `--${name}`, dir, ...extraArgs], timeout, path.join(dir, "run.log"), { SCHELDEMIST_USER_DATA: path.join(scratch, "user"), SCHELDEMIST_MAP_PORT: "0" });
       const report = JSON.parse(readFileSync(path.join(dir, name + ".json"), "utf8"));
       table.push({ check: name, result: code === 0 && (name === "soundtest" ? report.problems?.length === 0 : report.ok === true) ? "PASS" : "FAIL", finds: numbers(name, report), report: path.join(dir, name + ".json") });
     } catch (e) { table.push({ check: name, result: "ERROR", finds: e.message }); }

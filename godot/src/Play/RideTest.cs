@@ -144,7 +144,7 @@ public partial class RideTest : Node
     }
     private async Task FerryWalk(Vector2 target,double timeout)
     {
-        bool reached=await Until(()=>{var j=Jef.I;var delta=target-new Vector2(j.X,j.Z);j.Yaw=MathF.Atan2(-delta.X,-delta.Y);j.SetKey(Key.W,delta.Length()>.12f);return delta.Length()<.12f;},timeout);Jef.I.ClearKeys();if(!reached)replies.Add(new{ferryBlocked=new{Jef.I.X,Jef.I.Y,Jef.I.Z,foot=FerryArrival.I.Foot(Jef.I.X,Jef.I.Z)}});Require(reached,$"walk ferry route to {target}");
+        bool reached=await Until(()=>{var j=Jef.I;var delta=target-new Vector2(j.X,j.Z);j.Yaw=MathF.Atan2(-delta.X,-delta.Y);j.SetKey(Key.W,delta.Length()>.12f);return delta.Length()<.12f;},timeout);Jef.I.ClearKeys();if(!reached)replies.Add(new{ferryBlocked=new{Jef.I.X,Jef.I.Y,Jef.I.Z,Jef.I.Frozen,Jef.I.Riding,Jef.I.Grounded,Jef.I.Blocked,drive=Jef.I.Drive?.Method.DeclaringType?.Name,method=Jef.I.Drive?.Method.Name,foot=FerryArrival.I.Foot(Jef.I.X,Jef.I.Z),passengers=FerryArrival.I.RiderTestPassengers()}});Require(reached,$"walk ferry route to {target}");
     }
     private async Task SavedRide(Api api,string kind,Func<bool> resumed)
     {
@@ -187,7 +187,8 @@ public partial class RideTest : Node
         Require(row.Data.On=="hire"&&GameState.I.Money==money-row.Data.Fees.HireC,"server charges hire fee");await Shot("rowing-thwart");
         replies.Add(new{rowStart=new{row.Rower.X,row.Rower.Y,row.Rower.Z,row.Rower.Heading,blocked=row.Rower.Blocked(row,row.Rower.X,row.Rower.Z,row.Rower.Heading)}});
         for(int k=-1;k<=1;k++)replies.Add(new{rowWater=row.RiderTestWater(row.Rower.X+MathF.Sin(row.Rower.Heading)*(row.Rower.Shape.Half-row.Rower.Shape.Beam*.6f)*k,row.Rower.Z+MathF.Cos(row.Rower.Heading)*(row.Rower.Shape.Half-row.Rower.Shape.Beam*.6f)*k,row.Rower.Shape.Beam)});
-        var from=new Vector2(row.Rower.X,row.Rower.Z);Jef.I.SetKey(Key.W,true);Jef.I.SetKey(Key.Shift,true);Require(await Until(()=>new Vector2(row.Rower.X,row.Rower.Z).DistanceTo(from)>1,12),"W rows hired boat one metre");Jef.I.ClearKeys();
+        var from=new Vector2(row.Rower.X,row.Rower.Z);Jef.I.SetKey(Key.W,true);Jef.I.SetKey(Key.Shift,true);bool rowed=await Until(()=>new Vector2(row.Rower.X,row.Rower.Z).DistanceTo(from)>1,12);
+        replies.Add(new{rowPush=new{row.Rower.X,row.Rower.Z,row.Rower.Speed,row.Rower.Port,row.Rower.Starboard,Jef.I.Frozen,drive=Jef.I.Drive?.Method.DeclaringType?.Name,boat=row.Boat?.Key,blocked=row.Rower.Blocked(row,row.Rower.X,row.Rower.Z,row.Rower.Heading),prompts=Interact.I.Find().Select(a=>a.Text).ToArray()}});Jef.I.ClearKeys();Require(rowed,"W rows hired boat one metre");
         Require(row.Rower.Speed>.2f&&Math.Abs(row.Rower.Port)>0&&Math.Abs(row.Rower.Starboard)>0,"both oars propel rowing boat");Jef.I.Pitch=-.45f;await Shot("rowing-oars");
         float h=row.Rower.Heading;Jef.I.SetKey(Key.A,true);Require(await Until(()=>Math.Abs(row.Rower.Heading-h)>.08f,8),"A turns with unequal oars");Jef.I.ClearKeys();
         for(int i=0;i<100;i++)Jef.I.Drive!(0);long before=GC.GetAllocatedBytesForCurrentThread();for(int i=0;i<10000;i++)Jef.I.Drive!(0);long allocated=GC.GetAllocatedBytesForCurrentThread()-before;replies.Add(new{rowingProbe=new{iterations=10000,allocatedBytes=allocated}});Require(allocated==0,"rowing drive allocates zero bytes");
@@ -285,8 +286,13 @@ public partial class RideTest : Node
         await Shot("handcart-grips");
         Require(Interact.I.Press(Key.E),"E grips owned handcart");
         Require(await Until(()=>Handcarts.I.Held!=null&&!Handcarts.I.Busy,10),"held cart confirmed by server");
-        var from=new Vector2(Jef.I.X,Jef.I.Z);Jef.I.SetKey(Key.W,true);await Frames(90);Jef.I.ClearKeys();await Frames(15);
-        Require(new Vector2(Jef.I.X,Jef.I.Z).DistanceTo(from)>.3f,"W pushes whole cart on flat street");
+        var from=new Vector2(Jef.I.X,Jef.I.Z);ulong pushStart=Time.GetTicksMsec();
+        Jef.I.SetKey(Key.W,true);
+        bool pushed;
+        try { pushed=await Until(()=>new Vector2(Jef.I.X,Jef.I.Z).DistanceTo(from)>.3f,3); }
+        finally { Jef.I.ClearKeys(); }
+        replies.Add(new{cartPush=new{elapsedMs=Time.GetTicksMsec()-pushStart,distance=new Vector2(Jef.I.X,Jef.I.Z).DistanceTo(from),Jef.I.Frozen,drive=Jef.I.Drive?.Method.DeclaringType?.Name}});
+        Require(pushed,"W pushes whole cart on flat street");await Frames(15);
         await Shot("handcart-pushing");
         for(int i=0;i<100;i++)Jef.I.CartStep!(new(Jef.I.X,Jef.I.Z),new(Jef.I.X,Jef.I.Z),0);
         long start=GC.GetAllocatedBytesForCurrentThread();ulong t0=Time.GetTicksUsec();
@@ -359,6 +365,9 @@ public partial class RideTest : Node
         MoverClock.Hold(13.75,1);
         var rail = Railway.I; Require(rail.LadderCount == 10, "ten live crane ladders");
         int id = Enumerable.Range(0, rail.LadderCount).First(i => CraneClimb.I.FootOf(i) != null);
+        // Earlier ride sections consume real time; start at the ladder's idle alignment,
+        // as the dock fixture does below, before proving live slew and runway travel.
+        rail.RiderTestWork(id, 0);
         rail.RiderTestWork(id, 0);
         var foot = CraneClimb.I.FootOf(id)!.Value; var l = rail.LadderAt(id);
         Jef.I.Place(foot.X, foot.Z, l.Face, .25f); await Frames(12);
