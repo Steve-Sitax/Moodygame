@@ -413,6 +413,7 @@ public partial class Railway : Node
         var b = new AnimatableBody3D { Name = name, SyncToPhysics = false, CollisionLayer = Solid.Layer, CollisionMask = 0, Position = new Vector3(0, -100, 0) };
         AddChild(b);
         b.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = size }, Position = new Vector3(0, size.Y / 2 + 0.1f, 0) });
+        Scheldemist.Town.WalkMap.RegisterBody(b, new Aabb(new Vector3(-size.X / 2, 0.1f, -size.Z / 2), size), !name.StartsWith("pile_"));
         return b;
     }
 

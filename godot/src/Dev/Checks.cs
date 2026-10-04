@@ -193,6 +193,7 @@ public partial class Checks : Node
     private async Task<object> Stuck()
     {
         var watch = new StuckWatch();
+        watch.ReplaySolids(Town, Path.Combine(dir, "original-solid-cases.json"));
         double simulated = 0, sample = 0;
         // Fixed simulation delta: keep the crowd's integration normal while running faster than real time.
         // 0.05 real-game seconds per rendered frame, a 20 Hz simulation; three game hours = 7,200 frames.

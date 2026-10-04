@@ -216,6 +216,45 @@ fallback cannot certify room floors, containment, seams, shader-only cutouts, or
   `Game/Events.cs` presents stage props, sound cues, map marks and stall closures. Hearses, lead dress,
   fire and hiring scenes, and family menace choices use the existing people and paper hooks.
   Remaining parity work and the bounded `--eventtest <dir>` check: [events handoff](../docs/godot-events.md).
+  Later round: `game/actions.ts` reserves residents and sends them to event rings and columns; `game/events.ts`
+  presents stage props, sound cues and stall closures. The existing thief route does not apply theft outcomes.
+  Family menace choices, dream text and veil messages reach `FamilyPeople.ActionReceived` for presentation.
+  People path follow-up (2026-10-04): `Town.anchors` is an in-memory correction shared by the server sum,
+  browser goals and Godot goals. Outdoor plan spreads that land in a house or pond use a reachable route point
+  (strolls) or `nearestOpen`; existing saves need no migration. Rounded snap points are rechecked for body clearance.
+  Spawn searches never fall back to an occupied spot, walking and stepping aside check other bodies, and blocked
+  walkers detour once after 0.8 seconds or resume/replan after three seconds. Live railway boxes and posted people
+  close their current footprints, indexed by eight-metre tiles with reused bitsets. Bridge rails have live narrow
+  boxes; static physics shapes raster their actual triangles between step and head height, leaving the deck and
+  space below high beams open. Shared anchor keys use value tuples in C# to avoid strings during goal lookups.
+  The browser's public `paths()` checks player interaction targets, not all schedule anchors. Its rule is a 0.5 m
+  lattice at (-1100,-440), exact start (10,12), four neighbours, 0.36 m height limit, closed opening bridges,
+  and passing traffic/train/omnibus boxes excluded. It applies wall radius 0.45 m and solid radius 0.3 m; town
+  homes/work doors reach 1.6 m, haul ends 2 m, posts/sellers/rounds 2.4 m, fronts 1.8 m and places 3 m.
+  `export-scene.mjs` now appends that exact browser flood and its full `paths()` findings to the walk binary.
+  `PathCheck` uses it when present and also tests plans and current residents. Older bakes explicitly retain
+  their quarter-metre crowd mask: merely resampling the old half-metre height centres aliases narrow stairs
+  and falsely disconnects the wall walks. The shared `next` bake predates the browser flood layer.
+  `StuckWatch` follows the browser's walking-clip rule, checks a stable actual destination, and probes from ground height
+  rather than animation bob/crouch height, with zero physics margin. It reports actual collider names and bounds.
+  To investigate an older report, put its JSON at `<stuck output>/original-solid-cases.json`; `solidReplay`
+  probes each old point at grounded body height before the run. Passing vehicles can have moved since that report.
+  Accepted local evidence: `baked/people-paths/accepted/summary.json`, seed 1873, the shared `next` town/models,
+  no AI, `--no-soundscape`, ports 8950–8959, bounded runs. Paths: 0 unreachable / 8,738 targets (before 295 / 8,714;
+  sellers were added and the live outside-resident count can vary). Three Monday game hours across five places:
+  886 residents watched, 719 walking, 0 stuck, 0 overlaps, 0 solid findings (supplied before: 1, 1, 84).
+  Replay of all 84 old solid points: 56 grounded contacts (12 leaf rails, 3 braced-frame, 35 pile, 6 quest-box
+  meshes); 28 without a grounded contact (13 crane, 15 formerly unnamed). Two registrar points are inside the
+  navigation clearance buffer but have no physical contact. The report retains each point and its result.
+  Whereabouts: 5,370/5,370 answers match exactly, including seven cart runs; the fresh town has 895 residents
+  rather than the older 894-resident, 5,364-answer reference. Vismarkt/Grote Markt people and animal cost:
+  0.842/0.821 ms; allocation medians 0 B/frame, means 34.187/17.533 B/frame including occasional schedule/roster
+  work. Build, both TypeScript checks and 80 relevant server tests pass. The pre-commit check passes.
+  Exact live browser parity remains unverified: T3 preview could not reach the fresh test server, so no alternate
+  browser was launched without the requested permission. The shared bake lacks the new exact flood layer;
+  the accepted path report explicitly identifies its legacy mask. A walk-only rebake from this code is needed
+  to verify the exact browser rule. An earlier sound-enabled path run wrote a passing report then crashed during
+  soundscape shutdown; soundscape was disabled for the accepted people checks.
 - **The server stays in Node** (`server/`): the game talks to it over the same HTTP and WebSocket API as the
   browser (`client/src/net/api.ts`).
   - `src/Net/ServerProcess.cs` starts it with the game (`node src/index.ts` in `server/`, a free port from 8800,

@@ -93,7 +93,8 @@ const recv = http.createServer((req, res) => {
 recv.listen(RECV, "127.0.0.1");
 
 // ---- a Chrome of its own, driven over its debug port (tools/perfcheck.mjs)
-const PORT = 9400 + Math.floor(Math.random() * 400);
+const PORT = Number(opt("debug-port", 9400 + Math.floor(Math.random() * 400)));
+if (!Number.isInteger(PORT) || PORT < 1024 || PORT > 65535 || [SERVER, VITE, RECV].includes(PORT)) throw new Error("--debug-port must be a distinct port in 1024..65535");
 const profile = path.join(os.tmpdir(), `scheldemist-godot-${PORT}`);
 let chrome = null;
 let ws = null;
@@ -362,8 +363,14 @@ const WALK = `(() => {
     }
     const sellers = {};
     if (s.stalls && s.stalls.sellerSpots) for (const [id, v] of s.stalls.sellerSpots) sellers[id] = [Math.round(v.x * 100) / 100, Math.round(v.z * 100) / 100, Math.round(v.yaw * 1000) / 1000];
-    window.__walk.facts = { ...W, openRes: 1, freeRes: 0.25, baseRes: 0.5, open: open.length, free: free.length, base: base.length, solids: solids.length, sellers };
-    await fetch("http://127.0.0.1:${RECV}/walk", { method: "POST", body: new Blob([open, free, base]) });
+    // This is the public player path rule, not the crowd's narrower body grid. Keep the exact
+    // browser flood (doors, stairs, gates, water, shut bridges, passing vehicles excluded).
+    let reach;
+    w.reachFrom(10, 12, (grid) => { reach = grid; });
+    if (!reach) throw new Error("checkout lacks reachFrom audit; bake from the people branch or its merge");
+    window.__walk.facts = { ...W, openRes: 1, freeRes: 0.25, baseRes: 0.5, open: open.length, free: free.length, base: base.length, solids: solids.length, sellers,
+      paths: { x0: reach.x0, z0: reach.z0, res: reach.res, w: reach.w, h: reach.h, start: [10, 12], offset: open.length + free.length + base.byteLength, bytes: reach.seen.length, browserUnreachable: s.paths() } };
+    await fetch("http://127.0.0.1:${RECV}/walk", { method: "POST", body: new Blob([open, free, base, reach.seen]) });
     window.__walk.state = "done";
   })().catch((e) => { window.__walk.state = "failed"; window.__walk.note = String(e && e.stack || e); });
   return 1;

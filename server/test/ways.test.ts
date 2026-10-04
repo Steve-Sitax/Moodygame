@@ -3,7 +3,7 @@ import { town } from "../src/town/store.ts";
 import { walkMap } from "../src/town/walkmap.ts";
 import { planWays, serverWay, wayBetween, wayReachable } from "../src/town/ways.ts";
 import { pointAlong, wayLength } from "../src/town/wayfind.ts";
-import { paceOf, planLegs, WALK_MAX_M_PER_MIN, whereAt } from "../src/town/whereabouts.ts";
+import { anchorOf, paceOf, planLegs, WALK_MAX_M_PER_MIN, whereAt } from "../src/town/whereabouts.ts";
 import { blankSave } from "./blank-save.ts";
 
 // The trade plan, part A (docs/trade-plan.md): ways on foot over the walk map, and the sum that puts a person
@@ -20,6 +20,21 @@ function onFoot(pts: Array<[number, number]>): boolean {
 }
 
 describe("ways on foot", () => {
+  it("keeps plan spreads out of houses and the park pond, including loaded towns", () => {
+    const tw = town(blankSave()).town, wm = walkMap();
+    let replacements = 0;
+    for (const r of tw.residents) {
+      replacements += Object.keys(tw.anchors?.[r.id] ?? {}).length;
+      for (const seg of [...r.sched.day, ...r.sched.sunday]) {
+        if (!["play", "stroll", "loiter", "market"].includes(seg[2])) continue;
+        const p = anchorOf(r, tw, seg[2], seg[3] ?? "home");
+        if (p.indoor) continue;
+        expect(wm.reachable(p.x, p.z), `${r.id} ${seg[2]} ${seg[3]}`).toBe(true);
+        expect(wm.open(p.x, p.z, 0.3), `${r.id} ${seg[2]} ${seg[3]}`).toBe(true);
+      }
+    }
+    expect(replacements).toBeGreaterThan(200);
+  });
   it("go round the houses, never through them or the water", () => {
     // the Rijnkaai to the Steenplein bakery, the back-lane bakery to the hatter, the start to the Sint-Jorispoort
     for (const [a, b, c, d] of [
@@ -99,7 +114,7 @@ describe("where a person is (the sum)", () => {
       for (const h of [4, 7.3, 12.9, 18.25, 23.5]) {
         const a = whereAt(r, tw, 3, h, serverWay);
         // Shared haul spacing also depends on the crew roster; preserve every input when cloning.
-        const b = whereAt(JSON.parse(JSON.stringify(r)), JSON.parse(JSON.stringify({ residents: tw.residents, places: tw.places, stalls: tw.stalls, shops: tw.shops })), 3, h, serverWay);
+        const b = whereAt(JSON.parse(JSON.stringify(r)), JSON.parse(JSON.stringify({ residents: tw.residents, places: tw.places, stalls: tw.stalls, shops: tw.shops, anchors: tw.anchors })), 3, h, serverWay);
         expect([b.x, b.z, b.indoor, b.moving]).toEqual([a.x, a.z, a.indoor, a.moving]);
       }
     }

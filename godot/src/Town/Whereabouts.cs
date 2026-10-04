@@ -186,6 +186,8 @@ public static class Whereabouts
     /// <summary>Where a part of the day is (its act and place, as activityAt gives them).</summary>
     public static Anchor AnchorOf(Resident r, TownData town, string act, string place)
     {
+        if (town.Anchors.TryGetValue(r.Id, out var fixedPoints) && fixedPoints.TryGetValue((act, place), out var fixedPoint))
+            return new Anchor { X = fixedPoint.X, Z = fixedPoint.Z };
         if (act == "home" || place == "home") return new Anchor { X = r.HomeSx, Z = r.HomeSz, Indoor = true };
         if (act == "work" || place == "work") return WorkAnchor(r, town);
         if (!town.Places.TryGetValue(place, out var p) && !town.Places.TryGetValue(Prefix.Replace(place, ""), out p)) return new Anchor { X = r.HomeSx, Z = r.HomeSz, Indoor = true };

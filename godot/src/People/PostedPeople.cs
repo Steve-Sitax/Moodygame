@@ -166,6 +166,7 @@ public partial class PostedPeople : Node
             n.Solid = new StaticBody3D { Name = "posted_body_" + n.Id, CollisionLayer = Solid.Layer, CollisionMask = 0 };
             n.Solid.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(0.7f, 1.7f, 0.7f) }, Position = new Vector3(0, 0.85f, 0) });
             Main.I.View.AddChild(n.Solid);
+            WalkMap.RegisterBody(n.Solid, new Aabb(new Vector3(-0.35f, 0, -0.35f), new Vector3(0.7f, 1.7f, 0.7f)));
         }
         list.Add(n);
     }

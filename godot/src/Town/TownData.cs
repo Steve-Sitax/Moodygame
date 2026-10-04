@@ -91,6 +91,7 @@ public sealed class TownShop
 /// <summary>The town the server made (GET /api/town): the client walks it by the game clock.</summary>
 public sealed class TownData
 {
+    public Dictionary<string, Dictionary<(string Act, string Place), Pt>> Anchors = new();
     public long Seed;
     public Dictionary<string, TownPlace> Places = new();
     public List<TownStall> Stalls = new();
@@ -120,6 +121,18 @@ public sealed class TownData
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
         var t = new TownData { Seed = (long)N(root, "seed") };
+        if (root.TryGetProperty("anchors", out var anchors))
+            foreach (var person in anchors.EnumerateObject())
+            {
+                var points = new Dictionary<(string Act, string Place), Pt>();
+                foreach (var point in person.Value.EnumerateObject())
+                {
+                    int colon = point.Name.IndexOf(':');
+                    if (colon <= 0) throw new JsonException("invalid shared anchor key");
+                    points[(point.Name[..colon], point.Name[(colon + 1)..])] = new Pt(point.Value[0].GetDouble(), point.Value[1].GetDouble());
+                }
+                t.Anchors[person.Name] = points;
+            }
         foreach (var p in root.GetProperty("places").EnumerateObject())
             t.Places[p.Name] = new TownPlace { Label = S(p.Value, "label"), X = N(p.Value, "x"), Z = N(p.Value, "z"), R = N(p.Value, "r"), Door = Po(p.Value, "door"), Out = Po(p.Value, "out"), Route = Pts(p.Value, "route") };
         foreach (var s in root.GetProperty("stalls").EnumerateArray())

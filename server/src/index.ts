@@ -543,6 +543,7 @@ app.get("/api/town", (c) => {
   const t = town(db).town;
   return c.json({
     seed: t.seed,
+    anchors: t.anchors,
     places: t.places,
     stalls: t.stalls,
     shops: t.shops,

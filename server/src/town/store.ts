@@ -5,6 +5,7 @@ import { HAULS, NIGHT_GIVERS, shownTrade, STALLS, TOWN_EMPLOYERS } from "./place
 import { GARRISON_TRADES, generateGarrison } from "./garrison.ts";
 import { townSize } from "./popsettings.ts";
 import type { TownSize } from "../config.ts";
+import { anchorOf } from "./whereabouts.ts";
 
 // The town in SQLite (M3e). Each resident is also a row in `npc` (id r001...,
 // or the fixed ids of the board's employers), so relationships, memories and
@@ -288,6 +289,28 @@ export function town(db: DB): Loaded {
     (r) => JSON.parse(r.data_json) as Resident,
   );
   l = { town: { ...rest, residents }, byId: new Map(residents.map((r) => [r.id, r])) };
+  // A place's radius describes its neighbourhood, not an open disk. Old deterministic spreads
+  // can land inside houses or in the park pond. Keep the sum pure on every client by supplying
+  // the same reachable replacement points, including for existing towns; no save migration.
+  const wm = walkMap();
+  const anchors: NonNullable<Town["anchors"]> = {};
+  for (const r of residents) {
+    const fixed: Record<string, [number, number]> = {};
+    for (const seg of [...r.sched.day, ...r.sched.sunday]) {
+      const act = seg[2], place = seg[3] ?? (act === "work" ? "work" : "home");
+      if (!["stroll", "play", "loiter", "market"].includes(act)) continue;
+      const a = anchorOf(r, l.town, act, place);
+      if (a.indoor || (wm.open(a.x, a.z, 0.45) && wm.reachable(a.x, a.z))) continue;
+      const p = l.town.places[place] ?? l.town.places[place.replace(/^[a-z]+:/, "")];
+      const route = p?.route?.filter(([x, z]) => wm.open(x, z, 0.45) && wm.reachable(x, z));
+      const q = act === "stroll" && route?.length
+        ? route.reduce((b, q) => Math.hypot(q[0] - a.x, q[1] - a.z) < Math.hypot(b[0] - a.x, b[1] - a.z) ? q : b)
+        : wm.nearestOpen(a.x, a.z, 30);
+      if (q) fixed[`${act}:${place}`] = Array.isArray(q) ? q : [q.x, q.z];
+    }
+    if (Object.keys(fixed).length) anchors[r.id] = fixed;
+  }
+  l.town.anchors = anchors;
   cache.set(db, l);
   return l;
 }

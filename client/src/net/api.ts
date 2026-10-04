@@ -359,6 +359,7 @@ export interface TownShop {
 }
 
 export interface TownData {
+  anchors?: Record<string, Record<string, Pt>>;
   seed: number;
   places: Record<string, TownPlace>;
   stalls: TownStall[];

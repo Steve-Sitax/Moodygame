@@ -179,6 +179,25 @@ public partial class Solid : Node
     }
 
     private readonly Dictionary<Rid, string> names = new();
+    private readonly Dictionary<Rid, Aabb> bounds = new();
+
+    public string BodyName(Rid body) => names.GetValueOrDefault(body, "");
+    public Aabb BodyBounds(Rid body) => bounds.GetValueOrDefault(body);
+
+    /// <summary>The Godot physics shapes include details absent from the browser's collider boxes. Raster their actual triangles,
+    /// not a whole model AABB (which would close the bridge under its overhead beam).</summary>
+    public void Footprints(Scheldemist.Town.WalkMap map)
+    {
+        foreach (var it in items)
+            if (map.HasBodyAt(it.Box))
+            {
+                var local = FacesOf(it.Mesh);
+                var pts = new Vector3[local.Length];
+                for (int i = 0; i < pts.Length; i++) pts[i] = it.Xf * local[i];
+                map.AddTriangles(pts);
+            }
+        map.CloseOpenCells();
+    }
 
     /// <summary>What a ray from a to b hits first (the checks say what held Jef, what he stands on), or "".</summary>
     public string NameAt(Vector3 a, Vector3 b)
@@ -252,6 +271,7 @@ public partial class Solid : Node
         shapes.Add(shape);
         bodies.Add(body);
         names[body] = it.Name;
+        bounds[body] = it.Box;
         Triangles += pts.Length / 3;
         Built++;
         BuiltAtTick = Engine.GetPhysicsFrames();
@@ -310,6 +330,7 @@ public partial class Solid : Node
     {
         foreach (var b in bodies) PhysicsServer3D.FreeRid(b);
         bodies.Clear();
+        names.Clear(); bounds.Clear();
         shapes.Clear();
     }
 }
