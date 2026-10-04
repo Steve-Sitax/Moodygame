@@ -31,6 +31,7 @@ public partial class Mirrors : Node
     {
         public string Name = "";
         public string On = "", Matrix = "";
+        public string[] Columns = null!;
         public SubViewport View = null!;
         public Camera3D Cam = null!;
         public float PlaneY, Far, Grow = 1, Margin;
@@ -82,7 +83,7 @@ public partial class Mirrors : Node
         vp.AddChild(cam);
         cam.Current = true;
         string uniform = name == "water" ? "psx_water_mirror" : "psx_mirror";
-        return new Mirror { Name = name, On = uniform + "_on", Matrix = uniform + "_mat", View = vp, Cam = cam, Far = far, Grow = grow, Margin = margin, EveryFrame = everyFrame };
+        return new Mirror { Name = name, On = uniform + "_on", Matrix = uniform + "_mat", Columns = new[] { uniform + "_col0", uniform + "_col1", uniform + "_col2", uniform + "_col3" }, View = vp, Cam = cam, Far = far, Grow = grow, Margin = margin, EveryFrame = everyFrame };
     }
 
     // where the water lies, every 4 m over the town (shared/city.json through Water.In), made once
@@ -194,7 +195,14 @@ public partial class Mirrors : Node
         m.View.RenderTargetUpdateMode = SubViewport.UpdateMode.Once;
         // world -> the picture (the psx material takes x and y over w, halves them and turns y)
         var vp = m.Cam.GetCameraProjection() * new Projection(m.Cam.GlobalTransform.AffineInverse());
-        Psx.Set(m.Matrix, vp);
+        bool columns = Scheldemist.Dev.SpeedComparison.Cached;
+        Psx.Set("psx_mirror_columns", columns ? 1f : 0f);
+        if (columns)
+        {
+            Psx.Set(m.Columns[0], vp.X); Psx.Set(m.Columns[1], vp.Y);
+            Psx.Set(m.Columns[2], vp.Z); Psx.Set(m.Columns[3], vp.W);
+        }
+        else Psx.Set(m.Matrix, vp);
         Psx.Set(m.On, 1f);
         Psx.Set(clip, new Vector4(mEye.X, mEye.Y, mEye.Z, m.PlaneY));
     }

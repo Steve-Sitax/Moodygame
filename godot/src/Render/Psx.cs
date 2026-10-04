@@ -92,6 +92,15 @@ public static class Psx
         ("psx_water_mirror_mat", RenderingServer.GlobalShaderParameterType.Mat4, Projection.Identity),
         ("psx_water_mirror_on", RenderingServer.GlobalShaderParameterType.Float, 0f),
         ("psx_mirror_mat", RenderingServer.GlobalShaderParameterType.Mat4, Projection.Identity),
+        ("psx_mirror_columns", RenderingServer.GlobalShaderParameterType.Float, 0f),
+        ("psx_water_mirror_col0", RenderingServer.GlobalShaderParameterType.Vec4, Projection.Identity.X),
+        ("psx_water_mirror_col1", RenderingServer.GlobalShaderParameterType.Vec4, Projection.Identity.Y),
+        ("psx_water_mirror_col2", RenderingServer.GlobalShaderParameterType.Vec4, Projection.Identity.Z),
+        ("psx_water_mirror_col3", RenderingServer.GlobalShaderParameterType.Vec4, Projection.Identity.W),
+        ("psx_mirror_col0", RenderingServer.GlobalShaderParameterType.Vec4, Projection.Identity.X),
+        ("psx_mirror_col1", RenderingServer.GlobalShaderParameterType.Vec4, Projection.Identity.Y),
+        ("psx_mirror_col2", RenderingServer.GlobalShaderParameterType.Vec4, Projection.Identity.Z),
+        ("psx_mirror_col3", RenderingServer.GlobalShaderParameterType.Vec4, Projection.Identity.W),
         ("psx_mirror_on", RenderingServer.GlobalShaderParameterType.Float, 0f),
         ("psx_mir0", RenderingServer.GlobalShaderParameterType.Vec4, new Vector4(0, -1e6f, 0, 0)),
         ("psx_mir1", RenderingServer.GlobalShaderParameterType.Vec4, new Vector4(0, -1e6f, 0, 0)),
@@ -472,6 +481,11 @@ vec3 psx_spill_at(vec3 P, vec3 N) {
     private const string WetGlsl = @"
 global uniform sampler2D psx_mirror : source_color, filter_nearest, repeat_disable;
 global uniform mat4 psx_mirror_mat;
+global uniform float psx_mirror_columns;
+global uniform vec4 psx_mirror_col0;
+global uniform vec4 psx_mirror_col1;
+global uniform vec4 psx_mirror_col2;
+global uniform vec4 psx_mirror_col3;
 global uniform float psx_mirror_on;
 global uniform float psx_wet;
 global uniform float psx_rain;
@@ -551,6 +565,10 @@ global uniform sampler2D psx_foul : filter_linear, repeat_disable;
 global uniform vec4 psx_foul_box;
 global uniform sampler2D psx_water_mirror : source_color, filter_nearest, repeat_disable;
 global uniform mat4 psx_water_mirror_mat;
+global uniform vec4 psx_water_mirror_col0;
+global uniform vec4 psx_water_mirror_col1;
+global uniform vec4 psx_water_mirror_col2;
+global uniform vec4 psx_water_mirror_col3;
 global uniform float psx_water_mirror_on;
 uniform vec3 spec_color = vec3(0.0);
 uniform float shininess = 120.0;
@@ -1177,7 +1195,8 @@ void fragment() {
 			vec2 ripp = vec2(sin(ph + pud_val(pp * 1.9) * 5.0), sin(ph * 0.87 + 1.7 + pud_val(pp * 2.6 + 9.0) * 5.0));
 			vec2 wob = (wd * ripp.x + vec2(-wd.y, wd.x) * ripp.y * 0.45) * (0.0006 + gust * (0.0045 + 0.006 * wk * wk)) * wind * (1.0 - smoothstep(10.0, 30.0, len));
 			if (psx_rain > 0.001) wob += vec2(rain_rings(pp * 1.4, psx_time * 1.2, psx_rain)) * 0.012;
-			vec4 mr = psx_mirror_mat * vec4(world, 1.0);
+			mat4 mirror_mat = psx_mirror_columns > 0.5 ? mat4(psx_mirror_col0, psx_mirror_col1, psx_mirror_col2, psx_mirror_col3) : psx_mirror_mat;
+			vec4 mr = mirror_mat * vec4(world, 1.0);
 			// the street itself mirrored (World/Mirrors.cs); reflections off: dark water with a little of the sky's grey
 			vec3 refl = psx_mirror_on > 0.5 ? texture(psx_mirror, (vec2(mr.x, -mr.y) / mr.w + wob) * 0.5 + 0.5).rgb * 1.1 : fogc * 0.3;
 			refl *= 1.0 - 0.12 * gust * min(1.0, wind - 0.6);
@@ -1205,7 +1224,8 @@ void fragment() {
 		float cos_v = max(dot(rn, -rd), 0.0);
 		if (psx_water_mirror_on > 0.5) {
 			// the quays, ships and sky mirrored (World/Mirrors.cs), shaken by the ripples
-			vec4 mr = psx_water_mirror_mat * vec4(world, 1.0);
+			mat4 mirror_mat = psx_mirror_columns > 0.5 ? mat4(psx_water_mirror_col0, psx_water_mirror_col1, psx_water_mirror_col2, psx_water_mirror_col3) : psx_water_mirror_mat;
+			vec4 mr = mirror_mat * vec4(world, 1.0);
 			vec2 muv = (vec2(mr.x, -mr.y) / mr.w + rip * 0.35) * 0.5 + 0.5;
 			vec3 mc = texture(psx_water_mirror, muv).rgb;
 			float f = " + (k.Water == 2 ? "0.48 + 0.48 * pow(1.0 - cos_v, 3.0)" : "max(0.22, 0.04 + 0.96 * pow(1.0 - cos_v, 5.0))") + @";

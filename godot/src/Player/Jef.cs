@@ -133,6 +133,9 @@ public partial class Jef : Node, Mantle.IWorld
         bodyShape = new CylinderShape3D { Radius = Radius, Height = Tall - Step };
         Body.AddChild(new CollisionShape3D { Shape = bodyShape, Position = new Vector3(0, Step + (Tall - Step) / 2, 0) });
         view.AddChild(Body);
+        floorCast = new ShapeCast3D { Name = "floor_cast", Enabled = false, ExcludeParent = false, CollisionMask = Solid.Layer, Margin = 0, MaxResults = 0 };
+        floorRay = new RayCast3D { Name = "floor_ray", Enabled = false, ExcludeParent = false, CollisionMask = Solid.Layer };
+        view.AddChild(floorCast); view.AddChild(floorRay);
 
         var from = Main.I.Cam;
         Cam = new Camera3D { Name = "jef_eyes", Fov = from?.Fov ?? 75, Near = from?.Near ?? 0.08f, Far = from?.Far ?? 600 };
@@ -271,6 +274,8 @@ public partial class Jef : Node, Mantle.IWorld
     private PhysicsDirectSpaceState3D Space => Body.GetWorld3D().DirectSpaceState;
     private readonly PhysicsShapeQueryParameters3D castQ = new() { CollisionMask = Solid.Layer, Margin = 0 };
     private readonly PhysicsShapeQueryParameters3D bodyQ = new() { CollisionMask = Solid.Layer, Margin = 0 };
+    private ShapeCast3D floorCast = null!;
+    private RayCast3D floorRay = null!;
 
     private CylinderShape3D Disk(float r)
     {
@@ -284,6 +289,38 @@ public partial class Jef : Node, Mantle.IWorld
     /// more than a step above the feet (rijnkaai.ts groundAt, modelCollision.ts topAt). Nothing below: -infinity.
     /// </summary>
     public float GroundAt(float x, float z, float feet, float r = Radius * 0.6f)
+        => Scheldemist.Dev.SpeedComparison.Cached ? GroundCached(x, z, feet, r) : GroundOriginal(x, z, feet, r);
+
+    private float GroundCached(float x, float z, float feet, float r)
+    {
+        float deck = TransportFloor?.Invoke(x, z, feet) ?? float.NegativeInfinity;
+        float top = feet + Step, y0 = top + 0.015f;
+        floorCast.Shape = Disk(r);
+        for (int i = 0; i < 2; i++)
+        {
+            float start = i == 0 ? y0 : y0 - 1.2f, len = i == 0 ? 1.2f : 60f;
+            floorCast.Transform = new Transform3D(Basis.Identity, new Vector3(x, start, z));
+            floorCast.TargetPosition = new Vector3(0, -len, 0);
+            // MaxResults=0 keeps precisely cast_motion's fractions, without collecting contacts or a C# array.
+            floorCast.ForceShapecastUpdate();
+            float safe = floorCast.GetClosestCollisionSafeFraction(), unsafeFraction = floorCast.GetClosestCollisionUnsafeFraction();
+            if (unsafeFraction >= 1) continue;
+            if (unsafeFraction <= 0 && start == y0)
+            {
+                floorRay.Transform = new Transform3D(Basis.Identity, new Vector3(x, top, z));
+                floorRay.TargetPosition = new Vector3(0, -60, 0);
+                floorRay.ForceRaycastUpdate();
+                return Math.Max(deck, floorRay.IsColliding() ? floorRay.GetCollisionPoint().Y : float.NegativeInfinity);
+            }
+            return Math.Max(deck, start - 0.01f - safe * len);
+        }
+        return deck;
+    }
+
+    public bool SameGround(float x, float z, float feet, float r)
+        => GroundCached(x, z, feet, r).Equals(GroundOriginal(x, z, feet, r));
+
+    private float GroundOriginal(float x, float z, float feet, float r)
     {
         float deck = TransportFloor?.Invoke(x, z, feet) ?? float.NegativeInfinity;
         float top = feet + Step;

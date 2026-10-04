@@ -71,6 +71,8 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
     private readonly HashSet<ShaderMaterial> panes = new();
     private double lookT;
     private int maxRooms = 4;
+    private readonly List<(Room room, float distance, int index)> candidates = new();
+    private readonly HashSet<Room> selected = new();
     private readonly List<Dev.InteriorAuditTarget> auditTargets = new();
     public IReadOnlyList<Dev.InteriorAuditTarget> InteriorAuditTargets => auditTargets;
     /// <summary>A visibility check pins its room while visiting its openings; normal distance culling resumes afterwards.</summary>
@@ -316,12 +318,11 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
         {
             lookT = 0.25;
             float far = day.FogFar + 10;
-            float Near(Room r) => r.Box.HasPoint(eye) ? 0 : r.Openings.Count == 0 ? Dist(r.Box, eye) : r.Openings.Min(o => o.DistanceTo(eye));
-            var near = rooms.Where(r => r.Budgeted).Select(r => (r, d: Near(r))).Where(x => x.d < Math.Min(x.r.Reach, far)).OrderBy(x => x.d).Take(Math.Max(1, maxRooms) * 2).Select(x => x.r).ToHashSet();
+            var near = Scheldemist.Dev.SpeedComparison.Cached ? SelectCached(eye, far) : SelectOriginal(eye, far);
             foreach (var r in rooms)
             {
                 // (a hall is seen as far as the fog lets its nearest opening show)
-                bool show = AuditRoom != null ? r.Id == AuditRoom : r.Budgeted ? near.Contains(r) : Near(r) < Math.Min(r.Reach, far);
+                bool show = AuditRoom != null ? r.Id == AuditRoom : r.Budgeted ? near.Contains(r) : Near(r, eye) < Math.Min(r.Reach, far);
                 if (off.Contains("meshes")) show = false;
                 if (r.Root.Visible != show) r.Root.Visible = show;
                 if (r.Lining != null && r.Lining.Visible == show) r.Lining.Visible = !show;
@@ -383,6 +384,36 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
         var glass = new Color(fog.R, fog.G, fog.B, 0.06f + 0.22f * dayK * dayK);
         foreach (var m in panes) Scheldemist.Render.UniformUpdates.Material(m, "albedo", glass);
     }
+
+    private static float Near(Room r, Vector3 eye)
+    {
+        if (r.Box.HasPoint(eye)) return 0;
+        if (r.Openings.Count == 0) return Dist(r.Box, eye);
+        float distance = float.PositiveInfinity;
+        foreach (var opening in r.Openings) distance = Math.Min(distance, opening.DistanceTo(eye));
+        return distance;
+    }
+    private HashSet<Room> SelectOriginal(Vector3 eye, float far)
+    {
+        float NearOriginal(Room r) => r.Box.HasPoint(eye) ? 0 : r.Openings.Count == 0 ? Dist(r.Box, eye) : r.Openings.Min(o => o.DistanceTo(eye));
+        return rooms.Where(r => r.Budgeted).Select(r => (r, d: NearOriginal(r))).Where(x => x.d < Math.Min(x.r.Reach, far)).OrderBy(x => x.d).Take(Math.Max(1, maxRooms) * 2).Select(x => x.r).ToHashSet();
+    }
+    private HashSet<Room> SelectCached(Vector3 eye, float far)
+    {
+        candidates.Clear(); selected.Clear();
+        for (int i = 0; i < rooms.Count; i++)
+        {
+            var room = rooms[i]; if (!room.Budgeted) continue;
+            float distance = Near(room, eye);
+            if (distance < Math.Min(room.Reach, far)) candidates.Add((room, distance, i));
+        }
+        candidates.Sort(static (a, b) => { int order = a.distance.CompareTo(b.distance); return order == 0 ? a.index.CompareTo(b.index) : order; });
+        int count = Math.Min(candidates.Count, Math.Max(1, maxRooms) * 2);
+        for (int i = 0; i < count; i++) selected.Add(candidates[i].room);
+        return selected;
+    }
+    public bool SameSelection(Vector3 eye) => SelectOriginal(eye, Daylight.I.FogFar + 10).SetEquals(SelectCached(eye, Daylight.I.FogFar + 10));
+    public void RepeatVisibility() { lookT = 0; _Process(0); }
 
     private static float Dist(Aabb box, Vector3 p)
     {

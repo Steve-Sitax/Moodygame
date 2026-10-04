@@ -35,13 +35,23 @@ public static class PixelComparison
     }
     public static async Task<object> Run(Checks check)
     {
-        var rows = new List<object>(); int total = 0, controlPixels = 0, actionChecks = 0, actionDifferences = 0;
+        var rows = new List<object>(); int total = 0, controlPixels = 0, actionChecks = 0, actionDifferences = 0, floorChecks = 0, floorDifferences = 0, roomChecks = 0, roomDifferences = 0;
         object scheduleProof = SpeedComparison.ScheduleProof();
         foreach (var (hour, weather) in new[] { (13.0, "clear"), (22.0, "mist") })
         foreach (string place in new[] { "grote markt", "cathedral", "handschoenmarkt", "vismarkt", "rijnkaai" })
         {
             await Kit.I.Light(hour, weather); check.At(place); await check.Frames(120);
             actionChecks++; if (!Play.Interact.I.SameActions()) actionDifferences++;
+            var jef = Player.Jef.I;
+            for (int x = -4; x <= 4; x++) for (int z = -4; z <= 4; z++)
+            { roomChecks++; if (!Rooms.I.SameSelection(jef.Cam.GlobalPosition + new Vector3(x * 4, 0, z * 4))) roomDifferences++; }
+            for (int x = -4; x <= 4; x++) for (int z = -4; z <= 4; z++)
+            foreach (float feet in new[] { -2f, 0f, .3f, 1f, 3f, 8f })
+            foreach (float radius in new[] { 0f, Player.Jef.Radius * .6f, .12f, .9f })
+            {
+                floorChecks++;
+                if (!jef.SameGround(jef.X + x * .5f, jef.Z + z * .5f, feet, radius)) floorDifferences++;
+            }
             bool cached = UniformUpdates.Cached;
             bool speedCached = SpeedComparison.Cached;
             check.ProcessMode = Node.ProcessModeEnum.Always;
@@ -51,12 +61,12 @@ public static class PixelComparison
                 string name = place.Replace(' ', '_') + (hour == 13 ? "_day" : "_night");
                 UniformUpdates.Cached = false;
                 SpeedComparison.Cached = false;
-                Daylight.I.RepeatLight(); Lights.I._Process(0); Play.Jobs.I._Process(0); Play.Interact.I.RepeatPrompt(); UniformUpdates.Replay(); NodeUpdates.Replay(); await Draw(check);
+                Daylight.I.RepeatLight(); Lights.I._Process(0); Rooms.I.RepeatVisibility(); Play.Jobs.I._Process(0); Play.Interact.I.RepeatPrompt(); UniformUpdates.Replay(); NodeUpdates.Replay(); await Draw(check);
                 using var a = Main.I.GetViewport().GetTexture().GetImage();
                 string before = check.Picture(name + "_before");
                 UniformUpdates.Cached = true;
                 SpeedComparison.Cached = true;
-                Daylight.I.RepeatLight(); Lights.I._Process(0); Play.Jobs.I._Process(0); Play.Interact.I.RepeatPrompt(); UniformUpdates.Replay(); NodeUpdates.Replay(); await Draw(check);
+                Daylight.I.RepeatLight(); Lights.I._Process(0); Rooms.I.RepeatVisibility(); Play.Jobs.I._Process(0); Play.Interact.I.RepeatPrompt(); UniformUpdates.Replay(); NodeUpdates.Replay(); await Draw(check);
                 using var b = Main.I.GetViewport().GetTexture().GetImage();
                 string after = check.Picture(name + "_after");
                 int different = Different(a, b); total += different;
@@ -71,7 +81,7 @@ public static class PixelComparison
             }
             finally { UniformUpdates.Cached = cached; SpeedComparison.Cached = speedCached; Main.I.PictureTime(-1); Main.I.GetTree().Paused = false; }
         }
-        return new { ok = total == 0 && controlPixels > 0 && actionDifferences == 0 && System.Text.Json.JsonSerializer.SerializeToElement(scheduleProof).GetProperty("ok").GetBoolean(), differentPixels = total, controlPixels, comparisons = rows, scheduleProof, actionProof = new { actionChecks, actionDifferences },
+        return new { ok = total == 0 && controlPixels > 0 && actionDifferences == 0 && floorDifferences == 0 && roomDifferences == 0 && System.Text.Json.JsonSerializer.SerializeToElement(scheduleProof).GetProperty("ok").GetBoolean(), differentPixels = total, controlPixels, comparisons = rows, scheduleProof, actionProof = new { actionChecks, actionDifferences }, floorProof = new { floorChecks, floorDifferences }, roomProof = new { roomChecks, roomDifferences },
             method = "RGBA8 full screen including retro grain, paused scene and fixed grain; uncached/cached uniform and unchanged-node-pose replay, live spill/far buffers; deliberately wrong fog colour as positive control" };
     }
 }

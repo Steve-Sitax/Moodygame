@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Godot avoids temporary reflection matrices, floor-query arrays and room-selection containers; exact floor, room and pixel comparisons retain the same picture.
+
 - Godot reuses interaction selection buffers and unchanged prompt text, while keeping live controls and the same action priority.
 
 - Godot creates less temporary garbage while finding townspeople's daily walks, avoiding the measured route-learning hitch without changing their schedules.
