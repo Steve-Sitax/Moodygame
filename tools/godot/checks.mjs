@@ -18,6 +18,9 @@ const perfLock = path.resolve(opt("perf-lock", path.join(path.dirname(town), pat
 const models = path.resolve(opt("models", path.join(path.dirname(town), "models")));
 const out = path.resolve(opt("out", "godot/baked/checks"));
 const godot = opt("godot", process.env.SCHELDEMIST_GODOT ?? path.join(process.env.LOCALAPPDATA ?? "", "Microsoft/WinGet/Packages/GodotEngine.GodotEngine.Mono_Microsoft.Winget.Source_8wekyb3d8bbwe/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe"));
+const renderingDriver = opt("rendering-driver", "");
+if (renderingDriver && !["vulkan", "d3d12", "opengl3"].includes(renderingDriver)) throw new Error("unsupported rendering driver");
+const nativeArgs = renderingDriver ? ["--rendering-driver", renderingDriver, ...(renderingDriver === "opengl3" ? ["--rendering-method", "gl_compatibility"] : [])] : [];
 const timeout = Number(opt("timeout", "240")) * 1000;
 const seed = Number(opt("seed", "1873"));
 const extraArgs = JSON.parse(opt("args", "[]"));
@@ -138,7 +141,10 @@ try {
       // Never accept an old report if this run fails before writing one.
       rmSync(path.join(dir, name + ".json"), { force: true });
       if (name === "peopletest" && await run(process.execPath, [path.join(root, "tools/godot/wherecheck.mjs"), "--server", url, "--out", path.join(dir, "where_expected.json")], 120000, path.join(dir, "reference.log"))) throw new Error("whereabouts reference failed");
-      const code = await run(godot, ["--audio-driver", "Dummy", "--path", path.join(root, "godot"), "--", "--town", town, "--models", models, "--server", url, "--port", String(ownPort), "--db", database, "--no-ai", "--dev", "--hour", "13", "--weather", "clear", "--no-mainmenu", "--prefs", path.join(scratch, "prefs.json"), `--${name}`, dir, ...extraArgs], timeout, path.join(dir, "run.log"), { SCHELDEMIST_USER_DATA: path.join(scratch, "user"), SCHELDEMIST_MAP_PORT: "0" });
+      const code = await run(godot, [...nativeArgs, "--audio-driver", "Dummy", "--path", path.join(root, "godot"), "--", "--town", town, "--models", models, "--server", url, "--port", String(ownPort), "--db", database, "--no-ai", "--dev", "--hour", "13", "--weather", "clear", "--no-mainmenu", "--prefs", path.join(scratch, "prefs.json"), `--${name}`, dir, ...extraArgs], timeout, path.join(dir, "run.log"), { SCHELDEMIST_USER_DATA: path.join(scratch, "user"), SCHELDEMIST_MAP_PORT: "0" });
+      if (code !== 0) throw new Error(`Godot exited with code ${code}; see run.log`);
+      const runtimeError = readFileSync(path.join(dir, "run.log"), "utf8").match(/^ERROR: [^\r\n]+/m);
+      if (runtimeError) throw new Error(runtimeError[0]);
       const report = JSON.parse(readFileSync(path.join(dir, name + ".json"), "utf8"));
       table.push({ check: name, result: code === 0 && (name === "soundtest" ? report.problems?.length === 0 : report.ok === true) ? "PASS" : "FAIL", finds: numbers(name, report), report: path.join(dir, name + ".json") });
     } catch (e) { table.push({ check: name, result: "ERROR", finds: e.message }); }

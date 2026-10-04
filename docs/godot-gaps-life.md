@@ -84,3 +84,15 @@ and Grote Markt. The full people gate still failed the measured 1.5 ms life cost
 (1.626 ms on that run; the previous repeat measured 0.614 ms there). This features-first branch
 does not claim the variable frame-cost gate as passing.
 The combined shader check passed with zero new kinds and zero problems.
+
+Retry on 2026-10-04: fixed a live trade cry retaining a freed puppet Node3D. Trade cries now use
+Bubbles' resident position lookup. The seven trade equipment/movement assertions passed under
+OpenGL and no managed exception occurred. All seven new pictures were inspected: Compatibility
+rendering is unusable (mostly dark/empty) and logs native instance-uniform errors, so this is only
+logic/lifecycle evidence, not a visual or renderer pass. Previous Forward+ pictures remain the
+visual evidence. Default Vulkan crashed twice before the game loaded; D3D12 also failed native
+command-queue initialization. Tracked in [issue #59](https://github.com/Steve-Sitax/Moodygame/issues/59).
+The runner now accepts an explicit diagnostic rendering driver and rejects native or managed
+ERROR lines and nonzero exits even if a success JSON exists. Build and TypeScript checks passed.
+Retry shared edits: `Talk/Bubbles.cs` (resident-position speech), `Audio/LifeSound.cs` (trade call),
+`tools/godot/checks.mjs` (error detection/diagnostic driver), changelog and evidence documents.

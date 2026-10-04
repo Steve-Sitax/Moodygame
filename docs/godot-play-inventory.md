@@ -178,3 +178,8 @@ Moving-gap mover status: tow watchdog, loose-goods rail stopping, crane priority
 
 
 Final moving-gap handoff, exact evidence and shared-file list: `milestones/godot-rides.md`, section "Moving gap final handoff". This is a partial feature handoff; named journeys, prisoner-room movement and live multiplayer validation remain open. Shader repeat passes; mover timing reports fail as recorded.
+
+Life retry: trade speech no longer retains a freed puppet. Seven equipment/movement rows passed
+with no managed exception under diagnostic OpenGL. Its seven inspected pictures are unusable and
+native shader errors remain, so no new visual pass is claimed. Vulkan/D3D12 startup blocks normal
+validation; [#59](https://github.com/Steve-Sitax/Moodygame/issues/59) records the evidence.
