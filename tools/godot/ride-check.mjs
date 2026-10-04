@@ -41,7 +41,7 @@ async function run(argv, timeout, log) {
 }
 try {
   if (!args.includes("--no-import")) await run(["--headless", "--path", "godot", "--import"], 180000, "import.log");
-  await run(["--path", "godot", "--log-file", path.join(dir, "engine.log"), "--", "--town", town, "--models", models, "--no-ai", "--no-soundscape", "--port", String(port), "--db", path.join(dir, "test.sqlite"), "--prefs", path.join(dir, "settings.json"), "--dev", "--hour", "13.75", "--weather", "clear", ...(args.includes("--baseline") ? ["--no-pressworld"] : []), "--ride-only", opt("only", "all"), "--" + mode, dir], 240000, "run.log");
+  await run(["--path", "godot", "--log-file", path.join(dir, "engine.log"), "--", "--town", town, "--models", models, "--no-ai", "--no-soundscape", "--port", String(port), "--db", path.join(dir, "test.sqlite"), "--prefs", path.join(dir, "settings.json"), "--dev", "--hour", "13.75", "--weather", "clear", ...(args.includes("--baseline") ? ["--no-pressworld"] : []), "--ride-only", opt("only", "all"), "--" + mode, dir], opt("only", "all")==="all" ? 360000 : 240000, "run.log");
 } finally {
   for (const suffix of ["", "-wal", "-shm", "-journal"]) rmSync(path.join(dir, "test.sqlite" + suffix), { force: true });
 }

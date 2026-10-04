@@ -9,6 +9,7 @@ public partial class Boats
     private readonly HashSet<(Row,int)> playerHidden=new();
     private readonly HashSet<Float> playerHiddenFloats=new();
     public (string Kind,Vector3 At,Node3D? Owner) PlayerLastHull;
+    public readonly List<Func<float,float,float,bool>> PlayerWaterBlocks=new();
     public void PlayerWarmHulls(){foreach(var r in rows)Dims(r.Kind);foreach(var f in floats)Dims(f.Kind);}
     public void PlayerShowSmall(){playerHidden.Clear();foreach(var f in playerHiddenFloats)if(GodotObject.IsInstanceValid(f.Outer))f.Outer.Visible=true;playerHiddenFloats.Clear();}
     public void PlayerHideSmall(float x,float z,bool hide)
@@ -23,6 +24,7 @@ public partial class Boats
     /// <summary>Clearance of the live hulls, including the moving ships, without scene traversal or temporary lists.</summary>
     public bool PlayerWaterFree(float x,float z,float radius)
     {
+        foreach(var clear in PlayerWaterBlocks)if(!clear(x,z,radius))return false;
         static bool Hits(float x,float z,float radius,Transform3D xf,float length,float beam)
         {var p=xf.AffineInverse()*new Vector3(x,xf.Origin.Y,z);return Math.Abs(p.Z)<length/2-.5f+radius&&Math.Abs(p.X)<beam/2-.15f+radius;}
         foreach(var row in rows)

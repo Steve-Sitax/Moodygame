@@ -45,6 +45,8 @@ public partial class RideTest : Node
             if(Main.I.Arg("ride-only")=="velo") {await VeloCheck(api);return;}
             if(Main.I.Arg("ride-only")=="row") {await RowCheck(api);return;}
             if(Main.I.Arg("ride-only")=="ship") {await ShipCheck(api);return;}
+            if(Main.I.Arg("ride-only")=="water") {await ShipCheck(api);await FerryCheck(api);return;}
+            if(Main.I.Arg("ride-only")=="ferry") {await FerryCheck(api);return;}
             if(Main.I.Arg("ride-only")=="navigation") {await NavigationCheck(api);return;}
             foreach (float height in new[] { 2.99f, 3, 5, 8, 12 })
             {
@@ -75,15 +77,30 @@ public partial class RideTest : Node
             await VeloCheck(api);
             await RowCheck(api);
             await ShipCheck(api);
+            await FerryCheck(api);
         }
         catch (Exception e) { error = e.ToString(); GD.PrintErr("ridetest: " + error); }
         finally
         {
-            try { File.WriteAllText(Path.Combine(dir, "ridetest.json"), JsonSerializer.Serialize(new { ok = error == "", error, selection=Main.I.Arg("ride-only"), checks, replies, pictures, incomplete = new[] { "ferry", "household taking and furniture handoffs", "all hulls and street routes", "hire expiry and saved/remote gear proof", "ride sounds" } }, new JsonSerializerOptions(Api.Json) { WriteIndented = true })); }
+            try { File.WriteAllText(Path.Combine(dir, "ridetest.json"), JsonSerializer.Serialize(new { ok = error == "", error, selection=Main.I.Arg("ride-only"), checks, replies, pictures, incomplete = new[] { "household taking and furniture handoffs", "all hulls and street routes", "hire expiry and saved/remote gear proof", "ride sounds and ferry night lamps" } }, new JsonSerializerOptions(Api.Json) { WriteIndented = true })); }
             catch(Exception report){error=report.ToString();GD.PrintErr("ridetest report: "+error);}
             finally{GetTree().Quit(error == "" ? 0 : 1);}
         }
     }
+    private async Task NavigationCheck(Api api)
+    {
+        MoverClock.Hold(13.75,1);
+        GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set",new{hour=13,minute=45,weather="clear",money_c=2000,health=10}));await Rowing.I.Load();var row=Rowing.I;row.Answered+=(action,reply)=>replies.Add(new{rowing=action,reply});var landing=row.Data.Landings.First(l=>l.Id=="vismarkt");
+        Jef.I.Place(landing.Landing[0],landing.Landing[1],0);await row.Hire(landing);Require(row.Boat!=null,"navigation check hires a real boat");row.RiderTestHeadroom=4;RowPose(row,-76,-14,0);await Frames(5);
+        var bridge=Bridges.I.List.First(b=>b.Key=="canal_mouth");Require(bridge.Boats.Contains("rower"),"rower hails bridge keeper when headroom is too low");Require(row.Rower.Blocked(row,-76,6,0),"closed bridge refuses a boat that cannot fit underneath");Require(await Until(()=>bridge.Open>.97f,40),"bridge keeper opens real lifting leaves for rower");Jef.I.Yaw=MathF.PI;Jef.I.Pitch=-.25f;await Shot("rowing-bridge");row.RiderTestHeadroom=0;RowPose(row,-76,6,0);await Frames(3);Require(row.Boat!=null&&!row.Rower.Blocked(row,-76,6,0),"raised bridge clears the whole rowing hull");
+        RowPose(row,landing.X,landing.Z,landing.Yaw);await Frames(3);await row.Leave(row.ExitHere());Require(!bridge.Boats.Contains("rower"),"leaving boat releases its bridge request");Require(await Until(()=>!Jef.I.Climbing,15),"navigation boat docks ashore");
+        Jef.I.Place(landing.Landing[0],landing.Landing[1],0);await row.Hire(landing);RowPose(row,110,-16,0);await Frames(5);Require(row.Rower.Blocked(row,110,7,0),"shut near lock gates refuse the boat");Require(await Until(()=>Mv.Smooth(Lock.I.GateOpen(0))>.95f,65),"lock keeper opens near gates at the river level");RowPose(row,110,15,0);await Frames(5);Require(await Until(()=>Mv.Smooth(Lock.I.GateOpen(1))>.95f&&Lock.I.GateOpen(0)<.01f,80),"rower in chamber makes keeper shut near gates and open far gates");Jef.I.Pitch=-.25f;await Shot("rowing-lock");
+        RowPose(row,landing.X,landing.Z,landing.Yaw);await Frames(3);await row.Leave(row.ExitHere());Require(await Until(()=>!Jef.I.Climbing,15),"lock test boat returns ashore");
+        Jef.I.Place(landing.Landing[0],landing.Landing[1],0);await row.Hire(landing);bridge.Amount=0;bridge.Draw!.Set(0);row.RiderTestHeadroom=4;RowPose(row,-76,6,0);Require(await Until(()=>row.Boat==null&&!row.Busy,10),"closing deck crushes a boat under insufficient headroom");row.RiderTestHeadroom=0;Require(row.Data.Hire==null&&Jef.I.Swimming,"server prices lost boat and puts rower in water");replies.Add(new{afterBridgeWreck=await api.RowWorld()});Jef.I.Place(-118,36,0);
+        Jef.I.Place(landing.Landing[0],landing.Landing[1],0);await row.Hire(landing);var traffic=River.I.Movers.First(m=>m.Parts.Any(p=>Boats.I.Dims(p.Boat.Kind).Beam>2&&p.Boat.Outer.Visible));var ship=traffic.Parts.First(p=>Boats.I.Dims(p.Boat.Kind).Beam>2&&p.Boat.Outer.Visible);var hit=ship.Boat.Inner.GlobalPosition;RowPose(row,hit.X,hit.Z,0);Require(await Until(()=>row.Boat==null&&!row.Busy,10),"moving ship runs down overlapping rowboat");Require(row.Data.Hire==null&&Jef.I.Swimming,"ship wreck is priced by server and leaves rower swimming");replies.Add(new{afterShipWreck=await api.RowWorld()});Jef.I.Place(-118,36,0);
+    }
+    private static void RowPose(Rowing row,float x,float z,float yaw)
+    {row.Rower.X=x;row.Rower.Z=z;row.Rower.Y=World.BoatWater.At(x,z);row.Rower.Heading=yaw;row.Rower.Speed=row.Rower.Turn=0;}
     private async Task ShipCheck(Api api)
     {
         MoverClock.Hold(13.75,1);
@@ -100,20 +117,24 @@ public partial class RideTest : Node
         Require(Jef.I.OnJump?.Invoke()==true&&ships.On==null&&!Jef.I.Grounded,"Space launches from ship deck");ships.Clear();Jef.I.Place(-118,36,0);
         var traffic=River.I.Movers.First(m=>m.Parts.Any(part=>ships.Decks.Any(d=>d.Kind==part.Boat.Kind&&d.Visible()&&d.World().Origin.DistanceTo(part.Boat.Inner.GlobalPosition)<.1f)));var part=traffic.Parts.First(part=>ships.Decks.Any(d=>d.Kind==part.Boat.Kind&&d.Visible()&&d.World().Origin.DistanceTo(part.Boat.Inner.GlobalPosition)<.1f));var moving=ships.Decks.First(d=>d.Kind==part.Boat.Kind&&d.Visible()&&d.World().Origin.DistanceTo(part.Boat.Inner.GlobalPosition)<.1f);p=moving.Mesh.Nearest(Vector2.Zero);ships.Attach(moving,p);var initial=moving.World().Origin;Require(await Until(()=>moving.World().Origin.DistanceTo(initial)>.2f,10),"underway ship moves while Jef stands aboard");Require(new Vector3(Jef.I.X,Jef.I.Y,Jef.I.Z).DistanceTo(moving.At(ships.Local))<.05f,"player follows travelling ship frame");replies.Add(new{movingShip=new{moving.Kind,local=new{ships.Local.X,ships.Local.Y},feet=new{Jef.I.X,Jef.I.Y,Jef.I.Z},floor=moving.Mesh.Floor(ships.Local.X,ships.Local.Y)}});Jef.I.Pitch=-.8f;await Shot("ship-moving");ships.Clear();Jef.I.Place(-118,36,0);
     }
-    private async Task NavigationCheck(Api api)
+    private async Task FerryCheck(Api api)
     {
         MoverClock.Hold(13.75,1);
-        GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set",new{hour=13,minute=45,weather="clear",money_c=2000,health=10}));await Rowing.I.Load();var row=Rowing.I;row.Answered+=(action,reply)=>replies.Add(new{rowing=action,reply});var landing=row.Data.Landings.First(l=>l.Id=="vismarkt");
-        Jef.I.Place(landing.Landing[0],landing.Landing[1],0);await row.Hire(landing);Require(row.Boat!=null,"navigation check hires a real boat");row.RiderTestHeadroom=4;RowPose(row,-76,-14,0);await Frames(5);
-        var bridge=Bridges.I.List.First(b=>b.Key=="canal_mouth");Require(bridge.Boats.Contains("rower"),"rower hails bridge keeper when headroom is too low");Require(row.Rower.Blocked(row,-76,6,0),"closed bridge refuses a boat that cannot fit underneath");Require(await Until(()=>bridge.Open>.97f,40),"bridge keeper opens real lifting leaves for rower");Jef.I.Yaw=MathF.PI;Jef.I.Pitch=-.25f;await Shot("rowing-bridge");row.RiderTestHeadroom=0;RowPose(row,-76,6,0);await Frames(3);Require(row.Boat!=null&&!row.Rower.Blocked(row,-76,6,0),"raised bridge clears the whole rowing hull");
-        RowPose(row,landing.X,landing.Z,landing.Yaw);await Frames(3);await row.Leave(row.ExitHere());Require(!bridge.Boats.Contains("rower"),"leaving boat releases its bridge request");Require(await Until(()=>!Jef.I.Climbing,15),"navigation boat docks ashore");
-        Jef.I.Place(landing.Landing[0],landing.Landing[1],0);await row.Hire(landing);RowPose(row,110,-16,0);await Frames(5);Require(row.Rower.Blocked(row,110,7,0),"shut near lock gates refuse the boat");Require(await Until(()=>Mv.Smooth(Lock.I.GateOpen(0))>.95f,65),"lock keeper opens near gates at the river level");RowPose(row,110,15,0);await Frames(5);Require(await Until(()=>Mv.Smooth(Lock.I.GateOpen(1))>.95f&&Lock.I.GateOpen(0)<.01f,80),"rower in chamber makes keeper shut near gates and open far gates");Jef.I.Pitch=-.25f;await Shot("rowing-lock");
-        RowPose(row,landing.X,landing.Z,landing.Yaw);await Frames(3);await row.Leave(row.ExitHere());Require(await Until(()=>!Jef.I.Climbing,15),"lock test boat returns ashore");
-        Jef.I.Place(landing.Landing[0],landing.Landing[1],0);await row.Hire(landing);bridge.Amount=0;bridge.Draw!.Set(0);row.RiderTestHeadroom=4;RowPose(row,-76,6,0);Require(await Until(()=>row.Boat==null&&!row.Busy,10),"closing deck crushes a boat under insufficient headroom");row.RiderTestHeadroom=0;Require(row.Data.Hire==null&&Jef.I.Swimming,"server prices lost boat and puts rower in water");replies.Add(new{afterBridgeWreck=await api.RowWorld()});Jef.I.Place(-118,36,0);
-        Jef.I.Place(landing.Landing[0],landing.Landing[1],0);await row.Hire(landing);var traffic=River.I.Movers.First(m=>m.Parts.Any(p=>Boats.I.Dims(p.Boat.Kind).Beam>2&&p.Boat.Outer.Visible));var ship=traffic.Parts.First(p=>Boats.I.Dims(p.Boat.Kind).Beam>2&&p.Boat.Outer.Visible);var hit=ship.Boat.Inner.GlobalPosition;RowPose(row,hit.X,hit.Z,0);Require(await Until(()=>row.Boat==null&&!row.Busy,10),"moving ship runs down overlapping rowboat");Require(row.Data.Hire==null&&Jef.I.Swimming,"ship wreck is priced by server and leaves rower swimming");replies.Add(new{afterShipWreck=await api.RowWorld()});Jef.I.Place(-118,36,0);
+        GameState.I.Apply(await api.NewGame());GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set",new{hour=13,minute=45,weather="clear"}));
+        var f=FerryArrival.I;f.Answered+=(action,reply)=>replies.Add(new{ferry=action,reply});Require((await api.Arrival()).Stage=="ferry","new week arrives on ferry");await f.Ask(false);
+        Require(f.Stage=="waiting"&&Jef.I.Riding&&!f.Ashore,"player starts on measured ferry deck");await Shot("ferry-deck");Require(await Until(()=>f.Stage=="moored",8),"ferryman lowers gangway before walking ashore");
+        var start=new Vector3(Jef.I.X,Jef.I.Y,Jef.I.Z);for(int i=0;i<100;i++)Jef.I.Drive!(0);long before=GC.GetAllocatedBytesForCurrentThread();for(int i=0;i<10000;i++)Jef.I.Drive!(0);long alloc=GC.GetAllocatedBytesForCurrentThread()-before;replies.Add(new{ferryProbe=new{iterations=10000,allocatedBytes=alloc}});Require(alloc==0,"ferry walking allocates zero bytes");
+        for(int i=0;i<100;i++)f._Process(0);before=GC.GetAllocatedBytesForCurrentThread();for(int i=0;i<10000;i++)f._Process(0);alloc=GC.GetAllocatedBytesForCurrentThread()-before;replies.Add(new{ferryUpdateProbe=new{iterations=10000,allocatedBytes=alloc}});Require(alloc==0,"ferry models and passengers update without managed allocations");
+        await FerryWalk(f.Port,15);Jef.I.Pitch=-.35f;await Shot("ferry-gangway");await FerryWalk(new(-249,-58.5f),15);
+        Require(await Until(()=>f.Ashore,10),"walking gangway reports ashore to server");Require((await api.Arrival()).Stage=="ashore","server stores ferry arrival completion");Jef.I.Yaw=MathF.Atan2(Jef.I.X-f.VesselPosition.X,Jef.I.Z-f.VesselPosition.Z);Jef.I.Pitch=-.2f;await Shot("ferry-ashore");
+        Require(await Until(()=>f.PassengersOff==5,40),"all five foot passengers leave before gangway is raised");Require(await Until(()=>f.Stage=="leaving",10),"ferry casts off after everyone is ashore");var departed=f.VesselPosition;Require(await Until(()=>f.VesselPosition.DistanceTo(departed)>.5f,8),"departing ferry steams clear of landing");Jef.I.Yaw=MathF.Atan2(Jef.I.X-f.VesselPosition.X,Jef.I.Z-f.VesselPosition.Z);await Shot("ferry-departing");
+        var path=f.StagePath(new(Jef.I.X,Jef.I.Z),new(-249,-6));replies.Add(new{ferryStagePath=path});Require(path.Count>0,"measured landing floor has a route around its furniture");foreach(var point in path)await FerryWalk(point,45);await FerryWalk(new(-249,-6),10);await FerryWalk(new(-249,.2f),10);Require(!Jef.I.Riding&&!Jef.I.Swimming&&Jef.I.Grounded,"landing stage and quay gangway reach town on foot");
+        replies.Add(new{ferryFootProbe=new{f.WorstFootError,f.MissingFootSamples,f.MissingPerson,missingAt=new{f.MissingAt.X,f.MissingAt.Y},f.PassengersOff,start=new{start.X,start.Y,start.Z}}});Require(f.MissingFootSamples==0,"passengers keep feet on deck, plank and landing floors");await f.Ask(false);Require(f.Stage=="gone"&&!Jef.I.Riding,"loading ashore game does not restart arrival");
     }
-    private static void RowPose(Rowing row,float x,float z,float yaw)
-    {row.Rower.X=x;row.Rower.Z=z;row.Rower.Y=World.BoatWater.At(x,z);row.Rower.Heading=yaw;row.Rower.Speed=row.Rower.Turn=0;}
+    private async Task FerryWalk(Vector2 target,double timeout)
+    {
+        bool reached=await Until(()=>{var j=Jef.I;var delta=target-new Vector2(j.X,j.Z);j.Yaw=MathF.Atan2(-delta.X,-delta.Y);j.SetKey(Key.W,delta.Length()>.12f);return delta.Length()<.12f;},timeout);Jef.I.ClearKeys();if(!reached)replies.Add(new{ferryBlocked=new{Jef.I.X,Jef.I.Y,Jef.I.Z,foot=FerryArrival.I.Foot(Jef.I.X,Jef.I.Z)}});Require(reached,$"walk ferry route to {target}");
+    }
     private async Task RowCheck(Api api)
     {
         MoverClock.Hold(13.75,1);
@@ -140,7 +161,7 @@ public partial class RideTest : Node
         Require(row.Data.Hire?.Left!=null&&row.Drawings.TryGetValue("mine",out var leftBoat)&&Math.Abs(leftBoat.Yaw-MathF.PI/2)<.01f,"left hired boat keeps its original hull and heading");var lying=row.Drawings["mine"];Jef.I.Yaw=MathF.Atan2(Jef.I.X-lying.X,Jef.I.Z-lying.Z);Jef.I.Pitch=0;await Frames(3);await Shot("rowing-swimming");
         Require(Interact.I.Press(Key.E),"E climbs back into boat from water");Require(await Until(()=>row.Boat!=null&&!row.Busy&&!Jef.I.Climbing,10),"swimmer climbs onto thwart and server confirms reboarding");
         row.Rower.X=-125;row.Rower.Z=-1.4f;row.Rower.Heading=MathF.PI/2;row.Rower.Speed=row.Rower.Turn=0;await Frames(3);await row.Leave(null);
-        MoverClock.Hold(13.75,1);Jef.I.Place(-125,.2f,0,-.55f,0);await Frames(3);Require(Jef.I.OnJump?.Invoke()==true,"Space at quay jumps into the left boat");Require(await Until(()=>row.Boat!=null&&!row.Busy&&!Jef.I.Climbing,10),"quay jump lands on thwart and server reboards");await Shot("rowing-quay-jump");
+        MoverClock.Hold(13.75,1);Jef.I.Place(-125,.2f,0,-.55f,0);await Frames(3);replies.Add(new{rowJump=new{row.Busy,Jef.I.Laden,Jef.I.Riding,Jef.I.Swimming,Jef.I.Climbing,Jef.I.Y,water=World.Water.Level(-125,-1.4f),boat=new{row.Drawings["mine"].X,row.Drawings["mine"].Z}}});Require(Jef.I.OnJump?.Invoke()==true,"Space at quay jumps into the left boat");Require(await Until(()=>row.Boat!=null&&!row.Busy&&!Jef.I.Climbing,10),"quay jump lands on thwart and server reboards");await Shot("rowing-quay-jump");
         row.Rower.X=landing.X;row.Rower.Z=landing.Z;row.Rower.Heading=landing.Yaw;row.Rower.Speed=row.Rower.Turn=0;await Frames(3);await row.Leave(row.ExitHere());Require(await Until(()=>!row.Busy&&!Jef.I.Climbing,15),"second hired boat returns ashore");
     }
     private async Task VeloFixture(Api api,Velocipedes.Machine m,float x,float z,float yaw)

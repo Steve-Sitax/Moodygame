@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- In Godot, arrive on the St. Anna ferry, walk its gangway and landing stage into town, and receive the first work hint as the ferry leaves.
+
 - In Godot, climb out of the water onto ship decks, ride their tide and travel, and walk Anna Maria's gangway from the quay and back.
 
 - In Godot, hail lifting bridges and the lock keeper from a rowing boat, wait for clear gates, and survive a boat broken by a bridge or passing ship.
