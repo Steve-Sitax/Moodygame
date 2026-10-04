@@ -93,7 +93,7 @@ public partial class TownLife
         double hour = GameState.I.HourF; var eye = Main.I.Cam.GlobalPosition;
         foreach (var r in LampRuns)
         {
-            var round = r.Round; if (round.Lamps.Count == 0 || round.At.Count != round.Lamps.Count) continue;
+            var round = r.Round; if (Actors.I?.NpcOwned(round.Lamplighter) == false) continue; if (round.Lamps.Count == 0 || round.At.Count != round.Lamps.Count) continue;
             LampWindow? window = null; foreach (var w in r.Windows) if (hour >= w.Start && hour < w.End) { window = w; break; }
             if (window == null && r.Person?.P != null && r.Window is { } grace && r.Index < round.Lamps.Count && hour >= grace.End && hour < grace.Last) window = grace;
             if (window != r.Window) { DropLamp(r, false); r.Window = window; r.PartDone = false; }

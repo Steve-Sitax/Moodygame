@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Godot event crowds can draw 100 people, and blocked attendees try four other ways before standing or continuing unseen.
+
 - Godot lamplighters walk their rounds with a pole and ladder; bucket chains pass buckets both ways, and burned fronts keep soot that fades over three days.
 
 - In Godot, family dreams appear on the night paper, including dreams that arrive before it opens.

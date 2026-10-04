@@ -196,6 +196,8 @@ public partial class EventTest : Node
                 GD.Print("eventtest finished " + kind);
             }
             if (only.Length == 0 || only.Contains("family_ui")) await FamilyUi();
+            if (only.Length == 0 || only.Contains("actions")) await RequestedActions(api, town);
+            if (only.Length == 0 || only.Contains("crowd100")) await Crowd100(town);
             if (only.Length == 0 || only.Contains("lamps")) await Lamps(api);
             if (only.Length == 0 || only.Contains("dreams")) await Dreams();
         }
@@ -207,7 +209,7 @@ public partial class EventTest : Node
             double mean = costs.Count == 0 ? 0 : costs.Average(), p95 = costs.Count == 0 ? 0 : costs[(int)((costs.Count - 1) * 0.95)];
             if (costs.Count > 0) Check(mean < 0.5, "events and actors exceed 0.5 ms mean: " + mean);
             if (allocations.Count > 0) Check(allocations[(int)((allocations.Count - 1) * 0.95)] == 0, "steady frames allocate managed memory");
-            File.WriteAllText(Path.Combine(dir, "eventtest.json"), JsonSerializer.Serialize(new { ok = failures.Count == 0, failures, stages = rows, frame = new { count = costs.Count, meanMs = mean, p95Ms = p95, maxMs = costs.Count == 0 ? 0 : costs[^1], meanBytes = allocations.Count == 0 ? 0 : allocations.Average(), p95Bytes = allocations.Count == 0 ? 0 : allocations[(int)((allocations.Count - 1) * 0.95)] }, notCovered = new[] { "AI-invented event content (no AI in this test)", "Multiplayer ownership and actual omnibus attendance", "Full indoor ceremony choreography and exit walks", "Persistent soot and lamplighter rounds", "Individual player-requested actions and family menace choices" } }, new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(Path.Combine(dir, "eventtest.json"), JsonSerializer.Serialize(new { ok = failures.Count == 0, failures, stages = rows, frame = new { count = costs.Count, meanMs = mean, p95Ms = p95, maxMs = costs.Count == 0 ? 0 : costs[^1], meanBytes = allocations.Count == 0 ? 0 : allocations.Average(), p95Bytes = allocations.Count == 0 ? 0 : allocations[(int)((allocations.Count - 1) * 0.95)] }, notCovered = new[] { "AI-invented event content (no AI in this test)", "Multiplayer ownership and actual omnibus attendance", "Full indoor ceremony choreography and exit walks", "Persistent soot and lamplighter rounds", "Family menace engine outcomes" } }, new JsonSerializerOptions { WriteIndented = true }));
             GD.Print("eventtest wrote " + dir + " failures=" + failures.Count);
             GetTree().Quit(failures.Count == 0 ? 0 : 1);
         }
