@@ -138,6 +138,12 @@ public partial class Lights : Node
     /// <summary>The gas lamps by id and where they stand (the lamplighter's round).</summary>
     public IEnumerable<(string id, Vector3 at)> Lamps => lamps.Select(l => (l.Id, l.At));
 
+    /// <summary>The gas lamps by number, for a part that looks at them every frame (no list made): how many.</summary>
+    public int LampCount => lamps.Count;
+    /// <summary>Gas lamp i: its flame, and how bright it burns now (0 out .. 1, the gas's catch and the dark).</summary>
+    public Vector3 LampAt(int i) => lamps[i].At;
+    public float LampBright(int i) => lamps[i].B;
+
     private static Vector3 V(Color c) => new(c.R, c.G, c.B);
 
     private static Src Read(JsonElement e)

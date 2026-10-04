@@ -3,6 +3,24 @@
 ## Godot browser regression check, 2026-10-04
 
 Audited the 36 browser/server/tool files changed from main merge-base 35abc3f to godot-port 908a1e1. All 1,395 tests and the production build passed. Isolated fresh towns, headless Chrome, path/shader/stuck checks, a paid watch job, offline resident choices and close midday pictures are recorded in `docs/godot-browsercheck.md`. The activity-anchor changes are a real shared bug fix, not new game rules. Named test jumps can resolve residents before exact places, a pre-existing tooling problem filed as [#51](https://github.com/Steve-Sitax/Moodygame/issues/51). Performance remains above the 16.7 ms gate on both the branch and merge-base; the existing [#32](https://github.com/Steve-Sitax/Moodygame/issues/32) tracks the browser frame budget. No push or merge.
+## Godot look gaps: smoke, the air's small life, blobs, room hours, 2026-10-04
+
+On `godot/gaps-look` (from `godot-port` at `908a1e1`). New parts in `godot/src/World/`: `WorksSmoke.cs` (the
+breweries', the refinery's and the gasworks' plumes by their hours), `FunnelSmoke.cs` (funnels and stoves on the
+live hulls), `NightLife.cs` (moths, cats' eyes), `Breath.cs`, `Gutters.cs` (broken gutters' streams and stains),
+`Surf.cs` (the great storm's surf, spray and splashes), `BlobFeet.cs` (townspeople and Jef hand their spots to
+`Blobs`), shared `Air.cs` (dice, gusts, `AirPoints`). Gust veils in `Rain.cs` and `RainSheets.cs`. The Steen's room
+window light is no longer hidden. `--roomhours <dir>` proves the rooms' hours: at 10:00, 13:00 and 23:00 the server
+answered for 28 of 40 rooms (the 12 halls follow the clock); at 13:00 the 17 shops are shut for the keepers' midday
+meal, at 10:00 and 23:00 server and clock agree. Not-ported list: the 26 window parts, the room punches and the
+fires' nameless meshes come off; the rest is [#54](https://github.com/Steve-Sitax/Moodygame/issues/54).
+Found while measuring: Godot's `PROJECTION_MATRIX[1][1]` in a spatial shader does not give the pixel scale it gives in
+three.js; `AirPoints` and `WorksSmoke` take a metre's pixels from the projection of two points instead.
+Browser pictures from the same views: `node tools/godot/look-refs.mjs`. Checks: shaders PASS (0 new kinds, 0
+problems). Pictures under `godot/baked/look/` (not in git): `cmp/*.png` (browser left, Godot right). Open: landmark
+windows by the clock and the Steen's door lanterns ([#52](https://github.com/Steve-Sitax/Moodygame/issues/52)),
+the storm's rain thinner than the browser's ([#53](https://github.com/Steve-Sitax/Moodygame/issues/53)), the eaves'
+lone drops, the horses' breath, the bats, the bilge water, the lightning and the flying debris.
 
 ## Godot daylight: the sun's colour and the test clock, 2026-10-04
 

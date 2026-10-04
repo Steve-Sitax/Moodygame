@@ -210,7 +210,7 @@ void fragment() {
             foreach (var c in g.GetChildren()) if (c is Node3D c3) c3.Visible = false;
             Make(spots, fire.ContainsKey("smoke") ? fire["smoke"].AsInt32() : 10, g);
             baked++;
-            Main.I.World.Unported.RemoveAll(u => g.GetChildren().Any(c => c.Name.ToString() == u));
+            Main.I.World.Unported.RemoveAll(u => g.GetChildren().Any(c => c.Name.ToString() == u || $"{g.Name}/{c.Name}" == u));
         }
         GD.Print($"fires: {baked} from the bake, {Info.spots} fires burning" + (fires.Count > 0 ? $", the first at {(fires[0].Root.GetParent<Node3D>().GlobalTransform * firstSpot).Round()}" : ""));
     }

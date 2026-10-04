@@ -8,6 +8,11 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 ## [Unreleased]
 
 - Townspeople's outdoor activity spots stay on reachable ground instead of landing inside houses or the park pond; path snapping also keeps room for their bodies at lane edges.
+- In the Godot version, the townspeople and Jef have their soft shadow on the ground again, as in the browser game.
+
+- In the Godot version, the town's small life in the air is back: moths round the lit gas lamps on a still night, cats' eyes in the dark lanes, breath in the cold, water running from broken gutters with the damp stains under them, the great storm's surf bursting up the river walls and its rain splashing on the stones, and the white veils of heavier rain that each gust brings.
+
+- In the Godot version, the breweries, the sugar refinery and the gasworks smoke from their tall stacks by their working hours, and steamers and barges smoke from their funnels and stoves as in the browser game.
 
 - In the Godot version, lamps in rooms, shops and taverns and the lanterns people carry now glow the warm amber of the browser game instead of a deep red-orange, and a lantern left in the street lights the stones in the same colour ([#48](https://github.com/Steve-Sitax/Moodygame/issues/48)).
 

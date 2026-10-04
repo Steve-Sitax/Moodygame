@@ -133,6 +133,9 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
             var shut = openings.Where(n => r.AuditOpenings.Any(o => o.kind == "door" && !o.open && o.box.Grow(0.15f).HasPoint(n.GlobalPosition))).ToArray();
             auditTargets.Add(new(r.Id, Main.I.World, r.Root, openings, bounds, r.AuditOpenings.Select(o => o.box).ToArray(), shut));
         }
+        // (the browser's punch cut the street's house open for a room drawn as a scene of its own; here the rooms stand
+        // in the world behind real openings, so the punch has nothing to do)
+        Main.I.World.Unported.RemoveAll(u => u.StartsWith("house_") && u.Contains("_punch/"));
         if (rooms.Count == 0) GD.Print("rooms: none in this bake (bake again: the rooms go into the export as ROOM_<id>)");
         else GD.Print($"rooms: {rooms.Count} in the world ({rooms.Sum(r => r.Meshes.Count)} meshes, {rooms.Sum(r => r.Lamps.Count)} lamps, {rooms.Count(r => r.Lining != null)} linings, {panes.Count} glass)");
         // (dev: --rooms-list prints each room's box, to find a place to look from)
@@ -166,13 +169,49 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
         finally
         {
             asking = false;
+            asks++;
         }
     }
 
     /// <summary>The shops' and taverns' part says a room is open (its lamps lit after dark) or shut.</summary>
     public void SetOpen(string id, bool open)
     {
-        if (byId.TryGetValue(id, out var r)) r.Open = open;
+        if (byId.TryGetValue(id, out var r)) { r.Open = open; answered++; }
+        else unknown.Add(id);
+    }
+
+    private int answered, asks;
+    private readonly HashSet<string> unknown = new();
+    private double hoursT = -1;
+    private string? hoursDir;
+
+    /// <summary>
+    /// Dev, --roomhours dir: the rooms' hours from the server proven. Once the server has answered twice, writes
+    /// dir/roomhours.json (the clock, each room's word from the server, what the clock alone would have said, its
+    /// light now; the server's places with no room) and quits.
+    /// </summary>
+    private void RoomHours(float h, double delta)
+    {
+        string dir = hoursDir ??= Paths.TestOutput("roomhours");
+        if (dir == "" || asks < 2 || asking) return;
+        if (hoursT < 0) hoursT = 3;
+        hoursT -= delta;
+        if (hoursT > 0) return;
+        System.IO.Directory.CreateDirectory(dir);
+        var list = rooms.Where(r => r.Kind != "home").Select(r => new
+        {
+            r.Id, r.Kind, server = r.Open, clock = r.Kind switch { "shop" => h >= 7 && h < 19, "tavern" => h >= 10, "poesje" => h >= 18.5f && h < 22.5f, "home" => false, _ => true },
+            level = Math.Round(r.Level, 2),
+        }).ToList();
+        var report = new
+        {
+            hour = Math.Round(h, 2), asks, answered, rooms = list.Count, fromServer = list.Count(r => r.server != null), noAnswer = list.Where(r => r.server == null).Select(r => r.Id),
+            differFromClock = list.Where(r => r.server != null && r.server != r.clock).Select(r => $"{r.Id}: server {(r.server == true ? "open" : "shut")}, clock {(r.clock ? "open" : "shut")}"),
+            serverPlacesWithoutRoom = unknown.Order(), list,
+        };
+        System.IO.File.WriteAllText(System.IO.Path.Combine(dir, "roomhours.json"), System.Text.Json.JsonSerializer.Serialize(report, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+        GD.Print($"roomhours: {report.fromServer} of {report.rooms} rooms answered by the server at {h:0.00}, {report.differFromClock.Count()} differ from the clock alone");
+        GetTree().Quit();
     }
 
     /// <summary>The room a point is in (its box), or null on the street: no rain falls in it.</summary>
@@ -306,10 +345,11 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
         askT -= (float)delta;
         if (askT <= 0)
         {
-            askT = 15;
+            askT = (hoursDir ??= Paths.TestOutput("roomhours")) != "" ? 4 : 15;
             AskOpen();
         }
         float h = day.Hour, night = day.Night;
+        RoomHours(h, delta);
         float dayK = Mathf.Clamp(h < 12 ? (h - 6.5f) / 3 : (18.5f - h) / 3, 0, 1);
         var eye = cam.GlobalPosition;
         // which rooms are shown: within reach of the eye (a house: the nearest few, the settings' "rooms"); the rest
