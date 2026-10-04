@@ -493,12 +493,12 @@ public partial class Boats : Node
             bool plain = part == Transform3D.Identity;
             if (buf == null)
             {
-                for (int i = 0; i < f.N; i++) mm.SetInstanceTransform(i, plain ? f.World[i] : f.World[i] * part);
+                for (int i = 0; i < f.N; i++) mm.SetInstanceTransform(i, PlayerDraw(f,i,plain ? f.World[i] : f.World[i] * part));
                 continue;
             }
             for (int i = 0, o = 0; i < f.N; i++, o += 12)
             {
-                var x = plain ? f.World[i] : f.World[i] * part;
+                var x = PlayerDraw(f,i,plain ? f.World[i] : f.World[i] * part);
                 buf[o] = x.Basis.X.X; buf[o + 1] = x.Basis.Y.X; buf[o + 2] = x.Basis.Z.X; buf[o + 3] = x.Origin.X;
                 buf[o + 4] = x.Basis.X.Y; buf[o + 5] = x.Basis.Y.Y; buf[o + 6] = x.Basis.Z.Y; buf[o + 7] = x.Origin.Y;
                 buf[o + 8] = x.Basis.X.Z; buf[o + 9] = x.Basis.Y.Z; buf[o + 10] = x.Basis.Z.Z; buf[o + 11] = x.Origin.Z;

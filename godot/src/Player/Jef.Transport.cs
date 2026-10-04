@@ -13,6 +13,8 @@ public partial class Jef
     public float DrivenRoll;
     public bool Riding => Drive != null;
     public bool KeyDown(Key key) => K(key);
+    public void DropFromBoat(Vector3 at)
+    {Drive=null;DrivenEye=Eye;DrivenRoll=0;X=at.X;Y=at.Y;Z=at.Z;placing=false;vy=-1.5f;EnterWater();}
     public void LaunchFromRide()
     {
         Drive = null; DrivenEye = Eye; Grounded = false; Swimming = false;

@@ -43,6 +43,7 @@ public partial class RideTest : Node
             Jef.I.Place(-118, 36, 0);
             if(Main.I.Arg("ride-only")=="cart") {await HandcartCheck(api);return;}
             if(Main.I.Arg("ride-only")=="velo") {await VeloCheck(api);return;}
+            if(Main.I.Arg("ride-only")=="row") {await RowCheck(api);return;}
             foreach (float height in new[] { 2.99f, 3, 5, 8, 12 })
             {
                 GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { hour = 13, minute = 45, weather = "clear", health = 10 }));
@@ -70,6 +71,7 @@ public partial class RideTest : Node
             await CraneCheck();
             await HandcartCheck(api);
             await VeloCheck(api);
+            await RowCheck(api);
         }
         catch (Exception e) { error = e.ToString(); GD.PrintErr("ridetest: " + error); }
         finally
@@ -77,6 +79,34 @@ public partial class RideTest : Node
             File.WriteAllText(Path.Combine(dir, "ridetest.json"), JsonSerializer.Serialize(new { ok = error == "", error, selection=Main.I.Arg("ride-only"), checks, replies, pictures, incomplete = new[] { "rowing", "ship frames", "ferry" } }, new JsonSerializerOptions(Api.Json) { WriteIndented = true }));
             GetTree().Quit(error == "" ? 0 : 1);
         }
+    }
+    private async Task RowCheck(Api api)
+    {
+        GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set",new{hour=13,minute=45,weather="clear",money_c=2000,health=10}));await Rowing.I.Load();
+        var row=Rowing.I;Require(await Until(()=>row.Data.Landings.Count>0,10),"rowing landings ready");row.Answered+=(action,reply)=>replies.Add(new{rowing=action,reply});
+        replies.Add(new{rowInitial=row.Data});var landing=row.Data.Landings.First(l=>l.Id=="vismarkt");
+        float ly=Jef.I.GroundAt(landing.Landing[0],landing.Landing[1],0);Jef.I.Place(landing.Landing[0],landing.Landing[1],MathF.Atan2(landing.Landing[0]-landing.X,landing.Landing[1]-landing.Z),-.45f,ly);await Frames(15);
+        await Shot("rowing-hire");Require(Interact.I.Find().Any(a=>a.Text.StartsWith("hire a")),"hire boat prompt at waterman's steps");int money=GameState.I.Money;
+        Require(Interact.I.Press(Key.E),"E hires rowing boat");Require(await Until(()=>row.Boat!=null&&!row.Busy,10),"server confirms hire and rower sits on thwart");
+        Require(row.Data.On=="hire"&&GameState.I.Money==money-row.Data.Fees.HireC,"server charges hire fee");await Shot("rowing-thwart");
+        replies.Add(new{rowStart=new{row.Rower.X,row.Rower.Y,row.Rower.Z,row.Rower.Heading,blocked=row.Rower.Blocked(row,row.Rower.X,row.Rower.Z,row.Rower.Heading)}});
+        for(int k=-1;k<=1;k++)replies.Add(new{rowWater=row.RiderTestWater(row.Rower.X+MathF.Sin(row.Rower.Heading)*(row.Rower.Shape.Half-row.Rower.Shape.Beam*.6f)*k,row.Rower.Z+MathF.Cos(row.Rower.Heading)*(row.Rower.Shape.Half-row.Rower.Shape.Beam*.6f)*k,row.Rower.Shape.Beam)});
+        var from=new Vector2(row.Rower.X,row.Rower.Z);Jef.I.SetKey(Key.W,true);Jef.I.SetKey(Key.Shift,true);Require(await Until(()=>new Vector2(row.Rower.X,row.Rower.Z).DistanceTo(from)>1,12),"W rows hired boat one metre");Jef.I.ClearKeys();
+        Require(row.Rower.Speed>.2f&&Math.Abs(row.Rower.Port)>0&&Math.Abs(row.Rower.Starboard)>0,"both oars propel rowing boat");Jef.I.Pitch=-.45f;await Shot("rowing-oars");
+        float h=row.Rower.Heading;Jef.I.SetKey(Key.A,true);Require(await Until(()=>Math.Abs(row.Rower.Heading-h)>.08f,8),"A turns with unequal oars");Jef.I.ClearKeys();
+        for(int i=0;i<100;i++)Jef.I.Drive!(0);long before=GC.GetAllocatedBytesForCurrentThread();for(int i=0;i<10000;i++)Jef.I.Drive!(0);long allocated=GC.GetAllocatedBytesForCurrentThread()-before;replies.Add(new{rowingProbe=new{iterations=10000,allocatedBytes=allocated}});Require(allocated==0,"rowing drive allocates zero bytes");
+        // Return at the actual berth after testing the real water movement.
+        row.Rower.X=landing.X;row.Rower.Z=landing.Z;row.Rower.Heading=landing.Yaw;row.Rower.Speed=row.Rower.Turn=0;await Frames(3);
+        Require(row.ExitHere()!=null,"rowing berth has a reachable exit to the steps");Require(Interact.I.Press(Key.E),"E docks and steps out");Require(await Until(()=>row.Boat==null&&!row.Busy&&!Jef.I.Climbing,15),"climb from thwart finishes on landing");
+        var world=await api.RowWorld();replies.Add(new{rowAfterReturn=world});Require(world.On==null&&world.Hire==null,"server returns hire at landing");Require(!Jef.I.Swimming&&!Jef.I.Riding,"rower stands ashore after docking");await Shot("rowing-returned");
+        Jef.I.Place(landing.Landing[0],landing.Landing[1],0,-.45f,ly);await row.Hire(landing);Require(row.Boat!=null,"second hire ready for reboarding");
+        row.Rower.X=-130;row.Rower.Z=-5;row.Rower.Heading=MathF.PI/2;row.Rower.Speed=row.Rower.Turn=0;await Frames(3);
+        await row.Leave(null);Require(await Until(()=>Jef.I.Swimming&&!row.Busy,8),"leave boat over side enters water");
+        Require(row.Data.Hire?.Left!=null&&row.Drawings.TryGetValue("mine",out var leftBoat)&&Math.Abs(leftBoat.Yaw-MathF.PI/2)<.01f,"left hired boat keeps its original hull and heading");var lying=row.Drawings["mine"];Jef.I.Yaw=MathF.Atan2(Jef.I.X-lying.X,Jef.I.Z-lying.Z);Jef.I.Pitch=0;await Frames(3);await Shot("rowing-swimming");
+        Require(Interact.I.Press(Key.E),"E climbs back into boat from water");Require(await Until(()=>row.Boat!=null&&!row.Busy&&!Jef.I.Climbing,10),"swimmer climbs onto thwart and server confirms reboarding");
+        row.Rower.X=-125;row.Rower.Z=-1.4f;row.Rower.Heading=MathF.PI/2;row.Rower.Speed=row.Rower.Turn=0;await Frames(3);await row.Leave(null);
+        Jef.I.Place(-125,.2f,0,-.55f,0);await Frames(3);Require(Jef.I.OnJump?.Invoke()==true,"Space at quay jumps into the left boat");Require(await Until(()=>row.Boat!=null&&!row.Busy&&!Jef.I.Climbing,10),"quay jump lands on thwart and server reboards");await Shot("rowing-quay-jump");
+        row.Rower.X=landing.X;row.Rower.Z=landing.Z;row.Rower.Heading=landing.Yaw;row.Rower.Speed=row.Rower.Turn=0;await Frames(3);await row.Leave(row.ExitHere());Require(await Until(()=>!row.Busy&&!Jef.I.Climbing,15),"second hired boat returns ashore");
     }
     private async Task VeloFixture(Api api,Velocipedes.Machine m,float x,float z,float yaw)
     {

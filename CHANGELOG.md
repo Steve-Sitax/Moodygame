@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- In Godot, hire a rowing boat, pull and feather the oars, dock at steps or ladders, and climb or jump back into a boat left on the water.
+
 - Buy or hire a velocipede in Godot, pedal and steer through town, brake at steps and water, and get up after a wheel catches in the rails.
 
 - In Godot, buy or hire a handcart, push it by its shafts, load the real goods onto its bed, and unload a carry job at its goal for payment.
