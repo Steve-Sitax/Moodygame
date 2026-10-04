@@ -58,6 +58,7 @@ public static class Psx
         ("psx_rain", RenderingServer.GlobalShaderParameterType.Float, 0f),
         ("psx_puddle", RenderingServer.GlobalShaderParameterType.Float, 0f),
         ("psx_sea", RenderingServer.GlobalShaderParameterType.Float, 1f),
+        ("psx_storm", RenderingServer.GlobalShaderParameterType.Float, 0f),
         // the nearest lit gas lamps (the browser's uLamps, MAX_LAMPS 6): xyz the flame, w its brightness now
         ("psx_lamp0", RenderingServer.GlobalShaderParameterType.Vec4, NoLamp),
         ("psx_lamp1", RenderingServer.GlobalShaderParameterType.Vec4, NoLamp),

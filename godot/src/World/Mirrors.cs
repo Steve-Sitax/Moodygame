@@ -40,7 +40,11 @@ public partial class Mirrors : Node
     }
 
     private Mirror river = null!, puddles = null!;
+    /// <summary>The Stadspark pond's water (shared/parkGeometry.ts POND_LEVEL).</summary>
+    public const float PondLevel = -0.35f;
     private int frame;
+    // the settings' reflections: full, coarse (half the picture's size each way) or off
+    private string quality = "full";
     // dev, to measure: --mirror-off river,puddles draws no picture for those (the water shows the sky's grey)
     private readonly string offList = Main.I.Arg("mirror-off");
 
@@ -50,6 +54,8 @@ public partial class Mirrors : Node
     public override void _Ready()
     {
         ProcessPriority = 80; // after the camera, the daylight and the water have moved
+        quality = Menu.Prefs.Str("reflections");
+        Menu.Prefs.Changed += _ => quality = Menu.Prefs.Str("reflections");
         Psx.EnsureGlobals();
         river = Make("water", 160, 1.5f, Mathf.DegToRad(12), false, All & ~WaterLayer & ~NoMirror & ~Rooms.RoomLayer);
         puddles = Make("puddles", 50, 1, 0, true, All & ~GroundLayer & ~NoMirror & ~Rooms.RoomLayer);
@@ -133,11 +139,16 @@ public partial class Mirrors : Node
         // the river's mirror lies in the water nearest the eye (the river, the dock or the lock)
         bool inLock = eye.X > 100 - 6 && eye.X < 120 + 6 && eye.Z > 7 - 4 && eye.Z < 42;
         bool nearDock = eye.X > 62 - 25 && eye.X < 178 + 25 && eye.Z > 42 - 10 && eye.Z < 118 + 25;
-        river.PlaneY = inLock ? (Tide.ChamberA + Tide.ChamberB) / 2 : nearDock ? Tide.Dock : Waters.Level;
+        // (in the Stadspark: the pond's, which lies above the tide, drawn every frame and 110 m far)
+        bool pond = eye.X > -395 && eye.X < -215 && eye.Z > 245 && eye.Z < 380;
+        river.PlaneY = pond ? PondLevel : inLock ? (Tide.ChamberA + Tide.ChamberB) / 2 : nearDock ? Tide.Dock : Waters.Level;
+        river.EveryFrame = pond;
+        river.Far = pond ? 110 : 160;
         puddles.PlaneY = 0;
         // (the great storm's torn-up water mirrors nothing: no picture drawn then)
         bool calm = Daylight.I.Sea < 5.6f;
-        Draw(river, cam, view, !offList.Contains("river") && calm && WaterInView(cam), "psx_water_mirror", "psx_mir0", ref Drawn.river);
+        if (quality == "off") calm = false; // (the settings: no second drawing of the town; the water shows the air's colour)
+        Draw(river, cam, view, !offList.Contains("river") && calm && (pond || WaterInView(cam)), "psx_water_mirror", "psx_mir0", ref Drawn.river);
         Draw(puddles, cam, view, !offList.Contains("puddles") && calm && Daylight.I.Puddle > 0.01f, "psx_mirror", "psx_mir1", ref Drawn.puddles);
     }
 
@@ -162,7 +173,7 @@ public partial class Mirrors : Node
         count++;
 
         // the picture grows with the render height (320 x 180 at 270 lines), as wide as the view
-        float scale = Mathf.Clamp(view.Size.Y / 270f, 1, 4) * m.Grow;
+        float scale = Mathf.Clamp(view.Size.Y / 270f, 1, 4) * m.Grow * (quality == "coarse" ? 0.5f : 1);
         int h = (int)MathF.Round(180 * scale);
         var size = new Vector2I(Math.Max(16, (int)MathF.Round(h * (float)view.Size.X / Math.Max(1, view.Size.Y))), h);
         if (m.View.Size != size) m.View.Size = size;

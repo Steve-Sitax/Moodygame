@@ -102,6 +102,9 @@ public partial class Rooms : Node
         }
         if (rooms.Count == 0) GD.Print("rooms: none in this bake (bake again: the rooms go into the export as ROOM_<id>)");
         else GD.Print($"rooms: {rooms.Count} in the world ({rooms.Sum(r => r.Meshes.Count)} meshes, {rooms.Sum(r => r.Lamps.Count)} lamps, {rooms.Count(r => r.Lining != null)} linings, {panes.Count} glass)");
+        // (dev: --rooms-list prints each room's box, to find a place to look from)
+        if (Main.I.Arg("rooms-list") != "")
+            foreach (var r in rooms) GD.Print($"room {r.Id} {r.Kind}: {r.Box.GetCenter().Round()} size {r.Box.Size.Round()}, door {(r.Openings.Count > 0 ? r.Openings[0].Round() : Vector3.Zero)}");
         Menu.Prefs.Changed += _ => maxRooms = (int)Menu.Prefs.Num("rooms");
         maxRooms = (int)Menu.Prefs.Num("rooms");
     }
@@ -110,6 +113,14 @@ public partial class Rooms : Node
     public void SetOpen(string id, bool open)
     {
         if (byId.TryGetValue(id, out var r)) r.Open = open;
+    }
+
+    /// <summary>The room a point is in (its box), or null on the street: no rain falls in it.</summary>
+    public Aabb? Around(Vector3 p)
+    {
+        foreach (var r in rooms)
+            if (r.Box.HasPoint(p)) return r.Box;
+        return null;
     }
 
     /// <summary>How lit the room at a point is now, 0..1 (its windows' light on the street follows it); 1 where no room is.</summary>

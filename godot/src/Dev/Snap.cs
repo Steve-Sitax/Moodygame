@@ -11,7 +11,7 @@ namespace Scheldemist.Dev;
 /// Test pictures from chosen views, hours and weathers in one run (docs/testing.md: a good view, midday and clear
 /// unless the dark or the fog is what is tested):
 ///   -- --snap dir --views "day:-118,1.62,36,180,0,13,clear;night:-118,1.62,36,180,10,22,mist"
-/// Each view: name:x,y,z,yaw,pitch[,hour,weather] (degrees; yaw 0 looks to -z, 180 to +z; pitch up). A view with no
+/// Each view: name:x,y,z,yaw,pitch[,hour,weather,storm] (degrees; storm: the great storm's level 0..1; yaw 0 looks to -z, 180 to +z; pitch up). A view with no
 /// place ("name:,,,,,21,rain") keeps the camera of the bake's first place. Writes dir/name.png and prints the mean
 /// frame time there, then quits.
 /// </summary>
@@ -76,6 +76,7 @@ public partial class Snap : Node
             Tide.Set(1, F(a[6])); // (Monday's tide at that hour)
         }
         if (a.Length > 7 && a[7] != "") Daylight.I.SetWeather(a[7]);
+        Daylight.I.SetStorm(a.Length > 8 && a[8] != "" ? F(a[8]) : 0);
         Daylight.I.Settle();
     }
 
