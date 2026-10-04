@@ -1,0 +1,243 @@
+{
+  "checks": {
+    "loaded": {
+      "boot": {
+        "js": 561,
+        "boot:run": 4910,
+        "city": 14423,
+        "boot:files": 28419,
+        "boot:textures": 29268,
+        "boot:shaders": 29410,
+        "boot:lights": 35419,
+        "boot:doors": 35611,
+        "menu": 35868
+      },
+      "canvas": [
+        1280,
+        800
+      ]
+    },
+    "paths": [],
+    "shaders": {
+      "programs": 228,
+      "lightSettings": {
+        "dir 1, point 12, hemi 1, point shadows 1": 128,
+        "dir 0, point 10, hemi 1, point shadows 0": 21
+      },
+      "warmer": {
+        "runs": 57,
+        "objects": 6507,
+        "lastSyncMs": 3.3,
+        "lastReadyMs": 3,
+        "held": 412,
+        "heldMaxMs": 0,
+        "pending": 0,
+        "onHold": 0
+      },
+      "problems": []
+    },
+    "go:vismarkt": {
+      "target": {
+        "key": "vismarkt",
+        "label": "Vismarkt",
+        "x": -118,
+        "z": 30,
+        "kind": "jump"
+      },
+      "result": "at -118, 36",
+      "at": [
+        -118,
+        36
+      ]
+    },
+    "stuck:vismarkt": {
+      "stuck": [],
+      "watched": 26,
+      "walking": 16,
+      "seconds": 12
+    },
+    "go:grote markt": {
+      "target": {
+        "key": "grote markt",
+        "label": "Grote Markt",
+        "x": -254,
+        "z": 90,
+        "kind": "jump"
+      },
+      "result": "at -254, 96",
+      "at": [
+        -254,
+        96.0001479734589
+      ]
+    },
+    "stuck:grote markt": {
+      "stuck": [],
+      "watched": 29,
+      "walking": 24,
+      "seconds": 12
+    },
+    "go:cathedral": {
+      "target": {
+        "key": "cathedral",
+        "label": "Cathedral",
+        "x": -262,
+        "z": 138,
+        "kind": "jump"
+      },
+      "result": "at -262, 144",
+      "at": [
+        -262,
+        144.00011944224215
+      ]
+    },
+    "stuck:cathedral": {
+      "stuck": [],
+      "watched": 36,
+      "walking": 19,
+      "seconds": 12
+    },
+    "go:handschoenmarkt": {
+      "target": {
+        "key": "handschoenmarkt",
+        "label": "the Handschoenmarkt",
+        "x": -250,
+        "z": 135,
+        "kind": "place"
+      },
+      "result": "at -250, 141",
+      "at": [
+        -250,
+        141.00017120007914
+      ]
+    },
+    "stuck:handschoenmarkt": {
+      "stuck": [],
+      "watched": 33,
+      "walking": 12,
+      "seconds": 12
+    },
+    "go:rijnkaai": {
+      "target": {
+        "key": "rijnkaai",
+        "label": "Rijnkaai",
+        "x": 20,
+        "z": 20,
+        "kind": "jump"
+      },
+      "result": "at 20, 26",
+      "at": [
+        20,
+        26.000084921977752
+      ]
+    },
+    "stuck:rijnkaai": {
+      "stuck": [],
+      "watched": 20,
+      "walking": 18,
+      "seconds": 12
+    },
+    "townhall_close": {
+      "at": [
+        -257,
+        63.000000003925166
+      ],
+      "target": [
+        -257,
+        60.69
+      ]
+    },
+    "cathedral_close": {
+      "at": [
+        -262,
+        147
+      ],
+      "target": [
+        -262,
+        149.53
+      ]
+    },
+    "vleeshuis_close": {
+      "at": [
+        -121.95,
+        90
+      ],
+      "target": [
+        -121.95,
+        92.4
+      ]
+    },
+    "speaker": {
+      "id": "r001",
+      "name": "Rosalie Jacobs",
+      "meet": "Rosalie Jacobs is not in the street now"
+    },
+    "talkBefore": {
+      "text": "Rosalie Jacobs neutral\n\nRosalie Jacobs: What is it?\n\n1 Is there any work going?\n2 What do people say about me?\n3 Good day to you.\n\n1-3 answer · T say it your way · E step away",
+      "busy": false,
+      "choices": [
+        "Is there any work going?",
+        "What do people say about me?",
+        "Good day to you."
+      ],
+      "free": true
+    },
+    "talkAfter": {
+      "text": "Rosalie Jacobs neutral\n\nRosalie Jacobs: What is it?\n\nYou: Is there any work going?\n\nRosalie Jacobs: Go and see Lowie Jacobs at the Entrepot door. Wanted a hand this morning: cotton bales to the entrepot.\n\n1 What do people say about me?\n2 What do you do here?\n3 Good day to you.\n\n1-3 answer · T say it your way · E step away",
+      "busy": false,
+      "lines": [
+        {
+          "who": "Rosalie Jacobs",
+          "text": "What is it?"
+        },
+        {
+          "who": "You",
+          "text": "Is there any work going?"
+        },
+        {
+          "who": "Rosalie Jacobs",
+          "text": "Go and see Lowie Jacobs at the Entrepot door. Wanted a hand this morning: cotton bales to the entrepot."
+        }
+      ]
+    }
+  },
+  "views": [
+    "vismarkt",
+    "grote_markt",
+    "cathedral",
+    "handschoenmarkt",
+    "rijnkaai",
+    "townhall_close",
+    "cathedral_close",
+    "vleeshuis_close",
+    "talk_choices",
+    "talk_reply"
+  ],
+  "errors": [],
+  "perf": [
+    {
+      "place": "vismarkt",
+      "liveMean": 32.91,
+      "turnMean": 227.45
+    },
+    {
+      "place": "grote markt",
+      "liveMean": 32.45,
+      "turnMean": 31.83
+    },
+    {
+      "place": "cathedral",
+      "liveMean": 30.05,
+      "turnMean": 31
+    },
+    {
+      "place": "handschoenmarkt",
+      "liveMean": 30.01,
+      "turnMean": 33.29
+    },
+    {
+      "place": "rijnkaai",
+      "liveMean": 29.65,
+      "turnMean": 32.85
+    }
+  ]
+}

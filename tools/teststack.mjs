@@ -10,13 +10,15 @@
 
 import { spawn, execSync } from "node:child_process";
 import { createRequire } from "node:module";
-import { existsSync, openSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, openSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
-const data = path.join(root, "data");
 const args = process.argv.slice(2);
+// --fresh never opens the player's save or settings. Use the same flag when stopping.
+const fresh = args.includes("--fresh");
+const data = path.join(root, fresh ? ".test-stacks" : "data");
 const opt = (k, d) => {
   const i = args.indexOf(`--${k}`);
   return i >= 0 ? Number(args[i + 1]) : d;
@@ -69,14 +71,20 @@ async function up(url, secs) {
 
 async function start() {
   for (const p of [SERVER, VITE]) if (listeners(p).length) throw new Error(`port ${p} is in use: node tools/teststack.mjs stop first`);
+  mkdirSync(data, { recursive: true });
   // the copy: better-sqlite3's online backup, safe while Steve's server writes
   const require = createRequire(path.join(root, "server", "package.json"));
   const Database = require("better-sqlite3");
-  const live = new Database(path.join(data, "game.sqlite"), { readonly: true });
+  const live = fresh ? null : new Database(path.join(data, "game.sqlite"), { readonly: true });
   for (const f of [db, `${db}-shm`, `${db}-wal`]) rmSync(f, { force: true });
   rmSync(path.join(data, "saves", `test-${name}`), { recursive: true, force: true }); // a stack left unstopped: its old saves
-  await live.backup(db);
-  live.close();
+  if (live) {
+    await live.backup(db);
+    live.close();
+  } else {
+    // The server creates a deterministic new town, with no AI or credential file reads.
+    writeFileSync(path.join(data, `test-${name}.ai-config.json`), JSON.stringify({ version: 1, mode: "walk", default: { provider: "recommended" }, kinds: {}, connections: { anthropic_api: {}, openai_compat: { baseUrl: "https://api.openai.com/v1" }, ollama: { baseUrl: "http://127.0.0.1:11434" } } }));
+  }
   writeFileSync(
     cfg,
     `// made by tools/teststack.mjs for the test stack "${name}" (deleted by stop)
@@ -99,7 +107,7 @@ export default {
   );
   const server = spawn(process.execPath, ["src/index.ts"], {
     cwd: path.join(root, "server"),
-    env: { ...process.env, SCHELDEMIST_DB: db, SCHELDEMIST_PORT: String(SERVER), SCHELDEMIST_CLIENT_PORT: String(VITE), SCHELDEMIST_MAP_PORT: String(SERVER + 1000) },
+    env: { ...process.env, ...(fresh ? { SCHELDEMIST_DATA: data, SCHELDEMIST_AI_CONFIG: path.join(data, `test-${name}.ai-config.json`), SCHELDEMIST_TOWN_SEED: "1873" } : {}), SCHELDEMIST_DB: db, SCHELDEMIST_PORT: String(SERVER), SCHELDEMIST_CLIENT_PORT: String(VITE), SCHELDEMIST_MAP_PORT: fresh ? "0" : String(SERVER + 1000) },
     detached: true,
     windowsHide: true,
     stdio: ["ignore", openSync(logS, "w"), openSync(logS, "a")],

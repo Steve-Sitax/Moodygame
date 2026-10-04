@@ -78,6 +78,10 @@ From the repo root:
 
 The name and ports can change, so that two checks can run at once:
 `node tools/teststack.mjs start lock --server 8942 --vite 5342`, then stop it with the same name and ports.
+For a public-only checkout where no player save or settings may be read, add `--fresh` to both start and stop.
+It creates a seed-1873 town with AI disabled in `.test-stacks/`, never opens `data/game.sqlite`, and disables the map server.
+For example: `node tools/teststack.mjs start browsercheck --fresh --server 8875 --vite 5375`.
+On a fresh town, post `/api/arrival/ashore` and reload before checking the town, so the ferry cannot reposition Jef.
 The test vite has no hot reload: after a client edit, reload the tab. After a server edit, stop and start.
 In a fresh git worktree, run `node client/scripts/copy-draco.mjs` once before the first start: the test vite does not run `predev`, and without `client/public/draco/` the city model does not load (no houses, `Unexpected token '<'` in the console).
 

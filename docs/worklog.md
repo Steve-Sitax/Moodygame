@@ -1,5 +1,9 @@
 # Work log
 
+## Godot browser regression check, 2026-10-04
+
+Audited the 36 browser/server/tool files changed from main merge-base 35abc3f to godot-port 908a1e1. All 1,395 tests and the production build passed. Isolated fresh towns, headless Chrome, path/shader/stuck checks, a paid watch job, offline resident choices and close midday pictures are recorded in `docs/godot-browsercheck.md`. The activity-anchor changes are a real shared bug fix, not new game rules. Named test jumps can resolve residents before exact places, a pre-existing tooling problem filed as [#51](https://github.com/Steve-Sitax/Moodygame/issues/51). Performance remains above the 16.7 ms gate on both the branch and merge-base; the existing [#32](https://github.com/Steve-Sitax/Moodygame/issues/32) tracks the browser frame budget. No push or merge.
+
 ## Godot daylight: the sun's colour and the test clock, 2026-10-04
 
 On `godot/daylight` (from `godot-port` at `cc2f843`). Issue #42 (dark clear midday, movers worst): `Daylight.cs`

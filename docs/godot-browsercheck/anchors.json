@@ -1,0 +1,79 @@
+{
+  "seed": 1873,
+  "residents": 895,
+  "replacements": 430,
+  "oldInvalidSegments": 830,
+  "remainingInvalid": 0,
+  "examples": [
+    {
+      "id": "bk012",
+      "act": "stroll",
+      "place": "lanes:p1",
+      "old": [
+        137.82799101968533,
+        309.2175498926788
+      ],
+      "fixed": [
+        124.9,
+        318
+      ],
+      "valid": true
+    },
+    {
+      "id": "bk015",
+      "act": "stroll",
+      "place": "lanes:p1",
+      "old": [
+        133.98893625546478,
+        304.223240723838
+      ],
+      "fixed": [
+        124.9,
+        318
+      ],
+      "valid": true
+    },
+    {
+      "id": "bk016",
+      "act": "loiter",
+      "place": "step:9065",
+      "old": [
+        120.44633426244287,
+        336.17393526565775
+      ],
+      "fixed": [
+        120.3,
+        336.7
+      ],
+      "valid": true
+    },
+    {
+      "id": "bk016",
+      "act": "stroll",
+      "place": "lanes:p1",
+      "old": [
+        135.79002787328628,
+        306.2180579697323
+      ],
+      "fixed": [
+        124.9,
+        318
+      ],
+      "valid": true
+    },
+    {
+      "id": "bk016",
+      "act": "loiter",
+      "place": "step:9065",
+      "old": [
+        120.44633426244287,
+        336.17393526565775
+      ],
+      "fixed": [
+        120.3,
+        336.7
+      ],
+      "valid": true
+    }
+  ]
+}

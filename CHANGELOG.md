@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Townspeople's outdoor activity spots stay on reachable ground instead of landing inside houses or the park pond; path snapping also keeps room for their bodies at lane edges.
+
 - In the Godot version, lamps in rooms, shops and taverns and the lanterns people carry now glow the warm amber of the browser game instead of a deep red-orange, and a lantern left in the street lights the stones in the same colour ([#48](https://github.com/Steve-Sitax/Moodygame/issues/48)).
 
 - Godot profiling records turning callbacks and identifies main-thread async continuations; the shared fresh-town check runner now includes street deeds.
