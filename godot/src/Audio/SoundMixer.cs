@@ -135,7 +135,22 @@ public partial class Soundscape
         // foggy outdoor space: long soft tail (the browser's impulse(3.8, 2.6), reverbIn 0.55)
         outdoorVerb = Verb(3.5, ConvolverGain(3.8), 0);
         AddBus("Reverb", "Street", 0.55, outdoorVerb);
-        foreach (string k in Kinds) AddBus(Cap(k), "Street");
+        // the Sound settings' four buses (src/Menu/Apply.cs makes them when it runs first, sending to Master): the same
+        // names here, moved behind Street and sent into it, so the settings' levels are the mix levels
+        foreach (string k in Kinds)
+        {
+            string name = Cap(k);
+            int have = AudioServer.GetBusIndex(name);
+            if (have < 0)
+            {
+                AddBus(name, "Street");
+                continue;
+            }
+            AudioServer.MoveBus(have, AudioServer.BusCount - 1);
+            AudioServer.SetBusSend(AudioServer.BusCount - 1, "Street");
+            busIndex[name] = AudioServer.BusCount - 1;
+            busName[name] = name;
+        }
         AddBus("Murmur", "Ambience", 1, new AudioEffectLowPassFilter { CutoffHz = 2200, Resonance = Reso(1), Db = AudioEffectFilter.FilterDB.Filter6Db });
         AddBus("MurmurWet", "Reverb", 1, new AudioEffectLowPassFilter { CutoffHz = 2200, Resonance = Reso(1), Db = AudioEffectFilter.FilterDB.Filter6Db });
         // the room: a short, close reverb (impulse(0.7, 5), send 0.22) and the hall's (set by SetInterior)
@@ -158,6 +173,10 @@ public partial class Soundscape
             AudioServer.SetBusEffectEnabled(idx, 1, false);
             freeChans.Push(new Chan { Index = idx, Name = busName[name], Lp = lp, Hp = hp, Send = "Street" });
         }
+
+        // (moving a bus shifts the ones behind it: every index is read again, by name)
+        foreach (string name in new List<string>(busIndex.Keys)) busIndex[name] = AudioServer.GetBusIndex(name);
+        foreach (var c in freeChans) c.Index = AudioServer.GetBusIndex(c.Name);
 
         holder = new Node3D { Name = "Sound" };
         Main.I.View.AddChild(holder);
@@ -454,7 +473,8 @@ public partial class Soundscape
             if (v.P2 != null) v.P2.VolumeDb = db;
         }
         if (v.W3 == null && v.W2 == null) return;
-        float wdb = Db(g * sp.Wet);
+        // The second player bypasses the dry category bus. Give its echo that category's setting too.
+        float wdb = Db(g * sp.Wet * wetLevels.GetValueOrDefault(sp.Out, 1));
         if (first || Math.Abs(wdb - v.LastWetDb) > 0.05f)
         {
             v.LastWetDb = wdb;

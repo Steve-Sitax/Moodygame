@@ -19,6 +19,71 @@ public partial class Soundscape
     private SoundTester? test;
     private void StartTest(string dir) => test = new SoundTester(this, dir);
     private void TestTick() => test?.Tick();
+    private void TestPlaceCamera() => test?.PlaceCamera();
+
+    private Dictionary<string, bool> WiringChecks()
+    {
+        var checks = new Dictionary<string, bool>
+        {
+            ["Jef's step and swim hooks"] = wiredJef,
+            ["bubble voice hook"] = wiredBubbles && Scheldemist.Talks.Bubbles.I?.Speak != null,
+            ["dice sound hook"] = wiredDice && Scheldemist.Talks.Dice.I?.Sfx != null,
+            ["stone bridge over water"] = !TimberAt(-76, 100),
+            ["timber pier"] = TimberAt(7, -5),
+            ["timber pontoon"] = TimberAt(-249, -20),
+            ["timber deck"] = TimberAt(-40, -7),
+            ["timber gangway"] = TimberAt(-42, -1),
+            ["street outside the timber"] = !TimberAt(12, 12),
+            ["baked rooms found"] = rooms.Count > 0,
+            ["baked taverns found"] = rooms.Any(r => r.kind == "tavern"),
+            ["baked shops found"] = rooms.Any(r => r.kind == "shop"),
+            ["speakers stayed muted"] = Speaker == 0,
+        };
+        foreach (var room in rooms)
+        {
+            var local = room.box.GetCenter();
+            local.Y = room.box.Position.Y + 0.3f;
+            var p = room.inverse.AffineInverse() * local;
+            checks[$"baked {room.kind} at {p.X:0.0}, {p.Z:0.0}"] = BakedInterior(p) == room.kind;
+        }
+        // Check the real settings buses, including mute and the reverb path, then put their levels back.
+        foreach (string k in Kinds)
+        {
+            int source = busIndex[Cap(k)], room = busIndex["Room" + Cap(k)];
+            float db = AudioServer.GetBusVolumeDb(source);
+            bool mute = AudioServer.IsBusMute(source);
+            AudioServer.SetBusVolumeDb(source, -12);
+            AudioServer.SetBusMute(source, true);
+            FollowVolumes();
+            checks[k + " room mute and echo mute"] = AudioServer.IsBusMute(room) && wetLevels[Cap(k)] == 0;
+            AudioServer.SetBusMute(source, false);
+            FollowVolumes();
+            checks[k + " room level and echo level"] = Math.Abs(AudioServer.GetBusVolumeDb(room) + 12) < 0.01 && Math.Abs(wetLevels[Cap(k)] - Math.Pow(10, -12.0 / 20)) < 0.001;
+            checks[k + " sends through the street"] = AudioServer.GetBusSend(source) == "Street";
+            AudioServer.SetBusVolumeDb(source, db);
+            AudioServer.SetBusMute(source, mute);
+        }
+        FollowVolumes();
+        var savedTest = test;
+        bool heldHour = ownHour, heldWeather = ownWeather;
+        double? savedClock = clock;
+        string? savedWeather = weather;
+        test = null;
+        ownHour = ownWeather = false;
+        StateClock();
+        StateWeather(Scheldemist.Game.GameState.I.Weather);
+        checks["store clock"] = Math.Abs((clock ?? -1) - Scheldemist.Game.GameState.I.HourF) < 0.01;
+        checks["store weather"] = weather == Scheldemist.Game.GameState.I.Weather;
+        ownHour = ownWeather = true;
+        clock = 5;
+        weather = "fog";
+        StateClock();
+        StateWeather("storm");
+        checks["command line clock and weather keep their own"] = clock == 5 && weather == "fog";
+        (test, ownHour, ownWeather, clock, weather) = (savedTest, heldHour, heldWeather, savedClock, savedWeather);
+        timers.Clear();
+        return checks;
+    }
 
     /// <summary>Everything the test started goes quiet; the beds stay.</summary>
     private void Silence(HashSet<Spot> keep)
@@ -89,6 +154,8 @@ public partial class Soundscape
         private Vector3 pos = new(-118, 1.7f, 12);
         private AudioStreamWav sine = null!, noise = null!;
         private double noiseRms;
+        private readonly List<double> frameCosts = new();
+        public void FrameCost(double ms) => frameCosts.Add(ms);
         private int calBus = -1;
         private AudioStreamPlayer clock = null!;
         private double clockLast, clockBase;
@@ -114,6 +181,8 @@ public partial class Soundscape
         {
             this.s = s;
             this.dir = dir;
+            // Jef normally puts his eyes back over his feet each frame. This test owns the listener instead.
+            Scheldemist.Player.Jef.I?.SetProcess(false);
             Directory.CreateDirectory(dir);
             s.Auto = false;
             s.Chance = false;
@@ -173,6 +242,10 @@ public partial class Soundscape
 
         private void Build()
         {
+            Add("wiring", "Jef's step hook", () => s.onStep?.Invoke(false), 0.9);
+            Add("wiring", "Jef's landing hook", () => s.onLand?.Invoke(), 0.9);
+            Add("wiring", "bubble voice hook", () => Scheldemist.Talks.Bubbles.I?.Speak?.Invoke(Front(2), "m", 35, 1), 1.5);
+            Add("wiring", "dice sound hook", () => Scheldemist.Talks.Dice.I?.Sfx?.Invoke("thud_wood"), 0.9);
             var v = L;
             // ---- what Godot does to a sound of known level (the numbers PanMakeup and the reverb's level come from)
             Add("measure", "tone at the ear (no place)", () => Tone(s.FlatSpot("Effects")), 0.9);
@@ -215,6 +288,25 @@ public partial class Soundscape
                         s.spots.Add(sp);
                     }
                     s.Add(sp, s.fx["thud_wood"][0], "thud", 0.25);
+                }, 0.9);
+
+            // how a sound begins: equal bursts 10 ms apart from its first sample, at the ear and at a place
+            foreach (bool place in new[] { false, true })
+                Add("measure", place ? "onset 2 m ahead" : "onset at the ear", () =>
+                {
+                    int r = s.mixRate;
+                    var d = new float[(int)(r * 0.2)];
+                    for (int k = 0; k < 16; k++)
+                        for (int i = 0; i < r * 0.003; i++) d[(int)(k * 0.01 * r) + i] = (float)(0.5 * Math.Sin(2 * Math.PI * 3000 * i / r));
+                    var w = ToWav(d, r);
+                    Spot sp;
+                    if (!place) sp = s.FlatSpot("Effects");
+                    else
+                    {
+                        sp = new Spot { Raw = true, Ref = 4, Rolloff = 1, X = L.X, Y = L.Y, Z = L.Z - 2, Out = "Effects" };
+                        s.spots.Add(sp);
+                    }
+                    s.Add(sp, w.stream!, "onset", w.scale * (place ? 0.2 / 0.7071 : 0.2));
                 }, 0.9);
 
             // the reverbs as they are set, against the browser's convolver (its level for noise, and where its impulse has fallen 60 dB)
@@ -454,10 +546,13 @@ public partial class Soundscape
         }
 
         /// <summary>The peak a voice should make in the recording: through the kind's bus (1), the street (0.9, not in a room) and the compressor's 0.9 dB.</summary>
-        private static double Expect(Spot sp, V v, double raw, double level)
+        private double Expect(Spot sp, V v, double raw, double level)
         {
             bool room = sp.Out.StartsWith("Room") || sp.Out == "Organ";
-            double pan = sp.Flat ? 1 : sp.Pan * GodotCentre;
+            // Measure reports the louder channel. A source to one side has more than the centre's .7071 there.
+            double d = s.DistTo(sp.X, sp.Y, sp.Z);
+            double channel = d > 1e-6 ? Math.Sqrt(0.5 * (1 + Math.Min(1, Math.Abs(sp.X - s.listenerPos.X) / d))) : GodotCentre;
+            double pan = sp.Flat ? 1 : sp.Pan * channel;
             return raw * v.Gain * level * sp.Fog * pan * (room ? 1 : 0.9) * Math.Pow(10, 0.9 / 20);
         }
 
@@ -465,8 +560,7 @@ public partial class Soundscape
         {
             if (done) return;
             A();
-            var cam = Main.I.Cam;
-            if (cam != null) cam.GlobalTransform = new Transform3D(Basis.Identity, pos);
+            PlaceCamera();
             if (at < 0)
             {
                 // a moment for the load and the made beds, then record
@@ -504,6 +598,7 @@ public partial class Soundscape
             if (at < items.Count)
             {
                 cur = items[at];
+                if (at % 20 == 0) GD.Print($"sound test: row {at + 1}/{items.Count}, {cur.Name}");
                 cur.T0 = A();
                 cur.T1 = cur.T0 + cur.Listen;
                 wallEnd = next = s.now + cur.Listen;
@@ -523,6 +618,12 @@ public partial class Soundscape
                 return;
             }
             Layers();
+        }
+
+        public void PlaceCamera()
+        {
+            var cam = Main.I.Cam;
+            if (cam != null) cam.GlobalTransform = new Transform3D(Basis.Identity, pos);
         }
 
         // ---- the layers: three hours, rain, the great storm
@@ -625,6 +726,8 @@ public partial class Soundscape
             var wav = rec.GetRecording();
             var rows = new List<Dictionary<string, object?>>();
             var problems = new List<string>();
+            var wiring = s.WiringChecks();
+            foreach (var check in wiring) if (!check.Value) problems.Add("wiring: " + check.Key);
             var measured = new Dictionary<string, object?>();
             if (wav == null) problems.Add("no recording came back from the recorder");
             else
@@ -652,7 +755,19 @@ public partial class Soundscape
                     ["listened_s"] = Math.Round(it.T1 - it.T0, 2),
                 };
                 var miss = new List<string>();
-                if (it.Group == "measure" && it.Name.StartsWith("thud"))
+                if (it.Group == "measure" && it.Name.StartsWith("onset"))
+                {
+                    // the peak of each 10 ms from the first sample heard, against the loudest
+                    int a = Math.Clamp((int)((it.T0 - recStart) * rate), 0, pcm.Length / 2), b = Math.Clamp((int)((it.T1 - recStart) * rate), 0, pcm.Length / 2);
+                    int first = -1;
+                    for (int i = a; i < b && first < 0; i++) if (Math.Abs(pcm[i * 2]) > 60) first = i;
+                    var bins = new double[18];
+                    for (int k = 0; k < bins.Length && first >= 0; k++)
+                        for (int i = first + (int)(k * 0.01 * rate) - 20; i < first + (int)((k + 1) * 0.01 * rate) - 20 && i < b; i++) if (i >= 0) bins[k] = Math.Max(bins[k], Math.Abs(pcm[i * 2]) / 32768.0);
+                    double top = bins.Max();
+                    measured[it.Name + ": each 10 ms against the loudest, dB"] = bins.Select(x => D(x / Math.Max(top, 1e-9))).ToArray();
+                }
+                else if (it.Group == "measure" && it.Name.StartsWith("thud"))
                 {
                     row["peak_minus_expected_db"] = Math.Round(D(m.peak) - D(it.Expected), 2);
                     measured[it.Name + ": peak against the recording's own, dB"] = row["peak_minus_expected_db"];
@@ -710,7 +825,9 @@ public partial class Soundscape
                         if (note != "") row["note"] = note;
                         // a single unfiltered sound must come out at the level the chain says, within 2.5 dB (a made sound
                         // lands within 0.3; a recording's sharp peaks move a dB or two with the resampling and the lowpass)
-                        if (note == "" && Math.Abs(diff) > 2.5) miss.Add($"level: {D(m.peak)} dB in the recording, {D(it.Expected)} dB by the chain");
+                        // (and Godot brings a sound at a place in over its first few milliseconds: "onset 2 m ahead", 3 dB off
+                        // a recording that begins with its sharpest sample)
+                        if (note == "" && (diff > 2.5 || diff < -3.5)) miss.Add($"level: {D(m.peak)} dB in the recording, {D(it.Expected)} dB by the chain");
                         // several at once, or filtered: never more than all of them together, and a little
                         double over = D(m.peak) - D(it.ExpectedSum);
                         if (note != "" && !it.Name.Contains("organ") && over > 4) miss.Add($"level: {over:0.0} dB over what the chain gives for all its voices together");
@@ -756,6 +873,13 @@ public partial class Soundscape
             }
             var graph = s.Graph();
             var cost = (Dictionary<string, object>)graph["cost"]!;
+            frameCosts.Sort();
+            if (frameCosts.Count > 0)
+            {
+                cost["p95Ms"] = Math.Round(frameCosts[(int)((frameCosts.Count - 1) * 0.95)], 4);
+                cost["p99Ms"] = Math.Round(frameCosts[(int)((frameCosts.Count - 1) * 0.99)], 4);
+                cost["framesOverBudget"] = frameCosts.Count(x => x > 0.3);
+            }
             double maxAt = Convert.ToDouble(cost["maxAt_s"]);
             cost["maxDuring"] = items.FirstOrDefault(i => maxAt >= i.W0 - 0.05 && maxAt <= i.W1 + 0.35)?.Name ?? "the layers, or before the first row";
             cost["startingSoundsMs"] = ProfNames.Select((n, i) => $"{n}: {s.prof[i]:0.0}").ToArray();
@@ -776,6 +900,7 @@ public partial class Soundscape
                 ["measured"] = measured,
                 ["cost"] = cost,
                 ["mixer"] = graph["mixer"],
+                ["wiring"] = wiring,
                 ["rows"] = rows.Count,
                 ["played"] = rows.Count(r => (bool)r["played"]!),
                 ["problems"] = problems,
@@ -785,7 +910,7 @@ public partial class Soundscape
             File.WriteAllText(Path.Combine(dir, "soundtest.json"), JsonSerializer.Serialize(outp, new JsonSerializerOptions { WriteIndented = true, NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals }));
             GD.Print($"sound test done: {rows.Count} rows, {problems.Count} problems, cost {cost["meanMs"]} ms a frame (max {cost["maxMs"]}); {Path.Combine(dir, "soundtest.json")}");
             foreach (string p in problems.Take(60)) GD.Print("  problem: " + p);
-            s.GetTree().Quit();
+            s.GetTree().Quit(problems.Count == 0 ? 0 : 1);
         }
     }
 }

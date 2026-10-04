@@ -52,7 +52,8 @@ public sealed class SoundHandle
 /// cranes, cooper, pumps, carts in the fog, footsteps.
 /// Day and night (SetClock): fewer street sounds at night, more water and wind.
 ///
-/// Options for now (another part will set them from the game's state): --hour 13.5, --weather rain, --rain 0..1.
+/// The clock, the weather, the rain, Jef's steps, the people and the voices come from the other parts
+/// (SoundWiring.cs). Options that hold their own: --hour 13.5, --weather rain, --rain 0..1.
 /// </summary>
 [GamePart(60)]
 public partial class Soundscape : Godot.Node
@@ -238,6 +239,7 @@ public partial class Soundscape : Godot.Node
         I = this;
         mixRate = (int)AudioServer.GetMixRate();
         MakeBuses();
+        CacheBakedRooms();
         var sw = Stopwatch.StartNew();
         LoadAll();
         double loadMs = sw.Elapsed.TotalMilliseconds;
@@ -319,14 +321,27 @@ public partial class Soundscape : Godot.Node
         nextPump = now + Rand(10, 30);
         nextCarriage = now + Rand(30, 70);
 
-        // for now from the command line; at the merge from the game's state
+        // the clock and the weather come from the game's state and the rain from the daylight (SoundWiring.cs); an
+        // option holds its own: --hour 13.5, --weather rain, --rain 0..1
         string h = Main.I.Arg("hour");
-        if (h != "" && double.TryParse(h, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double hour)) SetClock(hour);
+        if (h != "" && double.TryParse(h, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double hour))
+        {
+            ownHour = true;
+            SetClock(hour);
+        }
         string w = Main.I.Arg("weather");
-        if (w != "") SetWeather(w);
-        string r = Main.I.Arg("rain", w == "rain" ? "0.8" : w == "storm" ? "0.9" : "");
-        if (r != "" && double.TryParse(r, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double rn)) SetRain(rn);
-        GD.Print($"sound in: {buf.Count} recordings, {steps["stone"].Count + steps["wood"].Count} steps, {live.Count} places, {failed.Count} failed, {loadMs:0} ms, mix {mixRate} Hz");
+        if (w != "")
+        {
+            ownWeather = true;
+            SetWeather(w);
+        }
+        string r = Main.I.Arg("rain");
+        if (r != "" && double.TryParse(r, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double rn))
+        {
+            ownRain = true;
+            SetRain(rn);
+        }
+        GD.Print($"sound in: {buf.Count} recordings, {steps["stone"].Count + steps["wood"].Count} steps, {live.Count} places, {failed.Count} failed, {unpacked} short ones unpacked, {loadMs:0} ms, mix {mixRate} Hz");
         if (Main.I.Arg("soundtest") != "") StartTest(Main.I.Arg("soundtest"));
     }
 
@@ -345,7 +360,10 @@ public partial class Soundscape : Godot.Node
         double dt = Math.Min(0.25, now - before);
         while (ready.TryDequeue(out var fn)) fn();
         RunTimers();
-        if (Main.I.Cam != null) Update(Main.I.Cam);
+        Wire();
+        FollowState();
+        TestPlaceCamera();
+        if (Main.I.Cam != null && IsInstanceValid(Main.I.Cam)) Update(Main.I.Cam);
         TickStreet(dt);
         MixTick(dt);
         FeedHowl(dt);
@@ -356,6 +374,7 @@ public partial class Soundscape : Godot.Node
         costSum += ms;
         if (ms > costMax) (costMax, costMaxAt) = (ms, now);
         costN++;
+        test?.FrameCost(ms);
     }
 
     /// <summary>Godot's sound always runs: nothing to wake (the browser's audio context starts on a click).</summary>
@@ -372,6 +391,7 @@ public partial class Soundscape : Godot.Node
 
     public override void _ExitTree()
     {
+        Unwire();
         if (I == this) I = null;
     }
 
@@ -429,7 +449,7 @@ public partial class Soundscape : Godot.Node
         foreach (var (name, gain) in beds)
         {
             if (!buf.TryGetValue(name, out var b)) continue;
-            var sp = FlatSpot("Room", hold: true);
+            var sp = FlatSpot(name == "tavernSong" ? "RoomMusic" : "RoomAmbience", hold: true);
             (sp.Level, sp.LevelT, sp.LevelTau) = (0, gain * RoomLevel(name), 0.25);
             Add(sp, b, "room " + name, 1, from: Rnd() * b.GetLength());
             roomBeds.Add((name, gain, sp));
@@ -2038,7 +2058,7 @@ public partial class Soundscape : Godot.Node
                     ".wav" => AudioStreamWav.LoadFromFile(path),
                     _ => AudioStreamOggVorbis.LoadFromFile(path),
                 };
-                if (s != null) return s;
+                if (s != null) return Unpacked(s, rel);
             }
         }
         catch (Exception e)
@@ -2048,6 +2068,46 @@ public partial class Soundscape : Godot.Node
         failed.Add(rel);
         return null;
     }
+
+    /// <summary>
+    /// A short recording that is played once (a step, a thud, a bell) is decoded at the start and kept as plain
+    /// samples: starting an Ogg stream costs the main thread about half a millisecond each time (its decoder is set
+    /// up anew), starting plain samples next to nothing. The long ones and the loops stay Ogg (decoded as they play).
+    /// </summary>
+    private AudioStream Unpacked(AudioStream s, string rel)
+    {
+        double len = s.GetLength();
+        if (rel.Contains("-loop") || len <= 0 || len > 8 || s is AudioStreamWav) return s;
+        try
+        {
+            var pb = s.InstantiatePlayback();
+            pb.Start(0);
+            int want = (int)(len * mixRate) + 64, n = 0;
+            var bytes = new byte[want * 2];
+            while (n < want)
+            {
+                var a = pb.MixAudio(1, Math.Min(8192, want - n));
+                if (a.Length == 0) break;
+                for (int i = 0; i < a.Length; i++)
+                {
+                    short v = (short)Math.Clamp(Math.Round((a[i].X + a[i].Y) * 0.5f * 32767), -32768, 32767);
+                    bytes[(n + i) * 2] = (byte)v;
+                    bytes[(n + i) * 2 + 1] = (byte)(v >> 8);
+                }
+                n += a.Length;
+            }
+            pb.Stop();
+            if (n < mixRate / 100) return s;
+            unpacked++;
+            return new AudioStreamWav { Format = AudioStreamWav.FormatEnum.Format16Bits, MixRate = mixRate, Stereo = false, Data = bytes.AsSpan(0, n * 2).ToArray() };
+        }
+        catch (Exception e)
+        {
+            GD.PrintErr($"[sound] {rel}: kept as Ogg ({e.Message})");
+            return s;
+        }
+    }
+    private int unpacked;
 
     /// <summary>The recordings. A file that fails stays silent. The "-loop" files loop cleanly.</summary>
     private void LoadAll()
@@ -2098,7 +2158,7 @@ public partial class Soundscape : Godot.Node
             if (buf.TryGetValue(name, out var b)) Add(sp, b, name, 1, from: Rnd() * b.GetLength());
             return sp;
         }
-        stormBeds = (StormBed("galeTrees", "Ambience"), StormBed("rainHeavy", "Ambience"), StormBed("windInside", "Room"));
+        stormBeds = (StormBed("galeTrees", "Ambience"), StormBed("rainHeavy", "Ambience"), StormBed("windInside", "RoomAmbience"));
         downpourSpot = Bed("Ambience", 0, 1.5);
         int rate = mixRate;
         Task.Run(() =>
