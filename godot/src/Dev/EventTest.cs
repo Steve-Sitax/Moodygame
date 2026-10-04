@@ -204,6 +204,7 @@ public partial class EventTest : Node
             if (only.Length == 0 || only.Contains("actions")) await RequestedActions(api, town);
             if (only.Length == 0 || only.Contains("crowd100")) await Crowd100(town);
             if (only.Length == 0 || only.Contains("omnibus")) await TransitProof(town);
+            if (only.Length == 0 || only.Any(x => x is "ceremonies" or "wedding_inside" or "funeral_inside" or "sermon")) await Ceremonies(api, only);
             if (only.Length == 0 || only.Contains("lamps")) await Lamps(api);
             if (only.Length == 0 || only.Contains("dreams")) await Dreams();
         }

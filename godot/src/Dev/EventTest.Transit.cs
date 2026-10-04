@@ -28,7 +28,8 @@ public partial class EventTest
         int boards = Actors.I.TransitBoarded, alights = Actors.I.TransitAlighted;
         await Wait(8);
         Check(Actors.I.TransitBoarded == boards + 1 && omnibus.Passengers(bus).Any(p => p.Id == person.R.Id && p.State == "seated"), "attendee did not board and take a real seat");
-        Jef.I.Place(board.X, board.Z + 8, 0); await Frames(5);
+        var busAt = bus.Frame.GlobalPosition; var view = ViewNear(busAt.X, busAt.Z, 7, bus.Frame.Rotation.Y + Math.PI / 2);
+        Jef.I.Place((float)view.X, (float)view.Z, MathF.Atan2((float)view.X - busAt.X, (float)view.Z - busAt.Z)); await Frames(5);
         await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
         GetViewport().GetTexture().GetImage().SavePng(System.IO.Path.Combine(dir, "omnibus-seated.png"));
         Jef.I.Place(off.X, off.Z + 12, 0); await Frames(3);
