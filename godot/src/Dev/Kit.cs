@@ -23,6 +23,8 @@ public partial class Kit : Node
     public string Error { get; private set; } = "";
     private bool started, busy;
     private LineEdit? console;
+    private bool previousTestInput;
+    private Input.MouseModeEnum previousMouse;
     private readonly Dictionary<Townspeople.Sim, (Townspeople.Goal goal, string key)> held = new();
     public Townspeople? People => Main.I.GetNodeOrNull<Townspeople>("Townspeople");
     private Api Api => ServerLink.I?.Api ?? throw new InvalidOperationException("the server is not ready");
@@ -44,10 +46,11 @@ public partial class Kit : Node
     public override void _UnhandledKeyInput(InputEvent e)
     {
         if (console == null || e is not InputEventKey { Pressed: true, Echo: false, Keycode: Key.F9 }) return;
+        if (!console.Visible) { previousTestInput = Jef.I.TestInput; previousMouse = Input.MouseMode; }
         console.Visible = !console.Visible;
-        Jef.I.TestInput = console.Visible;
+        Jef.I.TestInput = console.Visible || previousTestInput;
         Jef.I.ClearKeys();
-        Input.MouseMode = Input.MouseModeEnum.Visible;
+        Input.MouseMode = console.Visible ? Input.MouseModeEnum.Visible : previousMouse;
         if (console.Visible) console.GrabFocus();
         GetViewport().SetInputAsHandled();
     }
