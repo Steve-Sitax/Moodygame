@@ -238,6 +238,7 @@ public partial class Omnibus : Node
         public int Index, NextI;
         public float S, V, DwellT, RollR, RollF, Gait, Yaw, ForeYaw, HorseYaw;
         public float BlockT, BackM;
+        public float BlockProbe=float.PositiveInfinity;
         public Godot.Collections.Array<Rid> Exclude=new();
         public OmnibusLines.Stop? At;
         public double? DepartAt;
@@ -579,11 +580,17 @@ public partial class Omnibus : Node
                 if(new Vector2((float)p.X-pa.X,(float)p.Z-pa.Y).Length()<1.1f) {lim=Math.Min(lim,Math.Max(0,dd-1.5f)); b.WaitWhy="people"; break;}
             }
         }
-        foreach(float dd in AheadSamples)
-            if(!Free(b,lp.At(nose+dd),.5f))
+        var eye=Main.I.Cam.GlobalPosition;
+        if(new Vector2(b.Pc.X-eye.X,b.Pc.Y-eye.Z).LengthSquared()<60*60 || (MoverClock.Frame+(ulong)b.Index)%4==0)
+        {
+            b.BlockProbe=float.PositiveInfinity;
+            foreach(float dd in AheadSamples)
+                if(!Free(b,lp.At(nose+dd),.5f)) {b.BlockProbe=dd;break;}
+        }
+        if(!float.IsPositiveInfinity(b.BlockProbe))
             {
+                float dd=b.BlockProbe;
                 if(dd<queueGap-.6f) {lim=Math.Min(lim,Math.Max(0,dd-3)); b.WaitWhy="blocked";}
-                break;
             }
         return lim;
     }

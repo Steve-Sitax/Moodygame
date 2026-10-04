@@ -26,6 +26,7 @@ public partial class Traffic : Node
         public AnimatableBody3D? BedBody, HorseBody;
         public Vector2 At;
         public float Yaw;
+        public bool ThingsAhead;
         public readonly Godot.Collections.Array<Rid> Exclude = new();
     }
     public IReadOnlyList<Vehicle> Vehicles => vehicles;
@@ -145,12 +146,14 @@ public partial class Traffic : Node
             }
         foreach (var w in vehicles)
             if (w!=v && w.Path==v.Path && v.Path.Wrap(w.S+w.Back-v.S-v.Front)<2.5f) return "queue";
-        foreach (float d in new[] {1.3f,2.4f})
+        var eye=Main.I.Cam.GlobalPosition;
+        if(new Vector2(v.At.X-eye.X,v.At.Y-eye.Z).LengthSquared()<60*60 || (MoverClock.Frame+(ulong)v.Index)%4==0)
         {
-            var at=At(v,v.S+v.Front+d);
-            if (!Free(v,at)) return "thing";
-            if(d==1.3f) foreach(var p in StreetPeople.Walking()) if(Math.Abs(p.X-at.X)<.7 && Math.Abs(p.Z-at.Y)<.7) return "thing";
+            v.ThingsAhead=!Free(v,At(v,v.S+v.Front+1.3f)) || !Free(v,At(v,v.S+v.Front+2.4f));
         }
+        if(v.ThingsAhead) return "thing";
+        var front=At(v,v.S+v.Front+1.3f);
+        foreach(var p in StreetPeople.Walking()) if(Math.Abs(p.X-front.X)<.7 && Math.Abs(p.Z-front.Y)<.7) return "thing";
         return null;
     }
 

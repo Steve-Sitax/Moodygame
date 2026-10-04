@@ -376,12 +376,19 @@ public partial class Bridges : Node
             Start = () =>
             {
                 PassNow("canal");
-                // (the way in from the river end takes minutes: the test sets her down off the canal's mouth)
-                if (p.State == "in") p.S = Math.Max(p.S, p.Route.Length - 250);
+                // The approach takes minutes; start the picture inside the canal, clear of moored ships.
+                if (p.State == "in") p.S = Math.Max(p.S, p.Route.Length - 170);
             },
             Ready = () => p.Part != null && p.State == "in" && p.V > 0.2,
             Where = () => p.Part == null ? (Vector3.Zero, 0, "no boat") : (p.Part.Boat.Outer.GlobalPosition, p.S, $"a {p.Kind} going up the canal at {p.V:0.0} m/s, asked: {string.Join(", ", p.Asked)}"),
-            View = () => p.Part == null ? (new Vector3(-70, 5, 0), new Vector3(-76, 0, -8)) : (p.Part.Boat.Outer.GlobalPosition + new Vector3(5, 3.2f, -6), p.Part.Boat.Outer.GlobalPosition + Vector3.Up * 0.4f),
+            View = () =>
+            {
+                if(p.Part==null) return (new Vector3(-70,5,0),new Vector3(-76,0,-8));
+                var boat=p.Part.Boat.Outer; float yaw=boat.GlobalRotation.Y;
+                var side=new Vector3(MathF.Cos(yaw),0,-MathF.Sin(yaw)); if(side.Z>0) side=-side;
+                float length=Boats.I.Dims(p.Kind).Length; var at=boat.GlobalPosition+Vector3.Up*1.5f;
+                return (at+side*(length*.6f+5)+Vector3.Up*Math.Max(4,length*.18f),at);
+            },
         });
     }
 }

@@ -1396,6 +1396,7 @@ public partial class Railway : Node
 
     private void Probes()
     {
+        var craneStart=cranes.Select(c=>(c.Pos,c.A,c.Hy)).ToArray();
         MoversTest.Add(new MoversTest.Probe
         {
             Name = "train_on_the_quay",
@@ -1405,7 +1406,7 @@ public partial class Railway : Node
             Start = () => TestAt(-20),
             Ready = () => v > 0.6f,
             Where = () => (HeadAt, head, $"the goods train, {state}, {v:0.00} m/s{(waitWhy != "" ? ", waits for the " + waitWhy : "")}, wagons loaded: {string.Join(" ", wagons.Select(w => w.Slots.Count(s => s)))}"),
-            View = () => (HeadAt + new Vector3(9, 4.5f, 12), HeadAt + new Vector3(-9, 1.2f, 0)),
+            View = () => {var w=wagons[0]; var at=new Vector3(w.X,1.2f,w.Z); return (at+new Vector3(4,4,10),at);},
             Check = TrainSolids,
         });
         MoversTest.Add(new MoversTest.Probe
@@ -1446,7 +1447,7 @@ public partial class Railway : Node
             },
             Ready = () => gate.Amount > 0.15f && gate.Amount < 0.8f,
             Where = () => (new Vector3(Gate.Face + MathF.Sin(Gate.Swing * gate.Amount) * Gate.LeafW, 2, Gate.OpenS + MathF.Cos(Gate.Swing * gate.Amount) * Gate.LeafW), gate.Amount, $"the gate of the Werf store, {gate.Amount * 100:0} % open, the train {state} at {head:0} m"),
-            View = () => (new Vector3(Gate.Face + 13, 3.2f, 9.5f), new Vector3(Gate.Face, 2.2f, 4)),
+            View = () => (new Vector3(Gate.Face + 6, 2.8f, 4), new Vector3(Gate.Face, 2.2f, 4)),
         });
         Crane? mover = null;
         MoversTest.Add(new MoversTest.Probe
@@ -1461,6 +1462,8 @@ public partial class Railway : Node
                 state = "shed"; shedT = 300; working = null; stops.Clear(); v = 0;
                 foreach (var c in cranes)
                 {
+                    var initial=craneStart[c.Index]; c.Pos=initial.Pos; c.A=initial.A; c.Hy=initial.Hy;
+                    PlaceCrane(c); c.PartsPos=float.NaN;
                     c.Reserved = false; c.Ops.Clear(); c.Carry = null;
                     c.Mode = "berth"; c.Target = null; c.Speed = 0; c.BlockT = 0; c.Stay = 0;
                 }

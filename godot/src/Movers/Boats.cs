@@ -418,13 +418,14 @@ public partial class Boats : Node
     }
 
     /// <summary>boats.ts writeFleet: every boat of the row on its water, heaving and rolling, or on the mud.</summary>
-    private void Write(Row f, float t)
+    private void Write(Row f, float t, Vector3? eye=null)
     {
         float sea = MoverClock.Sea;
         float h0 = f.M[0], roll0 = f.M[1], pitch0 = f.M[2], w = MathF.Tau / f.M[3];
         float lim = Math.Min(sea, 2.5f);
         for (int i = 0; i < f.N; i++)
         {
+            if(eye is {} p && new Vector2(f.X[i]-p.X,f.Z[i]-p.Z).LengthSquared()>Near*Near && (MoverClock.Frame+(ulong)i)%8!=0) continue;
             float level = Tide.LevelAt(f.X[i], f.Z[i]);
             float aground = Mv.Clamp01((f.Floor[i] - level) / 0.25f);
             float free = 1 - aground;
@@ -488,7 +489,7 @@ public partial class Boats : Node
             var r = rows[i];
             float dx = r.Mid.X - cam.X, dz = r.Mid.Z - cam.Z;
             if (dx * dx + dz * dz > Near * Near && (frame + (ulong)i) % 8 != 0) continue;
-            Write(r, t);
+            Write(r, t, cam);
         }
         MoverCost.End("boats");
     }
