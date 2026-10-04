@@ -75,6 +75,23 @@ public partial class Snap : Node
             }
             // (what the bake still hides as not ported)
             System.IO.File.WriteAllLines(System.IO.Path.Combine(dir, "unported.txt"), Main.I.World.Unported.Distinct());
+            // (dev: the bake's figures drawn now, frozen as they were at bake time)
+            var bodies = BakedWorld.All(Main.I.World).OfType<MeshInstance3D>().Where(b => b.Name.ToString().Contains("_body") && b.IsVisibleInTree()).ToList();
+            GD.Print($"baked figures drawn: {bodies.Count} ({string.Join(", ", bodies.Take(12).Select(b => b.GetPath().ToString().Split('/').TakeLast(4).Aggregate((x, y) => x + "/" + y)))})");
+            foreach (var ub in BakedWorld.All(Main.I.World).OfType<MeshInstance3D>().Where(b => Main.I.World.Unported.Contains(b.Name.ToString()) || Main.I.World.Unported.Contains($"{b.GetParent()?.Name}/{b.Name}")))
+            {
+                Node3D? fig = ub.GetParent() as Node3D;
+                while (fig != null && fig.GetParent() is Node3D up && up.Name != "town" && fig is not { } ) fig = up;
+                var root = ub as Node3D;
+                while (root.GetParent() is Node3D q && q.Name != "town") root = q;
+                GD.Print($"unported figure {ub.Name}: {ub.GetPath().ToString().Split('/').TakeLast(5).Aggregate((x, y) => x + "/" + y)} group shown {root.IsVisibleInTree()} figure shown {(ub.GetParent()?.GetParent() as Node3D)?.IsVisibleInTree()}");
+            }
+            foreach (var fb in BakedWorld.All(Main.I.World).OfType<MeshInstance3D>().Where(b => System.Text.RegularExpressions.Regex.IsMatch(b.Name.ToString(), "^(priest|tourist|beggar|urchin|soldier|ragman)_body")))
+                GD.Print($"figure body {fb.Name}: shown {fb.IsVisibleInTree()}, material {fb.Mesh?.SurfaceGetMaterial(0)?.GetClass()} {(fb.Mesh?.SurfaceGetMaterial(0) as ShaderMaterial)?.HasMeta("baked_invisible")}");
+            // (dev: what a nameless one is: where, how big, its materials)
+            foreach (var nd in BakedWorld.All(Main.I.World))
+                if (nd is MeshInstance3D um && um.Mesh != null && Main.I.World.Unported.Contains($"{um.GetParent()?.Name}/{um.Name}"))
+                    GD.Print($"unported {um.GetParent()?.Name}/{um.Name}: box {um.GlobalTransform * um.GetAabb()}, {string.Join(", ", Enumerable.Range(0, um.Mesh.GetSurfaceCount()).Select(i => $"{um.Mesh.SurfaceGetMaterial(i)?.GetClass()} '{um.Mesh.SurfaceGetMaterial(i)?.ResourceName}' {(um.Mesh as ArrayMesh)?.SurfaceGetArrayLen(i)} corners"))}, path {um.GetPath()}");
             GetTree().Quit();
             SetProcess(false);
             return;
@@ -104,6 +121,8 @@ public partial class Snap : Node
             Tide.Set(1, F(a[6])); // (Monday's tide at that hour)
         }
         if (a.Length > 7 && a[7] != "") Daylight.I.SetWeather(a[7]);
+        // (a view named bilge...: the pumps near it work now)
+        if (ShipWater.I is { } sw) sw.PumpNow = a[0].StartsWith("bilge");
         // (held: the events part sets the storm every frame, and the test's level would fade)
         Daylight.I.StormHold = a.Length > 8 && a[8] != "" ? F(a[8]) : null;
         Daylight.I.SetStorm(a.Length > 8 && a[8] != "" ? F(a[8]) : 0);
@@ -142,6 +161,12 @@ public partial class Snap : Node
                 var back = new Vector3(cam.X - b.X, 0, cam.Z - b.Z).Normalized();
                 return (b + back * 3.2f + new Vector3(0, 2.6f, 0), b);
             }
+        }
+        if (name.StartsWith("bilge") && ShipWater.I is { } sw)
+        {
+            var (o, outward) = sw.NearestOutlet(cam);
+            var across = new Vector3(-outward.Z, 0, outward.X);
+            return (o + outward * 4.5f + across * 2.5f + new Vector3(0, 3.2f, 0), o + outward * 0.9f + new Vector3(0, -0.8f, 0));
         }
         if (name.StartsWith("surf") && Surf.I is { Info.edges: > 0 } su)
         {
@@ -196,6 +221,7 @@ public partial class Snap : Node
                         hits.Add(((gi.GlobalTransform * gi.GetAabb()).Size.Length(), $"{(gi.GlobalTransform * gi.GetAabb()).GetCenter().DistanceTo(o):0} m {gi.GetPath().ToString().Split('/').TakeLast(3).Aggregate((x, y) => x + "/" + y)} {gi.GetClass()} mat {(gi.MaterialOverride ?? (gi as MeshInstance3D)?.Mesh?.SurfaceGetMaterial(0))?.ResourceName}"));
                 foreach (var (size, what) in hits.OrderBy(h => h.Item1).Take(60)) GD.Print($"whatray {name} {one} {size:0} {what}");
             }
+        if (ShipWater.I is { } sw) GD.Print($"snap {name} ship water: {sw.Info}");
         if (LandmarkRooms.I is { } lr) GD.Print($"snap {name} landmark rooms: {string.Join(", ", lr.Info.Select(i => $"{i.building} {i.lit}/{i.windows}"))}; steen lanterns {lr.LanternInfo.lit}/{lr.LanternInfo.lanterns}");
         times.Sort();
         GD.Print($"snap {name} air: wind {Daylight.I.Wind.Length():0.00}, rain {Daylight.I.Rain:0.00}, storm {Daylight.I.Storm:0.00}, night life {NightLife.I?.Info}, surf {Surf.I?.Info}, gutters {Gutters.I?.Info}, breath {Breath.I?.Info}, blobs {Blobs.I?.Count}");
