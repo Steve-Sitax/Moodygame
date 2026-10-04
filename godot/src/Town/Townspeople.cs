@@ -154,6 +154,14 @@ public partial class Townspeople : Node
     public Crowd? Crowd { get; private set; }
     public WalkMap? Walk { get; private set; }
     public IReadOnlyList<Sim> Sims => sims;
+    /// <summary>The same version-checked resident order without boxing the list enumerator.</summary>
+    public readonly struct SimSequence
+    {
+        private readonly List<Sim> items;
+        internal SimSequence(List<Sim> items) => this.items = items;
+        public List<Sim>.Enumerator GetEnumerator() => items.GetEnumerator();
+    }
+    public SimSequence Simulations => new(sims);
     /// <summary>The board's employers: residents who stand at their post like Sooi (the browser's people.ts; People/PostedPeople.cs stands them).</summary>
     public IReadOnlyList<Resident> EmployerResidents => employers;
     public string Status { get; private set; } = "off";

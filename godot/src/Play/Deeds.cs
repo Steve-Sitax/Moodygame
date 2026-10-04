@@ -129,34 +129,58 @@ public partial class Deeds : Node
     {
         if (e is InputEventKey { Pressed: true, Echo: false } && !Interact.I.IsShut && Scheldemist.Menu.Keys.Is(e, "lantern")) { Toggle(); GetViewport().SetInputAsHandled(); }
     }
-    private Offers? Keys(float x, float z)
+    private Offers? Keys(float x, float z) => KeysAt(x, z, Scheldemist.Dev.SpeedComparison.Cached);
+    private Offers? KeysAt(float x, float z, bool cached)
     {
         if (busy || town?.Crowd == null) return null;
         var options = offered.Options!; var extra = offered.Extra!;
         options.Clear(); extra.Clear();
-        foreach (var s in town.Sims)
-        {
-            if (s.P == null || s.Inside) continue;
-            var at = new Vector3((float)s.P.X, s.P.Group.GlobalPosition.Y + 1.1f, (float)s.P.Z);
-            float d = new Vector2(at.X - x, at.Z - z).Length();
-            if (d >= 3.2f) continue;
-            if (!targetActions.TryGetValue(s.R.Id, out var actions))
-            {
-                string id = s.R.Id;
-                actions = new TargetActions
-                {
-                    Pick = Act.At(Key.G, "pick " + s.R.First + "'s pocket", at, () => _ = Pick(id)),
-                    Catch = Act.At(Key.E, "catch " + s.R.First, at, () => _ = Catch(id), 65)
-                };
-                targetActions.Add(id, actions);
-            }
-            actions.Pick.X = actions.Catch.X = at.X; actions.Pick.Y = actions.Catch.Y = at.Y; actions.Pick.Z = actions.Catch.Z = at.Z;
-            if (robbed.TryGetValue(s.R.Id, out var when) && GameState.PlayNow - when < 25000 && d < 3.2)
-                options.Add((d - 20, actions.Catch));
-            if (d >= 1.8 || Jef.I.Hurrying || pursuers.ContainsKey(s.R.Id) || Facing(s, x, z) >= -0.25) continue;
-            extra.Add(actions.Pick);
-        }
+        if (cached)
+            foreach (var s in town.Simulations) AddTarget(s, x, z, true);
+        else
+            foreach (var s in town.Sims) AddTarget(s, x, z, false);
         return offered;
+    }
+    private void AddTarget(Townspeople.Sim s, float x, float z, bool cached)
+    {
+        var options = offered.Options!; var extra = offered.Extra!;
+        if (s.P == null || s.Inside) return;
+        var at = new Vector3((float)s.P.X, cached ? 0 : s.P.Group.GlobalPosition.Y + 1.1f, (float)s.P.Z);
+        float d = new Vector2(at.X - x, at.Z - z).Length();
+        if (d >= 3.2f) return;
+        if (cached) at.Y = s.P.Group.GlobalPosition.Y + 1.1f;
+        if (!targetActions.TryGetValue(s.R.Id, out var actions))
+        {
+            string id = s.R.Id;
+            actions = new TargetActions
+            {
+                Pick = Act.At(Key.G, "pick " + s.R.First + "'s pocket", at, () => _ = Pick(id)),
+                Catch = Act.At(Key.E, "catch " + s.R.First, at, () => _ = Catch(id), 65)
+            };
+            targetActions.Add(id, actions);
+        }
+        actions.Pick.X = actions.Catch.X = at.X; actions.Pick.Y = actions.Catch.Y = at.Y; actions.Pick.Z = actions.Catch.Z = at.Z;
+        if (robbed.TryGetValue(s.R.Id, out var when) && GameState.PlayNow - when < 25000 && d < 3.2)
+            options.Add((d - 20, actions.Catch));
+        if (d >= 1.8 || Jef.I.Hurrying || pursuers.ContainsKey(s.R.Id) || Facing(s, x, z) >= -0.25) return;
+        extra.Add(actions.Pick);
+    }
+    private readonly record struct KeyState(int Kind, float Distance, Key Key, string Text, float X, float? Y, float Z, bool Self, float? Cone, Action Run);
+    private static KeyState[] KeyStates(Offers? value)
+    {
+        var states = new List<KeyState>();
+        if (value?.Options != null) foreach (var (distance, a) in value.Options)
+            states.Add(new(0, distance, a.Key, a.Text, a.X, a.Y, a.Z, a.Self, a.Cone, a.Run));
+        if (value?.Extra != null) foreach (var a in value.Extra)
+            states.Add(new(1, 0, a.Key, a.Text, a.X, a.Y, a.Z, a.Self, a.Cone, a.Run));
+        return states.ToArray();
+    }
+    /// <summary>Check original boxed enumeration/heights against the exact borrowed prompt path.</summary>
+    public bool SameKeys(float x, float z)
+    {
+        var original = KeyStates(KeysAt(x, z, false));
+        var cached = KeyStates(KeysAt(x, z, true));
+        return original.SequenceEqual(cached);
     }
     public static double Facing(Townspeople.Sim s, double x, double z)
     {

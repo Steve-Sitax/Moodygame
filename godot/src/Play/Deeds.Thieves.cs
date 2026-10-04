@@ -9,8 +9,9 @@ public partial class Deeds
 {
     private void ThiefStep(double dt)
     {
+        using var cost = Scheldemist.Dev.FrameCost.Track("Deeds.ThiefStep");
         if(town?.Crowd==null) return;
-        foreach(var s in town.Sims)
+        foreach(var s in town.Simulations)
         {
             if(s.R.Trade!="thief" || s.P==null || s.Inside || pursuers.ContainsKey(s.R.Id) || s.ActionHeld && !ReferenceEquals(s.ActionOwner,this)) continue;
             var p=s.P; double dx=p.X-Jef.I.X,dz=p.Z-Jef.I.Z,d=Math.Sqrt(dx*dx+dz*dz);

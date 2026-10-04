@@ -45,8 +45,10 @@ public partial class DeedsTest : Node
             Jef.I.Place((float)p.X,(float)p.Z+1.3f,0); Jef.I.Pitch=-0.2f;
             sim.Goal.Yaw=0; p.Yaw=0; Scheldemist.Dev.Kit.I.People.Crowd!.PuppetStand(p,"idle",0); await Frames(2);
             Check(!Interact.I.Find().Any(a=>a.Text.Contains("'s pocket")),"no pick from person's front");
+            Check(Deeds.I.SameKeys(Jef.I.X,Jef.I.Z),"front deeds actions match original");
             sim.Goal.Yaw=Math.PI; p.Yaw=Math.PI; Scheldemist.Dev.Kit.I.People.Crowd.PuppetStand(p,"idle",Math.PI); await Frames(2);
             Check(Interact.I.Find().Any(a=>a.Key==Key.G && a.Text.Contains("'s pocket")),"G pick from behind"); await Shot("pickpocket-behind");
+            Check(Deeds.I.SameKeys(Jef.I.X,Jef.I.Z),"back deeds actions match original");
             Interact.I.Press(Key.G); Check(await Until(()=>replies.Count>1,12),"pick reaches server"); await Frames(30); replies.Add(new { pickState=await api.Jobs() });
             await Shot("pickpocket-result"); Scheldemist.Dev.Kit.I.Clear(); Talk.I?.Close();
             // Deterministic witnessed theft only prepares a visit; arrival, choices and seizure are real routes.
