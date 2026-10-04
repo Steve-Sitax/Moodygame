@@ -30,20 +30,15 @@ public partial class TownLife : Node
         public FireView View = null!;
         public readonly Vector2?[] Hands = new Vector2?[64];
         public readonly List<Vector2> FullHands = new(64), BackHands = new(64);
-        public readonly List<Interact.Entry> Entries = new();
         public float Flame;
     }
     public static TownLife? I { get; private set; }
     private Townspeople? town;
     private readonly List<FireLive> fires = new(2);
-    private readonly List<Interact.Entry> hireEntries = new();
     private readonly HashSet<string> said = new();
     private MultiMesh buckets = null!;
     private MultiMeshInstance3D bucketNode = null!;
-    private int hireEvent, hireStage = -1;
     private double clock;
-    private (float x, float z)? inChain;
-    private bool asking;
     public int FiresDrawn => fires.Count;
     public int BucketCount => buckets.VisibleInstanceCount;
     public double LogicMs { get; private set; }
@@ -62,21 +57,16 @@ public partial class TownLife : Node
         if (Events.I == null || town?.Walk == null) return;
         WalkLamps(delta);
         foreach (var f in fires) f.Seen = false;
-        int count = 0; bool hired = false;
+        int count = 0;
         foreach (var live in Events.I.List)
         {
             var ev = live.Event; if (ev.Status != "running") continue;
             if (ev.Fire != null) count = Fire(live, count, delta);
-            if (ev.Hiring != null) { Hiring(live); hired = true; }
+            if (ev.Hiring != null) Hiring(live);
         }
-        if (!hired && hireEntries.Count > 0) { foreach (var entry in hireEntries) entry.Dispose(); hireEntries.Clear(); hireEvent = 0; hireStage = -1; }
         for (int i = fires.Count - 1; i >= 0; i--) if (!fires[i].Seen) { Drop(fires[i]); fires.RemoveAt(i); }
         DrawSoot();
         buckets.VisibleInstanceCount = count;
-        if (inChain is { } at && Scheldemist.Player.Jef.I is { } j && Whereabouts.Hypot(j.X - at.x, j.Z - at.z) > 2.8 && !asking)
-        {
-            inChain = null; Ask(ServerLink.I!.Api!.FireLeave());
-        }
         LogicMs = (Time.GetTicksUsec() - start) / 1000.0; AllocatedBytes = GC.GetAllocatedBytesForCurrentThread() - before;
     }
     private int Fire(Events.Live live, int count, double delta)
@@ -97,15 +87,7 @@ public partial class TownLife : Node
         var eye = Main.I.Cam.GlobalPosition;
         if (f.Fx == null && Whereabouts.Hypot(v.Door[0] - eye.X, v.Door[1] - eye.Z) < 140 && Fires.I != null) f.Fx = Fires.I.Create(FireSpots(v), 18);
         f.Fx?.SetLevel(f.Flame, smoke);
-        if (f.Stage != ev.Stage)
-        {
-            f.Stage = ev.Stage; foreach (var entry in f.Entries) entry.Dispose(); f.Entries.Clear();
-            if (act == "fire_chain") foreach (var slot in v.Chain)
-            {
-                var at = new Vector3((float)slot[0], (float)town!.Walk!.BaseAt(slot[0], slot[1]) + 1.2f, (float)slot[1]);
-                f.Entries.Add(Interact.I.Add(at, 2.4f, "take a place in the bucket chain", Join));
-            }
-        }
+        f.Stage = ev.Stage;
         if (act is "fire_brigade" or "fire_chain" or "fire_down")
         {
             if (f.Pump == null)
@@ -153,12 +135,6 @@ public partial class TownLife : Node
     private void Hiring(Events.Live live)
     {
         var ev = live.Event; var h = ev.Hiring!;
-        string? act = ev.Acts != null && ev.Stage < ev.Acts.Count ? ev.Acts[ev.Stage] : null;
-        if (hireEvent != ev.Id || hireStage != ev.Stage)
-        {
-            hireEvent = ev.Id; hireStage = ev.Stage; foreach (var entry in hireEntries) entry.Dispose(); hireEntries.Clear();
-            if (act == "hire_gather") foreach (var s in h.Spots) hireEntries.Add(Interact.I.Add(new Vector3((float)s.X, 1.2f, (float)s.Z), 11, "stand for hire", StandForHire));
-        }
         foreach (var spot in h.Spots)
         {
             if (spot.Call != null && said.Add(spot.Call) && spot.Foreman != null)
@@ -170,13 +146,7 @@ public partial class TownLife : Node
             if (spot.JefResult != null && said.Add(spot.JefResult.Text)) GameState.I.Say(spot.JefResult.Text);
         }
     }
-    private void Join() { if (!asking && Scheldemist.Player.Jef.I is { } j) { inChain = (j.X, j.Z); Ask(ServerLink.I!.Api!.FireJoin(j.X, j.Z)); } }
-    private void StandForHire() { if (!asking && Scheldemist.Player.Jef.I is { } j) Ask(ServerLink.I!.Api!.HiringStand(j.X, j.Z)); }
-    private void Ask(System.Threading.Tasks.Task<TownLifeReply> call)
-    {
-        asking = true; ServerLink.I!.Api!.Run(call, reply => { asking = false; GameState.I.Apply(reply); GameState.I.Say(reply.Result.Text ?? reply.Result.Why ?? ""); if (!reply.Result.Ok) inChain = null; }, e => { asking = false; inChain = null; GameState.I.Say(e.Message); });
-    }
-    private static void Drop(FireLive f) { f.Alarm?.Stop(); f.Fx?.Free(); f.Pump?.QueueFree(); f.Hose?.QueueFree(); foreach (var entry in f.Entries) entry.Dispose(); }
-    public void Reset() { ResetLife(); foreach (var f in fires) Drop(f); fires.Clear(); foreach (var entry in hireEntries) entry.Dispose(); hireEntries.Clear(); said.Clear(); inChain = null; hireEvent = 0; hireStage = -1; buckets.VisibleInstanceCount = 0; }
-    public override void _ExitTree() { ResetLife(); foreach (var s in sootPool) s.Node.QueueFree(); foreach (var f in fires) Drop(f); foreach (var entry in hireEntries) entry.Dispose(); bucketNode.QueueFree(); if (I == this) I = null; }
+    private static void Drop(FireLive f) { f.Alarm?.Stop(); f.Fx?.Free(); f.Pump?.QueueFree(); f.Hose?.QueueFree(); }
+    public void Reset() { ResetLife(); foreach (var f in fires) Drop(f); fires.Clear(); said.Clear(); buckets.VisibleInstanceCount = 0; }
+    public override void _ExitTree() { ResetLife(); foreach (var s in sootPool) s.Node.QueueFree(); foreach (var f in fires) Drop(f); bucketNode.QueueFree(); if (I == this) I = null; }
 }

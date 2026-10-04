@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- In Godot, standing for hire and joining a bucket chain have one prompt owner; the hiring choice works while looking around among the men.
+
 - Godot wedding guests, mourners and the sermon crowd walk into the cathedral's real nave, take their places and walk back out through the doorway.
 
 - Godot event attendees board and leave the omnibus; the fire pump has working paired handles and a curved hose, and the same dream can appear on another night's paper.
