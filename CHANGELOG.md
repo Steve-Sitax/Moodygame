@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Godot emigrants wait with their luggage at the camp, accept carry work and board the working lighter for the liner when the server allows it.
+
 - In Godot the Poesje takes its evening ticket once a day, opens its real curtains and performs the server's play with puppets and spoken captions.
 
 - Godot taverns have physical table seats and arrived patrons as dice partners; E stands up again.
