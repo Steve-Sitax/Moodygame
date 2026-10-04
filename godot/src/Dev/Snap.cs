@@ -12,7 +12,8 @@ namespace Scheldemist.Dev;
 /// unless the dark or the fog is what is tested):
 ///   -- --snap dir --views "day:-118,1.62,36,180,0,13,clear;night:-118,1.62,36,180,10,22,mist"
 /// Each view: name:x,y,z,yaw,pitch[,hour,weather,storm] (degrees; storm: the great storm's level 0..1; yaw 0 looks to -z, 180 to +z; pitch up). A view with no
-/// place ("name:,,,,,21,rain") keeps the camera of the bake's first place. Writes dir/name.png and prints the mean
+/// place ("name:,,,,,21,rain") keeps the camera of the bake's first place. A view named lantern... follows the
+/// burning lantern nearest its camera from a few steps away. Writes dir/name.png and prints the mean
 /// frame time there, then quits.
 /// </summary>
 [GamePart(900)]
@@ -103,6 +104,14 @@ public partial class Snap : Node
         if (frame > Wait) times.Add((now - last) / 1000.0);
         last = now;
         frame++;
+        if (views[view][0].StartsWith("lantern") && People.LanternPool.I?.NearestLit(Main.I.Cam.GlobalPosition) is { } lamp)
+        {
+            var cam = Main.I.Cam;
+            cam.GlobalPosition = lamp + new Vector3(2.2f, 0.9f, 2.2f);
+            var q = Basis.LookingAt(lamp - cam.GlobalPosition).GetRotationQuaternion();
+            if (cam is Player.FlyCam fly) fly.Face(q);
+            else cam.Quaternion = q;
+        }
         // (the first view waits for the loading screen to go)
         if (frame < Wait + Timed + (view == 0 ? 240 : 0)) return;
         string name = views[view][0];

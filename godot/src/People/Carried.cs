@@ -240,13 +240,22 @@ public sealed class LanternPool
     public int Lit { get; private set; }
     public int Sources => sources.Count;
 
+    /// <summary>The burning lantern nearest a point, or null (the snap pictures' lantern view).</summary>
+    public Vector3? NearestLit(Vector3 to)
+    {
+        Vector3? best = null;
+        foreach (var s in sources)
+            if (s.On && (best == null || s.Pos.DistanceSquaredTo(to) < best.Value.DistanceSquaredTo(to))) best = s.Pos;
+        return best;
+    }
+
     public LanternPool(Node parent)
     {
         I = this;
         for (int i = 0; i < Pool; i++)
         {
-            // three's light of intensity I is a Godot light of energy I / pi (godot/README.md)
-            lights[i] = new OmniLight3D { Name = $"lantern_pool_{i}", LightColor = new Color(1, 0.627f, 0.282f).SrgbToLinear(), LightEnergy = 0, OmniRange = Range, OmniAttenuation = 1.25f, ShadowEnabled = false, LightSpecular = 0 };
+            // three's light of intensity I is a Godot light of energy I / pi (godot/README.md); its colour is sRGB (0xffa048)
+            lights[i] = new OmniLight3D { Name = $"lantern_pool_{i}", LightColor = new Color(1, 0.627f, 0.282f), LightEnergy = 0, OmniRange = Range, OmniAttenuation = 1.25f, ShadowEnabled = false, LightSpecular = 0 };
             parent.AddChild(lights[i]);
         }
     }

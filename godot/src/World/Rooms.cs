@@ -280,12 +280,13 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
             else if (type == "PointLight" && Math.Max(di, ni) > 0.01f)
             {
                 var p = (ni > di ? ln!.Value : l).GetProperty("pos");
-                var c = Col(ni > di ? ln!.Value : l);
+                // (a Godot light reads its colour as sRGB, as the bake's hex is: not Col's linear one)
+                int hex = (int)(ni > di ? ln!.Value : l).GetProperty("color").GetDouble();
                 float range = l.GetProperty("distance").ValueKind == JsonValueKind.Number ? l.GetProperty("distance").GetSingle() : 0;
                 // three's point light and Godot's fall off alike: distance^-decay, cut to nothing at its range
                 var o = new OmniLight3D
                 {
-                    LightColor = new Color(c.X, c.Y, c.Z), LightEnergy = 0, OmniRange = range > 0 ? range : 40,
+                    LightColor = new Color(((hex >> 16) & 255) / 255f, ((hex >> 8) & 255) / 255f, (hex & 255) / 255f), LightEnergy = 0, OmniRange = range > 0 ? range : 40,
                     OmniAttenuation = l.GetProperty("decay").ValueKind == JsonValueKind.Number ? l.GetProperty("decay").GetSingle() : 2,
                     ShadowEnabled = false, LightCullMask = RoomLayer, LightSpecular = 0,
                 };

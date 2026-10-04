@@ -108,7 +108,7 @@ public partial class Deeds : Node
                 if (!lamps.TryGetValue(l.Id, out var node))
                 {
                     node = Carried.Lantern(); Main.I.View.AddChild(node); lamps[l.Id] = node;
-                    lampLight[l.Id] = Lights.I.AddMoving(l.Id, new Color(1, 0.627f, 0.282f), 0.9f);
+                    lampLight[l.Id] = Lights.I.AddMoving(l.Id, Render.Psx.Hex(0xffa048), 0.9f);
                 }
                 node.Position = new Vector3(l.X, l.Y != 0 ? l.Y : (float)(town?.Walk?.BaseAt(l.X, l.Z) ?? 0), l.Z);
                 node.Visible = true;
