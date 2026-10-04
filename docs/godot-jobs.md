@@ -61,7 +61,9 @@ All final engine/server logs had no ERROR lines, disposed-object exceptions or r
 
 ## Still to port
 
-The walk-up executor for trouble speakers and the stranger, foreman and thief twists is not in this part yet.
+The gaps-life increment connects the walk-up executor for trouble speakers and the stranger, foreman, thief and briber twists. The real-briber check verifies original-crate removal and server settlement (40 c pay, 50 c extra, trust -1). Individual stranger/thief/foreman checks remain pending.
+
+Earlier handoff (superseded for the walk-up executor):
 The card waits for a nearby speaker or the browser's ninety-second fallback when no walk-up is connected;
 the self-test calls the arrival hook to test the card and real server choices. NPC routines/hired hands,
 handcarts, dockers' piecework and night boxes still need their parts. The merged quay heaps and their sacks

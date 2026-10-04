@@ -331,6 +331,8 @@ public partial class JobTest : Node
     {
         if (Only("walkup")) foreach(var s in WalkupStep()) yield return s;
         if (Only("home-remark")) foreach(var s in HomeRemarkStep()) yield return s;
+        if (Only("window")) foreach(var s in WindowStep()) yield return s;
+        if (Only("actor-twist")) foreach(var s in ActorTwistStep()) yield return s;
         if (Only("carry"))
             foreach (var s in CarryStep())
                 yield return s;

@@ -32,3 +32,9 @@ owned until exit, and no new worker starts after exit begins. The same quick win
 cleanly. This is an evidenced project lifecycle bug; it does not establish the cause of the old WASAPI
 output-device invalidation documented in `godot-jobs.md`. Dummy runs cannot reproduce a Windows device
 invalidation, and `--no-soundscape` alone does not disable the engine's output driver.
+
+Actor-driven twists: the real briber check passed in 91.1 seconds. Hubert Goossens (`r068`)
+walked up, offered 50 c through F, and carried away the original `job:11:2` crate.
+The server settled 40 c pay, 50 c extra, trust -1 and final money 140 c.
+The close watch-briber picture was inspected. Stranger, thief and foreman behavior is implemented;
+those branches still need individual end-to-end checks.

@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Watch and haul job twists now bring townspeople to Jef: bribes, theft, parcel offers and foremen use real actors and the original goods.
+
 - Closing Godot during sound loading now lets the audio workers finish before the engine tears down, preventing a crash on very quick exits.
 
 - In Godot, entering your rented room brings a neighbour's remark about its comfort and furniture. The server chooses who visits; they leave when you leave and speak once a day.

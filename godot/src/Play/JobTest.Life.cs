@@ -4,9 +4,54 @@ using Scheldemist.Game;
 using Scheldemist.Net;
 using Scheldemist.People;
 using Scheldemist.Player;
+using Scheldemist.Town;
+using System.Linq;
+using Godot;
 namespace Scheldemist.Play;
 public partial class JobTest
 {
+    private static void ClearDay(){if(World.Daylight.I is {} sky){sky.SetTime(12);sky.SetWeather("clear");sky.SetRain(0);sky.SetThickFog(false);sky.Settle();}}
+    private IEnumerable<object?> ActorTwistStep()
+    {
+        Step("actor-twist","a watch-job briber walks up, offers the server-priced coin, and the server settles the report");
+        var api=ServerLink.I!.Api!;var fixture=api.LifeJobFixture("watch","bribe");
+        yield return When(()=>fixture.IsCompleted,10,"watch fixture from the engine");
+        if(!fixture.IsCompletedSuccessfully){Fail("watch fixture failed");yield break;}
+        int id=fixture.Result.GetProperty("id").GetInt32();var state=api.Jobs();yield return When(()=>state.IsCompleted,10,"watch offered");if(!state.IsCompletedSuccessfully){Fail("watch offers failed");yield break;}GameState.I.Apply(state.Result);
+        var take=Jobs.I.TakeJob(GameState.I.Jobs.First(j=>j.Id==id));yield return When(()=>take.IsCompleted&&Jobs.I.Active?.Id==id,10,"watch taken");
+        if(Jobs.I.Run is not WatchRun run){Fail("watch run absent");yield break;}
+        var task=JobTask.Of(Jobs.I.Active!)!;var post=Spots.Get(task.Post)!;
+        Stand(post.X+1.5f,post.Z,post.X,post.Z);
+        yield return When(()=>run.Briber?.Present==true,75,"the real briber draws");
+        if(run.Briber is not {Present:true} actor){Fail("briber did not arrive during the watch");yield break;}
+        var pos=actor.Position;Stand(pos.X+1.5f,pos.Z,pos.X,pos.Z);
+        yield return When(()=>run.BriberState=="waiting",10,"briber stops beside Jef");
+        Note("resident",actor.Who);Note("name",actor.Name);yield return .5;ClearDay();yield return .5;Shot("watch-briber");
+        Check(Interact.I.Find().Any(a=>a.Text.Contains("take his coin")),"no bribe action beside the actor");
+        Check(Interact.I.Press(Key.F),"F did not take the bribe");
+        yield return When(()=>Jobs.I.LastDone?.Job.Id==id,task.DurationS+10,"server settles actor-driven watch");
+        Check(Jobs.I.LastDone?.Job.Id==id,"actor watch did not settle");if(Jobs.I.LastDone is {} done)Note("settlement",Settled(done));
+        Check(actor.Gone,"job actor remains reserved after settlement");
+    }
+    private IEnumerable<object?> WindowStep()
+    {
+        Step("window","a home resident leans from their actual upstairs opening and retreats");
+        var town=Main.I.GetNode<Townspeople>("Townspeople");
+        yield return When(()=>town.DoorPlans>0&&StreetWindows.I!=null,20,"window plans load");
+        if(town.WindowTrial() is not {} trial){Fail("no upstairs window plan");yield break;}
+        var r=trial.person.R;town.SetClock(1,trial.hour);Note("resident",r.Id);Note("hour",trial.hour);
+        double dx=r.HomeSx-r.HomeX,dz=r.HomeSz-r.HomeZ,length=Math.Max(.1,Whereabouts.Hypot(dx,dz));dx/=length;dz/=length;
+        Stand((float)(r.HomeSx+dx*4),(float)(r.HomeSz+dz*4),(float)r.HomeX,(float)r.HomeZ);
+        yield return When(()=>StreetWindows.I?.PositionOf(r.Id)!=null,10,"resident at the upper opening");
+        if(StreetWindows.I?.PositionOf(r.Id) is {} at)
+        {
+            Check(at.Y>3,"window resident appeared on the street");Note("window_position",new[]{at.X,at.Y,at.Z});
+            LookAt(at.X,at.Z,MathF.Atan2(at.Y+1.3f-Main.I.Cam.GlobalPosition.Y,(float)Whereabouts.Hypot(at.X-Jef.I.X,at.Z-Jef.I.Z)));ClearDay();yield return .5;Shot("upstairs-neighbour");
+        }
+        town.SetClock(1,trial.hour+25.0/120);
+        yield return When(()=>StreetWindows.I?.PositionOf(r.Id)==null,5,"the window resident retreats");
+        Check(StreetWindows.I?.PositionOf(r.Id)==null,"resident did not retreat into the room");
+    }
     private IEnumerable<object?> HomeRemarkStep()
     {
         Step("home-remark","entering one's rented room brings the engine-selected neighbour, once per day");
