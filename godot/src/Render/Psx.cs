@@ -518,7 +518,7 @@ float rain_rings(vec2 wp, float t, float amount) {
 		vec2 g = wp * 1.3 + float(k) * vec2(0.37, 0.71);
 		vec2 id = floor(g);
 		vec2 f = fract(g) - 0.5;
-		float h = fract(sin(dot(id, vec2(127.1, 311.7)) + float(k) * 13.1) * 43758.5453);
+		float h = psx_h13(vec3(id, float(k)));
 		vec2 c = (vec2(fract(h * 7.13), fract(h * 3.71)) - 0.5) * 0.4;
 		float ph = fract(t * 0.8 + h * 5.0);
 		float d = length(f - c);
@@ -588,7 +588,7 @@ float lamp_reflect(vec3 ro, vec3 rd, vec4 l) {
 float lamp_reflects(vec3 P, vec3 rr) {
 	return lamp_reflect(P, rr, psx_lamp0) + lamp_reflect(P, rr, psx_lamp1) + lamp_reflect(P, rr, psx_lamp2) + lamp_reflect(P, rr, psx_lamp3) + lamp_reflect(P, rr, psx_lamp4) + lamp_reflect(P, rr, psx_lamp5);
 }
-float foul_hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+float foul_hash(vec2 p) { return psx_h12(p); }
 float foul_val(vec2 p) {
 	vec2 i = floor(p);
 	vec2 f = fract(p);
@@ -671,7 +671,7 @@ uniform sampler2D stone_id : filter_nearest, repeat_enable;
 // every stone its own dice: its number in the tile mixed with the tile's place in the world
 float stone_r(vec2 uv, vec3 s) {
 	vec2 t = floor(uv) - vec2(step(0.5, s.b), 0.0);
-	return fract(sin(dot(vec3(t, floor(s.r * 255.0 + 0.5)), vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+	return psx_h13(vec3(t, floor(s.r * 255.0 + 0.5)));
 }
 // x: gone (a muddy hole), y: sunk; far more of both in the wheel lines of the cart roads
 vec2 stone_ms(float r, float wear) {
@@ -771,11 +771,21 @@ vec3 ground_tilt(vec3 wp, vec2 uv, vec2 slope) {
     /// INSTANCE_CUSTOM its start height, its circle, its speed and its number); it drifts round and down, turning, and
     /// starts again at the top. Worked out here from the time, no work on the CPU.
     /// </summary>
+    /// <summary>
+    /// The shaders' dice, without sin (Dave Hoskins, "Hash without Sine"): the browser's fract(sin(x) * 43758.5453)
+    /// loses its bits on this card once x is in the thousands, and its noise came out in flat patches (issue #58).
+    /// </summary>
+    public const string HashGlsl = @"
+float psx_h11(float p) { p = fract(p * 0.1031); p *= p + 33.33; p *= p + p; return fract(p); }
+float psx_h12(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+float psx_h13(vec3 p3) { p3 = fract(p3 * 0.1031); p3 += dot(p3, p3.zyx + 31.32); return fract((p3.x + p3.y) * p3.z); }
+";
+
     public const string FallGlsl = @"	{
 		float top = INSTANCE_CUSTOM.x, rad = INSTANCE_CUSTOM.y, speed = INSTANCE_CUSTOM.z, li = INSTANCE_CUSTOM.w;
-		float a0 = fract(sin(li * 12.9898) * 43758.5453) * 6.2832;
-		float phase = fract(sin(li * 78.233) * 24634.6345);
-		float spin = 1.5 + fract(sin(li * 39.425) * 13758.937) * 2.5;
+		float a0 = psx_h11(li) * 6.2832;
+		float phase = psx_h11(li + 17.0);
+		float spin = 1.5 + psx_h11(li + 43.0) * 2.5;
 		float t = psx_time;
 		float wind = 0.55 + 0.45 * psx_sea;
 		float f = fract(t / (top / speed) + phase);
@@ -827,6 +837,7 @@ vec3 ground_tilt(vec3 wp, vec2 uv, vec2 slope) {
         if (k.Blend || k.Add) modes.Add(k.DepthWrite ? "depth_draw_always" : "depth_draw_never");
         var c = new StringBuilder();
         c.Append("shader_type spatial;\nrender_mode ").Append(string.Join(", ", modes)).Append(";\n");
+        c.Append(HashGlsl);
         if (k.Water > 0) c.Append("stencil_mode read, compare_not_equal, 1;\n");
         c.Append(@"
 global uniform vec2 psx_snap_res;
@@ -987,7 +998,7 @@ void fragment() {
 		// along the walls: lighter, silty water and foam lapping at the stone, in 20 cm pixels
 		float shore = texture(psx_shore, (wxz - psx_shore_box.xy) / psx_shore_box.zw).r * 8.0;
 		vec2 cl = floor(wxz * 5.0);
-		float n = fract(sin(dot(cl, vec2(12.9898, 78.233))) * 43758.5453);
+		float n = psx_h12(cl);
 		float lap = 0.5 + 0.5 * sin(psx_time * 1.1 + wxz.x * 0.45 + wxz.y * 0.3);
 		float reach = (0.2 + 0.5 * lap) * (0.45 + 0.75 * n);
 		// the great storm: the surf reaches far out from the walls, churned white
@@ -1001,7 +1012,7 @@ void fragment() {
 			// whitecaps: the crests break white, in streaks blown downwind, flickering as they break
 			float crest = wave_h * 0.22 / max(psx_sea, 1.0);
 			vec2 wc = floor(wxz * vec2(3.0, 5.0));
-			float wn = fract(sin(dot(wc + floor(psx_time * 3.0), vec2(12.9898, 78.233))) * 43758.5453);
+			float wn = psx_h12(wc + floor(psx_time * 3.0));
 			c.rgb = mix(c.rgb, vec3(0.42, 0.45, 0.44), smoothstep(0.45, 0.8, crest + wn * 0.35) * storm_k * 0.85);
 		}
 		// foul water (the vlieten, the canal, by the fish market): browner and duller

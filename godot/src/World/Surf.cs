@@ -47,8 +47,9 @@ uniform float lean = 0.0;
 uniform vec3 tint = vec3(0.8);
 varying vec2 uv;
 varying float fog_depth;
-float sh(float n) { return fract(sin(n) * 43758.5453); }
-float hh(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float sh(float p) { p = fract(p * 0.1031); p *= p + 33.33; p *= p + p; return fract(p); }
+// (a hash without sin: issue #58)
+float hh(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
 float vn(vec2 p) {
 	vec2 i = floor(p), f = fract(p);
 	f = f * f * (3.0 - 2.0 * f);

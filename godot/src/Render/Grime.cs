@@ -241,7 +241,7 @@ vec3 wall_tile_uv(float layer, vec2 raw, float key) {
 	float ph = wall_bed_of(int(layer));
 	if (ph < 0.0) return vec3(raw, 1.0);
 	float b = floor(raw.y - ph);
-	float h = fract(sin(b * 12.9898 + key * 78.233) * 43758.5453);
+	float h = psx_h12(vec2(b, key));
 	float f = fract(h * 91.7) < 0.35 ? -1.0 : 1.0;
 	return vec3(raw.x * f + h * 5.0, raw.y, f);
 }
