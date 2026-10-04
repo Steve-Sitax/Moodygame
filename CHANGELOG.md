@@ -7,6 +7,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Godot keeps the same daylight and window light picture with less work per frame.
 - Godot's cathedral and church windows now show their real rooms through the glass; old painted panes no longer cover them.
 - Godot's lamp updates and idle job display avoid temporary allocations while walking; performance checks now report complete frames and their worst peaks.
 - A Windows Godot download now starts from its executable, with the town, models, sounds and game server included.

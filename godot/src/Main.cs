@@ -38,13 +38,14 @@ public partial class Main : Node
     /// <summary>Over the picture: the HUD, the dialogs, the menus.</summary>
     public CanvasLayer Ui { get; private set; } = null!;
     /// <summary>Options after "--" on the command line: --name value.</summary>
+    private string[]? arguments;
     public string Arg(string k, string d = "")
     {
-        var args = OS.GetCmdlineUserArgs();
+        var args = arguments ??= OS.GetCmdlineUserArgs();
         int i = Array.IndexOf(args, "--" + k);
         return i >= 0 && i + 1 < args.Length ? args[i + 1] : d;
     }
-    public bool Flag(string k) => Array.IndexOf(OS.GetCmdlineUserArgs(), "--" + k) >= 0;
+    public bool Flag(string k) => Array.IndexOf(arguments ??= OS.GetCmdlineUserArgs(), "--" + k) >= 0;
 
     private SubViewport view = null!;
     private TextureRect screen = null!;
@@ -184,7 +185,7 @@ public partial class Main : Node
 
     public override void _Process(double delta)
     {
-        RenderingServer.GlobalShaderParameterSet("psx_time", Time.GetTicksMsec() / 1000f);
+        Render.UniformUpdates.Global("psx_time", Time.GetTicksMsec() / 1000f);
         if (shots == "" || cam == null) return;
         if (Cam != cam) cam.Current = true; // the pictures are taken from the free camera
         ulong now = Time.GetTicksUsec();

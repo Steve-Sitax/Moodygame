@@ -47,11 +47,11 @@ public static class PixelComparison
             {
                 string name = place.Replace(' ', '_') + (hour == 13 ? "_day" : "_night");
                 UniformUpdates.Cached = false;
-                Lights.I._Process(0); Play.Jobs.I._Process(0); UniformUpdates.Replay(); await Draw(check);
+                Daylight.I.RepeatLight(); Lights.I._Process(0); Play.Jobs.I._Process(0); UniformUpdates.Replay(); await Draw(check);
                 using var a = Main.I.GetViewport().GetTexture().GetImage();
                 string before = check.Picture(name + "_before");
                 UniformUpdates.Cached = true;
-                Lights.I._Process(0); Play.Jobs.I._Process(0); UniformUpdates.Replay(); await Draw(check);
+                Daylight.I.RepeatLight(); Lights.I._Process(0); Play.Jobs.I._Process(0); UniformUpdates.Replay(); await Draw(check);
                 using var b = Main.I.GetViewport().GetTexture().GetImage();
                 string after = check.Picture(name + "_after");
                 int different = Different(a, b); total += different;

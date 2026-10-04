@@ -88,6 +88,22 @@ public partial class Daylight : Node
     private static readonly Color FillWarm = new(0.62f, 0.6f, 0.56f);
     private DirectionalLight3D sun = null!;
     private Godot.Environment env = null!;
+    private bool lightSent;
+    private Color lastBackground, lastSunColor;
+    private float lastSunEnergy;
+    private Vector3 lastSunDirection;
+    private void SendLight(Color background, Color color, float energy, Vector3 direction)
+    {
+        bool cached = UniformUpdates.Cached && lightSent;
+        if (!cached || lastBackground != background) env.BackgroundColor = background;
+        if (!cached || lastSunColor != color) sun.LightColor = color;
+        if (!cached || lastSunEnergy != energy) sun.LightEnergy = energy;
+        if (!cached || lastSunDirection != direction)
+            sun.LookAtFromPosition(direction * 100, Vector3.Zero, MathF.Abs(direction.Y) > 0.99f ? Vector3.Forward : Vector3.Up);
+        lastBackground = background; lastSunColor = color; lastSunEnergy = energy; lastSunDirection = direction; lightSent = true;
+    }
+    /// <summary>Dev A/B: send exactly the current light without advancing the clock or wind.</summary>
+    public void RepeatLight() => SendLight(lastBackground, lastSunColor, lastSunEnergy, lastSunDirection);
 
     public override void _Ready()
     {
@@ -294,11 +310,7 @@ public partial class Daylight : Node
         Wind = new Vector2(MathF.Cos(wa) * ws, MathF.Sin(wa) * ws);
 
         // to the picture. three's lights give colour x intensity / pi on a matt face; Godot's give colour x energy
-        env.BackgroundColor = fog.LinearToSrgb(); // (the environment takes a screen colour)
-        sun.LightColor = sunCol;
-        sun.LightEnergy = SunIntensity / MathF.PI;
-        var up = MathF.Abs(SunDir.Y) > 0.99f ? Vector3.Forward : Vector3.Up;
-        sun.LookAtFromPosition(SunDir * 100, Vector3.Zero, up);
+        SendLight(fog.LinearToSrgb(), sunCol, SunIntensity / MathF.PI, SunDir);
         Action<string, Variant> rs = Psx.Set;
         rs("psx_fog_color", fog);
         rs("psx_fog_near", FogNear);

@@ -70,6 +70,7 @@ public partial class Lights : Node
     private readonly Dictionary<string, Src> byId = new();
     private MultiMesh? haloMM;
     private readonly List<(ShaderMaterial m, Vector3 tint, Vector3 centre, float radius)> landmark = new();
+    private readonly Dictionary<ShaderMaterial, List<(GeometryInstance3D node, bool visible)>> landmarkNodes = new();
     private ShaderMaterial? paneMat, haloMat;
     private MeshInstance3D? panes;
     private float t, rankT, glassV = -1;
@@ -100,6 +101,14 @@ public partial class Lights : Node
         // the doss house lantern (rijnkaai.ts): a real light in the browser, always burning
         sources.Add(new Src { Kind = "doss", Label = "doss house lantern", At = new Vector3(-180.96f, 2.9f, 39.5f), Half = new Vector2(0.1f, 0.1f), Color = V(Psx.Hex(0xffa048)), Power = 7, Range = 10, Decay = 1.7f, Level = 1 });
         lamps.AddRange(sources.Where(s => s.Lamp));
+        nearLamps.Capacity = lamps.Count;
+        near.EnsureCapacity(lampSlots.Length);
+        want.EnsureCapacity(Psx.MaxSpill);
+        on.Capacity = Psx.MaxSpill;
+        ranked.Capacity = sources.Count;
+        farCandidates.Capacity = sources.Count;
+        farList.Capacity = MaxFar;
+        poolList.Capacity = MaxPools;
         foreach (var l in lamps) byId[l.Id] = l;
         BuildHalos();
         BuildFar();
@@ -307,8 +316,14 @@ void fragment() {
             if (n is not MeshInstance3D mi || mi.Mesh == null) continue;
             for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
             {
-                if (mi.Mesh.SurfaceGetMaterial(s) is not ShaderMaterial m || !seen.Add(m)) continue;
+                if (mi.Mesh.SurfaceGetMaterial(s) is not ShaderMaterial m) continue;
                 string name = m.ResourceName;
+                if (name == "landmark_window_light" && mi.Mesh.GetSurfaceCount() == 1 && Psx.KindOf(m.Shader) is { Unlit: true, Add: true, Fog: false, DepthWrite: false, Ground: false, Wall: false, Water: 0, Far: false })
+                {
+                    if (!landmarkNodes.TryGetValue(m, out var nodes)) landmarkNodes[m] = nodes = new();
+                    nodes.Add((mi, mi.Visible));
+                }
+                if (!seen.Add(m)) continue;
                 if (name == "landmark_window_light")
                 {
                     var box = mi.GlobalTransform * mi.GetAabb();
@@ -440,6 +455,11 @@ void fragment() {
             float dist = Math.Max(0, eye.DistanceTo(centre) - radius * 0.5f);
             var c = tint * (level * 1.35f * breath * (1 - Smooth(dist, day.FogNear, day.FogFar * 2)));
             Scheldemist.Render.UniformUpdates.Material(m, "albedo", new Color(c.X, c.Y, c.Z, 1));
+            if (landmarkNodes.TryGetValue(m, out var nodes)) foreach (var (node, originallyVisible) in nodes)
+            {
+                bool visible = originallyVisible && (!UniformUpdates.Cached || c != Vector3.Zero);
+                if (node.Visible != visible) node.Visible = visible;
+            }
         }
 
         // --- the light on the street (spill.ts): every source's power now, the nearest ranked ten times a second

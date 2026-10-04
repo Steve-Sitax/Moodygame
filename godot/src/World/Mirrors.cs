@@ -185,10 +185,12 @@ public partial class Mirrors : Node
         var to = eye + look;
         var up = basis.Y;
         m.Cam.LookAtFromPosition(mEye, new Vector3(to.X, 2 * m.PlaneY - to.Y, to.Z), new Vector3(up.X, -up.Y, up.Z));
-        m.Cam.Near = cam.Near;
-        m.Cam.Far = Math.Min(cam.Far, m.Far);
+        float near = cam.Near, far = Math.Min(cam.Far, m.Far);
+        if (!UniformUpdates.Cached || m.Cam.Near != near) m.Cam.Near = near;
+        if (!UniformUpdates.Cached || m.Cam.Far != far) m.Cam.Far = far;
         // (a picture a frame old still covers the water after a turn: a margin on every side)
-        m.Cam.Fov = Mathf.RadToDeg(2 * Math.Min(1.45f, Mathf.DegToRad(cam.Fov / 2) + m.Margin));
+        float fov = Mathf.RadToDeg(2 * Math.Min(1.45f, Mathf.DegToRad(cam.Fov / 2) + m.Margin));
+        if (!UniformUpdates.Cached || m.Cam.Fov != fov) m.Cam.Fov = fov;
         m.View.RenderTargetUpdateMode = SubViewport.UpdateMode.Once;
         // world -> the picture (the psx material takes x and y over w, halves them and turns y)
         var vp = m.Cam.GetCameraProjection() * new Projection(m.Cam.GlobalTransform.AffineInverse());

@@ -127,6 +127,8 @@ void fragment() {
         // (the walk map's ground, for the pools: read now, while the town loads, not at the first dusk)
         Ground(new Src { At = new Vector3(0, 100, 0) });
         groundOf.Clear();
+        groundOf.EnsureCapacity(sources.Count);
+        foreach (var source in sources) Ground(source);
         Main.I.World.Unported.RemoveAll(u => u is "far_glow" or "gas_lamp_halos" or "ambient_windows" || (u.StartsWith("INST") && u.EndsWith("spillgroundpools")));
     }
 
