@@ -50,6 +50,8 @@ public sealed class Resident
     public WorkSpec Work = new();
     public Schedule Sched = new();
     public bool Dog;
+    /// <summary>His dog's look ("dog_brown" ...), or null.</summary>
+    public string? DogLook;
     public string? Mate;
 
     // kept answers of the shared sum (Whereabouts.cs): his day routes, by day
@@ -138,6 +140,7 @@ public sealed class TownData
                 },
                 Sched = new Schedule { Day = Segs(sched, "day"), Sunday = Segs(sched, "sunday") },
                 Dog = r.TryGetProperty("dog", out var dog) && dog.ValueKind == JsonValueKind.Object,
+                DogLook = dog.ValueKind == JsonValueKind.Object ? So(dog, "look") ?? "dog_brown" : null,
                 Mate = So(r, "mate"),
             });
         }

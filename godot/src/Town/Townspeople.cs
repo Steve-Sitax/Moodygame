@@ -270,7 +270,7 @@ public partial class Townspeople : Node
                 Status = "waiting for the server";
                 link.WhenUp(() =>
                 {
-                    server = link.Api.Url.TrimEnd('/');
+                    server = link.Api!.Url.TrimEnd('/');
                     http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
                     Status = "loading";
                     _ = LoadTown();
@@ -302,7 +302,8 @@ public partial class Townspeople : Node
             for (int up = 0; up < 3 && a != null; up++, a = a.GetParent())
             {
                 string kind = a.Name.ToString().TrimEnd('0', '1', '2', '3', '4', '5', '6', '7', '8', '9');
-                if (!Humans.IsKind(kind)) continue;
+                // (the dogs and cats too: People/Animals.cs draws them live; the pigs of the drove stay)
+                if (!Humans.IsKind(kind) && !kind.StartsWith("dog_") && !kind.StartsWith("cat_")) continue;
                 if (a.GetParent() is Node3D group && group.GetParent() == scene)
                 {
                     if (group.Visible) BakedHidden++;
@@ -332,6 +333,9 @@ public partial class Townspeople : Node
             {
                 string json = await http!.GetStringAsync(server + "/api/town").ConfigureAwait(false);
                 var d = TownData.Parse(json);
+                using var life = JsonDocument.Parse(await http.GetStringAsync(server + "/api/lively").ConfigureAwait(false));
+                var plan = life.RootElement.Clone();
+                inbox.Enqueue(() => ReadDoorLife(plan));
                 inbox.Enqueue(() => TownIn(d));
                 break;
             }
@@ -623,7 +627,7 @@ public partial class Townspeople : Node
         var run = storm || s.R.Trade != "miller_man" ? null : Whereabouts.WhereAt(s.R, Data!, day, hour, WayOf).Cart;
         string key = sheltered
             ? $"storm{stormEvent}:{s.Shelter}{(s.Shelter == "tavern" ? $":{s.ShelterPlace}" : "")}"
-            : FormattableString.Invariant($"{now.Act}:{now.Place}{(call != null ? $"|shop@{call.Value.X},{call.Value.Z}" : "")}{(storm ? $"|storm{stormEvent}" : "")}{(run != null ? $"|mill:{run.Value.kind}" : "")}");
+            : FormattableString.Invariant($"{now.Act}:{now.Place}{(call != null ? $"|shop@{call.Value.X},{call.Value.Z}" : "")}{(storm ? $"|storm{stormEvent}" : LifeKey(s, now))}{(run != null ? $"|mill:{run.Value.kind}" : "")}");
         // a publican (or a drinker) whose tavern opens or shuts gets his goal again, the key unchanged
         string tavPlace = s.Shelter == "tavern" ? s.ShelterPlace : now.Act == "tavern" ? now.Place : now.Act == "work" && s.R.Work.Kind == "tavern" ? s.R.Work.Place : now.Act == "work" && s.R.Work.Kind == "shop" && s.R.Work.Shop != null ? $"shop:{s.R.Work.Shop}" : "";
         string tav = tavPlace != "" ? (TavernInside(tavPlace) ? "in" : "out") : "";
@@ -715,6 +719,7 @@ public partial class Townspeople : Node
         s.Plain = false;
         // the great storm: out of it, running (and nobody stands about at a door, in the park or at the mill)
         if (StormGoal(s) is { } stormGoal) return stormGoal;
+        if (LifeGoal(s, now) is { } lifeGoal) return lifeGoal;
         // (the mill's people: the man goes with the mill's own cart, off the plan's sum)
         s.Plain = s.R.Trade is not ("miller" or "miller_man");
         var r = s.R;
@@ -1150,6 +1155,7 @@ public partial class Townspeople : Node
         var g = s.Goal;
         var crowd = Crowd!;
         if (Pair(s, dt)) return;
+        if (stormLevel == 0 && LifeStep(s, dt)) return;
         bool busy = crowd.PuppetBusy(p);
         bool At(double x, double z, double r = 1.0) => Dist(p.X, p.Z, x, z) < r;
         switch (g.Mode)

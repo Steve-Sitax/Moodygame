@@ -91,7 +91,6 @@ public static class Humans
                 if (n is MeshInstance3D mi) mi.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
             // the docker's shoulder sack and the porter's sack-truck sack are the one sack model, hung where
             // people.glb had its own; the carter's handcart goes on its own wheels (Carried.cs)
-            Carried.HangSack(name, root);
             if (name == "carter" && PushCart.Has) PushCart.HideBakedCart(root);
         }
         // rotations only, by bone name: the skeletons differ in size, so bone positions stay each body's own
@@ -121,6 +120,8 @@ public static class Humans
     {
         if (!Ready) return null;
         var root = model!.Copy(kind);
+        // Bone attachments belong to the copy: duplicating an unattached prototype resets the bone index.
+        if (root != null) Carried.HangSack(kind, root);
         return root == null ? null : new Human(kind, root, clips!, ClipLength, Scale.GetValueOrDefault(kind, 1));
     }
 }

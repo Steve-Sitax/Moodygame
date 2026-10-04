@@ -9,6 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { MILLS, CART_PACE, LOAD_H, FLOUR_OUT, GRAIN_OUT } from "../../shared/mills.ts";
 import { SHOP_LOOK, NEW_SHOPS, OLD_SHOP_TRADE, CALL_NEAR } from "../../shared/shops.ts";
+import { TOWN_WATERS } from "../../shared/parkWildlife.ts";
 
 const here = path.join(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const n = (v) => (Number.isInteger(v) ? `${v}` : `${v}`);
@@ -69,3 +70,13 @@ ${Object.entries(SHOP_LOOK).map(([k, v]) => `        [${str(k)}] = (${n(v.weight
 `;
 writeFileSync(path.join(here, "godot/src/Town/SharedData.cs"), out);
 console.log(`godot/src/Town/SharedData.cs: ${MILLS.length} mills, ${Object.keys(trades).length} shops, ${Object.keys(SHOP_LOOK).length} trades`);
+writeFileSync(path.join(here, "godot/src/People/SharedWildlife.cs"), `// Written by tools/godot/shareddata.mjs from shared/parkWildlife.ts: do not edit by hand.
+namespace Scheldemist.People;
+public static class SharedWildlife
+{
+    public static readonly (double x, double z, double radius, string flock)[] Waters =
+    {
+${TOWN_WATERS.map(([x,z,r,k]) => `        (${n(x)}, ${n(z)}, ${n(r)}, ${str(k)}),`).join("\n")}
+    };
+}
+`);

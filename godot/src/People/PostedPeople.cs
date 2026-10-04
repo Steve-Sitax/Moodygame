@@ -268,6 +268,7 @@ public partial class PostedPeople : Node
 
     public override void _Process(double delta)
     {
+        if (town?.Paused == true) return;
         if (town?.Data == null || town.Walk == null) return;
         if (!built) Build();
         if ((postT -= delta) <= 0)

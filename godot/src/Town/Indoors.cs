@@ -210,6 +210,9 @@ public sealed class Indoors
         f.Group.QueueFree();
     }
 
+    /// <summary>For a check: every figure drawn inside.</summary>
+    public IEnumerable<Node3D> Groups => Houses.SelectMany(h => h.Figures.Values.Select(f => f.Group));
+
     public void Dispose()
     {
         foreach (var h in Houses)

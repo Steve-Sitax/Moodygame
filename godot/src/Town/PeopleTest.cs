@@ -10,7 +10,7 @@ using Scheldemist.Player;
 namespace Scheldemist.Town;
 
 /// <summary>
-/// The townspeople's self-test: `-- --peopletest dir` (with --server) sets a busy hour (10:30 unless --hour says
+/// The townspeople's self-test: `-- --peopletest dir` starts its own server and sets a busy hour (10:30 unless --hour says
 /// otherwise), goes to the Vismarkt and the Grote Markt, lets the town run some seconds at each, saves pictures (the
 /// place, then one walker close from the front and from the side), times the frame with the people and without,
 /// and writes peopletest.json: how many residents there are, how many are out, drawn and in view, the frame time,
@@ -47,11 +47,19 @@ public partial class PeopleTest : Node
     private Townspeople.Sim? millMan;
     private readonly Dictionary<string, object> roomsRow = new();
     private Indoors.House? room;
+    private readonly Dictionary<string, object> animalsRow = new();
+    private List<(string kind, double x, double z, string? owner)> beastShots = new();
+    private int beastStep;
+    private readonly Dictionary<string, object> wildlifeRow = new();
+    private ParkWildlife.Beast? bird;
+    private Pt birdStart;
+    private List<Node3D> hiddenForTiming = new();
     private double jefMin;
     private int jefBlocked;
     private (double x, double z) jefFrom;
     private int shotAt;
     private readonly Dictionary<Puppet, (double x, double z, bool walk)> before = new();
+    private readonly List<Puppet> timingPeople = new();
 
     public override void _Ready()
     {
@@ -155,7 +163,7 @@ public partial class PeopleTest : Node
         switch (phase)
         {
             case "load":
-                if (town.Data != null && town.WaysWaiting >= 0) Next("where");
+                if (town.Data != null && town.WaysWaiting >= 0) Next(Main.I.Arg("peoplechecks", "where"));
                 else if (t > 90) Fail("the town did not load: " + town.Status);
                 break;
             case "where":
@@ -172,6 +180,10 @@ public partial class PeopleTest : Node
                 bool settled = town.WaysWaiting == 0;
                 where = WhereCheck(Path.Combine(dir, "where_expected.json"));
                 if ((settled && town.WaysWaiting == 0) || t > 60) Next("warm");
+                break;
+            case "reference":
+                if (File.Exists(Path.Combine(dir, "where_expected.json"))) Next("where");
+                else if (t > 60) Fail("the server reference file did not arrive");
                 break;
             case "warm":
                 if (!Go() && rows.Count > 0)
@@ -221,6 +233,20 @@ public partial class PeopleTest : Node
                 Next("time");
                 break;
             case "time":
+                if (frames == 1)
+                {
+                    // Time exactly 50 bodies, even when the chosen hour puts fewer residents near this view.
+                    var eye = Main.I.Cam.GlobalPosition;
+                    for (int i = 0; crowd!.Walking.Count < 50 && i < 100; i++)
+                    {
+                        var at = crowd.OpenNearFree(eye.X + Math.Sin(i * 2.399) * (6 + i * 0.2), eye.Z + Math.Cos(i * 2.399) * (6 + i * 0.2));
+                        if (at == null) continue;
+                        var extra = crowd.AddPuppet("docker_a", at.Value.x, at.Value.z);
+                        if (extra == null) break;
+                        crowd.PuppetStand(extra, "idle"); timingPeople.Add(extra);
+                    }
+                    town.MaxPuppets = 50 - timingPeople.Count;
+                }
                 if (frames > 5)
                 {
                     times.Add(ms);
@@ -231,7 +257,8 @@ public partial class PeopleTest : Node
                 row["simulated"] = town.Sims.Count;
                 row["employersAtPosts"] = town.EmployerResidents.Count;
                 row["outInTheStreet"] = town.Sims.Count(s => !s.Inside);
-                row["drawn"] = town.Sims.Count(s => s.P != null);
+                row["drawn"] = crowd!.Walking.Count;
+                row["timingExhibits"] = timingPeople.Count;
                 row["inView"] = crowd!.Drawn;
                 row["animatedThisFrame"] = crowd.Animated;
                 row["walking"] = crowd.Walking.Count(p => p.State == "walk");
@@ -243,6 +270,10 @@ public partial class PeopleTest : Node
                 // the same view without them
                 town.Paused = true;
                 foreach (var p in crowd.Walking) p.Group.Visible = false;
+                hiddenForTiming = (PostedPeople.I?.List.Where(n => n.Present).Select(n => n.Group) ?? Enumerable.Empty<Node3D>())
+                    .Concat(town.Indoors?.Groups ?? Enumerable.Empty<Node3D>()).Concat(Scheldemist.People.Animals.I?.Groups ?? Enumerable.Empty<Node3D>()).Concat(ParkWildlife.I?.Groups ?? Enumerable.Empty<Node3D>()).Where(g => g.Visible).ToList();
+                foreach (var g in hiddenForTiming) g.Visible = false;
+                row["postedIndoorsAndAnimalsDrawn"] = hiddenForTiming.Count;
                 times.Clear();
                 Next("bare");
                 break;
@@ -251,8 +282,11 @@ public partial class PeopleTest : Node
                 if (frames < 245) break;
                 row["frameWithoutPeople"] = Stats(times);
                 row["drawCallsWithoutPeople"] = RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalDrawCallsInFrame);
-                row["peopleCostMs"] = Math.Round((double)((Dictionary<string, object>)row["frame"])["mean"] - (double)((Dictionary<string, object>)row["frameWithoutPeople"])["mean"], 3);
+                row["peopleAndAnimalsCostMs"] = Math.Round((double)((Dictionary<string, object>)row["frame"])["mean"] - (double)((Dictionary<string, object>)row["frameWithoutPeople"])["mean"], 3);
                 town.Paused = false;
+                foreach (var g in hiddenForTiming) g.Visible = true;
+                foreach (var extra in timingPeople) crowd!.RemovePuppet(extra);
+                timingPeople.Clear(); town.MaxPuppets = 50;
                 Next("pick");
                 break;
             case "pick":
@@ -610,9 +644,43 @@ public partial class PeopleTest : Node
                     ["offTheCartsWayM"] = w?.Way != null ? Math.Round(Whereabouts.ProjectOn(w.Way, millMan.P.X, millMan.P.Z).off, 2) : -1,
                     ["behindTheTimetableM"] = w != null ? Math.Round(Whereabouts.Hypot(w.X - millMan.P.X, w.Z - millMan.P.Z), 1) : -1,
                 };
-                Next("rooms");
+                Next("streetlife");
                 break;
             }
+
+            case "streetlife":
+            {
+                town.SetClock(1, 14.5);
+                if (t < 1) break;
+                layersRow["doorPlans"] = town.DoorPlans;
+                layersRow["doorRoutinesNow"] = town.Sims.Count(s => s.Key.Contains("|door:"));
+                layersRow["childrenGames"] = town.Sims.Where(s => s.Goal.Mode == "play").GroupBy(town.GameOf).ToDictionary(g => g.Key, g => g.Count());
+                layersRow["streetRounds"] = town.Sims.Count(s => s.R.Work.Kind == "round" && s.Goal.Mode == "patrol");
+                var door = town.Sims.FirstOrDefault(s => s.Key.Contains("|door:") && s.Goal.Motion == "lace");
+                if (door == null) { Next("rooms"); break; }
+                Main.I.Cam.LookAtFromPosition(new Vector3((float)door.Goal.X + 4, 1.6f, (float)door.Goal.Z + 3), new Vector3((float)door.Goal.X, 1, (float)door.Goal.Z), Vector3.Up);
+                town.Refill();
+                // A close exhibit of the server's actual door routine; the whole town still runs normally.
+                var exhibit = crowd!.AddPuppet(door.Kind, door.Goal.X, door.Goal.Z, door.Goal.Yaw ?? 0);
+                if (exhibit != null)
+                {
+                    crowd.PuppetStand(exhibit, door.Goal.Motion ?? "idle", door.Goal.Yaw);
+                    var chair = Scheldemist.Models.ModelLibrary.Get("lively", new Scheldemist.Models.ModelLibrary.Look(TwoSided: true, Affine: 0, VertexColor: true))?.Copy("chair");
+                    if (chair != null) exhibit.Group.AddChild(chair);
+                    exhibits.Add((exhibit, "door")); model = exhibit;
+                }
+                millMan = door;
+                Next("doorlifeclose");
+                break;
+            }
+            case "doorlifeclose":
+                if (exhibits.Count > 0) Close(2.5, 0.6);
+                if (t < 5) break;
+                Shot("people_door_lace.png");
+                foreach (var e in exhibits) crowd!.RemovePuppet(e.p);
+                exhibits.Clear();
+                Next("rooms");
+                break;
 
                         case "rooms":
             {
@@ -623,7 +691,7 @@ public partial class PeopleTest : Node
                 if (indoors == null || indoors.Houses.Count == 0)
                 {
                     roomsRow["note"] = "no houses with rooms";
-                    Next("done");
+                    Next("animals");
                     break;
                 }
                 var busiest = indoors.Houses.Where(h => indoors.Open(h.Id)).OrderByDescending(h => indoors.Inside(h).Count).FirstOrDefault();
@@ -633,7 +701,7 @@ public partial class PeopleTest : Node
                 roomsRow["standingBeforeATavernDoor"] = town.Sims.Count(s => s.Goal.Mode == "tavern");
                 if (busiest == null)
                 {
-                    Next("done");
+                    Next("animals");
                     break;
                 }
                 room = busiest;
@@ -661,12 +729,109 @@ public partial class PeopleTest : Node
             case "roomsin":
                 if (t < 1.5) break;
                 Shot("people_rooms_inside.png");
-                Next("done");
+                Next("animals");
                 break;
-case "done":
+            case "animals":
+            {
+                // the animals: the cats on their doorsteps and the strays round the Vismarkt, each kind close
+                town.SetClock(1, 12);
+                var animals = Scheldemist.People.Animals.I;
+                if (animals == null)
+                {
+                    Next("done");
+                    break;
+                }
+                if (frames == 1)
+                {
+                    place = wanted.IndexOf("vismarkt") - 1;
+                    Go();
+                }
+                if (t < 4) break;
+                animalsRow["hauntsInTown"] = animals.Haunts;
+                animalsRow["hereNow"] = animals.Count;
+                animalsRow["inView"] = animals.Shown;
+                animalsRow["logicMs"] = Math.Round(animals.LogicMs, 3);
+                animalsRow["kinds"] = animals.List.GroupBy(a => a.kind).ToDictionary(g => g.Key, g => g.Count());
+                animalsRow["dogsAtHeel"] = animals.List.Count(a => a.owner != null);
+                var cp = Main.I.Cam.GlobalPosition;
+                beastShots = animals.List.Where(a => a.kind.StartsWith("cat")).OrderBy(a => Whereabouts.Hypot(a.x - cp.X, a.z - cp.Z)).Take(1)
+                    .Concat(animals.List.Where(a => a.kind.StartsWith("dog") && a.owner == null).OrderBy(a => Whereabouts.Hypot(a.x - cp.X, a.z - cp.Z)).Take(1))
+                    .Concat(animals.List.Where(a => a.owner != null).Take(1)).Select(a => (a.kind, a.x, a.z, a.owner)).ToList();
+                beastStep = 0;
+                Next("animalshots");
+                break;
+            }
+            case "animalshots":
+            {
+                var animals = Scheldemist.People.Animals.I!;
+                if (beastStep >= beastShots.Count)
+                {
+                    Next("wildlife");
+                    break;
+                }
+                var want = beastShots[beastStep];
+                // (it may have walked on: the same one, where it is now)
+                var it = animals.List.Where(a => a.kind == want.kind && a.owner == want.owner).OrderBy(a => Whereabouts.Hypot(a.x - want.x, a.z - want.z)).FirstOrDefault();
+                if (it.kind == null)
+                {
+                    beastStep++;
+                    break;
+                }
+                double y = town.Walk!.BaseAt(it.x, it.z);
+                foreach (double a in new[] { 0.6, 2.2, 3.8, 5.4, 0 })
+                {
+                    double x = it.x + Math.Sin(a) * 1.9, z = it.z + Math.Cos(a) * 1.9;
+                    if (a != 0 && !town.Walk.Free(x, z)) continue;
+                    Main.I.Cam.LookAtFromPosition(new Vector3((float)x, (float)y + 0.75f, (float)z), new Vector3((float)it.x, (float)y + 0.25f, (float)it.z), Vector3.Up);
+                    break;
+                }
+                if (frames < 150) break;
+                Shot($"animals_{(want.owner != null ? "dog_at_heel" : want.kind.StartsWith("cat") ? "cat" : "stray_dog")}.png");
+                ((List<string>)(animalsRow.TryGetValue("closeShots", out var l) ? l : animalsRow["closeShots"] = new List<string>())).Add($"{it.kind}, {it.motion}{(want.owner != null ? ", at heel" : "")}");
+                beastStep++;
+                Next("animalshots");
+                break;
+            }
+            case "wildlife":
+            {
+                town.SetClock(1, 12);
+                var wildlife = ParkWildlife.I;
+                if (wildlife == null || wildlife.List.Count == 0) { wildlifeRow["missing"] = true; Next("done"); break; }
+                wildlifeRow["animals"] = wildlife.List.Count;
+                wildlifeRow["kinds"] = wildlife.List.GroupBy(a => a.Species).ToDictionary(g => g.Key, g => g.Count());
+                bird = wildlife.List.First(a => a.Species == "duck" && !a.Young && !wildlife.List.Any(b => b.Parent == a.Id));
+                birdStart = new Pt(bird.X, bird.Z);
+                Main.I.Cam.LookAtFromPosition(new Vector3((float)bird.X + 4, (float)bird.Y + 1, (float)bird.Z + 1), new Vector3((float)bird.X, (float)bird.Y + 0.2f, (float)bird.Z), Vector3.Up);
+                Next("birdwalk"); break;
+            }
+            case "birdwalk":
+                if (t < 2) break;
+                wildlifeRow["movedAwayM"] = Math.Round(Whereabouts.Hypot(bird!.X - birdStart.X, bird.Z - birdStart.Z), 3);
+                Shot("animals_ducks_move_off.png");
+                Next("birdflight"); break;
+            case "birdflight":
+                if (bird!.Mode != "flight")
+                {
+                    Main.I.Cam.LookAtFromPosition(new Vector3((float)bird.X + 0.7f, (float)bird.Y + 1, (float)bird.Z), new Vector3((float)bird.X, (float)bird.Y + 0.1f, (float)bird.Z), Vector3.Up);
+                    if (t < 4) break;
+                    wildlifeRow["flewWhenPressed"] = false; Next("birdstorm"); break;
+                }
+                wildlifeRow["flewWhenPressed"] = true;
+                Main.I.Cam.LookAtFromPosition(new Vector3((float)bird.X + 3, (float)bird.Y + 1, (float)bird.Z + 2), new Vector3((float)bird.X, (float)bird.Y, (float)bird.Z), Vector3.Up);
+                if (t < 1.5) break;
+                Shot("animals_duck_flight.png");
+                Next("birdstorm"); break;
+            case "birdstorm":
+                town.SetStorm(1);
+                if (t < 2) break;
+                wildlifeRow["sheltering"] = ParkWildlife.I!.List.Count(a => a.Mode == "shelter" || a.Mode == "climb" || a.Mode == "perch");
+                wildlifeRow["logicMs"] = Math.Round(ParkWildlife.I.LogicMs, 3);
+                town.SetStorm(0);
+                Next("done"); break;
+            case "done":
                 File.WriteAllText(Path.Combine(dir, "peopletest.json"), JsonSerializer.Serialize(new
                 {
-                    ok = true,
+                    ok = ChecksPass(),
                     day = town.Day,
                     hour = Math.Round(town.Hour, 3),
                     maxDrawn = town.MaxPuppets,
@@ -679,11 +844,13 @@ case "done":
                     carried = goodsRow,
                     layers = layersRow,
                     rooms = roomsRow,
+                    animals = animalsRow,
+                    wildlife = wildlifeRow,
                     places = rows,
                 }, new JsonSerializerOptions { WriteIndented = true }));
                 GD.Print("peopletest: written " + Path.Combine(dir, "peopletest.json"));
                 SetProcess(false);
-                GetTree().Quit();
+                GetTree().Quit(ChecksPass() ? 0 : 1);
                 break;
         }
     }
@@ -709,6 +876,8 @@ case "done":
     private Dictionary<string, object> WhereCheck(string file)
     {
         using var doc = JsonDocument.Parse(File.ReadAllText(file));
+        if (!doc.RootElement.TryGetProperty("seed", out var seed) || seed.GetInt64() != town.Data!.Seed)
+            return new Dictionary<string, object> { ["wrongTown"] = true };
         int day = doc.RootElement.GetProperty("day").GetInt32();
         var byId = town.Data!.Residents.ToDictionary(r => r.Id);
         int n = 0, same = 0, cart = 0, missing = 0;
@@ -733,5 +902,20 @@ case "done":
             else if (wrong.Count < 12) wrong.Add($"{id} at {hour}: {d:F2} m off, {w.Act}:{w.Place} stop {w.Stop} moving {w.Moving} (server {e.GetProperty("act").GetString()}:{e.GetProperty("place").GetString()} stop {e.GetProperty("stop").GetInt32()} moving {e.GetProperty("moving").GetBoolean()})");
         }
         return new Dictionary<string, object> { ["answers"] = n, ["same"] = same, ["worstM"] = Math.Round(worst, 3), ["ofThemOnACartRun"] = cart, ["notInThisTown"] = missing, ["waysStillAskedFor"] = town.WaysWaiting, ["different"] = wrong };
+    }
+
+    private bool ChecksPass()
+    {
+        if (where?.ContainsKey("wrongTown") == true) return false;
+        if (where != null && where.TryGetValue("answers", out var answers) && ((int)answers != (int)where["same"] || (int)where["notInThisTown"] != 0)) return false;
+        foreach (var r in rows)
+        {
+            if (r.TryGetValue("overlaps", out var overlaps) && Convert.ToInt32(overlaps) != 0) return false;
+            if (r.TryGetValue("drawn", out var drawn) && Convert.ToInt32(drawn) != 50) return false;
+            if (r.TryGetValue("peopleAndAnimalsCostMs", out var cost) && Convert.ToDouble(cost) >= 1.5) return false;
+        }
+        if (wildlifeRow.ContainsKey("missing")) return false;
+        if (wildlifeRow.TryGetValue("flewWhenPressed", out var flight) && !(bool)flight) return false;
+        return true;
     }
 }

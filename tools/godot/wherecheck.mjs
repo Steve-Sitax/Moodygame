@@ -50,5 +50,5 @@ for (let turn = 0; turn < 40; turn++) {
 }
 const rows = all().map(({ r, hour, w }) => ({ id: r.id, hour, x: w.x, z: w.z, indoor: w.indoor, moving: w.moving, act: w.act, place: w.place, stop: w.stop, leg: w.leg ?? null, cart: !!w.cart }));
 mkdirSync(path.dirname(out), { recursive: true });
-writeFileSync(out, JSON.stringify({ day, hours, residents: people.length, rows }));
+writeFileSync(out, JSON.stringify({ seed: town.seed, day, hours, residents: people.length, rows }));
 console.log(`${rows.length} answers for ${people.length} residents at ${hours.length} hours (day ${day}) -> ${out}; out in the street: ${hours.map((h) => `${h}: ${rows.filter((q) => q.hour === h && !q.indoor).length}`).join(", ")}`);
