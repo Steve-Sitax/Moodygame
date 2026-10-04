@@ -25,6 +25,7 @@ public partial class Soundscape
     /// <summary>The rooms' part may supply its exact threshold and floor instead of the baked lining.</summary>
     public Func<Vector3, string?>? InteriorAt { get; set; }
     public Func<Vector3, string>? SurfaceAt { get; set; }
+    public Func<Vector3, double>? PuddleAt { get; set; }
     /// <summary>The great storm's event and wind parts supply these when ported; an ordinary storm day is not a tempest.</summary>
     public Func<(double level, double gust, double shelter)>? TempestNow { get; set; }
     private double nextWire, nextState;
@@ -118,9 +119,8 @@ public partial class Soundscape
     {
         var p = new Vector3(jef.X, jef.Y, jef.Z);
         string surface = PlayerSurface(p);
-        Action play = () => Footstep(surface, hurry);
+        Action play = () => Footstep(surface, hurry, surface == "stone" && roomKind == null ? PuddleAt?.Invoke(p) ?? Puddles.At(p.X,p.Z,Daylight.I?.Puddle ?? 0) : 0);
         if (roomKind != null) Indoors(play);
-        else if (!hurry) Step(surface);
         else play();
     }
 

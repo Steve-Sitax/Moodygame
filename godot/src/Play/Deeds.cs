@@ -40,6 +40,7 @@ public partial class Deeds : Node
     // Actor code can take over police walks; return true only when it owns this visit.
     public Func<string, string, bool>? PoliceCome;
     public Action? ThingsReturned;
+    public Action<string,bool>? CartTaken;
     private sealed class Pursuer
     {
         public string Id = "", Name = "", Kind = "";
@@ -211,7 +212,7 @@ public partial class Deeds : Node
     public async Task Take(string reference)
     {
         if (busy || Api == null) return; busy = true;
-        try { var ask = new DeedAsk(reference,Jef.I.X,Jef.I.Z,Witnesses(Jef.I.X,Jef.I.Z),Jef.I.Crouching,Lit); var r = await Api.TakeDeed(ask); Answered?.Invoke(ask,r); Apply(r); await Load(); }
+        try { var ask = new DeedAsk(reference,Jef.I.X,Jef.I.Z,Witnesses(Jef.I.X,Jef.I.Z),Jef.I.Crouching,Lit); var r = await Api.TakeDeed(ask); Answered?.Invoke(ask,r); Apply(r); await Load(); if(reference.StartsWith("cart:"))CartTaken?.Invoke(reference,r.Again); }
         catch (ApiException e) { Fail(e); } finally { busy = false; }
     }
     public async Task Pick(string id)

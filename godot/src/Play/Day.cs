@@ -329,6 +329,9 @@ public partial class Day : Node
         asleep = true;
         if (DaySheets.I is { } papers) papers.SleepShown = true;
         cell = r.Place == "cell";
+        // sleep.ts joinFromServer: other players see the prisoner at the
+        // engine's cell position while his own view fades out.
+        if (r.At is {} at) Jef.I.Place((float)at.X,(float)at.Z,(float)at.Yaw);
         waking = false;
         sinceStep = 0;
         fadeWant = 1;

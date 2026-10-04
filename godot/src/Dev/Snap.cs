@@ -24,6 +24,7 @@ public partial class Snap : Node
     private int view = -1, frame;
     private ulong last;
     private readonly List<double> times = new();
+    private readonly List<Node3D> hidden = new();
     private const int Wait = 50, Timed = 90;
 
     public override void _Ready()
@@ -74,11 +75,38 @@ public partial class Snap : Node
             }
             // (what the bake still hides as not ported)
             System.IO.File.WriteAllLines(System.IO.Path.Combine(dir, "unported.txt"), Main.I.World.Unported.Distinct());
+            // (dev: the bake's figures drawn now, frozen as they were at bake time)
+            var bodies = BakedWorld.All(Main.I.World).OfType<MeshInstance3D>().Where(b => b.Name.ToString().Contains("_body") && b.IsVisibleInTree()).ToList();
+            GD.Print($"baked figures drawn: {bodies.Count} ({string.Join(", ", bodies.Take(12).Select(b => b.GetPath().ToString().Split('/').TakeLast(4).Aggregate((x, y) => x + "/" + y)))})");
+            foreach (var ub in BakedWorld.All(Main.I.World).OfType<MeshInstance3D>().Where(b => Main.I.World.Unported.Contains(b.Name.ToString()) || Main.I.World.Unported.Contains($"{b.GetParent()?.Name}/{b.Name}")))
+            {
+                Node3D? fig = ub.GetParent() as Node3D;
+                while (fig != null && fig.GetParent() is Node3D up && up.Name != "town" && fig is not { } ) fig = up;
+                var root = ub as Node3D;
+                while (root.GetParent() is Node3D q && q.Name != "town") root = q;
+                GD.Print($"unported figure {ub.Name}: {ub.GetPath().ToString().Split('/').TakeLast(5).Aggregate((x, y) => x + "/" + y)} group shown {root.IsVisibleInTree()} figure shown {(ub.GetParent()?.GetParent() as Node3D)?.IsVisibleInTree()}");
+            }
+            foreach (var fb in BakedWorld.All(Main.I.World).OfType<MeshInstance3D>().Where(b => System.Text.RegularExpressions.Regex.IsMatch(b.Name.ToString(), "^(priest|tourist|beggar|urchin|soldier|ragman)_body")))
+                GD.Print($"figure body {fb.Name}: shown {fb.IsVisibleInTree()}, material {fb.Mesh?.SurfaceGetMaterial(0)?.GetClass()} {(fb.Mesh?.SurfaceGetMaterial(0) as ShaderMaterial)?.HasMeta("baked_invisible")}");
+            // (dev: what a nameless one is: where, how big, its materials)
+            foreach (var nd in BakedWorld.All(Main.I.World))
+                if (nd is MeshInstance3D um && um.Mesh != null && Main.I.World.Unported.Contains($"{um.GetParent()?.Name}/{um.Name}"))
+                    GD.Print($"unported {um.GetParent()?.Name}/{um.Name}: box {um.GlobalTransform * um.GetAabb()}, {string.Join(", ", Enumerable.Range(0, um.Mesh.GetSurfaceCount()).Select(i => $"{um.Mesh.SurfaceGetMaterial(i)?.GetClass()} '{um.Mesh.SurfaceGetMaterial(i)?.ResourceName}' {(um.Mesh as ArrayMesh)?.SurfaceGetArrayLen(i)} corners"))}, path {um.GetPath()}");
             GetTree().Quit();
             SetProcess(false);
             return;
         }
         var a = views[view];
+        // (dev: a view named name~node~node draws without those nodes, to find what draws a thing)
+        foreach (var h in hidden) h.Visible = true;
+        hidden.Clear();
+        foreach (var n in a[0].Split('~').Skip(1))
+            foreach (var nd in BakedWorld.All(Main.I.View))
+                if (nd is Node3D n3 && n3.Name == n && n3.Visible)
+                {
+                    n3.Visible = false;
+                    hidden.Add(n3);
+                }
         var cam = Main.I.Cam;
         if (a.Length > 5 && a[1] != "")
         {
@@ -93,6 +121,10 @@ public partial class Snap : Node
             Tide.Set(1, F(a[6])); // (Monday's tide at that hour)
         }
         if (a.Length > 7 && a[7] != "") Daylight.I.SetWeather(a[7]);
+        // (a view named bilge...: the pumps near it work now)
+        if (ShipWater.I is { } sw) sw.PumpNow = a[0].StartsWith("bilge");
+        // (held: the events part sets the storm every frame, and the test's level would fade)
+        Daylight.I.StormHold = a.Length > 8 && a[8] != "" ? F(a[8]) : null;
         Daylight.I.SetStorm(a.Length > 8 && a[8] != "" ? F(a[8]) : 0);
         Daylight.I.Settle();
     }
@@ -130,6 +162,26 @@ public partial class Snap : Node
                 return (b + back * 3.2f + new Vector3(0, 2.6f, 0), b);
             }
         }
+        if (name.StartsWith("bat") && Bats.I is { Info.drawn: > 0 } bt)
+        {
+            var b = bt.Info.first;
+            var back = new Vector3(cam.X - b.X, 0, cam.Z - b.Z);
+            back = back.LengthSquared() > 1e-4f ? back.Normalized() : Vector3.Back;
+            return (b + back * 2.2f + new Vector3(0, -0.6f, 0), b);
+        }
+        if (name.StartsWith("horse") && Breath.I?.NearestHorse(cam) is { } hx)
+        {
+            // (beside the horse's head, a little ahead of it)
+            var nose = hx * new Vector3(0, 1.68f, 1.56f);
+            var side = hx.Basis.X.Normalized();
+            return (nose + side * 3.2f + hx.Basis.Z.Normalized() * 1.5f + new Vector3(0, 0.2f, 0), nose + hx.Basis.Z.Normalized() * 0.4f);
+        }
+        if (name.StartsWith("bilge") && ShipWater.I is { } sw)
+        {
+            var (o, outward) = sw.NearestOutlet(cam);
+            var across = new Vector3(-outward.Z, 0, outward.X);
+            return (o + outward * 4.5f + across * 2.5f + new Vector3(0, 3.2f, 0), o + outward * 0.9f + new Vector3(0, -0.8f, 0));
+        }
         if (name.StartsWith("surf") && Surf.I is { Info.edges: > 0 } su)
         {
             var e = su.Info.edge0;
@@ -164,12 +216,40 @@ public partial class Snap : Node
             if (cam is Player.FlyCam fly) fly.Face(q);
             else cam.Quaternion = q;
         }
+        // (a view named bolt...: a near strike in front of the camera two frames before the picture)
+        if (views[view][0].StartsWith("bolt") && frame == Wait + Timed + (view == 0 ? 240 : 0) - 2 && Lightning.I is { } li)
+        {
+            var fw = -Main.I.Cam.GlobalTransform.Basis.Z;
+            li.Strike(0.5f, MathF.Atan2(fw.Z, fw.X));
+        }
         // (the first view waits for the loading screen to go)
         if (frame < Wait + Timed + (view == 0 ? 240 : 0)) return;
         string name = views[view][0];
         Main.I.GetViewport().GetTexture().GetImage().SavePng(System.IO.Path.Combine(dir, name + ".png"));
+        // (dev: --whatray fx,fy;... lists the drawn meshes whose box the ray through that point of the picture meets,
+        // small ones first; fx, fy are 0..1 across and down)
+        if (Main.I.Arg("whatray") is { Length: > 0 } wr)
+            foreach (var one in wr.Split(';', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var f = one.Split(',').Select(F).ToArray();
+                var cam3 = Main.I.View.GetCamera3D();
+                var px = new Vector2(f[0], f[1]) * Main.I.GetViewport().GetVisibleRect().Size;
+                Vector3 o = cam3.ProjectRayOrigin(px), d = cam3.ProjectRayNormal(px);
+                var hits = new List<(float, string)>();
+                foreach (var nd in BakedWorld.All(Main.I.View))
+                    if (nd is GeometryInstance3D gi && gi.IsVisibleInTree() && (gi.GlobalTransform * gi.GetAabb()).IntersectsSegment(o, o + d * 5000))
+                        hits.Add(((gi.GlobalTransform * gi.GetAabb()).Size.Length(), $"{(gi.GlobalTransform * gi.GetAabb()).GetCenter().DistanceTo(o):0} m {gi.GetPath().ToString().Split('/').TakeLast(3).Aggregate((x, y) => x + "/" + y)} {gi.GetClass()} mat {(gi.MaterialOverride ?? (gi as MeshInstance3D)?.Mesh?.SurfaceGetMaterial(0))?.ResourceName}"));
+                foreach (var (size, what) in hits.OrderBy(h => h.Item1).Take(60)) GD.Print($"whatray {name} {one} {size:0} {what}");
+            }
+        if (ShipWater.I is { } sw) GD.Print($"snap {name} ship water: {sw.Info}");
+        if (Bats.I is { } bts) GD.Print($"snap {name} bats: {bts.Info}");
+        if (Debris.I is { } db) GD.Print($"snap {name} debris: {db.Info}");
+        if (Gutters.I is { } gt) GD.Print($"snap {name} eaves drops: {gt.DropInfo}");
+        if (Breath.I is { } br) GD.Print($"snap {name} horses' breath: {br.HorseInfo}");
+        if (Lightning.I is { } lg) GD.Print($"snap {name} lightning: {lg.Info}, flash {Daylight.I.Flash:0.00}");
+        if (LandmarkRooms.I is { } lr) GD.Print($"snap {name} landmark rooms: {string.Join(", ", lr.Info.Select(i => $"{i.building} {i.lit}/{i.windows}"))}; steen lanterns {lr.LanternInfo.lit}/{lr.LanternInfo.lanterns}");
         times.Sort();
-        GD.Print($"snap {name} air: wind {Daylight.I.Wind.Length():0.00}, night life {NightLife.I?.Info}, surf {Surf.I?.Info}, gutters {Gutters.I?.Info}, breath {Breath.I?.Info}, blobs {Blobs.I?.Count}");
+        GD.Print($"snap {name} air: wind {Daylight.I.Wind.Length():0.00}, rain {Daylight.I.Rain:0.00}, storm {Daylight.I.Storm:0.00}, night life {NightLife.I?.Info}, surf {Surf.I?.Info}, gutters {Gutters.I?.Info}, breath {Breath.I?.Info}, blobs {Blobs.I?.Count}");
         GD.Print($"snap {name}: {times.Average():0.00} ms a frame (p95 {times[(int)(times.Count * 0.95)]:0.00}), {RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalDrawCallsInFrame)} draws, {Render.Psx.ShaderCount} psx shaders");
         Next();
     }

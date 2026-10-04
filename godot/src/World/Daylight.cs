@@ -80,6 +80,11 @@ public partial class Daylight : Node
     public float SunIntensity { get; private set; }
     public float SkyIntensity { get; private set; }
 
+    /// <summary>The lightning's flash now (0 none .. about 1.6 a near strike) and how much it adds to the sky's light (Lightning.cs).</summary>
+    public float Flash { get; set; }
+    public float FlashSky { get; set; }
+    private static readonly Color FlashAir = new(0.75f, 0.8f, 1.0f);
+
     private float dayTarget = 13, skyBase = 1, sunDay, dayFar = 25, fogMix, fogTarget;
     private Color baseFog;
     private float[] wTarget = WeatherOf("clear");
@@ -162,7 +167,15 @@ public partial class Daylight : Node
     /// rain never lets up and drives harder, the river runs high and white-capped, the cloud deck races over.
     /// Not here: the gusts' veils, the bolts, the flying things.
     /// </summary>
-    public void SetStorm(float level) => stormTarget = Mathf.Clamp(level, 0, 1);
+    public void SetStorm(float level) => stormTarget = Mathf.Clamp(StormHold ?? level, 0, 1);
+
+    /// <summary>Dev (the browser's tempest hold): the great storm held at this level whatever the events say; null lets go.</summary>
+    public float? StormHold
+    {
+        get => stormHold;
+        set { stormHold = value; if (value is { } v) stormTarget = Mathf.Clamp(v, 0, 1); }
+    }
+    private float? stormHold;
 
     /// <summary>Rain on top of the weather 0-1 (a job twist, or dev).</summary>
     public void SetRain(float amount) => manualRain = Mathf.Clamp(amount, 0, 1);
@@ -296,6 +309,12 @@ public partial class Daylight : Node
         float viewFar = Menu.Tuning.ViewFar;
         FogNear = Mathf.Lerp(3 * wNow[0] * viewFar, 1.5f, fogMix) * (1 - 0.45f * Storm);
         FogFar = Mathf.Lerp(dayFar * wNow[1] * viewFar, 11, fogMix) * (1 - 0.32f * Storm);
+        // the lightning (Lightning.cs, alive/air.ts): the air and the sky light up for the flash's flickers
+        if (Flash > 0)
+        {
+            fog = fog.Lerp(FlashAir, Math.Min(0.95f, Flash * 0.7f));
+            SkyIntensity += Flash * FlashSky;
+        }
         FogColor = fog;
 
         // the rain, the wet ground and the puddles (ambient.ts)

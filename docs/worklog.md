@@ -1,5 +1,29 @@
 # Work log
 
+## Godot look gaps, round 2: sky, landmark rooms, storm, what the bake hid, 2026-10-04
+
+On `godot/gaps-look` (merged `godot-port` at `30df71b`). Each beside the browser's picture from the same view
+(`tools/godot/look-refs.mjs`, now also writing the browser's fog and works stacks).
+- [#55](https://github.com/Steve-Sitax/Moodygame/issues/55): the grey sky shapes were the sky's own noise: its
+  `fract(sin(...))` hash goes flat on this card for big numbers. Sin-free hash in `Sky.cs`. Works smoke drawn 1.8x
+  thicker (same code as the browser, half as dark here; Steve: a fuller plume is fine).
+- [#52](https://github.com/Steve-Sitax/Moodygame/issues/52): `LandmarkRooms.cs` lights the town hall, Oostershuis,
+  Vleeshuis and Steen room by room (landmarkWindows.ts roomLevel, meetings), and their street light; the Steen's four
+  lanterns (flames, halos in `Lights.FixedHalos`, the lantern pool at the browser's 2.2). Town hall lit windows: 53 at
+  19:30, 17 at 23:30, 7 at 3:00. Found: three Steen windows see-through to the fog ([#56](https://github.com/Steve-Sitax/Moodygame/issues/56)).
+- [#53](https://github.com/Steve-Sitax/Moodygame/issues/53): the far rain sheets had the same hash fault; the storm's
+  streaks take at least 1/26 s; `Daylight.StormHold` keeps a test's storm level (the events part reset it each frame).
+- [#54](https://github.com/Steve-Sitax/Moodygame/issues/54): the six figure kinds' bodies and the hand parcels lost
+  three's notes in the export: read as Lambert (the beggar and omnibus priests drawn whole); the frozen WANTED bill is
+  the save's (live bills: `Play/Ideas.cs`), hidden on purpose; `ShipWater.cs` ports the riding lights and the bilge
+  pumps, with the hook `ShipWater.Moving` for boats under way. Left on the list: `boat_lamps` (the movers' BoatLamps).
+- Also: `Lightning.cs` (flash, bolt, thunder), `Debris.cs` (the great storm's flying debris), `Bats.cs`, the eaves'
+  lone drops and the streams' tops from the town plan (`Gutters.cs`; drop eaves 20 / 30.6 m as the browser), the
+  horses' breath (`Breath.cs`, found by name in the movers' copies). `People/Carried.cs`: a `Power` field on a lantern
+  source (a hook, two lines). Same hash fault elsewhere: [#58](https://github.com/Steve-Sitax/Moodygame/issues/58).
+Checks: shaders PASS after each part (104 programs, 0 new kinds, 0 problems). Pictures under `godot/baked/look/`
+(not in git): `cmp2/*.png` (browser over Godot). No push or merge.
+
 ## Godot browser regression check, 2026-10-04
 
 Audited the 36 browser/server/tool files changed from main merge-base 35abc3f to godot-port 908a1e1. All 1,395 tests and the production build passed. Isolated fresh towns, headless Chrome, path/shader/stuck checks, a paid watch job, offline resident choices and close midday pictures are recorded in `docs/godot-browsercheck.md`. The activity-anchor changes are a real shared bug fix, not new game rules. Named test jumps can resolve residents before exact places, a pre-existing tooling problem filed as [#51](https://github.com/Steve-Sitax/Moodygame/issues/51). Performance remains above the 16.7 ms gate on both the branch and merge-base; the existing [#32](https://github.com/Steve-Sitax/Moodygame/issues/32) tracks the browser frame budget. No push or merge.
@@ -459,3 +483,9 @@ The movers worktree has live omnibus boarding, stop waiters and families aboard 
 The events worktree connects engine stages, held actors, event props/sound/marks/closures, lead dress, scuffle/robbery, wedding/requiem figures, hearses, fire/hiring, storm and family menace choices. It builds and ran all sixteen templates; the bounded self-test and final evidence follow in the next commit. Browser parity gaps and exact shared hooks are listed in docs/godot-events.md. No push, merge or shared bake writes.
 
 The final event check passed 16 kinds and 50 stages, with 68 inspected pictures and actual cue playback for all 13 cue-bearing kinds. Grote Markt event logic: 239 frames, 0.00985 ms mean, 0.013 ms p95/max, 0 B mean/p95; network setup, shared crowd animation and rendering are outside that measurement. Separate family UI fixtures and an eight-stage funeral/fire repeat passed (14 more inspected pictures, including the hearse and pump). Family typing now pauses the decision timer; peaceful outcomes do not dim the screen. Evidence: godot/baked/events-proof/release, family and vehicles. All test databases removed and owned processes stopped. Builds and 194 relevant server tests passed. Shared edits and unfinished parity work: docs/godot-events.md.
+
+## Godot life gap integration, 2026-10-04
+
+The `godot/gaps-life` merge verified the street life, job and sound producers on the shared next bake.
+The ride runner's Dummy audio removed WASAPI use during tests. Its unrelated owned-handcart flat-street
+push check failed after grip: [issue #57](https://github.com/Steve-Sitax/Moodygame/issues/57).

@@ -161,7 +161,10 @@ void fragment() {
         mesh.Visible = day.Rain > 0.01f;
         if (!mesh.Visible) return;
         // a streak is one frame's fall: the frame's length, eased (a hitch does not stretch the rain)
-        expo += (Mathf.Clamp((float)delta, 1f / 60, 1f / 24) - expo) * 0.1f;
+        // (the great storm: at least a 26th of a second's fall, as the browser draws it at its own frame rate; at
+        // Godot's speed one frame's fall was a short dash, and the storm looked tame)
+        float lo = 1f / 60 + (1f / 26 - 1f / 60) * Daylight.I.Storm;
+        expo += (Math.Clamp((float)delta, lo, 1f / 24) - expo) * 0.1f;
         mat.SetShaderParameter("expo", expo);
         // (the great storm: harder, about twice the gale's wind)
         mat.SetShaderParameter("wind", day.Wind * (1 + 0.9f * day.Storm));

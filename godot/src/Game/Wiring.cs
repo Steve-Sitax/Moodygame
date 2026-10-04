@@ -29,7 +29,7 @@ public partial class Wiring : Node
     {
         // Jef stands still under the open map and while a window is up
         if (Scheldemist.Player.Jef.I != null) Scheldemist.Player.Jef.I.Frozen = mapOpen || DialogUp()
-            || Play.TavernSeats.I?.Sitting != null || Play.CathedralComfort.I?.Sitting != null;
+            || Play.TavernSeats.I?.Sitting != null || Play.CathedralComfort.I?.Sitting != null || Play.Poesje.I?.Seated == true;
         if ((wait -= delta) > 0) return;
         wait = 1;
         var s = GameState.I;

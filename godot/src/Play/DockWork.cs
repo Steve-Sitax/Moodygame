@@ -11,6 +11,7 @@ namespace Scheldemist.Play;
 
 public partial class Goods
 {
+    internal bool IsLying(Item it) => all.TryGetValue(it.Id, out var current) && current == it && it.S.Lies;
     public async Task<GoodsReply?> DeliverDockLoad()
     {
         var item = Carried; if (item == null) return null;

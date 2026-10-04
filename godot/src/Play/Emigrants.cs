@@ -22,7 +22,7 @@ public partial class Emigrants : Node
     private sealed class Camp { public EmigrantFamily Family=null!; public Node3D Group=new(); public readonly List<Node3D> Chests=new(); }
     private sealed class Walker { public string Id=""; public Townspeople.Sim Sim=null!; public Vector2 To; }
     private sealed class Crossing { public EmigrantFamily Family=null!; public int Tow; public float Time; public readonly List<Walker> Walkers=new(); public bool Reported; }
-    private sealed class Passenger { public Human Human=null!; public Node3D Group=null!; }
+    private sealed class Passenger { public Human Human=null!; public Node3D Group=null!; public Skeleton3D? Skeleton; public int Arm=-1; public float Wave; public Quaternion ArmBase=Quaternion.Identity; public bool ArmOverlay; public Node3D? Baby; }
     private sealed class Lowering { public Node3D Prop=null!; public Vector3 From, Slot; public float Time; }
     private sealed class Deck { public Node3D Group=new(); public readonly List<Passenger> People=new(); public readonly List<Node3D> Chests=new(); public readonly List<Lowering> Lowering=new(); }
     private static readonly Vector2[] PeopleSlots={new(1.45f,-7.2f),new(1.45f,7.2f),new(1.45f,-6.2f),new(1.45f,6.2f),new(.5f,-7.8f),new(.5f,7.7f),new(1.45f,-5.3f),new(1.45f,5.3f),new(-.4f,-7.2f),new(-.4f,7.2f),new(.4f,-6.5f),new(.4f,6.6f)};
@@ -32,7 +32,12 @@ public partial class Emigrants : Node
     private readonly Dictionary<int,Deck> decks=new();
     private readonly Dictionary<string,Node3D> templates=new();
     private Townspeople? town;
-    private double poll, think;
+    private double poll, think, clock;
+    private readonly Dictionary<string,Node3D> babies=new();
+    private Node3D babyTemplate=null!;
+    public Vector3? BabyAt {get {foreach(var b in babies.Values)if(b.IsVisibleInTree())return b.GlobalPosition;foreach(var d in decks.Values)foreach(var p in d.People)if(p.Baby?.IsVisibleInTree()==true)return p.Baby.GlobalPosition;return null;}}
+    public int BabyCount {get {int count=babies.Count;foreach(var d in decks.Values)foreach(var p in d.People)if(p.Baby!=null)count++;return count;}}
+    public int WavingCount { get; private set; }
     private bool loading,dead;
     private int generation;
     public int CampCount=>camps.Count;
@@ -48,18 +53,19 @@ public partial class Emigrants : Node
         if(River.I?.Anchorage is {} anchorage)foreach(var tow in anchorage.Tows)
             foreach(var n in Scheldemist.World.BakedWorld.All(tow.Lighter.Boat.Outer))
                 if(n is GeometryInstance3D geometry && !n.Name.ToString().Contains("cap"))geometry.Visible=true;
-        I=this;town=GetParent().GetNodeOrNull<Townspeople>("Townspeople");
+        I=this;town=GetParent().GetNodeOrNull<Townspeople>("Townspeople");PrepareNotice();
         // All prop meshes and materials exist before play; copies share them.
         templates["chest"]=Goods.I.MakeGoods("chests");
         var bundle=new Node3D();bundle.AddChild(Part(new SphereMesh{Radius=.3f,Height=.6f,RadialSegments=6,Rings=3},Goods.I.Plain(0x7a7470),0,.22f,0));bundle.GetChild<Node3D>(0).Scale=new(1.25f,.75f,1);bundle.AddChild(Part(new SphereMesh{Radius=.08f,Height=.16f,RadialSegments=6,Rings=2},Goods.I.Plain(0x7a7470),0,.47f,0));templates["bundle"]=bundle;
         var bed=new Node3D();var roll=Part(new CylinderMesh{TopRadius=.3f,BottomRadius=.3f,Height=1.15f,RadialSegments=7,Rings=1},Goods.I.Plain(0xa8a090),0,.3f,0);roll.Rotation=new(0,0,MathF.PI/2);bed.AddChild(roll);foreach(float x in new[]{-.35f,.35f}) {var band=Part(new CylinderMesh{TopRadius=.315f,BottomRadius=.315f,Height=.05f,RadialSegments=7,Rings=1},Goods.I.Plain(0x7a6646),x,.3f,0);band.Rotation=new(0,0,MathF.PI/2);bed.AddChild(band);}templates["featherbed"]=bed;
         var basket=new Node3D();basket.AddChild(Part(new CylinderMesh{TopRadius=.22f,BottomRadius=.16f,Height=.26f,RadialSegments=7,Rings=1},Goods.I.Plain(0x9a8660),0,.13f,0));templates["basket"]=basket;
+        babyTemplate=new Node3D();babyTemplate.AddChild(Part(new CapsuleMesh{Radius=.1f,Height=.4f,RadialSegments=8,Rings=3},Goods.I.Plain(0x9a7a6a),0,0,0));babyTemplate.GetChild<Node3D>(0).Rotation=new(MathF.PI/2,0,0);babyTemplate.AddChild(Part(new SphereMesh{Radius=.065f,Height=.13f,RadialSegments=6,Rings=3},Goods.I.Plain(0xc69a7a),0,.04f,.17f));babyTemplate.Visible=false;AddChild(babyTemplate);
         foreach(var t in templates.Values){t.Visible=false;AddChild(t);}
         if(Scheldemist.Menu.MainMenu.I is {} menu)menu.WorldReplaced+=Reset;
     }
     private void Reset(string how,ClientState? state)
     {
-        generation++;Info=null;poll=0;
+        generation++;Info=null;poll=0;notice.Visible=false;noticePlaced=false;foreach(var b in babies.Values)b.QueueFree();babies.Clear();
         foreach(var c in crossings.Values)foreach(var id in c.Family.Members)town?.ReleaseFromLighter(id,false);
         crossings.Clear();foreach(var c in camps.Values)c.Group.QueueFree();camps.Clear();foreach(var d in decks.Values){foreach(var p in d.People)p.Human.Dispose();d.Group.QueueFree();}decks.Clear();LinerTransfers=0;
     }
@@ -71,13 +77,14 @@ public partial class Emigrants : Node
             var next=await api.Emigrants();if(dead||g!=generation)return;
             bool arrivals=next.Families.Any(f=>f.Members.Any(id=>!town.Data.Residents.Any(r=>r.Id==id)));
             if(arrivals){var people=await api.Town();if(dead||g!=generation)return;town.ReadEmigrantArrivals(people,next.Families.SelectMany(f=>f.Members).ToHashSet());}
-            Info=next;
+            Info=next;UpdateNotice(next);foreach(var id in babies.Keys.ToArray())if(!next.Families.Any(f=>f.Baby?.Mother==id)){babies[id].QueueFree();babies.Remove(id);}
+            foreach(var family in next.Families) if(family.Baby is {} baby && !crossings.ContainsKey(family.Household) && !babies.ContainsKey(baby.Mother)){var b=(Node3D)babyTemplate.Duplicate();Main.I.View.AddChild(b);babies.Add(baby.Mother,b);}
             foreach(var f in next.Families)
             {
                 if(camps.TryGetValue(f.Household,out var old)){old.Family=f;continue;}
                 if(crossings.ContainsKey(f.Household))continue;
                 var camp=new Camp{Family=f};Main.I.View.AddChild(camp.Group);camps.Add(f.Household,camp);
-                foreach(var p in f.Props) {if(p.Z<12||town.Walk?.Free(p.X,p.Z)!=true||!templates.TryGetValue(p.Kind,out var source))continue;var prop=(Node3D)source.Duplicate();prop.Visible=true;prop.Position=new(p.X,0,p.Z);prop.Rotation=new(0,p.Yaw,0);camp.Group.AddChild(prop);if(p.Kind=="chest")camp.Chests.Add(prop);}
+                foreach(var p in f.Props) {if(!CampClear(p.X,p.Z)||!templates.TryGetValue(p.Kind,out var source))continue;var prop=(Node3D)source.Duplicate();prop.Visible=true;prop.Position=new(p.X,0,p.Z);prop.Rotation=new(0,p.Yaw,0);camp.Group.AddChild(prop);if(p.Kind=="chest")camp.Chests.Add(prop);}
             }
             foreach(var key in camps.Keys.ToArray()) if(!next.Families.Any(f=>f.Household==key)){camps[key].Group.QueueFree();camps.Remove(key);}
         }catch(ApiException){poll=2;}finally{loading=false;}
@@ -85,6 +92,8 @@ public partial class Emigrants : Node
     public override void _Process(double dt)
     {
         using var frameCost = Scheldemist.Dev.FrameCost.Track("Play.Emigrants");
+        clock+=dt;WavingCount=0;
+        foreach(var pair in babies){var s=town?.ActionPerson(pair.Key);var p=s?.P;pair.Value.Visible=p!=null&&town!.Crowd!.Alive(p);if(pair.Value.Visible&&p!=null){float scale=p.Human.Scale*(float)p.Size;bool walking=town!.Crowd!.PuppetBusy(p);pair.Value.Position=new((float)p.X+MathF.Sin((float)p.Yaw)*.2f*scale,1.08f*scale+(float)p.Drop,(float)p.Z+MathF.Cos((float)p.Yaw)*.2f*scale);float sway=walking?0:(float)Math.Sin(clock*2.2+pair.Key.Length)*.108f;pair.Value.Quaternion=new Quaternion(Vector3.Up,(float)p.Yaw+MathF.PI/2)*new Quaternion(Vector3.Back,sway)*new Quaternion(Vector3.Right,.35f);pair.Value.Scale=Vector3.One*scale;if(!walking&&s?.ActionHeld==false&&(clock+pair.Key.Length*3.7)%20<dt*1.5){town.Crowd.PuppetStand(p,"talk",p.Yaw);s.Wait=3;}}}
         if((poll-=dt)<=0 && ServerLink.I?.Up==true){poll=6;_ = Load();}
         if(Info==null||town?.Crowd==null||River.I?.Anchorage is not {} a)return;
         if((think-=dt)<=0)
@@ -105,7 +114,10 @@ public partial class Emigrants : Node
             var d=entry.Value;var t=a.Tows[entry.Key];d.Group.GlobalTransform=t.Lighter.Boat.Outer.GlobalTransform;
             if(t.Stop==0&&t.Phase=="dwell"){if(d.People.Count>0){LinerTransfers+=d.People.Count;foreach(var p in d.People){p.Human.Dispose();p.Group.QueueFree();}d.People.Clear();foreach(var p in d.Chests)p.QueueFree();d.Chests.Clear();}continue;}
             bool near=d.Group.GlobalPosition.DistanceTo(Main.I.Cam.GlobalPosition)<140;d.Group.Visible=near;
-            if(near)foreach(var p in d.People)p.Human.Update((float)dt);
+            if(near)foreach(var p in d.People){if(p.ArmOverlay&&p.Skeleton!=null&&p.Arm>=0)p.Skeleton.SetBonePoseRotation(p.Arm,p.ArmBase);p.ArmOverlay=false;p.Human.Update((float)dt);bool leaving=t.Phase=="out" || t.Stop!=1;
+                if(leaving && p.Skeleton!=null && p.Arm>=0){p.ArmBase=p.Skeleton.GetBonePoseRotation(p.Arm);p.ArmOverlay=true;p.Wave+=(float)dt;float up=Math.Min(1,p.Wave/.6f);p.Skeleton.SetBonePoseRotation(p.Arm,p.ArmBase*new Quaternion(Vector3.Back,-2.3f*up)*new Quaternion(Vector3.Right,MathF.Sin(p.Wave*7)*.35f*up));WavingCount++;}
+                if(p.Baby!=null)p.Baby.Rotation=new(.35f,MathF.PI/2,(float)Math.Sin(clock*2.2)*.108f);
+            }
             for(int k=d.Lowering.Count-1;k>=0;k--){var l=d.Lowering[k];l.Time=Math.Min(1,l.Time+(float)dt/3.5f);var to=d.Group.ToGlobal(l.Slot);l.Prop.GlobalPosition=l.From.Lerp(to,l.Time)+Vector3.Up*MathF.Sin(MathF.PI*l.Time)*1.4f;if(l.Time>=1){l.Prop.Reparent(d.Group);l.Prop.Position=l.Slot;l.Prop.Rotation=new(0,MathF.PI/2,0);d.Chests.Add(l.Prop);d.Lowering.RemoveAt(k);}}
         }
     }
@@ -114,10 +126,10 @@ public partial class Emigrants : Node
     private Deck DeckFor(int tow){if(decks.TryGetValue(tow,out var d))return d;d=new();Main.I.View.AddChild(d.Group);decks.Add(tow,d);return d;}
     private void Start(EmigrantFamily f,int tow,Anchorage.Tow t)
     {
-        var c=new Crossing{Family=f,Tow=tow};crossings.Add(f.Household,c);int i=0;
+        var c=new Crossing{Family=f,Tow=tow};crossings.Add(f.Household,c);int i=0;bool seen=new Vector2(Jef.I.X-28,Jef.I.Z-4).Length()<75;
         foreach(string id in f.Members)
         {
-            var s=town!.ClaimForLighter(id);if(s?.P is not {} p){Aboard(c,id,s);continue;}
+            var s=town!.ClaimForLighter(id);if(!seen||s?.P is not {} p){Aboard(c,id,s);continue;}
             float x=Math.Clamp(t.Lighter.Boat.Outer.GlobalPosition.X+(i++-f.Members.Count/2f)*1.1f,20,36);var to=town.Crowd!.CanStand(x,1.2)?(x: (double)x,z:1.2):town.Crowd.OpenNear(x,1.6)??(x:(double)x,z:2.0);
             town.Crowd.PuppetGo(p,to.x,to.z,1.25);c.Walkers.Add(new(){Id=id,Sim=s,To=new((float)to.x,(float)to.z)});
         }
@@ -127,7 +139,9 @@ public partial class Emigrants : Node
     private void Aboard(Crossing c,string id,Townspeople.Sim? s)
     {
         string kind=s?.Kind??town!.Data!.Residents.FirstOrDefault(r=>r.Id==id)?.Kind??"docker_a";town!.HideForLighter(id);
-        if(c.Family.Baby?.Child==id)return;var human=Humans.Make(Humans.IsKind(kind)?kind:"docker_a");if(human==null)return;var d=DeckFor(c.Tow);var slot=PeopleSlots[d.People.Count%PeopleSlots.Length];var g=new Node3D{Position=new(slot.X,.62f,slot.Y),Rotation=new(0,MathF.PI/2,0)};g.AddChild(human.Root);d.Group.AddChild(g);human.Start();human.Play("idle");d.People.Add(new(){Human=human,Group=g});
+        if(c.Family.Baby?.Child==id)return;var human=Humans.Make(Humans.IsKind(kind)?kind:"docker_a");if(human==null)return;var d=DeckFor(c.Tow);var slot=PeopleSlots[d.People.Count%PeopleSlots.Length];var g=new Node3D{Position=new(slot.X,.62f,slot.Y),Rotation=new(0,MathF.PI/2,0)};g.AddChild(human.Root);d.Group.AddChild(g);human.Start();human.Play("idle");var passenger=new Passenger{Human=human,Group=g,Skeleton=human.Root.GetNodeOrNull<Skeleton3D>("Skeleton3D")};passenger.Arm=passenger.Skeleton?.FindBone("armUpR")??-1;
+        if(c.Family.Baby?.Mother==id){if(babies.Remove(id,out var baby)){baby.QueueFree();}passenger.Baby=(Node3D)babyTemplate.Duplicate();passenger.Baby.Visible=true;passenger.Baby.Position=new(0,1.08f*human.Scale,.2f*human.Scale);passenger.Baby.Scale=Vector3.One*human.Scale;g.AddChild(passenger.Baby);}
+        d.People.Add(passenger);
     }
     private async Task Report(Crossing c)
     {

@@ -227,6 +227,8 @@ public sealed class LanternPool
         public Vector3 Pos = new(0, -999, 0);
         public bool On;
         public float Seed;
+        /// <summary>How strong against a carried lantern (lanternLights.ts power: the Steen's fixed lanterns 2.2).</summary>
+        public float Power = 1;
         internal float Level;
         internal int Slot = -1;
     }
@@ -342,7 +344,7 @@ public sealed class LanternPool
                 continue;
             }
             lights[i].Position = s.Pos;
-            lights[i].LightEnergy = Power / MathF.PI * dark * s.Level * Flicker((float)t, s.Seed);
+            lights[i].LightEnergy = Power * s.Power / MathF.PI * dark * s.Level * Flicker((float)t, s.Seed);
             if (lights[i].LightEnergy > 0) lit++;
         }
         Lit = lit;

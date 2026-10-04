@@ -26,7 +26,20 @@ public sealed class MillWork : IRun
     private bool ended;
     private readonly List<string> hud = new();
     public bool Calling => call >= 0;
+    public bool Turning => turning >= 0;
+    public bool Capstan => capstan;
+    public float TurnFraction => (float)Math.Clamp(turning / 5, 0, 1);
     public int Turns => turns;
+    public sealed record State(double T, double Away, int Turns, int Calls);
+    public State Snapshot() => new(t, away, turns, calls);
+    public void Restore(State s)
+    {
+        t = double.IsFinite(s.T) ? Math.Clamp(s.T, 0, task.DurationS) : 0;
+        away = double.IsFinite(s.Away) ? Math.Max(0, s.Away) : 0;
+        turns = Math.Clamp(s.Turns, 0, task.Turns); calls = Math.Clamp(s.Calls, turns, task.Turns);
+        // Browser snapshots retain completed work, not a hand still on the spokes.
+        call = turning = -1; WriteHud();
+    }
     public Vector3 Stand => stand;
     public MillWork(Job job, MillTask task, RunCtx ctx)
     {

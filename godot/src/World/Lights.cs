@@ -92,6 +92,25 @@ public partial class Lights : Node
         return (at, level) => { source.At = at; source.Level = level; };
     }
 
+    /// <summary>
+    /// A landmark's window's light on the street (spill.ts kind "hall", label "&lt;building&gt; window"): the one whose
+    /// middle is within `within` of `at`, as a setter of its level (its room's lamp over the window's full strength),
+    /// or null. LandmarkRooms.cs lights the rooms by the clock.
+    /// </summary>
+    public Action<float>? HallWindow(Vector3 at, float within)
+    {
+        Src? best = null;
+        foreach (var s in sources)
+            if (s.Kind == "hall" && s.Label.EndsWith(" window") && s.At.DistanceTo(at) <= within && (best == null || s.At.DistanceTo(at) < best.At.DistanceTo(at))) best = s;
+        if (best == null) return null;
+        var src = best;
+        return level => src.Level = level;
+    }
+
+    /// <summary>A landmark window light whose vertex colours are kept at a fraction (8-bit colours stop at 1): its
+    /// strength times this (LandmarkRooms.cs).</summary>
+    public readonly Dictionary<ShaderMaterial, float> LandmarkGain = new();
+
     public override void _Ready()
     {
         I = this;
@@ -287,14 +306,15 @@ global uniform float psx_fog_far;
 varying float fog_depth;
 varying float lit;
 void vertex() {
-	// each lamp's own: how lit it is now (INSTANCE_CUSTOM.x)
+	// each lamp's own: how lit it is now (INSTANCE_CUSTOM.x); a fixed lantern's halo its own size (INSTANCE_CUSTOM.y)
 	lit = INSTANCE_CUSTOM.x;
+	float size = INSTANCE_CUSTOM.y > 0.0 ? INSTANCE_CUSTOM.y : 1.1;
 	// a halo about 1.1 m across that faces the eye, a little in front of the glass (the fogged glass never cuts a
 	// dark lamp shape out of its own glow)
 	vec3 c = (MODELVIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
 	c += normalize(-c) * 0.45;
 	fog_depth = -c.z;
-	POSITION = PROJECTION_MATRIX * vec4(c + vec3(VERTEX.xy * 1.1, 0.0), 1.0);
+	POSITION = PROJECTION_MATRIX * vec4(c + vec3(VERTEX.xy * size, 0.0), 1.0);
 	if (lit < 0.01) POSITION = vec4(2.0, 2.0, 2.0, 1.0);
 }
 void fragment() {
@@ -307,16 +327,37 @@ void fragment() {
 }
 ";
 
+    /// <summary>
+    /// Fixed lanterns' halos (the Steen's, LandmarkRooms.cs): where and how big, said before the lights are made (a
+    /// part with a lower order); lit with SetFixedHalo. They join the gas lamps' halos: no draw and no shader more.
+    /// </summary>
+    public static readonly List<(Vector3 at, float size)> FixedHalos = new();
+    private readonly List<float> fixedHaloLevel = new();
+
+    /// <summary>A fixed lantern's halo: how lit (0..1). Written only when it changes.</summary>
+    public void SetFixedHalo(int i, float level)
+    {
+        if (haloMM == null || i < 0 || i >= fixedHaloLevel.Count || MathF.Abs(fixedHaloLevel[i] - level) < 0.002f) return;
+        fixedHaloLevel[i] = level;
+        haloMM.SetInstanceCustomData(lamps.Count + i, new Color(level, FixedHalos[i].size, 0, 0));
+    }
+
     private void BuildHalos()
     {
-        if (lamps.Count == 0) return;
+        if (lamps.Count + FixedHalos.Count == 0) return;
         haloMat = new ShaderMaterial { Shader = new Shader { Code = HaloCode } };
         var quad = new QuadMesh { Size = Vector2.One, Material = haloMat };
-        var mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseCustomData = true, Mesh = quad, InstanceCount = lamps.Count };
+        var mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseCustomData = true, Mesh = quad, InstanceCount = lamps.Count + FixedHalos.Count };
         for (int i = 0; i < lamps.Count; i++)
         {
             mm.SetInstanceTransform(i, new Transform3D(Basis.Identity, lamps[i].At));
             mm.SetInstanceCustomData(i, new Color(1, 0, 0, 0));
+        }
+        for (int i = 0; i < FixedHalos.Count; i++)
+        {
+            mm.SetInstanceTransform(lamps.Count + i, new Transform3D(Basis.Identity, FixedHalos[i].at));
+            mm.SetInstanceCustomData(lamps.Count + i, new Color(0, FixedHalos[i].size, 0, 0));
+            fixedHaloLevel.Add(0);
         }
         haloMM = mm;
         Main.I.View.AddChild(new MultiMeshInstance3D { Name = "gas_lamp_halos_mm", Multimesh = mm, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
@@ -462,7 +503,7 @@ void fragment() {
         foreach (var (m, tint, centre, radius) in landmark)
         {
             float dist = Math.Max(0, eye.DistanceTo(centre) - radius * 0.5f);
-            var c = tint * (level * 1.35f * breath * (1 - Smooth(dist, day.FogNear, day.FogFar * 2)));
+            var c = tint * (level * 1.35f * breath * (1 - Smooth(dist, day.FogNear, day.FogFar * 2)) * (LandmarkGain.TryGetValue(m, out float gain) ? gain : 1));
             Scheldemist.Render.UniformUpdates.Material(m, "albedo", new Color(c.X, c.Y, c.Z, 1));
             if (landmarkNodes.TryGetValue(m, out var nodes)) foreach (var (node, originallyVisible) in nodes)
             {

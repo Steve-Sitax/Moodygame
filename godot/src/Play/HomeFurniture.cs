@@ -9,6 +9,7 @@ using Scheldemist.Game;
 using Scheldemist.Net;
 using Scheldemist.Player;
 using Scheldemist.World;
+using Scheldemist.Render;
 
 namespace Scheldemist.Play;
 
@@ -27,7 +28,40 @@ public partial class HomeFurniture : Node
     private HomeItem? moving, arms;
     private Node3D? held, ghost;
     private Material good = null!, bad = null!;
+    private ShaderMaterial lampGlass=null!;
+    public float LampHeight(string home)=>Math.Min(classes[home].GetProperty("H").GetSingle()-.55f,2.05f)+.12f;
     private double poll;
+    private readonly Action<Vector3,float>[] lampSpill = new Action<Vector3,float>[4];
+    private double flicker;
+    public int LitLamps { get; private set; }
+    public HomeItem? CarriedFurniture => arms;
+    public Vector3? PositionOf(int id)=>shown.TryGetValue(id,out var model)?model.GlobalPosition:null;
+    public event Action<JsonElement>? CartChanged;
+    public bool CartBusy { get; private set; }
+    private int cartGeneration;
+    private void CartReset(string how,ClientState? saved){cartGeneration++;last=null;Cancel();}
+    public async Task LoadToCart(string cart)
+    {
+        if(CartBusy||arms==null||HomeLife.I.Busy||ServerLink.I?.Api is not {} api)return;
+        CartBusy=true;int generation=cartGeneration;
+        try{var reply=await api.IndoorCartLoad(cart,arms.Id,arms.Kind,Jef.I.X,Jef.I.Z);if(dead||generation!=cartGeneration)return;GameState.I.Apply(reply);CartChanged?.Invoke(reply.Carts);await ReloadHomes();}
+        catch(ApiException e){GameState.I.Say(e.Message);}finally{CartBusy=false;}
+    }
+    public async Task LiftFromCart(string cart,int? index=null)
+    {
+        if(CartBusy||HomeLife.I.Busy||ServerLink.I?.Api is not {} api)return;
+        CartBusy=true;int generation=cartGeneration;
+        try{var reply=await api.IndoorCartUnload(cart,Jef.I.X,Jef.I.Z,index);if(dead||generation!=cartGeneration)return;GameState.I.Apply(reply);CartChanged?.Invoke(reply.Carts);await ReloadHomes();}
+        catch(ApiException e){GameState.I.Say(e.Message);}finally{CartBusy=false;}
+    }
+    public Node3D CartModel(string kind) => (Node3D)templates[kind].Duplicate();
+    public void RefreshAfterCart() { last = null; _ = ReloadHomes(); }
+    private async Task ReloadHomes()
+    {
+        long end=System.Environment.TickCount64+10000;
+        while(HomeLife.I.Busy&&!dead&&System.Environment.TickCount64<end)await Task.Delay(25);
+        if(dead)return;await HomeLife.I.Load();Sync();
+    }
     private int gx, gz, rot, oldX = int.MinValue, oldZ, oldRot;
     private string prompt = "";
     private bool valid, dead;
@@ -42,9 +76,12 @@ public partial class HomeFurniture : Node
         I = this;
         using var doc = JsonDocument.Parse(File.ReadAllText(ProjectSettings.GlobalizePath("res://assets/places.json")));
         foreach (var h in doc.RootElement.GetProperty("homes").EnumerateArray()) classes[h.GetProperty("id").GetString()!] = h.GetProperty("definition").Clone();
+        lampGlass=(ShaderMaterial)Goods.I.Plain(0xffd490).Duplicate();lampGlass.Shader=Psx.ShaderOf(Psx.KindOf(lampGlass.Shader)!.Value with {Unlit=true});
         foreach (var f in doc.RootElement.GetProperty("furniture").EnumerateObject()) { var d = f.Value; defs[f.Name] = new(d.GetProperty("layer").GetString()!, d.GetProperty("carry").GetString()!, d.GetProperty("w").GetInt32(), d.GetProperty("d").GetInt32()); templates[f.Name] = Make(f.Name); }
         good = Goods.I.Plain(0x71924e); bad = Goods.I.Plain(0xa14d42);
+        for (int i=0;i<lampSpill.Length;i++) lampSpill[i]=Lights.I.AddMoving("home furniture lamp "+i, new Color(1,.68f,.32f), .6f);
         Interact.I.AddProvider(Keys);
+        if(Scheldemist.Menu.MainMenu.I is {} menu)menu.WorldReplaced+=CartReset;
     }
     private HomeLife.HomeFrame? Room()
     {
@@ -53,9 +90,15 @@ public partial class HomeFurniture : Node
     public override void _Process(double delta)
     {
         if (dead) return;
+        flicker += delta; int lamps=0;
+        foreach(var item in last?.Items ?? EmptyItems)
+            if(item.Kind=="lamp" && item.State=="placed" && shown.TryGetValue(item.Id,out var model) && model.Visible && lamps<4 && HomeLife.I.Frames.TryGetValue(item.Home!,out var room) && room.Inside)
+            { lampSpill[lamps++](model.Position+Vector3.Up*(LampHeight(item.Home!)-.07f),.3f*(.96f+.04f*(float)Math.Sin(flicker*7.3+item.Id))); }
+        LitLamps=lamps; while(lamps<4)lampSpill[lamps++](Vector3.Zero,0);
         if ((poll -= delta) <= 0) { poll = 0.25; if (last != HomeLife.I.Info) Sync(); }
         if (moving != null) { if (Room() == null) Cancel(); else UpdatePreview(); }
     }
+    private static readonly List<HomeItem> EmptyItems = new();
     private void Sync()
     {
         last = HomeLife.I.Info;
@@ -72,7 +115,9 @@ public partial class HomeFurniture : Node
         foreach (var item in last.Items)
         {
             if (item.State != "placed" || item.Id == moving?.Id || item.Home == null || !HomeLife.I.Frames.TryGetValue(item.Home, out var f)) continue;
-            if (!shown.TryGetValue(item.Id, out var model)) { model = (Node3D)templates[item.Kind].Duplicate(); Main.I.View.AddChild(model); shown[item.Id] = model; }
+            if (!shown.TryGetValue(item.Id, out var model)) { model = (Node3D)templates[item.Kind].Duplicate(); Main.I.View.AddChild(model); shown[item.Id] = model;
+                if(item.Kind=="clock") Scheldemist.Movers.Clocks.I.AddDial(model,new(0,1.74f,.164f),Vector3.Back,.105f,Goods.I.Plain(0x26221e),"home furniture clock",item.Home);
+            }
             Pose(model, f, item.Kind, item.Gx!.Value, item.Gz!.Value, item.Rot); model.Visible = true;
             if (defs[item.Kind].Layer == "floor")
             {
@@ -94,7 +139,9 @@ public partial class HomeFurniture : Node
         if (next != null) { var item = next; o.Extra.Add(Act.Me(Key.F, "put up " + item.Name, () => Begin(item))); }
         if (last != null) foreach (var item in last.Items)
             if (item.State == "placed" && item.Home == f.Id && shown.TryGetValue(item.Id, out var n) && RunWords.Dist(x, z, n.Position.X, n.Position.Z) < 1.7f)
-            { var it = item; var d = defs[it.Kind]; o.Extra.Add(Act.At(Key.G, "move " + it.Name, n.Position + Vector3.Up * (d.Layer == "wall" ? 1.6f : d.Layer == "ceiling" ? 1.9f : 0.5f), () => Begin(it))); }
+            { var it = item; var d = defs[it.Kind];
+              if(it.Kind=="stove" && RunWords.Dist(x,z,n.Position.X,n.Position.Z)<1.3f) o.Extra.Add(Act.At(Key.E,"warm yourself at the fire",n.Position+Vector3.Up*.5f,()=>_ = HomeLife.I.Change(()=>ServerLink.I!.Api!.HomeWarm())));
+              o.Extra.Add(Act.At(Key.G, "move " + it.Name, n.Position + Vector3.Up * (d.Layer == "wall" ? 1.6f : d.Layer == "ceiling" ? 1.9f : 0.5f), () => Begin(it))); }
         return o;
     }
     public void Begin(HomeItem item)
@@ -147,8 +194,10 @@ public partial class HomeFurniture : Node
             pz = turn is 1 or 3 ? (z + d.W / 2f) * 0.5f : turn == 0 ? f.D - 0.02f : 0.02f; yaw = (turn + 2) % 4 * MathF.PI / 2;
         }
         else { int w = d.Layer == "ceiling" ? 1 : turn % 2 == 0 ? d.W : d.D, depth = d.Layer == "ceiling" ? 1 : turn % 2 == 0 ? d.D : d.W; px = -f.W / 2 + (x + w / 2f) * 0.5f; pz = (z + depth / 2f) * 0.5f; yaw = turn * MathF.PI / 2; }
+        if(kind=="lamp"){float top=classes[f.Id].GetProperty("H").GetSingle(),y=LampHeight(f.Id)-.12f;var chain=n.GetChild<Node3D>(0);chain.Position=new(0,(top+y+.1f)/2,0);chain.Scale=new(1,(top-y-.1f)/.45f,1);n.GetChild<Node3D>(1).Position=new(0,y,0);n.GetChild<Node3D>(2).Position=new(0,y+.12f,0);}
         n.Position = f.World(px, pz); n.Rotation = new(0, f.Yaw + yaw * f.Mirror, 0); n.Scale = new(f.Mirror, 1, 1);
     }
+    public string? CheckPlacement(HomeLife.HomeFrame f, HomeItem item, int x, int z, int turn) => Check(f,item,x,z,turn);
     private string? Check(HomeLife.HomeFrame f, HomeItem item, int x, int z, int turn)
     {
         var d = defs[item.Kind]; var c = classes[f.Id]; int nx = (int)MathF.Round(f.W * 2), nz = (int)MathF.Round(f.D * 2);
@@ -156,6 +205,7 @@ public partial class HomeFurniture : Node
         var door = c.GetProperty("door");
         if (d.Layer == "wall")
         {
+            if(turn==0&&z!=nz-1 || turn==2&&z!=0 || turn==1&&x!=nx-1 || turn==3&&x!=0)return "not against a wall";
             int a = turn is 0 or 2 ? x : z, b = a + d.W - 1, length = turn is 0 or 2 ? nx : nz;
             if (a < 0 || b >= length) return "off the wall";
             bool window = false, curtains = false; foreach (var span in c.GetProperty("windows").EnumerateArray()) { window |= turn == 2 && a <= span[1].GetInt32() && b >= span[0].GetInt32(); curtains |= turn == 2 && a >= span[0].GetInt32() && b <= span[1].GetInt32(); }
@@ -208,9 +258,11 @@ public partial class HomeFurniture : Node
             case "picture": Box(.44f,.54f,.03f,0,1.55f,.015f,0x4a3424); Box(.38f,.48f,.002f,0,1.55f,.032f,0xc8bc9a); Box(.04f,.35f,.002f,0,1.59f,.034f,0x6a6258); break;
             case "clock": Box(.32f,.42f,.16f,0,1.7f,.08f,0x4a3424); Box(.36f,.05f,.18f,0,1.94f,.08f,0x4a3424); Box(.24f,.24f,.002f,0,1.74f,.162f,0xe0d6bc); Box(.015f,.36f,.015f,0,1.33f,.1f,0x9a7a34); Box(.07f,.07f,.015f,0,1.15f,.1f,0x9a7a34); break;
             case "curtains": Box(1.05f,.03f,.03f,0,2.05f,.06f,0x26221e); foreach (float x in new[] { -.4f,.4f }) Box(.3f,1.2f,.03f,x,1.45f,.08f,0x7a2a22); break;
-            case "lamp": Cyl(.008f,.008f,.45f,0,2.35f,0,0x26221e,4); Cyl(.08f,.09f,.09f,0,2.05f,0,0x9a7a34); Cyl(.035f,.045f,.16f,0,2.17f,0,0xffd490,6); break;
+            case "lamp": Cyl(.008f,.008f,.45f,0,2.35f,0,0x26221e,4); Cyl(.08f,.09f,.09f,0,2.05f,0,0x9a7a34); Cyl(.035f,.045f,.16f,0,2.17f,0,0xffd490,6);root.GetChild<MeshInstance3D>(2).MaterialOverride=lampGlass; break;
         }
         return root;
     }
-    public override void _ExitTree() { dead = true; held?.QueueFree(); ghost?.QueueFree(); foreach (var n in shown.Values) n.QueueFree(); foreach (var b in solids.Values) b.QueueFree(); foreach (var t in templates.Values) t.Free(); }
+    public override void _ExitTree() { dead = true;cartGeneration++;if(Scheldemist.Menu.MainMenu.I is {} menu)menu.WorldReplaced-=CartReset; held?.QueueFree(); ghost?.QueueFree(); foreach (var n in shown.Values) n.QueueFree(); foreach (var b in solids.Values) b.QueueFree(); foreach (var t in templates.Values) t.Free(); }
 }
+
+

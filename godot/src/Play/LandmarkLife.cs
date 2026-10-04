@@ -29,9 +29,10 @@ public partial class LandmarkLife : Node
         public Vector3 World(float x, float z, float y = 0) => Origin + new Vector3(x * MathF.Cos(Yaw) + z * MathF.Sin(Yaw), y, -x * MathF.Sin(Yaw) + z * MathF.Cos(Yaw));
         public Vector2 Local(float x, float z) { float dx = x - Origin.X, dz = z - Origin.Z; return new(dx * MathF.Cos(Yaw) - dz * MathF.Sin(Yaw), dx * MathF.Sin(Yaw) + dz * MathF.Cos(Yaw)); }
         public Vector3 Mark(string name) { var m = Plan.GetProperty("marks").GetProperty(name); return World(m.GetProperty("x").GetSingle(), m.GetProperty("z").GetSingle(), m.TryGetProperty("y", out var y) ? y.GetSingle() : 0); }
-        public bool Inside()
+        public bool Inside() => Contains(new(Jef.I.X,Jef.I.Y,Jef.I.Z));
+        public bool Contains(Vector3 point)
         {
-            var p = Local(Jef.I.X, Jef.I.Z); float feet = Jef.I.Y - Origin.Y;
+            var p = Local(point.X, point.Z); float feet = point.Y - Origin.Y;
             if (Id == "cathedral")
             {
                 var grid = Plan.GetProperty("freeGrid"); float step = grid.GetProperty("step").GetSingle(); int x = (int)MathF.Round((p.X - grid.GetProperty("x").GetSingle()) / step), z = (int)MathF.Round((p.Y - grid.GetProperty("z").GetSingle()) / step); var rows = grid.GetProperty("rows");
@@ -46,6 +47,7 @@ public partial class LandmarkLife : Node
     private readonly List<Hall> halls = new();
     private readonly List<Interact.Entry> fixedPrompts = new(), peoplePrompts = new();
     private readonly List<(Interact.Entry Entry, string Id)> moving = new();
+    private readonly Dictionary<string,Interact.Entry> registeredPeople = new();
     private Hall? here;
     private double poll, locate;
     private bool loading, dead, candleBusy, hearing;
@@ -65,6 +67,7 @@ public partial class LandmarkLife : Node
     public SermonReply? SermonResult { get; private set; }
     public Vector3 Point(string id, string mark) => halls.Find(h => h.Id == id)!.Mark(mark);
     public string? Here => here?.Id;
+    public string? RoomAt(Vector3 point){foreach(var hall in halls)if(hall.Contains(point))return hall.Id;return null;}
     public bool ConfessionOpen => here?.Id=="cathedral" && here.State?.Confession is {} c && c.ValueKind==JsonValueKind.Object && c.TryGetProperty("open",out var o) && o.GetBoolean();
     public Vector3 LocalPoint(string id,float x,float z)=>halls.Find(h=>h.Id==id)!.World(x,z);
     public readonly List<(string Hall,string Label,Vector3 At,float Floor)> Looks=new();
@@ -102,6 +105,7 @@ public partial class LandmarkLife : Node
     public override void _Process(double delta)
     {
         UpdateSermon(delta);
+        UpdateIndoor(delta);
         if ((whisperTime -= delta) <= 0) whisper = "";
         if ((locate -= delta) <= 0)
         {
@@ -111,6 +115,7 @@ public partial class LandmarkLife : Node
         }
         if ((poll -= delta) <= 0 && ServerLink.I?.Up == true) { poll = 12; _ = Load(); }
     }
+    private static bool InRoster(Hall hall,string id){if(hall.State!=null)foreach(var person in hall.State.People)if(person.Id==id)return true;return false;}
     private async Task Enter(string? id) { if (ServerLink.I?.Api is not { } api) return; try { await api.LandmarkHere(id); } catch (ApiException) { } }
     public async Task Load()
     {
@@ -118,11 +123,11 @@ public partial class LandmarkLife : Node
         try
         {
             foreach (var h in halls) { var next = await api.LandmarkNow(h.Id); if (dead || g != generation) return; h.State = next; }
-            foreach (var p in peoplePrompts) p.Dispose(); peoplePrompts.Clear(); moving.Clear();
             foreach (var h in halls) foreach (var person in h.State!.People)
             {
-                var p = Interact.I.Add(Vector3.Zero, 2.4f, () => here == h && HallPeople.I?.PositionOf(person.Id) != null ? "talk to " + person.Name : null, () => Talk.I!.Open(person.Id, person.Name, person.Title));
-                peoplePrompts.Add(p); moving.Add((p, person.Id));
+                string key=h.Id+":"+person.Id;if(registeredPeople.ContainsKey(key))continue;
+                var p = Interact.I.Add(Vector3.Zero, 2.4f, () => here == h && InRoster(h,person.Id) && HallPeople.I?.PositionOf(person.Id) != null ? "talk to " + person.Name : null, () => Talk.I!.Open(person.Id, person.Name, person.Title));
+                peoplePrompts.Add(p); registeredPeople.Add(key,p); moving.Add((p, person.Id));
             }
         }
         catch (ApiException) { }
@@ -131,15 +136,15 @@ public partial class LandmarkLife : Node
     public async Task Candle() { if (candleBusy || here?.Id != "cathedral") return; candleBusy = true; try { var r = await ServerLink.I!.Api!.LandmarkCandle(); GameState.I.Apply(r); GameState.I.Say(r.Text); } catch (ApiException e) { GameState.I.Say(e.Message); } finally { candleBusy = false; } }
     private void Reset(string how, ClientState? state)
     {
-        generation++; EndSermon(); here = null; poll = locate = 0; sermonDay = -1; SermonResult = null; HeardLines = 0; paper.Close();
+        generation++; ResetIndoor(); EndSermon(); here = null; poll = locate = 0; sermonDay = -1; SermonResult = null; HeardLines = 0; paper.Close();
         foreach(var h in halls)h.State=null;
-        foreach(var p in peoplePrompts)p.Dispose(); peoplePrompts.Clear(); moving.Clear();
+        // Keep prompts registered; the new roster controls their availability.
     }
     private HallPeople.Figure? FindPreacher()
     {
         if(HallPeople.I == null)return null;
         foreach(var h in HallPeople.I.Halls)if(h.Id=="cathedral")
-        { foreach(var f in h.Figures.Values)if(f.Role=="preacher")return f; foreach(var f in h.Figures.Values)if(f.Role=="celebrant")return f; }
+        { foreach(var f in h.Figures.Values)if(f.Role=="preacher"&&!f.Leaving)return f; foreach(var f in h.Figures.Values)if(f.Role=="celebrant"&&!f.Leaving)return f; }
         return null;
     }
     public async Task HearSermon()
@@ -168,7 +173,10 @@ public partial class LandmarkLife : Node
             return;
         }
         if(sermon==null)return;
-        if(here?.Id!="cathedral" || preacher==null || !IsInstanceValid(preacher.Group)) {EndSermon();return;}
+        if(here?.Id!="cathedral") {EndSermon();return;}
+        // A refreshed service roster may replace the priest while he climbs.
+        // Retry with its live figure instead of treating an interrupted sermon as heard.
+        if(preacher==null || !IsInstanceValid(preacher.Group) || preacher.Leaving) {EndSermon();sermonDay=-1;return;}
         var h=here; var pulpit=h.Mark("pulpit"); pulpit.Y=h.Origin.Y; var foot=h.Mark("pulpitFoot");
         float yaw=h.Yaw+h.Plan.GetProperty("marks").GetProperty("pulpit").GetProperty("yaw").GetSingle();
         if(sermonStage==1)
@@ -185,9 +193,9 @@ public partial class LandmarkLife : Node
         HoldPreacher(pulpit+Vector3.Up*2.8f,yaw+(sermonLine%2==0?-.35f:.35f),sermonLine<0?"idle":"talk");
         if((sermonTime-=dt)>0)return;
         if(++sermonLine>=sermon.Lines.Count){sermonStage=3;sermonTime=0;caption.Visible=false;_ = FinishSermon();return;}
-        string line=sermon.Lines[sermonLine];sermonTime=Math.Clamp(2.2+line.Length/55.0,3,4.6);caption.Text=line;caption.Visible=true;caption.Position=new((GetViewport().GetVisibleRect().Size.X-caption.Size.X)/2,125);HeardLines++;
+        string line=sermon.Lines[sermonLine];sermonTime=Math.Clamp(2.2+line.Length/55.0,3,4.6);caption.Text=line;caption.Visible=true;caption.Position=new((GetViewport().GetVisibleRect().Size.X-caption.Size.X)/2,125);HeardLines++; NodCongregation();
         Scheldemist.Audio.Soundscape.I?.Speech(pulpit.X,pulpit.Z,new("m",55),Math.Min(sermonTime-.4,5));
-        if(sermonLine==sermon.Lines.Count/2 && sermon.Gossip is {} gossip){whisper=gossip.Name+", in a whisper: "+gossip.Text;whisperTime=5;GameState.I.Say(whisper);}
+        if(sermonLine==sermon.Lines.Count/2 && sermon.Gossip is {} gossip){whisper=gossip.Name+", in a whisper: "+gossip.Text;whisperTime=5; WhisperAt(gossip);}
     }
     private async Task FinishSermon() { int g=generation; try { var r = await ServerLink.I!.Api!.SermonHeard(); if (dead || g!=generation || here?.Id != "cathedral") return; SermonResult = r; GameState.I.Apply(r); GameState.I.Say(r.Text); } catch (ApiException e) { if(!dead && g==generation)GameState.I.Say(e.Message); } }
     public override void _ExitTree() { dead = true; EndSermon(); if(Scheldemist.Menu.MainMenu.I is {} menu)menu.WorldReplaced-=Reset; foreach (var p in fixedPrompts) p.Dispose(); foreach (var p in peoplePrompts) p.Dispose(); paper.Close(); caption.QueueFree(); data?.Dispose(); }

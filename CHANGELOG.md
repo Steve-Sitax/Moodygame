@@ -11,6 +11,28 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - In the Godot version, townspeople with a long way to go take the omnibus: they walk to the stop, wait, take a real seat, get off at the right stop and walk on. Jef can ride along with them.
 - In the Godot version, Jef can save while on a dockside crane's ladder and load back onto the same rung; the crane no longer waits for him when he is riding it.
 - In the Godot version, the prison has its people again: warders at their posts, prisoners pacing their cells, the exercise ring in the yard in exercise hours, and townspeople sent into the prison walk its real corridors.
+- In Godot, a Sunday sermon retries with the current priest if a service refresh interrupts his climb or speech.
+
+- Godot's isolated sound check keeps passing traffic and railway sounds out of its scripted recording; ride checks use silent Dummy audio so they do not open a Windows output device.
+
+- In Godot, street games, travelling trades and upstairs neighbours have their own visible props and movements; traffic, rooms, puddles, animals and the great storm now drive placed sounds.
+
+- Watch and haul job twists now bring townspeople to Jef: bribes, theft, parcel offers and foremen use real actors and the original goods.
+
+- Closing Godot during sound loading now lets the audio workers finish before the engine tears down, preventing a crash on very quick exits.
+
+- In Godot, entering your rented room brings a neighbour's remark about its comfort and furniture. The server chooses who visits; they leave when you leave and speak once a day.
+
+- In Godot, people summoned for jobs walk in from the living town and return to their day when the encounter ends, using reachable street points around doors and piers.
+
+- In Godot, ducks defend their young from cats, unguarded ducks can be caught, and caught birds return only when nobody is watching. Stray dogs seek the fish-market scraps, owned dogs wait for a clear place beside their owner, and nearby cats and fleeing birds make their own sounds.
+- In the Godot version, bats hunt over the water and round the trees at dusk and before dawn, as in the browser game.
+- In the Godot version, the great storm tears things loose: slates and shingles off the roofs, washing, newspapers, hats and straw fly down the street, and slates smash on the stones.
+- In the Godot version, storms bring thunder and lightning (a bolt over the roofs, the air flashing white, the thunder after it), lone drops fall off the eaves in the rain, horses blow clouds of breath on cold mornings, and the broken gutters' streams start right at their eaves.
+- In the Godot version, the ships riding in the stream show their white lights at night, the moored ships' bilge pumps spout dirty water over the side now and then, and the priests, tourists, urchins, soldiers, beggars and the ragman are drawn whole ([#54](https://github.com/Steve-Sitax/Moodygame/issues/54)).
+- In the Godot version, the great storm's rain pours as in the browser game: the far sheets of rain fall again, and the streaks are long and dense instead of a few short dashes ([#53](https://github.com/Steve-Sitax/Moodygame/issues/53)).
+- In the Godot version, the town hall, the Oostershuis, the Vleeshuis and the Steen light their windows room by room through the night as in the browser game (clerks going home, late meetings, the porter, a watchman going round), and the Steen's lanterns burn by its gate and museum door after dusk ([#52](https://github.com/Steve-Sitax/Moodygame/issues/52)).
+- In the Godot version, the sky at midday is a plain grey overcast again: large flat grey shapes no longer hang over the roofs, and the works' chimneys smoke in fuller, darker plumes ([#55](https://github.com/Steve-Sitax/Moodygame/issues/55)).
 - Townspeople's outdoor activity spots stay on reachable ground instead of landing inside houses or the park pond; path snapping also keeps room for their bodies at lane edges.
 - In the Godot version, the townspeople and Jef have their soft shadow on the ground again, as in the browser game.
 
@@ -28,6 +50,25 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - The St. Anna ferry has night navigation lamps and warm saloon windows; moving carts and ships feed the Godot soundscape.
 
 - Climbing onto a moving ship follows its deck throughout the climb.
+- Godot Poesje spectators return to town when you leave the cellar behind and reappear when you return, without charging for another ticket that day.
+
+- In Godot, emigrant mothers carry and hush their babies, departing passengers wave, and a Red Star Line notice shows the boarding day. Camp luggage keeps clear of tracks, omnibus routes and market fields.
+
+- In Godot multiplayer, an arrested player appears at the police cell while other players continue walking, then leaves at dawn. Tavern rounds keep the engine’s three-round limit.
+
+- The Godot Poesje now has a seated and standing audience, a bench for you, and puppet stick hits timed to the play.
+
+- In Godot taverns, patrons talk at their tables and F lets you speak to an ordinary table companion.
+
+- Godot hanging lamps fit the room’s ceiling and their glass glows in a dark room.
+
+- Godot churchgoers nod and whisper during the sermon, the organ follows the service, and running among them draws the beadle’s warning.
+
+- Godot home stoves warm you, placed clocks show the time and hanging lamps light the room. Furniture can go onto a lent handcart and return to your household.
+
+- Godot shows your hands leaning on a mill capstan or hauling its chain when the wind calls.
+
+- Godot keeps completed mill work when you follow another job or load a saved game.
 
 - In the Godot version, lamps in rooms, shops and taverns and the lanterns people carry now glow the warm amber of the browser game instead of a deep red-orange, and a lantern left in the street lights the stones in the same colour ([#48](https://github.com/Steve-Sitax/Moodygame/issues/48)).
 

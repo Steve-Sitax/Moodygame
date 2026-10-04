@@ -51,7 +51,7 @@ public sealed record BalladSheet(string Title, List<List<string>> Verses, List<s
 public sealed record DockBook(bool Book, bool Ok, string Line);
 public sealed record LandmarkPerson(string Id, string Name, string First, string Role, string? Title);
 public sealed record LandmarkPoster(string Heading, string Body, string Footer);
-public sealed record LandmarkView(string Id, bool Open, List<LandmarkPerson> People, List<string> Register, List<LandmarkPoster> Posters, JsonElement? Wedding, JsonElement? Civil, JsonElement? Confession) { public JsonElement? Service { get; init; } }
+public sealed record LandmarkView(string Id, bool Open, List<LandmarkPerson> People, List<string> Register, List<LandmarkPoster> Posters, JsonElement? Wedding, JsonElement? Civil, JsonElement? Confession) { public JsonElement? Service { get; init; } public bool Organ { get; init; } public bool Barred { get; init; } }
 public sealed record SermonGossip(string Id, string Name, string? To, string Text);
 public sealed record SermonView(int Day, List<string> Lines, bool Heard) { public List<string> Nodders { get; init; } = new(); public SermonGossip? Gossip { get; init; } }
 public sealed record SermonReply : JobsPayload { public int Delta { get; init; } public string Text { get; init; } = ""; }

@@ -257,7 +257,7 @@ public partial class Soundscape : Godot.Node
         CacheBakedRooms();
         var sw = Stopwatch.StartNew();
         // The tree keeps drawing the loading screen while files, decoders and graphs are prepared.
-        await Task.Run(() => { WarmCode(); Emitters.Load(); LoadAll(); });
+        await AudioWork(() => { WarmCode(); Emitters.Load(); LoadAll(); });
         if (!IsInstanceValid(this) || !IsInsideTree()) return;
         WarmPlayers();
         double loadMs = sw.Elapsed.TotalMilliseconds;
@@ -287,7 +287,7 @@ public partial class Soundscape : Godot.Node
 
         // the made beds: built once, off the main thread
         int rate = mixRate;
-        await Task.Run(() =>
+        await AudioWork(() =>
         {
             try
             {
@@ -464,6 +464,7 @@ public partial class Soundscape : Godot.Node
     public override void _ExitTree()
     {
         Unwire();
+        StopAudioWorkers();
         if (I == this) I = null;
     }
 
@@ -562,7 +563,7 @@ public partial class Soundscape : Godot.Node
         if (organLoop != null || organRendering) return;
         organRendering = true;
         if (waterLoop == null) return; // (the start's own build is still at it, and brings the organ)
-        Task.Run(() =>
+        _ = AudioWork(() =>
         {
             try
             {

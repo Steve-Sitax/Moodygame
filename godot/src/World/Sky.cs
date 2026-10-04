@@ -41,7 +41,13 @@ void vertex() {
 	// on the far plane's inside: never in front of anything (Godot's depth runs from 1 near to 0 far)
 	POSITION.z = POSITION.w * 0.00001;
 }
-float h21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+// (a hash without sin: the browser's fract(sin(...)) loses its bits on big numbers on the card Godot uses, and the
+// noise came out in flat patches with straight edges, big grey shapes over the town)
+float h21(vec2 p) {
+	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+	p3 += dot(p3, p3.yzx + 33.33);
+	return fract((p3.x + p3.y) * p3.z);
+}
 float vn(vec2 p) {
 	vec2 i = floor(p), f = fract(p);
 	f = f * f * (3.0 - 2.0 * f);

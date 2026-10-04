@@ -1,0 +1,12 @@
+import {spawn} from "node:child_process";
+import path from "node:path";
+import {fileURLToPath} from "node:url";
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"../..");
+const mode=process.argv[2]??"wildlife";
+const cases={people:["peopletest"],soundhooks:["soundtest","--soundtest-only","wiring,life,ships,chance"],storm:["eventtest","--eventonly","tempest"],events:["eventtest"],"events-tail":["eventtest","--eventonly","burglary,smuggling,night_watch"],wildlife:["peopletest","--peoplechecks","wildlife"],trades:["peopletest","--peoplechecks","trades"],games:["peopletest","--peoplechecks","games"],window:["jobtest","--jobonly","window","--job-features-only"],actors:["jobtest","--jobonly","actor-twist,actor-stranger","--job-features-only"],walkup:["jobtest","--jobonly","walkup","--job-features-only"],home:["jobtest","--jobonly","home-remark","--job-features-only"],jobs:["jobtest"],sound:["soundtest"],shaders:["shaders"]};
+if(!cases[mode])throw new Error("unknown life check: "+mode);
+const [only,...extra]=cases[mode];
+const args=["tools/godot/checks.mjs","--only",only,"--port","8911","--port-end","8914","--timeout",mode==="jobs"||mode==="sound"||mode==="actors"||mode==="people"||mode==="events"?"600":"240","--town","D:/Code/MoodyGame-godot/godot/baked/next/town.glb","--models","D:/Code/MoodyGame-godot/godot/baked/models","--out",`godot/baked/life-checks/${mode}`,"--args",JSON.stringify(extra)];
+if(process.argv.includes("--no-build"))args.push("--no-build");
+const child=spawn(process.execPath,args,{cwd:root,stdio:"inherit",windowsHide:true});
+child.on("error",e=>{console.error(e);process.exitCode=1;});child.on("close",code=>process.exitCode=code??1);

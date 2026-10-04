@@ -50,6 +50,7 @@ public partial class MovingSounds : Node
     }
     public override void _Process(double delta)
     {
+        if(Main.I.Arg("soundtest")!="")return;
         wait+=delta;if(wait<.25)return;double elapsed=wait;wait=0;Gather(elapsed);
         if(Soundscape.I is {Prepared:true} sound){sound.SetVehicles(vehicles);sound.SetMovingShips(ships);}
     }
