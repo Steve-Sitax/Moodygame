@@ -220,6 +220,7 @@ public partial class Jobs : Node
                     only.Add(Act.Me(Key.E, label, () => PutDown(px, pz)));
                 }
             }
+            if (DockWork.I?.CarryAction(carried, x, z) is { } dock) only.Insert(0, dock);
             return new Offers { Only = only };
         }
         var o = new Offers { First = run?.Actions(), Options = new List<(float, Act)>(), Extra = new List<Act>() };
@@ -260,8 +261,8 @@ public partial class Jobs : Node
 
     private void Lift(Item item)
     {
-        // D1 docks: the dockers' piles are the natie's work, for a man in the foreman's book (not here yet)
-        if (item.Id.StartsWith("haul:", StringComparison.Ordinal))
+        // D1 docks: the dockers' piles are work for a man in the foreman's book.
+        if (item.Id.StartsWith("haul:", StringComparison.Ordinal) && DockWork.I?.InBook != true)
         {
             Toast("That is the natie's load. Ask Sooi, the foreman at the Hessenatie door, to write you in his book.");
             return;
@@ -459,7 +460,7 @@ public partial class Jobs : Node
     }
 
     /// <summary>The kinds of work this part plays (carry, watch, deliver by hand); the letters, the mill and the lamps have parts of their own.</summary>
-    private static bool Playable(Job j) => j.Playable && (JobTask.Of(j) is { Cart: false } || LettersTask.Of(j) != null);
+    private static bool Playable(Job j) => j.Playable && (JobTask.Of(j) is { Cart: false } || LettersTask.Of(j) != null || LampsTask.Of(j) != null || MillTask.Of(j) != null);
 
     /// <summary>.board: left 50%, top 50%, min(720px, 86vw), at most 84vh high, padding 18 28 12, turned -0.6 degrees.</summary>
     private Sheet BoardSheet()
@@ -591,6 +592,9 @@ public partial class Jobs : Node
     /// <summary>Where a job is to be done, in words and as a point (for the book, the task card and the map).</summary>
     private static (string Label, float X, float Z)? GoalOf(Job j)
     {
+        if (NightBoxes.Held(j) && NightBoxes.I.Boxes.TryGetValue(j.EmployerNpc, out var box)) return (box.Name + "'s proof box", box.At.X, box.At.Z);
+        if (LampsTask.Of(j) is { } lamps) { if (!lamps.Picked) return (lamps.Pole.Label, lamps.Pole.X, lamps.Pole.Z); foreach (var lamp in lamps.Lamps) if (!lamp.Done) return ("the next lamp", lamp.Sx, lamp.Sz); return null; }
+        if (MillTask.Of(j) is { } mill) return (mill.Post.Label, mill.Post.X, mill.Post.Z);
         if (LettersTask.Of(j) is { } letters)
         {
             if (!letters.Picked) return (letters.From.Label, letters.From.X, letters.From.Z);
@@ -713,7 +717,9 @@ public partial class Jobs : Node
         if (job.Task == null || active != null) return;
         var t = JobTask.Of(job);
         var letters = LettersTask.Of(job);
-        if (t == null && letters == null) return; // mill and lamps still have parts of their own
+        var lamps = LampsTask.Of(job);
+        var mill = MillTask.Of(job);
+        if (t == null && letters == null && lamps == null && mill == null) return;
         active = job;
         var ctx = new RunCtx
         {
@@ -727,6 +733,9 @@ public partial class Jobs : Node
             Finish = r => Finish(job, r),
             ThickFog = on => Daylight.I?.SetThickFog(on),
         };
+        if (NightBoxes.Held(job)) { run = new ProofWork(job, ctx); return; }
+        if (mill != null) { run = new MillWork(job, mill, ctx); return; }
+        if (lamps != null) { run = new LampWork(job, lamps, ctx); return; }
         if (letters != null)
         {
             run = new LettersRun(job, letters, ctx);
@@ -757,6 +766,7 @@ public partial class Jobs : Node
     private void Finish(Job job, Report report)
     {
         if (finishing) return;
+        if (NightBoxes.I?.ShouldHold(job, report) == true) { _ = HoldProof(job, report); return; }
         var api = ServerLink.I?.Api;
         if (api == null) return;
         finishing = true;
