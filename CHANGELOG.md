@@ -34,6 +34,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - In the Carolus the round windows over the side doors and the front's middle windows show whole from inside the aisles ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
 
 ### Changed
+- The Godot job test now checks the quest book, map, restored goods, talk, drinking, trouble choices and extra errands, and records server state and goods replies beside its pictures.
 - Lamps and lanterns no longer wear big orange circles: a small soft glow at the glass. The omnibus's carriage lamps now light the street and the house fronts as it drives by.
 - Esc closes the map, the quest book, a talk or any other window, as E does, instead of opening the main menu. Click or press W to walk on.
 - You can only pick a pocket from behind the person.

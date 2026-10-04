@@ -1,5 +1,20 @@
 # Work log
 
+## Godot jobs restart, 2026-10-04
+
+Finished the interrupted jobs/day tie-ins on `godot/jobs`, with `godot-port` merged through `11c2ca5`.
+The board, task card, quest book, sleep chooser, night sheet and trouble card use the shared paper/windows.
+Talk/press offer work; map marks and the way follow the job; replacement restores the run and goods.
+The decoded models fit the browser's goods dimensions and survive a reset. The server decides drinks
+at the counter, needs, rent, sleep, trouble choices, pay and trust.
+
+The full test passed 17 steps, 35 pictures and 11 goods replies: carry 90 c, delivery 100 c,
+watch plus the tarpaulin errand 90 c, +1 trust each; 150 c rent; 240 minutes slept. Both crates were walked
+all the way. Midday clear Vismarkt: 2.95 ms mean, 4.28 ms p95. A later payment-note layering check passed
+7 steps with 14 pictures. All pictures viewed. `dotnet build godot`, headless import and `npm run build` pass.
+The remaining shutdown resource warnings are [issue #40](https://github.com/Steve-Sitax/Moodygame/issues/40).
+Hooks, remaining walk-up/deeds work and shared-file audit: [jobs report](godot-jobs.md).
+
 ## The Godot port, 2026-10-03
 
 Steve: port the game to Godot against the stutter; everything that works now, an easy start, a simple install. He picked C#. Worktree `MoodyGame-godot`, branch `godot-port`; plan, decisions and the proof in [godot-port.md](godot-port.md). Proof (G0): the scene the browser game builds, exported to one glb and drawn by Godot 4.7.2 at the five perfcheck places: 2.6-2.9 ms a frame with two mirror views, against 18-22 ms of drawing in headless Chrome (28-31 ms whole frame). Pictures looked at. Not in the proof: the game's logic, the per-pixel shader work, the rooms. The server stays in Node; the web demo stays the old Three.js one. Next: G1 (the base: server start, real models, walking).

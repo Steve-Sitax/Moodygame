@@ -34,6 +34,7 @@ public partial class JobTest : Node
     private Dictionary<string, object?> now = new();
     private readonly List<string> said = new();
     private readonly List<string> pictures = new();
+    private readonly List<Dictionary<string, object?>> serverCalls = new();
     private double total;
     private readonly List<double> frameMs = new();
     private ulong lastUsec;
@@ -48,6 +49,7 @@ public partial class JobTest : Node
         }
         Directory.CreateDirectory(dir);
         GameState.I.Message += m => said.Add(m);
+        Goods.I.Answered += (ask, reply) => serverCalls.Add(new Dictionary<string, object?> { ["step"] = now.GetValueOrDefault("step"), ["at_s"] = Math.Round(total, 2), ["ask"] = ask, ["reply"] = reply });
         Jef.I.TestInput = true;
         GameState.I.PlayingWhen = () => false; // the clock stands still unless a step lets it run
         script = Script().GetEnumerator();
@@ -132,6 +134,7 @@ public partial class JobTest : Node
         Note("picture", file);
         Note("prompt", Interact.I.Text);
         Note("said", said.ToList());
+        Note("server_state", GameState.I.Payload);
     }
 
     /// <summary>Stand at (x, z) and look at (tx, tz), `up` radians above the level.</summary>
@@ -212,6 +215,11 @@ public partial class JobTest : Node
             yield return s;
 
         Step("frames", "the frame time at the Vismarkt with these parts on: no vsync, Jef turning once round (the budget here is 5 ms)");
+        var midday = link.Api!.DevSet(new Dictionary<string, double> { ["hour"] = 13, ["minute"] = 0 });
+        yield return When(() => midday.IsCompleted, 10, "midday for the frame check");
+        if (midday.IsCompletedSuccessfully) GameState.I.Apply(midday.Result);
+        World.Daylight.I?.SetTime(13);
+        World.Daylight.I?.SetWeather("clear");
         DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled);
         Engine.MaxFps = 0;
         Stand(-118, 36, -118, 30);
@@ -373,6 +381,24 @@ public partial class JobTest : Node
             Shot("6-eaten");
         }
 
+        Step("drink", "Tuur pours a nip of jenever: the browser and server drink bought drinks on the spot");
+        var beforeDrink = Needs();
+        var drink = api.Buy("tuur", "jenever");
+        yield return When(() => drink.IsCompleted, 10, "the drink bought and drunk");
+        if (!drink.IsCompletedSuccessfully) Fail("Tuur did not sell the drink");
+        else
+        {
+            GameState.I.Apply(drink.Result);
+            GameState.I.Say(drink.Result.Line);
+            Note("server", drink.Result);
+            Note("needs_before", beforeDrink);
+            Note("needs_after", Needs());
+            Check(!GameState.I.Pockets.Any(p => p.Kind == "jenever"), "a bought drink went into the pockets");
+            Check(GameState.I.Money == (int)beforeDrink["money_c"]! - drink.Result.PriceC, "the drink price did not come off the money");
+            yield return 0.6;
+            Shot("6-drunk");
+        }
+
         Step("bench", "a bench of the town: E offers to sleep on it, and the chooser says what a bench costs");
         var bench = day.Benches.FirstOrDefault(b => b.Id == "steen:1") ?? day.Benches.FirstOrDefault();
         if (bench == null) Fail("no benches known");
@@ -499,6 +525,23 @@ public partial class JobTest : Node
         yield return 0.8;
         Note("task_card", jobs.TaskText);
         Shot("3-job-taken");
+        jobs.OpenBook();
+        yield return 0.5;
+        Check(jobs.BookOpen && Dialogs.I!.Top?.DialogName == "quest book" && Jef.I.Frozen, "the quest book is not on the stack");
+        Check(!Interact.I.Press(Key.E), "E went through the book to the world");
+        Check(Press.I?.TakeJob != null && Talk.I?.Work != null && Talk.I?.OnTakeWork != null, "the paper or talk work hook is missing");
+        Note("map_marks", TownMap.I!.JobMarks!().Select(m => new { m.X, m.Z, m.Label }).ToList());
+        Check(TownMap.I.JobMarks!().Any() && TownMap.I.WayGoal!() != null, "the job has no map mark or way goal");
+        Shot("3-quest-book");
+        Dialogs.I!.SendKey("KeyM");
+        yield return 0.6;
+        Check(!jobs.BookOpen && TownMap.I.Open && Jef.I.Frozen, "M did not put the book away and open the map");
+        Shot("3-job-map");
+        TownMap.I.Close();
+        jobs.RestoreWorld(); // the same hook a load/new week calls
+        yield return When(() => goods.Loaded && jobs.Active?.Id == job.Id, 10, "the job restored after world replacement");
+        yield return 0.6;
+        Check(goods.Items.Where(i => i.Obj != null).All(i => GodotObject.IsInstanceValid(i.Obj)), "a baked goods node was freed during reset");
 
         for (int n = 0; n < task.Count; n++)
         {
@@ -582,6 +625,11 @@ public partial class JobTest : Node
         yield return 0.8;
         Note("task_card", jobs.TaskText);
         Note("prompt_at_tuur", Interact.I.Text);
+        Check(Interact.I.Press(Key.E) && Talk.I!.IsOpen, "E at Tuur did not open talk");
+        yield return 0.6;
+        Shot("4-talk-employer");
+        Dialogs.I!.SendKey("Escape");
+        yield return 0.3;
         Shot("4-deliver-employer");
         Check(Interact.I.Press(Key.F), $"no F to take the parcel: \"{Interact.I.Text}\"");
         yield return When(() => GameState.I.Pockets.Any(p => p.JobId == job.Id), 8, "the parcel in the pocket");
@@ -632,6 +680,8 @@ public partial class JobTest : Node
         Note("task_card", jobs.TaskText);
         Note("pile", Goods.I.Items.Count(i => i.JobId == job.Id));
         Shot("5-watch");
+        if (Only("trouble"))
+            foreach (var s in TroubleStep()) yield return s;
         var before = jobs.LastDone;
         Engine.TimeScale = 8;
         yield return When(() => jobs.LastDone != before, task.DurationS + 20, "the bell and the server's settlement");
@@ -642,6 +692,41 @@ public partial class JobTest : Node
         Note("money_after", GameState.I.Money);
         Check(GameState.I.Money > moneyBefore, "no money came");
         Shot("5-watch-paid");
+    }
+
+    private IEnumerable<object?> TroubleStep()
+    {
+        Step("trouble", "the server's weather trouble: the sticky paper, a choice, then the extra errand");
+        var api = ServerLink.I!.Api!;
+        var force = api.Post<JsonElement>("api/dev/ideas", new { trouble = "weather" });
+        yield return When(() => force.IsCompleted, 10, "trouble written by the server");
+        if (!force.IsCompletedSuccessfully) { Fail("trouble was not written"); yield break; }
+        Note("server_plan", force.Result);
+        var load = Trouble.I.Load();
+        yield return When(() => load.IsCompleted, 10, "the trouble fetched");
+        var t = Trouble.I.View;
+        if (t == null) { Fail("the server did not send trouble"); yield break; }
+        Trouble.I.Show(t); // the walk-up hook: its speaker is before Jef
+        yield return 0.6;
+        Check(Trouble.I.IsOpen && Jef.I.Frozen && Dialogs.I!.Top?.DialogName == "trouble", "the trouble card is not on top");
+        Dialogs.I!.SendKey("Escape");
+        Check(Trouble.I.IsOpen, "Esc dismissed a choice that must be made");
+        Shot("5-trouble");
+        var option = t.Options.FirstOrDefault(o => o.Step != null) ?? t.Options[0];
+        Dialogs.I.SendKey("Digit" + option.N);
+        yield return When(() => !Trouble.I.IsOpen, 10, "the server accepted the trouble choice");
+        Note("server_choice", Trouble.I.LastReply);
+        if (Trouble.I.View?.Step is { } step)
+        {
+            Stand(step.X + 0.7f, step.Z + 0.4f, step.X, step.Z);
+            yield return 0.5;
+            Check(Interact.I.Press(Key.E), "no E at the trouble errand");
+            yield return When(() => Trouble.I.View?.StepDone == true, 10, "the extra errand accepted");
+            Note("server_step", Trouble.I.LastReply);
+            Shot("5-trouble-step");
+        }
+        var post = Spots.Get(JobTask.Of(Jobs.I.Active!)!.Post)!;
+        Stand(post.X - 2.5f, post.Z - 1.5f, post.X, post.Z, Down(3));
     }
 
     // ------------------------------------------------------------------ the end
@@ -655,6 +740,7 @@ public partial class JobTest : Node
             ["seconds"] = Math.Round(total, 1),
             ["steps"] = steps,
             ["pictures"] = pictures,
+            ["goods_calls"] = serverCalls,
             ["frame_ms"] = frameMs.Count == 0 ? null : new Dictionary<string, object?> { ["mean"] = Math.Round(frameMs.Average(), 2), ["p95"] = Math.Round(frameMs[(int)(frameMs.Count * 0.95)], 2), ["frames"] = frameMs.Count },
             ["money_c"] = GameState.I.Money,
             ["needs"] = new Dictionary<string, object?> { ["food"] = GameState.I.Food, ["warmth"] = GameState.I.Warmth, ["sleep"] = GameState.I.Sleep, ["health"] = GameState.I.Health },
