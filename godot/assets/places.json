@@ -2941,6 +2941,368 @@
       "feet_y": -1.1900000000000002
     }
   },
+  "looks": [
+    {
+      "hall": "townhall",
+      "id": "board",
+      "x": 4.2,
+      "z": 4.6,
+      "r": 1.5,
+      "label": "read the notice board",
+      "text": "The notice board by the door: a proclamation of the College of Burgomaster and Aldermen about dogs without muzzles, and the militia lists. Nothing new pasted up today.",
+      "y": 0
+    },
+    {
+      "hall": "townhall",
+      "id": "register",
+      "x": 11.9,
+      "z": 9.6,
+      "r": 1.4,
+      "label": "look at the register on the counter",
+      "text": "The register of the civil state lies open on the counter: births, deaths and marriages in a clerk's copperplate. Nothing written in it yet today.",
+      "y": 0
+    },
+    {
+      "hall": "townhall",
+      "id": "stair",
+      "x": 0,
+      "z": 9.8,
+      "r": 1.6,
+      "label": "look up the staircase",
+      "text": "The old courtyard of the town hall, roofed over with glass, and a great stair of white stone going up to the fine floor. Floris's arcades carry the galleries round it.",
+      "y": 0
+    },
+    {
+      "hall": "townhall",
+      "id": "chimney",
+      "x": 14.5,
+      "z": 14.6,
+      "r": 1.8,
+      "label": "look at the chimneypiece",
+      "text": "The chimneypiece of the wedding hall: two women carved in alabaster carry the mantel on their heads, three hundred years old and scorched by the fire of the Spanish Fury. A fire burns under them.",
+      "y": 6.7
+    },
+    {
+      "hall": "townhall",
+      "id": "leys",
+      "x": -14.3,
+      "z": 12.6,
+      "r": 2.5,
+      "label": "look at the paintings",
+      "text": "The Leys hall: Hendrik Leys painted the town's old privileges and its burghers on these walls, finished only three years ago. Dark, stiff, splendid figures in black and red.",
+      "y": 6.7
+    },
+    {
+      "hall": "townhall",
+      "id": "square",
+      "x": 13.86,
+      "z": 2.2,
+      "r": 1.4,
+      "label": "look out at the square",
+      "text": "The Grote Markt through small leaded panes: the guild houses, the stalls, a dray at the well. The glass is old and bends the gables a little.",
+      "y": 6.7
+    },
+    {
+      "hall": "vleeshuis",
+      "id": "barrels",
+      "x": -4,
+      "z": 3,
+      "r": 1.8,
+      "label": "look at the barrels",
+      "text": "Barrels of wine in racks two high, stencilled with the names of Bordeaux houses and Rhine towns. The old meat hall smells of oak and must now, not of blood.",
+      "y": 0
+    },
+    {
+      "hall": "vleeshuis",
+      "id": "vaults",
+      "x": 10.6,
+      "z": 7.35,
+      "r": 1.6,
+      "label": "look up at the vaults",
+      "text": "Brick vaults on stone columns, three aisles of them, built for the butchers' guild in 1504. Soot from lanterns streaks the brick.",
+      "y": 0
+    },
+    {
+      "hall": "vleeshuis",
+      "id": "tasting",
+      "x": -9,
+      "z": 2.4,
+      "r": 1.5,
+      "label": "look at the tasting table",
+      "text": "A table among the casks: two bottles, three glasses with a red rim of wine, a candle stuck in its own wax, the cellar book open at a page of figures. Here the buyers taste before they bargain.",
+      "y": 0
+    },
+    {
+      "hall": "vleeshuis",
+      "id": "chalk",
+      "x": -4,
+      "z": 7.35,
+      "r": 1.4,
+      "label": "read the chalk on the casks",
+      "text": "Chalk on the cask heads, in the cellar master's hand: a cross, a year, the first letters of a Bordeaux house, a buyer's name half rubbed out.",
+      "y": 0
+    },
+    {
+      "hall": "vleeshuis",
+      "id": "bottles",
+      "x": -14.1,
+      "z": 7.4,
+      "r": 1.6,
+      "label": "look at the bottle racks",
+      "text": "Pigeonholes of dark bottles, necks in, dust on every one. The better growths lie down here till they are sold.",
+      "y": 0
+    },
+    {
+      "hall": "vleeshuis",
+      "id": "hoist",
+      "x": 6.7,
+      "z": 11.4,
+      "r": 1.6,
+      "label": "look at the hoist",
+      "text": "A jib on a post over the skids by the north door, a pulley block and a rope. A cask swings slowly on it, going up to be rolled out or coming down to be laid on the stillage.",
+      "y": 0
+    },
+    {
+      "hall": "vleeshuis",
+      "id": "stage",
+      "x": -8.6,
+      "z": 7.35,
+      "r": 2.2,
+      "label": "look at the stage",
+      "text": "A small stage with a painted castle and town on the backcloth, red curtains looped back, a row of candle footlights. The society Liefde en Eendragt plays here.",
+      "y": 9.84
+    },
+    {
+      "hall": "vleeshuis",
+      "id": "studio",
+      "x": 21.5,
+      "z": 7.4,
+      "r": 1.8,
+      "label": "look at the canvases",
+      "text": "A studio: canvases turned to the wall, one on each easel half done, a model's platform with a draped chair. The light falls in a grey sheet from the gable's windows.",
+      "y": 9.84
+    },
+    {
+      "hall": "steen",
+      "id": "cases",
+      "x": -7.8,
+      "z": 2.6,
+      "r": 1.6,
+      "label": "look into the cases",
+      "text": "Under the glass: Roman pots and coins dug out of the old Burcht and the river mud, green bronze pins, a clay lamp, a medieval jug, wax seals of the guilds, a fossil shell as big as a hand. Each has a small card in careful French and Flemish.",
+      "y": 0
+    },
+    {
+      "hall": "steen",
+      "id": "cabinet",
+      "x": -6.3,
+      "z": 3.3,
+      "r": 1.3,
+      "label": "look into the cabinet",
+      "text": "A tall cabinet: small carved saints from demolished churches, a bronze mortar, a pewter jug with the town's arms.",
+      "y": 0
+    },
+    {
+      "hall": "steen",
+      "id": "stones",
+      "x": -12.6,
+      "z": 5,
+      "r": 1.5,
+      "label": "look at the old stones",
+      "text": "Carved stones along the wall: a tombstone with a knight worn almost smooth, the capital of a column from a church that is gone, a Roman altar stone, the arms of the town cut in stone.",
+      "y": 0
+    },
+    {
+      "hall": "steen",
+      "id": "armour",
+      "x": 0.8,
+      "z": 3.6,
+      "r": 1.4,
+      "label": "look at the armour",
+      "text": "A suit of armour on a stand, empty and patient, and racks of halberds and pikes of the town's old militia. For looking at only: the attendant watches your hands.",
+      "y": 0
+    },
+    {
+      "hall": "steen",
+      "id": "gun",
+      "x": -1.3,
+      "z": 4.9,
+      "r": 1.5,
+      "label": "look at the bronze gun",
+      "text": "A small bronze gun on a wooden carriage, green with age, the maker's name and a date cast on the barrel.",
+      "y": 0
+    },
+    {
+      "hall": "steen",
+      "id": "stairdown",
+      "x": -8.4,
+      "z": 6.6,
+      "r": 1.2,
+      "label": "look down the stair",
+      "text": "A worn stair goes down into the dark: the old prison cells under the castle. The last stop of the museum.",
+      "y": 0
+    },
+    {
+      "hall": "steen",
+      "id": "cell",
+      "x": -11.2,
+      "z": 3.5,
+      "r": 2.2,
+      "label": "look round the cell",
+      "text": "The old prison of the Steen. Until fifty years ago men waited here for the judges: a low stone ceiling, iron rings in the wall, a bench, straw on the floor. Names and crosses are scratched into the stone.",
+      "y": -2.4
+    },
+    {
+      "hall": "oostershuis",
+      "id": "stacks",
+      "x": -24.5,
+      "z": 4.2,
+      "r": 1.8,
+      "label": "look at the stacks",
+      "text": "Sacks of coffee and grain in pyramids, bales of wool and cotton corded tight, crates and casks, each marked in chalk with a number from the storekeeper's book. It smells of jute, tar and old timber.",
+      "y": 0
+    },
+    {
+      "hall": "oostershuis",
+      "id": "scale",
+      "x": 4.3999999999999995,
+      "z": 7.8,
+      "r": 1.4,
+      "label": "look at the scale",
+      "text": "A decimal scale on the floor: a sack goes on the platform, the storekeeper slides a weight along the beam and writes the figure down.",
+      "y": 0
+    },
+    {
+      "hall": "oostershuis",
+      "id": "hall",
+      "x": 0,
+      "z": 4.5,
+      "r": 1.4,
+      "label": "look round the hall",
+      "text": "The house of the Hanse's merchants, three hundred years old: once their counting rooms and chambers, now a warehouse of the Belgian State. Forty windows, a great tower over the gate, and in here only dust and goods.",
+      "y": 0
+    },
+    {
+      "hall": "oostershuis",
+      "id": "hoist",
+      "x": -16.3,
+      "z": 4.7,
+      "r": 1.5,
+      "label": "look up at the hoist",
+      "text": "A rope comes down through a hatch in the ceiling with a hook on it: goods go up and down between the floors on it.",
+      "y": 0
+    },
+    {
+      "hall": "oostershuis",
+      "id": "court",
+      "x": 0,
+      "z": 8.5,
+      "r": 1.4,
+      "label": "look at the court gate",
+      "text": "The gate to the court is barred. Through the cracks: cobbles, a pump, the wings round it, rows of windows over dusty lofts.",
+      "y": 0
+    },
+    {
+      "hall": "cathedral",
+      "y": 0,
+      "id": "elevation",
+      "x": 22.3,
+      "z": 77.8,
+      "r": 3.5,
+      "label": "look at the Elevation of the Cross",
+      "text": "Rubens's Elevation of the Cross, the great triptych, back in Antwerp since the French gave it up in 1815. Men strain with ropes and shoulders to heave the cross upright on a slant; on the wings the mourners grieve and the Roman officer gives his orders from the saddle."
+    },
+    {
+      "hall": "cathedral",
+      "y": 0,
+      "id": "descent",
+      "x": -22.3,
+      "z": 77.8,
+      "r": 3.5,
+      "label": "look at the Descent from the Cross",
+      "text": "Rubens's Descent from the Cross. A pale body slides down a white sheet into many hands; a young man in a red cloak takes its weight. On the wings the Visitation and the Presentation in the Temple. The arquebusiers' guild paid for it, two hundred and sixty years ago."
+    },
+    {
+      "hall": "cathedral",
+      "y": 0,
+      "id": "assumption",
+      "x": 0,
+      "z": 80.9,
+      "r": 2.2,
+      "label": "look at the high altar",
+      "text": "Over the high altar, in black and white marble and gold, Our Lady rises on clouds among the angels while the apostles stare into her empty tomb: Rubens again, his Assumption. The altar is new, fifty years old, built from the marble of a church the French pulled down. The red lamp before the tabernacle never goes out."
+    },
+    {
+      "hall": "cathedral",
+      "y": 0,
+      "id": "resurrection",
+      "x": -7.3590713587017635,
+      "z": 117.12889276957434,
+      "r": 2.4,
+      "label": "look at the Resurrection",
+      "text": "A smaller triptych in a chapel off the ambulatory: Christ bursts from the tomb with a red banner and the guards fall back from the light. A printer's widow had it painted for her husband's grave."
+    },
+    {
+      "hall": "cathedral",
+      "y": 0,
+      "id": "dome",
+      "x": 0,
+      "z": 74.6,
+      "r": 3,
+      "label": "look up into the dome",
+      "text": "High over the crossing the lantern opens to a painted dome: rings of clouds and angels climbing toward the light, and Our Lady rising at the top. Painted two hundred years ago; from down here it swims in the dusk and the daylight of the lantern's windows."
+    },
+    {
+      "hall": "cathedral",
+      "y": 0,
+      "id": "pulpit",
+      "x": -3.0000000000000004,
+      "z": 40.55,
+      "r": 1.9,
+      "label": "look at the pulpit",
+      "text": "The pulpit is carved oak, all of it: at its foot four women for Europe, Asia, Africa and America with a horse, a camel, a lion and a crocodile; trees rise from them, their branches full of birds, an eagle and a peacock among them; angels blow trumpets on the sounding board. It came from the abbey at Hemiksem when the French closed it."
+    },
+    {
+      "hall": "cathedral",
+      "y": 0,
+      "id": "stalls",
+      "x": 0,
+      "z": 80.7,
+      "r": 1.4,
+      "label": "look at the choir stalls",
+      "text": "Behind the rail the canons' stalls run down both sides of the choir in new pale oak: pointed arches, gables and pinnacles, carved these thirty years and still not finished. The old stalls went to the fire in the French years."
+    },
+    {
+      "hall": "cathedral",
+      "y": 0,
+      "id": "organ",
+      "x": 0,
+      "z": 12.15,
+      "r": 2.2,
+      "label": "look up at the organ",
+      "text": "Up on the west gallery over the door the organ's carved case climbs toward the great west window: towers of tin pipes, gilt crests, angels with trumpets on top."
+    },
+    {
+      "hall": "cathedral",
+      "y": 0,
+      "id": "font",
+      "x": -9.5,
+      "z": 9.65,
+      "r": 1.6,
+      "label": "look at the font",
+      "text": "The font by the door, black marble with a white bowl under an oak cover. A drop of holy water on your fingers is cold as the Schelde."
+    },
+    {
+      "hall": "cathedral",
+      "y": 0,
+      "id": "slab",
+      "x": 9,
+      "z": 24,
+      "r": 1.4,
+      "label": "read a grave slab",
+      "text": "A worn slab in the floor: a merchant, his wife, a coat of arms and a skull, and a date two hundred years gone. Ten thousand boots have walked his name smooth."
+    }
+  ],
   "furniture": {
     "chair": {
       "name": "a rush-seated chair",

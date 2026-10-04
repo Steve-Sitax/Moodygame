@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
+using System.IO;
 using System.Threading.Tasks;
 using Godot;
 using Scheldemist.Game;
@@ -58,6 +59,7 @@ public partial class LandmarkLife : Node
     public SermonReply? SermonResult { get; private set; }
     public Vector3 Point(string id, string mark) => halls.Find(h => h.Id == id)!.Mark(mark);
     public string? Here => here?.Id;
+    public readonly List<(string Hall,string Label,Vector3 At,float Floor)> Looks=new();
     public override void _Ready()
     {
         I = this; data = JsonDocument.Parse(HallPeopleData.Json);
@@ -77,6 +79,13 @@ public partial class LandmarkLife : Node
                 fixedPrompts.Add(Interact.I.Add(hall.Mark("board") + Vector3.Up, 2, () => here == hall ? "read the notice board" : null, () => Show("The town hall's notices", string.Join("\n\n", hall.State?.Posters.ConvertAll(p => p.Heading + "\n" + p.Body) ?? new()))));
                 fixedPrompts.Add(Interact.I.Add(hall.Mark("counter") + Vector3.Up, 2, () => here == hall ? "read the register of the civil state" : null, () => Show("The civil register", string.Join("\n", hall.State?.Register ?? new()))));
             }
+        }
+        using var places=JsonDocument.Parse(File.ReadAllText(ProjectSettings.GlobalizePath("res://assets/places.json")));
+        foreach(var look in places.RootElement.GetProperty("looks").EnumerateArray())
+        {
+            string hallId=look.GetProperty("hall").GetString()!,id=look.GetProperty("id").GetString()!;if(id is "board" or "register")continue;
+            var h=halls.Find(h=>h.Id==hallId)!;float y=look.GetProperty("y").GetSingle();var at=h.World(look.GetProperty("x").GetSingle(),look.GetProperty("z").GetSingle(),y);string label=look.GetProperty("label").GetString()!,text=look.GetProperty("text").GetString()!;
+            Looks.Add((hallId,label,at,at.Y));fixedPrompts.Add(Interact.I.Add(at+Vector3.Up*.9f,look.GetProperty("r").GetSingle(),()=>here==h&&MathF.Abs(Jef.I.Y-at.Y)<2?label:null,()=>Show(label,text)));
         }
     }
     private Sheet? Write() { var sh = new Sheet(Dialogs.I!.Ui, 560, Css.Hex("e3d4ad"), (26, 18, 26, 14), maxHeight: GetViewport().GetVisibleRect().Size.Y * 0.85f) { Where = Window.Middle }; sh.Text("[b]" + Css.Esc(heading) + "[/b]", Face.Print, 24, bottom: 14); sh.Text(Css.Esc(body), Face.Print, 16, lineHeight: 1.45f); sh.Keys("E or Esc to fold it away", Face.Hand); return sh; }
