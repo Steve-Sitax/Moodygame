@@ -42,6 +42,11 @@ public partial class Emigrants : Node
     private static MeshInstance3D Part(PrimitiveMesh mesh,Material material,float x,float y,float z)=>new(){Mesh=mesh,MaterialOverride=material,Position=new(x,y,z)};
     public override void _Ready()
     {
+        // A frozen bake can contain the quay tender outside its camera frustum.
+        // Its imported mesh visibility is not the moving vessel's current visibility.
+        if(River.I?.Anchorage is {} anchorage)foreach(var tow in anchorage.Tows)
+            foreach(var n in Scheldemist.World.BakedWorld.All(tow.Lighter.Boat.Outer))
+                if(n is GeometryInstance3D geometry && !n.Name.ToString().Contains("cap"))geometry.Visible=true;
         I=this;town=GetParent().GetNodeOrNull<Townspeople>("Townspeople");
         // All prop meshes and materials exist before play; copies share them.
         templates["chest"]=Goods.I.MakeGoods("chests");
@@ -85,7 +90,7 @@ public partial class Emigrants : Node
             think=.5;
             foreach(var c in camps.Values){bool near=new Vector2(Jef.I.X-31,Jef.I.Z-27).Length()<90;bool day=GameState.I.HourF>=7.25 && GameState.I.HourF<18.25;c.Group.Visible=near&&day;bool away=c.Family.Luggage is "taken" or "done";foreach(var p in c.Chests)p.Visible=!away;}
             if(GameState.I.HourF>=Info.Ship.From && GameState.I.HourF<Info.Ship.To+1)
-                for(int i=0;i<a.Tows.Count;i++){var t=a.Tows[i];if(t.Stop!=1||t.Phase!="dwell"||t.Crab<.99||t.Dwell<=25||crossings.Values.Any(c=>c.Tow==i&&!c.Reported))continue;var f=Info.Families.Where(f=>f.BoardingToday&&!f.WaitingForJef&&!crossings.ContainsKey(f.Household)).OrderBy(f=>f.ArrivedAt).FirstOrDefault();if(f!=null)Start(f,i,t);}
+                for(int i=0;i<a.Tows.Count;i++){var t=a.Tows[i];if(t.Stop!=1||t.Phase!="dwell"||t.Crab<.99||t.Dwell<=25||LoadingTow(i))continue;var f=NextFamily();if(f!=null)Start(f,i,t);}
         }
         foreach(var c in crossings.Values)
         {
@@ -102,6 +107,8 @@ public partial class Emigrants : Node
             for(int k=d.Lowering.Count-1;k>=0;k--){var l=d.Lowering[k];l.Time=Math.Min(1,l.Time+(float)dt/3.5f);var to=d.Group.ToGlobal(l.Slot);l.Prop.GlobalPosition=l.From.Lerp(to,l.Time)+Vector3.Up*MathF.Sin(MathF.PI*l.Time)*1.4f;if(l.Time>=1){l.Prop.Reparent(d.Group);l.Prop.Position=l.Slot;l.Prop.Rotation=new(0,MathF.PI/2,0);d.Chests.Add(l.Prop);d.Lowering.RemoveAt(k);}}
         }
     }
+    private bool LoadingTow(int tow) {foreach(var c in crossings.Values)if(c.Tow==tow&&!c.Reported)return true;return false;}
+    private EmigrantFamily? NextFamily() {EmigrantFamily? next=null;foreach(var f in Info!.Families)if(f.BoardingToday&&!f.WaitingForJef&&!crossings.ContainsKey(f.Household)&&(next==null||f.ArrivedAt<next.ArrivedAt))next=f;return next;}
     private Deck DeckFor(int tow){if(decks.TryGetValue(tow,out var d))return d;d=new();Main.I.View.AddChild(d.Group);decks.Add(tow,d);return d;}
     private void Start(EmigrantFamily f,int tow,Anchorage.Tow t)
     {

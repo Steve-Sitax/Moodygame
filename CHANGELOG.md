@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The emigrant tender keeps its real hull visible as families board in Godot, even when the bake camera hid it.
+
 - E inside Godot's five landmark halls describes the paintings, cases, casks, stairs, scale and other objects using the browser's own prompts.
 
 - A parcel can be collected from its sleeping employer's named, lit work box in Godot, then delivered and paid through that box.
