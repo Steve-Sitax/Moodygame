@@ -20,6 +20,13 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - In Godot, people summoned for jobs walk in from the living town and return to their day when the encounter ends, using reachable street points around doors and piers.
 
 - In Godot, ducks defend their young from cats, unguarded ducks can be caught, and caught birds return only when nobody is watching. Stray dogs seek the fish-market scraps, owned dogs wait for a clear place beside their owner, and nearby cats and fleeing birds make their own sounds.
+- In the Godot version, bats hunt over the water and round the trees at dusk and before dawn, as in the browser game.
+- In the Godot version, the great storm tears things loose: slates and shingles off the roofs, washing, newspapers, hats and straw fly down the street, and slates smash on the stones.
+- In the Godot version, storms bring thunder and lightning (a bolt over the roofs, the air flashing white, the thunder after it), lone drops fall off the eaves in the rain, horses blow clouds of breath on cold mornings, and the broken gutters' streams start right at their eaves.
+- In the Godot version, the ships riding in the stream show their white lights at night, the moored ships' bilge pumps spout dirty water over the side now and then, and the priests, tourists, urchins, soldiers, beggars and the ragman are drawn whole ([#54](https://github.com/Steve-Sitax/Moodygame/issues/54)).
+- In the Godot version, the great storm's rain pours as in the browser game: the far sheets of rain fall again, and the streaks are long and dense instead of a few short dashes ([#53](https://github.com/Steve-Sitax/Moodygame/issues/53)).
+- In the Godot version, the town hall, the Oostershuis, the Vleeshuis and the Steen light their windows room by room through the night as in the browser game (clerks going home, late meetings, the porter, a watchman going round), and the Steen's lanterns burn by its gate and museum door after dusk ([#52](https://github.com/Steve-Sitax/Moodygame/issues/52)).
+- In the Godot version, the sky at midday is a plain grey overcast again: large flat grey shapes no longer hang over the roofs, and the works' chimneys smoke in fuller, darker plumes ([#55](https://github.com/Steve-Sitax/Moodygame/issues/55)).
 - Townspeople's outdoor activity spots stay on reachable ground instead of landing inside houses or the park pond; path snapping also keeps room for their bodies at lane edges.
 - In the Godot version, the townspeople and Jef have their soft shadow on the ground again, as in the browser game.
 

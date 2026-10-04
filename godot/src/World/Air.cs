@@ -190,7 +190,7 @@ float gust_veil(vec2 xz) {
 /// at a place, with a size, a strength, a seed and a brightness. Two shaders for all of them, made at load (one
 /// mixes, one adds light); each part its own material with its own colour and look:
 ///   shape 0 a soft puff (breath, spray), 1 a hard speck (a moth, a drop, an eye), 2 a funnel's puff (boats.ts
-///   puffTexture: a 16-pixel cloud, nearly solid to its middle).
+///   puffTexture: a 16-pixel cloud, nearly solid to its middle), 3 a lantern far off (a core and its halo).
 /// One MultiMesh a part, one draw; nothing allocated after the start.
 /// </summary>
 public sealed class AirPoints
@@ -252,6 +252,11 @@ void fragment() {
 		// a blocky puff: 4 x 4 cells of uneven density
 		float mottle = 0.6 + 0.4 * hash12(floor(UV * 4.0) + seed * 91.0);
 		a *= (1.0 - d) * (1.0 - d) * mottle;
+	} else if (shape > 2.5) {
+		// a lantern in the wet air: a bright core and a faint halo round it (alive/water.ts ship lights)
+		float r = sqrt(d);
+		if (r > 1.0) discard;
+		a *= smoothstep(0.35, 0.0, r) + (1.0 - r) * 0.35;
 	} else if (shape > 1.5) {
 		float r = sqrt(d);
 		if (r > 1.0) discard;

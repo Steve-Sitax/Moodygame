@@ -35,7 +35,13 @@ GUSTS
 varying vec3 l;
 varying vec3 w;
 varying float fog_depth;
-float hash12(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+// (a hash without sin: fract(sin(...)) lost its bits on this card's big column numbers, and most columns came out
+// the same, few of them falling: the storm's far rain was thin)
+float hash12(vec2 p) {
+	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+	p3 += dot(p3, p3.yzx + 33.33);
+	return fract((p3.x + p3.y) * p3.z);
+}
 void vertex() {
 	l = VERTEX;
 	w = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
@@ -123,7 +129,10 @@ void fragment() {
         if (!on) return;
         var eye = cam.GlobalPosition;
         mesh.GlobalPosition = eye;
-        expo += (Math.Clamp((float)delta, 1 / 60f, 1 / 24f) - expo) * 0.1f;
+        // (the great storm: at least a 26th of a second's fall, as the browser draws it at its own frame rate; at
+        // Godot's speed one frame's fall was a short dash, and the storm looked tame)
+        float lo = 1f / 60 + (1f / 26 - 1f / 60) * Daylight.I.Storm;
+        expo += (Math.Clamp((float)delta, lo, 1f / 24) - expo) * 0.1f;
         mat.SetShaderParameter("expo", expo);
         mat.SetShaderParameter("wind", day.Wind * (1 + 0.9f * day.Storm));
         mat.SetShaderParameter("night", day.Night);

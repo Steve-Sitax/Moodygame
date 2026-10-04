@@ -188,7 +188,11 @@ public partial class BakedWorld : Node3D
     {
         JsonElement three = default, psx = default, bake = default;
         bool hasThree = j.TryGetProperty("extras", out var ex) && ex.TryGetProperty("three", out three);
-        bool hasPsx = hasThree && ex.TryGetProperty("psx", out psx) && psx.TryGetProperty("bake", out bake) && bake.ValueKind == JsonValueKind.Object;
+        // (a material the export missed when it gathered three's switches, made later: the crowd's priest, tourist,
+        // urchin, soldier, beggar and ragman bodies, the parcels in a figure's hand, an engine bill: its psx options
+        // are there, three's not; the figures' are three's matt Lambert like every other body, characters.ts)
+        bool lostThree = !hasThree && ex.ValueKind == JsonValueKind.Object && ex.TryGetProperty("psx", out var lp) && lp.TryGetProperty("bake", out var lb) && lb.ValueKind == JsonValueKind.Object;
+        bool hasPsx = (hasThree || lostThree) && ex.TryGetProperty("psx", out psx) && psx.TryGetProperty("bake", out bake) && bake.ValueKind == JsonValueKind.Object;
         string name = j.TryGetProperty("name", out var mn) ? mn.GetString() ?? "" : bm.ResourceName;
         // Earlier bakes omitted Material.visible. These are the browser's explicitly hidden stand-in panes;
         // its real room glass and additive landmark_window_light copies must still be drawn.
@@ -199,7 +203,15 @@ public partial class BakedWorld : Node3D
             invisible.SetMeta("baked_invisible", true);
             return invisible;
         }
-        string type = hasThree ? three.GetProperty("type").GetString() ?? "" : "";
+        string type = hasThree ? three.GetProperty("type").GetString() ?? "" : lostThree ? "MeshLambertMaterial" : "";
+        // (the engine's bills are the server's, drawn live by Play/Ideas.cs: the bake's is the save's bill of the day it was made)
+        if (lostThree && j.TryGetProperty("pbrMetallicRoughness", out var pbr) && pbr.TryGetProperty("baseColorTexture", out var bct)
+            && gltf.GetProperty("textures")[bct.GetProperty("index").GetInt32()].TryGetProperty("name", out var tn) && tn.GetString() == "poster")
+        {
+            invisible ??= new ShaderMaterial { Shader = new Shader { Code = "shader_type spatial; render_mode unshaded, depth_draw_never; void fragment() { discard; }" }, ResourceName = "baked_invisible" };
+            invisible.SetMeta("baked_invisible", true);
+            return invisible;
+        }
         // (a landmark's window light copied into its room left the exporter without its three extras: it is the same
         // additive, unfogged light as the shell's own, landmarkWindows.ts matFor)
         if (!hasThree && name == "landmark_window_light")
@@ -211,7 +223,7 @@ public partial class BakedWorld : Node3D
             return lm;
         }
         // (three's exporter writes a ShaderMaterial as a bare default material, without the extras)
-        if (!hasThree || type is "ShaderMaterial" or "RawShaderMaterial") return null;
+        if (!(hasThree || lostThree) || type is "ShaderMaterial" or "RawShaderMaterial") return null;
 
         bool Flag(string k, bool d) => hasThree && three.TryGetProperty(k, out var v) ? v.ValueKind == JsonValueKind.True : d;
         double Num(JsonElement e, string k, double d) => e.ValueKind == JsonValueKind.Object && e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : d;

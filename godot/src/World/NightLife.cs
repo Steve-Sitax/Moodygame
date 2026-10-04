@@ -88,7 +88,8 @@ public partial class NightLife : Node
     }
 
     /// <summary>alive/index.ts nightAt with the dim of a grey day: 0 by day, 1 at night.</summary>
-    private static float NightAt(Daylight day)
+    /// <summary>The alive parts' night (alive/index.ts frame night): 1 after dark, by the clock and the weather's dimness.</summary>
+    internal static float NightAt(Daylight day)
     {
         static float N(float h) => h < 6.2f || h > 18.3f ? 1 : h < 8.2f ? 1 - (h - 6.2f) / 2 : h > 16.2f ? (h - 16.2f) / 2.1f : 0;
         float dim = day.Weather is "fog" or "rain" or "storm" ? 0.4f : 0;
