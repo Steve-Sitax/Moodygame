@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Godot test runs started with `--hour` or `--weather` set the game's own clock and sky to them, so the HUD clock, the daylight and the townspeople show the same hour.
+
 - Godot's sun shines with its own colour again: by day the town, the people, the carts and the omnibus were lit a dull orange and too dark on their sunny side; now they match the browser game. ([#42](https://github.com/Steve-Sitax/Moodygame/issues/42))
 
 - Godot adds street deeds: police visits and prison release, pocket thieves, night gangs, lanterns, gifts and tavern rounds, hired helpers, lost property, notebooks, letters and meeting doors.

@@ -242,8 +242,11 @@ public partial class ServerLink : Node
         };
         Api = api;
         SetStatus("", "");
-        // the state now (the browser's first api.jobs()); the push channel's welcome brings it too
-        api.Run(api.Jobs(), state.Apply, e => GD.PrintErr($"the first state did not come: {e.Message}"));
+        // the state now (the browser's first api.jobs()); the push channel's welcome brings it too. A run with --hour
+        // or --weather (a test, a picture) sets the server's clock and sky to them first, so the light, the HUD's clock
+        // and the townspeople agree (the kit's light(): /api/dev/set). Never a host's: a guest does not set its clock.
+        var set = api.Guest ? null : TestClock(Main.I);
+        api.Run(set != null ? api.Post<JobsPayload>("api/dev/set", set) : api.Jobs(), state.Apply, e => GD.PrintErr($"the first state did not come: {e.Message}"));
         api.ConnectPush();
         if (Paused) api.HoldPushes(true);
         // the host's own game has a town map on this PC: Jef's place goes to it
@@ -256,6 +259,21 @@ public partial class ServerLink : Node
         var waiting = up;
         up = null;
         waiting?.Invoke();
+    }
+
+    /// <summary>The server's clock and sky as --hour 13.5, --day 2 and --weather clear ask (null: none given).</summary>
+    public static Dictionary<string, object>? TestClock(Main main)
+    {
+        var set = new Dictionary<string, object>();
+        if (double.TryParse(main.Arg("hour"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double h) && h >= 0 && h < 24)
+        {
+            int minutes = (int)Math.Round(h * 60) % (24 * 60);
+            set["hour"] = minutes / 60;
+            set["minute"] = minutes % 60;
+            if (int.TryParse(main.Arg("day"), out int d) && d > 0) set["day"] = d;
+        }
+        if (main.Arg("weather") is "fog" or "mist" or "clear" or "rain" or "storm") set["weather"] = main.Arg("weather");
+        return set.Count > 0 ? set : null;
     }
 
     private void SetStatus(string status, string error)
