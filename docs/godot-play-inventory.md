@@ -147,3 +147,10 @@ Literal key codes found across all requested modules, to complement the action/w
 | `menu/keys.ts` | `Backspace`, `Enter`, `Escape`, `KeyA`, `KeyB`, `KeyC`, `KeyD`, `KeyE`, `KeyF`, `KeyG`, `KeyH`, `KeyI`, `KeyJ`, `KeyL`, `KeyM`, `KeyN`, `KeyP`, `KeyR`, `KeyS`, `KeyT`, `KeyW`, `Space`, `Tab` |
 | `menu/menu.ts` | `ArrowDown`, `ArrowLeft`, `ArrowRight`, `ArrowUp`, `Enter`, `Escape`, `F8`, `F9`, `Space`, `Tab` |
 | `net/mp/together.ts` | `F5` |
+
+## Life gap pass (godot/gaps-life)
+
+This pass owns street/game props and window residents, automatic home remarks, animal capture/ecology,
+job walk-ups and actor twists, and the sound producers. Existing dock/lamp/mill/park piecework is retained;
+individual landmark jobs need evidence. Implementation and checked evidence are recorded in
+`docs/godot-gaps-life.md`; rows remain partial until the real-server checks pass.
