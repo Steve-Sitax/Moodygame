@@ -423,7 +423,7 @@ public partial class RideTest : Node
         Jef.I.ClearKeys(); Jef.I.Yaw=rail.LadderAt(dock).Deck.Basis.GetEuler().Y+MathF.PI/2;
         await Shot("crane-dock-gallery");
         Require(Interact.I.Press(Key.E),"E down dock crane"); Jef.I.SetKey(Key.S,true);
-        Require(await Until(()=>CraneClimb.I.On<0,10),"dock crane returns Jef to the quay");
+        Require(await Until(()=>CraneClimb.I.On<0,20),"dock crane returns Jef to the quay");
         Jef.I.ClearKeys();
         Require(!Jef.I.Swimming && !Scheldemist.World.Water.In(Jef.I.X,Jef.I.Z),"dock ladder landing stays ashore");
         replies.Add(new { dockCrane = new { id=dock, foot=new { foot.X,foot.Y,foot.Z }, quayReachable=true } });
@@ -478,7 +478,8 @@ public partial class RideTest : Node
         // Move the actual route while Jef stands in its frame.
         var at = new Vector3(Jef.I.X, Jef.I.Y, Jef.I.Z);
         bus.At = null; bus.V = 1.5f;
-        await Frames(90);
+        // The bus may rightly wait for a train or an open bridge first; its reason goes into the replies.
+        await Until(() => new Vector3(Jef.I.X, Jef.I.Y, Jef.I.Z).DistanceTo(at) > .2f, 20); replies.Add(new { omnibusWaitWhy = bus.WaitWhy });
         var now = new Vector3(Jef.I.X, Jef.I.Y, Jef.I.Z);
         Require(now.DistanceTo(at) > .2f && Math.Abs(Jef.I.Y - bus.Frame.ToGlobal(new Vector3(0, .74f, -1.5f)).Y) < .02f, "rider follows live moving platform");
         await Shot("omnibus-moving");

@@ -33,8 +33,8 @@ public partial class RideTest
     {
         MoverClock.Hold(13.75,1);var rail=Railway.I;var climb=CraneClimb.I;
         int id=Enumerable.Range(0,rail.LadderCount).First(i=>climb.FootOf(i)!=null);var foot=climb.FootOf(id)!.Value;Jef.I.Place(foot.X,foot.Z,rail.LadderAt(id).Face,.2f);climb.Up(id);Jef.I.SetKey(Key.W,true);
-        Require(await Until(()=>climb.OnLadder&&Jef.I.Y>2,15),"Jef climbs to real crane rungs");Jef.I.ClearKeys();var before=climb.Saved();await Shot("crane-rungs-before");
-        Require(before.Ladder&&before.Height>2&&before.Height<5.42f,"save captures ladder height rather than gallery coordinates");await SavedRide(api,"crane",()=>climb.On==id&&climb.OnLadder);
+        Require(await Until(()=>climb.OnLadder&&Jef.I.Y>3.4f,15),"Jef climbs to real crane rungs above the legs' stop height");Jef.I.ClearKeys();var before=climb.Saved();await Shot("crane-rungs-before");
+        Require(before.Ladder&&before.Height>3&&before.Height<5.42f,"save captures ladder height rather than gallery coordinates");await SavedRide(api,"crane",()=>climb.On==id&&climb.OnLadder);
         var after=climb.Saved();Require(Math.Abs(after.Height-before.Height)<.02f,"menu load restores the same rung height");Require(Math.Abs(Jef.I.Y-after.Height)<.02f,"restored rungs retain finite live feet");
         rail.RiderTestTravel(id);var at=new Vector2(Jef.I.X,Jef.I.Z);Require(await Until(()=>new Vector2(Jef.I.X,Jef.I.Z).DistanceTo(at)>.1f,15),"saved rungs carry Jef when the portal travels");await Shot("crane-rungs-restored");Jef.I.SetKey(Key.S,true);Require(await Until(()=>climb.On<0,15),"restored rung controls descend to the reachable foot");Jef.I.ClearKeys();Require(Jef.I.Drive==null&&!Jef.I.Swimming,"restored rung exit returns ordinary walking");
     }
