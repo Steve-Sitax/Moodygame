@@ -112,6 +112,7 @@ public partial class EventTest : Node
                 // No long calendar jump: later kinds reuse the same dev day after the previous event finished.
                 var plan = await api.DevEvent(kind); Check(plan.Ok, "engine refused the event: " + plan.Why); if (!plan.Ok) continue;
                 int soundBefore = Events.I!.SoundStarts, cueBefore = Events.I.CueStarts;
+                int galeBefore=Audio.LifeSound.I?.GaleStarts??0;
                 await Advance(api, 2);
                 var live = Events.I!.Find(plan.Id); Check(live != null && live.Event.Status == "running", "not running after the engine tick"); if (live == null) continue;
                 var ids = new List<string>(live.Event.People);
@@ -210,6 +211,7 @@ public partial class EventTest : Node
                 Check(guard < 24, "stage loop exceeded its bound");
                 // Night watch splits into independent patrols, including single-person groups.
                 Check(ids.Count == 0 || maxThere >= Math.Min(kind == "night_watch" ? 1 : 2, ids.Count), "nobody attended near an assigned target");
+                if(kind=="tempest")Check((Audio.LifeSound.I?.GaleStarts??0)>galeBefore,"great-storm live producers never started");
                 if (soundExpected) Check(Events.I.SoundStarts > soundBefore, "stage sound never started");
                 if (cuesExpected) Check(Events.I.CueStarts > cueBefore, "composed cues never started");
                 if (cuesExpected) Check(cueFired, "Soundscape did not fire a composed cue");
@@ -228,7 +230,7 @@ public partial class EventTest : Node
                     Check(TownLife.I.SootCount == 0, "expired soot remained");
                     rows.Add(new { kind = "soot", persisted = true, day2Opacity = 0.85f / 3 + 0.05f, expired = true });
                 }
-                rows.Add(new { kind, ended = true, propsEver, maxThere, released = ids.Count(id => town.ActionPerson(id)?.ActionHeld != true), reassigned = ids.Count(id => town.ActionPerson(id)?.ActionHeld == true), cueFired, soundStarts = Events.I.SoundStarts - soundBefore, cueStarts = Events.I.CueStarts - cueBefore });
+                rows.Add(new { kind, ended = true, propsEver, maxThere, released = ids.Count(id => town.ActionPerson(id)?.ActionHeld != true), reassigned = ids.Count(id => town.ActionPerson(id)?.ActionHeld == true), cueFired, galeStarts=(Audio.LifeSound.I?.GaleStarts??0)-galeBefore, soundStarts = Events.I.SoundStarts - soundBefore, cueStarts = Events.I.CueStarts - cueBefore });
                 GD.Print("eventtest finished " + kind);
             }
             if (only.Length == 0 || only.Contains("family_ui")) await FamilyUi();

@@ -154,3 +154,12 @@ This pass owns street/game props and window residents, automatic home remarks, a
 job walk-ups and actor twists, and the sound producers. Existing dock/lamp/mill/park piecework is retained;
 individual landmark jobs need evidence. Implementation and checked evidence are recorded in
 `docs/godot-gaps-life.md`; rows remain partial until the real-server checks pass.
+
+Life gap evidence (2026-10-04): six child games passed with their props and real motions; the marbles
+fixture uses the browser-equivalent forced game on a usable pitch. All six close pictures were inspected.
+Seven working trades passed equipment and movement checks (milk, bread, grinder, rags, coal, mussels, brooms).
+The upstairs resident appeared above 3 m and retreated. Automatic home entry passed once-per-day, exit and
+unchanged-money/needs checks. Wildlife and real walk-up evidence is in `godot-gaps-life.md`.
+The shader pass reports 0 new kinds and 0 problems. Full sound: 158 rows, all wiring true, mean 0.0249 ms,
+p95 0.0373 ms; failures are a far-off bell 5.3 dB above prediction and one mixer frame at 2.081 ms.
+The sound gate is not claimed as passing. Final updated picture/job checks are pending.

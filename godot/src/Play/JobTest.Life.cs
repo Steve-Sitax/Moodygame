@@ -24,14 +24,35 @@ public partial class JobTest
         Stand(post.X+1.5f,post.Z,post.X,post.Z);
         yield return When(()=>run.Briber?.Present==true,75,"the real briber draws");
         if(run.Briber is not {Present:true} actor){Fail("briber did not arrive during the watch");yield break;}
-        var pos=actor.Position;Stand(pos.X+1.5f,pos.Z,pos.X,pos.Z);
-        yield return When(()=>run.BriberState=="waiting",10,"briber stops beside Jef");
+        yield return When(()=>run.BriberState=="waiting",40,"briber stops beside Jef");
+        var pos=actor.Position;LookAt(pos.X,pos.Z);
+        Check(actor.Distance(Jef.I.X,Jef.I.Z)<3,"the briber did not walk into reach");
         Note("resident",actor.Who);Note("name",actor.Name);yield return .5;ClearDay();yield return .5;Shot("watch-briber");
         Check(Interact.I.Find().Any(a=>a.Text.Contains("take his coin")),"no bribe action beside the actor");
         Check(Interact.I.Press(Key.F),"F did not take the bribe");
+        Stand(post.X+1.5f,post.Z,post.X,post.Z);
         yield return When(()=>Jobs.I.LastDone?.Job.Id==id,task.DurationS+10,"server settles actor-driven watch");
         Check(Jobs.I.LastDone?.Job.Id==id,"actor watch did not settle");if(Jobs.I.LastDone is {} done)Note("settlement",Settled(done));
         Check(actor.Gone,"job actor remains reserved after settlement");
+    }
+    private IEnumerable<object?> ActorStrangerStep()
+    {
+        Step("actor-stranger","a real stranger takes the carried job crate and the server settles the sale");
+        var api=ServerLink.I!.Api!;var fixture=api.LifeJobFixture("carry","stranger_offer","crane_foot","vismarkt");
+        yield return When(()=>fixture.IsCompleted,10,"stranger job fixture");if(!fixture.IsCompletedSuccessfully){Fail("stranger fixture failed");yield break;}
+        int id=fixture.Result.GetProperty("id").GetInt32();var state=api.Jobs();yield return When(()=>state.IsCompleted,10,"stranger offer");if(!state.IsCompletedSuccessfully){Fail("stranger offers failed");yield break;}GameState.I.Apply(state.Result);
+        var take=Jobs.I.TakeJob(GameState.I.Jobs.First(j=>j.Id==id));yield return When(()=>take.IsCompleted&&Jobs.I.Active?.Id==id,10,"stranger job taken");
+        if(Jobs.I.Run is not HaulRun run){Fail("haul run absent");yield break;}
+        var task=JobTask.Of(Jobs.I.Active!)!;var from=Spots.Get(task.From)!;Stand(from.X+2,from.Z+2,from.X,from.Z);
+        yield return When(()=>Goods.I.Items.Any(i=>i.JobId==id),15,"job crate laid down");
+        var item=Goods.I.Items.FirstOrDefault(i=>i.JobId==id);if(item==null){Fail("no stranger job crate");yield break;}
+        Stand(item.X,item.Z+1.25f,item.X,item.Z,Down(1.25f));yield return .6;
+        Check(Interact.I.Press(Key.E)&&Goods.I.Carried==item,"cannot lift stranger job crate");
+        yield return When(()=>run.Stranger?.Present==true,90,"the real stranger draws");if(run.Stranger is not {Present:true} actor){Fail("stranger did not arrive");yield break;}
+        yield return When(()=>!actor.Moving,45,"the stranger reaches his meeting place");
+        var pos=actor.Position;Stand(pos.X+1.6f,pos.Z,pos.X,pos.Z,.35f);ClearDay();yield return .7;Shot("haul-stranger");Note("resident",actor.Who);
+        Check(Interact.I.Find().Any(a=>a.Text.Contains("sell it to the stranger")),"no stranger sale beside the actor");Check(Interact.I.Press(Key.F),"F did not sell the original crate");
+        yield return When(()=>Jobs.I.LastDone?.Job.Id==id,10,"server settles stranger sale");Check(Goods.I.Carried==null,"the sold crate remains in Jef's hands");if(Jobs.I.LastDone is {} done)Note("settlement",Settled(done));else Fail("stranger job did not settle");
     }
     private IEnumerable<object?> WindowStep()
     {

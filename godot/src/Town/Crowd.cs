@@ -820,13 +820,13 @@ public sealed class Crowd
             // Do not step into a body. An existing overlap may still separate, including an exact coincidence.
             if (distance < gap * gap && distance <= (p.X - q.X) * (p.X - q.X) + (p.Z - q.Z) * (p.Z - q.Z)) return false;
         }
-        if (map.Free(x, z)) return true;
-        if (map.Free(p.X, p.Z)) return false;
+        if (map.FreeFor(p, x, z)) return true;
+        if (map.FreeFor(p, p.X, p.Z)) return false;
         // (the browser lets a thinner body through there; the bake has one body's width: towards ground a body fits on within a metre)
         double dx = x - p.X, dz = z - p.Z, d = Hyp(dx, dz);
         if (d < 1e-6) return false;
         for (int k = 1; k <= 4; k++)
-            if (map.Free(p.X + dx / d * 0.25 * k, p.Z + dz / d * 0.25 * k)) return true;
+            if (map.FreeFor(p, p.X + dx / d * 0.25 * k, p.Z + dz / d * 0.25 * k)) return true;
         return false;
     }
 
@@ -1061,7 +1061,7 @@ public sealed class Crowd
     private static readonly double[] SlideAngles = { 0.6, -0.6, 1.2, -1.2 };
     private bool TryMove(Puppet p, double x, double z, bool lastLeg, double ux, double uz) => StepFree(p, x, z)
         && (lastLeg || grid.IsOpen(x, z) || !grid.IsOpen(p.X, p.Z))
-        && (p.Nose == 0 || map.Free(x + ux * p.Nose, z + uz * p.Nose));
+        && (p.Nose == 0 || map.FreeFor(p, x + ux * p.Nose, z + uz * p.Nose));
     private (double x, double z)? Slide(Puppet p, double ux, double uz, double step, bool lastLeg)
     {
         foreach (double a in SlideAngles)

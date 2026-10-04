@@ -447,3 +447,13 @@ The download has no browser client, multiplayer download helper, AI software, lo
 included; the G5 sound code and other G3/G4/G6 game parts arrive when their worktrees merge. This is the current
 port, not yet the full browser game. The draft `.github/workflows/godot-release.yml` builds zip artifacts on `v*`
 tags, with an agreed shared bake supplied by URL and SHA-256; it does not bake or publish a Release.
+
+### Townspeople, job and sound gaps
+
+The `godot/gaps-life` increments add physical walk-ups and job actors, automatic daily home remarks,
+capture/ecology, street game kits/lanes, upstairs residents and travelling trade equipment.
+`Audio/LifeSound` connects live movers, room floors/occupancy, ground puddles, trades, animal sounds
+and great-storm levels/gusts/shelter. Existing materials are prepared at load; the shader check
+reports zero new kinds. `docs/godot-gaps-life.md` records behavior numbers, pictures, unresolved
+checks and the audio worker shutdown fix. Run `node tools/godot/life-check.mjs <mode>` on ports
+8911–8914; sound tests use Dummy output and the wrapper removes its temporary database.

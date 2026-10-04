@@ -65,9 +65,7 @@ The gaps-life increment connects the walk-up executor for trouble speakers and t
 
 Earlier handoff (superseded for the walk-up executor):
 The card waits for a nearby speaker or the browser's ninety-second fallback when no walk-up is connected;
-the self-test calls the arrival hook to test the card and real server choices. NPC routines/hired hands,
-handcarts, dockers' piecework and night boxes still need their parts. The merged quay heaps and their sacks
-remain scenery. The broader deeds layer (food theft, picking pockets, lanterns, velocipedes and police pursuit)
+the self-test calls the arrival hook to test the card and real server choices. NPC routines/hired hands, handcarts, dockers' piecework and night boxes are now supplied by the merged people, deeds, places and transport parts. The places handoff verifies dock piecework (7 c), seven lamps (110 c), two mill turns (60 c) and ten park piles (35 c). The broader deeds layer (food theft, picking pockets, lanterns, velocipedes and police pursuit)
 is not ported here; lifting and promptly returning an owner's goods already report the witness to the server.
 A persistent numerical trust HUD is not added: settlement shows its delta, and pockets show the server's
 words about Jef's good name.

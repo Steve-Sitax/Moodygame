@@ -446,6 +446,7 @@ public partial class Lock : Node
                 return;
             }
             want = true;
+            SoundSignal(t);
             mode = Math.Abs(Tide.River - Tide.Dock) < LevelWindow ? "level" : "locked";
         }
         bool nearOpen = bridgeAngle <= OpenBridge + 0.02f && (mode == "level" ? gateOpen[0] >= 0.98f && gateOpen[1] >= 0.98f : gateOpen[near] >= 0.98f);

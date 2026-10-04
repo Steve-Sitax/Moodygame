@@ -287,6 +287,7 @@ public partial class Bridges : Node
             {
                 ctl.Want++;
                 p.Asked.Add(ctl.Key);
+                SoundSignal(p);
             }
             else if (!need && asked)
             {

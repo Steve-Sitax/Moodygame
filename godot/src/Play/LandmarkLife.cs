@@ -29,9 +29,10 @@ public partial class LandmarkLife : Node
         public Vector3 World(float x, float z, float y = 0) => Origin + new Vector3(x * MathF.Cos(Yaw) + z * MathF.Sin(Yaw), y, -x * MathF.Sin(Yaw) + z * MathF.Cos(Yaw));
         public Vector2 Local(float x, float z) { float dx = x - Origin.X, dz = z - Origin.Z; return new(dx * MathF.Cos(Yaw) - dz * MathF.Sin(Yaw), dx * MathF.Sin(Yaw) + dz * MathF.Cos(Yaw)); }
         public Vector3 Mark(string name) { var m = Plan.GetProperty("marks").GetProperty(name); return World(m.GetProperty("x").GetSingle(), m.GetProperty("z").GetSingle(), m.TryGetProperty("y", out var y) ? y.GetSingle() : 0); }
-        public bool Inside()
+        public bool Inside() => Contains(new(Jef.I.X,Jef.I.Y,Jef.I.Z));
+        public bool Contains(Vector3 point)
         {
-            var p = Local(Jef.I.X, Jef.I.Z); float feet = Jef.I.Y - Origin.Y;
+            var p = Local(point.X, point.Z); float feet = point.Y - Origin.Y;
             if (Id == "cathedral")
             {
                 var grid = Plan.GetProperty("freeGrid"); float step = grid.GetProperty("step").GetSingle(); int x = (int)MathF.Round((p.X - grid.GetProperty("x").GetSingle()) / step), z = (int)MathF.Round((p.Y - grid.GetProperty("z").GetSingle()) / step); var rows = grid.GetProperty("rows");
@@ -65,6 +66,7 @@ public partial class LandmarkLife : Node
     public SermonReply? SermonResult { get; private set; }
     public Vector3 Point(string id, string mark) => halls.Find(h => h.Id == id)!.Mark(mark);
     public string? Here => here?.Id;
+    public string? RoomAt(Vector3 point){foreach(var hall in halls)if(hall.Contains(point))return hall.Id;return null;}
     public bool ConfessionOpen => here?.Id=="cathedral" && here.State?.Confession is {} c && c.ValueKind==JsonValueKind.Object && c.TryGetProperty("open",out var o) && o.GetBoolean();
     public Vector3 LocalPoint(string id,float x,float z)=>halls.Find(h=>h.Id==id)!.World(x,z);
     public readonly List<(string Hall,string Label,Vector3 At,float Floor)> Looks=new();

@@ -18,6 +18,8 @@ public partial class Townspeople
     private static readonly string[] BoysGames = { "tag", "hoops", "tops", "marbles", "hoops", "tag" };
     private readonly Dictionary<string, Browse> browsing = new();
     private readonly Dictionary<string, (Puppet puppet, string key, Node3D prop)> lifeProps = new();
+    private readonly Dictionary<string,string> forcedGames=new();
+    internal void ForceGame(string place,string? kind){if(kind==null)forcedGames.Remove(place);else forcedGames[place]=kind;foreach(var s in sims)if(s.Goal.Place==place)s.GameDay=-1;}
     private sealed class Browse
     {
         public string Phase = "pick";
@@ -52,6 +54,7 @@ public partial class Townspeople
 
     public string GameOf(Sim s)
     {
+        if(forcedGames.TryGetValue(s.Goal.Place??"",out var forced))return s.GameKind=forced;
         int slice = (int)Math.Floor(hour / 2);
         if (s.GameDay == day && s.GameSlice == slice && s.GamePlace == (s.Goal.Place ?? "")) return s.GameKind;
         s.GameDay = day; s.GameSlice = slice; s.GamePlace = s.Goal.Place ?? "";
@@ -69,7 +72,7 @@ public partial class Townspeople
             string act = seg.Act, where = seg.Where;
             if (where == "home" ? now.Act != "home" : now.Act != "work") continue;
             if (Raining() && act is "scrub" or "lace" or "knit") return null;
-            // The upper-floor window needs its own room opening; leave its resident inside until that is ported.
+            // Window figures are handled in StreetWindows; their ordinary resident remains indoors.
             return act == "window" ? null : act;
         }
         return null;
@@ -167,7 +170,7 @@ public partial class Townspeople
             if (GodotObject.IsInstanceValid(old.prop)) old.prop.QueueFree();
             lifeProps.Remove(s.R.Id);
         }
-        var prop = ModelLibrary.Get(model, LifeLook)?.Copy(name);
+        var prop = MakeLifeKit(s, name) ?? ModelLibrary.Get(model, LifeLook)?.Copy(name);
         if (prop == null) return;
         prop.Position = offset;
         s.P!.Group.AddChild(prop);
@@ -187,12 +190,15 @@ public partial class Townspeople
         }
         if (g.Mode != "market") browsing.Remove(s.R.Id);
         if (g.Mode == "market" && BrowseStep(s, dt)) return true;
+        AnimateLifeKit(s, dt);
         if (g.Mode == "play" && s.R.Age < 16 && p.Human.Scale < 0.9)
         {
-            string game = GameOf(s);
+            string game = ActualGame(s);
             if (game == "tag") return false;
+            if(game=="rope") {LifeProp(s,s.PropKey,"lively",game,Vector3.Zero);return RopeStep(s,dt);}
+            if(game is "hopscotch" or "tops" or "marbles") {LifeProp(s,s.PropKey,"lively",game,Vector3.Zero);return ChalkStep(s,game,dt);}
             if (Crowd!.PuppetBusy(p)) return true;
-            if (game is "hoops" or "tops") LifeProp(s, s.PropKey, "lively", game == "hoops" ? "hoop" : "top", new Vector3(0, 0, 0.5f));
+            if (game != "tag") LifeProp(s, s.PropKey, "lively", game, Vector3.Zero);
             if ((s.Wait -= dt) <= 0)
             {
                 Crowd.PuppetStand(p, game == "rope" ? "rope" : game == "hopscotch" ? "hop" : game == "marbles" ? "crouch" : "idle", g.Yaw);
@@ -205,6 +211,10 @@ public partial class Townspeople
         {
             if (g.Motion == "scrub") LifeProp(s, s.Key, "lively", "bucket", new Vector3(0.5f, 0, 0));
             if (g.Motion == "lace") LifeProp(s, s.Key, "lively", "chair", Vector3.Zero);
+            if (g.Motion == "smoke") LifeProp(s, s.Key, "lively", "pipe", Vector3.Zero);
+            if (g.Motion == "wash") LifeProp(s, s.Key, "lively", "wash", Vector3.Zero);
+            if (g.Motion == "cross") LifeProp(s, s.Key, "lively", "flowers", Vector3.Zero);
+            if (g.Place?.StartsWith("cards:") == true) LifeProp(s, s.Key, "lively", "cards", Vector3.Zero);
             if (s.R.Trade == "beggar") { Crowd.PuppetStand(p, "beg", g.Yaw); return true; }
         }
         return false;

@@ -332,6 +332,7 @@ public partial class JobTest : Node
         if (Only("walkup")) foreach(var s in WalkupStep()) yield return s;
         if (Only("home-remark")) foreach(var s in HomeRemarkStep()) yield return s;
         if (Only("window")) foreach(var s in WindowStep()) yield return s;
+        if (Only("actor-stranger")) foreach(var s in ActorStrangerStep()) yield return s;
         if (Only("actor-twist")) foreach(var s in ActorTwistStep()) yield return s;
         if (Only("carry"))
             foreach (var s in CarryStep())
@@ -712,9 +713,9 @@ public partial class JobTest : Node
         Note("task_card", jobs.TaskText);
         Note("pile", Goods.I.Items.Count(i => i.JobId == job.Id));
         Shot("5-watch");
+        var before = jobs.LastDone;
         if (Only("trouble"))
             foreach (var s in TroubleStep()) yield return s;
-        var before = jobs.LastDone;
         Engine.TimeScale = 8;
         yield return When(() => jobs.LastDone != before, task.DurationS + 20, "the bell and the server's settlement");
         Engine.TimeScale = 1;
@@ -738,7 +739,7 @@ public partial class JobTest : Node
         yield return When(() => load.IsCompleted, 10, "the trouble fetched");
         var t = Trouble.I.View;
         if (t == null) { Fail("the server did not send trouble"); yield break; }
-        Trouble.I.Show(t); // the walk-up hook: its speaker is before Jef
+        yield return When(()=>Trouble.I.IsOpen,100,"the trouble speaker reaches Jef");
         yield return 0.6;
         Check(Trouble.I.IsOpen && Jef.I.Frozen && Dialogs.I!.Top?.DialogName == "trouble", "the trouble card is not on top");
         Dialogs.I!.SendKey("Escape");
@@ -757,8 +758,8 @@ public partial class JobTest : Node
             Note("server_step", Trouble.I.LastReply);
             Shot("5-trouble-step");
         }
-        var post = Spots.Get(JobTask.Of(Jobs.I.Active!)!.Post)!;
-        Stand(post.X - 2.5f, post.Z - 1.5f, post.X, post.Z, Down(3));
+        var post = Jobs.I.Active is {} active ? Spots.Get(JobTask.Of(active)?.Post) : null;
+        if(post!=null)Stand(post.X - 2.5f, post.Z - 1.5f, post.X, post.Z, Down(3));
     }
 
     // ------------------------------------------------------------------ the end

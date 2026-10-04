@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- In Godot, street games, travelling trades and upstairs neighbours have their own visible props and movements; traffic, rooms, puddles, animals and the great storm now drive placed sounds.
+
 - Watch and haul job twists now bring townspeople to Jef: bribes, theft, parcel offers and foremen use real actors and the original goods.
 
 - Closing Godot during sound loading now lets the audio workers finish before the engine tears down, preventing a crash on very quick exits.

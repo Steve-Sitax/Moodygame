@@ -3,9 +3,11 @@
 Work in progress on `godot/gaps-life`. Source of behavior: the browser's walkup/runs/lively/animals,
 park ecology, home entry and sound producers. No gameplay numbers move out of the Node server.
 
-Open: street/game props, window residents, home entry remarks, wildlife capture/ecology,
-walk-up trouble and haul/watch actors, producer sound coverage, exact room/puddle sound,
-storm gust/shelter, individual landmark work proof, and final people/job/sound checks.
+Implemented: street/game props and window residents, home entry remarks, wildlife capture/ecology,
+real walk-ups and haul/watch actors, sound producers, room/puddle sound and storm gust/shelter.
+Verified behavior and explicit remaining proof are listed below. Individual thief/foreman branches,
+complete trade customer/door choreography and individual landmark work still need wider proof.
+The whole-game frame gate and full sound gate currently fail as recorded below.
 
 Wildlife increment verified on the shared next bake, fresh seed 1873, no AI, port 8911, Dummy audio driver:
 74 animals (43 ducks, 9 swans, 6 geese, 10 squirrels, 6 songbirds); six capture/guard/cooldown/visibility
@@ -38,3 +40,20 @@ walked up, offered 50 c through F, and carried away the original `job:11:2` crat
 The server settled 40 c pay, 50 c extra, trust -1 and final money 140 c.
 The close watch-briber picture was inspected. Stranger, thief and foreman behavior is implemented;
 those branches still need individual end-to-end checks.
+
+Full job check: 405.8 seconds, 22 steps; all 21 gameplay steps passed. The stranger was `wu08`
+and the original one-crate sale settled 0 c pay +35 c extra, trust 0. The briber was `r144`;
+the server correctly penalised the fixture leaving its post (0 c pay +50 c extra, trust -2).
+The real weather-trouble speaker reached Jef, its choice and chandlery errand were accepted.
+The separate frame step failed at mean 9.48 ms / p95 12.76 ms against 5 ms. No optimisation pass
+is done in this features-first branch. A stricter focused briber arrival check is pending.
+
+Full sound check: 158 rows, every wiring predicate true, 49 recordings loaded, no decoder failures.
+Mean 0.0249 ms, p95 0.0373 ms, 28,619 sampled frames. Two failures remain: the unplaced bell
+was 5.3 dB above prediction and one mixer frame took 2.081 ms (0.3 ms gate). This full sound gate
+is not claimed as passing. The pure source parity checks passed again: 1,200 puddles (0 error),
+600 gusts (max error 6.217e-15). TypeScript/client production build and server typecheck pass.
+
+Restart check: the focused 48-row sound hook suite kept all producer wiring true and loaded the same
+49 recordings, but a dray-wheel start took 0.365 ms against the 0.3 ms frame gate. The test
+reported that one frame as its only problem. This remains an open timing gate, not a wiring failure.

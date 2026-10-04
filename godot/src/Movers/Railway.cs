@@ -166,6 +166,7 @@ public partial class Railway : Node
         public const float Face = -311, OpenS = 1.9f, OpenN = 6.1f, LeafW = (OpenN - OpenS) / 2, Swing = MathF.PI * 0.53f, Reach = LeafW + 0.1f;
         public float Amount;
         public bool WantOpen;
+        private bool soundOpening;
         private readonly Copies? leaves;
         private readonly AnimatableBody3D[] bodies = new AnimatableBody3D[2];
         private float shown = -1;
@@ -201,6 +202,8 @@ public partial class Railway : Node
 
         public void Update(float dt)
         {
+            if (WantOpen && !soundOpening && Main.I.Arg("soundtest")=="") Scheldemist.Audio.Soundscape.I?.GateBell(Face, (OpenS + OpenN) / 2);
+            soundOpening = WantOpen;
             float target = WantOpen ? 1 : 0;
             var jef = Jef.I;
             bool inSweep = jef != null && jef.X > Face - 0.3f && jef.X < Face + Reach + 0.4f && jef.Z > OpenS - 0.4f && jef.Z < OpenN + 0.4f;
@@ -253,6 +256,8 @@ public partial class Railway : Node
 
     private sealed class Crane
     {
+        public bool SoundHoisting;
+        public readonly Scheldemist.Audio.Emitter SoundEmitter = new() { Kind = "crane", Y = 6 };
         public Node3D Obj = null!, Jib = null!;
         public int Index;
         public float X, Z, Yaw;
@@ -739,6 +744,7 @@ public partial class Railway : Node
             if (s1 && s2)
             {
                 c.Mode = "travel";
+                if(Main.I.Arg("soundtest")=="") Scheldemist.Audio.Soundscape.I?.GateBell(c.X, c.Z);
                 c.Stuck = 0;
             }
             return true;
@@ -856,11 +862,18 @@ public partial class Railway : Node
             case OpT.Hoist:
             {
                 float d = op.V - c.Hy;
+                if (!c.SoundHoisting && Math.Abs(d) > .5f)
+                {
+                    c.SoundHoisting = true;
+                    c.SoundEmitter.X = c.X; c.SoundEmitter.Z = c.Z;
+                    if(Main.I.Arg("soundtest")=="") Scheldemist.Audio.Soundscape.I?.CraneWork(c.SoundEmitter);
+                }
                 float ease = Math.Clamp(Math.Abs(d) / 0.6f, 0.25f, 1);
                 TryMove(c, c.Pos, c.A, c.Hy + Math.Sign(d) * Math.Min(Math.Abs(d), Hoist * ease * dt));
                 if (Math.Abs(op.V - c.Hy) < 0.005f)
                 {
                     c.Hy = op.V;
+                    c.SoundHoisting = false;
                     c.Ops.RemoveAt(0);
                 }
                 break;
@@ -1274,6 +1287,7 @@ public partial class Railway : Node
         }
         else gate.WantOpen = false;
         gate.Update(dt);
+        SoundRailJoints();
         trainCaps.Clear();
         if(state!="shed")
         {

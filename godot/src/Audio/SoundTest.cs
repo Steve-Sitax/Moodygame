@@ -70,6 +70,8 @@ public partial class Soundscape
             ["speakers stayed muted"] = Speaker == 0,
             ["worker callbacks preserve FIFO under contention"] = CheckReadyQueue(),
         };
+        if(LifeSound.I is {} life)foreach(var pair in life.WiringChecks())checks[pair.Key]=pair.Value;
+        else checks["life producer hooks loaded"]=false;
         foreach (var room in rooms)
         {
             var local = room.box.GetCenter();
@@ -297,6 +299,9 @@ public partial class Soundscape
             Add("wiring", "Jef's landing hook", () => s.onLand?.Invoke(), 0.9);
             Add("wiring", "bubble voice hook", () => Scheldemist.Talks.Bubbles.I?.Speak?.Invoke(Front(2), "m", 35, 1), 1.5);
             Add("wiring", "dice sound hook", () => Scheldemist.Talks.Dice.I?.Sfx?.Invoke("thud_wood"), 0.9);
+            Add("life", "live horse snort producer",()=>LifeAnimalSounds.Snort(Front(3,1.5)),1.2);
+            Add("life", "cat threat hiss producer", () => LifeAnimalSounds.Hiss(L.X,L.Z-2), 1.2);
+            Add("life", "bird flight wings producer", () => LifeAnimalSounds.Wings(L.X,.5,L.Z-2), 1.5);
             var v = L;
             // ---- what Godot does to a sound of known level (the numbers PanMakeup and the reverb's level come from)
             Add("measure", "tone at the ear (no place)", () => Tone(s.FlatSpot("Effects")), 0.9);
