@@ -181,7 +181,7 @@ public static class OmnibusLines
         int calls = 0;
         foreach (var st in Stops)
             if (st.Line == line.Id) calls += path.Passes(st.X, st.Z, 1.5f).Count;
-        int roundMin = (int)Math.Round((path.Length / PlanSpeed + calls * PlanStopS) / RealSPerMin);
+        int roundMin = (int)Math.Floor((path.Length / PlanSpeed + calls * PlanStopS) / RealSPerMin + .5);
         int headway = Math.Max(10, (int)Math.Ceiling(roundMin / (double)line.Buses / 5) * 5);
         return timings[line.Id] = (roundMin, headway);
     }
@@ -219,7 +219,7 @@ public static class OmnibusLines
 /// shut and for the goods train on the rails it crosses; a bridge does not open under it. The wheels turn, the
 /// fore-carriage steers, the horses walk or trot. Solid for Jef.
 ///
-/// Not ported yet: Jef's ride (game/ride.ts), backing off when blocked and the town's trip-owner connection.
+/// Not ported yet: Jef's ride (game/ride.ts) and the town's trip-owner connection.
 /// </summary>
 [GamePart(46)]
 public partial class Omnibus : Node
@@ -237,6 +237,8 @@ public partial class Omnibus : Node
         public List<(float S, OmnibusLines.Stop Stop)> StopAt = new();
         public int Index, NextI;
         public float S, V, DwellT, RollR, RollF, Gait, Yaw, ForeYaw, HorseYaw;
+        public float BlockT, BackM;
+        public Godot.Collections.Array<Rid> Exclude=new();
         public OmnibusLines.Stop? At;
         public double? DepartAt;
         public string WaitWhy = "";
@@ -313,6 +315,7 @@ public partial class Omnibus : Node
                 };
                 b.Body = NewBox($"omnibus_body_{b.Index}", new Vector3(2.0f, 2.6f, 6.2f));
                 b.Team = NewBox($"omnibus_team_{b.Index}", new Vector3(2.2f, 2.0f, 3.2f));
+                b.Exclude.Add(b.Body.GetRid()); b.Exclude.Add(b.Team.GetRid());
                 Crew(b);
                 if (World.Lights.I != null) b.Lights = Enumerable.Range(0, 2).Select(i => World.Lights.I.AddMoving($"omnibus {b.Index} lamp {i}", new Color(1, 0.72f, 0.35f), 0.85f)).ToArray();
                 Zones(b);
@@ -488,6 +491,7 @@ public partial class Omnibus : Node
     {
         var lp = b.Loop;
         b.WaitWhy = "";
+        float queueGap=float.PositiveInfinity;
         float nose = b.S + Nose;
         float lim = lp.Wrap(b.StopAt[b.NextI].S - b.S);
         void Bridge(Bridges.Rect rect, bool closed)
@@ -538,6 +542,7 @@ public partial class Omnibus : Node
             if (o.Line == b.Line)
             {
                 float gap = lp.Wrap(o.S + Tail - nose);
+                queueGap=Math.Min(queueGap,gap);
                 if (gap < 14 && gap - 2.5f < lim)
                 {
                     lim = Math.Max(0, gap - 2.5f);
@@ -555,6 +560,7 @@ public partial class Omnibus : Node
                 {
                     float dy = o.Yaw - lp.Yaw(nose + dd);
                     float turn = Math.Abs(MathF.Atan2(MathF.Sin(dy), MathF.Cos(dy)));
+                    if(turn<.8f) queueGap=Math.Min(queueGap,dd);
                     if (turn < 0.8f && dd - 2.5f < lim)
                     {
                         lim = Math.Max(0, dd - 2.5f);
@@ -573,7 +579,31 @@ public partial class Omnibus : Node
                 if(new Vector2((float)p.X-pa.X,(float)p.Z-pa.Y).Length()<1.1f) {lim=Math.Min(lim,Math.Max(0,dd-1.5f)); b.WaitWhy="people"; break;}
             }
         }
+        foreach(float dd in AheadSamples)
+            if(!Free(b,lp.At(nose+dd),.5f))
+            {
+                if(dd<queueGap-.6f) {lim=Math.Min(lim,Math.Max(0,dd-3)); b.WaitWhy="blocked";}
+                break;
+            }
         return lim;
+    }
+
+    private readonly PhysicsShapeQueryParameters3D freeQuery=new() {Shape=new SphereShape3D(),CollisionMask=Solid.Layer,Margin=0};
+    private static readonly float[] AheadSamples={1.2f,2.6f,4f},BehindSamples={.8f,2f,3.2f};
+    private bool Free(Bus b,Vector2 p,float radius)
+    {
+        freeQuery.Exclude=b.Exclude; ((SphereShape3D)freeQuery.Shape).Radius=radius;
+        freeQuery.Transform=new Transform3D(Basis.Identity,new Vector3(p.X,.9f,p.Y));
+        return Main.I.View.FindWorld3D().DirectSpaceState.IntersectShape(freeQuery,1).Count==0;
+    }
+    private bool BehindClear(Bus b)
+    {
+        foreach(float dd in BehindSamples)
+        {
+            var p=b.Loop.At(b.S+Tail-dd);
+            if(!Free(b,p,.6f) || Jef.I is { } j && new Vector2(j.X-p.X,j.Z-p.Y).Length()<1.6f) return false;
+        }
+        return true;
     }
 
     private static double NowMin => (Math.Max(1, MoverClock.Day) - 1) * 1440 + MoverClock.HourF * 60;
@@ -606,7 +636,7 @@ public partial class Omnibus : Node
         if (b.At != null)
         {
             b.V = 0;
-            b.DwellT -= dt;
+            if(!Passengers(b).Any(p=>p.State=="out") && !waiters.Any(w=>w.Bus==b)) b.DwellT -= dt;
             if (b.DwellT <= 0 && !waiters.Any(w=>w.Bus==b) && OnTime(b))
             {
                 b.DepartAt = null;
@@ -614,9 +644,19 @@ public partial class Omnibus : Node
                 b.NextI = (b.NextI + 1) % b.StopAt.Count;
             }
         }
+        else if(b.BackM>0)
+        {
+            b.V=0; float ds=Math.Min(.9f*dt,b.BackM);
+            if(BehindClear(b)) {b.S=lp.Wrap(b.S-ds); b.BackM-=ds; b.RollR-=ds/RRear; b.RollF-=ds/RFront;}
+            else b.BackM=0;
+            b.WaitWhy="backing";
+        }
         else
         {
             float r = Room(b);
+            if(r<=.01f && b.WaitWhy is "blocked" or "train") b.BlockT+=dt; else b.BlockT=0;
+            bool inRails=b.Zones.Any(z=>lp.Wrap(b.S+Nose-z.S0)<lp.Wrap(z.S1-z.S0)+(Nose-Tail)+1);
+            if(b.BlockT>(inRails?8:b.WaitWhy=="train"?float.PositiveInfinity:60)) {b.BlockT=0; b.BackM=9;}
             float vmax = Cruise;
             for (int dd = 0; dd <= 10; dd += 2)
             {
@@ -769,7 +809,7 @@ public partial class Omnibus : Node
             Name = "omnibus_at_a_stop",
             Hour = 12,
             Gap = 9,
-            MaxWait = 20,
+            MaxWait = 60,
             MinMove = 0.5,
             Start = () =>
             {
@@ -780,7 +820,7 @@ public partial class Omnibus : Node
                 pick.V = 2;
                 FindNext(pick);
             },
-            Ready = () => pick?.At?.Id == "rijnkaai" && pick.DwellT > 5,
+            Ready = () => pick?.At?.Id == "rijnkaai" && pick.DwellT > 5 && !waiters.Any(w=>w.Bus==pick) && !Passengers(pick).Any(p=>p.State=="out"),
             Where = () => pick == null ? (Vector3.Zero, 0, "no omnibus at a stop") : (new Vector3(pick.Pa.X, 0, pick.Pa.Y), pick.S, $"the {pick.Line.Board} omnibus {(pick.At != null ? "stands at " + pick.At.Name : "has left for " + pick.StopAt[pick.NextI].Stop.Name)}"),
             View = () =>
             {
@@ -790,6 +830,22 @@ public partial class Omnibus : Node
                 var at = new Vector3(pick.Pa.X, 1.4f, pick.Pa.Y) + f * 2;
                 return (at - f * 6 - side * 9 + Vector3.Up * 2.5f, at);
             },
+        });
+        AnimatableBody3D? obstacle=null;
+        MoversTest.Add(new MoversTest.Probe
+        {
+            Name="omnibus_backs_off",Hour=12,Gap=3,MaxWait=10,
+            Start=()=>
+            {
+                pick=buses[0]; pick.S=Enumerable.Range(0,pick.Loop.X.Length).MinBy(i=>new Vector2(pick.Loop.X[i]-10,pick.Loop.Z[i]-8.3f).LengthSquared())*OmnibusLines.LoopStep; pick.At=null; pick.V=0; pick.BackM=0; pick.BlockT=60.1f;
+                FindNext(pick); Place(pick,0);
+                var p=pick.Loop.At(pick.S+Nose+1.2f); obstacle=NewBox("test_lane_obstacle",Vector3.One); obstacle.Position=new Vector3(p.X,0,p.Y);
+            },
+            Ready=()=>pick?.BackM>8,
+            Where=()=> (new Vector3(pick!.Pa.X,0,pick.Pa.Y),pick.S,"the omnibus "+pick.WaitWhy),
+            View=()=>{var f=new Vector3(MathF.Sin(pick!.Yaw),0,MathF.Cos(pick.Yaw)); var side=new Vector3(f.Z,0,-f.X); var p=new Vector3(pick.Pa.X,1.4f,pick.Pa.Y)+f*2.5f;return (p+f*8-side*7+Vector3.Up*2.2f,p);},
+            Check=()=>pick!.WaitWhy=="backing"?"":"the omnibus did not back off",
+            End=()=>{obstacle?.QueueFree();pick!.BackM=0;pick.BlockT=0;}
         });
         MoversTest.Add(new MoversTest.Probe
         {

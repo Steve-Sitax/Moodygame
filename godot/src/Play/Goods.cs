@@ -67,6 +67,8 @@ public partial class Goods : Node
     public event Action<object, GoodsReply>? Answered;
     public IEnumerable<Item> Items => all.Values.Where(i => i.S.Lies);
     public IReadOnlyDictionary<string, Item> All => all;
+    /// <summary>The mover that shows goods on a cart. False leaves them to another carrier.</summary>
+    public Func<Item, bool>? ShowHeld { get; set; }
 
     /// <summary>The server took it out of Jef's hands (refused the lift, someone was quicker): the item and why.</summary>
     public event Action<Item, string>? Lost;
@@ -445,6 +447,7 @@ public partial class Goods : Node
     /// <summary>In another's hands or on a cart: shown by the part that walks him (not yet here).</summary>
     private void ToHeld(Item it)
     {
+        if (ShowHeld?.Invoke(it) == true) { Solidify(it, false); return; }
         if (it.Obj == null) return;
         Solidify(it, false);
         if (it.Obj.GetParent() != root) it.Obj.Reparent(root, false);
