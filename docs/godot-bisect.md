@@ -27,8 +27,12 @@ shared `PERF-LOCK`, lasts less than 30 minutes, and removes the lock in `finally
 Lock removal failure stops measurements immediately.
 
 The timer brackets the first physics/process signal through `FramePostDraw` and
-includes native scene/physics work and renderer submission. Walking, turning,
-wall intervals and draw calls are reported separately. Scene inventory is taken
+includes native scene/physics work and renderer submission. The historical turn
+window is 90 sampled frames at 2 degrees per processed frame (about a half-turn),
+matching the older check. The latest sustained gate instead turns for six seconds
+and can cover several revolutions; its draw averages are not interchangeable
+with the historical table. Walking, turning, wall intervals and draw calls are
+reported separately. Scene inventory is taken
 outside timing samples. Static physics created directly through the physics
 server is counted separately from scene-tree bodies and shapes.
 
@@ -105,6 +109,7 @@ control. No production speed fix was accepted.
 | wrap-gameplay / playtest | PASS | 37 steps;  |
 | wrap-gameplay / deedstest | FAIL | 23/24 checks; lost property lies in street |
 | wrap-events-a / eventtest | PASS | 36 stages, 0 failures |
+| wrap-events-b / eventtest | PASS | 34 stages, 0 failures |
 | wrap-required / devtest | PASS | 4/4 steps |
 | wrap-required / shaders | PASS | 0 new kinds, 0 problems |
 | wrap-required / clocks | PASS | 96/96 running |
@@ -114,8 +119,8 @@ control. No production speed fix was accepted.
 
 Job has 16/17 passing steps; its only failure is the 5 ms frame budget (7.62 ms
 mean, 10.42 ms p95). Deeds stops after 23 passing checks at `lost property lies
-in street`; one unchanged retry is pending. The first eight-kind event batch passes; the
-second batch is pending.
+in street`; one unchanged retry is pending. Both eight-kind event batches pass, with 36 and 34
+stages and zero failures respectively.
 The full sustained performance gate also fails: walking means are 6.571 /
 7.045 / 7.334 / 5.671 / 5.044 ms. Rijnkaai walking reaches 19.005 ms and
 Vismarkt turning 16.954 ms. No timing limit was relaxed.
