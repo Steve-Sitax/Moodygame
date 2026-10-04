@@ -130,8 +130,21 @@ fallback cannot certify room floors, containment, seams, shader-only cutouts, or
 - **The town's look and life in the air** (`src/Render/Grime.cs`, `src/World/`): the houses' wall pictures, grime,
   wall bumps and grime decals; the bump maps; `Trees.cs` the falling leaves (the sway and the gale are the psx
   material's); `Fires.cs` the open fires (`Fires.I.Create(spots, smoke)` for a burning house); `ChimneySmoke.cs`;
-  `Mist.cs` the river mist; `Blobs.cs` the soft shadows under walkers and carts (`Blobs.I.Set("people", spots)`, a
-  part's spots once a frame).
+  `WorksSmoke.cs` the breweries', the refinery's and the gasworks' stacks (by their hours); `FunnelSmoke.cs` the
+  steamers' funnels and the barges' stoves (on the live hulls of `Movers/Boats`); `Mist.cs` the river mist;
+  `Blobs.cs` the soft shadows under walkers and carts (`Blobs.I.Set(key, spots)`, a part's spots once a frame;
+  `BlobFeet.cs` hands in the drawn townspeople and Jef). The browser's world/alive parts that are seen:
+  `NightLife.cs` (moths at the lit lamps, cats' eyes in the dark lanes), `Breath.cs` (breath in the cold),
+  `Surf.cs` (the great storm's surf up the river walls and the splashes of the rain), `Gutters.cs` (the broken
+  gutters' streams and their stains). They share `Air.cs`: the town's dice, the gusts (`Air.Gusts`, also the
+  white veils in the great storm's rain) and `AirPoints` (one kind of point for every puff and speck: two
+  shaders, made at the start). `BakedWorld.Attribute(node, "_ASEED")` reads a baked mesh's own attributes, which
+  Godot's importer drops. Dev: `--roomhours <dir>` proves the rooms' hours from the server; a `--snap` view named
+  `cateye`, `moth`, `gutter` or `surf` looks at the nearest one. Browser pictures from the same views:
+  `node tools/godot/look-refs.mjs --root <checkout> --out <dir> --views "..."`.
+  Not ported yet: the drops off every eave (only the broken gutters run), the horses' breath, the bats, the
+  ships' riding lights (`alive_ship_lights`, `boat_lamps`: the movers part), the pumps' bilge water, the
+  lightning and the flying debris.
 - **The screen** (`src/Main.cs`, `shaders/retro.gdshader`): the world is drawn at 720 lines into `Main.I.View`,
   then full screen through the retro pass (grade, grain, dither).
 - **What is solid** (`src/World/Solid.cs`): Jef walks on Godot's physics (Jolt) over the baked meshes themselves.

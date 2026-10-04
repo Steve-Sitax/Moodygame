@@ -12,7 +12,8 @@ namespace Scheldemist.World;
 /// from them. The water is lines (eaves.ts LINE_V: the sky's grey a little lighter, a gas lamp's glow near one), one
 /// draw; the stains a multiply, one draw.
 /// Not here yet: the lone drops off every street eave in the rain (eaves.ts findEaves needs the roofs' plan), and the
-/// stream's top is the stain's top plus a little (the bake keeps no eave height).
+/// stream's top is read from the stain's top (the bake keeps no eave height: 0.1 m under it, as the browser's
+/// stream at (-100, 231) has its top at 9.29 m, its stain at 9.4 m).
 /// </summary>
 [GamePart(45)]
 public partial class Gutters : Node
@@ -197,7 +198,7 @@ void fragment() {
             streams[s] = new Stream
             {
                 X = patch.X + norm.X * 0.1f, Z = patch.Z + norm.Y * 0.1f, Ux = along.X, Uz = along.Y, Ox = norm.X, Oz = norm.Y,
-                Top = wTop.Y + 0.35f, Ground = patch.Y - 0.012f, Seed = seed[o],
+                Top = wTop.Y - 0.1f, Ground = patch.Y - 0.012f, Seed = seed[o],
             };
         }
         // --- the water: line pieces, one copy each

@@ -97,6 +97,49 @@ public partial class Snap : Node
         Daylight.I.Settle();
     }
 
+    /// <summary>Where a view of the air's small life looks from and at, or null (a plain view).</summary>
+    private static (Vector3 from, Vector3 at)? Target(string name)
+    {
+        var cam = Main.I.Cam.GlobalPosition;
+        if (name.StartsWith("cateye") && NightLife.I is { Info.eyes: > 0 } nl)
+        {
+            var e = nl.Info.firstEye;
+            var back = new Vector3(cam.X - e.X, 0, cam.Z - e.Z).Normalized();
+            return (e + back * 8 + new Vector3(0, 1.4f, 0), e);
+        }
+        if (name.StartsWith("moth") && Lights.I is { } li && li.LampCount > 0)
+        {
+            int best = 0;
+            for (int i = 1; i < li.LampCount; i++) if (li.LampAt(i).DistanceSquaredTo(cam) < li.LampAt(best).DistanceSquaredTo(cam)) best = i;
+            var l = li.LampAt(best);
+            return (l + new Vector3(1.6f, -0.9f, 1.6f), l);
+        }
+        if (name.StartsWith("gutter") && Gutters.I is { } gu && gu.Nearest(cam) is { } s)
+            return (s.foot + s.outward * 4.5f + new Vector3(0, 1.0f, 0), s.foot + new Vector3(0, 1.6f, 0));
+        if (name.StartsWith("blob") && Main.I.GetNodeOrNull<Town.Townspeople>("Townspeople")?.Crowd is { } crowd)
+        {
+            Vector3? best = null;
+            // (a walker out on open ground, the camera a little above: the soft shadow at the feet; a view named
+            // blob..._off draws it without the shadows, for the before-and-after)
+            if (Blobs.I is { } bl) bl.Shown = !name.Contains("_off");
+            foreach (var p in crowd.Walking)
+                if (p.Shown && Ways.Open(p.Group.GlobalPosition.X, p.Group.GlobalPosition.Z, 1.5) && (best == null || p.Group.GlobalPosition.DistanceSquaredTo(cam) < best.Value.DistanceSquaredTo(cam))) best = p.Group.GlobalPosition;
+            if (best is { } b)
+            {
+                var back = new Vector3(cam.X - b.X, 0, cam.Z - b.Z).Normalized();
+                return (b + back * 3.2f + new Vector3(0, 2.6f, 0), b);
+            }
+        }
+        if (name.StartsWith("surf") && Surf.I is { Info.edges: > 0 } su)
+        {
+            var e = su.Info.edge0;
+            var inland = new Vector3(cam.X - e.X, 0, cam.Z - e.Z).Normalized();
+            var side = new Vector3(-inland.Z, 0, inland.X);
+            return (e + inland * 7 + side * 6 + new Vector3(0, 1.7f, 0), e + new Vector3(0, 1.5f, 0));
+        }
+        return null;
+    }
+
     public override void _Process(double delta)
     {
         if (view < 0 || view >= views.Count) return;
@@ -112,11 +155,21 @@ public partial class Snap : Node
             if (cam is Player.FlyCam fly) fly.Face(q);
             else cam.Quaternion = q;
         }
+        // (the air's small life: a view named cateye / moth / gutter / surf looks at the nearest one from a little way off)
+        if (Target(views[view][0]) is { } t)
+        {
+            var cam = Main.I.Cam;
+            cam.GlobalPosition = t.from;
+            var q = Basis.LookingAt(t.at - t.from).GetRotationQuaternion();
+            if (cam is Player.FlyCam fly) fly.Face(q);
+            else cam.Quaternion = q;
+        }
         // (the first view waits for the loading screen to go)
         if (frame < Wait + Timed + (view == 0 ? 240 : 0)) return;
         string name = views[view][0];
         Main.I.GetViewport().GetTexture().GetImage().SavePng(System.IO.Path.Combine(dir, name + ".png"));
         times.Sort();
+        GD.Print($"snap {name} air: wind {Daylight.I.Wind.Length():0.00}, night life {NightLife.I?.Info}, surf {Surf.I?.Info}, gutters {Gutters.I?.Info}, breath {Breath.I?.Info}, blobs {Blobs.I?.Count}");
         GD.Print($"snap {name}: {times.Average():0.00} ms a frame (p95 {times[(int)(times.Count * 0.95)]:0.00}), {RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalDrawCallsInFrame)} draws, {Render.Psx.ShaderCount} psx shaders");
         Next();
     }

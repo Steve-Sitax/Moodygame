@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- In the Godot version, the townspeople and Jef have their soft shadow on the ground again, as in the browser game.
+
 - In the Godot version, the town's small life in the air is back: moths round the lit gas lamps on a still night, cats' eyes in the dark lanes, breath in the cold, water running from broken gutters with the damp stains under them, the great storm's surf bursting up the river walls and its rain splashing on the stones, and the white veils of heavier rain that each gust brings.
 
 - In the Godot version, the breweries, the sugar refinery and the gasworks smoke from their tall stacks by their working hours, and steamers and barges smoke from their funnels and stoves as in the browser game.
