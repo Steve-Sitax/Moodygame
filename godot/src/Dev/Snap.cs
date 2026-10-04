@@ -162,6 +162,13 @@ public partial class Snap : Node
                 return (b + back * 3.2f + new Vector3(0, 2.6f, 0), b);
             }
         }
+        if (name.StartsWith("horse") && Breath.I?.NearestHorse(cam) is { } hx)
+        {
+            // (beside the horse's head, a little ahead of it)
+            var nose = hx * new Vector3(0, 1.68f, 1.56f);
+            var side = hx.Basis.X.Normalized();
+            return (nose + side * 3.2f + hx.Basis.Z.Normalized() * 1.5f + new Vector3(0, 0.2f, 0), nose + hx.Basis.Z.Normalized() * 0.4f);
+        }
         if (name.StartsWith("bilge") && ShipWater.I is { } sw)
         {
             var (o, outward) = sw.NearestOutlet(cam);
@@ -202,6 +209,12 @@ public partial class Snap : Node
             if (cam is Player.FlyCam fly) fly.Face(q);
             else cam.Quaternion = q;
         }
+        // (a view named bolt...: a near strike in front of the camera two frames before the picture)
+        if (views[view][0].StartsWith("bolt") && frame == Wait + Timed + (view == 0 ? 240 : 0) - 2 && Lightning.I is { } li)
+        {
+            var fw = -Main.I.Cam.GlobalTransform.Basis.Z;
+            li.Strike(0.5f, MathF.Atan2(fw.Z, fw.X));
+        }
         // (the first view waits for the loading screen to go)
         if (frame < Wait + Timed + (view == 0 ? 240 : 0)) return;
         string name = views[view][0];
@@ -222,6 +235,9 @@ public partial class Snap : Node
                 foreach (var (size, what) in hits.OrderBy(h => h.Item1).Take(60)) GD.Print($"whatray {name} {one} {size:0} {what}");
             }
         if (ShipWater.I is { } sw) GD.Print($"snap {name} ship water: {sw.Info}");
+        if (Gutters.I is { } gt) GD.Print($"snap {name} eaves drops: {gt.DropInfo}");
+        if (Breath.I is { } br) GD.Print($"snap {name} horses' breath: {br.HorseInfo}");
+        if (Lightning.I is { } lg) GD.Print($"snap {name} lightning: {lg.Info}, flash {Daylight.I.Flash:0.00}");
         if (LandmarkRooms.I is { } lr) GD.Print($"snap {name} landmark rooms: {string.Join(", ", lr.Info.Select(i => $"{i.building} {i.lit}/{i.windows}"))}; steen lanterns {lr.LanternInfo.lit}/{lr.LanternInfo.lanterns}");
         times.Sort();
         GD.Print($"snap {name} air: wind {Daylight.I.Wind.Length():0.00}, rain {Daylight.I.Rain:0.00}, storm {Daylight.I.Storm:0.00}, night life {NightLife.I?.Info}, surf {Surf.I?.Info}, gutters {Gutters.I?.Info}, breath {Breath.I?.Info}, blobs {Blobs.I?.Count}");

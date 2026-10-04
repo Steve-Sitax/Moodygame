@@ -80,6 +80,11 @@ public partial class Daylight : Node
     public float SunIntensity { get; private set; }
     public float SkyIntensity { get; private set; }
 
+    /// <summary>The lightning's flash now (0 none .. about 1.6 a near strike) and how much it adds to the sky's light (Lightning.cs).</summary>
+    public float Flash { get; set; }
+    public float FlashSky { get; set; }
+    private static readonly Color FlashAir = new(0.75f, 0.8f, 1.0f);
+
     private float dayTarget = 13, skyBase = 1, sunDay, dayFar = 25, fogMix, fogTarget;
     private Color baseFog;
     private float[] wTarget = WeatherOf("clear");
@@ -304,6 +309,12 @@ public partial class Daylight : Node
         float viewFar = Menu.Tuning.ViewFar;
         FogNear = Mathf.Lerp(3 * wNow[0] * viewFar, 1.5f, fogMix) * (1 - 0.45f * Storm);
         FogFar = Mathf.Lerp(dayFar * wNow[1] * viewFar, 11, fogMix) * (1 - 0.32f * Storm);
+        // the lightning (Lightning.cs, alive/air.ts): the air and the sky light up for the flash's flickers
+        if (Flash > 0)
+        {
+            fog = fog.Lerp(FlashAir, Math.Min(0.95f, Flash * 0.7f));
+            SkyIntensity += Flash * FlashSky;
+        }
         FogColor = fog;
 
         // the rain, the wet ground and the puddles (ambient.ts)
