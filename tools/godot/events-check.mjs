@@ -59,6 +59,8 @@ for (let index = 0; index < batches.length; index++) {
   fs.mkdirSync(directory, { recursive: true });
   const db = path.join(directory, 'test.sqlite');
   if (fs.existsSync(db)) throw new Error('The test database already exists: choose a fresh output directory.');
+  // A crash before the new report must never reuse an earlier batch's proof.
+  for (const name of ['eventtest.json', 'eventtest-run.json']) fs.rmSync(path.join(directory, name), { force: true });
   const options = ['--audio-driver', 'Dummy', '--path', 'godot', '--', '--town', arg('town', 'D:/Code/MoodyGame-godot/godot/baked/next/town.glb'), '--models', arg('models', 'D:/Code/MoodyGame-godot/godot/baked/models'), '--no-ai', '--no-mainmenu', '--port', arg('port', '8920'), '--db', db, '--prefs', path.join(directory, 'settings.json'), '--eventtest', directory, '--eventonly', batches[index]];
   let result;
   const started = Date.now();
