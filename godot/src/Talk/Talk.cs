@@ -49,6 +49,7 @@ public partial class Talk : Node, IDialog
     private bool typing;
     /// <summary>M9: his own words may be typed (false: the server has no AI to read them now; the choices only).</summary>
     private bool freeOk = true;
+    private bool CanType => freeOk && !Main.I.Flag("no-ai") && Scheldemist.Menu.AiSheet.Mode != "walk";
     private bool shopping;
     private bool working;
     private string note = "";
@@ -179,7 +180,7 @@ public partial class Talk : Node, IDialog
         OnOpen(id);
         lines.Clear();
         choices = new();
-        freeOk = true;
+        freeOk = !Main.I.Flag("no-ai");
         ended = shopOnly;
         shopping = shopOnly;
         working = false;
@@ -261,7 +262,7 @@ public partial class Talk : Node, IDialog
         busy = false;
         if (npc?.Id != who.Id) return;
         LastReply = r;
-        if (r.Free != null) freeOk = r.Free.Value;
+        if (r.Free != null) freeOk = r.Free.Value && !Main.I.Flag("no-ai");
         if (string.IsNullOrEmpty(r.NpcLine))
         {
             // gated without a line: too fast, too long or empty; M9: no AI to read his own words now
@@ -378,6 +379,12 @@ public partial class Talk : Node, IDialog
     /// <summary>M6 haggle: open the input for his argument about this ware.</summary>
     private void StartHaggle(Ware w)
     {
+        if (!CanType)
+        {
+            Flash("No AI to hear your own words now. Pick an answer.");
+            Render();
+            return;
+        }
         haggleKind = w.Kind;
         input.PlaceholderText = $"Argue the price of {w.Name} ({w.PriceC} c), then Enter";
         typing = true;
@@ -442,11 +449,11 @@ public partial class Talk : Node, IDialog
         string keys =
             picking ? $"1-{stock.Count}  which one to argue about · Esc  back" :
             typing && haggleKind != null ? "Argue the price in your own words, then Enter · Esc  back" :
-            shopping ? $"1-{stock.Count}  pay · H  argue a price · B  back to talk · you have {GameState.I.Money} c" :
+            shopping ? $"1-{stock.Count}  pay{(CanType ? " · H  argue a price" : "")} · B  back to talk · you have {GameState.I.Money} c" :
             working ? $"{(jobs.Count > 1 ? $"1-{jobs.Count}" : "1")}  take it · W  back to talk" :
             ended ? $"E  step away{shop}" :
             busy ? "" :
-            $"1-{Math.Max(1, choices.Count)}  answer{(freeOk ? " · T  say it your way" : "")}{shop} · E  step away";
+            $"1-{Math.Max(1, choices.Count)}  answer{(CanType ? " · T  say it your way" : "")}{shop} · E  step away";
 
         if (shopping)
         {
@@ -542,6 +549,12 @@ public partial class Talk : Node, IDialog
         }
         if (code == "KeyH" && shopping && stock.Count > 0 && !busy)
         {
+            if (!CanType)
+            {
+                Flash("No AI to hear your own words now. Pick an answer.");
+                Render();
+                return;
+            }
             if (stock.Count == 1) StartHaggle(stock[0]);
             else
             {
@@ -586,7 +599,7 @@ public partial class Talk : Node, IDialog
         if (code == "KeyT")
         {
             // M9: no AI to read his own words: the choices only
-            if (!freeOk)
+            if (!CanType)
             {
                 Flash("No AI to hear your own words now. Pick an answer.");
                 Render();

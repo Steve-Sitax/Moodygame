@@ -159,7 +159,7 @@ public partial class Jobs : Node
     {
         // T4 the quest book: up to three jobs in hand, one followed; pick up the followed one (a load in the middle of
         // a job), the one asked for, else the first this part can play
-        var inHand = p.Jobs.Where(j => j.Status == "taken" && JobTask.Of(j) != null).ToList();
+        var inHand = p.Jobs.Where(j => j.Status == "taken" && Playable(j)).ToList();
         var taken = (active != null ? inHand.FirstOrDefault(j => j.Id == active.Id) : null) ?? inHand.FirstOrDefault(j => j.Id == followId) ?? inHand.FirstOrDefault();
         if (taken != null && active == null && !finishing) Follow(taken);
         // the job ended on the server without us (its deadline, a gang, the cell): drop it here too
@@ -459,7 +459,7 @@ public partial class Jobs : Node
     }
 
     /// <summary>The kinds of work this part plays (carry, watch, deliver by hand); the letters, the mill and the lamps have parts of their own.</summary>
-    private static bool Playable(Job j) => j.Playable && JobTask.Of(j) is { Cart: false };
+    private static bool Playable(Job j) => j.Playable && (JobTask.Of(j) is { Cart: false } || LettersTask.Of(j) != null);
 
     /// <summary>.board: left 50%, top 50%, min(720px, 86vw), at most 84vh high, padding 18 28 12, turned -0.6 degrees.</summary>
     private Sheet BoardSheet()
@@ -591,6 +591,12 @@ public partial class Jobs : Node
     /// <summary>Where a job is to be done, in words and as a point (for the book, the task card and the map).</summary>
     private static (string Label, float X, float Z)? GoalOf(Job j)
     {
+        if (LettersTask.Of(j) is { } letters)
+        {
+            if (!letters.Picked) return (letters.From.Label, letters.From.X, letters.From.Z);
+            var stop = letters.Stops.FirstOrDefault(s => !s.Done);
+            return stop == null ? null : (stop.What == "telegraph" ? "the telegraph counter" : $"the door of {stop.Name}", stop.X, stop.Z);
+        }
         var t = JobTask.Of(j);
         var s = Spots.Get(t?.Kind == "watch" ? t.Post : t?.To);
         if (s != null) return (s.Label, s.X, s.Z);
@@ -637,7 +643,7 @@ public partial class Jobs : Node
         if (n >= 1 && n <= list.Count)
         {
             giveUpAsk = null;
-            if (JobTask.Of(list[n - 1]) == null) Toast("That work has its own way: it needs no following.");
+            if (!Playable(list[n - 1])) Toast("That work has its own way: it needs no following.");
             else
             {
                 Follow(list[n - 1]);
@@ -706,7 +712,8 @@ public partial class Jobs : Node
         // the push message and the reply can both bring the same job
         if (job.Task == null || active != null) return;
         var t = JobTask.Of(job);
-        if (t == null) return; // a kind with a part of its own (letters, mill, lamps)
+        var letters = LettersTask.Of(job);
+        if (t == null && letters == null) return; // mill and lamps still have parts of their own
         active = job;
         var ctx = new RunCtx
         {
@@ -720,6 +727,12 @@ public partial class Jobs : Node
             Finish = r => Finish(job, r),
             ThickFog = on => Daylight.I?.SetThickFog(on),
         };
+        if (letters != null)
+        {
+            run = new LettersRun(job, letters, ctx);
+            return;
+        }
+        if (t == null) return;
         // the job line first; a twist may say something right after
         string who = Folk.NameOf(job.EmployerNpc, job.EmployerName);
         var g = GoodsRules.Of(t.Goods);

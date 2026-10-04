@@ -26,7 +26,7 @@ public sealed class ApiException : Exception
 /// it every frame); an awaited call goes on where it was awaited (on the main thread, Godot brings it back there).
 /// Every call has a time limit. Plain C#, no Godot types.
 /// </summary>
-public sealed class Api : IDisposable
+public sealed partial class Api : IDisposable
 {
     /// <summary>The server's JSON: snake_case names, as the server writes them.</summary>
     public static readonly JsonSerializerOptions Json = new()

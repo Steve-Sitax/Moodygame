@@ -122,8 +122,7 @@ public partial class TalkTest : Node
         answered = await Until(() => !talk.Busy, 30);
         await Shot("talk_choice");
         Step("choice 1", answered && talk.Lines.Count >= 3, new { picked = choices.FirstOrDefault(), reply = talk.LastReply, lines = talk.Lines.Select(l => $"{l.Who}: {l.Text}") });
-        // T with no AI: in an ordinary talk the line can still be typed and the server answers with a hand-written
-        // line (no model call); only where it says free: false (a confrontation, the police) is typing off
+        // With no AI, only the choices may be used; T must not create a text box.
         int had = talk.Lines.Count;
         await Key(Godot.Key.T);
         await Frames(4);
@@ -134,7 +133,7 @@ public partial class TalkTest : Node
         await Frames(2);
         answered = await Until(() => !talk.Busy, 30);
         await Shot("talk_typed_no_ai");
-        Step("a typed line with no AI", couldType && answered && !talk.Typing && (talk.Lines.Count == had + 2 || talk.Note != ""), new { couldType, note = talk.Note, reply = talk.LastReply });
+        Step("no-AI talk keeps typing off", !couldType && answered && !talk.Typing && talk.Lines.Count == had, new { couldType, note = talk.Note, reply = talk.LastReply });
         await Until(() => talk.Note == "", 4);
 
         // 3. the wares (B), a purchase (1), the haggle's picker (H), back
@@ -150,9 +149,8 @@ public partial class TalkTest : Node
         await Until(() => talk.Note == "", 4);
         await Key(Godot.Key.H);
         await Shot("shop_haggle_pick");
-        // which ware (1), his argument typed, the seller's answer (hand-written with no AI; the engine keeps the price)
+        // H cannot open the picker or a typed argument without an AI.
         had = talk.Lines.Count;
-        await Key(Godot.Key.Key1);
         await Frames(4);
         bool arguing = talk.Typing;
         await Seconds(5.2); // the server's gate takes one typed line in five seconds
@@ -162,7 +160,7 @@ public partial class TalkTest : Node
         await Frames(2);
         answered = await Until(() => !talk.Busy, 30);
         await Shot("shop_haggle_reply");
-        Step("argue a price (H, 1, a typed line)", arguing && answered && talk.Lines.Count == had + 2, new { note = talk.Note, reply = talk.LastReply });
+        Step("no-AI haggling keeps typing off", !arguing && answered && talk.Lines.Count == had, new { note = talk.Note, reply = talk.LastReply });
         await Key(Godot.Key.E);
         bool closed = !talk.IsOpen && !dialogs.Any;
         Step("E steps away, the mouse is taken again", closed && Input.MouseMode == Input.MouseModeEnum.Captured, new { up = dialogs.Up, mouse = Input.MouseMode.ToString() });

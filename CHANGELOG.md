@@ -13,6 +13,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - Godot's lamp updates and idle job display avoid temporary allocations while walking; performance checks now report complete frames and their worst peaks.
 - Godot clock hands follow the game's time on tower, church, town-hall, station, shop and room clocks, including the clockmaker's window ([#44](https://github.com/Steve-Sitax/Moodygame/issues/44)).
 - Godot ships and lock boats are prepared before play, and moving traffic makes far less garbage, avoiding collection pauses while movers switch or spawn.
+- In Godot, the post clerk gives out rounds of letters and telegram errands. Their door prompts, quest book, map and payments now work, including resuming a round.
+- F at the post and Berg clerks opens their counters in Godot. Talking and haggling in walk-around mode now keep typing off when there is no AI.
 
 - A Windows Godot download now starts from its executable, with the town, models, sounds and game server included.
 
