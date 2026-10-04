@@ -1,5 +1,47 @@
 # Work log
 
+## Godot merge fixes, 2026-10-04
+
+On `godot/fixes`, based on `godot-port` at `5fa227e`, fixed the two merged regressions without changing
+server rules or numbers. `Day` and `DaySheets` both opened the tick's night: E closed the top paper but
+left the other paper holding the clock and Jef. `Day` now owns chosen sleep, its chooser and fade;
+`DaySheets` owns tick night/waking/midnight/ending and rent. Chosen sleep marks `SleepShown` until its
+wake lines have been said. Named day/reset handlers are disconnected on exit.
+
+The two disposed-object errors came from `Interact._Process` through `Jobs.Keys` into `Folk.Near`,
+which read a freed street body's position after the guest left Together. The resident cache is cleared
+before the crowd is freed. The new body-after-home check also exposed `Humans.Make` copying a freed
+model source; the body/animation cache is cleared before the model library is freed. The multiplayer
+test fills and rereads the resident cache across reload and creates and animates a new body afterward.
+
+The shutdown RID/ObjectDB leaks were the reusable talk `LineEdit` left outside the tree. It is freed
+on exit when detached, clearing [issue #40](https://github.com/Steve-Sitax/Moodygame/issues/40) in all
+final checks. The merged download paths also bypassed the multiplayer test's database choice;
+`Paths` now chooses separate disposable host/guest saves. Home requires solo play and a fresh player.
+The guest port follows the host's test port; its settings and engine log stay in the test folder.
+The server launcher respects the existing map-port environment override for isolated checks.
+
+Final checks ran one at a time with timeouts, fresh test saves and isolated user/settings folders,
+using game ports within 8940-8949 and map port 8948:
+
+| Check | Result |
+|---|---|
+| `dotnet build godot` | Passed; existing `Townspeople.cs` nullable warning remains |
+| Headless import | Passed |
+| `npm run build` | Passed |
+| `jobtest` | 17/17, 35 pictures, 224.1 s; 240 minutes chosen sleep; zero warning and fatigue 0.75 |
+| `mptest` | Passed; new residents/body at home, solo server, no camera snaps |
+| `menutest` | 67 checks, no failures |
+| `nettest` | Passed; call/push, pause/resume, 14 map reports |
+| `daytest` | Passed; one night paper, close, rent, midnight, ending survives Esc |
+
+The jobs frame check measured 2.79 ms mean and 3.52 ms p95. Final logs, including the multiplayer
+guest's engine log, had no ERROR lines, disposed-object exceptions or resource-leak warnings.
+The collapse/waking, walking pair, menu and ending pictures were inspected. Evidence stays outside
+git in `godot/baked/fixes-proof/`. Test databases were deleted; no test processes or listeners remain.
+Server dependencies were installed in this worktree with npm, without junctions. No push or merge.
+Ownership and causes are documented in [jobs](godot-jobs.md), [net](godot-net.md) and the Godot README.
+
 ## Godot jobs restart, 2026-10-04
 
 Finished the interrupted jobs/day tie-ins on `godot/jobs`, with `godot-port` merged through `11c2ca5`.

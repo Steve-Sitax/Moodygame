@@ -149,8 +149,9 @@ picture as it was (720 lines, wobble on) whatever the player's settings say.
   carry/watch/deliver jobs, the job board, task card and quest book on the shared paper kit. E talks to a
   townsperson; the talk and press offer work through `Jobs.I.TakeJob`. The map gets the followed job's marks
   and way. `MainMenu.WorldReplaced` restores the run and goods. Pockets belong to `Talk/Pockets.cs`; bought
-  drinks are taken at the counter, as the server decides. Sleep has a chooser; rent, needs, collapse and
-  the week's end follow the server. `Day.I.AddBench` and `WakeHome` serve the places' parts; `Jobs.I.Sfx`
+  drinks are taken at the counter, as the server decides. `Play/Day.cs` owns the sleep chooser, fade and chosen
+  rest; `Game/DaySheets.cs` owns the tick's collapse, midnight, waking and week-ending papers, and rent.
+  The chosen rest sets `DaySheets.SleepShown`, so its wake lines are said once. `Day.I.AddBench` and `WakeHome` serve the places' parts; `Jobs.I.Sfx`
   serves sound. The trouble speaker's walk-up uses `Trouble.I.Present` / `Show(view)` when before Jef.
   Run `-- --jobtest <dir> --no-ai --port 8965 --db <dir>/test.sqlite` against a fresh test database,
   with `--town` and `--models` pointing at the shared bake. It writes pictures, server replies and
@@ -231,7 +232,8 @@ Test with the console program (all paths after `--`):
 It starts a Godot host and a second Godot guest, walks both by `Jef.SetKey`, checks the pause and separate
 player state, saves `mp_host.png`, `mp_guest.png` and `mptest.json`, returns the guest to its own game, and
 quits both. The databases and test token are disposable and deleted; no existing player save is opened.
-The guest's own server after leaving starts at port 8967 (or the next free port).
+The guest's own server after leaving starts at the host test's port plus one (or the next free port).
+The test also makes and animates a fresh body after returning home, to check that no model from the old scene is reused.
 `--host` and `--join <address> --seat 2 [--code CODE --name Anna]` also work outside the test.
 
 The menu check is `--togethertest <dir> --db <fresh-test.sqlite> --prefs <dir>/settings.json --port 8980 --no-ai`.
@@ -259,6 +261,7 @@ live in the player's own Scheldemist user folder (`%APPDATA%/Scheldemist` on Win
 `Paths.cs` resolves source, exported and user files. `--town`, `--models`, `--city`, `--db`, `--prefs` and `--port`
 still work; `SCHELDEMIST_USER_DATA=<folder>` isolates all game-owned writable files for a check. Godot's own
 engine log uses `user://logs/godot.log`; its native `--log-file <file>` option isolates that too.
+`SCHELDEMIST_MAP_PORT=<port>` picks the host's town-map port for an isolated run (normally the game port plus 1000).
 
 Windows packaging and a real unpacked launch, server, save and menu check passed on this PC. The zip is about
 383 MB, 1.14 GB unpacked; the bake and models take most of it. Linux and macOS game exports passed, but full

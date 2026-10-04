@@ -32,6 +32,15 @@ public static class Folk
     private static Dictionary<string, Townspeople.Sim>? byId;
     private static int simCount = -1;
 
+    /// <summary>The town is leaving: none of its residents or street bodies belongs to the next scene.</summary>
+    public static void Forget()
+    {
+        town = null;
+        byId = null;
+        simCount = -1;
+        found.Clear();
+    }
+
     private static Vector3 Door(string name, float d, float side)
     {
         var (x, z) = Spots.DoorSpot(name, d, side);

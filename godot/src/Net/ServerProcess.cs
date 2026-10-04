@@ -197,7 +197,9 @@ public sealed class ServerProcess : IDisposable
         // the Godot game is no page: the server's check of who talks to it passes its own port only
         info.Environment["SCHELDEMIST_CLIENT_PORT"] = port.ToString();
         // the host's town map (server mapview/): its own port by this game's, never 8790 (Steve's running game); none if taken
-        int map = port + 1000;
+        // Tests can keep the map in their assigned port range, as the browser test stack does.
+        int map = int.TryParse(Environment.GetEnvironmentVariable("SCHELDEMIST_MAP_PORT"), out int requestedMap)
+            && requestedMap is >= 0 and <= 65535 ? requestedMap : port + 1000;
         info.Environment["SCHELDEMIST_MAP_PORT"] = !Forbidden.Contains(map) && IsFree(map) ? map.ToString() : "0";
         info.Environment["SCHELDEMIST_DB"] = Paths.Database;
         info.Environment["SCHELDEMIST_DATA"] = paths.DataDir;

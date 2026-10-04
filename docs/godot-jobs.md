@@ -11,8 +11,11 @@ The payment line shows the server's trust change as well as the money.
 
 Pockets are the talk part's existing window. A herring is pocketed and eaten there. Bought drinks are drunk
 at the counter: `server/src/trade.ts` decides this, as in the browser. There is no drinking pump. Benches,
-the doss house chooser, rent, four hours' sleep, low needs and collapse follow server replies. The chooser,
-night sheet and trouble card belong to the dialog stack; the sleep fade lies below the menus.
+the doss house chooser, rent, four hours' sleep, low needs and collapse follow server replies. The chooser
+and trouble card belong to the dialog stack; the sleep fade lies below the menus.
+After integration, `Play/Day.cs` owns only the sleep chooser, active rest, fade and chosen waking. It delegates
+rent to `Game/DaySheets.cs`, which alone owns collapse, midnight and ending papers from the server's tick.
+`Day.SheetOpen` reads that owner's state; an active rest sets `DaySheets.SleepShown` so waking speaks once.
 
 The trouble card fetches the server's scene, lines and choices. A choice may leave an extra E errand at the
 place the server names. Its step is reported with Jef's position; the server changes pay and trust.
@@ -34,6 +37,14 @@ A focused carry/delivery run after the payment-note layering correction passed 7
 including the talk window with the payment note underneath. It is in `godot/baked/jobtest-layers/`.
 Its Vismarkt mean was 3.39 ms and p95 6.34 ms: the mean passed the 5 ms check, but that run's tail exceeded 5 ms.
 Test databases are removed after their processes exit; JSON, logs and pictures remain.
+
+The post-merge fixes run on 2026-10-04 passed all 17 steps and saved 35 pictures in
+`godot/baked/fixes-proof/jobtest/`. Chosen sleep lasted 240 server minutes and said its wake lines once.
+The zero step checked the starvation warning, fatigue 0.75, exactly one collapse paper, and that E cleared
+the paper, clock hold and frozen legs. The final picture shows Monday 23:00 with the paper gone.
+Vismarkt measured 2.79 ms mean and 3.52 ms p95 over 240 frames; the full run took 224.1 seconds.
+The focused day run, two-player run, 67 menu checks and net run also passed on the same build.
+All final engine/server logs had no ERROR lines, disposed-object exceptions or resource-leak warnings.
 
 ## Hooks
 
@@ -59,8 +70,10 @@ is not ported here; lifting and promptly returning an owner's goods already repo
 A persistent numerical trust HUD is not added: settlement shows its delta, and pockets show the server's
 words about Jef's good name.
 
-Godot reports shutdown RID/ObjectDB leaks after the report is written: [issue #40](https://github.com/Steve-Sitax/Moodygame/issues/40).
-One full run also logged WASAPI output-device invalidation at shutdown.
+The original runs reported shutdown RID/ObjectDB leaks after the report was written:
+[issue #40](https://github.com/Steve-Sitax/Moodygame/issues/40). The fixes branch found an orphaned reusable
+talk input: it is now freed on exit when it has no parent. One original run also logged WASAPI
+output-device invalidation at shutdown.
 
 ## Shared files
 

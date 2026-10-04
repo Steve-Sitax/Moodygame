@@ -14,8 +14,9 @@ namespace Scheldemist.Play;
 
 /// <summary>
 /// The day's needs by hand (game/day.ts, game/sleep.ts): a bed in the doss house and the benches of the town (E,
-/// then how long: 1, 2, 4, 8 hours or until morning), the week's rent at the doss house door (F), the sheet after a
-/// night that came by itself, the word at midnight, the week's end. The server decides everything: how the needs
+/// then how long: 1, 2, 4, 8 hours or until morning), the week's rent at the doss house door (F), the
+/// sleep fade and waking from a chosen rest. DaySheets owns the tick's night, midnight and ending.
+/// The server decides everything: how the needs
 /// fall, who is robbed on a bench, when Jef drops where he stands; this asks and shows. (Eating and drinking are
 /// the pockets' window, Talk/Pockets.cs; GameState says the warnings when a need runs low; the clock's tick is
 /// ServerLink's.) Dead tired, he walks slower (Jef.Fatigue). The papers stand on the dialog stack, on the paper kit.
@@ -48,7 +49,7 @@ public partial class Day : Node
     /// <summary>The chooser is up, or he is asleep: no other keys.</summary>
     public bool Busy => chooser.IsOpen || asleep;
     public bool Asleep => asleep;
-    public bool SheetOpen => sheet.IsOpen;
+    public bool SheetOpen => DaySheets.I is { Shown: not "none" };
     /// <summary>What the server last said to a sleep or a wake, for the checks.</summary>
     public RestEnd? LastWoke { get; private set; }
     public string LastError { get; private set; } = "";
@@ -59,9 +60,7 @@ public partial class Day : Node
     private RestView? rest;
     private double sinceStep;
     private bool stepBusy;
-    private string shown = ""; // "night" or "end"
-    private Night? night;
-    private Window chooser = null!, sheet = null!, sleeping = null!;
+    private Window chooser = null!, sleeping = null!;
     private bool wired;
 
     public Day()
@@ -72,46 +71,60 @@ public partial class Day : Node
     public override void _Ready()
     {
         chooser = new Window("sleep chooser", WriteChooser, ChooserKey);
-        sheet = new Window("night sheet", WriteSheet, SheetKey);
         // asleep, the mouse does nothing and Esc is the menu's: a key wakes him
         sleeping = new Window("asleep", () => null, AsleepKey) { Cursor = false, EscCloses = false };
         LoadBenches();
         var st = GameState.I;
         st.NeedsChanged += Tired;
-        st.NightCame += ShowNight;
-        st.DayTurned += Midnight;
-        st.Resting += r =>
-        {
-            // asleep on the server's word (a load in the middle of a sleep, the cell)
-            if (!asleep) Sleeping(r);
-            else ShowRest(r);
-        };
+        st.Resting += OnResting;
         st.Woke += GetUp;
-        st.Changed += p =>
-        {
-            if (p.Ending != null && shown != "night") ShowEnd();
-            else if (p.Ending == null && shown == "end") CloseSheet();
-        };
+        if (DaySheets.I is { } papers) papers.OnWakeHome = WakeAtHome;
         Interact.I.AddProvider(Keys);
         BuildFade();
         GetViewport().SizeChanged += BuildFade;
         Tired();
-        if (Scheldemist.Menu.MainMenu.I is { } menu)
-            menu.WorldReplaced += (_, _) =>
-            {
-                choosing = null;
-                chooser.Close();
-                sleeping.Close();
-                CloseSheet();
-                asleep = cell = waking = stepBusy = false;
-                rest = null;
-                night = null;
-                LastWoke = null;
-                LastError = "";
-                fadeWant = 0;
-                Tired();
-            };
+        if (Scheldemist.Menu.MainMenu.I is { } menu) menu.WorldReplaced += WorldReplaced;
     }
+
+    public override void _ExitTree()
+    {
+        GetViewport().SizeChanged -= BuildFade;
+        var st = GameState.I;
+        st.NeedsChanged -= Tired;
+        st.Resting -= OnResting;
+        st.Woke -= GetUp;
+        if (Scheldemist.Menu.MainMenu.I is { } menu) menu.WorldReplaced -= WorldReplaced;
+        if (DaySheets.I is { } papers)
+        {
+            papers.SleepShown = false;
+            papers.OnWakeHome = null;
+        }
+        chooser.Close();
+        sleeping.Close();
+    }
+
+    private void OnResting(RestView r)
+    {
+        // A saved rest or a collapse together arrives on the server's word too.
+        if (!asleep) Sleeping(r);
+        else ShowRest(r);
+    }
+
+    private void WorldReplaced(string how, ClientState? client)
+    {
+        choosing = null;
+        chooser.Close();
+        sleeping.Close();
+        asleep = cell = waking = stepBusy = false;
+        rest = null;
+        LastWoke = null;
+        LastError = "";
+        fadeWant = 0;
+        if (DaySheets.I is { } papers) papers.SleepShown = false;
+        Tired();
+    }
+
+    private void WakeAtHome(string home) => WakeHome?.Invoke(home);
 
     private static void Toast(string text) => GameState.I.Say(text);
 
@@ -220,12 +233,7 @@ public partial class Day : Node
 
     private void Rent()
     {
-        var api = ServerLink.I?.Api;
-        api?.Run(api.Rent(), r =>
-        {
-            GameState.I.Apply(r);
-            Toast(r.Text);
-        }, e => Toast(e.Message));
+        DaySheets.I?.PayRent();
     }
 
     // ------------------------------------------------------------------ the papers
@@ -307,6 +315,7 @@ public partial class Day : Node
             api.Run(api.Sleep(new RestAsk { Place = p.Kind, Bench = p.Bench, Hours = hours, Pos = pos }), r =>
             {
                 GameState.I.Apply(r);
+                // SleepReply is a state reply; only ticks dispatch GameState.Resting.
                 if (r.Rest != null) Sleeping(r.Rest);
             }, Refused);
         }, Refused);
@@ -315,6 +324,7 @@ public partial class Day : Node
     private void Sleeping(RestView r)
     {
         asleep = true;
+        if (DaySheets.I is { } papers) papers.SleepShown = true;
         cell = r.Place == "cell";
         waking = false;
         sinceStep = 0;
@@ -380,123 +390,7 @@ public partial class Day : Node
         }
         if (woke?.Place == "home" && woke.Home != null) WakeHome?.Invoke(woke.Home);
         if (woke != null && woke.Ended == null && woke.Place != "cell" && woke.Lines.Count > 0) Toast(string.Join(" ", woke.Lines));
-        if (woke?.Ended != null) ShowEnd();
-    }
-
-    // ------------------------------------------------------------------ the sheets: a night that came, midnight, the end
-
-    private void Midnight(DayTurn t)
-    {
-        var lines = new List<string> { $"Midnight. {(GameState.I.Live ? GameState.I.Weekday : "A new day")} begins. New work goes up on the board." };
-        lines.AddRange(t.Lines);
-        Toast(string.Join(" ", lines));
-    }
-
-    private void ShowNight(Night n)
-    {
-        night = n;
-        shown = "night";
-        Jobs.I?.CloseBoard();
-        sheet.Open();
-    }
-
-    private void ShowEnd()
-    {
-        shown = "end";
-        Jobs.I?.CloseBoard();
-        sheet.Open();
-    }
-
-    private void CloseSheet()
-    {
-        shown = "";
-        sheet.Close();
-    }
-
-    private Sheet? WriteSheet()
-    {
-        if (shown == "night" && night is { } n)
-        {
-            var sh = NightPaper();
-            string where = n.Where == "home" ? $"Your own room: {n.Place ?? "home"}" : n.Where == "bed" ? "The doss house, Sint-Andries" : n.Collapsed == true ? "Where you dropped, on the stones" : "Rough, under a tarpaulin";
-            sh.Text($"[b]{(n.Collapsed == true ? "Dropped asleep" : "Asleep")}[/b]", Face.Hand, 26, bottom: 4);
-            sh.Text(Css.Esc(where), Face.Hand, 13, 0.7f, bottom: 12);
-            foreach (string l in n.Summary) sh.Text(Css.Esc(l), Face.Print, 16, lineHeight: 1.45f, bottom: 8);
-            sh.Keys(n.Ended != null ? "E or Esc  go on" : "E or Esc  get up", Face.Hand, top: 12, bottom: 0);
-            return sh;
-        }
-        if (shown == "end" && GameState.I.Ending is { } e)
-        {
-            var sh = NightPaper(620, 0.9f);
-            if (e.Epilogue != null)
-            {
-                sh.Text($"[b]{Css.Esc(e.Epilogue.Title)}[/b]", Face.Hand, 26, bottom: 4);
-                foreach (string p in e.Epilogue.Paragraphs) sh.Text(Css.Esc(p), Face.Print, 16, lineHeight: 1.45f, bottom: 8);
-                sh.Keys("N  start a new week", Face.Hand, top: 12, bottom: 0);
-            }
-            else
-            {
-                sh.Text($"[b]{(e.Kind == "health" ? $"The end of {Css.Esc(GameState.I.PlayerName)}" : "Sunday night")}[/b]", Face.Hand, 26, bottom: 4);
-                sh.Text("[i]Somebody is writing down what became of him …[/i]", Face.Print, 16, 0.7f, lineHeight: 1.45f, bottom: 8);
-            }
-            return sh;
-        }
-        return null;
-    }
-
-    private void SheetKey(string code, string key)
-    {
-        if (shown == "night" && code is "KeyE" or "Enter" or "Escape") Wake();
-        else if (shown == "end" && code == "KeyN" && GameState.I.Ending?.Epilogue != null) NewWeek();
-    }
-
-    private void Wake()
-    {
-        var n = night;
-        night = null;
-        if (n?.Ended != null)
-        {
-            // the week is over: the epilogue sheet, or wait for it
-            ShowEnd();
-            return;
-        }
-        CloseSheet();
-        // from the doss house you step out of the alley gate, facing the river; rough, he gets up where he lay
-        if (n?.Where == "bed")
-        {
-            var (x, z) = Spots.Doss;
-            Jef.I.Place(x, z - 0.4f, 0);
-        }
-        if (n?.Where == "home" && n.Home != null) WakeHome?.Invoke(n.Home);
-        var st = GameState.I;
-        string sky = st.Weather switch
-        {
-            "mist" => "A thin mist lies on the river.",
-            "clear" => "The air is clear and cold. You can see the far bank.",
-            "rain" => "Rain is coming in off the Schelde.",
-            "storm" => "A gale off the sea. The river runs high and grey. Keep off the quay edge.",
-            _ => "The fog is thick on the Schelde.",
-        };
-        bool dark = st.Hour < 6 || st.Hour >= 20;
-        Toast($"{st.Weekday} {Clock(st.Hour, st.Minute)}. {(dark ? "Still dark." : sky)}{(n?.Turned == true ? " New work is on the board." : "")}");
-    }
-
-    /// <summary>N on the week's end: the menus' new game when they are there (the character sheet first), else straight of the server.</summary>
-    private void NewWeek()
-    {
-        if (Scheldemist.Menu.MainMenu.I is { } menu && Scheldemist.Menu.MainMenu.Wanted(Main.I))
-        {
-            CloseSheet();
-            Scheldemist.Menu.Sheets.NewGame(menu);
-            return;
-        }
-        var api = ServerLink.I?.Api;
-        api?.Run(api.NewGame(), p =>
-        {
-            CloseSheet();
-            GameState.I.Apply(p);
-            Goods.I.Reset();
-        }, e => Toast(e.Message));
+        if (DaySheets.I is { } papers) papers.SleepShown = false;
     }
 
     // ------------------------------------------------------------------ the dark of a sleep (.sleep-fade)
@@ -537,7 +431,7 @@ public partial class Day : Node
             // waking day's clock does not tick, as in the browser: a tick without "asleep" would end the sleep)
             wired = true;
             var was = GameState.I.PlayingWhen;
-            if (Main.I.Arg("jobtest") == "") GameState.I.PlayingWhen = () => !asleep && !sheet.IsOpen && !chooser.IsOpen && (was?.Invoke() ?? (Input.MouseMode == Input.MouseModeEnum.Captured && Main.I.Cam is not FlyCam));
+            if (Main.I.Arg("jobtest") == "") GameState.I.PlayingWhen = () => !asleep && !chooser.IsOpen && (was?.Invoke() ?? (Input.MouseMode == Input.MouseModeEnum.Captured && Main.I.Cam is not FlyCam));
         }
         // .sleep-fade: 1.1 s in, and out again
         if (fade != null)
