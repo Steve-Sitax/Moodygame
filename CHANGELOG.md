@@ -7,6 +7,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- In the Godot version, the sky at midday is a plain grey overcast again: large flat grey shapes no longer hang over the roofs, and the works' chimneys smoke in fuller, darker plumes ([#55](https://github.com/Steve-Sitax/Moodygame/issues/55)).
 - Townspeople's outdoor activity spots stay on reachable ground instead of landing inside houses or the park pond; path snapping also keeps room for their bodies at lane edges.
 - In the Godot version, the townspeople and Jef have their soft shadow on the ground again, as in the browser game.
 

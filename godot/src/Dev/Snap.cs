@@ -24,6 +24,7 @@ public partial class Snap : Node
     private int view = -1, frame;
     private ulong last;
     private readonly List<double> times = new();
+    private readonly List<Node3D> hidden = new();
     private const int Wait = 50, Timed = 90;
 
     public override void _Ready()
@@ -79,6 +80,16 @@ public partial class Snap : Node
             return;
         }
         var a = views[view];
+        // (dev: a view named name~node~node draws without those nodes, to find what draws a thing)
+        foreach (var h in hidden) h.Visible = true;
+        hidden.Clear();
+        foreach (var n in a[0].Split('~').Skip(1))
+            foreach (var nd in BakedWorld.All(Main.I.View))
+                if (nd is Node3D n3 && n3.Name == n && n3.Visible)
+                {
+                    n3.Visible = false;
+                    hidden.Add(n3);
+                }
         var cam = Main.I.Cam;
         if (a.Length > 5 && a[1] != "")
         {
@@ -168,6 +179,21 @@ public partial class Snap : Node
         if (frame < Wait + Timed + (view == 0 ? 240 : 0)) return;
         string name = views[view][0];
         Main.I.GetViewport().GetTexture().GetImage().SavePng(System.IO.Path.Combine(dir, name + ".png"));
+        // (dev: --whatray fx,fy;... lists the drawn meshes whose box the ray through that point of the picture meets,
+        // small ones first; fx, fy are 0..1 across and down)
+        if (Main.I.Arg("whatray") is { Length: > 0 } wr)
+            foreach (var one in wr.Split(';', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var f = one.Split(',').Select(F).ToArray();
+                var cam3 = Main.I.View.GetCamera3D();
+                var px = new Vector2(f[0], f[1]) * Main.I.GetViewport().GetVisibleRect().Size;
+                Vector3 o = cam3.ProjectRayOrigin(px), d = cam3.ProjectRayNormal(px);
+                var hits = new List<(float, string)>();
+                foreach (var nd in BakedWorld.All(Main.I.View))
+                    if (nd is GeometryInstance3D gi && gi.IsVisibleInTree() && (gi.GlobalTransform * gi.GetAabb()).IntersectsSegment(o, o + d * 5000))
+                        hits.Add(((gi.GlobalTransform * gi.GetAabb()).Size.Length(), $"{(gi.GlobalTransform * gi.GetAabb()).GetCenter().DistanceTo(o):0} m {gi.GetPath().ToString().Split('/').TakeLast(3).Aggregate((x, y) => x + "/" + y)} {gi.GetClass()} mat {(gi.MaterialOverride ?? (gi as MeshInstance3D)?.Mesh?.SurfaceGetMaterial(0))?.ResourceName}"));
+                foreach (var (size, what) in hits.OrderBy(h => h.Item1).Take(25)) GD.Print($"whatray {name} {one} {size:0} {what}");
+            }
         times.Sort();
         GD.Print($"snap {name} air: wind {Daylight.I.Wind.Length():0.00}, night life {NightLife.I?.Info}, surf {Surf.I?.Info}, gutters {Gutters.I?.Info}, breath {Breath.I?.Info}, blobs {Blobs.I?.Count}");
         GD.Print($"snap {name}: {times.Average():0.00} ms a frame (p95 {times[(int)(times.Count * 0.95)]:0.00}), {RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalDrawCallsInFrame)} draws, {Render.Psx.ShaderCount} psx shaders");

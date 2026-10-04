@@ -87,7 +87,9 @@ void fragment() {
 	if (d > 1.0) discard;
 	float mottle = 0.55 + 0.45 * h12(floor(UV * 6.0) + seed * 71.0);
 	float f = smoothstep(psx_fog_near, psx_fog_far * 2.2, fog_depth);
-	float a = min(alpha * (1.0 - d * d) * mottle, 0.75) * (1.0 - f * 0.85);
+	// (thicker than the browser's numbers: drawn the same way, Godot's plumes came out about half as dark; Steve,
+	// 2026-10-04: a fuller plume is fine where it makes the air better)
+	float a = min(alpha * 1.8 * (1.0 - d * d) * mottle, 0.8) * (1.0 - f * 0.85);
 	if (a < 0.008) discard;
 	ALBEDO = mix(col, psx_fog_color.rgb * 0.8, f) + glow * (0.35 + 0.65 * smoothstep(psx_fog_near, psx_fog_far, fog_depth));
 	ALPHA = a;

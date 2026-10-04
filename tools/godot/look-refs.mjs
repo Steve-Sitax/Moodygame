@@ -114,7 +114,8 @@ try {
     await wait(v.storm ? 6 : 3);
     const png = await send("Page.captureScreenshot", { format: "png" });
     if (png.result?.data) writeFileSync(path.join(out, `${v.name}_ref.png`), Buffer.from(png.result.data, "base64"));
-    const alive = await ev(`JSON.stringify(__scheldemist.alive ? __scheldemist.alive.info() : null)`).catch(() => "null");
+    // (the alive parts' counts, and the fog and the works' stacks, to set beside Godot's)
+    const alive = await ev(`JSON.stringify({ ...(__scheldemist.alive ? __scheldemist.alive.info() : {}), fog: (() => { const f = __scheldemist.world?.scene?.fog; return f ? { near: f.near, far: f.far, color: f.color?.getHexString?.() } : null; })(), works: __scheldemist.world?.scene?.getObjectByName?.("works")?.userData?.info?.() ?? null })`).catch(() => "null");
     writeFileSync(path.join(out, `${v.name}_ref.json`), alive ?? "null");
     log(v.name, "->", path.join(out, `${v.name}_ref.png`));
   }
