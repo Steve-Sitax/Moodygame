@@ -369,6 +369,11 @@ public partial class Loading : Control
             }
             return;
         }
+        if (Scheldemist.Audio.Soundscape.I is { Prepared: false })
+        {
+            ShowStep("Preparing the sound", "", 0.6f, "Loading the recordings and making the town's sound ready for the first walk.");
+            return;
+        }
         // 4: the server and the first state (a server that did not come up says so on the paper under this screen)
         var link = ServerLink.I;
         if (serverFrom < 0)

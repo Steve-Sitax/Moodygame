@@ -6,22 +6,25 @@ browser game makes and how each is done in Godot. The numbers (gains, reaches, t
 ## How it is built in Godot
 
 - **Recordings** stay where they are (`client/public/audio/`, licences in `assets/ATTRIBUTION.md`) and are loaded at
-  run time with `AudioStreamOggVorbis.LoadFromFile`. Short one-shots (up to 8 seconds) are decoded once to mono PCM
-  at load, to avoid setting up an Ogg decoder on each step or impact; long recordings and loops stay compressed.
+  loading time with `AudioStreamOggVorbis.LoadFromFile`, on a worker. Every compressed recording, including long
+  ones and loops, is decoded once to mono PCM before play: no decoder setup on a step, bell or loop start. Long
+  recordings retain their native sample rate and loop length; the existing short one-shots retain their PCM.
   The folder comes from one place (`AudioPaths.Audio`: option
   `--audio <dir>`, or the environment variable `SCHELDEMIST_AUDIO`, or `../client/public/audio` beside the project).
 - **Made sounds** are built by the same graph as in the browser: `Wa.cs` is a small Web Audio that runs ahead of time
   (oscillators, noise, biquad filters with the Web Audio formulas, gains, and the AudioParam timeline:
   setValueAtTime, linear and exponential ramps, setTargetAtTime, value curves). Each made sound is rendered once to a
-  buffer on a worker thread when it is asked for, and played as an `AudioStreamWav`. The beds that never change
-  (water, wind, downpour, lamp hiss) are rendered once at start as loops. Only the great storm's howl changes while
+  buffer on a worker thread when it is asked for, and played as an `AudioStreamWav`. Graph construction runs on
+  that worker too. The beds that never change (water, wind, downpour, lamp hiss, organ) are rendered as loops
+  during loading, before play. Only the great storm's howl changes while
   it plays (its pitch follows the gusts): an `AudioStreamGenerator`, fed each frame while a storm blows.
 - **Place** (the browser's `Spot`: fog gain, air lowpass, panner, reverb send): an `AudioStreamPlayer3D` with
   Godot's own distance curve off. The gain by distance is ours, set every frame, because Godot's inverse curve is
   `ref / d` only and cannot do Web Audio's `ref / (ref + rolloff x (d - ref))` with a rolloff other than 1 (the
   game uses 0.8 to 2.2). Godot still does the left and right. Each playing place takes a bus from a pool of 48, with
   a lowpass on it (the air lowpass, one biquad, the same formula); the reverb send is a second player of the same
-  stream on the Reverb bus (a Godot bus has one send).
+  stream on the Reverb bus (a Godot bus has one send). Loading also prepares 128 3D and 48 flat players and
+  exercises the native mixer, layered/event paths and storm generator once. The loading card waits for sound.
 - **Buses** (the browser's gain groups):
   `Master` (compressor, limiter; the speaker) <- `Street` (the street's level and the wall lowpass when Jef is
   inside) <- `Ambience`, `Voices`, `Music`, `Effects` (the Sound settings) and `Reverb` (the foggy outdoor tail);
@@ -219,3 +222,122 @@ code 1 for mismatches. The speakers remained muted after the recorder throughout
 
 Godot still prints the existing font/CanvasItem/ObjectDB cleanup warnings at exit. No Main.cs, Jef.cs,
 Game/Wiring.cs, Psx.cs or shader was changed. The pending game-part connections are listed above.
+
+## Strict frame budget investigation, 2026-10-04
+
+Merged `godot-port` into `godot/sound` first (fast-forward to `d16f387`). This fixes
+[#41](https://github.com/Steve-Sitax/Moodygame/issues/41). All work and evidence remain in the sound worktree.
+
+The original numbers above excluded the synchronous trigger call from the frame total. The test now includes
+actual gameplay calls, including graph requests and loop/event starts; calibration's own nodes and decoding
+remain excluded. Every frame above 0.3 ms prints and retains its frame number, time, trigger, last sound started,
+update step costs, mixer start costs and generation 0/1/2 collection counts. Any such frame fails the test.
+
+The unchanged-code trace (`baked/soundtest-trace/soundtest.json`) found these **13** over-budget frames. The
+original run had 11; cold paths and random choices vary between runs. These are the net sound costs, with the
+test's own measurement decoding subtracted; the initial trace's per-step figures included that decoding, so
+only the responsible step is listed here.
+
+| Frame | Cost, ms | Trigger / sound | Responsible step |
+|---|---:|---|---|
+| 1 | 6.9051 | first sound frame | cold wiring, state, update, mixer and howl paths |
+| 2 | 0.6648 | water/wind beds arrive | ready callback / first player use |
+| 15 | 1.5556 | first periodic update | cold update helpers |
+| 8396 | 0.7003 | short carillon | delayed compressed playback start in mixer |
+| 8565 | 0.6668 | whole carillon | delayed compressed playback start in mixer |
+| 8735 | 0.6604 | clock crosses 10:00 / carillon | delayed compressed playback start in mixer |
+| 8905 | 0.6402 | clock crosses 10:30 / short carillon | delayed compressed playback start in mixer |
+| 9979 | 0.7339 | gulls | delayed compressed playback start in mixer |
+| 16026 | 0.5329 | stop event music | cold timer callback |
+| 20360 | 0.4719 | repeating drum cues | graph construction / timer callback |
+| 21514 | 0.9553 | near thunder / thunderNear2 | delayed compressed playback start in mixer |
+| 28109 | 0.7662 | first great storm | first generator buffer submission |
+| 28119 | 0.3298 | downpour arrives | ready callback / player start |
+
+None of these frames coincided with a managed GC collection. The files were already loaded: the steady-play
+recording spikes came from starting another Ogg decoder, rather than reading the file again. The trace's mean
+was 0.0248 ms, worst 6.905 ms; its separately measured paddle-steamer trigger was 4.85 ms.
+
+The fixes:
+
+- Load and decode the recordings on a worker during loading; preserve original short one-shot PCM, long-source
+  rates and exact loop ends. Decoding failure is listed as a failed recording rather than leaving a compressed
+  stream to set up its decoder during play.
+- Render every constant bed, including the downpour and organ, before readiness. Create the buses, player pool
+  and generator during loading, compile the audio methods and constructors there, and warm the actual mixer,
+  ship/cart loops, peal and event-stop helpers and generator's first buffer.
+- Build dynamic synth graphs and render their buffers on the worker. The main thread only installs ready voices.
+  Cue repetition still uses the maker's exact duration, measured from the original fire time. Singing returns
+  its original note/beat duration immediately.
+- Reuse crowd, vehicle-distance and nearby-steamer scratch lists. Remove ship/loop LINQ allocations and reuse
+  category names in the settings update. Graphs, envelopes, filters, reach, gain, pitch distributions and sources
+  are unchanged (`Wa.cs`, `Voices.cs`, `AliveSounds.cs` and `Samples.cs` have no changes).
+
+The stricter follow-up isolated a 2.046 ms frame in the completion queue, without a voice start or GC. An
+unpublished producer slot is a plausible cause: the [.NET queue implementation](https://github.com/dotnet/runtime/blob/main/src/libraries/System.Private.CoreLib/src/System/Collections/Concurrent/ConcurrentQueueSegment.cs)
+explicitly spins in TryDequeue until that slot is published. The audio queue now publishes fully initialized
+callback nodes atomically; the main thread takes and reverses complete batches, with no lock or producer wait.
+Empty graph-ready callbacks are omitted. The self-test checks 4,096 callbacks from four concurrent workers for
+FIFO ordering and loss. The first cue-stage call also belongs to the loading warm-up; its LINQ iterator is gone.
+
+### Comparing sound levels honestly
+
+The earlier JSON was not seeded. Repeating the unchanged code changed **84/156 recorded peaks**, **102/156 RMS
+values** and **18 selected gains** against it. Random sample selection, pitch, loop position, noise, voice
+variation and time spent fading make a literal per-row peak match impossible even before a fix. The final
+comparison retains every row's before/after values; it does not relabel different readings as equal.
+
+The loading test additionally compares each decoded recording's original and PCM peak/RMS directly at the same
+rate and reports both rounded to 0.1 dB, plus the unrounded quantization differences. This isolates the actual
+sample conversion from the randomized test triggers.
+
+Ogg decoding can produce samples above full scale. Newly unpacked recordings keep this headroom: their PCM is
+stored lower and the voice restores the exact scale. The pre-existing short PCM conversion remains unchanged,
+including its original clipping. The level report marks which path was already PCM before this fix, so it
+compares against the earlier playback format rather than claiming that earlier clipping is new damage.
+
+Run `node tools/godot/check-soundtest.mjs <new soundtest.json> <earlier soundtest.json>` after the engine test.
+It fails on any over-budget frame, missing sound row, changed configured gain, failed recording, or PCM peak/RMS
+error greater than 0.001 dB. It writes every row's literal earlier/after values to `comparison.json` beside the
+new test. One displayed rounding unit at a boundary is permitted only while the actual error stays below
+0.001 dB. No audio asset, synth graph or dependency was changed. The browser's audio is unaffected by this Godot
+runtime preparation work.
+
+### Final verification
+
+Full silent run on port **8885**, no AI, a new test database and preferences in the evidence directory, with
+the shared town and model bake. The console run had a 600-second timeout and quit normally with exit code 0.
+Evidence: `godot/baked/soundtest-release/soundtest.json`, `soundtest.wav` and `comparison.json` (not committed).
+
+| Sound main-thread cost | Earlier test | Final test |
+|---|---:|---:|
+| Frames | 28,492 | 28,473 |
+| Mean, ms | 0.0255 | 0.0270 |
+| p95, ms | 0.0404 | 0.0422 |
+| p99, ms | 0.0542 | 0.0581 |
+| Worst, ms | 7.205 | **0.268** |
+| Frames above 0.3 ms | 11 | **0** |
+
+The final statistic is stricter: it includes gameplay trigger calls and rain/storm activation, which the
+earlier frame statistic excluded. The most expensive final gameplay call was the cooper's mallet, 0.22 ms.
+There are **no remaining over-budget frames to list**; `cost.overBudget` is empty. A separate layer activation
+run also passed: mean 0.0355 ms, worst 0.189 ms, no frames above 0.3 ms.
+
+- 156 sound rows, 154 played (the two intended silent rows remain silent), no gain/duration/layer mismatches.
+- 62 wiring checks passed, including the new four-worker FIFO test (4,096 callbacks).
+- 49 named recordings, 10 step variants, no failed files; all 70 compressed recordings decoded during loading.
+  The 29 pre-existing short PCM conversions remain unchanged. Seven newly unpacked thunder recordings need
+  headroom restoration; the level check confirms that their playback levels are preserved.
+- **All 70 recording peak and RMS readings match at the displayed 0.1 dB rounding.** Maximum unrounded
+  peak error: **0.00049665 dB**; RMS error: **0.00026910 dB**. No rounding-boundary differences remain.
+- All configured sound gain ranges and layer gains match the earlier JSON. Literal unseeded playback readings
+  differ in 91/156 peaks and 110/156 RMS values (the unchanged-code control already differed in 84 and 102).
+  Those differences, and every row's actual earlier/after values, are retained in `comparison.json`.
+- The mixer finishes with 128 3D and 48 flat players, exactly the loading pool sizes: no pool growth during
+  play. No renders or timers remain pending. Stereo recording: 474.5 seconds at 48 kHz.
+
+`dotnet build godot`, `npm run build`, and the comparison checker pass. The existing Townspeople nullability,
+Vite bundle/import and Godot font/CanvasItem cleanup warnings remain. No shader, model, audio asset, synthesis
+graph or browser sound code changed. No test process remains. Automatic approval review rejected deletion of
+the generated test SQLite files with "blocked by policy" without a more specific reason; those ignored files
+remain in the soundtest evidence directories.
