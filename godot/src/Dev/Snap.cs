@@ -104,6 +104,8 @@ public partial class Snap : Node
             Tide.Set(1, F(a[6])); // (Monday's tide at that hour)
         }
         if (a.Length > 7 && a[7] != "") Daylight.I.SetWeather(a[7]);
+        // (held: the events part sets the storm every frame, and the test's level would fade)
+        Daylight.I.StormHold = a.Length > 8 && a[8] != "" ? F(a[8]) : null;
         Daylight.I.SetStorm(a.Length > 8 && a[8] != "" ? F(a[8]) : 0);
         Daylight.I.Settle();
     }
@@ -196,7 +198,7 @@ public partial class Snap : Node
             }
         if (LandmarkRooms.I is { } lr) GD.Print($"snap {name} landmark rooms: {string.Join(", ", lr.Info.Select(i => $"{i.building} {i.lit}/{i.windows}"))}; steen lanterns {lr.LanternInfo.lit}/{lr.LanternInfo.lanterns}");
         times.Sort();
-        GD.Print($"snap {name} air: wind {Daylight.I.Wind.Length():0.00}, night life {NightLife.I?.Info}, surf {Surf.I?.Info}, gutters {Gutters.I?.Info}, breath {Breath.I?.Info}, blobs {Blobs.I?.Count}");
+        GD.Print($"snap {name} air: wind {Daylight.I.Wind.Length():0.00}, rain {Daylight.I.Rain:0.00}, storm {Daylight.I.Storm:0.00}, night life {NightLife.I?.Info}, surf {Surf.I?.Info}, gutters {Gutters.I?.Info}, breath {Breath.I?.Info}, blobs {Blobs.I?.Count}");
         GD.Print($"snap {name}: {times.Average():0.00} ms a frame (p95 {times[(int)(times.Count * 0.95)]:0.00}), {RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalDrawCallsInFrame)} draws, {Render.Psx.ShaderCount} psx shaders");
         Next();
     }

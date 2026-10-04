@@ -162,7 +162,15 @@ public partial class Daylight : Node
     /// rain never lets up and drives harder, the river runs high and white-capped, the cloud deck races over.
     /// Not here: the gusts' veils, the bolts, the flying things.
     /// </summary>
-    public void SetStorm(float level) => stormTarget = Mathf.Clamp(level, 0, 1);
+    public void SetStorm(float level) => stormTarget = Mathf.Clamp(StormHold ?? level, 0, 1);
+
+    /// <summary>Dev (the browser's tempest hold): the great storm held at this level whatever the events say; null lets go.</summary>
+    public float? StormHold
+    {
+        get => stormHold;
+        set { stormHold = value; if (value is { } v) stormTarget = Mathf.Clamp(v, 0, 1); }
+    }
+    private float? stormHold;
 
     /// <summary>Rain on top of the weather 0-1 (a job twist, or dev).</summary>
     public void SetRain(float amount) => manualRain = Mathf.Clamp(amount, 0, 1);
