@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Cart jobs can be taken and followed in Godot, with the employer's server-owned cart loan returned when the job ends.
+
 - Godot cathedral chairs charge the chair woman's centime once per service; the curate's confessional has a kneeling paper and an AI typing gate. At Sunday high mass the priest climbs the real pulpit and preaches before trust is awarded.
 
 - The emigrant tender keeps its real hull visible as families board in Godot, even when the bake camera hid it.

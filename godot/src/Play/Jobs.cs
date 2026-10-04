@@ -460,7 +460,7 @@ public partial class Jobs : Node
     }
 
     /// <summary>The kinds of work this part plays (carry, watch, deliver by hand); the letters, the mill and the lamps have parts of their own.</summary>
-    private static bool Playable(Job j) => j.Playable && (JobTask.Of(j) is { Cart: false } || LettersTask.Of(j) != null || LampsTask.Of(j) != null || MillTask.Of(j) != null);
+    private static bool Playable(Job j) => j.Playable && (JobTask.Of(j) != null || LettersTask.Of(j) != null || LampsTask.Of(j) != null || MillTask.Of(j) != null);
 
     /// <summary>.board: left 50%, top 50%, min(720px, 86vw), at most 84vh high, padding 18 28 12, turned -0.6 degrees.</summary>
     private Sheet BoardSheet()
