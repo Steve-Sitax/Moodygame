@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- In Godot, typing a reply pauses the menace decision timer, and a peaceful outcome keeps the screen clear.
+
 - A Windows Godot download now starts from its executable, with the town, models, sounds and game server included.
 
 - Godot downloads can carry the compiled server and portable Node, with matching SQLite packages and no compiler needed to play.

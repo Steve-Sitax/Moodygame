@@ -78,7 +78,9 @@ nullable Grime.cs warning.
 
 The test measures Events + Actors + TownLife + Hearses for 239 steady frames of robbery at Grote Markt.
 The preceding full run measured mean 0.00996 ms, p95 0.012 ms, maximum 0.016 ms, mean/p95 0 B per frame.
-Final results will be recorded after the final check. This is **event-system CPU work**, not the whole frame.
+The final `release` run passed all sixteen kinds and fifty stages: mean 0.00985 ms, p95/max 0.013 ms,
+mean/p95 0 B over 239 frames. Thirteen cue-bearing kinds fired a composed cue. All 68 pictures were
+inspected in six contact sheets. This is **event-system CPU work**, not the whole frame.
 It excludes shared Crowd/Human animation, renderer work and two-second network poll/sync setup. Poll replies,
 stage changes, first-use models/materials and one-shot speech allocate. No new shader kinds or dynamic lights;
 fire uses the existing fire/light hooks.
@@ -95,7 +97,7 @@ it lacks the browser's full hidden route/step-out recovery.
 - Exact hand-to-hand bucket choreography, bent hose, pump collision, driver/reins and every lead detail
   (including the showman's monkey and auction board). Current small props are procedural approximations.
 - Prison rooms/arrest movement where scenes need them; they are not supplied by this part.
-- Family dreams on the night sheet, rather than the current notice. Resize-aware menace layout.
+- Family dreams on the night sheet, rather than the current notice.
 - Browser-equivalent four-attempt unwedge recovery. Attendance retries; ordinary actions report a blocked
   path after their progress timeout.
 - Explicit Godot checks of every player-requested action and family menace choice, actual event omnibus
@@ -103,3 +105,27 @@ it lacks the browser's full hidden route/step-out recovery.
   leaves shared world/people ownership for its later round too.
 
 Keep the engine's routes and existing people, sound, paper, daylight and fire hooks while completing these.
+
+## Local evidence
+
+Ignored proof folders are under `godot/baked/events-proof/` in this worktree, not in the shared bake:
+
+- `release/eventtest.json`: sixteen completed kinds, fifty stages, no failures; `release/review-0.jpg` through
+  `review-5.jpg` show every one of its 68 stage/lead PNGs. Dark midday streets match the already recorded
+  shared lighting problem [issue 42](https://github.com/Steve-Sitax/Moodygame/issues/42).
+- `family/eventtest.json`, `family/family-menace.png`, `family/family-harm.png`: synthetic presentation
+  fixtures check opening choices, harm dimming and a harmless payment notice. They do not submit invented
+  actions or claim to test engine harm/payment outcomes. Both pictures were inspected. Typing now pauses
+  the decision timer, timeout closes the field, and friendly outcomes do not show the harm veil. Layout
+  follows viewport size; world replacement clears the panel and veil.
+- `vehicles/eventtest.json`: focused funeral/fire repeat passed all eight stages with no errors. Its twelve
+  pictures were inspected, including `vehicles/funeral-hearse.png` and `vehicles/house_fire-pump.png`.
+  The self-test now takes these focused prop pictures, in addition to its stage views. New stage rows use
+  `soundKind` and `propsKind`, so their names do not differ from the boolean/count fields only by case.
+
+All owned runs quit; the runner removed every test database, WAL and SHM. No Node or Godot process belonging
+to this worktree remained. No push, merge, shared bake write or live-game save access.
+
+No full-browser perfcheck launch was made: its default ports are outside this worker's assigned range.
+The Godot event-system measurement above is the budget proof for this part; it is not passed off as a
+whole-game rendering measurement or a browser pixel comparison.
