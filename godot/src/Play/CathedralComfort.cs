@@ -33,6 +33,7 @@ public partial class CathedralComfort : Node
     public override void _Ready()
     {
         I=this;
+        ProcessPriority=20; // the seated/kneeling view owns the camera after Jef's walking step
         input=new LineEdit{MaxLength=300,PlaceholderText="Say it in your own words, then Enter",ContextMenuEnabled=false};
         input.AddThemeColorOverride("font_color",Css.Ink);input.AddThemeColorOverride("font_placeholder_color",new Color(Css.Ink,.6f));
         input.AddThemeStyleboxOverride("normal",new StyleBoxFlat{BgColor=Css.Hex("e6ddc6")});

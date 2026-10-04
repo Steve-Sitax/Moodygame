@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Godot tavern and cathedral seats keep Jef still and retain their seated camera height when the ride controls are loaded.
+
 - Godot avoids needless pose updates to resting carts, closed puppet-show curtains and ferry fixtures while keeping the same picture.
 
 - Godot events keep their townspeople reserved when lamplighter rounds stop; emigrant boarding uses the same reservations and waits for people busy in an event.

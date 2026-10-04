@@ -311,7 +311,12 @@ public partial class PlacesTest : Node
         var approach=(seat.Approach-seat.At).Normalized(); await At(seat.At.X+approach.X*.85f,seat.At.Z+approach.Z*.85f,seat.At.X,seat.At.Z,seat.At.Y+.45f,seat.At.Y);
         replies.Add(new { seat = new { at = seat.At.ToString(), approach=seat.Approach.ToString(), playerY=Jef.I.Y, prompts=Interact.I.Find().Select(a=>a.Text).ToArray() } });
         Check(Interact.I.Find().Any(a=>a.Text is "sit down at the table" or "sit at the counter"),"free physical seat prompt"); Interact.I.Press(Key.E);
-        Check(TavernSeats.I.Sitting!=null,"player seated"); await Frames(12); Check(MathF.Abs(Main.I.Cam.GlobalPosition.Y-(seat.At.Y+seat.Height+.72f))<.05f,"seated eye height"); await Shot("tavern-seat");
+        Check(TavernSeats.I.Sitting!=null,"player seated"); await Frames(12);
+        replies.Add(new { seatedEye = Main.I.Cam.GlobalPosition.ToString(), expectedEye = seat.At.Y+seat.Height+.72f, cathedralSeated = CathedralComfort.I.Sitting != null, Jef.I.Frozen, driven = Jef.I.Drive?.Method.Name });
+        Check(MathF.Abs(Main.I.Cam.GlobalPosition.Y-(seat.At.Y+seat.Height+.72f))<.05f,"seated eye height"); await Shot("tavern-seat");
+        var seatedFeet = new Vector2(Jef.I.X, Jef.I.Z);
+        Jef.I.SetKey(Key.W, true); await Frames(12); Jef.I.ClearKeys();
+        Check(seatedFeet.DistanceTo(new Vector2(Jef.I.X,Jef.I.Z))<.01f,"seated movement stays frozen");
         Check(Interact.I.Find().Any(a=>a.Text.StartsWith("play pitjesbak with")),"dice partner at occupied table"); Interact.I.Press(Key.G); Check(await Until(()=>Scheldemist.Talks.Dice.I!.IsOpen,10),"dice seat accepted by engine"); await Shot("tavern-dice");
         string before=Scheldemist.Talks.Dice.I!.Line; Scheldemist.Talks.Dice.I.OnKey("Digit1","1"); Check(await Until(()=>Scheldemist.Talks.Dice.I.Line!=before && !Scheldemist.Talks.Dice.I.Busy,12),"numbered dice throw"); replies.Add(new{dice=Scheldemist.Talks.Dice.I.Line,state=await api.Jobs()}); await Shot("tavern-dice-thrown");
         Scheldemist.Talks.Dice.I.Close(); Interact.I.Press(Key.E); Check(TavernSeats.I.Sitting==null,"stand up releases player seat");

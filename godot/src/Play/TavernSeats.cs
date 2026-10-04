@@ -35,6 +35,7 @@ public partial class TavernSeats : Node
     public override void _Ready()
     {
         I = this; town = GetParent().GetNodeOrNull<Townspeople>("Townspeople");
+        ProcessPriority = 20; // after Jef (rides run his step at 10), before lighting and mirrors
         using var doc = JsonDocument.Parse(File.ReadAllText(ProjectSettings.GlobalizePath("res://assets/places.json")));
         foreach (var c in doc.RootElement.GetProperty("counters").EnumerateArray())
         {
