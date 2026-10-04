@@ -47,3 +47,17 @@ or wall walking/turning frame over 16 ms. Existing allocation gates are retained
 Pending: job, places, both event batches, ride, play, deeds, and
 `devtest,shaders,clocks,stuck,perfcheck,pixelcheck`. No push or merge is authorized.
 Each commit runs the repository pre-commit hook and stages explicit paths only.
+
+## Measured results
+
+Three independent runs; each cell lists run 1 / 2 / 3. Walking is six seconds after 90 standing and 90 turning frames for every revision, including latest. The temporary historical probe only adds inventory outside sampled frames and standardizes the turn duration. Draw calls are the mean during turning; scene counts are after walking. Physics bodies/shapes include Solid’s directly created static bodies plus the scene tree.
+
+| Commit | Place | Walk mean ms | Walk p95 ms | Walk max ms | Turn mean / p95 / max ms | Draw calls | Bodies / shapes | Nodes | MeshInstances | Active lights |
+|---|---|---|---|---|---|---|---|---|---|---|
+| a1001d2 | grote markt | 4.466 / 4.359 / 4.506 | 5.72 / 5.523 / 5.672 | 22.404 / 19.972 / 21.879 | 4.193,5.265,10.311 / 4.195,5.072,9.957 / 4.05,5.041,9.209 | 947 / 948 / 947 | 3273,4763 / 3273,4763 / 3273,4763 | 12604 / 12604 / 12604 | 5917 / 5917 / 5917 | 27 / 27 / 27 |
+| a1001d2 | cathedral | 5.088 / 5.131 / 4.984 | 6.506 / 6.842 / 6.515 | 8.635 / 9.264 / 8.957 | 3.999,5.458,6.74 / 4.645,5.998,6.939 / 4.002,5.862,7.342 | 990 / 992 / 987 | 3272,4762 / 3272,4762 / 3272,4762 | 12612 / 12612 / 12612 | 5919 / 5919 / 5919 | 34 / 34 / 34 |
+| a1001d2 | handschoenmarkt | 5.414 / 5.031 / 5.012 | 7.13 / 6.55 / 6.532 | 8.897 / 9.084 / 8.502 | 4.038,5.383,5.765 / 4.081,5.366,6.041 / 4.005,5.271,6.281 | 1076 / 1076 / 1076 | 3272,4762 / 3272,4762 / 3272,4762 | 12617 / 12612 / 12612 | 5920 / 5919 / 5919 | 34 / 34 / 34 |
+| a1001d2 | vismarkt | 4.08 / 3.953 / 3.991 | 5.144 / 4.758 / 4.845 | 98.927 / 98.351 / 99.785 | 5.168,6.982,8.051 / 4.954,6.793,7.372 / 4.79,6.247,6.773 | 1454 / 1448 / 1443 | 3277,4767 / 3277,4767 / 3277,4767 | 12671 / 12671 / 12673 | 5927 / 5927 / 5928 | 26 / 26 / 26 |
+| a1001d2 | rijnkaai | 3.386 / 3.414 / 3.422 | 4.126 / 4.267 / 4.266 | 5.907 / 6.748 / 6.035 | 4.916,7.552,8.169 / 5.262,7.54,8.007 / 5.228,7.585,9.081 | 1655 / 1694 / 1675 | 3276,4766 / 3276,4766 / 3276,4766 | 12703 / 12703 / 12705 | 5939 / 5939 / 5940 | 9 / 9 / 9 |
+
+Raw per-run JSON and logs: `godot/baked/bisect/<commit>/run-<n>/`. Inventory also records areas, rigid bodies, visible meshes, MultiMeshes, processing nodes, rays, casts, viewports, cameras, and counts by scene group. These diagnostic results do not replace the sustained six-second turning final gate.
