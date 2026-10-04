@@ -36,6 +36,7 @@ public partial class Emigrants : Node
     private bool loading,dead;
     private int generation;
     public int CampCount=>camps.Count;
+    public Vector3? CampProp { get { foreach(var c in camps.Values)foreach(var n in c.Group.GetChildren())if(n is Node3D prop && prop.IsVisibleInTree())return prop.GlobalPosition;return null;} }
     public int AboardCount { get {int n=0;foreach(var d in decks.Values)n+=d.People.Count;return n;} }
     public int LinerTransfers { get; private set; }
     public Vector3? DeckPerson { get { foreach(var d in decks.Values)if(d.People.Count>0)return d.People[0].Group.GlobalPosition;return null; } }

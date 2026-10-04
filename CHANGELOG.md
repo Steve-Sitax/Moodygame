@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Godot has a bounded places self-test covering work, home sleep and furniture, counters and dice, songs, the cathedral, emigrant boarding and the Poesje, with server replies and close pictures.
+
 - The Godot preacher stands inside the pulpit bowl at the browser's climb height, instead of adding the plan marker's height twice.
 
 - Starting or loading a week refreshes Godot's song, counters, dock book, hiring stand and bucket-line state; a late reply from the previous week cannot restore those old choices.
