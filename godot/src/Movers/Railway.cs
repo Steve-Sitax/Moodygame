@@ -754,7 +754,7 @@ public partial class Railway : Node
             float want = Math.Min(CraneV, MathF.Sqrt(2 * 0.12f * dist));
             // nobody under the legs: it waits for Jef
             var jef = Jef.I;
-            if (jef != null && dist > 0.01f)
+            if (jef != null && Scheldemist.Play.CraneClimb.I?.On != c.Index && dist > 0.01f)
             {
                 var (nx, nz) = SiteAt(c, c.Pos + dir * 2.5f);
                 if (Math.Abs(jef.X - nx) < 4.6f && Math.Abs(jef.Z - nz) < 4.6f && jef.Y < 3)
