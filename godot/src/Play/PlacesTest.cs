@@ -133,7 +133,11 @@ public partial class PlacesTest : Node
         await At(at.X, at.Z, aim.X, aim.Z, f.Y + 0.5f, f.Y); await Frames(30);
         await Until(() => !HomeLife.I.Busy, 10);
         replies.Add(new { furnitureProbe = new { f.Inside, local = f.Local(Jef.I.X, Jef.I.Z).ToString(), Jef.I.Y, floor = f.Y, HomeLife.I.Busy, prompts = Interact.I.Find().Select(a => a.Text).ToArray() } }); await Shot("home-furniture-arms");
-        Check(Interact.I.Find().Any(a => a.Text.StartsWith("put up")), "stored or carried furniture prompt"); Interact.I.Press(Key.F);
+        // Furniture refreshes every 250 ms; 30 uncapped frames can finish before that timer fires.
+        ulong refreshBegan = Time.GetTicksMsec();
+        Check(await Until(() => Interact.I.Find().Any(a => a.Text.StartsWith("put up")), 10), "stored or carried furniture prompt");
+        replies.Add(new { furnitureRefreshMs = Time.GetTicksMsec() - refreshBegan });
+        Check(Interact.I.SameActions(), "furniture prompt selection matches original"); Interact.I.Press(Key.F);
         Check(HomeFurniture.I.Moving?.Kind == "plant" && HomeFurniture.I.CanPut, "furniture grid preview fits"); await Shot("home-furniture-preview");
         var place = HomeFurniture.I.Preview; Interact.I.Press(Key.R); await Frames(5); Check(HomeFurniture.I.Preview.Rot == (place.Rot + 1) % 4, "furniture turns with R");
         Interact.I.Press(Key.E); Check(await Until(() => HomeFurniture.I.Moving == null && HomeLife.I.Info!.Items.Any(i => i.Id == place.Id && i.State == "placed"), 10), "furniture placement saved by engine");
