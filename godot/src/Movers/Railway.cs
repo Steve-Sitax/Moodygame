@@ -1057,12 +1057,40 @@ public partial class Railway : Node
         return l;
     }
 
-    /// <summary>The train is on (or at) this bridge's deck: it does not open under it (bridges.ts busy).</summary>
-    private bool OnDeck(Bridges.Rect r)
+    /// <summary>The train is on (or coming up to) this stretch: a bridge does not open under it, an omnibus waits (railway.ts busy).</summary>
+    public bool Busy(Bridges.Rect r)
     {
-        if (state == "shed") return false;
+        if (!ok || state == "shed") return false;
         foreach (var (a, b) in SpanOf(r))
-            if (head + 2 > a && head - trainLen < b + 1) return true;
+            if (head + 10 > a - 1 && head - trainLen < b + 1) return true;
+        return false;
+    }
+
+    private bool OnDeck(Bridges.Rect r) => Busy(r);
+
+    /// <summary>The railway is there (the line was read).</summary>
+    public bool Running => ok;
+
+    private HashSet<long>? band;
+    /// <summary>Is (x, z) on the band of the rails (within a wagon's width and a metre of the line)?</summary>
+    public bool OnRails(float x, float z)
+    {
+        if (!ok) return false;
+        if (band == null)
+        {
+            band = new HashSet<long>();
+            for (int i = 0; i < line.X.Length; i += 2)
+                for (int dx = -2; dx <= 2; dx++)
+                    for (int dz = -2; dz <= 2; dz++)
+                        band.Add(((long)MathF.Floor(line.X[i] + dx) << 20) ^ ((long)MathF.Floor(line.Z[i] + dz) & 0xfffff));
+        }
+        if (!band.Contains(((long)MathF.Floor(x) << 20) ^ ((long)MathF.Floor(z) & 0xfffff))) return false;
+        // (the cell is near: now the true distance)
+        for (int i = 0; i < line.X.Length; i += 2)
+        {
+            float ddx = line.X[i] - x, ddz = line.Z[i] - z;
+            if (ddx * ddx + ddz * ddz < 2.2f * 2.2f) return true;
+        }
         return false;
     }
 

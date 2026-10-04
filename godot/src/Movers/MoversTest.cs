@@ -72,6 +72,8 @@ public partial class MoversTest : Node
         todo = todo.OrderBy(p => p.Hour).ToList();
         cam = new Camera3D { Name = "moverstest_eyes", Fov = 55, Near = 0.1f, Far = 700 };
         Main.I.View.AddChild(cam);
+        Main.I.Cam = cam;
+        Main.I.Ui.Visible = false;
         ProcessPriority = 100; // after the movers have moved
         GD.Print($"moverstest: {todo.Count} probes: {string.Join(", ", todo.Select(p => p.Name))}");
     }
@@ -114,6 +116,7 @@ public partial class MoversTest : Node
                 waited = clock;
                 bool ready = p.Ready == null ? clock > 1.2 : clock > 0.6 && p.Ready();
                 if (!ready && clock < p.MaxWait) return;
+                if (!ready) { failed = true; GD.PrintErr($"moverstest: {p.Name} was not ready after {p.MaxWait} seconds"); }
                 stage = 1;
                 clock = 0;
                 return;
