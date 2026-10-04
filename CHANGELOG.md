@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The Godot Poesje now has a seated and standing audience, a bench for you, and puppet stick hits timed to the play.
+
 - In Godot taverns, patrons talk at their tables and F lets you speak to an ordinary table companion.
 
 - Godot hanging lamps fit the room’s ceiling and their glass glows in a dark room.
