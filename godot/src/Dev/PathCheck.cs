@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
+using Scheldemist.Game;
 using Scheldemist.Play;
 using Scheldemist.Town;
 
@@ -51,6 +53,25 @@ public static class PathCheck
         void Add(string label, double x, double z, double reach, string source) => targets.Add(new(label, x, z, reach, source));
         void PtAdd(string label, Pt? p, double reach, string source) { if (p is { } q) Add(label, q.X, q.Z, reach, source); }
         foreach (var s in Spots.All.Values) Add("job spot " + s.Id, s.X, s.Z, 1.7, "shared/spots.json");
+        void JobPoints(JsonElement value, string label)
+        {
+            if (value.ValueKind == JsonValueKind.Array)
+            {
+                int i = 0; foreach (var item in value.EnumerateArray()) JobPoints(item, label + "[" + i++ + "]");
+            }
+            else if (value.ValueKind == JsonValueKind.Object)
+            {
+                if (value.TryGetProperty("x", out var x) && value.TryGetProperty("z", out var z) && x.ValueKind == JsonValueKind.Number && z.ValueKind == JsonValueKind.Number)
+                    Add(label, x.GetDouble(), z.GetDouble(), 1.7, "server /api/jobs task");
+                foreach (var p in value.EnumerateObject())
+                {
+                    if (p.Value.ValueKind == JsonValueKind.String && p.Name is "from" or "to" or "post" && Spots.Get(p.Value.GetString()) is { } spot)
+                        Add(label + " " + p.Name, spot.X, spot.Z, 1.7, "server /api/jobs task");
+                    else JobPoints(p.Value, label + "." + p.Name);
+                }
+            }
+        }
+        foreach (var job in GameState.I.Jobs) if (job.Task is { } task) JobPoints(task, "job " + job.Id);
         var board = Spots.Board; Add("hiring board", board.X, board.Z, 2.5, "Play/Spots.cs");
         foreach (var (id, p) in data.Places)
         {
