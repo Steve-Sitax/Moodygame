@@ -141,7 +141,7 @@ public partial class EventTest : Node
                     string picture = Path.Combine(dir, kind + "-" + live.Event.Stage + "-" + stage.Op + ".png");
                     await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
                     GetViewport().GetTexture().GetImage().SavePng(picture);
-                    rows.Add(new { kind, stage = live.Event.Stage, op = stage.Op, soundKind = stage.Sound, propsKind = stage.Props, people = ids.Count, held, drawn, there, props = live.Props.Count, sound = live.Sound != null, cues = live.Cues != null, picture, left = live.Left, fire = TownLife.I?.FiresDrawn, buckets = TownLife.I?.BucketCount, hearses = Hearses.I?.Count, sounds = Soundscape.I?.Rung.ToArray() });
+                    rows.Add(new { kind, stage = live.Event.Stage, op = stage.Op, soundKind = stage.Sound, propsKind = stage.Props, people = ids.Count, held, drawn, there, props = live.Props.Count, sound = live.Sound != null, cues = live.Cues != null, picture, left = live.Left, fire = TownLife.I?.FiresDrawn, buckets = TownLife.I?.BucketCount, chainHands = TownLife.I?.ChainHands, hearses = Hearses.I?.Count, sounds = Soundscape.I?.Rung.ToArray() });
                     if (stageIndex == 0) foreach (var lead in live.Event.Leads)
                     {
                         if (town.ActionPerson(lead.Id)?.P is not { } actor) continue;
@@ -151,7 +151,18 @@ public partial class EventTest : Node
                         await Frames(4); await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
                         GetViewport().GetTexture().GetImage().SavePng(Path.Combine(dir, kind + "-lead-" + lead.Role + ".png"));
                     }
-                    if (kind == "house_fire" && stageIndex == 1) await PropPicture("fire_pump", "house_fire-pump.png");
+                    if (kind == "house_fire" && stageIndex == 2)
+                    {
+                        await Wait(20);
+                        Check(TownLife.I!.ChainHands >= 2 && TownLife.I.BucketCount > 0, "no buckets passed between chain hands");
+                        Check(TownLife.I.HoseTriangles == 128, "arrived pump lacks 16-segment four-sided hose");
+                        rows.Add(new { kind = "chain", hands = TownLife.I.ChainHands, buckets = TownLife.I.BucketCount, wheels = TownLife.I.PumpWheels, brakes = TownLife.I.PumpBrakes, hoseTriangles = TownLife.I.HoseTriangles });
+                    }
+                    if (kind == "house_fire" && stageIndex == 1)
+                    {
+                        Check(TownLife.I!.PumpWheels == 4 && TownLife.I.PumpBrakes == 2, "pump lacks four wheels or paired brakes");
+                        await PropPicture("fire_pump", "house_fire-pump.png");
+                    }
                     if (kind == "funeral" && stage.Op == "depart") await PropPicture("event_hearse", "funeral-hearse.png");
                     Place(stage, live);
                     if (stage.Props != "none") Check(live.Props.Count > 0, "no " + stage.Props + " props at stage " + live.Event.Stage);
@@ -174,10 +185,28 @@ public partial class EventTest : Node
                 await Advance(api, 10); await Frames(5);
                 var remains = Events.I.Find(plan.Id); Check(remains == null || remains.Props.Count == 0 && remains.Sound == null && remains.Cues == null, "props or sound survived the end");
                 foreach (string id in ids) Check(town.ActionPerson(id)?.ActionHeld != true || Actors.I.Runs.Any(r => r.Action.EventId != plan.Id && (r.Action.Npc == id || r.Other?.R.Id == id)), "still held after event without another engine action: " + id);
+                if (kind == "house_fire")
+                {
+                    var life = (await api.TownLife()).Deserialize<TownLifeData>(Api.Json)!;
+                    TownLife.I!.ApplyLife(life); await Frames(3);
+                    Check(life.Soot.Any(s => s.Event == plan.Id) && TownLife.I.SootOpacity(plan.Id) > 0, "engine's soot did not survive fire");
+                    await PropPicture("soot_0", "house_fire-soot.png");
+                    TownLife.I.ApplyLife(life with { Day = life.Day + 2 }); await Frames(2);
+                    Check(Math.Abs(TownLife.I.SootOpacity(plan.Id) - (0.85f / 3 + 0.05f)) < 0.001, "soot did not fade over three days");
+                    TownLife.I.ApplyLife(life with { Soot = new() }); await Frames(2);
+                    Check(TownLife.I.SootCount == 0, "expired soot remained");
+                    rows.Add(new { kind = "soot", persisted = true, day2Opacity = 0.85f / 3 + 0.05f, expired = true });
+                }
                 rows.Add(new { kind, ended = true, propsEver, maxThere, released = ids.Count(id => town.ActionPerson(id)?.ActionHeld != true), reassigned = ids.Count(id => town.ActionPerson(id)?.ActionHeld == true), cueFired, soundStarts = Events.I.SoundStarts - soundBefore, cueStarts = Events.I.CueStarts - cueBefore });
                 GD.Print("eventtest finished " + kind);
             }
             if (only.Length == 0 || only.Contains("family_ui")) await FamilyUi();
+            if (only.Length == 0 || only.Contains("actions")) await RequestedActions(api, town);
+            if (only.Length == 0 || only.Contains("crowd100")) await Crowd100(town);
+            if (only.Length == 0 || only.Contains("omnibus")) await TransitProof(town);
+            if (only.Length == 0 || only.Any(x => x is "ceremonies" or "wedding_inside" or "funeral_inside" or "sermon")) await Ceremonies(api, only);
+            if (only.Length == 0 || only.Contains("lamps")) await Lamps(api);
+            if (only.Length == 0 || only.Contains("dreams")) await Dreams();
         }
         catch (Exception e) { failures.Add(current + ": " + e); GD.PrintErr(e); }
         finally
@@ -187,11 +216,60 @@ public partial class EventTest : Node
             double mean = costs.Count == 0 ? 0 : costs.Average(), p95 = costs.Count == 0 ? 0 : costs[(int)((costs.Count - 1) * 0.95)];
             if (costs.Count > 0) Check(mean < 0.5, "events and actors exceed 0.5 ms mean: " + mean);
             if (allocations.Count > 0) Check(allocations[(int)((allocations.Count - 1) * 0.95)] == 0, "steady frames allocate managed memory");
-            File.WriteAllText(Path.Combine(dir, "eventtest.json"), JsonSerializer.Serialize(new { ok = failures.Count == 0, failures, stages = rows, frame = new { count = costs.Count, meanMs = mean, p95Ms = p95, maxMs = costs.Count == 0 ? 0 : costs[^1], meanBytes = allocations.Count == 0 ? 0 : allocations.Average(), p95Bytes = allocations.Count == 0 ? 0 : allocations[(int)((allocations.Count - 1) * 0.95)] }, notCovered = new[] { "AI-invented event content (no AI in this test)", "Multiplayer ownership and actual omnibus attendance", "Full indoor ceremony choreography and exit walks", "Persistent soot, lamplighter rounds and night-sheet dreams", "Individual player-requested actions and family menace choices" } }, new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(Path.Combine(dir, "eventtest.json"), JsonSerializer.Serialize(new { ok = failures.Count == 0, failures, stages = rows, frame = new { count = costs.Count, meanMs = mean, p95Ms = p95, maxMs = costs.Count == 0 ? 0 : costs[^1], meanBytes = allocations.Count == 0 ? 0 : allocations.Average(), p95Bytes = allocations.Count == 0 ? 0 : allocations[(int)((allocations.Count - 1) * 0.95)] }, notCovered = new[] { "AI-invented event content (no AI in this test)", "Two-client NPC claim/batch replication (ownership hooks only)", "Real prison-room movement (room-owner hook only)", "Browser pixel equality and remaining one-off lead prop details", "Family menace engine outcomes" } }, new JsonSerializerOptions { WriteIndented = true }));
             GD.Print("eventtest wrote " + dir + " failures=" + failures.Count);
             GetTree().Quit(failures.Count == 0 ? 0 : 1);
         }
     }
+    private async Task Lamps(Api api)
+    {
+        current = "lamps";
+        var data = (await api.TownLife()).Deserialize<TownLifeData>(Api.Json)!;
+        Check(data.Rounds.Count > 0, "engine supplied no rounds"); if (data.Rounds.Count == 0) return;
+        var round = data.Rounds[0];
+        GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { hour = (int)round.Dusk, minute = (int)Math.Round((round.Dusk % 1) * 60), weather = "clear", food = 10, warmth = 10, sleep = 10, health = 10 }));
+        TownLife.I!.ApplyLife(data);
+        var lamp = round.Lamps[0]; var q = ViewNear(lamp.Sx, lamp.Sz, 4);
+        Jef.I.Place((float)q.X, (float)q.Z, MathF.Atan2((float)(q.X - lamp.Sx), (float)(q.Z - lamp.Sz)), -0.1f);
+        await Wait(18);
+        Check(TownLife.I.LampsWorked > 0, "nearby lamplighter did not finish a lamp stop");
+        var run = TownLife.I.LampRuns[0];
+        Check(run.Person?.P != null && run.Wear != null, "lamplighter missing body and pole");
+        await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+        GetViewport().GetTexture().GetImage().SavePng(Path.Combine(dir, "lamplighter-round.png"));
+        var windows = new List<TownLife.LampWindow>();
+        TownLife.WindowsOf(round, new LampsFog { Start = true }, windows);
+        Check(windows.Count == 0, "fog from midnight incorrectly walked dawn or dusk");
+        TownLife.WindowsOf(round, new LampsFog { Turns = new() { new FogTurn { H = 10, Fog = true }, new FogTurn { H = 14, Fog = false } } }, windows);
+        Check(windows.Any(w => w.Fog && w.On && w.Start == 10), "daytime fog did not light lamps");
+        rows.Add(new { kind = "lamps", rounds = data.Rounds.Count, lamps = data.Rounds.Sum(r => r.Lamps.Count), worked = TownLife.I.LampsWorked, fogWindows = windows.Count });
+    }
+
+    private async Task Dreams()
+    {
+        current = "dreams";
+        void Push(string text) { using var doc = JsonDocument.Parse(JsonSerializer.Serialize(new { dream = text })); FamilyPeople.I!.ActionReceived?.Invoke(doc.RootElement); }
+        Push("The river carries a small light.");
+        GameState.I.Apply(new TickReply { Night = new Night { Where = "rough", Summary = new() { "You sleep beneath a tarpaulin." } } });
+        await Frames(3);
+        Check(DaySheets.I!.Lines.Contains("You dream. The river carries a small light."), "waiting dream missing from night paper");
+        Push("The bells sound across the water."); await Frames(3);
+        Check(DaySheets.I.Lines.Count(x => x.StartsWith("You dream.")) == 1 && DaySheets.I.Lines.Contains("You dream. The bells sound across the water."), "open paper did not replace dream once");
+        await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+        GetViewport().GetTexture().GetImage().SavePng(Path.Combine(dir, "night-dream.png"));
+        DaySheets.I.OnKey("Escape", "Escape"); await Frames(2);
+        Check(DaySheets.I.Shown == "none", "dream kept night paper open");
+        Push("The bells sound across the water.");
+        GameState.I.Apply(new TickReply { Night = new Night { Where = "rough", Summary = new() { "Another night." } } }); await Frames(2);
+        Check(DaySheets.I.Lines.Contains("You dream. The bells sound across the water."), "same words on another night were lost");
+        DaySheets.I.OnKey("Escape", "Escape");
+        Push("An old dream."); FamilyScenes.I!._Process(121);
+        GameState.I.Apply(new TickReply { Night = new Night { Where = "rough", Summary = new() { "A later night." } } }); await Frames(2);
+        Check(!DaySheets.I.Lines.Any(x => x.StartsWith("You dream.")), "expired waiting dream leaked onto later night");
+        DaySheets.I.OnKey("Escape", "Escape");
+        rows.Add(new { kind = "dreams", waiting = true, replacement = true, closed = true, repeatNights = true, waitExpires = true, presentationFixtures = true });
+    }
+
     private async Task FamilyUi()
     {
         current = "family_ui";

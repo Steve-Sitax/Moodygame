@@ -7,6 +7,16 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Godot wedding guests, mourners and the sermon crowd walk into the cathedral's real nave, take their places and walk back out through the doorway.
+
+- Godot event attendees board and leave the omnibus; the fire pump has working paired handles and a curved hose, and the same dream can appear on another night's paper.
+
+- Godot event crowds can draw 100 people, and blocked attendees try four other ways before standing or continuing unseen.
+
+- Godot lamplighters walk their rounds with a pole and ladder; bucket chains pass buckets both ways, and burned fronts keep soot that fades over three days.
+
+- In Godot, family dreams appear on the night paper, including dreams that arrive before it opens.
+
 - Godot's interior check now tests the rooms actually in the town and their views out through the windows ([#45](https://github.com/Steve-Sitax/Moodygame/issues/45)).
 - Godot keeps the same daylight and window light picture with less work per frame.
 - Godot's cathedral and church windows now show their real rooms through the glass; old painted panes no longer cover them.

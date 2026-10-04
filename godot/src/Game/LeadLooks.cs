@@ -56,6 +56,12 @@ internal static class LeadLooks
             case "victim": r.AddChild(EventProps.Make("flowers")); r.GetChild<Node3D>(0).Position = new Vector3(0.25f, 0.85f, 0.12f); break;
             case "bearers": Cylinder(r, 0.065f, 0.065f, 0.08f, 0x0e0d10, 0.24f, 1.3f, 0); break;
             case "hawker": Box(r, 0.52f, 0.03f, 0.3f, 0x5a3a20, 0, 1, 0.32f); for (int i = 0; i < 6; i++) Box(r, 0.07f, 0.05f, 0.07f, 0xc89a4a, -0.19f + i % 3 * 0.19f, 1.04f, 0.25f + i / 3 * 0.13f); break;
+            case "lamplighter":
+                var pole = new Node3D { Position = new Vector3(0.24f, 1.0f, 0.1f) }; r.AddChild(pole); r.Moving = pole;
+                Box(pole, 0.035f, 2.8f, 0.035f, 0x5a3a20, 0, 0.7f, 0); Box(pole, 0.14f, 0.035f, 0.035f, 0x2a2a2c, 0.04f, 2.1f, 0);
+                foreach (float x in new[] { -0.45f, -0.12f }) Box(r, 0.045f, 1.9f, 0.045f, 0x5a3a20, x, 1, -0.25f);
+                for (int i = 0; i < 6; i++) Box(r, 0.36f, 0.04f, 0.04f, 0x5a3a20, -0.285f, 0.2f + i * 0.3f, -0.25f);
+                break;
             case "fireman": Cylinder(r, 0.12f, 0.16f, 0.16f, 0xa68434, 0, 1.7f, 0); Box(r, 0.03f, 0.08f, 0.24f, 0xa68434, 0, 1.82f, 0); break;
             case "natie_foreman": Hat(r); Box(r, 0.13f, 0.18f, 0.025f, 0xd8cfb4, 0.2f, 1.22f, 0.26f); break;
             case "ballad_singer": Cylinder(r, 0.1f, 0.12f, 0.07f, 0x9a2924, 0, 1.47f, 0.01f); Box(r, 0.2f, 0.015f, 0.27f, 0xd8cfb4, 0.2f, 1.05f, 0.16f); break;

@@ -28,7 +28,11 @@ public partial class HallPeople : Node
         public float[] RouteDistance = Array.Empty<float>();
         public int[] RoutePrevious = Array.Empty<int>();
         public bool[] RouteUsed = Array.Empty<bool>();
-        public bool Loading;
+        public bool Loading, HadRoster;
+        public float[] GridDistance = Array.Empty<float>();
+        public int[] GridPrevious = Array.Empty<int>(), GridVisited = Array.Empty<int>();
+        public int GridGeneration;
+        public readonly PriorityQueue<int, float> GridQueue = new(4096);
         public double Poll;
         public readonly Dictionary<string, Figure> Figures = new();
     }
@@ -46,6 +50,9 @@ public partial class HallPeople : Node
         public bool Moving;
         public float RestLift;
         public Node3D? EventWear;
+        public bool Ceremony, Leaving;
+        public Vector3 Rest, CeremonyGoal;
+        public float RestYaw;
     }
     public readonly List<Hall> Halls = new();
     public IEnumerable<Node3D> Groups => Halls.SelectMany(h => h.Figures.Values.Select(f => f.Group));
@@ -62,7 +69,7 @@ public partial class HallPeople : Node
             var o = p.GetProperty("origin");
             int routeCapacity = p.GetProperty("nodes").GetArrayLength() + 2;
             var rows = p.TryGetProperty("freeGrid", out var freeGrid) ? freeGrid.GetProperty("rows").EnumerateArray().Select(row => row.GetString()!).ToArray() : Array.Empty<string>();
-            Halls.Add(new Hall { RouteDistance = new float[routeCapacity], RoutePrevious = new int[routeCapacity], RouteUsed = new bool[routeCapacity], GridRows = rows, Id = id, Plan = p, Roles = data.RootElement.GetProperty("roles").GetProperty(id), Origin = new Vector3(o.GetProperty("x").GetSingle(), p.GetProperty("floorY").GetSingle(), o.GetProperty("z").GetSingle()), Yaw = p.GetProperty("yaw").GetDouble() });
+            Halls.Add(new Hall { RouteDistance = new float[routeCapacity], RoutePrevious = new int[routeCapacity], RouteUsed = new bool[routeCapacity], GridRows = rows, GridDistance = new float[rows.Length == 0 ? 0 : rows.Length * rows[0].Length], GridPrevious = new int[rows.Length == 0 ? 0 : rows.Length * rows[0].Length], GridVisited = new int[rows.Length == 0 ? 0 : rows.Length * rows[0].Length], Id = id, Plan = p, Roles = data.RootElement.GetProperty("roles").GetProperty(id), Origin = new Vector3(o.GetProperty("x").GetSingle(), p.GetProperty("floorY").GetSingle(), o.GetProperty("z").GetSingle()), Yaw = p.GetProperty("yaw").GetDouble() });
         }
     }
     private static Vector3 World(Hall h, JsonElement mark)
@@ -74,13 +81,18 @@ public partial class HallPeople : Node
     {
         h.Loading = false;
         EventRoster(h, reply);
-        var want = reply.GetProperty("people").EnumerateArray().Take(24).ToList();
-        foreach (var id in h.Figures.Keys.Where(id => !want.Any(p => p.GetProperty("id").GetString() == id)).ToList()) { h.Figures[id].Group.QueueFree(); h.Figures.Remove(id); }
+        var want = reply.GetProperty("people").EnumerateArray().Take(100).ToList();
+        foreach (var id in h.Figures.Keys.Where(id => !want.Any(p => p.GetProperty("id").GetString() == id)).ToList())
+        {
+            var f = h.Figures[id];
+            if (f.Ceremony && f.Group.Position.Y - h.Origin.Y < 2) { if (!f.Leaving) CeremonyLeave(h, f); }
+            else { f.Group.QueueFree(); h.Figures.Remove(id); }
+        }
         var occupied = new List<Vector3>();
         foreach (var person in want)
         {
             string id = person.GetProperty("id").GetString()!, role = person.GetProperty("role").GetString()!, kind = person.GetProperty("kind").GetString()!;
-            if (h.Figures.TryGetValue(id, out var old) && old.Role == role) { occupied.Add(old.Target); continue; }
+            if (h.Figures.TryGetValue(id, out var old) && old.Role == role) { occupied.Add(old.Ceremony ? old.Rest : old.Target); continue; }
             if (old != null) { old.Group.QueueFree(); h.Figures.Remove(id); }
             if (!h.Roles.TryGetProperty(role, out var spec)) continue;
             var points = new List<Vector3>();
@@ -91,9 +103,10 @@ public partial class HallPeople : Node
             else if (spec.TryGetProperty("set", out setName) && setName.GetString() == "funeralChairs") foreach (var chair in h.Plan.GetProperty("sets").GetProperty("chairs").EnumerateArray()) if (chair.GetProperty("z").GetDouble() < 32 && Math.Abs(chair.GetProperty("x").GetDouble()) > 1) marks.Add(chair);
             points.AddRange(marks.Select(m => World(h, m)));
             if (points.Count == 0) continue;
-            int first = (int)(Whereabouts.HashId(id) % (uint)points.Count);
-            for (int k = 0; k < points.Count && occupied.Any(p => p.DistanceTo(points[first]) < 0.7f); k++) first = (first + 1) % points.Count;
-            if (occupied.Any(p => p.DistanceTo(points[first]) < 0.7f)) continue;
+            bool front = spec.TryGetProperty("front", out var frontFlag) && frontFlag.GetBoolean();
+            int first = front ? points.Count - 1 - (int)(Whereabouts.HashId(id) % (uint)Math.Min(points.Count, 12)) : (int)(Whereabouts.HashId(id + (reply.TryGetProperty("day", out var rosterDay) ? rosterDay.GetInt32() : 0)) % (uint)points.Count);
+            for (int k = 0; k < points.Count && occupied.Any(p => p.DistanceTo(points[first]) < 0.3f); k++) first = front ? (first - 1 + points.Count) % points.Count : (first + 7) % points.Count;
+            if (occupied.Any(p => p.DistanceTo(points[first]) < 0.3f)) continue;
             var human = Humans.Make(Humans.IsKind(kind) ? kind : "docker_a"); if (human == null) continue;
             var group = new Node3D { Name = "hall_person_" + id, Position = points[first], Rotation = new Vector3(0, (float)(h.Yaw + marks[first].GetProperty("yaw").GetDouble()), 0) };
             group.AddChild(human.Root); Main.I.View.AddChild(group); human.Start();
@@ -103,16 +116,21 @@ public partial class HallPeople : Node
             float lift = 0;
             if (spec.TryGetProperty("sit", out var seat) && human.CanSit) { motion = "sit"; lift = human.SitDrop(seat.GetSingle()); }
             else if (motion == "sit") motion = "idle";
+            if (!human.CanSit && spec.TryGetProperty("standBack", out var standBack))
+                points[first] -= new Vector3(MathF.Sin(group.Rotation.Y), 0, MathF.Cos(group.Rotation.Y)) * standBack.GetSingle();
+            group.Position = points[first];
             human.Play(motion); human.Root.Position = new Vector3(0, lift, 0);
             if (motion == "sit")
             {
                 var chair = ModelLibrary.Get("lively", new ModelLibrary.Look(TwoSided: true, Affine: 0, VertexColor: true))?.Copy("chair");
                 if (chair != null) { chair.Scale = new Vector3(1, seat.GetSingle() / 0.45f, 1); group.AddChild(chair); }
             }
-            var fig = new Figure { Id = id, Role = role, Kind = kind, Human = human, Group = group, Target = points[first], Index = first, Loop = loop ? points : new List<Vector3>(), Motion = motion, Speed = spec.TryGetProperty("speed", out var speed) ? speed.GetDouble() : 0.7, Wait = spec.TryGetProperty("pause", out var pause) ? pause.GetDouble() : 5 };
+            var fig = new Figure { Id = id, Role = role, Kind = kind, Human = human, Group = group, Target = points[first], Index = first, Loop = loop ? points : new List<Vector3>(), Motion = motion, Speed = spec.TryGetProperty("speed", out var speed) ? speed.GetDouble() : 1.0, Wait = spec.TryGetProperty("pause", out var pause) ? pause.GetDouble() : 5 };
             fig.RestLift = lift; occupied.Add(fig.Target); h.Figures[id] = fig;
             EventDress(fig);
+            CeremonyEnter(h, fig, !h.HadRoster || spec.TryGetProperty("appear", out var appear) && appear.GetBoolean());
         }
+        h.HadRoster = true;
     }
     public Vector3? PositionOf(string id) { foreach (var h in Halls) if (h.Figures.TryGetValue(id, out var f)) return f.Group.GlobalPosition; return null; }
     private void PollHall(Hall h, Api api) => api.Run(api.Get<JsonElement>("api/landmark/" + h.Id), reply => Roster(h, reply), _ => h.Loading = false);
@@ -136,8 +154,10 @@ public partial class HallPeople : Node
                 h.Loading = true; h.Poll = 5;
                 PollHall(h, api);
             }
+            ceremonyGone.Clear();
             foreach (var f in h.Figures.Values)
             {
+                if (CeremonyStep(h, f, delta, near)) continue;
                 f.Group.Visible = near;
                 if (!near) continue;
                 if (f.Loop.Count > 0)
@@ -163,15 +183,17 @@ public partial class HallPeople : Node
                 f.Human.Update((float)Math.Min(delta, 0.1));
                 if (f.EventWear != null) Game.LeadLooks.Grip(f.EventWear, EventRole(f.Role));
             }
+            foreach (string id in ceremonyGone) { h.Figures[id].Group.QueueFree(); h.Figures.Remove(id); }
         }
         LogicMs = (Time.GetTicksUsec() - started) / 1000.0;
     }
+    private static bool InRect(JsonElement r, double x, double z, double margin) => x >= r.GetProperty("minX").GetDouble() - margin && x <= r.GetProperty("maxX").GetDouble() + margin && z >= r.GetProperty("minZ").GetDouble() - margin && z <= r.GetProperty("maxZ").GetDouble() + margin;
     private static bool FreeSegment(Hall h, Vector3 from, Vector3 to)
     {
         // Exact floor solids from shared/hallPlan.ts. A blocked loop stands and tries the next mark.
         if (Math.Abs(from.Y - to.Y) > 0.4) return false;
         var levels = h.Plan.GetProperty("levels");
-        int n = Math.Max(1, (int)Math.Ceiling(from.DistanceTo(to) / 0.2));
+        int n = Math.Max(1, (int)Math.Ceiling(from.DistanceTo(to) / 0.05));
         for (int i = 1; i <= n; i++)
         {
             var p = from.Lerp(to, (float)i / n) - h.Origin; double c = Math.Cos(h.Yaw), s = Math.Sin(h.Yaw), x = p.X * c - p.Z * s, z = p.X * s + p.Z * c;
@@ -184,13 +206,12 @@ public partial class HallPeople : Node
                 if (ix < 0 || ix >= row.Length || row[ix] != '1') return false;
                 continue;
             }
-            bool In(JsonElement r, double margin) => x >= r.GetProperty("minX").GetDouble() - margin && x <= r.GetProperty("maxX").GetDouble() + margin && z >= r.GetProperty("minZ").GetDouble() - margin && z <= r.GetProperty("maxZ").GetDouble() + margin;
             bool onFloor = false;
             foreach (var level in levels.EnumerateArray())
             {
                 if (Math.Abs(level.GetProperty("y").GetDouble() - p.Y) >= 0.4) continue;
-                foreach (var rect in level.GetProperty("floors").EnumerateArray()) if (In(rect, -0.3)) onFloor = true;
-                foreach (var rect in level.GetProperty("solids").EnumerateArray()) if (In(rect, 0.3)) return false;
+                foreach (var rect in level.GetProperty("floors").EnumerateArray()) if (InRect(rect, x, z, -0.3)) onFloor = true;
+                foreach (var rect in level.GetProperty("solids").EnumerateArray()) if (InRect(rect, x, z, 0.3)) return false;
             }
             if (!onFloor) return false;
         }
@@ -217,6 +238,7 @@ public partial class HallPeople : Node
             used[at] = true;
             for (int i = 0; i < nodes.Count; i++) if (!used[i]) { float d = dist[at] + nodes[at].DistanceTo(nodes[i]); if (d < dist[i] && FreeSegment(h, nodes[at], nodes[i])) { dist[i] = d; previous[i] = at; } }
         }
+        if (h.GridRows.Length > 0) return GridRoute(h, from, to);
         return result;
     }
     public override void _ExitTree() { bier?.QueueFree(); foreach (var g in Groups) g.QueueFree(); data?.Dispose(); if (I == this) I = null; }

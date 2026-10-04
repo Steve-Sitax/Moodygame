@@ -26,7 +26,9 @@ public partial class Actors : Node
         public int Said;
         public uint TravelHash;
         public string? WearRole;
-        public bool TransitChosen;
+        public bool TransitChosen, GaveUp, Anchored;
+        public int Replans;
+        public double AnchorX, AnchorZ, GoalX, GoalZ, Pace;
         public Scheldemist.Movers.OmnibusLines.Stop? BoardStop, AlightStop;
         public Scheldemist.Movers.Omnibus.Bus? Bus;
         public double BusWait;
@@ -44,10 +46,15 @@ public partial class Actors : Node
     public double LogicMs { get; private set; }
     public long AllocatedBytes { get; private set; }
     public int Reports { get; private set; }
+    /// <summary>The police/room owner can consume an accepted action in its real prison or cell walk grid.</summary>
+    public Func<Run, double, bool>? RoomMovement { get; set; }
     public bool TestHoldsPoll;
+    private int ordinaryCapacity;
     public override void _Ready()
     {
-        I = this; town = GetParent().GetNodeOrNull<Townspeople>("Townspeople");
+        I = this;
+        if (Scheldemist.Net.Mp.Together.I is { } together) together.OtherText += OwnershipText;
+        town = GetParent().GetNodeOrNull<Townspeople>("Townspeople");
         applied = PollApplied; pollFailed = _ => polling = false; syncFailed = _ => syncing = false; synced = _ => syncing = false;
         if (Scheldemist.Movers.Omnibus.I != null) Scheldemist.Movers.Omnibus.I.ResidentOff += OffBus;
         if (Scheldemist.Menu.MainMenu.I != null) Scheldemist.Menu.MainMenu.I.WorldReplaced += Replaced;
@@ -65,6 +72,12 @@ public partial class Actors : Node
     private void PollApplied(ActionsPayload p) { polling = false; Apply(p); }
     public void Apply(ActionsPayload p)
     {
+        if (town != null)
+        {
+            if (ordinaryCapacity == 0) ordinaryCapacity = town.MaxPuppets;
+            int attendees = 0; foreach (var a in p.Actions) if (a.Kind == "attend") attendees++;
+            town.MaxPuppets = Math.Max(ordinaryCapacity, Math.Min(100, attendees));
+        }
         Events.I?.Apply(p);
         foreach (var r in Runs) r.Seen = false;
         foreach (var a in p.Actions)
@@ -73,7 +86,7 @@ public partial class Actors : Node
             foreach (var run in Runs) if (run.Action.Id == a.Id) { r = run; break; }
             if (r == null) { r = new Run { TravelHash = Whereabouts.HashId(a.Npc + ":" + a.EventId) }; Runs.Add(r); }
             r.Seen = true;
-            if (r.Phase != a.Phase || r.Action?.TargetX != a.TargetX || r.Action?.TargetZ != a.TargetZ) { r.Reported = false; r.Repath = 0; r.Best = double.PositiveInfinity; r.Stuck = 0; }
+            if (r.Phase != a.Phase || r.Action?.TargetX != a.TargetX || r.Action?.TargetZ != a.TargetZ) { r.Reported = false; r.Repath = 0; r.Best = double.PositiveInfinity; r.Stuck = 0; r.Replans = 0; r.GaveUp = false; r.Anchored = false; }
             r.Action = a; r.Phase = a.Phase;
             r.Person ??= town?.ActionPerson(a.Npc);
             if (r.Person != null) town!.ActionHold(r.Person);
@@ -97,7 +110,7 @@ public partial class Actors : Node
         if (r.Person != null && !HeldElsewhere(r.Person)) town?.ActionRelease(r.Person);
         if (r.Other != null && !HeldElsewhere(r.Other)) town?.ActionRelease(r.Other);
     }
-    public void Reset() { while (Runs.Count > 0) { var r = Runs[^1]; Runs.RemoveAt(Runs.Count - 1); End(r); } Events.I?.Reset(); }
+    public void Reset() { npcOwners.Clear(); if (town != null && ordinaryCapacity > 0) town.MaxPuppets = ordinaryCapacity; while (Runs.Count > 0) { var r = Runs[^1]; Runs.RemoveAt(Runs.Count - 1); End(r); } Events.I?.Reset(); }
     public override void _Process(double delta)
     {
         if (town?.Data == null || town.Crowd == null) return;
@@ -113,12 +126,13 @@ public partial class Actors : Node
         if (api != null && Runs.Count > 0 && !syncing && (sync -= delta) <= 0 && Scheldemist.Player.Jef.I is { } j)
         {
             sync = 2; syncing = true; syncPeople.Clear();
-            foreach (var s in town.Sims) if (s.P != null && !s.Inside && Whereabouts.Hypot(s.P.X - j.X, s.P.Z - j.Z) < 60) syncPeople.Add(new PersonAt(s.R.Id, Math.Round(s.P.X, 1), Math.Round(s.P.Z, 1)));
+            foreach (var s in town.Sims) if (NpcOwned(s.R.Id) && s.P != null && !s.Inside && Whereabouts.Hypot(s.P.X - j.X, s.P.Z - j.Z) < 60) syncPeople.Add(new PersonAt(s.R.Id, Math.Round(s.P.X, 1), Math.Round(s.P.Z, 1)));
             api.Run(api.ActionsSync(j.X, j.Z, syncPeople), synced, syncFailed);
         }
         ulong start = Time.GetTicksUsec(); long before = GC.GetAllocatedBytesForCurrentThread(); clock += delta;
         foreach (var r in Runs)
         {
+            if (!NpcOwned(r.Action.Npc)) continue;
             Step(r, delta);
             if (GodotObject.IsInstanceValid(r.Wear))
             {
@@ -138,6 +152,7 @@ public partial class Actors : Node
     }
     private void Step(Run r, double dt)
     {
+        if (RoomMovement?.Invoke(r, dt) == true) return;
         var a = r.Action; var s = r.Person ??= town!.ActionPerson(a.Npc);
         if (s == null) return;
         if (!s.ActionHeld) town!.ActionHold(s);
@@ -249,6 +264,11 @@ public partial class Actors : Node
         }
         if (attend && a.Phase == "leave" && a.Order == 0 && Hearses.I?.BackOf(a.EventId) is { } back) { x = back.X; z = back.Y; }
         double goalD = Whereabouts.Hypot(p.X - x, p.Z - z);
+        if (r.GaveUp)
+        {
+            if (crowd.IsHidden(p.X, p.Z) && crowd.IsHidden(x, z)) { town.ActionHide(s); r.GaveUp = false; r.Replans = 0; r.Repath = 0; }
+            return;
+        }
         if (goalD > (column ? 1.6 : 1.2))
         {
             double pace = !attend ? 1.5 : column ? a.Phase == "procession" ? 0.95 : a.Phase == "leave" ? 1.1 : 1.05 : a.Role == "chain" || a.Role == "crowd" && r.TravelHash / 4294967296.0 > 0.6 ? 2.5 : goalD > 15 ? 1.75 : 1.45;
@@ -265,6 +285,7 @@ public partial class Actors : Node
     private void Go(Run r, Puppet p, double x, double z, double pace)
     {
         if (r.Repath > 0) return;
+        r.GoalX = x; r.GoalZ = z; r.Pace = pace;
         r.Repath = 0.45; town!.Crowd!.PuppetGo(p, x, z, pace);
     }
     private void Stand(Puppet p, double x, double z, string motion = "idle")
@@ -274,14 +295,49 @@ public partial class Actors : Node
     }
     private void Stuck(Run r, double d, double dt, double limit)
     {
-        if (d < r.Best - 0.5) { r.Best = d; r.Stuck = 0; } else r.Stuck += dt;
-        if (r.Stuck <= limit) return;
-        if (r.Action.Kind == "attend") { r.Stuck = 0; r.Best = double.PositiveInfinity; r.Repath = 0; }
-        else Report(r, "blocked", "wall");
+        var p = r.Person?.P;
+        if (p != null && (!r.Anchored || Whereabouts.Hypot(p.X - r.AnchorX, p.Z - r.AnchorZ) > 2))
+        {
+            bool moved = r.Anchored; r.Anchored = true; r.AnchorX = p.X; r.AnchorZ = p.Z;
+            if (moved) { r.Stuck = 0; return; }
+        }
+        if (d < r.Best - 0.3) { r.Best = d; r.Stuck = 0; } else r.Stuck += dt;
+        if (r.Stuck <= limit || p == null) return;
+        bool attend = r.Action.Kind == "attend";
+        // Errands and attendance step out of an occupied collider before trying another way.
+        if (r.Action.Kind is "attend" or "go_to")
+        {
+            Recover(r);
+            return;
+        }
+        Report(r, "blocked", "wall");
+    }
+    public void Recover(Run r)
+    {
+        var p = r.Person?.P; if (p == null || town?.Crowd == null) return;
+        var crowd = town.Crowd;
+        if (!crowd.CanStand(p.X, p.Z))
+        {
+            for (double radius = 0.5; radius <= 2; radius += 0.5) for (int k = 0; k < 8; k++)
+            {
+                double x = p.X + Math.Cos(k * Math.PI / 4) * radius, z = p.Z + Math.Sin(k * Math.PI / 4) * radius;
+                if (!crowd.CanStand(x, z)) continue;
+                p.X = x; p.Z = z; r.Stuck = 0; r.Best = double.PositiveInfinity; r.Repath = 0; return;
+            }
+        }
+        if (r.Action.Kind != "attend" && r.Replans >= 4) { Report(r, "blocked", "wall"); return; }
+        r.Replans++; r.Stuck = 0; r.Best = double.PositiveInfinity;
+        if (r.Replans <= 4)
+        {
+            double angle = (r.TravelHash / 4294967296.0 + r.Replans * 0.61803398875) * Math.PI * 2, radius = 1.5 + r.Replans * 1.5;
+            var q = crowd.OpenNear(r.GoalX + Math.Cos(angle) * radius, r.GoalZ + Math.Sin(angle) * radius);
+            crowd.PuppetGo(p, q?.x ?? r.GoalX, q?.z ?? r.GoalZ, r.Pace > 0 ? r.Pace : 1.45); r.Repath = 4;
+        }
+        else { r.GaveUp = true; crowd.PuppetStand(p, "idle", p.Yaw); }
     }
     private void Report(Run r, string phase, string? why = null, bool? found = null)
     {
-        if (api == null || r.Reported || r.Reporting) return;
+        if (!NpcOwned(r.Action.Npc) || api == null || r.Reported || r.Reporting) return;
         if (r.Action.ForPlayer.HasValue && r.Action.ForPlayer.Value != (Scheldemist.Net.Mp.Together.I?.PlayerId ?? 1)) return;
         r.Reporting = true; Reports++;
         api.Run(api.ActionReport(r.Action.Id, phase, r.Person?.P?.X ?? r.Person?.X, r.Person?.P?.Z ?? r.Person?.Z, found, why), reply =>
@@ -403,6 +459,7 @@ public partial class Actors : Node
         if (api != null) api.OtherPushed -= Push;
         if (Scheldemist.Movers.Omnibus.I != null) Scheldemist.Movers.Omnibus.I.ResidentOff -= OffBus;
         if (Scheldemist.Menu.MainMenu.I != null) Scheldemist.Menu.MainMenu.I.WorldReplaced -= Replaced;
+        if (Scheldemist.Net.Mp.Together.I is { } together) together.OtherText -= OwnershipText;
         Reset(); if (I == this) I = null;
     }
 }
