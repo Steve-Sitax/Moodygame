@@ -33,20 +33,20 @@ public partial class TownWork : Node
             foreach (var e in world.Events)
             {
                 if (e.Status != "running" || e.Acts == null || e.Stage >= e.Acts.Count) continue;
-                if (e.Acts[e.Stage] == "fire_chain" && e.Fire is { ValueKind: JsonValueKind.Object } fire)
+                if (e.Acts[e.Stage] == "fire_chain" && e.Fire is { } fire)
                 {
                     if (e.Id == chainEvent && InChain) foundChain = true;
-                    foreach (var at in fire.GetProperty("chain").EnumerateArray())
+                    foreach (var at in fire.Chain)
                     {
-                        var point = new Vector3(at[0].GetSingle(), 1.1f, at[1].GetSingle());
+                        var point = new Vector3((float)at[0], 1.1f, (float)at[1]);
                         prompts.Add(Interact.I.Add(point, 2.4f, () => !busy && !InChain ? "take a place in the bucket chain" : null, () => _ = Call("join", e.Id)));
                     }
                 }
-                if (e.Acts[e.Stage] == "hire_gather" && e.Hiring is { ValueKind: JsonValueKind.Object } hire && !AlreadyHiring(hire))
-                    foreach (var spot in hire.GetProperty("spots").EnumerateArray())
+                if (e.Acts[e.Stage] == "hire_gather" && e.Hiring is { } hire && !AlreadyHiring(hire))
+                    foreach (var spot in hire.Spots)
                     {
-                        if (spot.TryGetProperty("jef", out var jef) && jef.GetBoolean()) continue;
-                        var point = new Vector3(spot.GetProperty("x").GetSingle(), 0.2f, spot.GetProperty("z").GetSingle());
+                        if (spot.Jef) continue;
+                        var point = new Vector3((float)spot.X, 0.2f, (float)spot.Z);
                         prompts.Add(Interact.I.Add(point, 11, () => !busy ? "stand with the men to be hired" : null, () => _ = Call("hire", e.Id)));
                     }
             }
@@ -56,7 +56,7 @@ public partial class TownWork : Node
         catch (ApiException) { }
         finally { loading = false; }
     }
-    private static bool AlreadyHiring(JsonElement hire) { foreach (var spot in hire.GetProperty("spots").EnumerateArray()) if (spot.TryGetProperty("jef", out var jef) && jef.GetBoolean()) return true; return false; }
+    private static bool AlreadyHiring(HiringView hire) { foreach (var spot in hire.Spots) if (spot.Jef) return true; return false; }
     public async Task Call(string action, int ev)
     {
         if (busy || dead || ServerLink.I?.Api is not { } api) return; busy = true;int g=generation;
