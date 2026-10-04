@@ -115,6 +115,10 @@ picture as it was (720 lines, wobble on) whatever the player's settings say.
   roles, capture ecology, dog mess, market scraps and multiplayer animal states. Homes have visitor support
   and floor plans, but their full interior shells still need drawing. Horses and people aboard vehicles stay
   with the movers part. Thief routes exist; theft outcomes, event scenes and director actions await their parts.
+  `MarketStalls` now replaces the frozen `town_stalls` group. Keepers' schedules open and cover each display;
+  the shop-front layout follows `shared/shopFront.ts`, and copies of each model are batched. The close day/night
+  test (`--peoplechecks marketstalls`) found 25 tables, 20 open at 13:30 and none open at 22:00; rebuild 0.253 ms.
+  Open sacks currently use the common sack's closed shape; awning cloth variants still need their full palette.
 - **The server stays in Node** (`server/`): the game talks to it over the same HTTP and WebSocket API as the
   browser (`client/src/net/api.ts`).
   - `src/Net/ServerProcess.cs` starts it with the game (`node src/index.ts` in `server/`, a free port from 8800,

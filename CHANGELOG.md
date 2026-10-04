@@ -10,6 +10,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 ### New in the game
 - The Godot version has doorstep cats and stray dogs, dogs following their owners, and park birds that move away, then fly when pressed. Doorstep chores and children's games follow the town's daily plans.
 - The Godot version draws the server's occupants in the five landmark halls, with their seats and shared floor plans, and provides room visitors for the homes part.
+- In Godot, market stalls and shop tables put their goods out while their keepers work, then roll up the awning and cover the table. Shop tables fit beside the door without passing the house corner.
 - The back neighbourhoods have a bakery, grocer and cobbler, plus In de Linde and De Zwarte Kat. The latter welcomes players trusted by the smugglers; outsiders are warned to leave and refused service.
 - Ivy and red autumn Virginia creeper climb the town wall's inner face, along the Stadspark and the streets behind the wall.
 - Daylight has shadow play: the houses throw shadows into the streets and onto the squares, narrow lanes are dimmer at their foot, and people, carts and drays have a soft shadow under them. The sun follows its real October path, from the south-east in the morning to the west in the evening. On fog days the light stays soft.
