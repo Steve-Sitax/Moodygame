@@ -525,7 +525,13 @@ public partial class RideTest : Node
     {
         checks.Add(new { name, ok });
         GD.Print($"ridetest: {(ok ? "ok" : "FAIL")} {name}");
-        if (!ok) throw new InvalidOperationException(name);
+        if (!ok)
+        {
+            var j=Jef.I;var velo=Velocipedes.I;
+            replies.Add(new{failedControl=new{name,j.X,j.Y,j.Z,j.Frozen,j.Riding,j.Grounded,j.Blocked,forward=j.KeyDown(Key.W),drive=j.Drive?.Method.DeclaringType?.Name,method=j.Drive?.Method.Name,dialog=Dialogs.I?.Top?.DialogName,pause=Scheldemist.Menu.Pause.Reasons,crane=CraneClimb.I.On,ladder=CraneClimb.I.OnLadder,velo.Speed,velo.LastEvent,velo.Heading,prompts=Interact.I.Find().Select(a=>a.Text).ToArray()}});
+            string file=Path.Combine(dir,"ride-failure.png");GetViewport().GetTexture().GetImage().SavePng(file);pictures.Add(file);
+            throw new InvalidOperationException(name);
+        }
     }
     private async Task<bool> Until(Func<bool> condition, double seconds)
     {
