@@ -43,7 +43,11 @@ public partial class CraneClimb : Node
     {
         On = -1; OnLadder = false; push = 0;
         if (Jef.I.Drive == drive) Jef.I.Drive = null;
+        var back=RideSaves.Read<RideSaved>(client,"ride");
+        if(back is {Kind:"crane"}&&int.TryParse(back.Id,out int i)&&i>=0&&i<Railway.I.LadderCount)
+        {var l=Railway.I.LadderAt(i);var foot=StandOf(l);if(foot==null)return;Deck.Frame=l.Deck;if(!back.Ladder&&!Deck.Stand(back.X,back.Z,.12f))return;On=i;OnLadder=back.Ladder;height=Math.Clamp(back.Height,0,5.42f);Local=new(back.X,back.Z);footOffset=foot.Value-l.Hang;lastYaw=l.Deck.Basis.GetEuler().Y;Jef.I.Drive=drive;Drive(0);}
     }
+    public RideSaved Saved()=>new("crane",On.ToString(),Local.X,Local.Y,lastYaw,Ladder:OnLadder,Height:height);
     private Vector3? StandOf(Railway.Ladder l)
     {
         var d = l.Head - l.Foot; d.Y = 0; d = d.Normalized();

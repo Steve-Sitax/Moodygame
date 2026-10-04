@@ -39,6 +39,7 @@ public partial class ShipWalk:Node
         if(Scheldemist.Menu.MainMenu.I is {} menu)menu.WorldReplaced+=Replaced;
         oldJump=Jef.I.OnJump;Jef.I.OnJump=Jump;oldFloor=Jef.I.TransportFloor;Jef.I.TransportFloor=Floor;
         Interact.I.AddProvider(Keys);
+        ServerLink.I?.WhenUp(()=>_=RestoreDeck());
     }
     private void CollectFloats()
     {while(floats<Boats.I.Floats.Count){var f=Boats.I.Floats[floats++];if(floors.TryGetValue(f.Kind,out var mesh))Decks.Add(new(){Kind=f.Kind,World=()=>f.Inner.GlobalTransform,Visible=()=>GodotObject.IsInstanceValid(f.Outer)&&f.Outer.Visible,Mesh=mesh});}}
@@ -56,7 +57,7 @@ public partial class ShipWalk:Node
     {if(Jef.I.Riding||Jef.I.Laden)return;var at=new Vector3(p.X,d.Mesh.Floor(p.X,p.Y),p.Y);int e=epoch;if(climb)Jef.I.ClimbTo(new[]{(at+Vector3.Up*.2f,.7f),(at,.3f)},()=>{if(e==epoch&&d.Visible())Attach(d,p);},d.World);else Attach(d,p);}
     public void Attach(Deck d,Vector2 p)
     {On=d;Local=d.Mesh.Nearest(p);lastYaw=d.World().Basis.GetEuler().Y;Jef.I.DrivenEye=Jef.Eye;Jef.I.Drive=drive;Jef.I.Carry(d.At(Local));}
-    private void Replaced(string how,ClientState? client)=>Clear();
+    private void Replaced(string how,ClientState? client){Clear();RestoreDeck(RideSaves.Read<RideSaved>(client,"ride"));}
     public void Clear(){epoch++;On=null;if(Jef.I.Drive==drive||Jef.I.Drive==rampDrive){Jef.I.Drive=null;Jef.I.DrivenEye=Jef.Eye;Jef.I.DrivenRoll=0;}}
     private (Deck Deck,Vector2 Local)? Reach()
     {

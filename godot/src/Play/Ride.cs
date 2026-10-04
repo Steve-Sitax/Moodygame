@@ -34,6 +34,8 @@ public partial class Ride : Node, IDialog
     private OmnibusLines.Stop? lastStop;
     private readonly Func<float, bool> drive;
     private Func<bool>? jumpBefore;
+    private RideSaved? savedRide;
+    private int epoch;
     public event Action<string, RideReply>? Answered;
     public Ride() { I = this; drive = Drive; }
     public override void _Ready()
@@ -60,6 +62,7 @@ public partial class Ride : Node, IDialog
     }
     private void Replaced(string how, Scheldemist.Net.ClientState? client)
     {
+        epoch++;savedRide=RideSaves.Read<RideSaved>(client,"ride");
         Close();
         if (Bus != null) { Omnibus.I.SetPlayerSeat(Bus, -1); Omnibus.I.HoldPlayer(Bus, false); }
         Bus = null; Seat = -1; Unpaid = false; Busy = false; puttingOff = false;
@@ -69,8 +72,11 @@ public partial class Ride : Node, IDialog
     private async Task Restore()
     {
         if (ServerLink.I?.Api is not { } api) return;
-        try { var p = await api.Jobs(); if (p.Ride?.On != null && !Riding) Take("restore", await api.Ride("alight", "")); }
-        catch (ApiException e) { GameState.I.Say(e.Message); }
+        int e=epoch;try { var p = await api.Jobs();if(e!=epoch)return;if(savedRide==null)savedRide=await RideSaves.ReadRide(api);if(e!=epoch)return;
+            if(savedRide is {Kind:"omnibus"} back&&p.Ride?.On is {} ticket&&int.TryParse(back.Id,out int index))
+            {foreach(var bus in Omnibus.I.Buses)if(bus.Index==index&&bus.Line.Id==ticket.Line){Start(bus);WalkAt=Inside(back.X,back.Z)?new(back.X,back.Z):new(0,-1.5f);if(back.Seat>=0)Sit(back.Seat);Drive(0);savedRide=null;return;}}
+            savedRide=null;if (p.Ride?.On != null && !Riding) Take("restore", await api.Ride("alight", "")); }
+        catch (ApiException error) { GameState.I.Say(error.Message); }
     }
     public static Vector3 StepOf(Omnibus.Bus b) => b.Frame.ToGlobal(new Vector3(0, 0, -2.6f));
     private bool Eligible => !Riding && !Busy && !Jef.I.Swimming && !Jef.I.Climbing && !Jef.I.Riding;
@@ -161,9 +167,9 @@ public partial class Ride : Node, IDialog
     {
         if (!Eligible || b.At == null) return;
         if (Jef.I.Laden) { GameState.I.Say("The conductor shakes his head. No goods on the omnibus."); return; }
-        Busy = true; Omnibus.I.HoldPlayer(b, true);
-        try { Take("board", await ServerLink.I!.Api!.Ride("board", b.At.Id, b.Line.Id)); Start(b); }
-        catch (ApiException e) { GameState.I.Say(e.Message); }
+        int e=epoch;Busy = true; Omnibus.I.HoldPlayer(b, true);
+        try { var reply=await ServerLink.I!.Api!.Ride("board", b.At.Id, b.Line.Id);if(e!=epoch)return;Take("board",reply);Start(b); }
+        catch (ApiException error) { GameState.I.Say(error.Message); }
         finally { Omnibus.I.HoldPlayer(b, false); Busy = false; }
     }
     public void Hop(Omnibus.Bus b)
@@ -236,7 +242,7 @@ public partial class Ride : Node, IDialog
     private async Task SeatReport(string place)
     {
         try { Take("seat", await ServerLink.I!.Api!.Ride("seat", "", place: place)); }
-        catch (ApiException e) { GameState.I.Say(e.Message); }
+        catch (ApiException error) { GameState.I.Say(error.Message); }
     }
     private Vector3? Landing()
     {
@@ -263,7 +269,7 @@ public partial class Ride : Node, IDialog
         if (unpaid) return;
         Busy = true;
         try { Take("alight", await ServerLink.I!.Api!.Ride("alight", bus.At?.Id ?? "")); }
-        catch (ApiException e) { GameState.I.Say(e.Message); }
+        catch (ApiException error) { GameState.I.Say(error.Message); }
         finally { Busy = false; }
     }
     private void Take(string action, RideReply reply) { GameState.I.Apply(reply); if (reply.Text != "") GameState.I.Say(reply.Text); Answered?.Invoke(action, reply); }
@@ -273,7 +279,7 @@ public partial class Ride : Node, IDialog
         if (!pay) { puttingOff = true; putOffWait = 0; putOffTries = 0; return; }
         Busy = true;
         try { Take("hop", await ServerLink.I!.Api!.Ride("hop", "", Bus.Line.Id)); Unpaid = false; }
-        catch (ApiException e) { GameState.I.Say(e.Message); puttingOff = true; putOffWait = 0; putOffTries = 0; }
+        catch (ApiException error) { GameState.I.Say(error.Message); puttingOff = true; putOffWait = 0; putOffTries = 0; }
         finally { Busy = false; }
     }
     public void OnKey(string code, string key)
@@ -285,7 +291,7 @@ public partial class Ride : Node, IDialog
     public async Task Timetable(string stop)
     {
         try { words = (await ServerLink.I!.Api!.Timetable(stop)).Text; page = "timetable"; Dialogs.I!.Open(this); Render(); }
-        catch (ApiException e) { GameState.I.Say(e.Message); }
+        catch (ApiException error) { GameState.I.Say(error.Message); }
     }
     private void Render()
     {

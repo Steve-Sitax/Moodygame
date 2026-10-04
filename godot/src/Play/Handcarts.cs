@@ -45,6 +45,7 @@ public partial class Handcarts : Node, CartPhysics.IWorld
     private Vector2 lastSent;
     private int? jobSeen;
     private int epoch,notice=-1;
+    private RideSaved? savedRide;
     private bool polling,sending;
     private Task sendTask=Task.CompletedTask;
     private Interact.Entry? shopPrompt;
@@ -65,7 +66,7 @@ public partial class Handcarts : Node, CartPhysics.IWorld
         Interact.I.AddProvider(Keys);
         if(Together.I is { } together) {otherGear=together.Gear;together.Gear=Gear;}
         if(Scheldemist.Menu.MainMenu.I is { } menu)menu.WorldReplaced+=Replaced;
-        ServerLink.I?.WhenUp(()=>_ = Load());
+        ServerLink.I?.WhenUp(()=>_ = Load(true));
     }
     public override void _ExitTree()
     {
@@ -77,13 +78,17 @@ public partial class Handcarts : Node, CartPhysics.IWorld
     private (int Kind,int Sub,float Heading)? Gear() => Held!=null?(MpProtocol.GearHandcart,0,dir+MathF.PI):otherGear?.Invoke();
     private void Forget(Drawn d)
     {foreach(var it in Goods.I.All.Values)if(it.Obj is { } obj&&obj.GetParent()==d.Bed){obj.Reparent(root,true);obj.Visible=false;}d.Root.QueueFree();}
-    private void Replaced(string how,ClientState? client) { epoch++;ClearHold(); foreach(var d in Drawings.Values)Forget(d);Drawings.Clear();shopPrompt?.Dispose();shopPrompt=null;foreach(var model in shopModels)model.QueueFree();shopModels.Clear();_ = Load(true); }
+    private void Replaced(string how,ClientState? client) { savedRide=RideSaves.Read<RideSaved>(client,"ride");epoch++;ClearHold(); foreach(var d in Drawings.Values)Forget(d);Drawings.Clear();shopPrompt?.Dispose();shopPrompt=null;foreach(var model in shopModels)model.QueueFree();shopModels.Clear();_ = Load(true); }
     public async Task Load(bool restore=false)
     {
         var api=ServerLink.I?.Api;if(api==null||polling)return;polling=true;int e=epoch;
         try
         {
             var v=await api.Carts();if(e!=epoch)return;
+            if(restore&&savedRide==null){savedRide=await RideSaves.ReadRide(api);if(e!=epoch)return;}
+            if(restore&&savedRide is {Kind:"cart"} back&&v.List.Any(c=>c.Id==back.Id&&c.Held))
+            {Apply(v);if(Drawings.TryGetValue(back.Id,out var cart)){dir=back.Yaw;Held=back.Id;cart.X=back.X;cart.Z=back.Z;cart.Yaw=dir;cart.Info=cart.Info with{X=back.X,Z=back.Z,Yaw=dir,Held=true};cart.Body.CollisionLayer=0;Jef.I.Place(cart.X-MathF.Sin(dir)*2.6f,cart.Z-MathF.Cos(dir)*2.6f,dir-MathF.PI);Jef.I.Laden=true;Jef.I.CartStep=step;Park(cart);savedRide=null;return;}}
+            savedRide=null;
             if(restore || Held==null)
                 foreach(var c in v.List.Where(c=>c.Held)) {await api.CartRelease(c.Id,c.X,c.Z,c.Yaw);if(e!=epoch)return;}
             if(v.List.Any(c=>c.Held)&&Held==null)v=await api.Carts();
@@ -92,7 +97,7 @@ public partial class Handcarts : Node, CartPhysics.IWorld
             if(restore)Goods.I.RefreshCartGoods();
         }
         catch(ApiException ex) {if(restore)GameState.I.Say(ex.Message);}
-        finally {polling=false;}
+        finally {polling=false;if(e!=epoch&&IsInsideTree())_=Load(true);}
     }
     public void Apply(CartView v)
     {
@@ -102,6 +107,7 @@ public partial class Handcarts : Node, CartPhysics.IWorld
         foreach(var c in v.List)
         {
             if(!Drawings.TryGetValue(c.Id,out var d)) {d=Make(c);if(d==null)continue;Drawings.Add(c.Id,d);}
+            if(c.Id==Held&&!c.Held)ClearHold();
             d.Info=c.Id==Held?c with {X=d.Info.X,Z=d.Info.Z,Yaw=d.Info.Yaw,Held=true}:c;
             if(c.Id!=Held){d.X=c.X;d.Z=c.Z;d.Yaw=c.Yaw;}
             Park(d); DressLoad(d);

@@ -651,6 +651,7 @@ public partial class Together : Node
             s.Gear = (g.Kind & 3) | ((g.Sub & 63) << 2);
             s.Lyaw = g.Heading;
         }
+        RidePlatforms.Sample(ref s);
         return s;
     }
 
@@ -693,6 +694,7 @@ public partial class Together : Node
                 continue;
             }
             var pose = sampled.Value;
+            RidePlatforms.Place(ref pose);
             HideCorrection(id, ref pose, dt);
             f.Place(pose, dt);
             looks[id] = pose.Yaw;

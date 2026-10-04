@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Godot save/load keeps Jef aboard his omnibus, ship, crane, rowing boat, handcart or velocipede; rowing reboarding follows the moving thwart.
+
 - The St. Anna ferry has night navigation lamps and warm saloon windows; moving carts and ships feed the Godot soundscape.
 
 - Climbing onto a moving ship follows its deck throughout the climb.

@@ -14,11 +14,12 @@ const engine = opt("godot", "C:/Users/steve/AppData/Local/Microsoft/WinGet/Packa
 const town = opt("town", "D:/Code/MoodyGame-godot/godot/baked/next/town.glb");
 const models = opt("models", "D:/Code/MoodyGame-godot/godot/baked/models");
 const mode = opt("mode", "ridetest");
-if (!["ridetest", "perfcheck", "talktest"].includes(mode)) throw new Error("mode must be ridetest, perfcheck or talktest");
+if (!["ridetest", "perfcheck", "talktest", "eventtest", "moverstest", "shaders"].includes(mode)) throw new Error("mode must be ridetest, perfcheck or talktest");
 const lock = "D:/Code/MoodyGame-godot/godot/baked/PERF-LOCK";
 mkdirSync(dir, { recursive: true });
 async function waitLock() {
-  while (existsSync(lock)) { console.log("PERF-LOCK held; checking again in 60 seconds"); await new Promise(resolve => setTimeout(resolve, 60000)); }
+  const deadline = Date.now() + 900000;
+  while (existsSync(lock)) { if(Date.now() > deadline) throw new Error("PERF-LOCK still held after 15 minutes"); console.log("PERF-LOCK held; checking again in 60 seconds"); await new Promise(resolve => setTimeout(resolve, 60000)); }
 }
 async function run(argv, timeout, log) {
   await waitLock();
@@ -41,7 +42,7 @@ async function run(argv, timeout, log) {
 }
 try {
   if (!args.includes("--no-import")) await run(["--headless", "--path", "godot", "--import"], 180000, "import.log");
-  await run(["--path", "godot", "--log-file", path.join(dir, "engine.log"), "--", "--town", town, "--models", models, "--no-ai", "--no-soundscape", "--port", String(port), "--db", path.join(dir, "test.sqlite"), "--prefs", path.join(dir, "settings.json"), "--dev", "--hour", "13.75", "--weather", "clear", ...(args.includes("--baseline") ? ["--no-pressworld"] : []), "--ride-only", opt("only", "all"), "--" + mode, dir], opt("only", "all")==="all" ? 360000 : 240000, "run.log");
+  await run(["--path", "godot", "--log-file", path.join(dir, "engine.log"), "--", "--town", town, "--models", models, "--no-ai", ...(mode==="ridetest"?["--ride-saves-menu"]:["--no-mainmenu"]), ...(args.includes("--sound")?[]:["--no-soundscape"]), "--port", String(port), "--db", path.join(dir, "test.sqlite"), "--prefs", path.join(dir, "settings.json"), "--dev", "--hour", "13.75", "--weather", "clear", ...(args.includes("--baseline") ? ["--no-pressworld"] : []), ...(mode==="ridetest"?["--ride-only",opt("only","all")]:mode==="eventtest"?["--eventonly",opt("only","")]:mode==="moverstest"?["--moversonly",opt("only","")]:[]), "--" + mode, dir], opt("only", "all")==="all" ? 360000 : 240000, "run.log");
 } finally {
   for (const suffix of ["", "-wal", "-shm", "-journal"]) rmSync(path.join(dir, "test.sqlite" + suffix), { force: true });
 }
