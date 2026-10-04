@@ -808,6 +808,7 @@ public partial class Townspeople : Node
                 if (now.Act == "stroll" && r.Trade == "soldier" && w.Route is { Length: > 0 }) return new Goal { Mode = "roam", X = w.Route[0].X, Z = w.Route[0].Z, Route = w.Route, Place = now.Place };
                 var pl = Place(now.Place) ?? Place(w.Place) ?? Place("rijnkaai")!;
                 var q = Spot(pl, s);
+                if (Data!.Anchors.TryGetValue(r.Id, out var points) && points.TryGetValue((now.Act, now.Place), out var fixedPoint)) q = fixedPoint;
                 return new Goal { Mode = now.Act, X = q.X, Z = q.Z, R = pl.R, Place = now.Place };
             }
         }
@@ -1135,7 +1136,7 @@ public partial class Townspeople : Node
             (double x, double z)? side = lead?.P != null ? (lead.P.X - Math.Cos(lead.P.Yaw) * 0.62, lead.P.Z + Math.Sin(lead.P.Yaw) * 0.62) : null;
             (double x, double z)? at = side != null && crowd.CanStand(side.Value.x, side.Value.z) ? side : crowd.CanStand(s.X, s.Z) ? (s.X, s.Z) : crowd.OpenNear(s.X, s.Z);
             // never inside someone already there: the nearest open point nobody stands on
-            if (at != null && crowd.SomeoneAt(at.Value.x, at.Value.z)) at = crowd.OpenNearFree(at.Value.x, at.Value.z) ?? at;
+            if (at != null && crowd.SomeoneAt(at.Value.x, at.Value.z)) at = crowd.OpenNearFree(at.Value.x, at.Value.z);
             if (at == null) continue;
             if (!Humans.IsKind(s.Kind)) s.Kind = KindFallback.GetValueOrDefault(s.Kind, "docker_a");
             var a = Anchor(s);

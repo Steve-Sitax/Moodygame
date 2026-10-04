@@ -1,6 +1,6 @@
 // Godot milestone checks. Fresh test towns only, one visible window at a time, bounded child processes.
 // node tools/godot/checks.mjs --town D:/Code/MoodyGame-godot/godot/baked/town.glb --models D:/Code/MoodyGame-godot/godot/baked/models
-import { spawn } from "node:child_process";
+import { spawn, execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import net from "node:net";
 import path from "node:path";
@@ -11,7 +11,7 @@ const args = process.argv.slice(2);
 const opt = (name, fallback) => { const i = args.indexOf(`--${name}`); if (i < 0) return fallback; if (!args[i + 1] || args[i + 1].startsWith("--")) throw new Error(`--${name} needs a value`); return args[i + 1]; };
 const all = ["devtest", "paths", "stuck", "shaders", "perfcheck", "clocks", "interiors"];
 const selected = opt("only", all.join(",")).split(",");
-if (selected.some(name => ![...all, "pixelcheck", "windows"].includes(name))) throw new Error("--only: " + [...all, "pixelcheck", "windows"].join(","));
+if (selected.some(name => ![...all, "pixelcheck", "windows", "peopletest"].includes(name))) throw new Error("--only: " + [...all, "pixelcheck", "windows", "peopletest"].join(","));
 const town = path.resolve(opt("town", "godot/baked/town.glb"));
 const models = path.resolve(opt("models", path.join(path.dirname(town), "models")));
 const out = path.resolve(opt("out", "godot/baked/checks"));
@@ -23,6 +23,8 @@ if (!Array.isArray(extraArgs) || extraArgs.some(a => typeof a !== "string")) thr
 if (!Number.isInteger(seed) || seed <= 0 || seed > 2147483647) throw new Error("--seed must be 1..2147483647");
 let port = Number(opt("port", "8980"));
 if (!Number.isInteger(port) || port < 8900 || port > 64000) throw new Error("--port must be 8900..64000");
+const firstPort = port, lastPort = Number(opt("port-end", "64000"));
+if (!Number.isInteger(lastPort) || lastPort < port + 1 || lastPort > 64000) throw new Error("--port-end must leave room for the port pair");
 if (!Number.isFinite(timeout) || timeout < 1000 || timeout > 600000) throw new Error("--timeout must be 1..600 seconds");
 for (const file of [town, path.join(models, "people.glb"), path.join(root, "server/node_modules"), godot]) if (!existsSync(file)) throw new Error("missing " + file);
 mkdirSync(out, { recursive: true });
@@ -41,7 +43,18 @@ async function stop(child) {
 async function cleanup() { await Promise.all([...children].map(stop)); }
 for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, async () => { await cleanup(); process.exit(130); });
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+async function waitForGodot() {
+  const lock = opt("perf-lock", path.join(path.dirname(town), "..", "PERF-LOCK"));
+  const until = Date.now() + 600000;
+  let announced = false;
+  while (existsSync(lock) || (process.platform === "win32" && /Godot_v[^\r\n]*\.exe/i.test(execFileSync("tasklist.exe", ["/FI", "IMAGENAME eq Godot*", "/FO", "CSV", "/NH"], { windowsHide: true, encoding: "utf8" })))) {
+    if (!announced) { console.log("Waiting for PERF-LOCK / another Godot run to finish"); announced = true; }
+    if (Date.now() > until) throw new Error("Godot run slot remained occupied for ten minutes");
+    await pause(1000);
+  }
+}
 async function run(exe, argv, limit, logFile) {
+  if (exe === godot) await waitForGodot();
   const child = spawn(exe, argv, { cwd: root, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
   children.add(child);
   let text = "", timedOut = false;
@@ -61,7 +74,11 @@ const free = port => new Promise(resolve => {
   listener.listen(port, "127.0.0.1", () => listener.close(() => resolve(true)));
 });
 async function nextPort() {
-  for (; port < 64000; port += 2) if (await free(port) && await free(port + 1)) { const result = port; port += 2; return result; }
+  for (let n = 0; n < Math.floor((lastPort - firstPort + 1) / 2); n++) {
+    if (port + 1 > lastPort) port = firstPort;
+    const result = port; port += 2;
+    if (await free(result) && await free(result + 1)) return result;
+  }
   throw new Error("no free check port");
 }
 function numbers(name, report) {
@@ -75,6 +92,7 @@ function numbers(name, report) {
     case "interiors": return `${report.openings ?? "?"} openings, ${report.blocked ?? "?"} blocked, ${report.empty ?? "?"} empty; ${report.registeredRooms ?? "?"} live rooms registered`;
     case "pixelcheck": return `${report.comparisons?.length ?? "?"} comparisons, ${report.differentPixels ?? "?"} changed pixels; positive control ${report.controlPixels ?? "?"}`;
     case "windows": return `${report.pictures?.length ?? "?"} close pictures through windows`;
+    case "peopletest": return `${report.whereCheck?.same ?? "?"}/${report.whereCheck?.answers ?? "?"} whereabouts; ${report.places?.map(r => `${r.place}: ${r.peopleAndAnimalsCostMs} ms, ${r.allPeopleBytesPerFrame?.mean ?? "?"} B/frame`).join("; ")}`;
   }
 }
 const table = [];
@@ -93,7 +111,7 @@ try {
       const ownPort = await nextPort();
       const config = path.join(scratch, "walk.json");
       writeFileSync(config, JSON.stringify({ version: 1, mode: "walk", typedLines: "same", callsPerDay: 120, default: { provider: "recommended" }, kinds: {}, connections: { anthropic_api: {}, openai_compat: { baseUrl: "https://api.openai.com/v1" }, ollama: { baseUrl: "http://127.0.0.1:11434" } } }));
-      server = spawn(process.execPath, ["src/index.ts"], { cwd: path.join(root, "server"), windowsHide: true, stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, SCHELDEMIST_TOWN_SEED: String(seed), SCHELDEMIST_DB: path.join(scratch, "test.sqlite"), SCHELDEMIST_AI_CONFIG: config, SCHELDEMIST_PORT: String(ownPort), SCHELDEMIST_CLIENT_PORT: String(ownPort), SCHELDEMIST_MAP_PORT: "0" } });
+      server = spawn(process.execPath, ["src/index.ts"], { cwd: path.join(root, "server"), windowsHide: true, stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, SCHELDEMIST_DATA: scratch, SCHELDEMIST_TOWN_SEED: String(seed), SCHELDEMIST_DB: path.join(scratch, "test.sqlite"), SCHELDEMIST_AI_CONFIG: config, SCHELDEMIST_PORT: String(ownPort), SCHELDEMIST_CLIENT_PORT: String(ownPort), SCHELDEMIST_MAP_PORT: "0" } });
       children.add(server);
       server.stdout.on("data", b => { serverText += b; }); server.stderr.on("data", b => { serverText += b; });
       server.on("error", e => { serverText += e.message; });
@@ -111,6 +129,7 @@ try {
       serverText += "\n[checks] verified no-AI walk-around mode\n";
       // Never accept an old report if this run fails before writing one.
       rmSync(path.join(dir, name + ".json"), { force: true });
+      if (name === "peopletest" && await run(process.execPath, [path.join(root, "tools/godot/wherecheck.mjs"), "--server", url, "--out", path.join(dir, "where_expected.json")], 120000, path.join(dir, "reference.log"))) throw new Error("whereabouts reference failed");
       const code = await run(godot, ["--path", path.join(root, "godot"), "--", "--town", town, "--models", models, "--server", url, "--no-ai", "--hour", "13", "--weather", "clear", "--no-mainmenu", "--prefs", path.join(scratch, "prefs.json"), `--${name}`, dir, ...extraArgs], timeout, path.join(dir, "run.log"));
       const report = JSON.parse(readFileSync(path.join(dir, name + ".json"), "utf8"));
       table.push({ check: name, result: code === 0 && report.ok === true ? "PASS" : "FAIL", finds: numbers(name, report), report: path.join(dir, name + ".json") });

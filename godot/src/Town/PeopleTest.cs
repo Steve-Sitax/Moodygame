@@ -180,7 +180,7 @@ public partial class PeopleTest : Node
         switch (phase)
         {
             case "load":
-                if (town.Data != null && town.WaysWaiting >= 0) Next(Main.I.Flag("peopleadvance") ? "advance" : Main.I.Arg("peoplechecks", "where"));
+                if (town.Data != null && town.WaysWaiting >= 0) Next(Main.I.Flag("peopleadvance") ? "advance" : Main.I.Arg("peoplechecks", "where") == "crowds" ? "where" : Main.I.Arg("peoplechecks", "where"));
                 else if (t > 90) Fail("the town did not load: " + town.Status);
                 break;
             case "advance":

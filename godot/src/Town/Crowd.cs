@@ -111,8 +111,8 @@ public sealed class NavGrid
     public List<(double x, double z)>? Path(double sx, double sz, double tx, double tz, int maxExpand = 9000, Func<double, double, bool>? standAt = null, List<(double x, double z)>? output = null)
     {
         output?.Clear();
-        var s0 = NearestOpen(sx, sz, 2);
-        var t0 = NearestOpen(tx, tz, 2);
+        var s0 = NearestOpen(sx, sz, 2, standAt);
+        var t0 = NearestOpen(tx, tz, 2, standAt);
         if (s0 == null || t0 == null) return null;
         int s = Cell(s0.Value.x, s0.Value.z), t = Cell(t0.Value.x, t0.Value.z);
         int n = N, tix = t % n, tiz = t / n;
@@ -194,7 +194,7 @@ public sealed class NavGrid
         cells.Clear();
         for (int c = t; c != -1; c = from[c]) cells.Add((X0 + c % n + 0.5, Z0 + c / n + 0.5));
         cells.Reverse();
-        if (IsOpen(tx, tz) || standAt == null || standAt(tx, tz)) cells[^1] = (tx, tz);
+        if (standAt != null ? standAt(tx, tz) : IsOpen(tx, tz)) cells[^1] = (tx, tz);
         // string pulling: keep only the corners
         var o = output ?? new List<(double x, double z)>();
         var anchor = (x: sx, z: sz);
@@ -315,6 +315,7 @@ public sealed class Crowd
 
     public void Update(double dt, double vx, double vz, (double x, double z)? playerBody, Camera3D? camera)
     {
+        map.RefreshBodies();
         viewX = vx;
         viewZ = vz;
         body = playerBody;
@@ -612,10 +613,10 @@ public sealed class Crowd
     public bool CanStand(double x, double z) => grid.Built && grid.IsOpen(x, z) && map.Free(x, z);
 
     /// <summary>The nearest open grid point, for a puppet that would appear in a wall.</summary>
-    public (double x, double z)? OpenNear(double x, double z) => grid.Built ? grid.NearestOpen(x, z, 4) : null;
+    public (double x, double z)? OpenNear(double x, double z) => grid.Built ? grid.NearestOpen(x, z, 4, standFree) : null;
 
     /// <summary>Does someone stand or walk within a body's gap of (x, z)?</summary>
-    private bool NoPersonAt(double x, double z) => !SomeoneAt(x, z);
+    private bool NoPersonAt(double x, double z) => map.Free(x, z) && !SomeoneAt(x, z);
     public bool SomeoneAt(double x, double z)
     {
         foreach (var q in people)
@@ -688,7 +689,15 @@ public sealed class Crowd
                 Face(p, Math.Atan2(body.Value.x - p.X, body.Value.z - p.Z), dt);
                 p.Held += dt;
                 if (Hyp(body.Value.x - p.X, body.Value.z - p.Z) > 1.4) p.State = "walk";
-                else if (p.Held > 1.2 && (p.SinceDetour < 5 || !Detour(p)))
+                else if (p.Held > 0.8 && p.Held - dt <= 0.8)
+                {
+                    if (p.SinceDetour < 5 || !Detour(p))
+                    {
+                        p.Held = 0;
+                        Next(p);
+                    }
+                }
+                else if (p.Held > 3)
                 {
                     p.Held = 0;
                     Next(p);
@@ -798,6 +807,18 @@ public sealed class Crowd
     /// </summary>
     private bool StepFree(Puppet p, double x, double z)
     {
+        foreach (var q in people)
+        {
+            if (q == p) continue;
+            // A hard body boundary, inside the wider soft spacing used by KeepApart. Making the soft
+            // load/height allowance impassable makes two walkers repeatedly reject each other's escape step.
+            const double gap = 0.5;
+            double qx = x - q.X, qz = z - q.Z;
+            if (Math.Abs(qx) >= gap || Math.Abs(qz) >= gap) continue;
+            double distance = qx * qx + qz * qz;
+            // Do not step into a body. An existing overlap may still separate, including an exact coincidence.
+            if (distance < gap * gap && distance <= (p.X - q.X) * (p.X - q.X) + (p.Z - q.Z) * (p.Z - q.Z)) return false;
+        }
         if (map.Free(x, z)) return true;
         if (map.Free(p.X, p.Z)) return false;
         // (the browser lets a thinner body through there; the bake has one body's width: towards ground a body fits on within a metre)
@@ -816,7 +837,7 @@ public sealed class Crowd
         if (d > 0.8 || d < 0.01) return;
         double step = 1.2 * dt;
         double nx = p.X + dx / d * step, nz = p.Z + dz / d * step;
-        if (map.Free(nx, nz) && grid.IsOpen(nx, nz))
+        if (StepFree(p, nx, nz) && grid.IsOpen(nx, nz))
         {
             p.X = nx;
             p.Z = nz;

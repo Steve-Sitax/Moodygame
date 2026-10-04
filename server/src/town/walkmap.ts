@@ -153,7 +153,7 @@ export function walkMap(): WalkMap {
     return i >= 0 && seen[i] === 1;
   };
   const nearestOpen = (x: number, z: number, max = 6) => {
-    if (reachable(x, z)) return { x, z };
+    if (reachable(x, z) && open(x, z, 0.3)) return { x, z };
     for (let d = info.res; d <= max; d += info.res) {
       let best: { x: number; z: number } | null = null;
       let bestD = Infinity;
@@ -161,7 +161,7 @@ export function walkMap(): WalkMap {
       for (let i = 0; i < k; i++) {
         const a = (i / k) * Math.PI * 2;
         const q = { x: x + Math.cos(a) * d, z: z + Math.sin(a) * d };
-        if (reachable(q.x, q.z)) {
+        if (reachable(q.x, q.z) && open(q.x, q.z, 0.3)) {
           const dd = Math.hypot(q.x - x, q.z - z);
           if (dd < bestD) {
             bestD = dd;
@@ -169,7 +169,11 @@ export function walkMap(): WalkMap {
           }
         }
       }
-      if (best) return { x: Math.round(best.x * 10) / 10, z: Math.round(best.z * 10) / 10 };
+      if (best) {
+        const rounded = { x: Math.round(best.x * 10) / 10, z: Math.round(best.z * 10) / 10 };
+        // Rounding a point on a lane's edge can put it back inside the wall cell.
+        return open(rounded.x, rounded.z, 0.3) && reachable(rounded.x, rounded.z) ? rounded : best;
+      }
     }
     return null;
   };
