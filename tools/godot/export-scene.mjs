@@ -11,7 +11,7 @@
 // map), <out>_lights.json (the lamps, the lit windows and their light on the street). The stack is stopped and its save deleted at the end.
 
 import { spawn, execFileSync } from "node:child_process";
-import { copyFileSync, createWriteStream, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, createWriteStream, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
@@ -199,6 +199,42 @@ const EXPORT = `(() => {
         for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m) mats.add(m);
         const g = o.geometry;
         if (g && g.attributes.cell && !g.attributes.uv1) g.setAttribute("uv1", g.attributes.cell);
+        // the open fires (world/fire.ts): their ShaderMaterials are left out; the fire group says where its fires burn,
+        // in its own frame, how big each is and how much smoke (Godot draws them: World/Fires.cs)
+        if (o.isPoints && g && g.attributes.aSize && g.attributes.aSeed && o.parent && o.parent.name === "fires" && !o.parent.userData.fire) {
+          const p = g.attributes.position, sz = g.attributes.aSize, spots = [];
+          for (let i = 0; i < p.count; i++)
+            if (i === 0 || p.getX(i) !== p.getX(i - 1) || p.getY(i) !== p.getY(i - 1) || p.getZ(i) !== p.getZ(i - 1))
+              spots.push([p.getX(i), p.getY(i), p.getZ(i), sz.getX(i)].map((v) => Math.round(v * 1000) / 1000));
+          o.parent.userData.fire = { spots, smoke: Math.round(p.count / Math.max(1, spots.length)) - 50 };
+        }
+        // (the house's wall picture and paint, world/houseGrime.ts gmat: the third uv, Godot's CUSTOM0)
+        if (g && g.attributes.gmat && !g.attributes.uv2) g.setAttribute("uv2", g.attributes.gmat);
+        // (the park's plants, one mesh in world space: each vertex's plant foot, world/trees3d.ts aTreeAt: x z in the
+        // third uv, y in the fourth: Godot's CUSTOM0)
+        if (g && g.attributes.aTreeAt && !g.attributes.uv2) {
+          const a = g.attributes.aTreeAt, n = a.count, xz = new Float32Array(n * 2), y = new Float32Array(n * 2);
+          for (let i = 0; i < n; i++) (xz[i * 2] = a.getX(i)), (xz[i * 2 + 1] = a.getZ(i)), (y[i * 2] = a.getY(i));
+          g.setAttribute("uv2", new a.constructor(xz, 2));
+          g.setAttribute("uv3", new a.constructor(y, 2));
+        }
+        // the grime decals' ShaderMaterial (houseGrime.ts grimeDecalMaterial) would be left out: a plain material in
+        // its place, marked, with its picture (Godot draws it with the psx decal shader)
+        const dm = o.material;
+        if (dm && dm.isShaderMaterial && dm.uniforms && dm.uniforms.map && /attribute vec2 cell/.test(dm.vertexShader || "")) {
+          if (!window.__decalMat) {
+            let Basic = null;
+            scene.traverse((q) => { if (!Basic && q.material && q.material.isMeshBasicMaterial) Basic = q.material.constructor; });
+            const t = dm.uniforms.map.value;
+            const b = new Basic({ transparent: true, depthWrite: false, side: 2, vertexColors: true });
+            b.name = "grime_decal";
+            s.psxBakeTextures.set(t.uuid, t);
+            b.userData.psx = { bake: { grimeDecal: { cells: 4, map: { tex: t.uuid } } } };
+            window.__decalMat = b;
+          }
+          o.material = window.__decalMat;
+          mats.add(o.material);
+        }
       }
       if (o.isSkinnedMesh) skinned++;
       if (o.isInstancedMesh) {
@@ -207,6 +243,22 @@ const EXPORT = `(() => {
         if (o.instanceColor) inst[o.name].c = Array.from(o.instanceColor.array.subarray(0, o.count * 3), (v) => Math.round(v * 1e3) / 1e3);
       }
     });
+    // what the psx options do not say: the houses' grime (houseGrime.ts install, its cache key) and a bump map
+    for (const m of mats) {
+      const pb = m.userData.psx && m.userData.psx.bake;
+      if (!pb || typeof pb !== "object") continue;
+      const key = m.customProgramCacheKey ? String(m.customProgramCacheKey()) : "";
+      // the trees' sway in the wind and the gale (trees3d.ts treeMaterial): 1 bark, 2 leaves; merged: the park's plants
+      if (key.includes("-treebark") || key.includes("-treeleaf")) pb.tree = { leaf: key.includes("-treeleaf"), merged: key.includes("-merged") };
+      if (key.includes("-grime-facade")) pb.grime = "facade";
+      else if (key.includes("-grime-stone")) pb.grime = "stone";
+      // (the wet stone's highlight: three's Phong specular, linear, and shininess)
+      if (pb.wet && m.specular) pb.spec = [m.specular.r, m.specular.g, m.specular.b, m.shininess ?? 30];
+      if (m.bumpMap && m.bumpMap.image) {
+        s.psxBakeTextures.set(m.bumpMap.uuid, m.bumpMap);
+        pb.bump = { tex: m.bumpMap.uuid, scale: m.bumpScale };
+      }
+    }
     for (const m of mats)
       m.userData.three = {
         type: m.type, name: m.name || "", depthWrite: m.depthWrite, depthTest: m.depthTest, opacity: m.opacity, transparent: m.transparent,
@@ -355,7 +407,9 @@ async function sharedTextures() {
   const boxes = await ev(SHARED_TEX);
   mkdirSync(`${out}_tex`, { recursive: true });
   for (const [name, box] of Object.entries(boxes)) writeFileSync(path.join(`${out}_tex`, `${name}.json`), JSON.stringify(box));
-  for (const f of ["skyshade.png", "skyshade.json"]) copyFileSync(path.join(root, "client/public/textures", f), path.join(`${out}_tex`, f));
+  // (and the houses' wall pictures, their height maps and which are good: world/houseGrime.ts, retro/psx.ts wallRelief)
+  const walls = readdirSync(path.join(root, "client/public/textures")).filter((f) => /^wall_.*\.(jpg|png|json)$/.test(f));
+  for (const f of ["skyshade.png", "skyshade.json", ...walls]) copyFileSync(path.join(root, "client/public/textures", f), path.join(`${out}_tex`, f));
   return Object.keys(boxes);
 }
 // The lights of the night as plain data (godot/src/World/Lights.cs): every still spill source (world/spill.ts: the gas

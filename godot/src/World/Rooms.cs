@@ -22,7 +22,9 @@ namespace Scheldemist.World;
 ///   room is shown within its reach (90 m for a house), the lining beyond;
 /// - the glass: a little of the sky on it by day, nearly clear at night;
 /// - the door's leaf and transom once (the room's scene carried a copy of the street's).
-/// Open or shut: the shops' part sets it (SetOpen); until then by the clock (a shop 7 to 19, a tavern 10 to 24).
+/// Open or shut: each shop's and tavern's own hours as the server has them (asked every 15 s, as interiors.ts does:
+/// /api/shops and /api/interiors), or a part that knows sooner (SetOpen); until the first answer by the clock (a shop
+/// 7 to 19, a tavern 10 to 24). A shut tavern's lamps are out, as in the browser (setLamps 0).
 /// Not yet: the room's own air when the eye is inside (the street's fog is used), people inside lit by the room.
 /// </summary>
 [GamePart(50)]
@@ -56,6 +58,10 @@ public partial class Rooms : Node
         // what its meshes and lamps were last given (set again only when it changes)
         public Vector3 SkyNow = new(-1, 0, 0);
         public float LampK = -1;
+        // the street's copy of the door: its transom glass (unlit) and its warm glow (additive), houseInWorld.ts
+        public readonly List<ShaderMaterial> Transoms = new();
+        public readonly List<(GeometryInstance3D g, ShaderMaterial m)> Glows = new();
+        public float TransomK = -1;
     }
 
     private readonly List<Room> rooms = new();
@@ -79,6 +85,9 @@ public partial class Rooms : Node
             foreach (var r in list.EnumerateArray()) lit[r.GetProperty("id").GetString() ?? ""] = r.GetProperty("lights");
 
         var linings = new Dictionary<string, Node3D>();
+        var houses = new Dictionary<string, Node3D>();
+        foreach (var n in BakedWorld.All(Main.I.World))
+            if (n is Node3D h3 && n.Name.ToString().StartsWith("house_") && !n.Name.ToString().StartsWith("house_lining_")) houses.TryAdd(n.Name.ToString(), h3);
         foreach (var n in BakedWorld.All(Main.I.World))
             if (n is Node3D n3 && n.Name.ToString().StartsWith("house_lining_")) linings[Key(n.Name.ToString()["house_lining_".Length..])] = n3;
         foreach (var n in BakedWorld.All(Main.I.World).ToList())
@@ -96,6 +105,7 @@ public partial class Rooms : Node
                 room.Openings.Add(new Vector3(c[0].GetSingle(), c[1].GetSingle(), c[2].GetSingle()));
             }
             Dress(room);
+            if (houses.TryGetValue("house_" + Key(room.Id), out var house)) Doors(room, house);
             Light(room, info.GetProperty("lights"), lit.TryGetValue(room.Id, out var l) ? l : (JsonElement?)null);
             rooms.Add(room);
             byId[room.Id] = room;
@@ -107,6 +117,33 @@ public partial class Rooms : Node
             foreach (var r in rooms) GD.Print($"room {r.Id} {r.Kind}: {r.Box.GetCenter().Round()} size {r.Box.Size.Round()}, door {(r.Openings.Count > 0 ? r.Openings[0].Round() : Vector3.Zero)}");
         Menu.Prefs.Changed += _ => maxRooms = (int)Menu.Prefs.Num("rooms");
         maxRooms = (int)Menu.Prefs.Num("rooms");
+    }
+
+    private float askT = 1;
+    private bool asking;
+
+    /// <summary>Which shops and taverns are open now, from the server (each its own hours; the Poesje's evening).</summary>
+    private async void AskOpen()
+    {
+        if (asking || Net.ServerLink.I?.Api is not { } api) return;
+        asking = true;
+        try
+        {
+            if (Talks.Shop.I != null)
+                foreach (var shop in await Talks.Shop.I.List()) SetOpen("shop:" + shop.Place, shop.Open);
+            var j = await api.Get<JsonElement>("api/interiors");
+            if (j.TryGetProperty("taverns", out var ts))
+                foreach (var t in ts.EnumerateArray()) SetOpen(t.GetProperty("place").GetString() ?? "", t.GetProperty("open").GetBoolean());
+            if (j.TryGetProperty("poesje", out var p) && p.ValueKind == JsonValueKind.Object) SetOpen("poesje", p.GetProperty("open").GetBoolean());
+        }
+        catch (Exception)
+        {
+            // (no answer: the last word stands, or the clock)
+        }
+        finally
+        {
+            asking = false;
+        }
     }
 
     /// <summary>The shops' and taverns' part says a room is open (its lamps lit after dark) or shut.</summary>
@@ -129,6 +166,19 @@ public partial class Rooms : Node
         foreach (var r in rooms)
             if (r.Budgeted && r.Box.Grow(1.2f).HasPoint(p)) return r.Level;
         return 1;
+    }
+
+    /// <summary>The street's door of a room: its transom glass and the warm glow behind it (houseInWorld.ts transomMat, glowMesh).</summary>
+    private static void Doors(Room room, Node3D house)
+    {
+        foreach (var n in BakedWorld.All(house))
+        {
+            if (n is not GeometryInstance3D gi) continue;
+            Mesh? mesh = n is MeshInstance3D mi ? mi.Mesh : null;
+            if (mesh == null || mesh.GetSurfaceCount() == 0 || mesh.SurfaceGetMaterial(0) is not ShaderMaterial m || Psx.KindOf(m.Shader) is not { Unlit: true } k) continue;
+            if (k.Add) room.Glows.Add((gi, m));
+            else if (!k.Blend && m.GetShaderParameter("tex").Obj == null && !room.Transoms.Contains(m)) room.Transoms.Add(m);
+        }
     }
 
     /// <summary>The room's meshes: the indoor material, the room's layer; its copies of the door hidden; its glass found.</summary>
@@ -157,8 +207,10 @@ public partial class Rooms : Node
                 if (indoor.ContainsValue(m) || Psx.KindOf(m.Shader) is not { } kind) continue;
                 if (kind.Unlit)
                 {
-                    // the window glass (houseInWorld.ts pane): see-through, no name, a fifth as dense as the air
-                    if (kind.Blend && !kind.Add && kind.TwoSided && MathF.Abs(m.GetShaderParameter("albedo").AsColor().A - 0.22f) < 0.02f) panes.Add(m);
+                    // the window glass (houseInWorld.ts pane): see-through, no picture, thin (0.03 to 0.28: the bake
+                    // took it at whatever its sheen was then; it is set again every frame below)
+                    float pa = m.GetShaderParameter("albedo").AsColor().A;
+                    if (kind.Blend && !kind.Add && kind.TwoSided && !kind.DepthWrite && m.GetShaderParameter("tex").Obj == null && pa > 0.02f && pa < 0.4f) panes.Add(m);
                     continue;
                 }
                 if (!indoor.TryGetValue(m, out var im))
@@ -226,6 +278,12 @@ public partial class Rooms : Node
         var day = Daylight.I;
         var cam = Main.I.View.GetCamera3D();
         if (day == null || cam == null || rooms.Count == 0) return;
+        askT -= (float)delta;
+        if (askT <= 0)
+        {
+            askT = 15;
+            AskOpen();
+        }
         float h = day.Hour, night = day.Night;
         float dayK = Mathf.Clamp(h < 12 ? (h - 6.5f) / 3 : (18.5f - h) / 3, 0, 1);
         var eye = cam.GlobalPosition;
@@ -252,6 +310,24 @@ public partial class Rooms : Node
             bool open = r.Open ?? r.Kind switch { "shop" => h >= 7 && h < 19, "tavern" => h >= 10, "poesje" => h >= 18.5f && h < 22.5f, "home" => false, _ => true };
             float target = open ? 1 : 0;
             r.Level += (target - r.Level) * Math.Min(1, (float)delta * 2);
+            // the door's transom takes the sky's light; at night, the door open, it glows warm (houseInWorld.ts update)
+            {
+                float lit = r.Level * Mathf.Clamp((0.45f - dayK) / 0.25f, 0, 1) * night;
+                float skyL = 0.06f + 0.94f * dayK;
+                float tk = lit * 10 + skyL;
+                if (MathF.Abs(tk - r.TransomK) > 0.003f)
+                {
+                    r.TransomK = tk;
+                    var tc = new Color(0.11f * skyL + 0.5f * lit, 0.13f * skyL + 0.34f * lit, 0.16f * skyL + 0.12f * lit).LinearToSrgb();
+                    foreach (var m in r.Transoms) m.SetShaderParameter("albedo", tc);
+                    foreach (var (g, m) in r.Glows)
+                    {
+                        g.Visible = lit > 0.01f;
+                        var a = m.GetShaderParameter("albedo").AsColor();
+                        m.SetShaderParameter("albedo", new Color(a.R, a.G, a.B, lit * 0.8f));
+                    }
+                }
+            }
             if (!r.Root.Visible)
             {
                 if (r.LampK != -2) foreach (var l in r.Lamps) l.Light.LightEnergy = 0;

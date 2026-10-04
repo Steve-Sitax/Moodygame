@@ -136,7 +136,7 @@ public partial class Daylight : Node
     public void SetThickFog(bool on) => fogTarget = on ? 1 : 0;
 
     private static readonly Color StormAir = Psx.Hex(0x3a444e);
-    private float stormTarget;
+    private float stormTarget, gale, galeT;
     /// <summary>The great storm now, 0..1, eased (world/tempest.ts level; it counts on a storm day only).</summary>
     public float Storm { get; private set; }
     /// <summary>
@@ -247,6 +247,14 @@ public partial class Daylight : Node
         float st = Weather == "storm" ? stormTarget : 0;
         Storm = dt <= 0 ? st : Storm + (st - Storm) * Math.Min(1, dt * 0.25f);
         rs0("psx_storm", Storm);
+        // the trees lean with the gale (main.ts uGale): a storm day a little, the great storm hard and harder in the
+        // gusts (the gusts' fronts of world/alive/wind.ts as one slow swell here)
+        galeT += dt;
+        float gust = Storm > 0 ? 0.3f + 1.5f * Math.Max(0, MathF.Sin(galeT * 0.41f) * MathF.Sin(galeT * 0.17f + 0.7f)) : 0;
+        float bendTo = (Weather == "storm" ? 0.35f : Weather == "rain" ? 0.1f : 0) + Storm * (0.9f + 0.45f * Math.Min(gust, 3));
+        gale = dt <= 0 ? bendTo : gale + (bendTo - gale) * Math.Min(1, dt * 3);
+        var wd = Wind.LengthSquared() > 1e-6f ? Wind.Normalized() : new Vector2(1, 0);
+        Psx.Set("psx_gale", new Vector3(wd.X, wd.Y, gale));
         for (int i = 0; i < 4; i++) wNow[i] += (wTarget[i] - wNow[i]) * Math.Min(1, dt * 0.5f);
 
         // a clear day: the air lighter (by day only); the golden hour: warm air, a low warm sun from the west

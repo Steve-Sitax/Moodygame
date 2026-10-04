@@ -26,10 +26,15 @@ public static class Psx
     /// The switches that make another shader. Relief: 0 none, 1 a height map, 2 with stone ids. Ground: wet stone,
     /// puddles, patches and dirt (their amounts are uniforms). Wall: the foot's dirt and the mottle. Water: 1 the
     /// river and the docks (waves, foam at the walls, the dark mirror), 2 a sheltered pond (the same, calmer).
-    /// Indoor: a room's own light instead of the sky's and the sun's (World/Rooms.cs gives it per mesh).
+    /// Indoor: a room's own light instead of the sky's and the sun's (World/Rooms.cs gives it per mesh). Grime: the
+    /// houses' age (Render/Grime.cs), 1 the facade atlas's walls, 2 the stone trim. Bump: a bump map (three's bump
+    /// chunk). Decal: the houses' grime decals (a shader of their own). Tree: the sway in the wind and the gale
+    /// (trees3d.ts): 1 bark, 2 leaves, 3 and 4 the same for the park's plants (one mesh, each vertex's foot in CUSTOM0),
+    /// 5 the falling leaves (World/Trees.cs).
     /// </summary>
     public record struct Kind(bool Unlit, bool Blend, bool Scissor, bool TwoSided, bool DepthWrite, bool Snap, int Atlas, bool VertexColor, bool Add, bool Fog,
-        int Relief = 0, bool Parallax = false, bool Detile = false, bool Ground = false, bool Wall = false, bool Slabs = false, bool Far = false, int Water = 0, bool Indoor = false);
+        int Relief = 0, bool Parallax = false, bool Detile = false, bool Ground = false, bool Wall = false, bool Slabs = false, bool Far = false, int Water = 0, bool Indoor = false,
+        int Grime = 0, bool Bump = false, bool Decal = false, int Tree = 0);
 
     private static readonly Dictionary<Kind, Shader> Shaders = new();
     private static readonly Dictionary<Shader, Kind> Kinds = new();
@@ -59,6 +64,8 @@ public static class Psx
         ("psx_puddle", RenderingServer.GlobalShaderParameterType.Float, 0f),
         ("psx_sea", RenderingServer.GlobalShaderParameterType.Float, 1f),
         ("psx_storm", RenderingServer.GlobalShaderParameterType.Float, 0f),
+        // the gale (main.ts uGale): the way the wind blows (x, z) and how hard it bends the trees now (0 any calm day)
+        ("psx_gale", RenderingServer.GlobalShaderParameterType.Vec3, new Vector3(1, 0, 0)),
         // the nearest lit gas lamps (the browser's uLamps, MAX_LAMPS 6): xyz the flame, w its brightness now
         ("psx_lamp0", RenderingServer.GlobalShaderParameterType.Vec4, NoLamp),
         ("psx_lamp1", RenderingServer.GlobalShaderParameterType.Vec4, NoLamp),
@@ -90,9 +97,9 @@ public static class Psx
     };
     private static bool globalsIn;
     /// <summary>
-    /// Dev, to measure what a feature costs: -- --psx-off relief,ground,wall,shade,spill leaves those out (the paving's
-    /// relief and slabs; wet, puddles and patches; the foot of the walls and the mottle; the houses' shadows and sky
-    /// shade; the spilt light).
+    /// Dev, to measure what a feature costs: -- --psx-off relief,ground,wall,shade,spill,grime,bump leaves those out (the
+    /// paving's relief and slabs; wet, puddles and patches; the foot of the walls and the mottle; the houses' shadows and
+    /// sky shade; the spilt light; the houses' age; the bump maps).
     /// </summary>
     private static readonly HashSet<string> Off = new((Array.IndexOf(OS.GetCmdlineUserArgs(), "--psx-off") is var i and >= 0 && i + 1 < OS.GetCmdlineUserArgs().Length ? OS.GetCmdlineUserArgs()[i + 1] : "").Split(',', StringSplitOptions.RemoveEmptyEntries));
     private static ImageTexture? skyShade, dirt, spill, shore, foul;
@@ -133,9 +140,14 @@ public static class Psx
     /// project's own baked folder and the browser's public folder): skyshade.png with its box (skyshade.json), dirt.png
     /// with its box (dirt.json).
     /// </summary>
+    private static string sharedDir = "";
+    /// <summary>Where the shared pictures are looked for, in order: the bake's texture folder, the project's own, the browser's.</summary>
+    public static string[] SharedDirs() => new[] { sharedDir, ProjectSettings.GlobalizePath("res://baked/town_tex"), Path.GetFullPath(Path.Combine(ProjectSettings.GlobalizePath("res://"), "../client/public/textures")) };
+
     public static void LoadShared(string texDir)
     {
         EnsureGlobals();
+        sharedDir = texDir;
         string own = ProjectSettings.GlobalizePath("res://baked/town_tex");
         string web = Path.GetFullPath(Path.Combine(ProjectSettings.GlobalizePath("res://"), "../client/public/textures"));
         string? Find(string file)
@@ -367,7 +379,7 @@ float pud_val(vec2 p) {
 ";
 
     /// <summary>The light one spill source gives a point (psx.ts spillGlsl), and all of them (psxSpill).</summary>
-    private const string SpillGlsl = @"
+    public const string SpillGlsl = @"
 global uniform sampler2D psx_spill : filter_nearest, repeat_disable;
 global uniform int psx_spill_n;
 // a gas lamp's light stops under its cap (issue #11): its decay (1.7) tells it apart
@@ -705,10 +717,73 @@ vec3 ground_tilt(vec3 wp, vec2 uv, vec2 slope) {
 }
 ";
 
+    /// <summary>
+    /// The trees in the wind (trees3d.ts swayGlsl): the crown bends with the sea state's wind, leans hard downwind in a
+    /// gale (psx_gale) and whips in the gusts; the leaves flutter. merged: the park's plants (one mesh in world space,
+    /// each vertex's plant foot in CUSTOM0: x, z, y); else a tree's copy (its foot is its origin).
+    /// </summary>
+    private static string TreeSway(bool leaf, bool merged) => @"	{
+" + (merged ? @"		vec3 tree_at = vec3(CUSTOM0.x, CUSTOM0.z, CUSTOM0.y);
+		float foot_y = CUSTOM0.z;
+" : @"		vec3 tree_at = MODEL_MATRIX[3].xyz;
+		float foot_y = 0.0;
+") + @"		float ph = tree_at.x * 0.21 + tree_at.z * 0.17;
+		float wind = 0.55 + 0.45 * psx_sea;
+		float hh = max(VERTEX.y - foot_y - 2.0, 0.0);
+		float bend = hh * hh * 0.0011 * wind;
+		float g = sin(psx_time * 0.83 + ph) + 0.45 * sin(psx_time * 2.07 + ph * 1.7);
+		VERTEX.x += g * bend;
+		VERTEX.z += sin(psx_time * 0.61 + ph * 1.3) * bend * 0.6;
+		float lean = hh * hh * 0.0045 * psx_gale.z * (0.8 + 0.2 * sin(psx_time * 1.7 + ph) + 0.15 * sin(psx_time * 4.3 + ph * 2.1));
+		VERTEX.x += psx_gale.x * lean;
+		VERTEX.z += psx_gale.y * lean;
+		VERTEX.y -= lean * lean * 0.08;
+" + (leaf ? @"		vec3 p0 = VERTEX;
+		float fl = sin(psx_time * 3.4 + dot(p0, vec3(1.7, 2.3, 1.1)) + ph) * 0.035 * wind * min(hh, 1.0);
+		VERTEX += NORMAL * fl;
+		VERTEX.y += cos(psx_time * 2.9 + dot(p0, vec3(2.1, 0.7, 1.9))) * 0.02 * wind * min(hh, 1.0);
+		VERTEX += NORMAL * sin(psx_time * 9.0 + dot(p0, vec3(3.1, 1.3, 2.7))) * 0.05 * psx_gale.z * min(hh, 1.0);
+" : "") + @"	}
+";
+
+    /// <summary>
+    /// The falling leaves (trees3d.ts fallingLeaves): each copy is one leaf of a tree (its origin the tree's foot,
+    /// INSTANCE_CUSTOM its start height, its circle, its speed and its number); it drifts round and down, turning, and
+    /// starts again at the top. Worked out here from the time, no work on the CPU.
+    /// </summary>
+    public const string FallGlsl = @"	{
+		float top = INSTANCE_CUSTOM.x, rad = INSTANCE_CUSTOM.y, speed = INSTANCE_CUSTOM.z, li = INSTANCE_CUSTOM.w;
+		float a0 = fract(sin(li * 12.9898) * 43758.5453) * 6.2832;
+		float phase = fract(sin(li * 78.233) * 24634.6345);
+		float spin = 1.5 + fract(sin(li * 39.425) * 13758.937) * 2.5;
+		float t = psx_time;
+		float wind = 0.55 + 0.45 * psx_sea;
+		float f = fract(t / (top / speed) + phase);
+		float a = a0 + f * 2.2;
+		float sway = sin(t * 1.3 + li) * 0.5 * wind;
+		vec3 off = vec3(cos(a) * rad + sway + f * 1.5 * wind, top * (1.0 - f) + 0.03, sin(a) * rad + cos(t * 1.1 + li) * 0.3);
+		// (three's Euler XYZ: x, then y, then z, as a matrix Rx Ry Rz)
+		vec3 e = vec3(t * spin + li, t * spin * 0.7, sin(t * 2.0 + li) * 0.8);
+		mat3 rx = mat3(vec3(1.0, 0.0, 0.0), vec3(0.0, cos(e.x), sin(e.x)), vec3(0.0, -sin(e.x), cos(e.x)));
+		mat3 ry = mat3(vec3(cos(e.y), 0.0, -sin(e.y)), vec3(0.0, 1.0, 0.0), vec3(sin(e.y), 0.0, cos(e.y)));
+		mat3 rz = mat3(vec3(cos(e.z), sin(e.z), 0.0), vec3(-sin(e.z), cos(e.z), 0.0), vec3(0.0, 0.0, 1.0));
+		mat3 r = rx * ry * rz;
+		VERTEX = r * VERTEX + off;
+		NORMAL = r * NORMAL;
+	}
+";
+
     public static Shader ShaderOf(Kind k)
     {
         if (Shaders.TryGetValue(k, out var s)) return s;
         EnsureGlobals();
+        if (k.Decal)
+        {
+            s = new Shader { Code = Grime.DecalShader };
+            Shaders[k] = s;
+            Kinds[s] = k;
+            return s;
+        }
         bool lit = !k.Unlit;
         bool bump = k.Relief > 0 || k.Slabs;
         bool noise = k.Ground || k.Wall || k.Detile;
@@ -723,6 +798,8 @@ vec3 ground_tilt(vec3 wp, vec2 uv, vec2 slope) {
             modes.Add("depth_draw_always");
         }
         string calm = k.Water == 2 ? "0.28" : "1.0", amp = k.Water == 2 ? "0.12" : "1.0";
+        // (wet ground: the sun's highlight comes with the wet, psx.ts opts.wet)
+        if (k.Ground && !k.Unlit) modes.Remove("specular_disabled");
         if (k.Unlit) modes.Add("unshaded");
         if (k.TwoSided) modes.Add("cull_disabled");
         if (k.Add) modes.Add("blend_add");
@@ -762,7 +839,7 @@ varying vec3 world;
         // a room's own light (three's HemisphereLight and AmbientLight of the room's scene, over pi), set per mesh
         if (k.Indoor && lit) c.Append("instance uniform vec3 room_sky = vec3(0.3);\ninstance uniform vec3 room_ground = vec3(0.1);\ninstance uniform vec3 room_ambient = vec3(0.0);\n");
         if (k.Atlas > 0) c.Append("varying vec2 cell;\n");
-        if (k.Ground) c.Append("uniform float vary = 0.0;\nuniform float puddles = 0.0;\n");
+        if (k.Ground) c.Append("uniform float vary = 0.0;\nuniform float puddles = 0.0;\n// the wet stone's highlight (three's Phong: specular and shininess; 0 when it never gets wet)\nuniform vec3 spec_color = vec3(0.0);\nuniform float shininess = 12.0;\nvarying float spec_k;\n");
         if (k.Wall) c.Append("uniform float foot = 0.0;\nuniform float foot_wear = 0.0;\nuniform float mottle = 0.0;\n");
         if (k.Slabs) c.Append("uniform sampler2D slab_map : source_color, filter_nearest_mipmap, repeat_enable;\nuniform sampler2D slab_h : filter_linear_mipmap, repeat_enable;\nuniform float slab_tile = 2.6;\nuniform float slab_ymax = 0.8;\n");
         c.Append(LampScatterGlsl);
@@ -773,6 +850,9 @@ varying vec3 world;
         if (k.Wall) c.Append(FootGlsl);
         if (k.Relief > 0) c.Append(ReliefGlsl(k.Relief > 1));
         if (k.Relief > 0) c.Append(TiltGlsl);
+        if (k.Grime > 0) c.Append(Grime.CommonGlsl);
+        if (k.Tree > 0) c.Append("global uniform vec3 psx_gale;\nglobal uniform float psx_sea;\n" + (k.Tree % 2 == 0 ? "global uniform float psx_wet;\n" : ""));
+        if (k.Bump) c.Append(Grime.BumpGlsl(k.Atlas));
         c.Append(@"
 void vertex() {
 ");
@@ -794,7 +874,12 @@ void vertex() {
 	UV = vec2(wp.x, -wp.z) / 4.0 + psx_time * vec2(0.004, 0.011);
 	vec4 view = VIEW_MATRIX * vec4(VERTEX, 1.0);
 ");
-        else c.Append("	vec4 view = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);\n");
+        else
+        {
+            if (k.Tree == 5) c.Append(FallGlsl);
+            else if (k.Tree > 0) c.Append(TreeSway(k.Tree % 2 == 0, k.Tree > 2));
+            c.Append("	vec4 view = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);\n");
+        }
         c.Append(@"	fog_depth = -view.z;
 	world = (INV_VIEW_MATRIX * view).xyz;
 	POSITION = PROJECTION_MATRIX * view;
@@ -808,6 +893,7 @@ void vertex() {
 	}
 ");
         if (k.Atlas > 0) c.Append("	cell = UV2;\n");
+        if (k.Grime > 0) c.Append("	gmat = CUSTOM0.xy; // (the house's wall picture and paint)\n");
         c.Append(@"	UV = UV * uv_xform.xy + uv_xform.zw;
 	aff = vec3(UV * POSITION.w, POSITION.w);
 }
@@ -825,6 +911,8 @@ void fragment() {
 	// affine warp fades in with distance: textures swim a little far off, but stay straight at your feet
 	vec2 uv = mix(UV, aff.xy / aff.z, affine * smoothstep(4.0, 14.0, len));
 ");
+        if (k.Grime > 0 || k.Bump) c.Append("	vec2 raw_uv = uv;\n");
+        if (k.Grime == 1) c.Append("	vec3 wall_dn = vec3(0.0);\n");
         if (k.Atlas > 0) c.Append($"	uv = (cell + fract(uv)) / {k.Atlas}.0;\n");
         if (bump) c.Append("	float psx_h = 0.5; // how high the stone is here; the puddles leave the tops dry\n	vec3 ground_dn = vec3(0.0);\n");
         if (k.Ground) c.Append("	// how worn the ground is here: the cart roads (world/dirt.ts, green)\n	float wear = vary > 0.0 ? texture(psx_dirt, (world.xz - psx_dirt_box.xy) / psx_dirt_box.zw).g : 0.0;\n");
@@ -867,6 +955,7 @@ void fragment() {
 	c = mix(c, texture(tex, uv2), dm);
 ");
         c.Append("	c *= albedo;\n");
+        if (k.Tree > 0 && k.Tree % 2 == 0) c.Append("	c.rgb *= 1.0 - 0.16 * psx_wet; // (wet leaves are darker)\n");
         if (k.Water > 0)
             c.Append(@"	{
 		if (river > 0.5 && in_basin(world.xz)) discard;
@@ -975,7 +1064,10 @@ void fragment() {
 " + (k.Detile ? "		if (dm > 0.001) st = mix(st, stone_tone(uv2, wear, far_s), dm);\n" : "") + "		c.rgb *= st;\n");
             c.Append("	}\n");
         }
+        // the houses' age: the wall pictures and the grime before the vertex colour, the worn paint after (Render/Grime.cs)
+        if (k.Grime > 0) c.Append(Grime.BeforeColourGlsl(k.Grime == 1 && k.Atlas > 0));
         if (k.VertexColor) c.Append("	c.rgb *= COLOR.rgb;\n");
+        if (k.Grime == 1 && k.Atlas > 0) c.Append(Grime.AfterColourGlsl);
         if (k.Scissor) c.Append("	if (c.a < alpha_cut) discard;\n");
         if (k.Wall)
             c.Append(@"	{
@@ -987,7 +1079,11 @@ void fragment() {
 ");
         if (lit)
         {
+            // (leaves keep their normal on the back face: the sky lights them from both sides)
+            if (k.Tree > 0 && k.Tree % 2 == 0) c.Append("	if (!FRONT_FACING) NORMAL = -NORMAL;\n");
             c.Append("	vec3 n_flat = NORMAL;\n");
+            if (k.Grime == 1 && k.Atlas > 0) c.Append("	NORMAL = normalize(NORMAL + (VIEW_MATRIX * vec4(wall_dn, 0.0)).xyz); // (the wall's bumps for the lights)\n");
+            if (k.Bump) c.Append("	NORMAL = bump_normal(VERTEX, NORMAL, bump_dh(raw_uv, " + (k.Atlas > 0 ? "cell" : "vec2(0.0)") + ", VIEWPORT_SIZE.y / 270.0));\n");
             if (bump)
                 c.Append(@"	// the ground bump: the lights see the stones' own normal; the brightness stays (the colour is divided by how far
 	// the normal was tilted, the sky's light multiplied by it)
@@ -1023,12 +1119,15 @@ void fragment() {
 ");
         if (k.Ground)
         {
-            c.Append(@"	if (psx_wet > 0.001) {
+            c.Append(@"	spec_k = 0.0;
+	if (psx_wet > 0.001) {
 		// wet stone: porous stone goes darker, the joints darkest, in patches; it shines only in small broken glints
 		// at a slant. Only the puddles are mirrors.
 		float stone = smoothstep(0.06, 0.4, dot(c.rgb, vec3(0.333)));
 		float patchy = pud_val(world.xz / 1.7) * 0.6 + pud_val(world.xz * 4.0) * 0.4;
 		float wet_k = psx_wet * smoothstep(0.15, 0.65, patchy + psx_wet * 0.35);
+		// a film of water is smooth: the sun's highlight in the same patches (dry stone is matte)
+		spec_k = wet_k;
 		float dk = 1.0 - 0.36 * wet_k * (1.25 - 0.5 * stone);
 		k3 *= dk;
 		ad *= dk;
@@ -1155,7 +1254,7 @@ void light() {
 	float a = ATTENUATION;
 	if (LIGHT_IS_DIRECTIONAL) a *= sun_lit;
 	DIFFUSE_LIGHT += max(dot(NORMAL, LIGHT), 0.0) * a * LIGHT_COLOR / PI;
-" + (k.Water > 0 ? @"	// the water's highlight (three's Blinn-Phong): the sun and a real light glint on the waves
+" + (k.Water > 0 || k.Ground ? @"	// the water's highlight, the wet stone's (three's Blinn-Phong): the sun and a real light glint on it
 	vec3 hv = normalize(LIGHT + VIEW);
 	vec3 fr = spec_color + (1.0 - spec_color) * pow(1.0 - max(dot(VIEW, hv), 0.0), 5.0);
 	SPECULAR_LIGHT += max(dot(NORMAL, LIGHT), 0.0) * a * LIGHT_COLOR * fr * (0.25 * (shininess * 0.5 + 1.0) / PI * pow(max(dot(NORMAL, hv), 0.0), shininess)) * spec_k;
@@ -1207,6 +1306,12 @@ void light() {
     {
         if (bake.ValueKind != JsonValueKind.Object) return k;
         if (Has(bake, "water", out _)) return k with { Water = Has(bake, "waterCalm", out _) ? 2 : 1 };
+        if (Has(bake, "grimeDecal", out _)) return k with { Decal = true };
+        if (bake.TryGetProperty("grime", out var gr) && gr.ValueKind == JsonValueKind.String && !Off.Contains("grime"))
+            k = k with { Grime = gr.GetString() == "facade" ? 1 : 2 };
+        if (Has(bake, "bump", out _) && !Off.Contains("bump")) k = k with { Bump = true };
+        if (bake.TryGetProperty("tree", out var tr) && tr.ValueKind == JsonValueKind.Object)
+            k = k with { Tree = (Has(tr, "leaf", out _) ? 2 : 1) + (Has(tr, "merged", out _) ? 2 : 0) };
         bool relief = Has(bake, "relief", out var r) && !Off.Contains("relief");
         k = k with { Far = Num(bake, "fogReach", 1) > 1 };
         return k with
@@ -1224,6 +1329,18 @@ void light() {
     public static void ApplyOptions(ShaderMaterial m, Kind k, JsonElement bake, string texDir)
     {
         if (bake.ValueKind != JsonValueKind.Object) return;
+        if (k.Decal && Has(bake, "grimeDecal", out var gd))
+        {
+            if (Tex(gd.GetProperty("map"), texDir) is { } dt) m.SetShaderParameter("tex", dt);
+            m.SetShaderParameter("cells", Num(gd, "cells", 4));
+            return;
+        }
+        if (k.Grime > 0) Grime.Apply(m);
+        if (k.Bump && Has(bake, "bump", out var bp))
+        {
+            if (Tex(bp, texDir) is { } bt) m.SetShaderParameter("bump_map", bt);
+            m.SetShaderParameter("bump_scale", Num(bp, "scale", 1));
+        }
         if (k.Water > 0)
         {
             // (the browser's water: the deep Schelde's highlight, the pond's; World/Waters.cs finds its sheets by this mark)
@@ -1246,6 +1363,15 @@ void light() {
         {
             m.SetShaderParameter("vary", Num(bake, "vary", 0));
             m.SetShaderParameter("puddles", Has(bake, "wet", out _) ? Num(bake, "puddles", 0) : 0);
+            // the wet stone's highlight: three's specular (linear) and shininess, by the bake (else the flags')
+            if (Has(bake, "wet", out _))
+            {
+                var sc = Hex(0x1a1a1a);
+                var spec = Has(bake, "spec", out var sp) && sp.ValueKind == JsonValueKind.Array && sp.GetArrayLength() == 4
+                    ? new Vector4(sp[0].GetSingle(), sp[1].GetSingle(), sp[2].GetSingle(), sp[3].GetSingle()) : new Vector4(sc.R, sc.G, sc.B, 12);
+                m.SetShaderParameter("spec_color", new Vector3(spec.X, spec.Y, spec.Z));
+                m.SetShaderParameter("shininess", spec.W);
+            }
         }
         if (k.Wall)
         {
