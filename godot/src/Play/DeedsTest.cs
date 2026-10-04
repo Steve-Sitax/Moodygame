@@ -34,7 +34,7 @@ public partial class DeedsTest : Node
             if(Main.I.Arg("deedstest-only")=="hands") { await HandsFeatures(api,Scheldemist.Dev.Kit.I.People!.Sims.First(s=>s.R.Trade!="thief").R.Id); return; }
             await Deeds.I.Load();
             var world=Deeds.I.World!; replies.Add(new { world }); Check(world.Lamps.Count>0,"work lanterns loaded");
-            var lamp=world.Lamps[0]; Jef.I.Place(lamp.X,lamp.Z+1,0); Jef.I.Pitch=-0.4f; await Frames(30);
+            var lamp=world.Lamps[0]; Jef.I.Place(lamp.X,lamp.Z+.8f,0); Jef.I.Pitch=-0.5f; await Frames(30);
             Check(Interact.I.Find().Any(a=>a.Key==Key.E && a.Text=="take the lantern"),"E lantern prompt"); await Shot("lantern-standing");
             Interact.I.Press(Key.E); Check(await Until(()=>GameState.I.Pockets.Any(p=>p.Kind=="lantern"),12),"lantern enters server pockets");
             Check(Deeds.I.Lit,"new lantern held"); await Shot("lantern-held"); Deeds.I.Toggle(); Check(!Deeds.I.Lit,"L puts lantern away"); Deeds.I.Toggle(); Check(Deeds.I.Lit,"L holds lantern again");
@@ -95,7 +95,7 @@ public partial class DeedsTest : Node
         Check(await Scheldemist.Talks.Press.I!.OpenBill(bill.Id),"wall bill opens on paper"); await Shot("wall-bill"); Scheldemist.Talks.Press.I.Close();
         var lost=world.Lost.FirstOrDefault(x=>x.State=="lying"&&x.Dog==null);
         Check(lost!=null,"lost property lies in street");
-        Jef.I.Place(lost!.X,lost.Z,0,-.5f); await Frames(8); await Shot("lost-property");
+        Jef.I.Place(lost!.X,lost.Z+1.5f,0,-.5f); await Frames(8); await Shot("lost-property");
         await Ideas.I.Act($"api/posters/{lost.Poster}/pick");
         Check(Ideas.I.World!.Lost.Any(x=>x.Poster==lost.Poster&&x.State=="held"),"lost property carried");
         if(lost.Door is { Length: >= 2 } ld)
@@ -105,14 +105,14 @@ public partial class DeedsTest : Node
             Check(!Ideas.I.World!.Lost.Any(x=>x.Poster==lost.Poster&&x.State=="held"),"lost property returned"); await Shot("lost-returned");
         }
         await Ideas.I.Load(); var dog=Ideas.I.World!.Lost.First(x=>x.Dog!=null&&x.State=="lying");
-        Jef.I.Place(dog.X,dog.Z,0,-.3f); await Frames(8); await Shot("lost-dog");
+        Jef.I.Place(dog.X,dog.Z+1.7f,0,-.55f); await Frames(8); await Shot("lost-dog");
         await Ideas.I.Act($"api/posters/{dog.Poster}/pick");
         Check(Ideas.I.World!.Lost.Any(x=>x.Poster==dog.Poster&&x.State=="held"),"dog follows from its collar");
         Jef.I.Place((float)dog.Door![0],(float)dog.Door[1],0); await Frames(8); await Ideas.I.Act($"api/posters/{dog.Poster}/return");
         Check(!Ideas.I.World!.Lost.Any(x=>x.Poster==dog.Poster&&x.State=="held"),"dog returned to owner"); await Shot("dog-returned");
         var diary=Ideas.I.World!.Diaries.FirstOrDefault(x=>x.Status=="lying");
         Check(diary!=null,"notebook lies in street");
-        Jef.I.Place(diary!.X,diary.Z,0,-.5f); await Frames(8); await Shot("notebook-ground");
+        Jef.I.Place(diary!.X,diary.Z+1.5f,0,-.5f); await Frames(8); await Shot("notebook-ground");
         await Ideas.I.Act($"api/diary/{diary.Id}/pick");
         Check(GameState.I.Pockets.Any(p=>p.Kind=="diary"),"notebook enters pockets");
         var read=await api.Get<JsonElement>($"api/diary/{diary.Id}"); replies.Add(new { notebook=read });
@@ -224,7 +224,8 @@ public partial class DeedsTest : Node
         var hireSim=Scheldemist.Dev.Kit.I.People!.Sims.First(s=>s.R.Id==hire.GetProperty("npc").GetString());
         replies.Add(new { hireProgress=(await api.Routines()).Routines.Select(r=>new {r.Id,r.Npc,r.Purpose,r.I,step=r.Step?.Kind}).ToArray(), hireSim=new { hireSim.X,hireSim.Z,hasBody=hireSim.P!=null } });
         Check(atWork,"helper reaches work post");
-        Jef.I.Place((float)(hireSim.P?.X??hireSim.X),(float)(hireSim.P?.Z??hireSim.Z)+1.8f,0,-.2f); await Shot("hire-progress");
+        Check(await Until(()=>hireSim.P!=null,5),"helper stands visibly at work post");
+        Jef.I.Place((float)hireSim.P!.X,(float)hireSim.P.Z-1.8f,MathF.PI,-.2f); await Shot("hire-progress");
         var crew=Hands.I.Routines.First(r=>r.Purpose=="hire");
         var stopped=await api.RoutineStep(crew.Id,crew.I,false,"stopped",Jef.I.X,Jef.I.Z);
         replies.Add(new { crewStop=new { stopped.Ok,id=stopped.Routine?.Id,step=stopped.Routine?.I } }); await Hands.I.Poll();

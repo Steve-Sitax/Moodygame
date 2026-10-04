@@ -29,6 +29,7 @@ public partial class Hands : Node
         public bool Reported;
         public double Stuck;
         public double Best = double.PositiveInfinity;
+        public double Retry;
     }
     private Townspeople? town;
     private readonly Dictionary<int, Walk> walks = new();
@@ -216,7 +217,13 @@ public partial class Hands : Node
         if (step == null || town == null || town.Crowd == null) return;
         if (r.Purpose != "hire") foreach (var other in walks.Values)
             if (other != w && other.Info.Npc == r.Npc && other.Info.Purpose == "hire") return;
-        if (step.Kind is "wait" or "enter" or "sit" or "leave" or "buy" or "give" or "pay") return;
+        if (step.Kind == "wait")
+        {
+            if (w.Sim is { P: null, Inside: false } still && (still.X-Jef.I.X)*(still.X-Jef.I.X)+(still.Z-Jef.I.Z)*(still.Z-Jef.I.Z)<15*15 && (w.Retry-=dt)<=0)
+            { w.Retry=2; town.ActionClaim(still); }
+            return;
+        }
+        if (step.Kind is "enter" or "sit" or "leave" or "buy" or "give" or "pay") return;
         var sim = w.Sim ?? town.ActionPerson(r.Npc); if (sim == null) return;
         if (w.Sim == null)
         {

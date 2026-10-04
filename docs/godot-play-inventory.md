@@ -98,7 +98,15 @@ Limits: the script places Jef at the real server goal and summons clerks through
 
 Shared-file audit: **`Net/Api.cs` only** from the named shared-file list, changed by one word (`partial`) so its typed postal methods live in `Api.Play.cs`. No edits to `Main.cs`, `BakedWorld.cs`, `Solid.cs`, `Jef.cs`, `Wiring.cs`, `Psx.cs` or shaders. Integration files also touched: `Play/Jobs.cs` for postal following, cards/book/map and settlement; `Talk/Talk.cs` and `TalkTest.cs` for no-AI typing; `Talk/Press.cs` for typed metadata and load/reset. No server gameplay source, shared bake, packages or model assets changed. Dependency installs were normal directories, and their lockfile noise was restored.
 
-Next helper: police/deeds and their visit/cell integration, gift/treat/hire player controls alongside the events helper's routine executor, player handcart, thieves/gang, then local boat/omnibus/velocipede rides. Wall posters, lost objects/notebooks and letter writing still need their world/composer owners. Homes, landmark player actions, ballads, emigrant work and special job kinds remain as listed above. This is deliberately a partial port.
+The deeds batch adds police and theft, a carried lantern, lost property and a dog, notebooks, post letters, meeting doors, gifts, tavern rounds, hired work and night gangs. The rows above keep the untested AI and together paths explicit. Other remaining player features and wider ride/place checks stay in their own rows.
+
+## Deeds evidence (2026-10-04)
+
+`node tools/godot/deeds-check.mjs --out deeds-final2 --no-import` passed **65/65** checks with a fresh `--no-ai` server and shared town bake. `godot/baked/deeds-final2/deedstest.json` contains 28 server/fixture replies and 28 PNGs. The runner used ports 8980/8981, waited for `PERF-LOCK`, bounded its Godot process and removed `test.sqlite`. `dotnet build godot`, headless import and `npm run build` pass. The pre-commit hook passed on the implementation commit.
+
+The check includes a witnessed lantern theft and police fine, pursuit/arrest/cell/release, G from behind and E thief collar, a deterministic ordinary lost item and dog collar return, three notebook outcomes, a meeting knock, a hostile police line and hostile letter gate, a server-priced round, named helper wage/arrival/visible work post/stop, and gang pay/fight/run/stand with server money and health. Numbered police choices work without AI; a believable typed story and `let_off` require AI and remain unproved. Letter typing and actual gift/hire acceptance also need an AI run. Together cell handling needs two live players. Per-frame paths cache prompts and collections, but this batch has no dedicated allocation probe. The close pictures were reviewed; the known dark midday street lighting remains [issue #42](https://github.com/Steve-Sitax/Moodygame/issues/42).
+
+Integration edits outside this batch's new files are `Game/Actors.cs` (step routines release the actor reservation), `Town/Townspeople.cs` (ordinary spawn skips reserved people), `Game/FamilyScenes.cs` (no-AI menace typing gate), `Net/Payloads.cs` (typed gift handover) and `Play/TavernSeats.cs` (F guest action and cached seated offers). No server gameplay source, shader kinds, shared bake or light counts changed.
 
 ## Browser key source index
 
