@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The Godot preacher stands inside the pulpit bowl at the browser's climb height, instead of adding the plan marker's height twice.
+
 - Starting or loading a week refreshes Godot's song, counters, dock book, hiring stand and bucket-line state; a late reply from the previous week cannot restore those old choices.
 
 - Cart jobs can be taken and followed in Godot, with the employer's server-owned cart loan returned when the job ends.

@@ -60,7 +60,7 @@ public partial class LandmarkLife : Node
     private Vector3 sermonFrom;
     private string whisper = "";
     private double whisperTime;
-    public bool PreacherInPulpit => preacher != null && sermonStage == 2 && preacher.Group.GlobalPosition.Y > Point("cathedral", "pulpit").Y + 2.7f;
+    public bool PreacherInPulpit => preacher != null && sermonStage == 2 && preacher.Group.GlobalPosition.Y > LocalPoint("cathedral",0,0).Y + 2.7f;
     public int HeardLines { get; private set; }
     public SermonReply? SermonResult { get; private set; }
     public Vector3 Point(string id, string mark) => halls.Find(h => h.Id == id)!.Mark(mark);
@@ -169,7 +169,7 @@ public partial class LandmarkLife : Node
         }
         if(sermon==null)return;
         if(here?.Id!="cathedral" || preacher==null || !IsInstanceValid(preacher.Group)) {EndSermon();return;}
-        var h=here; var pulpit=h.Mark("pulpit"); var foot=h.Mark("pulpitFoot");
+        var h=here; var pulpit=h.Mark("pulpit"); pulpit.Y=h.Origin.Y; var foot=h.Mark("pulpitFoot");
         float yaw=h.Yaw+h.Plan.GetProperty("marks").GetProperty("pulpit").GetProperty("yaw").GetSingle();
         if(sermonStage==1)
         {
