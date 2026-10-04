@@ -36,7 +36,7 @@ public partial class TownLife
     }
     private void DropLamp(LampRun r, bool release)
     {
-        r.Wear?.QueueFree(); r.Wear = null;
+        if (GodotObject.IsInstanceValid(r.Wear)) r.Wear!.QueueFree(); r.Wear = null;
         if (r.Person?.P != null && ReferenceEquals(r.Person.ActionOwner, r)) town?.ActionHide(r.Person);
         if (release && r.Person != null) town?.ActionRelease(r.Person, r);
     }
@@ -113,7 +113,8 @@ public partial class TownLife
             if (holds && active.On && (r.PartDone || r.Person?.P == null && plan.done >= cut)) { r.PartDone = true; DropLamp(r, true); continue; }
             r.Person ??= town.ActionPerson(round.Lamplighter);
             bool acting = false; if (Actors.I != null) foreach (var action in Actors.I.Runs) if (action.Action.Npc == round.Lamplighter) { acting = true; break; }
-            if (r.Person == null || acting) continue;
+            if (r.Person == null) continue;
+            if (acting) { DropLamp(r, false); continue; }
             var person = r.Person; if (!town.ActionHold(person, r)) continue;
             if (person.P == null)
             {
@@ -128,14 +129,15 @@ public partial class TownLife
                 }
                 if (town.ActionClaim(person) == null) continue;
                 r.Done = plan.done; r.Index = plan.at >= plan.done ? plan.at : plan.done; r.Lighting = false; r.Go = 0;
-                r.Wear = LeadLooks.Make("lamplighter"); person.P!.Group.AddChild(r.Wear);
             }
             var p = person.P!;
+            // A reset or another scene may have freed the old body and its attachment.
+            if (!GodotObject.IsInstanceValid(r.Wear)) { r.Wear = LeadLooks.Make("lamplighter"); p.Group.AddChild(r.Wear); }
             if (Whereabouts.Hypot(p.X - eye.X, p.Z - eye.Z) > 64) { DropLamp(r, false); continue; }
             while (helped && r.Index < cut && r.Index >= help!.From && help.Lit.Contains(round.Lamps[r.Index].Id)) { r.Index++; r.Done = Math.Max(r.Done, r.Index); r.Lighting = false; r.Go = 0; }
             if (r.Index >= cut) { if (holds) r.PartDone = true; else if (town.Crowd.PuppetBusy(p)) town.Crowd.PuppetStand(p, "idle", p.Yaw); continue; }
             var lamp = round.Lamps[r.Index];
-            if (r.Wear is LeadWear wear && wear.Moving != null) wear.Moving.Rotation = new Vector3(0, 0, r.Lighting ? (float)Math.Sin(Math.Min(1, r.T / (2.4 * 0.8)) * Math.PI) * -0.9f : 0);
+            if (r.Wear is LeadWear wear && GodotObject.IsInstanceValid(wear.Moving)) wear.Moving.Rotation = new Vector3(0, 0, r.Lighting ? (float)Math.Sin(Math.Min(1, r.T / (2.4 * 0.8)) * Math.PI) * -0.9f : 0);
             if (!r.Lighting)
             {
                 double distance = Whereabouts.Hypot(p.X - lamp.Sx, p.Z - lamp.Sz);
