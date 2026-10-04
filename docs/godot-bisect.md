@@ -93,6 +93,27 @@ Pending: job, places, both event batches, ride, play, deeds, and
 `devtest,shaders,clocks,stuck,perfcheck,pixelcheck`. No push or merge is authorized.
 Each commit runs the repository pre-commit hook and stages explicit paths only.
 
+## Experiments in progress
+
+The unchanged six-second turning control (`static-perf-1`, zero selected batches)
+reproduces the previous final failure: its first run walks at 5.904 / 6.494 /
+6.835 / 4.998 / 4.283 ms. Three sustained control runs are retained. Vismarkt's
+second turn reaches 16.729 ms. This is a different turn duration from the
+standardized historical table and is the final performance gate.
+
+The first two static-batch attempts selected no sources; their zero-pixel results
+are not evidence for batching. The source surfaces all expose compressed
+attributes. A decoded/uncompressed candidate actually combined 139 opaque,
+identity-transform source meshes into 13 batches while leaving collision geometry
+unchanged. Switching originals through a zero rendering layer caused a Godot
+renderer failure and was discarded; ordinary mesh visibility avoids that failure.
+The real fourteen-case comparison then found **12 changed pixels** (1 day
+Handschoenmarkt, 1 night Cathedral, 8 night Handschoenmarkt, 2 night Vismarkt).
+That candidate is rejected, regardless of how small the differences look.
+No batching code is accepted as a production fix on this evidence. A fused
+compressed-position decode is being tested to distinguish decode rounding from
+culling/material effects; it must still pass zero pixels.
+
 ## Measured results
 
 Three independent runs; each cell lists run 1 / 2 / 3. Walking is six seconds after 90 standing and 90 turning frames for every revision, including latest. The temporary historical probe only adds inventory outside sampled frames and standardizes the turn duration. Draw calls are the mean during turning; scene counts are after walking. Physics bodies/shapes include Solid’s directly created static bodies plus the scene tree.
