@@ -96,6 +96,15 @@ public partial class MarketStalls : Node
                 Always = new[] { "shop_table" }, Day = new[] { p.awning ? "shop_awning" : "", "shop_goods_" + goods, "shop_more_" + goods, goods == "fish" ? "" : far, Rough(shop.Id + " " + shop.Label) ? "shop_mud" : "" }, Night = new[] { p.awning ? "shop_awning_rolled" : "", "shop_tarp" } });
         }
         foreach (var n in BakedWorld.All(Main.I.World)) if (n.Name == "town_stalls" && n is Node3D old) old.Visible = false;
+        foreach (var table in List)
+        {
+            bool shop = table.Always[0] == "shop_table";
+            double half = (shop ? 0.8 : 1.4) * table.Scale, z0 = shop ? 0.25 : -0.71, z1 = shop ? 0.95 : 0.71;
+            var body = new StaticBody3D { CollisionLayer = Solid.Layer, CollisionMask = 0, Position = new Vector3((float)table.X, (float)town.Walk!.BaseAt(table.X, table.Z), (float)table.Z), Rotation = new Vector3(0, (float)table.Yaw, 0) };
+            body.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3((float)(half * 2), 0.88f, (float)(z1 - z0)) }, Position = new Vector3(0, 0.44f, (float)((z0 + z1) / 2)) }); root.AddChild(body);
+            town.Walk.AddBox(table.X, table.Z, -half, half, z0, z1, table.Yaw);
+        }
+        var eye = Main.I.Cam.GlobalPosition; town.Crowd!.RebuildGrid(eye.X, eye.Z);
         UpdateHours(true);
     }
     private static (double x, double z, double scale, bool awning, Pt side)? ShopSpot(JsonElement houses, Pt wall, Pt outward)

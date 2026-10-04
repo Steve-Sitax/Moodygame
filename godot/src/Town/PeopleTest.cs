@@ -52,6 +52,9 @@ public partial class PeopleTest : Node
     private int beastStep;
     private readonly Dictionary<string, object> wildlifeRow = new();
     private readonly Dictionary<string, object> hallsRow = new();
+    private readonly Dictionary<string, object> stallsRow = new();
+    private readonly Dictionary<string, object> familiesRow = new();
+    private MarketStalls.Stall? shownStall;
     private int hallStep;
     private ParkWildlife.Beast? bird;
     private Pt birdStart;
@@ -665,7 +668,7 @@ public partial class PeopleTest : Node
                 layersRow["childrenGames"] = town.Sims.Where(s => s.Goal.Mode == "play").GroupBy(town.GameOf).ToDictionary(g => g.Key, g => g.Count());
                 layersRow["streetRounds"] = town.Sims.Count(s => s.R.Work.Kind == "round" && s.Goal.Mode == "patrol");
                 var door = town.Sims.FirstOrDefault(s => s.Key.Contains("|door:") && s.Goal.Motion == "lace");
-                if (door == null) { Next("rooms"); break; }
+                if (door == null) { Next("marketstalls"); break; }
                 Main.I.Cam.LookAtFromPosition(new Vector3((float)door.Goal.X + 4, 1.6f, (float)door.Goal.Z + 3), new Vector3((float)door.Goal.X, 1, (float)door.Goal.Z), Vector3.Up);
                 town.Refill();
                 // A close exhibit of the server's actual door routine; the whole town still runs normally.
@@ -687,10 +690,40 @@ public partial class PeopleTest : Node
                 Shot("people_door_lace.png");
                 foreach (var e in exhibits) crowd!.RemovePuppet(e.p);
                 exhibits.Clear();
-                Next("rooms");
+                Next("marketstalls");
                 break;
 
-                        case "rooms":
+            case "marketstalls":
+                town.SetClock(1, 13.5);
+                if (t < 2) break;
+                if (MarketStalls.I is not { } stalls || stalls.List.Count == 0) { Fail("the live market stalls did not load"); break; }
+                stallsRow["tables"] = stalls.List.Count;
+                stallsRow["openDay"] = stalls.OpenCount;
+                shownStall = stalls.List.FirstOrDefault(s => s.Open && s.Label.Contains("grote")) ?? stalls.List.First(s => s.Open);
+                double ax = Math.Sin(shownStall.Yaw), az = Math.Cos(shownStall.Yaw);
+                Main.I.Cam.LookAtFromPosition(new Vector3((float)(shownStall.X + ax * 3), 1.6f, (float)(shownStall.Z + az * 3)), new Vector3((float)shownStall.X, 1, (float)shownStall.Z), Vector3.Up);
+                Next("marketday"); break;
+            case "marketday":
+                if (t < 1) break;
+                Shot("people_market_open.png"); town.SetClock(1, 22); Next("marketnight"); break;
+            case "marketnight":
+                if (t < 2) break;
+                stallsRow["openNight"] = MarketStalls.I!.OpenCount;
+                stallsRow["rebuildMs"] = Math.Round(MarketStalls.I.RebuildMs, 3);
+                Shot("people_market_closed.png");
+                Next(Main.I.Arg("peoplechecks") == "marketstalls" ? "done" : "families"); break;
+            case "families":
+                town.SetClock(1, 13);
+                if (FamilyPeople.I is not { Loaded: true } family) { if (t > 15) Fail("the families state did not load"); break; }
+                familiesRow["visitorsPatchedFromServer"] = family.VisitorsPatched;
+                familiesRow["fortuneTable"] = family.Table != null;
+                if (family.Table is { } table) Main.I.Cam.LookAtFromPosition(table.Position + new Vector3(1.3f, 1.3f, 1.3f), table.Position + new Vector3(0, 0.65f, 0), Vector3.Up);
+                Next("familyshot"); break;
+            case "familyshot":
+                if (t < 1) break;
+                if (FamilyPeople.I!.Table != null) Shot("people_fortune_table.png");
+                Next(Main.I.Arg("peoplechecks") == "families" ? "done" : "rooms"); break;
+            case "rooms":
             {
                 // rooms: the people of the taverns and shops that stand in the world go in at the door and are seen inside
                 town.SetClock(1, 12.2);
@@ -855,6 +888,8 @@ public partial class PeopleTest : Node
                     animals = animalsRow,
                     wildlife = wildlifeRow,
                     halls = hallsRow,
+                    stalls = stallsRow,
+                    families = familiesRow,
                     places = rows,
                 }, new JsonSerializerOptions { WriteIndented = true }));
                 GD.Print("peopletest: written " + Path.Combine(dir, "peopletest.json"));
@@ -965,12 +1000,17 @@ public partial class PeopleTest : Node
         foreach (var r in rows)
         {
             if (r.TryGetValue("overlaps", out var overlaps) && Convert.ToInt32(overlaps) != 0) return false;
+            if (r.TryGetValue("walkersNotMoving", out var stuck) && Convert.ToInt32(stuck) != 0) return false;
+            if (r.TryGetValue("standingWhereNoBodyFits", out var blocked) && Convert.ToInt32(blocked) != 0) return false;
             if (r.TryGetValue("drawn", out var drawn) && Convert.ToInt32(drawn) != 50) return false;
             if (r.TryGetValue("peopleAndAnimalsCostMs", out var cost) && Convert.ToDouble(cost) >= 1.5) return false;
         }
         if (wildlifeRow.ContainsKey("missing")) return false;
         if (wildlifeRow.TryGetValue("flewWhenPressed", out var flight) && !(bool)flight) return false;
         if (hallsRow.Count > 0 && hallsRow.Values.All(v => Convert.ToInt32(v) == 0)) return false;
+        if (stallsRow.TryGetValue("openDay", out var openDay) && ((int)openDay <= 0 || Convert.ToInt32(stallsRow["openNight"]) >= (int)openDay)) return false;
+        if (familiesRow.TryGetValue("visitorsPatchedFromServer", out var visitors) && (Convert.ToInt32(visitors) == 0 || !(bool)familiesRow["fortuneTable"])) return false;
+        if (roomsRow.TryGetValue("homeVisitorMade", out var made) && (!(bool)made || !(bool)roomsRow["homeVisitorLeft"])) return false;
         return true;
     }
 }

@@ -102,7 +102,8 @@ picture as it was (720 lines, wobble on) whatever the player's settings say.
   `--peoplechecks reference` waits for the server comparison file. Read the game's printed server URL before
   generating that file: another helper may already occupy the requested port. The file must have the same town
   seed. `--peopleadvance` sets the test's server to Monday 13:00 through its dev route. `--peoplechecks halls`
-  checks the five landmark rosters and a home visitor; `homevisit` checks the visitor alone, `wildlife` the birds.
+  checks the five landmark rosters and a home visitor; `homevisit` checks the visitor alone, `wildlife` the birds,
+  `marketstalls` the open and covered displays, and `families` the server's strangers and Zelie's table.
   The complete test checks all 50 drawn bodies and fails for overlaps, a missed bird flight, mismatched sums or
   people-and-animal frame cost of 1.5 ms or more. Unrelated live route requests may still be pending after every
   comparison answer matches.
@@ -110,8 +111,8 @@ picture as it was (720 lines, wobble on) whatever the player's settings say.
   squares, zero overlaps and stuck walkers. With active hall rosters, people and animals cost 1.136 ms at the
   Grote Markt and 1.291 ms at Vismarkt. The five halls drew 2, 4, 7, 5 and 4 people respectively (town hall,
   Vleeshuis, Steen, Oostershuis, cathedral). Wildlife: 74 animals, the pressed duck walked off then flew.
-  Remaining: timed stall goods and awnings, complete game and street props, window gossip, automatic family
-  visits and menace presentation, home-remark wiring, dressed and lit rooms, higher-floor/event cathedral
+  Remaining: complete game and street props, window gossip, menace and dream presentation,
+  home-remark wiring, dressed and lit rooms, higher-floor/event cathedral
   roles, capture ecology, dog mess, market scraps and multiplayer animal states. Homes have visitor support
   and floor plans, but their full interior shells still need drawing. Horses and people aboard vehicles stay
   with the movers part. Thief routes exist; theft outcomes, event scenes and director actions await their parts.
@@ -119,6 +120,10 @@ picture as it was (720 lines, wobble on) whatever the player's settings say.
   the shop-front layout follows `shared/shopFront.ts`, and copies of each model are batched. The close day/night
   test (`--peoplechecks marketstalls`) found 25 tables, 20 open at 13:30 and none open at 22:00; rebuild 0.253 ms.
   Open sacks currently use the common sack's closed shape; awning cloth variants still need their full palette.
+  `FamilyPeople` patches the server's strangers' names and schedules, draws Zelie's table and cards, and opens
+  a visiting relative's talk when Jef is nearby and free. `ActionReceived` passes family director messages to
+  later presentation work. The close family test patched five visitors and drew the table. The table and all
+  stall displays have solid bodies and close their footprints in `WalkMap`; the local crowd grid is rebuilt.
 - **The server stays in Node** (`server/`): the game talks to it over the same HTTP and WebSocket API as the
   browser (`client/src/net/api.ts`).
   - `src/Net/ServerProcess.cs` starts it with the game (`node src/index.ts` in `server/`, a free port from 8800,

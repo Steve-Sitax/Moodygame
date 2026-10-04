@@ -60,6 +60,24 @@ public sealed class WalkMap
         return ix >= 0 && iz >= 0 && ix < W * 4 && iz < D * 4 && free[iz * W * 4 + ix] != 0;
     }
 
+    /// <summary>A permanent prop absent from the bake: close its exact footprint for bodies and grid cells.
+    /// The arrays remain the same cheap lookup used by every step; no per-person scan of props.</summary>
+    public void AddBox(double x, double z, double minX, double maxX, double minZ, double maxZ, double yaw)
+    {
+        double c = Math.Cos(yaw), s = Math.Sin(yaw), radius = Math.Max(Math.Abs(minX), Math.Abs(maxX)) + Math.Max(Math.Abs(minZ), Math.Abs(maxZ)) + 1;
+        bool In(double wx, double wz, double pad)
+        {
+            double dx = wx - x, dz = wz - z, lx = dx * c - dz * s, lz = dx * s + dz * c;
+            return lx >= minX - pad && lx <= maxX + pad && lz >= minZ - pad && lz <= maxZ + pad;
+        }
+        for (int iz = Math.Max(0, (int)Math.Floor((z - radius - Z0) * 4)); iz <= Math.Min(D * 4 - 1, (int)Math.Ceiling((z + radius - Z0) * 4)); iz++)
+            for (int ix = Math.Max(0, (int)Math.Floor((x - radius - X0) * 4)); ix <= Math.Min(W * 4 - 1, (int)Math.Ceiling((x + radius - X0) * 4)); ix++)
+                if (In(X0 + (ix + 0.5) / 4, Z0 + (iz + 0.5) / 4, 0.25)) free[iz * W * 4 + ix] = 0;
+        for (int iz = Math.Max(0, (int)Math.Floor(z - radius - Z0)); iz <= Math.Min(D - 1, (int)Math.Ceiling(z + radius - Z0)); iz++)
+            for (int ix = Math.Max(0, (int)Math.Floor(x - radius - X0)); ix <= Math.Min(W - 1, (int)Math.Ceiling(x + radius - X0)); ix++)
+                if (In(X0 + ix + 0.5, Z0 + iz + 0.5, 0.55)) open[iz * W + ix] = 0;
+    }
+
     /// <summary>The height of the walkable ground (the browser's World.baseAt): quay 0, the Steen's ramp, the wall's walk, stairs.</summary>
     public double BaseAt(double x, double z)
     {

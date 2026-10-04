@@ -302,6 +302,8 @@ public sealed class Crowd
 
     private double Rnd(double a, double b) => a + rng.NextDouble() * (b - a);
     private static double AngDiff(double a, double b) => Math.Atan2(Math.Sin(a - b), Math.Cos(a - b));
+    /// <summary>A new permanent prop changed the walk map: use its footprint before taking another step.</summary>
+    public void RebuildGrid(double x, double z) { grid.Build(map, x, z); gridAge = 0; }
     private static double Hyp(double a, double b) => Math.Sqrt(a * a + b * b);
 
     public void Update(double dt, double vx, double vz, (double x, double z)? playerBody, Camera3D? camera)

@@ -111,6 +111,8 @@ public sealed class TownData
         ? e.EnumerateArray().Select(s => new Seg(s[0].GetDouble(), s[1].GetDouble(), s[2].GetString() ?? "home", s.GetArrayLength() > 3 && s[3].ValueKind == JsonValueKind.String ? s[3].GetString() : null)).ToArray()
         : Array.Empty<Seg>();
 
+    public static Schedule ScheduleOf(JsonElement sched) => new() { Day = Segs(sched, "day"), Sunday = Segs(sched, "sunday") };
+
     public static TownData Parse(string json)
     {
         using var doc = JsonDocument.Parse(json);
@@ -138,7 +140,7 @@ public sealed class TownData
                     Stall = w.TryGetProperty("stall", out var st) && st.ValueKind == JsonValueKind.Number ? st.GetInt32() : null, Shop = So(w, "shop"),
                     Seat = w.TryGetProperty("seat", out var seat) && seat.ValueKind == JsonValueKind.True, Motion = So(w, "motion"),
                 },
-                Sched = new Schedule { Day = Segs(sched, "day"), Sunday = Segs(sched, "sunday") },
+                Sched = ScheduleOf(sched),
                 Dog = r.TryGetProperty("dog", out var dog) && dog.ValueKind == JsonValueKind.Object,
                 DogLook = dog.ValueKind == JsonValueKind.Object ? So(dog, "look") ?? "dog_brown" : null,
                 Mate = So(r, "mate"),

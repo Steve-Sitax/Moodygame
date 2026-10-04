@@ -8,6 +8,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 ## [Unreleased]
 
 ### New in the game
+- In Godot, visiting family members use the server's names and daily plans, and Zelie's fortune-telling table has its cloth, cards and stool.
 - The Godot version has doorstep cats and stray dogs, dogs following their owners, and park birds that move away, then fly when pressed. Doorstep chores and children's games follow the town's daily plans.
 - The Godot version draws the server's occupants in the five landmark halls, with their seats and shared floor plans, and provides room visitors for the homes part.
 - In Godot, market stalls and shop tables put their goods out while their keepers work, then roll up the awning and cover the table. Shop tables fit beside the door without passing the house corner.
