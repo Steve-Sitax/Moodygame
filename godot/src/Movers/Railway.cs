@@ -25,9 +25,8 @@ namespace Scheldemist.Movers;
 /// The cranes travel along their runways to another hold, turn and lift; no step is taken that would bring two
 /// cranes nearer than the margin (shared/cranes.ts: CraneGeo).
 ///
-/// Not ported yet (the browser has them): the shunter at the horses' heads and the gate's keeper (people), the
-/// horses' harness chains, a crane making way for another by asking, the
-/// dockers' piles the cranes feed, the walkable crane cabin, stopping for things left on the rails.
+/// Railway.Crew, Yield and Feeds supply the crew, harness, cooperative clearance and docker supplies.
+/// CraneClimb owns the reachable ladder, gallery and cabin; loose ground goods stop the train.
 /// </summary>
 [GamePart(45)]
 public partial class Railway : Node
@@ -277,7 +276,9 @@ public partial class Railway : Node
         public List<(float X,float Z,float Top,float Floor)> Masts = new();
         public CraneGeo.Capsule[] Parts = new CraneGeo.Capsule[CraneGeo.PartCount];
         public float PartsPos = float.NaN, PartsA, PartsHy, PartsLoad;
-        public int Lifts, Trips;
+        public int Lifts, Trips, Yields;
+        public float YieldT, Lend, AwayX, AwayZ;
+        public bool MoveOn;
     }
 
     private Node3D group = null!;
@@ -399,13 +400,15 @@ public partial class Railway : Node
         links?.ZeroAll();
 
         MakeCranes(decor.GetProperty("crane_rails"));
+        MakeFeeds();
+        MakeCrew();
         shedT = 4 + (float)rnd() * 10;
         Bridges.Busy.Add(OnDeck);
         ok = true;
         GD.Print($"railway: the line is {line.Length:0} m, {wagons.Count} wagons, {cranes.Count} cranes at work ({cranes.Count(c => c.ShipA != null)} over a hold, {cranes.Count(c => c.Pile != null)} at a pile, {cranes.Count(c => c.Axis != ' ' && c.Berths.Count > 1)} that travel)");
         foreach (var c in cranes)
             GD.Print(string.Create(System.Globalization.CultureInfo.InvariantCulture, $"railway:   crane {c.Index} at ({c.X:0.0}, {c.Z:0.0}) {(c.ShipA != null ? "over a hold" : "at a pile")}, runway {(c.Axis == ' ' ? "none" : $"{c.Axis} {c.Lo:0.0}..{c.Hi:0.0}")}, berths at {string.Join(" ", c.Berths.Select(b => b.P.ToString("0")))}"));
-        if (MoversTest.On) Probes();
+        if (MoversTest.On) {Probes();CrewProbes();}
     }
 
     private AnimatableBody3D NewBox(string name, Vector3 size)
@@ -646,6 +649,7 @@ public partial class Railway : Node
                 if (after[k] < 0 && after[k] < before[k] - 1e-6)
                 {
                     c.Blocked = true;
+                    RequestYield(c,k);
                     return false;
                 }
         }
@@ -700,7 +704,7 @@ public partial class Railway : Node
             }
             if (free) good.Add(b);
         }
-        return good.Count == 0 ? null : good[(int)Math.Floor(c.R() * good.Count)];
+        return good.Count == 0 ? null : PreferredFeed(c,good)??good[(int)Math.Floor(c.R() * good.Count)];
     }
 
     private bool TravelStep(Crane c, float dt)
@@ -811,6 +815,8 @@ public partial class Railway : Node
 
     private void UpdateCrane(Crane c, float dt, bool trainStopped)
     {
+        if (YieldStep(c,dt)) return;
+        if (StartFeed(c,dt)) return;
         if (TravelStep(c, dt)) return;
         if (c.Ops.Count == 0)
         {
@@ -900,6 +906,7 @@ public partial class Railway : Node
                 c.Lifts++;
                 break;
             case OpT.Drop:
+                if(op.Src==3)DropFeed(c);
                 if (op.Src == 2) wagons[op.W].Slots[op.Slot] = true;
                 if (op.Src == 1 && c.Pile != null)
                 {
@@ -1229,6 +1236,7 @@ public partial class Railway : Node
                 if(dx*dx+dz*dz<1.1*1.1) {lim=Math.Min(lim,Math.Max(head,head+d-1.5f));waitWhy="people";break;}
             }
         }
+        LooseGoodsLimit(ref lim);
         return lim;
     }
 
@@ -1315,6 +1323,7 @@ public partial class Railway : Node
             pool?.Set(i, f.X, f.Z, f.Yaw, (gait + i * 0.37f) % 1, amp);
             horseBodies[i].Transform = new Transform3D(new Basis(Vector3.Up, f.Yaw), new Vector3(f.X, 0, f.Z));
         }
+        UpdateCrew((float)MoverClock.Dt);
         foreach (var w in wagons)
         {
             if (state == "shed")

@@ -153,3 +153,6 @@ Moving-gap ferry proof: 14 checks in `moving-ferry-scenarios`, two inspected pic
 Moving-gap save proof: 126 omnibus/cart/velocipede/rowing checks, 23 ship checks, 39 focused crane checks, 24 rowing checks and eight expiry checks. The crane cabin is reached on foot and exited through its door. A longer dock-crane alignment repeat timed out and remains open. Saved rungs, household journeys, prisoner movement and two-client transport remain open. See `milestones/godot-rides.md` for exact local artifacts and scope.
 
 Moving-gap event network status: action NPC/partner claims, releases and kind-3 puppet batches are wired. Seven in-engine wire/interpolation checks and five comparisons with the real browser codec pass. Two-client ownership/event playback, non-Actors scene figures and real prison-room walking remain open.
+
+
+Moving-gap mover status: tow watchdog, loose-goods rail stopping, crane priority yielding, railway crew/harness and host docker-pile feeds are implemented. Four controlled mover assertions and one real server pile refill pass; overall mover reports still fail timing limits. Ten pictures inspected. Named resident journeys, all crane/pile combinations and active-rowing runtime proof remain open; see milestones/godot-movers.md.

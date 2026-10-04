@@ -34,6 +34,7 @@ public partial class MovingSounds : Node
         Register();vehicles.Clear();ships.Clear();
         if(Traffic.I is {} traffic)for(int i=0;i<traffic.Vehicles.Count;i++){var v=traffic.Vehicles[i];vehicles.Add(new(v.Kind,v.At.X,v.At.Y,v.V>.08f?"go":"stop"));}
         if(GoodsDrays.I is {} drays)for(int i=0;i<drays.Rigs.Count;i++){var v=drays.Rigs[i];if(v.Root.IsVisibleInTree())vehicles.Add(new(v.Cart!=null?"handcart":"dray",v.At.X,v.At.Y,v.Moving?"go":"stop"));}
+        Railway.I?.AddSounds(vehicles);
         if(Omnibus.I!=null)for(int i=0;i<Omnibus.I.Buses.Count;i++){var b=Omnibus.I.Buses[i];vehicles.Add(new("dray",b.Pa.X,b.Pa.Y,b.V>.08f?"go":"stop"));}
         if(Handcarts.I?.Held is {} id&&Handcarts.I.Drawings.TryGetValue(id,out var c))
         {var p=new Vector2(c.X,c.Z);vehicles.Add(new("handcart",p.X,p.Y,hadCart&&p.DistanceTo(previousCart)>elapsed*.08?"go":"stop"));previousCart=p;hadCart=true;}else hadCart=false;

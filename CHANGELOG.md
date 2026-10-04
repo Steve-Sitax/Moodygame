@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Godot railway crews accompany the horses and gate; cranes replenish docker piles, make room for higher-priority neighbours, and trains stop for loose goods. River tows back out of verified blocked water and slow for rowing boats.
+
 - Godot event actors use the server’s NPC ownership and the browser puppet pose format when playing together.
 
 - Godot save/load keeps Jef aboard his omnibus, ship, crane, rowing boat, handcart or velocipede; rowing reboarding follows the moving thwart.
