@@ -1,0 +1,91 @@
+name: Godot download draft
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+# Draft: builds artifacts only. It does not publish a Release or bake the shared town.
+permissions:
+  contents: read
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            editor: win64
+          - os: ubuntu-22.04
+            editor: linux_x86_64
+          - os: macos-latest
+            editor: macos.universal
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Install the server build tools
+        run: npm --prefix server ci --no-audit --no-fund
+      - name: Download Godot Mono and its templates
+        shell: bash
+        env:
+          EDITOR: ${{ matrix.editor }}
+        run: |
+          base=https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable
+          curl --fail --location "$base/Godot_v4.7.2-stable_mono_$EDITOR.zip" -o "$RUNNER_TEMP/godot.zip"
+          curl --fail --location "$base/Godot_v4.7.2-stable_mono_export_templates.tpz" -o "$RUNNER_TEMP/templates.zip"
+          python - <<'PY'
+          import os, pathlib, zipfile, shutil, sys
+          tmp = pathlib.Path(os.environ['RUNNER_TEMP'])
+          editor = tmp / 'godot-editor'
+          with zipfile.ZipFile(tmp / 'godot.zip') as z: z.extractall(editor)
+          with zipfile.ZipFile(tmp / 'templates.zip') as z: z.extractall(tmp / 'templates')
+          if sys.platform == 'win32': base = pathlib.Path(os.environ['APPDATA']) / 'Godot'
+          elif sys.platform == 'darwin': base = pathlib.Path.home() / 'Library/Application Support/Godot'
+          else: base = pathlib.Path.home() / '.local/share/godot'
+          shutil.copytree(tmp / 'templates/templates', base / 'export_templates/4.7.2.stable.mono', dirs_exist_ok=True)
+          if sys.platform == 'win32': exe = next(editor.rglob('*_console.exe'))
+          elif sys.platform == 'darwin': exe = next(editor.rglob('Contents/MacOS/Godot'))
+          else: exe = next(p for p in editor.rglob('*') if p.is_file() and p.name.endswith('_mono_linux.x86_64'))
+          for p in editor.rglob('*'):
+              if p.is_file() and (p == exe or sys.platform != 'win32'): p.chmod(p.stat().st_mode | 0o111)
+          with open(os.environ['GITHUB_ENV'], 'a') as f: f.write(f'GODOT={exe}\n')
+          PY
+      - name: Fetch the agreed shared bake (never run the bake here)
+        shell: bash
+        env:
+          BAKE_URL: ${{ vars.GODOT_BAKE_URL }}
+          BAKE_SHA256: ${{ vars.GODOT_BAKE_SHA256 }}
+        run: |
+          test -n "$BAKE_URL" && test -n "$BAKE_SHA256" || { echo 'Set GODOT_BAKE_URL and GODOT_BAKE_SHA256 first'; exit 1; }
+          curl --fail --location "$BAKE_URL" -o "$RUNNER_TEMP/bake.zip"
+          python - <<'PY'
+          import os, pathlib, hashlib, zipfile
+          archive = pathlib.Path(os.environ['RUNNER_TEMP']) / 'bake.zip'
+          assert hashlib.file_digest(archive.open('rb'), 'sha256').hexdigest() == os.environ['BAKE_SHA256'].lower(), 'Bake checksum mismatch'
+          # The archive contains town.glb, town.json, town_tex/, models/ and the walk and light side files at its root.
+          target = pathlib.Path('godot/baked').resolve()
+          with zipfile.ZipFile(archive) as z:
+              for name in z.namelist():
+                  assert (target / name).resolve().is_relative_to(target), 'Unsafe bake archive path'
+              z.extractall(target)
+          PY
+      - name: Export and package on the target system
+        id: pack
+        env:
+          SCHELDEMIST_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || format('test-{0}', github.run_number) }}
+        run: node tools/godot/package.mjs
+      # Run test-download.mjs locally on a Vulkan PC: hosted runners cannot prove the rendered game.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: godot-${{ matrix.editor }}
+          path: ${{ steps.pack.outputs.archive }}
+          compression-level: 0
+          retention-days: 14

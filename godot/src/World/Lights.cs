@@ -17,8 +17,10 @@ namespace Scheldemist.World;
 /// No Godot light is made: the nearest 48 sources are worked out per pixel in every lit psx material (Psx.SetSpill),
 /// so the number of lights never changes (docs/rendering.md). The sources and the panes come from the bake
 /// (tools/godot/export-scene.mjs --ref-only --lights --hour 21: town_lights.json).
-/// Not yet: the lamplighter's own lamps (all follow the clock), the far ground pools and the far glow past the 48
-/// nearest, each room's own closing hour (a room's lamp follows the dark).
+/// Past the nearest 48: the ones that light the ground light it as a pool (spill.ts ground pools), and every lantern,
+/// glow and lit room past half the fog shows a far glow (farGlow.ts), as the gas lamps' halos do (Lights.Far.cs).
+/// The lamplighter's word lights or puts out one lamp (SetLampLit: game/lamplighter.ts, the server's lampround.ts; on a
+/// day of thick fog it leaves them lit, and a lit lamp then glows in the grey); a lamp nobody has set follows the clock.
 /// </summary>
 [GamePart(30)]
 public partial class Lights : Node
@@ -33,9 +35,11 @@ public partial class Lights : Node
         public Vector3 Color;
         public float Power, Range, Decay, Depth, Soft, Bars, Level;
         public float[]? Sched;
-        // a gas lamp: its flame's own flicker
+        // a gas lamp: its flame's own flicker, its id ("q3" a quay lamp, "d12" a city lamp), the lamplighter's word
+        // (1 burns, 0 out) and how far the gas has caught
         public bool Lamp;
-        public float Seed, B, G;
+        public string Id = "";
+        public float Seed, B, G, Want = 1, Lit = 1;
         // now: power x level; its weight among the per-pixel ones; its rank
         public float Now, W, Score;
     }
@@ -45,7 +49,9 @@ public partial class Lights : Node
     private readonly List<Src> ranked = new();
     private readonly Src?[] slots = new Src?[Psx.MaxSpill];
     private readonly (Src? lamp, float w)[] lampSlots = new (Src?, float)[Psx.MaxLamps - 1];
-    private readonly List<ShaderMaterial> glass = new();
+    private readonly List<(ShaderMaterial m, Src? lamp)> glass = new();
+    private readonly Dictionary<string, Src> byId = new();
+    private MultiMesh? haloMM;
     private readonly List<(ShaderMaterial m, Vector3 tint, Vector3 centre, float radius)> landmark = new();
     private ShaderMaterial? paneMat, haloMat;
     private MeshInstance3D? panes;
@@ -64,9 +70,7 @@ public partial class Lights : Node
         I = this;
         ProcessPriority = 40; // after the daylight
         Daylight.I.Settled += () => snap = true;
-        string town = Main.I.Arg("town", OS.GetEnvironment("SCHELDEMIST_BAKE") is { Length: > 0 } b ? b : ProjectSettings.GlobalizePath("res://baked/town.glb"));
-        string name = Path.GetFileNameWithoutExtension(town) + "_lights.json";
-        string? file = new[] { Path.Combine(Path.GetDirectoryName(town) ?? ".", name), ProjectSettings.GlobalizePath("res://baked/" + name) }.FirstOrDefault(File.Exists);
+        string? file = new[] { Paths.TownSide("_lights.json"), Path.Combine(Paths.Baked, "town_lights.json") }.FirstOrDefault(File.Exists);
         int paneCount = 0;
         if (file != null)
         {
@@ -74,15 +78,29 @@ public partial class Lights : Node
             foreach (var e in j.GetProperty("spill").EnumerateArray()) sources.Add(Read(e));
             paneCount = BuildPanes(j.GetProperty("panes"));
         }
-        else GD.Print("lights: no " + name + " beside the bake: no lamps or lit windows (node tools/godot/export-scene.mjs --ref-only --lights --hour 21)");
+        else GD.Print("lights: no " + Paths.TownSide("_lights.json") + " beside the bake: no lamps or lit windows (node tools/godot/export-scene.mjs --ref-only --lights --hour 21)");
         // the doss house lantern (rijnkaai.ts): a real light in the browser, always burning
         sources.Add(new Src { Kind = "doss", Label = "doss house lantern", At = new Vector3(-180.96f, 2.9f, 39.5f), Half = new Vector2(0.1f, 0.1f), Color = V(Psx.Hex(0xffa048)), Power = 7, Range = 10, Decay = 1.7f, Level = 1 });
         lamps.AddRange(sources.Where(s => s.Lamp));
+        foreach (var l in lamps) byId[l.Id] = l;
         BuildHalos();
+        BuildFar();
         FindGlass();
         Info = (sources.Count, 0, 0, lamps.Count, paneCount);
         GD.Print($"lights: {sources.Count} sources ({lamps.Count} gas lamps), {paneCount} lit panes, {glass.Count} lamp glasses, {landmark.Count} landmark window lights");
     }
+
+    /// <summary>
+    /// The lamplighter's word (the browser's gasLamps.set): lamp `id` ("q3" a quay lamp, "d12" a city lamp) burns or
+    /// not; the gas catches or goes out in about half a second. A lamp nobody has set follows the clock.
+    /// </summary>
+    public void SetLampLit(string id, bool on)
+    {
+        if (byId.TryGetValue(id, out var l)) l.Want = on ? 1 : 0;
+    }
+
+    /// <summary>The gas lamps by id and where they stand (the lamplighter's round).</summary>
+    public IEnumerable<(string id, Vector3 at)> Lamps => lamps.Select(l => (l.Id, l.At));
 
     private static Vector3 V(Color c) => new(c.R, c.G, c.B);
 
@@ -106,6 +124,7 @@ public partial class Lights : Node
             // the flame's own dice, as gaslamps.ts gives them: a quay lamp q<i>, a city lamp d<i>
             s.Lamp = true;
             string id = s.Label[9..];
+            s.Id = id;
             int.TryParse(id[1..], out int i);
             s.Seed = id[0] == 'q' ? i * 1.37f + 0.5f : i * 2.31f + 7.1f;
         }
@@ -223,9 +242,11 @@ shader_type spatial;
 render_mode unshaded, blend_add, depth_draw_never, cull_disabled, fog_disabled;
 global uniform float psx_fog_near;
 global uniform float psx_fog_far;
-uniform float lit = 0.0;
 varying float fog_depth;
+varying float lit;
 void vertex() {
+	// each lamp's own: how lit it is now (INSTANCE_CUSTOM.x)
+	lit = INSTANCE_CUSTOM.x;
 	// a halo about 1.1 m across that faces the eye, a little in front of the glass (the fogged glass never cuts a
 	// dark lamp shape out of its own glow)
 	vec3 c = (MODELVIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
@@ -249,8 +270,13 @@ void fragment() {
         if (lamps.Count == 0) return;
         haloMat = new ShaderMaterial { Shader = new Shader { Code = HaloCode } };
         var quad = new QuadMesh { Size = Vector2.One, Material = haloMat };
-        var mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, Mesh = quad, InstanceCount = lamps.Count };
-        for (int i = 0; i < lamps.Count; i++) mm.SetInstanceTransform(i, new Transform3D(Basis.Identity, lamps[i].At));
+        var mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseCustomData = true, Mesh = quad, InstanceCount = lamps.Count };
+        for (int i = 0; i < lamps.Count; i++)
+        {
+            mm.SetInstanceTransform(i, new Transform3D(Basis.Identity, lamps[i].At));
+            mm.SetInstanceCustomData(i, new Color(1, 0, 0, 0));
+        }
+        haloMM = mm;
         Main.I.View.AddChild(new MultiMeshInstance3D { Name = "gas_lamp_halos_mm", Multimesh = mm, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
     }
 
@@ -272,7 +298,13 @@ void fragment() {
                     bool plain = mi.Name.ToString().Contains("glass");
                     landmark.Add((m, plain ? new Vector3(1.7f, 0.72f, 0.2f) : Vector3.One, box.GetCenter(), box.Size.Length() * 0.5f));
                 }
-                else if ((name == "glass" || name.EndsWith("_glow")) && m.Shader.Code.Contains("unshaded")) glass.Add(m);
+                else if ((name == "glass" || name.EndsWith("_glow")) && m.Shader.Code.Contains("unshaded"))
+                {
+                    // (its lamp: the nearest within a metre and a half, else it follows the clock)
+                    var at = (mi.GlobalTransform * mi.GetAabb()).GetCenter();
+                    var lamp = lamps.Where(l => new Vector2(l.At.X - at.X, l.At.Z - at.Z).Length() < 1.5f).OrderBy(l => l.At.DistanceTo(at)).FirstOrDefault();
+                    glass.Add((m, lamp));
+                }
             }
         }
     }
@@ -308,22 +340,30 @@ void fragment() {
         float glow = Math.Max(dark, 0.8f * air);
         float ground = glow > 0 ? Math.Max(dark, 0.3f * air) / glow : 0;
         float v = Mathf.Clamp(glow, 0, 1);
-        foreach (var l in lamps)
+        // (the gas catches in about half a second)
+        float catchK = snap ? 1 : Math.Min(1, dt * 2.5f);
+        bool moved = false;
+        for (int i = 0; i < lamps.Count; i++)
         {
-            l.B = v * Flicker(t, l.Seed);
+            var l = lamps[i];
+            float was = l.Lit;
+            l.Lit += (l.Want - l.Lit) * catchK;
+            float lv = Mathf.Clamp(l.Lit * v, 0, 1);
+            l.B = lv * Flicker(t, l.Seed);
             l.G = l.B * ground;
+            if (MathF.Abs(was - l.Lit) > 0.0005f) moved = true;
+            if (haloMM != null && (moved || snap || MathF.Abs(v - glassV) > 0.002f)) haloMM.SetInstanceCustomData(i, new Color(lv, 0, 0, 0));
         }
-        haloMat?.SetShaderParameter("lit", v);
         // unlit glass takes the colour of the air round it, a little darker, so it never shows as a black box
-        if (MathF.Abs(v - glassV) > 0.002f || !fog.IsEqualApprox(glassFog))
+        if (moved || MathF.Abs(v - glassV) > 0.002f || !fog.IsEqualApprox(glassFog))
         {
             glassV = v;
             glassFog = fog;
-            var c = new Color(fog.R * 0.8f * (1 - v) + 1.0f * v, fog.G * 0.8f * (1 - v) + 0.72f * v, fog.B * 0.8f * (1 - v) + 0.38f * v);
-            foreach (var m in glass)
+            foreach (var (m, lamp) in glass)
             {
-                m.SetShaderParameter("albedo", c);
-                m.SetShaderParameter("fog_reach", 1 + 0.6f * v);
+                float gv = lamp == null ? v : Mathf.Clamp(lamp.Lit * v, 0, 1);
+                m.SetShaderParameter("albedo", new Color(fog.R * 0.8f * (1 - gv) + 1.0f * gv, fog.G * 0.8f * (1 - gv) + 0.72f * gv, fog.B * 0.8f * (1 - gv) + 0.38f * gv));
+                m.SetShaderParameter("fog_reach", 1 + 0.6f * gv);
             }
         }
         // the psx lamp slots (the glow in the fog, the streaks on wet stone): the lit lamps nearest the eye
@@ -370,15 +410,10 @@ void fragment() {
         }
 
         // --- the light on the street (spill.ts): every source's power now, the nearest ranked ten times a second
-        float Now(Src s)
-        {
-            float lvl = s.Lamp ? Mathf.Clamp(s.G, 0, 1)
-                : s.Sched is { } l ? Math.Max(Smooth(hourN, l[0], l[0] + 0.12f) * (1 - Smooth(hourN, l[1], l[1] + 0.12f)), Smooth(hourN, l[2], l[2] + 0.12f) * (1 - Smooth(hourN, l[3], l[3] + 0.12f))) * night
-                : s.Kind == "doss" ? 0.92f + MathF.Sin(t * 5.1f) * 0.04f + MathF.Sin(t * 13.7f) * 0.03f
-                : s.Kind is "glow" or "lantern" or "lamp" ? s.Level * dark
-                : s.Level * night;
-            return s.Now = s.Power * lvl;
-        }
+        nowHourN = hourN;
+        nowNight = night;
+        nowDark = dark;
+        bool ranking = snap || rankT - dt <= 0;
         rankT -= dt;
         if (snap || rankT <= 0)
         {
@@ -402,6 +437,7 @@ void fragment() {
             ranked.Sort((a, b) => a.Score.CompareTo(b.Score));
         }
         else foreach (var s in slots) if (s != null) Now(s);
+        RankRest(ranking, eye, day);
         var want = new HashSet<Src>(ranked.Take(Psx.MaxSpill));
         for (int i = 0; i < slots.Length; i++)
         {
@@ -424,8 +460,27 @@ void fragment() {
             var s = on[i]!;
             return (new Vector4(s.At.X, s.At.Y, s.At.Z, s.Now * s.W), new Vector4(s.N.X, s.N.Y, s.Half.X, s.Half.Y), new Vector4(s.Color.X, s.Color.Y, s.Color.Z, s.Bars), new Vector4(s.Range, s.Decay, s.Depth, s.Soft));
         });
+        UpdateFar(eye, day);
         Info = (sources.Count, ranked.Count, on.Count, lamps.Count, Info.panes);
         snap = false;
+    }
+
+    private float nowHourN, nowNight, nowDark;
+
+    /// <summary>A source's power now (its kind's rule at this hour), kept in s.Now.</summary>
+    private float Now(Src s)
+    {
+        float hourN = nowHourN, night = nowNight, dark = nowDark;
+        {
+            float lvl = s.Lamp ? Mathf.Clamp(s.G, 0, 1)
+                : s.Sched is { } l ? Math.Max(Smooth(hourN, l[0], l[0] + 0.12f) * (1 - Smooth(hourN, l[1], l[1] + 0.12f)), Smooth(hourN, l[2], l[2] + 0.12f) * (1 - Smooth(hourN, l[3], l[3] + 0.12f))) * night
+                : s.Kind == "doss" ? 0.92f + MathF.Sin(t * 5.1f) * 0.04f + MathF.Sin(t * 13.7f) * 0.03f
+                : s.Kind == "lamp" ? (s.Level > 0 ? dark : 0) // (a lamp that is not a street gas lamp: lit with them)
+                : s.Kind is "glow" or "lantern" ? s.Level * dark
+                : s.Kind is "shop" or "tavern" or "room" or "door" ? s.Level * night * (Rooms.I?.LitAt(s.At) ?? 1)
+                : s.Level * night;
+            return s.Now = s.Power * lvl;
+        }
     }
 
     private static float Ahead(Vector3 at, Vector3 eye, Vector3 look)

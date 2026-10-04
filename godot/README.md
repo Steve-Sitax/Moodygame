@@ -4,8 +4,8 @@ The Godot game (Godot 4.7.2, C#, .NET 8). The plan and the decisions: `docs/godo
 `client/` is the model: a part is ported from its TypeScript, with the same numbers and the same words.
 
 ## Run it
-1. Once: `npm run setup` in the repo root (the server and the bake need their packages), and a save
-   (`data/game.sqlite`: start the server once).
+1. Once: `npm --prefix server install` (or `npm run setup` if you also need the browser and bake tools).
+   The game starts the server and makes a fresh save in your user folder on first run.
 2. Bake the town: `node tools/godot/export-scene.mjs` (about 3 minutes; writes `godot/baked/town.glb`, `town.json`,
    `town_tex/` (with the dirt map and the sky map), `town_lights.json` (the lamps, the lit windows and their light on
    the street), 500 MB, not in git). Bake again when the browser's world code changes. `--ref-only --hour 21
@@ -18,6 +18,12 @@ The Godot game (Godot 4.7.2, C#, .NET 8). The plan and the decisions: `docs/godo
 Options after `--`: `--town <glb>` (or the environment variable `SCHELDEMIST_BAKE`) for a bake somewhere else,
 `--shots <dir>` (a picture and the frame time at each baked place, then quit), `--no-<part>` and `--only a,b`
 (game parts off).
+Sound: `--audio <dir>` (or `SCHELDEMIST_AUDIO`) picks the existing recordings' folder; by default it is
+`client/public/audio` beside this project. `--soundtest <absolute dir>` records every sound trigger and the
+layers at three hours, in rain and in the great storm; writes `soundtest.wav` and `soundtest.json`, then quits
+(1 if a check failed). The speakers stay muted after the recorder. Allow about eight minutes for the full run.
+`--soundtest-only wiring,jef,rooms,life,layers` selects a shorter check. Always give tests their own `--db` and
+`--prefs` files. Use absolute output paths: Godot's working folder is the project folder.
 The server's options: `--server http://127.0.0.1:PORT` (use a server that runs already, start none), `--port N`
 (the first port to try; default 8800), `--db <file>` (another save), `--no-ai` (the server makes no model calls:
 walk-around mode), `--nettest <dir>` (the net part's own test: start the server with no AI, wait for the first
@@ -42,6 +48,56 @@ beside it), `--no-mainmenu` (no loading screen and no menus: the town at once, a
 menus' own test, below). A run with `--shots` or another part's `--...test` has no menus either, and keeps the
 picture as it was (720 lines, wobble on) whatever the player's settings say.
 
+## Godot milestone checks (G8)
+
+Run from the checkout, with its own installed server packages (`npm --prefix server install`):
+
+```powershell
+node tools/godot/checks.mjs --town D:/Code/MoodyGame-godot/godot/baked/town.glb --models D:/Code/MoodyGame-godot/godot/baked/models
+```
+
+The runner builds C#, runs the console program once with `--headless --path godot --import`, then opens one game
+window at a time. Each check gets a fresh town (seed 1873), no AI, a free port from 8980, and a four-minute timeout.
+It removes its temporary save and stops its own processes even after a failure. It never copies a player's save
+or bakes a town. Reports, logs and pictures stay under `godot/baked/checks/`, outside git. `summary.json` and the
+short console table show PASS, FAIL or ERROR; any failure makes the runner exit 1.
+
+Options: `--only paths,stuck`, `--out <dir>`, `--port 8990`, `--seed 1873`, `--timeout 240`, `--godot <console exe>`.
+`--no-build` uses the last build and import. The Godot checks can also run directly, as options after `--`:
+
+| Option | Report and coverage |
+|---|---|
+| `--devtest <dir>` | Four server-backed kit steps: time/weather/place, summon, take a chosen job, advance time. |
+| `--paths <dir>` | `paths.json`: all job spots and current jobs' task points, server places/routes, home/work points, weekday/Sunday anchors, shop/stall fronts, current outside residents and city doors. Floods the baked 0.25 m body map from (10,12), with 0.36 m steps. `unreachable` must be empty. |
+| `--stuck <dir>` | `stuck.json`: three Monday game hours (13:00–16:00), across the five perf places. Steps the real town/crowd part at 0.05 s per rendered frame. Samples every 0.25 s: 3 s within 0.3 m, or crowd bodies walking 8 s with over 3 m travelled but under 0.8 m net; also drawn bodies within 0.45 m and a 0.25 m body against Godot solids. Hidden planned rounds may legitimately repeat, so only their stationary test applies. |
+| `--shaders <dir>` | `shaders.json`: first-frame material/shader kinds, later scene resources and kinds, psx shader count, total and hidden real lights. Visits five places at midday/clear, night/rain and dawn/fog. `problems` must be empty and light counts unchanged. |
+| `--perfcheck <dir>` | `perfcheck.json`: the browser's five places, 90 standing frames, 90 turning frames (2 degrees/frame), six seconds walking per place. Mean, p95, draw calls, wall-frame time and walking displacement. The mean active main frame must be under 5 ms at every place. |
+| `--clocks` | `clocks.json` under `--check-out <dir>` (or `--clocks <dir>`): every `liveClock`/`clock_face`/`clock_hands` marker; compare transforms and mesh vertices at 13:00 and 13:30. |
+| `--interiors` | `interiors.json` under `--check-out <dir>` (or `--interiors <dir>`): every baked opening marker, three rays from outside through each opening, forced-open working door leaves. A room part can expose `Dev.IInteriorAuditSource` to identify its real room geometry. Missing room data fails the check, and triangle probes are marked diagnostic. |
+
+The main-frame timer spans the first physics/process signal to `RenderingServer.FramePostDraw`, including
+renderer submission and excluding the frame limiter. It is an elapsed-time bracket, not a CPU profiler or a GPU
+finish fence. The wall-frame numbers record the entire interval between frames. Reports keep the browser's
+`at`, `gpu`, `budget`, `rows` and per-place `liveMean`, `liveP95`, `stillMean`, `turnMean`, `turnP95`, `calls`, `ok`;
+browser-only render-pass breakdowns are not invented.
+
+For a manual test on a fresh save of your own, use `--no-ai --port 8980 --db <absolute test.sqlite> --dev
+--no-mainmenu`. F9 opens a one-line console. `--dev-command` runs the same semicolon-separated commands at start:
+
+```text
+hour 13.5 clear; go vismarkt; summon fishwife
+weather rain; go -118 36; clear
+job {"type":"carry","items":2,"from":"pier_head","to":"crane_foot","goods":"crates"}
+skip 10
+```
+
+`hour` and `weather` call `/api/dev/set`, `job` calls `/api/dev/job` and takes it through the normal jobs part,
+and `skip` calls `/api/dev/advance`. `go` places Jef on nearby free physical ground; `summon` brings an existing
+resident onto the crowd grid, facing Jef; `clear` releases summoned residents. The checks set midday/clear and
+full needs before running. Each report lists its limitations under `notCovered`; a passing report does not cover
+unported features. In particular, the fallback clock check proves motion, not correct hand angles. The interior
+fallback cannot certify room floors, containment, seams, shader-only cutouts, or an unnamed pane of glass.
+
 ## How it is built
 - **The baked town** (`src/World/BakedWorld.cs`). The browser game builds its world in code (67,000 lines). The bake
   runs that code and writes the scene it made: every node with its name and place, hidden ones marked, the copies
@@ -56,8 +112,21 @@ picture as it was (720 lines, wobble on) whatever the player's settings say.
   two colours, the sun's way, the rain, the wet, the puddles: `Daylight.I.SetTime(hour)`, `SetWeather(name)`; the
   other parts read `Hour`, `Night`, `LampsLit`, `FogColor` ...); `Sky.cs` the cloud dome; `Lights.cs` the gas lamps,
   the lit windows and their light on the street (no Godot light: the nearest 48 sources go to every lit psx material
-  as a list, `Psx.SetSpill`; the six lamps whose glow hangs in the fog, `Psx.SetLamps`); `Rain.cs` the rain. A part
-  that brings a real Godot light (Jef's lantern, a room's lamps) just adds it: the psx material takes it in `light()`.
+  as a list, `Psx.SetSpill`; the six lamps whose glow hangs in the fog, `Psx.SetLamps`; past the 48 the ground pools
+  and the far glow, `Lights.Far.cs`; the lamplighter's word, `Lights.I.SetLampLit("d12", true)`); `Rain.cs` the rain
+  (none under a roof) and `RainSheets.cs` the great storm's far rain; the great storm itself
+  `Daylight.I.SetStorm(0..1)` (world/tempest.ts's look: the air, the rain, the river, the clouds, the trees' lean).
+  A part that brings a real Godot light (Jef's lantern, a room's lamps) just adds it: the psx material takes it in
+  `light()`.
+- **Water, mirrors, rooms** (`src/World/`): `Waters.cs` the river's sheet at the tide, the docks and the lock at
+  theirs; `Mirrors.cs` the river's and the puddles' mirror (the pond's in the park); `Rooms.cs` every room inside its
+  shell, lit by its own hours (asked of the server every 15 s; `Rooms.I.SetOpen(id, open)` for a part that knows
+  sooner), its glass and its door's transom by the hour.
+- **The town's look and life in the air** (`src/Render/Grime.cs`, `src/World/`): the houses' wall pictures, grime,
+  wall bumps and grime decals; the bump maps; `Trees.cs` the falling leaves (the sway and the gale are the psx
+  material's); `Fires.cs` the open fires (`Fires.I.Create(spots, smoke)` for a burning house); `ChimneySmoke.cs`;
+  `Mist.cs` the river mist; `Blobs.cs` the soft shadows under walkers and carts (`Blobs.I.Set("people", spots)`, a
+  part's spots once a frame).
 - **The screen** (`src/Main.cs`, `shaders/retro.gdshader`): the world is drawn at 720 lines into `Main.I.View`,
   then full screen through the retro pass (grade, grain, dither).
 - **What is solid** (`src/World/Solid.cs`): Jef walks on Godot's physics (Jolt) over the baked meshes themselves.
@@ -172,6 +241,18 @@ picture as it was (720 lines, wobble on) whatever the player's settings say.
   the sepia filter, lines with a number badge and keys in a keys line that can be clicked. The player's part reads
   `Dialogs.I.Any` (Jef stands still, and the game still plays); the menus' part sets `KeyLabel` and `Remap`
   (changeable keys) and asks `Escapable` before Esc opens the menu.
+- **Jobs and the day by hand** (`src/Play/`, from `game/jobs.ts`, `goods.ts`, `runs.ts`, `day.ts`,
+  `sleep.ts` and the trouble card in `ideas.ts`): the prompt registry (`Interact.I.Add`), automatic doors,
+  carry/watch/deliver jobs, the job board, task card and quest book on the shared paper kit. E talks to a
+  townsperson; the talk and press offer work through `Jobs.I.TakeJob`. The map gets the followed job's marks
+  and way. `MainMenu.WorldReplaced` restores the run and goods. Pockets belong to `Talk/Pockets.cs`; bought
+  drinks are taken at the counter, as the server decides. Sleep has a chooser; rent, needs, collapse and
+  the week's end follow the server. `Day.I.AddBench` and `WakeHome` serve the places' parts; `Jobs.I.Sfx`
+  serves sound. The trouble speaker's walk-up uses `Trouble.I.Present` / `Show(view)` when before Jef.
+  Run `-- --jobtest <dir> --no-ai --port 8965 --db <dir>/test.sqlite` against a fresh test database,
+  with `--town` and `--models` pointing at the shared bake. It writes pictures, server replies and
+  `jobtest.json`, then quits (1 on failure). `--jobonly prompt,door,carry,deliver,watch,trouble,day` narrows it;
+  trouble is exercised during watch. Results and remaining work: [jobs report](../docs/godot-jobs.md).
 - **The windows with people and things** (`src/Talk/`, from `game/talk.ts`, `pockets.ts`, `bubbles.ts`, `press.ts`,
   the bill and notebook of `ideas.ts`, the dice of `interiors.ts`). Other parts open them:
   `Talk.I.Open(id, name, title)` (E at someone; `shopOnly: true` for F at a seller), `Shop.I.Open(shopId)`,
@@ -229,3 +310,59 @@ picture as it was (720 lines, wobble on) whatever the player's settings say.
   is 16.7 ms a frame on PCX with everything on.
 - Comments say what the code is for, in the plain English of the rest of the repo; name the TypeScript file a part
   comes from.
+
+## Together (net part, round two)
+
+The handbill's Together paper hosts a game for the house, shows the address and code, joins another host,
+and lets a guest go home. Each PC needs the Godot download; no models are fetched from the host.
+The first join needs the address and code; a remembered guest token lets later visits use the address alone.
+`Together.I.Host()`, `Join(address, code, name)` and `Leave()` are the other parts' public calls.
+A code alone passed to `Join(code)` applies to the server this game already knows; it cannot locate another PC.
+
+Test with the console program (all paths after `--`):
+
+```
+-- --town D:/Code/MoodyGame-godot/godot/baked/town.glb --models D:/Code/MoodyGame-godot/godot/baked/models --no-ai --port 8974 --mptest <absolute-output-dir>
+```
+
+It starts a Godot host and a second Godot guest, walks both by `Jef.SetKey`, checks the pause and separate
+player state, saves `mp_host.png`, `mp_guest.png` and `mptest.json`, returns the guest to its own game, and
+quits both. The databases and test token are disposable and deleted; no existing player save is opened.
+The guest's own server after leaving starts at port 8967 (or the next free port).
+`--host` and `--join <address> --seat 2 [--code CODE --name Anna]` also work outside the test.
+
+The menu check is `--togethertest <dir> --db <fresh-test.sqlite> --prefs <dir>/settings.json --port 8980 --no-ai`.
+It checks the handbill, join fields, hosting, no pause together and all three remote gear models.
+Details, measurements and remaining hooks: [net part handoff](../docs/godot-net.md).
+## Make a player download
+
+Use Node 24, .NET 8 and Godot 4.7.2 Mono with its export templates installed. Work from this checkout:
+
+```powershell
+node tools/godot/package.mjs --baked <shared-bake-folder> --godot <Godot-console-exe>
+```
+
+The bake folder holds `town.glb`, `town.json`, `town_tex/`, `town_lights.json`, `town_walk.json`, `town_walk.bin`
+and decoded `models/`. The script never bakes. `--baked` defaults to `godot/baked`; `--godot` defaults to `GODOT`,
+then the WinGet Mono console program on Windows, then `godot` on other systems. It exports, compiles the existing
+server to JavaScript, installs production packages and bundles the same Node that installed SQLite. It writes a
+zip and a component size report under ignored `godot/dist/` (`--out <folder>` changes that; `--version <name>`
+names it). Run on Windows x64, Linux x64 or Apple silicon macOS so native packages match the bundled Node.
+
+A player unzips the whole folder and double clicks `Scheldemist.exe` on Windows, opens `Scheldemist.app` on macOS,
+or runs `Scheldemist` on Linux. No Godot, .NET or Node install is needed. Keep its companion folders together.
+The server starts and stops with the game. Saves, slots, settings, keys, map preferences, AI setup and server logs
+live in the player's own Scheldemist user folder (`%APPDATA%/Scheldemist` on Windows), never beside the executable.
+`Paths.cs` resolves source, exported and user files. `--town`, `--models`, `--city`, `--db`, `--prefs` and `--port`
+still work; `SCHELDEMIST_USER_DATA=<folder>` isolates all game-owned writable files for a check. Godot's own
+engine log uses `user://logs/godot.log`; its native `--log-file <file>` option isolates that too.
+
+Windows packaging and a real unpacked launch, server, save and menu check passed on this PC. The zip is about
+383 MB, 1.14 GB unpacked; the bake and models take most of it. Linux and macOS game exports passed, but full
+player packages and launches still need checks on those systems. The Mac preset uses the universal template;
+its package's Node is Apple silicon. Proof and repeatable commands: `docs/godot-download-check.md`.
+
+The download has no browser client, multiplayer download helper, AI software, logins or keys. Sound files are
+included; the G5 sound code and other G3/G4/G6 game parts arrive when their worktrees merge. This is the current
+port, not yet the full browser game. The draft `.github/workflows/godot-release.yml` builds zip artifacts on `v*`
+tags, with an agreed shared bake supplied by URL and SHA-256; it does not bake or publish a Release.

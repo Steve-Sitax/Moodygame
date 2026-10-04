@@ -98,7 +98,7 @@ public partial class Loading : Control
 
     public override void _Ready()
     {
-        pic = Kit.Picture("res://ui/loading.jpg");
+        pic = Kit.Picture(Paths.LoadingPicture);
         Build();
         GetViewport().SizeChanged += Build;
         tipAt = (int)(GD.Randi() % (uint)Tips.Length);

@@ -46,8 +46,7 @@ public static class ModelLibrary
     {
         get
         {
-            string d = Main.I?.Arg("models", "") ?? "";
-            return d != "" ? d : ProjectSettings.GlobalizePath("res://baked/models");
+            return Paths.Models;
         }
     }
 

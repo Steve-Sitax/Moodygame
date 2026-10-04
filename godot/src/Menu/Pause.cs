@@ -26,9 +26,27 @@ public static class Pause
     public static bool Has(string reason) => reasons.Contains(reason);
     public static IReadOnlyList<string> Reasons => reasons.ToList();
 
+    private static bool together;
+    /// <summary>
+    /// Played together (the Together part says so through the link): the menu and P do not pause, the town runs on
+    /// for the others; only the host's "Pause all" (the reason "host") stops everyone.
+    /// </summary>
+    public static bool Together
+    {
+        get => together;
+        set
+        {
+            together = value;
+            if (!value) return;
+            Set("menu", false);
+            Set("key", false);
+        }
+    }
+
     /// <summary>Add or take away one reason to be paused; the game plays when there is none.</summary>
     public static void Set(string reason, bool on)
     {
+        if (together && on && reason is "menu" or "key") return;
         bool was = Paused;
         if (on) reasons.Add(reason);
         else reasons.Remove(reason);
@@ -39,16 +57,22 @@ public static class Pause
         Changed?.Invoke(now);
     }
 
-    private static bool told;
+    private static bool? told;
+    private static bool telling;
     /// <summary>The server hears the pause; a call that fails is sent again by Resend (the menu's part, every few seconds).</summary>
     private static void Tell(bool on)
     {
         var api = ServerLink.I?.Api;
-        if (api == null) return;
-        api.Run(api.SetPause(on), _ => told = on, _ => { });
+        if (api == null || telling) return;
+        telling = true;
+        api.Run(api.SetPause(on), _ => { told = on; telling = false; Resend(); }, _ => telling = false);
     }
 
     /// <summary>The server may have missed it (it was away, it started again): say it again when it differs.</summary>
+    public static void ForgetServer() { told = null; telling = false; }
+
+    public static void Reconnected() { told = null; Resend(); }
+
     public static void Resend()
     {
         if (told != Paused) Tell(Paused);

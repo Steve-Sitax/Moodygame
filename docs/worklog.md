@@ -1,12 +1,54 @@
 # Work log
 
+## Godot milestone checks, 2026-10-04
+
+G8 on `godot/checks`: the HUD arrow clears the cards; the server-backed development kit, baked-map paths,
+crowd stalls/contacts, material kinds and lights, five-place frame budget, marked clocks and room-opening
+checks run through `tools/godot/checks.mjs`. Fresh seed-1873 test towns only, own ports, no AI, no bake.
+Dev 4/4, shader problems 0, performance walking means 1.32–2.14 ms. Gates still fail: 295/8,747 path targets,
+six crowd oscillation findings, zero overlaps, 56 solid contacts; clocks 0/14 moving; no registered live rooms (1,461
+opening probes are diagnostic). Findings handed off as issues
+[#43](https://github.com/Steve-Sitax/Moodygame/issues/43),
+[#44](https://github.com/Steve-Sitax/Moodygame/issues/44),
+[#45](https://github.com/Steve-Sitax/Moodygame/issues/45) and
+[#46](https://github.com/Steve-Sitax/Moodygame/issues/46).
+Build/import and pre-commit checks pass; all 22 local pictures inspected. Full numbers, coverage limits
+and shared-file audit: [G8 report](godot-G8-checks.md).
+
+## Godot jobs restart, 2026-10-04
+
+Finished the interrupted jobs/day tie-ins on `godot/jobs`, with `godot-port` merged through `11c2ca5`.
+The board, task card, quest book, sleep chooser, night sheet and trouble card use the shared paper/windows.
+Talk/press offer work; map marks and the way follow the job; replacement restores the run and goods.
+The decoded models fit the browser's goods dimensions and survive a reset. The server decides drinks
+at the counter, needs, rent, sleep, trouble choices, pay and trust.
+
+The full test passed 17 steps, 35 pictures and 11 goods replies: carry 90 c, delivery 100 c,
+watch plus the tarpaulin errand 90 c, +1 trust each; 150 c rent; 240 minutes slept. Both crates were walked
+all the way. Midday clear Vismarkt: 2.95 ms mean, 4.28 ms p95. A later payment-note layering check passed
+7 steps with 14 pictures. All pictures viewed. `dotnet build godot`, headless import and `npm run build` pass.
+The remaining shutdown resource warnings are [issue #40](https://github.com/Steve-Sitax/Moodygame/issues/40).
+Hooks, remaining walk-up/deeds work and shared-file audit: [jobs report](godot-jobs.md).
+
 ## The Godot port, 2026-10-03
+
+2026-10-04, sound restart: merged the current integration branch into `godot/sound` (`a7702eb`), preserved and
+finished the sound wiring (`e31d717`). All 119 sound implementations are present (62 sampled, 57 made). Store,
+rain, Jef, townspeople, bubbles, dice, room filtering and menu volumes are connected without changes to Main,
+Jef or the shared Wiring. Full silent sound test: 156 rows, 61 wiring checks and five layer rows, no mismatches;
+two triggers correctly silent. 474.9 s stereo WAV at 48 kHz. Sound frame mean 0.0255 ms, p99 0.0542 ms; 11
+frames over 0.3 ms, worst 7.205 ms before the first trigger. The strict worst-frame budget is still unproven.
+Game-part producers still to connect: moving traffic, animals, trades/events, exact rooms/puddles and the great
+storm's event level. Details and evidence paths: [godot-port-sound.md](godot-port-sound.md). Built and imported,
+server dependencies installed locally; no new assets, packages, bake, push or merge into the integration branch.
 
 Steve: port the game to Godot against the stutter; everything that works now, an easy start, a simple install. He picked C#. Worktree `MoodyGame-godot`, branch `godot-port`; plan, decisions and the proof in [godot-port.md](godot-port.md). Proof (G0): the scene the browser game builds, exported to one glb and drawn by Godot 4.7.2 at the five perfcheck places: 2.6-2.9 ms a frame with two mirror views, against 18-22 ms of drawing in headless Chrome (28-31 ms whole frame). Pictures looked at. Not in the proof: the game's logic, the per-pixel shader work, the rooms. The server stays in Node; the web demo stays the old Three.js one. Next: G1 (the base: server start, real models, walking).
 
 Steve, same day: "i stated the goal clearly and you stop to ask. Dont stop unless it is needed for important descicions." So the steps go on back to back. G1a done (`7d4bc9a`): the world is baked from the browser's own scene, not ported (every node, hidden ones marked, each material's psx options); Godot loads it, the psx material and the retro screen pass are in; 1.4 ms a frame at the Vismarkt. Five helpers started, each in its own worktree and branch off `godot-port`: `godot/walk` (Jef walks on Godot physics, swims, ladders), `godot/net` (the game starts the Node server, the API client, the game state, the HUD), `godot/sky` (daylight by the clock, sky, the psx material's ground and wall features, lamps, rain), `godot/people` (models without Draco, people drawn and animated, where everyone is by the clock), `godot/sound` (the soundscape). The coordinating session merges them and prepares the download (G7).
 
 2026-10-04: merged into `godot-port` and pushed (`b5872fe`), each checked on the joined game: the server link, the store and the HUD; Jef on Godot physics (walk, swim, ladders, vault; walk test passes); the townspeople (909 residents by the clock, 50 drawn, the server's whereabouts sums in C#, 5,195 of 5,195 answers the same); the town map with ways; daylight, sky, lamps, lit windows, rain and the ground's psx features (2.1 ms a frame at the Vismarkt, day and night pictures beside the browser's); talk, shops, pockets, papers, bubbles, dice (22 test steps, a typed line with a model's reply); menus, settings, saves, the loading screen, pause (67 test steps). A Windows export runs. Six helpers on their second round or still on their first: `godot/sky` (water, mirrors, rooms behind openings), `godot/people` (employers, carried goods, rooms, animals), `godot/net` (play together), `godot/jobs` (prompt, doors, jobs, the day), `godot/movers` (clocks, river, bridges, lock, railway, cranes, streets), `godot/sound`. A session limit stopped them once; they were started again from their worktrees. Still to start: events and the director's scenes, the small windows, one place for every file path, the download (G7), the checks (G8).
+
+2026-10-04, night: the six helpers stopped again (the session limit, then a model switch ended the coordinating session). Restarted from their worktrees as T3 tasks, each told to check its own commits and open files first. Steve: no more Fable; Codex where possible. GPT-6.1 Sol (medium): `godot/jobs`, `godot/movers`, `godot/people`, `godot/net`, `godot/sound`, and new `godot/download` (G7 and one place for every file path, worktree `MoodyGame-godot-download`). Claude Opus 5.5 (medium): `godot/sky` (water, mirrors, rooms, the look). Still to start: events and the director's scenes, the small windows, the checks (G8).
 
 ## People inside each other, 2026-10-03
 
@@ -282,3 +324,9 @@ Earlier batches: the git log before f5291a4 and the milestone notes in `docs/mil
 - Players choose their own AI; Steve's machine keeps typed lines on Claude.
 - Quality: before a building or prop patch goes live, close shots of every changed part and an
   automatic clip/overlap check that lists nothing.
+
+2026-10-04: Godot net restart finished the guest link, smooth player figures and remote gear, Together handbill, and two-process self-test. Solo, day, menu and multiplayer checks pass; zero camera snaps on both players. Browser movement code still joins. Remaining M8 world/people adapters and measurements are in [the net handoff](godot-net.md). No push or merge back.
+
+## 2026-10-04: Godot download check
+
+`godot/download`: centralized disk paths, compiled server with portable Node, Windows zip and real unpacked net/menu tests passed; all 52 targeted AI-setup/save-pause tests passed. Test saves and unpacked folders were removed. Linux and macOS game exports also passed; native download runs remain. Details: `docs/godot-download-check.md`. Shutdown resource warnings seen in source and exported tests are already tracked in [issue #40](https://github.com/Steve-Sitax/Moodygame/issues/40). No bake, push, tag, Release or workflow run.

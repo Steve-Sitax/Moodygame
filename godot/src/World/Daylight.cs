@@ -72,6 +72,8 @@ public partial class Daylight : Node
     public float Rain { get; private set; }
     public float Wet { get; private set; }
     public float Puddle { get; private set; }
+    /// <summary>The sea state (psx uSea): fog 0.85, clear 1.1, rain 1.5, a storm 3.6 and more.</summary>
+    public float Sea => sea;
     /// <summary>The wind (x, z) in m/s-ish (ambient.ts WIND): rain slants with it.</summary>
     public Vector2 Wind { get; private set; }
     /// <summary>The sun's light as three.js has it (colour, intensity), for a part that wants the number.</summary>
@@ -132,6 +134,17 @@ public partial class Daylight : Node
 
     /// <summary>The job twist "thick fog": it closes in whatever the weather (rijnkaai.ts setThickFog).</summary>
     public void SetThickFog(bool on) => fogTarget = on ? 1 : 0;
+
+    private static readonly Color StormAir = Psx.Hex(0x3a444e);
+    private float stormTarget, gale, galeT;
+    /// <summary>The great storm now, 0..1, eased (world/tempest.ts level; it counts on a storm day only).</summary>
+    public float Storm { get; private set; }
+    /// <summary>
+    /// The great storm (the director's event, world/tempest.ts): 0 none .. 1 at its height. The air goes dark, the
+    /// rain never lets up and drives harder, the river runs high and white-capped, the cloud deck races over.
+    /// Not here: the gusts' veils, the bolts, the flying things.
+    /// </summary>
+    public void SetStorm(float level) => stormTarget = Mathf.Clamp(level, 0, 1);
 
     /// <summary>Rain on top of the weather 0-1 (a job twist, or dev).</summary>
     public void SetRain(float amount) => manualRain = Mathf.Clamp(amount, 0, 1);
@@ -207,7 +220,8 @@ public partial class Daylight : Node
 
     private float AutoRain()
     {
-        if (Weather == "storm") return 0.65f + 0.35f * (0.5f + 0.5f * MathF.Sin(Hour * 2.3f) * MathF.Sin(Hour * 0.9f + 1.0f));
+        // a gale: heavy rain in squalls, never quite stopping; the great storm never lets up
+        if (Weather == "storm") return Math.Max(0.65f + 0.35f * (0.5f + 0.5f * MathF.Sin(Hour * 2.3f) * MathF.Sin(Hour * 0.9f + 1.0f)), Storm > 0 ? Math.Min(1, 0.7f + 0.5f * Storm) : 0);
         if (Weather == "rain") return 0.2f + 0.8f * Smooth(0.5f + 0.5f * MathF.Sin(Hour * 1.7f) * MathF.Sin(Hour * 0.63f + 2.0f), 0.3f, 0.75f);
         return 0;
     }
@@ -217,7 +231,9 @@ public partial class Daylight : Node
         bool sunny = Weather == "clear" && Hour > 8 && Hour < 18;
         return Rain > 0.05f ? 0.7f : Weather is "rain" or "storm" ? 0.5f : Weather == "fog" ? 0.34f : Weather == "mist" ? 0.26f : sunny ? 0.1f : 0.12f;
     }
-    private float SeaTarget() => Weather == "storm" ? 3.6f : Weather == "rain" ? 1.5f : Weather == "clear" ? 1.1f : 0.85f;
+    private float SeaTarget() => Weather == "storm" ? 3.6f + 2.6f * Storm : Weather == "rain" ? 1.5f : Weather == "clear" ? 1.1f : 0.85f;
+
+    private static void rs0(string n, float v) => Psx.Set(n, v);
 
     private void Step(float dt)
     {
@@ -228,21 +244,36 @@ public partial class Daylight : Node
         if (MathF.Abs(dh) > 0.001f) Hour = (Hour + dh * Math.Min(1, dt * 0.8f) + 24) % 24;
         ApplyDaylight(Hour);
         fogMix += (fogTarget - fogMix) * Math.Min(1, dt * 0.4f);
+        float st = Weather == "storm" ? stormTarget : 0;
+        Storm = dt <= 0 ? st : Storm + (st - Storm) * Math.Min(1, dt * 0.25f);
+        rs0("psx_storm", Storm);
+        // the trees lean with the gale (main.ts uGale): a storm day a little, the great storm hard and harder in the
+        // gusts (the gusts' fronts of world/alive/wind.ts as one slow swell here)
+        galeT += dt;
+        float gust = Storm > 0 ? 0.3f + 1.5f * Math.Max(0, MathF.Sin(galeT * 0.41f) * MathF.Sin(galeT * 0.17f + 0.7f)) : 0;
+        float bendTo = (Weather == "storm" ? 0.35f : Weather == "rain" ? 0.1f : 0) + Storm * (0.9f + 0.45f * Math.Min(gust, 3));
+        gale = dt <= 0 ? bendTo : gale + (bendTo - gale) * Math.Min(1, dt * 3);
+        var wd = Wind.LengthSquared() > 1e-6f ? Wind.Normalized() : new Vector2(1, 0);
+        Psx.Set("psx_gale", new Vector3(wd.X, wd.Y, gale));
         for (int i = 0; i < 4; i++) wNow[i] += (wTarget[i] - wNow[i]) * Math.Min(1, dt * 0.5f);
 
         // a clear day: the air lighter (by day only); the golden hour: warm air, a low warm sun from the west
         var fog = baseFog.Lerp(ClearSky, wNow[3] * sunDay * 0.6f);
         float gold = GoldenAt(Hour) * wNow[3];
         fog = fog.Lerp(GoldAir, gold * 0.3f);
+        // the great storm: the air goes dark and slate-blue under the black cloud
+        if (Storm > 0) fog = fog.Lerp(StormAir, 0.45f * Storm) * (1 - 0.3f * Storm);
         var sunCol = SunWhite.Lerp(SunGold, gold);
         var skyCol = SkyCold.Lerp(SkyWarm, gold * 0.55f);
         SunDir = SunAt(Hour).Normalized();
         // a clear or misty day: less light from the sky, more from the sun; a fog day keeps its even grey light
         float bright = Mathf.Clamp(wNow[3] / 0.6f, 0, 1);
         SkyIntensity = skyBase * (1 - 0.28f * sunDay * bright);
-        SunIntensity = sunDay * (1.35f - wNow[2]) * 2.6f * (1 + 0.8f * gold) * (1 + 0.25f * bright);
-        FogNear = Mathf.Lerp(3 * wNow[0], 1.5f, fogMix);
-        FogFar = Mathf.Lerp(dayFar * wNow[1], 11, fogMix);
+        SunIntensity = sunDay * (1.35f - wNow[2]) * 2.6f * (1 + 0.8f * gold) * (1 + 0.25f * bright) * (1 - 0.7f * Storm);
+        // (the settings' view distance; the great storm's rain in sheets closes the far end in to about two thirds)
+        float viewFar = Menu.Tuning.ViewFar;
+        FogNear = Mathf.Lerp(3 * wNow[0] * viewFar, 1.5f, fogMix) * (1 - 0.45f * Storm);
+        FogFar = Mathf.Lerp(dayFar * wNow[1] * viewFar, 11, fogMix) * (1 - 0.32f * Storm);
         FogColor = fog;
 
         // the rain, the wet ground and the puddles (ambient.ts)

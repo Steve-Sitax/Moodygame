@@ -533,3 +533,11 @@ Original OpenAI image-generation outputs, made with the built-in imagegen tool f
 | `concepts/stadspark/foliage-source.png` | Eight transparent foliage/flower clusters, packed into 64-pixel cells by `tools/textures/stadspark_atlas.py`, embedded in `park_plants.glb` | `9b1154d8392e95095410d9f3fc09b63700fee5b9de612fa0fdaf21e4ccbf0f90` |
 
 `park_animals.glb` is original low-poly geometry with vertex colours, authored in `tools/blender/build_park_animals.py`. No downloaded models or new dependencies.
+
+## Godot download runtimes
+
+The Godot download also ships Godot 4.7.2 (MIT, with its third-party notices in `GODOT-COPYRIGHT.txt`), the
+self-contained .NET 8 runtime (MIT, `DOTNET-LICENSE.txt`) and Node.js 24 (MIT and bundled third-party notices,
+`runtime/LICENSE.txt`). Sources: https://godotengine.org/license/, https://github.com/dotnet/runtime and
+https://nodejs.org/. Existing server dependencies retain their licence files in production `node_modules`.
+The download adds no new npm dependencies.

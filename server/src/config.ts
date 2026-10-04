@@ -6,14 +6,15 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 
 export const ROOT = path.resolve(here, "..", "..");
 /** The save. SCHELDEMIST_DB points a second server at a test save (M3e checks), never at the real one by accident. */
-export const DB_FILE = process.env.SCHELDEMIST_DB ? path.resolve(process.env.SCHELDEMIST_DB) : path.join(ROOT, "data", "game.sqlite");
+export const DATA_DIR = process.env.SCHELDEMIST_DATA ? path.resolve(process.env.SCHELDEMIST_DATA) : path.join(ROOT, "data");
+export const DB_FILE = process.env.SCHELDEMIST_DB ? path.resolve(process.env.SCHELDEMIST_DB) : path.join(DATA_DIR, "game.sqlite");
 /**
  * The game's own files the server reads too (the walk map, park.json, wall.glb): client/public in a checkout.
  * The player's download has only the build (tools/package.mjs), where vite copied them under the same names.
  */
 export const PUBLIC_DIR = fs.existsSync(path.join(ROOT, "client", "public")) ? path.join(ROOT, "client", "public") : path.join(ROOT, "client", "dist");
 /** Empty folder the Claude subprocess runs in. Nothing of ours is in it. */
-export const AI_CWD = path.join(ROOT, "data", "ai-cwd");
+export const AI_CWD = path.join(DATA_DIR, "ai-cwd");
 
 export const HOST = "127.0.0.1"; // localhost only; M8a "Open to the house" adds the home-network addresses beside it (mp/lan.ts)
 export const PORT = Number(process.env.SCHELDEMIST_PORT) || 8787;
@@ -158,7 +159,7 @@ export const CODEX_PLAYER_TEXT = false;
 export const CODEX = {
   model: MODELS.sol.model,
   effort: MODELS.sol.effort,
-  cwd: path.join(ROOT, "data", "ai-cwd-codex"),
+  cwd: path.join(DATA_DIR, "ai-cwd-codex"),
 } as const;
 
 /**

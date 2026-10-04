@@ -32,8 +32,8 @@ public partial class BakedWorld : Node3D
     public Error Load(string glbPath)
     {
         ulong t0 = Time.GetTicksMsec();
-        Facts = JsonDocument.Parse(File.ReadAllText(Path.ChangeExtension(glbPath, ".json")));
-        texDir = Path.Combine(Path.GetDirectoryName(glbPath) ?? ".", Path.GetFileNameWithoutExtension(glbPath) + "_tex");
+        Facts = JsonDocument.Parse(File.ReadAllText(Paths.TownFacts(glbPath)));
+        texDir = Paths.TownTextures(glbPath);
         Stage = "read";
         gltf = ReadJsonChunk(glbPath);
         Psx.LoadShared(texDir); // the sky map and the dirt map every psx material reads
@@ -213,6 +213,7 @@ public partial class BakedWorld : Node3D
     /// <summary>The psx material of a glTF material with these switches: the baked town's, and the models a part loads itself (Models/ModelLibrary.cs).</summary>
     public static ShaderMaterial PsxMaterial(BaseMaterial3D bm, Psx.Kind kind, double affine = 1, double fogReach = 1, double alphaTest = 0, float? opacity = null)
     {
+        if (bm.ResourceName == "cap") return Psx.Cap(); // (a hull's water cap: draws nothing, keeps the water out of the boat)
         var m = new ShaderMaterial { Shader = Psx.ShaderOf(kind), ResourceName = bm.ResourceName };
         var albedo = bm.AlbedoColor;
         if (opacity != null) albedo.A = opacity.Value;

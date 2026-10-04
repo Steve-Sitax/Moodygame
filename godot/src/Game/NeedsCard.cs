@@ -12,8 +12,12 @@ public partial class NeedsCard : Control
 {
     public static readonly Color Ink = new("2c2721"); // #2a2420 through the browser's sepia(0.3)
     private static readonly Color Low = new("78291c"); // #8a1c10, the same way
+    private static readonly Color LowSafe = new("9b4d18"); // #b34700: colour-safe markers (the menu's Accessibility)
     private float s = 1;
     private double food = 10, warmth = 10, sleep = 10, health = 10;
+
+    public override void _EnterTree() => Access.Changed += QueueRedraw;
+    public override void _ExitTree() => Access.Changed -= QueueRedraw;
 
     public void SetUi(float scale)
     {
@@ -47,8 +51,10 @@ public partial class NeedsCard : Control
         {
             float y = 12 + r * 22;
             DrawSetTransform(Vector2.Zero, 0, Vector2.One);
-            var col = rows[r].V <= 2 ? Low : Ink;
-            DrawString(font, new Vector2(4 * s, y * s + mid), rows[r].Label, HorizontalAlignment.Left, -1, size, col);
+            // colour-safe: a low need in orange with a mark, not red alone
+            bool safe = Access.ColourSafe;
+            var col = rows[r].V <= 2 ? (safe ? LowSafe : Low) : Ink;
+            DrawString(font, new Vector2(4 * s, y * s + mid), rows[r].V <= 2 && safe ? rows[r].Label + " !" : rows[r].Label, HorizontalAlignment.Left, -1, size, col);
             DrawSetTransform(Vector2.Zero, 0, new Vector2(s, s));
             var pen = new Pen(this, col) { LineWidth = 1.3f };
             for (int i = 0; i < 5; i++)
