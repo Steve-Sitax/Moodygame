@@ -203,8 +203,7 @@ public partial class Townspeople : Node
             GD.PrintErr("townspeople: " + Status);
             return;
         }
-        string townGlb = main.Arg("town", OS.GetEnvironment("SCHELDEMIST_BAKE") is { Length: > 0 } b ? b : ProjectSettings.GlobalizePath("res://baked/town.glb"));
-        string[] tries = { main.Arg("walk", ""), Path.Combine(Path.GetDirectoryName(townGlb) ?? ".", Path.GetFileNameWithoutExtension(townGlb) + "_walk.json"), ProjectSettings.GlobalizePath("res://baked/town_walk.json") };
+        string[] tries = { main.Arg("walk", ""), Paths.TownSide("_walk.json"), Path.Combine(Paths.Baked, "town_walk.json") };
         foreach (var t in tries)
         {
             if (t == "" || (Walk = WalkMap.Load(t)) == null) continue;

@@ -11,7 +11,7 @@ namespace Scheldemist.Dev;
 /// Test pictures from chosen views, hours and weathers in one run (docs/testing.md: a good view, midday and clear
 /// unless the dark or the fog is what is tested):
 ///   -- --snap dir --views "day:-118,1.62,36,180,0,13,clear;night:-118,1.62,36,180,10,22,mist"
-/// Each view: name:x,y,z,yaw,pitch[,hour,weather] (degrees; yaw 0 looks to -z, 180 to +z; pitch up). A view with no
+/// Each view: name:x,y,z,yaw,pitch[,hour,weather,storm] (degrees; storm: the great storm's level 0..1; yaw 0 looks to -z, 180 to +z; pitch up). A view with no
 /// place ("name:,,,,,21,rain") keeps the camera of the bake's first place. Writes dir/name.png and prints the mean
 /// frame time there, then quits.
 /// </summary>
@@ -27,7 +27,7 @@ public partial class Snap : Node
 
     public override void _Ready()
     {
-        dir = Main.I.Arg("snap");
+        dir = Paths.TestOutput("snap");
         string v = Main.I.Arg("views");
         if (dir == "" || v == "")
         {
@@ -40,6 +40,8 @@ public partial class Snap : Node
             int c = one.IndexOf(':');
             views.Add(new[] { one[..c] }.Concat(one[(c + 1)..].Split(',')).ToArray());
         }
+        // (the pictures are taken from the free camera: Jef gives it up)
+        if (Player.Jef.I is { Fly: false } jef) jef.ToggleFly();
         DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled);
         Engine.MaxFps = 0;
         ProcessPriority = -100;
@@ -55,6 +57,22 @@ public partial class Snap : Node
         times.Clear();
         if (view >= views.Count)
         {
+            // (dev: --whatis x,y,z lists the drawn meshes whose box holds that point, small ones first)
+            if (Main.I.Arg("whatis") is { Length: > 0 } wi)
+            {
+                var q = wi.Split(',').Select(F).ToArray();
+                var pt = new Vector3(q[0], q[1], q[2]);
+                var hits = new List<(float, string)>();
+                foreach (var nd in BakedWorld.All(Main.I.View))
+                    if (nd is GeometryInstance3D gi && gi.IsVisibleInTree() && (gi.GlobalTransform * gi.GetAabb()).Grow(0.05f).HasPoint(pt))
+                    {
+                        var mat = (gi as MeshInstance3D)?.Mesh?.SurfaceGetMaterial(0) as ShaderMaterial;
+                        hits.Add(((gi.GlobalTransform * gi.GetAabb()).Size.Length(), $"{gi.GetPath().ToString().Split('/').TakeLast(3).Aggregate((x, y) => x + "/" + y)} mat {mat?.ResourceName} kind {(mat != null ? Render.Psx.KindOf(mat.Shader)?.ToString() : "")}"));
+                    }
+                foreach (var (size, what) in hits.OrderBy(h => h.Item1).Take(12)) GD.Print($"whatis {size:0.0} {what}".Substring(0, Math.Min(300, $"whatis {size:0.0} {what}".Length)));
+            }
+            // (what the bake still hides as not ported)
+            System.IO.File.WriteAllLines(System.IO.Path.Combine(dir, "unported.txt"), Main.I.World.Unported.Distinct());
             GetTree().Quit();
             SetProcess(false);
             return;
@@ -68,8 +86,13 @@ public partial class Snap : Node
             if (cam is Player.FlyCam fly) fly.Face(q);
             else cam.Quaternion = q;
         }
-        if (a.Length > 6 && a[6] != "") Daylight.I.SetTime(F(a[6]));
+        if (a.Length > 6 && a[6] != "")
+        {
+            Daylight.I.SetTime(F(a[6]));
+            Tide.Set(1, F(a[6])); // (Monday's tide at that hour)
+        }
         if (a.Length > 7 && a[7] != "") Daylight.I.SetWeather(a[7]);
+        Daylight.I.SetStorm(a.Length > 8 && a[8] != "" ? F(a[8]) : 0);
         Daylight.I.Settle();
     }
 
@@ -80,7 +103,8 @@ public partial class Snap : Node
         if (frame > Wait) times.Add((now - last) / 1000.0);
         last = now;
         frame++;
-        if (frame < Wait + Timed) return;
+        // (the first view waits for the loading screen to go)
+        if (frame < Wait + Timed + (view == 0 ? 240 : 0)) return;
         string name = views[view][0];
         Main.I.GetViewport().GetTexture().GetImage().SavePng(System.IO.Path.Combine(dir, name + ".png"));
         times.Sort();

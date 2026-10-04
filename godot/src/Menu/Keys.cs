@@ -60,8 +60,7 @@ public static class Keys
     {
         get
         {
-            string other = Main.I?.Arg("prefs") ?? "";
-            return other != "" ? Path.ChangeExtension(Path.GetFullPath(other), ".keys.json") : ProjectSettings.GlobalizePath("user://keys.json");
+            return Paths.Keys;
         }
     }
 

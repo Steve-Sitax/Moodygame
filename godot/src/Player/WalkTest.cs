@@ -50,7 +50,7 @@ public partial class WalkTest : Node
 
     public override void _Ready()
     {
-        dir = Main.I.Arg("walktest");
+        dir = Paths.TestOutput("walktest");
         if (dir == "")
         {
             SetProcess(false);

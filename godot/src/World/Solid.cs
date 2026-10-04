@@ -67,6 +67,12 @@ public partial class Solid : Node
     /// <summary>Copies (the browser's InstancedMesh): only the tree trunks and the stacked goods are solid.</summary>
     private static readonly Regex SolidCopies = new("^inst\\d+_(tree[a-z]*bark|goods[a-z]*)_mm$", RegexOptions.Compiled);
 
+    /// <summary>
+    /// What a part moves and makes solid itself (a door's leaf, goods that are lifted): a part adds a test here in
+    /// its constructor (every part is made before the first is added), and such a node and all under it get no wall.
+    /// </summary>
+    public static readonly List<Func<Node, bool>> Leave = new();
+
     public override void _Ready()
     {
         I = this;
@@ -110,6 +116,7 @@ public partial class Solid : Node
             if (people.Contains(n)) { skipped = true; note("people"); }
             else if (n.HasMeta("mover")) { skipped = true; note("movers"); } // a mover's own (src/Movers): it brings a body that moves
             else if (SkipGroups.Contains(plain) || SkipPrefix.IsMatch(name)) { skipped = true; note("group " + plain); }
+            else if (Leave.Exists(f => f(n))) { skipped = true; note("a part's own"); }
             else if (n is Node3D { Visible: false }) { skipped = true; note("hidden"); }
             else if (DrawnOver(n))
             {

@@ -154,6 +154,7 @@ void fragment() {
         var target = Deck(day.Weather);
         float k = first ? 1 : Math.Min(1, dt * 0.3f);
         first = false;
+        target.speed *= 1 + 1.6f * day.Storm; // the great storm: the deck races over
         cur = (cur.cover + (target.cover - cur.cover) * k, cur.dark + (target.dark - cur.dark) * k, cur.speed + (target.speed - cur.speed) * k);
         // the smoke's wind (ambient.ts): the same slow veer, so the clouds and the plumes go the same way
         float wa = 0.35f + MathF.Sin(t * 0.013f) * 0.25f;

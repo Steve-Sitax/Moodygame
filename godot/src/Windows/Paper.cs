@@ -55,7 +55,7 @@ public static class PaperFonts
 
     private static Font Load(string file)
     {
-        string path = "res://fonts/" + file;
+        string path = Paths.Font(file);
         if (ResourceLoader.Exists(path) && GD.Load<Font>(path) is { } f) return f;
         var raw = new FontFile();
         if (raw.LoadDynamicFont(ProjectSettings.GlobalizePath(path)) == Error.Ok) return raw;

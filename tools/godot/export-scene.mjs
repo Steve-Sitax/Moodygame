@@ -11,7 +11,7 @@
 // map), <out>_lights.json (the lamps, the lit windows and their light on the street). The stack is stopped and its save deleted at the end.
 
 import { spawn, execFileSync } from "node:child_process";
-import { copyFileSync, createWriteStream, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, createWriteStream, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
@@ -160,6 +160,31 @@ const EXPORT = `(() => {
     const { GLTFExporter } = await import("/node_modules/three/examples/jsm/exporters/GLTFExporter.js");
     const s = __scheldemist, scene = s.world.scene;
     scene.updateMatrixWorld(true);
+    // The rooms (world/inworld.ts): in the browser each inside is a scene of its own, drawn over the street through
+    // its openings. In Godot they stand in the same world, inside their shells: each room's scene goes into the export
+    // as a group "ROOM_<id>", with what its scene had of its own in the extras (its lights, its air, its openings).
+    const Object3D = Object.getPrototypeOf(scene.constructor);
+    const rooms = (s.retro && s.retro.inWorld && s.retro.inWorld.all) || [];
+    window.__roomLights = (root) => {
+      const out = [];
+      root.traverse((o) => { if (o.isLight) out.push({ type: o.type, color: o.color.getHex(), ground: o.groundColor ? o.groundColor.getHex() : null, intensity: o.intensity, distance: o.distance ?? null, decay: o.decay ?? null, pos: o.getWorldPosition(o.position.clone()).toArray().map((v) => Math.round(v * 1000) / 1000) }); });
+      return out;
+    };
+    for (const r of rooms) {
+      const g = new Object3D();
+      g.name = "ROOM_" + r.id;
+      const f = r.scene.fog;
+      g.userData.room = {
+        id: r.id, reach: r.reach, budgeted: !!r.budgeted,
+        fog: f ? { color: f.color.getHex(), near: f.near, far: f.far } : null,
+        lights: window.__roomLights(r.scene),
+        openings: r.openings.map((o) => ({ kind: o.kind, label: o.label, open: !!o.open(), centre: o.centre.toArray(), out: o.out.toArray(), box: [...o.box.min.toArray(), ...o.box.max.toArray()] })),
+      };
+      r.scene.updateMatrixWorld(true);
+      while (r.scene.children.length) g.add(r.scene.children[0]);
+      scene.add(g);
+    }
+    scene.updateMatrixWorld(true);
     // every InstancedMesh: one mesh in the glb, its copies in the json (Godot makes a MultiMesh of them).
     // What three knows and glTF does not goes into userData (glTF extras): hidden nodes, the material's kind and
     // switches, the psx options (retro/psx.ts bake). The houses' atlas cell rides as the second uv.
@@ -174,6 +199,42 @@ const EXPORT = `(() => {
         for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m) mats.add(m);
         const g = o.geometry;
         if (g && g.attributes.cell && !g.attributes.uv1) g.setAttribute("uv1", g.attributes.cell);
+        // the open fires (world/fire.ts): their ShaderMaterials are left out; the fire group says where its fires burn,
+        // in its own frame, how big each is and how much smoke (Godot draws them: World/Fires.cs)
+        if (o.isPoints && g && g.attributes.aSize && g.attributes.aSeed && o.parent && o.parent.name === "fires" && !o.parent.userData.fire) {
+          const p = g.attributes.position, sz = g.attributes.aSize, spots = [];
+          for (let i = 0; i < p.count; i++)
+            if (i === 0 || p.getX(i) !== p.getX(i - 1) || p.getY(i) !== p.getY(i - 1) || p.getZ(i) !== p.getZ(i - 1))
+              spots.push([p.getX(i), p.getY(i), p.getZ(i), sz.getX(i)].map((v) => Math.round(v * 1000) / 1000));
+          o.parent.userData.fire = { spots, smoke: Math.round(p.count / Math.max(1, spots.length)) - 50 };
+        }
+        // (the house's wall picture and paint, world/houseGrime.ts gmat: the third uv, Godot's CUSTOM0)
+        if (g && g.attributes.gmat && !g.attributes.uv2) g.setAttribute("uv2", g.attributes.gmat);
+        // (the park's plants, one mesh in world space: each vertex's plant foot, world/trees3d.ts aTreeAt: x z in the
+        // third uv, y in the fourth: Godot's CUSTOM0)
+        if (g && g.attributes.aTreeAt && !g.attributes.uv2) {
+          const a = g.attributes.aTreeAt, n = a.count, xz = new Float32Array(n * 2), y = new Float32Array(n * 2);
+          for (let i = 0; i < n; i++) (xz[i * 2] = a.getX(i)), (xz[i * 2 + 1] = a.getZ(i)), (y[i * 2] = a.getY(i));
+          g.setAttribute("uv2", new a.constructor(xz, 2));
+          g.setAttribute("uv3", new a.constructor(y, 2));
+        }
+        // the grime decals' ShaderMaterial (houseGrime.ts grimeDecalMaterial) would be left out: a plain material in
+        // its place, marked, with its picture (Godot draws it with the psx decal shader)
+        const dm = o.material;
+        if (dm && dm.isShaderMaterial && dm.uniforms && dm.uniforms.map && /attribute vec2 cell/.test(dm.vertexShader || "")) {
+          if (!window.__decalMat) {
+            let Basic = null;
+            scene.traverse((q) => { if (!Basic && q.material && q.material.isMeshBasicMaterial) Basic = q.material.constructor; });
+            const t = dm.uniforms.map.value;
+            const b = new Basic({ transparent: true, depthWrite: false, side: 2, vertexColors: true });
+            b.name = "grime_decal";
+            s.psxBakeTextures.set(t.uuid, t);
+            b.userData.psx = { bake: { grimeDecal: { cells: 4, map: { tex: t.uuid } } } };
+            window.__decalMat = b;
+          }
+          o.material = window.__decalMat;
+          mats.add(o.material);
+        }
       }
       if (o.isSkinnedMesh) skinned++;
       if (o.isInstancedMesh) {
@@ -182,11 +243,27 @@ const EXPORT = `(() => {
         if (o.instanceColor) inst[o.name].c = Array.from(o.instanceColor.array.subarray(0, o.count * 3), (v) => Math.round(v * 1e3) / 1e3);
       }
     });
+    // what the psx options do not say: the houses' grime (houseGrime.ts install, its cache key) and a bump map
+    for (const m of mats) {
+      const pb = m.userData.psx && m.userData.psx.bake;
+      if (!pb || typeof pb !== "object") continue;
+      const key = m.customProgramCacheKey ? String(m.customProgramCacheKey()) : "";
+      // the trees' sway in the wind and the gale (trees3d.ts treeMaterial): 1 bark, 2 leaves; merged: the park's plants
+      if (key.includes("-treebark") || key.includes("-treeleaf")) pb.tree = { leaf: key.includes("-treeleaf"), merged: key.includes("-merged") };
+      if (key.includes("-grime-facade")) pb.grime = "facade";
+      else if (key.includes("-grime-stone")) pb.grime = "stone";
+      // (the wet stone's highlight: three's Phong specular, linear, and shininess)
+      if (pb.wet && m.specular) pb.spec = [m.specular.r, m.specular.g, m.specular.b, m.shininess ?? 30];
+      if (m.bumpMap && m.bumpMap.image) {
+        s.psxBakeTextures.set(m.bumpMap.uuid, m.bumpMap);
+        pb.bump = { tex: m.bumpMap.uuid, scale: m.bumpScale };
+      }
+    }
     for (const m of mats)
       m.userData.three = {
         type: m.type, name: m.name || "", depthWrite: m.depthWrite, depthTest: m.depthTest, opacity: m.opacity, transparent: m.transparent,
         alphaTest: m.alphaTest, side: m.side, blending: m.blending, fog: m.fog !== false, vertexColors: !!m.vertexColors,
-        offset: m.polygonOffset ? [m.polygonOffsetFactor, m.polygonOffsetUnits] : null,
+        offset: m.polygonOffset ? [m.polygonOffsetFactor, m.polygonOffsetUnits] : null, colorWrite: m.colorWrite !== false,
         emissive: m.emissive ? m.emissive.getHex() : 0, emissiveIntensity: m.emissiveIntensity ?? 0,
         specular: m.specular ? m.specular.getHex() : 0, shininess: m.shininess ?? 0, flat: !!m.flatShading,
       };
@@ -308,13 +385,17 @@ async function walkDump() {
 // with where they lie in <out>_tex/<name>.json. The sky map is a file of the client: copied.
 const SHARED_TEX = `(async () => {
   const u = __scheldemist.psxUniforms, out = {};
-  for (const [name, tex, box] of [["dirt", u.uDirt.value, u.uDirtBox.value]]) {
+  // (the dirt on the paving; the distance from the water to the nearest quay wall, world/quaysteps.ts; the foul water, world/litter.ts)
+  for (const [name, tex, box] of [["dirt", u.uDirt.value, u.uDirtBox.value], ["shore", u.uShore.value, u.uShoreBox.value], ["foul", u.uFoul.value, u.uFoulBox.value]]) {
     const im = tex && tex.image;
     if (!im || !im.data) continue;
     const c = document.createElement("canvas");
     c.width = im.width; c.height = im.height;
+    if (im.width < 2) continue; // (the stand-in until its own picture is in)
     const d = new ImageData(im.width, im.height);
-    d.data.set(im.data);
+    const step = im.data.length / (im.width * im.height);
+    if (step === 4) d.data.set(im.data);
+    else for (let i = 0; i < im.width * im.height; i++) d.data.set([im.data[i * step], im.data[i * step], im.data[i * step], 255], i * 4);
     c.getContext("2d").putImageData(d, 0, 0);
     const blob = await new Promise((r) => c.toBlob(r, "image/png"));
     await fetch("http://127.0.0.1:${RECV}/tex/" + name, { method: "POST", body: blob });
@@ -326,13 +407,15 @@ async function sharedTextures() {
   const boxes = await ev(SHARED_TEX);
   mkdirSync(`${out}_tex`, { recursive: true });
   for (const [name, box] of Object.entries(boxes)) writeFileSync(path.join(`${out}_tex`, `${name}.json`), JSON.stringify(box));
-  for (const f of ["skyshade.png", "skyshade.json"]) copyFileSync(path.join(root, "client/public/textures", f), path.join(`${out}_tex`, f));
+  // (and the houses' wall pictures, their height maps and which are good: world/houseGrime.ts, retro/psx.ts wallRelief)
+  const walls = readdirSync(path.join(root, "client/public/textures")).filter((f) => /^wall_.*\.(jpg|png|json)$/.test(f));
+  for (const f of ["skyshade.png", "skyshade.json", ...walls]) copyFileSync(path.join(root, "client/public/textures", f), path.join(`${out}_tex`, f));
   return Object.keys(boxes);
 }
 // The lights of the night as plain data (godot/src/World/Lights.cs): every still spill source (world/spill.ts: the gas
 // lamps, the painted windows with their hours, the rooms' windows and doors, the lanterns and glows), and the painted
 // windows' panes (world/ambient.ts: three corners, the hours it is lit, its tone and kind). Take it at night
-// (--hour 21), so a room's lamp and a glow carry their night's level.
+// (--hour 18.33: dark, and the shops and taverns still open), so a room's lamp and a glow carry their lit level.
 const LIGHTS = `(async () => {
   const spill = (await import("/src/world/spill.ts")).spillBake();
   const panes = [];
@@ -346,7 +429,17 @@ const LIGHTS = `(async () => {
       panes.push([...v(0), ...v(1), ...v(5), r(l[i * 24]), r(l[i * 24 + 1]), r(l[i * 24 + 2]), r(l[i * 24 + 3]), r(t[i * 12]), t[i * 12 + 1]]);
     }
   });
-  return JSON.stringify({ spill, panes });
+  // the rooms' own lights now (at night: the lamps lit), for the rooms the export put in the world as ROOM_<id>
+  // (after the export the rooms stand in the world as ROOM_<id>; in a run without export they are still scenes of their own)
+  const rooms = [];
+  const roomLights = (root) => {
+    const out = [];
+    root.traverse((o) => { if (o.isLight) out.push({ type: o.type, color: o.color.getHex(), ground: o.groundColor ? o.groundColor.getHex() : null, intensity: o.intensity, distance: o.distance ?? null, decay: o.decay ?? null, pos: o.getWorldPosition(o.position.clone()).toArray().map((v) => Math.round(v * 1000) / 1000) }); });
+    return out;
+  };
+  for (const o of __scheldemist.world.scene.children) if (o.name.startsWith("ROOM_")) rooms.push({ id: o.name.slice(5), lights: roomLights(o) });
+  if (!rooms.length) for (const r of (__scheldemist.retro && __scheldemist.retro.inWorld && __scheldemist.retro.inWorld.all) || []) rooms.push({ id: r.id, lights: roomLights(r.scene) });
+  return JSON.stringify({ spill, panes, rooms });
 })()`;
 const UNIFORMS = `(() => { const o = {}; for (const [k, u] of Object.entries(__scheldemist.psxUniforms)) { const v = u.value; if (typeof v === "number" || typeof v === "boolean") o[k] = v; else if (v && v.isColor) o[k] = v.getHex(); else if (Array.isArray(v) && v.length <= 8 && v[0] && v[0].toArray) o[k] = v.map((x) => x.toArray()); else if (v && v.toArray && !v.isTexture && !v.isMatrix4) o[k] = v.toArray(); } return o; })()`;
 
@@ -411,10 +504,11 @@ try {
   writeFileSync(`${out}.json`, JSON.stringify({ made: new Date().toISOString(), places, facts, counts: exp.counts, uniforms, instances: JSON.parse(inst) }));
   stripInstancing(`${out}.glb`);
   // the lights of the night, taken at night (a room's lamp and a glow carry their night's level)
-  await ev(`__scheldemist.t.light(21, "mist").then(() => 1)`);
+  // (18:20: dark, the lamps lit, and the shops and taverns still open with theirs)
+  await ev(`__scheldemist.t.light(18.33, "mist").then(() => 1)`);
   await ev(`new Promise((r) => __scheldemist.real.setTimeout(r, 25000))`, 60_000);
   const lights = JSON.parse(await ev(LIGHTS));
-  writeFileSync(`${out}_lights.json`, JSON.stringify({ made: new Date().toISOString(), hour: 21, weather: "mist", ...lights }));
+  writeFileSync(`${out}_lights.json`, JSON.stringify({ made: new Date().toISOString(), hour: 18.33, weather: "mist", ...lights }));
   log("the lights:", lights.spill.length, "spill sources,", lights.panes.length, "panes");
   log("written", `${out}.glb`, (received / 1e6).toFixed(1), "MB", JSON.stringify(exp.counts));
 } catch (e) {

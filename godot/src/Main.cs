@@ -64,13 +64,13 @@ public partial class Main : Node
     public override void _Ready()
     {
         I = this;
-        string bake = OS.GetEnvironment("SCHELDEMIST_BAKE");
-        string town = Arg("town", bake != "" ? bake : ProjectSettings.GlobalizePath("res://baked/town.glb"));
-        shots = Arg("shots", "");
+        Paths.Initialize();
+        string town = Paths.Town;
+        shots = Paths.TestOutput("shots");
 
         view = new SubViewport { RenderTargetUpdateMode = SubViewport.UpdateMode.Always, Msaa3D = Viewport.Msaa.Disabled, HandleInputLocally = false };
         AddChild(view);
-        retro = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/retro.gdshader") };
+        retro = new ShaderMaterial { Shader = GD.Load<Shader>(Paths.RetroShader) };
         screen = new TextureRect { Texture = view.GetTexture(), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale, TextureFilter = CanvasItem.TextureFilterEnum.Nearest, Material = retro, MouseFilter = Control.MouseFilterEnum.Ignore };
         screen.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         AddChild(screen);

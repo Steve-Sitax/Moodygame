@@ -17,8 +17,7 @@ public static class Water
     /// <summary>The town's data file: beside the Godot project in the repo, or --city path.</summary>
     public static string CityJson()
     {
-        string arg = Main.I.Arg("city");
-        return arg != "" ? arg : Path.GetFullPath(Path.Combine(ProjectSettings.GlobalizePath("res://"), "..", "shared", "city.json"));
+        return Paths.City;
     }
 
     private static void Load()

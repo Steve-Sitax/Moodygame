@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using Godot;
 using Scheldemist.Net;
 
@@ -23,11 +25,26 @@ public partial class Hud : Node
     private static readonly Color Ink = NeedsCard.Ink; // #2a2420
     private static readonly Color Chalk = new("e6dcc2"); // the line in the middle
     private static readonly Color KeyInk = new("d8cfb8");
+    private static readonly Color NotePaper = new("e9d8b4"); // #d4cab0 through sepia(0.35)
 
     private Control root = null!;
     private float s;
     private Label weekday = null!, time = null!, rent = null!, money = null!, toast = null!, status = null!, error = null!;
-    private PanelContainer errorCard = null!;
+    private PanelContainer errorCard = null!, clockCard = null!, purse = null!, needsCard = null!, taskCard = null!, noteCard = null!;
+    private VBoxContainer taskLines = null!;
+    private Label noteWho = null!, noteText = null!;
+    private Control pocketRow = null!;
+    private string taskShown = "\0";
+    private double noteLeft;
+    private (string Who, string Text) noteNow = ("", "");
+
+    /// <summary>One line of the task card: the job's name in bold, a step, or (Also) another job in hand, small.</summary>
+    public sealed record TaskLine(string Text, bool Bold = false, bool Also = false);
+    /// <summary>
+    /// What the task card under the clock says (jobs.ts renderTask): set by the part that runs the jobs. Not set:
+    /// the jobs in hand as the store knows them, the first in bold. No lines: no card.
+    /// </summary>
+    public Func<IReadOnlyList<TaskLine>>? Task { get; set; }
     private NeedsCard needs = null!;
     private readonly PocketIcon[] icons = new PocketIcon[Slots];
     private double toastLeft;
@@ -47,6 +64,8 @@ public partial class Hud : Node
         st.Changed += OnState;
         st.MoneyChanged += OnMoney;
         st.Message += Say;
+        // how a job went, in the employer's words (jobs.ts showOutcome)
+        ServerLink.I?.WhenUp(() => ServerLink.I!.Api!.OutcomePushed += o => Outcome(o.Employer, o.Text));
         if (ServerLink.I is { } link)
         {
             link.StatusChanged += ShowLink;
@@ -88,8 +107,12 @@ public partial class Hud : Node
         Main.I.Ui.AddChild(root);
 
         // .clock: top left (the column stands at 18, 14 whatever the scale)
+        // (.top-left: the clock, then the task card under it, 10 apart)
+        // (placed by hand: a container would take the cards' slight turn away)
+        var column = root;
         var clock = Card(0.9f, 12, 3, -1f, 12, 3);
         clock.Position = new Vector2(18, 14);
+        clockCard = clock;
         var col = new VBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
         col.AddThemeConstantOverride("separation", 0);
         var line = new HBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
@@ -102,17 +125,26 @@ public partial class Hud : Node
         col.AddChild(line);
         col.AddChild(rent);
         clock.AddChild(col);
-        root.AddChild(clock);
+        column.AddChild(clock);
+
+        // .task: the job in hand, in print, at most 380 wide
+        taskCard = Card(0.92f, 14, 8, 0.8f, 12, 3);
+        taskLines = new VBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
+        taskLines.AddThemeConstantOverride("separation", 0);
+        taskCard.AddChild(taskLines);
+        taskCard.Visible = false;
+        column.AddChild(taskCard);
+        taskShown = "\0";
 
         // .hud: the money, bottom left
-        var purse = Card(1f, 12, 4, -2f, 12, 3);
+        purse = Card(1f, 12, 4, -2f, 12, 3);
         BottomLeft(purse, 18, 16);
         money = Text(Fonts.Hand, 18, Ink);
         purse.AddChild(money);
         root.AddChild(purse);
 
         // .needs: beside it
-        var needsCard = Card(0.9f, 4, 2, 1.2f, 12, 3);
+        needsCard = Card(0.9f, 4, 2, 1.2f, 12, 3);
         BottomLeft(needsCard, 108, 14);
         needs = new NeedsCard { MouseFilter = Control.MouseFilterEnum.Ignore };
         needs.SetUi(s);
@@ -144,6 +176,24 @@ public partial class Hud : Node
         key.LabelSettings.ShadowOffset = Vector2.Zero;
         row.AddChild(key);
         root.AddChild(row);
+        pocketRow = row;
+
+        // .note: how a job went, bottom middle, in print
+        noteCard = Card(1f, 18, 10, 0.6f, 24, 6);
+        ((StyleBoxFlat)noteCard.GetThemeStylebox("panel")).BgColor = NotePaper;
+        var noteCol = new VBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
+        noteCol.AddThemeConstantOverride("separation", Px(2));
+        noteWho = Text(Fonts.Print, 12, new Color(Ink, 0.7f));
+        noteText = Text(Fonts.Print, 15, Ink);
+        noteText.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        noteText.LabelSettings.LineSpacing = Px(15 * 0.4f) - 3;
+        noteCol.AddChild(noteWho);
+        noteCol.AddChild(noteText);
+        noteCard.AddChild(noteCol);
+        noteCard.Modulate = new Color(1, 1, 1, 0);
+        root.AddChild(noteCard);
+        noteWho.Text = noteNow.Who;
+        noteText.Text = noteNow.Text;
 
         // .toast: the line in the middle; the same hand for what the link to the server is doing
         toast = Shadowed(18);
@@ -229,6 +279,10 @@ public partial class Hud : Node
         status.Size = new Vector2(w, 0);
         status.Position = new Vector2((win.X - w) / 2, win.Y * 0.46f);
         float ew = Math.Min(560 * s, win.X * 0.8f);
+        // .note: bottom 9%, at most 560 wide (80% of the window)
+        noteText.CustomMinimumSize = new Vector2(ew - Px(36), 0);
+        noteCard.ResetSize();
+        noteCard.Position = new Vector2((win.X - noteCard.Size.X) / 2, win.Y * 0.91f - noteCard.Size.Y);
         error.CustomMinimumSize = new Vector2(ew, 0);
         errorCard.ResetSize();
         errorCard.Position = new Vector2((win.X - errorCard.Size.X) / 2, (win.Y - errorCard.Size.Y) / 2);
@@ -239,10 +293,72 @@ public partial class Hud : Node
     private void OnState(JobsPayload p) => Refresh();
     private void OnMoney(int c) => money.Text = $"{c} c";
 
+    /// <summary>jobs.ts showOutcome: the employer's name and his words on a note at the bottom, gone after 11 s.</summary>
+    public void Outcome(string employer, string text)
+    {
+        noteNow = (employer, text);
+        noteWho.Text = employer;
+        noteText.Text = text;
+        noteLeft = 11;
+        Place();
+    }
+
+    private IReadOnlyList<TaskLine> TaskNow()
+    {
+        if (Task != null) return Task();
+        var lines = new List<TaskLine>();
+        foreach (var j in GameState.I.Jobs)
+        {
+            if (j.Status != "taken") continue;
+            lines.Add(lines.Count == 0 ? new TaskLine(j.Title, Bold: true) : new TaskLine("and: " + j.Title, Also: true));
+            if (lines.Count == 1) lines.Add(new TaskLine("for " + j.EmployerName));
+        }
+        return lines;
+    }
+
+    /// <summary>jobs.ts renderTask: the card under the clock; built again only when its words change.</summary>
+    private void ShowTask()
+    {
+        var lines = TaskNow();
+        string key = string.Join("\n", lines.Select(l => (l.Bold ? "b" : l.Also ? "a" : " ") + l.Text));
+        if (key == taskShown) return;
+        taskShown = key;
+        foreach (var c in taskLines.GetChildren())
+        {
+            taskLines.RemoveChild(c);
+            c.QueueFree();
+        }
+        taskCard.Visible = lines.Count > 0;
+        float width = 380 * s - Px(28);
+        foreach (var l in lines)
+        {
+            var label = Text(l.Bold ? Fonts.PrintBold : Fonts.Print, l.Also ? 12 : 15, new Color(Ink, l.Also ? 0.75f : 1));
+            label.Text = l.Text;
+            // as wide as its words, wrapped at the card's width
+            if (label.LabelSettings.Font.GetStringSize(l.Text, HorizontalAlignment.Left, -1, label.LabelSettings.FontSize).X > width)
+            {
+                label.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+                label.CustomMinimumSize = new Vector2(width, 0);
+            }
+            taskLines.AddChild(label);
+        }
+        taskCard.ResetSize();
+        PlaceTask();
+    }
+
+    private void PlaceTask()
+    {
+        clockCard.ResetSize();
+        taskCard.Position = new Vector2(18, 14 + clockCard.Size.Y + 10);
+    }
+
     private void Refresh()
     {
         var st = GameState.I;
+        // nothing is known before the server's first word: no "0 c", no full needs
+        clockCard.Visible = purse.Visible = needsCard.Visible = pocketRow.Visible = st.Live;
         ShowClock();
+        ShowTask();
         money.Text = $"{st.Money} c";
         needs.SetNeeds(st.Food, st.Warmth, st.Sleep, st.Health);
         var pockets = st.Pockets;
@@ -257,13 +373,7 @@ public partial class Hud : Node
     private void ShowClock()
     {
         var st = GameState.I;
-        if (!st.Live)
-        {
-            weekday.Text = "";
-            time.Text = "...";
-            rent.Visible = false;
-            return;
-        }
+        if (!st.Live) return;
         var (h, m) = st.Shown;
         weekday.Text = st.Weekday;
         string t = $" {h}:{m:00}";
@@ -298,12 +408,19 @@ public partial class Hud : Node
         {
             sinceClock = 0;
             ShowClock();
+            ShowTask();
+            PlaceTask();
         }
         // .toast: opacity over 0.6 s
         toastLeft = Math.Max(0, toastLeft - delta);
         float want = toastLeft > 0 ? 1 : 0;
         float a = toast.Modulate.A;
         if (a != want) toast.Modulate = new Color(1, 1, 1, Mathf.MoveToward(a, want, (float)delta / 0.6f));
+        // .note: opacity over 0.8 s
+        noteLeft = Math.Max(0, noteLeft - delta);
+        float nWant = noteLeft > 0 ? 1 : 0;
+        float na = noteCard.Modulate.A;
+        if (na != nWant) noteCard.Modulate = new Color(1, 1, 1, Mathf.MoveToward(na, nWant, (float)delta / 0.8f));
         if (errorCard.Visible) errorCard.Position = (GetViewport().GetVisibleRect().Size - errorCard.Size) / 2;
     }
 }
