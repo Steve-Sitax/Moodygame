@@ -7,6 +7,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- In the Godot version, bats hunt over the water and round the trees at dusk and before dawn, as in the browser game.
 - In the Godot version, the great storm tears things loose: slates and shingles off the roofs, washing, newspapers, hats and straw fly down the street, and slates smash on the stones.
 - In the Godot version, storms bring thunder and lightning (a bolt over the roofs, the air flashing white, the thunder after it), lone drops fall off the eaves in the rain, horses blow clouds of breath on cold mornings, and the broken gutters' streams start right at their eaves.
 - In the Godot version, the ships riding in the stream show their white lights at night, the moored ships' bilge pumps spout dirty water over the side now and then, and the priests, tourists, urchins, soldiers, beggars and the ragman are drawn whole ([#54](https://github.com/Steve-Sitax/Moodygame/issues/54)).

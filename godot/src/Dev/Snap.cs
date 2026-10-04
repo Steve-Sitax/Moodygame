@@ -162,6 +162,13 @@ public partial class Snap : Node
                 return (b + back * 3.2f + new Vector3(0, 2.6f, 0), b);
             }
         }
+        if (name.StartsWith("bat") && Bats.I is { Info.drawn: > 0 } bt)
+        {
+            var b = bt.Info.first;
+            var back = new Vector3(cam.X - b.X, 0, cam.Z - b.Z);
+            back = back.LengthSquared() > 1e-4f ? back.Normalized() : Vector3.Back;
+            return (b + back * 2.2f + new Vector3(0, -0.6f, 0), b);
+        }
         if (name.StartsWith("horse") && Breath.I?.NearestHorse(cam) is { } hx)
         {
             // (beside the horse's head, a little ahead of it)
@@ -235,6 +242,7 @@ public partial class Snap : Node
                 foreach (var (size, what) in hits.OrderBy(h => h.Item1).Take(60)) GD.Print($"whatray {name} {one} {size:0} {what}");
             }
         if (ShipWater.I is { } sw) GD.Print($"snap {name} ship water: {sw.Info}");
+        if (Bats.I is { } bts) GD.Print($"snap {name} bats: {bts.Info}");
         if (Debris.I is { } db) GD.Print($"snap {name} debris: {db.Info}");
         if (Gutters.I is { } gt) GD.Print($"snap {name} eaves drops: {gt.DropInfo}");
         if (Breath.I is { } br) GD.Print($"snap {name} horses' breath: {br.HorseInfo}");
