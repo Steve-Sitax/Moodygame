@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Godot skips identical mover instance-buffer uploads, while retaining every pose, colour and visible instance.
+
 - Godot reuses unchanged carry and watch job papers, their rounded distance labels and carry-goal queries, keeping the same text and picture.
 
 - Godot keeps incomplete walking plans when a newly learned path cannot affect them, avoiding repeated rebuilding of the whole town.

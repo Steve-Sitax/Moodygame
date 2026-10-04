@@ -90,12 +90,12 @@ public static class PixelComparison
                 string name = place.Replace(' ', '_') + (hour == 13 ? "_day" : "_night") + (scenario == "idle" ? "" : "_" + scenario);
                 UniformUpdates.Cached = false;
                 SpeedComparison.Cached = false;
-                Daylight.I.RepeatLight(); Lights.I._Process(0); Rooms.I.RepeatVisibility(); Play.Jobs.I._Process(0); Play.Interact.I.RepeatPrompt(); UniformUpdates.Replay(); NodeUpdates.Replay(); await Draw(check);
+                Daylight.I.RepeatLight(); Lights.I._Process(0); Rooms.I.RepeatVisibility(); Play.Jobs.I._Process(0); Play.Interact.I.RepeatPrompt(); UniformUpdates.Replay(); NodeUpdates.Replay(); Movers.Copies.Replay(); await Draw(check);
                 using var a = Main.I.GetViewport().GetTexture().GetImage();
                 string before = check.Picture(name + "_before");
                 UniformUpdates.Cached = true;
                 SpeedComparison.Cached = true;
-                Daylight.I.RepeatLight(); Lights.I._Process(0); Rooms.I.RepeatVisibility(); Play.Jobs.I._Process(0); Play.Interact.I.RepeatPrompt(); UniformUpdates.Replay(); NodeUpdates.Replay(); await Draw(check);
+                Daylight.I.RepeatLight(); Lights.I._Process(0); Rooms.I.RepeatVisibility(); Play.Jobs.I._Process(0); Play.Interact.I.RepeatPrompt(); UniformUpdates.Replay(); NodeUpdates.Replay(); Movers.Copies.Replay(); await Draw(check);
                 using var b = Main.I.GetViewport().GetTexture().GetImage();
                 string after = check.Picture(name + "_after");
                 int different = Different(a, b); total += different;
@@ -111,6 +111,6 @@ public static class PixelComparison
             finally { UniformUpdates.Cached = cached; SpeedComparison.Cached = speedCached; Main.I.PictureTime(-1); Main.I.GetTree().Paused = false; }
         }
         return new { ok = total == 0 && controlPixels > 0 && actionDifferences == 0 && floorDifferences == 0 && roomDifferences == 0 && routeDifferences == 0 && hudDifferences == 0 && System.Text.Json.JsonSerializer.SerializeToElement(scheduleProof).GetProperty("ok").GetBoolean(), differentPixels = total, controlPixels, comparisons = rows, scheduleProof, actionProof = new { actionChecks, actionDifferences }, floorProof = new { floorChecks, floorDifferences }, roomProof = new { roomChecks, roomDifferences }, routeProof = new { routeChecks, routeDifferences }, hudProof = new { hudChecks, hudDifferences },
-            method = "RGBA8 full screen including retro grain, paused scene and fixed grain; original/cached uniforms, node poses, reflections, rooms, interaction prompts and active-job HUD; exact schedule, route, floor, room, action and job comparisons; deliberately wrong fog colour as positive control" };
+            method = "RGBA8 full screen including retro grain, paused scene and fixed grain; original/cached uniforms, node and MultiMesh poses, reflections, rooms, interaction prompts and active-job HUD; exact schedule, route, floor, room, action and job comparisons; deliberately wrong fog colour as positive control" };
     }
 }

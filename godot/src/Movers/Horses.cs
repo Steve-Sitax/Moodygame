@@ -10,15 +10,18 @@ namespace Scheldemist.Movers;
 /// </summary>
 public sealed class Copies
 {
+    private static readonly List<WeakReference<Copies>> copies = new();
     public readonly MultiMesh Mm;
     public readonly MultiMeshInstance3D Node;
     private float[] buf;
     private readonly int stride;
-    private bool dirty;
+    private bool dirty, uploaded;
+    private readonly bool cacheWrites = !Main.I.Flag("uncached-copies");
     public int Count => Mm.InstanceCount;
 
     public Copies(MultiMeshInstance3D node, int atLeast = 0)
     {
+        if (Main.I.Flag("pixelcheck")) copies.Add(new WeakReference<Copies>(this));
         Node = node;
         Mm = node.Multimesh;
         if (Mm.InstanceCount < atLeast) Mm.InstanceCount = atLeast;
@@ -51,6 +54,9 @@ public sealed class Copies
     {
         if (i < 0 || i >= Mm.InstanceCount) return;
         int o = i * stride;
+        if (Scheldemist.Dev.SpeedComparison.Cached && cacheWrites && uploaded && buf[o] == x.Basis.X.X && buf[o + 1] == x.Basis.Y.X && buf[o + 2] == x.Basis.Z.X && buf[o + 3] == x.Origin.X
+            && buf[o + 4] == x.Basis.X.Y && buf[o + 5] == x.Basis.Y.Y && buf[o + 6] == x.Basis.Z.Y && buf[o + 7] == x.Origin.Y
+            && buf[o + 8] == x.Basis.X.Z && buf[o + 9] == x.Basis.Y.Z && buf[o + 10] == x.Basis.Z.Z && buf[o + 11] == x.Origin.Z) return;
         buf[o] = x.Basis.X.X; buf[o + 1] = x.Basis.Y.X; buf[o + 2] = x.Basis.Z.X; buf[o + 3] = x.Origin.X;
         buf[o + 4] = x.Basis.X.Y; buf[o + 5] = x.Basis.Y.Y; buf[o + 6] = x.Basis.Z.Y; buf[o + 7] = x.Origin.Y;
         buf[o + 8] = x.Basis.X.Z; buf[o + 9] = x.Basis.Y.Z; buf[o + 10] = x.Basis.Z.Z; buf[o + 11] = x.Origin.Z;
@@ -94,15 +100,33 @@ public sealed class Copies
     {
         if (!dirty || buf.Length == 0) return;
         dirty = false;
+        using var uploadCost = Scheldemist.Dev.FrameCost.Track("Movers.Copies.Upload");
         RenderingServer.MultimeshSetBuffer(Mm.GetRid(), buf);
+        uploaded = true;
     }
 
     public void Tint(int i, Color color)
     {
         if (!Mm.UseColors || i<0 || i>=Count) return;
         int o=i*stride+12;
+        if (Scheldemist.Dev.SpeedComparison.Cached && cacheWrites && uploaded && buf[o] == color.R && buf[o + 1] == color.G && buf[o + 2] == color.B && buf[o + 3] == color.A) return;
         buf[o]=color.R; buf[o+1]=color.G; buf[o+2]=color.B; buf[o+3]=color.A;
         dirty=true;
+    }
+
+    /// <summary>Pixel check: resubmit every exact current pose through both buffer paths.</summary>
+    public static void Replay()
+    {
+        foreach (var weak in copies)
+        {
+            if (!weak.TryGetTarget(out var copy) || !GodotObject.IsInstanceValid(copy.Node)) continue;
+            for (int i = 0; i < copy.Count; i++)
+            {
+                int o = i * copy.stride; var b = copy.buf;
+                copy.Set(i, new Transform3D(new Basis(new(b[o], b[o + 4], b[o + 8]), new(b[o + 1], b[o + 5], b[o + 9]), new(b[o + 2], b[o + 6], b[o + 10])), new(b[o + 3], b[o + 7], b[o + 11])));
+            }
+            copy.Commit();
+        }
     }
 }
 
