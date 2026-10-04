@@ -7,6 +7,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- In the Godot version, people waiting at an omnibus stop only walk to a bus that has room for them; the others wait for the next one instead of vanishing at the step.
 - In the Godot version, ferry passengers still on the landing stage when the ferry leaves walk on to the quay instead of standing frozen in the way.
 - In the Godot version's play together, a player riding the omnibus is drawn on the bus floor as the other player sees it, instead of lagging behind it when the bus jumps.
 - In the Godot version, townspeople with a long way to go take the omnibus: they walk to the stop, wait, take a real seat, get off at the right stop and walk on. Jef can ride along with them.
