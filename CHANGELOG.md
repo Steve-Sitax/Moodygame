@@ -15,6 +15,10 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - The Godot job arrow and its distance stay clear of the clock and job cards.
 
 ### New in the game
+- The Godot quay train and travelling cranes yield to people, and crane jibs keep clear of ship masts and passing wagons.
+- Godot omnibus passengers walk aboard and take their seats; people wait at the stops, and families move about their moored ships. Boat lanterns and omnibus lamps follow nightfall, and the town map follows the moving traffic.
+- The Godot port has roaming horse drays and handcarts, and the Rijnkaai goods carts follow their working-day rounds. The horses step, the wheels roll and the carters walk with their loads.
+- In the Godot port, six horse omnibuses follow their three lines, stop at their bays and wait for the morning timetable at night. Their wheels turn and their carriage lamps follow dusk.
 - In the Godot port, jobs use the shared paper windows, people, pockets and map. The quest book follows work in hand, and sleep has its own chooser. Goods use the decoded models and survive a loaded save or new week. Trouble on a job offers the server's choices and extra errands.
 - The Godot game has the harbour's soundscape, footsteps, made voices and room echoes. Its clock, rain, townspeople, speech bubbles and dice feed the sound, and the Sound settings control the mix.
 - The Godot handbill has a Together paper for hosting, joining with an address and code, and going home.

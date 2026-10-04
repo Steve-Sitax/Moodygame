@@ -114,6 +114,7 @@ public partial class Solid : Node
         {
             string plain = name.TrimEnd('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '_');
             if (people.Contains(n)) { skipped = true; note("people"); }
+            else if (n.HasMeta("mover")) { skipped = true; note("movers"); } // a mover's own (src/Movers): it brings a body that moves
             else if (SkipGroups.Contains(plain) || SkipPrefix.IsMatch(name)) { skipped = true; note("group " + plain); }
             else if (Leave.Exists(f => f(n))) { skipped = true; note("a part's own"); }
             else if (n is Node3D { Visible: false }) { skipped = true; note("hidden"); }

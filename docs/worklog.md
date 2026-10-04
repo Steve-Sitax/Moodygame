@@ -389,6 +389,9 @@ Commit only; no push or integration merge after the initial requested merge.
 - Quality: before a building or prop patch goes live, close shots of every changed part and an
   automatic clip/overlap check that lists nothing.
 
+## Godot movers (2026-10-04)
+
+The movers worktree has live omnibus boarding, stop waiters and families aboard moored boats. Lamps feed the existing light pool and live traffic feeds the map. Close clear midday pictures exposed a lighting problem outside this part: [issue 42](https://github.com/Steve-Sitax/Moodygame/issues/42). Details and test evidence are in docs/milestones/godot-movers.md.
 2026-10-04: Godot net restart finished the guest link, smooth player figures and remote gear, Together handbill, and two-process self-test. Solo, day, menu and multiplayer checks pass; zero camera snaps on both players. Browser movement code still joins. Remaining M8 world/people adapters and measurements are in [the net handoff](godot-net.md). No push or merge back.
 
 ## 2026-10-04: Godot download check
