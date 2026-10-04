@@ -3,7 +3,7 @@ import path from "node:path";
 import {fileURLToPath} from "node:url";
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"../..");
 const mode=process.argv[2]??"wildlife";
-const cases={wildlife:["peopletest","--peoplechecks","wildlife"],games:["peopletest","--peoplechecks","games"],walkup:["jobtest","--jobonly","walkup","--job-features-only"],jobs:["jobtest"],sound:["soundtest","--soundtest-only","wiring,life,ships,chance"],shaders:["shaders"]};
+const cases={wildlife:["peopletest","--peoplechecks","wildlife"],games:["peopletest","--peoplechecks","games"],walkup:["jobtest","--jobonly","walkup","--job-features-only"],home:["jobtest","--jobonly","home-remark","--job-features-only"],jobs:["jobtest"],sound:["soundtest","--soundtest-only","wiring,life,ships,chance"],shaders:["shaders"]};
 if(!cases[mode])throw new Error("unknown life check: "+mode);
 const [only,...extra]=cases[mode];
 const args=["tools/godot/checks.mjs","--only",only,"--port","8911","--port-end","8914","--timeout","240","--town","D:/Code/MoodyGame-godot/godot/baked/next/town.glb","--models","D:/Code/MoodyGame-godot/godot/baked/models","--out",`godot/baked/life-checks/${mode}`,"--args",JSON.stringify(extra)];

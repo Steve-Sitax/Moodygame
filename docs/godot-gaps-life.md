@@ -19,3 +19,9 @@ back to his schedule. `godot/baked/life-checks/walkup/jobtest/walkup-resident.pn
 The caller, destination, real resident and released action owner are checked. The default full job
 check retains its frame checks; `--job-features-only` permits a focused behavior check. No speaker
 output or WASAPI error occurred with the engine's Dummy driver. Historical WASAPI cause remains uncertain.
+
+Automatic home remarks: focused home job check passed. The alley room cost the server's 46 c;
+Irma Meeus (`bk146`) appeared with the engine fallback remark. Money, food and warmth stayed unchanged
+by the remark. Leaving dismissed the visitor; re-entry made no second request that day. The close
+`godot/baked/life-checks/home/jobtest/home-neighbour.png` was inspected. Furniture and floor ownership
+remain with the places helper.

@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- In Godot, entering your rented room brings a neighbour's remark about its comfort and furniture. The server chooses who visits; they leave when you leave and speak once a day.
+
 - In Godot, people summoned for jobs walk in from the living town and return to their day when the encounter ends, using reachable street points around doors and piers.
 
 - In Godot, ducks defend their young from cats, unguarded ducks can be caught, and caught birds return only when nobody is watching. Stray dogs seek the fish-market scraps, owned dogs wait for a clear place beside their owner, and nearby cats and fleeing birds make their own sounds.

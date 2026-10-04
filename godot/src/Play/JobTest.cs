@@ -330,6 +330,7 @@ public partial class JobTest : Node
     private IEnumerable<object?> More()
     {
         if (Only("walkup")) foreach(var s in WalkupStep()) yield return s;
+        if (Only("home-remark")) foreach(var s in HomeRemarkStep()) yield return s;
         if (Only("carry"))
             foreach (var s in CarryStep())
                 yield return s;
