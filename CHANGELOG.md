@@ -7,6 +7,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- In the Godot version, the prison has its people again: warders at their posts, prisoners pacing their cells, the exercise ring in the yard in exercise hours, and townspeople sent into the prison walk its real corridors.
 - Townspeople's outdoor activity spots stay on reachable ground instead of landing inside houses or the park pond; path snapping also keeps room for their bodies at lane edges.
 - In the Godot version, the townspeople and Jef have their soft shadow on the ground again, as in the browser game.
 
