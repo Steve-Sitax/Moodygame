@@ -103,10 +103,8 @@ control. No production speed fix was accepted.
 | wrap-gameplay / placestest | PASS | 192 steps;  |
 | wrap-gameplay / ridetest | PASS | 196 checks;  |
 | wrap-gameplay / playtest | PASS | 37 steps;  |
-| wrap-gameplay / deedstest | FAIL | 24 checks; System.InvalidOperationException: lost property lies in street
-   at Scheldemist.Play.DeedsTest.Check(Boolean ok, String name) in D:\Code\MoodyGame-godot-bisect\godot\src\Play\DeedsTest.cs:line 236
-   at Scheldemist.Play.DeedsTest.OtherFeatures(Api api, String mark) in D:\Code\MoodyGame-godot-bisect\godot\src\Play\DeedsTest.cs:line 99
-   at Scheldemist.Play.DeedsTest.Run() in D:\Code\MoodyGame-godot-bisect\godot\src\Play\DeedsTest.cs:line 74 |
+| wrap-gameplay / deedstest | FAIL | 23/24 checks; lost property lies in street |
+| wrap-events-a / eventtest | PASS | 36 stages, 0 failures |
 | wrap-required / devtest | PASS | 4/4 steps |
 | wrap-required / shaders | PASS | 0 new kinds, 0 problems |
 | wrap-required / clocks | PASS | 96/96 running |
@@ -116,7 +114,8 @@ control. No production speed fix was accepted.
 
 Job has 16/17 passing steps; its only failure is the 5 ms frame budget (7.62 ms
 mean, 10.42 ms p95). Deeds stops after 23 passing checks at `lost property lies
-in street`; one unchanged retry is pending. Both event batches are pending.
+in street`; one unchanged retry is pending. The first eight-kind event batch passes; the
+second batch is pending.
 The full sustained performance gate also fails: walking means are 6.571 /
 7.045 / 7.334 / 5.671 / 5.044 ms. Rijnkaai walking reaches 19.005 ms and
 Vismarkt turning 16.954 ms. No timing limit was relaxed.
