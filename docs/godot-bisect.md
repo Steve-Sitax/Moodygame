@@ -1,11 +1,11 @@
 # Godot frame-time bisect — 2026-10-04
 
 Worktree `D:/Code/MoodyGame-godot-bisect`, branch `godot/bisect`, starting at `7c0a12b`.
-Status: six historical revisions measured three times; no performance fix made yet.
-The next revision, `ee92f5b`, fails its unchanged C# build with seven errors: the
+Status: all thirteen revisions measured three times; optimization experiments next.
+The revision `ee92f5b` fails its unchanged C# build with seven errors: the
 places code reads JSON properties from the typed `FireView` and `HiringView`.
-Timing this revision requires exactly the subsequent `f2818f5` compile fix to
-TownWork/PlacesTest, which will be labelled in the results. The original build
+Timing this revision used exactly the subsequent `f2818f5` compile fix to
+TownWork/PlacesTest, labelled in the results. The original build
 failure remains in the evidence. The unmodified revision cannot be timed.
 
 ## Method
@@ -31,13 +31,53 @@ server is counted separately from scene-tree bodies and shapes.
 
 ## Historical measurements
 
-Pending: `a1001d2`, `a292f31`, `577901c`, `0d2ea27`, `1cd221a`, `544752d`,
+Completed three runs each: `a1001d2`, `a292f31`, `577901c`, `0d2ea27`, `1cd221a`, `544752d`,
 `ee92f5b`, `f2818f5`, `3840687`, `854a9fb`, `dfb1e21`, `cc2f843`, `7c0a12b`.
 No unmeasured result is inferred from the earlier reports.
 
 ## Causes and fixes
 
-Pending measurement. Perf2 established about 1.4 ms in C# scopes and 2.9 ms in
+The baseline itself does not reproduce the older report's timings in this session.
+Its walking means are 4.444 / 5.068 / 5.152 / 4.008 / 3.407 ms (Grote Markt,
+Cathedral, Handschoenmarkt, Vismarkt, Rijnkaai). Do not subtract the old 2.69 ms
+Grote Markt measurement to attribute the entire difference to these merges.
+Latest averages are 5.023 / 5.884 / 6.032 / 4.327 / 3.797 ms, corresponding to
+session baseline-to-latest increases of 0.579 / 0.816 / 0.880 / 0.319 / 0.390 ms.
+The shared town SHA-256 observed during the bisect is
+`fdcd4cfcb13e91c052e988c3fce88d954db10892171df0e8c4b7e63c2d5ba82d`.
+
+The clearest measured additions are:
+
+| Revision | Added work | Walking mean change from predecessor, ms (same place order) |
+|---|---|---|
+| a292f31 movers/clocks | +570 nodes, +463 meshes; eager hidden vessel pools, two explicit overlap-query nodes; +38 to +92 turning draws | +0.099 / +0.184 / +0.251 / +0.171 / +0.007 |
+| 577901c postal | +6 nodes, +3 meshes, one processing part | +0.012 / -0.003 / +0.106 / -0.034 / +0.048 |
+| 0d2ea27 events 1 | +13 nodes, one MultiMesh, five processing parts; no extra bodies/shapes | +0.184 / +0.069 / -0.061 / -0.055 / +0.023 |
+| 1cd221a paths | No sustained geometry growth; managed path/schedule changes | +0.022 / -0.051 / -0.028 / +0.075 / +0.086 |
+| 544752d events 2 | +64 pooled meshes, almost all hidden in this fixture | -0.215 / -0.046 / -0.148 / -0.192 / -0.059 |
+| ee92f5b places + compile shim | +765 nodes, +601 meshes, +15 processing parts; WorkWall exposes 189 baked wall chunks before Solid builds their colliders, adding 106,073 solid triangles; +12 to +71 turning draws | +0.314 / +0.172 / +0.427 / +0.194 / +0.160 |
+| f2818f5 compile fix | Same geometry and counts as the shimmed preceding revision | -0.045 / +0.129 / -0.084 / -0.041 / -0.034 |
+| 3840687 rides | +181 nodes, +96 meshes, +7 processing parts; +9 scene bodies and -37 raw static bodies, net -28 bodies/shapes; ferry/landing replaces baked pontoons; handcarts, rowing and velocipede query parts; +17 to +39 turning draws | +0.311 / +0.253 / +0.346 / +0.145 / +0.119 |
+| 854a9fb integration | Nearly identical geometry and counts | +0.131 / +0.153 / +0.070 / +0.049 / +0.050 |
+| dfb1e21 people | No geometry growth; r144/path-check integration | -0.176 / -0.169 / +0.001 / -0.072 / -0.019 |
+| cc2f843 deeds | +51 nodes, +31 meshes, four processing parts; no physics growth | +0.125 / +0.155 / -0.018 / +0.162 / -0.002 |
+
+Small differences and opposite-signed neighboring changes must be treated as run
+variation, not established regressions. These sequential three-run comparisons
+identify feature costs; they are not randomized interleaved A/B trials.
+The idle midday fixture has **zero RigidBody3D and Area3D nodes** at every revision.
+There are always three in-tree viewports and four in-tree cameras (the main window
+viewport is their ancestor); neither count grows. Active lights remain 27 at Grote
+Markt. Physics has 3,031 raw static bodies and 242 scene bodies already at baseline,
+with 4,763 shapes; latest has 3,183 + 251 bodies and 4,924 shapes. Inventory alone
+does not count immediate DirectSpaceState calls. Source inspection shows that
+Jef's floor rays/casts, MoverOverlap, handcart floor rays, rowing overlap casts and
+velocipede queries are already disabled for automatic processing and explicitly
+updated on demand. Rowing additionally reads each vessel's native position every
+frame to track collision motion. Town navigation uses the managed walk map rather
+than newly introduced NavigationServer queries.
+
+Perf2 established about 1.4 ms in C# scopes and 2.9 ms in
 renderer submission, with 1,400–2,050 draws in busy views. Its disabled-mirror,
 human-layer and tighter-mover-culling experiments are diagnostic or rejected;
 they are not assumed to be valid speed fixes.
