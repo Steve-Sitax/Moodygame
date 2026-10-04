@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- In Godot taverns, patrons talk at their tables and F lets you speak to an ordinary table companion.
+
 - Godot hanging lamps fit the room’s ceiling and their glass glows in a dark room.
 
 - Godot churchgoers nod and whisper during the sermon, the organ follows the service, and running among them draws the beadle’s warning.

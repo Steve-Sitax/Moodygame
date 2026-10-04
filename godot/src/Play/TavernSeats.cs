@@ -20,12 +20,12 @@ public partial class TavernSeats : Node
 {
     public static TavernSeats I { get; private set; } = null!;
     public sealed class Seat { public Vector3 At, Approach; public float Yaw, Height; public int Table; public InsidePerson? Occupant; public Room Room = null!; }
-    public sealed class Room { public string Id = ""; public Vector3 Origin; public float Yaw; public bool Open; public readonly List<Seat> Seats = new(); }
+    public sealed class Room { public string Id = ""; public Vector3 Origin; public float Yaw; public bool Open; public Rect2 Bounds; public readonly List<Seat> Seats = new(); }
     public readonly List<Room> Rooms = new();
     public Seat? Sitting { get; private set; }
     public Func<Act?>? GuestAction { get; set; }
     private readonly Offers seatedOffers = new() { Only = new() };
-    private Act standAction = null!, diceAction = null!;
+    private Act standAction = null!, diceAction = null!, talkAction = null!;
     private readonly List<Interact.Entry> prompts = new();
     private static readonly HashSet<string> Standers = new() { "peeters", "fientje", "fishwife_a", "fishwife_b", "maid", "girl", "wife_a", "wife_b", "shopwife", "old_woman", "girl_b", "baker", "shopkeeper", "publican", "docker_sack", "porter", "carter", "sentry" };
     private Townspeople? town;
@@ -43,7 +43,7 @@ public partial class TavernSeats : Node
         foreach (var c in doc.RootElement.GetProperty("counters").EnumerateArray())
         {
             if (c.GetProperty("kind").GetString() != "tavern") continue;
-            var o = c.GetProperty("origin"); var r = new Room { Id = c.GetProperty("id").GetString()!, Yaw = c.GetProperty("yaw").GetSingle(), Origin = new(o.GetProperty("x").GetSingle(), c.GetProperty("floor_y").GetSingle(), o.GetProperty("z").GetSingle()) }; Rooms.Add(r);
+            var o = c.GetProperty("origin"); var r = new Room { Id = c.GetProperty("id").GetString()!, Yaw = c.GetProperty("yaw").GetSingle(), Origin = new(o.GetProperty("x").GetSingle(), c.GetProperty("floor_y").GetSingle(), o.GetProperty("z").GetSingle()) }; var rect=c.GetProperty("rect");r.Bounds=new(rect.GetProperty("minX").GetSingle(),rect.GetProperty("minZ").GetSingle(),rect.GetProperty("maxX").GetSingle()-rect.GetProperty("minX").GetSingle(),rect.GetProperty("maxZ").GetSingle()-rect.GetProperty("minZ").GetSingle());Rooms.Add(r);
             foreach (var s in c.GetProperty("seats").EnumerateArray())
             {
                 var via = s.GetProperty("via"); var end = via[via.GetArrayLength()-1];
@@ -53,6 +53,7 @@ public partial class TavernSeats : Node
         }
         standAction = Act.Me(Key.E, "stand up", Stand);
         diceAction = Act.Me(Key.G, "play pitjesbak", () => _ = PlayDice());
+        talkAction = Act.Me(Key.F, "talk to the person at your table", () => { if(mate!=null) Talk.I!.Open(mate.Id,mate.Name,"at your table"); });
         Interact.I.AddProvider(SeatedKeys);
         if (Scheldemist.Menu.MainMenu.I is { } menu) menu.WorldReplaced += Reset;
     }
@@ -61,13 +62,13 @@ public partial class TavernSeats : Node
         if (Sitting == null) return null;
         var only = seatedOffers.Only!; only.Clear(); only.Add(standAction);
         if (mate != null) only.Add(diceAction);
-        if (GuestAction?.Invoke() is { } guest) only.Add(guest);
+        if (GuestAction?.Invoke() is { } guest) only.Add(guest);else if(mate!=null)only.Add(talkAction);
         return seatedOffers;
     }
-    private void Reset(string how, ClientState? state) { generation++; Stand(); foreach (var r in Rooms) { r.Open=false; foreach(var s in r.Seats)s.Occupant=null; } poll=0; }
+    private void Reset(string how, ClientState? state) { generation++;tableLines=null;talkingRoom=null;TableLinesShown=0;chatClock=20; Stand(); foreach (var r in Rooms) { r.Open=false; foreach(var s in r.Seats)s.Occupant=null; } poll=0; }
     private static Vector3 World(Room r, float x, float z) => r.Origin + new Vector3(x*MathF.Cos(r.Yaw)+z*MathF.Sin(r.Yaw),0,-x*MathF.Sin(r.Yaw)+z*MathF.Cos(r.Yaw));
     private static uint Hash(string id) { uint h=2166136261; foreach(char c in id) h=unchecked((h^c)*16777619); return h; }
-    public void Sit(Seat seat) { if (seat.Occupant!=null || Sitting!=null || !seat.Room.Open) return; returnAt=new(Jef.I.X,Jef.I.Y,Jef.I.Z); Sitting=seat; Jef.I.X=seat.At.X; Jef.I.Z=seat.At.Z; yaw=seat.Yaw+MathF.PI; pitch=0; Jef.I.Frozen=true; FindMate(); }
+    public void Sit(Seat seat) { if (seat.Occupant!=null || Sitting!=null || !seat.Room.Open) return; returnAt=new(Jef.I.X,Jef.I.Y,Jef.I.Z); Sitting=seat; Jef.I.X=seat.At.X; Jef.I.Z=seat.At.Z; yaw=seat.Yaw+MathF.PI; pitch=0; Jef.I.Frozen=true; FindMate();if(seat.Table!=9)_ = Overhear(true); }
     public void Stand() { if(Sitting==null)return; Sitting=null; mate=null; Dice.I?.Close(); Jef.I.Frozen=false; Jef.I.Place(returnAt.X,returnAt.Z,yaw,pitch,returnAt.Y); }
     private void FindMate() { var previous=mate; mate=null; if(Sitting is not {} s)return; float best=2.6f; foreach(var q in s.Room.Seats) if(q.Occupant is {} who && HasFigure(s.Room.Id,who.Id)) { float d=q.Table==s.Table?0:new Vector2(q.At.X-s.At.X,q.At.Z-s.At.Z).Length(); if(d<best){best=d;mate=who;} } if(mate!=previous && mate!=null)diceAction.Text="play pitjesbak with "+mate.First; }
     private bool HasFigure(string room,string id) { if(town?.Indoors is not {} indoors)return false; foreach(var h in indoors.Houses)if(h.Id==room)return h.Figures.ContainsKey(id);return false; }
@@ -77,6 +78,7 @@ public partial class TavernSeats : Node
     {
         if((poll-=dt)<=0 && ServerLink.I?.Up==true){poll=8;_ = Load();}
         if((pose-=dt)<=0){pose=.25; Pose();FindMate();}
+        UpdateChatter(dt);
         if(Sitting is {} s) { Jef.I.Frozen=true; Main.I.Cam.GlobalPosition=s.At+Vector3.Up*(s.Height+.72f); Main.I.Cam.GlobalRotation=new(pitch,yaw,0); }
     }
     public async Task Load()
