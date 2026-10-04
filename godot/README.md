@@ -62,8 +62,21 @@ picture as it was (720 lines, wobble on) whatever the player's settings say.
   two colours, the sun's way, the rain, the wet, the puddles: `Daylight.I.SetTime(hour)`, `SetWeather(name)`; the
   other parts read `Hour`, `Night`, `LampsLit`, `FogColor` ...); `Sky.cs` the cloud dome; `Lights.cs` the gas lamps,
   the lit windows and their light on the street (no Godot light: the nearest 48 sources go to every lit psx material
-  as a list, `Psx.SetSpill`; the six lamps whose glow hangs in the fog, `Psx.SetLamps`); `Rain.cs` the rain. A part
-  that brings a real Godot light (Jef's lantern, a room's lamps) just adds it: the psx material takes it in `light()`.
+  as a list, `Psx.SetSpill`; the six lamps whose glow hangs in the fog, `Psx.SetLamps`; past the 48 the ground pools
+  and the far glow, `Lights.Far.cs`; the lamplighter's word, `Lights.I.SetLampLit("d12", true)`); `Rain.cs` the rain
+  (none under a roof) and `RainSheets.cs` the great storm's far rain; the great storm itself
+  `Daylight.I.SetStorm(0..1)` (world/tempest.ts's look: the air, the rain, the river, the clouds, the trees' lean).
+  A part that brings a real Godot light (Jef's lantern, a room's lamps) just adds it: the psx material takes it in
+  `light()`.
+- **Water, mirrors, rooms** (`src/World/`): `Waters.cs` the river's sheet at the tide, the docks and the lock at
+  theirs; `Mirrors.cs` the river's and the puddles' mirror (the pond's in the park); `Rooms.cs` every room inside its
+  shell, lit by its own hours (asked of the server every 15 s; `Rooms.I.SetOpen(id, open)` for a part that knows
+  sooner), its glass and its door's transom by the hour.
+- **The town's look and life in the air** (`src/Render/Grime.cs`, `src/World/`): the houses' wall pictures, grime,
+  wall bumps and grime decals; the bump maps; `Trees.cs` the falling leaves (the sway and the gale are the psx
+  material's); `Fires.cs` the open fires (`Fires.I.Create(spots, smoke)` for a burning house); `ChimneySmoke.cs`;
+  `Mist.cs` the river mist; `Blobs.cs` the soft shadows under walkers and carts (`Blobs.I.Set("people", spots)`, a
+  part's spots once a frame).
 - **The screen** (`src/Main.cs`, `shaders/retro.gdshader`): the world is drawn at 720 lines into `Main.I.View`,
   then full screen through the retro pass (grade, grain, dither).
 - **What is solid** (`src/World/Solid.cs`): Jef walks on Godot's physics (Jolt) over the baked meshes themselves.

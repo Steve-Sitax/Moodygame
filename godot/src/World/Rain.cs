@@ -22,6 +22,7 @@ shader_type spatial;
 render_mode unshaded, blend_mix, depth_draw_never, cull_disabled, fog_disabled;
 global uniform float psx_time;
 global uniform float psx_rain;
+global uniform float psx_storm;
 global uniform vec4 psx_fog_color;
 global uniform float psx_fog_near;
 global uniform float psx_fog_far;
@@ -34,6 +35,7 @@ global uniform vec4 psx_lamp5;
 global uniform vec4 psx_lamp_color;
 uniform vec2 wind = vec2(0.9, 0.35);
 uniform float expo = 0.02;
+uniform vec4 room = vec4(1.0, 1.0, 0.0, 0.0);
 varying vec3 col;
 varying float alpha;
 varying float seg;
@@ -49,7 +51,8 @@ void vertex() {
 	vec3 box = vec3(28.0, 14.0, 28.0);
 	// each drop a little its own way in the wind
 	float jit = fract(seed * 13.7) - 0.5;
-	vec3 vel = vec3(wind.x * (1.6 + jit * 0.5), -8.5 - seed * 2.5, wind.y * (1.6 - jit * 0.5));
+	// (the great storm: it drives down harder, and the wind lays it over)
+	vec3 vel = vec3(wind.x * (1.6 + jit * 0.5), (-8.5 - seed * 2.5) * (1.0 + 0.45 * psx_storm), wind.y * (1.6 - jit * 0.5));
 	vec3 lo = CAMERA_POSITION_WORLD - vec3(14.0, 5.0, 14.0);
 	vec3 head = lo + mod(VERTEX + vel * psx_time - lo, box);
 	// a streak is the drop's fall in one frame, a little more or less drop by drop
@@ -68,13 +71,23 @@ void vertex() {
 	dir = length(dir) > 1e-6 ? normalize(dir) : vec2(0.0, 1.0);
 	vec2 perp = vec2(-dir.y, dir.x);
 	perp.x /= aspect;
-	float px = 0.75 + 0.9 * (1.0 - smoothstep(0.8, 3.5, fog_depth));
+	float px = (0.75 + 0.9 * (1.0 - smoothstep(0.8, 3.5, fog_depth))) * (1.0 + 0.4 * psx_storm);
 	POSITION.xy += perp * side * px * (2.0 / 270.0) * POSITION.w;
 	// rain barely shows in grey daylight (a little lighter than the air); a drop by a gas lamp catches its glow
-	col = psx_fog_color.rgb * 1.3 + 0.01 + lamp(p, psx_lamp0) + lamp(p, psx_lamp1) + lamp(p, psx_lamp2) + lamp(p, psx_lamp3) + lamp(p, psx_lamp4) + lamp(p, psx_lamp5);
+	col = psx_fog_color.rgb * (1.3 + 0.5 * psx_storm) + 0.01 + 0.05 * psx_storm + lamp(p, psx_lamp0) + lamp(p, psx_lamp1) + lamp(p, psx_lamp2) + lamp(p, psx_lamp3) + lamp(p, psx_lamp4) + lamp(p, psx_lamp5);
 	// close drops only: far off, rain is thicker air, not streaks; both ends in front of the eye, or none
-	float near = smoothstep(0.4, 1.2, fog_depth) * (1.0 - smoothstep(3.0, 7.0, fog_depth));
-	alpha = step(seed, psx_rain * 0.267) * near * (0.08 + 0.2 * fract(seed * 7.3)) * (0.5 + 0.5 * psx_rain) * step(0.7, min(-mh.z, -mt.z)) * 0.75;
+	// (the great storm: sheets of it, seen farther off: the whole box)
+	float near = smoothstep(0.4, 1.2, fog_depth) * (1.0 - smoothstep(3.0 + 5.0 * psx_storm, 7.0 + 6.0 * psx_storm, fog_depth));
+	alpha = step(seed, psx_rain * (0.267 + 0.733 * psx_storm)) * near * (0.08 + 0.2 * fract(seed * 7.3)) * (0.5 + 0.5 * psx_rain) * (1.0 + 2.6 * psx_storm) * step(0.7, min(-mh.z, -mt.z)) * 0.75;
+	if (psx_storm > 0.0) {
+		// the rain comes in curtains that sweep along with the wind, thick and thin by turns
+		vec2 wd = normalize(wind + vec2(1e-4));
+		float along = dot(head.xz, wd) - psx_time * length(wind) * 1.1;
+		float cu = 0.5 + 0.5 * sin(along * 0.21 + sin(dot(head.xz, vec2(-wd.y, wd.x)) * 0.09) * 2.0) * sin(along * 0.083 + 1.3);
+		alpha *= mix(1.0, 0.3 + 1.1 * smoothstep(0.25, 0.8, cu), psx_storm);
+	}
+	// in a room: no rain in it, only out of the windows (its box in x and z)
+	if (room.z > room.x && head.x > room.x && head.x < room.z && head.z > room.y && head.z < room.w) alpha = 0.0;
 	if (alpha < 0.004) POSITION = vec4(2.0, 2.0, 2.0, 1.0);
 }
 void fragment() {
@@ -133,7 +146,7 @@ void fragment() {
         m.CustomAabb = new Aabb(new Vector3(-1e5f, -1e3f, -1e5f), new Vector3(2e5f, 2e3f, 2e5f));
         mat = new ShaderMaterial { Shader = new Shader { Code = Code }, RenderPriority = 3 };
         m.SurfaceSetMaterial(0, mat);
-        mesh = new MeshInstance3D { Name = "ambient_rain", Mesh = m, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off, Visible = false };
+        mesh = new MeshInstance3D { Name = "ambient_rain", Mesh = m, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off, Visible = false, Layers = Mirrors.NoMirror };
         Main.I.View.AddChild(mesh);
     }
 
@@ -146,6 +159,10 @@ void fragment() {
         // a streak is one frame's fall: the frame's length, eased (a hitch does not stretch the rain)
         expo += (Mathf.Clamp((float)delta, 1f / 60, 1f / 24) - expo) * 0.1f;
         mat.SetShaderParameter("expo", expo);
-        mat.SetShaderParameter("wind", day.Wind);
+        // (the great storm: harder, about twice the gale's wind)
+        mat.SetShaderParameter("wind", day.Wind * (1 + 0.9f * day.Storm));
+        // no rain round the eye under a roof: the room's box (World/Rooms.cs)
+        var box = Rooms.I?.Around(Main.I.View.GetCamera3D()?.GlobalPosition ?? Vector3.Zero);
+        mat.SetShaderParameter("room", box is { } bx ? new Vector4(bx.Position.X, bx.Position.Z, bx.End.X, bx.End.Z) : new Vector4(1, 1, 0, 0));
     }
 }
