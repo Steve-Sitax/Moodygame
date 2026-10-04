@@ -88,8 +88,12 @@ public partial class Actors : Node
             r.Seen = true;
             if (r.Phase != a.Phase || r.Action?.TargetX != a.TargetX || r.Action?.TargetZ != a.TargetZ) { r.Reported = false; r.Repath = 0; r.Best = double.PositiveInfinity; r.Stuck = 0; r.Replans = 0; r.GaveUp = false; r.Anchored = false; }
             r.Action = a; r.Phase = a.Phase;
+            bool acquiring = r.Person == null;
             r.Person ??= town?.ActionPerson(a.Npc);
             if (r.Person != null) town!.ActionHold(r.Person, this, true);
+            // A new engine action does not inherit the previous action's indoor scene, even when
+            // this actor coordinator already owned its hold. The new "in" phase restores indoors.
+            if (acquiring && r.Person != null) town!.ActionOutside(r.Person);
         }
         for (int i = Runs.Count - 1; i >= 0; i--)
         {

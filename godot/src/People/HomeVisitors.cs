@@ -31,12 +31,13 @@ public partial class HomeVisitors : Node
         foreach (var home in data.RootElement.GetProperty("homes").EnumerateArray())
             spots[home.GetProperty("id").GetString()!] = home.GetProperty("spots").EnumerateArray().Select(p => new Vector3(p.GetProperty("x").GetSingle(), p.GetProperty("y").GetSingle(), p.GetProperty("z").GetSingle())).ToList();
     }
-    public Vector3? PositionOf(string id) { foreach (var v in visitors.Values) if (v.id == id) return v.group.GlobalPosition; return null; }
+    public Vector3? PositionOf(string id) { if (town?.ActionPerson(id)?.ActionHeld == true) return null; foreach (var v in visitors.Values) if (v.id == id) return v.group.GlobalPosition; return null; }
     /// <summary>Pass the server's person, or null when the room is left. The homes helper can supply its furniture free-space check.</summary>
     public bool Visit(string home, Resident? person, double seconds = 14)
     {
         if (visitors.Remove(home, out var old)) old.group.QueueFree();
         if (person == null) return true;
+        if (town?.ActionPerson(person.Id)?.ActionHeld == true) return false;
         if (!spots.TryGetValue(home, out var candidates)) return false;
         var eye = Main.I.Cam.GlobalPosition;
         var jef = Scheldemist.Player.Jef.I;
@@ -70,7 +71,7 @@ public partial class HomeVisitors : Node
         foreach (var pair in visitors)
         {
             var v = pair.Value;
-            if (time >= v.until) { expired.Add(pair.Key); continue; }
+            if (time >= v.until || town?.ActionPerson(v.id)?.ActionHeld == true) { expired.Add(pair.Key); continue; }
             bool near = Main.I.Cam.GlobalPosition.DistanceTo(v.group.Position) < 45;
             v.group.Visible = near;
             if (near) v.human.Update((float)Math.Min(delta, 0.1));

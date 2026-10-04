@@ -92,6 +92,7 @@ public partial class HallPeople : Node
         foreach (var person in want)
         {
             string id = person.GetProperty("id").GetString()!, role = person.GetProperty("role").GetString()!, kind = person.GetProperty("kind").GetString()!;
+            if (town?.ActionPerson(id) is { ActionHeld: true, Inside: false }) continue;
             if (h.Figures.TryGetValue(id, out var old) && old.Role == role) { occupied.Add(old.Ceremony ? old.Rest : old.Target); continue; }
             if (old != null) { old.Group.QueueFree(); h.Figures.Remove(id); }
             if (!h.Roles.TryGetProperty(role, out var spec)) continue;
@@ -132,7 +133,7 @@ public partial class HallPeople : Node
         }
         h.HadRoster = true;
     }
-    public Vector3? PositionOf(string id) { foreach (var h in Halls) if (h.Figures.TryGetValue(id, out var f)) return f.Group.GlobalPosition; return null; }
+    public Vector3? PositionOf(string id) { if (town?.ActionPerson(id) is { ActionHeld: true, Inside: false }) return null; foreach (var h in Halls) if (h.Figures.TryGetValue(id, out var f)) return f.Group.GlobalPosition; return null; }
     private void PollHall(Hall h, Api api) => api.Run(api.Get<JsonElement>("api/landmark/" + h.Id), reply => Roster(h, reply), _ => h.Loading = false);
     public long AllocatedBytesLastFrame { get; private set; }
     public override void _Process(double delta)
@@ -157,6 +158,8 @@ public partial class HallPeople : Node
             ceremonyGone.Clear();
             foreach (var f in h.Figures.Values)
             {
+                // Do not let an earlier indoor scene move or duplicate a newly reserved street actor.
+                if (town.ActionPerson(f.Id) is { ActionHeld: true, Inside: false }) { ceremonyGone.Add(f.Id); continue; }
                 if (CeremonyStep(h, f, delta, near)) continue;
                 f.Group.Visible = near;
                 if (!near) continue;

@@ -265,6 +265,7 @@ public sealed class Indoors
     public IEnumerable<Node3D> Groups => Houses.SelectMany(h => h.Figures.Values.Select(f => f.Group));
     public Vector3? PositionOf(string id)
     {
+        if (town.ActionPerson(id) is { ActionHeld: true, Inside: false }) return null;
         foreach (var h in Houses) if (h.Figures.TryGetValue(id, out var figure)) return figure.Group.GlobalPosition;
         return null;
     }

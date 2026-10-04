@@ -141,7 +141,14 @@ public partial class EventTest : Node
                     string picture = Path.Combine(dir, kind + "-" + live.Event.Stage + "-" + stage.Op + ".png");
                     await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
                     GetViewport().GetTexture().GetImage().SavePng(picture);
-                    rows.Add(new { kind, stage = live.Event.Stage, op = stage.Op, soundKind = stage.Sound, propsKind = stage.Props, people = ids.Count, held, drawn, there, props = live.Props.Count, sound = live.Sound != null, cues = live.Cues != null, picture, left = live.Left, fire = TownLife.I?.FiresDrawn, buckets = TownLife.I?.BucketCount, chainHands = TownLife.I?.ChainHands, hearses = Hearses.I?.Count, sounds = Soundscape.I?.Rung.ToArray() });
+                    var positions = Actors.I.Runs.Where(r => r.Action.EventId == plan.Id).Select(r =>
+                    {
+                        var s = r.Person; var at = town.PositionOf(r.Action.Npc);
+                        return new { id = r.Action.Npc, x = s?.P?.X ?? s?.X, z = s?.P?.Z ?? s?.Z, reportedX = at?.x, reportedZ = at?.z,
+                            inside = s?.Inside, owns = ReferenceEquals(s?.ActionOwner, Actors.I), targetX = r.Action.TargetX, targetZ = r.Action.TargetZ,
+                            r.Replans, r.GaveUp, r.BusWait, onBus = r.Bus != null };
+                    }).ToArray();
+                    rows.Add(new { kind, stage = live.Event.Stage, op = stage.Op, soundKind = stage.Sound, propsKind = stage.Props, people = ids.Count, held, drawn, there, props = live.Props.Count, positions, sound = live.Sound != null, cues = live.Cues != null, picture, left = live.Left, fire = TownLife.I?.FiresDrawn, buckets = TownLife.I?.BucketCount, chainHands = TownLife.I?.ChainHands, hearses = Hearses.I?.Count, sounds = Soundscape.I?.Rung.ToArray() });
                     if (stageIndex == 0) foreach (var lead in live.Event.Leads)
                     {
                         if (town.ActionPerson(lead.Id)?.P is not { } actor) continue;
@@ -165,8 +172,17 @@ public partial class EventTest : Node
                     }
                     if (kind == "funeral" && stage.Op == "depart") await PropPicture("event_hearse", "funeral-hearse.png");
                     Place(stage, live);
-                    if (stage.Props != "none") Check(live.Props.Count > 0, "no " + stage.Props + " props at stage " + live.Event.Stage);
-                    foreach (var run in Actors.I.Runs) if (run.Action.EventId == plan.Id) Check(run.Person?.ActionHeld == true, "person not reserved at stage " + live.Event.Stage + ": " + run.Action.Npc);
+                    if (stage.Props != "none")
+                    {
+                        Check(live.Props.Count > 0, "no " + stage.Props + " props at stage " + live.Event.Stage);
+                        if (stage.Props == "black_cloth") Check(live.Props.Count==2,"both funeral cloth props placed");
+                    }
+                    foreach (var run in Actors.I.Runs) if (run.Action.EventId == plan.Id)
+                    {
+                        Check(run.Person?.ActionHeld == true && ReferenceEquals(run.Person.ActionOwner, Actors.I), "person not reserved at stage " + live.Event.Stage + ": " + run.Action.Npc);
+                        if (run.Person is { Inside: false, P: { } p } && town.PositionOf(run.Action.Npc) is { } at)
+                            Check(Whereabouts.Hypot(at.x-p.X,at.z-p.Z)<.01,"room position masked a street actor: " + run.Action.Npc);
+                    }
                     if (kind == "street_robbery" && stageIndex == 1 && costs.Count == 0)
                     {
                         // This engine scene runs on the Grote Markt. Keep Jef by its actors;

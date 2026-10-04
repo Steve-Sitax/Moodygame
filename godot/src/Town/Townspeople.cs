@@ -458,6 +458,9 @@ public partial class Townspeople : Node
     /// <summary>Where someone is now, by id: a townsperson in the street or indoors (his door), or one of the people at their posts. Null: not known.</summary>
     public (double x, double z)? PositionOf(string id)
     {
+        // A room's last roster can outlive departure. The street reservation owns this body now.
+        if (byId.TryGetValue(id, out var held) && held.ActionHeld && !held.Inside)
+            return held.P != null ? (held.P.X, held.P.Z) : (held.X, held.Z);
         if (HomeVisitors.I?.PositionOf(id) is { } visitor) return (visitor.X, visitor.Z);
         if (HallPeople.I?.PositionOf(id) is { } hall) return (hall.X, hall.Z);
         if (Indoors?.PositionOf(id) is { } room) return (room.X, room.Z);

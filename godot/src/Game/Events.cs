@@ -148,19 +148,41 @@ public partial class Events : Node
     }
     private void PlaceProps(Live l, EventStage stage)
     {
+        if (town?.Walk is not { } walk) return;
         int n = stage.Props == "black_cloth" ? 2 : stage.Props == "flowers" ? 5 : 4;
         double r = Math.Clamp(l.Event.R, 2.5, 6) * 0.9;
         for (int i = 0; i < n; i++)
         {
             double a = i * Math.PI * 2 / n + 0.7, x = stage.X + Math.Cos(a) * r, z = stage.Z + Math.Sin(a) * r;
-            if (town?.Walk == null || !town.Walk.Free(x, z)) continue;
+            if (!PropPoint(l, x, z, out x, out z)) continue;
             var prop = EventProps.Make(stage.Props);
             double h = Math.Sin(x * 12.9898 + z * 78.233 + i * 37.719) * 43758.5453;
-            prop.Position = new Vector3((float)x, (float)town.Walk.BaseAt(x, z), (float)z);
+            prop.Position = new Vector3((float)x, (float)walk.BaseAt(x, z), (float)z);
             prop.Rotation = new Vector3(0, (float)((h - Math.Floor(h)) * Math.PI * 2), 0);
             Main.I.View.AddChild(prop); l.Props.Add(prop);
         }
         l.PropsKind = stage.Props;
+    }
+    private bool PropPoint(Live live, double anchorX, double anchorZ, out double x, out double z)
+    {
+        x = anchorX; z = anchorZ;
+        if (town?.Walk == null) return false;
+        bool Free(double px, double pz)
+        {
+            if (!town.Walk.Free(px,pz)) return false;
+            foreach (var prop in live.Props) if (Whereabouts.Hypot(px-prop.Position.X,pz-prop.Position.Z)<.9) return false;
+            return true;
+        }
+        if (Free(x,z)) return true;
+        // The merged town has live footprints absent from the original prop ring. Keep valid anchors,
+        // but find a nearby clear patch for a blocked one rather than silently losing the scene's props.
+        for (double radius=.5; radius<=6; radius+=.5) for (int k=0; k<16; k++)
+        {
+            double angle=.7+k*Math.PI/8, px=anchorX+Math.Cos(angle)*radius, pz=anchorZ+Math.Sin(angle)*radius;
+            if (!Free(px,pz)) continue;
+            x=px; z=pz; return true;
+        }
+        return false;
     }
     private static void StopSounds(Live l) { l.Sound?.Stop(); l.Cues?.Stop(); l.Sound = l.Cues = null; }
     private static void DropProps(Live l) { foreach (var p in l.Props) p.QueueFree(); l.Props.Clear(); l.PropsKind = "none"; }
