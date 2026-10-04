@@ -14,7 +14,7 @@ public partial class Actors
         if (OwnsNpc != null) return OwnsNpc(id);
         var together = Scheldemist.Net.Mp.Together.I;
         if (together?.On != true) return true;
-        return !npcOwners.TryGetValue(id, out int owner) || owner == together.PlayerId;
+        return npcOwners.TryGetValue(id, out int owner) && owner == together.PlayerId;
     }
     public void OwnershipText(string type, JsonElement message)
     {

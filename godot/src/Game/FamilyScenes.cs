@@ -69,7 +69,8 @@ public partial class FamilyScenes : Node
         if (state.TryGetProperty("dream", out var incoming))
         {
             string? next = incoming.ValueKind == JsonValueKind.String ? incoming.GetString() : incoming.ValueKind == JsonValueKind.Object && incoming.TryGetProperty("text", out var text) ? text.GetString() : null;
-            if (!string.IsNullOrEmpty(next) && next != dream) { dream = next; waitingDream = next; dreamWait = 120; PutDream(); if (waitingDream != "") GameState.I.Say("You dreamt: " + dream); }
+            if (incoming.ValueKind == JsonValueKind.Object && !string.IsNullOrEmpty(next)) dream = next;
+            if (incoming.ValueKind == JsonValueKind.String && !string.IsNullOrEmpty(next)) { dream = next; waitingDream = next; dreamWait = 120; PutDream(); if (waitingDream != "") GameState.I.Say("You dreamt: " + dream); }
         }
     }
     private void PutDream() { if (waitingDream != "" && DaySheets.I?.PutDream(waitingDream) == true) waitingDream = ""; }

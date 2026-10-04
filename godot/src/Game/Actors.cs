@@ -46,6 +46,8 @@ public partial class Actors : Node
     public double LogicMs { get; private set; }
     public long AllocatedBytes { get; private set; }
     public int Reports { get; private set; }
+    /// <summary>The police/room owner can consume an accepted action in its real prison or cell walk grid.</summary>
+    public Func<Run, double, bool>? RoomMovement { get; set; }
     public bool TestHoldsPoll;
     private int ordinaryCapacity;
     public override void _Ready()
@@ -150,6 +152,7 @@ public partial class Actors : Node
     }
     private void Step(Run r, double dt)
     {
+        if (RoomMovement?.Invoke(r, dt) == true) return;
         var a = r.Action; var s = r.Person ??= town!.ActionPerson(a.Npc);
         if (s == null) return;
         if (!s.ActionHeld) town!.ActionHold(s);

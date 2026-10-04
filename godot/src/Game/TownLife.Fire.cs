@@ -64,10 +64,10 @@ public partial class TownLife
         if (found == null) foreach (var s in sootPool) if (s.Event == 0) { found = s; s.Event = id; break; }
         if (found == null) return;
         float h = 3.8f + 3 * (Math.Clamp(storeys, 2, 5) - 1) + 1;
-        found.Seen = true; found.Opacity = opacity;
+        found.Seen = true; bool changed = found.Opacity != opacity; found.Opacity = opacity;
         found.Node.Position = new Vector3((float)(door[0] + outward[0] * 0.06), h / 2, (float)(door[1] + outward[1] * 0.06));
         found.Node.Rotation = new Vector3(0, (float)Math.Atan2(outward[0], outward[1]), 0); found.Node.Scale = new Vector3(6.4f, h, 1);
-        found.Material.SetShaderParameter("albedo", new Color(1, 1, 1, opacity)); found.Node.Visible = true;
+        if (changed) found.Material.SetShaderParameter("albedo", new Color(1, 1, 1, opacity)); found.Node.Visible = true;
     }
     private void DrawSoot()
     {
@@ -99,6 +99,8 @@ public partial class TownLife
             for (int i = 0; i < v.Chain.Count && i < 64; i++) if (Math.Abs(v.Chain[i][0] - (a.TargetX ?? double.MaxValue)) < 0.05 && Math.Abs(v.Chain[i][1] - (a.TargetZ ?? double.MaxValue)) < 0.05) { k = i; break; }
             if (k < 0) continue;
             double sx = v.Chain[k][0], sz = v.Chain[k][1], d = Whereabouts.Hypot(p.X - sx, p.Z - sz);
+            bool owned = Actors.I.NpcOwned(a.Npc);
+            if (!owned) { f.Hands[k] = new Vector2((float)p.X, (float)p.Z); continue; }
             bool hidden = crowd.IsHidden(p.X, p.Z) && crowd.IsHidden(sx, sz);
             if (crowd.PuppetBusy(p)) { if (d > 6 && hidden && crowd.CanStand(sx, sz)) { p.X = sx; p.Z = sz; } else continue; }
             else if (d > 4) { if (hidden && crowd.CanStand(sx, sz)) { p.X = sx; p.Z = sz; } else { if (r.Retry <= 0) { crowd.PuppetGo(p, sx, sz, 1.6); r.Retry = 6; } continue; } }

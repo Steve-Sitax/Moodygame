@@ -22,7 +22,9 @@ public partial class TownLife : Node
         public Fires.Fire? Fx;
         public Node3D? Pump;
         public MeshInstance3D? Hose;
-        public Node3D? Brake;
+        public readonly List<(Node3D Wheel, float Radius)> Wheels = new(4);
+        public readonly List<Node3D> Brakes = new(2);
+        public double LastTravel;
         public readonly List<EventHorse> Horses = new(2);
         public double PumpLength;
         public FireView View = null!;
@@ -55,7 +57,8 @@ public partial class TownLife : Node
     }
     public override void _Process(double delta)
     {
-        ulong start = Time.GetTicksUsec(); long before = GC.GetAllocatedBytesForCurrentThread(); clock += delta; PollLife(delta);
+        clock += delta; PollLife(delta);
+        ulong start = Time.GetTicksUsec(); long before = GC.GetAllocatedBytesForCurrentThread();
         if (Events.I == null || town?.Walk == null) return;
         WalkLamps(delta);
         foreach (var f in fires) f.Seen = false;
@@ -107,9 +110,8 @@ public partial class TownLife : Node
         {
             if (f.Pump == null)
             {
-                f.Pump = MakePump(); Main.I.View.AddChild(f.Pump);
-                f.Brake = EventProps.Box(f.Pump, new Vector3(0.06f, 0.06f, 2.8f), new Vector3(0, 1.6f, 0), 0x2a2a2c);
-                foreach (float x in new[] { -0.55f, 0.55f }) { var horse = new EventHorse(); horse.Root.Position = new Vector3(x, 0, 3.8f); f.Pump.AddChild(horse.Root); f.Horses.Add(horse); }
+                f.Pump = MakePump(f); Main.I.View.AddChild(f.Pump);
+                foreach (float x in new[] { -0.55f, 0.55f }) { var horse = new EventHorse(); horse.Root.Position = new Vector3(x, 0, 3.6f); f.Pump.AddChild(horse.Root); f.Horses.Add(horse); }
             }
             double from = Math.Max(0, f.PumpLength - 150), seconds = (Events.StageOf(ev)!.Minutes - live.Left) * 2;
             double travelled = act != "fire_brigade" ? f.PumpLength : Math.Min(f.PumpLength, from + seconds * Math.Max(3.5, (f.PumpLength - from) / 16));
@@ -118,13 +120,10 @@ public partial class TownLife : Node
             if (!arrived) Along(v.PumpPath, travelled, out xAt, out zAt, out yaw);
             f.Pump.Position = new Vector3((float)xAt, (float)town!.Walk!.BaseAt(xAt, zAt), (float)zAt); f.Pump.Rotation = new Vector3(0, (float)yaw, 0);
             foreach (var horse in f.Horses) horse.Set(travelled, arrived ? 0 : 1, true);
-            f.Brake!.Rotation = new Vector3(arrived && f.Flame > 0.04 ? (float)Math.Sin(clock * 2.6) * 0.18f : 0, 0, 0);
-            if (arrived && f.Hose == null)
-            {
-                Vector3 a = f.Pump.Position + new Vector3(0, 0.15f, 0), b = new Vector3((float)(v.Step[0] + v.Out[0] * 0.4), (float)town.Walk.BaseAt(v.Step[0], v.Step[1]) + 0.1f, (float)(v.Step[1] + v.Out[1] * 0.4));
-                f.Hose = EventProps.Box(Main.I.View, new Vector3(0.07f, 0.07f, Math.Max(0.05f, a.DistanceTo(b))), (a + b) / 2, 0x4a3222);
-                f.Hose.Basis = new Basis(new Quaternion(Vector3.Back, (b - a).Normalized()));
-            }
+            foreach (var wheel in f.Wheels) wheel.Wheel.RotateX((float)((travelled - f.LastTravel) / wheel.Radius));
+            f.LastTravel = travelled;
+            foreach (var brake in f.Brakes) brake.Rotation = new Vector3(arrived && f.Flame > 0.04 ? (float)Math.Sin(clock * 6.3) * 0.2f : 0, 0, 0);
+            if (arrived && f.Hose == null) f.Hose = MakeHose(f.Pump, v, town.Walk!);
         }
         if (act is "fire_brigade" or "fire_chain" or "fire_down") count = Chain(f, ev.Id, act, count, delta);
         SetSoot(ev.Id, v.Door, v.Out, v.Storeys, act switch { "fire_start" => 0.15f * t, "fire_brigade" => 0.15f + 0.2f * t, "fire_chain" => 0.35f + 0.4f * t, _ => 0.75f + 0.1f * t });
@@ -140,14 +139,6 @@ public partial class TownLife : Node
         for (int k = 1; k < Math.Min(storeys, 4); k++) { double y = 3.8 + 3 * (k - 1) + 1; Window(-3, y, 1.3f); Window(0, y, 1.45f); Window(3, y, 1.35f); }
         foreach (double side in new[] { -3.3, -1.1, 1.1, 3.3 }) At(side, -2.4 - Math.Abs(side) * 0.15, 3.8 + 3 * (storeys - 1) + 1, side > 0 ? 2.8f : 2.5f);
         return spots;
-    }
-    private static Node3D MakePump()
-    {
-        var r = new Node3D { Name = "fire_pump" };
-        EventProps.Box(r, new Vector3(1.25f, 0.35f, 2.4f), new Vector3(0, 0.7f, 0), 0x8a2520);
-        EventProps.Box(r, new Vector3(0.65f, 0.75f, 0.65f), new Vector3(0, 1.2f, 0), 0xa68434);
-        foreach (float x in new[] { -0.7f, 0.7f }) foreach (float z in new[] { -0.8f, 0.8f }) LeadLooks.Cylinder(r, 0.55f, 0.55f, 0.07f, 0x3b2c24, x, 0.55f, z).Rotation = new Vector3(0, 0, MathF.PI / 2);
-        return r;
     }
     private static void Along(List<double[]> path, double distance, out double x, out double z, out double yaw)
     {

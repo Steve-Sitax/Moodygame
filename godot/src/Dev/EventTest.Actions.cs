@@ -45,7 +45,7 @@ public partial class EventTest
                 Check(agent != null, "dispatch supplied no agent");
                 if (agent != null) { town.ActionHold(agent); town.ActionHide(agent); agent.X = centre.X - 2; agent.Z = centre.Z + 6; town.ActionClaim(agent); }
             }
-            
+
             await Wait(kind is "follow" or "go_to" or "fetch_police" ? 12 : 5);
             bool observed = kind == "follow" ? actor.P != null && Whereabouts.Hypot(actor.P.X - Jef.I.X, actor.P.Z - Jef.I.Z) < 4 : kind == "wait" ? actor.P != null && !town.Crowd!.PuppetBusy(actor.P) : run.Reported || run.Reporting;
             Check(observed, "accepted action did not reach its expected behavior");
@@ -80,17 +80,25 @@ public partial class EventTest
         await Wait(4);
         int drawn = people.Count(s => s.P?.Shown == true);
         Check(drawn == 100, "not 100 visible attendee bodies: " + drawn);
-        var frameMs = new List<double>(360);
+        var frameMs = new List<double>(360); var elapsedMs = new List<double>(360); ulong previousFrame = Time.GetTicksUsec();
         costs.Clear(); allocations.Clear(); measuring = true;
-        for (int i = 0; i < 360; i++) { await Frames(1); frameMs.Add((double)Performance.GetMonitor(Performance.Monitor.TimeProcess) * 1000); }
-        measuring = false; frameMs.Sort();
-        rows.Add(new { kind = "crowd100", visible = drawn, presentationFixtures = true, frames = frameMs.Count, wholeFrameMeanMs = frameMs.Average(), wholeFrameP95Ms = frameMs[(int)(frameMs.Count * 0.95)], peopleLogicMs = town.LogicMs });
+        for (int i = 0; i < 360; i++) { await Frames(1); ulong now = Time.GetTicksUsec(); elapsedMs.Add((now - previousFrame) / 1000.0); previousFrame = now; frameMs.Add((double)Performance.GetMonitor(Performance.Monitor.TimeProcess) * 1000); }
+        measuring = false; frameMs.Sort(); elapsedMs.Sort();
+        rows.Add(new { kind = "crowd100", visible = drawn, presentationFixtures = true, frames = frameMs.Count, engineProcessMeanMs = frameMs.Average(), engineProcessP95Ms = frameMs[(int)(frameMs.Count * 0.95)], elapsedFrameMeanMs = elapsedMs.Average(), elapsedFrameP95Ms = elapsedMs[(int)(elapsedMs.Count * .95)], peopleLogicMs = town.LogicMs, actorsBytes = Actors.I.AllocatedBytes, eventsBytes = Events.I!.AllocatedBytes, townLifeBytes = TownLife.I!.AllocatedBytes, hearseBytes = Hearses.I!.AllocatedBytes });
         await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
         GetViewport().GetTexture().GetImage().SavePng(System.IO.Path.Combine(dir, "attendees-100.png"));
         var recover = Actors.I.Runs.First(r => r.Person?.P != null); recover.GoalX = centre.X; recover.GoalZ = centre.Z; recover.Pace = 1.45;
         for (int i = 0; i < 5; i++) Actors.I.Recover(recover);
         Check(recover.Replans == 5 && recover.GaveUp, "attendance did not stop after four alternate ways");
         rows.Add(new { kind = "recovery", attempts = recover.Replans - 1, stopped = recover.GaveUp });
+        int consumed = 0;
+        Actors.I.RoomMovement = (_, _) => { consumed++; return true; };
+        Actors.I.OwnsNpc = _ => false; Actors.I._Process(.016);
+        Check(consumed == 0, "another owner's accepted actions reached room movement");
+        Actors.I.OwnsNpc = _ => true; Actors.I._Process(.016);
+        Check(consumed == 100, "owned accepted actions did not reach room movement hook");
+        Actors.I.OwnsNpc = null; Actors.I.RoomMovement = null;
+        rows.Add(new { kind = "ownership_room_hooks", remoteSuppressed = true, ownedConsumed = consumed, presentationFixtures = true, realPrisonWalk = false, twoClients = false });
         Actors.I.Reset(); Check(town.MaxPuppets == 50, "event capacity did not return to normal");
     }
     private static bool HumansKind(string kind) => Scheldemist.People.Humans.IsKind(kind) && kind is not ("porter" or "carter");

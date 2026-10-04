@@ -155,9 +155,14 @@ public partial class EventTest : Node
                     {
                         await Wait(20);
                         Check(TownLife.I!.ChainHands >= 2 && TownLife.I.BucketCount > 0, "no buckets passed between chain hands");
-                        rows.Add(new { kind = "chain", hands = TownLife.I.ChainHands, buckets = TownLife.I.BucketCount });
+                        Check(TownLife.I.HoseTriangles == 128, "arrived pump lacks 16-segment four-sided hose");
+                        rows.Add(new { kind = "chain", hands = TownLife.I.ChainHands, buckets = TownLife.I.BucketCount, wheels = TownLife.I.PumpWheels, brakes = TownLife.I.PumpBrakes, hoseTriangles = TownLife.I.HoseTriangles });
                     }
-                    if (kind == "house_fire" && stageIndex == 1) await PropPicture("fire_pump", "house_fire-pump.png");
+                    if (kind == "house_fire" && stageIndex == 1)
+                    {
+                        Check(TownLife.I!.PumpWheels == 4 && TownLife.I.PumpBrakes == 2, "pump lacks four wheels or paired brakes");
+                        await PropPicture("fire_pump", "house_fire-pump.png");
+                    }
                     if (kind == "funeral" && stage.Op == "depart") await PropPicture("event_hearse", "funeral-hearse.png");
                     Place(stage, live);
                     if (stage.Props != "none") Check(live.Props.Count > 0, "no " + stage.Props + " props at stage " + live.Event.Stage);
@@ -198,6 +203,7 @@ public partial class EventTest : Node
             if (only.Length == 0 || only.Contains("family_ui")) await FamilyUi();
             if (only.Length == 0 || only.Contains("actions")) await RequestedActions(api, town);
             if (only.Length == 0 || only.Contains("crowd100")) await Crowd100(town);
+            if (only.Length == 0 || only.Contains("omnibus")) await TransitProof(town);
             if (only.Length == 0 || only.Contains("lamps")) await Lamps(api);
             if (only.Length == 0 || only.Contains("dreams")) await Dreams();
         }
@@ -209,7 +215,7 @@ public partial class EventTest : Node
             double mean = costs.Count == 0 ? 0 : costs.Average(), p95 = costs.Count == 0 ? 0 : costs[(int)((costs.Count - 1) * 0.95)];
             if (costs.Count > 0) Check(mean < 0.5, "events and actors exceed 0.5 ms mean: " + mean);
             if (allocations.Count > 0) Check(allocations[(int)((allocations.Count - 1) * 0.95)] == 0, "steady frames allocate managed memory");
-            File.WriteAllText(Path.Combine(dir, "eventtest.json"), JsonSerializer.Serialize(new { ok = failures.Count == 0, failures, stages = rows, frame = new { count = costs.Count, meanMs = mean, p95Ms = p95, maxMs = costs.Count == 0 ? 0 : costs[^1], meanBytes = allocations.Count == 0 ? 0 : allocations.Average(), p95Bytes = allocations.Count == 0 ? 0 : allocations[(int)((allocations.Count - 1) * 0.95)] }, notCovered = new[] { "AI-invented event content (no AI in this test)", "Multiplayer ownership and actual omnibus attendance", "Full indoor ceremony choreography and exit walks", "Persistent soot and lamplighter rounds", "Family menace engine outcomes" } }, new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(Path.Combine(dir, "eventtest.json"), JsonSerializer.Serialize(new { ok = failures.Count == 0, failures, stages = rows, frame = new { count = costs.Count, meanMs = mean, p95Ms = p95, maxMs = costs.Count == 0 ? 0 : costs[^1], meanBytes = allocations.Count == 0 ? 0 : allocations.Average(), p95Bytes = allocations.Count == 0 ? 0 : allocations[(int)((allocations.Count - 1) * 0.95)] }, notCovered = new[] { "AI-invented event content (no AI in this test)", "Two-client NPC claim/batch replication (ownership hooks only)", "Real prison-room movement (room-owner hook only)", "Browser pixel equality and remaining one-off lead prop details", "Family menace engine outcomes" } }, new JsonSerializerOptions { WriteIndented = true }));
             GD.Print("eventtest wrote " + dir + " failures=" + failures.Count);
             GetTree().Quit(failures.Count == 0 ? 0 : 1);
         }
@@ -252,7 +258,15 @@ public partial class EventTest : Node
         GetViewport().GetTexture().GetImage().SavePng(Path.Combine(dir, "night-dream.png"));
         DaySheets.I.OnKey("Escape", "Escape"); await Frames(2);
         Check(DaySheets.I.Shown == "none", "dream kept night paper open");
-        rows.Add(new { kind = "dreams", waiting = true, replacement = true, closed = true, presentationFixtures = true });
+        Push("The bells sound across the water.");
+        GameState.I.Apply(new TickReply { Night = new Night { Where = "rough", Summary = new() { "Another night." } } }); await Frames(2);
+        Check(DaySheets.I.Lines.Contains("You dream. The bells sound across the water."), "same words on another night were lost");
+        DaySheets.I.OnKey("Escape", "Escape");
+        Push("An old dream."); FamilyScenes.I!._Process(121);
+        GameState.I.Apply(new TickReply { Night = new Night { Where = "rough", Summary = new() { "A later night." } } }); await Frames(2);
+        Check(!DaySheets.I.Lines.Any(x => x.StartsWith("You dream.")), "expired waiting dream leaked onto later night");
+        DaySheets.I.OnKey("Escape", "Escape");
+        rows.Add(new { kind = "dreams", waiting = true, replacement = true, closed = true, repeatNights = true, waitExpires = true, presentationFixtures = true });
     }
 
     private async Task FamilyUi()
