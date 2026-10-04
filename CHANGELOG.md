@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- In Godot the Poesje takes its evening ticket once a day, opens its real curtains and performs the server's play with puppets and spoken captions.
+
 - Godot taverns have physical table seats and arrived patrons as dice partners; E stands up again.
 
 - Godot players can buy at real shop and tavern counters, hear the ballad singer and keep his verse-and-chorus sheet in their pockets.
