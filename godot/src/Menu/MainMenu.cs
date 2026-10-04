@@ -67,7 +67,7 @@ public partial class MainMenu : Node
         string only = main.Arg("only");
         if (only != "" && !only.Split(',').Contains("mainmenu")) return false;
         foreach (string a in OS.GetCmdlineUserArgs())
-            if (a == "--shots" || (a.StartsWith("--") && a.EndsWith("test") && a != "--menutest"))
+            if (a == "--shots" || (a.StartsWith("--") && a.EndsWith("test") && a != "--menutest" && a != "--togethertest"))
                 return false;
         return true;
     }
@@ -343,6 +343,7 @@ public partial class MainMenu : Node
         loadBtn = Item(InkButton.Look.MenuItem, "Load", () => Saves.OpenPanel("load"));
         Item(InkButton.Look.MenuItem, "New game", () => Sheets.NewGame(this));
         Item(InkButton.Look.MenuItem, "Settings", () => SettingsSheet.Open("graphics"));
+        Item(InkButton.Look.MenuItem, "Together", TogetherSheet.Open);
         Item(InkButton.Look.MenuItem, "AI setup", () => AiSheet.Open());
         Item(InkButton.Look.MenuItem, "Controls", () => SettingsSheet.Open("controls"));
         Item(InkButton.Look.MenuItem, "Help", Sheets.Help);
@@ -558,6 +559,7 @@ public partial class MainMenu : Node
     /// <summary>P: the "Paused" card; P, a walking key or a click goes on.</summary>
     public void KeyPause(bool on)
     {
+        if (Pause.Together) return;
         if (on == Pause.Has("key")) return;
         if (on)
         {

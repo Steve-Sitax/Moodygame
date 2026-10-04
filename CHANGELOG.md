@@ -8,6 +8,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 ## [Unreleased]
 
 ### New in the game
+- The Godot handbill has a Together paper for hosting, joining with an address and code, and going home.
 - Godot players can host and join a shared town, see each other walking with names and gear, and return to their own game. Each player keeps their own money and needs.
 - The back neighbourhoods have a bakery, grocer and cobbler, plus In de Linde and De Zwarte Kat. The latter welcomes players trusted by the smugglers; outsiders are warned to leave and refused service.
 - Ivy and red autumn Virginia creeper climb the town wall's inner face, along the Stadspark and the streets behind the wall.
