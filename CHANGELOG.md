@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Godot avoids allocating inactive collision and lamp checks, repeated sound wiring closures, bus names and home-door lookups during steady play.
+
 - Godot skips identical mover instance-buffer uploads, while retaining every pose, colour and visible instance.
 
 - Godot reuses unchanged carry and watch job papers, their rounded distance labels and carry-goal queries, keeping the same text and picture.

@@ -24,6 +24,12 @@ public partial class HomeLife : Node
     private readonly List<Interact.Entry> prompts = new();
     private readonly List<Interact.Entry> notices = new();
     private readonly Dictionary<string, HomeFrame> frames = new();
+    private readonly Dictionary<string, string> doorNames = new();
+    private string DoorName(string id)
+    {
+        if (!doorNames.TryGetValue(id, out var name)) doorNames[id] = name = Spots.BakedName("home:" + id);
+        return name;
+    }
     private Window notice = null!;
     private HomeDoor? selected;
     public sealed class HomeFrame
@@ -67,7 +73,7 @@ public partial class HomeLife : Node
         doorTime = 0.25;
         foreach (var f in frames.Values)
         {
-            var d = Doors.I.Get(Spots.BakedName("home:" + f.Id));
+            var d = Doors.I.Get(Dev.SpeedComparison.Cached ? DoorName(f.Id) : Spots.BakedName("home:" + f.Id));
             if (d == null) continue;
             d.Kind = "home";
             bool open = Mine(f) && (f.Inside || new Vector2(Jef.I.X, Jef.I.Z).DistanceTo(new Vector2(f.X, f.Z)) < 4.5f);

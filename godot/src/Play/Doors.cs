@@ -75,7 +75,13 @@ public partial class Doors : Node
 
     private readonly List<Door> doors = new();
     public IReadOnlyList<Door> All => doors;
-    public Door? Get(string id) => doors.FirstOrDefault(d => d.Id == id);
+    public Door? Get(string id)
+    {
+        if (!Dev.SpeedComparison.Cached) return GetOriginal(id);
+        foreach (var door in doors) if (door.Id == id) return door;
+        return null;
+    }
+    private Door? GetOriginal(string id) => doors.FirstOrDefault(d => d.Id == id);
 
     /// <summary>Is Jef carrying goods (the goods' part says)? Then no house door lets him in.</summary>
     public Func<bool> HandsFull { get; set; } = () => false;

@@ -420,13 +420,7 @@ void fragment() {
         }
         nearLamps.Sort((a, b) => { int d = a.distance.CompareTo(b.distance); return d != 0 ? d : a.order.CompareTo(b.order); });
         for (int i = 0; i < Math.Min(nearLamps.Count, lampSlots.Length); i++) near.Add(nearLamps[i].lamp);
-        if (compareSelections)
-        {
-            var original = lamps.Where(l => l.B >= 0.01f)
-                .Select(l => (l, d: l.At.DistanceTo(eye) * (Ahead(l.At, eye, look) > -0.3f ? 1 : 1.4f) - (Array.Exists(lampSlots, s => s.lamp == l && s.w > 0) ? 3 : 0)))
-                .OrderBy(x => x.d).Take(lampSlots.Length).Select(x => x.l);
-            if (!original.SequenceEqual(near)) throw new InvalidOperationException("lamp selection differs from original");
-        }
+        if (compareSelections) CompareSelection(eye, look);
         for (int i = 0; i < lampSlots.Length; i++)
         {
             var (l, w) = lampSlots[i];
@@ -526,6 +520,16 @@ void fragment() {
     }
 
     private float nowHourN, nowNight, nowDark;
+
+    // Keep the diagnostic's captured locals out of _Process: C# otherwise allocates its
+    // display class on every frame, even when compareSelections is false.
+    private void CompareSelection(Vector3 eye, Vector3 look)
+    {
+        var original = lamps.Where(l => l.B >= 0.01f)
+            .Select(l => (l, d: l.At.DistanceTo(eye) * (Ahead(l.At, eye, look) > -0.3f ? 1 : 1.4f) - (Array.Exists(lampSlots, s => s.lamp == l && s.w > 0) ? 3 : 0)))
+            .OrderBy(x => x.d).Take(lampSlots.Length).Select(x => x.l);
+        if (!original.SequenceEqual(near)) throw new InvalidOperationException("lamp selection differs from original");
+    }
 
     /// <summary>A source's power now (its kind's rule at this hour), kept in s.Now.</summary>
     private float Now(Src s)

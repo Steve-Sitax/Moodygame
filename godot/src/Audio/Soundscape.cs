@@ -330,7 +330,7 @@ public partial class Soundscape : Godot.Node
         });
 
         if (!IsInstanceValid(this) || !IsInsideTree()) return;
-        while (ready.TryDequeue(out var fn)) fn();
+        while (ready.TryDequeue(out var fn)) { using var callbackCost = Dev.FrameCost.Callback(fn); fn(); }
         StartHowl();
         now = 0;
         nextHorn = now + Rand(9, 16); // first one early, then 40-90 s

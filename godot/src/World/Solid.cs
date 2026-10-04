@@ -313,7 +313,7 @@ public partial class Solid : Node
             foreach (var it in items)
                 if (!it.Built && Distance(it.Box, p) <= Reach)
                     queue.Add(it);
-            queue.Sort((a, b) => Distance(b.Box, p).CompareTo(Distance(a.Box, p))); // the nearest last: taken from the end
+            SortQueue(p); // the nearest last: taken from the end
         }
         if (queue.Count == 0) return;
         ulong t0 = Time.GetTicksUsec();
@@ -325,6 +325,9 @@ public partial class Solid : Node
         }
         BuildMs += (Time.GetTicksUsec() - t0) / 1000.0;
     }
+
+    // A captured sort key must not allocate before the normal all-built early return.
+    private void SortQueue(Vector3 p) => queue.Sort((a, b) => Distance(b.Box, p).CompareTo(Distance(a.Box, p)));
 
     public override void _ExitTree()
     {

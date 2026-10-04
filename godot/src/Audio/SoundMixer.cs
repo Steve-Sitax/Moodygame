@@ -789,7 +789,7 @@ public partial class Soundscape
             var t = timers[i];
             if (!t.Dead && now < t.At) continue;
             timers.RemoveAt(i);
-            if (!t.Dead) t.Fn();
+            if (!t.Dead) { using var timerCost = Dev.FrameCost.Callback(t.Fn); t.Fn(); }
         }
     }
 }

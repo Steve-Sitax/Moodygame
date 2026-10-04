@@ -300,6 +300,7 @@ public partial class Interact : Node
             if (string.IsNullOrEmpty(text)) continue;
             var act = borrowEntries ? e.Prompt : new Act();
             act.Key = e.Key; act.Text = text; act.Run = e.Run; act.X = at.X; act.Y = at.Y; act.Z = at.Z;
+            act.Self = false; act.Cone = null;
             Option(d + e.Priority, act);
         }
         foreach (var offers in scratchOffers)

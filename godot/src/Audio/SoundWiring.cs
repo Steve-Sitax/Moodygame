@@ -36,7 +36,15 @@ public partial class Soundscape
     private void Wire()
     {
         if (now < nextWire) return;
+        using var pollCost = Dev.FrameCost.Track("Sound.WirePoll");
         nextWire = now + 1;
+        WireParts();
+    }
+
+    // The Jef event handlers capture locals. Enter their method only on the existing
+    // one-second retry, so their display class is not allocated by every sound frame.
+    private void WireParts()
+    {
         if (!wiredState)
         {
             wiredState = true;
@@ -153,6 +161,7 @@ public partial class Soundscape
     private void FollowState()
     {
         if (now < nextState) return;
+        using var pollCost = Dev.FrameCost.Track("Sound.StatePoll");
         nextState = now + 0.25;
         FollowVolumes();
         if (test != null) return;
@@ -186,13 +195,13 @@ public partial class Soundscape
     private void FollowVolumes()
     {
         // the settings' levels are on the street's four buses: the room's four (and the organ's) follow them
-        foreach (string k in Kinds)
+        foreach (var (k, street, room) in VolumeBuses)
         {
-            int from = busIndex[Cap(k)], to = busIndex["Room" + Cap(k)];
+            int from = busIndex[street], to = busIndex[room];
             float db = AudioServer.GetBusVolumeDb(from);
             bool mute = AudioServer.IsBusMute(from);
             double gain = mute ? 0 : Mathf.DbToLinear(db);
-            wetLevels[Cap(k)] = wetLevels["Room" + Cap(k)] = gain;
+            wetLevels[street] = wetLevels[room] = gain;
             if (k == "ambience") wetLevels["Murmur"] = gain;
             if (Math.Abs(AudioServer.GetBusVolumeDb(to) - db) > 0.01f) AudioServer.SetBusVolumeDb(to, db);
             if (AudioServer.IsBusMute(to) != mute) AudioServer.SetBusMute(to, mute);
@@ -202,4 +211,10 @@ public partial class Soundscape
             if (AudioServer.IsBusMute(organ) != mute) AudioServer.SetBusMute(organ, mute);
         }
     }
+
+    private static readonly (string kind, string street, string room)[] VolumeBuses =
+    {
+        ("ambience", "Ambience", "RoomAmbience"), ("voices", "Voices", "RoomVoices"),
+        ("music", "Music", "RoomMusic"), ("effects", "Effects", "RoomEffects"),
+    };
 }
