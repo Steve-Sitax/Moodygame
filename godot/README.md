@@ -4,8 +4,8 @@ The Godot game (Godot 4.7.2, C#, .NET 8). The plan and the decisions: `docs/godo
 `client/` is the model: a part is ported from its TypeScript, with the same numbers and the same words.
 
 ## Run it
-1. Once: `npm run setup` in the repo root (the server and the bake need their packages), and a save
-   (`data/game.sqlite`: start the server once).
+1. Once: `npm --prefix server install` (or `npm run setup` if you also need the browser and bake tools).
+   The game starts the server and makes a fresh save in your user folder on first run.
 2. Bake the town: `node tools/godot/export-scene.mjs` (about 3 minutes; writes `godot/baked/town.glb`, `town.json`,
    `town_tex/` (with the dirt map and the sky map), `town_lights.json` (the lamps, the lit windows and their light on
    the street), 500 MB, not in git). Bake again when the browser's world code changes. `--ref-only --hour 21
@@ -195,3 +195,36 @@ picture as it was (720 lines, wobble on) whatever the player's settings say.
   is 16.7 ms a frame on PCX with everything on.
 - Comments say what the code is for, in the plain English of the rest of the repo; name the TypeScript file a part
   comes from.
+
+## Make a player download
+
+Use Node 24, .NET 8 and Godot 4.7.2 Mono with its export templates installed. Work from this checkout:
+
+```powershell
+node tools/godot/package.mjs --baked <shared-bake-folder> --godot <Godot-console-exe>
+```
+
+The bake folder holds `town.glb`, `town.json`, `town_tex/`, `town_lights.json`, `town_walk.json`, `town_walk.bin`
+and decoded `models/`. The script never bakes. `--baked` defaults to `godot/baked`; `--godot` defaults to `GODOT`,
+then the WinGet Mono console program on Windows, then `godot` on other systems. It exports, compiles the existing
+server to JavaScript, installs production packages and bundles the same Node that installed SQLite. It writes a
+zip and a component size report under ignored `godot/dist/` (`--out <folder>` changes that; `--version <name>`
+names it). Run on Windows x64, Linux x64 or Apple silicon macOS so native packages match the bundled Node.
+
+A player unzips the whole folder and double clicks `Scheldemist.exe` on Windows, opens `Scheldemist.app` on macOS,
+or runs `Scheldemist` on Linux. No Godot, .NET or Node install is needed. Keep its companion folders together.
+The server starts and stops with the game. Saves, slots, settings, keys, map preferences, AI setup and server logs
+live in the player's own Scheldemist user folder (`%APPDATA%/Scheldemist` on Windows), never beside the executable.
+`Paths.cs` resolves source, exported and user files. `--town`, `--models`, `--city`, `--db`, `--prefs` and `--port`
+still work; `SCHELDEMIST_USER_DATA=<folder>` isolates all game-owned writable files for a check. Godot's own
+engine log uses `user://logs/godot.log`; its native `--log-file <file>` option isolates that too.
+
+Windows packaging and a real unpacked launch, server, save and menu check passed on this PC. The zip is about
+383 MB, 1.14 GB unpacked; the bake and models take most of it. Linux and macOS game exports passed, but full
+player packages and launches still need checks on those systems. The Mac preset uses the universal template;
+its package's Node is Apple silicon. Proof and repeatable commands: `docs/godot-download-check.md`.
+
+The download has no browser client, multiplayer download helper, AI software, logins or keys. Sound files are
+included; the G5 sound code and other G3/G4/G6 game parts arrive when their worktrees merge. This is the current
+port, not yet the full browser game. The draft `.github/workflows/godot-release.yml` builds zip artifacts on `v*`
+tags, with an agreed shared bake supplied by URL and SHA-256; it does not bake or publish a Release.

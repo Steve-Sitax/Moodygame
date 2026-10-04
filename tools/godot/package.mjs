@@ -36,8 +36,9 @@ if (!engineVersion.startsWith('4.7.2.stable.mono')) throw new Error(`Need Godot 
 run('dotnet',['build','godot']);
 run(engine,['--headless','--path',path.join(root,'godot'),'--import']);
 const preset = {windows:'Windows',linux:'Linux',mac:'macOS'}[system];
-const program = path.join(out,system === 'windows' ? 'Scheldemist.exe' : system === 'linux' ? 'Scheldemist' : 'export.zip');
+const program = path.join(out,system === 'windows' ? 'Scheldemist.exe' : system === 'linux' ? 'Scheldemist' : 'Scheldemist.zip');
 run(engine,['--headless','--path',path.join(root,'godot'),'--export-release',preset,program]);
+if (!fs.existsSync(program)) throw new Error(`Godot did not produce ${program}; check the export log`);
 if (system === 'mac') { run('ditto',['-x','-k',program,out]); fs.rmSync(program); }
 if (system === 'linux') fs.chmodSync(program,0o755);
 fs.mkdirSync(path.join(out,'baked'));
@@ -47,6 +48,14 @@ for (const [from,to] of [['LICENSE','LICENSE'],['assets/ATTRIBUTION.md','ATTRIBU
 const license = await fetch(`https://raw.githubusercontent.com/nodejs/node/${process.version}/LICENSE`);
 if (!license.ok) throw new Error(`Could not fetch Node's licence (${license.status})`);
 fs.writeFileSync(path.join(out,'runtime/LICENSE.txt'),await license.text());
+for (const [url,file] of [
+  ['https://raw.githubusercontent.com/godotengine/godot/4.7.2-stable/COPYRIGHT.txt','GODOT-COPYRIGHT.txt'],
+  ['https://raw.githubusercontent.com/dotnet/runtime/v8.0.0/LICENSE.TXT','DOTNET-LICENSE.txt']
+]) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Could not fetch runtime licence (${response.status})`);
+  fs.writeFileSync(path.join(out,file),await response.text());
+}
 fs.writeFileSync(path.join(out,'PLAY.txt'),`Scheldemist (Godot port)\n\nUnzip the whole folder, then open ${system === 'windows' ? 'Scheldemist.exe' : system === 'mac' ? 'Scheldemist.app' : 'Scheldemist'}.\nNo Node, .NET or Godot installation is needed. The server starts and stops with the game.\nKeep every file in this folder together. Saves, settings and AI setup go in your own Scheldemist user-data folder, never in the download.\nThis is an unfinished port: see the release notes for the parts still being ported.\nAI software, logins and keys are yours to set up; none are included. No browser client is included for other players.\nThe app is unsigned: Windows SmartScreen or macOS Gatekeeper may ask before first opening.\n`);
 const bytes = dir => fs.readdirSync(dir,{withFileTypes:true}).reduce((sum,e)=>sum+(e.isDirectory()?bytes(path.join(dir,e.name)):fs.statSync(path.join(dir,e.name)).size),0);
 const parts = Object.fromEntries(fs.readdirSync(out,{withFileTypes:true}).map(e=>[e.name,e.isDirectory()?bytes(path.join(out,e.name)):fs.statSync(path.join(out,e.name)).size]));
