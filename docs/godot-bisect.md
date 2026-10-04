@@ -1,0 +1,259 @@
+# Godot frame-time bisect — 2026-10-04
+
+Worktree `D:/Code/MoodyGame-godot-bisect`, branch `godot/bisect`, starting at `7c0a12b`.
+Status: bisect complete (thirteen revisions, three runs each). New speed work
+stopped at the coordinator's request on 2026-10-04 so feature work can proceed.
+No production speed fix was accepted. Only the report and opt-in scene inventory
+diagnostic are retained; timing targets remain unmet and are deferred.
+The revision `ee92f5b` fails its unchanged C# build with seven errors: the
+places code reads JSON properties from the typed `FireView` and `HiringView`.
+Timing this revision used exactly the subsequent `f2818f5` compile fix to
+TownWork/PlacesTest, labelled in the results. The original build
+failure remains in the evidence. The unmodified revision cannot be timed.
+
+## Method
+
+Read `godot/README.md`, `docs/performance.md`, `docs/godot-rooms-perf.md`, and
+`docs/godot-perf2.md` before work. Server packages are installed in this checkout,
+without junctions. Every run uses the identical shared `baked/next/town.glb` and
+`baked/models`, Godot 4.7.2 Mono, a fresh seed-1873 test town, no AI, and ports
+8960–8969. No player save or private configuration is read or copied.
+
+Historical revisions are checked out in this worktree only. The report and runner
+are preserved while checking out revisions; the branch is restored before fixes.
+Each revision is built and imported, then measured three times, one Godot process
+at a time, with process deadlines. A batch waits for no Godot process, takes the
+shared `PERF-LOCK`, lasts less than 30 minutes, and removes the lock in `finally`.
+Lock removal failure stops measurements immediately.
+
+The timer brackets the first physics/process signal through `FramePostDraw` and
+includes native scene/physics work and renderer submission. The historical turn
+window is 90 sampled frames at 2 degrees per processed frame (about a half-turn),
+matching the older check. The latest sustained gate instead turns for six seconds
+and can cover several revolutions; its draw averages are not interchangeable
+with the historical table. Walking, turning, wall intervals and draw calls are
+reported separately. Scene inventory is taken
+outside timing samples. Static physics created directly through the physics
+server is counted separately from scene-tree bodies and shapes.
+
+## Historical measurements
+
+Completed three runs each: `a1001d2`, `a292f31`, `577901c`, `0d2ea27`, `1cd221a`, `544752d`,
+`ee92f5b`, `f2818f5`, `3840687`, `854a9fb`, `dfb1e21`, `cc2f843`, `7c0a12b`.
+No unmeasured result is inferred from the earlier reports.
+
+## Causes and fixes
+
+The baseline itself does not reproduce the older report's timings in this session.
+Its walking means are 4.444 / 5.068 / 5.152 / 4.008 / 3.407 ms (Grote Markt,
+Cathedral, Handschoenmarkt, Vismarkt, Rijnkaai). Do not subtract the old 2.69 ms
+Grote Markt measurement to attribute the entire difference to these merges.
+Latest averages are 5.023 / 5.884 / 6.032 / 4.327 / 3.797 ms, corresponding to
+session baseline-to-latest increases of 0.579 / 0.816 / 0.880 / 0.319 / 0.390 ms.
+The shared town SHA-256 observed during the bisect is
+`fdcd4cfcb13e91c052e988c3fce88d954db10892171df0e8c4b7e63c2d5ba82d`.
+
+The clearest measured additions are:
+
+| Revision | Added work | Walking mean change from predecessor, ms (same place order) |
+|---|---|---|
+| a292f31 movers/clocks | +570 nodes, +463 meshes; eager hidden vessel pools, two explicit overlap-query nodes; +38 to +92 turning draws | +0.099 / +0.184 / +0.251 / +0.171 / +0.007 |
+| 577901c postal | +6 nodes, +3 meshes, one processing part | +0.012 / -0.003 / +0.106 / -0.034 / +0.048 |
+| 0d2ea27 events 1 | +13 nodes, one MultiMesh, five processing parts; no extra bodies/shapes | +0.184 / +0.069 / -0.061 / -0.055 / +0.023 |
+| 1cd221a paths | No sustained geometry growth; managed path/schedule changes | +0.022 / -0.051 / -0.028 / +0.075 / +0.086 |
+| 544752d events 2 | +64 pooled meshes, almost all hidden in this fixture | -0.215 / -0.046 / -0.148 / -0.192 / -0.059 |
+| ee92f5b places + compile shim | +765 nodes, +601 meshes, +15 processing parts; WorkWall exposes 189 baked wall chunks before Solid builds their colliders, adding 106,073 solid triangles; +12 to +71 turning draws | +0.314 / +0.172 / +0.427 / +0.194 / +0.160 |
+| f2818f5 compile fix | Same geometry and counts as the shimmed preceding revision | -0.045 / +0.129 / -0.084 / -0.041 / -0.034 |
+| 3840687 rides | +181 nodes, +96 meshes, +7 processing parts; +9 scene bodies and -37 raw static bodies, net -28 bodies/shapes; ferry/landing replaces baked pontoons; handcarts, rowing and velocipede query parts; +17 to +39 turning draws | +0.311 / +0.253 / +0.346 / +0.145 / +0.119 |
+| 854a9fb integration | Nearly identical geometry and counts | +0.131 / +0.153 / +0.070 / +0.049 / +0.050 |
+| dfb1e21 people | No geometry growth; r144/path-check integration | -0.176 / -0.169 / +0.001 / -0.072 / -0.019 |
+| cc2f843 deeds | +51 nodes, +31 meshes, four processing parts; no physics growth | +0.125 / +0.155 / -0.018 / +0.162 / -0.002 |
+
+Small differences and opposite-signed neighboring changes must be treated as run
+variation, not established regressions. These sequential three-run comparisons
+identify feature costs; they are not randomized interleaved A/B trials.
+The idle midday fixture has **zero RigidBody3D and Area3D nodes** at every revision.
+There are always three in-tree viewports and four in-tree cameras (the main window
+viewport is their ancestor); neither count grows. Active lights remain 27 at Grote
+Markt. Physics has 3,031 raw static bodies and 242 scene bodies already at baseline,
+with 4,763 shapes; latest has 3,183 + 251 bodies and 4,924 shapes. Inventory alone
+does not count immediate DirectSpaceState calls. Source inspection shows that
+Jef's floor rays/casts, MoverOverlap, handcart floor rays, rowing overlap casts and
+velocipede queries are already disabled for automatic processing and explicitly
+updated on demand. Rowing additionally reads each vessel's native position every
+frame to track collision motion. Town navigation uses the managed walk map rather
+than newly introduced NavigationServer queries.
+
+Perf2 established about 1.4 ms in C# scopes and 2.9 ms in
+renderer submission, with 1,400–2,050 draws in busy views. Its disabled-mirror,
+human-layer and tighter-mover-culling experiments are diagnostic or rejected;
+they are not assumed to be valid speed fixes.
+
+Every production speed fix must preserve behavior and show zero differing pixels
+against its original implementation with a nonempty positive control. The target
+is below 3 ms mean per place, with hard limits below 5 ms mean/p95 and no active
+or wall walking/turning frame over 16 ms. Existing allocation gates are retained.
+
+## Verification and cleanup
+
+The default C# build passes with the existing Grime CS8604 and Deeds CS8601
+warnings. `npm run build` passed for client and server earlier in this session.
+The retained source has fourteen zero-difference pixel cases and a live positive
+control. No production speed fix was accepted.
+
+| Run / check | Result | Evidence |
+|---|---|---|
+| wrap-gameplay / jobtest | FAIL | 17 steps, Vismarkt frame 7.62 ms |
+| wrap-gameplay / placestest | PASS | 192 steps;  |
+| wrap-gameplay / ridetest | PASS | 196 checks;  |
+| wrap-gameplay / playtest | PASS | 37 steps;  |
+| wrap-gameplay / deedstest | FAIL | 23/24 checks; lost property lies in street |
+| wrap-deeds-retry / deedstest | PASS | 67 checks;  |
+| wrap-events-a / eventtest | PASS | 36 stages, 0 failures |
+| wrap-events-b / eventtest | PASS | 34 stages, 0 failures |
+| wrap-required / devtest | PASS | 4/4 steps |
+| wrap-required / shaders | PASS | 0 new kinds, 0 problems |
+| wrap-required / clocks | PASS | 96/96 running |
+| wrap-required / stuck | PASS | 0 stuck, 0 overlaps, 0 solid findings; 3 h |
+| wrap-required / perfcheck | FAIL | grote markt 6.571/8.326 ms; cathedral 7.045/8.957 ms; handschoenmarkt 7.334/9.172 ms; vismarkt 5.671/6.895 ms; rijnkaai 5.044/6.345 ms |
+| wrap-required / pixelcheck | PASS | 14 comparisons, 0 changed pixels; positive control 3897847 |
+
+Job has 16/17 passing steps; its only failure is the 5 ms frame budget (7.62 ms
+mean, 10.42 ms p95). The first deeds run stopped after 23 passing checks at `lost property lies
+in street`. The unchanged retry passes all 67 checks. Both reports are retained;
+the intermittent first failure has not been diagnosed or hidden. Both eight-kind event batches pass, with 36 and 34
+stages and zero failures respectively.
+The full sustained performance gate also fails: walking means are 6.571 /
+7.045 / 7.334 / 5.671 / 5.044 ms. Rijnkaai walking reaches 19.005 ms and
+Vismarkt turning 16.954 ms. No timing limit was relaxed.
+
+Raw verification reports are under `godot/baked/bisect/wrap-*/run-1/`.
+Every completed batch removed its lock and disposable database. The final
+read-only audit finds zero owned Godot/Node/dotnet processes, zero listeners on
+8960–8969, zero owned SQLite files, and no shared PERF-LOCK. No temporary
+worktrees were created; none with the owned bisect-tmp prefix remain. Historical
+checkouts were all performed in this worktree and the branch is `godot/bisect`.
+
+Automatic approval review rejected the combined generated-UID/test-database
+cleanup command as "blocked by policy" before execution. The audit confirms
+that no test database remains. The 52 generated untracked `.cs.uid` files are
+retained; no source candidate remains in the tracked checkout. Ignored JSON,
+screenshots, logs and diagnostic scratch files remain as evidence.
+
+No push or merge was performed. Every commit passed the repository pre-commit
+hook and staged explicit paths only. The retained diff from `7c0a12b` is this
+report, its docs index link, and the perfcheck-only scene inventory. Production
+optimization resumes only in a later pass; the timing failures above are deferred.
+
+## Rejected and inconclusive experiments
+
+The unchanged six-second turning control (`static-perf-1`, zero selected batches)
+reproduces the previous final failure: its first run walks at 5.904 / 6.494 /
+6.835 / 4.998 / 4.283 ms. Three sustained control runs are retained. Vismarkt's
+second turn reaches 16.729 ms. This is a different turn duration from the
+standardized historical table and is the final performance gate.
+
+The first two static-batch attempts selected no sources; their zero-pixel results
+are not evidence for batching. The source surfaces all expose compressed
+attributes. A decoded/uncompressed candidate actually combined 139 opaque,
+identity-transform source meshes into 13 batches while leaving collision geometry
+unchanged. Switching originals through a zero rendering layer caused a Godot
+renderer failure and was discarded; ordinary mesh visibility avoids that failure.
+The real fourteen-case comparison then found **12 changed pixels** (1 day
+Handschoenmarkt, 1 night Cathedral, 8 night Handschoenmarkt, 2 night Vismarkt).
+That candidate is rejected, regardless of how small the differences look.
+No batching code is accepted as a production fix on this evidence. A fused
+compressed-position decode was tried to distinguish decode rounding from
+culling/material effects.
+
+The fused decode also failed: eight pixels differ. All batching production source
+and its replay hooks were removed. Candidates and logs remain only in the ignored
+measurement folder.
+
+A first compiler-optimization diagnostic (Debug assembly with `Optimize=true`)
+walks at 5.045 / 5.728 / 5.857 / 4.119 / 3.457 ms, and its ordinary fourteen-case
+pixel comparison passes with zero differences. It still fails the requested mean,
+p95 and maximum limits: Grote Markt turns reach 27.060 ms and Vismarkt 20.896 ms.
+The ordinary in-process pixel check cannot alone compare two compiler builds.
+A separate cross-build control froze simulation and shader clocks before the
+first frame, with fresh identical seed-1873 towns. Its direct PNG comparison
+found 21,855 differing pixels across fourteen cases. That control does not
+establish pixel identity or isolate compiler effects from scene startup state.
+The compiler setting was not changed; the temporary clock-control source was
+removed. Both build and normal game behavior retain the original settings.
+
+## Measured results
+
+Three independent runs; each cell lists run 1 / 2 / 3. Walking is six seconds after 90 standing and 90 turning frames for every revision, including latest. The temporary historical probe only adds inventory outside sampled frames and standardizes the turn duration. Draw calls are the mean during turning; scene counts are after walking. Physics bodies/shapes include Solid’s directly created static bodies plus the scene tree.
+
+| Commit | Place | Walk mean ms | Walk p95 ms | Walk max ms | Turn mean / p95 / max ms | Draw calls | Bodies / shapes | Nodes | MeshInstances | Active lights |
+|---|---|---|---|---|---|---|---|---|---|---|
+| a1001d2 | grote markt | 4.466 / 4.359 / 4.506 | 5.72 / 5.523 / 5.672 | 22.404 / 19.972 / 21.879 | 4.193,5.265,10.311 / 4.195,5.072,9.957 / 4.05,5.041,9.209 | 947 / 948 / 947 | 3273,4763 / 3273,4763 / 3273,4763 | 12604 / 12604 / 12604 | 5917 / 5917 / 5917 | 27 / 27 / 27 |
+| a1001d2 | cathedral | 5.088 / 5.131 / 4.984 | 6.506 / 6.842 / 6.515 | 8.635 / 9.264 / 8.957 | 3.999,5.458,6.74 / 4.645,5.998,6.939 / 4.002,5.862,7.342 | 990 / 992 / 987 | 3272,4762 / 3272,4762 / 3272,4762 | 12612 / 12612 / 12612 | 5919 / 5919 / 5919 | 34 / 34 / 34 |
+| a1001d2 | handschoenmarkt | 5.414 / 5.031 / 5.012 | 7.13 / 6.55 / 6.532 | 8.897 / 9.084 / 8.502 | 4.038,5.383,5.765 / 4.081,5.366,6.041 / 4.005,5.271,6.281 | 1076 / 1076 / 1076 | 3272,4762 / 3272,4762 / 3272,4762 | 12617 / 12612 / 12612 | 5920 / 5919 / 5919 | 34 / 34 / 34 |
+| a1001d2 | vismarkt | 4.08 / 3.953 / 3.991 | 5.144 / 4.758 / 4.845 | 98.927 / 98.351 / 99.785 | 5.168,6.982,8.051 / 4.954,6.793,7.372 / 4.79,6.247,6.773 | 1454 / 1448 / 1443 | 3277,4767 / 3277,4767 / 3277,4767 | 12671 / 12671 / 12673 | 5927 / 5927 / 5928 | 26 / 26 / 26 |
+| a1001d2 | rijnkaai | 3.386 / 3.414 / 3.422 | 4.126 / 4.267 / 4.266 | 5.907 / 6.748 / 6.035 | 4.916,7.552,8.169 / 5.262,7.54,8.007 / 5.228,7.585,9.081 | 1655 / 1694 / 1675 | 3276,4766 / 3276,4766 / 3276,4766 | 12703 / 12703 / 12705 | 5939 / 5939 / 5940 | 9 / 9 / 9 |
+| a292f31 | grote markt | 4.615 / 4.499 / 4.513 | 5.919 / 5.59 / 5.706 | 17.818 / 17.478 / 16.218 | 3.975,4.896,8.349 / 4.208,5.433,7.707 / 4.038,5.023,8.046 | 986 / 982 / 986 | 3273,4763 / 3273,4763 / 3273,4763 | 13174 / 13174 / 13174 | 6380 / 6380 / 6380 | 27 / 27 / 27 |
+| a292f31 | cathedral | 5.234 / 5.174 / 5.347 | 6.686 / 6.803 / 7.06 | 10.98 / 8.667 / 9.046 | 3.919,5.538,6.521 / 3.957,5.529,6.389 / 3.915,5.323,5.668 | 1027 / 1025 / 1027 | 3272,4762 / 3272,4762 / 3272,4762 | 13162 / 13162 / 13162 | 6378 / 6378 / 6378 | 34 / 34 / 34 |
+| a292f31 | handschoenmarkt | 5.531 / 5.414 / 5.266 | 7.334 / 6.892 / 6.542 | 9.667 / 8.943 / 8.614 | 4.185,5.491,24.062 / 4.232,5.289,26.311 / 4.465,5.992,25.791 | 1113 / 1112 / 1110 | 3272,4762 / 3272,4762 / 3272,4762 | 13162 / 13162 / 13162 | 6378 / 6378 / 6378 | 34 / 34 / 34 |
+| a292f31 | vismarkt | 4.098 / 4.15 / 4.289 | 5.012 / 5.027 / 5.493 | 99.586 / 130.253 / 98.413 | 5.035,7.115,7.98 / 4.752,6.635,7.739 / 4.853,6.389,6.828 | 1525 / 1503 / 1523 | 3277,4767 / 3277,4767 / 3277,4767 | 13216 / 13216 / 13216 | 6385 / 6385 / 6385 | 26 / 26 / 26 |
+| a292f31 | rijnkaai | 3.42 / 3.392 / 3.43 | 4.211 / 4.11 / 4.18 | 6.025 / 6.096 / 5.686 | 5.979,8.338,9.885 / 5.233,7.194,8.396 / 5.104,7.465,7.853 | 1779 / 1765 / 1757 | 3276,4766 / 3276,4766 / 3276,4766 | 13253 / 13253 / 13253 | 6398 / 6398 / 6398 | 9 / 9 / 9 |
+| 577901c | grote markt | 4.656 / 4.507 / 4.499 | 5.892 / 5.786 / 5.743 | 13.85 / 12.151 / 10.64 | 3.821,4.645,4.858 / 3.894,4.969,8.102 / 4.099,5.205,7.883 | 978 / 984 / 985 | 3273,4763 / 3273,4763 / 3273,4763 | 13180 / 13180 / 13180 | 6383 / 6383 / 6383 | 27 / 27 / 27 |
+| 577901c | cathedral | 5.357 / 5.096 / 5.294 | 7.036 / 6.536 / 7.004 | 23.737 / 20.31 / 20.34 | 4.074,5.958,6.746 / 3.821,5.265,6.472 / 3.992,5.469,7.937 | 1029 / 1027 / 1024 | 3272,4762 / 3272,4762 / 3272,4762 | 13168 / 13168 / 13168 | 6381 / 6381 / 6381 | 34 / 34 / 34 |
+| 577901c | handschoenmarkt | 5.599 / 5.352 / 5.577 | 7.382 / 6.933 / 7.217 | 9.625 / 8.984 / 9.591 | 4.09,6.091,7.16 / 4.47,6.012,7.403 / 4.277,6.068,7.557 | 1115 / 1109 / 1112 | 3272,4762 / 3272,4762 / 3272,4762 | 13163 / 13168 / 13163 | 6380 / 6381 / 6380 | 34 / 34 / 34 |
+| 577901c | vismarkt | 4.209 / 4.101 / 4.125 | 5.191 / 5.11 / 5.056 | 100.629 / 100.83 / 99.648 | 5.035,7.197,8.407 / 5.054,6.919,10.388 / 4.93,6.704,7.433 | 1512 / 1523 / 1522 | 3277,4767 / 3277,4767 / 3277,4767 | 13222 / 13222 / 13222 | 6388 / 6388 / 6388 | 26 / 26 / 26 |
+| 577901c | rijnkaai | 3.428 / 3.527 / 3.432 | 4.191 / 4.415 / 4.242 | 5.339 / 6.213 / 6.361 | 5.181,7.206,8.17 / 5.248,6.534,7.242 / 5.48,7.8,8.377 | 1776 / 1785 / 1757 | 3276,4766 / 3276,4766 / 3276,4766 | 13259 / 13264 / 13259 | 6401 / 6402 / 6401 | 9 / 9 / 9 |
+| 0d2ea27 | grote markt | 4.862 / 4.557 / 4.794 | 6.388 / 5.78 / 6.359 | 9.344 / 10.185 / 10.203 | 3.926,4.89,7.739 / 3.931,4.873,7.986 / 4.598,6.012,8.386 | 986 / 985 / 981 | 3273,4763 / 3273,4763 / 3273,4763 | 13193 / 13193 / 13193 | 6383 / 6383 / 6383 | 27 / 27 / 27 |
+| 0d2ea27 | cathedral | 5.206 / 5.362 / 5.386 | 6.515 / 6.839 / 7.117 | 23.733 / 23.185 / 19.55 | 4,5.336,6.487 / 4.605,5.742,6.219 / 4.43,5.631,7.427 | 1028 / 1026 / 1025 | 3272,4762 / 3272,4762 / 3272,4762 | 13186 / 13181 / 13181 | 6382 / 6381 / 6381 | 34 / 34 / 34 |
+| 0d2ea27 | handschoenmarkt | 5.418 / 5.414 / 5.514 | 6.967 / 6.983 / 7.117 | 8.752 / 9.514 / 10.317 | 4.144,5.479,7.187 / 4.624,6.636,7.604 / 4.131,5.278,7.551 | 1117 / 1102 / 1121 | 3272,4762 / 3272,4762 / 3272,4762 | 13186 / 13181 / 13181 | 6382 / 6381 / 6381 | 34 / 34 / 34 |
+| 0d2ea27 | vismarkt | 4.14 / 4.058 / 4.073 | 5.127 / 4.838 / 4.881 | 100.48 / 99.116 / 97.536 | 4.951,6.826,7.829 / 5.049,6.361,7.36 / 4.992,7.005,8.504 | 1522 / 1531 / 1507 | 3277,4767 / 3277,4767 / 3277,4767 | 13235 / 13235 / 13235 | 6388 / 6388 / 6388 | 26 / 26 / 26 |
+| 0d2ea27 | rijnkaai | 3.57 / 3.442 / 3.445 | 4.548 / 4.155 / 4.233 | 6.283 / 5.752 / 5.683 | 5.213,7.053,7.695 / 5.176,6.787,7.158 / 5.752,8.547,10.074 | 1767 / 1769 / 1764 | 3276,4766 / 3276,4766 / 3276,4766 | 13272 / 13272 / 13272 | 6401 / 6401 / 6401 | 9 / 9 / 9 |
+| 1cd221a | grote markt | 4.769 / 4.915 / 4.596 | 6.136 / 6.538 / 5.796 | 26.536 / 23.102 / 26.427 | 4.13,5.261,8.252 / 4.243,5.963,8.012 / 3.943,4.74,8.508 | 981 / 976 / 986 | 3273,4763 / 3273,4763 / 3273,4763 | 13183 / 13183 / 13183 | 6381 / 6381 / 6381 | 27 / 27 / 27 |
+| 1cd221a | cathedral | 5.342 / 5.256 / 5.204 | 6.898 / 6.924 / 6.713 | 9.789 / 9.329 / 9.83 | 4.532,6.426,7.855 / 3.891,5.153,6.173 / 4.142,5.798,6.858 | 1023 / 1032 / 1024 | 3272,4762 / 3272,4762 / 3272,4762 | 13176 / 13181 / 13181 | 6380 / 6381 / 6381 | 34 / 34 / 34 |
+| 1cd221a | handschoenmarkt | 5.592 / 5.337 / 5.333 | 7.24 / 6.908 / 6.516 | 25.373 / 25.376 / 23.505 | 4.22,6.002,7.2 / 4.001,5.051,6.935 / 4.15,5.986,7.565 | 1112 / 1119 / 1115 | 3272,4762 / 3272,4762 / 3272,4762 | 13181 / 13181 / 13181 | 6381 / 6381 / 6381 | 34 / 34 / 34 |
+| 1cd221a | vismarkt | 4.099 / 4.127 / 4.27 | 4.951 / 5.1 / 5.32 | 97.816 / 98.494 / 100.272 | 5.146,7.124,9.002 / 5.119,6.874,7.797 / 5.321,6.792,7.538 | 1525 / 1531 / 1537 | 3277,4767 / 3277,4767 / 3277,4767 | 13242 / 13242 / 13242 | 6390 / 6390 / 6390 | 26 / 26 / 26 |
+| 1cd221a | rijnkaai | 3.484 / 3.631 / 3.6 | 4.166 / 4.696 / 4.456 | 4.868 / 7.882 / 6.596 | 5.774,7.98,8.693 / 5.288,7.516,8.968 / 5.28,7.068,7.626 | 1785 / 1769 / 1779 | 3276,4766 / 3276,4766 / 3276,4766 | 13280 / 13280 / 13280 | 6404 / 6404 / 6404 | 9 / 9 / 9 |
+| 544752d | grote markt | 4.558 / 4.599 / 4.477 | 5.728 / 5.836 / 5.692 | 24.284 / 25.133 / 27.117 | 3.996,4.953,7.824 / 3.928,4.93,8.556 / 3.981,4.734,7.37 | 985 / 982 / 985 | 3273,4763 / 3273,4763 / 3273,4763 | 13247 / 13247 / 13247 | 6445 / 6445 / 6445 | 27 / 27 / 27 |
+| 544752d | cathedral | 5.202 / 5.384 / 5.079 | 6.679 / 7.321 / 6.506 | 9.975 / 9.292 / 8.575 | 4.542,6.175,7.239 / 3.943,5.319,7.393 / 3.941,5.642,8.094 | 1034 / 1026 / 1022 | 3272,4762 / 3272,4762 / 3272,4762 | 13245 / 13240 / 13240 | 6445 / 6444 / 6444 | 34 / 34 / 34 |
+| 544752d | handschoenmarkt | 5.192 / 5.376 / 5.249 | 6.374 / 7.007 / 6.632 | 8.686 / 8.42 / 9.271 | 4.131,5.768,6.409 / 4.101,5.48,5.906 / 4.411,6.123,7.452 | 1117 / 1114 / 1113 | 3272,4762 / 3272,4762 / 3272,4762 | 13245 / 13245 / 13250 | 6445 / 6445 / 6446 | 34 / 34 / 34 |
+| 544752d | vismarkt | 3.948 / 4.009 / 3.962 | 4.785 / 5.106 / 4.942 | 13.021 / 12.897 / 12.421 | 4.932,6.806,7.457 / 5.213,7.474,9.532 / 5.05,6.354,7.313 | 1523 / 1524 / 1528 | 3277,4767 / 3277,4767 / 3277,4767 | 13306 / 13306 / 13306 | 6454 / 6454 / 6454 | 26 / 26 / 26 |
+| 544752d | rijnkaai | 3.533 / 3.479 / 3.526 | 4.369 / 4.24 / 4.356 | 6.848 / 5.863 / 6.019 | 5.282,6.978,7.294 / 5.215,7.12,8.897 / 5.296,7.064,8.293 | 1777 / 1756 / 1782 | 3276,4766 / 3276,4766 / 3276,4766 | 13344 / 13344 / 13344 | 6468 / 6468 / 6468 | 9 / 9 / 9 |
+| ee92f5b + compile shim | grote markt | 4.825 / 4.814 / 4.938 | 6.201 / 6.069 / 6.345 | 10.084 / 10.272 / 10.137 | 4.032,5.056,7.77 / 4.187,5.147,8.038 / 4.401,5.661,7.305 | 1041 / 1039 / 1038 | 3462,4952 / 3462,4952 / 3462,4952 | 14012 / 14012 / 14007 | 7046 / 7046 / 7045 | 27 / 27 / 27 |
+| ee92f5b + compile shim | cathedral | 5.263 / 5.486 / 5.431 | 6.617 / 7.163 / 7.087 | 30.893 / 28.523 / 30.788 | 4.109,5.832,6.179 / 4.485,6.44,7.914 / 4.338,5.275,6.187 | 1088 / 1077 / 1092 | 3461,4951 / 3461,4951 / 3461,4951 | 14005 / 14010 / 14010 | 7045 / 7046 / 7046 | 34 / 34 / 34 |
+| ee92f5b + compile shim | handschoenmarkt | 5.712 / 5.629 / 5.758 | 7.665 / 7.248 / 7.515 | 9.995 / 10.658 / 9.898 | 4.234,5.376,6.254 / 4.318,5.695,6.102 / 4.329,5.982,6.827 | 1187 / 1189 / 1182 | 3461,4951 / 3461,4951 / 3461,4951 | 14010 / 14010 / 14010 | 7046 / 7046 / 7046 | 34 / 34 / 34 |
+| ee92f5b + compile shim | vismarkt | 4.121 / 4.124 / 4.255 | 5.145 / 5.108 / 5.654 | 12.052 / 12.907 / 13.081 | 5.284,6.486,7.925 / 5.19,6.693,8.001 / 5.282,7.312,7.875 | 1531 / 1540 / 1541 | 3466,4956 / 3466,4956 / 3466,4956 | 14071 / 14071 / 14071 | 7055 / 7055 / 7055 | 26 / 26 / 26 |
+| ee92f5b + compile shim | rijnkaai | 3.579 / 3.684 / 3.754 | 4.358 / 4.614 / 4.704 | 5.538 / 8.393 / 6.253 | 5.66,8.258,8.59 / 5.57,7.785,8.646 / 5.748,7.706,8.596 | 1808 / 1806 / 1817 | 3465,4955 / 3465,4955 / 3465,4955 | 14109 / 14109 / 14109 | 7069 / 7069 / 7069 | 9 / 9 / 9 |
+| f2818f5 | grote markt | 5.036 / 4.77 / 4.637 | 6.525 / 5.988 / 5.835 | 10.788 / 9.857 / 10.401 | 4.181,5.241,8.641 / 4.216,5.555,8.262 / 4.148,5.08,8.628 | 1040 / 1046 / 1043 | 3462,4952 / 3462,4952 / 3462,4952 | 14012 / 14012 / 14012 | 7046 / 7046 / 7046 | 27 / 27 / 27 |
+| f2818f5 | cathedral | 5.546 / 5.518 / 5.503 | 7.179 / 7.192 / 7.3 | 37.737 / 33.742 / 33.099 | 4.971,6.942,7.599 / 4.116,6.286,7.467 / 4.064,5.277,9.394 | 1083 / 1087 / 1087 | 3461,4951 / 3461,4951 / 3461,4951 | 14010 / 14010 / 14010 | 7046 / 7046 / 7046 | 34 / 34 / 34 |
+| f2818f5 | handschoenmarkt | 5.81 / 5.611 / 5.426 | 7.768 / 7.091 / 6.864 | 9.65 / 9.058 / 8.469 | 4.296,5.52,6.372 / 4.354,6.292,7.006 / 4.312,6.132,8.223 | 1186 / 1183 / 1183 | 3461,4951 / 3461,4951 / 3461,4951 | 14005 / 14010 / 14010 | 7045 / 7046 / 7046 | 34 / 34 / 34 |
+| f2818f5 | vismarkt | 4.232 / 4.084 / 4.061 | 5.31 / 5.239 / 5.153 | 13.715 / 13.092 / 13.896 | 5.067,6.987,7.747 / 5.308,6.705,7.145 / 4.984,6.371,7.042 | 1538 / 1550 / 1536 | 3466,4956 / 3466,4956 / 3466,4956 | 14069 / 14071 / 14071 | 7054 / 7055 / 7055 | 26 / 26 / 26 |
+| f2818f5 | rijnkaai | 3.681 / 3.55 / 3.685 | 4.754 / 4.304 / 4.668 | 7.182 / 5.682 / 6.698 | 5.426,7.315,7.935 / 5.671,8.05,8.461 / 5.273,7.133,8.891 | 1806 / 1816 / 1798 | 3465,4955 / 3465,4955 / 3465,4955 | 14107 / 14109 / 14109 | 7068 / 7069 / 7069 | 9 / 9 / 9 |
+| 3840687 | grote markt | 4.984 / 4.951 / 5.441 | 6.305 / 6.175 / 7.08 | 38.442 / 39.316 / 38.689 | 4.251,5.558,7.88 / 4.194,5.471,7.66 / 4.999,6.536,8.881 | 1062 / 1058 / 1060 | 3434,4924 / 3434,4924 / 3434,4924 | 14193 / 14193 / 14198 | 7142 / 7142 / 7143 | 27 / 27 / 27 |
+| 3840687 | cathedral | 5.877 / 5.665 / 5.785 | 7.416 / 7.062 / 7.297 | 30.171 / 30.725 / 27.596 | 4.268,6.132,6.672 / 4.36,5.927,6.588 / 4.495,6.313,7.84 | 1105 / 1103 / 1101 | 3433,4923 / 3433,4923 / 3433,4923 | 14196 / 14196 / 14196 | 7143 / 7143 / 7143 | 34 / 34 / 34 |
+| 3840687 | handschoenmarkt | 5.984 / 5.964 / 5.937 | 7.487 / 7.581 / 7.284 | 10.482 / 9.687 / 10.052 | 4.505,6.06,7.233 / 4.491,6.317,7.065 / 4.642,6.145,6.67 | 1204 / 1204 / 1202 | 3433,4923 / 3433,4923 / 3433,4923 | 14196 / 14196 / 14196 | 7143 / 7143 / 7143 | 34 / 34 / 34 |
+| 3840687 | vismarkt | 4.218 / 4.197 / 4.398 | 5.225 / 5.067 / 5.745 | 12.269 / 12.519 / 13.266 | 5.321,6.998,7.777 / 5.091,6.511,7.692 / 6.033,8.161,9.021 | 1561 / 1558 / 1583 | 3438,4928 / 3438,4928 / 3438,4928 | 14250 / 14257 / 14257 | 7150 / 7152 / 7152 | 26 / 26 / 26 |
+| 3840687 | rijnkaai | 3.726 / 3.792 / 3.754 | 4.418 / 4.776 / 4.579 | 5.56 / 7.571 / 7.38 | 5.743,8.209,9.651 / 5.74,7.654,8.076 / 6.024,7.495,8.472 | 1828 / 1837 / 1873 | 3437,4927 / 3437,4927 / 3437,4927 | 14288 / 14295 / 14300 | 7164 / 7166 / 7167 | 9 / 9 / 9 |
+| 854a9fb | grote markt | 5.301 / 5.008 / 5.46 | 6.899 / 6.368 / 7.13 | 31.277 / 37.654 / 37.624 | 4.372,5.994,8.842 / 4.348,5.247,8.302 / 4.556,5.871,8.662 | 1057 / 1060 / 1058 | 3434,4924 / 3434,4924 / 3434,4924 | 14198 / 14193 / 14198 | 7143 / 7142 / 7143 | 27 / 27 / 27 |
+| 854a9fb | cathedral | 5.964 / 5.834 / 5.989 | 7.73 / 7.495 / 7.628 | 31.941 / 28.86 / 31.243 | 4.684,6.586,7.663 / 4.352,5.656,6.195 / 5.029,6.874,7.832 | 1101 / 1106 / 1091 | 3433,4923 / 3433,4923 / 3433,4923 | 14196 / 14196 / 14196 | 7143 / 7143 / 7143 | 34 / 34 / 34 |
+| 854a9fb | handschoenmarkt | 6.049 / 5.991 / 6.055 | 7.824 / 7.732 / 7.918 | 9.518 / 9.9 / 9.544 | 5.007,7.249,8.083 / 4.608,6.457,7.324 / 4.715,6.688,6.929 | 1190 / 1200 / 1200 | 3433,4923 / 3433,4923 / 3433,4923 | 14196 / 14196 / 14191 | 7143 / 7143 / 7142 | 34 / 34 / 34 |
+| 854a9fb | vismarkt | 4.328 / 4.274 / 4.359 | 5.278 / 5.375 / 5.4 | 13.928 / 12.839 / 13.118 | 5.447,7.446,8.567 / 5.215,6.529,7.11 / 5.702,7.753,9.231 | 1567 / 1559 / 1568 | 3438,4928 / 3438,4928 / 3438,4928 | 14257 / 14250 / 14257 | 7152 / 7150 / 7152 | 26 / 26 / 26 |
+| 854a9fb | rijnkaai | 3.91 / 3.671 / 3.842 | 4.958 / 4.396 / 4.812 | 6.958 / 5.745 / 8.313 | 5.741,7.636,8.188 / 5.71,7.736,7.935 / 5.842,7.975,8.478 | 1842 / 1835 / 1848 | 3437,4927 / 3437,4927 / 3437,4927 | 14300 / 14288 / 14295 | 7167 / 7164 / 7166 | 9 / 9 / 9 |
+| dfb1e21 | grote markt | 5.062 / 5.195 / 4.984 | 6.371 / 6.858 / 6.229 | 36.282 / 34.725 / 38.299 | 4.446,6.303,7.804 / 4.474,6.13,8.237 / 4.276,5.385,8.698 | 1058 / 1058 / 1058 | 3434,4924 / 3434,4924 / 3434,4924 | 14193 / 14193 / 14193 | 7142 / 7142 / 7142 | 27 / 27 / 27 |
+| dfb1e21 | cathedral | 5.793 / 5.763 / 5.724 | 7.567 / 7.454 / 7.147 | 27.857 / 29.503 / 29.287 | 4.343,5.848,6.486 / 4.283,5.548,6.383 / 4.371,5.971,6.726 | 1104 / 1104 / 1104 | 3433,4923 / 3433,4923 / 3433,4923 | 14196 / 14196 / 14196 | 7143 / 7143 / 7143 | 34 / 34 / 34 |
+| dfb1e21 | handschoenmarkt | 6.102 / 6.053 / 5.942 | 7.963 / 7.576 / 7.416 | 10.081 / 9.853 / 9.661 | 4.972,6.346,7.641 / 4.455,5.922,6.722 / 4.595,6.729,7.448 | 1202 / 1203 / 1203 | 3433,4923 / 3433,4923 / 3433,4923 | 14196 / 14191 / 14196 | 7143 / 7142 / 7143 | 34 / 34 / 34 |
+| dfb1e21 | vismarkt | 4.224 / 4.274 / 4.246 | 5.211 / 5.262 / 5.177 | 12.877 / 13.767 / 13.57 | 5.414,7.712,8.453 / 5.387,7.362,8.557 / 5.207,6.767,7.617 | 1564 / 1566 / 1556 | 3438,4928 / 3438,4928 / 3438,4928 | 14257 / 14250 / 14250 | 7152 / 7150 / 7150 | 26 / 26 / 26 |
+| dfb1e21 | rijnkaai | 3.756 / 3.876 / 3.733 | 4.631 / 4.981 / 4.546 | 6.964 / 7.044 / 6.717 | 5.692,7.96,8.564 / 5.83,7.693,8.203 / 5.661,7.834,8.487 | 1834 / 1835 / 1832 | 3437,4927 / 3437,4927 / 3437,4927 | 14295 / 14288 / 14288 | 7166 / 7164 / 7164 | 9 / 9 / 9 |
+| cc2f843 | grote markt | 5.252 / 5.244 / 5.12 | 6.724 / 6.732 / 6.552 | 32.178 / 35.985 / 31.536 | 4.42,6.105,7.804 / 5.334,6.994,9.11 / 5.046,7.408,8.952 | 1066 / 1072 / 1061 | 3434,4924 / 3434,4924 / 3434,4924 | 14244 / 14244 / 14244 | 7173 / 7173 / 7173 | 27 / 27 / 27 |
+| cc2f843 | cathedral | 5.813 / 6.115 / 5.818 | 7.447 / 7.96 / 7.232 | 28.136 / 30.06 / 31.036 | 4.494,5.857,6.66 / 4.484,5.89,6.894 / 4.491,5.943,8.19 | 1107 / 1109 / 1105 | 3433,4923 / 3433,4923 / 3433,4923 | 14247 / 14242 / 14247 | 7174 / 7173 / 7174 | 34 / 34 / 34 |
+| cc2f843 | handschoenmarkt | 6.113 / 6.091 / 5.838 | 8.009 / 7.774 / 7.273 | 10.588 / 11.592 / 8.699 | 4.761,7.163,7.572 / 4.515,5.575,8.126 / 4.633,6.204,7.303 | 1204 / 1206 / 1209 | 3433,4923 / 3433,4923 / 3433,4923 | 14242 / 14242 / 14242 | 7173 / 7173 / 7173 | 34 / 34 / 34 |
+| cc2f843 | vismarkt | 4.426 / 4.477 / 4.327 | 5.63 / 5.749 / 5.255 | 13.015 / 13.461 / 12.885 | 6.019,8.829,10.054 / 5.474,7.287,8.519 / 5.577,7.219,8.054 | 1576 / 1573 / 1578 | 3438,4928 / 3438,4928 / 3438,4928 | 14303 / 14303 / 14303 | 7182 / 7182 / 7182 | 26 / 26 / 26 |
+| cc2f843 | rijnkaai | 3.784 / 3.776 / 3.798 | 4.636 / 4.679 / 4.56 | 5.84 / 5.848 / 7.231 | 5.779,8.13,9.301 / 5.708,7.544,8.246 / 5.807,7.219,8.631 | 1853 / 1846 / 1854 | 3437,4927 / 3437,4927 / 3437,4927 | 14341 / 14346 / 14346 | 7196 / 7197 / 7197 | 9 / 9 / 9 |
+| 7c0a12b | grote markt | 4.969 / 5.094 / 5.006 | 6.023 / 6.469 / 6.39 | 9.236 / 8.881 / 9.736 | 4.739,5.976,8.499 / 4.334,5.668,8.646 / 4.325,5.537,8.734 | 1069 / 1065 / 1066 | 3434,4924 / 3434,4924 / 3434,4924 | 14246 / 14241 / 14241 | 7173 / 7172 / 7172 | 27 / 27 / 27 |
+| 7c0a12b | cathedral | 5.816 / 5.855 / 5.98 | 7.553 / 7.554 / 7.906 | 9.959 / 10.677 / 10.461 | 4.438,5.738,7.207 / 4.581,6.592,7.176 / 4.691,6.758,7.736 | 1104 / 1101 / 1106 | 3433,4923 / 3433,4923 / 3433,4923 | 14244 / 14244 / 14244 | 7173 / 7173 / 7173 | 34 / 34 / 34 |
+| 7c0a12b | handschoenmarkt | 6.065 / 5.997 / 6.034 | 7.779 / 7.582 / 7.64 | 10.295 / 9.301 / 9.776 | 4.44,6.063,7.383 / 4.471,6.024,7.633 / 4.748,6.61,7.251 | 1208 / 1209 / 1205 | 3433,4923 / 3433,4923 / 3433,4923 | 14244 / 14244 / 14244 | 7173 / 7173 / 7173 | 34 / 34 / 34 |
+| 7c0a12b | vismarkt | 4.354 / 4.366 / 4.261 | 5.451 / 5.54 / 5.275 | 12.664 / 12.613 / 12.527 | 5.392,6.829,7.043 / 5.161,6.89,7.539 / 5.305,7.262,7.892 | 1577 / 1552 / 1570 | 3438,4928 / 3438,4928 / 3438,4928 | 14298 / 14305 / 14305 | 7180 / 7182 / 7182 | 26 / 26 / 26 |
+| 7c0a12b | rijnkaai | 3.746 / 3.93 / 3.716 | 4.62 / 5.029 / 4.398 | 6.005 / 6.676 / 6.344 | 5.7,7.548,8.524 / 5.558,7.658,8.196 / 5.762,7.799,8.729 | 1855 / 1837 / 1853 | 3437,4927 / 3437,4927 / 3437,4927 | 14336 / 14343 / 14343 | 7194 / 7196 / 7196 | 9 / 9 / 9 |
+
+`ee92f5b` does not build unchanged: seven typed-event integration errors in TownWork/PlacesTest. Its row, when present, is `ee92f5b` plus exactly the two-file compile correction from `f2818f5`; no geometry or frame cadence is changed. The original failed build is retained as `build-original.log`. `f2818f5` is still measured separately.
+
+Raw per-run JSON and logs: `godot/baked/bisect/<commit>/run-<n>/`. Inventory also records areas, rigid bodies, visible meshes, MultiMeshes, processing nodes, rays, casts, viewports, cameras, and counts by scene group. These diagnostic results do not replace the sustained six-second turning final gate.

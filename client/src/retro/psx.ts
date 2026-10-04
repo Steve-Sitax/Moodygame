@@ -744,6 +744,19 @@ float rainRings(vec2 wp, float t, float amount) {
 }
 `;
 
+/** The textures psx options name, by uuid, for the Godot port's bake (tools/godot/export-scene.mjs). */
+export const psxBakeTextures = new Map<string, THREE.Texture>();
+function bakeOptions(v: unknown): unknown {
+  if (v && typeof v === "object") {
+    if ((v as THREE.Texture).isTexture) {
+      psxBakeTextures.set((v as THREE.Texture).uuid, v as THREE.Texture);
+      return { tex: (v as THREE.Texture).uuid };
+    }
+    return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, bakeOptions(x)]));
+  }
+  return v;
+}
+
 export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T {
   const affine = opts.affine ?? 1.0;
   mat.onBeforeCompile = (shader) => {
@@ -1421,7 +1434,8 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
     shader.fragmentShader = fs;
   };
   // M7 rendering (world/cull.ts): how far the fog lets this material show, and water (waves reach over the sheet)
-  mat.userData.psx = { fogReach: opts.fogReach ?? 1, water: !!opts.water, waterCalm: !!opts.waterCalm };
+  // (`bake`: the options as plain data for the Godot port's bake, tools/godot/export-scene.mjs; a texture as its uuid)
+  mat.userData.psx = { fogReach: opts.fogReach ?? 1, water: !!opts.water, waterCalm: !!opts.waterCalm, bake: bakeOptions(opts) };
   mat.customProgramCacheKey = () => `psx-${opts.water ? 2 : 0}${opts.waterCalm ? "-pond" : ""}-${opts.noSnap ? 1 : 0}-${opts.atlas ?? 0}-${opts.fogReach ?? 1}${opts.wet ? "-wet" : ""}${opts.puddles ? `-pud${opts.puddles}` : ""}${opts.relief ? `-rel${opts.relief.tile}${opts.relief.id ? `-id${opts.relief.holes ?? 0}` : ""}${opts.relief.reach ? `-r${opts.relief.reach}` : ""}` : ""}${opts.vary ? `-v${opts.vary}` : ""}${opts.detile ? "-dt" : ""}${opts.slabs ? `-slab${opts.slabs.tile}-${opts.slabs.yMax}` : ""}${opts.foot ? `-foot${opts.foot.amount}${opts.foot.vertexWear ? "w" : ""}` : ""}${opts.mottle ? `-mot${opts.mottle}` : ""}${opts.spill === false ? "-nosp" : ""}`;
   return mat;
 }

@@ -254,7 +254,7 @@ export interface World {
   /** Height of the walkable surface (quay 0, gangway slope, ship deck). */
   baseAt(x: number, z: number): number;
   /** Path check from a start point; see CLAUDE.md. */
-  reachFrom(x: number, z: number): (x: number, z: number, reach: number) => boolean;
+  reachFrom(x: number, z: number, audit?: (grid: { x0: number; z0: number; res: number; w: number; h: number; pass: Uint8Array; seen: Uint8Array }) => void): (x: number, z: number, reach: number) => boolean;
   /** Thick fog for a job twist; eases in and out. */
   setThickFog(on: boolean): void;
   /** The city of 1873: houses, walk map. */
@@ -1822,7 +1822,7 @@ export function buildRijnkaai(): World {
    * passing boat and shut after it (the soldiers' round on the lock bridge
    * was listed while a sloop locked through).
    */
-  function reachFrom(sx: number, sz: number): (x: number, z: number, reach: number) => boolean {
+  function reachFrom(sx: number, sz: number, audit?: (grid: { x0: number; z0: number; res: number; w: number; h: number; pass: Uint8Array; seen: Uint8Array }) => void): (x: number, z: number, reach: number) => boolean {
     // a 0.5 m grid over the whole city; walls and water from the walk map, then
     // the quay's own obstacles (colliders, grown by the body radius) on top
     const C = 0.5;
@@ -1879,6 +1879,7 @@ export function buildRijnkaai(): World {
         queue.push(n);
       }
     }
+    audit?.({ x0: X0, z0: Z0, res: C, w: W, h: H, pass, seen });
     return (x, z, reach) => {
       const r = Math.ceil(reach / C);
       const ci = Math.round((x - X0) / C);

@@ -134,6 +134,7 @@ export interface ShopFront {
 }
 
 export interface Town {
+  anchors?: Record<string, Record<string, Pt>>;
   seed: number;
   /** M6 population: the size it was made at (Settings, for a new game); older towns have none (normal). */
   size?: TownSize;

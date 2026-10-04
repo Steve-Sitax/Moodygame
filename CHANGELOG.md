@@ -7,7 +7,205 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- In the Godot version, people waiting at an omnibus stop only walk to a bus that has room for them; the others wait for the next one instead of vanishing at the step.
+- In the Godot version, ferry passengers still on the landing stage when the ferry leaves walk on to the quay instead of standing frozen in the way.
+- In the Godot version's play together, a player riding the omnibus is drawn on the bus floor as the other player sees it, instead of lagging behind it when the bus jumps.
+- In the Godot version, townspeople with a long way to go take the omnibus: they walk to the stop, wait, take a real seat, get off at the right stop and walk on. Jef can ride along with them.
+- In the Godot version, Jef can save while on a dockside crane's ladder and load back onto the same rung.
+- In the Godot version, the prison has its people again: warders at their posts, prisoners pacing their cells, the exercise ring in the yard in exercise hours, and townspeople sent into the prison walk its real corridors.
+- In Godot, a Sunday sermon retries with the current priest if a service refresh interrupts his climb or speech.
+
+- The five windows by the Steen's museum door now show dark leaded glass like the rest of the Steen, by day and at night, instead of the fog behind them (browser and Godot; [#56](https://github.com/Steve-Sitax/Moodygame/issues/56)).
+- In the Godot version, the random patterns in water foam, rain rings, cobbles, walls, smoke and the screen's grain no longer go flat in patches on some graphics cards ([#58](https://github.com/Steve-Sitax/Moodygame/issues/58)).
+- Street traders’ speech bubbles disappear safely when the speaker leaves view.
+
+- Godot's isolated sound check keeps passing traffic and railway sounds out of its scripted recording; ride checks use silent Dummy audio so they do not open a Windows output device.
+
+- In Godot, street games, travelling trades and upstairs neighbours have their own visible props and movements; traffic, rooms, puddles, animals and the great storm now drive placed sounds.
+
+- Watch and haul job twists now bring townspeople to Jef: bribes, theft, parcel offers and foremen use real actors and the original goods.
+
+- Closing Godot during sound loading now lets the audio workers finish before the engine tears down, preventing a crash on very quick exits.
+
+- In Godot, entering your rented room brings a neighbour's remark about its comfort and furniture. The server chooses who visits; they leave when you leave and speak once a day.
+
+- In Godot, people summoned for jobs walk in from the living town and return to their day when the encounter ends, using reachable street points around doors and piers.
+
+- In Godot, ducks defend their young from cats, unguarded ducks can be caught, and caught birds return only when nobody is watching. Stray dogs seek the fish-market scraps, owned dogs wait for a clear place beside their owner, and nearby cats and fleeing birds make their own sounds.
+- In the Godot version, bats hunt over the water and round the trees at dusk and before dawn, as in the browser game.
+- In the Godot version, the great storm tears things loose: slates and shingles off the roofs, washing, newspapers, hats and straw fly down the street, and slates smash on the stones.
+- In the Godot version, storms bring thunder and lightning (a bolt over the roofs, the air flashing white, the thunder after it), lone drops fall off the eaves in the rain, horses blow clouds of breath on cold mornings, and the broken gutters' streams start right at their eaves.
+- In the Godot version, the ships riding in the stream show their white lights at night, the moored ships' bilge pumps spout dirty water over the side now and then, and the priests, tourists, urchins, soldiers, beggars and the ragman are drawn whole ([#54](https://github.com/Steve-Sitax/Moodygame/issues/54)).
+- In the Godot version, the great storm's rain pours as in the browser game: the far sheets of rain fall again, and the streaks are long and dense instead of a few short dashes ([#53](https://github.com/Steve-Sitax/Moodygame/issues/53)).
+- In the Godot version, the town hall, the Oostershuis, the Vleeshuis and the Steen light their windows room by room through the night as in the browser game (clerks going home, late meetings, the porter, a watchman going round), and the Steen's lanterns burn by its gate and museum door after dusk ([#52](https://github.com/Steve-Sitax/Moodygame/issues/52)).
+- In the Godot version, the sky at midday is a plain grey overcast again: large flat grey shapes no longer hang over the roofs, and the works' chimneys smoke in fuller, darker plumes ([#55](https://github.com/Steve-Sitax/Moodygame/issues/55)).
+- Townspeople's outdoor activity spots stay on reachable ground instead of landing inside houses or the park pond; path snapping also keeps room for their bodies at lane edges.
+- In the Godot version, the townspeople and Jef have their soft shadow on the ground again, as in the browser game.
+
+- In the Godot version, the town's small life in the air is back: moths round the lit gas lamps on a still night, cats' eyes in the dark lanes, breath in the cold, water running from broken gutters with the damp stains under them, the great storm's surf bursting up the river walls and its rain splashing on the stones, and the white veils of heavier rain that each gust brings.
+
+- In the Godot version, the breweries, the sugar refinery and the gasworks smoke from their tall stacks by their working hours, and steamers and barges smoke from their funnels and stoves as in the browser game.
+- The Godot ferryman guides idle passengers around the ferry deck and onto the pontoon, then gives walking control back.
+
+- Godot railway crews accompany the horses and gate; cranes replenish docker piles, make room for higher-priority neighbours, and trains stop for loose goods. River tows back out of verified blocked water and slow for rowing boats.
+
+- Godot event actors use the server’s NPC ownership and the browser puppet pose format when playing together.
+
+- Godot save/load keeps Jef aboard his omnibus, ship, crane, rowing boat, handcart or velocipede; rowing reboarding follows the moving thwart.
+
+- The St. Anna ferry has night navigation lamps and warm saloon windows; moving carts and ships feed the Godot soundscape.
+
+- Climbing onto a moving ship follows its deck throughout the climb.
+- Godot Poesje spectators return to town when you leave the cellar behind and reappear when you return, without charging for another ticket that day.
+
+- In Godot, emigrant mothers carry and hush their babies, departing passengers wave, and a Red Star Line notice shows the boarding day. Camp luggage keeps clear of tracks, omnibus routes and market fields.
+
+- In Godot multiplayer, an arrested player appears at the police cell while other players continue walking, then leaves at dawn. Tavern rounds keep the engine’s three-round limit.
+
+- The Godot Poesje now has a seated and standing audience, a bench for you, and puppet stick hits timed to the play.
+
+- In Godot taverns, patrons talk at their tables and F lets you speak to an ordinary table companion.
+
+- Godot hanging lamps fit the room’s ceiling and their glass glows in a dark room.
+
+- Godot churchgoers nod and whisper during the sermon, the organ follows the service, and running among them draws the beadle’s warning.
+
+- Godot home stoves warm you, placed clocks show the time and hanging lamps light the room. Furniture can go onto a lent handcart and return to your household.
+
+- Godot shows your hands leaning on a mill capstan or hauling its chain when the wind calls.
+
+- Godot keeps completed mill work when you follow another job or load a saved game.
+
+- In the Godot version, lamps in rooms, shops and taverns and the lanterns people carry now glow the warm amber of the browser game instead of a deep red-orange, and a lantern left in the street lights the stones in the same colour ([#48](https://github.com/Steve-Sitax/Moodygame/issues/48)).
+
+- Godot profiling records turning callbacks and identifies main-thread async continuations; the shared fresh-town check runner now includes street deeds.
+
+- Godot keeps distant door and ride candidates from allocating prompts during walking and turning, retaining the same reach, text and actions.
+
+- Godot deeds scan residents without boxing their enumerator and read nearby prompt heights only when needed, preserving theft and catch actions.
+
+- The Godot places check waits for furniture's timed refresh instead of assuming a fixed number of uncapped frames.
+
+- Godot checks now measure sustained turning and walking, GC generations and managed allocation medians, enforce the full performance limits, and run jobs, places, events, rides and play against disposable local test towns.
+
+- Godot avoids allocating inactive collision and lamp checks, repeated sound wiring closures, bus names and home-door lookups during steady play.
+
+- Godot skips identical mover instance-buffer uploads, while retaining every pose, colour and visible instance.
+
+- Godot reuses unchanged carry and watch job papers, their rounded distance labels and carry-goal queries, keeping the same text and picture.
+
+- Godot keeps incomplete walking plans when a newly learned path cannot affect them, avoiding repeated rebuilding of the whole town.
+
+- Godot avoids temporary reflection matrices, floor-query arrays and room-selection containers; exact floor, room and pixel comparisons retain the same picture.
+
+- Godot reuses interaction selection buffers and unchanged prompt text, while keeping live controls and the same action priority.
+
+- Godot creates less temporary garbage while finding townspeople's daily walks, avoiding the measured route-learning hitch without changing their schedules.
+- Godot test runs started with `--hour` or `--weather` set the game's own clock and sky to them, so the HUD clock, the daylight and the townspeople show the same hour.
+
+- Godot's sun shines with its own colour again: by day the town, the people, the carts and the omnibus were lit a dull orange and too dark on their sunny side; now they match the browser game. ([#42](https://github.com/Steve-Sitax/Moodygame/issues/42))
+
+- Godot adds street deeds: police visits and prison release, pocket thieves, night gangs, lanterns, gifts and tavern rounds, hired helpers, lost property, notebooks, letters and meeting doors.
+
+- Godot lamplighters put away their pole when another scene takes over and rebuild it when their street body returns.
+
+- Godot event attendees keep up with a later destination across town, and an older hall reply cannot replace a newer ceremony roster.
+
+- Godot event props find a nearby clear patch when a house or live fixture blocks their original spot; reserved street actors replace retained indoor figures.
+
+- Godot tavern and cathedral seats keep Jef still and retain their seated camera height when the ride controls are loaded.
+
+- Godot avoids needless pose updates to resting carts, closed puppet-show curtains and ferry fixtures while keeping the same picture.
+
+- Godot events keep their townspeople reserved when lamplighter rounds stop; emigrant boarding uses the same reservations and waits for people busy in an event.
+
+- In Godot, standing for hire and joining a bucket chain have one prompt owner; the hiring choice works while looking around among the men.
+
+- Godot wedding guests, mourners and the sermon crowd walk into the cathedral's real nave, take their places and walk back out through the doorway.
+
+- Godot event attendees board and leave the omnibus; the fire pump has working paired handles and a curved hose, and the same dream can appear on another night's paper.
+
+- Godot event crowds can draw 100 people, and blocked attendees try four other ways before standing or continuing unseen.
+
+- Godot lamplighters walk their rounds with a pole and ladder; bucket chains pass buckets both ways, and burned fronts keep soot that fades over three days.
+
+- In Godot, family dreams appear on the night paper, including dreams that arrive before it opens.
+
+- Godot has a bounded places self-test covering work, home sleep and furniture, counters and dice, songs, the cathedral, emigrant boarding and the Poesje, with server replies and close pictures.
+
+- The Godot preacher stands inside the pulpit bowl at the browser's climb height, instead of adding the plan marker's height twice.
+
+- Starting or loading a week refreshes Godot's song, counters, dock book, hiring stand and bucket-line state; a late reply from the previous week cannot restore those old choices.
+
+- Cart jobs can be taken and followed in Godot, with the employer's server-owned cart loan returned when the job ends.
+
+- Godot cathedral chairs charge the chair woman's centime once per service; the curate's confessional has a kneeling paper and an AI typing gate. At Sunday high mass the priest climbs the real pulpit and preaches before trust is awarded.
+
+- The emigrant tender keeps its real hull visible as families board in Godot, even when the bake camera hid it.
+
+- E inside Godot's five landmark halls describes the paintings, cases, casks, stairs, scale and other objects using the browser's own prompts.
+
+- A parcel can be collected from its sleeping employer's named, lit work box in Godot, then delivered and paid through that box.
+
+- Godot reports the real room to the server, so sleeping and waking in your rented home and shelter inside shops and halls use the same rules as the browser.
+
+- Godot emigrants wait with their luggage at the camp, accept carry work and board the working lighter for the liner when the server allows it.
+
+- In Godot the Poesje takes its evening ticket once a day, opens its real curtains and performs the server's play with puppets and spoken captions.
+
+- Godot taverns have physical table seats and arrived patrons as dice partners; E stands up again.
+
+- Godot players can buy at real shop and tavern counters, hear the ballad singer and keep his verse-and-chorus sheet in their pockets.
+- Godot adds town-hall notices, cathedral candles and a timed Sunday sermon, plus joining the hiring stand and the fire bucket line.
+- Godot dock piecework, lamplighting, mill turns and park cleaning pay through the server, and finished work can wait for an employer's night box.
+- Godot homes have rent notices, numbered rent choices, an own key and bed, and furniture carried home and placed on the room grid with E and R.
+- Godot restores the rampart's real walkways and mill floors, with distance culling instead of keeping the bake's distant wall hidden.
+- In Godot, arrive on the St. Anna ferry, walk its gangway and landing stage into town, and receive the first work hint as the ferry leaves.
+
+- In Godot, climb out of the water onto ship decks, ride their tide and travel, and walk Anna Maria's gangway from the quay and back.
+
+- In Godot, hail lifting bridges and the lock keeper from a rowing boat, wait for clear gates, and survive a boat broken by a bridge or passing ship.
+
+- In Godot, hire a rowing boat, pull and feather the oars, dock at steps or ladders, and climb or jump back into a boat left on the water.
+
+- Buy or hire a velocipede in Godot, pedal and steer through town, brake at steps and water, and get up after a wheel catches in the rails.
+
+- In Godot, buy or hire a handcart, push it by its shafts, load the real goods onto its bed, and unload a carry job at its goal for payment.
+- In Godot, climb a working crane from the quay, walk its gallery into the cabin, ride its turns and travel, and climb back down.
+- In Godot, board an omnibus at its back step, hop aboard a moving one, pay or refuse the conductor, sit inside or on the roof, and read the stop timetable.
+- In Godot, falls onto stone now report their measured height to the server for injuries; water takes the fall.
+- Godot's path check uses the same approach distance for a walking round and its daily-plan stop, avoiding a false blocked-route report ([#43](https://github.com/Steve-Sitax/Moodygame/issues/43)).
+- Godot's interior check now tests the rooms actually in the town and their views out through the windows ([#45](https://github.com/Steve-Sitax/Moodygame/issues/45)).
+- Godot keeps the same daylight and window light picture with less work per frame.
+- Godot's cathedral and church windows now show their real rooms through the glass; old painted panes no longer cover them.
+- Godot's lamp updates and idle job display avoid temporary allocations while walking; performance checks now report complete frames and their worst peaks.
+- Godot clock hands follow the game's time on tower, church, town-hall, station, shop and room clocks, including the clockmaker's window ([#44](https://github.com/Steve-Sitax/Moodygame/issues/44)).
+- Godot ships and lock boats are prepared before play, and moving traffic makes far less garbage, avoiding collection pauses while movers switch or spawn.
+- In Godot, the post clerk gives out rounds of letters and telegram errands. Their door prompts, quest book, map and payments now work, including resuming a round.
+- F at the post and Berg clerks opens their counters in Godot. Talking and haggling in walk-around mode now keep typing off when there is no AI.
+- In Godot, typing a reply pauses the menace decision timer, and a peaceful outcome keeps the screen clear.
+
+- A Windows Godot download now starts from its executable, with the town, models, sounds and game server included.
+
+- Godot downloads can carry the compiled server and portable Node, with matching SQLite packages and no compiler needed to play.
+
+- The Godot game keeps saves, AI settings and logs in your own user folder, and uses one set of paths in source runs and downloads.
+- The Godot job arrow and its distance stay clear of the clock and job cards.
+
 ### New in the game
+- In Godot, town events gather people, put out props, close stalls, play their sounds and leave when finished. Weddings, funerals, street quarrels, robbery, hiring, the storm and the fire have their visible actors.
+- In Godot, visiting family members use the server's names and daily plans, and Zelie's fortune-telling table has its cloth, cards and stool.
+- The Godot version has doorstep cats and stray dogs, dogs following their owners, and park birds that move away, then fly when pressed. Doorstep chores and children's games follow the town's daily plans.
+- The Godot version draws the server's occupants in the five landmark halls, with their seats and shared floor plans, and provides room visitors for the homes part.
+- In Godot, market stalls and shop tables put their goods out while their keepers work, then roll up the awning and cover the table. Shop tables fit beside the door without passing the house corner.
+- The Godot quay train and travelling cranes yield to people, and crane jibs keep clear of ship masts and passing wagons.
+- Godot omnibus passengers walk aboard and take their seats; people wait at the stops, and families move about their moored ships. Boat lanterns and omnibus lamps follow nightfall, and the town map follows the moving traffic.
+- The Godot port has roaming horse drays and handcarts, and the Rijnkaai goods carts follow their working-day rounds. The horses step, the wheels roll and the carters walk with their loads.
+- In the Godot port, six horse omnibuses follow their three lines, stop at their bays and wait for the morning timetable at night. Their wheels turn and their carriage lamps follow dusk.
+- In the Godot port, jobs use the shared paper windows, people, pockets and map. The quest book follows work in hand, and sleep has its own chooser. Goods use the decoded models and survive a loaded save or new week. Trouble on a job offers the server's choices and extra errands.
+- The Godot game has the harbour's soundscape, footsteps, made voices and room echoes. Its clock, rain, townspeople, speech bubbles and dice feed the sound, and the Sound settings control the mix.
+- The Godot handbill has a Together paper for hosting, joining with an address and code, and going home.
+- Godot players can host and join a shared town, see each other walking with names and gear, and return to their own game. Each player keeps their own money and needs.
 - The back neighbourhoods have a bakery, grocer and cobbler, plus In de Linde and De Zwarte Kat. The latter welcomes players trusted by the smugglers; outsiders are warned to leave and refused service.
 - Ivy and red autumn Virginia creeper climb the town wall's inner face, along the Stadspark and the streets behind the wall.
 - Daylight has shadow play: the houses throw shadows into the streets and onto the squares, narrow lanes are dimmer at their foot, and people, carts and drays have a soft shadow under them. The sun follows its real October path, from the south-east in the morning to the west in the evening. On fog days the light stays soft.
@@ -33,12 +231,20 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - In the Carolus the round windows over the side doors and the front's middle windows show whole from inside the aisles ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
 
 ### Changed
+- Godot townspeople and animals reuse their frame buffers and whereabouts answers, removing the crowd's steady garbage allocations; nearby bodies keep moving at the frame rate while bone animations run at a bounded rate.
+- Godot collapse and week-ending papers have one owner: getting up closes the night completely, and chosen sleep says its wake lines once.
+- Returning home from a Godot Together game clears the old resident and people-model caches before using fresh bodies. The reusable talk input is freed at shutdown, clearing the scripted tests' resource leaks ([#40](https://github.com/Steve-Sitax/Moodygame/issues/40)).
+- The Godot job test now checks the quest book, map, restored goods, talk, drinking, trouble choices and extra errands, and records server state and goods replies beside its pictures.
+- The Godot multiplayer check uses separate disposable host and guest saves, including when the guest returns home.
+- Godot hosting opens to the home network by default, including the `--host` shortcut.
+- Godot night, waking and week-ending papers use the shared game window stack alongside the menus.
 - Lamps and lanterns no longer wear big orange circles: a small soft glow at the glass. The omnibus's carriage lamps now light the street and the house fronts as it drives by.
 - Esc closes the map, the quest book, a talk or any other window, as E does, instead of opening the main menu. Click or press W to walk on.
 - You can only pick a pocket from behind the person.
 - The lower parts of the cathedral's aisle windows, behind the houses built against it, are walled up instead of painted ([#28](https://github.com/Steve-Sitax/Moodygame/issues/28)).
 
 ### Fixed
+- In the Godot port, sound recordings, player pools and first-use audio work are prepared while the town loads, so a bell, voice, loop or storm does not hitch the first walk ([#41](https://github.com/Steve-Sitax/Moodygame/issues/41)).
 - Townspeople no longer stand inside each other. Dockers waiting by Het Schipke stood in one another, sacks through the next man: a dock crane parked over their way counted as a solid block, so they found no path and waited on one spot. People now walk under the cranes, step apart when they meet on one spot, keep more room with a sack, and never appear inside someone else.
 - Café chairs face their tables from the aisle side, with space to leave the long bench; standing customers also take walking breaks.
 - Adding the backstreet businesses to an older town preserves occupied households and cannot prevent that save from opening.

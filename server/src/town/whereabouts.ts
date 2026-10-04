@@ -37,6 +37,8 @@ export interface WhereResident {
 /** What the sum needs of the town. */
 export interface WhereTown {
   residents?: ReadonlyArray<WhereResident>;
+  /** Reachable replacements for plan spreads, prepared on the server's walk map. */
+  anchors?: Record<string, Record<string, Pt>>;
   places: Record<string, { x: number; z: number; r: number; door?: Pt; out?: Pt }>;
   stalls: ReadonlyArray<{ x: number; z: number }>;
   shops: ReadonlyArray<{ id: string; door: Pt; out: Pt }>;
@@ -130,6 +132,8 @@ function workAnchor(r: WhereResident, town: WhereTown): Anchor {
 
 /** Where a part of the day is (its act and place, as activityAt gives them). */
 export function anchorOf(r: WhereResident, town: WhereTown, act: Act | string, place: string): Anchor {
+  const fixed = town.anchors?.[r.id]?.[`${act}:${place}`];
+  if (fixed) return { x: fixed[0], z: fixed[1], indoor: false };
   if (act === "home" || place === "home") return { x: r.home.sx, z: r.home.sz, indoor: true };
   if (act === "work" || place === "work") return workAnchor(r, town);
   const p = town.places[place] ?? town.places[place.replace(/^[a-z]+:/, "")];

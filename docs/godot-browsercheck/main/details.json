@@ -1,0 +1,246 @@
+{
+  "checks": {
+    "loaded": {
+      "boot": {
+        "js": 1187,
+        "boot:run": 4654,
+        "city": 11310,
+        "boot:files": 36460,
+        "boot:textures": 37382,
+        "boot:shaders": 37523,
+        "boot:lights": 38593,
+        "boot:doors": 38826,
+        "menu": 39086
+      },
+      "canvas": [
+        1280,
+        800
+      ]
+    },
+    "graphics": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5090 (0x00002B85) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "arrival": {
+      "stage": "gone",
+      "measureMs": 0,
+      "t": 0,
+      "idle": 0,
+      "aboard": null,
+      "jefOff": false,
+      "plankUp": 1,
+      "gangway": {
+        "lxSide": 2.31,
+        "hDeck": 1.35,
+        "lx0": 2,
+        "lz": 4.5
+      },
+      "ferry": null,
+      "passengers": [],
+      "landing": {
+        "built": true,
+        "oldHidden": true,
+        "deck": -2.11,
+        "lamps": [
+          "-249.9,-0.1,-44.6 lit 1.00",
+          "-247.5,0.8,-58.9 lit 1.00",
+          "-247.4,0.8,-30.0 lit 1.00",
+          "-250.6,0.8,-8.5 lit 1.00"
+        ],
+        "colliders": 11,
+        "piles": [
+          "-246.3,-7.4",
+          "-246.3,-52.0",
+          "-251.7,-7.4",
+          "-251.7,-52.0"
+        ]
+      }
+    },
+    "paths": [],
+    "shaders": {
+      "programs": 228,
+      "lightSettings": {
+        "dir 1, point 12, hemi 1, point shadows 1": 128,
+        "dir 0, point 10, hemi 1, point shadows 0": 21
+      },
+      "warmer": {
+        "runs": 89,
+        "objects": 6782,
+        "lastSyncMs": 3.8,
+        "lastReadyMs": 4,
+        "held": 390,
+        "heldMaxMs": 0,
+        "pending": 0,
+        "onHold": 0
+      },
+      "problems": []
+    },
+    "go:vismarkt": {
+      "target": {
+        "key": "vismarkt",
+        "label": "Vismarkt",
+        "x": -118,
+        "z": 30,
+        "kind": "jump"
+      },
+      "result": "at -118, 36",
+      "at": [
+        -118,
+        36
+      ]
+    },
+    "stuck:vismarkt": {
+      "stuck": [],
+      "watched": 34,
+      "walking": 25,
+      "seconds": 12
+    },
+    "go:grote markt": {
+      "target": {
+        "key": "grote markt",
+        "label": "Grote Markt",
+        "x": -254,
+        "z": 90,
+        "kind": "jump"
+      },
+      "result": "at -254, 96",
+      "at": [
+        -254,
+        96.0034849568375
+      ]
+    },
+    "stuck:grote markt": {
+      "stuck": [],
+      "watched": 20,
+      "walking": 17,
+      "seconds": 12
+    },
+    "go:cathedral": {
+      "target": {
+        "key": "cathedral",
+        "label": "Cathedral",
+        "x": -262,
+        "z": 138,
+        "kind": "jump"
+      },
+      "result": "at -262, 144",
+      "at": [
+        -262,
+        144.0001666395216
+      ]
+    },
+    "stuck:cathedral": {
+      "stuck": [],
+      "watched": 24,
+      "walking": 16,
+      "seconds": 12
+    },
+    "go:handschoenmarkt": {
+      "target": {
+        "key": "handschoenmarkt",
+        "label": "the Handschoenmarkt",
+        "x": -250,
+        "z": 135,
+        "kind": "place"
+      },
+      "result": "at -250, 141",
+      "at": [
+        -250,
+        141.00022629352185
+      ]
+    },
+    "stuck:handschoenmarkt": {
+      "stuck": [],
+      "watched": 23,
+      "walking": 16,
+      "seconds": 12
+    },
+    "go:rijnkaai": {
+      "target": {
+        "key": "rijnkaai",
+        "label": "Rijnkaai",
+        "x": 20,
+        "z": 20,
+        "kind": "jump"
+      },
+      "result": "at 20, 26",
+      "at": [
+        20,
+        26.00014572669656
+      ]
+    },
+    "stuck:rijnkaai": {
+      "stuck": [],
+      "watched": 19,
+      "walking": 16,
+      "seconds": 12
+    },
+    "townhall_close": {
+      "at": [
+        -257,
+        63.000000005095764
+      ],
+      "target": [
+        -257,
+        60.69
+      ]
+    },
+    "cathedral_close": {
+      "at": [
+        -262,
+        147
+      ],
+      "target": [
+        -262,
+        149.53
+      ]
+    },
+    "vleeshuis_close": {
+      "at": [
+        -121.95,
+        90
+      ],
+      "target": [
+        -121.95,
+        92.4
+      ]
+    }
+  },
+  "views": [
+    "vismarkt",
+    "grote_markt",
+    "cathedral",
+    "handschoenmarkt",
+    "rijnkaai",
+    "townhall_close",
+    "cathedral_close",
+    "vleeshuis_close"
+  ],
+  "errors": [
+    "Error: Error: No visible resident\n    at <anonymous>:1:89\n    at <anonymous>:1:234"
+  ],
+  "perf": [
+    {
+      "place": "vismarkt",
+      "liveMean": 218.33,
+      "turnMean": 35.37
+    },
+    {
+      "place": "grote markt",
+      "liveMean": 26.12,
+      "turnMean": 26.55
+    },
+    {
+      "place": "cathedral",
+      "liveMean": 24.4,
+      "turnMean": 34.38
+    },
+    {
+      "place": "handschoenmarkt",
+      "liveMean": 24.23,
+      "turnMean": 28.78
+    },
+    {
+      "place": "rijnkaai",
+      "liveMean": 26.14,
+      "turnMean": 27.38
+    }
+  ]
+}

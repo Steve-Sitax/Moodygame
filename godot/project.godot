@@ -1,0 +1,61 @@
+; Scheldemist in Godot (docs/godot-port.md). Engine: Godot 4.7.2, C#.
+config_version=5
+
+[application]
+
+config/name="Scheldemist"
+config/use_custom_user_dir=true
+config/custom_user_dir_name="Scheldemist"
+run/main_scene="res://main.tscn"
+config/features=PackedStringArray("4.7", "C#", "Forward Plus")
+
+[display]
+
+window/size/viewport_width=1600
+window/size/viewport_height=900
+window/vsync/vsync_mode=0
+
+[dotnet]
+
+project/assembly_name="Scheldemist"
+
+[physics]
+
+3d/physics_engine="Jolt Physics"
+
+[rendering]
+
+textures/vram_compression/import_etc2_astc=true
+
+scaling_3d/scale=0.8
+
+[shader_globals]
+
+psx_snap_res={
+"type": "vec2",
+"value": Vector2(240, 135)
+}
+psx_fog_color={
+"type": "vec4",
+"value": Vector4(0.55, 0.58, 0.6, 1)
+}
+psx_fog_near={
+"type": "float",
+"value": 20.0
+}
+psx_fog_far={
+"type": "float",
+"value": 160.0
+}
+psx_hemi_sky={
+"type": "vec4",
+"value": Vector4(0.2, 0.25, 0.3, 1)
+}
+psx_hemi_ground={
+"type": "vec4",
+"value": Vector4(0.02, 0.02, 0.015, 1)
+}
+psx_time={
+"type": "float",
+"value": 0.0
+}

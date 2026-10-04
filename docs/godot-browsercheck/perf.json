@@ -1,0 +1,29 @@
+{
+  "rows": [
+    {
+      "place": "vismarkt",
+      "liveMean": 32.91,
+      "turnMean": 227.45
+    },
+    {
+      "place": "grote markt",
+      "liveMean": 32.45,
+      "turnMean": 31.83
+    },
+    {
+      "place": "cathedral",
+      "liveMean": 30.05,
+      "turnMean": 31
+    },
+    {
+      "place": "handschoenmarkt",
+      "liveMean": 30.01,
+      "turnMean": 33.29
+    },
+    {
+      "place": "rijnkaai",
+      "liveMean": 29.65,
+      "turnMean": 32.85
+    }
+  ]
+}

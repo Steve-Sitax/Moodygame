@@ -1,4 +1,45 @@
-# Testing in the browser
+# Testing the game
+
+## Testing the Godot port
+
+From the Godot worktree, run:
+
+```powershell
+npm --prefix server install
+node tools/godot/checks.mjs --town D:/Code/MoodyGame-godot/godot/baked/town.glb --models D:/Code/MoodyGame-godot/godot/baked/models
+```
+
+This builds and imports the project, then runs `devtest`, `paths`, `stuck`, `shaders`, `perfcheck`, `clocks` and
+`interiors` in turn, with one real game window at a time and a four-minute timeout per run. Each uses a newly
+made test town with seed 1873, its own free port from 8980, full needs, midday and clear weather, and no AI. The
+runner never reads or copies the player's save, never bakes, stops only its own processes, and deletes each test
+save afterward. Reports and pictures go to `godot/baked/checks/`; look at each picture. A nonzero exit status
+means at least one FAIL or ERROR. Use `--only paths,shaders`, `--out <dir>`, `--seed N`, `--port N` or
+`--timeout 240` to narrow a run. Every place must be below 5 ms mean active main-frame time, and `paths` and
+`shaders` must have no findings. See [the Godot README](../godot/README.md#godot-milestone-checks-g8) for every
+option, metric and coverage limit.
+
+The kit is `godot/src/Dev/Kit.cs`, reached through `--dev-command` or F9 with `--dev`. Use it only with a fresh
+test save (`--db <absolute test.sqlite> --port 8980 --no-ai --no-mainmenu`) or your own isolated test server.
+For example, `--dev-command 'hour 13 clear; go vismarkt; summon fishwife'`. Console commands are `hour H WEATHER`,
+`weather NAME`, `go NAME` or `go X Z`, `summon NAME_OR_TRADE`, `job JSON`, `skip MINUTES` and `clear`. They use the
+normal server dev routes, crowd and job-taking path. Four of them are exercised by `--devtest <dir>`.
+
+Direct check options go after Godot's `--`: `--paths <dir>`, `--stuck <dir>`, `--shaders <dir>`,
+`--perfcheck <dir>`, `--clocks --check-out <dir>`, `--interiors --check-out <dir>`. Each writes its named JSON and
+quits. These modes bypass the menus. Pass the shared town and decoded model paths above, plus a test server or
+fresh `--db` and a port from 8900. Use the real Godot 4.7.2 Mono console executable described in the README.
+
+Limitations are evidence, not passes: `notCovered` is in every report. The path check tests the baked crowd map,
+not Jef's physics or changed moving geometry. Stuck covers a three-hour Monday route and drawn-body collisions,
+not every day, animal or vehicle. Shader inventories observe attached scene resources and psx shader counts;
+they do not time driver builds. Performance records both an active-frame timer bracket and whole wall frames,
+without a GPU finish fence. Clock fallback markers test motion over half an hour, not correct hand angles.
+Interior rays need the live room part's `IInteriorAuditSource` to certify room visibility; without it the check
+fails and marks the probes diagnostic. Floor connectivity, seams, containment, shader-only cutouts and unmarked
+painted windows remain outside that fallback.
+
+## Testing in the browser
 
 How to check a change in the game quickly, and where and when to look. Steve's rule (CLAUDE.md): every
 milestone and every batch of fixes ends with a run in the browser, not a backend check. This is the
@@ -37,6 +78,10 @@ From the repo root:
 
 The name and ports can change, so that two checks can run at once:
 `node tools/teststack.mjs start lock --server 8942 --vite 5342`, then stop it with the same name and ports.
+For a public-only checkout where no player save or settings may be read, add `--fresh` to both start and stop.
+It creates a seed-1873 town with AI disabled in `.test-stacks/`, never opens `data/game.sqlite`, and disables the map server.
+For example: `node tools/teststack.mjs start browsercheck --fresh --server 8875 --vite 5375`.
+On a fresh town, post `/api/arrival/ashore` and reload before checking the town, so the ferry cannot reposition Jef.
 The test vite has no hot reload: after a client edit, reload the tab. After a server edit, stop and start.
 In a fresh git worktree, run `node client/scripts/copy-draco.mjs` once before the first start: the test vite does not run `predev`, and without `client/public/draco/` the city model does not load (no houses, `Unexpected token '<'` in the console).
 

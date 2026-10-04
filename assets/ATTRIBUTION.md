@@ -267,6 +267,24 @@ source, and no font is renamed or changed (OFL: Reserved Font Names untouched; o
 | Scheldemist Black | UnifrakturMaguntia 400 | j. 'mach' wust (c) 2010, Peter Wiegel (c) 2009, Reserved Font Name UnifrakturMaguntia | the newspaper's masthead | OFL-1.1 |
 | Scheldemist Mono | Courier Prime 400, 700 | The Courier Prime Project Authors (Alan Dague-Greene, Quote-Unquote Apps) (c) 2015 | telegrams, keys in the menus | OFL-1.1 |
 
+The Godot game (`godot/fonts/`, 2026-10-03) reads the same faces from copies of the packages' own Latin woff2 files
+(Godot cannot read them out of `node_modules`), unchanged and under their own names, each beside its package's
+`LICENSE` (the OFL text and the copyright): `kalam-latin-400-normal.woff2`, `kalam-latin-700-normal.woff2`
+(`kalam-LICENSE.txt`; @fontsource/kalam 5.3.0), `old-standard-tt-latin-400-normal.woff2`,
+`old-standard-tt-latin-700-normal.woff2` (`old-standard-tt-LICENSE.txt`; @fontsource/old-standard-tt 5.3.0).
+Loaded by `godot/src/Game/Pen.cs` (`Fonts`) for the HUD. For the talk window, the papers and the bills
+(`godot/src/Ui/Dialogs/Paper.cs`, `PaperFonts`), copied the same way: `old-standard-tt-latin-400-italic.woff2`
+(the same package and licence file), `alfa-slab-one-latin-400-normal.woff2` (`alfa-slab-one-LICENSE.txt`;
+@fontsource/alfa-slab-one 5.3.0), `unifrakturmaguntia-latin-400-normal.woff2` (`unifrakturmaguntia-LICENSE.txt`;
+@fontsource/unifrakturmaguntia 5.3.0), `courier-prime-latin-400-normal.woff2` (`courier-prime-LICENSE.txt`;
+@fontsource/courier-prime 5.3.0).
+Loaded by `godot/src/Game/Pen.cs` (`Fonts`) for the HUD. For the menus (2026-10-03) the same way:
+`old-standard-tt-latin-400-italic.woff2` (@fontsource/old-standard-tt 5.3.0), `alfa-slab-one-latin-400-normal.woff2`
+(`alfa-slab-one-LICENSE.txt`; @fontsource/alfa-slab-one 5.3.0), `courier-prime-latin-400-normal.woff2` and
+`courier-prime-latin-700-normal.woff2` (`courier-prime-LICENSE.txt`; @fontsource/courier-prime 5.3.0).
+The Godot menus also read copies of two of our own pictures listed below, unchanged: `godot/ui/quay_woodcut.jpg`
+(of `client/public/ui/quay_woodcut.jpg`) and `godot/ui/loading.jpg` (of `client/public/boot/loading.jpg`).
+
 The menus' one picture, made with Codex image generation from our own prompt through `tools/codexImage.mjs` (no
 example picture, no third-party images); turned grey and resized to 880 px:
 
@@ -295,6 +313,8 @@ example picture, no third-party images); turned grey and resized to 880 px:
 | Package | Version | Licence |
 |---|---|---|
 | concurrently | 10.0.5 | MIT |
+| @gltf-transform/core, @gltf-transform/extensions (the Godot port's model step, `tools/godot/models.mjs`) | 4.5.1 | MIT |
+| draco3dgltf (Google Draco, the decoder for that step) | 1.5.7 | Apache-2.0 |
 
 ## Codex pictures: the shops and the cafes (M7 shops, 2026-09-26)
 
@@ -513,3 +533,11 @@ Original OpenAI image-generation outputs, made with the built-in imagegen tool f
 | `concepts/stadspark/foliage-source.png` | Eight transparent foliage/flower clusters, packed into 64-pixel cells by `tools/textures/stadspark_atlas.py`, embedded in `park_plants.glb` | `9b1154d8392e95095410d9f3fc09b63700fee5b9de612fa0fdaf21e4ccbf0f90` |
 
 `park_animals.glb` is original low-poly geometry with vertex colours, authored in `tools/blender/build_park_animals.py`. No downloaded models or new dependencies.
+
+## Godot download runtimes
+
+The Godot download also ships Godot 4.7.2 (MIT, with its third-party notices in `GODOT-COPYRIGHT.txt`), the
+self-contained .NET 8 runtime (MIT, `DOTNET-LICENSE.txt`) and Node.js 24 (MIT and bundled third-party notices,
+`runtime/LICENSE.txt`). Sources: https://godotengine.org/license/, https://github.com/dotnet/runtime and
+https://nodejs.org/. Existing server dependencies retain their licence files in production `node_modules`.
+The download adds no new npm dependencies.

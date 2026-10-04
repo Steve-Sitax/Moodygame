@@ -1,0 +1,9 @@
+.godot/
+*.import
+spike/data/*
+!spike/data/.gdignore
+baked/*
+!baked/.gdignore
+
+# Player downloads and their checks
+dist/

@@ -1079,7 +1079,7 @@ export class Town {
         // soldiers walking out: their round of the town, the pair side by side (pair())
         if (now.act === "stroll" && r.trade === "soldier" && w.route?.length) return { mode: "roam", x: w.route[0][0], z: w.route[0][1], route: w.route, place: now.place };
         const pl = P(now.place) ?? P(w.place) ?? P("rijnkaai")!;
-        const [x, z] = this.spot(pl, s);
+        const [x, z] = this.data?.anchors?.[r.id]?.[`${now.act}:${now.place}`] ?? this.spot(pl, s);
         return { mode: now.act, x, z, r: pl.r, place: now.place };
       }
       case "work":
