@@ -92,9 +92,39 @@ or wall walking/turning frame over 16 ms. Existing allocation gates are retained
 
 ## Verification and cleanup
 
-Pending: job, places, both event batches, ride, play, deeds, and
-`devtest,shaders,clocks,stuck,perfcheck,pixelcheck`. No push or merge is authorized.
-Each commit runs the repository pre-commit hook and stages explicit paths only.
+The default C# build passes with the existing Grime CS8604 and Deeds CS8601
+warnings. `npm run build` passed for client and server earlier in this session.
+The retained source has fourteen zero-difference pixel cases and a live positive
+control. No production speed fix was accepted.
+
+| Run / check | Result | Evidence |
+|---|---|---|
+| wrap-gameplay / jobtest | FAIL | 17 steps, Vismarkt frame 7.62 ms |
+| wrap-gameplay / placestest | PASS | 192 steps;  |
+| wrap-gameplay / ridetest | PASS | 196 checks;  |
+| wrap-gameplay / playtest | PASS | 37 steps;  |
+| wrap-gameplay / deedstest | FAIL | 24 checks; System.InvalidOperationException: lost property lies in street
+   at Scheldemist.Play.DeedsTest.Check(Boolean ok, String name) in D:\Code\MoodyGame-godot-bisect\godot\src\Play\DeedsTest.cs:line 236
+   at Scheldemist.Play.DeedsTest.OtherFeatures(Api api, String mark) in D:\Code\MoodyGame-godot-bisect\godot\src\Play\DeedsTest.cs:line 99
+   at Scheldemist.Play.DeedsTest.Run() in D:\Code\MoodyGame-godot-bisect\godot\src\Play\DeedsTest.cs:line 74 |
+| wrap-required / devtest | PASS | 4/4 steps |
+| wrap-required / shaders | PASS | 0 new kinds, 0 problems |
+| wrap-required / clocks | PASS | 96/96 running |
+| wrap-required / stuck | PASS | 0 stuck, 0 overlaps, 0 solid findings; 3 h |
+| wrap-required / perfcheck | FAIL | grote markt 6.571/8.326 ms; cathedral 7.045/8.957 ms; handschoenmarkt 7.334/9.172 ms; vismarkt 5.671/6.895 ms; rijnkaai 5.044/6.345 ms |
+| wrap-required / pixelcheck | PASS | 14 comparisons, 0 changed pixels; positive control 3897847 |
+
+Job has 16/17 passing steps; its only failure is the 5 ms frame budget (7.62 ms
+mean, 10.42 ms p95). Deeds stops after 23 passing checks at `lost property lies
+in street`; one unchanged retry is pending. Both event batches are pending.
+The full sustained performance gate also fails: walking means are 6.571 /
+7.045 / 7.334 / 5.671 / 5.044 ms. Rijnkaai walking reaches 19.005 ms and
+Vismarkt turning 16.954 ms. No timing limit was relaxed.
+
+Raw verification reports are under `godot/baked/bisect/wrap-*/run-1/`.
+Each completed batch removed its lock and disposable database. Final cleanup
+is pending the remaining tests. No push or merge was performed. Every commit
+runs the repository pre-commit hook and stages explicit paths only.
 
 ## Rejected and inconclusive experiments
 
