@@ -60,7 +60,9 @@ public static class Paths
         City = Override("city", Shared("city.json"));
         Prefs = Override("prefs", Path.Combine(Data, "settings.json"));
         Keys = Main.I.Arg("prefs") != "" ? Path.ChangeExtension(Prefs, ".keys.json") : Path.Combine(Data, "keys.json");
-        Database = Override("db", Path.Combine(Data, "game.sqlite"));
+        // The download paths are also the server's paths; the multiplayer check must never open a player's save.
+        string database = Main.I.Arg("mptest") != "" ? Net.Mp.MpTest.TestDb(Main.I) : Path.Combine(Data, "game.sqlite");
+        Database = Override("db", database);
         Directory.CreateDirectory(Data);
     }
 

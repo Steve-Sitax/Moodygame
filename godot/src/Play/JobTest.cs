@@ -464,6 +464,7 @@ public partial class JobTest : Node
         if (low.IsCompletedSuccessfully) GameState.I.Apply(low.Result);
         yield return 0.6;
         Note("said_at_zero_food", said.ToList());
+        Check(said.Contains("You are starving. Your strength is going. Eat."), "no warning when food reached zero");
         Note("fatigue_at_sleep_2", Jef.I.Fatigue);
         Check(Jef.I.Fatigue < 1, "dead tired, but he walks as fast as ever");
         Shot("6-starving");
@@ -475,12 +476,14 @@ public partial class JobTest : Node
         yield return When(() => day.SheetOpen, 12, "the night sheet after he dropped");
         if (day.SheetOpen)
         {
+            Check(DaySheets.I?.Shown == "night" && Dialogs.I!.Up.Count(n => n is "day sheet" or "night sheet") == 1,
+                "collapse opened more than one night sheet");
             yield return 0.6;
             Shot("6-dropped");
             Note("needs_after_the_night", Needs());
             Dialogs.I!.SendKey("KeyE");
             yield return 0.8;
-            Check(!day.SheetOpen && !Jef.I.Frozen, "E did not get him up");
+            Check(!day.SheetOpen && !GameState.I.Hold && !Jef.I.Frozen, "E did not get him up");
             Shot("6-morning");
         }
     }
