@@ -127,7 +127,7 @@ The five square/street overview PNGs are retained with the JSON. Main overview p
 
 The pre-existing kit problem where `t.go('cathedral')` resolves a resident before the exact named jump is filed as [#51, tests and tools](https://github.com/Steve-Sitax/Moodygame/issues/51) and recorded in `docs/worklog.md`. This audit works around it rather than changing unrelated browser controls.
 
-This batch adds the audit/evidence, an opt-in fresh test-stack mode and its documentation, and `SCHELDEMIST_PUBLIC_CHECK=1` for the commit checker. That explicit mode prevents opening `.claude/private-words.txt`; staged-file exclusions, sizes and secret-pattern scanning still run. The normal pre-commit hook runs with that environment, without `--no-verify`. Staging is by named paths. No game runtime implementation change was needed for a failing test or build.
+This batch adds the audit/evidence and an opt-in fresh test-stack mode with its documentation. It also added a `SCHELDEMIST_PUBLIC_CHECK=1` switch that let the commit checker skip the private-word list; the coordinator took that switch out again, because the pre-commit check is never skipped in part (CLAUDE.md, "Nothing private in git"). Staging is by named paths. No game runtime implementation change was needed for a failing test or build.
 
 Additional scoped tool changes made by this audit (after the starting inventory):
 

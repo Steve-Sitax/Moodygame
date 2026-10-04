@@ -44,8 +44,6 @@ const MADE_UP = /FAKE|example|placeholder|dummy|<[^>]+>/i;
 const MAX_BYTES = 25 * 1024 * 1024;
 
 const words = (() => {
-  // Public-only checkouts must not open private session files. All other checks still run.
-  if (process.env.SCHELDEMIST_PUBLIC_CHECK === "1") return [];
   try {
     return fs
       .readFileSync(path.join(root, ".claude", "private-words.txt"), "utf8")
@@ -98,4 +96,4 @@ if (finds.length) {
   console.error("\nFix it and stage again. Do not skip this check.\n");
   process.exit(1);
 }
-console.log(`[commit-check] ${staged.length} staged file(s): no secrets or unneeded files; ${process.env.SCHELDEMIST_PUBLIC_CHECK === "1" ? "public-only mode, private word file not read" : "no private words"}`);
+console.log(`[commit-check] ${staged.length} staged file(s): no secrets, no private words, nothing that does not belong in git`);
