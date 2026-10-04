@@ -44,6 +44,7 @@ public partial class RideTest : Node
             if(Main.I.Arg("ride-only")=="cart") {await HandcartCheck(api);return;}
             if(Main.I.Arg("ride-only")=="velo") {await VeloCheck(api);return;}
             if(Main.I.Arg("ride-only")=="row") {await RowCheck(api);return;}
+            if(Main.I.Arg("ride-only")=="navigation") {await NavigationCheck(api);return;}
             foreach (float height in new[] { 2.99f, 3, 5, 8, 12 })
             {
                 GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { hour = 13, minute = 45, weather = "clear", health = 10 }));
@@ -80,8 +81,23 @@ public partial class RideTest : Node
             GetTree().Quit(error == "" ? 0 : 1);
         }
     }
+    private async Task NavigationCheck(Api api)
+    {
+        MoverClock.Hold(13.75,1);
+        GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set",new{hour=13,minute=45,weather="clear",money_c=2000,health=10}));await Rowing.I.Load();var row=Rowing.I;row.Answered+=(action,reply)=>replies.Add(new{rowing=action,reply});var landing=row.Data.Landings.First(l=>l.Id=="vismarkt");
+        Jef.I.Place(landing.Landing[0],landing.Landing[1],0);await row.Hire(landing);Require(row.Boat!=null,"navigation check hires a real boat");row.RiderTestHeadroom=4;RowPose(row,-76,-14,0);await Frames(5);
+        var bridge=Bridges.I.List.First(b=>b.Key=="canal_mouth");Require(bridge.Boats.Contains("rower"),"rower hails bridge keeper when headroom is too low");Require(row.Rower.Blocked(row,-76,6,0),"closed bridge refuses a boat that cannot fit underneath");Require(await Until(()=>bridge.Open>.97f,40),"bridge keeper opens real lifting leaves for rower");Jef.I.Yaw=MathF.PI;Jef.I.Pitch=-.25f;await Shot("rowing-bridge");row.RiderTestHeadroom=0;RowPose(row,-76,6,0);await Frames(3);Require(row.Boat!=null&&!row.Rower.Blocked(row,-76,6,0),"raised bridge clears the whole rowing hull");
+        RowPose(row,landing.X,landing.Z,landing.Yaw);await Frames(3);await row.Leave(row.ExitHere());Require(!bridge.Boats.Contains("rower"),"leaving boat releases its bridge request");Require(await Until(()=>!Jef.I.Climbing,15),"navigation boat docks ashore");
+        Jef.I.Place(landing.Landing[0],landing.Landing[1],0);await row.Hire(landing);RowPose(row,110,-16,0);await Frames(5);Require(row.Rower.Blocked(row,110,7,0),"shut near lock gates refuse the boat");Require(await Until(()=>Mv.Smooth(Lock.I.GateOpen(0))>.95f,65),"lock keeper opens near gates at the river level");RowPose(row,110,15,0);await Frames(5);Require(await Until(()=>Mv.Smooth(Lock.I.GateOpen(1))>.95f&&Lock.I.GateOpen(0)<.01f,80),"rower in chamber makes keeper shut near gates and open far gates");Jef.I.Pitch=-.25f;await Shot("rowing-lock");
+        RowPose(row,landing.X,landing.Z,landing.Yaw);await Frames(3);await row.Leave(row.ExitHere());Require(await Until(()=>!Jef.I.Climbing,15),"lock test boat returns ashore");
+        Jef.I.Place(landing.Landing[0],landing.Landing[1],0);await row.Hire(landing);bridge.Amount=0;bridge.Draw!.Set(0);row.RiderTestHeadroom=4;RowPose(row,-76,6,0);Require(await Until(()=>row.Boat==null&&!row.Busy,10),"closing deck crushes a boat under insufficient headroom");row.RiderTestHeadroom=0;Require(row.Data.Hire==null&&Jef.I.Swimming,"server prices lost boat and puts rower in water");replies.Add(new{afterBridgeWreck=await api.RowWorld()});Jef.I.Place(-118,36,0);
+        Jef.I.Place(landing.Landing[0],landing.Landing[1],0);await row.Hire(landing);var traffic=River.I.Movers.First(m=>m.Parts.Any(p=>Boats.I.Dims(p.Boat.Kind).Beam>2&&p.Boat.Outer.Visible));var ship=traffic.Parts.First(p=>Boats.I.Dims(p.Boat.Kind).Beam>2&&p.Boat.Outer.Visible);var hit=ship.Boat.Inner.GlobalPosition;RowPose(row,hit.X,hit.Z,0);Require(await Until(()=>row.Boat==null&&!row.Busy,10),"moving ship runs down overlapping rowboat");Require(row.Data.Hire==null&&Jef.I.Swimming,"ship wreck is priced by server and leaves rower swimming");replies.Add(new{afterShipWreck=await api.RowWorld()});Jef.I.Place(-118,36,0);
+    }
+    private static void RowPose(Rowing row,float x,float z,float yaw)
+    {row.Rower.X=x;row.Rower.Z=z;row.Rower.Y=World.BoatWater.At(x,z);row.Rower.Heading=yaw;row.Rower.Speed=row.Rower.Turn=0;}
     private async Task RowCheck(Api api)
     {
+        MoverClock.Hold(13.75,1);
         GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set",new{hour=13,minute=45,weather="clear",money_c=2000,health=10}));await Rowing.I.Load();
         var row=Rowing.I;Require(await Until(()=>row.Data.Landings.Count>0,10),"rowing landings ready");row.Answered+=(action,reply)=>replies.Add(new{rowing=action,reply});
         replies.Add(new{rowInitial=row.Data});var landing=row.Data.Landings.First(l=>l.Id=="vismarkt");
@@ -105,7 +121,7 @@ public partial class RideTest : Node
         Require(row.Data.Hire?.Left!=null&&row.Drawings.TryGetValue("mine",out var leftBoat)&&Math.Abs(leftBoat.Yaw-MathF.PI/2)<.01f,"left hired boat keeps its original hull and heading");var lying=row.Drawings["mine"];Jef.I.Yaw=MathF.Atan2(Jef.I.X-lying.X,Jef.I.Z-lying.Z);Jef.I.Pitch=0;await Frames(3);await Shot("rowing-swimming");
         Require(Interact.I.Press(Key.E),"E climbs back into boat from water");Require(await Until(()=>row.Boat!=null&&!row.Busy&&!Jef.I.Climbing,10),"swimmer climbs onto thwart and server confirms reboarding");
         row.Rower.X=-125;row.Rower.Z=-1.4f;row.Rower.Heading=MathF.PI/2;row.Rower.Speed=row.Rower.Turn=0;await Frames(3);await row.Leave(null);
-        Jef.I.Place(-125,.2f,0,-.55f,0);await Frames(3);Require(Jef.I.OnJump?.Invoke()==true,"Space at quay jumps into the left boat");Require(await Until(()=>row.Boat!=null&&!row.Busy&&!Jef.I.Climbing,10),"quay jump lands on thwart and server reboards");await Shot("rowing-quay-jump");
+        MoverClock.Hold(13.75,1);Jef.I.Place(-125,.2f,0,-.55f,0);await Frames(3);Require(Jef.I.OnJump?.Invoke()==true,"Space at quay jumps into the left boat");Require(await Until(()=>row.Boat!=null&&!row.Busy&&!Jef.I.Climbing,10),"quay jump lands on thwart and server reboards");await Shot("rowing-quay-jump");
         row.Rower.X=landing.X;row.Rower.Z=landing.Z;row.Rower.Heading=landing.Yaw;row.Rower.Speed=row.Rower.Turn=0;await Frames(3);await row.Leave(row.ExitHere());Require(await Until(()=>!row.Busy&&!Jef.I.Climbing,15),"second hired boat returns ashore");
     }
     private async Task VeloFixture(Api api,Velocipedes.Machine m,float x,float z,float yaw)
@@ -115,6 +131,7 @@ public partial class RideTest : Node
     }
     private async Task VeloCheck(Api api)
     {
+        MoverClock.Hold(13.75,1);
         GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set",new {hour=13,minute=45,weather="clear",money_c=2000,health=10}));
         await Velocipedes.I.Load();Require(await Until(()=>Velocipedes.I.Ownership?.Shop!=null,15),"velocipede maker ready");
         var velo=Velocipedes.I;var shop=velo.Ownership!.Shop!;velo.Answered+=(action,reply)=>replies.Add(new{velocipede=action,reply});
@@ -159,6 +176,7 @@ public partial class RideTest : Node
     }
     private async Task HandcartCheck(Api api)
     {
+        MoverClock.Hold(13.75,1);
         var world=new CartTestWorld();var pose=new CartPhysics.Pose(0,0,0);
         Require(CartPhysics.Misfit(pose,world)==0,"empty whole cart fits flat open ground");
         world.Wall=.6f;Require(CartPhysics.Misfit(pose,world)>0,"cart bed side catches a wall");
@@ -244,7 +262,7 @@ public partial class RideTest : Node
         var hire=Handcarts.I.Drawings.Values.First(c=>c.Info.Kind=="hire");
         await CartFixture(api,hire.Info,-118,36,0);Jef.I.Place(-118,33.3f,MathF.PI);await Frames(12);
         Require(Interact.I.Press(Key.E),"E grips hired handcart");Require(await Until(()=>Handcarts.I.Held==hire.Info.Id&&!Handcarts.I.Busy,10),"hired cart uses same grip physics");
-        await Shot("handcart-hired");await Handcarts.I.Release(true);
+        await Shot("handcart-hired");await Handcarts.I.Release(true);await CartFixture(api,hire.Info,-110,36,0);Require(Handcarts.I.Held==null&&!Jef.I.Laden,"cart check releases hands and parks clear of next ride");
     }
     private sealed class CartTestWorld : CartPhysics.IWorld
     {
@@ -256,6 +274,7 @@ public partial class RideTest : Node
     }
     private async Task CraneCheck()
     {
+        MoverClock.Hold(13.75,1);
         var rail = Railway.I; Require(rail.LadderCount == 10, "ten live crane ladders");
         int id = Enumerable.Range(0, rail.LadderCount).First(i => CraneClimb.I.FootOf(i) != null);
         rail.RiderTestWork(id, 0);
@@ -327,6 +346,7 @@ public partial class RideTest : Node
     }
     private async Task OmnibusCheck(Api api)
     {
+        MoverClock.Hold(13.75,1);
         Require(Omnibus.I.Buses.Count == 6, "six live omnibuses");
         GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { hour = 13, minute = 45, weather = "clear", health = 10, money_c = 500 }));
         Ride.I.Answered += (action, reply) => replies.Add(new { ride = action, reply });

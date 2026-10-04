@@ -40,11 +40,12 @@ public partial class Rowing:Node,RowPhysics.IWorld
     private bool polling,strokePending;
     private static readonly string[] Kinds={"rowboat","punt","workboat","dinghy","shipsboat","gig","bumboat","eelboat","oldboat"};
     private const float Out=2,In=.7f,Blade=.55f;
-    public Rowing(){I=this;drive=Drive;}
+    public Rowing(){I=this;drive=Drive;rowWhere=()=>new(Rower.X,Rower.Z);}
     public override void _Ready()
     {
         root=new Node3D{Name="jef_rowing"};Main.I.View.AddChild(root);models=ModelLibrary.Get("boats",new(TwoSided:true,Affine:.6));
         Boats.I.PlayerWarmHulls();
+        WarmNavigation();
         if(models!=null)foreach(var n in BakedWorld.All(models.Scene))if(n is MeshInstance3D{Mesh:not null} m)for(int i=0;i<m.Mesh.GetSurfaceCount();i++)
         {var mat=m.Mesh.SurfaceGetMaterial(i);if(mat?.ResourceName=="wood")wood=mat;if(mat?.ResourceName=="wood_dark")dark=mat;if(mat?.ResourceName=="iron")iron=mat;}
         shaft=new CylinderMesh{TopRadius=.022f,BottomRadius=.028f,Height=Out+In-Blade,RadialSegments=5};handle=new CylinderMesh{TopRadius=.018f,BottomRadius=.018f,Height=.14f,RadialSegments=5};collar=new CylinderMesh{TopRadius=.034f,BottomRadius=.034f,Height=.08f,RadialSegments=5};blade=new BoxMesh{Size=new(Blade,.15f,.022f)};
@@ -55,7 +56,7 @@ public partial class Rowing:Node,RowPhysics.IWorld
         ServerLink.I?.WhenUp(()=>_=Load(true));
     }
     private (int Kind,int Sub,float Heading)? Gear()=>Boat!=null?(MpProtocol.GearRowboat,Array.IndexOf(Kinds,Boat.Kind),Rower.Heading):otherGear?.Invoke();
-    private void Clear(){if(Jef.I.Drive==drive){Jef.I.Drive=null;Jef.I.DrivenEye=Jef.Eye;Jef.I.DrivenRoll=0;}Boat=null;}
+    private void Clear(){ReleaseNavigation();if(Jef.I.Drive==drive){Jef.I.Drive=null;Jef.I.DrivenEye=Jef.Eye;Jef.I.DrivenRoll=0;}Boat=null;}
     private void Replaced(string how,ClientState? client){epoch++;Clear();foreach(var d in Drawings.Values)d.Root.QueueFree();Drawings.Clear();Boats.I.PlayerShowSmall();_=Load(true);}
     public override void _ExitTree(){Clear();Jef.I.OnJump=oldJump;Boats.I.PlayerShowSmall();if(Together.I is {} together)together.Gear=otherGear;if(Scheldemist.Menu.MainMenu.I is {} menu)menu.WorldReplaced-=Replaced;}
     public async Task Load(bool restore=false)
@@ -164,6 +165,7 @@ public partial class Rowing:Node,RowPhysics.IWorld
     bool RowPhysics.IWorld.Free(float x,float z,float radius)
     {
         radius*=.9f;
+        if(!NavigationFree(x,z,radius))return false;
         float diag=radius*.70710678f;
         if(!Water.In(x,z)||!Water.In(x+radius,z)||!Water.In(x-radius,z)||!Water.In(x,z+radius)||!Water.In(x,z-radius)||!Water.In(x+diag,z+diag)||!Water.In(x+diag,z-diag)||!Water.In(x-diag,z+diag)||!Water.In(x-diag,z-diag)||(x>5-radius&&x<9+radius&&z>-12-radius&&z<radius))return false;
         if(!Boats.I.PlayerWaterFree(x,z,radius))return false;
@@ -178,7 +180,7 @@ public partial class Rowing:Node,RowPhysics.IWorld
     {if(z>-1||(x>100&&x<120&&z>-6))return Vector2.Zero;float hour=(float)GameState.I.HourF,rate=(Tide.At(GameState.I.Day,hour+.01f)-Tide.At(GameState.I.Day,hour-.01f))/.02f;return new(.16f*Math.Clamp(-rate/1.2f,-1,1)*Math.Clamp(-z/12,.3f,1)*(MoverClock.Sea>2.5f?1.6f:1),0);}
     private bool Drive(float dt)
     {
-        var d=Boat;if(d==null)return false;var j=Jef.I;float before=Rower.Heading;
+        var d=Boat;if(d==null||!Navigate())return false;var j=Jef.I;float before=Rower.Heading;
         bool caught=Rower.Step(dt,this,j.KeyDown(Key.W)||j.KeyDown(Key.Up),j.KeyDown(Key.S)||j.KeyDown(Key.Down),j.KeyDown(Key.A)||j.KeyDown(Key.Left),j.KeyDown(Key.D)||j.KeyDown(Key.Right),j.KeyDown(Key.Shift),out float bump);
         if(caught&&!strokePending)_=Stroke(Rower.Hard);bumpT-=dt;if(bump>.45f&&bumpT<=0){bumpT=1.2f;GameState.I.Say("The boat bumps against something. Back water and pull clear.");}
         d.X=Rower.X;d.Z=Rower.Z;d.Yaw=Rower.Heading;d.Root.Transform=new(new Basis(Vector3.Up,d.Yaw)*new Basis(Vector3.Right,Rower.Pitch)*new Basis(Vector3.Back,Rower.Roll),new(d.X,Rower.Y,d.Z));
@@ -201,6 +203,7 @@ public partial class Rowing:Node,RowPhysics.IWorld
     public override void _Process(double delta)
     {
         float dt=(float)Math.Min(delta,.1);pollT+=dt;if(pollT>(Boat!=null||Data.Hire!=null?3:10)&&!Busy){pollT=0;_=Load();}
+        NavigationTraffic(dt);
         foreach(var d in Drawings.Values)if(d!=Boat)
         {if(d.Drift){var c=((RowPhysics.IWorld)this).Current(d.X,d.Z);d.X+=c.X*dt;d.Z+=c.Y*dt;}d.Root.Position=new(d.X,BoatWater.At(d.X,d.Z),d.Z);d.Root.Rotation=new(0,d.Yaw,0);}
     }

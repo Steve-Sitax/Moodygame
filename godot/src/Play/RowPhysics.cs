@@ -67,7 +67,7 @@ public sealed class RowPhysics
             else{nx=X;nz=Z;h=Heading;v=-.2f*v;turn*=.3f;}if(hit>.45f)bump=hit;
         }
         X=nx;Z=nz;Heading=h;Speed=v;Turn=turn;
-        float fx=MathF.Sin(h),fz=MathF.Cos(h),len=Shape.Half*.75f,beam=Shape.Beam*.8f;
+        float fx=MathF.Sin(h),fz=MathF.Cos(h),len=Shape.Half*.8f,beam=Shape.Beam;
         float mid=BoatWater.At(X,Z),bow=BoatWater.At(X+fx*len,Z+fz*len),stern=BoatWater.At(X-fx*len,Z-fz*len),py=BoatWater.At(X+fz*beam,Z-fx*beam),sy=BoatWater.At(X-fz*beam,Z+fx*beam),e=1-MathF.Exp(-dt*4);
         Y+=((mid*2+bow+stern)/4-Y)*e;Pitch+=(MathF.Atan2(bow-stern,2*len)*.8f+surge*.004f-Pitch)*e;Roll+=(MathF.Atan2(py-sy,2*beam)*.7f+MathF.Sin(Time*1.9f)*.008f*Math.Min(sea,2.5f)-Roll)*e;
         return stroke;

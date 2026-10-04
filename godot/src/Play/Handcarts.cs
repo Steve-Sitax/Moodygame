@@ -153,13 +153,14 @@ public partial class Handcarts : Node, CartPhysics.IWorld
             tops[k]+=(float)(item.S.H??GoodsRules.Of(item.Kind).H)*.6f;
         }
     }
+    private static float CartDistance(Drawn d,float x,float z)
+    {float sx=MathF.Sin(d.Yaw),cz=MathF.Cos(d.Yaw),t=Math.Clamp((x-d.X)*sx+(z-d.Z)*cz,-2.15f,.95f);return new Vector2(x-d.X-sx*t,z-d.Z-cz*t).Length();}
     private Drawn? Nearest(float x,float z)
     {
         Drawn? best=null;float bd=2.4f;
         foreach(var d in Drawings.Values)
         {
-            float sx=MathF.Sin(d.Yaw),cz=MathF.Cos(d.Yaw),t=Math.Clamp((x-d.X)*sx+(z-d.Z)*cz,-2.15f,.95f);
-            float dist=new Vector2(x-d.X-sx*t,z-d.Z-cz*t).Length();if(dist<bd){bd=dist;best=d;}
+            float dist=CartDistance(d,x,z);if(dist<bd){bd=dist;best=d;}
         }
         return best;
     }
@@ -177,7 +178,7 @@ public partial class Handcarts : Node, CartPhysics.IWorld
         string label=c.Kind=="hire"?"take the hired handcart":c.Kind=="lent"?"take "+c.Label:c.Kind=="taken"?"take the handcart":"take your handcart";
         var extras=new List<Act>();if(c.Load.Count>0)extras.Add(Act.At(Key.G,"lift the load off the cart",at,()=>_ = Unload(d)));
         if(UnloadAction(d) is { } all2)extras.Add(all2);
-        return new Offers {Options=new() {(0,Act.At(Key.E,label,at,()=>_ = Grip(d)))},Extra=extras};
+        return new Offers {Options=new() {(CartDistance(d,x,z),Act.At(Key.E,label,at,()=>_ = Grip(d)))},Extra=extras};
     }
     private Act? UnloadAction(Drawn d)
     {
