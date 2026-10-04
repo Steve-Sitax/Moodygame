@@ -64,6 +64,8 @@ public partial class MainMenu : Node
     public static bool Wanted(Main main)
     {
         if (main.Flag("no-mainmenu")) return false;
+        foreach (string check in new[] { "paths", "stuck", "shaders", "perfcheck", "clocks", "interiors", "devtest" })
+            if (main.Flag(check)) return false;
         string only = main.Arg("only");
         if (only != "" && !only.Split(',').Contains("mainmenu")) return false;
         foreach (string a in OS.GetCmdlineUserArgs())

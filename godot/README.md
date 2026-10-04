@@ -48,6 +48,56 @@ beside it), `--no-mainmenu` (no loading screen and no menus: the town at once, a
 menus' own test, below). A run with `--shots` or another part's `--...test` has no menus either, and keeps the
 picture as it was (720 lines, wobble on) whatever the player's settings say.
 
+## Godot milestone checks (G8)
+
+Run from the checkout, with its own installed server packages (`npm --prefix server install`):
+
+```powershell
+node tools/godot/checks.mjs --town D:/Code/MoodyGame-godot/godot/baked/town.glb --models D:/Code/MoodyGame-godot/godot/baked/models
+```
+
+The runner builds C#, runs the console program once with `--headless --path godot --import`, then opens one game
+window at a time. Each check gets a fresh town (seed 1873), no AI, a free port from 8980, and a four-minute timeout.
+It removes its temporary save and stops its own processes even after a failure. It never copies a player's save
+or bakes a town. Reports, logs and pictures stay under `godot/baked/checks/`, outside git. `summary.json` and the
+short console table show PASS, FAIL or ERROR; any failure makes the runner exit 1.
+
+Options: `--only paths,stuck`, `--out <dir>`, `--port 8990`, `--seed 1873`, `--timeout 240`, `--godot <console exe>`.
+`--no-build` uses the last build and import. The Godot checks can also run directly, as options after `--`:
+
+| Option | Report and coverage |
+|---|---|
+| `--devtest <dir>` | Four server-backed kit steps: time/weather/place, summon, take a chosen job, advance time. |
+| `--paths <dir>` | `paths.json`: all job spots and current jobs' task points, server places/routes, home/work points, weekday/Sunday anchors, shop/stall fronts, current outside residents and city doors. Floods the baked 0.25 m body map from (10,12), with 0.36 m steps. `unreachable` must be empty. |
+| `--stuck <dir>` | `stuck.json`: three Monday game hours (13:00–16:00), across the five perf places. Steps the real town/crowd part at 0.05 s per rendered frame. Samples every 0.25 s: 3 s within 0.3 m, or crowd bodies walking 8 s with over 3 m travelled but under 0.8 m net; also drawn bodies within 0.45 m and a 0.25 m body against Godot solids. Hidden planned rounds may legitimately repeat, so only their stationary test applies. |
+| `--shaders <dir>` | `shaders.json`: first-frame material/shader kinds, later scene resources and kinds, psx shader count, total and hidden real lights. Visits five places at midday/clear, night/rain and dawn/fog. `problems` must be empty and light counts unchanged. |
+| `--perfcheck <dir>` | `perfcheck.json`: the browser's five places, 90 standing frames, 90 turning frames (2 degrees/frame), six seconds walking per place. Mean, p95, draw calls, wall-frame time and walking displacement. The mean active main frame must be under 5 ms at every place. |
+| `--clocks` | `clocks.json` under `--check-out <dir>` (or `--clocks <dir>`): every `liveClock`/`clock_face`/`clock_hands` marker; compare transforms and mesh vertices at 13:00 and 13:30. |
+| `--interiors` | `interiors.json` under `--check-out <dir>` (or `--interiors <dir>`): every baked opening marker, three rays from outside through each opening, forced-open working door leaves. A room part can expose `Dev.IInteriorAuditSource` to identify its real room geometry. Missing room data fails the check, and triangle probes are marked diagnostic. |
+
+The main-frame timer spans the first physics/process signal to `RenderingServer.FramePostDraw`, including
+renderer submission and excluding the frame limiter. It is an elapsed-time bracket, not a CPU profiler or a GPU
+finish fence. The wall-frame numbers record the entire interval between frames. Reports keep the browser's
+`at`, `gpu`, `budget`, `rows` and per-place `liveMean`, `liveP95`, `stillMean`, `turnMean`, `turnP95`, `calls`, `ok`;
+browser-only render-pass breakdowns are not invented.
+
+For a manual test on a fresh save of your own, use `--no-ai --port 8980 --db <absolute test.sqlite> --dev
+--no-mainmenu`. F9 opens a one-line console. `--dev-command` runs the same semicolon-separated commands at start:
+
+```text
+hour 13.5 clear; go vismarkt; summon fishwife
+weather rain; go -118 36; clear
+job {"type":"carry","items":2,"from":"pier_head","to":"crane_foot","goods":"crates"}
+skip 10
+```
+
+`hour` and `weather` call `/api/dev/set`, `job` calls `/api/dev/job` and takes it through the normal jobs part,
+and `skip` calls `/api/dev/advance`. `go` places Jef on nearby free physical ground; `summon` brings an existing
+resident onto the crowd grid, facing Jef; `clear` releases summoned residents. The checks set midday/clear and
+full needs before running. Each report lists its limitations under `notCovered`; a passing report does not cover
+unported features. In particular, the fallback clock check proves motion, not correct hand angles. The interior
+fallback cannot certify room floors, containment, seams, shader-only cutouts, or an unnamed pane of glass.
+
 ## How it is built
 - **The baked town** (`src/World/BakedWorld.cs`). The browser game builds its world in code (67,000 lines). The bake
   runs that code and writes the scene it made: every node with its name and place, hidden ones marked, the copies

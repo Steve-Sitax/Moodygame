@@ -12,6 +12,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - Godot downloads can carry the compiled server and portable Node, with matching SQLite packages and no compiler needed to play.
 
 - The Godot game keeps saves, AI settings and logs in your own user folder, and uses one set of paths in source runs and downloads.
+- The Godot job arrow and its distance stay clear of the clock and job cards.
 
 ### New in the game
 - In the Godot port, jobs use the shared paper windows, people, pockets and map. The quest book follows work in hand, and sleep has its own chooser. Goods use the decoded models and survive a loaded save or new week. Trouble on a job offers the server's choices and extra errands.
