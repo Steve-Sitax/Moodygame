@@ -35,6 +35,20 @@ public partial class FunnelSmoke : Node
         get { int f = 0; foreach (var e in emitters) if (e.Strength >= 0.5f) f++; return (emitters.Count, f); }
     }
 
+    /// <summary>For a check (Dev/AirCheck.cs): every emitter's mouth now, whether its boat is shown, whether she is
+    /// gone (a moored copy at zero size), a funnel or a stove.</summary>
+    public IEnumerable<(Vector3 at, bool shown, bool gone, bool funnel)> Mouths()
+    {
+        foreach (var e in emitters)
+        {
+            var xf = e.World();
+            yield return (xf * e.Local, e.Visible(), Gone(xf), e.Strength >= 0.5f);
+        }
+    }
+
+    /// <summary>A moored boat that is not there (the bake caught her at zero size: taken away) has no funnel.</summary>
+    private static bool Gone(Transform3D xf) => MathF.Abs(xf.Basis.Determinant()) < 1e-9f;
+
     private (Vector3[] funnels, Vector3[] stoves) Points(string kind)
     {
         if (points.TryGetValue(kind, out var p)) return p;
@@ -61,11 +75,11 @@ public partial class FunnelSmoke : Node
         return p;
     }
 
-    private void Add(string kind, Func<Transform3D> world, Func<bool> visible)
+    private void Add(string kind, Func<Transform3D> world, Func<bool> visible, float funnel = 0.55f)
     {
         var (funnels, stoves) = Points(kind);
-        // (a boat not shown yet, or put away, smokes nowhere: the moored rows are always shown)
-        foreach (var f in funnels) emitters.Add(new Emitter(world, visible, f, 0.55f, Air.Mulberry(ref seed)));
+        // (a boat not shown, put away or taken from her mooring, smokes nowhere)
+        foreach (var f in funnels) emitters.Add(new Emitter(world, visible, f, funnel, Air.Mulberry(ref seed)));
         foreach (var s in stoves) emitters.Add(new Emitter(world, visible, s, 0.2f, Air.Mulberry(ref seed)));
     }
 
@@ -73,7 +87,8 @@ public partial class FunnelSmoke : Node
     {
         ProcessPriority = 60;
         if (Boats.I == null) { SetProcess(false); return; }
-        foreach (var hull in Boats.I.MooredFrames()) Add(hull.Kind, hull.World, () => true);
+        // (a moored boat's funnel smokes thinly, as boats.ts moors them: her fires banked)
+        foreach (var hull in Boats.I.MooredHulls()) Add(hull.Kind, hull.World, hull.Shown, 0.3f);
         Register();
         // (room for the boats that come later: a fixed count, nothing made in a frame)
         draw = new AirPoints("funnel_smoke_live", Math.Max(256, emitters.Count * Puffs + 40 * Puffs));
@@ -115,7 +130,7 @@ public partial class FunnelSmoke : Node
             if (show)
             {
                 var xf = em.World();
-                show = new Vector2(xf.Origin.X - eye.X, xf.Origin.Z - eye.Z).LengthSquared() < far * far;
+                show = !Gone(xf) && new Vector2(xf.Origin.X - eye.X, xf.Origin.Z - eye.Z).LengthSquared() < far * far;
                 at = xf * em.Local;
             }
             for (int k = 0; k < Puffs; k++)

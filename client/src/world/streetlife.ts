@@ -11,7 +11,7 @@ import { flatLettering } from "./bumps";
 import { lampFog } from "./lampFog";
 import type { Rect } from "./geom";
 import { facadeOpenings } from "./cityTextures";
-import { boxesOverlap, kerbFront, SIGN_MARGIN, signOnWall, wallBox, type WallBox, type WallProbe } from "./wallprobe";
+import { boxesOverlap, facingWall, kerbFront, SIGN_MARGIN, signOnWall, wallBox, type WallBox, type WallProbe } from "./wallprobe";
 import { addProp, dropProps } from "./propSpots";
 
 // Street life (tools/blender/build_streetlife.py -> /models/streetlife.glb): the small
@@ -1116,9 +1116,17 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
       const mx = lx + (w.ox * D) / 2;
       const mz = lz + (w.oz * D) / 2;
       if (hit === WALL && D > 3.2 && D < 10 && !lines.some(([x, z]) => Math.hypot(x - mx, z - mz) < 7) && isClear(mx, mz, 1)) {
-        lines.push([mx, mz]);
         const y = GH + 0.9 + (w.st >= 4 && r() < 0.4 ? SH : 0);
-        washingLine(lx, lz, w.ox, w.oz, D, y, r);
+        // tied to a house on both sides, under both eaves: a line from a tall front to a low cottage hung its
+        // sheets over the cottage's roof (survey 2026-10-11, finding 14). The house across is the plan's wall there
+        // (its eaves), or else the houses as built half a metre over the line. The last thing on a front: no draw moves.
+        const far = facingWall(walls, lx + w.ox * D, lz + w.oz * D, w.ox, w.oz, 1.2);
+        const built = opts.probe ? opts.probe(lx + w.ox * 0.3, y + 0.5, lz + w.oz * 0.3, w.ox, w.oz, D + 1) : null;
+        const tied = far ? y + 0.7 < far.H : built !== null && built > D - 1.1;
+        if (y + 0.7 < w.H && tied) {
+          lines.push([mx, mz]);
+          washingLine(lx, lz, w.ox, w.oz, D, y, r);
+        } else count(y + 0.7 >= w.H || far ? "washing line left out: over the eaves" : "washing line left out: no house across");
       }
     }
   }

@@ -48,7 +48,7 @@ public partial class BoatLamps : Node
     {
         I=this;
         if (Boats.I==null) {SetProcess(false); return;}
-        foreach (var hull in Boats.I.MooredFrames()) Add(hull.Kind,hull.World,()=>true);
+        foreach (var hull in Boats.I.MooredHulls()) Add(hull.Kind,hull.World,hull.Shown);
         Register();
         var mesh=new SphereMesh {Radius=.12f,Height=.24f,RadialSegments=6,Rings=3};
         mesh.Material=BakedWorld.PsxMaterial(new StandardMaterial3D {AlbedoColor=new Color(1,1,1)},new Psx.Kind(Unlit:true,Blend:true,Scissor:false,TwoSided:false,DepthWrite:false,Snap:true,Atlas:0,VertexColor:true,Add:true,Fog:true));
