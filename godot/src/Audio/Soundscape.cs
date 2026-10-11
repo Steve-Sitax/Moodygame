@@ -2090,9 +2090,21 @@ public partial class Soundscape : Godot.Node
         if (!buf.TryGetValue("gulls", out var b)) return;
         // they keep over the water: a street or two inland they are gone, not heard over the roofs
         if (quayDist > 130) return;
-        var spot = NewSpot(listenerPos.X + Rand(-40, 40), Rand(8, 18), Rand(-45, -8), 6, 1, 200, 0.9, 3200, Bus("ambience"), 160, 0);
+        // (from a gull near you, World/Gulls.cs: none near, none heard)
+        if (World.Gulls.I is { } gulls)
+        {
+            if (gulls.Caller(listenerPos) is { } at) GullsAt(at, Rand(3, 6));
+            return;
+        }
+        GullsAt(new Vector3((float)(listenerPos.X + Rand(-40, 40)), (float)Rand(8, 18), (float)Rand(-45, -8)), Rand(3, 6));
+    }
+
+    /// <summary>Gull calls from a place (a bird of World/Gulls.cs) for about `dur` seconds: a slice of the harbour recording.</summary>
+    public void GullsAt(Vector3 at, double dur)
+    {
+        if (!buf.TryGetValue("gulls", out var b)) return;
+        var spot = NewSpot(at.X, at.Y, at.Z, 6, 1, 200, 0.9, 3200, Bus("ambience"), 160, at.Y > 4 ? 0 : 0.6);
         var span = Pick(Samples.GullSpans);
-        double dur = Rand(3, 6);
         double start = Rand(span[0], Math.Max(span[0], span[1] - dur));
         double rate = Rand(0.94, 1.0);
         Add(spot, b, "gulls", 1, rate, start, dur + 0.05, 0.05, new Env((0, 0), (0.4, 0.9), (dur - 0.8, 0.9), (dur, 0)));

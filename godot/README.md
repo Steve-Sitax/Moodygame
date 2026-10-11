@@ -168,6 +168,18 @@ fallback cannot certify room floors, containment, seams, shader-only cutouts, or
   Godot's importer drops. Dev: `--roomhours <dir>` proves the rooms' hours from the server; a `--snap` view named
   `cateye`, `moth`, `gutter` or `surf` looks at the nearest one. Browser pictures from the same views:
   `node tools/godot/look-refs.mjs --root <checkout> --out <dir> --views "..."`.
+  `Gulls.cs` (with `GullModel.cs`) takes over the browser's ambient birds (`ambient_birds`, frozen in the bake):
+  herring gulls and the squares' pigeons, each made in code from eight parts (body, head, two arms, two hands, two
+  legs), one MultiMesh a part, posed every frame from C# on a fixed pool with the bats' psx material (no new shader
+  kind). By day the gulls wheel over the water near the camera, follow fishing boats (`Movers/River`), stand on
+  bollards, roof ridges and the rails of moored boats (`Movers/Boats.Rails.cs`), float, and squabble on the
+  Vismarkt; at dusk all come down; Jef puts them up. Long flights are a steered cruise (constant speed, limited
+  turn) ending in a short curve, so no bird slows to a stop in the air. `Gulls.I.Caller(at)` gives the soundscape
+  a gull to call from. Self-test: `--gulltest <absolute dir>` (by day no flying gull under 1.5 m/s or jumping,
+  take-offs and landings; one walked at flies off; at night all down within 60 s and none up on its own; the
+  part's cost and allocations; `gulltest.json`, exit 1 on a failure). `--snap` views named `gullperch`,
+  `gullwater`, `gullrail`, `gullridge`, `gullmarket`, `gullfly1..`, `gullunder`, `gullsky` and `pigeon` look at
+  the nearest such bird; `gullsheet0..3` poses six birds in front of the camera to judge the model.
   Not ported yet: the drops off every eave (only the broken gutters run), the horses' breath, the bats, the
   ships' riding lights (`alive_ship_lights`, `boat_lamps`: the movers part), the pumps' bilge water, the
   lightning and the flying debris.
