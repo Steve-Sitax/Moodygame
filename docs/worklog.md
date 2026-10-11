@@ -1,5 +1,24 @@
 # Work log
 
+## Flagstones, the editor view, the Godot MCP, 2026-10-11
+
+In `main`. Steve: "everywhere these stones are, it looks ugly. I think the bump mapping is wrong" (browser too).
+- Cause: the relief light's soft "dome" slope comes from a mip-biased sample of the height map. The flagstones had a
+  128 px map, so its cells were 12 cm and the slope drew wide streaks and dark blobs over every stone. A per-material
+  `dome` weight (a uniform, no new shader kinds; psx.ts and Psx.cs the same), 0 on the flags, the pavement slabs and
+  the gothic hall floor. Cobbles keep 2.5 (they look flat without it).
+- Codex review (GPT Sol 6.1): DISAGREE, "manufactured bevelled pavers". `flagPaving()` painted again: 256 px, thin
+  uneven joints of sand and dirt, flat faces with a narrow arris, chips, a few cracks, calmer per-stone greys, faint
+  chisel lines. Second review: AGREE; its wrap bug (the last stone of a course painted over the first) fixed.
+- New bake in `godot/baked/next` (the old one replaced). It caught a moored boat at zero size, which crashed
+  `Boats.Rows` (`AffineInverse`); the rows now take the first real-size copy as their reference and keep zero-size
+  copies hidden.
+- `godot/editor/town_preview.tscn`: the baked town in the Godot editor (look only, never saved).
+- The Godot MCP `godot-runtime` (godot-mcp-runtime 3.8.1, MIT) for Claude Code: live screenshots, input and GDScript
+  in the running game. Not in the repo; `.mcp/` is ignored.
+Checks: Godot shaders PASS (0 new kinds). Frame times unchanged within noise, Godot and browser; both stay over budget
+as before (#32, #47). Build PASS. Pictures and both reviews: `godot/baked/review/`, `godot/baked/stones/` (ignored).
+
 ## Godot shader hash and the Steen's courtyard windows, 2026-10-04
 
 On `godot/gaps-look` (merged `godot-port` at `ab0d1dd`).

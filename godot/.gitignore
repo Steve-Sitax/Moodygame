@@ -7,3 +7,6 @@ baked/*
 
 # Player downloads and their checks
 dist/
+
+# The Godot MCP (godot-mcp-runtime): its bridge copy and screenshots
+.mcp/

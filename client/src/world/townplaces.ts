@@ -134,7 +134,7 @@ function rondGround(group: THREE.Group): void {
   // the pavement: flags along the house fronts (under the fronts to the disc's edge)
   const flag = flagPaving();
   const flagMat = psx(new THREE.MeshPhongMaterial({ map: flag.map, specular: 0x1a1a1a, shininess: 12 }), {
-    noSnap: true, affine: 0, wet: true, puddles: 0.75, vary: 0.8, relief: { height: flag.height, id: flag.id, holes: 0, depth: 0.025, tile: 4, bump: 1.6 },
+    noSnap: true, affine: 0, wet: true, puddles: 0.75, vary: 0.8, relief: { height: flag.height, id: flag.id, holes: 0, depth: 0.025, tile: 4, bump: 1.6, dome: 0 },
   });
   const pave = new THREE.Mesh(annulus(c, R.r_walk + 0.15, R.r_disc, 1.1, 2.2, 0, world(4)), flagMat);
   pave.name = "rond_pavement";

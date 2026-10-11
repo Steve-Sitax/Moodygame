@@ -422,12 +422,163 @@ export function settsPaving(): Paving {
   return p;
 }
 
-/** Flagstones on the squares: 128 px per 4 m tile, slabs of about 60 x 45 cm, worn edges. */
+/**
+ * Flagstones on the squares, the pavements and the kerbs: old bluestone flags, 256 px per tile (1.6 cm a pixel on the
+ * 4 m squares, 1 cm on the 2.6 m pavements), in courses of 40-56 cm, stones of 47-81 cm.
+ * Look pass 2026-10-11 (Steve: "everywhere these stones are, it looks ugly"; Codex review: "manufactured bevelled
+ * pavers: continuous black channels, repeated edge shading, very straight boundaries, uniformly finished faces"):
+ * - thin joints (one pixel and an uneven edge) filled with sand and dirt, standing a little below the stones, not
+ *   black trenches;
+ * - flat faces with a narrow worn arris, each stone a little tilted; chipped edges and corners, a few cracks;
+ * - each stone its own grey (most cool, some warm), soft mottling and faint chisel lines in one direction,
+ *   little per-pixel grain (the colour map is drawn with nearest pixels up close: grain sparkles).
+ * The stone map (id) follows stones(): r its number, g 1 on a stone, b 1 where it runs on from the tile before.
+ */
 export function flagPaving(): Paving {
-  return stones(1874, 128, 15, 16, 24, 1, 2, (r) => {
-    const v = 92 + r() * 26;
-    return [v + 4, v + 1, v - 5];
-  });
+  const n = 256;
+  const [mc, mg, hc, hg] = canvasPair(n);
+  const hImg = hg.createImageData(n, n);
+  const mImg = mg.createImageData(n, n);
+  const idc = document.createElement("canvas");
+  idc.width = idc.height = n;
+  const ig = idc.getContext("2d")!;
+  const iImg = ig.createImageData(n, n);
+  const r = rand(1874);
+  const ri = rand(1874 + 991);
+  // a smooth value noise in the tile (wraps), for the joints' fill, the stones' mottling and their uneven edges
+  const noise = (cells: number, seed: number) => {
+    const rr = rand(seed);
+    const g = Array.from({ length: cells * cells }, rr);
+    return (x: number, y: number) => {
+      const fx = (((x / n) * cells) % cells + cells) % cells;
+      const fy = (((y / n) * cells) % cells + cells) % cells;
+      const x0 = Math.floor(fx);
+      const y0 = Math.floor(fy);
+      const u = fx - x0;
+      const v = fy - y0;
+      const su = u * u * (3 - 2 * u);
+      const sv = v * v * (3 - 2 * v);
+      const at = (i: number, j: number) => g[(j % cells) * cells + (i % cells)];
+      const a = at(x0, y0) + (at(x0 + 1, y0) - at(x0, y0)) * su;
+      const b = at(x0, y0 + 1) + (at(x0 + 1, y0 + 1) - at(x0, y0 + 1)) * su;
+      return a + (b - a) * sv;
+    };
+  };
+  const mottle = noise(24, 31);
+  const fine = noise(64, 32);
+  const ragged = noise(48, 33);
+  const clamp = (c: number) => Math.max(0, Math.min(255, Math.round(c)));
+  // the joints first, everywhere: sand and dirt, a little lighter where the sand shows, low in the height map
+  for (let y = 0; y < n; y++)
+    for (let x = 0; x < n; x++) {
+      const i = (y * n + x) * 4;
+      const s = mottle(x * 3, y * 3);
+      const k = 50 + s * 22 + (r() - 0.5) * 8;
+      mImg.data[i] = clamp(k + 6);
+      mImg.data[i + 1] = clamp(k + 1);
+      mImg.data[i + 2] = clamp(k - 7);
+      mImg.data[i + 3] = 255;
+      hImg.data[i] = hImg.data[i + 1] = hImg.data[i + 2] = Math.round((0.14 + 0.06 * s) * 255);
+      hImg.data[i + 3] = 255;
+      iImg.data[i + 3] = 255;
+    }
+  // the courses: their heights add up to the tile
+  const courses: number[] = [];
+  let sum = 0;
+  while (sum < n - 26) {
+    const h = 26 + Math.floor(r() * 11);
+    courses.push(h);
+    sum += h;
+  }
+  courses[courses.length - 1] += n - sum;
+  let y0 = 0;
+  for (const ch of courses) {
+    let x = Math.floor(r() * 52); // each course starts at its own offset: bond
+    const xEnd = x + n;
+    // 6 to 8 stones of 30-52 px that close the course exactly at the wrap: the last one never runs over the first
+    // (Codex review, 2026-10-11)
+    let stonesLeft = 6 + Math.floor(r() * 3);
+    while (x < xEnd) {
+      const remaining = xEnd - x;
+      const lo = Math.max(30, remaining - 52 * (stonesLeft - 1));
+      const hi = Math.min(52, remaining - 30 * (stonesLeft - 1));
+      const w = stonesLeft <= 1 ? remaining : lo + Math.floor(r() * (hi - lo + 1));
+      stonesLeft--;
+      const sid = 1 + Math.floor(ri() * 254);
+      // the stone's own grey: most cool bluestone, some warmer; its height and its tilt
+      const v = 90 + r() * 24;
+      const warm = r() < 0.3;
+      const base: [number, number, number] = warm ? [v + 5, v + 1, v - 6] : [v - 1, v, v + 2];
+      const top = 0.82 + r() * 0.18;
+      const tiltX = (r() - 0.5) * 0.12;
+      const tiltY = (r() - 0.5) * 0.12;
+      // chisel lines along one way or the other, faint
+      const along = r() < 0.5;
+      const lineK = 2 + r() * 2;
+      // chips out of the edges and corners: a hollow, darker, lower
+      const chips: [number, number, number][] = [];
+      const nChips = Math.floor(r() * 4);
+      for (let c = 0; c < nChips; c++) {
+        const side = Math.floor(r() * 4);
+        const t = r();
+        const cx = side === 0 ? t * w : side === 1 ? t * w : side === 2 ? 0 : w - 1;
+        const cy = side === 0 ? 0 : side === 1 ? ch - 1 : t * ch;
+        chips.push([cx, cy, 1.2 + r() * 2]);
+      }
+      // a crack across a few of them
+      const crack = r() < 0.14 ? { a: r() * w, b: r() * w, wob: r() * 6.28 } : null;
+      const sw = w - 1; // one pixel of joint on the right and at the bottom
+      const sh = ch - 1;
+      for (let py = 0; py < sh; py++)
+        for (let px = 0; px < sw; px++) {
+          const gx = x + px;
+          const gy = y0 + py;
+          // the edge is uneven: up to 0.9 px eaten away, by a noise along it
+          const eat = ragged(gx, gy) * 0.9;
+          const d = Math.min(px + 0.5, sw - px - 0.5, py + 0.5, sh - py - 0.5) - eat;
+          if (d < 0) continue;
+          let chip = 0;
+          for (const [cx, cy, cr] of chips) {
+            const q = Math.hypot(px - cx, py - cy);
+            if (q < cr) chip = Math.max(chip, 1 - q / cr);
+          }
+          if (chip > 0.65) continue; // gone to the joint
+          // flat face, a narrow worn arris (1.5 px), the chips lower
+          const arris = Math.min(1, d / 1.5);
+          const u = px / sw - 0.5;
+          const vv = py / sh - 0.5;
+          let h = top * (1 + tiltX * u + tiltY * vv) * (0.62 + 0.38 * Math.sqrt(arris)) * (1 - 0.4 * chip);
+          let k = 1 + (mottle(gx, gy) - 0.5) * 0.14 + (fine(gx, gy) - 0.5) * 0.07;
+          const line = along ? gy : gx;
+          k += (line % lineK < 1 ? -0.012 : 0.005) * (0.5 + fine(gx * 2, gy * 2));
+          k *= 0.9 + 0.1 * arris; // the dirt in the worn edge
+          k *= 1 - 0.18 * chip;
+          if (crack) {
+            const cxAt = crack.a + (crack.b - crack.a) * (py / sh) + Math.sin(py * 0.4 + crack.wob) * 1.2;
+            const off = Math.abs(px - cxAt);
+            if (off < 0.8) {
+              k *= 0.62;
+              h *= 0.8;
+            }
+          }
+          const grain = (r() - 0.5) * 6;
+          const i = ((((gy % n) + n) % n) * n + (((gx % n) + n) % n)) * 4;
+          mImg.data[i] = clamp(base[0] * k + grain);
+          mImg.data[i + 1] = clamp(base[1] * k + grain);
+          mImg.data[i + 2] = clamp(base[2] * k + grain);
+          hImg.data[i] = hImg.data[i + 1] = hImg.data[i + 2] = Math.round(Math.max(0, Math.min(1, h)) * 255);
+          iImg.data[i] = sid;
+          iImg.data[i + 1] = 255;
+          iImg.data[i + 2] = gx >= n ? 255 : 0; // wrapped round from the tile before
+        }
+      x += w;
+    }
+    y0 += ch;
+  }
+  mg.putImageData(mImg, 0, 0);
+  hg.putImageData(hImg, 0, 0);
+  ig.putImageData(iImg, 0, 0);
+  return finish(mc, hc, idc);
 }
 
 /**

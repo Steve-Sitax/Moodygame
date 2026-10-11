@@ -157,7 +157,7 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
       cobble: [psx(new THREE.MeshPhongMaterial({ map: cobPave.map, color: 0xffffff, specular: cob.specular, shininess: cob.shininess }), { noSnap: true, affine: 0, wet: true, puddles: 1, vary: 1, relief: { height: cobPave.height, id: cobPave.id, holes: 1, depth: 0.025, tile: 3, bump: 2.6 } }), 3],
       // packed earth with its own height map: lumps, pebbles, hollows (world/paving.ts)
       earth: [psx(new THREE.MeshLambertMaterial({ map: earthPave.map }), { noSnap: true, affine: 0, wet: true, puddles: 1.3, vary: 1, detile: true, relief: { height: earthPave.height, depth: 0.045, tile: 4, bump: 3.2 } }), 4],
-      flags: [psx(new THREE.MeshPhongMaterial({ map: flagPave.map, specular: 0x1a1a1a, shininess: 12 }), { noSnap: true, affine: 0, wet: true, puddles: 0.75, vary: 0.8, relief: { height: flagPave.height, id: flagPave.id, holes: 0, depth: 0.025, tile: 4, bump: 1.6 } }), 4],
+      flags: [psx(new THREE.MeshPhongMaterial({ map: flagPave.map, specular: 0x1a1a1a, shininess: 12 }), { noSnap: true, affine: 0, wet: true, puddles: 0.75, vary: 0.8, relief: { height: flagPave.height, id: flagPave.id, holes: 0, depth: 0.025, tile: 4, bump: 1.6, dome: 0 } }), 4],
       // quays pass 2 (2026-09-25): the working quays along the river and the dock in big granite setts with mud
       // in the joints (world/paving.ts quayPaving); more puddles than the streets, the stones rolled per stone.
       // No detile (bump maps checked, 2026-09-26): its copy turned 37 deg laid a second grid of setts across the
@@ -460,7 +460,7 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
   // --- bump maps on every floor (2026-09-26): the pavements, kerbs and door steps (flat, below 0.8 m) as bluestone slabs in
   // world metres with their own relief (retro/psx.ts slabs); their own uv there stretched the stone texture flat
   const slabPave = flagPaving();
-  const trim = psx(new THREE.MeshLambertMaterial({ map: stoneTexture(), vertexColors: true, side: DS }), { affine: 0.2, slabs: { map: slabPave.map, height: slabPave.height, tile: 2.6, yMax: 0.8 }, foot: { amount: 1.0, vertexWear: true } });
+  const trim = psx(new THREE.MeshLambertMaterial({ map: stoneTexture(), vertexColors: true, side: DS }), { affine: 0.2, slabs: { map: slabPave.map, height: slabPave.height, tile: 2.6, yMax: 0.8, dome: 0 }, foot: { amount: 1.0, vertexWear: true } });
   // (the bump audit, 2026-09-26: names that say what each is, for its bump from its own picture: world/bumps.ts)
   wood.name = "city_wood";
   leaves.name = "city_leaves";

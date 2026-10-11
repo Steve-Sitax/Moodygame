@@ -109,6 +109,10 @@ fallback cannot certify room floors, containment, seams, shader-only cutouts, or
   of every InstancedMesh, each material's three.js kind and its psx options. Godot loads it at run time. A part
   finds its nodes by the names the TypeScript gave them (`Main.I.World.FindChild("omnibuses", true, false)`).
   What stands still needs no port; what moves or changes is ported and takes its nodes over.
+  So `main.tscn` is one empty node in the editor. To look at the town in the editor, open
+  `editor/town_preview.tscn` (`src/Dev/TownPreview.cs`): it loads `baked/next/town.glb` (else `baked/town.glb`, or
+  the file in its Town field) with the game's materials, only in the editor and never saved. Tick Reload after a
+  new bake. A change made there is lost: change the browser's world code and bake again.
 - **The psx material** (`src/Render/Psx.cs`): the browser's `retro/psx.ts`. One shader per set of switches
   (`Psx.Kind`), shared; the rest are uniforms. The values every material reads are global shader uniforms
   (`psx_*` in `project.godot`), set once a frame, like the browser's `psxUniforms`. A new feature is a switch in

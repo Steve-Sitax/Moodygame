@@ -49,7 +49,7 @@ const G = {
     make: () =>
       psx(new THREE.MeshLambertMaterial({ map: PIC("/textures/pj_slabs.jpg", flat("#5a6068")), color: 0xc8ccd2, vertexColors: true }), {
         affine: 0,
-        relief: { height: slabHeight(), depth: 0.0, tile: SLAB_TILE, bump: 1.4 },
+        relief: { height: slabHeight(), depth: 0.0, tile: SLAB_TILE, bump: 1.4, dome: 0 }, // big flat slabs: no dome (psx.ts relief.dome)
       }),
   } as MatDef,
   wash: lmMat("gh_wash", { map: PIC("/textures/pj_wash.jpg", flat("#d8d2c4")), color: 0xe4ded0 }, 0.03),

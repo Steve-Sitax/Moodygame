@@ -666,6 +666,8 @@ uniform float relief_tile = 4.0;
 uniform float relief_bump = 3.0;
 uniform float relief_holes = 0.0;
 uniform float relief_reach = 1.0;
+// the soft dome's weight on the lights (psx.ts relief.dome): 0 on the big flat flagstones
+uniform float relief_dome = 2.5;
 " + (ids ? @"
 uniform sampler2D stone_id : filter_nearest, repeat_enable;
 // every stone its own dice: its number in the tile mixed with the tile's place in the world
@@ -714,7 +716,7 @@ float relief_light(vec2 uv, float wear, out float h_c, out vec2 slope) {
 	float e3 = e * 3.0;
 	float dx = rel_hs(uv + vec2(e3, 0.0), wear) - rel_hs(uv - vec2(e3, 0.0), wear);
 	float dz = rel_hs(uv + vec2(0.0, e3), wear) - rel_hs(uv - vec2(0.0, e3), wear);
-	slope = (vec2(hx, hz) * 1.2 + vec2(dx, dz) * 2.5) * relief_bump * (1.0 - wear * 0.3);
+	slope = (vec2(hx, hz) * 1.2 + vec2(dx, dz) * relief_dome) * relief_bump * (1.0 - wear * 0.3);
 	float lit = clamp(dot(rn, normalize(vec3(-0.45, 0.8, -0.35))), 0.0, 1.0);
 	float relief = mix(0.6, 1.12, lit) * (0.55 + 0.45 * h_c);
 	return mix(relief, 1.0 + 0.12 * h_c, wear * 0.45);
@@ -872,7 +874,7 @@ varying vec3 world;
         if (k.Atlas > 0) c.Append("varying vec2 cell;\n");
         if (k.Ground) c.Append("uniform float vary = 0.0;\nuniform float puddles = 0.0;\n// the wet stone's highlight (three's Phong: specular and shininess; 0 when it never gets wet)\nuniform vec3 spec_color = vec3(0.0);\nuniform float shininess = 12.0;\nvarying float spec_k;\n");
         if (k.Wall) c.Append("uniform float foot = 0.0;\nuniform float foot_wear = 0.0;\nuniform float mottle = 0.0;\n");
-        if (k.Slabs) c.Append("uniform sampler2D slab_map : source_color, filter_nearest_mipmap, repeat_enable;\nuniform sampler2D slab_h : filter_linear_mipmap, repeat_enable;\nuniform float slab_tile = 2.6;\nuniform float slab_ymax = 0.8;\n");
+        if (k.Slabs) c.Append("uniform sampler2D slab_map : source_color, filter_nearest_mipmap, repeat_enable;\nuniform sampler2D slab_h : filter_linear_mipmap, repeat_enable;\nuniform float slab_tile = 2.6;\nuniform float slab_ymax = 0.8;\nuniform float slab_dome = 2.5;\n");
         c.Append(LampScatterGlsl);
         if (lit || k.Ground) c.Append(SkyGlsl).Append(SpillGlsl);
         if (noise) c.Append(NoiseGlsl);
@@ -1039,7 +1041,7 @@ void fragment() {
 			float bx = texture(slab_h, suv + vec2(e2, 0.0), 2.0).r - texture(slab_h, suv - vec2(e2, 0.0), 2.0).r;
 			float bz = texture(slab_h, suv + vec2(0.0, e2), 2.0).r - texture(slab_h, suv - vec2(0.0, e2), 2.0).r;
 			float fps = max(length(dFdx(suv)), length(dFdy(suv))) * 128.0;
-			vec2 ss = (vec2(sx, sz) * 1.2 + vec2(bx, bz) * 2.5) * 1.6 * (1.0 - smoothstep(12.0, 28.0, len)) * (1.0 - smoothstep(6.0, 14.0, fps));
+			vec2 ss = (vec2(sx, sz) * 1.2 + vec2(bx, bz) * slab_dome) * 1.6 * (1.0 - smoothstep(12.0, 28.0, len)) * (1.0 - smoothstep(6.0, 14.0, fps));
 			ground_dn = normalize(vec3(-ss.x, 1.0, -ss.y)) - vec3(0.0, 1.0, 0.0);
 			psx_h = sh;
 		}
@@ -1391,6 +1393,7 @@ void light() {
             m.SetShaderParameter("relief_bump", Num(r, "bump", 3));
             m.SetShaderParameter("relief_holes", Num(r, "holes", 0));
             m.SetShaderParameter("relief_reach", Num(r, "reach", 1));
+            m.SetShaderParameter("relief_dome", Num(r, "dome", 2.5));
         }
         if (k.Ground)
         {
@@ -1419,6 +1422,7 @@ void light() {
             if (Tex(s.GetProperty("height"), texDir) is { } sh) m.SetShaderParameter("slab_h", sh);
             m.SetShaderParameter("slab_tile", Num(s, "tile", 2.6));
             m.SetShaderParameter("slab_ymax", Num(s, "yMax", 0.8));
+            m.SetShaderParameter("slab_dome", Num(s, "dome", 2.5));
         }
     }
 }

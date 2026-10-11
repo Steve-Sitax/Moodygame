@@ -110,6 +110,10 @@ public partial class Boats : Node
         public int N;
         public Transform3D[] World = null!;
         public Transform3D B0;
+        /// <summary>Copies the bake drew at zero size (the browser had hidden that boat): they stay hidden.</summary>
+        public bool[] Gone = null!;
+        /// <summary>The first copy with a real size: the reference for each part's place in the model.</summary>
+        public int Ref;
     }
 
     private readonly List<Float> floats = new();
@@ -426,11 +430,14 @@ public partial class Boats : Node
                     M = Motion.GetValueOrDefault(kind) ?? Motion["rowboat"],
                     X = new float[n], Z = new float[n], Yaw = new float[n], Floor = new float[n], List = new float[n],
                     P0 = new float[n], P1 = new float[n], P2 = new float[n], World = new Transform3D[n],
+                    Gone = new bool[n], Ref = -1,
                 };
                 var r = motion;
                 for (int i = 0; i < n; i++)
                 {
                     var t = mm.GetInstanceTransform(i);
+                    row.Gone[i] = MathF.Abs(t.Basis.Determinant()) < 1e-9f;
+                    if (!row.Gone[i] && row.Ref < 0) row.Ref = i;
                     row.X[i] = t.Origin.X;
                     row.Z[i] = t.Origin.Z;
                     row.Yaw[i] = MathF.Atan2(t.Basis.Z.X, t.Basis.Z.Z);
@@ -445,8 +452,10 @@ public partial class Boats : Node
                 rows.Add(row);
             }
             // the part's own place in the model: the same for every boat (nothing for most: the hull is the model's frame)
-            if (row.Meshes.Count == 0) row.B0 = first;
-            var part = row.Meshes.Count == 0 ? Transform3D.Identity : row.B0.AffineInverse() * first;
+            // (from the first copy with a real size: a bake can catch the first boat hidden, at zero size)
+            var refT = row.Ref >= 0 ? mm.GetInstanceTransform(row.Ref) : first;
+            if (row.Meshes.Count == 0) row.B0 = refT;
+            var part = row.Meshes.Count == 0 || row.Ref < 0 || MathF.Abs(refT.Basis.Determinant()) < 1e-9f ? Transform3D.Identity : row.B0.AffineInverse() * refT;
             if (part.Origin.Length() < 0.02f && part.Basis.IsEqualApprox(Basis.Identity)) part = Transform3D.Identity;
             row.Meshes.Add((mm, part, mm.UseColors || mm.UseCustomData ? null : new float[mm.InstanceCount * 12]));
             // the tide lifts and lowers them some 5 m: the box of the copies must hold that
@@ -486,7 +495,7 @@ public partial class Boats : Node
             float y = Math.Max(level, f.Floor[i]) + h * MathF.Sin(w * t + f.P0[i]) + h * 0.4f * MathF.Sin(2.3f * w * t + f.P0[i] * 1.7f);
             // three's Euler "YXZ": yaw, then pitch about x, then roll about z
             var basis = new Basis(Vector3.Up, f.Yaw[i]) * new Basis(Vector3.Right, pitch * MathF.Sin(1.13f * w * t + f.P2[i])) * new Basis(Vector3.Back, roll * MathF.Sin(0.83f * w * t + f.P1[i]) + f.List[i] * aground);
-            f.World[i] = new Transform3D(basis, new Vector3(f.X[i], y, f.Z[i]));
+            f.World[i] = new Transform3D(f.Gone[i] ? new Basis(Vector3.Zero, Vector3.Zero, Vector3.Zero) : basis, new Vector3(f.X[i], y, f.Z[i]));
         }
         foreach (var (mm, part, buf) in f.Meshes)
         {

@@ -7,6 +7,9 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The big flat flagstones (the market squares, the quay, the pavements and the kerbs, and the gothic hall floors) no longer show wide bright streaks and dark blobs over every stone. The flags are laid again as old worn bluestone: thin uneven joints of sand and dirt, chipped edges, a few cracks, each stone its own grey. The round cobbles keep their rounded look (browser and Godot).
+- In the Godot version, the moored boats no longer stop moving when the town was baked with one of them out of sight.
+- For Godot development, `godot/editor/town_preview.tscn` shows the baked town in the Godot editor.
 - In the Godot version, people waiting at an omnibus stop only walk to a bus that has room for them; the others wait for the next one instead of vanishing at the step.
 - In the Godot version, ferry passengers still on the landing stage when the ferry leaves walk on to the quay instead of standing frozen in the way.
 - In the Godot version's play together, a player riding the omnibus is drawn on the bus floor as the other player sees it, instead of lagging behind it when the bus jumps.

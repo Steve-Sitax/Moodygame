@@ -370,9 +370,10 @@ float foulVal(vec2 p) {
  * the rail band along its line, the rings of the Rond, the wall walk. PSX_TILT: how far a slope of the relief light
  * tilts it; PSX_PAINTED: how much of the painted one-sided light stays.
  */
+/** The soft dome's default weight on the lights (relief.dome, slabs.dome). */
+const PSX_DOME = 2.5;
 const groundBumpGlsl = /* glsl */ `
 #define PSX_TILT 1.2
-#define PSX_DOME 2.5
 #define PSX_PAINTED 1.0
 vec3 gGroundDN = vec3(0.0);
 vec3 psxGroundTilt(vec2 uv, vec2 slope) {
@@ -458,6 +459,12 @@ export interface PsxOptions {
      * wall's walk, the look pass 2026-09-26: 2). Default 1.
      */
     reach?: number;
+    /**
+     * How much the soft dome of each stone tilts the lights (default 2.5). 0 for big flat flagstones on a 128 px map:
+     * the dome's softer mip is 12 cm a texel there, and drew wide streaks and dark blobs over every stone (Steve,
+     * 2026-10-11: "everywhere these stones are, it looks ugly"). Small round setts keep it.
+     */
+    dome?: number;
   };
   /**
    * Large, soft patches of lighter and darker stone (worn, repaired, dirtier) over flat
@@ -471,7 +478,7 @@ export interface PsxOptions {
    * steps: up-facing, below `yMax` metres) are drawn as stone slabs laid in world metres (`map` and its `height`, one
    * tile `tile` m), with the ground's relief light, whatever the mesh's own uv there. The rest keeps its texture.
    */
-  slabs?: { map: THREE.Texture; height: THREE.Texture; tile: number; yMax: number };
+  slabs?: { map: THREE.Texture; height: THREE.Texture; tile: number; yMax: number; /** as relief.dome */ dome?: number };
   /**
    * Dirt at the foot of the walls (Steve, 2026-09-26: "bit more dirty on the underside where it touches the road"):
    * on the upright faces of this material, a band 0.5 to 1.2 m over the street, darker, splashed with mud, the damp
@@ -782,11 +789,13 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
       shader.uniforms.uReliefDepth = { value: opts.relief.depth };
       shader.uniforms.uReliefTile = { value: opts.relief.tile };
       shader.uniforms.uReliefBump = { value: opts.relief.bump ?? 3 };
+      shader.uniforms.uReliefDome = { value: opts.relief.dome ?? PSX_DOME };
       if (opts.relief.id) shader.uniforms.uStoneId = { value: opts.relief.id };
     }
     if (opts.slabs) {
       shader.uniforms.uSlabMap = { value: opts.slabs.map };
       shader.uniforms.uSlabH = { value: opts.slabs.height };
+      shader.uniforms.uSlabDome = { value: opts.slabs.dome ?? PSX_DOME };
     }
     if (opts.wet || opts.water) {
       shader.uniforms.uWet = psxUniforms.uWet;
@@ -910,9 +919,9 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
         (opts.wet || opts.puddles || opts.vary || opts.foot || opts.mottle ? pudNoiseGlsl : "") +
         (opts.vary || opts.foot || opts.mottle ? "uniform sampler2D uDirt;\nuniform vec4 uDirtBox;\n" : "") +
         (opts.foot || opts.mottle ? footGlsl : "") +
-        (opts.slabs ? "uniform sampler2D uSlabMap;\nuniform sampler2D uSlabH;\n" : "") +
+        (opts.slabs ? "uniform sampler2D uSlabMap;\nuniform sampler2D uSlabH;\nuniform float uSlabDome;\n" : "") +
         (opts.relief || opts.slabs ? groundBumpGlsl : "") +
-        (opts.relief ? "uniform sampler2D uHeight;\nuniform float uReliefDepth;\nuniform float uReliefTile;\nuniform float uReliefBump;\n" : "") +
+        (opts.relief ? "uniform sampler2D uHeight;\nuniform float uReliefDepth;\nuniform float uReliefTile;\nuniform float uReliefBump;\nuniform float uReliefDome;\n" : "") +
         (opts.relief?.id
           ? /* glsl */ `uniform sampler2D uStoneId;
 // every stone its own dice: its number in the tile mixed with the tile's place in the world
@@ -966,7 +975,7 @@ float psxReliefLight(vec2 uv, float wear, out float hC, out vec2 slope) {
   float E = e * 3.0;
   float dX = psxRelHS(uv + vec2(E, 0.0), wear) - psxRelHS(uv - vec2(E, 0.0), wear);
   float dZ = psxRelHS(uv + vec2(0.0, E), wear) - psxRelHS(uv - vec2(0.0, E), wear);
-  slope = (vec2(hX, hZ) * PSX_TILT + vec2(dX, dZ) * PSX_DOME) * uReliefBump * (1.0 - wear * 0.3);
+  slope = (vec2(hX, hZ) * PSX_TILT + vec2(dX, dZ) * uReliefDome) * uReliefBump * (1.0 - wear * 0.3);
   float lit = clamp(dot(rn, normalize(vec3(-0.45, 0.8, -0.35))), 0.0, 1.0);
   // a stone that stands high catches the light; a sunk one lies in its own shade. The light painted from one side
   // stays in part (PSX_PAINTED), so the stones still read on a dull day; the real lights do the rest.
@@ -1078,7 +1087,7 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
             float bx = texture2D(uSlabH, suv + vec2(E2, 0.0), 2.0).r - texture2D(uSlabH, suv - vec2(E2, 0.0), 2.0).r;
             float bz = texture2D(uSlabH, suv + vec2(0.0, E2), 2.0).r - texture2D(uSlabH, suv - vec2(0.0, E2), 2.0).r;
             float fps = max(length(dFdx(suv)), length(dFdy(suv))) * 128.0;
-            vec2 ss = (vec2(sx, sz) * PSX_TILT + vec2(bx, bz) * PSX_DOME) * 1.6 * (1.0 - smoothstep(12.0, 28.0, length(vPsxWorld - cameraPosition))) * (1.0 - smoothstep(6.0, 14.0, fps));
+            vec2 ss = (vec2(sx, sz) * PSX_TILT + vec2(bx, bz) * uSlabDome) * 1.6 * (1.0 - smoothstep(12.0, 28.0, length(vPsxWorld - cameraPosition))) * (1.0 - smoothstep(6.0, 14.0, fps));
             gGroundDN = normalize(vec3(-ss.x, 1.0, -ss.y)) - vec3(0.0, 1.0, 0.0);
           }
         }`
