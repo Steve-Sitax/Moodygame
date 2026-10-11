@@ -37,3 +37,6 @@ __pycache__/
 
 # the web demo made by tools/demo/build.mjs
 client/dist-demo/
+
+# helpers scratch pictures and logs
+.scratch/
