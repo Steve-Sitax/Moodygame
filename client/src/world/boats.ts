@@ -10,7 +10,6 @@ import { psx, psxUniforms, AIR_GLOW_GLSL, airGlowUniforms } from "../retro/psx";
 import type { Rect } from "./geom";
 import { bedAt, draftOf, levelAt, levelOf, regionAt } from "./tide";
 import { addLantern, type LanternSource } from "./lanternLights";
-import { flatLettering } from "./bumps";
 
 // Boats, ships and quay cranes from Blender (tools/blender/build_boats.py ->
 // /models/boats.glb). Our own models, made by script. A vessel's origin is the
@@ -470,23 +469,113 @@ export interface ModelSet {
   materials: Record<string, THREE.Material>;
 }
 
-/**
- * Load a model file made by our Blender scripts (boats.glb, bridges.glb): every material's
- * picture goes into one texture atlas, and each model is merged into two meshes, solid and
- * thin (double-sided, cut-out), so a model costs two draw calls, three with its rigging lines.
- */
 /** The sacks the builders recorded, by model file (tools/blender/build_boats.py, build_ferry.py). */
 const SACK_ROWS = { "/models/boats.glb": BOAT_SACKS, "/models/ferry.glb": FERRY_SACKS };
 
+/**
+ * The boat atlas (B0, 2026-10-11: the boats in high detail): every boat material (and the lock's, the bridges' and
+ * the ferry's) painted at 512 px and kept in a 256 px cell of one 2048 px picture, with its height for the bump in a
+ * second one, by tools/blender/boats/common.py write_atlas: /textures/boats_atlas.webp (colour, the cut-out in
+ * alpha), boats_atlas_h.png (height, grey), boats_atlas.json (the cells by material name). Loaded once for every
+ * model file: one picture and one height map on the GPU for all of them.
+ */
+interface BoatAtlas {
+  map: THREE.Texture;
+  height: THREE.DataTexture;
+  n: number;
+  cells: Map<string, [number, number]>;
+  missing: [number, number];
+}
+let boatAtlasP: Promise<BoatAtlas> | null = null;
+/** How strongly the atlas's height tilts the light (three's bumpScale; the heights are painted to their kind). */
+const BOAT_BUMP = 1.4;
+
+async function bitmap(url: string): Promise<ImageBitmap> {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`${url}: ${r.status}`);
+  // (no premultiplied alpha: the cut-out cells keep their colour to the edge)
+  return createImageBitmap(await r.blob(), { premultiplyAlpha: "none", colorSpaceConversion: "none", imageOrientation: "none" });
+}
+
+function loadBoatAtlas(): Promise<BoatAtlas> {
+  if (!boatAtlasP)
+    boatAtlasP = (async () => {
+      const [layout, colour, hpic] = await Promise.all([
+        fetch("/textures/boats_atlas.json").then((r) => r.json() as Promise<{ n: number; cells: Record<string, [number, number]>; missing: [number, number] }>),
+        bitmap("/textures/boats_atlas.webp"),
+        bitmap("/textures/boats_atlas_h.png"),
+      ]);
+      // smooth, mipmapped, sharp at a slant (docs/05-art-direction.md: no blocky pixels, no swimming)
+      const map = new THREE.Texture(colour);
+      map.name = "boats_atlas";
+      map.flipY = false; // glTF uv: v = 0 at the top of each picture, as the atlas is laid out
+      map.colorSpace = THREE.SRGBColorSpace;
+      map.magFilter = THREE.LinearFilter;
+      map.minFilter = THREE.LinearMipmapLinearFilter;
+      map.generateMipmaps = true;
+      map.anisotropy = 8;
+      map.needsUpdate = true;
+      // the height: one grey channel (a quarter of the memory of a colour picture)
+      const c = document.createElement("canvas");
+      c.width = hpic.width;
+      c.height = hpic.height;
+      const g = c.getContext("2d", { willReadFrequently: true })!;
+      g.drawImage(hpic, 0, 0);
+      const px = g.getImageData(0, 0, c.width, c.height).data;
+      const grey = new Uint8Array(c.width * c.height);
+      for (let i = 0; i < grey.length; i++) grey[i] = px[i * 4];
+      hpic.close();
+      const height = new THREE.DataTexture(grey, c.width, c.height, THREE.RedFormat, THREE.UnsignedByteType);
+      height.name = "boats_atlas_h";
+      height.flipY = false;
+      height.unpackAlignment = 1;
+      height.colorSpace = THREE.NoColorSpace;
+      height.magFilter = THREE.LinearFilter;
+      height.minFilter = THREE.LinearMipmapLinearFilter;
+      height.generateMipmaps = true;
+      height.needsUpdate = true;
+      return { map, height, n: layout.n, cells: new Map(Object.entries(layout.cells)), missing: layout.missing };
+    })();
+  return boatAtlasP;
+}
+
+/**
+ * The atlas's colour read with the slope of the uv before it is wrapped into its cell (psx `atlas` wraps it with
+ * fract): where a tile repeats, the GPU would otherwise take the smallest mipmap for that pixel and draw a seam. The
+ * cut-out (thin) material reads its alpha two mipmaps sharper, so shrouds and nets do not fade out at a distance.
+ */
+function atlasGrad(mat: THREE.Material, n: number, thin: boolean): void {
+  const base = mat.onBeforeCompile;
+  const N = n.toFixed(1);
+  mat.onBeforeCompile = (shader, renderer) => {
+    base.call(mat, shader, renderer);
+    const from = "vec4 sampledDiffuseColor = texture2D(map, psxUv);";
+    if (!shader.fragmentShader.includes(from)) {
+      console.warn("boats: the psx colour read changed; the atlas keeps its mipmap seams");
+      return;
+    }
+    shader.fragmentShader = shader.fragmentShader.replace(
+      from,
+      `vec2 bAtGx = dFdx(vMapUv) / ${N};
+        vec2 bAtGy = dFdy(vMapUv) / ${N};
+        vec4 sampledDiffuseColor = textureGrad(map, psxUv, bAtGx, bAtGy);` +
+        (thin ? `\n        sampledDiffuseColor.a = textureGrad(map, psxUv, bAtGx * 0.25, bAtGy * 0.25).a;` : ""),
+    );
+  };
+  const key = mat.customProgramCacheKey.bind(mat);
+  mat.customProgramCacheKey = () => `${key()}-agrad${thin ? "t" : ""}`;
+}
+
+/**
+ * Load a model file made by our Blender scripts (boats.glb, bridges.glb, ferry.glb): every material is drawn from
+ * its cell of the boat atlas, and each model is merged into two meshes, solid and thin (double-sided, cut-out), so a
+ * model costs two draw calls, three with its rigging lines.
+ */
 export async function loadModelSet(url: string): Promise<ModelSet> {
   const draco = new DRACOLoader().setDecoderPath("/draco/");
-  const gltf = await new GLTFLoader().setDRACOLoader(draco).loadAsync(url);
+  const [gltf, ba] = await Promise.all([new GLTFLoader().setDRACOLoader(draco).loadAsync(url), loadBoatAtlas()]);
   draco.dispose();
 
-  // One texture atlas for the whole file: every material's picture in a 128 px cell. Each
-  // model (and a crane's turning jib) is merged into two meshes, solid and thin (double-sided,
-  // cut-out), so a ship costs two draw calls, three with its rigging lines.
-  const CELL = 128;
   const srcMats = new Map<string, THREE.MeshStandardMaterial>();
   gltf.scene.traverse((o) => {
     const m = o as THREE.Mesh;
@@ -495,43 +584,32 @@ export async function loadModelSet(url: string): Promise<ModelSet> {
       if (!srcMats.has(mt.name)) srcMats.set(mt.name, mt as THREE.MeshStandardMaterial);
     }
   });
-  const matNames = [...srcMats.keys()].filter((n) => n !== "cap");
-  const N = Math.max(1, Math.ceil(Math.sqrt(matNames.length)));
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = N * CELL;
-  const g2 = canvas.getContext("2d")!;
-  g2.imageSmoothingEnabled = false;
+  const N = ba.n;
   const cellOf = new Map<string, [number, number]>();
-  matNames.forEach((name, i) => {
-    const c = i % N;
-    const r = Math.floor(i / N);
-    cellOf.set(name, [c, r]);
-    const img = srcMats.get(name)!.map?.image as CanvasImageSource | undefined;
-    if (img) g2.drawImage(img, c * CELL, r * CELL, CELL, CELL);
-    else {
-      g2.fillStyle = "#555";
-      g2.fillRect(c * CELL, r * CELL, CELL, CELL);
-    }
-  });
-  const atlas = new THREE.CanvasTexture(canvas);
-  atlas.flipY = false; // glTF uv: v = 0 at the top of each picture, as in the canvas
-  atlas.magFilter = THREE.NearestFilter;
-  atlas.minFilter = THREE.NearestFilter;
-  atlas.generateMipmaps = false;
-  atlas.colorSpace = THREE.SRGBColorSpace;
-  // (the ships' names, the ferry stage's notice boards: flat in the atlas's bump, world/bumps.ts)
-  flatLettering(atlas, [...cellOf].map(([name, [c, r]]) => [name, [c * CELL, r * CELL, CELL, CELL]] as [string, number[]]), N * CELL, N * CELL);
+  for (const name of srcMats.keys()) {
+    if (name === "cap") continue;
+    const cell = ba.cells.get(name);
+    if (!cell) console.warn(`boats: ${url} material "${name}" is not in the boat atlas (run tools/blender/build_boats.py)`);
+    cellOf.set(name, cell ?? ba.missing);
+  }
+  // (the glb's own pictures are for lock.ts and the Godot model library; the atlas has them in high detail)
   for (const m of srcMats.values()) {
     m.map?.dispose();
     m.dispose();
   }
-  const solidMat = psx(new THREE.MeshLambertMaterial({ map: atlas, vertexColors: true }), { affine: 0.6, atlas: N });
+  const solidMat = psx(new THREE.MeshLambertMaterial({ map: ba.map, bumpMap: ba.height, bumpScale: BOAT_BUMP, vertexColors: true }), { affine: 0.6, atlas: N });
   const thinMat = psx(
-    new THREE.MeshLambertMaterial({ map: atlas, vertexColors: true, side: THREE.DoubleSide, alphaTest: 0.5 }),
+    new THREE.MeshLambertMaterial({ map: ba.map, bumpMap: ba.height, bumpScale: BOAT_BUMP, vertexColors: true, side: THREE.DoubleSide, alphaTest: 0.5 }),
     { affine: 0.6, atlas: N },
   );
+  atlasGrad(solidMat, N, false);
+  atlasGrad(thinMat, N, true);
   solidMat.name = "boats_solid";
   thinMat.name = "boats_thin";
+  for (const m of [solidMat, thinMat]) {
+    m.userData.bumpKind = "boat atlas height";
+    m.userData.bumpBefore = 0;
+  }
   const lineMat = ropeMaterial();
   lineMat.name = "boats_rigging";
   const materials: Record<string, THREE.Material> = { solid: solidMat, thin: thinMat, rigging: lineMat };
