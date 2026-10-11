@@ -50,8 +50,9 @@ public partial class Jef : Node, Mantle.IWorld
     public static Jef I { get; private set; } = null!;
 
     /// <summary>The player's own look settings (the browser's `look`): mouse speed, up and down turned round, head bob (0: none).</summary>
-    public float LookSens = 1;
-    public bool InvertY;
+    /// <summary>The mouse speed and its up and down turned round: the player's settings (Menu.Tuning, set by Apply).</summary>
+    public float LookSens { get => Menu.Tuning.Sens; set => Menu.Tuning.Sens = value; }
+    public bool InvertY { get => Menu.Tuning.InvertY; set => Menu.Tuning.InvertY = value; }
     public float Bob = 1;
 
     /// <summary>Feet: X and Z on the map, Y the height (quay top 0).</summary>
@@ -227,8 +228,13 @@ public partial class Jef : Node, Mantle.IWorld
     public override void _UnhandledInput(InputEvent e)
     {
         if (shots) return;
-        // (the free camera is dev mode's F9, Dev/DevTools.cs: F is the Second choice key)
-        if (Fly) return;
+        // (the free camera is dev mode's F9, Dev/DevTools.cs: F is the Second choice key). Flying, the mouse is the
+        // free camera's: it is in the game's SubViewport, which the window's mouse events never reach
+        if (Fly)
+        {
+            if (e is InputEventMouse) fly?.Handle(e);
+            return;
+        }
         if (e is InputEventMouseButton { Pressed: true } && Input.MouseMode != Input.MouseModeEnum.Captured) Input.MouseMode = Input.MouseModeEnum.Captured;
         else if (e is InputEventKey { Pressed: true, Keycode: Key.Escape }) Input.MouseMode = Input.MouseModeEnum.Visible;
         else if (e is InputEventMouseMotion m && Input.MouseMode == Input.MouseModeEnum.Captured && !TestInput)

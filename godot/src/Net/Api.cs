@@ -150,14 +150,18 @@ public sealed partial class Api : IDisposable
                 try
                 {
                     using var doc = JsonDocument.Parse(text);
-                    if (doc.RootElement.ValueKind == JsonValueKind.Object && doc.RootElement.TryGetProperty("error", out var err) && err.ValueKind == JsonValueKind.String) said = err.GetString();
+                    // the server's words: "error", or a refusal's "why" (a 409 with no error of its own)
+                    if (doc.RootElement.ValueKind == JsonValueKind.Object)
+                        foreach (string key in new[] { "error", "why" })
+                            if (doc.RootElement.TryGetProperty(key, out var err) && err.ValueKind == JsonValueKind.String && err.GetString() is { Length: > 0 } w) { said = w; break; }
                 }
                 catch (JsonException)
                 {
                     // no JSON: the status says it
                 }
                 int status = (int)res.StatusCode;
-                throw new ApiException(said ?? (status == 429 ? "The host's game is busy: wait a moment and try again." : $"HTTP {status}"), status);
+                // never a bare "HTTP 409" for the player: a refusal without words is said plainly
+                throw new ApiException(said ?? (status == 429 ? "The host's game is busy: wait a moment and try again." : status == 409 ? "That cannot be done just now." : $"HTTP {status}"), status);
             }
             try
             {

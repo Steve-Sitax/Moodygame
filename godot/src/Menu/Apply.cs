@@ -67,7 +67,7 @@ public static class Apply
     }
 
     /// <summary>A test's own run keeps its window and its frame rate whatever the settings say.</summary>
-    private static bool TestRun => Main.I.Arg("menutest") != "" || Main.I.Arg("devsheettest") != "";
+    private static bool TestRun => MainMenu.ScriptedRun;
 
     /// <summary>The camera in use sees as wide as the setting says (a part that brings its own camera gets it too: the menu's part calls this now and then).</summary>
     public static void Fov()

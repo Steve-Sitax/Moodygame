@@ -21,6 +21,11 @@ Branch `fx-bugs` (helper). Godot only, no bake needed.
   Proof: `--devsheettest` (91 steps, every button clicked and its effect checked, pictures) and the menu test pass.
 - Find: [#65](https://github.com/Steve-Sitax/Moodygame/issues/65), a flat untextured grey slab beside the
   Vleeshuis in the Godot town.
+- Fixes from Steve's play: fly did not turn with the mouse (the fly camera is in the SubViewport: no window mouse
+  events reach it; Jef now hands them over) and used fixed WASD on his AZERTY (now his Controls keys, mouse speed,
+  invert, wheel); flying sends no moves (the server refused them at 10.5 m/s); a 409 without an error field showed as
+  "HTTP 409" (the emigrants' boarding report; now said in words or logged). Jef's view now uses the mouse settings
+  too. `--flytest` proves it.
 - Not ported: the browser's culling toggles (the Godot game has no such culler). Director "invent" needs the AI.
 ## Real herring gulls, 2026-10-11 (fix wave 2, branch fx-gulls)
 - Cause of "seagull still in the air": the Godot game drew the browser's ambient birds as the bake froze them

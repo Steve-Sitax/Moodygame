@@ -103,7 +103,12 @@ change the save), the tide (now, held at high or low water, follow the clock: `T
 up the canal or the vliet: `Bridges.PassNow`; thick fog and a rain shower: `Daylight`; every director template
 through `/api/dev/director`, started at once with Jef put in front of it; the director's think and invent), Jef
 (needs full, +100 c, fly), the "Go to" places, and the console's line. F9 is the free camera (WASD where you look,
-the mouse, Space up, C down, Shift fast); F9 again lands Jef under it, or back where he took off. The self-test: `-- --no-ai --port N --db <dir>/test.sqlite --prefs <dir>/settings.json
+the mouse, with the player's own keys from Controls: the walk keys, Jump up, Crouch down, Hurry fast, the wheel for
+speed; the mouse speed and invert of the settings). The camera lives in the game's SubViewport, which the window's
+mouse events never reach: Jef's part hands them to it (`FlyCam.Handle`). While flying the game sends no moves (the
+server keeps Jef where he took off); the first after landing is a snap. F9 again lands Jef under it, or back where
+he took off. `--flytest <dir>` proves it through the real input path (events through `Input.ParseInputEvent`, the
+server's log free of refused moves). The self-test: `-- --no-ai --port N --db <dir>/test.sqlite --prefs <dir>/settings.json
 --devsheettest <dir>` (no `--dev`: it types `dev on` in the console and tries the combo) clicks every button and checks its effect, with pictures and
 `devsheettest.json`; about ten minutes.
 
