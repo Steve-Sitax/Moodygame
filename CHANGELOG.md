@@ -7,6 +7,9 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- In the Godot version, dev mode's flying (F9) turns with the mouse again and flies with your own keys from Settings, Controls (walk keys, Jump up, Crouch down, Hurry fast), at your mouse speed and invert; the mouse wheel makes it faster or slower. While flying the game sends no walking moves, so the server no longer refuses them.
+- In the Godot version, the Mouse speed and Invert settings now also turn Jef's own view (they did nothing before).
+- In the Godot version, no bare "HTTP 409" message shows any more: a refusal from the server is said in words, and the emigrants' boarding is checked quietly in the background.
 - The street gas lamps (and the doss house's lantern) are hollow now: clear, slightly sooty glass with one real flame on its brass burner inside, the same from every side, and the glass glows warm when lit. The other lanterns show frosted glass with a soft glow instead of a flame painted on each pane.
 - In the Godot version, the omnibus boards (the route along each side, the destination over the driver and the advertisements over the windows) no longer hang in the air over the Rijnkaai, some of them mirrored: every omnibus carries its own boards again, the right way round.
 - In the Godot version, people no longer walk on air over the water when a bridge is up: they wait at its end and cross when it is down again, and a bridge does not lift while someone is on it (the canal and vliet bridges and the lock's bridge).

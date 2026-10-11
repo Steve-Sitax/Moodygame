@@ -242,6 +242,8 @@ public partial class DevTools : Node
     // ------------------------------------------------------------------ fly (F9)
 
     private Vector3 takeoff;
+    /// <summary>The fly keys as the player has them bound (Settings, Controls).</summary>
+    private static string FlyKeys => $"{Keys.Label("forward")}{Keys.Label("left")}{Keys.Label("back")}{Keys.Label("right")} fly, mouse look, {Keys.Label("jump")} up, {Keys.Label("crouch")} down, {Keys.Label("hurry")} fast, wheel speed";
     private Label? flyLine;
 
     /// <summary>F9: the free camera from where Jef stands; again: Jef lands under it if he can stand there, else where he took off.</summary>
@@ -254,7 +256,7 @@ public partial class DevTools : Node
             jef.ToggleFly();
             if (!jef.Fly) return "no free camera in this run";
             ShowFlyLine(true);
-            return "flying: WASD fly where you look, the mouse looks, Space up, C down, Shift fast, F9 lands";
+            return $"flying: {FlyKeys}, F9 lands";
         }
         var fly = (FlyCam)Main.I.Cam;
         var at = fly.GlobalPosition;
@@ -398,7 +400,7 @@ public partial class DevTools : Node
             else
             {
                 var p = Main.I.Cam.GlobalPosition;
-                flyLine.Text = $"DEV FLY  x {p.X:0}  y {p.Y:0}  z {p.Z:0}    WASD fly, mouse look, Space up, C down, Shift fast, F9 land";
+                flyLine.Text = $"DEV FLY  x {p.X:0}  y {p.Y:0}  z {p.Z:0}    {FlyKeys}, F9 land";
             }
         }
         if (GetTree().Paused) return;

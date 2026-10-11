@@ -612,6 +612,9 @@ public partial class Together : Node
         return Input.MouseMode != Input.MouseModeEnum.Captured && Jef.I is { TestInput: false } && Dialogs.I is not { Any: true };
     }
 
+    /// <summary>Jef flew since the last state sent: the next one is a snap.</summary>
+    private bool flown;
+
     private MpState? Sample(double serverNow)
     {
         var p = Jef.I;
@@ -672,7 +675,15 @@ public partial class Together : Node
         if (sendAcc >= MpProtocol.SendMs)
         {
             sendAcc = Math.Min(sendAcc - MpProtocol.SendMs, MpProtocol.SendMs);
-            if (Sample(s.ServerNow) is { } st) s.SendState(st);
+            // flying (dev mode's free camera) sends no moves: for the server and the others Jef stays where he took
+            // off; the first state after landing is a jump of place (a snap), which the host's server always takes
+            if (jef.Fly) flown = true;
+            else if (Sample(s.ServerNow) is { } st)
+            {
+                if (flown) st.Flags |= MpProtocol.FlagSnap;
+                flown = false;
+                s.SendState(st);
+            }
         }
         pingAcc += delta;
         if (pingAcc >= 1)
