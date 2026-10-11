@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { psx, psxUniforms } from "../retro/psx";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { earthTexture } from "./cityTextures";
+import { strewLeaves } from "./leafPaint";
 import type { Rect } from "./geom";
 
 // Green (and brown) things in the stone city (Steve, 2026-09-23: "trees should not come
@@ -103,17 +104,25 @@ function bushTex(): THREE.CanvasTexture {
   }, 17);
 }
 
-/** Fallen leaves round a tree: loose flecks of rust, ochre and brown on nothing. */
+/**
+ * Fallen leaves round a tree, on nothing (4.2 m). Survey finding 23 (2026-10-11): they were 2 x 1 pixel flecks at 6.6 cm a
+ * pixel, read up close as big orange squares; now 512 px (8 mm a pixel) of real leaves, 7 to 14 cm: the plane's five
+ * pointed lobes, the lime's heart, each its own autumn colour with a darker rim and its veins, the older ones under the
+ * others darker; thick by the trunk, thinning out. Read smoothly, mipmapped.
+ */
 function leavesTex(): THREE.CanvasTexture {
-  return alphaTex(64, (g, r) => {
-    const cols = ["#8a4a18", "#a86a20", "#6e3a14", "#b88a30", "#7a3010"];
-    for (let i = 0; i < 160; i++) {
-      const a = r() * Math.PI * 2;
-      const d = Math.sqrt(r()) * 30;
-      g.fillStyle = cols[Math.floor(r() * cols.length)];
-      g.fillRect(Math.round(32 + Math.cos(a) * d), Math.round(32 + Math.sin(a) * d), 2, r() < 0.5 ? 1 : 2);
-    }
-  }, 19);
+  const S = 512;
+  const c = document.createElement("canvas");
+  c.width = c.height = S;
+  const g = c.getContext("2d")!;
+  g.clearRect(0, 0, S, S);
+  strewLeaves(g, rand(19), S / 2, S / 2, S / 2 - 24, 300, [11, 22]);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.magFilter = THREE.LinearFilter;
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.generateMipmaps = true;
+  return t;
 }
 
 /** Three bent fans, rooted together: uneven clumps rather than a rigid billboard cross. */

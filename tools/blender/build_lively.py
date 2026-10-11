@@ -171,44 +171,151 @@ def paint_prints(seed):
     return img
 
 
-def paint_chalk_hop(seed):
-    """Hopscotch drawn in chalk: squares 1 to 8 up the stones and the half-round at the top."""
-    rng = np.random.default_rng(seed)
-    w, h = 32, 80
-    img = np.zeros((h, w, 4))
-    chalk = np.array((0.92, 0.92, 0.88))
+# Chalk on the stones (survey finding 13, 2026-10-11: the old marks, one bright white pixel line, read as a selection
+# ring that shone at dusk). Drawn as a child draws: a stick of chalk, strokes about 2 cm wide that wobble and break
+# where the stone is rough, rubbed thin by feet, a dusty grey rather than paper white; 1 cm a pixel. The shader lights
+# them as the stones under them (Lambert), so they go grey with the evening.
+CHALK_RGB = (0.74, 0.74, 0.71)
+CHALK_PX = 100  # pixels a metre
 
-    def line(x0, y0, x1, y1):
-        n = int(max(abs(x1 - x0), abs(y1 - y0)) * 2) + 1
+
+def chalk_canvas(rng, w, h):
+    """A transparent cell and the stone's grain under it: where the chalk takes (the tops) and where it skips."""
+    img = np.zeros((h, w, 4))
+    grit = sl.vnoise(rng, w, h, max(2, w // 3), max(2, h // 3)) * 0.55 + rng.random((h, w)) * 0.45
+    return img, grit
+
+
+def chalk_line(img, grit, rng, pts, width=2.2, press=0.5, wobble=0.6):
+    """A hand-drawn stroke through the points (pixels): it wobbles, presses harder and lighter along its way, and
+    leaves the stone's low grain bare."""
+    h, w = img.shape[:2]
+    pts = [np.array(p, dtype=float) for p in pts]
+    phase = rng.random() * 6.28
+    k = 0.0
+    r = width / 2
+    for a, b in zip(pts[:-1], pts[1:]):
+        seg = b - a
+        ln = float(np.hypot(*seg))
+        n = int(ln * 1.5) + 2
+        nrm = np.array([-seg[1], seg[0]]) / (ln + 1e-6)
         for t in np.linspace(0, 1, n):
-            x, y = int(round(x0 + (x1 - x0) * t)), int(round(y0 + (y1 - y0) * t))
-            if 0 <= x < w and 0 <= y < h and rng.random() < 0.85:
-                img[y, x, :3] = chalk
-                img[y, x, 3] = 0.8
-    rows = [(0, [(6, 26)]), (10, [(6, 26)]), (20, [(2, 16), (16, 30)]), (30, [(6, 26)]), (40, [(2, 16), (16, 30)]), (50, [(6, 26)]), (60, [(6, 26)])]
-    for y, spans in rows:
-        for a, b in spans:
-            line(a, y + 2, b, y + 2)
-            line(a, y + 12, b, y + 12)
-            line(a, y + 2, a, y + 12)
-            line(b, y + 2, b, y + 12)
-    for k in range(13):
-        a0, a1 = math.pi * k / 13, math.pi * (k + 1) / 13
-        line(16 + 10 * math.cos(a0), 72 + 7 * math.sin(a0), 16 + 10 * math.cos(a1), 72 + 7 * math.sin(a1))
-    for i, (x, y) in enumerate(((16, 7), (16, 17), (9, 27), (23, 27), (16, 37), (9, 47), (23, 47), (16, 57))):
-        sl.draw_text(img, str(i + 1), x - 2, y - 3, (0.9, 0.9, 0.86, 0.85))
+            k += 1
+            c = a + seg * t + nrm * math.sin(k * 0.07 + phase) * wobble
+            p = press * (0.75 + 0.25 * math.sin(k * 0.031 + phase * 2)) * (0.85 + 0.3 * rng.random())
+            x0, x1 = max(0, int(c[0] - r - 1)), min(w, int(c[0] + r + 2))
+            y0, y1 = max(0, int(c[1] - r - 1)), min(h, int(c[1] + r + 2))
+            if x0 >= x1 or y0 >= y1:
+                continue
+            yy, xx = np.mgrid[y0:y1, x0:x1]
+            d = np.hypot(xx + 0.5 - c[0], yy + 0.5 - c[1])
+            cover = np.clip(r + 0.5 - d, 0, 1) * p * (0.35 + 0.9 * grit[y0:y1, x0:x1])
+            sub = img[y0:y1, x0:x1, 3]
+            img[y0:y1, x0:x1, 3] = 1 - (1 - sub) * (1 - np.clip(cover, 0, 1) * 0.46)
+
+
+# digits as strokes in a box 1 wide, 1.6 high (y down)
+DIGITS = {
+    "1": [[(0.2, 0.4), (0.6, 0.0), (0.6, 1.6)]],
+    "2": [[(0.0, 0.35), (0.25, 0.02), (0.75, 0.05), (0.95, 0.4), (0.0, 1.6), (1.0, 1.6)]],
+    "3": [[(0.0, 0.1), (0.9, 0.05), (0.35, 0.7), (0.95, 0.95), (0.85, 1.45), (0.0, 1.5)]],
+    "4": [[(0.7, 1.6), (0.7, 0.0), (0.0, 1.05), (1.0, 1.05)]],
+    "5": [[(0.95, 0.0), (0.1, 0.0), (0.05, 0.7), (0.7, 0.6), (0.95, 1.1), (0.6, 1.55), (0.0, 1.4)]],
+    "6": [[(0.85, 0.05), (0.3, 0.3), (0.0, 1.1), (0.4, 1.6), (0.9, 1.3), (0.7, 0.85), (0.05, 1.0)]],
+    "7": [[(0.0, 0.0), (1.0, 0.0), (0.35, 1.6)]],
+    "8": [[(0.5, 0.75), (0.1, 0.4), (0.5, 0.0), (0.9, 0.4), (0.1, 1.2), (0.5, 1.6), (0.9, 1.2), (0.5, 0.75)]],
+}
+
+
+def chalk_digit(img, grit, rng, ch, cx, cy, size):
+    """A number scrawled at (cx, cy), `size` pixels high, a little tilted."""
+    tilt = (rng.random() - 0.5) * 0.35
+    ct, st = math.cos(tilt), math.sin(tilt)
+    s = size / 1.6
+    for line in DIGITS[ch]:
+        pts = []
+        for x, y in line:
+            u, v = (x - 0.5) * s, (y - 0.8) * s
+            pts.append((cx + u * ct - v * st, cy + u * st + v * ct))
+        chalk_line(img, grit, rng, pts, width=1.8, press=0.55, wobble=0.25)
+
+
+def chalk_rubbed(img, rng, amount=0.4):
+    """Feet have been over it: patches rubbed thin, a smear of dust beside the lines."""
+    h, w = img.shape[:2]
+    rub = sl.vnoise(rng, w, h, max(2, w // 18), max(2, h // 18))
+    img[..., 3] *= 1 - amount * np.clip((rub - 0.35) * 2.2, 0, 1)
+    # the dust: the lines' own chalk, spread a little and thin
+    a = img[..., 3].copy()
+    soft = (a + np.roll(a, 2, 0) + np.roll(a, -2, 0) + np.roll(a, 2, 1) + np.roll(a, -2, 1)) / 5
+    img[..., 3] = np.maximum(a, soft * 0.35)
+    img[..., :3] = CHALK_RGB
+    # (a clear margin: the cell's neighbours in the atlas never bleed in at a distance)
+    img[:2, :, 3] = 0
+    img[-2:, :, 3] = 0
+    img[:, :2, 3] = 0
+    img[:, -2:, 3] = 0
+
+
+def paint_chalk_hop(seed):
+    """Hopscotch drawn in chalk (1.2 x 3.0 m): squares 1 to 3 up the stones, 4|5, 6, 7|8 and the half-round heaven at
+    the top, the numbers in them; a scrawl beside the start."""
+    rng = np.random.default_rng(seed)
+    w, h = int(1.2 * CHALK_PX), int(3.0 * CHALK_PX)
+    img, grit = chalk_canvas(rng, w, h)
+
+    def j():
+        return (rng.random() - 0.5) * 3.0
+
+    # (from the bottom of the picture up: the near end, where they start)
+    sq = 30  # half a square: they are 60 cm across, 36 cm deep
+    rows = [("1",), ("2",), ("3",), ("4", "5"), ("6",), ("7", "8")]
+    y = h - 22
+    for row in rows:
+        y_top = y - 36 * (0.95 + 0.1 * rng.random())
+        if len(row) == 1:
+            boxes = [(w / 2 - sq, w / 2 + sq)]
+        else:
+            boxes = [(w / 2 - sq * 1.6, w / 2), (w / 2, w / 2 + sq * 1.6)]
+        for (a, b), ch in zip(boxes, row):
+            chalk_line(img, grit, rng, [(a + j(), y + j()), (b + j(), y + j())])
+            chalk_line(img, grit, rng, [(a + j(), y_top + j()), (b + j(), y_top + j())])
+            chalk_line(img, grit, rng, [(a + j(), y + j()), (a + j(), y_top + j())])
+            chalk_line(img, grit, rng, [(b + j(), y + j()), (b + j(), y_top + j())])
+            chalk_digit(img, grit, rng, ch, (a + b) / 2 + j(), (y + y_top) / 2 + j(), 15 + rng.random() * 5)
+        y = y_top
+    # heaven: a half round over the last row
+    arc = [(w / 2 + math.cos(t) * sq * 1.05, y - math.sin(t) * sq * 1.15) for t in np.linspace(0, math.pi, 22)]
+    chalk_line(img, grit, rng, arc)
+    # a scrawl beside the start: a little sun, and a tally crossed through
+    cx, cy, r = w * 0.14, h - 34, 7
+    chalk_line(img, grit, rng, [(cx + math.cos(t) * r, cy + math.sin(t) * r) for t in np.linspace(0, 6.4, 16)], width=1.6, press=0.4)
+    for k in range(7):
+        t = k / 7 * 6.28
+        chalk_line(img, grit, rng, [(cx + math.cos(t) * (r + 3), cy + math.sin(t) * (r + 3)), (cx + math.cos(t) * (r + 7), cy + math.sin(t) * (r + 7))], width=1.4, press=0.35)
+    for k in range(4):
+        chalk_line(img, grit, rng, [(w * 0.8 + k * 4, h - 26), (w * 0.8 + k * 4 + 1, h - 42)], width=1.5, press=0.4)
+    chalk_line(img, grit, rng, [(w * 0.77, h - 30), (w * 0.8 + 16, h - 39)], width=1.5, press=0.4)
+    chalk_rubbed(img, rng, 0.5)
     return img
 
 
 def paint_chalk_ring(seed):
+    """The marbles ring (1.2 m): a circle drawn in one go, the end running past the start, a line to shoot from."""
     rng = np.random.default_rng(seed)
-    w = h = 32
-    img = np.zeros((h, w, 4))
-    for a in np.linspace(0, 2 * math.pi, 160):
-        x, y = int(16 + 14 * math.cos(a)), int(16 + 14 * math.sin(a))
-        if rng.random() < 0.9:
-            img[y, x, :3] = (0.92, 0.92, 0.88)
-            img[y, x, 3] = 0.8
+    w = h = int(1.2 * CHALK_PX)
+    img, grit = chalk_canvas(rng, w, h)
+    t0 = rng.random() * 6.28
+    pts = []
+    for t in np.linspace(0, 6.28 + 0.35, 48):
+        r = 44 * (1 + 0.04 * math.sin(t * 2 + t0) + 0.015 * math.sin(t * 5))
+        pts.append((w / 2 + math.cos(t + t0) * r, h / 2 + math.sin(t + t0) * r * 0.97))
+    chalk_line(img, grit, rng, pts, width=2.4, press=0.55)
+    chalk_line(img, grit, rng, [(w / 2 - 18, h - 6), (w / 2 + 18, h - 7)], width=1.8, press=0.45)
+    # a small cross in the middle, where the marbles are set
+    chalk_line(img, grit, rng, [(w / 2 - 5, h / 2 - 5), (w / 2 + 5, h / 2 + 5)], width=1.5, press=0.4)
+    chalk_line(img, grit, rng, [(w / 2 + 5, h / 2 - 5), (w / 2 - 5, h / 2 + 5)], width=1.5, press=0.4)
+    chalk_rubbed(img, rng, 0.45)
     return img
 
 
@@ -248,7 +355,8 @@ def make_materials():
         bsdf = nt.nodes.get("Principled BSDF")
         t = nt.nodes.new("ShaderNodeTexImage")
         t.image = img
-        t.interpolation = "Closest"
+        # (the chalk and the wet patch are drawn at 1 cm a pixel: read smoothly, not in blocks)
+        t.interpolation = "Linear" if img is decal else "Closest"
         nt.links.new(t.outputs["Color"], bsdf.inputs["Base Color"])
         if img is decal:
             nt.links.new(t.outputs["Alpha"], bsdf.inputs["Alpha"])

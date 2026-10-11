@@ -149,6 +149,19 @@ const blur = (a) => {
 };
 const skyB = blur(sky);
 const wallsB = blur(walls);
+// The houses' heights for the sun (blue), one pixel thinner all round (survey finding 23, 2026-10-11): the shader reads
+// the map smoothly, so a house's height ran a metre out over the street; a point at a wall's foot looking along the
+// wall toward the sun saw that ramp over its head and lay in a hard black band (the cathedral's foot in the sun). Thinner
+// by a pixel, the ramp ends inside the wall; a house still shades the street from its own wall on.
+const sunH = new Float32Array(W * H);
+for (let j = 1; j < H - 1; j++)
+  for (let i = 1; i < W - 1; i++) {
+    const k = j * W + i;
+    if (height[k] <= 0) continue;
+    let m = height[k];
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) m = Math.min(m, height[k + dj * W + di]);
+    sunH[k] = m;
+  }
 
 // the picture: RGBA, 8 bits; row 0 is z0 (the texture's v runs with z)
 const raw = Buffer.alloc((W * 4 + 1) * H);
@@ -158,7 +171,7 @@ for (let j = 0; j < H; j++) {
     const o = j * (W * 4 + 1) + 1 + i * 4;
     raw[o] = Math.round(Math.max(0, Math.min(1, skyB[j * W + i])) * 255);
     raw[o + 1] = Math.round(Math.max(0, Math.min(1, wallsB[j * W + i] / 25)) * 255);
-    raw[o + 2] = Math.round(Math.max(0, Math.min(1, (height[j * W + i] - 1.5) / 30)) * 255); // (the eaves: a roof by its own eaves is not shaded by its own house)
+    raw[o + 2] = Math.round(Math.max(0, Math.min(1, (sunH[j * W + i] - 1.5) / 30)) * 255); // (the eaves: a roof by its own eaves is not shaded by its own house)
     raw[o + 3] = 255;
   }
 }

@@ -1810,13 +1810,17 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
           // the slow noise filled it wall to wall, a street-long mirror): a second, finer noise cuts it up
           water *= smoothstep(0.46, 0.56, pudVal(pp / 2.1 + 57.1)) * smoothstep(0.3, 0.42, pudVal(pp / 4.7 - 23.9));
           // stones and pebbles stand out of the water: the shallower the puddle, the more of them
-          ${opts.relief ? "water *= 1.0 - smoothstep(0.6 + lvl * 0.2, 0.7 + lvl * 0.2, psxH) * (1.0 - smoothstep(th + 0.05, th + 0.3, pn));" : ""}
+          // (survey finding 23, 2026-10-11: they stood out as hard black specks on a pale sheet; now only the high ones,
+          // with a soft edge, where the puddle is shallow)
+          ${opts.relief ? "water *= 1.0 - smoothstep(0.66 + lvl * 0.2, 0.84 + lvl * 0.2, psxH) * (1.0 - smoothstep(th + 0.03, th + 0.2, pn));" : ""}
           water = clamp(water, 0.0, 1.0);
           float damp = smoothstep(th - 0.09, th, pn);
           gl_FragColor.rgb *= 1.0 - 0.38 * damp * (1.0 - water);
           if (water > 0.0) {
             float cosT = clamp(-rd.y, 0.0, 1.0);
-            float F = max(0.02 + 0.98 * pow(1.0 - cosT, 5.0), 0.22);
+            // (survey finding 23, 2026-10-11: a pale sheet of sky; a puddle is dark water that mirrors softly: little of
+            // the picture looking down, more at a slant)
+            float F = max(0.02 + 0.98 * pow(1.0 - cosT, 5.0), 0.1);
             // wind ripples (Steve 2026-09-28; after Lagarde's rainy-world study): fine crests across the wind that run
             // with it at a ripple's pace (~0.25 m/s), in gust patches a few metres across that drift downwind; between
             // the gusts a puddle is a still, sharp mirror. The sea state (uSea: fog 0.85, clear 1.1, rain 1.5, storm
@@ -1838,7 +1842,13 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
             vec4 mr = uMirrorMat * vec4(vPsxWorld, 1.0);
             mr.xy += wob * mr.w;
             // (reflections off: no street in it, dark water with a little of the sky's grey at a slant)
-            vec3 refl = uMirrorOn > 0.5 ? texture2DProj(uMirror, mr).rgb * 1.1 : fogColor * 0.3;
+            // (survey finding 23: the 320 x 180 picture read sharp, in blocks; five taps soften it as still, dirty water does)
+            vec3 refl = fogColor * 0.3;
+            if (uMirrorOn > 0.5) {
+              vec2 tx = vec2(1.3 / 320.0, 1.3 / 180.0) * mr.w;
+              refl = (texture2DProj(uMirror, mr).rgb * 2.0 + texture2DProj(uMirror, mr + vec4(tx.x, tx.y * 0.4, 0.0, 0.0)).rgb + texture2DProj(uMirror, mr - vec4(tx.x, tx.y * 0.4, 0.0, 0.0)).rgb
+                + texture2DProj(uMirror, mr + vec4(-tx.x * 0.4, tx.y, 0.0, 0.0)).rgb + texture2DProj(uMirror, mr - vec4(-tx.x * 0.4, tx.y, 0.0, 0.0)).rgb) / 6.0 * 0.85;
+            }
             // a rippled patch scatters the picture a little: duller than the still water round it
             refl *= 1.0 - 0.12 * gust * min(1.0, wind - 0.6);
             // (the great storm: the puddles are all rain-splash and wind; no picture in them)
@@ -1849,7 +1859,7 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
             refl += uLampColor * lamp * 0.8;
             ${spillOn && opts.wet ? "refl += psxSpillWet(vPsxWorld, rr, 1.0) * 0.05;" : ""}
             // shallow, a little brown: the ground under it, darker
-            vec3 under = gl_FragColor.rgb * vec3(0.52, 0.48, 0.42);
+            vec3 under = gl_FragColor.rgb * vec3(0.38, 0.35, 0.31);
             gl_FragColor.rgb = mix(gl_FragColor.rgb, mix(under, refl, F), water);
           }
         }`
