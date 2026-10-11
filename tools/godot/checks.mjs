@@ -10,7 +10,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const args = process.argv.slice(2);
 const opt = (name, fallback) => { const i = args.indexOf(`--${name}`); if (i < 0) return fallback; if (!args[i + 1] || args[i + 1].startsWith("--")) throw new Error(`--${name} needs a value`); return args[i + 1]; };
 const all = ["devtest", "paths", "stuck", "shaders", "perfcheck", "clocks", "interiors"];
-const extras = ["pixelcheck", "windows", "peopletest", "jobtest", "placestest", "eventtest", "ridetest", "playtest", "deedstest", "soundtest"];
+// (boatcheck, W1: every hull at every tide level; not in the default set until the boats float right, plan W4)
+const extras = ["pixelcheck", "windows", "peopletest", "jobtest", "placestest", "eventtest", "ridetest", "playtest", "deedstest", "soundtest", "boatcheck"];
 const selected = opt("only", all.join(",")).split(",");
 if (selected.some(name => ![...all, ...extras].includes(name))) throw new Error("--only: " + [...all, ...extras].join(","));
 const town = path.resolve(opt("town", "godot/baked/town.glb"));
@@ -98,6 +99,7 @@ function numbers(name, report) {
     case "interiors": return `${report.openings ?? "?"} openings, ${report.blocked ?? "?"} blocked, ${report.empty ?? "?"} empty; ${report.registeredRooms ?? "?"} live rooms registered`;
     case "pixelcheck": return `${report.comparisons?.length ?? "?"} comparisons, ${report.differentPixels ?? "?"} changed pixels; positive control ${report.controlPixels ?? "?"}`;
     case "windows": return `${report.pictures?.length ?? "?"} close pictures through windows`;
+    case "boatcheck": return `${report.problems?.length ?? "?"} problems at ${report.levels?.length ?? "?"} levels; cases ${Object.entries(report.cases ?? {}).map(([c, n]) => `${c}: ${n}`).join(", ")}`;
     case "peopletest": return `${report.whereCheck?.same ?? "?"}/${report.whereCheck?.answers ?? "?"} whereabouts; ${report.places?.map(r => `${r.place}: ${r.peopleAndAnimalsCostMs} ms, ${r.allPeopleBytesPerFrame?.mean ?? "?"} B/frame`).join("; ")}`;
   }
 }

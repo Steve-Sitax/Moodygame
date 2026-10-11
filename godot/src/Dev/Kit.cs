@@ -144,6 +144,25 @@ public partial class Kit : Node
         if (JobTask.Of(Jobs.I.Active) is { } task && Spots.Get(task.From ?? task.Post) is { } from) Go(from.Id);
         return id;
     }
+    /// <summary>
+    /// W1 tide kit: hold the river (with the canal and the vlieten) at a level in metres (quay top 0), at spring
+    /// "high" or "low" water, or let it follow the "clock" again. The drawn water eases there at 0.6 m a second.
+    /// </summary>
+    public static string TideHold(string arg)
+    {
+        string a = arg.Trim().ToLowerInvariant();
+        if (a == "clock")
+        {
+            Tide.Hold(null);
+            Tide.Set(Movers.MoverClock.Day, (float)Movers.MoverClock.HourF);
+        }
+        else if (a == "high") Tide.Hold(Tide.HwMax);
+        else if (a == "low") Tide.Hold(Tide.LwMin);
+        else if (float.TryParse(a, NumberStyles.Float, CultureInfo.InvariantCulture, out float y) && float.IsFinite(y)) Tide.Hold(y);
+        else throw new ArgumentException("tide <y|high|low|clock>");
+        return $"the river {(Tide.Held is { } h ? $"held at {h:0.00}" : $"by the clock, at {Tide.River:0.00}")} (the drawn water now {Waters.Level:0.00}), the dock {Tide.Dock:0.00}, the lock {Tide.ChamberA:0.00} / {Tide.ChamberB:0.00}";
+    }
+
     public async Task Commands(string text)
     {
         foreach (string command in text.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
@@ -159,7 +178,8 @@ public partial class Kit : Node
                 case "job": GD.Print("dev job " + await Job(arg)); break;
                 case "skip": GameState.I.Apply(await Api.Post<JobsPayload>("api/dev/advance", new { minutes = int.Parse(arg, CultureInfo.InvariantCulture) })); break;
                 case "clear": Clear(); break;
-                default: throw new ArgumentException("commands: hour, weather, go, summon, job, skip, clear");
+                case "tide": GD.Print("dev tide: " + TideHold(arg)); break;
+                default: throw new ArgumentException("commands: hour, weather, go, summon, job, skip, clear, tide");
             }
             GD.Print("dev: " + command);
         }

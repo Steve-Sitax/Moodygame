@@ -32,8 +32,27 @@ public static class Tide
     public static float ChamberA = DockY;
     public static float ChamberB = DockY;
 
-    /// <summary>The game clock moved: day 1 is Monday, the hour with fractions.</summary>
-    public static void Set(int day, float hour) => River = At(day, hour);
+    /// <summary>The level the river is held at (the W1 tide kit), or null: it follows the clock.</summary>
+    public static float? Held { get; private set; }
+
+    /// <summary>The game clock moved: day 1 is Monday, the hour with fractions. A hold wins over it.</summary>
+    public static void Set(int day, float hour)
+    {
+        if (Held is { } h) River = h;
+        else River = At(day, hour);
+    }
+
+    /// <summary>
+    /// Dev (the W1 tide kit, the browser's tideDev.hold): hold the river, the canal and the vlieten at level y
+    /// (metres, quay top 0), whatever the clock says; null lets it follow the clock again from the next Set.
+    /// The drawn sheet eases there at 0.6 m a second (World/Waters.cs).
+    /// </summary>
+    public static void Hold(float? y)
+    {
+        if (y is { } v && !float.IsFinite(v)) throw new ArgumentException("tide hold: a level in metres");
+        Held = y;
+        if (y is { } level) River = level;
+    }
 
     private static float Amplitude(float t) => Half * (1 + Spring * MathF.Cos(2 * MathF.PI * (t - SpringAt) / (SpringDays * 24)));
 

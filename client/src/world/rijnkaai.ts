@@ -305,8 +305,8 @@ export interface World {
   update(t: number, dt: number, camera?: THREE.Camera): void;
   /** M6 tides: the game clock the river follows (day 1 = Monday, hour with fractions). */
   setTideClock(fn: () => { day: number; hour: number }): void;
-  /** M6 tides, dev: the tide now in words, and hold the river at high or low water (null: the clock). */
-  tideDev: { read(): string; hold(v: "high" | "low" | null): void };
+  /** M6 tides, dev: the tide now in words, and hold the river at high or low water or at a level y (null: the clock). */
+  tideDev: { read(): string; hold(v: "high" | "low" | number | null): void; target(): number };
 }
 
 // Thin details that sit on a wall or the ground (windows, doors, rails, planks).
@@ -2010,6 +2010,7 @@ export function buildRijnkaai(): World {
   function tideTarget(): number {
     if (tideDev.hold === "high") return HW_MAX;
     if (tideDev.hold === "low") return LW_MIN;
+    if (typeof tideDev.hold === "number" && Number.isFinite(tideDev.hold)) return tideDev.hold;
     if (!tideClock) return tideWater.river;
     const c = tideClock();
     // the great storm drives the sea up the river: up to a metre over the tide, but never over the lowest quays
@@ -2266,16 +2267,21 @@ export function buildRijnkaai(): World {
         const f = (y: number) => `${y >= 0 ? "+" : ""}${y.toFixed(2)}`;
         const hm = (h: number) => `${Math.floor(h)}:${String(Math.floor((h % 1) * 60)).padStart(2, "0")}`;
         const c = tideClock?.();
-        const hold = tideDev.hold ? ` (held at ${tideDev.hold} water)` : "";
+        const hold = tideDev.hold === null ? "" : typeof tideDev.hold === "number" ? ` (held at ${f(tideDev.hold)} m)` : ` (held at ${tideDev.hold} water)`;
         if (!c) return `river ${f(tideWater.river)} m${hold}`;
         const i = tideInfo(c.day, c.hour);
         return (
-          `river ${f(tideWater.river)} m (quay top 0; ${f(i.fromMid)} m from half tide), ${i.rising ? "rising" : "falling"}, range ${i.range.toFixed(2)} m today${hold}. ` +
+          `river ${f(tideWater.river)} m (quay top 0; ${f(tideWater.river - MID_Y)} m from half tide), by the clock ${i.rising ? "rising" : "falling"}, range ${i.range.toFixed(2)} m today${hold}. ` +
           `High water day ${i.nextHigh.day} ${hm(i.nextHigh.hour)} (${f(i.nextHigh.y)}), low water day ${i.nextLow.day} ${hm(i.nextLow.hour)} (${f(i.nextLow.y)}). ` +
           `Dock ${f(tideWater.dock)}, lock ${f(tideWater.chamberA)} / ${f(tideWater.chamberB)}.`
         );
       },
-      hold: (v) => (tideDev.hold = v),
+      hold: (v) => {
+        if (typeof v === "number" && !Number.isFinite(v)) throw new Error("tide hold: a level in metres, \"high\", \"low\" or null");
+        tideDev.hold = v;
+      },
+      // where the river is going now (the hold, the clock and the storm's surge): the sheet eases there at 0.6 m a second
+      target: tideTarget,
     },
   };
 }
