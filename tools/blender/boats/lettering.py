@@ -1197,6 +1197,8 @@ def zone_aspects():
         gl = json.loads(data[20:20 + n])
         for node in gl.get("nodes", []):
             z = (node.get("extras") or {}).get("name_zones")
+            if isinstance(z, str):  # the boat builder writes every extra as a JSON string (common.py to_object)
+                z = json.loads(z)
             if z:
                 out[node["name"]] = {k: float(v[0]) / float(v[1]) for k, v in z.items() if v[1]}
     except (OSError, ValueError, KeyError, struct.error):

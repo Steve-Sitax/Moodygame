@@ -1202,28 +1202,73 @@ def surf_washing(seed):
 
 
 def surf_flag(seed):
-    """Four flags, v up: top left a white house flag with a red star, top right plain red (pennants), bottom left the
-    Dutch tricolour, bottom right the Belgian one. Muted colours, the bunting's weave. Smooth (cloth)."""
+    """Eight flags, v up, each a 16 x 16 square of a 64 x 32 picture, stretched to the flag's own shape by the quad.
+    Top row: the white house flag with a red star, the Norwegian (red, a blue cross edged white), the Danish (red, a
+    white cross), plain red (pennants). Bottom row: the Dutch, the Belgian, the German merchant flag (black, white,
+    red) and the British red ensign. Muted colours, the bunting's weave. Smooth (cloth)."""
     rng = np.random.default_rng(seed)
     w, h = P, P // 2
     k = w / 64
     C = np.zeros((h, w, 3))
-    yy = lambda a: int(round(a * k))  # noqa: E731
-    C[yy(16):, :yy(32)] = col((0.78, 0.76, 0.7))
-    C[yy(16):, yy(32):] = col((0.5, 0.07, 0.06))
-    C[yy(11):yy(16), :yy(32)] = col((0.5, 0.1, 0.08))
-    C[yy(5):yy(11), :yy(32)] = col((0.76, 0.74, 0.68))
-    C[:yy(5), :yy(32)] = col((0.12, 0.18, 0.36))
-    C[:yy(16), yy(32):yy(43)] = col((0.05, 0.05, 0.05))
-    C[:yy(16), yy(43):yy(54)] = col((0.66, 0.54, 0.16))
-    C[:yy(16), yy(54):] = col((0.5, 0.09, 0.07))
-    uu, vv = np.meshgrid((np.arange(yy(32)) + 0.5) / k, (np.arange(h - yy(16)) + 0.5) / k)
-    a = np.arctan2(vv - 8, uu - 16) - math.pi / 2
-    r = np.hypot(uu - 16, vv - 8)
+    red, white, blue = col((0.5, 0.07, 0.06)), col((0.78, 0.76, 0.7)), col((0.12, 0.18, 0.36))
+    black, yellow = col((0.05, 0.05, 0.05)), col((0.66, 0.54, 0.16))
+
+    def region(u0, v0):
+        """The flag at (u0, v0) units: its slice of C and its own coordinates fx (hoist 0 to fly 1), fy (0 bottom)."""
+        sl = C[int(v0 * k):int((v0 + 16) * k), int(u0 * k):int((u0 + 16) * k)]
+        n = sl.shape[0]
+        fx, fy = np.meshgrid((np.arange(n) + 0.5) / n, (np.arange(n) + 0.5) / n)
+        return sl, fx, fy
+
+    def cross(sl, fx, fy, x0, x1, y0, y1, c):
+        sl[((fx >= x0) & (fx < x1)) | ((fy >= y0) & (fy < y1))] = c
+
+    # the house flag
+    sl, fx, fy = region(0, 16)
+    sl[:] = white
+    a = np.arctan2(fy - 0.5, (fx - 0.5) * 1.5) - math.pi / 2
+    r = np.hypot((fx - 0.5) * 1.5, fy - 0.5)
     kk = np.cos(math.pi / 5) / np.cos((a % (2 * math.pi / 5)) - math.pi / 5)
-    star = r < 6.2 * (0.45 + 0.55 * (kk - np.cos(math.pi / 5)) / (1 - np.cos(math.pi / 5)))
-    top = C[yy(16):, :yy(32)]
-    top[star] = col((0.55, 0.06, 0.05))
+    sl[r < 0.39 * (0.45 + 0.55 * (kk - np.cos(math.pi / 5)) / (1 - np.cos(math.pi / 5)))] = red
+    # Norway: 6-1-2-1-12 across, 6-1-2-1-6 down
+    sl, fx, fy = region(16, 16)
+    sl[:] = red
+    cross(sl, fx, fy, 6 / 22, 10 / 22, 6 / 16, 10 / 16, white)
+    cross(sl, fx, fy, 7 / 22, 9 / 22, 7 / 16, 9 / 16, blue)
+    # Denmark: 12-4-21 across, 12-4-12 down
+    sl, fx, fy = region(32, 16)
+    sl[:] = red
+    cross(sl, fx, fy, 12 / 37, 16 / 37, 12 / 28, 16 / 28, white)
+    # plain red, for pennants
+    region(48, 16)[0][:] = red
+    # the Netherlands
+    sl, fx, fy = region(0, 0)
+    sl[:] = blue
+    sl[fy >= 1 / 3] = white
+    sl[fy >= 2 / 3] = red
+    # Belgium
+    sl, fx, fy = region(16, 0)
+    sl[:] = black
+    sl[fx >= 1 / 3] = yellow
+    sl[fx >= 2 / 3] = red
+    # the German merchant flag (1867)
+    sl, fx, fy = region(32, 0)
+    sl[:] = red
+    sl[fy >= 1 / 3] = white
+    sl[fy >= 2 / 3] = black
+    # the red ensign: the union in the upper hoist quarter
+    sl, fx, fy = region(48, 0)
+    sl[:] = red
+    cu, cv = fx / 0.5, (fy - 0.5) / 0.5  # 0..1 inside the canton
+    inside = (fx < 0.5) & (fy >= 0.5)
+    un = np.zeros(fx.shape, dtype=int)  # 0 blue, 1 white, 2 red
+    d1, d2 = np.abs(cu - cv), np.abs(cu + cv - 1)
+    un[(d1 < 0.12) | (d2 < 0.12)] = 1
+    un[(d1 < 0.05) | (d2 < 0.05)] = 2
+    un[(np.abs(cu - 0.5) < 0.15) | (np.abs(cv - 0.5) < 0.17)] = 1
+    un[(np.abs(cu - 0.5) < 0.08) | (np.abs(cv - 0.5) < 0.1)] = 2
+    for i, c_ in enumerate((blue, white, red)):
+        sl[inside & (un == i)] = c_
     C *= (0.85 + 0.25 * noise(rng, w, h, 8, 4))[..., None]
     wv = weave(w, h, 4.0, rng)
     C *= (0.96 + 0.05 * wv)[..., None]
@@ -2072,7 +2117,9 @@ def coil(m, c, r=0.32):
                 urep=4, vscale=2)
 
 
-FLAG_UV = {"house": (0.0, 0.5), "dutch": (0.0, 0.0), "belgian": (0.5, 0.0)}
+# each flag's corner in the flag picture (surf_flag); a flag is a quarter of it wide, half of it high
+FLAG_UV = {"house": (0.0, 0.5), "norwegian": (0.25, 0.5), "danish": (0.5, 0.5), "red": (0.75, 0.5),
+           "dutch": (0.0, 0.0), "belgian": (0.25, 0.0), "german": (0.5, 0.0), "british": (0.75, 0.0)}
 
 
 def flag(m, top, w, h, along=(0, 1, 0), wave=0.12, kind="house"):
@@ -2084,9 +2131,9 @@ def flag(m, top, w, h, along=(0, 1, 0), wave=0.12, kind="house"):
     mid = top + d * (w / 2) + side * wave
     end = top + d * w - side * wave * 0.5
     u0, v0 = FLAG_UV[kind]
-    m.poly([top - up, mid - up, mid, top], FLAG, uvs=[(u0, v0), (u0 + 0.25, v0), (u0 + 0.25, v0 + 0.5), (u0, v0 + 0.5)])
+    m.poly([top - up, mid - up, mid, top], FLAG, uvs=[(u0, v0), (u0 + 0.125, v0), (u0 + 0.125, v0 + 0.5), (u0, v0 + 0.5)])
     m.poly([mid - up, end - up, end, mid], FLAG,
-           uvs=[(u0 + 0.25, v0), (u0 + 0.5, v0), (u0 + 0.5, v0 + 0.5), (u0 + 0.25, v0 + 0.5)])
+           uvs=[(u0 + 0.125, v0), (u0 + 0.25, v0), (u0 + 0.25, v0 + 0.5), (u0 + 0.125, v0 + 0.5)])
 
 
 def pennant(m, top, length, along=(0, 1, 0), h=0.3):
@@ -2094,8 +2141,8 @@ def pennant(m, top, length, along=(0, 1, 0), h=0.3):
     d = Vector(along).normalized()
     side = d.cross(V(0, 0, 1)).normalized()
     mid = top + d * (length * 0.5) + side * 0.08 - V(0, 0, h * 0.35)
-    m.poly([top - V(0, 0, h), mid, top], FLAG, uvs=[(0.6, 0.55), (0.9, 0.75), (0.6, 0.95)])
-    m.poly([mid, top + d * length - V(0, 0, h * 0.6), mid + V(0, 0, 0.05)], FLAG, uvs=[(0.7, 0.65), (0.95, 0.75), (0.7, 0.85)])
+    m.poly([top - V(0, 0, h), mid, top], FLAG, uvs=[(0.78, 0.55), (0.92, 0.75), (0.78, 0.95)])
+    m.poly([mid, top + d * length - V(0, 0, h * 0.6), mid + V(0, 0, 0.05)], FLAG, uvs=[(0.84, 0.65), (0.97, 0.75), (0.84, 0.85)])
 
 
 def panel(m, c, right, up, w, h, mat=WINDOW, off=0.02):
