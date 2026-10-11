@@ -101,6 +101,8 @@ public partial class Lock : Node
     public string State => state;
     /// <summary>A rowing boat wants the lock (or lets it go).</summary>
     public void Request(bool on) => boatWant = on;
+    /// <summary>The bridge is up, going up or asked to: people on foot wait at its ends (Bridges.Barred).</summary>
+    public bool BridgeOpening => want || boatWant || bridgeAngle < -0.001f;
     /// <summary>Anyone in the way of a gate's balance beam as it swings (the people's part sets it): the gate waits.</summary>
     public Func<int, bool>? SweepBusy;
 

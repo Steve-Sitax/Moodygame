@@ -48,6 +48,10 @@ with a typed line and a model's answer, two model calls). The browser's pictures
 against a fresh test server; it writes `deedstest.json` and close PNGs, then quits. Run it with
 `node tools/godot/deeds-check.mjs --out deeds-proof` from its worktree. The runner waits for `PERF-LOCK`, uses ports
 8980/8981, bounds each Godot process and removes its test database.
+The opening bridges: `--bridges-open` asks every bridge and the lock's bridge up from the start and keeps them up
+(people on foot wait at the ends); `--bridgewalk <absolute dir> --no-ai --port N --db <test db> --no-mainmenu` sends a
+summoned policeman and six walkers across the canal's middle bridge and the lock's bridge while each is up, then down,
+checks nobody stands on a deck that is not down and everyone gets across, writes `bridgewalk.json` and pictures, then quits.
 The menus' options: `--prefs <file>` (the settings kept somewhere else than the player's own folder; the keys go
 beside it), `--no-mainmenu` (no loading screen and no menus: the town at once, as before), `--menutest <dir>` (the
 menus' own test, below). A run with `--shots` or another part's `--...test` has no menus either, and keeps the

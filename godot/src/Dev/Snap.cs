@@ -176,6 +176,18 @@ public partial class Snap : Node
             var side = hx.Basis.X.Normalized();
             return (nose + side * 3.2f + hx.Basis.Z.Normalized() * 1.5f + new Vector3(0, 0.2f, 0), nose + hx.Basis.Z.Normalized() * 0.4f);
         }
+        // (an omnibus nearest the camera, from its left side and a little ahead: its boards ride on it)
+        if (name.StartsWith("omnibus") && Scheldemist.Movers.Omnibus.I is { Buses.Count: > 0 } om)
+        {
+            var bus = om.Buses.OrderBy(b => b.Frame.GlobalPosition.DistanceSquaredTo(cam)).First().Frame.GlobalTransform;
+            var at = bus * new Vector3(0, 2.2f, 1.0f);
+            var x = bus.Basis.X.Normalized();
+            var z = bus.Basis.Z.Normalized();
+            // (omnibus..._front: from ahead and above the horses; omnibus..._right: from its right side)
+            if (name.EndsWith("_front")) return (at + z * 12f + x * 1.5f + new Vector3(0, 2.2f, 0), at + z * 2f);
+            if (name.EndsWith("_right")) return (at + x * 7.5f + z * 5f + new Vector3(0, 0.4f, 0), at);
+            return (at - x * 7.5f + z * 5f + new Vector3(0, 0.4f, 0), at);
+        }
         if (name.StartsWith("bilge") && ShipWater.I is { } sw)
         {
             var (o, outward) = sw.NearestOutlet(cam);
