@@ -54,6 +54,29 @@ public static class Tide
         if (y is { } level) River = level;
     }
 
+    /// <summary>The dev panel's line on the tide (the browser's tideDev.read): the water now, rising or falling, the next high and low water.</summary>
+    public static string Describe(int day, float hour)
+    {
+        static string F(float y) => (y >= 0 ? "+" : "") + y.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+        static string Hm(float h) => $"{(int)Math.Floor(h % 24)}:{(int)Math.Floor(h % 1 * 60):00}";
+        float now = At(day, hour), soon = At(day, hour + 0.1f);
+        // the next turn of the tide each way, found in five-minute steps over the next day
+        (int day, float hour, float y)? high = null, low = null;
+        float prev = now, rise = soon - now;
+        for (int i = 1; i <= 24 * 12 && (high == null || low == null); i++)
+        {
+            float h = hour + i / 12f, y = At(day, h), r = y - prev;
+            int d = day + (int)Math.Floor(h / 24);
+            if (rise > 0 && r <= 0 && high == null) high = (d, h - 1 / 12f, prev);
+            if (rise < 0 && r >= 0 && low == null) low = (d, h - 1 / 12f, prev);
+            prev = y;
+            rise = r;
+        }
+        string held = Held is { } hv ? $" (held at {F(hv)} m)" : "";
+        string next = (high is { } a ? $" High water day {a.day} {Hm(a.hour)} ({F(a.y)})." : "") + (low is { } b ? $" Low water day {b.day} {Hm(b.hour)} ({F(b.y)})." : "");
+        return $"River {F(River)} m (quay top 0; {F(River - MidY)} m from half tide), {(soon > now ? "rising" : "falling")}{held}.{next} Dock {F(Dock)}, lock {F(ChamberA)} / {F(ChamberB)}.";
+    }
+
     private static float Amplitude(float t) => Half * (1 + Spring * MathF.Cos(2 * MathF.PI * (t - SpringAt) / (SpringDays * 24)));
 
     /// <summary>The river's level (y, metres; quay top 0) on a game day at an hour.</summary>

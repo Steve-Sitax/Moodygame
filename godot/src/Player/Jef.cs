@@ -167,7 +167,7 @@ public partial class Jef : Node, Mantle.IWorld
         Main.I.Cam = Cam;
     }
 
-    /// <summary>F: the free camera and back. Coming back, Jef stands under where the camera was.</summary>
+    /// <summary>The free camera and back (dev mode's F9). Coming back, Jef stands under where the camera was.</summary>
     public void ToggleFly()
     {
         if (fly == null) return;
@@ -227,11 +227,7 @@ public partial class Jef : Node, Mantle.IWorld
     public override void _UnhandledInput(InputEvent e)
     {
         if (shots) return;
-        if (e is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.F } && !TestInput)
-        {
-            ToggleFly();
-            return;
-        }
+        // (the free camera is dev mode's F9, Dev/DevTools.cs: F is the Second choice key)
         if (Fly) return;
         if (e is InputEventMouseButton { Pressed: true } && Input.MouseMode != Input.MouseModeEnum.Captured) Input.MouseMode = Input.MouseModeEnum.Captured;
         else if (e is InputEventKey { Pressed: true, Keycode: Key.Escape }) Input.MouseMode = Input.MouseModeEnum.Visible;

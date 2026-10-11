@@ -164,6 +164,8 @@ public partial class Daylight : Node
 
     /// <summary>The job twist "thick fog": it closes in whatever the weather (rijnkaai.ts setThickFog).</summary>
     public void SetThickFog(bool on) => fogTarget = on ? 1 : 0;
+    /// <summary>The dev panel's thick fog is asked for (it thickens over a few seconds).</summary>
+    public bool ThickFog => fogTarget > 0.5f;
 
     private static readonly Color StormAir = Psx.Hex(0x3a444e);
     private float stormTarget, gale, galeT;
@@ -186,6 +188,8 @@ public partial class Daylight : Node
 
     /// <summary>Rain on top of the weather 0-1 (a job twist, or dev).</summary>
     public void SetRain(float amount) => manualRain = Mathf.Clamp(amount, 0, 1);
+    /// <summary>The rain asked for by hand (the dev panel's shower), over the weather's own.</summary>
+    public float ManualRain => manualRain;
 
     /// <summary>After Settle(): a part that eases on its own (the sky's deck, the lamps) jumps too.</summary>
     public event Action? Settled;

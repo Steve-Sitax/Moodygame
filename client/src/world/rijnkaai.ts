@@ -18,7 +18,7 @@ import { loadWall, rampartHeightAt, rampartKeepOut, wallColliders, wallGuards, w
 import CITY_DATA from "../../../shared/city.json";
 import PARK_DATA from "../../public/models/park.json";
 import { buildCity, doorSpot, edgeZ, quayStoneMaterials, WALL, WATER, OUTSIDE, type CityWorld } from "./city";
-import { dressCity, loadProps } from "./props3d";
+import { dressCity, LAMP_GLASS_OPACITY, loadProps } from "./props3d";
 import { loadWagons } from "./wagons3d";
 import { dockWaterStencil, loadBoats, waterStencil, type Boats } from "./boats";
 import { createAmbient, type Ambient } from "./ambient";
@@ -34,7 +34,7 @@ import { buildVegetation } from "./vegetation";
 import { buildTrees3D } from "./trees3d";
 import { applyDirt } from "./dirt";
 import { createFires, type Fires } from "./fire";
-import { createGasLamps, FOG_DAY_GLOW, glassColor, LIT_REACH, type GasLamps } from "./gaslamps";
+import { createGasLamps, flameColor, FOG_DAY_GLOW, glassColor, LIT_GLASS_GAIN, LIT_REACH, type GasLamps } from "./gaslamps";
 import { lampFog, type LampFog } from "./lampFog";
 import { createLitter, type Litter } from "./litter";
 import { createClutter } from "./clutter";
@@ -155,6 +155,8 @@ export interface Lamp {
   pos: THREE.Vector3;
   light: THREE.PointLight;
   glass: THREE.Mesh;
+  /** its one flame inside the glass (props.glb gas_lamp), once the model is in */
+  flameMat?: THREE.MeshBasicMaterial;
   halo: THREE.Sprite;
   seed: number;
   broken: boolean;
@@ -2167,7 +2169,10 @@ export function buildRijnkaai(): World {
       l.level += (target - l.level) * Math.min(1, dt * 18);
       // unlit glass takes the colour of the air around it, so it never shows as a black box; the fog
       // takes it with the post (world/lampFog.ts)
-      glassColor((l.glass.material as THREE.MeshBasicMaterial).color, fog.color, l.level);
+      const gm = l.glass.material as THREE.MeshBasicMaterial;
+      glassColor(gm.color, fog.color, l.level);
+      if (gm.transparent) gm.opacity = LAMP_GLASS_OPACITY + LIT_GLASS_GAIN * Math.min(1, l.level);
+      if (l.flameMat) flameColor(l.flameMat.color, l.level);
       (l.glass.userData.fog as LampFog).value = 1 + LIT_REACH * Math.min(1, l.level);
       // the halo fades in the fog as the city lamps' do (gaslamps.ts): a glow, not a lamp on its own
       const hd = camera ? camera.position.distanceTo(l.pos) : 0;
@@ -2376,6 +2381,13 @@ function gasLamp(
         // M7 fog lamps: the glass fogs like the post (a lit one shows a little further; world/lampFog.ts)
         mesh.userData.fog = lampFog(mesh.material as THREE.Material, 1, 1 + LIT_REACH);
         lamp.glass = mesh;
+      });
+      post.traverse((c) => {
+        const mesh = c as THREE.Mesh;
+        if (mesh.isMesh && (mesh.material as THREE.Material).name === "flame") {
+          lamp.flameMat = mesh.material as THREE.MeshBasicMaterial;
+          lampFog(lamp.flameMat, 1, 1 + LIT_REACH);
+        }
       });
     })
     .catch((e) => console.warn("quay gas lamp did not load", e));

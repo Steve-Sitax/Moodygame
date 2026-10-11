@@ -279,25 +279,23 @@ function transom(g: CanvasRenderingContext2D, x: number, y: number): void {
 }
 
 /**
- * A lantern's pane (2026-10-11, the town's lanterns: tools/blender/lantern_kit.py paint_pane): sooty glass in its iron
- * frame, the gas burner dark at its foot and the flat flame over it a little paler. By day the glass is lit as the
- * front is; at night world/ambient.ts lays the lit pane over it.
+ * A lantern's pane (2026-10-11, the town's lanterns: tools/blender/lantern_kit.py paint_pane): frosted glass in its iron
+ * frame, sooty toward the top, a soft glow in its middle where the flame behind it lights it (Steve: "just blurred glass
+ * is also ok": no burner or flame painted on it). By day the glass is lit as the front is; at night world/ambient.ts
+ * lays the lit pane over it.
  */
 function lampPane(g: CanvasRenderingContext2D, x: number, y: number): void {
   const grd = g.createLinearGradient(0, y, 0, y + C);
-  grd.addColorStop(0, "#2a2620");
-  grd.addColorStop(1, "#5a5040");
+  grd.addColorStop(0, "#3a352c");
+  grd.addColorStop(0.45, "#625848");
+  grd.addColorStop(1, "#6e6452");
   g.fillStyle = grd;
   g.fillRect(x, y, C, C);
-  // the flame: a flat batwing over the burner, paler glass
-  g.fillStyle = "rgba(190,160,110,0.35)";
-  g.beginPath();
-  g.ellipse(x + C / 2, y + C - 26, 11, 8, 0, 0, Math.PI * 2);
-  g.fill();
-  // the burner: its pipe up from the foot and the tip
-  g.fillStyle = "#14120f";
-  g.fillRect(x + C / 2 - 2, y + C - 16, 4, 14);
-  g.fillRect(x + C / 2 - 5, y + C - 18, 10, 3);
+  const glow = g.createRadialGradient(x + C / 2, y + C * 0.58, 2, x + C / 2, y + C * 0.58, C * 0.42);
+  glow.addColorStop(0, "rgba(200,176,132,0.45)");
+  glow.addColorStop(1, "rgba(200,176,132,0)");
+  g.fillStyle = glow;
+  g.fillRect(x, y, C, C);
   // the frame
   g.fillStyle = "#121110";
   g.fillRect(x, y, C, 4);

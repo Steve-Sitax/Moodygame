@@ -4,6 +4,7 @@ import { fireViewHeight } from "./fire";
 import { lampFog, type LampFog } from "./lampFog";
 import { addSpill, removeSpill, type SpillSource } from "./spill";
 import { LAMP_LIGHT, type LampKind } from "./lampLight";
+import { LAMP_GLASS_OPACITY } from "./props3d";
 
 // The gas lamps one by one (M6 town life): each lamp of the town has its own lit state, set
 // by the lamplighter's progress (game/lamplighter.ts, server town/lampround.ts). The six lamps of
@@ -75,6 +76,8 @@ const GAS_SLOTS = MAX_LAMPS - 1;
  */
 export const FOG_DAY_GLOW = 0.8;
 export const FOG_DAY_GROUND = 0.3;
+/** A lamp's clear glass (props.glb, 2026-10-11): how much more it hides behind it lit (its warm glow). */
+export const LIT_GLASS_GAIN = 0.22;
 /** Lit glass shows this much further through the fog than the post (in fog-fars); unlit as the post. */
 export const LIT_REACH = 0.6;
 
@@ -82,6 +85,15 @@ export const LIT_REACH = 0.6;
  * The colour of a lamp's glass: `v` 0 unlit (the colour of the air round it, a little darker, so it
  * never shows as a black box) to 1 burning. The fog does the distance (lampFog.ts).
  */
+/**
+ * The colour of a lamp's one flame inside its glass (2026-10-11, the hollow lanterns): `v` 0 out (the dark burner tip)
+ * to 1 burning (white-yellow, a touch over 1 so it reads as the brightest thing in the lantern); its flicker included.
+ */
+export function flameColor(out: THREE.Color, v: number): THREE.Color {
+  const k = Math.max(0, Math.min(1.2, v));
+  return out.setRGB(0.14 + 1.06 * k, 0.11 + 0.9 * k, 0.08 + 0.55 * k);
+}
+
 export function glassColor(out: THREE.Color, fog: THREE.Color, v: number): THREE.Color {
   const k = Math.max(0, Math.min(1, v));
   return out.setRGB(fog.r * 0.8 * (1 - k) + 1.0 * k, fog.g * 0.8 * (1 - k) + 0.72 * k, fog.b * 0.8 * (1 - k) + 0.38 * k);
@@ -138,6 +150,8 @@ export function createGasLamps(
     level: number;
     set: boolean;
     glass: THREE.MeshBasicMaterial[];
+    /** its one flame inside the glass (props.glb gas_lamp, lantern_kit.py gas_burner), lit with it */
+    flames: THREE.MeshBasicMaterial[];
     /** how far each glass shows through the fog (lampFog.ts) */
     reach: LampFog[];
     slot: number;
@@ -158,7 +172,7 @@ export function createGasLamps(
     addSpill({ kind: "lamp", label: `gas lamp ${id}`, x, y, z, power: LAMP_LIGHT[k].power, decay: DECAY, range: LAMP_LIGHT[k].range, ground: foot ?? NaN, hw: 0.15, hh: 0.2 });
   const all = new Map<string, L>();
   quay.forEach((q, i) =>
-    all.set(`q${i}`, { id: `q${i}`, x: q.x, z: q.z, gy: GLASS_Y, foot: null, want: 1, level: 1, set: false, glass: [], reach: [], slot: -1, seed: i * 1.37 + 0.5, flame: 0, b: 0, g: 0, spill: spillOf(`q${i}`, q.x, GLASS_Y, q.z, null), power: POWER, range: RANGE }),
+    all.set(`q${i}`, { id: `q${i}`, x: q.x, z: q.z, gy: GLASS_Y, foot: null, want: 1, level: 1, set: false, glass: [], flames: [], reach: [], slot: -1, seed: i * 1.37 + 0.5, flame: 0, b: 0, g: 0, spill: spillOf(`q${i}`, q.x, GLASS_Y, q.z, null), power: POWER, range: RANGE }),
   );
 
   // the city lamps' halos: one Points object, a slot per lamp, the lit level as an attribute
@@ -258,9 +272,11 @@ export function createGasLamps(
   return {
     addDecor(i, obj, x, z, at) {
       const glass: THREE.MeshBasicMaterial[] = [];
+      const flames: THREE.MeshBasicMaterial[] = [];
       obj.traverse((c) => {
         const m = c as THREE.Mesh;
         if (m.isMesh && (m.material as THREE.Material).name === "glass") glass.push(m.material as THREE.MeshBasicMaterial);
+        if (m.isMesh && (m.material as THREE.Material).name === "flame") flames.push(m.material as THREE.MeshBasicMaterial);
       });
       const kind = at?.kind ?? "street";
       const old0 = all.get(`d${i}`);
@@ -273,11 +289,11 @@ export function createGasLamps(
         geo.setDrawRange(0, used);
       }
       // M7 fog lamps: the glass fogs like its post (a lit one shows a little further)
-      const reach = glass.map((m) => lampFog(m, 1, 1 + LIT_REACH));
+      const reach = [...glass, ...flames].map((m) => lampFog(m, 1, 1 + LIT_REACH));
       const gy = at?.glass ?? GLASS_Y;
       const old = all.get(`d${i}`);
       if (old) removeSpill(old.spill);
-      all.set(`d${i}`, { id: `d${i}`, x, z, gy, foot: at?.ground ?? null, want: 1, level: 1, set: false, glass, reach, slot, seed: i * 2.31 + 7.1, flame: -1, b: 0, g: 0, spill: spillOf(`d${i}`, x, gy, z, at?.ground ?? null, kind), power: LAMP_LIGHT[kind].power, range: LAMP_LIGHT[kind].range });
+      all.set(`d${i}`, { id: `d${i}`, x, z, gy, foot: at?.ground ?? null, want: 1, level: 1, set: false, glass, flames, reach, slot, seed: i * 2.31 + 7.1, flame: -1, b: 0, g: 0, spill: spillOf(`d${i}`, x, gy, z, at?.ground ?? null, kind), power: LAMP_LIGHT[kind].power, range: LAMP_LIGHT[kind].range });
     },
 
     set(id, on) {
@@ -307,7 +323,12 @@ export function createGasLamps(
         l.b = l.flame >= 0 ? l.flame : v * flicker(t, l.seed);
         l.g = l.b * ground;
         if (l.slot < 0 && !l.glass.length) continue;
-        for (const g of l.glass) glassColor(g.color, fog, v);
+        for (const g of l.glass) {
+          glassColor(g.color, fog, v);
+          // (clear glass: a lit one glows warm, a little less see-through)
+          if (g.transparent) g.opacity = LAMP_GLASS_OPACITY + LIT_GLASS_GAIN * v;
+        }
+        for (const f of l.flames) flameColor(f.color, l.b);
         for (const r of l.reach) r.value = 1 + LIT_REACH * v;
         if (l.slot >= 0 && Math.abs(lit[l.slot] - v) > 0.002) {
           lit[l.slot] = v;
