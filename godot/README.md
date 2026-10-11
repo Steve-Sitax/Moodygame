@@ -30,7 +30,12 @@ walk-around mode), `--nettest <dir>` (the net part's own test: start the server 
 state, one tick, a picture with the HUD and `nettest.json` in `<dir>`, quit; the server is gone afterwards).
 (game parts off), `--walktest <dir>` (Jef is walked along a few routes by script; what happened goes to
 `<dir>/walktest.json` with two pictures a route, then quit; `--walkspeed 2` runs it faster, `--walkonly a,b` picks
-routes), `--solidlazy` (make the walls near the camera only), `--city <json>` (`shared/city.json` somewhere else).
+routes), `--movetest <dir>` (Jef's jump, coyote time and jump buffer, a fall off a ledge, the quay ladder, a landing
+and the flooded steps at high water, the hulls' shape, a dive under a moored ship, the crane's ladder on and off, over
+the gallery's railing and back: every frame sampled, the jump's arc and timings and the largest step of the view in a
+sixtieth of a second in `movetest.json`, pictures beside it; `--moveonly jump,dive` picks parts, `--move-breath` adds
+a dive that runs out of breath; with a server it needs its own `--db` and gets Jef off the arrival ferry, and the
+tide checks set the server's clock too), `--solidlazy` (make the walls near the camera only), `--city <json>` (`shared/city.json` somewhere else).
 (game parts off). The townspeople: `--server http://127.0.0.1:PORT` (a running game server: the town comes from
 it), `--hour 13.5` and `--day 1` (the clock; with `--weather`, the game's server is set to the same clock and sky
 at the start, so the light, the HUD and the people agree), `--models <dir>`, `--walk <town_walk.json>`, `--peopletest <dir>` and
@@ -103,7 +108,12 @@ change the save), the tide (now, held at high or low water, follow the clock: `T
 up the canal or the vliet: `Bridges.PassNow`; thick fog and a rain shower: `Daylight`; every director template
 through `/api/dev/director`, started at once with Jef put in front of it; the director's think and invent), Jef
 (needs full, +100 c, fly), the "Go to" places, and the console's line. F9 is the free camera (WASD where you look,
-the mouse, Space up, C down, Shift fast); F9 again lands Jef under it, or back where he took off. The self-test: `-- --no-ai --port N --db <dir>/test.sqlite --prefs <dir>/settings.json
+the mouse, with the player's own keys from Controls: the walk keys, Jump up, Crouch down, Hurry fast, the wheel for
+speed; the mouse speed and invert of the settings). The camera lives in the game's SubViewport, which the window's
+mouse events never reach: Jef's part hands them to it (`FlyCam.Handle`). While flying the game sends no moves (the
+server keeps Jef where he took off); the first after landing is a snap. F9 again lands Jef under it, or back where
+he took off. `--flytest <dir>` proves it through the real input path (events through `Input.ParseInputEvent`, the
+server's log free of refused moves). The self-test: `-- --no-ai --port N --db <dir>/test.sqlite --prefs <dir>/settings.json
 --devsheettest <dir>` (no `--dev`: it types `dev on` in the console and tries the combo) clicks every button and checks its effect, with pictures and
 `devsheettest.json`; about ten minutes.
 
@@ -168,6 +178,18 @@ fallback cannot certify room floors, containment, seams, shader-only cutouts, or
   Godot's importer drops. Dev: `--roomhours <dir>` proves the rooms' hours from the server; a `--snap` view named
   `cateye`, `moth`, `gutter` or `surf` looks at the nearest one. Browser pictures from the same views:
   `node tools/godot/look-refs.mjs --root <checkout> --out <dir> --views "..."`.
+  `Gulls.cs` (with `GullModel.cs`) takes over the browser's ambient birds (`ambient_birds`, frozen in the bake):
+  herring gulls and the squares' pigeons, each made in code from eight parts (body, head, two arms, two hands, two
+  legs), one MultiMesh a part, posed every frame from C# on a fixed pool with the bats' psx material (no new shader
+  kind). By day the gulls wheel over the water near the camera, follow fishing boats (`Movers/River`), stand on
+  bollards, roof ridges and the rails of moored boats (`Movers/Boats.Rails.cs`), float, and squabble on the
+  Vismarkt; at dusk all come down; Jef puts them up. Long flights are a steered cruise (constant speed, limited
+  turn) ending in a short curve, so no bird slows to a stop in the air. `Gulls.I.Caller(at)` gives the soundscape
+  a gull to call from. Self-test: `--gulltest <absolute dir>` (by day no flying gull under 1.5 m/s or jumping,
+  take-offs and landings; one walked at flies off; at night all down within 60 s and none up on its own; the
+  part's cost and allocations; `gulltest.json`, exit 1 on a failure). `--snap` views named `gullperch`,
+  `gullwater`, `gullrail`, `gullridge`, `gullmarket`, `gullfly1..`, `gullunder`, `gullsky` and `pigeon` look at
+  the nearest such bird; `gullsheet0..3` poses six birds in front of the camera to judge the model.
   Not ported yet: the drops off every eave (only the broken gutters run), the horses' breath, the bats, the
   ships' riding lights (`alive_ship_lights`, `boat_lamps`: the movers part), the pumps' bilge water, the
   lightning and the flying debris.

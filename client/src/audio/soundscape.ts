@@ -334,6 +334,17 @@ export class Soundscape {
   private mixBuses = new Map<AudioNode, Partial<Record<MixKind, GainNode>>>();
 
   /** A kind's gain into `dest` (the street's master, or the room's bus inside): made once for each pair. */
+  private underLp!: BiquadFilterNode;
+  private underGain!: GainNode;
+  /** How far under the water the ear is: 0 in the air, 1 under it; deeper is duller still (as godot/src/Audio/SoundUnderwater.cs). */
+  underwater(amount: number, depth: number): void {
+    if (!this.underLp) return;
+    const t = this.ctx.currentTime;
+    const cut = 520 / (1 + Math.max(0, depth) * 0.25);
+    this.underLp.frequency.setTargetAtTime(20000 + (cut - 20000) * amount, t, 0.03);
+    this.underGain.gain.setTargetAtTime(Math.pow(10, (-9 * amount) / 20), t, 0.03);
+  }
+
   private bus(kind: MixKind, dest: AudioNode = this.master): GainNode {
     let m = this.mixBuses.get(dest);
     if (!m) this.mixBuses.set(dest, (m = {}));
@@ -377,7 +388,12 @@ export class Soundscape {
     // must be heard sets `__scheldemist.sound.speaker.gain.value = 1`.
     this.speaker = this.ctx.createGain();
     this.speaker.gain.value = typeof location !== "undefined" && location.port && location.port !== "5173" ? 0 : 1;
-    comp.connect(this.speaker).connect(this.ctx.destination);
+    // 2026-10-11 diving: under the water the whole town comes dull and far (underwater())
+    this.underLp = this.ctx.createBiquadFilter();
+    this.underLp.type = "lowpass";
+    this.underLp.frequency.value = 20000;
+    this.underGain = this.ctx.createGain();
+    comp.connect(this.underLp).connect(this.underGain).connect(this.speaker).connect(this.ctx.destination);
     this.master.connect(this.streetLp).connect(comp);
     this.street = this.master;
     this.room = this.ctx.createGain();

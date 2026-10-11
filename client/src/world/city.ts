@@ -240,16 +240,83 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
   }
 
   // --- edge stones along every seam where two pavings meet (tools/city/plan.py ground edges):
-  // a row of long granite kerbs covers the cut, as in a real street
+  // a row of long granite kerbs covers the cut, as in a real street.
+  // Real stones (2026-10-11, Steve: "lighter curbstones flicker everywhere. If you would've worked with different
+  // heights it would not have been an issue"): they were a flat strip in the ground's own plane, kept in front by
+  // a polygonOffset that the Godot game does not carry, so there the cobbles and the stones took turns. Now each
+  // row is a stone of its own: a worn top 2 cm proud of the paving, its long edges rounded down and set 8 mm into
+  // the ground, so no part of it lies in the ground's plane. The pavings on both sides lie at one level (a street
+  // meeting a square or a quay): no kerb to step, the toe goes over it (the walk keeps y 0). Each row stands a
+  // millimetre higher than the one before it (in threes), so where two rows meet or cross one top is always the
+  // upper one.
   {
     const edges = ((data as unknown as { ground?: { edges?: Array<Array<[number, number]>> } }).ground?.edges ?? []) as Array<Array<[number, number]>>;
     const W = 0.34;
     // (2026-09-27, Steve: the kerbs "should seem higher in bumpmapping") their own height map: slabs with rounded
     // edges falling into the joints, lit on the side toward a light (world/paving.ts edgeStoneTextures)
     const edge = edgeStoneTextures();
+    // the stone's cross-section: [across (m, from the seam's line), up (m)], from one side to the other
+    const PROFILE: Array<[number, number]> = [
+      [-W / 2 - 0.008, -0.008],
+      [-W / 2 + 0.006, 0.009],
+      [-W / 2 + 0.026, 0.016],
+      [-W / 2 + 0.05, 0.019],
+      [W / 2 - 0.05, 0.019],
+      [W / 2 - 0.026, 0.016],
+      [W / 2 - 0.006, 0.009],
+      [W / 2 + 0.008, -0.008],
+    ];
+    // each point's normal in the section (across, up): the mean of its two sides
+    const secN = PROFILE.map((_, i) => {
+      let na = 0;
+      let nu = 0;
+      for (const j of [i - 1, i]) {
+        if (j < 0 || j >= PROFILE.length - 1) continue;
+        const da = PROFILE[j + 1][0] - PROFILE[j][0];
+        const du = PROFILE[j + 1][1] - PROFILE[j][1];
+        const l = Math.hypot(da, du);
+        na += -du / l;
+        nu += da / l;
+      }
+      const l = Math.hypot(na, nu);
+      return [na / l, nu / l] as [number, number];
+    });
     const pos: number[] = [];
+    const nor: number[] = [];
     const uv: number[] = [];
-    for (const line of edges) {
+    // the stretches laid so far, by 2 m cell: where a line runs back over itself, or another line runs along it
+    // (the plan's seams come in twos and threes a few cm apart), the stones are laid there once: two stones in
+    // one place fought (z-fight check). Looked at in pieces of 0.3 m, so a stretch that is only partly laid
+    // already gets the rest.
+    const laid = new Map<string, Array<[number, number, number, number]>>();
+    const nearLaid = (x: number, z: number, dx: number, dz: number): boolean => {
+      for (let i = -1; i <= 1; i++)
+        for (let j = -1; j <= 1; j++)
+          for (const [ax, az, bx, bz] of laid.get(`${Math.floor(x / 2) + i},${Math.floor(z / 2) + j}`) ?? []) {
+            const ex = bx - ax;
+            const ez = bz - az;
+            const l2 = ex * ex + ez * ez;
+            const t = Math.max(0, Math.min(1, ((x - ax) * ex + (z - az) * ez) / l2));
+            if (Math.hypot(ax + ex * t - x, az + ez * t - z) > 0.1) continue;
+            if (Math.abs(ex * dz - ez * dx) / Math.sqrt(l2) < 0.1) return true; // (parallel within 6 degrees)
+          }
+      return false;
+    };
+    const record = (ax: number, az: number, bx: number, bz: number) => {
+      const steps = Math.ceil(Math.hypot(bx - ax, bz - az) / 2);
+      const seen = new Set<string>();
+      for (let t = 0; t <= steps; t++) {
+        const k = `${Math.floor((ax + ((bx - ax) * t) / steps) / 2)},${Math.floor((az + ((bz - az) * t) / steps) / 2)}`;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        let l = laid.get(k);
+        if (!l) laid.set(k, (l = []));
+        l.push([ax, az, bx, bz]);
+      }
+    };
+    const PIECE = 0.3;
+    edges.forEach((line, li) => {
+      const lift = 0.001 * (li % 3);
       let dist = 0;
       const n = line.length;
       const side = (i: number): [number, number] => {
@@ -262,33 +329,56 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
         const [ax, az] = line[i];
         const [bx, bz] = line[i + 1];
         const L = Math.hypot(bx - ax, bz - az);
+        if (L < 1e-4) continue;
+        const dx = (bx - ax) / L;
+        const dz = (bz - az) / L;
         const [nax, naz] = side(i);
         const [nbx, nbz] = side(i + 1);
-        const h = W / 2;
-        const u0 = dist / 2;
-        const u1 = (dist + L) / 2;
-        dist += L;
-        const A0 = [ax - nax * h, az - naz * h];
-        const A1 = [ax + nax * h, az + naz * h];
-        const B0 = [bx - nbx * h, bz - nbz * h];
-        const B1 = [bx + nbx * h, bz + nbz * h];
-        // two triangles, both wound to face up
-        for (const [p, u, v] of [[A0, u0, 0], [B1, u1, 1], [B0, u1, 0], [A0, u0, 0], [A1, u0, 1], [B1, u1, 1]] as const) {
-          pos.push(p[0], 0, p[1]);
-          uv.push(u, v);
+        // which pieces are laid already
+        const np = Math.max(1, Math.round(L / PIECE));
+        const free = Array.from({ length: np }, (_, p) => !nearLaid(ax + dx * L * ((p + 0.5) / np), az + dz * L * ((p + 0.5) / np), dx, dz));
+        const runs: Array<[number, number]> = [];
+        for (let p = 0; p < np; p++) {
+          if (!free[p]) continue;
+          if (runs.length && runs[runs.length - 1][1] === p) runs[runs.length - 1][1] = p + 1;
+          else runs.push([p, p + 1]);
         }
+        for (const [p0, p1] of runs) {
+          const t0 = p0 / np;
+          const t1 = p1 / np;
+          // the ends: mitred at the line's own corners, square where a piece stops
+          const [sx0, sz0] = p0 === 0 ? [nax, naz] : [-dz, dx];
+          const [sx1, sz1] = p1 === np ? [nbx, nbz] : [-dz, dx];
+          const x0 = ax + (bx - ax) * t0;
+          const z0 = az + (bz - az) * t0;
+          const x1 = ax + (bx - ax) * t1;
+          const z1 = az + (bz - az) * t1;
+          const u0 = (dist + L * t0) / 2;
+          const u1 = (dist + L * t1) / 2;
+          const vert = (k: number, end: 0 | 1) => {
+            const [a, y] = PROFILE[k];
+            const [na, nu] = secN[k];
+            const [px, pz, sx, sz] = end ? [x1, z1, sx1, sz1] : [x0, z0, sx0, sz0];
+            pos.push(px + sx * a, y + (y > 0 ? lift : 0), pz + sz * a);
+            nor.push(sx * na, nu, sz * na);
+            uv.push(end ? u1 : u0, Math.max(0, Math.min(1, (a + W / 2) / W)));
+          };
+          // a strip of quads across the section, every triangle wound to face out of the stone
+          for (let k = 0; k < PROFILE.length - 1; k++) {
+            for (const [kk, e] of [[k, 0], [k + 1, 1], [k, 1], [k, 0], [k + 1, 0], [k + 1, 1]] as const) vert(kk, e);
+          }
+          record(x0, z0, x1, z1);
+        }
+        dist += L;
       }
-    }
+    });
     if (pos.length) {
       const g = new THREE.BufferGeometry();
       g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+      g.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
       g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
-      g.computeVertexNormals();
-      const mat = psx(
-        // no depth written: where two runs of edge stones cross they would fight each other (z-fight check)
-        new THREE.MeshLambertMaterial({ map: edge.map, bumpMap: edge.height, bumpScale: EDGE_BUMP, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -8, depthWrite: false }),
-        { noSnap: true, affine: 0, wet: true },
-      );
+      // (a solid stone now: it writes its depth and needs no offset)
+      const mat = psx(new THREE.MeshLambertMaterial({ map: edge.map, bumpMap: edge.height, bumpScale: EDGE_BUMP }), { noSnap: true, affine: 0, wet: true });
       const seam = new THREE.Mesh(g, mat);
       seam.name = "ground_seams";
       group.add(seam);

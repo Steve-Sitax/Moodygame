@@ -86,7 +86,7 @@ public static class GoodsRules
 {
     public static readonly Dictionary<string, GoodsInfo> Info = new()
     {
-        ["crates"] = new("crate", 0.7f, 0.62f, "wood", 0, -0.72f, -0.86f, "The crate splits along a seam. Coffee beans rattle out onto the stones."),
+        ["crates"] = new("crate", 0.5f, 0.62f, "wood", 0, -0.72f, -0.86f, "The crate splits along a seam. Coffee beans rattle out onto the stones."),
         ["sacks"] = new("sack", 0.3f, 0.6f, "soft", 0, -0.62f, -0.8f, "A seam gives. Grain runs out of the sack in a thin stream."),
         ["barrels"] = new("barrel", 0.9f, 0.55f, "wood", 0, -0.8f, -0.85f, "A stave cracks. It smells sharp and sweet: jenever, leaking into your sleeve."),
         ["hides"] = new("bundle of hides", 0.28f, 0.66f, "soft", 0, -0.6f, -0.8f, "The cord snaps. One of the hides is fine soft leather, the kind a man could sell."),

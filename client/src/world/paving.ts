@@ -237,6 +237,19 @@ export function edgeStoneTextures(): { map: THREE.CanvasTexture; height: THREE.C
   h.wrapS = THREE.RepeatWrapping;
   h.wrapT = THREE.ClampToEdgeWrapping;
   edgeStones = { map: t, height: h };
+  // (2026-10-12) the kerbs are pictures now: bluestone from a Codex picture, point-dressed and weathered, laid as the
+  // painted ones lie (512 x 128 for 2 m along and the band across), with their height map from the same layout
+  // (tools/textures/bluestone_maps.py); the painted ones show until they load
+  Promise.all([loadImage("/textures/bluestone_kerb.jpg"), loadImage("/textures/bluestone_kerb_h.png")])
+    .then(([col, hgt]) => {
+      // (a CanvasTexture is typed to hold a canvas; a picture serves it the same)
+      (t as THREE.Texture).image = col;
+      (h as THREE.Texture).image = hgt;
+      t.magFilter = THREE.LinearFilter;
+      t.anisotropy = 8;
+      swapped(t, h);
+    })
+    .catch((e) => console.warn("kerb pictures did not load: the painted kerbs stay", e));
   return edgeStones;
 }
 export const edgeStoneTexture = (): THREE.CanvasTexture => edgeStoneTextures().map;
@@ -504,6 +517,22 @@ export function settsPaving(): Paving {
  * The stone map (id) follows stones(): r its number, g 1 on a stone, b 1 where it runs on from the tile before.
  */
 export function flagPaving(): Paving {
+  // (2026-10-12, Steve: "make the textures of the flat stones and borders with that kind of detail", the quay wall's)
+  // the flags are pictures now: real bluestone from a Codex picture laid as paving at 2.56 px a cm, 1024 px for the
+  // 4 m tile, its height and stone map from the same layout (tools/textures/bluestone_maps.py). One set for every
+  // user (the squares, the pavements and door steps, the Rond), so the pictures are in memory once; the painted
+  // flags below show until they load.
+  if (flagShared) return flagShared;
+  const p = withPictures(paintedFlags(), { map: "/textures/bluestone_flags.jpg", height: "/textures/bluestone_flags_h.png", id: "/textures/bluestone_flags_id.png" });
+  // (no PS1 pixels up close any more: the art direction of 2026-10-11)
+  p.map.magFilter = THREE.LinearFilter;
+  p.map.anisotropy = 8;
+  flagShared = p;
+  return p;
+}
+let flagShared: Paving | null = null;
+
+function paintedFlags(): Paving {
   const n = 256;
   const [mc, mg, hc, hg] = canvasPair(n);
   const hImg = hg.createImageData(n, n);

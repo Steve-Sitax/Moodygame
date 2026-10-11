@@ -602,6 +602,7 @@ player.onSplash = (x, z) => {
   if (player.locked || player.freeInput) api.swim().then((p) => jobs.refresh(p)).catch(() => {});
 };
 player.onStroke = () => sound?.swimStroke();
+player.say = (t) => jobs.say(t);
 
 /** Paused: the picture wants drawing again (a resize, a setting changed). The menu first: see MENU_QUIET_MS. */
 let standDirty = false;
@@ -1146,6 +1147,37 @@ function frame(): void {
   player.stalled = real.now() - frameStart > 150;
 }
 
+/**
+ * The eye under the water (2026-10-11 diving, as godot/src/World/Underwater.cs): the air is the river's murk, close
+ * and dark and darker deeper down, and the sounds come dull. The world sets its fog every frame; this comes after.
+ */
+const MURK = new THREE.Color(0.1, 0.13, 0.085);
+let underSound = 0;
+function underwater(dt: number): void {
+  const c = player.camera.position;
+  const level = world.waterLevel(c.x, c.z);
+  const under = world.isWater(c.x, c.z) && c.y < level - 0.01;
+  const depth = under ? level - c.y : 0;
+  underSound = under ? 1 : Math.max(0, underSound - dt * 5);
+  sound?.underwater(underSound, depth);
+  const fog = world.scene.fog as THREE.Fog | null;
+  if (!under || !fog) return;
+  const lum = fog.color.r * 0.3 + fog.color.g * 0.59 + fog.color.b * 0.11;
+  fog.color.copy(MURK).multiplyScalar(Math.min(1.2, Math.max(0.08, lum * 2.2)) * Math.exp(-depth * 0.22));
+  fog.near = -0.8;
+  fog.far = Math.max(4, 7 - depth * 0.4);
+  (world.scene.background as THREE.Color | null)?.copy?.(fog.color);
+  // the sky's dome keeps its own fog (world/sky.ts, set by the world each frame): under the water it is all murk
+  underSky ??= (world.scene.getObjectByName("cloud_sky") as THREE.Mesh | undefined) ?? null;
+  const u = (underSky?.material as THREE.ShaderMaterial | undefined)?.uniforms;
+  if (u?.uFogNear && u.uFogFar) {
+    u.uFogNear.value = -1;
+    u.uFogFar.value = 0.5;
+  }
+  (u?.uAir?.value as THREE.Color | undefined)?.copy(fog.color);
+}
+let underSky: THREE.Mesh | null | undefined;
+
 /** One frame of the game: every part moves by dt, then the picture is drawn (frame(), and the frame profiler). */
 function tick(dt: number): void {
   elapsed += dt;
@@ -1155,6 +1187,7 @@ function tick(dt: number): void {
   safe("craneClimb.ride", () => craneClimb.ride()); // up on a working crane: carried before his own step
   safe("ferry.update", () => ferry.update(dt));
   safe("player.update", () => player.update(dt));
+  safe("underwater", () => underwater(dt));
   safe("together.frame", () => together.frame(dt)); // M8a: own state out, the others drawn
   safe("handcarts.update", () => handcarts.update(dt));
   safe("interiors.update", () => interiors.update(dt));

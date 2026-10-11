@@ -1,3 +1,5 @@
+import { crateMesh } from "./crateModel";
+import { crateHeight } from "../../../shared/crateCatalog";
 import * as THREE from "three";
 import { psx } from "../retro/psx";
 import { Human, makeHuman, whenHumans, type HumanKind } from "./humans";
@@ -131,7 +133,7 @@ export class Figure {
   private netSpeed = 0;
   private netY = 0;
   private netCarry = false;
-  private netCrate: THREE.Mesh | null = null;
+  private netCrate: THREE.Object3D | null = null;
 
   /** What the other players are sent of this figure now (its feet, heading, pace and what it does); `out` is filled when given. */
   netLook(out?: FigureLook): FigureLook {
@@ -161,8 +163,15 @@ export class Figure {
     if (carrying !== this.netCarry) {
       this.netCarry = carrying;
       if (carrying) {
-        // (a crate in his arms: the grey box's own kind of material, no new shader)
-        this.netCrate ??= new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.4, 0.4), mat(0x6b5236));
+        // (a crate in his arms: the one crate of the town at its small class, game/crateModel.ts; held by its middle)
+        if (!this.netCrate) {
+          const c = crateMesh(0, { cls: "small" });
+          if (c) {
+            this.netCrate = new THREE.Group();
+            c.position.y = -crateHeight("small") / 2;
+            this.netCrate.add(c);
+          } else this.netCrate = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.44, 0.49), mat(0x6b5236));
+        }
         this.hold(this.netCrate);
       } else this.netCrate?.removeFromParent();
     }
@@ -266,6 +275,6 @@ export class Figure {
     LIVE_FIGURES.delete(this);
     this.scene.remove(this.group);
     this.human?.dispose();
-    this.netCrate?.geometry.dispose();
+    if (this.netCrate instanceof THREE.Mesh) this.netCrate.geometry.dispose(); // (the one crate's geometry is shared)
   }
 }

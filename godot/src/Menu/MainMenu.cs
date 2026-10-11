@@ -60,6 +60,9 @@ public partial class MainMenu : Node
     private bool walkMode;
     private string walkTitle = "", walkText = "";
 
+    /// <summary>A self-test that works the menus by script (no benchmark, no pause when its window loses focus).</summary>
+    public static bool ScriptedRun => Main.I.Arg("menutest") != "" || Main.I.Arg("devsheettest") != "" || Main.I.Arg("flytest") != "";
+
     /// <summary>Do the menus belong in this run? Not in one that takes its own pictures or tests another part.</summary>
     public static bool Wanted(Main main)
     {
@@ -71,7 +74,7 @@ public partial class MainMenu : Node
         string only = main.Arg("only");
         if (only != "" && !only.Split(',').Contains("mainmenu")) return false;
         foreach (string a in OS.GetCmdlineUserArgs())
-            if (a == "--shots" || (a.StartsWith("--") && a.EndsWith("test") && a != "--menutest" && a != "--togethertest" && a != "--devsheettest"))
+            if (a == "--shots" || (a.StartsWith("--") && a.EndsWith("test") && a != "--menutest" && a != "--togethertest" && a != "--devsheettest" && a != "--flytest"))
                 return false;
         return true;
     }
@@ -540,7 +543,7 @@ public partial class MainMenu : Node
         Pause.Set("key", false);
         Pause.Set("menu", false);
         RefreshNav();
-        if (first && !Prefs.Bool("benchDone") && Main.I.Arg("menutest") == "" && Main.I.Arg("devsheettest") == "") Apply.RunBenchmark();
+        if (first && !Prefs.Bool("benchDone") && !ScriptedRun) Apply.RunBenchmark();
         WalkedIn?.Invoke();
     }
 
@@ -601,7 +604,7 @@ public partial class MainMenu : Node
     {
         if (I != this) return;
         // the window was left: a quiet pause, only a small hint (no menu for a snipping tool)
-        if (what == NotificationApplicationFocusOut && InPlay && Main.I.Arg("menutest") == "" && Main.I.Arg("devsheettest") == "")
+        if (what == NotificationApplicationFocusOut && InPlay && !ScriptedRun)
         {
             quiet = true;
             Input.MouseMode = Input.MouseModeEnum.Visible;

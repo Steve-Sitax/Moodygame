@@ -1,3 +1,5 @@
+import { pickCrate } from "../game/crateModel";
+import { CRATE_CLASS, CRATE_D, CRATE_H, crateHeight } from "../../../shared/crateCatalog";
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { labelGeo, pickSack, sackGeometry, sackMaterial, sackMesh } from "../game/sackModel";
@@ -1354,7 +1356,8 @@ export function buildVleeshuis(): LandmarkRoom {
     for (const [x, z, n] of [[-6.5, 2.2, 5], [3.6, 12.8, 4], [14.0, 2.0, 3]] as Array<[number, number, number]>)
       for (let i = 0; i < n; i++) ka.barrel(x + (i % 3) * 0.8, AT + 0.36 + Math.floor(i / 3) * 0.62, z + Math.floor(i / 3) * 0.3, wood, hoop, { lying: true, ry: Math.PI / 2, tint: 0.6 + r() * 0.2 });
     for (const [x, z, s] of [[-2.0, 12.9, 0.7], [-1.1, 12.8, 0.55], [-1.6, 12.9, 0.45], [20.5, 1.6, 0.7], [21.3, 1.5, 0.6]] as Array<[number, number, number]>)
-      ka.box(s, s, s, x, AT + s / 2 + (s < 0.5 ? 0.7 : 0), z, H.crate, { ry: r() * 0.4, tint: 0.7 });
+      // (the one crate of the town, scaled to the old box's depth: game/crateModel.ts)
+      ka.crate(x, AT + (s < 0.5 ? CRATE_H * (0.7 / CRATE_D) : 0), z, s / CRATE_D, pickCrate(`vleeshuis:${x},${z}`), H.crate, { ry: r() * 0.4 });
     for (const [x, ry] of [[-12.6, 0.18], [-12.2, 0.12], [-11.8, 0.06]] as Array<[number, number]>) ka.box(0.04, 2.6, 3.2, x, AT + 1.25, 12.2, H.backdrop, { rz: ry, tint: 0.65 });
     ka.cyl(0.35, 0.35, 0.18, 8.2, AT, 12.9, H.rope, { seg: 8, tint: 0.7 });
   }
@@ -1866,7 +1869,7 @@ function oostershuisParts(group: THREE.Group): void {
             for (let lvl = 0; lvl < 2; lvl++) {
               if (lvl && r() < 0.35) continue;
               const [x, z] = at(a + n * 1.2 - 1.2, c);
-              kk.box(1.1, 0.8, 0.9, x, y + 0.4 + lvl * 0.82, z, H.crate, { tint: 0.9 + r() * 0.2, ry });
+              kk.crate(x, y + lvl * crateHeight("large"), z, CRATE_CLASS.large, pickCrate(`oostershuis:${Math.round(x)},${Math.round(z)}#${lvl}`), H.crate, { ry: ry + (r() - 0.5) * 0.06 });
             }
         } else if (kind < 0.8) {
           for (let n = 0; n < 3; n++)
@@ -2078,7 +2081,8 @@ export function buildOostershuis(): LandmarkRoom {
     } else if (kind === "crates") {
       const cx = Math.max(1, Math.floor((x1 - x0) / 1.15));
       const cz = Math.max(1, Math.floor((z1 - z0) / 0.95));
-      for (let i = 0; i < cx; i++) for (let j = 0; j < cz; j++) for (let lvl = 0; lvl < 2; lvl++) if (lvl === 0 || r() < 0.6) k.box(1.1, 0.8, 0.9, x0 + 0.57 + i * 1.15, 0.4 + lvl * 0.82, z0 + 0.47 + j * 0.95, H.crate, { tint: 0.9 + r() * 0.2 });
+      // (the one crate of the town at its large class, a lot per stack: game/crateModel.ts)
+      for (let i = 0; i < cx; i++) for (let j = 0; j < cz; j++) for (let lvl = 0; lvl < 2; lvl++) if (lvl === 0 || r() < 0.6) k.crate(x0 + 0.57 + i * 1.15, lvl * crateHeight("large"), z0 + 0.47 + j * 0.95, CRATE_CLASS.large, pickCrate(`hall:${x0},${z0}`), H.crate, { ry: (r() - 0.5) * 0.06 });
     } else {
       for (let x = x0 + 0.4; x < x1 - 0.3; x += 0.8) k.barrel(x, 0.48, (z0 + z1) / 2, wood, hoop, { tint: 0.85 + r() * 0.3 });
     }

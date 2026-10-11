@@ -57,6 +57,10 @@ export interface LitterOptions {
   probe?: WallProbe;
   /** The ground as built: a heap stands flat on the street, not half on a kerb. */
   ground?: GroundProbe;
+  /** The water as drawn (the river, the docks, the canals: shared/city.json's water): the heaps keep 3 m off it. */
+  isWater?: (x: number, z: number) => boolean;
+  /** On (or within r of) the quay railway's tracks (world.onRails): the heaps keep off them. */
+  onRails?: (x: number, z: number, r: number) => boolean;
 }
 
 export interface Litter {
@@ -112,6 +116,7 @@ interface SLMeta {
 
 const OPEN = 0;
 const WATER = 2;
+const OUTSIDE = 4;
 const CH = 32;
 const X0 = TOWN.x0;
 const Z0 = TOWN.z0;
@@ -909,6 +914,18 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
   }
 
   await sleep(0);
+  /** Dry ground all round (x, z) out to `R`: no water of the walk map nor of the water as drawn, nothing off the map. */
+  const dryRound = (x: number, z: number, R: number): boolean => {
+    if ((at(x, z) & (WATER | OUTSIDE)) || opts.isWater?.(x, z)) return false;
+    for (const d of [R * 0.5, R * 0.8, R])
+      for (let k = 0; k < 24; k++) {
+        const a = (k / 24) * Math.PI * 2;
+        const px = x + Math.cos(a) * d;
+        const pz = z + Math.sin(a) * d;
+        if (at(px, pz) & (WATER | OUTSIDE) || opts.isWater?.(px, pz)) return false;
+      }
+    return true;
+  };
   // ================================================================ 10. heaps: refuse in back corners, a stable's manure heap
   R = rng(seed + 10 * 7919);
   {
@@ -950,10 +967,6 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
       if (inR(START, x, z, 10) || bridges.some((q) => inR(q, x, z, 4)) || nearSteps(x, z, 3)) return null;
       if (clear.some((q) => Math.hypot(q.x - x, q.z - z) < q.r + 6) || houseDoors.some((d) => Math.hypot(d.x - x, d.z - z) < 4.5)) return null;
       if (roadNear(x, z, 5) || chosen.some((q) => Math.hypot(q.x - x, q.z - z) < 50)) return null;
-      for (let k = 0; k < 8; k++) {
-        const a = (k / 8) * Math.PI * 2;
-        if (at(x + Math.cos(a) * 3.5, z + Math.sin(a) * 3.5) & WATER) return null;
-      }
       // (no wall of the buildings as built within its reach, at its foot and its middle; flat on the street,
       // not half on a kerb: the prop check)
       for (let k = 0; k < 16; k++) {
@@ -962,6 +975,10 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
         const g = opts.ground?.(x + Math.cos(a) * r * 0.8, z + Math.sin(a) * r * 0.8, 0.4);
         if (g !== undefined && g !== null && Math.abs(g) > 0.04) return null;
       }
+      // (Steve 2026-10-11: the manure heap hung over the quay wall, beside a bollard and the rails: "make sure to not
+      // put it on the track either". On solid ground, 3 m clear of the water and the quay's edge all round, off the
+      // tracks; the walk map's water and the water as drawn)
+      if (!dryRound(x, z, r + 1.6) || opts.onRails?.(x, z, r + 1.5)) return null;
       return [x, z] as P;
     };
     // the stable yard: a corner near where the drays stand (their stables), else any
@@ -1004,7 +1021,7 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
         // the dung collector's barrow beside it, a broom on it
         const bx = c.x - c.wz * 2.3 - c.wx * 0.4;
         const bz = c.z + c.wx * 2.3 - c.wz * 0.4;
-        if (open(bx, bz, 0.9) && !avoid.some((q) => inR(q, bx, bz, 1))) {
+        if (open(bx, bz, 0.9) && !avoid.some((q) => inR(q, bx, bz, 1)) && dryRound(bx, bz, 1.5) && !opts.onRails?.(bx, bz, 1.2)) {
           puts.push({ layer: "solid", name: "dung_barrow", x: bx, y: 0, z: bz, yaw: yaw + 1.2, sx: 1, sz: 1, shade: 1, set });
           count("dung_barrow");
           const barrow = protos.get("dung_barrow")!;
@@ -1658,6 +1675,12 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
   // of a mark on open ground (not in a wall, not over the water) and on the ground as built at the mark's own height
   // (not floating over a street off a kerb, not under a step); the solid bits are propcheck()'s.
   group.userData.stats = () => ({ counts, solid: solidPuts.length, flat: flatPuts.length, triangles });
+  // the Godot bake (tools/godot/export-scene.mjs writes each BatchedMesh's shown copies as one plain mesh): every chunk
+  // shown, the markets' waste as at this hour, whatever the camera
+  group.userData.forBake = () => {
+    for (const inst of insts) inst.batch.setVisibleAt(inst.id, inst.market ? (inst.u ?? 0) < levels[inst.market] : true);
+    for (const k of chunkShown.keys()) chunkShown.delete(k);
+  };
   group.userData.check = (o: { only?: string } = {}) => {
     const list: Array<{ name: string; at: [number, number]; why: string }> = [];
     let marks = 0;

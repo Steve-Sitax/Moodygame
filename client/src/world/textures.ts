@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { withPicture } from "./quayStone";
 
 // Placeholder textures, painted in code at 64x64. Crushed and dirty on purpose.
 // No third-party images. Replace with the Blender kit later (docs/05).
@@ -226,6 +227,17 @@ export function makeTextures() {
   // (the bump audit, 2026-09-26: each named for what it shows, for its bump from its own picture: world/bumps.ts)
   const all = { cobble, quayWall, brick, planks, water, iron, hull, crate, slate, sack, rope };
   for (const [k, t] of Object.entries(all)) t.name = k;
+  // (2026-10-12, Steve: "all textures with the same detail" as the quay wall) the wood planks and the rope are Codex
+  // pictures now (docs/plans/textures.md): five weathered oak and pine boards a tile as the painted ones, at 512 px,
+  // and tarred hemp at 256 px; mipmaps, no PS1 pixels up close. The painted ones show until they load; their bumps
+  // are made again from the pictures (psx.ts bumpFromMap, onPicture).
+  for (const [t, url] of [[planks, "/textures/wood_planks.jpg"], [rope, "/textures/rope_hemp.jpg"]] as const) {
+    t.magFilter = THREE.LinearFilter;
+    t.minFilter = THREE.LinearMipmapLinearFilter;
+    t.generateMipmaps = true;
+    t.anisotropy = 8;
+    withPicture(t, url);
+  }
   return all;
 }
 

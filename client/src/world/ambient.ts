@@ -13,6 +13,7 @@ import GUILDS from "../../../shared/city_guild_fronts.json";
 import { YARD_PANE_OFF, yardPanes } from "./yardWindows";
 import { tempest } from "./tempest";
 import { neverMirrored } from "./mirror";
+import { levelAt } from "./tide";
 
 /**
  * M7 taverns and homes: the houses whose insides stand in the world light their own windows (the room itself
@@ -336,49 +337,130 @@ function buildSmoke(chimneys: Chimney[]): THREE.Points {
 
 // ------------------------------------------------------------------ 2. birds
 
-/** A bird of about 1.3 m span (a gull): forward +z, wings along x. Pigeons are the same, smaller. */
+/**
+ * A herring gull of about 1.45 m span (the Godot game's godot/src/World/GullModel.cs, the same shapes): forward +z,
+ * wings along x, smooth lofted body and head, the yellow bill with the red spot, pale eye, grey back and wings with
+ * black tips, white mirrors and tips, white tail, pink legs (aPart 1: tucked back in flight by the shader). Pigeons
+ * are the same, smaller and tinted. The wing starts inside the body at |x| 0.06; the shader bends and folds from 0.08.
+ */
 function birdGeometry(): THREE.BufferGeometry {
   const P: number[] = [];
   const C: number[] = [];
-  const tri = (a: number[], b: number[], c: number[], col: number[]) => {
-    P.push(...a, ...b, ...c);
-    C.push(...col, ...col, ...col);
+  const A: number[] = [];
+  const I: number[] = [];
+  const srgb = (r: number, g: number, b: number) => new THREE.Color().setRGB(r, g, b, THREE.SRGBColorSpace);
+  const white = srgb(0.82, 0.82, 0.8), belly = srgb(0.84, 0.84, 0.83), mantle = srgb(0.55, 0.59, 0.63), black = srgb(0.07, 0.07, 0.08);
+  const bill = srgb(0.95, 0.78, 0.22), spot = srgb(0.82, 0.13, 0.08), pink = srgb(0.86, 0.64, 0.6), under = srgb(0.78, 0.79, 0.8), tipUnder = srgb(0.24, 0.24, 0.26);
+  const eye = srgb(0.92, 0.86, 0.55);
+  /** A grid rows x n (row-major points), the columns closed round when wrap. */
+  const grid = (pts: THREE.Vector3[], cols: THREE.Color[], rows: number, n: number, wrap: boolean, part = 0) => {
+    const b = P.length / 3;
+    pts.forEach((p, i) => {
+      P.push(p.x, p.y, p.z);
+      C.push(cols[i].r, cols[i].g, cols[i].b);
+      A.push(part);
+    });
+    const kc = wrap ? n : n - 1;
+    for (let r = 0; r < rows - 1; r++)
+      for (let k = 0; k < kc; k++) {
+        const k1 = (k + 1) % n;
+        const a = b + r * n + k, bb = b + r * n + k1, c = b + (r + 1) * n + k1, d = b + (r + 1) * n + k;
+        I.push(a, bb, c, a, c, d);
+      }
   };
-  const white = [0.92, 0.92, 0.9];
-  const grey = [0.62, 0.64, 0.66];
-  const dark = [0.12, 0.12, 0.13];
-  const beak = [0.85, 0.65, 0.2];
-  // body: a stretched diamond
-  const nose = [0, 0.01, 0.3];
-  const tail = [0, 0.0, -0.24];
-  const top = [0, 0.065, 0.02];
-  const bot = [0, -0.07, 0.03];
-  const l = [-0.075, 0, 0.03];
-  const r = [0.075, 0, 0.03];
-  tri(nose, r, top, white);
-  tri(nose, top, l, white);
-  tri(nose, bot, r, white);
-  tri(nose, l, bot, white);
-  tri(tail, top, r, grey);
-  tri(tail, l, top, grey);
-  tri(tail, r, bot, white);
-  tri(tail, bot, l, white);
-  tri([0, 0.012, 0.36], [-0.015, 0.005, 0.29], [0.015, 0.005, 0.29], beak);
-  // tail fan
-  tri([-0.07, 0.01, -0.34], [0.07, 0.01, -0.34], [0, 0.01, -0.18], grey);
+  /** A tube along a path in the middle plane: super-ellipse rings w across, h up. */
+  const loft = (path: number[][], w: number[], h: number[], seg: number, ex: number, col: (i: number, a: number, q: THREE.Vector3) => THREE.Color, part = 0) => {
+    const pts: THREE.Vector3[] = [];
+    const cols: THREE.Color[] = [];
+    const s = new THREE.Vector3(1, 0, 0);
+    for (let i = 0; i < path.length; i++) {
+      const p0 = path[Math.max(i - 1, 0)], p1 = path[Math.min(i + 1, path.length - 1)];
+      const t = new THREE.Vector3(p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]).normalize();
+      const u = new THREE.Vector3().crossVectors(t, s).normalize();
+      for (let k = 0; k < seg; k++) {
+        const a = (k * Math.PI * 2) / seg;
+        const ca = Math.cos(a), sa = Math.sin(a);
+        const ce = Math.sign(ca) * Math.pow(Math.abs(ca), 2 / ex), se = Math.sign(sa) * Math.pow(Math.abs(sa), 2 / ex);
+        const q = new THREE.Vector3(path[i][0], path[i][1], path[i][2]).addScaledVector(s, w[i] * ce).addScaledVector(u, h[i] * se);
+        pts.push(q);
+        cols.push(col(i, a, q));
+      }
+    }
+    grid(pts, cols, path.length, seg, true, part);
+  };
+  // the body, breast to rump: [z, half width, half height, centre height]
+  const st = [[0.165, 0.01, 0.012, 0.036], [0.15, 0.032, 0.036, 0.031], [0.125, 0.054, 0.058, 0.018], [0.09, 0.069, 0.071, 0.006], [0.045, 0.074, 0.075, -0.002], [0, 0.075, 0.071, -0.005], [-0.045, 0.071, 0.064, -0.003], [-0.09, 0.06, 0.053, 0.003], [-0.13, 0.044, 0.037, 0.01], [-0.16, 0.028, 0.022, 0.015], [-0.18, 0.012, 0.01, 0.017], [-0.188, 0.002, 0.002, 0.018]];
+  loft(st.map((r) => [0, r[3], r[0]]), st.map((r) => r[1]), st.map((r) => r[2]), 16, 2.2, (_i, a, q) => {
+    const up = Math.sin(a);
+    return up > 0.42 && q.z < 0.105 && q.z > -0.115 ? mantle : up < -0.3 ? belly : white;
+  });
+  // the tail: a flat white fan
+  loft([[0, 0.016, -0.135], [0, 0.02, -0.2], [0, 0.024, -0.26], [0, 0.026, -0.3], [0, 0.026, -0.305]], [0.034, 0.044, 0.052, 0.055, 0.05], [0.014, 0.009, 0.007, 0.005, 0.001], 10, 3.2, () => white);
+  // the neck and the head (up from the breast), then the bill with the red spot under its tip
+  const nk = [0, 0.03, 0.12];
+  const at = (p: number[]) => [p[0] + nk[0], p[1] + nk[1], p[2] + nk[2]];
+  const head = [[0, -0.015, -0.012], [0, 0.012, 0], [0, 0.04, 0.012], [0, 0.062, 0.03], [0, 0.073, 0.052], [0, 0.073, 0.073], [0, 0.068, 0.089], [0, 0.064, 0.097]].map(at);
+  loft(head, [0.036, 0.031, 0.029, 0.032, 0.034, 0.03, 0.02, 0.008], [0.036, 0.031, 0.03, 0.034, 0.037, 0.032, 0.021, 0.009], 14, 2, () => white);
+  const bp = [[0, 0.066, 0.09], [0, 0.065, 0.104], [0, 0.064, 0.118], [0, 0.0625, 0.128], [0, 0.0632, 0.138], [0, 0.062, 0.146], [0, 0.0585, 0.1515], [0, 0.055, 0.153]].map(at);
+  loft(bp, [0.01, 0.0085, 0.0072, 0.0064, 0.005, 0.0036, 0.002, 0.0006], [0.012, 0.0104, 0.0098, 0.0106, 0.0084, 0.0058, 0.003, 0.0008], 8, 2, (i, a) => (i >= 2 && i <= 4 && Math.sin(a) < -0.35 ? spot : bill));
+  // the eyes: a small pale disc with a dark middle each side
   for (const s of [-1, 1]) {
-    const rf = [s * 0.06, 0.012, 0.09];
-    const rb = [s * 0.06, 0.012, -0.08];
-    const mf = [s * 0.36, 0.02, 0.07];
-    const mb = [s * 0.36, 0.02, -0.11];
-    const tip = [s * 0.66, 0.0, -0.13];
-    tri(rf, mf, mb, grey);
-    tri(rf, mb, rb, grey);
-    tri(mf, tip, mb, dark);
+    const c = at([s * 0.0315, 0.0795, 0.0735]);
+    const mid = P.length / 3;
+    P.push(c[0] + s * 0.0005, c[1], c[2]);
+    C.push(black.r, black.g, black.b);
+    A.push(0);
+    for (let k = 0; k < 8; k++) {
+      const a = (k * Math.PI * 2) / 8;
+      P.push(c[0], c[1] + Math.cos(a) * 0.0055, c[2] + Math.sin(a) * 0.0055);
+      C.push(eye.r, eye.g, eye.b);
+      A.push(0);
+    }
+    for (let k = 0; k < 8; k++) I.push(mid, mid + 1 + k, mid + 1 + ((k + 1) % 8));
+  }
+  // the wings: an airfoil from inside the body to the pointed tip; grey, black beyond half the hand, white mirrors and tips
+  const chord = [0, 0.04, 0.12, 0.25, 0.42, 0.6, 0.76, 0.88, 0.95, 1];
+  const span = [0.06, 0.1, 0.16, 0.22, 0.28, 0.34, 0.4, 0.45, 0.5, 0.54, 0.58, 0.61, 0.64, 0.665, 0.69, 0.71, 0.73];
+  const foil = (u: number, k: number, top: boolean) => (top ? k * (0.022 * Math.sqrt(u) * (1 - u) * 2.2 + 0.008 * Math.sin(Math.PI * u)) : k * (-0.004 * Math.sqrt(u) * (1 - u) * 2.2 + 0.006 * Math.sin(Math.PI * u)));
+  for (const s of [-1, 1])
+    for (const top of [true, false]) {
+      const pts: THREE.Vector3[] = [];
+      const cols: THREE.Color[] = [];
+      span.forEach((x, j) => {
+        const hand = Math.max(0, (x - 0.35) / 0.38); // 0 at the wrist, 1 at the tip
+        const le = x < 0.35 ? 0.035 - 0.02 * ((x - 0.06) / 0.29) : 0.015 - 0.135 * Math.pow(hand, 1.8);
+        let te = x < 0.35 ? -0.165 + 0.02 * ((x - 0.06) / 0.29) : -0.145 + 0.012 * hand;
+        if (hand > 0.3 && j % 2 === 1) te += 0.012 * (1 - hand * 0.5);
+        if (j === span.length - 1) te = le - 0.002;
+        const k = x < 0.35 ? 1 - 0.45 * ((x - 0.06) / 0.29) : 0.55 - 0.4 * hand;
+        for (const u of chord) {
+          pts.push(new THREE.Vector3(s * x, foil(u, k, top), le + (te - le) * u));
+          const blk = hand > 0.5, mirror = hand > 0.82 && hand < 0.93 && u > 0.25 && u < 0.8, tip = hand > 0.5 && j % 2 === 0 && u > 0.9;
+          cols.push(mirror || tip ? white : blk ? (top ? black : tipUnder) : top ? (u > 0.86 && x < 0.35 ? white : mantle) : under);
+        }
+      });
+      grid(pts, cols, span.length, chord.length, false);
+    }
+  // the legs: a thin pink shank from the hip, webbed toes forward (aPart 1)
+  for (const s of [-1, 1]) {
+    const hx = s * 0.028;
+    const r = [0.0046, 0.004, 0.0042, 0.0036];
+    loft([[hx, -0.035, -0.005], [hx, -0.06, -0.004], [hx, -0.1, -0.002], [hx, -0.133, 0.001]], r, r, 6, 2, () => pink, 1);
+    const ank = [hx, -0.135, 0.001];
+    const tips = [-0.45, 0, 0.45].map((a, k) => [hx + Math.sin(a) * (k === 1 ? 0.056 : 0.047), -0.139, ank[2] + Math.cos(a) * (k === 1 ? 0.056 : 0.047)]);
+    const b = P.length / 3;
+    for (const p of [ank, ...tips]) {
+      P.push(p[0], p[1], p[2]);
+      C.push(pink.r, pink.g, pink.b);
+      A.push(1);
+    }
+    I.push(b, b + 1, b + 2, b, b + 2, b + 3);
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.Float32BufferAttribute(P, 3));
   g.setAttribute("color", new THREE.Float32BufferAttribute(C, 3));
+  g.setAttribute("aPart", new THREE.Float32BufferAttribute(A, 1));
+  g.setIndex(I);
   g.computeVertexNormals();
   return g;
 }
@@ -1273,26 +1355,34 @@ export function createAmbient(scene: THREE.Scene, city: CityWorld): Ambient {
 
   // --- birds: one instanced mesh for gulls and pigeons
   const MAX_BIRDS = 72;
-  const birdMat = psx(new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, flatShading: true }), { affine: 0 });
+  const birdMat = psx(new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }), { affine: 0 });
   {
     const base = birdMat.onBeforeCompile;
     birdMat.onBeforeCompile = (shader, renderer) => {
       base.call(birdMat, shader, renderer);
       shader.vertexShader = shader.vertexShader
-        .replace("#include <common>", "#include <common>\nattribute vec2 aWing;")
+        .replace("#include <common>", "#include <common>\nattribute vec2 aWing;\nattribute float aPart;")
         .replace(
           "#include <begin_vertex>",
           /* glsl */ `#include <begin_vertex>
           {
-            // wings beat about the body axis (aWing.x, radians); folded along the back (aWing.y)
+            // wings beat about the body axis (aWing.x, radians); folded along the flanks (aWing.y): the arm back, the
+            // hand over the tail with the black tips a little past it
             float ax = abs(transformed.x);
-            float wing = smoothstep(0.07, 0.1, ax);
+            float wing = smoothstep(0.08, 0.11, ax);
+            float fold = aWing.y * wing;
             float a = aWing.x * wing * (1.0 + 0.5 * smoothstep(0.3, 0.6, ax));
-            float bx = mix(ax * cos(a), ax * 0.18, aWing.y * wing);
-            float by = mix(ax * sin(a), 0.035, aWing.y * wing);
-            transformed.z -= aWing.y * wing * ax * 0.45;
+            float bx = mix(ax * cos(a), 0.05 + ax * 0.06, fold);
+            float by = mix(ax * sin(a), 0.05 + ax * 0.02, fold);
+            transformed.z -= fold * max(ax - 0.05, 0.0) * 0.36;
             transformed.x = sign(transformed.x) * mix(ax, bx, wing);
             transformed.y += by * wing;
+            // the legs (aPart 1) tucked back under the tail in flight
+            if (aPart > 0.5) {
+              float t = 1.45 * (1.0 - aWing.y);
+              vec2 r = transformed.yz - vec2(-0.035, -0.005);
+              transformed.yz = vec2(-0.035, -0.005) + vec2(r.x * cos(t) - r.y * sin(t), r.x * sin(t) + r.y * cos(t));
+            }
           }`,
         );
     };
@@ -1545,25 +1635,33 @@ export function createAmbient(scene: THREE.Scene, city: CityWorld): Ambient {
           b.cz = az + ((b.seed * 7.3) % 1 - 0.5) * 10;
           b.prev.set(NaN, 0, 0);
         }
+        // at dusk they come down to the water and sit on it till morning (they never vanish in mid-air): the circle
+        // tightens round its anchor over the river, the bird glides down, folds its wings and drifts
+        const settle = THREE.MathUtils.smoothstep(night, 0.3, 0.58);
         if (b.anchor === -1) {
-          // high over the roofs: the centre drifts after you
-          if (Math.hypot(b.cx - cp.x, b.cz - cp.z) > 90) {
-            b.cx = cp.x + (b.seed - 0.5) * 40;
-            b.cz = cp.z + ((b.seed * 3.7) % 1 - 0.5) * 40;
+          // high over the roofs: the centre drifts after you (at dusk to the water nearest you)
+          const near = settle > 0 ? anchors[nearest()[0]] : null;
+          const tx = near ? near[0] : cp.x + (b.seed - 0.5) * 40;
+          const tz = near ? near[1] : cp.z + ((b.seed * 3.7) % 1 - 0.5) * 40;
+          if (!near && Math.hypot(b.cx - cp.x, b.cz - cp.z) > 90) {
+            b.cx = tx;
+            b.cz = tz;
             b.prev.set(NaN, 0, 0);
           }
-          const k = Math.min(1, dt * 0.05);
-          b.cx += (cp.x + (b.seed - 0.5) * 40 - b.cx) * k;
-          b.cz += (cp.z + ((b.seed * 3.7) % 1 - 0.5) * 40 - b.cz) * k;
+          const k = Math.min(1, dt * (near ? 0.2 : 0.05));
+          b.cx += (tx - b.cx) * k;
+          b.cz += (tz - b.cz) * k;
         }
-        b.th += b.w * dt;
-        const R = b.R * (1 + 0.25 * Math.sin(b.th * 0.5 + b.seed * 9));
-        b.pos.set(b.cx + Math.cos(b.th) * R, b.y0 + 2 * Math.sin(t * 0.3 + b.seed * 20), b.cz + Math.sin(b.th) * R);
+        b.th += b.w * dt * (1 - 0.97 * settle);
+        const R = b.R * (1 + 0.25 * Math.sin(b.th * 0.5 + b.seed * 9)) * (1 - 0.7 * settle);
+        const px = b.cx + Math.cos(b.th) * R, pz = b.cz + Math.sin(b.th) * R;
+        const y = b.y0 + 2 * Math.sin(t * 0.3 + b.seed * 20);
+        b.pos.set(px, settle > 0 ? THREE.MathUtils.lerp(y, levelAt(px, pz) + 0.01 + 0.015 * Math.sin(t * 1.7 + b.seed * 11), settle) : y, pz);
         if (Number.isNaN(b.prev.x)) b.prev.copy(b.pos).addScaledVector(tmp.set(-Math.sin(b.th), 0, Math.cos(b.th)), -b.w * R * 0.016);
-        // gulls glide; now and then a few slow beats
+        // gulls glide; now and then a few slow beats (and a few hard ones coming down onto the water)
         const beats = THREE.MathUtils.smoothstep(Math.sin(t * 0.8 + b.seed * 30), 0.35, 0.7);
-        flap = 0.12 + Math.sin(t * 13 + b.seed * 50) * 0.75 * beats;
-        shown = night < 0.6;
+        flap = (0.12 + Math.sin(t * 13 + b.seed * 50) * 0.75 * beats) * (1 - settle);
+        fold = THREE.MathUtils.smoothstep(settle, 0.85, 1);
       } else if (b.air < 0) {
         // sitting
         fold = 1;
@@ -1657,7 +1755,9 @@ export function createAmbient(scene: THREE.Scene, city: CityWorld): Ambient {
       const s = shown && !far ? (b.kind === 0 ? 1 : 0.7) : 0;
       euler.set(pitch, b.yaw, roll);
       q.setFromEuler(euler);
-      m4.compose(b.pos, q, scl.set(s, s, s));
+      // (a bird standing on its place stands on its feet: the body 14 cm up)
+      const lift = b.mode === "perch" ? fold * 0.139 * s : 0;
+      m4.compose(tmp.copy(b.pos).setY(b.pos.y + lift), q, scl.set(s, s, s));
       birdMesh.setMatrixAt(i, m4);
       wingAttr.setXY(i, flap, fold);
     }

@@ -200,6 +200,9 @@ public partial class Goods : Node
     private static bool HaveProps => haveProps ??= System.IO.File.Exists(System.IO.Path.Combine(Scheldemist.Models.ModelLibrary.Dir, "props.glb"));
 
     /// <summary>goods.ts body: the props.glb model of a look ("cask" is the barrel, "p:crate_big" the model named), or null.</summary>
+    /// <summary>game/fishBox.ts isFishBox: the Vismarkt's routes' boxes of fish.</summary>
+    private static bool IsFishBox(string? id) => id != null && System.Text.RegularExpressions.Regex.IsMatch(id, "^haul:vm-\\d+[ab]:");
+
     private static string? PropOf(string? look) => look == "cask" ? "barrel" : look != null && look.StartsWith("p:", StringComparison.Ordinal) ? look[2..] : null;
 
     /// <summary>Can this item be shown here as a thing of its own (see the class's words)?</summary>
@@ -293,7 +296,13 @@ public partial class Goods : Node
             return own;
         }
         Node3D? g = null;
-        if (PropOf(s.Look) is { } prop && Scheldemist.Models.ModelLibrary.Get("props")?.Copy(prop) is { } model)
+        // a crate is the one crate of the town, its stencil by its id, at its class (CrateModel.cs; goods.ts body)
+        if (CrateOf(s) is { } crateModel)
+        {
+            g = new Node3D();
+            g.AddChild(crateModel);
+        }
+        else if (PropOf(s.Look) is { } prop && Scheldemist.Models.ModelLibrary.Get("props")?.Copy(prop) is { } model)
         {
             // the model under a node of its own: the item's place and turn are the node's, the model keeps its scale
             g = new Node3D();
@@ -307,9 +316,25 @@ public partial class Goods : Node
         return g;
     }
 
+    /// <summary>The one crate of an item that is a crate (a job's, a pile's, the Rijnkaai's big cases), else null.</summary>
+    private static Node3D? CrateOf(GoodsItem s)
+    {
+        if (s.Kind != "crates") return null;
+        if (PropOf(s.Look) is { } prop)
+            return CrateModel.PropCrates.TryGetValue(prop, out var c) ? CrateModel.Of(s.Id, c.Cls, c.Open, (float)(s.Sc ?? 1)) : null;
+        return string.IsNullOrEmpty(s.Look) && !IsFishBox(s.Id) ? CrateModel.Of(s.Id) : null;
+    }
+
     /// <summary>props.ts makeGoods: a job's goods as a model, its origin at its base.</summary>
     public Node3D MakeGoods(string kind)
     {
+        // (a crate: the one crate of the town, CrateModel.cs)
+        if (kind == "crates" && CrateModel.Make(0) is { } one)
+        {
+            var holder = new Node3D();
+            holder.AddChild(one);
+            return holder;
+        }
         // The same decoded model lies on the ground and travels in the hands.
         string? prop = kind switch { "crates" => "crate", "barrels" => "barrel", "sacks" => "sack", "rope" => "rope_coil", _ => null };
         if (prop != null && Scheldemist.Models.ModelLibrary.Get("props")?.Copy(prop) is { } model)

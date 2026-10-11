@@ -1,3 +1,5 @@
+import { crateGeometry, crateMaterial, crateMesh, pickCrate } from "../game/crateModel";
+import CRATE_SOCKETS from "./props_crate_sockets.json";
 import * as THREE from "three";
 import { labelGeo, sackGeometry, sackInstMaterial, sackLabelFor, sackLoadGeometry, sackMaterial, sackMesh, type SackLabel } from "../game/sackModel";
 import { mergeParts } from "./staticMerge";
@@ -316,6 +318,15 @@ export class PushCart {
         sk.scale.multiply(sc);
         bm.add(sk);
       }
+      // (and its crate: the one crate of the town, game/crateModel.ts; build_props.py CRATE_SOCKETS)
+      for (const r of (CRATE_SOCKETS as Record<string, Array<{ m: number[]; s: number; open: boolean }>>).tr_handcart_load ?? []) {
+        const c = crateMesh(pickCrate(`cart:${this.nr}`), { open: r.open, scale: r.s });
+        if (!c) continue;
+        const M = new THREE.Matrix4().fromArray(r.m);
+        const sc = new THREE.Vector3();
+        M.decompose(c.position, c.quaternion, sc);
+        bm.add(c);
+      }
       // the load's sacks one mesh (world/staticMerge.ts): they ride on the bed and never come off one by one
       mergeParts(bm);
     }
@@ -381,8 +392,9 @@ export class PushCart {
       m.visible = i < n;
       if (what === this.what && (what !== "sacks" || !label)) return;
       const sack = what === "sacks" || (what === "goods" && i % 3 === 1);
-      m.geometry = sack ? labelGeo(sackGeometry(sackLabel.goods), sackLabel) : itemGeo(i, what);
-      m.material = sack ? sackMaterial(sackLabel) : itemMat(i);
+      const crate = !sack && itemKind(i, what) === "crate" ? crateGeometry(pickCrate(`cart:${this.nr}#${i}`)) : null;
+      m.geometry = sack ? labelGeo(sackGeometry(sackLabel.goods), sackLabel) : (crate ?? itemGeo(i, what));
+      m.material = sack ? sackMaterial(sackLabel) : crate ? crateMaterial() : itemMat(i);
       if (what === "sacks") {
         // full sacks lying across the bed, the next in the dips (the one sack model)
         const [x, z, y] = SACKS_AT[i];
@@ -394,7 +406,7 @@ export class PushCart {
         const [x, z, y] = ITEM_AT[i];
         m.position.set(x, y, z);
         m.rotation.y = (i * 0.37) % 0.5 - 0.25;
-        m.scale.setScalar(sack ? 0.5 : 1);
+        m.scale.setScalar(sack ? 0.5 : crate ? ITEM_CRATE : 1);
       }
     });
     this.what = what;
@@ -458,8 +470,11 @@ const SACKS_AT: Array<[number, number, number]> = [
   [0, -0.1, -0.2], [0, 0.4, -0.2], [0, 0.9, -0.2], [0, 0.15, 0.03], [0, 0.65, 0.03], [0, 0.4, 0.26],
 ];
 const itemGeos = new Map<string, THREE.BufferGeometry>();
+const itemKind = (i: number, what = "goods") => (what === "fish" ? (i % 2 ? "basket" : "tub") : what === "furniture" ? (i % 3 === 0 ? "chair" : "crate") : what === "sacks" ? "sack" : i % 3 === 1 ? "sack" : i % 3 === 2 ? "basket" : "crate");
+/** A family's crate on a cart: the one crate of the town (game/crateModel.ts), small. */
+const ITEM_CRATE = 0.6;
 function itemGeo(i: number, what = "goods"): THREE.BufferGeometry {
-  const kind = what === "fish" ? (i % 2 ? "basket" : "tub") : what === "furniture" ? (i % 3 === 0 ? "chair" : "crate") : what === "sacks" ? "sack" : i % 3 === 1 ? "sack" : i % 3 === 2 ? "basket" : "crate";
+  const kind = itemKind(i, what);
   let g = itemGeos.get(kind);
   if (!g) {
     g =

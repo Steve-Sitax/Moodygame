@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { labelGeo, pickSack, SACK_H, SACK_NEST, sackGeometry, sackInstMaterial, type SackLabel } from "../game/sackModel";
+import { crateGeometry, crateInstancedMaterial, pickCrate } from "../game/crateModel";
+import { crateHeight } from "../../../shared/crateCatalog";
 import { psx } from "../retro/psx";
 import { makeHuman, type Human } from "../game/humans";
 import type { Rect } from "./geom";
@@ -406,7 +408,9 @@ type WagonKind = "open" | "flat" | "van";
 type GoodsKind = "sacks" | "casks" | "bales" | "crates";
 const GOODS: GoodsKind[] = ["sacks", "casks", "bales", "crates"];
 /** Height of one unit of each kind (the sling hangs this far above its floor). */
-const UNIT_H: Record<GoodsKind, number> = { sacks: 0.56, casks: 0.74, bales: 0.78, crates: 0.86 };
+/** A unit of crates: the one crate of the town (game/crateModel.ts), a little over its standard size, to fill a slot. */
+const CRATE_UNIT = 1.15;
+const UNIT_H: Record<GoodsKind, number> = { sacks: 0.56, casks: 0.74, bales: 0.78, crates: +(crateHeight("standard") * CRATE_UNIT).toFixed(3) };
 
 function underframe(k: Kit): void {
   const e = L_BODY / 2;
@@ -494,6 +498,11 @@ function wheelsetGeometry(): THREE.BufferGeometry {
 
 /** The sacks the goods train carries and the cranes swing (one lot, picked from the goods list). */
 const TRAIN_SACKS = pickSack("train:sacks", "quay");
+/** The train's crates: one lot. */
+function crateUnit(): THREE.BufferGeometry | null {
+  const g = crateGeometry(pickCrate("train:crates"));
+  return g ? g.clone().scale(CRATE_UNIT, CRATE_UNIT, CRATE_UNIT) : null;
+}
 
 /** A unit of sacks as a crane slings it and a wagon slot holds it: two side by side along the wagon, one on them. */
 function sackUnit(lot: SackLabel): THREE.BufferGeometry {
@@ -951,7 +960,9 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
       // (2026-09-28: a unit of sacks is three of the one sack model, game/sackModel.ts; one lot for the train's sacks)
       g === "sacks"
         ? inst(sackUnit(TRAIN_SACKS), sackInstMaterial(TRAIN_SACKS), 48, "goods_sacks")
-        : inst(W && goodsMat ? W.goods[g] : unitGeometry(g), W && goodsMat ? goodsMat : g === "crates" ? crateMat : g === "casks" ? woodMat : sackMat, 48, `goods_${g}`),
+        : g === "crates" && crateUnit()
+          ? inst(crateUnit()!, crateInstancedMaterial(), 48, "goods_crates")
+          : inst(W && goodsMat ? W.goods[g] : unitGeometry(g), W && goodsMat ? goodsMat : g === "crates" ? crateMat : g === "casks" ? woodMat : sackMat, 48, `goods_${g}`),
     );
   // the train's two and the omnibuses' pairs: red roans, the Brabant's own colour (horseGait.ts coats)
   const horses = new HorsePool(scene, opts.props, 2 + (opts.spareHorses ?? 2), "roan");

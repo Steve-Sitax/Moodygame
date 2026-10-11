@@ -206,3 +206,16 @@ Two switches for other parts, each fixed when the material is made (rule 3: one 
 - **Rain**: streaks at least a 30th of a second long, out to 11 m, lighter than the air and 55 % of the drops at full
   rain; wet stone 0.44 darker at most, the sky's sheen on the wet tops by Fresnel, the lamps' streaks 0.65, the windows'
   0.25.
+## Layers on a surface (no flicker)
+Steve, 2026-10-11 ("constant texture flickering" on the cobbles in Godot): two surfaces never share a plane.
+- Build a real height: the edge stones on the ground's seams stand 2 cm proud with rounded edges set into the ground
+  (`city.ts`), the kerbs have a rounded top edge and a row of gutter stones at their foot (`build_city.py`
+  `build_kerbs`), the railway's setts lie 6 to 8 mm up (`tracks.ts`), the ruts 11 mm (`ruts.ts`). Where two pieces
+  of one kind can overlap, each lies a millimetre over the one before (in threes).
+- A decal may still use three's `polygonOffset`. Godot has none: `BakedWorld.cs` reads it from the bake and sets the
+  shader's `depth_bias` (`Psx.DepthBiasPerUnit` per unit), which draws the layer a share of its distance nearer the
+  eye along the line of sight (no gap, no shift on screen). `renderOrder` is not carried.
+- Godot's glTF loader gives the bake's pictures no mipmaps; `BakedWorld.Mipmapped` makes them at load. Without them
+  fine textures (cobbles, setts, brick) shimmer as the view moves.
+- Check: `await __scheldemist.zfight({ noOffset: "ground|rut|track|sett" })` (as Godot would see it without offsets):
+  no "ground layers" pairs that are not hidden.

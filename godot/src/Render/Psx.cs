@@ -24,6 +24,13 @@ namespace Scheldemist.Render;
 public static class Psx
 {
     /// <summary>
+    /// The shader's depth_bias for one unit of three's polygonOffset (factor + units): a share of the distance. The
+    /// ruts' 4 units pull them 0.2 mm nearer at 3 m and 2 mm at 30 m: far more than the 32-bit depth needs to tell
+    /// two layers in one plane apart, too little to show over anything that stands on the ground.
+    /// </summary>
+    public const double DepthBiasPerUnit = 1.6e-5;
+
+    /// <summary>
     /// The switches that make another shader. Relief: 0 none, 1 a height map, 2 with stone ids. Ground: wet stone,
     /// puddles, patches and dirt (their amounts are uniforms). Wall: the foot's dirt and the mottle. Water: 1 the
     /// river and the docks (waves, foam at the walls, the dark mirror), 2 a sheltered pond (the same, calmer).
@@ -1118,6 +1125,10 @@ uniform float affine = 1.0;
 uniform float fog_reach = 1.0;
 uniform float alpha_cut = 0.5;
 uniform vec4 uv_xform = vec4(1.0, 1.0, 0.0, 0.0);
+// the browser's polygonOffset (a layer on a surface: ruts, the railway's setts, edge stones, bills, grime, litter):
+// drawn this share of its distance nearer the eye, along the line of sight, so it lands on the same pixels and wins
+// the depth test without a gap (BakedWorld.cs reads it from the bake)
+uniform float depth_bias = 0.0;
 varying float fog_depth;
 varying vec3 world;
 ");
@@ -1172,7 +1183,7 @@ void vertex() {
         }
         c.Append(@"	fog_depth = -view.z;
 	world = (INV_VIEW_MATRIX * view).xyz;
-	POSITION = PROJECTION_MATRIX * view;
+	POSITION = PROJECTION_MATRIX * vec4(view.xyz * (1.0 - depth_bias), 1.0);
 ");
         if (k.Snap)
             c.Append(@"	// snap only past arm's length: up close the jitter just looks broken

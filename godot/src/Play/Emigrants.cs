@@ -21,7 +21,7 @@ public partial class Emigrants : Node
     public event Action<int, EmigrantBoard>? Answered;
     private sealed class Camp { public EmigrantFamily Family=null!; public Node3D Group=new(); public readonly List<Node3D> Chests=new(); }
     private sealed class Walker { public string Id=""; public Townspeople.Sim Sim=null!; public Vector2 To; }
-    private sealed class Crossing { public EmigrantFamily Family=null!; public int Tow; public float Time; public readonly List<Walker> Walkers=new(); public bool Reported; }
+    private sealed class Crossing { public EmigrantFamily Family=null!; public int Tow; public float Time; public readonly List<Walker> Walkers=new(); public bool Reported, Refused; }
     private sealed class Passenger { public Human Human=null!; public Node3D Group=null!; public Skeleton3D? Skeleton; public int Arm=-1; public float Wave; public Quaternion ArmBase=Quaternion.Identity; public bool ArmOverlay; public Node3D? Baby; }
     private sealed class Lowering { public Node3D Prop=null!; public Vector3 From, Slot; public float Time; }
     private sealed class Deck { public Node3D Group=new(); public readonly List<Passenger> People=new(); public readonly List<Node3D> Chests=new(); public readonly List<Lowering> Lowering=new(); }
@@ -146,7 +146,9 @@ public partial class Emigrants : Node
     private async Task Report(Crossing c)
     {
         int g=generation;try{var r=await ServerLink.I!.Api!.EmigrantBoard(c.Family.Household);if(dead||g!=generation)return;foreach(var id in c.Family.Members)town!.ReleaseFromLighter(id,true);Answered?.Invoke(c.Family.Household,r);GameState.I.Say($"The {c.Family.Surname} family went down into the lighter with their chests. She takes them out to the Kempenland.");await Load();}
-        catch(ApiException e){if(!dead&&g==generation){GameState.I.Say(e.Message);c.Reported=false;c.Time=-5;}}
+        // the lighter's report is the game's own, in the background: a refusal (their ship does not take them now) is
+        // logged once and tried again later, never put on the player's screen
+        catch(ApiException e){if(!dead&&g==generation){if(!c.Refused)GD.Print($"emigrants: boarding of household {c.Family.Household} refused ({e.Status}: {e.Message}); trying again");c.Refused=true;c.Reported=false;c.Time=-5;}}
     }
     public override void _ExitTree(){dead=true;Reset("exit",null);if(Scheldemist.Menu.MainMenu.I is {} menu)menu.WorldReplaced-=Reset;}
 }

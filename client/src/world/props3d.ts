@@ -5,6 +5,9 @@ import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { labelGeo, pickSack, sackGeometry, sackMaterial, sackMesh, standingSackGeometry, type SackLabel } from "../game/sackModel";
 import SACK_SOCKETS from "./props_sack_sockets.json";
+import CRATE_SOCKETS from "./props_crate_sockets.json";
+import { crateGeometry, crateMesh, loadCrates, pickCrate, PROP_CRATES } from "../game/crateModel";
+import { CRATE_CLASS, crateHeight, type CrateClass } from "../../../shared/crateCatalog";
 import CITY from "../../../shared/city.json";
 import SPOT_TABLE from "../../../shared/spots.json";
 import { psx } from "../retro/psx";
@@ -124,16 +127,17 @@ const SETS: Record<string, Array<[string, number, number, number, number]>> = {
     ["barrel_lying", 0.02, 0, 0.72, 0.05],
     ["barrel_lying", -0.02, 0, 1.44, -0.04],
   ],
+  // (the one crate: "crate" is its large class, "crate_small" its small one; shared/crateCatalog.ts)
   crates_3: [
     ["crate", 0, 0, 0, 0.03],
-    ["crate", 1.05, 0, 0.04, -0.05],
-    ["crate_small", 0.5, 1.0, 0.02, 0.25],
+    ["crate", 1.06, 0, 0.04, -0.05],
+    ["crate_small", 0.5, crateHeight("large"), 0.02, 0.25],
   ],
   crates_sacks: [
     ["crate", 0, 0, 0, 0],
     ["sack_standing", 0.85, 0, 0.1, 0.4],
     ["sack_standing", 1.35, 0, -0.05, 2.0],
-    ["crate_small", 0.02, 1.0, 0.0, -0.15],
+    ["crate_small", 0.02, crateHeight("large"), 0.0, -0.15],
   ],
   handcart_barrel: [
     ["handcart", 0, 0, 0, 0],
@@ -176,6 +180,38 @@ function sackFromSocket(r: SackSocketRow, label: SackLabel): THREE.Mesh {
   mesh.position.copy(p);
   mesh.quaternion.copy(q);
   mesh.scale.multiply(sc);
+  return mesh;
+}
+
+/** crates_stack: three large crates side by side and two standard ones on them, not squared up: x, y, z, yaw, class. */
+const CRATES_STACK: Array<[number, number, number, number, CrateClass]> = [
+  [-1.06, 0, 0.02, 0.03, "large"],
+  [0, 0, -0.03, -0.04, "large"],
+  [1.07, 0, 0.01, 0.05, "large"],
+  [-0.5, crateHeight("large"), 0.04, 0.16, "standard"],
+  [0.62, crateHeight("large"), -0.03, -0.12, "standard"],
+];
+/** The one crate as a part of a prop: its stencil set per placement (place()). */
+function crateNode(open: boolean, scale: number): THREE.Mesh {
+  const m = crateMesh(0, { open, scale })!;
+  m.userData.crate = open ? "open" : "closed";
+  return m;
+}
+interface CrateSocketRow {
+  m: number[];
+  s: number;
+  open: boolean;
+}
+/** The one crate in a model's crate's place (build_props.py CRATE_SOCKETS). */
+function crateFromSocket(r: CrateSocketRow): THREE.Mesh {
+  const mesh = crateNode(r.open, r.s);
+  const M = new THREE.Matrix4().fromArray(r.m);
+  const p = new THREE.Vector3();
+  const q = new THREE.Quaternion();
+  const sc = new THREE.Vector3();
+  M.decompose(p, q, sc);
+  mesh.position.copy(p);
+  mesh.quaternion.copy(q);
   return mesh;
 }
 
@@ -272,6 +308,7 @@ async function load(): Promise<Props> {
   };
 
   const protos = new Map<string, THREE.Object3D>();
+  await loadCrates();
   let houseDoors: number[] = [];
   let storeFronts: number[][] = [];
   for (const node of [...gltf.scene.children]) {
@@ -307,6 +344,26 @@ async function load(): Promise<Props> {
     node.rotation.set(0, 0, 0);
     node.updateMatrixWorld(true);
     protos.set(node.name, node);
+  }
+  // the one crate for the props' crates (their own geometry in props.glb is not drawn)
+  for (const [name, [cls, open]] of Object.entries(PROP_CRATES)) {
+    const g = new THREE.Group();
+    g.name = name;
+    g.add(crateNode(open, CRATE_CLASS[cls]));
+    g.updateMatrixWorld(true);
+    protos.set(name, g);
+  }
+  {
+    const g = new THREE.Group();
+    g.name = "crates_stack";
+    for (const [x, y, z, yaw, cls] of CRATES_STACK) {
+      const c = crateNode(false, CRATE_CLASS[cls]);
+      c.position.set(x, y, z);
+      c.rotation.y = yaw;
+      g.add(c);
+    }
+    g.updateMatrixWorld(true);
+    protos.set("crates_stack", g);
   }
   for (const [name, parts] of Object.entries(SETS)) {
     const g = new THREE.Group();
@@ -383,6 +440,7 @@ async function load(): Promise<Props> {
       // (its goods are picked per placement, in place())
       const label = pickSack(`prop:${name}`, PROP_SACK_GOODS[name] ?? "quay");
       for (const r of sock) g.add(sackFromSocket(r, label));
+      for (const r of (CRATE_SOCKETS as Record<string, CrateSocketRow[]>)[name] ?? []) g.add(crateFromSocket(r));
       out = g;
     }
     out.updateMatrixWorld(true);
@@ -403,6 +461,15 @@ async function load(): Promise<Props> {
         const standing = c.userData.sack === "standing";
         m.geometry = labelGeo(standing ? standingSackGeometry(lot.goods) : sackGeometry(lot.goods), lot);
         m.material = sackMaterial(lot);
+      });
+    }
+    // the crates of this copy: each its own goods, picked by where it stands (the same on every PC)
+    {
+      let i = 0;
+      o.traverse((c) => {
+        if (!c.userData.crate) return;
+        const g = crateGeometry(pickCrate(`prop:${name}:${Math.round(x * 2)},${Math.round(z * 2)}#${i++}`), c.userData.crate === "open");
+        if (g) (c as THREE.Mesh).geometry = g;
       });
     }
     o.name = name;

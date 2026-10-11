@@ -14,6 +14,8 @@ public sealed class Exit
     public float Nx, Nz;
     /// <summary>Where you stand when you are out: the quay, the pier deck or the landing.</summary>
     public float Tx, Tz, Ty;
+    /// <summary>Over a parapet and its handrail: the height the feet must clear (0: none in the way).</summary>
+    public float Over;
 }
 
 /// <summary>
@@ -29,6 +31,8 @@ public static class QuayExits
     // the landing; a top landing level with the quay, 12 treads of 0.31 m, the landing to 6.56 m down the wall. The
     // treads run out from the edge stones' face (0.235) to the parapet (1.6); the flight's face stands 1.9 m out.
     private const float CopeY = 0.06f, Going = 0.31f, Top = 2 * Going, U0 = 0.235f, Width = 1.6f, W = 1.9f, End = 6.56f;
+    /// <summary>The handrail on the parapet, over the line of the nosings (quaysteps.ts RAIL_H).</summary>
+    private const float RailH = 0.9f;
     private const int Treads = 12;
     private const float LandY = Tide.MidY + 0.4f;
     private const float Rise = (CopeY - LandY) / (Treads + 1);
@@ -101,6 +105,17 @@ public static class QuayExits
                 var (gx, gz) = fr.On(s, W + 0.5f);
                 var (ttx, ttz) = fr.On(s, W - 0.6f);
                 Exits.Add(new Exit { Gx = gx, Gz = gz, Nx = fr.Nx, Nz = fr.Nz, Tx = ttx, Tz = ttz, Ty = LandY });
+            }
+            // (2026-10-11, Steve: "for stairs on quay I could not swim over the railing") and over the parapet and its
+            // handrail, where the tread behind it lies near the water: up the face, a leg over the rail, onto the step
+            for (float s = Top + 0.3f; s < FlightLen - 0.2f; s += 0.5f)
+            {
+                int k = (int)MathF.Floor((s - Top) / Going);
+                float tread = CopeY - (k + 1) * Rise;
+                float rail = CopeY - Math.Max(0, s - Top) / Going * Rise + RailH + 0.03f;
+                var (gx, gz) = fr.On(s, W + 0.45f);
+                var (ttx, ttz) = fr.On(Top + (k + 0.5f) * Going, UMid);
+                Exits.Add(new Exit { Gx = gx, Gz = gz, Nx = fr.Nx, Nz = fr.Nz, Tx = ttx, Tz = ttz, Ty = tread, Over = rail });
             }
         }
         foreach (var n in BakedWorld.All(world))
@@ -178,7 +193,8 @@ public static class QuayExits
         foreach (var e in Exits)
         {
             // a ladder whose top is under water, or a landing that is too deep or too high to climb onto
-            if (e.Ladder ? e.Ty < level + 0.3f : level > e.Ty + Tide.Wade || level < e.Ty - 0.9f) continue;
+            // over the parapet: only where the step behind it lies at the waterline (deeper he swims over, higher he cannot reach)
+            if (e.Ladder ? e.Ty < level + 0.3f : e.Over > 0 ? e.Ty < level - Tide.Wade - 0.3f || e.Ty > level + 0.15f : level > e.Ty + Tide.Wade || level < e.Ty - 0.9f) continue;
             float d = MathF.Sqrt((e.Gx - x) * (e.Gx - x) + (e.Gz - z) * (e.Gz - z));
             if (d < bd)
             {

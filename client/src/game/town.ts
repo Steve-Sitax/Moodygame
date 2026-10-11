@@ -1,3 +1,4 @@
+import { crateLabelFor } from "./crateModel";
 import { psxUniforms } from "../retro/psx";
 import { DroveWalk } from "./droveWalk";
 import type { Drove } from "../../../shared/drove";
@@ -1394,7 +1395,7 @@ export class Town {
         // (the sack says what his route's pile says: game/sackModel.ts)
         const hl = hr ? sackLabelFor(`haul:${hr.id}a:0`) : undefined;
         // (D1 docks: drawn on his way in, he carries what he took up unseen; the pile's loads are real from here on)
-        this.crowd.puppetLoad(p, s.toB && !["porter", "carter", "docker_sack"].includes(s.kind), hr?.place === "vismarkt" ? "fishbox" : (hr?.carry ?? "sack"), hl);
+        this.crowd.puppetLoad(p, s.toB && !["porter", "carter", "docker_sack"].includes(s.kind), hr?.place === "vismarkt" ? "fishbox" : (hr?.carry ?? "sack"), hl, hr ? crateLabelFor(`haul:${hr.id}a:0`) : undefined);
         if (hl) p.human.setSackLabel(hl);
         this.crowd.puppetGo(p, q[0], q[1], pace);
         break;
@@ -1546,7 +1547,7 @@ export class Town {
         s.tries = 0;
         // (the sack says what his route's pile says; a docker with his own sack on the shoulder too: game/sackModel.ts)
         const label = route ? sackLabelFor(`haul:${route.id}a:0`) : undefined;
-        this.crowd.puppetLoad(p, s.toB && !bare, carry, label);
+        this.crowd.puppetLoad(p, s.toB && !bare, carry, label, route ? crateLabelFor(`haul:${route.id}a:0`) : undefined);
         if (label) p.human.setSackLabel(label);
         const q = s.toB ? g.b! : g.a!;
         this.crowd.puppetGo(p, q[0], q[1]);
