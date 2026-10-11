@@ -44,7 +44,7 @@ import { createStreetLife, type StreetLife } from "./streetlife";
 import { buildGroundProbe, buildingRoots, buildWallProbe } from "./wallprobe";
 import { tradeKeepOut } from "./trades";
 import { marketKeepOut } from "../game/market";
-import { createQuayFurniture, type QuayFurniture } from "./quayfurniture";
+import { createQuayFurniture, standIns, type QuayFurniture } from "./quayfurniture";
 import { createTraffic, type Traffic } from "./traffic";
 import { createRailway, type CraneSite, type RaisedDeck, type Railway } from "./railway";
 import { createRailGate, type RailGate } from "./railgate";
@@ -2578,30 +2578,16 @@ function cart(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: numb
   colliders.push(rectAround(x + 0.4, z + 0.6, 1.3, 1.6));
 }
 
-function bollard(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: number): void {
-  // its body and its head one mesh (world/staticMerge.ts)
-  const g = new THREE.Group();
-  g.name = "bollard";
-  g.position.set(x, 0, z);
-  g.add(cyl(0.2, 0.24, 0.7, 7, m.iron, 0, 0.35, 0), cyl(0.3, 0.2, 0.12, 7, m.iron, 0, 0.74, 0));
-  mergeParts(g);
-  scene.add(g);
+function bollard(_scene: THREE.Scene, _m: Mats, colliders: Rect[], x: number, z: number): void {
+  // (D4, 2026-10-11: drawn by the quay furniture in its cast-iron cannon bollard, world/quayfurniture.ts standIns; the
+  // collider stays the quay's own)
+  standIns.bollards.push([x, z]);
   colliders.push(rectAround(x, z, 0.28, 0.28, 0.8));
 }
 
-function ropeCoil(scene: THREE.Scene, m: Mats, x: number, z: number): void {
-  // the three turns one mesh (world/staticMerge.ts)
-  const g = new THREE.Group();
-  g.name = "rope_coil";
-  g.position.set(x, 0, z);
-  for (let i = 0; i < 3; i++) {
-    const t = new THREE.Mesh(new THREE.TorusGeometry(0.34 - i * 0.04, 0.06, 4, 8), m.rope);
-    t.rotation.x = Math.PI / 2;
-    t.position.set(0, 0.06 + i * 0.1, 0);
-    g.add(t);
-  }
-  mergeParts(g);
-  scene.add(g);
+function ropeCoil(_scene: THREE.Scene, _m: Mats, x: number, z: number): void {
+  // (D4: the quay furniture's hawser coil, laid down flat in three layers, world/quayfurniture.ts standIns)
+  standIns.coils.push([x, z]);
 }
 
 
