@@ -644,6 +644,7 @@ public partial class Jef : Node, Mantle.IWorld
             Stroke?.Invoke();
         }
         float speed = moved / Math.Max(dt, 1e-4f);
+        Scheldemist.World.Waters.Swim(this, X, Z, vel.X, vel.Y, speed); // (D3: rings at each stroke, a small wake)
         float bob = MathF.Sin(swimT * 1.7f) * 0.035f + MathF.Sin(swimT * 5.2f) * 0.012f * Math.Min(1, speed);
 
         // out: push into a ladder or a landing, or press E by one

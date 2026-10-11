@@ -6,7 +6,7 @@ import FERRY_SACKS from "../game/ferry_sack_sockets.json";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { psx, psxUniforms, AIR_GLOW_GLSL, airGlowUniforms } from "../retro/psx";
+import { psx, psxUniforms, AIR_GLOW_GLSL, airGlowUniforms, ripples } from "../retro/psx";
 import type { Rect } from "./geom";
 import { bedAt, draftOf, levelAt, levelOf, regionAt } from "./tide";
 import { addLantern, type LanternSource } from "./lanternLights";
@@ -1169,6 +1169,7 @@ async function load(): Promise<Boats> {
       const level = levelOf(b.region);
       const aground = Math.min(1, Math.max(0, (b.floor - level) / 0.25));
       const free = 1 - aground;
+      if (free > 0.5 && !b.hidden) ripples.moored(b, b.x, b.z, Math.sin(b.yaw), Math.cos(b.yaw), 8, 2.5); // (D3: faint rings at the hull)
       const h = h0 * sea * free;
       const roll = roll0 * Math.min(sea, 2.5) * free;
       const pitch = pitch0 * Math.min(sea, 2.5) * free;
@@ -1411,6 +1412,7 @@ async function load(): Promise<Boats> {
       const aground = Math.min(1, Math.max(0, (floor - level) / 0.25));
       const free = 1 - aground;
       o.y = Math.max(level, floor);
+      if (free > 0.5) ripples.moored(f, o.x, o.z, Math.sin(f.outer.rotation.y), Math.cos(f.outer.rotation.y), 7, 2.2); // (D3: faint rings at the hull)
       const h = h0 * sea * free;
       const roll = roll0 * Math.min(sea, 2.5) * free;
       const pitch = pitch0 * Math.min(sea, 2.5) * free;
