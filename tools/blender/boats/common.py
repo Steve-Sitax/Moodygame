@@ -100,264 +100,1134 @@ MATS = BASE + EXTRA
 # thin parts, seen from both sides (the game makes these double-sided too)
 THIN = {"shrouds", "lattice", "flag", "canvas", "canvas_tan", "tarp", "washing", "netting", "streaks"}
 # metres per texture tile for faces mapped by position
-TILE = {TAR: 2.0, TARWEED: 2.0, VARNISH: 1.2, CLINKER: 1.0, IRONHULL: 4.0, COPPER: 2.0, REDLEAD: 2.0, GREEN: 1.6, WHITE: 1.6, DECK: 1.6,
+TILE = {TAR: 2.0, TARWEED: 2.0, VARNISH: 1.2, CLINKER: 1.0, IRONHULL: 2.0, COPPER: 2.0, REDLEAD: 2.0, GREEN: 1.6, WHITE: 1.6, DECK: 1.6,
         WOOD: 1.6, DARK: 1.2}
 
 # ------------------------------------------------------------------ textures
+#
+# B0, 2026-10-11 (Steve: "Remodel all boats in high detail, good textures ... Bumpmapping where possible"): every
+# boat material is painted as a Surf, its colour, its height (0 low to 1 high, 0.5 level: the relief the game lights,
+# drawn with the same strokes as the colour, docs/rendering.md "Bumps") and, for the cut-out ones, its alpha. A square
+# picture is painted at P px and averaged down to CELL px (two samples a texel: clean seams and rivets). write_atlas
+# puts every material in its CELL of one picture of ATLAS_N x ATLAS_N cells (2048 px): client/public/textures/
+# boats_atlas.webp (colour and cut-out), boats_atlas_h.png (height) and boats_atlas.json (the cells by material).
+# The game draws every boat, the lock's and the bridges' boat parts and the ferry from it (world/boats.ts
+# loadModelSet). Each material also keeps a GLB_PX copy of its colour in the glb, for lock.ts and the Godot model
+# library. Pictures are arrays [v, u] with row 0 at the bottom (Blender's v = 0), as before.
+#
+# A hull is mapped by position (Hull._uv: u along the hull, v = height / TILE), so v = 0 is the waterline on every
+# tile: nothing is banded by height in a picture that repeats up the side (the waterline grime is the vertex colour,
+# waterline_tint).
+
+P = 512
+CELL = 256
+ATLAS_N = 8
+GLB_PX = 128
+# the size of each material's picture in Blender and the glb (a preview may set CELL for its close-ups)
+IMG_PX = [GLB_PX]
+ATLAS_DIR = os.path.join(ROOT, "client", "public", "textures")
+
+
+class Surf:
+    """A painted material: colour [v, u, 3], height [v, u] (0.5 level) and alpha [v, u] or None."""
+
+    def __init__(self, c, h, a=None):
+        self.c, self.h, self.a = c, h, a
 
 
 def noise(rng, w, h, cu, cv):
-    """Tileable value noise of any size (cropped from a square field)."""
+    """Tileable value noise of any size (cropped from a square field: tiles only along a side of full length)."""
     n = max(w, h)
-    return vnoise(rng, n, cu, cv)[:h, :w]
+    return vnoise(rng, n, int(cu), int(cv))[:h, :w]
 
 
-def paint_tar(seed, n=128, strakes=8, base=(0.085, 0.072, 0.06)):
-    """Tarred hull planks: strakes along u, 8 per tile, caulked seams, salt bloom."""
+def fbm(rng, w, h, cu, cv, octaves=4):
+    """Noise of several sizes, the finer ones fainter, 0..1, tileable."""
+    acc, tot, k = 0.0, 0.0, 1.0
+    for o in range(octaves):
+        acc = acc + k * noise(rng, w, h, cu * 2 ** o, cv * 2 ** o)
+        tot += k
+        k *= 0.5
+    return acc / tot
+
+
+def sstep(e0, e1, x):
+    t = np.clip((x - e0) / (e1 - e0), 0.0, 1.0)
+    return t * t * (3 - 2 * t)
+
+
+def mix(a, b, t):
+    """a toward b by t (t [v, u] or a number); b a colour or a picture."""
+    t = np.asarray(t, dtype=np.float64)
+    if t.ndim == 2:
+        t = t[..., None]
+    return a * (1 - t) + np.asarray(b) * t
+
+
+def blur(a, r):
+    """A box blur that wraps (the pictures tile), r px each way, along v and u."""
+    r = int(r)
+    if r < 1:
+        return a
+    out = a
+    for ax in (0, 1):
+        acc = np.zeros_like(out)
+        for d in range(-r, r + 1):
+            acc += np.roll(out, d, axis=ax)
+        out = acc / (2 * r + 1)
+    return out
+
+
+def down(a, f):
+    """Average f x f blocks."""
+    if f == 1:
+        return a
+    h, w = a.shape[:2]
+    return a.reshape(h // f, f, w // f, f, *a.shape[2:]).mean(axis=(1, 3))
+
+
+def resize(a, h, w):
+    """To h x w: whole halvings by averaging, then linear."""
+    a = np.asarray(a, dtype=np.float64)
+    H, W = a.shape[:2]
+    while H >= 2 * h and H % 2 == 0:
+        a = a.reshape(H // 2, 2, W, *a.shape[2:]).mean(axis=1)
+        H //= 2
+    while W >= 2 * w and W % 2 == 0:
+        a = a.reshape(H, W // 2, 2, *a.shape[2:]).mean(axis=2)
+        W //= 2
+    if (H, W) == (h, w):
+        return a
+    ys = np.clip((np.arange(h) + 0.5) * H / h - 0.5, 0, H - 1)
+    xs = np.clip((np.arange(w) + 0.5) * W / w - 0.5, 0, W - 1)
+    y0 = np.floor(ys).astype(int)
+    x0 = np.floor(xs).astype(int)
+    y1 = np.minimum(y0 + 1, H - 1)
+    x1 = np.minimum(x0 + 1, W - 1)
+    fy = (ys - y0).reshape(-1, *([1] * (a.ndim - 1)))
+    a = a[y0] * (1 - fy) + a[y1] * fy
+    fx = (xs - x0).reshape(1, -1, *([1] * (a.ndim - 2)))
+    return a[:, x0] * (1 - fx) + a[:, x1] * fx
+
+
+def stamp(H, C, cx, cy, r, hfn=None, colour=None, cfn=None, rx=None):
+    """A round thing at (cx, cy) px, radius r (rx across u if not round), wrapping: the height changed by hfn(d) and
+    the colour mixed toward `colour` by cfn(d), d the distance over the radius (0 centre, 1 rim)."""
+    h_, w_ = H.shape
+    rx = r if rx is None else rx
+    Rx, Ry = int(np.ceil(rx * 1.6)) + 1, int(np.ceil(r * 1.6)) + 1
+    xs = np.arange(int(cx) - Rx, int(cx) + Rx + 1)
+    ys = np.arange(int(cy) - Ry, int(cy) + Ry + 1)
+    X, Y = np.meshgrid(xs, ys)
+    d = np.hypot((X + 0.5 - cx) / rx, (Y + 0.5 - cy) / r)
+    ix = np.ix_(ys % h_, xs % w_)
+    if hfn is not None:
+        H[ix] += hfn(d)
+    if colour is not None and C is not None:
+        m = np.clip(cfn(d), 0, 1)[..., None]
+        C[ix] = C[ix] * (1 - m) + np.asarray(colour) * m
+
+
+def dome(height, rim=0.0):
+    """A rivet or nail head: a round top, a dark fillet of shadow (rim) round it."""
+    return lambda d: height * np.sqrt(np.clip(1 - d * d, 0, 1)) - rim * sstep(1.0, 1.15, d) * sstep(1.6, 1.15, d)
+
+
+def disc(soft=0.15):
+    return lambda d: sstep(1.0, 1.0 - soft, d)
+
+
+def run_down(H, C, rng, x, y, length, width, colour, strength=0.7, raise_=0.0, wander=0.6):
+    """A run (rust, tar, soot, slime) from (x, y) down the picture (v falls), tapering and fading."""
+    for k in range(0, int(length), 2):
+        t = k / max(1.0, length)
+        wk = max(0.8, width * (1 - 0.7 * t))
+        a = strength * (1 - t) ** 1.2
+        x += rng.normal(0, wander * 0.5)
+        stamp(H, C, x, y - k, wk, (lambda d, a=a: raise_ * a * np.clip(1 - d, 0, 1)) if raise_ else None,
+              colour, lambda d, a=a: a * sstep(1.0, 0.4, d), rx=wk * 0.7)
+
+
+class Boards:
+    """Boards (strakes, planks) running along u, n of them up v; butt joints on some of the frames.
+
+    b: the board of each row; across: 0 at its lower seam to 1 at its upper; dv: px to the nearest long seam;
+    du [v, u]: px to the nearest butt; seg [v, u]: one number per length of board (a tone for each)."""
+
+    def __init__(self, rng, w, h, n, frames=4, butt_p=0.3, frame_off=0.0):
+        bh = h / n
+        vv = np.arange(h) + 0.5
+        uu = np.arange(w) + 0.5
+        self.n, self.w, self.h, self.bh = n, w, h, bh
+        self.b = np.minimum((vv // bh).astype(int), n - 1)
+        self.across = (vv - self.b * bh) / bh
+        self.dv = np.minimum(vv - self.b * bh, (self.b + 1) * bh - vv)
+        self.frames = [(((j + 0.5) / frames + frame_off) % 1.0) * w for j in range(frames)]
+        self.du = np.full((h, w), 1e9)
+        self.seg = np.zeros((h, w), int)
+        self.cuts = []
+        prev = set()
+        for k in range(n):
+            rows = self.b == k
+            js = [j for j in range(frames) if j not in prev and rng.random() < butt_p]
+            prev = set(js)
+            cuts = sorted(self.frames[j] for j in js)
+            self.cuts.append(cuts)
+            if cuts:
+                d = np.min([np.abs(((uu - c) + w / 2) % w - w / 2) for c in cuts], axis=0)
+                self.du[rows] = d[None, :]
+                idx = np.searchsorted(cuts, uu) % len(cuts)
+                self.seg[rows] = (k * 16 + idx)[None, :]
+            else:
+                self.seg[rows] = k * 16
+
+    def edge(self):
+        return np.minimum(self.dv[:, None], self.du)
+
+    def tone(self, rng, lo=0.85, hi=1.15):
+        return rng.uniform(lo, hi, 16 * self.n + 16)[self.seg]
+
+    def height(self, seam_px=1.5, arris=3.0, cup=0.06, seam_h=0.22, face=0.62):
+        """The boards' faces, a little rounded across (cup), their edges rounded down into the seams."""
+        e = self.edge()
+        f = face + cup * (1 - (2 * self.across[:, None] - 1) ** 2)
+        return seam_h + (f - seam_h) * sstep(seam_px, seam_px + arris, e), e
+
+    def per_board(self, field, rng):
+        """The field shifted along u by its own amount on each board (no grain runs on across a seam)."""
+        out = np.empty_like(field)
+        for k in range(self.n):
+            rows = self.b == k
+            out[rows] = np.roll(field, int(rng.integers(0, self.w)), axis=1)[rows]
+        return out
+
+
+def wood_grain(rng, w, h, n, bh=None):
+    """Grain along u: long streaks (g, 0..1) and the thin dark lines of the year rings (fig, 0..1)."""
+    g = 0.5 * noise(rng, w, h, 3, 6 * n) + 0.3 * noise(rng, w, h, 6, 16 * n) + 0.2 * noise(rng, w, h, 16, 48 * n)
+    bh = bh or h / n
+    warp = noise(rng, w, h, 2, 2 * n) * 3.0 + noise(rng, w, h, 8, 4 * n) * 0.6
+    ring = np.abs(np.sin(np.pi * (np.arange(h)[:, None] / (bh / 4.5) + warp)))
+    fig = sstep(0.16, 0.0, ring)
+    return g, fig
+
+
+def knots(H, C, rng, w, h, count, col_dark, size=(5, 12)):
+    for _ in range(count):
+        cx, cy = rng.uniform(0, w), rng.uniform(0, h)
+        r = rng.uniform(*size)
+        stamp(H, C, cx, cy, r * 0.55, lambda d: 0.05 * np.clip(1 - d, 0, 1) - 0.06 * sstep(1.4, 1.0, d) * sstep(0.7, 1.0, d),
+              col_dark, lambda d: 0.75 * sstep(1.1, 0.5, d), rx=r * 1.6)
+
+
+def letters(C, rng, text, cx, ytop, px, ink, adv=None, keep=1.0):
+    """Painted letters (FONT, 5 x 7) centred on cx, their top at row ytop (rows run bottom-up), px a font pixel."""
+    adv = adv or 6 * px
+    x0 = cx - (len(text) * adv - px) / 2
+    for k, ch in enumerate(text):
+        for gy, row in enumerate(FONT.get(ch, FONT[" "])):
+            for gx, bit in enumerate(row):
+                if bit == "1" and rng.random() < keep:
+                    x = int(round(x0 + k * adv + gx * px))
+                    y = int(round(ytop - (gy + 1) * px))
+                    C[y:y + px, x:x + px] = ink * (0.88 + 0.24 * rng.random())
+
+
+def done(c, h, a=None, k=1.0, cavity=0.6):
+    """The finished picture: the height's relief made k times stronger (round level) and kept in 0..1, and the
+    colour darkened in its own hollows (seams, pits, the shadow under a lap: they read in the shade too, where a bump
+    has no light to tilt)."""
+    h = np.clip(0.5 + (h - 0.5) * k, 0, 1)
+    c = c * (1 - cavity * np.clip(0.48 - h, 0, 1))[..., None]
+    return Surf(np.clip(c, 0, 1), h, None if a is None else np.clip(a, 0, 1))
+
+
+# ---- the planked hulls
+
+
+def surf_tar(seed, base=(0.2, 0.165, 0.13), drips=True):
+    """Tarred carvel planking above the water (2 m a tile): 8 strakes of 25 cm, caulked seams payed with pitch, oak
+    trenails two a strake on each frame (every 50 cm), the butts' iron spikes, tar drips from the seams, thin places
+    where the wood shows brown, salt bloom, fender scrapes."""
     rng = np.random.default_rng(seed)
-    img = np.zeros((n, n, 3))
-    h = n // strakes
-    for b in range(strakes):
-        r0 = b * h
-        img[r0:r0 + h] = col(base) * (1 + rng.uniform(-0.22, 0.22))
-        img[r0] *= 0.35
-        img[(r0 + 1) % n] *= 1.5
-        for _ in range(int(rng.integers(1, 3))):
-            u = int(rng.integers(0, n))
-            img[r0 + 1:r0 + h, u] *= 0.4
-    grain = noise(rng, n, n, 4, 48) * 0.6 + noise(rng, n, n, 12, 96) * 0.4
-    img *= (0.72 + 0.56 * grain)[..., None]
-    salt = np.clip(noise(rng, n, n, 5, 3) - 0.55, 0, 1) * 1.8
-    img += (salt * noise(rng, n, n, 40, 8))[..., None] * col((0.2, 0.19, 0.16))
-    return speckle(img, rng, 0.05, 0.6, 1.4)
+    w = h = P
+    B = Boards(rng, w, h, 8, frames=4, butt_p=0.28)
+    g, fig = wood_grain(rng, w, h, 8)
+    g, fig = B.per_board(g, rng), B.per_board(fig, rng)
+    H, e = B.height(seam_px=1.4, arris=4.0, cup=0.07, seam_h=0.3)
+    tone = B.tone(rng, 0.8, 1.2)
+    C = col(base) * (tone * (0.76 + 0.44 * g) * (1 - 0.22 * fig))[..., None]
+    thin = sstep(0.55, 0.8, fbm(rng, w, h, 4, 10)) * sstep(0.35, 0.7, g)
+    C = mix(C, col((0.21, 0.15, 0.1)) * (0.75 + 0.5 * g)[..., None], thin * 0.55)
+    gloss = sstep(0.62, 0.85, noise(rng, w, h, 5, 34))
+    C *= (1 + 0.28 * gloss)[..., None]
+    H += 0.06 * (g - 0.5) - 0.05 * fig * (1 - gloss) + 0.02 * gloss
+    seam = sstep(2.6, 0.9, e)
+    C = mix(C, col((0.035, 0.03, 0.028)), seam * 0.92)
+    # the pitch in the seams stands a hair proud where it was payed thick
+    H += 0.06 * seam * sstep(0.5, 0.8, noise(rng, w, h, 24, 8))
+    for k in range(B.n):
+        for f in B.frames:
+            for a_ in (0.3, 0.72):
+                cx = f + rng.normal(0, 1.5)
+                cy = (k + a_ + rng.normal(0, 0.02)) * B.bh
+                stamp(H, C, cx, cy, 4.0, lambda d: 0.03 * np.clip(1 - d, 0, 1) - 0.09 * sstep(0.8, 1.0, d) * sstep(1.35, 1.0, d),
+                      col((0.2, 0.14, 0.09)) * rng.uniform(0.7, 1.1), lambda d: 0.85 * sstep(1.0, 0.75, d))
+        for c in B.cuts[k]:
+            for side in (-9, 9):
+                for a_ in (0.28, 0.72):
+                    x, y = c + side, (k + a_) * B.bh
+                    stamp(H, C, x, y, 3.0, dome(0.12, 0.05), col((0.06, 0.055, 0.05)), disc())
+                    if rng.random() < 0.6:
+                        run_down(H, C, rng, x, y - 2, rng.uniform(12, 40), 2.2, col((0.26, 0.12, 0.06)), 0.45)
+    if drips:
+        for _ in range(55):
+            k = int(rng.integers(1, B.n))
+            run_down(H, C, rng, rng.uniform(0, w), k * B.bh - 1, rng.uniform(10, 70), rng.uniform(2.0, 4.0),
+                     col((0.03, 0.026, 0.024)), 0.85, raise_=0.12, wander=0.3)
+    salt = sstep(0.6, 0.82, fbm(rng, w, h, 5, 4)) * (0.4 + 0.6 * noise(rng, w, h, 40, 10))
+    C = mix(C, col((0.25, 0.24, 0.21)), salt * 0.32)
+    for _ in range(9):
+        y = rng.uniform(0, h)
+        x0 = rng.uniform(0, w)
+        ln = rng.uniform(80, 360)
+        xs = (x0 + np.arange(int(ln))).astype(int) % w
+        ys = (y + np.cumsum(rng.normal(0, 0.15, int(ln)))).astype(int) % h
+        C[ys, xs] = mix(C[ys, xs], col((0.27, 0.21, 0.15)), 0.55)
+        H[ys, xs] -= 0.05
+    return done(speckle(C, rng, 0.04, 0.7, 1.25), H)
 
 
-def paint_clinker(seed, n=64, strakes=8, base=(0.23, 0.18, 0.13)):
-    """Lapped strakes of a small boat: a bright lap edge at the foot of each, shade above."""
+def surf_tar_weed(seed):
+    """Tarred planks under the water (the bottoms that show on the mud): slime over everything, weed hanging in
+    strands, barnacles in clusters, the seams still showing. As dense all over (the tile repeats down the side)."""
     rng = np.random.default_rng(seed)
-    img = np.zeros((n, n, 3))
-    h = n // strakes
-    for b in range(strakes):
-        r0 = b * h
-        tone = 1 + rng.uniform(-0.15, 0.15)
-        for r in range(h):
-            img[r0 + r] = col(base) * tone * (1.25 - 0.45 * r / (h - 1))
-        img[r0] = col(base) * 0.3
-        img[r0 + 1] *= 1.3
-    grain = noise(rng, n, n, 3, 24)
-    img *= (0.8 + 0.4 * grain)[..., None]
-    wear = np.clip(noise(rng, n, n, 6, 6) - 0.6, 0, 1)[..., None] * 1.5
-    img = img * (1 - wear) + col((0.36, 0.34, 0.3)) * wear
-    return speckle(img, rng, 0.05)
+    w = h = P
+    s = surf_tar(seed, base=(0.155, 0.145, 0.105), drips=False)
+    C, H = s.c, (s.h - 0.5) * 0.8 + 0.5
+    slime = fbm(rng, w, h, 4, 4)
+    C = mix(C, col((0.1, 0.13, 0.065)), 0.35 + 0.35 * slime)
+    H = H * 0.85 + 0.075
+    for _ in range(160):
+        x, y = rng.uniform(0, w), rng.uniform(0, h)
+        ln = rng.uniform(16, 90)
+        wd = rng.uniform(1.5, 3.5)
+        c = col((0.09, 0.15, 0.055)) * rng.uniform(0.7, 1.4)
+        ph, lam = rng.uniform(0, 6.3), rng.uniform(8, 20)
+        for k in range(0, int(ln), 2):
+            t = k / ln
+            stamp(H, C, x + 3.0 * math.sin(k / lam + ph), y - k, max(0.8, wd * (1 - 0.6 * t)),
+                  lambda d, t=t: 0.09 * (1 - t) * np.clip(1 - d, 0, 1), c, lambda d, t=t: 0.9 * (1 - 0.5 * t) * sstep(1.0, 0.4, d))
+    for _ in range(26):
+        cx, cy = rng.uniform(0, w), rng.uniform(0, h)
+        for _ in range(int(rng.integers(6, 22))):
+            r = rng.uniform(2.8, 7.0)
+            x, y = cx + rng.normal(0, 18), cy + rng.normal(0, 14)
+            shell = col((0.5, 0.49, 0.43)) * rng.uniform(0.7, 1.15)
+            stamp(H, C, x, y, r, lambda d: 0.22 * np.clip(1 - d, 0, 1) ** 0.8 - 0.16 * sstep(0.4, 0.2, d), shell, disc(0.25))
+            stamp(H, C, x, y, r * 0.38, None, col((0.07, 0.07, 0.06)), disc(0.3))
+    bloom = sstep(0.62, 0.8, noise(rng, w, h, 7, 7)) * (rng.random((h, w)) < 0.4)
+    C = mix(C, col((0.32, 0.31, 0.26)), bloom * 0.5)
+    return done(speckle(C, rng, 0.05, 0.6, 1.3), H)
 
 
-def paint_iron_hull(seed, n=128, base=(0.07, 0.07, 0.075)):
-    """Black-painted iron plates (1 m strakes, 2 m plates at 4 m a tile), rivets, rust runs."""
+def surf_clinker(seed, base=(0.23, 0.18, 0.13)):
+    """Lapped strakes of a small boat (1 m a tile, 8 strakes): each strake's lower edge stands proud over the one below
+    and casts its shadow on it; copper clench nails along every lap; worn pale on the lap edges; oiled and tarred."""
     rng = np.random.default_rng(seed)
-    img = np.ones((n, n, 3)) * col(base)
-    img *= (0.82 + 0.36 * noise(rng, n, n, 8, 8))[..., None]
-    for s in range(4):
-        r0 = s * 32
-        img[r0] *= 0.35
-        img[(r0 + 1) % n] *= 1.6
-        off = (s % 2) * 32
-        for u in (off, off + 64):
-            img[r0:r0 + 32, u % n] *= 0.4
-            img[r0 + 2:r0 + 32:4, (u + 2) % n] += 0.06
-        img[(r0 + 3) % n, ::4] += 0.06
-    for _ in range(30):
-        u = int(rng.integers(0, n))
-        v0 = int(rng.integers(6, n))
-        ln = int(rng.integers(8, 44))
-        w = int(rng.integers(1, 3))
-        for k in range(ln):
-            v = v0 - k
-            if v < 0:
-                break
-            a = 0.6 * (1 - k / ln)
-            img[v, u:u + w] = img[v, u:u + w] * (1 - a) + col((0.33, 0.15, 0.07)) * a
-    return speckle(img, rng, 0.06, 0.6, 1.5)
+    w = h = P
+    B = Boards(rng, w, h, 8, frames=5, butt_p=0.12)
+    g, fig = wood_grain(rng, w, h, 8)
+    g, fig = B.per_board(g, rng), B.per_board(fig, rng)
+    a = B.across[:, None]
+    H = 0.3 + 0.52 * sstep(0.0, 0.06, a) * (1 - 0.9 * a) + 0.0 * g
+    H = H + 0.05 * (g - 0.5) - 0.04 * fig
+    tone = B.tone(rng, 0.85, 1.15)
+    C = col(base) * (tone * (0.8 + 0.36 * g) * (1 - 0.2 * fig))[..., None]
+    C *= (1 - 0.55 * sstep(0.82, 1.0, a))[..., None]
+    lap = sstep(0.09, 0.01, a) * (0.5 + 0.5 * noise(rng, w, h, 24, 8))
+    C = mix(C, col((0.38, 0.35, 0.3)), lap * 0.5)
+    H = np.minimum(H, 0.3 + 0.6 * sstep(1.2, 3.0, B.du))
+    wear = sstep(0.6, 0.85, fbm(rng, w, h, 6, 6))
+    C = mix(C, col((0.36, 0.34, 0.3)) * (0.8 + 0.4 * g)[..., None], wear * 0.6)
+    for k in range(B.n):
+        y = (k + 0.07) * B.bh
+        x = rng.uniform(0, 40)
+        while x < w:
+            stamp(H, C, x, y + rng.normal(0, 0.6), 3.0, dome(0.14, 0.05), col((0.36, 0.25, 0.15)) * rng.uniform(0.8, 1.15), disc())
+            if rng.random() < 0.25:
+                stamp(H, C, x, y - 3, 2.6, None, col((0.24, 0.36, 0.28)), lambda d: 0.5 * sstep(1.0, 0.3, d))
+            x += rng.uniform(36, 46)
+    return done(speckle(C, rng, 0.04), H)
 
 
-def paint_ports(seed, w=128, h=32, tile_u=8.0, height=0.55):
-    """The strip of hull with round brass-rimmed portholes, one every 2 m."""
+def surf_varnish(seed):
+    """A gig's varnished carvel planking (1.2 m a tile, 8 strakes): warm brown, the figure of the wood, the varnish's
+    shine along each strake, thin seams."""
     rng = np.random.default_rng(seed)
-    img = np.ones((h, w, 3)) * col((0.07, 0.07, 0.075))
-    img *= (0.82 + 0.36 * noise(rng, w, h, 8, 2))[..., None]
-    uu, vv = np.meshgrid(np.arange(w), np.arange(h))
-    mu, mv = tile_u / w, height / h
-    for cu in (16, 48, 80, 112):
-        d = np.hypot((uu - cu) * mu, (vv - h / 2) * mv)
-        img[d < 0.19] = col((0.36, 0.28, 0.14))
-        img[d < 0.14] = col((0.04, 0.05, 0.06))
-        img[(d < 0.1) & (uu > cu) & (vv > h / 2 + 2)] = col((0.2, 0.22, 0.24))
-        run = (np.abs(uu - cu) < 1.5) & (vv < h / 2 - 7) & (rng.random((h, w)) < 0.7)
-        img[run] = img[run] * 0.5 + col((0.3, 0.14, 0.07)) * 0.5
-    img[0] *= 0.4
-    img[-1] *= 0.4
-    return img
+    w = h = P
+    B = Boards(rng, w, h, 8, frames=3, butt_p=0.15)
+    g, fig = wood_grain(rng, w, h, 8)
+    g, fig = B.per_board(g, rng), B.per_board(fig, rng)
+    H, e = B.height(seam_px=0.8, arris=2.5, cup=0.04, seam_h=0.32)
+    H += 0.02 * (g - 0.5)
+    C = col((0.38, 0.21, 0.1)) * (B.tone(rng, 0.88, 1.12) * (0.8 + 0.32 * g) * (1 - 0.3 * fig))[..., None]
+    shine = np.exp(-((B.across - 0.62) / 0.16) ** 2)[:, None] * (0.6 + 0.4 * noise(rng, w, h, 4, 8))
+    C *= (1 + 0.22 * shine)[..., None]
+    C = mix(C, col((0.12, 0.06, 0.03)), sstep(1.8, 0.6, e) * 0.8)
+    scuff = sstep(0.7, 0.86, fbm(rng, w, h, 8, 8))
+    C = mix(C, col((0.42, 0.33, 0.24)), scuff * 0.4)
+    return done(speckle(C, rng, 0.02), H, k=0.8)
 
 
-def paint_band(seed, w=128, h=16):
-    """A sailing ship's painted port band: cream, with black painted ports every 2.5 m."""
+def surf_deck(seed, base=(0.47, 0.44, 0.38)):
+    """Deck planking (1.6 m a tile): 10 planks of 16 cm, black pitch in the seams, butts on the beams, bungs over the
+    bolts two a plank on each beam, the grain raised by the weather and the holystone, tar spots, a cask's ring."""
     rng = np.random.default_rng(seed)
-    img = np.ones((h, w, 3)) * col((0.7, 0.68, 0.6))
-    img *= (0.8 + 0.3 * noise(rng, w, h, 8, 2))[..., None]
-    for cu in (32, 96):
-        img[4:12, cu - 7:cu + 7] = col((0.05, 0.05, 0.05))
-        img[3, cu - 7:cu + 7] *= 0.6
-    runs = rng.random((h, w)) < 0.05
-    img[runs] *= 0.7
-    img[0] = img[-1] = col((0.06, 0.06, 0.06))
-    return img
+    w = h = P
+    B = Boards(rng, w, h, 10, frames=4, butt_p=0.14, frame_off=0.06)
+    g, fig = wood_grain(rng, w, h, 10)
+    g, fig = B.per_board(g, rng), B.per_board(fig, rng)
+    H, e = B.height(seam_px=1.4, arris=2.5, cup=0.05, seam_h=0.34)
+    H += 0.09 * (g - 0.5) - 0.09 * fig
+    C = col(base) * (B.tone(rng, 0.86, 1.12) * (0.78 + 0.34 * g) * (1 - 0.28 * fig))[..., None]
+    grey = sstep(0.4, 0.75, fbm(rng, w, h, 3, 3))
+    C = mix(C, col((0.5, 0.49, 0.46)) * (0.85 + 0.25 * g)[..., None], grey * 0.35)
+    dirt = sstep(5.0, 1.0, e)
+    C *= (1 - 0.25 * dirt)[..., None]
+    C = mix(C, col((0.035, 0.03, 0.028)), sstep(2.4, 1.0, e) * 0.95)
+    for k in range(B.n):
+        for f in B.frames:
+            for a_ in (0.3, 0.7):
+                stamp(H, C, f + rng.normal(0, 1.2), (k + a_) * B.bh, 3.8,
+                      lambda d: -0.02 * np.clip(1 - d, 0, 1) - 0.06 * sstep(0.8, 1.0, d) * sstep(1.3, 1.0, d),
+                      col((0.37, 0.33, 0.27)) * rng.uniform(0.85, 1.1), lambda d: 0.9 * sstep(1.0, 0.8, d))
+    for _ in range(14):
+        stamp(H, C, rng.uniform(0, w), rng.uniform(0, h), rng.uniform(2, 7), lambda d: 0.04 * np.clip(1 - d, 0, 1),
+              col((0.06, 0.05, 0.045)), disc(0.4))
+    cx, cy, r = rng.uniform(0, w), rng.uniform(0, h), rng.uniform(26, 40)
+    stamp(H, C, cx, cy, r, None, col((0.24, 0.2, 0.16)), lambda d: 0.18 * sstep(0.12, 0.0, np.abs(d - 0.9)))
+    return done(speckle(C, rng, 0.03, 0.75, 1.15), H)
 
 
-def paint_metal(seed, base, blot, n=64):
-    """Copper sheathing or red-lead bottom: small plates, blotches."""
+def surf_planks(seed, base, boards=4, seams=True, butts=0.35, nails=True, n_knots=3, checks=0, tile_grain=1.0):
+    """Weathered boards along u: seams, butt joints nailed, knots, drying checks."""
     rng = np.random.default_rng(seed)
-    img = np.ones((n, n, 3)) * col(base)
-    img *= (0.8 + 0.35 * noise(rng, n, n, 16, 16))[..., None]
-    m = np.clip((noise(rng, n, n, 8, 8) - 0.5) * 3, 0, 1)[..., None]
-    img = img * (1 - m) + col(blot) * m
-    img[::8] *= 0.6
-    for r in range(0, n, 8):
-        off = 8 if (r // 8) % 2 else 0
-        img[r:r + 8, off::16] *= 0.65
-    return speckle(img, rng, 0.05)
+    w = h = P
+    B = Boards(rng, w, h, boards, frames=4, butt_p=butts if seams else 0.0)
+    g, fig = wood_grain(rng, w, h, boards)
+    g, fig = B.per_board(g, rng), B.per_board(fig, rng)
+    if seams:
+        H, e = B.height(seam_px=1.6, arris=3.0, cup=0.06, seam_h=0.2)
+    else:
+        H, e = 0.6 + 0.0 * g, np.full((h, w), 1e9)
+    H = H + 0.08 * (g - 0.5) * tile_grain - 0.07 * fig
+    C = col(base) * (B.tone(rng, 0.85, 1.15) * (0.78 + 0.38 * g) * (1 - 0.25 * fig))[..., None]
+    if seams:
+        C = mix(C, col(base) * 0.25, sstep(2.6, 1.0, e) * 0.9)
+        C *= (1 - 0.18 * sstep(6.0, 1.5, e))[..., None]
+    knots(H, C, rng, w, h, n_knots, col(base) * 0.45)
+    for _ in range(checks):
+        x, y = rng.uniform(0, w), rng.uniform(0, h)
+        ln = int(rng.uniform(30, 130))
+        xs = (x + np.arange(ln)).astype(int) % w
+        ys = (y + np.cumsum(rng.normal(0, 0.12, ln))).astype(int) % h
+        C[ys, xs] *= 0.4
+        H[ys, xs] -= 0.18
+        C[(ys + 1) % h, xs] *= 0.8
+    if nails and seams:
+        for k in range(B.n):
+            for c in B.cuts[k]:
+                for side in (-7, 7):
+                    for a_ in (0.25, 0.75):
+                        stamp(H, C, c + side, (k + a_) * B.bh, 2.6, dome(0.12, 0.05), col((0.09, 0.08, 0.075)), disc())
+    return done(speckle(C, rng, 0.04), H), B
 
 
-def chips(img, rng, under, amount=0.55):
-    """Paint worn through to the wood here and there."""
-    n = img.shape[0]
-    m = (noise(rng, n, n, 10, 10) > amount + 0.25) | (rng.random((n, n)) < 0.02)
-    img[m] = img[m] * 0.2 + col(under) * 0.8
-    return img
-
-
-def paint_green(seed):
+def surf_painted(seed, base, boards, under, chip=0.6, streak=0.12, transpose=False):
+    """Painted boarding: the paint's brush marks along the boards, dirt run down from above, chips through to the grey
+    wood with a raised edge of paint round each, the seams and butts filled with paint."""
     rng = np.random.default_rng(seed)
-    img = bp.paint_planks(seed, (0.11, 0.22, 0.16), boards=2, joints=False, knots=0)
-    return chips(img, rng, (0.3, 0.25, 0.18))
+    w = h = P
+    wood, B = surf_planks(seed + 1000, under, boards=boards, butts=0.3, nails=True, n_knots=1)
+    H = (wood.h - 0.5) * 0.6 + 0.5
+    e = B.edge()
+    brush = noise(rng, w, h, 4, 90) * 0.6 + noise(rng, w, h, 12, 160) * 0.4
+    C = col(base) * (0.9 + 0.12 * fbm(rng, w, h, 6, 6) + 0.06 * (brush - 0.5))[..., None]
+    C *= (1 - 0.42 * sstep(2.2, 0.8, e))[..., None]
+    C *= (1 - 0.12 * sstep(6.0, 1.5, e))[..., None]
+    H = H + 0.04 + 0.025 * (brush - 0.5)
+    runs = noise(rng, w, h, 46, 3) * 0.7 + noise(rng, w, h, 90, 5) * 0.3
+    C = mix(C, col((0.18, 0.16, 0.13)), sstep(0.55, 0.9, runs) * streak)
+    m = fbm(rng, w, h, 10, 10)
+    cm = sstep(chip + 0.22, chip + 0.26, m)
+    spots = np.zeros((h, w))
+    for _ in range(90):
+        stamp(spots, None, rng.uniform(0, w), rng.uniform(0, h), rng.uniform(1.5, 6), lambda d: sstep(1.0, 0.8, d), rx=rng.uniform(2, 12))
+    cm = np.clip(np.maximum(cm, spots), 0, 1)
+    rim = np.clip(blur(cm, 2) - cm, 0, 1)
+    C = mix(C, wood.c, cm)
+    C *= (1 - 0.35 * rim)[..., None]
+    H = H - 0.07 * cm + 0.05 * rim
+    s = done(speckle(C, rng, 0.02, 0.85, 1.1), H)
+    if transpose:
+        s = Surf(s.c.transpose(1, 0, 2).copy(), s.h.T.copy())
+    return s
 
 
-def paint_white(seed):
+# ---- iron and copper
+
+
+def plating(rng, w, h, strakes=2, pitch=19, frames=4, butts=(0.25, 0.75)):
+    """Riveted iron plates in and out (2 m a tile): the outer strakes lap over the inner ones above and below, double
+    rows of rivets along every lap and at the plates' butts, single rows on the frames. Returns the height, the
+    rivets ((x, y), radius) and the lap and seam lines (as masks)."""
+    sh = h / strakes
+    ov = sh * 0.07
+    vv = np.arange(h) + 0.5
+    uu = np.arange(w) + 0.5
+    k = np.minimum((vv // sh).astype(int), strakes - 1)
+    outer = np.zeros(h, bool)
+    for j in range(strakes):
+        if j % 2 == 1:
+            lo, hi = j * sh - ov, (j + 1) * sh + ov
+            outer |= ((vv >= lo) & (vv < hi)) | ((vv - h >= lo) & (vv - h < hi)) | ((vv + h >= lo) & (vv + h < hi))
+    H = np.where(outer, 0.62, 0.46)[:, None] * np.ones((1, w))
+    # the outer strakes' edges rounded off
+    d_edge = np.full(h, 1e9)
+    for j in range(strakes):
+        if j % 2 == 1:
+            for b in (j * sh - ov, (j + 1) * sh + ov):
+                d_edge = np.minimum(d_edge, np.abs(((vv - b) + h / 2) % h - h / 2))
+    bev = sstep(0.0, 3.0, d_edge)
+    H = 0.46 + (H - 0.46) * np.where(outer, bev, 1.0)[:, None]
+    lap = np.zeros((h, w))
+    lap += (sstep(1.6, 0.4, d_edge) * outer)[:, None]
+    rivets = []
+    for j in range(strakes):
+        b = j * sh
+        for off in (-0.45 * ov, 0.45 * ov):
+            x = rng.uniform(0, pitch)
+            while x < w:
+                rivets.append(((x, (b + off) % h), 3.0))
+                x += pitch
+    seams = np.zeros((h, w))
+    for j in range(strakes):
+        bu = butts[j % len(butts)] * w
+        rows = k == j
+        d = np.abs(((uu - bu) + w / 2) % w - w / 2)
+        seams[rows] = np.maximum(seams[rows], sstep(1.2, 0.3, d)[None, :])
+        for off in (-14, -6, 6, 14):
+            y = j * sh + ov * 1.4
+            while y < (j + 1) * sh - ov * 1.4:
+                rivets.append((((bu + off) % w, y), 2.8))
+                y += pitch * 0.9
+    for f in range(frames):
+        fx = (f + 0.5) / frames * w
+        y = rng.uniform(0, pitch * 2)
+        while y < h:
+            if all(abs(((fx - (butts[int(y // sh) % len(butts)] * w)) + w / 2) % w - w / 2) > 30 for _ in (0,)):
+                rivets.append(((fx, y), 2.8))
+            y += pitch * 2.6
+    H = H - 0.12 * seams
+    return H, rivets, lap, seams, k, sh
+
+
+def surf_iron_hull(seed, paint=(0.13, 0.125, 0.13), under=(0.32, 0.11, 0.065), red=False):
+    """Black-painted iron plating in and out (2 m a tile: two strakes of 1 m, plates of 2 m): rivet rows along the laps,
+    the butts and the frames, rust bleeding from the laps and running down from rivets, chips through to the red
+    lead, dents. red: the red lead bottom of a steamer (the same plates, the red lead worn and fouled)."""
     rng = np.random.default_rng(seed)
-    img = bp.paint_planks(seed, (0.66, 0.64, 0.57), boards=4, joints=False, knots=0)
-    img = chips(img, rng, (0.36, 0.34, 0.3), 0.6)
-    streak = noise(rng, 64, 64, 32, 2)
-    img *= (0.85 + 0.2 * streak)[..., None]
-    return img
+    w = h = P
+    H, rivets, lap, seams, k, sh = plating(rng, w, h)
+    dents = noise(rng, w, h, 4, 4) - 0.5
+    H += 0.05 * dents
+    C = col(paint) * (0.84 + 0.3 * fbm(rng, w, h, 8, 8) + 0.9 * dents * 0.25)[..., None]
+    if red:
+        chalk = sstep(0.5, 0.8, fbm(rng, w, h, 6, 6))
+        C = mix(C, col((0.46, 0.22, 0.15)), chalk * 0.35)
+    C *= (1 - 0.5 * lap)[..., None]
+    C *= (1 - 0.55 * seams)[..., None]
+    rust = col((0.34, 0.15, 0.07))
+    cm = sstep(0.8, 0.84, fbm(rng, w, h, 14, 14)) * (rng.random((h, w)) < 0.85)
+    C = mix(C, col(under) * (0.8 + 0.4 * noise(rng, w, h, 40, 40))[..., None], cm)
+    H -= 0.04 * cm
+    for (x, y), r in rivets:
+        stamp(H, C, x, y, r, dome(0.24, 0.07), col(paint) * rng.uniform(1.2, 1.7), lambda d: 0.6 * sstep(1.0, 0.3, d))
+    picks = rng.choice(len(rivets), size=min(len(rivets), 70), replace=False)
+    for i in picks:
+        (x, y), r = rivets[i]
+        run_down(H, C, rng, x, y - r, rng.uniform(14, 90), rng.uniform(1.6, 3.2), rust * rng.uniform(0.8, 1.15),
+                 rng.uniform(0.35, 0.7))
+    # rust in the laps' lower edges, where the water stands
+    for j in range(2):
+        y = (j * sh) % h
+        bleed = sstep(0.5, 0.85, noise(rng, w, 1, 30, 1))[0]
+        for x in np.nonzero(bleed > 0.1)[0][::3]:
+            if rng.random() < 0.5:
+                run_down(H, C, rng, float(x), y - 2, rng.uniform(4, 28), 1.8, rust, 0.4 * bleed[x])
+    if red:
+        grime = sstep(0.4, 0.75, fbm(rng, w, h, 3, 5))
+        C = mix(C, col((0.12, 0.1, 0.07)), grime * 0.45)
+        for _ in range(40):
+            stamp(H, C, rng.uniform(0, w), rng.uniform(0, h), rng.uniform(2, 5), lambda d: 0.04 * np.clip(1 - d, 0, 1),
+                  col((0.1, 0.15, 0.06)), disc(0.5))
+    return done(speckle(C, rng, 0.04, 0.75, 1.25), H, k=0.9)
 
 
-def paint_canvas(seed, base, gaskets=True):
-    """Furled sailcloth: creases run along the bundle (constant u). M7 boats: without the gaskets, a canvas hood."""
+def surf_copper(seed):
+    """Copper sheathing (2 m a tile): sheets of 1 m by 40 cm, each row half a sheet along from the next, every sheet
+    lapping the one below and the one aft; nails close along every edge and in a lozenge over the sheet; brown
+    tarnish, green verdigris at the edges, the nails and in runs, bright where it was rubbed."""
     rng = np.random.default_rng(seed)
-    uu = np.arange(64)[None, :]
-    folds = 0.82 + 0.18 * np.sin(uu / 64 * 2 * math.pi * 5 + rng.uniform(0, 6)) + 0.1 * np.sin(uu / 64 * 2 * math.pi * 11)
-    img = np.ones((64, 64, 3)) * col(base) * folds[..., None]
-    img *= (0.85 + 0.25 * noise(rng, 64, 64, 32, 4))[..., None]
+    w = h = P
+    rows, per = 5, 2
+    rh, sw = h / rows, w / per
+    vv = (np.arange(h) + 0.5)[:, None]
+    uu = (np.arange(w) + 0.5)[None, :]
+    r = np.minimum((vv // rh).astype(int), rows - 1)
+    shift = (r % 2) * sw / 2
+    us = (uu - shift) % w
+    s = (us // sw).astype(int)
+    fv = vv - r * rh
+    fu = us - s * sw
+    sheet = r * per + s
+    H = 0.52 + 0.06 * (noise(rng, w, h, 10, 12) - 0.5)
+    ov = 5.0
+    H = H + 0.08 * sstep(ov + 2, ov - 1, fv) - 0.05 * sstep(rh - 4, rh, fv)
+    H = H + 0.05 * sstep(ov + 2, ov - 1, sw - fu) - 0.04 * sstep(3, 0, fu)
+    edge = np.minimum(np.minimum(fv, rh - fv), np.minimum(fu, sw - fu))
+    tone = rng.uniform(0.85, 1.15, rows * per + 1)[sheet]
+    C = col((0.38, 0.22, 0.13)) * (tone * (0.82 + 0.3 * fbm(rng, w, h, 8, 8)))[..., None]
+    dark = sstep(0.5, 0.75, fbm(rng, w, h, 5, 5))
+    C = mix(C, col((0.17, 0.11, 0.075)), dark * 0.45)
+    C *= (1 - 0.45 * sstep(2.0, 0.0, np.minimum(fv, fu)))[..., None]
+    nails = []
+    for ri in range(rows):
+        for si in range(per):
+            x0 = si * sw + (ri % 2) * sw / 2
+            y0 = ri * rh
+            for t in np.arange(4, sw - 2, 7.0):
+                nails.append((x0 + t, y0 + 3.0))
+                nails.append((x0 + t, y0 + rh - 3.0))
+            for t in np.arange(4, rh - 2, 7.0):
+                nails.append((x0 + 3.0, y0 + t))
+                nails.append((x0 + sw - 3.0, y0 + t))
+            for a_ in np.arange(0.2, 0.85, 0.2):
+                for b_ in (0.33, 0.66):
+                    nails.append((x0 + a_ * sw + (b_ - 0.5) * 18, y0 + b_ * rh))
+    green = np.clip(fbm(rng, w, h, 7, 7) * 1.5 - 0.62 + 0.45 * sstep(10, 0, edge), 0, 1)
+    vg = col((0.25, 0.43, 0.34))
+    C = mix(C, vg * (0.85 + 0.35 * noise(rng, w, h, 50, 50))[..., None], green * 0.8)
+    crust = sstep(0.7, 0.95, green) * noise(rng, w, h, 70, 70)
+    C = mix(C, col((0.42, 0.55, 0.45)), crust * 0.5)
+    H += 0.035 * crust
+    for x, y in nails:
+        stamp(H, C, x % w, y % h, 1.5, dome(0.1, 0.0), col((0.2, 0.3, 0.24)) if rng.random() < 0.45 else col((0.45, 0.28, 0.16)), disc(0.4))
+    for _ in range(60):
+        x, y = nails[int(rng.integers(0, len(nails)))]
+        run_down(H, C, rng, x % w, y % h - 1.5, rng.uniform(10, 50), 1.6, vg, 0.4)
+    for _ in range(12):
+        y, x0, ln = rng.uniform(0, h), rng.uniform(0, w), int(rng.uniform(40, 200))
+        xs = (x0 + np.arange(ln)).astype(int) % w
+        ys = (y + np.arange(ln) * rng.normal(0, 0.05)).astype(int) % h
+        for dy in (0, 1):
+            C[(ys + dy) % h, xs] = mix(C[(ys + dy) % h, xs], col((0.62, 0.37, 0.21)), 0.5)
+    return done(speckle(C, rng, 0.03, 0.8, 1.2), H, k=0.9)
+
+
+def surf_iron(seed, base=(0.15, 0.15, 0.16)):
+    """Iron fittings (bitts, chains, anchors, windlasses, stoves): dark, pitted, rust blooming in patches and flaking."""
+    rng = np.random.default_rng(seed)
+    w = h = P
+    n = fbm(rng, w, h, 6, 6)
+    rust = sstep(0.52, 0.66, n)
+    C = mix(col(base) * (0.84 + 0.3 * fbm(rng, w, h, 24, 24))[..., None],
+            col((0.33, 0.18, 0.1)) * (0.8 + 0.4 * noise(rng, w, h, 60, 60))[..., None], rust)
+    H = 0.5 + 0.06 * (fbm(rng, w, h, 30, 30) - 0.5)
+    flake = rust * noise(rng, w, h, 40, 40)
+    H += 0.08 * sstep(0.5, 0.8, flake)
+    pits = rng.random((h, w)) < 0.006
+    pits = blur(pits.astype(float), 1) > 0.1
+    H -= 0.12 * pits
+    C[pits] *= 0.55
+    return done(speckle(C, rng, 0.05, 0.6, 0.9), H, k=0.8)
+
+
+# ---- cloth, rope, net
+
+
+def weave(w, h, period, rng):
+    """A plain weave: the threads' roundness, over and under (0..1)."""
+    uu = (np.arange(w) + 0.5)[None, :] / period
+    vv = (np.arange(h) + 0.5)[:, None] / period
+    iu, iv = np.floor(uu), np.floor(vv)
+    fu, fv = uu - iu, vv - iv
+    over = ((iu + iv) % 2 == 0)
+    warp = np.cos(np.pi * (fu - 0.5))
+    weft = np.cos(np.pi * (fv - 0.5))
+    t = np.where(over, warp * (0.6 + 0.4 * weft), weft * (0.6 + 0.4 * warp))
+    thick = rng.uniform(0.85, 1.15, int(np.ceil(w / period)) + 1)[iu.astype(int) % (int(np.ceil(w / period)) + 1)] * \
+        rng.uniform(0.85, 1.15, int(np.ceil(h / period)) + 1)[iv.astype(int) % (int(np.ceil(h / period)) + 1)]
+    return t * thick
+
+
+def surf_canvas(seed, base, gaskets=True, tan=False):
+    """Furled sailcloth: folds and sharp creases along the bundle (constant u), the cloth's weave, mildew, the gaskets
+    (the rope bands that hold a furled sail) a metre apart. Without gaskets: a canvas hood with stitched seams."""
+    rng = np.random.default_rng(seed)
+    w = h = P
+    u = (np.arange(w) + 0.5)[None, :] / w
+    warp = noise(rng, w, h, 3, 4) * 0.08
+    folds = 0.5 + 0.3 * np.sin(2 * np.pi * (u * 5 + warp) + rng.uniform(0, 6)) + 0.15 * np.sin(2 * np.pi * (u * 11 + warp * 2))
+    folds = folds * np.ones((h, 1))
+    if not gaskets:
+        folds = 0.5 + (folds - 0.5) * 0.5
+    H = 0.5 + 0.35 * (folds - 0.5)
+    C = col(base) * (0.78 + 0.3 * folds)[..., None]
+    C *= (0.88 + 0.18 * noise(rng, w, h, 32, 4))[..., None]
     for _ in range(7):
-        u = int(rng.integers(0, 64))
-        img[:, u] *= 0.55
-    img *= (0.9 + 0.15 * noise(rng, 64, 64, 6, 6))[..., None]
-    for r0 in ((14, 46) if gaskets else ()):  # gaskets: the rope bands that hold a furled sail, one a metre
-        img[r0:r0 + 3] = img[r0:r0 + 3] * 0.35 + col((0.2, 0.16, 0.11)) * 0.5
-        img[r0 + 3] *= 1.15
-    return speckle(img, rng, 0.04)
+        x = rng.uniform(0, w)
+        d = np.abs(((np.arange(w) + 0.5 - x) + w / 2) % w - w / 2)[None, :] + 0.0 * H
+        cr = sstep(3.0, 0.0, d) * (0.5 + 0.5 * noise(rng, w, h, 2, 8))
+        C *= (1 - 0.4 * cr)[..., None]
+        H -= 0.12 * cr
+    wv = weave(w, h, 5.0, rng)
+    C *= (0.95 + 0.06 * wv)[..., None]
+    H += 0.03 * (wv - 0.5)
+    mil = sstep(0.66, 0.85, fbm(rng, w, h, 6, 6)) * noise(rng, w, h, 40, 40)
+    C = mix(C, col((0.3, 0.32, 0.27)) if not tan else col((0.2, 0.12, 0.07)), mil * 0.4)
+    if tan:
+        patch = sstep(0.45, 0.75, fbm(rng, w, h, 3, 3))
+        C *= (1 - 0.18 * patch)[..., None]
+    if gaskets:
+        uu, vv = np.meshgrid(np.arange(w) + 0.5, np.arange(h) + 0.5)
+        for v0 in (14 / 64 * h, 46 / 64 * h):
+            band = (vv >= v0) & (vv < v0 + 3 / 64 * h)
+            t = (vv - v0) / (3 / 64 * h)
+            lay = 0.5 + 0.5 * np.sin(2 * np.pi * (uu / 10.0 + t * 1.5)) ** 2
+            prof = np.sin(np.pi * np.clip(t, 0, 1))
+            C[band] = (col((0.2, 0.16, 0.11)) * (0.6 + 0.5 * lay * prof)[..., None])[band]
+            H[band] = (0.55 + 0.35 * prof * (0.75 + 0.25 * lay))[band]
+            sh = (vv >= v0 - 4) & (vv < v0)
+            C[sh] *= 0.75
+    else:
+        for x in (0.25 * w, 0.75 * w):
+            for dx in (-4, 4):
+                xs = int(x + dx)
+                C[:, xs] *= 0.78
+                H[:, xs] -= 0.04
+                C[::5, xs - 1] *= 0.85
+    return done(speckle(C, rng, 0.03), H, k=1.0)
 
 
-def paint_tarp(seed):
-    """Tarred tarpaulin over hatches, lashed with ropes every 0.8 m (columns)."""
+def surf_tarp(seed):
+    """Tarred tarpaulin over the hatches: broad folds and sharp creases slanting across, the tar's shine, worn pale
+    over the hatch coamings' edges, lashed with ropes every 0.8 m (columns)."""
     rng = np.random.default_rng(seed)
-    img = np.ones((64, 64, 3)) * col((0.14, 0.16, 0.13))
-    img *= (0.75 + 0.45 * noise(rng, 64, 64, 6, 10))[..., None]
-    uu, vv = np.meshgrid(np.arange(64), np.arange(64))
-    crease = np.abs(((uu + vv * 0.6) % 21) - 10) < 0.7
-    img[crease] *= 0.7
-    for u in (15, 47):
-        img[:, u - 1:u + 2] = col((0.33, 0.28, 0.19)) * (0.85 + 0.3 * rng.random((64, 3, 1)))
-    return speckle(img, rng, 0.05)
+    w = h = P
+    uu, vv = np.meshgrid(np.arange(w) + 0.5, np.arange(h) + 0.5)
+    fold = fbm(rng, w, h, 3, 4)
+    H = 0.5 + 0.3 * (fold - 0.5)
+    C = col((0.14, 0.16, 0.13)) * (0.72 + 0.5 * fold)[..., None]
+    t = ((uu + vv * 0.6) % 168) / 168
+    cr = sstep(0.04, 0.0, np.abs(t - 0.5)) * (0.4 + 0.6 * noise(rng, w, h, 4, 4))
+    C *= (1 - 0.35 * cr)[..., None]
+    H -= 0.12 * cr
+    sheen = sstep(0.6, 0.85, noise(rng, w, h, 6, 9))
+    C *= (1 + 0.3 * sheen)[..., None]
+    wear = sstep(0.68, 0.85, fbm(rng, w, h, 8, 8))
+    C = mix(C, col((0.3, 0.3, 0.26)), wear * 0.45)
+    for x in (15 / 64 * w, 47 / 64 * w):
+        d = np.abs(uu - x)
+        rope = d < 11
+        prof = np.sqrt(np.clip(1 - (d / 11) ** 2, 0, 1))
+        lay = 0.5 + 0.5 * np.sin(2 * np.pi * (vv / 14.0 + d / 22.0)) ** 2
+        C[rope] = (col((0.33, 0.28, 0.19)) * (0.55 + 0.5 * prof * (0.7 + 0.3 * lay))[..., None])[rope]
+        H[rope] = (0.55 + 0.4 * prof * (0.8 + 0.2 * lay))[rope]
+        shadow = (d >= 11) & (d < 17)
+        C[shadow] *= 0.7
+        H[shadow] -= 0.05
+    return done(speckle(C, rng, 0.04), H)
 
 
-def paint_funnel(seed):
-    """Funnel, v up: black with a red band, soot at the top, rings of rivets."""
+def surf_rope(seed, base=(0.5, 0.42, 0.29)):
+    """Laid rope: three strands twisting along (four lays a tile, slanting), their fibres, the strands rounded."""
     rng = np.random.default_rng(seed)
-    img = np.ones((64, 64, 3)) * col((0.07, 0.065, 0.06))
-    img[36:46] = col((0.42, 0.08, 0.06))
-    img *= (0.85 + 0.3 * noise(rng, 64, 64, 6, 6))[..., None]
-    for r in (10, 22, 34, 48):
-        img[r] *= 0.5
-        img[r + 1] += 0.04
-    soot = np.clip((np.arange(64) - 50) / 14, 0, 1)[:, None, None]
-    img *= 1 - 0.5 * soot
-    return speckle(img, rng, 0.05)
+    w = h = P
+    uu, vv = np.meshgrid(np.arange(w) + 0.5, np.arange(h) + 0.5)
+    s = ((uu + vv) % 128) / 128.0
+    prof = np.sin(np.pi * s) ** 0.7
+    fib = noise(rng, w, h, 64, 8)
+    fib = np.roll(fib, 0, axis=0)
+    fibres = 0.5 * fib + 0.5 * noise(rng, w, h, 128, 16)
+    C = col(base) * (prof * (0.6 + 0.5 * fibres) + 0.12)[..., None]
+    C *= (0.85 + 0.25 * fbm(rng, w, h, 4, 4))[..., None]
+    H = 0.2 + 0.65 * prof + 0.06 * (fibres - 0.5)
+    return done(speckle(C, rng, 0.05), H)
 
 
-def paint_funnel_star(seed):
-    """The ocean liner's funnel, v up: black, a broad white band with a red five-pointed star
-    (the Antwerp line of 1873: black funnel, white band, red star), soot at the top, rivet rings."""
+def surf_shrouds(seed):
+    """Shrouds and ratlines, cut out: four tarred shrouds across u, a ratline every eighth of v, rounded, laid."""
     rng = np.random.default_rng(seed)
-    n = 64
-    img = np.ones((n, n, 3)) * col((0.07, 0.065, 0.06))
-    b0, b1 = 30, 48
-    img[b0:b1] = col((0.72, 0.7, 0.64))
-    uu, vv = np.meshgrid(np.arange(n) + 0.5, np.arange(b1 - b0) + 0.5)
-    cu, cv = n / 2, (b1 - b0) / 2
-    a = np.arctan2(vv - cv, (uu - cu) * 0.5) - math.pi / 2
-    r = np.hypot((uu - cu) * 0.5, vv - cv)
-    k = np.cos(math.pi / 5) / np.cos((a % (2 * math.pi / 5)) - math.pi / 5)
-    star = r < 7.2 * (0.42 + 0.58 * (k - np.cos(math.pi / 5)) / (1 - np.cos(math.pi / 5)))
-    band = img[b0:b1]
-    band[star] = col((0.55, 0.06, 0.05))
-    img *= (0.85 + 0.3 * noise(rng, n, n, 6, 6))[..., None]
-    for r_ in (10, 22, b0 - 1, b1, 56):
-        img[r_] *= 0.5
-        img[r_ + 1] += 0.03
-    soot = np.clip((np.arange(n) - 52) / 12, 0, 1)[:, None, None]
-    img *= 1 - 0.55 * soot
-    return speckle(img, rng, 0.05)
+    w = h = P
+    uu, vv = np.meshgrid(np.arange(w) + 0.5, np.arange(h) + 0.5)
+    C = np.ones((h, w, 3)) * col((0.08, 0.065, 0.05))
+    H = np.full((h, w), 0.5)
+    A = np.zeros((h, w))
+    for cu in (1, 21, 42, 62):
+        x = cu / 64 * w
+        d = np.abs(((uu - x) + w / 2) % w - w / 2)
+        on = d < 8
+        prof = np.sqrt(np.clip(1 - (d / 8) ** 2, 0, 1))
+        lay = 0.5 + 0.5 * np.sin(2 * np.pi * (vv / 12.0 + d / 16.0)) ** 2
+        A[on] = 1
+        C[on] = (col((0.085, 0.07, 0.055)) * (0.55 + 0.6 * prof * (0.75 + 0.25 * lay))[..., None])[on]
+        H[on] = (0.3 + 0.6 * prof)[on]
+    dv = np.abs(((vv % (h / 8)) - 4.0))
+    on = (dv < 4.0) & (A == 0)
+    prof = np.sqrt(np.clip(1 - (dv / 4.0) ** 2, 0, 1))
+    A[on] = 1
+    C[on] = (col((0.16, 0.13, 0.1)) * (0.6 + 0.5 * prof)[..., None])[on]
+    H[on] = (0.3 + 0.45 * prof)[on]
+    return done(C, H, A)
 
 
-def paint_window(seed):
+def surf_netting(seed):
+    """Tanned net, cut out: a diamond mesh of twine (four meshes a tile), knotted at the crossings."""
     rng = np.random.default_rng(seed)
-    n = 32
-    img = np.ones((n, n, 3)) * col((0.56, 0.53, 0.46))
-    img *= (0.85 + 0.3 * noise(rng, n, n, 4, 4))[..., None]
-    pane = np.ones((n, n), bool)
-    pane[:3] = pane[-3:] = False
-    pane[:, :3] = pane[:, -3:] = False
-    pane[15:17] = False
-    pane[:, 15:17] = False
-    img[pane] = col((0.04, 0.05, 0.06))
-    uu, vv = np.meshgrid(np.arange(n), np.arange(n))
-    shine = pane & (np.abs((uu - vv) - 6) < 2)
-    img[shine] = col((0.17, 0.19, 0.21))
-    return img
+    w = h = P
+    uu, vv = np.meshgrid(np.arange(w) + 0.5, np.arange(h) + 0.5)
+    p = 128.0
+    d1 = np.abs(((uu + vv) % p) - p / 2)
+    d2 = np.abs(((uu - vv) % p) - p / 2)
+    d = np.minimum(d1, d2) / np.sqrt(2)
+    r = 5.5
+    A = (d < r).astype(float)
+    prof = np.sqrt(np.clip(1 - (d / r) ** 2, 0, 1))
+    H = 0.3 + 0.55 * prof
+    C = col((0.24, 0.16, 0.09)) * (0.55 + 0.55 * prof)[..., None] * (0.8 + 0.4 * rng.random((h, w, 1)))
+    for i in range(4):
+        for j in range(4):
+            for cx, cy in (((i + 0.5) * p, (j + 0.0) * p), ((i + 0.0) * p, (j + 0.5) * p)):
+                stamp(H, C, cx, cy, 9, lambda d_: 0.25 * np.sqrt(np.clip(1 - d_ * d_, 0, 1)), col((0.2, 0.13, 0.07)), disc(0.3))
+                stamp(A, None, cx, cy, 9, lambda d_: (d_ < 1).astype(float))
+    return done(C, H, np.clip(A, 0, 1))
 
 
-def paint_flag(seed):
-    """Four flags, v up: top left a white house flag with a red star, top right plain red
-    (pennants), bottom left the Dutch tricolour, bottom right the Belgian one. Muted colours."""
-    w, h = 64, 32
-    img = np.zeros((h, w, 3))
-    img[16:, :32] = col((0.78, 0.76, 0.7))
-    img[16:, 32:] = col((0.5, 0.07, 0.06))
-    img[11:16, :32] = col((0.5, 0.1, 0.08))
-    img[5:11, :32] = col((0.76, 0.74, 0.68))
-    img[0:5, :32] = col((0.12, 0.18, 0.36))
-    img[:16, 32:43] = col((0.05, 0.05, 0.05))
-    img[:16, 43:54] = col((0.66, 0.54, 0.16))
-    img[:16, 54:] = col((0.5, 0.09, 0.07))
-    uu, vv = np.meshgrid(np.arange(32) + 0.5, np.arange(16) + 0.5)
+def surf_sack(seed):
+    """Jute sacking, plain woven (64 threads a tile), with the worn merchant's mark (a ring, a mast with a crossbar and
+    a flag: a merchant's "four") of the town's sacks."""
+    rng = np.random.default_rng(seed)
+    w = h = P
+    wv = weave(w, h, 8.0, rng)
+    C = col((0.56, 0.46, 0.31)) * (0.78 + 0.26 * wv)[..., None]
+    C *= (0.84 + 0.28 * fbm(rng, w, h, 4, 4))[..., None]
+    H = 0.4 + 0.3 * wv
+    uu, vv = np.meshgrid(np.arange(w) + 0.5, np.arange(h) + 0.5)
+    cx, cy = w / 2, h / 2
+    d = np.hypot(uu - cx, vv - cy)
+    s = w / 64
+    mark = np.abs(d - 13 * s) < 1.5 * s
+    mark |= (np.abs(uu - cx) < 1.3 * s) & (np.abs(vv - cy) < 10 * s)
+    mark |= (np.abs(vv - (cy - 3 * s)) < 1.2 * s) & (np.abs(uu - cx) < 7 * s)
+    mark |= (np.abs((uu - cx) - (vv - cy - 3 * s)) < 1.3 * s) & (uu >= cx) & (uu <= cx + 6 * s) & (vv > cy)
+    mark = mark & (fbm(rng, w, h, 16, 16) < 0.62)
+    C[mark] = C[mark] * 0.35 + col((0.09, 0.07, 0.05)) * 0.35
+    return done(speckle(C, rng, 0.03), H, k=0.9)
+
+
+# ---- crates, casks, stone, glass
+
+
+def surf_crate(seed, number="N.127"):
+    """The side of a packing crate fitted to the face: four pine boards across, pale worn ends, the stencilled mark (a
+    diamond with a K), ANTWERPEN and a number, nail heads where the battens cross the boards (the street's crate)."""
+    rng = np.random.default_rng(seed)
+    w = h = P
+    s, B = surf_planks(seed, (0.57, 0.46, 0.31), boards=4, butts=0.0, nails=False, n_knots=2)
+    C, H = s.c, s.h
+    uu, vv = np.meshgrid(np.arange(w) + 0.5, np.arange(h) + 0.5)
+    wear = np.clip(1 - np.minimum(uu, w - uu) / 40.0, 0, 1) * (0.5 + 0.5 * noise(rng, w, h, 40, 40))
+    C = C * (1 + 0.35 * wear[..., None])
+    k = w / 64
+    dia = np.abs(uu - 32 * k) + np.abs(vv - 55 * k) * 1.25
+    ink = col((0.07, 0.06, 0.05))
+    mark = (dia > 7.5 * k) & (dia < 9.5 * k) & (noise(rng, w, h, 50, 50) < 0.7)
+    C[mark] = C[mark] * 0.3 + ink * 0.6
+    letters(C, rng, "K", 32 * k, 58 * k, 5, ink, keep=0.9)
+    letters(C, rng, "ANTWERPEN", 32 * k, 40 * k, 5, ink, keep=0.88)
+    letters(C, rng, number, 32 * k, 24 * k, 5, ink, keep=0.88)
+    for u in (3, 60):
+        for v in (4, 20, 36, 52):
+            stamp(H, C, (u + 1) * k, (v + 1) * k, 4.5, dome(0.14, 0.06), col((0.1, 0.09, 0.08)), disc())
+    return done(speckle(C, rng, 0.02, 0.8, 1.0), H)
+
+
+def surf_staves(seed):
+    """A cask's oak staves standing along v, 8 a tile: each rounded across, the joints dark, the grain along v."""
+    rng = np.random.default_rng(seed)
+    s, B = surf_planks(seed, (0.4, 0.27, 0.16), boards=8, butts=0.0, nails=False, n_knots=1)
+    return Surf(s.c.transpose(1, 0, 2).copy(), s.h.T.copy())
+
+
+def surf_stone(seed):
+    """Dressed stone blocks (ballast, a stove's hearth): two courses a tile, half a block along from each other,
+    tooled faces, the arrises knocked, sunk lime joints."""
+    rng = np.random.default_rng(seed)
+    w = h = P
+    uu, vv = np.meshgrid(np.arange(w) + 0.5, np.arange(h) + 0.5)
+    r = (vv // (h / 2)).astype(int)
+    us = (uu + (r % 2) * w / 4) % w
+    bu = us // (w / 2)
+    fu, fv = us - bu * w / 2, vv - r * h / 2
+    e = np.minimum(np.minimum(fu, w / 2 - fu), np.minimum(fv, h / 2 - fv))
+    tool = fbm(rng, w, h, 24, 24)
+    H = 0.22 + (0.62 + 0.12 * (tool - 0.5) - 0.22) * sstep(3.0, 9.0 + 6 * noise(rng, w, h, 20, 20), e)
+    tone = rng.uniform(0.88, 1.12, 8)[(r * 2 + bu).astype(int) % 8]
+    C = col((0.46, 0.45, 0.42)) * (tone * (0.82 + 0.3 * tool))[..., None]
+    C = mix(C, col((0.36, 0.35, 0.32)), sstep(4.0, 2.0, e))
+    C *= (1 - 0.3 * sstep(9, 3, e))[..., None]
+    return done(speckle(C, rng, 0.15, 0.75, 1.2), H)
+
+
+def surf_glass(seed):
+    """A lantern's glass, lit: amber, sooted toward the top, its frame dark at the edges. Smooth (no relief)."""
+    rng = np.random.default_rng(seed)
+    n = CELL
+    vv = (np.arange(n) + 0.5)[:, None, None] / n
+    C = np.ones((n, n, 3)) * col((0.78, 0.68, 0.46))
+    C *= 1 - 0.45 * vv ** 2
+    C *= (0.9 + 0.2 * noise(rng, n, n, 4, 4))[..., None]
+    e = n // 16
+    C[:e] = C[-e:] = 0.08
+    C[:, :e] = C[:, -e:] = 0.08
+    return done(C, np.full((n, n), 0.5))
+
+
+# ---- metal parts with paint
+
+
+def surf_funnel(seed, star=False):
+    """A funnel, v up: black, plate rings lapped with rivet rows, a vertical seam, the red band (the liner: a broad
+    white band with the line's red star), heat-browned and sooted toward the top."""
+    rng = np.random.default_rng(seed)
+    w = h = P
+    k = h / 64
+    uu, vv = np.meshgrid(np.arange(w) + 0.5, np.arange(h) + 0.5)
+    C = col((0.07, 0.065, 0.06)) * (0.85 + 0.3 * fbm(rng, w, h, 6, 6))[..., None]
+    H = 0.5 + 0.02 * (fbm(rng, w, h, 20, 20) - 0.5)
+    if star:
+        b0, b1 = 30 * k, 48 * k
+        band = (vv >= b0) & (vv < b1)
+        C[band] = (col((0.72, 0.7, 0.64)) * (0.92 + 0.12 * noise(rng, w, h, 8, 8))[..., None])[band]
+        cu, cv = w / 2, (b0 + b1) / 2
+        a = np.arctan2(vv - cv, (uu - cu) * 0.5) - math.pi / 2
+        rr = np.hypot((uu - cu) * 0.5, vv - cv)
+        kk = np.cos(math.pi / 5) / np.cos((a % (2 * math.pi / 5)) - math.pi / 5)
+        st = rr < 7.2 * k * (0.42 + 0.58 * (kk - np.cos(math.pi / 5)) / (1 - np.cos(math.pi / 5)))
+        C[band & st] = col((0.55, 0.06, 0.05))
+        rings = (10, 22, 30, 48, 56)
+    else:
+        band = (vv >= 36 * k) & (vv < 46 * k)
+        C[band] = (col((0.42, 0.08, 0.06)) * (0.9 + 0.15 * noise(rng, w, h, 8, 8))[..., None])[band]
+        rings = (10, 22, 34, 48)
+    for r_ in rings:
+        y = r_ * k
+        d = vv - y
+        H += 0.1 * sstep(-1.0, 1.5, d) * sstep(12.0, 9.0, d) - 0.05 * sstep(-3, -0.5, d) * sstep(0.5, -0.5, d)
+        C *= (1 - 0.45 * (sstep(-3.0, -0.5, d) * sstep(0.5, -0.5, d)))[..., None]
+        x = rng.uniform(0, 14)
+        while x < w:
+            stamp(H, C, x, y + 4, 2.8, dome(0.2, 0.06), col((0.11, 0.1, 0.09)), lambda d_: 0.6 * sstep(1, 0.3, d_))
+            x += 14
+    for sx in (0.0, 0.5):
+        x = sx * w + 2
+        y = 4.0
+        while y < h:
+            stamp(H, C, x + 5, y, 2.8, dome(0.2, 0.06), col((0.11, 0.1, 0.09)), lambda d_: 0.6 * sstep(1, 0.3, d_))
+            y += 14
+        C[:, int(x)] *= 0.6
+    heat = sstep(44 * k, 60 * k, vv) * noise(rng, w, h, 6, 4)
+    C = mix(C, col((0.2, 0.13, 0.09)), heat * 0.3)
+    soot = sstep(50 * k, 64 * k, vv) if not star else sstep(52 * k, 64 * k, vv)
+    C *= (1 - 0.55 * soot)[..., None]
+    for _ in range(18):
+        run_down(H, C, rng, rng.uniform(0, w), rng.uniform(40, 60) * k, rng.uniform(20, 80), 2.0, col((0.03, 0.03, 0.03)), 0.5)
+    return done(speckle(C, rng, 0.04), H, k=0.8)
+
+
+def surf_window(seed):
+    """A deckhouse window: a cream-painted frame and a cross bar round four dark panes, the putty's bevel, a shine."""
+    rng = np.random.default_rng(seed)
+    n = P
+    k = n / 32
+    uu, vv = np.meshgrid(np.arange(n) + 0.5, np.arange(n) + 0.5)
+    fr = np.ones((n, n), bool)
+    fr[int(3 * k):int(n - 3 * k), int(3 * k):int(n - 3 * k)] = False
+    fr[int(15 * k):int(17 * k)] = True
+    fr[:, int(15 * k):int(17 * k)] = True
+    C = col((0.56, 0.53, 0.46)) * (0.86 + 0.25 * fbm(rng, n, n, 8, 8))[..., None]
+    dist = blur((~fr).astype(float), 6)
+    H = 0.4 + 0.26 * np.clip(1 - dist * 1.4, 0, 1)
+    pane = ~fr
+    glass = col((0.04, 0.05, 0.06)) * (0.9 + 0.2 * noise(rng, n, n, 3, 3))[..., None]
+    sh = np.exp(-(((uu - vv) / n - 6 / 32) / 0.05) ** 2) * 0.13
+    C[pane] = (glass + sh[..., None] * col((1.0, 1.05, 1.1)))[pane]
+    C *= (1 - 0.35 * (np.clip(dist, 0, 1) * (1 - np.clip(dist, 0, 1)) * 4 * fr))[..., None]
+    chips = sstep(0.82, 0.86, fbm(rng, n, n, 12, 12)) * fr
+    C = mix(C, col((0.3, 0.26, 0.2)), chips)
+    H -= 0.05 * chips
+    return done(speckle(C, rng, 0.02, 0.85, 1.1), H, k=0.8)
+
+
+def surf_hatch(seed):
+    """Hatch boards across the ship (columns): tarred, weathered at the joints."""
+    rng = np.random.default_rng(seed)
+    s, B = surf_planks(seed, (0.2, 0.16, 0.12), boards=2, butts=0.0, nails=False, n_knots=1)
+    C = s.c.transpose(1, 0, 2).copy()
+    H = s.h.T.copy()
+    wear = sstep(0.62, 0.85, fbm(rng, P, P, 6, 6))
+    C = mix(C, col((0.33, 0.3, 0.26)), wear * 0.35)
+    return done(C, H)
+
+
+def surf_heap(seed, base, coal=True):
+    """A heap seen from above. Coal: lumps of all sizes with their facets and glints; sand: fine grain, ripples and the
+    wet dark where it was rained on."""
+    rng = np.random.default_rng(seed)
+    w = h = P
+    if coal:
+        H = np.full((h, w), 0.2)
+        C = np.ones((h, w, 3)) * col(base)
+        for _ in range(900):
+            r = rng.uniform(6, 26) * rng.uniform(0.5, 1.0)
+            rx = r * rng.uniform(0.7, 1.3)
+            x, y = rng.uniform(0, w), rng.uniform(0, h)
+            hb = rng.uniform(0.35, 0.8)
+            facet = rng.uniform(0.6, 1.4)
+            xs = np.arange(int(x - rx) - 1, int(x + rx) + 2)
+            ys = np.arange(int(y - r) - 1, int(y + r) + 2)
+            X, Y = np.meshgrid(xs, ys)
+            hh = hb * np.clip(1 - np.hypot((X + 0.5 - x) / rx, (Y + 0.5 - y) / r) ** 1.6, 0, 1)
+            ix = np.ix_(ys % h, xs % w)
+            win, cw = H[ix], C[ix]
+            m = hh > win
+            win[m] = hh[m]
+            cw[m] = col(base) * facet
+            H[ix], C[ix] = win, cw
+        H = blur(H, 1)
+        gy, gx = np.gradient(H)
+        lit = np.clip(0.5 - 6 * gx - 6 * gy, 0, 1)
+        C *= (0.6 + 0.8 * lit)[..., None]
+        glint = (rng.random((h, w)) < 0.004) & (lit > 0.6)
+        C[glint] = col((0.32, 0.32, 0.34))
+        return done(C, H, k=1.0)
+    uu, vv = np.meshgrid(np.arange(w) + 0.5, np.arange(h) + 0.5)
+    rip = np.sin(2 * np.pi * (vv / 46.0 + 1.2 * noise(rng, w, h, 3, 3))) * 0.5 + 0.5
+    grain = noise(rng, w, h, 128, 128)
+    H = 0.45 + 0.18 * rip + 0.1 * (grain - 0.5)
+    C = col(base) * (0.82 + 0.14 * rip + 0.18 * grain)[..., None]
+    wet = sstep(0.5, 0.7, fbm(rng, w, h, 4, 4))
+    C *= (1 - 0.3 * wet)[..., None]
+    for _ in range(40):
+        stamp(H, C, rng.uniform(0, w), rng.uniform(0, h), rng.uniform(2, 6), lambda d: 0.1 * np.clip(1 - d, 0, 1),
+              col(base) * 0.7, disc(0.5))
+    return done(speckle(C, rng, 0.08, 0.6, 1.4), H, k=0.8)
+
+
+def surf_streaks(seed):
+    """Rust and soot running down a hull or a wall under a fitting, cut out: dark tapering runs."""
+    rng = np.random.default_rng(seed)
+    n = P
+    C = np.zeros((n, n, 3))
+    A = np.zeros((n, n))
+    H = np.full((n, n), 0.5)
+    for _ in range(9):
+        u = rng.uniform(32, n - 32)
+        ln = rng.uniform(n / 3, n - 16)
+        wd = rng.uniform(5, 14)
+        rust = rng.random() < 0.7
+        c = col((0.34, 0.15, 0.07)) if rust else col((0.05, 0.045, 0.04))
+        for k in range(0, int(ln), 2):
+            t = k / ln
+            ww = max(3.0, wd * (1 - t) + 2)
+            u += rng.normal(0, 0.5)
+            stamp(A, C, u, n - 10 - k, ww, lambda d: sstep(1.0, 0.7, d), c * (0.8 + 0.4 * rng.random()), lambda d: sstep(1.0, 0.6, d), rx=ww * 0.5)
+    return done(C, H, np.clip(A, 0, 1))
+
+
+def surf_bilge(seed):
+    """Bilge boards under a film of foul water in an old boat: the boards and their seams dim under it, a scum in
+    clots, straws, an oily sheen. Nearly level (the water's face)."""
+    rng = np.random.default_rng(seed)
+    w = h = P
+    s, B = surf_planks(seed, (0.12, 0.11, 0.075), boards=3, butts=0.2, nails=True, n_knots=1)
+    C = mix(s.c, col((0.07, 0.08, 0.05)), 0.55)
+    C *= (0.75 + 0.5 * fbm(rng, w, h, 5, 5))[..., None]
+    H = 0.5 + (s.h - 0.5) * 0.15
+    sheen = sstep(0.55, 0.8, noise(rng, w, h, 3, 5))
+    C = mix(C, col((0.13, 0.14, 0.14)), sheen * 0.35)
+    for _ in range(26):
+        cx, cy = rng.uniform(0, w), rng.uniform(0, h)
+        for _ in range(int(rng.integers(3, 12))):
+            stamp(H, C, cx + rng.normal(0, 10), cy + rng.normal(0, 8), rng.uniform(2, 6), lambda d: 0.06 * np.clip(1 - d, 0, 1),
+                  col((0.22, 0.22, 0.16)) * rng.uniform(0.8, 1.2), disc(0.5))
+    for _ in range(12):
+        x, y, a = rng.uniform(0, w), rng.uniform(0, h), rng.uniform(0, math.pi)
+        for t in range(0, int(rng.uniform(20, 60)), 2):
+            stamp(H, C, x + t * math.cos(a), y + t * math.sin(a), 1.4, lambda d: 0.04 * np.clip(1 - d, 0, 1), col((0.45, 0.4, 0.24)), disc(0.4))
+    return done(C, H)
+
+
+def surf_washing(seed):
+    """Washing: four cloths, one a quarter: linen, a blue check shirt, a faded red cloth, a striped sheet; the weave,
+    hanging folds."""
+    rng = np.random.default_rng(seed)
+    n = P
+    q = n // 2
+    uu, vv = np.meshgrid(np.arange(q), np.arange(q))
+    c = q / 32
+    quarters = [col((0.78, 0.76, 0.68)) * np.ones((q, q, 3)),
+                np.where((((uu // (4 * c)) + (vv // (4 * c))) % 2 == 0)[..., None], col((0.3, 0.36, 0.48)), col((0.6, 0.62, 0.64))),
+                col((0.52, 0.2, 0.16)) * np.ones((q, q, 3)),
+                np.where(((uu // (3 * c)) % 3 == 0)[..., None], col((0.35, 0.4, 0.5)), col((0.76, 0.74, 0.66)))]
+    C = np.zeros((n, n, 3))
+    C[q:, :q], C[q:, q:], C[:q, :q], C[:q, q:] = quarters
+    fold = 0.5 + 0.5 * np.sin(2 * np.pi * (np.arange(n)[None, :] / (n / 6) + noise(rng, n, n, 3, 2) * 0.6))
+    C *= (0.78 + 0.22 * fold + 0.15 * (fbm(rng, n, n, 8, 8) - 0.5))[..., None]
+    wv = weave(n, n, 4.0, rng)
+    C *= (0.95 + 0.06 * wv)[..., None]
+    return done(C, 0.5 + 0.2 * (fold - 0.5) + 0.02 * (wv - 0.5))
+
+
+def surf_flag(seed):
+    """Four flags, v up: top left a white house flag with a red star, top right plain red (pennants), bottom left the
+    Dutch tricolour, bottom right the Belgian one. Muted colours, the bunting's weave. Smooth (cloth)."""
+    rng = np.random.default_rng(seed)
+    w, h = P, P // 2
+    k = w / 64
+    C = np.zeros((h, w, 3))
+    yy = lambda a: int(round(a * k))  # noqa: E731
+    C[yy(16):, :yy(32)] = col((0.78, 0.76, 0.7))
+    C[yy(16):, yy(32):] = col((0.5, 0.07, 0.06))
+    C[yy(11):yy(16), :yy(32)] = col((0.5, 0.1, 0.08))
+    C[yy(5):yy(11), :yy(32)] = col((0.76, 0.74, 0.68))
+    C[:yy(5), :yy(32)] = col((0.12, 0.18, 0.36))
+    C[:yy(16), yy(32):yy(43)] = col((0.05, 0.05, 0.05))
+    C[:yy(16), yy(43):yy(54)] = col((0.66, 0.54, 0.16))
+    C[:yy(16), yy(54):] = col((0.5, 0.09, 0.07))
+    uu, vv = np.meshgrid((np.arange(yy(32)) + 0.5) / k, (np.arange(h - yy(16)) + 0.5) / k)
     a = np.arctan2(vv - 8, uu - 16) - math.pi / 2
     r = np.hypot(uu - 16, vv - 8)
-    k = np.cos(math.pi / 5) / np.cos((a % (2 * math.pi / 5)) - math.pi / 5)
-    star = r < 6.2 * (0.45 + 0.55 * (k - np.cos(math.pi / 5)) / (1 - np.cos(math.pi / 5)))
-    top = img[16:, :32]
+    kk = np.cos(math.pi / 5) / np.cos((a % (2 * math.pi / 5)) - math.pi / 5)
+    star = r < 6.2 * (0.45 + 0.55 * (kk - np.cos(math.pi / 5)) / (1 - np.cos(math.pi / 5)))
+    top = C[yy(16):, :yy(32)]
     top[star] = col((0.55, 0.06, 0.05))
-    rng = np.random.default_rng(seed)
-    img *= (0.85 + 0.25 * noise(rng, w, h, 8, 4))[..., None]
-    return img
+    C *= (0.85 + 0.25 * noise(rng, w, h, 8, 4))[..., None]
+    wv = weave(w, h, 4.0, rng)
+    C *= (0.96 + 0.05 * wv)[..., None]
+    return done(C, np.full((h, w), 0.5))
 
 
 FONT = {
@@ -409,249 +1279,369 @@ NAME_ROWS3 = ["KEMPENLAND", "ANTWERPEN", "", "", "", "", "", ""]
 NAME_ROWS4 = ["ANTWERPEN", "BOOM", "TEMSE", "LILLO", "DOEL", "DRIE GEBR", "JOZEF", "POLITIE"]
 
 
-def paint_names(seed, rows=None):
-    """Ship names in painted letters, 16 px rows (row 0 at the top): cream on black."""
+def surf_names(seed, rows=None):
+    """Ship names in painted letters, eight rows (row 0 at the top): cream on black, the paint's brush and wear. Flat:
+    lettering has no relief (world/bumps.ts flatLettering). Laid out as before at four times the size."""
     rng = np.random.default_rng(seed)
-    n = 128
-    img = np.ones((n, n, 3)) * col((0.05, 0.045, 0.04))
-    img *= (0.8 + 0.4 * noise(rng, n, n, 16, 16))[..., None]
+    n = P
+    C = col((0.05, 0.045, 0.04)) * (0.8 + 0.4 * noise(rng, n, n, 16, 16))[..., None] * np.ones((n, n, 1))
     ink = col((0.8, 0.72, 0.52))
+    s = n / 128
     for r, text in enumerate(rows or NAME_ROWS):
-        wpx = len(text) * 12 - 2
-        x0 = (n - wpx) // 2
-        ytop = n - 16 * r - 2  # image rows run bottom-up
-        for k, ch in enumerate(text):
-            g = FONT.get(ch, FONT[" "])
-            for gy, row in enumerate(g):
-                for gx, bit in enumerate(row):
-                    if bit == "1":
-                        x = x0 + k * 12 + gx * 2
-                        y = ytop - gy * 2 - 2
-                        img[y:y + 2, x:x + 2] = ink * (0.85 + 0.3 * rng.random())
-        img[n - 16 * (r + 1)] *= 0.5
-    return img
+        letters(C, rng, text, n / 2, n - 16 * s * r - 2 * s, int(2 * s), ink, adv=12 * s)
+        y = int(n - 16 * s * (r + 1))
+        C[y:y + int(s)] *= 0.5
+    C *= (0.92 + 0.12 * noise(rng, n, n, 60, 6))[..., None]
+    return done(C, np.full((n, n), 0.5))
 
 
-def paint_washing(seed):
-    """Washing: four cloths, one per quarter: linen, a blue check shirt, a faded red cloth, a striped sheet."""
-    rng = np.random.default_rng(seed)
-    img = np.zeros((64, 64, 3))
-    uu, vv = np.meshgrid(np.arange(32), np.arange(32))
-    q = [col((0.78, 0.76, 0.68)) * np.ones((32, 32, 3)),
-         np.where((((uu // 4) + (vv // 4)) % 2 == 0)[..., None], col((0.3, 0.36, 0.48)), col((0.6, 0.62, 0.64))),
-         col((0.52, 0.2, 0.16)) * np.ones((32, 32, 3)),
-         np.where(((uu // 3) % 3 == 0)[..., None], col((0.35, 0.4, 0.5)), col((0.76, 0.74, 0.66)))]
-    img[32:, :32], img[32:, 32:], img[:32, :32], img[:32, 32:] = q
-    img *= (0.8 + 0.3 * noise(rng, 64, 64, 8, 8))[..., None]
-    return img
-
-
-def paint_shrouds(seed):
-    """Shrouds with ratlines, cut out: 4 dark lines across u, a ratline every 8 px of v."""
-    n = 64
-    img = np.ones((n, n, 3)) * col((0.08, 0.065, 0.05))
-    a = np.zeros((n, n))
-    for u in (1, 21, 42, 62):
-        a[:, u - 1:u + 1] = 1
-    a[::8, :] = 1
-    img[::8, :] = col((0.16, 0.13, 0.1))
-    return img, a
-
-
-def paint_lattice(seed):
-    """A lattice girder side: flanges top and bottom, posts and diagonals, cut out."""
-    rng = np.random.default_rng(seed)
-    n = 64
-    img = np.ones((n, n, 3)) * col((0.1, 0.1, 0.105))
-    img *= (0.8 + 0.4 * noise(rng, n, n, 8, 8))[..., None]
-    rust = np.clip((noise(rng, n, n, 6, 6) - 0.6) * 3, 0, 1)[..., None]
-    img = img * (1 - rust) + col((0.3, 0.15, 0.08)) * rust
-    uu, vv = np.meshgrid(np.arange(n), np.arange(n))
-    a = np.zeros((n, n))
-    a[:5] = a[-5:] = 1
-    for u in (0, 32):
-        a[:, max(0, u - 2):u + 2] = 1
-    a[:, 62:] = 1
-    for u0 in (0, 32):
-        d1 = np.abs((uu - u0) - (vv - 4) * 32 / 55)
-        d2 = np.abs((uu - u0 - 32) + (vv - 4) * 32 / 55)
-        a[((d1 < 1.6) | (d2 < 1.6)) & (uu >= u0) & (uu < u0 + 32)] = 1
-    return img, a
-
-
-def paint_rigging(seed):
-    return bp.paint_rope(seed, base=(0.14, 0.11, 0.08))
-
-
-def paint_hatch(seed):
-    """Hatch boards across the ship: columns, tarred, weathered at the joints."""
-    return bp.paint_planks(seed, (0.2, 0.16, 0.12), boards=2, joints=False, knots=1).transpose(1, 0, 2).copy()
-
-
-# ------------------------------------------------------------------ M7 boats: the detail pass
-
-
-def paint_tar_weed(seed, n=128):
-    """Tarred planks under the waterline: green weed in tufts and runs, a pale salt-and-barnacle
-    bloom in patches, the seams still showing. For the bottoms that show when a boat takes the mud."""
-    rng = np.random.default_rng(seed)
-    img = paint_tar(seed, n, base=(0.075, 0.07, 0.055))
-    weed = np.clip((noise(rng, n, n, 10, 3) - 0.35) * 2.2, 0, 1) * np.clip(noise(rng, n, n, 3, 18) * 1.4, 0, 1)
-    img = img * (1 - weed[..., None] * 0.75) + col((0.11, 0.16, 0.07)) * (weed[..., None] * 0.75)
-    bloom = (np.clip(noise(rng, n, n, 7, 7) - 0.62, 0, 1) * 3.5)[..., None] * (rng.random((n, n, 1)) < 0.35)
-    img = img * (1 - bloom * 0.6) + col((0.32, 0.31, 0.26)) * bloom * 0.6
-    return speckle(img, rng, 0.06, 0.6, 1.3)
-
-
-def paint_netting(seed, n=32):
-    """Tanned fishing net, cut out: a diamond mesh of knotted twine (an eel trap's netting, a net hung to dry)."""
-    rng = np.random.default_rng(seed)
-    uu, vv = np.meshgrid(np.arange(n) + 0.5, np.arange(n) + 0.5)
-    a = ((np.abs(((uu + vv) % 8) - 4) < 0.8) | (np.abs(((uu - vv) % 8) - 4) < 0.8)).astype(float)
-    img = np.ones((n, n, 3)) * col((0.24, 0.16, 0.09)) * (0.8 + 0.4 * rng.random((n, n, 1)))
-    return img, a
-
-
-def paint_heap(seed, base, lump, grain=0.25, n=64):
-    """A heap of coal or sand seen from above: lumps and shadows (coal) or ripples and wet dark (sand)."""
-    rng = np.random.default_rng(seed)
-    img = np.ones((n, n, 3)) * col(base)
-    img *= (1 - grain + 2 * grain * noise(rng, n, n, 16, 16))[..., None]
-    lumps = rng.random((n, n)) < lump
-    img[lumps] *= 1.7
-    img[np.roll(lumps, 1, axis=0)] *= 0.55
-    return speckle(img, rng, 0.08, 0.6, 1.4)
-
-
-def paint_streaks(seed, n=64):
-    """Rust and soot running down a hull or a wall under a fitting, cut out: dark tapering runs."""
-    rng = np.random.default_rng(seed)
-    img = np.zeros((n, n, 3))
-    a = np.zeros((n, n))
-    for _ in range(9):
-        u = int(rng.integers(4, n - 4))
-        ln = int(rng.integers(n // 3, n - 2))
-        w = int(rng.integers(1, 4))
-        rust = rng.random() < 0.7
-        c = col((0.34, 0.15, 0.07)) if rust else col((0.05, 0.045, 0.04))
-        for k in range(ln):
-            v = n - 1 - k  # image rows run bottom-up: the run starts at the top
-            ww = max(1, int(round(w * (1 - k / ln) + 0.4)))
-            a[v, u:u + ww] = 1
-            img[v, u:u + ww] = c * (0.8 + 0.4 * rng.random())
-            if rng.random() < 0.15:
-                u += int(rng.integers(-1, 2))
-    return img, a
-
-
-def paint_bilge(seed, n=32):
-    """Dirty bilge water standing in an old boat: dark green-brown with a scum."""
-    rng = np.random.default_rng(seed)
-    img = np.ones((n, n, 3)) * col((0.07, 0.08, 0.05))
-    img *= (0.75 + 0.5 * noise(rng, n, n, 6, 6))[..., None]
-    scum = rng.random((n, n)) < 0.05
-    img[scum] = col((0.22, 0.22, 0.16))
-    return img
-
-
-def paint_varnish(seed, n=64):
-    """Varnished planking of a gig: warm brown carvel strakes, thin seams, the grain along u."""
-    rng = np.random.default_rng(seed)
-    img = np.zeros((n, n, 3))
-    h = n // 8
-    for b in range(8):
-        img[b * h:(b + 1) * h] = col((0.36, 0.2, 0.1)) * (1 + rng.uniform(-0.12, 0.12))
-        img[b * h] *= 0.5
-    img *= (0.8 + 0.4 * noise(rng, n, n, 3, 32))[..., None]
-    return speckle(img, rng, 0.03)
-
-
-# ------------------------------------------------------------------ the portal crane's detail pass (2026-09-27)
-
-
-def paint_crane_plate(seed, w=128, h=32):
-    """Riveted plate of the portal crane, painted iron gone rusty at the rivets and the edges. Mapped
-    with u along the member and v across one face (0..1): a row of rivets along each edge (the flange
-    angles' lines, their toes a dark line), a butt strap with two rows at u = 0. Four face widths to
-    one picture along u (128 x 32 px: square pixels)."""
-    rng = np.random.default_rng(seed)
-    img = np.ones((h, w, 3)) * col((0.15, 0.15, 0.155))
-    img *= (0.84 + 0.3 * noise(rng, w, h, 16, 4))[..., None]
-    rust = np.clip((noise(rng, w, h, 12, 3) - 0.63) * 2.8, 0, 1)[..., None]
-    img = img * (1 - rust) + col((0.27, 0.16, 0.1)) * rust
-    for r in (6, h - 7):  # the toes of the flange angles
-        img[r] *= 0.55
-    img[:2] *= 0.72
-    img[-2:] *= 0.72
-    img[:, :12] *= 1.1  # the butt strap
-    img[:, 12] *= 0.5
-
-    def rivet(u, v):
-        img[v, u] = col((0.3, 0.29, 0.28))
-        img[v - 1, (u + 1) % w] = col((0.045, 0.045, 0.045))
-        if rng.random() < 0.3:
-            img[v - 2, u] = img[v - 2, u] * 0.4 + col((0.34, 0.17, 0.08)) * 0.6
-
-    for u in range(4, w, 7):
-        rivet(u, 3)
-        rivet(u, h - 4)
-    for v in range(9, h - 8, 4):
-        rivet(3, v)
-        rivet(9, v)
-    return speckle(img, rng, 0.04, 0.6, 1.2)
-
-
-def paint_chequer(seed, n=64):
-    """Chequer plate for the crane's gallery floor: raised bars, turned a quarter each 8 px cell,
-    catching the light; rust in the hollows."""
-    rng = np.random.default_rng(seed)
-    img = np.ones((n, n, 3)) * col((0.17, 0.17, 0.175))
-    img *= (0.85 + 0.3 * noise(rng, n, n, 8, 8))[..., None]
-    rust = np.clip((noise(rng, n, n, 5, 5) - 0.64) * 3, 0, 1)[..., None]
-    img = img * (1 - rust) + col((0.29, 0.17, 0.1)) * rust
-    for cy in range(0, n, 8):
-        for cx in range(0, n, 8):
-            flip = ((cx + cy) // 8) % 2
-            for k in range(-2, 3):
-                u, v = cx + 4 + k, cy + 4 + (k if flip else -k)
-                img[v % n, u % n] = col((0.31, 0.31, 0.3))
-                img[(v - 1) % n, (u + 1) % n] = col((0.06, 0.06, 0.06))
-    return speckle(img, rng, 0.04)
-
-
-def paint_cabin_planks(seed):
-    """The crane cabin's boarding, standing upright (boards along v, 20 cm at 0.8 m a picture):
-    painted a dull brown, weathered, worn to the wood in places."""
-    rng = np.random.default_rng(seed)
-    img = bp.paint_planks(seed, (0.31, 0.27, 0.22), boards=4, joints=False, knots=1).transpose(1, 0, 2).copy()
-    return chips(img, rng, (0.4, 0.31, 0.21), 0.58)
-
-
-# the cast plate on the portal: the town (the city's quay cranes) and the load it may lift, in kilos
 CRANE_BOARD = ["ANTWERPEN", "3000 KIL."]
 
 
-def paint_crane_board(seed):
-    """The crane's cast plate: raised cream letters and a raised rim on black, 128 x 64 px."""
+def surf_crane_board(seed):
+    """The crane's cast plate: cream letters and a rim on black (2:1). Flat, as lettering is."""
     rng = np.random.default_rng(seed)
-    w, h = 128, 64
-    img = np.ones((h, w, 3)) * col((0.06, 0.055, 0.05))
-    img *= (0.8 + 0.4 * noise(rng, w, h, 16, 8))[..., None]
+    w, h = P, P // 2
+    C = col((0.06, 0.055, 0.05)) * (0.8 + 0.4 * noise(rng, w, h, 16, 8))[..., None] * np.ones((h, w, 1))
     ink = col((0.74, 0.68, 0.52))
+    s = w / 128
     for r, text in enumerate(CRANE_BOARD):
-        x0 = (w - (len(text) * 12 - 2)) // 2
-        ytop = h - 8 - 26 * r  # image rows run bottom-up
-        for k, ch in enumerate(text):
-            for gy, row in enumerate(FONT.get(ch, FONT[" "])):
-                for gx, bit in enumerate(row):
-                    if bit == "1":
-                        x, y = x0 + k * 12 + gx * 2, ytop - gy * 2 - 2
-                        img[y:y + 2, x:x + 2] = ink * (0.85 + 0.3 * rng.random())
-    img[:3] = ink * 0.75
-    img[-3:] = ink * 0.75
-    img[:, :3] = ink * 0.75
-    img[:, -3:] = ink * 0.75
-    return img
+        letters(C, rng, text, w / 2, h - 8 * s - 26 * s * r, int(2 * s), ink, adv=12 * s)
+    e = int(3 * s)
+    C[:e] = C[-e:] = ink * 0.75
+    C[:, :e] = C[:, -e:] = ink * 0.75
+    return done(C, np.full((h, w), 0.5))
+
+
+def surf_crane_plate(seed):
+    """Riveted plate of the portal crane (4:1, u along the member, v across a face): painted iron gone rusty at the
+    rivets and the edges, a row of rivets along each edge, the flange angles' toes, a butt strap at u = 0."""
+    rng = np.random.default_rng(seed)
+    w, h = 4 * P // 2, P // 2
+    k = w / 128
+    C = col((0.15, 0.15, 0.155)) * (0.84 + 0.3 * noise(rng, w, h, 16, 4))[..., None] * np.ones((h, w, 1))
+    rust = np.clip((noise(rng, w, h, 12, 3) - 0.63) * 2.8, 0, 1)
+    C = mix(C, col((0.27, 0.16, 0.1)), rust)
+    H = np.full((h, w), 0.5) + 0.03 * (noise(rng, w, h, 40, 10) - 0.5)
+    vv = (np.arange(h) + 0.5)[:, None]
+    for r in (6 * k, h - 7 * k):
+        d = np.abs(vv - r)
+        C *= (1 - 0.45 * sstep(k, 0, d))[..., None] * np.ones((1, w, 1))
+        H = H - 0.1 * sstep(k, 0, d)
+    C[:int(2 * k)] *= 0.72
+    C[-int(2 * k):] *= 0.72
+    C[:, :int(12 * k)] *= 1.1
+    H[:, :int(12 * k)] += 0.08
+    C[:, int(12 * k)] *= 0.5
+
+    def rivet(u, v):
+        stamp(H, C, u, v, 0.55 * k, dome(0.25, 0.08), col((0.3, 0.29, 0.28)), lambda d: 0.7 * sstep(1, 0.3, d))
+        if rng.random() < 0.3:
+            run_down(H, C, rng, u, v - k, 4 * k, 0.6 * k, col((0.34, 0.17, 0.08)), 0.6)
+
+    for u in np.arange(4, 128, 7):
+        rivet(u * k, 3.5 * k)
+        rivet(u * k, h - 3.5 * k)
+    for v in np.arange(9, 32 - 8, 4):
+        rivet(3.5 * k, v * k)
+        rivet(9.5 * k, v * k)
+    return done(speckle(C, rng, 0.03, 0.6, 1.2), H, k=0.9)
+
+
+def surf_chequer(seed):
+    """Chequer plate for the crane's gallery: raised bars turned a quarter from cell to cell (8 cells a tile), worn
+    bright on top, rust in the hollows."""
+    rng = np.random.default_rng(seed)
+    n = P
+    cs = n / 8
+    uu, vv = np.meshgrid(np.arange(n) + 0.5, np.arange(n) + 0.5)
+    iu, iv = uu // cs, vv // cs
+    fu, fv = (uu - iu * cs) / cs - 0.5, (vv - iv * cs) / cs - 0.5
+    flip = ((iu + iv) % 2 == 1)
+    a = np.where(flip, fu + fv, fu - fv) / np.sqrt(2)
+    b = np.where(flip, fu - fv, fu + fv) / np.sqrt(2)
+    bar = np.clip(1 - (np.abs(b) / 0.09) ** 2, 0, 1) * sstep(0.36, 0.3, np.abs(a))
+    prof = np.sqrt(bar)
+    H = 0.42 + 0.45 * prof
+    C = col((0.17, 0.17, 0.175)) * (0.85 + 0.3 * fbm(rng, n, n, 8, 8))[..., None]
+    rust = sstep(0.6, 0.75, fbm(rng, n, n, 5, 5)) * (1 - prof)
+    C = mix(C, col((0.29, 0.17, 0.1)), rust)
+    C = mix(C, col((0.36, 0.36, 0.35)), prof * 0.8)
+    return done(speckle(C, rng, 0.03), H)
+
+
+def surf_lattice(seed):
+    """A lattice girder's side, cut out: flanges top and bottom, posts and diagonals, rivets at the joints, rust."""
+    rng = np.random.default_rng(seed)
+    n = P
+    k = n / 64
+    C = col((0.1, 0.1, 0.105)) * (0.8 + 0.4 * fbm(rng, n, n, 8, 8))[..., None] * np.ones((n, n, 1))
+    rust = np.clip((fbm(rng, n, n, 6, 6) - 0.55) * 3, 0, 1)
+    C = mix(C, col((0.3, 0.15, 0.08)), rust)
+    uu, vv = np.meshgrid(np.arange(n) + 0.5, np.arange(n) + 0.5)
+    A = np.zeros((n, n))
+    A[:int(5 * k)] = A[-int(5 * k):] = 1
+    for u in (0, 32):
+        A[:, max(0, int((u - 2) * k)):int((u + 2) * k)] = 1
+    A[:, int(62 * k):] = 1
+    for u0 in (0, 32):
+        d1 = np.abs((uu / k - u0) - (vv / k - 4) * 32 / 55)
+        d2 = np.abs((uu / k - u0 - 32) + (vv / k - 4) * 32 / 55)
+        A[((d1 < 1.6) | (d2 < 1.6)) & (uu / k >= u0) & (uu / k < u0 + 32)] = 1
+    H = 0.45 + 0.1 * blur(A, 3)
+    for x in (2 * k, 32 * k, n - 2 * k):
+        for y in (2.5 * k, n - 2.5 * k):
+            for dx in (-2.5 * k, 2.5 * k):
+                stamp(H, C, x + dx, y, 0.9 * k, dome(0.2, 0.05), col((0.16, 0.15, 0.15)), disc())
+    return done(speckle(C, rng, 0.03), H, A)
+
+
+def surf_ports(seed, w_m=8.0, h_m=0.55):
+    """The strip of iron hull with round brass-rimmed portholes, one every 2 m (8 m by 0.55 m a tile): rivet rows at
+    the laps above and below, rust run down from under each port."""
+    rng = np.random.default_rng(seed)
+    w, h = 2 * P, P // 4
+    uu, vv = np.meshgrid(np.arange(w) + 0.5, np.arange(h) + 0.5)
+    mu, mv = w_m / w, h_m / h
+    C = col((0.13, 0.125, 0.13)) * (0.84 + 0.3 * noise(rng, w, h, 32, 4))[..., None]
+    H = 0.5 + 0.03 * (noise(rng, w, h, 40, 6) - 0.5)
+    for frac in (0.125, 0.375, 0.625, 0.875):
+        cu = frac * w
+        d = np.hypot((uu - cu) * mu, (vv - h / 2) * mv)
+        rim = (d < 0.19) & (d >= 0.14)
+        C[rim] = (col((0.36, 0.28, 0.14)) * (0.8 + 0.4 * noise(rng, w, h, 60, 8))[..., None])[rim]
+        H += 0.22 * sstep(0.2, 0.18, d) * sstep(0.13, 0.15, d)
+        glass = d < 0.14
+        C[glass] = col((0.04, 0.05, 0.06))
+        H -= 0.12 * sstep(0.145, 0.13, d)
+        shine = glass & (np.abs(((uu - cu) * mu) - ((vv - h / 2) * mv) + 0.03) < 0.02)
+        C[shine] = col((0.2, 0.22, 0.24))
+        for k in range(10):
+            x = cu + rng.normal(0, 0.06) / mu
+            run_down(H, C, rng, x, h / 2 - 0.19 / mv, rng.uniform(0.05, 0.2) / mv, 1.5, col((0.3, 0.14, 0.07)), 0.45, wander=0.2)
+    for y in (3.0, h - 3.0):
+        x = rng.uniform(0, 5)
+        while x < w:
+            stamp(H, C, x, y, 1.6, dome(0.2, 0.05), col((0.12, 0.11, 0.11)), disc())
+            x += 0.075 / mu
+    C[:2] *= 0.4
+    C[-2:] *= 0.4
+    return done(C, H, k=0.9)
+
+
+def surf_band(seed):
+    """A sailing ship's painted port band (strip): cream, with black painted ports, dark lines top and bottom."""
+    rng = np.random.default_rng(seed)
+    w, h = 2 * P, P // 4
+    k = w / 128
+    C = col((0.7, 0.68, 0.6)) * (0.9 + 0.1 * noise(rng, w, h, 16, 2) + 0.06 * noise(rng, w, h, 128, 8))[..., None]
+    vv = (np.arange(h) + 0.5)[:, None]
+    H = 0.5 + 0.02 * (noise(rng, w, h, 100, 10) - 0.5) - 0.1 * sstep(2.0, 0.0, np.abs(vv - h / 2)) * np.ones((1, w))
+    C *= (1 - 0.3 * sstep(2.0, 0.0, np.abs(vv - h / 2)))[..., None]
+    for cu in (32 * k, 96 * k):
+        C[int(h * 4 / 16):int(h * 12 / 16), int(cu - 7 * k):int(cu + 7 * k)] = col((0.05, 0.05, 0.05))
+        C[int(h * 3 / 16):int(h * 4 / 16), int(cu - 7 * k):int(cu + 7 * k)] *= 0.6
+    runs = sstep(0.6, 0.9, noise(rng, w, h, 60, 2))
+    C = mix(C, col((0.3, 0.27, 0.22)), runs * 0.3)
+    e = max(2, int(h / 16))
+    C[:e] = C[-e:] = col((0.06, 0.06, 0.06))
+    return done(C, H)
+
+
+# ---- the painters by material; the ferry's own materials come from build_ferry.py
+
+SURF = {
+    "wood": lambda: surf_planks(1, (0.43, 0.37, 0.29), boards=4, n_knots=3)[0],
+    "wood_dark": lambda: surf_planks(2, (0.25, 0.19, 0.14), boards=2, seams=False, nails=False, n_knots=1, checks=26)[0],
+    "iron": lambda: surf_iron(3),
+    "rope": lambda: surf_rope(4),
+    "sackcloth": lambda: surf_sack(5),
+    "crate": lambda: surf_crate(6),
+    "barrel": lambda: surf_staves(7),
+    "stone": lambda: surf_stone(8),
+    "glass": lambda: surf_glass(9),
+    "tar": lambda: surf_tar(101),
+    "clinker": lambda: surf_clinker(102),
+    "iron_hull": lambda: surf_iron_hull(103),
+    "iron_ports": lambda: surf_ports(104),
+    "band": lambda: surf_band(105),
+    "copper": lambda: surf_copper(106),
+    "redlead": lambda: surf_iron_hull(107, paint=(0.36, 0.12, 0.075), under=(0.1, 0.1, 0.1), red=True),
+    "deck": lambda: surf_deck(108),
+    "paint_green": lambda: surf_painted(109, (0.11, 0.22, 0.16), 2, (0.3, 0.25, 0.18), chip=0.55),
+    "paint_white": lambda: surf_painted(110, (0.66, 0.64, 0.57), 4, (0.36, 0.34, 0.3), chip=0.6, streak=0.14),
+    "canvas": lambda: surf_canvas(111, (0.66, 0.63, 0.55)),
+    "canvas_tan": lambda: surf_canvas(112, (0.42, 0.26, 0.15), tan=True),
+    "rigging": lambda: surf_rope(113, base=(0.14, 0.11, 0.08)),
+    "shrouds": lambda: surf_shrouds(114),
+    "lattice": lambda: surf_lattice(115),
+    "funnel": lambda: surf_funnel(116),
+    "window": lambda: surf_window(117),
+    "hatch": lambda: surf_hatch(118),
+    "tarp": lambda: surf_tarp(119),
+    "flag": lambda: surf_flag(120),
+    "names": lambda: surf_names(121),
+    "washing": lambda: surf_washing(122),
+    "names2": lambda: surf_names(123, NAME_ROWS2),
+    "funnel_star": lambda: surf_funnel(124, star=True),
+    "names3": lambda: surf_names(125, NAME_ROWS3),
+    "tar_weed": lambda: surf_tar_weed(126),
+    "names4": lambda: surf_names(127, NAME_ROWS4),
+    "netting": lambda: surf_netting(128),
+    "coal": lambda: surf_heap(129, (0.06, 0.06, 0.065)),
+    "sand": lambda: surf_heap(130, (0.42, 0.36, 0.25), coal=False),
+    "streaks": lambda: surf_streaks(131),
+    "bilge": lambda: surf_bilge(132),
+    "varnish": lambda: surf_varnish(133),
+    "hood": lambda: surf_canvas(134, (0.44, 0.4, 0.33), gaskets=False),
+    "crane_plate": lambda: surf_crane_plate(135),
+    "chequer": lambda: surf_chequer(136),
+    "cabin_planks": lambda: surf_painted(137, (0.31, 0.27, 0.22), 4, (0.4, 0.31, 0.21), chip=0.58, transpose=True),
+    "crane_board": lambda: surf_crane_board(138),
+}
+# how much relief a picture from build_ferry.py gets (its height made from its own light: the bump rule)
+FERRY_RELIEF = {"fan": 0.6, "ferry_band": 0.35, "float_slime": 1.0, "notice": 0.0, "wet": 0.6, "lifebuoy": 0.4,
+                "stage_deck": 1.0, "lamp_glass": 0.0}
+
+
+def to_cell(s):
+    """A painted Surf at CELL x CELL (a strip or a 2:1 picture stretched to the square cell, as the game's uv do)."""
+    def fit(a):
+        return None if a is None else resize(a, CELL, CELL)
+    return Surf(fit(s.c), fit(s.h), fit(s.a))
+
+
+def height_from_light(c, k):
+    """A picture's height from its own light (the bump rule for a picture painted without one): light high, dark low,
+    its own level round each texel taken off."""
+    lum = c[..., 0] * 0.3 + c[..., 1] * 0.59 + c[..., 2] * 0.11
+    hp = lum - blur(blur(lum, CELL // 16), CELL // 16)
+    top = np.percentile(np.abs(hp), 98) or 1.0
+    return np.clip(0.5 + 0.5 * k * hp / top, 0, 1)
+
+
+def ferry_surfs():
+    """The ferry's own materials (build_ferry.py NEW, its painters PAINT), each at CELL with a height from its light.
+    {} when build_ferry cannot be read (the ferry then draws those parts grey)."""
+    try:
+        import build_ferry as bf  # noqa: PLC0415  (it imports build_boats: read here, when the build runs)
+    except Exception as e:  # noqa: BLE001
+        print(f"[boats] the ferry's materials not in the atlas: {e}")
+        return {}
+    out = {}
+    for k, name in enumerate(bf.NEW):
+        res = bf.PAINT[name](701 + k)
+        arr, alpha = res if isinstance(res, tuple) else (res, None)
+        c = resize(np.clip(arr, 0, 1), CELL, CELL)
+        a = None if alpha is None else resize(alpha, CELL, CELL)
+        out[name] = Surf(c, height_from_light(c, FERRY_RELIEF.get(name, 0.6)), a)
+    return out
+
+
+def png_write(path, arr):
+    """An 8-bit PNG (grey [h, w] or RGB(A) [h, w, 3|4], values 0..1, row 0 the top), each row filtered by the one
+    above (PNG filter 2): our own writer, as Blender has none for one grey channel."""
+    import struct  # noqa: PLC0415
+    import zlib  # noqa: PLC0415
+    a = np.clip(np.round(np.asarray(arr) * 255), 0, 255).astype(np.uint8)
+    if a.ndim == 2:
+        a = a[..., None]
+    h, w, ch = a.shape
+    ctype = {1: 0, 3: 2, 4: 6}[ch]
+    rows = a.reshape(h, w * ch).astype(np.int16)
+    up = np.vstack([np.zeros((1, w * ch), np.int16), rows[:-1]])
+    filt = ((rows - up) % 256).astype(np.uint8)
+    raw = np.hstack([np.full((h, 1), 2, np.uint8), filt]).tobytes()
+
+    def chunk(tag, data):
+        return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF)
+
+    with open(path, "wb") as f:
+        f.write(b"\x89PNG\r\n\x1a\n")
+        f.write(chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, ctype, 0, 0, 0)))
+        f.write(chunk(b"IDAT", zlib.compress(raw, 9)))
+        f.write(chunk(b"IEND", b""))
+
+
+def write_atlas(cells):
+    """The boat atlas: every material's CELL in an ATLAS_N x ATLAS_N picture, in MATS order and then the ferry's, the
+    last cell a plain grey for a material it does not know. Writes boats_atlas.webp (colour, cut-out in alpha),
+    boats_atlas_h.png (height, grey) and boats_atlas.json ({"n", "cell", "cells": {name: [column, row from the
+    top]}, "missing"}) into client/public/textures/."""
+    N, S_ = ATLAS_N, CELL
+    names = list(cells)
+    if len(names) > N * N - 1:
+        raise RuntimeError(f"boat atlas: {len(names)} materials, room for {N * N - 1}")
+    W = N * S_
+    colour = np.ones((W, W, 4)) * np.array([0.35, 0.35, 0.35, 1.0])
+    height = np.full((W, W), 0.5)
+    where = {}
+    for i, name in enumerate(names):
+        c, r = i % N, i // N
+        s = cells[name]
+        # rows of the arrays run bottom-up; the atlas is laid out from the top (as the game reads it)
+        y0 = W - (r + 1) * S_
+        colour[y0:y0 + S_, c * S_:(c + 1) * S_, :3] = s.c
+        if s.a is not None:
+            colour[y0:y0 + S_, c * S_:(c + 1) * S_, 3] = s.a
+        height[y0:y0 + S_, c * S_:(c + 1) * S_] = s.h
+        where[name] = [c, r]
+    os.makedirs(ATLAS_DIR, exist_ok=True)
+    img = bpy.data.images.new("boats_atlas", W, W, alpha=True)
+    img.pixels.foreach_set(colour.astype(np.float32).ravel())
+    img.file_format = "WEBP"
+    path = os.path.join(ATLAS_DIR, "boats_atlas.webp")
+    img.filepath_raw = path
+    img.save(filepath=path, quality=90)
+    bpy.data.images.remove(img)
+    png_write(os.path.join(ATLAS_DIR, "boats_atlas_h.png"), height[::-1])
+    with open(os.path.join(ATLAS_DIR, "boats_atlas.json"), "w", encoding="utf-8") as f:
+        json.dump({"about": "the boat atlas, made by tools/blender/boats/common.py write_atlas: column, row from the top",
+                   "n": N, "cell": S_, "cells": where, "missing": [N - 1, N - 1]}, f, separators=(",", ":"))
+    print(f"[boats] atlas: {len(names)} materials -> {path} ({os.path.getsize(path) // 1024} KB), height "
+          f"{os.path.getsize(os.path.join(ATLAS_DIR, 'boats_atlas_h.png')) // 1024} KB")
+
+
+# the pictures of this run (painting them takes a while: build_lock and build_bridges call make_materials too)
+_CELLS = {}
+
+
+def cells_painted():
+    if not _CELLS:
+        for name in MATS:
+            if name in SURF:
+                _CELLS[name] = to_cell(SURF[name]())
+        _CELLS.update({k: v for k, v in ferry_surfs().items() if k not in _CELLS})
+    return _CELLS
+
+
+def glb_picture(name):
+    """A material's picture for the glb (IMG_PX): (colour, alpha or None), rows bottom-up."""
+    s = cells_painted()[name]
+    f = max(1, CELL // IMG_PX[0])
+    return down(s.c, f), (None if s.a is None else down(s.a, f))
+
+
+# the painters by their old names (build_ferry.py paints its copies of our materials with them): the glb picture
+def _old(name):
+    def paint(*_a, **_k):
+        c, a = glb_picture(name)
+        return c if a is None else (c, a)
+    return paint
+
+
+paint_tar, paint_iron_hull, paint_white, paint_rigging = _old("tar"), _old("iron_hull"), _old("paint_white"), _old("rigging")
+paint_funnel, paint_window, paint_flag, paint_names = _old("funnel"), _old("window"), _old("flag"), _old("names")
+
+
+def paint_metal(seed, *_a, **_k):
+    c, _ = glb_picture("copper" if seed == 106 else "redlead")
+    return c
+
+
+def paint_canvas(seed, *_a, **_k):
+    c, _ = glb_picture({111: "canvas", 112: "canvas_tan"}.get(seed, "hood"))
+    return c
 
 
 def image_rgba(name, arr, alpha=None):
@@ -667,69 +1657,36 @@ def image_rgba(name, arr, alpha=None):
 
 
 def make_materials():
-    paint = {
-        "wood": lambda: bp.paint_planks(1, (0.43, 0.37, 0.29)),
-        "wood_dark": lambda: bp.paint_planks(2, (0.25, 0.19, 0.14), boards=2, seams=False, joints=False, knots=1),
-        "iron": lambda: bp.paint_iron(3),
-        "rope": lambda: bp.paint_rope(4),
-        "sackcloth": lambda: bp.paint_sack(5),
-        "crate": lambda: bp.paint_crate(6),
-        "barrel": lambda: bp.paint_staves(7),
-        "stone": lambda: bp.paint_stone(8),
-        "glass": lambda: bp.paint_glass(9),
-        "tar": lambda: paint_tar(101),
-        "clinker": lambda: paint_clinker(102),
-        "iron_hull": lambda: paint_iron_hull(103),
-        "iron_ports": lambda: paint_ports(104),
-        "band": lambda: paint_band(105),
-        "copper": lambda: paint_metal(106, (0.36, 0.23, 0.13), (0.2, 0.3, 0.24)),
-        "redlead": lambda: paint_metal(107, (0.33, 0.1, 0.07), (0.16, 0.12, 0.08)),
-        "deck": lambda: bp.paint_planks(108, (0.45, 0.42, 0.37), boards=8, knots=2),
-        "paint_green": lambda: paint_green(109),
-        "paint_white": lambda: paint_white(110),
-        "canvas": lambda: paint_canvas(111, (0.66, 0.63, 0.55)),
-        "canvas_tan": lambda: paint_canvas(112, (0.42, 0.26, 0.15)),
-        "rigging": lambda: paint_rigging(113),
-        "shrouds": lambda: paint_shrouds(114),
-        "lattice": lambda: paint_lattice(115),
-        "funnel": lambda: paint_funnel(116),
-        "window": lambda: paint_window(117),
-        "hatch": lambda: paint_hatch(118),
-        "tarp": lambda: paint_tarp(119),
-        "flag": lambda: paint_flag(120),
-        "names": lambda: paint_names(121),
-        "washing": lambda: paint_washing(122),
-        "names2": lambda: paint_names(123, NAME_ROWS2),
-        "funnel_star": lambda: paint_funnel_star(124),
-        "names3": lambda: paint_names(125, NAME_ROWS3),
-        "tar_weed": lambda: paint_tar_weed(126),
-        "names4": lambda: paint_names(127, NAME_ROWS4),
-        "netting": lambda: paint_netting(128),
-        "coal": lambda: paint_heap(129, (0.06, 0.06, 0.065), 0.08),
-        "sand": lambda: paint_heap(130, (0.42, 0.36, 0.25), 0.02, 0.15),
-        "streaks": lambda: paint_streaks(131),
-        "bilge": lambda: paint_bilge(132),
-        "varnish": lambda: paint_varnish(133),
-        "hood": lambda: paint_canvas(134, (0.44, 0.4, 0.33), gaskets=False),
-        "crane_plate": lambda: paint_crane_plate(135),
-        "chequer": lambda: paint_chequer(136),
-        "cabin_planks": lambda: paint_cabin_planks(137),
-        "crane_board": lambda: paint_crane_board(138),
-    }
+    """The boat materials (MATS), each with its glb picture and, for Blender's own pictures, its height as a bump;
+    and the boat atlas the game draws them from (write_atlas)."""
+    cells = cells_painted()
+    write_atlas(cells)
     for name in MATS:
-        res = paint[name]()
-        arr, alpha = res if isinstance(res, tuple) else (res, None)
-        img = image_rgba(f"{name}_tex", arr, alpha)
+        c, alpha = glb_picture(name)
+        img = image_rgba(f"{name}_tex", c, alpha)
         m = bpy.data.materials.new(name)
         nt = m.node_tree
         bsdf = nt.nodes.get("Principled BSDF")
         t = nt.nodes.new("ShaderNodeTexImage")
         t.image = img
-        t.interpolation = "Closest"
+        t.interpolation = "Linear"
         nt.links.new(t.outputs["Color"], bsdf.inputs["Base Color"])
         if alpha is not None:
             nt.links.new(t.outputs["Alpha"], bsdf.inputs["Alpha"])
         bsdf.inputs["Roughness"].default_value = 1.0
+        if IMG_PX[0] == CELL:
+            # (previews only: the glb takes no bump node, and the game reads the atlas's height)
+            hs = cells[name].h
+            himg = image_rgba(f"{name}_h", np.repeat(hs[..., None], 3, axis=2))
+            himg.colorspace_settings.name = "Non-Color"
+            th = nt.nodes.new("ShaderNodeTexImage")
+            th.image = himg
+            th.interpolation = "Linear"
+            bump = nt.nodes.new("ShaderNodeBump")
+            bump.inputs["Strength"].default_value = 0.6
+            bump.inputs["Distance"].default_value = 0.004
+            nt.links.new(th.outputs["Color"], bump.inputs["Height"])
+            nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
     cap = bpy.data.materials.new("cap")
     t = cap.node_tree.nodes.new("ShaderNodeTexImage")
     t.image = image_rgba("cap_tex", np.zeros((1, 1, 3)))
