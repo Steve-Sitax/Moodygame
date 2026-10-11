@@ -21,6 +21,14 @@ public partial class Waters : Node
     private MeshInstance3D? river;
     private readonly List<MeshInstance3D> dock = new();
     private MeshInstance3D? chamber;
+    // D1: the canal's and the vliet's low water (the browser's world/tidemud.ts): a calm sheet over the beds at the
+    // river's level while it stands below the walls' toe (the river's own sheet, with its swell, is kept out of the
+    // canals then: Psx.cs in_canal), and the pools' sheets at their own level, shown only when the river is lower
+    private MeshInstance3D? calm, pools;
+    private ShaderMaterial? riverMat;
+    private float poolY;
+    private bool calmOn;
+    private const float CalmTop = -4.75f, TrickleY = -5.05f - 0.22f;
     private static float level = float.NaN;
     /// <summary>Where the river's sheet lies now (it follows the tide at 0.6 m a second at most).</summary>
     public static float Level => float.IsNaN(level) ? Tide.River : level;
@@ -37,6 +45,9 @@ public partial class Waters : Node
             if (n is not MeshInstance3D mi || mi.Mesh == null || mi.Mesh.GetSurfaceCount() == 0) continue;
             if (mi.Mesh.SurfaceGetMaterial(0) is not ShaderMaterial m || !m.HasMeta("psx_water")) continue;
             if (!Materials.Contains(m)) Materials.Add(m);
+            string nm = mi.Name.ToString();
+            if (nm.StartsWith("tide_calm")) { calm = mi; continue; }
+            if (nm.StartsWith("tide_pools")) { pools = mi; poolY = mi.GlobalPosition.Y; continue; }
             if (m.GetMeta("psx_water").AsInt32() != 1) continue;
             var box = mi.GetAabb();
             if (Math.Max(box.Size.X, box.Size.Y) > 500)
@@ -47,6 +58,7 @@ public partial class Waters : Node
                 mat.SetShaderParameter("river", 1f);
                 mat.SetMeta("psx_water", 1);
                 Materials.Add(mat);
+                riverMat = mat;
                 var plane = new PlaneMesh { Size = new Vector2(Size, Size), SubdivideWidth = 239, SubdivideDepth = 239, Material = mat };
                 // (the waves lift it: never culled by its flat box)
                 plane.CustomAabb = new Aabb(new Vector3(-Size / 2, -3, -Size / 2), new Vector3(Size, 6, Size));
@@ -209,6 +221,19 @@ public partial class Waters : Node
         // the boats' wakes, the oars', swimmers' and moored hulls' rings (D3)
         if (rippleTest) RippleTest();
         SendRipples(cam.GlobalPosition.X, cam.GlobalPosition.Z);
+        // the beds' low water (D1): the calm sheet at the river's level, the pools when the river is under them
+        bool on = Level < CalmTop;
+        if (on != calmOn)
+        {
+            calmOn = on;
+            riverMat?.SetShaderParameter("river", on ? 2f : 1f);
+        }
+        if (calm != null)
+        {
+            calm.Visible = on;
+            calm.GlobalPosition = new Vector3(calm.GlobalPosition.X, MathF.Max(Level, TrickleY), calm.GlobalPosition.Z);
+        }
+        if (pools != null) pools.Visible = on && Level < poolY - 0.004f;
         foreach (var s in dock) s.GlobalPosition = new Vector3(s.GlobalPosition.X, Tide.Dock, s.GlobalPosition.Z);
         if (chamber != null)
         {
