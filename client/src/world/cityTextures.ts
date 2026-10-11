@@ -304,27 +304,48 @@ function lampPane(g: CanvasRenderingContext2D, x: number, y: number): void {
   g.fillRect(x + C - 4, y, 4, C);
 }
 
-/** Round fanlight: a half disc (u across, v from the springing line up to the crown) of glass
- * with a sunburst of glazing bars round a small hub, in a painted frame. */
+/** Round fanlight: a half disc (u across, v from the springing line up to the crown) of glass with a sunburst of thin
+ * dark glazing bars round a half-round hub, a ring of bar half-way out, in a dark frame (the look survey's point 12,
+ * 2026-10-11: they were thick cream bars that read as a white spider and glowed in the dark). Old glass, dark, with a
+ * little of the grey sky on its upper panes; each pixel the mean of 4 x 4 samples, so the bars are smooth lines. Up
+ * close the same bars stand in 3D over it (build_city.py fanlight_bars). */
 function fanlight(g: CanvasRenderingContext2D, x: number, y: number): void {
+  const BAR = [38, 35, 31];
+  const FRAME = [30, 28, 25];
+  const N = 4;
+  const img = g.getImageData(x, y, C, C);
   for (let py = 0; py < C; py++) {
     for (let px = 0; px < C; px++) {
-      const X = ((px + 0.5) / C - 0.5) * 2;
-      const Y = 1 - (py + 0.5) / C;
-      const rho = Math.hypot(X, Y);
-      const phi = Math.atan2(Y, X);
-      let col = "#161b20";
-      if (Y > 0.35 && rho < 0.84) col = "#1d242b";
-      if (rho > 0.86 || Y < 0.08) col = "#3a332c";
-      else if (rho < 0.22) col = "#e0d8c4";
-      else if (rho > 0.24) {
-        for (let k = 1; k < 6; k++) if (Math.abs(phi - (k * Math.PI) / 6) * rho < 0.035) col = "#e0d8c4";
-        if (Math.abs(rho - 0.6) < 0.03) col = "#e0d8c4";
+      let r = 0, gg = 0, b = 0;
+      for (let sy = 0; sy < N; sy++) {
+        for (let sx = 0; sx < N; sx++) {
+          const X = ((px + (sx + 0.5) / N) / C - 0.5) * 2;
+          const Y = 1 - (py + (sy + 0.5) / N) / C;
+          const rho = Math.hypot(X, Y);
+          const phi = Math.atan2(Y, X);
+          // the glass: dark, the sky caught a little higher up, a pane or two a shade apart (old glass)
+          const pane = Math.floor(phi / (Math.PI / 6)) + (rho > 0.6 ? 7 : 0);
+          const k = 0.92 + 0.16 * (((pane * 37) % 11) / 11);
+          let c = [(24 + 26 * Y) * k, (29 + 30 * Y) * k, (34 + 33 * Y) * k];
+          let bar = rho > 0.9 || Y < 0.045 || rho < 0.22;
+          if (!bar) {
+            for (let s = 1; s < 6; s++) if (Math.abs(Math.sin(phi - (s * Math.PI) / 6)) * rho < 0.022) bar = true;
+            if (Math.abs(rho - 0.6) < 0.019) bar = true;
+          }
+          if (bar) c = rho > 0.9 || Y < 0.045 ? FRAME : BAR;
+          r += c[0];
+          gg += c[1];
+          b += c[2];
+        }
       }
-      g.fillStyle = col;
-      g.fillRect(x + px, y + py, 1, 1);
+      const o = (py * C + px) * 4;
+      img.data[o] = r / (N * N);
+      img.data[o + 1] = gg / (N * N);
+      img.data[o + 2] = b / (N * N);
+      img.data[o + 3] = 255;
     }
   }
+  g.putImageData(img, x, y);
 }
 
 /** Loading door of a storehouse: two leaves of vertical tarred planks, a Z brace, strap hinges. */

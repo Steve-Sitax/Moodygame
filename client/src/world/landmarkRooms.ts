@@ -47,6 +47,8 @@ export interface LandmarkRoom extends Room {
   setDaylight(k: number, sky?: number): void;
   /** M7 in the world: the hall's own ambient light scaled (the eye coming in from the bright square). */
   setAmbient?(k: number): void;
+  /** How far in the eye is (0 on the street .. 1 inside): the sun's shafts show only from inside (world/hallSun.ts). */
+  eyeIn?(k: number): void;
   /** M7 halls: how brightly its windows glow to the street at night (0 dark .. 1: the theatre plays). */
   nightGlow?(): number;
   /** A candle lit at the Lady altar (the cathedral). */
