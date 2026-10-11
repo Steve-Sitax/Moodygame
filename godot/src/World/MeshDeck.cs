@@ -24,7 +24,7 @@ public sealed class MeshDeck
         static long Key(int x,int z)=>((long)x<<32)^(uint)z;
         void Scan(Node n,Transform3D xf,bool first=false)
         {
-            if(n.Name.ToString().Contains("rigging")||n.Name.ToString().EndsWith("_cap"))return;
+            if(n.Name.ToString().Contains("rigging")||n.Name.ToString().EndsWith("_cap")||n.Name.ToString().EndsWith("_far")||n.Name.ToString().EndsWith("_block"))return;
             if(n is Node3D n3&&!first)xf*=n3.Transform;
             if(n is MeshInstance3D{Mesh:not null} m)
             {var faces=m.Mesh.GetFaces();for(int i=0;i+2<faces.Length;i+=3)
