@@ -7,6 +7,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The town wall's brick shows soft, uneven stains of weather and smoke, so the long faces no longer look like one even picture.
 - The loaded lighters and the bumboats no longer have river water standing in them, and the bumboats have their oars laid in again (browser; Godot after the caps come back there).
 - In the Godot version, the river no longer shows inside open boats (lighters, punts, rowboats, the eel boat, the barges' holds) at high water, in a swell or in the great storm, and the rowing boat you hire stays dry inside too.
 - In the Godot version, the town gates, the roofs of Sint-Paulus and Sint-Jacob and the Entrepot's upper floors are there again: the town was baked with them hidden because they were far from the camera at that moment ([#61](https://github.com/Steve-Sitax/Moodygame/issues/61)).

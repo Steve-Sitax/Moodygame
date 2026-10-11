@@ -315,12 +315,14 @@ export function loadWall(scene: THREE.Scene): WallModel {
       );
     } else {
       // (2026-09-26: the brick and stone of the wall, its gates and guard houses: mud and damp at the foot, big soft
-      // patches so the picture shows no grid; retro/psx.ts foot and mottle)
+      // patches so the picture shows no grid; retro/psx.ts foot and mottle. 2026-10-11, D5: the patches stronger, soft
+      // irregular stains of weather and smoke over the brick, the quoins and the plinth with them)
       const masonry = /^wall_(brick|quoin|plinth|stone)$/.test(src.name);
+      const MOTTLE: Record<string, number> = { wall_brick: 1.4, wall_quoin: 0.9, wall_stone: 0.8, wall_plinth: 0.7 };
       m = psx(new THREE.MeshLambertMaterial({ map: map ?? null, color: map ? 0xffffff : src.color, vertexColors: true, side: THREE.DoubleSide }), {
         fogReach: 2.2,
         affine: 0,
-        ...(masonry ? { foot: { amount: 0.6 }, mottle: src.name === "wall_brick" || src.name === "wall_stone" ? 0.45 : 0 } : {}),
+        ...(masonry ? { foot: { amount: 0.6 }, mottle: MOTTLE[src.name] } : {}),
       });
     }
     m.name = src.name;
