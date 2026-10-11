@@ -61,6 +61,17 @@ public partial class TownPreview : Node3D
             return;
         }
         AddChild(world);
-        GD.Print($"TownPreview: {town} in {Time.GetTicksMsec() - t0} ms");
+        int meshes = 0, shown = 0;
+        var box = new Aabb();
+        foreach (var n in world.FindChildren("*", "GeometryInstance3D", true, false))
+        {
+            if (n is not GeometryInstance3D g) continue;
+            meshes++;
+            if (!g.IsVisibleInTree()) continue;
+            shown++;
+            var b = g.GlobalTransform * g.GetAabb();
+            box = shown == 1 ? b : box.Merge(b);
+        }
+        GD.Print($"TownPreview: {town} in {Time.GetTicksMsec() - t0} ms, {shown} of {meshes} drawn things visible, in {box.Position} + {box.Size}");
     }
 }

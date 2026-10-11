@@ -31,6 +31,38 @@ public partial class BakedWorld : Node3D
     private readonly Dictionary<string, Texture2D> psxTextures = new();
     private ShaderMaterial? invisible;
 
+    /// <summary>
+    /// In the editor (TownPreview) the glTF loader makes ImporterMeshInstance3D nodes, which are not drawn; the game
+    /// gets MeshInstance3D. Each one becomes a MeshInstance3D with the same name, place, skin, meta and children.
+    /// </summary>
+    private static void Drawable(Node root)
+    {
+        foreach (var n in root.FindChildren("*", "ImporterMeshInstance3D", true, false))
+        {
+            if (n is not ImporterMeshInstance3D im || im.GetParent() is not { } parent) continue;
+            var mi = new MeshInstance3D
+            {
+                Transform = im.Transform,
+                Visible = im.Visible,
+                Mesh = im.Mesh?.GetMesh(),
+                Skin = im.Skin,
+                Skeleton = im.SkeletonPath,
+            };
+            foreach (var key in im.GetMetaList()) mi.SetMeta(key, im.GetMeta(key));
+            string name = im.Name;
+            int at = im.GetIndex();
+            var owner = im.Owner;
+            var moved = im.GetChildren();
+            parent.RemoveChild(im);
+            foreach (var c in moved) { c.Owner = null; im.RemoveChild(c); mi.AddChild(c); }
+            mi.Name = name;
+            parent.AddChild(mi);
+            parent.MoveChild(mi, at);
+            if (owner != null) { mi.Owner = owner; foreach (var c in moved) c.Owner = owner; }
+            im.Free();
+        }
+    }
+
     public Error Load(string glbPath)
     {
         ulong t0 = Time.GetTicksMsec();
@@ -43,13 +75,16 @@ public partial class BakedWorld : Node3D
         Stage = "parse";
 
         var doc = new GltfDocument();
-        var state = new GltfState();
+        // the pictures stay in the glb, uncompressed: the run-time default already; in the editor (TownPreview) the
+        // default would write all ~600 of them next to the bake as files and try to import them
+        var state = new GltfState { HandleBinaryImageMode = GltfState.HandleBinaryImageModeEnum.EmbedAsUncompressed };
         var err = doc.AppendFromFile(glbPath, state);
         if (err != Error.Ok) return err;
         Stage = "build";
         var scene = doc.GenerateScene(state);
         if (scene == null) return Error.ParseError;
         scene.Name = "town";
+        if (Engine.IsEditorHint()) Drawable(scene);
         AddChild(scene);
         Report["glbMs"] = (double)(Time.GetTicksMsec() - t0);
         Stage = "materials";

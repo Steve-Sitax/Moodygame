@@ -13,7 +13,9 @@ In `main`. Steve: "everywhere these stones are, it looks ugly. I think the bump 
 - New bake in `godot/baked/next` (the old one replaced). It caught a moored boat at zero size, which crashed
   `Boats.Rows` (`AffineInverse`); the rows now take the first real-size copy as their reference and keep zero-size
   copies hidden.
-- `godot/editor/town_preview.tscn`: the baked town in the Godot editor (look only, never saved).
+- `godot/editor/town_preview.tscn`: the baked town in the Godot editor (look only, never saved). In the editor the glTF
+  loader made ImporterMeshInstance3D nodes (not drawn) and unpacked ~600 pictures next to the bake: `BakedWorld`
+  now keeps the pictures inside (the run-time default) and turns those nodes into MeshInstance3D in the editor only.
 - The Godot MCP `godot-runtime` (godot-mcp-runtime 3.8.1, MIT) for Claude Code: live screenshots, input and GDScript
   in the running game. Not in the repo; `.mcp/` is ignored.
 Checks: Godot shaders PASS (0 new kinds). Frame times unchanged within noise, Godot and browser; both stay over budget
