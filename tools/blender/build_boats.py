@@ -67,6 +67,7 @@ from boats import cranes  # noqa: E402  (its CRANE_* switches are set by main)
 BUILDERS = [
     ("barque", barque),
     ("steamer", steamer),
+    ("steamer_line", lambda: steamer("line")),
     ("rhine_barge", lambda: barge("rhine")),
     ("hengst", lambda: barge("hengst")),
     ("lighter", lambda: lighter(False)),
@@ -78,6 +79,7 @@ BUILDERS = [
     ("paddle_tug", lambda: tug(True)),
     ("sloop", sloop),
     ("barque_sail", lambda: barque(True)),
+    ("barque_grain", lambda: barque(False, "grain")),
     ("brig", brig),
     ("schooner", schooner),
     ("sloop_sail", lambda: sloop(True)),
