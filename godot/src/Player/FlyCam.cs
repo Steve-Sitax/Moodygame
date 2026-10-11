@@ -4,12 +4,13 @@ using Godot;
 namespace Scheldemist.Player;
 
 /// <summary>
-/// The free camera (the browser's Fly mode): a click takes the mouse, Esc gives it back, W A S D move, Space and Ctrl
-/// rise and sink, Shift goes fast. Jef's own walking (player/firstPerson.ts) comes with the world's walk rules.
+/// The free camera (the browser's Fly mode, player/firstPerson.ts updateFly): a click takes the mouse, Esc gives it
+/// back, W A S D move where it looks, Space rises, C or Ctrl sinks, Shift goes fast (12 and 45 m/s, as the browser's).
+/// Dev mode's F9 takes it and gives it back to Jef (Dev/DevTools.cs).
 /// </summary>
 public partial class FlyCam : Camera3D
 {
-    public float Speed = 6;
+    public float Speed = 12, Fast = 45;
     private float yaw;
     private float pitch;
 
@@ -41,7 +42,7 @@ public partial class FlyCam : Camera3D
         if (Input.IsKeyPressed(Key.A)) d -= Basis.X;
         if (Input.IsKeyPressed(Key.D)) d += Basis.X;
         if (Input.IsKeyPressed(Key.Space)) d += Vector3.Up;
-        if (Input.IsKeyPressed(Key.Ctrl)) d += Vector3.Down;
-        if (d.LengthSquared() > 0) Position += d.Normalized() * Speed * (Input.IsKeyPressed(Key.Shift) ? 5 : 1) * (float)delta;
+        if (Input.IsKeyPressed(Key.Ctrl) || Input.IsKeyPressed(Key.C)) d += Vector3.Down;
+        if (d.LengthSquared() > 0) Position += d.Normalized() * (Input.IsKeyPressed(Key.Shift) ? Fast : Speed) * (float)delta;
     }
 }

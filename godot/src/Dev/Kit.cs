@@ -14,45 +14,39 @@ using Scheldemist.World;
 
 namespace Scheldemist.Dev;
 
-/// <summary>The Godot test kit. --dev-command runs semicolon-separated console commands; F9 opens it with --dev.</summary>
+/// <summary>
+/// The Godot test kit. --dev-command runs semicolon-separated console commands at the start; in dev mode the console
+/// (the key left of 1, Dev/DevConsole.cs) and the Dev sheet's line (F8, Dev/DevSheet.cs) run them too.
+/// </summary>
 [GamePart(950)]
 public partial class Kit : Node
 {
     public static Kit I { get; private set; } = null!;
     public bool IsReady { get; private set; }
     public string Error { get; private set; } = "";
-    private bool started, busy;
-    private LineEdit? console;
-    private bool previousTestInput;
-    private Input.MouseModeEnum previousMouse;
+    private bool started;
     private readonly Dictionary<Townspeople.Sim, (Townspeople.Goal goal, string key)> held = new();
     public Townspeople? People => Main.I.GetNodeOrNull<Townspeople>("Townspeople");
     private Api Api => ServerLink.I?.Api ?? throw new InvalidOperationException("the server is not ready");
     public Kit() => I = this;
+    public const string Help = "commands: help, dev on|off; in dev mode: hour 13 [clear], weather rain, go vismarkt | go -118 36, summon fishwife, clear, job {...}, skip 10, tide high|low|clock, event musicians, pass canal|vliet, lock in|out, fog on|off, shower on|off, fly";
     public override void _Ready()
     {
-        if (!Main.I.Flag("dev") && Main.I.Arg("dev-command") == "") return;
-        console = new LineEdit { PlaceholderText = "hour 13 clear; go vismarkt; summon fishwife; job {\"type\":\"carry\"}; clear", Visible = false, Position = new Vector2(20, 260), Size = new Vector2(1100, 45) };
-        Main.I.Ui.AddChild(console);
-        console.TextSubmitted += async text =>
-        {
-            if (busy) return;
-            busy = true;
-            try { await Commands(text); console.Text = ""; }
-            catch (Exception e) { GD.PrintErr("dev: " + e.Message); }
-            finally { busy = false; }
-        };
+        ProcessMode = ProcessModeEnum.Always; // the console works over the paused town too
     }
-    public override void _UnhandledKeyInput(InputEvent e)
+    /// <summary>Run console commands and say how it went (an error is the answer, not a throw).</summary>
+    public async Task<string> Run(string text)
     {
-        if (console == null || e is not InputEventKey { Pressed: true, Echo: false, Keycode: Key.F9 }) return;
-        if (!console.Visible) { previousTestInput = Jef.I.TestInput; previousMouse = Input.MouseMode; }
-        console.Visible = !console.Visible;
-        Jef.I.TestInput = console.Visible || previousTestInput;
-        Jef.I.ClearKeys();
-        Input.MouseMode = console.Visible ? Input.MouseModeEnum.Visible : previousMouse;
-        if (console.Visible) console.GrabFocus();
-        GetViewport().SetInputAsHandled();
+        try
+        {
+            var said = await Commands(text);
+            return said.Count > 0 ? string.Join(" ", said) : "done: " + text;
+        }
+        catch (Exception e)
+        {
+            GD.PrintErr("dev: " + e.Message);
+            return "failed: " + e.Message;
+        }
     }
     public override void _Process(double delta)
     {
@@ -76,10 +70,13 @@ public partial class Kit : Node
         }
         catch (Exception e) { Error = e.Message; GD.PrintErr("dev: " + Error); }
     }
-    public async Task Light(double hour = 13, string weather = "clear")
+    /// <summary>The clock and the weather through the server (`fill`: Jef's needs full too, as the checks want).</summary>
+    public async Task Light(double hour = 13, string weather = "clear", bool fill = true)
     {
         if (hour < 0 || hour >= 24 || !new[] { "clear", "fog", "mist", "rain", "storm" }.Contains(weather)) throw new ArgumentException("hour 0..24 and a known weather required");
-        var p = await Api.Post<JobsPayload>("api/dev/set", new { hour = (int)hour, minute = (int)Math.Round((hour % 1) * 60), weather, food = 10, warmth = 10, sleep = 10, health = 10 });
+        int whole = (int)hour, minute = (int)Math.Round((hour % 1) * 60);
+        if (minute == 60) { whole = (whole + 1) % 24; minute = 0; }
+        var p = await Api.Post<JobsPayload>("api/dev/set", fill ? new { hour = whole, minute, weather, food = 10, warmth = 10, sleep = 10, health = 10 } : (object)new { hour = whole, minute, weather });
         GameState.I.Apply(p);
         if (Movers.MoverClock.Held) Movers.MoverClock.Hold(hour, GameState.I.Day);
         Daylight.I.SetTime((float)hour);
@@ -144,24 +141,35 @@ public partial class Kit : Node
         if (JobTask.Of(Jobs.I.Active) is { } task && Spots.Get(task.From ?? task.Post) is { } from) Go(from.Id);
         return id;
     }
-    public async Task Commands(string text)
+    /// <summary>Run semicolon-separated commands (Help lists them); the answers of those that have one.</summary>
+    public async Task<List<string>> Commands(string text)
     {
+        var said = new List<string>();
         foreach (string command in text.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             int split = command.IndexOf(' ');
-            string verb = split < 0 ? command : command[..split], arg = split < 0 ? "" : command[(split + 1)..];
+            string verb = split < 0 ? command : command[..split], arg = split < 0 ? "" : command[(split + 1)..].Trim();
+            var tools = DevTools.I;
             switch (verb)
             {
                 case "hour": var a = arg.Split(' '); await Light(double.Parse(a[0], CultureInfo.InvariantCulture), a.Length > 1 ? a[1] : GameState.I.Weather); break;
                 case "weather": await Light(GameState.I.HourF, arg); break;
                 case "go": Go(arg); break;
-                case "summon": GD.Print("dev summoned " + Summon(arg)); break;
-                case "job": GD.Print("dev job " + await Job(arg)); break;
+                case "summon": said.Add("summoned " + Summon(arg)); break;
+                case "job": said.Add("job " + await Job(arg)); break;
                 case "skip": GameState.I.Apply(await Api.Post<JobsPayload>("api/dev/advance", new { minutes = int.Parse(arg, CultureInfo.InvariantCulture) })); break;
                 case "clear": Clear(); break;
-                default: throw new ArgumentException("commands: hour, weather, go, summon, job, skip, clear");
+                case "tide" when tools != null: said.Add(tools.TideHold(arg)); break;
+                case "event" when tools != null: said.Add(await tools.Event(arg)); break;
+                case "pass" when tools != null: said.Add(tools.Passage(arg)); break;
+                case "lock" when tools != null: said.Add(tools.LockPass(arg)); break;
+                case "fog" when tools != null: said.Add(tools.ThickFog(arg != "off")); break;
+                case "shower" when tools != null: said.Add(tools.Shower(arg != "off")); break;
+                case "fly" when tools != null: said.Add(tools.ToggleFly()); break;
+                default: throw new ArgumentException(Help);
             }
             GD.Print("dev: " + command);
         }
+        return said;
     }
 }

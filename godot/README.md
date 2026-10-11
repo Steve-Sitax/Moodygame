@@ -86,14 +86,32 @@ finish fence. The wall-frame numbers record the entire interval between frames. 
 `at`, `gpu`, `budget`, `rows` and per-place `liveMean`, `liveP95`, `stillMean`, `turnMean`, `turnP95`, `calls`, `ok`;
 browser-only render-pass breakdowns are not invented.
 
+**The console and dev mode.** The key left of 1 (by its place: `²` on a Belgian AZERTY) opens a console line in
+the game and on the menu (`src/Dev/DevConsole.cs`; the town pauses under it, Esc closes it). `help` lists the
+commands; `dev on` / `dev off` switch dev mode (kept in the settings file; Ctrl+Alt+Shift+D does the same, with a note
+on screen; `-- --dev` switches it on for one run). The kit's commands work in the console only in dev mode.
+**Dev mode** (off by default): the menu (the first page and the pause
+menu) gets a "Dev: time, weather, events" line, and F8 opens the same Dev sheet, also while walking (the town pauses
+under it; closing it walks on). The sheet (`src/Dev/DevSheet.cs`, its work in `src/Dev/DevTools.cs`) is the browser's
+dev panel (`client/src/game/devmenu.ts`): the time (0:00 to 22:00) and the weather (both through `/api/dev/set`, they
+change the save), the tide (now, held at high or low water, follow the clock: `Tide.Hold`), the NPC stress test
+(extra real walkers, 1x to 100x the street limit), the events (a ship into or out of the dock: `Lock.Start`; a boat
+up the canal or the vliet: `Bridges.PassNow`; thick fog and a rain shower: `Daylight`; every director template
+through `/api/dev/director`, started at once with Jef put in front of it; the director's think and invent), Jef
+(needs full, +100 c, fly), the "Go to" places, and the console's line. F9 is the free camera (WASD where you look,
+the mouse, Space up, C down, Shift fast); F9 again lands Jef under it, or back where he took off. The self-test: `-- --no-ai --port N --db <dir>/test.sqlite --prefs <dir>/settings.json
+--devsheettest <dir>` (no `--dev`: it types `dev on` in the console and tries the combo) clicks every button and checks its effect, with pictures and
+`devsheettest.json`; about ten minutes.
+
 For a manual test on a fresh save of your own, use `--no-ai --port 8980 --db <absolute test.sqlite> --dev
---no-mainmenu`. F9 opens a one-line console. `--dev-command` runs the same semicolon-separated commands at start:
+--no-mainmenu`. The key left of 1 opens the console. `--dev-command` runs the same semicolon-separated commands at start:
 
 ```text
 hour 13.5 clear; go vismarkt; summon fishwife
 weather rain; go -118 36; clear
 job {"type":"carry","items":2,"from":"pier_head","to":"crane_foot","goods":"crates"}
 skip 10
+tide high; event musicians; pass canal; lock in; fog on; shower off; fly
 ```
 
 `hour` and `weather` call `/api/dev/set`, `job` calls `/api/dev/job` and takes it through the normal jobs part,
@@ -162,7 +180,7 @@ fallback cannot certify room floors, containment, seams, shader-only cutouts, or
   than a step up, so kerbs and stairs are walked and anything higher is a wall. Water is where
   `shared/city.json` says (`src/World/Water.cs`), at the tide's level (`src/World/Tide.cs`, the browser's
   `world/tide.ts`); the ways out of it are in `src/World/QuayExits.cs`; vaulting is `shared/mantle.ts`
-  (`src/Player/Mantle.cs`). F is the free camera. Other parts read `Jef.I` (X, Y, Z, Yaw, Swimming, the events).
+  (`src/Player/Mantle.cs`). Dev mode's F9 is the free camera. Other parts read `Jef.I` (X, Y, Z, Yaw, Swimming, the events).
 - **Game parts** (`src/GamePart.cs`): a Node class with `[GamePart(order)]` is made and added under Main when the
   town is in. A new part is a new file under `src/<Area>/`; it reaches the rest through `Main.I` (`View`, `World`,
   `Cam`, `Ui`, `Arg`). No edits to `Main.cs` for a new part.

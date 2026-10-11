@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The Godot version has a console: the key left of 1 (² on a Belgian keyboard) opens it, in the game and on the menu; `help` lists its commands. `dev on` there (or Ctrl+Alt+Shift+D) switches on dev mode, the browser's dev tools: the menu's Dev line or F8 opens a Dev sheet with the time, the weather, the tide, the NPC stress test, every event (ships through the lock, boats up the canal and the vliet, thick fog, a shower, each director event, started in front of you) and places to go to, and F9 flies over the town and lands you where you are.
+- In the Godot version, F (Second choice) no longer throws you into a free camera when there is nothing to choose.
 - In the Godot version, the town gates, the roofs of Sint-Paulus and Sint-Jacob and the Entrepot's upper floors are there again: the town was baked with them hidden because they were far from the camera at that moment ([#61](https://github.com/Steve-Sitax/Moodygame/issues/61)).
 - In the Godot version, things that share one model (the lamp posts, the second calvary, church pumps, lock gate leaves, small boats, omnibus parts) are drawn every time, not only the first copy ([#61](https://github.com/Steve-Sitax/Moodygame/issues/61)).
 - In the Godot version, after loading a game the ferry and the boats float on the right tide at once; before, Jef could start on the water of a minute earlier, some 10 cm off.
