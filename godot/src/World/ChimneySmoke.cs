@@ -22,6 +22,9 @@ public partial class ChimneySmoke : Node
     /// <summary>Counts for a check: the chimneys, how much they smoke now.</summary>
     public (int chimneys, float level) Info { get; private set; }
 
+    /// <summary>For a check (Dev/AirCheck.cs): the chimney tops the puffs start from.</summary>
+    public IReadOnlyList<Vector3> Tops { get; private set; } = Array.Empty<Vector3>();
+
     /// <summary>ambient.ts SMOKE_BY_HOUR: how many fires burn by the clock.</summary>
     private static readonly (float h, float v)[] ByHour =
     {
@@ -118,6 +121,7 @@ void fragment() {
         var pts = am.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array();
         var chimneys = new List<Vector3>();
         for (int i = 0; i < pts.Length; i += Per) chimneys.Add(src.GlobalTransform * pts[i]);
+        Tops = chimneys;
         var actR = Mulberry(1873);
         var act = chimneys.Select(_ => actR()).ToArray();
         var r = Mulberry(51);

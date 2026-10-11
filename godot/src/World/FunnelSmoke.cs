@@ -35,6 +35,20 @@ public partial class FunnelSmoke : Node
         get { int f = 0; foreach (var e in emitters) if (e.Strength >= 0.5f) f++; return (emitters.Count, f); }
     }
 
+    /// <summary>For a check (Dev/AirCheck.cs): every emitter's mouth now, whether its boat is shown, whether she is
+    /// gone (a moored copy at zero size), a funnel or a stove.</summary>
+    public IEnumerable<(Vector3 at, bool shown, bool gone, bool funnel)> Mouths()
+    {
+        foreach (var e in emitters)
+        {
+            var xf = e.World();
+            yield return (xf * e.Local, e.Visible(), Gone(xf), e.Strength >= 0.5f);
+        }
+    }
+
+    /// <summary>A moored boat that is not there (the bake caught her at zero size: taken away) has no funnel.</summary>
+    private static bool Gone(Transform3D xf) => MathF.Abs(xf.Basis.Determinant()) < 1e-9f;
+
     private (Vector3[] funnels, Vector3[] stoves) Points(string kind)
     {
         if (points.TryGetValue(kind, out var p)) return p;

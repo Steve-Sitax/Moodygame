@@ -64,7 +64,8 @@ public partial class Snap : Node
         if (view >= views.Count)
         {
             // (dev: --whatis x,y,z lists the drawn meshes whose box holds that point, small ones first)
-            if (Main.I.Arg("whatis") is { Length: > 0 } wi)
+            // (several points: x,y,z;x,y,z)
+            foreach (var wi in Main.I.Arg("whatis").Split(';', StringSplitOptions.RemoveEmptyEntries))
             {
                 var q = wi.Split(',').Select(F).ToArray();
                 var pt = new Vector3(q[0], q[1], q[2]);
@@ -75,7 +76,7 @@ public partial class Snap : Node
                         var mat = (gi as MeshInstance3D)?.Mesh?.SurfaceGetMaterial(0) as ShaderMaterial;
                         hits.Add(((gi.GlobalTransform * gi.GetAabb()).Size.Length(), $"{gi.GetPath().ToString().Split('/').TakeLast(3).Aggregate((x, y) => x + "/" + y)} mat {mat?.ResourceName} kind {(mat != null ? Render.Psx.KindOf(mat.Shader)?.ToString() : "")}"));
                     }
-                foreach (var (size, what) in hits.OrderBy(h => h.Item1).Take(12)) GD.Print($"whatis {size:0.0} {what}".Substring(0, Math.Min(300, $"whatis {size:0.0} {what}".Length)));
+                foreach (var (size, what) in hits.OrderBy(h => h.Item1).Take(12)) GD.Print($"whatis {wi} {size:0.0} {what}".Substring(0, Math.Min(300, $"whatis {wi} {size:0.0} {what}".Length)));
             }
             // (what the bake still hides as not ported)
             System.IO.File.WriteAllLines(System.IO.Path.Combine(dir, "unported.txt"), Main.I.World.Unported.Distinct());
