@@ -825,6 +825,10 @@ bool in_basin(vec2 p) {
 	if (p.x > 104.0 && p.x < 116.0 && p.y < 47.0) return p.y >= 7.0 + clamp(min(p.x - 104.3, 115.7 - p.x), 0.0, 5.7) * 0.26795;
 	return p.x > 70.0 && p.x < 170.0 && p.y > 46.0 && p.y < 110.0;
 }
+// the canal's and the vliet's beds with the mouth's lip (world/tidemud.ts BEDS): at low water their calm sheet (D1)
+bool in_canal(vec2 p) {
+	return (p.x > -82.0 && p.x < -70.0 && p.y > -3.0 && p.y < 205.0) || (p.x > -150.0 && p.x < -142.0 && p.y > -3.0 && p.y < 72.0);
+}
 ";
 
     /// <summary>The foot of the walls and the mottle (psx.ts footGlsl), in world space from the face's own normal.</summary>
@@ -1223,6 +1227,7 @@ void fragment() {
             c.Append(@"	vec3 wave = vec3(0.0, 0.0, 0.5);
 	{
 		if (river > 0.5 && in_basin(world.xz)) discard;
+		if (river > 1.5 && in_canal(world.xz)) discard;
 		// far off, the ripples melt into one dark tone (no shimmer at the fog line)
 		vec2 wxz = world.xz;
 		c.rgb = mix(albedo.rgb * vec3(0.045, 0.062, 0.05), c.rgb, 1.0 - smoothstep(10.0, 70.0, len));

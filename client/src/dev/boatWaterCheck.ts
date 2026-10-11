@@ -142,7 +142,8 @@ function mudGrid(scene: THREE.Scene): MudGrid | null {
   const idx = mesh.geometry.index;
   const n = idx ? idx.count : pos.count;
   const at = (k: number) => (idx ? idx.getX(k) : k);
-  const bedFrom = n - 6 * BEDS.reduce((s, r) => s + Math.ceil((r.maxX - r.minX) / 4) * Math.ceil((r.maxZ - r.minZ) / 4), 0);
+  // (D1: the mesh says where its beds start, world/tidemud.ts userData.bedFrom; else the old 4 m cells at its end)
+  const bedFrom = (mesh.userData.bedFrom as number | undefined) ?? n - 6 * BEDS.reduce((s, r) => s + Math.ceil((r.maxX - r.minX) / 4) * Math.ceil((r.maxZ - r.minZ) / 4), 0);
   for (let t = 0; t + 2 < n; t += 3) {
     a.fromBufferAttribute(pos, at(t)).applyMatrix4(mesh.matrixWorld);
     b.fromBufferAttribute(pos, at(t + 1)).applyMatrix4(mesh.matrixWorld);

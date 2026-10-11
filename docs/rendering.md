@@ -173,6 +173,10 @@ Two switches for other parts, each fixed when the material is made (rule 3: one 
   high water. One shared value, `uTideWet` / `psx_tide_wet` (the last high water's level, the hours since, the lowest
   water since, how long the ebb ran: `setTideWet` from rijnkaai.ts updateTide, `Psx.TideWetNow` from World/Waters.cs);
   `psxTideWet(y)` / `psx_tide_wet_at(y)` for a part that wants the wetness itself (weed, a sheen).
+- **Stencil bits** (the water's): 1 the hull caps (`boats.ts`), 2 the basins' and the canals' calm water, 4 the canal and
+  vliet beds while the river stands below `TOE_TOP` (`tidemud.ts`: the river's sheet, which draws only where the stencil
+  is 0, keeps off the bed then and the beds' calm sheet takes its place), 8 the beds' pools. Godot has no such stencil
+  for the beds: its river shader discards over the canals while `river` is 2 (`Psx.cs in_canal`, set by `Waters.cs`).
 - Their tiny test: `(await import("/src/retro/psx.ts")).psxSwitchTest(__scheldemist.world.scene, x, y, z)` in the test
   tab, Godot `-- --switch-test x,y,z`: four plates showing cells 3, 2, 1, 0 of a 2 x 2 atlas (yellow, blue, green, red,
   a white mark top left) and a stone pillar from 6 m down to the quay top with its wet band.

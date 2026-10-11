@@ -742,13 +742,11 @@ export function buildRijnkaai(): World {
   psxUniforms.uWaterMirrorOn.value = 1;
 
   // M6 tides: the mud at the foot of the walls and in the canal and vliet beds, bare at low water
-  buildTideMud(scene, {
+  // (D1: the canal and vliet beds sculpted, their low water, the outfalls and the debris: world/tidemud.ts)
+  const tideMud = buildTideMud(scene, {
     quays: (CITY_DATA as unknown as { quays: number[][] }).quays,
     inWater,
-    beds: [
-      { minX: -82, maxX: -70, minZ: 0.5, maxZ: 205 },
-      { minX: -150, maxX: -142, minZ: 0.5, maxZ: 72 },
-    ],
+    stone: quayStoneMaterials()?.coping ?? null,
   });
 
   // --- stone steps down to the water and iron ladders to climb out (world/quaysteps.ts)
@@ -2027,6 +2025,7 @@ export function buildRijnkaai(): World {
     if (tideClock) tideSeen = true;
     if (tideClock) setTideWet(tideClock().day, tideClock().hour); // (the tide's wet band on the walls: retro/psx.ts)
     water.position.y = tideWater.river;
+    tideMud.update(tideWater.river); // (the beds' low water: world/tidemud.ts)
     dockSheet.position.y = tideWater.dock;
     dockMouth.position.y = tideWater.dock;
     // the chamber: level, or sloping from the river gates to the dock gates while both pairs stand open
