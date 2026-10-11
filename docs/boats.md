@@ -44,12 +44,12 @@ copy.
 
 | Kind | Length | Beam | Keel | Height | Tris today | Budget | Far copy |
 |---|---|---|---|---|---|---|---|
-| liner | 102.37 | 11.73 | -6.00 | 39.5 | 6,419 | 120k | 20% past 60 m, under 10% past 150 m |
-| steamer | 58.49 | 8.38 | -3.80 | 27.0 | 4,219 | 70k | 20%, under 10% past 150 m |
-| barque, barque_sail | 51.43 | 9.72 | -4.20 | 38.8 | 4,820 / 4,674 | 90k | 20%, under 10% past 150 m |
-| brig | 39.91 | 8.99 | -3.00 | 33.4 | 3,694 | 70k | 20% |
+| liner | 102.37 | 11.72 | -6.00 | 42.1 | 28,132 (B1) | 120k | `_far` 7,666 (27%) |
+| steamer, steamer_line | 58.64 | 8.46 | -3.80 | 25.9 | 17,168 / 17,780 (B1) | 70k | `_far` 4,644 / 5,004 |
+| barque, barque_grain, barque_sail | 53.29 | 9.33 | -4.20 | 41.1 | 19,088 / 18,766 / 18,506 (B1) | 90k | `_far` about 5,400 |
+| brig | 41.45 | 9.07 | -3.00 | 35.8 | 16,312 (B1) | 70k | `_far` 4,631 |
 | rhine_barge | 36.20 | 6.71 | -2.03 | 12.0 | 2,662 | 30k | 20% |
-| schooner | 28.60 | 6.53 | -2.60 | 20.1 | 1,454 | 45k | 20% |
+| schooner | 29.57 | 6.66 | -2.60 | 21.4 | 11,330 (B1) | 45k | `_far` 3,259 |
 | ferry (`ferry.glb`) | 26.5 overall | 7.41 | -1.35 | 11.7 | 10,595 | 40k | 20% |
 | hengst, hengst_sail | 23.35 | 5.97 | -2.25 | 17.5 | 2,672 / 2,616 | 25k | 20% |
 | tug | 21.06 | 5.06 | -2.16 | 9.2 | 1,632 | 30k | 20% |
@@ -66,6 +66,12 @@ copy.
 | bumboat | 5.45 | 1.99 | -0.25 | 1.5 | 2,492 | 4-8k | 20% |
 | oldboat | 5.34 | 1.54 | -0.24 | 0.7 | 1,232 | 4-8k | 20% |
 | dinghy | 5.07 | 1.66 | -0.24 | 0.9 | 1,358 | 4-8k | 20% |
+
+B1 (2026-10-12): the ocean ships came out longer by the game's measure (the brig 1.5 m, the barques 1.9 m, the
+schooner 1 m): the new hulls have more levels, so the stem and the knee of the head below 2.4 m now count; the hulls
+did not grow. Every reader takes `dims()` at load. `barque_grain` (the German grain barque) and `steamer_line` (the
+Belgian line steamer) are new kinds in `boats.glb`, not placed yet: `barque` is now the Norwegian timber barque and
+`steamer` the British collier; `barque_sail` is the grain barque under sail.
 
 Deck and seat heights are read by the game, so they move only together with their readers: the small
 boats' glTF extra `row` and `shared/smallBoats.ts HULLS` (the boat check compares them), the brig's
