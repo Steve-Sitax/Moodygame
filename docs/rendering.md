@@ -176,3 +176,14 @@ Two switches for other parts, each fixed when the material is made (rule 3: one 
 - Their tiny test: `(await import("/src/retro/psx.ts")).psxSwitchTest(__scheldemist.world.scene, x, y, z)` in the test
   tab, Godot `-- --switch-test x,y,z`: four plates showing cells 3, 2, 1, 0 of a 2 x 2 atlas (yellow, blue, green, red,
   a white mark top left) and a stone pillar from 6 m down to the quay top with its wet band.
+
+## The quay walls (D2, 2026-10-11)
+- **Pictures** of our own (`tools/textures/quay_maps.py`, numbers in `world/quayStone.ts`): the wall's covers 8 m along
+  by the whole wall's height (-6.4 to +1.2 m), so the tide's marks (salt, the high-water mark, film and barnacles, weed,
+  mussels) sit at their true heights; u runs on round each quay ring (`city.ts`). The flights of steps
+  (`quaysteps.ts`) take each slab from the course at its own height. Each picture has its height map (`bumpMap`).
+- **No fixed glow.** A material lit by day must not carry a constant emissive: Godot bakes it as a fixed emission and
+  it glows all night (Steve's night test of the stairs). The north-facing river walls take "the light off the water"
+  instead: an emissive from their picture that follows the sky light's colour and the square of its strength, set each
+  frame (`city.ts`, `WATER_FILL`); Godot does the same by the material's name `quay_wall` (`World/Daylight.cs`, `fill`
+  and `waterFill`). The wet band is the psx `tideWet: 0.3`.
