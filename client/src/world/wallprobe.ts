@@ -235,6 +235,14 @@ export function kerbFront(probe: WallProbe, x: number, z: number, ox: number, oz
  * Only faces within 2.5 m of the street are kept. Null: no face there.
  */
 export type GroundProbe = (x: number, z: number, yTop: number) => number | null;
+/** Distance from (x, z) to the segment from (ax, az) to (bx, bz). */
+function segDist(x: number, z: number, ax: number, az: number, bx: number, bz: number): number {
+  const ex = bx - ax;
+  const ez = bz - az;
+  const l2 = ex * ex + ez * ez;
+  const t = l2 > 0 ? Math.max(0, Math.min(1, ((x - ax) * ex + (z - az) * ez) / l2)) : 0;
+  return Math.hypot(ax + ex * t - x, az + ez * t - z);
+}
 export function buildGroundProbe(roots: THREE.Object3D[], maxHeight=2.5): GroundProbe {
   const tris: number[] = [];
   const v = new THREE.Vector3();
@@ -304,6 +312,9 @@ export function buildGroundProbe(roots: THREE.Object3D[], maxHeight=2.5): Ground
       // no point falls in, and the face under them both showed through)
       const ad = Math.abs(d);
       if (a < (-0.01 * Math.hypot(x1 - x2, z1 - z2)) / ad || b < (-0.01 * Math.hypot(x2 - x0, z2 - z0)) / ad || c < (-0.01 * Math.hypot(x0 - x1, z0 - z1)) / ad) continue;
+      // (outside it, within 1 cm of its edges' lines is not yet within 1 cm of the face: past the sharp tip of a long
+      // thin face, the rounded edge of a kerb 10 m long, that band runs on for metres: the point's own distance to it)
+      if ((a < 0 || b < 0 || c < 0) && segDist(x, z, x0, z0, x1, z1) > 0.01 && segDist(x, z, x1, z1, x2, z2) > 0.01 && segDist(x, z, x2, z2, x0, z0) > 0.01) continue;
       const y = a * tris[o + 1] + b * tris[o + 4] + c * tris[o + 7];
       if (y <= yTop + 1e-4 && (best === null || y > best)) best = y;
     }

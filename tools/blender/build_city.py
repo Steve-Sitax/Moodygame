@@ -2729,6 +2729,8 @@ class Builder:
 
 
 KERB_D, KERB_H = 0.7, 0.12
+KERB_R = 0.03  # the bluestone kerb's rounded top edge
+GUTTER_W = 0.3  # the row of gutter stones at the kerb's foot
 SEAM_SET = 0.15  # a party wall stops this far behind the fronts where two fronts meet (side_wall)
 FRONT_ENDS = {}  # the ends of every house's street walls, by 0.5 m cell: (x, z, outward, h, house id)
 
@@ -3218,12 +3220,36 @@ def build_kerbs(kerbs):
         sx = k["s1"] - k["s0"]
         uv = [(0, 0), (sx / BAY, 0), (sx / BAY, KERB_H / BAY), (0, KERB_H / BAY)]
         s0, s1, H = k["s0"], k["s1"], KERB_H
-        bld.face([P(s0, 0, KERB_D), P(s1, 0, KERB_D), P(s1, H, KERB_D), P(s0, H, KERB_D)], MAT_STONE, uv, (0, 0), (fx, 0, fz), 0.42)
-        bld.face([P(s0, H, 0), P(s1, H, 0), P(s1, H, KERB_D), P(s0, H, KERB_D)], MAT_STONE, uv, (0, 0), (0, 1, 0), 0.42)
+        # the section, from the street up and in (2026-10-11, Steve: "curbstones are a point where the terrain varies
+        # in height"): the front face, the bluestone's top edge rounded (KERB_R), the flat top back to the wall
+        sec = [(KERB_D, 0.0), (KERB_D, H - KERB_R)]
+        for j in range(1, 4):
+            a = math.pi / 2 * j / 4
+            sec.append((KERB_D - KERB_R + KERB_R * math.cos(a), H - KERB_R + KERB_R * math.sin(a)))
+        sec += [(KERB_D - KERB_R, H), (0.0, H)]
+        for (e0, y0), (e1, y1) in zip(sec, sec[1:]):
+            ne, ny = y1 - y0, -(e1 - e0)  # (outward: away from the stone)
+            bld.face([P(s0, y0, e0), P(s1, y0, e0), P(s1, y1, e1), P(s0, y1, e1)], MAT_STONE, uv, (0, 0), (fx * ne, ny, fz * ne), 0.42)
+        end = [(0.0, 0.0)] + sec
         if k["open0"]:
-            bld.face([P(s0, 0, 0), P(s0, 0, KERB_D), P(s0, H, KERB_D), P(s0, H, 0)], MAT_STONE, uv, (0, 0), (-ux, 0, -uz), 0.42)
+            bld.face([P(s0, y, e) for e, y in end], MAT_STONE, [(e / BAY, y / BAY) for e, y in end], (0, 0), (-ux, 0, -uz), 0.42)
         if k["open1"]:
-            bld.face([P(s1, 0, 0), P(s1, 0, KERB_D), P(s1, H, KERB_D), P(s1, H, 0)], MAT_STONE, uv, (0, 0), (ux, 0, uz), 0.42)
+            bld.face([P(s1, y, e) for e, y in end], MAT_STONE, [(e / BAY, y / BAY) for e, y in end], (0, 0), (ux, 0, uz), 0.42)
+        # the gutter at its foot: a row of flat stones falling toward the kerb, so the rain runs along it; their outer
+        # edge set into the street (no face of them in the street's plane: they never fight it), each kerb's a
+        # millimetre over the one before (in threes) where two meet at a corner. Past a free end (a corner the
+        # kerb keeps) it runs on across the corner.
+        g0 = s0 - (GUTTER_W if k["open0"] else 0.0)
+        g1 = s1 + (GUTTER_W if k["open1"] else 0.0)
+        lift = 0.001 * (n % 3)
+        gsec = [(KERB_D, 0.003 + lift), (KERB_D + GUTTER_W - 0.03, 0.009 + lift), (KERB_D + GUTTER_W, -0.006)]
+        guv = [(0, 0), ((g1 - g0) / BAY, 0), ((g1 - g0) / BAY, GUTTER_W / BAY), (0, GUTTER_W / BAY)]
+        for (e0, y0), (e1, y1) in zip(gsec, gsec[1:]):
+            bld.face([P(g0, y0, e0), P(g1, y0, e0), P(g1, y1, e1), P(g0, y1, e1)], MAT_STONE, guv, (0, 0), (0, 1, 0), 0.3)
+        for gs, out in ((g0, -1), (g1, 1)):
+            # (its end: a sliver of stone from the street up to its top)
+            bld.face([P(gs, -0.006, KERB_D), P(gs, gsec[0][1], KERB_D), P(gs, gsec[1][1], gsec[1][0]), P(gs, -0.006, gsec[1][0])],
+                     MAT_STONE, [(0, 0), (0, 0.01), (0.3, 0.01), (0.3, 0)], (0, 0), (ux * out, 0, uz * out), 0.3)
         n += 1
     return n
 
