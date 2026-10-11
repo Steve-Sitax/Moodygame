@@ -483,6 +483,8 @@ class Builder:
         if o["top"] == "flat":
             return [(sc - w / 2, o["yt"] + grow), (sc + w / 2, o["yt"] + grow)]
         if o["top"] == "round":
+            # (12 pieces, was 6: the fanlight's half disc and its arch read as a hexagon up close)
+            n = max(n, 12)
             r = w / 2
             return [(sc - r * math.cos(math.pi * i / n), o["ys"] + r * math.sin(math.pi * i / n)) for i in range(n + 1)]
         hr = o["hr"] + grow
@@ -588,6 +590,7 @@ class Builder:
                 for (s1, y1), (s2, y2) in zip(arc, arc[1:]):
                     self.face([W(sc, ys, d), W(s1, y1, d), W(s2, y2, d)], MAT_FACADE,
                               [(0.5, 0), ((s1 - left) / w, (y1 - ys) / r), ((s2 - left) / w, (y2 - ys) / r)], FANLIGHT, f, 0.95)
+                self.fanlight_bars(W, ux, uz, f, sc, ys, r, d)
         # the surround: jambs of two or three dressed stones on each side
         fine_door = o["kind"] == "house" and not o.get("open") and self.ds is not None and self.ds.get("klass") == "fine"
         if o["kind"] == "house" and not o.get("open") and self.ds is not None and self.ds.get("klass") in ("fine", "good"):
@@ -617,6 +620,67 @@ class Builder:
             kw = 0.17 if o["kind"] == "gate" else 0.12
             # 8 cm proud of the ring: at 3 cm its face lay over the ring's and the wobble made them fight (z-fight check)
             self.slab(W, ux, uz, f, sc - kw, sc + kw, apex - 0.02, apex + J + 0.04, 0, P + 0.08, stone * 1.05)
+
+    def fanlight_bars(self, W, ux, uz, f, sc, ys, r, d):
+        """The look survey's point 12 (2026-10-11): the glazing bars of a round fanlight in 3D, in the near-only detail
+        mesh, over the painted ones of the atlas (cityTextures.ts fanlight, the same pattern for far off): a sunburst of
+        five thin bars from a half-round hub, a ring of bar half-way out, the frame round the glass and the transom
+        under it; slim moulded wood, painted dark like the door, 2 to 5 cm proud of the glass at the back of the reveal.
+        (They were painted only: thick cream bars in a 64 px cell that read as a white spider and glowed in the dark.)"""
+        was = self.bm is self.dbm
+        self.detail(True)
+        sh = 0.3  # the paint: dark (the wood's planks picture, tinted down by the vertex colour)
+        d0, d1 = d + 0.004, d + 0.032
+        uvw = [(0.02, 0.02), (0.06, 0.02), (0.06, 0.06), (0.02, 0.06)]
+
+        def P(rho, phi):
+            return (sc + rho * math.cos(phi), ys + rho * math.sin(phi))
+
+        def bar(a, b, wd, dz=d1):
+            """A straight bar from (s, y) a to b, wd wide: its front and its two sides (its back lies on the glass)."""
+            (sa, ya), (sb, yb) = a, b
+            ln = math.hypot(sb - sa, yb - ya)
+            if ln < 1e-4:
+                return
+            ns, ny = -(yb - ya) / ln * wd / 2, (sb - sa) / ln * wd / 2
+            q = [(sa - ns, ya - ny), (sb - ns, yb - ny), (sb + ns, yb + ny), (sa + ns, ya + ny)]
+            self.face([W(s_, y_, dz) for s_, y_ in q], MAT_WOOD, uvw, (0, 0), f, sh)
+            for (s0, y0), (s1, y1), out in ((q[0], q[1], (-ns, -ny)), (q[3], q[2], (ns, ny))):
+                o3 = (ux * out[0], out[1], uz * out[0])
+                self.face([W(s0, y0, d0), W(s1, y1, d0), W(s1, y1, dz), W(s0, y0, dz)], MAT_WOOD, uvw, (0, 0), o3, sh * 0.8)
+
+        def ring(rho, wd, n, dz=d1, inner=True):
+            """A curved bar at rho (its middle), wd wide, in n pieces: its front, its inner side and its outer side."""
+            pts = [k / n * math.pi for k in range(n + 1)]
+            for a, b in zip(pts, pts[1:]):
+                q = [P(rho - wd / 2, a), P(rho - wd / 2, b), P(rho + wd / 2, b), P(rho + wd / 2, a)]
+                self.face([W(s_, y_, dz) for s_, y_ in q], MAT_WOOD, uvw, (0, 0), f, sh)
+                m = (a + b) / 2
+                if inner:
+                    o3 = (-ux * math.cos(m), -math.sin(m), -uz * math.cos(m))
+                    self.face([W(*P(rho - wd / 2, a), d0), W(*P(rho - wd / 2, b), d0), W(*P(rho - wd / 2, b), dz), W(*P(rho - wd / 2, a), dz)],
+                              MAT_WOOD, uvw, (0, 0), o3, sh * 0.75)
+                o3 = (ux * math.cos(m), math.sin(m), uz * math.cos(m))
+                self.face([W(*P(rho + wd / 2, a), d0), W(*P(rho + wd / 2, b), d0), W(*P(rho + wd / 2, b), dz), W(*P(rho + wd / 2, a), dz)],
+                          MAT_WOOD, uvw, (0, 0), o3, sh * 0.9)
+
+        # the frame round the glass (its outer edge on the reveal), the transom under the glass
+        ring(r * 0.95, r * 0.1, 12, d + 0.05, inner=True)
+        bar((sc - r, ys + 0.025), (sc + r, ys + 0.025), 0.05, d + 0.055)
+        # the hub: a half disc with a rim
+        hub = r * 0.22
+        steps = [k / 8 * math.pi for k in range(9)]
+        for a, b in zip(steps, steps[1:]):
+            self.face([W(sc, ys, d1 + 0.006), W(*P(hub, a), d1 + 0.006), W(*P(hub, b), d1 + 0.006)], MAT_WOOD, uvw[:3], (0, 0), f, sh)
+            m = (a + b) / 2
+            self.face([W(*P(hub, a), d0), W(*P(hub, b), d0), W(*P(hub, b), d1 + 0.006), W(*P(hub, a), d1 + 0.006)], MAT_WOOD, uvw, (0, 0),
+                      (ux * math.cos(m), math.sin(m), uz * math.cos(m)), sh * 0.9)
+        # the five spokes and the ring half-way out
+        for k in range(1, 6):
+            phi = k * math.pi / 6
+            bar(P(hub, phi), P(r * 0.9, phi), 0.022)
+        ring(r * 0.6, 0.02, 10)
+        self.detail(was)
 
     def slab(self, W, ux, uz, f, s0, s1, y0, y1, d0, d1, shade, blocks=1, mat=MAT_STONE, under=False, cell=(0, 0), ends=True, top=True):
         """A block of stone lying on the wall, s0..s1 along it, y0..y1 up, d0..d1 out. No back and no
@@ -1872,6 +1936,16 @@ class Builder:
                 self.ghost_marks(a, b, outs[i], ghosts, y1)
             self.wallmat = keep
             return
+        # (the look survey's point 22, 2026-10-11: a plastered house's blind side and back walls stood as tall flat grey
+        # slabs over the yards, e.g. at (-323, 177). Only the front was rendered and painted in 1873; the sides and backs
+        # are the bare brick of the house, by its own dice from its class's bricks)
+        if STYLE_ROW.get(style) in (1, 2) and self.wallmat[0] not in BY_CLASS[self.klass][0]:
+            keep = self.wallmat
+            r = random.Random(self.hid_seed * 53 + 5)
+            self.wallmat = (r.choice(BY_CLASS[self.klass][0]), r.choice(PAINTS["tint"]))
+            self.side_wall_(ring, street, outs, i, y0, y1, style, H)
+            self.wallmat = keep
+            return
         self.side_wall_(ring, street, outs, i, y0, y1, style, H)
 
     def side_wall_(self, ring, street, outs, i, y0, y1, style, H):
@@ -1905,6 +1979,7 @@ class Builder:
                            h["seed"] % 5 < 2))
         self.wear = wear_of(h, self.klass)
         self.wallmat = wall_material(h, self.klass)
+        self.hid_seed = h["seed"]
         self.ds["klass"] = self.klass
         self.ds["seed"] = h["seed"]  # (yard windows: their own dice from it)
         # (the districts pass) some fine fronts take corner pilasters in place of quoins; by the seed, the dice untouched

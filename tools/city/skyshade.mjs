@@ -31,8 +31,10 @@ const RES = 1; // m per pixel
 const W = Math.round((X1 - X0) / RES);
 const H = Math.round((Z1 - Z0) / RES);
 
-/** Eaves heights of the landmarks (m over the street): the naves and halls, not their towers. */
-const LANDMARK_H = { cathedral: 22, stadhuis: 16, vleeshuis: 15, steen: 12, hanzehuis: 16, carolus: 18, stpaul: 16, stjacob: 18 };
+/** Eaves heights of the landmarks (m over the street): the naves and halls, not their towers. The town hall's main
+ * cornice is at 26 m (tools/blender/build_stadhuis.py CO): at 16 its top storey stood in the sun from behind its own front
+ * (the look survey's point 8: bright slivers on every jamb facing the sun). */
+const LANDMARK_H = { cathedral: 22, stadhuis: 26, vleeshuis: 15, steen: 12, hanzehuis: 16, carolus: 18, stpaul: 16, stjacob: 18 };
 
 const height = new Float32Array(W * H);
 function inPoly(x, z, poly) {

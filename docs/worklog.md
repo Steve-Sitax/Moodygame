@@ -10,6 +10,19 @@
 - `world/libertyTree.ts`: a lime (trees.glb) at (-262, 86) in the places' railing on a bluestone ring.
 - Checks: paths none, shaders none, z-fight nothing near the square, interiorcheck Den Engel 0; the tobacconist's one problem
   was there before: issue https://github.com/Steve-Sitax/Moodygame/issues/71. Godot needs the bake.
+## Look survey 8, 12, 20, 21, 22 and #65, 2026-10-12 (branch sv-s3a)
+- 8, the town hall's bright slivers: the sky map's town hall stood 16 m high (`tools/city/skyshade.mjs`), so its top
+  storey was lit by the sun from behind its own front; now 26 m (its cornice). Every jamb in shade like the wall.
+- 12, fanlights: thin dark bars in a dark frame, painted smooth in the atlas and in 3D near (`build_city.py
+  fanlight_bars`, detail mesh, +75k triangles near-only); round door arches in 12 pieces.
+- 20, the cathedral: every window glazed from the street (dark, its colours a hint), the low ones all stained glass
+  inside; the sun's shafts only from inside (hallSun `inside(k)`, all halls; Godot `Rooms.cs`).
+- 21, the Steen: sooted and streaked, green-black damp at the foot (vertex colour, `build_steen.py weather`), no lift.
+- 22: Godot's beige slabs at the Vleeshuis ([#65](https://github.com/Steve-Sitax/Moodygame/issues/65)), the
+  Oostershuis and the town hall were `HallFloors.cs` stand-ins: collision only now where the bake brings the room.
+  Plastered houses' blind side and back walls are bare brick; portal steps in worn bluestone blocks; the arms of
+  Antwerp redrawn and carved on a block in the Oostershuis tympanum.
+- Find: [#74](https://github.com/Steve-Sitax/Moodygame/issues/74), the cathedral's nave floor black in Godot.
 
 ## Fix wave 2 (bugs): omnibus boards in the air, people on lifted bridges, 2026-10-11
 

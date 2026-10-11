@@ -18,14 +18,18 @@ import { shellMarkers } from "./realOpenings";
 
 const PICTURES = ["tournai", "sand", "blue", "slate", "brick", "carve"] as const;
 type Pic = (typeof PICTURES)[number];
-/** How the pictures sit in the game's grey light: a lift over 1 for the pale stone (the churches do the same). */
+/**
+ * How the pictures sit in the game's grey light. The look survey's point 21 (2026-10-11: "bright and toy-like"): no lift
+ * over 1 for the sandstone any more, a little cooler; the soot and the green damp at the foot are in the model's vertex
+ * colour (tools/blender/build_steen.py weather).
+ */
 const TINT: Record<Pic, THREE.Color> = {
-  tournai: new THREE.Color(1.12, 1.12, 1.12),
-  sand: new THREE.Color(1.2, 1.17, 1.12),
-  blue: new THREE.Color(1.1, 1.1, 1.1),
+  tournai: new THREE.Color(1.0, 1.0, 1.03),
+  sand: new THREE.Color(0.84, 0.84, 0.88),
+  blue: new THREE.Color(1.05, 1.05, 1.06),
   slate: new THREE.Color(1.0, 1.0, 1.0),
   brick: new THREE.Color(1.0, 1.0, 1.0),
-  carve: new THREE.Color(1.15, 1.12, 1.08),
+  carve: new THREE.Color(1.0, 0.97, 0.94),
 };
 
 async function sha256(url: string): Promise<string | null> {
@@ -38,7 +42,7 @@ function picture(url: string, carve: boolean, colour: boolean): THREE.Texture {
   const t = new THREE.TextureLoader().load(url);
   if (colour) t.colorSpace = THREE.SRGBColorSpace;
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.magFilter = colour ? THREE.NearestFilter : THREE.LinearFilter;
+  t.magFilter = THREE.LinearFilter;
   t.minFilter = THREE.LinearMipmapLinearFilter;
   t.anisotropy = 4;
   // (the carvings sheet is laid by cell, top left first, as the glb's own textures are)

@@ -1192,9 +1192,88 @@ def materials():
             nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
 
 
-def finish(m, name):
+def vnoise(t, seed):
+    """Smooth value noise of one variable, 0..1 (a cosine between hashed values at whole numbers)."""
+    i = math.floor(t)
+    a = (math.sin(i * 127.1 + seed * 311.7) * 43758.5453) % 1.0
+    b = (math.sin((i + 1) * 127.1 + seed * 311.7) * 43758.5453) % 1.0
+    k = (1 - math.cos((t - i) * math.pi)) / 2
+    return a + (b - a) * k
+
+
+STONE_WEATHER = (TOUR, SAND, BLUE, BRICK)
+
+
+def weather(m):
+    """The look survey's point 21 (2026-10-11): the Steen read bright and toy-like. Seven hundred years by the river and
+    a town burning coal: the stone sooted dark all over, darkest in the weather's lee and under the ledges, and green
+    with damp and algae at the foot, highest on the river side, its top ragged along the wall. In the vertex colour
+    (both games draw it; the pictures and their bumps stay as made): the low walls are cut first at a few heights and
+    every 1.2 m along, so the damp has points to follow."""
+    bm = m.bm
+
+    def low_faces():
+        out = []
+        for f in bm.faces:
+            if f.material_index not in STONE_WEATHER or f in m.fixed:
+                continue
+            f.normal_update()
+            if abs(f.normal.z) > 0.6:
+                continue
+            out.append(f)
+        return out
+
+    # (the low band finely for the damp, the walls above every 2 m for the soot's streaks; every 0.9 m along)
+    cuts = [((0, 0, h), (0, 0, 1)) for h in (0.35, 0.8, 1.3, 1.85, 2.45, 3.3, 4.4, 6.0, 8.0, 10.0, 12.0, 14.0, 16.5)]
+    xs = [v.co.x for v in bm.verts]
+    ys = [v.co.y for v in bm.verts]
+    cuts += [((x, 0, 0), (1, 0, 0)) for x in frange(min(xs), max(xs), 0.9)]
+    cuts += [((0, y, 0), (0, 1, 0)) for y in frange(min(ys), max(ys), 0.9)]
+    for co, no in cuts:
+        fs = low_faces()
+        geom = list(set(fs)) + list({e for f in fs for e in f.edges}) + list({v for f in fs for v in f.verts})
+        bmesh.ops.bisect_plane(bm, geom=geom, plane_co=co, plane_no=no, dist=0.02)
+    # the river lies to -v (world z < the Steen's south face): the damp climbs higher there (the spring tides' spray)
+    zr = m.cz - 8.25
+    for f in bm.faces:
+        if f.material_index not in STONE_WEATHER:
+            continue
+        f.normal_update()
+        nz = f.normal.z
+        for lp in f.loops:
+            co = lp.vert.co
+            wx, wz, y = co.x, -co.y, co.z
+            along = wx * 0.83 + wz * 0.56
+            river = max(0.0, min(1.0, (zr + 6.0 - wz) / 6.0))
+            top = 1.45 + 1.1 * river + 0.55 * (vnoise(along / 1.7, 3) - 0.5) + 0.25 * (vnoise(along / 0.45, 7) - 0.5)
+            d = max(0.0, min(1.0, (top - y) / max(0.3, top)))
+            d = d * d * (3 - 2 * d)
+            # soot: all over, patchy over a few metres, more under the ledges (faces looking down) and up the walls' lee
+            # soot: all over, patchy over a few metres, in runs down the walls from the ledges and the windows' heads
+            # (where the rain does not wash it), more under the ledges (faces looking down)
+            streak = vnoise(along / 0.9, 19)
+            run = max(0.0, min(1.0, (streak - 0.45) / 0.35)) * (0.6 + 0.4 * vnoise(y / 2.5 + along, 23))
+            soot = 0.66 - 0.1 * vnoise(along / 2.3 + y / 3.1, 11) - 0.16 * run - (0.08 if nz < -0.3 else 0.0)
+            c = lp[m.col]
+            g = (0.42 + 0.58 * (1 - d), 0.58 + 0.42 * (1 - d), 0.36 + 0.64 * (1 - d))  # damp: green-black, most at the foot
+            dark = 1.0 - 0.3 * d * d
+            lp[m.col] = (c[0] * soot * g[0] * dark, c[1] * soot * g[1] * dark, c[2] * soot * g[2] * dark * 1.02, 1.0)
+
+
+def frange(a, b, step):
+    out = []
+    t = math.floor(a / step) * step + step
+    while t < b:
+        out.append(t)
+        t += step
+    return out
+
+
+def finish(m, name, weathered=False):
     """World-metre uv for every face without its own (along the face and up it, so the courses stay level and
     run on round a corner; roofs down their slope), a little shading with height, then the object."""
+    if weathered:
+        weather(m)
     for f in m.bm.faces:
         mt = f.material_index
         if mt not in FLAT:
@@ -1845,7 +1924,7 @@ def main():
     bpy.ops.wm.read_factory_settings(use_empty=True)
     materials()
     m = build()
-    finish(m, "steen")
+    finish(m, "steen", weathered=True)
     finish(LIT[0], "steen_lit_glass")
     print(f"[build_steen] {opening_markers()} real openings -> {SHELL_TS}")
     # what must stay clear of everything else, for the game's dev check (world/steenModel.ts check(); not loaded in play)
