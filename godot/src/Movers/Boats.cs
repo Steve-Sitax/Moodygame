@@ -112,6 +112,8 @@ public partial class Boats : Node
         public Transform3D B0;
         /// <summary>Copies the bake drew at zero size (the browser had hidden that boat): they stay hidden.</summary>
         public bool[] Gone = null!;
+        /// <summary>The row's drawn copies (the first mesh of the kind): hidden, the row draws nothing.</summary>
+        public Node3D? Node;
         /// <summary>The first copy with a real size: the reference for each part's place in the model.</summary>
         public int Ref;
     }
@@ -146,6 +148,14 @@ public partial class Boats : Node
     {
         foreach (var row in rows)
             for (int i=0;i<row.N;i++) { int index=i; yield return (row.Kind, () => row.World[index]); }
+    }
+
+    /// <summary>The moored and small boats with whether each is drawn now (her row shown, she not taken away): what
+    /// rides on her (smoke, lamps) goes with her (survey 2026-10-11, finding 5: smoke over the river off hidden boats).</summary>
+    public IEnumerable<(string Kind, Func<Transform3D> World, Func<bool> Shown)> MooredHulls()
+    {
+        foreach (var row in rows)
+            for (int i=0;i<row.N;i++) { int index=i; yield return (row.Kind, () => row.World[index], () => !row.Gone[index] && (row.Node == null || row.Node.IsVisibleInTree())); }
     }
 
     public override void _Ready()
@@ -425,7 +435,7 @@ public partial class Boats : Node
                     M = Motion.GetValueOrDefault(kind) ?? Motion["rowboat"],
                     X = new float[n], Z = new float[n], Yaw = new float[n], Floor = new float[n], List = new float[n],
                     P0 = new float[n], P1 = new float[n], P2 = new float[n], World = new Transform3D[n],
-                    Gone = new bool[n], Ref = -1,
+                    Gone = new bool[n], Ref = -1, Node = mmi,
                 };
                 var r = motion;
                 for (int i = 0; i < n; i++)

@@ -1083,7 +1083,8 @@ async function load(): Promise<Boats> {
     floats.push({ inner, outer, draft: draftOf(name), list: (motionRand() - 0.5) * 0.08, m: MOTION[name] ?? MOTION.lighter, p: phases(), heel: HEEL[name] ?? 0 });
     for (const sp of smokePoints(name)) {
       const local = sp.clone();
-      addEmitter({ at: (out) => void out.copy(local).applyMatrix4(inner.matrixWorld), strength: 0.55, phase: motionRand(), root: () => rootOf(outer) });
+      // (only while she is shown: a steamer put away smoked on where she had been, survey 2026-10-11 finding 5)
+      addEmitter({ at: (out) => void (outer.visible && outer.parent ? out.copy(local).applyMatrix4(inner.matrixWorld) : out.set(0, -999, 0)), strength: 0.55, phase: motionRand(), root: () => rootOf(outer) });
     }
     // M7 boats: a barge's stove smokes thinly; her lanterns burn at night (only while she is shown)
     for (const sp of stovePoints(name)) {

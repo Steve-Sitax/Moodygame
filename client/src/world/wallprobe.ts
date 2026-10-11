@@ -356,7 +356,7 @@ export function facingWall(walls: readonly PlanWall[], x: number, z: number, ox:
   for (let i = -1; i <= 1; i++)
     for (let j = -1; j <= 1; j++)
       for (const w of grid.get(`${Math.floor(x / 8) + i},${Math.floor(z / 8) + j}`) ?? []) {
-        if (w.ox * ox + w.oz * oz > -0.7) continue;
+        if (w.ox * ox + w.oz * oz > -0.5) continue;
         const d = Math.abs((x - w.ax) * w.ox + (z - w.az) * w.oz);
         const s = (x - w.ax) * w.tx + (z - w.az) * w.tz;
         if (d < bestD && s > -0.3 && s < w.L + 0.3) {
