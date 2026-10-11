@@ -68,6 +68,10 @@ public static class ModelLibrary
             else
             {
                 m = new Model { Name = name, Scene = scene };
+                // the boat contract's hidden children (docs/boats.md): the walkable deck, the solid boxes and the far
+                // copy are data, never drawn with the model
+                foreach (var n in BakedWorld.All(scene))
+                    if (n is Node3D a && IsAside(a.Name.ToString())) a.Visible = false;
                 Convert(m, look ?? new Look());
                 foreach (var c in scene.GetChildren())
                 {
@@ -85,6 +89,9 @@ public static class ModelLibrary
         Loaded[name] = m;
         return m;
     }
+
+    /// <summary>A boat model's hidden child: "&lt;kind&gt;_walk", "_block" or "_far" (docs/boats.md).</summary>
+    public static bool IsAside(string name) => name.EndsWith("_walk") || name.EndsWith("_block") || name.EndsWith("_far");
 
     /// <summary>Every material of the file once, as a psx material (BakedWorld.PsxMaterial), set on the shared meshes.</summary>
     private static void Convert(Model m, Look look)

@@ -246,6 +246,8 @@ const DOUBLE = new Set(["shrouds", "lattice", "flag", "canvas", "canvas_tan", "t
 const JIB_NODES = ["jib", "hand_crane_jib"];
 /** M7 boats: a child node merged on its own (a crane's jib; a small boat's oars laid in, "<kind>_stow"). */
 const ownNode = (o: THREE.Object3D) => JIB_NODES.includes(o.name) || o.name.endsWith("_stow");
+/** The boat contract's hidden children (docs/boats.md): never drawn with the model (ModelSet.aside). */
+const asideNode = (o: THREE.Object3D) => /_(walk|block|far)$/.test(o.name);
 
 function rng(seed: number): () => number {
   let s = seed >>> 0;
@@ -467,6 +469,12 @@ export interface ModelSet {
   /** The glTF extras of each model's node (rig, smoke, deck sizes...). */
   extras: Map<string, Record<string, unknown>>;
   materials: Record<string, THREE.Material>;
+  /**
+   * The boat contract's hidden children (docs/boats.md), by node name: "<kind>_walk" (the walkable deck),
+   * "<kind>_block" (boxes a walker cannot pass) and "<kind>_far" (the far copy). Taken out of the drawn models;
+   * kept here, as loaded, for the deck walking and the far-copy swap.
+   */
+  aside: Map<string, THREE.Object3D>;
 }
 
 /** The sacks the builders recorded, by model file (tools/blender/build_boats.py, build_ferry.py). */
@@ -692,11 +700,20 @@ export async function loadModelSet(url: string): Promise<ModelSet> {
 
   const protos = new Map<string, THREE.Object3D>();
   const extras = new Map<string, Record<string, unknown>>();
+  const aside = new Map<string, THREE.Object3D>();
   for (const node of [...gltf.scene.children]) {
     node.removeFromParent();
     node.position.set(0, 0, 0);
     node.rotation.set(0, 0, 0);
     node.updateMatrixWorld(true);
+    const hidden: THREE.Object3D[] = [];
+    node.traverse((o) => {
+      if (o !== node && asideNode(o)) hidden.push(o);
+    });
+    for (const o of hidden) {
+      o.removeFromParent();
+      aside.set(o.name, o);
+    }
     atlasify(node);
     node.traverse((o) => {
       if (o !== node && ownNode(o)) atlasify(o);
@@ -709,7 +726,7 @@ export async function loadModelSet(url: string): Promise<ModelSet> {
   // (game/sackModel.ts), in the places their builders recorded; each model with sacks is its "_bare" copy and those
   const rows = (SACK_ROWS as Record<string, Record<string, SackRow[]>>)[url];
   if (rows) swapSacks(protos, rows, "quay", url);
-  return { protos, extras, materials };
+  return { protos, extras, materials, aside };
 }
 
 async function load(): Promise<Boats> {
