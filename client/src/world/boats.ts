@@ -246,6 +246,8 @@ const DOUBLE = new Set(["shrouds", "lattice", "flag", "canvas", "canvas_tan", "t
 const JIB_NODES = ["jib", "hand_crane_jib"];
 /** M7 boats: a child node merged on its own (a crane's jib; a small boat's oars laid in, "<kind>_stow"). */
 const ownNode = (o: THREE.Object3D) => JIB_NODES.includes(o.name) || o.name.endsWith("_stow");
+/** docs/boats.md: a hull's helper children, not drawn with it: the walk floor, the blocks, the far copy. */
+const HELPER = /_(walk|block|far)$/;
 
 function rng(seed: number): () => number {
   let s = seed >>> 0;
@@ -467,6 +469,12 @@ export interface ModelSet {
   /** The glTF extras of each model's node (rig, smoke, deck sizes...). */
   extras: Map<string, Record<string, unknown>>;
   materials: Record<string, THREE.Material>;
+  /**
+   * docs/boats.md: each model's helper children by their full name ("tug_walk", "tug_block", "tug_far"), taken out of
+   * the drawn model (never drawn, instanced or hit by a ray here) and kept for their readers; the far copy is merged
+   * as the model is.
+   */
+  helpers: Map<string, Map<string, THREE.Object3D>>;
 }
 
 /** The sacks the builders recorded, by model file (tools/blender/build_boats.py, build_ferry.py). */
@@ -692,11 +700,20 @@ export async function loadModelSet(url: string): Promise<ModelSet> {
 
   const protos = new Map<string, THREE.Object3D>();
   const extras = new Map<string, Record<string, unknown>>();
+  const helpers = new Map<string, Map<string, THREE.Object3D>>();
   for (const node of [...gltf.scene.children]) {
     node.removeFromParent();
     node.position.set(0, 0, 0);
     node.rotation.set(0, 0, 0);
     node.updateMatrixWorld(true);
+    const own = new Map<string, THREE.Object3D>();
+    for (const c of [...node.children]) {
+      if (!HELPER.test(c.name)) continue;
+      c.removeFromParent();
+      if (c.name.endsWith("_far")) atlasify(c);
+      own.set(c.name, c);
+    }
+    if (own.size) helpers.set(node.name, own);
     atlasify(node);
     node.traverse((o) => {
       if (o !== node && ownNode(o)) atlasify(o);
@@ -709,7 +726,7 @@ export async function loadModelSet(url: string): Promise<ModelSet> {
   // (game/sackModel.ts), in the places their builders recorded; each model with sacks is its "_bare" copy and those
   const rows = (SACK_ROWS as Record<string, Record<string, SackRow[]>>)[url];
   if (rows) swapSacks(protos, rows, "quay", url);
-  return { protos, extras, materials };
+  return { protos, extras, materials, helpers };
 }
 
 async function load(): Promise<Boats> {

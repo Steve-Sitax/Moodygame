@@ -110,13 +110,25 @@ def hull_parts(m, name, ob, objs):
     hull = m.hulls[0] if getattr(m, "hulls", None) else None
     if hull is not None:
         cap_object(hull, f"{name}_cap", ob)
+    # B1-B4 (docs/boats.md): a builder's further children in m.children, by suffix: "walk", "block", "far",
+    # "name_bow_p" ...; the drawn ones (the name zones) count in the model's triangles, the far copy is printed apart
+    drawn = 0
+    for suffix, part in (getattr(m, "children", None) or {}).items():
+        if part is None or not len(part.bm.faces):
+            continue
+        ch = to_object(part, f"{name}_{suffix}", parent=ob)
+        objs[f"{name}_{suffix}"] = ch
+        if suffix == "far":
+            print(f"[build_boats] {name}_far {tris(ch):5d} tris")
+        elif suffix.startswith("name_"):
+            drawn += tris(ch)
     stow = getattr(m, "stow", None)
     if stow is None or not len(stow.bm.faces):
-        return 0
+        return drawn
     # M7 boats: the oars (and a dinghy's mast) laid in: their own node, hidden while the boat is rowed
     ch = to_object(stow, f"{name}_stow", parent=ob)
     objs[f"{name}_stow"] = ch
-    return tris(ch)
+    return drawn + tris(ch)
 
 
 def build_all():

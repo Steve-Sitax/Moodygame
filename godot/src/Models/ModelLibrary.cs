@@ -69,6 +69,7 @@ public static class ModelLibrary
             {
                 m = new Model { Name = name, Scene = scene };
                 Convert(m, look ?? new Look());
+                HideHelpers(scene);
                 foreach (var c in scene.GetChildren())
                 {
                     if (c is AnimationPlayer ap)
@@ -87,6 +88,23 @@ public static class ModelLibrary
     }
 
     /// <summary>Every material of the file once, as a psx material (BakedWorld.PsxMaterial), set on the shared meshes.</summary>
+    /// <summary>
+    /// docs/boats.md: a hull's helper children (the walk floor "_walk", the blocks "_block", the far copy "_far") are
+    /// read by their users, never drawn with the hull (the browser takes them out of its models the same way).
+    /// </summary>
+    private static void HideHelpers(Node n)
+    {
+        foreach (var c in n.GetChildren())
+        {
+            if (c is Node3D d)
+            {
+                string s = d.Name.ToString();
+                if (s.EndsWith("_walk", StringComparison.Ordinal) || s.EndsWith("_block", StringComparison.Ordinal) || s.EndsWith("_far", StringComparison.Ordinal)) d.Visible = false;
+            }
+            HideHelpers(c);
+        }
+    }
+
     private static void Convert(Model m, Look look)
     {
         var made = new Dictionary<Material, Material>();
