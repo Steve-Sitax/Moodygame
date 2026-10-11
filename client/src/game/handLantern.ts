@@ -52,7 +52,7 @@ export function handLanternMeshes(glass: THREE.Material): { iron: THREE.Mesh; gl
 }
 
 let pane: THREE.CanvasTexture | null = null;
-/** The horn pane's picture, clean and soft (64 px): a small oil lamp's font and wick seen through it, the flame paler. */
+/** The horn pane's picture, clean and soft (64 px): horn, lit in its middle by the flame behind it. */
 function panePicture(): THREE.CanvasTexture {
   if (pane) return pane;
   const N = 64;
@@ -65,20 +65,13 @@ function panePicture(): THREE.CanvasTexture {
   grd.addColorStop(1, "#e4d0a8");
   g.fillStyle = grd;
   g.fillRect(0, 0, N, N);
-  // the flame: a soft tall glow over the wick
-  const fl = g.createRadialGradient(N / 2, N * 0.56, 1, N / 2, N * 0.56, N * 0.2);
-  fl.addColorStop(0, "rgba(255,246,214,0.85)");
+  // (2026-10-11, Steve: "just blurred glass is also ok") horn: a soft glow in its middle where the flame lights it, no
+  // flame or lamp painted on it
+  const fl = g.createRadialGradient(N / 2, N * 0.58, 1, N / 2, N * 0.58, N * 0.42);
+  fl.addColorStop(0, "rgba(255,244,214,0.6)");
   fl.addColorStop(1, "rgba(255,236,190,0)");
   g.fillStyle = fl;
-  g.beginPath();
-  g.ellipse(N / 2, N * 0.56, N * 0.09, N * 0.17, 0, 0, Math.PI * 2);
-  g.fill();
-  // the font and the wick's holder
-  g.fillStyle = "#3a3026";
-  g.beginPath();
-  g.ellipse(N / 2, N * 0.88, N * 0.2, N * 0.08, 0, 0, Math.PI * 2);
-  g.fill();
-  g.fillRect(N / 2 - N * 0.05, N * 0.72, N * 0.1, N * 0.12);
+  g.fillRect(0, 0, N, N);
   // the frame
   g.strokeStyle = "#1e1a16";
   g.lineWidth = 3;

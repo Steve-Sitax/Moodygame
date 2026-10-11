@@ -94,6 +94,8 @@ public partial class Bridges : Node
     public sealed record Rect(float MinX, float MaxX, float MinZ, float MaxZ)
     {
         public bool Has(float x, float z) => x > MinX && x < MaxX && z > MinZ && z < MaxZ;
+        /// <summary>How far (x, z) is from the deck: 0 on it.</summary>
+        public double Off(double x, double z) => Math.Sqrt(Math.Pow(Math.Max(0, Math.Max(MinX - x, x - MaxX)), 2) + Math.Pow(Math.Max(0, Math.Max(MinZ - z, z - MaxZ)), 2));
     }
 
     private sealed record Def(string Key, Rect Rect, DrawLeaf[] Leaves);
@@ -142,10 +144,46 @@ public partial class Bridges : Node
     private readonly Dictionary<string, Passage> passages = new();
     private Node3D group = null!;
     private Func<double> r = Mv.Rng(1865);
+    private bool devOpen;
     /// <summary>Something else on (or at) a bridge's deck: the goods train, the omnibus. It does not open under them.</summary>
     public static readonly List<Func<Rect, bool>> Busy = new();
 
     public IReadOnlyList<Ctl> List => ctls;
+
+    /// <summary>How near the deck people on foot stop while it is up or about to go up (the browser's bridgeWait).</summary>
+    public const double WaitOff = 0.4;
+
+    /// <summary>
+    /// People on foot (Town/Crowd.cs): must a step from (x, z) to (nx, nz) wait? It must when it comes nearer than
+    /// WaitOff to the deck of a bridge that is up, going up or asked to go up (the canal and vliet bridges, the lock's
+    /// bridge): they stand at its end until it is down again. One already on the deck walks off it (the bridge does not
+    /// start up under anyone: Busy), and one beside it may walk along or away. Fixed 2026-10-11 (Steve's play test:
+    /// a policeman walked in the air over the dock while the bridge was up; nothing on foot looked at the bridges).
+    /// </summary>
+    public static bool Barred(double x, double z, double nx, double nz)
+    {
+        if (I != null)
+            foreach (var c in I.ctls)
+                if (c.Opening && Nearer(c.Rect, x, z, nx, nz)) return true;
+        return Lock.I is { BridgeOpening: true } && Nearer(Lock.BridgeRect, x, z, nx, nz);
+    }
+
+    private static bool Nearer(Rect r, double x, double z, double nx, double nz)
+    {
+        double next = r.Off(nx, nz);
+        if (next >= WaitOff) return false;
+        double now = r.Off(x, z);
+        return now > 0 && next < now - 1e-6;
+    }
+
+    /// <summary>Is (x, z) on the deck of a bridge that is not down (up or on its way)? Nobody is put there.</summary>
+    public static bool OnRaised(double x, double z)
+    {
+        if (I != null)
+            foreach (var c in I.ctls)
+                if (!c.Closed && c.Rect.Has((float)x, (float)z)) return true;
+        return Lock.I is { BridgeClosed: false } && Lock.BridgeRect.Has((float)x, (float)z);
+    }
 
     /// <summary>Before the still world is made solid: the leaves and their balances move, the passage boats float.</summary>
     public static void Claims()
@@ -201,6 +239,8 @@ public partial class Bridges : Node
                 f.Outer.Visible = false;
                 passages["canal"].Boats.TryAdd(f.Kind, new TrainPart { Boat = f, Len = Boats.I.Dims(f.Kind).Length });
             }
+        // (dev: -- --bridges-open asks every bridge and the lock's bridge up from the start, and keeps them up)
+        devOpen = Main.I.Flag("bridges-open");
         GD.Print($"bridges: {ctls.Count} opening bridges ({string.Join(", ", ctls.Select(c => $"{c.Key} {c.Draw!.Leaves} leaves"))})");
         foreach (var p in passages.Values)
             foreach (string kind in p.Kinds)
@@ -310,6 +350,13 @@ public partial class Bridges : Node
 
     public override void _Process(double delta)
     {
+        if (devOpen && Lock.I != null)
+        {
+            devOpen = false;
+            foreach (var c in ctls) Request(c.Key, "dev", true);
+            Lock.I.Request(true);
+            GD.Print("bridges: all asked up (--bridges-open)");
+        }
         MoverCost.Begin("bridges");
         double dt = MoverClock.Dt;
         var jef = Jef.I;
@@ -335,6 +382,9 @@ public partial class Bridges : Node
         Move(passages["vliet"], dt);
         MoverCost.End("bridges");
     }
+
+    /// <summary>Where the canal's or the vliet's boat is now ("river", "in", "up", "out"): the dev panel says it.</summary>
+    public string PassageState(string where) => passages[where].State;
 
     /// <summary>Send a boat up (or down, if one is up there) the canal or the vliet now.</summary>
     public void PassNow(string where)

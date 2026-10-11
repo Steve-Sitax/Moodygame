@@ -47,8 +47,8 @@ OUT = os.path.join(ROOT, "client", "public", "models", "props.glb")
 SHOT = os.path.join(ROOT, "data", "shots", "props_preview.png")
 
 MATS = ["wood", "wood_dark", "iron", "rope", "sackcloth", "crate", "barrel", "stone", "glass", "horse", "horsehair", "leather", "goods",
-        "goods_team"]
-WOOD, DARK, IRON, ROPE, SACK, CRATE, BARREL, STONE, GLASS, HORSE, HAIR, LEATHER, GOODS, TEAM = range(len(MATS))
+        "goods_team", "lamp_brass", "flame"]
+WOOD, DARK, IRON, ROPE, SACK, CRATE, BARREL, STONE, GLASS, HORSE, HAIR, LEATHER, GOODS, TEAM, BRASS, FLAME = range(len(MATS))
 
 S = 64
 
@@ -484,6 +484,15 @@ def paint_team_iron(seed):
     return img
 
 
+def paint_flame(n=32):
+    """A gas flame: white-yellow in the middle, orange to its edge (u round it, v up it); drawn bright, unlit."""
+    v = (np.arange(n)[:, None] + 0.5) / n
+    img = np.ones((n, n, 3)) * col((1.0, 0.86, 0.55))
+    img = img * (0.75 + 0.25 * np.sin(np.pi * v))[..., None]
+    img[..., 2] *= 0.6 + 0.4 * np.sin(np.pi * v)
+    return np.clip(img, 0, 1)
+
+
 def paint_brass(seed):
     """Brass fittings: warm yellow, tarnished darker in the hollows, polished spots."""
     rng = np.random.default_rng(seed)
@@ -625,12 +634,15 @@ def make_materials():
         "stone": lambda: paint_stone(8),
         # (2026-10-11) the gas lamp's panes: the burner and its flame painted on them (lantern_kit.py paint_pane); the
         # scripts that borrow this table (build_stalls.py: its bottles and jars) keep the plain glass
-        "glass": lambda: lantern_kit.paint_pane(128, kind="gas", seed=9) if LAMP_PANES[0] else paint_glass(9),
+        "glass": lambda: lantern_kit.paint_pane(128, base=(0.9, 0.89, 0.84), seed=9, flame=0.0) if LAMP_PANES[0] else paint_glass(9),
         "horse": lambda: paint_hide(10, (0.36, 0.21, 0.12), specks=0.0),
         "horsehair": lambda: paint_hide(11, (0.09, 0.07, 0.055), stretch=True),
         "leather": lambda: paint_hide(12, (0.21, 0.13, 0.08)),
         "goods": paint_atlas,
         "goods_team": paint_team_atlas,
+        # (2026-10-11) a lantern's burner and its one flame inside the clear glass (lantern_kit.py gas_burner)
+        "lamp_brass": lambda: paint_brass(210),
+        "flame": paint_flame,
     }
     for name in MATS:
         img = image(f"{name}_tex", paint[name]())
@@ -2152,6 +2164,10 @@ def bollard():
     return m
 
 
+# A lamp's materials (2026-10-11, the hollow lanterns): the ironwork, the clear glass, the brass burner and its flame.
+LAMP_MATS = {"iron": IRON, "glass": GLASS, "brass": BRASS, "flame": FLAME}
+
+
 def kit_faces(m, faces, mats):
     """Copy a lantern_kit model into a Mesh: its roles to our materials (iron, glass, brass)."""
     shared = {}  # the smooth faces of one band (the kit numbers them) share their corners, so their normals are smoothed
@@ -2165,7 +2181,8 @@ def kit_faces(m, faces, mats):
         return shared[key]
 
     for pts, uvs, role, shade, smooth in faces:
-        m.face([vert(p, smooth) for p in pts], uvs, mats[role], shade, bool(smooth), local=pts)
+        if role in mats:
+            m.face([vert(p, smooth) for p in pts], uvs, mats[role], shade, bool(smooth), local=pts)
 
 
 def gas_lamp():
@@ -2179,8 +2196,8 @@ def gas_lamp():
     lamp's glass by its material (world/gaslamps.ts, Godot Lights.cs). The glass's centre stays at 3.65 m, where the
     lamp's light sits (world/gaslamps.ts GLASS_Y)."""
     m = Mesh(ao=0.5)
-    faces, _ = lantern_kit.build(lantern_kit.post)
-    kit_faces(m, faces, {"iron": IRON, "glass": GLASS, "brass": IRON})
+    faces, _ = lantern_kit.build(lantern_kit.post, inside=True)
+    kit_faces(m, faces, LAMP_MATS)
     return m
 
 
@@ -2191,8 +2208,8 @@ def lantern_bracket():
     m = Mesh(ao=0.0)
     k = lantern_kit.Kit()
     with k.at(lantern_kit.rot_z(math.pi)):
-        lantern_kit.bracket(k, 0.5)
-    kit_faces(m, k.faces, {"iron": IRON, "glass": GLASS, "brass": IRON})
+        lantern_kit.bracket(k, 0.5, inside=True)
+    kit_faces(m, k.faces, LAMP_MATS)
     return m
 
 

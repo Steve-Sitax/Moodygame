@@ -32,8 +32,54 @@ public static class Tide
     public static float ChamberA = DockY;
     public static float ChamberB = DockY;
 
+    /// <summary>
+    /// The dev panel holds the river at spring high or low water ("high", "low"; null: it follows the clock), as the
+    /// browser's tideDev.hold. Only this game's picture: the save and the server's clock are not touched.
+    /// </summary>
+    public static string? Hold
+    {
+        get => hold;
+        set
+        {
+            hold = value is "high" or "low" ? value : null;
+            if (hold != null) River = hold == "high" ? HwMax : LwMin;
+            else if (lastDay > 0) River = At(lastDay, lastHour);
+        }
+    }
+    private static string? hold;
+    private static int lastDay;
+    private static float lastHour;
+
     /// <summary>The game clock moved: day 1 is Monday, the hour with fractions.</summary>
-    public static void Set(int day, float hour) => River = At(day, hour);
+    public static void Set(int day, float hour)
+    {
+        lastDay = day;
+        lastHour = hour;
+        River = hold == "high" ? HwMax : hold == "low" ? LwMin : At(day, hour);
+    }
+
+    /// <summary>The dev panel's line on the tide (the browser's tideDev.read): the water now, rising or falling, the next high and low water.</summary>
+    public static string Describe(int day, float hour)
+    {
+        static string F(float y) => (y >= 0 ? "+" : "") + y.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+        static string Hm(float h) => $"{(int)Math.Floor(h % 24)}:{(int)Math.Floor(h % 1 * 60):00}";
+        float now = At(day, hour), soon = At(day, hour + 0.1f);
+        // the next turn of the tide each way, found in five-minute steps over the next day
+        (int day, float hour, float y)? high = null, low = null;
+        float prev = now, rise = soon - now;
+        for (int i = 1; i <= 24 * 12 && (high == null || low == null); i++)
+        {
+            float h = hour + i / 12f, y = At(day, h), r = y - prev;
+            int d = day + (int)Math.Floor(h / 24);
+            if (rise > 0 && r <= 0 && high == null) high = (d, h - 1 / 12f, prev);
+            if (rise < 0 && r >= 0 && low == null) low = (d, h - 1 / 12f, prev);
+            prev = y;
+            rise = r;
+        }
+        string held = hold != null ? $" (held at {hold} water)" : "";
+        string next = (high is { } a ? $" High water day {a.day} {Hm(a.hour)} ({F(a.y)})." : "") + (low is { } b ? $" Low water day {b.day} {Hm(b.hour)} ({F(b.y)})." : "");
+        return $"River {F(River)} m (quay top 0; {F(River - MidY)} m from half tide), {(soon > now ? "rising" : "falling")}{held}.{next} Dock {F(Dock)}, lock {F(ChamberA)} / {F(ChamberB)}.";
+    }
 
     private static float Amplitude(float t) => Half * (1 + Spring * MathF.Cos(2 * MathF.PI * (t - SpringAt) / (SpringDays * 24)));
 
