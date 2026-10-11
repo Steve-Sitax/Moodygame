@@ -92,6 +92,8 @@ public partial class Lock : Node
     private Func<double> r = Mv.Rng(1811);
     private RopeLines lines = null!;
     private readonly List<Boats.Float> bakedBoats = new();
+    /// <summary>D6: the mooring buoys off the Werf (the browser's lock.ts RIVER_BUOYS), riding the river.</summary>
+    private Node3D[] riverBuoys = Array.Empty<Node3D>();
 
     public bool BridgeClosed => bridgeAngle > -0.01f;
     /// <summary>The bridge's lift, 0 down to 1 up.</summary>
@@ -122,7 +124,8 @@ public partial class Lock : Node
         foreach (var c in g.GetChildren())
         {
             string n = Mv.Plain(c);
-            if (n == "gate_leaf" || c is MeshInstance3D || (c is Node3D n3 && Mv.Kids(n3, n).Any())) Mv.Claim(c);
+            // (D6: lock_buoys, the buoys off the Werf, ride the tide)
+            if (n == "gate_leaf" || n == "lock_buoys" || c is MeshInstance3D || (c is Node3D n3 && Mv.Kids(n3, n).Any())) Mv.Claim(c);
         }
     }
 
@@ -139,6 +142,7 @@ public partial class Lock : Node
         foreach (var c in group.GetChildren())
             if (c is MeshInstance3D mi) mi.Visible = false; // the bake's chains and tow lines: drawn here now
         bridge = new DrawBridge(group, BridgeLeaves, "lock_bridge");
+        riverBuoys = Mv.Kids(group, "lock_buoys").SelectMany(b => Mv.Kids(b, "lock_buoy")).ToArray();
         lines = new RopeLines("lock_tow_lines", Boats.I.Rope);
         group.AddChild(lines);
 
@@ -324,6 +328,7 @@ public partial class Lock : Node
         Tide.ChamberA += (endA - Tide.ChamberA) * k;
         Tide.ChamberB += (endB - Tide.ChamberB) * k;
         bridge?.Set(Mv.Smooth(bridgeAngle / OpenBridge));
+        foreach (var b in riverBuoys) b.Position = new Vector3(b.Position.X, Tide.River, b.Position.Z);
         foreach (var gt in gates)
             gt.Obj.Rotation = new Vector3(0, gt.Closed + gt.Dir * GateOpenAngle * Mv.Smooth(gateOpen[gt.Pair]), 0);
     }

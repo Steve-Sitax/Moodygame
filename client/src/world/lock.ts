@@ -1,9 +1,7 @@
 import * as THREE from "three";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
-import { psx } from "../retro/psx";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { levelAt, water } from "./tide";
-import { addMovingSource, isSteam, loadBoats, loadModelSet, newShipId, ropeMaterial, signal, VESSELS, type BoatName, type Boats, type MovingShip } from "./boats";
+import { addMovingSource, isSteam, loadBoats, loadModelSet, newShipId, ropeMaterial, signal, VESSELS, type BoatName, type Boats, type ModelSet, type MovingShip } from "./boats";
 import { createDrawBridge, type DrawBridge } from "./bridges";
 import type { Rect } from "./geom";
 import { chamberSpan, lockFit, trainOffsets, TOW_LINE, type LockFit } from "../../../shared/lockfit";
@@ -13,7 +11,8 @@ import type { NetMover } from "../net/mp/world";
 // (it was a swing bridge; a lifting bridge clears the quays and carries the railway), and two pairs of wooden mitre gates ("puntdeuren") that
 // point toward the dock. Now and then a tug tows a lighter or a barge from the river
 // through the lock into the dock, or back out; the bridge swings open and the gates open
-// for it, and close after. Models: tools/blender/build_lock.py -> /models/lock.glb.
+// for it, and close after. Models: tools/blender/build_lock.py -> /models/lock.glb, drawn from the boat atlas
+// (D6, 2026-10-11: gates, capstans, quoins, sluice gear, the keeper's hut, gauges, fenders, chains, dolphins, buoys).
 //
 // The player may walk on the bridge only while bridgeClosed(). The bridge will not start
 // to open while opts.occupied() says someone stands on it; the tow waits.
@@ -191,74 +190,130 @@ const smooth = (x: number) => {
   return k * k * (3 - 2 * k);
 };
 
-let lockModels: Promise<Map<string, THREE.Object3D>> | null = null;
+/**
+ * D6 (2026-10-11): the lock's still works, each placed once (tools/blender/build_lock.py): a model, where, its yaw.
+ * The west wall's parts look +x (yaw 0), the east wall's -x (yaw pi); `both` mirrors a west part across the channel.
+ * The things that stand on the quay block walking: [half x, half z, top] (in the part's own frame).
+ */
+interface WorkPart {
+  name: string;
+  x: number;
+  z: number;
+  yaw: number;
+  y?: number;
+  block?: [number, number, number];
+}
 
-function loadLockModels(): Promise<Map<string, THREE.Object3D>> {
-  if (lockModels) return lockModels;
-  lockModels = (async () => {
-    const draco = new DRACOLoader().setDecoderPath("/draco/");
-    const gltf = await new GLTFLoader().setDRACOLoader(draco).loadAsync("/models/lock.glb");
-    draco.dispose();
-    const mats = new Map<string, THREE.Material>();
-    const thin = new Set(["lattice", "flag", "canvas"]);
-    const out = new Map<string, THREE.Object3D>();
-    for (const node of [...gltf.scene.children]) {
-      node.traverse((o) => {
-        const m = o as THREE.Mesh;
-        if (!m.isMesh) return;
-        const swap = (src: THREE.Material) => {
-          let mat = mats.get(src.name);
-          if (!mat) {
-            const map = (src as THREE.MeshStandardMaterial).map ?? null;
-            if (map) {
-              map.magFilter = THREE.NearestFilter;
-              map.minFilter = THREE.NearestFilter;
-              map.generateMipmaps = false;
-              map.colorSpace = THREE.SRGBColorSpace;
-              map.wrapS = map.wrapT = THREE.RepeatWrapping;
-              map.needsUpdate = true;
-            }
-            mat =
-              src.name === "glass"
-                ? new THREE.MeshBasicMaterial({ map, color: 0xffc070 })
-                : psx(
-                    new THREE.MeshLambertMaterial({
-                      map,
-                      vertexColors: true,
-                      side: thin.has(src.name) ? THREE.DoubleSide : THREE.FrontSide,
-                      alphaTest: src.name === "lattice" ? 0.5 : 0,
-                    }),
-                    { affine: 0.5 },
-                  );
-            mat.name = src.name;
-            mats.set(src.name, mat);
-          }
-          return mat;
-        };
-        m.material = Array.isArray(m.material) ? m.material.map(swap) : swap(m.material);
-      });
-      // rigging-like lines (the gate chains) stored as extras, as in boats.glb
-      const rig = node.userData.rig as string | undefined;
-      if (rig) {
-        const f = JSON.parse(rig) as number[];
-        const pos = new Float32Array(f.length);
-        for (let i = 0; i < f.length; i += 3) {
-          pos[i] = f[i];
-          pos[i + 1] = f[i + 2];
-          pos[i + 2] = -f[i + 1];
-        }
-        const g = new THREE.BufferGeometry();
-        g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-        node.add(new THREE.LineSegments(g, ropeMaterial()));
+function lockWorks(ch: LockRect, gz0: number, gz1: number): WorkPart[] {
+  const out: WorkPart[] = [];
+  const both = (p: WorkPart) => {
+    out.push(p);
+    out.push({ ...p, x: ch.minX + ch.maxX - p.x, yaw: Math.PI - p.yaw });
+  };
+  for (const gz of [gz0, gz1]) {
+    // the hollow quoins at the heel posts (their piers downstream, toward the river), the sluice gear by each
+    out.push({ name: "lock_quoin_w", x: ch.minX, z: gz, yaw: 0 });
+    out.push({ name: "lock_quoin", x: ch.maxX, z: gz, yaw: Math.PI });
+    both({ name: "lock_gear", x: ch.minX - 0.75, z: gz + 1.4, yaw: 0, block: [0.45, 0.35, 1.7] });
+  }
+  // the capstans that work the leaves by their chains: clear of the balance beams' sweep (south of each heel)
+  both({ name: "gate_capstan", x: ch.minX - 2.7, z: gz0 + 3.6, yaw: 0, block: [0.55, 0.55, 1.0] });
+  both({ name: "gate_capstan", x: ch.minX - 2.7, z: gz1 - 7.4, yaw: 0, block: [0.55, 0.55, 1.0] });
+  // the keeper's hut on the west quay between the bridge and the dock gates, its window on the chamber
+  out.push({ name: "lock_hut", x: ch.minX - 3.0, z: 27.5, yaw: 0, block: [1.35, 1.2, 3.3] });
+  // tide gauges: the river's, outside the river gates, and the chamber's
+  out.push({ name: "lock_gauge", x: ch.minX, z: gz0 - 4.5, yaw: 0 });
+  out.push({ name: "lock_gauge", x: ch.maxX, z: 33.0, yaw: Math.PI });
+  // oak rubbing posts along the chamber and the river mouth, grab chains hung between them
+  for (const z of [23, 27, 31, 35, 39]) both({ name: "lock_fender", x: ch.minX, z, yaw: 0 });
+  for (const z of [gz0 - 5.8, gz0 - 2.6]) both({ name: "lock_fender", x: ch.minX, z, yaw: 0 });
+  for (const z of [26.5, 30.5, 34.5, 38.5]) both({ name: "lock_chain", x: ch.minX, z, yaw: 0, y: -0.5 });
+  // fender dolphins off the four corners of the lock's mouths, and off the two river heads of the Steen's quay
+  // (tools/city/design.py BASTION), where the Werf's craft swing round it
+  for (const z of [-1.7, gz1 + 5.7]) both({ name: "lock_dolphin", x: ch.minX - 1.8, z, yaw: 0 });
+  out.push({ name: "lock_dolphin", x: -216.6, z: -31.6, yaw: 0.6 });
+  out.push({ name: "lock_dolphin", x: -147.4, z: -31.6, yaw: 2.2 });
+  return out;
+}
+
+/**
+ * D6: mooring buoys in the river off the Werf (clear of the moored lighters, the ferry's pontoon and the lanes:
+ * world/river.ts, world/bridges.ts); they ride the tide (Godot: Movers/Lock.cs moves the same nodes).
+ */
+const RIVER_BUOYS: Array<[number, number, number]> = [
+  [-290, -20, 1.1],
+  [-226, -24, 2.6],
+];
+
+/** D6: mooring buoys in the Petit Bassin, clear of the lock's route and the berths (the dock stands at its level). */
+const DOCK_BUOYS: Array<[number, number, number]> = [
+  [146, 70, 0.4],
+  [146, 88, 2.1],
+];
+
+/**
+ * D6: the lock's still works merged into one solid, one thin mesh and one set of chain lines (three draws), with
+ * the Petit Bassin's buoys; under a group of their own ("lock_works": godot/src/Movers/Lock.cs hides the lock
+ * group's own meshes, and the bake makes walls of these). The parts that stand on the quay get colliders.
+ */
+function buildWorks(set: ModelSet, parts: WorkPart[], world?: LockOptions["world"]): THREE.Group {
+  const works = new THREE.Group();
+  works.name = "lock_works";
+  const geos = new Map<THREE.Material, THREE.BufferGeometry[]>();
+  const lines: THREE.BufferGeometry[] = [];
+  let lineMat: THREE.Material | null = null;
+  const place = new THREE.Matrix4();
+  const rel = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  const up = new THREE.Vector3(0, 1, 0);
+  const one = new THREE.Vector3(1, 1, 1);
+  const all: WorkPart[] = [...parts, ...DOCK_BUOYS.map(([x, z, yaw]) => ({ name: "lock_buoy", x, z, yaw, y: water.dock }))];
+  for (const p of all) {
+    const proto = set.protos.get(p.name);
+    if (!proto) continue;
+    proto.updateMatrixWorld(true);
+    place.compose(new THREE.Vector3(p.x, p.y ?? 0, p.z), q.setFromAxisAngle(up, p.yaw), one);
+    proto.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.geometry) return;
+      const g = m.geometry.clone().applyMatrix4(rel.multiplyMatrices(place, m.matrixWorld));
+      if ((o as THREE.LineSegments).isLineSegments) {
+        lines.push(g);
+        lineMat = m.material as THREE.Material;
+        return;
       }
-      node.removeFromParent();
-      node.position.set(0, 0, 0);
-      node.rotation.set(0, 0, 0);
-      out.set(node.name, node);
+      if (!m.isMesh) return;
+      const mat = m.material as THREE.Material;
+      if (!geos.has(mat)) geos.set(mat, []);
+      geos.get(mat)!.push(g);
+    });
+    if (p.block && world) {
+      const [hx, hz, top] = p.block;
+      const c = Math.abs(Math.cos(p.yaw));
+      const sn = Math.abs(Math.sin(p.yaw));
+      const ex = hx * c + hz * sn;
+      const ez = hx * sn + hz * c;
+      world.addCollider({ minX: p.x - ex, maxX: p.x + ex, minZ: p.z - ez, maxZ: p.z + ez, top });
     }
-    return out;
-  })();
-  return lockModels;
+  }
+  for (const [mat, list] of geos) {
+    const merged = mergeGeometries(list, false);
+    if (!merged) continue;
+    merged.computeBoundingSphere();
+    const mesh = new THREE.Mesh(merged, mat);
+    mesh.name = `lock_works_${mat.name.replace(/^boats_/, "")}`;
+    works.add(mesh);
+  }
+  if (lines.length && lineMat) {
+    const merged = mergeGeometries(lines, false);
+    if (merged) {
+      merged.computeBoundingSphere();
+      const ls = new THREE.LineSegments(merged, lineMat);
+      ls.name = "lock_works_chains";
+      works.add(ls);
+    }
+  }
+  return works;
 }
 
 /**
@@ -282,6 +337,8 @@ export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>
   const OPEN_BRIDGE = -Math.PI / 2;
   const GATE_OPEN = (75 * Math.PI) / 180;
   let bridge: DrawBridge | null = null;
+  /** D6: the buoys off the Werf, riding the river. */
+  const riverBuoys = new THREE.Group();
   const gates: Array<{ obj: THREE.Object3D; closed: number; dir: number; pair: 0 | 1; rects: Rect[]; at: number }> = [];
   /**
    * The balance beam of a leaf (tools/blender/build_lock.py gate_leaf): from the heel post back along
@@ -358,16 +415,20 @@ export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>
     })
     .catch((e) => console.warn("bridges.glb did not load", e));
 
-  if (opts.models !== false) loadLockModels()
-    .then((models) => {
-      const leaf = models.get("gate_leaf");
-      const cap = models.get("gate_capstan");
+  if (opts.models !== false) loadModelSet("/models/lock.glb")
+    .then((set) => {
+      // D6: the gates' leaves, the west and the east one (mirrored: the planked high-water face toward the dock on
+      // both); both named "gate_leaf" (godot/src/Movers/Lock.cs finds them by that name and their place)
+      const leafW = set.protos.get("gate_leaf");
+      const leafE = set.protos.get("gate_leaf_east") ?? leafW;
       const half = (channel.maxX - channel.minX) / 2 - 0.3;
       const len = half / Math.cos((15 * Math.PI) / 180);
       for (const [pair, z] of [[0, gz0], [1, gz1]] as const) {
         for (const side of [0, 1]) {
+          const leaf = side === 0 ? leafW : leafE;
           if (!leaf) continue;
           const o = leaf.clone();
+          o.name = "gate_leaf";
           const x = side === 0 ? channel.minX + 0.3 : channel.maxX - 0.3;
           o.position.set(x, 0, z);
           o.scale.x = len / 6.0;
@@ -376,12 +437,19 @@ export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>
           o.rotation.y = closed;
           group.add(o);
           gates.push({ obj: o, closed, dir: side === 0 ? -1 : 1, pair, rects: [], at: NaN });
-          if (cap) {
-            const c = cap.clone();
-            c.position.set(side === 0 ? channel.minX - 3.2 : channel.maxX + 3.2, 0, z - 3.5);
-            group.add(c);
-          }
         }
+      }
+      group.add(buildWorks(set, lockWorks(channel, gz0, gz1), opts.world));
+      const buoy = set.protos.get("lock_buoy");
+      if (buoy) {
+        riverBuoys.name = "lock_buoys";
+        for (const [x, z, yaw] of RIVER_BUOYS) {
+          const b = buoy.clone();
+          b.position.set(x, levelAt(x, z), z);
+          b.rotation.y = yaw;
+          riverBuoys.add(b);
+        }
+        group.add(riverBuoys);
       }
     })
     .catch((e) => console.warn("lock.glb did not load", e));
@@ -606,6 +674,7 @@ export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>
     water.chamberB += (ends[1] - water.chamberB) * k;
     water.chamber = (water.chamberA + water.chamberB) / 2;
     bridge?.set(smooth(bridgeAngle / OPEN_BRIDGE));
+    for (const b of riverBuoys.children) b.position.y = water.river;
     for (const gt of gates) {
       gt.obj.rotation.y = gt.closed + gt.dir * GATE_OPEN * smooth(gateOpen[gt.pair]);
       setBeam(gt);
