@@ -232,6 +232,11 @@ public partial class MoveTest
     private async Task LandingCheck()
     {
         var j = Jef.I;
+        // a tide at which the landing is in reach from the water (half tide, a little under the landing's slabs)
+        float hold = 13;
+        for (float h = 0; h < 12.4f; h += 0.1f)
+            if (Math.Abs(Tide.At(1, h) - (Tide.MidY - 0.1f)) < Math.Abs(Tide.At(1, hold) - (Tide.MidY - 0.1f))) hold = h;
+        await Tidy(hold);
         // a flight whose landing has open water beside it (rowing boats lie at some; boats pass): the next if one comes
         var tried = new List<object>();
         foreach (var fr in new[] { 3, 4, 5, 1, 6, 7, 2, 0 }.Select(i => QuayExits.Flights[i]))
@@ -263,6 +268,7 @@ public partial class MoveTest
             Check(!j.Swimming && j.Grounded && j.Y < -1, "from the water onto the landing of the steps", new { j.Y, level });
             Check(snap.stepCm < 4, "the climb onto the landing is smooth", R(snap.stepCm));
             await Shot("landing-out");
+            await Tidy(13);
             return;
         }
         Check(false, "a landing with open water beside it", tried);
@@ -476,8 +482,7 @@ public partial class MoveTest
     {
         var j = Jef.I;
         // high water: the lower steps, the landing, the parapet's foot under the water
-        MoverClock.Hold(9.6, 1);
-        await Frames(5);
+        await Tidy(9.6);
         // a flight with open water along its parapet (rowing boats lie at some)
         var fr = QuayExits.Flights[1];
         foreach (var f in new[] { 3, 4, 5, 1, 6, 7, 2, 0 }.Select(i => QuayExits.Flights[i]))
@@ -556,7 +561,7 @@ public partial class MoveTest
             break;
         }
         reports.Add(new { flood = rows });
-        MoverClock.Hold(13, 1);
+        await Tidy(13);
     }
 
     /// <summary>Pictures under the water: at a hull's side, looking up at the surface, down at the bed, and half out.</summary>
@@ -584,5 +589,16 @@ public partial class MoveTest
             await Shot(name, 25);
         }
         reports.Add(new { look = new { kind, eye = j.Cam.GlobalPosition.ToString(), level = Water.Level(j.X, j.Z), under = Scheldemist.World.Underwater.I.Under } });
+    }
+
+    /// <summary>
+    /// The clock (and with it the tide) held at this hour: the movers' clock, and with a server the server's own as
+    /// well, or the server's clock would set the tide back to its own hour every few seconds.
+    /// </summary>
+    private async Task Tidy(double hour)
+    {
+        if (Scheldemist.Net.ServerLink.I?.Up == true) await Scheldemist.Dev.Kit.I.Light(hour, "clear");
+        MoverClock.Hold(hour, 1);
+        await Frames(10);
     }
 }

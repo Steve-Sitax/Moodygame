@@ -34,7 +34,8 @@ routes), `--movetest <dir>` (Jef's jump, coyote time and jump buffer, a fall off
 and the flooded steps at high water, the hulls' shape, a dive under a moored ship, the crane's ladder on and off, over
 the gallery's railing and back: every frame sampled, the jump's arc and timings and the largest step of the view in a
 sixtieth of a second in `movetest.json`, pictures beside it; `--moveonly jump,dive` picks parts, `--move-breath` adds
-a dive that runs out of breath), `--solidlazy` (make the walls near the camera only), `--city <json>` (`shared/city.json` somewhere else).
+a dive that runs out of breath; with a server it needs its own `--db` and gets Jef off the arrival ferry, and the
+tide checks set the server's clock too), `--solidlazy` (make the walls near the camera only), `--city <json>` (`shared/city.json` somewhere else).
 (game parts off). The townspeople: `--server http://127.0.0.1:PORT` (a running game server: the town comes from
 it), `--hour 13.5` and `--day 1` (the clock; with `--weather`, the game's server is set to the same clock and sky
 at the start, so the light, the HUD and the people agree), `--models <dir>`, `--walk <town_walk.json>`, `--peopletest <dir>` and
