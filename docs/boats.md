@@ -91,6 +91,14 @@ Every hull has a cap, and the cap follows the rail: on a heeled hull (under sail
 rail cap. The browser finds the cap by its material `cap`; Godot and the rowing code by the name ending
 `_cap`; the stowed parts by the name ending `_stow`.
 
+**The hidden children.** A builder makes `_walk`, `_block`, `_far` and the name zones through its Mesh's
+`finish(name, ob, objs)`, which `build_boats.py hull_parts` calls for the model and for its `_bare` copy
+(`boats/inland.py Contract` does it for the inland craft). The browser takes the nodes ending `_walk`,
+`_block` and `_far` out of the drawn models at load and keeps them in `ModelSet.aside` (`boats.ts
+loadModelSet`); Godot's model library hides them (`ModelLibrary.IsAside`) and `MeshDeck` skips `_far` and
+`_block`. After the zones change, run `python tools/blender/boats/lettering.py` again so the names atlas
+lays its cells out for the new board shapes.
+
 **The `_bare` copies.** A model with recorded sacks (`lighter_loaded`, `bumboat`; the ferry and the
 landing stage in `ferry.glb`) is built a second time without them as `<kind>_bare`, and the game draws
 that copy with the one sack model in each sack's place (`game/sackModel.ts`, `docs/sacks.md`). The copy
