@@ -209,9 +209,12 @@ async function loadModels(): Promise<{ solid: Map<string, Proto>; meta: Meta; so
   }
   if (!meta || !solidMap || !decalMap) throw new Error("litter.glb: meta or textures missing");
   for (const t of [solidMap as THREE.Texture, decalMap as THREE.Texture]) {
-    t.magFilter = THREE.NearestFilter;
-    t.minFilter = THREE.NearestFilter;
-    t.generateMipmaps = false;
+    // (survey finding 23, 2026-10-11: the flat marks' atlas has its leaves at 5 mm a pixel and a margin round every
+    // cell: read smoothly and mipmapped; the solid atlas's small cells stay sharp)
+    const smooth = t === decalMap;
+    t.magFilter = smooth ? THREE.LinearFilter : THREE.NearestFilter;
+    t.minFilter = smooth ? THREE.LinearMipmapLinearFilter : THREE.NearestFilter;
+    t.generateMipmaps = smooth;
     t.colorSpace = THREE.SRGBColorSpace;
     t.needsUpdate = true;
   }

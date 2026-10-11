@@ -2,6 +2,7 @@ import * as THREE from "three";
 import CITY from "../../../shared/city.json";
 import { psx, psxUniforms } from "../retro/psx";
 import { water } from "./tide";
+import { strewLeaves } from "./leafPaint";
 import type { WallDressing } from "./rampart";
 
 // The town wall, pass 2 (Steve, 2026-09-25, picture 7: "the moat with reeds and water plants along its banks,
@@ -199,21 +200,19 @@ function plantAtlas(): THREE.CanvasTexture {
   return canvasTex(c);
 }
 
-/** Flat things: fallen leaves (cell 0) and a patch of water-lily pads (cell 1), 64 x 64 each. */
+/**
+ * Flat things: fallen leaves (cell 0) and a patch of water-lily pads (cell 1). Survey finding 23 (2026-10-11): 512 px a
+ * cell (was 64, the leaves 2 x 1 pixel flecks that read as orange squares): real leaves (world/leafPaint.ts), the pads
+ * drawn as before at 8 times the size; read smoothly, mipmapped.
+ */
 function flatAtlas(): THREE.CanvasTexture {
   const c = document.createElement("canvas");
-  c.width = 128;
-  c.height = 64;
+  c.width = 1024;
+  c.height = 512;
   const g = c.getContext("2d")!;
   const r = rng(1874);
-  const cols = ["#8a4a18", "#a86a20", "#6e3a14", "#b88a30", "#7a3010", "#9a7a2a", "#5e3a1a"];
-  for (let i = 0; i < 230; i++) {
-    const a = r() * Math.PI * 2;
-    const d = Math.pow(r(), 0.7) * 30;
-    g.fillStyle = cols[Math.floor(r() * cols.length)];
-    const w = r() < 0.4 ? 3 : 2;
-    g.fillRect(Math.round(32 + Math.cos(a) * d), Math.round(32 + Math.sin(a) * d), w, r() < 0.5 ? 1 : 2);
-  }
+  strewLeaves(g, r, 256, 256, 218, 260, [20, 36], 0.7);
+  g.scale(8, 8);
   // lily pads: round, a notch, dark green going yellow at the edge, a few already brown
   for (let i = 0; i < 9; i++) {
     const cx = 64 + 10 + r() * 44;
@@ -228,9 +227,13 @@ function flatAtlas(): THREE.CanvasTexture {
     g.closePath();
     g.fill();
     g.fillStyle = "rgba(20,30,12,0.5)";
-    g.fillRect(Math.round(cx - 1), Math.round(cy - 1), 1, 1);
+    g.fillRect(cx - 0.5, cy - 0.5, 1, 1);
   }
-  return canvasTex(c);
+  const t = canvasTex(c);
+  t.magFilter = THREE.LinearFilter;
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.generateMipmaps = true;
+  return t;
 }
 
 // ------------------------------------------------------------------ merged chunks

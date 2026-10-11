@@ -1436,7 +1436,7 @@ void fragment() {
 		// broken into puddles a few metres across
 		water *= smoothstep(0.46, 0.56, pud_val(pp / 2.1 + 57.1)) * smoothstep(0.3, 0.42, pud_val(pp / 4.7 - 23.9));
 ");
-            if (k.Relief > 0) c.Append("		// stones and pebbles stand out of the water: the shallower the puddle, the more of them\n		water *= 1.0 - smoothstep(0.6 + lvl * 0.2, 0.7 + lvl * 0.2, psx_h) * (1.0 - smoothstep(th + 0.05, th + 0.3, pn));\n");
+            if (k.Relief > 0) c.Append("		// stones and pebbles stand out of the water: the shallower the puddle, the more of them\n		water *= 1.0 - smoothstep(0.66 + lvl * 0.2, 0.84 + lvl * 0.2, psx_h) * (1.0 - smoothstep(th + 0.03, th + 0.2, pn));\n");
             c.Append(@"		water = clamp(water, 0.0, 1.0);
 		float damp = smoothstep(th - 0.09, th, pn);
 		float dk = 1.0 - 0.38 * damp * (1.0 - water);
@@ -1444,7 +1444,8 @@ void fragment() {
 		ad *= dk;
 		if (water > 0.0) {
 			float cos_t = clamp(-rd.y, 0.0, 1.0);
-			float fres = max(0.02 + 0.98 * pow(1.0 - cos_t, 5.0), 0.22);
+			// (survey finding 23: dark water that mirrors softly, not a pale sheet of sky)
+			float fres = max(0.02 + 0.98 * pow(1.0 - cos_t, 5.0), 0.1);
 			// wind ripples dull the picture in gust patches; the sea state is the wind
 			vec2 wd = vec2(0.93, 0.36);
 			float wk = clamp((psx_sea - 0.85) / 2.75, 0.0, 1.0);
@@ -1459,7 +1460,14 @@ void fragment() {
 			mat4 mirror_mat = psx_mirror_columns > 0.5 ? mat4(psx_mirror_col0, psx_mirror_col1, psx_mirror_col2, psx_mirror_col3) : psx_mirror_mat;
 			vec4 mr = mirror_mat * vec4(world, 1.0);
 			// the street itself mirrored (World/Mirrors.cs); reflections off: dark water with a little of the sky's grey
-			vec3 refl = psx_mirror_on > 0.5 ? texture(psx_mirror, (vec2(mr.x, -mr.y) / mr.w + wob) * 0.5 + 0.5).rgb * 1.1 : fogc * 0.3;
+			vec3 refl = fogc * 0.3;
+			if (psx_mirror_on > 0.5) {
+				// five taps soften the mirror's picture, as still, dirty water does (psx.ts)
+				vec2 muv = (vec2(mr.x, -mr.y) / mr.w + wob) * 0.5 + 0.5;
+				vec2 tx = 1.3 / vec2(textureSize(psx_mirror, 0));
+				refl = (texture(psx_mirror, muv).rgb * 2.0 + texture(psx_mirror, muv + vec2(tx.x, tx.y * 0.4)).rgb + texture(psx_mirror, muv - vec2(tx.x, tx.y * 0.4)).rgb
+					+ texture(psx_mirror, muv + vec2(-tx.x * 0.4, tx.y)).rgb + texture(psx_mirror, muv - vec2(-tx.x * 0.4, tx.y)).rgb) / 6.0 * 0.85;
+			}
 			refl *= 1.0 - 0.12 * gust * min(1.0, wind - 0.6);
 			// (the great storm: the puddles are all rain-splash and wind; no picture in them)
 			refl = mix(refl, fogc * 0.3, 0.85 * clamp((psx_sea - 3.6) / 2.0, 0.0, 1.0));
@@ -1468,7 +1476,7 @@ void fragment() {
 ");
             if (lit) c.Append("			if (psx_spill_n > 0) refl += psx_spill_wet(world, rr, 1.0) * 0.05;\n");
             c.Append(@"			// shallow, a little brown: the ground under it, darker
-			vec3 keep = vec3(1.0 - water) + water * vec3(0.52, 0.48, 0.42) * (1.0 - fres);
+			vec3 keep = vec3(1.0 - water) + water * vec3(0.38, 0.35, 0.31) * (1.0 - fres);
 			k3 *= keep;
 			ad = ad * keep + refl * (water * fres);
 		}

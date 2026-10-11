@@ -442,14 +442,150 @@ def paint_leaves(seed, w, h, n, spread="drift", big=1.0):
     return img
 
 
+# Survey finding 23 (2026-10-11): the strewn leaves were 4 to 8 pixel stars at 2.5-3 cm a pixel, read up close as big
+# orange squares. They are painted again at 5 mm a pixel (LEAF_PX), as leaves: the plane's five pointed lobes from the
+# stalk with their veins, the lime's heart with a toothed edge and its side veins, 7 to 15 cm; each in its own autumn
+# colour, browner at the curled edge, with spots, a soft contact shadow under it, the older ones under the others
+# darker and flatter. The atlas is read smoothly (linear, mipmapped) with a clear margin round every cell.
+LEAF_PX = 200  # pixels a metre
+
+
+def leaf_fine(rng, kind, size_m):
+    """One leaf, RGBA, about size_m across, turned any way. kind 0 plane (palmate, five lobes), 1 lime (heart)."""
+    s = max(8, int(round(size_m * LEAF_PX * 1.25)))
+    yy, xx = np.mgrid[0:s, 0:s].astype(float)
+    a = rng.random() * 2 * math.pi
+    ca, sa = math.cos(a), math.sin(a)
+    px = (xx + 0.5 - s / 2) / (s / 2)
+    py = (yy + 0.5 - s / 2) / (s / 2)
+    # leaf frame: x across, y along the midrib from the stalk (y = 0) to the tip
+    x = px * ca - py * sa
+    y = px * sa + py * ca
+    aa = 1.6 / s  # a pixel in leaf units (for the soft edge)
+    if kind == 0:
+        y = y + 0.18
+        r = np.hypot(x, y)
+        t = np.arctan2(x, y)  # 0 along the midrib
+        lobe = np.zeros_like(r)
+        for ti, li in ((0.0, 1.0), (0.85, 0.82), (-0.85, 0.82), (1.7, 0.5), (-1.7, 0.5)):
+            lobe = np.maximum(lobe, li * np.exp(-((t - ti) / 0.46) ** 2))
+        edge = 0.8 * (0.48 + 0.52 * lobe) * (1 + 0.03 * np.sin(t * 23 + rng.random() * 6))
+        edge = np.where(np.abs(t) > 2.45, 0.12, edge)  # the stalk's notch
+        dist = edge - r
+        vein = np.zeros_like(r)
+        for ti in (0.0, 0.85, -0.85, 1.7, -1.7):
+            vx, vy = math.sin(ti), math.cos(ti)
+            along = x * vx + y * vy
+            off = np.abs(x * vy - y * vx)
+            vein = np.maximum(vein, (off < 0.018 + 0.012 * (1 - along)) * (along > 0) * (along < edge * 0.92))
+        stalk = (np.abs(x) < 0.025) & (y < 0.02) & (y > -0.28)
+    else:
+        y = y + 0.85
+        u = y / 1.6  # 0 at the stalk, 1 at the tip
+        half = 0.62 * np.sin(np.pi * np.clip(u, 0, 1) ** 0.75) * (1.0 - 0.35 * u)
+        half = half + 0.18 * np.exp(-((u - 0.05) / 0.09) ** 2)  # the heart's two lobes round the stalk
+        half = half * (1 + 0.05 * np.sin(u * 70 + rng.random() * 6))  # toothed edge
+        half = np.where((u < 0.06) & (np.abs(x) < 0.08 * (0.06 - u) / 0.06), -1, half)
+        dist = np.where((u >= -0.04) & (u <= 1.0), half - np.abs(x), -1)
+        side = np.zeros_like(u)
+        for k in range(5):
+            u0 = 0.12 + k * 0.15
+            line = np.abs((u - u0) - np.abs(x) * 0.8) < 0.012
+            side = np.maximum(side, line * (np.abs(x) < half * 0.85))
+        vein = np.maximum((np.abs(x) < 0.02) * (u > 0) * (u < 0.95), side)
+        stalk = (np.abs(x) < 0.02) & (u < 0.0) & (u > -0.18)
+    alpha = np.clip(dist / aa + 0.5, 0, 1)
+    alpha = np.maximum(alpha, stalk.astype(float))
+    # colour: its own autumn tone, a second tone blotched over it, spots, the curled edge browner
+    c0 = np.array(LEAF_COLS[rng.integers(len(LEAF_COLS))]) * (0.85 + 0.3 * rng.random())
+    c1 = np.array(LEAF_COLS[rng.integers(len(LEAF_COLS))]) * (0.8 + 0.3 * rng.random())
+    n = sl_noise(rng, s, s, 4) * 0.7 + sl_noise(rng, s, s, 11) * 0.3
+    col = c0[None, None, :] * (1 - n[..., None] * 0.6) + c1[None, None, :] * (n[..., None] * 0.6)
+    rim = np.clip(1 - dist / 0.12, 0, 1)
+    col = col * (1 - 0.35 * rim[..., None]) + np.array((0.22, 0.13, 0.06)) * 0.35 * rim[..., None]
+    spots = (sl_noise(rng, s, s, 14) > 0.78) * (rng.random() < 0.6)
+    col = np.where(spots[..., None], col * 0.6, col)
+    col = np.where((vein > 0)[..., None], col * 1.12 + 0.03, col)
+    col = np.where(stalk[..., None], np.array((0.3, 0.2, 0.1)), col)
+    # the curl: lit on one side, in its own shade on the other (as it lies, not as the sun is)
+    curl = np.clip(1 - dist / 0.3, 0, 1) * np.sign(x * 0.6 + y * 0.2 + 1e-6)
+    col = col * (1 + 0.12 * curl[..., None])
+    out = np.zeros((s, s, 4))
+    out[..., :3] = np.clip(col, 0, 1)
+    out[..., 3] = alpha
+    return out
+
+
+def leaf_over(dst, c, a):
+    """Paint colour c with alpha a over dst (straight alpha, in place)."""
+    da = dst[..., 3]
+    oa = a + da * (1 - a)
+    cc = c if np.ndim(c) == 3 else np.broadcast_to(c, dst[..., :3].shape)
+    num = cc * a[..., None] + dst[..., :3] * (da * (1 - a))[..., None]
+    dst[..., :3] = np.where(oa[..., None] > 1e-4, num / np.maximum(oa, 1e-4)[..., None], dst[..., :3])
+    dst[..., 3] = oa
+
+
+def sl_noise(rng, w, h, cells):
+    return vnoise(rng, w, h, cells, cells)
+
+
+def paint_leaves_fine(seed, wm, dm, n, spread="drift", size=(0.07, 0.15)):
+    """Leaves strewn over a transparent cell wm x dm metres. spread: "drift" (thick along the bottom edge: the side
+    against the kerb or the wall, thinning to a ragged top), "patch" (a clump, thick in the middle) or "scatter" (a
+    few apart: the carpet under the plane trees)."""
+    rng = np.random.default_rng(seed)
+    w, h = int(wm * LEAF_PX), int(dm * LEAF_PX)
+    img = np.zeros((h, w, 4))
+    lay = []
+    for _ in range(n):
+        if spread == "drift":
+            fy = 1 - rng.random() ** 2.2
+            fx = rng.random()
+            if fy < 0.55 and math.sin(fx * 9 + seed) * 0.5 + 0.5 < rng.random() * 0.8:
+                continue
+        elif spread == "patch":
+            rr = math.sqrt(rng.random()) * 0.5 * (0.6 + 0.4 * rng.random())
+            aa = rng.random() * 2 * math.pi
+            fx, fy = 0.5 + math.cos(aa) * rr, 0.5 + math.sin(aa) * rr
+        else:
+            fx, fy = 0.08 + rng.random() * 0.84, 0.08 + rng.random() * 0.84
+        lay.append((fx, fy))
+    # the first laid lie under the others: darker, wetter, rotting
+    for k, (fx, fy) in enumerate(lay):
+        kind = 0 if rng.random() < 0.6 else 1
+        sz = size[0] + (size[1] - size[0]) * rng.random() * (1.0 if kind == 0 else 0.7)
+        lf = leaf_fine(rng, kind, sz)
+        if spread != "scatter" and k < len(lay) * 0.4:
+            lf[..., :3] *= 0.55 + 0.2 * rng.random()
+        s = lf.shape[0]
+        x0 = int(fx * (w - s - 8)) + 4
+        y0 = int(fy * (h - s - 8)) + 4
+        if x0 < 2 or y0 < 2 or x0 + s > w - 2 or y0 + s > h - 2:
+            continue
+        sub = img[y0:y0 + s, x0:x0 + s]
+        # a soft contact shadow, a little down and to the side
+        sh = lf[..., 3]
+        sh = (sh + np.roll(sh, 2, 0) + np.roll(sh, 2, 1) + np.roll(np.roll(sh, 2, 0), 2, 1)) / 4
+        leaf_over(sub, np.full(3, 0.05), sh * 0.35)
+        leaf_over(sub, lf[..., :3], lf[..., 3])
+    img[..., 3] = np.clip(img[..., 3], 0, 1)
+    img[:2, :, 3] = 0
+    img[-2:, :, 3] = 0
+    img[:, :2, 3] = 0
+    img[:, -2:, 3] = 0
+    return img
+
+
 # ------------------------------------------------------------------ atlases
 
 
 class Atlas:
     """Shelf-packed atlas; cells are (x, y, w, h) in pixels from the top left."""
 
-    def __init__(self, width):
+    def __init__(self, width, pad=0):
         self.W = width
+        self.pad = pad
         self.items = []
         self.cells = {}
 
@@ -463,10 +599,10 @@ class Atlas:
         for name, a in order:
             h, w = a.shape[:2]
             if x + w > self.W:
-                x, y, shelf = 0, y + shelf, 0
+                x, y, shelf = 0, y + shelf + self.pad, 0
             placed.append((name, a, x, y))
             self.cells[name] = (x, y, w, h)
-            x += w
+            x += w + self.pad
             shelf = max(shelf, h)
         H = 1
         while H < y + shelf:
@@ -487,7 +623,8 @@ class Atlas:
 
 
 SOLID_ATLAS = Atlas(256)
-DECAL_ATLAS = Atlas(256)
+# (survey finding 23: the leaves at 5 mm a pixel need room; a margin of 4 px round each cell, as it is read smoothly)
+DECAL_ATLAS = Atlas(1024, pad=4)
 
 # flat marks: name -> (painter, drawn width m, drawn depth m)
 DECALS = {
@@ -517,13 +654,13 @@ DECALS = {
     "shells_0": (lambda: paint_shellgrit(585), 0.8, 0.7),
     "drain": (lambda: paint_drain(586), 0.5, 0.5),
     "gutter": (lambda: paint_gutter(590), 1.6, 0.5),
-    # package 1: autumn leaves (drawn at 2.5-3 cm a pixel: a plane leaf is 6 to 8 pixels)
-    "leafdrift_0": (lambda: paint_leaves(601, 64, 24, 150, "drift"), 1.75, 0.6),
-    "leafdrift_1": (lambda: paint_leaves(602, 48, 24, 115, "drift"), 1.3, 0.62),
-    "leafpatch_0": (lambda: paint_leaves(603, 40, 40, 90, "patch"), 1.1, 1.1),
-    "leafpatch_1": (lambda: paint_leaves(604, 32, 32, 60, "patch"), 0.85, 0.85),
-    "leafscatter_0": (lambda: paint_leaves(605, 48, 48, 26, "scatter", big=1.45), 1.6, 1.6),
-    "leafscatter_1": (lambda: paint_leaves(606, 48, 48, 18, "scatter", big=1.5), 1.6, 1.6),
+    # package 1: autumn leaves; survey finding 23: at 5 mm a pixel, leaves of 7 to 15 cm
+    "leafdrift_0": (lambda: paint_leaves_fine(601, 1.75, 0.6, 420, "drift"), 1.75, 0.6),
+    "leafdrift_1": (lambda: paint_leaves_fine(602, 1.3, 0.62, 320, "drift"), 1.3, 0.62),
+    "leafpatch_0": (lambda: paint_leaves_fine(603, 1.1, 1.1, 260, "patch"), 1.1, 1.1),
+    "leafpatch_1": (lambda: paint_leaves_fine(604, 0.85, 0.85, 170, "patch"), 0.85, 0.85),
+    "leafscatter_0": (lambda: paint_leaves_fine(605, 1.6, 1.6, 60, "scatter", size=(0.09, 0.16)), 1.6, 1.6),
+    "leafscatter_1": (lambda: paint_leaves_fine(606, 1.6, 1.6, 42, "scatter", size=(0.09, 0.16)), 1.6, 1.6),
 }
 
 
@@ -627,7 +764,8 @@ def make_materials():
         bsdf = nt.nodes.get("Principled BSDF")
         t = nt.nodes.new("ShaderNodeTexImage")
         t.image = img
-        t.interpolation = "Closest"
+        # (the flat marks read smoothly: the leaves are drawn at 5 mm a pixel; the solid atlas stays sharp)
+        t.interpolation = "Linear" if img is dec else "Closest"
         nt.links.new(t.outputs["Color"], bsdf.inputs["Base Color"])
         if img is dec:
             nt.links.new(t.outputs["Alpha"], bsdf.inputs["Alpha"])

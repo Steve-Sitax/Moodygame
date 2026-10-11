@@ -342,9 +342,13 @@ export class Lively {
     }
     for (const t of [solidMap, decalMap] as Array<THREE.Texture | null>) {
       if (!t) continue;
-      t.magFilter = THREE.NearestFilter;
-      t.minFilter = THREE.NearestFilter;
-      t.generateMipmaps = false;
+      // (survey finding 13, 2026-10-11: the chalk and the wet patch are drawn at 1 cm a pixel, with a clear margin
+      // round each cell: read smoothly and mipmapped, so they do not sparkle a few metres off; the solid atlas's
+      // small cells stay sharp)
+      const smooth = t === decalMap;
+      t.magFilter = smooth ? THREE.LinearFilter : THREE.NearestFilter;
+      t.minFilter = smooth ? THREE.LinearMipmapLinearFilter : THREE.NearestFilter;
+      t.generateMipmaps = smooth;
       t.colorSpace = THREE.SRGBColorSpace;
       t.needsUpdate = true;
     }

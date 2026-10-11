@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { drawLeaf, LEAF_COLOURS } from "./leafPaint";
 
 // Paving with a height map (Steve: "cobbles still look too flat"): a colour texture and a
 // height texture made from the same layout, so each stone's colour and its bulge line up.
@@ -241,12 +242,15 @@ export function edgeStoneTextures(): { map: THREE.CanvasTexture; height: THREE.C
 export const edgeStoneTexture = (): THREE.CanvasTexture => edgeStoneTextures().map;
 
 /**
- * Packed earth of the working quays (Steve: "the dirt texture is very blocky; make it more
- * uneven and bumpy"): 256 px per 4 m tile. Trodden earth in brown and grey, lumpy in the
- * height map, with pebbles pressed into it, bits of straw, and darker damp hollows.
+ * Packed earth and gravel: the gate roads, the yards, the greens' walks (the ground zones' "earth"), 512 px per 4 m tile
+ * (8 mm a pixel). Survey finding 23 (2026-10-11: "mud and gravel are huge blurry blotches"; the old map was lumps of a
+ * metre and 30 cm, dark hollows and humps that the relief light blew up into blotches): trodden earth, even in tone over
+ * the tile, made of fine crumbs; gravel and small stones pressed into it, a few bigger ones; hoof prints (a horseshoe's
+ * U, sunk, the earth pushed up round it) and boot prints, faint, every way; small damp hollows where water stood; a few
+ * wisps of straw. The wheel ruts are the cart roads' own (world/ruts.ts), never in the tile: they would repeat across it.
  */
 export function earthPaving(): Paving {
-  const n = 256;
+  const n = 512;
   const [mc, mg, hc, hg] = canvasPair(n);
   const r = rand(1876);
   const hImg = hg.createImageData(n, n);
@@ -270,60 +274,125 @@ export function earthPaving(): Paving {
       return a + (b - a) * sv;
     };
   };
-  const big = octave(4, 11);
-  const mid = octave(12, 12);
-  const small = octave(40, 13);
-  const tone = octave(6, 14);
+  const broad = octave(5, 11); // 80 cm: the ground's own slight rise and fall
+  const lumps = octave(28, 12); // 14 cm: trodden lumps
+  const crumb = octave(110, 13); // 4 cm: crumbs
+  const tone = octave(7, 14);
+  const damp = octave(18, 15);
   const hField = new Float32Array(n * n);
+  const shade = new Float32Array(n * n).fill(1); // the colour's own darkening (prints, damp)
   for (let y = 0; y < n; y++)
-    for (let x = 0; x < n; x++) {
-      const h = big(x, y) * 0.45 + mid(x, y) * 0.35 + small(x, y) * 0.2;
-      hField[y * n + x] = h;
-    }
-  // pebbles pressed into the earth: small domes, lighter and greyer
-  const pebbles: Array<[number, number, number, number]> = [];
-  for (let i = 0; i < 420; i++) pebbles.push([r() * n, r() * n, 1.5 + r() * r() * 5, 0.75 + r() * 0.25]);
-  const peb = new Float32Array(n * n);
-  const pebTone = new Float32Array(n * n);
-  for (const [cx, cy, rad, v] of pebbles) {
-    for (let y = Math.floor(cy - rad); y <= Math.ceil(cy + rad); y++)
-      for (let x = Math.floor(cx - rad); x <= Math.ceil(cx + rad); x++) {
-        const d = Math.hypot(x - cx, y - cy) / rad;
-        if (d >= 1) continue;
-        const xx = ((x % n) + n) % n;
-        const yy = ((y % n) + n) % n;
-        const dome = Math.sqrt(1 - d * d);
-        if (dome > peb[yy * n + xx]) {
-          peb[yy * n + xx] = dome;
-          pebTone[yy * n + xx] = v;
-        }
+    for (let x = 0; x < n; x++) hField[y * n + x] = 0.42 + broad(x, y) * 0.12 + lumps(x, y) * 0.14 + crumb(x, y) * 0.12;
+  const wrap = (v: number) => ((v % n) + n) % n;
+  // hoof prints: a horseshoe's U (12 cm, open at the heel), sunk 1 to 2 cm, the earth pushed up round its outside
+  for (let i = 0; i < 46; i++) {
+    const cx = r() * n;
+    const cy = r() * n;
+    const a = r() * Math.PI * 2;
+    const R = 6.5 + r() * 1.5;
+    const depth = 0.1 + r() * 0.08;
+    const ca = Math.cos(a);
+    const sa = Math.sin(a);
+    for (let y = -12; y <= 12; y++)
+      for (let x = -12; x <= 12; x++) {
+        const u = x * ca + y * sa;
+        const v = -x * sa + y * ca;
+        const d = Math.hypot(u, v * 1.1);
+        const k = wrap(Math.round(cy + y)) * n + wrap(Math.round(cx + x));
+        // the frog's open heel: no shoe there
+        const ring = Math.abs(d - R) < 1.6 && !(v > R * 0.35 && Math.abs(u) < R * 0.55);
+        if (ring) {
+          hField[k] -= depth;
+          shade[k] *= 0.82;
+        } else if (d < R - 1.6) {
+          hField[k] -= depth * 0.45; // the hoof's sole, shallower
+          shade[k] *= 0.93;
+        } else if (d < R + 4) hField[k] += depth * 0.25 * (1 - (d - R - 1.6) / 2.4);
       }
   }
+  // boot prints, fainter: a sole and a heel (27 x 9 cm)
+  for (let i = 0; i < 22; i++) {
+    const cx = r() * n;
+    const cy = r() * n;
+    const a = r() * Math.PI * 2;
+    const ca = Math.cos(a);
+    const sa = Math.sin(a);
+    for (let y = -20; y <= 20; y++)
+      for (let x = -20; x <= 20; x++) {
+        const u = x * ca + y * sa;
+        const v = -x * sa + y * ca;
+        const sole = (u - 5) ** 2 / 100 + v * v / 30 < 1;
+        const heel = (u + 12) ** 2 / 16 + v * v / 22 < 1;
+        if (!sole && !heel) continue;
+        const k = wrap(Math.round(cy + y)) * n + wrap(Math.round(cx + x));
+        hField[k] -= 0.05;
+        shade[k] *= 0.94;
+      }
+  }
+  // gravel and stones pressed in: many small (1 to 3 cm), some bigger (4 to 6 cm), half sunk; grey, ochre, a few dark
+  const peb = new Float32Array(n * n);
+  const pebTone = new Float32Array(n * n * 3);
+  const stone = (cx: number, cy: number, rad: number, rgb: [number, number, number]) => {
+    const sq = 0.7 + r() * 0.6;
+    for (let y = Math.floor(cy - rad - 1); y <= Math.ceil(cy + rad + 1); y++)
+      for (let x = Math.floor(cx - rad - 1); x <= Math.ceil(cx + rad + 1); x++) {
+        const d = Math.hypot(x - cx, (y - cy) * sq) / rad;
+        if (d >= 1) continue;
+        const k = wrap(y) * n + wrap(x);
+        const dome = Math.sqrt(1 - d * d);
+        if (dome > peb[k]) {
+          peb[k] = dome;
+          // lit from the north-west, a little: each stone reads round
+          const lit = 0.85 + 0.3 * ((cx - x) * 0.6 + (cy - y) * 0.8) / rad;
+          pebTone[k * 3] = rgb[0] * lit;
+          pebTone[k * 3 + 1] = rgb[1] * lit;
+          pebTone[k * 3 + 2] = rgb[2] * lit;
+        }
+      }
+  };
+  const pebCol = (): [number, number, number] => {
+    const v = 95 + r() * 55;
+    const k = r();
+    if (k < 0.55) return [v, v * 0.97, v * 0.9];
+    if (k < 0.8) return [v * 1.08, v * 0.92, v * 0.7];
+    if (k < 0.92) return [v * 0.6, v * 0.58, v * 0.56];
+    return [v * 1.1, v * 1.08, v * 1.02];
+  };
+  for (let i = 0; i < 2600; i++) {
+    // more of them in drifts (where carts and feet left them), fewer in the trodden middle of a patch
+    const x = r() * n;
+    const y = r() * n;
+    if (broad(x, y) < 0.35 && r() < 0.5) continue;
+    stone(x, y, 0.8 + r() * r() * 3, pebCol());
+  }
+  for (let i = 0; i < 70; i++) stone(r() * n, r() * n, 3.5 + r() * 3.5, pebCol());
   for (let y = 0; y < n; y++)
     for (let x = 0; x < n; x++) {
       const k = y * n + x;
       const ground = hField[k];
-      const hollow = Math.max(0, 0.42 - ground) / 0.42; // damp hollows
-      const h = Math.min(1, ground * 0.75 + peb[k] * 0.45);
+      // damp: small hollows where water stood, darker and smoother
+      const wet = Math.max(0, Math.min(1, (0.36 - ground) * 6)) * (0.5 + 0.5 * damp(x, y));
+      const h = Math.max(0, Math.min(1, ground * 0.85 + peb[k] * 0.32 * (0.6 + 0.4 * peb[k])));
       const i4 = k * 4;
       hImg.data[i4] = hImg.data[i4 + 1] = hImg.data[i4 + 2] = Math.round(h * 255);
       hImg.data[i4 + 3] = 255;
-      // colour: brown to grey earth, darker in hollows, lighter on the humps
-      const t = tone(x, y);
-      let cr = 84 + t * 26 + (ground - 0.5) * 40;
-      let cg = 72 + t * 20 + (ground - 0.5) * 34;
-      let cb = 58 + t * 12 + (ground - 0.5) * 26;
-      cr *= 1 - hollow * 0.35;
-      cg *= 1 - hollow * 0.33;
-      cb *= 1 - hollow * 0.3;
+      // colour: brown earth, even over the tile (a slow tone of a few per cent), the crumbs' tops lighter
+      const t = tone(x, y) - 0.5;
+      const c = crumb(x, y) - 0.5;
+      let cr = 80 + t * 12 + c * 16 + (lumps(x, y) - 0.5) * 8;
+      let cg = 68 + t * 10 + c * 13 + (lumps(x, y) - 0.5) * 7;
+      let cb = 54 + t * 6 + c * 9 + (lumps(x, y) - 0.5) * 5;
+      const s = shade[k] * (1 - wet * 0.3);
+      cr *= s;
+      cg *= s;
+      cb *= s * (1 + wet * 0.04);
       if (peb[k] > 0) {
-        const v = 110 * pebTone[k] * (0.75 + 0.35 * peb[k]);
-        const m = Math.min(1, peb[k] * 3);
-        cr = cr * (1 - m) + v * m;
-        cg = cg * (1 - m) + v * 0.97 * m;
-        cb = cb * (1 - m) + v * 0.92 * m;
+        const m = Math.min(1, peb[k] * 2.5);
+        cr = cr * (1 - m) + pebTone[k * 3] * m;
+        cg = cg * (1 - m) + pebTone[k * 3 + 1] * m;
+        cb = cb * (1 - m) + pebTone[k * 3 + 2] * m;
       }
-      const grain = (r() - 0.5) * 14;
+      const grain = (r() - 0.5) * 8;
       mImg.data[i4] = Math.max(0, Math.min(255, cr + grain));
       mImg.data[i4 + 1] = Math.max(0, Math.min(255, cg + grain));
       mImg.data[i4 + 2] = Math.max(0, Math.min(255, cb + grain));
@@ -331,17 +400,17 @@ export function earthPaving(): Paving {
     }
   mg.putImageData(mImg, 0, 0);
   hg.putImageData(hImg, 0, 0);
-  // straw: thin pale strokes lying about
-  for (let i = 0; i < 90; i++) {
-    const x = r() * n;
-    const y = r() * n;
+  // straw: thin pale wisps lying about (kept off the tile's edge: they do not wrap)
+  for (let i = 0; i < 60; i++) {
+    const x = 16 + r() * (n - 32);
+    const y = 16 + r() * (n - 32);
     const a = r() * Math.PI;
-    const l = 3 + r() * 7;
-    mg.strokeStyle = `rgba(${150 + r() * 40},${130 + r() * 30},${70 + r() * 20},0.8)`;
-    mg.lineWidth = 1;
+    const l = 5 + r() * 9;
+    mg.strokeStyle = `rgba(${140 + r() * 30},${118 + r() * 24},${66 + r() * 18},0.7)`;
+    mg.lineWidth = 0.8;
     mg.beginPath();
     mg.moveTo(x, y);
-    mg.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l);
+    mg.quadraticCurveTo(x + Math.cos(a) * l * 0.5 + (r() - 0.5) * 3, y + Math.sin(a) * l * 0.5 + (r() - 0.5) * 3, x + Math.cos(a) * l, y + Math.sin(a) * l);
     mg.stroke();
   }
   return finish(mc, hc);
@@ -582,12 +651,15 @@ export function flagPaving(): Paving {
 }
 
 /**
- * Grass (the town wall, 2026-09-25): the berm outside the wall, the far bank, the gardens in the back
- * alleys. Autumn grass, 256 px per 4 m tile: tufts in olive and yellow-green, bare trodden patches,
- * a few fallen leaves; the height map gives the tufts a little relief.
+ * Grass (the town wall, 2026-09-25): the berm outside the wall, the far bank, the gardens in the back alleys. Autumn
+ * grass, 512 px per 4 m tile (8 mm a pixel). Survey finding 23 (2026-10-11): the old map was smooth noise, read as big
+ * blurry blotches of light and dark green; now blades: thousands of thin strokes in olive, yellow-green and straw,
+ * leaning every way and thicker in tufts, the dark earth between them, a few clover leaves, bare trodden patches and a
+ * few fallen leaves. The height map is the blades' own (tips high, the earth low), so the relief light picks out blades,
+ * not blobs.
  */
 export function grassPaving(): Paving {
-  const n = 256;
+  const n = 512;
   const [mc, mg, hc, hg] = canvasPair(n);
   const r = rand(1877);
   const octave = (cells: number, seed: number) => {
@@ -608,42 +680,78 @@ export function grassPaving(): Paving {
       return a + (b - a) * sv;
     };
   };
-  const big = octave(4, 21);
-  const mid = octave(16, 22);
-  const blade = octave(64, 23);
-  const hImg = hg.createImageData(n, n);
+  const tuft = octave(14, 22); // 30 cm: thicker and thinner grass
+  const dry = octave(6, 23); // 70 cm: greener and more straw
+  const bare = octave(4, 21); // a metre: trodden patches
+  // the earth under it all
   const mImg = mg.createImageData(n, n);
-  for (let y = 0; y < n; y++)
-    for (let x = 0; x < n; x++) {
-      const k = (y * n + x) * 4;
-      const b = big(x, y);
-      const m = mid(x, y);
-      const t = blade(x, y);
-      const bare = Math.max(0, 0.3 - b) / 0.3; // trodden patches
-      const h = Math.min(1, t * 0.6 + m * 0.4) * (1 - bare * 0.6);
-      hImg.data[k] = hImg.data[k + 1] = hImg.data[k + 2] = Math.round(h * 255);
-      hImg.data[k + 3] = 255;
-      const lit = 0.75 + h * 0.4;
-      let cr = (62 + m * 30 + b * 12) * lit;
-      let cg = (76 + m * 26 + t * 18) * lit;
-      let cb = (38 + m * 10) * lit;
-      cr = cr * (1 - bare) + (86 + t * 14) * bare;
-      cg = cg * (1 - bare) + (74 + t * 12) * bare;
-      cb = cb * (1 - bare) + (56 + t * 8) * bare;
-      const grain = (r() - 0.5) * 12;
-      mImg.data[k] = Math.max(0, Math.min(255, cr + grain));
-      mImg.data[k + 1] = Math.max(0, Math.min(255, cg + grain));
-      mImg.data[k + 2] = Math.max(0, Math.min(255, cb + grain));
-      mImg.data[k + 3] = 255;
-    }
+  for (let i = 0; i < n * n; i++) {
+    const x = i % n;
+    const y = (i / n) | 0;
+    const k = 0.85 + 0.3 * tuft(x * 3, y * 3) + (r() - 0.5) * 0.12;
+    mImg.data[i * 4] = 52 * k;
+    mImg.data[i * 4 + 1] = 46 * k;
+    mImg.data[i * 4 + 2] = 32 * k;
+    mImg.data[i * 4 + 3] = 255;
+  }
   mg.putImageData(mImg, 0, 0);
-  hg.putImageData(hImg, 0, 0);
-  // fallen leaves and a few dry stalks
-  for (let i = 0; i < 70; i++) {
+  hg.fillStyle = "rgb(30,30,30)";
+  hg.fillRect(0, 0, n, n);
+  // blades: drawn again at the wrapped place near an edge, so the tile has no seam
+  const blade = (x: number, y: number, a: number, l: number, col: string, h: number) => {
+    const xs = [0, ...(x < 16 ? [n] : x > n - 16 ? [-n] : [])];
+    const ys = [0, ...(y < 16 ? [n] : y > n - 16 ? [-n] : [])];
+    const v = Math.round(h * 255);
+    mg.strokeStyle = col;
+    hg.strokeStyle = `rgb(${v},${v},${v})`;
+    for (const ox of xs)
+      for (const oy of ys) {
+        const bx = x + ox;
+        const by = y + oy;
+        const ex = bx + Math.cos(a) * l;
+        const ey = by + Math.sin(a) * l;
+        const mx = bx + Math.cos(a + 0.25) * l * 0.5;
+        const my = by + Math.sin(a + 0.25) * l * 0.5;
+        for (const g of [mg, hg]) {
+          g.beginPath();
+          g.moveTo(bx, by);
+          g.quadraticCurveTo(mx, my, ex, ey);
+          g.stroke();
+        }
+      }
+  };
+  mg.lineCap = hg.lineCap = "round";
+  for (let i = 0; i < 26000; i++) {
     const x = r() * n;
     const y = r() * n;
-    mg.fillStyle = r() < 0.5 ? `rgb(${140 + r() * 40},${90 + r() * 30},${30 + r() * 20})` : `rgb(${150 + r() * 30},${140 + r() * 30},${80 + r() * 20})`;
-    mg.fillRect(Math.floor(x), Math.floor(y), 2, r() < 0.5 ? 1 : 2);
+    const b = bare(x, y);
+    const t = tuft(x, y);
+    if (b < 0.3 && r() < 0.75) continue; // a trodden patch: few blades
+    if (t < 0.35 && r() < 0.5) continue;
+    const d = dry(x, y);
+    const k = 0.75 + r() * 0.5;
+    const straw = r() < 0.15 + d * 0.35;
+    const col = straw ? `rgb(${Math.round(128 * k)},${Math.round(116 * k)},${Math.round(70 * k)})` : `rgb(${Math.round((62 + d * 30) * k)},${Math.round((84 + r() * 22) * k)},${Math.round(36 * k)})`;
+    mg.lineWidth = hg.lineWidth = 0.9 + r() * 0.8;
+    blade(x, y, r() * Math.PI * 2, 4 + r() * 9, col, 0.5 + 0.5 * r());
+  }
+  // a few clover leaves in the grass: three round leaflets
+  for (let i = 0; i < 90; i++) {
+    const x = 20 + r() * (n - 40);
+    const y = 20 + r() * (n - 40);
+    const k = 0.8 + r() * 0.3;
+    mg.fillStyle = `rgb(${Math.round(56 * k)},${Math.round(92 * k)},${Math.round(40 * k)})`;
+    for (let j = 0; j < 3; j++) {
+      const a = (j / 3) * Math.PI * 2 + r();
+      mg.beginPath();
+      mg.arc(x + Math.cos(a) * 2.2, y + Math.sin(a) * 2.2, 2, 0, Math.PI * 2);
+      mg.fill();
+    }
+  }
+  // fallen leaves and a few dry stalks
+  for (let i = 0; i < 40; i++) {
+    const c = LEAF_COLOURS[Math.floor(r() * LEAF_COLOURS.length)];
+    drawLeaf(mg, 24 + r() * (n - 48), 24 + r() * (n - 48), 10 + r() * 8, r() * Math.PI * 2, c, 0.8 + r() * 0.3, r() < 0.6);
   }
   return finish(mc, hc);
 }
