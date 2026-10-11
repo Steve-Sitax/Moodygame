@@ -341,7 +341,11 @@ public partial class BakedWorld : Node3D
         if (bm.AlbedoTexture != null) m.SetShaderParameter("tex", Mipmapped(bm.AlbedoTexture));
         if (bm.EmissionEnabled)
         {
-            m.SetShaderParameter("emission", new Vector3(bm.Emission.R, bm.Emission.G, bm.Emission.B) * bm.EmissionEnergyMultiplier);
+            // (2026-10-12, Steve's bright quay wall: Godot keeps a material's colours in sRGB, and the shader's
+            // source_color turns only a Color into linear, never a Vector3: the glow went in as its sRGB numbers, 3x too
+            // bright where the browser has 0.12. Made linear here, as the shader counts)
+            var e = bm.Emission.SrgbToLinear();
+            m.SetShaderParameter("emission", new Vector3(e.R, e.G, e.B) * bm.EmissionEnergyMultiplier);
             if (bm.EmissionTexture != null) m.SetShaderParameter("emission_tex", Mipmapped(bm.EmissionTexture));
         }
         m.SetShaderParameter("affine", affine);
