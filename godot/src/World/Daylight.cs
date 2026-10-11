@@ -95,6 +95,8 @@ public partial class Daylight : Node
     private readonly float[] wNow = { 1, 1, 1, 0 };
     private float manualRain, pudBase = 0.34f, pudFixed = -1, sea = 1, bakeSky = 1.3936f;
     private static readonly Color FillWarm = new(0.62f, 0.6f, 0.56f);
+    /// <summary>The quay walls' light off the water (city.ts): their baked emission, scaled once more by the sky (its square).</summary>
+    private readonly System.Collections.Generic.List<(ShaderMaterial m, Vector3 e)> waterFill = new();
     private DirectionalLight3D sun = null!;
     private Godot.Environment env = null!;
     private bool lightSent;
@@ -132,15 +134,20 @@ public partial class Daylight : Node
         main.View.AddChild(sun);
 
         // the cathedral's stone takes a fill light from the sky (cathedralOutside.ts skyFill), baked as it was at the
-        // bake's hour: it follows the sky from here on
+        // bake's hour: it follows the sky from here on; so do the quay walls and their flights of steps (city.ts, the
+        // light off the water, with the square of the sky; D2 2026-10-11: before it they glowed all night with the bake's
+        // fixed emission, Steve's night test)
         foreach (var l in main.World.Facts.RootElement.GetProperty("facts").GetProperty("lights").EnumerateArray())
             if (l.GetProperty("type").GetString() == "HemisphereLight") bakeSky = l.GetProperty("intensity").GetSingle();
         var seen = new System.Collections.Generic.HashSet<Material>();
         foreach (var n in BakedWorld.All(main.World))
             if (n is MeshInstance3D mi && mi.Mesh != null)
                 for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
-                    if (mi.Mesh.SurfaceGetMaterial(s) is ShaderMaterial m && seen.Add(m) && (m.ResourceName.StartsWith("cath_") || m.ResourceName == "gilt") && m.GetShaderParameter("emission").VariantType != Variant.Type.Nil)
+                    if (mi.Mesh.SurfaceGetMaterial(s) is ShaderMaterial m && seen.Add(m) && (m.ResourceName.StartsWith("cath_") || m.ResourceName == "gilt" || m.ResourceName == "quay_wall") && m.GetShaderParameter("emission").VariantType != Variant.Type.Nil)
+                    {
                         m.SetShaderParameter("fill", 1f);
+                        if (m.ResourceName == "quay_wall") waterFill.Add((m, m.GetShaderParameter("emission").AsVector3()));
+                    }
 
         string h = main.Arg("hour"), w = main.Arg("weather");
         if (h != "" && float.TryParse(h, System.Globalization.CultureInfo.InvariantCulture, out float hour)) SetTime(hour);
@@ -369,6 +376,9 @@ public partial class Daylight : Node
         var fillNow = skyCol.Lerp(FillWarm, 0.6f) * SkyIntensity;
         var fillBake = SkyCold.Lerp(FillWarm, 0.6f) * bakeSky;
         rs("psx_fill", new Vector4(fillNow.R / fillBake.R, fillNow.G / fillBake.G, fillNow.B / fillBake.B, 1));
+        // (the quay walls' fill goes with the square of the sky's strength, as in the browser: the water gives back the
+        // day's light, hardly any of the night's)
+        foreach (var (m, e) in waterFill) m.SetShaderParameter("emission", e * (SkyIntensity / bakeSky));
         rs("psx_sun_dir", SunDir);
         // the houses' shadows: hard in a clear day's sun, soft in the glow through fog
         rs("psx_sun_shade", 0.3f + 0.7f * bright);

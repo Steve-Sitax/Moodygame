@@ -474,14 +474,49 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
     wallMat.map = withPicture(quayWallTexture(), "/textures/quay_wall.jpg");
     wallMat.side = THREE.DoubleSide;
     wallMat.vertexColors = true;
-    // the river walls face away from the sun: a little light off the water, or at low tide they fill the view nearly black
-    wallMat.emissive = new THREE.Color(0x62645a);
+    // The river walls face away from the sun: a little light off the water, or at low tide they fill the view nearly
+    // black. That light follows the sky (2026-10-12, Steve: "the bright quay wall, especially at night"): it was a fixed
+    // glow (0x62645a), as bright at 3 in the night as at noon. Now its colour and strength each frame, by the square
+    // of the sky's strength (the water gives back the day's light, hardly any of the night's), shaded by the stone's
+    // picture and its vertex colour (the wet band stays dark). The same as next-update's quay walls (D2). Godot: the
+    // same, by the material's name (World/Daylight.cs `fill` and waterFill).
+    wallMat.name = "quay_wall";
     wallMat.emissiveMap = wallMat.map; // the glow carries the stones, so the face keeps its courses
+    {
+      const prev = wallMat.onBeforeCompile;
+      const prevKey = wallMat.customProgramCacheKey.bind(wallMat);
+      wallMat.onBeforeCompile = (shader, renderer) => {
+        prev.call(wallMat, shader, renderer);
+        shader.fragmentShader = shader.fragmentShader.replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\n#ifdef USE_COLOR\n  totalEmissiveRadiance *= vColor.rgb;\n#endif");
+      };
+      wallMat.customProgramCacheKey = () => `${prevKey()}-skyfill`;
+    }
+    const FILL_WARM = new THREE.Color(0.62, 0.6, 0.56);
+    const WATER_FILL = 0.45;
+    let hemi: THREE.HemisphereLight | null | undefined;
+    let fillFrame = -1;
+    const waterFill = (renderer: THREE.WebGLRenderer, scene: THREE.Scene) => {
+      if (renderer.info.render.frame === fillFrame) return;
+      fillFrame = renderer.info.render.frame;
+      if (hemi === undefined) {
+        hemi = null;
+        scene.traverse((o) => {
+          if (!hemi && (o as THREE.HemisphereLight).isHemisphereLight) hemi = o as THREE.HemisphereLight;
+        });
+      }
+      const h = hemi as THREE.HemisphereLight | null;
+      // (the colour as the cathedral's fill takes it, so Godot's psx_fill follows it the same way)
+      if (h) wallMat.emissive.copy(h.color).lerp(FILL_WARM, 0.6).multiplyScalar(WATER_FILL * (h.intensity / 1.8) ** 2);
+      else wallMat.emissive.copy(FILL_WARM).multiplyScalar(WATER_FILL);
+    };
     const copeMat = (mats.wallDecal as THREE.MeshLambertMaterial).clone();
     copeMat.map = withPicture(copingTexture(), "/textures/quay_coping.jpg");
     copeMat.color = new THREE.Color(0xb4b0a8);
     copeMat.side = THREE.DoubleSide;
-    mk(wall, wallUv, psx(wallMat, { noSnap: true, affine: 0 })).geometry.setAttribute("color", new THREE.Float32BufferAttribute(wallCol, 3));
+    const wallMesh = mk(wall, wallUv, psx(wallMat, { noSnap: true, affine: 0 }));
+    wallMesh.geometry.setAttribute("color", new THREE.Float32BufferAttribute(wallCol, 3));
+    wallMesh.name = "quay_walls";
+    wallMesh.onBeforeRender = (renderer, scene) => waterFill(renderer, scene);
     mk(cope, copeUv, psx(copeMat, { noSnap: true, affine: 0, wet: true }));
     quayMats = { wall: wallMat, coping: copeMat };
     const faceMat = new THREE.MeshLambertMaterial({ map: copeMat.map, color: 0x9a968c, side: THREE.DoubleSide });
