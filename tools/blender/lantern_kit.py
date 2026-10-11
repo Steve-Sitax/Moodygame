@@ -248,11 +248,14 @@ class Kit:
 ROUND, MID, SMALL, TUBE, FOOT = 32, 16, 12, 8, 8
 
 
-def head(k, s=1.0, top="finial", foot="cup", glass_w=(0.12, 0.2), glass_h=0.58):
+def head(k, s=1.0, top="finial", foot="cup", glass_w=(0.12, 0.2), glass_h=0.58, inside=False):
     """The lantern of the gas lamps: four tapered panes in an iron frame (corner posts, a sill), a frieze band, an
     overhanging pyramid roof with corner knobs, a vented crown, and on top a finial ("finial") or a ring to hang it by
     ("ring"). Under it a cup ("cup", standing on a post), a drop knob ("drop", hanging) or nothing. From the foot of the
-    glass at z 0. Returns (the glass's centre z, the top z, the foot z)."""
+    glass at z 0. Hollow (2026-10-11, Steve: "hollow and 1 light in 3d"): a floor and a sooty ceiling close it inside,
+    and inside=True puts the burner in (gas_burner: a brass pipe, its tip and one flame), for a lantern drawn with clear
+    glass; a script that draws the glass solid (frosted) leaves it out. Returns (the glass's centre z, the top z, the
+    foot z)."""
     b0, b1 = glass_w[0] * s, glass_w[1] * s
     z0, z1 = 0.0, glass_h * s
     for i, (a, b) in enumerate((((-1, -1), (1, -1)), ((1, -1), (1, 1)), ((1, 1), (-1, 1)), ((-1, 1), (-1, -1)))):
@@ -264,6 +267,11 @@ def head(k, s=1.0, top="finial", foot="cup", glass_w=(0.12, 0.2), glass_h=0.58):
         # (the sill a little inside the corner posts' faces, so no two faces share a plane)
         ins = (-mid[0] * 0.006 * s, -mid[1] * 0.006 * s, 0)
         k.beam(_add((pa[0], pa[1], z0 + 0.008 * s), ins), _add((pb[0], pb[1], z0 + 0.008 * s), ins), 0.02 * s, 0.03 * s, "iron")
+    # the ceiling inside, under the frieze (seen through the glass), sooty
+    k.poly([(-b1, -b1, z1 - 0.012 * s), (b1, -b1, z1 - 0.012 * s), (b1, b1, z1 - 0.012 * s), (-b1, b1, z1 - 0.012 * s)], "iron",
+           out=(0, 0, -1), shade=0.3)
+    if inside:
+        gas_burner(k, s)
     # the frieze over the panes, the eave and the roof in one square profile
     k.square([(b1, z1 - 0.012 * s), (0.218 * s, z1 - 0.012 * s), (0.218 * s, z1 + 0.055 * s), (0.272 * s, z1 + 0.075 * s),
               (0.272 * s, z1 + 0.1 * s), (0.2 * s, z1 + 0.16 * s), (0.07 * s, z1 + 0.29 * s)], "iron", urep=1, vscale=0.6)
@@ -304,7 +312,25 @@ def head(k, s=1.0, top="finial", foot="cup", glass_w=(0.12, 0.2), glass_h=0.58):
     return z1 / 2, ztop, zfoot
 
 
-def post(k, s=1.0, column=1.72, flutes=20):
+def gas_burner(k, s=1.0):
+    """The burner inside a gas lantern, standing on its floor at z 0: a brass pipe, the burner's tip and one flame (a
+    soft round flame that looks the same from every side: "flame", drawn bright and lit with the lamp)."""
+    k.lathe([(0.013 * s, 0.0), (0.013 * s, 0.15 * s), (0.02 * s, 0.17 * s), (0.02 * s, 0.185 * s), (0.011 * s, 0.2 * s)], SMALL, "brass",
+            cap1=True)
+    k.lathe([(0.003 * s, 0.198 * s), (0.026 * s, 0.222 * s), (0.034 * s, 0.25 * s), (0.028 * s, 0.28 * s), (0.012 * s, 0.305 * s),
+             (0.002 * s, 0.318 * s)], SMALL, "flame", cap0=True, cap1=True)
+
+
+def oil_burner(k, q, h, z0):
+    """The lamp inside an oil lantern on its floor at z0: a brass font, the wick's holder and one flame."""
+    hk = h / 0.4
+    k.lathe([(0.5 * q, z0), (0.58 * q, z0 + 0.025 * hk), (0.5 * q, z0 + 0.05 * hk), (0.2 * q, z0 + 0.065 * hk)], SMALL, "brass", cap1=True)
+    k.lathe([(0.1 * q, z0 + 0.065 * hk), (0.1 * q, z0 + 0.09 * hk)], SMALL, "brass", cap1=True)
+    k.lathe([(0.004 * q, z0 + 0.088 * hk), (0.09 * q, z0 + 0.11 * hk), (0.11 * q, z0 + 0.14 * hk), (0.07 * q, z0 + 0.175 * hk),
+             (0.006 * q, z0 + 0.2 * hk)], SMALL, "flame", cap0=True, cap1=True)
+
+
+def post(k, s=1.0, column=1.72, flutes=20, inside=False):
     """The street gas lamp post: foot, pedestal, fluted column, capital, the ladder bar on its braces, the neck, the cup
     and the lantern. s scales the whole; `column` the fluted length (at s 1: 1.72 m, the lantern's glass from 3.36 m).
     Returns the glass's centre (0, 0, z)."""
@@ -345,12 +371,12 @@ def post(k, s=1.0, column=1.72, flutes=20):
                 pts = [_add(_mulk(d, r), (0, 0, z)) for r, z in ((0.058, 3.12), (0.11, 3.13), (0.16, 3.2), (0.175, 3.29), (0.158, 3.345))]
                 k.tube(pts, 0.01, TUBE, "iron", side=(0, 0, 1), rot=math.pi / 4, cap0=True, cap1=True)
             with k.at(move(0, 0, 3.36)):
-                zg, _, _ = head(k, 1.0, top="finial", foot="cup")
+                zg, _, _ = head(k, 1.0, top="finial", foot="cup", inside=inside)
             zglass = z_hi - 2.8 + 3.36 + zg
     return (0.0, 0.0, zglass * S)
 
 
-def bracket(k, arm=0.5, s=0.62, drop=0.0, oil=None, plate=1.0, glass=(0.16, 0.16)):
+def bracket(k, arm=0.5, s=0.62, drop=0.0, oil=None, plate=1.0, glass=(0.16, 0.16), inside=False):
     """A gas lantern on a wall arm: a backplate with a boss, the arm with a curl at its end and a knob, a scrolled
     stay under it, a hook, and the lantern (head at size s, a ring on top, a drop knob under) hanging from the hook.
     The wall lantern's panes stand straight (glass: its half-widths at the foot and the top at s 1; the post's taper).
@@ -386,36 +412,40 @@ def bracket(k, arm=0.5, s=0.62, drop=0.0, oil=None, plate=1.0, glass=(0.16, 0.16
         top = oil_lantern(Kit(), *oil)
         z0 = -0.05 - drop - top
         with k.at(move(0, hx, z0)):
-            oil_lantern(k, *oil)
+            oil_lantern(k, *oil, inside=inside)
         return (0.0, hx, z0)
     # (the head's ring top stands 0.19 s + 0.08 s over its crown; hang it so the ring meets the hook)
     zg = 0.58 * s / 2
     ztop = 0.58 * s + 0.29 * s + 0.19 * s + 0.08 * s
     z0 = -0.05 - drop - ztop
     with k.at(move(0, hx, z0)):
-        head(k, s, top="ring", foot="drop", glass_w=glass)
+        head(k, s, top="ring", foot="drop", glass_w=glass, inside=inside)
     return (0.0, hx, z0 + zg)
 
 
-def hanging(k, s=0.62, glass=(0.16, 0.16)):
+def hanging(k, s=0.62, glass=(0.16, 0.16), inside=False):
     """The bracket's lantern alone, hanging from a hook at the origin (a passage's vault, an arm drawn elsewhere).
     Returns the glass's centre."""
     k.tube([(0, 0, 0.0), (0, 0, -0.05)], 0.007, TUBE, "iron", cap0=True, cap1=True)
     ztop = 0.58 * s + 0.29 * s + 0.19 * s + 0.08 * s
     z0 = -0.05 + 0.02 - ztop
     with k.at(move(0, 0, z0)):
-        head(k, s, top="ring", foot="drop", glass_w=glass)
+        head(k, s, top="ring", foot="drop", glass_w=glass, inside=inside)
     return (0.0, 0.0, z0 + 0.58 * s / 2)
 
 
-def oil_lantern(k, w=0.26, h=0.4, bail=True):
+def oil_lantern(k, w=0.26, h=0.4, bail=True, inside=False):
     """A square oil lantern (a ship's or a pier's, at a smaller size the one carried in the hand): a base pan with a
     foot ring, four straight panes in corner posts, two wire guards across each pane, a sloped hood, a chimney with a
     cap and a bail ring. Its glass's centre at the origin; returns the top z."""
     q = w / 2
     z0, z1 = -h / 2, h / 2
     # the base: a pan and a foot ring
-    k.square([(q * 0.8, z0 - 0.07 * h / 0.4), (q + 0.02, z0 - 0.04 * h / 0.4), (q + 0.02, z0 - 0.005), (q, z0)], "iron", cap0=True)
+    # (hollow: its floor and its ceiling close it inside; inside=True its lamp stands on the floor)
+    k.square([(q * 0.8, z0 - 0.07 * h / 0.4), (q + 0.02, z0 - 0.04 * h / 0.4), (q + 0.02, z0 - 0.005), (q, z0)], "iron", cap0=True, cap1=True)
+    k.poly([(-q, -q, z1 - 0.004), (q, -q, z1 - 0.004), (q, q, z1 - 0.004), (-q, q, z1 - 0.004)], "iron", out=(0, 0, -1), shade=0.3)
+    if inside:
+        oil_burner(k, q, h, z0)
     for i, (a, b) in enumerate((((-1, -1), (1, -1)), ((1, -1), (1, 1)), ((1, 1), (-1, 1)), ((-1, 1), (-1, -1)))):
         pa, pb = (a[0] * q, a[1] * q, z0), (b[0] * q, b[1] * q, z0)
         pc, pd = (b[0] * q, b[1] * q, z1), (a[0] * q, a[1] * q, z1)
@@ -462,13 +492,17 @@ def _smooth_noise(rng, h, w, cells):
     return (a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + d * fx) * fy
 
 
-def paint_pane(n=128, base=(0.78, 0.68, 0.46), kind="gas", seed=9, frame=0.08, w=None, flame=1.0):
+def paint_pane(n=128, base=(0.78, 0.68, 0.46), kind="gas", seed=9, frame=0.08, w=None, flame=1.0, burner=False):
     """A pane of lamp glass, n rows from its foot up (Blender's image order) by w columns (n if not given), clean and
     soft-edged (2026-10-11, Steve: "high detail and good looking", no pixel art): sooty toward the top in soft clouds, a
     thin frame, the burner dark at the foot and its flame brighter over it. The game tints the glass (the air's colour
     unlit, the flame's lit), so by day the burner shows through and at night the flame burns brightest in the middle.
     flame: how much brighter the flame is painted (a glass lit by the sun, not tinted by the game, wants little: it is
-    no flame by day)."""
+    no flame by day).
+    burner=False (2026-10-11, Steve: "the lights themselves are 2d textures on every side ... or just blurred glass is
+    also ok"): no burner and no flame painted at all, the glass frosted, a soft glow in its middle where the flame
+    behind it would light it (flame: how much); a lantern drawn with clear glass has its one burner inside (gas_burner)
+    and wants flame=0."""
     w = w or n
     rng = np.random.default_rng(seed)
     v = (np.arange(n)[:, None] + 0.5) / n  # 0 at the foot, 1 at the top
@@ -481,7 +515,12 @@ def paint_pane(n=128, base=(0.78, 0.68, 0.46), kind="gas", seed=9, frame=0.08, w
     px = 1.0 / min(n, w)
     soft = lambda d: np.clip(0.5 - d / (1.5 * px), 0, 1)  # noqa: E731  d < 0 inside
     du = np.abs(u - 0.5) * (w / n)  # across, in rows' units (a narrow pane keeps its shapes round)
-    if kind == "gas":
+    if not burner:
+        g = np.exp(-(du / 0.26) ** 2 - ((v - 0.42) / 0.3) ** 2)
+        img += g[..., None] * np.array((0.22, 0.19, 0.13)) * flame
+        dark = np.zeros_like(g)
+        shape = np.full_like(g, 9.0)
+    elif kind == "gas":
         pipe = soft(np.maximum(du - 0.03, np.maximum(0.03 - v, v - 0.23)))
         tip = soft(np.maximum(du - 0.075, np.abs(v - 0.245) - 0.018))
         dark = np.maximum(pipe, tip)

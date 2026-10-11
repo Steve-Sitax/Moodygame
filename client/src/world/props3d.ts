@@ -26,6 +26,9 @@ import type { GroundProbe, WallProbe } from "./wallprobe";
 // walls, carts and casks elsewhere. The goods share one atlas material
 // ("goods", 4 x 4 cells), so a quay of them is one draw call per chunk.
 
+/** How much a lamp's clear glass hides of what is behind it (2026-10-11: the hollow lanterns). */
+export const LAMP_GLASS_OPACITY = 0.3;
+
 /** Single models in props.glb. */
 export const PROP_NAMES = [
   "handcart",
@@ -252,8 +255,13 @@ async function load(): Promise<Props> {
     }
     const mat =
       name === "glass"
-        ? // M7 fog lamps: glass fogs like the rest of the prop (a gas lamp's own: world/gaslamps.ts, lampFog.ts)
-          new THREE.MeshBasicMaterial({ map, color: 0xffc070 })
+        ? // M7 fog lamps: glass fogs like the rest of the prop (a gas lamp's own: world/gaslamps.ts, lampFog.ts).
+          // 2026-10-11 (Steve: "hollow and 1 light in 3d"): clear glass, a little sooty, seen through to the one burner
+          // and flame inside; drawn after the solid things, writing no depth (the flame behind it shows through)
+          new THREE.MeshBasicMaterial({ map, color: 0xffc070, transparent: true, opacity: LAMP_GLASS_OPACITY, depthWrite: false })
+        : name === "flame"
+          ? // a lantern's one flame (tools/blender/lantern_kit.py gas_burner): unlit, its colour the lamp's (gaslamps.ts)
+            new THREE.MeshBasicMaterial({ map, color: 0x2a2018 })
         : name === "goods" || name === "goods_team"
           ? // the goods atlas and the team atlas (the horses and their harness): the same settings, one shader
             psx(new THREE.MeshLambertMaterial({ map, vertexColors: true }), { affine: 0.6, atlas: 4 })
@@ -404,7 +412,8 @@ async function load(): Promise<Props> {
     if (name === "gas_lamp" || name === "lantern_bracket") {
       o.traverse((c) => {
         const m = c as THREE.Mesh;
-        if (m.isMesh && (m.material as THREE.Material).name === "glass") m.material = (m.material as THREE.Material).clone();
+        const n = m.isMesh ? (m.material as THREE.Material).name : "";
+        if (n === "glass" || n === "flame") m.material = (m.material as THREE.Material).clone();
       });
     }
     parent?.add(o);

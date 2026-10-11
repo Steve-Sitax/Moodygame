@@ -7,6 +7,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The street gas lamps (and the doss house's lantern) are hollow now: clear, slightly sooty glass with one real flame on its brass burner inside, the same from every side, and the glass glows warm when lit. The other lanterns show frosted glass with a soft glow instead of a flame painted on each pane.
 - In the Godot version, the town gates, the roofs of Sint-Paulus and Sint-Jacob and the Entrepot's upper floors are there again: the town was baked with them hidden because they were far from the camera at that moment ([#61](https://github.com/Steve-Sitax/Moodygame/issues/61)).
 - In the Godot version, things that share one model (the lamp posts, the second calvary, church pumps, lock gate leaves, small boats, omnibus parts) are drawn every time, not only the first copy ([#61](https://github.com/Steve-Sitax/Moodygame/issues/61)).
 - In the Godot version, after loading a game the ferry and the boats float on the right tide at once; before, Jef could start on the water of a minute earlier, some 10 cm off.
