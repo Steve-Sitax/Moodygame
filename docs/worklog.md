@@ -20,6 +20,9 @@ In `main`. Steve: "everywhere these stones are, it looks ugly. I think the bump 
   in the running game. Not in the repo; `.mcp/` is ignored.
 Checks: Godot shaders PASS (0 new kinds). Frame times unchanged within noise, Godot and browser; both stay over budget
 as before (#32, #47). Build PASS. Pictures and both reviews: `godot/baked/review/`, `godot/baked/stones/` (ignored).
+Web demo built, checked in a tab, published (`pages.yml` run 38143622346; the live chunk has the new shader). Play
+copy moved to `ffd803e`. Found on the way: old test stack files in `data/`
+([#60](https://github.com/Steve-Sitax/Moodygame/issues/60)).
 
 ## Godot shader hash and the Steen's courtyard windows, 2026-10-04
 
