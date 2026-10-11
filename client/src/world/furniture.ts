@@ -1,3 +1,5 @@
+import { crateMesh, pickCrate } from "../game/crateModel";
+import { CRATE_CLASS, CRATE_H } from "../../../shared/crateCatalog";
 import * as THREE from "three";
 import { canvasTex, lambert, mat, tex } from "./rooms";
 import { glowTexture } from "./textures";
@@ -260,14 +262,16 @@ export function makePiece(kind: string, ceiling = 2.6): Piece {
       break;
     }
     case "crate": {
-      const m = lambert("f_crate", { map: tex().crate, color: 0xb09070 });
-      b.box(0.46, 0.44, 0.46, 0, 0.22, 0, m);
-      // a candle stub on it
-      b.cyl(0.02, 0.02, 0.08, 0.1, 0.48, 0.05, flat(0xd8d0b8), 5);
+      // the one crate of the town at its small class (game/crateModel.ts), a candle stub on its lid
+      const c = crateMesh(pickCrate(`home:${kind}:${ceiling}`), { cls: "small" });
+      if (c) g.add(c);
+      else b.box(0.7, 0.44, 0.49, 0, 0.22, 0, lambert("f_crate", { map: tex().crate, color: 0xb09070 }));
+      const top = (CRATE_H - 0.02) * CRATE_CLASS.small;
+      b.cyl(0.02, 0.02, 0.08, 0.1, top + 0.04, 0.05, flat(0xd8d0b8), 5);
       const s = glow(0xffb050, 0.28);
-      s.position.set(0.1, 0.56, 0.05);
+      s.position.set(0.1, top + 0.12, 0.05);
       g.add(s);
-      light = { x: 0.1, y: 0.6, z: 0.05, color: 0xffa050, power: 3.2, glow: s };
+      light = { x: 0.1, y: top + 0.16, z: 0.05, color: 0xffa050, power: 3.2, glow: s };
       break;
     }
     case "chest": {

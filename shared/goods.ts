@@ -8,13 +8,15 @@
 
 import { HAUL_PILE_N, HAUL_ROUTES, haulPileSpot } from "./hauls.ts";
 import { FISH_BOX_H } from "./trade.ts";
+import { CRATE_CLASS, crateHeight } from "./crateCatalog.ts";
 
 export const GOODS_KINDS = ["crates", "sacks", "barrels", "hides", "rope", "parcel", "chests"] as const;
 export type GoodsKind = (typeof GOODS_KINDS)[number];
 export const isGoodsKind = (k: unknown): k is GoodsKind => typeof k === "string" && (GOODS_KINDS as readonly string[]).includes(k);
 
 /** Height of one item when stacked (client game/props.ts GOODS reads these). */
-export const GOODS_H: Record<GoodsKind, number> = { crates: 0.7, sacks: 0.3, barrels: 0.9, hides: 0.28, rope: 0.3, parcel: 0.3, chests: 0.47 };
+// (crates: the one crate at its standard size, shared/crateCatalog.ts, 2026-10-11)
+export const GOODS_H: Record<GoodsKind, number> = { crates: crateHeight("standard"), sacks: 0.3, barrels: 0.9, hides: 0.28, rope: 0.3, parcel: 0.3, chests: 0.47 };
 /**
  * A filled sack lying flat (client game/sackModel.ts draws it; Steve 2026-09-28: "in reality sacks stack differently"):
  * its length, height and width (m), and how far an upper sack sinks into the dip between the two it lies on.
@@ -323,9 +325,15 @@ export const SACK_PILES: Array<[number, number]> = [
   [14, 19.5],
   [-34, 17],
 ];
-/** props.glb models at the scale they stand at: height when stacked (m). */
-export const PROP_H: Record<string, number> = { crate_big: 1.1, crate_open: 0.83, crate_broken: 0.88, sack: 0.25 };
+/**
+ * props.glb models at the scale they stand at: height when stacked (m). The crates are the one crate of the town at its
+ * big class (shared/crateCatalog.ts; the open ones without their lid, 2026-10-11), the Rijnkaai's at CRATE_S times that.
+ */
 export const CRATE_S = 1.1;
+const OPEN_H = 0.462 / 0.5; // (the sides' top under the lid, over the crate's height: tools/textures/crate_sheet.mjs)
+export const PROP_H: Record<string, number> = { crate_big: +(crateHeight("big") * CRATE_S).toFixed(3), crate_open: +(crateHeight("big") * OPEN_H * CRATE_S).toFixed(3), crate_broken: +(crateHeight("big") * OPEN_H * CRATE_S).toFixed(3), sack: 0.25 };
+/** The big crate's footprint at CRATE_S (m): its length and depth. */
+const BIG_L = 0.8 * CRATE_CLASS.big * CRATE_S;
 
 /** The Rijnkaai's crate stacks and sack piles as the server's items: the same places, turns and models as the props were. */
 export function rijnkaaiGoods(): GoodsItem[] {
@@ -333,13 +341,14 @@ export function rijnkaaiGoods(): GoodsItem[] {
   const add = (id: string, kind: GoodsKind, look: string, x: number, z: number, y: number, rot: number, on: string[], extra: Partial<GoodsItem> = {}) =>
     out.push({ id, kind, look: look || undefined, owner: null, job: null, x: r3(x), z: r3(z), y: r3(y), rot: r3(rot), on, by: null, n: 0, rev: 1, home: [r3(x), r3(z), r3(rot)], ...extra });
   CRATE_STACKS.forEach(([x, z, n], k) => {
-    const g = CRATE_S * 1.18 + 0.1;
+    // (two to a row, 12 cm apart: the big crate is 1.32 m long)
+    const g = BIG_L + 0.12;
     for (let i = 0; i < n; i++) {
       const name = n === 1 ? "crate_open" : n === 3 && i === 2 ? "crate_broken" : "crate_big";
       add(`crate:${k}:${i}`, "crates", `p:${name}`, x + (i % 2) * g, z + Math.floor(i / 2) * g, 0, Math.sin(x * 3 + i) * 0.08, [], { sc: CRATE_S, h: PROP_H[name], cartOnly: true });
     }
     // one across the first two
-    if (n >= 2) add(`crate:${k}:${n}`, "crates", "p:crate_big", x + g / 2, z, CRATE_S, 0.2, [`crate:${k}:0`, `crate:${k}:1`], { sc: CRATE_S, h: PROP_H.crate_big, cartOnly: true });
+    if (n >= 2) add(`crate:${k}:${n}`, "crates", "p:crate_big", x + g / 2, z, PROP_H.crate_big, 0.2, [`crate:${k}:0`, `crate:${k}:1`], { sc: CRATE_S, h: PROP_H.crate_big, cartOnly: true });
   });
   // six sacks as dockers pile them: three side by side, two in the dips between them, one on top (2026-09-28)
   SACK_PILES.forEach(([x, z], k) => {
@@ -401,9 +410,9 @@ export function townGoods(doors: Record<string, Door>, cargo: readonly CargoRow[
  * has no such pile. The server lays the piles with it at the start and at dawn, and when a crane sets a load on one
  * (docs/milestones/D1-docks.md).
  */
-/** The dockers' pile crate: the props' crate (build_props.py crate_seat, 0.58 by 0.48 m, 0.45 high), as they carry it. */
+/** The dockers' pile crate: the one crate at its small class (shared/crateCatalog.ts, 0.70 by 0.49 m, 0.44 high), as they carry it. */
 export const HAUL_CRATE_LOOK = "p:crate_seat";
-export const HAUL_CRATE_H = 0.454;
+export const HAUL_CRATE_H = crateHeight("small");
 
 export function haulPileItem(r: (typeof HAUL_ROUTES)[number], tag: "a" | "b", i: number, present: readonly GoodsItem[] = []): GoodsItem | null {
   const p = tag === "a" ? r.pile : r.drop;

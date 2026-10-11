@@ -4,6 +4,8 @@ import { box, cyl } from "../world/geom";
 import type { Mats } from "../world/rijnkaai";
 import { labelGeo, SACK_H, sackGeometry, sackLabelFor, sackMaterial, type SackLabel } from "./sackModel";
 import { fishBoxMesh, isFishBox } from "./fishBox";
+import { crateOf } from "./crateModel";
+import { crateHeight } from "../../../shared/crateCatalog";
 
 // Job goods. Claude picks one of these names; the game builds the prop.
 // Placeholders until the Blender kit (docs/05).
@@ -28,7 +30,8 @@ interface GoodsInfo {
 export const GOODS: Record<Goods, GoodsInfo> = {
   crates: {
     one: "crate",
-    h: 0.7,
+    // (the one crate at its standard size: game/crateModel.ts, shared/crateCatalog.ts)
+    h: crateHeight("standard"),
     speed: 0.62,
     thud: "wood",
     hold: [0, -0.72, -0.86],
@@ -99,9 +102,13 @@ export function makeGoods(kind: Goods, m: Mats, what?: string | SackLabel | null
   const g = new THREE.Group();
   switch (kind) {
     case "crates":
-      // T3 trade: a box of fish from the Vliet (game/fishBox.ts), else a crate
+      // T3 trade: a box of fish from the Vliet (game/fishBox.ts), else the one crate of the town, its stencil by its id
+      // (a box of its size until the crate's model is in: goods.ts body() makes it again then)
       if (typeof what === "string" && isFishBox(what)) g.add(fishBoxMesh(m.crate));
-      else g.add(box(0.7, 0.7, 0.7, m.crate, 0, 0.35, 0, 0.7));
+      else {
+        const c = crateOf(typeof what === "string" ? what : null);
+        g.add(c ?? Object.assign(box(0.8, 0.5, 0.56, m.crate, 0, 0.25, 0, 0.7), { name: "stand-in" }));
+      }
       break;
     case "sacks": {
       // a filled sack lying flat, its mouth tied, the merchant's stencil on top (Steve 2026-09-28: "seem like balloons")

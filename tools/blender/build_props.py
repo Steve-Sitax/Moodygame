@@ -944,6 +944,21 @@ def _sack_socket(m, kind, L, W, H):
     SACK_SOCKETS.setdefault(CUR_MODEL[0], []).append(dict(k=kind, m=[round(v, 4) for v in col], L=round(L, 3), W=round(W, 3), H=round(H, 3)))
 
 
+# Where each model's crates are (2026-10-11: the one crate of the town, client game/crateModel.ts): by model name, a
+# list of {m: its matrix in the model's glTF frame (column-major), s: the one crate's scale (fitted to the height the
+# crate had here), open}. A "_bare" copy is built without them; the game puts the one crate in each place.
+CRATE_SOCKETS = {}
+
+
+def _crate_socket(m, sx, sy, sz, lid):
+    if CUR_MODEL[0] is None or NO_SACKS[0]:
+        return
+    C = Matrix(((1, 0, 0, 0), (0, 0, 1, 0), (0, -1, 0, 0), (0, 0, 0, 1)))  # Blender (x, y, z) -> glTF (x, z, -y)
+    g = C @ m.xf @ C.inverted()
+    col = [g[r][c] for c in range(4) for r in range(4)]
+    CRATE_SOCKETS.setdefault(CUR_MODEL[0], []).append(dict(m=[round(v, 4) for v in col], s=round(sz / 0.5, 4), open=not lid))
+
+
 def sack(m, seed, L=0.9, W=0.52, H=0.27, nx=7, na=10, mat=SACK):
     """A full jute sack lying down, long along X, tied ends pinched flat."""
     _sack_socket(m, "lying", L, W, H)
@@ -1990,7 +2005,11 @@ def crate_detail(m, sx, sy, sz, seed=0, lid=True, broken=False, handles=True):
     """A packing crate of the 1870s, long along x: four boards a side with gaps (the dark
     inside shows through), corner battens, battens round the top and foot, a diagonal
     brace on the long sides, iron straps on the top corners, rope handles on the ends.
-    lid=False: open, filled with straw; broken=True: boards missing from one side."""
+    lid=False: open, filled with straw; broken=True: boards missing from one side.
+    In a "_bare" copy it is left out and its place recorded (CRATE_SOCKETS): the game draws the one crate there."""
+    _crate_socket(m, sx, sy, sz, lid)
+    if NO_SACKS[0]:
+        return
     rng = random.Random(seed)
     hx, hy = sx / 2, sy / 2
     # the dark inside (seen through the gaps)
@@ -3198,6 +3217,8 @@ def main():
     CUR_MODEL[0] = None
     with open(os.path.join(ROOT, "client", "src", "world", "props_sack_sockets.json"), "w", encoding="utf-8") as f:
         json.dump(SACK_SOCKETS, f, separators=(",", ":"))
+    with open(os.path.join(ROOT, "client", "src", "world", "props_crate_sockets.json"), "w", encoding="utf-8") as f:
+        json.dump({k: v for k, v in CRATE_SOCKETS.items() if k.endswith("_bare") or k in ("handcart_loaded", "tr_handcart_load")}, f, separators=(",", ":"))
     counts = {n: tris(o) for n, o in objs.items()}
     doors = bpy.data.objects.new("house_doors", None)
     doors["doors"] = json.dumps(house_doors(), separators=(",", ":"))

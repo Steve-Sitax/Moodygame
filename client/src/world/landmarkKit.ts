@@ -1,3 +1,5 @@
+import { crateGeometry, crateMaterial } from "../game/crateModel";
+import { CRATE_D, CRATE_H, CRATE_L } from "../../../shared/crateCatalog";
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { bumpFromMap, psx } from "../retro/psx";
@@ -86,6 +88,9 @@ export function pointedProfile(half: number, rise: number, n: number): Array<[nu
   return out;
 }
 
+/** The one crate's material in a kit. */
+const CRATE_DEF: MatDef = { key: "crate wood", make: () => crateMaterial() };
+
 export class Kit {
   readonly solids: Rect[] = [];
   private parts = new Map<string, { def: MatDef; geos: THREE.BufferGeometry[] }>();
@@ -140,6 +145,21 @@ export class Kit {
     }
     this.add(g, def, x, y, z, o);
     if (o.solid) this.solid(w, d, x, z, o.ry);
+  }
+
+  /**
+   * The one crate of the town (game/crateModel.ts) standing on y, scaled as a whole, its goods `cell` (a box of its size
+   * in the hall's crate wood until the crate's model is in).
+   */
+  crate(x: number, y: number, z: number, scale: number, cell: number, fallback: MatDef, o: PieceOpts = {}): void {
+    const g = crateGeometry(cell);
+    if (!g) {
+      this.box(CRATE_L * scale, CRATE_H * scale, CRATE_D * scale, x, y + (CRATE_H * scale) / 2, z, fallback, o);
+      return;
+    }
+    // (the crate keeps its own baked shade: no tint over its picture)
+    this.add(g.clone().scale(scale, scale, scale), CRATE_DEF, x, y, z, { ...o, flat: true, tint: undefined });
+    if (o.solid) this.solid(CRATE_L * scale, CRATE_D * scale, x, z, o.ry);
   }
 
   solid(w: number, d: number, x: number, z: number, ry = 0): void {

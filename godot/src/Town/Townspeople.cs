@@ -1221,7 +1221,7 @@ public partial class Townspeople : Node
                 var q = s.ToB ? g.B!.Value : g.A!.Value;
                 // (drawn on his way in, he carries what he took up unseen: a sack, a crate, a box of fish)
                 var hr = HaulRoute.Of(g.A, g.B, 1);
-                crowd.PuppetLoad(p, s.ToB && !Crowd.Laden.Contains(s.Kind), hr?.CarryKind ?? "sack");
+                crowd.PuppetLoad(p, s.ToB && !Crowd.Laden.Contains(s.Kind), hr?.CarryKind ?? "sack", hr != null ? Scheldemist.Play.CrateModel.LabelFor($"haul:{hr.Id}a:0") : 0);
                 crowd.PuppetGo(p, q.X, q.Z, pace);
                 break;
             }
@@ -1358,7 +1358,7 @@ public partial class Townspeople : Node
                 // loaded from the pile to the door, back empty
                 s.ToB = atA;
                 s.Tries = 0;
-                crowd.PuppetLoad(p, s.ToB && !bare, carry);
+                crowd.PuppetLoad(p, s.ToB && !bare, carry, route != null ? Scheldemist.Play.CrateModel.LabelFor($"haul:{route.Id}a:0") : 0);
                 var dest = s.ToB ? b : a;
                 crowd.PuppetGo(p, dest.X, dest.Z);
                 return;

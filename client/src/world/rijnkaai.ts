@@ -1,3 +1,5 @@
+import { crateMesh, pickCrate } from "../game/crateModel";
+import { crateHeight } from "../../../shared/crateCatalog";
 import { TOWN } from "./townBox";
 import { pt } from "../dev/frameProf";
 import * as THREE from "three";
@@ -516,6 +518,8 @@ export function buildRijnkaai(): World {
         quayInfo: () => ({ flights: steps.flights, ladders: steps.ladders }),
         swimFree,
         waterY: WATER_Y,
+        isWater: inWater,
+        onRails: (x, z, r) => railBand.some((c) => inRect(c, x, z, r)) || craneRunways.some((c) => inRect(c, x, z, r)),
       }).then((l) => {
         litter = l;
         colliders.push(...l.colliders);
@@ -2467,7 +2471,12 @@ function crane(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: num
   // rope and hook
   g.add(rod(tip, new THREE.Vector3(0, 2.4, -8.5), 0.03, m.rope));
   g.add(box(0.2, 0.5, 0.08, m.iron, 0, 2.2, -8.5, 1));
-  g.add(box(0.8, 0.8, 0.8, m.crate, 0, 1.55, -8.5, 1));
+  // (the load on the hook: the one crate of the town, game/crateModel.ts)
+  const load = crateMesh(pickCrate("crane:rijnkaai"));
+  if (load) {
+    load.position.set(0, 1.95 - crateHeight("standard"), -8.5);
+    g.add(load);
+  } else g.add(box(0.8, 0.5, 0.56, m.crate, 0, 1.7, -8.5, 1));
   mergeParts(g);
   scene.add(g);
   colliders.push(rectAround(x, z + 0.3, 1.7, 1.9));

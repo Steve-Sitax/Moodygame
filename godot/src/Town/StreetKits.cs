@@ -35,8 +35,9 @@ public partial class Townspeople
                 if(s.Goal.Place is {} place&&!cardTables.ContainsKey(place)&&Place(place) is {} at)
                 {
                     var shared=new Node3D{Name="street_cards",Position=new((float)at.X,(float)Walk!.BaseAt(at.X,at.Z),(float)at.Z)};
-                    var table=ModelLibrary.Get("props")?.Copy("crate");if(table!=null){table.Scale=new(.65f,.45f,.65f);shared.AddChild(table);}
-                    shared.AddChild(new MeshInstance3D{Mesh=StreetWindows.CardMesh,Position=new(0,.48f,0)});Main.I.View.AddChild(shared);cardTables[place]=shared;
+                    // (the one crate of the town at its standard size, the cards on its lid: backlife.ts, Play/CrateModel.cs)
+                    var table=Scheldemist.Play.CrateModel.Make(Scheldemist.Play.CrateModel.Pick($"cards:{place}"));if(table!=null)shared.AddChild(table);
+                    shared.AddChild(new MeshInstance3D{Mesh=StreetWindows.CardMesh,Position=new(0,.482f,0)});Main.I.View.AddChild(shared);cardTables[place]=shared;
                 }
                 break;
             default: kit.Free(); return null;
