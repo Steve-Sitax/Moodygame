@@ -374,21 +374,58 @@ public partial class Omnibus : Node
     /// The destination boards and the advertisements: the bake has them as one mesh for all omnibuses, written in
     /// the world where each stood. Each omnibus gets its own piece, in its own frame, and it rides with the body.
     /// </summary>
+    // where the two side boards (the line's names) sit on the body: omnibus.ts BOARDS[0] and [1], each centred at
+    // (-+(W / 2 + 0.035), BOARD_Y, 1.02) with W 1.72 and BOARD_Y 2.61; their midpoint, in the bus's own frame
+    private static readonly Vector3 SideBoardsMid = new(0, 2.61f, 1.02f);
+    private const int BoardsPerBus = 14, BoardVerts = 6;
+
+    /// <summary>
+    /// Fixed 2026-10-11 (Steve's play test: the boards hung in the air over the Rijnkaai with no bus under them, some
+    /// mirrored). Two faults: Godot's glTF import gives the boards mesh an index array, so the old split refused it and
+    /// left the whole baked mesh standing where the buses were at the bake; and the bake reads the boards at another
+    /// moment than the frames (the browser runs on while the exporter works: every bake has them 0 to 38 m off their
+    /// bus). So each bus's boards are placed by their own corners (the two side boards say where the body was and which
+    /// way it faced), never by the baked frame.
+    /// </summary>
     private static void SplitBoards(Node3D group, List<Node3D> frames)
     {
         var boards = group.GetChildren().OfType<MeshInstance3D>().FirstOrDefault(m => m.Name.ToString().StartsWith("omnibus_boards"));
         if (boards?.Mesh == null || frames.Count == 0) return;
+        boards.Visible = false; // (never the baked copy: it stands where the buses were at the bake)
         var arr = boards.Mesh.SurfaceGetArrays(0);
-        var v = arr[(int)Mesh.ArrayType.Vertex].AsVector3Array();
-        var n = arr[(int)Mesh.ArrayType.Normal].AsVector3Array();
-        var uv = arr[(int)Mesh.ArrayType.TexUV].AsVector2Array();
-        var ix = arr[(int)Mesh.ArrayType.Index];
-        int per = v.Length / frames.Count;
-        if (per * frames.Count != v.Length || per % 3 != 0 || ix.VariantType != Variant.Type.Nil) return; // (not the shape expected: left as baked)
+        var v0 = arr[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        var n0 = arr[(int)Mesh.ArrayType.Normal].AsVector3Array();
+        var uv0 = arr[(int)Mesh.ArrayType.TexUV].AsVector2Array();
+        var ixv = arr[(int)Mesh.ArrayType.Index];
+        // the triangles' corners in order (the import indexes them; the bake wrote 6 corners a board, a bus after a bus)
+        int[] ix = ixv.VariantType == Variant.Type.Nil ? Enumerable.Range(0, v0.Length).ToArray() : ixv.AsInt32Array();
+        var v = ix.Select(k => v0[k]).ToArray();
+        var n = n0.Length == v0.Length ? ix.Select(k => n0[k]).ToArray() : Array.Empty<Vector3>();
+        var uv = uv0.Length == v0.Length ? ix.Select(k => uv0[k]).ToArray() : Array.Empty<Vector2>();
+        int per = BoardsPerBus * BoardVerts;
+        if (v.Length != per * frames.Count)
+        {
+            GD.PushWarning($"omnibus boards: {v.Length} corners for {frames.Count} buses, {per} each expected: no boards");
+            return;
+        }
         var mat = boards.Mesh.SurfaceGetMaterial(0);
+        var toGroup = boards.GlobalTransform;
+        float worst = 0;
         for (int i = 0; i < frames.Count; i++)
         {
-            var inv = (boards.GlobalTransform.AffineInverse() * frames[i].GlobalTransform).AffineInverse();
+            // the bus as its boards had it: the two side boards' centres (a board's six corners average to its centre)
+            Vector3 c0 = Vector3.Zero, c1 = Vector3.Zero;
+            for (int k = 0; k < BoardVerts; k++)
+            {
+                c0 += toGroup * v[i * per + k] / BoardVerts;
+                c1 += toGroup * v[i * per + BoardVerts + k] / BoardVerts;
+            }
+            var side = c1 - c0; // the bus's +x (left board to right board)
+            float yaw = MathF.Atan2(-side.Z, side.X);
+            var basis = new Basis(Vector3.Up, yaw);
+            var fit = new Transform3D(basis, (c0 + c1) / 2 - basis * SideBoardsMid);
+            worst = Math.Max(worst, fit.Origin.DistanceTo(frames[i].GlobalPosition));
+            var inv = fit.AffineInverse() * toGroup;
             var pv = new Vector3[per];
             var pn = new Vector3[per];
             var pu = new Vector2[per];
@@ -408,7 +445,7 @@ public partial class Omnibus : Node
             mesh.SurfaceSetMaterial(0, mat);
             frames[i].AddChild(new MeshInstance3D { Name = "boards", Mesh = mesh });
         }
-        boards.Visible = false;
+        GD.Print($"omnibus boards: {frames.Count} buses, {(ixv.VariantType == Variant.Type.Nil ? "unindexed" : "indexed")}, baked up to {worst:0.0} m off their frames, placed by their own corners");
     }
 
     private static void FindNext(Bus b)

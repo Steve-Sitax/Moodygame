@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Godot;
+using Bridges = Scheldemist.Movers.Bridges;
 using Scheldemist.People;
 
 namespace Scheldemist.Town;
@@ -239,6 +240,8 @@ public sealed class Puppet
     public bool Shown;
     internal double AnimAcc;
     internal double BestD = double.PositiveInfinity, StuckT;
+    /// <summary>Standing at the end of a bridge that is up, until it is down (Walk).</summary>
+    public bool BridgeWait;
     internal string PMotion = "idle";
     internal double? PYaw;
     internal bool Repath;
@@ -291,6 +294,7 @@ public sealed class Crowd
     private readonly Plane[] frustum = new Plane[6];
     private bool hasFrustum;
     private readonly Func<double, double, bool> standFree, noPerson;
+    private readonly Func<Bridges.Rect, bool> onDeck;
 
     /// <summary>How far the fog lets one see (the browser's scene.fog.far).</summary>
     public double FogDistance = 40;
@@ -302,9 +306,12 @@ public sealed class Crowd
     {
         this.parent = parent;
         this.map = map;
-        standFree = map.Free;
+        standFree = (x, z) => map.Free(x, z) && !Bridges.OnRaised(x, z);
         noPerson = NoPersonAt;
         grid = new NavGrid(radius + 12);
+        // a bridge does not go up while anyone is on its deck (the browser's peopleOn); those waiting at its ends do not count
+        onDeck = PeopleOn;
+        Bridges.Busy.Add(onDeck);
     }
 
     private double Rnd(double a, double b) => a + rng.NextDouble() * (b - a);
@@ -595,6 +602,7 @@ public sealed class Crowd
     /// <summary>At the game's end: everyone out of the street, the pooled bodies given back.</summary>
     public void Dispose()
     {
+        Bridges.Busy.Remove(onDeck);
         foreach (var p in people.ToArray()) RemovePuppet(p);
         foreach (var list in pool.Values)
             foreach (var h in list) h.Root.Free();
@@ -611,13 +619,20 @@ public sealed class Crowd
     }
 
     /// <summary>Can someone stand here (walk map, colliders, the grid)?</summary>
-    public bool CanStand(double x, double z) => grid.Built && grid.IsOpen(x, z) && map.Free(x, z);
+    public bool CanStand(double x, double z) => grid.Built && grid.IsOpen(x, z) && map.Free(x, z) && !Bridges.OnRaised(x, z);
+
+    private bool PeopleOn(Bridges.Rect r)
+    {
+        foreach (var p in people)
+            if (r.Has((float)p.X, (float)p.Z)) return true;
+        return false;
+    }
 
     /// <summary>The nearest open grid point, for a puppet that would appear in a wall.</summary>
     public (double x, double z)? OpenNear(double x, double z) => grid.Built ? grid.NearestOpen(x, z, 4, standFree) : null;
 
     /// <summary>Does someone stand or walk within a body's gap of (x, z)?</summary>
-    private bool NoPersonAt(double x, double z) => map.Free(x, z) && !SomeoneAt(x, z);
+    private bool NoPersonAt(double x, double z) => map.Free(x, z) && !Bridges.OnRaised(x, z) && !SomeoneAt(x, z);
     public bool SomeoneAt(double x, double z)
     {
         foreach (var q in people)
@@ -808,6 +823,7 @@ public sealed class Crowd
     /// </summary>
     private bool StepFree(Puppet p, double x, double z)
     {
+        if (Bridges.Barred(p.X, p.Z, x, z)) return false;
         foreach (var q in people)
         {
             if (q == p) continue;
@@ -1009,6 +1025,17 @@ public sealed class Crowd
         var fl = p.Follower;
         double lag = fl != null && fl.State != "walk" ? Hyp(fl.X - p.X, fl.Z - p.Z) : 0;
         double step = Math.Min(len, p.Pace * dt * (lag > 2 ? 0.3 : 1));
+        // a bridge ahead that is up or going up: wait at its end until it is down again (not while already on it)
+        double look = Math.Max(step, 0.5);
+        if (Bridges.Barred(p.X, p.Z, p.X + mx * look, p.Z + mz * look) || Bridges.Barred(p.X, p.Z, p.X + ux * look, p.Z + uz * look))
+        {
+            p.StuckT = 0;
+            p.BridgeWait = true;
+            Face(p, Math.Atan2(ux, uz), dt * 1.4);
+            p.Human.Play(StillMotion(p), 0.3f);
+            return;
+        }
+        p.BridgeWait = false;
         // the last leg may leave the grid (it keeps half a metre off the walls) for a spot the colliders allow:
         // a doorstep, a corner, a bench by a wall
         bool lastLeg = p.Pi == p.Path.Count - 1;

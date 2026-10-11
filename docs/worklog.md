@@ -1,5 +1,18 @@
 # Work log
 
+## Fix wave 2 (bugs): omnibus boards in the air, people on lifted bridges, 2026-10-11
+
+Branch `fx-bugs` (helper). Godot only, no bake needed.
+- Omnibus boards: Godot imports the merged boards mesh with an index array, so `SplitBoards` refused it and left the
+  baked mesh where the buses stood at the bake; the bake also writes the boards 0 to 39 m off their frames (the browser
+  runs on while the exporter works; the 2026-10-03 bake too, so older than #61). Each bus now places its boards by
+  their own corners.
+- Bridges: nothing on foot in Godot looked at the bridges. People now wait at the ends while a bridge (or the lock's)
+  is up or asked up, and a bridge does not lift with anyone on its deck. Proof: `--bridgewalk` PASS, 0 on a raised deck
+  (387 samples on the decks before the fix).
+- Found: the Godot stuck check fails on main before any change (children at play, people inside three solids):
+  [#64](https://github.com/Steve-Sitax/Moodygame/issues/64).
+
 ## The batch of 2026-10-11 evening: no PS1 look, lamps, calvary, quay stairs, bridges, cranes
 
 In `main`. Steve's list: rails and ruts in the air on open bridges, floating lamps, a low-poly calvary, invisible
