@@ -486,6 +486,7 @@ public partial class Boats : Node
             float level = Tide.LevelAt(f.X[i], f.Z[i]);
             float aground = Mv.Clamp01((f.Floor[i] - level) / 0.25f);
             float free = 1 - aground;
+            if (free > 0.5f && !f.Gone[i]) Scheldemist.World.Waters.Moored((f, i), f.X[i], f.Z[i], MathF.Sin(f.Yaw[i]), MathF.Cos(f.Yaw[i]), 8, 2.5f); // (D3: faint rings at the hull)
             float h = h0 * sea * free, roll = roll0 * lim * free, pitch = pitch0 * lim * free;
             float y = Math.Max(level, f.Floor[i]) + h * MathF.Sin(w * t + f.P0[i]) + h * 0.4f * MathF.Sin(2.3f * w * t + f.P0[i] * 1.7f);
             // three's Euler "YXZ": yaw, then pitch about x, then roll about z
@@ -535,6 +536,7 @@ public partial class Boats : Node
             float free = 1 - aground;
             o.Y = Math.Max(level, floor);
             f.Outer.Position = o;
+            if (free > 0.5f) Scheldemist.World.Waters.Moored(f, o.X, o.Z, MathF.Sin(f.Outer.Rotation.Y), MathF.Cos(f.Outer.Rotation.Y), 7, 2.2f); // (D3: faint rings at the hull)
             float h = f.M[0] * sea * free, roll = f.M[1] * lim * free, pitch = f.M[2] * lim * free, w = MathF.Tau / f.M[3];
             f.Inner.Position = new Vector3(0, h * MathF.Sin(w * t + f.P0) + h * 0.4f * MathF.Sin(2.3f * w * t + f.P0 * 1.7f), 0);
             f.Inner.Rotation = new Vector3(pitch * MathF.Sin(1.13f * w * t + f.P2), 0, f.Heel + roll * MathF.Sin(0.83f * w * t + f.P1) + f.List * aground);

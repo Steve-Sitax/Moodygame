@@ -136,3 +136,43 @@ during the loading waited on shaders still linking (6 s of the loading in a prof
 and clicks wait. The screen fades into the menu. Numbers: `__scheldemistBoot` (docs/testing.md).
 Add a new kind of thing that loads late? It is counted if it loads through three's loaders or `fetch`, and
 drawn once if it is in the scene or a room when the loading ends.
+
+## The water and the shared switches (D3, 2026-10-11)
+- **The wave normal.** The water's ripples are no picture any more: the 64 px dash texture (`world/textures.ts`) drew a
+  zigzag stamp and bands over every water (the look survey's point 10). One tiling noise of 256 px (`retro/psx.ts`
+  `waveNormalData`, Godot's `Render/Psx.cs WaveNormalData`, the same numbers: R and G its slope, B its height,
+  mipmapped) is read twice per pixel (`psxWaves` / `psx_waves`), at 9 m and at 3.1 m, turned against each other and
+  drifting their own ways. The swell's vertex normal keeps only its long waves (the short ones fell between the
+  sheet's vertices, 5 m apart: the bands). The ripples tilt the normal every light sees, bend the mirror's picture
+  (no more chunky 17 cm world pixels) and lighten the slopes that face the eye (a grey sky mirrored higher up). The
+  sun's highlight is lower and wider (river specular `0x2a2823`, shininess 40, was 120).
+- **Rain on the water** (Steve, 2026-10-11: "the rounds the rain creates seem very drawn"): `rainRipples` /
+  `rain_ripples`, three layers of cells, one drop at a time in each, many small rings of their own sizes that spread
+  and fade within a second and a dimple where each lands, as many as the rain is hard; only in the normal, nothing drawn
+  on top. The puddles use it for their wobble; the wet stone has no rings (a drop on stone splashes). In a downpour the
+  ripples roughen as a whole (`1 + 0.9 rain^2`).
+- **Wakes and rings** (`ripples` in psx.ts, Godot's `World/Waters.cs` Ring/Wake/Swim/Moored): a fixed list of
+  `MAX_RIPPLES` (16) sources, the nearest to the eye, the active ones first (strength 0 ends the list), light counts
+  style: the shader never changes. A ring (an oar dipping, a swimmer's stroke, a moored hull bobbing) spreads and fades;
+  a wake (a boat under way, a swimmer) is the Kelvin V (19.5 degrees each side, its waves standing still to the boat,
+  their length from the speed), the waves across inside it and the bow wave. Browser: uniform arrays `uRipA`/`uRipB`;
+  Godot: a 16 x 2 float picture `psx_ripples`. Fed by: `world/rijnkaai.ts` (every ship of `boats.moving()`, and
+  `ripples.update` each frame), `world/boats.ts` (the floats and the moored rows: `moored`), `game/rowing.ts` (the
+  stroke's two rings, the boat's wake), `player/firstPerson.ts` updateSwim (`swim`); Godot `World/Waters.cs` (the river's
+  movers, the send), `Movers/Boats.cs` (floats and rows), `Play/Rowing.cs` Drive, `Player/Jef.cs` UpdateSwim. Dev:
+  `-- --ripple-test` in Godot, `.scratch`'s look-refs `--before` in the browser: a boat at 3 m/s, a swimmer, a ring.
+- **Cost**: two texture reads and the rain's three cells per water pixel, the ripple loop stops at the first empty slot.
+
+Two switches for other parts, each fixed when the material is made (rule 3: one shader kind each, made once):
+- **`nameCell: N`** (psx option; Godot `Kind.NameCell = N`): an instanced name plate draws one cell of an N x N names
+  atlas (its map / `tex`). Browser: an `InstancedMesh` whose instance colour names the cell, `setNameCell(mesh, i, cell,
+  N)` (red the column, green the row from the top, as n / 255; the colour then tints nothing), set before the first draw.
+  Godot: a MultiMesh with `UseCustomData`, custom data x the column, y the row from the top. The plate's uv runs 0..1.
+- **`tideWet: k`** (psx option; Godot `Kind.TideWet` with the material's `tide_wet` = k): walls and mud go darker by up to
+  k (about 0.35 for stone) where the ebb has just uncovered them, drying over the game hours after; dry above the last
+  high water. One shared value, `uTideWet` / `psx_tide_wet` (the last high water's level, the hours since, the lowest
+  water since, how long the ebb ran: `setTideWet` from rijnkaai.ts updateTide, `Psx.TideWetNow` from World/Waters.cs);
+  `psxTideWet(y)` / `psx_tide_wet_at(y)` for a part that wants the wetness itself (weed, a sheen).
+- Their tiny test: `(await import("/src/retro/psx.ts")).psxSwitchTest(__scheldemist.world.scene, x, y, z)` in the test
+  tab, Godot `-- --switch-test x,y,z`: four plates showing cells 3, 2, 1, 0 of a 2 x 2 atlas (yellow, blue, green, red,
+  a white mark top left) and a stone pillar from 6 m down to the quay top with its wet band.

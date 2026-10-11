@@ -5,6 +5,7 @@ using System.IO;
 using System.Text;
 using System.Text.Json;
 using Godot;
+using Scheldemist.World;
 
 namespace Scheldemist.Render;
 
@@ -30,11 +31,13 @@ public static class Psx
     /// houses' age (Render/Grime.cs), 1 the facade atlas's walls, 2 the stone trim. Bump: a bump map (three's bump
     /// chunk). Decal: the houses' grime decals (a shader of their own). Tree: the sway in the wind and the gale
     /// (trees3d.ts): 1 bark, 2 leaves, 3 and 4 the same for the park's plants (one mesh, each vertex's foot in CUSTOM0),
-    /// 5 the falling leaves (World/Trees.cs).
+    /// 5 the falling leaves (World/Trees.cs). NameCell: N, an instanced name plate whose MultiMesh custom data (x the
+    /// column, y the row, from the top) picks its cell in an N x N names atlas (`tex`; docs/rendering.md, the switches).
+    /// TideWet: the wet band the tide leaves on walls and mud (`tide_wet` how dark, the shared psx_tide_wet: TideWetNow).
     /// </summary>
     public record struct Kind(bool Unlit, bool Blend, bool Scissor, bool TwoSided, bool DepthWrite, bool Snap, int Atlas, bool VertexColor, bool Add, bool Fog,
         int Relief = 0, bool Parallax = false, bool Detile = false, bool Ground = false, bool Wall = false, bool Slabs = false, bool Far = false, int Water = 0, bool Indoor = false,
-        int Grime = 0, bool Bump = false, bool Decal = false, int Tree = 0);
+        int Grime = 0, bool Bump = false, bool Decal = false, int Tree = 0, int NameCell = 0, bool TideWet = false);
 
     private static readonly Dictionary<Kind, Shader> Shaders = new();
     private static readonly Dictionary<Shader, Kind> Kinds = new();
@@ -102,6 +105,9 @@ public static class Psx
         ("psx_mirror_col2", RenderingServer.GlobalShaderParameterType.Vec4, Projection.Identity.Z),
         ("psx_mirror_col3", RenderingServer.GlobalShaderParameterType.Vec4, Projection.Identity.W),
         ("psx_mirror_on", RenderingServer.GlobalShaderParameterType.Float, 0f),
+        // the last high water (psx.ts uTideWet): its level, the game hours since, the lowest water since, and the hours
+        // the ebb ran till then (TideWetNow; no band until it is set)
+        ("psx_tide_wet", RenderingServer.GlobalShaderParameterType.Vec4, new Vector4(-99, 0, -99, 1)),
         ("psx_mir0", RenderingServer.GlobalShaderParameterType.Vec4, new Vector4(0, -1e6f, 0, 0)),
         ("psx_mir1", RenderingServer.GlobalShaderParameterType.Vec4, new Vector4(0, -1e6f, 0, 0)),
     };
@@ -112,7 +118,7 @@ public static class Psx
     /// sky shade; the spilt light; the houses' age; the bump maps).
     /// </summary>
     private static readonly HashSet<string> Off = new((Array.IndexOf(OS.GetCmdlineUserArgs(), "--psx-off") is var i and >= 0 && i + 1 < OS.GetCmdlineUserArgs().Length ? OS.GetCmdlineUserArgs()[i + 1] : "").Split(',', StringSplitOptions.RemoveEmptyEntries));
-    private static ImageTexture? skyShade, dirt, spill, shore, foul;
+    private static ImageTexture? skyShade, dirt, spill, shore, foul, waves, waterTint;
     private static Image? spillImage;
     private static readonly float[] SpillData = new float[MaxSpill * 4 * 4];
     private static readonly byte[] SpillBytes = new byte[MaxSpill * 4 * 4 * 4];
@@ -137,7 +143,122 @@ public static class Psx
         RenderingServer.GlobalShaderParameterAdd("psx_foul", RenderingServer.GlobalShaderParameterType.Sampler2D, foul.GetRid());
         RenderingServer.GlobalShaderParameterAdd("psx_water_mirror", RenderingServer.GlobalShaderParameterType.Sampler2D, foul.GetRid());
         RenderingServer.GlobalShaderParameterAdd("psx_mirror", RenderingServer.GlobalShaderParameterType.Sampler2D, foul.GetRid());
+        // the water's wave normal (WaveNormalData), mipmapped: far off its slopes average out to still water
+        var wi = Image.CreateFromData(WaveSize, WaveSize, false, Image.Format.Rgba8, WaveNormalData());
+        wi.GenerateMipmaps();
+        waves = ImageTexture.CreateFromImage(wi);
+        RenderingServer.GlobalShaderParameterAdd("psx_wave_n", RenderingServer.GlobalShaderParameterType.Sampler2D, waves.GetRid());
+        rippleImage = Image.CreateEmpty(MaxRipples, 2, false, Image.Format.Rgbaf);
+        ripplesTex = ImageTexture.CreateFromImage(rippleImage);
+        RenderingServer.GlobalShaderParameterAdd("psx_ripples", RenderingServer.GlobalShaderParameterType.Sampler2D, ripplesTex.GetRid());
     }
+
+    /// <summary>The water's ripple sources per frame (psx.ts MAX_RIPPLES; World/Waters.cs keeps the nearest).</summary>
+    public const int MaxRipples = 16;
+    private static Image? rippleImage;
+    private static ImageTexture? ripplesTex;
+    private static readonly float[] RippleData = new float[MaxRipples * 2 * 4];
+    private static readonly byte[] RippleBytes = new byte[MaxRipples * 2 * 4 * 4];
+    /// <summary>
+    /// The ripple sources into the water's shader (psx.ts uRipA/uRipB): A row 0, B row 1, the active ones first; a ring
+    /// A (x, z, born at psx_time, 0), B (0, spreading m/s, life s, strength); a wake A (bow x, z, heading x, z), B (1,
+    /// speed m/s, beam m, strength).
+    /// </summary>
+    public static void SetRipples(IReadOnlyList<(Vector4 a, Vector4 b)> list)
+    {
+        EnsureGlobals();
+        Array.Clear(RippleData);
+        for (int i = 0; i < Math.Min(list.Count, MaxRipples); i++)
+        {
+            var (a, b) = list[i];
+            int o = i * 4, p = (MaxRipples + i) * 4;
+            RippleData[o] = a.X; RippleData[o + 1] = a.Y; RippleData[o + 2] = a.Z; RippleData[o + 3] = a.W;
+            RippleData[p] = b.X; RippleData[p + 1] = b.Y; RippleData[p + 2] = b.Z; RippleData[p + 3] = b.W;
+        }
+        Buffer.BlockCopy(RippleData, 0, RippleBytes, 0, RippleBytes.Length);
+        rippleImage!.SetData(MaxRipples, 2, false, Image.Format.Rgbaf, RippleBytes);
+        ripplesTex!.Update(rippleImage);
+    }
+
+    private const int WaveSize = 256;
+    /// <summary>
+    /// The water's wave normal (D3, 2026-10-11; the browser's psx.ts waveNormalData, the same numbers): one tiling
+    /// gradient noise of four octaves, a little longer across than along, 256 px. R and G its slope along u and v (0.5
+    /// flat, scaled to the steepest), B its height. The water reads it twice (psx_waves), at two scales turned against
+    /// each other, in place of the browser's old 64 px dash picture.
+    /// </summary>
+    public static byte[] WaveNormalData()
+    {
+        const int n = WaveSize;
+        uint seed = 5150;
+        double Rnd() { seed = unchecked(seed * 1664525u + 1013904223u); return seed / 4294967296.0; }
+        var h = new double[n * n];
+        foreach (var (cx, cy, amp) in new[] { (4, 6, 1.0), (8, 12, 0.5), (16, 24, 0.25), (32, 48, 0.125) })
+        {
+            var gx = new double[cx * cy];
+            var gy = new double[cx * cy];
+            for (int i = 0; i < cx * cy; i++)
+            {
+                double a = Rnd() * 2 * Math.PI;
+                gx[i] = Math.Cos(a);
+                gy[i] = Math.Sin(a);
+            }
+            for (int y = 0; y < n; y++)
+                for (int x = 0; x < n; x++)
+                {
+                    double fx = (x + 0.5) / n * cx, fy = (y + 0.5) / n * cy;
+                    int x0 = (int)Math.Floor(fx), y0 = (int)Math.Floor(fy);
+                    double sx = fx - x0, sy = fy - y0;
+                    double D(int i, int j)
+                    {
+                        int k = (y0 + j) % cy * cx + (x0 + i) % cx;
+                        return gx[k] * (sx - i) + gy[k] * (sy - j);
+                    }
+                    double u = sx * sx * sx * (sx * (sx * 6 - 15) + 10), v = sy * sy * sy * (sy * (sy * 6 - 15) + 10);
+                    double p = D(0, 0) + (D(1, 0) - D(0, 0)) * u, q = D(0, 1) + (D(1, 1) - D(0, 1)) * u;
+                    h[y * n + x] += (p + (q - p) * v) * amp;
+                }
+        }
+        double lo = double.MaxValue, hi = double.MinValue, m = 1e-9;
+        var dx = new double[n * n];
+        var dy = new double[n * n];
+        for (int y = 0; y < n; y++)
+            for (int x = 0; x < n; x++)
+            {
+                int i = y * n + x;
+                dx[i] = (h[y * n + (x + 1) % n] - h[y * n + (x + n - 1) % n]) * 0.5;
+                dy[i] = (h[(y + 1) % n * n + x] - h[(y + n - 1) % n * n + x]) * 0.5;
+                m = Math.Max(m, Math.Max(Math.Abs(dx[i]), Math.Abs(dy[i])));
+                lo = Math.Min(lo, h[i]);
+                hi = Math.Max(hi, h[i]);
+            }
+        var b = new byte[n * n * 4];
+        for (int i = 0; i < n * n; i++)
+        {
+            b[i * 4] = (byte)Math.Floor(127.5 + 127.5 * dx[i] / m + 0.5);
+            b[i * 4 + 1] = (byte)Math.Floor(127.5 + 127.5 * dy[i] / m + 0.5);
+            b[i * 4 + 2] = (byte)Math.Floor((h[i] - lo) / (hi - lo) * 255 + 0.5);
+            b[i * 4 + 3] = 255;
+        }
+        return b;
+    }
+
+    /// <summary>
+    /// The tide's wet band (psx.ts setTideWet, docs/rendering.md tideWet): the last high water before `hours` (game
+    /// hours since Monday 0:00), the hours since, the lowest water since and how long the ebb ran till then. World/Waters.cs
+    /// sets it every frame from the game clock.
+    /// </summary>
+    public static Vector4 TideWetAt(double hours)
+    {
+        const double hw0 = 9.6; // (Tide.cs Hw0: the first high water, hours since Monday 0:00)
+        double ph = ((hours - hw0) % Tide.Period + Tide.Period) % Tide.Period;
+        double fall = Tide.Period - Tide.Rise;
+        float Level(double t) => Tide.At(1, (float)t); // (day 1 and any hour: the hours since Monday 0:00)
+        float high = Level(hours - ph);
+        return ph < fall ? new Vector4(high, (float)ph, Level(hours), (float)ph) : new Vector4(high, (float)ph, Level(hours - ph + fall), (float)fall);
+    }
+
+    public static void TideWetNow(double hours) => UniformUpdates.Global("psx_tide_wet", TideWetAt(hours));
 
     private static ImageTexture Flat(Color c)
     {
@@ -511,20 +632,32 @@ float lamp_streaks(vec3 P, vec3 rr) {
 	if (psx_lamp5.w > 0.0) s += psx_lamp5.w * wet_streak(P, rr, psx_lamp5.xyz);
 	return s;
 }
-// rain rings: drops land in a grid of cells, each ring grows and fades
-float rain_rings(vec2 wp, float t, float amount) {
-	float ring = 0.0;
-	for (int k = 0; k < 2; k++) {
-		vec2 g = wp * 1.3 + float(k) * vec2(0.37, 0.71);
+// rain on water (D3; Steve 2026-10-11: ""the rounds the rain creates seem very drawn and cartoonish""; psx.ts
+// rainRipples, the same): many small rings of their own sizes that spread and fade within a second, a dimple where each
+// drop lands, the more the harder it rains. Only a slope (xy, the world's x and z) for the normal: nothing drawn on top.
+vec2 rain_ripples(vec2 p, float t, float amount) {
+	vec2 s = vec2(0.0);
+	for (int k = 0; k < 3; k++) {
+		float cs = 0.62 - 0.15 * float(k);
+		vec2 g = p / cs + float(k) * vec2(0.37, 0.71);
 		vec2 id = floor(g);
-		vec2 f = fract(g) - 0.5;
-		float h = psx_h13(vec3(id, float(k)));
-		vec2 c = (vec2(fract(h * 7.13), fract(h * 3.71)) - 0.5) * 0.4;
-		float ph = fract(t * 0.8 + h * 5.0);
-		float d = length(f - c);
-		ring += smoothstep(0.045, 0.0, abs(d - ph * 0.3)) * (1.0 - ph) * step(h, amount * 1.1);
+		float h = fract(sin(dot(id, vec2(127.1, 311.7)) + float(k) * 13.1) * 43758.5453);
+		float life = 0.5 + 0.45 * fract(h * 3.3);
+		float cyc = t / life + h * 7.0;
+		float ph = fract(cyc);
+		float h2 = fract(sin(dot(id + floor(cyc) * 0.173, vec2(269.5, 183.3)) + float(k)) * 43758.5453);
+		if (h2 > amount * 1.15) continue;
+		vec2 q = (fract(g) - 0.5 - (vec2(fract(h2 * 7.13), fract(h2 * 3.71)) - 0.5) * 0.4) * cs;
+		float d = max(length(q), 1e-3);
+		float x = d - cs * (0.18 + 0.2 * fract(h2 * 11.0)) * sqrt(ph);
+		float lam = 0.055 + 0.045 * ph;
+		float e = exp(-x * x / (lam * lam * 0.5));
+		float a = 0.002 * (1.0 - ph) * (1.0 - ph);
+		float dh = a * (-6.283 / lam * sin(6.283 * x / lam) - 4.0 * x / (lam * lam) * cos(6.283 * x / lam)) * e;
+		dh += 0.0025 * (1.0 - smoothstep(0.0, 0.14, ph)) * (2.0 * d / 0.0004) * exp(-d * d / 0.0004);
+		s += dh * q / d;
 	}
-	return ring;
+	return s;
 }
 // the spill sources mirrored as streaks; pud 1: in a puddle (a soft band as wide as the opening), 0: wet stone
 vec3 psx_spill_wet(vec3 P, vec3 rr, float pud) {
@@ -557,6 +690,22 @@ vec3 psx_spill_wet(vec3 P, vec3 rr, float pud) {
 }
 ";
 
+    /// <summary>
+    /// The tide's wet band (psx.ts tideWetGlsl; docs/rendering.md, the switches): how wet a wall or the mud is at height
+    /// y after the last high water. Above the high-water line dry; the ebb uncovered each height in turn (as if it fell
+    /// evenly from the high to the lowest water since), and from then on it dries, by half in about 1.7 game hours.
+    /// </summary>
+    public const string TideWetGlsl = @"
+global uniform vec4 psx_tide_wet;
+uniform float tide_wet = 0.0;
+float psx_tide_wet_at(float y) {
+	float above = psx_tide_wet.x - y;
+	if (above < 0.0) return 0.0;
+	float uncovered = psx_tide_wet.w * clamp(above / max(psx_tide_wet.x - psx_tide_wet.z, 0.01), 0.0, 1.0);
+	return exp(-max(psx_tide_wet.y - uncovered, 0.0) / 2.5) * smoothstep(0.0, 0.06, above);
+}
+";
+
     /// <summary>The water's own parts (psx.ts): a lamp's mirror image, the foul water's scum noise, where the basins lie.</summary>
     private const string WaterGlsl = @"
 global uniform sampler2D psx_shore : filter_linear, repeat_disable;
@@ -571,7 +720,83 @@ global uniform vec4 psx_water_mirror_col2;
 global uniform vec4 psx_water_mirror_col3;
 global uniform float psx_water_mirror_on;
 uniform vec3 spec_color = vec3(0.0);
-uniform float shininess = 120.0;
+uniform float shininess = 40.0;
+global uniform sampler2D psx_wave_n : filter_linear_mipmap_anisotropic, repeat_enable;
+#define MAX_RIPPLES 16
+global uniform sampler2D psx_ripples : filter_nearest, repeat_disable;
+// the ripple sources (psx.ts psxRipples, the same; World/Waters.cs feeds them): rings that spread and fade, and each
+// boat's V wake with the waves across inside it and the bow wave. Row 0 A, row 1 B (see Psx.MaxRipples).
+vec3 psx_ripples_at(vec2 p, float t) {
+	vec2 s = vec2(0.0);
+	float hz = 0.0;
+	for (int i = 0; i < MAX_RIPPLES; i++) {
+		vec4 B = texelFetch(psx_ripples, ivec2(i, 1), 0);
+		if (B.w <= 0.0) break;
+		vec4 A = texelFetch(psx_ripples, ivec2(i, 0), 0);
+		vec2 q = p - A.xy;
+		if (B.x < 0.5) {
+			float age = t - A.z;
+			if (age < 0.0 || age > B.z) continue;
+			float d = max(length(q), 1e-3);
+			float x = d - B.y * age;
+			if (abs(x) > 1.2) continue;
+			float lam = 0.22 + 0.25 * age;
+			float sig = 0.16 + 0.22 * age;
+			float k = 6.283 / lam;
+			float e = exp(-x * x / (sig * sig));
+			float f = 1.0 - age / B.z;
+			float a = 0.011 * B.w * f * f / (1.0 + 1.5 * B.y * age);
+			s += a * (-k * sin(k * x) - 2.0 * x / (sig * sig) * cos(k * x)) * e * q / d;
+			hz += a * cos(k * x) * e;
+		} else {
+			vec2 dir = A.zw;
+			vec2 perp = vec2(-dir.y, dir.x);
+			float b = -dot(q, dir);
+			float ac = dot(q, perp);
+			float v = max(B.y, 0.3);
+			float beam = B.z;
+			vec2 qb = q - dir * beam * 0.15;
+			float sb = beam * beam * 0.35;
+			float eb = exp(-dot(qb, qb) / sb);
+			float ab = 0.03 * B.w * min(v / 3.0, 1.0) * beam;
+			s += ab * (-2.0 / sb) * eb * qb;
+			hz += ab * eb;
+			if (b < 0.0 || b > 25.0 + 12.0 * v || abs(ac) > 0.4 * b + beam + 2.0) continue;
+			float fade = B.w * exp(-b / (10.0 + 6.0 * v)) * smoothstep(0.0, beam, b) * min(v / 2.0, 1.0);
+			float da = abs(ac) - (0.354 * b + 0.5 * beam);
+			float sg = 0.35 + 0.05 * b;
+			float ka = clamp(15.0 / (v * v), 0.8, 14.0);
+			float g = exp(-da * da / (sg * sg));
+			float sl = 0.6 * fade;
+			float ah = sl / max(ka, 2.0 / sg);
+			float c = cos(ka * b);
+			float dda = ah * c * g * (-2.0 * da / (sg * sg)) * sign(ac);
+			float db = -ah * g * ka * sin(ka * b);
+			float kt = clamp(9.81 / (v * v), 0.5, 12.0);
+			float inside = smoothstep(0.5, -0.5, da);
+			float at = 0.5 * sl / max(kt, 1.0);
+			db += -at * inside * kt * sin(kt * b);
+			s += perp * dda - dir * db;
+			hz += ah * c * g + at * inside * cos(kt * b);
+		}
+	}
+	return vec3(s, hz);
+}
+
+// the wave normal (D3, psx.ts psxWaves): one tiling noise (RG its slope, B its height) read twice, at 9 m and at 3.1 m,
+// turned against each other and drifting their own ways, so no tile and no band shows; xy the slope in the world's x and
+// z, z how high a crest is (0..1)
+vec3 psx_waves(vec2 p, float t) {
+	vec2 a = vec2(0.921 * p.x - 0.391 * p.y, 0.391 * p.x + 0.921 * p.y) / 9.0 + t * vec2(0.013, 0.006);
+	vec2 b = vec2(0.485 * p.x + 0.875 * p.y, -0.875 * p.x + 0.485 * p.y) / 3.1 + t * vec2(-0.021, 0.034);
+	vec3 wa = texture(psx_wave_n, a).rgb;
+	vec3 wb = texture(psx_wave_n, b).rgb;
+	vec2 sa = wa.rg * 2.0 - 1.0;
+	vec2 sb = wb.rg * 2.0 - 1.0;
+	// (each slope turned back into the world's axes)
+	vec2 s = vec2(0.921 * sa.x + 0.391 * sa.y, -0.391 * sa.x + 0.921 * sa.y) * 0.1 + vec2(0.485 * sb.x - 0.875 * sb.y, 0.875 * sb.x + 0.485 * sb.y) * 0.05;
+	return vec3(s, wa.b * 0.6 + wb.b * 0.4);
+}
 // 1: the river's sheet, which runs under the Petit Bassin and the lock: not drawn there (their water has its own level)
 uniform float river = 0.0;
 varying float wave_h;
@@ -871,6 +1096,8 @@ varying vec3 world;
         // a room's own light (three's HemisphereLight and AmbientLight of the room's scene, over pi), set per mesh
         if (k.Indoor && lit) c.Append("instance uniform vec3 room_sky = vec3(0.3);\ninstance uniform vec3 room_ground = vec3(0.1);\ninstance uniform vec3 room_ambient = vec3(0.0);\n");
         if (k.Atlas > 0) c.Append("varying vec2 cell;\n");
+        if (k.NameCell > 0) c.Append("varying vec2 name_cell;\n");
+        if (k.TideWet) c.Append(TideWetGlsl);
         if (k.Ground) c.Append("uniform float vary = 0.0;\nuniform float puddles = 0.0;\n// the wet stone's highlight (three's Phong: specular and shininess; 0 when it never gets wet)\nuniform vec3 spec_color = vec3(0.0);\nuniform float shininess = 12.0;\nvarying float spec_k;\n");
         if (k.Wall) c.Append("uniform float foot = 0.0;\nuniform float foot_wear = 0.0;\nuniform float mottle = 0.0;\n");
         if (k.Slabs) c.Append("uniform sampler2D slab_map : source_color, filter_linear_mipmap_anisotropic, repeat_enable;\nuniform sampler2D slab_h : filter_linear_mipmap, repeat_enable;\nuniform float slab_tile = 2.6;\nuniform float slab_ymax = 0.8;\nuniform float slab_dome = 2.5;\n");
@@ -893,8 +1120,10 @@ void vertex() {
 	vec3 wp = VERTEX;
 	float t = psx_time;
 	float sw = cos(wp.x * 0.11 + wp.z * 0.07 + t * 0.45);
-	float dx = sw * 0.018 + cos(wp.x * 0.35 + t * 0.9) * 0.045 + cos(wp.z * 0.55 - t * 0.7 + wp.x * 0.2) * 0.016 + cos((wp.x + wp.z) * 1.3 + t * 1.7) * 0.039 + cos(wp.x * 3.1 - wp.z * 1.7 + t * 2.3) * 0.07;
-	float dz = sw * 0.012 + cos(wp.z * 0.55 - t * 0.7 + wp.x * 0.2) * 0.05 + cos((wp.x + wp.z) * 1.3 + t * 1.7) * 0.039 - cos(wp.x * 3.1 - wp.z * 1.7 + t * 2.3) * 0.04;
+	// (only the swell's long waves: the short ones fell between the sheet's vertices, 5 m apart, and drew bands; the
+	// ripples are the wave normal's, per pixel: psx_waves)
+	float dx = sw * 0.018 + cos(wp.x * 0.35 + t * 0.9) * 0.045 + cos(wp.z * 0.55 - t * 0.7 + wp.x * 0.2) * 0.016;
+	float dz = sw * 0.012 + cos(wp.z * 0.55 - t * 0.7 + wp.x * 0.2) * 0.05;
 	NORMAL = normalize(vec3(-dx * " + calm + @", 1.0, -dz * " + calm + @"));
 	float w = sin(wp.x * 0.11 + wp.z * 0.07 + t * 0.45) * 0.08 + sin(wp.x * 0.35 + t * 0.9) * 0.07 + sin(wp.z * 0.55 - t * 0.7 + wp.x * 0.2) * 0.05 + sin((wp.x + wp.z) * 1.3 + t * 1.7) * 0.02;
 	w *= psx_sea * " + amp + @";
@@ -925,6 +1154,8 @@ void vertex() {
 	}
 ");
         if (k.Atlas > 0) c.Append("	cell = UV2;\n");
+        // (a name plate: its cell in the names atlas, column and row, from the MultiMesh's custom data)
+        if (k.NameCell > 0) c.Append("	name_cell = floor(INSTANCE_CUSTOM.xy + 0.5);\n");
         if (k.Grime > 0) c.Append("	gmat = CUSTOM0.xy; // (the house's wall picture and paint)\n");
         c.Append(@"	UV = UV * uv_xform.xy + uv_xform.zw;
 }
@@ -945,6 +1176,7 @@ void fragment() {
         if (k.Grime > 0 || k.Bump) c.Append("	vec2 raw_uv = uv;\n");
         if (k.Grime == 1) c.Append("	vec3 wall_dn = vec3(0.0);\n");
         if (k.Atlas > 0) c.Append($"	uv = (cell + fract(uv)) / {k.Atlas}.0;\n");
+        if (k.NameCell > 0) c.Append($"	uv = (name_cell + clamp(uv, 0.0, 1.0)) / {k.NameCell}.0;\n");
         if (bump) c.Append("	float psx_h = 0.5; // how high the stone is here; the puddles leave the tops dry\n	vec3 ground_dn = vec3(0.0);\n");
         if (k.Ground) c.Append("	// how worn the ground is here: the cart roads (world/dirt.ts, green)\n	float wear = vary > 0.0 ? texture(psx_dirt, (world.xz - psx_dirt_box.xy) / psx_dirt_box.zw).g : 0.0;\n");
         else if (k.Relief > 0) c.Append("	float wear = 0.0;\n");
@@ -988,13 +1220,23 @@ void fragment() {
         c.Append("	c *= albedo;\n");
         if (k.Tree > 0 && k.Tree % 2 == 0) c.Append("	c.rgb *= 1.0 - 0.16 * psx_wet; // (wet leaves are darker)\n");
         if (k.Water > 0)
-            c.Append(@"	{
+            c.Append(@"	vec3 wave = vec3(0.0, 0.0, 0.5);
+	{
 		if (river > 0.5 && in_basin(world.xz)) discard;
 		// far off, the ripples melt into one dark tone (no shimmer at the fog line)
 		vec2 wxz = world.xz;
 		c.rgb = mix(albedo.rgb * vec3(0.045, 0.062, 0.05), c.rgb, 1.0 - smoothstep(10.0, 70.0, len));
+		// the ripples (psx_waves): rougher in the rain and in a blow, a sheltered pond far calmer
+		wave = psx_waves(wxz, psx_time);
+		wave.xy *= (0.6 + 0.4 * min(psx_sea, 3.0)) * (1.0 + 0.9 * psx_rain * psx_rain) * " + (k.Water == 2 ? "0.3" : "1.0") + @";
+		// the rain's rings (gone where a ring is under a pixel) and the boats' and swimmers' wakes and rings
+		if (psx_rain > 0.001) wave.xy += rain_ripples(wxz, psx_time, psx_rain) * (1.0 - smoothstep(14.0, 40.0, len));
+		vec3 rip = psx_ripples_at(wxz, psx_time);
+		wave.xy += rip.xy;
+		// (a wake's crests a shade lighter: the bow wave and the arms near a boat)
+		c.rgb *= 1.0 + clamp(rip.z * 5.0, -0.15, 0.3);
 		// wave crests a shade lighter, troughs darker
-		c.rgb *= 1.0 + clamp(wave_h * 0.18, -0.45, 0.7);
+		c.rgb *= (1.0 + clamp(wave_h * 0.18, -0.45, 0.7)) * (0.94 + 0.12 * wave.z);
 		// along the walls: lighter, silty water and foam lapping at the stone, in 20 cm pixels
 		float shore = texture(psx_shore, (wxz - psx_shore_box.xy) / psx_shore_box.zw).r * 8.0;
 		vec2 cl = floor(wxz * 5.0);
@@ -1098,6 +1340,7 @@ void fragment() {
         // the houses' age: the wall pictures and the grime before the vertex colour, the worn paint after (Render/Grime.cs)
         if (k.Grime > 0) c.Append(Grime.BeforeColourGlsl(k.Grime == 1 && k.Atlas > 0));
         if (k.VertexColor) c.Append("	c.rgb *= COLOR.rgb;\n");
+        if (k.TideWet) c.Append("	c.rgb *= 1.0 - tide_wet * psx_tide_wet_at(world.y); // (the tide's wet band: darker stone and mud)\n");
         if (k.Grime == 1 && k.Atlas > 0) c.Append(Grime.AfterColourGlsl);
         if (k.Scissor) c.Append("	if (c.a < alpha_cut) discard;\n");
         if (k.Wall)
@@ -1113,6 +1356,8 @@ void fragment() {
             // (leaves keep their normal on the back face: the sky lights them from both sides)
             if (k.Tree > 0 && k.Tree % 2 == 0) c.Append("	if (!FRONT_FACING) NORMAL = -NORMAL;\n");
             c.Append("	vec3 n_flat = NORMAL;\n");
+            // (the water: the ripples tilt the normal every light sees: the sun's sheen, the mirror's Fresnel)
+            if (k.Water > 0) c.Append("	NORMAL = normalize((VIEW_MATRIX * vec4(normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz + vec3(-wave.x, 0.0, -wave.y)), 0.0)).xyz);\n");
             if (k.Grime == 1 && k.Atlas > 0) c.Append("	NORMAL = normalize(NORMAL + (VIEW_MATRIX * vec4(wall_dn, 0.0)).xyz); // (the wall's bumps for the lights)\n");
             if (k.Bump) c.Append("	NORMAL = bump_normal(VERTEX, NORMAL, bump_dh(raw_uv, " + (k.Atlas > 0 ? "cell" : "vec2(0.0)") + ", VIEWPORT_SIZE.y / 270.0));\n");
             if (bump)
@@ -1171,7 +1416,7 @@ void fragment() {
 		ad += psx_lamp_color.rgb * lamp_streaks(world, rr) * wet_k * stone * (0.15 + 0.85 * glint) * 0.4;
 ");
             if (lit) c.Append("		if (psx_spill_n > 0) ad += psx_spill_wet(world, rr, 0.0) * wet_k * stone * (0.1 + 0.9 * glint) * 0.15;\n");
-            c.Append(@"		if (psx_rain > 0.001) ad += fogc * rain_rings(world.xz * 1.6, psx_time * 1.3, psx_rain * 0.6) * 0.18 * wet_k;
+            c.Append(@"		// (D3: no drawn rings on the wet stone; a drop on stone splashes, it leaves no ring. The puddles have them.)
 	}
 	if (psx_puddle > 0.001 && puddles > 0.0) {
 		// puddles in the paving: water lies where a soft noise is highest, a dark damp band round it; it shows the
@@ -1205,7 +1450,7 @@ void fragment() {
 			float ph = dot(pp, wd) * mix(30.0, 13.0, wk) - psx_time * mix(7.5, 9.0, wk);
 			vec2 ripp = vec2(sin(ph + pud_val(pp * 1.9) * 5.0), sin(ph * 0.87 + 1.7 + pud_val(pp * 2.6 + 9.0) * 5.0));
 			vec2 wob = (wd * ripp.x + vec2(-wd.y, wd.x) * ripp.y * 0.45) * (0.0006 + gust * (0.0045 + 0.006 * wk * wk)) * wind * (1.0 - smoothstep(10.0, 30.0, len));
-			if (psx_rain > 0.001) wob += vec2(rain_rings(pp * 1.4, psx_time * 1.2, psx_rain)) * 0.012;
+			if (psx_rain > 0.001) wob += rain_ripples(pp, psx_time, psx_rain) * 0.045 * (1.0 - smoothstep(10.0, 30.0, len));
 			mat4 mirror_mat = psx_mirror_columns > 0.5 ? mat4(psx_mirror_col0, psx_mirror_col1, psx_mirror_col2, psx_mirror_col3) : psx_mirror_mat;
 			vec4 mr = mirror_mat * vec4(world, 1.0);
 			// the street itself mirrored (World/Mirrors.cs); reflections off: dark water with a little of the sky's grey
@@ -1228,16 +1473,14 @@ void fragment() {
         if (k.Water > 0)
             c.Append(@"	{
 		// a dark mirror: the misty sky at low angles, black water looking down, the gas lamps drawn out into long
-		// broken streaks by fine ripples (in chunky world pixels)
-		vec2 rp = floor(world.xz * 6.0) / 6.0;
-		vec2 rip = vec2(sin(rp.x * 2.7 + rp.y * 0.9 + psx_time * 1.9), sin(rp.y * 3.3 - rp.x * 0.7 - psx_time * 1.5)) * " + (k.Water == 2 ? "0.006 * (1.0 + psx_rain * 1.5)" : "0.06") + @";
-		vec3 rn = normalize(nw + vec3(rip.x, 0.0, rip.y));
+		// broken streaks by the ripples (the wave normal is in nw; D3: no more chunky world pixels, the zigzag stamp)
+		vec3 rn = nw;
 		float cos_v = max(dot(rn, -rd), 0.0);
 		if (psx_water_mirror_on > 0.5) {
 			// the quays, ships and sky mirrored (World/Mirrors.cs), shaken by the ripples
 			mat4 mirror_mat = psx_mirror_columns > 0.5 ? mat4(psx_water_mirror_col0, psx_water_mirror_col1, psx_water_mirror_col2, psx_water_mirror_col3) : psx_water_mirror_mat;
 			vec4 mr = mirror_mat * vec4(world, 1.0);
-			vec2 muv = (vec2(mr.x, -mr.y) / mr.w + rip * 0.35) * 0.5 + 0.5;
+			vec2 muv = (vec2(mr.x, -mr.y) / mr.w + wave.xy * 0.22) * 0.5 + 0.5;
 			vec3 mc = texture(psx_water_mirror, muv).rgb;
 			float f = " + (k.Water == 2 ? "0.48 + 0.48 * pow(1.0 - cos_v, 3.0)" : "max(0.22, 0.04 + 0.96 * pow(1.0 - cos_v, 5.0))") + @";
 			// (the great storm: the torn-up water mirrors nothing)
@@ -1263,10 +1506,13 @@ void fragment() {
 			ad = ad * (1.0 - t) + (fogc * vec3(0.26, 0.23, 0.17) + vec3(0.03, 0.024, 0.014)) * t;
 		}
 		vec3 rr = reflect(rd, rn);
-		float dash = 0.5 + 0.5 * sin(rp.y * 7.0 + rp.x * 1.3 + psx_time * 2.2);
-		ad += psx_lamp_color.rgb * (lamp_reflects(world, rr) * 0.09 + lamp_streaks(world, rr) * 0.5 * dash * dash);
-		// rain on the water: rings that catch the sky
-		if (psx_rain > 0.001) ad += (fogc * 0.7 + 0.015) * rain_rings(world.xz, psx_time, psx_rain) * 0.6 * psx_rain;
+		// (D3) a ripple facing the eye mirrors higher, brighter sky, one turned away the dark water's own: the rings, the
+		// wakes and the rain show as light on their slopes, as on real water under a grey sky
+		ad += fogc * clamp(rr.y + rd.y, -0.2, 0.25) * 0.55 * (1.0 - smoothstep(25.0, 70.0, len));
+		// (a lamp's streak breaks up on the crests)
+		float brk = smoothstep(0.35, 0.75, wave.z);
+		ad += psx_lamp_color.rgb * (lamp_reflects(world, rr) * 0.09 + lamp_streaks(world, rr) * 0.5 * brk);
+		// (rain on the water: its rings are in the normal, wave; D3, no drawn outline)
 		spec_k = dot(k3, vec3(0.333));
 	}
 ");
@@ -1339,6 +1585,8 @@ void light() {
     {
         if (bake.ValueKind != JsonValueKind.Object) return k;
         if (Has(bake, "water", out _)) return k with { Water = Has(bake, "waterCalm", out _) ? 2 : 1 };
+        // the switches for other parts (D3): a name plate's cell, the tide's wet band
+        k = k with { NameCell = (int)Num(bake, "nameCell", 0), TideWet = Num(bake, "tideWet", 0) > 0 };
         if (Has(bake, "grimeDecal", out _)) return k with { Decal = true };
         if (bake.TryGetProperty("grime", out var gr) && gr.ValueKind == JsonValueKind.String && !Off.Contains("grime"))
             k = k with { Grime = gr.GetString() == "facade" ? 1 : 2 };
@@ -1377,8 +1625,18 @@ void light() {
         if (k.Water > 0)
         {
             // (the browser's water: the deep Schelde's highlight, the pond's; World/Waters.cs finds its sheets by this mark)
-            var sp = Hex(k.Water == 2 ? 0x202b23 : 0x3a342a);
+            // (D3: a lower, wider sheen than the old 120's hard cone; the ripples are the wave normal, not the bake's
+            // picture: its colour alone, the browser's textures.ts water)
+            var sp = Hex(k.Water == 2 ? 0x202b23 : 0x2a2823);
             m.SetShaderParameter("spec_color", new Vector3(sp.R, sp.G, sp.B));
+            m.SetShaderParameter("shininess", k.Water == 2 ? 60f : 40f);
+            if (waterTint == null)
+            {
+                var ti = Image.CreateEmpty(1, 1, false, Image.Format.Rgba8);
+                ti.SetPixel(0, 0, Color.Color8(58, 70, 62));
+                waterTint = ImageTexture.CreateFromImage(ti);
+            }
+            m.SetShaderParameter("tex", waterTint);
             m.SetMeta("psx_water", k.Water);
             m.RenderPriority = -10;
         }
@@ -1407,6 +1665,7 @@ void light() {
                 m.SetShaderParameter("shininess", spec.W);
             }
         }
+        if (k.TideWet) m.SetShaderParameter("tide_wet", Num(bake, "tideWet", 0));
         if (k.Wall)
         {
             bool foot = Has(bake, "foot", out var f);

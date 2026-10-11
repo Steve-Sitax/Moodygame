@@ -136,14 +136,11 @@ export function makeTextures() {
     grime(g, r, s, 0.4);
   });
 
-  const water = make(64, 15, (g, r, s) => {
+  // (D3, 2026-10-11: its colour alone. The 64 px dashes drew a zigzag stamp and bands over every water; the ripples
+  // are the psx water's own wave normal now, retro/psx.ts psxWaves. Godot gives its water the same colour.)
+  const water = make(4, 15, (g, _r, s) => {
     g.fillStyle = rgb(58, 70, 62);
     g.fillRect(0, 0, s, s);
-    for (let i = 0; i < 140; i++) {
-      const v = r() < 0.5 ? 40 : 88;
-      g.fillStyle = rgb(v * 0.9, v * 1.05, v, 0.6);
-      g.fillRect((r() * s) | 0, (r() * s) | 0, 3 + ((r() * 8) | 0), 1);
-    }
   });
 
   const iron = make(64, 16, (g, r, s) => {

@@ -217,8 +217,9 @@ public partial class Rowing:Node,RowPhysics.IWorld
     {
         var d=Boat;if(d==null||!Navigate())return false;var j=Jef.I;float before=Rower.Heading;
         bool caught=Rower.Step(dt,this,j.KeyDown(Key.W)||j.KeyDown(Key.Up),j.KeyDown(Key.S)||j.KeyDown(Key.Down),j.KeyDown(Key.A)||j.KeyDown(Key.Left),j.KeyDown(Key.D)||j.KeyDown(Key.Right),j.KeyDown(Key.Shift),out float bump);
-        if(caught){Scheldemist.Audio.Soundscape.I?.SwimStroke();if(!strokePending)_=Stroke(Rower.Hard);}bumpT-=dt;if(bump>.45f&&bumpT<=0){bumpT=1.2f;Scheldemist.Audio.Soundscape.I?.Play(bump>1?"thud_wood":"thud_soft",new(Rower.X,Rower.Y,Rower.Z));GameState.I.Say("The boat bumps against something. Back water and pull clear.");}
-        d.X=Rower.X;d.Z=Rower.Z;d.Yaw=Rower.Heading;d.Root.Transform=new(new Basis(Vector3.Up,d.Yaw)*new Basis(Vector3.Right,Rower.Pitch)*new Basis(Vector3.Back,Rower.Roll),new(d.X,Rower.Y,d.Z));
+        if(caught){float hc=MathF.Cos(Rower.Heading),hs=MathF.Sin(Rower.Heading);Scheldemist.World.Waters.Ring(Rower.X+hc*1.4f,Rower.Z-hs*1.4f,Rower.Hard?1.2f:.9f);Scheldemist.World.Waters.Ring(Rower.X-hc*1.4f,Rower.Z+hs*1.4f,Rower.Hard?1.2f:.9f);Scheldemist.Audio.Soundscape.I?.SwimStroke();if(!strokePending)_=Stroke(Rower.Hard);}bumpT-=dt;if(bump>.45f&&bumpT<=0){bumpT=1.2f;Scheldemist.Audio.Soundscape.I?.Play(bump>1?"thud_wood":"thud_soft",new(Rower.X,Rower.Y,Rower.Z));GameState.I.Say("The boat bumps against something. Back water and pull clear.");}
+        d.X=Rower.X;d.Z=Rower.Z;d.Yaw=Rower.Heading;{float sg=Rower.Speed<0?-1:1;Scheldemist.World.Waters.Wake(this,d.X+MathF.Sin(d.Yaw)*1.9f,d.Z+MathF.Cos(d.Yaw)*1.9f,MathF.Sin(d.Yaw)*sg,MathF.Cos(d.Yaw)*sg,MathF.Abs(Rower.Speed),1.3f,.7f);} // (D3)
+        d.Root.Transform=new(new Basis(Vector3.Up,d.Yaw)*new Basis(Vector3.Right,Rower.Pitch)*new Basis(Vector3.Back,Rower.Roll),new(d.X,Rower.Y,d.Z));
         PoseOars(d);j.Carry(Rower.Seat,Rower.Heading-before);j.DrivenEye=.78f;j.DrivenRoll=-Rower.Roll*MathF.Cos(j.Yaw-(Rower.Heading+MathF.PI));return true;
     }
     private async Task Stroke(bool hard){strokePending=true;try{var r=await ServerLink.I!.Api!.RowStroke(hard);Answered?.Invoke("stroke",r);}catch(ApiException){}finally{strokePending=false;}}

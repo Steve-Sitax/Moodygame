@@ -6,7 +6,7 @@ import { BOAT_NAMES, type BoatName, type SmallFleet } from "../world/boats";
 import { DECK_UNDER } from "../world/bridges";
 import { bedAt, HW_MAX, levelAt, LW_MIN, MID_Y, tideRate, water } from "../world/tide";
 import type { Rect } from "../world/geom";
-import { psx, psxUniforms } from "../retro/psx";
+import { psx, psxUniforms, ripples } from "../retro/psx";
 import type { JobsPayload } from "../net/api";
 import type { Jobs } from "./jobs";
 import type { Deeds } from "./deeds";
@@ -208,6 +208,11 @@ export class Rowing {
     player.rowFree = (x, z, r) => this.free(x, z, r);
     player.rowCurrent = (x, z) => this.current(x, z);
     player.onRowStroke = (hard) => {
+      // (D3) the blades dip in: a ring off each side
+      const c = Math.cos(player.rowHeading);
+      const s = Math.sin(player.rowHeading);
+      ripples.ring(player.x + c * 1.4, player.z - s * 1.4, hard ? 1.2 : 0.9);
+      ripples.ring(player.x - c * 1.4, player.z + s * 1.4, hard ? 1.2 : 0.9);
       this.stroke();
       if (hard) this.hard++;
     };
@@ -1406,6 +1411,7 @@ export class Rowing {
         // the hull where the rower's physics put it; no float bob of its own (the rower's view moves with it)
         b.obj.position.set(p.x, p.rowY, p.z);
         b.obj.rotation.set(-p.rowPitch, p.rowHeading, p.rowRoll, "YXZ");
+        ripples.wake(this, p.x + Math.sin(p.rowHeading) * 1.9, p.z + Math.cos(p.rowHeading) * 1.9, Math.sin(p.rowHeading) * Math.sign(p.rowSpeed || 1), Math.cos(p.rowHeading) * Math.sign(p.rowSpeed || 1), Math.abs(p.rowSpeed), 1.3, 0.7); // (D3)
         const inner = b.obj.children[0];
         if (inner && inner.name !== "row_oars") {
           inner.position.y = 0;

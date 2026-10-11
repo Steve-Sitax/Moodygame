@@ -51,7 +51,7 @@ import { createRailGate, type RailGate } from "./railgate";
 import { createOmnibuses, loadOmnibusModel, OMNIBUS_HORSES, omnibusKeepOut, STOPS as OMNIBUS_STOPS, stopSolids, type Omnibuses } from "./omnibus";
 import { quaySteps, shoreTexture, frameAt, type Exit } from "./quaysteps";
 import { buildPier, PIER_BOLLARD } from "./pier";
-import { waveAt } from "../retro/psx";
+import { ripples, setTideWet, waveAt } from "../retro/psx";
 import { createMirror } from "./mirror";
 import { BRIG_FLOOR, CHAMBER, DOCK, HW_MAX, LW_MIN, MID_Y, gateLine, levelAt, tideAt, tideDev, tideInfo, water as tideWater } from "./tide";
 import { buildTideMud } from "./tidemud";
@@ -348,8 +348,9 @@ function mats(tex: Textures) {
       new THREE.MeshPhongMaterial({
         map: tex.water,
         color: 0x8a9a92, // the deep Schelde: dark, a little green
-        specular: 0x3a342a,
-        shininess: 120,
+        // (D3: a lower, wider sheen on the ripples than the old 120's hard white cone)
+        specular: 0x2a2823,
+        shininess: 40,
       }),
       { water: true, affine: 0.6 },
     ),
@@ -649,7 +650,7 @@ export function buildRijnkaai(): World {
   const waterTex = tex.water;
   // M6 tides: the Petit Bassin and the lock chamber have water of their own at their own levels
   // (world/tide.ts); drawn before the river sheet, which the stencil keeps out from under them
-  const dockMat = psx(new THREE.MeshPhongMaterial({ map: tex.water, color: 0x8a9a92, specular: 0x3a342a, shininess: 120 }), { water: true, affine: 0.6 });
+  const dockMat = psx(new THREE.MeshPhongMaterial({ map: tex.water, color: 0x8a9a92, specular: 0x2a2823, shininess: 40 }), { water: true, affine: 0.6 });
   dockWaterStencil(dockMat);
   /**
    * A sheet of still water over a rectangle. `ends` (fixes 2026-09-24): the near and far edges in z
@@ -2024,6 +2025,7 @@ export function buildRijnkaai(): World {
     const d = target - tideWater.river;
     tideWater.river += tideSeen ? THREE.MathUtils.clamp(d, -0.6 * dt, 0.6 * dt) : d;
     if (tideClock) tideSeen = true;
+    if (tideClock) setTideWet(tideClock().day, tideClock().hour); // (the tide's wet band on the walls: retro/psx.ts)
     water.position.y = tideWater.river;
     dockSheet.position.y = tideWater.dock;
     dockMouth.position.y = tideWater.dock;
@@ -2076,6 +2078,11 @@ export function buildRijnkaai(): World {
       mirror.setPlane(pondMirror ? POND_LEVEL : inLock ? tideWater.chamber : nearDock ? tideWater.dock : tideWater.river);
     }
     psxUniforms.uTime.value = t;
+    if (camera) {
+      // (D3) the ships under way leave their wakes; the nearest ripple sources go to the water's shader
+      for (const s of boats?.moving() ?? []) if (!s.anchored) ripples.wake(s.id, s.x, s.z, Math.sin(s.heading), Math.cos(s.heading), s.speed, boats!.dims(s.kind).beam);
+      ripples.update(camera.position.x, camera.position.z);
+    }
     fogMix += (fogTarget - fogMix) * Math.min(1, dt * 0.4);
     // ease along the clock, the short way round midnight
     let dh = dayTarget - dayNow;
