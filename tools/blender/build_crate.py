@@ -48,7 +48,11 @@ MARGIN = 3  # pixels kept off a region's edge (the mips)
 
 
 class Builder:
-    """Faces with their uv (sheet pixels) and a shade, in one bmesh per object."""
+    """Faces with their uv (sheet pixels) and a shade, in one bmesh per object. `shut`: a closed crate, whose faces
+    turned toward its middle (the boards' inner sides, the lid's underside, the cleats against the boards) nobody sees:
+    they are left out (the frame budget: about half the triangles)."""
+
+    shut = False
 
     def __init__(self):
         self.bm = bmesh.new()
@@ -57,7 +61,12 @@ class Builder:
         self.marks = self.bm.faces.layers.int.new("marks")
         self.xf = Matrix.Identity(4)
 
-    def face(self, pts, uvs, shade=1.0, marks=False):
+    def face(self, pts, uvs, shade=1.0, marks=False, cull=False):
+        if cull and self.shut:
+            c = sum((Vector(p) for p in pts), Vector()) / len(pts)
+            n = (Vector(pts[1]) - Vector(pts[0])).cross(Vector(pts[2]) - Vector(pts[0]))
+            if n.length > 1e-12 and n.normalized().dot(Vector((0, 0, H / 2)) - c) > 0.02:
+                return None
         vs = [self.bm.verts.new(self.xf @ Vector(p)) for p in pts]
         f = self.bm.faces.new(vs)
         for lp, (u, v) in zip(f.loops, uvs):
@@ -154,7 +163,7 @@ def board(b, lo, hi, grain, plank, chamfer=0.003, outer=None, inner_y=None):
             # the face's width coordinate: the larger of the two cross extents of the strip
             w = (q[a0] - s0) if abs(sb - sa) >= abs(tb - ta) else (q[a1] - t0)
             uvs.append((org[0] + gu, org[1] + w * PPM + MARGIN))
-        b.face(quad, uvs)
+        b.face(quad, uvs, cull=True)
     # the two ends: end grain
     for g, sgn in ((g0, -1), (g1, 1)):
         pts = [P(g, s, t) for s, t in sec]
@@ -168,7 +177,7 @@ def board(b, lo, hi, grain, plank, chamfer=0.003, outer=None, inner_y=None):
         if e1.cross(e2).dot(Vector(nw)) < 0:
             pts = pts[::-1]
         uvs = [(ends[0] + MARGIN + (p[a0] - s0) * PPM * 4, ends[1] + MARGIN + (p[a1] - t0) * PPM * 4) for p in pts]
-        b.face(pts, uvs, shade=0.9)
+        b.face(pts, uvs, shade=0.9, cull=True)
 
 
 def plate(b, lo, hi, region, shade=1.0):
@@ -208,7 +217,7 @@ def inner_box(b, lo, hi, top=True):
         b.face(pts, uv4, shade=0.6)
 
 
-def tube(b, path, r, sides=8, region="rope"):
+def tube(b, path, r, sides=6, region="rope"):
     """A rope along a path of points: rings of `sides`, uv along its length and round it."""
     org = LAY["regions"][region]
     rings = []
@@ -281,7 +290,7 @@ def body(b, lid=True):
         tube(b, path, 0.0105)
         # the knots where it comes through
         for y in (-0.13, 0.13):
-            tube(b, [(xr - sx * 0.004, y, zr - 0.016), (xr + sx * 0.014, y, zr), (xr - sx * 0.004, y, zr + 0.016)], 0.016, sides=8)
+            tube(b, [(xr - sx * 0.004, y, zr - 0.016), (xr + sx * 0.014, y, zr), (xr - sx * 0.004, y, zr + 0.016)], 0.016, sides=6)
     # the dark inside, seen through the gaps
     inner_box(b, (-BX + T + 0.004, -HY + T + 0.004, SKID + T), (BX - T - 0.004, HY - T - 0.004, SIDE_TOP - 0.004), top=lid)
     if lid:
@@ -337,6 +346,7 @@ def straw(b):
 
 def build(name, lid=True, leaning_lid=False):
     b = Builder()
+    b.shut = lid
     body(b, lid=lid)
     if leaning_lid:
         # the lid off, leaning against an end: its long side on the setts, 72 degrees up, its cleats outward, the

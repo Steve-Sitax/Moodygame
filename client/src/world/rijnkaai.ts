@@ -1,3 +1,4 @@
+import { buildStagings, onStaging, stagingRect, stagingRoots, STAGINGS } from "./staging";
 import { crateMesh, pickCrate } from "../game/crateModel";
 import { crateHeight } from "../../../shared/crateCatalog";
 import { TOWN } from "./townBox";
@@ -487,7 +488,7 @@ export function buildRijnkaai(): World {
       // (the engine's bills' places: no pump before one)
       const bills = (await fetchAiSpots()) ?? undefined;
       // (the probe: signs go only where the houses as built have a clear wall)
-      return createStreetLife(scene, city.flags, { avoid: [...d.colliders, ...omnibusLane, ...workplaces], probe: buildWallProbe(city.group), bills });
+      return createStreetLife(scene, city.flags, { avoid: [...d.colliders, ...omnibusLane, ...workplaces, ...stagingRoots()], probe: buildWallProbe(city.group), bills });
     })
     .then(async (sl) => {
       street = sl;
@@ -496,7 +497,7 @@ export function buildRijnkaai(): World {
       // for room first)
       goodsRoom = quayGoodsOn ? await bakedGoodsRects().catch(() => []) : [];
       return createQuayFurniture(scene, city.flags, {
-        avoid: [...colliders, ...dynamic, ...omnibusLane, ...craneRunways, ...workplaces, ...goodsRoom], // M3g: nothing on the omnibus lanes or crane runways; M3i: markets, trades; #13 the goods
+        avoid: [...colliders, ...dynamic, ...omnibusLane, ...craneRunways, ...workplaces, ...goodsRoom, ...stagingRoots()], // M3g: nothing on the omnibus lanes or crane runways; M3i: markets, trades; #13 the goods
         quayInfo: () => ({ flights: steps.flights, ladders: steps.ladders }),
         houseWalls: { clear: sl.clearOnWall, add: sl.addWallItem }, // fixes 2026-09-25: notices off the painted windows
         probe: buildingsProbe(),
@@ -513,7 +514,7 @@ export function buildRijnkaai(): World {
       return createLitter(scene, city.flags, {
         probe: buildingsProbe(),
         ground: buildingsGround(),
-        avoid: [...colliders, ...craneRunways, ...steenKeepOut(), ...rampartKeepOut(), ...poortKeepOut(), ...landmarkDoorKeepOut()],
+        avoid: [...colliders, ...craneRunways, ...steenKeepOut(), ...rampartKeepOut(), ...poortKeepOut(), ...landmarkDoorKeepOut(), ...stagingRoots()],
         quaySites: qf.sites,
         quayInfo: () => ({ flights: steps.flights, ladders: steps.ladders }),
         swimFree,
@@ -528,7 +529,7 @@ export function buildRijnkaai(): World {
           // (the houses and buildings as built: barrels and crates stand a hand off their real faces)
           probe: buildingsProbe(),
           ground: buildingsGround(),
-          avoid: [...colliders, ...dynamic, ...goodsRoom],
+          avoid: [...colliders, ...dynamic, ...goodsRoom, ...stagingRoots()],
           keepOut: [...omnibusLane, ...workplaces], // (it keeps off the crane runways itself; a quay kerb may run under them)
           quayInfo: () => ({ flights: steps.flights, ladders: steps.ladders }),
           sites: street?.sites,
@@ -544,7 +545,7 @@ export function buildRijnkaai(): World {
           return createQuayGoods(scene, city.flags, {
             // (M8f goods pass 2: this is the search, run once for the bake, tools/bake-quaycargo.mjs; the PCs lay the
             // baked heaps, shared/quaycargo.json, so they stand the same everywhere whatever moves at the time)
-            avoid: [...colliders, ...dynamic],
+            avoid: [...colliders, ...dynamic, ...stagingRoots()],
             keepOut: [
               ...railGate.colliders.map((r) => ({ minX: r.minX - 1, maxX: r.maxX + 4, minZ: r.minZ - 1, maxZ: r.maxZ + 1 })),
               ...omnibusLane,
@@ -769,6 +770,12 @@ export function buildRijnkaai(): World {
   steps.flush(scene);
   /** Things in the water a swimmer bumps into: piles, hulls, the pontoon and its barges. */
   const swimSolids: Rect[] = [...pier.piles];
+  // the timber stagings over the water (world/staging.ts): walkable decks, railed; no swimming under them
+  {
+    const st = buildStagings(scene, m);
+    colliders.push(...st.colliders);
+    for (const sg of STAGINGS) swimSolids.push(stagingRect(sg, 0.3));
+  }
   // foam and lighter water along every wall and flight of steps (psx water, uShore)
   psxUniforms.uShore.value = shoreTexture([...(CITY_DATA as unknown as { quays: number[][] }).quays, ...steps.outlines], [TOWN.x0 - 60, TOWN.z0, TOWN.w + 120, TOWN.h + 60]);
   psxUniforms.uShoreBox.value.set(TOWN.x0 - 60, TOWN.z0, TOWN.w + 120, TOWN.h + 60);
@@ -1156,7 +1163,7 @@ export function buildRijnkaai(): World {
       const ob = onOpening(x, z);
       if (ob) return ob.closed();
     }
-    if (onPier(x, z) || onRamp(x, z) || onDeck(x, z)) return true;
+    if (onPier(x, z) || onRamp(x, z) || onDeck(x, z) || onStaging(x, z)) return true;
     const f = city.flags(x, z);
     if (f === undefined) return x > QUAY.minX && x < QUAY.maxX && z > QUAY.minZ && z < QUAY.maxZ;
     return f === 0;
@@ -1449,7 +1456,7 @@ export function buildRijnkaai(): World {
   const swimmable = (x: number, z: number) => openWater(x, z) && !steps.solidAt(x, z, 0, levelAt(x, z)) && !swimSolids.some((c) => inRect(c, x, z)) && nearestSwim(x, z) !== null;
   /** Rails, bulwarks and parapets: you do not fall off a ship, a gangway, a bridge, the pontoon or a flight of steps. */
   const railedFrom = (x: number, z: number) => {
-    if (onDeck(x, z) || onRamp(x, z) || onPontoon(x, z)) return true;
+    if (onDeck(x, z) || onRamp(x, z) || onPontoon(x, z) || onStaging(x, z)) return true;
     const st = steps.heightAt(x, z);
     if (st && !st.landing) return true;
     for (const b of bridgeRects) if (x > Math.min(b[0], b[2]) && x < Math.max(b[0], b[2]) && z > Math.min(b[1], b[3]) && z < Math.max(b[1], b[3])) return true;
@@ -1764,7 +1771,7 @@ export function buildRijnkaai(): World {
       const ob = onOpening(x, z);
       if (ob) return !ob.closed();
     }
-    if (onPierDeck(x, z) || onRamp(x, z) || onDeck(x, z) || steps.heightAt(x, z)) return false;
+    if (onPierDeck(x, z) || onRamp(x, z) || onDeck(x, z) || onStaging(x, z) || steps.heightAt(x, z)) return false;
     const f = city.flags(x, z);
     if (f === undefined) return z < 0;
     return (f & (WATER | OUTSIDE)) !== 0 && (f & WALL) === 0;
@@ -1922,7 +1929,7 @@ export function buildRijnkaai(): World {
 
   function surfaceAt(x: number, z: number): Surface {
     if (x > PIER.minX && x < PIER.maxX && z < -1) return "wood";
-    if (onPontoon(x, z) || onRamp(x, z) || onDeck(x, z)) return "wood";
+    if (onPontoon(x, z) || onRamp(x, z) || onDeck(x, z) || onStaging(x, z)) return "wood";
     if (areaAt(x, z)?.wood) return "wood"; // M7 ferry arrival: the ferry's deck and gangway
     return "stone";
   }

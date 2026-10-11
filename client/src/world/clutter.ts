@@ -1,5 +1,5 @@
 import { crateArrays, crateCellShift, crateMaterial, crateMatrix, loadCrates, pickCrate, type CratePlace } from "../game/crateModel";
-import { CRATE_CLASS, crateHeight } from "../../../shared/crateCatalog";
+import { CRATE_H } from "../../../shared/crateCatalog";
 import { setKegModel } from "../game/kegModel";
 import { modelCollider, modelShape } from "./modelCollision";
 import { TOWN } from "./townBox";
@@ -157,17 +157,19 @@ const DECAL = 1;
 /** The one crate of the town (game/crateModel.ts): its own material. */
 const CRATE = 2;
 /**
- * 2026-10-11 (CLAUDE.md: one model per thing): clutter.glb's crates are the one crate of the town at its small class:
- * a crate, two side by side with one on them, an open one (the lid off, leaning on its end).
+ * 2026-10-11 (CLAUDE.md: one model per thing): clutter.glb's crates are the one crate of the town, scaled as a whole to
+ * the clutter's old crates (0.64 x 0.45 m, 0.40 high): a crate, two side by side with one on them, an open one (the lid
+ * off, leaning on its end).
  */
+const CL_CRATE = 0.8;
 const CLUTTER_CRATES: Record<string, CratePlace[]> = {
-  crate: [[0, 0, 0, 0, CRATE_CLASS.small, false]],
+  crate: [[0, 0, 0, 0, CL_CRATE, false]],
   crates: [
-    [-0.37, 0, 0, 0.02, CRATE_CLASS.small, false],
-    [0.37, 0, 0.02, 0.1, CRATE_CLASS.small, false],
-    [-0.14, crateHeight("small"), 0.02, -0.18, CRATE_CLASS.small, false],
+    [-0.33, 0, 0, 0.02, CL_CRATE, false],
+    [0.34, 0, 0.02, 0.1, CL_CRATE, false],
+    [-0.12, CRATE_H * CL_CRATE, 0.02, -0.18, CL_CRATE, false],
   ],
-  crate_broken: [[0, 0, 0, 0.3, CRATE_CLASS.small, true]],
+  crate_broken: [[0, 0, 0, 0.3, CL_CRATE, true]],
 };
 const OPEN = 0;
 const WALLF = 1;
@@ -901,7 +903,7 @@ export async function createClutter(scene: THREE.Scene, flags: Flags, opts: Clut
     barrel: [0.62, 0.3, true],
     keg: [0.45, 0.22, true],
     crate: [0.55, 0.36, true],
-    crates: [0.55, 0.74, true],
+    crates: [0.55, 0.62, true],
     crate_broken: [0.95, 0.5, true],
     rain_butt: [0.78, 0.38, true],
     broom: [0.5, 0.15, false],
