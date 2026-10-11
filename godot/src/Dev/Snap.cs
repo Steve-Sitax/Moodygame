@@ -182,6 +182,8 @@ public partial class Snap : Node
             var across = new Vector3(-outward.Z, 0, outward.X);
             return (o + outward * 4.5f + across * 2.5f + new Vector3(0, 3.2f, 0), o + outward * 0.9f + new Vector3(0, -0.8f, 0));
         }
+        // (gullperch / gullwater / gullmarket / gullridge / gullrail / gullfly / pigeon: the nearest such bird, World/Gulls.cs)
+        if ((name.StartsWith("gull") || name.StartsWith("pigeon")) && Gulls.I?.ViewTarget(name, cam) is { } gv) return gv;
         if (name.StartsWith("surf") && Surf.I is { Info.edges: > 0 } su)
         {
             var e = su.Info.edge0;
@@ -243,6 +245,7 @@ public partial class Snap : Node
             }
         if (ShipWater.I is { } sw) GD.Print($"snap {name} ship water: {sw.Info}");
         if (Bats.I is { } bts) GD.Print($"snap {name} bats: {bts.Info}");
+        if (Gulls.I is { } gls) GD.Print($"snap {name} gulls: {gls.Info}, {gls.MeanMs:0.000} ms a frame ({gls.CostParts}), {gls.AllocatedLastFrame} bytes");
         if (Debris.I is { } db) GD.Print($"snap {name} debris: {db.Info}");
         if (Gutters.I is { } gt) GD.Print($"snap {name} eaves drops: {gt.DropInfo}");
         if (Breath.I is { } br) GD.Print($"snap {name} horses' breath: {br.HorseInfo}");

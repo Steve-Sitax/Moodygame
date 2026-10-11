@@ -1,5 +1,14 @@
 # Work log
 
+## Real herring gulls, 2026-10-11 (fix wave 2, branch fx-gulls)
+- Cause of "seagull still in the air": the Godot game drew the browser's ambient birds as the bake froze them
+  (`INST0_ambientbirds`: 16 gulls in mid-air, 4 on bollards, 31 pigeons, the wings spread because the browser's
+  wing shader does not come along). Godot now hides them and draws live birds: `godot/src/World/Gulls.cs`,
+  `GullModel.cs`, `Gulls.Test.cs` (`--gulltest`), `Movers/Boats.Rails.cs`; gull calls tied to a bird
+  (`Audio/Soundscape.cs`). Browser: a detailed gull shape, legs tucked in flight, gulls down on the water at dusk
+  (`client/src/world/ambient.ts`). Not shared between players yet (each PC's own birds).
+- Found: the loft pigeons are frozen from the bake too: issue #66 (https://github.com/Steve-Sitax/Moodygame/issues/66).
+
 ## The batch of 2026-10-11 evening: no PS1 look, lamps, calvary, quay stairs, bridges, cranes
 
 In `main`. Steve's list: rails and ruts in the air on open bridges, floating lamps, a low-poly calvary, invisible
