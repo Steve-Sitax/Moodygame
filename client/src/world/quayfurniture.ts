@@ -1017,11 +1017,7 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
       for (const [zl, at] of plan) {
         const b = lineBollard(g, s0 + dir * at);
         if (b) lineTo(b, h, sx, zl);
-        else {
-          count(`ship line left out: ${lineWhy || whyNot}`);
-          const [lx, lz] = along(g, s0 + dir * at);
-          sites.push({ kind: `line_left:${lineWhy || whyNot}`, x: +lx.toFixed(1), z: +lz.toFixed(1), yaw: 0 });
-        }
+        else count(`ship line left out: ${lineWhy || whyNot}`);
       }
     }
     // the outer row: breast lines to the boat inside her
