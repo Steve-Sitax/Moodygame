@@ -8,8 +8,9 @@ namespace Scheldemist.World;
 /// The sky dome (the browser's world/sky.ts): a low grey autumn overcast round the air's colour, drifting with the
 /// wind; a lower, darker deck in rain and storm; a warm band where the evening sun goes down and a cold one at dawn;
 /// at night black cloud lit brown from under by the town's gas, a few stars in the gaps on a clear night. It fades
-/// into the fog's colour at the horizon and takes the lamps' glow in the air, as the far houses do. One draw: the
-/// bake's own sphere ("cloud_sky"), with the shader below; it goes where the camera goes.
+/// into the fog's colour at the horizon, is the fog wherever the fog is thick enough to hide the clouds, and takes the
+/// lamps' glow in the air, as the far houses do. One draw: the bake's own sphere ("cloud_sky"), with the shader below;
+/// it goes where the camera goes.
 /// </summary>
 [GamePart(20)]
 public partial class Sky : Node
@@ -30,6 +31,7 @@ uniform vec3 cold_col = vec3(0.05, 0.07, 0.1);
 uniform vec2 sun_xz = vec2(-1.0, 0.0);
 uniform float fog_sky = 0.0;
 uniform float deck = 16.0;
+uniform float lift = 0.0;
 global uniform float psx_time;
 global uniform float psx_fog_near;
 global uniform float psx_fog_far;
@@ -61,8 +63,7 @@ float fbm(vec2 p) {
 void fragment() {
 	vec3 d = normalize(dir);
 	vec3 rd = d;
-	// the PS1 sky: the direction in coarse steps (about a third of a degree), so the cloud edges are blocky
-	d = normalize(floor(d * 180.0 + 0.5) / 180.0);
+	// (Steve, 2026-10-11: no PS1 look; the sky's direction is no longer in coarse steps, the cloud edges are soft)
 	float e = d.y;
 	// the cloud deck: a plane over the town, seen in perspective (the clouds bunch up toward the horizon)
 	vec2 p = d.xz / (max(e, 0.0) + 0.09) * 1.6;
@@ -93,12 +94,17 @@ void fragment() {
 	}
 	// into the air at the horizon: the far fog and the sky meet without a seam
 	float hor = smoothstep(0.015, 0.3, e);
-	// night: as high as a roof `deck` metres over the eye would be lost in the fog, the sky is the fog
+	// the clouds are seen through the air (the look survey's point 9): as high as a roof `deck` metres over the eye
+	// would be lost in the fog, the sky is the fog, by day and by night. A fog day is all fog, so a house or a ship
+	// fogged away is the sky's own colour and never a pale ghost under a darker sky; a clear day shows its clouds
+	// from about 20 degrees up, a clear night from about 7
 	float deck_fog = smoothstep(psx_fog_near, psx_fog_far, deck / max(e, 0.001));
-	hor = mix(hor, min(hor, 1.0 - deck_fog), fog_sky);
+	hor = min(hor, 1.0 - deck_fog);
 	// and over it the night's clouds are never darker than the air
 	col = mix(col, max(col, air), fog_sky);
-	vec3 a = air + warm_col * warm * pow(to_sun, 2.5) * 0.35;
+	// by day the light comes down through the air: overhead it is a shade brighter than at the horizon, so the far
+	// roofs and masts fogged to the air's colour stand as dark shapes against it
+	vec3 a = air * (1.0 + lift * smoothstep(0.05, 0.8, e)) + warm_col * warm * pow(to_sun, 2.5) * 0.35;
 	a = mix(a, a * 0.8 + cold_col * 0.5, cold * away * 0.6);
 	// the lamps' glow in the air in front of the sky, as in front of the far houses
 	float glow = psx_glow(CAMERA_POSITION_WORLD, rd, glow_reach(1e4, psx_fog_far, rd));
@@ -115,6 +121,11 @@ void fragment() {
         "storm" => (0.97f, 1.0f, 3.2f),
         _ => (0.72f, 0.15f, 0.35f),
     };
+
+    /// <summary>How high the clouds are seen through the fog (sky.ts DAY_DECK, FOG_DECK = psx.ts AIR_DECK), metres over the eye.</summary>
+    private const float DayDeck = 60, AirDeck = 16;
+    /// <summary>The day's air overhead against the horizon's (sky.ts SKY_LIFT).</summary>
+    private const float Lift = 0.14f;
 
     private MeshInstance3D dome = null!;
     private ShaderMaterial mat = null!;
@@ -179,7 +190,12 @@ void fragment() {
         Scheldemist.Render.UniformUpdates.Material(mat, "dark", cur.dark);
         Scheldemist.Render.UniformUpdates.Material(mat, "night", night);
         Scheldemist.Render.UniformUpdates.Material(mat, "stars", night * day.Clear * (1 - cur.dark));
-        Scheldemist.Render.UniformUpdates.Material(mat, "fog_sky", 1 - Smooth(airL, 0.035f, 0.08f));
+        float fogSky = 1 - Smooth(airL, 0.035f, 0.08f);
+        Scheldemist.Render.UniformUpdates.Material(mat, "fog_sky", fogSky);
+        // the cloud deck as the fog lets it show: a roof DayDeck metres up by day, the low air of the lamps (AirDeck) by
+        // night; the day's air a shade brighter overhead (sky.ts the same)
+        Scheldemist.Render.UniformUpdates.Material(mat, "deck", DayDeck + (AirDeck - DayDeck) * fogSky);
+        Scheldemist.Render.UniformUpdates.Material(mat, "lift", Lift * (1 - fogSky));
         Scheldemist.Render.UniformUpdates.Material(mat, "warm", Bump(hour, 16.2f, 17.3f, 18.3f, 19.1f) * open * (1 - cur.dark * 0.8f));
         Scheldemist.Render.UniformUpdates.Material(mat, "cold", Bump(hour, 5.4f, 6.4f, 7.4f, 8.6f) * open * (1 - cur.dark * 0.8f));
         var s = new Vector2(day.SunDir.X, day.SunDir.Z);

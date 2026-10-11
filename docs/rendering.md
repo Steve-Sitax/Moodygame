@@ -191,3 +191,18 @@ Two switches for other parts, each fixed when the material is made (rule 3: one 
   instead: an emissive from their picture that follows the sky light's colour and the square of its strength, set each
   frame (`city.ts`, `WATER_FILL`); Godot does the same by the material's name `quay_wall` (`World/Daylight.cs`, `fill`
   and `waterFill`). The wet band is the psx `tideWet: 0.3`.
+
+## Fog and sky, gas-light pools, rain and mist (survey 9, 18, 19; 2026-10-12)
+- **Sky = fog where the fog is thick** (`world/sky.ts`, Godot `World/Sky.cs`): the clouds show only where a roof `DAY_DECK`
+  (60 m) over the eye would show through the fog (by night `FOG_DECK`, 16 m, as before). A fog day's sky is the air's
+  colour, a shade brighter overhead (`SKY_LIFT` 0.14 by day), so anything fogged away melts into it and anything half
+  hidden stands darker. No more direction steps in the sky (the PS1 blocky cloud edges).
+- **Mist by the clock** (`rijnkaai.ts mistLift`, `Daylight.cs MistLift`): a misty day's fog far is x1.25 of the day's until
+  9:36 (about 35 m at 9:00), lifting to the table's x3.5 by 12:48, closing in a little again from 16:30.
+- **Gas lamps throw down** (`psxLampCap`, `psx_lamp_cap`): under the cap 0.42 level with the flame up to 2.6 straight down;
+  a soft core (`PSX_LAMP_CORE` 0.6, added to d^1.7) so a wall right by a lantern has no hot blob; the light table
+  (`world/lampLight.ts`) unchanged. The ground takes every spilt light and the real gas lamps' unevenly (`psxPoolTone`:
+  0.35 to 1.65 over 1 to 3 m, only on faces looking up). No new light, no new shader kind.
+- **Rain**: streaks at least a 30th of a second long, out to 11 m, lighter than the air and 55 % of the drops at full
+  rain; wet stone 0.44 darker at most, the sky's sheen on the wet tops by Fresnel, the lamps' streaks 0.65, the windows'
+  0.25.

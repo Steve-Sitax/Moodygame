@@ -68,7 +68,7 @@ void vertex() {
 	POSITION = PROJECTION_MATRIX * mv;
 }
 void fragment() {
-	vec3 pool_e = spill_one(pool_p, vec3(0.0, 1.0, 0.0), pool_a, pool_b, pool_c, pool_d);
+	vec3 pool_e = spill_one(pool_p, vec3(0.0, 1.0, 0.0), pool_a, pool_b, pool_c, pool_d) * psx_pool_tone(pool_p, vec3(0.0, 1.0, 0.0));
 	// (no edge where the quad ends: the light is let go before it)
 	float edge = (1.0 - smoothstep(0.7, 1.0, abs(pool_q.x))) * (1.0 - smoothstep(0.75, 1.0, abs(pool_q.y)));
 	if (dot(pool_b.xy, pool_b.xy) < 0.01) edge = 1.0 - smoothstep(0.7, 1.0, length(pool_q));

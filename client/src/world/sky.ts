@@ -12,8 +12,13 @@ import { tempest } from "./tempest";
 //   rijnkaai.ts SUN_LOW), the undersides of the clouds lit over it; at dawn a cold band on the other side.
 // - Night: black cloud, a faint brown glow on the undersides from the town's gas; on a clear night a few stars in
 //   the gaps.
-// Made in the shader (value noise, no picture): one draw call, a 16 x 8 sphere. Pixelated in direction steps, as the
-// PS1 drew its skies: blocky cloud edges, no smooth gradients. Fog false: it does its own horizon.
+// Made in the shader (value noise, no picture): one draw call, a 16 x 8 sphere. Fog false: it does its own horizon.
+//
+// Fog and sky (the look survey's point 9, 2026-10-11): in fog the far houses and ships stood as pale ghosts under a
+// darker sky, and the sky showed through the street gaps over the Grote Markt as ragged dark curtains. The clouds now
+// show only where the fog would let a roof DAY_DECK metres up show (by night FOG_DECK, as before): a fog day's sky is
+// the fog itself, a shade brighter overhead (SKY_LIFT), so what the fog swallows melts into it and what it half hides
+// stands darker against it; a clear day keeps its clouds from about 20 degrees up.
 //
 // Night fog (2026-09-26, Steve: "at night I see shadow outlines ... objects are dark and should not be visible"):
 // the far houses and trees showed as lighter flat shapes against a darker sky. Two causes, both fixed here:
@@ -56,6 +61,7 @@ uniform float uFogNear;
 uniform float uFogFar;
 uniform float uFogSky;
 uniform float uDeck;
+uniform float uLift;
 #define MAX_LAMPS ${MAX_LAMPS}
 uniform vec4 uLamps[MAX_LAMPS];
 uniform vec3 uLampColor;
@@ -76,8 +82,7 @@ float fbm(vec2 p) {
 void main() {
   vec3 d = normalize(vDir);
   vec3 rd = d;
-  // the PS1 sky: the direction in coarse steps (about a third of a degree), so the cloud edges are blocky
-  d = normalize(floor(d * 180.0 + 0.5) / 180.0);
+  // (Steve, 2026-10-11: no PS1 look; the sky's direction is no longer in coarse steps, the cloud edges are soft)
   float e = d.y;
   // the cloud deck: a plane over the town, seen in perspective (the clouds bunch up toward the horizon)
   vec2 p = d.xz / (max(e, 0.0) + 0.09) * 1.6;
@@ -110,13 +115,18 @@ void main() {
   // into the air at the horizon: the far fog and the sky meet without a seam (the dusk's band goes on down to it,
   // the air under it takes a little of its warmth)
   float hor = smoothstep(0.015, 0.3, e);
-  // night: as high as a roof uDeck metres over the eye would be lost in the fog, the sky is the fog
+  // the clouds are seen through the air (the look survey's point 9): as high as a roof uDeck metres over the eye
+  // would be lost in the fog, the sky is the fog, by day and by night. A fog day is all fog, so a house or a ship
+  // fogged away is the sky's own colour and never a pale ghost under a darker sky; a clear day shows its clouds from
+  // about 20 degrees up, a clear night from about 7
   float deckFog = smoothstep(uFogNear, uFogFar, uDeck / max(e, 0.001));
-  hor = mix(hor, min(hor, 1.0 - deckFog), uFogSky);
+  hor = min(hor, 1.0 - deckFog);
   // and over it the night's clouds are never darker than the air: the town's gas lights their undersides, and a
   // tower lost in the fog far off (its own colour then) stands no lighter than the sky over it
   col = mix(col, max(col, uAir), uFogSky);
-  vec3 air = uAir + uWarmCol * uWarm * pow(toSun, 2.5) * 0.35;
+  // by day the light comes down through the air: overhead it is a shade brighter than at the horizon, so the far
+  // roofs and masts fogged to the air's colour stand as dark shapes against it
+  vec3 air = uAir * (1.0 + uLift * smoothstep(0.05, 0.8, e)) + uWarmCol * uWarm * pow(toSun, 2.5) * 0.35;
   air = mix(air, air * 0.8 + uColdCol * 0.5, uCold * away * 0.6);
   // the lamps' glow in the air in front of the sky, as in front of the far houses (retro/psx.ts)
   float glow = 0.0;
@@ -149,6 +159,10 @@ const DECK: Record<string, [number, number, number]> = {
 
 /** Night fog: the height (m over the eye) of the roofs and tree tops the sky must stand behind in the fog. */
 const FOG_DECK = AIR_DECK;
+/** By day: the height the clouds are seen through the fog as (the towers and the masts stand behind it too). */
+const DAY_DECK = 60;
+/** The day's air overhead against the horizon's (a fog day's light comes down through it). */
+const SKY_LIFT = 0.14;
 
 const bump = (h: number, a: number, p0: number, p1: number, b: number) =>
   h <= a || h >= b ? 0 : h < p0 ? THREE.MathUtils.smoothstep(h, a, p0) : h <= p1 ? 1 : 1 - THREE.MathUtils.smoothstep(h, p1, b);
@@ -171,6 +185,7 @@ export function createCloudSky(radius = 560): CloudSky {
     uFogFar: { value: 19 },
     uFogSky: { value: 0 },
     uDeck: { value: FOG_DECK },
+    uLift: { value: 0 },
     uLamps: psxUniforms.uLamps,
     uLampColor: psxUniforms.uLampColor,
     uScatter: psxUniforms.uScatter,
@@ -207,6 +222,10 @@ export function createCloudSky(radius = 560): CloudSky {
     // (by how dark the air is, not the clock: the dusk and the dawn are dark enough, a fog day stays as it was)
     const airL = 0.2126 * air.r + 0.7152 * air.g + 0.0722 * air.b;
     U.uFogSky.value = 1 - THREE.MathUtils.smoothstep(airL, 0.035, 0.08);
+    // the cloud deck as the fog lets it show: a roof DAY_DECK metres up by day, the lamps' low air (FOG_DECK) by night;
+    // the day's air a shade brighter overhead
+    U.uDeck.value = DAY_DECK + (FOG_DECK - DAY_DECK) * U.uFogSky.value;
+    U.uLift.value = SKY_LIFT * (1 - U.uFogSky.value);
     // a clear or a misty evening: the warm band (fog and rain close it off)
     const open = Math.max(clear, weather === "mist" ? 0.45 : weather === "fog" ? 0.15 : 0);
     U.uWarm.value = bump(hour, 16.2, 17.3, 18.3, 19.1) * open * (1 - cur.dark * 0.8);

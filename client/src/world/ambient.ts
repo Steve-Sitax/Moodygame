@@ -1048,7 +1048,8 @@ function buildRain(): THREE.Mesh {
         vec3 head = lo + mod(position + vel * uTime - lo, box);
         // a streak is the drop's fall in one frame (uExpo), a little more or less drop by drop: this frame's streak meets
         // the last one's, and the eye follows the drop down; both ends in front of the eye, or none
-        float expo = uExpo * (0.85 + 0.3 * fract(aSeed * 5.31));
+        // (the look survey's point 19: never shorter than a 30th of a second's fall, about as long as the eye sees a drop)
+        float expo = max(uExpo, 1.0 / 30.0) * (0.85 + 0.3 * fract(aSeed * 5.31));
         vec3 tail = head - vel * expo;
         vec4 mh = modelViewMatrix * vec4(head, 1.0);
         vec4 mt = modelViewMatrix * vec4(tail, 1.0);
@@ -1071,7 +1072,8 @@ function buildRain(): THREE.Mesh {
         gl_Position.xy += perp * aSide * px * (2.0 / 270.0) * gl_Position.w;
         // rain barely shows in grey daylight (a little lighter than the air); a drop by a
         // gas lamp catches its glow and shows clearly
-        vec3 col = fogColor * (1.3 + 0.5 * uTempest) + 0.01 + 0.05 * uTempest;
+        // (survey 19: the rain hardly showed) a drop catches the bright sky: lighter than the air
+        vec3 col = fogColor * (1.55 + 0.4 * uTempest) + 0.025 + 0.04 * uTempest;
         for (int i = 0; i < AMB_LAMPS; i++) {
           vec3 d = p - uLamps[i].xyz;
           col += uLampColor * uLamps[i].w * 1.3 / (1.0 + dot(d, d) * 0.3);
@@ -1079,12 +1081,10 @@ function buildRain(): THREE.Mesh {
         vCol = col;
         // close drops only: far off, rain is thicker air (the weather's fog), not streaks
         // (the great storm: sheets of it, seen farther off: the whole box)
-        float near = smoothstep(0.4, 1.2, vFogDepth) * (1.0 - smoothstep(3.0 + 5.0 * uTempest, 7.0 + 6.0 * uTempest, vFogDepth));
+        float near = smoothstep(0.3, 0.9, vFogDepth) * (1.0 - smoothstep(5.0 + 3.0 * uTempest, 11.0 + 2.0 * uTempest, vFogDepth));
         float za = -mh.z;
         float zb = -mt.z;
-        vA = step(aSeed, uRainAmt * (0.267 + 0.733 * uTempest)) * near * (0.08 + 0.2 * fract(aSeed * 7.3)) * (0.5 + 0.5 * uRainAmt) * (1.0 + 2.6 * uTempest) * step(0.7, min(za, zb));
-        // (thicker strips than the old lines: the same rain a little fainter per pixel)
-        vA *= 0.75;
+        vA = step(aSeed, uRainAmt * (0.55 + 0.45 * uTempest)) * near * (0.12 + 0.26 * fract(aSeed * 7.3)) * (0.5 + 0.5 * uRainAmt) * (1.0 + 2.0 * uTempest) * step(0.7, min(za, zb));
         // the great storm: the rain comes in curtains that sweep along with the wind, thick and thin by turns
         if (uTempest > 0.0) {
           vec2 wd = normalize(uWind + vec2(1e-4));
