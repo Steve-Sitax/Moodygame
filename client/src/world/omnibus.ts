@@ -1,4 +1,5 @@
 import { modelCollider, ModelCollision } from "./modelCollision";
+import { lanternPower } from "./lampLight";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
@@ -1951,7 +1952,8 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
         if (k < 2) {
           // the carriage lamp's light on the street and the walls (oil in a reflector box: a lantern's)
           let ll = lampLights.get(i);
-          if (!ll) lampLights.set(i, (ll = [addLantern({ power: 0.85 }), addLantern({ power: 0.85 })]));
+          // (2026-10-11: a hand lantern's light, world/lampLight.ts; was 0.85)
+          if (!ll) lampLights.set(i, (ll = [addLantern({ power: lanternPower("hand") }), addLantern({ power: lanternPower("hand") })]));
           const src = ll[k];
           src.pos.set(tmp.x, tmp.y, tmp.z);
           src.ground = tmp.y - y;

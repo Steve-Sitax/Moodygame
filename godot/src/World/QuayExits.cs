@@ -25,11 +25,35 @@ public sealed class Exit
 /// </summary>
 public static class QuayExits
 {
-    // sizes of a flight (quaysteps.ts)
-    private const float Tread = 0.32f, Width = 1.3f, Parapet = 0.32f, Landing = 2.4f;
+    // sizes of a flight (quaysteps.ts, drawn again 2026-10-11): from the quay's edge stones (y 0.06) 13 risers down to
+    // the landing; a top landing level with the quay, 12 treads of 0.31 m, the landing to 6.56 m down the wall. The
+    // treads run out from the edge stones' face (0.235) to the parapet (1.6); the flight's face stands 1.9 m out.
+    private const float CopeY = 0.06f, Going = 0.31f, Top = 2 * Going, U0 = 0.235f, Width = 1.6f, W = 1.9f, End = 6.56f;
+    private const int Treads = 12;
     private const float LandY = Tide.MidY + 0.4f;
-    private static readonly int Steps = Math.Max(4, (int)MathF.Round(-LandY / 0.185f));
-    private static readonly float FlightLen = Steps * Tread;
+    private const float Rise = (CopeY - LandY) / (Treads + 1);
+    private const float FlightLen = Top + Treads * Going;
+    /// <summary>The foot pier on the landing: swimmers climb on past it.</summary>
+    private const float Foot1 = FlightLen + 0.02f + 0.45f;
+    /// <summary>The middle of the walk down (quaysteps.ts floodExit).</summary>
+    private const float UMid = (U0 + 0.42f + Width - 0.28f) / 2;
+    private const float SLast = Top + (Treads - 0.5f) * Going;
+
+    /// <summary>The browser's walking slope down a flight (quaysteps.ts slopeY), and where on it the height is y.</summary>
+    private static float SlopeY(float s)
+    {
+        if (s >= FlightLen) return LandY;
+        if (s <= SLast) return Math.Min(0, CopeY - ((s - Top) / Going + 0.5f) * Rise);
+        float y = CopeY - Treads * Rise;
+        return y + (LandY - y) * (s - SLast) / (FlightLen - SLast);
+    }
+
+    private static float SlopeS(float y)
+    {
+        float yLast = CopeY - Treads * Rise;
+        if (y >= yLast) return Math.Max(0, Top + ((CopeY - y) / Rise - 0.5f) * Going);
+        return SLast + (yLast - y) / (yLast - LandY) * (FlightLen - SLast);
+    }
 
     /// <summary>Top of each flight on the quay line, and the way down along the wall (rijnkaai.ts FLIGHTS).</summary>
     private static readonly float[][] FlightList =
@@ -71,12 +95,11 @@ public static class QuayExits
             bool left = Water.In(x - tz + tx * 2, z + tx + tz * 2);
             var fr = new Frame(x, z, tx, tz, left ? -tz : tz, left ? tx : -tx);
             Flights.Add(fr);
-            float w = Width + Parapet, end = FlightLen + Landing;
-            // swimmers climb onto the landing from its open side and its end
-            foreach (float s in new[] { FlightLen + 0.5f, FlightLen + Landing / 2, end - 0.5f })
+            // swimmers climb onto the landing from its open side
+            foreach (float s in new[] { Foot1 + 0.3f, (Foot1 + End) / 2, End - 0.5f })
             {
-                var (gx, gz) = fr.On(s, w + 0.5f);
-                var (ttx, ttz) = fr.On(s, w - 0.6f);
+                var (gx, gz) = fr.On(s, W + 0.5f);
+                var (ttx, ttz) = fr.On(s, W - 0.6f);
                 Exits.Add(new Exit { Gx = gx, Gz = gz, Nx = fr.Nx, Nz = fr.Nz, Tx = ttx, Tz = ttz, Ty = LandY });
             }
         }
@@ -139,11 +162,11 @@ public static class QuayExits
     {
         float deep = level - Tide.Wade; // the tread at this height is where swimming stops
         if (deep <= LandY + 0.05f || deep >= 0) return null;
-        float sLine = deep / LandY * FlightLen;
-        float sOut = Math.Max(0.3f, (level - 0.55f) / LandY * FlightLen); // knee to thigh deep
-        var (gx, gz) = f.On(Math.Min(FlightLen + Landing - 0.4f, sLine + 0.75f), Width / 2);
-        var (tx, tz) = f.On(sOut, Width / 2);
-        return new Exit { Gx = gx, Gz = gz, Nx = f.Tx, Nz = f.Tz, Tx = tx, Tz = tz, Ty = LandY * sOut / FlightLen };
+        float sLine = SlopeS(deep);
+        float sOut = Math.Max(0.3f, SlopeS(level - 0.55f)); // knee to thigh deep
+        var (gx, gz) = f.On(Math.Min(End - 0.4f, sLine + 0.75f), UMid);
+        var (tx, tz) = f.On(sOut, UMid);
+        return new Exit { Gx = gx, Gz = gz, Nx = f.Tx, Nz = f.Tz, Tx = tx, Tz = tz, Ty = SlopeY(sOut) };
     }
 
     /// <summary>The nearest place to climb out within reach at the water level now, or null.</summary>

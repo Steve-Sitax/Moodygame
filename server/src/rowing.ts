@@ -57,10 +57,10 @@ export interface Flight {
   n: [number, number];
 }
 
-/** Sizes of a flight of steps (client/src/world/quaysteps.ts): 13 treads of 0.32 m, then a 2.4 m landing, 1.62 m wide. */
-const FLIGHT_LEN = 4.16;
-const LANDING_LEN = 2.4;
-const FLIGHT_W = 1.62;
+/** Sizes of a flight of steps (client/src/world/quaysteps.ts, 2026-10-11): a top landing and 12 treads, then a 2.22 m landing, 1.9 m wide. */
+const FLIGHT_LEN = 4.34;
+const LANDING_LEN = 2.22;
+const FLIGHT_W = 1.9;
 
 /** A boat's berth beside the landing of a flight: centre, and the bow pointing on down the wall. */
 export function berthOf(f: Flight): { x: number; z: number; yaw: number; landing: [number, number] } {

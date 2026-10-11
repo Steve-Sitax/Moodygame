@@ -10,6 +10,7 @@ import { earthPaving, EDGE_BUMP, edgeStoneTextures, flagPaving, quayPaving, with
 import { rectAround, type Rect } from "./geom";
 import { buildTrees3D } from "./trees3d";
 import { addProp } from "./propSpots";
+import { addCalvary } from "./calvary";
 
 // The round square and the greens (M7 prison and squares, docs/milestones/M7-prison-squares.md; the numbers in
 // shared/townplaces.json from tools/city/places.py).
@@ -297,7 +298,8 @@ export function loadTownPlaces(scene: THREE.Scene, ready: Promise<unknown>): Tow
         const [bx, bz] = line[i + 1];
         colliders.push({ minX: Math.min(ax, bx) - 0.06, maxX: Math.max(ax, bx) + 0.06, minZ: Math.min(az, bz) - 0.06, maxZ: Math.max(az, bz) + 0.06, top: 0.72 });
       }
-    for (const e of g.extras) if (e.kind === "calvary") colliders.push(rectAround(e.x, e.z, 1.1, 0.9));
+    // the calvary is the town's one calvary model (world/calvary.ts), built in code, not from places.glb
+    for (const e of g.extras) if (e.kind === "calvary") colliders.push(addCalvary(groups.get(g.id)!.g, e.x, 0, e.z, e.yaw, "town places"));
   }
 
   // the trees: plane trees on the square, limes and elms on the greens (world/trees3d.ts)
@@ -362,7 +364,7 @@ export function loadTownPlaces(scene: THREE.Scene, ready: Promise<unknown>): Tow
       const place = (grp: THREE.Group, name: string, x: number, z: number, yaw: number, scale = 1) => {
         const parts = models.get(name);
         if (!parts) return;
-        if (["fountain", "kiosk", "urinal", "bench", "calvary"].includes(name)) {
+        if (["fountain", "kiosk", "urinal", "bench"].includes(name)) {
           const shape = modelShape(parts, () => parts.filter(p => p.mat.name !== "pl_water").map(p => (p.geo.index ? p.geo.toNonIndexed() : p.geo).getAttribute("position").array));
           const exact = modelCollider(shape, x, z, yaw, 0, scale, 1, scale);
           const rect = colliders.find(r => Math.abs((r.minX + r.maxX) / 2 - x) < 0.01 && Math.abs((r.minZ + r.maxZ) / 2 - z) < 0.01);
@@ -389,7 +391,7 @@ export function loadTownPlaces(scene: THREE.Scene, ready: Promise<unknown>): Tow
         const grp = groups.get(g.id)!.g;
         for (const [x, z, y] of g.benches) place(grp, "bench", x, z, y);
         for (const b of g.beds) place(grp, "flowerbed", b.c[0], b.c[1], 0, b.r);
-        for (const e of g.extras) place(grp, e.kind, e.x, e.z, e.yaw);
+        for (const e of g.extras) if (e.kind !== "calvary") place(grp, e.kind, e.x, e.z, e.yaw);
       }
       for (const [grp, byMat] of put) {
         for (const [mat, geos] of byMat) {

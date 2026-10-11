@@ -7,9 +7,9 @@ import { drawPlan, type InWorld } from "../world/inworld";
 import { drawMirrorsFirst } from "../world/mirror";
 import { psxUniforms } from "./psx";
 
-// Renders the scene into a small target (270 px high, 480x270 on 16:9),
-// then draws it full screen with nearest upscale, 5-bit colour and a
-// 4x4 Bayer dither. See docs/05-art-direction.md.
+// Renders the scene into a target (720 lines by default, or the full window), then draws it
+// full screen, smoothly scaled, with the grade, the vignette and a fine film grain. Steve, 2026-10-11: no PS1 look
+// (no big pixels, no colour steps, no dither): the fog and the grain carry the mood. See docs/05-art-direction.md.
 
 export const TARGET_HEIGHT = 270;
 
@@ -24,34 +24,23 @@ void main() {
 const frag = /* glsl */ `
 precision highp float;
 uniform sampler2D tScene;
-uniform vec2 uRes;
-// the PS1 grain, dither and colour steps keep their 270-line size at any render size (settings)
-uniform vec2 uFxRes;
 uniform float uTime;
-uniform float uLevels;
 varying vec2 vUv;
-
-float bayer4(vec2 p) {
-  ivec2 i = ivec2(mod(p, 4.0));
-  int idx = i.x + i.y * 4;
-  int m[16] = int[16](0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5);
-  return (float(m[idx]) + 0.5) / 16.0 - 0.5;
-}
 
 vec3 toSRGB(vec3 c) {
   c = max(c, 0.0);
   return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c));
 }
 
+// (a hash without sin: fract(sin(...)) loses its bits on big numbers on some cards, issue #58)
 float hash(vec2 p) {
-  return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+  vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
 }
 
 void main() {
-  vec2 px = floor(vUv * uRes);
-  vec2 uv = (px + 0.5) / uRes;
-  vec3 c = toSRGB(texture2D(tScene, uv).rgb);
-  vec2 fx = floor(vUv * uFxRes);
+  vec3 c = toSRGB(texture2D(tScene, vUv).rgb);
 
   // grade: lift shadows toward cold green-grey, crush a little, desaturate
   float l = dot(c, vec3(0.299, 0.587, 0.114));
@@ -63,13 +52,10 @@ void main() {
   vec2 d = vUv - 0.5;
   c *= 1.0 - dot(d, d) * 0.95;
 
-  // grain, per low-res pixel, slow
-  float g = hash(fx + floor(uTime * 12.0)) - 0.5;
-  c += g * 0.018;
-
-  // 5-bit quantize with ordered dither
-  float levels = uLevels - 1.0;
-  c = floor(c * levels + 0.5 + bayer4(fx)) / levels;
+  // film grain: fine (two screen pixels a grain), a little stronger in the shadows, 24 times a second
+  float t = floor(uTime * 24.0);
+  float g = hash(floor(gl_FragCoord.xy * 0.5) + vec2(t * 17.0, t * 31.0)) - 0.5;
+  c += g * mix(0.028, 0.016, l);
 
   gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0);
 }
@@ -82,14 +68,15 @@ export class RetroPass {
   private readonly mat: THREE.ShaderMaterial;
   width = 480;
   height = TARGET_HEIGHT;
-  /** Render height from the settings: TARGET_HEIGHT is the PS1 look, 0 = the full window. */
+  /** Render height from the settings (0 = the full window). */
   renderHeight = TARGET_HEIGHT;
 
   constructor(private readonly renderer: THREE.WebGLRenderer) {
     this.target = new THREE.WebGLRenderTarget(this.width, this.height, {
-      minFilter: THREE.NearestFilter,
-      magFilter: THREE.NearestFilter,
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.LinearFilter,
       depthBuffer: true,
+      // (no multisampling: 4x cost 6 ms a frame in the browser on the test PC, 2026-10-11; the Godot game has it)
       // boats write stencil 1 over their open hulls; the water skips those pixels (world/boats.ts)
       stencilBuffer: true,
       type: THREE.HalfFloatType,
@@ -99,10 +86,7 @@ export class RetroPass {
       fragmentShader: frag,
       uniforms: {
         tScene: { value: this.target.texture },
-        uRes: { value: new THREE.Vector2(this.width, this.height) },
-        uFxRes: { value: new THREE.Vector2(480, TARGET_HEIGHT) },
         uTime: { value: 0 },
-        uLevels: { value: 32 }, // 5 bits per channel
       },
       depthTest: false,
       depthWrite: false,
@@ -115,15 +99,8 @@ export class RetroPass {
     this.height = Math.max(1, Math.round(this.renderHeight > 0 ? Math.min(this.renderHeight, windowHeight) : windowHeight));
     this.width = Math.max(1, Math.round(this.height * aspect));
     this.target.setSize(this.width, this.height);
-    (this.mat.uniforms.uRes.value as THREE.Vector2).set(this.width, this.height);
-    (this.mat.uniforms.uFxRes.value as THREE.Vector2).set(Math.round(TARGET_HEIGHT * aspect), TARGET_HEIGHT);
     // bump maps as strong at every render height as at the 270 lines they were set up at (retro/psx.ts uBumpRes)
     psxUniforms.uBumpRes.value = this.height / TARGET_HEIGHT;
-  }
-
-  /** PS1 colour (5-bit with dither) or full colour. */
-  setPsxColour(on: boolean): void {
-    this.mat.uniforms.uLevels.value = on ? 32 : 256;
   }
 
   /** M7 rendering: what cannot be seen is left out of the world's passes (world/cull.ts). */

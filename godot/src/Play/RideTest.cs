@@ -57,6 +57,7 @@ public partial class RideTest : Node
             if(Main.I.Arg("ride-only")=="saved-rides") {await OmnibusCheck(api);await HandcartCheck(api);await VeloCheck(api);await SavedRowCheck(api);return;}
             if(Main.I.Arg("ride-only")=="expiry") {await HireExpiryCheck(api);return;}
             if(Main.I.Arg("ride-only")=="crane") {await CraneCheck();return;}
+            if(Main.I.Arg("ride-only")=="crane-drift") {await CraneDriftCheck();return;}
             if(Main.I.Arg("ride-only")=="omnibus") {await OmnibusCheck(api);return;}
             if(Main.I.Arg("ride-only")=="saved-row") {await SavedRowCheck(api);return;}
             if(Main.I.Arg("ride-only")=="navigation") {await NavigationCheck(api);return;}

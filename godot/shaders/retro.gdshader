@@ -1,18 +1,9 @@
 shader_type canvas_item;
-// The screen pass (the browser's retro/retroPass.ts): the small picture drawn full screen with nearest pixels, the
-// grade, the vignette, the grain, 5-bit colour with a 4 x 4 Bayer dither. The grain, the dither and the colour steps
-// keep their 270-line size at any render size.
+// The screen pass (the browser's retro/retroPass.ts): the world's picture drawn full screen, smoothly scaled, with the
+// grade, the vignette and a fine film grain. Steve, 2026-10-11: no PS1 look (no big pixels, no colour steps, no
+// dither): the fog and the grain carry the mood.
 uniform vec2 res = vec2(1280.0, 720.0);
-uniform vec2 fx_res = vec2(480.0, 270.0);
-uniform float levels = 32.0;
 uniform float picture_time = -1.0;
-
-float bayer4(vec2 p) {
-	ivec2 i = ivec2(mod(p, 4.0));
-	int idx = i.x + i.y * 4;
-	int m[16] = int[16](0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5);
-	return (float(m[idx]) + 0.5) / 16.0 - 0.5;
-}
 
 // (a hash without sin: fract(sin(...)) loses its bits on big numbers on this card, issue #58)
 float hash(vec2 p) {
@@ -22,9 +13,7 @@ float hash(vec2 p) {
 }
 
 void fragment() {
-	vec2 px = floor(UV * res);
-	vec3 c = texture(TEXTURE, (px + 0.5) / res).rgb;
-	vec2 fx = floor(UV * fx_res);
+	vec3 c = texture(TEXTURE, UV).rgb;
 	// grade: lift shadows toward cold green-grey, crush a little, desaturate
 	float l = dot(c, vec3(0.299, 0.587, 0.114));
 	c = mix(vec3(l), c, 0.78);
@@ -32,9 +21,9 @@ void fragment() {
 	c = pow(c, vec3(1.08));
 	vec2 d = UV - 0.5;
 	c *= 1.0 - dot(d, d) * 0.95;
-	float g = hash(fx + floor((picture_time >= 0.0 ? picture_time : TIME) * 12.0)) - 0.5;
-	c += g * 0.018;
-	float lv = levels - 1.0;
-	c = floor(c * lv + 0.5 + bayer4(fx)) / lv;
+	// film grain: fine (two screen pixels a grain), a little stronger in the shadows, 24 times a second
+	float t = floor((picture_time >= 0.0 ? picture_time : TIME) * 24.0);
+	float g = hash(floor(FRAGCOORD.xy * 0.5) + vec2(t * 17.0, t * 31.0)) - 0.5;
+	c += g * mix(0.028, 0.016, l);
 	COLOR = vec4(clamp(c, 0.0, 1.0), 1.0);
 }

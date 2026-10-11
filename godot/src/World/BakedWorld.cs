@@ -107,6 +107,13 @@ public partial class BakedWorld : Node3D
         var imported = state.GetMaterials();
         var jsonMats = gltf.GetProperty("materials");
         var made = new Dictionary<Material, Material?>();
+        // the materials already put on a mesh. Many nodes share one mesh (every lamp post, every crane): the first converts
+        // it, and the rest met a material they did not know and were hidden as "nothing to draw". In the editor
+        // (TownPreview) they count as drawn. The game keeps the old rule for now: some 400 nodes it hides this way may be
+        // hidden on purpose (issue #61).
+        var given = new HashSet<Material>();
+        bool editor = Engine.IsEditorHint();
+        int sharedHits = 0;
         for (int i = 0; i < imported.Count && i < jsonMats.GetArrayLength(); i++)
             if (imported[i] is BaseMaterial3D bm)
                 made[bm] = Convert(bm, jsonMats[i], false);
@@ -147,6 +154,12 @@ public partial class BakedWorld : Node3D
                     unported = true;
                     continue;
                 }
+                if (given.Contains(m))
+                {
+                    sharedHits++;
+                    if (editor && !m.HasMeta("baked_invisible")) allInvisible = false;
+                    continue;
+                }
                 if (!made.TryGetValue(m, out var psx)) continue;
                 if (psx == null)
                 {
@@ -156,6 +169,7 @@ public partial class BakedWorld : Node3D
                 if (colours && psx is ShaderMaterial sm) psx = WithVertexColour(sm);
                 if (!psx.HasMeta("baked_invisible")) allInvisible = false;
                 mi.Mesh.SurfaceSetMaterial(s, psx);
+                given.Add(psx);
             }
             if (unported)
             {
@@ -197,6 +211,7 @@ public partial class BakedWorld : Node3D
         Report["multiMeshes"] = multi;
         Report["copies"] = copies;
         Report["unported"] = Unported.Count;
+        Report["sharedMeshSurfaces"] = sharedHits;
         Report["readyMs"] = (double)(Time.GetTicksMsec() - t0);
         Stage = "done";
         return Error.Ok;

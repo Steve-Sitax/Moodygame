@@ -7,7 +7,7 @@ import type { Rect } from "./geom";
 import { groundRound } from "../game/stationRound";
 import { makeHuman, type Human } from "../game/humans";
 import { grassPaving, quayPaving, withPictures } from "./paving";
-import type { GasLamps } from "./gaslamps";
+import { lampGlass, type GasLamps } from "./gaslamps";
 import type { Props } from "./props3d";
 import { buildRampartNature, type RampartNature } from "./rampartNature";
 import { buildWallClimbers, type WallClimbers } from "./wallClimbers";
@@ -296,8 +296,10 @@ export function loadWall(scene: THREE.Scene): WallModel {
       grassMat = m;
     } else if (src.name.endsWith("_glow")) {
       const b = new THREE.MeshBasicMaterial({ map: map ?? null, color: map ? 0xffffff : 0xffd890, vertexColors: false });
-      // lantern glass and the lit guard rooms: bright by night, dull by day (update's `dark`)
-      glows.push({ m: b, day: src.name === "wall_room_glow" ? 0.2 : 0.42 });
+      // the lit guard rooms: bright by night, dull by day (update's `dark`); the lanterns' glass as every lamp's glass,
+      // the air's colour unlit and the flame's lit (2026-10-11: gaslamps.ts lampGlass)
+      if (src.name === "wall_lamp_glow") lampGlass(b);
+      else glows.push({ m: b, day: src.name === "wall_room_glow" ? 0.2 : 0.42 });
       m = psx(b, { affine: 0 });
     } else if (src.name === "wall_canvas") {
       // the sail cloth: pale linen that stays pale seen against the sky (a little of its own light)
@@ -506,7 +508,8 @@ export function wallLamps(scene: THREE.Scene, gasLamps: GasLamps, props: Props, 
   for (const l of wallLampList(d)) {
     const { x, z, y } = l;
     if (l.kind === "lantern") {
-      gasLamps.addDecor(l.n, new THREE.Object3D(), x, z, { glass: y, ground: rampartHeightAt(x, z) ?? 0 });
+      // a gas lantern on its arm or hook (build_wall.py, tools/blender/lantern_kit.py): a wall lantern's light (lampLight.ts)
+      gasLamps.addDecor(l.n, new THREE.Object3D(), x, z, { glass: y, ground: rampartHeightAt(x, z) ?? 0, kind: "bracket" });
       continue;
     }
     const obj = props.place("gas_lamp", x, z, 0, group);

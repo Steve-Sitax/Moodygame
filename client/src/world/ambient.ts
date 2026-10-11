@@ -5,6 +5,7 @@ import { dice, share, sharedSeconds } from "../game/share";
 import { TARGET_HEIGHT } from "../retro/retroPass";
 import { edgeZ, type CityOpenings, type CityWorld } from "./city";
 import { addSpill, setSpillClock, type SpillKind } from "./spill";
+import { LAMP_LIGHT } from "./lampLight";
 import { sharedFacadeProbe, type FacadeProbe } from "./facadeProbe";
 import INWORLD from "../../../shared/inworld_houses.json";
 import YARDS from "../../../shared/city_yard_windows.json";
@@ -595,8 +596,11 @@ function spillPanes(list: Pane[]): number {
     // oil lamp and candle: the pane's own warm (its tone), in linear light
     const c = new THREE.Color().setRGB(1, 0.36 + 0.16 * p0.tone, 0.08 + 0.08 * p0.tone, THREE.LinearSRGBColorSpace);
     const lantern = p0.kind === 3;
+    // (2026-10-11) a door lantern's light is a wall lantern's (world/lampLight.ts), as every lamp of the town
+    const lamp = lantern ? LAMP_LIGHT.bracket : null;
     const s = addSpill({
       kind,
+      ...(lamp ? { range: lamp.range, decay: lamp.decay } : {}),
       label: lantern ? "door lantern" : p0.kind === 1 ? "lit window (ground)" : p0.kind === 4 ? "lit cottage window" : p0.kind === 2 ? "lit garret window" : "lit windows upstairs",
       x: p0.x + p0.ux * mid,
       y: (p0.y0 + p0.y1) / 2,
@@ -605,13 +609,14 @@ function spillPanes(list: Pane[]): number {
       nz: lantern ? 0 : p0.oz,
       hw: (hi - lo) / 2,
       hh: (p0.y1 - p0.y0) / 2,
-      color: c,
+      color: lamp ? new THREE.Color(lamp.color) : c,
       bars: p0.kind === 1 ? 23 : p0.kind === 4 ? 22 : 0,
       // (upstairs the room's shape falls far off and faint: only the ground storey throws it)
       ...(p0.kind === 1 || p0.kind === 4 ? {} : { depth: 0 }),
       sched: p0.l,
     });
-    s.power *= k * (0.8 + 0.4 * p0.tone);
+    if (lamp) s.power = lamp.power;
+    else s.power *= k * (0.8 + 0.4 * p0.tone);
     n++;
   }
   return n;
@@ -880,15 +885,17 @@ function buildWindows(houses: House[], gables: Record<string, GableWin[]> = {}, 
     buf = b;
     addWindow(p.x, p.z, p.ox, p.oz, p.ux, p.uz, p.w, p.y0, p.y1, p.lit, p.tone, p.down ? 4 : 0, YARD_PANE_OFF, p.down ? null : p.group);
   }
-  // M7 quays pass 2: the lanterns build_city.py hangs by some doors, lit from dusk to dawn: a pane on the
-  // front of the glass (x, y, z of the glass's middle, 8.5 cm to its front, outward ox, oz)
-  for (const [x, y, z, ox, oz] of lamps) {
+  // M7 quays pass 2: the lanterns build_city.py hangs by some doors (and, 2026-10-11, at the passages' mouths), lit
+  // from dusk to dawn: a lit pane on the front of the glass and on its two sides (x, y, z of the glass's middle,
+  // outward ox, oz; the front pane's width and height and how far it stands out of the middle: the town's bracket
+  // lantern, tools/blender/lantern_kit.py), one light for the three (their group)
+  lamps.forEach(([x, y, z, ox, oz, w = 0.15, h = 0.25, out = 0.09], i) => {
     const key = `${Math.floor(x / 100)},${Math.floor(z / 100)}`;
     let b = chunks.get(key);
     if (!b) chunks.set(key, (b = { win: [], winUv: [], winLit: [], winTone: [] }));
     buf = b;
-    addWindow(x, z, ox, oz, oz, -ox, 0.15, y - 0.13, y + 0.12, [17.2, 30.5, 99, 99], 0.95, 3, 0.09);
-  }
+    for (const [px, pz] of [[ox, oz], [oz, -ox], [-oz, ox]]) addWindow(x, z, px, pz, pz, -px, w, y - h / 2, y + h / 2, [17.2, 30.5, 99, 99], 0.95, 3, out, `lamp${i}`);
+  });
   return chunks;
 }
 

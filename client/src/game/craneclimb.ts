@@ -120,39 +120,63 @@ export class CraneClimb {
       this.world.railway()?.occupy(null);
     } else {
       this.climbing = null;
-      this.frame = null;
+      this.hasFrame = false;
     }
   }
 
   /** The ladder he is on, moved with the crane each frame (a crane travels along its runway). */
   private climbing: ClimbLadder | null = null;
   /** The jib's frame last frame, while he is up on the gallery: he rides its turns and its travel. */
-  private frame: { x: number; z: number; rot: number } | null = null;
+  private hasFrame = false;
+  private fx = 0;
+  private fz = 0;
+  private frot = 0;
   private waitSaid = false;
 
   /**
-   * Once a frame, after the world has moved the cranes and before Jef takes his step (main.ts): up on the gallery he is
-   * carried as the jib turns and the crane rolls, so he is where he stood on it before his own step is checked.
+   * Once a frame, after the world has moved the cranes and before Jef takes his step (main.ts): on the rungs the ladder
+   * is moved with the portal, up on the gallery he is carried as the jib turns and the crane rolls, so he is where he
+   * stood on it, in this frame's crane, before his own step. (2026-10-11, Steve: "they just keep moving as they were
+   * and we go correctly with them": the ladder used to be moved after his step, a frame behind the portal.)
    */
   ride(): void {
     const p = this.player;
-    const l = this.on !== null && !p.climbLadder && p.y > 3 ? this.ladders()[this.on] : null;
-    if (!l) {
-      this.frame = null;
+    const l = this.on !== null ? this.ladders()[this.on] : null;
+    if (l && this.climbing && p.climbLadder === this.climbing) {
+      // on the rungs: the ladder is on the portal, which rolls along the runway; the foot keeps its offset, and near the
+      // bottom it is the free ground at the ladder's foot as it is now
+      const c = this.climbing;
+      const ox = c.foot.x - c.hang.x;
+      const oz = c.foot.z - c.hang.z;
+      c.hang.x = l.hang.x;
+      c.hang.z = l.hang.z;
+      c.head.x = l.head.x;
+      c.head.z = l.head.z;
+      const stand = p.y < 0.6 ? this.standOf(l) : null;
+      c.foot.x = stand ? stand.x : l.hang.x + ox;
+      c.foot.z = stand ? stand.z : l.hang.z + oz;
+      this.hasFrame = false;
+      return;
+    }
+    if (!l || p.climbLadder || p.y <= 3) {
+      this.hasFrame = false;
       return;
     }
     const f = l.frame;
-    if (this.frame) {
-      const dr = f.rot - this.frame.rot;
-      if (Math.abs(dr) > 1e-6 || f.x !== this.frame.x || f.z !== this.frame.z) {
-        const dx = p.x - this.frame.x;
-        const dz = p.z - this.frame.z;
+    if (this.hasFrame) {
+      const dr = f.rot - this.frot;
+      if (Math.abs(dr) > 1e-6 || f.x !== this.fx || f.z !== this.fz) {
+        const dx = p.x - this.fx;
+        const dz = p.z - this.fz;
         const c = Math.cos(dr);
         const s = Math.sin(dr);
         p.carryTo(f.x + dx * c + dz * s, f.z - dx * s + dz * c, dr);
       }
     }
-    this.frame = { x: f.x, z: f.z, rot: f.rot };
+    this.fx = f.x;
+    this.fz = f.z;
+    this.frot = f.rot;
+    this.hasFrame = true;
   }
 
   /** Once a frame: walking into the rungs starts the climb too; the ladder moves with the portal; a teleport lets it go. */
@@ -161,27 +185,18 @@ export class CraneClimb {
     if (this.on !== null && !p.climbLadder && p.y < 3) {
       this.on = null;
       this.climbing = null;
-      this.frame = null;
+      this.hasFrame = false;
       this.world.railway()?.occupy(null);
     }
     if (this.on !== null) {
       const l = this.ladders()[this.on];
       if (!l) return;
       if (p.climbLadder && this.climbing && p.climbLadder === this.climbing) {
-        // on the rungs: the ladder is on the portal, which rolls along the runway; the foot keeps its offset
-        const ox = this.climbing.foot.x - this.climbing.hang.x;
-        const oz = this.climbing.foot.z - this.climbing.hang.z;
-        this.climbing.hang.x = l.hang.x;
-        this.climbing.hang.z = l.hang.z;
-        this.climbing.head.x = l.head.x;
-        this.climbing.head.z = l.head.z;
-        this.climbing.foot.x = l.hang.x + ox;
-        this.climbing.foot.z = l.hang.z + oz;
+        // on the rungs (moved with the portal in ride(), before his step)
         if (p.y >= l.top - 1.05 && !this.headOnDeck(l) && !this.waitSaid) {
           this.waitSaid = true;
           this.say("The cabin is swung away. You hold on at the top of the ladder till the gallery comes round.");
         }
-        this.frame = null;
       }
       this.push = 0;
       return;

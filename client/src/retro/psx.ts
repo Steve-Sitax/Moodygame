@@ -765,7 +765,19 @@ function bakeOptions(v: unknown): unknown {
 }
 
 export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T {
-  const affine = opts.affine ?? 1.0;
+  // (Steve, 2026-10-11: no PS1 look: textures stay true on their faces, no affine warp; the option is kept for the bake)
+  const affine = 0;
+  // and smooth, sharp texture filtering, never the blocky nearest pixels up close
+  const smooth = (t: THREE.Texture | null | undefined) => {
+    if (!t || t.magFilter === THREE.LinearFilter) return;
+    t.magFilter = THREE.LinearFilter;
+    // (a texture without mipmaps keeps none: a mipmap filter on it would draw it black)
+    if (t.minFilter === THREE.NearestFilter || t.minFilter === THREE.NearestMipmapNearestFilter || t.minFilter === THREE.NearestMipmapLinearFilter) t.minFilter = t.generateMipmaps ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter;
+    t.anisotropy = Math.max(t.anisotropy, 8);
+    t.needsUpdate = true;
+  };
+  smooth((mat as unknown as { map?: THREE.Texture | null }).map);
+  smooth(opts.slabs?.map);
   mat.onBeforeCompile = (shader) => {
     shader.uniforms.uSnapRes = psxUniforms.uSnapRes;
     shader.uniforms.uTime = psxUniforms.uTime;

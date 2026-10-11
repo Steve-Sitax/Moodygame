@@ -3,6 +3,7 @@ import { MAX_LAMPS, psxUniforms } from "../retro/psx";
 import { fireViewHeight } from "./fire";
 import { lampFog, type LampFog } from "./lampFog";
 import { addSpill, removeSpill, type SpillSource } from "./spill";
+import { LAMP_LIGHT, type LampKind } from "./lampLight";
 
 // The gas lamps one by one (M6 town life): each lamp of the town has its own lit state, set
 // by the lamplighter's progress (game/lamplighter.ts, server town/lampround.ts). The six lamps of
@@ -23,6 +24,12 @@ import { addSpill, removeSpill, type SpillSource } from "./spill";
 // M7 fog lamps (2026-09-25): on a day of thick fog the lamplighters leave the lamps lit (lampround.ts
 // FogDay); by day such a lamp glows in the grey (FOG_DAY_GLOW) and lights the ground a little. Its
 // glass now fogs like the post (lampFog.ts): no dark box, no lit square hanging in the fog on its own.
+//
+// Every lamp kind (2026-10-11, world/lampLight.ts): a lamp registered here is a street lamp unless it says otherwise
+// (addDecor's `kind`): a park's or a quay step's post, a wall lantern. Its light, its pool on the street, its glow in
+// the fog and its halo are its kind's (strength, reach, halo size); the rules for lit and unlit are the same for all.
+// Glass shared by many lamps that follow the clock together (one material over a whole park) is tinted here too
+// (lampGlass), by the same rule as a lamp's own.
 
 export interface GasLamps {
   /**
@@ -30,7 +37,7 @@ export interface GasLamps {
    * wall, pass 2): a lamp that does not stand on the street, its glass's height and the ground's under it
    * (the walk on the wall; a lantern on a guard house or a gate: world/rampart.ts wallLamps).
    */
-  addDecor(i: number, obj: THREE.Object3D, x: number, z: number, at?: { glass: number; ground: number }): void;
+  addDecor(i: number, obj: THREE.Object3D, x: number, z: number, at?: { glass: number; ground: number; kind?: LampKind }): void;
   /** The lamplighter's word: this lamp burns (true) or not. */
   set(id: string, on: boolean): void;
   /** The eased level (0..1) of a quay lamp, "q<i>", for rijnkaai.ts's glass and halo. */
@@ -101,6 +108,17 @@ function flicker(t: number, seed: number): number {
   return v;
 }
 
+/** Glass shared by lamps that follow the clock together (lampGlass), tinted in createGasLamps' update. */
+const shared: Array<{ m: THREE.MeshBasicMaterial; reach: LampFog | null }> = [];
+
+/**
+ * Glass that many lamps share (one material for all a park's posts, the wall's lanterns): tinted with the clock as a
+ * lamp's own glass is (the air's colour unlit, the flame's lit). Any loader may call it, before or after the lamps.
+ */
+export function lampGlass(m: THREE.MeshBasicMaterial, reach?: LampFog): void {
+  if (!shared.some((s) => s.m === m)) shared.push({ m, reach: reach ?? null });
+}
+
 export function createGasLamps(
   scene: THREE.Scene,
   quay: Array<{ x: number; z: number }>,
@@ -131,22 +149,28 @@ export function createGasLamps(
     g: number;
     /** its light on the street past the point lights (world/spill.ts) */
     spill: SpillSource;
+    /** its kind's light (world/lampLight.ts): strength, reach */
+    power: number;
+    range: number;
   }
   /** The lamp's light on the street (world/spill.ts): a point light of the lamps' own power, decay and reach. */
-  const spillOf = (id: string, x: number, y: number, z: number, foot: number | null): SpillSource =>
-    addSpill({ kind: "lamp", label: `gas lamp ${id}`, x, y, z, power: POWER, decay: DECAY, range: RANGE, ground: foot ?? NaN, hw: 0.15, hh: 0.2 });
+  const spillOf = (id: string, x: number, y: number, z: number, foot: number | null, k: LampKind = "street"): SpillSource =>
+    addSpill({ kind: "lamp", label: `gas lamp ${id}`, x, y, z, power: LAMP_LIGHT[k].power, decay: DECAY, range: LAMP_LIGHT[k].range, ground: foot ?? NaN, hw: 0.15, hh: 0.2 });
   const all = new Map<string, L>();
   quay.forEach((q, i) =>
-    all.set(`q${i}`, { id: `q${i}`, x: q.x, z: q.z, gy: GLASS_Y, foot: null, want: 1, level: 1, set: false, glass: [], reach: [], slot: -1, seed: i * 1.37 + 0.5, flame: 0, b: 0, g: 0, spill: spillOf(`q${i}`, q.x, GLASS_Y, q.z, null) }),
+    all.set(`q${i}`, { id: `q${i}`, x: q.x, z: q.z, gy: GLASS_Y, foot: null, want: 1, level: 1, set: false, glass: [], reach: [], slot: -1, seed: i * 1.37 + 0.5, flame: 0, b: 0, g: 0, spill: spillOf(`q${i}`, q.x, GLASS_Y, q.z, null), power: POWER, range: RANGE }),
   );
 
   // the city lamps' halos: one Points object, a slot per lamp, the lit level as an attribute
-  const MAX = 160;
+  const MAX = 256;
   const pos = new Float32Array(MAX * 3).fill(0);
   const lit = new Float32Array(MAX).fill(0);
+  /** each halo's size across, metres: its kind's (world/lampLight.ts) */
+  const size = new Float32Array(MAX).fill(LAMP_LIGHT.street.halo);
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
   geo.setAttribute("aLit", new THREE.BufferAttribute(lit, 1));
+  geo.setAttribute("aSize", new THREE.BufferAttribute(size, 1));
   geo.setDrawRange(0, 0);
   const uniforms = { ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog), uMap: { value: haloTexture() }, uTime: psxUniforms.uTime, uViewH: { value: 270 } };
   const mat = new THREE.ShaderMaterial({
@@ -154,6 +178,7 @@ export function createGasLamps(
     vertexShader: /* glsl */ `
       uniform float uViewH;
       attribute float aLit;
+      attribute float aSize;
       varying float vLit;
       varying float vFogDepth;
       void main() {
@@ -164,8 +189,9 @@ export function createGasLamps(
         mv.xyz += normalize(-mv.xyz) * 0.45;
         vFogDepth = -mv.z;
         gl_Position = projectionMatrix * mv;
-        // a halo about 1.1 m across, in screen pixels (2026-09-30: was 1.8, Steve: "big orange glow circles")
-        gl_PointSize = aLit < 0.01 ? 0.0 : clamp(1.1 * projectionMatrix[1][1] * uViewH * 0.5 / max(-mv.z, 0.1), 1.0, 96.0);
+        // a halo aSize across (a street lamp's 1.1 m), in screen pixels (2026-09-30: was 1.8, Steve: "big orange glow
+        // circles"; 2026-10-11: each lamp kind its own, world/lampLight.ts)
+        gl_PointSize = aLit < 0.01 ? 0.0 : clamp(aSize * projectionMatrix[1][1] * uViewH * 0.5 / max(-mv.z, 0.1), 1.0, 96.0);
       }`,
     fragmentShader: /* glsl */ `
       uniform sampler2D uMap;
@@ -236,10 +262,14 @@ export function createGasLamps(
         const m = c as THREE.Mesh;
         if (m.isMesh && (m.material as THREE.Material).name === "glass") glass.push(m.material as THREE.MeshBasicMaterial);
       });
-      const slot = used < MAX ? used++ : -1;
+      const kind = at?.kind ?? "street";
+      const old0 = all.get(`d${i}`);
+      const slot = old0 && old0.slot >= 0 ? old0.slot : used < MAX ? used++ : -1;
       if (slot >= 0) {
         pos.set([x, at?.glass ?? GLASS_Y, z], slot * 3);
+        size[slot] = LAMP_LIGHT[kind].halo;
         geo.attributes.position.needsUpdate = true;
+        geo.attributes.aSize.needsUpdate = true;
         geo.setDrawRange(0, used);
       }
       // M7 fog lamps: the glass fogs like its post (a lit one shows a little further)
@@ -247,8 +277,9 @@ export function createGasLamps(
       const gy = at?.glass ?? GLASS_Y;
       const old = all.get(`d${i}`);
       if (old) removeSpill(old.spill);
-      all.set(`d${i}`, { id: `d${i}`, x, z, gy, foot: at?.ground ?? null, want: 1, level: 1, set: false, glass, reach, slot, seed: i * 2.31 + 7.1, flame: -1, b: 0, g: 0, spill: spillOf(`d${i}`, x, gy, z, at?.ground ?? null) });
+      all.set(`d${i}`, { id: `d${i}`, x, z, gy, foot: at?.ground ?? null, want: 1, level: 1, set: false, glass, reach, slot, seed: i * 2.31 + 7.1, flame: -1, b: 0, g: 0, spill: spillOf(`d${i}`, x, gy, z, at?.ground ?? null, kind), power: LAMP_LIGHT[kind].power, range: LAMP_LIGHT[kind].range });
     },
+
     set(id, on) {
       const l = all.get(id);
       if (!l) return;
@@ -284,6 +315,12 @@ export function createGasLamps(
         }
       }
       if (dirty) geo.attributes.aLit.needsUpdate = true;
+      // the shared glass: lit with the clock, as a lamp nobody has set
+      const vs = Math.max(0, Math.min(1, glow));
+      for (const s of shared) {
+        glassColor(s.m.color, fog, vs);
+        if (s.reach) s.reach.value = 1 + LIT_REACH * vs;
+      }
 
       // the lit lamps, nearest the eye first (a little behind still counts: it lights the ground ahead)
       if (camera) {
@@ -334,13 +371,15 @@ export function createGasLamps(
         }
         light.position.set(l.x, l.gy, l.z);
         light.updateMatrixWorld();
-        light.intensity = POWER * l.g * s.w;
+        light.distance = l.range;
+        light.intensity = l.power * l.g * s.w;
       });
       const uL = psxUniforms.uLamps.value;
       psxSlots.forEach((s, i) => {
         const l = s.lamp;
         if (!l || s.w <= 0) uL[i].set(0, -999, 0, 0);
-        else uL[i].set(l.x, l.gy, l.z, l.b * s.w);
+        // (its glow in the fog and on wet stone: as strong as its kind's flame against a street lamp's)
+        else uL[i].set(l.x, l.gy, l.z, l.b * s.w * Math.min(1, l.power / POWER));
       });
       // the slots past the gas lamps' (the lantern's): empty unless the lantern takes one after this
       for (let i = psxSlots.length; i < uL.length; i++) uL[i].set(0, -999, 0, 0);

@@ -53,6 +53,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import build_props as bp  # noqa: E402  (mesh helpers, painters, the prop materials)
 from build_props import Mesh, col, move, rot_z, speckle, vnoise  # noqa: E402
 from build_props import DARK, IRON, ROPE, SACK, WOOD  # noqa: E402
+import lantern_kit  # noqa: E402  (the town's lamps and lanterns, one design)
 from build_props import BARREL, GLASS, LEATHER  # noqa: E402
 
 ROOT = bp.ROOT
@@ -617,19 +618,17 @@ def iron_pot(m, R=0.12, H=0.13):
 
 
 def lantern(m):
-    """A hand lantern for sale: iron base, horn panes, a pyramid roof, a ring handle."""
-    m.box((0, 0, 0.0125), (0.13, 0.13, 0.025), IRON, skip=("-z",))
-    with m.at(move(0, 0, 0.025)):
-        abox(m, 0.105, 0.105, 0.17, "ice", shade=0.9)
-    z = 0.195
-    base = [(-0.07, -0.07, z), (0.07, -0.07, z), (0.07, 0.07, z), (-0.07, 0.07, z)]
-    m.poly(base, IRON, out=(0, 0, -1), shade=0.6)
-    for i in range(4):
-        a, b = base[i], base[(i + 1) % 4]
-        m.poly([a, b, (0, 0, z + 0.07)], IRON, out=((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, 0.3))
-    m.box((0, 0, z + 0.075), (0.03, 0.03, 0.04), IRON, skip=("-z",))
-    m.tube([(-0.04, 0, z + 0.09), (-0.03, 0, z + 0.14), (0.03, 0, z + 0.14), (0.04, 0, z + 0.09)], [0.006] * 4, 3, IRON,
-           side=(0, 1, 0))
+    """A hand lantern for sale: the town's hand lantern (2026-10-11, tools/blender/lantern_kit.py oil_lantern, as
+    props.glb lantern_hand), standing on its foot, its panes horn ("ice")."""
+    k = lantern_kit.Kit()
+    with k.at(lantern_kit.move(0, 0, 0.0945)):
+        lantern_kit.oil_lantern(k, 0.11, 0.14)
+    for pts, uvs, role, shade, smooth in k.faces:
+        vs = [m.vert(p) for p in pts]
+        if role == "glass":
+            m.face(vs, [cuv("ice", u, v) for u, v in uvs], GOODS, 0.9)
+        else:
+            m.face(vs, uvs, IRON, shade)
 
 
 def brush(m):

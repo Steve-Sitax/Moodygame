@@ -1,6 +1,6 @@
 // The browser's pictures from chosen views, to set beside Godot's (src/Dev/Snap.cs takes the same views):
 //
-//   node tools/godot/look-refs.mjs --root <checkout> --out <dir> --views "name:x,y,z,yaw,pitch,hour,weather[,storm];..." [--ports 8917,5317]
+//   node tools/godot/look-refs.mjs --root <checkout> --out <dir> --views "name:x,y,z,yaw,pitch,hour,weather[,storm];..." [--ports 8917,5317] [--before "<js>"]
 //
 // A view: the free camera at x, y, z, turned yaw and pitch (degrees; yaw 0 looks to -z, 180 to +z; pitch up), at the
 // hour and the weather given (storm: the great storm held at that level, 0..1). Writes <dir>/<name>_ref.png. It
@@ -99,6 +99,9 @@ try {
   started = true;
   await openGame();
   await ev(`(__scheldemist.free(true), 1)`);
+  // --before "<js>": test code run once before the views (e.g. open a bridge: __scheldemist.movers().bridges.request("canal_mouth", "look", true))
+  const before = opt("before", "");
+  if (before) log("before:", await ev(`Promise.resolve((async () => { ${before}; })()).then((r) => JSON.stringify(r ?? null))`).catch((e) => String(e)));
   // (the browser's points are capped by the graphics card: the largest point and the picture's height they are drawn into)
   log("points:", await ev(`(() => { const c = document.createElement("canvas").getContext("webgl2"); const r = __scheldemist.world?.renderer ?? null; return JSON.stringify({ pointRange: c ? Array.from(c.getParameter(c.ALIASED_POINT_SIZE_RANGE)) : null, canvas: [document.querySelector("canvas")?.width, document.querySelector("canvas")?.height] }); })()`).catch((e) => String(e)));
   let light = "";

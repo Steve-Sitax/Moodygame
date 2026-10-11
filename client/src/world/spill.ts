@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { MAX_SPILL, psxUniforms, spillGlsl } from "../retro/psx";
 import { createFarGlow } from "./farGlow";
+import { LAMP_LIGHT, type LampKind } from "./lampLight";
 
 // Light that spills out of lit openings and flames onto the street (Steve, 2026-09-26: "light from some windows
 // starts on the street only after the small sidewalk. It is very abrupt and not realistic"; "make it look better
@@ -679,6 +680,9 @@ export function createSpill(
       }
       const out: SpillSource[] = [];
       const fire = /fire/.test(mat.name);
+      // (2026-10-11) a lamp's or a lantern's glass says its kind (material userData.lamp): its light is that kind's,
+      // as every lamp of the town (world/lampLight.ts); other glows (lit rooms, forges, fires) keep their own
+      const lamp = mat.userData.lamp ? LAMP_LIGHT[mat.userData.lamp as LampKind] : null;
       for (const b of merged) {
         const size = b.getSize(new THREE.Vector3());
         if (size.x > 12 || size.z > 12) continue;
@@ -692,9 +696,10 @@ export function createSpill(
           z: c.z,
           hw: Math.max(size.x, size.z) / 2,
           hh: size.y / 2,
-          power: fire ? 4 : big ? 3.2 : 2.2,
-          range: fire ? 8 : big ? 8 : 7,
-          color: new THREE.Color(fire ? 0xff7a2c : 0xff9a44),
+          power: lamp ? lamp.power : fire ? 4 : big ? 3.2 : 2.2,
+          range: lamp ? lamp.range : fire ? 8 : big ? 8 : 7,
+          ...(lamp ? { decay: lamp.decay } : {}),
+          color: new THREE.Color(lamp ? lamp.color : fire ? 0xff7a2c : 0xff9a44),
         });
         const m = mat;
         s.glow = () => colorLevel(m);

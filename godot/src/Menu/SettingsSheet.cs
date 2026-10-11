@@ -22,7 +22,7 @@ public static class SettingsSheet
     // menu.ts TAB_KEYS: what "Reset this page" puts back
     private static readonly Dictionary<string, string[]> TabKeys = new()
     {
-        ["graphics"] = new[] { "preset", "height", "scale", "psxColour", "wobble", "fullscreen", "view", "rooms", "street", "reflections", "shadows", "lightBudget", "particles", "frameCap", "showFps" },
+        ["graphics"] = new[] { "preset", "height", "scale", "fullscreen", "view", "rooms", "street", "reflections", "shadows", "lightBudget", "particles", "frameCap", "showFps" },
         ["sound"] = new[] { "master", "music", "ambience", "voices", "effects" },
         ["controls"] = new[] { "sens", "invertY", "fov", "headBob" },
         ["game"] = new[] { "bubbles", "autosave", "miniMap", "language" },
@@ -237,10 +237,8 @@ public static class SettingsSheet
 
         body.AddChild(Row("Quality", SegOf("preset", new[] { ("low", "Low"), ("medium", "Medium"), ("high", "High"), ("custom", "Custom") }), "Low for an older or small computer; High is the game as made. A change below makes it Custom."));
         body.AddChild(Kit.Heading("Picture"));
-        body.AddChild(Row("Lines drawn", SelectNum("height", Prefs.Heights.Select(h => ((double)h.lines, h.label)).ToArray()), "720 lines by default; 270 lines is the old PS1 look. More lines cost more of the graphics card."));
+        body.AddChild(Row("Lines drawn", SelectNum("height", Prefs.Heights.Select(h => ((double)h.lines, h.label)).ToArray()), "Full window by default, the sharpest. Fewer lines are softer and lighter on the graphics card."));
         body.AddChild(Row("Render scale", Range("scale", 0.5, 1, 0.05, Pct), "Fewer pixels than the lines above: faster, coarser."));
-        body.AddChild(Row("PS1 colours", Toggle("psxColour"), "Few colours and a fine dither."));
-        body.AddChild(Row("PS1 wobble", Toggle("wobble"), "Corners jump to the pixel grid."));
         body.AddChild(Row("Full screen", Toggle("fullscreen"), "The game over the whole screen, without a window's frame. F11 does the same."));
         body.AddChild(Kit.Heading("The world"));
         body.AddChild(Row("View distance", Range("view", 0.6, 1.2, 0.05, Pct), "Where the fog closes in. Nearer: less to draw."));

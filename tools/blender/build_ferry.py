@@ -43,6 +43,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import build_boats as bb  # noqa: E402  (mesh helpers, hull loft, painters, the boat materials)
 import build_props as bp  # noqa: E402
+import lantern_kit  # noqa: E402  (the town's lamps and lanterns, one design)
 from build_props import col, move, rot_z, speckle  # noqa: E402
 
 V = bb.V
@@ -205,13 +206,9 @@ def paint_stage_deck(seed):
 
 
 def paint_lamp_glass(seed):
-    """Lamp glass by day: a sooty pane in its frame (the game lights it at night)."""
-    rng = np.random.default_rng(seed)
-    n = 32
-    img = np.ones((n, n, 3)) * col((0.28, 0.27, 0.22))
-    img[3:-3, 3:-3] = col((0.42, 0.4, 0.3))
-    img[20:, 3:-3] *= 0.6  # soot at the top
-    return speckle(img, rng, 0.05)
+    """Lamp glass by day: a sooty pane in its frame, the lamp's font and wick inside (lantern_kit.py paint_pane; the
+    game lights it at night)."""
+    return lantern_kit.paint_pane(128, base=(0.42, 0.4, 0.3), kind="oil", seed=seed, frame=0.28, flame=0.25)
 
 
 PAINT = {"fan": paint_fan, "ferry_band": paint_ferry_band, "float_slime": paint_float_slime, "notice": paint_notice,
@@ -314,28 +311,13 @@ def fender(m, top, length=0.55, r=0.12):
 
 
 def lantern(m, c, glass=None, h=0.42, w=0.26, roof=True):
-    """An oil lantern: an iron frame round four panes, a little roof and a ring on top. c = the middle of the glass."""
-    c = Vector(c)
+    """An oil lantern, the town's (2026-10-11, tools/blender/lantern_kit.py oil_lantern): a base pan, four panes in
+    corner posts with wire guards, a hood, a chimney and a bail ring. c = the middle of the glass."""
     g = IDX["lamp_glass"] if glass is None else glass
-    m.box(c - V(0, 0, h / 2 + 0.03), (w + 0.06, w + 0.06, 0.06), bb.IRON)
-    for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-        n = V(dx, dy, 0)
-        r = V(-dy, dx, 0)
-        p = c + n * (w / 2)
-        pts = [p - r * w / 2 - V(0, 0, h / 2), p + r * w / 2 - V(0, 0, h / 2), p + r * w / 2 + V(0, 0, h / 2),
-               p - r * w / 2 + V(0, 0, h / 2)]
-        m.poly(pts, g, out=n, uvs=[(0, 0), (1, 0), (1, 1), (0, 1)])
-    for sx in (1, -1):
-        for sy in (1, -1):
-            m.box(c + V(sx * w / 2, sy * w / 2, 0), (0.035, 0.035, h + 0.02), bb.IRON)
-    if roof:
-        top = c + V(0, 0, h / 2)
-        with m.at(move(*top)):
-            m.lathe([(w * 0.78, 0.0), (w * 0.78, 0.03), (0.05, 0.16), (0.04, 0.22)], 4, bb.IRON, rot=math.pi / 4,
-                    smooth=False, cap1=True)
-        with m.at(move(*(top + V(0, 0, 0.3)))):
-            pts = [V(0.06 * math.cos(2 * math.pi * i / 6), 0, 0.06 * math.sin(2 * math.pi * i / 6)) for i in range(6)]
-            m.tube(pts, [0.012] * 6, 3, bb.IRON, side=(0, 1, 0), closed_path=True, smooth=False)
+    k = lantern_kit.Kit()
+    with k.at(lantern_kit.move(*Vector(c))):
+        lantern_kit.oil_lantern(k, w, h, bail=roof)
+    bp.kit_faces(m, k.faces, {"iron": bb.IRON, "glass": g, "brass": bb.IRON})
 
 
 def bollard(m, c, r=0.16, h=0.5):

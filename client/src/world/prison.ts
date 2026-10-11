@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { psx } from "../retro/psx";
+import { lampGlass } from "./gaslamps";
 import { withPicture } from "./quayStone";
 import * as PP from "../../../shared/prisonPlan";
 
@@ -13,7 +14,7 @@ import * as PP from "../../../shared/prisonPlan";
 //
 // The brick and the bluestone take the town's own pictures (the old brick of the house walls, the bluestone
 // ashlar; assets/ATTRIBUTION.md), a repeat per 1.9 m and 3.2 m as the model's uv (build_prison.py TILE); the
-// painted textures in the glb show until they load. The lanterns' glass (pr_glow) is dull by day and lit from dusk.
+// painted textures in the glb show until they load. The lanterns' glass (pr_glow) is tinted as every lamp's (gaslamps.ts).
 
 const PICTURES: Record<string, string> = {
   pr_brick: "/textures/wall_brick.jpg",
@@ -85,6 +86,8 @@ export function loadPrison(scene: THREE.Scene): PrisonModel {
     let m: THREE.Material;
     if (src.name === "pr_glow") {
       glow = new THREE.MeshBasicMaterial({ map: map ?? null, color: 0x2a2620 });
+      glow.userData.lamp = "bracket"; // (its light: a wall lantern's, world/lampLight.ts through spill.ts's glow scan)
+      lampGlass(glow); // (its glass as every lamp's: the air's colour unlit, the flame's lit; world/gaslamps.ts)
       m = psx(glow, { affine: 0 });
     } else if (src.name === "pr_atlas") {
       // (the atlas: nearest, no warp: the bars stay straight)
@@ -142,17 +145,14 @@ export function loadPrison(scene: THREE.Scene): PrisonModel {
     })
     .catch((e) => console.warn("prison.glb did not load", e));
   const sph = new THREE.Sphere();
-  const lampOn = new THREE.Color(1.6, 1.2, 0.72);
-  const lampOff = new THREE.Color(0.2, 0.21, 0.2);
   return {
     group,
-    update(camera, far, lit) {
+    update(camera, far, _lit) {
       const cp = camera.position;
       for (const m of parts) {
         sph.copy(m.geometry.boundingSphere!).applyMatrix4(m.matrixWorld);
         m.visible = sph.center.distanceTo(cp) - sph.radius < far + 20;
       }
-      if (glow) glow.color.copy(lampOff).lerp(lampOn, THREE.MathUtils.clamp(lit, 0, 1));
     },
   };
 }

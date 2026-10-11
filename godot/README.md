@@ -51,7 +51,7 @@ against a fresh test server; it writes `deedstest.json` and close PNGs, then qui
 The menus' options: `--prefs <file>` (the settings kept somewhere else than the player's own folder; the keys go
 beside it), `--no-mainmenu` (no loading screen and no menus: the town at once, as before), `--menutest <dir>` (the
 menus' own test, below). A run with `--shots` or another part's `--...test` has no menus either, and keeps the
-picture as it was (720 lines, wobble on) whatever the player's settings say.
+picture at its default (the full window, 4x multisampling) whatever the player's settings say.
 
 ## Godot milestone checks (G8)
 
@@ -149,8 +149,10 @@ fallback cannot certify room floors, containment, seams, shader-only cutouts, or
   Not ported yet: the drops off every eave (only the broken gutters run), the horses' breath, the bats, the
   ships' riding lights (`alive_ship_lights`, `boat_lamps`: the movers part), the pumps' bilge water, the
   lightning and the flying debris.
-- **The screen** (`src/Main.cs`, `shaders/retro.gdshader`): the world is drawn at 720 lines into `Main.I.View`,
-  then full screen through the retro pass (grade, grain, dither).
+- **The screen** (`src/Main.cs`, `shaders/retro.gdshader`): the world is drawn into `Main.I.View` at the full window
+  (the Lines drawn setting can lower it) with 4x multisampling, then full screen through the screen pass (grade,
+  vignette, fine film grain). No PS1 look since 2026-10-11: no vertex wobble, no affine texture warp, smooth texture
+  filtering, full colour (docs/05-art-direction.md).
 - **What is solid** (`src/World/Solid.cs`): Jef walks on Godot's physics (Jolt) over the baked meshes themselves.
   Left out, as the browser leaves them out: hidden nodes, glows, decals, leaves, the water's sheets, litter, and the
   frozen copies of what moves (people, animals, boats, vehicles: their parts bring their own). A part that puts a

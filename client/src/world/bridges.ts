@@ -4,6 +4,7 @@ import type { Lock, LockRect } from "./lock";
 import type { Rect } from "./geom";
 import { Route, placeTrain, rng, type TrainPart } from "./route";
 import type { NetMover } from "../net/mp/world";
+import { rutsOnDecks, type RutDeck } from "./ruts";
 
 // The opening bridges over the Canal des Brasseurs and the Sint-Pietersvliet (1873): timber
 // lifting bridges with a balance on a gallows frame (the "hamei"). Their leaves rise in place,
@@ -177,6 +178,104 @@ const DEFS: Def[] = [
 ];
 
 const DRAW_MAX = 1.36; // a lifted leaf stands at 78 degrees
+
+/** bridges.glb: the top of the leaves' and the fixed decks' planks over the quay (tools/blender/build_bridges.py). */
+const DECK_TOP = 0.05;
+/** The fixed deck on the quay, in its model's frame: from x -2 to the hinge (draw_frame, deck_vm_w). */
+const FIXED_X0 = -2.0;
+/** The plank ramp from the quay up onto a fixed deck's outer end (Steve, 2026-10-11: "a bit of a ramp to the bridge"). */
+const RAMP = 0.45;
+
+/**
+ * The decks of the opening bridges that the carts cross, for the ruts (world/ruts.ts): each leaf and each fixed deck,
+ * in its model's frame, the planks' top just over the deck (so the ruts lie on it, and rise with a leaf).
+ */
+export function bridgeRutDecks(): RutDeck[] {
+  const out: RutDeck[] = [];
+  const y = DECK_TOP + 0.004;
+  for (const d of DEFS) {
+    if (d.kind !== "draw") continue;
+    for (const l of d.leaves) {
+      out.push({ key: `leaf:${l.hinge[0]}:${l.hinge[1]}`, hinge: l.hinge, yaw: l.yaw, x0: 0.06, x1: l.L, half: l.half, y });
+      out.push({ key: `frame:${l.hinge[0]}:${l.hinge[1]}`, hinge: l.hinge, yaw: l.yaw, x0: FIXED_X0 - RAMP, x1: 0, half: l.half, y, ramp: FIXED_X0 });
+    }
+    for (const [, x, z, yaw] of d.decks ?? []) out.push({ key: `deck:${x}:${z}`, hinge: [x, z], yaw, x0: FIXED_X0 - RAMP, x1: 0, half: d.leaves[0]?.half ?? 3.5, y, ramp: FIXED_X0 });
+  }
+  return out;
+}
+
+/**
+ * A plank ramp up to a fixed deck's outer end, in the deck's frame (x from FIXED_X0 - RAMP at the quay to FIXED_X0 at
+ * the deck's top), in the model's own atlas material: its faces take the atlas cell of the deck's top planks.
+ */
+function deckRamp(deck: THREE.Object3D, half: number): THREE.Mesh | null {
+  // the deck's planks: the highest upward face near the deck's outer end, in the model's frame
+  let src: THREE.Mesh | null = null;
+  let cell: [number, number] | null = null;
+  let colour: [number, number, number] | null = null;
+  deck.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(deck.matrixWorld).invert();
+  const v = new THREE.Vector3();
+  deck.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (cell || !m.isMesh) return;
+    const g = m.geometry;
+    const p = g.getAttribute("position");
+    const n = g.getAttribute("normal");
+    const c = g.getAttribute("cell");
+    if (!p || !n || !c) return;
+    const toDeck = new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld);
+    for (let i = 0; i < p.count; i++) {
+      if (n.getY(i) < 0.9) continue;
+      v.fromBufferAttribute(p, i).applyMatrix4(toDeck);
+      if (Math.abs(v.y - DECK_TOP) > 0.01 || v.x > FIXED_X0 + 0.6 || v.x < FIXED_X0 - 0.01) continue;
+      src = m;
+      cell = [c.getX(i), c.getY(i)];
+      const col = g.getAttribute("color");
+      if (col) colour = [col.getX(i), col.getY(i), col.getZ(i)];
+      return;
+    }
+  });
+  if (!src || !cell) return null;
+  const x0 = FIXED_X0 - RAMP;
+  const x1 = FIXED_X0;
+  const y0 = -0.01;
+  const y1 = DECK_TOP;
+  const pos: number[] = [];
+  const uv: number[] = [];
+  const quad = (a: number[], b: number[], c2: number[], d: number[]) => {
+    for (const q of [a, b, c2, a, c2, d]) {
+      pos.push(q[0], q[1], q[2]);
+      uv.push(q[0] / 1.6, q[2] / 1.6);
+    }
+  };
+  // the sloping top (its planks run across, as the deck's), and the two little side faces
+  quad([x0, y0, half], [x1, y1, half], [x1, y1, -half], [x0, y0, -half]);
+  quad([x0, y0, -half], [x1, y1, -half], [x1, y0, -half], [x0, y0, -half]);
+  quad([x0, y0, half], [x1, y0, half], [x1, y1, half], [x0, y0, half]);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+  const n = pos.length / 3;
+  g.setAttribute("cell", new THREE.Float32BufferAttribute(Array.from({ length: n * 2 }, (_, i) => cell![i % 2]), 2));
+  if (colour) g.setAttribute("color", new THREE.Float32BufferAttribute(Array.from({ length: n * 3 }, (_, i) => colour![i % 3]), 3));
+  g.computeVertexNormals();
+  const ramp = new THREE.Mesh(g, (src as THREE.Mesh).material);
+  ramp.name = "deck_ramp";
+  return ramp;
+}
+
+/** Hang a deck's ruts on it (world/ruts.ts cut them out of the street's), once they are laid. */
+function carryRuts(deck: THREE.Object3D, key: string): void {
+  rutsOnDecks.then(({ pieces, material }) => {
+    const g = pieces.get(key);
+    if (!g) return;
+    const m = new THREE.Mesh(g, material);
+    m.name = "ruts_on_deck";
+    m.renderOrder = 1;
+    deck.add(m);
+  });
+}
 const PIVOT: [number, number] = [-1.2, 5.9]; // balance pivot from the hinge (back, up)
 
 export interface DrawBridge {
@@ -216,6 +315,10 @@ export function createDrawBridge(
     fr.rotation.y = spec.yaw;
     parent.add(lf, bm, fr);
     parts.push({ spec, leaf: lf, beam: bm });
+    const ramp = deckRamp(fr, spec.half);
+    if (ramp) fr.add(ramp);
+    carryRuts(lf, `leaf:${hx}:${hz}`);
+    carryRuts(fr, `frame:${hx}:${hz}`);
     for (const side of [-1, 1]) {
       const [px, pz] = at(hx, hz, spec.yaw, PIVOT[0], side * (spec.half + 0.45));
       world?.addCollider({ minX: px - 0.25, maxX: px + 0.25, minZ: pz - 0.25, maxZ: pz + 0.25 });
@@ -227,6 +330,9 @@ export function createDrawBridge(
     d.position.set(x, 0, z);
     d.rotation.y = yaw;
     parent.add(d);
+    const ramp = deckRamp(d, leaves[0]?.half ?? 3.5);
+    if (ramp) d.add(ramp);
+    carryRuts(d, `deck:${x}:${z}`);
   }
   const pos = new THREE.BufferAttribute(new Float32Array(Math.max(1, parts.length) * 4 * 3), 3);
   const geo = new THREE.BufferGeometry();

@@ -278,6 +278,34 @@ function transom(g: CanvasRenderingContext2D, x: number, y: number): void {
   g.fillRect(x + C - 1, y, 1, C);
 }
 
+/**
+ * A lantern's pane (2026-10-11, the town's lanterns: tools/blender/lantern_kit.py paint_pane): sooty glass in its iron
+ * frame, the gas burner dark at its foot and the flat flame over it a little paler. By day the glass is lit as the
+ * front is; at night world/ambient.ts lays the lit pane over it.
+ */
+function lampPane(g: CanvasRenderingContext2D, x: number, y: number): void {
+  const grd = g.createLinearGradient(0, y, 0, y + C);
+  grd.addColorStop(0, "#2a2620");
+  grd.addColorStop(1, "#5a5040");
+  g.fillStyle = grd;
+  g.fillRect(x, y, C, C);
+  // the flame: a flat batwing over the burner, paler glass
+  g.fillStyle = "rgba(190,160,110,0.35)";
+  g.beginPath();
+  g.ellipse(x + C / 2, y + C - 26, 11, 8, 0, 0, Math.PI * 2);
+  g.fill();
+  // the burner: its pipe up from the foot and the tip
+  g.fillStyle = "#14120f";
+  g.fillRect(x + C / 2 - 2, y + C - 16, 4, 14);
+  g.fillRect(x + C / 2 - 5, y + C - 18, 10, 3);
+  // the frame
+  g.fillStyle = "#121110";
+  g.fillRect(x, y, C, 4);
+  g.fillRect(x, y + C - 4, C, 4);
+  g.fillRect(x, y, 4, C);
+  g.fillRect(x + C - 4, y, 4, C);
+}
+
 /** Round fanlight: a half disc (u across, v from the springing line up to the crown) of glass
  * with a sunburst of glazing bars round a small hub, in a painted frame. */
 function fanlight(g: CanvasRenderingContext2D, x: number, y: number): void {
@@ -517,6 +545,7 @@ export function facadeAtlas(): THREE.CanvasTexture {
   transom(g, ...at(4, 5));
   fanlight(g, ...at(5, 5));
   loadingDoor(g, ...at(6, 5), r);
+  lampPane(g, ...at(7, 5)); // (build_city.py LAMP_PANE)
   GATE_PAINT.forEach((p, i) => gateLeaves(g, ...at(4 + i, 6), p, r));
   // M7 quays pass 2: the sashes of the windows set in the walls, the shop windows, a dormer window,
   // the shutter leaves (build_city.py SASH, SHOPWIN, DORMWIN, SHUTTER); their own dice, so the walls' stay

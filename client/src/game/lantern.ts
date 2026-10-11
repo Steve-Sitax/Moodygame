@@ -1,11 +1,11 @@
 import { holdArm } from "../player/body"; // M7 character: the hand that holds the lantern
+import { LAMP_LIGHT, lanternPower } from "../world/lampLight";
+import { HAND_FOOT_Y, HAND_GLASS_Y, handLanternGlass, handLanternMeshes } from "./handLantern";
 import * as THREE from "three";
-import { psx, psxUniforms } from "../retro/psx";
+import { psxUniforms } from "../retro/psx";
 import type { FirstPerson } from "../player/firstPerson";
 import { addLantern, removeLantern, type LanternSource } from "../world/lanternLights";
-import { lampFog } from "../world/lampFog";
 import { pick, type Target } from "./facing";
-import { mergeParts } from "../world/staticMerge";
 
 // A lantern to carry (M3h). A tin hand lantern with horn panes and a tallow
 // candle: bought from a chandler, or taken from where people work (a dock gang's
@@ -19,14 +19,8 @@ import { mergeParts } from "../world/staticMerge";
 
 const WARM = 0xffb468;
 
-/** The lantern's parts, shared by the one in your hand and the ones standing about. */
-let parts: {
-  tin: THREE.Material;
-  horn: THREE.MeshBasicMaterial;
-  hornDark: THREE.MeshBasicMaterial;
-  halo: THREE.SpriteMaterial;
-  geo: { base: THREE.BufferGeometry; body: THREE.BufferGeometry; cap: THREE.BufferGeometry; vent: THREE.BufferGeometry; ring: THREE.BufferGeometry; bar: THREE.BufferGeometry };
-} | null = null;
+/** The lantern's materials, shared by the one in your hand and the ones standing about (its model: game/handLantern.ts). */
+let parts: { horn: THREE.MeshBasicMaterial; hornDark: THREE.MeshBasicMaterial; halo: THREE.SpriteMaterial } | null = null;
 
 function lanternParts() {
   if (parts) return parts;
@@ -42,43 +36,31 @@ function lanternParts() {
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   parts = {
-    tin: psx(new THREE.MeshLambertMaterial({ color: 0x3a3632 })),
-    horn: new THREE.MeshBasicMaterial({ color: 0xffc27a }),
-    hornDark: new THREE.MeshBasicMaterial({ color: 0x6a5a44 }),
+    // M7 fog lamps: the lit horn fogs with the lantern (a little further; world/lampFog.ts)
+    horn: handLanternGlass(0xffc27a, 1.2),
+    hornDark: handLanternGlass(0x6a5a44, 1.2),
     halo: new THREE.SpriteMaterial({ map: tex, color: WARM, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.5 }),
-    geo: {
-      base: new THREE.CylinderGeometry(0.068, 0.072, 0.03, 8).translate(0, 0.015, 0),
-      body: new THREE.CylinderGeometry(0.058, 0.062, 0.15, 8, 1, true).translate(0, 0.105, 0),
-      cap: new THREE.ConeGeometry(0.074, 0.07, 8).translate(0, 0.215, 0),
-      vent: new THREE.CylinderGeometry(0.018, 0.022, 0.04, 6).translate(0, 0.265, 0),
-      ring: new THREE.TorusGeometry(0.035, 0.005, 4, 10).translate(0, 0.32, 0),
-      bar: new THREE.BoxGeometry(0.008, 0.16, 0.008).translate(0, 0.105, 0),
-    },
   };
-  // M7 fog lamps: the lit horn fogs with the lantern (a little further; world/lampFog.ts)
-  lampFog(parts.horn, 1.2);
   return parts;
 }
 
-/** A tin lantern, origin at its foot. `glass` is the lit horn (its material is swapped day/night). */
+/**
+ * A hand lantern, origin at its foot: the town's (2026-10-11, game/handLantern.ts, one model for every hand). `glass`
+ * is the lit horn (its material is swapped day/night).
+ */
 export function makeLantern(): { group: THREE.Group; glass: THREE.Mesh; halo: THREE.Sprite } {
   const P = lanternParts();
   const group = new THREE.Group();
-  const glass = new THREE.Mesh(P.geo.body, P.horn);
-  group.add(new THREE.Mesh(P.geo.base, P.tin), glass, new THREE.Mesh(P.geo.cap, P.tin), new THREE.Mesh(P.geo.vent, P.tin), new THREE.Mesh(P.geo.ring, P.tin));
-  for (let i = 0; i < 4; i++) {
-    const bar = new THREE.Mesh(P.geo.bar, P.tin);
-    const a = (i / 4) * Math.PI * 2 + Math.PI / 8;
-    bar.position.set(Math.cos(a) * 0.062, 0, Math.sin(a) * 0.062);
-    group.add(bar);
-  }
-  // the tin (base, cap, vent, ring, bars) one mesh (world/staticMerge.ts)
-  mergeParts(group, (m) => m.material === P.tin);
+  const m = handLanternMeshes(P.horn);
+  // (the model's origin is the hand: lift it so its foot stands at ours)
+  m.iron.position.y = m.glass.position.y = -HAND_FOOT_Y;
+  group.add(m.iron, m.glass);
   const halo = new THREE.Sprite(P.halo);
-  halo.scale.set(0.42, 0.42, 1); // (2026-09-30: about the lantern's own size, not a big circle)
-  halo.position.y = 0.11;
+  const h = LAMP_LIGHT.hand.halo * 0.93;
+  halo.scale.set(h, h, 1); // (2026-09-30: about the lantern's own size, not a big circle)
+  halo.position.y = HAND_GLASS_Y - HAND_FOOT_Y;
   group.add(halo);
-  return { group, glass, halo };
+  return { group, glass: m.glass, halo };
 }
 
 interface Standing {
@@ -166,7 +148,7 @@ export class HandLantern {
       m.group.rotation.y = (l.x * 7.1 + l.z * 3.3) % Math.PI;
       m.group.scale.setScalar(1.15);
       this.scene.add(m.group);
-      const src = addLantern({ power: 0.9 });
+      const src = addLantern({ power: lanternPower("hand") }); // (a hand lantern set down: its light, world/lampLight.ts)
       src.pos.set(m.group.position.x, m.group.position.y + 0.11 * 1.15, m.group.position.z);
       src.ground = m.group.position.y - 0.001;
       this.standing.set(l.id, { id: l.id, group: m.group, glass: m.glass, halo: m.halo, x: l.x, z: l.z, src });

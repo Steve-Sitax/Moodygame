@@ -191,8 +191,63 @@ function smooth(pts: P[]): P[] {
   return p;
 }
 
-/** The ruts as one ribbon along the line, faded in and out at the ends. */
-function ribbon(line: P[], width: number, pos: number[], uv: number[], col: number[]): void {
+/**
+ * A deck that carries the ruts over a channel (Steve, 2026-10-11: the ruts "run in the air" when a bridge opens): a
+ * lifting leaf, or the fixed deck beside it, which stands 5 cm proud of the quay. In its own frame (the model's: origin
+ * at `hinge`, turned by `yaw` as world/bridges.ts places it): x0..x1 along, +-half across, the deck top at y. The ruts
+ * over it are cut out of the street's ribbon and laid on it (rutsOnDecks), so they rise with the leaf.
+ */
+export interface RutDeck {
+  key: string;
+  hinge: P;
+  yaw: number;
+  x0: number;
+  x1: number;
+  half: number;
+  y: number;
+  /** A ramp at the deck's outer end: from x0 (on the quay) up to `ramp` along x the ruts climb from the ground to y. */
+  ramp?: number;
+}
+
+/** The ruts on each deck (by RutDeck key), in the deck's own frame, and their material. */
+export interface RutPieces {
+  pieces: Map<string, THREE.BufferGeometry>;
+  material: THREE.Material;
+}
+let piecesReady: (p: RutPieces) => void = () => {};
+/** Resolves when buildRuts has laid the ruts: the bridges hang theirs on their leaves and decks (world/bridges.ts). */
+export const rutsOnDecks: Promise<RutPieces> = new Promise((r) => (piecesReady = r));
+
+/** The deck's own frame for a world point (world/bridges.ts `at` the other way round). */
+function deckLocal(d: RutDeck, x: number, z: number): P {
+  const dx = x - d.hinge[0];
+  const dz = z - d.hinge[1];
+  return [dx * Math.cos(d.yaw) - dz * Math.sin(d.yaw), dx * Math.sin(d.yaw) + dz * Math.cos(d.yaw)];
+}
+
+/** The line again in steps of at most `step` metres (so a cut at a deck's edge falls within a hand of it). */
+function resample(line: P[], step: number): P[] {
+  const out: P[] = [line[0]];
+  for (let i = 1; i < line.length; i++) {
+    const [ax, az] = line[i - 1];
+    const [bx, bz] = line[i];
+    const n = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / step));
+    for (let k = 1; k <= n; k++) out.push([ax + ((bx - ax) * k) / n, az + ((bz - az) * k) / n]);
+  }
+  return out;
+}
+
+interface Buf {
+  pos: number[];
+  uv: number[];
+  col: number[];
+}
+
+/**
+ * The ruts as one ribbon along the line, faded in and out at the ends. `pick` says where each step goes: -1 the street
+ * (world space, on the ground), else that deck (its own frame, on its top, clipped to its width).
+ */
+function ribbon(line: P[], width: number, street: Buf, decks: RutDeck[] = [], onDeck: Buf[] = [], pick: (x: number, z: number) => number = () => -1): void {
   const n = line.length;
   if (n < 2) return;
   let total = 0;
@@ -219,10 +274,17 @@ function ribbon(line: P[], width: number, pos: number[], uv: number[], col: numb
     const ub = along[i + 1] / 4;
     const fa = fade(along[i]);
     const fb = fade(along[i + 1]);
+    const k = pick((ax + bx) / 2, (az + bz) / 2);
+    const d = k >= 0 ? decks[k] : null;
+    const out = d ? onDeck[k] : street;
     const tri = (p: P, u: number, v: number, a: number) => {
-      pos.push(p[0], 0, p[1]);
-      uv.push(u, v);
-      col.push(1, 1, 1, a);
+      if (d) {
+        const [lx, lz] = deckLocal(d, p[0], p[1]);
+        const up = d.ramp !== undefined && lx < d.ramp ? Math.max(0, (lx - d.x0) / (d.ramp - d.x0)) : 1;
+        out.pos.push(lx, 0.004 + (d.y - 0.004) * up, Math.max(-d.half, Math.min(d.half, lz)));
+      } else out.pos.push(p[0], 0, p[1]);
+      out.uv.push(u, v);
+      out.col.push(1, 1, 1, a);
     };
     // wound to face up
     tri(A0, ua, 0, fa);
@@ -238,12 +300,20 @@ function ribbon(line: P[], width: number, pos: number[], uv: number[], col: numb
  * Find the cart roads on the walk map and paint the ruts. Runs a road at a time
  * between frames, so loading does not stall.
  */
-export function buildRuts(scene: THREE.Scene, flags: Flags): Promise<THREE.Mesh> {
+export function buildRuts(scene: THREE.Scene, flags: Flags, decks: RutDeck[] = []): Promise<THREE.Mesh> {
   return new Promise((resolve) => {
     const clear = clearance(flags);
-    const pos: number[] = [];
-    const uv: number[] = [];
-    const col: number[] = [];
+    const street: Buf = { pos: [], uv: [], col: [] };
+    const onDeck: Buf[] = decks.map(() => ({ pos: [], uv: [], col: [] }));
+    // which deck a point of the road lies on (-1: the street)
+    const pick = (x: number, z: number): number => {
+      for (let i = 0; i < decks.length; i++) {
+        const [lx, lz] = deckLocal(decks[i], x, z);
+        if (lx >= decks[i].x0 && lx <= decks[i].x1 && Math.abs(lz) <= decks[i].half) return i;
+      }
+      return -1;
+    };
+    const { pos, uv, col } = street;
     const legs: Array<[P, P]> = [];
     for (const road of ROADS) for (let i = 0; i < road.length - 1; i++) legs.push([road[i], road[i + 1]]);
     const lines: P[][] = [];
@@ -262,7 +332,8 @@ export function buildRuts(scene: THREE.Scene, flags: Flags): Promise<THREE.Mesh>
         return;
       }
       const smoothLines = lines.map(smooth);
-      for (const l of smoothLines) ribbon(l, 2.4, pos, uv, col);
+      // (in steps of a quarter metre where a deck is near, so the ruts part cleanly at its edges)
+      for (const l of smoothLines) ribbon(decks.length ? resample(l, 0.25) : l, 2.4, street, decks, onDeck, pick);
       // mud and dung along the same roads, in the paving itself
       dirtAlong(smoothLines);
       const g = new THREE.BufferGeometry();
@@ -286,6 +357,19 @@ export function buildRuts(scene: THREE.Scene, flags: Flags): Promise<THREE.Mesh>
       mesh.name = "ruts";
       mesh.renderOrder = 1;
       scene.add(mesh);
+      // the ruts on the bridges' decks, for the bridges to hang on their leaves and decks
+      const pieces = new Map<string, THREE.BufferGeometry>();
+      decks.forEach((d, i) => {
+        const b = onDeck[i];
+        if (!b.pos.length) return;
+        const dg = new THREE.BufferGeometry();
+        dg.setAttribute("position", new THREE.Float32BufferAttribute(b.pos, 3));
+        dg.setAttribute("uv", new THREE.Float32BufferAttribute(b.uv, 2));
+        dg.setAttribute("color", new THREE.Float32BufferAttribute(b.col, 4));
+        dg.computeVertexNormals();
+        pieces.set(d.key, dg);
+      });
+      piecesReady({ pieces, material: mat });
       resolve(mesh);
     };
     next();

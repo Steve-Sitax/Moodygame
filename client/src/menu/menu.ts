@@ -301,10 +301,8 @@ function tabGraphics(p: Prefs): string {
       <button class="btn small" data-act="bench">${benchmarkRunning() ? "Measuring..." : "Test this computer"}</button></div>
     ${row("Quality", presets, "Low for an older or small computer; High is the game as made. A change below makes it Custom.")}
     <h3>Picture</h3>
-    ${row("Lines drawn", select("height", HEIGHTS, p.height), "720 lines by default; 270 lines is the old PS1 look. More lines cost more of the graphics card.")}
+    ${row("Lines drawn", select("height", HEIGHTS, p.height), "720 lines by default; Full window is the sharpest. More lines cost more of the graphics card.")}
     ${row("Render scale", range("scale", 0.5, 1, 0.05, p.scale, pct), "Fewer pixels than the lines above: faster, coarser.")}
-    ${row("PS1 colours", toggle("psxColour", p.psxColour), "Few colours and a fine dither.")}
-    ${row("PS1 wobble", toggle("wobble", p.wobble), "Corners jump to the pixel grid.")}
     <h3>The world</h3>
     ${row("View distance", range("view", 0.6, 1.2, 0.05, p.view, pct), "Where the fog closes in. Nearer: less to draw.")}
     ${row("Rooms seen through windows", range("rooms", 0, 8, 1, p.rooms, SHOWS.rooms!), "Taverns, shops and homes drawn inside while you look in from the street.")}
@@ -376,7 +374,7 @@ function tabAccess(p: Prefs): string {
 }
 
 const TAB_KEYS: Record<Tab, Array<keyof Prefs>> = {
-  graphics: ["preset", "height", "scale", "psxColour", "wobble", "view", "rooms", "street", "reflections", "shadows", "lightBudget", "particles", "frameCap", "showFps"],
+  graphics: ["preset", "height", "scale", "view", "rooms", "street", "reflections", "shadows", "lightBudget", "particles", "frameCap", "showFps"],
   sound: ["master", "music", "ambience", "voices", "effects"],
   controls: ["sens", "invertY", "fov", "headBob"],
   game: ["bubbles", "autosave", "miniMap", "language"],

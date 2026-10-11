@@ -39,6 +39,9 @@ import bpy
 import numpy as np
 from mathutils import Matrix, Vector
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import lantern_kit  # noqa: E402  (the town's lamps and lanterns, one design)
+
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 OUT = os.path.join(ROOT, "client", "public", "models", "props.glb")
 SHOT = os.path.join(ROOT, "data", "shots", "props_preview.png")
@@ -606,6 +609,10 @@ def image(name, arr):
     return img
 
 
+# Is this props.glb's own build (its glass is the gas lamps')? main() says so.
+LAMP_PANES = [False]
+
+
 def make_materials():
     paint = {
         "wood": lambda: paint_planks(1, (0.43, 0.37, 0.29)),
@@ -616,7 +623,9 @@ def make_materials():
         "crate": lambda: paint_crate(6),
         "barrel": lambda: paint_staves(7),
         "stone": lambda: paint_stone(8),
-        "glass": lambda: paint_glass(9),
+        # (2026-10-11) the gas lamp's panes: the burner and its flame painted on them (lantern_kit.py paint_pane); the
+        # scripts that borrow this table (build_stalls.py: its bottles and jars) keep the plain glass
+        "glass": lambda: lantern_kit.paint_pane(128, kind="gas", seed=9) if LAMP_PANES[0] else paint_glass(9),
         "horse": lambda: paint_hide(10, (0.36, 0.21, 0.12), specks=0.0),
         "horsehair": lambda: paint_hide(11, (0.09, 0.07, 0.055), stretch=True),
         "leather": lambda: paint_hide(12, (0.21, 0.13, 0.08)),
@@ -2143,34 +2152,58 @@ def bollard():
     return m
 
 
+def kit_faces(m, faces, mats):
+    """Copy a lantern_kit model into a Mesh: its roles to our materials (iron, glass, brass)."""
+    shared = {}  # the smooth faces of one band (the kit numbers them) share their corners, so their normals are smoothed
+
+    def vert(p, smooth):
+        if not smooth:
+            return m.vert(p)
+        key = (smooth, round(p[0], 5), round(p[1], 5), round(p[2], 5))
+        if key not in shared:
+            shared[key] = m.vert(p)
+        return shared[key]
+
+    for pts, uvs, role, shade, smooth in faces:
+        m.face([vert(p, smooth) for p in pts], uvs, mats[role], shade, bool(smooth), local=pts)
+
+
 def gas_lamp():
-    """Cast-iron street lamp: fluted base, column, ladder bar, a four-sided lantern. Glass centre at 3.65 m."""
+    """The town's cast-iron gas lamp post, Antwerp in the 1870s (2026-10-11, Steve: "a nicer and higher detail model"):
+    tools/blender/lantern_kit.py post(), the one design every lamp and lantern of the town is built from. From the
+    ground up: a stepped eight-sided foot, a moulded pedestal, a fluted column between two rings, a capital, the ladder
+    bar with ball ends on two small braces (the lamplighter leans his ladder on it), a neck and a square cup with four
+    scroll brackets under the lantern, the lantern itself (four tapered panes in an iron frame), a frieze band, an
+    overhanging pyramid roof with knobs at its corners, a vented crown and a finial. The burner and its flame are
+    painted on the panes (lantern_kit.paint_pane): the glass is drawn solid. Iron and glass only: the game finds a
+    lamp's glass by its material (world/gaslamps.ts, Godot Lights.cs). The glass's centre stays at 3.65 m, where the
+    lamp's light sits (world/gaslamps.ts GLASS_Y)."""
     m = Mesh(ao=0.5)
-    m.lathe([(0.21, 0.0), (0.21, 0.08), (0.17, 0.12), (0.15, 0.38), (0.11, 0.46), (0.078, 0.55)], 8, IRON, smooth=False, urep=2)
-    m.lathe([(0.078, 0.55), (0.07, 1.0), (0.088, 1.04), (0.07, 1.08), (0.058, 2.95), (0.08, 3.0), (0.08, 3.05), (0.05, 3.12)], 8, IRON,
-            urep=2, vscale=0.5)
-    m.beam((-0.33, 0, 3.12), (0.33, 0, 3.12), 0.035, 0.035, IRON, side=(0, 0, 1))
-    for sx in (-1, 1):
-        m.box((sx * 0.34, 0, 3.12), (0.055, 0.055, 0.055), IRON)
-    m.lathe([(0.05, 3.12), (0.09, 3.28), (0.13, 3.34), (0.13, 3.36)], 8, IRON, rot=math.pi / 8, smooth=False, cap1=True)
-    z0, z1, b0, b1 = 3.36, 3.94, 0.12, 0.2
-    lo = [(-b0, -b0), (b0, -b0), (b0, b0), (-b0, b0)]
-    hi = [(-b1, -b1), (b1, -b1), (b1, b1), (-b1, b1)]
-    for i in range(4):
-        a, b = lo[i], lo[(i + 1) % 4]
-        c, d = hi[(i + 1) % 4], hi[i]
-        mid = ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, 0)
-        m.poly([(a[0], a[1], z0), (b[0], b[1], z0), (c[0], c[1], z1), (d[0], d[1], z1)], GLASS, out=mid, mode="fit", shade=1.0)
-        m.beam((a[0], a[1], z0), (d[0], d[1], z1), 0.022, 0.022, IRON)
-        m.beam((d[0], d[1], z1), (c[0], c[1], z1), 0.03, 0.03, IRON)
-    m.poly([(x, y, z0) for x, y in lo], IRON, out=(0, 0, -1))
-    rb = 0.26
-    roof = [(-rb, -rb), (rb, -rb), (rb, rb), (-rb, rb)]
-    m.poly([(x, y, z1 + 0.02) for x, y in roof], IRON, out=(0, 0, -1))
-    for i in range(4):
-        a, b = roof[i], roof[(i + 1) % 4]
-        m.poly([(a[0], a[1], z1 + 0.02), (b[0], b[1], z1 + 0.02), (0, 0, z1 + 0.24)], IRON, out=((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, 0.3))
-    m.lathe([(0.035, z1 + 0.18), (0.035, z1 + 0.3), (0.065, z1 + 0.32), (0.045, z1 + 0.37), (0.012, z1 + 0.4)], 6, IRON, smooth=False, cap1=True)
+    faces, _ = lantern_kit.build(lantern_kit.post)
+    kit_faces(m, faces, {"iron": IRON, "glass": GLASS, "brass": IRON})
+    return m
+
+
+def lantern_bracket():
+    """The town's wall lantern (2026-10-11, tools/blender/lantern_kit.py bracket): a gas lantern hanging from a scrolled
+    iron arm, for a lantern the game places itself (the doss house's door). Its origin is the wall point at the arm's
+    height, the arm out along -Y (the game's +z, a prop's front), iron and glass only."""
+    m = Mesh(ao=0.0)
+    k = lantern_kit.Kit()
+    with k.at(lantern_kit.rot_z(math.pi)):
+        lantern_kit.bracket(k, 0.5)
+    kit_faces(m, k.faces, {"iron": IRON, "glass": GLASS, "brass": IRON})
+    return m
+
+
+def lantern_hand():
+    """The lantern people carry (2026-10-11): the town's oil lantern (tools/blender/lantern_kit.py oil_lantern) at a hand's
+    size, its glass's middle 8 cm under the origin, which the hand holds near the bail (game/handLantern.ts)."""
+    m = Mesh(ao=0.0)
+    k = lantern_kit.Kit()
+    with k.at(lantern_kit.move(0, 0, -0.08)):
+        lantern_kit.oil_lantern(k, 0.11, 0.14)
+    kit_faces(m, k.faces, {"iron": IRON, "glass": GLASS, "brass": IRON})
     return m
 
 
@@ -2694,6 +2727,8 @@ BUILDERS = [
     ("rope_coil", rope_coil),
     ("bollard", bollard),
     ("gas_lamp", gas_lamp),
+    ("lantern_bracket", lantern_bracket),
+    ("lantern_hand", lantern_hand),
     ("crane", crane),
     # port goods (one atlas material)
     ("casks_row", lambda: casks_row(A_CASK, 6, 1)),
@@ -3154,6 +3189,7 @@ def closeup(objs, names, path, az=-35.0):
 def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     bpy.ops.wm.read_factory_settings(use_empty=True)
+    LAMP_PANES[0] = True
     make_materials()
     objs = {}
     for name, fn in BUILDERS:

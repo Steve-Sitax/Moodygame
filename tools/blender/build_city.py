@@ -47,6 +47,9 @@ import bmesh
 import bpy
 from mathutils import Vector
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import lantern_kit  # noqa: E402  (the town's lamps and lanterns, one design)
+
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 SRC = os.path.join(ROOT, "shared", "city_build.json")
 OUT = os.path.join(ROOT, "client", "public", "models", "city.glb")
@@ -60,6 +63,7 @@ STYLE_ROW = {"brick": 0, "plaster": 1, "plaster_grey": 2, "brick_dark": 3, "publ
 PART_COL = {"ground": 0, "upper": 1, "blind": 2, "door": 3}
 DOOR_LEAF = [(4, 4), (5, 4), (6, 4), (7, 4)]  # panelled front door: dark green, oxblood, brown, deep blue
 TRANSOM, FANLIGHT, LOADING = (4, 5), (5, 5), (6, 5)  # glazed transom, round fanlight, planked loading door
+LAMP_PANE = (7, 5)  # a lantern's pane: its burner and flame (cityTextures.ts lampPane, 2026-10-11)
 GATE_LEAF = [(4, 6), (5, 6), (6, 6)]  # carriage gate with wicket and strap hinges: brown, green, grey-blue
 REVEAL = 0.2  # a door sits this far back in the wall
 # M7 quays pass 2 (Builder.upper_front, shop_run): the windows cut into the fronts. Where the facade atlas
@@ -748,26 +752,31 @@ class Builder:
             k += 1.2
 
     def poort_lantern(self, W, sc, y, ux, uz, f):
-        """An iron arm over the street end of a passage with a lantern hanging from it."""
-        fx, fz = f[0], f[2]
-        iron = 0.2
-        self.slab(W, ux, uz, f, sc - 0.07, sc + 0.07, y, y + 0.36, 0, 0.07, iron)  # (7 cm: a thinner plate fights the wall)
-        ay = y + 0.24
-        cx, cy, cz = W(sc, ay, 0.07 + 0.3)
-        self.box(cx, cy, cz, 0.04, 0.04, 0.6, ux, uz, MAT_STONE, (0, 0), iron, skip=(-fx, 0, -fz), bottom=True)
-        # (the stay's two sides stand 2.4 cm apart, the arm is 4 cm wide: no face of one in the other's plane)
-        # a stay from the plate's foot up to the arm
-        for dsg in (-1, 1):
-            q = [W(sc + dsg * 0.012, y + 0.02, 0.07), W(sc + dsg * 0.012, ay - 0.02, 0.42), W(sc + dsg * 0.012, ay - 0.05, 0.42), W(sc + dsg * 0.012, y - 0.01, 0.07)]
-            self.face(q, MAT_STONE, [(0, 0), (0.1, 0), (0.1, 0.02), (0, 0.02)], (0, 0), (ux * dsg, 0, uz * dsg), iron)
-        lx, lz = W(sc, 0, 0.56)[0], W(sc, 0, 0.56)[2]
-        self.box(lx, ay - 0.06, lz, 0.02, 0.1, 0.02, ux, uz, MAT_STONE, (0, 0), iron)  # the hook
-        self.box(lx, ay - 0.14, lz, 0.28, 0.07, 0.28, ux, uz, MAT_STONE, (0, 0), iron, bottom=True)  # the cap
-        keep = self.tint
-        self.tint = (1.0, 0.86, 0.6)
-        self.box(lx, ay - 0.34, lz, 0.2, 0.33, 0.2, ux, uz, MAT_FACADE, TRANSOM, 0.95, uv01=True, skip=(0, 1, 0))  # the glass (its top is the cap's)
-        self.tint = keep
-        self.box(lx, ay - 0.535, lz, 0.16, 0.06, 0.16, ux, uz, MAT_STONE, (0, 0), iron, bottom=True)  # the foot
+        """An iron arm over the street end of a passage with a lantern hanging from it: the town's bracket lantern
+        (2026-10-11, tools/blender/lantern_kit.py bracket), lit with the door lanterns (LAMPS, ambient.ts)."""
+        self.kit_bracket(W(sc, y + 0.24, 0.0), (f[0], f[2]), 0.56, 0.57)
+
+    def kit_bracket(self, o, out, arm, s):
+        """A lantern_kit bracket lantern from the wall point o (game frame), out along `out` (x, z); its glass in LAMPS
+        with the size of its front pane (for ambient.ts's lit pane: its width, height and how far it stands out)."""
+        faces, c = lantern_kit.build(lantern_kit.bracket, arm, s)
+        # (in the near-only detail mesh, city.ts: a lantern is a small thing to draw from far)
+        was = self.bm is self.dbm
+        self.detail(True)
+        for pts, uvs, role, shade, smooth in lantern_kit.placed(faces, o, out):
+            n = lantern_kit._newell(pts)
+            if role == "glass":
+                keep = self.tint
+                self.tint = (1.0, 0.86, 0.6)
+                self.face(pts, MAT_FACADE, uvs, LAMP_PANE, n, 0.95)
+                self.tint = keep
+            else:
+                self.face(pts, MAT_STONE, [(u * 0.05, v * 0.05) for u, v in uvs], (0, 0), n, 0.18 * (0.75 + 0.25 * shade))
+        self.detail(was)
+        g = lantern_kit.place_point(c, o, out)
+        b = 0.16 * s
+        LAMPS.append([round(g[0], 2), round(g[1], 2), round(g[2], 2), round(out[0], 3), round(out[1], 3), round(2 * b * 0.84, 3),
+                      round(0.58 * s * 0.92, 3), round(b + 0.012, 3)])
 
     def blind_way(self, a, b, H, style, f, op):
         """A blind back wall with a passage mouth in it."""
@@ -1073,21 +1082,10 @@ class Builder:
         self.tint = keep
 
     def lantern(self, W, ux, uz, f, s, dy=0.0):
-        """An iron lantern on an arm by a door: a wall plate, the arm, the lamp with its glass; (x, y, z) of
-        its glass for ambient.ts, which lights it at night. dy: that much higher (a church door)."""
-        iron = 0.18
-        self.slab(W, ux, uz, f, s - 0.06, s + 0.06, 2.55 + dy, 2.95 + dy, 0, 0.07, iron)
-        fx, fz = f[0], f[2]
-        self.rod(W(s, 2.85 + dy, 0.07), W(s, 2.85 + dy, 0.42), 0.035, iron)
-        self.rod(W(s, 2.6 + dy, 0.07), W(s, 2.83 + dy, 0.4), 0.025, iron)
-        cx, cy, cz = W(s, 2.66 + dy, 0.42)
-        self.box(cx, cy + 0.13, cz, 0.24, 0.06, 0.24, ux, uz, MAT_STONE, (0, 0), iron, bottom=True)  # the cap
-        keep = self.tint
-        self.tint = (1.0, 0.86, 0.6)
-        self.box(cx, cy - 0.04, cz, 0.17, 0.28, 0.17, ux, uz, MAT_FACADE, TRANSOM, 0.95, uv01=True, skip=(0, 1, 0))  # the glass
-        self.tint = keep
-        self.box(cx, cy - 0.2, cz, 0.13, 0.05, 0.13, ux, uz, MAT_STONE, (0, 0), iron, bottom=True)  # the foot
-        LAMPS.append([round(cx, 2), round(cy - 0.04, 2), round(cz, 2), round(fx, 3), round(fz, 3)])
+        """An iron lantern on an arm by a door: the town's bracket lantern (2026-10-11, tools/blender/lantern_kit.py
+        bracket, half its size), its arm 3 m up; (x, y, z) of its glass for ambient.ts, which lights it at night.
+        dy: that much higher (a church door)."""
+        self.kit_bracket(W(s, 3.0 + dy, 0.0), (f[0], f[2]), 0.5, 0.5)
 
     def shopfront(self, W, ux, uz, f, s0, s1, y0, y1, bw):
         """M7 quays pass 2 (second pass): a painted timber shopfront round a shop window: pilasters either side,
@@ -3077,7 +3075,7 @@ def prime_front(a, b, f):
 # grime pass 2: where soot goes up the fronts: the bakers, the smiths' and wheelwright's forges (server/src/town/places.ts),
 # the taverns in the world (inworld_build.json, their doors)
 SOOTY = [(10, 72), (-200, 40), (-160.8, 98.7), (-27.7, 66.1)]
-LAMPS = []  # the lanterns by the doors: [x, y, z of the glass, outward x, z], for ambient.ts
+LAMPS = []  # the lanterns by the doors and passages: [x, y, z of the glass, outward x, z, pane width, height, out], for ambient.ts
 GABLE_WINDOWS = {}  # M7 quays pass 2: by house index, the windows cut into its front gable (shared/city_gable_windows.json)
 ID_ALLEY = {}  # id(house) -> a cottage of the back alleys
 # M7 back alleys: where this builder put openings the plan does not say, for the game's lit windows and street
@@ -3516,7 +3514,7 @@ def main():
         with open(os.path.join(ROOT, "shared", "city_gable_windows.json"), "w", encoding="utf-8") as fh:
             json.dump({"about": "tools/blender/build_city.py gable_front: by house index, the windows cut into its front gable: "
                                 "[s_mid from the front's first corner, y0, y1, width, small]; lamps: the lanterns by the doors "
-                                "[x, y, z of the glass, outward x, z]", "houses": GABLE_WINDOWS, "lamps": LAMPS}, fh, separators=(",", ":"))
+                                "[x, y, z of the glass, outward x, z, front pane width, height, how far out]", "houses": GABLE_WINDOWS, "lamps": LAMPS}, fh, separators=(",", ":"))
         # (yard windows) the windows cut into the backs on the yards that can be lit (world/yardWindows.ts)
         with open(os.path.join(ROOT, "shared", "city_yard_windows.json"), "w", encoding="utf-8") as fh:
             json.dump({"about": "tools/blender/build_city.py yard_run: by house index, the glass of the windows cut into its back "

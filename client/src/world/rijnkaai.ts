@@ -17,14 +17,13 @@ import { frontFloor as carolusFloor, frontSolids as carolusSolids } from "../../
 import { loadWall, rampartHeightAt, rampartKeepOut, wallColliders, wallGuards, wallLamps } from "./rampart";
 import CITY_DATA from "../../../shared/city.json";
 import PARK_DATA from "../../public/models/park.json";
-import { addSpill } from "./spill";
-import { buildCity, doorSpot, edgeZ, WALL, WATER, OUTSIDE, type CityWorld } from "./city";
+import { buildCity, doorSpot, edgeZ, quayStoneMaterials, WALL, WATER, OUTSIDE, type CityWorld } from "./city";
 import { dressCity, loadProps } from "./props3d";
 import { loadWagons } from "./wagons3d";
 import { dockWaterStencil, loadBoats, waterStencil, type Boats } from "./boats";
 import { createAmbient, type Ambient } from "./ambient";
 import { createLock, type Lock } from "./lock";
-import { createBridges, type Bridges } from "./bridges";
+import { bridgeRutDecks, createBridges, type Bridges } from "./bridges";
 import { createRiver, type River } from "./river";
 import { buildTracks, trackKeepOut, type TrackData } from "./tracks";
 import { buildRuts } from "./ruts";
@@ -587,13 +586,13 @@ export function buildRijnkaai(): World {
   // the Stadspark planted: trees, shrubs, hedge, reeds, its own ground, ducks and swans (world/parkNature.ts)
   const parkNature = loadParkNature(scene);
   // (2026-09-30, Steve: "in park the lamps don't seem to give of the light as they should") the park's gas lanterns
-  // light the paths as the street's gas lamps do (world/spill.ts, a lamp each, lit with the street's lamps); their glass
-  // (park_lamp_glow) is then no weak glow of its own (spill.ts marks a glow by a lamp as its duplicate)
-  const parkLamps = ((PARK_DATA as unknown as { lanterns?: number[][][] }).lanterns ?? []).map((poly) => {
-    const x = poly.reduce((a, p) => a + p[0], 0) / poly.length;
-    const z = poly.reduce((a, p) => a + p[1], 0) / poly.length;
-    return addSpill({ kind: "lamp", x, y: 3.2, z, power: 20, ground: 0 });
-  });
+  // light the paths as the street's gas lamps do; their glass (park_lamp_glow) is then no weak glow of its own (spill.ts
+  // marks a glow by a lamp as its duplicate). 2026-10-11: they are the town's gas lamps, a post's light and halo
+  // (world/lampLight.ts), lit by the same rules (gasLamps.addDecor below)
+  const parkSpots = ((PARK_DATA as unknown as { lanterns?: number[][][] }).lanterns ?? []).map((poly) => ({
+    x: poly.reduce((a, p) => a + p[0], 0) / poly.length,
+    z: poly.reduce((a, p) => a + p[1], 0) / poly.length,
+  }));
   // M7 prison and squares: the prison of 1855 on the wall street (world/prison.ts, tools/blender/build_prison.py)
   const prison = loadPrison(scene);
   // M7 prison and squares: the Sint-Jansplein and the greens (world/townplaces.ts)
@@ -630,7 +629,7 @@ export function buildRijnkaai(): World {
   // the land beyond the town wall, seen from the walk (world/countryside.ts)
   buildCountryside(scene, WATER_Y);
   // wheel ruts down the cart roads (world/ruts.ts)
-  city.ready.then(() => buildRuts(scene, city.flags)).catch(() => {});
+  city.ready.then(() => buildRuts(scene, city.flags, bridgeRutDecks())).catch(() => {});
   // --- water: one sheet that goes where you go, under the land; it moves in
   // whole texture tiles (4 m), so the ripples stay put on the water
   const WATER_SIZE = 1200;
@@ -752,7 +751,8 @@ export function buildRijnkaai(): World {
   });
 
   // --- stone steps down to the water and iron ladders to climb out (world/quaysteps.ts)
-  const steps = quaySteps(WATER_Y, { stone: tex.quayWall, iron: tex.iron });
+  // (2026-10-11: the flights are built in the quay wall's own material: city.ts quayStoneMaterials)
+  const steps = quaySteps(WATER_Y, { ...quayStoneMaterials()!, iron: tex.iron });
   for (const [x, z, tx, tz] of FLIGHTS) {
     // the water side of the wall: the normal whose point a metre out lies in the river polygon
     const [nx, nz] = inWater(x - tz + tx * 2, z + tx + tz * 2) ? [-tz, tx] : [tz, -tx];
@@ -1074,14 +1074,32 @@ export function buildRijnkaai(): World {
   ];
   // lamps on the quay stand a step back from the edge
   const lamps: Lamp[] = lampSpots.map(([x, z, broken], i) => gasLamp(scene, m, colliders, glow, x, z < 6 ? Math.max(z, edgeZ(x) + 1.6) : z, i, broken));
-  const lantern = dossLantern(scene, m, glow);
-  // M7 lamps: the quay lamps' point lights go to the lit lamps nearest the eye, city lamps too (world/gaslamps.ts)
+  const lantern = dossLantern(scene);
+  // M7 lamps: the quay lamps' point lights go to the lit lamps nearest the eye, city lamps too (world/gaslamps.ts);
+  // the doss house lantern's own light joins them (2026-10-11: it is one of the town's lamps now)
   const gasLamps = createGasLamps(
     scene,
     lamps.map((l) => ({ x: l.pos.x, z: l.pos.z })),
-    lamps.map((l) => l.light),
+    [...lamps.map((l) => l.light), lantern],
     (x, z) => groundAt(x, z, 0, 0),
   );
+  // the park's posts (d2000..) and the doss house's lantern (d3000): the town's gas lamps of their kinds
+  parkSpots.forEach((p, i) => gasLamps.addDecor(2000 + i, new THREE.Object3D(), p.x, p.z, { glass: 3.17, ground: 0, kind: "post" }));
+  loadProps()
+    .then((p) => {
+      // (the door point lies a centimetre out of the wall: the backplate's back goes 3 mm into it; d.face looks into
+      // the house, the arm goes out the other way, along the model's +z, its front)
+      const d = doorSpot("doss", -0.008);
+      const obj = p.place("lantern_bracket", d.x, d.z, Math.atan2(-d.face[0], -d.face[1]), scene);
+      obj.position.y = 3.5;
+      obj.updateMatrixWorld(true);
+      const at = new THREE.Vector3();
+      obj.traverse((c) => {
+        if ((c as THREE.Mesh).isMesh && ((c as THREE.Mesh).material as THREE.Material).name === "glass") new THREE.Box3().setFromObject(c).getCenter(at);
+      });
+      gasLamps.addDecor(3000, obj, at.x, at.z, { glass: at.y, ground: groundAt(at.x, at.z, 0, 0), kind: "bracket" });
+    })
+    .catch((e) => console.warn("doss lantern did not load", e));
   // the town wall pass 2: gas lamps along the walk, the guard houses' and gates' lanterns lit as the town's lamps
   wall.dressing
     .then((d) => loadProps().then((p) => colliders.push(...wallLamps(scene, gasLamps, p, d))))
@@ -1983,7 +2001,6 @@ export function buildRijnkaai(): World {
     sunDay = Math.max(0, (skyBase - 0.55) / 1.55);
     dayFar = THREE.MathUtils.lerp(f0, f1, k);
     lampsLit = THREE.MathUtils.lerp(l0, l1, k);
-    for (const l of parkLamps) l.level = lampsLit;
   }
   applyDaylight(dayNow);
 
@@ -2129,7 +2146,6 @@ export function buildRijnkaai(): World {
     pt("world.quayKit", () => quayKit?.update(t, dt, lampsLit, camera ?? undefined));
     pt("world.litter", () => litter?.update(t, dt, camera ?? undefined));
     pt("world.fires", () => fires?.update(t));
-    lantern.intensity = 7 * (0.92 + Math.sin(t * 5.1) * 0.04 + Math.sin(t * 13.7) * 0.03);
     waterTex.offset.x = t * 0.004;
     waterTex.offset.y = t * 0.011;
 
@@ -2333,32 +2349,31 @@ function gasLamp(
   seed: number,
   broken: boolean,
 ): Lamp {
-  const g = new THREE.Group();
-  g.position.set(x, 0, z);
-  g.add(cyl(0.18, 0.22, 0.5, 6, m.iron, 0, 0.25, 0));
-  g.add(cyl(0.06, 0.09, 3.0, 6, m.iron, 0, 1.9, 0));
-  g.add(box(0.5, 0.05, 0.08, m.iron, 0, 3.2, 0, 1)); // ladder bar
-  const glassMat = m.lampGlass.clone();
-  const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.16, 0.5, 4), glassMat);
-  // M7 fog lamps: the glass fogs like the post (a lit one shows a little further; world/lampFog.ts)
-  glass.userData.fog = lampFog(glassMat, 1, 1 + LIT_REACH);
-  glass.position.set(0, 3.65, 0);
-  glass.rotation.y = Math.PI / 4;
-  g.add(glass);
-  const cap = new THREE.Mesh(new THREE.ConeGeometry(0.34, 0.32, 4), m.iron);
-  cap.position.set(0, 4.05, 0);
-  cap.rotation.y = Math.PI / 4;
-  g.add(cap);
-  // the iron (foot, post, bar, cap) one mesh: world/staticMerge.ts (the glass is lit on its own)
-  mergeParts(g);
-  scene.add(g);
+  // (2026-10-11, one model per thing) the post is the town's gas lamp (props.glb gas_lamp, tools/blender/build_props.py),
+  // as every city and wall lamp. Until props.glb is in, the glass is a stand-in nobody sees; then it is the model's own
+  // glass (a material for this lamp alone, props3d.ts place), tinted and fogged here each frame as before.
+  const standIn = new THREE.Mesh(undefined, m.lampGlass.clone());
+  standIn.userData.fog = { value: 1 } satisfies LampFog;
+  const lamp: Lamp = { pos: new THREE.Vector3(x, 3.65, z), light: null!, glass: standIn, halo: null!, seed: seed * 1.37 + 0.5, broken, level: 1 };
+  loadProps()
+    .then((p) => {
+      const post = p.place("gas_lamp", x, z, 0, scene);
+      post.traverse((c) => {
+        const mesh = c as THREE.Mesh;
+        if (!mesh.isMesh || (mesh.material as THREE.Material).name !== "glass") return;
+        // M7 fog lamps: the glass fogs like the post (a lit one shows a little further; world/lampFog.ts)
+        mesh.userData.fog = lampFog(mesh.material as THREE.Material, 1, 1 + LIT_REACH);
+        lamp.glass = mesh;
+      });
+    })
+    .catch((e) => console.warn("quay gas lamp did not load", e));
 
-  const pos = new THREE.Vector3(x, 3.65, z);
-  const light = new THREE.PointLight(0xffa048, 26, 18, 1.7);
+  const pos = lamp.pos;
+  const light = (lamp.light = new THREE.PointLight(0xffa048, 26, 18, 1.7));
   light.position.copy(pos);
   scene.add(light);
 
-  const halo = new THREE.Sprite(
+  const halo = (lamp.halo = new THREE.Sprite(
     new THREE.SpriteMaterial({
       map: glow,
       color: 0xffb060,
@@ -2368,31 +2383,24 @@ function gasLamp(
       opacity: 0.55,
       fog: false,
     }),
-  );
+  ));
   halo.position.copy(pos);
   halo.scale.set(1.1, 1.1, 1); // (2026-09-30: was 1.8)
   scene.add(halo);
 
   colliders.push(rectAround(x, z, 0.25, 0.25));
-  return { pos, light, glass, halo, seed: seed * 1.37 + 0.5, broken, level: 1 };
+  return lamp;
 }
 
-/** A lantern on a bracket over the doss house door (M5). Returns its light. */
-function dossLantern(scene: THREE.Scene, m: Mats, glow: THREE.Texture): THREE.PointLight {
-  const d = doorSpot("doss", 0.5);
-  const glassMat = m.lampGlass.clone();
-  lampFog(glassMat, 1.3); // always lit: it shows a little further than the front it hangs on
-  const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.09, 0.26, 4), glassMat);
-  glass.position.set(d.x, 3.1, d.z);
-  scene.add(glass);
-  const halo = new THREE.Sprite(
-    new THREE.SpriteMaterial({ map: glow, color: 0xffb060, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.5, fog: false }),
-  );
-  halo.position.copy(glass.position);
-  halo.scale.set(0.7, 0.7, 1); // (2026-09-30: was 1.1)
-  scene.add(halo);
+/**
+ * The doss house's door (M5): its board, and the light of its lantern. The lantern itself (2026-10-11) is the town's
+ * bracket lantern (props.glb lantern_bracket, tools/blender/lantern_kit.py), placed and lit as a gas lamp; its light
+ * is one of the gas lamps' pooled point lights (world/gaslamps.ts), so the scene keeps its light count.
+ */
+function dossLantern(scene: THREE.Scene): THREE.PointLight {
   doorSign(scene, "doss", "BEDS");
-  const light = new THREE.PointLight(0xffa048, 7, 10, 1.7);
+  const d = doorSpot("doss", 0.5);
+  const light = new THREE.PointLight(0xffa048, 0, 10, 1.7);
   light.position.set(d.x, 2.9, d.z);
   scene.add(light);
   return light;

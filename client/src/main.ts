@@ -20,7 +20,7 @@ import "./style.css";
 import "./menu/fonts";
 import { RetroPass } from "./retro/retroPass";
 import { psxBakeTextures, psxUniforms } from "./retro/psx";
-import { mountSettings, STREET_LEVELS, type GameSettings } from "./game/settings";
+import { mountSettings, STREET_LEVELS } from "./game/settings";
 import { wireSettings } from "./menu/apply"; // menus
 import { settings as prefs } from "./game/prefs";
 import { mountDevMenu } from "./game/devmenu";
@@ -614,10 +614,8 @@ function resize(): void {
   player.camera.aspect = aspect;
   player.camera.updateProjectionMatrix();
   retro.resize(aspect, h);
-  // vertex snap grid: half the render resolution, so things wobble visibly (off: a grid too fine to see)
-  // the wobble keeps its PS1 size at any render size (a 270-line grid)
-  if (settings.wobble) psxUniforms.uSnapRes.value.set(Math.round(270 * aspect) * 0.5, 270 * 0.5);
-  else psxUniforms.uSnapRes.value.set(1e5, 1e5);
+  // no vertex snap (Steve, 2026-10-11: no PS1 look): a grid too fine to see
+  psxUniforms.uSnapRes.value.set(1e5, 1e5);
   setAmbientViewHeight(retro.height);
   setFireViewHeight(retro.height);
   setAliveViewHeight(retro.height); // M7 alive (hook)
@@ -626,11 +624,8 @@ function resize(): void {
 }
 window.addEventListener("resize", resize);
 // the settings (Esc: the pause paper has a Settings button); applying them resizes
-let settings: GameSettings = { height: 720, psxColour: true, wobble: false, street: "normal" };
-settings = mountSettings(startEl.querySelector(".paper") as HTMLElement, (s) => {
-  settings = s;
+mountSettings(startEl.querySelector(".paper") as HTMLElement, (s) => {
   retro.renderHeight = s.height;
-  retro.setPsxColour(s.psxColour);
   town.maxPuppets = STREET_LEVELS[s.street].cap; // M6 population: people in the street
   crowd.setStressMultiplier(crowd.stress.multiplier, town.maxPuppets);
   resize();

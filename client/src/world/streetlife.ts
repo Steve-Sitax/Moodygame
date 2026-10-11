@@ -403,6 +403,7 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
   const puddleMat = new THREE.MeshBasicMaterial({ map: decalMap, color: 0x556068, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6 });
   mats[PUDDLE] = psx(puddleMat, { affine: 0, noSnap: true });
   const glowMat = new THREE.MeshBasicMaterial({ map: solidMap, color: 0xffc070 });
+  glowMat.userData.lamp = "oil"; // (the Madonnas' oil lanterns: an oil lantern's light, world/lampLight.ts, spill.ts)
   // M7 fog lamps: the lanterns fog with the fronts they hang on (a lit one a little further)
   const glowFog = lampFog(glowMat, 1, 1.3);
   mats[GLOW] = glowMat;

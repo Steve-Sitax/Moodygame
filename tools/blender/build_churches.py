@@ -63,6 +63,12 @@ import bpy
 import numpy as np
 from mathutils import Vector
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import lantern_kit  # noqa: E402  (the town's lamps and lanterns, one design)
+
+# the park's lamp post: the street lamp's, four fifths as big (its glass's centre 3.22 m over its foot, at -0.05 m)
+PARK_POST, PARK_GLASS = lantern_kit.build(lantern_kit.post, 0.8, 1.68)
+
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 CITY = os.path.join(ROOT, "shared", "city.json")
 WALK = os.path.join(ROOT, "client", "public", "city", "walk.png")
@@ -961,7 +967,7 @@ def make_materials():
         "park_water": lambda: paint_water(rng),
         "park_iron": lambda: paint_iron(rng),
         "park_wood": lambda: paint_wood(rng),
-        "park_lamp_glow": lambda: paint_glow(rng),
+        "park_lamp_glow": lambda: lantern_kit.paint_pane(128, kind="gas", seed=9),  # (the lamp glass, its burner and flame)
         "carolus_sand": lambda: paint_ashlar(rng, 128, C(0.74, 0.68, 0.55), C(0.60, 0.56, 0.48), 13, 22, 44),
         "carolus_blue": lambda: paint_ashlar(rng, 128, C(0.44, 0.47, 0.50), C(0.58, 0.58, 0.57), 16, 30, 60, streaks=0.1),
         "carolus_art": lambda: paint_art(rng),
@@ -1548,6 +1554,16 @@ def pyramid(g, base, apex, mat, **kw):
         tri = [base[i], base[(i + 1) % len(base)], apex]
         fc = sum(tri, Vector()) / 3
         g.face(tri, mat, out=fc - inner, **kw)
+
+
+def kit_faces(g, faces, mats, iron_shade=0.85):
+    """Copy a lantern_kit model (already placed in game coordinates) into a Geo: iron mapped as our iron, the glass with
+    its own uvs (the pane picture: its burner at the foot)."""
+    for pts, uvs, role, shade, smooth in faces:
+        if role == "glass":
+            g.face(pts, mats["glass"], uvs=uvs, shade=1.0)
+        else:
+            g.face(pts, mats[role], shade=iron_shade * shade)
 
 
 def cross(g, x, y, z, h=1.8, mat=ATLAS, cell="iron"):
@@ -4378,22 +4394,11 @@ def park(g, city):
         solids["benches"].append(orect((c + f * -0.05).to_tuple(), t, 1.0, 0.33))
 
     def lantern(c):
+        # (2026-10-11, Steve: "make sure other lamp designs are all up to snuff") the town's gas lamp post at a park's
+        # size (tools/blender/lantern_kit.py post: the street lamp's design, four fifths as big, the glass's centre at
+        # 3.17 m as before: client world/rijnkaai.ts lights it there as one of the town's gas lamps)
         x, z = c
-        lathe(g, (x, -0.05, z), [(0.19, 0.0), (0.19, 0.15), (0.14, 0.3), (0.12, 0.55), (0.075, 0.75), (0.06, 2.55), (0.09, 2.6), (0.09, 2.7),
-                                 (0.05, 2.75), (0.05, 2.95)], 8, IRON, shade=0.85, rot=math.pi / 8)
-        bar(g, (x - 0.32, 2.45, z), (x + 0.32, 2.45, z), 0.035, IRON, shade=0.85)
-        b0, b1, y0, y1 = 0.12, 0.2, 2.95, 3.4
-        bp = [(x - b0, y0, z - b0), (x + b0, y0, z - b0), (x + b0, y0, z + b0), (x - b0, y0, z + b0)]
-        tp = [(x - b1, y1, z - b1), (x + b1, y1, z - b1), (x + b1, y1, z + b1), (x - b1, y1, z + b1)]
-        for i in range(4):
-            j = (i + 1) % 4
-            g.face([bp[i], bp[j], tp[j], tp[i]], GLOW, uvs=[(0, 0), (1, 0), (1, 1), (0, 1)], shade=1.0,
-                   out=((bp[i][0] + bp[j][0]) / 2 - x, 0.2, (bp[i][2] + bp[j][2]) / 2 - z))
-        g.face(bp, IRON, out=(0, -1, 0), shade=0.8)
-        q = b1 + 0.05
-        pyramid(g, [(x - q, y1, z - q), (x + q, y1, z - q), (x + q, y1, z + q), (x - q, y1, z + q)], (x, y1 + 0.32, z), IRON, shade=0.85)
-        g.face([(x - q, y1, z - q), (x + q, y1, z - q), (x + q, y1, z + q), (x - q, y1, z + q)], IRON, out=(0, -1, 0), shade=0.7)
-        lathe(g, (x, y1 + 0.3, z), [(0.03, 0.0), (0.06, 0.06), (0.0, 0.16)], 6, IRON, shade=0.85)
+        kit_faces(g, lantern_kit.placed(PARK_POST, (x, -0.05, z)), {"iron": IRON, "glass": GLOW, "brass": IRON})
         solids["lanterns"].append(orect((x, z), (1, 0), 0.2, 0.2))
 
     # the wall's stairs down into the park (flight and landing, build_wall.py): park things keep clear of them

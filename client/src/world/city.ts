@@ -116,6 +116,15 @@ export function landmarkMaterials(): Readonly<Record<string, THREE.Material>> | 
   return landmarkMats;
 }
 
+/**
+ * The quay wall's stone and its coping (2026-10-11): the flights of steps down the walls (world/quaysteps.ts) are
+ * built of the same stone, in the same material, so they read as part of the wall. Null until the city is built.
+ */
+let quayMats: { wall: THREE.Material; coping: THREE.Material } | null = null;
+export function quayStoneMaterials(): { wall: THREE.Material; coping: THREE.Material } | null {
+  return quayMats;
+}
+
 export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; quayWall: THREE.Material; wallDecal: THREE.Material }, waterY: number): CityWorld {
   const group = new THREE.Group();
   group.name = "city";
@@ -384,6 +393,7 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
     copeMat.side = THREE.DoubleSide;
     mk(wall, wallUv, psx(wallMat, { noSnap: true, affine: 0 })).geometry.setAttribute("color", new THREE.Float32BufferAttribute(wallCol, 3));
     mk(cope, copeUv, psx(copeMat, { noSnap: true, affine: 0, wet: true }));
+    quayMats = { wall: wallMat, coping: copeMat };
     const faceMat = new THREE.MeshLambertMaterial({ map: copeMat.map, color: 0x9a968c, side: THREE.DoubleSide });
     mk(face, faceUv, psx(faceMat, { noSnap: true, affine: 0 })).name = "quay_coping_face";
   }

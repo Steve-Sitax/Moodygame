@@ -126,8 +126,10 @@ public partial class Lights : Node
             paneCount = BuildPanes(j.GetProperty("panes"));
         }
         else GD.Print("lights: no " + Paths.TownSide("_lights.json") + " beside the bake: no lamps or lit windows (node tools/godot/export-scene.mjs --ref-only --lights --hour 21)");
-        // the doss house lantern (rijnkaai.ts): a real light in the browser, always burning
-        sources.Add(new Src { Kind = "doss", Label = "doss house lantern", At = new Vector3(-180.96f, 2.9f, 39.5f), Half = new Vector2(0.1f, 0.1f), Color = V(Psx.Hex(0xffa048)), Power = 7, Range = 10, Decay = 1.7f, Level = 1 });
+        // the doss house lantern (rijnkaai.ts): a real light in the browser, always burning; from 2026-10-11 one of the
+        // town's gas lamps there ("gas lamp d3000" in a bake made since: then it comes with the others)
+        if (!sources.Any(s => s.Label == "gas lamp d3000"))
+            sources.Add(new Src { Kind = "doss", Label = "doss house lantern", At = new Vector3(-180.96f, 2.9f, 39.5f), Half = new Vector2(0.1f, 0.1f), Color = V(Psx.Hex(0xffa048)), Power = 7, Range = 10, Decay = 1.7f, Level = 1 });
         lamps.AddRange(sources.Where(s => s.Lamp));
         nearLamps.Capacity = lamps.Count;
         near.EnsureCapacity(lampSlots.Length);
@@ -342,6 +344,12 @@ void fragment() {
         haloMM.SetInstanceCustomData(lamps.Count + i, new Color(level, FixedHalos[i].size, 0, 0));
     }
 
+    /// <summary>
+    /// A gas lamp's halo across, metres: its kind's (the browser's world/lampLight.ts: a street lamp's 1.1 m, a post's
+    /// 0.9, a wall lantern's 0.7), told by its strength in the bake (26, 17, 9).
+    /// </summary>
+    private static float HaloOf(Src l) => 1.1f * MathF.Sqrt(Mathf.Clamp(l.Power / Power, 0.05f, 1));
+
     private void BuildHalos()
     {
         if (lamps.Count + FixedHalos.Count == 0) return;
@@ -351,7 +359,7 @@ void fragment() {
         for (int i = 0; i < lamps.Count; i++)
         {
             mm.SetInstanceTransform(i, new Transform3D(Basis.Identity, lamps[i].At));
-            mm.SetInstanceCustomData(i, new Color(1, 0, 0, 0));
+            mm.SetInstanceCustomData(i, new Color(1, HaloOf(lamps[i]), 0, 0));
         }
         for (int i = 0; i < FixedHalos.Count; i++)
         {
@@ -442,7 +450,7 @@ void fragment() {
             l.B = lv * Flicker(t, l.Seed);
             l.G = l.B * ground;
             if (MathF.Abs(was - l.Lit) > 0.0005f) moved = true;
-            if (haloMM != null && (moved || snap || MathF.Abs(v - glassV) > 0.002f)) haloMM.SetInstanceCustomData(i, new Color(lv, 0, 0, 0));
+            if (haloMM != null && (moved || snap || MathF.Abs(v - glassV) > 0.002f)) haloMM.SetInstanceCustomData(i, new Color(lv, HaloOf(l), 0, 0));
         }
         // unlit glass takes the colour of the air round it, a little darker, so it never shows as a black box
         if (moved || MathF.Abs(v - glassV) > 0.002f || !fog.IsEqualApprox(glassFog))
@@ -483,7 +491,8 @@ void fragment() {
             if (free >= 0) lampSlots[free] = (l, snap ? 1 : 0);
         }
         lampValues.Clear();
-        foreach (var (l, w) in lampSlots) lampValues.Add(l == null || w <= 0 ? new Vector4(0, -999, 0, 0) : new Vector4(l.At.X, l.At.Y, l.At.Z, l.B * w));
+        // (a smaller lamp's glow in the fog and on wet stone: as strong as its flame against a street lamp's, gaslamps.ts)
+        foreach (var (l, w) in lampSlots) lampValues.Add(l == null || w <= 0 ? new Vector4(0, -999, 0, 0) : new Vector4(l.At.X, l.At.Y, l.At.Z, l.B * w * Math.Min(1, l.Power / Power)));
         lampValues.Add(Lantern ?? new Vector4(0, -999, 0, 0));
         Psx.SetLamps(lampValues);
 

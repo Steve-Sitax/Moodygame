@@ -167,17 +167,13 @@ public partial class MenuTest : Node
         var sheet = Dialogs.Top!;
         Find<Select>(sheet, "height")!.Step(-1);
         await Wait(0.3);
-        Note("Lines drawn: one step down", new { height = Prefs.Num("height"), viewport = Main.I.View.Size.Y, preset = Prefs.Str("preset") }, Prefs.Num("height") == 540 && Main.I.View.Size.Y == 540 && Prefs.Str("preset") == "custom");
-        Find<Tick>(Dialogs.Top!, "wobble")!.Set(true);
-        Find<Tick>(Dialogs.Top!, "psxColour")!.Set(false);
-        await Wait(0.3);
+        Note("Lines drawn: one step down", new { height = Prefs.Num("height"), viewport = Main.I.View.Size.Y, preset = Prefs.Str("preset") }, Prefs.Num("height") == 1080 && Main.I.View.Size.Y == Math.Min(1080, (int)Main.I.GetViewport().GetVisibleRect().Size.Y) && Prefs.Str("preset") == "custom");
         var snap = Main.I.SnapGrid;
-        Note("PS1 wobble on, PS1 colours off", new { snap = $"{snap.X} x {snap.Y}", wobble = Prefs.Bool("wobble"), colour = Prefs.Bool("psxColour") }, snap.X < 1000 && Prefs.Bool("wobble") && !Prefs.Bool("psxColour"));
         await Shot("settings-graphics-changed");
         Find<InkButton>(Dialogs.Top!, "reset")!.EmitSignal(BaseButton.SignalName.Pressed);
         await Wait(0.3);
         snap = Main.I.SnapGrid;
-        Note("Reset this page", new { height = Prefs.Num("height"), viewport = Main.I.View.Size.Y, preset = Prefs.Str("preset"), snap = snap.X }, Prefs.Num("height") == 720 && Main.I.View.Size.Y == 720 && Prefs.Str("preset") == "high" && snap.X > 1000);
+        Note("Reset this page", new { height = Prefs.Num("height"), viewport = Main.I.View.Size.Y, preset = Prefs.Str("preset"), snap = snap.X }, Prefs.Num("height") == 0 && Main.I.View.Size.Y == (int)Main.I.GetViewport().GetVisibleRect().Size.Y && Prefs.Str("preset") == "high" && snap.X > 1000);
 
         Find<InkButton>(Dialogs.Top!, "tab_sound")!.EmitSignal(BaseButton.SignalName.Pressed);
         await Wait(0.2);

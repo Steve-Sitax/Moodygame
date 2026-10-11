@@ -14,7 +14,7 @@ namespace Scheldemist.Dev;
 [Tool]
 public partial class TownPreview : Node3D
 {
-    /// <summary>The bake to show; empty: res://baked/next/town.glb, else res://baked/town.glb.</summary>
+    /// <summary>The bake to show; empty: the user argument --town, else res://baked/next/town.glb, else res://baked/town.glb.</summary>
     [Export(PropertyHint.GlobalFile, "*.glb")]
     public string Town { get; set; } = "";
 
@@ -28,12 +28,49 @@ public partial class TownPreview : Node3D
 
     public override void _Ready()
     {
-        if (Engine.IsEditorHint()) Build();
+        if (!Engine.IsEditorHint()) return;
+        Build();
+        // pictures from inside the editor, to see this view as Steve sees it:
+        //   godot --editor --path godot res://editor/town_preview.tscn -- --preview-snap <dir> --views "name:x,y,z,yaw,pitch;..."
+        // (yaw 0 looks to -z, 180 to +z; pitch up, degrees: as Dev/Snap.cs). The editor closes when they are written.
+        var args = OS.GetCmdlineUserArgs();
+        int i = System.Array.IndexOf(args, "--preview-snap"), j = System.Array.IndexOf(args, "--views");
+        if (i >= 0 && i + 1 < args.Length && j >= 0 && j + 1 < args.Length) SnapViews(args[i + 1], args[j + 1]);
+    }
+
+    private async void SnapViews(string dir, string views)
+    {
+        Directory.CreateDirectory(dir);
+        // (the editor draws only when something changes: draw every frame while the pictures are taken)
+        OS.LowProcessorUsageMode = false;
+        var vp = new SubViewport { Size = new Vector2I(1600, 900), RenderTargetUpdateMode = SubViewport.UpdateMode.Always };
+        var cam = new Camera3D { Fov = 75, Near = 0.05f, Far = 3000, Current = true };
+        vp.AddChild(cam);
+        AddChild(vp);
+        foreach (var one in views.Split(';', System.StringSplitOptions.RemoveEmptyEntries))
+        {
+            int c = one.IndexOf(':');
+            if (c < 0) continue;
+            var v = one[(c + 1)..].Split(',');
+            float F(int k) => k < v.Length && float.TryParse(v[k], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var f) ? f : 0;
+            var basis = new Basis(Vector3.Up, Mathf.DegToRad(F(3))) * new Basis(Vector3.Right, Mathf.DegToRad(F(4)));
+            cam.Transform = new Transform3D(basis, new Vector3(F(0), F(1), F(2)));
+            for (int k = 0; k < 20; k++) await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+            string file = Path.Combine(dir, one[..c] + ".png");
+            vp.GetTexture().GetImage().SavePng(file);
+            GD.Print("TownPreview picture: " + file);
+        }
+        RemoveChild(vp);
+        vp.QueueFree();
+        GetTree().Quit();
     }
 
     private string Pick()
     {
         if (Town != "") return Town;
+        var args = OS.GetCmdlineUserArgs();
+        int t = System.Array.IndexOf(args, "--town");
+        if (t >= 0 && t + 1 < args.Length) return args[t + 1];
         foreach (var p in new[] { "res://baked/next/town.glb", "res://baked/town.glb" })
         {
             string file = ProjectSettings.GlobalizePath(p);
@@ -61,6 +98,17 @@ public partial class TownPreview : Node3D
             return;
         }
         AddChild(world);
+        // what the game's parts take care of: the bake's own player body (under its camera), and the train's wheels and
+        // chains while its wagons stand in the shed at zero size (the railway part places them all)
+        if (world.FindChild("Camera", true, false) is Node3D body) body.Visible = false;
+        bool parked = true;
+        foreach (var n in world.FindChildren("INST*_wagon*_mm", "MultiMeshInstance3D", true, false))
+            if (n is MultiMeshInstance3D w && !w.Name.ToString().Contains("wheels") && !w.Name.ToString().Contains("chains")
+                && w.Multimesh is { InstanceCount: > 0 } mmw && Mathf.Abs(mmw.GetInstanceTransform(0).Basis.Determinant()) > 1e-9f)
+                parked = false;
+        if (parked)
+            foreach (var n in world.FindChildren("INST*_wagon*_mm", "MultiMeshInstance3D", true, false))
+                if (n is MultiMeshInstance3D w) w.Visible = false;
         int meshes = 0, shown = 0;
         var box = new Aabb();
         foreach (var n in world.FindChildren("*", "GeometryInstance3D", true, false))

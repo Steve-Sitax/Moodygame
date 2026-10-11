@@ -4,6 +4,7 @@ import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { attachToMirror } from "./mirror";
 import CITY from "../../../shared/city.json";
 import { bumpFromMap, psx } from "../retro/psx";
+import { lampGlass } from "./gaslamps";
 import type { Rect } from "./geom";
 import { withPicture } from "./quayStone";
 import { shellMarkers } from "./realOpenings";
@@ -149,7 +150,13 @@ export function loadChurches(scene: THREE.Scene): ChurchesModel {
       mats.set(src.name, m);
       return m;
     }
-    if (src.name.endsWith("_glow")) m = psx(new THREE.MeshBasicMaterial({ map: map ?? null, color: map ? 0xffffff : 0xffd890 }), { affine: 0 });
+    if (src.name.endsWith("_glow")) {
+      const b = new THREE.MeshBasicMaterial({ map: map ?? null, color: map ? 0xffffff : 0xffd890 });
+      // the park's lamp glass: as every gas lamp's, the air's colour unlit and the flame's lit (2026-10-11; it glowed
+      // all day before)
+      if (src.name === "park_lamp_glow") lampGlass(b);
+      m = psx(b, { affine: 0 });
+    }
     // gilding (the Carolus's cross, pots, rays, pineapples): a little light of its own, so it reads as gold in the grey
     else if (src.name === "church_gilt")
       m = psx(new THREE.MeshLambertMaterial({ map: map ?? null, color: new THREE.Color(1.5, 1.45, 1.3), vertexColors: true, emissive: 0x2a1d08 }), {

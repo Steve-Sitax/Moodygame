@@ -382,6 +382,7 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
   mats[FLAT_DECAL] = psx(new THREE.MeshLambertMaterial({ ...decalOpts }), { affine: 0, noSnap: true });
   mats[SNAP_DECAL] = psx(new THREE.MeshLambertMaterial({ ...decalOpts, alphaTest: 0.3 }), { affine: 0 });
   const glowMat = new THREE.MeshBasicMaterial({ map: solidMap, color: 0xffc070 });
+  glowMat.userData.lamp = "post"; // (the steps' lamp posts: a post's light, world/lampLight.ts through spill.ts's glow scan)
   // M7 fog lamps: the lanterns and the tar fires fog with what they stand on (a flame a little further)
   const glowFog = lampFog(glowMat, 1, 1.3);
   mats[GLOW] = glowMat;

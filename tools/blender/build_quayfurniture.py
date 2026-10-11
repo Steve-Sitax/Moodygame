@@ -52,6 +52,9 @@ import bpy
 import numpy as np
 from mathutils import Matrix, Vector
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import lantern_kit  # noqa: E402  (the town's lamps and lanterns, one design)
+
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 OUT = os.path.join(ROOT, "client", "public", "models", "quayfurniture.glb")
 SRC = os.path.join(ROOT, "shared", "city_build.json")
@@ -636,7 +639,8 @@ def build_atlases():
     SOLID_ATLAS.add("door_green", peel(door_tex(231, 16, 32, (0.14, 0.22, 0.16)), 766))
     SOLID_ATLAS.add("door_brown", peel(door_tex(232, 32, 32, (0.28, 0.18, 0.10)), 767))
     SOLID_ATLAS.add("fish", fish_tex(240, 32, 32))
-    SOLID_ATLAS.add("glass", glass_tex(8, 16))
+    # (2026-10-11) the lanterns' panes: the burner and its flame painted on (lantern_kit.py paint_pane), 32 x 64 (the atlas counts rows from the top)
+    SOLID_ATLAS.add("glass", np.concatenate([lantern_kit.paint_pane(64, kind="gas", seed=9, w=32)[::-1], np.ones((64, 32, 1))], axis=2))
     SOLID_ATLAS.add("fire", fire_tex(8, 16))
     for i, (key, (lines, bg, fg)) in enumerate(SIGNS.items()):
         SOLID_ATLAS.add(f"sign_{key}", paint_board(lines, 300 + i, bg, fg, border=tuple(np.array(fg) * 0.8)))
@@ -1355,22 +1359,22 @@ def weigh_door():
     return m
 
 
+def kit_faces(m, faces, iron="iron"):
+    """Copy a lantern_kit model into a Mesh: iron in an iron cell, the glass in the "glass" cell (the pane: its burner
+    and flame) drawn with the glow material."""
+    for pts, uvs, role, shade, smooth in faces:
+        if role == "glass":
+            m.face(pts, "glass", uvs=uvs, mat=GLOW, shade=1.0)
+        else:
+            m.face(pts, iron, shade=shade)
+
+
 def lantern_post():
-    """A lantern on an iron post, as at the heads of the quay steps: a fluted shaft, a ladder bar, a square lantern."""
+    """A lantern on an iron post, as at the heads of the quay steps (2026-10-11): the town's gas lamp post
+    (tools/blender/lantern_kit.py post) at three fifths of its size, its glass's centre at 2.59 m as before."""
     m = Mesh()
-    m.lathe([(0.16, 0.0), (0.16, 0.25), (0.1, 0.35), (0.06, 0.45), (0.05, 2.3), (0.08, 2.36), (0.05, 2.42)], 6, "iron")
-    m.beam((-0.25, 0, 2.05), (0.25, 0, 2.05), 0.04, 0.03, "iron")
-    with m.at(move(0, 0, 2.42)):
-        lo, hi = 0.1, 0.15
-        for i in range(4):
-            a0 = math.pi / 4 + i * math.pi / 2
-            a1 = a0 + math.pi / 2
-            p = [(lo * math.cos(a0) * 1.41, lo * math.sin(a0) * 1.41, 0.0), (lo * math.cos(a1) * 1.41, lo * math.sin(a1) * 1.41, 0.0),
-                 (hi * math.cos(a1) * 1.41, hi * math.sin(a1) * 1.41, 0.34), (hi * math.cos(a0) * 1.41, hi * math.sin(a0) * 1.41, 0.34)]
-            m.face(p, "glass", uvs=[(0, 0), (1, 0), (1, 1), (0, 1)], mat=GLOW, out=(math.cos(a0 + math.pi / 4), math.sin(a0 + math.pi / 4), 0))
-            m.beam(p[0], p[3], 0.018, 0.018, "iron")
-        m.lathe([(0.1, -0.02), (0.1, 0.0), (0.0, 0.0)], 4, "iron", rot=math.pi / 4)
-        m.lathe([(0.2, 0.34), (0.22, 0.37), (0.1, 0.48), (0.03, 0.52), (0.05, 0.56), (0.0, 0.6)], 4, "iron", rot=math.pi / 4)
+    faces, _ = lantern_kit.build(lantern_kit.post, 0.6, 1.43)
+    kit_faces(m, faces)
     return m
 
 

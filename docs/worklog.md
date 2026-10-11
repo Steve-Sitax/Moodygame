@@ -1,5 +1,39 @@
 # Work log
 
+## The batch of 2026-10-11 evening: no PS1 look, lamps, calvary, quay stairs, bridges, cranes
+
+In `main`. Steve's list: rails and ruts in the air on open bridges, floating lamps, a low-poly calvary, invisible
+tram and cranes, cranes that stop when climbed, quay stairs that stick out; then "remove the ps1 references, always
+make things high detail ... we just use fog and grain for mood". Four helpers (Opus 5.5) and a survey; checked here.
+- No PS1 look, both games: no vertex snap, no affine texture warp, smooth mipmapped filtering, full colour (no
+  dither), fine film grain; the PS1 colour and wobble settings removed. Godot: High quality draws the full window with
+  4x MSAA (6.4 ms at 4K on the test PC, as before). Browser: 720 lines, smoothly scaled; 4x MSAA cost 6 ms there, so it is
+  off (perfcheck 21.2 ms walking, the same as this morning). docs/05-art-direction.md rewritten.
+- The tram, cranes and lamp posts were visible in the game; only the editor view lost them (shared meshes).
+  The same rule hides ~400 nodes in the game: issue #61 (the survey's missing gates, church roofs and Entrepot
+  floors probably come from it).
+- Bridges: the cart ruts cut at the leaves and the fixed decks and hung on them; plank ramps onto the fixed decks.
+- Lamps: one lantern kit for every kind, one light table (`world/lampLight.ts`); calvary: `world/calvary.ts`
+  (Steen and St James); quay stairs: `world/quaysteps.ts` in the wall's own material, 29k triangles for 8 flights.
+- Found by the menu test: after a load the tide waited up to a second, so the ferry put Jef on last minute's
+  water; `Game/Wiring.cs` now sets it on every clock change. All 66 menu steps pass.
+- Survey (124 pictures, Codex on 42): `D:/Code/MoodyGame-godot/godot/baked/survey/report.md` (local).
+Checks: builds, 1,395 server tests, browser shaders (228, no problems) and paths (nothing unreachable), Godot
+shaders PASS. The bake follows (Steve's OK: one bake when all came together).
+
+## Cranes keep working with Jef aboard, 2026-10-11
+
+In `main`. Steve: "when we climb them, they just keep moving as they were and we go correctly with them".
+- Godot: a crane stopped its runway travel while Jef was on the lower half of its ladder (the legs' guard counted him),
+  and one with him aboard would not give way to another crane. Both gone: it works as with nobody aboard. The view now
+  turns with the cabin at once (it lagged up to 0.9 degrees on a slew). At the bottom he steps onto free ground at the
+  foot where it is now, else holds on. Proof: `--ridetest <dir> --ride-only crane-drift` (42 checks), `crane` (39),
+  `crane-rungs` (15). Feet drift 0.0002 cm, eye jitter 0.0003 cm before and after.
+- Browser: the ladder was moved after Jef's step (a frame behind the portal), and a crane with him aboard skipped
+  train work and would not give way. Fixed the same way; typecheck only, no browser run.
+- Issue #62 (https://github.com/Steve-Sitax/Moodygame/issues/62): the railway mover allocates ~48 B every frame and
+  the movers tour peaks at 16.8 ms, before and after this work.
+
 ## Flagstones, the editor view, the Godot MCP, 2026-10-11
 
 In `main`. Steve: "everywhere these stones are, it looks ugly. I think the bump mapping is wrong" (browser too).

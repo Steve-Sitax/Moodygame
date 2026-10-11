@@ -13,12 +13,12 @@ export function loadSettings(): GameSettings {
 
 /**
  * The menu on the pause paper (menu/menu.ts). `apply` gets the settings at once and after every
- * change (main.ts: the render height, the PS1 colour and wobble, the people in the street).
+ * change (main.ts: the render height, the people in the street).
  */
 export function mountSettings(pausePaper: HTMLElement, apply: (s: GameSettings) => void): GameSettings {
   apply(settings.all());
   settings.onChange((p, changed) => {
-    if (changed.some((k) => k === "height" || k === "psxColour" || k === "wobble" || k === "street" || k === "scale")) apply(p);
+    if (changed.some((k) => k === "height" || k === "street" || k === "scale")) apply(p);
   });
   mountMenu(pausePaper);
   return settings.all();

@@ -4,7 +4,8 @@ import { KEG, kegMesh } from "./kegModel";
 import { labelGeo, relabel, sackLabelFor, sackMaterial, sackMesh, sackOf, standingSackGeometry, type SackLabel } from "./sackModel";
 import { psx } from "../retro/psx";
 import { addLantern, lanternDarkAt, removeLantern, type LanternSource } from "../world/lanternLights";
-import { lampFog } from "../world/lampFog";
+import { LAMP_LIGHT } from "../world/lampLight";
+import { HAND_GLASS_Y, handLanternGlass, handLanternMeshes } from "./handLantern";
 import type { Rect } from "../world/geom";
 import { makeHuman, whenHumans, RIDE_BACK, type Human, type HumanKind, type Motion } from "./humans";
 import { loadProps, type Props } from "../world/props3d";
@@ -802,10 +803,7 @@ export class Crowd {
   /** The props (for the carters' handcarts and the crates they sit on), once loaded. */
   private cartProps: Props | null = null;
   private readonly carts = new Map<Person, PushCart>();
-  private readonly lanternGeo: THREE.BufferGeometry;
-  private readonly lanternCapGeo: THREE.BufferGeometry;
   private readonly lanternMat: THREE.Material;
-  private readonly lanternIron: THREE.Material;
   private readonly haloMat: THREE.SpriteMaterial;
   private stats_ = { alive: 0, drawn: 0, animated: 0, target: 0, clusters: 0 };
 
@@ -822,12 +820,9 @@ export class Crowd {
     this.grid = new NavGrid(this.radius + 12);
     this.crateMat = opts.mats?.crate ?? psx(new THREE.MeshLambertMaterial({ color: 0x4a3a28 }));
     this.crateGeo = new THREE.BoxGeometry(0.5, 0.45, 0.4).translate(0, 0.225, 0);
-    this.lanternGeo = new THREE.CylinderGeometry(0.06, 0.05, 0.16, 4).translate(0, -0.08, 0);
-    this.lanternCapGeo = new THREE.ConeGeometry(0.075, 0.07, 4).translate(0, 0.035, 0);
-    // M7 fog lamps: the glass fogs with its carrier (world/lampFog.ts; a lit one a little further)
-    this.lanternMat = new THREE.MeshBasicMaterial({ color: 0xffc070 });
-    lampFog(this.lanternMat, 1.2);
-    this.lanternIron = psx(new THREE.MeshLambertMaterial({ color: 0x1a1a1a }));
+    // the town's hand lantern (game/handLantern.ts, 2026-10-11); M7 fog lamps: the glass fogs with its carrier
+    // (world/lampFog.ts; a lit one a little further)
+    this.lanternMat = handLanternGlass(0xffc070, 1.2);
     this.haloMat = new THREE.SpriteMaterial({ map: glowTexture(), color: 0xffb060, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.45 });
     whenHumans(() => (this.ready = true));
     // the carters' handcarts, and a proper packing crate to sit on (props.glb)
@@ -2860,12 +2855,11 @@ export class Crowd {
 
   private giveLantern(p: Person): void {
     const g = new THREE.Group();
-    const glass = new THREE.Mesh(this.lanternGeo, this.lanternMat);
-    const cap = new THREE.Mesh(this.lanternCapGeo, this.lanternIron);
+    const m = handLanternMeshes(this.lanternMat);
     const halo = new THREE.Sprite(this.haloMat);
-    halo.scale.set(0.45, 0.45, 1); // (2026-09-30, Steve: "big orange glow circles": about the lantern's own size)
-    halo.position.y = -0.08;
-    g.add(glass, cap, halo);
+    halo.scale.set(LAMP_LIGHT.hand.halo, LAMP_LIGHT.hand.halo, 1); // (2026-09-30, Steve: "big orange glow circles": about the lantern's own size)
+    halo.position.y = HAND_GLASS_Y;
+    g.add(m.iron, m.glass, halo);
     this.scene.add(g);
     p.lantern = { g, halo, src: addLantern() };
   }

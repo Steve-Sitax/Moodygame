@@ -203,7 +203,7 @@ export interface Railway extends NetMover<RailNet> {
   ladders(): CraneLadder[];
   /** The player at a crane's ladder: it stands still and swings its jib to rest (call every frame while near). */
   summon(i: number): void;
-  /** The player is on crane i's ladder or deck (null: on none): it neither travels nor slews. */
+  /** The player is on crane i's ladder or deck (null: on none). Only shown in the dev info: the crane works on, he rides. */
   occupy(i: number | null): void;
   /** People walking about (the crowd, the town): the train waits for anyone on the line ahead. Set by main. */
   people?: () => Iterable<{ x: number; z: number }>;
@@ -1192,9 +1192,10 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
     k < 0 ? "" : k < c.near.length * 2 ? `crane ${c.near[k >> 1].index}${k & 1 ? " portal" : ""}` : k === c.near.length * 2 ? "mast" : "train";
   /** Its rank when it is in another's way (shared/cranes.ts outranks). */
   const rank = (c: Crane) =>
-    Math.max(c.occupied || c.parkFor > 0 ? 4 : withTrain(c) ? 3 : c.mode !== "berth" ? 2 : 1, c.yieldT > 0 ? c.lend : 0);
-  /** The player's crane stands still: it cannot make way. */
-  const canYield = (c: Crane) => !c.occupied && c.parkFor <= 0;
+    Math.max(c.parkFor > 0 ? 4 : withTrain(c) ? 3 : c.mode !== "berth" ? 2 : 1, c.yieldT > 0 ? c.lend : 0);
+  /** A crane held for a job's scene stands still: it cannot make way. (2026-10-11, Steve: "they just keep moving as
+   * they were") one with the player on its ladder or deck ranks and gives way as any other; he rides with it. */
+  const canYield = (c: Crane) => c.parkFor <= 0;
   /** Ask crane o to make way for c: its jib away from c, or (its cabin or portal in the way) along to another berth. */
   function ask(o: Crane, c: Crane, theirs: PartKind | null): void {
     o.yieldT = 1.2;
@@ -1737,7 +1738,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
     const c = st.crane;
     const w = wagons[st.wagon];
     // the crane and the train agree on the spot: where the crane stands (or is going), and it stays there
-    if (c.occupied || c.ops.length) return false;
+    if (c.ops.length) return false;
     const plan = planOf(c);
     const near = line.passes(plan.x, plan.z, 1.0).filter((q) => Math.abs(q - st.head) < 120);
     if (!near.length) return false;

@@ -40,6 +40,9 @@ import bpy
 import numpy as np
 from mathutils import Vector
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import lantern_kit  # noqa: E402  (the town's lamps and lanterns, one design)
+
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 PLACES = os.path.join(ROOT, "shared", "townplaces.json")
 OUT = os.path.join(ROOT, "client", "public", "models", "prison.glb")
@@ -366,7 +369,9 @@ def make_materials():
         "pr_atlas": lambda: paint_atlas(rng),
         "pr_iron": lambda: paint_flat(rng, (0.08, 0.075, 0.07), 16, 0.15),
         "pr_wood": lambda: paint_wood(rng),
-        "pr_glow": lambda: paint_flat(rng, (1.0, 0.82, 0.52), 16, 0.05),
+        # (2026-10-11) the lanterns' panes: the burner and its flame (lantern_kit.py paint_pane; turned over, as this
+        # table paints from the top; the old flat paint still draws its numbers, so the flags' after it stay as they were)
+        "pr_glow": lambda: (paint_flat(rng, (1.0, 0.82, 0.52), 16, 0.05), lantern_kit.paint_pane(128, kind="gas", seed=9)[::-1])[1],
         "pr_flags": lambda: paint_flags(rng),
     }
     for name in MATS:
@@ -845,21 +850,15 @@ def corbels(g, W, y, n_every=0.7, drop=0.45, proj=0.3):
 
 
 def lantern(g, x, y, z, fx, fz, arm=0.55):
-    """A wall lantern on an iron bracket: the arm out of the wall along (fx, fz), a square lantern hanging from it."""
-    ex, ez = x + fx * arm, z + fz * arm
-    # the bracket: a flat bar out and a stay
-    bar(g, (x, y + 0.35, z), (ex, y + 0.35, ez), 0.035)
-    bar(g, (x, y - 0.05, z), (ex * 0.6 + x * 0.4, y + 0.35, ez * 0.6 + z * 0.4), 0.025)
-    # the lantern: glass sides, an iron frame and a cap
-    s = 0.13
-    cy = y + 0.05
-    for a, b, o in (((ex - s, ez - s), (ex + s, ez - s), (0, 0, -1)), ((ex + s, ez - s), (ex + s, ez + s), (1, 0, 0)),
-                    ((ex + s, ez + s), (ex - s, ez + s), (0, 0, 1)), ((ex - s, ez + s), (ex - s, ez - s), (-1, 0, 0))):
-        g.face([(a[0], cy - 0.18, a[1]), (b[0], cy - 0.18, b[1]), (b[0], cy + 0.16, b[1]), (a[0], cy + 0.16, a[1])], GLOW, out=o)
-    box(g, ex - s - 0.02, ex + s + 0.02, cy + 0.16, cy + 0.22, ez - s - 0.02, ez + s + 0.02, IRON)
-    pyramid(g, [(ex - s - 0.03, ez - s - 0.03), (ex + s + 0.03, ez - s - 0.03), (ex + s + 0.03, ez + s + 0.03), (ex - s - 0.03, ez + s + 0.03)], cy + 0.22, cy + 0.36, IRON)
-    box(g, ex - s - 0.01, ex + s + 0.01, cy - 0.24, cy - 0.18, ez - s - 0.01, ez + s + 0.01, IRON)
-    box(g, ex - 0.012, ex + 0.012, cy + 0.36, y + 0.35, ez - 0.012, ez + 0.012, IRON, skip=("-y", "+y"))
+    """A gas lantern on a scrolled iron arm out of the wall along (fx, fz): the town's bracket lantern (2026-10-11,
+    tools/blender/lantern_kit.py bracket), its glass's centre where the old one's was (y + 0.04)."""
+    faces, c = lantern_kit.build(lantern_kit.bracket, max(arm, 0.42))
+    o = (x, y + 0.04 - c[2], z)
+    for pts, uvs, role, shade, smooth in lantern_kit.placed(faces, o, (fx, fz)):
+        if role == "glass":
+            g.face(pts, GLOW, uvs=uvs)
+        else:
+            g.face(pts, IRON, shade=0.55 + 0.25 * shade)
 
 
 def bar(g, a, b, w, mat=IRON):

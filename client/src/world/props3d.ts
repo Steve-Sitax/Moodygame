@@ -45,6 +45,8 @@ export const PROP_NAMES = [
   "rope_coil",
   "bollard",
   "gas_lamp",
+  "lantern_bracket",
+  "lantern_hand",
   "crane",
   // port goods (one atlas material)
   "casks_row",
@@ -398,7 +400,8 @@ async function load(): Promise<Props> {
     o.name = name;
     o.position.set(x, 0, z);
     o.rotation.y = yaw;
-    if (name === "gas_lamp") {
+    // (a lamp's glass is its own: the lamplighter lights each lamp alone, world/gaslamps.ts)
+    if (name === "gas_lamp" || name === "lantern_bracket") {
       o.traverse((c) => {
         const m = c as THREE.Mesh;
         if (m.isMesh && (m.material as THREE.Material).name === "glass") m.material = (m.material as THREE.Material).clone();

@@ -10,6 +10,7 @@ import { groundRound } from "../game/stationRound";
 import type { World } from "./rijnkaai";
 import { water } from "./tide";
 import { loadSteenModel, type SteenModel } from "./steenModel";
+import { addCalvary, steenCalvarySpot } from "./calvary";
 import { addPropObject } from "./propSpots";
 import { STEEN_BENCHES } from "../../../shared/sleep";
 import { nearestPlayer, runsHere, share } from "../game/share";
@@ -351,6 +352,9 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null, world: 
     { minX: ANGLER[0] - 0.45, maxX: ANGLER[0] + 0.45, minZ: ANGLER[1] - 0.45, maxZ: ANGLER[1] + 0.75 },
     ...benchRects,
   ];
+  // the calvary at the ramp's foot, facing the quay (world/calvary.ts; the 1880 photograph)
+  const calvary = steenCalvarySpot();
+  if (calvary) colliders.push(addCalvary(group, calvary.x, 0, calvary.z, calvary.yaw, "steen"));
 
   const figs = figures();
   const visitors: Visitor[] = [];

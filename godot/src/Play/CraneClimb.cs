@@ -8,7 +8,14 @@ using Scheldemist.World;
 
 namespace Scheldemist.Play;
 
-/// <summary>Browser craneclimb.ts: ladder stays on the travelling portal; the gallery turns with the working jib.</summary>
+/// <summary>
+/// Browser craneclimb.ts: ladder stays on the travelling portal; the gallery turns with the working jib.
+/// (2026-10-11, Steve: "when we climb them, they just keep moving as they were and we go correctly with them") the
+/// crane's work does not change for a rider; Jef steps after the movers (priority 10), so each frame he is carried
+/// with the crane's pose of that frame: on the rungs with the portal, up top with the deck, the view turning with it.
+/// He gets on where the ladder is (a crane halts its travel for anyone at its legs), off at the top only onto the
+/// gallery under the ladder head, and off at the bottom onto free ground at the foot as it is then, else he holds on.
+/// </summary>
 [GamePart(921)]
 public partial class CraneClimb : Node
 {
@@ -16,9 +23,9 @@ public partial class CraneClimb : Node
     public int On { get; private set; } = -1;
     public bool OnLadder { get; private set; }
     public Vector2 Local { get; private set; }
+    public float Height => height;
     private float height, lastYaw, push;
-    private bool saidWait, jumpHeld;
-    private Vector3 footOffset;
+    private bool saidWait, saidNoRoom, jumpHeld;
     private readonly Func<float, bool> drive;
     public readonly RaisedDeck Deck = new(new[]
     {
@@ -32,6 +39,7 @@ public partial class CraneClimb : Node
     public override void _Ready()
     {
         Interact.I.AddProvider(Keys);
+        if (Jef.I.ProcessPriority < 10) Jef.I.ProcessPriority = 10; // after the movers, as Ride.cs: the crane is posed first
         if (Scheldemist.Menu.MainMenu.I is { } menu) menu.WorldReplaced += Replaced;
     }
     public override void _ExitTree()
@@ -45,7 +53,7 @@ public partial class CraneClimb : Node
         if (Jef.I.Drive == drive) Jef.I.Drive = null;
         var back=RideSaves.Read<RideSaved>(client,"ride");
         if(back is {Kind:"crane"}&&float.IsFinite(back.Height)&&float.IsFinite(back.X)&&float.IsFinite(back.Z)&&int.TryParse(back.Id,out int i)&&i>=0&&i<Railway.I.LadderCount)
-        {var l=Railway.I.LadderAt(i);var foot=StandOf(l);if(foot==null)return;Deck.Frame=l.Deck;if(!back.Ladder&&!Deck.Stand(back.X,back.Z,.12f))return;On=i;OnLadder=back.Ladder;height=Math.Clamp(back.Height,0,5.42f);Local=new(back.X,back.Z);footOffset=foot.Value-l.Hang;lastYaw=l.Deck.Basis.GetEuler().Y;Jef.I.Drive=drive;Drive(0);}
+        {var l=Railway.I.LadderAt(i);if(StandOf(l)==null)return;Deck.Frame=l.Deck;if(!back.Ladder&&!Deck.Stand(back.X,back.Z,.12f))return;On=i;OnLadder=back.Ladder;height=Math.Clamp(back.Height,0,5.42f);Local=new(back.X,back.Z);lastYaw=l.Deck.Basis.GetEuler().Y;Jef.I.Drive=drive;Drive(0);}
     }
     public RideSaved Saved()=>new("crane",On.ToString(),Local.X,Local.Y,lastYaw,Ladder:OnLadder,Height:height);
     private Vector3? StandOf(Railway.Ladder l)
@@ -97,16 +105,16 @@ public partial class CraneClimb : Node
     {
         if (On >= 0 || Jef.I.Riding) return;
         if (Jef.I.Laden) { GameState.I.Say("Not with goods in your arms."); return; }
-        var l = Railway.I.LadderAt(i); var foot = StandOf(l); if (foot == null) return;
-        On = i; OnLadder = true; height = .05f; footOffset = foot.Value - l.Hang; saidWait = false;
+        var l = Railway.I.LadderAt(i); if (StandOf(l) == null) return;
+        On = i; OnLadder = true; height = .05f; saidWait = saidNoRoom = false;
         Jef.I.Yaw = l.Face; Jef.I.Pitch = Math.Clamp(Jef.I.Pitch, -.4f, .6f); Jef.I.Drive = drive;
         lastYaw = l.Deck.Basis.GetEuler().Y;
     }
     public void Down()
     {
         if (On < 0 || OnLadder) return;
-        var l = Railway.I.LadderAt(On); var foot = StandOf(l) ?? l.Foot;
-        OnLadder = true; height = 5.22f; footOffset = foot - l.Hang; Jef.I.Yaw = l.Face;
+        var l = Railway.I.LadderAt(On);
+        OnLadder = true; height = 5.22f; saidNoRoom = false; Jef.I.Yaw = l.Face;
     }
     private bool Drive(float dt)
     {
@@ -123,7 +131,11 @@ public partial class CraneClimb : Node
             }
             if (height <= 0 && v < 0)
             {
-                var foot = l.Hang + footOffset; On = -1; OnLadder = false; j.Drive = null; j.Place(foot.X, foot.Z, j.Yaw, j.Pitch, foot.Y); return false;
+                // off onto the ground at the foot where the portal has rolled to now; nowhere free there: hold on
+                var stand = StandOf(l);
+                if (stand is { } foot) { On = -1; OnLadder = false; j.Drive = null; j.Place(foot.X, foot.Z, j.Yaw, j.Pitch, foot.Y); return false; }
+                height = 0;
+                if (!saidNoRoom) { saidNoRoom = true; GameState.I.Say("There is no room to step off here. You hold on to the bottom rung."); }
             }
             if (OnLadder) { j.DrivenEye = Jef.Eye - MathF.Abs(MathF.Sin(height * 5.5f)) * .04f; j.Carry(new(l.Hang.X, height, l.Hang.Z)); return true; }
         }
@@ -135,7 +147,7 @@ public partial class CraneClimb : Node
         var v2 = new Vector2(fx, fz).LimitLength() * Jef.Walk * dt;
         float a = j.Yaw - yaw, c = MathF.Cos(a), s = MathF.Sin(a);
         Local = Deck.Walk(Local, Local + new Vector2(v2.X * c + v2.Y * s, -v2.X * s + v2.Y * c));
-        j.DrivenEye = Jef.Eye; j.Carry(Deck.At(Local), dr);
+        j.DrivenEye = Jef.Eye; j.Carry(Deck.At(Local), dr, true);
         bool jump = j.KeyDown(Key.Space);
         if (jump && !jumpHeld && !j.Frozen) { On = -1; j.LaunchFromRide(); jumpHeld = true; return false; }
         jumpHeld = jump; return true;

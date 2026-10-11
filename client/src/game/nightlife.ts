@@ -1,9 +1,10 @@
 import * as THREE from "three";
+import { lanternPower } from "../world/lampLight";
+import { HAND_GLASS_Y, handLanternGlass, handLanternMeshes } from "./handLantern";
 import type { JobsPayload, PushMsg } from "../net/api";
 import type { FirstPerson } from "../player/firstPerson";
 import type { World } from "../world/rijnkaai";
 import { addLantern, removeLantern, type LanternSource } from "../world/lanternLights";
-import { lampFog } from "../world/lampFog";
 import { TICK_EVERY_MS } from "../../../shared/clock";
 import { GANG_HOURS, inSpan } from "../../../shared/night";
 import { RUN, WALK, Walkup, type JobFigure } from "./walkup";
@@ -66,7 +67,7 @@ export class Nightlife {
   private comeT = 0;
   private missing = 0;
   private lantern: LanternSource | null = null;
-  private lanternMesh: THREE.Mesh | null = null;
+  private lanternMesh: THREE.Object3D | null = null;
   private answerT = 0;
   private sent = false;
   private rollT = TICK_EVERY_MS / 1000;
@@ -136,6 +137,7 @@ export class Nightlife {
     for (const f of this.figs) if (!f.gone) f.update(dt);
     if (this.lantern && this.lanternMesh && this.figs[0] && !this.figs[0].gone) {
       this.lanternMesh.getWorldPosition(this.lantern.pos);
+      this.lantern.pos.y += HAND_GLASS_Y; // (the flame, in the glass under the hand)
       this.lantern.ground = 0;
     }
     if (this.veilT > 0) {
@@ -221,13 +223,15 @@ export class Nightlife {
     // the lead carries a shaded lantern (you see them come)
     const lead = this.figs[0];
     if (lead?.present && !this.lanternMesh) {
-      const glass = new THREE.MeshBasicMaterial({ color: 0xffb060 });
-      lampFog(glass, 1.2); // M7 fog lamps: it fogs with the man who carries it
-      const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.045, 0.14, 4), glass);
-      mesh.position.set(0.28, 0.72, 0.12);
+      // the town's hand lantern (game/handLantern.ts, 2026-10-11); it fogs with the man who carries it (lampFog)
+      const glass = handLanternGlass(0xffb060, 1.2);
+      const m = handLanternMeshes(glass);
+      const mesh = new THREE.Group();
+      mesh.add(m.iron, m.glass);
+      mesh.position.set(0.28, 0.72 - HAND_GLASS_Y, 0.12);
       lead.group.add(mesh);
       this.lanternMesh = mesh;
-      this.lantern = addLantern({ power: 0.7 });
+      this.lantern = addLantern({ power: lanternPower("hand") }); // (a hand lantern's light, world/lampLight.ts)
       this.lantern.on = 1;
     }
     // they are round him (the first two), or they took too long: they speak

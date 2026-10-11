@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { lanternPower } from "./lampLight";
 import { swapSacks, type SackRow } from "../game/sackModel";
 import BOAT_SACKS from "./boats_sack_sockets.json";
 import FERRY_SACKS from "../game/ferry_sack_sockets.json";
@@ -812,7 +813,9 @@ async function load(): Promise<Boats> {
     }
   }
   function addLamp(at: (out: THREE.Vector3) => void, kind: number, root: () => THREE.Object3D | null): void {
-    const src = addLantern({ power: kind === 0 ? 0.55 : 0.3 });
+    // (2026-10-11) a white riding or stern light is the town's oil lantern (world/lampLight.ts; was 0.55); red and green
+    // side lights a little coloured light only
+    const src = addLantern({ power: kind === 0 ? lanternPower("oil") : 0.3 });
     lampList.push({ at, kind, src, phase: motionRandLamp() * 6.283, root });
     growLamps();
   }

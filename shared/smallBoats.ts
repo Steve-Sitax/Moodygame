@@ -100,7 +100,7 @@ interface Spec {
   owner: OwnerRule;
 }
 
-/** A flight of steps (world/rijnkaai.ts FLIGHTS): 13 treads of 0.32 m and a 2.4 m landing, 1.62 m wide. */
+/** A flight of steps (world/rijnkaai.ts FLIGHTS, world/quaysteps.ts): its landing ends 6.56 m down the wall from the top. */
 const FLIGHT_END = 4.16 + 2.4;
 
 /** A boat lies this far off the wall line (her side, and fenders). */

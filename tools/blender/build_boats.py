@@ -45,6 +45,7 @@ from mathutils import Matrix, Vector
 sys.dont_write_bytecode = True  # no __pycache__ next to the scripts
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import build_props as bp  # noqa: E402  (mesh helpers, painters, the prop materials)
+import lantern_kit  # noqa: E402  (the town's lamps and lanterns, one design)
 from build_props import col, move, rot_z, speckle, vnoise  # noqa: E402
 
 ROOT = bp.ROOT
@@ -1299,22 +1300,13 @@ def windlass(m, x, y, z, w=1.6, r=0.2):
 
 
 def lantern(m, c, kind=0, bail=True):
-    """A ship's lantern standing (or hung by its bail) with its flame at c: an iron frame, four
-    panes and a hood. Registered for the game's lamp APIs (Mesh.lamp)."""
+    """A ship's lantern standing (or hung by its bail) with its flame at c: the town's oil lantern (2026-10-11,
+    tools/blender/lantern_kit.py oil_lantern) at a ship's size. Registered for the game's lamp APIs (Mesh.lamp)."""
     c = Vector(c)
-    m.box(c - V(0, 0, 0.14), (0.2, 0.2, 0.05), IRON)
-    for sx in (1, -1):
-        for sy in (1, -1):
-            m.box(c + V(sx * 0.085, sy * 0.085, 0), (0.025, 0.025, 0.24), IRON)
-    for d in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-        o = V(d[0] * 0.08, d[1] * 0.08, 0)
-        r = V(-d[1], d[0], 0) * 0.07
-        m.poly([c + o - r - V(0, 0, 0.1), c + o + r - V(0, 0, 0.1), c + o + r + V(0, 0, 0.1), c + o - r + V(0, 0, 0.1)], GLASS,
-               out=o, uvs=[(0, 0), (1, 0), (1, 1), (0, 1)], shade=1.2)
-    with m.at(move(c.x, c.y, c.z + 0.12)):
-        m.lathe([(0.13, 0.0), (0.05, 0.1), (0.03, 0.14)], 6, IRON, smooth=False, cap1=True)
-    if bail:
-        m.beam(c + V(-0.08, 0, 0.26), c + V(0.08, 0, 0.26), 0.015, 0.015, IRON)
+    k = lantern_kit.Kit()
+    with k.at(lantern_kit.move(c.x, c.y, c.z)):
+        lantern_kit.oil_lantern(k, 0.17, 0.21, bail=bail)
+    bp.kit_faces(m, k.faces, {"iron": IRON, "glass": GLASS, "brass": IRON})
     m.lamp(c, kind)
 
 

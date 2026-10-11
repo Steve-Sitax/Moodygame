@@ -752,9 +752,9 @@ public partial class Railway : Node
             float t = c.Target ?? c.Pos, dist = Math.Abs(t - c.Pos);
             int dir = Math.Sign(t - c.Pos);
             float want = Math.Min(CraneV, MathF.Sqrt(2 * 0.12f * dist));
-            // nobody under the legs: it waits for Jef
+            // nobody under the legs: it waits for Jef on the ground (on its own ladder he rides with the portal)
             var jef = Jef.I;
-            if (jef != null && dist > 0.01f)
+            if (jef != null && dist > 0.01f && !Ridden(c))
             {
                 var (nx, nz) = SiteAt(c, c.Pos + dir * 2.5f);
                 if (Math.Abs(jef.X - nx) < 4.6f && Math.Abs(jef.Z - nz) < 4.6f && jef.Y < 3)

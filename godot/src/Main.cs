@@ -16,13 +16,10 @@ namespace Scheldemist;
 /// </summary>
 public partial class Main : Node
 {
-    private const int FxLines = 270;
-    // the settings (src/Menu/Apply.cs): the lines drawn (0: the full window), the render scale, the PS1 wobble
-    private int lines = 720;
+    // the settings (src/Menu/Apply.cs): the lines drawn (0: the full window), the render scale
+    private int lines = 0;
     private float renderScale = 1;
-    private bool wobble = true;
-    private bool psxColour = true;
-    /// <summary>The snap grid the psx shaders have now (`psx_snap_res`): coarse with the wobble on, too fine to see with it off.</summary>
+    /// <summary>The snap grid of the psx shaders (`psx_snap_res`): always too fine to see (Steve, 2026-10-11: no PS1 wobble).</summary>
     public Vector2 SnapGrid { get; private set; }
     /// <summary>The town is in and the parts are made.</summary>
     public bool Loaded { get; private set; }
@@ -72,10 +69,11 @@ public partial class Main : Node
         string town = Paths.Town;
         shots = Paths.TestOutput("shots");
 
-        view = new SubViewport { RenderTargetUpdateMode = SubViewport.UpdateMode.Always, Msaa3D = Viewport.Msaa.Disabled, HandleInputLocally = false };
+        // (smooth edges: 4x multisampling; at 4K on the test PC it cost no measurable frame time, 2026-10-11)
+        view = new SubViewport { RenderTargetUpdateMode = SubViewport.UpdateMode.Always, Msaa3D = Viewport.Msaa.Msaa4X, HandleInputLocally = false };
         AddChild(view);
         retro = new ShaderMaterial { Shader = GD.Load<Shader>(Paths.RetroShader) };
-        screen = new TextureRect { Texture = view.GetTexture(), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale, TextureFilter = CanvasItem.TextureFilterEnum.Nearest, Material = retro, MouseFilter = Control.MouseFilterEnum.Ignore };
+        screen = new TextureRect { Texture = view.GetTexture(), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale, TextureFilter = CanvasItem.TextureFilterEnum.Linear, Material = retro, MouseFilter = Control.MouseFilterEnum.Ignore };
         screen.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         AddChild(screen);
         GetViewport().SizeChanged += Resize;
@@ -145,15 +143,12 @@ public partial class Main : Node
 
     /// <summary>
     /// The picture's settings (src/Menu/Apply.cs): the lines the world is drawn at (0: as many as the window has),
-    /// times the render scale; the PS1 wobble (corners jump to a coarse grid) and the PS1 colours (32 steps with a
-    /// dither, or 256).
+    /// times the render scale.
     /// </summary>
-    public void SetPicture(int lines, float scale, bool wobble, bool psxColour)
+    public void SetPicture(int lines, float scale)
     {
         this.lines = lines;
         renderScale = scale;
-        this.wobble = wobble;
-        this.psxColour = psxColour;
         if (view != null) Resize();
     }
 
@@ -168,10 +163,8 @@ public partial class Main : Node
         var size = new Vector2I(Math.Max(1, (int)MathF.Round(h * aspect)), h);
         view.Size = size;
         retro.SetShaderParameter("res", new Vector2(size.X, size.Y));
-        retro.SetShaderParameter("fx_res", new Vector2(MathF.Round(FxLines * aspect), FxLines));
-        retro.SetShaderParameter("levels", psxColour ? 32f : 256f);
-        // the snap grid of the 270-line picture, halved (main.ts); wobble off: a grid too fine to see
-        SnapGrid = wobble ? new Vector2(MathF.Round(FxLines * aspect) * 0.5f, FxLines * 0.5f) : new Vector2(1e5f, 1e5f);
+        // (no vertex snap: a grid too fine to see)
+        SnapGrid = new Vector2(1e5f, 1e5f);
         RenderingServer.GlobalShaderParameterSet("psx_snap_res", SnapGrid);
     }
 

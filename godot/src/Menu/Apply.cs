@@ -11,7 +11,7 @@ namespace Scheldemist.Menu;
 /// The settings put to work (the browser's menu/apply.ts): every change in the menu reaches the game at once.
 ///
 /// What each setting does in Godot today:
-/// - Lines drawn, Render scale, PS1 wobble, PS1 colours: Main.SetPicture (the world's viewport, the snap grid
+/// - Lines drawn, Render scale: Main.SetPicture (the world's viewport, the snap grid
 ///   `psx_snap_res`, the retro pass's `levels`).
 /// - Frame cap: Engine.MaxFps. Show the frame time: a small counter top right. Full screen: the window's mode.
 /// - The five sound levels: the audio buses Master, Music, Ambience, Voices, Effects (made here when missing; the
@@ -46,7 +46,7 @@ public static class Apply
     {
         bool Has(params string[] k) => changed == null || k.Any(changed.Contains);
         var main = Main.I;
-        if (Has("height", "scale", "wobble", "psxColour")) main.SetPicture((int)Prefs.Num("height"), (float)Prefs.Num("scale"), Prefs.Bool("wobble"), Prefs.Bool("psxColour"));
+        if (Has("height", "scale")) main.SetPicture((int)Prefs.Num("height"), (float)Prefs.Num("scale"));
         if (Has("frameCap") && !TestRun) Engine.MaxFps = (int)Prefs.Num("frameCap");
         if (Has("fullscreen") && !TestRun)
         {

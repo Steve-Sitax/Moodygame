@@ -55,6 +55,9 @@ import bpy
 import numpy as np
 from mathutils import Matrix, Vector
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import lantern_kit  # noqa: E402  (the town's lamps and lanterns, one design)
+
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 OUT = os.path.join(ROOT, "client", "public", "models", "streetlife.glb")
 SRC = os.path.join(ROOT, "shared", "city_build.json")
@@ -562,6 +565,10 @@ def build_atlases():
     for i, (name, (rgb, amt)) in enumerate(PLAIN.items()):
         size = 32 if name in ("bluestone", "whitestone", "plaster", "wood", "wood_dark", "iron") else 16
         SOLID_ATLAS.add(name, flat(100 + i, size, size, rgb, amt))
+    # (2026-10-11) the lanterns' panes: an oil flame over its wick (lantern_kit.py paint_pane), in place of the plain
+    # glass, 64 px (the atlas counts rows from the top)
+    SOLID_ATLAS.items[[n for n, _ in SOLID_ATLAS.items].index("glass")] = (
+        "glass", np.concatenate([lantern_kit.paint_pane(64, kind="oil", seed=9)[::-1], np.ones((64, 64, 1))], axis=2))
     for i, (s, g) in enumerate(AWNINGS):
         SOLID_ATLAS.add(f"stripes_{i}", paint_stripes(200 + i, s, g))
         SOLID_ATLAS.add(f"valance_{i}", paint_valance(200 + i, s, g))
@@ -974,25 +981,17 @@ def madonna_mary(m, x, y, z, scale=1.0, robe="robe_blue"):
 
 def madonna_lantern(m, side, z, reach=0.42):
     """The oil lantern on a wrought-iron arm out of one of the two walls beside the corner (side +1 the
-    wall toward +X, -1 toward -X); the walls run back at 45 degrees from the corner (y = |x|)."""
+    wall toward +X, -1 toward -X); the walls run back at 45 degrees from the corner (y = |x|). The town's
+    bracket with an oil lantern hanging from it (2026-10-11, tools/blender/lantern_kit.py), its glass's
+    centre where the old one's was (0.38 m under the arm)."""
     wx, wy = side * 0.55, 0.55
     nx, ny = side * 0.7071, -0.7071
-    ex, ey = wx + nx * reach, wy + ny * reach
-    m.box((wx + nx * 0.02, wy + ny * 0.02, z), (0.1, 0.1, 0.16), "iron")
-    m.beam((wx, wy, z), (ex, ey, z), 0.022, 0.022, "iron")
-    curl = [(wx + nx * (0.1 + 0.08 * math.cos(a)), wy + ny * (0.1 + 0.08 * math.cos(a)), z - 0.1 + 0.08 * math.sin(a)) for a in np.linspace(0.3, 2 * math.pi - 0.3, 8)]
-    m.tube(curl, 0.01, 4, "iron")
-    m.beam((ex, ey, z), (ex, ey, z - 0.16), 0.012, 0.012, "iron")
-    with m.at(move(ex, ey, z - 0.36)):
-        lo, hi = 0.06, 0.085
-        for i in range(4):
-            a0 = math.pi / 4 + i * math.pi / 2
-            a1 = a0 + math.pi / 2
-            q = [(lo * math.cos(a0) * 1.41, lo * math.sin(a0) * 1.41, -0.12), (lo * math.cos(a1) * 1.41, lo * math.sin(a1) * 1.41, -0.12),
-                 (hi * math.cos(a1) * 1.41, hi * math.sin(a1) * 1.41, 0.08), (hi * math.cos(a0) * 1.41, hi * math.sin(a0) * 1.41, 0.08)]
-            m.face(q, "glass", mat=GLOW, out=(math.cos(a0 + math.pi / 4), math.sin(a0 + math.pi / 4), 0))
-        m.lathe([(0.11, 0.08), (0.12, 0.1), (0.0, 0.2)], 4, "iron", rot=math.pi / 4, cap0=True)
-        m.lathe([(0.09, -0.12), (0.09, -0.15), (0.0, -0.19)], 4, "iron", rot=math.pi / 4)
+    faces, _ = lantern_kit.build(lantern_kit.bracket, max(reach, 0.36), oil=(0.15, 0.21), plate=0.6)
+    for pts, uvs, role, shade, smooth in lantern_kit.placed(faces, (wx, wy, z), (nx, ny), yup=False):
+        if role == "glass":
+            m.face(pts, "glass", uvs=uvs, mat=GLOW)
+        else:
+            m.face(pts, "iron", shade=shade)
 
 
 def madonna_canopy(m, yc, z, r, sides, cell):

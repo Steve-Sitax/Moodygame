@@ -23,7 +23,7 @@ public static class Prefs
 
     public static readonly (int lines, string label)[] Heights =
     {
-        (270, "270 lines (the old PS1 look)"), (360, "360 lines"), (540, "540 lines"), (720, "720 lines"), (1080, "1080 lines"), (0, "Full window"),
+        (270, "270 lines"), (360, "360 lines"), (540, "540 lines"), (720, "720 lines"), (1080, "1080 lines"), (0, "Full window"),
     };
 
     private abstract record Spec(object Default);
@@ -34,9 +34,7 @@ public static class Prefs
     // prefs.ts DEFAULTS and read(); "fullscreen" is the Godot game's own (a browser has F11)
     private static readonly Dictionary<string, Spec> specs = new()
     {
-        ["height"] = new NumSpec(720, 0, 1080, true, new double[] { 270, 360, 540, 720, 1080, 0 }),
-        ["psxColour"] = new BoolSpec(true),
-        ["wobble"] = new BoolSpec(false),
+        ["height"] = new NumSpec(0, 0, 1080, true, new double[] { 270, 360, 540, 720, 1080, 0 }),
         ["street"] = new OneSpec("normal", new[] { "few", "normal", "many", "crowded" }),
         ["preset"] = new OneSpec("high", new[] { "low", "medium", "high", "custom" }),
         ["scale"] = new NumSpec(1, 0.5, 1),
@@ -74,7 +72,7 @@ public static class Prefs
     {
         ["low"] = new() { ["height"] = 270.0, ["scale"] = 0.75, ["view"] = 0.7, ["rooms"] = 1.0, ["street"] = "few", ["reflections"] = "off", ["shadows"] = false, ["lightBudget"] = "low", ["particles"] = "off", ["frameCap"] = 30.0 },
         ["medium"] = new() { ["height"] = 540.0, ["scale"] = 1.0, ["view"] = 0.85, ["rooms"] = 2.0, ["street"] = "normal", ["reflections"] = "coarse", ["shadows"] = true, ["lightBudget"] = "medium", ["particles"] = "some", ["frameCap"] = 60.0 },
-        ["high"] = new() { ["height"] = 720.0, ["scale"] = 1.0, ["view"] = 1.0, ["rooms"] = 4.0, ["street"] = "normal", ["reflections"] = "full", ["shadows"] = true, ["lightBudget"] = "high", ["particles"] = "all", ["frameCap"] = 0.0 },
+        ["high"] = new() { ["height"] = 0.0, ["scale"] = 1.0, ["view"] = 1.0, ["rooms"] = 4.0, ["street"] = "normal", ["reflections"] = "full", ["shadows"] = true, ["lightBudget"] = "high", ["particles"] = "all", ["frameCap"] = 0.0 },
     };
     private static readonly string[] presetKeys = Presets["high"].Keys.ToArray();
 

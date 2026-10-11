@@ -2,7 +2,8 @@ import * as THREE from "three";
 import { doorSpot } from "../world/city";
 import { psx } from "../retro/psx";
 import { addLantern, removeLantern, type LanternSource } from "../world/lanternLights";
-import { lampFog } from "../world/lampFog";
+import { LAMP_LIGHT } from "../world/lampLight";
+import { HAND_GLASS_Y, handLanternGlass, handLanternMeshes } from "./handLantern";
 import { box, cyl, rectAround } from "../world/geom";
 import { DECK, type World } from "../world/rijnkaai";
 import { LocalRound, roundRoutes } from "../../../shared/localRound";
@@ -346,8 +347,8 @@ export class People {
   }
 }
 
-/** A small lantern with a warm glow (the crowd's lanterns look the same). */
-let lanternParts: { glass: THREE.BufferGeometry; cap: THREE.BufferGeometry; lit: THREE.Material; iron: THREE.Material; halo: THREE.SpriteMaterial } | null = null;
+/** A small lantern with a warm glow: the town's hand lantern (game/handLantern.ts), as the crowd's. */
+let lanternParts: { lit: THREE.Material; halo: THREE.SpriteMaterial } | null = null;
 function handLantern(): THREE.Group {
   if (!lanternParts) {
     const c = document.createElement("canvas");
@@ -362,21 +363,18 @@ function handLantern(): THREE.Group {
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
     lanternParts = {
-      glass: new THREE.CylinderGeometry(0.06, 0.05, 0.16, 4).translate(0, -0.08, 0),
-      cap: new THREE.ConeGeometry(0.075, 0.07, 4).translate(0, 0.035, 0),
       // M7 fog lamps: the glass fogs with the one who holds it (world/lampFog.ts)
-      lit: new THREE.MeshBasicMaterial({ color: 0xffc070 }),
-      iron: psx(new THREE.MeshLambertMaterial({ color: 0x1a1a1a })),
+      lit: handLanternGlass(0xffc070, 1.2),
       halo: new THREE.SpriteMaterial({ map: tex, color: 0xffb060, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.45 }),
     };
-    lampFog(lanternParts.lit, 1.2);
   }
   const L = lanternParts;
   const grp = new THREE.Group();
   const halo = new THREE.Sprite(L.halo);
-  halo.scale.set(0.45, 0.45, 1); // (2026-09-30: about the lantern's own size, not a big circle)
-  halo.position.y = -0.08;
-  grp.add(new THREE.Mesh(L.glass, L.lit), new THREE.Mesh(L.cap, L.iron), halo);
+  halo.scale.set(LAMP_LIGHT.hand.halo, LAMP_LIGHT.hand.halo, 1); // (2026-09-30: about the lantern's own size, not a big circle)
+  halo.position.y = HAND_GLASS_Y;
+  const m = handLanternMeshes(L.lit);
+  grp.add(m.iron, m.glass, halo);
   return grp;
 }
 

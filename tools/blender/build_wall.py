@@ -58,6 +58,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import build_boats as bb  # noqa: E402  (preview: aim, render)
 import build_props as bp  # noqa: E402  (ROOT, speckle)
+import lantern_kit  # noqa: E402  (the town's lamps and lanterns, one design)
 
 ROOT = bp.ROOT
 CITY = os.path.join(ROOT, "shared", "city.json")
@@ -719,7 +720,7 @@ def make_materials(ctx=None):
         "wall_window": lambda: paint_window(rng),
         "wall_grass": lambda: paint_grass(rng),
         "wall_arms": lambda: paint_arms(rng),
-        "wall_lamp_glow": lambda: paint_glow(rng),
+        "wall_lamp_glow": lambda: lantern_kit.paint_pane(128, kind="gas", seed=9),  # (the lanterns' panes: burner, flame)
         "wall_canvas": lambda: paint_canvas(rng),
         "wall_room_glow": lambda: paint_room(rng),
     }
@@ -938,32 +939,35 @@ def finial(g, x, y, z, s=1.0, mat=IRON):
 LAMPS = []  # every lantern's glass (x, y, z), for the game's gas-lamp lights (pass 2: world/rampart.ts)
 
 
+def kit_faces(g, faces, iron_shade=0.8):
+    """Copy a lantern_kit model (placed in game coordinates) into a Geo: its iron as our iron, the glass with its own
+    uvs (the pane picture: the burner at its foot) in the lantern glass."""
+    for pts, uvs, role, shade, smooth in faces:
+        if role == "glass":
+            g.face(pts, GLOW, uvs=uvs, shade=1.0)
+        else:
+            g.face(pts, IRON, shade=iron_shade * shade)
+
+
 def lantern(g, x, ytop, z, w=0.24, hh=0.36, record=True):
-    """A square lantern hanging from (x, ytop, z): iron cap, glowing glass, iron base."""
-    y1 = ytop - 0.1
-    y0 = y1 - hh
+    """A lantern hanging from (x, ytop, z), the town's (2026-10-11, tools/blender/lantern_kit.py): a gas lantern on its
+    hook, its glass hh high; record=False an oil lamp in a room (lantern_kit oil_lantern, w wide), not a town lamp."""
     if record:
-        LAMPS.append((x, (y0 + y1) / 2, z))
-    q = w / 2 + 0.04
-    pyramid(g, [(x - q, y1, z - q), (x + q, y1, z - q), (x + q, y1, z + q), (x - q, y1, z + q)], (x, ytop + 0.06, z), IRON,
-            shade=0.8)
-    q = w / 2
-    solid8(g, [(x + (q if i & 1 else -q), y0 if not i & 4 else y1, z + (q if i & 2 else -q)) for i in range(8)], GLOW,
-           skip=("+z", "-z"), shade=1.0, uvs=None)
-    q = w / 2 + 0.03
-    solid8(g, [(x + (q if i & 1 else -q), y0 - 0.06 if not i & 4 else y0, z + (q if i & 2 else -q)) for i in range(8)], IRON,
-           shade=0.8)
+        faces, c = lantern_kit.build(lantern_kit.hanging, hh / 0.58)
+        LAMPS.append(lantern_kit.place_point(c, (x, ytop, z)))
+        kit_faces(g, lantern_kit.placed(faces, (x, ytop, z)))
+    else:
+        faces, top = lantern_kit.build(lantern_kit.oil_lantern, w, hh)
+        kit_faces(g, lantern_kit.placed(faces, (x, ytop - top, z)))
 
 
 def wall_lantern(g, p, out, arm=0.5):
-    """A lantern on an iron bracket from a wall point p (world), `out` the wall's normal (x, z)."""
-    p = Vector(p)
-    o = Vector((out[0], 0.0, out[1]))
-    tip = p + o * arm
-    bar(g, p, tip, 0.05, IRON, shade=0.8)
-    bar(g, p - Vector((0, 0.35, 0)), p + o * (arm * 0.6), 0.03, IRON, shade=0.8)  # the strut, thinner than the arm
-    bar(g, tip, tip - Vector((0, 0.1, 0)), 0.03, IRON, shade=0.8)
-    lantern(g, tip.x, p.y - 0.1, tip.z)
+    """A gas lantern on a scrolled iron arm from a wall point p (world), `out` the wall's normal (x, z): the town's
+    bracket lantern (lantern_kit.py bracket)."""
+    faces, c = lantern_kit.build(lantern_kit.bracket, max(arm, 0.42))
+    o = (out[0], out[1])
+    LAMPS.append(lantern_kit.place_point(c, tuple(p), o))
+    kit_faces(g, lantern_kit.placed(faces, tuple(p), o))
 
 
 # ------------------------------------------------------------------ local frames
@@ -2474,8 +2478,11 @@ def build_bridge(g, gt, F, ctx):
             am, om = (amin + amax) / 2, (oa + ob) / 2
             if lamp:
                 x, _, z = F.p(am, om, 0)
-                lathe(g, (x, ph, z), [(0.13, 0.0), (0.13, 0.18), (0.07, 0.28), (0.05, 2.35), (0.1, 2.45), (0.03, 2.5)], 6, IRON, shade=0.8)
-                lantern(g, x, ph + 3.0, z, 0.3, 0.44)
+                # the town's gas lamp post at seven tenths of its size on the pier (lantern_kit.py post), the glass's
+                # centre 2.68 m over it as before
+                faces, c = lantern_kit.build(lantern_kit.post, 0.7, 1.33)
+                LAMPS.append(lantern_kit.place_point(c, (x, ph, z)))
+                kit_faces(g, lantern_kit.placed(faces, (x, ph, z)))
             else:
                 pyramid(g, [F.p(amin - 0.02, oa - 0.02, ph), F.p(amax + 0.02, oa - 0.02, ph), F.p(amax + 0.02, ob + 0.02, ph),
                             F.p(amin - 0.02, ob + 0.02, ph)], F.p(am, om, ph + 0.28), STONE, floor=LIFT)

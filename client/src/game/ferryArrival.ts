@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { LAMP_LIGHT, lanternPower } from "../world/lampLight";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import type { World, WalkArea } from "../world/rijnkaai";
 import type { FirstPerson } from "../player/firstPerson";
@@ -654,16 +655,18 @@ export class FerryArrival {
     });
     this.lamps = [];
     if (L.mast) {
-      const src = addLantern({ power: 0.8 });
+      // (2026-10-11) the ferry's lamps are the town's oil lanterns (build_ferry.py, lantern_kit.py): their light and halo
+      // an oil lantern's (world/lampLight.ts)
+      const src = addLantern({ power: lanternPower("oil") });
       src.on = 1;
-      this.lamps.push({ glow: new LampGlow(inner, bl(L.mast), 0xfff2dc, { w: 0.27, h: 0.41 }, 1.6), src, fl: 0.2, arc: "mast" });
+      this.lamps.push({ glow: new LampGlow(inner, bl(L.mast), 0xfff2dc, { w: 0.27, h: 0.41 }, LAMP_LIGHT.oil.halo * 1.2), src, fl: 0.2, arc: "mast" });
     }
     // port red on +x (the stage's side), starboard green on -x
-    for (const p of L.side) this.lamps.push({ glow: new LampGlow(inner, bl(p), p[3] > 0 ? 0xff3322 : 0x33ff66, { w: 0.25, h: 0.37 }, 1.4), src: null, fl: 1.1, arc: "side", sx: p[3] });
+    for (const p of L.side) this.lamps.push({ glow: new LampGlow(inner, bl(p), p[3] > 0 ? 0xff3322 : 0x33ff66, { w: 0.25, h: 0.37 }, LAMP_LIGHT.oil.halo * 1.2), src: null, fl: 1.1, arc: "side", sx: p[3] });
     for (const p of L.lanterns) {
-      const src = addLantern({ power: 1.6 });
+      const src = addLantern({ power: lanternPower("oil") });
       src.on = 1;
-      this.lamps.push({ glow: new LampGlow(inner, bl(p), 0xffb060, { w: 0.21, h: 0.31 }, 1.1), src, fl: 2.3 + p[1] });
+      this.lamps.push({ glow: new LampGlow(inner, bl(p), 0xffb060, { w: 0.21, h: 0.31 }, LAMP_LIGHT.oil.halo * 1.2), src, fl: 2.3 + p[1] });
     }
     // the saloon's windows: one mesh of panes a hair off the walls, lit at dusk
     const geos: THREE.BufferGeometry[] = [];

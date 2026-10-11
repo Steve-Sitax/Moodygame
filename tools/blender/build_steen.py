@@ -9,7 +9,7 @@ The layout is steen5's, number for number: the footprint (x -194..-160, z -39.5.
 passage and its landing, the museum door on the courtyard (a basket arch at x -183.5, the hall's leaves
 hang in it: world/landmarkHalls.ts buildSteen), the prison range's and the gatehouse's windows where the hall
 has its own (shared/steenPlan.ts SHELL.windows), the courtyard, the ramp (shared/city.json decor.steen_ramp,
-walked by world/steenramp.ts) and the calvary. Where the hall stands inside the shell (the gatehouse and the
+walked by world/steenramp.ts); the calvary at the ramp's foot is client/src/world/calvary.ts. Where the hall stands inside the shell (the gatehouse and the
 prison range) nothing reaches more than 0.18 m behind the lane face.
 
 What is new is the fabric and the depth:
@@ -1837,39 +1837,7 @@ def build():
     m.cone(ngon(ru, rv, rr + 0.7, 8, rot8), 16.85, 26.5, SLATE, 1.0)
     finial(m, ru, rv, 26.5, 1.8)
 
-    # ================================================================ the calvary at the ramp's foot, facing the quay (+v) (the 1880 photograph)
-    m.sec = "the calvary at the ramp's foot, facing the quay"
-    x0_, z0_, x1_, z1_ = RD["calvary"]
-    cu, cv = (x0_ + x1_) / 2 - cx, z1_ - cz - 0.9
-    m.box(cu - 0.6, cu + 0.6, cv - 0.45, cv + 0.45, 0.0, 0.9, BLUE, 0.85, "nsew")
-    m.box(cu - 0.72, cu + 0.72, cv - 0.55, cv + 0.55, 0.9, 1.05, BLUE, 1.0, "nsewtb")
-    m.box(cu - 0.76, cu + 0.76, cv - 0.6, cv + 0.6, 0.0, 0.2, BLUE, 0.9, "nsewt")
-    for k in range(9):  # the iron railing in front
-        uu = cu - 1.0 + k * 0.25
-        m.box(uu - 0.02, uu + 0.02, cv + 0.87, cv + 0.91, 0.0, 1.05, METAL, 1.0, "nsew", col=IRON)
-        m.cone(ngon(uu, cv + 0.89, 0.035, 4, math.pi / 4), 1.05, 1.16, METAL, 1.0, col=IRON)
-    m.box(cu - 1.02, cu + 1.02, cv + 0.85, cv + 0.93, 0.95, 1.02, METAL, 1.0, "nsewtb", col=IRON)
-    for sg in (-1, 1):
-        m.box(cu + sg * 1.0 - 0.03, cu + sg * 1.0 + 0.03, cv - 0.6, cv + 0.85, 0.95, 1.02, METAL, 1.0, "nsewtb", col=IRON)
-        m.box(cu + sg * 1.0 - 0.02, cu + sg * 1.0 + 0.02, cv - 0.6, cv + 0.85, 0.0, 0.95, METAL, 1.0, "nsew", col=IRON)
-    TAR = (0.13, 0.12, 0.11)
-    m.box(cu - 0.12, cu + 0.12, cv - 0.12, cv + 0.12, 1.05, 6.6, METAL, 1.0, "nsewt", col=TAR)  # the tarred cross
-    m.box(cu - 1.1, cu - 0.12, cv - 0.11, cv + 0.11, 5.0, 5.28, METAL, 1.0, "sewtb", col=TAR)
-    m.box(cu + 0.12, cu + 1.1, cv - 0.11, cv + 0.11, 5.0, 5.28, METAL, 1.0, "newtb", col=TAR)
-    for sg in (-1, 1):
-        m.quad((cu - 0.3, cv, 6.47), (cu + 0.3, cv, 6.47), (cu + 0.3, cv + sg * 0.42, 6.15), (cu - 0.3, cv + sg * 0.42, 6.15), METAL, 1.0, (0, sg, 1), col=LEAD)
-    FLESH, CLOTH = (0.48, 0.39, 0.32), (0.46, 0.44, 0.4)  # painted, weathered
-    m.box(cu - 0.14, cu + 0.14, cv + 0.13, cv + 0.27, 3.6, 4.85, METAL, 1.0, "nsetb", col=FLESH)
-    m.box(cu - 0.08, cu + 0.08, cv + 0.13, cv + 0.25, 2.7, 3.25, METAL, 0.95, "nseb", col=FLESH)
-    m.box(cu - 0.09, cu + 0.09, cv + 0.13, cv + 0.28, 4.85, 5.08, METAL, 1.0, "nset", col=FLESH)
-    m.box(cu - 0.16, cu + 0.16, cv + 0.13, cv + 0.29, 3.25, 3.6, METAL, 1.05, "nsetb", col=CLOTH)
-    for sg in (-1, 1):
-        m.poly([(cu + sg * 0.12, cv + 0.2, 4.62), (cu + sg * 0.95, cv + 0.2, 4.98), (cu + sg * 0.95, cv + 0.2, 4.86), (cu + sg * 0.12, cv + 0.2, 4.45)], METAL, 1.0, (0, 1, 0), col=FLESH)
-    m.box(cu - 0.02, cu + 0.02, cv + 0.1, cv + 0.55, 3.3, 3.36, METAL, 1.0, "nsewtb", col=IRON)
-    for fu0, fu1, fv0, fv1, out in ((cu - 0.11, cu + 0.11, cv + 0.44, cv + 0.44, (0, -1, 0)), (cu - 0.11, cu + 0.11, cv + 0.66, cv + 0.66, (0, 1, 0)),
-                                    (cu - 0.11, cu - 0.11, cv + 0.44, cv + 0.66, (-1, 0, 0)), (cu + 0.11, cu + 0.11, cv + 0.44, cv + 0.66, (1, 0, 0))):
-        m.poly([(fu0, fv0, 2.95), (fu1, fv1, 2.95), (fu1, fv1, 3.25), (fu0, fv0, 3.25)], ATLAS, 1.0, out, uvs=cell_uvs([(0, 0), (1, 0), (1, 1), (0, 1)], "lampglass", "atlas"))
-    m.cone(ngon(cu, cv + 0.55, 0.17, 4, math.pi / 4), 3.25, 3.42, METAL, 1.0, col=IRON)
+    # (the calvary at the ramp's foot is the town's one calvary model, built in code: client/src/world/calvary.ts)
     return m
 
 

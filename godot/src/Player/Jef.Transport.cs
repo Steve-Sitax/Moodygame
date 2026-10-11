@@ -21,10 +21,12 @@ public partial class Jef
         Drive = null; DrivenEye = Eye; Grounded = false; Swimming = false;
         placing = false; fallTop = Y; vy = JumpV; jumpHeld = true;
     }
-    public void Carry(Vector3 at, float yawDelta = 0)
+    /// <param name="turnView">The view turns with the floor at once (a turning crane deck: browser carryTo), not after the look's easing.</param>
+    public void Carry(Vector3 at, float yawDelta = 0, bool turnView = false)
     {
         X = at.X; Y = at.Y; Z = at.Z;
         Yaw += yawDelta;
+        if (turnView) lookYaw += yawDelta;
         Grounded = true; Swimming = false; climb = null;
         fallTop = Y; vy = 0; vel = Vector2.Zero;
         Body.GlobalPosition = at;

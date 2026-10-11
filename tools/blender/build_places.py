@@ -1,6 +1,7 @@
 """The street furniture of the new places (M7 prison and squares, 2026-09-26, docs/milestones/M7-prison-squares.md),
 modelled and painted by this script: the Sint-Jansplein's fountain with St John on it, the newspaper kiosk, the
-urinal, a park bench, a tree grille, a flower bed, the churchyard's calvary and old grave slabs.
+urinal, a park bench, a tree grille, a flower bed and old grave slabs. (The churchyard's calvary is the town's one
+calvary model, built in code: client/src/world/calvary.ts.)
 
     blender -b --factory-startup -P tools/blender/build_places.py [-- --nocheck]
 
@@ -567,31 +568,6 @@ def flowerbed(g):
                    out=(-dz, 0, dx), uvs=[cell_uv("flowers", 0, 0), cell_uv("flowers", 1, 0), cell_uv("flowers", 1, 1), cell_uv("flowers", 0, 1)])
 
 
-def calvary(g):
-    """A churchyard calvary: a stepped stone base, a tall wooden cross with a small roof, the corpus in bronze. Faces +z."""
-    g.grp = "calvary"
-    box(g, -1.0, 1.0, 0.02, 0.3, -0.8, 0.8, STONE)
-    box(g, -0.7, 0.7, 0.3, 0.6, -0.55, 0.55, STONE)
-    box(g, -0.3, 0.3, 0.6, 1.1, -0.3, 0.3, STONE)
-    box(g, -0.08, 0.08, 1.1, 4.3, -0.08, 0.08, WOOD)
-    box(g, -0.8, 0.8, 3.35, 3.5, -0.075, 0.075, WOOD)
-    # the little roof over the cross
-    for s in (-1, 1):
-        g.face([(-0.95, 4.2, 0.0), (0.95, 4.2, 0.0), (0.95, 4.05, s * 0.28), (-0.95, 4.05, s * 0.28)], WOOD, out=(0, 1, s))
-        g.face([(-0.95, 4.2, 0.0), (0.95, 4.2, 0.0), (0.95, 4.05, s * 0.28), (-0.95, 4.05, s * 0.28)], WOOD, out=(0, -1, -s), k=0.5)
-    # the corpus
-    lathe(g, (0.0, 0.12), [(0.07, 0.0), (0.09, 0.3), (0.12, 0.55), (0.1, 0.75), (0.0, 0.8)], 6, BRONZE, y0=2.55)
-    sphere(g, (0.0, 3.45, 0.14), 0.08, BRONZE, n=6, m=3)
-    bar(g, (-0.1, 3.3, 0.12), (-0.62, 3.42, 0.1), 0.05, BRONZE)
-    bar(g, (0.1, 3.3, 0.12), (0.62, 3.42, 0.1), 0.05, BRONZE)
-    # an iron railing round the base
-    for (a, b) in (((-1.1, 0.9), (1.1, 0.9)), ((1.1, 0.9), (1.1, -0.9)), ((-1.1, -0.9), (-1.1, 0.9))):
-        bar(g, (a[0], 0.55, a[1]), (b[0], 0.55, b[1]), 0.03)
-        for t in np.linspace(0, 1, 7):
-            px, pz = a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t
-            bar(g, (px, 0.02, pz), (px, 0.62, pz), 0.025)
-
-
 def slabs(g):
     """Three old grave slabs set up against a church wall, leaning a little, one broken. Their backs toward -z."""
     g.grp = "slabs"
@@ -631,7 +607,6 @@ def main():
     bench(g)
     grille(g)
     flowerbed(g)
-    calvary(g)
     slabs(g)
     objs = g.to_objects()
     export()

@@ -7,12 +7,8 @@
 // `settings.onChange(fn)`; nothing outside the menu writes them.
 
 export interface GameSettings {
-  /** Render height in pixels: 720 by default, 270 is the PS1 look; 0 = the full window. */
+  /** Render height in pixels: 720 by default; 0 = the full window. */
   height: number;
-  /** 5-bit colour with ordered dither (the PS1 colour). */
-  psxColour: boolean;
-  /** Vertex wobble (the PS1 snap to the pixel grid). */
-  wobble: boolean;
   /** M6 population: how many townspeople walk in the street round Jef at once. */
   street: StreetLevel;
 }
@@ -87,7 +83,7 @@ export interface Prefs extends GameSettings {
 }
 
 export const HEIGHTS: Array<[number, string]> = [
-  [270, "270 lines (the old PS1 look)"],
+  [270, "270 lines"],
   [360, "360 lines"],
   [540, "540 lines"],
   [720, "720 lines"],
@@ -105,8 +101,6 @@ export const PRESET_KEYS = Object.keys(PRESETS.high) as Array<keyof Prefs>;
 
 export const DEFAULTS: Prefs = {
   height: 720,
-  psxColour: true,
-  wobble: false,
   street: "normal",
   preset: "high",
   scale: 1,
@@ -157,7 +151,6 @@ function read(): Prefs {
     // once: a store from before 2026-09-27 still holds the old defaults; move it to the new ones
     if (!localStorage.getItem(LOOK_KEY)) {
       if (raw.height === 270 && raw.preset !== "low") raw.height = 720;
-      raw.wobble = false;
       localStorage.setItem(LOOK_KEY, "1");
       if (localStorage.getItem(KEY)) localStorage.setItem(KEY, JSON.stringify(raw));
     }
@@ -166,8 +159,6 @@ function read(): Prefs {
   }
   return {
     height: HEIGHTS.some(([h]) => h === raw.height) ? (raw.height as number) : d.height,
-    psxColour: bool(raw.psxColour, d.psxColour),
-    wobble: bool(raw.wobble, d.wobble),
     street: typeof raw.street === "string" && Object.hasOwn(STREET_LEVELS, raw.street) ? raw.street : d.street,
     preset: one(raw.preset, ["low", "medium", "high", "custom"] as const, d.preset),
     scale: num(raw.scale, 0.5, 1, d.scale),

@@ -479,7 +479,7 @@ vec3 psx_spill_at(vec3 P, vec3 N) {
 
     /// <summary>Wet ground: a lamp as a streak toward the eye, the rain's rings, the spill sources mirrored (psx.ts).</summary>
     private const string WetGlsl = @"
-global uniform sampler2D psx_mirror : source_color, filter_nearest, repeat_disable;
+global uniform sampler2D psx_mirror : source_color, filter_linear, repeat_disable;
 global uniform mat4 psx_mirror_mat;
 global uniform float psx_mirror_columns;
 global uniform vec4 psx_mirror_col0;
@@ -563,7 +563,7 @@ global uniform sampler2D psx_shore : filter_linear, repeat_disable;
 global uniform vec4 psx_shore_box;
 global uniform sampler2D psx_foul : filter_linear, repeat_disable;
 global uniform vec4 psx_foul_box;
-global uniform sampler2D psx_water_mirror : source_color, filter_nearest, repeat_disable;
+global uniform sampler2D psx_water_mirror : source_color, filter_linear, repeat_disable;
 global uniform mat4 psx_water_mirror_mat;
 global uniform vec4 psx_water_mirror_col0;
 global uniform vec4 psx_water_mirror_col1;
@@ -854,9 +854,9 @@ global uniform vec4 psx_dirt_box;
 global uniform vec4 psx_mir0;
 global uniform vec4 psx_mir1;
 uniform vec4 albedo : source_color = vec4(1.0);
-uniform sampler2D tex : source_color, filter_nearest_mipmap, repeat_enable, hint_default_white;
+uniform sampler2D tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable, hint_default_white;
 uniform vec3 emission : source_color = vec3(0.0);
-uniform sampler2D emission_tex : source_color, filter_nearest_mipmap, repeat_enable, hint_default_white;
+uniform sampler2D emission_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable, hint_default_white;
 // 1: its emission is the sky's fill light (baked at midday): it follows the sky and the model's vertex colour
 uniform float fill = 0.0;
 global uniform vec4 psx_fill;
@@ -864,7 +864,6 @@ uniform float affine = 1.0;
 uniform float fog_reach = 1.0;
 uniform float alpha_cut = 0.5;
 uniform vec4 uv_xform = vec4(1.0, 1.0, 0.0, 0.0);
-varying vec3 aff;
 varying float fog_depth;
 varying vec3 world;
 ");
@@ -874,7 +873,7 @@ varying vec3 world;
         if (k.Atlas > 0) c.Append("varying vec2 cell;\n");
         if (k.Ground) c.Append("uniform float vary = 0.0;\nuniform float puddles = 0.0;\n// the wet stone's highlight (three's Phong: specular and shininess; 0 when it never gets wet)\nuniform vec3 spec_color = vec3(0.0);\nuniform float shininess = 12.0;\nvarying float spec_k;\n");
         if (k.Wall) c.Append("uniform float foot = 0.0;\nuniform float foot_wear = 0.0;\nuniform float mottle = 0.0;\n");
-        if (k.Slabs) c.Append("uniform sampler2D slab_map : source_color, filter_nearest_mipmap, repeat_enable;\nuniform sampler2D slab_h : filter_linear_mipmap, repeat_enable;\nuniform float slab_tile = 2.6;\nuniform float slab_ymax = 0.8;\nuniform float slab_dome = 2.5;\n");
+        if (k.Slabs) c.Append("uniform sampler2D slab_map : source_color, filter_linear_mipmap_anisotropic, repeat_enable;\nuniform sampler2D slab_h : filter_linear_mipmap, repeat_enable;\nuniform float slab_tile = 2.6;\nuniform float slab_ymax = 0.8;\nuniform float slab_dome = 2.5;\n");
         c.Append(LampScatterGlsl);
         if (lit || k.Ground) c.Append(SkyGlsl).Append(SpillGlsl);
         if (noise) c.Append(NoiseGlsl);
@@ -928,7 +927,6 @@ void vertex() {
         if (k.Atlas > 0) c.Append("	cell = UV2;\n");
         if (k.Grime > 0) c.Append("	gmat = CUSTOM0.xy; // (the house's wall picture and paint)\n");
         c.Append(@"	UV = UV * uv_xform.xy + uv_xform.zw;
-	aff = vec3(UV * POSITION.w, POSITION.w);
 }
 
 void fragment() {
@@ -941,8 +939,8 @@ void fragment() {
 	// what the lit colour is multiplied by, and what is added to it, before the fog (see the class comment)
 	vec3 k3 = vec3(1.0);
 	vec3 ad = vec3(0.0);
-	// affine warp fades in with distance: textures swim a little far off, but stay straight at your feet
-	vec2 uv = mix(UV, aff.xy / aff.z, affine * smoothstep(4.0, 14.0, len));
+	// (Steve, 2026-10-11: no PS1 look: textures stay true on their faces, no affine warp)
+	vec2 uv = UV;
 ");
         if (k.Grime > 0 || k.Bump) c.Append("	vec2 raw_uv = uv;\n");
         if (k.Grime == 1) c.Append("	vec3 wall_dn = vec3(0.0);\n");

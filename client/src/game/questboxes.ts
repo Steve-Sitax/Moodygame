@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { lanternPower } from "../world/lampLight";
 import { psx } from "../retro/psx";
 import { addLantern, type LanternSource } from "../world/lanternLights";
 import { lampFog, type LampFog } from "../world/lampFog";
@@ -203,7 +204,7 @@ export class QuestBoxes {
     // the post and chest, the iron fittings: one mesh each (world/staticMerge.ts; the flame is lit on its own)
     mergeParts(g);
     this.world.scene.add(g);
-    const lamp = addLantern({ power: 0.8 });
+    const lamp = addLantern({ power: lanternPower("hand") }); // (a hand lantern's light, world/lampLight.ts)
     g.updateMatrixWorld(true);
     flame.getWorldPosition(lamp.pos);
     lamp.ground = g.position.y;

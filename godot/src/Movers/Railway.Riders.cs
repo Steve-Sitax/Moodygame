@@ -8,6 +8,9 @@ public partial class Railway
     /// <summary>Snapshots of the live portal and jib, without stopping their work or allocating lists.</summary>
     public readonly record struct Ladder(int Id, Vector3 Foot, Vector3 Hang, Vector3 Head, float Face, Transform3D Deck, string Mode, int Lifts);
     public int LadderCount => cranes.Count;
+    public bool RiderCanTravel(int i) => cranes[i].Axis != ' ';
+    /// <summary>Jef is on this crane (ladder, gallery or cabin). It changes nothing in its work: he is carried.</summary>
+    private static bool Ridden(Crane c) => Scheldemist.Play.CraneClimb.I?.On == c.Index;
     public Ladder LadderAt(int i)
     {
         var c = cranes[i];

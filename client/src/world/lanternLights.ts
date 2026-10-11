@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { addSpill, removeSpill, type SpillSource } from "./spill";
+import { LAMP_LIGHT } from "./lampLight";
 
 // Carried lanterns light the world (2026-09-24, Steve: "live lighting and shadows on the ground").
 //
@@ -93,11 +94,12 @@ export function removeCaster(root: THREE.Object3D): void {
  * feet and nothing a stride away (and its shadows would fall where there is no light to miss). A
  * softer fall-off gives the same pool of light round the carrier as the gas lamp gives round its post.
  */
-const COLOR = 0xffa048;
-const DECAY = 1.25;
-/** A townsman's lantern: a candle behind horn, far weaker than a gas lamp (26 at 3.65 m). */
-const POWER = 3.6;
-const RANGE = 10;
+const COLOR = LAMP_LIGHT.hand.color;
+const DECAY = LAMP_LIGHT.hand.decay;
+/** A townsman's lantern: a candle behind horn, far weaker than a gas lamp (26 at 3.65 m). (2026-10-11: an oil flame, a
+ * little warmer than the gas, from the town's one table of lamp light, world/lampLight.ts.) */
+const POWER = LAMP_LIGHT.hand.power;
+const RANGE = LAMP_LIGHT.hand.range;
 /**
  * How many real lights, and how many of them throw shadows. Measured 2026-09-24 (RTX 5090, test save,
  * night, 13 to 34 carriers): the lights cost no CPU to speak of; the one shadow light 0.5 to 1 ms a

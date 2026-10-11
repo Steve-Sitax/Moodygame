@@ -6,20 +6,19 @@ namespace Scheldemist.Movers;
 
 public partial class Railway
 {
-    private static bool Occupied(Crane c)=>CraneClimb.I?.On==c.Index;
-    private static float Rank(Crane c)=>Math.Max(Occupied(c)?4:c.Reserved||c.Ops.Count>0?3:c.Mode!="berth"?2:1,c.YieldT>0?c.Lend:0);
-    private static bool CanYield(Crane c)=>!Occupied(c);
+    // (2026-10-11, Steve: "they just keep moving as they were") a crane with Jef aboard ranks and gives way as any other
+    private static float Rank(Crane c)=>Math.Max(c.Reserved||c.Ops.Count>0?3:c.Mode!="berth"?2:1,c.YieldT>0?c.Lend:0);
     private void RequestYield(Crane c,int k)
     {
         if(k<0||k>=c.Near.Count*2)return;var other=c.Near[k>>1];float rank=Rank(c),theirs=Rank(other);
-        if(!CanYield(other)||rank<theirs||rank==theirs&&c.Index>=other.Index)return;
+        if(rank<theirs||rank==theirs&&c.Index>=other.Index)return;
         other.YieldT=1.2f;other.Lend=Math.Max(other.Lend,rank-.5f);
         float dx=other.X-c.X,dz=other.Z-c.Z,len=Math.Max(.001f,MathF.Sqrt(dx*dx+dz*dz));other.AwayX+=dx/len;other.AwayZ+=dz/len;
         if((k&1)!=0)other.MoveOn=true;
     }
     private bool YieldStep(Crane c,float dt)
     {
-        if(c.YieldT<=0||!CanYield(c))return false;
+        if(c.YieldT<=0)return false;
         if(c.YieldT>=1.2f)c.Yields++;c.YieldT-=dt;
         if(c.MoveOn&&c.Axis!=' '&&!c.Reserved&&c.Ops.Count==0&&c.Mode=="berth"&&NextBerth(c) is {} berth)
         {c.Target=berth.P;c.NextA=berth.A;c.Mode="swingIn";c.Along=Math.Abs(CraneGeo.AngDiff(Math.PI/2,c.A))<Math.Abs(CraneGeo.AngDiff(-Math.PI/2,c.A))?MathF.PI/2:-MathF.PI/2;c.YieldT=0;c.Lend=c.AwayX=c.AwayZ=0;c.MoveOn=false;return false;}

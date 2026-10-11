@@ -3,6 +3,7 @@ import { psx } from "../retro/psx";
 import { loadModelSet, type ModelSet } from "./boats";
 import { glassColor } from "./gaslamps";
 import { lampFog } from "./lampFog";
+import { LAMP_LIGHT, lanternPower } from "./lampLight";
 import { rectAround, type Rect } from "./geom";
 import { addLantern, removeLantern, type LanternSource } from "./lanternLights";
 import { Geo, WORLD, tideCuts, tideShade } from "./quaysteps";
@@ -26,8 +27,8 @@ export const STAGE_X = -249;
 const LEVEL_AT: [number, number] = [STAGE_X, -30];
 /** Lamp glass: the size of build_ferry.py's lantern (w 0.26, h 0.4), a hair larger to cover its panes. */
 const GLOW = { w: 0.27, h: 0.41 };
-/** A pier oil lamp's strength (1 = a townsman's lantern). */
-const LAMP_POWER = 2.4;
+/** A pier oil lamp's strength (1 = a townsman's lantern): an oil lantern's (world/lampLight.ts, 2026-10-11; was 2.4). */
+const LAMP_POWER = lanternPower("oil");
 
 let setP: Promise<ModelSet> | null = null;
 /** ferry.glb (the arrival ferry and the landing stage), loaded once. */
@@ -78,7 +79,7 @@ export class LampGlow {
   readonly halo: THREE.Sprite;
   private readonly mat: THREE.MeshBasicMaterial;
   private readonly tint: THREE.Color;
-  constructor(parent: THREE.Object3D, local: THREE.Vector3, tint: number, size = GLOW, halo = 1.3) {
+  constructor(parent: THREE.Object3D, local: THREE.Vector3, tint: number, size = GLOW, halo = LAMP_LIGHT.oil.halo * 1.2) {
     this.tint = new THREE.Color(tint);
     this.mat = new THREE.MeshBasicMaterial({ color: 0x000000 });
     // night fog (2026-09-26): the glass fogs as the gas lamps' does, a little past its post, with the lamps' glow in

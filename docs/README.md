@@ -30,5 +30,6 @@ Status: documentation phase. No game code yet. Written 2026-09-23.
 | [learnings-for-next-game.md](learnings-for-next-game.md) | Rules and lessons from this project for the next game: process, AI, rendering, world building, testing, saves, multiplayer, releases |
 | [milestones/](milestones/) | One note per finished milestone; [milestones/M6.md](milestones/M6.md) is the index of the M6 parts |
 
-Reference game: Foghorns Drown (Studio Laaya, 2026). First person, PS1-style, foggy lake town, a ferryman.
-We copy the mood and the look. We do not copy assets, code or story.
+Reference game: Foghorns Drown (Studio Laaya, 2026). First person, foggy lake town, a ferryman.
+We take its mood: the fog and the grain. Not its PS1 style (Steve, 2026-10-11: high detail and good looking; see
+05-art-direction.md). We do not copy assets, code or story.

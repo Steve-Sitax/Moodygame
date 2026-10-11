@@ -3,18 +3,21 @@
 Reference: Foghorns Drown (Studio Laaya, 2026). We copy the mood and the technique. Not the assets, not the story.
 
 ## The look in one line
-A PS1 game found in a wet cellar. Low poly. Thick fog. Gas light. Everything a little wrong.
+Antwerp in 1873, made in high detail and good looking. Thick fog, gas light and a fine film grain carry the mood.
+
+Steve, 2026-10-11: "remove the ps1 references, always make things high detail and good looking, we just use fog and
+grain for mood. But the PS1 low poly and misaligned textures should not be used." The PS1 look of the first months
+(270 lines, nearest pixels, vertex wobble, affine texture warp, 5-bit colour with a dither) is gone from both games.
 
 ## Rules
 | Rule | How |
 |---|---|
-| Low resolution | Render to a 480x270 target. Upscale with nearest filter. |
-| Vertex wobble | Snap vertex positions to a coarse grid in the vertex shader. Things jitter when you move. |
-| Affine texture warp | Skip perspective correction on textures (noperspective trick in the shader). Textures swim. |
-| Colour depth | Reduce to 5 bits per channel. Add an ordered dither (Bayer 4x4). |
+| Detail | Every new or changed model is high detail: real shapes with bevels and enough segments, period-right. No deliberate low poly. Inside the frame budget (docs/performance.md): share geometry, instance copies, drop what nobody sees. |
+| Textures | Clean, properly aligned, at a sensible resolution, smooth (linear, mipmapped) filtering. No swimming or warped textures, no blocky pixels up close. Wet stone, tar, rope, rust. |
+| Picture | Godot: the full window by default (High quality) with smooth edges (4x multisampling), full colour. The browser demo draws 720 lines by default, smoothly scaled, without multisampling (it cost 6 ms a frame there). |
+| Grain | A fine film grain over the picture, a little stronger in the shadows; with the grade and the vignette. |
 | Fog | Dense linear fog, 3 m to 25 m. Colour shifts with time: grey-blue at dawn, brown-yellow under gas lamps, near black at night. |
 | Light | Few lights. Gas lamps are the only warm light. Everything else is cold. Flicker on lamps. |
-| Textures | 64x64 to 128x128. Hand-painted or photo-based, crushed. Wet stone, tar, rope, rust. |
 | Palette | Grey-green water, brown brick, black iron, one yellow (lamps), one red (Red Star Line flag, blood). |
 | Camera | First person. Slight head bob. Slow turn. Low field of view (60) in alleys, wider (75) on the quay. |
 | UI | Paper and ink. A pencil font. Needs as small drawings, not bars. Money as coins in a hand. |
@@ -35,6 +38,6 @@ A PS1 game found in a wet cellar. Low poly. Thick fog. Gas light. Everything a l
 
 ## Asset plan for the demo
 - One modular kit: 10 wall pieces, 4 roofs, 6 street props, 3 boat parts, 2 lamp types.
-- 8 NPC models from 2 base bodies with texture swaps. Faces are 32x32. That is the style.
+- 8 NPC models from 2 base bodies with texture swaps. (The first plan's 32x32 faces were the old PS1 style; new work is high detail.)
 - 6 job props: sack, crate, lantern, letter, barrel, rope.
-- Made in Blender, or bought low-poly packs with a clear licence. No copied assets. Licence noted per pack.
+- Made in Blender or in code, or bought packs with a clear licence. No copied assets. Licence noted per pack.
