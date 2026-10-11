@@ -202,8 +202,11 @@ export function draftOf(kind: string): number {
   }
 }
 
-/** Dev: hold the river at high or low water (null: follow the clock). */
-export const tideDev = { hold: null as null | "high" | "low" };
+/**
+ * Dev: hold the river at spring high or low water, or at any level y (metres, quay top 0; W1 tide kit:
+ * `__scheldemist.t.tide(y)`); null: follow the clock. A hold wins over the clock and the storm's surge.
+ */
+export const tideDev = { hold: null as null | "high" | "low" | number };
 
 /** Water deeper than this over a floor (steps, a landing): you swim; shallower: you wade and stand. */
 export const WADE = 1.2;

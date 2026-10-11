@@ -9,6 +9,8 @@ import { GAME_MIN_PER_REAL_S, REAL_S_PER_GAME_MIN } from "../../../shared/clock"
 import type { QuestBoxes } from "../game/questboxes";
 import type { Nightlife } from "../game/nightlife";
 import { tempest } from "../world/tempest";
+import { water as tideWater } from "../world/tide";
+import type { BoatWaterOptions } from "./boatWaterCheck";
 
 // The test kit (Steve, 2026-09-24: "write good testing routines: where to go, what time and how;
 // searching or spawning figures for quick tests instead of waiting"). Dev builds only, in the tab
@@ -95,6 +97,8 @@ export function makeTestKit(d: TestKitDeps) {
         "job({type:'watch', twist:'thief'}) a job of that kind on the board, taken, Jef at its start (test save only); job({type:'carry', cart:true}) a cart job",
         "lampJob(round?)                  the lamplighter's last lamps on the board ('west' | 'market' | 'east' | 'wall_north' ...), taken, Jef at the spare pole (test save only)",
         "event('fish_auction' | 'invent') start an event now and go there (test save only)",
+        "tide(y | 'high' | 'low' | null)  W1: hold the river at a level (m, quay top 0) or spring high or low water, and run until the water stands there; null: back to the clock",
+        "boatWater({levels, seconds})     W1: every hull at every tide level: under water, in the mud, in the air (__scheldemist.boatWater(); problems must be empty)",
         "run(s) / until(() => cond, maxS) run the game now (the tab may be hidden), at most 30 s a call (15 game minutes)",
         "skip(min)                        the clock on by min game minutes (through midnight: the date turns), then one tick (test save only)",
         "gang(answer?)                    M7 night: a gang now where Jef stands; answer 'run' | 'fight' | 'shout' | 'pay' at once, or leave it to the keys (test save only)",
@@ -352,6 +356,28 @@ export function makeTestKit(d: TestKitDeps) {
       return { phase: tempest.phase, level: +tempest.level.toFixed(2), hold: tempest.hold, closed: d.events.closed.length, town: d.town.stormInfo(), gale: alive?.gale, storm: alive?.storm, wind: alive?.wind };
     },
 
+    /**
+     * W1 tide kit: hold the river (with the canal and the vlieten) at level y (metres, quay top 0; spring low
+     * -5.20, half tide -2.80, spring high -0.40), at spring "high" or "low" water, or let it follow the clock
+     * again (null). The water sheet eases at 0.6 m a second: the game runs (test steps) until it stands at its
+     * target, at most 15 s, and the boats with it. The dock and the lock chamber keep their own levels.
+     */
+    tide(v: number | "high" | "low" | null = null): { river: number; target: number; ran: number; text: string } {
+      d.world.tideDev.hold(v);
+      let ran = 0;
+      while (ran < 15 && Math.abs(tideWater.river - d.world.tideDev.target()) > 0.002) {
+        d.step(0.25);
+        ran += 0.25;
+      }
+      d.step(0.25); // (the boats and the lock read the settled water once more)
+      return { river: +tideWater.river.toFixed(3), target: +d.world.tideDev.target().toFixed(3), ran: ran + 0.25, text: d.world.tideDev.read() };
+    },
+
+    /** W1: the boat-water check (dev/boatWaterCheck.ts): every hull at every tide level; `problems` must be empty. */
+    async boatWater(opts: BoatWaterOptions = {}) {
+      return (await import("./boatWaterCheck")).boatWaterCheck(opts);
+    },
+
     run(seconds: number): string {
       const s = Math.min(30, Math.max(0, seconds));
       for (let t = 0; t < s; t += 0.5) {
@@ -476,6 +502,9 @@ export function makeTestKit(d: TestKitDeps) {
       return "cleared, audio closed, tab parked";
     },
   };
+  // (W1: the boat-water check on the dev object too, as the other checks: __scheldemist.boatWater())
+  const devObj = (window as unknown as { __scheldemist?: Record<string, unknown> }).__scheldemist;
+  if (devObj) devObj.boatWater = (opts?: BoatWaterOptions) => kit.boatWater(opts);
   return kit;
 }
 

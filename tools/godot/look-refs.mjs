@@ -1,6 +1,10 @@
 // The browser's pictures from chosen views, to set beside Godot's (src/Dev/Snap.cs takes the same views):
 //
-//   node tools/godot/look-refs.mjs --root <checkout> --out <dir> --views "name:x,y,z,yaw,pitch,hour,weather[,storm];..." [--ports 8917,5317] [--before "<js>"]
+//   node tools/godot/look-refs.mjs --root <checkout> --out <dir> --views "name:x,y,z,yaw,pitch,hour,weather[,storm];..." [--ports 8917,5317] [--before "<js>"] [--tide <y|high|low>]
+//
+// --tide holds the river (with the canal and the vlieten) at that level (m, quay top 0) for every view, after
+// --before (W1 tide kit: __scheldemist.t.tide); --before-timeout <s> gives a long --before (a check) its time, and
+// its answer is written to <dir>/before.json.
 //
 // A view: the free camera at x, y, z, turned yaw and pitch (degrees; yaw 0 looks to -z, 180 to +z; pitch up), at the
 // hour and the weather given (storm: the great storm held at that level, 0..1). Writes <dir>/<name>_ref.png. It
@@ -101,7 +105,18 @@ try {
   await ev(`(__scheldemist.free(true), 1)`);
   // --before "<js>": test code run once before the views (e.g. open a bridge: __scheldemist.movers().bridges.request("canal_mouth", "look", true))
   const before = opt("before", "");
-  if (before) log("before:", await ev(`Promise.resolve((async () => { ${before}; })()).then((r) => JSON.stringify(r ?? null))`).catch((e) => String(e)));
+  if (before) {
+    const r = await ev(`Promise.resolve((async () => { ${before}; })()).then((r) => JSON.stringify(r ?? null))`, Number(opt("before-timeout", 120)) * 1000).catch((e) => String(e));
+    writeFileSync(path.join(out, "before.json"), r ?? "null");
+    log("before:", String(r).slice(0, 2000));
+  }
+  // --tide: the river held at a level for the views (W1); the hold wins over the views' clock
+  const tide = opt("tide", "");
+  if (tide !== "") {
+    const v = tide === "high" || tide === "low" ? JSON.stringify(tide) : String(Number(tide));
+    if (v === "NaN") throw new Error("--tide: a level in metres, high or low");
+    log("tide:", await ev(`JSON.stringify(__scheldemist.t.tide(${v}))`));
+  }
   // (the browser's points are capped by the graphics card: the largest point and the picture's height they are drawn into)
   log("points:", await ev(`(() => { const c = document.createElement("canvas").getContext("webgl2"); const r = __scheldemist.world?.renderer ?? null; return JSON.stringify({ pointRange: c ? Array.from(c.getParameter(c.ALIASED_POINT_SIZE_RANGE)) : null, canvas: [document.querySelector("canvas")?.width, document.querySelector("canvas")?.height] }); })()`).catch((e) => String(e)));
   let light = "";
@@ -111,6 +126,7 @@ try {
       await ev(`__scheldemist.t.light(${v.hour}, ${JSON.stringify(v.weather)}).then(() => 1)`);
       light = key;
       await wait(SETTLE);
+      if (tide !== "") log("tide now:", await ev(`JSON.stringify(__scheldemist.t.tide(${tide === "high" || tide === "low" ? JSON.stringify(tide) : Number(tide)}))`));
     }
     // the great storm held at a level (the look only: world/tempest.ts hold), or let go
     await ev(`Promise.resolve(__scheldemist.t.tempest({ hold: ${v.storm === null ? "null" : v.storm} })).then(() => 1)`).catch((e) => log("tempest:", String(e).slice(0, 120)));
