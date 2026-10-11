@@ -28,6 +28,7 @@ import { addStallThing } from "./stallSpots";
 import { addProp, dropProps, propIndex, ptsBox } from "../world/propSpots";
 import { buildingRoots, buildWallProbe } from "../world/wallprobe";
 import CITY from "../../../shared/city.json";
+import GUILDS from "../../../shared/city_guild_fronts.json";
 
 // The back streets and the cathedral quarter come alive (M6 lively, Steve 2026-09-24). Everything
 // that involves people lives through the town's residents and their days (server town/lively.ts,
@@ -66,6 +67,8 @@ const GROUND_H = 3.8;
 /** The window sills of the house fronts (world/cityTextures.ts: the sill 12 px up a 64 px storey cell): ground floor, and above an upper floor. */
 const SILL_GROUND = 0.72;
 const SILL_UPPER = 0.57;
+/** The Grote Markt's guild fronts (build_city.py guild_fronts): their own windows over the ground storey [s, y0, y1, w, out, storey, kind]. */
+const GUILD_FRONTS = (GUILDS as unknown as { houses: Record<string, { windows: number[][] }> }).houses;
 
 /** Bodies smaller than this (over a 1.74 m man) are children: people.glb's children are about 0.7, the baker's boy 0.83. */
 const CHILD_BODY = 0.9;
@@ -235,7 +238,7 @@ export class Lively {
   /** Dev: games set by hand on a pitch (devGames). */
   private forced = new Map<string, { boys: ChildGame; girls: ChildGame }>();
   private wets: Wet[] = [];
-  private windows = new Map<string, { h: Human; g: THREE.Group; x: number; z: number; ox: number; oz: number; seed: number }>();
+  private windows = new Map<string, { h: Human; g: THREE.Group; x: number; z: number; y: number; ox: number; oz: number; seed: number }>();
   private cats: Array<{ a: Animal; x: number; z: number; y: number; yaw: number; house: number; shown: boolean }> = [];
   // (M8f sync pass 3: `id` among the players' PCs; the PC of the nearest player runs each, the others draw it)
   private hens: Array<{ id: string; body: THREE.Group; head: THREE.Object3D; legs: THREE.Object3D[]; hx: number; hz: number; x: number; z: number; yaw: number; t: number; tx: number; tz: number; peck: number }> = [];
@@ -2104,11 +2107,33 @@ export class Lively {
         h.play("lean", 0);
         // the lean clip rests the forearms 1.05 m up and 0.55 m out: on the sill of the window over the door (the door bay's window)
         // standing in the room a step back from the wall, leaning out over the sill: the legs stay behind the wall
-        g.position.set(r.home.x - ox * 0.34, GROUND_H - 0.4, r.home.z - oz * 0.34);
+        let wx = r.home.x;
+        let wz = r.home.z;
+        let wy = GROUND_H - 0.4;
+        const guild = GUILD_FRONTS[String(r.home.house)];
+        if (guild) {
+          // a guild front's first floor has its own windows (and stands out of the old wall): the one over the door, if any
+          const hb = (BUILD as unknown as { houses: Array<{ o: number[]; u: number[]; n: number[]; s: number[]; t: number[] }> }).houses[r.home.house];
+          const at = (sv: number): [number, number] => [hb.o[0] + hb.u[0] * (hb.s[0] + sv) + hb.n[0] * hb.t[0], hb.o[1] + hb.u[1] * (hb.s[0] + sv) + hb.n[1] * hb.t[0]];
+          let best: { x: number; z: number; y: number; out: number } | null = null;
+          for (const [sv, y0, , , out, k] of guild.windows) {
+            if (k !== 0) continue;
+            const [x, z] = at(sv);
+            if (Math.hypot(x - r.home.x, z - r.home.z) < 0.8 && (!best || Math.hypot(x - r.home.x, z - r.home.z) < Math.hypot(best.x - r.home.x, best.z - r.home.z))) best = { x, z, y: y0, out };
+          }
+          if (!best) {
+            h.dispose();
+            continue;
+          }
+          wx = best.x + ox * (best.out - 0.1);
+          wz = best.z + oz * (best.out - 0.1);
+          wy = best.y + 0.08 - 1.05;
+        }
+        g.position.set(wx - ox * 0.34, wy, wz - oz * 0.34);
         g.rotation.set(0.38, Math.atan2(ox, oz), 0, "YXZ");
         g.scale.setScalar(1);
         this.world.scene.add(g);
-        this.windows.set(id, { h, g, x: g.position.x, z: g.position.z, ox, oz, seed: h01(id) * 52 });
+        this.windows.set(id, { h, g, x: g.position.x, z: g.position.z, y: wy, ox, oz, seed: h01(id) * 52 });
       }
     }
     for (const w of this.windows.values()) {
@@ -2116,7 +2141,7 @@ export class Lively {
       const inside = phase >= 23 && phase < 48;
       const retreat = phase >= 22 && phase < 23 ? phase - 22 : phase >= 48 && phase < 49 ? 49 - phase : inside ? 1 : 0;
       w.g.visible = !inside;
-      w.g.position.set(w.x - w.ox * retreat * .8, GROUND_H - .4, w.z - w.oz * retreat * .8);
+      w.g.position.set(w.x - w.ox * retreat * .8, w.y, w.z - w.oz * retreat * .8);
       w.g.rotation.x = .38 * (1 - retreat);
       w.h.play(retreat > 0 && !inside ? "walk" : "lean"); w.h.setPace(.8);
       if (!inside) w.h.update(dt);

@@ -32,6 +32,7 @@ import { createCloudSky } from "./sky"; // package 4: the clouds
 import { createWorks } from "./works"; // package 5: works chimneys
 import { buildVegetation } from "./vegetation";
 import { buildTrees3D } from "./trees3d";
+import { loadLibertyTree } from "./libertyTree";
 import { applyDirt } from "./dirt";
 import { createFires, type Fires } from "./fire";
 import { createGasLamps, flameColor, FOG_DAY_GLOW, glassColor, LIT_GLASS_GAIN, LIT_REACH, type GasLamps } from "./gaslamps";
@@ -601,6 +602,8 @@ export function buildRijnkaai(): World {
   // M7 prison and squares: the Sint-Jansplein and the greens (world/townplaces.ts)
   const townPlaces = loadTownPlaces(scene, city.ready);
   colliders.push(...townPlaces.colliders);
+  // the Grote Markt's liberty tree, a lime in its railing (world/libertyTree.ts)
+  colliders.push(...loadLibertyTree(scene, city.ready));
   colliders.push(...pumpColliders());
   colliders.push(...carolusSolids()); // the Carolus's terrace railing (shared/carolusPlan.ts)
   const wildTrees = (CITY_DATA as unknown as { decor?: { trees_wild?: Array<[number, number]> } }).decor?.trees_wild ?? [];
