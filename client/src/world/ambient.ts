@@ -9,6 +9,7 @@ import { LAMP_LIGHT } from "./lampLight";
 import { sharedFacadeProbe, type FacadeProbe } from "./facadeProbe";
 import INWORLD from "../../../shared/inworld_houses.json";
 import YARDS from "../../../shared/city_yard_windows.json";
+import GUILDS from "../../../shared/city_guild_fronts.json";
 import { YARD_PANE_OFF, yardPanes } from "./yardWindows";
 import { tempest } from "./tempest";
 import { neverMirrored } from "./mirror";
@@ -446,6 +447,10 @@ interface House {
   gone?: boolean;
 }
 
+/** A guild front's window (shared/city_guild_fronts.json): s along the front, y0, y1, width, the pane's distance out of the wall line, storey, kind. */
+type GuildWin = [number, number, number, number, number, number, number];
+const GUILD_FRONTS = (GUILDS as unknown as { houses: Record<string, { windows: GuildWin[] }> }).houses;
+
 /** on, off, morning on, morning off; hours from noon (so 25 = 1:00 at night). 99 = never. */
 type Lit = [number, number, number, number];
 
@@ -750,6 +755,8 @@ function buildWindows(houses: House[], gables: Record<string, GableWin[]> = {}, 
     let loads: number[] = [];
     /** The gable's cut windows (a front gable with the whole dress), or null: the painted ones as before. */
     let cutGable: GableWin[] | null = null;
+    /** The Grote Markt's guild fronts (build_city.py guild_fronts): over the ground storey their own windows, not the grid. */
+    let guildWins: GuildWin[] | null = null;
     const wall = (ax: number, az: number, bx: number, bz: number, ox: number, oz: number, door: boolean, gable?: (d: number) => number, gableStep?: number) => {
       const L = Math.hypot(bx - ax, bz - az);
       if (L < 0.05) return;
@@ -772,6 +779,15 @@ function buildWindows(houses: House[], gables: Record<string, GableWin[]> = {}, 
             addWindow(x, z, ox, oz, ux, uz, (bw * 36) / 64, 0.83, 2.85, l, tone, 1, setIn ? -0.095 : 0.04);
           }
         }
+      }
+      if (guildWins) {
+        for (const [s, y0, y1, w, out, k, kind] of guildWins) {
+          const l = litOf(k, kind === 2);
+          if (l[0] >= 99 && l[2] >= 99) continue;
+          const [x, z] = at(s);
+          addWindow(x, z, ox, oz, ux, uz, w, y0, y1, l, tone, kind, out, `${hi}:guild:${k}`);
+        }
+        return;
       }
       // upper storeys: tall windows 18/64 of a bay wide, 0.66 to 2.34 m above the storey floor (col 1)
       const maxUp = gable ? H + 12 : H;
@@ -848,8 +864,10 @@ function buildWindows(houses: House[], gables: Record<string, GableWin[]> = {}, 
         if (store && i === 0) for (let g = 4.5; g < W - 3; g += 9) loads.push(g);
         setIn = !flat.has(`${hi}:${i}`);
         cutGable = i === 0 ? (gables[String(hi)] ?? null) : null;
+        guildWins = i === 0 ? (GUILD_FRONTS[String(hi)]?.windows ?? null) : null;
         wall(ax, az, bx, bz, outs[i][0], outs[i][1], i === 0, g);
         cutGable = null;
+        guildWins = null;
         loads = [];
       }
     } else {

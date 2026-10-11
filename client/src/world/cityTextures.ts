@@ -431,6 +431,53 @@ function sash(g: CanvasRenderingContext2D, x: number, y: number, frame: string, 
   noise(g, x, y, C, C, 0.06, r);
 }
 
+/**
+ * The Grote Markt's guild fronts (tools/blender/guild_fronts.py LEADED, LEADED_SHUT): one panel of a leaded light,
+ * 64 x 64 px over about 0.36 x 0.42 m, tiling (the glass's uv repeats it over each light): small oblong quarries of
+ * old crown glass in lead cames, each a little different in tone, a sky sheen on some, the room dark behind. With
+ * `shut`, the inner shutters closed behind the glass: brown boards seen through it. All opaque (alpha 1): the lit
+ * panes' probe takes it for a window (ambient.ts onPlainWall).
+ */
+function leadedLight(g: CanvasRenderingContext2D, x: number, y: number, shut: boolean, r: () => number): void {
+  g.fillStyle = "#2b2c2b";
+  g.fillRect(x, y, C, C);
+  const cols = 4;
+  const rows = 4;
+  const qw = C / cols;
+  const qh = C / rows;
+  for (let j = 0; j < rows; j++)
+    for (let i = 0; i < cols; i++) {
+      const px = x + i * qw + 1;
+      const py = y + j * qh + 1;
+      const w = qw - 2;
+      const h = qh - 2;
+      const t = r();
+      // the room behind: near black, a cold sky sheen on the old glass (lighter at the top of the pane)
+      const base = shut ? [58 + t * 14, 40 + t * 10, 26 + t * 8] : [24 + t * 16, 30 + t * 16, 36 + t * 18];
+      const green = r() < 0.18 ? 10 : 0;
+      for (let k = 0; k < h; k++) {
+        const f = 1 - k / h;
+        const sheen = shut ? 6 * f : 26 * f * (0.4 + 0.6 * t);
+        g.fillStyle = `rgb(${Math.round(base[0] + sheen)},${Math.round(base[1] + sheen + green)},${Math.round(base[2] + sheen * 1.15)})`;
+        g.fillRect(px, py + k, w, 1);
+      }
+      if (shut && i % 2 === 0) {
+        // the boards' joint and a hinge strap, through the glass
+        g.fillStyle = "rgba(20,12,8,0.6)";
+        g.fillRect(px + w - 1, py, 1, h);
+      }
+      // a bubble or a streak in the glass now and then
+      if (!shut && r() < 0.35) {
+        g.fillStyle = "rgba(190,205,215,0.18)";
+        g.fillRect(px + Math.floor(r() * (w - 3)), py + Math.floor(r() * (h - 2)), 3, 1);
+      }
+    }
+  // the cames: lead, a highlight along their top edges
+  g.fillStyle = "rgba(120,120,112,0.35)";
+  for (let j = 0; j < rows; j++) g.fillRect(x, y + j * qh, C, 1);
+  for (let i = 0; i < cols; i++) g.fillRect(x + i * qw, y, 1, C);
+}
+
 /** A shop window, 64 x 64 px over about 1.9 x 2.26 m: a slim frame, a transom light up top, a mullion;
  * wares on a shelf behind the glass in the brown one. */
 function shopWindow(g: CanvasRenderingContext2D, x: number, y: number, frame: string, wares: boolean, r: () => number): void {
@@ -556,6 +603,12 @@ export function facadeAtlas(): THREE.CanvasTexture {
   shopWindow(g, ...at(5, 1), "#2a4232", false, r2);
   shopWindow(g, ...at(6, 1), "#4a3322", true, r2);
   dormerWindow(g, ...at(7, 1), r2);
+  // the guild fronts' leaded lights (build_city.py guild_fronts LEADED, LEADED_SHUT): their own dice
+  {
+    const r4 = rand(1879);
+    leadedLight(g, ...at(0, 4), false, r4);
+    leadedLight(g, ...at(1, 4), true, r4);
+  }
   shutterLeaf(g, ...at(4, 2), true, r2);
   shutterLeaf(g, ...at(5, 2), false, r2);
   // grime pass 2: a sash with one pane gone (black) and a crack across another (build_city.py SASH_CRACKED)

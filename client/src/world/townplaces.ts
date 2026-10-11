@@ -182,7 +182,7 @@ function rondGround(group: THREE.Group): void {
 
 // ------------------------------------------------------------------ railings (low iron, drawn in code)
 
-function railings(lines: P2[][]): THREE.BufferGeometry | null {
+export function railings(lines: P2[][]): THREE.BufferGeometry | null {
   const geos: THREE.BufferGeometry[] = [];
   const bar = (ax: number, ay: number, az: number, bx: number, by: number, bz: number, w: number) => {
     const L = Math.hypot(bx - ax, by - ay, bz - az);
@@ -195,6 +195,7 @@ function railings(lines: P2[][]): THREE.BufferGeometry | null {
     geos.push(g);
   };
   for (const line of lines) {
+    const closed = line.length > 2 && Math.hypot(line[0][0] - line[line.length - 1][0], line[0][1] - line[line.length - 1][1]) < 0.01;
     for (let i = 0; i < line.length - 1; i++) {
       const [ax, az] = line[i];
       const [bx, bz] = line[i + 1];
@@ -204,7 +205,8 @@ function railings(lines: P2[][]): THREE.BufferGeometry | null {
       const uz = (bz - az) / L;
       // posts with a ball, every 1.6 m at most
       const np = Math.max(1, Math.ceil(L / 1.6));
-      for (let k = 0; k <= np; k++) {
+      // (one post at a corner two runs share, not two in one place)
+      for (let k = i > 0 ? 1 : 0; k <= (closed && i === line.length - 2 ? np - 1 : np); k++) {
         const x = ax + (ux * L * k) / np;
         const z = az + (uz * L * k) / np;
         bar(x, 0, z, x, 0.68, z, 0.05);
@@ -232,6 +234,16 @@ function railings(lines: P2[][]): THREE.BufferGeometry | null {
     for (const k of Object.keys(g.attributes)) if (k !== "position" && k !== "normal") g.deleteAttribute(k);
   }
   return mergeGeometries(ng);
+}
+
+let railMat: THREE.Material | null = null;
+/** The low iron railings' paint, one material for every railing of the places (and the Grote Markt's liberty tree). */
+export function placesRailMaterial(): THREE.Material {
+  if (!railMat) {
+    railMat = psx(new THREE.MeshLambertMaterial({ color: 0x1a2a20 }), { affine: 0 });
+    railMat.name = "places_rail";
+  }
+  return railMat;
 }
 
 // ------------------------------------------------------------------ the whole
@@ -264,8 +276,7 @@ export function loadTownPlaces(scene: THREE.Scene, ready: Promise<unknown>): Tow
     const pts = g.grass.flat();
     return [pts.reduce((s, p) => s + p[0], 0) / pts.length, pts.reduce((s, p) => s + p[1], 0) / pts.length];
   };
-  const ironMat = psx(new THREE.MeshLambertMaterial({ color: 0x1a2a20 }), { affine: 0 });
-  ironMat.name = "places_rail";
+  const ironMat = placesRailMaterial();
   for (const g of GREENS) {
     const grp = groupOf(g.id, greenCentre(g), 40);
     const rg = railings(g.rails);

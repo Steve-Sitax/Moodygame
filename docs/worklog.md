@@ -1,5 +1,16 @@
 # Work log
 
+## The Grote Markt's guild houses made by hand, and its liberty tree, 2026-10-12 (branch sv-s3b, survey #17)
+
+- `tools/blender/guild_fronts.py` (imported by `build_city.py`): 14 fronts on the square (houses 18-25, 50-55), seven designs in
+  two variants each. The ground storeys stay as `build_city.py` builds them (doors, shop windows, the rooms of Den Engel and the
+  tobacconist); over them the new front, a slab 0.32 m before the old wall line, clear of the roof everywhere.
+- `shared/city_guild_fronts.json`: the fronts' windows; `ambient.ts` lights them at night, `lively.ts` puts the head at the
+  window over the door. Two new facade atlas cells (leaded glass, `cityTextures.ts leadedLight`).
+- `world/libertyTree.ts`: a lime (trees.glb) at (-262, 86) in the places' railing on a bluestone ring.
+- Checks: paths none, shaders none, z-fight nothing near the square, interiorcheck Den Engel 0; the tobacconist's one problem
+  was there before: issue https://github.com/Steve-Sitax/Moodygame/issues/71. Godot needs the bake.
+
 ## Fix wave 2 (bugs): omnibus boards in the air, people on lifted bridges, 2026-10-11
 
 Branch `fx-bugs` (helper). Godot only, no bake needed.
