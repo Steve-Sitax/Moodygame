@@ -43,7 +43,7 @@ public partial class Railway : Node
     private static readonly (float X, float Z)[] CraneFeet = { (2.2f, 2.6f), (-2.2f, 2.6f), (2.2f, -2.6f), (-2.2f, -2.6f) };
     private const float CraneWheelR = 0.3f, CraneV = 0.42f, CraneGap = 17, GiveUp = 12, TravelHook = 6.8f, HookBlock = 0.66f;
     private static readonly string[] Goods = { "sacks", "casks", "bales", "crates" };
-    private static readonly Dictionary<string, float> UnitH = new() { ["sacks"] = 0.56f, ["casks"] = 0.74f, ["bales"] = 0.78f, ["crates"] = 0.86f };
+    private static readonly Dictionary<string, float> UnitH = new() { ["sacks"] = 0.56f, ["casks"] = 0.74f, ["bales"] = 0.78f, ["crates"] = 0.575f }; // (crates: the one crate at 1.15 its standard size, railway.ts CRATE_UNIT)
     private static readonly float[] Rows = { 1.55f, 0, -1.55f };
     private static readonly float[] Across = { -0.56f, 0.56f };
 

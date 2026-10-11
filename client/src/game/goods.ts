@@ -6,6 +6,8 @@ import { loadProps, type Props } from "../world/props3d";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { GOODS, makeGoods, type Goods } from "./props";
 import { sackLabelFor, sackMesh } from "./sackModel";
+import { crateGeometry, crateLabelFor, crateMaterial, crateOf, cratesReady, CRATE_CLASS, PROP_CRATES } from "./crateModel";
+import { isFishBox } from "./fishBox";
 import { pick, type Target } from "./facing";
 import { FOOT, hash32, heightOf, placeAt, rotFor, SACK_LIE, type GoodsAsk, type GoodsItem, type GoodsPush, type Holder } from "../../../shared/goods";
 import { createGoodsDrays, type GoodsDrays } from "../world/goodsDrays";
@@ -379,7 +381,10 @@ export class GoodsWorld {
     } else if (it.look?.startsWith("q:")) {
       for (const c of [...it.obj.children]) c.removeFromParent(); // (lying, the heaps' chunk meshes draw it)
       showQuayCargo(it.id, it.look.slice(2), x, y, z, rot);
-    } else this.world.scene.add(it.obj);
+    } else {
+      if (it.kind === "crates") this.body(it); // (the one crate, once its model is in)
+      this.world.scene.add(it.obj);
+    }
     this.items.push(it);
     this.underDirty = true;
     this.collide(it);
@@ -413,13 +418,25 @@ export class GoodsWorld {
       if (!it.obj.children.length) it.obj.add(this.sackOf(it));
       return it.obj;
     }
+    // (2026-10-11) one model for every crate, its own stencil by its id, wherever it is: a job's, a pile's, the Rijnkaai's
+    // big cases ("p:", at their class and scale); the heaps' pieces ("q:") come as the one crate from the heaps' models
+    const prop = it.kind === "crates" && it.look?.startsWith("p:") ? PROP_CRATES[it.look.slice(2)] : undefined;
+    if (prop || (it.kind === "crates" && !it.look && !isFishBox(it.id))) {
+      if (it.obj.children[0]?.name === "stand-in" && cratesReady()) it.obj.children[0].removeFromParent();
+      if (!it.obj.children.length) {
+        const c = crateOf(it.id, prop ? { open: prop[1], scale: CRATE_CLASS[prop[0]] * (it.sc ?? 1) } : {});
+        if (c) it.obj.add(c);
+        else it.obj.add(Object.assign(makeGoods(it.kind, this.world.mats, it.id), { name: "stand-in" }));
+      }
+      return it.obj;
+    }
     if (it.look && !it.obj.children.length) {
       let m: THREE.Object3D | null = null;
       if (it.look === "cask") m = this.props ? this.props.place("barrel", 0, 0, 0) : null;
       else if (it.look.startsWith("p:") && this.props) {
         m = this.props.place(it.look.slice(2), 0, 0, 0);
         m.scale.setScalar(it.sc ?? 1);
-      } else if (it.look.startsWith("q:")) m = quayPieceMesh(it.look.slice(2));
+      } else if (it.look.startsWith("q:")) m = quayPieceMesh(it.look.slice(2), it.id);
       // (the model not in yet: the plain goods of its kind, made again when it is)
       it.obj.add(m ?? Object.assign(makeGoods(it.kind, this.world.mats, it.id), { name: "stand-in" }));
     } else if (it.look && it.obj.children[0]?.name === "stand-in" && (this.props || this.quay)) {
@@ -706,9 +723,12 @@ export class GoodsWorld {
     for (const it of list) {
       const name = it.look === "cask" ? "barrel" : it.look!.slice(2);
       q.setFromAxisAngle(up, it.obj.rotation.y);
-      sc.setScalar(it.look === "cask" ? 1 : (it.sc ?? 1));
+      // (a crate: the one crate, its own stencil by its id, at its class: game/crateModel.ts)
+      const crate = PROP_CRATES[name];
+      const cg = crate ? crateGeometry(crateLabelFor(it.id), crate[1]) : null;
+      sc.setScalar(it.look === "cask" ? 1 : (it.sc ?? 1) * (cg ? CRATE_CLASS[crate[0]] : 1));
       m.compose(it.obj.position, q, sc);
-      for (const { geometry, material } of this.props!.parts(name)) {
+      for (const { geometry, material } of cg ? [{ geometry: cg, material: crateMaterial() }] : this.props!.parts(name)) {
         const g = geometry.clone();
         for (const a of Object.keys(g.attributes)) if (!KEEP.includes(a)) g.deleteAttribute(a);
         g.applyMatrix4(m);

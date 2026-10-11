@@ -186,6 +186,59 @@ const EXPORT = `(() => {
       scene.add(g);
     }
     scene.updateMatrixWorld(true);
+    // every BatchedMesh (world/litter.ts: the town's dung, straw, heaps, rubbish): three's GLTFExporter writes only its
+    // packed geometry, every kind once at the origin (2026-10-11: the manure heap hung over the quay wall at 0, 0 in
+    // Godot, and the town's litter was missing). Each is written as one plain mesh of its shown copies instead: their
+    // matrices applied, their colour into the vertex colour.
+    scene.traverse((o) => { if (o.userData && typeof o.userData.forBake === "function") o.userData.forBake(); });
+    const batched = [];
+    scene.traverse((o) => { if (o.isBatchedMesh) batched.push(o); });
+    for (const b of batched) {
+      const src = b.geometry, Geo = src.constructor, Attr = src.attributes.position.constructor;
+      const names = Object.keys(src.attributes).filter((k) => ["position", "normal", "uv", "color"].includes(k));
+      const out = {}, idx = src.index;
+      for (const k of names) out[k] = [];
+      const M = b.matrixWorld.clone().identity(), N = new (Object.getPrototypeOf(b.normalMatrix).constructor)(), C = b.material.color ? b.material.color.clone() : null;
+      const v = b.position.clone();
+      let copies = 0;
+      const info = b._instanceInfo || [];
+      for (let id = 0; id < info.length; id++) {
+        if (!info[id] || info[id].active === false || !b.getVisibleAt(id)) continue;
+        const gid = b.getGeometryIdAt(id), r = b.getGeometryRangeAt(gid);
+        b.getMatrixAt(id, M);
+        N.getNormalMatrix(M);
+        let tint = 1;
+        if (C && b._colorsTexture) { b.getColorAt(id, C); tint = C.r; }
+        const list = [];
+        if (idx && r.indexCount > 0) for (let i = 0; i < r.indexCount; i++) list.push(idx.getX(r.indexStart + i));
+        else for (let i = 0; i < r.vertexCount; i++) list.push(r.vertexStart + i);
+        for (const i of list) {
+          for (const k of names) {
+            const a = src.attributes[k];
+            if (k === "position") { v.fromBufferAttribute(a, i).applyMatrix4(M); out[k].push(v.x, v.y, v.z); }
+            else if (k === "normal") { v.fromBufferAttribute(a, i).applyMatrix3(N).normalize(); out[k].push(v.x, v.y, v.z); }
+            else if (k === "color") for (let c = 0; c < a.itemSize; c++) out[k].push(c < 3 ? a.getComponent(i, c) * tint : a.getComponent(i, c));
+            else for (let c = 0; c < a.itemSize; c++) out[k].push(a.getComponent(i, c));
+          }
+        }
+        copies++;
+      }
+      const g = new Geo();
+      for (const k of names) g.setAttribute(k, new Attr(new Float32Array(out[k]), src.attributes[k].itemSize));
+      g.computeBoundingSphere();
+      const MeshC = Object.getPrototypeOf(Object.getPrototypeOf(b)).constructor;
+      const m = new MeshC(g, b.material);
+      m.name = b.name;
+      m.userData = { ...b.userData, batchedCopies: copies };
+      delete m.userData.forBake;
+      m.renderOrder = b.renderOrder;
+      m.visible = b.visible && copies > 0;
+      m.position.copy(b.position); m.quaternion.copy(b.quaternion); m.scale.copy(b.scale);
+      const parent = b.parent;
+      parent.add(m);
+      parent.remove(b);
+    }
+    scene.updateMatrixWorld(true);
     // every InstancedMesh: one mesh in the glb, its copies in the json (Godot makes a MultiMesh of them).
     // What three knows and glTF does not goes into userData (glTF extras): hidden nodes, the material's kind and
     // switches, the psx options (retro/psx.ts bake). The houses' atlas cell rides as the second uv.

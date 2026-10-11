@@ -5,6 +5,21 @@ everywhere" (CLAUDE.md, Steve 2026-09-28). The sacks were done first (`docs/sack
 This note is the survey of 2026-09-29 and a plan; the town-wide change waits for Steve's eye (it changes how most of the
 quay looks).
 
+## Crates done (2026-10-11)
+
+Steve: "wooden boxes have a bunch of textures, I think we only need one, and make it high detail". One crate:
+`shared/crateCatalog.ts` (its size, the size classes small 0.88, standard 1, large 1.25, big 1.5 of 0.80 x 0.56 x 0.50 m,
+the 18 goods it is stencilled for, the pick by lot), `tools/textures/crate_sheet.mjs` (the picture, every stencil a
+cell), `tools/blender/build_crate.py` (`crate.glb`: closed and open), `client/src/game/crateModel.ts` and
+`godot/src/Play/CrateModel.cs`. The stencilled boards move to the goods' cell, so all crates are one material.
+Switched: goods items (job, owned, haul piles `p:crate_seat`, the Rijnkaai's cases `p:crate_*`, the heaps' `q:` pieces)
+lying, in hands and on carts; the quay heaps (build_quaygoods.py crate sockets, `qg_crates` extras); props.glb's
+crates and crates_stack and the handcart loads (`props_crate_sockets.json`); clutter's crates; the dockers' loads and
+seats, remote figures, back-yard seats and card tables; the residents' carts; the train's crate units; the crane hook;
+the homes' crate, the Vleeshuis loft and the Oostershuis stacks. Left as their own things: fish boxes, open produce
+trays (market stalls, the grocer), broken slats and crushed crates (litter, clutter), and the boats' and ferry's deck
+crates (the boats are being rebuilt on `next-update`).
+
 ## Done now (2026-09-29)
 
 - The dockers' pile crates (`shared/goods.ts haulPileItem`, the Rijnkaai's and the Petit Bassin's routes) were a plain

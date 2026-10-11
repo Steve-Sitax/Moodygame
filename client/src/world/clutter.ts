@@ -1,3 +1,5 @@
+import { crateArrays, crateCellShift, crateMaterial, crateMatrix, loadCrates, pickCrate, type CratePlace } from "../game/crateModel";
+import { CRATE_H } from "../../../shared/crateCatalog";
 import { setKegModel } from "../game/kegModel";
 import { modelCollider, modelShape } from "./modelCollision";
 import { TOWN } from "./townBox";
@@ -104,6 +106,8 @@ export interface Clutter {
 
 interface Part {
   slot: number;
+  /** The one crate's stencilled faces (slot CRATE): moved to the goods' cell of each copy. */
+  label?: boolean;
   pos: Float32Array;
   nor: Float32Array;
   uv: Float32Array;
@@ -150,6 +154,23 @@ interface Wall {
 
 const SOLID = 0;
 const DECAL = 1;
+/** The one crate of the town (game/crateModel.ts): its own material. */
+const CRATE = 2;
+/**
+ * 2026-10-11 (CLAUDE.md: one model per thing): clutter.glb's crates are the one crate of the town, scaled as a whole to
+ * the clutter's old crates (0.64 x 0.45 m, 0.40 high): a crate, two side by side with one on them, an open one (the lid
+ * off, leaning on its end).
+ */
+const CL_CRATE = 0.8;
+const CLUTTER_CRATES: Record<string, CratePlace[]> = {
+  crate: [[0, 0, 0, 0, CL_CRATE, false]],
+  crates: [
+    [-0.33, 0, 0, 0.02, CL_CRATE, false],
+    [0.34, 0, 0.02, 0.1, CL_CRATE, false],
+    [-0.12, CRATE_H * CL_CRATE, 0.02, -0.18, CL_CRATE, false],
+  ],
+  crate_broken: [[0, 0, 0, 0.3, CL_CRATE, true]],
+};
 const OPEN = 0;
 const WALLF = 1;
 const WATER = 2;
@@ -195,7 +216,7 @@ const segD = (x: number, z: number, ax: number, az: number, bx: number, bz: numb
 
 async function loadModels(): Promise<{ protos: Map<string, Proto>; solidMap: THREE.Texture; decalMap: THREE.Texture }> {
   const draco = new DRACOLoader().setDecoderPath("/draco/");
-  const gltf = await new GLTFLoader().setDRACOLoader(draco).loadAsync("/models/clutter.glb");
+  const [gltf] = await Promise.all([new GLTFLoader().setDRACOLoader(draco).loadAsync("/models/clutter.glb"), loadCrates()]);
   draco.dispose();
   let solidMap: THREE.Texture | null = null;
   let decalMap: THREE.Texture | null = null;
@@ -207,7 +228,24 @@ async function loadModels(): Promise<{ protos: Map<string, Proto>; solidMap: THR
     if (node.name === "clutter_meta") continue;
     const proto: Proto = { parts: [], minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity, height: 0, feet: [] };
     const inv = new THREE.Matrix4().copy(node.matrixWorld).invert();
-    node.traverse((o) => {
+    // (the one crate instead of the model's own)
+    const crates = CLUTTER_CRATES[node.name];
+    if (crates)
+      for (const c of crates)
+        for (const a of crateArrays(crateMatrix(c), c[5])) {
+          proto.parts.push({ slot: CRATE, label: a.label, pos: a.pos, nor: a.nor, uv: a.uv, col: a.col });
+          for (let i = 0; i < a.pos.length; i += 3) {
+            const y = a.pos[i + 1];
+            proto.height = Math.max(proto.height, y);
+            if (y < 1.6) {
+              proto.minX = Math.min(proto.minX, a.pos[i]);
+              proto.maxX = Math.max(proto.maxX, a.pos[i]);
+              proto.minZ = Math.min(proto.minZ, a.pos[i + 2]);
+              proto.maxZ = Math.max(proto.maxZ, a.pos[i + 2]);
+            }
+          }
+        }
+    if (!crates) node.traverse((o) => {
       const m = o as THREE.Mesh;
       if (!m.isMesh) return;
       const mat = m.material as THREE.MeshStandardMaterial;
@@ -248,7 +286,7 @@ async function loadModels(): Promise<{ protos: Map<string, Proto>; solidMap: THR
       const low: number[] = [];
       let y0 = Infinity;
       for (const q of proto.parts) for (let i = 1; i < q.pos.length; i += 3) y0 = Math.min(y0, q.pos[i]);
-      for (const q of proto.parts) for (let i = 0; i + 2 < q.pos.length; i += 3) if (q.slot === SOLID && q.pos[i + 1] <= y0 + 0.1) low.push(q.pos[i], q.pos[i + 2]);
+      for (const q of proto.parts) for (let i = 0; i + 2 < q.pos.length; i += 3) if (q.slot !== DECAL && q.pos[i + 1] <= y0 + 0.1) low.push(q.pos[i], q.pos[i + 2]);
       const step = Math.max(1, Math.ceil(low.length / 2 / 40));
       for (let i = 0; i < low.length / 2; i += step) proto.feet.push(low[i * 2], low[i * 2 + 1]);
       protos.set(node.name, proto);
@@ -267,7 +305,7 @@ async function loadModels(): Promise<{ protos: Map<string, Proto>; solidMap: THR
 
 /** A model's solid parts as one geometry (its own frame: foot at y = 0). */
 function protoGeometry(proto: Proto): THREE.BufferGeometry {
-  const parts = proto.parts.filter((p) => p.slot === SOLID);
+  const parts = proto.parts.filter((p) => p.slot !== DECAL);
   const n = parts.reduce((a, p) => a + p.pos.length / 3, 0);
   const pos = new Float32Array(n * 3);
   const nor = new Float32Array(n * 3);
@@ -846,13 +884,13 @@ export async function createClutter(scene: THREE.Scene, flags: Flags, opts: Clut
     Q.setFromAxisAngle(UP, yaw);
     puts.push({ name, m: M.clone().compose(new THREE.Vector3(x, y, z), Q, new THREE.Vector3(sx, sy, sz)), shade });
     count(name);
-    if (PROP.test(name)) addProp({ src: "clutter", name, x, y, z, yaw, s: [sx, sy, sz], pts: proto.parts.filter((q) => q.slot === SOLID).map((q) => q.pos) });
+    if (PROP.test(name)) addProp({ src: "clutter", name, x, y, z, yaw, s: [sx, sy, sz], pts: proto.parts.filter((q) => q.slot !== DECAL).map((q) => q.pos) });
   };
   /** Collision follows the same placed/scaled solid geometry as the visible prop. */
   const collide = (name: string, x: number, z: number, yaw: number, _pad = 0.03, sx = 1, sz = 1, top?: number) => {
     const p = protos.get(name);
     if (!p || !isFinite(p.minX)) return;
-    colliders.push(modelCollider(modelShape(p, () => p.parts.filter(q => q.slot === SOLID).map(q => q.pos)), x, z, yaw, (top ?? p.height) - p.height, sx, 1, sz));
+    colliders.push(modelCollider(modelShape(p, () => p.parts.filter(q => q.slot !== DECAL).map(q => q.pos)), x, z, yaw, (top ?? p.height) - p.height, sx, 1, sz));
   };
 
   /**
@@ -1856,18 +1894,20 @@ export async function createClutter(scene: THREE.Scene, flags: Flags, opts: Clut
   // T5 beer: the keg model for the brewery's kegs and the one its man carries (game/kegModel.ts: one model per thing)
   const kegProto = protos.get("keg");
   if (kegProto) setKegModel(protoGeometry(kegProto), solidMat);
-  const buckets = new Map<string, { slot: number; n: number; items: Array<{ part: Part; m: THREE.Matrix4; shade: number }> }>();
+  const buckets = new Map<string, { slot: number; n: number; items: Array<{ part: Part; m: THREE.Matrix4; shade: number; cell: number }> }>();
   // (2026-09-28, CLAUDE.md one model per thing: the sacks against the walls are the one sack model, game/sackModel.ts)
   const withSacks = sackPuts(puts, CLUTTER_SACKS as Record<string, SackRow[]>, (n) => protos.has(n), "quay", "clutter", CHUNK);
   for (const p of withSacks.puts) {
     const proto = protos.get(p.name)!;
     const e = p.m.elements;
     const key0 = `${Math.floor(e[12] / CHUNK)},${Math.floor(e[14] / CHUNK)}`;
+    // (a crate's goods by where it stands)
+    const cell = pickCrate(`clutter:${p.name}:${Math.round(e[12] * 2)},${Math.round(e[14] * 2)}`);
     for (const part of proto.parts) {
       const key = `${key0},${part.slot}`;
       let b = buckets.get(key);
       if (!b) buckets.set(key, (b = { slot: part.slot, n: 0, items: [] }));
-      b.items.push({ part, m: p.m, shade: p.shade });
+      b.items.push({ part, m: p.m, shade: p.shade, cell });
       b.n += part.pos.length / 3;
     }
   }
@@ -1884,9 +1924,10 @@ export async function createClutter(scene: THREE.Scene, flags: Flags, opts: Clut
     const uv = new Float32Array(b.n * 2);
     const col = new Float32Array(b.n * 3);
     let o = 0;
-    for (const { part, m, shade } of b.items) {
+    for (const { part, m, shade, cell } of b.items) {
       nm.getNormalMatrix(m);
       const k = part.pos.length / 3;
+      const [du, dv] = part.label ? crateCellShift(cell) : [0, 0];
       for (let i = 0; i < k; i++) {
         v.set(part.pos[i * 3], part.pos[i * 3 + 1], part.pos[i * 3 + 2]).applyMatrix4(m);
         pos[(o + i) * 3] = v.x;
@@ -1896,8 +1937,8 @@ export async function createClutter(scene: THREE.Scene, flags: Flags, opts: Clut
         nor[(o + i) * 3] = v.x;
         nor[(o + i) * 3 + 1] = v.y;
         nor[(o + i) * 3 + 2] = v.z;
-        uv[(o + i) * 2] = part.uv[i * 2];
-        uv[(o + i) * 2 + 1] = part.uv[i * 2 + 1];
+        uv[(o + i) * 2] = part.uv[i * 2] + du;
+        uv[(o + i) * 2 + 1] = part.uv[i * 2 + 1] + dv;
         col[(o + i) * 3] = part.col[i * 3] * shade;
         col[(o + i) * 3 + 1] = part.col[i * 3 + 1] * shade;
         col[(o + i) * 3 + 2] = part.col[i * 3 + 2] * shade;
@@ -1910,8 +1951,8 @@ export async function createClutter(scene: THREE.Scene, flags: Flags, opts: Clut
     g.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
     g.setAttribute("color", new THREE.BufferAttribute(col, 3));
     g.computeBoundingSphere();
-    const mesh = new THREE.Mesh(g, b.slot === DECAL ? decalMat : solidMat);
-    mesh.name = b.slot === DECAL ? "clutter_decals" : "clutter_solid";
+    const mesh = new THREE.Mesh(g, b.slot === DECAL ? decalMat : b.slot === CRATE ? crateMaterial() : solidMat);
+    mesh.name = b.slot === DECAL ? "clutter_decals" : b.slot === CRATE ? "clutter_crates" : "clutter_solid";
     if (b.slot === DECAL) mesh.renderOrder = 2;
     group.add(mesh);
     chunks.push(mesh);

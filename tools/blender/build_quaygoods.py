@@ -137,18 +137,27 @@ def split_pieces(name, pm):
         loose = [v for v in bm2.verts if not v.link_faces]
         if loose:
             bmesh.ops.delete(bm2, geom=loose, context="VERTS")
-        if not bm2.faces:
+        socks = crate_sockets(pm, k)
+        if not bm2.faces and socks == "[]":
             bm2.free()
             continue
         if k >= 0:
             kind, F, heavy = pm.pieces[k]
             bmesh.ops.transform(bm2, matrix=F.inverted(), verts=bm2.verts)
         bm2.faces.layers.int.remove(lay2)
-        sub = sl.Mesh()
-        sub.bm.free()
-        sub.bm = bm2
         oname = f"{name}.{k}" if k >= 0 else f"{name}.rest"
-        ob = sub.to_object(oname)
+        if bm2.faces:
+            sub = sl.Mesh()
+            sub.bm.free()
+            sub.bm = bm2
+            ob = sub.to_object(oname)
+        else:
+            # (only the one crate: an empty node with its place)
+            bm2.free()
+            ob = bpy.data.objects.new(oname, None)
+            bpy.context.scene.collection.objects.link(ob)
+        if socks != "[]":
+            ob["qg_crates"] = socks
         ob["qg_of"] = name
         ob["qg_k"] = k
         if k >= 0:
@@ -655,17 +664,23 @@ def stain_decal(seed, w, h, rgb=(0.05, 0.05, 0.04), alpha=0.55):
 
 
 # crate kinds: size (W, D, H), wood, marks on the long sides (front -Y, back +Y)
+# 2026-10-11 (Steve: "wooden boxes have a bunch of textures, I think we only need one"): every crate here is the one
+# crate of the town (tools/blender/build_crate.py, client game/crateModel.ts) at a size class of shared/crateCatalog.ts
+# (a large 1.25, b and c standard 1, s small 0.88 of 0.80 x 0.56 x 0.50 m). crate_geo builds none of it: it records the
+# crate's place (a socket, the node's extras "qg_crates") and the game puts the one crate there. The cells below stay
+# for the slats of a broken crate.
+CRATE_SCALE = {"a": 1.25, "b": 1.0, "c": 1.0, "s": 0.88}
 CRATES = {
-    "a": dict(size=(1.0, 0.7, 0.62), wood=(0.46, 0.38, 0.27),
+    "a": dict(size=(1.0, 0.7, 0.625), wood=(0.46, 0.38, 0.27),
               front=[("text", "ANTWERPEN", 0.5, 0.42, 1, INK), ("text", "NO 17", 0.5, 0.7, 1, INK)],
               back=[("text", "H&V", 0.5, 0.25, 1, INK), ("text", "GLASS", 0.5, 0.50, 1, INK), ("text", "FRAGILE", 0.5, 0.75, 1, INK)]),
-    "b": dict(size=(0.82, 0.6, 0.56), wood=(0.42, 0.32, 0.23),
+    "b": dict(size=(0.8, 0.56, 0.5), wood=(0.42, 0.32, 0.23),
               front=[("text", "LIVERPOOL", 0.5, 0.4, 1, INK_BLUE), ("text", "23", 0.5, 0.7, 1, INK_BLUE)],
               back=[("text", "K & CO", 0.5, 0.3, 1, INK), ("text", "TOOLS", 0.5, 0.65, 1, INK)]),
-    "c": dict(size=(1.36, 0.62, 0.5), wood=(0.40, 0.37, 0.32),
+    "c": dict(size=(0.8, 0.56, 0.5), wood=(0.40, 0.37, 0.32),
               front=[("text", "H&V", 0.28, 0.48, 2, INK), ("text", "RIO", 0.75, 0.48, 2, INK_RED)],
               back=[("text", "MACHINES", 0.5, 0.45, 1, INK)]),
-    "s": dict(size=(0.56, 0.46, 0.42), wood=(0.47, 0.39, 0.28),
+    "s": dict(size=(0.704, 0.4928, 0.44), wood=(0.47, 0.39, 0.28),
               front=[("text", "NO 7", 0.5, 0.5, 1, INK)],
               back=[("diamond", 0.5, 0.5, 7, INK_RED)]),
 }
@@ -1081,73 +1096,26 @@ def rope_line(a, b, sag, n=8, z_of=None):
 # ------------------------------------------------------------------ crates
 
 
+GLTF = Matrix(((1, 0, 0, 0), (0, 0, 1, 0), (0, -1, 0, 0), (0, 0, 0, 1)))  # Blender (x, y, z) -> glTF (x, z, -y)
+
+
 def crate_geo(m, kind, lid=True, bottom_on_ground=True, shade=1.0, straw=False):
-    """A framed crate W x D x H, its foot at z 0: corner posts and rails b = 6 cm square, the boards
-    set back e = 2.5 cm between them (cut back where the frame is, so no board lies behind a rail)."""
-    c = CRATES[kind]
-    W, D, H = c["size"]
-    b, e = 0.06, 0.025
-    hx, hy = W / 2, D / 2
-    bh, bv = f"crate_{kind}_barh", f"crate_{kind}_barv"
-    # posts: iron corner caps top and foot (6 mm proud), oak between; the post's wood stops inside
-    # them, so no face lies in another
-    ci = 0.006
-    ch = min(0.1, H * 0.18)
-    for sx in (-1, 1):
-        for sy in (-1, 1):
-            x0, x1 = sorted((sx * hx, sx * (hx - b)))
-            y0, y1 = sorted((sy * hy, sy * (hy - b)))
-            box(m, x0, x1, y0, y1, ch, H - ch, bv, skip=("-z", "+z"), shade=shade)
-            box(m, x0 - ci, x1 + ci, y0 - ci, y1 + ci, 0, ch, "strap", skip=("-z",), shade=shade)
-            box(m, x0 - ci, x1 + ci, y0 - ci, y1 + ci, H - ch, H, "strap", shade=shade)
-    for z0, z1, low in ((0, b, True), (H - b, H, False)):
-        sk = ("-x", "+x", "-z") if low else ("-x", "+x")
-        for sy in (-1, 1):
-            y0, y1 = sorted((sy * hy, sy * (hy - b)))
-            box(m, -hx + b, hx - b, y0, y1, z0, z1, bh, skip=sk, shade=shade)
-        sk = ("-y", "+y", "-z") if low else ("-y", "+y")
-        for sx in (-1, 1):
-            x0, x1 = sorted((sx * hx, sx * (hx - b)))
-            box(m, x0, x1, -hy + b, hy - b, z0, z1, bh, skip=sk, shade=shade)
-    # boards
-    xa, xb, ya, yb, za, zb = -hx + b, hx - b, -hy + b, hy - b, b, H - b
-    fy, by_, ex = -hy + e, hy - e, hx - e
-    quad(m, f"crate_{kind}_front", (xa, fy, za), (xb, fy, za), (xb, fy, zb), (xa, fy, zb), (0, -1, 0), shade=shade)
-    quad(m, f"crate_{kind}_back", (xb, by_, za), (xa, by_, za), (xa, by_, zb), (xb, by_, zb), (0, 1, 0), shade=shade)
-    quad(m, f"crate_{kind}_end", (ex, ya, za), (ex, yb, za), (ex, yb, zb), (ex, ya, zb), (1, 0, 0), shade=shade)
-    quad(m, f"crate_{kind}_end", (-ex, yb, za), (-ex, ya, za), (-ex, ya, zb), (-ex, yb, zb), (-1, 0, 0), shade=shade)
-    if lid:
-        tz = H - e
-        quad(m, f"crate_{kind}_top", (xa, ya, tz), (xb, ya, tz), (xb, yb, tz), (xa, yb, tz), (0, 0, 1), shade=shade)
-        # two battens nailed across the lid
-        for x in (xa + 0.1, xb - 0.1):
-            # (5.5 cm over the boards: a layer nearer than 5 cm counts as "close" in the z-fight check)
-            box(m, x - 0.04, x + 0.04, ya + 0.004, yb - 0.004, tz, tz + 0.055, bh, skip=("-z",), shade=shade * 0.95)
-        if W > 0.75:
-            # rope handles (beckets) on both ends
-            for sx in (-1, 1):
-                x = sx * (hx + 0.012)
-                path = [(x - sx * 0.02, -0.12, H * 0.7), (x + sx * 0.03, -0.1, H * 0.6), (x + sx * 0.05, 0.0, H * 0.55),
-                        (x + sx * 0.03, 0.1, H * 0.6), (x - sx * 0.02, 0.12, H * 0.7)]
-                tube(m, path, 0.011, "rope")
-    else:
-        # open: the boards seen from inside, and straw (or the dark of it) at 3/4 height
-        k = 0.8
-        quad(m, f"crate_{kind}_end", (xa, fy, za), (xb, fy, za), (xb, fy, zb), (xa, fy, zb), (0, 1, 0), shade=shade * k)
-        quad(m, f"crate_{kind}_end", (xb, by_, za), (xa, by_, za), (xa, by_, zb), (xb, by_, zb), (0, -1, 0), shade=shade * k)
-        quad(m, f"crate_{kind}_end", (ex, ya, za), (ex, yb, za), (ex, yb, zb), (ex, ya, zb), (-1, 0, 0), shade=shade * k)
-        quad(m, f"crate_{kind}_end", (-ex, yb, za), (-ex, ya, za), (-ex, ya, zb), (-ex, yb, zb), (1, 0, 0), shade=shade * k)
-        # the rails' inner faces between the posts are there already (boxes); the straw fill
-        zs = H * 0.72
-        n = 5
-        rng = rng_(int(W * 1000))
-        grid = [[Vector((-ex + 0.004 + (2 * ex - 0.008) * i / n, -hy + e + 0.004 + (D - 2 * e - 0.008) * j / n,
-                         zs + (rng.uniform(-0.03, 0.05) if 0 < i < n and 0 < j < n else 0.0))) for j in range(n + 1)] for i in range(n + 1)]
-        for i in range(n):
-            for j in range(n):
-                quad(m, "straw" if straw else "dark", grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1], (0, 0, 1),
-                     uvs=[(i / n, j / n), ((i + 1) / n, j / n), ((i + 1) / n, (j + 1) / n), (i / n, (j + 1) / n)])
+    """A crate W x D x H, its foot at z 0: the one crate of the town at its class. Nothing is built; its place goes
+    into the mesh's crate sockets (in the frame of the piece it belongs to), for the node's extras."""
+    W, D, H = CRATES[kind]["size"]
+    k = m.cur if isinstance(m, PMesh) else -1
+    F = m.pieces[k][1] if k >= 0 else Matrix.Identity(4)
+    local = GLTF @ (F.inverted() @ m.xf) @ GLTF.inverted()
+    col = [round(local[r][c], 5) for c in range(4) for r in range(4)]
+    if not hasattr(m, "crates"):
+        m.crates = []
+    m.crates.append((k, col + [CRATE_SCALE[kind], 0 if lid else 1]))
     return W, D, H
+
+
+def crate_sockets(m, k):
+    """The crate sockets of piece k (-1: the rest, or a plain model) as the node's extras."""
+    return json.dumps([c for kk, c in getattr(m, "crates", []) if kk == k], separators=(",", ":"))
 
 
 def crate(kind):
@@ -1184,21 +1152,9 @@ def lid_panel(m, kind, M):
 
 
 def crate_open():
-    """An open crate, straw inside, its lid leaning against the front, straw hanging over."""
+    """An open crate, its lid off and leaning on it, straw inside: the one crate's open variant."""
     m = Mesh(ao=1.0)
-    W, D, H = crate_geo(m, "b", lid=False, straw=True)
-    # the lid leans on the front rail: its foot on the setts in front, its top edge against the crate,
-    # 70 degrees up; its battens outward
-    Dl = CRATES["b"]["size"][1]
-    phi = math.radians(70)
-    y0 = -D / 2 - 0.035 - Dl * math.cos(phi) - 0.03 * math.sin(phi)
-    lid_panel(m, "b", move(0.05, y0, 0.003) @ rot("X", phi) @ move(0, Dl / 2, 0))
-    # straw spilling over the rim: a few tufts (thin wedges)
-    rng = rng_(77)
-    for k in range(5):
-        x = -W / 2 + 0.15 + k * (W - 0.3) / 4 + rng.uniform(-0.04, 0.04)
-        y = D / 2 - 0.02
-        quad(m, "straw", (x - 0.06, y, H + 0.03), (x + 0.06, y, H + 0.03), (x + 0.07, y + 0.07, H - 0.12), (x - 0.05, y + 0.07, H - 0.12), (0, 1, 0.4))
+    crate_geo(m, "b", lid=False, straw=True)
     return m
 
 
@@ -2112,15 +2068,14 @@ def crates_block():
             M = move((k - 1) * (Wa + 0.04), y, 0) @ rot("Z", math.pi * (row % 2) + rng.uniform(-0.02, 0.02))
             with m.piece("crates", M, heavy=True), m.at(M):
                 crate_geo(m, "a", shade=0.92 + 0.12 * rng.random())
-    # middle: long crates across
-    for k, x in enumerate((-0.75, 0.75)):
+    # middle: three standard crates across, then two standard crates and a small one on them, not squared up
+    Wc, Dc, Hc = CRATES["c"]["size"]
+    for k, x in enumerate((-0.98, 0.0, 0.98)):
         M = move(x + rng.uniform(-0.05, 0.05), rng.uniform(-0.04, 0.04), Ha) @ rot("Z", math.pi / 2 + rng.uniform(-0.03, 0.03))
         with m.piece("crates", M, heavy=True), m.at(M):
             crate_geo(m, "c", shade=0.95 + 0.1 * rng.random())
-    # top: two LIVERPOOL crates and a small one, not squared up
-    Wc, Dc, Hc = CRATES["c"]["size"]
-    for x, kind, yaw in ((-0.7, "b", 0.1), (0.55, "b", -0.08), (1.3, "s", 0.3)):
-        M = move(x, rng.uniform(-0.1, 0.1), Ha + Wc * 0 + Hc) @ rot("Z", yaw)
+    for x, kind, yaw in ((-0.55, "b", 0.1), (0.45, "b", -0.08), (1.05, "s", 0.3)):
+        M = move(x, rng.uniform(-0.1, 0.1), Ha + Hc) @ rot("Z", yaw)
         with m.piece("crates", M), m.at(M):
             crate_geo(m, kind, shade=1.0 + 0.06 * rng.random())
     return m
@@ -2226,15 +2181,23 @@ def main():
             # M8f goods pass 2: each cask, crate and sack its own node in its own frame, and the rest
             for oname, ob in split_pieces(name, mesh):
                 objs[oname] = ob
-                counts[oname] = sl.tris(ob)
+                counts[oname] = sl.tris(ob) if ob.data else 0
                 pieces += 1
             continue
         goods = getattr(mesh, "goods", None)
-        objs[name] = mesh.to_object(name)
+        socks = crate_sockets(mesh, -1)
+        if socks != "[]" and not mesh.bm.faces:
+            # (a crate alone: an empty node with its place)
+            objs[name] = bpy.data.objects.new(name, None)
+            bpy.context.scene.collection.objects.link(objs[name])
+        else:
+            objs[name] = mesh.to_object(name)
+        if socks != "[]":
+            objs[name]["qg_crates"] = socks
         if goods:
             objs[name]["qg_goods"] = goods[0]
             objs[name]["qg_heavy"] = 1 if goods[1] else 0
-        counts[name] = sl.tris(objs[name])
+        counts[name] = sl.tris(objs[name]) if objs[name].data else 0
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", export_yup=True, export_texcoords=True, export_normals=True,
                               export_materials="EXPORT", export_apply=False, use_selection=False, export_extras=True,

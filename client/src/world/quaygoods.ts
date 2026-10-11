@@ -9,6 +9,7 @@ import { LANDMARK_DOORS } from "../../../shared/landmarks";
 import { psx } from "../retro/psx";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { pickSack, sackMesh } from "../game/sackModel";
+import { crateCellShift, crateLabelFor, crateMaterial, crateParts, loadCrates, pickCrate } from "../game/crateModel";
 import QG_SACKS from "./quaygoods_sack_sockets.json";
 import { rectAround, type Rect } from "./geom";
 import { loadProps, type Props } from "./props3d";
@@ -81,6 +82,8 @@ export interface QuayGoods {
 
 interface Part {
   slot: number;
+  /** The one crate's stencilled faces (slot CRATE): their uv moves to the goods' cell of each copy. */
+  label?: boolean;
   pos: Float32Array;
   nor: Float32Array;
   uv: Float32Array;
@@ -139,6 +142,9 @@ export interface Cargo {
 
 const SOLID = 0;
 const DECAL = 1;
+/** The one crate of the town (game/crateModel.ts): its own material, one per chunk. */
+const CRATE = 2;
+const SLOTS = [SOLID, DECAL, CRATE];
 const OPEN = 0;
 const WALLF = 1;
 const WATER = 2;
@@ -951,7 +957,7 @@ const ONE = new THREE.Vector3(1, 1, 1);
 /** A part moved by M (normals by its normal matrix). */
 function transformPart(part: Part, M: THREE.Matrix4, nm: THREE.Matrix3): Part {
   const n = part.pos.length / 3;
-  const out: Part = { slot: part.slot, pos: new Float32Array(n * 3), nor: new Float32Array(n * 3), uv: part.uv.slice(), col: part.col.slice() };
+  const out: Part = { slot: part.slot, label: part.label, pos: new Float32Array(n * 3), nor: new Float32Array(n * 3), uv: part.uv.slice(), col: part.col.slice() };
   const v = new THREE.Vector3();
   for (let i = 0; i < n; i++) {
     v.set(part.pos[i * 3], part.pos[i * 3 + 1], part.pos[i * 3 + 2]).applyMatrix4(M);
@@ -966,10 +972,41 @@ function transformPart(part: Part, M: THREE.Matrix4, nm: THREE.Matrix3): Part {
   return out;
 }
 
+/** The one crate in a socket ([glTF matrix in the node's frame (16, column-major), its scale, open 0/1]) as two parts. */
+function crateSocketParts(sk: number[]): Part[] {
+  const cp = crateParts(sk[17] === 1);
+  if (!cp) return [];
+  const M = new THREE.Matrix4().fromArray(sk.slice(0, 16)).multiply(new THREE.Matrix4().makeScale(sk[16], sk[16], sk[16]));
+  const nm = new THREE.Matrix3().getNormalMatrix(M);
+  const out: Part[] = [];
+  for (const [g, label] of [[cp.body, false], [cp.marks, true]] as const) {
+    const P = g.getAttribute("position");
+    const N = g.getAttribute("normal");
+    const U = g.getAttribute("uv");
+    const C = g.getAttribute("color");
+    const n = P.count;
+    const part: Part = { slot: CRATE, label, pos: new Float32Array(n * 3), nor: new Float32Array(n * 3), uv: new Float32Array(n * 2), col: new Float32Array(n * 3) };
+    const v = new THREE.Vector3();
+    for (let i = 0; i < n; i++) {
+      v.fromBufferAttribute(P, i).applyMatrix4(M);
+      part.pos.set([v.x, v.y, v.z], i * 3);
+      v.fromBufferAttribute(N, i).applyMatrix3(nm).normalize();
+      part.nor.set([v.x, v.y, v.z], i * 3);
+      part.uv[i * 2] = U.getX(i);
+      part.uv[i * 2 + 1] = U.getY(i);
+      part.col[i * 3] = C ? C.getX(i) : 1;
+      part.col[i * 3 + 1] = C ? C.getY(i) : 1;
+      part.col[i * 3 + 2] = C ? C.getZ(i) : 1;
+    }
+    out.push(part);
+  }
+  return out;
+}
+
 /** A proto's footprint, height and reach from its parts (as load() measures a model). */
 function boundsOf(proto: Proto): void {
   for (const p of proto.parts) {
-    if (p.slot !== SOLID) continue;
+    if (p.slot === DECAL) continue;
     for (let i = 0; i < p.pos.length; i += 3) {
       const y = p.pos[i + 1];
       proto.height = Math.max(proto.height, y);
@@ -1007,7 +1044,7 @@ let models: { protos: Map<string, Proto>; solidMap: THREE.Texture; decalMap: THR
 
 async function load(url = "/models/quaygoods.glb"): Promise<{ protos: Map<string, Proto>; solidMap: THREE.Texture; decalMap: THREE.Texture }> {
   const draco = new DRACOLoader().setDecoderPath("/draco/");
-  const gltf = await new GLTFLoader().setDRACOLoader(draco).loadAsync(url);
+  const [gltf] = await Promise.all([new GLTFLoader().setDRACOLoader(draco).loadAsync(url), loadCrates()]);
   // (M8f: the heap models made of pieces, in this file)
   const found = new Map<string, { parts: Piece[]; rest: string | null }>();
   draco.dispose();
@@ -1079,7 +1116,16 @@ async function load(url = "/models/quaygoods.glb"): Promise<{ protos: Map<string
       proto.parts.push(part);
       proto.tris += n / 3;
     });
+    // (2026-10-11) the one crate in each crate's place (build_quaygoods.py crate_geo: the node's extras qg_crates)
+    const socks = (node.userData as { qg_crates?: string }).qg_crates;
+    if (socks)
+      for (const sk of JSON.parse(socks) as number[][])
+        for (const part of crateSocketParts(sk)) {
+          proto.parts.push(part);
+          proto.tris += part.pos.length / 9;
+        }
     if (!proto.parts.length) continue;
+    if (socks) boundsOf(proto);
     if (!Number.isFinite(proto.minX)) {
       // a decal: its footprint is its own extent
       for (const p of proto.parts)
@@ -1243,8 +1289,8 @@ function mergePuts(all: Put[], protos: Map<string, Proto>, m: { solid: THREE.Mat
     g.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
     g.setAttribute("color", new THREE.BufferAttribute(col, 3));
     g.computeBoundingSphere();
-    const mesh = new THREE.Mesh(g, b.slot === DECAL ? m.decal : m.solid);
-    mesh.name = b.slot === DECAL ? "quaygoods_decals" : "quaygoods";
+    const mesh = new THREE.Mesh(g, b.slot === DECAL ? m.decal : b.slot === CRATE ? crateMaterial() : m.solid);
+    mesh.name = b.slot === DECAL ? "quaygoods_decals" : b.slot === CRATE ? "quaygoods_crates" : "quaygoods";
     if (b.slot === DECAL) mesh.renderOrder = 2;
     group.add(mesh);
     meshes.push(mesh);
@@ -1263,7 +1309,8 @@ interface Arrays {
   col: Float32Array;
   n: number;
 }
-type Copy = { part: Part; m: THREE.Matrix4; shade: number };
+/** A part's copy: where, its shade, and for the one crate's stencilled faces the goods' cell. */
+type Copy = { part: Part; m: THREE.Matrix4; shade: number; cell?: number };
 
 function arraysOf(items: Copy[]): Arrays {
   let n = 0;
@@ -1272,9 +1319,10 @@ function arraysOf(items: Copy[]): Arrays {
   const v = new THREE.Vector3();
   const nm = new THREE.Matrix3();
   let o = 0;
-  for (const { part, m: M, shade } of items) {
+  for (const { part, m: M, shade, cell } of items) {
     nm.getNormalMatrix(M);
     const k = part.pos.length / 3;
+    const [du, dv] = part.label && cell !== undefined ? crateCellShift(cell) : [0, 0];
     for (let i = 0; i < k; i++) {
       v.set(part.pos[i * 3], part.pos[i * 3 + 1], part.pos[i * 3 + 2]).applyMatrix4(M);
       a.pos[(o + i) * 3] = v.x;
@@ -1284,8 +1332,8 @@ function arraysOf(items: Copy[]): Arrays {
       a.nor[(o + i) * 3] = v.x;
       a.nor[(o + i) * 3 + 1] = v.y;
       a.nor[(o + i) * 3 + 2] = v.z;
-      a.uv[(o + i) * 2] = part.uv[i * 2];
-      a.uv[(o + i) * 2 + 1] = part.uv[i * 2 + 1];
+      a.uv[(o + i) * 2] = part.uv[i * 2] + du;
+      a.uv[(o + i) * 2 + 1] = part.uv[i * 2 + 1] + dv;
       a.col[(o + i) * 3] = part.col[i * 3] * shade;
       a.col[(o + i) * 3 + 1] = part.col[i * 3 + 1] * shade;
       a.col[(o + i) * 3 + 2] = part.col[i * 3 + 2] * shade;
@@ -1333,17 +1381,19 @@ function buildChunks(all: Put[]): { meshes: number; triangles: number } {
     if (!proto) continue;
     p.setFromMatrixPosition(put.m);
     const ck = chunkOf(p.x, p.z);
+    // (a crate of the scenery: its goods by where it stands)
+    const cell = pickCrate(`qgs:${put.name}:${Math.round(p.x * 2)},${Math.round(p.z * 2)}`);
     for (const part of proto.parts) {
       const k = `${ck}|${part.slot}`;
       let b = by.get(k);
       if (!b) by.set(k, (b = { ck, slot: part.slot, items: [] }));
-      b.items.push({ part, m: put.m, shade: put.shade });
+      b.items.push({ part, m: put.m, shade: put.shade, cell });
     }
   }
   for (const [k, b] of by) L.buckets.set(k, { ck: b.ck, slot: b.slot, stat: arraysOf(b.items), mesh: null });
   const cks = new Set<string>([...[...L.buckets.values()].map((b) => b.ck), ...[...loose.values()].map((l) => l.ck)]);
   let triangles = 0;
-  for (const ck of cks) for (const slot of [SOLID, DECAL]) triangles += rebuild(ck, slot);
+  for (const ck of cks) for (const slot of SLOTS) triangles += rebuild(ck, slot);
   dirtyChunks.clear();
   return { meshes: L.chunks.length, triangles };
 }
@@ -1354,9 +1404,11 @@ function rebuild(ck: string, slot: number): number {
   const key = `${ck}|${slot}`;
   let b = L.buckets.get(key);
   const extra: Copy[] = [];
-  for (const l of loose.values()) {
+  for (const [id, l] of loose) {
     if (l.ck !== ck) continue;
-    for (const part of L.protos.get(l.node)?.parts ?? []) if (part.slot === slot) extra.push({ part, m: l.m, shade: l.shade });
+    // (a crate of the server's: its goods by its id, the same in hands and on a cart)
+    const cell = slot === CRATE ? crateLabelFor(id) : undefined;
+    for (const part of L.protos.get(l.node)?.parts ?? []) if (part.slot === slot) extra.push({ part, m: l.m, shade: l.shade, cell });
   }
   const statN = b?.stat?.n ?? 0;
   if (!extra.length && !statN) {
@@ -1389,8 +1441,8 @@ function rebuild(ck: string, slot: number): number {
     b.mesh.geometry.dispose();
     b.mesh.geometry = g;
   } else {
-    const mesh = new THREE.Mesh(g, slot === DECAL ? L.mats.decal : L.mats.solid);
-    mesh.name = slot === DECAL ? "quaygoods_decals" : "quaygoods";
+    const mesh = new THREE.Mesh(g, slot === DECAL ? L.mats.decal : slot === CRATE ? crateMaterial() : L.mats.solid);
+    mesh.name = slot === DECAL ? "quaygoods_decals" : slot === CRATE ? "quaygoods_crates" : "quaygoods";
     if (slot === DECAL) mesh.renderOrder = 2;
     L.group.add(mesh);
     L.chunks.push(mesh);
@@ -1403,7 +1455,7 @@ function rebuild(ck: string, slot: number): number {
 export function flushQuayCargo(): void {
   if (!live || !dirtyChunks.size) return;
   const t0 = performance.now();
-  for (const ck of dirtyChunks) for (const slot of [SOLID, DECAL]) rebuild(ck, slot);
+  for (const ck of dirtyChunks) for (const slot of SLOTS) rebuild(ck, slot);
   dirtyChunks.clear();
   cargoStats.rebuilds++;
   cargoStats.ms = +(performance.now() - t0).toFixed(2);
@@ -1444,9 +1496,10 @@ export function quayModels(): Promise<Map<string, Proto>> {
 
 /**
  * A piece of cargo as one mesh (in hands, on a shoulder, on a cart): its model in its own frame, the goods'
- * material. Null while the models are not in (quayModels() resolves when they are).
+ * material; a crate is the one crate of the town (game/crateModel.ts), its stencil by the item's `id` (the same as when
+ * it lay in the heap). Null while the models are not in (quayModels() resolves when they are).
  */
-export function quayPieceMesh(node: string): THREE.Mesh | null {
+export function quayPieceMesh(node: string, id?: string): THREE.Mesh | null {
   if (!models) {
     void loadModels();
     return null;
@@ -1454,18 +1507,31 @@ export function quayPieceMesh(node: string): THREE.Mesh | null {
   const { protos, solidMap, decalMap } = models;
   const p = protos.get(node);
   if (!p) return null;
-  let g = pieceGeo.get(node);
+  const crates = p.parts.some((q) => q.slot === CRATE);
+  const cell = crates ? crateLabelFor(id ?? node) : -1;
+  const key = `${node}|${cell}`;
+  let g = pieceGeo.get(key);
   if (!g) {
-    const a = arraysOf(p.parts.filter((q) => q.slot === SOLID).map((part) => ({ part, m: new THREE.Matrix4(), shade: 1 })));
+    const solid = arraysOf(p.parts.filter((q) => q.slot === SOLID).map((part) => ({ part, m: new THREE.Matrix4(), shade: 1 })));
+    const crate = arraysOf(p.parts.filter((q) => q.slot === CRATE).map((part) => ({ part, m: new THREE.Matrix4(), shade: 1, cell })));
+    const join = (a: Float32Array, b: Float32Array) => {
+      const o = new Float32Array(a.length + b.length);
+      o.set(a, 0);
+      o.set(b, a.length);
+      return o;
+    };
     g = new THREE.BufferGeometry();
-    g.setAttribute("position", new THREE.BufferAttribute(a.pos, 3));
-    g.setAttribute("normal", new THREE.BufferAttribute(a.nor, 3));
-    g.setAttribute("uv", new THREE.BufferAttribute(a.uv, 2));
-    g.setAttribute("color", new THREE.BufferAttribute(a.col, 3));
+    g.setAttribute("position", new THREE.BufferAttribute(join(solid.pos, crate.pos), 3));
+    g.setAttribute("normal", new THREE.BufferAttribute(join(solid.nor, crate.nor), 3));
+    g.setAttribute("uv", new THREE.BufferAttribute(join(solid.uv, crate.uv), 2));
+    g.setAttribute("color", new THREE.BufferAttribute(join(solid.col, crate.col), 3));
+    // (two groups: the goods' material, then the crate's)
+    g.addGroup(0, solid.n, 0);
+    g.addGroup(solid.n, crate.n, 1);
     g.computeBoundingSphere();
-    pieceGeo.set(node, g);
+    pieceGeo.set(key, g);
   }
-  const mesh = new THREE.Mesh(g, mats(solidMap, decalMap).solid);
+  const mesh = new THREE.Mesh(g, [mats(solidMap, decalMap).solid, crates ? crateMaterial() : mats(solidMap, decalMap).solid]);
   mesh.name = `quaycargo ${node}`;
   return mesh;
 }
@@ -1496,7 +1562,7 @@ function goodsHomes(props: Props): Rect[] {
 export function quayPieceCollider(protos: Map<string, Proto>, node: string, x: number, z: number, rot: number, y: number): Rect | null {
   const p = protos.get(node);
   if (!p) return null;
-  return modelCollider(modelShape(p, () => p.parts.filter((q) => q.slot === SOLID).map((q) => q.pos)), x, z, rot, y);
+  return modelCollider(modelShape(p, () => p.parts.filter((q) => q.slot !== DECAL).map((q) => q.pos)), x, z, rot, y);
 }
 
 /** A piece's size: its height over its foot, its footprint (m). */
@@ -1985,7 +2051,7 @@ export async function createQuayGoods(scene: THREE.Scene, flags: Flags, opts: Qu
     const p = protos.get(name)!;
     let samples = feet.get(p);
     if (!samples) {
-      const parts = p.parts.filter(q => q.slot === SOLID);
+      const parts = p.parts.filter(q => q.slot !== DECAL);
       let low = Infinity;
       for (const q of parts) for (let i = 1; i < q.pos.length; i += 3) low = Math.min(low, q.pos[i]);
       const unique = new Map<string, [number, number, number]>();
@@ -2011,7 +2077,7 @@ export async function createQuayGoods(scene: THREE.Scene, flags: Flags, opts: Qu
   const collide = (name: string, x: number, z: number, yaw: number, y = 0) => {
     const p = protos.get(name)!;
     if ((p.maxX - p.minX) * (p.maxZ - p.minZ) < 0.06 || p.height < 0.12) return;
-    colliders.push(modelCollider(modelShape(p, () => p.parts.filter(q => q.slot === SOLID).map(q => q.pos)), x, z, yaw, y));
+    colliders.push(modelCollider(modelShape(p, () => p.parts.filter(q => q.slot !== DECAL).map(q => q.pos)), x, z, yaw, y));
   };
   /**
    * M8f goods pass 2: a model of a heap. What you can lift in it (each cask, crate, sack) is the server's item
@@ -2043,7 +2109,7 @@ export async function createQuayGoods(scene: THREE.Scene, flags: Flags, opts: Qu
       const wz = z - fx * s + fz * c;
       const wy = y + fy;
       const rot = yaw + fyaw;
-      const hold = modelCollider(modelShape(proto, () => proto.parts.filter((q) => q.slot === SOLID).map((q) => q.pos)), wx, wz, rot, wy);
+      const hold = modelCollider(modelShape(proto, () => proto.parts.filter((q) => q.slot !== DECAL).map((q) => q.pos)), wx, wz, rot, wy);
       colliders.push(hold);
       cargo.push({ id: `qg:${heaps.length}:${cargoK++}`, node: p.node, kind: proto.goods.kind, heavy: proto.goods.heavy, x: wx, y: wy, z: wz, rot, shade, heap: heaps.length, hold, on: [] });
     }
@@ -2536,7 +2602,7 @@ function listQuayGoods(puts: Put[], protos: Map<string, Proto>, heaps: Array<{ p
   const add = (p: Put, set?: string) => {
     const proto = protos.get(p.name);
     if (!proto) return;
-    const pts = proto.parts.filter((q) => q.slot === SOLID).map((q) => q.pos);
+    const pts = proto.parts.filter((q) => q.slot !== DECAL).map((q) => q.pos);
     if (!pts.length) return;
     const e = p.m.elements;
     // (issue #13: the rest of a model in pieces that does not reach the ground lies on its own pieces: crates_tied's

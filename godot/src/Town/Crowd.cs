@@ -452,7 +452,7 @@ public sealed class Crowd
     }
 
     /// <summary>A load in the arms: a sack, a crate, a box of fish, a keg (crowd.ts puppetLoad); off: put down.</summary>
-    public void PuppetLoad(Puppet p, bool on, string kind = "sack")
+    public void PuppetLoad(Puppet p, bool on, string kind = "sack", int crate = 0)
     {
         p.HandCarry = true;
         if (p.LoadNode != null && (!on || p.LoadKind != kind))
@@ -462,7 +462,7 @@ public sealed class Crowd
         }
         p.LoadKind = kind;
         p.Loaded = on;
-        if (on && p.LoadNode == null && (p.LoadNode = Carried.Load(kind, p.Human.Scale)) != null) p.Group.AddChild(p.LoadNode);
+        if (on && p.LoadNode == null && (p.LoadNode = Carried.Load(kind, p.Human.Scale, crate)) != null) p.Group.AddChild(p.LoadNode);
     }
 
     /// <summary>A lantern in hand (police at night, people going home after dark).</summary>

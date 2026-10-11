@@ -1,3 +1,4 @@
+import { crateMesh, pickCrate } from "./crateModel";
 import * as THREE from "three";
 import { fishBoxMesh } from "./fishBox";
 import { KEG, kegMesh } from "./kegModel";
@@ -180,6 +181,8 @@ interface Person {
   sackLabel?: SackLabel;
   /** What the load in his hands is (puppetLoad). */
   loadKind?: "sack" | "crate" | "fishbox" | "keg";
+  /** The goods a carried crate says (shared/crateCatalog.ts CRATE_GOODS index). */
+  crateCell?: number;
   cluster: Cluster | null;
   partner: Person | null;
   /** No new chat before this runs out. */
@@ -829,11 +832,10 @@ export class Crowd {
     loadProps()
       .then((pr) => {
         this.cartProps = pr;
+        // (the props' crate_seat is the one crate of the town at its small class: game/crateModel.ts. The fish
+        // box keeps the plain wood of the town's crates for its boards)
         const seat = pr.parts("crate_seat")[0];
-        if (seat) {
-          this.crateGeo = seat.geometry;
-          this.crateMat = seat.material;
-        }
+        if (seat) this.crateGeo = seat.geometry;
       })
       .catch(() => {});
   }
@@ -1127,10 +1129,12 @@ export class Crowd {
 
   /** A sack on the shoulder while walking (dockers between the quay and the door). */
   /** A load in the hands: a sack on the shoulder, or (the dockers of shared/hauls.ts at a pile of crates) a crate held before him. */
-  puppetLoad(p: Puppet, on: boolean, kind: "sack" | "crate" | "fishbox" | "keg" = "sack", label?: SackLabel): void {
+  puppetLoad(p: Puppet, on: boolean, kind: "sack" | "crate" | "fishbox" | "keg" = "sack", label?: SackLabel, crate?: number): void {
     p.handCarry = true;
     if (on && p.sack && p.sack.userData.kind !== kind) this.setLoad(p, false);
     p.loadKind = kind;
+    // (what the crate says: the pile he takes it from, shared/crateCatalog.ts)
+    if (crate !== undefined) p.crateCell = crate;
     // (what the sack says: the pile he takes it from, the mill's flour; the one sack model, game/sackModel.ts)
     if (label) p.sackLabel = label;
     this.setLoad(p, on);
@@ -2396,8 +2400,9 @@ export class Crowd {
         return;
       }
       if (p.loadKind === "crate") {
-        // a crate held before the chest in both arms (the crate geometry stands on its base)
-        s = new THREE.Mesh(this.crateGeo, this.crateMat);
+        // a crate held before the chest in both arms (the one crate of the town at its small class, stencilled for the
+        // pile it came off: game/crateModel.ts; a box of its size until it is in)
+        s = crateMesh(p.crateCell ?? 0, { cls: "small" }) ?? new THREE.Mesh(this.crateGeo, this.crateMat);
         // (the props' crate at its own size: the same as on the dockers' piles, shared/goods.ts HAUL_CRATE_LOOK)
         s.position.set(0, 0.74 * k, 0.36 * k);
         s.userData.kind = "crate";
@@ -2783,12 +2788,13 @@ export class Crowd {
           p.seat = true;
           p.human.play("sit", 0);
           // the crate under him, a little behind the hips
-          const seat = new THREE.Mesh(this.crateGeo, this.crateMat);
+          const seat = crateMesh(pickCrate(`seat:${Math.round(s.x * 2)},${Math.round(s.z * 2)}`), { cls: "small" }) ?? new THREE.Mesh(this.crateGeo, this.crateMat);
           const bx = s.x - Math.sin(p.yaw) * 0.1 * p.size;
           const bz = s.z - Math.cos(p.yaw) * 0.1 * p.size;
           seat.position.set(bx, 0, bz);
           seat.rotation.y = p.yaw;
-          seat.scale.y = p.size;
+          // (the one crate, scaled as a whole to the sitter's seat height)
+          seat.scale.multiplyScalar(p.size);
           this.scene.add(seat);
           cl.seats.push(seat);
           if (this.ground.addCollider) {

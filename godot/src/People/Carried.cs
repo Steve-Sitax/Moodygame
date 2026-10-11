@@ -21,7 +21,7 @@ public static class Carried
     /// <summary>The keg: 0.52 high (game/kegModel.ts KEG).</summary>
     private const float KegH = 0.52f;
 
-    private static Mesh? sack, boxBoards, boxFish, keg, crate;
+    private static Mesh? sack, boxBoards, boxFish, keg;
     private static Vector3 sackSize = new(0.88f, 0.3f, 0.5f);
     private static bool looked;
 
@@ -49,7 +49,6 @@ public static class Carried
         // (props.ts and clutter.ts: psx on a Lambert with the file's picture, no warp on the small things)
         var props = ModelLibrary.Get("props", new ModelLibrary.Look(TwoSided: true));
         sack ??= MeshOf(props, "sack");
-        crate = MeshOf(props, "crate_seat");
         keg = MeshOf(ModelLibrary.Get("clutter", new ModelLibrary.Look(TwoSided: true, Affine: 0, VertexColor: true)), "keg")
             ?? MeshOf(ModelLibrary.Get("quaygoods", new ModelLibrary.Look(TwoSided: true, Affine: 0, VertexColor: true)), "keg");
     }
@@ -72,7 +71,7 @@ public static class Carried
     /// The load in a walker's arms, as crowd.ts setLoad holds it: `k` is his body's height over 1.74 m. The node is
     /// named after its kind ("sack", "crate", "fishbox", "keg"); null when the model is not there.
     /// </summary>
-    public static Node3D? Load(string kind, float k)
+    public static Node3D? Load(string kind, float k, int crate = 0)
     {
         Look();
         switch (kind)
@@ -98,9 +97,14 @@ public static class Carried
             }
             case "crate":
             {
-                // a crate held before the chest in both arms (it stands on its base)
-                var m = Inst(crate, "crate");
-                if (m != null) m.Position = new Vector3(0, 0.74f * k, 0.36f * k);
+                // a crate held before the chest in both arms (it stands on its base): the one crate of the town at its
+                // small class, stencilled for the pile it came off (Play/CrateModel.cs)
+                var m = Scheldemist.Play.CrateModel.Make(crate, false, Scheldemist.Play.CrateModel.Class["small"]);
+                if (m != null)
+                {
+                    m.Name = "crate";
+                    m.Position = new Vector3(0, 0.74f * k, 0.36f * k);
+                }
                 return m;
             }
             default:

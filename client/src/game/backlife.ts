@@ -1,3 +1,4 @@
+import { crateMesh, pickCrate } from "./crateModel";
 import { toMeOr } from "../player/profile"; // M7 character: lines said to the player follow the profile
 import * as THREE from "three";
 import { psx } from "../retro/psx";
@@ -986,16 +987,20 @@ export class BackLife {
         break;
       }
       case "crate": {
-        // an upturned crate as a seat: 0.45 m (the sit clip's seat)
-        box(0.46, 0.43, 0.38, m.wood, 0, 0.215, 0);
-        box(0.48, 0.03, 0.4, m.dark, 0, 0.435, 0);
+        // a crate as a seat: the one crate of the town at its small class, 0.44 m (the sit clip's seat; game/crateModel.ts)
+        const c = crateMesh(pickCrate(`backlife:${Math.round(x * 2)},${Math.round(z * 2)}`), { cls: "small" });
+        if (c) g.add(c);
+        else box(0.7, 0.44, 0.49, m.wood, 0, 0.22, 0);
         break;
       }
       case "table": {
         // a bigger crate on end for the cards, the pack and the tricks on it, a few coins
-        box(0.56, 0.5, 0.5, m.wood, 0, 0.25, 0);
-        box(0.58, 0.03, 0.52, m.dark, 0, 0.5, 0);
-        const card = (px: number, pz: number, ry: number, face = m.card) => box(0.06, 0.004, 0.09, face, px, 0.519, pz, ry);
+        // (the one crate at its standard size, the cards on its lid between the cleats: game/crateModel.ts)
+        const c = crateMesh(pickCrate(`cards:${table ?? ""}`));
+        if (c) g.add(c);
+        else box(0.8, 0.48, 0.56, m.wood, 0, 0.24, 0);
+        const top = 0.48 + 0.002;
+        const card = (px: number, pz: number, ry: number, face = m.card) => box(0.06, 0.004, 0.09, face, px, top, pz, ry);
         card(0, 0, 0.1);
         card(0.012, 0.004, 0.12);
         card(-0.14, 0.1, 0.5, m.red);
@@ -1003,7 +1008,7 @@ export class BackLife {
         card(0.1, 0.13, 1.2, m.red);
         for (const [cx, cz] of [[-0.18, -0.15], [-0.16, -0.17], [0.2, 0.16]]) {
           const c = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.004, 8), m.coin);
-          c.position.set(cx, 0.52, cz);
+          c.position.set(cx, top + 0.001, cz);
           g.add(c);
         }
         g.userData.table = table;
