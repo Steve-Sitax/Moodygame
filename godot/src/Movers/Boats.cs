@@ -153,10 +153,7 @@ public partial class Boats : Node
         I = this;
         ProcessPriority = -50; // the boats' owners (the river, the lock ...) place theirs after this
         Collect(Mv.Town);
-        // Browser water caps write only the water stencil. Godot has no such pass: they must not draw white lids.
-        foreach (var n in BakedWorld.All(Mv.Town))
-            if (n is MeshInstance3D mi && mi.Mesh?.GetSurfaceCount()==1 && mi.Mesh.SurfaceGetMaterial(0)?.ResourceName=="cap") mi.Visible=false;
-            else if (n is MultiMeshInstance3D im && im.Multimesh?.Mesh?.GetSurfaceCount()==1 && im.Multimesh.Mesh.SurfaceGetMaterial(0)?.ResourceName=="cap") im.Visible=false;
+        // (the hulls' water caps stay drawn: Psx.Cap marks their pixels before the water, which is not drawn there)
         foreach (var top in Mv.Town.GetChildren())
         {
             string n = Mv.Plain(top);
@@ -241,7 +238,7 @@ public partial class Boats : Node
     /// <summary>
     /// A kind the bake has no frozen copy of (none sailed at bake time: a barque under sail, a schooner): its model
     /// from boats.glb through the model library, as the browser's loader sets it up (boats.ts loadModelSet): the
-    /// water cap hidden, the rigging of its "rig" extra as lines, a group round it that is placed.
+    /// water cap kept (Psx.Cap), the rigging of its "rig" extra as lines, a group round it that is placed.
     /// </summary>
     private bool FromLibrary(string kind)
     {
@@ -250,8 +247,6 @@ public partial class Boats : Node
         if (inner == null) return false;
         inner.Name = kind;
         inner.Transform = Transform3D.Identity;
-        foreach (var n in BakedWorld.All(inner))
-            if (n is MeshInstance3D mi && n.Name.ToString().EndsWith("_cap")) mi.Visible = false;
         if (inner.HasMeta("extras") && inner.GetMeta("extras").AsGodotDictionary().TryGetValue("rig", out var rig) && Rope != null)
         {
             try

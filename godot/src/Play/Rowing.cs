@@ -83,7 +83,8 @@ public partial class Rowing:Node,RowPhysics.IWorld
     private Drawn Make(string key,string kind,float x,float z,float yaw)
     {
         var obj=models?.Copy(kind)??throw new InvalidOperationException("missing boat model "+kind);root.AddChild(obj);obj.Transform=Transform3D.Identity;
-        foreach(var n in BakedWorld.All(obj))if(n is Node3D c&&(c.Name.ToString().EndsWith("_cap")||c.Name.ToString().EndsWith("_stow")))c.Visible=false;
+        // (her oars are out, not laid in; her water cap stays: Psx.Cap keeps the river out of the hull, rowing.ts)
+        foreach(var n in BakedWorld.All(obj))if(n is Node3D c&&c.Name.ToString().EndsWith("_stow"))c.Visible=false;
         var d=new Drawn{Key=key,Kind=kind,X=x,Z=z,Yaw=yaw,Root=obj,Hull=RowPhysics.Hull.Of(kind),Oars=new Node3D{Name="row_oars"}};obj.AddChild(d.Oars);d.Frame=()=>d.Root.GlobalTransform;
         for(int i=0;i<2;i++)
         {
