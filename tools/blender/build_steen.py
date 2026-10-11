@@ -1218,16 +1218,17 @@ def weather(m):
             if f.material_index not in STONE_WEATHER or f in m.fixed:
                 continue
             f.normal_update()
-            if abs(f.normal.z) > 0.6 or min(v.co.z for v in f.verts) > 2.6:
+            if abs(f.normal.z) > 0.6:
                 continue
             out.append(f)
         return out
 
-    cuts = [((0, 0, h), (0, 0, 1)) for h in (0.35, 0.8, 1.3, 1.85, 2.45)]
+    # (the low band finely for the damp, the walls above every 2 m for the soot's streaks; every 0.9 m along)
+    cuts = [((0, 0, h), (0, 0, 1)) for h in (0.35, 0.8, 1.3, 1.85, 2.45, 3.3, 4.4, 6.0, 8.0, 10.0, 12.0, 14.0, 16.5)]
     xs = [v.co.x for v in bm.verts]
     ys = [v.co.y for v in bm.verts]
-    cuts += [((x, 0, 0), (1, 0, 0)) for x in frange(min(xs), max(xs), 1.2)]
-    cuts += [((0, y, 0), (0, 1, 0)) for y in frange(min(ys), max(ys), 1.2)]
+    cuts += [((x, 0, 0), (1, 0, 0)) for x in frange(min(xs), max(xs), 0.9)]
+    cuts += [((0, y, 0), (0, 1, 0)) for y in frange(min(ys), max(ys), 0.9)]
     for co, no in cuts:
         fs = low_faces()
         geom = list(set(fs)) + list({e for f in fs for e in f.edges}) + list({v for f in fs for v in f.verts})
@@ -1244,14 +1245,18 @@ def weather(m):
             wx, wz, y = co.x, -co.y, co.z
             along = wx * 0.83 + wz * 0.56
             river = max(0.0, min(1.0, (zr + 6.0 - wz) / 6.0))
-            top = 1.15 + 0.9 * river + 0.55 * (vnoise(along / 1.7, 3) - 0.5) + 0.25 * (vnoise(along / 0.45, 7) - 0.5)
+            top = 1.45 + 1.1 * river + 0.55 * (vnoise(along / 1.7, 3) - 0.5) + 0.25 * (vnoise(along / 0.45, 7) - 0.5)
             d = max(0.0, min(1.0, (top - y) / max(0.3, top)))
             d = d * d * (3 - 2 * d)
             # soot: all over, patchy over a few metres, more under the ledges (faces looking down) and up the walls' lee
-            soot = 0.8 - 0.1 * vnoise(along / 2.3 + y / 3.1, 11) - (0.08 if nz < -0.3 else 0.0)
+            # soot: all over, patchy over a few metres, in runs down the walls from the ledges and the windows' heads
+            # (where the rain does not wash it), more under the ledges (faces looking down)
+            streak = vnoise(along / 0.9, 19)
+            run = max(0.0, min(1.0, (streak - 0.45) / 0.35)) * (0.6 + 0.4 * vnoise(y / 2.5 + along, 23))
+            soot = 0.66 - 0.1 * vnoise(along / 2.3 + y / 3.1, 11) - 0.16 * run - (0.08 if nz < -0.3 else 0.0)
             c = lp[m.col]
-            g = (0.6 + 0.4 * (1 - d), 0.68 + 0.32 * (1 - d), 0.52 + 0.48 * (1 - d))  # damp: green-black, most at the foot
-            dark = 1.0 - 0.28 * d * d
+            g = (0.42 + 0.58 * (1 - d), 0.58 + 0.42 * (1 - d), 0.36 + 0.64 * (1 - d))  # damp: green-black, most at the foot
+            dark = 1.0 - 0.3 * d * d
             lp[m.col] = (c[0] * soot * g[0] * dark, c[1] * soot * g[1] * dark, c[2] * soot * g[2] * dark * 1.02, 1.0)
 
 

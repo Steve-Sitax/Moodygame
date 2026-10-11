@@ -24,8 +24,8 @@ type Pic = (typeof PICTURES)[number];
  * colour (tools/blender/build_steen.py weather).
  */
 const TINT: Record<Pic, THREE.Color> = {
-  tournai: new THREE.Color(1.05, 1.05, 1.06),
-  sand: new THREE.Color(0.98, 0.95, 0.92),
+  tournai: new THREE.Color(1.0, 1.0, 1.03),
+  sand: new THREE.Color(0.84, 0.84, 0.88),
   blue: new THREE.Color(1.05, 1.05, 1.06),
   slate: new THREE.Color(1.0, 1.0, 1.0),
   brick: new THREE.Color(1.0, 1.0, 1.0),

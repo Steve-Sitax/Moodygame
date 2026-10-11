@@ -19,6 +19,10 @@ public partial class HallFloors : Node
         using var data = JsonDocument.Parse(HallPeopleData.Json);
         var kind = new Psx.Kind(false, false, false, false, true, true, 0, false, false, true);
         var material = BakedWorld.PsxMaterial(new StandardMaterial3D { AlbedoColor = new Color("736450"), Roughness = 1 }, kind, 0, 1, 0);
+        // (a room the bake brings in full, ROOM_<id>, draws its own floors: here only what carries feet. Drawn, its plain
+        // boxes stuck out through the doors as flat beige slabs: the Vleeshuis's, issue #65, the look survey's point 22)
+        var baked = new HashSet<string>();
+        foreach (var n in BakedWorld.All(Main.I.View)) if (n.Name.ToString() is { } nm && nm.StartsWith("ROOM_")) baked.Add(nm[5..]);
         foreach (string list in new[] { "rooms", "homes" })
             foreach (var plan in data.RootElement.GetProperty(list).EnumerateArray())
             {
@@ -26,14 +30,19 @@ public partial class HallFloors : Node
                 var root = new Node3D { Name = "room_floors_" + plan.GetProperty("id").GetString(), Position = new Vector3(origin.GetProperty("x").GetSingle(), plan.GetProperty("floorY").GetSingle(), origin.GetProperty("z").GetSingle()), Rotation = new Vector3(0, plan.GetProperty("yaw").GetSingle(), 0) };
                 Main.I.View.AddChild(root); roots.Add(root);
                 var boxes = new List<(Vector3 size, Vector3 position)>();
-                void Floor(JsonElement rect, float y, float thick = 0.12f)
+                // (the look survey's point 22 and issue #65: the plans' outdoor parts, the steps up to a door and the
+                // surfaces before it, stood as flat untextured beige slabs in the street, by the Vleeshuis, the
+                // Oostershuis and the town hall; the shells draw their own stone steps there, so these only carry feet)
+                var unseen = new List<(Vector3 size, Vector3 position)>();
+                bool own = baked.Contains(plan.GetProperty("id").GetString() ?? "");
+                void Floor(JsonElement rect, float y, float thick = 0.12f, bool drawn = true)
                 {
                     float x0 = rect.GetProperty("minX").GetSingle(), x1 = rect.GetProperty("maxX").GetSingle(), z0 = rect.GetProperty("minZ").GetSingle(), z1 = rect.GetProperty("maxZ").GetSingle();
-                    boxes.Add((new Vector3(x1 - x0, thick, z1 - z0), new Vector3((x0 + x1) / 2, y - thick / 2, (z0 + z1) / 2)));
+                    (drawn && !own ? boxes : unseen).Add((new Vector3(x1 - x0, thick, z1 - z0), new Vector3((x0 + x1) / 2, y - thick / 2, (z0 + z1) / 2)));
                 }
                 foreach (var level in plan.GetProperty("levels").EnumerateArray()) foreach (var r in level.GetProperty("floors").EnumerateArray()) Floor(r, level.GetProperty("y").GetSingle());
-                if (plan.TryGetProperty("surface", out var surface)) foreach (var f in surface.EnumerateArray()) Floor(f.GetProperty("rect"), f.GetProperty("y").GetSingle());
-                if (plan.TryGetProperty("steps", out var steps)) foreach (var f in steps.EnumerateArray()) Floor(f.GetProperty("rect"), f.GetProperty("y").GetSingle());
+                if (plan.TryGetProperty("surface", out var surface)) foreach (var f in surface.EnumerateArray()) Floor(f.GetProperty("rect"), f.GetProperty("y").GetSingle(), drawn: false);
+                if (plan.TryGetProperty("steps", out var steps)) foreach (var f in steps.EnumerateArray()) Floor(f.GetProperty("rect"), f.GetProperty("y").GetSingle(), drawn: false);
                 if (plan.TryGetProperty("stairs", out var stairs)) foreach (var s in stairs.EnumerateArray())
                 {
                     var r = s.GetProperty("rect"); float x0 = r.GetProperty("minX").GetSingle(), x1 = r.GetProperty("maxX").GetSingle(), z0 = r.GetProperty("minZ").GetSingle(), z1 = r.GetProperty("maxZ").GetSingle();
@@ -44,7 +53,7 @@ public partial class HallFloors : Node
                     {
                         float a = foot + (head - foot) * i / count, b = foot + (head - foot) * (i + 1) / count, y = y0 + (y1 - y0) * (i + 1) / count;
                         var size = new Vector3(alongX ? Math.Abs(b - a) : x1 - x0, (y1 - y0) / count, alongX ? z1 - z0 : Math.Abs(b - a));
-                        boxes.Add((size, new Vector3(alongX ? (a + b) / 2 : (x0 + x1) / 2, y - size.Y / 2, alongX ? (z0 + z1) / 2 : (a + b) / 2)));
+                        (own ? unseen : boxes).Add((size, new Vector3(alongX ? (a + b) / 2 : (x0 + x1) / 2, y - size.Y / 2, alongX ? (z0 + z1) / 2 : (a + b) / 2)));
                     }
                 }
                 var batch = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, Mesh = new BoxMesh { Size = Vector3.One, Material = material }, InstanceCount = boxes.Count };
@@ -55,6 +64,7 @@ public partial class HallFloors : Node
                     var box = boxes[i]; batch.SetInstanceTransform(i, new Transform3D(Basis.Identity.Scaled(box.size), box.position));
                     body.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = box.size }, Position = box.position });
                 }
+                foreach (var box in unseen) body.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = box.size }, Position = box.position });
             }
     }
     public override void _ExitTree() { foreach (var root in roots) root.QueueFree(); }

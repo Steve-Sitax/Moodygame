@@ -15,6 +15,7 @@ UVs are box-projected in metres / 3.
 
 import json
 import math
+import random
 import os
 
 import bmesh
@@ -773,22 +774,63 @@ def paint_atlas():
     c[mk & ~erode(mk, 2)] = C["hi"]
     c[29:32] = C["hi"]
 
-    # -- the arms of Antwerp in a cartouche: a red shield, the white castle, two hands
+    # -- the arms of Antwerp in a cartouche (the look survey's point 22, 2026-10-11: the old blocks read as a cartoon face
+    # over the Hanseatic House's gate): a heater shield gules, the silver castle of three crenellated towers with its
+    # gate, the two open hands in chief, the crown over the shield, in a moulded stone ring. Each pixel the mean of 4 x 4
+    # samples, so the outlines are smooth at 64 px.
     c = cell("arms")
     stone_bg(c)
-    c[circle(64, 64, 32, 32, 0, 30)] = C["hi"] * 1.1
-    c[circle(64, 64, 32, 32, 26, 30)] = C["lo"]
-    xx, yy = grid(64, 64)
-    shield = (np.abs(xx - 32) < 16) & (yy > 12) & (yy < 42) | (np.hypot(xx - 32, yy - 42) < 16) & (yy >= 42)
-    c[shield] = np.array((0.62, 0.12, 0.10), np.float32)
-    c[26:44, 22:42] = C["white"]
-    c[20:26, 22:27] = C["white"]
-    c[20:26, 29:35] = C["white"]
-    c[20:26, 37:42] = C["white"]
-    c[36:44, 29:35] = np.array((0.62, 0.12, 0.10), np.float32)
-    c[14:20, 16:22] = C["white"]
-    c[14:20, 42:48] = C["white"]
-    c[4:10, 26:38] = C["gold"]
+    c[circle(64, 64, 32, 32, 0, 30.5)] = C["hi"] * 1.04
+    c[circle(64, 64, 32, 32, 27.5, 30.5)] = C["lo"]
+    c[circle(64, 64, 32, 32, 29.2, 29.8)] = C["hi"] * 1.15
+    SS = 4
+    yy, xx = np.mgrid[0:64 * SS, 0:64 * SS]
+    X, Y = (xx + 0.5) / SS, (yy + 0.5) / SS
+
+    def box(x0, y0, x1, y1):
+        return (X >= x0) & (X <= x1) & (Y >= y0) & (Y <= y1)
+
+    # (a heater shield: straight sides to y 36, then two arcs to the point at y 56)
+    shield = ((np.abs(X - 32) <= 14) & (Y >= 15) & (Y <= 36)) | ((Y > 36) & (np.hypot(np.abs(X - 32) + 7.3, Y - 36) <= 21.3))
+    rim = shield & ~(((np.abs(X - 32) <= 12.8) & (Y >= 16.2) & (Y <= 36)) | ((Y > 36) & (np.hypot(np.abs(X - 32) + 7.3, Y - 36) <= 20.1)))
+    castle = box(23.5, 37, 40.5, 47) | box(29, 27, 35, 37) | box(23.5, 31, 28.2, 37) | box(35.8, 31, 40.5, 37)
+    for x0, x1, y0 in ((29, 35, 27), (23.5, 28.2, 31), (35.8, 40.5, 31)):
+        w = (x1 - x0) / 5
+        for k in (0, 2, 4):
+            castle |= box(x0 + k * w, y0 - 1.6, x0 + (k + 1) * w, y0)
+    gate = (box(30.4, 41.5, 33.6, 47) | (np.hypot(X - 32, Y - 41.5) <= 1.6)) & (Y <= 47)
+    slits = box(31.6, 30, 32.4, 33) | box(25.5, 33, 26.2, 35.5) | box(37.8, 33, 38.5, 35.5)
+    courses = castle & (np.mod(Y - 37, 2.5) < 0.35) & (Y > 37)
+
+    def hand(cx, cy, turn):
+        u = (X - cx) * np.cos(turn) - (Y - cy) * np.sin(turn)
+        v = (X - cx) * np.sin(turn) + (Y - cy) * np.cos(turn)
+        palm = (u / 2.4) ** 2 + (v / 2.7) ** 2 <= 1
+        fingers = np.zeros_like(palm)
+        for k, fu in enumerate((-1.6, -0.55, 0.55, 1.6)):
+            ln = 2.6 if k in (1, 2) else 2.1
+            fingers |= (np.abs(u - fu) <= 0.42) & (v <= -1.6) & (v >= -1.6 - ln)
+        thumb = (np.abs((u + 2.4) * 0.8 + (v + 0.4) * 0.6) <= 0.45) & (u <= -1.8) & (u >= -4.2) & (v >= -1.5) & (v <= 1.5)
+        return palm | fingers | thumb
+
+    hands = hand(24.5, 22.5, 0.35) | hand(39.5, 22.5, -0.35)
+    crown = box(23, 9.5, 41, 12.5)
+    for cx in (24.5, 32.0, 39.5):
+        crown |= (Y >= 5.2) & (Y <= 9.5) & (np.abs(X - cx) <= (Y - 5.2) * 0.62)
+        crown |= np.hypot(X - cx, Y - 4.6) <= 0.8
+    jewels = (np.hypot(X - 26, Y - 11) <= 0.7) | (np.hypot(X - 32, Y - 11) <= 0.8) | (np.hypot(X - 38, Y - 11) <= 0.7)
+    RED, SILVER, GOLD, DARK = np.array((0.55, 0.09, 0.08)), np.array((0.84, 0.83, 0.79)), C["gold"], np.array((0.10, 0.09, 0.08))
+    hi = np.zeros((64 * SS, 64 * SS, 3), np.float32)
+    have = np.zeros((64 * SS, 64 * SS), bool)
+    for mk, col in ((shield, RED), (rim, C["gold"] * 0.85), (castle, SILVER), (courses, SILVER * 0.8), (gate, DARK), (slits, DARK),
+                    (hands, SILVER), (crown, GOLD), (jewels, RED * 1.2)):
+        hi[mk] = col
+        have |= mk
+    cov = have.reshape(64, SS, 64, SS).mean(axis=(1, 3))[..., None]
+    col = hi.reshape(64, SS, 64, SS, 3).sum(axis=(1, 3)) / np.maximum(1, have.reshape(64, SS, 64, SS).sum(axis=(1, 3)))[..., None]
+    c[:] = c * (1 - cov) + col * cov
+    # (a little of the stone's weather over the paint)
+    noise(c, 0.04)
 
     c = cell("cross_window")
     stone_bg(c)
@@ -1110,8 +1152,24 @@ def _portal(m, p, d, o, sc, hw0, hw1, depth, h0, h1, tsp, lintel, bands=5, trume
     top = [pt for pt in inner if pt[1] > lintel + 0.05]
     tpts = [(hw1, lintel)] + top + [(-hw1, lintel)]
     ymax = max(y for _, y in tpts)
-    m.tex([W(sc + s, y, dep) for s, y in tpts], tymp, [((s + hw1) / (2 * hw1), (y - lintel) / (ymax - lintel)) for s, y in tpts],
-          0.72, (o[0], o[1], 0))
+    if tymp == "arms":
+        # (the look survey's point 22: the arms' square picture stretched over the whole half disc read as a cartoon
+        # face, a string course of the wall behind across it) a plain stone tympanum, and on it the arms in their
+        # round cartouche at their own shape, carved on a block standing 0.25 m out of it
+        f = m.poly([W(sc + s, y, dep) for s, y in tpts], STONE, 0.72)
+        m.orient(f, (o[0], o[1], 0))
+        side = min(2 * hw1 * 0.8, (ymax - lintel) * 0.96)
+        yc = lintel + (ymax - lintel) * 0.5
+        out = dep - 0.25
+        q = [(-side / 2, yc - side / 2), (side / 2, yc - side / 2), (side / 2, yc + side / 2), (-side / 2, yc + side / 2)]
+        m.tex([W(sc + s, y, out) for s, y in q], "arms", RECT, 0.9, (o[0], o[1], 0))
+        for (sa, ya), (sb, yb) in zip(q, q[1:] + q[:1]):
+            f = m.poly([W(sc + sa, ya, out), W(sc + sb, yb, out), W(sc + sb, yb, dep), W(sc + sa, ya, dep)], STONE, 0.8)
+            mx, my = (sa + sb) / 2, (ya + yb) / 2 - yc
+            m.orient(f, (d[0] * mx, d[1] * mx, my))
+    else:
+        m.tex([W(sc + s, y, dep) for s, y in tpts], tymp, [((s + hw1) / (2 * hw1), (y - lintel) / (ymax - lintel)) for s, y in tpts],
+              0.72, (o[0], o[1], 0))
     for k, (y0, y1, fwd) in enumerate(((lintel - 0.5, lintel, 0.18), (lintel - 0.62, lintel - 0.5, 0.1))):
         f = m.poly([W(sc - hw1, y0, dep - fwd), W(sc + hw1, y0, dep - fwd), W(sc + hw1, y1, dep - fwd), W(sc - hw1, y1, dep - fwd)], STONE, 1.05)
         m.orient(f, (o[0], o[1], 0))
@@ -1136,10 +1194,34 @@ def _portal(m, p, d, o, sc, hw0, hw1, depth, h0, h1, tsp, lintel, bands=5, trume
         m.pyramid(m.ngon(c[0], c[1], 0.3, 6), 4.5, 5.0, STONE)
         m.pyramid(m.ngon(c[0], c[1], 0.45, 6), 5.2, 6.0, STONE)  # canopy
     if steps:
+        # (the look survey's point 22, 2026-10-11: the steps were two smooth pale slabs) bluestone treads laid in blocks
+        # of 0.7 to 1.1 m with a joint between them, each a shade apart and a centimetre high or low, the middle ones
+        # worn down where the feet go, a worn round on the nosing
+        rs = random.Random(int(abs(sc) * 100 + abs(p[0]) * 7 + abs(p[1]) * 3))
         for k, (e0, e1, y) in enumerate(((-0.9, 0.0, 0.15), (0.0, dep, 0.3))):
-            hw =hw0 + 0.4 if k == 0 else hw1 + 0.05
-            ring = [W(sc - hw, 0, e0)[:2], W(sc + hw, 0, e0)[:2], W(sc + hw, 0, e1)[:2], W(sc - hw, 0, e1)[:2]]
-            m.prism(ring, 0, y, STONE, top=True, shade=0.85)
+            hw = hw0 + 0.4 if k == 0 else hw1 + 0.05
+            cuts = [-hw]
+            while cuts[-1] < hw - 0.9:
+                cuts.append(min(hw, cuts[-1] + rs.uniform(0.7, 1.1)))
+            cuts[-1] = hw
+            for s0, s1 in zip(cuts, cuts[1:]):
+                mid = (s0 + s1) / 2
+                wear = 0.018 * max(0.0, 1 - abs(mid) / max(0.5, hw * 0.6))
+                yt = y + rs.uniform(-0.008, 0.008) - wear
+                a0, a1 = s0 + 0.006, s1 - 0.006
+                g = rs.uniform(0.4, 0.5)  # (bluestone: darker than the walls' sandstone)
+                # the nosing: the top's front 3 cm rounded down in two facets
+                f = m.poly([W(sc + a0, yt - 0.03, e0), W(sc + a1, yt - 0.03, e0), W(sc + a1, yt - 0.008, e0 + 0.012), W(sc + a0, yt - 0.008, e0 + 0.012)], STONE, g * 0.9)
+                m.orient(f, (o[0], o[1], 0.6))
+                f = m.poly([W(sc + a0, yt - 0.008, e0 + 0.012), W(sc + a1, yt - 0.008, e0 + 0.012), W(sc + a1, yt, e0 + 0.03), W(sc + a0, yt, e0 + 0.03)], STONE, g * 0.97)
+                m.orient(f, (o[0], o[1], 1.5))
+                f = m.poly([W(sc + a0, 0, e0), W(sc + a1, 0, e0), W(sc + a1, yt - 0.03, e0), W(sc + a0, yt - 0.03, e0)], STONE, g * 0.8)
+                m.orient(f, (o[0], o[1], 0))
+                f = m.poly([W(sc + a0, yt, e0 + 0.03), W(sc + a1, yt, e0 + 0.03), W(sc + a1, yt, e1), W(sc + a0, yt, e1)], STONE, g)
+                m.orient(f, (0, 0, 1))
+                for se in (a0, a1):
+                    f = m.poly([W(sc + se, 0, e0), W(sc + se, 0, e1), W(sc + se, yt, e1), W(sc + se, yt, e0 + 0.03), W(sc + se, yt - 0.03, e0)], STONE, g * 0.75)
+                    m.orient(f, (d[0] * (1 if se > mid else -1), d[1] * (1 if se > mid else -1), 0))
 
 
 def _wimperg(m, p, d, o, sc, hw, y0, y1, off=0.35, w=0.45):

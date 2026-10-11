@@ -1935,6 +1935,16 @@ class Builder:
                 self.ghost_marks(a, b, outs[i], ghosts, y1)
             self.wallmat = keep
             return
+        # (the look survey's point 22, 2026-10-11: a plastered house's blind side and back walls stood as tall flat grey
+        # slabs over the yards, e.g. at (-323, 177). Only the front was rendered and painted in 1873; the sides and backs
+        # are the bare brick of the house, by its own dice from its class's bricks)
+        if STYLE_ROW.get(style) in (1, 2) and self.wallmat[0] not in BY_CLASS[self.klass][0]:
+            keep = self.wallmat
+            r = random.Random(self.hid_seed * 53 + 5)
+            self.wallmat = (r.choice(BY_CLASS[self.klass][0]), r.choice(PAINTS["tint"]))
+            self.side_wall_(ring, street, outs, i, y0, y1, style, H)
+            self.wallmat = keep
+            return
         self.side_wall_(ring, street, outs, i, y0, y1, style, H)
 
     def side_wall_(self, ring, street, outs, i, y0, y1, style, H):
@@ -1968,6 +1978,7 @@ class Builder:
                            h["seed"] % 5 < 2))
         self.wear = wear_of(h, self.klass)
         self.wallmat = wall_material(h, self.klass)
+        self.hid_seed = h["seed"]
         self.ds["klass"] = self.klass
         self.ds["seed"] = h["seed"]  # (yard windows: their own dice from it)
         # (the districts pass) some fine fronts take corner pilasters in place of quoins; by the seed, the dice untouched

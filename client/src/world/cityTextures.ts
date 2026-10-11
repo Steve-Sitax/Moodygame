@@ -326,7 +326,7 @@ function fanlight(g: CanvasRenderingContext2D, x: number, y: number): void {
           // the glass: dark, the sky caught a little higher up, a pane or two a shade apart (old glass)
           const pane = Math.floor(phi / (Math.PI / 6)) + (rho > 0.6 ? 7 : 0);
           const k = 0.92 + 0.16 * (((pane * 37) % 11) / 11);
-          let c = [(24 + 26 * Y) * k, (29 + 30 * Y) * k, (34 + 33 * Y) * k];
+          let c = [(34 + 44 * Y) * k, (40 + 50 * Y) * k, (47 + 54 * Y) * k];
           let bar = rho > 0.9 || Y < 0.045 || rho < 0.22;
           if (!bar) {
             for (let s = 1; s < 6; s++) if (Math.abs(Math.sin(phi - (s * Math.PI) / 6)) * rho < 0.022) bar = true;

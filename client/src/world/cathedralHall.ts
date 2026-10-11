@@ -1740,7 +1740,7 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
     // (issue #10: the stained glass inside as the old panes were; the shell's pane outside as its stone round it by day)
     for (const q of glasses.in) q.color.setRGB(0.07 + g0 + 0.05 * moon, 0.08 + g0 + 0.08 * moon, 0.1 + g0 + 0.17 * moon);
     // (from the street the glass is dark by day, its colours only a hint, a little of the grey sky on it; dark at night)
-    const gOut = 0.05 + 0.2 * day * (0.55 + 0.45 * sky);
+    const gOut = 0.012 + 0.05 * day * (0.55 + 0.45 * sky); // (linear: about a third of white in the picture at noon)
     for (const [i, q] of glasses.out.entries()) q.color.setRGB(gOut * (i ? 1.1 : 1), gOut * (i ? 1.15 : 1.02), gOut * (i ? 1.2 : 1.06));
     // (the lamplight in the panes after dusk, amber, dim as a church by its candles: world/landmarkWindows.ts)
     glasses.glow?.color.setRGB(1.0, 0.56, 0.22).multiplyScalar(0.36 * THREE.MathUtils.clamp((0.5 - day) / 0.3, 0, 1));
