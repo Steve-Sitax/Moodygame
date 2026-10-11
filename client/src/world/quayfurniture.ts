@@ -16,7 +16,12 @@ import { wallBox, type WallBox } from "./wallprobe";
 import { addProp, dropProps } from "./propSpots";
 import { sackPuts, type SackRow } from "../game/sackModel";
 import QF_SACKS from "./quayfurniture_sack_sockets.json";
+import QG_SACKS from "./quaygoods_sack_sockets.json";
 import type { GroundProbe, WallProbe } from "./wallprobe";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { quayModels, quayPieceCollider, quayPieceMesh } from "./quaygoods";
+import { drawShipLines, hullLowY, hullToWorld, hullY, mooredHulls, railAt, type End, type Hull, type Line, type ShipLines } from "./shipLines";
+import { layWorkSpots, type SpotsLaid } from "./workspots";
 
 // Quay furniture (tools/blender/build_quayfurniture.py -> /models/quayfurniture.glb): the
 // iron, rope and timber along the water, after the 1870s photos of the Antwerp quays.
@@ -29,6 +34,12 @@ import type { GroundProbe, WallProbe } from "./wallprobe";
 // baulks, tar barrels with a fire, boats upturned on trestles; lanterns at the steps;
 // painted quay names and berth numbers on the walls, a weigh house door and notices on
 // the storehouse walls.
+//
+// D4 (2026-10-11, the docks: "make docks look way better"): high detail (smooth turned bollards and rings, laid
+// rope, oak rubbing fenders down the working quays' walls, chain in real links), bollards and rings every few metres
+// along the working quays with coils and flaked lines between, the ships' mooring lines from every boat moored in a
+// row to its bollards (world/shipLines.ts: they slacken and tighten with the tide), and four dense work spots with
+// lanes between them (world/workspots.ts). The rust-red iron strip that covered the coping's nose is gone.
 //
 // Placed from data (the quay lines and water of shared/city.json, the walk map, the
 // flights and ladders of quaysteps.ts, the storehouse fronts of props.glb) with a seeded
@@ -83,9 +94,22 @@ export interface QuayFurniture {
   wallItems: WallBox[];
   /** Those moved off a painted window, a door or a sign (where the old rule put them, and why), or left out. */
   moved: Array<{ model: string; from: [number, number, number]; to: [number, number, number] | null; why: string }>;
+  /** D4: the ships' mooring lines (null until the boats are in, or none). */
+  shipLines: ShipLines | null;
+  /** D4: the work spots, what was laid and left out, and where their workers stand. */
+  workSpots: SpotsLaid | null;
 }
 
+/**
+ * The quay's own old bollards and rope coils by the start (rijnkaai.ts, its colliders its own): drawn here in the new
+ * models. rijnkaai.ts's stand-ins add their places to these lists before the quay furniture is laid.
+ */
+export const standIns = { bollards: [] as Array<[number, number]>, coils: [] as Array<[number, number]> };
+
 interface Meta {
+  /** D4: each bollard kind's line eye and where the line goes on from it (game frame). */
+  lineEyes?: Record<string, { model: string; out: [number, number, number] }>;
+  lineRadius?: number;
   wallNames: Array<{ name: string; model: string; len: number }>;
   wallNotices: Array<{ model: string; len: number }>;
   berths: number[];
@@ -222,10 +246,12 @@ async function loadModels(): Promise<{ protos: Map<string, Proto>; meta: Meta; s
   if (!meta || !solidMap || !decalMap) throw new Error("quayfurniture.glb: meta or textures missing");
   // (the quay signs and the quays' name boards: flat in the atlas's bump, world/bumps.ts)
   flatLettering(solidMap, Object.entries(meta.solid.cells), meta.solid.size[0], meta.solid.size[1]);
+  // (D4: smooth with mipmaps, docs/05-art-direction.md; the atlas cells have gutters for the far mips)
   for (const t of [solidMap, decalMap]) {
-    t.magFilter = THREE.NearestFilter;
-    t.minFilter = THREE.NearestFilter;
-    t.generateMipmaps = false;
+    t.magFilter = THREE.LinearFilter;
+    t.minFilter = THREE.LinearMipmapLinearFilter;
+    t.generateMipmaps = true;
+    t.anisotropy = 4;
     t.colorSpace = THREE.SRGBColorSpace;
     t.needsUpdate = true;
   }
@@ -314,14 +340,27 @@ const ANCHORED: Array<[string, number, number, number, "water" | "inland"]> = [
   ["sign_nofire", 196, 1, 8, "inland"],
 ];
 /** Edge things by quay: the kinds in turn, and the spacing (m). */
+// (D4: every few metres along the working quays, the survey's "bollards along the edge")
 const EDGE: Record<District, { kinds: string[]; step: number }> = {
-  werf: { kinds: ["bollard_cannon", "bollard_cannon", "bitt_double", "bollard_cannon"], step: 12 },
-  steen: { kinds: ["bollard_cannon"], step: 16 },
-  vismarkt: { kinds: ["post_timber", "bollard_cannon", "post_timber"], step: 10 },
-  canal: { kinds: ["post_timber"], step: 15 },
-  rijnkaai: { kinds: ["bollard_mushroom", "bollard_mushroom", "bitt_double"], step: 13 },
-  north: { kinds: ["bollard_mushroom", "bitt_double", "bollard_mushroom"], step: 13 },
-  bassin: { kinds: ["post_timber", "bollard_mushroom", "post_timber", "bitt_double"], step: 11 },
+  werf: { kinds: ["bollard_cannon", "bollard_cannon", "bitt_double", "bollard_cannon"], step: 7 },
+  steen: { kinds: ["bollard_cannon"], step: 12 },
+  vismarkt: { kinds: ["post_timber", "bollard_cannon", "post_timber"], step: 8 },
+  canal: { kinds: ["post_timber"], step: 13 },
+  rijnkaai: { kinds: ["bollard_mushroom", "bollard_cannon", "bollard_mushroom", "bitt_double"], step: 7.5 },
+  north: { kinds: ["bollard_mushroom", "bitt_double", "bollard_mushroom"], step: 7.5 },
+  bassin: { kinds: ["bollard_mushroom", "post_timber", "bollard_mushroom", "bitt_double"], step: 7 },
+};
+/** The quays where cargo is worked: oak rubbing fenders down the wall, more rings, coils and lines lying out. */
+const WORKING = new Set<District>(["werf", "rijnkaai", "north", "bassin"]);
+/** The bollard a ship's line goes to, by quay. */
+const LINE_BOLLARD: Record<District, string> = {
+  werf: "bollard_cannon",
+  steen: "bollard_cannon",
+  vismarkt: "bollard_cannon",
+  canal: "post_timber",
+  rijnkaai: "bollard_cannon",
+  north: "bollard_mushroom",
+  bassin: "bollard_mushroom",
 };
 /** Quay names painted on the wall face: [name index in meta.wallNames, x, z]. */
 const WALL_NAME_AT: Array<[string, number, number]> = [
@@ -335,16 +374,6 @@ const WALL_NAME_AT: Array<[string, number, number]> = [
   ["PETIT BASSIN", 140, 46],
   ["PETIT BASSIN", 70, 70],
 ];
-/**
- * Where boats lie along the walls (rijnkaai.ts: its moor() calls; keep in step): [x0, z0, x1, z1].
- * Bollards here get a line down to the water.
- */
-const MOORED: number[][] = [
-  [-316, 0, -258, 0], [-240, 0, -216, 0], [-140, 0, -119, 0], [-107, 0, -90, 0], [60, 0, 100, 0], [120, 0, 176, 0],
-  [-82, 12, -82, 202], [-70, 12, -70, 202], [-150, 11, -150, 38], [-142, 49, -142, 70],
-  [70, 50, 70, 106], [170, 50, 170, 106], [76, 110, 164, 110], [120, 46, 164, 46],
-];
-const moored = (x: number, z: number) => MOORED.some(([x0, z0, x1, z1]) => distSeg(x, z, x0, z0, x1, z1) < 1.5);
 
 /** Where the town's people haul and sell (server town/places.ts HAULS quay ends and STALLS): keep open. */
 export const TOWN_CLEAR: Array<[number, number, number]> = [
@@ -458,27 +487,6 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
     const [W, H] = meta.solid.size;
     return [(x + 0.5 + Math.min(1, Math.max(0, u)) * (w - 1)) / W, (y + 0.5 + (1 - Math.min(1, Math.max(0, v))) * (h - 1)) / H];
   }
-  /** A quad of our own in the solid atlas: corners counter-clockwise seen from the front. */
-  function quad(cell: string, pts: number[][], shade = 1): void {
-    const cx = (pts[0][0] + pts[2][0]) / 2;
-    const cz = (pts[0][2] + pts[2][2]) / 2;
-    const b = bucket(cx, cz, SOLID);
-    const ax = pts[1][0] - pts[0][0], ay = pts[1][1] - pts[0][1], az = pts[1][2] - pts[0][2];
-    const bx = pts[3][0] - pts[0][0], by = pts[3][1] - pts[0][1], bz = pts[3][2] - pts[0][2];
-    let nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx;
-    const l = Math.hypot(nx, ny, nz) || 1;
-    nx /= l;
-    ny /= l;
-    nz /= l;
-    const uvs = [[0, 0], [1, 0], [1, 1], [0, 1]];
-    for (const i of [0, 1, 2, 0, 2, 3]) {
-      b.pos.push(pts[i][0], pts[i][1], pts[i][2]);
-      b.nor.push(nx, ny, nz);
-      b.uv.push(...cellUv(cell, uvs[i][0], uvs[i][1]));
-      b.col.push(shade, shade, shade);
-    }
-  }
-
   // ================================================================ what must stay clear
   const clear: Array<{ x: number; z: number; r: number }> = [...(opts.keepClear ?? [])];
   for (const d of Object.values(city.doors)) {
@@ -527,6 +535,16 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
   const craneTight: Rect[] = (decor.crane_rails ?? []).map(([x0, z0, x1, z1]) => ({ minX: Math.min(x0, x1) - 0.2, maxX: Math.max(x0, x1) + 0.2, minZ: Math.min(z0, z1) - 0.2, maxZ: Math.max(z0, z1) + 0.2 }));
   const railLines = decor.rails ?? [];
   const avoid = opts.avoid ?? [];
+  /**
+   * (D4) The caller's crane runway boxes among `avoid` (rijnkaai.ts craneRunways: the rails 0.9 m either way): a bollard
+   * on the edge may stand in their water side's margin, clear of the rail itself (FitRules crane "tight"), as on the
+   * real quays, where the bollards stood on the coping in front of the cranes' rails.
+   */
+  const craneAvoid = new Set(
+    avoid.filter((a) =>
+      (decor.crane_rails ?? []).some(([x0, z0, x1, z1]) => Math.abs(a.minX - (Math.min(x0, x1) - 0.9)) < 1e-6 && Math.abs(a.maxX - (Math.max(x0, x1) + 0.9)) < 1e-6 && Math.abs(a.minZ - (Math.min(z0, z1) - 0.9)) < 1e-6 && Math.abs(a.maxZ - (Math.max(z0, z1) + 0.9)) < 1e-6),
+    ),
+  );
   // lamps and trees of the city decor (their colliders are in `avoid` too; these are for the ground things)
   const posts: Rect[] = [...(decor.lamps ?? []), ...(decor.trees ?? [])].map(([x, z]) => ({ minX: x - 0.6, maxX: x + 0.6, minZ: z - 0.6, maxZ: z + 0.6 }));
   // the traffic lanes, points in 4 m buckets
@@ -634,30 +652,33 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
     /** Clearance kept from the job places and doors. */
     clearR: number;
   }
+  /** Why the last fits() said no (dev: the work spots' left-out pieces). */
+  let whyNot = "";
+  const no = (w: string) => ((whyNot = w), false);
   function fits(r: Rect, rules: FitRules): boolean {
     const cx = (r.minX + r.maxX) / 2;
     const cz = (r.minZ + r.maxZ) / 2;
     const half = Math.max(r.maxX - r.minX, r.maxZ - r.minZ) / 2;
-    if (!rules.start && overlap(r, START)) return false;
-    for (const f of fixed) if (overlap(r, f, 1)) return false;
-    for (const b of bridgeRects) if (overlap(r, b, 2.5)) return false;
-    for (const t of trainRects) if (overlap(r, t)) return false;
-    if (!rules.crane) for (const t of craneRects) if (overlap(r, t)) return false;
-    if (rules.crane === "tight") for (const t of craneTight) if (overlap(r, t)) return false;
-    for (const a of avoid) if (overlap(r, a, rules.avoidPad)) return false;
-    for (const t of taken) if (overlap(r, t, rules.gap)) return false;
-    for (const p of posts) if (overlap(r, p)) return false;
-    for (const f of flights) if (distSeg(cx, cz, f.top[0], f.top[1], f.end[0], f.end[1]) < half + 2.2) return false;
-    for (const l of ladders) if (Math.hypot(l.x - cx, l.z - cz) < half + 1.4) return false;
-    for (const [x0, z0, x1, z1] of railLines) if (distSeg(cx, cz, x0, z0, x1, z1) < half + 0.5) return false;
-    if (!isClear(cx, cz, Math.max(0, half * 0.7 + rules.clearR - 2.5))) return false;
+    if (!rules.start && overlap(r, START)) return no("start");
+    for (const f of fixed) if (overlap(r, f, 1)) return no("fixed");
+    for (const b of bridgeRects) if (overlap(r, b, 2.5)) return no("bridge");
+    for (const t of trainRects) if (overlap(r, t)) return no("train");
+    if (!rules.crane) for (const t of craneRects) if (overlap(r, t)) return no("crane");
+    if (rules.crane === "tight") for (const t of craneTight) if (overlap(r, t)) return no("crane tight");
+    for (const a of avoid) if (overlap(r, a, rules.avoidPad) && !(rules.crane === "tight" && craneAvoid.has(a))) return no("avoid");
+    for (const t of taken) if (overlap(r, t, rules.gap)) return no("taken");
+    for (const p of posts) if (overlap(r, p)) return no("post");
+    for (const f of flights) if (distSeg(cx, cz, f.top[0], f.top[1], f.end[0], f.end[1]) < half + 2.2) return no("flight");
+    for (const l of ladders) if (Math.hypot(l.x - cx, l.z - cz) < half + 1.4) return no("ladder");
+    for (const [x0, z0, x1, z1] of railLines) if (distSeg(cx, cz, x0, z0, x1, z1) < half + 0.5) return no("rail");
+    if (!isClear(cx, cz, Math.max(0, half * 0.7 + rules.clearR - 2.5))) return no("clear");
     // stands on open ground, no wall, no water (the walk map is 0.5 m fine: sample a little inside)
     const ix = Math.min(0.15, (r.maxX - r.minX) / 2);
     const iz = Math.min(0.15, (r.maxZ - r.minZ) / 2);
     for (let x = r.minX + ix; x <= r.maxX - ix + 1e-6; x += Math.min(0.4, Math.max(0.05, r.maxX - r.minX - 2 * ix))) {
       for (let z = r.minZ + iz; z <= r.maxZ - iz + 1e-6; z += Math.min(0.4, Math.max(0.05, r.maxZ - r.minZ - 2 * iz))) {
-        if (at(x, z) !== OPEN) return false;
-        if (!rules.lane && inLane(x, z, 0.2)) return false;
+        if (at(x, z) !== OPEN) return no("ground");
+        if (!rules.lane && inLane(x, z, 0.2)) return no("lane");
       }
     }
     return true;
@@ -745,18 +766,25 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
       const dist = districtAt(x, z);
       if (!dist) continue;
       const yaw = faceYaw(g);
+      const working = WORKING.has(dist);
       if (s >= nextRing) {
         if (!wallBusy(x, z, 0.4)) {
           // mostly rings on staples in the wall face; now and then one let into the edge stone
           if (k++ % 2 === 1 && at(x - g.nx * 0.6, z - g.nz * 0.6) === OPEN && !inRectP(START, x, z)) put("ring_top", x, 0, z, yaw);
           else put("ring_wall", x, -0.05 * (k % 2), z, yaw);
-          nextRing = s + (dist === "canal" ? 5 : 6) + R() * 3;
+          nextRing = s + (dist === "canal" ? 5 : working ? 3.6 : 6) + R() * (working ? 1.6 : 3);
         }
       }
       if (s >= nextFender && dist !== "steen") {
         if (!wallBusy(x, z, 1.0)) {
-          put(R() < 0.6 ? "fender_timber" : "fender_rope", x, 0, z, yaw);
-          nextFender = s + 10 + R() * 8;
+          // (D4) the working quays: an oak rubbing fender every six metres or so, a rope fender now and then between
+          if (working) {
+            put(R() < 0.82 ? "fender_timber" : "fender_rope", x, 0, z, yaw);
+            nextFender = s + 5.4 + R() * 1.6;
+          } else {
+            put(R() < 0.4 ? "fender_timber" : "fender_rope", x, 0, z, yaw);
+            nextFender = s + 10 + R() * 8;
+          }
         }
       }
       if (s >= nextBerth && (dist === "werf" || dist === "rijnkaai" || dist === "north" || dist === "bassin" || dist === "vismarkt")) {
@@ -800,32 +828,8 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
     });
   }
 
-  // the iron strip on the edge of the coping (city.ts: edge stones 0.25 m either side of the wall line)
-  for (const g of segs) {
-    let run0 = -1;
-    const flush = (s0: number, s1: number) => {
-      for (let a = s0; a < s1 - 0.05; a += 16) {
-        const b = Math.min(s1, a + 16);
-        const [ax, az] = along(g, a);
-        const [bx, bz] = along(g, b);
-        const o = 0.25;
-        const i = 0.19;
-        // top: a thin band on the stone; face: the angle down over the edge
-        quad("iron", [[ax + g.nx * i, 0.066, az + g.nz * i], [ax + g.nx * o, 0.066, az + g.nz * o], [bx + g.nx * o, 0.066, bz + g.nz * o], [bx + g.nx * i, 0.066, bz + g.nz * i]], 0.9);
-        quad("iron_rust", [[ax + g.nx * o, -0.16, az + g.nz * o], [bx + g.nx * o, -0.16, bz + g.nz * o], [bx + g.nx * o, 0.066, bz + g.nz * o], [ax + g.nx * o, 0.066, az + g.nz * o]], 0.8);
-        count("edge iron m", b - a);
-      }
-    };
-    for (let s = 0; s <= g.L + 1e-6; s += 0.5) {
-      const [x, z] = along(g, Math.min(s, g.L));
-      const busy = !districtAt(x, z) || flights.some((f) => distSeg(x, z, f.top[0], f.top[1], f.end[0], f.end[1]) < 0.3) || bridgeRects.some((r) => inRectP(r, x, z, 0.2)) || inRectP(fixed[1], x, z);
-      if (!busy && run0 < 0) run0 = s;
-      if ((busy || s >= g.L - 1e-6) && run0 >= 0) {
-        flush(run0, Math.min(s, g.L));
-        run0 = -1;
-      }
-    }
-  }
+  // (D4, 2026-10-11: the iron strip that lay on the coping and down its face is gone: it hid the coping's rounded
+  // nose, quayStone.ts COPE, and its rust-red face read as a painted line along every quay; the coping is stone.)
 
   // worn stones where people step down at the stairs and the ladders
   for (const f of flights) {
@@ -843,13 +847,219 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
   }
 
   // ================================================================ 2. the edge: bollards, posts, capstans, lanterns
-  // the caller's own bollards (by the start), in the new cast iron
-  (opts.bollards ?? []).forEach(([x, z], i) => {
-    put(i % 4 === 2 ? "bollard_mushroom" : "bollard_cannon", x, 0, z, 0);
+  // the caller's own bollards (by the start), in the new cast iron; rijnkaai.ts's own coils beside them
+  for (const [x, z] of [...(opts.bollards ?? []), ...standIns.bollards]) {
+    put("bollard_cannon", x, 0, z, 0);
     taken.push({ minX: x - 0.35, maxX: x + 0.35, minZ: z - 0.35, maxZ: z + 0.35 });
-  });
+  }
+  for (const [x, z] of standIns.coils) {
+    put("hawser_coil", x, 0.005, z, R() * Math.PI * 2);
+    taken.push({ minX: x - 0.6, maxX: x + 0.6, minZ: z - 0.6, maxZ: z + 0.6 });
+  }
   const EDGE_RULES: FitRules = { gap: 0.5, avoidPad: 0.15, crane: "tight", lane: false, clearR: 1.6 };
   const LYING_RULES: FitRules = { gap: 0.3, avoidPad: 0.3, crane: true, lane: true, clearR: 1.6 };
+
+  // ---------------------------------------------------------------- D4: the ships' mooring lines and their bollards
+  const lineEyes = meta.lineEyes ?? {};
+  const lineR = meta.lineRadius ?? 0.028;
+  const hulls: Hull[] = await mooredHulls(scene).catch(() => []);
+  const vessels: Array<[number, number, number]> = [];
+  const vesselOf = new Map<Hull, number>();
+  const lines: Line[] = [];
+  const lineBollards: Array<{ x: number; z: number; g: Seg; s: number; kind: string; yaw: number }> = [];
+  const halfBeam = (h: Hull) => h.rail.reduce((m, q) => Math.max(m, Math.abs(q[0])), 0);
+  const vIndex = (h: Hull) => {
+    let i = vesselOf.get(h);
+    if (i === undefined) {
+      i = vessels.push([h.x, h.z, h.floor]) - 1;
+      vesselOf.set(h, i);
+    }
+    return i;
+  };
+  const toLocal = (h: Hull, wx: number, wz: number): [number, number] => {
+    const c = Math.cos(h.yaw);
+    const s = Math.sin(h.yaw);
+    const dx = wx - h.x;
+    const dz = wz - h.z;
+    return [dx * c - dz * s, dx * s + dz * c];
+  };
+  /** The wall a hull lies along: the stretch, how far her middle is off it, how far along it she lies. */
+  const wallOf = (h: Hull): { g: Seg; d: number; s0: number } | null => {
+    let best: { g: Seg; d: number; s0: number } | null = null;
+    for (const g of segs) {
+      const s0 = (h.x - g.ax) * g.tx + (h.z - g.az) * g.tz;
+      if (s0 < -2 || s0 > g.L + 2) continue;
+      const d = (h.x - g.ax) * g.nx + (h.z - g.az) * g.nz;
+      if (d <= 0 || d > halfBeam(h) * 3 + 6) continue;
+      if (!best || d < best.d) best = { g, d, s0 };
+    }
+    return best;
+  };
+  /** A bollard for a line on stretch g near s: one of the lines' own within 2 m, or a new one there. */
+  let lineWhy = "";
+  const lineBollard = (g: Seg, s: number) => {
+    lineWhy = "";
+    const near = lineBollards.find((b) => b.g === g && Math.abs(b.s - s) < 2.0);
+    if (near) return near;
+    for (const ds of [0, 0.5, -0.5, 1, -1, 1.5, -1.5, 2.2, -2.2]) {
+      const ss = s + ds;
+      if (ss < 1.2 || ss > g.L - 1.2) {
+        lineWhy = "off the wall's end";
+        continue;
+      }
+      const [x, z] = along(g, ss);
+      const dist = districtAt(x, z);
+      if (!dist || inRectP(START, x, z)) {
+        lineWhy = "lock or start";
+        continue;
+      }
+      const kind = LINE_BOLLARD[dist];
+      if (!lineEyes[kind] || wallBusy(x, z, kind === "bitt_double" ? 1.2 : 0.8)) {
+        lineWhy = "steps or ladder";
+        continue;
+      }
+      lineWhy = "";
+      const spot = standAt(kind, g, ss, dryFrom(g, ss) + 0.03, "water", EDGE_RULES, 0);
+      if (!spot) continue;
+      put(kind, spot.x, 0, spot.z, spot.yaw);
+      take(kind, spot.x, spot.z, spot.yaw, true);
+      const b = { x: spot.x, z: spot.z, g, s: ss, kind, yaw: spot.yaw };
+      lineBollards.push(b);
+      return b;
+    }
+    // no room for a bollard (a crane's rail along the coping, the Entrepot's quay): a ring let into the coping
+    for (const ds of [0, 0.5, -0.5, 1, -1]) {
+      const ss = s + ds;
+      if (ss < 1.2 || ss > g.L - 1.2) continue;
+      const [x, z] = along(g, ss);
+      if (!districtAt(x, z) || inRectP(START, x, z) || wallBusy(x, z, 0.6)) continue;
+      const yaw = faceYaw(g);
+      put("ring_top", x, 0, z, yaw);
+      const b = { x, z, g, s: ss, kind: "ring", yaw };
+      lineBollards.push(b);
+      return b;
+    }
+    return null;
+  };
+  /** A line from the bollard b to boat h's rail at station zl on side sx: the eye over the bollard, the rope to her. */
+  const lineTo = (b: NonNullable<ReturnType<typeof lineBollard>>, h: Hull, sx: number, zl: number) => {
+    const eye = lineEyes[b.kind] ?? null;
+    const [rx, ry] = railAt(h, sx, zl);
+    const [fx, fz] = hullToWorld(h, sx * Math.max(0.1, Math.abs(rx) - 0.12), zl);
+    // the post it goes round: a bitt's nearer post, else the bollard itself
+    let px = b.x;
+    let pz = b.z;
+    if (b.kind === "bitt_double") {
+      const [ax, az] = toWorld(b.x, b.z, b.yaw, 0.38, 0);
+      const [bx, bz] = toWorld(b.x, b.z, b.yaw, -0.38, 0);
+      [px, pz] = Math.hypot(ax - fx, az - fz) < Math.hypot(bx - fx, bz - fz) ? [ax, az] : [bx, bz];
+    }
+    let a: End;
+    if (!eye) {
+      // made fast to a ring in the coping (ring_top: its ring lies 0.11 m out from the wall line)
+      const [qx, qz] = toWorld(b.x, b.z, b.yaw, 0, 0.11);
+      a = { x: qx, y: 0.09, z: qz, v: -1 };
+    } else {
+      const yaw = Math.atan2(fx - px, fz - pz);
+      const cx = b.kind === "bitt_double" ? 0.38 : 0;
+      const [ox, oz] = toWorld(px, pz, yaw, -cx, 0);
+      put(eye.model, ox, 0, oz, yaw);
+      const [axw, azw] = toWorld(ox, oz, yaw, eye.out[0], eye.out[2]);
+      a = { x: axw, y: eye.out[1], z: azw, v: -1 };
+    }
+    const bEnd: End = { x: fx, y: ry + 0.08, z: fz, v: vIndex(h) };
+    // where it bears on the coping's nose (COPE.front 0.235 out from the wall line, the rope's radius above the top)
+    const g = b.g;
+    const dA = (a.x - g.ax) * g.nx + (a.z - g.az) * g.nz;
+    const dF = (fx - g.ax) * g.nx + (fz - g.az) * g.nz;
+    let edge: [number, number, number] | null = null;
+    if (dF > 0.3 && dA < 0.2) {
+      const t = (0.215 - dA) / (dF - dA);
+      edge = [a.x + (fx - a.x) * t, 0.06 + lineR, a.z + (fz - a.z) * t];
+    }
+    // its length: just taut at the lowest water she lies at (over the nose when it bears there); slack in the dock
+    const low = hullLowY(h) + bEnd.y;
+    let len = Math.hypot(fx - a.x, low - a.y, fz - a.z);
+    if (edge) {
+      const te = Math.hypot(edge[0] - a.x, edge[2] - a.z) / (Math.hypot(fx - a.x, fz - a.z) || 1);
+      if (a.y + (low - a.y) * te < edge[1]) len = Math.hypot(edge[0] - a.x, edge[1] - a.y, edge[2] - a.z) + Math.hypot(fx - edge[0], low - edge[1], fz - edge[2]);
+    }
+    len += hullLowY(h) === hullY(h) ? 0.3 + 0.05 * len : 0.04;
+    lines.push({ a, b: bEnd, len, edge });
+    count("ship line");
+  };
+  {
+    const walls = new Map<Hull, { g: Seg; d: number; s0: number }>();
+    for (const h of hulls) {
+      const w = wallOf(h);
+      if (w) walls.set(h, w);
+      else count("ship lines: hull off any wall");
+    }
+    count("ship lines: hulls", hulls.length);
+    const inner = (h: Hull) => {
+      const w = walls.get(h);
+      return !!w && w.d < halfBeam(h) + 1.5;
+    };
+    for (const h of hulls) {
+      const w = walls.get(h);
+      if (!w || !inner(h)) continue;
+      const { g, s0 } = w;
+      const L = h.maxZ - h.minZ;
+      const sx = Math.sign(-Math.cos(h.yaw) * g.nx + Math.sin(h.yaw) * g.nz) || 1;
+      const dir = Math.sign(Math.sin(h.yaw) * g.tx + Math.cos(h.yaw) * g.tz) || 1;
+      const reach = Math.min(9, Math.max(3, 0.3 * L));
+      // bow and stern lines, and the springs on the longer boats: [station on her, along the quay from her middle]
+      const plan: Array<[number, number]> = [
+        [h.maxZ - 0.07 * L, h.maxZ - 0.07 * L + reach],
+        [h.minZ + 0.07 * L, h.minZ + 0.07 * L - reach],
+      ];
+      if (L > 14) plan.push([h.maxZ * 0.35, -0.08 * L], [h.minZ * 0.35, 0.08 * L]);
+      for (const [zl, at] of plan) {
+        const b = lineBollard(g, s0 + dir * at);
+        if (b) lineTo(b, h, sx, zl);
+        else {
+          count(`ship line left out: ${lineWhy || whyNot}`);
+          const [lx, lz] = along(g, s0 + dir * at);
+          sites.push({ kind: `line_left:${lineWhy || whyNot}`, x: +lx.toFixed(1), z: +lz.toFixed(1), yaw: 0 });
+        }
+      }
+    }
+    // the outer row: breast lines to the boat inside her
+    for (const h of hulls) {
+      const w = walls.get(h);
+      if (!w || inner(h)) continue;
+      const L = h.maxZ - h.minZ;
+      for (const zl of [h.maxZ - 0.15 * L, h.minZ + 0.15 * L]) {
+        const sxo = Math.sign(-Math.cos(h.yaw) * w.g.nx + Math.sin(h.yaw) * w.g.nz) || 1;
+        const [rx, ry] = railAt(h, sxo, zl);
+        const [fx, fz] = hullToWorld(h, sxo * Math.max(0.1, Math.abs(rx) - 0.12), zl);
+        // the boat inside her at that point
+        let best: Hull | null = null;
+        let bd = Infinity;
+        for (const o of hulls) {
+          if (o === h || !inner(o)) continue;
+          const [lx, lz] = toLocal(o, fx, fz);
+          if (lz < o.minZ + 0.5 || lz > o.maxZ - 0.5) continue;
+          const d = Math.abs(lx) - halfBeam(o);
+          if (d > -0.3 && d < 3 && d < bd) {
+            bd = d;
+            best = o;
+          }
+        }
+        if (!best) continue;
+        const [lx, lz] = toLocal(best, fx, fz);
+        const sxi = Math.sign(lx) || 1;
+        const [ix, iy] = railAt(best, sxi, lz);
+        const [gx, gz] = hullToWorld(best, sxi * Math.max(0.1, Math.abs(ix) - 0.15), lz);
+        const a: End = { x: gx, y: iy + 0.08, z: gz, v: vIndex(best) };
+        const b: End = { x: fx, y: ry + 0.08, z: fz, v: vIndex(h) };
+        const c = Math.hypot(fx - gx, a.y - b.y, fz - gz);
+        lines.push({ a, b, len: c * 1.02 + 0.25, edge: null });
+        count("ship line (breast)");
+      }
+    }
+  }
+
   for (const g of segs) {
     let turn = Math.floor(R() * 4);
     let next = 3 + R() * 5;
@@ -859,6 +1069,8 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
       const dist = districtAt(x, z);
       if (!dist || inRectP(START, x, z)) continue;
       const style = EDGE[dist];
+      // (a line's own bollard stands here already)
+      if (lineBollards.some((b) => b.g === g && Math.abs(b.s - s) < style.step * 0.55)) continue;
       const name = style.kinds[turn % style.kinds.length];
       if (wallBusy(x, z, name === "bitt_double" ? 1.2 : 0.8)) continue;
       const u = dryFrom(g, s) + 0.03;
@@ -868,12 +1080,8 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
       take(name, spot.x, spot.z, spot.yaw, true);
       turn++;
       next = s + style.step * (0.8 + R() * 0.4);
-      // a line from it down to a boat lying off the wall
-      if (moored(x, z) && R() < 0.65) {
-        put(R() < 0.5 ? "line_out" : "line_along", spot.x, 0, spot.z, spot.yaw);
-      }
-      // a hawser or a chain lying out on the stones beside it, now and then
-      const lie = R();
+      // a hawser or a chain lying out on the stones beside it, now and then (oftener on the working quays)
+      const lie = R() * (WORKING.has(dist) ? 0.75 : 1);
       if (lie < 0.45) {
         const kind = lie < 0.15 ? "chain_run" : lie < 0.3 ? "hawser_flake" : "hawser_coil";
         const side = R() < 0.5 ? 1 : -1;
@@ -891,6 +1099,69 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
       }
     }
   }
+  // ---------------------------------------------------------------- D4: the work spots (world/workspots.ts)
+  // Their gear is ours; their goods are quaygoods.glb's own models (merged per spot in its material), the sacks the one
+  // sack model on the goods' pallets (game/sackModel.ts).
+  const qgProtos = await quayModels().catch(() => null);
+  const qgPieces: Array<{ node: string; m: THREE.Matrix4; x: number; z: number }> = [];
+  const spotSacks: Array<{ name: string; m: THREE.Matrix4; goods: string }> = [];
+  const WORK_RULES: FitRules = { gap: 0.12, avoidPad: 0.45, clearR: 2.2, start: true };
+  let workSpots: SpotsLaid | null = null;
+  let spotSackSets: Record<string, SackRow[]> = {};
+  const spotWhy: string[] = [];
+  {
+    const SACK_STACK: SackRow[] = [];
+    // three layers of two lying sacks, each layer turned across the last (the pallet's top 0.13 m up)
+    for (let layer = 0; layer < 3; layer++)
+      for (const side of [-1, 1]) {
+        const m = new THREE.Matrix4();
+        const across = layer % 2 === 1;
+        m.compose(
+          new THREE.Vector3(across ? side * 0.27 : (layer === 2 ? 0.04 : 0), 0.13 + 0.15 + layer * 0.25, across ? 0 : side * 0.25),
+          new THREE.Quaternion().setFromAxisAngle(up, (across ? Math.PI / 2 : 0) + (layer * 0.05 - 0.04) * side),
+          new THREE.Vector3(1, 1, 1),
+        );
+        SACK_STACK.push({ k: "lying", m: m.toArray(), L: 0.9, W: 0.5, H: 0.28 });
+      }
+    const sackSets = { ws_stack: SACK_STACK, ...(QG_SACKS as unknown as Record<string, SackRow[]>) };
+    let reserved: Rect[] = [];
+    workSpots = layWorkSpots({
+      reserve(rects) {
+        reserved = rects;
+        taken.push(...rects);
+      },
+      release() {
+        for (const r of reserved) taken.splice(taken.indexOf(r), 1);
+        reserved = [];
+      },
+      lay(p, x, z, yaw) {
+        if (p.src === "qf") {
+          const proto = protos.get(p.model);
+          if (!proto) return false;
+          if (!fits(box(proto, x, z, yaw), p.solid === false ? { ...WORK_RULES, lane: true } : WORK_RULES)) return !!spotWhy.push(`${p.model}: ${whyNot}`) && false;
+          if (!standsClear(proto, x, z, yaw)) return !!spotWhy.push(`${p.model}: a wall`) && false;
+          put(p.model, x, 0, z, yaw);
+          take(p.model, x, z, yaw, p.solid !== false);
+          return true;
+        }
+        if (!qgProtos?.has(p.model)) return false;
+        const r = quayPieceCollider(qgProtos, p.model, x, z, yaw, 0);
+        if (!r || !fits(r, WORK_RULES)) return !!spotWhy.push(`${p.model}: ${r ? whyNot : "no model"}`) && false;
+        const m = new THREE.Matrix4().compose(new THREE.Vector3(x, 0, z), new THREE.Quaternion().setFromAxisAngle(up, yaw), new THREE.Vector3(1, 1, 1));
+        const sacked = sackSets[p.model as keyof typeof sackSets] && p.goods;
+        qgPieces.push({ node: sacked && qgProtos.has(`${p.model}_bare`) ? `${p.model}_bare` : p.model, m, x, z });
+        if (sacked) spotSacks.push({ name: p.model, m, goods: p.goods! });
+        else if (p.model === "pallet" && p.goods) spotSacks.push({ name: "ws_stack", m, goods: p.goods });
+        taken.push(r);
+        colliders.push(r);
+        count(`work spot ${p.model}`);
+        return true;
+      },
+    });
+    spotSackSets = sackSets;
+    workSpots.why = spotWhy;
+  }
+
   // capstans at the busy berths, a strip of free quay behind them
   {
     const CAP_RULES: FitRules = { gap: 1.2, avoidPad: 0.6, clearR: 2.5 };
@@ -1129,6 +1400,49 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
     chunks.push(mesh);
   }
   buckets.clear();
+  // D4: the work spots' goods, merged per chunk in quaygoods.glb's own material, and their sacks
+  const spotMeshes: THREE.Mesh[] = [];
+  {
+    const byChunk = new Map<string, { mat: THREE.Material; geos: THREE.BufferGeometry[] }>();
+    for (const q of qgPieces) {
+      const piece = quayPieceMesh(q.node);
+      if (!piece) continue;
+      const k = `${Math.floor(q.x / CHUNK)},${Math.floor(q.z / CHUNK)}`;
+      let e = byChunk.get(k);
+      if (!e) byChunk.set(k, (e = { mat: piece.material as THREE.Material, geos: [] }));
+      e.geos.push(piece.geometry.clone().applyMatrix4(q.m));
+    }
+    for (const [k, { mat, geos }] of byChunk) {
+      const g = mergeGeometries(geos, false);
+      for (const q of geos) q.dispose();
+      if (!g) continue;
+      g.computeBoundingSphere();
+      const mesh = new THREE.Mesh(g, mat);
+      mesh.name = `workspots_${k}`;
+      triangles += (g.index ? g.index.count : g.getAttribute("position").count) / 3;
+      spotMeshes.push(mesh);
+      group.add(mesh);
+    }
+    const byGoods = new Map<string, Array<{ name: string; m: THREE.Matrix4 }>>();
+    for (const q of spotSacks) {
+      let l = byGoods.get(q.goods);
+      if (!l) byGoods.set(q.goods, (l = []));
+      l.push({ name: q.name, m: q.m });
+    }
+    for (const [goods, list] of byGoods)
+      for (const m of sackPuts(list, spotSackSets, () => false, [[goods, 1]], `workspots_${goods}`, CHUNK).meshes) {
+        spotMeshes.push(m);
+        group.add(m);
+      }
+  }
+  // D4: the ships' mooring lines, in our solid material with the tarred hawser's cell
+  let shipLines: ShipLines | null = null;
+  if (lines.length) {
+    const [u0, v0] = cellUv("hawser", 0, 0);
+    const [u1, v1] = cellUv("hawser", 1, 1);
+    shipLines = drawShipLines({ vessels, lines }, mats[SOLID], [u0, v0, u1, v1], lineR);
+    group.add(shipLines.group);
+  }
   // an empty mesh that is always drawn: before each render it hides the chunks beyond the fog
   const sentinel = new THREE.Mesh(
     new THREE.BufferGeometry().setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(9), 3)),
@@ -1138,7 +1452,7 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
   const cull = (cam: THREE.Camera) => {
     const far = ((scene.fog as THREE.Fog | null)?.far ?? 60) + 8;
     const p = cam.position;
-    for (const list of [chunks, sackMeshes]) for (const m of list) {
+    for (const list of [chunks, sackMeshes, spotMeshes]) for (const m of list) {
       const s = m.geometry.boundingSphere!;
       m.visible = s.center.distanceTo(p) - s.radius < far;
     }
@@ -1152,6 +1466,7 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
   const flame = new THREE.Color();
   function update(t: number, _dt: number, lit = 1, cam?: THREE.Camera): void {
     if (cam) cull(cam);
+    shipLines?.update(cam, ((scene.fog as THREE.Fog | null)?.far ?? 60) + 8);
     const fog = scene.fog as THREE.Fog | null;
     if (fog) air.copy(fog.color);
     // the lanterns at the steps: lit with the gas lamps, an oil flame's slow waver
@@ -1164,5 +1479,5 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
   }
   update(0, 0, 0);
 
-  return { group, colliders, update, stats: { counts, meshes: chunks.length, triangles: Math.round(triangles) }, sites, wallItems, moved };
+  return { group, colliders, update, stats: { counts, meshes: chunks.length + spotMeshes.length, triangles: Math.round(triangles) }, sites, wallItems, moved, shipLines, workSpots };
 }

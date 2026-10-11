@@ -56,7 +56,7 @@ public partial class Solid : Node
     private static readonly HashSet<string> SkipGroups = new()
     {
         "moored", "barque", "brig", "steamer", "rowboat", "rhine_barge", "sloop", "punt", "paddle_tug", "lighter", "lighter_loaded",
-        "small_boats", "river_traffic", "life_aboard", "mooring_ropes", "boat_lamps", "funnel_smoke",
+        "small_boats", "river_traffic", "life_aboard", "mooring_ropes", "ship_lines", "boat_lamps", "funnel_smoke",
         "traffic", "omnibuses", "omnibus_signs", "pushcart", "handcart_loaded", "dray_horse", "goods_drays", "horses", "velocipede", "railway",
         "park_wildlife", "emigrants", "player_figure", "wall_guards", "park_keeper_and_work",
         "ambient", "cloud_sky", "litter", "posters", "ruts", "vegetation", "fires", "wall_life", "far_glow", "gas_lamp_halos", "rope_coil",

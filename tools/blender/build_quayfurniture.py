@@ -13,7 +13,12 @@ quays (the Werf, the Steenplein, the Vlaamse Kaai, the Bassins), reference only.
              (wallname_*), berth numbers (berth_*)
   coping     rings let into the edge stones (ring_top), drain gratings, worn stones
   edge       cast-iron bollards of three kinds (bollard_cannon, bollard_mushroom,
-             bitt_double), oak mooring posts (post_timber), capstans
+             bitt_double), oak mooring posts (post_timber), capstans; the eye of a ship's
+             mooring line over each kind (line_eye_c, _m, _b, _p: the game draws the line on
+             from meta.lineEyes, client/src/world/shipLines.ts)
+  wall       oak rubbing fenders down the working quays' wall faces (fender_timber)
+  work spots a gangplank laid by, the tally clerk's desk and stool, a weighbridge plate and
+             its weigh house, a two-man hand barrow (client/src/world/workspots.ts)
   on stones  a chain run, a flaked hawser, a big coil, an anchor, a cable reel
   harbour    a customs booth, the harbour master's hut, a ferry toll shed, a notice board
              of the harbour master, signs on posts (quay names, "NO SMOKING ON THE QUAY"),
@@ -31,8 +36,11 @@ ground stand on their origin, their front toward -Y.
 Materials, by name: qf_solid (one atlas for everything solid), qf_decal (an RGBA atlas
 for flat things pasted on walls or the ground, and the nets), qf_glow (lantern glass),
 qf_fire (the flames of the tar barrel). The vertex colour "Col" carries a baked shade.
-All textures are painted by the functions below, nearest filter; the letters come from
-the 5x7 pixel font of build_streetlife.py (our own). Our own work: no downloaded models,
+All textures are painted by the functions below, for smooth (linear, mipmapped) filtering:
+the edge's iron, stone, oak and rope at 128-512 px a cell (D4, 2026-10-11), the rest scaled
+up from their older paintings; the letters come from the 5x7 pixel font of
+build_streetlife.py (our own), scaled up crisp. Round things (bollards, rings, ropes) are
+smooth-shaded turned shapes and tubes (Mesh.rev, Mesh.rope). Our own work: no downloaded models,
 images or fonts.
 
 An empty node "quayfurniture_meta" carries, in its extras (JSON): the atlas cells, the
@@ -511,11 +519,206 @@ def paint_board(lines, seed, bg, fg, border=None):
     return img
 
 
+# ------------------------------------------------------------------ high detail painters (D4, 2026-10-11)
+# The edge's iron, rope and timber at 128 to 512 px a cell (about 2 to 5 mm a pixel on the things they cover), painted
+# smooth for linear filtering: no single-pixel speckle, every pattern several pixels wide.
+
+
+def up(img, k, nearest=False):
+    """An older small cell scaled up k times: bilinear for the painted noise, nearest (and a soft edge) for lettering."""
+    if k == 1:
+        return img
+    if nearest:
+        big = np.repeat(np.repeat(img, k, axis=0), k, axis=1)
+        # a pixel's blur so the letters' steps read as brush edges, not blocks
+        pad = np.pad(big, ((1, 1), (1, 1), (0, 0)), mode="edge")
+        return (pad[:-2, 1:-1] + pad[2:, 1:-1] + pad[1:-1, :-2] + pad[1:-1, 2:] + 4 * big) / 8
+    h, w = img.shape[:2]
+    ys = (np.arange(h * k) + 0.5) / k - 0.5
+    xs = (np.arange(w * k) + 0.5) / k - 0.5
+    y0 = np.clip(np.floor(ys).astype(int), 0, h - 1)
+    x0 = np.clip(np.floor(xs).astype(int), 0, w - 1)
+    y1 = np.clip(y0 + 1, 0, h - 1)
+    x1 = np.clip(x0 + 1, 0, w - 1)
+    fy = np.clip(ys - np.floor(ys), 0, 1)[:, None, None]
+    fx = np.clip(xs - np.floor(xs), 0, 1)[None, :, None]
+    a = img[y0][:, x0]
+    b = img[y0][:, x1]
+    c = img[y1][:, x0]
+    d = img[y1][:, x1]
+    out = (a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + d * fx) * fy
+    # a fine grain over the smooth upscale, so it does not read as a blur up close
+    rng = np.random.default_rng(h * 131 + w)
+    out[..., :3] *= (0.94 + 0.12 * vnoise(rng, w * k, h * k, w * k // 4, h * k // 4))[..., None]
+    return out
+
+
+def fbm(rng, w, h, base=4, octaves=5, gain=0.55):
+    """Tileable fractal noise in 0..1."""
+    out = np.zeros((h, w))
+    amp, tot, c = 1.0, 0.0, base
+    for _ in range(octaves):
+        out += amp * vnoise(rng, w, h, min(c, w), min(c, h))
+        tot += amp
+        amp *= gain
+        c *= 2
+    return out / tot
+
+
+def cast_iron(seed, s, paint, rust=(0.24, 0.12, 0.055), amt=0.32, wet=0.0):
+    """Cast iron in old paint: a sandy cast skin, the paint worn through to rust where hands and ropes go,
+    rust runs down from the top, damp darker at the foot (v down the cell: row 0 is the top)."""
+    rng = np.random.default_rng(seed)
+    n = fbm(rng, s, s, 4, 6)
+    sand = vnoise(rng, s, s, s // 3, s // 3)
+    img = np.ones((s, s, 4))
+    img[..., :3] = np.array(paint) * (0.72 + 0.5 * n + 0.12 * (sand - 0.5))[..., None]
+    r = fbm(rng, s, s, 6, 5)
+    m = np.clip((r - (1 - amt)) / 0.08, 0, 1)
+    rc = np.array(rust) * (0.65 + 0.6 * fbm(rng, s, s, 16, 3))[..., None]
+    img[..., :3] = img[..., :3] * (1 - m[..., None]) + rc * m[..., None]
+    # rust runs: soft streaks a few pixels wide, fading down
+    yy, xx = np.mgrid[0:s, 0:s]
+    for _ in range(s // 24):
+        c = rng.random() * s
+        wd = 1.5 + rng.random() * 3
+        L = s * (0.3 + 0.7 * rng.random())
+        k = np.exp(-((xx - c) / wd) ** 2) * np.clip(1 - yy / L, 0, 1) * 0.5
+        img[..., :3] = img[..., :3] * (1 - k[..., None]) + np.array(rust) * 0.9 * k[..., None]
+    if wet:
+        t = np.clip((yy / s - 0.6) / 0.4, 0, 1) * wet
+        img[..., :3] *= (1 - 0.45 * t)[..., None]
+    return img
+
+
+def oak_hi(seed, w, h, rgb, grey=0.0, dirt=0.3):
+    """Weathered oak, the grain along u: long fibres, a few checks (cracks) and knots, grey where the sun bleached it."""
+    rng = np.random.default_rng(seed)
+    yy, xx = np.mgrid[0:h, 0:w].astype(float)
+    warp = vnoise(rng, w, h, 3, 6) * 6
+    rings = np.sin((yy + warp * 3) * (2 * math.pi / 7.0)) * 0.5 + 0.5
+    fib = vnoise(rng, w, h, max(2, w // 64), h // 2)
+    tone = 0.7 + 0.22 * rings + 0.22 * fib + 0.15 * (fbm(rng, w, h, 3, 4) - 0.5)
+    img = np.ones((h, w, 4))
+    img[..., :3] = np.array(rgb) * tone[..., None]
+    if grey:
+        g = np.array((0.42, 0.40, 0.37))
+        k = grey * (0.6 + 0.4 * fbm(rng, w, h, 4, 3))
+        img[..., :3] = img[..., :3] * (1 - k[..., None]) + g * tone[..., None] * k[..., None]
+    for _ in range(max(1, h // 40)):
+        r0 = rng.random() * h
+        x0, L = rng.random() * w, w * (0.15 + 0.5 * rng.random())
+        k = np.exp(-((yy - r0) / 0.9) ** 2) * ((xx > x0) & (xx < x0 + L))
+        img[..., :3] *= (1 - 0.55 * k)[..., None]
+    for _ in range(max(1, (w * h) // 60000)):
+        cx, cy = rng.random() * w, rng.random() * h
+        d = np.hypot((xx - cx) / 5, (yy - cy) / 3)
+        img[..., :3] *= (1 - 0.45 * np.exp(-d * d))[..., None]
+    img[..., :3] *= (1 - dirt * 0.5 * fbm(rng, w, h, 5, 3))[..., None]
+    return img
+
+
+def rope_hi(seed, w, h, rgb, tar=0.0, strands=3, twist=1):
+    """Laid rope, u round it and v along it: `strands` strands twisting along v (one turn of each strand repeats
+    exactly over the cell, so a tube's segments join), the yarns' fine lay inside each, fuzz, tar."""
+    rng = np.random.default_rng(seed)
+    yy, xx = np.mgrid[0:h, 0:w].astype(float)
+    u = xx / w
+    v = yy / h
+    ph = (u * strands + v * strands * twist) % 1.0
+    strand = np.sin(ph * math.pi) ** 0.6
+    yarn = 0.5 + 0.5 * np.sin((u * strands * 6 - v * strands * 10) * 2 * math.pi)
+    tone = 0.45 + 0.5 * strand + 0.1 * yarn
+    img = np.ones((h, w, 4))
+    img[..., :3] = np.array(rgb) * tone[..., None]
+    img[..., :3] *= (0.88 + 0.24 * vnoise(rng, w, h, w // 8, h // 8))[..., None]
+    if tar:
+        img[..., :3] *= (1 - tar * (0.7 + 0.3 * vnoise(rng, w, h, 4, 4)))[..., None]
+    return img
+
+
+def stone_hi(seed, s, rgb):
+    """Bluestone (Belgian petit granit): blue-grey with pale fossil flecks, tooled."""
+    rng = np.random.default_rng(seed)
+    n = fbm(rng, s, s, 4, 6)
+    img = np.ones((s, s, 4))
+    img[..., :3] = np.array(rgb) * (0.78 + 0.4 * n)[..., None]
+    fl = vnoise(rng, s, s, s // 6, s // 6) > 0.82
+    img[fl, :3] = img[fl, :3] * 0.6 + np.array((0.55, 0.56, 0.56)) * 0.4
+    yy, xx = np.mgrid[0:s, 0:s]
+    img[..., :3] *= (0.95 + 0.05 * np.sin((xx + yy) * 0.9))[..., None]
+    return img
+
+
+def fender_oak(seed, w, h):
+    """A rubbing fender's oak, the whole height of the wall (v down: row 0 at the top): worn pale and grey up where
+    the hulls rub, then the tide's band, green slime, black weed and barnacles at the foot."""
+    img = oak_hi(seed, h, w, (0.40, 0.31, 0.21), grey=0.55, dirt=0.4)
+    img = np.ascontiguousarray(np.transpose(img, (1, 0, 2)))  # grain down the post
+    rng = np.random.default_rng(seed + 1)
+    yy, xx = np.mgrid[0:h, 0:w].astype(float)
+    t = yy / h  # 0 top .. 1 foot (the fender runs 0.3 m to 5.0 m down)
+    wet = np.clip((t - 0.12) / 0.1, 0, 1)
+    img[..., :3] *= (1 - 0.45 * wet)[..., None]
+    slime = np.clip((t - 0.45) / 0.15, 0, 1) * (0.6 + 0.4 * vnoise(rng, w, h, 3, 24))
+    img[..., :3] = img[..., :3] * (1 - slime[..., None]) + np.array((0.10, 0.13, 0.07)) * slime[..., None]
+    weed = np.clip((t - 0.78) / 0.1, 0, 1) * (vnoise(rng, w, h, 6, 40) > 0.45)
+    img[weed > 0, :3] = img[weed > 0, :3] * 0.4 + np.array((0.04, 0.05, 0.03)) * 0.6
+    bar = (vnoise(rng, w, h, w // 3, h // 3) > 0.8) & (t > 0.7)
+    img[bar, :3] = np.array((0.48, 0.47, 0.42)) * (0.8 + 0.3 * rng.random((bar.sum(), 1)))
+    # rope wear: pale scuffs across the post in the band the hulls ride in
+    for _ in range(12):
+        y0 = h * (0.08 + 0.4 * rng.random())
+        k = np.exp(-((yy - y0) / (2 + 3 * rng.random())) ** 2) * 0.25
+        img[..., :3] = img[..., :3] * (1 - k[..., None]) + np.array((0.55, 0.50, 0.42)) * k[..., None]
+    return img
+
+
+def checker_plate(seed, s):
+    """A weighbridge's cast plate: raised diamonds on black iron, worn bright on their tops, rust in the grooves."""
+    img = cast_iron(seed, s, (0.09, 0.09, 0.09), amt=0.15)
+    yy, xx = np.mgrid[0:s, 0:s].astype(float)
+    p = 16.0
+    a = ((xx + yy) % p) / p
+    b = ((xx - yy) % p) / p
+    d1 = np.abs(a - 0.5) < 0.12
+    d2 = np.abs(b - 0.5) < 0.12
+    lug = (d1 & (((xx // p) + (yy // p)) % 2 == 0)) | (d2 & (((xx // p) + (yy // p)) % 2 == 1))
+    img[lug, :3] = img[lug, :3] * 0.6 + np.array((0.30, 0.30, 0.29)) * 0.4
+    return img
+
+
+def paper_ledger(seed, w, h):
+    """An open ledger: two pages, ruled, columns of figures in ink."""
+    rng = np.random.default_rng(seed)
+    img = np.ones((h, w, 4))
+    img[..., :3] = np.array((0.80, 0.76, 0.64)) * (0.92 + 0.1 * vnoise(rng, w, h, 4, 4))[..., None]
+    for y in range(8, h - 4, 6):
+        img[y, 4:w - 4, :3] *= 0.82
+    for x in (w // 2 - 1, w // 2):
+        img[:, x, :3] *= 0.55
+    for y in range(9, h - 6, 6):
+        for page in (0, 1):
+            x0 = 6 + page * (w // 2)
+            n = int(rng.integers(3, 9))
+            for k in range(n):
+                xx = x0 + k * 3 + (8 if k > 3 else 0)
+                if xx < w - 3 and rng.random() < 0.85:
+                    img[y - 3:y - 1, xx:xx + 2, :3] = (0.10, 0.09, 0.12)
+    img[:, :2, :3] = img[:, -2:, :3] = (0.24, 0.12, 0.08)
+    return img
+
+
 # ------------------------------------------------------------------ the atlases
 
 
 class Atlas:
-    """Shelf-packed atlas; cells are (x, y, w, h) in pixels from the top left."""
+    """Shelf-packed atlas; cells are (x, y, w, h) in pixels from the top left.
+
+    (2026-10-11, D4: smooth filtering with mipmaps, docs/05-art-direction.md) every cell has a gutter of GUTTER
+    pixels round it that repeats its edge, so a far mip level does not bleed the next cell's colour into it."""
+
+    GUTTER = 8
 
     def __init__(self, width):
         self.W = width
@@ -526,17 +729,18 @@ class Atlas:
         self.items.append((name, arr))
 
     def pack(self):
+        G = self.GUTTER
         order = sorted(self.items, key=lambda it: (-it[1].shape[0], -it[1].shape[1]))
         x = y = shelf = 0
         placed = []
         for name, a in order:
             h, w = a.shape[:2]
-            if x + w > self.W:
+            if x + w + 2 * G > self.W:
                 x, y, shelf = 0, y + shelf, 0
-            placed.append((name, a, x, y))
-            self.cells[name] = (x, y, w, h)
-            x += w
-            shelf = max(shelf, h)
+            placed.append((name, a, x + G, y + G))
+            self.cells[name] = (x + G, y + G, w, h)
+            x += w + 2 * G
+            shelf = max(shelf, h + 2 * G)
         H = 1
         while H < y + shelf:
             H *= 2
@@ -544,7 +748,7 @@ class Atlas:
         img = np.zeros((H, self.W, 4))
         for name, a, x0, y0 in placed:
             h, w = a.shape[:2]
-            img[y0:y0 + h, x0:x0 + w] = a
+            img[y0 - G:y0 + h + G, x0 - G:x0 + w + G] = np.pad(a, ((G, G), (G, G), (0, 0)), mode="edge")
         self.img = img
         return self
 
@@ -555,8 +759,10 @@ class Atlas:
         return (U, 1 - row / self.H)
 
 
-SOLID_ATLAS = Atlas(256)
-DECAL_ATLAS = Atlas(256)
+SOLID_ATLAS = Atlas(2048)
+DECAL_ATLAS = Atlas(1024)
+# the old paintings (and every sign and letter) are scaled up this many times; their models keep their old sizes
+TEXT_K = 4
 
 # Signs. Plain English; Dutch only in names.
 SIGNS = {
@@ -606,58 +812,71 @@ PLAIN = {
 
 def build_atlases():
     # pass 3: the iron is rusty and dark, the paint peels (Steve 2026-09-26: "rust, soot, dirt")
+    # D4 (2026-10-11): high detail. The edge's iron, stone, oak and rope painted afresh at 128-512 px a cell; the
+    # rest (huts, nets, coal, signs) scaled up K times from their old paintings, the lettering kept crisp.
+    K = TEXT_K
     PAINTED = ("paint_green", "paint_red", "paint_white")
     for i, (name, (rgb, amt)) in enumerate(PLAIN.items()):
         size = 32 if name in ("bluestone", "whitestone", "zinc", "slate", "canvas", "sail") else 16
         if name == "iron":
-            SOLID_ATLAS.add(name, rusty(100 + i, 32, 32, (0.07, 0.07, 0.07), rust=(0.21, 0.11, 0.055), amt=0.4))
+            SOLID_ATLAS.add(name, cast_iron(100 + i, 256, (0.075, 0.075, 0.08), rust=(0.20, 0.10, 0.05), amt=0.3))
         elif name == "iron_light":
-            SOLID_ATLAS.add(name, rusty(100 + i, 16, 16, (0.15, 0.14, 0.13), rust=(0.22, 0.12, 0.06), amt=0.35))
+            SOLID_ATLAS.add(name, cast_iron(100 + i, 128, (0.16, 0.15, 0.14), rust=(0.22, 0.12, 0.06), amt=0.3))
+        elif name == "bluestone":
+            SOLID_ATLAS.add(name, stone_hi(100 + i, 256, rgb))
+        elif name == "whitestone":
+            SOLID_ATLAS.add(name, stone_hi(100 + i, 128, rgb))
         elif name in PAINTED:
-            SOLID_ATLAS.add(name, peel(flat(100 + i, 32, 32, rgb, amt), 700 + i))
+            SOLID_ATLAS.add(name, up(peel(flat(100 + i, 32, 32, rgb, amt), 700 + i), K))
         else:
-            SOLID_ATLAS.add(name, flat(100 + i, size, size, rgb, amt))
-    SOLID_ATLAS.add("iron_rust", rusty(150, 32, 32, (0.07, 0.07, 0.07), rust=(0.21, 0.11, 0.055), amt=0.6))
-    SOLID_ATLAS.add("iron_green", rusty(151, 32, 32, (0.08, 0.13, 0.10), rust=(0.21, 0.11, 0.055), amt=0.45))
-    SOLID_ATLAS.add("wood", grime_qf(grain(160, 32, 32, (0.34, 0.28, 0.20)), 760))
-    SOLID_ATLAS.add("wood_dark", grime_qf(grain(161, 32, 32, (0.18, 0.14, 0.10)), 761))
-    SOLID_ATLAS.add("wood_grey", grime_qf(grain(162, 32, 32, (0.36, 0.34, 0.30)), 762))
-    SOLID_ATLAS.add("oak", grime_qf(grain(163, 32, 32, (0.26, 0.21, 0.15)), 763))
-    SOLID_ATLAS.add("endgrain", flat(164, 16, 16, (0.46, 0.36, 0.24), 0.3))
-    SOLID_ATLAS.add("rope", rope_tex(170, 16, 16, (0.50, 0.42, 0.30)))
-    SOLID_ATLAS.add("hawser", rope_tex(171, 16, 16, (0.34, 0.28, 0.20), tar=0.35))
-    SOLID_ATLAS.add("wicker", wicker(180, 32, 32, (0.55, 0.44, 0.26)))
-    SOLID_ATLAS.add("wicker_dark", wicker(181, 32, 32, (0.36, 0.28, 0.17)))
-    SOLID_ATLAS.add("jute", weave(190, 32, 32, (0.56, 0.47, 0.32)))
-    SOLID_ATLAS.add("coal", coal_tex(200, 32, 32))
-    SOLID_ATLAS.add("hull_bottom", planks(210, 32, 64, (0.24, 0.18, 0.12), 8, tar_lo=0.0))
-    SOLID_ATLAS.add("hull_side", planks(211, 32, 32, (0.30, 0.24, 0.16), 5, band=(0.0, 0.2, (0.14, 0.26, 0.20))))
-    SOLID_ATLAS.add("shed_planks", peel(planks(212, 32, 64, (0.16, 0.24, 0.18), 1), 764))
-    SOLID_ATLAS.add("hut_planks", peel(planks(213, 32, 64, (0.30, 0.28, 0.24), 1), 765, wood=(0.26, 0.24, 0.21), amt=0.25))
-    SOLID_ATLAS.add("brick", brick(220, 32, 32))
-    SOLID_ATLAS.add("window", grime_qf(window_tex(230, 16, 16), 768, dark=0.7))
-    SOLID_ATLAS.add("door_green", peel(door_tex(231, 16, 32, (0.14, 0.22, 0.16)), 766))
-    SOLID_ATLAS.add("door_brown", peel(door_tex(232, 32, 32, (0.28, 0.18, 0.10)), 767))
-    SOLID_ATLAS.add("fish", fish_tex(240, 32, 32))
+            SOLID_ATLAS.add(name, up(flat(100 + i, size, size, rgb, amt), K))
+    SOLID_ATLAS.add("iron_rust", cast_iron(150, 256, (0.07, 0.065, 0.06), rust=(0.22, 0.11, 0.05), amt=0.55))
+    SOLID_ATLAS.add("iron_green", cast_iron(151, 256, (0.07, 0.12, 0.09), rust=(0.21, 0.11, 0.055), amt=0.33, wet=0.6))
+    SOLID_ATLAS.add("iron_black", cast_iron(152, 256, (0.05, 0.05, 0.055), rust=(0.20, 0.10, 0.05), amt=0.22, wet=0.7))
+    SOLID_ATLAS.add("wood", oak_hi(160, 256, 128, (0.34, 0.28, 0.20), grey=0.2))
+    SOLID_ATLAS.add("wood_dark", oak_hi(161, 256, 128, (0.18, 0.14, 0.10)))
+    SOLID_ATLAS.add("wood_grey", oak_hi(162, 256, 128, (0.38, 0.35, 0.31), grey=0.6))
+    SOLID_ATLAS.add("oak", oak_hi(163, 256, 128, (0.27, 0.21, 0.15), grey=0.15))
+    SOLID_ATLAS.add("plank", oak_hi(165, 512, 64, (0.36, 0.30, 0.22), grey=0.35, dirt=0.5))
+    SOLID_ATLAS.add("desk", oak_hi(166, 256, 128, (0.22, 0.13, 0.08), dirt=0.2))
+    SOLID_ATLAS.add("endgrain", up(flat(164, 16, 16, (0.46, 0.36, 0.24), 0.3), 8))
+    SOLID_ATLAS.add("rope", rope_hi(170, 128, 128, (0.56, 0.47, 0.33)))
+    SOLID_ATLAS.add("hawser", rope_hi(171, 128, 128, (0.36, 0.29, 0.20), tar=0.3))
+    SOLID_ATLAS.add("fender_oak", fender_oak(172, 96, 1024))
+    SOLID_ATLAS.add("checker", checker_plate(173, 256))
+    SOLID_ATLAS.add("ledger", paper_ledger(174, 128, 96))
+    SOLID_ATLAS.add("wicker", up(wicker(180, 32, 32, (0.55, 0.44, 0.26)), K))
+    SOLID_ATLAS.add("wicker_dark", up(wicker(181, 32, 32, (0.36, 0.28, 0.17)), K))
+    SOLID_ATLAS.add("jute", up(weave(190, 32, 32, (0.56, 0.47, 0.32)), K))
+    SOLID_ATLAS.add("coal", up(coal_tex(200, 32, 32), K))
+    SOLID_ATLAS.add("hull_bottom", up(planks(210, 32, 64, (0.24, 0.18, 0.12), 8, tar_lo=0.0), K))
+    SOLID_ATLAS.add("hull_side", up(planks(211, 32, 32, (0.30, 0.24, 0.16), 5, band=(0.0, 0.2, (0.14, 0.26, 0.20))), K))
+    SOLID_ATLAS.add("shed_planks", up(peel(planks(212, 32, 64, (0.16, 0.24, 0.18), 1), 764), K))
+    SOLID_ATLAS.add("hut_planks", up(peel(planks(213, 32, 64, (0.30, 0.28, 0.24), 1), 765, wood=(0.26, 0.24, 0.21), amt=0.25), K))
+    SOLID_ATLAS.add("brick", up(brick(220, 32, 32), K))
+    SOLID_ATLAS.add("window", up(grime_qf(window_tex(230, 16, 16), 768, dark=0.7), K, nearest=True))
+    SOLID_ATLAS.add("door_green", up(peel(door_tex(231, 16, 32, (0.14, 0.22, 0.16)), 766), K))
+    SOLID_ATLAS.add("door_brown", up(peel(door_tex(232, 32, 32, (0.28, 0.18, 0.10)), 767), K))
+    SOLID_ATLAS.add("fish", up(fish_tex(240, 32, 32), K))
     # (2026-10-11) the lanterns' panes: the burner and its flame painted on (lantern_kit.py paint_pane), 32 x 64 (the atlas counts rows from the top)
-    SOLID_ATLAS.add("glass", np.concatenate([lantern_kit.paint_pane(64, kind="gas", seed=9, w=32)[::-1], np.ones((64, 32, 1))], axis=2))
-    SOLID_ATLAS.add("fire", fire_tex(8, 16))
+    SOLID_ATLAS.add("glass", up(np.concatenate([lantern_kit.paint_pane(64, kind="gas", seed=9, w=32)[::-1], np.ones((64, 32, 1))], axis=2), 2))
+    SOLID_ATLAS.add("fire", up(fire_tex(8, 16), K))
     for i, (key, (lines, bg, fg)) in enumerate(SIGNS.items()):
-        SOLID_ATLAS.add(f"sign_{key}", paint_board(lines, 300 + i, bg, fg, border=tuple(np.array(fg) * 0.8)))
+        SOLID_ATLAS.add(f"sign_{key}", up(paint_board(lines, 300 + i, bg, fg, border=tuple(np.array(fg) * 0.8)), K, nearest=True))
     for i, n in enumerate(WALL_NAMES):
-        DECAL_ATLAS.add(f"wallname_{i}", paint_wall_letters(n, 400 + i))
+        DECAL_ATLAS.add(f"wallname_{i}", up(paint_wall_letters(n, 400 + i), K, nearest=True))
     for n in BERTHS:
-        DECAL_ATLAS.add(f"berth_{n}", paint_berth(n, 450 + n))
+        DECAL_ATLAS.add(f"berth_{n}", up(paint_berth(n, 450 + n), K, nearest=True))
     for i, (k, lines) in enumerate(WALL_NOTICES.items()):
-        DECAL_ATLAS.add(k, paint_wall_notice(lines, 480 + i))
-    DECAL_ATLAS.add("rust_run", paint_rust_run(500))
-    DECAL_ATLAS.add("rust_stain", paint_rust_stain(505))
-    DECAL_ATLAS.add("drain", paint_drain(501))
-    DECAL_ATLAS.add("worn", paint_worn(502))
-    DECAL_ATLAS.add("soot", paint_soot(503))
-    DECAL_ATLAS.add("net", paint_net(504))
+        DECAL_ATLAS.add(k, up(paint_wall_notice(lines, 480 + i), K, nearest=True))
+    DECAL_ATLAS.add("rust_run", up(paint_rust_run(500), K))
+    DECAL_ATLAS.add("rust_stain", up(paint_rust_stain(505), K))
+    DECAL_ATLAS.add("drain", up(paint_drain(501), K, nearest=True))
+    DECAL_ATLAS.add("worn", up(paint_worn(502), K))
+    DECAL_ATLAS.add("soot", up(paint_soot(503), K))
+    DECAL_ATLAS.add("net", up(paint_net(504), K, nearest=True))
     for i, k in enumerate(("rules", "tides", "notice")):
-        DECAL_ATLAS.add(f"bill_{k}", paint_bill(k, 510 + i))
+        DECAL_ATLAS.add(f"bill_{k}", up(paint_bill(k, 510 + i), K, nearest=True))
     SOLID_ATLAS.pack()
     DECAL_ATLAS.pack()
 
@@ -687,7 +906,7 @@ def make_materials():
         bsdf = nt.nodes.get("Principled BSDF")
         t = nt.nodes.new("ShaderNodeTexImage")
         t.image = img
-        t.interpolation = "Closest"
+        t.interpolation = "Linear"
         nt.links.new(t.outputs["Color"], bsdf.inputs["Base Color"])
         if img is decal:
             nt.links.new(t.outputs["Alpha"], bsdf.inputs["Alpha"])
@@ -858,6 +1077,115 @@ class Mesh:
                 c = (path[j] + path[j1]) / 2
                 self.face(pts, cell, uvs=[(i / sides, 0), ((i + 1) / sides, 0), ((i + 1) / sides, 1), (i / sides, 1)], shade=shade, out=mid - c)
 
+    # --- D4 (2026-10-11): smooth shapes. Faces share their vertices and are shaded smooth, so a turned bollard or a
+    # rope reads round, not as facets; a profile that turns sharply (a flange's edge) starts a new ring there.
+
+    def _vert(self, p):
+        return self.bm.verts.new(self.xf @ Vector(p))
+
+    def _quad_smooth(self, vs, uvs, cell, mat=SOLID, shade=1.0, pts=None):
+        try:
+            f = self.bm.faces.new(vs)
+        except ValueError:
+            return None
+        f.smooth = True
+        f.material_index = mat
+        atlas = DECAL_ATLAS if mat == DECAL else SOLID_ATLAS
+        for loop, (u, v), v3 in zip(f.loops, uvs, vs):
+            loop[self.uv].uv = atlas.uv(cell, u, v)
+            s = shade
+            if self.ao > 0:
+                s *= 0.55 + 0.45 * min(1.0, max(0.0, v3.co.z / self.ao))
+            loop[self.col] = (s, s, s, 1.0)
+        return f
+
+    def rev(self, prof, sides, cell, rot=0.0, cap0=False, cap1=False, shade=1.0, cells=None, M=None, cap_cell=None, sharp=40.0, vrep=None):
+        """A smooth turned shape about +Z, the profile (r, z) bottom to top. `cells`: one cell per profile span.
+        `vrep`: metres of profile a cell covers (v keeps on counting, each span maps its own share) or None (whole)."""
+        if M is not None:
+            with self.at(M):
+                return self.rev(prof, sides, cell, rot=rot, cap0=cap0, cap1=cap1, shade=shade, cells=cells, cap_cell=cap_cell, sharp=sharp, vrep=vrep)
+        L = [0.0]
+        for j in range(1, len(prof)):
+            L.append(L[-1] + math.hypot(prof[j][0] - prof[j - 1][0], prof[j][1] - prof[j - 1][1]))
+        tot = L[-1] or 1
+        ang = [(rot + 2 * math.pi * i / sides) for i in range(sides)]
+        ring_of = lambda r, z: [self._vert((r * math.cos(a), r * math.sin(a), z)) for a in ang]
+        # a fresh ring of vertices where the profile bends sharply
+        def bend(j):
+            if j <= 0 or j >= len(prof) - 1:
+                return False
+            a = Vector((prof[j][0] - prof[j - 1][0], prof[j][1] - prof[j - 1][1]))
+            b = Vector((prof[j + 1][0] - prof[j][0], prof[j + 1][1] - prof[j][1]))
+            if a.length < 1e-6 or b.length < 1e-6:
+                return True
+            return math.degrees(a.angle(b)) > sharp
+        rings_lo = [None] * len(prof)
+        rings_hi = [None] * len(prof)
+        for j, (r, z) in enumerate(prof):
+            rings_hi[j] = ring_of(r, z)
+            rings_lo[j] = ring_of(r, z) if bend(j) else rings_hi[j]
+        for j in range(len(prof) - 1):
+            ce = cells[j] if cells else cell
+            v0, v1 = (L[j] / tot, L[j + 1] / tot) if vrep is None else ((L[j] / vrep) % 1.0, (L[j] / vrep) % 1.0 + (L[j + 1] - L[j]) / vrep)
+            if vrep is not None and v1 > 1.0:
+                v0, v1 = 0.0, min(1.0, (L[j + 1] - L[j]) / vrep)
+            A = rings_hi[j]
+            B = rings_lo[j + 1]
+            for i in range(sides):
+                i1 = (i + 1) % sides
+                self._quad_smooth([A[i], A[i1], B[i1], B[i]], [(i / sides, v0), ((i + 1) / sides, v0), ((i + 1) / sides, v1), (i / sides, v1)], ce, shade=shade)
+        if cap0 and prof[0][0] > 1e-4:
+            self.face([(prof[0][0] * math.cos(a), prof[0][0] * math.sin(a), prof[0][1]) for a in ang], cap_cell or (cells[0] if cells else cell), shade=shade * 0.8, out=(0, 0, -1))
+        if cap1 and prof[-1][0] > 1e-4:
+            self.face([(prof[-1][0] * math.cos(a), prof[-1][0] * math.sin(a), prof[-1][1]) for a in ang], cap_cell or (cells[-1] if cells else cell), shade=shade, out=(0, 0, 1))
+
+    def rope(self, path, r, sides, cell, closed=False, shade=1.0, up=None, seg_len=None):
+        """A smooth tube along a path (a rope, a hawser, a ring). Its cell repeats every `seg_len` metres along it
+        (the rope cells repeat exactly in v), else once a segment."""
+        path = [Vector(p) for p in path]
+        N = len(path)
+        if N < 2:
+            return
+        frames = []
+        prev_s = None
+        for k, p in enumerate(path):
+            if closed:
+                t = path[(k + 1) % N] - path[(k - 1) % N]
+            else:
+                t = path[min(k + 1, N - 1)] - path[max(k - 1, 0)]
+            t.normalize()
+            if prev_s is None:
+                s = Vector(up) if up else Vector((0, 0, 1))
+                if abs(s.dot(t)) > 0.9:
+                    s = Vector((1, 0, 0)) if abs(t.x) < 0.9 else Vector((0, 1, 0))
+            else:
+                s = prev_s  # parallel transport: no twist from frame to frame
+            s = (s - t * s.dot(t)).normalized()
+            prev_s = s
+            b = t.cross(s)
+            frames.append((p, s, b))
+        rings = [[self._vert(p + s * r * math.cos(2 * math.pi * i / sides) + b * r * math.sin(2 * math.pi * i / sides)) for i in range(sides)] for p, s, b in frames]
+        dist = [0.0]
+        for k in range(1, N):
+            dist.append(dist[-1] + (path[k] - path[k - 1]).length)
+        seg = range(N) if closed else range(N - 1)
+        for j in seg:
+            j1 = (j + 1) % N
+            if seg_len:
+                v0 = (dist[j] / seg_len) % 1.0
+                v1 = v0 + ((path[j1] - path[j]).length / seg_len)
+                if v1 > 1.0 + 1e-6:
+                    # this span crosses the cell's end: start it at 0 (a seam no wider than one span's share)
+                    v1 = v1 - v0
+                    v0 = 0.0
+                    v1 = min(v1, 1.0)
+            else:
+                v0, v1 = 0.0, 1.0
+            for i in range(sides):
+                i1 = (i + 1) % sides
+                self._quad_smooth([rings[j][i], rings[j][i1], rings[j1][i1], rings[j1][i]], [(i / sides, v0), ((i + 1) / sides, v0), ((i + 1) / sides, v1), (i / sides, v1)], cell, shade=shade)
+
     def to_object(self, name):
         me = bpy.data.meshes.new(name)
         self.bm.to_mesh(me)
@@ -898,73 +1226,81 @@ def ring_path(r, n, cx=0.0, cy=0.0, cz=0.0, plane="xz", ry=None):
 
 
 def ring_wall():
-    """An iron ring on a staple let into the quay wall, 0.5 m under the edge; a rust run below."""
+    """An iron mooring ring on a staple let into the quay wall under the coping (its foot at -0.28), a rust run below."""
     m = Mesh()
-    z0 = -0.5
-    m.box((0, -0.015, z0), (0.12, 0.03, 0.1), "iron_rust")
-    # the ring hangs from the staple, lying a little off the wall
-    pts = ring_path(0.13, 7, 0, -0.045, z0 - 0.13, plane="xz")
-    m.tube(pts, 0.022, 3, "iron_rust", closed=True)
-    m.quad([(-0.1, -0.003, z0 - 1.4), (0.1, -0.003, z0 - 1.4), (0.1, -0.003, z0 - 0.05), (-0.1, -0.003, z0 - 0.05)], "rust_run", mat=DECAL, out=(0, -1, 0))
+    z0 = -0.55
+    # the staple's plate, leaded into a joint, two bolt heads
+    m.box((0, -0.012, z0), (0.16, 0.024, 0.13), "iron_rust")
+    for sx in (-1, 1):
+        m.rev([(0.022, 0.0), (0.022, 0.012), (0.012, 0.02), (0.0, 0.022)], 8, "iron_black", M=move(sx * 0.055, -0.024, z0) @ rot("X", math.pi / 2))
+    # the eye standing out of the plate, the ring through it, hanging a little off the wall
+    m.rope([(-0.035, -0.024, z0 - 0.01), (-0.03, -0.07, z0 - 0.02), (0.0, -0.085, z0 - 0.025), (0.03, -0.07, z0 - 0.02), (0.035, -0.024, z0 - 0.01)], 0.014, 8, "iron_rust")
+    R = 0.13
+    pts = [(R * math.sin(a), -0.085 - 0.015 * (1 - math.cos(a)), z0 - 0.04 - R + R * math.cos(a)) for a in np.linspace(0, 2 * math.pi, 20, endpoint=False)]
+    m.rope(pts, 0.021, 6, "iron_rust", closed=True)
+    m.quad([(-0.1, -0.003, z0 - 1.5), (0.1, -0.003, z0 - 1.5), (0.1, -0.003, z0 - 0.05), (-0.1, -0.003, z0 - 0.05)], "rust_run", mat=DECAL, out=(0, -1, 0))
     return m
 
 
 def ring_top():
-    """A ring let into the edge stone, lying flat, its eye bolt set in lead."""
+    """A ring let into the coping stone, lying flat, its eye bolt set in lead (the coping's top is 0.06 up)."""
     m = Mesh()
-    y0 = 0.3  # inland of the edge
-    m.box((0, y0, 0.075), (0.12, 0.08, 0.03), "iron")
-    m.tube(ring_path(0.12, 7, 0, y0 - 0.14, 0.085, plane="xy"), 0.02, 3, "iron_rust", closed=True, up=(0, 0, 1))
-    m.quad([(-0.25, y0 - 0.34, 0.068), (0.25, y0 - 0.34, 0.068), (0.25, y0 + 0.08, 0.068), (-0.25, y0 + 0.08, 0.068)], "worn", mat=DECAL, out=(0, 0, 1))
+    y0 = 0.06  # a hand inland of the wall line: on the coping
+    m.rev([(0.05, 0.059), (0.05, 0.063), (0.0, 0.064)], 16, "iron_black", M=move(0, y0, 0))  # the lead
+    m.rope([(-0.03, y0, 0.06), (-0.025, y0 - 0.035, 0.085), (0.0, y0 - 0.05, 0.09), (0.025, y0 - 0.035, 0.085), (0.03, y0, 0.06)], 0.013, 8, "iron_rust")
+    R = 0.12
+    pts = [(R * math.sin(a), y0 - 0.05 - R + R * math.cos(a), 0.083 + 0.01 * math.cos(a)) for a in np.linspace(0, 2 * math.pi, 20, endpoint=False)]
+    m.rope(pts, 0.019, 6, "iron_rust", closed=True, up=(0, 0, 1))
+    m.quad([(-0.22, y0 - 0.35, 0.062), (0.22, y0 - 0.35, 0.062), (0.22, y0 + 0.08, 0.062), (-0.22, y0 + 0.08, 0.062)], "rust_stain", mat=DECAL, out=(0, 0, 1))
     return m
 
 
 def fender_rope():
-    """A rope fender: a stuffed bolster on two lines from an eye on the edge stone, down the wall."""
+    """A rope fender: a stuffed bolster of tarred rope on two lines from an eye bolt on the coping, down the wall."""
     m = Mesh()
-    eye = (0, 0.35, 0.08)
-    m.box((0, 0.35, 0.075), (0.1, 0.1, 0.03), "iron")
-    zb = -1.05
-    for dx in (-0.12, 0.12):
-        m.tube([(dx * 0.4, 0.35, 0.09), (dx * 0.8, -0.05, 0.1), (dx, -0.27, 0.07), (dx, -0.27, -0.2), (dx, -0.22, zb)], 0.018, 3, "rope")
-    with m.at(move(0, -0.2, 0)):
-        m.lathe([(0.02, zb - 0.72), (0.1, zb - 0.68), (0.16, zb - 0.55), (0.17, zb - 0.3), (0.15, zb - 0.1), (0.08, zb + 0.02), (0.02, zb + 0.04)], 6, "hawser")
-        for z in (zb - 0.2, zb - 0.45):
-            m.lathe([(0.172, z), (0.175, z + 0.04)], 6, "rope")
+    m.rev([(0.04, 0.059), (0.04, 0.064), (0.0, 0.066)], 12, "iron_black", M=move(0, 0.12, 0))
+    zb = -0.95
+    for dx in (-0.11, 0.11):
+        m.rope([(dx * 0.3, 0.12, 0.075), (dx * 0.7, -0.05, 0.095), (dx * 0.95, -0.24, 0.075), (dx, -0.285, 0.0), (dx, -0.29, -0.3), (dx, -0.26, zb + 0.05)], 0.016, 6, "rope", seg_len=0.12)
+    with m.at(move(0, -0.24, 0)):
+        prof = [(0.02, zb - 0.78), (0.09, zb - 0.74), (0.145, zb - 0.62), (0.165, zb - 0.45), (0.17, zb - 0.3), (0.16, zb - 0.12), (0.12, zb - 0.02), (0.05, zb + 0.04), (0.015, zb + 0.06)]
+        m.rev(prof, 18, "hawser", vrep=0.12)
+        for z in (zb - 0.2, zb - 0.42, zb - 0.62):
+            m.rev([(0.168, z - 0.02), (0.18, z), (0.168, z + 0.02)], 18, "rope")
     return m
 
 
 def fender_timber():
-    """A timber rubbing post down the wall face, strapped with iron, a chain hanging in a loop beside it."""
+    """A rubbing fender of oak bolted to the wall face of a working quay: it stands proud of the coping's nose, so the
+    hulls rub on it and not on the stone, from under the coping (-0.30) down into the mud at the wall's foot (-4.9).
+    Three iron straps with their bolts; worn pale where the hulls ride, slime and weed below the tide's band."""
     m = Mesh()
-    m.box((0, -0.12, -1.45), (0.26, 0.2, 2.8), "oak", cells={"+z": "endgrain", "-z": "endgrain"})
-    for z in (-0.25, -1.3, -2.4):
-        m.box((0, -0.12, z), (0.3, 0.22, 0.06), "iron_rust")
+    W, D, top, foot = 0.28, 0.32, -0.30, -4.9
+    c = 0.035  # the chamfer on its outer edges
+    x0, x1 = -W / 2, W / 2
+    y0, y1 = 0.0, -D
+    # the post's outline seen from above (the wall at y 0, the water toward -y), chamfered on the water side
+    outline = [(x0, y0), (x0, y1 + c), (x0 + c, y1), (x1 - c, y1), (x1, y1 + c), (x1, y0)]
+    U = [0.0, 0.3, 0.38, 0.62, 0.7, 1.0]
+    for k in range(len(outline) - 1):
+        (ax, ay), (bx, by) = outline[k], outline[k + 1]
+        n = Vector((by - ay, -(bx - ax), 0))
+        if n.dot(Vector(((ax + bx) / 2, (ay + by) / 2 + D / 2, 0))) < 0:
+            n = -n
+        m.face([(ax, ay, foot), (bx, by, foot), (bx, by, top), (ax, ay, top)], "fender_oak", uvs=[(U[k], 0), (U[k + 1], 0), (U[k + 1], 1), (U[k], 1)], out=tuple(n))
+    m.face([(p[0], p[1], top) for p in outline], "endgrain", out=(0, 0, 1))
+    for z in (-0.55, -1.9, -3.4):
+        # the strap round the post's face, into the wall either side, its bolts
+        for (ax, ay), (bx, by) in zip(outline[:-1], outline[1:]):
+            n = Vector((by - ay, -(bx - ax), 0))
+            if n.dot(Vector(((ax + bx) / 2, (ay + by) / 2 + D / 2, 0))) < 0:
+                n = -n
+            n = n.normalized() * 0.012
+            m.face([(ax + n.x, ay + n.y, z - 0.04), (bx + n.x, by + n.y, z - 0.04), (bx + n.x, by + n.y, z + 0.04), (ax + n.x, ay + n.y, z + 0.04)], "iron_rust", out=(n.x, n.y, 0))
         for sx in (-1, 1):
-            m.box((sx * 0.17, -0.01, z), (0.05, 0.02, 0.1), "iron_rust")
-    # a chain in a loop down the wall: links as small alternating hoops
-    pts = []
-    n = 14
-    for i in range(n + 1):
-        t = i / n
-        x = 0.35 + 0.35 * t
-        z = -0.35 - 1.2 * math.sin(math.pi * t)
-        pts.append((x, -0.05, z))
-    for i in range(n):
-        a, b = Vector(pts[i]), Vector(pts[i + 1])
-        c = (a + b) / 2
-        d = (b - a)
-        L = d.length
-        ang = math.atan2(d.z, d.x)
-        if i % 2 == 0:
-            loop = [(c.x + math.cos(ang) * L * 0.6 * math.cos(q) - math.sin(ang) * 0.035 * math.sin(q), -0.05,
-                     c.z + math.sin(ang) * L * 0.6 * math.cos(q) + math.cos(ang) * 0.035 * math.sin(q)) for q in np.linspace(0, 2 * math.pi, 5, endpoint=False)]
-        else:
-            loop = [(c.x + math.cos(ang) * L * 0.6 * math.cos(q), -0.05 - 0.035 * math.sin(q), c.z + math.sin(ang) * L * 0.6 * math.cos(q))
-                    for q in np.linspace(0, 2 * math.pi, 5, endpoint=False)]
-        m.tube(loop, 0.009, 3, "iron_rust", closed=True)
-    for x in (0.35, 0.7):
-        m.box((x, -0.015, -0.33), (0.07, 0.03, 0.07), "iron_rust")
+            m.box((sx * (W / 2 + 0.05), -0.006, z), (0.1, 0.012, 0.08), "iron_rust")
+            m.rev([(0.02, 0.0), (0.02, 0.012), (0.0, 0.016)], 6, "iron_black", M=move(sx * (W / 2 + 0.06), -0.012, z) @ rot("X", math.pi / 2))
+        m.rev([(0.025, 0.0), (0.025, 0.014), (0.0, 0.02)], 6, "iron_black", M=move(0, y1 - 0.012, z) @ rot("X", math.pi / 2))
     return m
 
 
@@ -972,7 +1308,7 @@ def wall_decal(cell, width, z_top, name_px=0.05):
     """Letters or a panel painted on a wall face (origin on the wall line, top at z_top)."""
     m = Mesh()
     x, y, w, h = DECAL_ATLAS.cells[cell]
-    W, H = w * name_px, h * name_px
+    W, H = w / TEXT_K * name_px, h / TEXT_K * name_px
     m.quad([(-W / 2, -0.004, z_top - H), (W / 2, -0.004, z_top - H), (W / 2, -0.004, z_top), (-W / 2, -0.004, z_top)], cell, mat=DECAL, out=(0, -1, 0))
     return m, W
 
@@ -987,39 +1323,47 @@ def ground_decal(cell, w, d, y=0.0):
 
 
 def bollard_cannon():
-    """An old cannon sunk muzzle-up as a bollard, as on the Werf: a swell at the muzzle, a ball in the bore."""
+    """An old iron cannon sunk muzzle-up as a bollard, as on the Werf and the Rijnkaai: the chase tapering up to the
+    muzzle swell with its astragal and lip, a ball leaded into the bore; set in a chamfered bluestone seat."""
     m = Mesh()
-    m.box((0, 0, 0.02), (0.62, 0.62, 0.04), "bluestone")
-    m.lathe([(0.2, 0.0), (0.2, 0.08), (0.185, 0.1), (0.17, 0.55), (0.18, 0.6), (0.2, 0.68), (0.2, 0.74), (0.17, 0.78), (0.12, 0.79)], 9, "iron_rust")
-    m.lathe([(0.12, 0.79), (0.12, 0.8), (0.0, 0.84)], 9, "iron")
-    m.lathe([(0.187, 0.3), (0.195, 0.33), (0.187, 0.36)], 9, "iron")
-    m.quad([(0.0 - 0.5, 0.0 - 0.5, 0.0), (0.0 + 0.5, 0.0 - 0.5, 0.0), (0.0 + 0.5, 0.0 + 0.5, 0.0), (0.0 - 0.5, 0.0 + 0.5, 0.0)], "rust_stain", mat=DECAL, out=(0, 0, 1))  # pass 3: rust bled into the stone
+    m.lathe([(0.44, 0.0), (0.44, 0.035), (0.40, 0.06), (0.0, 0.06)], 4, "bluestone", rot=math.pi / 4)
+    prof = [(0.222, 0.055), (0.214, 0.09), (0.196, 0.46), (0.204, 0.48), (0.204, 0.52), (0.192, 0.54), (0.184, 0.63),
+            (0.19, 0.67), (0.204, 0.71), (0.214, 0.74), (0.214, 0.775), (0.206, 0.79), (0.2, 0.81), (0.196, 0.825), (0.09, 0.83), (0.085, 0.805)]
+    m.rev(prof, 28, "iron_rust", sharp=50)
+    # the ball in the bore
+    ball = [(0.083 * math.sin(a), 0.792 - 0.083 * math.cos(a)) for a in np.linspace(0.6, math.pi, 7)]
+    m.rev(ball, 20, "iron_black")
+    m.quad([(-0.55, -0.55, 0.061), (0.55, -0.55, 0.061), (0.55, 0.55, 0.061), (-0.55, 0.55, 0.061)], "rust_stain", mat=DECAL, out=(0, 0, 1))
     return m
 
 
 def bollard_mushroom():
-    """A cast-iron quay bollard: a flanged foot, a waisted neck, a wide head with a lip to hold the rope."""
+    """A cast-iron quay bollard of the 1860s: a flanged foot bolted down through a bluestone seat, a waisted barrel
+    with a bead, a wide head with a lip to hold the rope; painted green, the paint gone where the ropes run."""
     m = Mesh()
-    m.box((0, 0, 0.025), (0.7, 0.7, 0.05), "bluestone")
-    m.lathe([(0.3, 0.05), (0.3, 0.1), (0.24, 0.13), (0.2, 0.2), (0.17, 0.42), (0.19, 0.52), (0.29, 0.6), (0.3, 0.66), (0.26, 0.7), (0.0, 0.73)], 10,
-            "iron_green", cap0=False)
-    m.lathe([(0.3, 0.05), (0.0, 0.05)], 10, "iron")
-    m.quad([(0.0 - 0.55, 0.0 - 0.55, 0.0), (0.0 + 0.55, 0.0 - 0.55, 0.0), (0.0 + 0.55, 0.0 + 0.55, 0.0), (0.0 - 0.55, 0.0 + 0.55, 0.0)], "rust_stain", mat=DECAL, out=(0, 0, 1))  # pass 3: rust bled into the stone
+    m.lathe([(0.47, 0.0), (0.47, 0.03), (0.44, 0.05), (0.0, 0.05)], 4, "bluestone", rot=math.pi / 4)
+    prof = [(0.30, 0.05), (0.30, 0.085), (0.275, 0.1), (0.225, 0.13), (0.192, 0.2), (0.172, 0.3), (0.165, 0.4), (0.172, 0.47),
+            (0.186, 0.49), (0.186, 0.51), (0.18, 0.53), (0.22, 0.58), (0.282, 0.62), (0.298, 0.66), (0.292, 0.69), (0.255, 0.715), (0.17, 0.738), (0.0, 0.748)]
+    m.rev(prof, 28, "iron_green", sharp=55)
+    for i in range(6):
+        a = 2 * math.pi * (i + 0.5) / 6
+        m.lathe([(0.026, 0.085), (0.026, 0.1), (0.016, 0.108), (0.0, 0.11)], 6, "iron_black", M=move(0.255 * math.cos(a), 0.255 * math.sin(a), 0.0))
+    m.quad([(-0.6, -0.6, 0.051), (0.6, -0.6, 0.051), (0.6, 0.6, 0.051), (-0.6, 0.6, 0.051)], "rust_stain", mat=DECAL, out=(0, 0, 1))
     return m
 
 
 def bitt_double():
-    """A double bitt on a cast base plate: two short posts with caps, a bar between."""
+    """A double bitt on a cast base plate: two short posts with caps and a bar between, eight bolts."""
     m = Mesh()
     m.box((0, 0, 0.03), (1.25, 0.5, 0.06), "iron_rust")
     for sx in (-1, 1):
         with m.at(move(sx * 0.38, 0, 0)):
-            m.lathe([(0.17, 0.06), (0.15, 0.1), (0.14, 0.5), (0.18, 0.56), (0.18, 0.62), (0.0, 0.64)], 8, "iron_rust")
-    m.beam((-0.26, 0, 0.35), (0.26, 0, 0.35), 0.08, 0.08, "iron")
+            m.rev([(0.175, 0.06), (0.16, 0.12), (0.145, 0.44), (0.152, 0.5), (0.18, 0.55), (0.186, 0.6), (0.168, 0.625), (0.08, 0.64), (0.0, 0.642)], 24, "iron_rust", sharp=55)
+    m.rope([(-0.24, 0, 0.34), (0.0, 0, 0.34), (0.24, 0, 0.34)], 0.045, 12, "iron_black")
     for sx in (-1, 1):
         for sy in (-1, 1):
-            m.box((sx * 0.56, sy * 0.19, 0.07), (0.06, 0.06, 0.03), "iron_light")
-    m.quad([(0.0 - 0.85, 0.0 - 0.45, 0.0), (0.0 + 0.85, 0.0 - 0.45, 0.0), (0.0 + 0.85, 0.0 + 0.45, 0.0), (0.0 - 0.85, 0.0 + 0.45, 0.0)], "rust_stain", mat=DECAL, out=(0, 0, 1))  # pass 3: rust bled into the stone
+            m.lathe([(0.024, 0.06), (0.024, 0.075), (0.0, 0.08)], 6, "iron_light", M=move(sx * 0.56, sy * 0.19, 0))
+    m.quad([(-0.85, -0.45, 0.001), (0.85, -0.45, 0.001), (0.85, 0.45, 0.001), (-0.85, 0.45, 0.001)], "rust_stain", mat=DECAL, out=(0, 0, 1))
     return m
 
 
@@ -1042,109 +1386,125 @@ def post_timber():
 
 
 def capstan():
-    """A quay capstan: an octagonal foot with pawls, a waisted barrel with whelps, a drumhead with
-    bar holes. Two capstan bars lie beside it."""
+    """A quay capstan: a cast foot with its pawl ring, a waisted barrel with eight whelps, a drumhead with square
+    holes for the bars. Two capstan bars lie beside it."""
     m = Mesh()
-    m.lathe([(0.55, 0.0), (0.55, 0.08), (0.42, 0.12), (0.0, 0.12)], 8, "iron", rot=math.pi / 8)
-    for i in range(6):
-        a = 2 * math.pi * i / 6
-        m.beam((0.3 * math.cos(a), 0.3 * math.sin(a), 0.13), (0.42 * math.cos(a + 0.4), 0.42 * math.sin(a + 0.4), 0.13), 0.05, 0.04, "iron_light")
-    m.lathe([(0.3, 0.12), (0.26, 0.25), (0.22, 0.45), (0.24, 0.62), (0.3, 0.68)], 8, "iron_rust")
-    # whelps: ribs on the barrel
+    m.lathe([(0.56, 0.0), (0.56, 0.06), (0.5, 0.09), (0.0, 0.09)], 8, "iron_black", rot=math.pi / 8)
+    m.rev([(0.44, 0.09), (0.44, 0.13), (0.4, 0.15), (0.31, 0.15)], 28, "iron_rust", sharp=50)
+    for i in range(8):
+        a = 2 * math.pi * i / 8
+        with m.at(move(0.37 * math.cos(a), 0.37 * math.sin(a), 0.15) @ rot("Z", a + 0.5)):
+            m.box((0, 0, 0.02), (0.1, 0.035, 0.04), "iron_light")
+    m.rev([(0.31, 0.15), (0.27, 0.25), (0.235, 0.42), (0.245, 0.56), (0.29, 0.64), (0.31, 0.68)], 28, "iron_rust")
     for i in range(8):
         a = 2 * math.pi * (i + 0.5) / 8
         c, s = math.cos(a), math.sin(a)
-        m.face([(0.27 * c, 0.27 * s, 0.2), (0.31 * c, 0.31 * s, 0.22), (0.27 * c, 0.27 * s, 0.62), (0.23 * c, 0.23 * s, 0.48)], "iron", out=(c, s, 0))
-        m.face([(0.27 * c, 0.27 * s, 0.2), (0.23 * c, 0.23 * s, 0.48), (0.27 * c, 0.27 * s, 0.62), (0.31 * c, 0.31 * s, 0.22)], "iron", out=(-s, c, 0))
-    # the drumhead: a thick disc with square holes for the bars (painted dark squares)
-    m.lathe([(0.36, 0.68), (0.38, 0.72), (0.38, 0.86), (0.34, 0.9), (0.0, 0.92)], 8, "iron_rust")
-    for i in range(8):
-        a = 2 * math.pi * i / 8 + math.pi / 8
+        t = Vector((-s, c, 0)) * 0.022
+        pts = [(0.3, 0.18), (0.335, 0.24), (0.31, 0.45), (0.33, 0.6), (0.3, 0.66)]
+        outer = [Vector((r * c, r * s, z)) for r, z in pts]
+        inner = [Vector(((r - 0.07) * c, (r - 0.07) * s, z)) for r, z in pts]
+        for k in range(len(pts) - 1):
+            m.face([outer[k] - t, outer[k] + t, outer[k + 1] + t, outer[k + 1] - t], "iron_rust", out=(c, s, 0))
+            m.face([inner[k] - t, outer[k] - t, outer[k + 1] - t, inner[k + 1] - t], "iron_rust", out=(s, -c, 0))
+            m.face([outer[k] + t, inner[k] + t, inner[k + 1] + t, outer[k + 1] + t], "iron_rust", out=(-s, c, 0))
+    m.rev([(0.31, 0.68), (0.37, 0.7), (0.39, 0.73), (0.39, 0.87), (0.37, 0.9), (0.32, 0.92), (0.0, 0.935)], 28, "iron_rust", sharp=50)
+    for i in range(6):
+        a = 2 * math.pi * i / 6 + math.pi / 6
         c, s = math.cos(a), math.sin(a)
-        p = Vector((0.385 * c, 0.385 * s, 0.79))
+        p = Vector((0.392 * c, 0.392 * s, 0.8))
         t = Vector((-s, c, 0))
-        m.face([p - t * 0.05 + Vector((0, 0, -0.045)), p + t * 0.05 + Vector((0, 0, -0.045)), p + t * 0.05 + Vector((0, 0, 0.045)), p - t * 0.05 + Vector((0, 0, 0.045))],
+        m.face([p - t * 0.055 + Vector((0, 0, -0.045)), p + t * 0.055 + Vector((0, 0, -0.045)), p + t * 0.055 + Vector((0, 0, 0.045)), p - t * 0.055 + Vector((0, 0, 0.045))],
                "black", out=(c, s, 0))
-    for k, (x, a) in enumerate(((0.9, 0.12), (1.05, -0.08))):
-        m.beam((x, -0.9 + k * 0.25, 0.04 + k * 0.05), (x + 0.2, 0.9 + k * 0.25, 0.04), 0.07, 0.07, "wood")
-    m.quad([(0.0 - 0.75, 0.0 - 0.75, 0.0), (0.0 + 0.75, 0.0 - 0.75, 0.0), (0.0 + 0.75, 0.0 + 0.75, 0.0), (0.0 - 0.75, 0.0 + 0.75, 0.0)], "rust_stain", mat=DECAL, out=(0, 0, 1))  # pass 3: rust bled into the stone
+    for k, (x, a) in enumerate(((0.95, 0.12), (1.1, -0.08))):
+        m.rope([(x, -0.95 + k * 0.25, 0.045 + k * 0.05), (x + 0.1, 0.0 + k * 0.25, 0.045 + k * 0.03), (x + 0.2, 0.95 + k * 0.25, 0.045)], 0.04, 8, "wood")
+    m.quad([(-0.75, -0.75, 0.001), (0.75, -0.75, 0.001), (0.75, 0.75, 0.001), (-0.75, 0.75, 0.001)], "rust_stain", mat=DECAL, out=(0, 0, 1))
     return m
 
 
-def mooring_line(along=0.0):
-    """A mooring line: a bight round a bollard's neck (0.5 m up), out over the edge stone, down the wall
-    to a boat lying off the quay. `along`: how far it runs along the quay on its way (m)."""
-    m = Mesh()
-    m.tube(ring_path(0.2, 7, 0, 0, 0.5, plane="xy"), 0.03, 3, "hawser", closed=True, up=(0, 0, 1))
-    pts = [(0.0, -0.2, 0.5), (along * 0.1, -0.5, 0.35), (along * 0.2, -0.85, 0.12), (along * 0.28, -1.05, 0.02),
-           (along * 0.4, -1.3, -0.5), (along * 0.6, -1.7, -1.3), (along * 0.8, -2.2, -1.85), (along, -2.9, -2.1)]
-    m.tube(pts, 0.03, 3, "hawser")
-    return m
+# Where each bollard kind takes a line (the eye dropped over it): its neck's height and radius (game metres).
+EYE_AT = {"bollard_cannon": (0.47, 0.205), "bollard_mushroom": (0.43, 0.17), "bitt_double": (0.36, 0.15), "post_timber": (0.66, 0.16)}
+LINE_R = 0.028
+
+
+
 
 
 # ------------------------------------------------------------------ models: on the stones
 
 
 def chain_run():
-    """A heavy chain dragged out on the stones: links alternately flat and on edge along a wavy line, a heap at one end."""
+    """A heavy stud-less chain dragged out on the stones: oval links, each turned a quarter to the last, along a lazy
+    curve, a low heap of it at one end."""
     m = Mesh()
     path = []
-    for i in range(20):
-        t = i / 19
+    for i in range(40):
+        t = i / 39
         path.append(Vector((-1.6 + 3.2 * t, 0.25 * math.sin(t * 5.2), 0.0)))
-    L = 0.16
+    pitch = 0.135
+    Lk, Wk, rw = 0.085, 0.05, 0.016
     k = 0
-    for i in range(len(path) - 1):
-        a, b = path[i], path[i + 1]
-        seg = (b - a).length
-        d = (b - a).normalized()
-        nlinks = max(1, int(seg / L))
-        for j in range(nlinks):
-            c = a + d * (L * (j + 0.5))
-            ang = math.atan2(d.y, d.x)
-            if k % 2 == 0:
-                pts = [(c.x + math.cos(ang) * 0.1 * math.cos(q) - math.sin(ang) * 0.05 * math.sin(q),
-                        c.y + math.sin(ang) * 0.1 * math.cos(q) + math.cos(ang) * 0.05 * math.sin(q), 0.02) for q in np.linspace(0, 2 * math.pi, 5, endpoint=False)]
-            else:
-                pts = [(c.x + math.cos(ang) * 0.1 * math.cos(q), c.y + math.sin(ang) * 0.1 * math.cos(q), 0.05 + 0.045 * math.sin(q))
-                       for q in np.linspace(0, 2 * math.pi, 5, endpoint=False)]
-            m.tube(pts, 0.017, 3, "iron_rust", closed=True)
-            k += 1
-    # the heap: a low lump of chain at the end
-    m.lathe([(0.35, 0.0), (0.3, 0.08), (0.18, 0.14), (0.0, 0.16)], 7, "iron_rust", M=move(1.8, 0.1, 0))
+    s = 0.0
+    total = sum((path[i + 1] - path[i]).length for i in range(len(path) - 1))
+    while s < total - 0.05:
+        # the point and direction at s along the path
+        acc = 0.0
+        for i in range(len(path) - 1):
+            seg = (path[i + 1] - path[i]).length
+            if acc + seg >= s:
+                f = (s - acc) / seg
+                c = path[i].lerp(path[i + 1], f)
+                d = (path[i + 1] - path[i]).normalized()
+                break
+            acc += seg
+        side = Vector((0, 0, 1)).cross(d).normalized()
+        up_ = Vector((0, 0, 1))
+        a_ax = side if k % 2 == 0 else up_
+        lift = rw if k % 2 == 0 else Wk
+        pts = [c + d * (Lk * math.cos(q)) + a_ax * (Wk * math.sin(q)) + Vector((0, 0, lift)) for q in np.linspace(0, 2 * math.pi, 10, endpoint=False)]
+        m.rope(pts, rw, 5, "iron_rust", closed=True)
+        k += 1
+        s += pitch
+    m.rev([(0.36, 0.0), (0.33, 0.06), (0.24, 0.12), (0.12, 0.155), (0.0, 0.165)], 14, "iron_rust", M=move(1.85, 0.1, 0))
     return m
 
 
 def hawser_flake():
-    """A tarred hawser laid out on the stones in long flakes, the eye at one end."""
+    """A tarred hawser flaked down on the stones in long bights, ready to run, the eye at one end."""
     m = Mesh()
     pts = []
-    loops = 3
-    for i in range(loops * 12 + 1):
-        t = i / 12
-        k = int(t)
+    loops = 4
+    for i in range(loops * 16 + 1):
+        t = i / 16
+        k = int(min(t, loops - 1e-6))
         f = t - k
-        side = 1 if k % 2 == 0 else -1
-        x = -1.2 + 2.4 * (0.5 - 0.5 * math.cos(math.pi * f)) * 1.0
-        x = x if side > 0 else -x
-        y = k * 0.14 + 0.07 * (1 - math.cos(math.pi * f)) * 0.5 + 0.07 * (math.sin(math.pi * f) ** 8)
-        pts.append((x, y - 0.2, 0.045))
-    m.tube(pts, 0.045, 4, "hawser")
-    m.tube(ring_path(0.18, 7, 1.45, -0.2, 0.045, plane="xy", ry=0.12), 0.04, 4, "hawser", closed=True, up=(0, 0, 1))
+        x = -1.2 + 2.4 * (0.5 - 0.5 * math.cos(math.pi * f))
+        x = x if k % 2 == 0 else -x
+        y = k * 0.12 + 0.12 * (math.sin(math.pi * f) ** 6) * (1 if k % 2 == 0 else 1)
+        pts.append((x, y - 0.24, 0.042 + 0.004 * math.sin(i * 0.7)))
+    m.rope(pts, 0.04, 8, "hawser", seg_len=0.14)
+    eye = [(1.42 + 0.17 * math.cos(a), -0.24 + 0.11 * math.sin(a), 0.04) for a in np.linspace(0, 2 * math.pi, 20, endpoint=False)]
+    m.rope(eye, 0.036, 8, "hawser", closed=True, up=(0, 0, 1), seg_len=0.14)
     return m
 
 
 def hawser_coil():
-    """A big hawser coiled down flat, three turns high."""
+    """A big hawser coiled down flat, the way the crews leave a mooring line: three layers of turns, the end led out."""
     m = Mesh()
+    r0, r1, rw = 0.2, 0.5, 0.042
     pts = []
-    for i in range(3 * 10 + 1):
-        a = 2 * math.pi * i / 10
-        r = 0.5 - 0.02 * (i / 10)
-        pts.append((r * math.cos(a), r * math.sin(a), 0.05 + 0.085 * i / 10))
-    m.tube(pts, 0.05, 4, "hawser")
-    m.lathe([(0.42, 0.01), (0.42, 0.02), (0.0, 0.02)], 8, "tar")
-    m.tube([(0.5, 0, 0.05), (0.8, -0.3, 0.05), (1.2, -0.35, 0.05)], 0.05, 4, "hawser")
+    layers, turns, per = 3, 4, 18
+    for L in range(layers):
+        for i in range(turns * per + 1):
+            f = i / (turns * per)
+            # out on one layer, in on the next
+            r = r0 + (r1 - r0) * (f if L % 2 == 0 else 1 - f)
+            a = 2 * math.pi * i / per
+            pts.append((r * math.cos(a), r * math.sin(a), rw + L * rw * 1.85 + 0.01 * math.sin(a * 2)))
+        if L < layers - 1:
+            pts.pop()
+    m.rope(pts, rw, 6, "hawser", seg_len=0.15)
+    end = Vector(pts[-1])
+    m.rope([end, end + Vector((0.25, -0.15, -0.05)), Vector((r1 + 0.55, -0.45, rw)), Vector((r1 + 0.95, -0.5, rw))], rw, 7, "hawser", seg_len=0.15)
     return m
 
 
@@ -1198,7 +1558,7 @@ def cable_reel():
 def sign_board(key):
     """A board with the sign's lettering; returns (width, height)."""
     x, y, w, h = SOLID_ATLAS.cells[f"sign_{key}"]
-    return w * PX, h * PX
+    return w / TEXT_K * PX, h / TEXT_K * PX
 
 
 def post_sign(key, height=2.1, two=False):
@@ -1681,6 +2041,170 @@ def boat_trestles():
     return m
 
 
+# ------------------------------------------------------------------ D4: the work spots' gear (2026-10-11)
+
+
+def line_eye(kind):
+    """The eye of a mooring line dropped over a bollard's neck, its two legs seized together toward the water and the
+    line going on from there (the game draws the rest: client/src/world/shipLines.ts, from the point in meta.lineEyes)."""
+    z, r = EYE_AT[kind]
+    m = Mesh()
+    cx = 0.38 if kind == "bitt_double" else 0.0
+    R = r + LINE_R + 0.004
+    throat = -(r + 0.32)
+    pts = []
+    # round the back of the neck, then both legs come forward and meet at the seizing
+    n = 22
+    for i in range(n + 1):
+        a = -math.pi / 2 + (2 * math.pi) * (0.08 + 0.84 * i / n)
+        pts.append((cx + R * math.cos(a), R * math.sin(a), z + 0.012 * math.sin(3 * a)))
+    legs_a = [(cx - 0.05, throat * 0.55, z - 0.01), (cx - 0.012, throat, z - 0.03)]
+    legs_b = [(cx + 0.012, throat, z - 0.03), (cx + 0.05, throat * 0.55, z - 0.01)]
+    path = [legs_b[0], legs_b[1]] + pts + legs_a  # from the seizing round the neck and back
+    m.rope(path, LINE_R * 0.92, 8, "hawser", seg_len=0.1)
+    # the seizing: a few turns of small line binding the legs
+    m.rev([(0.04, -0.03), (0.045, -0.015), (0.045, 0.015), (0.04, 0.03)], 10, "rope", M=move(cx, throat, z - 0.03) @ rot("X", math.pi / 2))
+    # and the line on toward the boat, a short way (the game's line starts at its end)
+    out = (cx, throat - 0.22, z - 0.06)
+    m.rope([(cx, throat + 0.02, z - 0.03), (cx, throat - 0.1, z - 0.045), out], LINE_R, 8, "hawser", seg_len=0.1)
+    # game frame: x, z (up), -y
+    return m, [round(out[0], 3), round(out[2], 3), round(-out[1], 3)]
+
+
+def gangplank():
+    """A gangplank laid by on the quay: a long heavy deal with battens for the feet, its ends shod with iron, on two
+    chocks, a hand line coiled on it."""
+    m = Mesh()
+    L, W, T = 4.6, 0.6, 0.07
+    z0 = 0.09
+    m.box((0, 0, z0 + T / 2), (W, L, T), "plank", cells={"+z": "plank", "-z": "plank", "+y": "endgrain", "-y": "endgrain"})
+    for i in range(10):
+        y = -L / 2 + 0.35 + i * (L - 0.7) / 9
+        m.box((0, y, z0 + T + 0.015), (W - 0.06, 0.05, 0.03), "wood_grey")
+    for sy in (-1, 1):
+        m.box((0, sy * (L / 2 - 0.04), z0 + T / 2), (W + 0.01, 0.1, T + 0.012), "iron_black")
+        m.box((0, sy * (L / 2 - 0.6), 0.045), (W + 0.25, 0.14, 0.09), "wood_dark")
+    coil = []
+    for i in range(3 * 16 + 1):
+        a = 2 * math.pi * i / 16
+        r = 0.16 + 0.01 * i / 16
+        coil.append((0.05 + r * math.cos(a), 0.6 + r * math.sin(a), z0 + T + 0.03 + 0.03 * i / 48))
+    m.rope(coil, 0.014, 6, "rope", seg_len=0.08)
+    return m
+
+
+def tally_desk():
+    """The tally clerk's standing desk on the quay: a sloped lid on four legs with stretchers, the ledger open on it, an
+    inkwell and a pen, a slate on a nail at the side for the count; a three-legged stool beside it."""
+    m = Mesh(ao=1.1)
+    W, D = 0.86, 0.58
+    yf, yb = -D / 2, D / 2
+    zf, zb = 1.0, 1.14
+    # legs and stretchers (the front to the clerk: -y)
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            h = zf if sy < 0 else zb
+            m.box((sx * (W / 2 - 0.04), sy * (D / 2 - 0.04), (h - 0.06) / 2), (0.05, 0.05, h - 0.06), "desk")
+        m.box((sx * (W / 2 - 0.04), 0, 0.18), (0.04, D - 0.08, 0.04), "desk")
+    m.box((0, D / 2 - 0.04, 0.18), (W - 0.08, 0.04, 0.04), "desk")
+    # the carcase under the lid and the lid itself
+    m.face([(-W / 2, yf, zf - 0.16), (W / 2, yf, zf - 0.16), (W / 2, yf, zf - 0.02), (-W / 2, yf, zf - 0.02)], "desk", out=(0, -1, 0))
+    m.face([(-W / 2, yb, zf - 0.16), (W / 2, yb, zf - 0.16), (W / 2, yb, zb - 0.02), (-W / 2, yb, zb - 0.02)], "desk", out=(0, 1, 0))
+    for sx in (-1, 1):
+        m.face([(sx * W / 2, yf, zf - 0.16), (sx * W / 2, yb, zf - 0.16), (sx * W / 2, yb, zb - 0.02), (sx * W / 2, yf, zf - 0.02)], "desk", out=(sx, 0, 0))
+    m.face([(-W / 2, yf, zf - 0.16), (W / 2, yf, zf - 0.16), (W / 2, yb, zf - 0.16), (-W / 2, yb, zf - 0.16)], "desk", out=(0, 0, -1))
+    lid = [(-W / 2 - 0.02, yf - 0.03, zf), (W / 2 + 0.02, yf - 0.03, zf), (W / 2 + 0.02, yb, zb), (-W / 2 - 0.02, yb, zb)]
+    m.face(lid, "desk", out=(0, -0.24, 1))
+    m.face([(p[0], p[1], p[2] - 0.025) for p in lid][::-1], "desk", out=(0, 0.24, -1))
+    for a, b in ((0, 1), (1, 2), (2, 3), (3, 0)):
+        pa, pb = lid[a], lid[b]
+        m.face([pa, pb, (pb[0], pb[1], pb[2] - 0.025), (pa[0], pa[1], pa[2] - 0.025)], "desk", out=((pa[0] + pb[0]) / 2, (pa[1] + pb[1]) / 2, 0))
+    # the flat shelf at the back of the lid: the inkwell and the pen
+    m.box((0, yb + 0.05, zb - 0.01), (W + 0.04, 0.1, 0.02), "desk")
+    m.rev([(0.03, 0.0), (0.032, 0.035), (0.018, 0.05), (0.012, 0.06), (0.0, 0.06)], 10, "black", M=move(0.28, yb + 0.05, zb))
+    m.rope([(0.18, yb + 0.03, zb + 0.004), (0.02, yb + 0.07, zb + 0.004)], 0.004, 4, "wood_dark")
+    # the ledger open on the slope
+    sl = math.atan2(zb - zf, D)
+    with m.at(move(-0.06, -0.02, (zf + zb) / 2 + 0.006) @ rot("X", sl)):
+        m.box((0, 0, 0.012), (0.56, 0.4, 0.024), "paint_red")
+        m.quad([(-0.27, -0.19, 0.025), (0.27, -0.19, 0.025), (0.27, 0.19, 0.025), (-0.27, 0.19, 0.025)], "ledger", out=(0, 0, 1))
+    # the slate on a nail
+    with m.at(move(W / 2 + 0.012, 0.05, 0.86)):
+        m.box((0, 0, 0), (0.016, 0.26, 0.2), "slate")
+        m.box((0.002, 0, 0), (0.018, 0.29, 0.23), "wood", cells={"+x": "slate", "-x": "slate"})
+    # the stool
+    with m.at(move(-0.15, -0.55, 0)):
+        m.rev([(0.17, 0.66), (0.175, 0.68), (0.17, 0.7), (0.0, 0.705)], 16, "wood_dark")
+        m.rev([(0.17, 0.66), (0.0, 0.655)], 16, "wood_dark")
+        for i in range(3):
+            a = 2 * math.pi * i / 3
+            m.rope([(0.1 * math.cos(a), 0.1 * math.sin(a), 0.66), (0.2 * math.cos(a), 0.2 * math.sin(a), 0.0)], 0.018, 6, "wood_dark")
+    return m
+
+
+def weighbridge_plate():
+    """The public weighbridge's plate, let into the setts flush with them: a cast checker plate in an iron frame,
+    for a cart and its load (2.7 by 4.2 m). Walked and driven over; the weigh house stands at its side."""
+    m = Mesh()
+    W, L = 2.7, 4.2
+    y = 0.012
+    m.quad([(-W / 2 + 0.1, -L / 2 + 0.1, y), (W / 2 - 0.1, -L / 2 + 0.1, y), (W / 2 - 0.1, L / 2 - 0.1, y), (-W / 2 + 0.1, L / 2 - 0.1, y)], "checker", out=(0, 0, 1))
+    for x0, y0, x1, y1 in ((-W / 2, -L / 2, W / 2, -L / 2 + 0.1), (-W / 2, L / 2 - 0.1, W / 2, L / 2), (-W / 2, -L / 2 + 0.1, -W / 2 + 0.1, L / 2 - 0.1), (W / 2 - 0.1, -L / 2 + 0.1, W / 2, L / 2 - 0.1)):
+        m.quad([(x0, y0, y + 0.004), (x1, y0, y + 0.004), (x1, y1, y + 0.004), (x0, y1, y + 0.004)], "iron_rust", out=(0, 0, 1))
+    return m
+
+
+def weigh_house():
+    """The weighbridge's little house: a timber box with a pent roof of zinc, a window over the plate (the steelyard's
+    beam and its weights behind it), a door, a stove pipe, the town's notice of the tolls."""
+    m = Mesh(ao=2.4)
+    W, D, H0, H1 = 1.7, 1.5, 2.35, 2.6
+    x0, x1, y0, y1 = -W / 2, W / 2, -D / 2, D / 2
+    m.box((0, 0, 0.06), (W + 0.06, D + 0.06, 0.12), "bluestone")
+    # walls (the front to the plate: -y), clad in boards
+    m.face([(x0, y0, 0.12), (x1, y0, 0.12), (x1, y0, H0), (x0, y0, H0)], "hut_planks", out=(0, -1, 0))
+    m.face([(x0, y1, 0.12), (x1, y1, 0.12), (x1, y1, H1), (x0, y1, H1)], "hut_planks", out=(0, 1, 0))
+    for sx, xx in ((-1, x0), (1, x1)):
+        m.face([(xx, y0, 0.12), (xx, y1, 0.12), (xx, y1, H1), (xx, y0, H0)], "hut_planks", out=(sx, 0, 0))
+    # corner posts and a sill
+    for xx in (x0, x1):
+        for yy in (y0, y1):
+            m.box((xx, yy, 1.3), (0.08, 0.08, 2.4), "wood_dark")
+    # the window over the plate, the steelyard behind it
+    m.box((0, y0 - 0.02, 1.35), (0.9, 0.04, 0.7), "wood_dark", cells={"-y": "window"})
+    m.box((0, y0 - 0.06, 0.98), (1.0, 0.1, 0.05), "wood_dark")
+    # the door on the side
+    m.box((x1 + 0.015, 0.05, 1.0), (0.03, 0.8, 1.9), "door_green", cells={"+x": "door_green"})
+    m.rev([(0.018, 0.0), (0.018, 0.02), (0.0, 0.025)], 8, "brass", M=move(x1 + 0.03, 0.35, 1.0) @ rot("Y", math.pi / 2))
+    # the pent roof, overhanging
+    r = [(x0 - 0.18, y0 - 0.25, H0 + 0.05), (x1 + 0.18, y0 - 0.25, H0 + 0.05), (x1 + 0.18, y1 + 0.18, H1 + 0.08), (x0 - 0.18, y1 + 0.18, H1 + 0.08)]
+    m.face(r, "zinc", out=(0, -0.2, 1))
+    m.face([(p[0], p[1], p[2] - 0.04) for p in r][::-1], "wood_dark", out=(0, 0.2, -1))
+    m.face([r[0], r[1], (r[1][0], r[1][1], r[1][2] - 0.04), (r[0][0], r[0][1], r[0][2] - 0.04)], "zinc", out=(0, -1, 0))
+    # the stove pipe with its hat
+    m.rev([(0.06, H1 - 0.3), (0.06, H1 + 0.55), (0.12, H1 + 0.6), (0.0, H1 + 0.68)], 12, "iron_black", M=move(x0 + 0.35, y1 - 0.3, 0))
+    # the tolls, a board under the window
+    m.box((0.0, y0 - 0.025, 0.62), (0.6, 0.02, 0.42), "wood_grey", cells={"-y": "sign_weigh"})
+    return m
+
+
+def hand_barrow():
+    """A two-man hand barrow (a berrie) put down on the stones: two ash poles, a slatted bed between them on short legs."""
+    m = Mesh()
+    L, Wd = 2.3, 0.62
+    for sx in (-1, 1):
+        x = sx * Wd / 2
+        m.rope([(x, -L / 2, 0.22), (x, -L / 2 + 0.5, 0.25), (x, L / 2 - 0.5, 0.25), (x, L / 2, 0.22)], 0.028, 8, "wood")
+        for sy in (-1, 1):
+            m.box((x, sy * 0.38, 0.12), (0.04, 0.04, 0.24), "wood_grey")
+    for i in range(6):
+        y = -0.4 + i * 0.16
+        m.box((0, y, 0.275), (Wd + 0.05, 0.1, 0.022), "wood_grey")
+    for sy in (-1, 1):
+        m.box((0, sy * 0.46, 0.25), (Wd + 0.02, 0.04, 0.04), "wood_dark")
+    return m
+
+
 # ------------------------------------------------------------------ the city: storehouse fronts
 
 
@@ -1738,8 +2262,12 @@ def build_models():
     B.append(("bitt_double", bitt_double()))
     B.append(("post_timber", post_timber()))
     B.append(("capstan", capstan()))
-    B.append(("line_out", mooring_line(0.0)))
-    B.append(("line_along", mooring_line(1.6)))
+    # D4: the eyes of the ships' mooring lines over each kind of bollard, and where the line goes on from
+    line_eyes = {}
+    for kind, short in (("bollard_cannon", "c"), ("bollard_mushroom", "m"), ("bitt_double", "b"), ("post_timber", "p")):
+        mesh, out = line_eye(kind)
+        B.append((f"line_eye_{short}", mesh))
+        line_eyes[kind] = {"model": f"line_eye_{short}", "out": out}
     B.append(("chain_run", chain_run()))
     B.append(("hawser_flake", hawser_flake()))
     B.append(("hawser_coil", hawser_coil()))
@@ -1770,7 +2298,15 @@ def build_models():
     B.append(("timber_baulks", timber_baulks()))
     B.append(("tar_fire", tar_fire()))
     B.append(("boat_trestles", boat_trestles()))
+    # D4: the work spots' gear
+    B.append(("gangplank", gangplank()))
+    B.append(("tally_desk", tally_desk()))
+    B.append(("weighbridge_plate", weighbridge_plate()))
+    B.append(("weigh_house", weigh_house()))
+    B.append(("hand_barrow", hand_barrow()))
     meta = {
+        "lineEyes": line_eyes,
+        "lineRadius": LINE_R,
         "wallNames": wallnames,
         "wallNotices": wallnotices,
         "berths": BERTHS,
@@ -1852,9 +2388,9 @@ def preview(objs):
     sc.collection.objects.link(cam)
     sc.camera = cam
     wall = [n for n in objs if n.startswith(("ring_wall", "fender_", "wallname_", "berth_1", "berth_2", "berth_12"))]
-    edge = ["ring_top", "bollard_cannon", "bollard_mushroom", "bitt_double", "post_timber", "capstan", "lantern_post", "drain", "worn"]
-    row1 = ["chain_run", "hawser_flake", "hawser_coil", "anchor", "cable_reel", "coal_heap", "grain_pallet", "tar_fire", "fish_baskets", "eel_pots"]
-    row2 = ["customs_booth", "harbour_hut", "toll_shed", "notice_board", "sign_name_werf", "sign_nosmoke", "sign_nomoor"]
+    edge = ["ring_top", "bollard_cannon", "line_eye_c", "bollard_mushroom", "line_eye_m", "bitt_double", "post_timber", "capstan", "lantern_post", "drain", "worn"]
+    row1 = ["chain_run", "hawser_flake", "hawser_coil", "gangplank", "hand_barrow", "anchor", "cable_reel", "coal_heap", "grain_pallet", "tar_fire"]
+    row2 = ["customs_booth", "harbour_hut", "tally_desk", "weigh_house", "weighbridge_plate", "notice_board", "sign_name_werf", "sign_nomoor"]
     row3 = ["nets_drying", "sail_drying", "oars_rack", "timber_baulks", "boat_trestles", "weigh_door", "wn_nosmoke"]
     shown = set()
 
@@ -1905,6 +2441,13 @@ def preview(objs):
     render(os.path.join(SHOTS, "quayfurniture_wall.png"), (1600, 700))
     aim((-8, 1.5, 2.5), (0, 9, 1.0), 20)
     render(os.path.join(SHOTS, "quayfurniture_close.png"), (1600, 900))
+    # D4: the edge's iron and rope up close, both halves of the row
+    if "--close" in sys.argv:
+        for i, x in enumerate((-4.2, 0.6, 5.0)):
+            aim((x, -2.6, 1.5), (x, 0.6, 0.45), 32)
+            render(os.path.join(SHOTS, f"quayfurniture_edge{i}.png"), (1600, 800))
+        aim((-1.0, -3.2, -0.6), (-1.0, 0, -1.6), 22)
+        render(os.path.join(SHOTS, "quayfurniture_wallclose.png"), (1600, 800))
 
 
 # ------------------------------------------------------------------ main
