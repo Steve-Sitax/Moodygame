@@ -63,6 +63,30 @@ public partial class BakedWorld : Node3D
         }
     }
 
+    /// <summary>
+    /// Baked things the game makes again itself, so the baked copy must not show beside its own (issue #61, Codex's
+    /// review 2026-10-11): the emigrant families and their luggage (Play/Emigrants*.cs), the velocipedes
+    /// (Play/Velocipedes.cs makes its own machines) and the standing hand lanterns (Play/Deeds.cs makes its own).
+    /// </summary>
+    private static int HideBakedTwins(Node scene)
+    {
+        int n = 0;
+        foreach (var node in All(scene))
+        {
+            if (node is not Node3D n3 || !n3.Visible) continue;
+            string name = node.Name.ToString();
+            bool twin = name.StartsWith("emigrants") || name.StartsWith("hand_lantern")
+                || (name.StartsWith("velocipede") && node.GetParent() is { } p && !p.Name.ToString().StartsWith("velocipede"));
+            if (!twin) continue;
+            // a lantern's root is the node that holds it (the bake names the holder by number, its child hand_lantern)
+            var hide = name.StartsWith("hand_lantern") && node.GetParent() is Node3D holder && holder != scene && !holder.Name.ToString().StartsWith("hand_lantern") && holder.GetChildCount() <= 3 ? holder : n3;
+            if (!hide.Visible) continue;
+            hide.Visible = false;
+            n++;
+        }
+        return n;
+    }
+
     public Error Load(string glbPath)
     {
         ulong t0 = Time.GetTicksMsec();
@@ -102,17 +126,17 @@ public partial class BakedWorld : Node3D
             }
         }
         Report["hiddenInFile"] = CountHidden(gltf);
+        Report["bakedTwins"] = HideBakedTwins(scene);
 
         // the materials, by the glTF material's index
         var imported = state.GetMaterials();
         var jsonMats = gltf.GetProperty("materials");
         var made = new Dictionary<Material, Material?>();
-        // the materials already put on a mesh. Many nodes share one mesh (every lamp post, every crane): the first converts
-        // it, and the rest met a material they did not know and were hidden as "nothing to draw". In the editor
-        // (TownPreview) they count as drawn. The game keeps the old rule for now: some 400 nodes it hides this way may be
-        // hidden on purpose (issue #61).
+        // the materials already put on a mesh. Many nodes share one mesh (every lamp post, every crane, the calvaries):
+        // the first converts it, and the rest meet a material that is already the game's: it counts as drawn (issue #61:
+        // they were hidden as "nothing to draw", 833 nodes with the 2026-10-11 bake, the lamp posts among them). What the
+        // game makes again itself stays hidden by name below (BakedTwins).
         var given = new HashSet<Material>();
-        bool editor = Engine.IsEditorHint();
         int sharedHits = 0;
         for (int i = 0; i < imported.Count && i < jsonMats.GetArrayLength(); i++)
             if (imported[i] is BaseMaterial3D bm)
@@ -157,7 +181,7 @@ public partial class BakedWorld : Node3D
                 if (given.Contains(m))
                 {
                     sharedHits++;
-                    if (editor && !m.HasMeta("baked_invisible")) allInvisible = false;
+                    if (!m.HasMeta("baked_invisible")) allInvisible = false;
                     continue;
                 }
                 if (!made.TryGetValue(m, out var psx)) continue;

@@ -498,6 +498,13 @@ try {
   // the shared psx values at this moment (13:00, clear): the numbers the Godot shader starts from
   const uniforms = await ev(UNIFORMS);
   await sharedTextures();
+  // Everything the browser hides by distance (city chunks, churches, the town wall and its gates, the prison, the
+  // props: their update() shows a thing only within the fog's reach of the camera) must go into the bake as shown:
+  // the export marks every hidden node `hidden`, and Godot never shows those (the survey of 2026-10-11 found the town
+  // gates, two church roofs and the Entrepot's upper floors missing). The facts above keep the real fog; from here the
+  // fog's reach is held at 100 km for a few frames, so every distance check passes, then the scene is exported.
+  log("distance culling:", await ev(`(() => { const f = __scheldemist.world.scene.fog; if (!f) return "no fog"; Object.defineProperty(f, "far", { get: () => 1e5, set: () => {}, configurable: true }); return "held at 100 km"; })()`));
+  await ev(`__scheldemist.frameProf({ n: 6 }).then(() => 1)`);
   await ev(EXPORT);
   let exp = null;
   for (let i = 0; i < 900; i++) {

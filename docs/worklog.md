@@ -19,7 +19,13 @@ make things high detail ... we just use fog and grain for mood". Four helpers (O
   water; `Game/Wiring.cs` now sets it on every clock change. All 66 menu steps pass.
 - Survey (124 pictures, Codex on 42): `D:/Code/MoodyGame-godot/godot/baked/survey/report.md` (local).
 Checks: builds, 1,395 server tests, browser shaders (228, no problems) and paths (nothing unreachable), Godot
-shaders PASS. The bake follows (Steve's OK: one bake when all came together).
+shaders PASS. The bake followed (Steve's OK: one bake when all came together), twice:
+- With the new bake every lamp post vanished in Godot (one shared lamp mesh; the loader hid every copy after the
+  first). Fixed issue #61 in the game too: a shared surface counts as drawn; the game's own twins (emigrants,
+  velocipedes, standing lanterns) are hidden by name (`BakedWorld.HideBakedTwins`, Codex's review).
+- The gates, the Sint-Paulus and Sint-Jacob roofs and the Entrepot were baked `hidden` because the browser hides far
+  things by distance; the bake now holds the fog's reach at 100 km before the export (`export-scene.mjs`). Baked again:
+  all four back. Godot shaders PASS, menu test 66/66.
 
 ## Cranes keep working with Jef aboard, 2026-10-11
 
