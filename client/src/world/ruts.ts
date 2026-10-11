@@ -12,6 +12,13 @@ import { dirtAlong } from "./dirt";
 
 type Flags = (x: number, z: number) => number | undefined;
 type P = [number, number];
+/**
+ * The ruts lie 11 mm over the street, and over the railway's setts (world/tracks.ts, 6 to 8 mm) where they cross
+ * (2026-10-11, Steve's flicker on the quay): in the street's own plane only the polygonOffset kept them in front,
+ * and the Godot game had none (it now reads it as a depth bias), so there they and the cobbles took turns. Lifted,
+ * they never share a plane with it; the offset stays as well.
+ */
+const RUT_LIFT = 0.011;
 
 /** Roads the carts take: waypoints, in order (world x, z). */
 const ROADS: P[][] = [
@@ -281,8 +288,8 @@ function ribbon(line: P[], width: number, street: Buf, decks: RutDeck[] = [], on
       if (d) {
         const [lx, lz] = deckLocal(d, p[0], p[1]);
         const up = d.ramp !== undefined && lx < d.ramp ? Math.max(0, (lx - d.x0) / (d.ramp - d.x0)) : 1;
-        out.pos.push(lx, 0.004 + (d.y - 0.004) * up, Math.max(-d.half, Math.min(d.half, lz)));
-      } else out.pos.push(p[0], 0, p[1]);
+        out.pos.push(lx, RUT_LIFT + (d.y - RUT_LIFT) * up, Math.max(-d.half, Math.min(d.half, lz)));
+      } else out.pos.push(p[0], RUT_LIFT, p[1]);
       out.uv.push(u, v);
       out.col.push(1, 1, 1, a);
     };

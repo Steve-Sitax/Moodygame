@@ -25,6 +25,14 @@ const GAUGE = 1.435;
 const BAND = 2.2;
 const RAIL_W = 0.075;
 const RAIL_H = 0.035;
+/**
+ * The setts between and beside the rails lie a few millimetres over the quay (2026-10-11, Steve's flicker between
+ * the rails in the Godot game): in the quay's own plane only the polygonOffset kept them in front, which Godot did
+ * not carry. Each track (and crane rail) a millimetre over the one before, in threes, so where two cross or join one
+ * band is always the upper one (they write no depth here, but they do in Godot).
+ */
+const BAND_Y = 0.006;
+const bandY = (i: number) => BAND_Y + 0.001 * (i % 3);
 
 type P = [number, number];
 type V3 = [number, number, number];
@@ -129,7 +137,7 @@ function faceUp(g: THREE.BufferGeometry): void {
 }
 
 /** The flat band of setts along a line, from offset o0 to o1 across it, rows v0..v1 of the texture. */
-function band(s: Strip, line: P[], nrm: P[], o0: number, o1: number, v0: number, v1: number): void {
+function band(s: Strip, line: P[], nrm: P[], o0: number, o1: number, v0: number, v1: number, y = BAND_Y): void {
   let dist = 0;
   for (let i = 0; i < line.length - 1; i++) {
     const [ax, az] = line[i];
@@ -142,10 +150,10 @@ function band(s: Strip, line: P[], nrm: P[], o0: number, o1: number, v0: number,
     const u1 = (dist + L) / 2.5;
     dist += L;
     s.quad(
-      [ax + nax * o0, 0, az + naz * o0],
-      [bx + nbx * o0, 0, bz + nbz * o0],
-      [bx + nbx * o1, 0, bz + nbz * o1],
-      [ax + nax * o1, 0, az + naz * o1],
+      [ax + nax * o0, y, az + naz * o0],
+      [bx + nbx * o0, y, bz + nbz * o0],
+      [bx + nbx * o1, y, bz + nbz * o1],
+      [ax + nax * o1, y, az + naz * o1],
       [u0, v0, u1, v1],
       1,
     );
@@ -222,11 +230,13 @@ export function buildTracks(scene: THREE.Scene, data: TrackData, bridges: Rect[]
   group.name = "tracks";
   const bandS = new Strip();
   const railS = new Strip();
+  let laid = 0;
   for (const t of data.tracks ?? []) {
     if (t.pts.length < 2) continue;
+    const y = bandY(laid++);
     for (const line of offBridges(smoothLine(t), bridges)) {
       const nrm = normals(line);
-      band(bandS, line, nrm, -BAND / 2, BAND / 2, 0, 1);
+      band(bandS, line, nrm, -BAND / 2, BAND / 2, 0, 1, y);
       rail(railS, line, nrm, -GAUGE / 2);
       rail(railS, line, nrm, GAUGE / 2);
     }
@@ -239,9 +249,10 @@ export function buildTracks(scene: THREE.Scene, data: TrackData, bridges: Rect[]
     const nrm = normals(line);
     // a narrow strip of setts from the middle of the texture (no grooves there), and a row of
     // long edge stones either side, where it meets the paving (as along the railway)
-    band(bandS, line, nrm, -0.3, 0.3, 0.36, 0.64);
-    band(bandS, line, nrm, -0.44, -0.3, 0.0, 0.055);
-    band(bandS, line, nrm, 0.3, 0.44, 0.0, 0.055);
+    const y = bandY(laid++);
+    band(bandS, line, nrm, -0.3, 0.3, 0.36, 0.64, y);
+    band(bandS, line, nrm, -0.44, -0.3, 0.0, 0.055, y);
+    band(bandS, line, nrm, 0.3, 0.44, 0.0, 0.055, y);
     rail(railS, line, nrm, 0);
   }
   // uneven setts with a height map, like the streets (world/paving.ts settsPaving)

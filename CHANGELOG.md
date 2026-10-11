@@ -7,6 +7,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- No more flickering ground in the Godot version: the cart ruts, the setts between the rails and the pale edge stones no longer fight the cobbles, and the cobbles and other fine textures no longer shimmer as you move. The edge stones between pavings are real stones now, standing a little proud with rounded edges, and the pavements' bluestone kerbs have a rounded top edge and a row of gutter stones at their foot (browser; Godot after the next bake, the shimmer and the ruts at once).
 - In the Godot version, the town gates, the roofs of Sint-Paulus and Sint-Jacob and the Entrepot's upper floors are there again: the town was baked with them hidden because they were far from the camera at that moment ([#61](https://github.com/Steve-Sitax/Moodygame/issues/61)).
 - In the Godot version, things that share one model (the lamp posts, the second calvary, church pumps, lock gate leaves, small boats, omnibus parts) are drawn every time, not only the first copy ([#61](https://github.com/Steve-Sitax/Moodygame/issues/61)).
 - In the Godot version, after loading a game the ferry and the boats float on the right tide at once; before, Jef could start on the water of a minute earlier, some 10 cm off.

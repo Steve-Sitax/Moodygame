@@ -319,6 +319,13 @@ public partial class BakedWorld : Node3D
         if (hasPsx) kind = Psx.WithOptions(kind, bake);
         var m = PsxMaterial(bm, kind, hasPsx ? Num(bake, "affine", 1) : 0, hasPsx ? Num(bake, "fogReach", 1) : 1, alphaTest, transparent ? (float)Num(three, "opacity", bm.AlbedoColor.A) : null);
         if (hasPsx) Psx.ApplyOptions(m, kind, bake, texDir);
+        // three's polygonOffset (factor, units): Godot has none, so the layers fought the ground they lie on (2026-10-11,
+        // Steve's flicker on the quay: the ruts, the railway's setts, the edge stones). A depth bias in the shader instead
+        if (hasThree && three.TryGetProperty("offset", out var off) && off.ValueKind == JsonValueKind.Array && off.GetArrayLength() == 2)
+        {
+            double pull = -(off[0].GetDouble() + off[1].GetDouble());
+            if (pull > 0) m.SetShaderParameter("depth_bias", (float)(Psx.DepthBiasPerUnit * pull));
+        }
         kinds[m] = kind;
         return m;
     }
@@ -331,11 +338,11 @@ public partial class BakedWorld : Node3D
         var albedo = bm.AlbedoColor;
         if (opacity != null) albedo.A = opacity.Value;
         m.SetShaderParameter("albedo", albedo);
-        if (bm.AlbedoTexture != null) m.SetShaderParameter("tex", bm.AlbedoTexture);
+        if (bm.AlbedoTexture != null) m.SetShaderParameter("tex", Mipmapped(bm.AlbedoTexture));
         if (bm.EmissionEnabled)
         {
             m.SetShaderParameter("emission", new Vector3(bm.Emission.R, bm.Emission.G, bm.Emission.B) * bm.EmissionEnergyMultiplier);
-            if (bm.EmissionTexture != null) m.SetShaderParameter("emission_tex", bm.EmissionTexture);
+            if (bm.EmissionTexture != null) m.SetShaderParameter("emission_tex", Mipmapped(bm.EmissionTexture));
         }
         m.SetShaderParameter("affine", affine);
         m.SetShaderParameter("fog_reach", fogReach);
@@ -343,6 +350,26 @@ public partial class BakedWorld : Node3D
         m.SetShaderParameter("uv_xform", new Vector4(bm.Uv1Scale.X, bm.Uv1Scale.Y, bm.Uv1Offset.X, bm.Uv1Offset.Y));
         m.RenderPriority = bm.RenderPriority;
         return m;
+    }
+
+    private static readonly Dictionary<Texture2D, Texture2D> mipmapped = new();
+
+    /// <summary>
+    /// A glTF picture with its mipmaps (2026-10-11, Steve's "constant texture flickering" on the cobbles): Godot's
+    /// runtime glTF loader gives the bake's pictures none, so the fine, regular ones (the cobbles, the setts, brick)
+    /// shimmered and swirled into moire as soon as the view moved, worst at grazing angles. Made once per picture
+    /// (shared ones are shared), at load.
+    /// </summary>
+    public static Texture2D Mipmapped(Texture2D t)
+    {
+        if (mipmapped.TryGetValue(t, out var done)) return done;
+        var im = t.GetImage();
+        if (im == null || im.HasMipmaps()) return mipmapped[t] = t;
+        if (im.IsCompressed()) im.Decompress();
+        im.GenerateMipmaps();
+        var made = ImageTexture.CreateFromImage(im);
+        made.ResourceName = t.ResourceName;
+        return mipmapped[t] = made;
     }
 
     /// <summary>
