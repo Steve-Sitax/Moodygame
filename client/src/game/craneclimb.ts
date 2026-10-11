@@ -46,7 +46,11 @@ export class CraneClimb {
       if (!l) return {};
       // down again where the ladder head is now under the gallery (it turns with the jib)
       const d = Math.hypot(x - l.head.x, z - l.head.z);
-      return { only: d < REACH_HEAD && this.headOnDeck(l) ? [{ key: "KeyE", text: "climb down the ladder", run: () => this.down(l), self: true }] : [] };
+      if (d < REACH_HEAD && this.headOnDeck(l)) return { only: [{ key: "KeyE", text: "climb down the ladder", run: () => this.down(l), self: true }] };
+      // the gallery swung away from the ladder: back over its railing onto the ladder's top
+      const over = this.overRail(l);
+      if (over && Math.hypot(x - over.x, z - over.z) < 0.9) return { only: [{ key: "KeyE", text: "climb over the railing onto the ladder", run: () => this.downOver(l), self: true }] };
+      return { only: [] };
     }
     const f = this.nearFoot(x, z);
     if (!f) return {};
@@ -90,6 +94,22 @@ export class CraneClimb {
     return null;
   }
 
+  /**
+   * The gallery swung away from the ladder head (2026-10-11, Steve: "we should just climb over railing"): the nearest
+   * place on its walk within reach of the head, or null (it is at the head, or too far round).
+   */
+  private overRail(l: CraneLadder): { x: number; z: number } | null {
+    if (this.headOnDeck(l)) return null;
+    for (let r = 0.2; r <= 1.35; r += 0.05)
+      for (let k = 0; k < 36; k++) {
+        const a = (k * Math.PI * 2) / 36;
+        const x = l.head.x + Math.cos(a) * r;
+        const z = l.head.z + Math.sin(a) * r;
+        if (this.world.standFree(x, z, 0.2, l.top)) return { x, z };
+      }
+    return null;
+  }
+
   /** Is the gallery under the ladder head now (the jib turned so its back is at the ladder)? */
   private headOnDeck(l: CraneLadder): boolean {
     return this.world.standFree(l.head.x, l.head.z, 0.2, l.top);
@@ -102,15 +122,22 @@ export class CraneClimb {
     }
     this.on = l.crane;
     this.world.railway()?.occupy(l.crane);
-    this.climbing = { hang: { ...l.hang }, foot: { ...stand }, head: { ...l.head }, face: l.face, bottom: 0, top: l.top, done: (at) => this.done(at), canStepOff: () => this.headOnDeck(this.ladders()[l.crane] ?? l) };
+    this.climbing = { hang: { ...l.hang }, foot: { ...stand }, head: { ...l.head }, face: l.face, bottom: 0, top: l.top, done: (at) => this.done(at), canStepOff: () => this.headOnDeck(this.ladders()[l.crane] ?? l), overRail: () => this.overRail(this.ladders()[l.crane] ?? l) };
     this.player.climbLadderStart(this.climbing);
     this.waitSaid = false;
   }
 
   private down(l: CraneLadder): void {
     const stand = this.standOf(l) ?? l.foot;
-    this.climbing = { hang: { ...l.hang }, foot: { ...stand }, head: { ...l.head }, face: l.face, bottom: 0, top: l.top, done: (at) => this.done(at), canStepOff: () => this.headOnDeck(this.ladders()[l.crane] ?? l) };
+    this.climbing = { hang: { ...l.hang }, foot: { ...stand }, head: { ...l.head }, face: l.face, bottom: 0, top: l.top, done: (at) => this.done(at), canStepOff: () => this.headOnDeck(this.ladders()[l.crane] ?? l), overRail: () => this.overRail(this.ladders()[l.crane] ?? l) };
     this.player.climbLadderStart(this.climbing, true);
+  }
+
+  /** From the gallery over its railing onto the ladder. */
+  private downOver(l: CraneLadder): void {
+    const stand = this.standOf(l) ?? l.foot;
+    this.climbing = { hang: { ...l.hang }, foot: { ...stand }, head: { ...l.head }, face: l.face, bottom: 0, top: l.top, done: (at) => this.done(at), canStepOff: () => this.headOnDeck(this.ladders()[l.crane] ?? l), overRail: () => this.overRail(this.ladders()[l.crane] ?? l) };
+    this.player.climbOverOnto(this.climbing);
   }
 
   private done(at: "top" | "foot"): void {
@@ -158,7 +185,7 @@ export class CraneClimb {
       this.hasFrame = false;
       return;
     }
-    if (!l || p.climbLadder || p.y <= 3) {
+    if (!l || p.climbLadder || p.climbing || p.y <= 3) {
       this.hasFrame = false;
       return;
     }
@@ -182,7 +209,7 @@ export class CraneClimb {
   /** Once a frame: walking into the rungs starts the climb too; the ladder moves with the portal; a teleport lets it go. */
   update(dt: number): void {
     const p = this.player;
-    if (this.on !== null && !p.climbLadder && p.y < 3) {
+    if (this.on !== null && !p.climbLadder && !p.climbing && p.y < 3) {
       this.on = null;
       this.climbing = null;
       this.hasFrame = false;
@@ -193,9 +220,9 @@ export class CraneClimb {
       if (!l) return;
       if (p.climbLadder && this.climbing && p.climbLadder === this.climbing) {
         // on the rungs (moved with the portal in ride(), before his step)
-        if (p.y >= l.top - 1.05 && !this.headOnDeck(l) && !this.waitSaid) {
+        if (p.y >= l.top - 1.05 && !this.headOnDeck(l) && !this.overRail(l) && !this.waitSaid) {
           this.waitSaid = true;
-          this.say("The cabin is swung away. You hold on at the top of the ladder till the gallery comes round.");
+          this.say("The cabin is swung right round. You hold on at the top of the ladder till the gallery comes nearer.");
         }
       }
       this.push = 0;

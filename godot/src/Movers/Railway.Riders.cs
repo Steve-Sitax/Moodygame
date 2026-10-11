@@ -21,7 +21,7 @@ public partial class Railway
     /// <summary>Self-test fixture only: an ordinary slew/hoist queue, using the real clearance and motion code.</summary>
     public void RiderTestWork(int i, float angle)
     {
-        if (Main.I.Arg("ridetest") == "") throw new System.InvalidOperationException("ride fixture outside ridetest");
+        if (Main.I.Arg("ridetest") == "" && Main.I.Arg("movetest") == "") throw new System.InvalidOperationException("ride fixture outside ridetest");
         var c = cranes[i]; c.Mode = "berth"; c.Reserved = false; c.OpT = 0;
         c.Ops.Clear(); c.Ops.Add(new Op { T = OpT.Hoist, V = Travel });
         c.Ops.Add(new Op { T = OpT.Slew, V = angle });
@@ -29,7 +29,7 @@ public partial class Railway
     }
     public bool RiderTestTravel(int i)
     {
-        if (Main.I.Arg("ridetest") == "") throw new System.InvalidOperationException("ride fixture outside ridetest");
+        if (Main.I.Arg("ridetest") == "" && Main.I.Arg("movetest") == "") throw new System.InvalidOperationException("ride fixture outside ridetest");
         var c = cranes[i]; if (c.Axis == ' ') return false;
         c.Ops.Clear(); c.Reserved = false; c.Mode = "travel"; c.Speed = 0;
         c.Target = c.Pos + (c.Pos + 1 < c.Hi ? 1 : -1); c.NextA = c.A;
