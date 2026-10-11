@@ -7,12 +7,19 @@ import { createMirror } from "./mirror";
 import { setPuddleScale } from "./puddlemask";
 import { TOWN } from "./townBox";
 import { cobblePaving, earthPaving, EDGE_BUMP, edgeStoneTextures, flagPaving, grassPaving, quayPaving, withPictures } from "./paving";
-import { copingTexture, quayWallTexture, withPicture } from "./quayStone";
+import { COPE, COPE_SECTION, QUAY_COPE_ALONG, QUAY_WALL_ALONG, QUAY_Y_LO, quayCopingMaps, quayWallMaps, wallV } from "./quayStone";
 import { grimeDecalMaterial, houseGrime } from "./houseGrime";
 import { brickBandTexture, facadeAtlas, grimeDecals, glassTexture, leafTexture, roofAtlas, slateTexture, stoneTexture } from "./cityTextures";
 import { makeTextures } from "./textures";
-import { slimeCuts, slimeShade, tideCuts, tideShade } from "./quaysteps";
-import { DOCK_Y, LW_MIN, regionAt } from "./tide";
+import { masonryCuts, masonryShade } from "./quaysteps";
+import { DOCK_Y, regionAt } from "./tide";
+
+/** The quay walls' and copings' bump from their height maps (quay_maps.py; three.js per screen pixel, rendering.md). */
+const QUAY_BUMP = 2;
+/** The light off the water on the quay walls: how strong a share of the sky's light (cathedralOutside.ts skyFill). */
+const WATER_FILL = 0.7;
+/** Its colour: the sky's, drawn toward a warm grey (cathedralOutside.ts WARM; Godot's Daylight.cs FillWarm). */
+const FILL_WARM = new THREE.Color(0.62, 0.6, 0.56);
 
 // Antwerp, 1873, traced from the Vuillaume map (CC0) and built in Blender
 // (tools/city, tools/blender). This module lays the ground and the quays, loads
@@ -289,23 +296,26 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
   }
 
   // --- quay walls and edge stones along every water edge
+  // (D2, 2026-10-11; Steve: "make docks look way better"): coursed bluestone with the tide's marks in its picture at
+  // their true heights (world/quayStone.ts, tools/textures/quay_maps.py), u running on along each quay ring so the
+  // courses never break at a corner, its own height map, and the tide's wet band (psx tideWet). The emissive wash is
+  // gone: the stone takes the light as the paving does (Steve's night test: "the stairs and the quay walls look as if
+  // they give light by themselves"). The coping is cut with its real section: a land face, the top, a rounded nose,
+  // the face over the water and its underside, in one picture round it.
   {
     const wall: number[] = [];
     const wallUv: number[] = [];
     const wallCol: number[] = [];
     const cope: number[] = [];
     const copeUv: number[] = [];
-    const face: number[] = [];
-    const faceUv: number[] = [];
-    let copeRun = 0;
-    // the wall in bands, coloured by height: green slime at the waterline, a dark wet band above it.
-    // M6 tides: on the river the whole tide range is slimy up to the high-water mark and the wall
-    // goes down below the lowest spring tide; the Petit Bassin keeps one level (world/tide.ts)
-    const y0 = LW_MIN - 1.2;
-    const riverShade = tideShade();
-    const riverBands = [y0, ...tideCuts().filter((y) => y > y0 && y < 0), 0];
-    const dockShade = slimeShade(DOCK_Y);
-    const dockBands = [y0, ...slimeCuts(DOCK_Y).filter((y) => y > y0 && y < 0), 0];
+    const copeNor: number[] = [];
+    // the wall in bands, cut where its vertex colour changes (quaysteps.ts masonryShade): a little deeper toward the
+    // water on the river's tidal walls; the Petit Bassin keeps one level (world/tide.ts). It stops under the coping.
+    const y0 = QUAY_Y_LO;
+    const riverShade = masonryShade(null);
+    const riverBands = [y0, ...masonryCuts(null).filter((y) => y > y0 && y < COPE.foot), COPE.foot];
+    const dockShade = masonryShade(DOCK_Y);
+    const dockBands = [y0, ...masonryCuts(DOCK_Y).filter((y) => y > y0 && y < COPE.foot), COPE.foot];
     void waterY;
     // the edge stones meet their neighbours on the bisector (mitred), so two bands never lie over each
     // other at a corner (z-fight check, 2026-09-25: every corner of the quays and the town moat flickered)
@@ -327,75 +337,204 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
       if (d < 0.5) return [px + n[0] * w, pz + n[1] * w]; // a sharp turn: square ends
       return [px + ((n[0] + m[0]) / d) * w, pz + ((n[1] + m[1]) / d) * w];
     };
-    for (const [ax, az, bx, bz] of data.quays) {
+    // the quay lines as rings and runs: each segment's distance along its ring, so the picture runs on round every
+    // corner; a closed ring is stretched a hair to a whole number of the picture's repeats (no seam where it closes)
+    const along = new Map<number[], { d: number; scale: number; ring: number }>();
+    {
+      const seen = new Set<number[]>();
+      let ring = 0;
+      const walk = (q0: number[]) => {
+        const chain: number[][] = [];
+        for (let q: number[] | undefined = q0; q && !seen.has(q); q = starts.get(keyOf(q[2], q[3]))) {
+          seen.add(q);
+          chain.push(q);
+        }
+        const L = chain.reduce((a, q) => a + Math.hypot(q[2] - q[0], q[3] - q[1]), 0);
+        const last = chain[chain.length - 1];
+        const closed = keyOf(last[2], last[3]) === keyOf(q0[0], q0[1]);
+        const scale = closed && L > QUAY_WALL_ALONG ? (Math.max(1, Math.round(L / QUAY_WALL_ALONG)) * QUAY_WALL_ALONG) / L : 1;
+        let d = 0;
+        for (const q of chain) {
+          along.set(q, { d, scale, ring });
+          d += Math.hypot(q[2] - q[0], q[3] - q[1]);
+        }
+        ring++;
+      };
+      for (const q of data.quays) if (!ends.has(keyOf(q[0], q[1]))) walk(q);
+      for (const q of data.quays) if (!seen.has(q)) walk(q);
+    }
+    /** A soft change of shade along the wall every few metres (one stone's weathering to the next stretch's). */
+    const shadeAlong = (ring: number, d: number) => {
+      const h = (i: number) => {
+        const x = Math.sin(i * 127.1 + ring * 311.7) * 43758.5453;
+        return 0.92 + 0.12 * (x - Math.floor(x));
+      };
+      const i = Math.floor(d / 3.7);
+      const t = d / 3.7 - i;
+      return h(i) + (h(i + 1) - h(i)) * t * t * (3 - 2 * t);
+    };
+    // the coping's section, from the land side (quayStone.ts COPE_SECTION): offset toward the water, height, metres
+    // round it, its normal across (toward the water) and up
+    const S = COPE_SECTION;
+    const r = COPE.nose;
+    const sec: Array<[number, number, number, number, number]> = [
+      [-COPE.half, 0, S[0], -1, 0],
+      [-COPE.half, COPE.top, S[1], -1, 0],
+      [-COPE.half, COPE.top, S[1], 0, 1],
+      [COPE.front - r, COPE.top, S[2], 0, 1],
+    ];
+    for (let k = 1; k <= 4; k++) {
+      const a = (k * Math.PI) / 8;
+      sec.push([COPE.front - r + r * Math.sin(a), COPE.top - r + r * Math.cos(a), S[2] + r * a, Math.sin(a), Math.cos(a)]);
+    }
+    sec.push([COPE.front, COPE.foot, S[4], 1, 0], [COPE.front, COPE.foot, S[4], 0, -1], [0, COPE.foot, S[5], 0, -1]);
+    /** Two triangles of a quad (corners round its edge), wound to face their normal (the material is double-sided). */
+    const quad = (P: number[][], N: number[][], U: number[][]) => {
+      const e1 = [P[1][0] - P[0][0], P[1][1] - P[0][1], P[1][2] - P[0][2]];
+      const e2 = [P[2][0] - P[0][0], P[2][1] - P[0][1], P[2][2] - P[0][2]];
+      const c = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+      const nn = [N[0][0] + N[2][0], N[0][1] + N[2][1], N[0][2] + N[2][2]];
+      const order = c[0] * nn[0] + c[1] * nn[1] + c[2] * nn[2] >= 0 ? [0, 1, 2, 0, 2, 3] : [0, 2, 1, 0, 3, 2];
+      for (const i of order) {
+        cope.push(...P[i]);
+        copeNor.push(...N[i]);
+        copeUv.push(...U[i]);
+      }
+    };
+    for (const q of data.quays) {
+      const [ax, az, bx, bz] = q;
       const L = Math.hypot(bx - ax, bz - az);
       if (L < 0.01) continue;
+      const { d: d0, scale, ring } = along.get(q)!;
       const inDock = regionAt((ax + bx) / 2, (az + bz) / 2) === 1;
       const shade = inDock ? dockShade : riverShade;
       const bands = inDock ? dockBands : riverBands;
-      for (let i = 0; i < bands.length - 1; i++) {
-        const [ya, yb] = [bands[i], bands[i + 1]];
-        const [va, vb] = [(ya - y0) / 4, (yb - y0) / 4];
-        wall.push(ax, ya, az, bx, ya, bz, bx, yb, bz, ax, ya, az, bx, yb, bz, ax, yb, az);
-        wallUv.push(0, va, L / 4, va, L / 4, vb, 0, va, L / 4, vb, 0, vb);
-        for (const y of [ya, ya, yb, ya, yb, yb]) wallCol.push(...shade(y));
+      // which side the water is: the wall faces it (its normal, and every psx light that reads it, the sky's shade and
+      // the sun's), and the coping's nose leans over it
+      const n = unitN(q);
+      const mx = (ax + bx) / 2;
+      const mz = (az + bz) / 2;
+      const sgn = inWaterPoly(mx + n[0] * 0.8, mz + n[1] * 0.8) && !inWaterPoly(mx - n[0] * 0.8, mz - n[1] * 0.8) ? 1 : -1;
+      // the wall face on the quay line, in stretches of a few metres (each its own shade), and bands up it
+      const pieces = Math.max(1, Math.ceil(L / 3.7));
+      for (let p = 0; p < pieces; p++) {
+        const ta = p / pieces;
+        const tb = (p + 1) / pieces;
+        const [xa, za, xb, zb] = [ax + (bx - ax) * ta, az + (bz - az) * ta, ax + (bx - ax) * tb, az + (bz - az) * tb];
+        const [da, db] = [d0 + L * ta, d0 + L * tb];
+        const [ua, ub] = [(da * scale) / QUAY_WALL_ALONG, (db * scale) / QUAY_WALL_ALONG];
+        const [ka, kb] = [shadeAlong(ring, da), shadeAlong(ring, db)];
+        for (let i = 0; i < bands.length - 1; i++) {
+          const [ya, yb] = [bands[i], bands[i + 1]];
+          const [va, vb] = [wallV(ya), wallV(yb)];
+          // (wound so its normal, +n along a to b, faces the water)
+          const [ca, cb] = [shade(ya), shade(yb)];
+          const corner = [
+            [xa, ya, za, ua, va, ca, ka],
+            [xb, ya, zb, ub, va, ca, kb],
+            [xb, yb, zb, ub, vb, cb, kb],
+            [xa, yb, za, ua, vb, cb, ka],
+          ] as const;
+          for (const j of sgn > 0 ? [0, 1, 2, 0, 2, 3] : [0, 2, 1, 0, 3, 2]) {
+            const [x, y, z, u, v, c, k] = corner[j];
+            wall.push(x, y, z);
+            wallUv.push(u, v);
+            wallCol.push(c[0] * k, c[1] * k, c[2] * k);
+          }
+        }
       }
-      // edge stones: a flat band on top, 0.5 m wide, slightly raised
-      const w = 0.25;
-      const n = unitN([ax, az, bx, bz]);
+      // the coping: its section swept along the segment, mitred at both ends
       const prev = ends.get(keyOf(ax, az));
       const next = starts.get(keyOf(bx, bz));
       const mp = prev ? unitN(prev) : null;
       const mn = next ? unitN(next) : null;
-      const A0 = mitre(ax, az, n, mp, -w);
-      const A1 = mitre(ax, az, n, mp, w);
-      const B0 = mitre(bx, bz, n, mn, -w);
-      const B1 = mitre(bx, bz, n, mn, w);
-      // quays pass 2: v runs from the land side (0) to the water's edge (1), u 3 m a tile along the quay
-      const mx = (ax + bx) / 2;
-      const mz = (az + bz) / 2;
-      const waterOnPlus = inWaterPoly(mx + n[0] * 0.8, mz + n[1] * 0.8) && !inWaterPoly(mx - n[0] * 0.8, mz - n[1] * 0.8);
-      const u0 = copeRun;
-      const u1 = copeRun + L / 3;
-      copeRun = u1 % 64;
-      const [vA0, vA1] = waterOnPlus ? [0, 1] : [1, 0];
-      cope.push(A0[0], 0.06, A0[1], B0[0], 0.06, B0[1], B1[0], 0.06, B1[1], A0[0], 0.06, A0[1], B1[0], 0.06, B1[1], A1[0], 0.06, A1[1]);
-      copeUv.push(u0, vA0, u1, vA0, u1, vA1, u0, vA0, u1, vA1, u0, vA1);
-      // quays pass 2: the coping's front over the water, 34 cm deep (was a flat band with nothing under
-      // its outer edge), and its underside back to the wall. 15 mm behind quayfurniture's iron edge (0.25).
-      const [Fa, Fb] = waterOnPlus ? [mitre(ax, az, n, mp, w - 0.015), mitre(bx, bz, n, mn, w - 0.015)] : [mitre(ax, az, n, mp, -w + 0.015), mitre(bx, bz, n, mn, -w + 0.015)];
-      const yb = -0.28;
-      face.push(Fa[0], yb, Fa[1], Fb[0], yb, Fb[1], Fb[0], 0.06, Fb[1], Fa[0], yb, Fa[1], Fb[0], 0.06, Fb[1], Fa[0], 0.06, Fa[1]);
-      faceUv.push(u0, 0.2, u1, 0.2, u1, 0.62, u0, 0.2, u1, 0.62, u0, 0.62);
-      face.push(ax, yb, az, bx, yb, bz, Fb[0], yb, Fb[1], ax, yb, az, Fb[0], yb, Fb[1], Fa[0], yb, Fa[1]);
-      faceUv.push(u0, 0.1, u1, 0.1, u1, 0.2, u0, 0.1, u1, 0.2, u0, 0.2);
+      const [cu0, cu1] = [(d0 * scale) / QUAY_COPE_ALONG, ((d0 + L) * scale) / QUAY_COPE_ALONG];
+      for (let i = 0; i < sec.length - 1; i++) {
+        const A = sec[i];
+        const B = sec[i + 1];
+        if (Math.hypot(B[0] - A[0], B[1] - A[1]) < 1e-5) continue; // (a sharp edge: the next face turns)
+        const pa0 = mitre(ax, az, n, mp, A[0] * sgn);
+        const pb0 = mitre(bx, bz, n, mn, A[0] * sgn);
+        const pa1 = mitre(ax, az, n, mp, B[0] * sgn);
+        const pb1 = mitre(bx, bz, n, mn, B[0] * sgn);
+        const nA = [n[0] * sgn * A[3], A[4], n[1] * sgn * A[3]];
+        const nB = [n[0] * sgn * B[3], B[4], n[1] * sgn * B[3]];
+        // (a flat face between two sharp edges keeps one normal: the second point's)
+        const flatFace = A[3] * B[3] + A[4] * B[4] > 0.99;
+        const n0 = flatFace ? nB : nA;
+        const [va, vb] = [1 - A[2] / S[5], 1 - B[2] / S[5]];
+        quad(
+          [
+            [pa0[0], A[1], pa0[1]],
+            [pb0[0], A[1], pb0[1]],
+            [pb1[0], B[1], pb1[1]],
+            [pa1[0], B[1], pa1[1]],
+          ],
+          [n0, n0, nB, nB],
+          [
+            [cu0, va],
+            [cu1, va],
+            [cu1, vb],
+            [cu0, vb],
+          ],
+        );
+      }
     }
-    const mk = (pos: number[], uv: number[], mat: THREE.Material) => {
-      const g = new THREE.BufferGeometry();
-      g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-      g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
-      g.computeVertexNormals();
-      const m = new THREE.Mesh(g, mat);
-      group.add(m);
-      return m;
+    const wallG = new THREE.BufferGeometry();
+    wallG.setAttribute("position", new THREE.Float32BufferAttribute(wall, 3));
+    wallG.setAttribute("uv", new THREE.Float32BufferAttribute(wallUv, 2));
+    wallG.setAttribute("color", new THREE.Float32BufferAttribute(wallCol, 3));
+    wallG.computeVertexNormals();
+    const wm = quayWallMaps();
+    const wallMat = new THREE.MeshLambertMaterial({ name: "quay_wall", map: wm.map, bumpMap: wm.height, bumpScale: QUAY_BUMP * 1.5, vertexColors: true, side: THREE.DoubleSide });
+    // (the tide's wet band: the stone the ebb has just left goes darker and dries over the hours after; rendering.md)
+    psx(wallMat, { noSnap: true, affine: 0, tideWet: 0.3 });
+    // The light off the water: the river walls face north, away from the sun, and at low tide filled the view nearly
+    // black. They take a fill that follows the sky's light (as the cathedral's stone does, cathedralOutside.ts): its
+    // colour and strength each frame, shaded by the stone's picture and its vertex colour, so it is gone at night
+    // (the old fixed glow lit the walls and the flights all night). Godot: the same, by the material's name
+    // (World/Daylight.cs, `fill`).
+    wallMat.emissiveMap = wallMat.map;
+    {
+      const prev = wallMat.onBeforeCompile;
+      const prevKey = wallMat.customProgramCacheKey.bind(wallMat);
+      wallMat.onBeforeCompile = (shader, renderer) => {
+        prev.call(wallMat, shader, renderer);
+        shader.fragmentShader = shader.fragmentShader.replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\n#ifdef USE_COLOR\n  totalEmissiveRadiance *= vColor.rgb;\n#endif");
+      };
+      wallMat.customProgramCacheKey = () => `${prevKey()}-skyfill`;
+    }
+    const wallMesh = new THREE.Mesh(wallG, wallMat);
+    wallMesh.name = "quay_walls";
+    let hemi: THREE.HemisphereLight | null | undefined;
+    let fillFrame = -1;
+    wallMesh.onBeforeRender = (renderer, scene) => {
+      if (renderer.info.render.frame === fillFrame) return;
+      fillFrame = renderer.info.render.frame;
+      if (hemi === undefined) {
+        hemi = null;
+        scene.traverse((o) => {
+          if (!hemi && (o as THREE.HemisphereLight).isHemisphereLight) hemi = o as THREE.HemisphereLight;
+        });
+      }
+      const h = hemi as THREE.HemisphereLight | null;
+      // (by the square of the sky's strength: the water gives back the day's light, hardly any of the night's)
+      // (the colour as the cathedral's fill takes it, so Godot's psx_fill follows it the same way: World/Daylight.cs)
+      if (h) wallMat.emissive.copy(h.color).lerp(FILL_WARM, 0.6).multiplyScalar(WATER_FILL * (h.intensity / 1.8) ** 2);
+      else wallMat.emissive.copy(FILL_WARM).multiplyScalar(WATER_FILL);
     };
-    const wallMat = (mats.quayWall as THREE.MeshLambertMaterial).clone();
-    // quays pass 2: dressed bluestone, a picture at 256 px a metre (world/quayStone.ts; was the 64 px placeholder for 4 m)
-    wallMat.map = withPicture(quayWallTexture(), "/textures/quay_wall.jpg");
-    wallMat.side = THREE.DoubleSide;
-    wallMat.vertexColors = true;
-    // the river walls face away from the sun: a little light off the water, or at low tide they fill the view nearly black
-    wallMat.emissive = new THREE.Color(0x62645a);
-    wallMat.emissiveMap = wallMat.map; // the glow carries the stones, so the face keeps its courses
-    const copeMat = (mats.wallDecal as THREE.MeshLambertMaterial).clone();
-    copeMat.map = withPicture(copingTexture(), "/textures/quay_coping.jpg");
-    copeMat.color = new THREE.Color(0xb4b0a8);
-    copeMat.side = THREE.DoubleSide;
-    mk(wall, wallUv, psx(wallMat, { noSnap: true, affine: 0 })).geometry.setAttribute("color", new THREE.Float32BufferAttribute(wallCol, 3));
-    mk(cope, copeUv, psx(copeMat, { noSnap: true, affine: 0, wet: true }));
+    group.add(wallMesh);
+    const copeG = new THREE.BufferGeometry();
+    copeG.setAttribute("position", new THREE.Float32BufferAttribute(cope, 3));
+    copeG.setAttribute("normal", new THREE.Float32BufferAttribute(copeNor, 3));
+    copeG.setAttribute("uv", new THREE.Float32BufferAttribute(copeUv, 2));
+    const cm = quayCopingMaps();
+    const copeMat = new THREE.MeshLambertMaterial({ name: "quay_coping", map: cm.map, bumpMap: cm.height, bumpScale: QUAY_BUMP, side: THREE.DoubleSide });
+    psx(copeMat, { noSnap: true, affine: 0, wet: true });
+    const copeMesh = new THREE.Mesh(copeG, copeMat);
+    copeMesh.name = "quay_coping";
+    group.add(copeMesh);
     quayMats = { wall: wallMat, coping: copeMat };
-    const faceMat = new THREE.MeshLambertMaterial({ map: copeMat.map, color: 0x9a968c, side: THREE.DoubleSide });
-    mk(face, faceUv, psx(faceMat, { noSnap: true, affine: 0 })).name = "quay_coping_face";
   }
 
   // --- landmarks: stand-in blocks until their Blender models are in
