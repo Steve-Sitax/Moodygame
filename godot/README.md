@@ -30,7 +30,11 @@ walk-around mode), `--nettest <dir>` (the net part's own test: start the server 
 state, one tick, a picture with the HUD and `nettest.json` in `<dir>`, quit; the server is gone afterwards).
 (game parts off), `--walktest <dir>` (Jef is walked along a few routes by script; what happened goes to
 `<dir>/walktest.json` with two pictures a route, then quit; `--walkspeed 2` runs it faster, `--walkonly a,b` picks
-routes), `--solidlazy` (make the walls near the camera only), `--city <json>` (`shared/city.json` somewhere else).
+routes), `--movetest <dir>` (Jef's jump, coyote time and jump buffer, a fall off a ledge, the quay ladder, a landing
+and the flooded steps at high water, the hulls' shape, a dive under a moored ship, the crane's ladder on and off, over
+the gallery's railing and back: every frame sampled, the jump's arc and timings and the largest step of the view in a
+sixtieth of a second in `movetest.json`, pictures beside it; `--moveonly jump,dive` picks parts, `--move-breath` adds
+a dive that runs out of breath), `--solidlazy` (make the walls near the camera only), `--city <json>` (`shared/city.json` somewhere else).
 (game parts off). The townspeople: `--server http://127.0.0.1:PORT` (a running game server: the town comes from
 it), `--hour 13.5` and `--day 1` (the clock; with `--weather`, the game's server is set to the same clock and sky
 at the start, so the light, the HUD and the people agree), `--models <dir>`, `--walk <town_walk.json>`, `--peopletest <dir>` and

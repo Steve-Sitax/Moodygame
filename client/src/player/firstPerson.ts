@@ -3,6 +3,7 @@ import type { World, Surface } from "../world/rijnkaai";
 import type { Exit } from "../world/quaysteps";
 import { WADE } from "../world/tide";
 import { psxUniforms } from "../retro/psx";
+import { Glide } from "./glide";
 
 // First person walker: WASD, pointer-lock mouse look, head bob, footstep events.
 // Off an open quay edge you fall into the Schelde and swim (slow, eye just above the
@@ -31,6 +32,25 @@ const SWIM_FEET = 1.45; // feet this far under the surface while you swim
 const SWIM_EYE = 0.17; // eye this far above it
 const CLIMB = 1.1; // m/s up a ladder
 const STROKE_LEN = 0.9; // metres per swim stroke
+// the jump as in a good first-person game (2026-10-11, Steve: "it seems scripted and not natural behaviour like in
+// a fps"): it leaves at once, flies a real arc that keeps the run's speed, steers a little in the air, still goes a
+// moment after the edge (coyote time), and a press just before landing is kept (the jump buffer); the legs take the
+// landing with a dip of the view. As in the Godot game (godot/src/Player/Jef.cs).
+const COYOTE = 0.12;
+const JUMP_BUFFER = 0.15;
+/** How fast the air turns his speed toward the keys (1/s; on the ground 6). */
+const AIR_CONTROL = 1.4;
+/** The fastest a climb goes between its keys (m/s): with the rounded corners about 3 cm a frame at 60 frames a second. */
+const CLIMB_MAX = 1.3;
+// diving (2026-10-11, Steve: "can't swim under boat, we need to be able to dive"): C dives, W swims where you look,
+// Space up, C deeper; half a minute of breath; the town dull and the water's murk round him (main.ts underwater)
+const DIVE = 1.1;
+const DIVE_FAST = 1.6;
+const BREATH_MAX = 30;
+const BREATH_WARN = 10;
+const BREATH_LAST = 4;
+/** A diver this deep passes under the hulls (the deepest keel moored at the quays: 4.2 m). */
+const UNDER_KEELS = 4.5;
 
 /** Walking in a carriage (its frame, origin under the rear axle): where you stand, where you may step, the floor. */
 export interface RideWalk {
@@ -57,6 +77,11 @@ export interface ClimbLadder {
   done?: (at: "top" | "foot") => void;
   /** At the top: may he step off now (a working crane's gallery has swung round behind the ladder head)? */
   canStepOff?: () => boolean;
+  /**
+   * 2026-10-11 (Steve: "when cabin is rotated away of crane when climbing, we should just climb over railing"): the
+   * gallery is swung away: the nearest place on its walk to climb down onto over its railing, or null.
+   */
+  overRail?: () => { x: number; z: number } | null;
 }
 
 /** Where a carried player stands (feet), the way the carriage points, and how fast it goes (m/s). */
@@ -143,7 +168,31 @@ export class FirstPerson {
   onStroke?: () => void;
   /** Out of the water, on your feet again. */
   onClimbOut?: () => void;
-  private climb: { from: [number, number, number]; keys: Array<[number, number, number, number]>; i: number; t: number } | null = null;
+  /** A climb or a vault under way: one smooth move (glide.ts); the key up the rungs; the view's offset when it began (eased away). */
+  private climb: { path: Glide; t: number; rungs: number; off: [number, number, number]; roll: number; yaw0: number; yaw1: number } | null = null;
+  private coyoteT = 0;
+  private bufferT = 0;
+  private jumpedOff = false;
+  /** The view's dip as the legs take a landing: a spring (m, m/s). */
+  private dip = 0;
+  private dipV = 0;
+  /** Under the water, holding his breath (game: the murk and the dull sounds, main.ts). */
+  diving = false;
+  breath = BREATH_MAX;
+  /** Dives and comebacks up (for the checks). */
+  dives = 0;
+  surfaced = 0;
+  private dive3 = new THREE.Vector3();
+  private warned = 0;
+  private duckHeld = false;
+  private outOfBreathT = 0;
+  /** He dived; came up (seconds under); was told to come up (seconds left). */
+  onDive?: () => void;
+  onSurface?: (seconds: number) => void;
+  /** A word to the player (main.ts: the message line). */
+  say?: (text: string) => void;
+  private underT = 0;
+  private bobIn = 1;
   private swimT = 0;
   private strokeDist = 0;
   /** Dev checks only: take keys from setKey() without pointer lock and without running the game clock. */
@@ -247,6 +296,27 @@ export class FirstPerson {
   }
 
   update(dt: number): void {
+    this.step(dt);
+    if (this.fly) return;
+    // the landing dip: a stiff, fully damped spring (down and back in about a fifth of a second)
+    for (let left = dt; left > 1e-5; ) {
+      const h = Math.min(left, 1 / 120);
+      const w = 11;
+      this.dipV += (-w * w * this.dip - 2 * w * this.dipV) * h;
+      this.dip += this.dipV * h;
+      left -= h;
+    }
+    if (Math.abs(this.dip) < 1e-4 && Math.abs(this.dipV) < 1e-3) this.dip = this.dipV = 0;
+    this.camera.position.y += this.dip * look.bob;
+    this.camera.rotation.x += this.dip * 0.35 * look.bob;
+  }
+
+  /** The legs take a landing at this speed (m/s down): the view dips and comes up again. */
+  private land(impact: number): void {
+    if (impact > 1.6) this.dipV = Math.min(this.dipV, -Math.min(impact, 14) * 0.42);
+  }
+
+  private step(dt: number): void {
     if (this.fly) return this.updateFly(dt);
     if (this.rideAnchor) return this.updateRide(dt);
     if (this.climbLadder) return this.updateClimbLadder(dt);
@@ -272,6 +342,11 @@ export class FirstPerson {
     // 2026-09-29 (Steve: "jump over railings, ledges ... Keeping space pressed or double press at moment of +- highest
     // point"): in the air, a fresh press tries at once; held, every few frames. From the air the lift is quicker.
     const space=k("Space"),pressed=space&&!this.jumpHeld;this.jumpHeld=space;
+    this.bufferT = pressed ? JUMP_BUFFER : Math.max(0, this.bufferT - dt);
+    if (this.grounded) {
+      this.coyoteT = COYOTE;
+      this.jumpedOff = false;
+    } else this.coyoteT = Math.max(0, this.coyoteT - dt);
     if(this.grounded)this.jumpBase=this.y;
     this.mantleWait=Math.max(0,this.mantleWait-dt);
     if(space&&!this.laden&&!this.cartStep&&!this.crouching&&(this.mantleWait===0||(pressed&&!this.grounded))) {
@@ -279,21 +354,35 @@ export class FirstPerson {
       const route=this.world.mantle(this.x,this.y,this.z,-Math.sin(this.yaw),-Math.cos(this.yaw),this.jumpBase);
       if(route){
         const air=!this.grounded,wet=!!route.at(-1)?.water||!!route.at(-1)?.fall;
-        const keys=(wet?route.slice(0,-1):route).map((p,i):[number,number,number,number]=>[p.x,p.y,p.z,i===0?(air?.2:.35):i===1?(air?.35:.45):.28]);
-        this.climbTo(keys,()=>{
+        const keys=(wet?route.slice(0,-1):route).map((p,i):[number,number,number,number]=>[p.x,p.y,p.z,i===0?(air?.2:.32):i===1?(air?.32:.4):.3]);
+        // one swing up and over, carrying the run's speed in and out: no stop at the top of the rail
+        const last = keys[keys.length - 1];
+        const ox = last[0] - keys[0][0];
+        const oz = last[2] - keys[0][2];
+        const ol = Math.hypot(ox, oz);
+        const carry = Math.min(WALK, Math.max(wet ? 1.2 : 0.4, this.vel.length())) * (wet ? 1 : 0.8);
+        const v1: [number, number, number] = ol > 0.01 ? [(ox / ol) * carry, 0, (oz / ol) * carry] : [0, 0, 0];
+        const sp = Math.min(1, 2.5 / Math.max(1e-6, Math.hypot(this.vel.x, this.grounded ? 0 : this.vy, this.vel.y)));
+        this.glide(keys, [this.vel.x * sp, (this.grounded ? 0 : this.vy) * sp, this.vel.y * sp], v1, -1, 3.2);
+        this.climbThen = () => {
+          this.vel.set(v1[0], v1[2]);
           this.vy=0;this.mantleWait=.25;
           // over a railing into the water or off a height: he drops from the top of the vault (the fall starts the
           // swim, or ends on the ground below and may hurt)
-          if(wet){this.grounded=false;this.fallTop=this.y;return;}
+          if(wet){this.grounded=false;this.fallTop=this.y;this.coyoteT=0;this.jumpedOff=true;return;}
           this.grounded=true;this.onLand?.(this.world.surfaceAt(this.x,this.z));
-        });
+        };
         return;
       }
     }
     if (pressed && this.grounded && !this.laden && !this.cartStep && !this.crouching && this.onJump?.()) return;
-    if (pressed && this.grounded && !this.laden && !this.cartStep && !this.crouching) {
+    if (this.bufferT > 0 && !this.laden && !this.cartStep && !this.crouching && (this.grounded || (this.coyoteT > 0 && !this.jumpedOff))) {
+      // off at once, from the ground or a moment after the edge; the run's speed goes with him
       this.vy = JUMP_V;
       this.grounded = false;
+      this.jumpedOff = true;
+      this.coyoteT = this.bufferT = 0;
+      this.fallTop = this.y;
     }
 
     // wish velocity in world space
@@ -307,8 +396,8 @@ export class FirstPerson {
       wx = (fx * cos + fz * sin) * speed;
       wz = (-fx * sin + fz * cos) * speed;
     }
-    // heavy start and stop
-    const a = 1 - Math.exp(-dt * (len > 0 ? 6 : 9));
+    // heavy start and stop on the ground; in the air the speed he jumped with goes on, the keys steer a little
+    const a = this.grounded ? 1 - Math.exp(-dt * (len > 0 ? 6 : 9)) : len > 0 ? 1 - Math.exp(-dt * AIR_CONTROL) : 1 - Math.exp(-dt * 0.1);
     this.vel.x += (wx - this.vel.x) * a;
     this.vel.y += (wz - this.vel.y) * a;
 
@@ -326,8 +415,10 @@ export class FirstPerson {
     if (this.grounded && ground < this.y - 0.12) this.grounded = false;
     if (!this.grounded) {
       this.fallTop = Math.max(this.fallTop, this.y);
-      this.vy -= GRAVITY * dt;
-      this.y += this.vy * dt;
+      // the true arc whatever the frame rate: the height from the mean speed over the frame
+      const v0 = this.vy;
+      this.vy = Math.max(this.vy - GRAVITY * dt, -45);
+      this.y += (v0 + this.vy) * 0.5 * dt;
       if (this.y <= this.world.waterLevel(this.x, this.z) && this.world.swimmable(this.x, this.z)) {
         const h = this.fallTop - this.y;
         this.fallTop = -Infinity;
@@ -339,6 +430,7 @@ export class FirstPerson {
         const h = this.fallTop - ground;
         this.fallTop = -Infinity;
         this.y = ground;
+        this.land(-this.vy);
         this.vy = 0;
         this.grounded = true;
         this.onLand?.(this.world.surfaceAt(this.x, this.z));
@@ -394,6 +486,9 @@ export class FirstPerson {
   // ------------------------------------------------------------ in the water
 
   private enterWater(): void {
+    this.land(Math.min(-this.vy, 6) * 0.5);
+    this.bobAmp = 0;
+    this.diving = false;
     this.swimming = true;
     this.grounded = false;
     this.crouching = false;
@@ -408,6 +503,7 @@ export class FirstPerson {
   }
 
   private updateSwim(dt: number): void {
+    if (this.diving) return this.updateDive(dt);
     const active = (this.locked || this.freeInput || this.testInput) && !this.frozen;
     const k = (c: string) => active && this.keys.has(c);
     let fx = 0;
@@ -454,7 +550,11 @@ export class FirstPerson {
       this.onStroke?.();
     }
     const speed = moved / Math.max(dt, 1e-4);
-    const bob = Math.sin(this.swimT * 1.7) * 0.035 + Math.sin(this.swimT * 5.2) * 0.012 * Math.min(1, speed);
+    // (the bob grows in again after he comes up from a dive, so the eye goes on smoothly)
+    this.bobIn = Math.min(1, this.bobIn + dt * 1.5);
+    const bob = (Math.sin(this.swimT * 1.7) * 0.035 + Math.sin(this.swimT * 5.2) * 0.012 * Math.min(1, speed)) * this.bobIn;
+    this.breath = Math.min(BREATH_MAX, this.breath + dt * 6);
+    if (this.breath >= BREATH_MAX) this.warned = 0;
 
     // out: push into a ladder or a landing, or press E by one
     const exit = this.world.exitNear(this.x, this.z, 1.2);
@@ -462,11 +562,18 @@ export class FirstPerson {
       const push = len > 0 && (wx * -exit.nx + wz * -exit.nz) / SWIM > 0.5;
       if (push || k("KeyE") || k("Space")) return this.startClimb(exit);
     }
+    // C (or Ctrl): under the water
+    const duck = k("KeyC") || k("ControlLeft");
+    if (duck && !this.duckHeld && Math.abs(this.vy) < 2) {
+      this.duckHeld = true;
+      return this.startDive();
+    }
+    this.duckHeld = duck;
 
     const s = 1 - Math.exp(-dt * 22);
     this.lookYaw += (this.yaw - this.lookYaw) * s;
     this.lookPitch += (this.pitch - this.lookPitch) * s;
-    const eyeY = Math.max(this.y + SWIM_FEET + SWIM_EYE + bob, level + 0.07);
+    const eyeY = this.y + SWIM_FEET + SWIM_EYE + bob;
     this.camera.position.set(this.x, eyeY, this.z);
     this.camera.rotation.set(this.lookPitch, this.lookYaw, Math.sin(this.swimT * 1.1) * 0.02);
   }
@@ -489,19 +596,45 @@ export class FirstPerson {
     const floatY = this.world.waterLevel(this.x, this.z) - SWIM_FEET;
     const keys: Array<[number, number, number, number]> = [];
     const [tx, tz] = this.climbSpot(e);
+    let rungs = -1;
     if (e.kind === "ladder") {
+      // in to the rungs, hand over hand up them, and over the hoop onto the quay: one move, no stop at the top
       const lx = e.gx - e.nx * 0.12;
       const lz = e.gz - e.nz * 0.12;
-      keys.push([lx, floatY, lz, 0.4]);
+      keys.push([lx, floatY, lz, 0.45]);
       keys.push([lx, e.ty + 0.15, lz, (e.ty + 0.15 - floatY) / CLIMB]);
-      keys.push([tx, e.ty, tz, 0.7]);
+      rungs = 1;
+      keys.push([lx - e.nx * 0.45, e.ty + 0.32, lz - e.nz * 0.45, 0.45]);
+      keys.push([tx, e.ty, tz, 0.5]);
     } else {
       keys.push([e.gx, floatY, e.gz, 0.35]);
-      keys.push([e.gx - e.nx * 0.45, e.ty + 0.1, e.gz - e.nz * 0.45, 1.1]);
+      keys.push([e.gx - e.nx * 0.45, e.ty + 0.12, e.gz - e.nz * 0.45, 1.1]);
       keys.push([tx, e.ty, tz, 0.5]);
     }
-    this.climb = { from: [this.x, this.y, this.z], keys, i: 0, t: 0 };
+    this.glide(keys, [this.vel.x, this.vy, this.vel.y], [0, 0, 0], rungs);
+  }
+
+  /**
+   * A smooth move through key points [x, y (feet), z, seconds], starting with the speed v0 and ending with v1; no
+   * keys meanwhile. `rungs`: the key up a ladder (hand over hand); `yawTo`: he turns to look that way as he goes.
+   */
+  private glide(keys: Array<[number, number, number, number]>, v0: [number, number, number] = [0, 0, 0], v1: [number, number, number] = [0, 0, 0], rungs = -1, maxSpeed = CLIMB_MAX, yawTo = NaN): void {
+    const c = this.camera.position;
+    this.climb = {
+      path: new Glide([this.x, this.y, this.z], keys, v0, v1, 0.8, maxSpeed),
+      t: 0,
+      rungs,
+      off: [c.x - this.x, c.y - (this.y + EYE), c.z - this.z],
+      roll: this.camera.rotation.z,
+      yaw0: this.yaw,
+      yaw1: yawTo,
+    };
+    this.climbThen = null;
     this.swimming = false;
+    this.diving = false;
+    this.crouching = false;
+    this.hurrying = false;
+    this.bobAmp = 0;
     this.vel.set(0, 0);
     this.vy = 0;
   }
@@ -509,38 +642,162 @@ export class FirstPerson {
   private updateClimb(dt: number): void {
     const c = this.climb!;
     c.t += dt;
-    let [x0, y0, z0] = c.from;
-    while (c.i < c.keys.length && c.t >= c.keys[c.i][3]) {
-      c.t -= c.keys[c.i][3];
-      c.from = [c.keys[c.i][0], c.keys[c.i][1], c.keys[c.i][2]];
-      [x0, y0, z0] = c.from;
-      c.i++;
+    [this.x, this.y, this.z] = c.path.at(c.t);
+    const k = Math.min(1, c.t / c.path.duration);
+    if (Number.isFinite(c.yaw1)) {
+      const d = Math.atan2(Math.sin(c.yaw1 - c.yaw0), Math.cos(c.yaw1 - c.yaw0));
+      this.yaw = c.yaw0 + d * k * k * k * (k * (6 * k - 15) + 10);
     }
-    if (c.i >= c.keys.length) {
-      [this.x, this.y, this.z] = c.from;
+    if (c.t >= c.path.duration) {
       this.climb = null;
       // M7 boats: a climb down a ladder into a boat ends in the boat (game/rowing.ts sits him down)
       const then = this.climbThen;
       this.climbThen = null;
-      if (then) return then();
-      this.grounded = true;
-      this.eye = EYE;
-      this.onLand?.(this.world.surfaceAt(this.x, this.z));
-      this.onClimbOut?.();
-    } else {
-      const [x1, y1, z1, dur] = c.keys[c.i];
-      const k = THREE.MathUtils.smoothstep(c.t / dur, 0, 1);
-      this.x = x0 + (x1 - x0) * k;
-      this.y = y0 + (y1 - y0) * k;
-      this.z = z0 + (z1 - z0) * k;
+      if (then) then();
+      else {
+        this.grounded = true;
+        this.eye = EYE;
+        this.onLand?.(this.world.surfaceAt(this.x, this.z));
+        this.onClimbOut?.();
+      }
     }
-    // hand over hand: a small pull on every rung
-    const pull = c.i === 1 ? Math.abs(Math.sin(c.t * 5.5)) * 0.04 : 0;
+    // hand over hand: a small pull on every rung, eased in and out with the climb
+    // (as strong as he goes up the rungs, so it fades in and out with the climb and never stops at once)
+    const pull = c.rungs >= 0 ? Math.abs(Math.sin(c.t * 5.5)) * 0.04 * Math.max(0, Math.min(1, (c.path.velocity(c.t)[1] - 0.3) / (CLIMB - 0.3))) : 0;
     const s = 1 - Math.exp(-dt * 22);
     this.lookYaw += (this.yaw - this.lookYaw) * s;
     this.lookPitch += (this.pitch - this.lookPitch) * s;
-    this.camera.position.set(this.x, this.y + EYE - pull, this.z);
-    this.camera.rotation.set(this.lookPitch, this.lookYaw, 0);
+    const f = 1 - THREE.MathUtils.smoothstep(c.t / 0.35, 0, 1);
+    this.camera.position.set(this.x + c.off[0] * f, this.y + EYE - pull + c.off[1] * f, this.z + c.off[2] * f);
+    this.camera.rotation.set(this.lookPitch, this.lookYaw, c.roll * f);
+  }
+
+  // ------------------------------------------------------------ under the water
+
+  private startDive(): void {
+    // head first from where the eyes are now: a short push down
+    const e = this.camera.position;
+    this.diving = true;
+    this.x = e.x;
+    this.z = e.z;
+    this.y = e.y - EYE;
+    this.dive3.set(this.vel.x, -1.3, this.vel.y);
+    this.underT = 0;
+    this.outOfBreathT = 0;
+    this.dives++;
+    this.onDive?.();
+    if (this.dives === 1) this.say?.("Under the water: W swims where you look, Space goes up, C deeper. You can hold your breath for half a minute.");
+  }
+
+  /** Room for the diver's head here: open water, and under the hulls only below their keels. */
+  private diveFree(x: number, z: number, depth: number, under = false): boolean {
+    // (once under a hull, a wave over him does not hold him there: a little shallower still lets him on)
+    return this.world.swimFree(x, z, 0.3) || (depth > UNDER_KEELS - (under ? 0.4 : 0) && (this.world.diveFree?.(x, z, 0.3) ?? false));
+  }
+
+  private updateDive(dt: number): void {
+    const active = (this.locked || this.freeInput || this.testInput) && !this.frozen;
+    const k = (c: string) => active && this.keys.has(c);
+    let fx = 0;
+    let fz = 0;
+    if (k("KeyW") || k("ArrowUp")) fz -= 1;
+    if (k("KeyS") || k("ArrowDown")) fz += 1;
+    if (k("KeyA") || k("ArrowLeft")) fx -= 1;
+    if (k("KeyD") || k("ArrowRight")) fx += 1;
+    const up = (k("Space") ? 1 : 0) - (k("KeyC") || k("ControlLeft") ? 1 : 0);
+    const sy = Math.sin(this.yaw);
+    const cy = Math.cos(this.yaw);
+    const cp = Math.cos(this.pitch);
+    const wish = new THREE.Vector3(-sy * cp, Math.sin(this.pitch), -cy * cp).multiplyScalar(-fz).add(new THREE.Vector3(cy, 0, -sy).multiplyScalar(fx));
+    if (wish.lengthSq() > 1e-6) wish.normalize().multiplyScalar(k("ShiftLeft") || k("ShiftRight") ? DIVE_FAST : DIVE);
+    wish.y += up * 0.9 + (up === 0 ? 0.22 : 0); // let go and the air in his clothes lifts him, slowly
+    this.underT += dt;
+    this.breath = Math.max(0, this.breath - dt);
+    if (this.breath < BREATH_WARN && this.warned < 1) {
+      this.warned = 1;
+      this.say?.("Your chest burns. You must come up for air soon.");
+    }
+    if (this.breath < BREATH_LAST && this.warned < 2) {
+      this.warned = 2;
+      this.say?.("You need air. Up, now!");
+    }
+    if (this.breath <= 0) {
+      // no breath left: he fights his way up to the nearest open water, whatever the keys say
+      this.outOfBreathT += dt;
+      const air = this.airNear(this.x, this.z);
+      const ax = air ? air[0] - this.x : 0;
+      const az = air ? air[1] - this.z : 0;
+      const al = Math.hypot(ax, az);
+      wish.set(al > 0.2 ? (ax / al) * 1.3 : 0, 1.1, al > 0.2 ? (az / al) * 1.3 : 0);
+      if (this.outOfBreathT > 12 && air) {
+        this.say?.("Half drowned, you are dragged out of the water.");
+        [this.x, this.z] = air;
+        this.surface(this.world.waterLevel(this.x, this.z) - 0.12);
+        return;
+      }
+    }
+    this.dive3.lerp(wish, 1 - Math.exp(-dt * 2.2));
+    const level = this.world.waterLevel(this.x, this.z);
+    let ey = this.y + EYE + this.dive3.y * dt;
+    // the walls, the piles and the steps hold him; under the hulls he passes below their keels
+    const depth = level - ey;
+    const nx = this.x + this.dive3.x * dt;
+    const nz = this.z + this.dive3.z * dt;
+    const under = !this.world.swimFree(this.x, this.z, 0.3);
+    if (this.diveFree(nx, nz, depth, under)) [this.x, this.z] = [nx, nz];
+    else if (this.diveFree(nx, this.z, depth, under)) this.x = nx;
+    else if (this.diveFree(this.x, nz, depth, under)) this.z = nz;
+    else this.dive3.x = this.dive3.z = 0;
+    // under a hull he cannot rise above her keel
+    if (!this.world.swimFree(this.x, this.z, 0.3) && level - ey < UNDER_KEELS) {
+      ey = Math.min(ey, Math.max(this.y + EYE, level - UNDER_KEELS - 0.1));
+      this.dive3.y = Math.min(0, this.dive3.y);
+    }
+    // no deeper than the river's bed
+    ey = Math.max(ey, Math.max(level - 7.5, -11));
+    if (ey > level - 0.12 && this.dive3.y > -0.2) {
+      if (this.world.swimFree(this.x, this.z, 0.32)) return this.surface(ey);
+      ey = level - 0.12;
+      this.dive3.y = Math.min(0, this.dive3.y);
+    }
+    this.y = ey - EYE;
+    this.strokeDist += Math.hypot(this.dive3.x, this.dive3.y, this.dive3.z) * dt;
+    if (this.strokeDist > STROKE_LEN) {
+      this.strokeDist = 0;
+      this.onStroke?.();
+    }
+    this.swimT += dt;
+    const s = 1 - Math.exp(-dt * 22);
+    this.lookYaw += (this.yaw - this.lookYaw) * s;
+    this.lookPitch += (this.pitch - this.lookPitch) * s;
+    this.camera.position.set(this.x, this.y + EYE, this.z);
+    this.camera.rotation.set(this.lookPitch, this.lookYaw, Math.sin(this.swimT * 1.1) * 0.02);
+  }
+
+  /** The nearest open water within 15 m where he can put his head up (out of breath under the hulls). */
+  private airNear(x: number, z: number): [number, number] | null {
+    if (this.world.swimFree(x, z, 0.32)) return [x, z];
+    for (let d = 0.5; d <= 15; d += 0.5)
+      for (let i = 0; i < 16; i++) {
+        const a = (i * Math.PI) / 8;
+        const px = x + Math.cos(a) * d;
+        const pz = z + Math.sin(a) * d;
+        if (this.world.swimFree(px, pz, 0.32)) return [px, pz];
+      }
+    return null;
+  }
+
+  /** Up through the surface with the eye where it is (the float takes it the rest of the way). */
+  private surface(eyeY: number): void {
+    this.diving = false;
+    this.y = eyeY - SWIM_FEET - SWIM_EYE;
+    this.vy = Math.max(0.5, Math.min(0.9, this.dive3.y));
+    this.vel.set(this.dive3.x, this.dive3.z);
+    this.surfaced++;
+    this.onSurface?.(this.underT);
+    if (this.breath <= 0) this.say?.("You come up gasping for air.");
+    this.outOfBreathT = 0;
+    this.bobIn = 0;
   }
 
   // ------------------------------------------------------------ up and down a ladder (M3g: the portal cranes)
@@ -552,19 +809,60 @@ export class FirstPerson {
   climbLadder: ClimbLadder | null = null;
   private climbLadderRung = 0;
 
-  /** Onto the rungs: from the foot, or (fromTop) from the deck at the head. */
+  /** The view's pull on the rungs, eased (held still, it holds). */
+  private ladderPull = 0;
+
+  /**
+   * Onto the rungs: from the foot, or (fromTop) from the deck at the head. 2026-10-11 (Steve: "going on ladder, it is
+   * not a smooth transition"): a short smooth move in to the rungs (or down over the edge onto them), the view
+   * turning to face them as he goes.
+   */
   climbLadderStart(l: ClimbLadder, fromTop = false): void {
+    const sf = Math.sin(l.face);
+    const cf = Math.cos(l.face);
+    const y0 = fromTop ? l.top - 1.2 : l.bottom + 0.05;
+    const keys: Array<[number, number, number, number]> = fromTop
+      ? [
+          [l.head.x + (l.hang.x - l.head.x) * 0.3, l.top + 0.12, l.head.z + (l.hang.z - l.head.z) * 0.3, 0.45],
+          [l.hang.x, y0, l.hang.z, 0.6],
+        ]
+      : [
+          [l.hang.x - sf * 0.22, this.y + 0.1, l.hang.z - cf * 0.22, 0.35],
+          [l.hang.x, y0, l.hang.z, 0.35],
+        ];
+    this.pitch = Math.max(-0.4, Math.min(0.6, this.pitch));
+    this.glide(keys, [0, 0, 0], [0, 0, 0], -1, CLIMB_MAX, l.face);
+    this.climbThen = () => this.onRungs(l);
+  }
+
+  /** On the rungs now (after a move onto them). */
+  private onRungs(l: ClimbLadder): void {
     this.climbLadder = l;
-    this.x = l.hang.x;
-    this.z = l.hang.z;
-    this.y = fromTop ? l.top - 1.2 : l.bottom + 0.05;
     this.vy = 0;
     this.vel.set(0, 0);
-    this.crouching = false;
-    this.hurrying = false;
-    this.yaw = this.lookYaw = l.face;
-    this.pitch = Math.max(-0.4, Math.min(0.6, this.pitch));
     this.climbLadderRung = this.y;
+    this.ladderPull = 0;
+  }
+
+  /** From the gallery over its railing onto the top of the ladder (the gallery swung away from the ladder head). */
+  climbOverOnto(l: ClimbLadder): void {
+    const ty = l.top - 1.05;
+    const dx = l.hang.x - this.x;
+    const dz = l.hang.z - this.z;
+    const n = Math.hypot(dx, dz) || 1;
+    this.glide(
+      [
+        [this.x + (dx / n) * 0.2, l.top + 0.65, this.z + (dz / n) * 0.2, 0.7],
+        [l.hang.x - (dx / n) * 0.2, l.top + 0.65, l.hang.z - (dz / n) * 0.2, 0.6],
+        [l.hang.x, ty, l.hang.z, 0.8],
+      ],
+      [0, 0, 0],
+      [0, 0, 0],
+      -1,
+      CLIMB_MAX,
+      l.face,
+    );
+    this.climbThen = () => this.onRungs(l);
   }
 
   /** Carried where he stands (a working crane's gallery turning under him): to (x, z), turned by dYaw. */
@@ -591,28 +889,50 @@ export class FirstPerson {
       this.climbLadderRung = this.y;
       this.onStep("wood", false);
     }
-    if (this.y >= l.top - 1.0 && l.canStepOff && !l.canStepOff()) {
-      // (2026-09-30) the crane works on: its gallery is swung away from the ladder head; he waits on the top rungs
+    const off = l.canStepOff ? l.canStepOff() : true;
+    const over = v > 0 && this.y >= l.top - 1.0 && !off ? (l.overRail?.() ?? null) : null;
+    if (this.y >= l.top - 1.0 && !off && !over) {
+      // (2026-09-30) the crane works on: its gallery is swung right round; he waits on the top rungs
       this.y = l.top - 1.0;
-    } else if (this.y >= l.top - 1.0) {
-      // over the edge and onto the deck
+    } else if (this.y >= l.top - 1.0 && v > 0 && over) {
+      // the gallery is swung away: up the stiles, a leg over its railing, down onto its walk
       this.climbLadder = null;
-      this.x = l.head.x;
-      this.z = l.head.z;
-      this.y = l.top;
-      this.grounded = true;
-      this.eye = EYE;
-      this.onLand?.("wood");
-      l.done?.("top");
+      const dx = over.x - this.x;
+      const dz = over.z - this.z;
+      const n = Math.hypot(dx, dz) || 1;
+      this.glide(
+        [
+          [this.x + (dx / n) * 0.2, l.top + 0.65, this.z + (dz / n) * 0.2, 0.9],
+          [over.x - (dx / n) * 0.25, l.top + 0.65, over.z - (dz / n) * 0.25, 0.6],
+          [over.x, l.top, over.z, 0.6],
+        ],
+        [0, 0.9, 0],
+      );
+      this.climbThen = () => this.offLadder(l, "top");
+      return;
+    } else if (this.y >= l.top - 1.0 && off) {
+      // over the edge and onto the deck: up past the top rungs, a step forward onto the gallery
+      this.climbLadder = null;
+      this.glide(
+        [
+          [l.hang.x + (l.head.x - l.hang.x) * 0.3, l.top + 0.15, l.hang.z + (l.head.z - l.hang.z) * 0.3, 0.55],
+          [l.head.x, l.top, l.head.z, 0.45],
+        ],
+        [0, 0.9 * Math.max(0, v), 0],
+      );
+      this.climbThen = () => this.offLadder(l, "top");
+      return;
     } else if (this.y <= l.bottom && v < 0) {
+      // off at the foot: a step back from the rungs onto the ground
       this.climbLadder = null;
-      this.x = l.foot.x;
-      this.z = l.foot.z;
-      this.y = l.bottom;
-      this.grounded = true;
-      this.eye = EYE;
-      this.onLand?.(this.world.surfaceAt(this.x, this.z));
-      l.done?.("foot");
+      const sf = Math.sin(l.face);
+      const cf = Math.cos(l.face);
+      this.glide([
+        [l.hang.x - sf * 0.22, l.bottom + 0.1, l.hang.z - cf * 0.22, 0.35],
+        [l.foot.x, l.bottom, l.foot.z, 0.35],
+      ]);
+      this.climbThen = () => this.offLadder(l, "foot");
+      return;
     }
     // face the rungs: the view turns only so far either way
     let d = this.yaw - l.face;
@@ -621,9 +941,18 @@ export class FirstPerson {
     const s = 1 - Math.exp(-dt * 22);
     this.lookYaw += (this.yaw - this.lookYaw) * s;
     this.lookPitch += (this.pitch - this.lookPitch) * s;
-    const pull = v ? Math.abs(Math.sin(this.y * 9)) * 0.03 : 0;
-    this.camera.position.set(this.x, this.y + EYE - pull, this.z);
+    // hand over hand: a small pull on every rung, eased so the view never jumps; held still, the view is still
+    if (v) this.ladderPull += (Math.abs(Math.sin(this.y * 9)) * 0.03 - this.ladderPull) * (1 - Math.exp(-dt * 12));
+    this.camera.position.set(this.x, this.y + EYE - this.ladderPull, this.z);
     this.camera.rotation.set(this.lookPitch, this.lookYaw, 0);
+  }
+
+  /** Off the ladder at the top or the foot, on his feet. */
+  private offLadder(l: ClimbLadder, at: "top" | "foot"): void {
+    this.grounded = true;
+    this.eye = EYE;
+    this.onLand?.(at === "top" ? "wood" : this.world.surfaceAt(this.x, this.z));
+    l.done?.(at);
   }
 
   // ------------------------------------------------------------ carried (M3g: the omnibus)
@@ -1027,13 +1356,8 @@ export class FirstPerson {
    * ladder, over a gunwale), then `then` (game/rowing.ts: sit down in the boat). Looks where he looks.
    */
   climbTo(keys: Array<[number, number, number, number]>, then: () => void): void {
-    this.climb = { from: [this.x, this.y, this.z], keys, i: 0, t: 0 };
+    this.glide(keys);
     this.climbThen = then;
-    this.swimming = false;
-    this.crouching = false;
-    this.hurrying = false;
-    this.vel.set(0, 0);
-    this.vy = 0;
   }
 
   /** Stand up and step out onto a landing, the foot of a ladder, a pontoon (game/rowing.ts found it). */
@@ -1054,9 +1378,7 @@ export class FirstPerson {
       keys.push([e.gx, Math.max(this.y - 0.3, e.ty - 0.4), e.gz, 0.5]);
       keys.push([e.tx, e.ty, e.tz, 0.6]);
     }
-    this.climb = { from: [this.x, this.y - 0.5, this.z], keys, i: 0, t: 0 };
-    this.vel.set(0, 0);
-    this.vy = 0;
+    this.glide(keys);
     this.rowSpeed = 0;
   }
 

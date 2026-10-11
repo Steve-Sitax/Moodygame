@@ -205,6 +205,11 @@ export interface World {
   swimFree(x: number, z: number, r: number): boolean;
   /** Can the player drop into the water here? (open water, room to swim nearby) */
   swimmable(x: number, z: number): boolean;
+  /**
+   * 2026-10-11 diving (player/firstPerson.ts): open water for a diver's head of radius r deep under the hulls: as
+   * swimFree, but the boats' hulls do not count (he is below their keels); walls, steps, piles and the lock do.
+   */
+  diveFree?(x: number, z: number, r: number): boolean;
   /** A swimmer moves; slides along walls and hulls. */
   swimMove(x: number, z: number, dx: number, dz: number, radius: number): [number, number];
   /** The nearest spot within 1 m where a swimmer fits, or null. */
@@ -1420,6 +1425,17 @@ export function buildRijnkaai(): World {
     for (const c of waterDynamic) if (inRect(c, x, z, r)) return false;
     return true;
   }
+  function diveFree(x: number, z: number, r: number): boolean {
+    if (pondFootprint(x, z)) return pondSwimFree(x, z, r);
+    if (!openWater(x, z) || wallWithin(x, z, r)) return false;
+    for (let i = 0; i < 8; i++) {
+      const a = (i * Math.PI) / 4;
+      if (!openWater(x + Math.cos(a) * r, z + Math.sin(a) * r)) return false;
+    }
+    if (steps.solidAt(x, z, r, stepsStatic ? undefined : levelAt(x, z))) return false;
+    for (const c of pier.piles) if (inRect(c, x, z, r)) return false;
+    return !inRect(lockWater, x, z, r);
+  }
   /** While the ladders are placed: the flights count as solid whatever the tide (M6 tides). */
   let stepsStatic = false;
   /** M3j: open water for a boat (see World.boatFree). */
@@ -2263,6 +2279,7 @@ export function buildRijnkaai(): World {
     move,
     standFree,
     swimFree,
+    diveFree,
     swimmable,
     swimMove,
     nearestSwim,

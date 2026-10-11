@@ -68,6 +68,8 @@ public partial class Jef : Node, Mantle.IWorld
     public bool Hurrying { get; private set; }
     public bool Grounded { get; private set; } = true;
     public bool Swimming { get; private set; }
+    /// <summary>Under the water, holding his breath.</summary>
+    public bool Diving { get; private set; }
     public bool Climbing => climb != null;
     public bool Fly { get; private set; }
     /// <summary>He pushes on and something solid holds him (for the checks).</summary>
@@ -92,6 +94,7 @@ public partial class Jef : Node, Mantle.IWorld
     public CharacterBody3D Body { get; private set; } = null!;
     public Camera3D Cam { get; private set; } = null!;
     private CylinderShape3D bodyShape = null!;
+    private CollisionShape3D bodyCol = null!;
     private readonly Dictionary<int, CylinderShape3D> disks = new();
     private FlyCam? fly;
     private bool shots;
@@ -112,16 +115,41 @@ public partial class Jef : Node, Mantle.IWorld
     private Vector3 safe;
     private float safeT;
 
+    /// <summary>A climb or a vault: one smooth curve (Glide) in the world or in a moving frame (a ship's deck).</summary>
     private sealed class ClimbRun
     {
-        public Vector3 From;
-        public List<(Vector3 p, float dur)> Keys = new();
-        public int I;
+        public Glide Path = null!;
         public float T;
         public Action? Then;
         public Func<Transform3D>? Frame;
+        /// <summary>The key up the rungs of a ladder (hand over hand), or -1.</summary>
+        public int Rungs = -1;
+        /// <summary>Where the view was against the plain eye when it began (a bob, a stoop, the swim): eased away.</summary>
+        public Vector3 Off;
+        public float Roll;
     }
     private ClimbRun? climb;
+
+    // the jump as in a good first-person game (2026-10-11, Steve: "it seems scripted and not natural behaviour like in
+    // a fps"): the jump leaves at once, flies a real arc that keeps the run's speed, steers a little in the air, still
+    // goes a moment after the edge (coyote time) and a press just before landing is kept (the jump buffer)
+    public const float Coyote = 0.12f;
+    public const float JumpBuffer = 0.15f;
+    /// <summary>How fast the air turns his speed toward the keys (1/s; on the ground 6).</summary>
+    public const float AirControl = 1.4f;
+    private float coyoteT, bufferT;
+    private bool jumpedOff;
+    /// <summary>The view's dip as the legs take a landing: a spring, metres down (negative) and m/s.</summary>
+    private float dip, dipV;
+    /// <summary>The last jump's measures (for the move check): when it left, its top, its time in the air.</summary>
+    public (ulong Frame, float From, float Top, float Air, float Impact) LastJump { get; private set; }
+    private float airT;
+    /// <summary>The landing dip of the view now (m, negative: down).</summary>
+    public float ViewDip => dip;
+    /// <summary>The time step of his last move (for the checks).</summary>
+    public float FrameDt { get; private set; }
+    /// <summary>His own time: the sum of the steps he moved by (for the checks).</summary>
+    public double Clock { get; private set; }
 
     public override void _Ready()
     {
@@ -133,7 +161,8 @@ public partial class Jef : Node, Mantle.IWorld
 
         Body = new CharacterBody3D { Name = "jef_body", CollisionLayer = Layer, CollisionMask = Solid.Layer, MotionMode = CharacterBody3D.MotionModeEnum.Floating };
         bodyShape = new CylinderShape3D { Radius = Radius, Height = Tall - Step };
-        Body.AddChild(new CollisionShape3D { Shape = bodyShape, Position = new Vector3(0, Step + (Tall - Step) / 2, 0) });
+        bodyCol = new CollisionShape3D { Shape = bodyShape, Position = new Vector3(0, Step + (Tall - Step) / 2, 0) };
+        Body.AddChild(bodyCol);
         view.AddChild(Body);
         floorCast = new ShapeCast3D { Name = "floor_cast", Enabled = false, ExcludeParent = false, CollisionMask = Solid.Layer, Margin = 0, MaxResults = 0 };
         floorRay = new RayCast3D { Name = "floor_ray", Enabled = false, ExcludeParent = false, CollisionMask = Solid.Layer };
@@ -201,7 +230,12 @@ public partial class Jef : Node, Mantle.IWorld
         vy = 0;
         Grounded = true;
         Swimming = false;
+        Diving = false;
+        Breath = BreathMax;
+        SetShape(0);
         climb = null;
+        dip = dipV = 0;
+        bobAmp = 0;
         Crouching = Hurrying = false;
         eye = Eye;
         stepLag = 0;
@@ -250,6 +284,8 @@ public partial class Jef : Node, Mantle.IWorld
         using var frameCost = Scheldemist.Dev.FrameCost.Track("Player.Jef");
         if (Fly) return;
         float dt = (float)Math.Min(delta, 0.05);
+        FrameDt = dt;
+        Clock += dt;
         if (Drive != null && Drive(dt)) { Body.GlobalPosition = new Vector3(X, Y, Z); Look(dt, 0, DrivenRoll, DrivenEye); return; }
         // the ground a few metres round him is solid before he steps on it (the rest is made a little every frame)
         if (Solid.I.Ensure(new Vector3(X, Y, Z), 14) > 0) holdTick = Engine.GetPhysicsFrames() + 1;
@@ -357,31 +393,6 @@ public partial class Jef : Node, Mantle.IWorld
     /// <summary>May he stand at (x, z) with his feet at `feet`? (rijnkaai.ts standFree)</summary>
     public bool StandFree(float x, float z, float feet) => Math.Abs(GroundAt(x, z, feet) - feet) <= Step && BodyFree(x, feet, z);
 
-    /// <summary>Open water a swimmer fits in (rijnkaai.ts swimFree): in the water's outline and clear of walls, steps and piles.</summary>
-    public bool SwimFree(float x, float z) => Water.In(x, z) && BodyFree(x, Water.Level(x, z) - SwimFeet, z);
-
-    /// <summary>The nearest spot within 1 m where a swimmer fits, or null.</summary>
-    public (float x, float z)? NearestSwim(float x, float z)
-    {
-        if (SwimFree(x, z)) return (x, z);
-        for (float d = 0.15f; d <= 1.0f; d += 0.15f)
-            for (int i = 0; i < 12; i++)
-            {
-                float a = i * MathF.PI / 6;
-                float px = x + MathF.Cos(a) * d, pz = z + MathF.Sin(a) * d;
-                if (SwimFree(px, pz)) return (px, pz);
-            }
-        return null;
-    }
-
-    /// <summary>Can he drop into the water here? Water deep enough to swim, with room close by.</summary>
-    public bool Swimmable(float x, float z)
-    {
-        if (!Water.In(x, z)) return false;
-        float level = Water.Level(x, z);
-        return GroundAt(x, z, level - Step) < level - Tide.Wade && NearestSwim(x, z) != null;
-    }
-
     /// <summary>Walk by (dx, dz) with the feet at `feet`: slides along what is solid. Returns the metres moved.</summary>
     private float MoveBy(float dx, float dz, float feet)
     {
@@ -412,6 +423,7 @@ public partial class Jef : Node, Mantle.IWorld
 
     private void UpdateWalk(float dt)
     {
+        SetShape(0);
         float fx = 0, fz = 0;
         if (K(Key.W) || K(Key.Up)) fz -= 1;
         if (K(Key.S) || K(Key.Down)) fz += 1;
@@ -428,6 +440,9 @@ public partial class Jef : Node, Mantle.IWorld
         // fresh press tries at once; held, every few frames.
         bool space = K(Key.Space), pressed = space && !jumpHeld;
         jumpHeld = space;
+        bufferT = pressed ? JumpBuffer : Math.Max(0, bufferT - dt);
+        if (Grounded) { coyoteT = Coyote; jumpedOff = false; }
+        else coyoteT = Math.Max(0, coyoteT - dt);
         if (pressed && !Laden && OnJump?.Invoke() == true) return;
         if (Grounded) jumpBase = Y;
         mantleWait = Math.Max(0, mantleWait - dt);
@@ -438,28 +453,43 @@ public partial class Jef : Node, Mantle.IWorld
             if (route != null)
             {
                 bool air = !Grounded, wet = route[^1].Water || route[^1].Fall;
-                var keys = (wet ? route[..^1] : route).Select((p, i) => (new Vector3(p.X, p.Y, p.Z), i == 0 ? (air ? .2f : .35f) : i == 1 ? (air ? .35f : .45f) : .28f));
+                var keys = (wet ? route[..^1] : route).Select((p, i) => (new Vector3(p.X, p.Y, p.Z), i == 0 ? (air ? .2f : .32f) : i == 1 ? (air ? .32f : .4f) : .3f)).ToList();
+                // one swing up and over, carrying the run's speed in and out: no stop at the top of the rail
+                var v0 = new Vector3(vel.X, Grounded ? 0 : vy, vel.Y).LimitLength(2.5f);
+                var last = keys[^1].Item1;
+                var over = new Vector3(last.X - keys[0].Item1.X, 0, last.Z - keys[0].Item1.Z);
+                float carry = Math.Clamp(new Vector2(vel.X, vel.Y).Length(), wet ? 1.2f : 0.4f, Walk);
+                var v1 = over.LengthSquared() > 1e-4f ? over.Normalized() * carry * (wet ? 1 : 0.8f) : Vector3.Zero;
                 ClimbTo(keys, () =>
                 {
                     vy = 0;
                     mantleWait = .25f;
+                    vel = new Vector2(v1.X, v1.Z);
                     // over a railing into the water or off a height: he drops from the top of the vault
                     if (wet)
                     {
                         Grounded = false;
                         fallTop = Y;
+                        coyoteT = 0;
+                        jumpedOff = true;
                         return;
                     }
                     Grounded = true;
                     Landed?.Invoke();
-                });
+                }, null, v0, v1, -1, 3.2f);
                 return;
             }
         }
-        if (pressed && Grounded && !Laden && !Crouching)
+        if (bufferT > 0 && !Laden && !Crouching && (Grounded || (coyoteT > 0 && !jumpedOff)))
         {
+            // off at once, from the ground or a moment after the edge; the run's speed goes with him
             vy = JumpV;
             Grounded = false;
+            jumpedOff = true;
+            coyoteT = bufferT = 0;
+            fallTop = Y;
+            airT = 0;
+            LastJump = (Engine.GetProcessFrames(), Y, Y, 0, 0);
         }
 
         // wish velocity in world space
@@ -471,8 +501,8 @@ public partial class Jef : Node, Mantle.IWorld
             wx = (fx * cos + fz * sin) * speed;
             wz = (-fx * sin + fz * cos) * speed;
         }
-        // heavy start and stop
-        float a = 1 - MathF.Exp(-dt * (len > 0 ? 6 : 9));
+        // heavy start and stop on the ground; in the air the speed he jumped with goes on, the keys steer a little
+        float a = Grounded ? 1 - MathF.Exp(-dt * (len > 0 ? 6 : 9)) : len > 0 ? 1 - MathF.Exp(-dt * AirControl) : 1 - MathF.Exp(-dt * 0.1f);
         vel.X += (wx - vel.X) * a;
         vel.Y += (wz - vel.Y) * a;
 
@@ -494,14 +524,18 @@ public partial class Jef : Node, Mantle.IWorld
         if (!Grounded)
         {
             fallTop = Math.Max(fallTop, Y);
-            vy -= Gravity * dt;
+            airT += dt;
+            // the true arc whatever the frame rate: the height from the mean speed over the frame
+            float v0 = vy;
+            vy = Math.Max(vy - Gravity * dt, -45);
             if (vy > 0)
             {
                 // a ceiling over a jump
                 Body.GlobalPosition = new Vector3(X, Y, Z);
-                if (Body.TestMove(Body.GlobalTransform, new Vector3(0, vy * dt, 0))) vy = 0;
+                if (Body.TestMove(Body.GlobalTransform, new Vector3(0, vy * dt, 0))) v0 = vy = 0;
             }
-            Y += vy * dt;
+            Y += (v0 + vy) * 0.5f * dt;
+            if (LastJump.Frame > 0 && Y > LastJump.Top) LastJump = LastJump with { Top = Y };
             if (Y <= level && Water.In(X, Z) && ground < level - Tide.Wade)
             {
                 float h = fallTop - Y;
@@ -515,6 +549,7 @@ public partial class Jef : Node, Mantle.IWorld
                 float h = fallTop - ground;
                 fallTop = float.NegativeInfinity;
                 Y = ground;
+                Land(-vy);
                 vy = 0;
                 Grounded = true;
                 Landed?.Invoke();
@@ -564,144 +599,112 @@ public partial class Jef : Node, Mantle.IWorld
         Look(dt, bobX, MathF.Cos(bobPhase) * 0.004f * bobAmp * Bob, eye + bobY + stepLag);
     }
 
+    /// <summary>The legs take a landing at this speed (m/s down): the view dips and comes up again.</summary>
+    private void Land(float impact)
+    {
+        if (LastJump.Frame > 0 && LastJump.Air == 0) LastJump = LastJump with { Air = airT, Impact = impact };
+        airT = 0;
+        // a step down is nothing; a jump on the flat about 6 cm; a drop of a few metres 15 cm
+        if (impact > 1.6f) dipV = Math.Min(dipV, -Math.Min(impact, 14) * 0.42f);
+    }
+
     /// <summary>The view: a slow turn (it lags the mouse a little), the eye at `up` over the feet, `side` to the right.</summary>
     private void Look(float dt, float side, float roll, float up = Eye)
     {
         float s = 1 - MathF.Exp(-dt * 22);
         lookYaw += (Yaw - lookYaw) * s;
         lookPitch += (Pitch - lookPitch) * s;
+        // the landing dip: a stiff, fully damped spring (down and back in about a fifth of a second)
+        for (float left = dt; left > 1e-5f;)
+        {
+            float h = Math.Min(left, 1 / 120f);
+            const float w = 11;
+            dipV += (-w * w * dip - 2 * w * dipV) * h;
+            dip += dipV * h;
+            left -= h;
+        }
+        if (MathF.Abs(dip) < 1e-4f && MathF.Abs(dipV) < 1e-3f) dip = dipV = 0;
         float sin = MathF.Sin(Yaw), cos = MathF.Cos(Yaw);
-        Cam.GlobalPosition = new Vector3(X + cos * side, Y + up, Z - sin * side);
-        Cam.Rotation = new Vector3(lookPitch, lookYaw, roll);
+        Cam.GlobalPosition = new Vector3(X + cos * side, Y + up + dip * Bob, Z - sin * side);
+        Cam.Rotation = new Vector3(lookPitch + dip * 0.35f * Bob, lookYaw, roll);
     }
 
-    // ------------------------------------------------------------ in the water
+    // ------------------------------------------------------------ in the water: Jef.Swim.cs
 
-    private void EnterWater()
-    {
-        Swimming = true;
-        Grounded = false;
-        Crouching = false;
-        Hurrying = false;
-        Blocked = false;
-        vy = Math.Max(vy, -7); // the plunge, then you come up
-        vel *= 0.3f;
-        // clear of the wall you fell from
-        var spot = NearestSwim(X, Z);
-        if (spot != null) (X, Z) = spot.Value;
-        strokeDist = 0;
-        stepLag = 0;
-        Splashed?.Invoke();
-    }
-
-    private void UpdateSwim(float dt)
-    {
-        float fx = 0, fz = 0;
-        if (K(Key.W) || K(Key.Up)) fz -= 1;
-        if (K(Key.S) || K(Key.Down)) fz += 1;
-        if (K(Key.A) || K(Key.Left)) fx -= 1;
-        if (K(Key.D) || K(Key.Right)) fx += 1;
-        float len = MathF.Sqrt(fx * fx + fz * fz);
-        float sin = MathF.Sin(Yaw), cos = MathF.Cos(Yaw);
-        float wx = 0, wz = 0;
-        float stroke = K(Key.Shift) ? SwimFast : Swim;
-        if (len > 0)
-        {
-            wx = (fx * cos + fz * sin) / len * stroke;
-            wz = (-fx * sin + fz * cos) / len * stroke;
-        }
-        // water is thick: slow to get going, slow to stop
-        float a = 1 - MathF.Exp(-dt * (len > 0 ? 2.2f : 1.6f));
-        vel.X += (wx - vel.X) * a;
-        vel.Y += (wz - vel.Y) * a;
-
-        // a swimmer moves at the height he floats at; walls, steps and piles stop him, and so does the water's edge
-        float level = Water.Level(X, Z);
-        float floatY = level - SwimFeet;
-        float ox = X, oz = Z;
-        float wanted = vel.Length() * dt;
-        float moved = MoveBy(vel.X * dt, vel.Y * dt, floatY);
-        if (!Water.In(X, Z))
-        {
-            float nx = X, nz = Z;
-            X = Water.In(nx, oz) ? nx : ox;
-            Z = Water.In(X, nz) ? nz : oz;
-            moved = MathF.Sqrt((X - ox) * (X - ox) + (Z - oz) * (Z - oz));
-        }
-        Blocked = len > 0 && wanted > 1e-5f && moved < wanted * 0.3f;
-
-        // up out of the plunge, then float: feet under, eye just above the waves
-        level = Water.Level(X, Z);
-        floatY = level - SwimFeet;
-        vy += (floatY - Y) * 14 * dt;
-        vy *= MathF.Exp(-dt * 4.5f);
-        Y += vy * dt;
-
-        // strokes, and a slow bob
-        swimT += dt;
-        strokeDist += moved;
-        if (strokeDist > StrokeLen)
-        {
-            strokeDist = 0;
-            Stroke?.Invoke();
-        }
-        float speed = moved / Math.Max(dt, 1e-4f);
-        float bob = MathF.Sin(swimT * 1.7f) * 0.035f + MathF.Sin(swimT * 5.2f) * 0.012f * Math.Min(1, speed);
-
-        // out: push into a ladder or a landing, or press E by one
-        var exit = QuayExits.Near(X, Z, 1.2f);
-        if (exit != null)
-        {
-            bool push = len > 0 && (wx * -exit.Nx + wz * -exit.Nz) / Swim > 0.5f;
-            if (push || K(Key.E) || K(Key.Space))
-            {
-                StartClimb(exit);
-                return;
-            }
-        }
-        float eyeY = Math.Max(Y + SwimFeet + SwimEye + bob, level + 0.07f);
-        Look(dt, 0, MathF.Sin(swimT * 1.1f) * 0.02f, eyeY - Y);
-    }
-
-    /// <summary>The spot at the top can hold a crane's leg or a wagon: step off beside it, wherever you can stand.</summary>
-    private (float x, float z) ClimbSpot(Exit e)
+    /// <summary>
+    /// The spot at the top can hold a crane's leg or a wagon: step off beside it, wherever you can stand. The feet go
+    /// onto the stone as it is there (a step of a flight may lie a little higher or lower than its number says).
+    /// </summary>
+    private (float x, float z, float y) ClimbSpot(Exit e)
     {
         foreach (float d in new[] { 0f, 0.4f, 0.8f, 1.2f })
             foreach (float s in new[] { 0f, 0.6f, -0.6f, 1.2f, -1.2f })
             {
                 float x = e.Tx - e.Nx * d - e.Nz * s;
                 float z = e.Tz - e.Nz * d + e.Nx * s;
-                if (StandFree(x, z, e.Ty)) return (x, z);
+                float g = GroundAt(x, z, e.Ty + 0.2f);
+                if (float.IsFinite(g) && Math.Abs(g - e.Ty) < 0.45f && StandFree(x, z, g)) return (x, z, g);
             }
-        return (e.Tx, e.Tz);
+        return (e.Tx, e.Tz, e.Ty);
     }
 
     private void StartClimb(Exit e)
     {
         float floatY = Water.Level(X, Z) - SwimFeet;
         var keys = new List<(Vector3, float)>();
-        var (tx, tz) = ClimbSpot(e);
+        var (tx, tz, ty) = ClimbSpot(e);
+        int rungs = -1;
         if (e.Ladder)
         {
+            // in to the rungs, hand over hand up them, and over the hoop onto the quay: one move, no stop at the top
             float lx = e.Gx - e.Nx * 0.12f, lz = e.Gz - e.Nz * 0.12f;
-            keys.Add((new Vector3(lx, floatY, lz), 0.4f));
+            keys.Add((new Vector3(lx, floatY, lz), 0.45f));
             keys.Add((new Vector3(lx, e.Ty + 0.15f, lz), (e.Ty + 0.15f - floatY) / Climb));
-            keys.Add((new Vector3(tx, e.Ty, tz), 0.7f));
+            rungs = 1;
+            keys.Add((new Vector3(lx - e.Nx * 0.45f, e.Ty + 0.32f, lz - e.Nz * 0.45f), 0.45f));
+            keys.Add((new Vector3(tx, ty, tz), 0.5f));
+        }
+        else if (e.Over > 0)
+        {
+            // out over a parapet with a handrail on it: up the face, a leg over the rail, down onto the tread
+            float up = e.Over + 0.12f;
+            keys.Add((new Vector3(e.Gx, floatY, e.Gz), 0.35f));
+            keys.Add((new Vector3(e.Gx - e.Nx * 0.3f, up, e.Gz - e.Nz * 0.3f), 0.35f + (up - floatY) / 1.6f));
+            keys.Add((new Vector3(e.Gx - e.Nx * 0.95f, up, e.Gz - e.Nz * 0.95f), 0.55f));
+            keys.Add((new Vector3(tx, ty, tz), 0.5f));
         }
         else
         {
             keys.Add((new Vector3(e.Gx, floatY, e.Gz), 0.35f));
-            keys.Add((new Vector3(e.Gx - e.Nx * 0.45f, e.Ty + 0.1f, e.Gz - e.Nz * 0.45f), 1.1f));
-            keys.Add((new Vector3(tx, e.Ty, tz), 0.5f));
+            keys.Add((new Vector3(e.Gx - e.Nx * 0.45f, e.Ty + 0.12f, e.Gz - e.Nz * 0.45f), 1.1f));
+            keys.Add((new Vector3(tx, ty, tz), 0.5f));
         }
-        ClimbTo(keys, null);
+        ClimbTo(keys, null, null, new Vector3(vel.X, vy, vel.Y), default, rungs);
     }
 
-    /// <summary>A climb along key points (x, y, z, seconds each): no control meanwhile. `then` runs at the end instead of landing.</summary>
-    public void ClimbTo(IEnumerable<(Vector3, float)> keys, Action? then, Func<Transform3D>? frame = null)
+    /// <summary>The fastest a climb goes between its keys (m/s); with the rounded corners its top speed stays near 2 m/s, about 3 cm a frame at 60 frames a second.</summary>
+    public const float ClimbMax = 1.3f;
+
+    /// <summary>
+    /// A climb along key points (x, y, z, seconds each from the last): no control meanwhile, one smooth move that
+    /// starts with his speed `v0` (default: as he moves now) and ends with `v1`. `then` runs at the end instead of
+    /// landing. With `frame` the points are in that moving frame (a ship's deck). `rungs`: the key up a ladder.
+    /// </summary>
+    public void ClimbTo(IEnumerable<(Vector3, float)> keys, Action? then, Func<Transform3D>? frame = null, Vector3? v0 = null, Vector3 v1 = default, int rungs = -1, float maxSpeed = ClimbMax)
     {
-        climb = new ClimbRun { From = frame == null ? new Vector3(X, Y, Z) : frame().AffineInverse() * new Vector3(X, Y, Z), Keys = keys.ToList(), Then = then, Frame = frame };
+        var from = new Vector3(X, Y, Z);
+        var speed = (v0 ?? new Vector3(vel.X, Grounded ? 0 : vy, vel.Y)).LimitLength(2.5f);
+        if (frame != null)
+        {
+            var f = frame();
+            from = f.AffineInverse() * from;
+            speed = f.Basis.Inverse() * speed;
+        }
+        SetShape(0);
+        bobAmp = 0;
+        climb = new ClimbRun { Path = new Glide(from, keys.ToList(), speed, v1, 0.8f, maxSpeed), Then = then, Frame = frame, Rungs = rungs, Off = Cam.GlobalPosition - new Vector3(X, Y + Eye, Z), Roll = Cam.Rotation.Z };
         Swimming = false;
+        Diving = false;
         Blocked = false;
         vel = Vector2.Zero;
         vy = 0;
@@ -711,16 +714,11 @@ public partial class Jef : Node, Mantle.IWorld
     {
         var c = climb!;
         c.T += dt;
-        while (c.I < c.Keys.Count && c.T >= c.Keys[c.I].dur)
+        var at = c.Path.At(c.T);
+        if (c.Frame != null) at = c.Frame() * at;
+        (X, Y, Z) = (at.X, at.Y, at.Z);
+        if (c.T >= c.Path.Duration)
         {
-            c.T -= c.Keys[c.I].dur;
-            c.From = c.Keys[c.I].p;
-            c.I++;
-        }
-        if (c.I >= c.Keys.Count)
-        {
-            var end = c.Frame == null ? c.From : c.Frame() * c.From;
-            (X, Y, Z) = (end.X, end.Y, end.Z);
             climb = null;
             if (c.Then != null) c.Then();
             else
@@ -731,17 +729,21 @@ public partial class Jef : Node, Mantle.IWorld
                 ClimbedOut?.Invoke();
             }
         }
-        else
+        // hand over hand: a small pull on every rung, eased in and out with the climb
+        float pull = 0;
+        if (c.Rungs >= 0)
         {
-            var (p, dur) = c.Keys[c.I];
-            float k = Mathf.SmoothStep(0, 1, c.T / dur);
-            var at = c.From.Lerp(p, k);
-            if (c.Frame != null) at = c.Frame() * at;
-            (X, Y, Z) = (at.X, at.Y, at.Z);
+            // as strong as he goes up the rungs (so it fades in and out with the climb, never stops at once)
+            float rise = (c.Path.Velocity(c.T).Y - 0.3f) / (Climb - 0.3f);
+            pull = MathF.Abs(MathF.Sin(c.T * 5.5f)) * 0.04f * Math.Clamp(rise, 0, 1);
         }
-        // hand over hand: a small pull on every rung
-        float pull = c.I == 1 ? MathF.Abs(MathF.Sin(c.T * 5.5f)) * 0.04f : 0;
         Look(dt, 0, 0, Eye - pull);
+        float fade = 1 - Mathf.SmoothStep(0, 1, c.T / 0.35f);
+        if (fade > 0)
+        {
+            Cam.GlobalPosition += c.Off * fade;
+            Cam.Rotation += new Vector3(0, 0, c.Roll * fade);
+        }
     }
 
     // ------------------------------------------------------------ vaulting (shared/mantle.ts asks the world this)

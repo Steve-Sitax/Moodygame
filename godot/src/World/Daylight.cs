@@ -56,6 +56,10 @@ public partial class Daylight : Node
     public string Weather { get; private set; } = "clear";
     /// <summary>The air's colour (linear): the fog and the sky's ground tone.</summary>
     public Color FogColor { get; private set; }
+    /// <summary>The eye under the water: 0 or 1 (a part may ease it), and how deep (m). World/Underwater.cs sets them.</summary>
+    public float Under, UnderDepth;
+    /// <summary>The colour of the river's water close to, on a grey day (linear).</summary>
+    private static readonly Color Murk = new(0.10f, 0.13f, 0.085f);
     public float FogNear { get; private set; } = 3;
     public float FogFar { get; private set; } = 25;
     /// <summary>The gas lamps by the clock, 0-1.</summary>
@@ -274,6 +278,9 @@ public partial class Daylight : Node
 
     private static void rs0(string n, float v) => Psx.Set(n, v);
 
+    /// <summary>The picture's light again at once, within this frame (the eye went through the water's surface).</summary>
+    public void Restep() => Step(1e-5f);
+
     private void Step(float dt)
     {
         // ease along the clock, the short way round midnight
@@ -318,6 +325,19 @@ public partial class Daylight : Node
         {
             fog = fog.Lerp(FlashAir, Math.Min(0.95f, Flash * 0.7f));
             SkyIntensity += Flash * FlashSky;
+        }
+        // under the water (World/Underwater.cs): the Schelde's own murk, brown-green and close, darker with depth
+        if (Under > 0)
+        {
+            float lum = fog.R * 0.3f + fog.G * 0.59f + fog.B * 0.11f;
+            float deep = MathF.Exp(-Math.Max(0, UnderDepth) * 0.22f);
+            var murk = Murk * Math.Clamp(lum * 2.2f, 0.08f, 1.2f) * deep;
+            fog = fog.Lerp(murk, Under);
+            // (the fog's ramp starts behind the eye: even an arm's length off the silt already greys a wall)
+            FogNear = Mathf.Lerp(FogNear, -0.8f, Under);
+            FogFar = Mathf.Lerp(FogFar, Math.Max(4, 7 - UnderDepth * 0.4f), Under);
+            SkyIntensity *= 1 - 0.5f * Under * (1 - 0.5f * deep);
+            SunIntensity *= 1 - 0.85f * Under;
         }
         FogColor = fog;
 
