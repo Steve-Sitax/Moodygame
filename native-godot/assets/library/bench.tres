@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="AuthorAsset" load_steps=3 format=3]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="1"]
+[ext_resource type="PackedScene" path="res://assets/props/bench.tscn" id="2"]
+[resource]
+script = ExtResource("1")
+Id = "bench"
+Title = "Wooden bench"
+Category = "Street furniture"
+Scene = ExtResource("2")
+Footprint = Vector3(2, 1.1, 0.8)

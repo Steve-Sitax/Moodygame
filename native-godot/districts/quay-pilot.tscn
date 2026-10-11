@@ -1,0 +1,48 @@
+[gd_scene load_steps=10 format=3]
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1"]
+[ext_resource type="Resource" path="res://assets/library/bench.tres" id="2"]
+[ext_resource type="Resource" path="res://assets/library/crate.tres" id="3"]
+[ext_resource type="Resource" path="res://assets/library/lamp.tres" id="4"]
+[sub_resource type="StandardMaterial3D" id="stone"]
+albedo_color = Color(0.36, 0.38, 0.38, 1)
+roughness = 0.95
+[sub_resource type="BoxMesh" id="deck"]
+material = SubResource("stone")
+size = Vector3(40, 0.5, 32)
+[sub_resource type="BoxShape3D" id="ground"]
+size = Vector3(40, 0.5, 32)
+[sub_resource type="StandardMaterial3D" id="water"]
+albedo_color = Color(0.08, 0.18, 0.22, 1)
+roughness = 0.3
+[sub_resource type="PlaneMesh" id="river"]
+material = SubResource("water")
+size = Vector2(240, 240)
+[node name="QuayPilot" type="Node3D"]
+[node name="Quay" type="MeshInstance3D" parent="."]
+position = Vector3(0, -0.25, 0)
+mesh = SubResource("deck")
+[node name="Ground" type="StaticBody3D" parent="."]
+collision_layer = 1
+collision_mask = 0
+[node name="Shape" type="CollisionShape3D" parent="Ground"]
+position = Vector3(0, -0.25, 0)
+shape = SubResource("ground")
+[node name="River" type="MeshInstance3D" parent="."]
+position = Vector3(0, -1.2, 0)
+mesh = SubResource("river")
+[node name="Objects" type="Node3D" parent="."]
+[node name="Bench" type="Node3D" parent="Objects"]
+position = Vector3(-3, 0, -2)
+script = ExtResource("1")
+ObjectId = "pilot-bench"
+Asset = ExtResource("2")
+[node name="Crate" type="Node3D" parent="Objects"]
+position = Vector3(1.5, 0, -2)
+script = ExtResource("1")
+ObjectId = "pilot-crate"
+Asset = ExtResource("3")
+[node name="Lamp" type="Node3D" parent="Objects"]
+position = Vector3(5, 0, -2)
+script = ExtResource("1")
+ObjectId = "pilot-lamp"
+Asset = ExtResource("4")

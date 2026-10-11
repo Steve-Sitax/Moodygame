@@ -1,0 +1,38 @@
+[gd_scene load_steps=7 format=3]
+[sub_resource type="StandardMaterial3D" id="wood"]
+albedo_color = Color(0.40, 0.25, 0.13, 1)
+roughness = 0.9
+[sub_resource type="StandardMaterial3D" id="iron"]
+albedo_color = Color(0.09, 0.12, 0.12, 1)
+metallic = 0.5
+roughness = 0.75
+[sub_resource type="BoxMesh" id="seat"]
+material = SubResource("wood")
+size = Vector3(2, 0.12, 0.65)
+[sub_resource type="BoxMesh" id="back"]
+material = SubResource("wood")
+size = Vector3(2, 0.48, 0.10)
+[sub_resource type="BoxMesh" id="leg"]
+material = SubResource("iron")
+size = Vector3(0.12, 0.5, 0.56)
+[sub_resource type="BoxShape3D" id="shape"]
+size = Vector3(2, 1.1, 0.8)
+[node name="Bench" type="Node3D"]
+[node name="Seat" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.5, 0)
+mesh = SubResource("seat")
+[node name="Back" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.85, -0.31)
+mesh = SubResource("back")
+[node name="LegA" type="MeshInstance3D" parent="."]
+position = Vector3(-0.72, 0.25, 0)
+mesh = SubResource("leg")
+[node name="LegB" type="MeshInstance3D" parent="."]
+position = Vector3(0.72, 0.25, 0)
+mesh = SubResource("leg")
+[node name="Body" type="StaticBody3D" parent="."]
+collision_layer = 2
+collision_mask = 0
+[node name="Shape" type="CollisionShape3D" parent="Body"]
+position = Vector3(0, 0.55, 0)
+shape = SubResource("shape")
