@@ -71,7 +71,7 @@ public partial class MainMenu : Node
         string only = main.Arg("only");
         if (only != "" && !only.Split(',').Contains("mainmenu")) return false;
         foreach (string a in OS.GetCmdlineUserArgs())
-            if (a == "--shots" || (a.StartsWith("--") && a.EndsWith("test") && a != "--menutest" && a != "--togethertest"))
+            if (a == "--shots" || (a.StartsWith("--") && a.EndsWith("test") && a != "--menutest" && a != "--togethertest" && a != "--devsheettest"))
                 return false;
         return true;
     }
@@ -158,6 +158,7 @@ public partial class MainMenu : Node
     private void OnPrefs(IReadOnlyList<string> keys)
     {
         if (keys.Contains("showFps")) fpsNote.Visible = Prefs.Bool("showFps");
+        if (keys.Contains("devMode")) RefreshNav();
     }
 
     // ------------------------------------------------------------------ building
@@ -288,7 +289,7 @@ public partial class MainMenu : Node
         return card;
     }
 
-    private InkButton cont = null!, saveBtn = null!, loadBtn = null!, quitTitle = null!;
+    private InkButton cont = null!, saveBtn = null!, loadBtn = null!, quitTitle = null!, devBtn = null!;
     private PaperCard paper = null!;
     private ScrollContainer paperScroll = null!;
     private TextureRect? cut;
@@ -352,6 +353,10 @@ public partial class MainMenu : Node
         Item(InkButton.Look.MenuItem, "Controls", () => SettingsSheet.Open("controls"));
         Item(InkButton.Look.MenuItem, "Help", Sheets.Help);
         Item(InkButton.Look.MenuItem, "Credits", Sheets.Credits);
+        // dev mode (the setting, or --dev): the browser's small mono "Dev" line (menu.ts menu-dev)
+        devBtn = Item(InkButton.Look.MenuItem, "Dev: time, weather, events (F8)", () => Dev.DevSheet.Open());
+        devBtn.Dev = true;
+        devBtn.Name = "devmenu";
         quitTitle = Item(InkButton.Look.MenuItem, "Quit to title", () => Sheets.Quit(this));
         quitTitle.RuleAbove = true;
         // a program has a way out a browser tab does not need
@@ -440,6 +445,7 @@ public partial class MainMenu : Node
         if (play == null) return;
         play.Label = Entered ? "Go on" : "Walk into town";
         quitTitle.Visible = Entered;
+        devBtn.Visible = Prefs.DevMode;
         stamp.Visible = Entered;
         if (cut != null) cut.GetParent<Control>().Visible = !(Entered && GetViewport().GetVisibleRect().Size.Y <= 800);
         // the saves' own lines (saves.ts buttons): Continue on the first page, Save in play (and after a load)
@@ -534,7 +540,7 @@ public partial class MainMenu : Node
         Pause.Set("key", false);
         Pause.Set("menu", false);
         RefreshNav();
-        if (first && !Prefs.Bool("benchDone") && Main.I.Arg("menutest") == "") Apply.RunBenchmark();
+        if (first && !Prefs.Bool("benchDone") && Main.I.Arg("menutest") == "" && Main.I.Arg("devsheettest") == "") Apply.RunBenchmark();
         WalkedIn?.Invoke();
     }
 
@@ -595,7 +601,7 @@ public partial class MainMenu : Node
     {
         if (I != this) return;
         // the window was left: a quiet pause, only a small hint (no menu for a snipping tool)
-        if (what == NotificationApplicationFocusOut && InPlay && Main.I.Arg("menutest") == "")
+        if (what == NotificationApplicationFocusOut && InPlay && Main.I.Arg("menutest") == "" && Main.I.Arg("devsheettest") == "")
         {
             quiet = true;
             Input.MouseMode = Input.MouseModeEnum.Visible;
@@ -629,6 +635,8 @@ public partial class MainMenu : Node
             return;
         }
         if (e is not InputEventKey { Pressed: true } k) return;
+        // the console is up: its line has the keys (it closes itself on Esc)
+        if (Dev.DevConsole.Open) return;
         if (KeyGrab != null && KeyGrab(k))
         {
             GetViewport().SetInputAsHandled();

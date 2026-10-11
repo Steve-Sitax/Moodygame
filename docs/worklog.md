@@ -12,6 +12,16 @@ Branch `fx-bugs` (helper). Godot only, no bake needed.
   (387 samples on the decks before the fix).
 - Found: the Godot stuck check fails on main before any change (children at play, people inside three solids):
   [#64](https://github.com/Steve-Sitax/Moodygame/issues/64).
+## Godot dev mode: the console, the Dev sheet, fly, 2026-10-11 (branch fx-dev)
+- Steve: "where is my dev mode in godot". The console is always there (the key left of 1, `²` on his keyboard; Esc
+  closes it); `dev on` / `dev off` or Ctrl+Alt+Shift+D switch dev mode (kept in the settings). In dev mode: the
+  menu's Dev line and F8 open the Dev sheet (the browser's devmenu.ts: time, weather, tide, NPC stress test, the
+  lock, the canal and vliet boats, thick fog, a shower, every director template started in front of Jef, director
+  think and invent, needs, money, Go to, the console line), F9 flies and lands. F (Second choice) no longer flies.
+  Proof: `--devsheettest` (91 steps, every button clicked and its effect checked, pictures) and the menu test pass.
+- Find: [#65](https://github.com/Steve-Sitax/Moodygame/issues/65), a flat untextured grey slab beside the
+  Vleeshuis in the Godot town.
+- Not ported: the browser's culling toggles (the Godot game has no such culler). Director "invent" needs the AI.
 
 ## The batch of 2026-10-11 evening: no PS1 look, lamps, calvary, quay stairs, bridges, cranes
 

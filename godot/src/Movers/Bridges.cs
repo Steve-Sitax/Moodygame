@@ -383,6 +383,9 @@ public partial class Bridges : Node
         MoverCost.End("bridges");
     }
 
+    /// <summary>Where the canal's or the vliet's boat is now ("river", "in", "up", "out"): the dev panel says it.</summary>
+    public string PassageState(string where) => passages[where].State;
+
     /// <summary>Send a boat up (or down, if one is up there) the canal or the vliet now.</summary>
     public void PassNow(string where)
     {

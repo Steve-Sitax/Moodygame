@@ -65,6 +65,8 @@ public static class Prefs
         ["contrast"] = new BoolSpec(false),
         ["reduceMotion"] = new BoolSpec(false),
         ["colourSafe"] = new BoolSpec(false),
+        // the Godot game's own, not on a page: dev mode (the console's "dev on", or Ctrl+Alt+Shift+D)
+        ["devMode"] = new BoolSpec(false),
     };
 
     /// <summary>prefs.ts PRESETS: what each quality sets. "high" is the game as made.</summary>
@@ -89,6 +91,20 @@ public static class Prefs
         {
             return Paths.Prefs;
         }
+    }
+
+    /// <summary>
+    /// Dev mode: the Dev sheet (F8, the menu's Dev line) and the free camera (F9) are there, and the console takes the
+    /// test kit's commands. Kept in the settings; `-- --dev` switches it on for one run until it is switched again.
+    /// </summary>
+    public static bool DevMode => (devRun ??= Main.I?.Flag("dev") == true ? true : false) || Bool("devMode");
+    private static bool? devRun;
+
+    /// <summary>The console's "dev on" / "dev off" and the secret combo.</summary>
+    public static void SetDevMode(bool on)
+    {
+        devRun = false;
+        Set("devMode", on);
     }
 
     public static double Num(string k) => (double)Now[k];
