@@ -959,8 +959,9 @@ def main():
     n_parts = len(PARTS)
     bb.NO_SACKS[0] = True
     try:
-        fb, _ = ferry()
-        bb.to_object(fb, "ferry_bare")
+        fb, hull_b = ferry()
+        # the copy the game draws in her place keeps the water cap over her rail (docs/boats.md)
+        bb.cap_object(hull_b, "ferry_bare_cap", bb.to_object(fb, "ferry_bare"))
         bb.to_object(stage(), "landing_stage_bare")
     finally:
         bb.NO_SACKS[0] = False

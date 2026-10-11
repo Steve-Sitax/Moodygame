@@ -7,6 +7,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The loaded lighters and the bumboats no longer have river water standing in them, and the bumboats have their oars laid in again (browser; Godot after the caps come back there).
 - In the Godot version, after loading a game the ferry and the boats float on the right tide at once; before, Jef could start on the water of a minute earlier, some 10 cm off.
 - A new look: no more PS1 style. Textures stay sharp and true on every surface (no swimming, no blocky pixels), colours are smooth (no dither). In Godot the High quality setting now draws at the full window size with smooth edges. Fog and a fine film grain keep the mood. The PS1 colour and wobble settings are gone (browser and Godot).
 - Every lamp and lantern in town is rebuilt in detail (the street posts, the park and quay-step lamps, the wall and door lanterns, the oil lamps at the landing stage and on boats, the hand lanterns), and their light is now the same in kind: warm gas or a little warmer oil, stronger for the big ones. The park lamps and the passage lanterns now light up at dusk (browser and Godot).
