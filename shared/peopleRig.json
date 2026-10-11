@@ -11113,10 +11113,1577 @@
   "wash",
   "wall",
   "pockets",
-  "smoke"
+  "smoke",
+  "man_stroll",
+  "man_walk",
+  "man_hurry",
+  "man_run",
+  "man_sprint",
+  "woman_stroll",
+  "woman_walk",
+  "woman_hurry",
+  "woman_run",
+  "woman_sprint",
+  "old_stroll",
+  "old_walk",
+  "old_hurry",
+  "child_stroll",
+  "child_walk",
+  "child_hurry",
+  "child_run",
+  "child_sprint",
+  "stout_stroll",
+  "stout_walk",
+  "stout_hurry",
+  "stout_run",
+  "stout_sprint",
+  "laden_stroll",
+  "laden_walk",
+  "laden_hurry",
+  "man_slope_up",
+  "man_slope_down",
+  "man_stairs_up",
+  "man_stairs_down",
+  "woman_slope_up",
+  "woman_slope_down",
+  "woman_stairs_up",
+  "woman_stairs_down",
+  "sack_walk",
+  "sack_hold",
+  "crate_walk",
+  "crate_hold",
+  "cart_push",
+  "cart_push_hold",
+  "cart_pull",
+  "cart_pull_hold",
+  "truck_push",
+  "truck_push_hold",
+  "truck_pull",
+  "truck_pull_hold",
+  "man_start_walk",
+  "man_stop_walk",
+  "man_start_run",
+  "man_stop_run",
+  "man_turn_l90",
+  "man_turn_r90",
+  "man_turn_l180",
+  "man_turn_r180",
+  "woman_start_walk",
+  "woman_stop_walk",
+  "woman_start_run",
+  "woman_stop_run",
+  "woman_turn_l90",
+  "woman_turn_r90",
+  "woman_turn_l180",
+  "woman_turn_r180"
  ],
  "lod": {
   "lod1From": 15.0,
   "note": "LOD1 also for the mirrors and the lantern shadow"
+ },
+ "locomotion": {
+  "about": "package D1 clips (tools/blender/people2/clips_move.py, docs/people.md 'Locomotion'). Loops are two strides, in place: move the node at their speed. Clips that travel move the hips: move the node by their travel at the end. Hips translation tracks are the clip's own body's offset from its rest, added to man_middling's hips rest (trackBase).",
+  "trackBase": [
+   0.0,
+   0.9118,
+   0.0
+  ],
+  "blend": {
+   "families": {
+    "walks": [
+     "stroll",
+     "walk",
+     "hurry"
+    ],
+    "runs": [
+     "run",
+     "sprint"
+    ]
+   },
+   "weight": "neighbours by speed a < v < b: w = (Sa - v Ta) / (v (Tb - Ta) - (Sb - Sa)), S = stride, T = cycle (clip meta); mix rotations by slerp(w) and hips translations by lerp(w)",
+   "phase": "one shared phase for all loops (each is two strides, left heel at 0 and 0.5), advanced by dt / (2 T), T = lerp(Ta, Tb, w)",
+   "ends": "below the slowest or above the fastest loop of a family play its end loop at cycle = stride / v",
+   "switch": "walk to run (and back) as v passes 2.2 m/s: crossfade inside a window where both gaits agree (clips_move.switch_windows: one foot down in both, the other in the air in both), never held as a mix",
+   "feet": "lock the planted feet with leg IK every frame (motion.lock_feet does it here): blends move the pose, not the feet; measured with the lock: under 2 mm",
+   "otherBodies": "a clip made on one body plays on another of the same base unchanged; on a smaller or bigger body scale its speed and stride by the ratio of the hips heights (peopleRig bodies.<b>.hipsBone)"
+  },
+  "stairs": {
+   "rise": 0.17,
+   "going": 0.28
+  },
+  "slopeDeg": 8.0,
+  "loads": {
+   "sack": {
+    "bone": "upperChest",
+    "centre": [
+     0.03,
+     -0.02,
+     0.11
+    ],
+    "axis": "fwd",
+    "size": [
+     0.26,
+     0.88,
+     0.26
+    ],
+    "note": "a sack across the left shoulder, its length along the person's forward; centre given from the left shoulder joint (armUpL head) at rest; the left hand holds its front end"
+   },
+   "crate": {
+    "bone": "chest",
+    "centre": [
+     0.0,
+     0.26,
+     -0.12
+    ],
+    "size": [
+     0.55,
+     0.34,
+     0.42
+    ],
+    "note": "a crate held in front against the belly, both hands under its sides; centre from the chest bone's head at rest"
+   },
+   "cart_push": {
+    "handles": [
+     [
+      0.34,
+      0.36,
+      0.76
+     ],
+     [
+      -0.34,
+      0.36,
+      0.76
+     ]
+    ],
+    "axis": "fwd",
+    "note": "the handcart's grips (props.glb handcart: HANDCART_GRIP 0.34 either side, 0.75 m up), the cart ahead; grips run forward along the shafts"
+   },
+   "cart_pull": {
+    "handles": [
+     [
+      0.34,
+      -0.06,
+      0.74
+     ],
+     [
+      -0.34,
+      -0.06,
+      0.74
+     ]
+    ],
+    "axis": "fwd",
+    "note": "the same cart turned round: he walks between the shafts and draws it behind him"
+   },
+   "truck_push": {
+    "handles": [
+     [
+      0.22,
+      0.44,
+      0.97
+     ],
+     [
+      -0.22,
+      0.44,
+      0.97
+     ]
+    ],
+    "axis": "back-up",
+    "note": "a sack truck tipped back toward him (about 45 degrees), wheels ahead, the two handle tips"
+   },
+   "truck_pull": {
+    "handles": [
+     [
+      0.2,
+      -0.24,
+      0.74
+     ],
+     [
+      -0.2,
+      -0.24,
+      0.74
+     ]
+    ],
+    "axis": "fwd-up",
+    "note": "the sack truck drawn behind him, tipped forward onto its wheels"
+   }
+  },
+  "clips": {
+   "man_stroll": {
+    "kind": "loop",
+    "style": "man",
+    "speed": 0.9,
+    "cycle": 1.3333,
+    "stride": 1.2,
+    "duty": 0.656,
+    "seconds": 2.6667,
+    "strides": 2,
+    "body": "man_middling",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "frames": 65,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.14,
+     "slidePlayedMm": 2.28,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0001,
+     "seamJerk": 17.23,
+     "toeClearMm": 5.8
+    }
+   },
+   "man_walk": {
+    "kind": "loop",
+    "style": "man",
+    "speed": 1.35,
+    "cycle": 1.0833,
+    "stride": 1.4625,
+    "duty": 0.615,
+    "seconds": 2.1667,
+    "strides": 2,
+    "body": "man_middling",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "frames": 53,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.09,
+     "slidePlayedMm": 0.73,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0002,
+     "seamJerk": 11.8,
+     "toeClearMm": 8.8
+    }
+   },
+   "man_hurry": {
+    "kind": "loop",
+    "style": "man",
+    "speed": 1.9,
+    "cycle": 0.9167,
+    "stride": 1.7417,
+    "duty": 0.591,
+    "seconds": 1.8333,
+    "strides": 2,
+    "body": "man_middling",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "frames": 45,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.18,
+     "slidePlayedMm": 1.76,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 24.94,
+     "toeClearMm": 12.4
+    }
+   },
+   "man_run": {
+    "kind": "loop",
+    "style": "man",
+    "speed": 3.5,
+    "cycle": 0.75,
+    "stride": 2.625,
+    "duty": 0.389,
+    "seconds": 1.5,
+    "strides": 2,
+    "body": "man_middling",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "frames": 37,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.1,
+     "slidePlayedMm": 4.1,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0002,
+     "seamJerk": 32.65,
+     "toeClearMm": 19.2
+    }
+   },
+   "man_sprint": {
+    "kind": "loop",
+    "style": "man",
+    "speed": 5.5,
+    "cycle": 0.6667,
+    "stride": 3.6667,
+    "duty": 0.312,
+    "seconds": 1.3333,
+    "strides": 2,
+    "body": "man_middling",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "frames": 33,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.0,
+     "slidePlayedMm": 6.51,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0001,
+     "seamJerk": 40.12,
+     "toeClearMm": 21.8
+    }
+   },
+   "woman_stroll": {
+    "kind": "loop",
+    "style": "woman",
+    "speed": 0.9,
+    "cycle": 1.1667,
+    "stride": 1.05,
+    "duty": 0.643,
+    "seconds": 2.3333,
+    "strides": 2,
+    "body": "woman_middling",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "frames": 57,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.09,
+     "slidePlayedMm": 0.41,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0001,
+     "seamJerk": 13.78,
+     "toeClearMm": 8.7
+    }
+   },
+   "woman_walk": {
+    "kind": "loop",
+    "style": "woman",
+    "speed": 1.35,
+    "cycle": 0.9167,
+    "stride": 1.2375,
+    "duty": 0.636,
+    "seconds": 1.8333,
+    "strides": 2,
+    "body": "woman_middling",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "frames": 45,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.09,
+     "slidePlayedMm": 2.17,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 20.22,
+     "toeClearMm": 13.7
+    }
+   },
+   "woman_hurry": {
+    "kind": "loop",
+    "style": "woman",
+    "speed": 1.9,
+    "cycle": 0.8333,
+    "stride": 1.5833,
+    "duty": 0.6,
+    "seconds": 1.6667,
+    "strides": 2,
+    "body": "woman_middling",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "frames": 41,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.18,
+     "slidePlayedMm": 1.89,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0001,
+     "seamJerk": 31.23,
+     "toeClearMm": 16.7
+    }
+   },
+   "woman_run": {
+    "kind": "loop",
+    "style": "woman",
+    "speed": 3.5,
+    "cycle": 0.6667,
+    "stride": 2.3333,
+    "duty": 0.375,
+    "seconds": 1.3333,
+    "strides": 2,
+    "body": "woman_middling",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "frames": 33,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.0,
+     "slidePlayedMm": 3.47,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0004,
+     "seamJerk": 42.53,
+     "toeClearMm": 22.1
+    }
+   },
+   "woman_sprint": {
+    "kind": "loop",
+    "style": "woman",
+    "speed": 5.5,
+    "cycle": 0.5833,
+    "stride": 3.2083,
+    "duty": 0.286,
+    "seconds": 1.1667,
+    "strides": 2,
+    "body": "woman_middling",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "frames": 29,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.0,
+     "slidePlayedMm": 4.04,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 41.73,
+     "toeClearMm": 29.5
+    }
+   },
+   "old_stroll": {
+    "kind": "loop",
+    "style": "old",
+    "speed": 0.9,
+    "cycle": 1.0833,
+    "stride": 0.975,
+    "duty": 0.692,
+    "seconds": 2.1667,
+    "strides": 2,
+    "body": "old_man",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "frames": 53,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.29,
+     "slidePlayedMm": 1.88,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 12.01,
+     "toeClearMm": 4.8
+    }
+   },
+   "old_walk": {
+    "kind": "loop",
+    "style": "old",
+    "speed": 1.35,
+    "cycle": 0.8333,
+    "stride": 1.125,
+    "duty": 0.65,
+    "seconds": 1.6667,
+    "strides": 2,
+    "body": "old_man",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "frames": 41,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.26,
+     "slidePlayedMm": 0.85,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0001,
+     "seamJerk": 19.37,
+     "toeClearMm": 9.6
+    }
+   },
+   "old_hurry": {
+    "kind": "loop",
+    "style": "old",
+    "speed": 1.9,
+    "cycle": 0.6667,
+    "stride": 1.2667,
+    "duty": 0.625,
+    "seconds": 1.3333,
+    "strides": 2,
+    "body": "old_man",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "frames": 33,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.1,
+     "slidePlayedMm": 1.37,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0001,
+     "seamJerk": 27.29,
+     "toeClearMm": 11.8
+    }
+   },
+   "child_stroll": {
+    "kind": "loop",
+    "style": "child",
+    "speed": 0.9,
+    "cycle": 1.0,
+    "stride": 0.9,
+    "duty": 0.667,
+    "seconds": 2.0,
+    "strides": 2,
+    "body": "child_middling",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "frames": 49,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.12,
+     "slidePlayedMm": 1.66,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0001,
+     "seamJerk": 28.15,
+     "toeClearMm": 6.6
+    }
+   },
+   "child_walk": {
+    "kind": "loop",
+    "style": "child",
+    "speed": 1.35,
+    "cycle": 0.8333,
+    "stride": 1.125,
+    "duty": 0.6,
+    "seconds": 1.6667,
+    "strides": 2,
+    "body": "child_middling",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "frames": 41,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.09,
+     "slidePlayedMm": 3.05,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0001,
+     "seamJerk": 22.36,
+     "toeClearMm": 9.0
+    }
+   },
+   "child_hurry": {
+    "kind": "loop",
+    "style": "child",
+    "speed": 1.9,
+    "cycle": 0.6667,
+    "stride": 1.2667,
+    "duty": 0.562,
+    "seconds": 1.3333,
+    "strides": 2,
+    "body": "child_middling",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "frames": 33,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.18,
+     "slidePlayedMm": 1.65,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0001,
+     "seamJerk": 37.33,
+     "toeClearMm": 12.3
+    }
+   },
+   "child_run": {
+    "kind": "loop",
+    "style": "child",
+    "speed": 3.5,
+    "cycle": 0.5833,
+    "stride": 2.0417,
+    "duty": 0.357,
+    "seconds": 1.1667,
+    "strides": 2,
+    "body": "child_middling",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "frames": 29,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.01,
+     "slidePlayedMm": 4.6,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0004,
+     "seamJerk": 51.57,
+     "toeClearMm": 20.3
+    }
+   },
+   "child_sprint": {
+    "kind": "loop",
+    "style": "child",
+    "speed": 5.5,
+    "cycle": 0.5,
+    "stride": 2.75,
+    "duty": 0.333,
+    "seconds": 1.0,
+    "strides": 2,
+    "body": "child_middling",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "frames": 25,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.0,
+     "slidePlayedMm": 11.34,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0003,
+     "seamJerk": 56.51,
+     "toeClearMm": 33.2
+    }
+   },
+   "stout_stroll": {
+    "kind": "loop",
+    "style": "stout",
+    "speed": 0.9,
+    "cycle": 1.3333,
+    "stride": 1.2,
+    "duty": 0.656,
+    "seconds": 2.6667,
+    "strides": 2,
+    "body": "man_stout",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "frames": 65,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.14,
+     "slidePlayedMm": 2.51,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 20.39,
+     "toeClearMm": 5.8
+    }
+   },
+   "stout_walk": {
+    "kind": "loop",
+    "style": "stout",
+    "speed": 1.35,
+    "cycle": 1.0,
+    "stride": 1.35,
+    "duty": 0.625,
+    "seconds": 2.0,
+    "strides": 2,
+    "body": "man_stout",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "frames": 49,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.09,
+     "slidePlayedMm": 0.58,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0001,
+     "seamJerk": 18.31,
+     "toeClearMm": 10.2
+    }
+   },
+   "stout_hurry": {
+    "kind": "loop",
+    "style": "stout",
+    "speed": 1.9,
+    "cycle": 0.8333,
+    "stride": 1.5833,
+    "duty": 0.6,
+    "seconds": 1.6667,
+    "strides": 2,
+    "body": "man_stout",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "frames": 41,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.18,
+     "slidePlayedMm": 1.43,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0001,
+     "seamJerk": 22.5,
+     "toeClearMm": 14.0
+    }
+   },
+   "stout_run": {
+    "kind": "loop",
+    "style": "stout",
+    "speed": 3.5,
+    "cycle": 0.6667,
+    "stride": 2.3333,
+    "duty": 0.375,
+    "seconds": 1.3333,
+    "strides": 2,
+    "body": "man_stout",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "frames": 33,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.0,
+     "slidePlayedMm": 2.71,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0001,
+     "seamJerk": 36.02,
+     "toeClearMm": 16.6
+    }
+   },
+   "stout_sprint": {
+    "kind": "loop",
+    "style": "stout",
+    "speed": 5.5,
+    "cycle": 0.5833,
+    "stride": 3.2083,
+    "duty": 0.286,
+    "seconds": 1.1667,
+    "strides": 2,
+    "body": "man_stout",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "frames": 29,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.0,
+     "slidePlayedMm": 3.37,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0001,
+     "seamJerk": 37.16,
+     "toeClearMm": 27.4
+    }
+   },
+   "laden_stroll": {
+    "kind": "loop",
+    "style": "laden",
+    "speed": 0.9,
+    "cycle": 1.1667,
+    "stride": 1.05,
+    "duty": 0.643,
+    "seconds": 2.3333,
+    "strides": 2,
+    "body": "man_middling",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "frames": 57,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.12,
+     "slidePlayedMm": 0.34,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 10.18,
+     "toeClearMm": 6.5
+    }
+   },
+   "laden_walk": {
+    "kind": "loop",
+    "style": "laden",
+    "speed": 1.35,
+    "cycle": 0.9167,
+    "stride": 1.2375,
+    "duty": 0.636,
+    "seconds": 1.8333,
+    "strides": 2,
+    "body": "man_middling",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "frames": 45,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.11,
+     "slidePlayedMm": 2.57,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0002,
+     "seamJerk": 13.96,
+     "toeClearMm": 8.2
+    }
+   },
+   "laden_hurry": {
+    "kind": "loop",
+    "style": "laden",
+    "speed": 1.9,
+    "cycle": 0.75,
+    "stride": 1.425,
+    "duty": 0.611,
+    "seconds": 1.5,
+    "strides": 2,
+    "body": "man_middling",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "frames": 37,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.16,
+     "slidePlayedMm": 0.78,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0001,
+     "seamJerk": 22.8,
+     "toeClearMm": 14.7
+    }
+   },
+   "man_slope_up": {
+    "kind": "loop",
+    "style": "man",
+    "speed": 1.35,
+    "cycle": 1.0833,
+    "stride": 1.4483,
+    "duty": 0.615,
+    "seconds": 2.1667,
+    "strides": 2,
+    "body": "man_middling",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "slope": 8.0,
+    "frames": 53,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.58,
+     "slidePlayedMm": 2.62,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 15.73,
+     "toeClearMm": 7.8
+    }
+   },
+   "man_slope_down": {
+    "kind": "loop",
+    "style": "man",
+    "speed": 1.35,
+    "cycle": 1.0833,
+    "stride": 1.4483,
+    "duty": 0.615,
+    "seconds": 2.1667,
+    "strides": 2,
+    "body": "man_middling",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "slope": -8.0,
+    "frames": 53,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.46,
+     "slidePlayedMm": 1.83,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0001,
+     "seamJerk": 12.18,
+     "toeClearMm": 8.5
+    }
+   },
+   "man_stairs_up": {
+    "kind": "loop",
+    "style": "man",
+    "speed": 0.48,
+    "cycle": 1.1667,
+    "stride": 0.56,
+    "duty": 0.643,
+    "seconds": 2.3333,
+    "strides": 2,
+    "body": "man_middling",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "stairs": {
+     "rise": 0.17,
+     "going": 0.28,
+     "up": true,
+     "steps": 4,
+     "climb": 0.68
+    },
+    "note": "speed is along the ground; the node also climbs rise/going per metre",
+    "frames": 57,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.13,
+     "slidePlayedMm": 2.01,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0001,
+     "seamJerk": 6.77,
+     "toeClearMm": 1.2
+    }
+   },
+   "man_stairs_down": {
+    "kind": "loop",
+    "style": "man",
+    "speed": 0.56,
+    "cycle": 1.0,
+    "stride": 0.56,
+    "duty": 0.625,
+    "seconds": 2.0,
+    "strides": 2,
+    "body": "man_middling",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "stairs": {
+     "rise": 0.17,
+     "going": 0.28,
+     "up": false,
+     "steps": 4,
+     "climb": -0.68
+    },
+    "note": "speed is along the ground; the node also climbs rise/going per metre",
+    "frames": 49,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.19,
+     "slidePlayedMm": 0.38,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 16.91,
+     "toeClearMm": 8.7
+    }
+   },
+   "woman_slope_up": {
+    "kind": "loop",
+    "style": "woman",
+    "speed": 1.35,
+    "cycle": 0.9167,
+    "stride": 1.2255,
+    "duty": 0.636,
+    "seconds": 1.8333,
+    "strides": 2,
+    "body": "woman_middling",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "slope": 8.0,
+    "frames": 45,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.23,
+     "slidePlayedMm": 2.14,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0003,
+     "seamJerk": 21.02,
+     "toeClearMm": 14.4
+    }
+   },
+   "woman_slope_down": {
+    "kind": "loop",
+    "style": "woman",
+    "speed": 1.35,
+    "cycle": 0.9167,
+    "stride": 1.2255,
+    "duty": 0.636,
+    "seconds": 1.8333,
+    "strides": 2,
+    "body": "woman_middling",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "slope": -8.0,
+    "frames": 45,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.05,
+     "slidePlayedMm": 1.71,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0002,
+     "seamJerk": 14.03,
+     "toeClearMm": -0.0
+    }
+   },
+   "woman_stairs_up": {
+    "kind": "loop",
+    "style": "woman",
+    "speed": 0.48,
+    "cycle": 1.1667,
+    "stride": 0.56,
+    "duty": 0.643,
+    "seconds": 2.3333,
+    "strides": 2,
+    "body": "woman_middling",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "stairs": {
+     "rise": 0.17,
+     "going": 0.28,
+     "up": true,
+     "steps": 4,
+     "climb": 0.68
+    },
+    "note": "speed is along the ground; the node also climbs rise/going per metre",
+    "frames": 57,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.13,
+     "slidePlayedMm": 1.61,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0001,
+     "seamJerk": 7.48,
+     "toeClearMm": 15.6
+    }
+   },
+   "woman_stairs_down": {
+    "kind": "loop",
+    "style": "woman",
+    "speed": 0.56,
+    "cycle": 1.0,
+    "stride": 0.56,
+    "duty": 0.625,
+    "seconds": 2.0,
+    "strides": 2,
+    "body": "woman_middling",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "stairs": {
+     "rise": 0.17,
+     "going": 0.28,
+     "up": false,
+     "steps": 4,
+     "climb": -0.68
+    },
+    "note": "speed is along the ground; the node also climbs rise/going per metre",
+    "frames": 49,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.18,
+     "slidePlayedMm": 0.54,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0002,
+     "seamJerk": 16.91,
+     "toeClearMm": 11.2
+    }
+   },
+   "sack_walk": {
+    "kind": "loop",
+    "style": "man",
+    "speed": 1.2,
+    "cycle": 1.0833,
+    "stride": 1.3,
+    "duty": 0.615,
+    "seconds": 2.1667,
+    "strides": 2,
+    "body": "man_middling",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "carry": "sack",
+    "frames": 53,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.07,
+     "slidePlayedMm": 0.57,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 10.41,
+     "toeClearMm": 8.3
+    }
+   },
+   "sack_hold": {
+    "kind": "loop",
+    "carry": "sack",
+    "speed": 0.0,
+    "seconds": 4.0,
+    "body": "man_middling",
+    "frames": 97,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.0,
+     "slidePlayedMm": 0.0,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.15,
+     "toeClearMm": 9000.0
+    }
+   },
+   "crate_walk": {
+    "kind": "loop",
+    "style": "man",
+    "speed": 1.1,
+    "cycle": 1.0,
+    "stride": 1.1,
+    "duty": 0.625,
+    "seconds": 2.0,
+    "strides": 2,
+    "body": "man_middling",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "carry": "carry",
+    "frames": 49,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.12,
+     "slidePlayedMm": 0.44,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0001,
+     "seamJerk": 11.47,
+     "toeClearMm": 8.5
+    }
+   },
+   "crate_hold": {
+    "kind": "loop",
+    "carry": "carry",
+    "speed": 0.0,
+    "seconds": 4.0,
+    "body": "man_middling",
+    "frames": 97,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.0,
+     "slidePlayedMm": 0.0,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.15,
+     "toeClearMm": 9000.0
+    }
+   },
+   "cart_push": {
+    "kind": "loop",
+    "style": "man",
+    "speed": 1.15,
+    "cycle": 1.0,
+    "stride": 1.15,
+    "duty": 0.625,
+    "seconds": 2.0,
+    "strides": 2,
+    "body": "man_middling",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "carry": "cart_push",
+    "frames": 49,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.14,
+     "slidePlayedMm": 0.45,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 12.11,
+     "toeClearMm": 9.0
+    }
+   },
+   "cart_push_hold": {
+    "kind": "loop",
+    "carry": "cart_push",
+    "speed": 0.0,
+    "seconds": 4.0,
+    "body": "man_middling",
+    "frames": 97,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.0,
+     "slidePlayedMm": 0.0,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.14,
+     "toeClearMm": 9000.0
+    }
+   },
+   "cart_pull": {
+    "kind": "loop",
+    "style": "man",
+    "speed": 1.05,
+    "cycle": 1.0,
+    "stride": 1.05,
+    "duty": 0.625,
+    "seconds": 2.0,
+    "strides": 2,
+    "body": "man_middling",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "carry": "cart_pull",
+    "frames": 49,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.1,
+     "slidePlayedMm": 0.32,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 10.33,
+     "toeClearMm": 8.4
+    }
+   },
+   "cart_pull_hold": {
+    "kind": "loop",
+    "carry": "cart_pull",
+    "speed": 0.0,
+    "seconds": 4.0,
+    "body": "man_middling",
+    "frames": 97,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.0,
+     "slidePlayedMm": 0.0,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.14,
+     "toeClearMm": 9000.0
+    }
+   },
+   "truck_push": {
+    "kind": "loop",
+    "style": "man",
+    "speed": 1.15,
+    "cycle": 1.0833,
+    "stride": 1.2458,
+    "duty": 0.615,
+    "seconds": 2.1667,
+    "strides": 2,
+    "body": "man_middling",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "carry": "truck_push",
+    "frames": 53,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.06,
+     "slidePlayedMm": 0.51,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0001,
+     "seamJerk": 9.64,
+     "toeClearMm": 8.0
+    }
+   },
+   "truck_push_hold": {
+    "kind": "loop",
+    "carry": "truck_push",
+    "speed": 0.0,
+    "seconds": 4.0,
+    "body": "man_middling",
+    "frames": 97,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.0,
+     "slidePlayedMm": 0.0,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.15,
+     "toeClearMm": 9000.0
+    }
+   },
+   "truck_pull": {
+    "kind": "loop",
+    "style": "man",
+    "speed": 1.2,
+    "cycle": 1.0833,
+    "stride": 1.3,
+    "duty": 0.615,
+    "seconds": 2.1667,
+    "strides": 2,
+    "body": "man_middling",
+    "phase": "left heel strikes at 0 and 0.5, right at 0.25 and 0.75",
+    "carry": "truck_pull",
+    "frames": 53,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.07,
+     "slidePlayedMm": 0.57,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 16.56,
+     "toeClearMm": 8.2
+    }
+   },
+   "truck_pull_hold": {
+    "kind": "loop",
+    "carry": "truck_pull",
+    "speed": 0.0,
+    "seconds": 4.0,
+    "body": "man_middling",
+    "frames": 97,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.0,
+     "slidePlayedMm": 0.0,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.15,
+     "toeClearMm": 9000.0
+    }
+   },
+   "man_start_walk": {
+    "kind": "start",
+    "style": "man",
+    "speed": 1.35,
+    "body": "man_middling",
+    "seconds": 1.375,
+    "travel": {
+     "fwd": 0.8471,
+     "left": 0.0,
+     "yaw": 0.0
+    },
+    "then": "man_walk",
+    "note": "ends on the loop's frame 0 (left heel strike)",
+    "frames": 34,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.11,
+     "slidePlayedMm": 0.31,
+     "scuffMm": 0.0,
+     "toeClearMm": 8.8,
+     "joinDeg": 0.0,
+     "joinMm": 0.0
+    }
+   },
+   "man_stop_walk": {
+    "kind": "stop",
+    "style": "man",
+    "speed": 1.35,
+    "body": "man_middling",
+    "seconds": 1.6667,
+    "travel": {
+     "fwd": 0.324,
+     "left": 0.0,
+     "yaw": 0.0
+    },
+    "from": "man_walk",
+    "note": "starts on the loop's frame 0 (left heel strike)",
+    "frames": 41,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.71,
+     "slidePlayedMm": 1.75,
+     "scuffMm": 0.68,
+     "toeClearMm": 2.1,
+     "joinDeg": 0.0,
+     "joinMm": 0.0
+    }
+   },
+   "man_start_run": {
+    "kind": "start",
+    "style": "man",
+    "speed": 3.5,
+    "body": "man_middling",
+    "seconds": 1.2083,
+    "travel": {
+     "fwd": 1.9046,
+     "left": 0.0,
+     "yaw": 0.0
+    },
+    "then": "man_run",
+    "note": "ends on the loop's frame 0 (left heel strike)",
+    "frames": 30,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.1,
+     "slidePlayedMm": 2.99,
+     "scuffMm": 0.0,
+     "toeClearMm": 0.0,
+     "joinDeg": 0.0,
+     "joinMm": 0.0
+    }
+   },
+   "man_stop_run": {
+    "kind": "stop",
+    "style": "man",
+    "speed": 3.5,
+    "body": "man_middling",
+    "seconds": 1.75,
+    "travel": {
+     "fwd": 0.6787,
+     "left": 0.0,
+     "yaw": 0.0
+    },
+    "from": "man_run",
+    "note": "starts on the loop's frame 0 (left heel strike)",
+    "frames": 43,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.7,
+     "slidePlayedMm": 2.6,
+     "scuffMm": 5.29,
+     "toeClearMm": 2.1,
+     "joinDeg": 0.0,
+     "joinMm": 0.0
+    }
+   },
+   "man_turn_l90": {
+    "kind": "turn",
+    "style": "man",
+    "body": "man_middling",
+    "seconds": 1.42,
+    "travel": {
+     "fwd": 0.0,
+     "left": 0.0,
+     "yaw": 90
+    },
+    "note": "standing to standing; turn the node by yaw at the end",
+    "frames": 35,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.0,
+     "slidePlayedMm": 1.21,
+     "scuffMm": 2.29,
+     "toeClearMm": 0.8
+    }
+   },
+   "man_turn_r90": {
+    "kind": "turn",
+    "style": "man",
+    "body": "man_middling",
+    "seconds": 1.42,
+    "travel": {
+     "fwd": 0.0,
+     "left": 0.0,
+     "yaw": -90
+    },
+    "note": "standing to standing; turn the node by yaw at the end",
+    "frames": 35,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.0,
+     "slidePlayedMm": 1.21,
+     "scuffMm": 2.29,
+     "toeClearMm": 0.8
+    }
+   },
+   "man_turn_l180": {
+    "kind": "turn",
+    "style": "man",
+    "body": "man_middling",
+    "seconds": 1.83,
+    "travel": {
+     "fwd": 0.0,
+     "left": 0.0,
+     "yaw": 180
+    },
+    "note": "standing to standing; turn the node by yaw at the end",
+    "frames": 45,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.01,
+     "slidePlayedMm": 1.17,
+     "scuffMm": 2.93,
+     "toeClearMm": 0.8
+    }
+   },
+   "man_turn_r180": {
+    "kind": "turn",
+    "style": "man",
+    "body": "man_middling",
+    "seconds": 1.83,
+    "travel": {
+     "fwd": 0.0,
+     "left": 0.0,
+     "yaw": -180
+    },
+    "note": "standing to standing; turn the node by yaw at the end",
+    "frames": 45,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.0,
+     "slidePlayedMm": 1.17,
+     "scuffMm": 2.93,
+     "toeClearMm": 0.8
+    }
+   },
+   "woman_start_walk": {
+    "kind": "start",
+    "style": "woman",
+    "speed": 1.35,
+    "body": "woman_middling",
+    "seconds": 1.2083,
+    "travel": {
+     "fwd": 0.7346,
+     "left": 0.0,
+     "yaw": 0.0
+    },
+    "then": "woman_walk",
+    "note": "ends on the loop's frame 0 (left heel strike)",
+    "frames": 30,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.14,
+     "slidePlayedMm": 0.42,
+     "scuffMm": 0.0,
+     "toeClearMm": 13.8,
+     "joinDeg": 0.0,
+     "joinMm": 0.0
+    }
+   },
+   "woman_stop_walk": {
+    "kind": "stop",
+    "style": "woman",
+    "speed": 1.35,
+    "body": "woman_middling",
+    "seconds": 1.5833,
+    "travel": {
+     "fwd": 0.2835,
+     "left": 0.0,
+     "yaw": 0.0
+    },
+    "from": "woman_walk",
+    "note": "starts on the loop's frame 0 (left heel strike)",
+    "frames": 39,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.1,
+     "slidePlayedMm": 2.89,
+     "scuffMm": 0.15,
+     "toeClearMm": 2.3,
+     "joinDeg": 0.0,
+     "joinMm": 0.0
+    }
+   },
+   "woman_start_run": {
+    "kind": "start",
+    "style": "woman",
+    "speed": 3.5,
+    "body": "woman_middling",
+    "seconds": 1.125,
+    "travel": {
+     "fwd": 1.7587,
+     "left": 0.0,
+     "yaw": 0.0
+    },
+    "then": "woman_run",
+    "note": "ends on the loop's frame 0 (left heel strike)",
+    "frames": 28,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.14,
+     "slidePlayedMm": 3.3,
+     "scuffMm": 0.0,
+     "toeClearMm": 7.3,
+     "joinDeg": 0.0,
+     "joinMm": 0.0
+    }
+   },
+   "woman_stop_run": {
+    "kind": "stop",
+    "style": "woman",
+    "speed": 3.5,
+    "body": "woman_middling",
+    "seconds": 1.6667,
+    "travel": {
+     "fwd": 0.6175,
+     "left": 0.0,
+     "yaw": 0.0
+    },
+    "from": "woman_run",
+    "note": "starts on the loop's frame 0 (left heel strike)",
+    "frames": 41,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.98,
+     "slidePlayedMm": 2.18,
+     "scuffMm": 0.7,
+     "toeClearMm": 2.3,
+     "joinDeg": 0.0,
+     "joinMm": 0.0
+    }
+   },
+   "woman_turn_l90": {
+    "kind": "turn",
+    "style": "woman",
+    "body": "woman_middling",
+    "seconds": 1.42,
+    "travel": {
+     "fwd": 0.0,
+     "left": 0.0,
+     "yaw": 90
+    },
+    "note": "standing to standing; turn the node by yaw at the end",
+    "frames": 35,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.3,
+     "slidePlayedMm": 1.54,
+     "scuffMm": 2.45,
+     "toeClearMm": 0.8
+    }
+   },
+   "woman_turn_r90": {
+    "kind": "turn",
+    "style": "woman",
+    "body": "woman_middling",
+    "seconds": 1.42,
+    "travel": {
+     "fwd": 0.0,
+     "left": 0.0,
+     "yaw": -90
+    },
+    "note": "standing to standing; turn the node by yaw at the end",
+    "frames": 35,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.3,
+     "slidePlayedMm": 1.54,
+     "scuffMm": 2.45,
+     "toeClearMm": 0.8
+    }
+   },
+   "woman_turn_l180": {
+    "kind": "turn",
+    "style": "woman",
+    "body": "woman_middling",
+    "seconds": 1.83,
+    "travel": {
+     "fwd": 0.0,
+     "left": 0.0,
+     "yaw": 180
+    },
+    "note": "standing to standing; turn the node by yaw at the end",
+    "frames": 45,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.3,
+     "slidePlayedMm": 1.51,
+     "scuffMm": 3.43,
+     "toeClearMm": 0.8
+    }
+   },
+   "woman_turn_r180": {
+    "kind": "turn",
+    "style": "woman",
+    "body": "woman_middling",
+    "seconds": 1.83,
+    "travel": {
+     "fwd": 0.0,
+     "left": 0.0,
+     "yaw": -180
+    },
+    "note": "standing to standing; turn the node by yaw at the end",
+    "frames": 45,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.3,
+     "slidePlayedMm": 1.51,
+     "scuffMm": 3.43,
+     "toeClearMm": 0.8
+    }
+   }
+  }
  }
 }

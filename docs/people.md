@@ -8,15 +8,16 @@ either game uses it yet: `people.glb` and `tools/blender/build_people.py` stay a
 ## Build
 
 ```
-blender -b --factory-startup -P tools/blender/build_people2.py -- [--preview] [--cast] [--only a,b] [--out PATH]
+blender -b --factory-startup -P tools/blender/build_people2.py -- [--preview] [--cast] [--move] [--only a,b] [--out PATH]
 ```
 
-Blender 5.2 (`C:/Program Files/Blender Foundation/Blender 5.2/blender.exe`), about 50 s; `--cast` adds about 4 min.
+Blender 5.2 (`C:/Program Files/Blender Foundation/Blender 5.2/blender.exe`), about 75 s; `--cast` adds about 4 min,
+`--move` (the motion checks) about 2 min.
 
 | Writes | What |
 |---|---|
-| `client/public/models/people2.glb` | 10 bodies, each an armature (named after the body) with `<body>_lod0` and `<body>_lod1`, 2 materials, 36 clips; Draco, JPEG; 2.5 MB |
-| `shared/peopleRig.json` | the bones, sockets, grab marks, the Godot BoneMap, and per body its joints, marks, figures and counts |
+| `client/public/models/people2.glb` | 10 bodies, each an armature (named after the body) with `<body>_lod0` and `<body>_lod1`, 2 materials, 98 clips (36 old, 62 locomotion); Draco, JPEG; 3.5 MB |
+| `shared/peopleRig.json` | the bones, sockets, grab marks, the Godot BoneMap, per body its joints, marks, figures and counts, and `locomotion` (every D1 clip's speed, cycle, stride, travel and checks; the blend rule; the loads and handles) |
 | `data/shots/people2/*.png` | the check pictures (not in git) |
 
 Godot reads Draco only through `node tools/godot/models.mjs --only people2` (writes the plain copy to
@@ -33,8 +34,12 @@ The kit, `tools/blender/people2/`:
 | `lod.py` | UV unwrap and island layout, the subdivision (LOD0), the limit surface (LOD1) |
 | `paint.py` | the position map and the base skin pictures |
 | `clips_legacy.py` | the 36 old clips keyed on the new rig |
+| `motion.py` | the motion tools (D1, for every clip package): FK, IK, holds, feet, curves, joining, foot lock, keying, checks |
+| `clips_move.py` | the locomotion clips (D1): the gait maker, the walkers, climbs, carries, start, stop, turns, the speed blend |
 | `export.py` | the glb, the materials, `peopleRig.json` |
+| `glb_slim.py` | after the export: drops the animation channels that never move (3 MB of JSON) and repacks the buffer |
 | `preview.py` | the check pictures |
+| `preview_move.py` | the motion check pictures (`--move`) |
 
 ## Axes and units
 
@@ -206,6 +211,134 @@ Also: `node tools/blender/glbhash.mjs client/public/models/people2.glb` (per par
 `node tools/godot/models.mjs --only people2` (decodes: 630 nodes, 20 meshes, 10 skins, 36 clips, no other
 extensions).
 
+## Motion tools (`motion.py`, package D1; for D2, D3 and the fight clips J)
+
+Everything works in the pose convention above (a pose: bone -> turn in armature axes, relative to the parent's
+turned frame), plus one vector, the hips translation (armature axes, metres, from the rest position). Global turns
+compose down the chain: `D[bone] = D[parent] @ pose[bone]`; heads `P[bone] = P[parent] + D[parent] @ (rest[bone] -
+rest[parent])`. IK is solved in closed form in Python, not with Blender constraints: exact (a planted foot does not
+move at all at the keys), the same on every run, fast; the result is plain FK keys.
+
+| Tool | What it does |
+|---|---|
+| `yaw(d)`, `bow(d)`, `lean(d)`, `turn(y, b, l)`, `swing(S, fwd, out, twist)` | turns named by what they do: yaw + turns to the person's left; bow + tips an upright bone forward (a hanging one back: a knee); lean + tips an upright bone to the left (on the hips: the left side drops); `swing` is the old `limb()` |
+| `V(left, fwd, up)`, `words(v)` | a point in the person's words to armature axes and back |
+| `angle(a, b)` | degrees between two turns (atan2: exact for small angles) |
+| `Curve(keys, period=None)` | a smooth cubic through keys `(t, value[, slope])`, values floats or Vectors; `period` makes it loop (slopes see across the seam) |
+| `ease`, `ease_in`, `ease_out`, `smoothstep`, `smootherstep` | shapes on 0..1 |
+| `overshoot(u, amount)` | 0 to 1, past the end by `amount`, back onto it; still at both ends |
+| `lag(fn, delay, period)` | a signal later: a bone that trails the one that drives it |
+| `follow(values, dt, freq, zeta, periodic)` | a spring trailing a sampled signal: follow-through and settle (loops close on themselves) |
+| `share(total, bones, shares)` | one turn spread over a chain, exactly `total` together |
+| `overlap(fn, bones, delay, falloff)` | offset of chained bones: the same motion rippling down a chain, each later and smaller |
+| `Skel(J, mesh)` | one body's skeleton: `fk(pose, t)` (heads `P`, turns `D`, `point(bone, rest_point)`), `leg(pose, S, ankle, foot_rot, pole)`, `arm(pose, S, wrist, hand_rot, pole)`, `hold(pose, S, grip, hand_rot, pole)` (puts the `gripS` socket, the middle of the fist, on a handle), `look(pose, target, keep)` (a steady head over a moving trunk), `feet` (heel, its circle, ball, tip, sole from the mesh) |
+| `twist_rule`, `clavicle_for` | the kit's armTwist (0.6 of the hand's turn) and shoulder lift rules |
+| `roll(sk, S, flat_pos, yaw, r, ground_pitch)` | a planted foot rolled: r < 0 on the round heel (it rolls without slipping), 0 flat, r > 0 on the toes (the foot turns about the toe joint, the toes stay down) |
+| `contacts(posed, sk, S)` | the posed heel, ball and tip |
+| `Clip(name, poses, trans, loop, meta, root, ground, skel)` | a clip as frames at 24 fps; `sample(t)` plays it as the games do (slerp between keys) |
+| `mirror_pose(pose, t)` | the other side's pose (L and R swapped, reflected) |
+| `ease_into(clip, target, at, n, offset)`, `ease_from(clip, source, at, n, offset)` | join clips exactly: the last (first) n frames turn into the other clip's frames, so the hand-over frame is the other clip's own |
+| `lock_feet(clip, stance)` | foot locking: a standing foot stays where it touched down (leg IK), let go smoothly when it lifts; for blends, gait switches, footwork that slides the body over planted feet, hit reactions |
+| `key_clip(ao, clip)` | key every body bone's turn and the hips translation at every frame, one muted NLA track per clip |
+| `slide(clip)` | the foot-slide measure: per foot the largest drift of a planted heel, ball or tip at the keys and as played (between keys too), and the swing scuffs |
+| `seam(clip)` | a loop's seam: the turn between its last and first frame and the change of turning speed across it |
+| `clearance(clip)`, `joins(a, b)`, `fk_check(ao, sk, pose)` | toe clearance in the swing; how far one clip's end is from another's start; this FK against Blender's own |
+
+A worked use, a hand on a moving handle: build the trunk, then
+`sk.hold(pose, "R", handle_point, hand_aim("R", fingers_dir, palm_dir), V(-0.6, -1, -0.3), t=hips_t)`
+(`clips_move.hand_aim`, `hold_on_bone` for a point carried by a bone, `hold_in_world` for one fixed to the node).
+
+## Locomotion (`clips_move.py`, package D1)
+
+### How a clip is made (`evaluate(plan)`)
+
+1. A plan says where the body goes (`body(t)`: a ground point and a facing), where each foot stands and when
+   (`Stance`: a fixed place from landing to lifting, with its roll over time: heel strike, flat, heel off, toe off),
+   how each foot swings to its next stance (keys for its path, pitch and toes, in the body's frame), and what the
+   body does on top (`layers`, `upper`: pelvis, trunk, arms, head, hands).
+2. The hips' height comes from the legs. While a foot carries the weight its knee follows a bend profile (a walk:
+   nearly straight at the strike, bent at loading, straight over the foot, bending as the heel rises; a run: most
+   bent at mid stance), so the pelvis drops at contact and rises over the foot by itself. A leg is never asked to be
+   longer than it is; a landing leg pulls the pelvis down to meet its foot; in a run's flight the hips fly on a
+   parabola under gravity. Then the height is smoothed (over the moving ground, so climbs loop).
+3. A foot that no longer carries the weight rises on its toes as far as its leg needs (the knee bending toward
+   toe off), never past 70 degrees: the heel rise comes out of the leg, not a table, and the toes stay planted.
+   Three passes settle hips and heel rise together.
+4. Every frame: legs by IK onto the feet (knees toward the feet), the trunk (lean, part of a big lean in the pelvis,
+   the chest against the pelvis, the side lean that keeps the shoulders level, a nod at each strike, breathing),
+   arms (a swing from the shoulder with the elbow and wrist lagging, or a hold), a level head that keeps 15-35% of
+   the trunk's motion, hand shapes.
+Steps and toe offs fall on whole frames (both feet sampled alike, no lift between two keys).
+
+### The clips
+
+Loops are two strides (left heel strikes at 0 and 0.5 of the clip, the right at 0.25 and 0.75), in place: move the
+node at `speed`. Each is made on its own body; other bodies of the same base play it unchanged.
+
+| Clips | Body | Speeds (m/s) |
+|---|---|---|
+| `man_stroll`, `_walk`, `_hurry`, `_run`, `_sprint` | man_middling | 0.9, 1.35, 1.9, 3.5, 5.5 |
+| `woman_*` (the same five): narrow steps, more pelvis, small arm swing; running she holds her skirt up | woman_middling | the same |
+| `old_stroll`, `_walk`, `_hurry`: short flat steps, wide base, bent knees, little arm swing, eyes down (no run: cap the old at 1.9) | old_man | 0.9-1.9 |
+| `child_*` (five): quick steps, big arm swing, a bounce | child_middling | 0.9-5.5 |
+| `stout_*` (five): wide base, toes out, a waddle, arms held out, leaning back behind the belly | man_stout | 0.9-5.5 |
+| `laden_stroll`, `_walk`, `_hurry`: a load on the back, bent forward, hands on the straps | man_middling | 0.9-1.9 |
+| `man_slope_up`, `_slope_down`, `woman_slope_*`: an 8 degree slope, leaning into it or holding back | own | 1.35 |
+| `man_stairs_up`, `_stairs_down`, `woman_stairs_*`: one tread a step (rise 0.17, going 0.28), flat landings going up, toes first going down, lift before reach | own | about 0.6 along the stair |
+| `sack_walk`, `crate_walk`, `cart_push`, `cart_pull`, `truck_push`, `truck_pull` | man_middling | 1.05-1.2 |
+| `sack_hold`, `crate_hold`, `cart_push_hold`, `cart_pull_hold`, `truck_push_hold`, `truck_pull_hold`: standing with the load (4 s, a weight shift, breathing) | man_middling | 0 |
+
+Clips that travel move and turn the hips (no root bone): play them, then move the node by `travel` (fwd, left, yaw)
+and go on with the next clip from its start.
+
+| Clips | What |
+|---|---|
+| `man_start_walk`, `man_start_run`, `woman_start_*` | from standing (feet at rest): the weight onto the left foot, a short right step, a full left one; ends exactly on the loop's frame 0 (`then`) |
+| `man_stop_walk`, `man_stop_run`, `woman_stop_*` | from the loop's frame 0 (`from`): the right foot comes beside the left, the body runs on a little and settles back, the arms swing out and still, a small left step squares the stance |
+| `man_turn_l90`, `_r90`, `_l180`, `_r180`, `woman_turn_*` | on the spot, standing to standing, three or four steps; the head leads and overshoots a little, the chest follows, the pelvis last, the arms trail and settle |
+
+Loads and handles (`peopleRig.json locomotion.loads`, points in the man's words): the sack across the left shoulder
+(from armUpL's head), the crate against the belly (from the chest), the handcart's grips ahead (props.glb
+`HANDCART_GRIP`: 0.34 either side, 0.76 up) or at his sides when he draws it, the sack truck's handle tips ahead
+(tipped back toward him) or behind. Whoever places the sack, crate, cart or truck model puts it there; the hands are
+solved onto those points (`carries.png`, `holds.png` show stand-ins).
+
+### For the runtimes (E, F)
+
+- Hips translation tracks: the clip's own body's offset from its rest, added to man_middling's hips rest
+  (`locomotion.trackBase`). On a body X: `X rest + (track - trackBase) * X.hipsBone / clipBody.hipsBone`. Keep the
+  translation tracks (bob, sway, travel); today's loaders drop them.
+- The speed blend (`locomotion.blend`, `blend_by_speed` is the reference): walks (stroll, walk, hurry) mix among
+  themselves and runs (run, sprint) among themselves, two neighbours by speed with `w = (Sa - v Ta) / (v (Tb - Ta) -
+  (Sb - Sa))` (S stride, T cycle from the clip's meta), one shared phase advanced by `dt / (2 T)`, `T = lerp(Ta, Tb,
+  w)`; past a family's end play its end loop at `cycle = stride / v`; walk to run (and back) at 2.2 m/s by a
+  crossfade inside a window where both gaits agree (`switch_windows`), never held as a mix. **Lock the planted feet
+  with leg IK every frame** (`lock_feet`): a mix of poses moves the pose, not the feet. Measured from stroll to the
+  fastest loop in 8 s: 1.2-1.9 mm stance slip with the lock, 14-19 cm without (the walk to run switch); no hitch (the
+  sharpest change of turning speed stays below the loops' own).
+- Start and stop hand over exactly (0.000 degrees, 0.00 mm, `checks.joinDeg`); turns end in the rest stance turned.
+- Nothing is mirrored at run time: left and right turns are separate clips.
+
+### Measures (printed by every build, stored per clip in `locomotion.clips.<name>.checks`)
+
+- Foot slide in stance at the keys: 0.00-0.98 mm for every clip (most under 0.3). As played between keys: 0.3-3 mm
+  for walks and carries, 3-7 mm for runs, 11 mm for the child's sprint: an in-place clip moves a planted foot back
+  23 cm a frame at 5.5 m/s and interpolating joint turns bows that path; the runtime foot lock removes it.
+- Swing scuffs: none, except up to 5 mm in the stop's squaring shuffle and 2-3 mm in the turning steps (low steps on
+  purpose).
+- Loop seams: under 0.0005 degrees.
+- The file plays back what was authored: clips imported from people2.glb into Blender match the authored bone heads
+  within 0.03 mm over whole clips, travel and turns included.
+
+### Check pictures (`--move`, `data/shots/people2/move/`)
+
+`sheet_<style>.png` (each loop: four side views across the first stride and two from ahead), `turntable_<style>.png`
+and `turntable_*_climbs`, `_carries`, `_startstop` (a frame of each clip from eight sides), `chrono_*` and
+`strip_*` for slopes and stairs (chronophotographs: every third frame where it happens), `strip_*_start_*`,
+`strip_*_stop_*` (the camera rides with the hips), `turns_<style>.png`, `carries.png`, `holds.png` (with stand-ins
+for the sack, crate, cart and truck), `blend_<style>.png` (stroll to the fastest loop, one frame a half second) and
+`blend_man.mp4` (the same as a film).
+
 ## For the next packages
 
 - **B (faces, hands, hair):** the head is a placeholder (16 columns, painted eyes, brows, lips); replace it at the
@@ -216,8 +349,13 @@ extensions).
 - **C (clothes, kinds):** dress the ten bodies; vertex order and UVs are the same in all, so one fit transfers. Skirts
   and coat tails weight to the spring bones (none of the body is on them). Props are models on sockets. Fold the
   kinds' pictures into the shared atlas.
-- **D (motion):** author on any body (clips are rotations and play on all). Use the pose convention above; key the
-  47 `keyed` bones in every clip; keep the hand shapes, clavicle and twist rules or replace them in `motion.py`.
+- **D (motion):** D1 is done ("Motion tools", "Locomotion" above). D2, D3 build on `motion.py`: author on the body
+  the clip is for, key the 47 `keyed` bones and the hips translation in every clip (`motion.key_clip` does), check
+  with `slide`, `seam`, `joins`; add the clips to `make_all`'s list or a list of their own beside it.
+- **J (fights):** footwork is stances and swings in a `clips_move.Plan` (feet fixed while down, the body moving
+  over them); guards and blows are poses on `Curve`s with `overshoot`, `follow` and `overlap`; grabs and blows on a
+  mark use `Skel.arm` and `Skel.hold`; join moves with `ease_into` and `ease_from`; `lock_feet` holds the feet when a
+  hit reaction or a blend moves the body; the two-person moves put both `Skel`s in one scene.
 - **E, F (runtimes):** load `people2.glb`; the bone names repeat per body (glTF adds `_1`: strip it, as today).
   LOD: two meshes per body on one skeleton, show `_lod1` from 15 m and in mirrors and the lantern shadow. The
   old `people.glb` clips also play on these skeletons. Keep hips position tracks for fight clips. Each frame (or in
@@ -229,6 +367,13 @@ extensions).
   sheathed ones on hipL.
 
 ## Known limits
+
+- The bodies' feet have almost no heel behind the ankle (the sole runs from the ankle line 19 cm forward): the
+  motion treats the back of the sole as a round heel (`motion.HEEL_R`). If B or C move the sole or add a heel (shoes,
+  boots), the foot points come from the mesh at build time, so the clips follow; rebuild and read the slide measure.
+- Keys are at 24 fps (the kit's rate): fast in-place clips bow a planted foot between keys by a few mm (see the
+  measures); the runtimes' foot lock takes it out.
+- The skirt and coat-tail bones are not keyed (springs in the games); nor are the sockets.
 
 - Faces and hands are a base for B, not the finished look: plain, smooth, painted.
 - The crown is about 1 cm higher than the table height (1.68 m for 1.67 m).

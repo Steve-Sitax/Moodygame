@@ -11,6 +11,8 @@ every body's joints and figures). people.glb is not touched: the games switch la
            clips_<body>.png (every old clip on the body, a contact sheet), bends.png (knees and elbows at 120 degrees,
            shoulders up, a body lying and dragged), sockets.png (a stick in each socket), grab.png (two people: a
            grab from behind), and the bend measures printed.
+--move     the motion checks (package D1), in data/shots/people2/move/: contact sheets and turntables of every
+           locomotion clip, climbs, carries, starts, stops, turns, and the speed blend (pictures and a film)
 --only     build only these bodies (trials; the glb then has only them)
 --out      write the glb somewhere else (trials)
 """
@@ -26,7 +28,7 @@ import numpy as np  # noqa: E402
 
 import people2  # noqa: E402
 from people2 import body as bd  # noqa: E402
-from people2 import clips_legacy, export, lod, paint, rig, weights  # noqa: E402
+from people2 import clips_legacy, clips_move, export, lod, paint, rig, weights  # noqa: E402
 
 ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 OUT = people2.OUT
@@ -120,10 +122,24 @@ def main():
                 if vg.name.startswith("part_"):
                     ob.vertex_groups.remove(vg)
     actions = clips_legacy.make_actions(bodies[0]["ao"], bodies[0]["J"])
+    # D1: locomotion (docs/people.md "Locomotion"), keyed on the same armature
+    move_actions, move_meta, move_clips = clips_move.make_all(bodies, bodies[0]["ao"])
+    actions += move_actions
     export.export_glb(OUT)
+    from people2 import glb_slim
+    c0, c1, b0, b1 = glb_slim.slim(OUT)
+    print(f"[people2] slimmed: {c0} -> {c1} animation channels, {b0 // 1024} -> {b1 // 1024} KB")
+    hips_base = [round(float(c), 4) for c in people2.G(bodies[0]["ao"].data.bones["hips"].head_local)]
+    loco = {"about": "package D1 clips (tools/blender/people2/clips_move.py, docs/people.md 'Locomotion'). Loops are "
+                     "two strides, in place: move the node at their speed. Clips that travel move the hips: move the "
+                     "node by their travel at the end. Hips translation tracks are the clip's own body's offset from "
+                     "its rest, added to man_middling's hips rest (trackBase).",
+            "trackBase": hips_base, "blend": clips_move.BLEND_RULE, "stairs": clips_move.STAIR,
+            "slopeDeg": clips_move.SLOPE, "loads": clips_move.LOADS, "clips": move_meta}
     export.rig_json([(b["name"], b["P"], b["ao"], b["counts"]) for b in bodies],
                     {"clips": [a.name for a in actions],
-                     "lod": {"lod1From": 15.0, "note": "LOD1 also for the mirrors and the lantern shadow"}})
+                     "lod": {"lod1From": 15.0, "note": "LOD1 also for the mirrors and the lantern shadow"},
+                     "locomotion": loco})
     kb = os.path.getsize(OUT) // 1024
     print(f"[people2] {len(bodies)} bodies, {len(rig.NAMES)} bones, {len(actions)} clips -> {OUT} ({kb} KB) "
           f"in {time.time() - t0:.0f} s")
@@ -133,6 +149,10 @@ def main():
             preview.bodies_sheet(bodies, mats)
         if "--cast" in ARGS:
             preview.cast(bodies, mats, actions)
+    if "--move" in ARGS:
+        from people2 import preview_move
+        for ln in preview_move.cast_move(move_clips, bodies):
+            print("[people2] " + ln)
 
 
 if __name__ == "__main__":
