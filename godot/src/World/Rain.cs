@@ -75,11 +75,12 @@ void vertex() {
 	float px = (0.75 + 0.9 * (1.0 - smoothstep(0.8, 3.5, fog_depth))) * (1.0 + 0.4 * psx_storm);
 	POSITION.xy += perp * side * px * (2.0 / 270.0) * POSITION.w;
 	// rain barely shows in grey daylight (a little lighter than the air); a drop by a gas lamp catches its glow
-	col = psx_fog_color.rgb * (1.3 + 0.5 * psx_storm) + 0.01 + 0.05 * psx_storm + lamp(p, psx_lamp0) + lamp(p, psx_lamp1) + lamp(p, psx_lamp2) + lamp(p, psx_lamp3) + lamp(p, psx_lamp4) + lamp(p, psx_lamp5);
+	// (the look survey's point 19: the rain hardly showed) a drop catches the bright sky: lighter than the air
+	col = psx_fog_color.rgb * (1.55 + 0.4 * psx_storm) + 0.025 + 0.04 * psx_storm + lamp(p, psx_lamp0) + lamp(p, psx_lamp1) + lamp(p, psx_lamp2) + lamp(p, psx_lamp3) + lamp(p, psx_lamp4) + lamp(p, psx_lamp5);
 	// close drops only: far off, rain is thicker air, not streaks; both ends in front of the eye, or none
 	// (the great storm: sheets of it, seen farther off: the whole box)
-	float near = smoothstep(0.4, 1.2, fog_depth) * (1.0 - smoothstep(3.0 + 5.0 * psx_storm, 7.0 + 6.0 * psx_storm, fog_depth));
-	alpha = step(seed, psx_rain * (0.267 + 0.733 * psx_storm)) * near * (0.08 + 0.2 * fract(seed * 7.3)) * (0.5 + 0.5 * psx_rain) * (1.0 + 2.6 * psx_storm) * step(0.7, min(-mh.z, -mt.z)) * 0.75;
+	float near = smoothstep(0.3, 0.9, fog_depth) * (1.0 - smoothstep(5.0 + 3.0 * psx_storm, 11.0 + 2.0 * psx_storm, fog_depth));
+	alpha = step(seed, psx_rain * (0.55 + 0.45 * psx_storm)) * near * (0.12 + 0.26 * fract(seed * 7.3)) * (0.5 + 0.5 * psx_rain) * (1.0 + 2.0 * psx_storm) * step(0.7, min(-mh.z, -mt.z));
 	if (psx_storm > 0.0) {
 		// the rain comes in curtains that sweep along with the wind, thick and thin by turns
 		vec2 wd = normalize(wind + vec2(1e-4));
@@ -163,8 +164,10 @@ void fragment() {
         // a streak is one frame's fall: the frame's length, eased (a hitch does not stretch the rain)
         // (the great storm: at least a 26th of a second's fall, as the browser draws it at its own frame rate; at
         // Godot's speed one frame's fall was a short dash, and the storm looked tame)
-        float lo = 1f / 60 + (1f / 26 - 1f / 60) * Daylight.I.Storm;
-        expo += (Math.Clamp((float)delta, lo, 1f / 24) - expo) * 0.1f;
+        // (survey 19: and never shorter than a 30th of a second's fall, about as long as the eye sees a drop: at Godot's
+        // speed one frame's fall was a dot)
+        float lo = 1f / 30 + (1f / 26 - 1f / 30) * Daylight.I.Storm;
+        expo += (Math.Clamp((float)delta, lo, 1f / 20) - expo) * 0.1f;
         mat.SetShaderParameter("expo", expo);
         // (the great storm: harder, about twice the gale's wind)
         mat.SetShaderParameter("wind", day.Wind * (1 + 0.9f * day.Storm));

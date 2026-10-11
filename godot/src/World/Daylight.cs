@@ -40,6 +40,23 @@ public partial class Daylight : Node
         _ => new[] { 1f, 1f, 1f, 0f },
     };
 
+    /// <summary>
+    /// The mist by the clock (the look survey's point 19: "mist at 9:00 looks clear"; rijnkaai.ts mistLift): a misty
+    /// day's mist lies thick in the morning (fog far x1.25 of the day's, about 35 m at 9:00), lifts from 9:36 to 12:48
+    /// to the haze of the table, and closes in a little again from the evening.
+    /// </summary>
+    private static float MistLift(float h) => Smooth(h, 9.6f, 12.8f) * (1 - 0.55f * Smooth(h, 16.5f, 19.5f));
+    private static readonly float[] MistThick = { 0.9f, 1.25f, 0.85f, 0.12f };
+    private static readonly float[] MistHaze = WeatherOf("mist");
+    private readonly float[] mistNow = new float[4];
+    private float[] WeatherAt(string w, float h)
+    {
+        if (w != "mist") return WeatherOf(w);
+        float k = MistLift(h);
+        for (int i = 0; i < 4; i++) mistNow[i] = MistThick[i] + (MistHaze[i] - MistThick[i]) * k;
+        return mistNow;
+    }
+
     private static readonly Color ClearSky = Psx.Hex(0x8b9398), GoldAir = Psx.Hex(0xdca868), SunWhite = Psx.Hex(0xfff0d8), SunGold = Psx.Hex(0xffa24a);
     private static readonly Color SkyCold = Psx.Hex(0x8494a6), SkyWarm = Psx.Hex(0xb49a7c), Ground = Psx.Hex(0x2a2822);
     /// <summary>The lamps' glow in the air on a fog day (psx.ts uScatter at the start).</summary>
@@ -159,7 +176,7 @@ public partial class Daylight : Node
     public void SetWeather(string w)
     {
         Weather = w is "fog" or "mist" or "clear" or "rain" or "storm" ? w : "fog";
-        wTarget = WeatherOf(Weather);
+        wTarget = WeatherAt(Weather, Hour);
     }
 
     /// <summary>The job twist "thick fog": it closes in whatever the weather (rijnkaai.ts setThickFog).</summary>
@@ -199,6 +216,7 @@ public partial class Daylight : Node
     {
         Hour = dayTarget;
         fogMix = fogTarget;
+        wTarget = WeatherAt(Weather, Hour);
         for (int i = 0; i < 4; i++) wNow[i] = wTarget[i];
         Rain = Math.Max(manualRain, AutoRain());
         Wet = WetTarget();
@@ -301,6 +319,7 @@ public partial class Daylight : Node
         gale = dt <= 0 ? bendTo : gale + (bendTo - gale) * Math.Min(1, dt * 3);
         var wd = Wind.LengthSquared() > 1e-6f ? Wind.Normalized() : new Vector2(1, 0);
         Psx.Set("psx_gale", new Vector3(wd.X, wd.Y, gale));
+        if (Weather == "mist") wTarget = WeatherAt(Weather, Hour);
         for (int i = 0; i < 4; i++) wNow[i] += (wTarget[i] - wNow[i]) * Math.Min(1, dt * 0.5f);
 
         // a clear day: the air lighter (by day only); the golden hour: warm air, a low warm sun from the west

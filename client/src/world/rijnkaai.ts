@@ -1937,6 +1937,20 @@ export function buildRijnkaai(): World {
   // the grime pass (2026-09-26): even a clear day keeps the town's coal-smoke haze (fog far x7, about 200 m;
   // was x16, 480 m) and only a little of the clear sky's colour
   const WEATHER = { fog: [1, 1, 1, 0], mist: [2.5, 3.5, 0.6, 0.25], clear: [12, 7, 0.35, 0.6], rain: [1.8, 2.5, 0.8, 0], storm: [1.3, 1.6, 0.9, 0] } as const;
+  /**
+   * The mist by the clock (the look survey's point 19, 2026-10-11: "mist at 9:00 looks clear"): a misty day's mist lies
+   * thick in the morning (fog far x1.25 of the day's, about 35 m at 9:00), lifts from 9:36 to 12:48 to the haze of the
+   * table above, and closes in a little again from the evening. Godot: World/Daylight.cs MistLift, the same numbers.
+   */
+  const mistLift = (h: number) => THREE.MathUtils.smoothstep(h, 9.6, 12.8) * (1 - 0.55 * THREE.MathUtils.smoothstep(h, 16.5, 19.5));
+  const MIST_THICK = [0.9, 1.25, 0.85, 0.12] as const;
+  const mistNow = [0, 0, 0, 0];
+  const weatherAt = (w: keyof typeof WEATHER, h: number): readonly number[] => {
+    if (w !== "mist") return WEATHER[w];
+    const k = mistLift(h);
+    for (let i = 0; i < 4; i++) mistNow[i] = MIST_THICK[i] + (WEATHER.mist[i] - MIST_THICK[i]) * k;
+    return mistNow;
+  };
   /** The air of a clear autumn noon: lighter than the grey of a fog day, but smoky (was 0x9db0c2, a blue sky). */
   const CLEAR_SKY = new THREE.Color(0x8b9398);
   /** The great storm's air under the black cloud (world/tempest.ts). */
@@ -2093,6 +2107,7 @@ export function buildRijnkaai(): World {
       dayNow = (dayNow + dh * Math.min(1, dt * 0.8) + 24) % 24;
       applyDaylight(dayNow);
     }
+    wTarget = weatherAt(weatherNow, dayNow);
     for (let i = 0; i < 4; i++) wNow[i] += (wTarget[i] - wNow[i]) * Math.min(1, dt * 0.5);
     // a clear day: the air lighter and bluer (by day only)
     fog.color.copy(baseFog).lerp(CLEAR_SKY, wNow[3] * sunDay * 0.6);
@@ -2215,7 +2230,7 @@ export function buildRijnkaai(): World {
     city,
     setWeather: (w) => {
       weatherNow = w in WEATHER ? w : "fog";
-      wTarget = WEATHER[weatherNow];
+      wTarget = weatherAt(weatherNow, dayNow);
     },
     ambient,
     streetLife: () => street,

@@ -514,9 +514,34 @@ float pud_val(vec2 p) {
     public const string SpillGlsl = @"
 global uniform sampler2D psx_spill : filter_nearest, repeat_disable;
 global uniform int psx_spill_n;
-// a gas lamp's light stops under its cap (issue #11): its decay (1.7) tells it apart
+// a gas lamp's light stops under its cap (issue #11): its decay (1.7) tells it apart. Under the cap its slanted glass
+// and the cap's white underside throw it down and out (the look survey's point 18): the paving under it takes a pool,
+// a wall level with the flame less than half (psx.ts psxLampCap, the same numbers)
 float psx_lamp_cap(float decay, float up) {
-	return abs(decay - 1.7) < 0.001 ? 1.0 - smoothstep(0.5, 0.8, up) : 1.0;
+	return abs(decay - 1.7) < 0.001 ? (1.0 - smoothstep(0.5, 0.8, up)) * (0.42 + 2.2 * smoothstep(-0.05, 0.75, -up)) : 1.0;
+}
+// and no hot spot on a wall right by the flame (its frame and burner shade the nearest stone): a soft core, added to
+// the fall-off's d^1.7 (psx.ts PSX_LAMP_CORE)
+float psx_lamp_core(float decay) {
+	return abs(decay - 1.7) < 0.001 ? 0.6 : 0.0;
+}
+// the spilt light on the ground is uneven (survey 18): worn hollows and damp stone take more of it, dirt and dry crowns
+// less, so a pool is never a clean disc; walls take it evenly (psx.ts psxPoolTone)
+float psx_pool_h(vec2 p) {
+	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+	p3 += dot(p3, p3.yzx + 33.33);
+	return fract((p3.x + p3.y) * p3.z);
+}
+float psx_pool_n(vec2 p) {
+	vec2 i = floor(p), f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(psx_pool_h(i), psx_pool_h(i + vec2(1.0, 0.0)), f.x), mix(psx_pool_h(i + vec2(0.0, 1.0)), psx_pool_h(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+float psx_pool_tone(vec3 P, vec3 N) {
+	float g = smoothstep(0.55, 0.9, N.y);
+	if (g <= 0.0) return 1.0;
+	float n = 0.62 * psx_pool_n(P.xz / 2.6) + 0.38 * psx_pool_n(P.xz / 0.95 + 17.3);
+	return 1.0 + g * (n - 0.5) * 1.3;
 }
 vec3 spill_one(vec3 P, vec3 N, vec4 A, vec4 B, vec4 C, vec4 D) {
 	vec3 d = P - A.xyz;
@@ -531,7 +556,7 @@ vec3 spill_one(vec3 P, vec3 N, vec4 A, vec4 B, vec4 C, vec4 D) {
 		// a lamp or a lantern: a point light
 		float dl = sqrt(dd);
 		float cr = max(dot(N, -d / max(dl, 1e-4)), 0.0);
-		return C.rgb * (A.w * cr * fade * psx_lamp_cap(D.y, d.y / max(dl, 1e-4)) / (pow(max(dl, 0.05), D.y) + D.w));
+		return C.rgb * (A.w * cr * fade * psx_lamp_cap(D.y, d.y / max(dl, 1e-4)) / (pow(max(dl, 0.05), D.y) + D.w + psx_lamp_core(D.y)));
 	}
 	float o = dot(d, n);
 	if (o < -0.08) return vec3(0.0);
@@ -594,7 +619,7 @@ vec3 psx_spill_at(vec3 P, vec3 N) {
 		if (dot(d, d) >= D.x * D.x) continue;
 		sum += spill_one(P, N, A, texelFetch(psx_spill, ivec2(i, 1), 0), texelFetch(psx_spill, ivec2(i, 2), 0), D);
 	}
-	return sum;
+	return sum * psx_pool_tone(P, N);
 }
 ";
 
@@ -1409,18 +1434,20 @@ void fragment() {
 		float wet_k = psx_wet * smoothstep(0.15, 0.65, patchy + psx_wet * 0.35);
 		// a film of water is smooth: the sun's highlight in the same patches (dry stone is matte)
 		spec_k = wet_k;
-		float dk = 1.0 - 0.36 * wet_k * (1.25 - 0.5 * stone);
+		// (the look survey's point 19: rain showed no wet: a little darker, and the sky's sheen on the stones' wet tops
+		// rises toward a slant as on water, Fresnel's way)
+		float dk = 1.0 - 0.44 * wet_k * (1.25 - 0.5 * stone);
 		k3 *= dk;
 		ad *= dk;
-		float grazing = pow(1.0 - clamp(-rd.y, 0.0, 1.0), 3.0);
+		float grazing = 0.06 + pow(1.0 - clamp(-rd.y, 0.0, 1.0), 5.0);
 		float glint = step(0.6, pud_hash(floor(world.xz * 2.2)));
 ");
             if (bump) c.Append("		// the wet tops of the stones glint, the joints stay dark\n		glint = smoothstep(0.3, 0.65, psx_h) * (0.45 + 0.55 * glint);\n");
-            c.Append(@"		ad += fogc * grazing * 0.2 * wet_k * stone * (0.25 + 0.75 * glint);
+            c.Append(@"		ad += fogc * grazing * 0.45 * wet_k * stone * (0.2 + 0.8 * glint);
 		vec3 rr = vec3(rd.x, -rd.y, rd.z);
-		ad += psx_lamp_color.rgb * lamp_streaks(world, rr) * wet_k * stone * (0.15 + 0.85 * glint) * 0.4;
+		ad += psx_lamp_color.rgb * lamp_streaks(world, rr) * wet_k * stone * (0.15 + 0.85 * glint) * 0.65;
 ");
-            if (lit) c.Append("		if (psx_spill_n > 0) ad += psx_spill_wet(world, rr, 0.0) * wet_k * stone * (0.1 + 0.9 * glint) * 0.15;\n");
+            if (lit) c.Append("		if (psx_spill_n > 0) ad += psx_spill_wet(world, rr, 0.0) * wet_k * stone * (0.1 + 0.9 * glint) * 0.25;\n");
             c.Append(@"		// (D3: no drawn rings on the wet stone; a drop on stone splashes, it leaves no ring. The puddles have them.)
 	}
 	if (psx_puddle > 0.001 && puddles > 0.0) {

@@ -404,7 +404,7 @@ export function createSpill(
       varying float vFogDepth;
       ${spillGlsl}
       void main() {
-        vec3 E = spillOne(vP, vec3(0.0, 1.0, 0.0), vA, vB, vC, vD);
+        vec3 E = spillOne(vP, vec3(0.0, 1.0, 0.0), vA, vB, vC, vD) * psxPoolTone(vP, vec3(0.0, 1.0, 0.0));
         // (no edge where the quad ends: the light is let go before it)
         float edge = (1.0 - smoothstep(0.7, 1.0, abs(vQ.x))) * (1.0 - smoothstep(0.75, 1.0, -vQ.y)); // (uv.y 0: the far end)
         if (dot(vB.xy, vB.xy) < 0.01) edge = 1.0 - smoothstep(0.7, 1.0, length(vQ));

@@ -29,11 +29,44 @@ export const MAX_SPILL = 48;
  * (`up`: the sine of the angle over the flame, from the flame to the lit point).
  */
 export const GAS_LAMP_DECAY = 1.7;
+/**
+ * Gas light on the ground (the look survey's point 18, 2026-10-11: "lamps light round blobs on the walls, the paving
+ * stays black"). No new light and the light table (world/lampLight.ts) as it was; the gas lamp's own shape instead:
+ * - under its cap the slanted glass and the cap's white underside throw the light down and out: straight down 2.6 times
+ *   the table's, level with the flame 0.42 (psxLampCap), so the paving under a lamp takes a pool and a wall beside it
+ *   far less;
+ * - a soft core (PSX_LAMP_CORE, added to the fall-off's d^1.7): no hot blob on a wall right by a bracket lantern, the
+ *   frame and the burner shade the nearest stone (1 m off it gives 62 % of the plain fall-off, 3.6 m off 94 %);
+ * - the light on the ground is uneven (psxPoolTone): worn hollows and damp stone take more, dirt and dry crowns less,
+ *   0.35 to 1.65 over 1 to 3 m, so a pool is never a clean disc. Every spilt light (lamps, windows, doors) and the real
+ *   gas lamps' point lights take it; walls take their light evenly.
+ * Godot: Render/Psx.cs psx_lamp_cap, psx_lamp_core, psx_pool_tone (the same numbers).
+ */
+export const PSX_LAMP_CORE = 0.6;
 const lampCapGlsl = /* glsl */ `
 #ifndef PSX_LAMP_CAP
 #define PSX_LAMP_CAP
 float psxLampCap(float decay, float up) {
-  return abs(decay - ${GAS_LAMP_DECAY.toFixed(2)}) < 0.001 ? 1.0 - smoothstep(0.5, 0.8, up) : 1.0;
+  return abs(decay - ${GAS_LAMP_DECAY.toFixed(2)}) < 0.001 ? (1.0 - smoothstep(0.5, 0.8, up)) * (0.42 + 2.2 * smoothstep(-0.05, 0.75, -up)) : 1.0;
+}
+float psxLampCore(float decay) {
+  return abs(decay - ${GAS_LAMP_DECAY.toFixed(2)}) < 0.001 ? ${PSX_LAMP_CORE.toFixed(2)} : 0.0;
+}
+float psxPoolH(vec2 p) {
+  vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
+}
+float psxPoolN(vec2 p) {
+  vec2 i = floor(p), f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(psxPoolH(i), psxPoolH(i + vec2(1.0, 0.0)), f.x), mix(psxPoolH(i + vec2(0.0, 1.0)), psxPoolH(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+float psxPoolTone(vec3 P, vec3 N) {
+  float g = smoothstep(0.55, 0.9, N.y);
+  if (g <= 0.0) return 1.0;
+  float n = 0.62 * psxPoolN(P.xz / 2.6) + 0.38 * psxPoolN(P.xz / 0.95 + 17.3);
+  return 1.0 + g * (n - 0.5) * 1.3;
 }
 #endif
 `;
@@ -43,8 +76,12 @@ const lightsBeginCapped = (() => {
   const line = "getPointLightInfo( pointLight, geometryPosition, directLight );";
   const head = "#if ( NUM_POINT_LIGHTS > 0 ) && defined( RE_Direct )";
   const out = src
-    .replace(line, `${line}\n\t\tdirectLight.color *= psxLampCap( pointLight.decay, dot( normalize( geometryPosition - pointLight.position ), psxUpView ) );`)
-    .replace(head, `vec3 psxUpView = normalize( ( viewMatrix * vec4( 0.0, 1.0, 0.0, 0.0 ) ).xyz );\n${head}`)
+    // (and its soft core and the ground's uneven take of it: PSX_LAMP_CORE, psxPoolTone)
+    .replace(
+      line,
+      `${line}\n\t\t{ float psxLk = pow( max( length( geometryPosition - pointLight.position ), 0.05 ), pointLight.decay ); float psxCore = psxLampCore( pointLight.decay );\n\t\tdirectLight.color *= psxLampCap( pointLight.decay, dot( normalize( geometryPosition - pointLight.position ), psxUpView ) ) * psxLk / ( psxLk + psxCore ) * ( psxCore > 0.0 ? psxPoolK : 1.0 ); }`,
+    )
+    .replace(head, `vec3 psxUpView = normalize( ( viewMatrix * vec4( 0.0, 1.0, 0.0, 0.0 ) ).xyz );\nfloat psxPoolK = psxPoolTone( vPsxWorld, normalize( ( vec4( geometryNormal, 0.0 ) * viewMatrix ).xyz ) );\n${head}`)
     // the sun kept off by the houses between it and the point (psxSunShadow, 2026-09-30)
     .replace(
       "getDirectionalLightInfo( directionalLight, directLight );",
@@ -163,7 +200,7 @@ vec3 spillOne(vec3 P, vec3 N, vec4 A, vec4 B, vec4 C, vec4 D) {
     float dl = sqrt(dd);
     float cr = max(dot(N, -d / max(dl, 1e-4)), 0.0);
     // (a gas lamp: nothing over its cap, as its point light: psxLampCap, issue #11)
-    return C.rgb * (A.w * cr * fade * psxLampCap(D.y, d.y / max(dl, 1e-4)) / (pow(max(dl, 0.05), D.y) + D.w));
+    return C.rgb * (A.w * cr * fade * psxLampCap(D.y, d.y / max(dl, 1e-4)) / (pow(max(dl, 0.05), D.y) + D.w + psxLampCore(D.y)));
   }
   float o = dot(d, n);
   if (o < -0.08) return vec3(0.0);
@@ -240,7 +277,7 @@ vec3 psxSpill(vec3 P, vec3 N) {
     if (uSpillA[i].w <= 0.0) break;
     E += spillOne(P, N, uSpillA[i], uSpillB[i], uSpillC[i], uSpillD[i]);
   }
-  return E;
+  return E * psxPoolTone(P, N);
 }
 `;
 
@@ -1730,22 +1767,24 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
           float stone = smoothstep(0.06, 0.4, dot(diffuseColor.rgb, vec3(0.333)));
           float patchy = pudVal(vPsxWorld.xz / 1.7) * 0.6 + pudVal(vPsxWorld.xz * 4.0) * 0.4;
           float wetK = uWet * smoothstep(0.15, 0.65, patchy + uWet * 0.35);
-          gl_FragColor.rgb *= 1.0 - 0.36 * wetK * (1.25 - 0.5 * stone);
-          float grazing = pow(1.0 - clamp(-rd.y, 0.0, 1.0), 3.0);
+          // (the look survey's point 19: rain showed no wet: a little darker, and the sky's sheen on the stones' wet tops
+          // rises toward a slant as on water, Fresnel's way)
+          gl_FragColor.rgb *= 1.0 - 0.44 * wetK * (1.25 - 0.5 * stone);
+          float grazing = 0.06 + pow(1.0 - clamp(-rd.y, 0.0, 1.0), 5.0);
           // half-metre faces: big enough to show at the game's picture size
           float glint = step(0.6, pudHash(floor(vPsxWorld.xz * 2.2)));
           ${opts.relief || opts.slabs ? "// (the ground bump) the wet tops of the stones glint, the joints stay dark\n          glint = smoothstep(0.3, 0.65, psxH) * (0.45 + 0.55 * glint);" : ""}
-          gl_FragColor.rgb += fogColor * grazing * 0.2 * wetK * stone * (0.25 + 0.75 * glint);
+          gl_FragColor.rgb += fogColor * grazing * 0.45 * wetK * stone * (0.2 + 0.8 * glint);
           vec3 rr = vec3(rd.x, -rd.y, rd.z);
           float wrefl = 0.0;
           for (int i = 0; i < MAX_LAMPS; i++) {
             wrefl += uLamps[i].w * wetStreak(vPsxWorld, rr, uLamps[i].xyz);
           }
-          gl_FragColor.rgb += uLampColor * wrefl * wetK * stone * (0.15 + 0.85 * glint) * 0.4;
+          gl_FragColor.rgb += uLampColor * wrefl * wetK * stone * (0.15 + 0.85 * glint) * 0.65;
           // (the lit windows and doors: only on the wet tops of the stones, the joints dark. Steve 2026-09-27, 20:40 in
           // the rain before a shop: "the flatness in front", the streak laid over joints and stones alike, one smooth
           // pale sheet that hid the setts, the barrels' old rain sheen on the ground)
-          ${spillOn ? "gl_FragColor.rgb += psxSpillWet(vPsxWorld, rr, 0.0) * wetK * stone * (0.1 + 0.9 * glint) * 0.15;" : ""}
+          ${spillOn ? "gl_FragColor.rgb += psxSpillWet(vPsxWorld, rr, 0.0) * wetK * stone * (0.1 + 0.9 * glint) * 0.25;" : ""}
           // (D3: no drawn rings on the wet stone; a drop on stone splashes, it leaves no ring. The puddles have them.)
         }`
             : ""
