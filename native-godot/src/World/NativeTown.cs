@@ -62,7 +62,12 @@ public partial class NativeTown : BakedWorld
             foreach (var child in All(template)) child.SetMeta("native_replaced_event_snapshot", true);
             horseTemplates++;
         }
+        // The Werf's ground chunk hangs a kerb and an apron out over the water, over the inner treads of its stone flight (issue 68).
+        // Its footprint is cut out of the mesh, so what is drawn, what is walked on and what is solid agree with the steps.
+        // (dev: --no-werf-cut leaves the ground as the bake has it, for a before-and-after)
+        int werfCut = Scheldemist.Main.I.Flag("no-werf-cut") ? 0 : QuayNotch.Cut(town, "city_-4_0_3", QuayExits.WerfFrame, QuayExits.WerfNotchS0, QuayExits.WerfNotchS1, QuayExits.WerfNotchU0, QuayExits.WerfNotchU1);
         AddChild(town);
+        Report["werfStepsCutTriangles"] = werfCut;
         Report["source"] = "complete native Godot town";
         Report["sourceSha256"] = intake["sourceSha256"]!.GetValue<string>();
         Report["authoredObjects"] = Layouts.ObjectCount;

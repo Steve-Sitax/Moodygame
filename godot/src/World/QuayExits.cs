@@ -72,6 +72,14 @@ public static class QuayExits
         new float[] { 116, 110, 1, 0 }, // the Petit Bassin, north quay
     };
 
+    /// <summary>
+    /// What the baked ground has to leave free for the Werf flight (FlightList[0]; the water side is -z there): s down the
+    /// flight from a little above the landing at its head to a little past the foot landing, u from the edge stones' face
+    /// out past the handrail. NativeTown cuts the ground chunk that hangs over it (QuayNotch, issue 68).
+    /// </summary>
+    public static readonly Frame WerfFrame = new(-320, 0, -1, 0, 0, -1);
+    public const float WerfNotchS0 = -0.05f, WerfNotchS1 = End + 0.1f, WerfNotchU0 = U0, WerfNotchU1 = Width + 0.2f;
+
     /// <summary>A frame on a quay wall: origin on the wall face, t along the wall (down the flight), n out over the water.</summary>
     public readonly record struct Frame(float Ox, float Oz, float Tx, float Tz, float Nx, float Nz)
     {

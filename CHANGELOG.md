@@ -12,6 +12,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - Multiplayer uses a native Godot host or a separate headless server, with authenticated players and LAN/VPN connections. Windows exports include their required runtime.
 - Old game saves have been removed for the native migration, as requested. Start a new game; editor layouts, preferences and provider credentials are retained.
 - The legless horse body that hung in the air at the Rijnkaai quay edge, at the middle of the map, is gone. It was a leftover model part of the horses; the working horses are unchanged.
+- The stone steps down to the water at the Werf can be walked again. A strip of paving hung over the water there and covered the steps, so Jef walked along it above the treads and was pushed about when he stepped onto them. The paving is now cut away over the flight, and the treads show.
 - Handcarts, drays and their loads, and the draught and hearse horses, no longer show a patchwork of mixed textures. Planks, iron, sacking and the bay coat with black mane, tail and harness now sit where they belong (issue 81).
 - Gas lamps, bollards and other placed quay objects now fade into mist, fog and rain like the rest of the town, instead of standing out as sharp black shapes far away. Lamp glass and flames fade with the air and still glow at night (issue #79).
 
