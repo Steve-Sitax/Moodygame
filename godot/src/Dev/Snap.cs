@@ -200,6 +200,39 @@ public partial class Snap : Node
             if (name.EndsWith("_right")) return (at + x * 7.5f + z * 5f + new Vector3(0, 0.4f, 0), at);
             return (at - x * 7.5f + z * 5f + new Vector3(0, 0.4f, 0), at);
         }
+        // (a view named pushcart... / dray...: the nearest street-traffic handcart or dray from its left side, a few metres off;
+        // ..._far 6 m, ..._front from ahead)
+        if ((name.StartsWith("pushcart") || name.StartsWith("dray")) && Scheldemist.Movers.Traffic.I is { } tr)
+        {
+            string kind = name.StartsWith("dray") ? "dray" : "handcart";
+            var v = tr.Vehicles.Where(x => x.Kind == kind).OrderBy(x => x.At.DistanceSquaredTo(new Vector2(cam.X, cam.Z))).FirstOrDefault();
+            if (v != null)
+            {
+                // (the rig's Frame stays at the origin; the route puts the vehicle at v.At, facing v.Yaw)
+                var fwd = new Vector3(MathF.Sin(v.Yaw), 0, MathF.Cos(v.Yaw));
+                var side = new Vector3(fwd.Z, 0, -fwd.X);
+                float d = name.Contains("_far") ? 7f : 3.4f;
+                var mid = new Vector3(v.At.X, 0, v.At.Y) + fwd * (kind == "dray" ? 2.6f : -1.9f);
+                var at = mid + new Vector3(0, kind == "dray" ? 1.1f : 0.8f, 0);
+                var from = name.Contains("_front") ? mid + fwd * d * 1.4f + side * 1.2f + new Vector3(0, 1.5f, 0) : mid + side * d + new Vector3(0, 1.5f, 0);
+                return (from, at);
+            }
+        }
+        // (a view named gdray... / gcart...: the Rijnkaai's goods dray with the casks, or the sack handcart, same options)
+        if ((name.StartsWith("gdray") || name.StartsWith("gcart")) && Scheldemist.Movers.GoodsDrays.I is { } gd)
+        {
+            var r = gd.Rigs.FirstOrDefault(x => (x.Cart == null) == name.StartsWith("gdray"));
+            if (r != null)
+            {
+                var fwd = new Vector3(MathF.Sin(r.Yaw), 0, MathF.Cos(r.Yaw));
+                var side = new Vector3(fwd.Z, 0, -fwd.X);
+                float d = name.Contains("_far") ? 7f : 3.4f;
+                var mid = new Vector3(r.At.X, 0, r.At.Y) + fwd * (r.Cart == null ? -2.8f : 1.5f);
+                var at = mid + new Vector3(0, r.Cart == null ? 1.1f : 0.8f, 0);
+                var from = name.Contains("_front") ? mid + fwd * d * 1.4f + side * 1.2f + new Vector3(0, 1.5f, 0) : mid + side * d + new Vector3(0, 1.5f, 0);
+                return (from, at);
+            }
+        }
         if (name.StartsWith("bilge") && ShipWater.I is { } sw)
         {
             var (o, outward) = sw.NearestOutlet(cam);
