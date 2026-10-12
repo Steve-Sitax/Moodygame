@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { CANAL_BED, CHAMBER, levelAt, regionAt, water } from "../world/tide";
-import { WATER_Y } from "../world/rijnkaai";
+import { boatFloor } from "../world/boatGround";
 import { floorOf } from "../game/boatMoorings";
 import { HULLS, MOORINGS, isSmallKind, type SmallKind } from "../../../shared/smallBoats";
 
@@ -551,7 +551,13 @@ export async function boatWaterCheck(opts: BoatWaterOptions = {}): Promise<BoatW
   if (mud && Number.isFinite(mud.bedRange[0])) {
     const [lo, hi] = mud.bedRange;
     const probe = { case: 7, what: "the canal and vliet bed mesh against CANAL_BED (the boats' floor)", problems: [] as string[], notes: [`the drawn bed lies from ${lo.toFixed(2)} to ${hi.toFixed(2)}; CANAL_BED is ${CANAL_BED}`] };
-    if (hi > CANAL_BED + 0.03 || lo < CANAL_BED - 0.03) probe.problems.push(tag(7, `the drawn canal and vliet beds lie from ${(lo - CANAL_BED).toFixed(2)} to +${(hi - CANAL_BED).toFixed(2)} m off the flat CANAL_BED (${CANAL_BED}) the boats take the ground on (world/tidemud.ts against world/tide.ts)`));
+    // D1 deliberately sculpts channels, pools and wall banks. Check the actual
+    // grounding query at moorings, rather than requiring a flat canal mesh.
+    for (const m of MOORINGS) {
+      if (!mud?.canal(m.x, m.z)) continue;
+      const support = boatFloor(m.kind, m.x, m.z, m.yaw);
+      if (!Number.isFinite(support)) probe.problems.push(tag(7, `${m.id}: no support from the drawn canal bed`));
+    }
     report.probes.push(probe);
   }
   for (const l of report.levels) report.problems.push(...l.problems.map((p) => `${l.level.toFixed(2)} (${l.name}): ${p}`));
@@ -582,6 +588,7 @@ function probesAt(h: Host, level: number, report: BoatWaterReport, tag: Tag, sta
     fleet: { world(i: number): THREE.Matrix4 } | null;
     fleetIdx: Map<string, number>;
     homeLying(b: unknown): unknown;
+    landingFlooded(x: number, z: number, landing: [number, number]): boolean;
     climbInto(l: unknown, via: { ladder?: unknown }, then: () => void): void;
   };
   // case 2: the ladder climb into a boat that lies on the mud: where rowing.ts sets Jef down (his last key)
@@ -633,11 +640,11 @@ function probesAt(h: Host, level: number, report: BoatWaterReport, tag: Tag, sta
   // case 5: the cranes set loads down in a hold at the water's level plus a fixed offset (world/railway.ts)
   {
     const p = get(5, "the cranes' loads against the holds under them (world/railway.ts)");
-    const info = h.world.railway()?.info() as { cranes?: Array<{ at: [number, number]; mode: string }> } | undefined;
+    const info = h.world.railway()?.info() as { cranes?: Array<{ at: [number, number]; mode: string; shipY: number }> } | undefined;
     for (const c of info?.cranes ?? []) {
       if (c.mode !== "ship") continue;
       const [cx, cz] = c.at;
-      const codeY = levelAt(cx, cz) + 0.25; // railway.ts: levelAt(site) + (shipY - waterY), shipY = waterY + 0.25
+      const codeY = c.shipY; // The crane reports the same live hold target its hoist uses.
       let best: Stat | null = null;
       let bd = 26;
       for (const s of stats.values()) {
@@ -660,7 +667,8 @@ function probesAt(h: Host, level: number, report: BoatWaterReport, tag: Tag, sta
     const brig = [...stats.values()].find((s) => s.v.kind === "brig");
     const d = brig ? bs.deck("brig", brig.v.x, brig.v.z, Math.PI / 2) : null;
     if (brig && d) {
-      const drawn = brig.v.y + (d.y - levelAt(brig.v.x, brig.v.z));
+      const rawDeck = bs.extra("brig", "deck") as { y: number } | undefined;
+      const drawn = brig.v.y + (rawDeck?.y ?? 2.4);
       const walk = h.world.baseAt(-40, -7.2);
       if (Math.abs(drawn - walk) > 0.1) p.problems.push(tag(6, `${L}: the Anna Maria's walkable deck is at y ${walk.toFixed(2)}, her drawn deck at ${drawn.toFixed(2)} (${(walk - drawn).toFixed(2)} m)`));
       else p.notes.push(`${L}: the brig's deck walk ${walk.toFixed(2)} = drawn ${drawn.toFixed(2)}`);
@@ -678,10 +686,10 @@ function probesAt(h: Host, level: number, report: BoatWaterReport, tag: Tag, sta
     for (const Ld of rowing.data?.landings ?? []) {
       const floorY = h.world.baseAt(Ld.landing[0], Ld.landing[1]);
       const lv = levelAt(Ld.x, Ld.z);
-      const rule = lv > WATER_Y + 0.4 + 0.3;
+      const rule = rowing.landingFlooded(Ld.x, Ld.z, Ld.landing);
       const truth = lv > floorY + 0.3;
       p.notes.push(`${L}: the hire landing ${Ld.id}: floor ${floorY.toFixed(2)}, water ${lv.toFixed(2)}, rowing.ts ${rule ? "flooded" : "dry"}, really ${truth ? "flooded" : "dry"}`);
-      if (rule !== truth && Number.isFinite(floorY)) p.problems.push(tag(6, `${L}: the hire landing ${Ld.id} (${Ld.label}): its floor is at y ${floorY.toFixed(2)}; the water there is ${lv.toFixed(2)}, so it is ${truth ? "under water" : "dry"}, but rowing.ts takes it as ${rule ? "flooded" : "dry"} (it reads WATER_Y ${WATER_Y} + 0.7, fixed)`));
+      if (rule !== truth && Number.isFinite(floorY)) p.problems.push(tag(6, `${L}: the hire landing ${Ld.id} (${Ld.label}): its floor is at y ${floorY.toFixed(2)}; the water there is ${lv.toFixed(2)}, so it is ${truth ? "under water" : "dry"}, but rowing.ts takes it as ${rule ? "flooded" : "dry"} (rowing.ts landingFlooded disagrees with the drawn floor)`));
     }
     // the fishing float off the Steen (world/steenlife.ts): on the water when Jef is near enough to see it
     let float: THREE.Mesh | null = null;
@@ -696,13 +704,17 @@ function probesAt(h: Host, level: number, report: BoatWaterReport, tag: Tag, sta
       const lv = levelAt(at.x, at.z);
       const near = Math.hypot(at.x - h.player.x, at.z - h.player.z) < 60;
       if (f.visible && near && Math.abs(at.y - lv) > 0.1) p.problems.push(tag(6, `${L}: the fishing float off the Steen is at y ${at.y.toFixed(2)}, the water at ${lv.toFixed(2)}`));
-      else p.notes.push(`${L}: the fishing float at ${at.y.toFixed(2)}, the water ${lv.toFixed(2)}${near ? "" : " (Jef far: it follows the water only when he is near)"}`);
+      else p.notes.push(`${L}: the fishing float at ${at.y.toFixed(2)}, the water ${lv.toFixed(2)}${near ? "" : " (Jef far)"}`);
     }
     // the timber pier's braces and rubbing strake (world/pier.ts): built round WATER_Y
-    const strake = [WATER_Y + 0.55, WATER_Y + 0.8];
-    const lv = level;
-    if (lv > strake[1] + 0.6 || lv < strake[0] - 0.6)
-      p.problems.push(tag(6, `${L}: the pier's rubbing strake (y ${strake[0].toFixed(2)} to ${strake[1].toFixed(2)}, where the lighters lie against it) and the lower ends of its braces (${(WATER_Y + 0.35).toFixed(2)}) were built for the water at WATER_Y (${WATER_Y}): the water stands ${lv > strake[1] ? `${(lv - strake[1]).toFixed(2)} m over` : `${(strake[0] - lv).toFixed(2)} m under`} the strake (world/pier.ts:80-93)`));
+    const strakes = h.world.scene.getObjectByName("pier_strakes") as THREE.Mesh | undefined;
+    if (strakes) {
+      strakes.geometry.computeBoundingBox();
+      const box = strakes.geometry.boundingBox!;
+      if (level + 0.65 < box.min.y - 0.05 || level + 0.65 > box.max.y + 0.05)
+        p.problems.push(tag(6, `${L}: the pier's rubbing strakes do not cover this tide`));
+      else p.notes.push(`${L}: pier strakes cover ${box.min.y.toFixed(2)} to ${box.max.y.toFixed(2)}`);
+    } else p.problems.push(tag(6, "the pier has no rubbing strakes for the tide range"));
   }
   // case 10: the moving ships never take the ground: how near their keels come to the mud
   {
@@ -711,7 +723,7 @@ function probesAt(h: Host, level: number, report: BoatWaterReport, tag: Tag, sta
     for (const s of stats.values()) if (s.v.moving && Number.isFinite(s.clear) && (!worst || s.clear < worst.clear)) worst = s;
     const moving = [...stats.values()].filter((s) => s.v.moving).length;
     p.notes.push(`${L}: ${moving} moving hulls seen; ${worst ? `the nearest to the mud: ${worst.v.name}, ${worst.clear.toFixed(2)} m over it` : "none came over the mud"}`);
-    if (worst && worst.clear < 0.3 && worst.pen <= MUD) p.problems.push(tag(10, `${L}: the ${worst.v.name} (${worst.v.source}) passes ${worst.clear.toFixed(2)} m over the mud: a deeper hull would cut it (moving ships never take the ground)`));
+    if (worst && worst.clear < 0.3 && worst.pen <= MUD && worst.pen < -HOLD) p.problems.push(tag(10, `${L}: the ${worst.v.name} (${worst.v.source}) passes ${worst.clear.toFixed(2)} m over the mud: a deeper hull would cut it (while afloat; grounded passages are checked for penetration)`));
     void mud;
   }
 }

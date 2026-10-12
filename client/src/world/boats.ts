@@ -8,7 +8,8 @@ import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { psx, psxUniforms, AIR_GLOW_GLSL, airGlowUniforms, ripples } from "../retro/psx";
 import type { Rect } from "./geom";
-import { bedAt, draftOf, levelAt, levelOf, regionAt } from "./tide";
+import { BRIG_FLOOR, draftOf, levelAt, regionAt } from "./tide";
+import { boatFloor, registerBoatBottom } from "./boatGround";
 import { addLantern, type LanternSource } from "./lanternLights";
 
 // Boats, ships and quay cranes from Blender (tools/blender/build_boats.py ->
@@ -135,6 +136,8 @@ export interface PontoonOptions {
 export interface Boats {
   names: BoatName[];
   dims(name: BoatName): Dims;
+  /** The lowest waterline supported by the drawn mud under this hull. */
+  floor(name: BoatName, x: number, z: number, yaw: number): number;
   /**
    * A copy of a model at (x, z), turned by `yaw` about +y (0 = bow along +z). Vessels float
    * at WATER_Y and bob; cranes stand at y = 0 and keep still (use crane() for one that swings).
@@ -292,6 +295,7 @@ interface Part {
 }
 
 interface Fleet {
+  name: BoatName;
   meshes: THREE.InstancedMesh[];
   /** Rigging drawn once per boat: one instanced line set; matrices in four vec4 attributes. */
   lines: THREE.LineSegments | null;
@@ -456,6 +460,9 @@ export function signal(ship: MovingShip, where: "lock" | "bridge"): void {
 }
 
 let loading: Promise<Boats> | null = null;
+let holdQuery: (x: number, z: number) => number = levelAt;
+/** The live waterline of the moored hull beside a crane. */
+export const boatHoldLevel = (x: number, z: number): number => holdQuery(x, z);
 
 /** Load boats.glb once; later calls get the same promise. */
 export function loadBoats(): Promise<Boats> {
@@ -734,6 +741,7 @@ async function load(): Promise<Boats> {
   const protos = set.protos as Map<BoatName, THREE.Object3D>;
   const extras = set.extras as Map<BoatName, Record<string, unknown>>;
   const materials = set.materials;
+  for (const [kind, model] of protos) registerBoatBottom(kind, model);
   const proto = (name: BoatName): THREE.Object3D => {
     const p = protos.get(name);
     if (!p) throw new Error(`no boat ${name}`);
@@ -953,6 +961,16 @@ async function load(): Promise<Boats> {
 
   // ---- M7 boats: every vessel set down, for the boat check
   const placedAll: Placement[] = [];
+  holdQuery = (x, z) => {
+    let best: Placement | undefined, distance = 26;
+    for (const p of placedAll) {
+      if (dims(p.name).length < 9 || p.name === "pontoon_section") continue;
+      if (p.obj && p.obj.parent?.type !== "Scene") continue;
+      const d = Math.hypot(p.x - x, p.z - z);
+      if (d < distance) { best = p; distance = d; }
+    }
+    return best ? Math.max(levelAt(best.x, best.z), (best.obj?.userData.floor as number | undefined) ?? boatFloor(best.name, best.x, best.z, best.yaw)) : levelAt(x, z);
+  };
 
   // ---- smoke from the funnels: one Points object, a few puffs per funnel
   // (picture round 2026-09-26, package 5: a longer, fuller plume off every funnel, bent by the wind; was 9 puffs, 8 s)
@@ -1112,7 +1130,7 @@ async function load(): Promise<Boats> {
       const local = lpnt.clone();
       addLamp((out) => void (outer.visible && outer.parent ? out.copy(local).applyMatrix4(inner.matrixWorld) : out.set(0, -999, 0)), kind, () => rootOf(outer));
     }
-    placedAll.push({ name, x, z, yaw, floor: bedAt(x, z) + draftOf(name), y: () => outer.position.y, single: true, obj: outer });
+    placedAll.push({ name, x, z, yaw, floor: boatFloor(name, x, z, yaw), y: () => outer.position.y, single: true, obj: outer });
     parent?.add(outer);
     return outer;
   }
@@ -1261,17 +1279,19 @@ async function load(): Promise<Boats> {
       const b = f.boats[i];
       const sea = psxUniforms.uSea.value;
       const [h0, roll0, pitch0, period] = b.m;
-      // on the mud (M6 tides): no heave, no roll, a small list
-      const level = levelOf(b.region);
-      const aground = Math.min(1, Math.max(0, (b.floor - level) / 0.25));
+      // on the mud: the hull is supported upright, with no heave or roll
+      const level = levelAt(b.x, b.z);
+      b.floor = boatFloor(f.name, b.x, b.z, b.yaw);
+      const aground = level <= b.floor + 0.06 ? 1 : 0;
       const free = 1 - aground;
       if (free > 0.5 && !b.hidden) ripples.moored(b, b.x, b.z, Math.sin(b.yaw), Math.cos(b.yaw), 8, 2.5); // (D3: faint rings at the hull)
-      const h = h0 * sea * free;
+      // A hull follows the long swell; storm chop cannot submerge its rail.
+      const h = h0 * Math.min(sea, 3.6) * free;
       const roll = roll0 * Math.min(sea, 2.5) * free;
       const pitch = pitch0 * Math.min(sea, 2.5) * free;
       const w = (Math.PI * 2) / period;
       tmpP.set(b.x, Math.max(level, b.floor) + h * Math.sin(w * t + b.p[0]) + h * 0.4 * Math.sin(2.3 * w * t + b.p[0] * 1.7), b.z);
-      tmpE.set(pitch * Math.sin(1.13 * w * t + b.p[2]), b.yaw, roll * Math.sin(0.83 * w * t + b.p[1]) + b.list * aground);
+      tmpE.set(pitch * Math.sin(1.13 * w * t + b.p[2]), b.yaw, roll * Math.sin(0.83 * w * t + b.p[1]));
       tmpQ.setFromEuler(tmpE);
       tmpM.compose(tmpP, tmpQ, b.hidden ? zero : one);
       for (let k = 0; k < f.meshes.length; k++) {
@@ -1323,6 +1343,7 @@ async function load(): Promise<Boats> {
       const name = key.split(":")[0] as BoatName;
       const ps = mergedParts(name);
       const fleet: Fleet = {
+        name,
         meshes: [],
         lines: null,
         parts: ps,
@@ -1352,7 +1373,7 @@ async function load(): Promise<Boats> {
           const local = lpnt.clone();
           addLamp((out) => void (b.hidden ? out.set(0, -999, 0) : out.copy(local).applyMatrix4(b.world)), kind, () => rootOf(group));
         }
-        placedAll.push({ name, x: b.x, z: b.z, yaw: b.yaw, floor: b.floor, y: () => b.world.elements[13], single: false });
+        placedAll.push({ name, x: b.x, z: b.z, yaw: b.yaw, get floor() { return b.floor; }, y: () => b.world.elements[13], single: false });
       });
       writeFleet(fleet, 0);
       // the tide lifts and lowers them some 5 m: room for that round the instances
@@ -1406,6 +1427,7 @@ async function load(): Promise<Boats> {
     for (const [name, list] of byKind) {
       const ps = parts(name);
       const fleet: Fleet = {
+        name,
         meshes: [],
         lines: null,
         parts: ps,
@@ -1417,7 +1439,7 @@ async function load(): Promise<Boats> {
           p: [r() * 6.283, r() * 6.283, r() * 6.283] as [number, number, number],
           world: new THREE.Matrix4(),
           region: regionAt(b.x, b.z),
-          floor: bedAt(b.x, b.z) + draftOf(name),
+          floor: boatFloor(name, b.x, b.z, b.yaw),
           list: (r() - 0.5) * 0.08,
         })),
       };
@@ -1455,7 +1477,7 @@ async function load(): Promise<Boats> {
           addLamp((out) => void out.copy(local).applyMatrix4(b.world), kind, () => rootOf(group));
         }
         list[i].world = b.world;
-        placedAll.push({ name, x: b.x, z: b.z, yaw: b.yaw, floor: b.floor, y: () => b.world.elements[13], single: false, world: b.world });
+        placedAll.push({ name, x: b.x, z: b.z, yaw: b.yaw, get floor() { return b.floor; }, y: () => b.world.elements[13], single: false, world: b.world });
       });
       writeFleet(fleet, 0);
       for (const im of fleet.meshes) im.computeBoundingSphere();
@@ -1492,7 +1514,7 @@ async function load(): Promise<Boats> {
         for (const b of list) place(b.name, b.x, b.z, b.yaw, scene);
       }
     }
-    return [{ minX: x - half, maxX: x + half, minZ: Math.min(z0, zEnd), maxZ: Math.max(z0, zEnd), y: levelAt(x, (z0 + zEnd) / 2) + deckTop }];
+    return [{ minX: x - half, maxX: x + half, minZ: Math.min(z0, zEnd), maxZ: Math.max(z0, zEnd), get y() { return levelAt(x, (z0 + zEnd) / 2) + deckTop; } }];
   }
 
   function update(t: number, dt: number, lit = 0): void {
@@ -1504,17 +1526,18 @@ async function load(): Promise<Boats> {
       // (river.ts, lock.ts, anchorage.ts, route.ts and rowing.ts set their own boats' y after this)
       const o = f.outer.position;
       const level = levelAt(o.x, o.z);
-      const floor = (f.outer.userData.floor as number | undefined) ?? bedAt(o.x, o.z) + f.draft;
-      const aground = Math.min(1, Math.max(0, (floor - level) / 0.25));
+      const floor = (f.outer.userData.floor as number | undefined) ?? boatFloor(f.outer.name, o.x, o.z, f.outer.rotation.y);
+      const aground = level <= floor + 0.06 ? 1 : 0;
       const free = 1 - aground;
       o.y = Math.max(level, floor);
       if (free > 0.5) ripples.moored(f, o.x, o.z, Math.sin(f.outer.rotation.y), Math.cos(f.outer.rotation.y), 7, 2.2); // (D3: faint rings at the hull)
-      const h = h0 * sea * free;
+      // A hull follows the long swell; storm chop cannot submerge its rail.
+      const h = h0 * Math.min(sea, 3.6) * free;
       const roll = roll0 * Math.min(sea, 2.5) * free;
       const pitch = pitch0 * Math.min(sea, 2.5) * free;
       const w = (Math.PI * 2) / period;
       f.inner.position.y = h * Math.sin(w * t + f.p[0]) + h * 0.4 * Math.sin(2.3 * w * t + f.p[0] * 1.7);
-      f.inner.rotation.z = f.heel + roll * Math.sin(0.83 * w * t + f.p[1]) + f.list * aground;
+      f.inner.rotation.z = f.heel * free + roll * Math.sin(0.83 * w * t + f.p[1]);
       f.inner.rotation.x = pitch * Math.sin(1.13 * w * t + f.p[2]);
     }
     for (const f of fleets) writeFleet(f, t);
@@ -1546,6 +1569,7 @@ async function load(): Promise<Boats> {
     crane,
     colliders,
     tall,
+    floor: boatFloor,
     deck(name, x, z, yaw) {
       const raw = extras.get(name)?.deck as string | undefined;
       if (!raw) return null;
@@ -1560,7 +1584,7 @@ async function load(): Promise<Boats> {
         return { minX: Math.min(ax, bx), maxX: Math.max(ax, bx), minZ: Math.min(az, bz), maxZ: Math.max(az, bz) };
       };
       const [gx, gz] = at(d.gangway[0], d.gangway[1]);
-      return { rect: box(d.rect), y: levelAt(x, z) + d.y, obstacles: d.obstacles.map(box), gangway: { x: gx, z: gz } };
+      return { rect: box(d.rect), get y() { return Math.max(levelAt(x, z), name === "brig" ? BRIG_FLOOR : boatFloor(name, x, z, yaw)) + d.y; }, obstacles: d.obstacles.map(box), gangway: { x: gx, z: gz } };
     },
     pontoon,
     mooreAlong,

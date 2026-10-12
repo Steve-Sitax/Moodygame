@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading.Tasks;
 using Godot;
 using Scheldemist.Movers;
 using Scheldemist.World;
@@ -48,6 +49,9 @@ public partial class BoatWaterCheck : Node
     private float jumpFrom = float.NaN, jumpMax;
     private string weatherWas = "clear";
     private double jumpOff;
+    private Task? clockJump;
+    private float clockError;
+    private int clockFrames;
 
     private sealed class Stat
     {
@@ -124,18 +128,18 @@ public partial class BoatWaterCheck : Node
                 phase = 1;
                 StartLevel();
                 return;
-            case 1: // the water eases to the held level; the boats are there at once (case 8)
+            case 1: // the sheet and hulls share the eased level (case 8)
             {
-                float gap = MathF.Abs(Waters.Level - Tide.River);
+                float gap = Boats.I.WaterlineError();
                 if (!float.IsNaN(jumpFrom))
                 {
                     jumpMax = MathF.Max(jumpMax, gap);
                     if (gap > Afloat) jumpOff += delta;
                 }
                 waited += delta;
-                if (gap > 0.004f && waited < 40) return;
+                if (MathF.Abs(Tide.River - Tide.Target) > 0.004f && waited < 40) return;
                 if (!float.IsNaN(jumpFrom) && jumpMax > Afloat)
-                    problems.Add(Tag(8, $"the river held from {jumpFrom:0.00} to {levels[level].Y:0.00}: the boats went there at once (World/Tide.cs), the drawn water eased at 0.6 m a second (World/Waters.cs): for {jumpOff:0.0} s they floated off it, by up to {jumpMax:0.00} m"));
+                    problems.Add(Tag(8, $"the river held from {jumpFrom:0.00} to {levels[level].Y:0.00}: a hull disagreed with the shared eased sheet (World/Tide.cs): for {jumpOff:0.0} s they floated off it, by up to {jumpMax:0.00} m"));
                 phase = 2;
                 t = 0;
                 sampleT = 0;
@@ -171,10 +175,37 @@ public partial class BoatWaterCheck : Node
             case 3: // the great storm at full strength, the tide by the clock (case 9)
                 if (t < 20) return;
                 Storm();
+                if (Main.I.Flag("boatcheck-clock-jump"))
+                {
+                    clockJump = ClockJump();
+                    phase = 5;
+                    return;
+                }
                 Write();
                 phase = 4;
                 return;
+            case 5:
+                if(clockJump is not { IsCompleted: true }) return;
+                if(clockJump.IsFaulted) problems.Add(Tag(8, "skip 120 failed: " + clockJump.Exception?.GetBaseException().Message));
+                phase=6;t=0;return;
+            case 6:
+                clockFrames++;
+                clockError=MathF.Max(clockError,Boats.I.WaterlineError());
+                if(t<12) return;
+                notes.Add($"skip 120: {clockFrames} frames, maximum hull/sheet error {clockError:0.000} m (normal heave removed)");
+                if(clockError>Afloat) problems.Add(Tag(8,$"skip 120: a boat was {clockError:0.000} m off the drawn sheet"));
+                Write();phase=4;return;
         }
+    }
+
+    private async Task ClockJump()
+    {
+        Engine.TimeScale=1;
+        Tide.Hold(null);
+        await Kit.I.Commands("hour 13 clear");
+        await ToSignal(GetTree().CreateTimer(8), SceneTreeTimer.SignalName.Timeout);
+        await Kit.I.Commands("skip 120");
+        notes.Add($"clock after skip 120: day {Game.GameState.I.Day}, hour {Game.GameState.I.HourF:0.00}");
     }
 
     private void StartLevel()
@@ -195,17 +226,7 @@ public partial class BoatWaterCheck : Node
     // ---- the mud: the baked tide_mud mesh(es) in 25 cm cells, the highest in each, and whether it is a bed
     private static long Key(float x, float z) => ((long)MathF.Floor(x / Cell) + 100000) * 1000000 + (long)MathF.Floor(z / Cell) + 100000;
     private static readonly (float X0, float X1, float Z0, float Z1)[] Beds = { (-82, -70, 0.5f, 205), (-150, -142, 0.5f, 72) };
-    private static bool OnBedGrid(Vector3 p)
-    {
-        foreach (var b in Beds)
-        {
-            if (p.X < b.X0 - 0.01f || p.X > b.X1 + 0.01f || p.Z < b.Z0 - 0.01f || p.Z > b.Z1 + 0.01f) continue;
-            int nx = (int)MathF.Ceiling((b.X1 - b.X0) / 4), nz = (int)MathF.Ceiling((b.Z1 - b.Z0) / 4);
-            float fx = (p.X - b.X0) / ((b.X1 - b.X0) / nx), fz = (p.Z - b.Z0) / ((b.Z1 - b.Z0) / nz);
-            if (MathF.Abs(fx - MathF.Round(fx)) < 0.01f && MathF.Abs(fz - MathF.Round(fz)) < 0.01f) return true;
-        }
-        return false;
-    }
+    private static bool OnBedGrid(Vector3 p) => Beds.Any(b => p.X >= b.X0 - 0.01f && p.X <= b.X1 + 0.01f && p.Z >= b.Z0 - 0.01f && p.Z <= b.Z1 + 0.01f);
     private static bool InCanal(float x, float z) => Beds.Any(b => x > b.X0 - 1 && x < b.X1 + 1 && z > b.Z0 - 1 && z < b.Z1 + 1);
 
     private void Mud()
@@ -281,6 +302,7 @@ public partial class BoatWaterCheck : Node
         return "still";
     }
 
+    private readonly Dictionary<string, bool> rowCaps = new();
     private Dictionary<string, List<Mesh>>? rowMeshes;
     private List<Mesh> RowMeshes(string kind)
     {
@@ -296,7 +318,8 @@ public partial class BoatWaterCheck : Node
                     if (c is MultiMeshInstance3D { Multimesh.Mesh: not null } mmi && re.Match(mmi.Name.ToString()) is { Success: true } m)
                     {
                         var mesh = mmi.Multimesh.Mesh;
-                        if (mesh.GetSurfaceCount() == 1 && mesh.SurfaceGetMaterial(0)?.ResourceName == "cap") continue;
+                        if (mesh.GetSurfaceCount() == 1 && mesh.SurfaceGetMaterial(0)?.ResourceName == "cap")
+                        { rowCaps[m.Groups[1].Value] = mmi.IsVisibleInTree(); continue; }
                         string k = m.Groups[1].Value;
                         if (!rowMeshes.TryGetValue(k, out var l)) rowMeshes[k] = l = new();
                         if (!l.Contains(mesh)) l.Add(mesh);
@@ -328,8 +351,8 @@ public partial class BoatWaterCheck : Node
             var v = new Vessel { Key = "row" + n, Kind = kind, Source = "moored", X = w.Origin.X, Y = w.Origin.Y, Z = w.Origin.Z };
             v.Name = $"{kind} moored at ({w.Origin.X:0.0}, {w.Origin.Z:0.0})";
             foreach (var m in RowMeshes(kind)) v.Hull.Add((Points(m), w));
-            v.HasCap = false;
-            v.CapHidden = true; // (the bake's cap rows are hidden: Movers/Boats.cs)
+            v.HasCap = rowCaps.ContainsKey(kind.Replace("_", ""));
+            v.CapHidden = !rowCaps.GetValueOrDefault(kind.Replace("_", "")); // (the bake's cap rows are hidden: Movers/Boats.cs)
             list.Add(v);
         }
         foreach (var c in Main.I.View.GetChildren())
@@ -430,7 +453,7 @@ public partial class BoatWaterCheck : Node
             string where = s.Name + (s.Moving ? $" ({s.Source}, moving)" : s.Source is "still" or "moored" ? "" : $" ({s.Source})");
             void Say(string p) => list.Add(Tag(c, p + hint));
             // a moored boat far from the camera that never moved in the whole run: not written (Movers/Boats.cs)
-            bool still = s.Source == "moored" && s.Far && s.N > 4 && s.Max - s.Min < 0.002f && MathF.Abs(mean) > Afloat;
+            bool still = !rests && s.Source == "moored" && s.Far && s.N > 4 && s.Max - s.Min < 0.002f && MathF.Abs(mean) > Afloat;
             if (still)
             {
                 frozen++;
@@ -465,8 +488,8 @@ public partial class BoatWaterCheck : Node
 
     private void Write()
     {
-        if (float.IsFinite(bedLo) && (bedHi > CanalBed + 0.03f || bedLo < CanalBed - 0.03f))
-            problems.Add(Tag(7, $"the drawn canal and vliet beds lie from {bedLo - CanalBed:0.00} to +{bedHi - CanalBed:0.00} m off the flat CANAL_BED ({CanalBed}) the boats take the ground on (Movers/Boats.cs BedAt)"));
+        // Sculpted channels and pools deliberately differ from CanalBed. Hull
+        // penetration above is the check that their actual support agrees.
         problems.AddRange(noCap);
         var report = new
         {

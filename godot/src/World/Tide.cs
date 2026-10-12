@@ -35,23 +35,39 @@ public static class Tide
     /// <summary>The level the river is held at (the W1 tide kit), or null: it follows the clock.</summary>
     public static float? Held { get; private set; }
 
-    /// <summary>The game clock moved: day 1 is Monday, the hour with fractions. A hold wins over it.</summary>
+    /// <summary>The requested tide, including the great storm's surge.</summary>
+    public static float Target { get; private set; } = River;
+    private static int clockDay = 1;
+    private static float clockHour = 13;
+    private static bool started;
+
     public static void Set(int day, float hour)
     {
-        if (Held is { } h) River = h;
-        else River = At(day, hour);
+        clockDay = day;
+        clockHour = hour;
+        Retarget();
     }
 
-    /// <summary>
-    /// Dev (the W1 tide kit, the browser's tideDev.hold): hold the river, the canal and the vlieten at level y
-    /// (metres, quay top 0), whatever the clock says; null lets it follow the clock again from the next Set.
-    /// The drawn sheet eases there at 0.6 m a second (World/Waters.cs).
-    /// </summary>
+    private static void Retarget()
+    {
+        float tide = At(clockDay, clockHour), storm = Daylight.I?.Storm ?? 0;
+        Target = Held ?? MathF.Max(tide, MathF.Min(tide + storm, HwMax - 0.1f));
+    }
+
+    /// <summary>Advance once before movers: every boat and sheet reads this eased level.</summary>
+    public static void Advance(float dt)
+    {
+        Retarget();
+        River = !started ? Target : River + Math.Clamp(Target - River, -0.6f * dt, 0.6f * dt);
+        started = true;
+    }
+
+    /// <summary>Dev: hold an exact level, or return to the clock and storm surge.</summary>
     public static void Hold(float? y)
     {
         if (y is { } v && !float.IsFinite(v)) throw new ArgumentException("tide hold: a level in metres");
         Held = y;
-        if (y is { } level) River = level;
+        Retarget();
     }
 
     /// <summary>The dev panel's line on the tide (the browser's tideDev.read): the water now, rising or falling, the next high and low water.</summary>

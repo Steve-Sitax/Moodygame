@@ -269,7 +269,7 @@ public partial class Lock : Node
             var pt = curve.PointAt(u);
             var tg = curve.TangentAt(u);
             var o = t.Objs[i].Outer;
-            o.Position = new Vector3((float)pt.X, Tide.LevelAt((float)pt.X, (float)pt.Z), (float)pt.Z);
+            o.Position = new Vector3((float)pt.X, MathF.Max(Tide.LevelAt((float)pt.X, (float)pt.Z), BoatGround.Floor(t.Objs[i].Kind, (float)pt.X, (float)pt.Z, (float)(Math.Atan2(tg.X * face, tg.Z * face) + yaw))), (float)pt.Z);
             o.Rotation = new Vector3(0, (float)(Math.Atan2(tg.X * face, tg.Z * face) + yaw), 0);
         }
         for (int i = 0; i + 1 < t.Objs.Count; i++)

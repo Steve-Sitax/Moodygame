@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { bumpFromMap, psx } from "../retro/psx";
 import { rectAround, type Rect } from "./geom";
 import { Geo, WORLD, frameAt, tideCuts, tideShade, type QuaySteps } from "./quaysteps";
-import { LW_MIN, MHW, MLW } from "./tide";
+import { LW_MIN, HW_MAX, MHW, MLW } from "./tide";
 
 // The timber jetty on the Rijnkaai (x 5..9, out to z -12), as in the 1870s photos:
 // a deck of loose planks on stringers and cap beams, rows of round piles with
@@ -34,13 +34,14 @@ function rng(seed: number): () => number {
   };
 }
 
-export function buildPier(scene: THREE.Object3D, waterY: number, planks: THREE.Texture, steps: QuaySteps): Pier {
+export function buildPier(scene: THREE.Object3D, _waterY: number, planks: THREE.Texture, steps: QuaySteps): Pier {
   const r = rng(1873);
   // M6 tides: the piles stand in the mud below the lowest spring tide, slimy up to the high-water mark
   const bed = LW_MIN - 1.6;
   const cuts = tideCuts();
   const deck = new Geo(() => [0.72, 0.7, 0.66], 1.5);
   const wood = new Geo(tideShade([0.5, 0.46, 0.42]), 1.5, cuts);
+  const strakes = new Geo(tideShade([0.5, 0.46, 0.42]), 1.5, cuts);
   const shells = new Geo(() => [0.78, 0.78, 0.72], 1);
   const colliders: Rect[] = [];
   const piles: Rect[] = [];
@@ -76,21 +77,23 @@ export function buildPier(scene: THREE.Object3D, waterY: number, planks: THREE.T
         shells.box(WORLD, px - 0.03, px + 0.03, pz - 0.03, pz + 0.03, y, y + 0.04 + r() * 0.03);
       }
     }
-    // cross-bracing in the row, above the water
-    wood.rod(V(pileX[0], capLo - 0.1, z + 0.17), V(pileX[3], waterY + 0.35, z + 0.17), 0.07, 5);
-    wood.rod(V(pileX[3], capLo - 0.1, z - 0.17), V(pileX[0], waterY + 0.35, z - 0.17), 0.07, 5);
+    // cross-bracing in the row, reaching below the lowest water
+    wood.rod(V(pileX[0], capLo - 0.1, z + 0.17), V(pileX[3], LW_MIN + 0.35, z + 0.17), 0.07, 5);
+    wood.rod(V(pileX[3], capLo - 0.1, z - 0.17), V(pileX[0], LW_MIN + 0.35, z - 0.17), 0.07, 5);
   }
   // bracing along both sides, bay by bay
   for (let i = 0; i < bents.length - 1; i++) {
     const za = bents[i];
     const zb = bents[i + 1];
     for (const x of [pileX[0] - 0.17, pileX[3] + 0.17]) {
-      if (i % 2 === 0) wood.rod(V(x, capLo - 0.1, za), V(x, waterY + 0.35, zb), 0.065, 5);
-      else wood.rod(V(x, waterY + 0.35, za), V(x, capLo - 0.1, zb), 0.065, 5);
+      if (i % 2 === 0) wood.rod(V(x, capLo - 0.1, za), V(x, LW_MIN + 0.35, zb), 0.065, 5);
+      else wood.rod(V(x, LW_MIN + 0.35, za), V(x, capLo - 0.1, zb), 0.065, 5);
     }
   }
   // a rubbing strake along each side, where the lighters lie
-  for (const x of [X0 - 0.2, X1 + 0.2]) wood.box(WORLD, x - 0.09, x + 0.09, Z_HEAD + 0.2, -0.6, waterY + 0.55, waterY + 0.8, [1.1, 1.05, 1]);
+  for (const x of [X0 - 0.2, X1 + 0.2])
+    for (let y = LW_MIN + 0.55; y < HW_MAX + 0.8; y += 0.4)
+      strakes.box(WORLD, x - 0.09, x + 0.09, Z_HEAD + 0.2, -0.6, y, y + 0.25, [1.1, 1.05, 1]);
   // fender piles at the head, standing proud of the deck
   for (const x of [5.75, 8.25]) {
     wood.rod(V(x, bed, Z_HEAD - 0.2), V(x, 0.35, Z_HEAD - 0.2), 0.15, 7, 12);
@@ -117,7 +120,7 @@ export function buildPier(scene: THREE.Object3D, waterY: number, planks: THREE.T
   bumpFromMap(planksMat, 0.006); // bump maps on every floor (2026-09-26): the boards' gaps and grain, from their own colour
   const woodMat = psx(new THREE.MeshLambertMaterial({ map: planks, vertexColors: true }), { affine: 0.3 });
   const shellMat = psx(new THREE.MeshLambertMaterial({ color: 0xc8c4b4, vertexColors: true }));
-  for (const [g, m, name] of [[deck, planksMat, "pier_deck"], [wood, woodMat, "pier_timber"], [shells, shellMat, "pier_barnacles"]] as const) {
+  for (const [g, m, name] of [[deck, planksMat, "pier_deck"], [wood, woodMat, "pier_timber"], [strakes, woodMat, "pier_strakes"], [shells, shellMat, "pier_barnacles"]] as const) {
     const mesh = new THREE.Mesh(g.build(), m);
     mesh.name = name;
     scene.add(mesh);

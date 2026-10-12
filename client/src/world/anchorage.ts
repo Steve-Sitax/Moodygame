@@ -926,7 +926,7 @@ export function createAnchorage(group: THREE.Group, fleet: Boats, scene: THREE.O
       // walking in: the bow a little toward the wall; out: a little away
       const turn = tow.phase === "in" ? 0.06 * Math.sin(Math.PI * tow.crab) : tow.phase === "out" ? -0.06 * Math.sin(Math.PI * tow.crab) : 0;
       const q = towPose(tow, tow.s, tow.crab, turn);
-      tow.lighter.obj.position.set(q.lx, water.river, q.lz);
+      tow.lighter.obj.position.set(q.lx, Math.max(water.river, fleet.floor(tow.lighter.obj.name as BoatName, q.lx, q.lz, q.yaw)), q.lz);
       tow.lighter.obj.rotation.y = q.yaw;
       tow.tug.obj.position.set(q.tx, water.river, q.tz);
       tow.tug.obj.rotation.y = q.yaw;

@@ -1033,7 +1033,7 @@ public partial class Railway : Node
             float wagonA = AngleTo(c, at.X, at.Z);
             int src = c.ShipA != null ? 0 : 1;
             float srcA = c.ShipA ?? AngleTo(c, c.Pile!.X, c.Pile.Z);
-            float shipY = Tide.LevelAt(c.X, c.Z - 8) + 0.25f;
+            float shipY = Boats.I.HoldLevel(c.X, c.Z) + 0.25f;
             float srcY = c.ShipA != null ? shipY : PileSlot(c.Pile!, Math.Max(0, c.Pile!.N - 1 - k)).Y;
             float dstY = c.Pile != null ? PileSlot(c.Pile, Math.Min(c.Pile.Cap - 1, c.Pile.N + k)).Y : shipY;
             if (st.In)

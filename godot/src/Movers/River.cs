@@ -15,7 +15,7 @@ public sealed class TrainPart
 
     public void Put(double x, double z, double yaw)
     {
-        Boat.Outer.Position = new Vector3((float)x, Tide.LevelAt((float)x, (float)z), (float)z);
+        Boat.Outer.Position = new Vector3((float)x, MathF.Max(Tide.LevelAt((float)x, (float)z), BoatGround.Floor(Boat.Kind, (float)x, (float)z, (float)yaw)), (float)z);
         Boat.Outer.Rotation = new Vector3(0, (float)yaw, 0);
     }
 }

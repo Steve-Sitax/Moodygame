@@ -62,6 +62,13 @@ beside it), `--no-mainmenu` (no loading screen and no menus: the town at once, a
 menus' own test, below). A run with `--shots` or another part's `--...test` has no menus either, and keeps the
 picture at its default (the full window, 4x multisampling) whatever the player's settings say.
 
+For tide checks, `--boatcheck <absolute dir>` runs every hull at the seven tide and storm levels
+(`--boatcheck-levels -5.2,-2.8,-0.4` narrows it; `--boatcheck-seconds 60` is the default).
+Add `--boatcheck-clock-jump` with an isolated server to exercise the real `skip 120` command;
+the report checks hulls against the shared eased water throughout the jump, with normal heave removed.
+Give the run its own `--port`, `--db` and `--prefs` under `.scratch`, and remove those files afterward.
+For pictures without speed measurements, use `--snap-no-timing` with `--snap`.
+
 ## Godot milestone checks (G8)
 
 Run from the checkout, with its own installed server packages (`npm --prefix server install`):

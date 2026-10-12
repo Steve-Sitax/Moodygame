@@ -1,7 +1,8 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { psx } from "../retro/psx";
-import { CANAL_BED, TOE_TOP, regionAt } from "./tide";
+import { registerBoatMud } from "./boatGround";
+import { CANAL_BED, TOE_TOP, BRIG_FLOOR, regionAt } from "./tide";
 import { attachToMirror } from "./mirror";
 import { OUTFALLS, buildOutfalls } from "./outfalls";
 import { HULLS, MOORINGS } from "../../../shared/smallBoats";
@@ -255,7 +256,7 @@ export function buildTideMud(scene: THREE.Object3D, o: MudOptions): TideMud {
   for (const [ax, az, bx, bz] of o.quays) {
     const L = Math.hypot(bx - ax, bz - az);
     if (L < 1) continue;
-    if (regionAt((ax + bx) / 2, (az + bz) / 2) === 1) continue;
+    if (regionAt((ax + bx) / 2, (az + bz) / 2) !== 0) continue;
     const tx = (bx - ax) / L;
     const tz = (bz - az) / L;
     const mx = (ax + bx) / 2;
@@ -284,6 +285,9 @@ export function buildTideMud(scene: THREE.Object3D, o: MudOptions): TideMud {
       );
     }
   }
+  // The brig's shallow berth: her three-metre keel rests here below -4.40.
+  quad([-60, BRIG_FLOOR - 3, -11.7, 0.75], [-20, BRIG_FLOOR - 3, -11.7, 0.75],
+    [-20, BRIG_FLOOR - 3, -3, 0.75], [-60, BRIG_FLOOR - 3, -3, 0.75]);
   const bedFrom = index.length;
   // the canal and vliet beds: a third of a metre a cell, one vertex each, smooth
   const CELL = 1 / 3;
@@ -389,6 +393,7 @@ export function buildTideMud(scene: THREE.Object3D, o: MudOptions): TideMud {
   const mesh = new THREE.Mesh(g, [bankMat, bedMat]);
   mesh.name = "tide_mud";
   mesh.userData.bedFrom = bedFrom;
+  registerBoatMud(mesh);
   scene.add(mesh);
 
   // the low water's sheets: still water (the ponds' kind of the psx water: short ripples, no swell)

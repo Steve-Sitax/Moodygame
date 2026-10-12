@@ -29,9 +29,8 @@ public partial class Waters : Node
     private float poolY;
     private bool calmOn;
     private const float CalmTop = -4.75f, TrickleY = -5.05f - 0.22f;
-    private static float level = float.NaN;
     /// <summary>Where the river's sheet lies now (it follows the tide at 0.6 m a second at most).</summary>
-    public static float Level => float.IsNaN(level) ? Tide.River : level;
+    public static float Level => Tide.River;
 
     /// <summary>The river sheet's material (the mirror's part sets its picture on it and on the basins').</summary>
     public static readonly List<ShaderMaterial> Materials = new();
@@ -208,13 +207,10 @@ public partial class Waters : Node
     {
         var cam = Main.I.View.GetCamera3D();
         if (cam == null) return;
-        // the water goes to the tide's level at 0.6 m a second at most (a jump of the clock: in a few seconds)
-        float d = Tide.River - level;
-        level = float.IsNaN(level) ? Tide.River : level + Mathf.Clamp(d, -0.6f * (float)delta, 0.6f * (float)delta);
         if (river != null)
         {
             var p = cam.GlobalPosition;
-            river.GlobalPosition = new Vector3(MathF.Round(p.X / Tile) * Tile, level, MathF.Round(p.Z / Tile) * Tile);
+            river.GlobalPosition = new Vector3(MathF.Round(p.X / Tile) * Tile, Tide.River, MathF.Round(p.Z / Tile) * Tile);
         }
         // the tide's wet band on the walls and the mud (Psx.TideWetGlsl): the last high water by the game clock
         Psx.TideWetNow(Movers.MoverClock.Hours);

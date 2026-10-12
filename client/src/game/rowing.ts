@@ -529,7 +529,7 @@ export class Rowing {
     for (const L of high ? [] : w.landings) {
       const l = this.lying.get(`berth:${L.id}`);
       const d = Math.hypot(L.landing[0] - x, L.landing[1] - z);
-      const flooded = levelAt(L.x, L.z) > WATER_Y + 0.4 + 0.3;
+      const flooded = this.landingFlooded(L.x, L.z, L.landing);
       if (!l || d > (flooded ? 4.8 : 2.4)) continue;
       const what = L.kind === "punt" ? "a punt" : "a rowing boat";
       const debt = w.debt_c ? `, and the ${w.debt_c} c you owe` : "";
@@ -773,11 +773,16 @@ export class Rowing {
     }
   }
 
-  /** M7 boats: climb down the ladder (or step down off the quay) to her thwart, then `then`. */
+  /** The hire landing's actual floor, including floating stages and the tide. */
+  landingFlooded(x: number, z: number, landing: [number, number]): boolean {
+    return levelAt(x, z) > this.world.baseAt(landing[0], landing[1]) + 0.3;
+  }
+
+  /** Climb down the ladder (or step off the quay) to her grounded thwart, then `then`. */
   private climbInto(l: Lying, via: { ladder?: Extract<Mooring["board"], { kind: "ladder" }>; jump?: boolean }, then: () => void): void {
     const p = this.player;
     const h = HULL[l.kind];
-    const lv = levelAt(l.x, l.z);
+    const lv = Math.max(levelAt(l.x, l.z), floorOf(l.kind, l.x, l.z, l.yaw));
     const seat: [number, number] = [l.x + Math.sin(l.yaw) * h.seatZ, l.z + Math.cos(l.yaw) * h.seatZ];
     const top = this.world.baseAt(p.x, p.z);
     const keys: Array<[number, number, number, number]> = [];
@@ -1449,7 +1454,8 @@ export class Rowing {
         l.z = nz;
         l.drifted = true;
         Object.assign(l.rect, this.rectOf(nx, nz, l.yaw, l.kind));
-        l.obj.position.set(nx, levelAt(nx, nz), nz);
+        l.obj.userData.floor = floorOf(l.kind, nx, nz, l.yaw);
+        l.obj.position.set(nx, Math.max(levelAt(nx, nz), l.obj.userData.floor as number), nz);
       } else l.drift = false;
     }
     // wrecks going down

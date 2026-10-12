@@ -150,7 +150,7 @@ public partial class Rowing:Node,RowPhysics.IWorld
             if(dist<(j.Swimming?1.4f:drop>1.3f?2.2f:2)&&drop<3.6f)options.Add((dist,Act.At(Key.E,j.Swimming?"climb into your boat":drop>1.3f?"jump down into your boat":"get into your boat",new(at.X,at.Y+.35f,at.Z),()=>_=Board(d,drop>1.3f))));}
         return new(){Options=options};
     }
-    private static Vector3 SeatOf(Drawn d)=>new(d.X+MathF.Sin(d.Yaw)*d.Hull.SeatZ,Water.Level(d.X,d.Z)+d.Hull.SeatY,d.Z+MathF.Cos(d.Yaw)*d.Hull.SeatZ);
+    private static Vector3 SeatOf(Drawn d)=>new(d.X+MathF.Sin(d.Yaw)*d.Hull.SeatZ,MathF.Max(Water.Level(d.X,d.Z),BoatGround.Floor(d.Kind,d.X,d.Z,d.Yaw))+d.Hull.SeatY,d.Z+MathF.Cos(d.Yaw)*d.Hull.SeatZ);
     private static float HullDistance(Drawn d,float x,float z)
     {float sx=MathF.Sin(d.Yaw),sz=MathF.Cos(d.Yaw),dx=x-d.X,dz=z-d.Z,along=Math.Clamp(dx*sx+dz*sz,-d.Hull.Half,d.Hull.Half);return Math.Max(0,new Vector2(dx-sx*along,dz-sz*along).Length()-d.Hull.Beam);}
     private bool Jump()
@@ -243,6 +243,6 @@ public partial class Rowing:Node,RowPhysics.IWorld
         NavigationTraffic(dt);
         foreach(var hull in Drawings.Values){var at=new Vector2(hull.X,hull.Z);if(at.DistanceSquaredTo(hull.LastPosition)>.01f){hull.LastMoved=MoverClock.T;hull.LastPosition=at;}}
         foreach(var d in Drawings.Values)if(d!=Boat)
-        {if(d.Drift){var c=((RowPhysics.IWorld)this).Current(d.X,d.Z);d.X+=c.X*dt;d.Z+=c.Y*dt;}d.Root.Position=new(d.X,BoatWater.At(d.X,d.Z),d.Z);d.Root.Rotation=new(0,d.Yaw,0);}
+        {if(d.Drift){var c=((RowPhysics.IWorld)this).Current(d.X,d.Z);d.X+=c.X*dt;d.Z+=c.Y*dt;}d.Root.Position=new(d.X,MathF.Max(BoatWater.At(d.X,d.Z),BoatGround.Floor(d.Kind,d.X,d.Z,d.Yaw)),d.Z);d.Root.Rotation=new(0,d.Yaw,0);}
     }
 }

@@ -36,7 +36,7 @@ public partial class Railway
         {
             if(Math.Abs(b.P-c.Pos)>.3f)continue;int need=Play.Goods.I.PileNeed(b.Feed.Route);if(need==0)continue;
             int n=Math.Min(3,need);state.Current=b.Feed;state.Count=n;state.OldGoods=c.Goods;c.Goods="sacks";float unit=UnitH["sacks"]+Sling,top=5-need>=3?.23f:0;
-            c.Ops.Add(new(){T=OpT.Hoist,V=Travel});c.Ops.Add(new(){T=OpT.Slew,V=b.A});c.Ops.Add(new(){T=OpT.Hoist,V=Tide.LevelAt(c.X,c.Z)+.25f+unit});c.Ops.Add(new(){T=OpT.Wait,V=1.6f});c.Ops.Add(new(){T=OpT.Take,Src=0});c.Ops.Add(new(){T=OpT.Hoist,V=Travel});c.Ops.Add(new(){T=OpT.Slew,V=AngleTo(c,b.Feed.X,b.Feed.Z)});c.Ops.Add(new(){T=OpT.Hoist,V=top+unit});c.Ops.Add(new(){T=OpT.Wait,V=1.2f});c.Ops.Add(new(){T=OpT.Drop,Src=3});c.Ops.Add(new(){T=OpT.Hoist,V=Travel});c.Ops.Add(new(){T=OpT.Done});c.OpT=0;state.Wait=4+(float)c.R()*4;return true;
+            c.Ops.Add(new(){T=OpT.Hoist,V=Travel});c.Ops.Add(new(){T=OpT.Slew,V=b.A});c.Ops.Add(new(){T=OpT.Hoist,V=Boats.I.HoldLevel(c.X,c.Z)+.25f+unit});c.Ops.Add(new(){T=OpT.Wait,V=1.6f});c.Ops.Add(new(){T=OpT.Take,Src=0});c.Ops.Add(new(){T=OpT.Hoist,V=Travel});c.Ops.Add(new(){T=OpT.Slew,V=AngleTo(c,b.Feed.X,b.Feed.Z)});c.Ops.Add(new(){T=OpT.Hoist,V=top+unit});c.Ops.Add(new(){T=OpT.Wait,V=1.2f});c.Ops.Add(new(){T=OpT.Drop,Src=3});c.Ops.Add(new(){T=OpT.Hoist,V=Travel});c.Ops.Add(new(){T=OpT.Done});c.OpT=0;state.Wait=4+(float)c.R()*4;return true;
         }
         return false;
     }

@@ -162,6 +162,7 @@ public partial class Boats : Node
     {
         I = this;
         ProcessPriority = -50; // the boats' owners (the river, the lock ...) place theirs after this
+        BoatGround.ReadMud(Mv.Town);
         Collect(Mv.Town);
         // (the hulls' water caps stay drawn: Psx.Cap marks their pixels before the water, which is not drawn there)
         foreach (var top in Mv.Town.GetChildren())
@@ -169,6 +170,7 @@ public partial class Boats : Node
             string n = Mv.Plain(top);
             if (n is "moored" or "small_boats") Rows((Node3D)top);
         }
+        FillMissingCaps();
         GD.Print($"boats: {floats.Count} single vessels, {rows.Count} rows of moored and small boats ({MooredBoats} boats), models in the bake: {string.Join(", ", templates.Keys.OrderBy(k => k))}");
         if (MoversTest.On) Probes();
     }
@@ -208,6 +210,10 @@ public partial class Boats : Node
             var ex = outer.GetMeta("extras").AsGodotDictionary();
             if (ex.TryGetValue("floor", out var fl)) f.Floor = (float)fl.AsDouble();
         }
+        var inverse = inner.GlobalTransform.AffineInverse();
+        BoatGround.Register(kind, BakedWorld.All(inner).OfType<MeshInstance3D>()
+            .Where(m => m.Mesh != null && !m.Name.ToString().EndsWith("_cap"))
+            .Select(m => (m.Mesh!, inverse * m.GlobalTransform)));
         floats.Add(f);
         templates.TryAdd(kind, (outer, inner));
         if (!prepared) Activate(f);
@@ -481,26 +487,30 @@ public partial class Boats : Node
             lines.Visible = false;
             row.Meshes.Add((mm, Transform3D.Identity, new float[row.N * 12]));
         }
-        foreach (var row in byKey.Values) Write(row, (float)MoverClock.T);
+        foreach (var row in byKey.Values)
+        {
+            BoatGround.Register(row.Kind, row.Meshes.Where(m => m.Mm.Mesh != null).Select(m => (m.Mm.Mesh!, m.Part)));
+            for(int i=0;i<row.N;i++) row.Floor[i]=BoatGround.Floor(row.Kind,row.X[i],row.Z[i],row.Yaw[i]);
+            Write(row, (float)MoverClock.T);
+        }
     }
 
     /// <summary>boats.ts writeFleet: every boat of the row on its water, heaving and rolling, or on the mud.</summary>
-    private void Write(Row f, float t, Vector3? eye=null)
+    private void Write(Row f, float t)
     {
         float sea = MoverClock.Sea;
         float h0 = f.M[0], roll0 = f.M[1], pitch0 = f.M[2], w = MathF.Tau / f.M[3];
         float lim = Math.Min(sea, 2.5f);
         for (int i = 0; i < f.N; i++)
         {
-            if(eye is {} p && new Vector2(f.X[i]-p.X,f.Z[i]-p.Z).LengthSquared()>Near*Near && (MoverClock.Frame+(ulong)i)%8!=0) continue;
             float level = Tide.LevelAt(f.X[i], f.Z[i]);
-            float aground = Mv.Clamp01((f.Floor[i] - level) / 0.25f);
+            float aground = level <= f.Floor[i] + 0.06f ? 1 : 0;
             float free = 1 - aground;
             if (free > 0.5f && !f.Gone[i]) Scheldemist.World.Waters.Moored((f, i), f.X[i], f.Z[i], MathF.Sin(f.Yaw[i]), MathF.Cos(f.Yaw[i]), 8, 2.5f); // (D3: faint rings at the hull)
-            float h = h0 * sea * free, roll = roll0 * lim * free, pitch = pitch0 * lim * free;
+            float h = h0 * Math.Min(sea, 3.6f) * free, roll = roll0 * lim * free, pitch = pitch0 * lim * free;
             float y = Math.Max(level, f.Floor[i]) + h * MathF.Sin(w * t + f.P0[i]) + h * 0.4f * MathF.Sin(2.3f * w * t + f.P0[i] * 1.7f);
             // three's Euler "YXZ": yaw, then pitch about x, then roll about z
-            var basis = new Basis(Vector3.Up, f.Yaw[i]) * new Basis(Vector3.Right, pitch * MathF.Sin(1.13f * w * t + f.P2[i])) * new Basis(Vector3.Back, roll * MathF.Sin(0.83f * w * t + f.P1[i]) + f.List[i] * aground);
+            var basis = new Basis(Vector3.Up, f.Yaw[i]) * new Basis(Vector3.Right, pitch * MathF.Sin(1.13f * w * t + f.P2[i])) * new Basis(Vector3.Back, roll * MathF.Sin(0.83f * w * t + f.P1[i]));
             f.World[i] = new Transform3D(f.Gone[i] ? new Basis(Vector3.Zero, Vector3.Zero, Vector3.Zero) : basis, new Vector3(f.X[i], y, f.Z[i]));
         }
         foreach (var (mm, part, buf) in f.Meshes)
@@ -525,6 +535,9 @@ public partial class Boats : Node
     /// <summary>Rows farther than this from the camera are written every 8th frame, in turns (docs/performance.md).</summary>
     private const float Near = 140;
 
+    private float lastRiver = float.NaN, lastChamberA = float.NaN, lastChamberB = float.NaN;
+    private int tideFrames;
+
     public override void _Process(double delta)
     {
         MoverCost.Begin("boats");
@@ -541,24 +554,30 @@ public partial class Boats : Node
             if (!f.Outer.Visible) continue;
             var o = f.Outer.Position;
             float level = Tide.LevelAt(o.X, o.Z);
-            float floor = float.IsNaN(f.Floor) ? BedAt(o.X, o.Z) + f.Draft : f.Floor;
-            float aground = Mv.Clamp01((floor - level) / 0.25f);
+            float floor = MathF.Max(BoatGround.Floor(f.Kind, o.X, o.Z, f.Outer.Rotation.Y), float.IsNaN(f.Floor) ? float.NegativeInfinity : f.Floor);
+            float aground = level <= floor + 0.06f ? 1 : 0;
             float free = 1 - aground;
             o.Y = Math.Max(level, floor);
             f.Outer.Position = o;
             if (free > 0.5f) Scheldemist.World.Waters.Moored(f, o.X, o.Z, MathF.Sin(f.Outer.Rotation.Y), MathF.Cos(f.Outer.Rotation.Y), 7, 2.2f); // (D3: faint rings at the hull)
-            float h = f.M[0] * sea * free, roll = f.M[1] * lim * free, pitch = f.M[2] * lim * free, w = MathF.Tau / f.M[3];
+            float h = f.M[0] * Math.Min(sea, 3.6f) * free, roll = f.M[1] * lim * free, pitch = f.M[2] * lim * free, w = MathF.Tau / f.M[3];
             f.Inner.Position = new Vector3(0, h * MathF.Sin(w * t + f.P0) + h * 0.4f * MathF.Sin(2.3f * w * t + f.P0 * 1.7f), 0);
-            f.Inner.Rotation = new Vector3(pitch * MathF.Sin(1.13f * w * t + f.P2), 0, f.Heel + roll * MathF.Sin(0.83f * w * t + f.P1) + f.List * aground);
+            f.Inner.Rotation = new Vector3(pitch * MathF.Sin(1.13f * w * t + f.P2), 0, f.Heel * free + roll * MathF.Sin(0.83f * w * t + f.P1));
         }
         var cam = Main.I.Cam?.GlobalPosition ?? Vector3.Zero;
+        if (float.IsNaN(lastRiver) || MathF.Abs(lastRiver - Tide.River) > 0.0001f || MathF.Abs(lastChamberA - Tide.ChamberA) > 0.0001f || MathF.Abs(lastChamberB - Tide.ChamberB) > 0.0001f) tideFrames = 8;
+        lastRiver = Tide.River;
+        lastChamberA = Tide.ChamberA;
+        lastChamberB = Tide.ChamberB;
+        bool tideChanged = tideFrames > 0;
+        if (tideChanged) tideFrames--;
         ulong frame = MoverClock.Frame;
         for (int i = 0; i < rows.Count; i++)
         {
             var r = rows[i];
             float dx = r.Mid.X - cam.X, dz = r.Mid.Z - cam.Z;
-            if (dx * dx + dz * dz > Near * Near && (frame + (ulong)i) % 8 != 0) continue;
-            Write(r, t, cam);
+            if (!tideChanged && dx * dx + dz * dz > Near * Near && (frame + (ulong)i) % 8 != 0) continue;
+            Write(r, t);
         }
         MoverCost.End("boats");
     }

@@ -222,14 +222,14 @@ public partial class Snap : Node
     {
         if (view < 0 || view >= views.Count) return;
         // (a held tide: the drawn water eases there at 0.6 m a second; the frames count from when it stands there)
-        if (settle && MathF.Abs(Waters.Level - Tide.River) > 0.004f && settled++ < 6000)
+        if (settle && MathF.Abs(Tide.River - Tide.Target) > 0.004f && settled++ < 6000)
         {
             frame = 0;
             times.Clear();
             return;
         }
         ulong now = Time.GetTicksUsec();
-        if (frame > Wait) times.Add((now - last) / 1000.0);
+        if (!Main.I.Flag("snap-no-timing") && frame > Wait) times.Add((now - last) / 1000.0);
         last = now;
         frame++;
         if (views[view][0].StartsWith("lantern") && People.LanternPool.I?.NearestLit(Main.I.Cam.GlobalPosition) is { } lamp)
@@ -277,15 +277,15 @@ public partial class Snap : Node
         GD.Print($"snap {name} tide: the river {Tide.River:0.00}{(Tide.Held is { } th ? $" (held at {th:0.00})" : "")}, drawn at {Waters.Level:0.00}, the dock {Tide.Dock:0.00}, the lock {Tide.ChamberA:0.00} / {Tide.ChamberB:0.00}");
         if (ShipWater.I is { } sw) GD.Print($"snap {name} ship water: {sw.Info}");
         if (Bats.I is { } bts) GD.Print($"snap {name} bats: {bts.Info}");
-        if (Gulls.I is { } gls) GD.Print($"snap {name} gulls: {gls.Info}, {gls.MeanMs:0.000} ms a frame ({gls.CostParts}), {gls.AllocatedLastFrame} bytes");
+        if (!Main.I.Flag("snap-no-timing") && Gulls.I is { } gls) GD.Print($"snap {name} gulls: {gls.Info}, {gls.MeanMs:0.000} ms a frame ({gls.CostParts}), {gls.AllocatedLastFrame} bytes");
         if (Debris.I is { } db) GD.Print($"snap {name} debris: {db.Info}");
         if (Gutters.I is { } gt) GD.Print($"snap {name} eaves drops: {gt.DropInfo}");
         if (Breath.I is { } br) GD.Print($"snap {name} horses' breath: {br.HorseInfo}");
         if (Lightning.I is { } lg) GD.Print($"snap {name} lightning: {lg.Info}, flash {Daylight.I.Flash:0.00}");
         if (LandmarkRooms.I is { } lr) GD.Print($"snap {name} landmark rooms: {string.Join(", ", lr.Info.Select(i => $"{i.building} {i.lit}/{i.windows}"))}; steen lanterns {lr.LanternInfo.lit}/{lr.LanternInfo.lanterns}");
-        times.Sort();
+        if (!Main.I.Flag("snap-no-timing")) times.Sort();
         GD.Print($"snap {name} air: wind {Daylight.I.Wind.Length():0.00}, rain {Daylight.I.Rain:0.00}, storm {Daylight.I.Storm:0.00}, night life {NightLife.I?.Info}, surf {Surf.I?.Info}, gutters {Gutters.I?.Info}, breath {Breath.I?.Info}, blobs {Blobs.I?.Count}");
-        GD.Print($"snap {name}: {times.Average():0.00} ms a frame (p95 {times[(int)(times.Count * 0.95)]:0.00}), {RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalDrawCallsInFrame)} draws, {Render.Psx.ShaderCount} psx shaders");
+        if (!Main.I.Flag("snap-no-timing")) GD.Print($"snap {name}: {times.Average():0.00} ms a frame (p95 {times[(int)(times.Count * 0.95)]:0.00}), {RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalDrawCallsInFrame)} draws, {Render.Psx.ShaderCount} psx shaders");
         Next();
     }
 }

@@ -1,3 +1,4 @@
+import { boatHoldLevel } from "./boats";
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { labelGeo, pickSack, SACK_H, SACK_NEST, sackGeometry, sackInstMaterial, type SackLabel } from "../game/sackModel";
@@ -1480,7 +1481,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
     const shipA = c.berths.find((b) => b.feed === f)?.a ?? c.shipA;
     if (shipA === null) return false;
     const pileA = angleTo(c, f.x, f.z);
-    const shipY = levelAt(c.site.x, c.site.z) + (c.shipY - opts.waterY);
+    const shipY = boatHoldLevel(c.site.x, c.site.z) + (c.shipY - opts.waterY);
     const unit = UNIT_H[f.kind];
     const hookFor = (bottom: number) => bottom + unit + SLING;
     // (the pile's top: a low heap of five, the upper row on the lower)
@@ -1803,7 +1804,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
         const src = plan.shipA ?? (c.pile ? angleTo(c, c.pile.x, c.pile.z) : wa);
         return clearAt(wa, FLOOR + load) && mastPathClear(c, plan.x, plan.z, src, wa);
       });
-      const shipY = levelAt(plan.x, plan.z) + (c.shipY - opts.waterY);
+      const shipY = boatHoldLevel(plan.x, plan.z) + (c.shipY - opts.waterY);
       if ((plan.shipA !== null && !clearAt(plan.shipA, shipY + load)) || !ok.length) {
         c.stat.skipped++;
         return false;
@@ -1834,7 +1835,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
       const src: Source = plan.shipA !== null ? { kind: "ship" } : { kind: "pile" };
       const srcA = plan.shipA ?? angleTo(c, c.pile!.x, c.pile!.z);
       // M6 tides: the hold is where the water has the boat now
-      const shipY = levelAt(c.site.x, c.site.z) + (c.shipY - opts.waterY);
+      const shipY = boatHoldLevel(c.site.x, c.site.z) + (c.shipY - opts.waterY);
       const srcY = plan.shipA !== null ? shipY : c.pile ? pileSlot(c.pile, Math.max(0, c.pile.n - 1 - k)).y : 0;
       const dstY = c.pile ? pileSlot(c.pile, Math.min(c.pile.cap - 1, c.pile.n + k)).y : shipY;
       if (st.dir === "in") {
@@ -1947,7 +1948,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
         // a load on the hook with no lift behind it: back where it came from
         const src: Source = c.pile ? { kind: "pile" } : { kind: "ship" };
         const srcA = c.shipA ?? angleTo(c, c.pile!.x, c.pile!.z);
-        const y = c.pile ? pileSlot(c.pile, Math.min(c.pile.cap - 1, c.pile.n)).y : levelAt(c.site.x, c.site.z) + (c.shipY - opts.waterY);
+        const y = c.pile ? pileSlot(c.pile, Math.min(c.pile.cap - 1, c.pile.n)).y : boatHoldLevel(c.site.x, c.site.z) + (c.shipY - opts.waterY);
         c.ops = [{ t: "hoist", y: TRAVEL }, { t: "slew", a: srcA }, { t: "hoist", y: y + UNIT_H[c.carry] + SLING }, { t: "wait", s: 1.2 }, { t: "drop", to: src }, { t: "hoist", y: TRAVEL }];
       }
     }
@@ -2815,7 +2816,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
         working: working ? working.crane.index : null,
         bridges: opts.bridges().map((b) => ({ x: (b.rect.minX + b.rect.maxX) / 2, shut: b.closed(), busy: api.busy(b.rect) })),
         wagons: wagons.map((w) => ({ kind: w.kind, goods: w.goods, slots: w.slots.map((x) => (x ? 1 : 0)).join("") })),
-        cranes: cranes.map((c) => ({ at: [+c.site.x.toFixed(2), +c.site.z.toFixed(2)], move: c.mode, blocked: c.blockT > 0 ? `${c.blockedBy} ${c.blockT.toFixed(1)} s` : "", yielding: c.yieldT > 0, to: c.target === null ? null : +c.target.toFixed(1), berths: c.berths.length, range: c.axis ? [c.lo, c.hi] : null, reserved: c.reserved, occupied: c.occupied, stay: +c.stay.toFixed(0), goods: c.goods, mode: c.shipA !== null ? "ship" : "quay", a: +c.a.toFixed(2), hy: +c.hy.toFixed(2), carry: c.carry, ops: c.ops.length, pile: c.pile ? [+c.pile.x.toFixed(1), +c.pile.z.toFixed(1), c.pile.n] : null, feeds: c.berths.filter((b) => b.feed).map((b) => `${b.feed!.route}@${b.p.toFixed(1)}`), fed: c.stat.feeds ?? 0 })),
+        cranes: cranes.map((c) => ({ at: [+c.site.x.toFixed(2), +c.site.z.toFixed(2)], move: c.mode, blocked: c.blockT > 0 ? `${c.blockedBy} ${c.blockT.toFixed(1)} s` : "", yielding: c.yieldT > 0, to: c.target === null ? null : +c.target.toFixed(1), berths: c.berths.length, range: c.axis ? [c.lo, c.hi] : null, reserved: c.reserved, occupied: c.occupied, stay: +c.stay.toFixed(0), goods: c.goods, mode: c.shipA !== null ? "ship" : "quay", shipY: boatHoldLevel(c.site.x, c.site.z) + (c.shipY - opts.waterY), a: +c.a.toFixed(2), hy: +c.hy.toFixed(2), carry: c.carry, ops: c.ops.length, pile: c.pile ? [+c.pile.x.toFixed(1), +c.pile.z.toFixed(1), c.pile.n] : null, feeds: c.berths.filter((b) => b.feed).map((b) => `${b.feed!.route}@${b.p.toFixed(1)}`), fed: c.stat.feeds ?? 0 })),
       };
     },
     jump(s) {
