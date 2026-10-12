@@ -5,4 +5,7 @@
     <Nullable>enable</Nullable>
     <RootNamespace>Scheldemist.Native</RootNamespace>
   </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../godot/Scheldemist.csproj" />
+  </ItemGroup>
 </Project>

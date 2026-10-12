@@ -129,6 +129,16 @@ public partial class TownRecovery : Node
                 replacements.Add(standard.GetInstanceId(), native); materials[pair.Key] = native;
                 notes.Add($"Material {pair.Key}: UV2 atlas cells recovered with a standalone native atlas shader.");
             }
+            else
+            {
+                var wrap = RecoverySampler.Modes(source.Json, original);
+                if (standard.AlbedoTexture != null && (wrap.u != wrap.v || wrap.u == 33648))
+                {
+                    var native = RecoverySampler.Create(standard, wrap.u, wrap.v);
+                    replacements.Add(standard.GetInstanceId(), native); materials[pair.Key] = native;
+                    notes.Add($"Material {pair.Key}: independent glTF sampler axes preserved ({wrap.u}, {wrap.v}).");
+                }
+            }
         }
     }
     private Texture2D Mipmapped(Texture2D texture)

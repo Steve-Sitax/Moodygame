@@ -17,6 +17,13 @@ the export did not retain all individual object boundaries. New objects must hav
 `Open Recovered Quay Editor.cmd` opens that district in Godot. `Test Editor Changes.cmd` runs a saved editor scene
 with a fresh temporary layout. The default main scene and F5 now use the updated recovered quay.
 
+`Start Native District Game.cmd` runs the same district through the existing Godot game's player, weather, sky,
+lighting, water and reflection systems. It reads your saved workshop layout, including added/moved lamps, without
+writing that layout. Click to take the mouse, use WASD/Shift/Space to walk, and Esc to release it. F6 cycles weather,
+F7 changes the hour, F9 switches fly/walk, B compares bump/relief, and M compares reflections. Flying uses Space
+to rise and Ctrl to descend. `Test Editor Changes In Game.cmd` uses the saved district scene instead of a workshop
+layout. This is a district game test: NPCs, missions, interiors and moving ships/bridges are still outside its scope.
+
 ## Place objects yourself
 
 Choose a bench, crate, or lamp and click clear quay ground. R turns the preview by 15 degrees; Shift+R turns it back.
@@ -61,6 +68,7 @@ Cannon/mushroom bollards, a capstan, a hand barrow and a coiled hawser are also 
 | Undo/redo, persistent layout, editable Godot scene export | Working; checked across separate Godot processes. |
 | Model/texture intake | Finished main art and current bake used in Rijnkaai; detailed library assets imported as native resources. |
 | Existing town | Static Rijnkaai updated from the 2026-10-12 bake; 14 original object ids preserved. Other districts and dynamic parts remain. |
+| Game rendering and player in Rijnkaai | Existing C# player, weather, wetness, bump/relief, sky, lamps, animated river and planar mirrors connected to native resources. |
 | Navigation | Pending scene-derived navigation and moving-bridge links. The pilot has player collision, not NPC pathfinding. |
 | Game services | Pending C# ports of rules, SQLite persistence, AI providers, and multiplayer. The old server is not part of this pilot. |
 | Retiring the browser and Node game | Pending parity checks and save migration; remove only once the native game covers those behaviors. |
@@ -77,9 +85,10 @@ and LAN integrations. Preserve existing saves and compare the current tests' out
 `town.json`; it does not run a browser, start Node or write the source files. The default plan is `recovery/rijnkaai.json`.
 It selects static geometry and embedded textures, keeps nested transforms and hidden-node/material metadata,
 expands in-bound instances with their colours, and saves native resources shared between editable scenes.
-UV2 atlas cells use `shaders/recovered_atlas.gdshader`; recovered textures have mipmaps. Wetness, relief, grime,
-water, decals and the original lighting still require rendering work. Auxiliary PSX texture references remain in
-the metadata report; those maps are not silently treated as imported native effects.
+UV2 atlas cells use `shaders/recovered_atlas.gdshader`; recovered textures have mipmaps. Independent texture sampler
+axes use `recovered_sampler.gdshader`, fixing horizontal quay-wall/coping stretching. The workshop uses these basic
+materials. The separate game test uses native game materials and auxiliary maps from `game/rijnkaai/`; its runtime
+loads no original GLB or bake directory. See [game integration notes](game/README.md) for that one-time intake.
 
 The tool refuses an existing output district to protect native edits. Give another snapshot a new plan id.
 `recovery-report.json` records the source fingerprint, plan, source node ids, material/instance metadata, checks,

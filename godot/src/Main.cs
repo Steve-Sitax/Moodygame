@@ -61,6 +61,11 @@ public partial class Main : Node
     private readonly List<double> times = new();
     private readonly List<Dictionary<string, object>> rows = new();
 
+    /// <summary>A native district entry point can supply the same game runtime with a saved Godot world.</summary>
+    protected virtual BakedWorld CreateWorld() => new();
+    protected virtual IEnumerable<Node> CreateParts() => GamePartAttribute.Make(this);
+    protected virtual bool UseMenus => Menu.MainMenu.Wanted(this);
+
     public override void _Ready()
     {
         I = this;
@@ -78,15 +83,15 @@ public partial class Main : Node
         AddChild(screen);
         GetViewport().SizeChanged += Resize;
 
-        world = new BakedWorld();
+        world = CreateWorld();
         Ui = new CanvasLayer { Layer = 10 };
         AddChild(Ui);
         // the menus (src/Menu): the settings first (the picture's size), then the loading screen while the town
         // loads; a run that takes its own pictures (--shots, another part's test) has neither
-        bool menus = Menu.MainMenu.Wanted(this);
+        bool menus = UseMenus;
         if (menus) Menu.Apply.Early();
         var boot = menus ? Menu.Loading.Show(this) : null;
-        parts = GamePartAttribute.Make(this).ToList();
+        parts = CreateParts().ToList();
         // the server needs no town: it comes up while the town loads
         foreach (var part in parts.Where(p => p is Net.ServerLink)) AddChild(part);
         LoadTown(town, boot != null);

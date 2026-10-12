@@ -1,0 +1,15 @@
+{
+  "source": "D:\\Code\\MoodyGame-godot\\godot\\baked\\next\\town.glb",
+  "fixedSamplers": 3,
+  "materials": 40,
+  "auxiliaryTextures": 29,
+  "runtime": "native resources only",
+  "district": "rijnkaai-recovered",
+  "sourceFingerprint": {
+    "path": "D:\\Code\\MoodyGame-godot\\godot\\baked\\next\\town.glb",
+    "bytes": 977933624,
+    "modifiedUtc": "2026-10-12T07:12:38.1487839Z",
+    "sha256": "ac8534149415142120f325986c7abd3818c38005206d45354f1ebb2619f3a7d9",
+    "factsMade": "2026-10-12T07:12:37.1Z"
+  }
+}

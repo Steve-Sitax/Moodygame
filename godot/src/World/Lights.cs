@@ -121,9 +121,9 @@ public partial class Lights : Node
         Daylight.I.Settled += () => snap = true;
         string? file = new[] { Paths.TownSide("_lights.json"), Path.Combine(Paths.Baked, "town_lights.json") }.FirstOrDefault(File.Exists);
         int paneCount = 0;
-        if (file != null)
+        if (Main.I.World.NativeLights != null || file != null)
         {
-            var j = JsonDocument.Parse(File.ReadAllText(file)).RootElement;
+            var j = Main.I.World.NativeLights?.RootElement ?? JsonDocument.Parse(File.ReadAllText(file!)).RootElement;
             foreach (var e in j.GetProperty("spill").EnumerateArray()) sources.Add(Read(e));
             paneCount = BuildPanes(j.GetProperty("panes"));
         }

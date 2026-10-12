@@ -17,7 +17,9 @@ namespace Scheldemist.World;
 /// </summary>
 public partial class BakedWorld : Node3D
 {
-    public JsonDocument Facts { get; private set; } = null!;
+    public JsonDocument Facts { get; protected set; } = null!;
+    /// <summary>Native worlds supply lights from their live authored objects; legacy worlds read their sidecar.</summary>
+    public virtual JsonDocument? NativeLights => null;
     public Dictionary<string, object> Report { get; } = new();
     /// <summary>Meshes with a shader of the browser's own (sky, glows, fire): hidden until their part is ported.</summary>
     public List<string> Unported { get; } = new();
@@ -87,7 +89,7 @@ public partial class BakedWorld : Node3D
         return n;
     }
 
-    public Error Load(string glbPath)
+    public virtual Error Load(string glbPath)
     {
         ulong t0 = Time.GetTicksMsec();
         Facts = JsonDocument.Parse(File.ReadAllText(Paths.TownFacts(glbPath)));
@@ -256,6 +258,13 @@ public partial class BakedWorld : Node3D
     }
 
     private readonly Dictionary<ShaderMaterial, Psx.Kind> kinds = new();
+
+    /// <summary>One-time native intake: use the existing game shader conversion without loading a town.</summary>
+    public Material? RecoverMaterial(BaseMaterial3D material, JsonElement description, string textureDirectory)
+    {
+        texDir = textureDirectory;
+        return Convert(material, description, false);
+    }
 
     /// <summary>A glTF material as the psx material the browser game drew it with; null: a shader of the browser's own.</summary>
     private Material? Convert(BaseMaterial3D bm, JsonElement j, bool vertexColour)

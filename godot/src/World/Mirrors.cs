@@ -47,6 +47,8 @@ public partial class Mirrors : Node
     private int frame;
     // the settings' reflections: full, coarse (half the picture's size each way) or off
     private string quality = "full";
+    /// <summary>A district preview can compare reflections without changing saved player preferences.</summary>
+    public void SetQuality(string value) => quality = value is "off" or "coarse" ? value : "full";
     // dev, to measure: --mirror-off river,puddles draws no picture for those (the water shows the sky's grey)
     private readonly string offList = Main.I.Arg("mirror-off");
 

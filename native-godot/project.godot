@@ -17,6 +17,10 @@ window/stretch/mode="canvas_items"
 [dotnet]
 project/assembly_name="Scheldemist.Native"
 
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/native_game_globals/plugin.cfg")
+
 [physics]
 3d/physics_engine="Jolt Physics"
 

@@ -121,9 +121,17 @@ resources made the first process appear correct; use full `res://` paths and ver
 Textures receive mipmaps. The native atlas shader reads UV2 cells; ordinary materials show the entire facade
 atlas on every wall if this custom coordinate rule is omitted.
 
-PSX-only auxiliary map references remain metadata. Wetness, relief, grime, water, decals, sky, full lighting,
-interiors, openings, moving bridges/boats, NPC navigation and game services still need native implementation.
-Updating the source models is not evidence that those runtime features have been ported.
+Preserve glTF sampler axes separately. The quay wall and coping repeat U but clamp V; Godot's ordinary material
+import disables repeating on both axes for that combination, stretching one texture column across the wall.
+`RecoverySampler` and `recovered_sampler.gdshader` preserve repeat, clamp and mirrored axes. Three existing quay
+materials were repaired; their original resources are backed up under ignored `proof/wall-mapping/material-backup`.
+The [Godot sampler implementation](https://github.com/godotengine/godot/blob/master/modules/gltf/structures/gltf_texture_sampler.h)
+documents the ordinary material limitation.
+
+Static recovery alone leaves PSX auxiliary map references as metadata. Rijnkaai's separate native game intake now
+stores those maps and the existing Godot game shaders as native resources; it reuses the actual player, weather,
+wetness, relief, sky, lamps, river and planar mirror systems. See [game integration notes](../game/README.md).
+Interiors, openings, moving bridges/boats, NPC navigation and game services remain outside this district test.
 
 ## Steve testing lamps
 
@@ -140,3 +148,8 @@ Launch `Test Editor Changes.cmd` to run the saved scene with a fresh layout, bec
 overrides the scene seed. This preview saves only to its own new directory under `proof/`. F5 in the editor also
 runs the recovered quay, but uses the normal existing layout. Edit the authored wrapper, not its generated Asset
 child. Every scene in `Objects` must have a unique id and a library asset reference.
+
+Use `Start Native District Game.cmd` to test your saved workshop layout with game effects, or
+`Test Editor Changes In Game.cmd` to test the saved editor seed. The game's lamp sources are rebuilt from authored
+objects, so added, moved and deleted lamps affect illumination and reflections. Neither launcher promotes an
+export into the source scene or writes the workshop layout.
