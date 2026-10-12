@@ -74,6 +74,9 @@ public partial class NativeTown : BakedWorld
     }
     public override void _Ready()
     {
+        // Authored objects arrive with editor materials, which the game's fog and light never reach (issue 79).
+        var authoredMaterials = new NativeTownMaterials(); authoredMaterials.Apply(town);
+        Report["authoredMaterialsSwapped"] = authoredMaterials.Swapped; Report["authoredMaterialsLeft"] = authoredMaterials.Left;
         var registered = new HashSet<ulong>();
         foreach (var node in All(town))
         {
