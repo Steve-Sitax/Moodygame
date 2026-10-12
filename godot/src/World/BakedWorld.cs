@@ -21,6 +21,8 @@ public partial class BakedWorld : Node3D
     /// <summary>Native worlds supply lights from their live authored objects; legacy worlds read their sidecar.</summary>
     public virtual JsonDocument? NativeLights => null;
     public virtual Scheldemist.Town.WalkMap? NativeWalk => null;
+    /// <summary>The quay ladders a native world drew itself (null: QuayExits reads them back from the baked iron).</summary>
+    public virtual IReadOnlyList<QuayExits.Ladder>? NativeQuayLadders => null;
     public virtual bool ContainsPlayPoint(double x, double z) => true;
     public virtual bool SupportsJob(Scheldemist.Net.Job job) => true;
     public Dictionary<string, object> Report { get; } = new();

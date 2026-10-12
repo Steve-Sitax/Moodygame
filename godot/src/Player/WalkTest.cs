@@ -169,7 +169,8 @@ public partial class WalkTest : Node
             {
                 float tx = -l.Nz, tz = l.Nx;
                 var outer = new Vector2(l.X + l.Nx * 3 + tx * 3, l.Z + l.Nz * 3 + tz * 3);
-                var hold = new Vector2(l.X + l.Nx * 0.55f, l.Z + l.Nz * 0.55f);
+                // where the swimmer takes hold, in front of the rungs (QuayExits.AddLadder)
+                var hold = new Vector2(l.X + l.Nx * (l.Rung + 0.415f), l.Z + l.Nz * (l.Rung + 0.415f));
                 string why = "";
                 List<Vector2>? way = null;
                 Exit? exit = null;

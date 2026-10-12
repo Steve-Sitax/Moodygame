@@ -23,6 +23,8 @@ public partial class NativeTown : BakedWorld
     public NativeDistrictLayouts.Result Layouts { get; private set; } = null!;
     public JsonArray LampFacts { get; private set; } = new();
     public override JsonDocument? NativeLights => lights;
+    private List<QuayExits.Ladder>? quayLadders;
+    public override IReadOnlyList<QuayExits.Ladder>? NativeQuayLadders => quayLadders;
     public override Scheldemist.Town.WalkMap? NativeWalk
     {
         get
@@ -66,9 +68,17 @@ public partial class NativeTown : BakedWorld
         // Its footprint is cut out of the mesh, so what is drawn, what is walked on and what is solid agree with the steps.
         // (dev: --no-werf-cut leaves the ground as the bake has it, for a before-and-after)
         int werfCut = Scheldemist.Main.I.Flag("no-werf-cut") ? 0 : QuayNotch.Cut(town, "city_-4_0_3", QuayExits.WerfFrame, QuayExits.WerfNotchS0, QuayExits.WerfNotchS1, QuayExits.WerfNotchU0, QuayExits.WerfNotchU1);
+        // The baked quay ladders ran through the coping and into the stone (issue 85): the native ladder replaces them.
+        var ladders = Scheldemist.Native.World.NativeQuayLadders.Install(town);
+        quayLadders = ladders.Ladders;
+        foreach (var note in ladders.Notes) GD.Print("quay ladders: " + note);
         AddChild(town);
         Report["werfStepsCutTriangles"] = werfCut;
         Report["source"] = "complete native Godot town";
+        Report["quayLadders"] = ladders.Ladders.Count;
+        Report["quayLadderMeshes"] = ladders.Meshes;
+        Report["quayLadderOldTriangles"] = ladders.RemovedTriangles;
+        Report["quayLadderMs"] = ladders.Ms;
         Report["sourceSha256"] = intake["sourceSha256"]!.GetValue<string>();
         Report["authoredObjects"] = Layouts.ObjectCount;
         Report["districts"] = Layouts.Districts.Count;
@@ -112,6 +122,7 @@ public partial class NativeTown : BakedWorld
         }
         Solid.Leave.Add(n => n.HasMeta("native_author_district"));
         Solid.Leave.Add(n => n.HasMeta("native_replaced_event_snapshot"));
+        Solid.Leave.Add(n => n.HasMeta(Scheldemist.Native.World.NativeQuayLadders.LeaveMeta));
         BuildLights();
     }
     private void BuildLights()

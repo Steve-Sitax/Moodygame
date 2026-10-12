@@ -22,6 +22,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - The floor of the cathedral's nave, and of the other churches, shows its stone paving again instead of a flat black plane. The sun's coloured patches from the windows now light the floor by day in clear weather (issue #74).
 
 - Water from a broken gutter now lands on the pavement where the street has a raised pavement, and its wet patch shows there; before, the splash and the patch lay 12 cm under the paving stones (15 of the 50 broken gutters, issue 67).
+- The iron quay ladders are new: flat-bar stiles, round rungs, wall brackets and grab hoops that rise over the coping and come down on the quay, with light rust where the tide reaches. They stand clear of the stone instead of running through the coping. Press E at the hoops to climb down into the water (or onto the mud at a low spring tide) and E at the foot to climb up again; the climb out of the water follows the new rungs at every tide (issue #85).
 
 - Boats rest on the drawn mud at low water, rise with every tide and stay above water in the great storm. Ladder boarding and crane loads follow grounded hulls, and the pier has fenders for the full tide range. In Godot, boats stay with the water during clock jumps and the storm brings the same surge as in the browser.
 - Boats carry their own readable names and home ports, upright on their bows, sterns and paddle boxes; the paper, map and harbour calls use the same names. Germania is a German grain barque and Stad Antwerpen a Belgian line steamer.

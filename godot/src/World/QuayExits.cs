@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 
 namespace Scheldemist.World;
@@ -16,6 +17,8 @@ public sealed class Exit
     public float Tx, Tz, Ty;
     /// <summary>Over a parapet and its handrail: the height the feet must clear (0: none in the way).</summary>
     public float Over;
+    /// <summary>A ladder's head on the quay line (where its hoops stand), for the way down it.</summary>
+    public float Wx, Wz;
 }
 
 /// <summary>
@@ -23,7 +26,8 @@ public sealed class Exit
 /// flights in world/rijnkaai.ts). The stone and iron themselves are in the bake and solid; this knows where a swimmer
 /// gets out. The flights come from the same list as the browser's. The ladders are placed by the browser once its
 /// boats are in, so they are read back from the baked iron (the mesh "quay_iron"): two stiles that go down below the
-/// lowest tide, and the hoop over the edge that tells which way the wall faces.
+/// lowest tide, and the hoop over the edge that tells which way the wall faces. The native town replaces those with
+/// its own ladder model and hands their places and rung lines over (BakedWorld.NativeQuayLadders, issue 85).
 /// </summary>
 public static class QuayExits
 {
@@ -88,7 +92,14 @@ public static class QuayExits
 
     public sealed class Ladder
     {
+        /// <summary>X, Z: on the quay line (the wall face under the coping); Top: the ground he steps out onto; N: out over the water.</summary>
         public float X, Z, Top, Nx, Nz;
+        /// <summary>How far out from (X, Z) the rungs stand (the browser's ladder: 0.135; the native ladder stands clear of the coping).</summary>
+        public float Rung = 0.135f;
+        /// <summary>Where he stands when out: this far in from (X, Z).</summary>
+        public float Inset = 0.9f;
+        /// <summary>The lowest rung (for the checks and a climb down).</summary>
+        public float Foot = Tide.LwMin - 0.45f;
     }
 
     public static readonly List<Exit> Exits = new();
@@ -126,40 +137,70 @@ public static class QuayExits
                 Exits.Add(new Exit { Gx = gx, Gz = gz, Nx = fr.Nx, Nz = fr.Nz, Tx = ttx, Tz = ttz, Ty = tread, Over = rail });
             }
         }
-        foreach (var n in BakedWorld.All(world))
-            if (n is MeshInstance3D mi && mi.Mesh != null && mi.Name.ToString().StartsWith("quay_iron"))
-                ReadLadders(mi);
+        // the native town draws its own ladders and says where they are; else they are read back from the baked iron
+        if (world.NativeQuayLadders is { } native)
+            foreach (var l in native) AddLadder(l);
+        else
+            foreach (var n in BakedWorld.All(world))
+                if (n is MeshInstance3D mi && mi.Mesh != null && mi.Name.ToString().StartsWith("quay_iron"))
+                    foreach (var l in FindLadders(mi, mi.GlobalTransform)) AddLadder(l);
     }
 
-    /// <summary>The ladders in a mesh of quay iron (quaysteps.ts addLadder: the sizes below are its own).</summary>
-    private static void ReadLadders(MeshInstance3D mi)
+    /// <summary>
+    /// A ladder's way out of the water: the swimmer takes hold in front of the rungs (his body about 0.3 m off them
+    /// while he climbs, Jef.StartClimb) and steps out on the ground behind the hoops.
+    /// </summary>
+    public static void AddLadder(Ladder l)
     {
-        var xf = mi.GlobalTransform;
+        var nrm = new Vector2(l.Nx, l.Nz);
+        var wall = new Vector2(l.X, l.Z);
+        var g = wall + nrm * (l.Rung + 0.415f);
+        var t = wall - nrm * l.Inset;
+        Exits.Add(new Exit { Ladder = true, Gx = g.X, Gz = g.Y, Nx = nrm.X, Nz = nrm.Y, Tx = t.X, Tz = t.Y, Ty = l.Top, Wx = wall.X, Wz = wall.Y });
+        Ladders.Add(l);
+    }
+
+    /// <summary>
+    /// The ladders in a mesh of quay iron (quaysteps.ts addLadder: the sizes below are its own), `xf` its pose in the
+    /// world. The stiles' feet give the line of the wall (their spread runs along it), the hoop over the edge the side
+    /// the water is on.
+    /// </summary>
+    public static List<Ladder> FindLadders(MeshInstance3D mi, Transform3D xf)
+    {
+        var found = new List<Ladder>();
         var pts = new List<Vector3>();
         for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
             foreach (var v in mi.Mesh.SurfaceGetArrays(s)[(int)Mesh.ArrayType.Vertex].AsVector3Array())
                 pts.Add(xf * v);
         // the feet of the stiles stand 0.7 m below the lowest spring tide; nothing else of iron goes so deep
-        var feet = new List<(Vector3 sum, int n)>();
+        var feet = new List<List<Vector3>>();
+        var cells = new Dictionary<(int, int), List<Vector3>>();
         foreach (var p in pts)
         {
+            var key = ((int)MathF.Floor(p.X), (int)MathF.Floor(p.Z));
+            if (!cells.TryGetValue(key, out var cell)) cells[key] = cell = new List<Vector3>();
+            cell.Add(p);
             if (p.Y > Tide.LwMin - 0.5f) continue;
-            int k = feet.FindIndex(c => new Vector2(c.sum.X / c.n - p.X, c.sum.Z / c.n - p.Z).Length() < 0.9f);
-            if (k < 0) feet.Add((p, 1));
-            else feet[k] = (feet[k].sum + p, feet[k].n + 1);
+            var k = feet.FirstOrDefault(c => new Vector2(c[0].X - p.X, c[0].Z - p.Z).Length() < 0.9f);
+            if (k == null) feet.Add(new List<Vector3> { p });
+            else k.Add(p);
         }
-        foreach (var (sum, n) in feet)
+        foreach (var foot in feet)
         {
-            var c = new Vector2(sum.X / n, sum.Z / n); // between the stiles, 0.135 m off the wall
+            var c = new Vector2(foot.Average(p => p.X), foot.Average(p => p.Z)); // between the stiles, 0.135 m off the wall
+            var near = new List<Vector3>();
+            for (int cx = (int)MathF.Floor(c.X) - 1; cx <= (int)MathF.Floor(c.X) + 1; cx++)
+                for (int cz = (int)MathF.Floor(c.Y) - 1; cz <= (int)MathF.Floor(c.Y) + 1; cz++)
+                    if (cells.TryGetValue((cx, cz), out var cell)) near.AddRange(cell);
             float top = float.NegativeInfinity;
-            foreach (var p in pts)
+            foreach (var p in near)
                 if (new Vector2(p.X, p.Z).DistanceTo(c) < 0.7f)
                     top = Math.Max(top, p.Y);
             float topY = top - 0.95f; // the hoop over the edge stands this high
             // the hoop reaches 0.36 m in over the stone: away from it is out over the water
             Vector2 back = Vector2.Zero;
             int nb = 0;
-            foreach (var p in pts)
+            foreach (var p in near)
             {
                 var q = new Vector2(p.X, p.Z);
                 float d = q.DistanceTo(c);
@@ -170,14 +211,24 @@ public static class QuayExits
                 }
             }
             if (nb == 0) continue;
-            var nrm = (c - back / nb).Normalized();
+            var rough = (c - back / nb).Normalized();
+            // the line of the stiles: the long axis of the feet's spread (0.5 m along the wall, 0.05 m across it)
+            float sxx = 0, sxz = 0, szz = 0;
+            foreach (var p in foot)
+            {
+                float dx = p.X - c.X, dz = p.Z - c.Y;
+                sxx += dx * dx; sxz += dx * dz; szz += dz * dz;
+            }
+            float angle = 0.5f * MathF.Atan2(2 * sxz, sxx - szz);
+            var along = new Vector2(MathF.Cos(angle), MathF.Sin(angle));
+            var nrm = new Vector2(-along.Y, along.X);
+            if (nrm.Dot(rough) < 0) nrm = -nrm;
+            if (nrm.Dot(rough) < 0.9f) nrm = rough; // (a foot cloud too round to tell the line: the hoop's way)
             var wall = c - nrm * 0.135f;
             float inset = Math.Abs(topY - LandY) < 0.05f ? 0.8f : 0.9f; // (the ladder off a landing's end: 0.8)
-            var g = wall + nrm * 0.55f;
-            var t = wall - nrm * inset;
-            Exits.Add(new Exit { Ladder = true, Gx = g.X, Gz = g.Y, Nx = nrm.X, Nz = nrm.Y, Tx = t.X, Tz = t.Y, Ty = topY });
-            Ladders.Add(new Ladder { X = wall.X, Z = wall.Y, Top = topY, Nx = nrm.X, Nz = nrm.Y });
+            found.Add(new Ladder { X = wall.X, Z = wall.Y, Top = topY, Nx = nrm.X, Nz = nrm.Y, Inset = inset, Foot = foot.Min(p => p.Y) + 0.25f });
         }
+        return found;
     }
 
     /// <summary>M6 tides: where a swimmer finds his feet on a flooded flight: the treads at wading depth.</summary>
