@@ -72,6 +72,13 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
     private readonly Dictionary<string, Room> byId = new();
     private readonly Dictionary<ShaderMaterial, ShaderMaterial> indoor = new();
     private readonly HashSet<ShaderMaterial> panes = new();
+    /// <summary>The halls' sun patches (hallSun.ts hall_sun_light): each material with the colour of full sun.</summary>
+    private readonly Dictionary<ShaderMaterial, Color> sunPatches = new();
+    private readonly Dictionary<ShaderMaterial, ShaderMaterial> sunPatchOf = new();
+    private float sunPatchK = -1;
+    /// <summary>The browser's patch lights what is under it by its own colour (dst * (1 + src)); drawn as alpha it covered
+    /// the floor with the black of its unlit texels (issue 74). Added to the floor instead, at a floor's tone of about a third.</summary>
+    private const float PatchTone = 0.33f;
     private double lookT;
     private int maxRooms = 4;
     private readonly List<(Room room, float distance, int index)> candidates = new();
@@ -272,6 +279,22 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
             {
                 if (mesh.SurfaceGetMaterial(s) is not ShaderMaterial m) continue;
                 if (indoor.ContainsValue(m) || Psx.KindOf(m.Shader) is not { } kind) continue;
+                if (kind.Unlit && m.ResourceName == "hall_sun_light" && kind is { Blend: true, Add: false })
+                {
+                    // (the sun's patch on a hall's floor and walls: the shafts' own shader kind, added, not mixed; the
+                    // strength follows the sun below, as hallSun.ts set(day, sky))
+                    if (!sunPatchOf.TryGetValue(m, out var pm))
+                    {
+                        pm = (ShaderMaterial)m.Duplicate();
+                        pm.Shader = Psx.ShaderOf(kind with { Add = true, TwoSided = true });
+                        sunPatchOf[m] = pm;
+                        sunPatches[pm] = m.GetShaderParameter("albedo").AsColor();
+                        sunPatchK = -1;
+                        Scheldemist.Render.UniformUpdates.Material(pm, "albedo", new Color(0, 0, 0, 1));
+                    }
+                    mesh.SurfaceSetMaterial(s, pm);
+                    continue;
+                }
                 if (kind.Unlit)
                 {
                     // the window glass (houseInWorld.ts pane): see-through, no picture, thin (0.03 to 0.28: the bake
@@ -429,6 +452,17 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
                 m.SetInstanceShaderParameter("room_sky", sky);
                 m.SetInstanceShaderParameter("room_ground", ground);
                 m.SetInstanceShaderParameter("room_ambient", amb);
+            }
+        }
+        // the sun's patches in the halls: only by day in clear or thin weather (hallSun.ts set)
+        {
+            float bright = Mathf.Clamp(day.Clear / 0.6f, 0, 1);
+            float sunK = Mathf.SmoothStep(0, 1, dayK) * Mathf.Clamp((bright - 0.55f) * 2.2f, 0, 1) * (1 - day.Storm);
+            if (MathF.Abs(sunK - sunPatchK) > 0.004f)
+            {
+                sunPatchK = sunK;
+                foreach (var (m, full) in sunPatches)
+                    Scheldemist.Render.UniformUpdates.Material(m, "albedo", new Color(full.R * sunK * PatchTone, full.G * sunK * PatchTone, full.B * sunK * PatchTone, 1));
             }
         }
         // the glass: a little of the sky on it from outside by day (the street's air, by the square of the daylight)
