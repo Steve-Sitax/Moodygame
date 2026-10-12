@@ -15,7 +15,11 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - Handcarts, drays and their loads, and the draught and hearse horses, no longer show a patchwork of mixed textures. Planks, iron, sacking and the bay coat with black mane, tail and harness now sit where they belong (issue 81).
 - The racing pigeons of the lofts are alive: they sit by their board and on the hut roof with their wings folded, and in the morning (about 7:40 to 9:20) and the afternoon (about 14:50 to 16:30) of a dry day each loft's flock goes up, circles the roofs for half a game hour, then lands again. Before, they hung in the air with their wings spread flat (issue #66).
 - Gas lamps, bollards and other placed quay objects now fade into mist, fog and rain like the rest of the town, instead of standing out as sharp black shapes far away. Lamp glass and flames fade with the air and still glow at night (issue #79).
+<<<<<<< HEAD
 - The sails of the windmills on the town wall are dark at night, like the brick round them, instead of staying pale as at noon. They follow the sky like the cathedral and the quay walls (issue #73).
+=======
+- Things the game puts out while you play, such as barrels, crates, sacks, market stalls, carts, boats and the ferry, now have the same fine relief as the rest of the town: staves, planks, rope, sacking and iron bands catch the light at close range instead of looking like flat pictures (issue #78). Glass, paper, animals and people stay smooth.
+>>>>>>> worktree-agent-a7fe7c901a654f31d
 
 - Boats rest on the drawn mud at low water, rise with every tide and stay above water in the great storm. Ladder boarding and crane loads follow grounded hulls, and the pier has fenders for the full tide range. In Godot, boats stay with the water during clock jumps and the storm brings the same surge as in the browser.
 - Boats carry their own readable names and home ports, upright on their bows, sterns and paddle boxes; the paper, map and harbour calls use the same names. Germania is a German grain barque and Stad Antwerpen a Belgian line steamer.

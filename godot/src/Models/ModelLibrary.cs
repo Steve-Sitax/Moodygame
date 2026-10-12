@@ -160,7 +160,21 @@ public static class ModelLibrary
                         Fog: true);
                     var policy=ModelMaterialPolicy(m.Name,bm.ResourceName,kind,look);
                     if(policy!=null)kind=policy.Value;
+                    // the relief the browser gives every textured surface (issue 78): a bump from its own picture, as the
+                    // baked town's materials have theirs. Not for what is lit by nothing, a body the skeleton bends (the
+                    // browser's rule), or a decal or pane seen through (bumps.ts autoBump)
+                    float bumpScale = 0;
+                    Texture2D? height = null;
+                    if (!Psx.BumpOff && !kind.Unlit && !kind.Blend && mi.Skin == null && bm.AlbedoTexture is { } picture && bm.NormalTexture == null
+                        && ModelBump.StrengthOf(bm.ResourceName, picture.ResourceName != "" ? picture.ResourceName : picture.ResourcePath, mi.Name.ToString() + " " + mi.GetParent()?.Name) is var strength and > 0
+                        && ModelBump.HeightOf(picture) is { } map)
+                    {
+                        bumpScale = strength;
+                        height = map;
+                        kind = kind with { Bump = true };
+                    }
                     psx = BakedWorld.PsxMaterial(bm, kind, look.Affine, look.FogReach, scissor ? bm.AlphaScissorThreshold : 0);
+                    if (height != null && psx is ShaderMaterial relief) { relief.SetShaderParameter("bump_map", height); relief.SetShaderParameter("bump_scale", bumpScale); }
                     if(policy!=null && psx is ShaderMaterial adapted){adapted.SetShaderParameter("affine",0.0);adapted.SetShaderParameter("fog_reach",bm.ResourceName=="tr_glow"?1.3:1.0);if(policy.Value.Scissor)adapted.SetShaderParameter("alpha_cut",.3);}
                     atlasKey[old] = psx;
                 }
