@@ -55,6 +55,14 @@ public partial class Gutters : Node
     private ShaderMaterial stainMat = null!, lineMat = null!;
     private MultiMeshInstance3D lineNode = null!;
     private float wetSince = 1e9f;
+    // (the baked stains lie 0.012 m over a flat ground at 0: where the street has a raised pavement the patch and the
+    // foot of the stream are under it, so each is lifted once to the surface the physics world really has there)
+    private ArrayMesh stainMesh = null!;
+    private Godot.Collections.Array stainArrays = null!;
+    private Vector3[] stainP = Array.Empty<Vector3>();
+    private bool grounded;
+    private int groundTries;
+    private const float PatchLift = 0.012f;
 
     /// <summary>For a check: the streams in town, the near ones running now, the line pieces drawn, how strong.</summary>
     public (int streams, int near, int segments, float flow) Info { get; private set; }
@@ -188,6 +196,7 @@ void fragment() {
         am.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
         stainMat = new ShaderMaterial { Shader = new Shader { Code = StainCode }, RenderPriority = 1 };
         am.SurfaceSetMaterial(0, stainMat);
+        (stainMesh, stainArrays, stainP) = (am, arrays, P);
         Main.I.View.AddChild(new MeshInstance3D { Name = "alive_gutter_stains_live", Mesh = am, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
         // --- the streams, read back from their stains: the wall quad (6 corners) and the wet patch round the foot (6)
         var houses = plan = Houses();
@@ -482,10 +491,45 @@ void fragment() {
     private static float Tone(float w) => w > 0.001f ? -0.8f : 1;
     private static float Sk(float k, float tone) => tone > 0 ? 1 + Math.Min(0.95f, k) : -Math.Min(0.95f, k * -tone);
 
+    /// <summary>Puts each stream's foot, and the wet patch under it, on the surface the walking world has there (once the
+    /// solid world answers): a raised pavement is a few cm over the baked 0.</summary>
+    private void SettleOnGround()
+    {
+        var space = Main.I.View.FindWorld3D().DirectSpaceState;
+        int lifted = 0, hits = 0;
+        for (int s = 0; s < streams.Length; s++)
+        {
+            int o = s * 12;
+            var c = (stainP[o + 6] + stainP[o + 7] + stainP[o + 8] + stainP[o + 11]) / 4;
+            // (from a little over the baked patch: a barrel's top or an overhang up there is not the ground)
+            var hit = space.IntersectRay(PhysicsRayQueryParameters3D.Create(new Vector3(c.X, c.Y + 0.4f, c.Z), new Vector3(c.X, c.Y - 0.6f, c.Z), Solid.Layer));
+            if (hit.Count == 0) continue;
+            hits++;
+            float y = hit["position"].AsVector3().Y;
+            float d = y + PatchLift - c.Y;
+            if (MathF.Abs(d) < 0.02f || MathF.Abs(d) > 0.5f) continue;
+            for (int k = 6; k < 12; k++) stainP[o + k].Y += d;
+            streams[s].Ground = y;
+            lifted++;
+        }
+        // (the physics world not built yet: ask again next frame, a while)
+        if (hits == 0 && ++groundTries < 300) return;
+        grounded = true;
+        if (lifted > 0)
+        {
+            stainArrays[(int)Mesh.ArrayType.Vertex] = stainP;
+            stainMesh.ClearSurfaces();
+            stainMesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, stainArrays);
+            stainMesh.SurfaceSetMaterial(0, stainMat);
+        }
+        GD.Print($"gutters: {lifted} of {streams.Length} streams stand on a raised surface, their patch and foot lifted to it ({hits} rays hit)");
+    }
+
     public override void _Process(double delta)
     {
         var day = Daylight.I;
         if (day == null) return;
+        if (!grounded) SettleOnGround();
         float dt = (float)Math.Min(delta, 0.1);
         float t = Time.GetTicksMsec() / 1000f;
         Render.UniformUpdates.Material(stainMat, "wet_k", Math.Min(1, day.Wet * 1.2f));
