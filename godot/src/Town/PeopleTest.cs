@@ -32,7 +32,9 @@ public partial class PeopleTest : Node
     private int frames;
     private ulong last;
     private readonly List<double> times = new();
+    private ulong drawCalls;
     private readonly List<double> logic = new();
+    private readonly List<double> animationTime = new(), layerTime = new(), legacyTime = new(), newTime = new();
     private readonly List<double> allocations = new(256), animalAllocations = new(256), wildlifeAllocations = new(256);
     private readonly List<double> allAllocations = new(640);
     private readonly long[] allocationParts = new long[5];
@@ -271,6 +273,7 @@ public partial class PeopleTest : Node
                 if (town.PlanWaysWaiting > 0 && t < 60) break;
                 if (t < 3) break;
                 times.Clear();
+                drawCalls = 0;
                 logic.Clear();
                 Next("time");
                 break;
@@ -292,7 +295,11 @@ public partial class PeopleTest : Node
                 if (frames == 5) for (int i = 0; i < 3; i++) collectionsAt[i] = GC.CollectionCount(i);
                 if (frames > 5)
                 {
+                    animationTime.Add(Dev.PeopleTiming.LegacyMs + Dev.PeopleTiming.People2Ms);
+                    legacyTime.Add(Dev.PeopleTiming.LegacyMs); newTime.Add(Dev.PeopleTiming.People2Ms);
+                    layerTime.Add(Dev.PeopleTiming.LayersMs);
                     times.Add(ms);
+                    drawCalls += RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalDrawCallsInFrame);
                     logic.Add(town.LogicMs);
                     allocations.Add(town.AllocatedBytesLastFrame);
                     for (int i = 0; i < 5; i++) allocationParts[i] += town.AllocationParts[i];
@@ -317,6 +324,12 @@ public partial class PeopleTest : Node
                 row["feetOffTheGroundMaxM"] = Math.Round(crowd.Walking.Max(p => Math.Abs(p.Group.Position.Y - town.Walk!.BaseAt(p.X, p.Z))), 3);
                 row["frame"] = Stats(times);
                 row["logicMs"] = Stats(logic);
+                row["peopleCpuGate"] = animationTime.Average() < 1.5 && logic.Average() < 1.5;
+                row["animationDirectMs"] = Stats(animationTime);
+                row["legacyAnimationDirectMs"] = Stats(legacyTime); row["people2AnimationDirectMs"] = Stats(newTime);
+                row["layersDirectMs"] = Stats(layerTime);
+                row["directTimingScope"] = "All Human.Update calls; includes layers. Excludes crowd routing, animals and GPU drawing. Layers are a subset, not an added cost.";
+                animationTime.Clear(); layerTime.Clear(); legacyTime.Clear(); newTime.Clear();
                 row["allocationSamples"] = allocations.Count;
                 row["collectionsDuringSample"] = Enumerable.Range(0, 3).Select(i => GC.CollectionCount(i) - collectionsAt[i]).ToArray();
                 row["townAllocationPartsMean"] = allocationParts.Select(n => (double)n / allocations.Count).ToArray();
@@ -326,7 +339,8 @@ public partial class PeopleTest : Node
                 row["animalBytesPerFrame"] = Stats(animalAllocations);
                 row["wildlifeBytesPerFrame"] = Stats(wildlifeAllocations);
                 allocations.Clear(); animalAllocations.Clear(); wildlifeAllocations.Clear();
-                row["drawCalls"] = RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalDrawCallsInFrame);
+                // Mirrors render on alternate frames; compare the whole sample, not opposite endpoint phases.
+                row["drawCalls"] = Math.Round((double)drawCalls / times.Count, 1);
                 // the same view without them
                 town.Paused = true;
                 foreach (var p in crowd.Walking) p.Group.Visible = false;
@@ -335,13 +349,18 @@ public partial class PeopleTest : Node
                 foreach (var g in hiddenForTiming) g.Visible = false;
                 row["postedIndoorsAndAnimalsDrawn"] = hiddenForTiming.Count;
                 times.Clear();
+                drawCalls = 0;
                 Next("bare");
                 break;
             case "bare":
-                if (frames > 5) times.Add(ms);
+                if (frames > 5)
+                {
+                    times.Add(ms);
+                    drawCalls += RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalDrawCallsInFrame);
+                }
                 if (frames < 605) break;
                 row["frameWithoutPeople"] = Stats(times);
-                row["drawCallsWithoutPeople"] = RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalDrawCallsInFrame);
+                row["drawCallsWithoutPeople"] = Math.Round((double)drawCalls / times.Count, 1);
                 row["peopleAndAnimalsCostMs"] = Math.Round((double)((Dictionary<string, object>)row["frame"])["mean"] - (double)((Dictionary<string, object>)row["frameWithoutPeople"])["mean"], 3);
                 town.Paused = false;
                 foreach (var g in hiddenForTiming) g.Visible = true;
@@ -1116,7 +1135,8 @@ public partial class PeopleTest : Node
             if (r.TryGetValue("walkersNotMoving", out var stuck) && Convert.ToInt32(stuck) != 0) return false;
             if (r.TryGetValue("standingWhereNoBodyFits", out var blocked) && Convert.ToInt32(blocked) != 0) return false;
             if (r.TryGetValue("drawn", out var drawn) && Convert.ToInt32(drawn) < town.MaxPuppets) return false;
-            if (r.TryGetValue("peopleAndAnimalsCostMs", out var cost) && Convert.ToDouble(cost) >= 1.5) return false;
+            // Direct CPU scopes decide the gate. Sequential frame subtraction remains diagnostic only.
+            if (!r.TryGetValue("peopleCpuGate", out var cpuGate) || !(bool)cpuGate) return false;
         }
         if (wildlifeRow.ContainsKey("missing")) return false;
         if (wildlifeRow.TryGetValue("flewWhenPressed", out var flight) && !(bool)flight) return false;

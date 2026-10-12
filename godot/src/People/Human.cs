@@ -6,7 +6,7 @@ using Scheldemist.Models;
 namespace Scheldemist.People;
 
 /// <summary>
-/// The people of 1873 as rigged, textured low-poly models (the browser's game/humans.ts; people.glb from
+/// The people of 1873 as rigged, textured models (the browser's game/humans.ts; people.glb from
 /// tools/blender/build_people.py). The file is read once (Models/ModelLibrary.cs); each person is a copy with its
 /// own skeleton and animation player, sharing the kind's mesh, skin and material and everyone's clips.
 /// Motions are named as in the browser ("idle", "walk", "talk" ...: shared/mpProtocol.ts PUPPET_MOTIONS).
@@ -68,7 +68,7 @@ public static class Humans
     }
 
     /// <summary>Every kind in people.glb (for a kind name that comes from the server).</summary>
-    public static bool IsKind(string k) => Ready && model!.Roots.ContainsKey(k);
+    public static bool IsKind(string k) => People2.Has(k) || (Ready && model!.Roots.ContainsKey(k));
 
     public static IEnumerable<string> Kinds => Ready ? model!.Roots.Keys : Array.Empty<string>();
 
@@ -77,6 +77,7 @@ public static class Humans
     /// <summary>The town is leaving: the model library frees its sources, so no old body may be copied again.</summary>
     public static void Forget()
     {
+        People2.Forget();
         model = null;
         clips = null;
         tried = false;
@@ -87,6 +88,7 @@ public static class Humans
     private static void Load()
     {
         tried = true;
+        People2.Load();
         // double-sided: skirts, coat tails and bonnets are open shells (humans.ts: psx(new MeshLambertMaterial({ map, side: DoubleSide })))
         model = ModelLibrary.Get("people", new ModelLibrary.Look(TwoSided: true));
         if (model == null) return;
@@ -128,6 +130,7 @@ public static class Humans
     /// <summary>A new person of this kind, or null when the models are not there (or the kind is not in them).</summary>
     public static Human? Make(string kind)
     {
+        if (People2.Enabled && People2.Make(kind) is { } newer) return newer;
         if (!Ready) return null;
         var root = model!.Copy(kind);
         // Bone attachments belong to the copy: duplicating an unattached prototype resets the bone index.
@@ -153,10 +156,12 @@ public sealed class Human
     private int clipChanges;
     private string? phaseClip;
     public readonly record struct AnimationSnapshot(string? Motion,string? Clip,double Time,double Cycle,int ClipChanges,bool PhaseControlled);
-    public AnimationSnapshot AnimationState=>new(Motion,current,mixer.CurrentAnimationPosition,current==null?0:mixer.CurrentAnimationPosition/lengths[current],clipChanges,phaseClip==current&&current!=null);
+    public AnimationSnapshot AnimationState=>newer?.AnimationState ?? new(Motion,current,mixer.CurrentAnimationPosition,current==null?0:mixer.CurrentAnimationPosition/lengths[current],clipChanges,phaseClip==current&&current!=null);
+    private readonly Human2? newer;
 
-    internal Human(string kind, Node3D root, AnimationLibrary clips, Dictionary<string, float> lengths, float scale)
+    internal Human(string kind, Node3D root, AnimationLibrary clips, Dictionary<string, float> lengths, float scale, Human2? newer = null)
     {
+        this.newer = newer;
         Kind = kind;
         Root = root;
         Scale = scale;
@@ -165,7 +170,7 @@ public sealed class Human
         root.AddChild(mixer);
         mixer.RootNode = new NodePath("..");
         mixer.AddAnimationLibrary("", clips);
-        bool woman = Humans.Women.Contains(kind);
+        bool woman = newer?.Female ?? Humans.Women.Contains(kind);
         var own = Humans.OwnClips.GetValueOrDefault(kind) ?? (woman ? Humans.WomenClips : null);
         foreach (var m in Humans.Motions)
         {
@@ -180,6 +185,7 @@ public sealed class Human
     /// <summary>Once the figure is in the scene: stand idle, and not everyone breathes in step.</summary>
     public void Start()
     {
+        if (newer != null) { newer.Start(); Motion = "idle"; return; }
         Motion = null;
         current = null;
         clipChanges = 0;
@@ -192,6 +198,7 @@ public sealed class Human
     private readonly Dictionary<string, StringName> animationNames = new();
     public void Play(string m, float fade = 0.3f)
     {
+        if (newer != null) { newer.Play(m, fade); Motion = m; return; }
         if (Motion == m) return;
         if (!actions.TryGetValue(m, out var next) && !actions.TryGetValue("idle", out next)) return;
         Motion = m;
@@ -210,6 +217,7 @@ public sealed class Human
     /// <summary>Walk clips cover 1.2 m per loop (less for a child or a load); match the feet to the ground speed.</summary>
     public void SetPace(float mps)
     {
+        if (newer != null) { newer.Pace = mps; return; }
         foreach (var m in WalkMotions)
             if (actions.ContainsKey(m)) speed[m] = Math.Max(0.3f, mps / stride.GetValueOrDefault(m, 1.2f));
     }
@@ -217,6 +225,7 @@ public sealed class Human
     /// <summary>Hold a clip at a point of its loop (0..1): the pedals follow the front wheel's turn.</summary>
     public void SetPhase(string m, float phase)
     {
+        if (newer != null) { newer.SetPhase(m, phase); return; }
         if (!actions.TryGetValue(m, out var clip)) return;
         speed[m] = 0;
         if (current != clip) return;
@@ -239,19 +248,20 @@ public sealed class Human
     /// <summary>Play a clip at this speed; negative runs it backwards (the rope maker stepping back).</summary>
     public void ClipSpeed(string m, float k)
     {
+        if (newer != null) { newer.ClipSpeed(m, k); return; }
         if (actions.ContainsKey(m)) speed[m] = k;
     }
 
     /// <summary>A woman's clips (hands folded in front, shorter steps)?</summary>
-    public bool Woman => Humans.Women.Contains(Kind);
+    public bool Woman => newer?.Female ?? Humans.Women.Contains(Kind);
 
     /// <summary>Can this body sit (the men's sit clip; not under a skirt, not with a load)?</summary>
-    public bool CanSit => !Humans.Women.Contains(Kind) && !Humans.OwnClips.ContainsKey(Kind) && !Humans.NoSit.Contains(Kind);
+    public bool CanSit => !Woman && !Humans.OwnClips.ContainsKey(Kind) && !Humans.NoSit.Contains(Kind);
 
     /// <summary>How far to lower the body (negative) so it sits on a seat `seat` metres high (the sit clip).</summary>
     public float SitDrop(float seat = 0.45f) => seat + 0.07f * Scale - 0.9f * Scale;
 
-    private float Phase => current == null ? 0 : (float)(mixer.CurrentAnimationPosition / lengths[current]);
+    private float Phase => newer?.Phase ?? (current == null ? 0 : (float)(mixer.CurrentAnimationPosition / lengths[current]));
 
     /// <summary>How far to lower (negative) or lift the body for what it plays now: on the knees to scrub, on a chair at the lace pillow, crouched at marbles, off the ground in a hop.</summary>
     public float MotionLift() => Motion switch
@@ -266,16 +276,22 @@ public sealed class Human
     /// <summary>How far the hips dip below standing height right now (walking only).</summary>
     public float Bob()
     {
+        if (newer != null) return 0; // The new clips key the hips themselves.
         if (Motion != "walk" && Motion != "carry") return 0;
         float c = MathF.Cos(Phase * MathF.PI * 2);
         return -(Humans.Women.Contains(Kind) ? 0.035f : 0.05f) * Scale * c * c;
     }
 
     /// <summary>Seconds in one loop of what is playing now.</summary>
-    public float LoopTime => current != null ? lengths[current] : 1;
+    public float LoopTime => newer?.LoopTime ?? (current != null ? lengths[current] : 1);
+
+    public int SetFace(IReadOnlyDictionary<string, float> weights) => People2Faces.SetFace(Root, weights);
+    public int SetIdentity(string stableId) => People2Faces.SetIdentity(Root, stableId);
 
     public void Update(float dt)
     {
+        using var timing = Dev.PeopleTiming.Track(newer != null);
+        if (newer != null) { newer.Update(dt); return; }
         mixer.SpeedScale = SpeedOf(Motion);
         mixer.Advance(dt);
     }
@@ -296,6 +312,11 @@ public sealed class Human
         int b = right ? handR : handL;
         return b < 0 ? null : skeleton.GlobalTransform * skeleton.GetBoneGlobalPose(b).Origin;
     }
+
+    internal float StanceSlide => newer?.StanceSlide ?? 0;
+    internal float StanceReach => newer?.StanceReach ?? 0;
+    internal int StanceSamples => newer?.StanceSamples ?? 0;
+    internal void ParadeClip(string clip) { Motion = clip; if (newer != null) newer.PlayRaw(clip); else Play(clip, 0); }
 
     public void Dispose()
     {

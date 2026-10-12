@@ -38,6 +38,11 @@ $identity = $rows | ConvertTo-Json -Depth 5 -Compress
 $version = 'native-pack-'+[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($utf8.GetBytes($identity))).ToLowerInvariant()
 $manifest = [ordered]@{format=2;version=$version;files=$rows}
 [IO.File]::WriteAllText((Join-Path $pack 'manifest.json'),($manifest | ConvertTo-Json -Depth 6),$utf8)
+# Development's loose cache must also expire when rig/face data or other authored files change.
+if($loose.version -ne $version) {
+    $loose.version = $version
+    [IO.File]::WriteAllText((Join-Path $sourceData 'manifest.json'),($loose | ConvertTo-Json -Depth 6),$utf8)
+}
 # Remove only preceding generated immutable blobs. Resolve and check every target first.
 $liveBlobs = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
 foreach($row in $rows){[void]$liveBlobs.Add([IO.Path]::GetFileName($row.blob))}

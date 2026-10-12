@@ -1201,6 +1201,7 @@ public partial class Townspeople : Node
             var a = Anchor(s);
             var p = crowd.AddPuppet(s.Kind, at.Value.x, at.Value.z, Math.Atan2(a.X - at.Value.x, a.Z - at.Value.z), PaceOf(s));
             if (p == null) return;
+            p.Human.SetIdentity(s.R.Id);
             s.P = p;
             s.X = at.Value.x;
             s.Z = at.Value.z;

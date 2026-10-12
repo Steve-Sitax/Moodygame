@@ -39,6 +39,11 @@ public static class ModelLibrary
     }
 
     private static readonly Dictionary<string, Model?> Loaded = new();
+    /// <summary>Prepared shared prototypes, including materials not yet copied into the live town.</summary>
+    public static IEnumerable<Node3D> PreparedScenes
+    {
+        get { foreach (var model in Loaded.Values) if (model != null) yield return model.Scene; }
+    }
     /// <summary>Native projects supply their stored PackedScenes. A configured loader never falls back to GLB.</summary>
     public static Func<string, Node3D?>? NativeScene { get; set; }
     public static bool Available(string name) => NativeScene != null ? Godot.ResourceLoader.Exists("res://assets/game-models/" + name + ".scn") : File.Exists(Path.Combine(Dir, name + ".glb"));

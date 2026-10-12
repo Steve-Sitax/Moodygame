@@ -72,7 +72,7 @@ public partial class NativeTown : BakedWorld
             if (node is WorkshopLamp lamp)
             {
                 lamp.SetNight(true);
-                if (lamp.GetNodeOrNull<OmniLight3D>("Light") is { } light) light.Visible = false;
+                if (lamp.GetNodeOrNull<OmniLight3D>("Light") is { } light) { light.Visible = false; light.SetMeta("native_preview_only", true); }
             }
             // Each editable lamp must own its changing glass/flame material, even when all copies share a mesh.
             if (node is AuthoredObject lampObject)

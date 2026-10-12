@@ -65,7 +65,7 @@ public partial class NativeMarket : Node
         ["people"]=new JsonArray(f.Shoppers.Select(p=>(JsonNode?)new JsonObject{["id"]=p.Group.GetInstanceId().ToString(),["kind"]=p.Kind,["x"]=p.X,["z"]=p.Z,["phase"]=browsing.GetValueOrDefault(p)?.Phase,["motion"]=p.Human.Motion,["bought"]=p.Bought}).ToArray()),
         ["fronts"]=new JsonArray(f.Items.Where(i=>i.Rank>=f.Low&&i.Rank<f.High).Select(i=>(JsonNode?)new JsonObject{["kind"]=i.Kind,["goods"]=i.Goods,["x"]=i.Front.X,["z"]=i.Front.Z,["yaw"]=i.Yaw}).ToArray())
     }).ToArray());
-    public override void _Ready(){I=this;town=Main.I.GetNode<Townspeople>("Townspeople");town.PopulationChanged+=Reset;town.MarketBrowse=Browse;town.MarketForget=Forget;}
+    public override void _Ready(){I=this;town=Main.I.GetNode<Townspeople>("Townspeople");town.PopulationChanged+=Reset;town.MarketBrowse=Browse;town.MarketForget=Forget;PrepareMaterials();}
     private static double N(JsonNode? n)=>n?.GetValue<double>()??0;
     private static string S(JsonNode? n)=>n?.GetValue<string>()??"";
     private static double Distance(double x,double z,double a,double b)=>Math.Sqrt(Math.Pow(x-a,2)+Math.Pow(z-b,2));

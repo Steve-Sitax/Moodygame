@@ -1,7 +1,7 @@
-param([string]$Project = (Join-Path $PSScriptRoot '..'))
+param([string]$Project = (Join-Path $PSScriptRoot '..'), [string]$Output)
 $ErrorActionPreference = 'Stop'
 $Project = [IO.Path]::GetFullPath($Project)
-$proof = Join-Path $Project ('proof/package-data-'+[Guid]::NewGuid().ToString('N'))
+$proof = if($Output){[IO.Path]::GetFullPath($Output)}else{Join-Path $Project ('proof/package-data-'+[Guid]::NewGuid().ToString('N'))}
 [void](New-Item -ItemType Directory -Path $proof -Force)
 $source = [Security.SecurityElement]::Escape((Join-Path $Project 'src/World/NativePackData.cs'))
 [IO.File]::WriteAllText((Join-Path $proof 'Pack.Proof.csproj'),@"

@@ -1,5 +1,13 @@
 # Work log
 
+## People2 on native Godot, 2026-10-13 (art3, opt-in)
+
+- Moved the unchanged art kit/masters to `art-source`; Blender rebuild 567 s. Dense plain intake adds people2 only, preserving all 34 existing scenes.
+- Native scene/material/rig loading, stable resident face metadata, map/body/console routing and unchanged wire motions; rig joins the checksummed pack and content fingerprint.
+- Inspected 36 Vismarkt day/rain/evening pictures; 539-sample shader audit has one people2 kind, zero problems and stable lights. Pack 341, identity 7 and multiplayer 25 checks pass.
+- Exclusive CPU means: animation 0.492/0.461 ms, town update 1.019/1.041 ms; both squares have zero overlaps/blocked/stuck. Optional legacy comparison was contaminated and discarded.
+- Proof paths and limits are in `docs/godot-people2.md`. Face/clothing repairs and future faceTypes remain art work; people2 stays off by default.
+
 ## The Grote Markt's guild houses made by hand, and its liberty tree, 2026-10-12 (branch sv-s3b, survey #17)
 
 - `tools/blender/guild_fronts.py` (imported by `build_city.py`): 14 fronts on the square (houses 18-25, 50-55), seven designs in

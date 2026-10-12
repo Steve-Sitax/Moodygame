@@ -13,6 +13,15 @@ namespace Scheldemist.People;
 
 public partial class NativeMarket
 {
+    private void PrepareMaterials()
+    {
+        // Native markets arrive after asynchronous population loading. Prepare their existing tint variants
+        // before frame one, with hidden references for the inventory; no stalls or extra draws are added.
+        ReadModel("stalls"); ReadModel("trades");
+        int i = 0;
+        foreach (var material in materials.Values)
+            AddChild(new MeshInstance3D { Name = "prepared_market_material_" + i++, Visible = false, Mesh = new QuadMesh { Material = Colour(material) } });
+    }
     private void ReadModel(string source)
     {
         var model=ModelLibrary.Get(source,new(TwoSided:true,VertexColor:true));if(model==null)return;

@@ -1,0 +1,121 @@
+param(
+    [string]$Godot,
+    [ValidateSet('captures','routing','shaders','parade','timing','legacy-timing','identity','pack','network')]
+    [string[]]$Modes = @('captures','shaders','parade','timing','identity','pack','network'),
+    [ValidateRange(8890,8899)][int]$Port = 8893,
+    [ValidateRange(0,1800)][int]$WaitForTimingSeconds = 900
+)
+$ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'engine-tools.ps1')
+$project = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$workspace = [IO.Path]::GetFullPath((Join-Path $project '..'))
+$scratch = Join-Path $workspace '.scratch'
+$proof = Join-Path $scratch ('people2-native-' + [guid]::NewGuid().ToString('N'))
+$engine = Resolve-WorkshopGodot $Godot
+& (Join-Path $PSScriptRoot 'prepare-native-package.ps1') -Project $project
+& dotnet build (Join-Path $project 'Scheldemist.Native.csproj') --nologo -v quiet
+if ($LASTEXITCODE -ne 0) { throw 'Native people2 build failed.' }
+[void](New-Item -ItemType Directory -Path $proof)
+$previousData = $env:SCHELDEMIST_USER_DATA
+$previousSeed = $env:SCHELDEMIST_TOWN_SEED
+function Remove-ProofData([string]$Path) {
+    $resolved = [IO.Path]::GetFullPath($Path)
+    if (-not $resolved.StartsWith($proof + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw 'Test cleanup escaped its proof directory.' }
+    if (Test-Path -LiteralPath $resolved) { Remove-Item -LiteralPath $resolved -Recurse -Force }
+}
+function Other-Godot([int]$OwnId = 0) {
+    # The Windows console launcher starts the actual engine as a child process.
+    $processes = @(Get-CimInstance Win32_Process)
+    $owned = [Collections.Generic.HashSet[int]]::new()
+    if ($OwnId) { [void]$owned.Add($OwnId) }
+    do {
+        $changed = $false
+        foreach ($process in $processes) {
+            if ($owned.Contains([int]$process.ParentProcessId) -and $owned.Add([int]$process.ProcessId)) { $changed = $true }
+        }
+    } while ($changed)
+    @($processes | Where-Object {
+        if ($_.Name -notlike '*Godot*' -or $owned.Contains([int]$_.ProcessId)) { return $false }
+        # A failed launch showing this modal has no loaded .NET game or rendering loop.
+        $candidate = Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
+        return $candidate -and $candidate.MainWindowTitle -ne '.NET assemblies not found'
+    } | Select-Object -ExpandProperty ProcessId)
+}
+try {
+    $env:SCHELDEMIST_TOWN_SEED = '1873'
+    foreach ($mode in $Modes) {
+        $dir = Join-Path $proof $mode
+        [void](New-Item -ItemType Directory -Path $dir)
+        Write-Output "People2 $mode proof: $dir"
+        if ($mode -in @('identity','pack')) {
+            & (Join-Path $PSScriptRoot $(if($mode -eq 'identity'){'check-native-content-identity.ps1'}else{'check-native-pack.ps1'})) -Project $project -Output $dir
+            foreach ($item in Get-ChildItem -LiteralPath $dir -Force) {
+                if ($item.Name -ne 'result.json') { Remove-ProofData $item.FullName }
+            }
+            continue
+        }
+        $env:SCHELDEMIST_USER_DATA = Join-Path $dir 'userdata'
+        $args = @('--rendering-method','forward_plus','--path',$project,'--log-file',(Join-Path $dir 'live.log'))
+        if ($mode -eq 'network') { $args += '--headless' }
+        $args += @('res://town.tscn','--','--no-ai','--no-mainmenu','--dev','--port',$Port.ToString(),'--db',(Join-Path $dir 'game.sqlite'),'--prefs',(Join-Path $dir 'settings.json'),'--author-root',(Join-Path $dir 'layouts'),'--native-pack-test')
+        if ($mode -ne 'legacy-timing') { $args += '--people2' }
+        switch ($mode) {
+            'captures' { $args += @('--people2-captures',$dir,'--people2-light-proof') }
+            'routing' { $args += @('--people2-proof','--snap',$dir,'--views','routing:-118,1.6,30,180,0,13,clear','--people2-map','docker_a=man_middling,fishwife_a=woman_stout,police=man_stout,sooi=man_slight') }
+            'shaders' { $args += @('--shaders',$dir) }
+            'parade' { $args += @('--parade',$dir,'--parade-rows','blend_walk,idle,walk,talk') }
+            {$_ -in @('timing','legacy-timing')} { $args += @('--peopletest',$dir,'--peoplechecks','crowds','--hour','13') }
+            'network' { $args += @('--dedicated','--native-network-smoke',$dir) }
+        }
+        $timing = $mode -in @('timing','legacy-timing')
+        if ($timing) {
+            $exclusiveUntil = [DateTime]::UtcNow.AddSeconds($WaitForTimingSeconds)
+            $waiting = 0
+            while ((Other-Godot).Count) {
+                if ([DateTime]::UtcNow -ge $exclusiveUntil) { throw 'Exclusive timing requires all other Godot engines to finish.' }
+                if ($waiting++ % 30 -eq 0) { Write-Output 'Waiting for other Godot engines before exclusive timing.' }
+                Start-Sleep -Seconds 1
+            }
+        }
+        $start = [Diagnostics.ProcessStartInfo]::new($engine)
+        $start.WorkingDirectory = $project; $start.UseShellExecute = $false; $start.CreateNoWindow = $true
+        $start.WindowStyle = [Diagnostics.ProcessWindowStyle]::Hidden
+        $start.RedirectStandardOutput = $true; $start.RedirectStandardError = $true
+        foreach ($arg in $args) { $start.ArgumentList.Add($arg) }
+        $child = [Diagnostics.Process]::new(); $child.StartInfo = $start
+        $isolation = [Collections.Generic.List[object]]::new()
+        try {
+            [void]$child.Start()
+            $stdout = $child.StandardOutput.ReadToEndAsync(); $stderr = $child.StandardError.ReadToEndAsync()
+            $deadline = [DateTime]::UtcNow.AddSeconds(420)
+            $contaminated = $false
+            while (-not $child.WaitForExit(1000)) {
+                if ([DateTime]::UtcNow -gt $deadline) { $child.Kill($true); $child.WaitForExit(); throw "People2 $mode exceeded 420 seconds." }
+                if ($timing) {
+                    $others = @(Other-Godot $child.Id)
+                    $inert = @(Get-Process | Where-Object { $_.ProcessName -like '*Godot*' -and $_.MainWindowTitle -eq '.NET assemblies not found' } | Select-Object -ExpandProperty Id)
+                    $isolation.Add(@{at=[DateTime]::UtcNow.ToString('O');pid=$child.Id;others=$others;excludedMissingAssemblyDialogs=$inert})
+                    if ($others.Count) { $contaminated = $true }
+                }
+            }
+            $log = $stdout.GetAwaiter().GetResult() + $stderr.GetAwaiter().GetResult()
+            [IO.File]::WriteAllText((Join-Path $dir 'engine.log'),$log)
+            if ($timing) { $isolation | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $dir 'process-isolation.json') }
+            if ($contaminated) { throw 'People timing contaminated by another Godot process.' }
+            if ($child.ExitCode -ne 0 -or $log -match '(?m)^ERROR:') { throw "People2 $mode failed; inspect $dir/engine.log" }
+            $reportFile = switch ($mode) { 'captures' {'captures.json'} 'routing' {'people2-proof.json'} 'shaders' {'shaders.json'} 'parade' {'parade.json'} 'network' {'network.json'} default {'peopletest.json'} }
+            $report = Get-Content -LiteralPath (Join-Path $dir $reportFile) -Raw | ConvertFrom-Json
+            if ($mode -eq 'shaders' -and ($report.people2ShaderKindCount -ne 1 -or -not $report.ok -or $report.problems.Count)) { throw 'Shader inventory did not add exactly one people2 kind with zero problems.' }
+            if ($mode -in @('captures','timing','legacy-timing') -and -not $report.ok) { throw "People2 $mode report failed." }
+            if ($mode -eq 'network' -and -not $report.passed) { throw 'Native multiplayer identity proof failed.' }
+            if ($mode -eq 'routing' -and (-not $report.switchOkay -or -not $report.faceSetter.ok -or $report.bodyHeights.Count -ne 14 -or $report.figures[0].body -ne 'man_middling' -or $report.figures[1].body -ne 'woman_stout' -or $report.figures[2].body -ne 'man_stout' -or $report.figures[3].body -ne 'man_slight')) { throw 'People2 map/body/toggle proof failed.' }
+            Write-Output "PASS $mode"
+        } finally {
+            if ($child.Id -and -not $child.HasExited) { $child.Kill($true); $child.WaitForExit() }
+            $child.Dispose()
+            foreach ($name in @('userdata','layouts','saves')) { Remove-ProofData (Join-Path $dir $name) }
+            foreach ($file in Get-ChildItem -LiteralPath $dir -File | Where-Object { $_.Name -like 'game.*' -or $_.Name -like 'settings*' }) { Remove-ProofData $file.FullName }
+        }
+    }
+} finally { $env:SCHELDEMIST_USER_DATA = $previousData; $env:SCHELDEMIST_TOWN_SEED = $previousSeed }
+Write-Output "People2 evidence: $proof"

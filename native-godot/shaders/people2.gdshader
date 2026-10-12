@@ -1,0 +1,121 @@
+shader_type spatial;
+render_mode ambient_light_disabled, cull_back;
+global uniform vec4 psx_fog_color;
+global uniform float psx_fog_near;
+global uniform float psx_fog_far;
+global uniform vec4 psx_hemi_sky;
+global uniform vec4 psx_hemi_ground;
+global uniform vec4 psx_mir0;
+global uniform vec4 psx_mir1;
+uniform sampler2D tex : source_color, filter_linear_mipmap_anisotropic, hint_default_white;
+uniform sampler2D skin_normal : hint_normal, filter_linear_mipmap_anisotropic;
+uniform sampler2D eye_mask : filter_linear_mipmap, hint_default_black;
+uniform vec4 albedo : source_color = vec4(1.0);
+uniform float normal_strength = 1.0;
+uniform float eye_vertex_flag = 0.0;
+uniform float alpha_cut = 0.0;
+varying vec3 world;
+varying float fog_depth;
+varying float sun_lit;
+varying float eye;
+
+global uniform sampler2D psx_sky_shade : filter_linear, repeat_disable;
+global uniform vec4 psx_sky_box;
+global uniform float psx_sky_on;
+global uniform vec3 psx_sun_dir;
+global uniform float psx_sun_shade;
+// from the point toward the sun, every 2 m out to 40 m: is a house's height (the sky map's blue) over the ray there?
+float psx_sun_shadow(vec3 wp, vec3 nw) {
+	if (psx_sky_on <= 0.0 || psx_sun_dir.y <= 0.02) return 1.0;
+	vec3 p = wp + nw * 0.3;
+	float along = length(psx_sun_dir.xz);
+	if (along < 1e-3) return 1.0;
+	vec2 d = psx_sun_dir.xz / along;
+	float rise = psx_sun_dir.y / along;
+	float lit = 1.0;
+	for (int i = 1; i <= 20; i++) {
+		float s = float(i) * 2.0;
+		vec2 uv = (p.xz + d * s - psx_sky_box.xy) / psx_sky_box.zw;
+		if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) break;
+		float over = textureLod(psx_sky_shade, uv, 0.0).b * 30.0 - (p.y + s * rise);
+		lit = min(lit, 1.0 - smoothstep(-0.5, 0.5, over));
+		if (lit <= 0.0) break;
+	}
+	return mix(1.0, lit, psx_sky_on * psx_sun_shade);
+}
+// the street's floor in a narrow lane sees a strip of sky, the wall's foot a little more, the eaves all of it
+float psx_sky_seen(vec3 wp, vec3 nw) {
+	if (psx_sky_on <= 0.0) return 1.0;
+	vec2 uv = (wp.xz + nw.xz * 0.7 - psx_sky_box.xy) / psx_sky_box.zw;
+	if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) return 1.0;
+	vec4 s = textureLod(psx_sky_shade, uv, 0.0);
+	float up = s.g > 0.01 ? clamp(wp.y / (s.g * 25.0), 0.0, 1.0) : 1.0;
+	// never under 30 % of the sky, and 65 % of the difference; the sun's shadows carry the contrast on a bright day
+	float r = max(s.r, 0.3);
+	float v = mix(clamp(r * 2.0, 0.0, 1.0), r, abs(nw.y));
+	return mix(1.0, mix(v, 1.0, up * up), 0.65 * psx_sky_on);
+}
+
+/*SCATTER*/
+/*SPILL*/
+// The six existing gas lamps also catch the eye when their lighting is drawn as spill.
+vec3 eye_lamp(vec4 lamp, vec3 n, vec3 v) {
+    vec3 d = lamp.xyz - world;
+    float dl = length(d);
+    vec3 l = d / max(dl, 1e-4);
+    float glint = pow(max(dot(n, normalize(l + v)), 0.0), 150.0);
+    float cap = psx_lamp_cap(1.7, -l.y);
+    return psx_lamp_color.rgb * lamp.w * cap * glint * 0.6 / (pow(max(dl, 0.05), 1.7) + 0.6) / PI;
+}
+void vertex() {
+    vec4 view = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
+    world = (INV_VIEW_MATRIX * view).xyz;
+    fog_depth = -view.z;
+}
+void fragment() {
+    if ((world.y < psx_mir0.w - 0.02 && distance(CAMERA_POSITION_WORLD, psx_mir0.xyz) < 0.02) || (world.y < psx_mir1.w - 0.02 && distance(CAMERA_POSITION_WORLD, psx_mir1.xyz) < 0.02)) discard;
+    vec4 c = texture(tex, UV) * albedo;
+    if (c.a < alpha_cut) discard;
+    eye = max(texture(eye_mask, UV).r, COLOR.r * eye_vertex_flag);
+    // Cotangent frame from the actual skinned surface; handles mirrored UVs without imported tangents.
+    vec3 dp1 = dFdx(VERTEX), dp2 = dFdy(VERTEX);
+    vec2 duv1 = dFdx(UV), duv2 = dFdy(UV);
+    vec3 p2 = cross(dp2, NORMAL), p1 = cross(NORMAL, dp1);
+    vec3 t = p2 * duv1.x + p1 * duv2.x;
+    vec3 b = p2 * duv1.y + p1 * duv2.y;
+    float inv = inversesqrt(max(max(dot(t,t), dot(b,b)), 1e-12));
+    vec3 nm = texture(skin_normal, UV).rgb * 2.0 - 1.0;
+    nm.xy *= normal_strength;
+    NORMAL = normalize(mat3(t * inv, b * inv, NORMAL) * normalize(nm));
+    vec3 nw = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
+    vec3 sky = mix(psx_hemi_ground.rgb, psx_hemi_sky.rgb, nw.y * 0.5 + 0.5) * psx_sky_seen(world, nw);
+    sun_lit = psx_sun_shadow(world, nw);
+    vec3 spilt = psx_spill_n > 0 ? psx_spill_at(world, nw) / PI : vec3(0.0);
+    float fog_k = smoothstep(psx_fog_near, psx_fog_far, fog_depth);
+    vec3 ray = world - CAMERA_POSITION_WORLD;
+    float len = length(ray);
+    vec3 rd = ray / max(len, 1e-4);
+    vec3 halo = psx_lamp_color.rgb * psx_glow(CAMERA_POSITION_WORLD, rd, glow_reach(len, psx_fog_far, rd)) * psx_scatter * (0.35 + 0.65 * fog_k);
+    ALBEDO = c.rgb;
+    EMISSION = c.rgb * (sky + spilt) + halo;
+    if (eye > 0.5) {
+        vec3 v = normalize(CAMERA_POSITION_WORLD - world);
+        EMISSION += eye * (eye_lamp(psx_lamp0, nw, v) + eye_lamp(psx_lamp1, nw, v) + eye_lamp(psx_lamp2, nw, v) + eye_lamp(psx_lamp3, nw, v) + eye_lamp(psx_lamp4, nw, v) + eye_lamp(psx_lamp5, nw, v));
+    }
+    ROUGHNESS = mix(0.55, 0.12, eye);
+    FOG = vec4(psx_fog_color.rgb + halo, fog_k);
+}
+void light() {
+    float a = ATTENUATION;
+    if (LIGHT_IS_DIRECTIONAL) a *= sun_lit;
+    // Warm wrap fills the terminator without adding lights or brightening the whole scene.
+    float ndl = dot(NORMAL, LIGHT);
+    float wrap = max((ndl + 0.35) / 1.35, 0.0);
+    vec3 tint = mix(vec3(1.0), vec3(1.0, 0.86, 0.76), clamp(wrap - max(ndl, 0.0), 0.0, 1.0));
+    // Psx convention: LIGHT_COLOR includes pi; Godot converts the lights' sRGB colours.
+    DIFFUSE_LIGHT += wrap * tint * a * LIGHT_COLOR / PI;
+    vec3 hv = normalize(LIGHT + VIEW);
+    float power = mix(18.0, 150.0, eye);
+    float strength = mix(0.035, 0.6, eye);
+    SPECULAR_LIGHT += pow(max(dot(NORMAL, hv), 0.0), power) * strength * max(ndl, 0.0) * a * LIGHT_COLOR / PI;
+}

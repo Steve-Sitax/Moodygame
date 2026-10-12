@@ -8,3 +8,10 @@ Godot migration. They are references and art masters; the game and server use th
 Historical launch/release/oracle tools are saved as text under `../docs/archive`, also covered by that manifest.
 The active projects and commands are documented in `../native-godot/README.md`. Main and external art
 worktrees, user layouts, preferences and provider credentials were left intact.
+
+People2 is an active authoring kit under `tools/blender/people2/`, entered through
+`tools/blender/build_people2.py`. Its masters are `client/public/models/people2.glb`
+and `shared/peopleRig.json`. `--plain <ignored-path>` writes temporary native intake
+geometry with dense morphs; check pictures go to `../.scratch/people2-build/shots`.
+The native game uses its stored people2 scene and checksummed shared data. Build,
+additive intake and bounded proof commands are in `../docs/godot-people2.md`.

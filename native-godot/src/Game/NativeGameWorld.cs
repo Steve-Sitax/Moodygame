@@ -98,7 +98,7 @@ public partial class NativeGameWorld : BakedWorld
             if (node is WorkshopLamp lamp)
             {
                 lamp.SetNight(true);
-                if (lamp.GetNodeOrNull<OmniLight3D>("Light") is { } light) light.Visible = false;
+                if (lamp.GetNodeOrNull<OmniLight3D>("Light") is { } light) { light.Visible = false; light.SetMeta("native_preview_only", true); }
             }
             if (node is not MeshInstance3D mesh || mesh.Mesh == null) continue;
             mesh.SetMeta("native_collision", true);

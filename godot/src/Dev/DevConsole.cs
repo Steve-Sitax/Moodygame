@@ -170,7 +170,7 @@ public partial class DevConsole : Node
     public static async Task<string> Run(string text)
     {
         string verb = text.Split(' ', 2)[0].Trim().ToLowerInvariant();
-        if (verb == "help") return Kit.Help;
+        if (verb == "help") return Kit.Help + "\npeople2 on|off: switch the people kit for later spawns (dev mode)";
         if (verb == "dev")
         {
             string arg = text.Length > 3 ? text[3..].Trim().ToLowerInvariant() : "";
@@ -179,6 +179,14 @@ public partial class DevConsole : Node
             return Prefs.DevMode ? "dev mode is on: F8 the Dev sheet (also in the menu), F9 fly over the town" : "dev mode is off";
         }
         if (!Prefs.DevMode) return "dev mode is off: type dev on first (or help)";
+        if (verb == "people2")
+        {
+            string arg = text.Length > 7 ? text[7..].Trim().ToLowerInvariant() : "";
+            if (arg is not ("on" or "off")) return "people2 on or people2 off (newly spawned people)";
+            People.People2.Enabled = arg == "on";
+            if (People.People2.Enabled) People.People2.Load();
+            return "people2 " + arg + ": applies to people spawned afterwards";
+        }
         if (Kit.I == null) return "the test kit is not in this run";
         return await Kit.I.Run(text);
     }

@@ -1,8 +1,8 @@
-param([string]$Project=(Join-Path $PSScriptRoot '..'))
+param([string]$Project=(Join-Path $PSScriptRoot '..'), [string]$Output)
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'native-content-identity.ps1')
 $Project=[IO.Path]::GetFullPath($Project)
-$proof=Join-Path $Project ('proof/content-identity-'+[Guid]::NewGuid().ToString('N'))
+$proof=if($Output){[IO.Path]::GetFullPath($Output)}else{Join-Path $Project ('proof/content-identity-'+[Guid]::NewGuid().ToString('N'))}
 $checks=0
 function Check([bool]$Okay,[string]$Name){$script:checks++;if(-not $Okay){throw $Name}}
 function Inputs([string]$Root){$items=[Collections.Generic.SortedDictionary[string,string]]::new([StringComparer]::Ordinal);Add-NativeRuntimeSourceIdentity (Join-Path $Root 'native-godot') $items;return ,$items}

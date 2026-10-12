@@ -30,6 +30,12 @@ public partial class Parade : Node
             SetProcess(false);
             return;
         }
+        if (People2.Enabled)
+        {
+            AddChild(new People2Parade(dir));
+            SetProcess(false);
+            return;
+        }
         Directory.CreateDirectory(dir);
         var place = Main.I.World.Facts.RootElement.GetProperty("places")[0].GetProperty("pos");
         var origin = new Vector3(place[0].GetSingle(), 0, place[2].GetSingle());
