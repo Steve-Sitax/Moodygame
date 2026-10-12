@@ -52,12 +52,23 @@ public partial class NativeTown : BakedWorld
         }
         // Active fires construct their own moving pump. Keep the one-time scene snapshot intact on disk.
         if (eventSnapshots > 0) Unported.Remove("Node1476/Mesh2924");
+        // The bake also kept the horse model parts the pool's copies were made from (second "horses" group: whole mesh parts at the
+        // origin, legs hanging below the quay). The pool draws its own copies; the template stays on disk but never shows.
+        int horseTemplates = 0;
+        foreach (var template in town.GetChildren().OfType<Node3D>().Where(n => n.HasMeta("source_name") && n.GetMeta("source_name").AsString() == "horses"
+            && n.GetChildren().OfType<MeshInstance3D>().Any(m => m.Name == "horse_body")).ToArray())
+        {
+            template.Visible = false;
+            foreach (var child in All(template)) child.SetMeta("native_replaced_event_snapshot", true);
+            horseTemplates++;
+        }
         AddChild(town);
         Report["source"] = "complete native Godot town";
         Report["sourceSha256"] = intake["sourceSha256"]!.GetValue<string>();
         Report["authoredObjects"] = Layouts.ObjectCount;
         Report["districts"] = Layouts.Districts.Count;
         Report["replacedEventSnapshots"] = eventSnapshots;
+        Report["hiddenHorseTemplates"] = horseTemplates;
         Stage = "done";
         return Error.Ok;
     }

@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - Place, move, rotate, copy and remove lamps and other library objects in the workshop, then test the saved layout in the full game. Existing object identities and saved district layouts are preserved. Exposed model edges now follow a material-specific bevel and wear rule.
 - Multiplayer uses a native Godot host or a separate headless server, with authenticated players and LAN/VPN connections. Windows exports include their required runtime.
 - Old game saves have been removed for the native migration, as requested. Start a new game; editor layouts, preferences and provider credentials are retained.
+- The legless horse body that hung in the air at the Rijnkaai quay edge, at the middle of the map, is gone. It was a leftover model part of the horses; the working horses are unchanged.
 
 - Boats rest on the drawn mud at low water, rise with every tide and stay above water in the great storm. Ladder boarding and crane loads follow grounded hulls, and the pier has fenders for the full tide range. In Godot, boats stay with the water during clock jumps and the storm brings the same surge as in the browser.
 - Boats carry their own readable names and home ports, upright on their bows, sterns and paddle boxes; the paper, map and harbour calls use the same names. Germania is a German grain barque and Stad Antwerpen a Belgian line steamer.
