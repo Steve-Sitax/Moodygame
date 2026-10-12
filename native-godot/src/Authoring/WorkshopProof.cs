@@ -49,7 +49,7 @@ public static class WorkshopProof
             {
                 Check(s.Document.Objects.Count == 3, "native district seed contains three editable objects");
                 var bench = s.Instances["pilot-bench"];
-                var screen = s.Camera.Eye.UnprojectPosition(bench.Position + Vector3.Up * 0.6f);
+                var screen = s.Camera.Eye.UnprojectPosition(bench.ToGlobal(bench.Asset!.FootprintOffset + new Vector3(0, bench.Asset.Footprint.Y * 0.95f, 0)));
                 Check(s.Pick(screen) == "pilot-bench", "physics ray selects the visible bench by permanent id");
                 Check(!s.Place("crate", bench.Position, Vector3.Zero, Vector3.One), "placement refuses occupied ground");
                 Check(!s.Place("crate", new(21, 0, 0), Vector3.Zero, Vector3.One), "placement refuses ground outside the quay");
@@ -90,8 +90,8 @@ public static class WorkshopProof
                 Check(!s.Dirty && File.Exists(s.Store.File), "Ctrl+S saves even with a text field focused");
                 s.GetViewport().GuiGetFocusOwner()?.ReleaseFocus();
                 Nodes(s.Ui).OfType<Button>().Single(b => b.Text == "Day / night").EmitSignal(BaseButton.SignalName.Pressed);
-                Check(s.Night && s.Instances["pilot-lamp"].GetNode<WorkshopLamp>("Asset").Lit, "night control lights the placed lamp");
-                s.SetNight(false); Check(!s.Instances["pilot-lamp"].GetNode<WorkshopLamp>("Asset").Lit, "day extinguishes its light");
+                Check(s.Night && Nodes(s.Instances["pilot-lamp"]).OfType<WorkshopLamp>().Single().Lit, "night control lights the placed lamp");
+                s.SetNight(false); Check(!Nodes(s.Instances["pilot-lamp"]).OfType<WorkshopLamp>().Single().Lit, "day extinguishes its light");
                 s.SetEditing(false);
                 s.Camera.Position = new(bench.Position.X, 0.02f, bench.Position.Z + 3);
                 s.Camera.ProofDrive = Vector3.Forward;

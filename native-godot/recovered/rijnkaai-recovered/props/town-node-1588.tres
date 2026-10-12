@@ -1,13 +1,12 @@
 [gd_resource type="Resource" script_class="AuthorAsset" format=3]
 
-[ext_resource type="PackedScene" path="res://recovered/rijnkaai-recovered/props/town-node-1588.tscn" id="1_any7o"]
-[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_ttjdx"]
+[ext_resource type="PackedScene" path="res://recovered/quay-models-20261012/props/bollard-cannon.tscn" id="1_glplr"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_088k0"]
 
 [resource]
-script = ExtResource("2_ttjdx")
+script = ExtResource("2_088k0")
 Id = "town-node-1588"
-Title = "Recovered bollard · 1588"
-Category = "Recovered quay"
-Scene = ExtResource("1_any7o")
-Footprint = Vector3(0.58495677, 0.8, 0.5702907)
-FootprintOffset = Vector3(0, 0, 0.01485467)
+Title = "Quay bollard"
+Category = "Harbour furniture"
+Scene = ExtResource("1_glplr")
+Footprint = Vector3(1.1, 0.875, 1.1)

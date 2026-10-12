@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://recovered/quay-models-20261012/props/hand-barrow.tscn" id="1_4negj"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_t1mtn"]
+
+[resource]
+script = ExtResource("2_t1mtn")
+Id = "hand-barrow"
+Title = "Dock hand barrow"
+Category = "Harbour furniture"
+Scene = ExtResource("1_4negj")
+Footprint = Vector3(0.6759767, 0.2859685, 2.303354)
+FootprintOffset = Vector3(-1.1652708e-05, 0, 0)

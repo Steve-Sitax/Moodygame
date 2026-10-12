@@ -1,0 +1,21 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://recovered/quay-models-20261012/resources/r0004.res" id="1_tbbde"]
+[ext_resource type="Shape3D" path="res://recovered/quay-models-20261012/resources/r0005.res" id="2_fq28g"]
+
+[node name="source_15" type="Node3D" unique_id=1792955765]
+metadata/source_node_index = 15
+metadata/source_name = "bollard_cannon"
+
+[node name="recover_15" type="MeshInstance3D" parent="." unique_id=938970886]
+mesh = ExtResource("1_tbbde")
+metadata/source_node_index = 15
+metadata/source_name = "bollard_cannon"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="recover_15" unique_id=164424367]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="recover_15/Solid" unique_id=1632023750]
+shape = ExtResource("2_fq28g")

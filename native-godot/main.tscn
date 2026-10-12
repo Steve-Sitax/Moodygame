@@ -1,7 +1,7 @@
 [gd_scene load_steps=9 format=3]
 [ext_resource type="Script" path="res://src/Authoring/WorkshopSession.cs" id="1"]
-[ext_resource type="Resource" path="res://districts/quay-pilot.tres" id="2"]
-[ext_resource type="PackedScene" path="res://districts/quay-pilot.tscn" id="3"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-recovered/district.tres" id="2"]
+[ext_resource type="PackedScene" path="res://recovered/rijnkaai-recovered/district.tscn" id="3"]
 [ext_resource type="Script" path="res://src/Authoring/WorkshopCamera.cs" id="4"]
 [sub_resource type="ProceduralSkyMaterial" id="sky_material"]
 sky_top_color = Color(0.25, 0.35, 0.45, 1)

@@ -5,8 +5,8 @@ press F6 on `main.tscn` (or F5). On Steve's Windows PC, double-click `Start Work
 existing game database, or existing game settings are used. Workshop data goes to its own `ScheldemistWorkshop`
 user folder.
 
-The pilot quay and three simple assets are migration fixtures, not replacements for the models and textures currently
-being improved in the other session. The entire implementation is additive in `native-godot/`, on
+The small pilot quay is a test fixture. The active quay and library now use the completed model/texture work from
+main and the 2026-10-12 bake. The native implementation is additive in `native-godot/`, on
 `godot/native-authoring`, in `D:/Code/MoodyGame-native-authoring`. Nothing has been merged into the running game.
 
 Double-click `Start Recovered Quay.cmd` to edit the first recovered Rijnkaai section. Its native scenes, meshes,
@@ -14,6 +14,8 @@ materials, textures and collision are included in this branch; the original town
 The recovered bollards and gas lamps can be moved, copied and deleted. Other scenery is saved as ordinary Godot
 nodes and can be edited in `recovered/rijnkaai-recovered/district.tscn`. Merged buildings and cargo remain chunks;
 the export did not retain all individual object boundaries. New objects must have ground under their footprint.
+`Open Recovered Quay Editor.cmd` opens that district in Godot. `Test Editor Changes.cmd` runs a saved editor scene
+with a fresh temporary layout. The default main scene and F5 now use the updated recovered quay.
 
 ## Place objects yourself
 
@@ -37,7 +39,7 @@ when running; use a fresh `--author-dir` to check changes to the seed itself.
 Each district resource supplies its own boundary, camera/walk spawns, scene and asset catalog. The recovered quay
 has a separate layout directory from the pilot; saving one does not replace the other.
 
-## Asset intake after the helpers finish
+## Asset intake
 
 Each asset in `assets/library/` has a stable id, a display name, a reusable PackedScene, and a conservative clearance
 box. Model improvements belong inside the referenced scene in `assets/props/`; keep that scene's collision and
@@ -45,8 +47,10 @@ behavior. Existing placements then receive the new appearance without changing t
 scene includes its day/night behavior. New library resources require no editing code changes: add them to
 `catalog.tres`. Use Godot's normal model import and scene wrappers, not the browser's whole-town exporter.
 
-Import the helpers' finished commits into this worktree only after they are ready. Their source branches and
-shared bake directories remain untouched. Stable ids and external resource references are the integration boundary.
+The finished main commits through `6b447c1` are merged into this branch. Shared bake directories remain untouched.
+The latest quay snapshot preserves all 14 object ids and replaces the library bench, crate and lamp models.
+Cannon/mushroom bollards, a capstan, a hand barrow and a coiled hawser are also available. See
+[district recovery notes](recovery/README.md) for import commands, identity preservation, promotion and editor lamp steps.
 
 ## Migration ledger
 
@@ -55,8 +59,8 @@ shared bake directories remain untouched. Stable ids and external resource refer
 | Native startup, asset catalog, editable district seed | Working without Node or a bake. |
 | In-game placement, selection, ground snapping, exact transforms | Working for simple static assets; occupied and off-quay placements refused. |
 | Undo/redo, persistent layout, editable Godot scene export | Working; checked across separate Godot processes. |
-| Model/texture intake | Wrappers ready; final helper assets deliberately not copied yet. |
-| Existing town | First static Rijnkaai section recovered: 14 authored props and 68 mesh colliders. Other districts and dynamic parts remain. |
+| Model/texture intake | Finished main art and current bake used in Rijnkaai; detailed library assets imported as native resources. |
+| Existing town | Static Rijnkaai updated from the 2026-10-12 bake; 14 original object ids preserved. Other districts and dynamic parts remain. |
 | Navigation | Pending scene-derived navigation and moving-bridge links. The pilot has player collision, not NPC pathfinding. |
 | Game services | Pending C# ports of rules, SQLite persistence, AI providers, and multiplayer. The old server is not part of this pilot. |
 | Retiring the browser and Node game | Pending parity checks and save migration; remove only once the native game covers those behaviors. |
@@ -80,8 +84,8 @@ the metadata report; those maps are not silently treated as imported native effe
 The tool refuses an existing output district to protect native edits. Give another snapshot a new plan id.
 `recovery-report.json` records the source fingerprint, plan, source node ids, material/instance metadata, checks,
 and remaining work. Scenery intersecting the boundary retains its whole mesh; editing limits apply to placement.
-Only the reviewed Rijnkaai output is tracked; fixture runs and other recovery attempts are ignored. Helpers' final
-art must still be integrated deliberately, preserving the authored object and asset ids.
+Reviewed Rijnkaai and its dated model intakes are tracked; fixture runs and other recovery attempts are ignored.
+Other sessions should use the recovery notes and wait for Steve's test of this district before expanding the migration.
 
 ## Checks
 
@@ -93,5 +97,5 @@ runs a GPU performance measurement. `--author-shot <absolute png>` gives a short
 
 `pwsh -File scripts/check-recovery.ps1` checks a generated fixture with nested transforms, hidden geometry,
 coloured instances and an unused invalid image, then checks the real quay. Both run write and reload in separate
-Godot processes with isolated layouts. Together with the pilot, 91 runtime assertions pass; recovery also checks
+Godot processes with isolated layouts. Together with the pilot, 95 runtime assertions pass; recovery also checks
 native resource references and source preservation. The fixture's invalid unused image is pruned before import.

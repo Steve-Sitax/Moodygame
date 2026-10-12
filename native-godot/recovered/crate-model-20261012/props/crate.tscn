@@ -1,0 +1,39 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://recovered/crate-model-20261012/resources/r0002.res" id="1_c052v"]
+[ext_resource type="ArrayMesh" path="res://recovered/crate-model-20261012/resources/r0003.res" id="2_anujl"]
+[ext_resource type="Shape3D" path="res://recovered/crate-model-20261012/resources/r0004.res" id="3_270ay"]
+[ext_resource type="Shape3D" path="res://recovered/crate-model-20261012/resources/r0005.res" id="4_w885f"]
+
+[node name="source_1" type="Node3D" unique_id=9052]
+metadata/source_node_index = 1
+metadata/source_name = "crate"
+
+[node name="recover_1" type="MeshInstance3D" parent="." unique_id=560498193]
+mesh = ExtResource("1_c052v")
+metadata/extras = {
+"crate_cells": [0.10546875, 0.22558594, 9.0, 18.0]
+}
+metadata/source_node_index = 1
+metadata/source_name = "crate"
+metadata/legacy_extras_json = "{\"crate_cells\":[0.10546875,0.2255859375,9,18]}"
+
+[node name="recover_0" type="MeshInstance3D" parent="recover_1" unique_id=1216144276]
+mesh = ExtResource("2_anujl")
+metadata/source_node_index = 0
+metadata/source_name = "crate_marks"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="recover_1/recover_0" unique_id=1723667838]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="recover_1/recover_0/Solid" unique_id=84543043]
+shape = ExtResource("3_270ay")
+
+[node name="Solid" type="StaticBody3D" parent="recover_1" unique_id=888958870]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="recover_1/Solid" unique_id=1581742664]
+shape = ExtResource("4_w885f")

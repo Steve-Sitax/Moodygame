@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://recovered/crate-model-20261012/catalog.tres" id="1_6t8x1"]
+[ext_resource type="PackedScene" path="res://recovered/crate-model-20261012/district.tscn" id="2_eqdoc"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="3_e8xio"]
+
+[resource]
+script = ExtResource("3_e8xio")
+Id = "crate-model-20261012"
+Title = "Updated crate"
+Scene = ExtResource("2_eqdoc")
+Catalog = ExtResource("1_6t8x1")
+Bounds = Rect2(-100, -100, 200, 200)
+WalkSpawn = Vector3(0, 0, 0)
+FlySpawn = Vector3(0, 2, 4)

@@ -50,7 +50,7 @@ public partial class WorkshopSession : Node3D
             if (requested != "")
             {
                 if (!LayoutDocument.ValidId(requested)) throw new InvalidOperationException("Invalid district id.");
-                string path = "res://recovered/" + requested + "/district.tres";
+                string path = requested == "quay-pilot" ? "res://districts/quay-pilot.tres" : "res://recovered/" + requested + "/district.tres";
                 if (!ResourceLoader.Exists(path)) throw new FileNotFoundException("Recover this district first: " + requested);
                 District = ResourceLoader.Load<AuthorDistrict>(path);
             }

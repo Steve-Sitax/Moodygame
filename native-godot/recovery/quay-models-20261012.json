@@ -1,0 +1,12 @@
+{
+  "id": "quay-models-20261012", "title": "Updated harbour props", "modelPack": true,
+  "bounds": [-100, -100, 200, 200], "walkSpawn": [0, 0, 0], "flySpawn": [0, 2, 4], "flyYaw": 0, "flyPitch": -0.35,
+  "groups": [], "props": ["bollard_cannon", "bollard_mushroom", "capstan", "hand_barrow", "hawser_coil"], "roots": [],
+  "modelAssets": [
+    {"node": "bollard_cannon", "id": "bollard-cannon", "title": "Cannon bollard", "category": "Harbour furniture"},
+    {"node": "bollard_mushroom", "id": "bollard-mushroom", "title": "Mushroom bollard", "category": "Harbour furniture"},
+    {"node": "capstan", "id": "capstan", "title": "Hand capstan", "category": "Harbour furniture"},
+    {"node": "hand_barrow", "id": "hand-barrow", "title": "Dock hand barrow", "category": "Harbour furniture"},
+    {"node": "hawser_coil", "id": "hawser-coil", "title": "Coiled hawser", "category": "Harbour furniture"}
+  ]
+}

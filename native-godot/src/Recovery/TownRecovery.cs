@@ -26,6 +26,11 @@ public partial class TownRecovery : Node
     {
         try
         {
+            if (WorkshopSession.Arg("promote") != "")
+            {
+                RecoveryRefresh.Promote(WorkshopSession.Arg("promote"), WorkshopSession.Arg("target-district"));
+                GetTree().Quit(); return;
+            }
             if (WorkshopSession.Arg("fixture") != "") RecoveryFixture.Write(WorkshopSession.Arg("fixture"), WorkshopSession.Arg("fixture-id"));
             Recover(); GetTree().Quit();
         }
@@ -62,7 +67,7 @@ public partial class TownRecovery : Node
             for (int i = 0; i < mesh.GetSurfaceCount(); i++) if (mesh.SurfaceGetMaterial(i) is { } surface) Externalize(surface);
         Save(resource, output + "/resources/r" + resources++.ToString("D4") + ".res");
     }
-    private PackedScene Scene(Node root, string path)
+    internal PackedScene Scene(Node root, string path)
     {
         foreach (var node in Nodes(root).Skip(1)) node.Owner = root;
         foreach (var mesh in Nodes(root).OfType<MeshInstance3D>())
@@ -76,7 +81,7 @@ public partial class TownRecovery : Node
         if (result != Error.Ok) throw new IOException("Cannot pack native scene: " + result);
         Save(packed, path); return packed;
     }
-    private void ConvertMaterials(RecoveryGlb source, GltfState state)
+    private void ConvertMaterials(RecoveryGlb source, GltfState state, bool standardPack)
     {
         var imported = state.GetMaterials();
         foreach (var pair in source.MaterialMap)
@@ -87,6 +92,14 @@ public partial class TownRecovery : Node
             material.SetMeta("legacy_extras_json", original["extras"]?.ToJsonString() ?? "{}");
             var three = original["extras"]?["three"];
             var psx = original["extras"]?["psx"];
+            if (three == null && standardPack)
+            {
+                bool blended = original["alphaMode"]?.GetValue<string>() == "BLEND";
+                three = new JsonObject { ["type"] = "Standard glTF", ["side"] = original["doubleSided"]?.GetValue<bool>() == true ? 2 : 0,
+                    ["visible"] = true, ["colorWrite"] = true, ["transparent"] = blended, ["depthWrite"] = !blended,
+                    ["vertexColors"] = material is BaseMaterial3D importedMaterial && importedMaterial.VertexColorUseAsAlbedo };
+                material.SetMeta("native_gltf_material", true);
+            }
             if (psx != null) notes.Add($"Material {pair.Key}: browser PSX switches retained as metadata; native StandardMaterial3D appearance is provisional.");
             if (three == null) { material.SetMeta("legacy_unported", true); notes.Add($"Material {pair.Key}: source shader is not described; its mesh is hidden for review."); continue; }
             if (material is not BaseMaterial3D standard) continue;
@@ -158,7 +171,8 @@ public partial class TownRecovery : Node
         // Refuse regeneration: it would erase native edits. Use a new district id for another snapshot.
         if (Directory.Exists(absolute)) throw new IOException("The recovered district already exists. Keep its edits and use a new plan id: " + id);
         var info = new FileInfo(sourceFile); long originalLength = info.Length; var originalTime = info.LastWriteTimeUtc;
-        var facts = JsonNode.Parse(File.ReadAllText(Path.ChangeExtension(sourceFile, ".json")))!.AsObject();
+        var facts = plan["modelPack"]?.GetValue<bool>() == true ? new JsonObject { ["instances"] = new JsonObject() }
+            : JsonNode.Parse(File.ReadAllText(Path.ChangeExtension(sourceFile, ".json")))!.AsObject();
         var bounds = plan["bounds"]!;
         var boundary = new Rect2(bounds[0]!.GetValue<float>(), bounds[1]!.GetValue<float>(), bounds[2]!.GetValue<float>(), bounds[3]!.GetValue<float>());
         if (!boundary.Position.IsFinite() || !boundary.Size.IsFinite() || boundary.Size.X <= 0 || boundary.Size.Y <= 0) throw new InvalidDataException("Invalid recovery boundary.");
@@ -174,14 +188,18 @@ public partial class TownRecovery : Node
         var error = document.AppendFromFile(slice, state);
         if (error != Error.Ok) throw new IOException("Godot could not import the selected GLB: " + error);
         var imported = document.GenerateScene(state) ?? throw new IOException("Godot generated no recovery scene.");
-        ConvertMaterials(source, state);
+        ConvertMaterials(source, state, plan["modelPack"]?.GetValue<bool>() == true);
         Directory.CreateDirectory(Path.Combine(absolute, "resources")); Directory.CreateDirectory(Path.Combine(absolute, "props"));
         var district = new Node3D { Name = "Rijnkaai" };
         var scenery = new Node3D { Name = "Scenery" }; var objects = new Node3D { Name = "Objects" };
         district.AddChild(scenery); district.AddChild(objects);
         var working = new Node3D { Name = "RecoveryWork" }; district.AddChild(working);
         var catalog = new AuthorCatalog();
-        foreach (var asset in ResourceLoader.Load<AuthorCatalog>("res://assets/library/catalog.tres").Assets) catalog.Assets.Add(asset);
+        var definitions = plan["modelAssets"] as JsonArray ?? new JsonArray();
+        var definedIds = definitions.Select(a => a!["id"]!.GetValue<string>()).ToHashSet();
+        foreach (var asset in ResourceLoader.Load<AuthorCatalog>("res://assets/library/catalog.tres").Assets)
+            if (!definedIds.Contains(asset.Id)) catalog.Assets.Add(asset);
+        var identities = RecoveryRefresh.MatchIdentities(source.Picks, plan);
         try
         {
             foreach (var pick in source.Picks)
@@ -221,16 +239,18 @@ public partial class TownRecovery : Node
                 var pose = root.Transform; root.Transform = Transform3D.Identity;
                 if (pick.Name == "gas_lamp") AddLamp(root);
                 var box = LocalBounds(root);
-                string assetId = "town-node-" + pick.Index;
+                var definition = definitions.FirstOrDefault(a => a!["node"]!.GetValue<string>() == pick.Name);
+                string assetId = definition?["id"]?.GetValue<string>() ?? identities.GetValueOrDefault(pick.Index, "town-node-" + pick.Index);
                 var packed = Scene(root, output + "/props/" + assetId + ".tscn");
-                var asset = new AuthorAsset { Id = assetId, Title = pick.Name == "gas_lamp" ? "Recovered gas lamp · " + pick.Index : "Recovered bollard · " + pick.Index,
-                    Category = "Recovered quay", Scene = packed, Footprint = box.Size.Max(new Vector3(0.1f, 0.1f, 0.1f)),
+                var asset = new AuthorAsset { Id = assetId, Title = definition?["title"]?.GetValue<string>() ?? (pick.Name == "gas_lamp" ? "Recovered gas lamp · " + pick.Index : "Recovered bollard · " + pick.Index),
+                    Category = definition?["category"]?.GetValue<string>() ?? "Recovered quay", Scene = packed, Footprint = box.Size.Max(new Vector3(0.1f, 0.1f, 0.1f)),
                     FootprintOffset = new Vector3(box.GetCenter().X, box.Position.Y, box.GetCenter().Z) };
                 Save(asset, output + "/props/" + assetId + ".tres"); catalog.Assets.Add(asset);
                 var wrapper = new AuthoredObject { Name = "object_" + assetId, ObjectId = assetId, Asset = asset, Transform = pose };
                 objects.AddChild(wrapper); root.Free();
             }
             working.Free();
+            var refreshed = RecoveryRefresh.Apply(this, district, catalog, plan, output);
             Save(catalog, output + "/catalog.tres");
             var nativeScene = Scene(district, output + "/district.tscn");
             var settings = new AuthorDistrict { Id = id, Title = plan["title"]!.GetValue<string>(), Scene = nativeScene, Catalog = catalog,
@@ -252,7 +272,10 @@ public partial class TownRecovery : Node
             using var fingerprint = new FileStream(sourceFile, FileMode.Open, System.IO.FileAccess.Read, FileShare.ReadWrite);
             string hash = Convert.ToHexString(SHA256.HashData(fingerprint)).ToLowerInvariant();
             var report = new { version = 1, district = id, source = new { path = sourceFile, bytes = originalLength, modifiedUtc = originalTime, sha256 = hash, factsMade = facts["made"]?.GetValue<string>() },
-                plan, selected = source.Picks.Select(p => new { index = p.Index, name = p.Name, kind = p.Kind, transform = RecoveryGlb.Matrix(p.Transform) }),
+                plan, selected = source.Picks.Select(p => new { index = p.Index, name = p.Name, kind = p.Kind,
+                    id = p.Kind == "prop" ? identities.GetValueOrDefault(p.Index, definitions.FirstOrDefault(a => a!["node"]!.GetValue<string>() == p.Name)?["id"]?.GetValue<string>() ?? "town-node-" + p.Index) : null,
+                    transform = RecoveryGlb.Matrix(p.Transform) }).Cast<object>().Concat(refreshed.Anchors),
+                refresh = refreshed.Evidence,
                 materials = source.MaterialMap.Keys.Select(i => new { index = i, extras = source.Json["materials"]![i]!["extras"] }),
                 instances = source.NodeMap.Keys.Where(i => source.Instances(i) != null).Select(i => new { index = i, data = source.Instances(i) }),
                 collisions, copies, resources, checks, notes = source.Notes.Concat(notes).Distinct(),
@@ -293,7 +316,7 @@ public partial class TownRecovery : Node
             AddCollision(copy, layer); copies++;
         }
     }
-    private static Aabb LocalBounds(Node3D root)
+    internal static Aabb LocalBounds(Node3D root)
     {
         Aabb? bounds = null;
         void Visit(Node3D node, Transform3D parent)

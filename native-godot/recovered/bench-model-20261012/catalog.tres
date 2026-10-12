@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="AuthorCatalog" format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="1_6waj1"]
+[ext_resource type="Resource" path="res://assets/library/crate.tres" id="2_b0bcg"]
+[ext_resource type="Resource" path="res://assets/library/lamp.tres" id="3_6agx1"]
+[ext_resource type="Resource" path="res://recovered/bench-model-20261012/props/bench.tres" id="4_8bcyr"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorCatalog.cs" id="5_eidha"]
+
+[resource]
+script = ExtResource("5_eidha")
+Assets = Array[ExtResource("1_6waj1")]([ExtResource("2_b0bcg"), ExtResource("3_6agx1"), ExtResource("4_8bcyr")])

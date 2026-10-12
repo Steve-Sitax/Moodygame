@@ -1,0 +1,39 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_ea6kg"]
+[ext_resource type="Resource" path="res://recovered/quay-models-20261012/props/bollard-cannon.tres" id="2_vp0yf"]
+[ext_resource type="Resource" path="res://recovered/quay-models-20261012/props/bollard-mushroom.tres" id="3_cl1au"]
+[ext_resource type="Resource" path="res://recovered/quay-models-20261012/props/capstan.tres" id="4_rw5th"]
+[ext_resource type="Resource" path="res://recovered/quay-models-20261012/props/hand-barrow.tres" id="5_vbp6e"]
+[ext_resource type="Resource" path="res://recovered/quay-models-20261012/props/hawser-coil.tres" id="6_plj7y"]
+
+[node name="Rijnkaai" type="Node3D" unique_id=2119974014]
+
+[node name="Scenery" type="Node3D" parent="." unique_id=1829016636]
+
+[node name="Objects" type="Node3D" parent="." unique_id=734405630]
+
+[node name="object_bollard-cannon" type="Node3D" parent="Objects" unique_id=1233692429]
+script = ExtResource("1_ea6kg")
+ObjectId = "bollard-cannon"
+Asset = ExtResource("2_vp0yf")
+
+[node name="object_bollard-mushroom" type="Node3D" parent="Objects" unique_id=1908925167]
+script = ExtResource("1_ea6kg")
+ObjectId = "bollard-mushroom"
+Asset = ExtResource("3_cl1au")
+
+[node name="object_capstan" type="Node3D" parent="Objects" unique_id=1142456678]
+script = ExtResource("1_ea6kg")
+ObjectId = "capstan"
+Asset = ExtResource("4_rw5th")
+
+[node name="object_hand-barrow" type="Node3D" parent="Objects" unique_id=1844146856]
+script = ExtResource("1_ea6kg")
+ObjectId = "hand-barrow"
+Asset = ExtResource("5_vbp6e")
+
+[node name="object_hawser-coil" type="Node3D" parent="Objects" unique_id=1370537275]
+script = ExtResource("1_ea6kg")
+ObjectId = "hawser-coil"
+Asset = ExtResource("6_plj7y")

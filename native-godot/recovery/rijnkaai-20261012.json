@@ -1,0 +1,8 @@
+{
+  "id": "rijnkaai-20261012", "title": "Rijnkaai · updated town",
+  "bounds": [-12, -6, 72, 68], "walkSpawn": [20, 0.02, 26], "flySpawn": [20, 6, 26], "flyYaw": 3.14159265, "flyPitch": -0.35,
+  "groups": ["city", "quayfurniture", "quaygoods"], "props": ["bollard", "gas_lamp"],
+  "roots": ["quay_steps", "quay_iron", "quay_coping", "pier_deck", "pier_timber", "pier_barnacles"],
+  "refreshFrom": "res://recovered/rijnkaai-recovered/recovery-report.json",
+  "catalogs": ["res://recovered/crate-model-20261012/catalog.tres", "res://recovered/bench-model-20261012/catalog.tres", "res://recovered/quay-models-20261012/catalog.tres"]
+}

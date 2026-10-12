@@ -25,6 +25,12 @@ public static class RecoveryWorkshopProof
             Check(report["checks"]!.AsArray().All(c => c!["pass"]!.GetValue<bool>()), "one-time conversion checks passed");
             Check(!TownRecovery.Nodes(session).Any(n => n.GetType().Name == "BakedWorld"), "runtime contains no BakedWorld loader");
             Check(TownRecovery.Nodes(session.GetNode("District/Scenery")).OfType<StaticBody3D>().Any(), "recovered scenery has native collision");
+            if (report["refresh"] is JsonObject refresh)
+            {
+                Check(refresh["removedTrianglesPerAnchor"]!.AsArray().All(n => n!.GetValue<int>() > 0), "merged bollard copies were removed for every recovered anchor");
+                Check(new[] { "bench", "crate", "bollard-cannon", "bollard-mushroom", "capstan", "hand-barrow", "hawser-coil" }
+                    .All(id => session.Assets.ContainsKey(id) && !session.Assets[id].Scene!.ResourcePath.StartsWith("res://assets/props/")), "finished model packs supply the editable asset library");
+            }
             if (session.DistrictId.StartsWith("recovery-fixture-"))
             {
                 var nodes = TownRecovery.Nodes(session.GetNode("District/Scenery")).ToArray();
@@ -43,7 +49,7 @@ public static class RecoveryWorkshopProof
             {
                 var selected = report["selected"]!.AsArray().Where(p => p!["kind"]!.GetValue<string>() == "prop").ToArray();
                 Check(session.Document.Objects.Count == selected.Length, "all recovered props enter the editable layout");
-                Check(selected.All(p => session.Instances.TryGetValue("town-node-" + p!["index"]!.GetValue<int>(), out var obj)
+                Check(selected.All(p => session.Instances.TryGetValue(p!["id"]?.GetValue<string>() ?? "town-node-" + p["index"]!.GetValue<int>(), out var obj)
                     && obj.Transform.IsEqualApprox(RecoveryGlb.Transform(new() { ["matrix"] = p["transform"]!.DeepClone() }))), "source prop transforms and permanent ids survive recovery");
                 var bench = session.Assets["bench"];
                 Vector3? spot = null;

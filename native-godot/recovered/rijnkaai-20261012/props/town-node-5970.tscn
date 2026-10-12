@@ -1,0 +1,88 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0002.res" id="1_usluq"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0050.res" id="2_vgdlp"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0045.res" id="3_nt770"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0008.res" id="4_0yb48"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0051.res" id="5_6a5jf"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0047.res" id="6_ndhnh"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0052.res" id="7_pmxss"]
+[ext_resource type="Script" path="res://src/Authoring/WorkshopLamp.cs" id="8_oyfpe"]
+[ext_resource type="Material" path="res://recovered/rijnkaai-20261012/resources/r0049.res" id="9_lyoud"]
+[ext_resource type="SphereMesh" path="res://recovered/rijnkaai-20261012/resources/r0048.res" id="10_fdej5"]
+
+[node name="source_5243" type="Node3D" unique_id=1075087203]
+metadata/source_node_index = 5243
+metadata/source_name = "gas_lamp"
+
+[node name="recover_5243" type="Node3D" parent="." unique_id=203809653]
+metadata/extras = {
+"name": "gas_lamp"
+}
+metadata/source_node_index = 5243
+metadata/source_name = "gas_lamp"
+metadata/legacy_extras_json = "{\"name\":\"gas_lamp\"}"
+
+[node name="recover_5244" type="MeshInstance3D" parent="recover_5243" unique_id=1471349493]
+mesh = ExtResource("1_usluq")
+metadata/source_node_index = 5244
+metadata/source_name = "gas_lamp_1"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="recover_5243/recover_5244" unique_id=517513759]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="recover_5243/recover_5244/Solid" unique_id=733197345]
+shape = ExtResource("2_vgdlp")
+
+[node name="recover_5245" type="MeshInstance3D" parent="recover_5243" unique_id=1530943736]
+mesh = ExtResource("3_nt770")
+metadata/extras = {
+"fog": {
+"value": 1.0
+}
+}
+metadata/source_node_index = 5245
+metadata/source_name = "gas_lamp_2"
+metadata/legacy_extras_json = "{\"fog\":{\"value\":1}}"
+
+[node name="recover_5246" type="MeshInstance3D" parent="recover_5243" unique_id=446006480]
+mesh = ExtResource("4_0yb48")
+metadata/source_node_index = 5246
+metadata/source_name = "gas_lamp_3"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="recover_5243/recover_5246" unique_id=2135693672]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="recover_5243/recover_5246/Solid" unique_id=73694374]
+shape = ExtResource("5_6a5jf")
+
+[node name="recover_5247" type="MeshInstance3D" parent="recover_5243" unique_id=328270957]
+mesh = ExtResource("6_ndhnh")
+metadata/source_node_index = 5247
+metadata/source_name = "gas_lamp_4"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="recover_5243/recover_5247" unique_id=974808]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="recover_5243/recover_5247/Solid" unique_id=1044985334]
+shape = ExtResource("7_pmxss")
+
+[node name="NativeLamp" type="Node3D" parent="." unique_id=1146065820]
+script = ExtResource("8_oyfpe")
+
+[node name="Light" type="OmniLight3D" parent="NativeLamp" unique_id=1003992077]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.5, 0)
+light_color = Color(1, 0.68, 0.32, 1)
+light_energy = 2.0
+omni_range = 9.0
+
+[node name="Flame" type="MeshInstance3D" parent="NativeLamp" unique_id=1565207181]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.5, 0)
+material_override = ExtResource("9_lyoud")
+mesh = ExtResource("10_fdej5")

@@ -1,10 +1,13 @@
-[gd_resource type="Resource" script_class="AuthorAsset" load_steps=3 format=3]
-[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="1"]
-[ext_resource type="PackedScene" path="res://assets/props/bench.tscn" id="2"]
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://recovered/bench-model-20261012/props/bench.tscn" id="1_txhpi"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_x8xg6"]
+
 [resource]
-script = ExtResource("1")
+script = ExtResource("2_x8xg6")
 Id = "bench"
 Title = "Wooden bench"
 Category = "Street furniture"
-Scene = ExtResource("2")
-Footprint = Vector3(2, 1.1, 0.8)
+Scene = ExtResource("1_txhpi")
+Footprint = Vector3(1.5, 0.4789416, 0.36220473)
+FootprintOffset = Vector3(0, -0.003912927, 0.22110236)

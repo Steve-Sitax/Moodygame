@@ -1,0 +1,15 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_tmhyb"]
+[ext_resource type="Resource" path="res://recovered/bench-model-20261012/props/bench.tres" id="2_nrqc7"]
+
+[node name="Rijnkaai" type="Node3D" unique_id=1339518807]
+
+[node name="Scenery" type="Node3D" parent="." unique_id=817427985]
+
+[node name="Objects" type="Node3D" parent="." unique_id=317692315]
+
+[node name="object_bench" type="Node3D" parent="Objects" unique_id=161989878]
+script = ExtResource("1_tmhyb")
+ObjectId = "bench"
+Asset = ExtResource("2_nrqc7")

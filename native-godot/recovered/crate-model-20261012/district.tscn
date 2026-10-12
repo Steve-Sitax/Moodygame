@@ -1,0 +1,15 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_1me57"]
+[ext_resource type="Resource" path="res://recovered/crate-model-20261012/props/crate.tres" id="2_khqlb"]
+
+[node name="Rijnkaai" type="Node3D" unique_id=1467929553]
+
+[node name="Scenery" type="Node3D" parent="." unique_id=326320742]
+
+[node name="Objects" type="Node3D" parent="." unique_id=393947808]
+
+[node name="object_crate" type="Node3D" parent="Objects" unique_id=499234150]
+script = ExtResource("1_1me57")
+ObjectId = "crate"
+Asset = ExtResource("2_khqlb")

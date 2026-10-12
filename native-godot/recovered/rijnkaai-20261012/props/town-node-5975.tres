@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://recovered/rijnkaai-20261012/props/town-node-5975.tscn" id="1_c2kjm"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_elurj"]
+
+[resource]
+script = ExtResource("2_elurj")
+Id = "town-node-5975"
+Title = "Recovered gas lamp · 5248"
+Category = "Recovered quay"
+Scene = ExtResource("1_c2kjm")
+Footprint = Vector3(0.8380736, 4.56, 0.56001467)
+FootprintOffset = Vector3(3.6805868e-05, 0, 7.3313713e-06)

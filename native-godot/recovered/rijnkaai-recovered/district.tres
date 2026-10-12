@@ -7,7 +7,7 @@
 [resource]
 script = ExtResource("3_vuals")
 Id = "rijnkaai-recovered"
-Title = "Rijnkaai · recovered town"
+Title = "Rijnkaai · updated town"
 Scene = ExtResource("2_gw8b1")
 Catalog = ExtResource("1_h7rgw")
 Bounds = Rect2(-12, -6, 72, 68)

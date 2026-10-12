@@ -1,0 +1,21 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://recovered/quay-models-20261012/resources/r0012.res" id="1_5kndc"]
+[ext_resource type="Shape3D" path="res://recovered/quay-models-20261012/resources/r0013.res" id="2_pm7s4"]
+
+[node name="source_32" type="Node3D" unique_id=580634932]
+metadata/source_node_index = 32
+metadata/source_name = "hawser_coil"
+
+[node name="recover_32" type="MeshInstance3D" parent="." unique_id=982462692]
+mesh = ExtResource("1_5kndc")
+metadata/source_node_index = 32
+metadata/source_name = "hawser_coil"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="recover_32" unique_id=2029167095]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="recover_32/Solid" unique_id=1206890450]
+shape = ExtResource("2_pm7s4")

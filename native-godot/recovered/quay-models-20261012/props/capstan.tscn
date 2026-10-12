@@ -1,0 +1,21 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://recovered/quay-models-20261012/resources/r0008.res" id="1_uqb3v"]
+[ext_resource type="Shape3D" path="res://recovered/quay-models-20261012/resources/r0009.res" id="2_qp1gj"]
+
+[node name="source_18" type="Node3D" unique_id=1283828132]
+metadata/source_node_index = 18
+metadata/source_name = "capstan"
+
+[node name="recover_18" type="MeshInstance3D" parent="." unique_id=565417182]
+mesh = ExtResource("1_uqb3v")
+metadata/source_node_index = 18
+metadata/source_name = "capstan"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="recover_18" unique_id=1461593661]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="recover_18/Solid" unique_id=904785818]
+shape = ExtResource("2_qp1gj")

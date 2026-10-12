@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "district": "bench-model-20261012",
+  "source": {
+    "path": "D:\\Code\\MoodyGame-godot\\godot\\baked\\models\\clutter.glb",
+    "bytes": 418672,
+    "modifiedUtc": "2026-10-12T07:02:51.3032435Z",
+    "sha256": "925dc19dee1575df4a80233f34959b833c2ef4d0abbc53c0af1899d08892fa55",
+    "factsMade": null
+  },
+  "plan": {
+    "id": "bench-model-20261012",
+    "title": "Updated bench",
+    "modelPack": true,
+    "bounds": [
+      -100,
+      -100,
+      200,
+      200
+    ],
+    "walkSpawn": [
+      0,
+      0,
+      0
+    ],
+    "flySpawn": [
+      0,
+      2,
+      4
+    ],
+    "flyYaw": 0,
+    "flyPitch": -0.35,
+    "groups": [],
+    "props": [
+      "bench"
+    ],
+    "roots": [],
+    "modelAssets": [
+      {
+        "node": "bench",
+        "id": "bench",
+        "title": "Wooden bench",
+        "category": "Street furniture"
+      }
+    ]
+  },
+  "selected": [
+    {
+      "index": 4,
+      "name": "bench",
+      "kind": "prop",
+      "id": "bench",
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    }
+  ],
+  "refresh": null,
+  "materials": [
+    {
+      "index": 0,
+      "extras": null
+    }
+  ],
+  "instances": [],
+  "collisions": 1,
+  "copies": 0,
+  "resources": 4,
+  "checks": [
+    {
+      "check": "source selection contains geometry",
+      "pass": true
+    },
+    {
+      "check": "native collision was generated from recovered meshes",
+      "pass": true
+    },
+    {
+      "check": "native district reload preserves every authored prop",
+      "pass": true
+    },
+    {
+      "check": "scenery meshes reference saved native resources",
+      "pass": true
+    },
+    {
+      "check": "saved scenes have no browser or source bake dependency",
+      "pass": true
+    },
+    {
+      "check": "source GLB was not modified during recovery",
+      "pass": true
+    }
+  ],
+  "notes": [],
+  "remaining": [
+    "Browser-specific PSX, wetness, relief, water and decal effects require native rendering work; PSX-only auxiliary texture references remain metadata in the report, not imported native maps.",
+    "Merged source meshes remain scenery chunks; individual object boundaries cannot be recovered from missing data.",
+    "Scenery intersecting this boundary retains its complete geometry, including parts outside it.",
+    "Rooms, openings, dynamic boats, bridges, actors, navigation and game services are outside this static recovery plan."
+  ]
+}

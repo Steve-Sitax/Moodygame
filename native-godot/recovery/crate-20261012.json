@@ -1,0 +1,6 @@
+{
+  "id": "crate-model-20261012", "title": "Updated crate", "modelPack": true,
+  "bounds": [-100, -100, 200, 200], "walkSpawn": [0, 0, 0], "flySpawn": [0, 2, 4], "flyYaw": 0, "flyPitch": -0.35,
+  "groups": [], "props": ["crate"], "roots": [],
+  "modelAssets": [{"node": "crate", "id": "crate", "title": "Packing crate", "category": "Quay goods"}]
+}

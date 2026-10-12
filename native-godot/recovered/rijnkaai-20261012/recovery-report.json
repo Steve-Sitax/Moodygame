@@ -1,0 +1,3227 @@
+{
+  "version": 1,
+  "district": "rijnkaai-20261012",
+  "source": {
+    "path": "D:\\Code\\MoodyGame-godot\\godot\\baked\\next\\town.glb",
+    "bytes": 977933624,
+    "modifiedUtc": "2026-10-12T07:12:38.1487839Z",
+    "sha256": "ac8534149415142120f325986c7abd3818c38005206d45354f1ebb2619f3a7d9",
+    "factsMade": "2026-10-12T07:12:37.100Z"
+  },
+  "plan": {
+    "id": "rijnkaai-20261012",
+    "title": "Rijnkaai \u00B7 updated town",
+    "bounds": [
+      -12,
+      -6,
+      72,
+      68
+    ],
+    "walkSpawn": [
+      20,
+      0.02,
+      26
+    ],
+    "flySpawn": [
+      20,
+      6,
+      26
+    ],
+    "flyYaw": 3.14159265,
+    "flyPitch": -0.35,
+    "groups": [
+      "city",
+      "quayfurniture",
+      "quaygoods"
+    ],
+    "props": [
+      "bollard",
+      "gas_lamp"
+    ],
+    "roots": [
+      "quay_steps",
+      "quay_iron",
+      "quay_coping",
+      "pier_deck",
+      "pier_timber",
+      "pier_barnacles"
+    ],
+    "refreshFrom": "res://recovered/rijnkaai-recovered/recovery-report.json",
+    "catalogs": [
+      "res://recovered/crate-model-20261012/catalog.tres",
+      "res://recovered/bench-model-20261012/catalog.tres",
+      "res://recovered/quay-models-20261012/catalog.tres"
+    ]
+  },
+  "selected": [
+    {
+      "index": 5,
+      "name": "ground_earth",
+      "kind": "ground",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 6,
+      "name": "ground_flags",
+      "kind": "ground",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 7,
+      "name": "ground_cobble",
+      "kind": "ground",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 8,
+      "name": "ground_grass",
+      "kind": "ground",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 9,
+      "name": "ground_quay",
+      "kind": "ground",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 10,
+      "name": "ground_seams",
+      "kind": "ground",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 11,
+      "name": "quay_walls",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 12,
+      "name": "quay_coping",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 62,
+      "name": "city_0_0_1",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 63,
+      "name": "city_0_0_2",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 64,
+      "name": "city_0_0_3",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 66,
+      "name": "city_0_0_5",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 175,
+      "name": "city_-1_0_1",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 176,
+      "name": "city_-1_0_2",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 177,
+      "name": "city_-1_0_3",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 179,
+      "name": "city_-1_0_5",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 180,
+      "name": "city_-1_0_d_1",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 181,
+      "name": "city_-1_0_d_2",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 182,
+      "name": "city_-1_0_d_3",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 183,
+      "name": "city_-1_0_d_4",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 184,
+      "name": "city_-1_0_d_5",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 1538,
+      "name": "pier_deck",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 1539,
+      "name": "pier_timber",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 1541,
+      "name": "pier_barnacles",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 1542,
+      "name": "quay_steps",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 1543,
+      "name": "quay_iron",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 5193,
+      "name": "gas_lamp",
+      "kind": "prop",
+      "id": "town-node-5920",
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        -12,
+        0,
+        43.4,
+        1
+      ]
+    },
+    {
+      "index": 5198,
+      "name": "gas_lamp",
+      "kind": "prop",
+      "id": "town-node-5925",
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        36,
+        0,
+        43.4,
+        1
+      ]
+    },
+    {
+      "index": 5233,
+      "name": "gas_lamp",
+      "kind": "prop",
+      "id": "town-node-5960",
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        -10,
+        0,
+        20.4,
+        1
+      ]
+    },
+    {
+      "index": 5238,
+      "name": "gas_lamp",
+      "kind": "prop",
+      "id": "town-node-5965",
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        4,
+        0,
+        2.2,
+        1
+      ]
+    },
+    {
+      "index": 5243,
+      "name": "gas_lamp",
+      "kind": "prop",
+      "id": "town-node-5970",
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        24,
+        0,
+        2.2,
+        1
+      ]
+    },
+    {
+      "index": 5248,
+      "name": "gas_lamp",
+      "kind": "prop",
+      "id": "town-node-5975",
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        44,
+        0,
+        19.8,
+        1
+      ]
+    },
+    {
+      "index": 6347,
+      "name": "quay_iron",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 7972,
+      "name": "quayfurniture_-1,0,0",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 7973,
+      "name": "quayfurniture_-1,0,1",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 7974,
+      "name": "quayfurniture_0,0,0",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 7975,
+      "name": "quayfurniture_0,0,1",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 7992,
+      "name": "quayfurniture_0,-1,0",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 7993,
+      "name": "quayfurniture_0,-1,1",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 8008,
+      "name": "quayfurniture_0,0,2",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 8017,
+      "name": "ship_lines",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 8025,
+      "name": "unnamed",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 8331,
+      "name": "quaygoods_sacks",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 8348,
+      "name": "quaygoods",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 8349,
+      "name": "quaygoods_decals",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 8350,
+      "name": "quaygoods_crates",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 8354,
+      "name": "quaygoods",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 8355,
+      "name": "quaygoods_decals",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 8356,
+      "name": "quaygoods_crates",
+      "kind": "scenery",
+      "id": null,
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": -1,
+      "name": "bollard",
+      "kind": "prop",
+      "id": "town-node-1530",
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        8.35,
+        0,
+        -5.6,
+        1
+      ],
+      "geometry": "quayfurniture.glb/bollard_cannon"
+    },
+    {
+      "index": -1,
+      "name": "bollard",
+      "kind": "prop",
+      "id": "town-node-1576",
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        -9,
+        0,
+        0.9,
+        1
+      ],
+      "geometry": "quayfurniture.glb/bollard_cannon"
+    },
+    {
+      "index": -1,
+      "name": "bollard",
+      "kind": "prop",
+      "id": "town-node-1579",
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0.9,
+        1
+      ],
+      "geometry": "quayfurniture.glb/bollard_cannon"
+    },
+    {
+      "index": -1,
+      "name": "bollard",
+      "kind": "prop",
+      "id": "town-node-1582",
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        18,
+        0,
+        0.9,
+        1
+      ],
+      "geometry": "quayfurniture.glb/bollard_cannon"
+    },
+    {
+      "index": -1,
+      "name": "bollard",
+      "kind": "prop",
+      "id": "town-node-1585",
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        27,
+        0,
+        0.9,
+        1
+      ],
+      "geometry": "quayfurniture.glb/bollard_cannon"
+    },
+    {
+      "index": -1,
+      "name": "bollard",
+      "kind": "prop",
+      "id": "town-node-1588",
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        36,
+        0,
+        0.9,
+        1
+      ],
+      "geometry": "quayfurniture.glb/bollard_cannon"
+    },
+    {
+      "index": -1,
+      "name": "bollard",
+      "kind": "prop",
+      "id": "town-node-1591",
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        45,
+        0,
+        0.9,
+        1
+      ],
+      "geometry": "quayfurniture.glb/bollard_cannon"
+    },
+    {
+      "index": -1,
+      "name": "bollard",
+      "kind": "prop",
+      "id": "town-node-1594",
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        54,
+        0,
+        0.9,
+        1
+      ],
+      "geometry": "quayfurniture.glb/bollard_cannon"
+    }
+  ],
+  "refresh": {
+    "previousSource": {
+      "path": "D:\\Code\\MoodyGame-godot\\godot\\baked\\next\\town.glb",
+      "bytes": 849139600,
+      "modifiedUtc": "2026-10-11T20:55:21.3409867Z",
+      "sha256": "74203df5f78bf18ff1d08910950929be6cc8a4e1f7b7b9dbb2e28c705eb2b1db",
+      "factsMade": "2026-10-11T20:55:20.263Z"
+    },
+    "previousDistrict": "rijnkaai-recovered",
+    "preservedIds": [
+      "town-node-5920",
+      "town-node-5925",
+      "town-node-5960",
+      "town-node-5965",
+      "town-node-5970",
+      "town-node-5975",
+      "town-node-1530",
+      "town-node-1576",
+      "town-node-1579",
+      "town-node-1582",
+      "town-node-1585",
+      "town-node-1588",
+      "town-node-1591",
+      "town-node-1594"
+    ],
+    "restoredBollards": 8,
+    "trimmedMeshes": 6,
+    "removedTrianglesPerAnchor": [
+      1106,
+      1106,
+      1106,
+      1106,
+      1106,
+      1106,
+      1106,
+      1106
+    ],
+    "importedCatalogs": [
+      "res://recovered/crate-model-20261012/catalog.tres",
+      "res://recovered/bench-model-20261012/catalog.tres",
+      "res://recovered/quay-models-20261012/catalog.tres"
+    ],
+    "note": "Merged copies removed before adding editable bollards; saved player layouts are not rewritten."
+  },
+  "materials": [
+    {
+      "index": 0,
+      "extras": {
+        "psx": {
+          "fogReach": 1,
+          "water": false,
+          "waterCalm": false,
+          "bake": {
+            "noSnap": true,
+            "affine": 0,
+            "wet": true,
+            "puddles": 1.3,
+            "vary": 1,
+            "detile": true,
+            "relief": {
+              "height": {
+                "tex": "72063191-71c2-46fc-a504-44a912adf56e"
+              },
+              "depth": 0.045,
+              "tile": 4,
+              "bump": 3.2
+            }
+          }
+        },
+        "three": {
+          "type": "MeshLambertMaterial",
+          "name": "",
+          "visible": true,
+          "depthWrite": true,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": false,
+          "alphaTest": 0,
+          "side": 0,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": false,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 1,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 1,
+      "extras": {
+        "psx": {
+          "fogReach": 1,
+          "water": false,
+          "waterCalm": false,
+          "bake": {
+            "noSnap": true,
+            "affine": 0,
+            "wet": true,
+            "puddles": 0.75,
+            "vary": 0.8,
+            "relief": {
+              "height": {
+                "tex": "af2d9240-2e2d-4d8b-a2df-3493749e0e7f"
+              },
+              "id": {
+                "tex": "3c33ef53-80dd-4477-8b92-e3746699303e"
+              },
+              "holes": 0,
+              "depth": 0.025,
+              "tile": 4,
+              "bump": 1.6,
+              "dome": 0
+            },
+            "spec": [
+              0.010329823026364548,
+              0.010329823026364548,
+              0.010329823026364548,
+              12
+            ]
+          }
+        },
+        "three": {
+          "type": "MeshPhongMaterial",
+          "name": "",
+          "visible": true,
+          "depthWrite": true,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": false,
+          "alphaTest": 0,
+          "side": 0,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": false,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 1,
+          "specular": 1710618,
+          "shininess": 12,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 2,
+      "extras": {
+        "psx": {
+          "fogReach": 1,
+          "water": false,
+          "waterCalm": false,
+          "bake": {
+            "noSnap": true,
+            "affine": 0,
+            "wet": true,
+            "puddles": 1,
+            "vary": 1,
+            "relief": {
+              "height": {
+                "tex": "3f622214-d774-4125-93a3-22fe00797484"
+              },
+              "id": {
+                "tex": "2e205abd-af4b-48a8-8bcb-5a0308270383"
+              },
+              "holes": 1,
+              "depth": 0.025,
+              "tile": 3,
+              "bump": 2.6
+            },
+            "spec": [
+              0.023153366173251363,
+              0.023153366173251363,
+              0.023153366173251363,
+              18
+            ]
+          }
+        },
+        "three": {
+          "type": "MeshPhongMaterial",
+          "name": "",
+          "visible": true,
+          "depthWrite": true,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": false,
+          "alphaTest": 0,
+          "side": 0,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": false,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 1,
+          "specular": 2763306,
+          "shininess": 18,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 3,
+      "extras": {
+        "psx": {
+          "fogReach": 1,
+          "water": false,
+          "waterCalm": false,
+          "bake": {
+            "noSnap": true,
+            "affine": 0,
+            "wet": true,
+            "puddles": 0.4,
+            "detile": true,
+            "relief": {
+              "height": {
+                "tex": "02e452a7-6e47-4326-8ce7-537e96da63ad"
+              },
+              "depth": 0.03,
+              "tile": 4,
+              "bump": 2.4
+            }
+          }
+        },
+        "three": {
+          "type": "MeshLambertMaterial",
+          "name": "",
+          "visible": true,
+          "depthWrite": true,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": false,
+          "alphaTest": 0,
+          "side": 0,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": false,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 1,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 4,
+      "extras": {
+        "psx": {
+          "fogReach": 1,
+          "water": false,
+          "waterCalm": false,
+          "bake": {
+            "noSnap": true,
+            "affine": 0,
+            "wet": true,
+            "puddles": 1.15,
+            "vary": 1,
+            "relief": {
+              "height": {
+                "tex": "0bad426f-ca0f-4cfe-a06e-1a096b38cc0e"
+              },
+              "id": {
+                "tex": "e481b031-40b3-4257-9de7-2e14111e1c5c"
+              },
+              "holes": 0.07,
+              "depth": 0.06,
+              "tile": 2.5,
+              "bump": 3.2
+            },
+            "spec": [
+              0.036889450395083165,
+              0.036889450395083165,
+              0.036889450395083165,
+              22
+            ]
+          }
+        },
+        "three": {
+          "type": "MeshPhongMaterial",
+          "name": "",
+          "visible": true,
+          "depthWrite": true,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": false,
+          "alphaTest": 0,
+          "side": 0,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": false,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 1,
+          "specular": 3552822,
+          "shininess": 22,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 5,
+      "extras": {
+        "psx": {
+          "fogReach": 1,
+          "water": false,
+          "waterCalm": false,
+          "bake": {
+            "noSnap": true,
+            "affine": 0,
+            "wet": true,
+            "bump": {
+              "tex": "742d7402-104c-4baa-8a02-c661e6a495ae",
+              "scale": 6
+            }
+          }
+        },
+        "three": {
+          "type": "MeshLambertMaterial",
+          "name": "",
+          "visible": true,
+          "depthWrite": true,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": false,
+          "alphaTest": 0,
+          "side": 0,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": false,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 1,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 6,
+      "extras": {
+        "psx": {
+          "fogReach": 1,
+          "water": false,
+          "waterCalm": false,
+          "bake": {
+            "noSnap": true,
+            "affine": 0,
+            "tideWet": 0.3,
+            "bump": {
+              "tex": "255e047e-5f56-4b21-a5c1-914ef01f285d",
+              "scale": 3
+            }
+          }
+        },
+        "three": {
+          "type": "MeshLambertMaterial",
+          "name": "quay_wall",
+          "visible": true,
+          "depthWrite": true,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": false,
+          "alphaTest": 0,
+          "side": 2,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": true,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 8027261,
+          "emissiveIntensity": 1,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 7,
+      "extras": {
+        "psx": {
+          "fogReach": 1,
+          "water": false,
+          "waterCalm": false,
+          "bake": {
+            "noSnap": true,
+            "affine": 0,
+            "wet": true,
+            "bump": {
+              "tex": "0a1c4217-c4d5-4db5-80e7-0baaf7e555d5",
+              "scale": 2
+            }
+          }
+        },
+        "three": {
+          "type": "MeshLambertMaterial",
+          "name": "quay_coping",
+          "visible": true,
+          "depthWrite": true,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": false,
+          "alphaTest": 0,
+          "side": 2,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": false,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 1,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 23,
+      "extras": {
+        "psx": {
+          "fogReach": 1,
+          "water": false,
+          "waterCalm": false,
+          "bake": {
+            "atlas": 8,
+            "affine": 0,
+            "foot": {
+              "amount": 1.25,
+              "vertexWear": true
+            },
+            "grime": "facade"
+          }
+        },
+        "three": {
+          "type": "MeshLambertMaterial",
+          "name": "",
+          "visible": true,
+          "depthWrite": true,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": false,
+          "alphaTest": 0,
+          "side": 2,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": true,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 1,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 24,
+      "extras": {
+        "psx": {
+          "fogReach": 1,
+          "water": false,
+          "waterCalm": false,
+          "bake": {
+            "atlas": 2,
+            "affine": 0,
+            "bump": {
+              "tex": "6d3a59ff-2e8a-4ab2-b28e-9888517a61ee",
+              "scale": 1.2
+            }
+          }
+        },
+        "bumpKind": "auto roof",
+        "bumpBefore": 0,
+        "three": {
+          "type": "MeshLambertMaterial",
+          "name": "city_roof_atlas",
+          "visible": true,
+          "depthWrite": true,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": false,
+          "alphaTest": 0,
+          "side": 2,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": true,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 1,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 25,
+      "extras": {
+        "psx": {
+          "fogReach": 1,
+          "water": false,
+          "waterCalm": false,
+          "bake": {
+            "affine": 0.2,
+            "slabs": {
+              "map": {
+                "tex": "aa1f5a14-1614-4e30-b58a-b1a6efaad07a"
+              },
+              "height": {
+                "tex": "af2d9240-2e2d-4d8b-a2df-3493749e0e7f"
+              },
+              "tile": 2.6,
+              "yMax": 0.8,
+              "dome": 0
+            },
+            "foot": {
+              "amount": 1,
+              "vertexWear": true
+            },
+            "grime": "stone"
+          }
+        },
+        "three": {
+          "type": "MeshLambertMaterial",
+          "name": "",
+          "visible": true,
+          "depthWrite": true,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": false,
+          "alphaTest": 0,
+          "side": 2,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": true,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 1,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 26,
+      "extras": {
+        "psx": {
+          "fogReach": 1,
+          "water": false,
+          "waterCalm": false,
+          "bake": {
+            "affine": 0.2,
+            "bump": {
+              "tex": "c9b9bd60-4430-4fb8-a5dc-3b838c300f9e",
+              "scale": 1.1
+            }
+          }
+        },
+        "bumpKind": "auto wood",
+        "bumpBefore": 0,
+        "three": {
+          "type": "MeshLambertMaterial",
+          "name": "city_wood",
+          "visible": true,
+          "depthWrite": true,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": false,
+          "alphaTest": 0,
+          "side": 2,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": true,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 1,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 27,
+      "extras": {
+        "psx": {
+          "bake": {
+            "grimeDecal": {
+              "cells": 4,
+              "map": {
+                "tex": "a9b141f7-a620-4318-a588-120f87b04289"
+              }
+            }
+          }
+        },
+        "three": {
+          "type": "MeshBasicMaterial",
+          "name": "grime_decal",
+          "visible": true,
+          "depthWrite": false,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": true,
+          "alphaTest": 0,
+          "side": 2,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": true,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 0,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 28,
+      "extras": {
+        "psx": {
+          "fogReach": 1,
+          "water": false,
+          "waterCalm": false,
+          "bake": {
+            "affine": 0,
+            "bump": {
+              "tex": "1935bbe3-e475-4515-8844-617c9e8ae278",
+              "scale": 0.4
+            }
+          }
+        },
+        "bumpKind": "auto plant",
+        "bumpBefore": 0,
+        "three": {
+          "type": "MeshLambertMaterial",
+          "name": "city_leaves",
+          "visible": true,
+          "depthWrite": true,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": false,
+          "alphaTest": 0,
+          "side": 2,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": true,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 1,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 40,
+      "extras": {
+        "psx": {
+          "fogReach": 1,
+          "water": false,
+          "waterCalm": false,
+          "bake": {
+            "bump": {
+              "tex": "1683822f-1650-44df-86e2-a41ab1133b2f",
+              "scale": 1
+            }
+          }
+        },
+        "bumpKind": "auto fibre",
+        "bumpBefore": 0,
+        "three": {
+          "type": "MeshLambertMaterial",
+          "name": "sack",
+          "visible": true,
+          "depthWrite": true,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": false,
+          "alphaTest": 0,
+          "side": 0,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": false,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 1,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 134,
+      "extras": {
+        "psx": {
+          "fogReach": 1,
+          "water": false,
+          "waterCalm": false,
+          "bake": {
+            "affine": 0.4,
+            "bump": {
+              "tex": "027918f9-b57a-47c3-ba02-9f4450f6049d",
+              "scale": 0.6
+            }
+          }
+        },
+        "bumpBefore": 0.006,
+        "three": {
+          "type": "MeshLambertMaterial",
+          "name": "",
+          "visible": true,
+          "depthWrite": true,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": false,
+          "alphaTest": 0,
+          "side": 0,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": true,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 1,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 135,
+      "extras": {
+        "psx": {
+          "fogReach": 1,
+          "water": false,
+          "waterCalm": false,
+          "bake": {
+            "affine": 0.3,
+            "bump": {
+              "tex": "d1cc6371-1cbe-4bb1-9c35-c857ead56e98",
+              "scale": 1.1
+            }
+          }
+        },
+        "bumpKind": "auto wood",
+        "bumpBefore": 0,
+        "three": {
+          "type": "MeshLambertMaterial",
+          "name": "",
+          "visible": true,
+          "depthWrite": true,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": false,
+          "alphaTest": 0,
+          "side": 0,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": true,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 1,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 136,
+      "extras": {
+        "psx": {
+          "fogReach": 1,
+          "water": false,
+          "waterCalm": false,
+          "bake": {}
+        },
+        "three": {
+          "type": "MeshLambertMaterial",
+          "name": "",
+          "visible": true,
+          "depthWrite": true,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": false,
+          "alphaTest": 0,
+          "side": 0,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": true,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 1,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 137,
+      "extras": {
+        "psx": {
+          "fogReach": 1,
+          "water": false,
+          "waterCalm": false,
+          "bake": {
+            "affine": 0.3,
+            "bump": {
+              "tex": "ca144462-9219-4091-9890-97ada965bd05",
+              "scale": 0.6
+            }
+          }
+        },
+        "bumpKind": "auto iron",
+        "bumpBefore": 0,
+        "three": {
+          "type": "MeshLambertMaterial",
+          "name": "",
+          "visible": true,
+          "depthWrite": true,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": false,
+          "alphaTest": 0,
+          "side": 0,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": true,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 1,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 141,
+      "extras": {
+        "psx": {
+          "fogReach": 1,
+          "water": false,
+          "waterCalm": false,
+          "bake": {
+            "bump": {
+              "tex": "76ab0d25-8dc4-4d97-bf6e-2dad43984759",
+              "scale": 1.1
+            }
+          }
+        },
+        "bumpKind": "auto wood",
+        "bumpBefore": 0,
+        "three": {
+          "type": "MeshLambertMaterial",
+          "name": "crate wood",
+          "visible": true,
+          "depthWrite": true,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": false,
+          "alphaTest": 0,
+          "side": 0,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": true,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 1,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 149,
+      "extras": {
+        "psx": {
+          "fogReach": 1,
+          "water": false,
+          "waterCalm": false,
+          "bake": {
+            "affine": 0.6,
+            "bump": {
+              "tex": "a683808c-b4de-4b27-a818-30f55c411d28",
+              "scale": 0.6
+            }
+          }
+        },
+        "bumpKind": "auto iron",
+        "bumpBefore": 0,
+        "three": {
+          "type": "MeshLambertMaterial",
+          "name": "iron",
+          "visible": true,
+          "depthWrite": true,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": false,
+          "alphaTest": 0,
+          "side": 0,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": true,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 1,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 454,
+      "extras": {
+        "psx": {
+          "fogReach": 1,
+          "water": false,
+          "waterCalm": false,
+          "bake": {
+            "affine": 0.6,
+            "bump": {
+              "tex": "5e0d54a1-230e-4b41-9b55-abf1680e7cc2",
+              "scale": 0.18
+            }
+          }
+        },
+        "bumpKind": "auto polished",
+        "bumpBefore": 0,
+        "three": {
+          "type": "MeshLambertMaterial",
+          "name": "lamp_brass",
+          "visible": true,
+          "depthWrite": true,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": false,
+          "alphaTest": 0,
+          "side": 0,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": true,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 1,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 582,
+      "extras": {
+        "fogReach": 1.6,
+        "three": {
+          "type": "MeshBasicMaterial",
+          "name": "glass",
+          "visible": true,
+          "depthWrite": false,
+          "depthTest": true,
+          "opacity": 0.3,
+          "transparent": true,
+          "alphaTest": 0,
+          "side": 0,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": false,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 0,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 583,
+      "extras": {
+        "fogReach": 1.6,
+        "three": {
+          "type": "MeshBasicMaterial",
+          "name": "flame",
+          "visible": true,
+          "depthWrite": true,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": false,
+          "alphaTest": 0,
+          "side": 0,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": false,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 0,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 584,
+      "extras": {
+        "fogReach": 1.6,
+        "three": {
+          "type": "MeshBasicMaterial",
+          "name": "glass",
+          "visible": true,
+          "depthWrite": false,
+          "depthTest": true,
+          "opacity": 0.3,
+          "transparent": true,
+          "alphaTest": 0,
+          "side": 0,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": false,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 0,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 585,
+      "extras": {
+        "fogReach": 1.6,
+        "three": {
+          "type": "MeshBasicMaterial",
+          "name": "flame",
+          "visible": true,
+          "depthWrite": true,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": false,
+          "alphaTest": 0,
+          "side": 0,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": false,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 0,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 598,
+      "extras": {
+        "fogReach": 1.6,
+        "three": {
+          "type": "MeshBasicMaterial",
+          "name": "glass",
+          "visible": true,
+          "depthWrite": false,
+          "depthTest": true,
+          "opacity": 0.3,
+          "transparent": true,
+          "alphaTest": 0,
+          "side": 0,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": false,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 0,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 599,
+      "extras": {
+        "fogReach": 1.6,
+        "three": {
+          "type": "MeshBasicMaterial",
+          "name": "flame",
+          "visible": true,
+          "depthWrite": true,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": false,
+          "alphaTest": 0,
+          "side": 0,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": false,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 0,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 600,
+      "extras": {
+        "fogReach": 1.6,
+        "three": {
+          "type": "MeshBasicMaterial",
+          "name": "glass",
+          "visible": true,
+          "depthWrite": false,
+          "depthTest": true,
+          "opacity": 0.3,
+          "transparent": true,
+          "alphaTest": 0,
+          "side": 0,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": false,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 0,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 601,
+      "extras": {
+        "fogReach": 1.6,
+        "three": {
+          "type": "MeshBasicMaterial",
+          "name": "flame",
+          "visible": true,
+          "depthWrite": true,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": false,
+          "alphaTest": 0,
+          "side": 0,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": false,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 0,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 602,
+      "extras": {
+        "fogReach": 1.6,
+        "three": {
+          "type": "MeshBasicMaterial",
+          "name": "glass",
+          "visible": true,
+          "depthWrite": false,
+          "depthTest": true,
+          "opacity": 0.3,
+          "transparent": true,
+          "alphaTest": 0,
+          "side": 0,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": false,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 0,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 603,
+      "extras": {
+        "fogReach": 1.6,
+        "three": {
+          "type": "MeshBasicMaterial",
+          "name": "flame",
+          "visible": true,
+          "depthWrite": true,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": false,
+          "alphaTest": 0,
+          "side": 0,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": false,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 0,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 604,
+      "extras": {
+        "fogReach": 1.6,
+        "three": {
+          "type": "MeshBasicMaterial",
+          "name": "glass",
+          "visible": true,
+          "depthWrite": false,
+          "depthTest": true,
+          "opacity": 0.3,
+          "transparent": true,
+          "alphaTest": 0,
+          "side": 0,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": false,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 0,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 605,
+      "extras": {
+        "fogReach": 1.6,
+        "three": {
+          "type": "MeshBasicMaterial",
+          "name": "flame",
+          "visible": true,
+          "depthWrite": true,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": false,
+          "alphaTest": 0,
+          "side": 0,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": false,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 0,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 804,
+      "extras": {
+        "psx": {
+          "fogReach": 1,
+          "water": false,
+          "waterCalm": false,
+          "bake": {
+            "affine": 0,
+            "bump": {
+              "tex": "8f5b45fb-0510-4944-bc51-7603da9c61b9",
+              "scale": 1
+            }
+          }
+        },
+        "bumpKind": "auto mixed",
+        "bumpBefore": 0,
+        "three": {
+          "type": "MeshLambertMaterial",
+          "name": "quay_solid",
+          "visible": true,
+          "depthWrite": true,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": false,
+          "alphaTest": 0,
+          "side": 2,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": true,
+          "offset": [
+            -1,
+            -2
+          ],
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 1,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 805,
+      "extras": {
+        "psx": {
+          "fogReach": 1,
+          "water": false,
+          "waterCalm": false,
+          "bake": {
+            "affine": 0,
+            "noSnap": true
+          }
+        },
+        "bumpKind": "auto none",
+        "three": {
+          "type": "MeshLambertMaterial",
+          "name": "quay_flatdecal",
+          "visible": true,
+          "depthWrite": false,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": true,
+          "alphaTest": 0,
+          "side": 2,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": true,
+          "offset": [
+            -2,
+            -4
+          ],
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 1,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 808,
+      "extras": {
+        "psx": {
+          "fogReach": 1,
+          "water": false,
+          "waterCalm": false,
+          "bake": {
+            "affine": 0
+          }
+        },
+        "bumpKind": "auto none",
+        "three": {
+          "type": "MeshLambertMaterial",
+          "name": "quay_snapdecal",
+          "visible": true,
+          "depthWrite": false,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": true,
+          "alphaTest": 0.3,
+          "side": 2,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": true,
+          "offset": [
+            -2,
+            -4
+          ],
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 1,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 809,
+      "extras": {
+        "three": {
+          "type": "MeshBasicMaterial",
+          "name": "",
+          "visible": true,
+          "depthWrite": false,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": false,
+          "alphaTest": 0,
+          "side": 0,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": false,
+          "offset": null,
+          "colorWrite": false,
+          "emissive": 0,
+          "emissiveIntensity": 0,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 825,
+      "extras": {
+        "psx": {
+          "fogReach": 1,
+          "water": false,
+          "waterCalm": false,
+          "bake": {
+            "affine": 0,
+            "bump": {
+              "tex": "f8eb129b-4860-4f3c-9f84-929c93ae4d44",
+              "scale": 0.4
+            }
+          }
+        },
+        "three": {
+          "type": "MeshLambertMaterial",
+          "name": "quaygoods_solid",
+          "visible": true,
+          "depthWrite": true,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": false,
+          "alphaTest": 0,
+          "side": 0,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": true,
+          "offset": null,
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 1,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    },
+    {
+      "index": 826,
+      "extras": {
+        "psx": {
+          "fogReach": 1,
+          "water": false,
+          "waterCalm": false,
+          "bake": {
+            "affine": 0,
+            "noSnap": true
+          }
+        },
+        "bumpKind": "auto none",
+        "three": {
+          "type": "MeshLambertMaterial",
+          "name": "quaygoods_decal",
+          "visible": true,
+          "depthWrite": false,
+          "depthTest": true,
+          "opacity": 1,
+          "transparent": true,
+          "alphaTest": 0,
+          "side": 0,
+          "blending": 1,
+          "fog": true,
+          "vertexColors": true,
+          "offset": [
+            -3,
+            -6
+          ],
+          "colorWrite": true,
+          "emissive": 0,
+          "emissiveIntensity": 1,
+          "specular": 0,
+          "shininess": 0,
+          "flat": false
+        }
+      }
+    }
+  ],
+  "instances": [],
+  "collisions": 56,
+  "copies": 0,
+  "resources": 195,
+  "checks": [
+    {
+      "check": "source selection contains geometry",
+      "pass": true
+    },
+    {
+      "check": "native collision was generated from recovered meshes",
+      "pass": true
+    },
+    {
+      "check": "native district reload preserves every authored prop",
+      "pass": true
+    },
+    {
+      "check": "scenery meshes reference saved native resources",
+      "pass": true
+    },
+    {
+      "check": "saved scenes have no browser or source bake dependency",
+      "pass": true
+    },
+    {
+      "check": "source GLB was not modified during recovery",
+      "pass": true
+    }
+  ],
+  "notes": [
+    "Hidden source root omitted from the static district: 13 standin_cathedral",
+    "Hidden source root omitted from the static district: 14 standin_stadhuis",
+    "Hidden source root omitted from the static district: 15 standin_vleeshuis",
+    "Hidden source root omitted from the static district: 16 standin_steen",
+    "Hidden source root omitted from the static district: 17 standin_hanzehuis",
+    "Hidden source root omitted from the static district: 18 standin_carolus",
+    "Hidden source root omitted from the static district: 19 standin_stpaul",
+    "Hidden source root omitted from the static district: 20 standin_stjacob",
+    "Hidden source root omitted from the static district: 21 landmark_carolus_1",
+    "Hidden source root omitted from the static district: 22 landmark_carolus_2",
+    "Hidden source root omitted from the static district: 23 landmark_carolus_3",
+    "Hidden source root omitted from the static district: 25 landmark_carolus_4",
+    "Hidden source root omitted from the static district: 26 landmark_hanzehuis_1",
+    "Hidden source root omitted from the static district: 27 landmark_hanzehuis_2",
+    "Hidden source root omitted from the static district: 28 landmark_hanzehuis_3",
+    "Hidden source root omitted from the static district: 29 landmark_hanzehuis_4",
+    "Hidden source root omitted from the static district: 30 landmark_hanzehuis_5",
+    "Hidden source root omitted from the static district: 31 landmark_hanzehuis_6",
+    "Hidden source root omitted from the static district: 32 landmark_stadhuis_1",
+    "Hidden source root omitted from the static district: 33 landmark_stadhuis_2",
+    "Hidden source root omitted from the static district: 34 landmark_stadhuis_3",
+    "Hidden source root omitted from the static district: 35 landmark_stadhuis_4",
+    "Hidden source root omitted from the static district: 37 landmark_stadhuis_5",
+    "Hidden source root omitted from the static district: 38 landmark_steen_1",
+    "Hidden source root omitted from the static district: 39 landmark_steen_2",
+    "Hidden source root omitted from the static district: 40 landmark_steen_3",
+    "Hidden source root omitted from the static district: 42 landmark_steen_4",
+    "Hidden source root omitted from the static district: 43 landmark_steen_5",
+    "Hidden source root omitted from the static district: 44 landmark_steen_6",
+    "Hidden source root omitted from the static district: 45 landmark_steen_7",
+    "Hidden source root omitted from the static district: 46 landmark_stjacob_1",
+    "Hidden source root omitted from the static district: 47 landmark_stjacob_2",
+    "Hidden source root omitted from the static district: 48 landmark_stjacob_3",
+    "Hidden source root omitted from the static district: 50 landmark_stjacob_4",
+    "Hidden source root omitted from the static district: 51 landmark_stpaul_1",
+    "Hidden source root omitted from the static district: 52 landmark_stpaul_2",
+    "Hidden source root omitted from the static district: 53 landmark_stpaul_3",
+    "Hidden source root omitted from the static district: 55 landmark_stpaul_4",
+    "Hidden source root omitted from the static district: 56 landmark_vleeshuis_1",
+    "Hidden source root omitted from the static district: 57 landmark_vleeshuis_2",
+    "Hidden source root omitted from the static district: 58 landmark_vleeshuis_3",
+    "Hidden source root omitted from the static district: 59 landmark_vleeshuis_4",
+    "Hidden source root omitted from the static district: 60 landmark_vleeshuis_5",
+    "Hidden source root omitted from the static district: 61 landmark_vleeshuis_6",
+    "Hidden source root omitted from the static district: 67 city_0_0_d_1",
+    "Hidden source root omitted from the static district: 68 city_0_0_d_2",
+    "Hidden source root omitted from the static district: 69 city_0_0_d_3",
+    "Hidden source root omitted from the static district: 70 city_0_0_d_4",
+    "Hidden source root omitted from the static district: 71 city_0_0_d_5",
+    "Hidden source root omitted from the static district: 77 city_0_1_d_1",
+    "Hidden source root omitted from the static district: 78 city_0_1_d_2",
+    "Hidden source root omitted from the static district: 79 city_0_1_d_3",
+    "Hidden source root omitted from the static district: 80 city_0_1_d_4",
+    "Hidden source root omitted from the static district: 81 city_0_1_d_5",
+    "Hidden source root omitted from the static district: 87 city_0_2_d_1",
+    "Hidden source root omitted from the static district: 88 city_0_2_d_2",
+    "Hidden source root omitted from the static district: 89 city_0_2_d_3",
+    "Hidden source root omitted from the static district: 90 city_0_2_d_4",
+    "Hidden source root omitted from the static district: 91 city_0_2_d_5",
+    "Hidden source root omitted from the static district: 97 city_0_3_d_1",
+    "Hidden source root omitted from the static district: 98 city_0_3_d_2",
+    "Hidden source root omitted from the static district: 99 city_0_3_d_3",
+    "Hidden source root omitted from the static district: 100 city_0_3_d_4",
+    "Hidden source root omitted from the static district: 101 city_0_3_d_5",
+    "Hidden source root omitted from the static district: 107 city_1_0_d_1",
+    "Hidden source root omitted from the static district: 108 city_1_0_d_2",
+    "Hidden source root omitted from the static district: 109 city_1_0_d_3",
+    "Hidden source root omitted from the static district: 110 city_1_0_d_4",
+    "Hidden source root omitted from the static district: 116 city_1_1_d_1",
+    "Hidden source root omitted from the static district: 117 city_1_1_d_2",
+    "Hidden source root omitted from the static district: 118 city_1_1_d_3",
+    "Hidden source root omitted from the static district: 119 city_1_1_d_4",
+    "Hidden source root omitted from the static district: 120 city_1_1_d_5",
+    "Hidden source root omitted from the static district: 126 city_1_2_d_1",
+    "Hidden source root omitted from the static district: 127 city_1_2_d_2",
+    "Hidden source root omitted from the static district: 128 city_1_2_d_3",
+    "Hidden source root omitted from the static district: 129 city_1_2_d_4",
+    "Hidden source root omitted from the static district: 130 city_1_2_d_5",
+    "Hidden source root omitted from the static district: 136 city_1_3_d_1",
+    "Hidden source root omitted from the static district: 137 city_1_3_d_2",
+    "Hidden source root omitted from the static district: 138 city_1_3_d_3",
+    "Hidden source root omitted from the static district: 139 city_1_3_d_4",
+    "Hidden source root omitted from the static district: 140 city_1_3_d_5",
+    "Hidden source root omitted from the static district: 145 city_2_0_d_1",
+    "Hidden source root omitted from the static district: 146 city_2_0_d_2",
+    "Hidden source root omitted from the static district: 147 city_2_0_d_3",
+    "Hidden source root omitted from the static district: 148 city_2_0_d_4",
+    "Hidden source root omitted from the static district: 149 city_2_0_d_5",
+    "Hidden source root omitted from the static district: 154 city_2_1_d_1",
+    "Hidden source root omitted from the static district: 155 city_2_1_d_2",
+    "Hidden source root omitted from the static district: 156 city_2_1_d_3",
+    "Hidden source root omitted from the static district: 157 city_2_1_d_4",
+    "Hidden source root omitted from the static district: 158 city_2_1_d_5",
+    "Hidden source root omitted from the static district: 163 city_2_2_d_1",
+    "Hidden source root omitted from the static district: 164 city_2_2_d_2",
+    "Hidden source root omitted from the static district: 165 city_2_2_d_3",
+    "Hidden source root omitted from the static district: 166 city_2_2_d_4",
+    "Hidden source root omitted from the static district: 167 city_2_2_d_5",
+    "Hidden source root omitted from the static district: 172 city_2_3_d_1",
+    "Hidden source root omitted from the static district: 173 city_2_3_d_2",
+    "Hidden source root omitted from the static district: 174 city_2_3_d_3",
+    "Hidden source root omitted from the static district: 189 city_-1_1_d_1",
+    "Hidden source root omitted from the static district: 190 city_-1_1_d_2",
+    "Hidden source root omitted from the static district: 191 city_-1_1_d_3",
+    "Hidden source root omitted from the static district: 192 city_-1_1_d_4",
+    "Hidden source root omitted from the static district: 193 city_-1_1_d_5",
+    "Hidden source root omitted from the static district: 199 city_-1_2_d_1",
+    "Hidden source root omitted from the static district: 200 city_-1_2_d_2",
+    "Hidden source root omitted from the static district: 201 city_-1_2_d_3",
+    "Hidden source root omitted from the static district: 202 city_-1_2_d_4",
+    "Hidden source root omitted from the static district: 203 city_-1_2_d_5",
+    "Hidden source root omitted from the static district: 209 city_-1_3_d_1",
+    "Hidden source root omitted from the static district: 210 city_-1_3_d_2",
+    "Hidden source root omitted from the static district: 211 city_-1_3_d_3",
+    "Hidden source root omitted from the static district: 212 city_-1_3_d_4",
+    "Hidden source root omitted from the static district: 213 city_-1_3_d_5",
+    "Hidden source root omitted from the static district: 237 city_-2_2_d_1",
+    "Hidden source root omitted from the static district: 238 city_-2_2_d_2",
+    "Hidden source root omitted from the static district: 239 city_-2_2_d_3",
+    "Hidden source root omitted from the static district: 240 city_-2_2_d_4",
+    "Hidden source root omitted from the static district: 241 city_-2_2_d_5",
+    "Hidden source root omitted from the static district: 246 city_-2_3_d_1",
+    "Hidden source root omitted from the static district: 247 city_-2_3_d_2",
+    "Hidden source root omitted from the static district: 248 city_-2_3_d_3",
+    "Hidden source root omitted from the static district: 249 city_-2_3_d_4",
+    "Hidden source root omitted from the static district: 250 city_-2_3_d_5",
+    "Hidden source root omitted from the static district: 257 city_-3_0_d_1",
+    "Hidden source root omitted from the static district: 258 city_-3_0_d_2",
+    "Hidden source root omitted from the static district: 259 city_-3_0_d_3",
+    "Hidden source root omitted from the static district: 260 city_-3_0_d_4",
+    "Hidden source root omitted from the static district: 261 city_-3_0_d_5",
+    "Hidden source root omitted from the static district: 266 city_-3_1_d_1",
+    "Hidden source root omitted from the static district: 267 city_-3_1_d_2",
+    "Hidden source root omitted from the static district: 268 city_-3_1_d_3",
+    "Hidden source root omitted from the static district: 269 city_-3_1_d_4",
+    "Hidden source root omitted from the static district: 270 city_-3_1_d_5",
+    "Hidden source root omitted from the static district: 275 city_-3_2_d_1",
+    "Hidden source root omitted from the static district: 276 city_-3_2_d_2",
+    "Hidden source root omitted from the static district: 277 city_-3_2_d_3",
+    "Hidden source root omitted from the static district: 278 city_-3_2_d_4",
+    "Hidden source root omitted from the static district: 279 city_-3_2_d_5",
+    "Hidden source root omitted from the static district: 284 city_-3_3_d_1",
+    "Hidden source root omitted from the static district: 285 city_-3_3_d_2",
+    "Hidden source root omitted from the static district: 286 city_-3_3_d_3",
+    "Hidden source root omitted from the static district: 287 city_-3_3_d_4",
+    "Hidden source root omitted from the static district: 288 city_-3_3_d_5",
+    "Hidden source root omitted from the static district: 295 city_-4_0_d_1",
+    "Hidden source root omitted from the static district: 296 city_-4_0_d_2",
+    "Hidden source root omitted from the static district: 297 city_-4_0_d_3",
+    "Hidden source root omitted from the static district: 298 city_-4_0_d_4",
+    "Hidden source root omitted from the static district: 299 city_-4_0_d_5",
+    "Hidden source root omitted from the static district: 305 city_-4_1_d_1",
+    "Hidden source root omitted from the static district: 306 city_-4_1_d_2",
+    "Hidden source root omitted from the static district: 307 city_-4_1_d_3",
+    "Hidden source root omitted from the static district: 308 city_-4_1_d_4",
+    "Hidden source root omitted from the static district: 309 city_-4_1_d_5",
+    "Hidden source root omitted from the static district: 315 city_-4_2_d_1",
+    "Hidden source root omitted from the static district: 316 city_-4_2_d_2",
+    "Hidden source root omitted from the static district: 317 city_-4_2_d_3",
+    "Hidden source root omitted from the static district: 318 city_-4_2_d_4",
+    "Hidden source root omitted from the static district: 319 city_-4_2_d_5",
+    "Hidden source root omitted from the static district: 5506 gas_lamp",
+    "Hidden source root omitted from the static district: 5511 gas_lamp",
+    "Hidden source root omitted from the static district: 5516 gas_lamp",
+    "Hidden source root omitted from the static district: 5521 gas_lamp",
+    "Hidden source root omitted from the static district: 5526 gas_lamp",
+    "Hidden source root omitted from the static district: 5531 gas_lamp",
+    "Hidden source root omitted from the static district: 5536 gas_lamp",
+    "Hidden source root omitted from the static district: 5541 gas_lamp",
+    "Hidden source root omitted from the static district: 5546 gas_lamp",
+    "Hidden source root omitted from the static district: 5551 gas_lamp",
+    "Hidden source root omitted from the static district: 5556 gas_lamp",
+    "Hidden source root omitted from the static district: 5561 gas_lamp",
+    "Hidden source root omitted from the static district: 5566 gas_lamp",
+    "Hidden source root omitted from the static district: 5571 gas_lamp",
+    "Hidden source root omitted from the static district: 5576 gas_lamp",
+    "Hidden source root omitted from the static district: 5581 gas_lamp",
+    "Hidden source root omitted from the static district: 5586 gas_lamp",
+    "Hidden source root omitted from the static district: 5591 gas_lamp",
+    "Hidden source root omitted from the static district: 5596 gas_lamp",
+    "Hidden source root omitted from the static district: 5601 gas_lamp",
+    "Hidden source root omitted from the static district: 5606 gas_lamp",
+    "Hidden source root omitted from the static district: 5611 gas_lamp",
+    "Hidden source root omitted from the static district: 5616 gas_lamp",
+    "Hidden source root omitted from the static district: 5621 gas_lamp",
+    "Hidden source root omitted from the static district: 5626 gas_lamp",
+    "Hidden source root omitted from the static district: 5631 gas_lamp",
+    "Hidden source root omitted from the static district: 5636 gas_lamp",
+    "Hidden source root omitted from the static district: 5641 gas_lamp",
+    "Hidden source root omitted from the static district: 5646 gas_lamp",
+    "Hidden source root omitted from the static district: 5651 gas_lamp",
+    "Hidden source root omitted from the static district: 5656 gas_lamp",
+    "Hidden source root omitted from the static district: 5661 gas_lamp",
+    "Hidden source root omitted from the static district: 5666 gas_lamp",
+    "Hidden source root omitted from the static district: 5671 gas_lamp",
+    "Material 0: browser PSX switches retained as metadata; native StandardMaterial3D appearance is provisional.",
+    "Material 1: browser PSX switches retained as metadata; native StandardMaterial3D appearance is provisional.",
+    "Material 2: browser PSX switches retained as metadata; native StandardMaterial3D appearance is provisional.",
+    "Material 3: browser PSX switches retained as metadata; native StandardMaterial3D appearance is provisional.",
+    "Material 4: browser PSX switches retained as metadata; native StandardMaterial3D appearance is provisional.",
+    "Material 5: browser PSX switches retained as metadata; native StandardMaterial3D appearance is provisional.",
+    "Material 6: browser PSX switches retained as metadata; native StandardMaterial3D appearance is provisional.",
+    "Material 7: browser PSX switches retained as metadata; native StandardMaterial3D appearance is provisional.",
+    "Material 23: browser PSX switches retained as metadata; native StandardMaterial3D appearance is provisional.",
+    "Material 23: UV2 atlas cells recovered with a standalone native atlas shader.",
+    "Material 24: browser PSX switches retained as metadata; native StandardMaterial3D appearance is provisional.",
+    "Material 24: UV2 atlas cells recovered with a standalone native atlas shader.",
+    "Material 25: browser PSX switches retained as metadata; native StandardMaterial3D appearance is provisional.",
+    "Material 26: browser PSX switches retained as metadata; native StandardMaterial3D appearance is provisional.",
+    "Material 27: browser PSX switches retained as metadata; native StandardMaterial3D appearance is provisional.",
+    "Material 28: browser PSX switches retained as metadata; native StandardMaterial3D appearance is provisional.",
+    "Material 40: browser PSX switches retained as metadata; native StandardMaterial3D appearance is provisional.",
+    "Material 134: browser PSX switches retained as metadata; native StandardMaterial3D appearance is provisional.",
+    "Material 135: browser PSX switches retained as metadata; native StandardMaterial3D appearance is provisional.",
+    "Material 136: browser PSX switches retained as metadata; native StandardMaterial3D appearance is provisional.",
+    "Material 137: browser PSX switches retained as metadata; native StandardMaterial3D appearance is provisional.",
+    "Material 141: browser PSX switches retained as metadata; native StandardMaterial3D appearance is provisional.",
+    "Material 149: browser PSX switches retained as metadata; native StandardMaterial3D appearance is provisional.",
+    "Material 454: browser PSX switches retained as metadata; native StandardMaterial3D appearance is provisional.",
+    "Material 804: browser PSX switches retained as metadata; native StandardMaterial3D appearance is provisional.",
+    "Material 805: browser PSX switches retained as metadata; native StandardMaterial3D appearance is provisional.",
+    "Material 808: browser PSX switches retained as metadata; native StandardMaterial3D appearance is provisional.",
+    "Material 825: browser PSX switches retained as metadata; native StandardMaterial3D appearance is provisional.",
+    "Material 826: browser PSX switches retained as metadata; native StandardMaterial3D appearance is provisional."
+  ],
+  "remaining": [
+    "Browser-specific PSX, wetness, relief, water and decal effects require native rendering work; PSX-only auxiliary texture references remain metadata in the report, not imported native maps.",
+    "Merged source meshes remain scenery chunks; individual object boundaries cannot be recovered from missing data.",
+    "Scenery intersecting this boundary retains its complete geometry, including parts outside it.",
+    "Rooms, openings, dynamic boats, bridges, actors, navigation and game services are outside this static recovery plan."
+  ]
+}

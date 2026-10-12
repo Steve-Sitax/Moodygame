@@ -1,0 +1,6 @@
+{
+  "id": "bench-model-20261012", "title": "Updated bench", "modelPack": true,
+  "bounds": [-100, -100, 200, 200], "walkSpawn": [0, 0, 0], "flySpawn": [0, 2, 4], "flyYaw": 0, "flyPitch": -0.35,
+  "groups": [], "props": ["bench"], "roots": [],
+  "modelAssets": [{"node": "bench", "id": "bench", "title": "Wooden bench", "category": "Street furniture"}]
+}

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://recovered/quay-models-20261012/props/capstan.tscn" id="1_6htyk"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_dfsts"]
+
+[resource]
+script = ExtResource("2_dfsts")
+Id = "capstan"
+Title = "Hand capstan"
+Category = "Harbour furniture"
+Scene = ExtResource("1_6htyk")
+Footprint = Vector3(2.0898337, 0.9349928, 2.1583748)
+FootprintOffset = Vector3(0.29491687, 0, -0.125)

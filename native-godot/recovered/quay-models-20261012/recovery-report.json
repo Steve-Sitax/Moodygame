@@ -1,0 +1,245 @@
+{
+  "version": 1,
+  "district": "quay-models-20261012",
+  "source": {
+    "path": "D:\\Code\\MoodyGame-godot\\godot\\baked\\models\\quayfurniture.glb",
+    "bytes": 2990664,
+    "modifiedUtc": "2026-10-12T07:02:51.9285268Z",
+    "sha256": "ac989d51c89d5953ae0292f0babe887d02adf627fef05d535ddb67d8dcaf95c0",
+    "factsMade": null
+  },
+  "plan": {
+    "id": "quay-models-20261012",
+    "title": "Updated harbour props",
+    "modelPack": true,
+    "bounds": [
+      -100,
+      -100,
+      200,
+      200
+    ],
+    "walkSpawn": [
+      0,
+      0,
+      0
+    ],
+    "flySpawn": [
+      0,
+      2,
+      4
+    ],
+    "flyYaw": 0,
+    "flyPitch": -0.35,
+    "groups": [],
+    "props": [
+      "bollard_cannon",
+      "bollard_mushroom",
+      "capstan",
+      "hand_barrow",
+      "hawser_coil"
+    ],
+    "roots": [],
+    "modelAssets": [
+      {
+        "node": "bollard_cannon",
+        "id": "bollard-cannon",
+        "title": "Cannon bollard",
+        "category": "Harbour furniture"
+      },
+      {
+        "node": "bollard_mushroom",
+        "id": "bollard-mushroom",
+        "title": "Mushroom bollard",
+        "category": "Harbour furniture"
+      },
+      {
+        "node": "capstan",
+        "id": "capstan",
+        "title": "Hand capstan",
+        "category": "Harbour furniture"
+      },
+      {
+        "node": "hand_barrow",
+        "id": "hand-barrow",
+        "title": "Dock hand barrow",
+        "category": "Harbour furniture"
+      },
+      {
+        "node": "hawser_coil",
+        "id": "hawser-coil",
+        "title": "Coiled hawser",
+        "category": "Harbour furniture"
+      }
+    ]
+  },
+  "selected": [
+    {
+      "index": 15,
+      "name": "bollard_cannon",
+      "kind": "prop",
+      "id": "bollard-cannon",
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 16,
+      "name": "bollard_mushroom",
+      "kind": "prop",
+      "id": "bollard-mushroom",
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 18,
+      "name": "capstan",
+      "kind": "prop",
+      "id": "capstan",
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 30,
+      "name": "hand_barrow",
+      "kind": "prop",
+      "id": "hand-barrow",
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "index": 32,
+      "name": "hawser_coil",
+      "kind": "prop",
+      "id": "hawser-coil",
+      "transform": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    }
+  ],
+  "refresh": null,
+  "materials": [
+    {
+      "index": 0,
+      "extras": null
+    },
+    {
+      "index": 1,
+      "extras": null
+    }
+  ],
+  "instances": [],
+  "collisions": 5,
+  "copies": 0,
+  "resources": 14,
+  "checks": [
+    {
+      "check": "source selection contains geometry",
+      "pass": true
+    },
+    {
+      "check": "native collision was generated from recovered meshes",
+      "pass": true
+    },
+    {
+      "check": "native district reload preserves every authored prop",
+      "pass": true
+    },
+    {
+      "check": "scenery meshes reference saved native resources",
+      "pass": true
+    },
+    {
+      "check": "saved scenes have no browser or source bake dependency",
+      "pass": true
+    },
+    {
+      "check": "source GLB was not modified during recovery",
+      "pass": true
+    }
+  ],
+  "notes": [],
+  "remaining": [
+    "Browser-specific PSX, wetness, relief, water and decal effects require native rendering work; PSX-only auxiliary texture references remain metadata in the report, not imported native maps.",
+    "Merged source meshes remain scenery chunks; individual object boundaries cannot be recovered from missing data.",
+    "Scenery intersecting this boundary retains its complete geometry, including parts outside it.",
+    "Rooms, openings, dynamic boats, bridges, actors, navigation and game services are outside this static recovery plan."
+  ]
+}

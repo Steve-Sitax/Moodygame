@@ -1,10 +1,11 @@
 [gd_resource type="Resource" script_class="AuthorAsset" load_steps=3 format=3]
 [ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="1"]
-[ext_resource type="PackedScene" path="res://assets/props/lamp.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://recovered/rijnkaai-20261012/props/town-node-5970.tscn" id="2"]
 [resource]
 script = ExtResource("1")
 Id = "lamp"
 Title = "Street lamp"
 Category = "Lighting"
 Scene = ExtResource("2")
-Footprint = Vector3(0.65, 3.6, 0.65)
+Footprint = Vector3(0.8380736, 4.56, 0.56001467)
+FootprintOffset = Vector3(3.6805868e-05, 0, 7.3313713e-06)

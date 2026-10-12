@@ -1,0 +1,21 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://recovered/bench-model-20261012/resources/r0002.res" id="1_7vs8r"]
+[ext_resource type="Shape3D" path="res://recovered/bench-model-20261012/resources/r0003.res" id="2_swgso"]
+
+[node name="source_4" type="Node3D" unique_id=590089618]
+metadata/source_node_index = 4
+metadata/source_name = "bench"
+
+[node name="recover_4" type="MeshInstance3D" parent="." unique_id=868688057]
+mesh = ExtResource("1_7vs8r")
+metadata/source_node_index = 4
+metadata/source_name = "bench"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="recover_4" unique_id=33840670]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="recover_4/Solid" unique_id=549799534]
+shape = ExtResource("2_swgso")

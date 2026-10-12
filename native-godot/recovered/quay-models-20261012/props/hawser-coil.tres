@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://recovered/quay-models-20261012/props/hawser-coil.tscn" id="1_pfkrw"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_nxffh"]
+
+[resource]
+script = ExtResource("2_nxffh")
+Id = "hawser-coil"
+Title = "Coiled hawser"
+Category = "Harbour furniture"
+Scene = ExtResource("1_pfkrw")
+Footprint = Vector3(1.9557636, 0.25904945, 1.0543431)
+FootprintOffset = Vector3(0.4772631, -0.009839028, 0.012712657)

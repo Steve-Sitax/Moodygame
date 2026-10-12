@@ -1,0 +1,997 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0064.res" id="1_3esyn"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0158.res" id="2_jy0uq"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0067.res" id="3_vitsh"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0159.res" id="4_l5ppg"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0070.res" id="5_ayigp"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0160.res" id="6_iiury"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0073.res" id="7_ii44x"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0161.res" id="8_dliob"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0076.res" id="9_vn1e3"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0162.res" id="10_nr7vt"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0079.res" id="11_3v3yo"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0082.res" id="12_go3di"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0163.res" id="13_25plu"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0085.res" id="14_7nult"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0164.res" id="15_gmsbq"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0088.res" id="16_007qk"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0165.res" id="17_pyhme"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0091.res" id="18_qwu0h"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0166.res" id="19_jbejq"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0094.res" id="20_p0sdp"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0167.res" id="21_gpwrk"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0096.res" id="22_wb5o6"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0097.res" id="23_loh8s"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0168.res" id="24_r7hje"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0098.res" id="25_0e370"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0169.res" id="26_gts18"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0099.res" id="27_vxu64"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0170.res" id="28_xs3it"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0100.res" id="29_l67av"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0101.res" id="30_k0kmy"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0171.res" id="31_5ayv4"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0102.res" id="32_t63rc"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0172.res" id="33_66dv6"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0105.res" id="34_gddui"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0173.res" id="35_usout"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0108.res" id="36_pes38"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0174.res" id="37_1cexx"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0109.res" id="38_g2gw4"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0112.res" id="39_ge45v"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0175.res" id="40_ao0wt"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0114.res" id="41_gak2j"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0176.res" id="42_rqibe"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0116.res" id="43_7ax7q"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0177.res" id="44_pp2cl"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0117.res" id="45_2p0r4"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0178.res" id="46_6bhtm"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0120.res" id="47_5lhs7"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0179.res" id="48_ih65g"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0121.res" id="49_g38hc"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0180.res" id="50_pi5pj"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0124.res" id="51_qhaui"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0181.res" id="52_k7vuq"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0127.res" id="53_ujfsj"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0128.res" id="54_4twlc"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0182.res" id="55_ccdae"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0129.res" id="56_jhjfn"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0130.res" id="57_ypp5u"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0131.res" id="58_lvx65"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0133.res" id="59_ccxtr"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0134.res" id="60_46gqs"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0183.res" id="61_685bs"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0135.res" id="62_1tosf"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0184.res" id="63_l24j3"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0136.res" id="64_yeb2k"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0185.res" id="65_ccwem"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0137.res" id="66_myevi"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0186.res" id="67_f1nxh"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0138.res" id="68_o3biv"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0187.res" id="69_8rdd5"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0139.res" id="70_t3jl2"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0188.res" id="71_2x4ph"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0140.res" id="72_0ty75"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0189.res" id="73_80uqq"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0142.res" id="74_34w2j"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0145.res" id="75_rl1e2"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0190.res" id="76_0y4wq"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0148.res" id="77_d3o4j"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0191.res" id="78_pbyvu"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0151.res" id="79_idc24"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0154.res" id="80_h4ucs"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0192.res" id="81_h2xok"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0155.res" id="82_y062k"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0193.res" id="83_ynkdl"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0156.res" id="84_prwwu"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-20261012/resources/r0157.res" id="85_03puk"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-20261012/resources/r0194.res" id="86_u1ddb"]
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="87_6i3m2"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-20261012/props/town-node-5920.tres" id="88_7q7hr"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-20261012/props/town-node-5925.tres" id="89_83tiy"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-20261012/props/town-node-5960.tres" id="90_qyk57"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-20261012/props/town-node-5965.tres" id="91_hql2t"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-20261012/props/town-node-5970.tres" id="92_hhqtv"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-20261012/props/town-node-5975.tres" id="93_l23y8"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-20261012/props/town-node-1530.tres" id="94_oc77r"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-20261012/props/town-node-1576.tres" id="95_iorpo"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-20261012/props/town-node-1579.tres" id="96_rwts1"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-20261012/props/town-node-1582.tres" id="97_hwah4"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-20261012/props/town-node-1585.tres" id="98_3ovuu"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-20261012/props/town-node-1588.tres" id="99_o0q1b"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-20261012/props/town-node-1591.tres" id="100_rmbak"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-20261012/props/town-node-1594.tres" id="101_f0exc"]
+
+[node name="Rijnkaai" type="Node3D" unique_id=427991531]
+
+[node name="Scenery" type="Node3D" parent="." unique_id=774462374]
+
+[node name="source_5" type="Node3D" parent="Scenery" unique_id=565270323]
+metadata/source_node_index = 5
+metadata/source_name = "ground_earth"
+
+[node name="recover_5" type="MeshInstance3D" parent="Scenery/source_5" unique_id=830009583]
+mesh = ExtResource("1_3esyn")
+metadata/source_node_index = 5
+metadata/source_name = "ground_earth"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_5/recover_5" unique_id=515881625]
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_5/recover_5/Solid" unique_id=600435065]
+shape = ExtResource("2_jy0uq")
+
+[node name="source_6" type="Node3D" parent="Scenery" unique_id=850624191]
+metadata/source_node_index = 6
+metadata/source_name = "ground_flags"
+
+[node name="recover_6" type="MeshInstance3D" parent="Scenery/source_6" unique_id=379300451]
+mesh = ExtResource("3_vitsh")
+metadata/source_node_index = 6
+metadata/source_name = "ground_flags"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_6/recover_6" unique_id=1149593106]
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_6/recover_6/Solid" unique_id=1815235469]
+shape = ExtResource("4_l5ppg")
+
+[node name="source_7" type="Node3D" parent="Scenery" unique_id=1917877851]
+metadata/source_node_index = 7
+metadata/source_name = "ground_cobble"
+
+[node name="recover_7" type="MeshInstance3D" parent="Scenery/source_7" unique_id=1967061525]
+mesh = ExtResource("5_ayigp")
+metadata/source_node_index = 7
+metadata/source_name = "ground_cobble"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_7/recover_7" unique_id=79374739]
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_7/recover_7/Solid" unique_id=1217418528]
+shape = ExtResource("6_iiury")
+
+[node name="source_8" type="Node3D" parent="Scenery" unique_id=8427399]
+metadata/source_node_index = 8
+metadata/source_name = "ground_grass"
+
+[node name="recover_8" type="MeshInstance3D" parent="Scenery/source_8" unique_id=1768906063]
+mesh = ExtResource("7_ii44x")
+metadata/source_node_index = 8
+metadata/source_name = "ground_grass"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_8/recover_8" unique_id=521068243]
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_8/recover_8/Solid" unique_id=499628552]
+shape = ExtResource("8_dliob")
+
+[node name="source_9" type="Node3D" parent="Scenery" unique_id=1406629156]
+metadata/source_node_index = 9
+metadata/source_name = "ground_quay"
+
+[node name="recover_9" type="MeshInstance3D" parent="Scenery/source_9" unique_id=770134919]
+mesh = ExtResource("9_vn1e3")
+metadata/source_node_index = 9
+metadata/source_name = "ground_quay"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_9/recover_9" unique_id=1008069023]
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_9/recover_9/Solid" unique_id=1329736880]
+shape = ExtResource("10_nr7vt")
+
+[node name="source_10" type="Node3D" parent="Scenery" unique_id=1985199376]
+metadata/source_node_index = 10
+metadata/source_name = "ground_seams"
+
+[node name="recover_10" type="MeshInstance3D" parent="Scenery/source_10" unique_id=936832332]
+mesh = ExtResource("11_3v3yo")
+metadata/source_node_index = 10
+metadata/source_name = "ground_seams"
+metadata/legacy_extras_json = "{}"
+
+[node name="source_11" type="Node3D" parent="Scenery" unique_id=1810425638]
+metadata/source_node_index = 11
+metadata/source_name = "quay_walls"
+
+[node name="recover_11" type="MeshInstance3D" parent="Scenery/source_11" unique_id=1777970365]
+mesh = ExtResource("12_go3di")
+metadata/source_node_index = 11
+metadata/source_name = "quay_walls"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_11/recover_11" unique_id=431950312]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_11/recover_11/Solid" unique_id=765555743]
+shape = ExtResource("13_25plu")
+
+[node name="source_12" type="Node3D" parent="Scenery" unique_id=1051330160]
+metadata/source_node_index = 12
+metadata/source_name = "quay_coping"
+
+[node name="recover_12" type="MeshInstance3D" parent="Scenery/source_12" unique_id=2104631574]
+mesh = ExtResource("14_7nult")
+metadata/source_node_index = 12
+metadata/source_name = "quay_coping"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_12/recover_12" unique_id=663633469]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_12/recover_12/Solid" unique_id=699183936]
+shape = ExtResource("15_gmsbq")
+
+[node name="source_62" type="Node3D" parent="Scenery" unique_id=2100800245]
+metadata/source_node_index = 62
+metadata/source_name = "city_0_0_1"
+
+[node name="recover_62" type="MeshInstance3D" parent="Scenery/source_62" unique_id=769821665]
+mesh = ExtResource("16_007qk")
+metadata/source_node_index = 62
+metadata/source_name = "city_0_0_1"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_62/recover_62" unique_id=573629295]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_62/recover_62/Solid" unique_id=838900904]
+shape = ExtResource("17_pyhme")
+
+[node name="source_63" type="Node3D" parent="Scenery" unique_id=320162591]
+metadata/source_node_index = 63
+metadata/source_name = "city_0_0_2"
+
+[node name="recover_63" type="MeshInstance3D" parent="Scenery/source_63" unique_id=1640134823]
+mesh = ExtResource("18_qwu0h")
+metadata/source_node_index = 63
+metadata/source_name = "city_0_0_2"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_63/recover_63" unique_id=2107369011]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_63/recover_63/Solid" unique_id=1028290085]
+shape = ExtResource("19_jbejq")
+
+[node name="source_64" type="Node3D" parent="Scenery" unique_id=804861212]
+metadata/source_node_index = 64
+metadata/source_name = "city_0_0_3"
+
+[node name="recover_64" type="MeshInstance3D" parent="Scenery/source_64" unique_id=1507489881]
+mesh = ExtResource("20_p0sdp")
+metadata/source_node_index = 64
+metadata/source_name = "city_0_0_3"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_64/recover_64" unique_id=1527060598]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_64/recover_64/Solid" unique_id=1099930335]
+shape = ExtResource("21_gpwrk")
+
+[node name="source_66" type="Node3D" parent="Scenery" unique_id=1253515845]
+metadata/source_node_index = 66
+metadata/source_name = "city_0_0_5"
+
+[node name="recover_66" type="MeshInstance3D" parent="Scenery/source_66" unique_id=781068058]
+mesh = ExtResource("22_wb5o6")
+metadata/source_node_index = 66
+metadata/source_name = "city_0_0_5"
+metadata/legacy_extras_json = "{}"
+
+[node name="source_175" type="Node3D" parent="Scenery" unique_id=72030225]
+metadata/source_node_index = 175
+metadata/source_name = "city_-1_0_1"
+
+[node name="recover_175" type="MeshInstance3D" parent="Scenery/source_175" unique_id=177173259]
+mesh = ExtResource("23_loh8s")
+metadata/source_node_index = 175
+metadata/source_name = "city_-1_0_1"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_175/recover_175" unique_id=606810976]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_175/recover_175/Solid" unique_id=1776475222]
+shape = ExtResource("24_r7hje")
+
+[node name="source_176" type="Node3D" parent="Scenery" unique_id=875987480]
+metadata/source_node_index = 176
+metadata/source_name = "city_-1_0_2"
+
+[node name="recover_176" type="MeshInstance3D" parent="Scenery/source_176" unique_id=271278117]
+mesh = ExtResource("25_0e370")
+metadata/source_node_index = 176
+metadata/source_name = "city_-1_0_2"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_176/recover_176" unique_id=1021110686]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_176/recover_176/Solid" unique_id=697431422]
+shape = ExtResource("26_gts18")
+
+[node name="source_177" type="Node3D" parent="Scenery" unique_id=2002552762]
+metadata/source_node_index = 177
+metadata/source_name = "city_-1_0_3"
+
+[node name="recover_177" type="MeshInstance3D" parent="Scenery/source_177" unique_id=184489091]
+mesh = ExtResource("27_vxu64")
+metadata/source_node_index = 177
+metadata/source_name = "city_-1_0_3"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_177/recover_177" unique_id=591092988]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_177/recover_177/Solid" unique_id=1340197769]
+shape = ExtResource("28_xs3it")
+
+[node name="source_179" type="Node3D" parent="Scenery" unique_id=238115837]
+metadata/source_node_index = 179
+metadata/source_name = "city_-1_0_5"
+
+[node name="recover_179" type="MeshInstance3D" parent="Scenery/source_179" unique_id=1390336240]
+mesh = ExtResource("29_l67av")
+metadata/source_node_index = 179
+metadata/source_name = "city_-1_0_5"
+metadata/legacy_extras_json = "{}"
+
+[node name="source_180" type="Node3D" parent="Scenery" unique_id=817062059]
+metadata/source_node_index = 180
+metadata/source_name = "city_-1_0_d_1"
+
+[node name="recover_180" type="MeshInstance3D" parent="Scenery/source_180" unique_id=12618611]
+mesh = ExtResource("30_k0kmy")
+metadata/extras = {
+"near": true
+}
+metadata/source_node_index = 180
+metadata/source_name = "city_-1_0_d_1"
+metadata/legacy_extras_json = "{\"near\":true}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_180/recover_180" unique_id=551371201]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_180/recover_180/Solid" unique_id=1416584156]
+shape = ExtResource("31_5ayv4")
+
+[node name="source_181" type="Node3D" parent="Scenery" unique_id=600063135]
+metadata/source_node_index = 181
+metadata/source_name = "city_-1_0_d_2"
+
+[node name="recover_181" type="MeshInstance3D" parent="Scenery/source_181" unique_id=938471399]
+mesh = ExtResource("32_t63rc")
+metadata/extras = {
+"near": true
+}
+metadata/source_node_index = 181
+metadata/source_name = "city_-1_0_d_2"
+metadata/legacy_extras_json = "{\"near\":true}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_181/recover_181" unique_id=1033253627]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_181/recover_181/Solid" unique_id=953791286]
+shape = ExtResource("33_66dv6")
+
+[node name="source_182" type="Node3D" parent="Scenery" unique_id=1728490240]
+metadata/source_node_index = 182
+metadata/source_name = "city_-1_0_d_3"
+
+[node name="recover_182" type="MeshInstance3D" parent="Scenery/source_182" unique_id=751455450]
+mesh = ExtResource("34_gddui")
+metadata/extras = {
+"near": true
+}
+metadata/source_node_index = 182
+metadata/source_name = "city_-1_0_d_3"
+metadata/legacy_extras_json = "{\"near\":true}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_182/recover_182" unique_id=846058165]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_182/recover_182/Solid" unique_id=1937893616]
+shape = ExtResource("35_usout")
+
+[node name="source_183" type="Node3D" parent="Scenery" unique_id=1770116268]
+metadata/source_node_index = 183
+metadata/source_name = "city_-1_0_d_4"
+
+[node name="recover_183" type="MeshInstance3D" parent="Scenery/source_183" unique_id=1810292105]
+mesh = ExtResource("36_pes38")
+metadata/extras = {
+"near": true
+}
+metadata/source_node_index = 183
+metadata/source_name = "city_-1_0_d_4"
+metadata/legacy_extras_json = "{\"near\":true}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_183/recover_183" unique_id=2064885620]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_183/recover_183/Solid" unique_id=996931812]
+shape = ExtResource("37_1cexx")
+
+[node name="source_184" type="Node3D" parent="Scenery" unique_id=289951179]
+metadata/source_node_index = 184
+metadata/source_name = "city_-1_0_d_5"
+
+[node name="recover_184" type="MeshInstance3D" parent="Scenery/source_184" unique_id=1999526840]
+mesh = ExtResource("38_g2gw4")
+metadata/extras = {
+"near": true
+}
+metadata/source_node_index = 184
+metadata/source_name = "city_-1_0_d_5"
+metadata/legacy_extras_json = "{\"near\":true}"
+
+[node name="source_1538" type="Node3D" parent="Scenery" unique_id=1190742700]
+metadata/source_node_index = 1538
+metadata/source_name = "pier_deck"
+
+[node name="recover_1538" type="MeshInstance3D" parent="Scenery/source_1538" unique_id=1987820252]
+mesh = ExtResource("39_ge45v")
+metadata/source_node_index = 1538
+metadata/source_name = "pier_deck"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_1538/recover_1538" unique_id=63542838]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_1538/recover_1538/Solid" unique_id=496101350]
+shape = ExtResource("40_ao0wt")
+
+[node name="source_1539" type="Node3D" parent="Scenery" unique_id=403469585]
+metadata/source_node_index = 1539
+metadata/source_name = "pier_timber"
+
+[node name="recover_1539" type="MeshInstance3D" parent="Scenery/source_1539" unique_id=714279860]
+mesh = ExtResource("41_gak2j")
+metadata/source_node_index = 1539
+metadata/source_name = "pier_timber"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_1539/recover_1539" unique_id=910359771]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_1539/recover_1539/Solid" unique_id=1822883863]
+shape = ExtResource("42_rqibe")
+
+[node name="source_1541" type="Node3D" parent="Scenery" unique_id=275355996]
+metadata/source_node_index = 1541
+metadata/source_name = "pier_barnacles"
+
+[node name="recover_1541" type="MeshInstance3D" parent="Scenery/source_1541" unique_id=759359237]
+mesh = ExtResource("43_7ax7q")
+metadata/source_node_index = 1541
+metadata/source_name = "pier_barnacles"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_1541/recover_1541" unique_id=255242322]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_1541/recover_1541/Solid" unique_id=1447253463]
+shape = ExtResource("44_pp2cl")
+
+[node name="source_1542" type="Node3D" parent="Scenery" unique_id=1350856040]
+metadata/source_node_index = 1542
+metadata/source_name = "quay_steps"
+
+[node name="recover_1542" type="MeshInstance3D" parent="Scenery/source_1542" unique_id=656807789]
+mesh = ExtResource("45_2p0r4")
+metadata/extras = {
+"flightTris": {
+"iron": 17448.0,
+"stone": 11720.0
+}
+}
+metadata/source_node_index = 1542
+metadata/source_name = "quay_steps"
+metadata/legacy_extras_json = "{\"flightTris\":{\"stone\":11720,\"iron\":17448}}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_1542/recover_1542" unique_id=2110750391]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_1542/recover_1542/Solid" unique_id=1480580232]
+shape = ExtResource("46_6bhtm")
+
+[node name="source_1543" type="Node3D" parent="Scenery" unique_id=1102065064]
+metadata/source_node_index = 1543
+metadata/source_name = "quay_iron"
+
+[node name="recover_1543" type="MeshInstance3D" parent="Scenery/source_1543" unique_id=1104127927]
+mesh = ExtResource("47_5lhs7")
+metadata/source_node_index = 1543
+metadata/source_name = "quay_iron"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_1543/recover_1543" unique_id=430944984]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_1543/recover_1543/Solid" unique_id=1825941389]
+shape = ExtResource("48_ih65g")
+
+[node name="source_6347" type="Node3D" parent="Scenery" unique_id=987864864]
+metadata/source_node_index = 6347
+metadata/source_name = "quay_iron"
+
+[node name="recover_6347" type="MeshInstance3D" parent="Scenery/source_6347" unique_id=1482982691]
+mesh = ExtResource("49_g38hc")
+metadata/source_node_index = 6347
+metadata/source_name = "quay_iron"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_6347/recover_6347" unique_id=775944459]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_6347/recover_6347/Solid" unique_id=1505705268]
+shape = ExtResource("50_pi5pj")
+
+[node name="source_7972" type="Node3D" parent="Scenery" unique_id=783615680]
+metadata/source_node_index = 7972
+metadata/source_name = "quayfurniture_-1,0,0"
+
+[node name="recover_7972" type="MeshInstance3D" parent="Scenery/source_7972" unique_id=1840745431]
+mesh = ExtResource("51_qhaui")
+metadata/source_node_index = 7972
+metadata/source_name = "quayfurniture_-1,0,0"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_7972/recover_7972" unique_id=1112994160]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_7972/recover_7972/Solid" unique_id=967819096]
+shape = ExtResource("52_k7vuq")
+
+[node name="source_7973" type="Node3D" parent="Scenery" unique_id=2112204283]
+metadata/source_node_index = 7973
+metadata/source_name = "quayfurniture_-1,0,1"
+
+[node name="recover_7973" type="MeshInstance3D" parent="Scenery/source_7973" unique_id=582327319]
+mesh = ExtResource("53_ujfsj")
+metadata/extras = {
+"ro": 1.0
+}
+metadata/source_node_index = 7973
+metadata/source_name = "quayfurniture_-1,0,1"
+metadata/legacy_extras_json = "{\"ro\":1}"
+
+[node name="source_7974" type="Node3D" parent="Scenery" unique_id=115534414]
+metadata/source_node_index = 7974
+metadata/source_name = "quayfurniture_0,0,0"
+
+[node name="recover_7974" type="MeshInstance3D" parent="Scenery/source_7974" unique_id=941270964]
+mesh = ExtResource("54_4twlc")
+metadata/source_node_index = 7974
+metadata/source_name = "quayfurniture_0,0,0"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_7974/recover_7974" unique_id=1281895085]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_7974/recover_7974/Solid" unique_id=1151711392]
+shape = ExtResource("55_ccdae")
+
+[node name="source_7975" type="Node3D" parent="Scenery" unique_id=1054536322]
+metadata/source_node_index = 7975
+metadata/source_name = "quayfurniture_0,0,1"
+
+[node name="recover_7975" type="MeshInstance3D" parent="Scenery/source_7975" unique_id=719365765]
+mesh = ExtResource("56_jhjfn")
+metadata/extras = {
+"ro": 1.0
+}
+metadata/source_node_index = 7975
+metadata/source_name = "quayfurniture_0,0,1"
+metadata/legacy_extras_json = "{\"ro\":1}"
+
+[node name="source_7992" type="Node3D" parent="Scenery" unique_id=2113216929]
+metadata/source_node_index = 7992
+metadata/source_name = "quayfurniture_0,-1,0"
+
+[node name="recover_7992" type="MeshInstance3D" parent="Scenery/source_7992" unique_id=1951371410]
+visible = false
+mesh = ExtResource("57_ypp5u")
+metadata/source_node_index = 7992
+metadata/source_name = "quayfurniture_0,-1,0"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_7992/recover_7992" unique_id=330039017]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_7992/recover_7992/Solid" unique_id=590665257]
+disabled = true
+
+[node name="source_7993" type="Node3D" parent="Scenery" unique_id=2131789278]
+metadata/source_node_index = 7993
+metadata/source_name = "quayfurniture_0,-1,1"
+
+[node name="recover_7993" type="MeshInstance3D" parent="Scenery/source_7993" unique_id=1790528940]
+mesh = ExtResource("58_lvx65")
+metadata/extras = {
+"ro": 1.0
+}
+metadata/source_node_index = 7993
+metadata/source_name = "quayfurniture_0,-1,1"
+metadata/legacy_extras_json = "{\"ro\":1}"
+
+[node name="source_8008" type="Node3D" parent="Scenery" unique_id=1101305878]
+metadata/source_node_index = 8008
+metadata/source_name = "quayfurniture_0,0,2"
+
+[node name="recover_8008" type="MeshInstance3D" parent="Scenery/source_8008" unique_id=1671442985]
+mesh = ExtResource("59_ccxtr")
+metadata/extras = {
+"ro": 1.0
+}
+metadata/source_node_index = 8008
+metadata/source_name = "quayfurniture_0,0,2"
+metadata/legacy_extras_json = "{\"ro\":1}"
+
+[node name="source_8017" type="Node3D" parent="Scenery" unique_id=1523846354]
+metadata/source_node_index = 8017
+metadata/source_name = "ship_lines"
+
+[node name="recover_8017" type="Node3D" parent="Scenery/source_8017" unique_id=840510739]
+metadata/extras = {
+"shipLines": {
+"lines": [[-271.098, 0.41, 0.668, -1.0, -279.373, 1.55, -1.31, 0.0, 9.439, -274.791, 0.088, -0.215], [-318.299, 0.09, -0.11, -1.0, -309.299, 1.369, -0.949, 0.0, 9.939, -317.173, 0.088, -0.215], [-295.491, 0.41, 0.692, -1.0, -288.312, 0.934, -0.773, 0.0, 8.642, -291.046, 0.088, -0.215], [-292.387, 0.41, 0.707, -1.0, -300.491, 0.934, -0.773, 0.0, 9.543, -297.436, 0.088, -0.215], [-256.989, 0.41, 0.427, -1.0, -260.739, 1.6, -2.076, 1.0, 5.505, -257.951, 0.088, -0.215], [-278.427, 0.41, 0.609, -1.0, -273.265, 0.99, -1.08, 1.0, 6.895, -275.909, 0.088, -0.215], [-269.669, 0.41, 0.597, -1.0, -264.869, 0.999, -1.066, 1.0, 6.568, -267.326, 0.088, -0.215], [-267.157, 0.41, 0.537, -1.0, -269.967, 0.83, -0.722, 1.0, 5.157, -268.835, 0.088, -0.215], [89.509, 0.41, 0.503, -1.0, 83.962, 1.877, -2.325, 2.0, 7.101, 88.101, 0.088, -0.215], [74.658, 0.41, 0.594, -1.0, 79.041, 1.351, -0.946, 2.0, 5.989, 76.961, 0.088, -0.215], [77.546, 0.41, 0.657, -1.0, 71.796, 1.3, -0.812, 2.0, 7.317, 74.134, 0.088, -0.215], [162.812, 0.37, 0.714, -1.0, 155.007, 1.369, -0.949, 3.0, 9.024, 158.452, 0.088, -0.215], [142.73, 0.37, 0.741, -1.0, 134.021, 0.934, -0.773, 3.0, 10.165, 137.231, 0.088, -0.215], [136.563, 0.37, 0.751, -1.0, 146.2, 0.934, -0.773, 3.0, 11.082, 142.672, 0.088, -0.215], [69.721, 0.37, 107.833, -1.0, 71.31, 1.55, 99.531, 4.0, 9.19, 70.215, 0.088, 105.253], [69.688, 0.37, 60.808, -1.0, 70.949, 1.369, 69.605, 4.0, 9.637, 70.215, 0.088, 64.482], [69.681, 0.37, 82.387, -1.0, 70.773, 0.934, 90.592, 4.0, 8.992, 70.215, 0.088, 86.398], [69.682, 0.37, 86.547, -1.0, 70.773, 0.934, 78.413, 4.0, 8.918, 70.215, 0.088, 82.573], [169.89, 0.09, 75.294, -1.0, 168.695, 1.299, 69.589, 5.0, 6.444, 169.785, 0.088, 74.793], [170.644, 0.37, 50.139, -1.0, 169.184, 1.228, 54.668, 5.0, 5.3, 169.785, 0.088, 52.805], [169.89, 0.09, 60.566, -1.0, 169.247, 1.068, 65.051, 5.0, 5.067, 169.785, 0.088, 61.298], [169.89, 0.09, 63.342, -1.0, 169.247, 1.068, 58.979, 5.0, 4.94, 169.785, 0.088, 62.63], [169.89, 0.09, 99.815, -1.0, 167.674, 1.877, 93.605, 6.0, 7.317, 169.785, 0.088, 99.52], [169.89, 0.09, 69.593, -1.0, 168.152, 1.45, 75.803, 6.0, 7.106, 169.785, 0.088, 69.968], [169.89, 0.09, 83.598, -1.0, 169.054, 1.351, 88.684, 6.0, 5.744, 169.785, 0.088, 84.236], [169.89, 0.09, 86.91, -1.0, 169.187, 1.3, 81.439, 6.0, 6.117, 169.785, 0.088, 86.093], [73.159, 0.09, 109.89, -1.0, 82.159, 1.55, 108.69, 7.0, 9.867, 73.947, 0.088, 109.785], [99.309, 0.37, 110.734, -1.0, 91.099, 0.934, 109.227, 7.0, 9.066, 94.139, 0.088, 109.785], [95.138, 0.37, 110.733, -1.0, 103.278, 0.934, 109.227, 7.0, 8.993, 100.262, 0.088, 109.785], [158.712, 0.37, 110.608, -1.0, 152.672, 1.727, 108.293, 8.0, 7.127, 156.565, 0.088, 109.785], [127.428, 0.37, 110.643, -1.0, 133.456, 1.463, 108.687, 8.0, 6.967, 130.072, 0.088, 109.785], [142.227, 0.37, 110.652, -1.0, 146.826, 0.894, 109.227, 8.0, 5.359, 145.025, 0.088, 109.785], [143.942, 0.37, 110.664, -1.0, 139.005, 0.887, 109.227, 8.0, 5.702, 140.922, 0.088, 109.785], [163.558, 0.37, 45.81, -1.0, 159.028, 1.299, 47.305, 9.0, 5.315, 162.331, 0.088, 46.215], [140.583, 0.37, 45.787, -1.0, 144.107, 1.228, 46.816, 9.0, 4.158, 142.049, 0.088, 46.215], [150.691, 0.37, 45.766, -1.0, 154.49, 1.068, 46.753, 9.0, 4.421, 152.418, 0.088, 46.215], [152.094, 0.37, 45.771, -1.0, 148.417, 1.068, 46.753, 9.0, 4.296, 150.432, 0.088, 46.215], [-286.467, 0.983, -6.703, 0.0, -286.467, 1.372, -8.66, 10.0, 2.286, null, null, null], [-293.02, 0.902, -6.703, 0.0, -293.02, 1.296, -8.067, 11.0, 1.698, null, null, null], [-308.661, 1.369, -6.527, 0.0, -308.661, 1.268, -7.874, 11.0, 1.629, null, null, null], [149.629, 1.061, -6.703, 3.0, 149.629, 1.372, -8.661, 12.0, 2.272, null, null, null], [139.433, 0.9, -6.703, 3.0, 139.433, 0.892, -7.716, 12.0, 1.283, null, null, null], [156.105, 1.484, -6.049, 3.0, 156.105, 1.205, -7.76, 13.0, 2.018, null, null, null], [76.325, 1.429, 69.307, 4.0, 77.759, 1.17, 69.307, 14.0, 1.737, null, null, null], [76.703, 0.911, 79.464, 4.0, 77.778, 1.244, 79.464, 15.0, 1.399, null, null, null], [76.703, 0.983, 91.609, 4.0, 77.759, 1.205, 91.609, 15.0, 1.351, null, null, null], [164.878, 1.3, 86.518, 6.0, 162.993, 1.588, 86.518, 16.0, 2.195, null, null, null]],
+"pts": 14.0,
+"r": 0.028,
+"sides": 6.0,
+"uv": [0.5666504, 0.7067871, 0.6286621, 0.6447754],
+"vessels": [[-294.437, -3.753, -2.782], [-267.642, -2.54, -3.207], [75.611, -2.973, -3.232], [140.146, -3.753, -2.814], [73.753, 84.467, -99.0], [167.166, 61.954, -99.0], [167.027, 85.254, -99.0], [97.224, 106.247, -99.0], [142.836, 106.618, -99.0], [151.392, 48.834, -99.0], [-280.729, -9.546, -99.0], [-301.068, -10.389, -99.0], [143.892, -9.546, -99.0], [162.002, -9.84, -99.0], [79.84, 63.409, -99.0], [79.84, 85.712, -99.0], [161.582, 79.823, -99.0]]
+}
+}
+metadata/source_node_index = 8017
+metadata/source_name = "ship_lines"
+metadata/legacy_extras_json = "{\"shipLines\":{\"pts\":14,\"sides\":6,\"r\":0.028,\"uv\":[0.566650390625,0.706787109375,0.628662109375,0.644775390625],\"vessels\":[[-294.437,-3.753,-2.782],[-267.642,-2.54,-3.207],[75.611,-2.973,-3.232],[140.146,-3.753,-2.814],[73.753,84.467,-99],[167.166,61.954,-99],[167.027,85.254,-99],[97.224,106.247,-99],[142.836,106.618,-99],[151.392,48.834,-99],[-280.729,-9.546,-99],[-301.068,-10.389,-99],[143.892,-9.546,-99],[162.002,-9.84,-99],[79.84,63.409,-99],[79.84,85.712,-99],[161.582,79.823,-99]],\"lines\":[[-271.098,0.41,0.668,-1,-279.373,1.55,-1.31,0,9.439,-274.791,0.088,-0.215],[-318.299,0.09,-0.11,-1,-309.299,1.369,-0.949,0,9.939,-317.173,0.088,-0.215],[-295.491,0.41,0.692,-1,-288.312,0.934,-0.773,0,8.642,-291.046,0.088,-0.215],[-292.387,0.41,0.707,-1,-300.491,0.934,-0.773,0,9.543,-297.436,0.088,-0.215],[-256.989,0.41,0.427,-1,-260.739,1.6,-2.076,1,5.505,-257.951,0.088,-0.215],[-278.427,0.41,0.609,-1,-273.265,0.99,-1.08,1,6.895,-275.909,0.088,-0.215],[-269.669,0.41,0.597,-1,-264.869,0.999,-1.066,1,6.568,-267.326,0.088,-0.215],[-267.157,0.41,0.537,-1,-269.967,0.83,-0.722,1,5.157,-268.835,0.088,-0.215],[89.509,0.41,0.503,-1,83.962,1.877,-2.325,2,7.101,88.101,0.088,-0.215],[74.658,0.41,0.594,-1,79.041,1.351,-0.946,2,5.989,76.961,0.088,-0.215],[77.546,0.41,0.657,-1,71.796,1.3,-0.812,2,7.317,74.134,0.088,-0.215],[162.812,0.37,0.714,-1,155.007,1.369,-0.949,3,9.024,158.452,0.088,-0.215],[142.73,0.37,0.741,-1,134.021,0.934,-0.773,3,10.165,137.231,0.088,-0.215],[136.563,0.37,0.751,-1,146.2,0.934,-0.773,3,11.082,142.672,0.088,-0.215],[69.721,0.37,107.833,-1,71.31,1.55,99.531,4,9.19,70.215,0.088,105.253],[69.688,0.37,60.808,-1,70.949,1.369,69.605,4,9.637,70.215,0.088,64.482],[69.681,0.37,82.387,-1,70.773,0.934,90.592,4,8.992,70.215,0.088,86.398],[69.682,0.37,86.547,-1,70.773,0.934,78.413,4,8.918,70.215,0.088,82.573],[169.89,0.09,75.294,-1,168.695,1.299,69.589,5,6.444,169.785,0.088,74.793],[170.644,0.37,50.139,-1,169.184,1.228,54.668,5,5.3,169.785,0.088,52.805],[169.89,0.09,60.566,-1,169.247,1.068,65.051,5,5.067,169.785,0.088,61.298],[169.89,0.09,63.342,-1,169.247,1.068,58.979,5,4.94,169.785,0.088,62.63],[169.89,0.09,99.815,-1,167.674,1.877,93.605,6,7.317,169.785,0.088,99.52],[169.89,0.09,69.593,-1,168.152,1.45,75.803,6,7.106,169.785,0.088,69.968],[169.89,0.09,83.598,-1,169.054,1.351,88.684,6,5.744,169.785,0.088,84.236],[169.89,0.09,86.91,-1,169.187,1.3,81.439,6,6.117,169.785,0.088,86.093],[73.159,0.09,109.89,-1,82.159,1.55,108.69,7,9.867,73.947,0.088,109.785],[99.309,0.37,110.734,-1,91.099,0.934,109.227,7,9.066,94.139,0.088,109.785],[95.138,0.37,110.733,-1,103.278,0.934,109.227,7,8.993,100.262,0.088,109.785],[158.712,0.37,110.608,-1,152.672,1.727,108.293,8,7.127,156.565,0.088,109.785],[127.428,0.37,110.643,-1,133.456,1.463,108.687,8,6.967,130.072,0.088,109.785],[142.227,0.37,110.652,-1,146.826,0.894,109.227,8,5.359,145.025,0.088,109.785],[143.942,0.37,110.664,-1,139.005,0.887,109.227,8,5.702,140.922,0.088,109.785],[163.558,0.37,45.81,-1,159.028,1.299,47.305,9,5.315,162.331,0.088,46.215],[140.583,0.37,45.787,-1,144.107,1.228,46.816,9,4.158,142.049,0.088,46.215],[150.691,0.37,45.766,-1,154.49,1.068,46.753,9,4.421,152.418,0.088,46.215],[152.094,0.37,45.771,-1,148.417,1.068,46.753,9,4.296,150.432,0.088,46.215],[-286.467,0.983,-6.703,0,-286.467,1.372,-8.66,10,2.286,null,null,null],[-293.02,0.902,-6.703,0,-293.02,1.296,-8.067,11,1.698,null,null,null],[-308.661,1.369,-6.527,0,-308.661,1.268,-7.874,11,1.629,null,null,null],[149.629,1.061,-6.703,3,149.629,1.372,-8.661,12,2.272,null,null,null],[139.433,0.9,-6.703,3,139.433,0.892,-7.716,12,1.283,null,null,null],[156.105,1.484,-6.049,3,156.105,1.205,-7.76,13,2.018,null,null,null],[76.325,1.429,69.307,4,77.759,1.17,69.307,14,1.737,null,null,null],[76.703,0.911,79.464,4,77.778,1.244,79.464,15,1.399,null,null,null],[76.703,0.983,91.609,4,77.759,1.205,91.609,15,1.351,null,null,null],[164.878,1.3,86.518,6,162.993,1.588,86.518,16,2.195,null,null,null]]}}"
+
+[node name="recover_8018" type="MeshInstance3D" parent="Scenery/source_8017/recover_8017" unique_id=1653865866]
+mesh = ExtResource("60_46gqs")
+metadata/extras = {
+"lines": [0.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]
+}
+metadata/source_node_index = 8018
+metadata/source_name = "ship_lines_-5,0"
+metadata/legacy_extras_json = "{\"lines\":[0,2,3,4,5,6,7]}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_8017/recover_8017/recover_8018" unique_id=932403683]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_8017/recover_8017/recover_8018/Solid" unique_id=1857978326]
+shape = ExtResource("61_685bs")
+
+[node name="recover_8019" type="MeshInstance3D" parent="Scenery/source_8017/recover_8017" unique_id=69755771]
+mesh = ExtResource("62_1tosf")
+metadata/extras = {
+"lines": [1.0, 37.0, 38.0, 39.0]
+}
+metadata/source_node_index = 8019
+metadata/source_name = "ship_lines_-5,-1"
+metadata/legacy_extras_json = "{\"lines\":[1,37,38,39]}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_8017/recover_8017/recover_8019" unique_id=848763351]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_8017/recover_8017/recover_8019/Solid" unique_id=1469297687]
+shape = ExtResource("63_l24j3")
+
+[node name="recover_8020" type="MeshInstance3D" parent="Scenery/source_8017/recover_8017" unique_id=681469094]
+mesh = ExtResource("64_yeb2k")
+metadata/extras = {
+"lines": [8.0, 9.0, 10.0, 15.0]
+}
+metadata/source_node_index = 8020
+metadata/source_name = "ship_lines_1,0"
+metadata/legacy_extras_json = "{\"lines\":[8,9,10,15]}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_8017/recover_8017/recover_8020" unique_id=173136663]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_8017/recover_8017/recover_8020/Solid" unique_id=863511108]
+shape = ExtResource("65_ccwem")
+
+[node name="recover_8021" type="MeshInstance3D" parent="Scenery/source_8017/recover_8017" unique_id=1898265846]
+mesh = ExtResource("66_myevi")
+metadata/extras = {
+"lines": [11.0, 12.0, 13.0, 19.0, 20.0, 21.0, 33.0, 34.0, 35.0, 36.0]
+}
+metadata/source_node_index = 8021
+metadata/source_name = "ship_lines_2,0"
+metadata/legacy_extras_json = "{\"lines\":[11,12,13,19,20,21,33,34,35,36]}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_8017/recover_8017/recover_8021" unique_id=1380256844]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_8017/recover_8017/recover_8021/Solid" unique_id=848333300]
+shape = ExtResource("67_f1nxh")
+
+[node name="recover_8022" type="MeshInstance3D" parent="Scenery/source_8017/recover_8017" unique_id=22362459]
+mesh = ExtResource("68_o3biv")
+metadata/extras = {
+"lines": [14.0, 16.0, 17.0, 26.0, 27.0, 28.0, 30.0, 43.0, 44.0, 45.0]
+}
+metadata/source_node_index = 8022
+metadata/source_name = "ship_lines_1,1"
+metadata/legacy_extras_json = "{\"lines\":[14,16,17,26,27,28,30,43,44,45]}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_8017/recover_8017/recover_8022" unique_id=1940688783]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_8017/recover_8017/recover_8022/Solid" unique_id=281456082]
+shape = ExtResource("69_8rdd5")
+
+[node name="recover_8023" type="MeshInstance3D" parent="Scenery/source_8017/recover_8017" unique_id=1272306472]
+mesh = ExtResource("70_t3jl2")
+metadata/extras = {
+"lines": [18.0, 22.0, 23.0, 24.0, 25.0, 29.0, 31.0, 32.0, 46.0]
+}
+metadata/source_node_index = 8023
+metadata/source_name = "ship_lines_2,1"
+metadata/legacy_extras_json = "{\"lines\":[18,22,23,24,25,29,31,32,46]}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_8017/recover_8017/recover_8023" unique_id=1782484587]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_8017/recover_8017/recover_8023/Solid" unique_id=532349947]
+shape = ExtResource("71_2x4ph")
+
+[node name="recover_8024" type="MeshInstance3D" parent="Scenery/source_8017/recover_8017" unique_id=1983856988]
+mesh = ExtResource("72_0ty75")
+metadata/extras = {
+"lines": [40.0, 41.0, 42.0]
+}
+metadata/source_node_index = 8024
+metadata/source_name = "ship_lines_2,-1"
+metadata/legacy_extras_json = "{\"lines\":[40,41,42]}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_8017/recover_8017/recover_8024" unique_id=2125831694]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_8017/recover_8017/recover_8024/Solid" unique_id=770704894]
+shape = ExtResource("73_80uqq")
+
+[node name="source_8025" type="Node3D" parent="Scenery" unique_id=668754217]
+metadata/source_node_index = 8025
+metadata/source_name = "unnamed"
+
+[node name="recover_8025" type="MeshInstance3D" parent="Scenery/source_8025" unique_id=1416672076]
+visible = false
+mesh = ExtResource("74_34w2j")
+metadata/source_node_index = 8025
+metadata/source_name = ""
+metadata/legacy_extras_json = "{}"
+
+[node name="source_8331" type="Node3D" parent="Scenery" unique_id=71659127]
+metadata/source_node_index = 8331
+metadata/source_name = "quaygoods_sacks"
+
+[node name="recover_8331" type="MeshInstance3D" parent="Scenery/source_8331" unique_id=827136832]
+mesh = ExtResource("75_rl1e2")
+metadata/source_node_index = 8331
+metadata/source_name = "quaygoods_sacks"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_8331/recover_8331" unique_id=66217624]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_8331/recover_8331/Solid" unique_id=1139671166]
+shape = ExtResource("76_0y4wq")
+
+[node name="source_8348" type="Node3D" parent="Scenery" unique_id=1266612636]
+metadata/source_node_index = 8348
+metadata/source_name = "quaygoods"
+
+[node name="recover_8348" type="MeshInstance3D" parent="Scenery/source_8348" unique_id=1284998005]
+mesh = ExtResource("77_d3o4j")
+metadata/source_node_index = 8348
+metadata/source_name = "quaygoods"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_8348/recover_8348" unique_id=356825102]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_8348/recover_8348/Solid" unique_id=846274139]
+shape = ExtResource("78_pbyvu")
+
+[node name="source_8349" type="Node3D" parent="Scenery" unique_id=214860336]
+metadata/source_node_index = 8349
+metadata/source_name = "quaygoods_decals"
+
+[node name="recover_8349" type="MeshInstance3D" parent="Scenery/source_8349" unique_id=82465872]
+mesh = ExtResource("79_idc24")
+metadata/extras = {
+"ro": 2.0
+}
+metadata/source_node_index = 8349
+metadata/source_name = "quaygoods_decals"
+metadata/legacy_extras_json = "{\"ro\":2}"
+
+[node name="source_8350" type="Node3D" parent="Scenery" unique_id=1993896641]
+metadata/source_node_index = 8350
+metadata/source_name = "quaygoods_crates"
+
+[node name="recover_8350" type="MeshInstance3D" parent="Scenery/source_8350" unique_id=1572116237]
+mesh = ExtResource("80_h4ucs")
+metadata/source_node_index = 8350
+metadata/source_name = "quaygoods_crates"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_8350/recover_8350" unique_id=504585141]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_8350/recover_8350/Solid" unique_id=652268252]
+shape = ExtResource("81_h2xok")
+
+[node name="source_8354" type="Node3D" parent="Scenery" unique_id=280687049]
+metadata/source_node_index = 8354
+metadata/source_name = "quaygoods"
+
+[node name="recover_8354" type="MeshInstance3D" parent="Scenery/source_8354" unique_id=856835250]
+mesh = ExtResource("82_y062k")
+metadata/source_node_index = 8354
+metadata/source_name = "quaygoods"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_8354/recover_8354" unique_id=1232658706]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_8354/recover_8354/Solid" unique_id=849939973]
+shape = ExtResource("83_ynkdl")
+
+[node name="source_8355" type="Node3D" parent="Scenery" unique_id=1077131235]
+metadata/source_node_index = 8355
+metadata/source_name = "quaygoods_decals"
+
+[node name="recover_8355" type="MeshInstance3D" parent="Scenery/source_8355" unique_id=218534252]
+mesh = ExtResource("84_prwwu")
+metadata/extras = {
+"ro": 2.0
+}
+metadata/source_node_index = 8355
+metadata/source_name = "quaygoods_decals"
+metadata/legacy_extras_json = "{\"ro\":2}"
+
+[node name="source_8356" type="Node3D" parent="Scenery" unique_id=1045394013]
+metadata/source_node_index = 8356
+metadata/source_name = "quaygoods_crates"
+
+[node name="recover_8356" type="MeshInstance3D" parent="Scenery/source_8356" unique_id=999220077]
+mesh = ExtResource("85_03puk")
+metadata/source_node_index = 8356
+metadata/source_name = "quaygoods_crates"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_8356/recover_8356" unique_id=249340195]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_8356/recover_8356/Solid" unique_id=1674355197]
+shape = ExtResource("86_u1ddb")
+
+[node name="Objects" type="Node3D" parent="." unique_id=1255111156]
+
+[node name="object_town-node-5920" type="Node3D" parent="Objects" unique_id=531035714]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0, 43.4)
+script = ExtResource("87_6i3m2")
+ObjectId = "town-node-5920"
+Asset = ExtResource("88_7q7hr")
+
+[node name="object_town-node-5925" type="Node3D" parent="Objects" unique_id=1681502900]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 36, 0, 43.4)
+script = ExtResource("87_6i3m2")
+ObjectId = "town-node-5925"
+Asset = ExtResource("89_83tiy")
+
+[node name="object_town-node-5960" type="Node3D" parent="Objects" unique_id=959459110]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 0, 20.4)
+script = ExtResource("87_6i3m2")
+ObjectId = "town-node-5960"
+Asset = ExtResource("90_qyk57")
+
+[node name="object_town-node-5965" type="Node3D" parent="Objects" unique_id=1411542639]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 2.2)
+script = ExtResource("87_6i3m2")
+ObjectId = "town-node-5965"
+Asset = ExtResource("91_hql2t")
+
+[node name="object_town-node-5970" type="Node3D" parent="Objects" unique_id=703856086]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0, 2.2)
+script = ExtResource("87_6i3m2")
+ObjectId = "town-node-5970"
+Asset = ExtResource("92_hhqtv")
+
+[node name="object_town-node-5975" type="Node3D" parent="Objects" unique_id=733989640]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 44, 0, 19.8)
+script = ExtResource("87_6i3m2")
+ObjectId = "town-node-5975"
+Asset = ExtResource("93_l23y8")
+
+[node name="object_town-node-1530" type="Node3D" parent="Objects" unique_id=1985479766]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.35, 0, -5.6)
+script = ExtResource("87_6i3m2")
+ObjectId = "town-node-1530"
+Asset = ExtResource("94_oc77r")
+
+[node name="object_town-node-1576" type="Node3D" parent="Objects" unique_id=505483596]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 0, 0.9)
+script = ExtResource("87_6i3m2")
+ObjectId = "town-node-1576"
+Asset = ExtResource("95_iorpo")
+
+[node name="object_town-node-1579" type="Node3D" parent="Objects" unique_id=646570215]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.9)
+script = ExtResource("87_6i3m2")
+ObjectId = "town-node-1579"
+Asset = ExtResource("96_rwts1")
+
+[node name="object_town-node-1582" type="Node3D" parent="Objects" unique_id=1925930931]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 0, 0.9)
+script = ExtResource("87_6i3m2")
+ObjectId = "town-node-1582"
+Asset = ExtResource("97_hwah4")
+
+[node name="object_town-node-1585" type="Node3D" parent="Objects" unique_id=655504048]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27, 0, 0.9)
+script = ExtResource("87_6i3m2")
+ObjectId = "town-node-1585"
+Asset = ExtResource("98_3ovuu")
+
+[node name="object_town-node-1588" type="Node3D" parent="Objects" unique_id=294485986]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 36, 0, 0.9)
+script = ExtResource("87_6i3m2")
+ObjectId = "town-node-1588"
+Asset = ExtResource("99_o0q1b")
+
+[node name="object_town-node-1591" type="Node3D" parent="Objects" unique_id=2063146523]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 45, 0, 0.9)
+script = ExtResource("87_6i3m2")
+ObjectId = "town-node-1591"
+Asset = ExtResource("100_rmbak")
+
+[node name="object_town-node-1594" type="Node3D" parent="Objects" unique_id=625625528]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 54, 0, 0.9)
+script = ExtResource("87_6i3m2")
+ObjectId = "town-node-1594"
+Asset = ExtResource("101_f0exc")
