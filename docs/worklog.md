@@ -644,3 +644,5 @@ before game loading, and D3D12 fails command-queue initialization. Filed [#59](h
 No cause is attributed to the overlay or driver yet. Checks now reject ERROR logs/nonzero exits.
 
 - 2026-10-11 23:05: bake of main efbb90f (all of wave 2) by a Codex Sol 6.1 xhigh run: 590 s, town.glb 849 MB, menu test 36/36. Now live in the play folder `godot/baked/next/`; the old one is `next-prev` until Steve has checked. Models written again (crate.glb was missing). Helpers paused for tokens: see the paused list in memory.
+
+- 2026-10-12 morning: next-update (boats B1-B4, W4 tide, W5 names, D4, D6, survey S1-S4, fx-tex) merged into main 2928e88 and the play folder; new bake by Codex (978 MB; menu 36/36, boats 109 hulls clean at -5.2 and -0.4, movetest flaky on the crane ladder: #77). Live in `godot/baked/next` and `models`; the old ones are `next-prev` and `models-prev` until Steve has checked. Issues: #75 anchorage spacing, #76 keep-out, #77.
