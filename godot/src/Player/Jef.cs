@@ -127,6 +127,9 @@ public partial class Jef : Node, Mantle.IWorld
         /// <summary>Where the view was against the plain eye when it began (a bob, a stoop, the swim): eased away.</summary>
         public Vector3 Off;
         public float Roll;
+        /// <summary>A way to turn to over the first part of the climb (down a ladder: to face the rungs), or null.</summary>
+        public float? Face;
+        public float Yaw0;
     }
     private ClimbRun? climb;
 
@@ -650,7 +653,7 @@ public partial class Jef : Node, Mantle.IWorld
 
     private void StartClimb(Exit e)
     {
-        float floatY = Water.Level(X, Z) - SwimFeet;
+        float floatY = Swimming ? Water.Level(X, Z) - SwimFeet : Y; // (afloat, or on his feet on the mud below a ladder)
         var keys = new List<(Vector3, float)>();
         var (tx, tz, ty) = ClimbSpot(e);
         int rungs = -1;
@@ -680,6 +683,48 @@ public partial class Jef : Node, Mantle.IWorld
             keys.Add((new Vector3(tx, ty, tz), 0.5f));
         }
         ClimbTo(keys, null, null, new Vector3(vel.X, vy, vel.Y), default, rungs);
+    }
+
+    /// <summary>
+    /// Where a climb down this quay ladder ends (issue 85): afloat just clear of the stiles where the water is deep
+    /// enough, else on his feet on the mud at its foot (a spring low water), or null when there is no room for him.
+    /// </summary>
+    public (Vector3 At, bool Swim)? LadderFoot(Exit e)
+    {
+        if (!e.Ladder) return null;
+        float fx = e.Gx + e.Nx * 0.05f, fz = e.Gz + e.Nz * 0.05f, level = Water.Level(fx, fz);
+        if (e.Ty < level + 0.3f) return null;
+        float floor = GroundAt(fx, fz, e.Ty - 1.0f);
+        if (SwimFree(fx, fz) && !(floor > level - Tide.Wade)) return (new Vector3(fx, level - SwimFeet, fz), true);
+        if (float.IsFinite(floor) && floor < e.Ty - 1.2f && StandFree(fx, fz, floor)) return (new Vector3(fx, floor, fz), false);
+        return null;
+    }
+
+    /// <summary>
+    /// Down a quay ladder (issue 85): over the coping between the hoops, turning to face the rungs, hand under hand
+    /// down them, and off into a swim just clear of the stiles, or onto the mud at a low spring tide. The line of the
+    /// climb out, the other way.
+    /// </summary>
+    public void ClimbDown(Exit e)
+    {
+        if (Climbing || LadderFoot(e) is not { } foot) return;
+        float lx = e.Gx - e.Nx * 0.12f, lz = e.Gz - e.Nz * 0.12f;
+        var keys = new List<(Vector3, float)>
+        {
+            (new Vector3(lx - e.Nx * 0.45f, e.Ty + 0.32f, lz - e.Nz * 0.45f), 0.55f),
+            (new Vector3(lx, e.Ty + 0.15f, lz), 0.45f),
+            (new Vector3(lx, foot.At.Y + 0.25f, lz), Math.Max(0.3f, (e.Ty + 0.15f - foot.At.Y - 0.25f) / Climb)),
+            (foot.At, 0.45f),
+        };
+        ClimbTo(keys, foot.Swim ? () => { vy = 0; EnterWater(); } : null, null, null, default, 1);
+        climb!.Face = MathF.Atan2(e.Nx, e.Nz);
+        climb.Yaw0 = Yaw;
+    }
+
+    /// <summary>Up a quay ladder from the mud at its foot (the swimmer's way up is the same, StartClimb).</summary>
+    public void ClimbUp(Exit e)
+    {
+        if (!Climbing && e.Ladder) StartClimb(e);
     }
 
     /// <summary>The fastest a climb goes between its keys (m/s); with the rounded corners its top speed stays near 2 m/s, about 3 cm a frame at 60 frames a second.</summary>
@@ -714,6 +759,7 @@ public partial class Jef : Node, Mantle.IWorld
     {
         var c = climb!;
         c.T += dt;
+        if (c.Face is { } face && c.T - dt < 0.8f) Yaw =Mathf.LerpAngle(c.Yaw0, face, Mathf.SmoothStep(0, 1, c.T / 0.8f));
         var at = c.Path.At(c.T);
         if (c.Frame != null) at = c.Frame() * at;
         (X, Y, Z) = (at.X, at.Y, at.Z);

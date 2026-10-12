@@ -197,6 +197,62 @@ public partial class MoveTest
         return new { t = R(b.T), dt = R(b.T - a.T), b.State, from = a.State, speed = R(v), a = new[] { R(a.Eye.X), R(a.Eye.Y), R(a.Eye.Z) }, b = new[] { R(b.Eye.X), R(b.Eye.Y), R(b.Eye.Z) } };
     }
 
+    /// <summary>
+    /// Issue 85: E at the hoops takes him down the quay ladder into the water and W brings him up it again, at low and
+    /// at high water; the rungs reach from under the water to the quay, and the view moves smoothly all the way.
+    /// </summary>
+    private async Task QuayLadderDownUpCheck()
+    {
+        var j = Jef.I;
+        var l = QuayExits.Ladders.Where(a => MathF.Abs(a.Top) < 0.1f && Water.Level(a.X + a.Nx * 2, a.Z + a.Nz * 2) < -1.5f).OrderBy(a => new Vector2(a.X + 118, a.Z - 36).Length())
+            .FirstOrDefault(a => { Solid.I.Ensure(new Vector3(a.X, 0, a.Z), 10); return Clear(a.X + a.Nx * 0.75f, a.Z + a.Nz * 0.75f, a.X + a.Nx * 2.2f, a.Z + a.Nz * 2.2f); });
+        if (l == null) { Check(false, "a quay ladder for the way down"); return; }
+        var e = QuayExits.Exits.First(x => x.Ladder && MathF.Abs(x.Wx - l.X) < 0.01f && MathF.Abs(x.Wz - l.Z) < 0.01f);
+        foreach (var (tide, level) in new[] { ("low", Tide.LwMin), ("high", Tide.HwMax) })
+        {
+            Tide.Hold(level);
+            await Until(() => MathF.Abs(Tide.River - level) < 0.02f, 20);
+            Check(l.Foot < level - 0.4f && l.Rung > 0.15f, $"at {tide} water the rungs reach under the water", new { l.Foot, level, l.Rung });
+            j.Place(l.X - l.Nx * 0.9f, l.Z - l.Nz * 0.9f, Facing(l.Nx, l.Nz), -0.3f);
+            await Frames(40);
+            Check(Scheldemist.Play.Interact.I.Find().Any(a => a.Text == "climb down the ladder"), $"at {tide} water the ladder's head offers the way down");
+            bool shot = false;
+            var down = await Sampled(t =>
+            {
+                if (t < 0.05f) Scheldemist.Play.Interact.I.Press(Key.E);
+                if (!shot && j.Climbing && j.Y < l.Top - 1.0f) { shot = true; _ = Shot($"ladder-down-{tide}", 0); }
+                return t < 0.3f || j.Climbing;
+            }, 20);
+            await Frames(30);
+            var g = new Vector2(e.Gx, e.Gz);
+            var dn = Snap(down);
+            // afloat, or (a spring low water over the mud at the wall's foot) on his feet on the mud
+            bool afloat = j.Swimming, onMud = !j.Swimming && j.Grounded && j.Y < l.Top - 1.2f;
+            Check((afloat || onMud) && new Vector2(j.X, j.Z).DistanceTo(g) < 0.5f, $"at {tide} water down the ladder to its foot ({(afloat ? "afloat" : onMud ? "on the mud" : "neither")})", new { j.Swimming, j.Grounded, at = new[] { R(j.X), R(j.Y), R(j.Z) }, g = new[] { R(g.X), R(g.Y) } });
+            if (onMud) await Shot($"ladder-foot-mud-{tide}");
+            Check(dn.stepCm < 4 && dn.speed < 2.6f, $"at {tide} water down the ladder the view moves no more than a few cm a frame", new { stepCm = R(dn.stepCm), speed = R(dn.speed) });
+            bool was = false;
+            float outAt = -1;
+            var up = await Sampled(t =>
+            {
+                if (j.Climbing) was = true;
+                if (was && !j.Climbing && outAt < 0) outAt = t;
+                // afloat: W into the rungs; on the mud: E at the foot
+                if (onMud && !was && t < 0.1f) Scheldemist.Play.Interact.I.Press(Key.E);
+                j.SetKey(Key.W, afloat && outAt < 0);
+                return t < 1 || j.Climbing || j.Swimming && t < 6 || outAt >= 0 && t < outAt + 0.6f;
+            }, 16);
+            await Frames(20);
+            j.ClearKeys();
+            var upS = Snap(up);
+            Check(was && !j.Swimming && j.Grounded && MathF.Abs(j.Y - l.Top) < 0.2f, $"at {tide} water up the same ladder onto the quay", new { j.Y, l.Top });
+            Check(upS.stepCm < 4 && upS.speed < 2.6f, $"at {tide} water up the ladder the view moves no more than a few cm a frame", new { stepCm = R(upS.stepCm), speed = R(upS.speed) });
+            reports.Add(new { quayLadderDownUp = new { tide, level, afloat, onMud, at = new[] { R(l.X), R(l.Z) }, rung = R(l.Rung), foot = R(l.Foot), downS = R(down[^1].T), downCm = R(dn.stepCm), upCm = R(upS.stepCm), end = new[] { R(j.X), R(j.Y), R(j.Z) } } });
+        }
+        Tide.Hold(null);
+        await Until(() => MathF.Abs(Tide.River - Tide.Target) < 0.02f, 20); // (the next checks find the water where the clock has it)
+    }
+
     private async Task QuayLadderCheck()
     {
         var j = Jef.I;
