@@ -65,6 +65,8 @@ public partial class Main : Node
     protected virtual BakedWorld CreateWorld() => new();
     protected virtual IEnumerable<Node> CreateParts() => GamePartAttribute.Make(this);
     protected virtual bool UseMenus => Menu.MainMenu.Wanted(this);
+    public virtual bool MultiplayerAvailable => true;
+    protected virtual System.Threading.Tasks.Task PrepareWorld() => System.Threading.Tasks.Task.CompletedTask;
 
     public override void _Ready()
     {
@@ -120,13 +122,14 @@ public partial class Main : Node
             }
         }
         else err = world.Load(town);
-        view.AddChild(world);
         if (err != Error.Ok)
         {
             GD.PrintErr($"the baked town did not load ({err}): {town}. Bake it: node tools/godot/export-scene.mjs");
             GetTree().Quit(1);
             return;
         }
+        view.AddChild(world);
+        await PrepareWorld();
         GD.Print($"town in: {JsonSerializer.Serialize(world.Report)}");
 
         var facts = world.Facts.RootElement.GetProperty("facts");

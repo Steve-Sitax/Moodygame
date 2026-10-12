@@ -15,6 +15,24 @@ public partial class NativeGameWorld : BakedWorld
 {
     private string Visuals => Scheldemist.Main.I.Arg("visuals", "res://game/rijnkaai");
     private Node3D districtScene = null!;
+    private AuthorDistrict district = null!;
+    private Scheldemist.Town.WalkMap? walk;
+    public override Scheldemist.Town.WalkMap? NativeWalk => walk;
+    public override bool ContainsPlayPoint(double x, double z) => district.Bounds.HasPoint(new Vector2((float)x, (float)z));
+    public void BuildNavigation() => walk = Scheldemist.Town.WalkMap.FromNative(district.Bounds, GetWorld3D().DirectSpaceState, Solid.Layer);
+    public override bool SupportsJob(Scheldemist.Net.Job job)
+    {
+        // Do not let a district playtest accept work whose destination or required system is absent.
+        var task = Scheldemist.Play.JobTask.Of(job);
+        bool Spot(string id) => Scheldemist.Play.Spots.All.TryGetValue(id, out var spot) && ContainsPlayPoint(spot.X, spot.Z) && walk?.Free(spot.X, spot.Z) == true;
+        return task != null && !task.Cart && task.Kind switch
+        {
+            "carry" => Spot(task.From) && Spot(task.To),
+            "watch" => Spot(task.Post),
+            // Deliveries may require ships, recipient spawning and routes outside this district.
+            _ => false
+        };
+    }
     private JsonDocument lights = null!;
     public override JsonDocument? NativeLights => lights;
     public string LayoutSource { get; private set; } = "scene seed";
@@ -43,7 +61,7 @@ public partial class NativeGameWorld : BakedWorld
         var intake = JsonNode.Parse(File.ReadAllText(ProjectSettings.GlobalizePath(Visuals + "/intake.json")))!;
         if (intake["sourceFingerprint"]?["sha256"]?.GetValue<string>() != report["source"]!["sha256"]!.GetValue<string>())
             throw new InvalidDataException("Game materials belong to a different snapshot. Recover their native visual resources before testing this district.");
-        var district = ResourceLoader.Load<AuthorDistrict>("res://recovered/" + id + "/district.tres");
+        district = ResourceLoader.Load<AuthorDistrict>("res://recovered/" + id + "/district.tres");
         districtScene = district.Scene!.Instantiate<Node3D>();
         string folder = WorkshopSession.Arg("author-dir", ProjectSettings.GlobalizePath("user://layouts/" + district.Id));
         string file = Path.Combine(folder, "layout.json");

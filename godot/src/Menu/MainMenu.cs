@@ -61,7 +61,7 @@ public partial class MainMenu : Node
     private string walkTitle = "", walkText = "";
 
     /// <summary>A self-test that works the menus by script (no benchmark, no pause when its window loses focus).</summary>
-    public static bool ScriptedRun => Main.I.Arg("menutest") != "" || Main.I.Arg("devsheettest") != "" || Main.I.Arg("flytest") != "";
+    public static bool ScriptedRun => Main.I.Arg("menutest") != "" || Main.I.Arg("devsheettest") != "" || Main.I.Arg("flytest") != "" || Main.I.Arg("native-play-proof") != "";
 
     /// <summary>Do the menus belong in this run? Not in one that takes its own pictures or tests another part.</summary>
     public static bool Wanted(Main main)
@@ -351,7 +351,7 @@ public partial class MainMenu : Node
         loadBtn = Item(InkButton.Look.MenuItem, "Load", () => Saves.OpenPanel("load"));
         Item(InkButton.Look.MenuItem, "New game", () => Sheets.NewGame(this));
         Item(InkButton.Look.MenuItem, "Settings", () => SettingsSheet.Open("graphics"));
-        Item(InkButton.Look.MenuItem, "Together", TogetherSheet.Open);
+        if (Main.I.MultiplayerAvailable) Item(InkButton.Look.MenuItem, "Together", TogetherSheet.Open);
         Item(InkButton.Look.MenuItem, "AI setup", () => AiSheet.Open());
         Item(InkButton.Look.MenuItem, "Controls", () => SettingsSheet.Open("controls"));
         Item(InkButton.Look.MenuItem, "Help", Sheets.Help);

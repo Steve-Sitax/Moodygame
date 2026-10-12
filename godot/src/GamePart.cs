@@ -18,13 +18,14 @@ public sealed class GamePartAttribute : Attribute
     public int Order { get; }
     public GamePartAttribute(int order = 100) => Order = order;
 
-    public static IEnumerable<Node> Make(Main main)
+    public static IEnumerable<Node> Make(Main main, Func<Type, bool>? include = null)
     {
         string only = main.Arg("only");
         var keep = only == "" ? null : only.Split(',');
         return Assembly.GetExecutingAssembly().GetTypes()
             .Select(t => (t, a: t.GetCustomAttribute<GamePartAttribute>()))
             .Where(x => x.a != null && typeof(Node).IsAssignableFrom(x.t))
+            .Where(x => include == null || include(x.t))
             .Where(x => !main.Flag("no-" + x.t.Name.ToLowerInvariant()) && (keep == null || keep.Contains(x.t.Name.ToLowerInvariant())))
             .OrderBy(x => x.a!.Order).ThenBy(x => x.t.Name)
             .Select(x => { var n = (Node)Activator.CreateInstance(x.t)!; n.Name = x.t.Name; return n; })

@@ -41,6 +41,8 @@ public static class ModelLibrary
     }
 
     private static readonly Dictionary<string, Model?> Loaded = new();
+    /// <summary>Native projects supply their stored PackedScenes. A configured loader never falls back to GLB.</summary>
+    public static Func<string, Node3D?>? NativeScene { get; set; }
 
     public static string Dir
     {
@@ -57,13 +59,13 @@ public static class ModelLibrary
         ulong t0 = Time.GetTicksUsec();
         string path = Path.Combine(Dir, name + ".glb");
         Model? m = null;
-        if (!File.Exists(path)) GD.PrintErr($"model {name}: {path} is not there. Write the models: node tools/godot/models.mjs");
+        if (NativeScene == null && !File.Exists(path)) GD.PrintErr($"model {name}: {path} is not there. Write the models: node tools/godot/models.mjs");
         else
         {
             var doc = new GltfDocument();
             var state = new GltfState();
-            var err = doc.AppendFromFile(path, state);
-            var scene = err == Error.Ok ? doc.GenerateScene(state) as Node3D : null;
+            var err = NativeScene != null ? Error.Ok : doc.AppendFromFile(path, state);
+            var scene = NativeScene != null ? NativeScene(name) : err == Error.Ok ? doc.GenerateScene(state) as Node3D : null;
             if (scene == null) GD.PrintErr($"model {name}: did not load ({err})");
             else
             {

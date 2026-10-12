@@ -17,14 +17,16 @@ the export did not retain all individual object boundaries. New objects must hav
 `Open Recovered Quay Editor.cmd` opens that district in Godot. `Test Editor Changes.cmd` runs a saved editor scene
 with a fresh temporary layout. The default main scene and F5 now use the updated recovered quay.
 
-`Start Native District Game.cmd` runs the same district through the existing Godot game's player, weather, sky,
-lighting, water and reflection systems. It reads your saved workshop layout, including added/moved lamps, without
-writing that layout. Click to take the mouse, use WASD/Shift/Space to walk, and Esc to release it. F6 cycles weather,
-F7 changes the hour, F9 switches fly/walk, B compares bump/relief, and M compares reflections. Flying uses Space
-to rise and Ctrl to descend. `Test Editor Changes In Game.cmd` uses the saved district scene instead of a workshop
-layout. This is a district game test: NPCs, missions, interiors and moving ships/bridges are still outside its scope.
+`Start Native District Game.cmd` opens the Rijnkaai playtest: title/pause menus, HUD, live townspeople, conversations,
+pockets and hiring board, alongside the corrected surfaces and existing weather/water/reflections. Choose **Walk
+into town**. WASD/Shift/Space move; E interacts, I opens pockets, J the quest book, M the map, P pauses and Esc opens
+the menu. It reads your saved workshop layout without writing it. `Test Editor Changes In Game.cmd` uses the saved
+district scene instead. The playable slice is partial: jobs needing missing areas/systems are marked unavailable;
+interiors, whole-city movers and multiplayer need further recovery. Gameplay currently starts the existing local
+Node server, in no-AI mode, with separate saves/settings under `%APPDATA%/ScheldemistWorkshop/playtest`. No browser
+is opened. Server removal and native game services remain migration work.
 
-`Review Quay Surfaces.cmd` starts the actual game next to the corrected bollard and coping in free-camera mode.
+`Review Quay Surfaces.cmd` opens the scenery-only surface viewer next to the corrected bollard and coping.
 Use B to compare surface relief, F6 for rain and F7 for evening/night. The opaque rust square is fixed; the bollard
 has casting pits, corrosion and rope wear. Its base uses the same iron, with bevels and rounded plan corners.
 Steve requested full Godot conversion after his test. Complete the remaining world/game systems and district
@@ -79,8 +81,9 @@ Cannon/mushroom bollards, a capstan, a hand barrow and a coiled hawser are also 
 | Model/texture intake | Finished main art and current bake used in Rijnkaai; detailed library assets imported as native resources. |
 | Existing town | Static Rijnkaai updated from the 2026-10-12 bake; 14 original object ids preserved. Other districts and dynamic parts remain. |
 | Game rendering and player in Rijnkaai | Existing C# player, weather, wetness, bump/relief, sky, lamps, animated river and planar mirrors connected to native resources. |
-| Navigation | Pending scene-derived navigation and moving-bridge links. The pilot has player collision, not NPC pathfinding. |
-| Game services | Pending C# ports of rules, SQLite persistence, AI providers, and multiplayer. The old server is not part of this pilot. |
+| Menus and people in Rijnkaai | Title/pause, HUD, conversations, board and live residents connected; imported actors retain skeletons/36 animation clips. |
+| Navigation | Quay crowd grid sampled from native collision at startup, including saved object edits. Other districts, stairs/deep steps and moving-bridge links remain. |
+| Game services | Playtest temporarily uses the existing local Node server with isolated data/no AI. C# rules, SQLite, AI and multiplayer ports remain. |
 | Retiring the browser and Node game | Pending parity checks and save migration; remove only once the native game covers those behaviors. |
 
 The existing town's bake also contains custom material metadata, instance transforms, rooms, openings, lights,

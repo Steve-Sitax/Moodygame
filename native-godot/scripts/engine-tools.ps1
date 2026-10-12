@@ -19,11 +19,11 @@ function Invoke-WorkshopEngine([string]$Engine, [string]$Project, [string[]]$Eng
     try {
         [void]$engineChild.Start()
         $engineStdout = $engineChild.StandardOutput.ReadToEndAsync(); $engineStderr = $engineChild.StandardError.ReadToEndAsync()
-        if (-not $engineChild.WaitForExit($LimitSeconds * 1000)) {
-            $engineChild.Kill($true); throw "Godot exceeded its $LimitSeconds-second limit."
-        }
+        $engineTimedOut = -not $engineChild.WaitForExit($LimitSeconds * 1000)
+        if ($engineTimedOut) { $engineChild.Kill($true); $engineChild.WaitForExit() }
         $engineText = $engineStdout.GetAwaiter().GetResult() + $engineStderr.GetAwaiter().GetResult()
         Set-Content -LiteralPath $Log -Value $engineText -Encoding utf8
+        if ($engineTimedOut) { throw "Godot exceeded its $LimitSeconds-second limit. See $Log" }
         if ($engineChild.ExitCode -ne 0 -or $engineText -match '(?m)^ERROR:') {
             Write-Output (($engineText -split '\r?\n' | Select-Object -First 40) -join [Environment]::NewLine)
             throw "Godot failed. See $Log"

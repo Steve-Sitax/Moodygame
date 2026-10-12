@@ -98,6 +98,39 @@ public sealed class WalkMap
     /// <summary>Where the stalls' and shops' keepers stand (game/stalls.ts sellerSpots, as the bake's town had them): x, z, yaw.</summary>
     public Dictionary<string, double[]> Sellers = new();
 
+    /// <summary>Build the same cheap crowd lookup from the current native physics world, including edited props.</summary>
+    public static WalkMap FromNative(Rect2 bounds, PhysicsDirectSpaceState3D space, uint layer)
+    {
+        var map = new WalkMap { X0 = Math.Floor(bounds.Position.X), Z0 = Math.Floor(bounds.Position.Y) };
+        map.W = (int)Math.Ceiling(bounds.End.X - map.X0); map.D = (int)Math.Ceiling(bounds.End.Y - map.Z0);
+        map.open = new byte[map.W * map.D]; map.free = new byte[map.W * map.D * 16]; map.ground = new short[map.W * map.D * 4];
+        var ray = new PhysicsRayQueryParameters3D { CollisionMask = layer };
+        var capsule = new CapsuleShape3D { Radius = 0.25f, Height = 1.4f };
+        var body = new PhysicsShapeQueryParameters3D { Shape = capsule, CollisionMask = layer, Margin = 0.015f };
+        for (int z = 0; z < map.D * 4; z++) for (int x = 0; x < map.W * 4; x++)
+        {
+            float wx = (float)map.X0 + (x + 0.5f) / 4, wz = (float)map.Z0 + (z + 0.5f) / 4;
+            // This district is the ground-level quay. Deep steps and roofs are separate navigation regions.
+            ray.From = new Vector3(wx, 0.35f, wz); ray.To = new Vector3(wx, -0.6f, wz);
+            var hit = space.IntersectRay(ray);
+            if (hit.Count == 0 || hit["normal"].AsVector3().Y < 0.65f) continue;
+            float y = hit["position"].AsVector3().Y;
+            body.Transform = new Transform3D(Basis.Identity, new Vector3(wx, y + 1.06f, wz));
+            if (space.IntersectShape(body, 1).Count != 0) continue;
+            map.free[z * map.W * 4 + x] = 1;
+            map.ground[z / 2 * map.W * 2 + x / 2] = (short)Math.Clamp(Math.Round(y * 100), short.MinValue, short.MaxValue);
+        }
+        for (int z = 0; z < map.D; z++) for (int x = 0; x < map.W; x++)
+        {
+            bool clear = true;
+            for (int dz = 0; dz < 4 && clear; dz++) for (int dx = 0; dx < 4; dx++)
+                if (map.free[(z * 4 + dz) * map.W * 4 + x * 4 + dx] == 0) { clear = false; break; }
+            map.open[z * map.W + x] = clear ? (byte)3 : (byte)0;
+        }
+        map.BodyHeights(); map.low = map.high = Array.Empty<float>(); map.RefreshBodies(); capsule.Dispose();
+        return map;
+    }
+
     public static WalkMap? Load(string jsonPath)
     {
         string bin = Path.ChangeExtension(jsonPath, ".bin");

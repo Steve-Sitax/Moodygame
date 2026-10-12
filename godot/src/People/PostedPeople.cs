@@ -150,6 +150,7 @@ public partial class PostedPeople : Node
 
     private void Add(Posted n)
     {
+        if (!Main.I.World.ContainsPlayPoint(n.Home.x, n.Home.z)) return;
         n.Human = Humans.Make(n.Kind);
         if (n.Human == null) return;
         n.Anchor = n.Home;

@@ -20,6 +20,9 @@ public partial class BakedWorld : Node3D
     public JsonDocument Facts { get; protected set; } = null!;
     /// <summary>Native worlds supply lights from their live authored objects; legacy worlds read their sidecar.</summary>
     public virtual JsonDocument? NativeLights => null;
+    public virtual Scheldemist.Town.WalkMap? NativeWalk => null;
+    public virtual bool ContainsPlayPoint(double x, double z) => true;
+    public virtual bool SupportsJob(Scheldemist.Net.Job job) => true;
     public Dictionary<string, object> Report { get; } = new();
     /// <summary>Meshes with a shader of the browser's own (sky, glows, fire): hidden until their part is ported.</summary>
     public List<string> Unported { get; } = new();

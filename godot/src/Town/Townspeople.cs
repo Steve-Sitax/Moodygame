@@ -283,7 +283,8 @@ public partial class Townspeople : Node
             GD.PrintErr("townspeople: " + Status);
             return;
         }
-        string[] tries = { main.Arg("walk", ""), Paths.TownSide("_walk.json"), Path.Combine(Paths.Baked, "town_walk.json") };
+        Walk = main.World.NativeWalk;
+        string[] tries = Walk != null ? Array.Empty<string>() : new[] { main.Arg("walk", ""), Paths.TownSide("_walk.json"), Path.Combine(Paths.Baked, "town_walk.json") };
         foreach (var t in tries)
         {
             if (t == "" || (Walk = WalkMap.Load(t)) == null) continue;

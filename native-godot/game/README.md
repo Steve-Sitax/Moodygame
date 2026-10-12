@@ -1,14 +1,19 @@
 # Testing native districts in the Godot game
 
-The native district test uses the existing Godot C# player and visual systems with editable native scenes.
-Rijnkaai is ready for Steve's review. It loads saved workshop placements, including the added street lamp.
-NPCs, missions, interiors, navigation and movers remain separate migration work; do not enable every game part
-against this partial district or expand to other districts before Steve reviews it.
+The Rijnkaai playtest connects the existing Godot menus, HUD, residents, conversations, pockets and hiring board
+to the editable district. It loads saved workshop placements, including Steve's added lamp. It is a partial game
+slice: interiors, movers, full mission routes and multiplayer remain. Jobs whose required spots/systems are absent
+are marked unavailable. Review this slice before expanding other districts or retiring the web version.
 
 ## Run and edit
 
-`Start Native District Game.cmd` starts `game.tscn` with Forward+ and the saved workshop layout. Click to capture
-the mouse, WASD to walk, Shift to hurry, Space to jump, Esc to release. F6 cycles clear/mist/fog/rain/storm; F7
+`Start Native District Game.cmd` starts `game.tscn` with Forward+, the saved workshop layout and the title menu.
+Choose Walk into town; WASD/Shift/Space move, E interacts, I opens pockets, J the quest book, M the map and Esc the
+pause menu. Game saves/settings are separate under `%APPDATA%/ScheldemistWorkshop/playtest`; launch uses no AI.
+Install the checkout's existing server dependencies once with `npm --prefix server ci` if missing.
+
+`Review Quay Surfaces.cmd` is the scenery-only viewer: click to capture the mouse, WASD/Shift/Space move and Esc
+releases it. F6 cycles clear/mist/fog/rain/storm; F7
 cycles 13/18/21/5 hours; F9 switches fly/walk; Space/Ctrl rise/descend while flying. B toggles bumps/relief and M
 toggles the two reflection passes. The controls do not change saved player settings.
 
@@ -16,21 +21,36 @@ toggles the two reflection passes. The controls do not change saved player setti
 uses a complete saved workshop layout when present, so it preserves deletions and can override an edited seed.
 Exports remain separate object scenes until explicitly integrated. Neither game test writes or promotes a layout.
 
-`Review Quay Surfaces.cmd` opens a close view of the corrected quay surfaces in the real game. It starts flying;
+The surface viewer opens a close view of the corrected quay surfaces with the game's visual systems. It starts flying;
 click and use WASD/Space/Ctrl to inspect them. F9 returns to walking. Restart an already-open game to load new
 native resources. Save editor changes before reopening the district; never force a live editor reload.
 
 ## Runtime connection
 
 `Scheldemist.Native.csproj` references the existing `godot/Scheldemist.csproj`; there is one implementation of Jef,
-Daylight, Sky, Lights, Rain, RainSheets, Lightning, Waters and Mirrors. `NativeGame` selects only those parts and
-Solid's movement queries. It starts no Node server. `Main` exposes world/parts/menu hooks; its original defaults
+Daylight, Sky, Lights, Rain, RainSheets, Lightning, Waters and Mirrors. `NativeGame` selects district-supported
+parts before constructing them; the surface viewer selects only visuals/player and starts no server. The playtest
+temporarily uses `ServerLink` and the existing Node gameplay service (rules, saves, routines, hand-written talk).
+There is no web client or whole-town GLB at runtime. Full server removal is still pending. `Main` exposes world/parts/menu hooks; its original defaults
 remain the full bake-based game. `NativeGameWorld.Load` overrides the legacy loader with PackedScene loading.
 
 Native colliders supply physics; the legacy Solid service must skip those meshes and the water template.
 The native root restores semantic node names and extras for existing game queries. Lamp light records are built
 from actual authored objects and flame/light anchors, rather than old baked positions. Gameplay lamp identifiers
-and route anchors still need durable scene-based mappings before lamplighter/NPC systems are enabled.
+and route anchors still need durable scene-based mappings before lamplighter/full-route systems are enabled.
+
+`NativeModelRecovery` is one-time intake for people/props/player/crate/clutter/quaygoods/lively from the completed
+model folder. Run `recovery/recover-game-models.tscn -- --source-models <folder>` in a rendered process. It stores
+PackedScenes under `assets/game-models`, preserving skeletons and animations, with source hashes in `intake.json`.
+Default intake refuses an existing output; `--resume-intake yes` adds missing files after checking source hashes
+and never replaces a stored scene. `ModelLibrary.NativeScene` supplies these native scenes and never falls back
+to runtime GLB loading. New model edits belong in the stored Godot scene/resources.
+
+`Main.PrepareWorld` waits for native colliders to reach physics before attaching game parts. `WalkMap.FromNative`
+samples ground and body clearance across district bounds; residents use this grid instead of the bake's walk dump.
+This first grid supports ground-level quay terrain, not roofs/deep steps. It includes authored objects at startup;
+live moving actors use the existing body registration. Whole-city server schedules/routes still supply resident
+plans; the local crowd can stand only on its native grid. Posted actors outside the district are omitted.
 
 The enabled `native_game_globals` editor plugin registers game shader globals for resource previews. Runtime
 registers the same globals before loading its native materials. Keep this plugin enabled when inspecting the
@@ -72,6 +92,14 @@ Review its spawn, collision, boundaries, shader maps, lamp anchors and reflectio
 screenshots under ignored `proof/`; never exercise save/export tests against a player's live files.
 
 ## Verification
+
+`--native-play-proof <absolute-directory>` runs with real menus and isolated `--db`, `--prefs`, `--author-dir` and
+`SCHELDEMIST_USER_DATA`. It checks native collision navigation, saved placements, live server state, visible crowd
+actors/two posted people, 36 animation clips/skeletons, unavailable out-of-district jobs, hiring-board interaction,
+conversation, pause/resume and an isolated game save/load restoring Jef's position. Keep `IndoorSave`/`RideSaves`:
+menus alone save the camera but those adapters capture feet and restore the walking player.
+It captures five UI/game screenshots under ignored `proof/playtest`; use no AI and a free isolated server port.
+This proves the connected slice, not completion of all jobs or the remaining service migration.
 
 `NativeGameProof` checks the real player on native collision, native bump/relief maps, all seven lamps in Steve's
 copied 15-object layout, weather state, animated water and both reflection passes. It captures day, rain, no-bump,
