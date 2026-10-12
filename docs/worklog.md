@@ -23,6 +23,10 @@
   Plastered houses' blind side and back walls are bare brick; portal steps in worn bluestone blocks; the arms of
   Antwerp redrawn and carved on a block in the Oostershuis tympanum.
 - Find: [#74](https://github.com/Steve-Sitax/Moodygame/issues/74), the cathedral's nave floor black in Godot.
+## Goods test crate dimensions, 2026-10-12 (branch fx-goodstest)
+
+- Updated stale M8f assertions for the intentional 2026-10-11 crate replacement; the server, browser and Godot agree.
+- Found old dimensions in the browser's temporary Rijnkaai crate keep-outs: [#76](https://github.com/Steve-Sitax/Moodygame/issues/76).
 
 ## Fix wave 2 (bugs): omnibus boards in the air, people on lifted bridges, 2026-10-11
 
@@ -638,3 +642,5 @@ Fixed trade cries retaining a disposed puppet; seven trade logic rows pass in di
 with no managed exceptions. Its inspected images fail visual review. Normal Vulkan startup crashes
 before game loading, and D3D12 fails command-queue initialization. Filed [#59](https://github.com/Steve-Sitax/Moodygame/issues/59).
 No cause is attributed to the overlay or driver yet. Checks now reject ERROR logs/nonzero exits.
+
+- 2026-10-11 23:05: bake of main efbb90f (all of wave 2) by a Codex Sol 6.1 xhigh run: 590 s, town.glb 849 MB, menu test 36/36. Now live in the play folder `godot/baked/next/`; the old one is `next-prev` until Steve has checked. Models written again (crate.glb was missing). Helpers paused for tokens: see the paused list in memory.
