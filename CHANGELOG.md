@@ -13,6 +13,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - Old game saves have been removed for the native migration, as requested. Start a new game; editor layouts, preferences and provider credentials are retained.
 - The legless horse body that hung in the air at the Rijnkaai quay edge, at the middle of the map, is gone. It was a leftover model part of the horses; the working horses are unchanged.
 - Handcarts, drays and their loads, and the draught and hearse horses, no longer show a patchwork of mixed textures. Planks, iron, sacking and the bay coat with black mane, tail and harness now sit where they belong (issue 81).
+- The racing pigeons of the lofts are alive: they sit by their board and on the hut roof with their wings folded, and in the morning (about 7:40 to 9:20) and the afternoon (about 14:50 to 16:30) of a dry day each loft's flock goes up, circles the roofs for half a game hour, then lands again. Before, they hung in the air with their wings spread flat (issue #66).
 - Gas lamps, bollards and other placed quay objects now fade into mist, fog and rain like the rest of the town, instead of standing out as sharp black shapes far away. Lamp glass and flames fade with the air and still glow at night (issue #79).
 - The sails of the windmills on the town wall are dark at night, like the brick round them, instead of staying pale as at noon. They follow the sky like the cathedral and the quay walls (issue #73).
 
