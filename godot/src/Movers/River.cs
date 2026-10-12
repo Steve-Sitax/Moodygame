@@ -44,7 +44,7 @@ public partial class River : Node
     {
         (new Kind(new[] { "tug", "barque" }, 1.7), 2),
         (new Kind(new[] { "barque_sail" }, 2.4), 2),
-        (new Kind(new[] { "steamer" }, 3.4), 2),
+        (new Kind(new[] { "steamer_line" }, 3.4), 2),
         (new Kind(new[] { "paddle_tug" }, 3.0, 1.4f), 1.5),
         (new Kind(new[] { "schooner" }, 2.6), 1.5),
     };

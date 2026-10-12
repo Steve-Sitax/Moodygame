@@ -259,7 +259,7 @@ describe("arrivals and boarding", () => {
     const p = residentPrompt(db, town(db).byId.get(f.head)!, "Jef says hello.", []);
     expect(p).toContain("EMIGRANT:");
     expect(p).toContain(f.bound);
-    expect(p).toContain("Kempenland");
+    expect(p).toContain("KEMPENLAND");
   });
 
   it("on the ship's day the lighter takes a family; the rest go with the last lighter; memories stay", () => {

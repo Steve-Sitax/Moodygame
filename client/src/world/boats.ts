@@ -11,6 +11,7 @@ import type { Rect } from "./geom";
 import { BRIG_FLOOR, draftOf, levelAt, regionAt } from "./tide";
 import { boatFloor, registerBoatBottom } from "./boatGround";
 import { addLantern, type LanternSource } from "./lanternLights";
+import { namedBoats, prepareBoatNames } from "./boatNames";
 
 // Boats, ships and quay cranes from Blender (tools/blender/build_boats.py ->
 // /models/boats.glb). Our own models, made by script. A vessel's origin is the
@@ -27,7 +28,9 @@ import { addLantern, type LanternSource } from "./lanternLights";
 /** Every model in boats.glb. */
 export const BOAT_NAMES = [
   "barque",
+  "barque_grain",
   "steamer",
+  "steamer_line",
   "rhine_barge",
   "hengst",
   "lighter",
@@ -216,7 +219,9 @@ export interface Boats {
 /** Heave (m), roll and pitch (rad), period (s): small boats move more and faster. */
 const MOTION: Record<string, [number, number, number, number]> = {
   barque: [0.03, 0.006, 0.002, 8.5],
+  barque_grain: [0.03, 0.006, 0.002, 8.5],
   steamer: [0.03, 0.005, 0.002, 8.0],
+  steamer_line: [0.03, 0.005, 0.002, 8.0],
   rhine_barge: [0.025, 0.006, 0.002, 7.0],
   hengst: [0.03, 0.01, 0.004, 6.0],
   lighter: [0.03, 0.012, 0.005, 5.5],
@@ -436,7 +441,7 @@ export interface MovingShip {
   anchored?: boolean;
 }
 
-const STEAM = new Set<BoatName>(["steamer", "paddle_tug", "tug", "liner"]);
+const STEAM = new Set<BoatName>(["steamer", "steamer_line", "paddle_tug", "tug", "liner"]);
 export const isSteam = (k: BoatName): boolean => STEAM.has(k);
 const movingSources = new Set<(out: MovingShip[]) => void>();
 const movingOut: MovingShip[] = [];
@@ -466,7 +471,7 @@ export const boatHoldLevel = (x: number, z: number): number => holdQuery(x, z);
 
 /** Load boats.glb once; later calls get the same promise. */
 export function loadBoats(): Promise<Boats> {
-  if (!loading) loading = load();
+  if (!loading) loading = load().then(namedBoats);
   return loading;
 }
 
@@ -590,6 +595,7 @@ export async function loadModelSet(url: string): Promise<ModelSet> {
   const draco = new DRACOLoader().setDecoderPath("/draco/");
   const [gltf, ba] = await Promise.all([new GLTFLoader().setDRACOLoader(draco).loadAsync(url), loadBoatAtlas()]);
   draco.dispose();
+  const restoreNames = await prepareBoatNames(gltf.scene);
 
   const srcMats = new Map<string, THREE.MeshStandardMaterial>();
   gltf.scene.traverse((o) => {
@@ -733,6 +739,7 @@ export async function loadModelSet(url: string): Promise<ModelSet> {
   // (game/sackModel.ts), in the places their builders recorded; each model with sacks is its "_bare" copy and those
   const rows = (SACK_ROWS as Record<string, Record<string, SackRow[]>>)[url];
   if (rows) swapSacks(protos, rows, "quay", url);
+  restoreNames(protos);
   return { protos, extras, materials, helpers };
 }
 

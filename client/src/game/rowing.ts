@@ -18,6 +18,7 @@ import { bootRestore } from "./restoreData";
 import { HULLS, MOORINGS, SMALL_KINDS, isSmallKind, type Mooring, type SmallKind } from "../../../shared/smallBoats";
 import { Moorings, floorOf, type RopeEnd } from "./boatMoorings";
 import { LifeAboard } from "./lifeAboard";
+import { bindBoatName } from "../world/boatNames";
 
 // Rowing boats (M3j), on the client. Steve, 2026-09-23: "We should be able to take a boat and
 // row to other places. Bridge goes up if we don't fit underneath. Only rowing boats, no big
@@ -427,6 +428,7 @@ export class Rowing {
     if (!l) {
       const o = obj ?? this.objFor(kind);
       if (!o) return null;
+      bindBoatName(o, kind, key === "mine" ? `hire:${this.data?.hire?.landing}` : key.replace(/^berth:/, "hire:"));
       l = { key, kind, obj: o, rect: this.rectOf(x, z, yaw, kind), x, z, yaw, drift };
       this.world.addWaterSolid(l.rect);
       this.lying.set(key, l);
@@ -822,6 +824,7 @@ export class Rowing {
       yaw = l.yaw;
     } else obj = this.objFor(kind);
     if (!obj) return;
+    bindBoatName(obj, kind, what === "hire" ? `hire:${this.data?.hire?.landing}` : what);
     this.world.boats()?.stowed(obj, false);
     this.boat = { obj, what, kind, oars: this.oarsFor(obj, kind) };
     this.player.rowStart(x, z, yaw, HULL[kind]);

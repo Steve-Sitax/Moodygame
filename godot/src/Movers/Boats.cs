@@ -24,7 +24,9 @@ public partial class Boats : Node
     private static readonly Dictionary<string, float[]> Motion = new()
     {
         ["barque"] = new[] { 0.03f, 0.006f, 0.002f, 8.5f },
+        ["barque_grain"] = new[] { 0.03f, 0.006f, 0.002f, 8.5f },
         ["steamer"] = new[] { 0.03f, 0.005f, 0.002f, 8.0f },
+        ["steamer_line"] = new[] { 0.03f, 0.005f, 0.002f, 8.0f },
         ["rhine_barge"] = new[] { 0.025f, 0.006f, 0.002f, 7.0f },
         ["hengst"] = new[] { 0.03f, 0.01f, 0.004f, 6.0f },
         ["lighter"] = new[] { 0.03f, 0.012f, 0.005f, 5.5f },
@@ -64,7 +66,7 @@ public partial class Boats : Node
         ["punt"] = new[] { "rowboat" },
         ["rowboat"] = new[] { "punt" },
     };
-    private static readonly HashSet<string> Steam = new() { "steamer", "paddle_tug", "tug", "liner" };
+    private static readonly HashSet<string> Steam = new() { "steamer", "steamer_line", "paddle_tug", "tug", "liner" };
     public static bool IsSteam(string kind) => Steam.Contains(kind);
 
     /// <summary>The mud beds of the canal and the vlieten: bare at low spring tides (tide.ts).</summary>
@@ -161,6 +163,7 @@ public partial class Boats : Node
     public override void _Ready()
     {
         I = this;
+        InitNames();
         ProcessPriority = -50; // the boats' owners (the river, the lock ...) place theirs after this
         BoatGround.ReadMud(Mv.Town);
         Collect(Mv.Town);
@@ -217,6 +220,7 @@ public partial class Boats : Node
         floats.Add(f);
         templates.TryAdd(kind, (outer, inner));
         if (!prepared) Activate(f);
+        NameVessel(f);
         return f;
     }
 
@@ -306,6 +310,7 @@ public partial class Boats : Node
         if (k == null) return null;
         var (src, srcInner) = templates[k];
         var outer = (Node3D)src.Duplicate();
+        if (outer.HasMeta("vesselId")) outer.RemoveMeta("vesselId");
         outer.Name = kind;
         outer.Visible = true;
         outer.Scale = Vector3.One * scale;

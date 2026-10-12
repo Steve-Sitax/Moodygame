@@ -138,6 +138,13 @@ small boats, a half-scraped name for the old boats.
 
 ## Materials, textures and lines
 
+W5 binds names in `boatNames.ts` and `Boats.Names.cs`. The 4 x 16 atlas pages are split at load into four
+4 x 4 sections for D3's square `nameCell` switch, without resizing the letters. Name zones stay outside the
+hull merge and use outward faces only. Paddle craft show their side name on the box instead of repeating
+it on the bow board. A moored boat keeps her registry id when rowing swaps her for a pooled model; the
+bake carries single-vessel ids and each row's `nameVessels`, so Godot preserves the browser's assignments.
+Old Godot hulls with baked-in lettering need the next town bake and decoded model refresh.
+
 - At most 4 materials a hull, shared by every hull: the boat atlas, the names atlas, sails and
   canvas (double-sided, cut out), glass. Today the builders still use the long material list in
   `common.py` (`MATS`) and the browser packs it into one atlas at load (`boats.ts loadModelSet`); B0
@@ -163,6 +170,6 @@ holds, `lifeAboard.ts`, the lantern extras (`boats.ts lamps()`, Godot `BoatLamps
 `anchorage_tow`, `river`, `lock`, `ferry`, `mooring`, `loose`, `hire`, `passage`) and the keys that pick
 her out (a row's seed and slot, a river model and its copy number, a mooring id). `at` is where she lay
 when the registry was written, a check only. No name is used twice; a ship's boat carries her mother
-ship's name (`of`). `spare` holds names for copies the registry does not list (a river pool that grows,
+ship's name with `II`, and keeps the mother ship's id in `of`. `spare` holds names for copies the registry does not list (a river pool that grows,
 a row slot that appears after a size change), by kind; `family` maps the sailing and loaded copies to
 their kind's list. Multiplayer boats of other players are the same small boats, by their ids.
