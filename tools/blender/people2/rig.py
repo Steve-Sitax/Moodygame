@@ -1,4 +1,4 @@
-"""The people2 skeleton: 60 bones, one layout for every body (docs/people.md "The skeleton").
+"""The people2 skeleton: 62 bones, one layout for every body (docs/people.md "The skeleton").
 
 The 16 bones of the old kit keep their names, their parents' chain and their rest directions (straight up, straight
 down or straight forward, roll 0), so the 36 old clips play on the new bodies as they are. Every new bone that sits
@@ -8,6 +8,7 @@ points straight up with roll 0, so the rest turn from a parent to an old child s
 Kinds of bone:
 - body: deform, keyed by the clips (47 of them);
 - spring: skirt and coat-tail bones, deform but only weighted on clothes that have them; moved by springs in the games;
+- eye: deform the eyeballs only, never keyed (code turns them to look);
 - socket: never deform, never keyed; things are hung on them (a weapon in the hand, a sabre on the hip, a load on
   the back, a hat on the head).
 """
@@ -62,6 +63,9 @@ BONES += [
     ("hipL", "hips", "socket"),
     ("back", "upperChest", "socket"),
     ("headTop", "head", "socket"),
+    # B: the eyes (leaves of head; they deform the eyeballs only and are turned by code to look, never by clips)
+    ("eyeL", "head", "eye"),
+    ("eyeR", "head", "eye"),
 ]
 NAMES = [b[0] for b in BONES]
 PARENT = {b[0]: b[1] for b in BONES}
@@ -69,12 +73,12 @@ KIND = {b[0]: b[2] for b in BONES}
 LEGACY = ["hips", "spine", "neck", "head", "armUpL", "armLowL", "handL", "armUpR", "armLowR", "handR",
           "legUpL", "legLowL", "footL", "legUpR", "legLowR", "footR"]
 KEYED = [n for n in NAMES if KIND[n] == "body"]
-assert len(NAMES) == 60, len(NAMES)
+assert len(NAMES) == 62, len(NAMES)
 
 # Godot 4.7's SkeletonProfileHumanoid names for the BoneMap (the little finger follows the ring chain in our rig)
 GODOT = {
     "hips": "Hips", "spine": "Spine", "chest": "Chest", "upperChest": "UpperChest", "neck": "Neck", "head": "Head",
-    "jaw": "Jaw",
+    "jaw": "Jaw", "eyeL": "LeftEye", "eyeR": "RightEye",
 }
 for _S, _side in (("L", "Left"), ("R", "Right")):
     GODOT.update({
@@ -174,11 +178,18 @@ def joints(P):
     put("hipL", (0.168 * k, Y(0.598), 0.01 * w), d=down, length=0.12 * w)
     put("back", (0, Y(0.760), -0.124 * w * P["f"]["chest"]), d=up, length=0.12 * w)
     put("headTop", (0, H, -0.008 * w), d=up, length=0.08 * w, part="head")
+    from . import head as hd
+    for S, sg in (("L", 1), ("R", -1)):
+        e = hd.eye_world(P, sg)  # in place after the stoop already (head.eye_world)
+        J["eye" + S] = ("eye", e, e + fwd * 0.02 * w)
 
     # the stoop moves the heads; directions and lengths stay
     fn = bd.stoop_fn(P)
     out = {}
     for n in NAMES:
+        if isinstance(J[n][0], str):
+            out[n] = (np.array(J[n][1]), np.array(J[n][2]))
+            continue
         h, t, part = J[n]
         nh = np.array(fn(tuple(h), part if part != "arm" else "arm"))
         out[n] = (nh, nh + (t - h))
@@ -186,7 +197,7 @@ def joints(P):
 
 
 def build_armature(name, J):
-    """A Blender armature object with the 60 bones, roll 0."""
+    """A Blender armature object with the 62 bones, roll 0."""
     import bpy
 
     arm = bpy.data.armatures.new(name + "_rig")

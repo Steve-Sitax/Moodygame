@@ -2,8 +2,9 @@
 
 One topology for every body: a trunk tube of 16 columns from the crotch to the crown (torso, shoulders, neck, head,
 a 4 x 4 grid over the crown), two arms of 8 columns that grow out of a 2 x 2 hole on each side of the chest and end in
-a capped palm, two legs of 10 columns that grow out of the crotch and bend forward into the feet, and fifteen closed
-finger shells (four fingers and a thumb a hand, 4 columns each) set into the palms. Every joint has three edge loops.
+B's hands (hands.py: a 10-column palm with four fingers and a thumb grown out of it), and two legs of 10 columns that
+grow out of the crotch and bend forward into the feet. Every joint has three edge loops. The head is replaced after
+the subdivision by B's (head.py).
 The cage is the far copy (LOD1, about 2,100 triangles); subdivided once it is the near copy (LOD0, about 8,500).
 
 The shapes come from tables written for one reference man of 1.67 m (H_REF) and are bent to the other bodies by
@@ -591,69 +592,14 @@ def build(P):
                 ring.append(tuple(p))
             geo.insert(0 if nm == "d1" else 1, (nm, ring))
         for name, ring in geo:
+            if name in ("p1", "p2"):  # B: the hand from p0 on is hands.py's
+                continue
             rings.append([C.v(p, "arm" + side, ring=name, col=j, side=side) for j, p in enumerate(ring)])
         C.loft(rings, "arm" + side, seam_col=6)
         for k in range(8):  # the arm is an island of its own
             C.seam(hole[k], hole[(k + 1) % 8])
-        # close the palm with three quads across the knuckles
-        last = rings[-1]
-        cy = np.mean([C.rest[i][1] for i in last])
-        for i in last:
-            x, y, z = C.rest[i]
-            C.rest[i] = (x, y - 0.004 * w, z)
-        for a, b, c, d in ((0, 1, 6, 7), (1, 2, 5, 6), (2, 3, 4, 5)):
-            C.q((last[a], last[b], last[c], last[d]), "arm" + side)
-        C.seam(last[6], last[5])
-        C.seam(last[6], last[7])
-
-        # ---- the fingers and the thumb: closed shells of 4 columns
-        hj = hand_frame(P, side)
-        for fname, *_rest in FINGERS + [("thumb",)]:
-            pts = [np.array(p) for p in hj[fname]]
-            if fname == "thumb":
-                half = 0.0108 * w * f["hand"]
-                pts = pts[:]
-            else:
-                half = [fi for fi in FINGERS if fi[0] == fname][0][4] * w * f["hand"]
-            # rings: a base inside the palm, then each joint, then the tip
-            axis0 = pts[1] - pts[0]
-            axis0 /= np.linalg.norm(axis0)
-            base = pts[0] - axis0 * (0.022 if fname != "thumb" else 0.006) * w
-            centres = [base] + pts
-            ringsF = []
-            for k, cc in enumerate(centres):
-                if k < len(centres) - 1:
-                    ax = centres[k + 1] - cc
-                else:
-                    ax = cc - centres[k - 1]
-                ax = ax / np.linalg.norm(ax)
-                # side vectors: u toward the back of the hand (outer x), v toward the thumb side (+z)
-                u = np.array((sg, 0.0, 0.0))
-                if fname == "thumb":
-                    u = np.array((sg * 0.55, 0.0, 0.85))  # the thumb's nail faces forward and out
-                u = u - ax * np.dot(u, ax)
-                u /= np.linalg.norm(u)
-                v = np.cross(ax, u) * (1 if side == "L" else -1)
-                taper = 1.0 - 0.22 * (k / (len(centres) - 1))
-                if k == len(centres) - 1:
-                    taper *= 0.8
-                rr = half * taper
-                pad = 1.08 if k >= 1 else 1.0  # the pad of each joint
-                ring = []
-                for a in (45, 135, 225, 315):
-                    ar = math.radians(a)
-                    p = cc + u * rr * math.sqrt(2) * math.cos(ar) * 0.95 + v * rr * pad * 1.18 * math.sqrt(2) * math.sin(ar)
-                    ring.append(C.v(tuple(p), "finger_" + fname + side, ring=k, side=side, finger=fname))
-                ringsF.append(ring)
-            C.loft(ringsF, "finger_" + fname + side, seam_col=2)
-            C.q(tuple(reversed(ringsF[0])), "finger_" + fname + side)
-            # the tip: the last ring closed with one quad, pushed out into a round end by the subdivision
-            tip = ringsF[-1]
-            ax = centres[-1] - centres[-2]
-            ax /= np.linalg.norm(ax)
-            for i in tip:
-                C.rest[i] = tuple(np.array(C.rest[i]) * 0.8 + centres[-1] * 0.2 + ax * half * 0.55)
-            C.q(tuple(tip), "finger_" + fname + side)
+        from . import hands
+        hands.build_hand(C, P, side, rings[-1])
 
     # ---- the legs
     lx = hip_x(P)

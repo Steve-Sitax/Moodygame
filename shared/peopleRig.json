@@ -721,6 +721,30 @@
     1.0,
     -0.0
    ]
+  },
+  {
+   "name": "eyeL",
+   "parent": "head",
+   "kind": "eye",
+   "deform": true,
+   "legacy": false,
+   "dir": [
+    0.0,
+    0.0,
+    1.0
+   ]
+  },
+  {
+   "name": "eyeR",
+   "parent": "head",
+   "kind": "eye",
+   "deform": true,
+   "legacy": false,
+   "dir": [
+    0.0,
+    0.0,
+    1.0
+   ]
   }
  ],
  "boneMap": {
@@ -733,6 +757,8 @@
    "Neck": "neck",
    "Head": "head",
    "Jaw": "jaw",
+   "LeftEye": "eyeL",
+   "RightEye": "eyeR",
    "LeftShoulder": "clavicleL",
    "LeftUpperArm": "armUpL",
    "LeftLowerArm": "armLowL",
@@ -781,11 +807,9 @@
    "RightLittleProximal",
    "RightLittleIntermediate",
    "RightLittleDistal",
-   "LeftEye",
-   "RightEye",
    "Root"
   ],
-  "note": "The little finger is weighted to the ring chain (ring1-3), so it curls with the ring finger. Eyes are not bones yet (eyeL, eyeR are reserved for B, as leaves of head)."
+  "note": "The little finger is weighted to the ring chain (ring1-3), so it curls with the ring finger. eyeL and eyeR are leaves of head that turn the eyeballs (code, never clips)."
  },
  "legacy": [
   "hips",
@@ -856,7 +880,7 @@
   "footR",
   "toeR"
  ],
- "reserved": [
+ "eyes": [
   "eyeL",
   "eyeR"
  ],
@@ -1086,13 +1110,13 @@
    "scaleToOld": 0.9598,
    "stoopDeg": 0.0,
    "triangles": {
-    "lod0": 8784,
-    "lod1": 2196,
-    "bones": 60,
-    "top": 1.68,
+    "lod0": 10356,
+    "lod1": 2342,
+    "bones": 62,
+    "top": 1.671,
     "bottom": 0.001,
     "girths": {
-     "neck": 0.417,
+     "neck": 0.39,
      "chest": 0.882,
      "waist": 0.791,
      "hips": 0.907,
@@ -1101,7 +1125,7 @@
      "upperarm": 0.272,
      "forearm": 0.247,
      "wrist": 0.169,
-     "height": 1.68
+     "height": 1.67
     }
    },
    "joints": {
@@ -1824,6 +1848,30 @@
       1.75,
       -0.008
      ]
+    },
+    "eyeL": {
+     "head": [
+      0.0329,
+      1.5645,
+      0.0742
+     ],
+     "tail": [
+      0.0329,
+      1.5645,
+      0.0942
+     ]
+    },
+    "eyeR": {
+     "head": [
+      -0.0329,
+      1.5645,
+      0.0742
+     ],
+     "tail": [
+      -0.0329,
+      1.5645,
+      0.0942
+     ]
     }
    },
    "marks": {
@@ -2086,13 +2134,13 @@
    "scaleToOld": 0.9598,
    "stoopDeg": 0.0,
    "triangles": {
-    "lod0": 8784,
-    "lod1": 2196,
-    "bones": 60,
-    "top": 1.68,
+    "lod0": 10356,
+    "lod1": 2342,
+    "bones": 62,
+    "top": 1.671,
     "bottom": 0.001,
     "girths": {
-     "neck": 0.397,
+     "neck": 0.369,
      "chest": 0.798,
      "waist": 0.712,
      "hips": 0.824,
@@ -2101,7 +2149,7 @@
      "upperarm": 0.251,
      "forearm": 0.228,
      "wrist": 0.165,
-     "height": 1.68
+     "height": 1.67
     }
    },
    "joints": {
@@ -2824,6 +2872,30 @@
       1.75,
       -0.008
      ]
+    },
+    "eyeL": {
+     "head": [
+      0.0329,
+      1.5645,
+      0.0742
+     ],
+     "tail": [
+      0.0329,
+      1.5645,
+      0.0942
+     ]
+    },
+    "eyeR": {
+     "head": [
+      -0.0329,
+      1.5645,
+      0.0742
+     ],
+     "tail": [
+      -0.0329,
+      1.5645,
+      0.0942
+     ]
     }
    },
    "marks": {
@@ -3086,13 +3158,13 @@
    "scaleToOld": 0.9598,
    "stoopDeg": 0.0,
    "triangles": {
-    "lod0": 8784,
-    "lod1": 2196,
-    "bones": 60,
-    "top": 1.68,
+    "lod0": 10356,
+    "lod1": 2342,
+    "bones": 62,
+    "top": 1.671,
     "bottom": 0.001,
     "girths": {
-     "neck": 0.445,
+     "neck": 0.417,
      "chest": 0.986,
      "waist": 0.94,
      "hips": 1.024,
@@ -3101,7 +3173,7 @@
      "upperarm": 0.301,
      "forearm": 0.273,
      "wrist": 0.174,
-     "height": 1.68
+     "height": 1.67
     }
    },
    "joints": {
@@ -3824,6 +3896,30 @@
       1.75,
       -0.008
      ]
+    },
+    "eyeL": {
+     "head": [
+      0.0329,
+      1.5645,
+      0.0742
+     ],
+     "tail": [
+      0.0329,
+      1.5645,
+      0.0942
+     ]
+    },
+    "eyeR": {
+     "head": [
+      -0.0329,
+      1.5645,
+      0.0742
+     ],
+     "tail": [
+      -0.0329,
+      1.5645,
+      0.0942
+     ]
     }
    },
    "marks": {
@@ -4086,13 +4182,13 @@
    "scaleToOld": 0.8949,
    "stoopDeg": 0.0,
    "triangles": {
-    "lod0": 8784,
-    "lod1": 2196,
-    "bones": 60,
-    "top": 1.58,
+    "lod0": 10636,
+    "lod1": 2432,
+    "bones": 62,
+    "top": 1.569,
     "bottom": 0.001,
     "girths": {
-     "neck": 0.348,
+     "neck": 0.32,
      "chest": 0.81,
      "waist": 0.657,
      "hips": 0.887,
@@ -4101,7 +4197,7 @@
      "upperarm": 0.22,
      "forearm": 0.2,
      "wrist": 0.137,
-     "height": 1.579
+     "height": 1.568
     }
    },
    "joints": {
@@ -4824,6 +4920,30 @@
       1.6452,
       -0.0075
      ]
+    },
+    "eyeL": {
+     "head": [
+      0.0319,
+      1.4678,
+      0.0719
+     ],
+     "tail": [
+      0.0319,
+      1.4678,
+      0.0907
+     ]
+    },
+    "eyeR": {
+     "head": [
+      -0.0319,
+      1.4678,
+      0.0719
+     ],
+     "tail": [
+      -0.0319,
+      1.4678,
+      0.0907
+     ]
     }
    },
    "marks": {
@@ -5086,13 +5206,13 @@
    "scaleToOld": 0.8949,
    "stoopDeg": 0.0,
    "triangles": {
-    "lod0": 8784,
-    "lod1": 2196,
-    "bones": 60,
-    "top": 1.58,
+    "lod0": 10636,
+    "lod1": 2432,
+    "bones": 62,
+    "top": 1.569,
     "bottom": 0.001,
     "girths": {
-     "neck": 0.332,
+     "neck": 0.303,
      "chest": 0.73,
      "waist": 0.591,
      "hips": 0.806,
@@ -5101,7 +5221,7 @@
      "upperarm": 0.203,
      "forearm": 0.184,
      "wrist": 0.134,
-     "height": 1.579
+     "height": 1.568
     }
    },
    "joints": {
@@ -5824,6 +5944,30 @@
       1.6452,
       -0.0075
      ]
+    },
+    "eyeL": {
+     "head": [
+      0.0319,
+      1.4678,
+      0.0719
+     ],
+     "tail": [
+      0.0319,
+      1.4678,
+      0.0907
+     ]
+    },
+    "eyeR": {
+     "head": [
+      -0.0319,
+      1.4678,
+      0.0719
+     ],
+     "tail": [
+      -0.0319,
+      1.4678,
+      0.0907
+     ]
     }
    },
    "marks": {
@@ -6086,13 +6230,13 @@
    "scaleToOld": 0.8949,
    "stoopDeg": 0.0,
    "triangles": {
-    "lod0": 8784,
-    "lod1": 2196,
-    "bones": 60,
-    "top": 1.58,
+    "lod0": 10636,
+    "lod1": 2432,
+    "bones": 62,
+    "top": 1.569,
     "bottom": 0.001,
     "girths": {
-     "neck": 0.372,
+     "neck": 0.342,
      "chest": 0.916,
      "waist": 0.788,
      "hips": 1.0,
@@ -6101,7 +6245,7 @@
      "upperarm": 0.243,
      "forearm": 0.221,
      "wrist": 0.141,
-     "height": 1.579
+     "height": 1.568
     }
    },
    "joints": {
@@ -6824,6 +6968,30 @@
       1.6452,
       -0.0075
      ]
+    },
+    "eyeL": {
+     "head": [
+      0.0319,
+      1.4678,
+      0.0719
+     ],
+     "tail": [
+      0.0319,
+      1.4678,
+      0.0907
+     ]
+    },
+    "eyeR": {
+     "head": [
+      -0.0319,
+      1.4678,
+      0.0719
+     ],
+     "tail": [
+      -0.0319,
+      1.4678,
+      0.0907
+     ]
     }
    },
    "marks": {
@@ -7086,13 +7254,13 @@
    "scaleToOld": 0.6928,
    "stoopDeg": 0.0,
    "triangles": {
-    "lod0": 8784,
-    "lod1": 2196,
-    "bones": 60,
-    "top": 1.28,
+    "lod0": 10356,
+    "lod1": 2342,
+    "bones": 62,
+    "top": 1.277,
     "bottom": 0.001,
     "girths": {
-     "neck": 0.301,
+     "neck": 0.274,
      "chest": 0.658,
      "waist": 0.636,
      "hips": 0.653,
@@ -7101,7 +7269,7 @@
      "upperarm": 0.193,
      "forearm": 0.175,
      "wrist": 0.116,
-     "height": 1.28
+     "height": 1.277
     }
    },
    "joints": {
@@ -7824,6 +7992,30 @@
       1.3308,
       -0.0061
      ]
+    },
+    "eyeL": {
+     "head": [
+      0.03,
+      1.1616,
+      0.069
+     ],
+     "tail": [
+      0.03,
+      1.1616,
+      0.0842
+     ]
+    },
+    "eyeR": {
+     "head": [
+      -0.03,
+      1.1616,
+      0.069
+     ],
+     "tail": [
+      -0.03,
+      1.1616,
+      0.0842
+     ]
     }
    },
    "marks": {
@@ -8086,13 +8278,13 @@
    "scaleToOld": 0.6928,
    "stoopDeg": 0.0,
    "triangles": {
-    "lod0": 8784,
-    "lod1": 2196,
-    "bones": 60,
-    "top": 1.28,
+    "lod0": 10356,
+    "lod1": 2342,
+    "bones": 62,
+    "top": 1.277,
     "bottom": 0.001,
     "girths": {
-     "neck": 0.301,
+     "neck": 0.274,
      "chest": 0.598,
      "waist": 0.577,
      "hips": 0.593,
@@ -8101,7 +8293,7 @@
      "upperarm": 0.173,
      "forearm": 0.157,
      "wrist": 0.113,
-     "height": 1.28
+     "height": 1.277
     }
    },
    "joints": {
@@ -8824,6 +9016,30 @@
       1.3308,
       -0.0061
      ]
+    },
+    "eyeL": {
+     "head": [
+      0.03,
+      1.1616,
+      0.069
+     ],
+     "tail": [
+      0.03,
+      1.1616,
+      0.0842
+     ]
+    },
+    "eyeR": {
+     "head": [
+      -0.03,
+      1.1616,
+      0.069
+     ],
+     "tail": [
+      -0.03,
+      1.1616,
+      0.0842
+     ]
     }
    },
    "marks": {
@@ -9086,10 +9302,10 @@
    "scaleToOld": 0.9464,
    "stoopDeg": 17.0,
    "triangles": {
-    "lod0": 8784,
-    "lod1": 2196,
-    "bones": 60,
-    "top": 1.607,
+    "lod0": 10356,
+    "lod1": 2342,
+    "bones": 62,
+    "top": 1.597,
     "bottom": 0.001,
     "girths": {
      "neck": 0.0,
@@ -9100,8 +9316,8 @@
      "calf": 0.29,
      "upperarm": 0.231,
      "forearm": 0.21,
-     "wrist": 0.159,
-     "height": 1.606
+     "wrist": 0.179,
+     "height": 1.597
     }
    },
    "joints": {
@@ -9824,6 +10040,30 @@
       1.6749,
       0.1192
      ]
+    },
+    "eyeL": {
+     "head": [
+      0.0326,
+      1.492,
+      0.2004
+     ],
+     "tail": [
+      0.0326,
+      1.492,
+      0.2201
+     ]
+    },
+    "eyeR": {
+     "head": [
+      -0.0326,
+      1.492,
+      0.2004
+     ],
+     "tail": [
+      -0.0326,
+      1.492,
+      0.2201
+     ]
     }
    },
    "marks": {
@@ -10086,13 +10326,13 @@
    "scaleToOld": 0.8827,
    "stoopDeg": 15.0,
    "triangles": {
-    "lod0": 8784,
-    "lod1": 2196,
-    "bones": 60,
-    "top": 1.514,
+    "lod0": 10636,
+    "lod1": 2432,
+    "bones": 62,
+    "top": 1.504,
     "bottom": 0.001,
     "girths": {
-     "neck": 0.049,
+     "neck": 0.0,
      "chest": 0.755,
      "waist": 0.626,
      "hips": 0.824,
@@ -10100,8 +10340,8 @@
      "calf": 0.253,
      "upperarm": 0.187,
      "forearm": 0.169,
-     "wrist": 0.129,
-     "height": 1.514
+     "wrist": 0.145,
+     "height": 1.503
     }
    },
    "joints": {
@@ -10824,6 +11064,30 @@
       1.5782,
       0.1021
      ]
+    },
+    "eyeL": {
+     "head": [
+      0.0315,
+      1.4034,
+      0.1805
+     ],
+     "tail": [
+      0.0315,
+      1.4034,
+      0.1989
+     ]
+    },
+    "eyeR": {
+     "head": [
+      -0.0315,
+      1.4034,
+      0.1805
+     ],
+     "tail": [
+      -0.0315,
+      1.4034,
+      0.1989
+     ]
     }
    },
    "marks": {
@@ -11115,6 +11379,236 @@
   "pockets",
   "smoke"
  ],
+ "grips": {
+  "note": "hands closed round a handle across the fist (tools/blender/people2/preview_b.py fit_grips): curls are MCP, PIP, DIP degrees per finger (the little finger rides on the ring bones), the thumb (across, flex at the base, MCP, IP); axisAt is the handle's axis in the grip socket's own frame (metres): put a handle of that radius there, along the socket's +y",
+  "sizes": {
+   "rope": {
+    "radius": 0.01,
+    "sideL": {
+     "axisAt": [
+      0.0088,
+      0.0,
+      0.022
+     ],
+     "deepest": 0.0004,
+     "inside": 0,
+     "thumbClose": 1.0
+    },
+    "curls": {
+     "index": [
+      50.0,
+      82.0,
+      29.0
+     ],
+     "middle": [
+      43.0,
+      91.5,
+      28.0
+     ],
+     "ring": [
+      49.0,
+      85.0,
+      31.5
+     ],
+     "little": [
+      66.0,
+      41.0,
+      58.0
+     ]
+    },
+    "thumb": [
+     19.8,
+     13.2,
+     32.0,
+     27.0
+    ],
+    "sideR": {
+     "axisAt": [
+      -0.0088,
+      0.0,
+      0.022
+     ],
+     "deepest": 0.0004,
+     "inside": 0,
+     "thumbClose": 1.0
+    }
+   },
+   "knife": {
+    "radius": 0.013,
+    "sideL": {
+     "axisAt": [
+      0.0118,
+      0.0,
+      0.022
+     ],
+     "deepest": 0.0001,
+     "inside": 0,
+     "thumbClose": 1.0
+    },
+    "curls": {
+     "index": [
+      47.5,
+      70.0,
+      31.0
+     ],
+     "middle": [
+      40.5,
+      80.5,
+      29.0
+     ],
+     "ring": [
+      46.0,
+      74.0,
+      30.0
+     ],
+     "little": [
+      61.5,
+      32.0,
+      52.5
+     ]
+    },
+    "thumb": [
+     19.3,
+     12.8,
+     30.8,
+     26.1
+    ],
+    "sideR": {
+     "axisAt": [
+      -0.0118,
+      0.0,
+      0.022
+     ],
+     "deepest": 0.0001,
+     "inside": 0,
+     "thumbClose": 1.0
+    }
+   },
+   "baton": {
+    "radius": 0.016,
+    "sideL": {
+     "axisAt": [
+      0.0148,
+      0.0,
+      0.022
+     ],
+     "deepest": 0.0,
+     "inside": 0,
+     "thumbClose": 1.0
+    },
+    "curls": {
+     "index": [
+      45.0,
+      60.5,
+      30.0
+     ],
+     "middle": [
+      38.5,
+      71.0,
+      29.0
+     ],
+     "ring": [
+      44.0,
+      63.0,
+      32.5
+     ],
+     "little": [
+      58.0,
+      25.0,
+      48.0
+     ]
+    },
+    "thumb": [
+     18.7,
+     12.5,
+     29.6,
+     25.2
+    ],
+    "sideR": {
+     "axisAt": [
+      -0.0148,
+      0.0,
+      0.022
+     ],
+     "deepest": 0.0,
+     "inside": 0,
+     "thumbClose": 1.0
+    }
+   },
+   "handle": {
+    "radius": 0.02,
+    "sideL": {
+     "axisAt": [
+      0.0188,
+      0.0,
+      0.022
+     ],
+     "deepest": 0.0,
+     "inside": 0,
+     "thumbClose": -0.3
+    },
+    "curls": {
+     "index": [
+      42.0,
+      50.0,
+      30.0
+     ],
+     "middle": [
+      36.5,
+      60.0,
+      28.5
+     ],
+     "ring": [
+      41.0,
+      53.0,
+      30.0
+     ],
+     "little": [
+      54.0,
+      18.5,
+      42.0
+     ]
+    },
+    "thumb": [
+     -5.4,
+     -3.6,
+     -8.4,
+     -7.2
+    ],
+    "sideR": {
+     "axisAt": [
+      -0.0188,
+      0.0,
+      0.022
+     ],
+     "deepest": 0.0,
+     "inside": 0,
+     "thumbClose": -0.3
+    }
+   }
+  }
+ },
+ "shapeKeys": {
+  "face": [
+   "long",
+   "broad",
+   "aquiline",
+   "snub",
+   "bulbous",
+   "square",
+   "weakchin",
+   "chin",
+   "gaunt",
+   "round",
+   "heavybrow",
+   "thinlips",
+   "fulllips",
+   "ears"
+  ],
+  "blink": "blink",
+  "hands": "hands_hard",
+  "note": "morph targets of each <body>_lod0, positions only: face shapes mixed per person by seed (head.face_mix), blink 0..1, hands_hard 1 on dockers"
+ },
  "lod": {
   "lod1From": 15.0,
   "note": "LOD1 also for the mirrors and the lantern shadow"

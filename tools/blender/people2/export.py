@@ -18,7 +18,10 @@ from . import body as bd
 from . import rig
 
 
-def material(name, img):
+MORPH_NORMALS = os.environ.get("PEOPLE2_MORPH_NORMALS", "0") == "1"  # B: shape-key normals cost 7x the file size
+
+
+def material(name, img, normal=None):
     mt = bpy.data.materials.new(name)
     mt.use_nodes = True
     nt = mt.node_tree
@@ -28,6 +31,13 @@ def material(name, img):
     tex.interpolation = "Linear"
     nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
     bsdf.inputs["Roughness"].default_value = 0.78
+    if normal is not None:
+        nt_ = nt.nodes.new("ShaderNodeTexImage")
+        nt_.image = normal
+        nt_.interpolation = "Linear"
+        nm = nt.nodes.new("ShaderNodeNormalMap")
+        nt.links.new(nt_.outputs["Color"], nm.inputs["Color"])
+        nt.links.new(nm.outputs["Normal"], bsdf.inputs["Normal"])
     mt.use_backface_culling = True
     return mt
 
@@ -41,7 +51,8 @@ def export_glb(path):
         export_jpeg_quality=88, export_image_quality=88, export_extras=True, export_influence_nb=4,
         export_draco_mesh_compression_enable=True, export_draco_mesh_compression_level=7,
         export_draco_position_quantization=14, export_draco_normal_quantization=10,
-        export_draco_texcoord_quantization=12, export_rest_position_armature=True, export_def_bones=False)
+        export_draco_texcoord_quantization=12, export_rest_position_armature=True, export_def_bones=False,
+        export_morph_normal=MORPH_NORMALS, export_try_sparse_sk=True)
 
 
 def bone_frame(ao, n):
@@ -68,13 +79,12 @@ def rig_json(bodies, extra):
         "bones": [],
         "boneMap": {"profile": "SkeletonProfileHumanoid (Godot 4.7)", "map": {v: k for k, v in rig.GODOT.items()},
                     "unmapped": ["LeftLittleProximal", "LeftLittleIntermediate", "LeftLittleDistal",
-                                 "RightLittleProximal", "RightLittleIntermediate", "RightLittleDistal", "LeftEye",
-                                 "RightEye", "Root"],
+                                 "RightLittleProximal", "RightLittleIntermediate", "RightLittleDistal", "Root"],
                     "note": "The little finger is weighted to the ring chain (ring1-3), so it curls with the ring "
-                            "finger. Eyes are not bones yet (eyeL, eyeR are reserved for B, as leaves of head)."},
+                            "finger. eyeL and eyeR are leaves of head that turn the eyeballs (code, never clips)."},
         "legacy": rig.LEGACY,
         "keyed": rig.KEYED,
-        "reserved": ["eyeL", "eyeR"],
+        "eyes": ["eyeL", "eyeR"],
         "sockets": {},
         "marks": {n: {"bone": b, "for": d} for n, b, d in rig.MARKS},
         "bodies": {},

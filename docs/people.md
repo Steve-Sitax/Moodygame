@@ -1,22 +1,24 @@
 # People: the people2 kit (skeleton and base bodies)
 
-Package A of the people plan (`docs/plans/people.md`, section 3 A). The new people of both games are built on this
-kit: one 60-bone skeleton for everybody and ten base bodies. Faces and hands (B), clothes and kinds (C), motion
+Packages A and B of the people plan (`docs/plans/people.md`, section 3). The new people of both games are built on this
+kit: one 62-bone skeleton for everybody and ten base bodies with faces, hands and hair (B). Clothes and kinds (C), motion
 (D), the browser and Godot runtimes (E, F), Jef (G), fight motion (J) and weapons (K) all build on it. Nothing in
 either game uses it yet: `people.glb` and `tools/blender/build_people.py` stay as they are until E and F switch.
 
 ## Build
 
 ```
-blender -b --factory-startup -P tools/blender/build_people2.py -- [--preview] [--cast] [--only a,b] [--out PATH]
+blender -b --factory-startup -P tools/blender/build_people2.py -- [--preview] [--cast] [--faces] [--hands] [--sheet]
+    [--only a,b] [--out PATH]
 ```
 
-Blender 5.2 (`C:/Program Files/Blender Foundation/Blender 5.2/blender.exe`), about 50 s; `--cast` adds about 4 min.
+Blender 5.2 (`C:/Program Files/Blender Foundation/Blender 5.2/blender.exe`), about 3 min (B's head is meshed once
+per build: about 1 min); `--cast` adds about 4 min, `--faces --hands --sheet` about 4 min.
 
 | Writes | What |
 |---|---|
-| `client/public/models/people2.glb` | 10 bodies, each an armature (named after the body) with `<body>_lod0` and `<body>_lod1`, 2 materials, 36 clips; Draco, JPEG; 2.5 MB |
-| `shared/peopleRig.json` | the bones, sockets, grab marks, the Godot BoneMap, and per body its joints, marks, figures and counts |
+| `client/public/models/people2.glb` | 10 bodies, each an armature (named after the body) with `<body>_lod0` and `<body>_lod1`, 5 materials (colour and normal map), 36 clips, the near copies' shape keys; Draco, JPEG; 5.4 MB |
+| `shared/peopleRig.json` | the bones, sockets, grab marks, the Godot BoneMap, the grips and the shape keys, and per body its joints, marks, figures and counts |
 | `data/shots/people2/*.png` | the check pictures (not in git) |
 
 Godot reads Draco only through `node tools/godot/models.mjs --only people2` (writes the plain copy to
@@ -28,13 +30,19 @@ The kit, `tools/blender/people2/`:
 |---|---|
 | `__init__.py` | paths, the axis change `B()` (game to Blender) and `G()` (back) |
 | `body.py` | the bodies: figures, landmarks, the quad cage, the stoop, `girths()` |
-| `rig.py` | the 60 bones, their joints per body, the Godot names, the grab marks |
+| `rig.py` | the 62 bones, their joints per body, the Godot names, the grab marks |
 | `weights.py` | skin weights by rule; the finger sharpening |
 | `lod.py` | UV unwrap and island layout, the subdivision (LOD0), the limit surface (LOD1) |
 | `paint.py` | the position map and the base skin pictures |
 | `clips_legacy.py` | the 36 old clips keyed on the new rig |
 | `export.py` | the glb, the materials, `peopleRig.json` |
 | `preview.py` | the check pictures |
+| `sdf.py` | (B) signed distance tools: shapes, soft blends, surface nets, decimation, pulling points onto a surface |
+| `head.py` | (B) the head: its anatomy as a field, the one reference mesh, bodies and face shapes as moves of it, eyes, UVs, weights, the join to the neck |
+| `face_paint.py` | (B) the face painter: the head's square of the picture and its normal map, from a look |
+| `hands.py` | (B) the hands: palm, fingers, thumb in the cage; the docker's hand; grips; the hands' paint |
+| `hair.py` | (B) hair styles, beards, moustaches; hair cards for the named cast |
+| `preview_b.py` | (B) the face, hand and hair check pictures and the grip fit |
 
 ## Axes and units
 
@@ -42,7 +50,7 @@ Game space everywhere: x the person's left, y up, z forward (the person faces +z
 node's local frame is its Blender bone frame in game axes: local +y runs along the bone (head to tail). Bone rolls are
 0. `peopleRig.json` gives every frame in these axes (checked against the glb: socket heads and axes agree to 0.04 mm).
 
-## The skeleton (60 bones)
+## The skeleton (62 bones)
 
 | Group | Bones (L and R where it applies) | Kind |
 |---|---|---|
@@ -52,6 +60,7 @@ node's local frame is its Blender bone frame in game axes: local +y runs along t
 | legs | legUp, legLow, foot, toe | body |
 | cloth | skirtF, skirtB, skirtL, skirtR, coatTailL, coatTailR | spring |
 | sockets | gripR, gripL, hipL, back, headTop | socket |
+| eyes (B) | eyeL, eyeR (leaves of head, at the eyeballs' centres, pointing forward) | eye |
 
 - **The 16 old bones** (hips, spine, neck, head, armUp/armLow/hand, legUp/legLow/foot) keep their names, rest
   directions and roll 0. New bones that sit between old ones (chest and upperChest between spine and neck, clavicles
@@ -71,9 +80,11 @@ node's local frame is its Blender bone frame in game axes: local +y runs along t
 - No root bone: the armature node (the glb's top node per body) is the root. Clips key rotations; a fight or fall
   clip that must move the body keys `hips` translation (in the armature node's space), so E and F must keep hips
   position tracks (today's loaders keep quaternion tracks only).
-- `eyeL`, `eyeR` are reserved names (leaves under head) for B; adding leaf bones later breaks nothing.
+- **eye** bones (`eyeL`, `eyeR`, B) deform the eyeballs only; clips never key them, code turns them to look
+  (`RZ` turns both left and right, `RX` up and down, about 25 and 15 degrees at the most). They are appended after the
+  sockets, so every other bone keeps its index.
 - **BoneMap** to Godot's `SkeletonProfileHumanoid`: `peopleRig.json boneMap.map` (profile name to our name). The
-  little fingers, eyes and Root are unmapped. Use it to retarget licensed motion later.
+  little fingers and Root are unmapped; the eyes map to LeftEye and RightEye. Use it to retarget licensed motion later.
 
 ### The pose convention (for D, J and code)
 
@@ -186,6 +197,104 @@ Measured at 120 degrees (`--cast` prints it): the section through the hinge keep
 (knees) of what two rigid tubes would show; the rest is the crease folding in, as flesh does. Shoulders hold with
 the arms straight up and straight out; a deep squat, a fist and a body lying on its back hold (`bends.png`).
 
+## Faces, hands, hair (package B)
+
+### The head (`head.py`, `sdf.py`)
+
+A's placeholder head stays in the cage for the subdivision (so the neck keeps its shape) and is then replaced in both
+copies at A's neck ring (`head.attach`): a strip of triangles joins the head's open edge, 6 mm above, to the ring
+(32 vertices near, 16 far), always in the same pattern.
+
+- **Anatomy as a field.** The head is a signed distance field in a head frame for a reference head 0.214 m from chin
+  to crown (x the left, t up from the bottom of the chin, z forward of the ear canal): a cranium and occiput, one
+  face mass narrowing to the chin, cheek pads, cheek bones and arches, a jaw from the angle to the chin, a muzzle, two
+  lips with a real mouth slit and a mouth inside it (so the jaw opens a dark mouth), a nose (bridge, tip, wings,
+  nostrils), a brow ridge, sockets round separate eyeballs with modelled lids and an almond opening, ears (a cupped
+  plate, the rolled rim, the groove inside it, the bowl, the tragus, the lobe) and the neck. Proportions from the
+  textbook landmarks: eyes at half the height, the nose from the brows down about 5 cm, the mouth a third of the way
+  from the nose to the chin, the ear from the brow line to the base of the nose.
+- **One mesh for every head.** The reference man's field is meshed once per build (surface nets on a 0.8 mm grid,
+  the neck cut and the hidden eye cavities removed, Blender's quadric decimation to 2,200 triangles with the face and
+  ears weighted to keep more, a cut along the back's middle line for the UV seam, every vertex pulled back onto the
+  surface, the lid margins put evenly back on the true margin). Every body (`FEMALE`, `CHILD`, `OLD_M`, `OLD_F`
+  changes and A's head size `hs`, `hw`) and every face shape is that mesh moved: landmarks carry it (`warp`) and it is
+  pulled onto that head's own surface. So all heads have one vertex order; the far copy has its own 330-triangle
+  head (closed lids, no slit, plain ears) made the same way.
+- **Eyes.** Each eyeball is its own little sphere (100 triangles, a low cornea bulge) weighted to `eyeL`/`eyeR`; the
+  lids close over them by the `blink` shape key. The eye whites are dimmed (they glow in the fog otherwise).
+- **Weights.** By rule: A's spine chain by height (neck to head), the jaw by a line from the mouth slit rising back to
+  the jaw joint, sharp at the slit (upper lip with the head, lower lip with the jaw), shared under the chin.
+- **Face shapes (shape keys of `_lod0`).** 14: long, broad, aquiline, snub, bulbous, square, weakchin, chin, gaunt,
+  round, heavybrow, thinlips, fulllips, ears; and `blink`. `head.face_mix(seed)` gives a person two or three of them
+  at 0.17-1.0 (never two opposites). Positions only (no shape-key normals: they cost 7 times the file size), moves
+  under 0.25 mm dropped: about 60 KB a body. **E, F:** set the weights once when a person is made (three.js
+  `morphTargetInfluences` per clone; Godot `set_blend_shape_value` per MeshInstance3D); the far copy has none. A kind
+  mesh made by C from a body carries the same keys only if C copies them (about 60 KB a kind).
+
+### The face painter (`face_paint.py`)
+
+UVs: the head has its own square in the top right of a body's picture (`head.HEAD_RECT`, 512 px of 2048), the same in
+every body: a chart round the head seen from a point inside it (more texels across the face), the ears' fronts and
+backs, the eyeball, a dark patch for the inside of the mouth, and two swatches (strands, a plait's weave) for the
+swept hair pieces. `face_paint.paint(look, size)` traces every texel back to the point of the reference head it shows
+(once per size) and paints by position: skin tone (five, from fair Flemish to a dark-skinned sailor), mottling, the
+weathering of outdoor people, the flush of cheeks, nose, chin and ears, lids, lashes and the lid crease, brows in hair
+strokes, lips, the scalp's hair and the hairline of each style, sideburns, stubble, painted beard zones, wrinkles by
+age (forehead lines, the frown, crow's feet, the fold from nose to mouth, the lines below the mouth, the neck), a
+drinker's veined nose and cheeks, pox pits, freckles, soot, the eye (a dim white, the iris with its rays and a darker
+ring, the pupil, the lid's shade) and the shade of the folds (from the field). A height field painted with it becomes
+the tangent-space normal map (OpenGL green-up, as glTF wants). `look_for(seed, sex, age)` draws a look; `BASE_LOOKS`
+are the base bodies' own. 1024 px for the named cast: `paint(look, 1024)` into the same square of a 4096 picture.
+
+The base glb has five pictures, each with its own face: `m` (the men), `f` (the women), `boy` (the children), `old_m`,
+`old_f`. A kind (C) paints its own face into its picture's head square.
+
+### Hands (`hands.py`)
+
+A's arm stops at its palm ring p0; from there one connected hand: a 10-column palm (six pentagons make the step from
+8), four fingers grown from the palm's last loop with webs between them, the thumb out of a hole in the palm's thumb
+side. The fingers follow A's finger bones (`body.hand_frame`, unchanged): rings at the joints (wider: the knuckles),
+pads between them, the nail and the tip. Weights per vertex from the hand code; A's finger sharpening on the near
+copy still applies. The paint (`paint_hands`): nails on the backs of the last joints only, creases at the joints and
+three in the palm, red knuckles, tendons; with the normal map. **Docker's hands**: the `hands_hard` shape key (fingers
+a fifth thicker, bigger knuckles, a broader thicker palm); `paint_hands(hard=1)` paints calluses.
+
+**Grips** (`peopleRig.json grips`, fitted every build by `preview_b.fit_grips`): for a 2 cm rope, a 2.6 cm knife
+handle, a 3.2 cm baton and a 4 cm cart handle: the finger curls (MCP, PIP, DIP), a thumb closed as far as it goes
+without entering the handle, and `axisAt`, where the handle's axis sits in gripL/gripR's own frame (about 2.2 cm
+toward the wrist from the socket and r + a little into the palm: a real power grip, the knuckle joints closed too).
+No vertex goes more than 0.4 mm into any of them. **D, J, K:** to hold a thing of radius r, pose the hand with these
+curls and put the thing's axis at `axisAt` (along the socket's +y); A's socket origin itself stays where it was.
+
+### Hair (`hair.py`)
+
+Two kinds of piece, both carried to every body and every face shape: **shells** (the head's own triangles under the
+hair, pushed out by a thickness that grows from the hairline, the rims on the skin; beards the same over the face)
+that take the scalp's and the beard zone's paint, and **tubes** (bun, plaits pinned up, a coronet of plaits,
+moustaches, an imperial tuft) swept along paths made from the head's landmarks and bound to the nearest head
+vertices, over the strand and plait swatches. Styles: men crop, side (parting), bald (a fringe of hair), long (to the
+collar); women bun, plaits, coronet, undercap (flat, for under a cap), with the curled fringe of the 1870s as a
+variant; beards full, short, chops (mutton chops), sideburns, chin (a chin curtain), imperial; moustaches walrus,
+handlebar, chevron. `hair.style_for(seed, look, P)` picks one by sex and age; `hair.attach(mesh, P, lod, style)` joins
+it into a body mesh (same draw, same material). The base bodies wear `hair.base_style`: crop, bun, bald for the old
+man. A shell costs 250-400 triangles, a bun 300.
+
+**Hair cards** (`hair.cards`, `card_material`): alpha-tested strips over a shell for the named cast's near copy only
+(a second material and draw; alpha MASK in glTF). Not in the base glb.
+
+### Counts
+
+| | Near copy (LOD0) | Far copy (LOD1) |
+|---|---|---|
+| man_middling (crop hair) | 10,356 triangles | 2,342 |
+| woman_middling (bun) | 10,636 | 2,432 |
+| of which the head, eyes, the join | about 2,500 | about 360 |
+| of which both hands | about 2,000 | about 500 |
+
+Over A's 6,000-9,000 for the crowd by 1,400-1,650 (the plan allows up to 12,000 for the named): the face and the
+hands carry the look at talking range; the scalp under the hair is coarse. The file is 5.4 MB (pictures 1.7 MB, shape
+keys 0.8 MB, meshes 1.5 MB, clips 0.4 MB).
+
 ## Checks
 
 `--preview` and `--cast` write to `data/shots/people2/`:
@@ -200,7 +309,14 @@ the arms straight up and straight out; a deep squat, a fist and a body lying on 
 | `bends.png` | elbows and knees at 120, a deep squat, arms up and out, a turned hand, close-ups, a body lying |
 | `sockets.png` | a baton in gripR, a knife in gripL, a scabbard on hipL, a load on back, a hat on headTop; idle, walk, guard, talk; four bodies; fist close-ups |
 | `grab.png` | a grab from behind from three sides; a body dragged by the wrists |
-| `skin_m.png`, `skin_f.png` | the two pictures |
+| `skin_<m, f, boy, old_m, old_f>.png`, `skin_*_n.png` | the five pictures and their normal maps |
+| `faces_close.png` (`--faces`) | man, woman, old man, child at 1, 2 and 5 m (2 and 5 m blown up 3x), by day and under a gas lamp, front and three-quarter |
+| `faces_big.png` | man (day, gas), woman, old man, old woman (gas), child from four sides, big |
+| `faces_moves.png` | rest, talking, calling (the jaw), half and full blink, the eyes turned left and up |
+| `faces_shapes.png` | every face shape at full on the man and the woman |
+| `faces_hero.png` | a named man's near copy (side parting, mutton chops, walrus moustache) without and with hair cards |
+| `faces_40.png` (`--sheet`), `faces_40_2m.png`, `faces_40_shapesonly.png` | 40 seeded people at 5 m and 2 m (each its own look, face mix and hair); the same face mixes with one look and no hair |
+| `hands.png` (`--hands`) | the hand relaxed, open and in a fist from three sides; each grip from two sides; the docker's hand |
 
 Also: `node tools/blender/glbhash.mjs client/public/models/people2.glb` (per part hashes) and
 `node tools/godot/models.mjs --only people2` (decodes: 630 nodes, 20 meshes, 10 skins, 36 clips, no other
@@ -208,17 +324,17 @@ extensions).
 
 ## For the next packages
 
-- **B (faces, hands, hair):** the head is a placeholder (16 columns, painted eyes, brows, lips); replace it at the
-  neck ring and keep the jaw weights (`weights.py`, head rings 0-3). Eyes: add `eyeL`/`eyeR` as leaves of head. Hands:
-  the palm is an 8-column tube capped at the knuckles, the fingers closed shells set 2.2 cm into it; the finger
-  bones are in `rig.joints()` from `body.hand_frame()`; keep the grip socket inside the fist. Paint through
-  `paint.position_map` on the same UVs.
+- **B (faces, hands, hair):** done, see above.
 - **C (clothes, kinds):** dress the ten bodies; vertex order and UVs are the same in all, so one fit transfers. Skirts
   and coat tails weight to the spring bones (none of the body is on them). Props are models on sockets. Fold the
-  kinds' pictures into the shared atlas.
+  kinds' pictures into the shared atlas. A kind's face: `face_paint.paint(look, 512)` into its head square (keep the
+  square whole); its hair: `hair.attach` with `hair.style_for` or a chosen style (vertices with `part_hair` are the
+  hair: drop the base hair before you add another; hats sit on headTop over the hair). Keep or drop the shape keys.
 - **D (motion):** author on any body (clips are rotations and play on all). Use the pose convention above; key the
   47 `keyed` bones in every clip; keep the hand shapes, clavicle and twist rules or replace them in `motion.py`.
 - **E, F (runtimes):** load `people2.glb`; the bone names repeat per body (glTF adds `_1`: strip it, as today).
+  Face shapes, blink and hard hands are morph targets of `_lod0` (see "Face shapes"); the eyes turn by `eyeL`/`eyeR`;
+  the material has a normal map (use it or bake it into a bump; no new shader kind).
   LOD: two meshes per body on one skeleton, show `_lod1` from 15 m and in mirrors and the lantern shadow. The
   old `people.glb` clips also play on these skeletons. Keep hips position tracks for fight clips. Each frame (or in
   the clips): armTwist = 0.6 of the hand's turn about the forearm if code turns the hand. Body scale against the old
@@ -226,11 +342,17 @@ extensions).
 - **J (fights):** grab and hit marks above; paired moves place both armatures by their top nodes; a body on the
   ground is the hips turned and translated; the drag pose in `grab.png` is reached with two-bone IK.
 - **K (weapons):** model each with its grip at the origin, tip along +y, edge along -z; hang it on gripR/gripL,
-  sheathed ones on hipL.
+  sheathed ones on hipL; move it to the grip table's `axisAt` for its handle size and use that table's curls.
 
 ## Known limits
 
-- Faces and hands are a base for B, not the finished look: plain, smooth, painted.
+- The faces are plain and a little stylised; the women's and children's faces differ from the men's by moved
+  landmarks on one mesh, so the differences stay moderate. Hair is shells and tubes: no loose strands but on the cards.
+- The fist (`HANDS["fist"]` in clips_legacy, D1's) leaves the finger tips short of the palm; the grips are fitted.
+- The face shapes have no shape-key normals: lighting follows the base face (the shapes are small).
+- Beards are shells over the decimated face: big beards (mutton chops) show a small dent or two over the cheekbone
+  at 1 m (`faces_hero.png`); hair cards add little on top of a shell of the same colour.
+- Counts are over A's crowd budget (see Counts).
 - The crown is about 1 cm higher than the table height (1.68 m for 1.67 m).
 - The little finger has no bones of its own (it curls with the ring finger), as the plan allows.
 - `girths()` cannot measure the old bodies' necks (the stoop tilts them out of a level cut).

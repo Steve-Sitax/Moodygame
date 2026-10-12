@@ -52,7 +52,9 @@ def cage_weights(C, P):
         x, y, z = p
         S = "L" if x > 0 else "R"
         w = {}
-        if part in ("torso", "neck", "head"):
+        if "w" in tag:  # B's hands give their own weights
+            w = dict(tag["w"])
+        elif part in ("torso", "neck", "head"):
             w = spine_chain(P, y)
             if part == "head":
                 ring = tag["ring"] if "ring" in tag else 99
