@@ -66,11 +66,12 @@ describe("M8f: the town's goods, the same on every PC", () => {
       expect(it.rot).toBeGreaterThanOrEqual(0);
       expect(it.rot).toBeLessThan(0.4);
     }
-    // Sooi's third crate stands on the first (the same spot twice in the old table): a stack, as before
+    // Sooi's third crate stands on the first (the same spot twice in the old table).
+    // The one-crate replacement (2026-10-11) is 0.5 m high at standard size in crate.glb, browser and Godot.
     const s0 = a.find((i) => i.id === "own:sooi:0")!;
     const s2 = a.find((i) => i.id === "own:sooi:2")!;
     expect(s2.on).toEqual(["own:sooi:0"]);
-    expect(s2.y).toBeCloseTo(0.7, 5);
+    expect(s2.y).toBeCloseTo(0.5, 5);
     expect([s2.x, s2.z]).toEqual([s0.x, s0.z]);
     // the quay's casks: where the static piles stood, at the same turns (i * 1.7)
     const w = PILES[0];
@@ -131,7 +132,7 @@ describe("M8f: lift and put down, checked by the server", () => {
     const top = s.get("own:sooi:2")!;
     const r = ok(s.ask(db, 1, { op: "put", id: "own:sooi:1", x: top.x + 0.1, z: top.z }));
     expect(r.items[0].on).toEqual(["own:sooi:2"]);
-    expect(r.items[0].y).toBeCloseTo(1.4, 5);
+    expect(r.items[0].y).toBeCloseTo(1.0, 5); // two standard 0.5 m crates below it since the one-crate replacement
     ok(s.ask(db, 1, { op: "lift", id: "own:sooi:3" }));
     expect(s.ask(db, 1, { op: "put", id: "own:sooi:3", x: top.x, z: top.z }).ok).toBe(false);
   });
@@ -446,19 +447,22 @@ describe("M8f goods pass 2: the rest of the quay's cargo, and the carts' rounds"
     expect(s.get(heavy[0])!.heavy).toBe(true);
   });
 
-  it("the Rijnkaai's big crates: the same places and turns as the props were, one across two, too big to lift by hand (a cart's work); the sacks one on another", () => {
+  it("the Rijnkaai's big crates: spaced for the one crate model, the same turns, one across two, too big to lift by hand (a cart's work); the sacks one on another", () => {
     const db = blankSave();
     const s = new GoodsStore();
     const m = byId(s);
     CRATE_STACKS.forEach(([x, z, n], k) => {
-      const g = 1.1 * 1.18 + 0.1;
+      // 2026-10-11: crate.glb at big class (1.5) and quay scale (1.1), replacing the old props' dimensions:
+      // 0.8 * 1.5 * 1.1 = 1.32 m long, plus the intended 0.12 m gap; 0.5 * 1.5 * 1.1 = 0.825 m high.
+      const g = 1.44;
       for (let i = 0; i < n; i++) {
         const it = m.get(`crate:${k}:${i}`)!;
         expect([it.x, it.z, it.y]).toEqual([r3(x + (i % 2) * g), r3(z + Math.floor(i / 2) * g), 0]);
         expect(it.rot).toBeCloseTo(Math.sin(x * 3 + i) * 0.08, 3);
-        expect(it).toMatchObject({ cartOnly: true, sc: 1.1 });
+        const open = n === 1 || (n === 3 && i === 2);
+        expect(it).toMatchObject({ cartOnly: true, sc: 1.1, h: open ? 0.762 : 0.825 }); // open sides: 0.462 * 1.5 * 1.1, rounded
       }
-      if (n >= 2) expect(m.get(`crate:${k}:${n}`)).toMatchObject({ y: 1.1, on: [`crate:${k}:0`, `crate:${k}:1`], rot: 0.2 });
+      if (n >= 2) expect(m.get(`crate:${k}:${n}`)).toMatchObject({ x: r3(x + g / 2), z, y: 0.825, h: 0.825, on: [`crate:${k}:0`, `crate:${k}:1`], rot: 0.2 });
     });
     const top = s.ask(db, 1, { op: "lift", id: "crate:0:3" });
     expect(top.ok ? "" : top.why).toMatch(/cart's work/);
