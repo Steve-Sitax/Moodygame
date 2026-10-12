@@ -67,15 +67,16 @@ public partial class Lights : Node
     private readonly Src?[] slots = new Src?[Psx.MaxSpill];
     private readonly (Src? lamp, float w)[] lampSlots = new (Src?, float)[Psx.MaxLamps - 1];
     /// <summary>The lamps' glass and flames: its lamp (null: the clock), its own opacity (1 solid, under 1 the clear
-    /// glass of the hollow lanterns, gaslamps.ts), and whether it is a lantern's one flame inside the glass.</summary>
-    private readonly List<(ShaderMaterial m, Src? lamp, float alpha, bool flame)> glass = new();
+    /// glass of the hollow lanterns, gaslamps.ts), whether it is a lantern's one flame inside the glass, and whether it is
+    /// a window's glow (lit by the clock only: the lamps' extra burning by day in thick air is not a window's, #70).</summary>
+    private readonly List<(ShaderMaterial m, Src? lamp, float alpha, bool flame, bool window)> glass = new();
     private readonly Dictionary<string, Src> byId = new();
     private MultiMesh? haloMM;
     private readonly List<(ShaderMaterial m, Vector3 tint, Vector3 centre, float radius)> landmark = new();
     private readonly Dictionary<ShaderMaterial, List<(GeometryInstance3D node, bool visible)>> landmarkNodes = new();
     private ShaderMaterial? paneMat, haloMat;
     private MeshInstance3D? panes;
-    private float t, rankT, glassV = -1;
+    private float t, rankT, glassV = -1, glassDark = -1;
     private Color glassFog;
     private bool snap = true;
     /// <summary>Jef's lantern takes the last psx lamp slot (game/lantern.ts): flame and brightness, or null.</summary>
@@ -405,7 +406,7 @@ void fragment() {
                     var lamp = lamps.Where(l => new Vector2(l.At.X - at.X, l.At.Z - at.Z).Length() < 1.5f).OrderBy(l => l.At.DistanceTo(at)).FirstOrDefault();
                     // (the clear glass keeps its own opacity: the bake gives it in the albedo's alpha)
                     float alpha = m.GetShaderParameter("albedo").VariantType == Variant.Type.Color ? m.GetShaderParameter("albedo").AsColor().A : 1;
-                    glass.Add((m, lamp, alpha, name == "flame"));
+                    glass.Add((m, lamp, alpha, name == "flame", name.EndsWith("_window_glow")));
                 }
             }
         }
@@ -458,13 +459,15 @@ void fragment() {
             if (haloMM != null && (moved || snap || MathF.Abs(v - glassV) > 0.002f)) haloMM.SetInstanceCustomData(i, new Color(lv, HaloOf(l), 0, 0));
         }
         // unlit glass takes the colour of the air round it, a little darker, so it never shows as a black box
-        if (moved || MathF.Abs(v - glassV) > 0.002f || !fog.IsEqualApprox(glassFog))
+        if (moved || MathF.Abs(v - glassV) > 0.002f || MathF.Abs(dark - glassDark) > 0.002f || !fog.IsEqualApprox(glassFog))
         {
             glassV = v;
+            glassDark = dark;
             glassFog = fog;
-            foreach (var (m, lamp, alpha, flame) in glass)
+            foreach (var (m, lamp, alpha, flame, window) in glass)
             {
-                float gv = lamp == null ? v : Mathf.Clamp(lamp.Lit * v, 0, 1);
+                // (a window's glow by the clock alone: the cathedral's west window glowed amber by day in mist, rain and fog, #70)
+                float gv = window ? Mathf.Clamp(dark, 0, 1) : lamp == null ? v : Mathf.Clamp(lamp.Lit * v, 0, 1);
                 // a lantern's one flame (gaslamps.ts flameColor): the dark burner tip out, white-yellow burning
                 if (flame) Scheldemist.Render.UniformUpdates.Material(m, "albedo", new Color(0.14f + 1.06f * gv, 0.11f + 0.9f * gv, 0.08f + 0.55f * gv));
                 // the glass: the air's colour unlit, the flame's lit; clear glass a little less see-through lit (LIT_GLASS_GAIN)
