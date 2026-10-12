@@ -1,0 +1,21 @@
+// Complete original shop/cafe augmentation outputs, source navigation queries; isolated saves only.
+import {openDb} from '../../server/src/db.ts';
+import {ensureShopsTown,shopsRecord} from '../../server/src/shops/town.ts';
+import {ensureNeighbourhoodCafes} from '../../server/src/town/neighbourhoodCafes.ts';
+import {dropTownCache,town} from '../../server/src/town/store.ts';
+import {houseDoors,walkMap} from '../../server/src/town/walkmap.ts';
+import {shownTrade} from '../../server/src/town/places.ts';
+import {readFileSync,writeFileSync} from 'node:fs';
+process.env.SCHELDEMIST_TOWN_SEED='1873';process.env.SCHELDEMIST_NO_AI='1';
+const source=JSON.parse(readFileSync('native-godot/services/fixtures/population-1873.json','utf8'));
+const wm=walkMap(),queries:any={nearestOpen:{},open:{},reachable:{},flags:{}};let tracking=false,depth=0;
+for(const name of ['nearestOpen','open','reachable','flags'] as const){const original=(wm as any)[name].bind(wm);(wm as any)[name]=(...args:number[])=>{depth++;const value=original(...args);depth--;if(tracking&&depth===0)queries[name][args.map(x=>Math.round(x*1e6)).join(',')]=value;return value;};}
+const cases:any[]=[];
+for(const example of source.cases){const db=openDb(':memory:');db.pragma('foreign_keys=OFF');for(const table of ['resident','npc_memory','npc_relationship','npc','job','world_event_who','world_event','log'])db.prepare('DELETE FROM '+table).run();for(const state of ['shops_m7','homes','press','poesje:door','veloshop','cartshop','emigrants'])db.prepare('DELETE FROM world_state WHERE key=?').run(state);
+ const base=structuredClone(example.town);for(const r of base.residents){db.prepare("INSERT INTO npc(id,name,role,district,faction,persona_json,spot_id,active)VALUES(?,?,?,'town',?,'{}',NULL,1)").run(r.id,r.name,shownTrade(r),r.faction);db.prepare('INSERT INTO npc_relationship(npc_id)VALUES(?)').run(r.id);db.prepare('INSERT INTO resident(id,household,trade,data_json)VALUES(?,?,?,?)').run(r.id,r.household,r.trade,JSON.stringify(r));}
+ const {residents,...rest}=base;db.prepare("INSERT OR REPLACE INTO world_state(key,value_json)VALUES('town',?)").run(JSON.stringify(rest));db.pragma('foreign_keys=ON');dropTownCache(db);const beforeWorld=structuredClone(rest);tracking=true;const before=structuredClone(town(db).town);
+ const added=ensureShopsTown(db),worldShopped=JSON.parse((db.prepare("SELECT value_json FROM world_state WHERE key='town'").get()as any).value_json),shopped=structuredClone(town(db).town),record=shopsRecord(db);const shopRoles=db.prepare("SELECT id,name,role,district,faction FROM npc WHERE id LIKE 'sk_%' ORDER BY id").all();
+ const cafeAdded=ensureNeighbourhoodCafes(db),worldCafed=JSON.parse((db.prepare("SELECT value_json FROM world_state WHERE key='town'").get()as any).value_json),cafed=structuredClone(town(db).town);tracking=false;const cafeRoles=db.prepare("SELECT id,name,role,district,faction FROM npc WHERE id LIKE 'cafe_%' ORDER BY id").all();
+ cases.push({seed:example.seed,size:example.size,beforeWorld,before,added,shopped,worldShopped,record,shopRoles,cafeAdded,cafed,worldCafed,cafeRoles});db.close();
+}
+writeFileSync('native-godot/services/fixtures/shop-population.json',JSON.stringify({doors:houseDoors(),queries,cases})+'\n');console.log(JSON.stringify({cases:cases.length,snapQueries:Object.keys(queries.nearestOpen).length}));

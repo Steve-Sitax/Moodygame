@@ -1,0 +1,23 @@
+// Original rule fixture only; native gameplay never starts Node or reads these answers.
+import fs from 'node:fs';
+import path from 'node:path';
+const project=path.resolve(process.argv[2]??'native-godot');
+const source=fs.readFileSync(path.join(project,'../client/src/game/town.ts'),'utf8');
+const start=source.indexOf('      const offsets: Pt[] = [[0, 0]');
+const end=source.indexOf('      const n = this.people.addTownEmployer',start);
+if(start<0||end<0)throw new Error('Original posted employer placement rule is missing');
+const rule=source.slice(start,end).replace('const offsets: Pt[]','const offsets');
+const position=new Function('base','clear',rule+'\nreturn at;');
+const lanes=JSON.parse(fs.readFileSync(path.join(project,'services/data/native-extras.json'),'utf8')).courtLanes;
+const cases=[];
+for(let i=0;i<lanes.length;i+=3){
+ const l=lanes[i]; const x=(l.minX+l.maxX)/2,z=(l.minZ+l.maxZ)/2;
+ for(const mode of ['open','blocked-north','blocked-all']){
+  const ground=(cx,cz)=>mode==='blocked-all'?false:mode==='blocked-north'?cz<z-.2:true;
+  const clear=(cx,cz)=>!lanes.some(r=>cx>r.minX-.4&&cx<r.maxX+.4&&cz>r.minZ-.4&&cz<r.maxZ+.4);
+  const at=position.call({world:{isFree:ground}},[x,z,0],clear);
+  cases.push({x,z,mode,at:at.slice(0,2)});
+ }
+}
+fs.writeFileSync(path.join(project,'services/fixtures/native-posted-lanes.json'),JSON.stringify({lanes,cases}));
+console.log(`Captured ${cases.length} original placement cases across ${lanes.length} sampled lane boxes`);

@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "provenance": "Authored constants and selected native cellar anchor; isolated seed1873. No player save.",
+  "poesjeDoor": {
+    "house": 955,
+    "x": -119.8,
+    "z": 80,
+    "out": [
+      0,
+      1
+    ],
+    "sx": -119.8,
+    "sz": 81.2
+  },
+  "weatherText": {
+    "fog": "thick river fog",
+    "mist": "a thin mist that lifts by noon",
+    "clear": "clear and cold, the far bank in sight",
+    "rain": "cold rain off the sea, the cobbles running wet",
+    "storm": "a gale off the sea, rain in sheets, the river rough and grey"
+  },
+  "convoChat": [
+    "{A}: Cold one today.",
+    "{B}: It is. The fog gets into everything.",
+    "{A}: Mind how you go, then."
+  ],
+  "hashes": {
+    "server/src/interiors/routes.ts": "b29f73fbab1cb9656e0b525050572c4b7c5d950dfb2a8002f2c38d48c7e9775c",
+    "server/src/interiors/state.ts": "1ece62f2f0d9a4f33b14fd25e71a493c1d4d7aae9b75da4c15a9f98e20c93a98",
+    "server/src/interiors/tavern.ts": "1033b829aab903795c9da7e8f10c97563266e3c2ad433c8e689b81c5cc62b1b5",
+    "server/src/interiors/poesje.ts": "79711d03e3efab707bd2584abdd0651b2ca9617c62e0ab691221628b812c2424",
+    "server/src/director/convo.ts": "c0d5340d7391f89f5b130f14ba8a396bd425bfc91c2fa23d970b2bbcea64c905",
+    "shared/tempest.ts": "ba8c5d3138ad244a1ed3d35b5d8bb51ab98201c3cb10ce8f760fee5c8e2a8b42"
+  }
+}

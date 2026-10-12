@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "provenance": "Authored source facts and six prototype residents, recovered once from a fresh in-memory seed1873; native augmentation chooses fresh native doors.",
+  "hashes": {
+    "server/src/town/visitors.ts": "250749839ba45ad22840039ed31856c2c63a21617ee4c487a9cb4a4c67104508",
+    "server/src/director/families.ts": "ae81daf93f1ab620126fc60911fb15ba0e7902ba223d88d87d1d7bc7a13cb0c6",
+    "server/src/director/surprises.ts": "bf39803a8c1d51a7bb33af561ed7aa19e2c1534b3c7e4a57e037637c53eb9e45",
+    "server/src/director/familyRoutes.ts": "653d87ae12e6b1e4d34a34250ed30d28a5419dd3abf66a40e398b443d9c14784"
+  }
+}

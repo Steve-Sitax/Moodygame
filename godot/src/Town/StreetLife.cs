@@ -188,8 +188,8 @@ public partial class Townspeople
             if (GodotObject.IsInstanceValid(old.prop)) old.prop.QueueFree();
             lifeProps.Remove(s.R.Id);
         }
-        if (g.Mode != "market") browsing.Remove(s.R.Id);
-        if (g.Mode == "market" && BrowseStep(s, dt)) return true;
+        if (g.Mode != "market") { browsing.Remove(s.R.Id);MarketForget?.Invoke(p); }
+        if (g.Mode == "market" && (MarketBrowse!=null?MarketBrowse(p,g.Place??"",dt):BrowseStep(s, dt))) return true;
         AnimateLifeKit(s, dt);
         if (g.Mode == "play" && s.R.Age < 16 && p.Human.Scale < 0.9)
         {
@@ -257,7 +257,7 @@ public partial class Townspeople
         }
         else if (b.Phase == "haggle" && b.Time <= 0)
         {
-            if (rng.NextDouble() < 0.6) Crowd!.PuppetLoad(p, true, b.Target!.Goods == "fish" ? "fishbox" : "sack");
+            if (rng.NextDouble() < 0.6) Crowd!.PuppetCarry(p, b.Target!.Goods switch { "fish" => "fish", "veg" => "sack", "baskets" => "basket", _ => "parcel" });
             Crowd!.PuppetStand(p, "idle");
             b.Phase = "pick"; b.Time = Rnd(0.8, 2);
         }

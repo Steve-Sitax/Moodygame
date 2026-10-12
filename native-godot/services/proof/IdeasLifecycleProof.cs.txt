@@ -1,0 +1,19 @@
+using Scheldemist.Native.Services;
+using System.Text.Json.Nodes;
+public static class IdeasLifecycleProof
+{
+ public static async Task Run(NativeServiceHost original,NativeCoreIdeas geometry,Action<string,bool> check)
+ {
+  using var host=new NativeServiceHost(new NativeServiceOptions(":memory:",original.Context.Options.DataDirectory,original.Context.Options.SaveDirectory,()=>10000,()=>.42));var ideas=new NativeCoreIdeas(host);host.AddModule(ideas);if(!host.CanHandle("POST","/api/dev/ideas"))ideas.RegisterLifecycle(host);
+  ideas.Flags=geometry.Flags;ideas.Snap=geometry.Snap;ideas.Reachable=(_,_)=>true;ideas.Doors=()=>Array.Empty<JsonObject>();var C=host.Context;host.Clock.SetTime(2,7,0);
+  C.Execute("INSERT INTO newspaper(day,name,price_c,facts_json,paper_json,source)VALUES(2,'Proof paper',5,'[]','{}','engine')");await host.WithState(_=>{ideas.Check();return true;});await ideas.LifecycleSettled();check("Ideas does not start before actual job board",C.World("ideas_morning")==null);
+  C.SetPlayerState(1,"ending",new JsonObject{["kind"]="health"});host.Jobs.MakeBoard();await ideas.LifecycleSettled();check("Ended player does not start town morning",C.World("ideas_morning")==null);C.SetPlayerState(1,"ending",null);await host.WithState(_=>{ideas.Check();return true;});await ideas.LifecycleSettled();
+  check("Board plus printed paper starts actual notices",C.World("ideas_morning")!.GetValue<int>()==2&&C.Scalar<int>("SELECT COUNT(*) FROM poster WHERE status='up'")==3);int count=C.Scalar<int>("SELECT COUNT(*) FROM poster");await host.Call("POST","/api/tick",null);await ideas.LifecycleSettled();check("Repeated tick does not repeat morning notices",C.Scalar<int>("SELECT COUNT(*) FROM poster")==count);
+  host.Clock.SetTime(3,7,0);await host.WithState(_=>{ideas.Check();return true;});await ideas.LifecycleSettled();check("Next day waits for its own paper",C.World("ideas_morning")!.GetValue<int>()==2);
+  C.Execute("INSERT INTO newspaper(day,name,price_c,facts_json,paper_json,source)VALUES(3,'Proof paper',5,'[]','{}','engine')");host.Jobs.MakeBoard();await ideas.LifecycleSettled();check("Midnight board plus next paper begins once",C.World("ideas_morning")!.GetValue<int>()==3&&ideas.LifecycleError==null);
+  var news=JsonNode.Parse(await host.Call("POST","/api/dev/ideas","{\"news\":\"baltic_grain\"}"))!;check("Dev news uses real price engine and durable row",news["news"]!["key"]!.GetValue<string>()=="baltic_grain"&&ideas.NewsRow(3)!=null);
+  C.Execute("DELETE FROM poster");C.Execute("INSERT INTO poster(kind,spot,day,hour,down_day,status,ref,source,reward_c)VALUES('wanted','police:0',3,7,5,'up','we:987','engine',50)");C.Execute("INSERT INTO world_event(day,hour,minute,kind,verb,text,weight,data_json,ref_id)VALUES(3,7,0,'police','robbery_solved','Solved',5,'{\"player\":1}',987)");
+  int before=host.Player(1)["money_c"]!.GetValue<int>();await host.WithState(_=>{ideas.Check();return true;});await ideas.LifecycleSettled();check("During-day solved wanted reward pays once",host.Player(1)["money_c"]!.GetValue<int>()==before+50&&C.Scalar<string>("SELECT why_down FROM poster WHERE ref='we:987'")=="solved");await host.WithState(_=>{ideas.Check();return true;});await ideas.LifecycleSettled();check("Repeated update does not repay wanted reward",host.Player(1)["money_c"]!.GetValue<int>()==before+50);
+  var dev=JsonNode.Parse(await host.Call("POST","/api/dev/ideas","{\"trouble\":\"customs\"}"))!;check("Dev trouble without job says take a job",dev["trouble"]!.GetValue<string>()=="take a job first");
+ }
+}

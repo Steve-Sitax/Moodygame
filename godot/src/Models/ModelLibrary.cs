@@ -9,11 +9,9 @@ using Scheldemist.World;
 namespace Scheldemist.Models;
 
 /// <summary>
-/// The game's models (client/public/models/*.glb, written without Draco by tools/godot/models.mjs into
-/// godot/baked/models/): each file is read once at run time, kept, and handed out as copies that share its meshes
-/// and materials. The materials become the psx material the way the browser's loader of that model makes them
-/// (humans.ts, props.ts ... call psx(new MeshLambertMaterial({ map })) with their own options: `Look`).
-/// The folder: option --models dir, else baked/models beside the project.
+/// Native model PackedScenes are loaded once, then copied with shared meshes, materials, skins and clips.
+/// Material policies retain each original model loader's transparency, colour and lighting behavior.
+/// NativeScene is configured before game parts start; a configured native loader never falls back to GLB.
 /// </summary>
 public static class ModelLibrary
 {
@@ -43,6 +41,7 @@ public static class ModelLibrary
     private static readonly Dictionary<string, Model?> Loaded = new();
     /// <summary>Native projects supply their stored PackedScenes. A configured loader never falls back to GLB.</summary>
     public static Func<string, Node3D?>? NativeScene { get; set; }
+    public static bool Available(string name) => NativeScene != null ? Godot.ResourceLoader.Exists("res://assets/game-models/" + name + ".scn") : File.Exists(Path.Combine(Dir, name + ".glb"));
 
     public static string Dir
     {
@@ -123,10 +122,22 @@ public static class ModelLibrary
             for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
             {
                 var old = mi.Mesh.SurfaceGetMaterial(s);
+                if (old is ShaderMaterial shader)
+                {
+                    if (ModelMaterialPolicy(m.Name, shader.ResourceName, Psx.KindOf(shader.Shader) ?? new Psx.Kind(), look) is not { } policy) continue;
+                    if (!made.TryGetValue(old, out var converted))
+                    {
+                        var copy=(ShaderMaterial)shader.Duplicate(); copy.Shader=Psx.ShaderOf(policy);
+                        copy.SetShaderParameter("affine",0.0);copy.SetShaderParameter("fog_reach",shader.ResourceName=="tr_glow"?1.3:1.0);
+                        if(policy.Scissor)copy.SetShaderParameter("alpha_cut",.3);
+                        made[old]=converted=copy;
+                    }
+                    mi.Mesh.SurfaceSetMaterial(s,converted);continue;
+                }
                 if (old is not BaseMaterial3D bm) continue;
                 if (!made.TryGetValue(old, out var psx))
                 {
-                    bool blend = bm.Transparency == BaseMaterial3D.TransparencyEnum.Alpha;
+                    bool blend = bm.Transparency is BaseMaterial3D.TransparencyEnum.Alpha or BaseMaterial3D.TransparencyEnum.AlphaDepthPrePass;
                     bool scissor = bm.Transparency == BaseMaterial3D.TransparencyEnum.AlphaScissor;
                     var kind = new Psx.Kind(
                         Unlit: look.Unlit ?? bm.ShadingMode == BaseMaterial3D.ShadingModeEnum.Unshaded,
@@ -139,13 +150,26 @@ public static class ModelLibrary
                         VertexColor: look.VertexColor,
                         Add: false,
                         Fog: true);
+                    var policy=ModelMaterialPolicy(m.Name,bm.ResourceName,kind,look);
+                    if(policy!=null)kind=policy.Value;
                     psx = BakedWorld.PsxMaterial(bm, kind, look.Affine, look.FogReach, scissor ? bm.AlphaScissorThreshold : 0);
+                    if(policy!=null && psx is ShaderMaterial adapted){adapted.SetShaderParameter("affine",0.0);adapted.SetShaderParameter("fog_reach",bm.ResourceName=="tr_glow"?1.3:1.0);if(policy.Value.Scissor)adapted.SetShaderParameter("alpha_cut",.3);}
                     made[old] = psx;
                 }
                 mi.Mesh.SurfaceSetMaterial(s, psx);
             }
         }
         m.Materials = made.Count;
+    }
+
+    /// <summary>Loader semantics that plain glTF material flags cannot express; shared with geometry proofs.</summary>
+    public static Psx.Kind? ModelMaterialPolicy(string model,string material,Psx.Kind original,Look look)
+    {
+        if(model=="trades" && material is "tr_solid" or "tr_decal" or "tr_glow")
+            return original with {Unlit=material=="tr_glow",Blend=material=="tr_decal",Scissor=material=="tr_decal",TwoSided=true,DepthWrite=material!="tr_decal",VertexColor=true,Add=false,Fog=true};
+        if(model=="stalls" && material=="market_mud")
+            return original with {Unlit=false,Blend=true,Scissor=true,DepthWrite=false,TwoSided=look.TwoSided,VertexColor=true,Add=false,Fog=true};
+        return null;
     }
 
     /// <summary>At the game's end: the kept scenes go (they are in no tree, so nothing else frees them).</summary>

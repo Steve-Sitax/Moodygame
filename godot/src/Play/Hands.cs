@@ -30,6 +30,8 @@ public partial class Hands : Node
         public double Stuck;
         public double Best = double.PositiveInfinity;
         public double Retry;
+        public double Go, Lost, LastX = double.NaN, LastZ, Wedged;
+        public int Detours;
     }
     private Townspeople? town;
     private readonly Dictionary<int, Walk> walks = new();
@@ -45,6 +47,8 @@ public partial class Hands : Node
     private GiftHandover? gift;
     private double handT, takenT, roomT, pollT, walkT;
     private bool polling, roomBusy, roundBusy, disposed, pushBound;
+    private int generation;
+    private bool Current(int at) => !disposed && generation == at;
     private string? room;
     private string? guestId;
     private string roundLabel = "";
@@ -76,6 +80,7 @@ public partial class Hands : Node
     }
     private void Replaced(string how, ClientState? state)
     {
+        generation++; polling = roomBusy = roundBusy = false;
         ClearWalks(); treats.Clear(); routines.Clear(); room = guestId = null; roundLabel = "";
         DropHand(); _ = Poll(); _ = PollTreats();
     }
@@ -126,27 +131,31 @@ public partial class Hands : Node
     {
         if (roomBusy || Api == null) return;
         roomBusy = true;
+        int at = generation;
         try
         {
             if (room != null) await Api.TreatLeave();
+            if (!Current(at)) return;
             room = place;
             if (room != null)
             {
-                var entered = await Api.TreatEnter(room); LastEntry = entered;
+                var entered = await Api.TreatEnter(room); if (!Current(at)) return; LastEntry = entered;
                 if (entered.Guests.Count > 0) GameState.I.Say(entered.Guests[0].Name + " comes in behind you.");
             }
             await PollTreats();
         }
-        catch (ApiException e) { LastError = e.Message; GameState.I.Say(e.Message); }
-        finally { roomBusy = false; }
+        catch (ApiException e) { if (Current(at)) { LastError = e.Message; GameState.I.Say(e.Message); } }
+        finally { if (Current(at)) roomBusy = false; }
     }
     private async System.Threading.Tasks.Task PollTreats()
     {
         if (Api == null || disposed) return;
+        int at = generation;
         try
         {
-            treats = (await Api.Treats()).Treats;
-            if (disposed) return;
+            var next = (await Api.Treats()).Treats;
+            if (!Current(at)) return;
+            treats = next;
             if (room != null && town != null)
                 foreach (var insideGuest in treats) if (insideGuest.Inside == room)
                     foreach (var w in walks.Values) if (w.Info.Npc == insideGuest.Npc && w.Sim != null)
@@ -160,38 +169,41 @@ public partial class Hands : Node
     {
         if (roundBusy || Api == null || room != place || GuestHere() is not { Rounds: < 3 }) return;
         roundBusy = true;
+        int at = generation;
         try
         {
-            var r = await Api.TreatRound(place,kind); LastRound = r;
+            var r = await Api.TreatRound(place,kind); if (!Current(at)) return; LastRound = r;
             GameState.I.Apply(r); GameState.I.Say(r.Line + (r.Note.Length > 0 ? " " + r.Note : ""));
             await PollTreats();
         }
-        catch (ApiException e) { GameState.I.Say(e.Message); }
-        finally { roundBusy = false; }
+        catch (ApiException e) { if (Current(at)) GameState.I.Say(e.Message); }
+        finally { if (Current(at)) roundBusy = false; }
     }
     public async System.Threading.Tasks.Task Poll()
     {
         if (polling || Api == null || disposed) return; polling = true;
+        int at = generation;
         try
         {
-            var list = (await Api.Routines()).Routines; if (disposed) return;
+            var list = (await Api.Routines()).Routines; if (!Current(at)) return;
             routines = list; ended.Clear();
             foreach (var walk in walks) ended.Add(walk.Key);
             foreach (var r in list)
             {
-                if (r.Player != 1 && Scheldemist.Net.Mp.Together.I?.PlayerId != r.Player) continue;
+                if (r.Player != (Scheldemist.Net.Mp.Together.I?.PlayerId ?? 1)) continue;
                 if (!walks.TryGetValue(r.Id,out var w)) walks[r.Id] = w = new Walk();
                 if (w.Index != r.I)
                 {
                     if (w.Index >= 0 && r.Purpose == "hire") GameState.I.Say(r.Name + ": " + r.I + " of " + r.N + " steps in the work.");
                     w.Index = r.I; w.Reported = false; w.Stuck = 0; w.Best = double.PositiveInfinity;
+                    w.Go = w.Lost = w.Wedged = 0; w.LastX = double.NaN; w.Detours = 0;
                 }
                 w.Info = r; ended.Remove(r.Id);
             }
             foreach (int id in ended) { Release(walks[id]); walks.Remove(id); }
         }
         catch (ApiException) { }
-        finally { polling = false; }
+        finally { if (Current(at)) polling = false; }
     }
     private void Release(Walk w)
     {
@@ -200,21 +212,25 @@ public partial class Hands : Node
         town?.ActionRelease(w.Sim,this); w.Sim = null;
     }
     private void ClearWalks() { foreach (var w in walks.Values) if (w.Sim != null) town?.ActionRelease(w.Sim,this); walks.Clear(); }
-    private async System.Threading.Tasks.Task Report(Walk w, bool ok, string why)
+    private async System.Threading.Tasks.Task Report(Walk w, bool ok, string why, int? count = null)
     {
-        if (w.Reported || Api == null) return; w.Reported = true;
+        if (w.Reported || Api == null || Scheldemist.Net.Mp.NativeStreet.I is{} street&&!street.Owns(w.Info.Npc)) return; w.Reported = true;
+        int at = generation;
         try
         {
-            var r = await Api.RoutineStep(w.Info.Id,w.Index,ok,why,w.Sim?.P?.X ?? w.Sim?.X ?? Jef.I.X,w.Sim?.P?.Z ?? w.Sim?.Z ?? Jef.I.Z,w.Info.Step?.Count ?? 1);
+            var r = await Api.RoutineStep(w.Info.Id,w.Index,ok,why,w.Sim?.P?.X ?? w.Sim?.X ?? Jef.I.X,w.Sim?.P?.Z ?? w.Sim?.Z ?? Jef.I.Z,count ?? w.Info.Step?.Count ?? 1);
+            if (!Current(at)) return;
             if (r.Player.Day > 0) GameState.I.Apply(r);
             await Poll();
         }
-        catch (ApiException) { w.Reported = false; }
+        catch (ApiException) { if (Current(at)) w.Reported = false; }
     }
     private void Step(Walk w, double dt)
     {
+        if (Main.I.UsesLocalBackend) { NativeStep(w, dt); return; }
         var r = w.Info; var step = r.Step;
         if (step == null || town == null || town.Crowd == null) return;
+        if(Scheldemist.Net.Mp.NativeStreet.I is{} street&&!street.Owns(r.Npc))return;
         if (r.Purpose != "hire") foreach (var other in walks.Values)
             if (other != w && other.Info.Npc == r.Npc && other.Info.Purpose == "hire") return;
         if (step.Kind == "wait")
@@ -263,7 +279,7 @@ public partial class Hands : Node
     }
     public override void _Process(double delta)
     {
-        if (disposed) return;
+        if (disposed || Scheldemist.Menu.Pause.Paused) return;
         if (hand != null)
         {
             handT += delta; float outT = handT < .8 ? (float)(handT/.8) : handT < 1.3 ? 1 : MathF.Max(0,1-(float)((handT-1.3)/.6));
@@ -280,7 +296,7 @@ public partial class Hands : Node
             if (at != room && !roomBusy) _ = RoomChanged(at);
         }
         if ((pollT -= delta) <= 0) { pollT = routines.Count > 0 || treats.Count > 0 ? 1.5 : 8; _ = Poll(); if (room != null) _ = PollTreats(); }
-        if ((walkT -= delta) <= 0) { walkT = .1; foreach (var w in walks.Values) Step(w,.1); }
+        if ((walkT -= delta) <= 0) { walkT = .1; foreach (var w in new List<Walk>(walks.Values)) Step(w,.1); }
     }
     public override void _ExitTree()
     {

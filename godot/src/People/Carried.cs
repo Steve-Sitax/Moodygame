@@ -441,6 +441,8 @@ public sealed class PushCart
     }
 
     public (double x, double z) Axle => (ax, az);
+    public double Yaw => dir;
+    public Node3D LoadFrame => pivot;
 
     public void Dispose() => Root.QueueFree();
 

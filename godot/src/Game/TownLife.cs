@@ -149,5 +149,5 @@ public partial class TownLife : Node
     }
     private static void Drop(FireLive f) { f.Alarm?.Stop(); f.Fx?.Free(); f.Pump?.QueueFree(); f.Hose?.QueueFree(); }
     public void Reset() { ResetLife(); foreach (var f in fires) Drop(f); fires.Clear(); said.Clear(); buckets.VisibleInstanceCount = 0; }
-    public override void _ExitTree() { ResetLife(); foreach (var s in sootPool) s.Node.QueueFree(); foreach (var f in fires) Drop(f); bucketNode.QueueFree(); if (I == this) I = null; }
+    public override void _ExitTree() { lifeStopped = true; ResetLife(); foreach (var s in sootPool) s.Node.QueueFree(); foreach (var f in fires) Drop(f); bucketNode.QueueFree(); if (I == this) I = null; }
 }

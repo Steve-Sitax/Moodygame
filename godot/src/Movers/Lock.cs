@@ -102,7 +102,7 @@ public partial class Lock : Node
     public float Flat => flat;
     public string State => state;
     /// <summary>A rowing boat wants the lock (or lets it go).</summary>
-    public void Request(bool on) => boatWant = on;
+    public void Request(bool on) {if(NetRemote){NetAsk?.Invoke("lock",new System.Text.Json.Nodes.JsonArray(on));return;}boatWant=on;}
     /// <summary>The bridge is up, going up or asked to: people on foot wait at its ends (Bridges.Barred).</summary>
     public bool BridgeOpening => want || boatWant || bridgeAngle < -0.001f;
     /// <summary>Anyone in the way of a gate's balance beam as it swings (the people's part sets it): the gate waits.</summary>
@@ -338,7 +338,7 @@ public partial class Lock : Node
     public override void _Process(double delta)
     {
         MoverCost.Begin("lock");
-        Step(MoverClock.Dt);
+        if(!NetRemote)Step(MoverClock.Dt);
         MoverCost.End("lock");
     }
 

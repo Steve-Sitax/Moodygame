@@ -1,0 +1,49 @@
+// Conversion/proof tool only: original lamp jobs with a fresh, isolated source database.
+import {openDb} from '../../server/src/db.ts';
+import {stretchMost,stretchOf,stretchWalkM,lampPay,buildLampJob,takePole,lightLamp,expireLampJobs,offerLampJob} from '../../server/src/town/lampjob.ts';
+import {lampTimes,fogAt,hhmm} from '../../server/src/town/lampround.ts';
+import {lampRounds,lampHelpNow} from '../../server/src/town/lamplighters.ts';
+import {takeJob} from '../../server/src/game.ts';
+import {writeFileSync} from 'node:fs';
+process.env.SCHELDEMIST_TOWN_SEED='1873';process.env.SCHELDEMIST_NO_AI='1';
+const db=openDb(':memory:');const rounds=lampRounds(db)!,cases:any[]=[];
+const people=rounds.rounds.map(r=>({npc:db.prepare('SELECT * FROM npc WHERE id=?').get(r.lamplighter),resident:db.prepare('SELECT * FROM resident WHERE id=?').get(r.lamplighter)}));
+for(let n=0;n<=44;n++)cases.push({type:'most',n,expected:stretchMost(n)});
+for(let n=1;n<=44;n++)for(const spacing of [0,1,10,20,25,30,35,40,60,150])for(const wicket of [null,n-1,n-6]){
+ const lamps=Array.from({length:n},(_,k)=>({id:'authored:centre/test'+k,x:k*spacing,z:2,sx:k*spacing+.5,sz:2,...(k===wicket?{wicket:'gate'}:{})}));
+ const r={id:'native',lamplighter:'sooi',lamps,path:[[.5,2],[(n-1)*spacing+.5,2]],at:lamps.map((_,k)=>k*spacing),len:(n-1)*spacing,dusk:16.789};
+ const from=stretchOf(r);cases.push({type:'stretch',round:r,expected:from});if(from>=0)cases.push({type:'walk',round:r,from,expected:stretchWalkM(r,from)});
+}
+for(let n=0;n<=12;n++)for(const walk of [0,1,25,37.5,50,100,145,300])cases.push({type:'pay',n,walk,expected:lampPay(n,walk)});
+for(const r of rounds.rounds)for(let k=0;k<r.lamps.length;k++)cases.push({type:'times',round:r,k,expected:lampTimes(r,k)});
+for(const h of [0,4.9999,5,16.749999999,16.75,16.789,19,23.999999,24])cases.push({type:'time',h,expected:hhmm(h)});
+for(const start of [false,true])for(const turns of [[],[{h:4,fog:!start}],[{h:5,fog:!start},{h:9,fog:start}],[{h:10,fog:true},{h:12,fog:false}]])for(const hour of [0,4,5,9,10,12,16,23]){const fog={day:1,start,turns};cases.push({type:'fog',fog,hour,expected:fogAt(fog,hour)});}
+for(let day=1;day<=8;day++)for(const tier of [0,1,2,3,4]){
+ db.prepare('UPDATE player SET day=?,hour=10,minute=0 WHERE id=1').run(day);db.prepare('UPDATE faction_trust SET trust=?').run([0,3,5,7,9][tier]);
+ for(const id of [undefined,...rounds.rounds.map(r=>r.id),'missing'])cases.push({type:'job',day,tier,id:id??null,expected:buildLampJob(db,id)});
+}
+db.prepare('UPDATE faction_trust SET trust=0').run();db.prepare('DELETE FROM item WHERE job_id IS NOT NULL').run();db.prepare('DELETE FROM job').run();db.prepare('UPDATE player SET day=1,hour=10,minute=0 WHERE id=1').run();db.prepare("UPDATE world_state SET value_json=? WHERE key='weather'").run(JSON.stringify('clear'));db.prepare("INSERT INTO world_state(key,value_json)VALUES('fog_day',?)ON CONFLICT(key)DO UPDATE SET value_json=excluded.value_json").run(JSON.stringify({day:1,start:false,turns:[]}));
+const offer=offerLampJob(db);if(offer==null)throw new Error('No original lamp stretch');
+const job:any=db.prepare('SELECT * FROM job WHERE id=?').get(offer),task=JSON.parse(job.task_json);
+const results:any[]=[];const capture=(label:string,fn:()=>any)=>{try{results.push({label,expected:fn()});}catch(e:any){results.push({label,error:e.message,status:e.status});}};
+takeJob(db,offer);
+capture('pole-far',()=>takePole(db,offer,{x:task.pole.x+4,z:task.pole.z}));
+capture('without-pole',()=>lightLamp(db,offer,task.lamps[0].id,{x:task.lamps[0].sx,z:task.lamps[0].sz}));
+capture('pole-early',()=>takePole(db,offer,task.pole));
+capture('pole-duplicate',()=>takePole(db,offer,{x:100000,z:100000}));
+capture('wrong-lamp',()=>lightLamp(db,offer,'unknown',{x:task.pole.x,z:task.pole.z}));
+capture('light-early',()=>lightLamp(db,offer,task.lamps[0].id,{x:task.lamps[0].sx,z:task.lamps[0].sz}));
+db.prepare('UPDATE player SET hour=?,minute=? WHERE id=1').run(Math.floor(task.open),Math.round((task.open%1)*60));
+capture('light-far',()=>lightLamp(db,offer,task.lamps[0].id,{x:task.lamps[0].sx+4,z:task.lamps[0].sz}));
+capture('light-first',()=>lightLamp(db,offer,task.lamps[0].id,{x:task.lamps[0].sx,z:task.lamps[0].sz}));
+capture('light-duplicate',()=>lightLamp(db,offer,task.lamps[0].id,{x:100000,z:100000}));
+capture('light-second',()=>lightLamp(db,offer,task.lamps[1].id,{x:task.lamps[1].sx,z:task.lamps[1].sz}));
+db.prepare('UPDATE player SET hour=?,minute=? WHERE id=1').run(Math.floor(task.until),Math.round((task.until%1)*60));
+capture('light-deadline',()=>lightLamp(db,offer,task.lamps[2].id,{x:task.lamps[2].sx,z:task.lamps[2].sz}));
+const beforeMoney=(db.prepare('SELECT money_c FROM player WHERE id=1').get()as any).money_c;
+db.prepare('UPDATE player SET hour=?,minute=? WHERE id=1').run(Math.floor(task.until+.25),Math.round(((task.until+.25)%1)*60));
+capture('partial-deadline',()=>expireLampJobs(db));
+const row:any=db.prepare('SELECT status,task_json FROM job WHERE id=?').get(offer),money=(db.prepare('SELECT money_c FROM player WHERE id=1').get()as any).money_c;
+const state={status:row.status,task:JSON.parse(row.task_json),help:lampHelpNow(db),paid:money-beforeMoney};
+writeFileSync('native-godot/services/proof/lamps-oracles.json',JSON.stringify({version:1,source:'Original lampjob and lampround, independent isolated town1873; fixture lamp IDs are mapped to authored-native IDs for synthetic rounds only.',rounds,people,cases,flow:{job,results,state}})+'\n');db.close();console.log(JSON.stringify({cases:cases.length,rounds:rounds.rounds.length,steps:results.length}));
+

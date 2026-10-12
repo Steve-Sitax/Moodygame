@@ -1,0 +1,1435 @@
+{
+  "defaults": {
+    "version": 1,
+    "mode": "ai",
+    "typedLines": "same",
+    "callsPerDay": 120,
+    "default": {
+      "provider": "recommended"
+    },
+    "kinds": {},
+    "connections": {
+      "anthropic_api": {},
+      "openai_compat": {
+        "baseUrl": "https://api.openai.com/v1"
+      },
+      "ollama": {
+        "baseUrl": "http://127.0.0.1:11434"
+      }
+    }
+  },
+  "options": {
+    "kinds": [
+      {
+        "id": "talk",
+        "label": "Conversations",
+        "what": "What people say to Jef: townspeople, named people, the police, haggling, the confessional, clerks, the landlady, hired hands, dice players.",
+        "recommended": "Claude Opus 5.5"
+      },
+      {
+        "id": "director",
+        "label": "The director and events",
+        "what": "The director who plans the town's events each hour, strangers who arrive, Jef's dreams, and the story of the week at its end.",
+        "recommended": "Claude Opus 5.5; dreams GPT Luna"
+      },
+      {
+        "id": "jobs",
+        "label": "Jobs and twists",
+        "what": "The job board, the night's work, how a job turns out, and jobs that go wrong.",
+        "recommended": "Claude Opus 5.5"
+      },
+      {
+        "id": "press",
+        "label": "Newspaper, letters, posters",
+        "what": "The morning paper, wall posters, letters for Jef and replies to his, lost diaries.",
+        "recommended": "GPT Luna for the paper and posters; Claude Opus 5.5 for letters and diaries"
+      },
+      {
+        "id": "ballads",
+        "label": "Ballads, sermons and plays",
+        "what": "The street singer's ballad, the Sunday sermon, the puppet play at the Poesje.",
+        "recommended": "Claude Opus 5.5"
+      },
+      {
+        "id": "town",
+        "label": "Townspeople's routines",
+        "what": "Errands people run for Jef, talk between townspeople in the street, family news, tavern gossip, rumours, the dawn hiring, new people's characters.",
+        "recommended": "GPT Luna for street talk, family news and rumours; Claude Opus 5.5 for the rest"
+      }
+    ],
+    "providers": [
+      {
+        "id": "recommended",
+        "label": "Recommended mix",
+        "short": "Claude Opus 5.5 for most things, GPT Luna for the paper, posters and gossip.",
+        "needs": [],
+        "models": [],
+        "freeModel": false,
+        "modelHint": null,
+        "defaultModel": null,
+        "effort": false,
+        "cost": "plan",
+        "help": {
+          "what": "The mix the game was tuned with: Claude Opus 5.5 writes the talk, the jobs and the director; GPT Luna (through Codex) writes the morning paper, wall posters, rumours, dreams, street talk and family news.",
+          "need": "Claude Code installed and logged in on this PC. Codex installed and logged in for the GPT Luna parts; without Codex those parts go to Claude too.",
+          "cost": "Runs on your Claude and ChatGPT plans, not paid per call. A game day makes at most 120 calls.",
+          "privacy": "What is sent: the game's own text only (the scene, the made-up townsperson's character and memories, the day's events in the town). Nothing about you or your computer: no name, no files, no paths."
+        },
+        "typedLines": "The mix sends what you type to Claude Opus 5.5 only."
+      },
+      {
+        "id": "claude_local",
+        "label": "Claude (your Claude login)",
+        "short": "Claude through the Claude Code login on this PC. No key needed.",
+        "needs": [],
+        "models": [
+          {
+            "id": "claude-opus-5-5",
+            "label": "Claude Opus 5.5 (best writer)",
+            "effort": true
+          },
+          {
+            "id": "claude-sonnet-5",
+            "label": "Claude Sonnet 5",
+            "effort": true
+          },
+          {
+            "id": "claude-haiku-4-5-20251001",
+            "label": "Claude Haiku 4.5 (fast, plainer)",
+            "effort": false
+          }
+        ],
+        "freeModel": false,
+        "modelHint": null,
+        "defaultModel": "claude-opus-5-5",
+        "effort": true,
+        "cost": "plan",
+        "help": {
+          "what": "Claude runs through Claude Code on this PC, the same way the game has always worked. Opus 5.5 writes best; Sonnet 5 is close for talk between people; Haiku 4.5 is quick and plainer.",
+          "need": "Claude Code installed and logged in (run `claude` once in a terminal and log in).",
+          "cost": "Counts against your Claude plan's limits, not paid per call. A game day makes at most 120 calls.",
+          "privacy": "What is sent: the game's own text only (the scene, the made-up townsperson's character and memories, the day's events in the town). Nothing about you or your computer: no name, no files, no paths. It goes to Anthropic."
+        },
+        "typedLines": "What you type to people goes to this AI (Claude), fenced as a line of dialogue."
+      },
+      {
+        "id": "anthropic_api",
+        "label": "Claude (Anthropic API key)",
+        "short": "Claude through an API key from console.anthropic.com. Paid per call.",
+        "needs": [
+          "apiKey"
+        ],
+        "models": [
+          {
+            "id": "claude-opus-5-5",
+            "label": "Claude Opus 5.5 (best writer)",
+            "effort": true
+          },
+          {
+            "id": "claude-sonnet-5",
+            "label": "Claude Sonnet 5 (cheaper)",
+            "effort": true
+          },
+          {
+            "id": "claude-haiku-4-5",
+            "label": "Claude Haiku 4.5 (cheapest, plainer)",
+            "effort": false
+          }
+        ],
+        "freeModel": true,
+        "modelHint": "for example claude-opus-5-5",
+        "defaultModel": "claude-opus-5-5",
+        "effort": true,
+        "cost": "paid",
+        "help": {
+          "what": "Claude called directly with your own API key. Same models, often a little faster than the login.",
+          "need": "An API key from console.anthropic.com (Settings, API keys). Paste it below; it is kept only in data/ai-config.json on this PC and never shown again.",
+          "cost": "Paid per call. A game day makes at most 120 calls; with Opus 5.5 that is roughly 1 to 3 US dollars a game day, less with Sonnet or Haiku. Set a spending limit in the Anthropic console.",
+          "privacy": "What is sent: the game's own text only (the scene, the made-up townsperson's character and memories, the day's events in the town). Nothing about you or your computer: no name, no files, no paths. It goes to Anthropic."
+        },
+        "typedLines": "What you type to people goes to this AI (Claude), fenced as a line of dialogue."
+      },
+      {
+        "id": "codex_cli",
+        "label": "GPT (Codex login)",
+        "short": "GPT Luna or GPT Sol through the Codex CLI on this PC.",
+        "needs": [],
+        "models": [
+          {
+            "id": "gpt-6-luna",
+            "label": "GPT Luna (fast)",
+            "effort": true
+          },
+          {
+            "id": "gpt-6-sol",
+            "label": "GPT Sol (slower here)",
+            "effort": true
+          }
+        ],
+        "freeModel": false,
+        "modelHint": null,
+        "defaultModel": "gpt-6-luna",
+        "effort": true,
+        "cost": "plan",
+        "help": {
+          "what": "OpenAI's GPT models through the Codex command-line tool, locked down: read-only, no tools, no web, an empty folder. GPT Luna is fast and plain; GPT Sol was slower in our tests.",
+          "need": "Codex installed (npm install -g @openai/codex) and logged in (run `codex` once).",
+          "cost": "Counts against your ChatGPT plan, not paid per call.",
+          "privacy": "What is sent: the game's own text only (the scene, the made-up townsperson's character and memories, the day's events in the town). Nothing about you or your computer: no name, no files, no paths. It goes to OpenAI."
+        },
+        "typedLines": "What you type to people goes to this AI, fenced as a line of dialogue (never as orders), unless \"Typed lines only to Claude\" is on: then typed lines go to Claude, or get the hand-written answers if there is no Claude on this PC."
+      },
+      {
+        "id": "openai_compat",
+        "label": "OpenAI-compatible server",
+        "short": "OpenAI, OpenRouter, LM Studio, llama.cpp server, vLLM: any server that speaks the OpenAI chat API.",
+        "needs": [
+          "baseUrl",
+          "apiKey"
+        ],
+        "models": [],
+        "freeModel": true,
+        "modelHint": "for example gpt-5-mini, or the name LM Studio shows",
+        "defaultModel": null,
+        "effort": true,
+        "cost": "paid",
+        "help": {
+          "what": "Any server with an OpenAI-style /chat/completions endpoint and JSON-schema answers. Examples: OpenAI (https://api.openai.com/v1), OpenRouter (https://openrouter.ai/api/v1), LM Studio (http://127.0.0.1:1234/v1), llama.cpp server (http://127.0.0.1:8080/v1), vLLM (http://127.0.0.1:8000/v1).",
+          "need": "The server's base address, a model name it knows, and an API key if it wants one (OpenAI and OpenRouter do; local servers usually not). Small local models may miss the 20-second limit or the answer format; then the game uses its hand-written lines.",
+          "cost": "OpenAI and OpenRouter charge per call: set a spending limit there. A server on your own PC is free but needs a strong graphics card.",
+          "privacy": "What is sent: the game's own text only (the scene, the made-up townsperson's character and memories, the day's events in the town). Nothing about you or your computer: no name, no files, no paths. It goes to whoever runs the server: nobody else if it runs on this PC."
+        },
+        "typedLines": "What you type to people goes to this AI, fenced as a line of dialogue (never as orders), unless \"Typed lines only to Claude\" is on: then typed lines go to Claude, or get the hand-written answers if there is no Claude on this PC."
+      },
+      {
+        "id": "ollama",
+        "label": "Ollama (on this PC)",
+        "short": "A model you run yourself with Ollama. Free, private, slower.",
+        "needs": [
+          "baseUrl"
+        ],
+        "models": [],
+        "freeModel": true,
+        "modelHint": "for example qwen3:8b",
+        "defaultModel": null,
+        "effort": false,
+        "cost": "local",
+        "help": {
+          "what": "Ollama runs open models on your own PC. Nothing leaves the machine.",
+          "need": "Ollama installed and running, and a model pulled (for example `ollama pull qwen3:8b`). Type the model's name below. The first call after a start loads the model and may miss the 20-second limit; press Test twice.",
+          "cost": "Free. Needs a good graphics card; on a weak PC many answers come too late and the game uses its hand-written lines.",
+          "privacy": "Nothing leaves this PC. What is sent: the game's own text only (the scene, the made-up townsperson's character and memories, the day's events in the town). Nothing about you or your computer: no name, no files, no paths."
+        },
+        "typedLines": "What you type to people goes to this AI, fenced as a line of dialogue (never as orders), unless \"Typed lines only to Claude\" is on: then typed lines go to Claude, or get the hand-written answers if there is no Claude on this PC."
+      },
+      {
+        "id": "none",
+        "label": "No AI (hand-written)",
+        "short": "No model at all for this: the game's own hand-written lines.",
+        "needs": [],
+        "models": [],
+        "freeModel": false,
+        "modelHint": null,
+        "defaultModel": null,
+        "effort": false,
+        "cost": "none",
+        "help": {
+          "what": "This kind of work uses the game's hand-written lines, jobs and events. Nothing is sent anywhere.",
+          "need": "Nothing.",
+          "cost": "Free.",
+          "privacy": "Nothing is sent."
+        },
+        "typedLines": "What you type gets the hand-written answers."
+      }
+    ],
+    "efforts": [
+      "low",
+      "medium",
+      "high"
+    ],
+    "guide": {
+      "title": "How the AI works in Scheldemist",
+      "paragraphs": [
+        "The game engine owns every number: money, needs, trust, time. The AI only writes: what people say, the jobs on the board, the paper, the events. Whatever it writes is checked and clamped before the game uses it.",
+        "Pick one AI as the default, then change single kinds of work if you like: a cheap fast model for the paper and gossip, the best one for conversations. \"Same as default\" follows the default.",
+        "Press Test to check a choice: one short greeting, at most 20 seconds. If a call fails in play, the game uses its hand-written line and goes on; it never waits for the AI.",
+        "A game day makes at most 120 AI calls. Paid services charge per call: set a spending limit with them.",
+        "No AI at all? Choose \"Walk around (no AI)\": the town lives by its own routines, people go about their trades, and talk, jobs and events use the game's hand-written lines. Good for exploring the city."
+      ]
+    },
+    "walk": {
+      "label": "Walk around (no AI)",
+      "text": "No AI is used. The town goes about its business by its own routines; conversations, jobs, the paper and events use the game's hand-written lines. Nothing is sent anywhere."
+    },
+    "typedLines": {
+      "label": "Where your typed lines go",
+      "what": "When you type your own words to someone (a line, a letter, a confession, haggling, the police), those words are sent to an AI so the person can answer. The game checks them first: lines that try to give the AI orders are stopped before any AI sees them, the rest go in as a line of dialogue only, and whatever comes back is checked and clamped by the game.",
+      "privacy": "Your typed words are sent to the AI you choose. With a paid or online AI they leave this PC; with Ollama or a local server they stay on it. Type nothing personal.",
+      "values": [
+        {
+          "id": "same",
+          "label": "Same AI as the rest",
+          "text": "Typed lines go to the AI chosen for that kind of work (Conversations for most of them)."
+        },
+        {
+          "id": "claude_only",
+          "label": "Only to Claude",
+          "text": "Typed lines go only to Claude (your login or your API key), whatever AI the rest uses. Without Claude, people answer typed lines with hand-written lines."
+        }
+      ]
+    },
+    "callsPerDay": {
+      "label": "AI calls per game day",
+      "what": "The most AI calls the game makes in one game day (midnight to midnight). When they are used up, people and events use the game's hand-written lines until the next day. Each part of the game also keeps to its own share (the director, conversations, the paper), so a higher number is not used up all at once.",
+      "cost": "With a paid AI (an API key, OpenAI, OpenRouter) every call costs money: 120 calls with Claude Opus 5.5 is roughly 1 to 3 US dollars a game day. 0 means no limit: then only each part's own share holds, so set a spending limit with the AI service too.",
+      "default": 120,
+      "min": 0,
+      "max": 10000,
+      "zeroMeans": "no limit"
+    }
+  },
+  "hooks": {
+    "talk": [
+      "dialogue",
+      "free_reply",
+      "resident_talk",
+      "resident_talkdown",
+      "resident_haggle",
+      "resident_police",
+      "resident_confront",
+      "resident_fortune",
+      "confession",
+      "clerk",
+      "home_remark",
+      "hands_lines",
+      "tavern_dice"
+    ],
+    "director": [
+      "director_think",
+      "stranger_arrive",
+      "dream",
+      "epilogue"
+    ],
+    "jobs": [
+      "job_board",
+      "night_board",
+      "job_outcome",
+      "trouble"
+    ],
+    "press": [
+      "newspaper",
+      "poster",
+      "letter",
+      "letter_reply",
+      "diary"
+    ],
+    "ballads": [
+      "ballad",
+      "sermon",
+      "poesje_show"
+    ],
+    "town": [
+      "routine_checkin",
+      "npc_convo",
+      "family_share",
+      "tavern_gossip",
+      "rumour_twist",
+      "hiring_call",
+      "persona"
+    ]
+  },
+  "kinds": [
+    "talk",
+    "director",
+    "jobs",
+    "press",
+    "ballads",
+    "town"
+  ],
+  "providers": [
+    "recommended",
+    "claude_local",
+    "anthropic_api",
+    "codex_cli",
+    "openai_compat",
+    "ollama",
+    "none"
+  ],
+  "models": {
+    "opus": {
+      "provider": "claude",
+      "model": "claude-opus-5-5",
+      "effort": "medium"
+    },
+    "sonnet": {
+      "provider": "claude",
+      "model": "claude-sonnet-5",
+      "effort": "medium"
+    },
+    "haiku": {
+      "provider": "claude",
+      "model": "claude-haiku-4-5-20251001"
+    },
+    "sol": {
+      "provider": "codex",
+      "model": "gpt-6-sol",
+      "effort": "medium"
+    },
+    "luna": {
+      "provider": "codex",
+      "model": "gpt-6-luna",
+      "effort": "medium"
+    }
+  },
+  "routes": {
+    "newspaper": "luna",
+    "poster": "luna",
+    "rumour_twist": "luna",
+    "dream": "luna",
+    "npc_convo": "luna",
+    "family_share": "luna"
+  },
+  "typedHooks": [
+    "dialogue",
+    "free_reply",
+    "resident_talk",
+    "resident_talkdown",
+    "resident_haggle",
+    "resident_police",
+    "resident_confront",
+    "letter_reply",
+    "confession",
+    "routine_checkin"
+  ],
+  "normalCases": [
+    {
+      "input": {
+        "provider": "recommended"
+      },
+      "result": {
+        "choice": {
+          "provider": "recommended"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "recommended",
+        "effort": "low"
+      },
+      "result": {
+        "choice": {
+          "provider": "recommended"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "recommended",
+        "effort": "medium"
+      },
+      "result": {
+        "choice": {
+          "provider": "recommended"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "recommended",
+        "effort": "high"
+      },
+      "result": {
+        "choice": {
+          "provider": "recommended"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "recommended",
+        "model": "example-model"
+      },
+      "result": {
+        "choice": {
+          "provider": "recommended"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "recommended",
+        "model": "example-model",
+        "effort": "low"
+      },
+      "result": {
+        "choice": {
+          "provider": "recommended"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "recommended",
+        "model": "example-model",
+        "effort": "medium"
+      },
+      "result": {
+        "choice": {
+          "provider": "recommended"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "recommended",
+        "model": "example-model",
+        "effort": "high"
+      },
+      "result": {
+        "choice": {
+          "provider": "recommended"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "recommended",
+        "model": "claude-haiku-4-5"
+      },
+      "result": {
+        "choice": {
+          "provider": "recommended"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "recommended",
+        "model": "claude-haiku-4-5",
+        "effort": "low"
+      },
+      "result": {
+        "choice": {
+          "provider": "recommended"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "recommended",
+        "model": "claude-haiku-4-5",
+        "effort": "medium"
+      },
+      "result": {
+        "choice": {
+          "provider": "recommended"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "recommended",
+        "model": "claude-haiku-4-5",
+        "effort": "high"
+      },
+      "result": {
+        "choice": {
+          "provider": "recommended"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "claude_local"
+      },
+      "result": {
+        "choice": {
+          "provider": "claude_local",
+          "model": "claude-opus-5-5",
+          "effort": "medium"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "claude_local",
+        "effort": "low"
+      },
+      "result": {
+        "choice": {
+          "provider": "claude_local",
+          "model": "claude-opus-5-5",
+          "effort": "low"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "claude_local",
+        "effort": "medium"
+      },
+      "result": {
+        "choice": {
+          "provider": "claude_local",
+          "model": "claude-opus-5-5",
+          "effort": "medium"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "claude_local",
+        "effort": "high"
+      },
+      "result": {
+        "choice": {
+          "provider": "claude_local",
+          "model": "claude-opus-5-5",
+          "effort": "high"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "claude_local",
+        "model": "example-model"
+      },
+      "result": {
+        "choice": {
+          "provider": "claude_local",
+          "model": "example-model",
+          "effort": "medium"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "claude_local",
+        "model": "example-model",
+        "effort": "low"
+      },
+      "result": {
+        "choice": {
+          "provider": "claude_local",
+          "model": "example-model",
+          "effort": "low"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "claude_local",
+        "model": "example-model",
+        "effort": "medium"
+      },
+      "result": {
+        "choice": {
+          "provider": "claude_local",
+          "model": "example-model",
+          "effort": "medium"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "claude_local",
+        "model": "example-model",
+        "effort": "high"
+      },
+      "result": {
+        "choice": {
+          "provider": "claude_local",
+          "model": "example-model",
+          "effort": "high"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "claude_local",
+        "model": "claude-haiku-4-5"
+      },
+      "result": {
+        "choice": {
+          "provider": "claude_local",
+          "model": "claude-haiku-4-5"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "claude_local",
+        "model": "claude-haiku-4-5",
+        "effort": "low"
+      },
+      "result": {
+        "choice": {
+          "provider": "claude_local",
+          "model": "claude-haiku-4-5"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "claude_local",
+        "model": "claude-haiku-4-5",
+        "effort": "medium"
+      },
+      "result": {
+        "choice": {
+          "provider": "claude_local",
+          "model": "claude-haiku-4-5"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "claude_local",
+        "model": "claude-haiku-4-5",
+        "effort": "high"
+      },
+      "result": {
+        "choice": {
+          "provider": "claude_local",
+          "model": "claude-haiku-4-5"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "anthropic_api"
+      },
+      "result": {
+        "choice": {
+          "provider": "anthropic_api",
+          "model": "claude-opus-5-5",
+          "effort": "medium"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "anthropic_api",
+        "effort": "low"
+      },
+      "result": {
+        "choice": {
+          "provider": "anthropic_api",
+          "model": "claude-opus-5-5",
+          "effort": "low"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "anthropic_api",
+        "effort": "medium"
+      },
+      "result": {
+        "choice": {
+          "provider": "anthropic_api",
+          "model": "claude-opus-5-5",
+          "effort": "medium"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "anthropic_api",
+        "effort": "high"
+      },
+      "result": {
+        "choice": {
+          "provider": "anthropic_api",
+          "model": "claude-opus-5-5",
+          "effort": "high"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "anthropic_api",
+        "model": "example-model"
+      },
+      "result": {
+        "choice": {
+          "provider": "anthropic_api",
+          "model": "example-model",
+          "effort": "medium"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "anthropic_api",
+        "model": "example-model",
+        "effort": "low"
+      },
+      "result": {
+        "choice": {
+          "provider": "anthropic_api",
+          "model": "example-model",
+          "effort": "low"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "anthropic_api",
+        "model": "example-model",
+        "effort": "medium"
+      },
+      "result": {
+        "choice": {
+          "provider": "anthropic_api",
+          "model": "example-model",
+          "effort": "medium"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "anthropic_api",
+        "model": "example-model",
+        "effort": "high"
+      },
+      "result": {
+        "choice": {
+          "provider": "anthropic_api",
+          "model": "example-model",
+          "effort": "high"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "anthropic_api",
+        "model": "claude-haiku-4-5"
+      },
+      "result": {
+        "choice": {
+          "provider": "anthropic_api",
+          "model": "claude-haiku-4-5"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "anthropic_api",
+        "model": "claude-haiku-4-5",
+        "effort": "low"
+      },
+      "result": {
+        "choice": {
+          "provider": "anthropic_api",
+          "model": "claude-haiku-4-5"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "anthropic_api",
+        "model": "claude-haiku-4-5",
+        "effort": "medium"
+      },
+      "result": {
+        "choice": {
+          "provider": "anthropic_api",
+          "model": "claude-haiku-4-5"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "anthropic_api",
+        "model": "claude-haiku-4-5",
+        "effort": "high"
+      },
+      "result": {
+        "choice": {
+          "provider": "anthropic_api",
+          "model": "claude-haiku-4-5"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "codex_cli"
+      },
+      "result": {
+        "choice": {
+          "provider": "codex_cli",
+          "model": "gpt-6-luna",
+          "effort": "medium"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "codex_cli",
+        "effort": "low"
+      },
+      "result": {
+        "choice": {
+          "provider": "codex_cli",
+          "model": "gpt-6-luna",
+          "effort": "low"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "codex_cli",
+        "effort": "medium"
+      },
+      "result": {
+        "choice": {
+          "provider": "codex_cli",
+          "model": "gpt-6-luna",
+          "effort": "medium"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "codex_cli",
+        "effort": "high"
+      },
+      "result": {
+        "choice": {
+          "provider": "codex_cli",
+          "model": "gpt-6-luna",
+          "effort": "high"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "codex_cli",
+        "model": "example-model"
+      },
+      "result": {
+        "choice": {
+          "provider": "codex_cli",
+          "model": "example-model",
+          "effort": "medium"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "codex_cli",
+        "model": "example-model",
+        "effort": "low"
+      },
+      "result": {
+        "choice": {
+          "provider": "codex_cli",
+          "model": "example-model",
+          "effort": "low"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "codex_cli",
+        "model": "example-model",
+        "effort": "medium"
+      },
+      "result": {
+        "choice": {
+          "provider": "codex_cli",
+          "model": "example-model",
+          "effort": "medium"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "codex_cli",
+        "model": "example-model",
+        "effort": "high"
+      },
+      "result": {
+        "choice": {
+          "provider": "codex_cli",
+          "model": "example-model",
+          "effort": "high"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "codex_cli",
+        "model": "claude-haiku-4-5"
+      },
+      "result": {
+        "choice": {
+          "provider": "codex_cli",
+          "model": "claude-haiku-4-5",
+          "effort": "medium"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "codex_cli",
+        "model": "claude-haiku-4-5",
+        "effort": "low"
+      },
+      "result": {
+        "choice": {
+          "provider": "codex_cli",
+          "model": "claude-haiku-4-5",
+          "effort": "low"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "codex_cli",
+        "model": "claude-haiku-4-5",
+        "effort": "medium"
+      },
+      "result": {
+        "choice": {
+          "provider": "codex_cli",
+          "model": "claude-haiku-4-5",
+          "effort": "medium"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "codex_cli",
+        "model": "claude-haiku-4-5",
+        "effort": "high"
+      },
+      "result": {
+        "choice": {
+          "provider": "codex_cli",
+          "model": "claude-haiku-4-5",
+          "effort": "high"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "openai_compat"
+      },
+      "result": {
+        "error": "name a model for OpenAI-compatible server"
+      }
+    },
+    {
+      "input": {
+        "provider": "openai_compat",
+        "effort": "low"
+      },
+      "result": {
+        "error": "name a model for OpenAI-compatible server"
+      }
+    },
+    {
+      "input": {
+        "provider": "openai_compat",
+        "effort": "medium"
+      },
+      "result": {
+        "error": "name a model for OpenAI-compatible server"
+      }
+    },
+    {
+      "input": {
+        "provider": "openai_compat",
+        "effort": "high"
+      },
+      "result": {
+        "error": "name a model for OpenAI-compatible server"
+      }
+    },
+    {
+      "input": {
+        "provider": "openai_compat",
+        "model": "example-model"
+      },
+      "result": {
+        "choice": {
+          "provider": "openai_compat",
+          "model": "example-model"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "openai_compat",
+        "model": "example-model",
+        "effort": "low"
+      },
+      "result": {
+        "choice": {
+          "provider": "openai_compat",
+          "model": "example-model",
+          "effort": "low"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "openai_compat",
+        "model": "example-model",
+        "effort": "medium"
+      },
+      "result": {
+        "choice": {
+          "provider": "openai_compat",
+          "model": "example-model",
+          "effort": "medium"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "openai_compat",
+        "model": "example-model",
+        "effort": "high"
+      },
+      "result": {
+        "choice": {
+          "provider": "openai_compat",
+          "model": "example-model",
+          "effort": "high"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "openai_compat",
+        "model": "claude-haiku-4-5"
+      },
+      "result": {
+        "choice": {
+          "provider": "openai_compat",
+          "model": "claude-haiku-4-5"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "openai_compat",
+        "model": "claude-haiku-4-5",
+        "effort": "low"
+      },
+      "result": {
+        "choice": {
+          "provider": "openai_compat",
+          "model": "claude-haiku-4-5",
+          "effort": "low"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "openai_compat",
+        "model": "claude-haiku-4-5",
+        "effort": "medium"
+      },
+      "result": {
+        "choice": {
+          "provider": "openai_compat",
+          "model": "claude-haiku-4-5",
+          "effort": "medium"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "openai_compat",
+        "model": "claude-haiku-4-5",
+        "effort": "high"
+      },
+      "result": {
+        "choice": {
+          "provider": "openai_compat",
+          "model": "claude-haiku-4-5",
+          "effort": "high"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "ollama"
+      },
+      "result": {
+        "error": "name a model for Ollama (on this PC)"
+      }
+    },
+    {
+      "input": {
+        "provider": "ollama",
+        "effort": "low"
+      },
+      "result": {
+        "error": "name a model for Ollama (on this PC)"
+      }
+    },
+    {
+      "input": {
+        "provider": "ollama",
+        "effort": "medium"
+      },
+      "result": {
+        "error": "name a model for Ollama (on this PC)"
+      }
+    },
+    {
+      "input": {
+        "provider": "ollama",
+        "effort": "high"
+      },
+      "result": {
+        "error": "name a model for Ollama (on this PC)"
+      }
+    },
+    {
+      "input": {
+        "provider": "ollama",
+        "model": "example-model"
+      },
+      "result": {
+        "choice": {
+          "provider": "ollama",
+          "model": "example-model"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "ollama",
+        "model": "example-model",
+        "effort": "low"
+      },
+      "result": {
+        "choice": {
+          "provider": "ollama",
+          "model": "example-model"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "ollama",
+        "model": "example-model",
+        "effort": "medium"
+      },
+      "result": {
+        "choice": {
+          "provider": "ollama",
+          "model": "example-model"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "ollama",
+        "model": "example-model",
+        "effort": "high"
+      },
+      "result": {
+        "choice": {
+          "provider": "ollama",
+          "model": "example-model"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "ollama",
+        "model": "claude-haiku-4-5"
+      },
+      "result": {
+        "choice": {
+          "provider": "ollama",
+          "model": "claude-haiku-4-5"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "ollama",
+        "model": "claude-haiku-4-5",
+        "effort": "low"
+      },
+      "result": {
+        "choice": {
+          "provider": "ollama",
+          "model": "claude-haiku-4-5"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "ollama",
+        "model": "claude-haiku-4-5",
+        "effort": "medium"
+      },
+      "result": {
+        "choice": {
+          "provider": "ollama",
+          "model": "claude-haiku-4-5"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "ollama",
+        "model": "claude-haiku-4-5",
+        "effort": "high"
+      },
+      "result": {
+        "choice": {
+          "provider": "ollama",
+          "model": "claude-haiku-4-5"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "none"
+      },
+      "result": {
+        "choice": {
+          "provider": "none"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "none",
+        "effort": "low"
+      },
+      "result": {
+        "choice": {
+          "provider": "none"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "none",
+        "effort": "medium"
+      },
+      "result": {
+        "choice": {
+          "provider": "none"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "none",
+        "effort": "high"
+      },
+      "result": {
+        "choice": {
+          "provider": "none"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "none",
+        "model": "example-model"
+      },
+      "result": {
+        "choice": {
+          "provider": "none"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "none",
+        "model": "example-model",
+        "effort": "low"
+      },
+      "result": {
+        "choice": {
+          "provider": "none"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "none",
+        "model": "example-model",
+        "effort": "medium"
+      },
+      "result": {
+        "choice": {
+          "provider": "none"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "none",
+        "model": "example-model",
+        "effort": "high"
+      },
+      "result": {
+        "choice": {
+          "provider": "none"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "none",
+        "model": "claude-haiku-4-5"
+      },
+      "result": {
+        "choice": {
+          "provider": "none"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "none",
+        "model": "claude-haiku-4-5",
+        "effort": "low"
+      },
+      "result": {
+        "choice": {
+          "provider": "none"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "none",
+        "model": "claude-haiku-4-5",
+        "effort": "medium"
+      },
+      "result": {
+        "choice": {
+          "provider": "none"
+        }
+      }
+    },
+    {
+      "input": {
+        "provider": "none",
+        "model": "claude-haiku-4-5",
+        "effort": "high"
+      },
+      "result": {
+        "choice": {
+          "provider": "none"
+        }
+      }
+    }
+  ]
+}

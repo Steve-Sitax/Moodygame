@@ -92,7 +92,8 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
         string town = Main.I.Arg("town", OS.GetEnvironment("SCHELDEMIST_BAKE") is { Length: > 0 } b ? b : ProjectSettings.GlobalizePath("res://baked/town.glb"));
         string name = Path.GetFileNameWithoutExtension(town) + "_lights.json";
         string? file = new[] { Path.Combine(Path.GetDirectoryName(town) ?? ".", name), ProjectSettings.GlobalizePath("res://baked/" + name) }.FirstOrDefault(File.Exists);
-        if (file != null && JsonDocument.Parse(File.ReadAllText(file)).RootElement.TryGetProperty("rooms", out var list))
+        var nativeLights = Main.I.World.NativeLights;
+        if ((nativeLights ?? (file != null ? JsonDocument.Parse(File.ReadAllText(file)) : null))?.RootElement is { } lightRoot && lightRoot.TryGetProperty("rooms", out var list))
             foreach (var r in list.EnumerateArray()) lit[r.GetProperty("id").GetString() ?? ""] = r.GetProperty("lights");
 
         var linings = new Dictionary<string, Node3D>();

@@ -1,0 +1,7 @@
+<Project>
+  <PropertyGroup><GodotProjectDir>$(MSBuildThisFileDirectory)../../../.scratch/native-route-game/</GodotProjectDir></PropertyGroup>
+  <Import Project="Sdk.props" Sdk="Godot.NET.Sdk" Version="4.7.2"/>
+  <PropertyGroup><TargetFramework>net8.0</TargetFramework><EnableDynamicLoading>true</EnableDynamicLoading><Nullable>enable</Nullable><ImplicitUsings>disable</ImplicitUsings><EnableDefaultCompileItems>false</EnableDefaultCompileItems><RootNamespace>Scheldemist</RootNamespace></PropertyGroup>
+  <ItemGroup><Compile Include="../../../godot/src/**/*.cs"/></ItemGroup>
+  <Import Project="Sdk.targets" Sdk="Godot.NET.Sdk" Version="4.7.2"/>
+</Project>

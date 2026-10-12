@@ -1,0 +1,67 @@
+{
+ "ashlar_blue": {
+  "sha256": "821cf7a6889b8f6d196dea7754a244f13d59f0c3012c6ff9028e9ec6bf1d1d98",
+  "kind": "brick",
+  "bump": 1.0
+ },
+ "ashlar_sand": {
+  "sha256": "9d078053668fca9f00e8fc2d924d69e98722e5814b968dd7b63084dcf453a91c",
+  "kind": "brick",
+  "bump": 1.0
+ },
+ "brick": {
+  "sha256": "25845e39ceff608d0b13ac44f4c5212b811c72d01db9d1bca5e8624f5ddee14a",
+  "kind": "brick",
+  "bump": 1.0
+ },
+ "brick_clinker": {
+  "sha256": "4a7a1e893a448c09013f0b1e304b1cc0e142699eb3bb31d3202c7ab68ae8aec3",
+  "kind": "brick",
+  "bump": 1.0
+ },
+ "brick_fine": {
+  "sha256": "bd3282e4d5c739f1f43d4ebe64ba1dda36a6d6cfd9014426d66739d43bc64d77",
+  "kind": "brick",
+  "bump": 0.8
+ },
+ "brick_white": {
+  "sha256": "20c51f70c9ab2e472790c73f9d02d30e968719ef2271443aad68dd86da25e626",
+  "kind": "plaster",
+  "bump": 0.4
+ },
+ "brick_yellow": {
+  "sha256": "eb389cdc7d8d9b9b2b775683c85a3a57bb206d6f6f82d81290576720632a5adf",
+  "kind": "brick",
+  "bump": 0.4
+ },
+ "brick_yellow_old": {
+  "sha256": "66c09db6701b8696a584d9ec2715f457faac295f4b5f1d180e70931c5eefc0b0",
+  "kind": "brick",
+  "bump": 1.0
+ },
+ "plaster": {
+  "sha256": "76734049c5b21cc9114c049ebe398aa5625a4b7109c877555a5886fd3fc5473d",
+  "kind": "plaster",
+  "bump": 0.12
+ },
+ "plaster_rough": {
+  "sha256": "f2b35ef235ed0158435217715a345c30ba0ae515825c3a3948b5273bcfaa8068",
+  "kind": "rough",
+  "bump": 0.1
+ },
+ "plaster_smooth": {
+  "sha256": "9e7ba74e9e7e471ff3c047e879345cb5599b27b161f78d19b50e8fc6065f4e7b",
+  "kind": "plaster",
+  "bump": 0.04
+ },
+ "render": {
+  "sha256": "c45cb37c8d815bad2a284b173a6b5a380900ccdf104b5ca457097fd376374bd1",
+  "kind": "plaster",
+  "bump": 0.12
+ },
+ "speklagen": {
+  "sha256": "35cbda77898aa6be63b9f247bbd369ef554bc7a596345ad3c38c2930ab77e699",
+  "kind": "brick",
+  "bump": 1.0
+ }
+}

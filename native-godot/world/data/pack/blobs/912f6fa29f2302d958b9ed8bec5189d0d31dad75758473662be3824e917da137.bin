@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "provenance": "Authored origin/names/story facts, original deterministic families and clock fixtures recovered from read-only code and a fresh in-memory seed1873. Native runtime uses C# rules, never Node or a frozen family population.",
+  "hashes": {
+    "server/src/town/emigrants.ts": "33ea2de39e5ef1326e215cfc835941e6a6dbe5566da2ca46a7473ea8c05f396b",
+    "server/src/town/emigrantRoutes.ts": "c418b65463c522a7cb19682f7c843223a6d4255f5b4aee4e98d4b5272c5653b4",
+    "server/src/town/places.ts": "aae50d07d368739b894db436c1e26c35dab5badc09d2a925bcc40650a355f91e",
+    "server/src/town/population.ts": "32fcae64b450c110d71c563eabfd82bef9a3e35f17c1e18f230c54c94f960191"
+  }
+}

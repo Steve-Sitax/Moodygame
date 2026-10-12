@@ -1,0 +1,62 @@
+// Test oracles executed against the existing engine rules, using only :memory:.
+import { writeFileSync, mkdirSync, readFileSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { createHash } from "node:crypto";
+import { openDb } from "../../server/src/db.ts";
+import { settle } from "../../server/src/game.ts";
+import { applyHour, WHERE } from "../../server/src/day.ts";
+import { needs } from "../../server/src/trade.ts";
+import { remember } from "../../server/src/npcs.ts";
+import { ownVoice, toYou, whoYou, withinFact, driftWording, spreadRumours } from "../../server/src/town/rumours.ts";
+import { CLASSES,FURNITURE,HOME_CLASSES,grid,canPlace,firstFit,comfortOf,nightAt } from "../../shared/homes.ts";
+
+process.env.SCHELDEMIST_TOWN_SEED="1873";
+const db=openDb(":memory:");
+WHERE.now=()=>({shelter:"outside",lantern:false,place:null,label:"outside"});
+const cases:any[]=[];
+for(const initial of [{food:6,warmth:5,health:5,sleep:7},{food:0,warmth:5,health:5,sleep:5},{food:8,warmth:8,health:5,sleep:8},{food:1,warmth:1,health:1,sleep:1}])for(let hour=0;hour<24;hour++){
+  db.prepare("UPDATE player SET food=?,warmth=?,health=?,sleep=? WHERE id=1").run(initial.food,initial.warmth,initial.health,initial.sleep);
+  applyHour(db,hour);cases.push({type:"hour",initial,hour,expected:needs(db)});
+}
+const tasks=[
+  {kind:"carry",goods:"crates",count:2,from:"pier_head",to:"crane_foot",twist:"none",limit_s:null},
+  {kind:"carry",goods:"sacks",count:2,from:"pier_head",to:"crane_foot",twist:"foreman_watches",limit_s:null},
+  {kind:"carry",goods:"rope",count:1,from:"crane_foot",to:"peeters_dock",twist:"heavy_load",limit_s:null},
+  {kind:"deliver",goods:"parcel",from:"pier_head",to:"ship_gangway",recipient:"the mate",twist:"stranger_offer",limit_s:108},
+  {kind:"watch",goods:"barrels",post:"west_sheds",duration_s:90,twist:"thief"},
+  {kind:"watch",goods:"barrels",post:"west_sheds",duration_s:90,twist:"foreman_watches"},
+  {kind:"letters",stops:[{what:"letter",done:true},{what:"letter",done:false}]},
+  {kind:"letters",stops:[{what:"telegraph",done:true}],city:"Ghent"},
+  {kind:"lamps",lamps:[{done:true},{done:false},{done:false}]},
+  {kind:"lamps",lamps:[{done:false}]},
+  {kind:"mill",turns:3},
+];
+for(const task of tasks)for(const roll of [0,.349,.35,.99])for(let variant=0;variant<18;variant++){
+ const total=task.kind==="carry"?task.count:1;
+ const report:any={delivered:variant%3===0?0:total,lost:variant%3===0?total:0,sold:0,pocketed:variant%4===0,late:variant%5===0,left_post_s:variant%3===1?21:0,thief:variant%3===0?"none":variant%3===1?"chased":"stole",bribe_taken:variant%2===0,seen_away:variant%7===0,turns:variant%4};
+ if(variant%6===0){report.delivered=0;report.lost=0;report.sold=total;}
+ const job:any={id:1,title:"Oracle",employer_npc:"sooi",employer_name:"Sooi",pay_c:95,task_type:task.kind,task};
+ try{cases.push({type:"settle",job,report,roll,expected:settle(job,report,()=>roll)});}catch(error:any){cases.push({type:"settle",job,report,roll,error:error.message,status:error.status});}
+}
+for(const text of ["Jef stole a herring from Rosalie's stall, and Rosalie saw it.","Rosalie Peeters says you took it.","He gave it back to Rosalie.","Rosalie is angry.","Jef took Fientje's herring.","Rosalind was there."]){const names=["Rosalie Peeters","Rosalie"];cases.push({type:"ownVoice",text,names,expected:ownVoice(text,names)});}
+for(const fact of ["Jef rents a room from Rosalie.","Jef carries two sacks for Sooi.","Jef goes to the town hall.","Jef was rude to Anna.","Jef has his mother's medal.","Jef did honest work for Sooi.","Jef's coat is wet.","Somebody asked after work."]){cases.push({type:"toYou",fact,expected:toYou(fact)});cases.push({type:"whoYou",fact,expected:whoYou(fact)});}
+for(const fact of ["Jef stole two herrings from Fientje.","Jef helped Rosalie.","Jef did honest work for Sooi.","Jef was rude to Anna.","Jef carried two sacks for Sooi.","Jef gave a herring to Fientje.","Jef asked after work."]){
+ for(const roll of [0,.1,.349,.35,.6,.99])cases.push({type:"drift",fact,told:fact,roll,expected:driftWording(fact,fact,()=>roll)});
+ for(const told of [fact,"Jef murdered Anna.","Jef stole fifty sacks from Sooi.","Jef never did honest work for Sooi.","Jef gave a herring to Fientje, they say.","Jef did honest work for Sooi, or so they say"] )cases.push({type:"withinFact",fact,told,expected:withinFact(fact,told)});
+}
+for(const npc of ["sooi","fientje","peeters","r001"] )for(const roll of [0,.349,.35,.99]){
+ db.prepare("DELETE FROM npc_memory").run();const initial={npc,text:"Jef carried two sacks for Sooi.",weight:7,gist:"Jef carried two sacks for Sooi",tone:1};remember(db,npc,initial.text,initial.weight,"seen",null,{gist:initial.gist,tone:initial.tone});
+ const heard=spreadRumours(db,()=>roll);const expected=db.prepare("SELECT npc_id,text,source,heard_from,weight,gist,tone,origin,town_spread,told_as,about_player FROM npc_memory ORDER BY id").all();cases.push({type:"spread",initial,roll,heard,expected});
+}
+for(const cls of HOME_CLASSES){const {nx,nz}=grid(cls);for(const kind of Object.keys(FURNITURE)){
+ for(const [gx,gz] of [[0,0],[1,1],[2,0],[2,1],[2,2],[nx-1,nz-1],[0,nz-1],[nx-1,0],[-1,0],[nx,nz]])for(let rot=0;rot<4;rot++)cases.push({type:"homePlace",cls,placed:[],kind,gx,gz,rot,expected:canPlace(cls,[],kind,gx,gz,rot)});
+ cases.push({type:"homeFirstFit",cls,placed:[],kind,expected:firstFit(cls,[],kind)});
+}
+ for(const placed of [[],[{id:1,kind:"stove",gx:2,gz:2,rot:0}],[{id:1,kind:"rug",gx:2,gz:2,rot:0},{id:2,kind:"lamp",gx:3,gz:2,rot:0},{id:3,kind:"chair",gx:1,gz:3,rot:0}],[{id:1,kind:"picture",gx:0,gz:2,rot:3},{id:2,kind:"picture",gx:0,gz:3,rot:3},{id:3,kind:"curtains",gx:0,gz:0,rot:2}]]){
+  cases.push({type:"homeComfort",cls,placed,expected:comfortOf(cls,placed)});cases.push({type:"homeNight",cls,placed,expected:nightAt(cls,placed)});
+  for(const kind of Object.keys(FURNITURE))for(const [gx,gz,rot] of [[2,2,0],[2,2,1],[3,2,0],[0,2,3],[1,0,2],[nx-1,nz-1,0]])cases.push({type:"homePlace",cls,placed,kind,gx,gz,rot,expected:canPlace(cls,placed,kind,gx,gz,rot)});
+ }
+}
+db.close();
+const output=resolve(process.argv[2]??"native-godot/proof/core-oracles.json");mkdirSync(dirname(output),{recursive:true});
+writeFileSync(output,JSON.stringify({version:1,sources:Object.fromEntries(["server/src/game.ts","server/src/day.ts","server/src/rest.ts"].map(p=>[p,createHash("sha256").update(readFileSync(p)).digest("hex")])),cases},null,2)+"\n");console.log(JSON.stringify({cases:cases.length,output}));

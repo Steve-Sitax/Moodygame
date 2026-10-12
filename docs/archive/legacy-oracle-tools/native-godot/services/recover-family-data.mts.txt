@@ -1,0 +1,18 @@
+// One-time authored visitor/surprise facts. Fresh in-memory source; no HTTP, AI or player database.
+import {readFileSync,writeFileSync} from "node:fs";
+import {resolve} from "node:path";
+import {createHash} from "node:crypto";
+import {runInNewContext} from "node:vm";
+import {openDb} from "../../server/src/db.ts";
+import {town} from "../../server/src/town/store.ts";
+import {FORTUNE_ID,STRANGER_IDS} from "../../server/src/town/visitors.ts";
+process.env.SCHELDEMIST_TOWN_SEED="1873";process.env.SCHELDEMIST_NO_AI="1";
+const db=openDb(":memory:"),out=resolve(process.argv[2]??"native-godot/services/data");
+const text=readFileSync("server/src/director/surprises.ts","utf8");
+function literal(name:string){const start=text.indexOf("const "+name);if(start<0)throw new Error(name);const equals=text.indexOf("= {",start)+2;const end=text.indexOf("\n};",equals)+2;return runInNewContext("("+text.slice(equals,end)+")",Object.create(null),{timeout:1000});}
+const prototypes=town(db).town.residents.filter(r=>[FORTUNE_ID,...STRANGER_IDS].includes(r.id));
+if(prototypes.length!==6)throw new Error("Six visitor prototypes required");
+const facts={version:1,prototypes,fortuneFallback:literal("FORTUNE_FALLBACK"),strangerFallback:literal("STRANGER_FALLBACK"),strangerDay:literal("STRANGER_DAY"),errands:literal("ERRAND"),strangerWants:literal("STRANGER_WANTS"),schemeLines:literal("SCHEME_LINES")};
+writeFileSync(resolve(out,"native-family.json"),JSON.stringify(facts,null,2)+"\n");
+const paths=["server/src/town/visitors.ts","server/src/director/families.ts","server/src/director/surprises.ts","server/src/director/familyRoutes.ts"];
+writeFileSync(resolve(out,"native-family-intake.json"),JSON.stringify({version:1,provenance:"Authored source facts and six prototype residents, recovered once from a fresh in-memory seed1873; native augmentation chooses fresh native doors.",hashes:Object.fromEntries(paths.map(p=>[p,createHash("sha256").update(readFileSync(p)).digest("hex")]))},null,2)+"\n");db.close();console.log(JSON.stringify({prototypes:prototypes.length}));

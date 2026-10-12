@@ -1,0 +1,28 @@
+// Readonly, one-time recovery of authored event templates and rule text; no player save or network.
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { createHash } from "node:crypto";
+import { TEMPLATES, ROUTINE_TEMPLATES } from "../../server/src/director/templates.ts";
+import { REFUSE_LINE, END_LINE } from "../../server/src/director/vocab.ts";
+import { DAY_PAY_C, HIRE_CALL_C, LOADS_PER_DAY, MAX_WAGE_C } from "../../server/src/town/hire.ts";
+import { openDb } from "../../server/src/db.ts";
+import { planEvent, eventRow, eventsTick } from "../../server/src/director/scheduler.ts";
+import { clearActions } from "../../server/src/director/actions.ts";
+import { runFireAct } from "../../server/src/director/fire.ts";
+import { runHiringAct } from "../../server/src/director/hiring.ts";
+import { planFromTemplate } from "../../server/src/director/templates.ts";
+process.env.SCHELDEMIST_TOWN_SEED="1873";process.env.SCHELDEMIST_NO_AI="1";
+const output=resolve(process.argv[2]??"native-godot/services/data");mkdirSync(output,{recursive:true});
+const templates=TEMPLATES.map(t=>{const {fits,...data}=t;return {...data,fitHours:Object.fromEntries(Array.from({length:7},(_,i)=>[i+1,Array.from({length:24},(_,h)=>h).filter(h=>fits(i+1,h))]))};});
+const db=openDb(":memory:");const fires: Record<string,unknown>={};let hiring:unknown=null;
+for(let day=1;day<=7;day++) {
+ db.prepare("DELETE FROM town_event").run();clearActions(db);db.prepare("UPDATE player SET day=?,hour=8,minute=0 WHERE id=1").run(day);
+ const t=TEMPLATES.find(t=>t.id==="house_fire")!;const planned=planEvent(db,planFromTemplate(t,"engine",{start_in_min:0}),{dev:true});
+ if(planned.ok){const ev=planned.event;const stages=JSON.parse(ev.stages_json);runFireAct(db,ev,stages[0],0);fires[day]=JSON.parse(eventRow(db,ev.id)!.stages_json)[0]?.fire??null;}
+}
+db.prepare("DELETE FROM town_event").run();clearActions(db);db.prepare("UPDATE player SET day=1,hour=5,minute=30 WHERE id=1").run();
+const ht=TEMPLATES.find(t=>t.id==="hiring")!;const hp=planEvent(db,planFromTemplate(ht,"engine",{start_in_min:0}),{dev:true});if(hp.ok){const stages=JSON.parse(hp.event.stages_json);runHiringAct(db,hp.event,stages[0],0);hiring=JSON.parse(eventRow(db,hp.event.id)!.stages_json)[0]?.hiring??null;}
+db.close();
+writeFileSync(resolve(output,"native-director.json"),JSON.stringify({version:1,templates,refusals:REFUSE_LINE,endLines:END_LINE,wages:{dayPay:DAY_PAY_C,call_c:HIRE_CALL_C,loadsPerDay:LOADS_PER_DAY,max_c:MAX_WAGE_C},fires,hiring},null,2)+"\n");
+const sources=["server/src/director/actions.ts","server/src/director/templates.ts","server/src/director/vocab.ts","server/src/director/routines.ts","server/src/director/steps.ts","server/src/director/scheduler.ts","server/src/director/townlife-routes.ts"];
+writeFileSync(resolve(output,"native-director-intake.json"),JSON.stringify({version:1,provenance:"Static source-authored templates and vocabulary; no runtime TypeScript.",hashes:Object.fromEntries(sources.map(p=>[p,createHash("sha256").update(readFileSync(p)).digest("hex")])),templates:templates.length},null,2)+"\n");console.log(JSON.stringify({templates:templates.length}));

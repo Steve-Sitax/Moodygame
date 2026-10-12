@@ -1,0 +1,11 @@
+// One-time original protocol evidence; the retained .NET check reads the captured fixture without Node.
+import { encodePuppets, PUPPET_MOTIONS } from '../../../shared/mpProtocol.ts';
+import { writeFileSync } from 'node:fs';
+const rows=[];
+for(let bought=0;bought<5;bought++)for(let vehicle=0;vehicle<4;vehicle++)for(let mode=0;mode<PUPPET_MOTIONS.length;mode++) {
+  const i=rows.length, load=i%256, goods=i%6;
+  const s={t:1720000000000+i*100,x:Math.fround((i+1)*.123),z:Math.fround(-(i+1)*.117),yaw:Math.fround((i%12-6)*.125),vx:[.125,-.125,.375,-.375][i%4],vz:.625,motion:PUPPET_MOTIONS[mode],sit:!!(i&1),lantern:!!(i&2),sack:!!(i&4),snap:!!(i&8),size:[1,.9,1.2][i%3],bought:[null,'parcel','fish','sack','basket'][bought],veh:vehicle===1?{kind:'velo'}:vehicle===2?{kind:'cart',items:load,what:[undefined,'goods','fish','furniture','chests','sacks'][goods]}:vehicle===3?{kind:'dray',loaded:!!(load&1)}:null};
+  rows.push({number:i+1,state:s,mode,bought,vehicle,load:vehicle===2?load:vehicle===3?Number(!!(load&1)):0,goods:vehicle===2?goods:0,wire:Buffer.from(encodePuppets(s.t,[{num:i+1,s}])).toString('base64')});
+}
+writeFileSync(new URL('puppet-wire.json',import.meta.url),JSON.stringify(rows));
+console.log(`Captured ${rows.length} original resident protocol cases.`);

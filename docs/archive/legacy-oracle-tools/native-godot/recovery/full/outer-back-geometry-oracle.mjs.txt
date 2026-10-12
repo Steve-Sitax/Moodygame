@@ -1,0 +1,11 @@
+// Original back-town geometry on a synthetic road fixture: no legacy navigation or player data.
+import fs from'node:fs';import vm from'node:vm';import{stripTypeScriptTypes}from'node:module';import{offLanes}from'../../../server/src/town/possessions.ts';
+const root=new URL('../../../',import.meta.url),read=p=>fs.readFileSync(new URL(p,root),'utf8'),city=JSON.parse(read('shared/city.json'));
+const line=n=>Math.abs(n-Math.floor(n/45+.5)*45);const free=(x,z)=>x>=-370&&x<=240&&z>=60&&z<=360&&(line(x+366)<=3||line(z-60)<=3||Math.hypot(x+300,z-300)<8);
+const wm={flags:(x,z)=>free(x,z)?0:1,reachable:free,open:(x,z,r)=>[[0,0],[r,0],[-r,0],[0,r],[0,-r],[r,r],[-r,-r],[r,-r],[-r,r]].every(([dx,dz])=>free(x+dx,z+dz))};
+const source=read('server/src/town/backtown.ts').replace(/^import[\s\S]*?from [^\r\n]+;\r?\n/gm,'').replace(/^export .* from [^\r\n]+;\r?\n/gm,'').replace(/\bexport /g,'');
+const context={CITY:city,INWORLD:{houses:[]},walkMap:()=>wm,offLanes};vm.createContext(context);vm.runInContext(stripTypeScriptTypes(source),context);
+const rooms=[];for(let i=0;i<40;i++){const x=-366+(i%10)*45,z=150+Math.floor(i/10)*45;rooms.push({x,z,room:i%2?.9:1.5,max:8,at:context.roomNear(x+2,z+2,i%2?.9:1.5,8)});}
+const lanes=[];for(let x=-370;x<=240;x+=13)for(let z=0;z<=370;z+=17)lanes.push({x,z,open:offLanes(x,z,.2)});
+const churches=['stjacob','stpaul','carolus'].map(key=>({key,door:context.churchDoor(key)}));
+fs.writeFileSync(new URL('native-godot/services/fixtures/back-geometry.json',root),JSON.stringify({corners:context.backCorners(),walk:context.wallWalk(),rooms,lanes,churches}));console.log(JSON.stringify({corners:context.backCorners().length,walk:context.wallWalk().length,rooms:rooms.length,lanes:lanes.length}));

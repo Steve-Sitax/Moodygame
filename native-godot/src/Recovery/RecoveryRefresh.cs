@@ -128,7 +128,7 @@ public static class RecoveryRefresh
         for (var parent = node.GetParent(); parent is Node3D n && n != root; parent = parent.GetParent()) pose = n.Transform * pose;
         return pose;
     }
-    private static ArrayMesh? Trim(Mesh source, Transform3D transform, Aabb[] boxes, int[] removed)
+    public static ArrayMesh? Trim(Mesh source, Transform3D transform, Aabb[] boxes, int[] removed)
     {
         var result = new ArrayMesh(); bool changed = false;
         for (int surface = 0; surface < source.GetSurfaceCount(); surface++)

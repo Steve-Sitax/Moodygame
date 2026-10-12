@@ -1,0 +1,490 @@
+{
+ "slots": [
+  "skin",
+  "hair",
+  "hat",
+  "coat",
+  "shirt",
+  "vest",
+  "lower",
+  "apron",
+  "boots"
+ ],
+ "tex": 128,
+ "cells": {
+  "head": [
+   0,
+   0,
+   64,
+   32
+  ],
+  "torso": [
+   64,
+   0,
+   64,
+   32
+  ],
+  "pelvis": [
+   0,
+   32,
+   32,
+   32
+  ],
+  "neck": [
+   32,
+   32,
+   32,
+   32
+  ],
+  "armUp": [
+   64,
+   32,
+   32,
+   32
+  ],
+  "armLow": [
+   96,
+   32,
+   32,
+   32
+  ],
+  "hand": [
+   0,
+   64,
+   32,
+   32
+  ],
+  "legUp": [
+   32,
+   64,
+   32,
+   32
+  ],
+  "legLow": [
+   64,
+   64,
+   32,
+   32
+  ],
+  "foot": [
+   96,
+   64,
+   32,
+   32
+  ],
+  "lower": [
+   0,
+   96,
+   64,
+   32
+  ],
+  "hat": [
+   64,
+   96,
+   32,
+   32
+  ],
+  "shawl": [
+   96,
+   96,
+   32,
+   16
+  ],
+  "prop": [
+   96,
+   112,
+   32,
+   16
+  ]
+ },
+ "tiles": {
+  "fig:m_shirt": [
+   0,
+   0,
+   128,
+   128
+  ],
+  "fig:m_jacket": [
+   128,
+   0,
+   128,
+   128
+  ],
+  "fig:m_coat": [
+   256,
+   0,
+   128,
+   128
+  ],
+  "fig:m_smock": [
+   384,
+   0,
+   128,
+   128
+  ],
+  "fig:m_apron": [
+   512,
+   0,
+   128,
+   128
+  ],
+  "fig:m_jacket_apron": [
+   640,
+   0,
+   128,
+   128
+  ],
+  "fig:w_plain": [
+   768,
+   0,
+   128,
+   128
+  ],
+  "fig:w_apron": [
+   896,
+   0,
+   128,
+   128
+  ],
+  "fig:w_shawl": [
+   0,
+   128,
+   128,
+   128
+  ],
+  "fig:w_shawl_apron": [
+   128,
+   128,
+   128,
+   128
+  ],
+  "head:m_clean_y": [
+   256,
+   128,
+   64,
+   32
+  ],
+  "head:m_clean_y_bald": [
+   320,
+   128,
+   64,
+   32
+  ],
+  "head:m_clean_m": [
+   384,
+   128,
+   64,
+   32
+  ],
+  "head:m_clean_m_bald": [
+   448,
+   128,
+   64,
+   32
+  ],
+  "head:m_clean_o": [
+   512,
+   128,
+   64,
+   32
+  ],
+  "head:m_clean_o_bald": [
+   576,
+   128,
+   64,
+   32
+  ],
+  "head:m_light_stubble_y": [
+   640,
+   128,
+   64,
+   32
+  ],
+  "head:m_light_stubble_y_bald": [
+   704,
+   128,
+   64,
+   32
+  ],
+  "head:m_light_stubble_m": [
+   768,
+   128,
+   64,
+   32
+  ],
+  "head:m_light_stubble_m_bald": [
+   832,
+   128,
+   64,
+   32
+  ],
+  "head:m_light_stubble_o": [
+   896,
+   128,
+   64,
+   32
+  ],
+  "head:m_light_stubble_o_bald": [
+   960,
+   128,
+   64,
+   32
+  ],
+  "head:m_stubble_y": [
+   0,
+   256,
+   64,
+   32
+  ],
+  "head:m_stubble_y_bald": [
+   64,
+   256,
+   64,
+   32
+  ],
+  "head:m_stubble_m": [
+   128,
+   256,
+   64,
+   32
+  ],
+  "head:m_stubble_m_bald": [
+   192,
+   256,
+   64,
+   32
+  ],
+  "head:m_stubble_o": [
+   256,
+   256,
+   64,
+   32
+  ],
+  "head:m_stubble_o_bald": [
+   320,
+   256,
+   64,
+   32
+  ],
+  "head:m_moustache_y": [
+   384,
+   256,
+   64,
+   32
+  ],
+  "head:m_moustache_y_bald": [
+   448,
+   256,
+   64,
+   32
+  ],
+  "head:m_moustache_m": [
+   512,
+   256,
+   64,
+   32
+  ],
+  "head:m_moustache_m_bald": [
+   576,
+   256,
+   64,
+   32
+  ],
+  "head:m_moustache_o": [
+   640,
+   256,
+   64,
+   32
+  ],
+  "head:m_moustache_o_bald": [
+   704,
+   256,
+   64,
+   32
+  ],
+  "head:m_whiskers_y": [
+   768,
+   256,
+   64,
+   32
+  ],
+  "head:m_whiskers_y_bald": [
+   832,
+   256,
+   64,
+   32
+  ],
+  "head:m_whiskers_m": [
+   896,
+   256,
+   64,
+   32
+  ],
+  "head:m_whiskers_m_bald": [
+   960,
+   256,
+   64,
+   32
+  ],
+  "head:m_whiskers_o": [
+   0,
+   288,
+   64,
+   32
+  ],
+  "head:m_whiskers_o_bald": [
+   64,
+   288,
+   64,
+   32
+  ],
+  "head:m_beard_y": [
+   128,
+   288,
+   64,
+   32
+  ],
+  "head:m_beard_y_bald": [
+   192,
+   288,
+   64,
+   32
+  ],
+  "head:m_beard_m": [
+   256,
+   288,
+   64,
+   32
+  ],
+  "head:m_beard_m_bald": [
+   320,
+   288,
+   64,
+   32
+  ],
+  "head:m_beard_o": [
+   384,
+   288,
+   64,
+   32
+  ],
+  "head:m_beard_o_bald": [
+   448,
+   288,
+   64,
+   32
+  ],
+  "head:m_walrus_y": [
+   512,
+   288,
+   64,
+   32
+  ],
+  "head:m_walrus_y_bald": [
+   576,
+   288,
+   64,
+   32
+  ],
+  "head:m_walrus_m": [
+   640,
+   288,
+   64,
+   32
+  ],
+  "head:m_walrus_m_bald": [
+   704,
+   288,
+   64,
+   32
+  ],
+  "head:m_walrus_o": [
+   768,
+   288,
+   64,
+   32
+  ],
+  "head:m_walrus_o_bald": [
+   832,
+   288,
+   64,
+   32
+  ],
+  "head:w_none_y": [
+   896,
+   288,
+   64,
+   32
+  ],
+  "head:w_none_m": [
+   960,
+   288,
+   64,
+   32
+  ],
+  "head:w_none_o": [
+   0,
+   320,
+   64,
+   32
+  ],
+  "hat:cap": [
+   64,
+   320,
+   32,
+   32
+  ],
+  "hat:knitcap": [
+   96,
+   320,
+   32,
+   32
+  ],
+  "hat:bowler": [
+   128,
+   320,
+   32,
+   32
+  ],
+  "hat:tophat": [
+   160,
+   320,
+   32,
+   32
+  ],
+  "hat:bonnet": [
+   192,
+   320,
+   32,
+   32
+  ],
+  "hat:whitecap": [
+   224,
+   320,
+   32,
+   32
+  ],
+  "hat:headscarf": [
+   256,
+   320,
+   32,
+   32
+  ],
+  "shawl:plain": [
+   288,
+   320,
+   32,
+   16
+  ],
+  "shawl:check": [
+   320,
+   320,
+   32,
+   16
+  ]
+ },
+ "heights": {
+  "m": 1.74,
+  "w": 1.62
+ }
+}

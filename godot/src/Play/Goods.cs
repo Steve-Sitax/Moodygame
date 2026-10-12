@@ -121,21 +121,26 @@ public partial class Goods : Node
     // ------------------------------------------------------------------ the server's list
 
     private int tries;
+    private int generation, listRequest;
+    private bool stopped;
 
     /// <summary>The whole list from the server (at the start, and after the push line came back).</summary>
     public void Load()
     {
         var api = ServerLink.I?.Api;
-        if (api == null) return;
+        if (api == null || stopped) return;
+        int at = generation, request = ++listRequest;
         api.Run(api.Goods<GoodsList>(), l =>
         {
+            if (stopped || at != generation || request != listRequest) return;
             Me = l.You;
             Full(l.Items, l.V);
             Loaded = true;
             GD.Print($"goods: {all.Count} items from the server, {all.Values.Count(i => i.Obj != null)} shown here, {baked.Count} single goods in the bake");
         }, e =>
         {
-            if (++tries < 6) GetTree().CreateTimer(tries).Timeout += Load;
+            if (stopped || at != generation || request != listRequest) return;
+            if (++tries < 6) GetTree().CreateTimer(tries).Timeout += () => { if (!stopped && at == generation && request == listRequest) Load(); };
             else GD.PrintErr($"goods: the list did not come: {e.Message}");
         });
     }
@@ -154,6 +159,7 @@ public partial class Goods : Node
 
     private void OnPush(PushMsg m)
     {
+        if (stopped) return;
         if (m.Type == "resync")
         {
             Load();
@@ -197,7 +203,7 @@ public partial class Goods : Node
 
     private static bool? haveProps;
     /// <summary>The decoded props.glb is there (tools/godot/models.mjs): the casks and the big crates are drawn from it.</summary>
-    private static bool HaveProps => haveProps ??= System.IO.File.Exists(System.IO.Path.Combine(Scheldemist.Models.ModelLibrary.Dir, "props.glb"));
+    private static bool HaveProps => haveProps ??= Scheldemist.Models.ModelLibrary.Available("props");
 
     /// <summary>goods.ts body: the props.glb model of a look ("cask" is the barrel, "p:crate_big" the model named), or null.</summary>
     /// <summary>game/fishBox.ts isFishBox: the Vismarkt's routes' boxes of fish.</summary>
@@ -560,13 +566,15 @@ public partial class Goods : Node
     {
         var done = new TaskCompletionSource<GoodsReply?>();
         var api = ServerLink.I?.Api;
-        if (api == null)
+        int at = generation;
+        if (api == null || stopped)
         {
             done.SetResult(null);
             return done.Task;
         }
         api.Run(api.GoodsAsk<GoodsReply>(ask), r =>
         {
+            if (stopped || at != generation) { done.SetResult(null); return; }
             Answered?.Invoke(ask, r);
             if (!r.Ok) LastRefusal = r.Why ?? r.Error ?? "";
             foreach (var s in r.Items) Apply(s, !r.Ok, r.Ok ? "" : LastRefusal);
@@ -577,7 +585,7 @@ public partial class Goods : Node
         }, e =>
         {
             // the server is away: nothing is undone; the push line's resync puts it right
-            LastRefusal = e.Message;
+            if (!stopped && at == generation) LastRefusal = e.Message;
             done.SetResult(null);
         });
         return done.Task;
@@ -644,15 +652,17 @@ public partial class Goods : Node
     /// <summary>His job's goods, laid out by the server once (lay: they wait at the job's place). The job's items as they are now.</summary>
     public async Task<List<Item>> JobGoods(int job, bool lay)
     {
+        int at = generation;
         await Ask(new { op = "job", job, lay });
-        return all.Values.Where(i => i.JobId == job).ToList();
+        return stopped || at != generation ? new() : all.Values.Where(i => i.JobId == job).ToList();
     }
 
     /// <summary>A deliver: the employer hands the goods over, into Jef's hands.</summary>
     public async Task<Item?> Handover(int job)
     {
+        int at = generation;
         await Ask(new { op = "handover", job });
-        return Carried is { } c && c.JobId == job ? c : null;
+        return !stopped && at == generation && Carried is { } c && c.JobId == job ? c : null;
     }
 
     /// <summary>A carry from the ship: the i-th swung down onto the quay.</summary>
@@ -676,11 +686,18 @@ public partial class Goods : Node
     /// <summary>The server's game is another one (a save loaded, a new week): everything goes, the list is asked again.</summary>
     public void Reset()
     {
+        generation++; listRequest++; v = 0;
         foreach (string id in all.Keys.ToList()) Forget(id, "");
         Release();
         Loaded = false;
         tries = 0;
         Load();
+    }
+
+    public override void _ExitTree()
+    {
+        stopped = true; generation++;
+        if (ServerLink.I?.Api is { } api) api.OtherPushed -= OnPush;
     }
 
     /// <summary>The item is no longer this job's (delivered: it is the employer's, lying at his door).</summary>

@@ -16,6 +16,7 @@ public struct MpState
     public int Base;
     /// <summary>M8b: GEAR kind (low 2 bits) and which one (the rest); its heading in Lyaw.</summary>
     public int Gear;
+    public int PuppetBought, PuppetVehicle, PuppetLoad, PuppetGoods;
     public float Lx, Ly, Lz, Lyaw;
 }
 
@@ -42,7 +43,7 @@ public sealed record RosterEntry
 public static class MpProtocol
 {
     /// <summary>Bumped when the frames change: the server turns a game of another build away.</summary>
-    public const int Protocol = 5;
+    public const int Protocol = 6;
     public const int SendHz = 20;
     public const double SendMs = 1000.0 / SendHz;
 
@@ -126,6 +127,7 @@ public struct Pose
     /// <summary>Speed on the ground (m/s): the walk's pace.</summary>
     public float Speed;
     public int Mode, Flags, Base, Gear;
+    public int PuppetBought, PuppetVehicle, PuppetLoad, PuppetGoods;
     public float Lx, Ly, Lz, Lyaw;
     /// <summary>The newest state is older than the draw time (going on by guess, or standing).</summary>
     public bool Stale;
@@ -204,6 +206,7 @@ public sealed class RemoteTrack
     {
         X = x, Y = y, Z = z, Yaw = yaw, Pitch = pitch, Vx = vx, Vz = vz, Speed = MathF.Sqrt(vx * vx + vz * vz),
         Mode = s.Mode, Flags = s.Flags, Base = s.Base, Gear = s.Gear, Lx = s.Lx, Ly = s.Ly, Lz = s.Lz, Lyaw = s.Lyaw, Stale = stale,
+        PuppetBought = s.PuppetBought, PuppetVehicle = s.PuppetVehicle, PuppetLoad = s.PuppetLoad, PuppetGoods = s.PuppetGoods,
     };
 
     /// <summary>Where he is drawn at serverNow (null before the first state).</summary>

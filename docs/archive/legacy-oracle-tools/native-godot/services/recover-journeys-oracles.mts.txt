@@ -1,0 +1,19 @@
+import fs from 'node:fs';
+import {chooseMode,planLoading,scheduleLoad,waterPath} from '../../server/src/town/transport.ts';
+let seed=187349; const roll=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296);
+const out:any={version:1,modes:[],loading:[],loads:[],water:[]};
+for(let i=0;i<2200;i++){
+ const from:[number,number]=[roll()*800-400,roll()*400],to:[number,number]=[roll()*800-400,roll()*400];
+ const stops=Array.from({length:6},(_,j)=>({id:'s'+j,line:j<3?'a':'b',x:roll()*800-400,z:roll()*400}));
+ const ask:any={from,to,load:i%3===0?{what:'goods',items:i%7}:null,group:i%4,has:{velocipede:roll()<.5,handcart:roll()<.5,dray:roll()<.5,boat:roll()<.5},water:i%2?{from:[from[0],from[1]+50],to:[to[0],to[1]+50]}:null,stops,age:[14,15,30,59,60,80][i%6]};
+ const waits:any={};for(const s of stops)waits[s.id]=i%3===1?9999:i%3===2?roll()*200:90;
+ const useWait=i%2===0;const result=chooseMode({...ask,busWait:useWait?(s:any)=>waits[s.id]:undefined});out.modes.push({ask,waits,useWait,result});
+}
+for(let items=-1;items<=16;items++)for(let i=0;i<14;i++){const family=Array.from({length:7},(_,j)=>({id:j===0?'owner':'f'+j,age:[9,10,13,14,25,40,70][j],home:((i>>j)&1)===1}));out.loading.push({items,family,result:planLoading(items,'owner',family)});}
+for(const trade of ['market_woman','fishwife','grocer','dealer','docker'])for(let wealth=0;wealth<7;wealth++)for(const from of ['home','work:work','tavern:engel'])for(const to of ['home','work:work','church:church'])out.loads.push({trade,wealth,from,to,result:scheduleLoad(trade,wealth,from,to)});
+for(let i=0;i<90;i++){
+ const a:[number,number]=[-12+roll()*4,-12+roll()*4],b:[number,number]=[12+roll()*5,12+roll()*4];const wall=i%3!==0, gap=i%5!==0, closed=i%11===0;
+ const free=(x:number,z:number)=>!closed&&(!wall||Math.abs(x)>2||gap&&Math.abs(z-4)<3);
+ out.water.push({a,b,wall,gap,closed,result:waterPath(free,a,b,2,12)});
+}
+fs.writeFileSync('native-godot/services/proofs/data/native-journeys-source.json',JSON.stringify(out));console.log(JSON.stringify({modes:out.modes.length,loading:out.loading.length,loads:out.loads.length,water:out.water.length}));

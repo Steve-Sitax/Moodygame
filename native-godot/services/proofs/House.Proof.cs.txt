@@ -1,0 +1,80 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Net.Security;
+using System.Net.Sockets;
+using System.Net.WebSockets;
+using System.Security.AccessControl;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+using System.Security.Principal;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
+using Scheldemist.Net;
+using Scheldemist.Native.World;
+
+if(args.Length==3&&args[0]=="persisted") { HouseTrust.ConfigureStore(args[1]); using var client=new HttpClient(HouseTrust.Handler(args[2])); if(await client.GetStringAsync(args[2])!="native-https")throw new Exception("persisted house trust failed"); Console.WriteLine("persisted-ok"); return; }
+int checks=0,original=0;
+void Check(bool pass,string name){if(!pass)throw new Exception(name);checks++;Console.WriteLine("PASS "+name);}
+void Source(bool pass){if(!pass)throw new Exception("Original source comparison "+original);original++;}
+var oracle=JsonNode.Parse(File.ReadAllText("native-godot/services/proofs/data/native-house-source.json"))!.AsObject();
+foreach(var r in oracle["ips"]!.AsArray())Source(HouseCertificateRules.PrivateIp(r!["ip"]!.GetValue<string>())==r["private"]!.GetValue<bool>()&&HouseCertificateRules.VpnIp(r["ip"]!.GetValue<string>())==r["vpn"]!.GetValue<bool>());
+foreach(var r in oracle["dns"]!.AsArray())Source(HouseCertificateRules.DnsName(r!["name"]!.GetValue<string>())==r["result"]!.GetValue<bool>());
+foreach(var r in oracle["constraints"]!.AsArray()){var dns=r!["dns"]!.AsArray().Select(n=>n!.GetValue<string>()).ToArray();var ranges=r["ranges"]!.AsArray().Select(n=>(n![0]!.GetValue<string>(),n[1]!.GetValue<int>()));byte[] der=HouseCertificateRules.NameConstraintsDer(dns,ranges);Source(Convert.ToHexString(der).ToLowerInvariant()==r["der"]!.GetValue<string>());var decoded=HouseCertificateRules.ReadNameConstraints(der);Source(decoded.Dns.SequenceEqual(r["decoded"]!["dns"]!.AsArray().Select(n=>n!.GetValue<string>()))&&decoded.Ranges.SequenceEqual(r["decoded"]!["ranges"]!.AsArray().Select(n=>n!.GetValue<string>())));}
+foreach(var r in oracle["netbird"]!.AsArray())Source(NativeHouseAddressSource.ParseNetbird(r!["text"]!.GetValue<string>())==r["result"]?.GetValue<string>());
+string proof=Path.GetFullPath(".scratch/native-house-runtime-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(proof);string dir=Path.Combine(proof,"tls");
+var now=DateTimeOffset.UtcNow;
+using var cert=await NativeHouseCertificateStore.Ensure(dir,new[]{"localhost","test-pc","test-pc.local"},new[]{"127.0.0.1","192.168.1.5"},new[]{"test-pc.netbird.cloud"},new[]{"100.80.1.5"},now);
+Check(cert.MadeCa&&cert.MadeServer&&NativeHouseCertificateStore.IsNarrowCa(cert.Ca)&&NativeHouseCertificateStore.Verify(cert.Server,cert.Ca),"real P-256 constrained house CA signs a valid native server");
+Check(cert.Ca.GetECDsaPublicKey()!.KeySize==256&&cert.Server.GetECDsaPublicKey()!.KeySize==256&&Math.Abs((cert.Ca.NotAfter.ToUniversalTime()-now.UtcDateTime).TotalDays-3652)<.01&&Math.Abs((cert.Server.NotAfter.ToUniversalTime()-now.UtcDateTime).TotalDays-397)<.01,"source curve and certificate lifetimes");
+var caConstraints=HouseCertificateRules.ReadNameConstraints(cert.Ca.Extensions[HouseCertificateRules.ConstraintsOid]!.RawData);
+Check(caConstraints.Ranges.All(r=>r.EndsWith("/32"))&&caConstraints.Ranges.Contains("100.80.1.5/32")&&caConstraints.Dns.Contains("test-pc.netbird.cloud"),"CA already includes inactive known VPN names and exact own addresses");
+Check(cert.CaPem.Contains("BEGIN CERTIFICATE")&&!cert.CaPem.Contains("PRIVATE KEY")&&cert.CaSha256.Split(':').Length==32&&cert.CaSha1.Split(':').Length==20,"only public CA metadata is exposed");
+foreach(string filename in new[]{"house-ca.key","server.key"}){string file=Path.Combine(dir,filename);if(OperatingSystem.IsWindows()){using var me=WindowsIdentity.GetCurrent();var acl=new FileInfo(file).GetAccessControl();Check(acl.AreAccessRulesProtected&&acl.GetAccessRules(true,true,typeof(SecurityIdentifier)).Cast<FileSystemAccessRule>().All(r=>r.IdentityReference.Equals(me.User)),"private key ACL is restricted before key bytes are written: "+filename);}else Check((File.GetUnixFileMode(file)&~(UnixFileMode.UserRead|UnixFileMode.UserWrite))==0,"private key mode0600");}
+using(var re=await NativeHouseCertificateStore.Ensure(dir,new[]{"localhost","test-pc","test-pc.local"},new[]{"127.0.0.1","192.168.1.5"},at:now))Check(!re.MadeCa&&!re.MadeServer&&re.CaSha256==cert.CaSha256,"reload retains both house keys and certificates");
+using(var changed=await NativeHouseCertificateStore.Ensure(dir,new[]{"localhost","test-pc","test-pc.local","test-pc.netbird.cloud"},new[]{"127.0.0.1","100.80.1.5"},at:now))Check(!changed.MadeCa&&changed.MadeServer&&changed.CaSha256==cert.CaSha256,"removing an IP and enabling covered VPN renews only server");
+using(var renewed=await NativeHouseCertificateStore.Ensure(dir,new[]{"localhost","test-pc","test-pc.local","test-pc.netbird.cloud"},new[]{"127.0.0.1","100.80.1.5"},at:now.AddDays(368)))Check(!renewed.MadeCa&&renewed.MadeServer,"server renews within30days while CA is retained");
+using(var changed=await NativeHouseCertificateStore.Ensure(dir,new[]{"localhost","test-pc","test-pc.local"},new[]{"127.0.0.1","192.168.1.6"},at:now))Check(changed.MadeCa&&changed.MadeServer&&changed.CaSha256!=cert.CaSha256,"new uncovered own address rotates house CA and server");
+var own=new NativeHouseAddresses("test-pc",new[]{"192.168.1.5","8.8.8.8","100.80.1.5"},new[]{"100.80.1.5","192.168.1.5"},"test-pc.netbird.cloud");
+var targets=NativeHouseListeners.Targets(own,true,true);Check(targets.Http.SequenceEqual(new[]{"192.168.1.5"})&&targets.Https.SequenceEqual(new[]{"127.0.0.1","192.168.1.5","100.80.1.5"}),"never bind public addresses or serve plain HTTP on VPN");
+Check(NativeHouseListeners.Targets(own,false,false).Https.Length==0&&NativeHouseListeners.Targets(own,false,true).Http.Length==0&&NativeHouseListeners.Targets(own,false,true).Https.SequenceEqual(new[]{"127.0.0.1","100.80.1.5"}),"LAN and VPN settings independently restrict listener targets");
+string fake=Path.Combine(proof,"netbird");Directory.CreateDirectory(fake);File.WriteAllText(Path.Combine(fake,OperatingSystem.IsWindows()?"netbird.exe":"netbird"),"");Check(NativeHouseAddressSource.FindNetbird(new[]{".","relative",fake},Array.Empty<string>(),OperatingSystem.IsWindows())==Path.Combine(fake,OperatingSystem.IsWindows()?"netbird.exe":"netbird"),"NetBird discovery ignores relative PATH and current-folder executables");
+Check(NativeHouseCertificateStore.DirectoryFor(Path.Combine(proof,"game.sqlite")).EndsWith("tls")&&NativeHouseCertificateStore.DirectoryFor(Path.Combine(proof,"test-town.sqlite")).EndsWith("tls-test-town"),"certificate stores are isolated per database");
+var pipes=new List<Task>();for(int i=0;i<500;i++){var pipe=new NativeSocketPipe(new FakeSocket(),CancellationToken.None);pipes.Add(Task.Run(()=>Parallel.Invoke(()=>pipe.Close(1001,"closing"),()=>pipe.Dispose(),()=>pipe.Close(1001,"repeat"),()=>pipe.Dispose())));}await Task.WhenAll(pipes);Check(true,"500 simultaneous socket close/dispose races are idempotent");
+int httpPort;using(var free=new TcpListener(IPAddress.Loopback,0)){free.Start();httpPort=((IPEndPoint)free.LocalEndpoint).Port;}
+JsonObject? published=null;NativeHouseListeners? house=null;int certificateFetches=0;using var stop=new CancellationTokenSource();
+var runtimeOwn=new NativeHouseAddresses("localhost",Array.Empty<string>(),Array.Empty<string>(),null);
+async Task Request(HttpContext c){if(!house!.Accepts(c)){c.Response.StatusCode=403;return;}if(c.Request.Path=="/house-ca.crt")certificateFetches++;if(await house.PublicCertificate(c))return;if(c.WebSockets.IsWebSocketRequest){using var ws=await c.WebSockets.AcceptWebSocketAsync();var b=new byte[64];var received=await ws.ReceiveAsync(b,CancellationToken.None);await ws.SendAsync(b.AsMemory(0,received.Count),WebSocketMessageType.Text,true,CancellationToken.None);return;}await c.Response.WriteAsync("native-https");}
+await using(house=new NativeHouseListeners(httpPort,Path.Combine(proof,"runtime-tls"),Request,v=>{published=v;return Task.CompletedTask;},stop.Token,_=>Task.FromResult(runtimeOwn))){
+await house.Apply(false,true);string address="https://127.0.0.1:"+house.SecurePort;
+Check(published?["secureOpen"]!.AsArray().Count==1&&published["tls"]!=null&&house.Watching,"real isolated Kestrel HTTPS listener publishes house trust details");
+bool untrusted=false;try{using var client=new HttpClient();await client.GetAsync(address);}catch(HttpRequestException){untrusted=true;}Check(untrusted,"default OS trust rejects untrusted house CA");
+string guestTrust=Path.Combine(proof,"guest-trust");HouseTrust.ConfigureStore(guestTrust);string fingerprint=published!["tls"]!["caSha256"]!.GetValue<string>();await HouseTrust.Prepare(address,fingerprint);using var trusted=new HttpClient(HouseTrust.Handler(address));Check(await trusted.GetStringAsync(address)=="native-https"&&certificateFetches==1,"exact copied fingerprint bootstraps native HTTPS without credentials");
+Check(Directory.GetFiles(guestTrust,"*.crt").Length==1&&!File.ReadAllText(Directory.GetFiles(guestTrust,"*.crt")[0]).Contains("PRIVATE KEY"),"guest persists only verified public CA per host origin");
+var start=new System.Diagnostics.ProcessStartInfo(Environment.ProcessPath!){UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true};if(Path.GetFileNameWithoutExtension(Environment.ProcessPath)=="dotnet")start.ArgumentList.Add(System.Reflection.Assembly.GetExecutingAssembly().Location);start.ArgumentList.Add("persisted");start.ArgumentList.Add(guestTrust);start.ArgumentList.Add(address);using(var child=System.Diagnostics.Process.Start(start)!){string output=await child.StandardOutput.ReadToEndAsync();await child.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));Check(child.ExitCode==0&&output.Contains("persisted-ok"),"new native client process reuses verified house trust without another CA step");}
+using(var ws=new ClientWebSocket()){HouseTrust.Configure(ws.Options,new Uri(address));await ws.ConnectAsync(new Uri(address.Replace("https:","wss:")),CancellationToken.None);await ws.SendAsync(Encoding.ASCII.GetBytes("trusted-websocket"),WebSocketMessageType.Text,true,CancellationToken.None);var reply=new byte[64];var n=await ws.ReceiveAsync(reply,CancellationToken.None);Check(Encoding.ASCII.GetString(reply,0,n.Count)=="trusted-websocket","same house trust secures native WebSocket transport");}
+bool mismatch=false;try{await HouseTrust.Prepare(address,new string('0',64));}catch(Scheldemist.Net.ApiException e){mismatch=e.Status==403;}Check(mismatch,"wrong fingerprint refuses joining before token or code is sent");
+using var runtimeCert=await NativeHouseCertificateStore.Ensure(Path.Combine(proof,"runtime-tls"),new[]{"localhost","localhost.local"},new[]{"127.0.0.1"});Check(!HouseTrust.Validate(new Uri(address),runtimeCert.Server,SslPolicyErrors.RemoteCertificateNameMismatch),"pinned house does not bypass hostname verification");
+var badHost=new HttpRequestMessage(HttpMethod.Get,address);badHost.Headers.Host="attacker.example";bool hostRejected=false;try{hostRejected=(int)(await trusted.SendAsync(badHost)).StatusCode==403;}catch(HttpRequestException){hostRejected=true;}Check(hostRejected,"Host header outside own names is rejected by TLS or HTTP");
+var context=new DefaultHttpContext();context.Request.Host=new HostString("localhost");context.Connection.RemoteIpAddress=IPAddress.Parse("100.80.1.5");Check(!house.Accepts(context),"VPN clients are rejected on plain HTTP even when VPN is open");
+await house.Apply(false,false);Check(published?["secureOpen"]!.AsArray().Count==0&&published["tls"]==null&&!house.Watching,"disabling sharing closes HTTPS and stops address watching");
+await house.Apply(false,true);string renewedFingerprint=published!["tls"]!["caSha256"]!.GetValue<string>();Check(renewedFingerprint==fingerprint,"reopening preserves the trusted house CA");
+await house.Apply(false,true,false);Check(published!["secureOpen"]!.AsArray().Count==1,"unchanged address watch does not rebind live listener");runtimeOwn=runtimeOwn with {Fqdn="new-name.netbird.cloud"};await house.Apply(false,true,false);string newFingerprint=published!["tls"]!["caSha256"]!.GetValue<string>();Check(newFingerprint!=fingerprint,"address watch refreshes uncovered VPN name and rotates constrained CA");bool rotatedRejected=false;try{using var client=new HttpClient(HouseTrust.Handler(address));await client.GetAsync(address);}catch(HttpRequestException){rotatedRejected=true;}Check(rotatedRejected,"changed house CA requires explicit new fingerprint before reconnect");await HouseTrust.Prepare(address,newFingerprint);using var restored=new HttpClient(HouseTrust.Handler(address));Check(await restored.GetStringAsync(address)=="native-https","explicit updated fingerprint restores native secure connection");}
+File.WriteAllText(Path.Combine(proof,"native-house.json"),JsonSerializer.Serialize(new{ok=true,checks,original},new JsonSerializerOptions{WriteIndented=true}));Console.WriteLine($"PASS {checks} native TLS/runtime/security checks + {original} original source comparisons; {proof}");
+
+sealed class FakeSocket : WebSocket
+{
+ public override WebSocketCloseStatus? CloseStatus=>null;public override string? CloseStatusDescription=>null;public override WebSocketState State=>WebSocketState.Open;public override string? SubProtocol=>null;
+ public override void Abort(){} public override Task CloseAsync(WebSocketCloseStatus c,string? d,CancellationToken t)=>Task.CompletedTask;public override Task CloseOutputAsync(WebSocketCloseStatus c,string? d,CancellationToken t)=>Task.CompletedTask;public override void Dispose(){}
+ public override async Task<WebSocketReceiveResult> ReceiveAsync(ArraySegment<byte> b,CancellationToken t){await Task.Delay(Timeout.Infinite,t);return new(0,WebSocketMessageType.Close,true);}
+ public override Task SendAsync(ArraySegment<byte>b,WebSocketMessageType m,bool e,CancellationToken t)=>Task.CompletedTask;
+}
+
+

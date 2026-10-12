@@ -1,0 +1,4 @@
+#!/bin/sh
+# Native privacy guard; worktree-specific core.hooksPath is installed explicitly.
+top="$(git rev-parse --show-toplevel)" || exit 1
+pwsh -NoProfile -File "$top/tools/commit-check.ps1" -Workspace "$top" || exit 1

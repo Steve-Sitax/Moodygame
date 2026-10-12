@@ -47,6 +47,8 @@ public sealed class Resident
     public string Trade = "";
     public string Label = "";
     public double HomeX, HomeZ, HomeSx, HomeSz;
+    public int HomeHouse = -1;
+    public int Household = -1;
     public WorkSpec Work = new();
     public Schedule Sched = new();
     public bool Dog;
@@ -149,6 +151,8 @@ public sealed class TownData
             {
                 Id = S(r, "id"), Name = S(r, "name"), First = S(r, "first"), Age = (int)N(r, "age", 35), Sex = S(r, "sex", "m"), Kind = S(r, "kind"), Trade = S(r, "trade"), Label = S(r, "label"),
                 HomeX = N(home, "x"), HomeZ = N(home, "z"), HomeSx = N(home, "sx"), HomeSz = N(home, "sz"),
+                HomeHouse = (int)N(home,"house",-1),
+                Household = (int)N(r,"household",-1),
                 Work = new WorkSpec
                 {
                     Place = S(w, "place"), Kind = S(w, "kind"), At = Nums(w, "at"), A = Po(w, "a"), B = Po(w, "b"), Route = Pts(w, "route"), Faces = Nums(w, "faces"), Door = Po(w, "door"),

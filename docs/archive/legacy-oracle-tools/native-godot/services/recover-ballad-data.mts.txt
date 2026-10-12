@@ -1,0 +1,22 @@
+// One-time authored strings/schema intake. No renderer, player save or AI provider.
+import {readFileSync,writeFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+import {z} from '../../server/node_modules/zod/index.js';
+import {BalladSchema} from '../../server/src/ballads/ballad.ts';
+import {SermonSchema} from '../../server/src/ballads/sermon.ts';
+import {VIOLENCE_RE} from '../../server/src/director/vocab.ts';
+function constants(file:string,names:string[]){
+ const source=readFileSync('server/src/ballads/'+file+'.ts','utf8'), out:Record<string,unknown>={};
+ for(const name of names){
+  const match=source.match(new RegExp('(?:export )?const '+name+'(?:[^=]*)=\\s*([\\s\\S]*?);\\r?\\n'));
+  if(!match)throw new Error('Missing authored constant '+name);
+  const v=runInNewContext('('+match[1]+')',{}, {timeout:1000});
+  out[name]=Object.prototype.toString.call(v)==='[object Set]'?Array.from(v):Object.prototype.toString.call(v)==='[object RegExp]'?v.source:v;
+ } return out;
+}
+writeFileSync('native-godot/services/data/native-ballads.json',JSON.stringify({version:1,
+ balladSchema:z.toJSONSchema(BalladSchema),sermonSchema:z.toJSONSchema(SermonSchema),
+ ballad:constants('ballad',['OPENERS','KIND_LINE','MORALS','CHORUS','TITLES']),
+ sermon:constants('sermon',['OPENINGS','BY_KIND','HINT_LINE','FILLER','CLOSING','WHISPERS']),
+ guard:{...constants('guard',['HARM_RE','FAMOUS','COMMON','TITLE_WORDS','ROUGH']),VIOLENCE_RE:VIOLENCE_RE.source}
+})+'\n');

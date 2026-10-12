@@ -1,0 +1,398 @@
+{
+  "version": 1,
+  "id": "north-rijnkaai",
+  "title": "Rijnkaai and warehouse frontage",
+  "bounds": [
+    -70,
+    -24,
+    140,
+    130
+  ],
+  "walkSpawn": [
+    20,
+    0.02,
+    26
+  ],
+  "flySpawn": [
+    20,
+    8,
+    26
+  ],
+  "flyYaw": 3.14159265,
+  "flyPitch": -0.35,
+  "sourceSha256": "ac8534149415142120f325986c7abd3818c38005206d45354f1ebb2619f3a7d9",
+  "sourceBytes": 977933624,
+  "sourceFactsMade": "2026-10-12T07:12:37.100Z",
+  "roots": [
+    {
+      "sourceIndex": 1544,
+      "sourceName": "quay_staging",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 1559,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 1560,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 1562,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 1579,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 1580,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 1593,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 1596,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 1619,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 1638,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 1657,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 1676,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 1695,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 1714,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 1721,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 2021,
+      "sourceName": "emigrants",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 3718,
+      "sourceName": "goods own:sooi:0",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 3720,
+      "sourceName": "goods own:sooi:1",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 3722,
+      "sourceName": "goods own:sooi:3",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 3724,
+      "sourceName": "goods own:peeters:0",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 3728,
+      "sourceName": "goods own:peeters:1",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 3732,
+      "sourceName": "goods own:peeters:2",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 3736,
+      "sourceName": "goods own:tuur:0",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 3740,
+      "sourceName": "goods own:tuur:1",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 3744,
+      "sourceName": "goods own:sooi:2",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 3916,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 3917,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 3918,
+      "sourceName": "house_shop:bakery_rijn",
+      "role": "building"
+    },
+    {
+      "sourceIndex": 3929,
+      "sourceName": "house_shop:bakery_rijn_openings",
+      "role": "opening-markers"
+    },
+    {
+      "sourceIndex": 3932,
+      "sourceName": "shutters_shop:bakery_rijn",
+      "role": "shutters"
+    },
+    {
+      "sourceIndex": 5003,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 5193,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 5198,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 5223,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 5228,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 5233,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 5238,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 5243,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 5248,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 5316,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 6066,
+      "sourceName": "portal_crane",
+      "role": "portal-crane"
+    },
+    {
+      "sourceIndex": 6071,
+      "sourceName": "portal_crane",
+      "role": "portal-crane"
+    },
+    {
+      "sourceIndex": 6076,
+      "sourceName": "portal_crane",
+      "role": "portal-crane"
+    },
+    {
+      "sourceIndex": 6081,
+      "sourceName": "portal_crane",
+      "role": "portal-crane"
+    },
+    {
+      "sourceIndex": 6604,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 6614,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 6624,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 8404,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 8429,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 9975,
+      "sourceName": "ROOM_shop:bakery_rijn",
+      "role": "room"
+    }
+  ],
+  "sharedRoots": [
+    4,
+    320,
+    352,
+    1526,
+    1530,
+    1531,
+    1532,
+    1533,
+    1537,
+    1538,
+    1539,
+    1540,
+    1541,
+    1542,
+    1543,
+    1595,
+    1609,
+    1610,
+    3358,
+    3628,
+    5768,
+    5859,
+    6116,
+    6137,
+    6138,
+    6139,
+    6140,
+    6147,
+    6211,
+    6230,
+    6245,
+    6258,
+    6274,
+    6277,
+    6280,
+    6283,
+    6286,
+    6289,
+    6318,
+    6338,
+    6339,
+    6347,
+    6431,
+    6734,
+    6773,
+    7692,
+    7947,
+    8034,
+    8043,
+    8052,
+    8062,
+    8132,
+    8211,
+    8212,
+    8217,
+    8330,
+    8370,
+    12420,
+    12438,
+    12456,
+    12474,
+    12492,
+    12510,
+    12528,
+    12546
+  ],
+  "rooms": [
+    {
+      "id": "shop:bakery_rijn",
+      "sourceIndices": [
+        9975
+      ],
+      "expectedNodes": 72,
+      "expectedHiddenNodes": 4,
+      "expectedSkinNodes": 0
+    }
+  ],
+  "entrances": [
+    {
+      "id": "opening_shop:bakery_rijn_door",
+      "sourceIndices": [
+        3929,
+        3930
+      ],
+      "kind": "street-door"
+    }
+  ],
+  "checks": [
+    {
+      "id": "preserve-room-shop:bakery_rijn",
+      "description": "Preserve room root, all nested hidden nodes, semantic id and lights/fog metadata; check ingress/egress in-game."
+    },
+    {
+      "id": "direct-root-hierarchy",
+      "description": "Every listed root remains a direct world child, at the original world transform. Shared roots are instantiated exactly once."
+    },
+    {
+      "id": "edge-material-weather",
+      "description": "Rendered close/low views from both sides and below; verify geometry bevels, aligned relief, dry daylight, rain/wetness, darkness and reflections."
+    },
+    {
+      "id": "clear-walk-spawn",
+      "description": "Physics ray/body sweep at walkSpawn must find navigable ground and body clearance; source bounds alone do not prove this."
+    },
+    {
+      "id": "editor-authoring",
+      "description": "Open native subset, select an independent lamp root, duplicate/place/save in a copied test scene and verify the placement in-game."
+    }
+  ],
+  "exceptions": [],
+  "notes": [
+    "Root indices identify this exact completed snapshot; names may be empty or duplicated. Do not locate roots by name alone.",
+    "Bounds constrain author placement and review cameras. They never clip root geometry or reparent runtime children.",
+    "Shared city, quay/pier, tide/water, traffic, bridges, moorings, railway, generic dressing and crowd roots occur once under the runtime world. These indices are references only.",
+    "mills3628 spans the harbour led dray3629 and outer mill assets; retain the complete shared root and inspect child3629 in this region.",
+    "ROOM roots retain all nested hidden door/window punch meshes, shutters, lamps, fire data and opening metadata.",
+    "Original Rijnkaai seed and Steve's saved 15-object authoring layout remain authoritative; preserve ids and resolve source-overlay duplication before release.",
+    "Source camera rig1611 is intentionally removed by full native intake. It is not scenery or a gameplay actor and is omitted from this preview."
+  ]
+}

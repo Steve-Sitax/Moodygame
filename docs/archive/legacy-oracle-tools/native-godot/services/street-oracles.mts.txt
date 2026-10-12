@@ -1,0 +1,23 @@
+// Recovery-only comparisons with the original engine, entirely in memory.
+import {openDb} from '../../server/src/db.ts';
+import {dropTownCache} from '../../server/src/town/store.ts';
+import {fall} from '../../server/src/player/fall.ts';
+import {pickPocket,catchThief,resetThieves} from '../../server/src/town/thieves.ts';
+import {readFileSync,writeFileSync} from 'node:fs';
+process.env.SCHELDEMIST_TOWN_SEED='1873';process.env.SCHELDEMIST_NO_AI='1';
+const db=openDb(':memory:'),seed=JSON.parse(readFileSync('native-godot/services/data/native-seed.json','utf8'));
+db.pragma('foreign_keys=OFF');
+db.transaction(()=>{for(const [table,rows]of Object.entries(seed.tables)as Array<[string,any[]]>){db.exec(`DELETE FROM "${table}"`);for(const row of rows){const cols=Object.keys(row);db.prepare(`INSERT INTO "${table}"(${cols.map(c=>'"'+c+'"').join(',')}) VALUES(${cols.map(()=>'?').join(',')})`).run(...cols.map(c=>row[c]));}}})();
+db.pragma('foreign_keys=ON');dropTownCache(db);
+const cases:any[]=[];
+for(const height of [null,-12,0,2.99,3,4.99,5,7.99,8,11.99,12,60,100,'12','bad','0x10',true,[],[5]])for(const health of [0,1,2,4,10])for(const water of [false,true]){
+ db.prepare('UPDATE player SET health=? WHERE id=1').run(health);const body={height,water};cases.push({type:'fall',health,body,expected:fall(db,body),after:db.prepare('SELECT health FROM player WHERE id=1').get()});
+}
+const thief=(db.prepare("SELECT data_json FROM resident WHERE trade='thief' ORDER BY id LIMIT 1").get() as any);const person=JSON.parse(thief.data_json);
+for(const money of [0,4,5,10,51,100,301,1000])for(const roll of [.1,.95])for(const delay of [0,25000,25001]){
+ resetThieves();db.exec("DELETE FROM world_state WHERE key LIKE 'picks:%'");db.prepare('UPDATE player SET day=1,hour=22,money_c=? WHERE id=1').run(money);const input=[roll,.5];let used=0;
+ const picked=pickPocket(db,person.id,()=>input[used++],100000);const afterPick=(db.prepare('SELECT money_c FROM player WHERE id=1').get()as any).money_c;let caught:any;
+ try{caught=catchThief(db,person.id,100000+delay);}catch(e:any){caught={error:e.message,status:e.status??e.statusCode};}
+ cases.push({type:'thief',id:person.id,money,roll,delay,picked,afterPick,caught,afterCatch:(db.prepare('SELECT money_c FROM player WHERE id=1').get()as any).money_c});
+}
+writeFileSync('native-godot/services/proof/street-oracles.json',JSON.stringify({cases})+'\n');db.close();console.log(cases.length+' original street incident cases');

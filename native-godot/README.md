@@ -1,13 +1,14 @@
 # Scheldemist: native world and authoring
 
-This is the first slice of the move to a fully Godot-owned game. Open `project.godot` in Godot Mono, build C#, and
-press F6 on `main.tscn` (or F5). On Steve's Windows PC, double-click `Start Workshop.cmd`. No Node, browser, bake,
-existing game database, or existing game settings are used. Workshop data goes to its own `ScheldemistWorkshop`
-user folder.
+The whole town now loads from editable Godot resources, with native C# gameplay rules and SQLite. Double-click
+`Start Native Town Game.cmd` for the game, or `Start Workshop.cmd` for the object editor. The game uses Forward+
+and its real title menu. Its native services run inside Godot, without a browser, Node process or runtime bake.
+The browser, Node server and bake pipeline have been retired from the active project. Native multiplayer and all
+four resident transport stages have passed rendered tests; standalone packages are checked in cold relocated folders.
 
-The small pilot quay is a test fixture. The active quay and library now use the completed model/texture work from
-main and the 2026-10-12 bake. The native implementation is additive in `native-godot/`, on
-`godot/native-authoring`, in `D:/Code/MoodyGame-native-authoring`. Nothing has been merged into the running game.
+The small pilot quay is a test fixture. The native town and library include the completed model/texture work
+from main and the one-time 2026-10-12 intake. The conversion was developed on `godot/native-authoring`;
+Steve authorized integration into `main` on 2026-10-12. Automated proofs do not imply manual acceptance.
 
 Double-click `Start Recovered Quay.cmd` to edit the first recovered Rijnkaai section. Its native scenes, meshes,
 materials, textures and collision are included in this branch; the original town GLB is not needed to run it.
@@ -15,22 +16,37 @@ The recovered bollards and gas lamps can be moved, copied and deleted. Other sce
 nodes and can be edited in `recovered/rijnkaai-recovered/district.tscn`. Merged buildings and cargo remain chunks;
 the export did not retain all individual object boundaries. New objects must have ground under their footprint.
 `Open Recovered Quay Editor.cmd` opens that district in Godot. `Test Editor Changes.cmd` runs a saved editor scene
-with a fresh temporary layout. The default main scene and F5 now use the updated recovered quay.
+with a fresh temporary layout. The default main scene and F5 now open the full native town; workshop launchers
+explicitly select their editing scene.
 
-`Start Native District Game.cmd` opens the Rijnkaai playtest: title/pause menus, HUD, live townspeople, conversations,
-pockets and hiring board, alongside the corrected surfaces and existing weather/water/reflections. Choose **Walk
-into town**. WASD/Shift/Space move; E interacts, I opens pockets, J the quest book, M the map, P pauses and Esc opens
-the menu. It reads your saved workshop layout without writing it. `Test Editor Changes In Game.cmd` uses the saved
-district scene instead. The playable slice is partial: jobs needing missing areas/systems are marked unavailable;
-interiors, whole-city movers and multiplayer need further recovery. Gameplay currently starts the existing local
-Node server, in no-AI mode, with separate saves/settings under `%APPDATA%/ScheldemistWorkshop/playtest`. No browser
-is opened. Server removal and native game services remain migration work.
+`Start Native Town Game.cmd` opens all eleven native districts, menus, residents, interiors and game systems.
+The older `Start Native District Game.cmd` shortcut now opens this same town. Choose **Walk into town**.
+WASD/Shift/Space move; E interacts, I opens pockets, J the quest book, M the map, P pauses and Esc opens the menu.
+It reads saved workshop layouts, including Steve's lamp, without writing them. `Test Editor Changes In Game.cmd`
+uses the saved district scenes instead of layout files. Save changes in the editor before launching that test.
+Native game saves/settings are separate under `%APPDATA%/ScheldemistWorkshop/native-playtest`; these launchers
+disable AI calls. The surface viewer and workshop remain available separately. See [native service notes](services/README.md)
+for tested rules. Rendered native hosting/guest play, actor authority, a host bus ride and return to local play
+have passed. Dedicated servers also expose the native HTTPS/WebSocket transport.
+In the Godot editor, F5 runs the whole native game. Open a district and press F6 to run its editing scene.
+
+The tested standalone Windows client is `D:/Code/ScheldemistPackages/final-client-20261012-portable`;
+open `Play Scheldemist.cmd`. The matching server is `D:/Code/ScheldemistPackages/final-server-20261012-portable`;
+open `Start Server.cmd`, optionally with `--port 8800`. Keep every file in each package together. Both include
+their .NET/ASP.NET runtime and need no editor or source checkout. Their final exports passed 57,497/57,498
+package checks; the client passed 28 relocated game/render checks and the server passed cold boot/API/data checks.
+See [the exact receipts](world/notes/standalone-receipts.json) and [packaging procedure](world/notes/standalone-export.md).
+
+Old game-save compatibility was explicitly waived by Steve. The thirteen identified legacy game database,
+WAL/SHM and save-slot files were removed after the old game server stopped. Native play starts a new game.
+Editor layouts, their backups, preferences and provider credentials were retained. Never clear the entire
+`ScheldemistWorkshop` user folder when resetting a game: it also contains Steve's edited districts.
 
 `Review Quay Surfaces.cmd` opens the scenery-only surface viewer next to the corrected bollard and coping.
 Use B to compare surface relief, F6 for rain and F7 for evening/night. The opaque rust square is fixed; the bollard
 has casting pits, corrosion and rope wear. Its base uses the same iron, with bevels and rounded plan corners.
-Steve requested full Godot conversion after his test. Complete the remaining world/game systems and district
-resources, then verify a standalone Godot export before removing the web/server/bake runtime dependencies.
+Steve authorized the complete Godot conversion. The native game and all districts are present. Original artwork
+and useful source references were checksum-archived in `../art-source`; historical tools are preserved as text.
 
 Follow the [model edge rule](../AGENTS.md) for every asset converted or authored in Godot. The coping now also
 has a worn paving-side arris, rounded lower lip and bevelled exposed vertical corners. Its underside receives
@@ -66,7 +82,7 @@ behavior. Existing placements then receive the new appearance without changing t
 scene includes its day/night behavior. New library resources require no editing code changes: add them to
 `catalog.tres`. Use Godot's normal model import and scene wrappers, not the browser's whole-town exporter.
 
-The finished main commits through `6b447c1` are merged into this branch. Shared bake directories remain untouched.
+The finished main commits through `6b447c1` are merged into this branch. External art worktrees remain untouched.
 The latest quay snapshot preserves all 14 object ids and replaces the library bench, crate and lamp models.
 Cannon/mushroom bollards, a capstan, a hand barrow and a coiled hawser are also available. See
 [district recovery notes](recovery/README.md) for import commands, identity preservation, promotion and editor lamp steps.
@@ -79,18 +95,21 @@ Cannon/mushroom bollards, a capstan, a hand barrow and a coiled hawser are also 
 | In-game placement, selection, ground snapping, exact transforms | Working for simple static assets; occupied and off-quay placements refused. |
 | Undo/redo, persistent layout, editable Godot scene export | Working; checked across separate Godot processes. |
 | Model/texture intake | Finished main art and current bake used in Rijnkaai; detailed library assets imported as native resources. |
-| Existing town | Static Rijnkaai updated from the 2026-10-12 bake; 14 original object ids preserved. Other districts and dynamic parts remain. |
+| Existing town | All eleven districts and dynamic model libraries stored as native resources; authored IDs and saved layouts retained. |
 | Game rendering and player in Rijnkaai | Existing C# player, weather, wetness, bump/relief, sky, lamps, animated river and planar mirrors connected to native resources. |
-| Menus and people in Rijnkaai | Title/pause, HUD, conversations, board and live residents connected; imported actors retain skeletons/36 animation clips. |
-| Navigation | Quay crowd grid sampled from native collision at startup, including saved object edits. Other districts, stairs/deep steps and moving-bridge links remain. |
-| Game services | Playtest temporarily uses the existing local Node server with isolated data/no AI. C# rules, SQLite, AI and multiplayer ports remain. |
-| Retiring the browser and Node game | Pending parity checks and save migration; remove only once the native game covers those behaviors. |
+| Menus and people | Whole-town title/pause, HUD, conversations, board, interiors and residents connected; actor skeletons and animation clips retained. |
+| Navigation | Whole-town native geometry supplies walking support, stairs, collision and authored obstacles. Actual hired-worker pickup/delivery and 26 navigation fixture checks passed. |
+| Game services | Native C# rules/SQLite run in process; retained original comparisons and actual gameplay tests are recorded in service notes. |
+| Multiplayer server | Native headless Kestrel, TLS and rendered host/guest play passed; actor authority, host bus ride and guest return to local play checked. |
+| Transport | Rendered bicycle, handcart, dray and multi-person boat journey passed 37 checks; a fresh seed's cart/dray scenario passed 28. |
+| Retiring the browser and Node game | Completed in this worktree; 493 source/art files checksum-archived, legacy entrypoints/dependencies removed, user layouts retained. |
 
 The existing town's bake also contains custom material metadata, instance transforms, rooms, openings, lights,
 and navigation facts. One-time recovery must preserve those dependencies; importing its bare GLB as a new level
 does not complete the migration. Move district by district, replace fragile mesh-name lookups with permanent
 object/anchor ids, and derive gameplay coordinates from the native scene. Port offline game rules before provider
-and LAN integrations. Preserve existing saves and compare the current tests' outcomes when moving each service.
+and LAN integrations. Compare current test outcomes; old game saves need no migration. Preserve editor layouts,
+settings and provider credentials.
 
 ## One-time recovery
 
@@ -107,7 +126,8 @@ The tool refuses an existing output district to protect native edits. Give anoth
 `recovery-report.json` records the source fingerprint, plan, source node ids, material/instance metadata, checks,
 and remaining work. Scenery intersecting the boundary retains its whole mesh; editing limits apply to placement.
 Reviewed Rijnkaai and its dated model intakes are tracked; fixture runs and other recovery attempts are ignored.
-Other sessions should use the recovery notes and wait for Steve's test of this district before expanding the migration.
+Other sessions should use the recovery notes for resource repair and preserve the native scenes and saved layouts.
+Continue native development on `main`; keep the conversion worktree's proof receipts as migration evidence.
 
 ## Checks
 
@@ -119,5 +139,6 @@ runs a GPU performance measurement. `--author-shot <absolute png>` gives a short
 
 `pwsh -File scripts/check-recovery.ps1` checks a generated fixture with nested transforms, hidden geometry,
 coloured instances and an unused invalid image, then checks the real quay. Both run write and reload in separate
-Godot processes with isolated layouts. Together with the pilot, 95 runtime assertions pass; recovery also checks
+Godot processes with isolated layouts. After legacy retirement the pilot passed 39 checks and recovery passed 56;
+both explicitly select the editor scene, independent of the full game's default scene. Recovery also checks
 native resource references and source preservation. The fixture's invalid unused image is pruned before import.

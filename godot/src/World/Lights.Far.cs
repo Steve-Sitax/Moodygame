@@ -146,6 +146,7 @@ void fragment() {
     {
         if (walkTried) return;
         walkTried = true;
+        if (Main.I.World.NativeWalk is { } native) { walk = native; return; }
         string town = Main.I.Arg("town", OS.GetEnvironment("SCHELDEMIST_BAKE") is { Length: > 0 } b ? b : ProjectSettings.GlobalizePath("res://baked/town.glb"));
         walk = WalkMap.Load(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(town) ?? ".", System.IO.Path.GetFileNameWithoutExtension(town) + "_walk.json"));
     }

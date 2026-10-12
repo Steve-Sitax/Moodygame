@@ -66,7 +66,12 @@ public partial class Main : Node
     protected virtual IEnumerable<Node> CreateParts() => GamePartAttribute.Make(this);
     protected virtual bool UseMenus => Menu.MainMenu.Wanted(this);
     public virtual bool MultiplayerAvailable => true;
+    public virtual bool UsesLocalBackend => false;
+    public virtual bool DedicatedServer => false;
+    public virtual string WorldFingerprint => "";
+    public virtual Task<Net.ILocalGameBackend> CreateLocalBackend() => throw new InvalidOperationException("This entry point does not supply local game rules.");
     protected virtual System.Threading.Tasks.Task PrepareWorld() => System.Threading.Tasks.Task.CompletedTask;
+    protected virtual Task PrepareWorldLoad() => Task.CompletedTask;
 
     public override void _Ready()
     {
@@ -75,6 +80,16 @@ public partial class Main : Node
         Paths.Initialize();
         string town = Paths.Town;
         shots = Paths.TestOutput("shots");
+
+        if (DedicatedServer)
+        {
+            // The server needs scene transforms, collisions and navigation, with no player, UI or camera.
+            view = new SubViewport { Disable3D = true, RenderTargetUpdateMode = SubViewport.UpdateMode.Disabled };
+            AddChild(view);
+            world = CreateWorld();
+            LoadTown(town, false);
+            return;
+        }
 
         // (smooth edges: 4x multisampling; at 4K on the test PC it cost no measurable frame time, 2026-10-11)
         view = new SubViewport { RenderTargetUpdateMode = SubViewport.UpdateMode.Always, Msaa3D = Viewport.Msaa.Msaa4X, HandleInputLocally = false };
@@ -105,6 +120,8 @@ public partial class Main : Node
     /// </summary>
     private async void LoadTown(string town, bool beside)
     {
+        try { await PrepareWorldLoad(); }
+        catch (Exception e) { GD.PrintErr($"The shared town could not be loaded: {e.Message}"); GetTree().Quit(1); return; }
         Error err;
         if (beside)
         {
@@ -124,13 +141,15 @@ public partial class Main : Node
         else err = world.Load(town);
         if (err != Error.Ok)
         {
-            GD.PrintErr($"the baked town did not load ({err}): {town}. Bake it: node tools/godot/export-scene.mjs");
+            GD.PrintErr($"The town did not load ({err}): {town}");
             GetTree().Quit(1);
             return;
         }
         view.AddChild(world);
         await PrepareWorld();
         GD.Print($"town in: {JsonSerializer.Serialize(world.Report)}");
+
+        if (DedicatedServer) { Loaded = true; return; }
 
         var facts = world.Facts.RootElement.GetProperty("facts");
         var c0 = facts.GetProperty("camera");

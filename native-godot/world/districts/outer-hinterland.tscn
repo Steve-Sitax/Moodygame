@@ -1,0 +1,24 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://src/World/NativeDistrictScene.cs" id="native_editor"]
+
+[ext_resource type="PackedScene" path="res://world/town/roots/node-01519.scn" id="1_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-01521.scn" id="2_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-01524.scn" id="3_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-00004.scn" id="4_root"]
+[ext_resource type="PackedScene" path="res://world/districts/outer-hinterland.objects.tscn" id="objects"]
+
+[node name="outer_hinterland" type="Node3D"]
+script = ExtResource("native_editor")
+
+[node name="Scenery" type="Node3D" parent="."]
+
+[node name="source_01519" parent="Scenery" instance=ExtResource("1_root")]
+
+[node name="source_01521" parent="Scenery" instance=ExtResource("2_root")]
+
+[node name="source_01524" parent="Scenery" instance=ExtResource("3_root")]
+
+[node name="source_00004" parent="Scenery" instance=ExtResource("4_root")]
+
+[node name="Objects" parent="." instance=ExtResource("objects")]

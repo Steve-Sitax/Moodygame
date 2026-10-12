@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "sourceCommit": "294d7bb",
+  "seed": 1873,
+  "provenance": "Read-only authored rule recovery into static native data, fresh in-memory town, no player database, HTTP or AI calls.",
+  "hashes": {
+    "shared/goods.ts": "4a62fc2e30d085d44e9e9c596644866b7ad72d32e3ed6bed84b6cf8db43a09ed",
+    "shared/hauls.ts": "c9f8de90cd3e05554e2d8b855bd6118421de5967ba4dd1f516f2ae7e1e059031",
+    "shared/handcart.ts": "a0f52c89e4ac633653f02f932b7c843bea1726ac5dbe99e2b37ce5efd729e7b8",
+    "shared/smallBoats.ts": "d27ba8a15c5896f99659f02d60fd138e4bcab680fe74970898e41b1c8a4b7b44",
+    "shared/spots.json": "6c2c3af18e04831ea48ad21c52691c8a1c617ba9dc8f47e81a77252fd4fbd827",
+    "shared/quaycargo.json": "249ff578895004f3bea55d821a06901e5b4441d2917d23075575eca55fc380dd",
+    "shared/city.json": "b7daf28947346131d1a368aa58480d70374d968690827c992780e7c389517e84",
+    "server/src/goods/store.ts": "16eff778b3e44cca268e303fcbd993858b1b666d2ba4a49ee7630e67a14f807f",
+    "server/src/rowing.ts": "d2b7fc66d928ffb36dd37eecdc5c515d20553cfd5d0e25090fbf7a76b51b1a0d",
+    "server/src/town/possessions.ts": "604893a7fa50e0656e2d57123a48bf43de615375307cd8557500096e79f3f5a5",
+    "server/src/town/transport.ts": "aca655e93058cf13cb71b258c7b47fbe519a3223297186922ddf9c7de839db84",
+    "server/src/town/handcart.ts": "3abc01135415c97998e26fd2af0774a804f26e60f2d9d907dce221207a401e2e",
+    "server/src/town/bikeshop.ts": "e337f089633ed7b7ca3a6c57d52243b4e6fba0fc262a68cd4b5e773a6b9c53bd"
+  },
+  "goods": 644,
+  "haulRoutes": 18,
+  "cartRuns": 2,
+  "boats": 61
+}

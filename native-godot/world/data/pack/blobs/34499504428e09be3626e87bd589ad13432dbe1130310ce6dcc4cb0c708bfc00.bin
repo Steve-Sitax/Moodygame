@@ -1,0 +1,1563 @@
+{
+  "version": 1,
+  "provenance": "Source authored businesses and trade/stat rules, no saved people.",
+  "newShops": [
+    {
+      "id": "butcher_vlees",
+      "label": "the butcher by the Vleeshuis",
+      "trade": "butcher",
+      "x": -92,
+      "z": 69,
+      "goods": null,
+      "kind": "shopkeeper",
+      "sex": "m",
+      "hours": [
+        [
+          6.5,
+          12.5
+        ],
+        [
+          13.5,
+          18.5
+        ]
+      ]
+    },
+    {
+      "id": "colonial_steen",
+      "label": "the colonial goods shop by the Steenplein",
+      "trade": "colonial",
+      "x": -200,
+      "z": 49,
+      "goods": "wares",
+      "kind": "shopkeeper",
+      "sex": "m",
+      "hours": [
+        [
+          7.5,
+          12.5
+        ],
+        [
+          13.5,
+          19.5
+        ]
+      ]
+    },
+    {
+      "id": "apothecary_markt",
+      "label": "the apothecary by the Handschoenmarkt",
+      "trade": "apothecary",
+      "x": -213,
+      "z": 124,
+      "goods": null,
+      "kind": "gentleman",
+      "sex": "m",
+      "hours": [
+        [
+          8,
+          12.5
+        ],
+        [
+          13.5,
+          20
+        ]
+      ],
+      "sunday": [
+        [
+          9.5,
+          11
+        ]
+      ]
+    },
+    {
+      "id": "barber_lane",
+      "label": "the barber in the back lane",
+      "trade": "barber",
+      "x": -0.3,
+      "z": 82.7,
+      "goods": null,
+      "kind": "shopkeeper",
+      "sex": "m",
+      "hours": [
+        [
+          7,
+          12
+        ],
+        [
+          13,
+          20
+        ]
+      ],
+      "sunday": [
+        [
+          7,
+          10
+        ]
+      ]
+    },
+    {
+      "id": "hatter_markt",
+      "label": "the hatter behind the Grote Markt",
+      "trade": "hatter",
+      "x": -304,
+      "z": 93,
+      "goods": null,
+      "kind": "gentleman",
+      "sex": "m",
+      "hours": [
+        [
+          8.5,
+          12.5
+        ],
+        [
+          13.5,
+          19
+        ]
+      ]
+    },
+    {
+      "id": "roaster_canal",
+      "label": "the coffee roaster by the canal",
+      "trade": "roaster",
+      "x": -32,
+      "z": 106,
+      "goods": "wares",
+      "kind": "shopkeeper",
+      "sex": "m",
+      "hours": [
+        [
+          7,
+          12.5
+        ],
+        [
+          13.5,
+          18.5
+        ]
+      ]
+    },
+    {
+      "id": "printer_jezuiet",
+      "label": "the printer by the Jesuits' church",
+      "trade": "printer",
+      "x": -112,
+      "z": 148,
+      "goods": null,
+      "kind": "clerk",
+      "sex": "m",
+      "hours": [
+        [
+          7,
+          12
+        ],
+        [
+          13,
+          18.5
+        ]
+      ]
+    },
+    {
+      "id": "books_kathedraal",
+      "label": "the bookseller behind the cathedral",
+      "trade": "bookseller",
+      "x": -200,
+      "z": 164,
+      "goods": "wares",
+      "kind": "old_man",
+      "sex": "m",
+      "hours": [
+        [
+          9,
+          12.5
+        ],
+        [
+          14,
+          19
+        ]
+      ]
+    },
+    {
+      "id": "clock_markt",
+      "label": "the clockmaker by the Grote Markt",
+      "trade": "clockmaker",
+      "x": -195,
+      "z": 88,
+      "goods": null,
+      "kind": "old_man",
+      "sex": "m",
+      "hours": [
+        [
+          8.5,
+          12.5
+        ],
+        [
+          13.5,
+          18.5
+        ]
+      ]
+    },
+    {
+      "id": "bakery_south",
+      "label": "the bakery in the southern lanes",
+      "trade": "baker",
+      "x": -210.56,
+      "z": 236.33,
+      "goods": "bread",
+      "kind": "baker",
+      "sex": "m",
+      "hours": [
+        [
+          6,
+          12.5
+        ],
+        [
+          14,
+          18
+        ]
+      ],
+      "sunday": [
+        [
+          7,
+          11
+        ]
+      ],
+      "onlyVacant": true
+    },
+    {
+      "id": "grocer_south",
+      "label": "the grocer in the southern neighbourhood",
+      "trade": "grocer",
+      "x": -121.86,
+      "z": 260.91,
+      "goods": "veg",
+      "kind": "shopkeeper",
+      "sex": "f",
+      "hours": [
+        [
+          7,
+          12.5
+        ],
+        [
+          14,
+          19
+        ]
+      ],
+      "onlyVacant": true
+    },
+    {
+      "id": "cobbler_east",
+      "label": "the cobbler in the eastern back streets",
+      "trade": "cobbler",
+      "x": 7.31,
+      "z": 213.72,
+      "goods": null,
+      "kind": "old_man",
+      "sex": "m",
+      "hours": [
+        [
+          8,
+          12
+        ],
+        [
+          13,
+          18.5
+        ]
+      ],
+      "onlyVacant": true
+    }
+  ],
+  "oldShops": {
+    "bakery_rijn": "baker",
+    "bakery_steen": "baker",
+    "grocer_canal": "grocer",
+    "grocer_werf": "grocer",
+    "chandler_werf": "chandler",
+    "tobacco_markt": "tobacconist",
+    "pawn_vis": "pawnbroker",
+    "cobbler_lane": "cobbler",
+    "draper_markt": "draper"
+  },
+  "cafes": [
+    {
+      "id": "linde",
+      "label": "In de Linde",
+      "x": -180.7975,
+      "z": 205
+    },
+    {
+      "id": "zwarte_kat",
+      "label": "De Zwarte Kat",
+      "x": -59.2758322,
+      "z": 261.5046793
+    }
+  ],
+  "gangCafe": "tavern:zwarte_kat",
+  "trades": {
+    "docker": {
+      "label": "docker",
+      "work": "haul",
+      "faction": "naties",
+      "wealth": [
+        0,
+        2
+      ],
+      "bias": {
+        "courage": 2,
+        "temper": 1
+      }
+    },
+    "natie": {
+      "label": "natie man",
+      "work": "haul",
+      "faction": "naties",
+      "wealth": [
+        1,
+        3
+      ],
+      "bias": {
+        "courage": 1
+      }
+    },
+    "porter": {
+      "label": "porter with a sack truck",
+      "work": "roam",
+      "faction": "naties",
+      "wealth": [
+        0,
+        2
+      ]
+    },
+    "carter": {
+      "label": "carter",
+      "work": "roam",
+      "faction": null,
+      "wealth": [
+        1,
+        3
+      ],
+      "bias": {
+        "temper": 1
+      }
+    },
+    "boatman": {
+      "label": "boatman",
+      "work": "haul",
+      "faction": "smokkelaars",
+      "wealth": [
+        1,
+        3
+      ],
+      "bias": {
+        "honesty": -1,
+        "courage": 1
+      }
+    },
+    "sailor": {
+      "label": "sailor ashore",
+      "work": "roam",
+      "faction": null,
+      "wealth": [
+        0,
+        2
+      ],
+      "bias": {
+        "temper": 1,
+        "piety": -2
+      }
+    },
+    "fishwife": {
+      "label": "fishwife",
+      "work": "stall",
+      "faction": null,
+      "wealth": [
+        1,
+        2
+      ],
+      "bias": {
+        "gossip": 3,
+        "temper": 1
+      }
+    },
+    "market_woman": {
+      "label": "market woman",
+      "work": "stall",
+      "faction": "burgerij",
+      "wealth": [
+        1,
+        3
+      ],
+      "bias": {
+        "gossip": 2,
+        "greed": 1
+      }
+    },
+    "baker": {
+      "label": "baker",
+      "work": "shop",
+      "faction": "burgerij",
+      "wealth": [
+        3,
+        5
+      ],
+      "bias": {
+        "piety": 1
+      }
+    },
+    "grocer": {
+      "label": "grocer",
+      "work": "shop",
+      "faction": "burgerij",
+      "wealth": [
+        3,
+        5
+      ],
+      "bias": {
+        "greed": 1
+      }
+    },
+    "chandler": {
+      "label": "ship's chandler",
+      "work": "shop",
+      "faction": "burgerij",
+      "wealth": [
+        3,
+        6
+      ],
+      "bias": {
+        "greed": 2
+      }
+    },
+    "tobacconist": {
+      "label": "tobacconist",
+      "work": "shop",
+      "faction": "burgerij",
+      "wealth": [
+        3,
+        5
+      ]
+    },
+    "pawnbroker": {
+      "label": "clerk of the Berg van Barmhartigheid",
+      "work": "shop",
+      "faction": "burgerij",
+      "wealth": [
+        4,
+        7
+      ],
+      "bias": {
+        "greed": 3,
+        "warmth": -2
+      }
+    },
+    "cobbler": {
+      "label": "cobbler",
+      "work": "shop",
+      "faction": null,
+      "wealth": [
+        1,
+        3
+      ],
+      "bias": {
+        "gossip": 1
+      }
+    },
+    "draper": {
+      "label": "draper",
+      "work": "shop",
+      "faction": "burgerij",
+      "wealth": [
+        4,
+        6
+      ],
+      "bias": {
+        "piety": 1
+      }
+    },
+    "shopwife": {
+      "label": "shopkeeper's wife",
+      "work": "shop",
+      "faction": "burgerij",
+      "wealth": [
+        3,
+        5
+      ],
+      "bias": {
+        "gossip": 2
+      }
+    },
+    "publican": {
+      "label": "publican",
+      "work": "tavern",
+      "faction": null,
+      "wealth": [
+        3,
+        5
+      ],
+      "bias": {
+        "gossip": 3,
+        "warmth": 1
+      },
+      "night": true
+    },
+    "clerk": {
+      "label": "clerk",
+      "work": "inside",
+      "faction": "burgerij",
+      "wealth": [
+        3,
+        5
+      ],
+      "bias": {
+        "courage": -1,
+        "honesty": 1
+      }
+    },
+    "merchant": {
+      "label": "merchant",
+      "work": "inside",
+      "faction": "burgerij",
+      "wealth": [
+        7,
+        10
+      ],
+      "bias": {
+        "greed": 2,
+        "warmth": -1
+      }
+    },
+    "maid": {
+      "label": "maid",
+      "work": "inside",
+      "faction": null,
+      "wealth": [
+        0,
+        1
+      ],
+      "bias": {
+        "gossip": 2
+      }
+    },
+    "laundress": {
+      "label": "laundress",
+      "work": "roam",
+      "faction": null,
+      "wealth": [
+        0,
+        1
+      ],
+      "bias": {
+        "gossip": 2
+      }
+    },
+    "seamstress": {
+      "label": "seamstress",
+      "work": "inside",
+      "faction": null,
+      "wealth": [
+        0,
+        2
+      ],
+      "bias": {
+        "piety": 1
+      }
+    },
+    "housewife": {
+      "label": "housewife",
+      "work": "inside",
+      "faction": null,
+      "wealth": [
+        0,
+        3
+      ],
+      "bias": {
+        "gossip": 1,
+        "piety": 1
+      }
+    },
+    "police": {
+      "label": "police agent",
+      "work": "patrol",
+      "faction": "politie",
+      "wealth": [
+        2,
+        4
+      ],
+      "bias": {
+        "honesty": 1,
+        "courage": 2
+      }
+    },
+    "priest": {
+      "label": "priest",
+      "work": "post",
+      "faction": "kerk",
+      "wealth": [
+        3,
+        5
+      ],
+      "bias": {
+        "piety": 5,
+        "warmth": 1
+      }
+    },
+    "sexton": {
+      "label": "sexton of the cathedral",
+      "work": "post",
+      "faction": "kerk",
+      "wealth": [
+        2,
+        3
+      ],
+      "bias": {
+        "piety": 4
+      }
+    },
+    "lamplighter": {
+      "label": "lamplighter",
+      "work": "patrol",
+      "faction": null,
+      "wealth": [
+        0,
+        2
+      ]
+    },
+    "beggar": {
+      "label": "beggar",
+      "work": "beg",
+      "faction": null,
+      "wealth": [
+        0,
+        0
+      ],
+      "bias": {
+        "piety": 1,
+        "courage": -1
+      }
+    },
+    "thief": {
+      "label": "pickpocket",
+      "work": "roam",
+      "faction": "smokkelaars",
+      "wealth": [
+        0,
+        2
+      ],
+      "bias": {
+        "honesty": -6,
+        "courage": 1,
+        "greed": 2
+      },
+      "night": true
+    },
+    "retired": {
+      "label": "old hand, past work",
+      "work": "roam",
+      "faction": null,
+      "wealth": [
+        0,
+        3
+      ],
+      "bias": {
+        "gossip": 2
+      }
+    },
+    "child": {
+      "label": "child",
+      "work": "roam",
+      "faction": null,
+      "wealth": [
+        0,
+        0
+      ]
+    },
+    "street_child": {
+      "label": "street child",
+      "work": "roam",
+      "faction": null,
+      "wealth": [
+        0,
+        0
+      ],
+      "bias": {
+        "honesty": -2,
+        "courage": 2
+      }
+    },
+    "errand_boy": {
+      "label": "errand boy",
+      "work": "roam",
+      "faction": null,
+      "wealth": [
+        0,
+        1
+      ]
+    },
+    "infant": {
+      "label": "small child",
+      "work": "inside",
+      "faction": null,
+      "wealth": [
+        0,
+        0
+      ]
+    },
+    "foreman": {
+      "label": "foreman of the Katoennatie",
+      "work": "post",
+      "faction": "naties",
+      "wealth": [
+        4,
+        6
+      ],
+      "bias": {
+        "temper": 2,
+        "honesty": 1
+      }
+    },
+    "fish_merchant": {
+      "label": "fish merchant",
+      "work": "post",
+      "faction": "burgerij",
+      "wealth": [
+        5,
+        7
+      ],
+      "bias": {
+        "greed": 2
+      }
+    },
+    "water_bailiff": {
+      "label": "sergeant of the water police",
+      "work": "post",
+      "faction": "politie",
+      "wealth": [
+        3,
+        5
+      ],
+      "bias": {
+        "honesty": 1,
+        "temper": 1
+      }
+    },
+    "brewer": {
+      "label": "brewer",
+      "work": "post",
+      "faction": "burgerij",
+      "wealth": [
+        6,
+        8
+      ],
+      "bias": {
+        "warmth": 1,
+        "greed": 1
+      }
+    },
+    "soldier": {
+      "label": "soldier of the line",
+      "work": "inside",
+      "faction": null,
+      "wealth": [
+        0,
+        1
+      ],
+      "bias": {
+        "courage": 2,
+        "piety": -1,
+        "gossip": 1
+      }
+    },
+    "sentry": {
+      "label": "soldier of the line, on guard",
+      "work": "guard",
+      "faction": null,
+      "wealth": [
+        0,
+        1
+      ],
+      "bias": {
+        "courage": 2,
+        "honesty": 1,
+        "warmth": -1
+      }
+    },
+    "corporal": {
+      "label": "corporal of the guard",
+      "work": "guard",
+      "faction": null,
+      "wealth": [
+        0,
+        2
+      ],
+      "bias": {
+        "temper": 1,
+        "honesty": 1,
+        "courage": 2
+      }
+    },
+    "customs": {
+      "label": "customs officer",
+      "work": "inspect",
+      "faction": null,
+      "wealth": [
+        2,
+        4
+      ],
+      "bias": {
+        "honesty": 1,
+        "greed": 1,
+        "warmth": -1
+      }
+    },
+    "navvy": {
+      "label": "labourer of the town's works, pulling down the old wall",
+      "work": "haul",
+      "faction": null,
+      "wealth": [
+        0,
+        1
+      ],
+      "bias": {
+        "courage": 1,
+        "temper": 1,
+        "piety": -1
+      }
+    },
+    "works_foreman": {
+      "label": "foreman of the town's works on the ramparts",
+      "work": "post",
+      "faction": "burgerij",
+      "wealth": [
+        2,
+        4
+      ],
+      "bias": {
+        "temper": 1,
+        "honesty": 1
+      }
+    },
+    "newsboy": {
+      "label": "newsboy",
+      "work": "post",
+      "faction": null,
+      "wealth": [
+        0,
+        0
+      ],
+      "bias": {
+        "courage": 2,
+        "gossip": 2
+      }
+    },
+    "post_clerk": {
+      "label": "clerk of the post and telegraph office",
+      "work": "post",
+      "faction": "burgerij",
+      "wealth": [
+        3,
+        5
+      ],
+      "bias": {
+        "honesty": 2,
+        "gossip": 1
+      }
+    },
+    "dealer": {
+      "label": "second-hand dealer",
+      "work": "post",
+      "faction": null,
+      "wealth": [
+        2,
+        4
+      ],
+      "bias": {
+        "greed": 2,
+        "gossip": 2
+      }
+    },
+    "velo_maker": {
+      "label": "velocipede maker, a smith who builds and hires out velocipedes",
+      "work": "post",
+      "faction": "burgerij",
+      "wealth": [
+        4,
+        6
+      ],
+      "bias": {
+        "greed": 1,
+        "courage": 1
+      }
+    },
+    "wheelwright": {
+      "label": "wheelwright, who builds and hires out handcarts",
+      "work": "post",
+      "faction": null,
+      "wealth": [
+        3,
+        5
+      ],
+      "bias": {
+        "honesty": 1,
+        "courage": 1
+      }
+    },
+    "emigrant": {
+      "label": "emigrant bound for America",
+      "work": "wait",
+      "faction": null,
+      "wealth": [
+        1,
+        3
+      ],
+      "bias": {
+        "piety": 1,
+        "courage": -1,
+        "gossip": -1
+      }
+    },
+    "lodging_keeper": {
+      "label": "keeper of the emigrants' lodging house",
+      "work": "post",
+      "faction": null,
+      "wealth": [
+        3,
+        5
+      ],
+      "bias": {
+        "greed": 2,
+        "gossip": 2
+      }
+    },
+    "runner": {
+      "label": "agent's man",
+      "work": "roam",
+      "faction": "smokkelaars",
+      "wealth": [
+        1,
+        3
+      ],
+      "bias": {
+        "honesty": -6,
+        "greed": 3,
+        "warmth": 2
+      }
+    },
+    "organist": {
+      "label": "organist of the cathedral",
+      "work": "inside",
+      "faction": "kerk",
+      "wealth": [
+        2,
+        4
+      ],
+      "bias": {
+        "piety": 2
+      }
+    },
+    "beadle": {
+      "label": "beadle of the cathedral (the suisse, who keeps order at mass)",
+      "work": "inside",
+      "faction": "kerk",
+      "wealth": [
+        1,
+        3
+      ],
+      "bias": {
+        "piety": 2,
+        "temper": 1
+      }
+    },
+    "chair_woman": {
+      "label": "chair woman of the cathedral (she lets the chairs at mass)",
+      "work": "inside",
+      "faction": "kerk",
+      "wealth": [
+        0,
+        2
+      ],
+      "bias": {
+        "piety": 2,
+        "gossip": 2
+      }
+    },
+    "registrar": {
+      "label": "clerk of the civil registry at the town hall",
+      "work": "inside",
+      "faction": "burgerij",
+      "wealth": [
+        3,
+        5
+      ],
+      "bias": {
+        "honesty": 2
+      }
+    },
+    "alderman": {
+      "label": "alderman of the civil registry, who marries couples at the town hall",
+      "work": "inside",
+      "faction": "burgerij",
+      "wealth": [
+        7,
+        9
+      ],
+      "bias": {
+        "greed": 1
+      }
+    },
+    "concierge": {
+      "label": "porter of the town hall",
+      "work": "inside",
+      "faction": "burgerij",
+      "wealth": [
+        1,
+        3
+      ],
+      "bias": {
+        "gossip": 2
+      }
+    },
+    "cellar_master": {
+      "label": "cellar master of Peyrot's wine warehouse in the Vleeshuis",
+      "work": "inside",
+      "faction": null,
+      "wealth": [
+        3,
+        5
+      ],
+      "bias": {
+        "greed": 1
+      }
+    },
+    "cellarman": {
+      "label": "cellarman at Peyrot's wine warehouse in the Vleeshuis",
+      "work": "inside",
+      "faction": null,
+      "wealth": [
+        0,
+        2
+      ],
+      "bias": {
+        "courage": 1
+      }
+    },
+    "painter": {
+      "label": "painter with a studio in the Vleeshuis",
+      "work": "inside",
+      "faction": null,
+      "wealth": [
+        1,
+        4
+      ],
+      "bias": {
+        "piety": -1,
+        "warmth": 1
+      }
+    },
+    "attendant": {
+      "label": "attendant of the Museum of Antiquities in the Steen",
+      "work": "inside",
+      "faction": "burgerij",
+      "wealth": [
+        1,
+        3
+      ],
+      "bias": {
+        "honesty": 1,
+        "gossip": 1
+      }
+    },
+    "storekeeper": {
+      "label": "storekeeper of the State warehouse in the Oostershuis",
+      "work": "inside",
+      "faction": null,
+      "wealth": [
+        3,
+        5
+      ],
+      "bias": {
+        "honesty": 1,
+        "temper": 1
+      }
+    },
+    "milk_woman": {
+      "label": "milk woman with a dog cart",
+      "work": "round",
+      "faction": null,
+      "wealth": [
+        1,
+        2
+      ],
+      "bias": {
+        "gossip": 2,
+        "warmth": 1
+      }
+    },
+    "baker_boy": {
+      "label": "baker's boy with the bread cart",
+      "work": "round",
+      "faction": null,
+      "wealth": [
+        0,
+        1
+      ],
+      "bias": {
+        "courage": 1,
+        "gossip": 1
+      }
+    },
+    "grinder": {
+      "label": "knife grinder",
+      "work": "round",
+      "faction": null,
+      "wealth": [
+        0,
+        1
+      ],
+      "bias": {
+        "gossip": 2,
+        "piety": -1
+      }
+    },
+    "ragman": {
+      "label": "rag-and-bone man",
+      "work": "round",
+      "faction": null,
+      "wealth": [
+        0,
+        1
+      ],
+      "bias": {
+        "greed": 2,
+        "honesty": -1
+      }
+    },
+    "coalman": {
+      "label": "coal man",
+      "work": "round",
+      "faction": null,
+      "wealth": [
+        1,
+        2
+      ],
+      "bias": {
+        "courage": 1,
+        "temper": 1
+      }
+    },
+    "sweep": {
+      "label": "chimney sweep",
+      "work": "round",
+      "faction": null,
+      "wealth": [
+        0,
+        1
+      ],
+      "bias": {
+        "courage": 2,
+        "gossip": 1
+      }
+    },
+    "mussel_seller": {
+      "label": "mussel seller",
+      "work": "round",
+      "faction": null,
+      "wealth": [
+        0,
+        2
+      ],
+      "bias": {
+        "gossip": 2
+      }
+    },
+    "broom_seller": {
+      "label": "broom seller from the Kempen",
+      "work": "round",
+      "faction": null,
+      "wealth": [
+        0,
+        1
+      ],
+      "bias": {
+        "piety": 1,
+        "gossip": -1
+      }
+    },
+    "devotion_seller": {
+      "label": "keeper of a stall against the cathedral (rosaries, candles, holy pictures)",
+      "work": "post",
+      "faction": "kerk",
+      "wealth": [
+        1,
+        3
+      ],
+      "bias": {
+        "piety": 3,
+        "gossip": 2,
+        "greed": 1
+      }
+    },
+    "nun": {
+      "label": "Black Sister, who nurses the sick at home",
+      "work": "round",
+      "faction": "kerk",
+      "wealth": [
+        0,
+        0
+      ],
+      "bias": {
+        "piety": 5,
+        "warmth": 2,
+        "honesty": 2
+      }
+    },
+    "beguine": {
+      "label": "beguine",
+      "work": "inside",
+      "faction": "kerk",
+      "wealth": [
+        1,
+        3
+      ],
+      "bias": {
+        "piety": 5,
+        "gossip": 1
+      }
+    },
+    "tourist": {
+      "label": "English traveller come to see the Rubens paintings",
+      "work": "round",
+      "faction": null,
+      "wealth": [
+        7,
+        9
+      ],
+      "bias": {
+        "courage": -1,
+        "warmth": 1,
+        "gossip": 1
+      }
+    },
+    "fence": {
+      "label": "dealer in odds and ends, after dark",
+      "work": "post",
+      "faction": "smokkelaars",
+      "wealth": [
+        3,
+        5
+      ],
+      "bias": {
+        "honesty": -4,
+        "greed": 3,
+        "gossip": 1
+      },
+      "night": true
+    },
+    "smuggler": {
+      "label": "night lighterman",
+      "work": "post",
+      "faction": "smokkelaars",
+      "wealth": [
+        2,
+        4
+      ],
+      "bias": {
+        "honesty": -3,
+        "courage": 2
+      },
+      "night": true
+    },
+    "nightcarter": {
+      "label": "carter who works by night and asks no questions",
+      "work": "post",
+      "faction": "smokkelaars",
+      "wealth": [
+        1,
+        3
+      ],
+      "bias": {
+        "honesty": -2,
+        "temper": 1
+      },
+      "night": true
+    },
+    "cracksman": {
+      "label": "a man in a dark coat who needs a lookout",
+      "work": "post",
+      "faction": "smokkelaars",
+      "wealth": [
+        2,
+        4
+      ],
+      "bias": {
+        "honesty": -6,
+        "courage": 3,
+        "warmth": -1
+      },
+      "night": true
+    },
+    "butcher": {
+      "label": "butcher",
+      "work": "shop",
+      "faction": "burgerij",
+      "wealth": [
+        4,
+        6
+      ],
+      "bias": {
+        "temper": 1,
+        "courage": 1
+      }
+    },
+    "colonial": {
+      "label": "grocer in colonial goods (coffee, tea, sugar, spices)",
+      "work": "shop",
+      "faction": "burgerij",
+      "wealth": [
+        4,
+        6
+      ],
+      "bias": {
+        "greed": 1,
+        "gossip": 1
+      }
+    },
+    "apothecary": {
+      "label": "apothecary",
+      "work": "shop",
+      "faction": "burgerij",
+      "wealth": [
+        5,
+        7
+      ],
+      "bias": {
+        "honesty": 1,
+        "piety": 1,
+        "gossip": -1
+      }
+    },
+    "barber": {
+      "label": "barber",
+      "work": "shop",
+      "faction": null,
+      "wealth": [
+        2,
+        4
+      ],
+      "bias": {
+        "gossip": 4,
+        "warmth": 1
+      }
+    },
+    "hatter": {
+      "label": "hatter",
+      "work": "shop",
+      "faction": "burgerij",
+      "wealth": [
+        4,
+        6
+      ],
+      "bias": {
+        "greed": 1
+      }
+    },
+    "roaster": {
+      "label": "coffee roaster",
+      "work": "shop",
+      "faction": "burgerij",
+      "wealth": [
+        4,
+        6
+      ],
+      "bias": {
+        "warmth": 1
+      }
+    },
+    "printer": {
+      "label": "printer and bookbinder",
+      "work": "shop",
+      "faction": "burgerij",
+      "wealth": [
+        3,
+        5
+      ],
+      "bias": {
+        "gossip": 2,
+        "piety": -1
+      }
+    },
+    "bookseller": {
+      "label": "bookseller",
+      "work": "shop",
+      "faction": "burgerij",
+      "wealth": [
+        3,
+        5
+      ],
+      "bias": {
+        "piety": 1,
+        "courage": -1
+      }
+    },
+    "clockmaker": {
+      "label": "clockmaker",
+      "work": "shop",
+      "faction": "burgerij",
+      "wealth": [
+        4,
+        6
+      ],
+      "bias": {
+        "honesty": 2,
+        "temper": -1
+      }
+    },
+    "washerwoman": {
+      "label": "washerwoman, who washes for the better houses at the court pump",
+      "work": "post",
+      "faction": null,
+      "wealth": [
+        0,
+        1
+      ],
+      "bias": {
+        "gossip": 3,
+        "warmth": 1,
+        "temper": 1
+      }
+    },
+    "loafer": {
+      "label": "lad out of work who hangs about a street corner with his mates",
+      "work": "roam",
+      "faction": "smokkelaars",
+      "wealth": [
+        0,
+        1
+      ],
+      "bias": {
+        "honesty": -3,
+        "courage": 2,
+        "temper": 2,
+        "piety": -2,
+        "warmth": -1
+      }
+    },
+    "watchman": {
+      "label": "night watchman of the back streets",
+      "work": "patrol",
+      "faction": "politie",
+      "wealth": [
+        1,
+        2
+      ],
+      "bias": {
+        "honesty": 1,
+        "courage": 1,
+        "gossip": 1
+      },
+      "night": true
+    },
+    "parish_priest": {
+      "label": "parish priest",
+      "work": "round",
+      "faction": "kerk",
+      "wealth": [
+        2,
+        4
+      ],
+      "bias": {
+        "piety": 5,
+        "warmth": 2
+      }
+    },
+    "doctor": {
+      "label": "physician, on his rounds of the back streets",
+      "work": "round",
+      "faction": "burgerij",
+      "wealth": [
+        5,
+        7
+      ],
+      "bias": {
+        "honesty": 1,
+        "courage": 1
+      }
+    },
+    "drunkard": {
+      "label": "docker out of work, too fond of the jenever",
+      "work": "roam",
+      "faction": null,
+      "wealth": [
+        0,
+        1
+      ],
+      "bias": {
+        "temper": 2,
+        "piety": -2,
+        "honesty": -1
+      }
+    },
+    "miller": {
+      "label": "miller of a mill on the town wall",
+      "work": "post",
+      "faction": "burgerij",
+      "wealth": [
+        3,
+        5
+      ],
+      "bias": {
+        "honesty": 1,
+        "temper": 1,
+        "piety": 1
+      }
+    },
+    "miller_man": {
+      "label": "miller's man, who carries the sacks and drives the mill's cart",
+      "work": "haul",
+      "faction": null,
+      "wealth": [
+        0,
+        2
+      ],
+      "bias": {
+        "courage": 1,
+        "gossip": 1
+      }
+    }
+  },
+  "taverns": [
+    {
+      "id": "ankere",
+      "label": "In de Ankere",
+      "x": -52,
+      "z": 46
+    },
+    {
+      "id": "schipke",
+      "label": "Het Schipke",
+      "x": -236,
+      "z": 14
+    },
+    {
+      "id": "vliet",
+      "label": "De Vliet",
+      "x": -120,
+      "z": 50
+    },
+    {
+      "id": "engel",
+      "label": "Den Engel",
+      "x": -240,
+      "z": 64
+    },
+    {
+      "id": "bassin",
+      "label": "Het Bassin",
+      "x": 100,
+      "z": 124
+    }
+  ],
+  "hashes": {
+    "server/src/shops/town.ts": "c86baf53c241648e80ace24ca4ad1163f915f8194af823451651a1622164021b",
+    "server/src/town/neighbourhoodCafes.ts": "f5e22a39e1c5f939cbddef85b412d1beecc71b979f01719b9d7e0d1cc8b265e4",
+    "shared/shops.ts": "66e321ae2b2034fdd7627905d433f5684c9d626049e610d5af656abb70a64f91",
+    "shared/neighbourhoodCafes.ts": "0a6f8448a545e3b14a45db65bb81f70ebd123f2607681d8c7854bbf940be7d26",
+    "shared/inworld_houses.json": "9e2a829412a4f3e89f9bb0a04a4b0e92ab06f5346d4fbc167f6c43fd375879b5"
+  }
+}

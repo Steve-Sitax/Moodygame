@@ -168,8 +168,7 @@ public sealed class Animal
 /// haunt; a townsperson's dog at heel while they are out. Strays trot about, sniff, and come over to Jef now and
 /// then; cats sit and lie on their doorsteps, stroll a little, and run from dogs and from Jef right on top of them;
 /// in the great storm they run for their doorstep and cower there.
-/// ParkWildlife supplies nearby prey. Capture ecology, the dogs' business in the park, fish scraps of the market,
-/// the pigs' drove and multiplayer animal replication are left for their own tie-ins.
+/// ParkWildlife supplies nearby prey. NativeExtras gives each animal one simulator and streams it to other games.
 /// </summary>
 [GamePart(206)]
 public partial class Animals : Node
@@ -224,13 +223,21 @@ public partial class Animals : Node
     public override void _Ready()
     {
         town = GetParent().GetNodeOrNull<Townspeople>("Townspeople");
+        if (town != null) town.PopulationChanged += PopulationChanged;
         if (town == null) SetProcess(false);
+    }
+
+    private void PopulationChanged()
+    {
+        foreach (var b in beasts) { b.A.Group.Visible = false; b.A.Dispose(); }
+        beasts.Clear(); dogs.Clear(); routeScratch.Clear();
+        haunts = null; hauntOf.Clear(); spawnT = 0; Shown = 0;
     }
 
     public override void _ExitTree()
     {
-        foreach (var b in beasts) b.A.Dispose();
-        beasts.Clear();
+        if (town != null) town.PopulationChanged -= PopulationChanged;
+        PopulationChanged();
         if (I == this) I = null;
     }
 
@@ -318,6 +325,7 @@ public partial class Animals : Node
             foreach (var h in haunts!)
             {
                 if (Hyp(h.X - eye.X, h.Z - eye.Z) > ReachR || (h.Night && !night) || HasBeast(h.Id)) continue;
+                if(Net.Mp.NativeExtras.I?.RunAnimal(h.Id,h.X,h.Z,ReachR)==false)continue;
                 var an = Animal.Make(h.Kind);
                 if (an == null) break;
                 Main.I.View.AddChild(an.Group);
@@ -329,6 +337,7 @@ public partial class Animals : Node
                 }
                 else beasts.Add(new Beast { A = an, X = h.X, Z = h.Z, Yaw = h.Yaw, Timer = Dice("dogtimer", h.X, h.Z) * 3, Id = h.Id });
             }
+            MakeHeardAnimals(eye);
             for (int person = 0; person < town.Sims.Count; person++)
             {
                 var s = town.Sims[person];
@@ -365,7 +374,12 @@ public partial class Animals : Node
                 DropBeast(b);
                 continue;
             }
-            if (b.Owner != null) Follow(b, dt);
+            bool here=b.Owner!=null?Net.Mp.NativeStreet.I?.Owns(b.Owner.R.Id)!=false:b.Id==null||Net.Mp.NativeExtras.I?.RunAnimal(b.Id,b.X,b.Z,ReachR)!=false;
+            if(!here){
+                if(b.Id!=null&&Net.Mp.NativeExtras.I?.Animal(b.Id)is{} pose){b.X=pose.X;b.Z=pose.Z;b.Yaw=pose.Yaw;b.A.Play(pose.Motion);}
+                else{DropBeast(b);continue;}
+            }
+            else if (b.Owner != null) Follow(b, dt);
             // the great storm: strays and cats run for their doorstep and cower there, flat to the stone
             else if (storm) Storm(b, dt);
             else if (b.Shelter != 0)
@@ -390,6 +404,7 @@ public partial class Animals : Node
                 shown++;
                 b.A.Update((float)dt);
             }
+            if(here&&b.Id!=null)Net.Mp.NativeExtras.I?.PutAnimal(b.Id,new(b.X,b.Z,b.Yaw,b.A.Motion??"idle"),b.Owner?.R.Id);
         }
         AllocatedBytesLastFrame = GC.GetAllocatedBytesForCurrentThread() - allocated;
         Shown = shown;
@@ -398,6 +413,7 @@ public partial class Animals : Node
 
     private void DropBeast(Beast b)
     {
+        if(b.Owner==null&&b.Id!=null)Net.Mp.NativeExtras.I?.Release(b.Id);
         b.A.Dispose();
         beasts.Remove(b);
     }

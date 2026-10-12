@@ -1,0 +1,12 @@
+import {writeFileSync,mkdirSync} from "node:fs";
+import {openDb} from "../../server/src/db.ts";
+import {town,dropTownCache} from "../../server/src/town/store.ts";
+import {engineDream,runScheme} from "../../server/src/director/surprises.ts";
+process.env.SCHELDEMIST_TOWN_SEED="1873";process.env.SCHELDEMIST_NO_AI="1";
+const db=openDb(":memory:"),people=town(db).town.residents.filter(p=>p.age>=18&&!p.visitor),a=structuredClone(people[0]),b=structuredClone(people[1]),schemes=[],dreams=[];
+for(const kind of ["lost_dog","pay_debt","court","grudge"])for(let wealth=0;wealth<=10;wealth+=5)for(let warmth=0;warmth<=10;warmth+=5)for(let temper=0;temper<=10;temper+=5)for(const helped of [false,true])for(const roll of [.01,.25,.5,.75,.95]){
+a.stats.wealth=wealth;a.stats.warmth=warmth;b.stats.warmth=warmth;b.stats.temper=temper;
+for(const p of [a,b])db.prepare("UPDATE resident SET data_json=? WHERE id=?").run(JSON.stringify(p),p.id);dropTownCache(db);
+const id=Number(db.prepare("INSERT INTO town_scheme(day,kind,a,b,hour,text,status,data_json,jef_helped)VALUES(1,?,?,?,10,'source rule oracle','running','{}',?)").run(kind,a.id,b.id,helped?1:0).lastInsertRowid);const expected=await runScheme(db,id,undefined,()=>roll);schemes.push({kind,a:structuredClone(a),b:structuredClone(b),helped,roll,expected});}
+const verbs=["robbed","finished_job","stole","fortune","supper"];for(let mask=0;mask<32;mask++){db.prepare("DELETE FROM log").run();for(let i=0;i<verbs.length;i++)if(mask&(1<<i))db.prepare("INSERT INTO log(day,hour,place,actor,verb,text,player_id)VALUES(1,10,'rijnkaai','player',?,'source dream fact',1)").run(verbs[i]);dreams.push({mask,verbs:verbs.filter((v,i)=>!!(mask&(1<<i))),expected:engineDream(db,1)});}
+mkdirSync("native-godot/services/proofs/data",{recursive:true});writeFileSync("native-godot/services/proofs/data/native-surprises-source.json",JSON.stringify({schemes,dreams},null,2)+"\n");db.close();console.log(JSON.stringify({schemes:schemes.length,dreams:dreams.length}));

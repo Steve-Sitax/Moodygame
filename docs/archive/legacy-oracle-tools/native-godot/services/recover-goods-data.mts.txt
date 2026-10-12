@@ -1,0 +1,63 @@
+// One-time authored goods/transport data recovery. In-memory database only; no HTTP or AI service.
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { createHash } from "node:crypto";
+import { openDb } from "../../server/src/db.ts";
+import { goods } from "../../server/src/goods/store.ts";
+import { CART_RUNS, GOODS_H, pileRot, pyramidSpots, haulPileItem } from "../../shared/goods.ts";
+import { HAUL_ROUTES, CRANE_FED } from "../../shared/hauls.ts";
+import { LOAD, CART_LIMIT, CART_PRICE } from "../../shared/handcart.ts";
+import { HULLS } from "../../shared/smallBoats.ts";
+import { rowWorld, rowBoats, LANDING_IDS, waterman } from "../../server/src/rowing.ts";
+import { transportView } from "../../server/src/town/possessions.ts";
+import { veloStates } from "../../server/src/town/deeds.ts";
+import { lentSpot } from "../../server/src/town/handcart.ts";
+import { LINES, STOPS, lineTiming } from "../../shared/omnibusLines.ts";
+import { keyPoint } from "../../server/src/town/possessions.ts";
+import { town } from "../../server/src/town/store.ts";
+
+process.env.SCHELDEMIST_TOWN_SEED = "1873";
+process.env.SCHELDEMIST_NO_AI = "1";
+const output = resolve(process.argv[2] ?? "native-godot/services/data");
+mkdirSync(output, { recursive: true });
+const db = openDb(":memory:");
+const initial = goods.list();
+const haulTemplates: Record<string, unknown[]> = {};
+for (const route of HAUL_ROUTES) for (const tag of ["a", "b"] as const) {
+  const made: unknown[] = [];
+  for (let i = 0; i < 5; i++) {
+    const item = haulPileItem(route, tag, i, made as never);
+    if (item) made.push(item);
+  }
+  haulTemplates[`${route.id}:${tag}`] = made;
+}
+const homes = Object.fromEntries(initial.map(item => [item.id, {x:item.x,z:item.z,y:item.y,rot:item.rot,on:item.on}]));
+const runSpots = Object.fromEntries(CART_RUNS.map(run => {
+  let spots;
+  if (run.id === "casks") {
+    const pyramid = pyramidSpots(run.to[0], run.to[1], run.items.length);
+    spots = run.items.map((id,i) => ({id,x:pyramid[i].x,z:pyramid[i].z,rot:pileRot(i)}));
+  } else {
+    const first = homes[run.items[0]];
+    spots = run.items.map(id => ({id,...homes[id],x:+(homes[id].x+run.to[0]-first.x).toFixed(3),z:+(homes[id].z+run.to[1]-first.z).toFixed(3)}));
+  }
+  return [run.id,spots];
+}));
+const spots = JSON.parse(readFileSync("shared/spots.json", "utf8"));
+const nativeTown = town(db).town;
+const transport = transportView(db,veloStates(db));
+const tripPoints = Object.fromEntries(transport.vehicles.map(v => {
+  const owner = nativeTown.residents.find(r=>r.id===v.owner);
+  return [v.id,Object.fromEntries(Object.keys(v.parks).map(key=>[key,owner?keyPoint(owner,key,nativeTown.places):null]))];
+}));
+const errands = Object.fromEntries(Array.from({length:7},(_,i)=>{
+  db.prepare("UPDATE player SET day=? WHERE id=1").run(i+1);
+  return [i+1,transportView(db,veloStates(db)).errands];
+}));
+db.prepare("UPDATE player SET day=1 WHERE id=1").run();
+const lentSpots = Object.fromEntries(Object.keys(spots).filter(id=>!id.startsWith("_")).map(id=>[id,lentSpot(id)]));
+writeFileSync(resolve(output, "native-goods.json"), JSON.stringify({version:1, seed:1873, initial, heights:GOODS_H, hauls:HAUL_ROUTES, craneFed:[...CRANE_FED], haulTemplates, cartRuns:CART_RUNS, runSpots, homes, spots, cartLoad:LOAD, cartLimit:CART_LIMIT, cartPrices:CART_PRICE, lentSpots, omnibus:{lines:LINES,stops:STOPS,timing:Object.fromEntries(LINES.map(line=>[line.id,lineTiming(line.id)]))}, boatHulls:HULLS, row:rowWorld(db), rowBoatDefinitions:rowBoats(db), watermen:Object.fromEntries(LANDING_IDS.map(id=>[id,waterman(db,id)])), transport, tripPoints, errands}, null, 2) + "\n");
+const sources = ["shared/goods.ts","shared/hauls.ts","shared/handcart.ts","shared/smallBoats.ts","shared/spots.json","shared/quaycargo.json","shared/city.json","server/src/goods/store.ts","server/src/rowing.ts","server/src/town/possessions.ts","server/src/town/transport.ts","server/src/town/handcart.ts","server/src/town/bikeshop.ts"];
+writeFileSync(resolve(output,"native-goods-intake.json"), JSON.stringify({version:1, sourceCommit:"294d7bb", seed:1873, provenance:"Read-only authored rule recovery into static native data, fresh in-memory town, no player database, HTTP or AI calls.", hashes:Object.fromEntries(sources.map(file=>[file,createHash("sha256").update(readFileSync(file)).digest("hex")])), goods:initial.length, haulRoutes:HAUL_ROUTES.length, cartRuns:CART_RUNS.length, boats:rowBoats(db).length}, null, 2) + "\n");
+db.close();
+console.log(JSON.stringify({goods:initial.length,hauls:HAUL_ROUTES.length,carts:CART_RUNS.length}));

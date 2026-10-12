@@ -17,7 +17,7 @@ public static class AudioPaths
         string e = OS.GetEnvironment(env);
         return e != "" ? e : rel;
     }
-    /// <summary>The recordings (the browser's /audio): --audio dir, or SCHELDEMIST_AUDIO, or Paths.Audio (client/public/audio in development, the download's copy when packaged).</summary>
+    /// <summary>Recordings from the native static packet cache; --audio and SCHELDEMIST_AUDIO can select another folder.</summary>
     public static string Audio => Pick("audio", "SCHELDEMIST_AUDIO", Scheldemist.Paths.Audio);
     /// <summary>The game's shared data (city.json): --shared dir, or SCHELDEMIST_SHARED, or Paths' shared folder.</summary>
     public static string Shared => Pick("shared", "SCHELDEMIST_SHARED", Path.GetDirectoryName(Scheldemist.Paths.Shared("city.json"))!);

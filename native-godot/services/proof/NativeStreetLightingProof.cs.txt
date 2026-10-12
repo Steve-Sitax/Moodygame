@@ -1,0 +1,47 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using Scheldemist.Native.Services;
+
+var workspace = args[0]; var output = args[1]; var data = Path.Combine(workspace, "native-godot/services/data"); var oracle = JsonNode.Parse(File.ReadAllText(Path.Combine(workspace, "native-godot/services/fixtures/street-lighting.json")))!; var checks = new List<object>();
+double N(JsonNode? n) => NativeGoods.Number(n);
+string? Difference(JsonNode? expected, JsonNode? actual, string path)
+{
+    if (expected == null || actual == null) return expected == null && actual == null ? null : path + " null differs";
+    if (expected is JsonObject e && actual is JsonObject a) { if (e.Count != a.Count) return path + " object keys differ"; foreach (var p in e) if (!a.ContainsKey(p.Key)) return path + " missing " + p.Key; else if (Difference(p.Value, a[p.Key], path + "." + p.Key) is { } d) return d; return null; }
+    if (expected is JsonArray ee && actual is JsonArray aa) { if (ee.Count != aa.Count) return path + " array lengths differ"; for (int i = 0; i < ee.Count; i++) if (Difference(ee[i], aa[i], path + "[" + i + "]") is { } d) return d; return null; }
+    if (expected.GetValueKind() == JsonValueKind.Number && actual.GetValueKind() == JsonValueKind.Number) return Math.Abs(N(expected) - N(actual)) < 1e-9 ? null : path + " numbers " + expected + " != " + actual;
+    return JsonNode.DeepEquals(expected, actual) ? null : path + " values differ";
+}
+void Check(string name, JsonNode? expected, JsonNode? actual)
+{
+    var diff = Difference(expected, actual == null ? null : JsonNode.Parse(actual.ToJsonString()), name); checks.Add(new { name, passed = diff == null, difference = diff });
+    if (diff != null) { Directory.CreateDirectory(Path.GetDirectoryName(output)!); File.WriteAllText(output, JsonSerializer.Serialize(new { passed = false, checks }, new JsonSerializerOptions { WriteIndented = true })); throw new InvalidOperationException(diff); }
+}
+try {
+    using var host = new NativeServiceHost(new NativeServiceOptions(":memory:", data, Path.Combine(Path.GetDirectoryName(output)!, "isolated-saves"))); var c = host.Context; var lighting = new NativeStreetLighting(host, () => oracle["facts"]!.DeepClone().AsArray()); int scenario = 0;
+    foreach (var test in oracle["cases"]!.AsArray()) {
+        var round = test!["round"]!.AsObject(); var fog = test["fog"] as JsonObject; var help = test["help"] as JsonObject; int day = (int)N(test["day"]); var rounds = new JsonArray(round.DeepClone()); string label = (scenario++).ToString();
+        Check("original fog windows " + label, test["samples"]![0]!["windows"], new JsonArray(NativeStreetLighting.WindowsOf(round, fog).Select(w => (JsonNode)w.Json()).ToArray()));
+        c.SetWorld("townlife_lamps", new JsonObject { ["v"] = 11, ["rounds"] = rounds.DeepClone() }); c.SetWorld("lamps_help", help);
+        if (fog != null) { var stored = fog.DeepClone().AsObject(); stored["day"] = day; c.SetWorld("fog_day", stored); } else { c.Execute("DELETE FROM world_state WHERE key='fog_day'"); c.SetWorld("weather", "clear"); }
+        foreach (var sample in test["samples"]!.AsArray()) {
+            double hour = N(sample?["hour"]); string at = label + ":" + hour.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            Check("original held player lamps " + at, sample!["holds"], JsonValue.Create(NativeStreetLighting.HelpHolds(round, help, day, hour, fog)));
+            Check("original planned lamp state " + at, sample["lit"], new JsonArray(round["lamps"]!.AsArray().Select((_, k) => (JsonNode)JsonValue.Create(NativeStreetLighting.LampLit(round, k, hour, fog))!).ToArray()));
+            Check("original helped lamp state and authored id " + at, sample["helped"], new JsonArray(round["lamps"]!.AsArray().Select((_, k) => (JsonNode)JsonValue.Create(NativeStreetLighting.LampLitHelped(round, k, hour, fog, help, day))!).ToArray()));
+            foreach (var spot in sample["spots"]!.AsArray()) Check("original strongest street lamp " + at + ":" + N(spot?["x"]), spot!["light"], JsonValue.Create(NativeStreetLighting.At(rounds, oracle["facts"]!.AsArray(), N(spot["x"]), N(spot["z"]), hour, fog, help, day)));
+            if (hour is 6 or 18 or 20) { host.Clock.SetTime(day, (int)hour, 0); var spot = sample["spots"]![0]!; Check("current native rounds/fog/help callback " + at, spot["light"], JsonValue.Create(lighting.At(N(spot["x"]), N(spot["z"])))); }
+        }
+    }
+    foreach (var sample in oracle["fallback"]!.AsArray()) Check("original no-round native facts fallback " + N(sample?["hour"]) + ":" + N(sample?["x"]), sample!["light"], JsonValue.Create(NativeStreetLighting.At(new JsonArray(), oracle["facts"]!.AsArray(), N(sample["x"]), N(sample["z"]), N(sample["hour"]), null, null, 1)));
+    // Equal-size topology replacements and edited authored positions are read afresh, without cached scene nodes.
+    host.Clock.SetTime(1, 22, 0); c.SetWorld("fog_day", new JsonObject { ["day"] = 1, ["start"] = false, ["turns"] = new JsonArray() }); c.SetWorld("lamps_help", null);
+    var edited = oracle["cases"]![0]!["round"]!.DeepClone().AsObject(); c.SetWorld("townlife_lamps", new JsonObject { ["rounds"] = new JsonArray(edited.DeepClone()) }); Check("live authored lamp position before edit", JsonValue.Create(.85), JsonValue.Create(lighting.At(-4, 12)));
+    foreach (var l in edited["lamps"]!.AsArray()) l!["x"] = N(l["x"]) + 100; c.SetWorld("townlife_lamps", new JsonObject { ["rounds"] = new JsonArray(edited) }); Check("equal-count authored lamp edits change visibility immediately", JsonValue.Create(0), JsonValue.Create(lighting.At(-4, 12)));
+    c.Execute("DELETE FROM world_state WHERE key='townlife_lamps'"); Check("supplied native fallback lamp after missing rounds", JsonValue.Create(.85), JsonValue.Create(lighting.At(-20, 12)));
+    Directory.CreateDirectory(Path.GetDirectoryName(output)!); File.WriteAllText(output, JsonSerializer.Serialize(new { passed = true, checks }, new JsonSerializerOptions { WriteIndented = true })); Console.WriteLine($"native street lighting: {checks.Count} source/stateful checks passed; {output}");
+} catch (Exception error) { Console.Error.WriteLine(error); Environment.Exit(1); }

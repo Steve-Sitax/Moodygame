@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "sourceSha256": "ac8534149415142120f325986c7abd3818c38005206d45354f1ebb2619f3a7d9",
+  "regions": [
+    "north-werf-steen",
+    "north-vismarkt",
+    "north-rijnkaai",
+    "north-canal",
+    "north-bassin-oostershuis"
+  ],
+  "intake": [
+    "Five manifests describe 161 uniquely owned root references, 15 complete rooms and 15 entrance contracts. Root indices are authoritative for this snapshot; duplicate or empty names are normal.",
+    "Run recovery/full/north-check.py against the read-only completed town.glb. It verifies the complete source hash, roots, ownership, hidden/skinned room contents and genuine door markers; evidence goes under proof/full.",
+    "After the complete native intake, run recovery/full/north-prepare-editors.py. It creates additive previews/descriptors and separate Objects seeds. It refuses existing scene files to preserve native edits.",
+    "City, quay/pier, tide/water, generic dressing, crowd and transport resources are shared once at runtime. Editor preview scenes may reference them for context. Preview bounds never clip geometry or reparent runtime children.",
+    "lock5713 includes a hidden sloop at x250 and another sailboat near the dock; its bounds are much wider than the lock mechanics. opening_bridges5768 includes travelling boats. Preserve complete assemblies and original pivots.",
+    "mills3628 contains both harbour led dray3629 and outer mill assets. Keep the full shared hierarchy; inspect the harbour child independently.",
+    "Steen1967 has opening_st_0001968 and ROOM_steen9343, at a 2.2 m courtyard floor. Oostershuis2890 has 321 opening markers; the public dock gate is opening_oh_3003191 and ROOM_oostershuis9250. Hidden lamp/shutter/punch meshes remain part of their rooms.",
+    "Full native intake removes source camera rig1611. Native root paths were checked against roots.json; it is omitted from the Rijnkaai preview and no missing root resource remains."
+  ],
+  "editing": [
+    "Open world/districts/<id>.tscn in Godot for the regional source scene. Shared geometry is referenced from world/town/roots/node-NNNNN.scn; edit those shared native assets deliberately because all previews use them.",
+    "Open the workshop with --district <id>, choose Street lamp, place it, turn with R and save with Ctrl+S. The new native districts reuse the reviewed placeable library. Their layouts live at user://layouts/<id>/layout.json.",
+    "For direct Godot editing, open <id>.objects.tscn, add or duplicate an AuthoredObject wrapper with a valid library asset, give it a unique ObjectId, move it in world coordinates and save. Keep Objects at an identity transform.",
+    "A saved complete layout overrides the Objects seed, including deletions. --scene-seed tests editor seeds. --author-root selects an isolated per-district layout root; the old --author-dir option keeps its exact reviewed Rijnkaai folder meaning in the full game.",
+    "NativeDistrictLayouts.Apply attaches Objects only and never saves. Save is an explicit authoring operation through the atomic LayoutStore. Bare ids persist in layouts; runtime identities are district/id.",
+    "Never rewrite the canonical rijnkaai-recovered scene, its permanent ids, or Steve's live 15-object layout during intake, preview generation or proof runs. Full intake removes the six original lamp copies and eight merged bollards before the reviewed authored overlay is attached.",
+    "Full play uses game/town.tscn with native services. A district preview/workshop is for placement and does not itself include menus, crowd, weather and gameplay. Use the native game launcher for the user test."
+  ],
+  "review": [
+    "383 source-contract checks pass, plus207 isolated rule checks and17445 original comparisons. Root performed full rendered weather/worker playtests; this inventory alone cannot certify every district spawn, edge, material or movable collision.",
+    "Steen ramp support must follow native ground geometry: courtyard y2.2, ramp foot(-202.2,-3,0), mid(-202.2,-12.55,1.03), bend(-198.175,-20.454,2.094), gate(-193,-20.55,2.2), terrace(-183.5,-21.6,2.2). Do not infer navigable roofs from the landmark's full bounds.",
+    "Follow AGENTS.md material edge rule. Review coping and underside at both quay sides, stone/wood joins, exposed cast flanges, bridge/lock wood noses and harbour hut corners in dry day, rain, darkness and reflection views.",
+    "Intentional hinge/mating surfaces, thin glazing/sheet rims, rails and cutting/machined surfaces retain their construction appropriate edge. Exposed masonry, timber and cast surfaces are not exempt; record a specific exception rather than assuming every source edge is acceptable.",
+    "Run recovery/full/north-layout-proof.tscn with --layout-proof <isolated folder> and a copied --author-dir or --author-root. It verifies read-only complete layout precedence, qualified ids, repeated-apply rejection, atomic backups, duplicate-id rejection and corrupt-save preservation."
+  ]
+}

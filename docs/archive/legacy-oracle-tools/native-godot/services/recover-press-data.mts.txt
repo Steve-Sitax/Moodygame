@@ -1,0 +1,8 @@
+// Authored prompt/schema data only; no model call, save access, exporter or bake.
+import { z } from '../../server/node_modules/zod/index.js';
+import { LetterSchema, LETTER_SYSTEM, RemarkSchema } from '../../server/src/paper/post.ts';
+import { PaperSchema, PAPER_SYSTEM } from '../../server/src/paper/newspaper.ts';
+import { vessels, shipType } from '../../shared/fleet.ts';
+import { WEATHER_TEXT } from '../../server/src/day.ts';
+import { writeFileSync } from 'node:fs';
+writeFileSync('native-godot/services/data/native-press.json',JSON.stringify({version:1,letterSchema:z.toJSONSchema(LetterSchema),letterSystem:LETTER_SYSTEM,remarkSchema:z.toJSONSchema(RemarkSchema),paperSchema:z.toJSONSchema(PaperSchema),paperSystem:PAPER_SYSTEM,weather:WEATHER_TEXT,ships:vessels.filter(v=>v.name&&['liner','steamer','steamer_line','barque','barque_grain','barque_sail','brig','schooner'].includes(v.kind)).map(v=>[v.name,shipType(v.kind)])})+'\n');

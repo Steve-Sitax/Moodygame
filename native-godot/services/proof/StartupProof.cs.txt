@@ -1,0 +1,43 @@
+using Scheldemist.Native.Services;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+
+var project=Path.GetFullPath(args[0]);
+var output=Path.Combine(project,"native-godot/proof/startup-"+Guid.NewGuid().ToString("N"));
+Directory.CreateDirectory(output);var checks=new List<object>();
+void Check(string name,bool pass){checks.Add(new{name,pass});if(!pass)throw new Exception(name);}
+for(int attempt=0;attempt<5;attempt++)
+{
+    using var host=new NativeServiceHost(new NativeServiceOptions(Path.Combine(output,"startup-"+attempt+".sqlite"),Path.Combine(project,"native-godot/services/data"),Path.Combine(output,"saves-"+attempt),()=>10000,()=>.42));
+    var press=new NativePress(host);host.AddModule(press);
+    var ideas=new NativeCoreIdeas(host);host.AddModule(ideas);
+    int planned=0,narrated=0,boards=0;bool beforeReady=false;
+    press.PlanComing=()=>{
+        planned++;
+        if(host.Context.World("factory_ready")?.GetValue<bool>()!=true)beforeReady=true;
+        host.Context.Execute("INSERT INTO mp_setup_seen(value) VALUES($p0)",1);
+    };
+    press.NarrateAsync=(_,_,_)=>{Interlocked.Increment(ref narrated);return Task.FromResult<JsonObject?>(null);};
+    await host.WithState(_=>{
+        host.Jobs.ConfigureNarration((_,_,_)=>{Interlocked.Increment(ref boards);return Task.FromResult<JsonObject?>(null);},startStartup:false);
+        // Real Reset -> MakeBoard -> Press.BoardExtras queues newspaper work on the same connection.
+        host.Reset();
+        Thread.Sleep(20); // Give the queued callback time to try acquiring the state gate.
+        Check("reset board/morning cannot run before setup releases the gate "+attempt,planned==0&&boards==0);
+        host.Context.Execute("CREATE TABLE mp_setup_seen(value INTEGER NOT NULL)");
+        host.MultiplayerEnabled=()=>false;host.OnlinePlayers=()=>new[]{1};
+        host.Context.SetWorld("factory_ready",true);
+        ideas.Start();
+        return true;
+    });
+    await host.Jobs.BoardSettled();
+    var finished=press.WritingSettled();
+    Check("real morning callback completes after setup "+attempt,await Task.WhenAny(finished,Task.Delay(10000))==finished);
+    await finished;
+    Check("morning sees initialized authority schema "+attempt,await host.WithState(_=>!beforeReady&&planned==1&&host.Context.Scalar<int>("SELECT COUNT(*) FROM mp_setup_seen")==1));
+    Check("real newspaper and board persisted once "+attempt,await host.WithState(_=>host.Context.Scalar<int>("SELECT COUNT(*) FROM newspaper")==1&&host.Context.Scalar<int>("SELECT COUNT(*) FROM log WHERE verb='job_board'")==1&&host.Jobs.List(1).Count>0));
+    Check("unavailable narration retains engine newspaper "+attempt,narrated>0);
+    Check("fresh reset uses the configured board provider exactly once "+attempt,boards==1);
+}
+File.WriteAllText(Path.Combine(output,"result.json"),JsonSerializer.Serialize(new{ok=true,checks},new JsonSerializerOptions{WriteIndented=true}));
+Console.WriteLine(JsonSerializer.Serialize(new{ok=true,checks=checks.Count,output}));

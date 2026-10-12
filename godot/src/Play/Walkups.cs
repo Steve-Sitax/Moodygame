@@ -43,6 +43,7 @@ public partial class Walkups : Node
         public void Dispose()
         {
             if (Gone) return; Gone = true;
+            Net.Mp.NativeJobFigures.I?.Remove(this);
             if (Person != null) { if (Person.P is { } p) Owner.town?.Crowd?.PuppetLoad(p, false); Owner.town?.ActionRelease(Person, this); }
             if (Made != null) Owner.town?.Crowd?.RemovePuppet(Made);
             if (Action is int id && ServerLink.I?.Api is { } api) api.Run(api.WalkupDone(id), _ => { });
@@ -99,11 +100,15 @@ public partial class Walkups : Node
                 c.Asking = true; c.Poll = 3;
                 api.Run(c.Trouble is int id ? api.WalkupTrouble(id, c.Ask.X, c.Ask.Z) : api.WalkupCall(c.Ask), a => Answer(c, a), _ => c.Asking = false);
             }
-            if (c.Waited >= c.Cap && c.Fallback != null && HiddenStart(c.Target ?? new((float)c.Ask.X, (float)c.Ask.Z)) is { } from) c.Made = crowd.AddPuppet(c.Fallback, from.x, from.z);
+            if (c.Waited >= c.Cap && c.Fallback != null && HiddenStart(c.Target ?? new((float)c.Ask.X, (float)c.Ask.Z)) is { } from){
+                c.Made = crowd.AddPuppet(c.Fallback, from.x, from.z);
+                if(c.Made!=null)Net.Mp.NativeJobFigures.I?.Register(c,c.Fallback,()=> (c.Position,c.Made?.Yaw??0,c.Made?.Human.Motion??"idle",c.Made?.Loaded==true));
+            }
             else if (c.Waited >= c.Cap && c.Fallback == null) { c.Arrived = false; c.Dispose(); }
             return;
         }
         if (c.Person is { } s && !ReferenceEquals(s.ActionOwner, c)) { c.Dispose(); return; }
+        if(c.Person is{} resident&&Net.Mp.NativeStreet.I is{} street&&!street.Owns(resident.R.Id))return;
         if (c.Person is { P: null } person)
         {
             var goal = c.Target ?? new Vector2((float)c.Ask.X, (float)c.Ask.Z);

@@ -1,0 +1,16 @@
+// Read-only original press augmentation on an in-memory SQLite fixture. No Node or legacy map in production.
+import fs from 'node:fs';import{DatabaseSync}from'node:sqlite';
+import{generateTown}from'../../../server/src/town/population.ts';import{houseDoors,walkMap}from'../../../server/src/town/walkmap.ts';import{shownTrade}from'../../../server/src/town/places.ts';import{ensurePressTown}from'../../../server/src/paper/town.ts';import{ensureLandmarksTown}from'../../../server/src/landmarks/town.ts';
+const root=new URL('../../../',import.meta.url),read=path=>fs.readFileSync(new URL(path,root),'utf8'),wm=walkMap(),queries={nearestOpen:{},reachable:{},open:{},flags:{}};let depth=0;
+const key=args=>args.map(n=>Math.floor(n*1000000+.5)).join(',');for(const name of Object.keys(queries)){const original=wm[name].bind(wm);wm[name]=(...args)=>{const outer=depth===0;depth++;try{const value=original(...args);if(outer)queries[name][key(args)]=value;return value;}finally{depth--;}};}
+const doors=houseDoors(),cases=[];for(const seed of[1873,901])for(const size of['small','normal','large','very_large']){
+  const town=generateTown(seed,size),db=new DatabaseSync(':memory:');db.exec(read('native-godot/services/data/native-schema.sql'));db.transaction=fn=>()=>{db.exec('BEGIN');try{const value=fn();db.exec('COMMIT');return value;}catch(error){db.exec('ROLLBACK');throw error;}};
+  const insNpc=db.prepare("INSERT INTO npc(id,name,role,district,faction,persona_json,active)VALUES(?,?,?,?,?,'{}',1)"),insRes=db.prepare('INSERT INTO resident(id,household,trade,data_json)VALUES(?,?,?,?)');
+  for(const r of town.residents){insNpc.run(r.id,r.name,shownTrade(r),town.places[r.work.place]?.district??'town',r.faction);insRes.run(r.id,r.household,r.trade,JSON.stringify(r));db.prepare('INSERT INTO npc_relationship(npc_id)VALUES(?)').run(r.id);}
+  const {residents,...rest}=town;db.prepare("INSERT INTO world_state(key,value_json)VALUES('town',?)").run(JSON.stringify(rest));
+  const result=ensurePressTown(db),press=JSON.parse(db.prepare("SELECT value_json FROM world_state WHERE key='press'").get().value_json),pressed=JSON.parse(db.prepare("SELECT value_json FROM world_state WHERE key='town'").get().value_json);pressed.residents=db.prepare('SELECT data_json FROM resident ORDER BY id').all().map(r=>JSON.parse(r.data_json));
+  const roles=db.prepare("SELECT id,name,role,district,faction FROM npc WHERE id='postclerk' OR role='newsboy' ORDER BY id").all();const again=ensurePressTown(db);
+  const lmAdded=ensureLandmarksTown(db),landmarked=JSON.parse(db.prepare("SELECT value_json FROM world_state WHERE key='town'").get().value_json);landmarked.residents=db.prepare('SELECT data_json FROM resident ORDER BY id').all().map(r=>JSON.parse(r.data_json));const lmState=JSON.parse(db.prepare("SELECT value_json FROM world_state WHERE key='landmarks'").get().value_json);
+  cases.push({seed,size,result,press,town:pressed,roles,again,lmAdded,landmarked,lmState});db.close();
+}
+fs.writeFileSync(new URL('native-godot/services/fixtures/press-population-1873.json',root),JSON.stringify({doors,queries,cases}));console.log(JSON.stringify({cases:cases.length,pressClerks:cases.filter(c=>c.result.clerk).length,landmarkAdditions:cases.map(c=>c.lmAdded.length),queries:Object.fromEntries(Object.entries(queries).map(([k,v])=>[k,Object.keys(v).length]))}));

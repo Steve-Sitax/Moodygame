@@ -112,6 +112,23 @@ public partial class BakedWorld : Node3D
         Stage = "build";
         var scene = doc.GenerateScene(state);
         if (scene == null) return Error.ParseError;
+        var sourceNodes = gltf.GetProperty("nodes");
+        var importedNodes = state.GetNodes();
+        var byImportedName = Enumerable.Range(0, importedNodes.Count).GroupBy(i => importedNodes[i].ResourceName)
+            .Where(g => g.Key != "" && g.Count() == 1).ToDictionary(g => g.Key, g => g.Single());
+        foreach (var node in All(scene))
+        {
+            // Some glTF entries are bones, not Nodes; GetSceneNode casts those incorrectly in Godot 4.7.
+            int i = state.GetNodeIndex(node);
+            // Importer mesh nodes are not all present in the inverse map. The importer assigns a unique
+            // resource name to each generated node; use that name for those nodes, never an original-name guess.
+            if (i < 0 && byImportedName.TryGetValue(node.Name.ToString(), out int namedIndex)) i = namedIndex;
+            if (i >= 0 && i < sourceNodes.GetArrayLength())
+            {
+                node.SetMeta("source_node_index", i);
+                node.SetMeta("source_name", sourceNodes[i].TryGetProperty("name", out var sourceName) ? sourceName.GetString() ?? "" : "");
+            }
+        }
         scene.Name = "town";
         if (Engine.IsEditorHint()) Drawable(scene);
         AddChild(scene);
@@ -227,6 +244,7 @@ public partial class BakedWorld : Node3D
                     mm.SetInstanceColor(i, new Color(col[i * 3].GetSingle(), col[i * 3 + 1].GetSingle(), col[i * 3 + 2].GetSingle()));
             }
             var mmi = new MultiMeshInstance3D { Multimesh = mm, Transform = mi.Transform, Name = name + "_mm", Visible = mi.Visible };
+            foreach (var key in mi.GetMetaList()) mmi.SetMeta(key, mi.GetMeta(key));
             mi.GetParent().AddChild(mmi);
             mi.QueueFree();
             copies += count;
@@ -393,7 +411,7 @@ public partial class BakedWorld : Node3D
     /// attributes: _ASEED, _AAGE ...): the node's first primitive, `attr` as named in the file ("POSITION", "_ASEED").
     /// `nth`: which of the nodes of that name. Null when there is none. For a part's load, not a frame.
     /// </summary>
-    public float[]? Attribute(string node, string attr, int nth = 0)
+    public virtual float[]? Attribute(string node, string attr, int nth = 0)
     {
         if (glb == "") return null;
         var nodes = gltf.GetProperty("nodes");

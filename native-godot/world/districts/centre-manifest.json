@@ -1,0 +1,4106 @@
+{
+  "version": 1,
+  "id": "centre-landmarks",
+  "title": "City centre and churches",
+  "sourceSha256": "ac8534149415142120f325986c7abd3818c38005206d45354f1ebb2619f3a7d9",
+  "bounds": [
+    -325,
+    25,
+    490,
+    325
+  ],
+  "walkSpawn": [
+    -254,
+    0.02,
+    96
+  ],
+  "flySpawn": [
+    -254,
+    8,
+    118
+  ],
+  "flyYaw": 3.141592653589793,
+  "flyPitch": -0.3,
+  "roots": [
+    {
+      "sourceIndex": 2105,
+      "sourceName": "cathedral_outside",
+      "role": "landmark exterior",
+      "bounds": [
+        -300.784332,
+        -0.3,
+        145.059555,
+        -223.215988,
+        123.900513,
+        270.415863
+      ]
+    },
+    {
+      "sourceIndex": 2663,
+      "sourceName": "stadhuis",
+      "role": "landmark exterior",
+      "bounds": [
+        -292.079987,
+        0.0,
+        33.66,
+        -221.919998,
+        44.75,
+        65.486282
+      ]
+    },
+    {
+      "sourceIndex": 2508,
+      "sourceName": "vleeshuis",
+      "role": "landmark exterior",
+      "bounds": [
+        -139.765884,
+        -0.3,
+        88.017914,
+        -92.290817,
+        36.300049,
+        109.870064
+      ]
+    },
+    {
+      "sourceIndex": 6701,
+      "sourceName": "market_grote_markt",
+      "role": "market scenery",
+      "bounds": [
+        -276.769287,
+        -0.125568,
+        73.4151,
+        -241.329987,
+        2.355899,
+        122.559425
+      ]
+    },
+    {
+      "sourceIndex": 3990,
+      "sourceName": "house_shop:tobacco_markt",
+      "role": "house exterior and door hinge",
+      "bounds": [
+        -221.9,
+        0.08,
+        65.83,
+        -210.55,
+        3.6,
+        70.94
+      ]
+    },
+    {
+      "sourceIndex": 4001,
+      "sourceName": "house_shop:tobacco_markt_openings",
+      "role": "opening anchors",
+      "bounds": null
+    },
+    {
+      "sourceIndex": 4004,
+      "sourceName": "shutters_shop:tobacco_markt",
+      "role": "street shutters",
+      "bounds": [
+        -222.048,
+        0.83125,
+        68.965781,
+        -222.003,
+        2.85,
+        70.459219
+      ]
+    },
+    {
+      "sourceIndex": 4027,
+      "sourceName": "house_shop:cobbler_lane",
+      "role": "house exterior and door hinge",
+      "bounds": [
+        -36.440845,
+        0.08,
+        72.611834,
+        -29.887445,
+        3.6,
+        84.407426
+      ]
+    },
+    {
+      "sourceIndex": 4038,
+      "sourceName": "house_shop:cobbler_lane_openings",
+      "role": "opening anchors",
+      "bounds": null
+    },
+    {
+      "sourceIndex": 4041,
+      "sourceName": "shutters_shop:cobbler_lane",
+      "role": "street shutters",
+      "bounds": [
+        -35.935161,
+        0.83125,
+        72.788425,
+        -34.337945,
+        2.85,
+        72.987151
+      ]
+    },
+    {
+      "sourceIndex": 4044,
+      "sourceName": "house_shop:draper_markt",
+      "role": "house exterior and door hinge",
+      "bounds": [
+        -221.9,
+        0.08,
+        112.66,
+        -214.74,
+        3.6,
+        123.9
+      ]
+    },
+    {
+      "sourceIndex": 4055,
+      "sourceName": "house_shop:draper_markt_openings",
+      "role": "opening anchors",
+      "bounds": null
+    },
+    {
+      "sourceIndex": 4061,
+      "sourceName": "shutters_shop:draper_markt",
+      "role": "street shutters",
+      "bounds": [
+        -222.048,
+        0.83125,
+        116.045625,
+        -215.445,
+        2.85,
+        124.048
+      ]
+    },
+    {
+      "sourceIndex": 4064,
+      "sourceName": "house_shop:butcher_vlees",
+      "role": "house exterior and door hinge",
+      "bounds": [
+        -102.0,
+        0.08,
+        65.05,
+        -92.1,
+        3.6,
+        70.27
+      ]
+    },
+    {
+      "sourceIndex": 4075,
+      "sourceName": "house_shop:butcher_vlees_openings",
+      "role": "opening anchors",
+      "bounds": null
+    },
+    {
+      "sourceIndex": 4078,
+      "sourceName": "shutters_shop:butcher_vlees",
+      "role": "street shutters",
+      "bounds": [
+        -91.997,
+        0.83125,
+        65.542812,
+        -91.952,
+        2.85,
+        67.067187
+      ]
+    },
+    {
+      "sourceIndex": 4098,
+      "sourceName": "house_shop:apothecary_markt",
+      "role": "house exterior and door hinge",
+      "bounds": [
+        -214.54,
+        0.08,
+        114.25,
+        -208.1,
+        3.6,
+        123.9
+      ]
+    },
+    {
+      "sourceIndex": 4109,
+      "sourceName": "house_shop:apothecary_markt_openings",
+      "role": "opening anchors",
+      "bounds": null
+    },
+    {
+      "sourceIndex": 4114,
+      "sourceName": "shutters_shop:apothecary_markt",
+      "role": "street shutters",
+      "bounds": [
+        -210.59375,
+        0.83125,
+        118.151563,
+        -207.952,
+        2.85,
+        124.048
+      ]
+    },
+    {
+      "sourceIndex": 4117,
+      "sourceName": "house_shop:barber_lane",
+      "role": "house exterior and door hinge",
+      "bounds": [
+        -0.301057,
+        0.08,
+        80.833935,
+        10.966764,
+        3.6,
+        86.326344
+      ]
+    },
+    {
+      "sourceIndex": 4128,
+      "sourceName": "house_shop:barber_lane_openings",
+      "role": "opening anchors",
+      "bounds": null
+    },
+    {
+      "sourceIndex": 4131,
+      "sourceName": "shutters_shop:barber_lane",
+      "role": "street shutters",
+      "bounds": [
+        -0.265221,
+        0.83125,
+        84.475388,
+        -0.132729,
+        2.85,
+        85.887329
+      ]
+    },
+    {
+      "sourceIndex": 4134,
+      "sourceName": "house_shop:hatter_markt",
+      "role": "house exterior and door hinge",
+      "bounds": [
+        -303.9,
+        0.08,
+        91.38,
+        -294.23,
+        3.6,
+        98.51
+      ]
+    },
+    {
+      "sourceIndex": 4145,
+      "sourceName": "house_shop:hatter_markt_openings",
+      "role": "opening anchors",
+      "bounds": null
+    },
+    {
+      "sourceIndex": 4148,
+      "sourceName": "shutters_shop:hatter_markt",
+      "role": "street shutters",
+      "bounds": [
+        -304.048,
+        0.83125,
+        95.746719,
+        -304.003,
+        2.85,
+        97.808281
+      ]
+    },
+    {
+      "sourceIndex": 4169,
+      "sourceName": "house_shop:printer_jezuiet",
+      "role": "house exterior and door hinge",
+      "bounds": [
+        -116.361918,
+        0.08,
+        135.281766,
+        -108.062568,
+        3.6,
+        148.505381
+      ]
+    },
+    {
+      "sourceIndex": 4180,
+      "sourceName": "house_shop:printer_jezuiet_openings",
+      "role": "opening anchors",
+      "bounds": null
+    },
+    {
+      "sourceIndex": 4183,
+      "sourceName": "shutters_shop:printer_jezuiet",
+      "role": "street shutters",
+      "bounds": [
+        -110.009936,
+        0.83125,
+        147.359079,
+        -108.507316,
+        2.85,
+        147.80414
+      ]
+    },
+    {
+      "sourceIndex": 4186,
+      "sourceName": "house_shop:books_kathedraal",
+      "role": "house exterior and door hinge",
+      "bounds": [
+        -199.9,
+        0.08,
+        162.85,
+        -189.22,
+        3.6,
+        168.5
+      ]
+    },
+    {
+      "sourceIndex": 4197,
+      "sourceName": "house_shop:books_kathedraal_openings",
+      "role": "opening anchors",
+      "bounds": null
+    },
+    {
+      "sourceIndex": 4200,
+      "sourceName": "shutters_shop:books_kathedraal",
+      "role": "street shutters",
+      "bounds": [
+        -200.048,
+        0.83125,
+        166.314844,
+        -200.003,
+        2.85,
+        167.960156
+      ]
+    },
+    {
+      "sourceIndex": 4203,
+      "sourceName": "house_shop:clock_markt",
+      "role": "house exterior and door hinge",
+      "bounds": [
+        -199.876006,
+        0.08,
+        87.350518,
+        -191.280186,
+        3.6,
+        97.701016
+      ]
+    },
+    {
+      "sourceIndex": 4214,
+      "sourceName": "house_shop:clock_markt_openings",
+      "role": "opening anchors",
+      "bounds": null
+    },
+    {
+      "sourceIndex": 4217,
+      "sourceName": "shutters_shop:clock_markt",
+      "role": "street shutters",
+      "bounds": [
+        -199.325672,
+        0.83125,
+        88.297717,
+        -197.544539,
+        2.85,
+        88.856583
+      ]
+    },
+    {
+      "sourceIndex": 4419,
+      "sourceName": "house_home:cellar",
+      "role": "house exterior and door hinge",
+      "bounds": [
+        -111.418121,
+        -2.35,
+        132.431864,
+        -102.146601,
+        3.6,
+        147.735256
+      ]
+    },
+    {
+      "sourceIndex": 4432,
+      "sourceName": "house_home:cellar_openings",
+      "role": "opening anchors",
+      "bounds": null
+    },
+    {
+      "sourceIndex": 4435,
+      "sourceName": "house_home:garret",
+      "role": "house exterior and door hinge",
+      "bounds": [
+        -119.09,
+        0.08,
+        118.09,
+        -113.19,
+        19.200001,
+        130.94
+      ]
+    },
+    {
+      "sourceIndex": 4446,
+      "sourceName": "house_home:garret_openings",
+      "role": "opening anchors",
+      "bounds": null
+    },
+    {
+      "sourceIndex": 4449,
+      "sourceName": "house_home:widow",
+      "role": "house exterior and door hinge",
+      "bounds": [
+        -177.183702,
+        0.08,
+        62.34775,
+        -167.993995,
+        3.6,
+        74.162666
+      ]
+    },
+    {
+      "sourceIndex": 4460,
+      "sourceName": "house_home:widow_openings",
+      "role": "opening anchors",
+      "bounds": null
+    },
+    {
+      "sourceIndex": 4739,
+      "sourceName": "house_tavern:engel",
+      "role": "house exterior and door hinge",
+      "bounds": [
+        -221.9,
+        0.08,
+        71.15,
+        -208.79,
+        3.6,
+        77.02
+      ]
+    },
+    {
+      "sourceIndex": 4750,
+      "sourceName": "house_tavern:engel_openings",
+      "role": "opening anchors",
+      "bounds": null
+    },
+    {
+      "sourceIndex": 8900,
+      "sourceName": "ROOM_cathedral",
+      "role": "room",
+      "bounds": [
+        -297.75,
+        -2.967,
+        145.53,
+        -226.25,
+        50.957215,
+        269.83806
+      ]
+    },
+    {
+      "sourceIndex": 8986,
+      "sourceName": "ROOM_townhall",
+      "role": "room",
+      "bounds": [
+        -291.18,
+        0.18,
+        34.230001,
+        -222.82,
+        36.3,
+        61.54
+      ]
+    },
+    {
+      "sourceIndex": 9088,
+      "sourceName": "ROOM_vleeshuis",
+      "role": "room",
+      "bounds": [
+        -139.141999,
+        0.04,
+        88.666,
+        -92.915,
+        29.850001,
+        109.070181
+      ]
+    },
+    {
+      "sourceIndex": 8860,
+      "sourceName": "ROOM_cathedral_upper",
+      "role": "room",
+      "bounds": [
+        -279.9,
+        17.25,
+        149.03,
+        -244.1,
+        93.150002,
+        252.729997
+      ]
+    },
+    {
+      "sourceIndex": 9382,
+      "sourceName": "ROOM_carolus",
+      "role": "room",
+      "bounds": [
+        -137.459999,
+        -0.4575,
+        168.5,
+        -94.84,
+        42.848623,
+        203.5
+      ]
+    },
+    {
+      "sourceIndex": 9812,
+      "sourceName": "ROOM_stpaul",
+      "role": "room",
+      "bounds": [
+        65.430004,
+        -3.28035,
+        246.59,
+        140.020001,
+        36.039999,
+        285.41
+      ]
+    },
+    {
+      "sourceIndex": 9897,
+      "sourceName": "ROOM_stjacob",
+      "role": "room",
+      "bounds": [
+        -134.369998,
+        -2.26875,
+        277.129999,
+        -56.27,
+        37.38,
+        331.969999
+      ]
+    },
+    {
+      "sourceIndex": 10246,
+      "sourceName": "ROOM_shop:tobacco_markt",
+      "role": "room",
+      "bounds": [
+        -222.1,
+        0.0,
+        65.93,
+        -210.65,
+        3.38,
+        70.84
+      ]
+    },
+    {
+      "sourceIndex": 10369,
+      "sourceName": "ROOM_shop:cobbler_lane",
+      "role": "room",
+      "bounds": [
+        -36.331689,
+        0.0,
+        72.487068,
+        -29.9966,
+        3.38,
+        84.29827
+      ]
+    },
+    {
+      "sourceIndex": 10426,
+      "sourceName": "ROOM_shop:draper_markt",
+      "role": "room",
+      "bounds": [
+        -222.002,
+        0.0,
+        112.76,
+        -214.84,
+        3.38,
+        124.1
+      ]
+    },
+    {
+      "sourceIndex": 10489,
+      "sourceName": "ROOM_shop:butcher_vlees",
+      "role": "room",
+      "bounds": [
+        -101.9,
+        0.0,
+        65.15,
+        -91.9,
+        3.38,
+        70.17
+      ]
+    },
+    {
+      "sourceIndex": 10627,
+      "sourceName": "ROOM_shop:apothecary_markt",
+      "role": "room",
+      "bounds": [
+        -214.44,
+        0.0,
+        114.35,
+        -207.998,
+        3.38,
+        124.1
+      ]
+    },
+    {
+      "sourceIndex": 10698,
+      "sourceName": "ROOM_shop:barber_lane",
+      "role": "room",
+      "bounds": [
+        -0.463144,
+        0.0,
+        80.939946,
+        10.860753,
+        3.38,
+        86.220334
+      ]
+    },
+    {
+      "sourceIndex": 10764,
+      "sourceName": "ROOM_shop:hatter_markt",
+      "role": "room",
+      "bounds": [
+        -304.1,
+        0.0,
+        91.48,
+        -294.33,
+        3.38,
+        98.41
+      ]
+    },
+    {
+      "sourceIndex": 10893,
+      "sourceName": "ROOM_shop:printer_jezuiet",
+      "role": "room",
+      "bounds": [
+        -116.23935,
+        0.0,
+        135.404334,
+        -108.185136,
+        3.38,
+        148.510575
+      ]
+    },
+    {
+      "sourceIndex": 10954,
+      "sourceName": "ROOM_shop:books_kathedraal",
+      "role": "room",
+      "bounds": [
+        -200.1,
+        0.0,
+        162.95,
+        -189.32,
+        3.38,
+        168.4
+      ]
+    },
+    {
+      "sourceIndex": 11014,
+      "sourceName": "ROOM_shop:clock_markt",
+      "role": "room",
+      "bounds": [
+        -199.752011,
+        0.0,
+        87.434934,
+        -191.40418,
+        3.38,
+        97.577022
+      ]
+    },
+    {
+      "sourceIndex": 11330,
+      "sourceName": "ROOM_home:cellar",
+      "role": "room",
+      "bounds": [
+        -110.162001,
+        -2.7,
+        136.045998,
+        -104.387916,
+        3.18,
+        147.063403
+      ]
+    },
+    {
+      "sourceIndex": 11389,
+      "sourceName": "ROOM_home:garret",
+      "role": "room",
+      "bounds": [
+        -118.515,
+        -0.12,
+        117.9,
+        -113.965,
+        18.5,
+        129.3
+      ]
+    },
+    {
+      "sourceIndex": 11451,
+      "sourceName": "ROOM_home:widow",
+      "role": "room",
+      "bounds": [
+        -175.71857,
+        -0.32,
+        68.813026,
+        -171.06287,
+        3.07,
+        74.132053
+      ]
+    },
+    {
+      "sourceIndex": 11879,
+      "sourceName": "ROOM_tavern:engel",
+      "role": "room",
+      "bounds": [
+        -222.1,
+        0.0,
+        71.25,
+        -208.89,
+        3.78,
+        76.92
+      ]
+    }
+  ],
+  "sharedRoots": [
+    {
+      "sourceIndex": 4,
+      "sourceName": "city",
+      "notes": "Shared terrain and city building tiles; load once in the whole town."
+    },
+    {
+      "sourceIndex": 798,
+      "sourceName": "churches",
+      "notes": "Mixed parent containing three church exteriors, opening anchors, park meshes and pumps. Keep direct hierarchy at runtime; centre owns only the listed sharedChildren."
+    }
+  ],
+  "sharedChildren": [
+    {
+      "sourceIndex": 799,
+      "sourceName": "opening_cb_000",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 800,
+      "sourceName": "opening_cb_001",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 801,
+      "sourceName": "opening_cb_002",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 802,
+      "sourceName": "opening_cb_003",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 803,
+      "sourceName": "opening_cb_004",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 804,
+      "sourceName": "opening_cb_005",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 805,
+      "sourceName": "opening_cb_006",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 806,
+      "sourceName": "opening_cb_007",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 807,
+      "sourceName": "opening_cb_008",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 808,
+      "sourceName": "opening_cb_009",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 809,
+      "sourceName": "opening_cb_010",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 810,
+      "sourceName": "opening_cb_011",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 811,
+      "sourceName": "opening_cb_012",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 812,
+      "sourceName": "opening_cb_013",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 813,
+      "sourceName": "opening_cb_014",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 814,
+      "sourceName": "opening_cb_015",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 815,
+      "sourceName": "opening_cb_016",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 816,
+      "sourceName": "opening_cb_017",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 817,
+      "sourceName": "opening_cb_018",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 818,
+      "sourceName": "opening_cb_019",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 819,
+      "sourceName": "opening_cb_020",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 820,
+      "sourceName": "opening_cb_021",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 821,
+      "sourceName": "opening_cb_022",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 822,
+      "sourceName": "opening_cb_023",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 823,
+      "sourceName": "opening_cb_024",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 824,
+      "sourceName": "opening_cb_025",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 825,
+      "sourceName": "opening_cb_026",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 826,
+      "sourceName": "opening_cb_027",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 827,
+      "sourceName": "opening_cb_028",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 828,
+      "sourceName": "opening_cb_029",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 829,
+      "sourceName": "opening_cb_030",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 830,
+      "sourceName": "opening_cb_031",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 831,
+      "sourceName": "opening_cb_032",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 832,
+      "sourceName": "opening_cb_033",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 833,
+      "sourceName": "opening_cb_034",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 834,
+      "sourceName": "opening_cb_035",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 835,
+      "sourceName": "opening_cb_036",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 836,
+      "sourceName": "opening_cb_037",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 837,
+      "sourceName": "opening_cb_038",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 838,
+      "sourceName": "opening_cb_039",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 839,
+      "sourceName": "opening_cb_040",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 840,
+      "sourceName": "opening_cb_041",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 841,
+      "sourceName": "opening_cb_042",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 842,
+      "sourceName": "opening_cb_043",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 843,
+      "sourceName": "opening_cb_044",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 844,
+      "sourceName": "opening_cb_045",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 845,
+      "sourceName": "opening_cb_046",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 846,
+      "sourceName": "opening_cb_047",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 847,
+      "sourceName": "opening_cb_048",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 848,
+      "sourceName": "opening_cb_049",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 849,
+      "sourceName": "opening_cb_050",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 850,
+      "sourceName": "opening_cb_051",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 851,
+      "sourceName": "opening_cb_052",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 852,
+      "sourceName": "opening_cb_053",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 853,
+      "sourceName": "opening_cb_054",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 854,
+      "sourceName": "opening_cb_055",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 855,
+      "sourceName": "opening_cb_056",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 856,
+      "sourceName": "opening_cb_057",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 857,
+      "sourceName": "opening_cb_058",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 858,
+      "sourceName": "opening_cb_059",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 859,
+      "sourceName": "opening_cb_060",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 860,
+      "sourceName": "opening_cb_061",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 861,
+      "sourceName": "opening_cb_062",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 862,
+      "sourceName": "opening_cb_063",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 863,
+      "sourceName": "opening_cb_064",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 864,
+      "sourceName": "opening_cb_065",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 865,
+      "sourceName": "opening_cb_066",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 866,
+      "sourceName": "opening_cb_067",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 867,
+      "sourceName": "opening_cb_068",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 868,
+      "sourceName": "opening_cb_069",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 869,
+      "sourceName": "opening_cb_070",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 870,
+      "sourceName": "opening_cb_071",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 871,
+      "sourceName": "opening_cb_072",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 872,
+      "sourceName": "opening_cb_073",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 873,
+      "sourceName": "opening_cb_074",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 874,
+      "sourceName": "opening_cb_075",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 875,
+      "sourceName": "opening_cb_076",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 876,
+      "sourceName": "opening_cb_077",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 877,
+      "sourceName": "opening_cb_078",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 878,
+      "sourceName": "opening_cb_079",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 879,
+      "sourceName": "opening_cb_080",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 880,
+      "sourceName": "opening_cb_081",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 881,
+      "sourceName": "opening_cb_082",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 882,
+      "sourceName": "opening_cb_083",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 883,
+      "sourceName": "opening_cb_084",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 884,
+      "sourceName": "opening_cb_085",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 885,
+      "sourceName": "opening_cb_086",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 886,
+      "sourceName": "opening_cb_087",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 887,
+      "sourceName": "opening_cb_088",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 888,
+      "sourceName": "opening_cb_089",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 889,
+      "sourceName": "opening_cb_090",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 890,
+      "sourceName": "opening_cb_091",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 891,
+      "sourceName": "opening_cb_092",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 892,
+      "sourceName": "opening_cb_093",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 893,
+      "sourceName": "opening_cb_094",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 894,
+      "sourceName": "opening_cb_095",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 895,
+      "sourceName": "opening_cb_096",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 896,
+      "sourceName": "opening_cb_097",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 897,
+      "sourceName": "opening_cb_098",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 898,
+      "sourceName": "opening_cb_099",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 899,
+      "sourceName": "opening_cb_100",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 900,
+      "sourceName": "opening_cb_101",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 901,
+      "sourceName": "opening_cb_102",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 902,
+      "sourceName": "opening_cb_103",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 903,
+      "sourceName": "opening_cb_104",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 904,
+      "sourceName": "opening_cb_105",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 905,
+      "sourceName": "opening_cb_106",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 906,
+      "sourceName": "opening_cb_107",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 907,
+      "sourceName": "opening_cb_108",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 908,
+      "sourceName": "opening_cb_109",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 909,
+      "sourceName": "opening_cb_110",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 910,
+      "sourceName": "opening_cb_111",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 911,
+      "sourceName": "opening_cb_112",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 912,
+      "sourceName": "opening_cb_113",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 913,
+      "sourceName": "opening_cb_114",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 914,
+      "sourceName": "opening_cb_115",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 915,
+      "sourceName": "opening_cb_116",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 916,
+      "sourceName": "opening_cb_117",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 917,
+      "sourceName": "opening_cb_118",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 918,
+      "sourceName": "opening_cb_119",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 919,
+      "sourceName": "opening_sj_000",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 920,
+      "sourceName": "opening_sj_001",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 921,
+      "sourceName": "opening_sj_002",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 922,
+      "sourceName": "opening_sj_003",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 923,
+      "sourceName": "opening_sj_004",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 924,
+      "sourceName": "opening_sj_005",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 925,
+      "sourceName": "opening_sj_006",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 926,
+      "sourceName": "opening_sj_007",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 927,
+      "sourceName": "opening_sj_008",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 928,
+      "sourceName": "opening_sj_009",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 929,
+      "sourceName": "opening_sj_010",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 930,
+      "sourceName": "opening_sj_011",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 931,
+      "sourceName": "opening_sj_012",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 932,
+      "sourceName": "opening_sj_013",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 933,
+      "sourceName": "opening_sj_014",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 934,
+      "sourceName": "opening_sj_015",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 935,
+      "sourceName": "opening_sj_016",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 936,
+      "sourceName": "opening_sj_017",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 937,
+      "sourceName": "opening_sj_018",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 938,
+      "sourceName": "opening_sj_019",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 939,
+      "sourceName": "opening_sj_020",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 940,
+      "sourceName": "opening_sj_021",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 941,
+      "sourceName": "opening_sj_022",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 942,
+      "sourceName": "opening_sj_023",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 943,
+      "sourceName": "opening_sj_024",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 944,
+      "sourceName": "opening_sj_025",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 945,
+      "sourceName": "opening_sj_026",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 946,
+      "sourceName": "opening_sj_027",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 947,
+      "sourceName": "opening_sj_028",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 948,
+      "sourceName": "opening_sj_029",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 949,
+      "sourceName": "opening_sj_030",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 950,
+      "sourceName": "opening_sj_031",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 951,
+      "sourceName": "opening_sj_032",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 952,
+      "sourceName": "opening_sj_033",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 953,
+      "sourceName": "opening_sj_034",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 954,
+      "sourceName": "opening_sj_035",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 955,
+      "sourceName": "opening_sj_036",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 956,
+      "sourceName": "opening_sj_037",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 957,
+      "sourceName": "opening_sj_038",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 958,
+      "sourceName": "opening_sj_039",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 959,
+      "sourceName": "opening_sj_040",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 960,
+      "sourceName": "opening_sj_041",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 961,
+      "sourceName": "opening_sj_042",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 962,
+      "sourceName": "opening_sj_043",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 963,
+      "sourceName": "opening_sj_044",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 964,
+      "sourceName": "opening_sj_045",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 965,
+      "sourceName": "opening_sj_046",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 966,
+      "sourceName": "opening_sj_047",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 967,
+      "sourceName": "opening_sj_048",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 968,
+      "sourceName": "opening_sj_049",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 969,
+      "sourceName": "opening_sj_050",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 970,
+      "sourceName": "opening_sj_051",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 971,
+      "sourceName": "opening_sj_052",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 972,
+      "sourceName": "opening_sj_053",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 973,
+      "sourceName": "opening_sj_054",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 974,
+      "sourceName": "opening_sj_055",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 975,
+      "sourceName": "opening_sj_056",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 976,
+      "sourceName": "opening_sj_057",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 977,
+      "sourceName": "opening_sj_058",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 978,
+      "sourceName": "opening_sj_059",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 979,
+      "sourceName": "opening_sj_060",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 980,
+      "sourceName": "opening_sj_061",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 981,
+      "sourceName": "opening_sj_062",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 982,
+      "sourceName": "opening_sj_063",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 983,
+      "sourceName": "opening_sj_064",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 984,
+      "sourceName": "opening_sj_065",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 985,
+      "sourceName": "opening_sj_066",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 986,
+      "sourceName": "opening_sj_067",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 987,
+      "sourceName": "opening_sj_068",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 988,
+      "sourceName": "opening_sj_069",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 989,
+      "sourceName": "opening_sj_070",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 990,
+      "sourceName": "opening_sj_071",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 991,
+      "sourceName": "opening_sj_072",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 992,
+      "sourceName": "opening_sj_073",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 993,
+      "sourceName": "opening_sj_074",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 994,
+      "sourceName": "opening_sj_075",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 995,
+      "sourceName": "opening_sj_076",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 996,
+      "sourceName": "opening_sj_077",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 997,
+      "sourceName": "opening_sj_078",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 998,
+      "sourceName": "opening_sj_079",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 999,
+      "sourceName": "opening_sj_080",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1000,
+      "sourceName": "opening_sj_081",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1001,
+      "sourceName": "opening_sj_082",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1002,
+      "sourceName": "opening_sj_083",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1003,
+      "sourceName": "opening_sj_084",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1004,
+      "sourceName": "opening_sj_085",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1005,
+      "sourceName": "opening_sj_086",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1006,
+      "sourceName": "opening_sp_000",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1007,
+      "sourceName": "opening_sp_001",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1008,
+      "sourceName": "opening_sp_002",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1009,
+      "sourceName": "opening_sp_003",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1010,
+      "sourceName": "opening_sp_004",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1011,
+      "sourceName": "opening_sp_005",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1012,
+      "sourceName": "opening_sp_006",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1013,
+      "sourceName": "opening_sp_007",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1014,
+      "sourceName": "opening_sp_008",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1015,
+      "sourceName": "opening_sp_009",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1016,
+      "sourceName": "opening_sp_010",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1017,
+      "sourceName": "opening_sp_011",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1018,
+      "sourceName": "opening_sp_012",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1019,
+      "sourceName": "opening_sp_013",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1020,
+      "sourceName": "opening_sp_014",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1021,
+      "sourceName": "opening_sp_015",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1022,
+      "sourceName": "opening_sp_016",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1023,
+      "sourceName": "opening_sp_017",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1024,
+      "sourceName": "opening_sp_018",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1025,
+      "sourceName": "opening_sp_019",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1026,
+      "sourceName": "opening_sp_020",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1027,
+      "sourceName": "opening_sp_021",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1028,
+      "sourceName": "opening_sp_022",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1029,
+      "sourceName": "opening_sp_023",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1030,
+      "sourceName": "opening_sp_024",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1031,
+      "sourceName": "opening_sp_025",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1032,
+      "sourceName": "opening_sp_026",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1033,
+      "sourceName": "opening_sp_027",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1034,
+      "sourceName": "opening_sp_028",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1035,
+      "sourceName": "opening_sp_029",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1036,
+      "sourceName": "opening_sp_030",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1037,
+      "sourceName": "opening_sp_031",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1038,
+      "sourceName": "opening_sp_032",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1039,
+      "sourceName": "opening_sp_033",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1040,
+      "sourceName": "opening_sp_034",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1041,
+      "sourceName": "opening_sp_035",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1042,
+      "sourceName": "opening_sp_036",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1043,
+      "sourceName": "opening_sp_037",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1044,
+      "sourceName": "opening_sp_038",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1045,
+      "sourceName": "opening_sp_039",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1046,
+      "sourceName": "opening_sp_040",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1047,
+      "sourceName": "opening_sp_041",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1048,
+      "sourceName": "opening_sp_042",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1049,
+      "sourceName": "opening_sp_043",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1050,
+      "sourceName": "opening_sp_044",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1051,
+      "sourceName": "opening_sp_045",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1052,
+      "sourceName": "opening_sp_046",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1053,
+      "sourceName": "opening_sp_047",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1054,
+      "sourceName": "opening_sp_048",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1055,
+      "sourceName": "opening_sp_049",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1056,
+      "sourceName": "opening_sp_050",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1057,
+      "sourceName": "opening_sp_051",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1058,
+      "sourceName": "opening_sp_052",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1059,
+      "sourceName": "opening_sp_053",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1060,
+      "sourceName": "opening_sp_054",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1061,
+      "sourceName": "opening_sp_055",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1062,
+      "sourceName": "opening_sp_056",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1063,
+      "sourceName": "opening_sp_057",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1064,
+      "sourceName": "opening_sp_058",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1065,
+      "sourceName": "opening_sp_059",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1066,
+      "sourceName": "opening_sp_060",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1067,
+      "sourceName": "opening_sp_061",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1068,
+      "sourceName": "opening_sp_062",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1069,
+      "sourceName": "opening_sp_063",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1070,
+      "sourceName": "opening_sp_064",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1071,
+      "sourceName": "opening_sp_065",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1072,
+      "sourceName": "opening_sp_066",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1073,
+      "sourceName": "opening_sp_067",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1074,
+      "sourceName": "opening_sp_068",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1075,
+      "sourceName": "opening_sp_069",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1076,
+      "sourceName": "opening_sp_070",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1077,
+      "sourceName": "opening_sp_071",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1078,
+      "sourceName": "opening_sp_072",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1079,
+      "sourceName": "opening_sp_073",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1080,
+      "sourceName": "opening_sp_074",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1081,
+      "sourceName": "opening_sp_075",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1082,
+      "sourceName": "opening_sp_076",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1083,
+      "sourceName": "opening_sp_077",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1084,
+      "sourceName": "opening_sp_078",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1085,
+      "sourceName": "opening_sp_079",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1086,
+      "sourceName": "opening_sp_080",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1087,
+      "sourceName": "opening_sp_081",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1088,
+      "sourceName": "opening_sp_082",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1089,
+      "sourceName": "opening_sp_083",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1090,
+      "sourceName": "opening_sp_084",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1091,
+      "sourceName": "opening_sp_085",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1092,
+      "sourceName": "opening_sp_086",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1093,
+      "sourceName": "opening_sp_087",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1094,
+      "sourceName": "opening_sp_088",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1095,
+      "sourceName": "opening_sp_089",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1096,
+      "sourceName": "opening_sp_090",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1097,
+      "sourceName": "opening_sp_091",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1098,
+      "sourceName": "opening_sp_092",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1099,
+      "sourceName": "opening_sp_093",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1100,
+      "sourceName": "opening_sp_094",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1101,
+      "sourceName": "opening_sp_095",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1102,
+      "sourceName": "church_carolus_1",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1103,
+      "sourceName": "church_carolus_2",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1104,
+      "sourceName": "church_carolus_3",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1105,
+      "sourceName": "church_carolus_4",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1106,
+      "sourceName": "church_carolus_5",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1107,
+      "sourceName": "church_carolus_6",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1108,
+      "sourceName": "church_carolus_7",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1109,
+      "sourceName": "church_carolus_8",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1110,
+      "sourceName": "church_carolus_9",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1111,
+      "sourceName": "church_carolus_10",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1116,
+      "sourceName": "church_carolus_11",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1117,
+      "sourceName": "church_carolus_lit_glass",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1119,
+      "sourceName": "church_carolus_lit_glass_x",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1121,
+      "sourceName": "church_stjacob_1",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1122,
+      "sourceName": "church_stjacob_2",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1123,
+      "sourceName": "church_stjacob_3",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1124,
+      "sourceName": "church_stjacob_4",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1125,
+      "sourceName": "church_stjacob_5",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1126,
+      "sourceName": "church_stjacob_6",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1127,
+      "sourceName": "church_stjacob_7",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1128,
+      "sourceName": "church_stjacob_8",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1129,
+      "sourceName": "church_stjacob_9",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1130,
+      "sourceName": "church_stjacob_10",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1131,
+      "sourceName": "church_stjacob_lit_glass",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1133,
+      "sourceName": "church_stjacob_lit_glass_x",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1135,
+      "sourceName": "church_stpaul_1",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1136,
+      "sourceName": "church_stpaul_2",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1137,
+      "sourceName": "church_stpaul_3",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1138,
+      "sourceName": "church_stpaul_4",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1141,
+      "sourceName": "church_stpaul_5",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1142,
+      "sourceName": "church_stpaul_6",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1143,
+      "sourceName": "church_stpaul_7",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1144,
+      "sourceName": "church_stpaul_8",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1145,
+      "sourceName": "church_stpaul_9",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1146,
+      "sourceName": "church_stpaul_10",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1147,
+      "sourceName": "church_stpaul_11",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1148,
+      "sourceName": "church_stpaul_12",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1149,
+      "sourceName": "church_stpaul_lit_glass",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    },
+    {
+      "sourceIndex": 1151,
+      "sourceName": "church_stpaul_lit_glass_x",
+      "sourceParentIndex": 798,
+      "role": "church exterior or opening anchor"
+    }
+  ],
+  "rooms": [
+    {
+      "id": "cathedral",
+      "sourceIndices": [
+        8900
+      ],
+      "exteriorSourceIndex": 2105,
+      "sourceName": "ROOM_cathedral",
+      "bounds": [
+        -297.75,
+        -2.967,
+        145.53,
+        -226.25,
+        50.957215,
+        269.83806
+      ],
+      "reach": 95,
+      "budgeted": false,
+      "openingCount": 89,
+      "doorCount": 1,
+      "lightMetadata": "extras.room.lights",
+      "openingMetadata": "extras.room.openings"
+    },
+    {
+      "id": "townhall",
+      "sourceIndices": [
+        8986
+      ],
+      "exteriorSourceIndex": 2663,
+      "sourceName": "ROOM_townhall",
+      "bounds": [
+        -291.18,
+        0.18,
+        34.230001,
+        -222.82,
+        36.3,
+        61.54
+      ],
+      "reach": 95,
+      "budgeted": false,
+      "openingCount": 211,
+      "doorCount": 1,
+      "lightMetadata": "extras.room.lights",
+      "openingMetadata": "extras.room.openings"
+    },
+    {
+      "id": "vleeshuis",
+      "sourceIndices": [
+        9088
+      ],
+      "exteriorSourceIndex": 2508,
+      "sourceName": "ROOM_vleeshuis",
+      "bounds": [
+        -139.141999,
+        0.04,
+        88.666,
+        -92.915,
+        29.850001,
+        109.070181
+      ],
+      "reach": 95,
+      "budgeted": false,
+      "openingCount": 143,
+      "doorCount": 2,
+      "lightMetadata": "extras.room.lights",
+      "openingMetadata": "extras.room.openings"
+    },
+    {
+      "id": "cathedral_upper",
+      "sourceIndices": [
+        8860
+      ],
+      "exteriorSourceIndex": 2105,
+      "sourceName": "ROOM_cathedral_upper",
+      "bounds": [
+        -279.9,
+        17.25,
+        149.03,
+        -244.1,
+        93.150002,
+        252.729997
+      ],
+      "reach": 95,
+      "budgeted": false,
+      "openingCount": 104,
+      "doorCount": 0,
+      "lightMetadata": "extras.room.lights",
+      "openingMetadata": "extras.room.openings"
+    },
+    {
+      "id": "carolus",
+      "sourceIndices": [
+        9382
+      ],
+      "exteriorSourceIndex": 798,
+      "sourceName": "ROOM_carolus",
+      "bounds": [
+        -137.459999,
+        -0.4575,
+        168.5,
+        -94.84,
+        42.848623,
+        203.5
+      ],
+      "reach": 95,
+      "budgeted": false,
+      "openingCount": 120,
+      "doorCount": 1,
+      "lightMetadata": "extras.room.lights",
+      "openingMetadata": "extras.room.openings"
+    },
+    {
+      "id": "stpaul",
+      "sourceIndices": [
+        9812
+      ],
+      "exteriorSourceIndex": 798,
+      "sourceName": "ROOM_stpaul",
+      "bounds": [
+        65.430004,
+        -3.28035,
+        246.59,
+        140.020001,
+        36.039999,
+        285.41
+      ],
+      "reach": 95,
+      "budgeted": false,
+      "openingCount": 96,
+      "doorCount": 1,
+      "lightMetadata": "extras.room.lights",
+      "openingMetadata": "extras.room.openings"
+    },
+    {
+      "id": "stjacob",
+      "sourceIndices": [
+        9897
+      ],
+      "exteriorSourceIndex": 798,
+      "sourceName": "ROOM_stjacob",
+      "bounds": [
+        -134.369998,
+        -2.26875,
+        277.129999,
+        -56.27,
+        37.38,
+        331.969999
+      ],
+      "reach": 95,
+      "budgeted": false,
+      "openingCount": 87,
+      "doorCount": 1,
+      "lightMetadata": "extras.room.lights",
+      "openingMetadata": "extras.room.openings"
+    },
+    {
+      "id": "shop:tobacco_markt",
+      "sourceIndices": [
+        10246
+      ],
+      "exteriorSourceIndex": 3990,
+      "sourceName": "ROOM_shop:tobacco_markt",
+      "bounds": [
+        -222.1,
+        0.0,
+        65.93,
+        -210.65,
+        3.38,
+        70.84
+      ],
+      "reach": 90,
+      "budgeted": true,
+      "openingCount": 2,
+      "doorCount": 1,
+      "lightMetadata": "extras.room.lights",
+      "openingMetadata": "extras.room.openings",
+      "liningSourceIndex": 4000
+    },
+    {
+      "id": "shop:cobbler_lane",
+      "sourceIndices": [
+        10369
+      ],
+      "exteriorSourceIndex": 4027,
+      "sourceName": "ROOM_shop:cobbler_lane",
+      "bounds": [
+        -36.331689,
+        0.0,
+        72.487068,
+        -29.9966,
+        3.38,
+        84.29827
+      ],
+      "reach": 90,
+      "budgeted": true,
+      "openingCount": 2,
+      "doorCount": 1,
+      "lightMetadata": "extras.room.lights",
+      "openingMetadata": "extras.room.openings",
+      "liningSourceIndex": 4037
+    },
+    {
+      "id": "shop:draper_markt",
+      "sourceIndices": [
+        10426
+      ],
+      "exteriorSourceIndex": 4044,
+      "sourceName": "ROOM_shop:draper_markt",
+      "bounds": [
+        -222.002,
+        0.0,
+        112.76,
+        -214.84,
+        3.38,
+        124.1
+      ],
+      "reach": 90,
+      "budgeted": true,
+      "openingCount": 5,
+      "doorCount": 1,
+      "lightMetadata": "extras.room.lights",
+      "openingMetadata": "extras.room.openings",
+      "liningSourceIndex": 4054
+    },
+    {
+      "id": "shop:butcher_vlees",
+      "sourceIndices": [
+        10489
+      ],
+      "exteriorSourceIndex": 4064,
+      "sourceName": "ROOM_shop:butcher_vlees",
+      "bounds": [
+        -101.9,
+        0.0,
+        65.15,
+        -91.9,
+        3.38,
+        70.17
+      ],
+      "reach": 90,
+      "budgeted": true,
+      "openingCount": 2,
+      "doorCount": 1,
+      "lightMetadata": "extras.room.lights",
+      "openingMetadata": "extras.room.openings",
+      "liningSourceIndex": 4074
+    },
+    {
+      "id": "shop:apothecary_markt",
+      "sourceIndices": [
+        10627
+      ],
+      "exteriorSourceIndex": 4098,
+      "sourceName": "ROOM_shop:apothecary_markt",
+      "bounds": [
+        -214.44,
+        0.0,
+        114.35,
+        -207.998,
+        3.38,
+        124.1
+      ],
+      "reach": 90,
+      "budgeted": true,
+      "openingCount": 4,
+      "doorCount": 1,
+      "lightMetadata": "extras.room.lights",
+      "openingMetadata": "extras.room.openings",
+      "liningSourceIndex": 4108
+    },
+    {
+      "id": "shop:barber_lane",
+      "sourceIndices": [
+        10698
+      ],
+      "exteriorSourceIndex": 4117,
+      "sourceName": "ROOM_shop:barber_lane",
+      "bounds": [
+        -0.463144,
+        0.0,
+        80.939946,
+        10.860753,
+        3.38,
+        86.220334
+      ],
+      "reach": 90,
+      "budgeted": true,
+      "openingCount": 2,
+      "doorCount": 1,
+      "lightMetadata": "extras.room.lights",
+      "openingMetadata": "extras.room.openings",
+      "liningSourceIndex": 4127
+    },
+    {
+      "id": "shop:hatter_markt",
+      "sourceIndices": [
+        10764
+      ],
+      "exteriorSourceIndex": 4134,
+      "sourceName": "ROOM_shop:hatter_markt",
+      "bounds": [
+        -304.1,
+        0.0,
+        91.48,
+        -294.33,
+        3.38,
+        98.41
+      ],
+      "reach": 90,
+      "budgeted": true,
+      "openingCount": 2,
+      "doorCount": 1,
+      "lightMetadata": "extras.room.lights",
+      "openingMetadata": "extras.room.openings",
+      "liningSourceIndex": 4144
+    },
+    {
+      "id": "shop:printer_jezuiet",
+      "sourceIndices": [
+        10893
+      ],
+      "exteriorSourceIndex": 4169,
+      "sourceName": "ROOM_shop:printer_jezuiet",
+      "bounds": [
+        -116.23935,
+        0.0,
+        135.404334,
+        -108.185136,
+        3.38,
+        148.510575
+      ],
+      "reach": 90,
+      "budgeted": true,
+      "openingCount": 2,
+      "doorCount": 1,
+      "lightMetadata": "extras.room.lights",
+      "openingMetadata": "extras.room.openings",
+      "liningSourceIndex": 4179
+    },
+    {
+      "id": "shop:books_kathedraal",
+      "sourceIndices": [
+        10954
+      ],
+      "exteriorSourceIndex": 4186,
+      "sourceName": "ROOM_shop:books_kathedraal",
+      "bounds": [
+        -200.1,
+        0.0,
+        162.95,
+        -189.32,
+        3.38,
+        168.4
+      ],
+      "reach": 90,
+      "budgeted": true,
+      "openingCount": 2,
+      "doorCount": 1,
+      "lightMetadata": "extras.room.lights",
+      "openingMetadata": "extras.room.openings",
+      "liningSourceIndex": 4196
+    },
+    {
+      "id": "shop:clock_markt",
+      "sourceIndices": [
+        11014
+      ],
+      "exteriorSourceIndex": 4203,
+      "sourceName": "ROOM_shop:clock_markt",
+      "bounds": [
+        -199.752011,
+        0.0,
+        87.434934,
+        -191.40418,
+        3.38,
+        97.577022
+      ],
+      "reach": 90,
+      "budgeted": true,
+      "openingCount": 2,
+      "doorCount": 1,
+      "lightMetadata": "extras.room.lights",
+      "openingMetadata": "extras.room.openings",
+      "liningSourceIndex": 4213
+    },
+    {
+      "id": "home:cellar",
+      "sourceIndices": [
+        11330
+      ],
+      "exteriorSourceIndex": 4419,
+      "sourceName": "ROOM_home:cellar",
+      "bounds": [
+        -110.162001,
+        -2.7,
+        136.045998,
+        -104.387916,
+        3.18,
+        147.063403
+      ],
+      "reach": 90,
+      "budgeted": true,
+      "openingCount": 2,
+      "doorCount": 1,
+      "lightMetadata": "extras.room.lights",
+      "openingMetadata": "extras.room.openings",
+      "liningSourceIndex": 4429
+    },
+    {
+      "id": "home:garret",
+      "sourceIndices": [
+        11389
+      ],
+      "exteriorSourceIndex": 4435,
+      "sourceName": "ROOM_home:garret",
+      "bounds": [
+        -118.515,
+        -0.12,
+        117.9,
+        -113.965,
+        18.5,
+        129.3
+      ],
+      "reach": 90,
+      "budgeted": true,
+      "openingCount": 2,
+      "doorCount": 1,
+      "lightMetadata": "extras.room.lights",
+      "openingMetadata": "extras.room.openings",
+      "liningSourceIndex": 4445
+    },
+    {
+      "id": "home:widow",
+      "sourceIndices": [
+        11451
+      ],
+      "exteriorSourceIndex": 4449,
+      "sourceName": "ROOM_home:widow",
+      "bounds": [
+        -175.71857,
+        -0.32,
+        68.813026,
+        -171.06287,
+        3.07,
+        74.132053
+      ],
+      "reach": 90,
+      "budgeted": true,
+      "openingCount": 2,
+      "doorCount": 1,
+      "lightMetadata": "extras.room.lights",
+      "openingMetadata": "extras.room.openings",
+      "liningSourceIndex": 4459
+    },
+    {
+      "id": "tavern:engel",
+      "sourceIndices": [
+        11879
+      ],
+      "exteriorSourceIndex": 4739,
+      "sourceName": "ROOM_tavern:engel",
+      "bounds": [
+        -222.1,
+        0.0,
+        71.25,
+        -208.89,
+        3.78,
+        76.92
+      ],
+      "reach": 90,
+      "budgeted": true,
+      "openingCount": 2,
+      "doorCount": 1,
+      "lightMetadata": "extras.room.lights",
+      "openingMetadata": "extras.room.openings",
+      "liningSourceIndex": 4749
+    }
+  ],
+  "entrances": [
+    {
+      "id": "cathedral_west",
+      "roomId": "cathedral",
+      "sourceIndices": [
+        2194,
+        2101,
+        2103
+      ],
+      "markerSourceIndices": [
+        2194
+      ],
+      "hingeSourceIndices": [
+        2101,
+        2103
+      ],
+      "exteriorSourceIndex": 2105,
+      "centre": [
+        -262,
+        3,
+        149.53
+      ],
+      "out": [
+        0,
+        0,
+        -1
+      ],
+      "bounds": [
+        -267.9,
+        -0.2,
+        143.93,
+        -256.1,
+        12.5,
+        152.20000000000002
+      ],
+      "sourceOpen": true,
+      "label": "the west door of the cathedral",
+      "doorMetadataIndex": 0
+    },
+    {
+      "id": "townhall_main",
+      "roomId": "townhall",
+      "sourceIndices": [
+        2807,
+        2421,
+        2429
+      ],
+      "markerSourceIndices": [
+        2807
+      ],
+      "hingeSourceIndices": [
+        2421,
+        2429
+      ],
+      "exteriorSourceIndex": 2663,
+      "centre": [
+        -257,
+        1.9400000000000002,
+        60.69
+      ],
+      "out": [
+        0,
+        0,
+        1
+      ],
+      "bounds": [
+        -259.4,
+        -0.2,
+        58.989999999999995,
+        -254.6,
+        3.98,
+        63.589999999999996
+      ],
+      "sourceOpen": true,
+      "label": "townhall_main",
+      "doorMetadataIndex": 0
+    },
+    {
+      "id": "vleeshuis_main",
+      "roomId": "vleeshuis",
+      "sourceIndices": [
+        2513,
+        2438,
+        2446
+      ],
+      "markerSourceIndices": [
+        2513
+      ],
+      "hingeSourceIndices": [
+        2438,
+        2446
+      ],
+      "exteriorSourceIndex": 2508,
+      "centre": [
+        -121.95,
+        1.3567999999999998,
+        92.4
+      ],
+      "out": [
+        0,
+        0,
+        -1
+      ],
+      "bounds": [
+        -123.85000000000001,
+        -0.33999999999999997,
+        89.5,
+        -120.05,
+        2.9536,
+        93.60000000000001
+      ],
+      "sourceOpen": true,
+      "label": "vleeshuis_main",
+      "doorMetadataIndex": 0
+    },
+    {
+      "id": "vleeshuis_north",
+      "roomId": "vleeshuis",
+      "sourceIndices": [
+        2530,
+        2455,
+        2463
+      ],
+      "markerSourceIndices": [
+        2530
+      ],
+      "hingeSourceIndices": [
+        2455,
+        2463
+      ],
+      "exteriorSourceIndex": 2508,
+      "centre": [
+        -115.65,
+        1.3567999999999998,
+        107.10000000000001
+      ],
+      "out": [
+        0,
+        0,
+        1
+      ],
+      "bounds": [
+        -117.55,
+        -0.33999999999999997,
+        105.9,
+        -113.75,
+        2.9536,
+        110
+      ],
+      "sourceOpen": true,
+      "label": "vleeshuis_north",
+      "doorMetadataIndex": 1
+    },
+    {
+      "id": "carolus_main",
+      "roomId": "carolus",
+      "sourceIndices": [
+        799,
+        3224,
+        3232
+      ],
+      "markerSourceIndices": [
+        799
+      ],
+      "hingeSourceIndices": [
+        3224,
+        3232
+      ],
+      "exteriorSourceIndex": 798,
+      "centre": [
+        -116,
+        3.35,
+        169.25
+      ],
+      "out": [
+        0,
+        0,
+        -1
+      ],
+      "bounds": [
+        -118.7,
+        0.09999999999999998,
+        166.35,
+        -113.3,
+        6.5,
+        171.25
+      ],
+      "sourceOpen": true,
+      "label": "carolus_main",
+      "doorMetadataIndex": 0
+    },
+    {
+      "id": "stpaul_west",
+      "roomId": "stpaul",
+      "sourceIndices": [
+        1007,
+        3321,
+        3329
+      ],
+      "markerSourceIndices": [
+        1007
+      ],
+      "hingeSourceIndices": [
+        3321,
+        3329
+      ],
+      "exteriorSourceIndex": 798,
+      "centre": [
+        140.02,
+        2.1,
+        266
+      ],
+      "out": [
+        1,
+        0,
+        0
+      ],
+      "bounds": [
+        138.42000000000002,
+        -0.35,
+        263.7,
+        142.92000000000002,
+        4.45,
+        268.3
+      ],
+      "sourceOpen": true,
+      "label": "stpaul_west",
+      "doorMetadataIndex": 0
+    },
+    {
+      "id": "stjacob_west",
+      "roomId": "stjacob",
+      "sourceIndices": [
+        922,
+        3339,
+        3347
+      ],
+      "markerSourceIndices": [
+        922
+      ],
+      "hingeSourceIndices": [
+        3339,
+        3347
+      ],
+      "exteriorSourceIndex": 798,
+      "centre": [
+        -56.269999999999996,
+        1.9143999999999999,
+        305
+      ],
+      "out": [
+        1,
+        0,
+        0
+      ],
+      "bounds": [
+        -58.37,
+        -0.35,
+        302.2,
+        -53.37,
+        4.0788,
+        307.8
+      ],
+      "sourceOpen": true,
+      "label": "stjacob_west",
+      "doorMetadataIndex": 0
+    },
+    {
+      "id": "shop:tobacco_markt",
+      "roomId": "shop:tobacco_markt",
+      "sourceIndices": [
+        4002,
+        3991
+      ],
+      "markerSourceIndices": [
+        4002
+      ],
+      "hingeSourceIndices": [
+        3991
+      ],
+      "exteriorSourceIndex": 3990,
+      "centre": [
+        -222,
+        1.2,
+        67.0575
+      ],
+      "out": [
+        -1,
+        0,
+        0
+      ],
+      "bounds": [
+        -224.6,
+        -0.3,
+        66.20750000000001,
+        -220.5,
+        3.15,
+        67.9075
+      ],
+      "sourceOpen": true,
+      "label": "shop:tobacco_markt door",
+      "doorMetadataIndex": 0
+    },
+    {
+      "id": "shop:cobbler_lane",
+      "roomId": "shop:cobbler_lane",
+      "sourceIndices": [
+        4039,
+        4028
+      ],
+      "markerSourceIndices": [
+        4039
+      ],
+      "hingeSourceIndices": [
+        4028
+      ],
+      "exteriorSourceIndex": 4027,
+      "centre": [
+        -32.302301199999995,
+        1.2,
+        72.63950917499999
+      ],
+      "out": [
+        -0.09619028637333635,
+        0,
+        -0.9953629633492578
+      ],
+      "bounds": [
+        -33.398454463417536,
+        -0.3,
+        69.96980372687459,
+        -31.311957251593117,
+        3.15,
+        74.2143153634412
+      ],
+      "sourceOpen": true,
+      "label": "shop:cobbler_lane door",
+      "doorMetadataIndex": 0
+    },
+    {
+      "id": "shop:draper_markt",
+      "roomId": "shop:draper_markt",
+      "sourceIndices": [
+        4056,
+        4045
+      ],
+      "markerSourceIndices": [
+        4056
+      ],
+      "hingeSourceIndices": [
+        4045
+      ],
+      "exteriorSourceIndex": 4044,
+      "centre": [
+        -220.16,
+        1.2,
+        124
+      ],
+      "out": [
+        0,
+        0,
+        1
+      ],
+      "bounds": [
+        -221.01,
+        -0.3,
+        122.5,
+        -219.31,
+        3.15,
+        126.6
+      ],
+      "sourceOpen": true,
+      "label": "shop:draper_markt door",
+      "doorMetadataIndex": 0
+    },
+    {
+      "id": "shop:butcher_vlees",
+      "roomId": "shop:butcher_vlees",
+      "sourceIndices": [
+        4076,
+        4065
+      ],
+      "markerSourceIndices": [
+        4076
+      ],
+      "hingeSourceIndices": [
+        4065
+      ],
+      "exteriorSourceIndex": 4064,
+      "centre": [
+        -92,
+        1.2,
+        69.015
+      ],
+      "out": [
+        1,
+        0,
+        0
+      ],
+      "bounds": [
+        -93.5,
+        -0.3,
+        68.165,
+        -89.4,
+        3.15,
+        69.865
+      ],
+      "sourceOpen": true,
+      "label": "shop:butcher_vlees door",
+      "doorMetadataIndex": 0
+    },
+    {
+      "id": "shop:apothecary_markt",
+      "roomId": "shop:apothecary_markt",
+      "sourceIndices": [
+        4110,
+        4099
+      ],
+      "markerSourceIndices": [
+        4110
+      ],
+      "hingeSourceIndices": [
+        4099
+      ],
+      "exteriorSourceIndex": 4098,
+      "centre": [
+        -212.98,
+        1.2,
+        124
+      ],
+      "out": [
+        0,
+        0,
+        1
+      ],
+      "bounds": [
+        -213.82999999999998,
+        -0.3,
+        122.5,
+        -212.13,
+        3.15,
+        126.6
+      ],
+      "sourceOpen": true,
+      "label": "shop:apothecary_markt door",
+      "doorMetadataIndex": 0
+    },
+    {
+      "id": "shop:barber_lane",
+      "roomId": "shop:barber_lane",
+      "sourceIndices": [
+        4129,
+        4118
+      ],
+      "markerSourceIndices": [
+        4129
+      ],
+      "hingeSourceIndices": [
+        4118
+      ],
+      "exteriorSourceIndex": 4117,
+      "centre": [
+        -0.32921955,
+        1.2,
+        82.67462105000001
+      ],
+      "out": [
+        -0.9980742688725849,
+        0,
+        0.062030265310212954
+      ],
+      "bounds": [
+        -2.976938374582403,
+        -0.3,
+        81.733212523493,
+        1.22061757882256,
+        3.15,
+        83.68426286834827
+      ],
+      "sourceOpen": true,
+      "label": "shop:barber_lane door",
+      "doorMetadataIndex": 0
+    },
+    {
+      "id": "shop:hatter_markt",
+      "roomId": "shop:hatter_markt",
+      "sourceIndices": [
+        4146,
+        4135
+      ],
+      "markerSourceIndices": [
+        4146
+      ],
+      "hingeSourceIndices": [
+        4135
+      ],
+      "exteriorSourceIndex": 4134,
+      "centre": [
+        -304,
+        1.2,
+        93.1125
+      ],
+      "out": [
+        -1,
+        0,
+        0
+      ],
+      "bounds": [
+        -306.6,
+        -0.3,
+        92.2625,
+        -302.5,
+        3.15,
+        93.96249999999999
+      ],
+      "sourceOpen": true,
+      "label": "shop:hatter_markt door",
+      "doorMetadataIndex": 0
+    },
+    {
+      "id": "shop:printer_jezuiet",
+      "roomId": "shop:printer_jezuiet",
+      "sourceIndices": [
+        4181,
+        4170
+      ],
+      "markerSourceIndices": [
+        4181
+      ],
+      "hingeSourceIndices": [
+        4170
+      ],
+      "exteriorSourceIndex": 4169,
+      "centre": [
+        -111.91577565,
+        1.2,
+        148.27096175
+      ],
+      "out": [
+        0.2601004231317174,
+        0,
+        0.9655815708093758
+      ],
+      "bounds": [
+        -113.12667061988553,
+        -0.3,
+        146.601504034124,
+        -110.41877021466958,
+        3.15,
+        151.00255919376633
+      ],
+      "sourceOpen": true,
+      "label": "shop:printer_jezuiet door",
+      "doorMetadataIndex": 0
+    },
+    {
+      "id": "shop:books_kathedraal",
+      "roomId": "shop:books_kathedraal",
+      "sourceIndices": [
+        4198,
+        4187
+      ],
+      "markerSourceIndices": [
+        4198
+      ],
+      "hingeSourceIndices": [
+        4187
+      ],
+      "exteriorSourceIndex": 4186,
+      "centre": [
+        -200,
+        1.2,
+        164.2125
+      ],
+      "out": [
+        -1,
+        0,
+        0
+      ],
+      "bounds": [
+        -202.6,
+        -0.3,
+        163.3625,
+        -198.5,
+        3.15,
+        165.0625
+      ],
+      "sourceOpen": false,
+      "label": "shop:books_kathedraal door",
+      "doorMetadataIndex": 0
+    },
+    {
+      "id": "shop:clock_markt",
+      "roomId": "shop:clock_markt",
+      "sourceIndices": [
+        4215,
+        4204
+      ],
+      "markerSourceIndices": [
+        4215
+      ],
+      "hingeSourceIndices": [
+        4204
+      ],
+      "exteriorSourceIndex": 4203,
+      "centre": [
+        -195.28390175,
+        1.2,
+        87.684893
+      ],
+      "out": [
+        -0.27992089479656035,
+        0,
+        -0.9600230688146473
+      ],
+      "bounds": [
+        -196.82771568496352,
+        -0.3,
+        84.95090026050484,
+        -194.04800079931272,
+        3.15,
+        89.36286036379906
+      ],
+      "sourceOpen": true,
+      "label": "shop:clock_markt door",
+      "doorMetadataIndex": 0
+    },
+    {
+      "id": "home:cellar",
+      "roomId": "home:cellar",
+      "sourceIndices": [
+        4433,
+        4420
+      ],
+      "markerSourceIndices": [
+        4433
+      ],
+      "hingeSourceIndices": [
+        4420
+      ],
+      "exteriorSourceIndex": 4419,
+      "centre": [
+        -106.52613805,
+        1.2,
+        146.82378975
+      ],
+      "out": [
+        0.2601004231317174,
+        0,
+        0.9655815708093758
+      ],
+      "bounds": [
+        -107.73703301988553,
+        -0.3,
+        145.154332034124,
+        -105.02913261466958,
+        3.15,
+        149.55538719376634
+      ],
+      "sourceOpen": false,
+      "label": "home:cellar door",
+      "doorMetadataIndex": 0
+    },
+    {
+      "id": "home:garret",
+      "roomId": "home:garret",
+      "sourceIndices": [
+        4447,
+        4436
+      ],
+      "markerSourceIndices": [
+        4447
+      ],
+      "hingeSourceIndices": [
+        4436
+      ],
+      "exteriorSourceIndex": 4435,
+      "centre": [
+        -114.61500000000001,
+        1.2,
+        118
+      ],
+      "out": [
+        0,
+        0,
+        -1
+      ],
+      "bounds": [
+        -115.465,
+        -0.3,
+        115.4,
+        -113.76500000000001,
+        3.15,
+        119.5
+      ],
+      "sourceOpen": false,
+      "label": "home:garret door",
+      "doorMetadataIndex": 0
+    },
+    {
+      "id": "home:widow",
+      "roomId": "home:widow",
+      "sourceIndices": [
+        4461,
+        4450
+      ],
+      "markerSourceIndices": [
+        4461
+      ],
+      "hingeSourceIndices": [
+        4450
+      ],
+      "exteriorSourceIndex": 4449,
+      "centre": [
+        -172.7229011,
+        1.2,
+        73.8149956
+      ],
+      "out": [
+        0.27992089479656035,
+        0,
+        0.9600230688146473
+      ],
+      "bounds": [
+        -173.9588020506873,
+        -0.3,
+        72.13702823620095,
+        -171.1790871650365,
+        3.15,
+        76.54898833949517
+      ],
+      "sourceOpen": false,
+      "label": "home:widow door",
+      "doorMetadataIndex": 0
+    },
+    {
+      "id": "tavern:engel",
+      "roomId": "tavern:engel",
+      "sourceIndices": [
+        4751,
+        4740
+      ],
+      "markerSourceIndices": [
+        4751
+      ],
+      "hingeSourceIndices": [
+        4740
+      ],
+      "exteriorSourceIndex": 4739,
+      "centre": [
+        -222,
+        1.2,
+        72.56750000000001
+      ],
+      "out": [
+        -1,
+        0,
+        0
+      ],
+      "bounds": [
+        -224.6,
+        -0.3,
+        71.6675,
+        -220.4,
+        3.15,
+        73.46750000000002
+      ],
+      "sourceOpen": true,
+      "label": "tavern:engel door",
+      "doorMetadataIndex": 0
+    }
+  ],
+  "checks": [
+    "Every referenced source index retains its exact snapshot name.",
+    "Every room retains fog, lights, reach, budgeted and opening metadata.",
+    "Every entrance has exterior opening markers and articulated door hinges.",
+    "House rooms retain their matching dark lining and independent shutter roots.",
+    "Door collision is owned by Doors, not permanent shell collision.",
+    "Night room lights resolve from the native light configuration.",
+    "Townhall, Vleeshuis and church parent relationships remain unchanged.",
+    "Editor subsets reference shared roots; runtime loads each root once.",
+    "Close views check material-appropriate geometry bevels on exposed edges."
+  ],
+  "exceptions": [
+    {
+      "rule": "Model edges and materials",
+      "scope": "Hidden/mating shell seams, glazing and thin sheet lips",
+      "reason": "Keep construction seams fitted and glass/sheet thickness physically plausible. Exposed stone, wood and iron arrises still require inspection and geometric bevels."
+    }
+  ],
+  "delegatedPlaces": {
+    "harbour": [
+      "shop:bakery_rijn",
+      "shop:bakery_steen",
+      "shop:grocer_canal",
+      "shop:chandler_werf",
+      "shop:pawn_vis",
+      "shop:colonial_steen",
+      "shop:roaster_canal",
+      "home:merchant",
+      "tavern:ankere",
+      "tavern:schipke",
+      "tavern:vliet",
+      "tavern:bassin",
+      "poesje"
+    ],
+    "outer": [
+      "shop:bakery_south",
+      "shop:grocer_south",
+      "shop:cobbler_east",
+      "home:alley",
+      "tavern:linde",
+      "tavern:zwarte_kat"
+    ]
+  }
+}

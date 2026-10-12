@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "provenance": "Authored source regex/persona facts and original pure fixtures recovered once. Native C# owns deals, checks and purchases.",
+  "hashes": {
+    "server/src/town/haggle.ts": "2c9158840a8ee2fc99e944afea2f75daa6f6a353dd727e89fc828c2f2e431868",
+    "server/src/town/haggleRoutes.ts": "cbcc3d47ee7247c3691ddf51905043d796a97a90f765a3dd0f9f7bb94f96b94c",
+    "server/src/town/police.ts": "c5db7512ec37e0806e05a9b1cb9a1fe8d7fe713b05e729eb81101af9c43fffb1",
+    "server/src/trade.ts": "b59055bc6ded49efdc15e99ffd89bcfcd6ce9402a532fbea133c8e81d9449bf9"
+  }
+}

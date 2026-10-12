@@ -1,0 +1,12 @@
+// Constant ware tables captured through the original dynamic seller lookup; no player database or runtime Node dependency.
+import {openDb} from '../../server/src/db.ts';
+import {waresOf} from '../../server/src/trade.ts';
+import {TRADES} from '../../server/src/town/places.ts';
+import {dropTownCache} from '../../server/src/town/store.ts';
+import {NEW_SHOPS,OLD_SHOP_TRADE} from '../../shared/shops.ts';
+import {writeFileSync} from 'node:fs';
+process.env.SCHELDEMIST_TOWN_SEED='1873';process.env.SCHELDEMIST_NO_AI='1';const db=openDb(':memory:');const id='native_ware_rule';db.prepare("INSERT INTO npc(id,name,role,district,faction,persona_json,spot_id,active) VALUES(?,'Native ware rule','rule','town',NULL,'{}',NULL,1)").run(id);
+const tradeWares:Record<string,unknown>={};const person:any={id,name:'Native ware rule',first:'Native',surname:'rule',age:40,sex:'m',household:99999,family_role:'single',trade:'baker',faction:null,kind:'shopkeeper',home:{house:0,x:0,z:0,sx:0,sz:0},work:{place:'home',kind:'post'},sched:{day:[],sunday:[]},stats:{},dog:null};
+for(const trade of Object.keys(TRADES)){person.trade=trade;db.prepare('INSERT OR REPLACE INTO resident(id,household,trade,data_json) VALUES(?,99999,?,?)').run(id,trade,JSON.stringify(person));dropTownCache(db);const wares=waresOf(db,id);if(wares.length)tradeWares[trade]=wares;}
+writeFileSync('native-godot/services/data/native-trade.json',JSON.stringify({version:1,provenance:'Original dynamic base seller lookup; fresh isolated seed1873. Authored constants only.',tradeWares,stallWares:{fish:[{kind:'herring',price_c:5},{kind:'eel',price_c:12}],bread:[{kind:'bread',price_c:6}],veg:[{kind:'apple',price_c:2}]},shopTrades:{...OLD_SHOP_TRADE,...Object.fromEntries(NEW_SHOPS.map(s=>[s.id,s.trade]))}},null,2)+'\n');db.close();console.log(JSON.stringify({trades:Object.keys(tradeWares).length,shops:NEW_SHOPS.length}));
+

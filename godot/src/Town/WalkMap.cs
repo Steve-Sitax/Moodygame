@@ -8,15 +8,9 @@ using Godot;
 namespace Scheldemist.Town;
 
 /// <summary>
-/// Where a townsperson can walk and how high the ground is: the browser world's own answers, dumped by the bake
-/// (tools/godot/export-scene.mjs writes town_walk.bin and town_walk.json beside the town; `--walk-only` for these
-/// alone). The world's walk rules (world/rijnkaai.ts, world/city.ts) are not ported; the townspeople keep the game's
-/// walk grid (docs/godot-port.md). Three layers over the walk map's area:
-///   open: 1 m cells, as game/crowd.ts NavGrid.build opens them (half a metre off walls and water, a body's width
-///         off the solids that stood there at bake time)
-///   free: 0.25 m cells, World.isFree for a walker's body (0.25 m; 0.15 m on the town wall's narrow stairs)
-///   base: 0.5 m cells, World.baseAt (the height of the walkable ground) in centimetres
-/// What moves in the browser (a cart put down, a crane travelling) is as it stood at the bake.
+/// Native scene support, static footprints and current bodies for crowd navigation. The native town supplies
+/// quarter-metre clearance/heights and one-metre crowd cells; the legacy loader can still read old walk dumps.
+/// Long-range routes use static support links. Local walking also avoids the main thread's sampled live bodies.
 /// </summary>
 public sealed class WalkMap
 {
@@ -29,10 +23,15 @@ public sealed class WalkMap
         public Puppet? Owner;
     }
     private static readonly List<BodyBox> bodies = new();
+    private readonly object bodyGate = new();
+    private readonly record struct BodySample(Aabb Box, Aabb World, Transform3D Inverse, bool Transit, bool Active, Puppet? Owner);
+    private BodySample[] bodySamples = Array.Empty<BodySample>();
     private ulong[] bodyBits = Array.Empty<ulong>();
     private int bodyWords;
     /// <summary>Live boxes absent from the static browser dump: piles, carts and posted people.</summary>
     public static void RegisterBody(Node3D node, Aabb box, bool transit = false, Puppet? owner = null) => bodies.Add(new() { Node = node, Box = box, Transit = transit, Owner = owner });
+    public IEnumerable<(Node3D Node,Aabb World,Puppet? Owner)> TransitBodies()
+    {foreach(var b in bodies)if(b.Transit&&b.Active&&GodotObject.IsInstanceValid(b.Node))yield return(b.Node,b.World,b.Owner);}
     public void RefreshBodies()
     {
         for (int i = bodies.Count - 1; i >= 0; i--)
@@ -43,20 +42,34 @@ public sealed class WalkMap
             b.Inverse = b.Node.GlobalTransform.AffineInverse();
             b.Active = b.Node is not CollisionObject3D collision || collision.CollisionLayer != 0;
         }
-        bodyWords = (bodies.Count + 63) / 64;
+        // Nodes are sampled on the main thread. Background route requests read only
+        // these copied values, with the bitset and its stride updated together.
+        lock (bodyGate)
+        {
+        if (bodySamples.Length != bodies.Count) bodySamples = new BodySample[bodies.Count];
+        for (int i = 0; i < bodies.Count; i++) {
+            var source = bodies[i];
+            bodySamples[i] = new(source.Box, source.World, source.Inverse, source.Transit, source.Active, source.Owner);
+        }
+        bodyWords = (bodySamples.Length + 63) / 64;
         int count = tileW * ((D + 7) / 8) * bodyWords;
         if (bodyBits.Length != count) bodyBits = new ulong[count];
         else Array.Clear(bodyBits);
-        for (int i = 0; i < bodies.Count; i++)
+        for (int i = 0; i < bodySamples.Length; i++)
         {
-            var b = bodies[i];
+            var b = bodySamples[i];
             if (!b.Active) continue;
             int x0 = Math.Max(0, (int)Math.Floor((b.World.Position.X - 0.3 - X0) / 8)), x1 = Math.Min(tileW - 1, (int)Math.Floor((b.World.End.X + 0.3 - X0) / 8));
             int z0 = Math.Max(0, (int)Math.Floor((b.World.Position.Z - 0.3 - Z0) / 8)), z1 = Math.Min((D + 7) / 8 - 1, (int)Math.Floor((b.World.End.Z + 0.3 - Z0) / 8));
             for (int z = z0; z <= z1; z++) for (int x = x0; x <= x1; x++) bodyBits[(z * tileW + x) * bodyWords + i / 64] |= 1ul << (i % 64);
         }
+        }
     }
-    private bool BodyFree(double x, double z, bool ignoreTransit = false, Puppet? owner = null)
+    private bool BodyFree(double x, double z, bool ignoreTransit = false, Puppet? owner = null,double margin=.3)
+    {
+        lock (bodyGate) return BodyFreeLocked(x, z, ignoreTransit, owner,margin);
+    }
+    private bool BodyFreeLocked(double x, double z, bool ignoreTransit, Puppet? owner,double margin)
     {
         int ix = (int)Math.Floor((x - X0) / 8), iz = (int)Math.Floor((z - Z0) / 8);
         if (ix < 0 || iz < 0 || ix >= tileW || iz >= (D + 7) / 8 || bodyWords == 0) return true;
@@ -68,13 +81,13 @@ public sealed class WalkMap
             while (bits != 0)
             {
                 int i = word * 64 + BitOperations.TrailingZeroCount(bits); bits &= bits - 1;
-                var b = bodies[i];
+                var b = bodySamples[i];
                 if ((owner != null && b.Owner == owner) || (ignoreTransit && b.Transit)) continue;
-                if (x < b.World.Position.X - 0.3 || x > b.World.End.X + 0.3 || z < b.World.Position.Z - 0.3 || z > b.World.End.Z + 0.3) continue;
+                if (x < b.World.Position.X - margin || x > b.World.End.X + margin || z < b.World.Position.Z - margin || z > b.World.End.Z + margin) continue;
                 if (double.IsNaN(feet)) feet = BaseAt(x, z);
                 if (b.World.End.Y <= feet + 0.36 || b.World.Position.Y >= feet + 1.75) continue;
                 var p = b.Inverse * new Godot.Vector3((float)x, (float)feet + 0.8f, (float)z);
-                if (p.X >= b.Box.Position.X - 0.3 && p.X <= b.Box.End.X + 0.3 && p.Z >= b.Box.Position.Z - 0.3 && p.Z <= b.Box.End.Z + 0.3) return false;
+                if (p.X >= b.Box.Position.X - margin && p.X <= b.Box.End.X + margin && p.Z >= b.Box.Position.Z - margin && p.Z <= b.Box.End.Z + margin) return false;
             }
         }
         return true;
@@ -84,6 +97,8 @@ public sealed class WalkMap
         int ix = (int)Math.Floor((x-X0)*4), iz = (int)Math.Floor((z-Z0)*4);
         return ix>=0 && iz>=0 && ix<W*4 && iz<D*4 && free[iz*W*4+ix]!=0 && BodyFree(x,z,owner:owner);
     }
+    /// <summary>A thin part at its actual point, against live boxes only; static ground already carries body-radius clearance.</summary>
+    public bool BodyClearanceFor(Puppet owner,double x,double z)=>BodyFree(x,z,owner:owner,margin:.025);
     public double X0, Z0;
     public int W, D;
     public byte[] BrowserReached = Array.Empty<byte>();
@@ -94,9 +109,79 @@ public sealed class WalkMap
     private byte[] free = Array.Empty<byte>();
     private short[] ground = Array.Empty<short>();
     private float[] low = Array.Empty<float>(), high = Array.Empty<float>();
+    private bool nativeHeights;
+    public bool IsNative => nativeHeights;
+    private short[] nativeQuarterHeights = Array.Empty<short>();
     private int tileW;
     /// <summary>Where the stalls' and shops' keepers stand (game/stalls.ts sellerSpots, as the bake's town had them): x, z, yaw.</summary>
     public Dictionary<string, double[]> Sellers = new();
+
+    /// <summary>A scene-derived map, built once from native support triangles and current solid footprints.
+    /// Quarter-metre heights keep narrow stairs separate from their half-metre display-height samples.</summary>
+    public static WalkMap FromNativeData(Rect2 bounds, byte[] freeCells, short[] baseHeights, short[] quarterHeights)
+    {
+        var map = new WalkMap { X0 = Math.Floor(bounds.Position.X), Z0 = Math.Floor(bounds.Position.Y), nativeHeights = true };
+        map.W = (int)Math.Ceiling(bounds.End.X - map.X0); map.D = (int)Math.Ceiling(bounds.End.Y - map.Z0);
+        if (freeCells.Length != map.W * map.D * 16 || baseHeights.Length != map.W * map.D * 4 || quarterHeights.Length != freeCells.Length)
+            throw new ArgumentException("Native navigation arrays do not match the supplied bounds");
+        map.free = freeCells; map.ground = baseHeights; map.nativeQuarterHeights = quarterHeights;
+        map.open = new byte[map.W * map.D];
+        map.BodyHeights();
+        map.RebuildNativeOpenCells();
+        map.RefreshBodies();
+        return map;
+    }
+
+    /// <summary>Discard temporary footprint height ranges after the native map has finished construction.</summary>
+    public void FinishNative() { RebuildNativeOpenCells(); low = high = Array.Empty<float>(); RefreshBodies(); }
+
+    /// <summary>Set native support connectivity after static footprint rasterization.</summary>
+    public void RestrictNativeTo(byte[] reached)
+    {
+        if (!nativeHeights || reached.Length != free.Length) throw new ArgumentException("Native reachability size differs from map");
+        for (int i = 0; i < free.Length; i++) if (reached[i] == 0) free[i] = 0;
+    }
+
+    public bool NativeCellFree(int x, int z) => x >= 0 && z >= 0 && x < W * 4 && z < D * 4 && free[z * W * 4 + x] != 0;
+
+    private void RebuildNativeOpenCells()
+    {
+        // Cell centres carry routes; a one-metre square need not fit inside a narrow stair. Clearance was
+        // already rasterized for a walker's radius, and links are checked against the quarter-metre heights.
+        for (int z = 0; z < D; z++) for (int x = 0; x < W; x++)
+            open[z * W + x] = free[(z * 4 + 2) * W * 4 + x * 4 + 2] != 0 ? (byte)3 : (byte)0;
+    }
+
+    private double NativeHeight(double x, double z)
+    {
+        int ix = (int)Math.Floor((x - X0) * 4), iz = (int)Math.Floor((z - Z0) * 4);
+        return ix >= 0 && iz >= 0 && ix < W * 4 && iz < D * 4 ? nativeQuarterHeights[iz * W * 4 + ix] / 100.0 : 0;
+    }
+
+    /// <summary>Native route links must follow continuous ground instead of crossing a ledge into a lower cell.
+    /// Legacy maps retain their existing route rule.</summary>
+    public bool CanStep(double ax, double az, double bx, double bz)
+        => StepSupported(ax, az, bx, bz, true);
+
+    /// <summary>Long-range plans follow static authored support and height. Crowd handles temporary people and movers.</summary>
+    public bool SupportsStep(double ax, double az, double bx, double bz)
+        => StepSupported(ax, az, bx, bz, false);
+
+    private bool StepSupported(double ax, double az, double bx, double bz, bool liveBodies)
+    {
+        if (!nativeHeights) return true;
+        int count = Math.Max(1, (int)Math.Ceiling(Math.Sqrt((bx - ax) * (bx - ax) + (bz - az) * (bz - az)) * 8));
+        double previous = NativeHeight(ax, az);
+        for (int i = 1; i <= count; i++)
+        {
+            double x = ax + (bx - ax) * i / count, z = az + (bz - az) * i / count;
+            if (liveBodies ? !PathFree(x, z) : !NativeCellFree((int)Math.Floor((x - X0) * 4), (int)Math.Floor((z - Z0) * 4))) return false;
+            double height = NativeHeight(x, z);
+            if (Math.Abs(height - previous) > 0.36) return false;
+            previous = height;
+        }
+        return true;
+    }
 
     /// <summary>Build the same cheap crowd lookup from the current native physics world, including edited props.</summary>
     public static WalkMap FromNative(Rect2 bounds, PhysicsDirectSpaceState3D space, uint layer)
@@ -178,7 +263,7 @@ public sealed class WalkMap
             if (free[z * W * 4 + x] != 0)
             {
                 int tile = z / 32 * tileW + x / 32;
-                float feet = (float)BaseAt(X0 + (x + 0.5) / 4, Z0 + (z + 0.5) / 4);
+                float feet = (float)(nativeHeights ? NativeHeight(X0 + (x + 0.5) / 4, Z0 + (z + 0.5) / 4) : BaseAt(X0 + (x + 0.5) / 4, Z0 + (z + 0.5) / 4));
                 low[tile] = Math.Min(low[tile], feet); high[tile] = Math.Max(high[tile], feet);
             }
     }
@@ -223,7 +308,7 @@ public sealed class WalkMap
                 {
                     int cell = iz * W * 4 + ix;
                     if (free[cell] == 0) continue;
-                    double x = X0 + (ix + 0.5) / 4, z = Z0 + (iz + 0.5) / 4, feet = BaseAt(x, z);
+                    double x = X0 + (ix + 0.5) / 4, z = Z0 + (iz + 0.5) / 4, feet = nativeHeights ? NativeHeight(x, z) : BaseAt(x, z);
                     if (maxY <= feet + 0.36 || minY >= feet + 1.75) continue;
                     a[0] = p; a[1] = q; a[2] = r;
                     int n = Clip(a, 3, b, (float)feet + 0.36f, true);
@@ -289,6 +374,7 @@ public sealed class WalkMap
     /// <summary>The height of the walkable ground (the browser's World.baseAt): quay 0, the Steen's ramp, the wall's walk, stairs.</summary>
     public double BaseAt(double x, double z)
     {
+        if (nativeHeights) return NativeHeight(x, z);
         int w = W * 2, d = D * 2;
         int ix = (int)Math.Floor((x - X0) * 2), iz = (int)Math.Floor((z - Z0) * 2);
         if (ix < 0 || iz < 0 || ix >= w || iz >= d) return 0;

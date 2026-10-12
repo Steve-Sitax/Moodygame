@@ -1,0 +1,14 @@
+// Conversion-time recovery only: no server and no player database.
+import {openDb} from '../../server/src/db.ts';
+import {poesjeDoor} from '../../server/src/interiors/poesje.ts';
+import {WEATHER_TEXT} from '../../server/src/day.ts';
+import {CONVO_FALLBACK} from '../../server/src/director/vocab.ts';
+import {writeFileSync,readFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+process.env.SCHELDEMIST_TOWN_SEED='1873';
+process.env.SCHELDEMIST_NO_AI='1';
+const db=openDb(':memory:');
+const files=['server/src/interiors/routes.ts','server/src/interiors/state.ts','server/src/interiors/tavern.ts','server/src/interiors/poesje.ts','server/src/director/convo.ts','shared/tempest.ts'];
+const data={version:1,provenance:'Authored constants and selected native cellar anchor; isolated seed1873. No player save.',poesjeDoor:poesjeDoor(db),weatherText:WEATHER_TEXT,convoChat:CONVO_FALLBACK.chat.map(f=>f('{A}','{B}')),hashes:Object.fromEntries(files.map(f=>[f,createHash('sha256').update(readFileSync(f)).digest('hex')]))};
+writeFileSync('native-godot/services/data/native-interiors.json',JSON.stringify(data,null,2)+'\n');
+db.close();console.log(JSON.stringify({door:data.poesjeDoor,chatLines:data.convoChat.length}));

@@ -1,0 +1,51 @@
+// One-time readonly ownership/shop rule recovery. Never opens a player database or starts HTTP/AI.
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { createHash } from "node:crypto";
+import { openDb } from "../../server/src/db.ts";
+import { stealables, THINGS, SIGHT_M } from "../../server/src/town/deeds.ts";
+import { decide, policePost, prisonGate } from "../../server/src/town/police.ts";
+import { town } from "../../server/src/town/store.ts";
+import { SHOP_LOOK, shopTrade } from "../../shared/shops.ts";
+import { callersNow } from "../../server/src/shops/state.ts";
+import { giftValue, feltWorth } from "../../server/src/town/gifts.ts";
+import { offerFrom, planFrom, taskFrom, dishonestPlan, perTrip } from "../../server/src/town/hire.ts";
+import { allowedReactions, kinWord, talkDownChance, stanceByWords } from "../../server/src/director/families.ts";
+import { shadowStep, onDutyFor } from "../../server/src/town/walkup.ts";
+import { ITEMS } from "../../server/src/trade.ts";
+import { FURNITURE } from "../../shared/homes.ts";
+process.env.SCHELDEMIST_TOWN_SEED = "1873";
+process.env.SCHELDEMIST_NO_AI = "1";
+const output = resolve(process.argv[2] ?? "native-godot/services/data");
+mkdirSync(output,{recursive:true});
+const db = openDb(":memory:");
+const assets = stealables(db);
+const shops = town(db).town.shops.map(s=>({...s,trade:shopTrade(s.id)}));
+const decisions: unknown[] = [];
+for(const thing of Object.keys(THINGS)) for(const seen of [false,true]) for(const owner_saw of [false,true])
+ for(const returned of [false,true]) for(const priors of [0,1,2]) for(const stance of ["confess","deny","return","excuse","other","refuse"]) {
+  const input = {deeds:[{thing,seen,owner_saw,returned,witnesses:seen?2:0}],record:{warnings:priors,fines:priors,arrests:0,fled:0},fledNow:0,stance,money_c:100,reason:seen?"deed":"talk"};
+  decisions.push({input,output:decide(input as never)});
+ }
+const callers: unknown[]=[];
+for(const day of [1,7]) for(const hour of [8,10,14,17]) {
+ db.prepare("UPDATE player SET day=?,hour=?,minute=20 WHERE id=1").run(day,hour);
+ callers.push({day,hour,expected:Object.fromEntries(callersNow(db))});
+}
+const giftValues=Object.fromEntries([...new Set([...Object.keys(ITEMS),...Object.keys(FURNITURE)])].map(kind=>[kind,giftValue(kind)]).filter(([,value])=>value!==undefined));
+const giftOracles=town(db).town.residents.slice(0,40).flatMap(resident=>["herring","bread","apple","lantern","rosary","coal","jenever"].flatMap(kind=>[0,1].map(foodToday=>({resident,kind,foodToday,expected:feltWorth(resident,kind,foodToday)}))));
+const offers=["I pay twenty-five centimes to carry two crates","Half a franc to watch my cart","A franc, all up front","I offer thirty now or forty centimes when done","Pay 20 for three loads","Carry 20 sacks","Give fifty when done","Pay 50 at the end","Carry a load for 50","Watch and mind the cart","Watch the cart and carry crates"].flatMap(words=>[0,20,25,30,40,50,100,300].map(model=>({words,model,offer:offerFrom(words,model),plan:planFrom(words),task:taskFrom(words)})));
+const dishonest=town(db).town.residents.slice(0,20).flatMap(resident=>[-2,0,5].flatMap(trust=>["half","end","now"].flatMap(plan=>[1,2,5].flatMap(expected=>[0,.15,.5,.999].map(roll=>({resident,trust,plan,expected,roll,output:dishonestPlan(resident,trust,plan,expected,()=>roll)}))))));
+const trips=Object.fromEntries(["crates","sacks","barrels","hides","rope","parcel","chests"].map(kind=>[kind,perTrip(kind)]));
+db.prepare("UPDATE player SET day=1,hour=14,minute=0,money_c=100 WHERE id=1").run();
+const familyAllowed=town(db).town.residents.slice(0,40).flatMap(resident=>[-2,-1,1,2].map(tone=>({resident,news:{gist: tone<0?"Jef took a basket":"Jef helped a neighbour",tone},output:allowedReactions(db,resident,{gist:tone<0?"Jef took a basket":"Jef helped a neighbour",tone})})));
+const familyChance=town(db).town.residents.slice(0,30).flatMap(resident=>["apologetic","calm","pleading","defiant","insulting","nonsense"].flatMap(stance=>[0,5,10].map(grudge=>({resident,stance,grudge,expected:talkDownChance(resident,stance as never,grudge)}))));
+const familyKin=town(db).town.residents.slice(0,30).flatMap(listener=>town(db).town.residents.filter(teller=>teller.household===listener.household&&teller.id!==listener.id).map(teller=>({listener,teller,expected:kinWord(listener,teller)})));
+const familyStances=["I'm sorry, it was my fault","Please let me go","You pig","Make me","Good day","Forgive me","Apologies, dear fellow"].map(words=>({words,expected:stanceByWords(words)}));
+const shadows=[0,6,12,20,23].flatMap(hour=>[0,25,90,91].flatMap(d=>[false,true].flatMap(jefMoving=>[0,1,2,6].flatMap(peopleNear=>[false,true].flatMap(policeNear=>[false,true].flatMap(carrying=>["thief","customs"].map(role=>{const facts={hour,d,jefMoving,peopleNear,policeNear,carrying,role};return{facts,output:shadowStep(facts as never)};})))))));
+const duty:unknown[]=[];for(const hour of [2,8,14,21]){db.prepare("UPDATE player SET hour=?,minute=0 WHERE id=1").run(hour);for(const resident of town(db).town.residents.filter(r=>["customs","police","thief","natie","docker","porter"].includes(r.trade)).slice(0,40))for(const role of ["customs","police","thief","gang","hand","rival"])duty.push({hour,resident,role,expected:onDutyFor(db,resident,role as never)});}
+writeFileSync(resolve(output,"native-assets.json"),JSON.stringify({version:1,seed:1873,assets,things:THINGS,sight:SIGHT_M,policePost:policePost(),prisonGate:prisonGate(),shops,shopLook:SHOP_LOOK,decisions,callers,giftValues,giftOracles,offers,dishonest,trips,familyAllowed,familyChance,familyKin,familyStances,shadows,duty},null,2)+"\n");
+const files=["server/src/town/deeds.ts","server/src/town/police.ts","server/src/town/pickpocket.ts","server/src/town/confront.ts","server/src/town/charisma.ts","server/src/shops/state.ts","server/src/shops/routes.ts","shared/shops.ts","server/src/town/gifts.ts","server/src/town/hire.ts","server/src/director/families.ts","server/src/town/walkup.ts"];
+writeFileSync(resolve(output,"native-assets-intake.json"),JSON.stringify({version:1,seed:1873,provenance:"Authored rules and deterministic oracles from a fresh in-memory town; original runtime not required.",hashes:Object.fromEntries(files.map(p=>[p,createHash("sha256").update(readFileSync(p)).digest("hex")])),lamps:assets.lamps.length,food:assets.food.length,shops:shops.length,decisionChecks:decisions.length},null,2)+"\n");
+db.close();
+console.log(JSON.stringify({lamps:assets.lamps.length,food:assets.food.length,shops:shops.length,decisionChecks:decisions.length}));

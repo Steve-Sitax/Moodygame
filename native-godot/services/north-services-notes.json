@@ -1,0 +1,94 @@
+{
+  "version": 2,
+  "ownership": "North district manifests/editor adapter and native goods, transport, rowing, deeds/shops, actions/routines, events/town life, gifts/treats/hands, families/walk-up, resident async talk, visitors/emigrants/surprises, haggle and trade ledger. Root owns shared builds, factory, renderer, user playtest and commits.",
+  "runtime": "Native C# and SQLite in process. No browser, Node, TypeScript, original GLB or external HTTP service is a runtime dependency. Recovery scripts read source/fresh in-memory databases only.",
+  "moduleOrder": [
+    "NativeGoods(host)",
+    "NativeTransport(host,goods)",
+    "NativeDeeds(host,transport)",
+    "NativeShops(host)",
+    "NativeRowing(host,goods,deeds)",
+    "NativeActions(host,goods)",
+    "NativeWalkup(host,actions)",
+    "NativeGifts(host,actions,deeds)",
+    "NativeRoutines(host,actions,transport)",
+    "NativeEvents(host,actions)",
+    "NativeTownLife(host,events,actions)",
+    "NativeTownTalk(host,town)",
+    "NativeTreats(host,actions,routines,gifts)",
+    "NativeHands(host,actions,routines,goods,transport)",
+    "NativeFamilies(host,actions)",
+    "NativeEmigrants(host,actions)",
+    "NativeSurprises(host,actions,families)",
+    "NativeHaggle(host,actions)",
+    "NativeTradeLedger(host,goods,actions)"
+  ],
+  "integration": {
+    "talk": "Keep deeds.Talk as a FullTalkOverrides callback before ordinary dialogue. Attach Gifts/Treats/Hands/Families/Emigrants/Surprises/Haggle once. Inventory, pay and source extra choices run in engine callbacks.",
+    "narration": "Wire NarrateAsync on Talk/Routines/Events/TownLife/Hands/Families/Surprises/Haggle. Connect CanUseHook to chosen hook availability and DailyCallLimit to AI settings. Providers wait outside host.WithState; short serialized sections validate and apply effects. NewGame/Loaded generations invalidate stale completions.",
+    "budgets": "Resident40/day and15-call reserve; ordinary talk and haggle3/meeting. Director12/day, check-ins6/day and5/routine, hiring1/day, hand words2/day, family share3/day, stranger/twist/dream3/day, NPC scheme conversations10/day. Zero total-day cap leaves module limits in force.",
+    "nightPerception": "Night.SyncPerception=actions.Sync; PlayerPosition=actions.PlayerPosition; PeopleNear=actions.PeopleNear; CallGang=walkup.CallGang; EndCallsFor=prefix=>actions.EndCallsFor(prefix). Wire Ideas trouble to the same actual resident/responder executor.",
+    "navigation": "Transport.GroundOpen, Actions.NearestOpen and TradeLedger.WayBetween use native support/navigation. Ledger dispatch/drove have no invented straight-path fallback.",
+    "population": "Visitors.Ensure and Emigrants adapter.Ensure run after base generation and before landmark/vehicle/transport/lively additions. Saved v1 records survive. Emigrants picks fresh native free doors and generates seed-derived families. Six visitor archetypes have source-authored fixed stats/ages.",
+    "assetOwners": "Wire Deeds.Stealables; Rowing.BoatDefinitions/PublicBoats/LandingWaterman; Transport.TransportRecord/TripPoints/Errands to current native population. Preserve saved object/deed/boat identities.",
+    "lamps": "Deeds.WorkLamps and LampLight use stable editable native lamp IDs, owners, transforms and lit state. Rendering, theft and lamplighter jobs refer to the same objects.",
+    "events": "Events.EventPeopleMax uses event-size setting; Events.EmigrantShip=emigrants.Ship. Family gatherings select real due emigrants aged6+. Planned events write world_event refs for press/ballad facts.",
+    "ledger": "Construct/configure NativeTradeLedger before the first board, AddModule, then mills.StockEventHooks.Add(ledger.OnMillEvents). It composes fish-haul, seller price, buyer line, board/take/settle and clock hooks. Source40 actual cases prove market rounded before shelf band. No old Mills.BreadExtra inflation.",
+    "personalDeals": "CoreTrade.Wares remains current list price for facts. PersonalWares applies this player's deal. Buy checks refusal/agreed price, consumes discounted purchases and applies shelf consumption. Deals/grudges are player-scoped; shelves/runs are world-scoped.",
+    "clock": "GameMinute=(day-1)*1440+hour*60+minute. Rest/interior MinuteNow uses day*1440. TickAfterHooks also runs after dev clock changes. SleepEndedHooks runs after actual sleep/collapse/cell dawn, including dreams.",
+    "workers": "NativeHands.After owns goods selection/pickup/cart/placement/progress. Client walks and reports current i/ok/n/x/z and selected gid/gids; no second goods mutation or HaulRun.OnPlaced on native backend."
+  },
+  "recovery": [
+    "node --experimental-strip-types native-godot/services/recover-goods-data.mts",
+    "node --experimental-strip-types native-godot/services/recover-assets-data.mts",
+    "node --experimental-strip-types native-godot/services/recover-director-data.mts",
+    "node --experimental-strip-types native-godot/services/recover-family-data.mts",
+    "node --experimental-strip-types native-godot/services/recover-emigrants-data.mts",
+    "node --experimental-strip-types native-godot/services/recover-surprises-oracles.mts",
+    "node --experimental-strip-types native-godot/services/recover-haggle-data.mts",
+    "node --experimental-strip-types native-godot/services/recover-trade-ledger-data.mts"
+  ],
+  "proof": {
+    "command": "dotnet run --project native-godot/services/proofs/NorthServices.Proof.csproj",
+    "checks": 207,
+    "sourceOracleComparisons": 17445,
+    "sourceGroups": {
+      "assetsGiftsHandsFamiliesWalkup": 6989,
+      "emigrantFamiliesSchedulesClock": 896,
+      "schemesDreams": 1112,
+      "haggle": 4412,
+      "tradeLedger": 4036
+    },
+    "isolation": "Fresh in-memory SQLite. SDK outputs outside Godot at .scratch/north-services-durable-proof; durable proof source is .cs.txt. Godot excludes services/proofs/**/*.cs. No shared build, engine launch or live save writes.",
+    "covers": [
+      "644 stable physical goods and real holdings",
+      "deeds/police/return/arrest/dawn",
+      "cart/bicycle/boat ownership and dynamic providers",
+      "NPC routine inventory changes",
+      "event closure/weather/hiring/fire",
+      "typed gifts and treat purchases",
+      "hired-hand pickup/cart/delivery/settlement/replay",
+      "family memories/visits/menaces and actual responders",
+      "seed-derived emigrants/luggage/boarding/scam/police",
+      "fortunes/promises/stranger errands/schemes/dreams/rumour drift",
+      "personal bargain purchases and seller refusal",
+      "shelves/fuel/bake/fish/run/drove/rush settlement",
+      "provider lock release and reset invalidation"
+    ],
+    "evidence": ".scratch/north-final-proof.log; original fixtures services/proofs/data. Root owns rendered/gameplay/editor/GPU verification."
+  },
+  "districtProof": {
+    "command": "python native-godot/recovery/full/north-check.py D:/Code/MoodyGame-godot/godot/baked/next/town.glb",
+    "checks": 383,
+    "uniqueRoots": 161,
+    "rooms": 15,
+    "entrances": 15,
+    "notes": "world/notes/north-review.json"
+  },
+  "fidelityReview": [
+    "Optional generic Actions.Conversation still has a handwritten fallback; police/custom confrontation story rating/speech retain the checked engine path. Explicit narration review is needed before claiming full optional AI parity.",
+    "Fire/hiring seed1873 casting/geometry baselines were recovered as fixtures. Inspect source choices when a fresh town changes ownership; complex funeral lead casting and script details need separate comparison.",
+    "Rule proofs do not certify GPU material quality, reflected geometry, movable collision, crowd paths or editor convenience. Root performs visual/gameplay review and the user test.",
+    "Immediate prison dawn and the current shared in-process host are single-player behaviour. Multiplayer requires per-player sessions/events/save coordination; Together stays disabled until checked."
+  ]
+}

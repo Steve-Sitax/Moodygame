@@ -19,8 +19,7 @@ namespace Scheldemist.People;
 /// their post in their hours (shared/night.ts POST_HOURS; an employer in his working hours) and gone home outside
 /// them; after dark, one with work open for Jef stands under the nearest lamp or holds a lantern, and the givers of
 /// night work keep to their corner with a lantern.
-/// Not here: what they say (talk), the work they give (jobs), and the lanes the browser keeps their posts out of
-/// (the omnibus and the drays: those parts are not ported).
+/// Talk and Jobs supply conversations and work. Posted employers keep clear of the native omnibus/dray lanes.
 /// </summary>
 [GamePart(205)]
 public partial class PostedPeople : Node
@@ -83,7 +82,20 @@ public partial class PostedPeople : Node
     public override void _Ready()
     {
         town = GetParent().GetNodeOrNull<Townspeople>("Townspeople");
+        if (town != null) town.PopulationChanged += PopulationChanged;
         if (town == null || !Humans.Ready) SetProcess(false);
+    }
+
+    private void PopulationChanged()
+    {
+        foreach (var n in list)
+        {
+            n.Lantern = false; Lantern(n);
+            n.Group.Visible = false; n.Group.QueueFree();
+            if (n.Solid != null) { n.Solid.CollisionLayer = 0; n.Solid.QueueFree(); }
+        }
+        list.Clear(); lamps.Clear(); offered.Clear(); accepted.Clear();
+        built = false; postT = 0; walkFree = null; OpenWork = TakenWork = null;
     }
 
     private void Build()
@@ -97,7 +109,11 @@ public partial class PostedPeople : Node
         {
             string city = Water.CityJson();
             using var doc = JsonDocument.Parse(File.ReadAllText(city));
-            foreach (var l in doc.RootElement.GetProperty("decor").GetProperty("lamps").EnumerateArray()) lamps.Add(new Pt(l[0].GetDouble(), l[1].GetDouble()));
+            // Native authored lamp positions are the same positions used by the renderer and lamp rounds.
+            if (Lights.I is { LampCount: > 0 } lights)
+                foreach (var (_, at) in lights.Lamps) lamps.Add(new Pt(at.X, at.Z));
+            else
+                foreach (var l in doc.RootElement.GetProperty("decor").GetProperty("lamps").EnumerateArray()) lamps.Add(new Pt(l[0].GetDouble(), l[1].GetDouble()));
             foreach (var d in doc.RootElement.GetProperty("doors").EnumerateObject())
                 if (d.Value.ValueKind == JsonValueKind.Object && d.Value.TryGetProperty("out", out var o))
                     door[d.Name] = (d.Value.GetProperty("x").GetDouble(), d.Value.GetProperty("z").GetDouble(), o[0].GetDouble(), o[1].GetDouble());
@@ -122,28 +138,19 @@ public partial class PostedPeople : Node
         Add(new Posted { Id = "fientje", Name = "Fientje", Kind = "fientje", Home = (45.2, 10.2, -Math.PI / 2) });
         Add(new Posted { Id = "sailor", Name = "a sailor", Kind = "sailor", Home = (-38.5, -4.6, 0), Talks = false, OnDeck = true });
         // the board's employers: at their post, facing their spot
+        var lanes = PostedLaneKeepouts.Current();
         foreach (var (id, spot) in data.Employers)
         {
             var r = data.Residents.FirstOrDefault(q => q.Id == id);
             if (r == null) continue;
             spots.TryGetValue(spot, out var sp);
             double bx = r.Work.At?[0] ?? sp.X + 1.2, bz = r.Work.At?[1] ?? sp.Z + 1.2;
-            // a post a body cannot stand on: the nearest spot round it where one can
-            (double x, double z) at = (bx, bz);
-            if (!town.Walk!.Free(bx, bz))
-            {
-                var offsets = new List<(double, double)> { (0, 1.4), (0, 2.2), (-1.2, 1.4), (1.2, 1.4), (0, -2.2) };
-                for (double rad = 2; rad <= 12; rad += 0.5)
-                    for (int k = 0; k < 16; k++) offsets.Add((Math.Cos(k * Math.PI / 8) * rad, Math.Sin(k * Math.PI / 8) * rad));
-                foreach (var (dx, dz) in offsets)
-                    if (town.Walk.Free(bx + dx, bz + dz))
-                    {
-                        at = (bx + dx, bz + dz);
-                        break;
-                    }
-            }
+            // The map already includes a body's .3m clearance. The extra samples retain .4m standing space.
+            bool GroundFree(double x, double z) => town.Walk!.Free(x, z) && town.Walk.Free(x - .1, z)
+                && town.Walk.Free(x + .1, z) && town.Walk.Free(x, z - .1) && town.Walk.Free(x, z + .1);
+            var at = PostedLaneKeepouts.Position(lanes, bx, bz, GroundFree);
             string kind = Humans.IsKind(r.Kind) ? r.Kind : "docker_a";
-            Add(new Posted { Id = id, Name = r.Name, Kind = kind, Resident = r, Home = (at.x, at.z, spots.ContainsKey(spot) ? Math.Atan2(sp.X - at.x, sp.Z - at.z) : r.Work.At?[2] ?? 0) });
+            Add(new Posted { Id = id, Name = r.Name, Kind = kind, Resident = r, Home = (at.X, at.Z, spots.ContainsKey(spot) ? Math.Atan2(sp.X - at.X, sp.Z - at.Z) : r.Work.At?[2] ?? 0) });
         }
         GD.Print($"posted people: {list.Count} at their posts ({list.Count(n => n.Resident != null)} employers)");
     }
@@ -174,7 +181,8 @@ public partial class PostedPeople : Node
 
     public override void _ExitTree()
     {
-        foreach (var n in list) n.Human?.Dispose();
+        if (town != null) town.PopulationChanged -= PopulationChanged;
+        PopulationChanged();
         if (I == this) I = null;
     }
 

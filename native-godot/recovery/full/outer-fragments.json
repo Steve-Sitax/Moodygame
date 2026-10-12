@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "sourceIndices": [
+    1153,
+    1154,
+    1155,
+    1156,
+    1157,
+    1158,
+    1159,
+    1160,
+    1480,
+    1509,
+    3645,
+    3655,
+    3657,
+    3659,
+    3661,
+    3663,
+    3665,
+    3667,
+    3669,
+    3671,
+    3673,
+    3675,
+    3677,
+    3679,
+    3681
+  ],
+  "output": "res://world/town/fragments/node-{sourceIndex:05}.scn",
+  "reason": "Selected park/mills/square children retain original source transforms and share the native resource store."
+}

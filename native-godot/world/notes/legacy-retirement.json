@@ -1,0 +1,112 @@
+{
+  "status": "Completed in this worktree after rendered gameplay, transport, multiplayer and relocated standalone validation",
+  "activeNativeEntry": "native-godot/town.tscn",
+  "retire": [
+    {
+      "path": "client/",
+      "reason": "Browser runtime and Vite; required media/model facts copied into native resources and native raw-data packet"
+    },
+    {
+      "path": "server/",
+      "reason": "Node authoritative rules replaced by native Services and Kestrel"
+    },
+    {
+      "path": "shared/*.ts",
+      "reason": "TypeScript algorithms have native implementations; raw authored JSON copied to native world/data/shared"
+    },
+    {
+      "path": "package.json",
+      "reason": "Old npm setup/dev/build/host entrypoints"
+    },
+    {
+      "path": "package-lock.json",
+      "reason": "Old root Node dependency lock"
+    },
+    {
+      "path": ".github/workflows/pages.yml",
+      "reason": "Publishes the retired browser demo"
+    },
+    {
+      "path": ".github/workflows/release.yml",
+      "reason": "Old Node/browser download build; replace with native Windows pipeline"
+    },
+    {
+      "path": "tools/host.mjs",
+      "reason": "Old Node host launcher"
+    },
+    {
+      "path": "tools/dev-alt.mjs",
+      "reason": "Old web development launcher"
+    },
+    {
+      "path": "tools/package.mjs",
+      "reason": "Old Node/browser package builder"
+    },
+    {
+      "path": "tools/demo/",
+      "reason": "Browser demo build"
+    },
+    {
+      "path": "tools/godot/{export-scene,models,build-server,package,test-download}.mjs",
+      "reason": "Legacy browser bake and Node-backed Godot distribution"
+    },
+    {
+      "path": "godot/src/Play/{PlayTest,DeedsTest,DeedsTest.Indoor}.cs",
+      "reason": "Obsolete comparison harnesses spawning Node fixtures; native replacements cover only their explicitly recorded scenarios"
+    },
+    {
+      "path": "godot/{project.godot,main.tscn,export_presets.cfg,editor/town_preview.tscn,spike/spike.tscn}",
+      "reason": "Obsolete separate editor/launch entries for Main/BakedWorld; only native-godot is active, shared core csproj/source remains"
+    },
+    {
+      "path": "native-godot/src/Game/NativePlayProof.cs and .uid",
+      "reason": "Obsolete partial quay gameplay proof; active whole-town runtime uses NativeGameplay/Hands/NewWeek"
+    },
+    {
+      "path": "godot/src/Net/ServerProcess.cs",
+      "reason": "Old Node process bootstrap; remove after root resolves remaining legacy references"
+    },
+    {
+      "path": "godot/baked/",
+      "reason": "One-time intake and historical proof inputs; native town/models already persisted"
+    }
+  ],
+  "retain": [
+    {
+      "path": "native-godot/",
+      "reason": "Native executable project, resources, rules, editing and standalone package tooling"
+    },
+    {
+      "path": "godot/src/ and godot/Scheldemist.csproj",
+      "reason": "Native C# rendering/player/town core dependency, compiled into standalone package"
+    },
+    {
+      "path": "assets/ and useful source artwork/references",
+      "reason": "Source art, licences and attribution; do not discard artwork as a runtime retirement side effect"
+    },
+    {
+      "path": "native-godot/services/fixtures/",
+      "reason": "Captured original-oracle fixtures for native parity tests; they need no legacy runtime during ordinary proof"
+    },
+    {
+      "path": "docs/archive/godot-port-history.md",
+      "reason": "Explicitly historical record; no active startup instructions"
+    },
+    {
+      "path": "%APPDATA%/ScheldemistWorkshop/layouts/",
+      "reason": "User-edited districts and backups; never game saves"
+    },
+    {
+      "path": "preferences, keys and provider setup",
+      "reason": "User credentials/settings were excluded from authorized old-game save cleanup"
+    }
+  ],
+  "auditBeforeDelete": [
+    "Centre and north released original sources after their native/source comparisons.",
+    "Optional original oracle regeneration now fails clearly; captured native fixtures remain runnable without Node.",
+    "Native standalone pipeline and current documentation replace browser/server/bake entrypoints.",
+    "Original media, artwork helpers and historical tools were SHA256 archived in art-source and docs/archive.",
+    "Main/external art worktrees, user layouts, preferences and credentials were left intact."
+  ],
+  "receipt": "legacy-retired.json"
+}

@@ -1,0 +1,1573 @@
+{
+  "version": 1,
+  "complete": false,
+  "meaning": "Route registration is not proof of behavior, provider, LAN, saving or migration parity.",
+  "legacyRouteCount": 229,
+  "nativeRouteCount": 224,
+  "registeredLegacyCount": 222,
+  "missingLegacyCount": 7,
+  "groups": {
+    "server/src/ai/routes.ts": {
+      "total": 3,
+      "registered": 3,
+      "missing": 0
+    },
+    "server/src/arrival.ts": {
+      "total": 4,
+      "registered": 4,
+      "missing": 0
+    },
+    "server/src/ballads/routes.ts": {
+      "total": 7,
+      "registered": 7,
+      "missing": 0
+    },
+    "server/src/director/familyRoutes.ts": {
+      "total": 4,
+      "registered": 4,
+      "missing": 0
+    },
+    "server/src/director/routes.ts": {
+      "total": 6,
+      "registered": 6,
+      "missing": 0
+    },
+    "server/src/director/routineRoutes.ts": {
+      "total": 2,
+      "registered": 2,
+      "missing": 0
+    },
+    "server/src/director/townlife-routes.ts": {
+      "total": 4,
+      "registered": 4,
+      "missing": 0
+    },
+    "server/src/goods/routes.ts": {
+      "total": 5,
+      "registered": 5,
+      "missing": 0
+    },
+    "server/src/homes/routes.ts": {
+      "total": 8,
+      "registered": 8,
+      "missing": 0
+    },
+    "server/src/ideas/routes.ts": {
+      "total": 12,
+      "registered": 12,
+      "missing": 0
+    },
+    "server/src/index.ts": {
+      "total": 36,
+      "registered": 31,
+      "missing": 5
+    },
+    "server/src/interiors/routes.ts": {
+      "total": 11,
+      "registered": 11,
+      "missing": 0
+    },
+    "server/src/landmarks/routes.ts": {
+      "total": 9,
+      "registered": 9,
+      "missing": 0
+    },
+    "server/src/mp/index.ts": {
+      "total": 12,
+      "registered": 11,
+      "missing": 1
+    },
+    "server/src/mp/static.ts": {
+      "total": 1,
+      "registered": 0,
+      "missing": 1
+    },
+    "server/src/night/routes.ts": {
+      "total": 7,
+      "registered": 7,
+      "missing": 0
+    },
+    "server/src/paper/routes.ts": {
+      "total": 14,
+      "registered": 14,
+      "missing": 0
+    },
+    "server/src/player/routes.ts": {
+      "total": 3,
+      "registered": 3,
+      "missing": 0
+    },
+    "server/src/restRoutes.ts": {
+      "total": 3,
+      "registered": 3,
+      "missing": 0
+    },
+    "server/src/save/routes.ts": {
+      "total": 6,
+      "registered": 6,
+      "missing": 0
+    },
+    "server/src/shops/routes.ts": {
+      "total": 2,
+      "registered": 2,
+      "missing": 0
+    },
+    "server/src/town/deedRoutes.ts": {
+      "total": 19,
+      "registered": 19,
+      "missing": 0
+    },
+    "server/src/town/emigrantRoutes.ts": {
+      "total": 3,
+      "registered": 3,
+      "missing": 0
+    },
+    "server/src/town/haggleRoutes.ts": {
+      "total": 1,
+      "registered": 1,
+      "missing": 0
+    },
+    "server/src/town/handcartRoutes.ts": {
+      "total": 8,
+      "registered": 8,
+      "missing": 0
+    },
+    "server/src/town/handsRoutes.ts": {
+      "total": 6,
+      "registered": 6,
+      "missing": 0
+    },
+    "server/src/town/lampjob.ts": {
+      "total": 3,
+      "registered": 3,
+      "missing": 0
+    },
+    "server/src/town/livelyRoutes.ts": {
+      "total": 1,
+      "registered": 1,
+      "missing": 0
+    },
+    "server/src/town/mills.ts": {
+      "total": 3,
+      "registered": 3,
+      "missing": 0
+    },
+    "server/src/town/park.ts": {
+      "total": 2,
+      "registered": 2,
+      "missing": 0
+    },
+    "server/src/town/popsettings.ts": {
+      "total": 2,
+      "registered": 2,
+      "missing": 0
+    },
+    "server/src/town/prison.ts": {
+      "total": 3,
+      "registered": 3,
+      "missing": 0
+    },
+    "server/src/town/rowDeeds.ts": {
+      "total": 6,
+      "registered": 6,
+      "missing": 0
+    },
+    "server/src/town/transportRoutes.ts": {
+      "total": 3,
+      "registered": 3,
+      "missing": 0
+    },
+    "server/src/town/walkupRoutes.ts": {
+      "total": 8,
+      "registered": 8,
+      "missing": 0
+    },
+    "server/src/trade/routes.ts": {
+      "total": 2,
+      "registered": 2,
+      "missing": 0
+    }
+  },
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/api/ai/config",
+      "source": "server/src/ai/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/ai/config",
+      "source": "server/src/ai/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ai/test",
+      "source": "server/src/ai/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/arrival",
+      "source": "server/src/arrival.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/arrival/ashore",
+      "source": "server/src/arrival.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/arrival/made",
+      "source": "server/src/arrival.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/player/new-man",
+      "source": "server/src/arrival.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/ballad",
+      "source": "server/src/ballads/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ballad/today",
+      "source": "server/src/ballads/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ballad/buy",
+      "source": "server/src/ballads/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/ballad/sheet/:day",
+      "source": "server/src/ballads/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/sermon",
+      "source": "server/src/ballads/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/sermon/heard",
+      "source": "server/src/ballads/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dev/ballad",
+      "source": "server/src/ballads/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/families/state",
+      "source": "server/src/director/familyRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/families/menace/:id",
+      "source": "server/src/director/familyRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/families/menace/:id/talk",
+      "source": "server/src/director/familyRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dev/families",
+      "source": "server/src/director/familyRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/actions",
+      "source": "server/src/director/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/actions/sync",
+      "source": "server/src/director/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/actions/:id/report",
+      "source": "server/src/director/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/events",
+      "source": "server/src/director/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dev/action",
+      "source": "server/src/director/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dev/director",
+      "source": "server/src/director/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/errands",
+      "source": "server/src/director/routineRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dev/errand/shut",
+      "source": "server/src/director/routineRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/townlife",
+      "source": "server/src/director/townlife-routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/fire/join",
+      "source": "server/src/director/townlife-routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/fire/leave",
+      "source": "server/src/director/townlife-routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/hiring/stand",
+      "source": "server/src/director/townlife-routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/goods",
+      "source": "server/src/goods/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/docks/book",
+      "source": "server/src/goods/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/docks/book",
+      "source": "server/src/goods/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/goods",
+      "source": "server/src/goods/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dev/goods",
+      "source": "server/src/goods/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/homes",
+      "source": "server/src/homes/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/homes/take",
+      "source": "server/src/homes/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/homes/rent",
+      "source": "server/src/homes/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/homes/stove",
+      "source": "server/src/homes/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/homes/place",
+      "source": "server/src/homes/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/homes/lift",
+      "source": "server/src/homes/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/homes/abandon",
+      "source": "server/src/homes/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/homes/remark",
+      "source": "server/src/homes/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/ideas",
+      "source": "server/src/ideas/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/posters/spots",
+      "source": "server/src/ideas/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/posters/:id/pick",
+      "source": "server/src/ideas/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/posters/:id/return",
+      "source": "server/src/ideas/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/post/write",
+      "source": "server/src/ideas/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/post/write",
+      "source": "server/src/ideas/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/meet/:id",
+      "source": "server/src/ideas/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/trouble",
+      "source": "server/src/ideas/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/trouble/:id/choose",
+      "source": "server/src/ideas/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/trouble/:id/step",
+      "source": "server/src/ideas/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/diary/:id",
+      "source": "server/src/ideas/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dev/ideas",
+      "source": "server/src/ideas/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/map",
+      "source": "server/src/index.ts",
+      "status": "missing"
+    },
+    {
+      "method": "POST",
+      "path": "/api/map/me",
+      "source": "server/src/index.ts",
+      "status": "missing"
+    },
+    {
+      "method": "POST",
+      "path": "/api/map/off",
+      "source": "server/src/index.ts",
+      "status": "missing"
+    },
+    {
+      "method": "GET",
+      "path": "/api/state",
+      "source": "server/src/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/jobs",
+      "source": "server/src/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/jobs/:id/take",
+      "source": "server/src/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/jobs/:id/progress",
+      "source": "server/src/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/jobs/:id/done",
+      "source": "server/src/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/jobs/:id/giveup",
+      "source": "server/src/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/jobs/:id/hold",
+      "source": "server/src/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/npcs",
+      "source": "server/src/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/tick",
+      "source": "server/src/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/rent",
+      "source": "server/src/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/new-game",
+      "source": "server/src/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/buy",
+      "source": "server/src/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/use",
+      "source": "server/src/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/swim",
+      "source": "server/src/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ride",
+      "source": "server/src/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/jobs/:id/handover",
+      "source": "server/src/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/town",
+      "source": "server/src/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/town/ways",
+      "source": "server/src/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/town/ways",
+      "source": "server/src/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/town/lags",
+      "source": "server/src/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/town/lags",
+      "source": "server/src/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/resident/:id/pick",
+      "source": "server/src/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/resident/:id/catch",
+      "source": "server/src/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/npc/:id/near",
+      "source": "server/src/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/npc/:id/wares",
+      "source": "server/src/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/npc/:id/talk",
+      "source": "server/src/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/npc/:id/witness",
+      "source": "server/src/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dev/new-board",
+      "source": "server/src/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dev/job",
+      "source": "server/src/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dev/shot",
+      "source": "server/src/index.ts",
+      "status": "missing"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dev/set",
+      "source": "server/src/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/dev/audit",
+      "source": "server/src/index.ts",
+      "status": "missing"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dev/advance",
+      "source": "server/src/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/interiors",
+      "source": "server/src/interiors/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/interior/:place",
+      "source": "server/src/interiors/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tipsy",
+      "source": "server/src/interiors/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/interior/fire",
+      "source": "server/src/interiors/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/interior/dice/sit",
+      "source": "server/src/interiors/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/interior/dice/throw",
+      "source": "server/src/interiors/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/interior/gossip",
+      "source": "server/src/interiors/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/interior/chat",
+      "source": "server/src/interiors/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/poesje",
+      "source": "server/src/interiors/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/poesje/enter",
+      "source": "server/src/interiors/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/poesje/play",
+      "source": "server/src/interiors/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/landmarks",
+      "source": "server/src/landmarks/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/landmark/:id",
+      "source": "server/src/landmarks/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/landmark/ran",
+      "source": "server/src/landmarks/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/landmark/here",
+      "source": "server/src/landmarks/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/landmark/candle",
+      "source": "server/src/landmarks/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/landmark/chair",
+      "source": "server/src/landmarks/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/landmark/confess/begin",
+      "source": "server/src/landmarks/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/landmark/confess",
+      "source": "server/src/landmarks/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/landmark/confess/end",
+      "source": "server/src/landmarks/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/mp/info",
+      "source": "server/src/mp/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/house-ca.crt",
+      "source": "server/src/mp/index.ts",
+      "status": "missing"
+    },
+    {
+      "method": "POST",
+      "path": "/api/mp/join",
+      "source": "server/src/mp/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/mp/transfer",
+      "source": "server/src/mp/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/mp/move",
+      "source": "server/src/mp/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/mp/host",
+      "source": "server/src/mp/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/mp/config",
+      "source": "server/src/mp/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/mp/code",
+      "source": "server/src/mp/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/mp/kick",
+      "source": "server/src/mp/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/mp/admin",
+      "source": "server/src/mp/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/mp/pause-all",
+      "source": "server/src/mp/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/mp/stats",
+      "source": "server/src/mp/index.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "*",
+      "source": "server/src/mp/static.ts",
+      "status": "missing"
+    },
+    {
+      "method": "POST",
+      "path": "/api/night/sleep-rough",
+      "source": "server/src/night/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/night/state",
+      "source": "server/src/night/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/night/roll",
+      "source": "server/src/night/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/night/gang/:id",
+      "source": "server/src/night/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dev/gang",
+      "source": "server/src/night/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dev/gang-chance",
+      "source": "server/src/night/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dev/night-work",
+      "source": "server/src/night/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/press",
+      "source": "server/src/paper/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/paper/:day",
+      "source": "server/src/paper/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/letter/:id",
+      "source": "server/src/paper/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/ticket/:id",
+      "source": "server/src/paper/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/pockets/discard",
+      "source": "server/src/paper/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/berg",
+      "source": "server/src/paper/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/berg/pawn",
+      "source": "server/src/paper/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/berg/redeem",
+      "source": "server/src/paper/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/post",
+      "source": "server/src/paper/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/post/collect",
+      "source": "server/src/paper/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/post/pickup",
+      "source": "server/src/paper/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/post/deliver",
+      "source": "server/src/paper/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/post/telegram",
+      "source": "server/src/paper/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dev/press",
+      "source": "server/src/paper/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/player/profile",
+      "source": "server/src/player/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/player/profile",
+      "source": "server/src/player/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/player/:id/look",
+      "source": "server/src/player/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/sleep",
+      "source": "server/src/restRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/sleep/wake",
+      "source": "server/src/restRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/sleep",
+      "source": "server/src/restRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/saves",
+      "source": "server/src/save/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/client-state",
+      "source": "server/src/save/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/pause",
+      "source": "server/src/save/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/pause",
+      "source": "server/src/save/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/save",
+      "source": "server/src/save/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/load",
+      "source": "server/src/save/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/shops",
+      "source": "server/src/shops/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/shop/:place",
+      "source": "server/src/shops/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/deeds/world",
+      "source": "server/src/town/deedRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/deed",
+      "source": "server/src/town/deedRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/deed/:id/return",
+      "source": "server/src/town/deedRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/velo/:id/leave",
+      "source": "server/src/town/deedRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/police",
+      "source": "server/src/town/deedRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/fall",
+      "source": "server/src/town/deedRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/pickpocket",
+      "source": "server/src/town/deedRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/pocket/:deed/discover",
+      "source": "server/src/town/deedRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/deed/:id/noticed",
+      "source": "server/src/town/deedRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/confront/leave",
+      "source": "server/src/town/deedRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/deed/recognise",
+      "source": "server/src/town/deedRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/police/seize",
+      "source": "server/src/town/deedRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/police/events",
+      "source": "server/src/town/deedRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/police/arrived",
+      "source": "server/src/town/deedRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/police/fled",
+      "source": "server/src/town/deedRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/police/cell/done",
+      "source": "server/src/town/deedRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/police/cell",
+      "source": "server/src/town/deedRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/npc/:id/talk",
+      "source": "server/src/town/deedRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/npc/:id/talk",
+      "source": "server/src/town/deedRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/emigrants",
+      "source": "server/src/town/emigrantRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/emigrants/board",
+      "source": "server/src/town/emigrantRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dev/emigrants",
+      "source": "server/src/town/emigrantRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/npc/:id/haggle",
+      "source": "server/src/town/haggleRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/cart",
+      "source": "server/src/town/handcartRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/cart/seen",
+      "source": "server/src/town/handcartRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/cart/:id/hold",
+      "source": "server/src/town/handcartRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/cart/:id/at",
+      "source": "server/src/town/handcartRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/cart/:id/place",
+      "source": "server/src/town/handcartRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/cart/:id/load",
+      "source": "server/src/town/handcartRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/cart/:id/unload",
+      "source": "server/src/town/handcartRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/cart/dropped",
+      "source": "server/src/town/handcartRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/routines",
+      "source": "server/src/town/handsRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/routine/:id/step",
+      "source": "server/src/town/handsRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/treat/enter",
+      "source": "server/src/town/handsRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/treat/leave",
+      "source": "server/src/town/handsRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/treat",
+      "source": "server/src/town/handsRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/treat/round",
+      "source": "server/src/town/handsRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/lamps/pole",
+      "source": "server/src/town/lampjob.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/lamps/light",
+      "source": "server/src/town/lampjob.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dev/lamps/job",
+      "source": "server/src/town/lampjob.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/lively",
+      "source": "server/src/town/livelyRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/mills",
+      "source": "server/src/town/mills.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dev/mills/job",
+      "source": "server/src/town/mills.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dev/mills/stock",
+      "source": "server/src/town/mills.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/park",
+      "source": "server/src/town/park.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/park/:action",
+      "source": "server/src/town/park.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/settings/population",
+      "source": "server/src/town/popsettings.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/settings/population",
+      "source": "server/src/town/popsettings.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/prison",
+      "source": "server/src/town/prison.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/prison/visit",
+      "source": "server/src/town/prison.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/prison/ask",
+      "source": "server/src/town/prison.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/row/world",
+      "source": "server/src/town/rowDeeds.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/row/hire",
+      "source": "server/src/town/rowDeeds.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/row/board",
+      "source": "server/src/town/rowDeeds.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/row/leave",
+      "source": "server/src/town/rowDeeds.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/row/stroke",
+      "source": "server/src/town/rowDeeds.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/row/lost",
+      "source": "server/src/town/rowDeeds.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/transport",
+      "source": "server/src/town/transportRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/transport/seen",
+      "source": "server/src/town/transportRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/transport/missed",
+      "source": "server/src/town/transportRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/walkup",
+      "source": "server/src/town/walkupRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/walkup/call",
+      "source": "server/src/town/walkupRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/walkup/trouble/:id",
+      "source": "server/src/town/walkupRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/walkup/shadow",
+      "source": "server/src/town/walkupRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/walkup/shadow/:id/step",
+      "source": "server/src/town/walkupRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/walkup/shadow/:id/snatch",
+      "source": "server/src/town/walkupRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dev/walkup/shadow",
+      "source": "server/src/town/walkupRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/walkup/:id/done",
+      "source": "server/src/town/walkupRoutes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/trade",
+      "source": "server/src/trade/routes.ts",
+      "status": "registered; behavior parity required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dev/trade",
+      "source": "server/src/trade/routes.ts",
+      "status": "registered; behavior parity required"
+    }
+  ],
+  "extraNativeRoutes": [
+    "POST /api/diary/:id/pick",
+    "POST /api/diary/:id/return",
+    "POST /api/diary/:id/sell",
+    "POST /api/diary/:id/squeeze"
+  ]
+}

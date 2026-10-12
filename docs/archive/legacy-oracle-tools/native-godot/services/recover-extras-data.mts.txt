@@ -1,0 +1,12 @@
+// Authored definitions and exact original lane samples. Intake only; no renderer/save/process.
+import fs from 'node:fs';import vm from 'node:vm';import {stripTypeScriptTypes} from 'node:module';
+import {LINES,loopPath} from '../../shared/omnibusLines.ts';
+const traffic=fs.readFileSync('client/src/world/traffic.ts','utf8');const ctx:any={};vm.createContext(ctx);
+const pure=traffic.slice(traffic.indexOf('export const TRAFFIC_ROUTES'),traffic.indexOf('const angDiff')).replace(/export /g,'');
+vm.runInContext(stripTypeScriptTypes(pure,{mode:'transform'})+'\nglobalThis.lanes=trafficLanes();',ctx);
+const omni=fs.readFileSync('client/src/world/omnibus.ts','utf8'),fn=omni.slice(omni.indexOf('export function omnibusKeepOut'),omni.indexOf('\nconst CRUISE')).replace(/export /g,'');
+const oc:any={LINES,Loop:class{constructor(corners:any,radius:number){Object.assign(this,loopPath(corners,radius));}}};vm.createContext(oc);vm.runInContext(stripTypeScriptTypes(fn,{mode:'transform'})+'\nglobalThis.boxes=omnibusKeepOut();',oc);
+const market=fs.readFileSync('client/src/game/market.ts','utf8'),mc:any={};vm.createContext(mc);vm.runInContext(stripTypeScriptTypes(market.slice(market.indexOf('const FIELDS'),market.indexOf('const MAX_SELLERS')),{mode:'transform'})+'\nglobalThis.data={fields:FIELDS,sellers:SELLERS,shoppers:SHOPPERS,bought:BOUGHT};',mc);
+const keeps=[...oc.boxes];for(const lane of ctx.lanes)for(let i=0;i<lane.x.length;i+=8)keeps.push({minX:lane.x[i]-lane.half,maxX:lane.x[i]+lane.half,minZ:lane.z[i]-lane.half,maxZ:lane.z[i]+lane.half});
+const rail=fs.readFileSync('client/src/world/tracks.ts','utf8'),rc:any={decor:JSON.parse(fs.readFileSync('shared/city.json','utf8')).decor};vm.createContext(rc);vm.runInContext(stripTypeScriptTypes(rail.slice(rail.indexOf('const GAUGE'),rail.indexOf('function offBridges')).replace(/export /g,''),{mode:'transform'})+'\nglobalThis.boxes=trackKeepOut(decor);',rc);
+fs.writeFileSync('native-godot/services/data/native-extras.json',JSON.stringify({version:1,source:'Authored market field definitions; exact original omnibusKeepOut, trafficLanes sampled every 8 points, trackKeepOut. Generated once for native static data.',courtLanes:keeps,marketLanes:oc.boxes,marketTracks:rc.boxes,...mc.data})+'\n');console.log(JSON.stringify({keeps:keeps.length,markets:mc.data.fields.length}));

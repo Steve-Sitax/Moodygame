@@ -60,9 +60,12 @@ public partial class HallPeople : Node
     public double LogicMs { get; private set; }
     private Townspeople? town;
     private JsonDocument? data;
+    private bool stopped;
     public override void _Ready()
     {
         I = this; town = GetParent().GetNodeOrNull<Townspeople>("Townspeople");
+        if (town != null) town.PopulationChanged += PopulationChanged;
+        if (Scheldemist.Menu.MainMenu.I is { } menu) menu.WorldReplaced += WorldReplaced;
         data = JsonDocument.Parse(HallPeopleData.Json);
         foreach (var p in data.RootElement.GetProperty("rooms").EnumerateArray())
         {
@@ -71,6 +74,17 @@ public partial class HallPeople : Node
             int routeCapacity = p.GetProperty("nodes").GetArrayLength() + 2;
             var rows = p.TryGetProperty("freeGrid", out var freeGrid) ? freeGrid.GetProperty("rows").EnumerateArray().Select(row => row.GetString()!).ToArray() : Array.Empty<string>();
             Halls.Add(new Hall { RouteDistance = new float[routeCapacity], RoutePrevious = new int[routeCapacity], RouteUsed = new bool[routeCapacity], GridRows = rows, GridDistance = new float[rows.Length == 0 ? 0 : rows.Length * rows[0].Length], GridPrevious = new int[rows.Length == 0 ? 0 : rows.Length * rows[0].Length], GridVisited = new int[rows.Length == 0 ? 0 : rows.Length * rows[0].Length], Id = id, Plan = p, Roles = data.RootElement.GetProperty("roles").GetProperty(id), Origin = new Vector3(o.GetProperty("x").GetSingle(), p.GetProperty("floorY").GetSingle(), o.GetProperty("z").GetSingle()), Yaw = p.GetProperty("yaw").GetDouble() });
+        }
+    }
+    private void WorldReplaced(string how, ClientState? state) => PopulationChanged();
+    private void PopulationChanged()
+    {
+        bier?.QueueFree(); bier = null; ceremonyGone.Clear(); CeremonyEntered = CeremonyExited = 0;
+        foreach (var h in Halls)
+        {
+            h.RosterVersion++; h.Loading = h.HadRoster = false; h.Poll = 0;
+            foreach (var f in h.Figures.Values) { f.Group.Visible = false; f.Group.QueueFree(); }
+            h.Figures.Clear(); h.RouteNodes.Clear(); h.RouteResult.Clear(); h.GridQueue.Clear();
         }
     }
     private static Vector3 World(Hall h, JsonElement mark)
@@ -141,9 +155,9 @@ public partial class HallPeople : Node
         api.Run(api.Get<JsonElement>("api/landmark/" + h.Id), reply =>
         {
             // A fresh explicit roster (including a ceremony/time change) supersedes an in-flight poll.
-            h.Loading = false;
-            if (h.RosterVersion == version) Roster(h, reply);
-        }, _ => h.Loading = false);
+            if (stopped || h.RosterVersion != version) return;
+            h.Loading = false; Roster(h, reply);
+        }, _ => { if (!stopped && h.RosterVersion == version) h.Loading = false; });
     }
     public long AllocatedBytesLastFrame { get; private set; }
     public override void _Process(double delta)
@@ -254,5 +268,5 @@ public partial class HallPeople : Node
         if (h.GridRows.Length > 0) return GridRoute(h, from, to);
         return result;
     }
-    public override void _ExitTree() { bier?.QueueFree(); foreach (var g in Groups) g.QueueFree(); data?.Dispose(); if (I == this) I = null; }
+    public override void _ExitTree() { stopped = true; if (town != null) town.PopulationChanged -= PopulationChanged; if (Scheldemist.Menu.MainMenu.I is { } menu) menu.WorldReplaced -= WorldReplaced; PopulationChanged(); data?.Dispose(); if (I == this) I = null; }
 }

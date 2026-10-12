@@ -23,7 +23,7 @@ public partial class Emigrants
     }
     private void PrepareNotice()
     {
-        using var plan=JsonDocument.Parse(File.ReadAllText(ProjectSettings.GlobalizePath("res://assets/indoor-keepouts.json")));
+        using var plan=JsonDocument.Parse(Godot.FileAccess.GetFileAsString("res://assets/indoor-keepouts.json"));
         foreach(var r in plan.RootElement.EnumerateArray()){float x=r.GetProperty("minX").GetSingle(),z=r.GetProperty("minZ").GetSingle();keepouts.Add(new(x,z,r.GetProperty("maxX").GetSingle()-x,r.GetProperty("maxZ").GetSingle()-z));}
         notice=new Node3D{Name="red_star_notice",Position=new(24,0,33),Visible=false};Main.I.View.AddChild(notice);
         notice.AddChild(Part(new BoxMesh{Size=new(.96f,1.16f,.06f)},Goods.I.Plain(0x4a3424),0,1.55f,0));

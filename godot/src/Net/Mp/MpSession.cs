@@ -34,6 +34,7 @@ public sealed class MpSession : IDisposable
     private readonly Uri url;
     private readonly string? token;
     private readonly int seat;
+    private readonly string fingerprint;
     private readonly CancellationTokenSource closing = new();
     private readonly ConcurrentQueue<Action> inbox = new();
     private readonly Stopwatch clock = Stopwatch.StartNew();
@@ -64,6 +65,8 @@ public sealed class MpSession : IDisposable
     public double LostAt { get; private set; }
     public bool Ever { get; private set; }
     public int Up, Down, Sent, Batches, Reconnects, Skipped;
+    public int LastCloseCode { get; private set; }
+    public string LastCloseReason { get; private set; } = "";
 
     public event Action<JsonElement>? Welcome;
     public event Action<List<RosterEntry>>? Roster;
@@ -77,10 +80,11 @@ public sealed class MpSession : IDisposable
     public event Action<bool>? LinkChanged;
 
     /// <param name="server">"http://127.0.0.1:8800".</param>
-    public MpSession(string server, string? token, int seat)
+    public MpSession(string server, string? token, int seat, string fingerprint = "")
     {
         this.token = token;
         this.seat = seat;
+        this.fingerprint = fingerprint;
         string s = server.TrimEnd('/');
         url = new Uri((s.StartsWith("https", StringComparison.Ordinal) ? "wss" : "ws") + s[s.IndexOf("://", StringComparison.Ordinal)..] + "/mp");
     }
@@ -158,6 +162,7 @@ public sealed class MpSession : IDisposable
         while (!stop.IsCancellationRequested && !Closed)
         {
             using var ws = new ClientWebSocket();
+            Scheldemist.Net.HouseTrust.Configure(ws.Options, url);
             using var alive = CancellationTokenSource.CreateLinkedTokenSource(stop);
             life = alive;
             var box = Channel.CreateBounded<(byte[], bool)>(new BoundedChannelOptions(64) { SingleReader = true, FullMode = BoundedChannelFullMode.Wait });
@@ -168,7 +173,7 @@ public sealed class MpSession : IDisposable
                     connect.CancelAfter(ConnectMs);
                     await ws.ConnectAsync(url, connect.Token).ConfigureAwait(false);
                 }
-                var hello = new Dictionary<string, object?> { ["type"] = "hello", ["seat"] = seat, ["protocol"] = MpProtocol.Protocol, ["version"] = "godot" };
+                var hello = new Dictionary<string, object?> { ["type"] = "hello", ["seat"] = seat, ["protocol"] = MpProtocol.Protocol, ["version"] = "godot", ["fingerprint"] = fingerprint };
                 if (token != null) hello["token"] = token;
                 await ws.SendAsync(JsonSerializer.SerializeToUtf8Bytes(hello), WebSocketMessageType.Text, true, alive.Token).ConfigureAwait(false);
                 Interlocked.Exchange(ref firstUnanswered, -1);
@@ -197,6 +202,8 @@ public sealed class MpSession : IDisposable
                 }
                 // no hello, an old version, removed, not together, taken over, or a flood: no going back in
                 int code = (int)(ws.CloseStatus ?? 0);
+                string reason = ws.CloseStatusDescription ?? "";
+                inbox.Enqueue(() => { LastCloseCode = code; LastCloseReason = reason; });
                 if (code >= 4001 && code <= 4006)
                 {
                     bool takenOver = code == 4005;
@@ -253,6 +260,7 @@ public sealed class MpSession : IDisposable
         {
             var r = await ws.ReceiveAsync(buf, stop).ConfigureAwait(false);
             if (r.MessageType == WebSocketMessageType.Close) break;
+            if (whole.Length + r.Count > 512 * 1024) throw new IOException("The server sent an oversized movement message.");
             whole.Write(buf, 0, r.Count);
             if (!r.EndOfMessage) continue;
             double at = Now; // stamped here: the main thread's frames would add up to 16 ms of their own
@@ -344,7 +352,7 @@ public sealed class MpSession : IDisposable
         if (data.Length == 0) return;
         double recv = at + Offset;
         byte kind = data[0];
-        if (kind is MpProtocol.MsgPuppets or MpProtocol.MsgFigs or MpProtocol.MsgAnimals)
+        if (kind is MpProtocol.MsgPuppets or MpProtocol.MsgFigs or MpProtocol.MsgAnimals or NativeWorldPacket.Kind)
         {
             inbox.Enqueue(() => Other?.Invoke(kind, data, recv));
             return;

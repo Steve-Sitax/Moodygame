@@ -1,0 +1,3953 @@
+{
+  "version": 1,
+  "templates": [
+    {
+      "id": "wedding",
+      "title": "A wedding at the cathedral",
+      "place": "cathedral_west",
+      "stages": [
+        {
+          "place": "cathedral_west",
+          "role": "guests",
+          "count": 35,
+          "sound": "none",
+          "mood": "joy",
+          "props": "flowers",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [
+            "groom",
+            "bride",
+            "priest"
+          ],
+          "op": "gather",
+          "minutes": 30
+        },
+        {
+          "place": "",
+          "role": "crowd",
+          "count": 0,
+          "sound": "none",
+          "mood": "solemn",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [
+            "priest",
+            "groom",
+            "bride"
+          ],
+          "op": "enter",
+          "minutes": 45
+        },
+        {
+          "place": "cathedral_west",
+          "role": "crowd",
+          "count": 50,
+          "sound": "bells",
+          "mood": "joy",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [],
+          "op": "gather",
+          "minutes": 15,
+          "cues": [
+            {
+              "source": "cheer",
+              "every_s": 9,
+              "pitch": 1,
+              "level": 0.8
+            },
+            {
+              "source": "applause",
+              "every_s": 14,
+              "pitch": 1,
+              "level": 0.6
+            }
+          ]
+        },
+        {
+          "place": "",
+          "role": "crowd",
+          "count": 0,
+          "sound": "none",
+          "mood": "joy",
+          "props": "none",
+          "text": "the bride and the groom, and who paid for the dinner",
+          "item": "",
+          "factor": 1,
+          "leads": [],
+          "op": "talk",
+          "minutes": 15,
+          "cues": [
+            {
+              "source": "laughter",
+              "every_s": 12,
+              "pitch": 1,
+              "level": 0.5
+            }
+          ]
+        },
+        {
+          "place": "engel",
+          "role": "crowd",
+          "count": 0,
+          "sound": "music",
+          "mood": "joy",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [
+            "groom",
+            "bride"
+          ],
+          "op": "procession",
+          "minutes": 40,
+          "cues": [
+            {
+              "source": "cheer",
+              "every_s": 12,
+              "pitch": 1,
+              "level": 0.7
+            },
+            {
+              "source": "fiddle",
+              "every_s": 10,
+              "pitch": 1,
+              "level": 0.6
+            }
+          ]
+        },
+        {
+          "place": "",
+          "role": "crowd",
+          "count": 0,
+          "sound": "music",
+          "mood": "lively",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [],
+          "op": "sound",
+          "minutes": 30,
+          "cues": [
+            {
+              "source": "laughter",
+              "every_s": 15,
+              "pitch": 1,
+              "level": 0.5
+            },
+            {
+              "source": "glass",
+              "every_s": 0,
+              "pitch": 1,
+              "level": 0.5
+            }
+          ]
+        }
+      ],
+      "notice": "Banns read: {groom} and {bride} marry at the cathedral this morning; the wedding party dines at Den Engel.",
+      "rumour": "{groom} and {bride} were married at the cathedral, and the party drank Den Engel dry.",
+      "weight": 2,
+      "oncePerDay": true,
+      "fitHours": {
+        "1": [
+          9,
+          10,
+          11,
+          12
+        ],
+        "2": [
+          9,
+          10,
+          11,
+          12
+        ],
+        "3": [
+          9,
+          10,
+          11,
+          12
+        ],
+        "4": [
+          9,
+          10,
+          11,
+          12
+        ],
+        "5": [
+          9,
+          10,
+          11,
+          12
+        ],
+        "6": [
+          9,
+          10,
+          11,
+          12
+        ],
+        "7": []
+      }
+    },
+    {
+      "id": "funeral",
+      "title": "A funeral",
+      "place": "house",
+      "stages": [
+        {
+          "place": "house",
+          "role": "mourners",
+          "count": 30,
+          "sound": "none",
+          "mood": "solemn",
+          "props": "black_cloth",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [
+            "widow",
+            "bearers"
+          ],
+          "op": "gather",
+          "minutes": 30
+        },
+        {
+          "place": "cathedral_west",
+          "role": "crowd",
+          "count": 0,
+          "sound": "handbell",
+          "mood": "solemn",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [
+            "bearers",
+            "widow"
+          ],
+          "op": "procession",
+          "minutes": 40,
+          "cues": [
+            {
+              "source": "bell",
+              "every_s": 8,
+              "pitch": 0.7,
+              "level": 0.75
+            }
+          ]
+        },
+        {
+          "place": "",
+          "role": "crowd",
+          "count": 0,
+          "sound": "none",
+          "mood": "solemn",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [
+            "priest"
+          ],
+          "op": "enter",
+          "minutes": 60
+        },
+        {
+          "place": "kiel_road",
+          "role": "crowd",
+          "count": 0,
+          "sound": "murmur",
+          "mood": "solemn",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [
+            "bearers",
+            "widow"
+          ],
+          "op": "depart",
+          "minutes": 40
+        }
+      ],
+      "notice": "A death in the parish: the funeral goes to the cathedral this morning, where {priest} says the requiem, then to the Kiel cemetery; {widow} walks behind the coffin.",
+      "rumour": "A requiem at the cathedral, said by {priest}; then the hearse to the Kiel cemetery, {widow} walking behind her husband's coffin.",
+      "weight": 1,
+      "oncePerDay": true,
+      "fitHours": {
+        "1": [
+          8,
+          9,
+          10,
+          11
+        ],
+        "2": [
+          8,
+          9,
+          10,
+          11
+        ],
+        "3": [
+          8,
+          9,
+          10,
+          11
+        ],
+        "4": [
+          8,
+          9,
+          10,
+          11
+        ],
+        "5": [
+          8,
+          9,
+          10,
+          11
+        ],
+        "6": [
+          8,
+          9,
+          10,
+          11
+        ],
+        "7": []
+      }
+    },
+    {
+      "id": "musicians",
+      "title": "Street musicians",
+      "place": "steenplein",
+      "stages": [
+        {
+          "place": "steenplein",
+          "role": "crowd",
+          "count": 0,
+          "sound": "none",
+          "mood": "lively",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [
+            "organ_grinder",
+            "fiddler",
+            "accordionist"
+          ],
+          "op": "gather",
+          "minutes": 15
+        },
+        {
+          "place": "steenplein",
+          "role": "crowd",
+          "count": 30,
+          "sound": "music",
+          "mood": "lively",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [],
+          "op": "gather",
+          "minutes": 90,
+          "cues": [
+            {
+              "source": "fiddle",
+              "every_s": 9,
+              "pitch": 1,
+              "level": 0.7
+            },
+            {
+              "source": "applause",
+              "every_s": 22,
+              "pitch": 1,
+              "level": 0.5
+            },
+            {
+              "source": "laughter",
+              "every_s": 18,
+              "pitch": 1,
+              "level": 0.4
+            }
+          ]
+        }
+      ],
+      "notice": "Street music on the Steenplein: {organ_grinder} with his barrel organ, {fiddler} with a fiddle and {accordionist} with his accordion.",
+      "rumour": "{organ_grinder}, {fiddler} and {accordionist} played on the Steenplein and a crowd stood round them till the police moved them on.",
+      "weight": 3,
+      "oncePerDay": false,
+      "fitHours": {
+        "1": [
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18
+        ],
+        "2": [
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18
+        ],
+        "3": [
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18
+        ],
+        "4": [
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18
+        ],
+        "5": [
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18
+        ],
+        "6": [
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18
+        ],
+        "7": [
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18
+        ]
+      }
+    },
+    {
+      "id": "emigrant_ship",
+      "title": "The emigrant ship",
+      "place": "rijnkaai",
+      "stages": [
+        {
+          "place": "",
+          "role": "crowd",
+          "count": 0,
+          "sound": "none",
+          "mood": "calm",
+          "props": "none",
+          "text": "Red Star Line: passage to America. The Kempenland lies at anchor in the stream; lighters take her emigrants out from the Rijnkaai today.",
+          "item": "",
+          "factor": 1,
+          "leads": [],
+          "op": "notice",
+          "minutes": 5
+        },
+        {
+          "place": "rijnkaai",
+          "role": "crowd",
+          "count": 20,
+          "sound": "murmur",
+          "mood": "curious",
+          "props": "crates",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [],
+          "op": "gather",
+          "minutes": 90,
+          "cues": [
+            {
+              "source": "clatter",
+              "every_s": 8,
+              "pitch": 0.8,
+              "level": 0.6
+            },
+            {
+              "source": "ship_bell",
+              "every_s": 30,
+              "pitch": 1,
+              "level": 0.5
+            }
+          ]
+        },
+        {
+          "place": "",
+          "role": "crowd",
+          "count": 0,
+          "sound": "none",
+          "mood": "calm",
+          "props": "none",
+          "text": "Carry the emigrants' chests down to the lighter",
+          "item": "",
+          "factor": 1,
+          "leads": [],
+          "op": "job",
+          "minutes": 5
+        },
+        {
+          "place": "rijnkaai",
+          "role": "family",
+          "count": 6,
+          "sound": "murmur",
+          "mood": "solemn",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [],
+          "op": "gather",
+          "minutes": 60,
+          "cues": [
+            {
+              "source": "cry",
+              "every_s": 20,
+              "pitch": 1,
+              "level": 0.5
+            },
+            {
+              "source": "steam_whistle",
+              "every_s": 40,
+              "pitch": 1,
+              "level": 0.6
+            }
+          ]
+        }
+      ],
+      "notice": "Red Star Line: passage to America. The Kempenland lies at anchor in the stream; lighters take her emigrants out from the Rijnkaai today.",
+      "rumour": "The lighters took a shipload of emigrants out to the Kempenland at anchor, bound for America; whole families with their chests.",
+      "weight": 2,
+      "oncePerDay": true,
+      "fitHours": {
+        "1": [],
+        "2": [
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "3": [],
+        "4": [
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "5": [],
+        "6": [
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "7": []
+      }
+    },
+    {
+      "id": "fish_auction",
+      "title": "The fish auction",
+      "place": "vismarkt",
+      "stages": [
+        {
+          "place": "",
+          "role": "crowd",
+          "count": 0,
+          "sound": "none",
+          "mood": "calm",
+          "props": "none",
+          "text": "",
+          "item": "herring",
+          "factor": 0.8,
+          "leads": [],
+          "op": "price",
+          "minutes": 5
+        },
+        {
+          "place": "vismarkt",
+          "role": "sellers",
+          "count": 4,
+          "sound": "handbell",
+          "mood": "lively",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [
+            "auctioneer"
+          ],
+          "op": "gather",
+          "minutes": 45,
+          "cues": [
+            {
+              "source": "shout",
+              "every_s": 6,
+              "pitch": 0.9,
+              "level": 0.8
+            },
+            {
+              "source": "clatter",
+              "every_s": 14,
+              "pitch": 1,
+              "level": 0.5
+            }
+          ]
+        },
+        {
+          "place": "vismarkt",
+          "role": "crowd",
+          "count": 16,
+          "sound": "murmur",
+          "mood": "lively",
+          "props": "barrels",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [],
+          "op": "gather",
+          "minutes": 60,
+          "cues": [
+            {
+              "source": "shout",
+              "every_s": 7,
+              "pitch": 1,
+              "level": 0.7
+            },
+            {
+              "source": "laughter",
+              "every_s": 20,
+              "pitch": 1,
+              "level": 0.4
+            }
+          ]
+        }
+      ],
+      "notice": "Fish auction at the Vismarkt this morning: {auctioneer} rings the bell.",
+      "rumour": "The herring went cheap at the auction of {auctioneer} this morning; the boats came in full.",
+      "weight": 2,
+      "oncePerDay": true,
+      "fitHours": {
+        "1": [
+          6,
+          7,
+          8
+        ],
+        "2": [
+          6,
+          7,
+          8
+        ],
+        "3": [
+          6,
+          7,
+          8
+        ],
+        "4": [
+          6,
+          7,
+          8
+        ],
+        "5": [
+          6,
+          7,
+          8
+        ],
+        "6": [
+          6,
+          7,
+          8
+        ],
+        "7": []
+      }
+    },
+    {
+      "id": "quarrel",
+      "title": "A quarrel at the market",
+      "place": "grote_markt",
+      "stages": [
+        {
+          "place": "grote_markt",
+          "role": "crowd",
+          "count": 0,
+          "sound": "none",
+          "mood": "tense",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [
+            "quarreller",
+            "quarreller"
+          ],
+          "op": "gather",
+          "minutes": 15
+        },
+        {
+          "place": "",
+          "role": "crowd",
+          "count": 0,
+          "sound": "none",
+          "mood": "tense",
+          "props": "none",
+          "text": "whose pitch it is and who owes whom",
+          "item": "",
+          "factor": 1,
+          "leads": [
+            "quarreller",
+            "quarreller"
+          ],
+          "op": "talk",
+          "minutes": 20,
+          "cues": [
+            {
+              "source": "shout",
+              "every_s": 8,
+              "pitch": 1,
+              "level": 0.7
+            }
+          ]
+        },
+        {
+          "place": "grote_markt",
+          "role": "crowd",
+          "count": 14,
+          "sound": "murmur",
+          "mood": "tense",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [],
+          "op": "gather",
+          "minutes": 20,
+          "cues": [
+            {
+              "source": "shout",
+              "every_s": 9,
+              "pitch": 1.1,
+              "level": 0.6
+            },
+            {
+              "source": "dog",
+              "every_s": 25,
+              "pitch": 1,
+              "level": 0.4
+            }
+          ]
+        },
+        {
+          "place": "grote_markt",
+          "role": "police",
+          "count": 2,
+          "sound": "none",
+          "mood": "tense",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [],
+          "op": "gather",
+          "minutes": 20
+        }
+      ],
+      "notice": "",
+      "rumour": "{quarreller} came to words on the Grote Markt and the police had to step in.",
+      "weight": 2,
+      "oncePerDay": false,
+      "fitHours": {
+        "1": [
+          9,
+          10,
+          11,
+          12,
+          13
+        ],
+        "2": [
+          9,
+          10,
+          11,
+          12,
+          13
+        ],
+        "3": [
+          9,
+          10,
+          11,
+          12,
+          13
+        ],
+        "4": [
+          9,
+          10,
+          11,
+          12,
+          13
+        ],
+        "5": [
+          9,
+          10,
+          11,
+          12,
+          13
+        ],
+        "6": [
+          9,
+          10,
+          11,
+          12,
+          13
+        ],
+        "7": []
+      }
+    },
+    {
+      "id": "scuffle",
+      "title": "A scuffle on the Vismarkt",
+      "place": "vismarkt",
+      "stages": [
+        {
+          "place": "vismarkt",
+          "role": "crowd",
+          "count": 0,
+          "sound": "none",
+          "mood": "tense",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [
+            "drunkard",
+            "quarreller"
+          ],
+          "op": "gather",
+          "minutes": 15
+        },
+        {
+          "place": "",
+          "role": "crowd",
+          "count": 0,
+          "sound": "murmur",
+          "mood": "tense",
+          "props": "none",
+          "text": "a spilled jug of beer",
+          "item": "",
+          "factor": 1,
+          "leads": [
+            "drunkard",
+            "quarreller"
+          ],
+          "op": "scuffle",
+          "minutes": 30,
+          "cues": [
+            {
+              "source": "glass",
+              "every_s": 0,
+              "pitch": 1,
+              "level": 0.7
+            },
+            {
+              "source": "shout",
+              "every_s": 7,
+              "pitch": 0.9,
+              "level": 0.8
+            }
+          ]
+        },
+        {
+          "place": "vismarkt",
+          "role": "crowd",
+          "count": 12,
+          "sound": "murmur",
+          "mood": "tense",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [],
+          "op": "gather",
+          "minutes": 20
+        }
+      ],
+      "notice": "",
+      "rumour": "",
+      "weight": 1,
+      "oncePerDay": true,
+      "fitHours": {
+        "1": [
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19
+        ],
+        "2": [
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19
+        ],
+        "3": [
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19
+        ],
+        "4": [
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19
+        ],
+        "5": [
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19
+        ],
+        "6": [
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19
+        ],
+        "7": [
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19
+        ]
+      }
+    },
+    {
+      "id": "street_robbery",
+      "title": "A purse snatched on the Grote Markt",
+      "place": "grote_markt",
+      "stages": [
+        {
+          "place": "grote_markt",
+          "role": "crowd",
+          "count": 0,
+          "sound": "none",
+          "mood": "calm",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [
+            "victim",
+            "pickpocket"
+          ],
+          "op": "gather",
+          "minutes": 15
+        },
+        {
+          "place": "",
+          "role": "crowd",
+          "count": 0,
+          "sound": "none",
+          "mood": "tense",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [
+            "pickpocket",
+            "victim"
+          ],
+          "op": "robbery",
+          "minutes": 30
+        },
+        {
+          "place": "grote_markt",
+          "role": "crowd",
+          "count": 10,
+          "sound": "murmur",
+          "mood": "tense",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [],
+          "op": "gather",
+          "minutes": 20
+        }
+      ],
+      "notice": "",
+      "rumour": "",
+      "weight": 1,
+      "oncePerDay": true,
+      "fitHours": {
+        "1": [
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17
+        ],
+        "2": [
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17
+        ],
+        "3": [
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17
+        ],
+        "4": [
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17
+        ],
+        "5": [
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17
+        ],
+        "6": [
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17
+        ],
+        "7": []
+      }
+    },
+    {
+      "id": "house_fire",
+      "title": "A house on fire",
+      "place": "fire_house",
+      "stages": [
+        {
+          "place": "",
+          "role": "crowd",
+          "count": 0,
+          "sound": "none",
+          "mood": "tense",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [],
+          "op": "sound",
+          "minutes": 15
+        },
+        {
+          "place": "",
+          "role": "crowd",
+          "count": 40,
+          "sound": "murmur",
+          "mood": "tense",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [],
+          "op": "gather",
+          "minutes": 20,
+          "cues": [
+            {
+              "source": "crackle",
+              "every_s": 4,
+              "pitch": 1,
+              "level": 0.8
+            },
+            {
+              "source": "shout",
+              "every_s": 9,
+              "pitch": 1,
+              "level": 0.7
+            }
+          ]
+        },
+        {
+          "place": "",
+          "role": "family",
+          "count": 45,
+          "sound": "murmur",
+          "mood": "tense",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [],
+          "op": "gather",
+          "minutes": 60,
+          "cues": [
+            {
+              "source": "crackle",
+              "every_s": 4,
+              "pitch": 1,
+              "level": 0.8
+            },
+            {
+              "source": "pump",
+              "every_s": 8,
+              "pitch": 1,
+              "level": 0.7
+            },
+            {
+              "source": "horse",
+              "every_s": 24,
+              "pitch": 1,
+              "level": 0.5
+            },
+            {
+              "source": "shout",
+              "every_s": 10,
+              "pitch": 1,
+              "level": 0.6
+            }
+          ]
+        },
+        {
+          "place": "",
+          "role": "crowd",
+          "count": 0,
+          "sound": "murmur",
+          "mood": "solemn",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [],
+          "op": "sound",
+          "minutes": 40,
+          "cues": [
+            {
+              "source": "crackle",
+              "every_s": 8,
+              "pitch": 0.8,
+              "level": 0.4
+            },
+            {
+              "source": "cry",
+              "every_s": 30,
+              "pitch": 1,
+              "level": 0.4
+            }
+          ]
+        }
+      ],
+      "acts": [
+        "fire_start",
+        "fire_brigade",
+        "fire_chain",
+        "fire_down"
+      ],
+      "notice": "",
+      "rumour": "",
+      "weight": 0.4,
+      "oncePerDay": true,
+      "gapDays": 3,
+      "fitHours": {
+        "1": [
+          0,
+          1,
+          2,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          22,
+          23
+        ],
+        "2": [
+          0,
+          1,
+          2,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          22,
+          23
+        ],
+        "3": [
+          0,
+          1,
+          2,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          22,
+          23
+        ],
+        "4": [
+          0,
+          1,
+          2,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          22,
+          23
+        ],
+        "5": [
+          0,
+          1,
+          2,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          22,
+          23
+        ],
+        "6": [
+          0,
+          1,
+          2,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          22,
+          23
+        ],
+        "7": [
+          0,
+          1,
+          2,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          22,
+          23
+        ]
+      }
+    },
+    {
+      "id": "tempest",
+      "title": "A great storm off the sea",
+      "place": "grote_markt",
+      "stages": [
+        {
+          "place": "",
+          "role": "crowd",
+          "count": 0,
+          "sound": "none",
+          "mood": "tense",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [],
+          "op": "sound",
+          "minutes": 20
+        },
+        {
+          "place": "",
+          "role": "crowd",
+          "count": 0,
+          "sound": "none",
+          "mood": "tense",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [],
+          "op": "sound",
+          "minutes": 90
+        },
+        {
+          "place": "",
+          "role": "crowd",
+          "count": 0,
+          "sound": "none",
+          "mood": "calm",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [],
+          "op": "sound",
+          "minutes": 30
+        }
+      ],
+      "acts": [
+        "tempest_coming",
+        "tempest_peak",
+        "tempest_easing"
+      ],
+      "notice": "",
+      "rumour": "The great storm tore slates off half the roofs, put the river over the lowest quay steps and broke a lighter loose at the Werf.",
+      "weight": 0.25,
+      "oncePerDay": true,
+      "gapDays": 4,
+      "fitHours": {
+        "1": [
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17
+        ],
+        "2": [
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17
+        ],
+        "3": [
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17
+        ],
+        "4": [
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17
+        ],
+        "5": [
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17
+        ],
+        "6": [
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17
+        ],
+        "7": [
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17
+        ]
+      }
+    },
+    {
+      "id": "tavern_brawl",
+      "title": "A scuffle at closing time",
+      "place": "tavern:vliet",
+      "stages": [
+        {
+          "place": "tavern:vliet",
+          "role": "crowd",
+          "count": 0,
+          "sound": "none",
+          "mood": "tense",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [
+            "drunkard",
+            "quarreller"
+          ],
+          "op": "gather",
+          "minutes": 15,
+          "cues": [
+            {
+              "source": "laughter",
+              "every_s": 14,
+              "pitch": 0.9,
+              "level": 0.4
+            }
+          ]
+        },
+        {
+          "place": "",
+          "role": "crowd",
+          "count": 0,
+          "sound": "murmur",
+          "mood": "tense",
+          "props": "none",
+          "text": "a spilled jug and a debt from last week",
+          "item": "",
+          "factor": 1,
+          "leads": [
+            "drunkard",
+            "quarreller"
+          ],
+          "op": "scuffle",
+          "minutes": 25,
+          "cues": [
+            {
+              "source": "glass",
+              "every_s": 0,
+              "pitch": 1,
+              "level": 0.8
+            },
+            {
+              "source": "shout",
+              "every_s": 7,
+              "pitch": 0.9,
+              "level": 0.8
+            }
+          ]
+        },
+        {
+          "place": "tavern:vliet",
+          "role": "crowd",
+          "count": 6,
+          "sound": "murmur",
+          "mood": "tense",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [],
+          "op": "gather",
+          "minutes": 20,
+          "cues": [
+            {
+              "source": "dog",
+              "every_s": 20,
+              "pitch": 1,
+              "level": 0.4
+            }
+          ]
+        }
+      ],
+      "notice": "",
+      "rumour": "{drunkard} and {quarreller} came to shoving outside De Vliet at closing time, and the police had to part them.",
+      "weight": 2,
+      "oncePerDay": true,
+      "fitHours": {
+        "1": [
+          0,
+          1,
+          22,
+          23
+        ],
+        "2": [
+          0,
+          1,
+          22,
+          23
+        ],
+        "3": [
+          0,
+          1,
+          22,
+          23
+        ],
+        "4": [
+          0,
+          1,
+          22,
+          23
+        ],
+        "5": [
+          0,
+          1,
+          22,
+          23
+        ],
+        "6": [
+          0,
+          1,
+          22,
+          23
+        ],
+        "7": [
+          0,
+          1,
+          22,
+          23
+        ]
+      }
+    },
+    {
+      "id": "burglary",
+      "title": "A break-in in the back lane",
+      "place": "back_lane",
+      "stages": [
+        {
+          "place": "back_lane",
+          "role": "crowd",
+          "count": 0,
+          "sound": "none",
+          "mood": "tense",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [
+            "pickpocket"
+          ],
+          "op": "gather",
+          "minutes": 20,
+          "cues": [
+            {
+              "source": "glass",
+              "every_s": 0,
+              "pitch": 1.1,
+              "level": 0.6
+            },
+            {
+              "source": "dog",
+              "every_s": 12,
+              "pitch": 1,
+              "level": 0.5
+            }
+          ]
+        },
+        {
+          "place": "back_lane",
+          "role": "police",
+          "count": 2,
+          "sound": "none",
+          "mood": "tense",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [],
+          "op": "gather",
+          "minutes": 25,
+          "cues": [
+            {
+              "source": "whistle",
+              "every_s": 9,
+              "pitch": 1,
+              "level": 0.8
+            },
+            {
+              "source": "shout",
+              "every_s": 15,
+              "pitch": 1,
+              "level": 0.5
+            }
+          ]
+        },
+        {
+          "place": "back_lane",
+          "role": "crowd",
+          "count": 5,
+          "sound": "murmur",
+          "mood": "curious",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [],
+          "op": "gather",
+          "minutes": 20
+        }
+      ],
+      "notice": "",
+      "rumour": "Somebody forced a back window in the back lane in the night; the police came with their lanterns, and {pickpocket} was seen in the lane.",
+      "weight": 2,
+      "oncePerDay": true,
+      "fitHours": {
+        "1": [
+          0,
+          1,
+          2,
+          3,
+          23
+        ],
+        "2": [
+          0,
+          1,
+          2,
+          3,
+          23
+        ],
+        "3": [
+          0,
+          1,
+          2,
+          3,
+          23
+        ],
+        "4": [
+          0,
+          1,
+          2,
+          3,
+          23
+        ],
+        "5": [
+          0,
+          1,
+          2,
+          3,
+          23
+        ],
+        "6": [
+          0,
+          1,
+          2,
+          3,
+          23
+        ],
+        "7": [
+          0,
+          1,
+          2,
+          3,
+          23
+        ]
+      }
+    },
+    {
+      "id": "smuggling",
+      "title": "Goods landed on the Werf by night",
+      "place": "werf",
+      "stages": [
+        {
+          "place": "werf",
+          "role": "crowd",
+          "count": 0,
+          "sound": "none",
+          "mood": "tense",
+          "props": "crates",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [
+            "smuggler",
+            "smuggler"
+          ],
+          "op": "gather",
+          "minutes": 20,
+          "cues": [
+            {
+              "source": "chain",
+              "every_s": 18,
+              "pitch": 0.8,
+              "level": 0.4
+            },
+            {
+              "source": "clatter",
+              "every_s": 11,
+              "pitch": 0.9,
+              "level": 0.5
+            }
+          ]
+        },
+        {
+          "place": "",
+          "role": "crowd",
+          "count": 0,
+          "sound": "none",
+          "mood": "tense",
+          "props": "none",
+          "text": "the tide, the water police, and who takes the crates up to the Steen",
+          "item": "",
+          "factor": 1,
+          "leads": [
+            "smuggler",
+            "smuggler"
+          ],
+          "op": "talk",
+          "minutes": 15
+        },
+        {
+          "place": "",
+          "role": "crowd",
+          "count": 0,
+          "sound": "murmur",
+          "mood": "tense",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [],
+          "op": "sound",
+          "minutes": 25,
+          "cues": [
+            {
+              "source": "clatter",
+              "every_s": 9,
+              "pitch": 0.9,
+              "level": 0.5
+            },
+            {
+              "source": "ship_bell",
+              "every_s": 35,
+              "pitch": 0.8,
+              "level": 0.3
+            }
+          ]
+        }
+      ],
+      "notice": "",
+      "rumour": "Crates came ashore on the Werf in the middle of the night, and nobody paid the customs a centime for them.",
+      "weight": 1.5,
+      "oncePerDay": true,
+      "fitHours": {
+        "1": [
+          0,
+          1,
+          2,
+          3,
+          23
+        ],
+        "2": [
+          0,
+          1,
+          2,
+          3,
+          23
+        ],
+        "3": [
+          0,
+          1,
+          2,
+          3,
+          23
+        ],
+        "4": [
+          0,
+          1,
+          2,
+          3,
+          23
+        ],
+        "5": [
+          0,
+          1,
+          2,
+          3,
+          23
+        ],
+        "6": [
+          0,
+          1,
+          2,
+          3,
+          23
+        ],
+        "7": [
+          0,
+          1,
+          2,
+          3,
+          23
+        ]
+      }
+    },
+    {
+      "id": "night_watch",
+      "title": "The night watch goes its round",
+      "place": "vismarkt",
+      "stages": [
+        {
+          "place": "vismarkt",
+          "role": "police",
+          "count": 2,
+          "sound": "none",
+          "mood": "calm",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [],
+          "op": "gather",
+          "minutes": 15,
+          "cues": [
+            {
+              "source": "whistle",
+              "every_s": 30,
+              "pitch": 1,
+              "level": 0.5
+            }
+          ]
+        },
+        {
+          "place": "steenplein",
+          "role": "crowd",
+          "count": 0,
+          "sound": "none",
+          "mood": "calm",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [],
+          "op": "procession",
+          "minutes": 35,
+          "cues": [
+            {
+              "source": "handbell",
+              "every_s": 25,
+              "pitch": 0.9,
+              "level": 0.4
+            }
+          ]
+        },
+        {
+          "place": "steenplein",
+          "role": "police",
+          "count": 2,
+          "sound": "none",
+          "mood": "calm",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [],
+          "op": "gather",
+          "minutes": 20
+        }
+      ],
+      "notice": "",
+      "rumour": "",
+      "weight": 2,
+      "oncePerDay": false,
+      "fitHours": {
+        "1": [
+          0,
+          1,
+          2,
+          3,
+          22,
+          23
+        ],
+        "2": [
+          0,
+          1,
+          2,
+          3,
+          22,
+          23
+        ],
+        "3": [
+          0,
+          1,
+          2,
+          3,
+          22,
+          23
+        ],
+        "4": [
+          0,
+          1,
+          2,
+          3,
+          22,
+          23
+        ],
+        "5": [
+          0,
+          1,
+          2,
+          3,
+          22,
+          23
+        ],
+        "6": [
+          0,
+          1,
+          2,
+          3,
+          22,
+          23
+        ],
+        "7": [
+          0,
+          1,
+          2,
+          3,
+          22,
+          23
+        ]
+      }
+    },
+    {
+      "id": "hiring",
+      "title": "The naties hire at dawn",
+      "place": "rijnkaai",
+      "stages": [
+        {
+          "place": "",
+          "role": "family",
+          "count": 30,
+          "sound": "murmur",
+          "mood": "calm",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [],
+          "op": "gather",
+          "minutes": 80,
+          "cues": [
+            {
+              "source": "clatter",
+              "every_s": 15,
+              "pitch": 0.9,
+              "level": 0.4
+            }
+          ]
+        },
+        {
+          "place": "",
+          "role": "crowd",
+          "count": 0,
+          "sound": "murmur",
+          "mood": "lively",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [],
+          "op": "sound",
+          "minutes": 60,
+          "cues": [
+            {
+              "source": "shout",
+              "every_s": 8,
+              "pitch": 0.9,
+              "level": 0.7
+            }
+          ]
+        }
+      ],
+      "acts": [
+        "hire_gather",
+        "hire_call"
+      ],
+      "notice": "",
+      "rumour": "",
+      "weight": 0,
+      "oncePerDay": true,
+      "routine": true,
+      "fitHours": {
+        "1": [
+          5,
+          6
+        ],
+        "2": [
+          5,
+          6
+        ],
+        "3": [
+          5,
+          6
+        ],
+        "4": [
+          5,
+          6
+        ],
+        "5": [
+          5,
+          6
+        ],
+        "6": [
+          5,
+          6
+        ],
+        "7": []
+      }
+    },
+    {
+      "id": "ballad",
+      "title": "The ballad singer",
+      "place": "grote_markt",
+      "stages": [
+        {
+          "place": "",
+          "role": "crowd",
+          "count": 10,
+          "sound": "none",
+          "mood": "lively",
+          "props": "none",
+          "text": "",
+          "item": "",
+          "factor": 1,
+          "leads": [],
+          "op": "gather",
+          "minutes": 180
+        }
+      ],
+      "acts": [
+        "ballad_sing"
+      ],
+      "notice": "",
+      "rumour": "",
+      "weight": 0,
+      "oncePerDay": false,
+      "routine": true,
+      "fitHours": {
+        "1": [
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "2": [
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "3": [
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "4": [
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "5": [
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "6": [
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "7": [
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ]
+      }
+    }
+  ],
+  "refusals": {
+    "busy": "I've my hands full already. Ask me when I'm done.",
+    "too_many": "Half the street's running about for you as it is. Not me, not now.",
+    "reserved": "I've other business today. Ask someone else.",
+    "at_stall": "And leave the stall? Not likely. Ask me after hours.",
+    "child": "Ask them yourself, mister. They won't listen to me.",
+    "no_trust": "I don't know you well enough for that.",
+    "dark": "Not in the dark. Not for anyone.",
+    "unknown_person": "I don't know anyone by that name.",
+    "unknown_place": "I don't know where that is.",
+    "indoors": "They're indoors now. Come back when they're about.",
+    "no_way": "There's no way through there on foot.",
+    "too_far": "That's the other end of town. Not now.",
+    "no_money": "My money stays in my pocket.",
+    "post": "I can't leave my post. Ask someone with time on their hands.",
+    "nothing_to_stop": "I wasn't doing anything for you.",
+    "gift": "No, thank you.",
+    "treat": "Not today, thank you.",
+    "hire": "Not for that, no.",
+    "routine": "Not that errand, no."
+  },
+  "endLines": {
+    "follow_time": "That's my time. I'm off.",
+    "follow_lost": "Where's he gone? Well. That's that.",
+    "follow_water": "I'm not going in there.",
+    "follow_blocked": "I can't get through there. You go on.",
+    "go_to_time": "Too far for me today. I've turned back.",
+    "go_to_arrived": "Here I am, as you asked.",
+    "wait_time": "That's long enough. I'm off.",
+    "look_for_time": "Not a sign. I've looked enough.",
+    "look_for_found": "There! That's the one.",
+    "talk_to_time": "Couldn't find them. Another time.",
+    "talk_to_done": "I've had my word with them.",
+    "fetch_police_time": "No agent to be found. Sorry.",
+    "stopped": "All right. As you like.",
+    "attend_done": ""
+  },
+  "wages": {
+    "dayPay": {
+      "docker": 120,
+      "natie": 140,
+      "porter": 110,
+      "carter": 130,
+      "boatman": 120,
+      "sailor": 100,
+      "cellarman": 110,
+      "lamplighter": 90,
+      "laundress": 70,
+      "maid": 70,
+      "seamstress": 70,
+      "housewife": 60,
+      "fishwife": 90,
+      "market_woman": 90,
+      "cobbler": 100,
+      "retired": 50,
+      "beggar": 30,
+      "street_child": 30,
+      "errand_boy": 40,
+      "emigrant": 60,
+      "soldier": 40,
+      "thief": 80,
+      "runner": 90
+    },
+    "call_c": 5,
+    "loadsPerDay": 12,
+    "max_c": 300
+  },
+  "fires": {
+    "1": {
+      "owner": "lm_cellarmaster",
+      "owner_name": "Constant Maes",
+      "household": 9011,
+      "family": [
+        "lm_cellarmaster"
+      ],
+      "house": 955,
+      "door": [
+        -119.8,
+        80
+      ],
+      "out": [
+        0,
+        1
+      ],
+      "step": [
+        -119.8,
+        81.2
+      ],
+      "width": 6,
+      "storeys": 4,
+      "water": [
+        -140.8,
+        73.2
+      ],
+      "chain": [
+        [
+          -140.8,
+          73.2
+        ],
+        [
+          -139.94,
+          74.11
+        ],
+        [
+          -139.09,
+          75.02
+        ],
+        [
+          -138.23,
+          75.94
+        ],
+        [
+          -137.38,
+          76.85
+        ],
+        [
+          -136.52,
+          77.76
+        ],
+        [
+          -135.67,
+          78.67
+        ],
+        [
+          -134.81,
+          79.58
+        ],
+        [
+          -133.96,
+          80.49
+        ],
+        [
+          -133.04,
+          81.25
+        ],
+        [
+          -131.79,
+          81.24
+        ],
+        [
+          -130.54,
+          81.24
+        ],
+        [
+          -129.29,
+          81.24
+        ],
+        [
+          -128.04,
+          81.23
+        ],
+        [
+          -126.79,
+          81.23
+        ],
+        [
+          -125.54,
+          81.22
+        ],
+        [
+          -124.29,
+          81.22
+        ],
+        [
+          -123.04,
+          81.21
+        ],
+        [
+          -121.79,
+          81.21
+        ],
+        [
+          -141.75,
+          74.09
+        ],
+        [
+          -140.89,
+          75
+        ],
+        [
+          -140.04,
+          75.91
+        ],
+        [
+          -139.18,
+          76.82
+        ],
+        [
+          -138.33,
+          77.74
+        ],
+        [
+          -137.47,
+          78.65
+        ],
+        [
+          -136.62,
+          79.56
+        ],
+        [
+          -135.76,
+          80.47
+        ],
+        [
+          -134.91,
+          81.38
+        ],
+        [
+          -133.03,
+          82.55
+        ],
+        [
+          -131.78,
+          82.54
+        ],
+        [
+          -130.53,
+          82.54
+        ],
+        [
+          -129.28,
+          82.54
+        ],
+        [
+          -128.03,
+          82.53
+        ],
+        [
+          -126.78,
+          82.53
+        ],
+        [
+          -125.53,
+          82.52
+        ],
+        [
+          -124.28,
+          82.52
+        ],
+        [
+          -123.03,
+          82.51
+        ],
+        [
+          -121.78,
+          82.51
+        ]
+      ],
+      "full": 19,
+      "station": [
+        -175,
+        210
+      ],
+      "pumpPath": [
+        [
+          -175,
+          210
+        ],
+        [
+          -156.25,
+          206.75
+        ],
+        [
+          -142.25,
+          162.75
+        ],
+        [
+          -140.75,
+          90.25
+        ],
+        [
+          -138.25,
+          89.25
+        ],
+        [
+          -115.8,
+          83.6
+        ]
+      ],
+      "pumpAt": [
+        -115.8,
+        83.6,
+        1.8173464920330133
+      ],
+      "firemen": [],
+      "chainIds": [],
+      "jef": null,
+      "settled": null,
+      "place": "the house of Constant Maes",
+      "started": 3
+    },
+    "2": {
+      "owner": "lm_cellarmaster",
+      "owner_name": "Constant Maes",
+      "household": 9011,
+      "family": [
+        "lm_cellarmaster"
+      ],
+      "house": 955,
+      "door": [
+        -119.8,
+        80
+      ],
+      "out": [
+        0,
+        1
+      ],
+      "step": [
+        -119.8,
+        81.2
+      ],
+      "width": 6,
+      "storeys": 4,
+      "water": [
+        -140.8,
+        73.2
+      ],
+      "chain": [
+        [
+          -140.8,
+          73.2
+        ],
+        [
+          -139.94,
+          74.11
+        ],
+        [
+          -139.09,
+          75.02
+        ],
+        [
+          -138.23,
+          75.94
+        ],
+        [
+          -137.38,
+          76.85
+        ],
+        [
+          -136.52,
+          77.76
+        ],
+        [
+          -135.67,
+          78.67
+        ],
+        [
+          -134.81,
+          79.58
+        ],
+        [
+          -133.96,
+          80.49
+        ],
+        [
+          -133.04,
+          81.25
+        ],
+        [
+          -131.79,
+          81.24
+        ],
+        [
+          -130.54,
+          81.24
+        ],
+        [
+          -129.29,
+          81.24
+        ],
+        [
+          -128.04,
+          81.23
+        ],
+        [
+          -126.79,
+          81.23
+        ],
+        [
+          -125.54,
+          81.22
+        ],
+        [
+          -124.29,
+          81.22
+        ],
+        [
+          -123.04,
+          81.21
+        ],
+        [
+          -121.79,
+          81.21
+        ],
+        [
+          -141.75,
+          74.09
+        ],
+        [
+          -140.89,
+          75
+        ],
+        [
+          -140.04,
+          75.91
+        ],
+        [
+          -139.18,
+          76.82
+        ],
+        [
+          -138.33,
+          77.74
+        ],
+        [
+          -137.47,
+          78.65
+        ],
+        [
+          -136.62,
+          79.56
+        ],
+        [
+          -135.76,
+          80.47
+        ],
+        [
+          -134.91,
+          81.38
+        ],
+        [
+          -133.03,
+          82.55
+        ],
+        [
+          -131.78,
+          82.54
+        ],
+        [
+          -130.53,
+          82.54
+        ],
+        [
+          -129.28,
+          82.54
+        ],
+        [
+          -128.03,
+          82.53
+        ],
+        [
+          -126.78,
+          82.53
+        ],
+        [
+          -125.53,
+          82.52
+        ],
+        [
+          -124.28,
+          82.52
+        ],
+        [
+          -123.03,
+          82.51
+        ],
+        [
+          -121.78,
+          82.51
+        ]
+      ],
+      "full": 19,
+      "station": [
+        -175,
+        210
+      ],
+      "pumpPath": [
+        [
+          -175,
+          210
+        ],
+        [
+          -156.25,
+          206.75
+        ],
+        [
+          -142.25,
+          162.75
+        ],
+        [
+          -140.75,
+          90.25
+        ],
+        [
+          -138.25,
+          89.25
+        ],
+        [
+          -115.8,
+          83.6
+        ]
+      ],
+      "pumpAt": [
+        -115.8,
+        83.6,
+        1.8173464920330133
+      ],
+      "firemen": [],
+      "chainIds": [],
+      "jef": null,
+      "settled": null,
+      "place": "the house of Constant Maes",
+      "started": 6
+    },
+    "3": {
+      "owner": "lm_cellarmaster",
+      "owner_name": "Constant Maes",
+      "household": 9011,
+      "family": [
+        "lm_cellarmaster"
+      ],
+      "house": 955,
+      "door": [
+        -119.8,
+        80
+      ],
+      "out": [
+        0,
+        1
+      ],
+      "step": [
+        -119.8,
+        81.2
+      ],
+      "width": 6,
+      "storeys": 4,
+      "water": [
+        -140.8,
+        73.2
+      ],
+      "chain": [
+        [
+          -140.8,
+          73.2
+        ],
+        [
+          -139.94,
+          74.11
+        ],
+        [
+          -139.09,
+          75.02
+        ],
+        [
+          -138.23,
+          75.94
+        ],
+        [
+          -137.38,
+          76.85
+        ],
+        [
+          -136.52,
+          77.76
+        ],
+        [
+          -135.67,
+          78.67
+        ],
+        [
+          -134.81,
+          79.58
+        ],
+        [
+          -133.96,
+          80.49
+        ],
+        [
+          -133.04,
+          81.25
+        ],
+        [
+          -131.79,
+          81.24
+        ],
+        [
+          -130.54,
+          81.24
+        ],
+        [
+          -129.29,
+          81.24
+        ],
+        [
+          -128.04,
+          81.23
+        ],
+        [
+          -126.79,
+          81.23
+        ],
+        [
+          -125.54,
+          81.22
+        ],
+        [
+          -124.29,
+          81.22
+        ],
+        [
+          -123.04,
+          81.21
+        ],
+        [
+          -121.79,
+          81.21
+        ],
+        [
+          -141.75,
+          74.09
+        ],
+        [
+          -140.89,
+          75
+        ],
+        [
+          -140.04,
+          75.91
+        ],
+        [
+          -139.18,
+          76.82
+        ],
+        [
+          -138.33,
+          77.74
+        ],
+        [
+          -137.47,
+          78.65
+        ],
+        [
+          -136.62,
+          79.56
+        ],
+        [
+          -135.76,
+          80.47
+        ],
+        [
+          -134.91,
+          81.38
+        ],
+        [
+          -133.03,
+          82.55
+        ],
+        [
+          -131.78,
+          82.54
+        ],
+        [
+          -130.53,
+          82.54
+        ],
+        [
+          -129.28,
+          82.54
+        ],
+        [
+          -128.03,
+          82.53
+        ],
+        [
+          -126.78,
+          82.53
+        ],
+        [
+          -125.53,
+          82.52
+        ],
+        [
+          -124.28,
+          82.52
+        ],
+        [
+          -123.03,
+          82.51
+        ],
+        [
+          -121.78,
+          82.51
+        ]
+      ],
+      "full": 19,
+      "station": [
+        -175,
+        210
+      ],
+      "pumpPath": [
+        [
+          -175,
+          210
+        ],
+        [
+          -156.25,
+          206.75
+        ],
+        [
+          -142.25,
+          162.75
+        ],
+        [
+          -140.75,
+          90.25
+        ],
+        [
+          -138.25,
+          89.25
+        ],
+        [
+          -115.8,
+          83.6
+        ]
+      ],
+      "pumpAt": [
+        -115.8,
+        83.6,
+        1.8173464920330133
+      ],
+      "firemen": [],
+      "chainIds": [],
+      "jef": null,
+      "settled": null,
+      "place": "the house of Constant Maes",
+      "started": 9
+    },
+    "4": {
+      "owner": "lm_cellarmaster",
+      "owner_name": "Constant Maes",
+      "household": 9011,
+      "family": [
+        "lm_cellarmaster"
+      ],
+      "house": 955,
+      "door": [
+        -119.8,
+        80
+      ],
+      "out": [
+        0,
+        1
+      ],
+      "step": [
+        -119.8,
+        81.2
+      ],
+      "width": 6,
+      "storeys": 4,
+      "water": [
+        -140.8,
+        73.2
+      ],
+      "chain": [
+        [
+          -140.8,
+          73.2
+        ],
+        [
+          -139.94,
+          74.11
+        ],
+        [
+          -139.09,
+          75.02
+        ],
+        [
+          -138.23,
+          75.94
+        ],
+        [
+          -137.38,
+          76.85
+        ],
+        [
+          -136.52,
+          77.76
+        ],
+        [
+          -135.67,
+          78.67
+        ],
+        [
+          -134.81,
+          79.58
+        ],
+        [
+          -133.96,
+          80.49
+        ],
+        [
+          -133.04,
+          81.25
+        ],
+        [
+          -131.79,
+          81.24
+        ],
+        [
+          -130.54,
+          81.24
+        ],
+        [
+          -129.29,
+          81.24
+        ],
+        [
+          -128.04,
+          81.23
+        ],
+        [
+          -126.79,
+          81.23
+        ],
+        [
+          -125.54,
+          81.22
+        ],
+        [
+          -124.29,
+          81.22
+        ],
+        [
+          -123.04,
+          81.21
+        ],
+        [
+          -121.79,
+          81.21
+        ],
+        [
+          -141.75,
+          74.09
+        ],
+        [
+          -140.89,
+          75
+        ],
+        [
+          -140.04,
+          75.91
+        ],
+        [
+          -139.18,
+          76.82
+        ],
+        [
+          -138.33,
+          77.74
+        ],
+        [
+          -137.47,
+          78.65
+        ],
+        [
+          -136.62,
+          79.56
+        ],
+        [
+          -135.76,
+          80.47
+        ],
+        [
+          -134.91,
+          81.38
+        ],
+        [
+          -133.03,
+          82.55
+        ],
+        [
+          -131.78,
+          82.54
+        ],
+        [
+          -130.53,
+          82.54
+        ],
+        [
+          -129.28,
+          82.54
+        ],
+        [
+          -128.03,
+          82.53
+        ],
+        [
+          -126.78,
+          82.53
+        ],
+        [
+          -125.53,
+          82.52
+        ],
+        [
+          -124.28,
+          82.52
+        ],
+        [
+          -123.03,
+          82.51
+        ],
+        [
+          -121.78,
+          82.51
+        ]
+      ],
+      "full": 19,
+      "station": [
+        -175,
+        210
+      ],
+      "pumpPath": [
+        [
+          -175,
+          210
+        ],
+        [
+          -156.25,
+          206.75
+        ],
+        [
+          -142.25,
+          162.75
+        ],
+        [
+          -140.75,
+          90.25
+        ],
+        [
+          -138.25,
+          89.25
+        ],
+        [
+          -115.8,
+          83.6
+        ]
+      ],
+      "pumpAt": [
+        -115.8,
+        83.6,
+        1.8173464920330133
+      ],
+      "firemen": [],
+      "chainIds": [],
+      "jef": null,
+      "settled": null,
+      "place": "the house of Constant Maes",
+      "started": 12
+    },
+    "5": {
+      "owner": "lm_cellarmaster",
+      "owner_name": "Constant Maes",
+      "household": 9011,
+      "family": [
+        "lm_cellarmaster"
+      ],
+      "house": 955,
+      "door": [
+        -119.8,
+        80
+      ],
+      "out": [
+        0,
+        1
+      ],
+      "step": [
+        -119.8,
+        81.2
+      ],
+      "width": 6,
+      "storeys": 4,
+      "water": [
+        -140.8,
+        73.2
+      ],
+      "chain": [
+        [
+          -140.8,
+          73.2
+        ],
+        [
+          -139.94,
+          74.11
+        ],
+        [
+          -139.09,
+          75.02
+        ],
+        [
+          -138.23,
+          75.94
+        ],
+        [
+          -137.38,
+          76.85
+        ],
+        [
+          -136.52,
+          77.76
+        ],
+        [
+          -135.67,
+          78.67
+        ],
+        [
+          -134.81,
+          79.58
+        ],
+        [
+          -133.96,
+          80.49
+        ],
+        [
+          -133.04,
+          81.25
+        ],
+        [
+          -131.79,
+          81.24
+        ],
+        [
+          -130.54,
+          81.24
+        ],
+        [
+          -129.29,
+          81.24
+        ],
+        [
+          -128.04,
+          81.23
+        ],
+        [
+          -126.79,
+          81.23
+        ],
+        [
+          -125.54,
+          81.22
+        ],
+        [
+          -124.29,
+          81.22
+        ],
+        [
+          -123.04,
+          81.21
+        ],
+        [
+          -121.79,
+          81.21
+        ],
+        [
+          -141.75,
+          74.09
+        ],
+        [
+          -140.89,
+          75
+        ],
+        [
+          -140.04,
+          75.91
+        ],
+        [
+          -139.18,
+          76.82
+        ],
+        [
+          -138.33,
+          77.74
+        ],
+        [
+          -137.47,
+          78.65
+        ],
+        [
+          -136.62,
+          79.56
+        ],
+        [
+          -135.76,
+          80.47
+        ],
+        [
+          -134.91,
+          81.38
+        ],
+        [
+          -133.03,
+          82.55
+        ],
+        [
+          -131.78,
+          82.54
+        ],
+        [
+          -130.53,
+          82.54
+        ],
+        [
+          -129.28,
+          82.54
+        ],
+        [
+          -128.03,
+          82.53
+        ],
+        [
+          -126.78,
+          82.53
+        ],
+        [
+          -125.53,
+          82.52
+        ],
+        [
+          -124.28,
+          82.52
+        ],
+        [
+          -123.03,
+          82.51
+        ],
+        [
+          -121.78,
+          82.51
+        ]
+      ],
+      "full": 19,
+      "station": [
+        -175,
+        210
+      ],
+      "pumpPath": [
+        [
+          -175,
+          210
+        ],
+        [
+          -156.25,
+          206.75
+        ],
+        [
+          -142.25,
+          162.75
+        ],
+        [
+          -140.75,
+          90.25
+        ],
+        [
+          -138.25,
+          89.25
+        ],
+        [
+          -115.8,
+          83.6
+        ]
+      ],
+      "pumpAt": [
+        -115.8,
+        83.6,
+        1.8173464920330133
+      ],
+      "firemen": [],
+      "chainIds": [],
+      "jef": null,
+      "settled": null,
+      "place": "the house of Constant Maes",
+      "started": 15
+    },
+    "6": {
+      "owner": "lm_cellarmaster",
+      "owner_name": "Constant Maes",
+      "household": 9011,
+      "family": [
+        "lm_cellarmaster"
+      ],
+      "house": 955,
+      "door": [
+        -119.8,
+        80
+      ],
+      "out": [
+        0,
+        1
+      ],
+      "step": [
+        -119.8,
+        81.2
+      ],
+      "width": 6,
+      "storeys": 4,
+      "water": [
+        -140.8,
+        73.2
+      ],
+      "chain": [
+        [
+          -140.8,
+          73.2
+        ],
+        [
+          -139.94,
+          74.11
+        ],
+        [
+          -139.09,
+          75.02
+        ],
+        [
+          -138.23,
+          75.94
+        ],
+        [
+          -137.38,
+          76.85
+        ],
+        [
+          -136.52,
+          77.76
+        ],
+        [
+          -135.67,
+          78.67
+        ],
+        [
+          -134.81,
+          79.58
+        ],
+        [
+          -133.96,
+          80.49
+        ],
+        [
+          -133.04,
+          81.25
+        ],
+        [
+          -131.79,
+          81.24
+        ],
+        [
+          -130.54,
+          81.24
+        ],
+        [
+          -129.29,
+          81.24
+        ],
+        [
+          -128.04,
+          81.23
+        ],
+        [
+          -126.79,
+          81.23
+        ],
+        [
+          -125.54,
+          81.22
+        ],
+        [
+          -124.29,
+          81.22
+        ],
+        [
+          -123.04,
+          81.21
+        ],
+        [
+          -121.79,
+          81.21
+        ],
+        [
+          -141.75,
+          74.09
+        ],
+        [
+          -140.89,
+          75
+        ],
+        [
+          -140.04,
+          75.91
+        ],
+        [
+          -139.18,
+          76.82
+        ],
+        [
+          -138.33,
+          77.74
+        ],
+        [
+          -137.47,
+          78.65
+        ],
+        [
+          -136.62,
+          79.56
+        ],
+        [
+          -135.76,
+          80.47
+        ],
+        [
+          -134.91,
+          81.38
+        ],
+        [
+          -133.03,
+          82.55
+        ],
+        [
+          -131.78,
+          82.54
+        ],
+        [
+          -130.53,
+          82.54
+        ],
+        [
+          -129.28,
+          82.54
+        ],
+        [
+          -128.03,
+          82.53
+        ],
+        [
+          -126.78,
+          82.53
+        ],
+        [
+          -125.53,
+          82.52
+        ],
+        [
+          -124.28,
+          82.52
+        ],
+        [
+          -123.03,
+          82.51
+        ],
+        [
+          -121.78,
+          82.51
+        ]
+      ],
+      "full": 19,
+      "station": [
+        -175,
+        210
+      ],
+      "pumpPath": [
+        [
+          -175,
+          210
+        ],
+        [
+          -156.25,
+          206.75
+        ],
+        [
+          -142.25,
+          162.75
+        ],
+        [
+          -140.75,
+          90.25
+        ],
+        [
+          -138.25,
+          89.25
+        ],
+        [
+          -115.8,
+          83.6
+        ]
+      ],
+      "pumpAt": [
+        -115.8,
+        83.6,
+        1.8173464920330133
+      ],
+      "firemen": [],
+      "chainIds": [],
+      "jef": null,
+      "settled": null,
+      "place": "the house of Constant Maes",
+      "started": 18
+    },
+    "7": {
+      "owner": "lm_cellarmaster",
+      "owner_name": "Constant Maes",
+      "household": 9011,
+      "family": [
+        "lm_cellarmaster"
+      ],
+      "house": 955,
+      "door": [
+        -119.8,
+        80
+      ],
+      "out": [
+        0,
+        1
+      ],
+      "step": [
+        -119.8,
+        81.2
+      ],
+      "width": 6,
+      "storeys": 4,
+      "water": [
+        -140.8,
+        73.2
+      ],
+      "chain": [
+        [
+          -140.8,
+          73.2
+        ],
+        [
+          -139.94,
+          74.11
+        ],
+        [
+          -139.09,
+          75.02
+        ],
+        [
+          -138.23,
+          75.94
+        ],
+        [
+          -137.38,
+          76.85
+        ],
+        [
+          -136.52,
+          77.76
+        ],
+        [
+          -135.67,
+          78.67
+        ],
+        [
+          -134.81,
+          79.58
+        ],
+        [
+          -133.96,
+          80.49
+        ],
+        [
+          -133.04,
+          81.25
+        ],
+        [
+          -131.79,
+          81.24
+        ],
+        [
+          -130.54,
+          81.24
+        ],
+        [
+          -129.29,
+          81.24
+        ],
+        [
+          -128.04,
+          81.23
+        ],
+        [
+          -126.79,
+          81.23
+        ],
+        [
+          -125.54,
+          81.22
+        ],
+        [
+          -124.29,
+          81.22
+        ],
+        [
+          -123.04,
+          81.21
+        ],
+        [
+          -121.79,
+          81.21
+        ],
+        [
+          -141.75,
+          74.09
+        ],
+        [
+          -140.89,
+          75
+        ],
+        [
+          -140.04,
+          75.91
+        ],
+        [
+          -139.18,
+          76.82
+        ],
+        [
+          -138.33,
+          77.74
+        ],
+        [
+          -137.47,
+          78.65
+        ],
+        [
+          -136.62,
+          79.56
+        ],
+        [
+          -135.76,
+          80.47
+        ],
+        [
+          -134.91,
+          81.38
+        ],
+        [
+          -133.03,
+          82.55
+        ],
+        [
+          -131.78,
+          82.54
+        ],
+        [
+          -130.53,
+          82.54
+        ],
+        [
+          -129.28,
+          82.54
+        ],
+        [
+          -128.03,
+          82.53
+        ],
+        [
+          -126.78,
+          82.53
+        ],
+        [
+          -125.53,
+          82.52
+        ],
+        [
+          -124.28,
+          82.52
+        ],
+        [
+          -123.03,
+          82.51
+        ],
+        [
+          -121.78,
+          82.51
+        ]
+      ],
+      "full": 19,
+      "station": [
+        -175,
+        210
+      ],
+      "pumpPath": [
+        [
+          -175,
+          210
+        ],
+        [
+          -156.25,
+          206.75
+        ],
+        [
+          -142.25,
+          162.75
+        ],
+        [
+          -140.75,
+          90.25
+        ],
+        [
+          -138.25,
+          89.25
+        ],
+        [
+          -115.8,
+          83.6
+        ]
+      ],
+      "pumpAt": [
+        -115.8,
+        83.6,
+        1.8173464920330133
+      ],
+      "firemen": [],
+      "chainIds": [],
+      "jef": null,
+      "settled": null,
+      "place": "the house of Constant Maes",
+      "started": 21
+    }
+  },
+  "hiring": {
+    "day": 1,
+    "spots": [
+      {
+        "id": "hessenatie",
+        "label": "the Hessenatie gate on the Rijnkaai",
+        "x": 13.6,
+        "z": 43.5,
+        "yaw": 1.5707963267948966,
+        "employer": "sooi",
+        "tavern": {
+          "id": "ankere",
+          "x": -52,
+          "z": 46
+        },
+        "ship": "the GOTTES SEGEN",
+        "foreman": "r052",
+        "men": [
+          "r050",
+          "r072",
+          "r116",
+          "r194",
+          "r090",
+          "r154",
+          "r169",
+          "bk086",
+          "bk080",
+          "bk337",
+          "bk307",
+          "bk366",
+          "bk296",
+          "bk270",
+          "bk127",
+          "bk129"
+        ],
+        "want": 7,
+        "picked": [],
+        "jef": null,
+        "jef_result": null,
+        "call": null,
+        "remarks": [],
+        "to_jef": null,
+        "source": null
+      },
+      {
+        "id": "katoen",
+        "label": "the Entrepot gate by the Petit Bassin",
+        "x": 173,
+        "z": 80.6,
+        "yaw": 3.141592653589793,
+        "employer": "katoen",
+        "tavern": {
+          "id": "bassin",
+          "x": 100,
+          "z": 124
+        },
+        "ship": "the ELLIDA",
+        "foreman": "r092",
+        "men": [
+          "r119",
+          "r120",
+          "r185",
+          "r188",
+          "r180",
+          "bk122",
+          "bk115",
+          "lm_porter3",
+          "bk440",
+          "lm_porter1",
+          "bk444",
+          "bk497",
+          "lm_porter2",
+          "lm_porter4",
+          "bk494",
+          "bk147"
+        ],
+        "want": 9,
+        "picked": [],
+        "jef": null,
+        "jef_result": null,
+        "call": null,
+        "remarks": [],
+        "to_jef": null,
+        "source": null
+      }
+    ],
+    "called": false
+  }
+}

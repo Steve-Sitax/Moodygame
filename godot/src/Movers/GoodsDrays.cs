@@ -177,6 +177,7 @@ public partial class GoodsDrays : Node
 
     public override void _Process(double delta)
     {
+        if(NetRemote)return;
         MoverCost.Begin("goods_drays");
         var eye=Main.I.Cam.GlobalPosition;
         for (int i=0;i<rigs.Count;i++)

@@ -14,7 +14,7 @@ $workshopArguments = @('--path', $workshopProject)
 if ($Editor) {
     $workshopArguments += @('--editor', "res://recovered/$District/district.tscn")
 } else {
-    $workshopArguments += @('--', '--district', $District)
+    $workshopArguments += @('res://main.tscn', '--', '--district', $District)
     if ($Fresh) {
         $workshopPreview = Join-Path $workshopProject ('proof\editor-preview-' + [guid]::NewGuid().ToString('N'))
         New-Item -ItemType Directory -Path $workshopPreview | Out-Null

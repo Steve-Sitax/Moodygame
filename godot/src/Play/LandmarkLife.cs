@@ -92,7 +92,7 @@ public partial class LandmarkLife : Node
             }
         }
         if (Scheldemist.Menu.MainMenu.I is {} menu) menu.WorldReplaced += Reset;
-        using var places=JsonDocument.Parse(File.ReadAllText(ProjectSettings.GlobalizePath("res://assets/places.json")));
+        using var places=JsonDocument.Parse(Godot.FileAccess.GetFileAsString("res://assets/places.json"));
         foreach(var look in places.RootElement.GetProperty("looks").EnumerateArray())
         {
             string hallId=look.GetProperty("hall").GetString()!,id=look.GetProperty("id").GetString()!;if(id is "board" or "register")continue;

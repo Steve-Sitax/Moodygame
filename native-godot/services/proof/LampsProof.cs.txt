@@ -1,0 +1,74 @@
+using Scheldemist.Native.Services;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Globalization;
+var project=Path.GetFullPath(args[0]);var output=Path.Combine(project,"native-godot/proof/lamps-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(output);
+var options=new NativeServiceOptions(Path.Combine(output,"game.sqlite"),Path.Combine(project,"native-godot/services/data"),Path.Combine(output,"saves"),()=>10000,()=>.42);
+using var host=new NativeServiceHost(options);var lamps=new NativeLampJobs(host);host.AddModule(lamps);var C=host.Context;
+var fixture=JsonNode.Parse(File.ReadAllText(Path.Combine(project,"native-godot/services/proof/lamps-oracles.json")))!.AsObject();
+var checks=new List<object>();void Check(string name,bool pass){checks.Add(new{name,pass});if(!pass)throw new Exception(name);}
+double N(JsonNode? n)=>double.Parse(n!.ToJsonString(),CultureInfo.InvariantCulture);
+string? Difference(JsonNode? got,JsonNode? expected,string path="$"){if(got==null||expected==null)return got==expected?null:path+" null differs";if(got is JsonObject a&&expected is JsonObject b){foreach(var key in a.Select(p=>p.Key).Union(b.Select(p=>p.Key))){var d=Difference(a[key],b[key],path+"."+key);if(d!=null)return d;}return null;}if(got is JsonArray aa&&expected is JsonArray bb){if(aa.Count!=bb.Count)return path+" count differs";for(int i=0;i<aa.Count;i++){var d=Difference(aa[i],bb[i],path+"["+i+"]");if(d!=null)return d;}return null;}if(got.GetValueKind()==JsonValueKind.Number&&expected.GetValueKind()==JsonValueKind.Number)return Math.Abs(N(got)-N(expected))<1e-9?null:path+" numbers "+got+" != "+expected;return JsonNode.DeepEquals(got,expected)?null:path+" "+got+" != "+expected;}
+void Same(string name,JsonNode? actual,JsonNode? expected){var diff=Difference(actual,expected);Check(name,diff==null);if(diff!=null)throw new Exception(diff);}
+void Put(string table,JsonObject row){var keys=row.Select(p=>p.Key).ToArray();C.Execute("INSERT OR REPLACE INTO "+table+"("+string.Join(",",keys)+")VALUES("+string.Join(",",keys.Select((_,i)=>"$p"+i))+")",keys.Select(k=>row[k]==null?null:row[k]!.GetValueKind()==JsonValueKind.Number?(object)N(row[k]):row[k]!.GetValue<string>()).ToArray());}
+foreach(var p in fixture["people"]!.AsArray()){Put("npc",p!["npc"]!.AsObject());Put("resident",p["resident"]!.AsObject());}
+C.SetWorld("townlife_lamps",fixture["rounds"]);int count=0;
+foreach(var node in fixture["cases"]!.AsArray()){
+ var c=node!.AsObject();string type=c["type"]!.GetValue<string>();JsonNode? got;
+ switch(type){
+ case"most":got=JsonValue.Create(NativeLampJobs.StretchMost((int)N(c["n"])));break;
+ case"stretch":got=JsonValue.Create(NativeLampJobs.StretchOf(c["round"]!.AsObject()));break;
+ case"walk":got=JsonValue.Create(NativeLampJobs.StretchWalk(c["round"]!.AsObject(),(int)N(c["from"])));break;
+ case"pay":got=JsonValue.Create(NativeLampJobs.Pay((int)N(c["n"]),N(c["walk"])));break;
+ case"times":got=NativeLampJobs.Times(c["round"]!.AsObject(),(int)N(c["k"]));break;
+ case"time":got=JsonValue.Create(NativeLampJobs.Time(N(c["h"])));break;
+ case"fog":got=JsonValue.Create(NativeLampJobs.FogAt(c["fog"]!.AsObject(),N(c["hour"])));break;
+ case"job":host.Clock.SetTime((int)N(c["day"]),10,0);C.Execute("UPDATE faction_trust SET trust=$p0",new[]{0,3,5,7,9}[(int)N(c["tier"])]);got=lamps.BuildJob(c["id"]?.GetValue<string>());break;
+ default:throw new Exception(type);
+ }
+ if(Difference(got,c["expected"])is{} d)throw new Exception("Source "+count+" "+type+" "+d+"\n"+got?.ToJsonString()+"\n"+c["expected"]?.ToJsonString());
+ count++;
+}
+Check("Full original stretch pay fog times and board cases",count==2699);
+host.Clock.SetTime(1,10,0);host.Clock.SetWeather("clear");C.Execute("UPDATE faction_trust SET trust=0");
+C.Execute("DELETE FROM item WHERE job_id IS NOT NULL");C.Execute("DELETE FROM job");int id=lamps.OfferJob()??throw new Exception("No native job");var job=host.Jobs.Take(1,id);var t=job["task"]!.AsObject();var list=t["lamps"]!.AsArray();
+var flow=fixture["flow"]!;var expectedJob=flow["job"]!;Same("Real board is source job task",t,JsonNode.Parse(expectedJob["task_json"]!.GetValue<string>()));Check("No duplicate daily lamp offer",lamps.OfferJob()==null);Check("No faction requirement",job["required_faction"]==null);
+var steps=flow["results"]!.AsArray();
+void Step(string label,Func<JsonObject> action){
+ var expected=steps.First(n=>n!["label"]!.GetValue<string>()==label)!;JsonObject? got=null;NativeServiceException? error=null;
+ try{got=action();}catch(NativeServiceException e){error=e;}
+ if(expected["error"]!=null){Check(label+" exact error",error!=null&&error.Message==expected["error"]!.GetValue<string>()&&error.Status==(int)N(expected["status"]));}
+ else Same(label,got,expected["expected"]);
+}
+double PX=N(t["pole"]!["x"]),PZ=N(t["pole"]!["z"]);string L(int n)=>list[n]!["id"]!.GetValue<string>();double X(int n)=>N(list[n]!["sx"]);double Z(int n)=>N(list[n]!["sz"]);
+Step("pole-far",()=>lamps.TakePole(1,id,PX+4,PZ));Step("without-pole",()=>lamps.Light(1,id,L(0),X(0),Z(0)));Step("pole-early",()=>lamps.TakePole(1,id,PX,PZ));Step("pole-duplicate",()=>lamps.TakePole(1,id,100000,100000));Step("wrong-lamp",()=>lamps.Light(1,id,"unknown",PX,PZ));Step("light-early",()=>lamps.Light(1,id,L(0),X(0),Z(0)));
+void At(double h,int day=1){int minutes=(int)Math.Floor(h*60+.5);host.Clock.SetTime(day,minutes/60,minutes%60);}
+At(N(t["open"]));Step("light-far",()=>lamps.Light(1,id,L(0),X(0)+4,Z(0)));Step("light-first",()=>lamps.Light(1,id,L(0),X(0),Z(0)));Step("light-duplicate",()=>lamps.Light(1,id,L(0),100000,100000));Step("light-second",()=>lamps.Light(1,id,L(1),X(1),Z(1)));
+Check("Help shares exactly the two real lamps",lamps.Help()!["lit"]!.AsArray().Count==2&&C.Scalar<int>("SELECT COUNT(*) FROM log WHERE verb='lit_lamp'")==2);
+Check("Other player cannot light an owned lamp",Reject(()=>lamps.Light(2,id,L(2),X(2),Z(2)),409,"no lamps in hand"));
+At(N(t["until"]));Step("light-deadline",()=>lamps.Light(1,id,L(2),X(2),Z(2)));int purse=C.Scalar<int>("SELECT money_c FROM player WHERE id=1");At(N(t["until"])+.25);int expired=lamps.Expire();Check("Source partial deadline expires one job",expired==1);
+job=host.Jobs.Get(id);Same("Full partial-deadline state",new JsonObject{["status"]=job["status"]!.DeepClone(),["task"]=job["task"]!.DeepClone(),["help"]=lamps.HelpNow(),["paid"]=C.Scalar<int>("SELECT money_c FROM player WHERE id=1")-purse},flow["state"]);
+Check("Deadline does not settle twice",lamps.Expire()==0);
+bool Reject(Func<object?> action,int status,string message){try{action();return false;}catch(NativeServiceException e){return e.Status==status&&e.Message==message;}}
+At(10,2);host.Clock.SetWeather("fog");Check("Fog at dawn prevents a new offer",lamps.OfferJob()==null);host.Clock.SetWeather("clear");int emptyId=lamps.OfferJob()!.Value;var emptyJob=host.Jobs.Take(1,emptyId);int trust=C.Scalar<int>("SELECT SUM(trust) FROM faction_trust WHERE player_id=1");int money=C.Scalar<int>("SELECT money_c FROM player WHERE id=1");
+At(N(emptyJob["task"]!["until"])+.25,2);Check("No-light failure expires once",lamps.Expire()==1);Check("No-light failure is unpaid without a faction deduction",C.Scalar<string>("SELECT status FROM job WHERE id=$p0",emptyId)=="failed"&&C.Scalar<int>("SELECT money_c FROM player WHERE id=1")==money&&C.Scalar<int>("SELECT SUM(trust) FROM faction_trust WHERE player_id=1")==trust);
+Check("Lamplighter remembers the actual failure",C.Scalar<int>("SELECT COUNT(*) FROM npc_memory WHERE gist='Jef left a lamplighter''s lamps dark' AND weight=4 AND tone=-1 AND about_player=1")==1);
+At(10,3);host.Clock.SetWeather("clear");var edited=C.World("townlife_lamps")!.AsObject();foreach(var r in edited["rounds"]!.AsArray())foreach(var l in r!["lamps"]!.AsArray()){l!["id"]="authored:centre/"+l["id"]!.GetValue<string>();l["x"]=N(l["x"])+5;l["sx"]=N(l["sx"])+5;}C.SetWorld("townlife_lamps",edited);int authoredId=lamps.OfferJob()!.Value;var authored=host.Jobs.Take(1,authoredId);var snapshot=authored["task"]!.DeepClone();
+Check("Job uses current native authored lamp identities and feet",authored["task"]!["lamps"]!.AsArray().All(l=>l!["id"]!.GetValue<string>().StartsWith("authored:centre/")));
+edited["rounds"]![0]!["lamps"]!.AsArray().RemoveAt(0);C.SetWorld("townlife_lamps",edited);Same("Round edit preserves a job already in hand",host.Jobs.Get(authoredId)["task"],snapshot);Check("Round edit preserves shared player lamp help",N(lamps.Help()!["job"])==authoredId);
+At(10,4);Check("Following-day help is hidden in payload",host.Payload(1)["lamps_help"]==null);Check("Day change expires an unlit taken job",lamps.Expire()==1);
+At(10,5);int offeredId=lamps.OfferJob()!.Value;var offeredTask=host.Jobs.Get(offeredId)["task"]!;At(N(offeredTask["take_by"]),5);Check("Late taking refuses the source message",Reject(()=>host.Jobs.Take(1,offeredId),409,"too late for that one: "+host.Jobs.Get(offeredId)["employer_name"]!.GetValue<string>()+" is out on his round and has lit them himself"));Check("Offered work expires exactly at take-by",lamps.Expire()==1&&C.Scalar<string>("SELECT status FROM job WHERE id=$p0",offeredId)=="expired");
+foreach(var body in new[]{"{\"job\":1,\"x\":\"not a position\",\"z\":0}","{\"job\":1,\"x\":null,\"z\":0}","{\"job\":1,\"z\":0}"}){
+ bool rejected=false;try{await host.Call("POST","/api/lamps/pole",body);}catch(NativeServiceException e){rejected=e.Status==400&&e.Message=="bad position";}
+ Check("Route rejects non-numeric foot "+body,rejected);
+}
+At(10,6);var full=lamps.BuildJob()!;int fullId=lamps.InsertJob(full);host.Jobs.Take(1,fullId);var ft=full["task"]!;var fl=ft["lamps"]!.AsArray();lamps.TakePole(1,fullId,N(ft["pole"]!["x"]),N(ft["pole"]!["z"]));At(N(ft["open"]),6);
+foreach(var l in fl){var body=new JsonObject{["job"]=fullId,["lamp"]=l!["id"]!.DeepClone(),["x"]=l["sx"]!.DeepClone(),["z"]=l["sz"]!.DeepClone()};var response=JsonNode.Parse(await host.Call("POST","/api/lamps/light",body.ToJsonString()));Check("Native light route includes shared help "+l["id"],response!["lamps_help"]!["lit"]!.AsArray().Count==fl.IndexOf(l)+1);}
+int before=C.Scalar<int>("SELECT money_c FROM player WHERE id=1");var completed=host.Jobs.Finish(1,fullId,new JsonObject());Check("All verified lamps earn full real pay",N(completed["settlement"]!["pay_c"])==N(full["pay_c"])&&C.Scalar<int>("SELECT money_c FROM player WHERE id=1")-before==N(full["pay_c"]));
+At(10,7);var saved=lamps.BuildJob()!;int savedId=lamps.InsertJob(saved);host.Jobs.Take(1,savedId);var sp=saved["task"]!["pole"]!;
+var poleBody=new JsonObject{["job"]=savedId.ToString(),["x"]=sp["x"]!.DeepClone(),["z"]=sp["z"]!.DeepClone()};
+var poleResponse=JsonNode.Parse(await host.Call("POST","/api/lamps/pole",poleBody.ToJsonString()));Check("Original numeric-string job IDs remain valid",poleResponse!["text"]!.GetValue<string>().Contains("spare pole"));
+var savedTask=host.Jobs.Get(savedId)["task"]!.DeepClone();var savedHelp=lamps.Help()!.DeepClone();
+using(var loaded=new NativeServiceHost(options)){var loadedLamps=new NativeLampJobs(loaded);loaded.AddModule(loadedLamps);Same("Native save reopening preserves held lamp task",loaded.Jobs.Get(savedId)["task"],savedTask);Same("Native save reopening preserves shared lamp help",loadedLamps.Help(),savedHelp);Check("Reopening preserves one daily offer",loadedLamps.OfferJob()==null);}
+var report=new{passed=true,checks=checks.Count,oracleCases=count,routes=host.RoutePatterns,assertions=checks};File.WriteAllText(Path.Combine(output,"result.json"),JsonSerializer.Serialize(report,new JsonSerializerOptions{WriteIndented=true}));Console.WriteLine(JsonSerializer.Serialize(new{passed=true,checks=checks.Count,oracleCases=count,output}));
+

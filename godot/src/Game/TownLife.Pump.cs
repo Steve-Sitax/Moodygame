@@ -3,6 +3,8 @@ using Godot;
 using Scheldemist.Play;
 using Scheldemist.Net;
 using Scheldemist.Town;
+using Scheldemist.World;
+using Scheldemist.Render;
 
 namespace Scheldemist.Game;
 
@@ -40,9 +42,30 @@ public partial class TownLife
         var pole = EventProps.Box(r, new Vector3(.07f, .07f, new Vector2(.61f, 3.6f).Length()), new Vector3(0, 1.025f, 2.95f), 0x6a4a2c); pole.Rotation = new Vector3(-MathF.Atan2(.61f, 3.6f), 0, 0);
         Box(1.3f, .06f, .06f, 0, .72f, 2, 0x6a4a2c);
         Box(.04f, .9f, .04f, .42f, 1.2f, .55f, 0x2c2c2e);
-        Box(.2f, .26f, .2f, .42f, 1.72f, .55f, 0xffc27a);
+        // The brigade's lamp is self-lit; source pumpcart.ts uses MeshBasicMaterial here.
+        var lampKind = new Psx.Kind(Unlit:true,Blend:false,Scissor:false,TwoSided:false,DepthWrite:true,Snap:true,Atlas:0,VertexColor:false,Add:false,Fog:true);
+        var lamp = new MeshInstance3D { Name="pump_lantern", Position=new Vector3(.42f,1.72f,.55f), Mesh=new BoxMesh {
+            Size=new Vector3(.2f,.26f,.2f), Material=BakedWorld.PsxMaterial(new StandardMaterial3D {AlbedoColor=Color.Color8(255,194,122)},lampKind)
+        }}; r.AddChild(lamp);
+        r.AddChild(PumpLanternGlow(lamp.Position));
         Box(.26f, .05f, .26f, .42f, 1.87f, .55f, 0x2c2c2e);
         return r;
+    }
+    private static MeshInstance3D PumpLanternGlow(Vector3 at)
+    {
+        var image=Image.CreateEmpty(32,32,false,Image.Format.Rgba8);
+        var center=new Color(1,200/255f,120/255f,.9f);
+        var middle=new Color(1,150/255f,60/255f,.3f);
+        var edge=new Color(1,120/255f,40/255f,0);
+        for(int y=0;y<32;y++)for(int x=0;x<32;x++){
+            float radius=new Vector2(x+.5f-16,y+.5f-16).Length()/16;
+            image.SetPixel(x,y,radius<.45f?center.Lerp(middle,radius/.45f):middle.Lerp(edge,Math.Clamp((radius-.45f)/.55f,0,1)));
+        }
+        var kind=new Psx.Kind(Unlit:true,Blend:true,Scissor:false,TwoSided:true,DepthWrite:false,Snap:false,Atlas:0,VertexColor:false,Add:true,Fog:true);
+        var material=(ShaderMaterial)BakedWorld.PsxMaterial(new StandardMaterial3D {AlbedoColor=new Color(1,1,1,.55f),AlbedoTexture=ImageTexture.CreateFromImage(image)},kind);
+        var shader=new Shader {Code=material.Shader.Code.Replace("void vertex() {","void vertex() {\n MODELVIEW_MATRIX = VIEW_MATRIX * mat4(INV_VIEW_MATRIX[0], INV_VIEW_MATRIX[1], INV_VIEW_MATRIX[2], MODEL_MATRIX[3]);")};
+        Psx.RegisterNative(shader,kind); material.Shader=shader;
+        return new MeshInstance3D {Name="pump_lantern_glow",Position=at,Mesh=new QuadMesh {Size=Vector2.One*.8f},MaterialOverride=material,CastShadow=GeometryInstance3D.ShadowCastingSetting.Off};
     }
     private static MeshInstance3D MakeHose(Node3D pump, FireView v, WalkMap walk)
     {

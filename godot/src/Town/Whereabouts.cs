@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Linq;
 
@@ -174,11 +175,10 @@ public static class Whereabouts
     }
 
     /// <summary>A haul's two ends as one kept array (the round's cache goes by the array, as the TypeScript's WeakMap).</summary>
-    private static readonly Dictionary<WorkSpec, Pt[]> HaulRoutes = new(ReferenceEqualityComparer.Instance);
+    private static readonly ConcurrentDictionary<WorkSpec, Pt[]> HaulRoutes = new(ReferenceEqualityComparer.Instance);
     private static Pt[] HaulRoute(WorkSpec w)
     {
-        if (!HaulRoutes.TryGetValue(w, out var r)) HaulRoutes[w] = r = new[] { w.A!.Value, w.B!.Value };
-        return r;
+        return HaulRoutes.GetOrAdd(w, key => new[] { key.A!.Value, key.B!.Value });
     }
 
     private static readonly System.Text.RegularExpressions.Regex Prefix = new("^[a-z]+:", System.Text.RegularExpressions.RegexOptions.Compiled);
@@ -245,7 +245,7 @@ public static class Whereabouts
     }
 
     /// <summary>Rounds by their kept route array; incomplete rounds are refreshed when their requested ways arrive.</summary>
-    private static readonly Dictionary<Pt[], RoundWay> RoundCache = new(ReferenceEqualityComparer.Instance);
+    private static readonly ConcurrentDictionary<Pt[], RoundWay> RoundCache = new(ReferenceEqualityComparer.Instance);
 
     // A shared haul is a work round, with evenly spaced starts at the crew's walking pace.
     private static (double fraction, double mps)? HaulStart(Resident r, TownData town)
@@ -475,7 +475,7 @@ public static class Whereabouts
     public static int RoutesMade, RouteHits, RoutesUnknown;
     private static int wayGen;
     private readonly record struct PathKey(long Ax, long Az, long Bx, long Bz);
-    private static readonly Dictionary<Resident, HashSet<PathKey>> partialWays = new();
+    private static readonly ConcurrentDictionary<Resident, ConcurrentDictionary<PathKey, byte>> partialWays = new();
     private static PathKey PathOf(double ax, double az, double bx, double bz) => new(JsRound(ax), JsRound(az), JsRound(bx), JsRound(bz));
     private static bool ReadPath(string key, out PathKey path)
     {
@@ -496,7 +496,7 @@ public static class Whereabouts
         var changed = new HashSet<PathKey>();
         foreach (string key in keys) { if (!ReadPath(key, out var path)) return; changed.Add(path); }
         foreach (var (resident, missing) in partialWays)
-            if (resident.PartialRoute is { } route && route.gen == previous && !missing.Overlaps(changed))
+            if (resident.PartialRoute is { } route && route.gen == previous && !missing.Keys.Any(changed.Contains))
                 resident.PartialRoute = (route.day, wayGen, route.stops);
     }
     public static void Forget() { RoundCache.Clear(); HaulRoutes.Clear(); partialWays.Clear(); wayGen++; }
@@ -520,7 +520,7 @@ public static class Whereabouts
         }
         RoutesMade++;
         bool known = true;
-        HashSet<PathKey>? missing = null;
+        ConcurrentDictionary<PathKey, byte>? missing = null;
         if (Scheldemist.Dev.SpeedComparison.Cached && partialWays.TryGetValue(r, out missing)) missing.Clear();
         Walk? WalkOf(Anchor a, Anchor b, string leg, bool run)
         {
@@ -532,7 +532,7 @@ public static class Whereabouts
                 if (Scheldemist.Dev.SpeedComparison.Cached)
                 {
                     if (missing == null) partialWays[r] = missing = new();
-                    missing.Add(PathOf(a.X, a.Z, b.X, b.Z));
+                    missing.TryAdd(PathOf(a.X, a.Z, b.X, b.Z), 0);
                 }
             }
             if (pts == null) return null;
@@ -597,7 +597,7 @@ public static class Whereabouts
         }
         else
         {
-            if (Scheldemist.Dev.SpeedComparison.Cached) partialWays.Remove(r);
+            if (Scheldemist.Dev.SpeedComparison.Cached) partialWays.TryRemove(r, out _);
             if (r.RouteCache.Count > 8) r.RouteCache.Clear();
             r.RouteCache[day] = arr;
         }

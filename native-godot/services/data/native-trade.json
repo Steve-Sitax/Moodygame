@@ -1,0 +1,387 @@
+{
+  "version": 1,
+  "provenance": "Original dynamic base seller lookup; fresh isolated seed1873. Authored constants only.",
+  "tradeWares": {
+    "baker": [
+      {
+        "kind": "bread",
+        "price_c": 6
+      },
+      {
+        "kind": "peperkoek",
+        "price_c": 3
+      }
+    ],
+    "grocer": [
+      {
+        "kind": "apple",
+        "price_c": 2
+      },
+      {
+        "kind": "cheese",
+        "price_c": 6
+      }
+    ],
+    "chandler": [
+      {
+        "kind": "biscuit",
+        "price_c": 4
+      },
+      {
+        "kind": "lantern",
+        "price_c": 40
+      },
+      {
+        "kind": "matches",
+        "price_c": 2
+      }
+    ],
+    "tobacconist": [
+      {
+        "kind": "matches",
+        "price_c": 2
+      },
+      {
+        "kind": "pipe",
+        "price_c": 4
+      },
+      {
+        "kind": "cigar",
+        "price_c": 8
+      }
+    ],
+    "cobbler": [
+      {
+        "kind": "laces",
+        "price_c": 3
+      },
+      {
+        "kind": "boot_mend",
+        "price_c": 12
+      }
+    ],
+    "draper": [
+      {
+        "kind": "shawl",
+        "price_c": 25
+      },
+      {
+        "kind": "wool_vest",
+        "price_c": 45
+      }
+    ],
+    "publican": [
+      {
+        "kind": "beer",
+        "price_c": 5
+      },
+      {
+        "kind": "jenever",
+        "price_c": 10
+      },
+      {
+        "kind": "soup",
+        "price_c": 8
+      }
+    ],
+    "fish_merchant": [
+      {
+        "kind": "herring",
+        "price_c": 5
+      },
+      {
+        "kind": "eel",
+        "price_c": 12
+      }
+    ],
+    "newsboy": [
+      {
+        "kind": "newspaper",
+        "price_c": 5
+      }
+    ],
+    "dealer": [
+      {
+        "kind": "chair",
+        "price_c": 60
+      },
+      {
+        "kind": "table",
+        "price_c": 150
+      },
+      {
+        "kind": "rug",
+        "price_c": 80
+      },
+      {
+        "kind": "stove",
+        "price_c": 400
+      },
+      {
+        "kind": "plant",
+        "price_c": 15
+      },
+      {
+        "kind": "birdcage",
+        "price_c": 70
+      },
+      {
+        "kind": "picture",
+        "price_c": 40
+      },
+      {
+        "kind": "lamp",
+        "price_c": 90
+      },
+      {
+        "kind": "clock",
+        "price_c": 250
+      },
+      {
+        "kind": "curtains",
+        "price_c": 50
+      }
+    ],
+    "velo_maker": [
+      {
+        "kind": "velocipede_used",
+        "price_c": 600
+      },
+      {
+        "kind": "velocipede_new",
+        "price_c": 1200
+      },
+      {
+        "kind": "velocipede_hire",
+        "price_c": 30
+      }
+    ],
+    "wheelwright": [
+      {
+        "kind": "handcart_used",
+        "price_c": 200
+      },
+      {
+        "kind": "handcart_new",
+        "price_c": 380
+      },
+      {
+        "kind": "handcart_hire",
+        "price_c": 12
+      }
+    ],
+    "milk_woman": [
+      {
+        "kind": "milk",
+        "price_c": 3
+      }
+    ],
+    "baker_boy": [
+      {
+        "kind": "roll",
+        "price_c": 2
+      },
+      {
+        "kind": "bread",
+        "price_c": 6
+      }
+    ],
+    "grinder": [
+      {
+        "kind": "knife",
+        "price_c": 35
+      }
+    ],
+    "ragman": [
+      {
+        "kind": "scarf",
+        "price_c": 12
+      }
+    ],
+    "coalman": [
+      {
+        "kind": "coal",
+        "price_c": 10
+      }
+    ],
+    "mussel_seller": [
+      {
+        "kind": "mussels",
+        "price_c": 5
+      }
+    ],
+    "broom_seller": [
+      {
+        "kind": "broom",
+        "price_c": 15
+      }
+    ],
+    "devotion_seller": [
+      {
+        "kind": "candle",
+        "price_c": 3
+      },
+      {
+        "kind": "holy_picture",
+        "price_c": 5
+      },
+      {
+        "kind": "rosary",
+        "price_c": 20
+      }
+    ],
+    "butcher": [
+      {
+        "kind": "brawn",
+        "price_c": 4
+      },
+      {
+        "kind": "sausage",
+        "price_c": 7
+      },
+      {
+        "kind": "bacon",
+        "price_c": 10
+      }
+    ],
+    "colonial": [
+      {
+        "kind": "candy",
+        "price_c": 2
+      },
+      {
+        "kind": "figs",
+        "price_c": 5
+      },
+      {
+        "kind": "chocolate",
+        "price_c": 6
+      },
+      {
+        "kind": "tea",
+        "price_c": 18
+      }
+    ],
+    "apothecary": [
+      {
+        "kind": "liquorice",
+        "price_c": 2
+      },
+      {
+        "kind": "syrup",
+        "price_c": 15
+      },
+      {
+        "kind": "powder",
+        "price_c": 30
+      }
+    ],
+    "barber": [
+      {
+        "kind": "shave",
+        "price_c": 3
+      },
+      {
+        "kind": "haircut",
+        "price_c": 6
+      }
+    ],
+    "hatter": [
+      {
+        "kind": "flat_cap",
+        "price_c": 25
+      },
+      {
+        "kind": "felt_hat",
+        "price_c": 60
+      }
+    ],
+    "roaster": [
+      {
+        "kind": "coffee",
+        "price_c": 4
+      },
+      {
+        "kind": "coffee_beans",
+        "price_c": 20
+      }
+    ],
+    "printer": [
+      {
+        "kind": "paper_env",
+        "price_c": 3
+      },
+      {
+        "kind": "almanac",
+        "price_c": 10
+      }
+    ],
+    "bookseller": [
+      {
+        "kind": "penny_book",
+        "price_c": 8
+      },
+      {
+        "kind": "prayer_book",
+        "price_c": 25
+      }
+    ],
+    "clockmaker": [
+      {
+        "kind": "watch_key",
+        "price_c": 5
+      },
+      {
+        "kind": "watch",
+        "price_c": 150
+      }
+    ]
+  },
+  "stallWares": {
+    "fish": [
+      {
+        "kind": "herring",
+        "price_c": 5
+      },
+      {
+        "kind": "eel",
+        "price_c": 12
+      }
+    ],
+    "bread": [
+      {
+        "kind": "bread",
+        "price_c": 6
+      }
+    ],
+    "veg": [
+      {
+        "kind": "apple",
+        "price_c": 2
+      }
+    ]
+  },
+  "shopTrades": {
+    "bakery_rijn": "baker",
+    "bakery_steen": "baker",
+    "grocer_canal": "grocer",
+    "grocer_werf": "grocer",
+    "chandler_werf": "chandler",
+    "tobacco_markt": "tobacconist",
+    "pawn_vis": "pawnbroker",
+    "cobbler_lane": "cobbler",
+    "draper_markt": "draper",
+    "butcher_vlees": "butcher",
+    "colonial_steen": "colonial",
+    "apothecary_markt": "apothecary",
+    "barber_lane": "barber",
+    "hatter_markt": "hatter",
+    "roaster_canal": "roaster",
+    "printer_jezuiet": "printer",
+    "books_kathedraal": "bookseller",
+    "clock_markt": "clockmaker",
+    "bakery_south": "baker",
+    "grocer_south": "grocer",
+    "cobbler_east": "cobbler"
+  }
+}

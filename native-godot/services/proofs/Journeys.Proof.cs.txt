@@ -1,0 +1,23 @@
+using System.Text.Json.Nodes;
+using Scheldemist.Play;
+var oracle=JsonNode.Parse(File.ReadAllText("native-godot/services/proofs/data/native-journeys-source.json"))!;
+int checks=0;void Check(bool okay,string name){if(!okay)throw new Exception(name+" at case "+checks);checks++;}
+double N(JsonNode? n)=>n?.GetValue<double>()??0;string S(JsonNode? n)=>n?.GetValue<string>()??"";bool B(JsonNode? n)=>n?.GetValue<bool>()??false;
+JourneyRules.Point P(JsonNode n)=>new(N(n[0]),N(n[1]));
+foreach(var row in oracle["modes"]!.AsArray()){
+ var a=row!["ask"]!;var load=a["load"]==null?null:new JourneyRules.Load(S(a["load"]!["what"]),(int)N(a["load"]!["items"]));var stops=a["stops"]!.AsArray().Select(s=>new JourneyRules.Stop(S(s!["id"]),S(s["line"]),N(s["x"]),N(s["z"]))).ToArray();
+ var got=JourneyRules.Choose(new(P(a["from"]!),P(a["to"]!),load,(int)N(a["group"]),B(a["has"]!["velocipede"]),B(a["has"]!["handcart"]),B(a["has"]!["dray"]),B(a["has"]!["boat"]),a["water"]==null?null:P(a["water"]!["from"]!),a["water"]==null?null:P(a["water"]!["to"]!),stops,B(row["useWait"])?s=>N(row["waits"]![s.Id]):null,(int)N(a["age"])));
+ var expected=row["result"]!;Check(got.Mode==S(expected["mode"])&&got.Why==S(expected["why"])&&Math.Abs(got.Dist-N(expected["dist"]))<1e-8&&Math.Abs(got.Secs-N(expected["secs"]))<1e-8&&got.FareC==N(expected["fare_c"])&&(got.Board?.Id??"")==S(expected["bus"]?["board"]?["id"])&&(got.Alight?.Id??"")==S(expected["bus"]?["alight"]?["id"]),"source mode choice (load/age/family/stop/arrival priority)");
+}
+foreach(var row in oracle["loading"]!.AsArray()){
+ var got=JourneyRules.PlanLoading((int)N(row!["items"]),"owner",row["family"]!.AsArray().Select(f=>new JourneyRules.Family(S(f!["id"]),(int)N(f["age"]),B(f["home"]))));var expected=row["result"]!;
+ Check(got.Secs==N(expected["secs"])&&got.Carriers.SequenceEqual(expected["carriers"]!.AsArray().Select(S))&&got.Rounds.Length==expected["rounds"]!.AsArray().Count&&got.Rounds.SelectMany(r=>r).Select(r=>r.Who+":"+r.Item).SequenceEqual(expected["rounds"]!.AsArray().SelectMany(r=>r!.AsArray()).Select(r=>S(r!["who"])+":"+N(r["item"]))),"source loading rounds and eligible helpers");
+}
+foreach(var row in oracle["loads"]!.AsArray()){var got=JourneyRules.ScheduleLoad(S(row!["trade"]),(int)N(row["wealth"]),S(row["from"]),S(row["to"]));var expected=row["result"];Check(expected==null?got==null:got?.Items==N(expected["items"])&&got.What==S(expected["what"]),"source daily seller loads");}
+foreach(var row in oracle["water"]!.AsArray()){
+ bool Free(double x,double z)=>!B(row!["closed"])&&(!B(row["wall"])||Math.Abs(x)>2||B(row["gap"])&&Math.Abs(z-4)<3);
+ var got=JourneyRules.WaterPath(Free,P(row!["a"]!),P(row["b"]!),2,12);var expected=row["result"] as JsonArray;
+ Check(expected==null?got==null:got!=null&&got.Length==expected.Count&&got.Select((p,i)=>p.Distance(P(expected[i]!))<1e-8).All(b=>b),"source water A-star, blocked corners and smoothing");
+}
+Check(JourneyRules.WaterPath((x,z)=>true,new(-10000,-10000),new(10000,10000))==null,"excessive water grid rejected");
+Console.WriteLine("PASS "+checks+" journey rules checks including 2857 exact original mode/loading/load/water cases");

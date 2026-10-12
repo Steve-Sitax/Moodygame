@@ -49,6 +49,9 @@ public static class Ways
         public uint[] Stamp = Array.Empty<uint>();
         public uint[] Closed = Array.Empty<uint>();
         public uint Run;
+        public Scheldemist.Town.WalkMap? NativeMap;
+        public Func<float, float, bool>? NativeWater;
+        public byte[] NativeLinks = Array.Empty<byte>();
     }
 
     private static readonly object gate = new();
@@ -62,6 +65,75 @@ public static class Ways
     public static string Error => failed;
     /// <summary>The walk map's cell in metres (0.5), once it is in.</summary>
     public static double Cell => TheGrid()?.Res ?? 0.5;
+
+    /// <summary>Current routing grid, including the native scene bounds when installed.</summary>
+    public static (double X0, double Z0, double Res, int W, int H) MapInfo
+        => TheGrid() is { } g ? (g.X0, g.Z0, g.Res, g.W, g.H) : (0, 0, .5, 0, 0);
+
+    /// <summary>Check native support height continuity on a routing leg.</summary>
+    public static bool CanStep(double ax, double az, double bx, double bz)
+        => TheGrid() is { } g && (g.NativeMap?.SupportsStep(ax, az, bx, bz) ?? true);
+
+    /// <summary>Use the current native scene's navigation for every long-range route. No legacy walk image is read.
+    /// Install once after static physics/edited placements, before townspeople and route requests attach.</summary>
+    public static void InstallNative(Scheldemist.Town.WalkMap map, Func<float, float, bool>? water = null)
+    {
+        lock (gate)
+        {
+            var g = new Grid { X0 = map.X0, Z0 = map.Z0, Res = 0.5, W = map.D * 2, H = map.W * 2, NativeMap = map, NativeWater = water ?? Scheldemist.World.Water.In };
+            int count = g.W * g.H;
+            g.Cells = new byte[count]; g.Pass = new byte[count];
+            for (int r = 0; r < g.H; r++) for (int c = 0; c < g.W; c++)
+                g.Cells[r * g.W + c] = map.NativeCellFree(r * 2 + 1, c * 2 + 1) ? (byte)0 : (byte)128;
+            // Native height links are immutable with the authored support. Reusing them avoids sampling the
+            // quarter-metre mesh and taking live-body locks for every A* neighbour of every resident.
+            g.NativeLinks = new byte[count];
+            for (int r = 0; r < g.H; r++) for (int c = 0; c < g.W; c++) {
+                int index = r * g.W + c; if (g.Cells[index] != 0) continue; var from = Centre(g, index);
+                for (int direction = 4; direction < NativeDirections.Length; direction++) {
+                    var (dr, dc) = NativeDirections[direction]; int rr = r + dr, cc = c + dc;
+                    if (rr < 0 || cc < 0 || rr >= g.H || cc >= g.W) continue; int next = rr * g.W + cc; if (g.Cells[next] != 0) continue;
+                    if (dr != 0 && dc != 0 && (g.Cells[r * g.W + cc] != 0 || g.Cells[rr * g.W + c] != 0)) continue;
+                    var to = Centre(g, next); if (!map.SupportsStep(from.X, from.Y, to.X, to.Y)) continue;
+                    g.NativeLinks[index] |= (byte)(1 << direction); g.NativeLinks[next] |= (byte)(1 << (7 - direction));
+                }
+            }
+            // Flags for closed cells are resolved lazily from native water outlines. Navigation needs only the
+            // open bit, avoiding millions of expensive polygon queries while the game starts.
+            int first = NearestNative(g, Start.X, Start.Y, 20);
+            var queue = new int[count]; int head = 0, tail = 0;
+            if (first >= 0) { g.Pass[first] = 1; queue[tail++] = first; }
+            while (head < tail)
+            {
+                int index = queue[head++], r = index / g.W, c = index % g.W;
+                void Visit(int next, int direction)
+                {
+                    if (g.Cells[next] != 0 || g.Pass[next] != 0) return;
+                    if ((g.NativeLinks[index] & (1 << direction)) == 0) return;
+                    g.Pass[next] = 1; queue[tail++] = next;
+                }
+                if (r > 0) Visit(index - g.W, 1); if (r + 1 < g.H) Visit(index + g.W, 6);
+                if (c > 0) Visit(index - 1, 3); if (c + 1 < g.W) Visit(index + 1, 4);
+            }
+            g.Cost = new float[count]; g.From = new int[count]; g.Stamp = new uint[count]; g.Closed = new uint[count];
+            grid = g; failed = "";
+        }
+    }
+
+    private static int NearestNative(Grid g, double x, double z, double maximum)
+    {
+        int r0 = (int)Math.Floor((x - g.X0) / g.Res), c0 = (int)Math.Floor((z - g.Z0) / g.Res);
+        for (int radius = 0; radius <= maximum / g.Res; radius++)
+            for (int dr = -radius; dr <= radius; dr++) for (int dc = -radius; dc <= radius; dc++)
+            {
+                if (Math.Max(Math.Abs(dr), Math.Abs(dc)) != radius) continue;
+                int r = r0 + dr, c = c0 + dc;
+                if (r >= 0 && c >= 0 && r < g.H && c < g.W && g.Cells[r * g.W + c] == 0) return r * g.W + c;
+            }
+        return -1;
+    }
+
+    private static readonly (int dr, int dc)[] NativeDirections = { (-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1) };
 
     /// <summary>Read the walk map ahead, off the main thread.</summary>
     public static Task Warm()
@@ -175,7 +247,10 @@ public static class Ways
         int c = (int)Math.Floor((z - g.Z0) / g.Res);
         int r = (int)Math.Floor((x - g.X0) / g.Res);
         if (c < 0 || r < 0 || c >= g.W || r >= g.H) return Outside | Water;
-        return g.Cells[r * g.W + c];
+        int index = r * g.W + c;
+        if (g.Cells[index] == 128)
+            g.Cells[index] = g.NativeWater?.Invoke((float)x, (float)z) == true ? Water : Wall;
+        return g.Cells[index];
     }
 
     private static bool OpenAt(Grid g, double x, double z, double r)
@@ -263,6 +338,11 @@ public static class Ways
     /// </summary>
     private static bool Clear(Grid g, int a, int b)
     {
+        if (g.NativeMap != null)
+        {
+            var from = Centre(g, a); var to = Centre(g, b);
+            if (!g.NativeMap.SupportsStep(from.X, from.Y, to.X, to.Y)) return false;
+        }
         int r = a / g.W, c = a % g.W;
         int r1 = b / g.W, c1 = b % g.W;
         int dr = r1 - r, dc = c1 - c;
@@ -308,6 +388,13 @@ public static class Ways
         {
             return Find(g, R(from.X), R(from.Y), R(to.X), R(to.Y));
         }
+    }
+
+    /// <summary>Exact native cell routing for a crowd body. Keep sub-metre doorways and require this scene's installed map.</summary>
+    public static List<Vector2>? NativePath(Scheldemist.Town.WalkMap map, Vector2 from, Vector2 to)
+    {
+        if (TheGrid() is not { } g || !ReferenceEquals(g.NativeMap, map)) return null;
+        lock (g) return Find(g, from.X, from.Y, to.X, to.Y);
     }
 
     /// <summary>The same for places in the world (y is left out; the way comes back on the ground, y = 0).</summary>
@@ -409,6 +496,11 @@ public static class Ways
                     if (rr < 0 || cc < 0 || rr >= g.H || cc >= g.W) continue;
                     int j = rr * g.W + cc;
                     if (g.Pass[j] == 0 || g.Closed[j] == run) continue;
+                    if (g.NativeMap != null)
+                    {
+                        int direction = dr < 0 ? dc + 1 : dr > 0 ? dc + 6 : dc < 0 ? 3 : 4;
+                        if ((g.NativeLinks[i] & (1 << direction)) == 0) continue;
+                    }
                     // no cutting a corner
                     if (dr != 0 && dc != 0 && (g.Pass[r * g.W + cc] == 0 || g.Pass[rr * g.W + c] == 0)) continue;
                     float nc = ci + (dr != 0 && dc != 0 ? (float)Sqrt2 : 1f);

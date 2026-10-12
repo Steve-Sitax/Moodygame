@@ -84,7 +84,7 @@ public partial class Gangs : Node
             {
                 var open=town.Crowd.OpenNear(gang.X+Math.Cos(i*2.1)*9,gang.Z+Math.Sin(i*2.1)*9);
                 var p=open is { } pos ? town.Crowd.AddPuppet("thief",pos.x,pos.z) : null;
-                if(p!=null) extras.Add(p);
+                if(p!=null){extras.Add(p);Net.Mp.NativeJobFigures.I?.Register(p,"thief",()=> (p.Group.GlobalPosition,p.Yaw,p.Human.Motion??"idle",p.Loaded));}
             }
         }
     }
@@ -120,7 +120,7 @@ public partial class Gangs : Node
     {
         card.Close(); Gang=null; arriving=false;
         if(town!=null) foreach(var sim in held) town.ActionRelease(sim,this);
-        held.Clear(); if(town?.Crowd!=null) foreach(var p in extras) town.Crowd.RemovePuppet(p); extras.Clear();
+        held.Clear(); if(town?.Crowd!=null) foreach(var p in extras){Net.Mp.NativeJobFigures.I?.Remove(p);town.Crowd.RemovePuppet(p);} extras.Clear();
     }
     public override void _Process(double delta)
     {
@@ -136,7 +136,7 @@ public partial class Gangs : Node
         {
             if((moveT-=delta)>0) return; moveT=.2;
             int close=0, count=0;
-            foreach(var sim in held) if(sim.P is { } p) { double a=count++*2.1,tx=Jef.I.X+Math.Cos(a)*2.7,tz=Jef.I.Z+Math.Sin(a)*2.7; if((p.X-tx)*(p.X-tx)+(p.Z-tz)*(p.Z-tz)<4)close++; else town.Crowd.PuppetGo(p,tx,tz,2.3); }
+            foreach(var sim in held) if(sim.P is { } p) { double a=count++*2.1,tx=Jef.I.X+Math.Cos(a)*2.7,tz=Jef.I.Z+Math.Sin(a)*2.7; if((p.X-tx)*(p.X-tx)+(p.Z-tz)*(p.Z-tz)<4)close++; else if(Net.Mp.NativeStreet.I?.Owns(sim.R.Id)!=false)town.Crowd.PuppetGo(p,tx,tz,2.3); }
             foreach(var p in extras) { double a=count++*2.1,tx=Jef.I.X+Math.Cos(a)*2.7,tz=Jef.I.Z+Math.Sin(a)*2.7; if((p.X-tx)*(p.X-tx)+(p.Z-tz)*(p.Z-tz)<4)close++; else town.Crowd.PuppetGo(p,tx,tz,2.3); }
             if(close>=Math.Min(2,count) || (answerT-=.2)<=-11) { arriving=false; answerT=14; card.Open(); GameState.I.Say("The gang closes round you. " + Gang.DemandC + " centimes and you walk on."); }
         }

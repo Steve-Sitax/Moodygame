@@ -40,7 +40,7 @@ public partial class LifeSound : Node
     {
         I = this; sound = Soundscape.I; town = Main.I.GetNodeOrNull<Townspeople>("Townspeople");
         if (sound == null) { SetProcess(false); return; }
-        using var data = JsonDocument.Parse(File.ReadAllText(ProjectSettings.GlobalizePath("res://assets/places.json")));
+        using var data = JsonDocument.Parse(Godot.FileAccess.GetFileAsString("res://assets/places.json"));
         foreach (var e in data.RootElement.GetProperty("counters").EnumerateArray())
         {
             var o = e.GetProperty("origin"); var b = e.GetProperty("rect"); float a = e.GetProperty("yaw").GetSingle();

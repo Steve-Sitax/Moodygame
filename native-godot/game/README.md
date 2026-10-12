@@ -1,5 +1,19 @@
 # Testing native districts in the Godot game
 
+## Current full-town test
+
+Use `Start Native Town Game.cmd` in the parent folder. It launches `town.tscn -- --native-services --no-ai` with
+Forward+, the real menu and all eleven districts. `Start Native District Game.cmd` now points to the same game.
+Native C# rules and SQLite run inside Godot. Test saves/settings use `%APPDATA%/ScheldemistWorkshop/native-playtest`;
+saved workshop placements are read separately, including the added lamp. `Test Editor Changes In Game.cmd`
+uses scene seeds instead of saved layouts. Neither launcher writes workshop layouts or starts Node.
+
+Whole-town integration and remaining server work are recorded in [native service notes](../services/README.md).
+Multiplayer is still being ported; the native test does not enable Together. The older district-only test below
+remains useful for surface diagnosis and is invoked directly with `scripts/open-native-game.ps1`.
+
+## Earlier Rijnkaai slice and recovery reference
+
 The Rijnkaai playtest connects the existing Godot menus, HUD, residents, conversations, pockets and hiring board
 to the editable district. It loads saved workshop placements, including Steve's added lamp. It is a partial game
 slice: interiors, movers, full mission routes and multiplayer remain. Jobs whose required spots/systems are absent
@@ -7,7 +21,7 @@ are marked unavailable. Review this slice before expanding other districts or re
 
 ## Run and edit
 
-`Start Native District Game.cmd` starts `game.tscn` with Forward+, the saved workshop layout and the title menu.
+`scripts/open-native-game.ps1` starts the earlier `game.tscn` slice with Forward+, the saved workshop layout and the title menu.
 Choose Walk into town; WASD/Shift/Space move, E interacts, I opens pockets, J the quest book, M the map and Esc the
 pause menu. Game saves/settings are separate under `%APPDATA%/ScheldemistWorkshop/playtest`; launch uses no AI.
 Install the checkout's existing server dependencies once with `npm --prefix server ci` if missing.

@@ -17,13 +17,25 @@ public partial class Wiring : Node
         if (TownMap.I != null) TownMap.I.OpenChanged += open => mapOpen = open;
         // the tide follows the clock at once when it changes (a load, a sleep, a jump), not up to a second later: the
         // ferry and the moored boats float on it, and a load put Jef on last minute's water (2026-10-11, the menu test)
-        if (GameState.I != null) GameState.I.ClockChanged += SetTide;
+        if (GameState.I != null) {
+            GameState.I.ClockChanged += SyncClock;
+            GameState.I.WeatherChanged += WeatherChanged;
+        }
         // the game's own windows on the menus' list (Ui/Dialogs.cs): while one is up, Esc is theirs and no menu opens.
         // They draw their own ink cursor and take their own keys.
         Scheldemist.Ui.Dialogs.Register("windows", DialogUp, cursor: false, esc: () => Scheldemist.Windows.Dialogs.I is { Escapable: true });
         Scheldemist.Ui.Dialogs.Register("map", () => mapOpen, cursor: false);
         // time runs while Jef plays: walking with the mouse taken, or in a window (a talk, a shop), as in the browser
-        GameState.I.PlayingWhen = () => DialogUp() || (Input.MouseMode == Input.MouseModeEnum.Captured && Main.I?.Cam is not null and not Scheldemist.Player.FlyCam);
+        if (GameState.I != null) GameState.I.PlayingWhen = () => DialogUp() || (Input.MouseMode == Input.MouseModeEnum.Captured && Main.I?.Cam is not null and not Scheldemist.Player.FlyCam);
+    }
+
+    private void WeatherChanged(string weather) => SyncClock();
+
+    public override void _ExitTree()
+    {
+        if (GameState.I == null) return;
+        GameState.I.ClockChanged -= SyncClock;
+        GameState.I.WeatherChanged -= WeatherChanged;
     }
 
     private static void SetTide()
@@ -43,6 +55,11 @@ public partial class Wiring : Node
             || Play.TavernSeats.I?.Sitting != null || Play.CathedralComfort.I?.Sitting != null || Play.Poesje.I?.Seated == true;
         if ((wait -= delta) > 0) return;
         wait = 1;
+        SyncClock();
+    }
+
+    private void SyncClock()
+    {
         var s = GameState.I;
         // (--hour or a part's own test holds the clock: then the server's is not passed on)
         if (s == null || !s.Live || Main.I.Arg("hour") != "" || Main.I.Arg("peopletest") != "") return;

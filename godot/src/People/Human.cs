@@ -150,6 +150,10 @@ public sealed class Human
     private readonly Dictionary<string, float> speed = new();
     private readonly Dictionary<string, float> lengths;
     private string? current;
+    private int clipChanges;
+    private string? phaseClip;
+    public readonly record struct AnimationSnapshot(string? Motion,string? Clip,double Time,double Cycle,int ClipChanges,bool PhaseControlled);
+    public AnimationSnapshot AnimationState=>new(Motion,current,mixer.CurrentAnimationPosition,current==null?0:mixer.CurrentAnimationPosition/lengths[current],clipChanges,phaseClip==current&&current!=null);
 
     internal Human(string kind, Node3D root, AnimationLibrary clips, Dictionary<string, float> lengths, float scale)
     {
@@ -178,6 +182,8 @@ public sealed class Human
     {
         Motion = null;
         current = null;
+        clipChanges = 0;
+        phaseClip = null;
         speed.Clear();
         Play("idle", 0);
         if (current != null) mixer.Seek(Humans.Rng.NextDouble() * lengths[current], true);
@@ -190,7 +196,9 @@ public sealed class Human
         if (!actions.TryGetValue(m, out var next) && !actions.TryGetValue("idle", out next)) return;
         Motion = m;
         if (next == current) return;
+        phaseClip = null;
         mixer.SpeedScale = SpeedOf(m);
+        clipChanges++;
         mixer.Play(animationNames[next], current != null ? fade : 0);
         current = next;
     }
@@ -211,7 +219,18 @@ public sealed class Human
     {
         if (!actions.TryGetValue(m, out var clip)) return;
         speed[m] = 0;
-        if (current == clip) mixer.Seek((((phase % 1) + 1) % 1) * lengths[clip], true);
+        if (current != clip) return;
+        if (phaseClip != clip)
+        {
+            // Zero playback speed also freezes an unfinished fade. A phase-driven pose must take full weight:
+            // otherwise moving legs can appear beneath a torso and arms still blended with the idle pose.
+            mixer.Stop(true);
+            mixer.SpeedScale = 1;
+            mixer.Play(animationNames[clip], 0);
+            phaseClip = clip;
+        }
+        mixer.Seek((((phase % 1) + 1) % 1) * lengths[clip], true);
+        mixer.Advance(0);
     }
 
     /// <summary>How far to raise the body so the hips sit on a velocipede's saddle (the ride clip).</summary>

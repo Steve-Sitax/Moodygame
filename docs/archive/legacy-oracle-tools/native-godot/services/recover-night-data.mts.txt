@@ -1,0 +1,9 @@
+// Conversion-time authored rule/way recovery, isolated and read-only to player data.
+import {FALLBACK_NIGHT} from '../../server/src/night/nightwork.ts';
+import {SPOTS,TIER_PAY,ALL_EMPLOYERS,GOODS,TWISTS} from '../../server/src/hooks/jobBoard.ts';
+import {walkDist} from '../../server/src/hooks/loads.ts';
+import {LOAD} from '../../shared/handcart.ts';
+import {writeFileSync} from 'node:fs';
+const keys=Object.keys(SPOTS).filter(k=>!k.startsWith('_'));const distances:Record<string,number>={};
+for(const a of keys){for(const b of keys)distances[`${a}>${b}`]=walkDist(a,b);console.log(JSON.stringify({source:a,remaining:keys.length-keys.indexOf(a)-1}));}
+writeFileSync('native-godot/services/data/native-night.json',JSON.stringify({version:1,provenance:'Authored jobs/spot constants and original static walk-map distances. No player database. Runtime native planner may override distances after map edits.',fallback:FALLBACK_NIGHT.jobs,spots:SPOTS,tierPay:TIER_PAY,goods:GOODS,twists:TWISTS,load:LOAD,distances},null,2)+'\n');

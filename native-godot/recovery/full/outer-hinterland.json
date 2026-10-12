@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "id": "outer-hinterland",
+  "title": "Far bank, industry and countryside",
+  "bounds": [
+    -1910,
+    -610,
+    3577,
+    2500
+  ],
+  "walkSpawn": [
+    215,
+    0.2,
+    176
+  ],
+  "flySpawn": [
+    210,
+    28,
+    170
+  ],
+  "flyYaw": 90,
+  "flyPitch": -10,
+  "roots": [
+    {
+      "sourceIndex": 1519,
+      "sourceName": "far_bank",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 1521,
+      "sourceName": "works",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 1524,
+      "sourceName": "countryside",
+      "role": "scenery"
+    }
+  ],
+  "sharedRoots": [
+    {
+      "sourceIndex": 4,
+      "sourceName": "city",
+      "note": "Shared native ground/building tile store; keep one runtime copy. Region bounds do not clip merged meshes."
+    }
+  ],
+  "rooms": [],
+  "entrances": [],
+  "checks": [
+    "Every selected source index has the recorded name, parent and fingerprint.",
+    "Rooms retain room extras, material metadata and street opening markers.",
+    "Hidden templates stay hidden until their live game system owns them.",
+    "No runtime original GLB, bake sidecar, client URL or Node asset loading.",
+    "Render dry/day, rain/night and both sides/below of exposed solid edges.",
+    "Test walk spawns with native physics after all shared ground resources are loaded.",
+    "Use isolated proof layouts; preserve Rijnkaai authored identities and Steve's saved lamp.",
+    "Far bank geometry stays across the river at z below -262; do not assign a walk spawn in water.",
+    "Works smoke stays render overlay without solid collision.",
+    "Countryside is visual extent and must not cause NPCs to navigate all 2500m of its bounds."
+  ],
+  "exceptions": [
+    {
+      "feature": "Leaf cards, grass/ivy cards and feather quads",
+      "reason": "Thin cutout surfaces have no solid thickness; preserve alpha, wind and double-sided intent."
+    },
+    {
+      "feature": "Glazing, hidden/mating join faces and thin roof flashing",
+      "reason": "Do not open watertight joints or make thin sheet thicker with a large bevel."
+    },
+    {
+      "feature": "Merged native source stone/wood/metal meshes",
+      "reason": "Intake preserves source geometry. Every exposed silhouette is subject to the AGENTS material-edge review; source preservation is not approval to leave a visibly sharp edge."
+    },
+    {
+      "feature": "Industrial smoke",
+      "reason": "Shader/alpha overlay is an effect, not solid geometry with bevels or collision."
+    }
+  ],
+  "source": {
+    "snapshot": "next-20261012",
+    "sourceCommit": "6b447c1",
+    "sourceSha256": "ac8534149415142120f325986c7abd3818c38005206d45354f1ebb2619f3a7d9",
+    "sourceBytes": 977933624
+  }
+}

@@ -265,6 +265,7 @@ public partial class River : Node
 
     public override void _Process(double delta)
     {
+        if(NetRemote)return;
         MoverCost.Begin("river");
         double dt = MoverClock.Dt, t = MoverClock.T;
         wait -= dt;

@@ -1,0 +1,310 @@
+{
+  "version": 1,
+  "id": "north-canal",
+  "title": "Canal des Brasseurs and back lanes",
+  "bounds": [
+    -85,
+    30,
+    155,
+    150
+  ],
+  "walkSpawn": [
+    -60,
+    0.02,
+    71
+  ],
+  "flySpawn": [
+    -56,
+    9,
+    70
+  ],
+  "flyYaw": 0,
+  "flyPitch": -0.35,
+  "sourceSha256": "ac8534149415142120f325986c7abd3818c38005206d45354f1ebb2619f3a7d9",
+  "sourceBytes": 977933624,
+  "sourceFactsMade": "2026-10-12T07:12:37.100Z",
+  "roots": [
+    {
+      "sourceIndex": 3954,
+      "sourceName": "house_shop:grocer_canal",
+      "role": "building"
+    },
+    {
+      "sourceIndex": 3965,
+      "sourceName": "house_shop:grocer_canal_openings",
+      "role": "opening-markers"
+    },
+    {
+      "sourceIndex": 3970,
+      "sourceName": "shutters_shop:grocer_canal",
+      "role": "shutters"
+    },
+    {
+      "sourceIndex": 4151,
+      "sourceName": "house_shop:roaster_canal",
+      "role": "building"
+    },
+    {
+      "sourceIndex": 4162,
+      "sourceName": "house_shop:roaster_canal_openings",
+      "role": "opening-markers"
+    },
+    {
+      "sourceIndex": 4166,
+      "sourceName": "shutters_shop:roaster_canal",
+      "role": "shutters"
+    },
+    {
+      "sourceIndex": 4477,
+      "sourceName": "house_home:merchant",
+      "role": "building"
+    },
+    {
+      "sourceIndex": 4488,
+      "sourceName": "house_home:merchant_openings",
+      "role": "opening-markers"
+    },
+    {
+      "sourceIndex": 4669,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4671,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4693,
+      "sourceName": "house_tavern:ankere",
+      "role": "building"
+    },
+    {
+      "sourceIndex": 4704,
+      "sourceName": "house_tavern:ankere_openings",
+      "role": "opening-markers"
+    },
+    {
+      "sourceIndex": 5008,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 5013,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 5018,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 6086,
+      "sourceName": "portal_crane",
+      "role": "portal-crane"
+    },
+    {
+      "sourceIndex": 10118,
+      "sourceName": "ROOM_shop:grocer_canal",
+      "role": "room"
+    },
+    {
+      "sourceIndex": 10827,
+      "sourceName": "ROOM_shop:roaster_canal",
+      "role": "room"
+    },
+    {
+      "sourceIndex": 11563,
+      "sourceName": "ROOM_home:merchant",
+      "role": "room"
+    },
+    {
+      "sourceIndex": 11658,
+      "sourceName": "ROOM_tavern:ankere",
+      "role": "room"
+    }
+  ],
+  "sharedRoots": [
+    4,
+    320,
+    352,
+    1526,
+    1530,
+    1531,
+    1532,
+    1533,
+    1537,
+    1538,
+    1539,
+    1540,
+    1541,
+    1542,
+    1543,
+    1595,
+    1609,
+    1610,
+    3358,
+    3628,
+    5768,
+    5859,
+    6116,
+    6137,
+    6138,
+    6139,
+    6140,
+    6147,
+    6211,
+    6230,
+    6245,
+    6258,
+    6274,
+    6277,
+    6280,
+    6283,
+    6286,
+    6289,
+    6318,
+    6338,
+    6339,
+    6347,
+    6431,
+    6734,
+    6773,
+    7692,
+    7947,
+    8034,
+    8043,
+    8052,
+    8062,
+    8132,
+    8211,
+    8212,
+    8217,
+    8330,
+    8370,
+    12420,
+    12438,
+    12456,
+    12474,
+    12492,
+    12510,
+    12528,
+    12546
+  ],
+  "rooms": [
+    {
+      "id": "shop:grocer_canal",
+      "sourceIndices": [
+        10118
+      ],
+      "expectedNodes": 67,
+      "expectedHiddenNodes": 4,
+      "expectedSkinNodes": 0
+    },
+    {
+      "id": "shop:roaster_canal",
+      "sourceIndices": [
+        10827
+      ],
+      "expectedNodes": 66,
+      "expectedHiddenNodes": 4,
+      "expectedSkinNodes": 0
+    },
+    {
+      "id": "home:merchant",
+      "sourceIndices": [
+        11563
+      ],
+      "expectedNodes": 95,
+      "expectedHiddenNodes": 7,
+      "expectedSkinNodes": 0
+    },
+    {
+      "id": "tavern:ankere",
+      "sourceIndices": [
+        11658
+      ],
+      "expectedNodes": 66,
+      "expectedHiddenNodes": 3,
+      "expectedSkinNodes": 0
+    }
+  ],
+  "entrances": [
+    {
+      "id": "opening_shop:grocer_canal_door",
+      "sourceIndices": [
+        3965,
+        3966
+      ],
+      "kind": "street-door"
+    },
+    {
+      "id": "opening_shop:roaster_canal_door",
+      "sourceIndices": [
+        4162,
+        4163
+      ],
+      "kind": "street-door"
+    },
+    {
+      "id": "opening_home:merchant_door",
+      "sourceIndices": [
+        4488,
+        4489
+      ],
+      "kind": "street-door"
+    },
+    {
+      "id": "opening_tavern:ankere_door",
+      "sourceIndices": [
+        4704,
+        4705
+      ],
+      "kind": "street-door"
+    }
+  ],
+  "checks": [
+    {
+      "id": "preserve-room-shop:grocer_canal",
+      "description": "Preserve room root, all nested hidden nodes, semantic id and lights/fog metadata; check ingress/egress in-game."
+    },
+    {
+      "id": "preserve-room-shop:roaster_canal",
+      "description": "Preserve room root, all nested hidden nodes, semantic id and lights/fog metadata; check ingress/egress in-game."
+    },
+    {
+      "id": "preserve-room-home:merchant",
+      "description": "Preserve room root, all nested hidden nodes, semantic id and lights/fog metadata; check ingress/egress in-game."
+    },
+    {
+      "id": "preserve-room-tavern:ankere",
+      "description": "Preserve room root, all nested hidden nodes, semantic id and lights/fog metadata; check ingress/egress in-game."
+    },
+    {
+      "id": "direct-root-hierarchy",
+      "description": "Every listed root remains a direct world child, at the original world transform. Shared roots are instantiated exactly once."
+    },
+    {
+      "id": "edge-material-weather",
+      "description": "Rendered close/low views from both sides and below; verify geometry bevels, aligned relief, dry daylight, rain/wetness, darkness and reflections."
+    },
+    {
+      "id": "clear-walk-spawn",
+      "description": "Physics ray/body sweep at walkSpawn must find navigable ground and body clearance; source bounds alone do not prove this."
+    },
+    {
+      "id": "editor-authoring",
+      "description": "Open native subset, select an independent lamp root, duplicate/place/save in a copied test scene and verify the placement in-game."
+    }
+  ],
+  "exceptions": [],
+  "notes": [
+    "Root indices identify this exact completed snapshot; names may be empty or duplicated. Do not locate roots by name alone.",
+    "Bounds constrain author placement and review cameras. They never clip root geometry or reparent runtime children.",
+    "Shared city, quay/pier, tide/water, traffic, bridges, moorings, railway, generic dressing and crowd roots occur once under the runtime world. These indices are references only.",
+    "mills3628 spans the harbour led dray3629 and outer mill assets; retain the complete shared root and inspect child3629 in this region.",
+    "ROOM roots retain all nested hidden door/window punch meshes, shutters, lamps, fire data and opening metadata.",
+    "Original Rijnkaai seed and Steve's saved 15-object authoring layout remain authoritative; preserve ids and resolve source-overlay duplication before release."
+  ]
+}

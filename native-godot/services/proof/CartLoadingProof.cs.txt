@@ -1,0 +1,37 @@
+using System.Text.Json;
+using Scheldemist.Town;
+using P=Scheldemist.Town.NativeCartLoadingPoint.Point;
+
+string root=args[0],output=Path.Combine(root,"native-godot/proof/cart-loading-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(output);
+var checks=new List<object>();int count=0;
+void Check(string name,bool yes){count++;checks.Add(new{name,passed=yes});if(!yes)throw new Exception(name);}
+double Distance(P a,P b)=>Math.Sqrt(Math.Pow(a.X-b.X,2)+Math.Pow(a.Z-b.Z,2));
+for(int i=0;i<96;i++){
+    var axle=new P(i*3.13-147,i*-.71+39);double yaw=i*Math.PI/23;
+    var expected=new[]{new P(axle.X-Math.Sin(yaw)*.6+Math.Cos(yaw),axle.Z-Math.Cos(yaw)*.6-Math.Sin(yaw)),new P(axle.X-Math.Sin(yaw)*.6-Math.Cos(yaw),axle.Z-Math.Cos(yaw)*.6+Math.Sin(yaw)),new P(axle.X-Math.Sin(yaw)*2.7,axle.Z-Math.Cos(yaw)*2.7)};
+    for(int slot=0;slot<3;slot++){var wanted=expected[slot];var got=NativeCartLoadingPoint.Select(axle,yaw,p=>Distance(p,wanted)<1e-6,_=>true);Check("source candidate "+i+"/"+slot,got is {} selected&&!selected.Recovered&&Distance(selected.At,wanted)<1e-6);}
+}
+bool OutsideCart(P point,P axle,double yaw){
+    double dx=point.X-axle.X,dz=point.Z-axle.Z,along=dx*Math.Sin(yaw)+dz*Math.Cos(yaw),side=dx*Math.Cos(yaw)-dz*Math.Sin(yaw);
+    // Independent native parked bed/shaft rectangles, including WalkMap's existing .3m body margin.
+    return !(Math.Abs(side)<=1.02&&along>=-1.3&&along<=1.2)&&!(Math.Abs(side)<=.72&&along>=-2.48&&along<=-.68);
+}
+for(int i=0;i<32;i++){
+    var axle=new P(i-13,-i*.3);double yaw=i*Math.PI/16;
+    var got=NativeCartLoadingPoint.Select(axle,yaw,p=>OutsideCart(p,axle,yaw)&&Distance(p,axle)<2,_=>true);
+    Check("free physical bed flank "+i,got is {} selected&&selected.Recovered&&OutsideCart(selected.At,axle,yaw)&&Distance(selected.At,axle)<2);
+}
+var failedAxle=new P(-332.4,104.7);double failedYaw=-1.641;
+bool Supported(P p)=>p.Z>=105.5&&OutsideCart(p,failedAxle,failedYaw);
+var recovered=NativeCartLoadingPoint.Select(failedAxle,failedYaw,Supported,_=>true);
+Check("failed native wall case chooses supported flank",recovered is {} good&&good.Recovered&&Supported(good.At)&&Distance(good.At,failedAxle)<2);
+Check("unchecked unsupported shaft fallback is refused",!Supported(NativeCartLoadingPoint.Original(failedAxle,failedYaw).Last()));
+var firstFree=NativeCartLoadingPoint.Select(new(0,0),0,_=>true,p=>p.X<0);
+Check("disconnected first flank does not win",firstFree is {} reachable&&reachable.At.X<0&&!reachable.Recovered);
+Check("completely blocked loading returns no spot",NativeCartLoadingPoint.Select(new(0,0),0,_=>false,_=>true)==null);
+Check("all nearby spots disconnected returns no spot",NativeCartLoadingPoint.Select(new(0,0),0,_=>true,_=>false)==null);
+Check("nonfinite cart is refused",NativeCartLoadingPoint.Select(new(double.NaN,0),0,_=>true,_=>true)==null);
+int calls=0;NativeCartLoadingPoint.Select(new(0,0),0,p=>{calls++;return false;},_=>true);
+Check("recovery search remains bounded",calls==25);
+File.WriteAllText(Path.Combine(output,"result.json"),JsonSerializer.Serialize(new{passed=true,checks=count,recovered,assertions=checks},new JsonSerializerOptions{WriteIndented=true}));
+Console.WriteLine(JsonSerializer.Serialize(new{passed=true,checks=count,output}));

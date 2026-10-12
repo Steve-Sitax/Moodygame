@@ -1,0 +1,54 @@
+using System.Net;
+using System.Text;
+using System.Text.Json.Nodes;
+using Scheldemist.Native.Services;
+
+string root=args[0],output=args[1];Directory.CreateDirectory(output);
+using var host=new NativeServiceHost(new NativeServiceOptions(":memory:",Path.Combine(root,"native-godot/services/data"),Path.Combine(output,"saves")));
+using var ai=new NativeAI(host,Path.Combine(output,"settings.json"),true);host.AddModule(ai);
+var checks=new List<object>();void Check(string name,bool passed){checks.Add(new{name,passed});if(!passed)throw new Exception(name);}
+int oracle=0;
+foreach(var node in ai.Settings.Definitions["normalCases"]!.AsArray())
+{
+ var expected=node!["result"]!;try{var got=ai.Settings.NormalChoice(node["input"]);Check("original choice "+oracle,expected["choice"]!=null&&JsonNode.DeepEquals(got,expected["choice"]));}
+ catch(NativeServiceException){Check("original refusal "+oracle,expected["error"]!=null);}oracle++;
+}
+int called=0;ai.Runners["ollama"]=(r,ct)=>{called++;return Task.FromResult(new NativeAiAnswer(JsonNode.Parse("{\"line\":\"Good day.\"}"),10,4));};
+var schema=JsonNode.Parse("{\"type\":\"object\",\"properties\":{\"line\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40}},\"required\":[\"line\"],\"additionalProperties\":false}")!.AsObject();
+var off=await ai.Call("dialogue","test","test",schema);Check("walk mode makes no call or budget row",!off.Ok&&called==0&&host.Context.Scalar<int>("SELECT COUNT(*) FROM ai_call")==0);
+ai.Settings.Patch(JsonNode.Parse("{\"mode\":\"ai\",\"default\":{\"provider\":\"ollama\",\"model\":\"example-model\"},\"callsPerDay\":1}")!.AsObject());
+var success=await ai.Call("dialogue","test","test",schema);Check("validated native call books usage",success.Ok&&called==1&&host.Context.Scalar<int>("SELECT out_tokens FROM ai_call")==4);
+var cap=await ai.Call("dialogue","test","test",schema);Check("day cap is enforced before the provider",!cap.Ok&&called==1);
+ai.Settings.Patch(JsonNode.Parse("{\"callsPerDay\":0}")!.AsObject());
+ai.Runners["ollama"]=(r,ct)=>{called++;return Task.FromResult(new NativeAiAnswer(JsonNode.Parse("{\"line\":\"No.\",\"money\":100}")));};
+var bad=await ai.Call("dialogue","test","test",schema);Check("schema refusal and one retry are both booked",!bad.Ok&&called==3&&host.Context.Scalar<int>("SELECT COUNT(*) FROM ai_call WHERE ok=0")==2);
+ai.Runners["ollama"]=async(r,ct)=>{await Task.Delay(150);return new NativeAiAnswer(JsonNode.Parse("{\"line\":\"Late.\"}"));};ai.TimeoutMilliseconds=20;
+var late=await ai.Call("dialogue","test","test",schema);Check("late uncancellable provider reply is discarded",!late.Ok&&late.Milliseconds<120);
+ai.TimeoutMilliseconds=20000;
+ai.Runners["ollama"]=(r,ct)=>throw new Exception("private confession words");
+var secret=await ai.Call("confession","test","private confession words",schema);Check("private narration is absent from errors and logs",!secret.Ok&&!secret.Error!.Contains("private confession words")&&host.Context.Scalar<int>("SELECT COUNT(*) FROM ai_call WHERE error LIKE '%private confession words%'")==0);
+var waiting=new TaskCompletionSource<NativeAiAnswer>(TaskCreationOptions.RunContinuationsAsynchronously);
+ai.Runners["ollama"]=(r,ct)=>waiting.Task;
+var pending=ai.Call("dialogue","test","test",schema);await Task.Delay(5);
+var state=host.Call("GET","/api/state",null);Check("pending narration leaves state responsive",await Task.WhenAny(state,Task.Delay(100))==state);
+waiting.SetResult(new NativeAiAnswer(JsonNode.Parse("{\"line\":\"Good day.\"}")));Check("asynchronous reply completes normally",(await pending).Ok);
+ai.Settings.Patch(JsonNode.Parse("{\"default\":{\"provider\":\"recommended\"},\"typedLines\":\"claude_only\",\"connections\":{\"openai_compat\":{\"apiKey\":\"fake-password\"}}}")!.AsObject());
+Check("public configuration hides the full key",!ai.Settings.View().ToJsonString().Contains("fake-password")&&ai.Settings.Scrub("fake-password")=="[key]");
+var loaded=new NativeAiConfiguration(Path.Combine(root,"native-godot/services/data/native-ai.json"),Path.Combine(output,"settings.json"));Check("configuration saves and cold-loads",loaded.Saved&&loaded.TypedLines=="claude_only");
+int greetingCalls=0;ai.Runners["claude"]=(r,ct)=>{greetingCalls++;return Task.FromResult(new NativeAiAnswer(JsonNode.Parse("{\"line\":\"Good day.\"}")));};ai.Runners["codex"]=ai.Runners["claude"];
+var tested=JsonNode.Parse(await host.Call("POST","/api/ai/test","{\"all\":true}"))!;Check("test-all calls each selected route once",greetingCalls==2&&tested["results"]!.AsArray().Count>=6);
+Check("typed dialogue preserves Claude-only routing",ai.RouteOf("free_reply",ai.Settings.NormalChoice(JsonNode.Parse("{\"provider\":\"ollama\",\"model\":\"example-model\"}")))!.Provider=="claude");
+var handler=new Capture();using var http=new HttpClient(handler);using var providers=new NativeAiProviders(ai.Settings,output,http);
+handler.Reply="{\"choices\":[{\"message\":{\"content\":\"{\\\"line\\\":\\\"Good day.\\\"}\"}}]}";
+var answer=await providers.Run(new(new("openai","example-model"),"scene","line",schema),CancellationToken.None);
+Check("HTTP adapter sends a schema without tools",answer.Output?["line"]?.GetValue<string>()=="Good day."&&handler.Body?["tools"]==null&&handler.Body?["response_format"]?["json_schema"]?["strict"]?.GetValue<bool>()==true&&handler.HasAuthorization);
+handler.Reply="{\"choices\":[{\"message\":{\"content\":\"{}\",\"tool_calls\":[{}]}}]}";bool refused=false;
+try{await providers.Run(new(new("openai","example-model"),"scene","line",schema),CancellationToken.None);}catch(InvalidOperationException){refused=true;}Check("HTTP model tool use is rejected",refused);
+File.WriteAllText(Path.Combine(output,"result.json"),System.Text.Json.JsonSerializer.Serialize(new{passed=true,oracleCases=oracle,checks},new System.Text.Json.JsonSerializerOptions{WriteIndented=true}));
+Console.WriteLine($"Native AI: {checks.Count} checks passed, including {oracle} original normalization cases; no live model calls.");
+sealed class Capture:HttpMessageHandler
+{
+ public JsonNode? Body;public bool HasAuthorization;public string Reply="{}";
+ protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,CancellationToken stop)
+ {Body=JsonNode.Parse(await request.Content!.ReadAsStringAsync(stop));HasAuthorization=request.Headers.Contains("Authorization");return new HttpResponseMessage(HttpStatusCode.OK){Content=new StringContent(Reply,Encoding.UTF8,"application/json")};}
+}

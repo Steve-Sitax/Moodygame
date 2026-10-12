@@ -91,9 +91,9 @@ public partial class Omnibus
         foreach(char c in post.Id) h=unchecked(h*31+c);
         return (int)(Math.Abs((long)h)%4)-(hour<8 || hour>19?1:0);
     }
-    private void AddWaiter(Post post,int slot)
+    private void AddWaiter(Post post,int slot,string? networkKind=null)
     {
-        var h=Humans.Make(WaitKinds[passengerDice.Next(WaitKinds.Length)]); if(h==null) return;
+        var h=Humans.Make(networkKind??WaitKinds[passengerDice.Next(WaitKinds.Length)]); if(h==null) return;
         var bay=Bay(post); var lane=(new Vector2(bay.X,bay.Z)-post.At).Normalized();
         var root=new Node3D(); waiterGroup.AddChild(root); root.AddChild(h.Root); h.Start();
         if(slot==0 && post.Bench is {} b && h.CanSit)

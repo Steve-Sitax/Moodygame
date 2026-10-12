@@ -1,0 +1,60 @@
+[gd_scene load_steps=19 format=3]
+
+[ext_resource type="Script" path="res://src/World/NativeDistrictScene.cs" id="native_editor"]
+
+[ext_resource type="PackedScene" path="res://world/town/fragments/node-01153.scn" id="1_root"]
+[ext_resource type="PackedScene" path="res://world/town/fragments/node-01154.scn" id="2_root"]
+[ext_resource type="PackedScene" path="res://world/town/fragments/node-01155.scn" id="3_root"]
+[ext_resource type="PackedScene" path="res://world/town/fragments/node-01156.scn" id="4_root"]
+[ext_resource type="PackedScene" path="res://world/town/fragments/node-01157.scn" id="5_root"]
+[ext_resource type="PackedScene" path="res://world/town/fragments/node-01158.scn" id="6_root"]
+[ext_resource type="PackedScene" path="res://world/town/fragments/node-01159.scn" id="7_root"]
+[ext_resource type="PackedScene" path="res://world/town/fragments/node-01160.scn" id="8_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-01225.scn" id="9_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-01235.scn" id="10_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-03683.scn" id="11_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-04841.scn" id="12_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-09493.scn" id="13_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-09755.scn" id="14_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-09781.scn" id="15_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-00004.scn" id="16_root"]
+[ext_resource type="PackedScene" path="res://world/districts/outer-park-prison.objects.tscn" id="objects"]
+
+[node name="outer_park_prison" type="Node3D"]
+script = ExtResource("native_editor")
+
+[node name="Scenery" type="Node3D" parent="."]
+
+[node name="source_01153" parent="Scenery" instance=ExtResource("1_root")]
+
+[node name="source_01154" parent="Scenery" instance=ExtResource("2_root")]
+
+[node name="source_01155" parent="Scenery" instance=ExtResource("3_root")]
+
+[node name="source_01156" parent="Scenery" instance=ExtResource("4_root")]
+
+[node name="source_01157" parent="Scenery" instance=ExtResource("5_root")]
+
+[node name="source_01158" parent="Scenery" instance=ExtResource("6_root")]
+
+[node name="source_01159" parent="Scenery" instance=ExtResource("7_root")]
+
+[node name="source_01160" parent="Scenery" instance=ExtResource("8_root")]
+
+[node name="source_01225" parent="Scenery" instance=ExtResource("9_root")]
+
+[node name="source_01235" parent="Scenery" instance=ExtResource("10_root")]
+
+[node name="source_03683" parent="Scenery" instance=ExtResource("11_root")]
+
+[node name="source_04841" parent="Scenery" instance=ExtResource("12_root")]
+
+[node name="source_09493" parent="Scenery" instance=ExtResource("13_root")]
+
+[node name="source_09755" parent="Scenery" instance=ExtResource("14_root")]
+
+[node name="source_09781" parent="Scenery" instance=ExtResource("15_root")]
+
+[node name="source_00004" parent="Scenery" instance=ExtResource("16_root")]
+
+[node name="Objects" parent="." instance=ExtResource("objects")]

@@ -1,0 +1,21 @@
+using System.Buffers.Binary;
+using System.Text.Json;
+using Scheldemist.Net.Mp;
+using var file=JsonDocument.Parse(File.ReadAllText(args[0]));
+int count=0;
+foreach(var row in file.RootElement.EnumerateArray()) {
+    var input=row.GetProperty("state"); int Int(string key)=>row.GetProperty(key).GetInt32();
+    float F(string key)=>input.GetProperty(key).GetSingle();
+    int Bit(string key,int bit)=>input.GetProperty(key).GetBoolean()?bit:0;
+    var state=new MpState {T=input.GetProperty("t").GetDouble(),X=F("x"),Z=F("z"),Yaw=F("yaw"),Vx=F("vx"),Vz=F("vz"),Mode=Int("mode"),Gear=Bit("sit",1)|Bit("lantern",2)|Bit("sack",4)|Bit("snap",8),PuppetBought=Int("bought"),PuppetVehicle=Int("vehicle"),PuppetLoad=Int("load"),PuppetGoods=Int("goods")};
+    var actual=new byte[34];actual[0]=EventPuppets.Kind;actual[1]=1;BinaryPrimitives.WriteDoubleLittleEndian(actual.AsSpan(2),state.T);
+    EventPuppets.Write(actual.AsSpan(10),(ushort)Int("number"),state,F("size"));
+    var expected=Convert.FromBase64String(row.GetProperty("wire").GetString()!);
+    if(!actual.SequenceEqual(expected))throw new Exception("Original resident wire mismatch in case "+count+" at byte "+Enumerable.Range(0,34).First(i=>actual[i]!=expected[i]));
+    if(!EventPuppets.Valid(actual)||!EventPuppets.Read(actual.AsSpan(10),state.T,out var number,out var decoded,out var size)||number!=Int("number")||decoded.PuppetBought!=state.PuppetBought||decoded.PuppetVehicle!=state.PuppetVehicle||decoded.PuppetLoad!=state.PuppetLoad||decoded.PuppetGoods!=state.PuppetGoods)throw new Exception("Resident read mismatch in case "+count);
+    var track=new RemoteTrack {Delay=0};track.Push(decoded,state.T);
+    var pose=track.Sample(state.T+500)??throw new Exception("No resident pose");
+    if(pose.PuppetBought!=state.PuppetBought||pose.PuppetVehicle!=state.PuppetVehicle||pose.PuppetLoad!=state.PuppetLoad||pose.PuppetGoods!=state.PuppetGoods)throw new Exception("Resident presentation lost held items");
+    count++;
+}
+Console.WriteLine($"PASS {count} original resident protocol round trips, including held purchases and all vehicle kinds.");

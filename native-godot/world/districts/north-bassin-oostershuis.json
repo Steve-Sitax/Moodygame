@@ -1,0 +1,246 @@
+{
+  "version": 1,
+  "id": "north-bassin-oostershuis",
+  "title": "Petit Bassin, lock and Oostershuis",
+  "bounds": [
+    70,
+    -24,
+    146,
+    208
+  ],
+  "walkSpawn": [
+    90,
+    0.02,
+    46
+  ],
+  "flySpawn": [
+    94,
+    12,
+    54
+  ],
+  "flyYaw": 0,
+  "flyPitch": -0.4,
+  "sourceSha256": "ac8534149415142120f325986c7abd3818c38005206d45354f1ebb2619f3a7d9",
+  "sourceBytes": 977933624,
+  "sourceFactsMade": "2026-10-12T07:12:37.100Z",
+  "roots": [
+    {
+      "sourceIndex": 2890,
+      "sourceName": "oostershuis",
+      "role": "landmark"
+    },
+    {
+      "sourceIndex": 4681,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4683,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4753,
+      "sourceName": "house_tavern:bassin",
+      "role": "building"
+    },
+    {
+      "sourceIndex": 4764,
+      "sourceName": "house_tavern:bassin_openings",
+      "role": "opening-markers"
+    },
+    {
+      "sourceIndex": 5023,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 5028,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 5153,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 5158,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 5713,
+      "sourceName": "lock",
+      "role": "lock-and-vessels"
+    },
+    {
+      "sourceIndex": 6091,
+      "sourceName": "portal_crane",
+      "role": "portal-crane"
+    },
+    {
+      "sourceIndex": 6096,
+      "sourceName": "portal_crane",
+      "role": "portal-crane"
+    },
+    {
+      "sourceIndex": 9250,
+      "sourceName": "ROOM_oostershuis",
+      "role": "room"
+    },
+    {
+      "sourceIndex": 11944,
+      "sourceName": "ROOM_tavern:bassin",
+      "role": "room"
+    }
+  ],
+  "sharedRoots": [
+    4,
+    320,
+    352,
+    1526,
+    1530,
+    1531,
+    1532,
+    1533,
+    1537,
+    1538,
+    1539,
+    1540,
+    1541,
+    1542,
+    1543,
+    1595,
+    1609,
+    1610,
+    3358,
+    3628,
+    5768,
+    5859,
+    6116,
+    6137,
+    6138,
+    6139,
+    6140,
+    6147,
+    6211,
+    6230,
+    6245,
+    6258,
+    6274,
+    6277,
+    6280,
+    6283,
+    6286,
+    6289,
+    6318,
+    6338,
+    6339,
+    6347,
+    6431,
+    6734,
+    6773,
+    7692,
+    7947,
+    8034,
+    8043,
+    8052,
+    8062,
+    8132,
+    8211,
+    8212,
+    8217,
+    8330,
+    8370,
+    12420,
+    12438,
+    12456,
+    12474,
+    12492,
+    12510,
+    12528,
+    12546
+  ],
+  "rooms": [
+    {
+      "id": "oostershuis",
+      "sourceIndices": [
+        9250
+      ],
+      "expectedNodes": 93,
+      "expectedHiddenNodes": 4,
+      "expectedSkinNodes": 0
+    },
+    {
+      "id": "tavern:bassin",
+      "sourceIndices": [
+        11944
+      ],
+      "expectedNodes": 74,
+      "expectedHiddenNodes": 4,
+      "expectedSkinNodes": 0
+    }
+  ],
+  "entrances": [
+    {
+      "id": "opening_tavern:bassin_door",
+      "sourceIndices": [
+        4764,
+        4765
+      ],
+      "kind": "street-door"
+    },
+    {
+      "id": "oostershuis_gate",
+      "sourceIndices": [
+        2890,
+        3191,
+        9250
+      ],
+      "kind": "landmark-door",
+      "step": [
+        120,
+        0,
+        123
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "id": "preserve-room-oostershuis",
+      "description": "Preserve room root, all nested hidden nodes, semantic id and lights/fog metadata; check ingress/egress in-game."
+    },
+    {
+      "id": "preserve-room-tavern:bassin",
+      "description": "Preserve room root, all nested hidden nodes, semantic id and lights/fog metadata; check ingress/egress in-game."
+    },
+    {
+      "id": "direct-root-hierarchy",
+      "description": "Every listed root remains a direct world child, at the original world transform. Shared roots are instantiated exactly once."
+    },
+    {
+      "id": "edge-material-weather",
+      "description": "Rendered close/low views from both sides and below; verify geometry bevels, aligned relief, dry daylight, rain/wetness, darkness and reflections."
+    },
+    {
+      "id": "clear-walk-spawn",
+      "description": "Physics ray/body sweep at walkSpawn must find navigable ground and body clearance; source bounds alone do not prove this."
+    },
+    {
+      "id": "editor-authoring",
+      "description": "Open native subset, select an independent lamp root, duplicate/place/save in a copied test scene and verify the placement in-game."
+    }
+  ],
+  "exceptions": [
+    "Lock/bridge gates keep mating/hinge surfaces and thin chain or sheet edges. Exposed timber/stone/cast edges still follow AGENTS.md; do not globally bevel moving assemblies or alter pivot clearance."
+  ],
+  "notes": [
+    "Root indices identify this exact completed snapshot; names may be empty or duplicated. Do not locate roots by name alone.",
+    "Bounds constrain author placement and review cameras. They never clip root geometry or reparent runtime children.",
+    "Shared city, quay/pier, tide/water, traffic, bridges, moorings, railway, generic dressing and crowd roots occur once under the runtime world. These indices are references only.",
+    "mills3628 spans the harbour led dray3629 and outer mill assets; retain the complete shared root and inspect child3629 in this region.",
+    "ROOM roots retain all nested hidden door/window punch meshes, shutters, lamps, fire data and opening metadata.",
+    "Original Rijnkaai seed and Steve's saved 15-object authoring layout remain authoritative; preserve ids and resolve source-overlay duplication before release."
+  ]
+}

@@ -1,0 +1,329 @@
+{
+  "version": 1,
+  "id": "north-vismarkt",
+  "title": "Vismarkt and Poesje",
+  "bounds": [
+    -154,
+    -28,
+    76,
+    132
+  ],
+  "walkSpawn": [
+    -118,
+    0.02,
+    36
+  ],
+  "flySpawn": [
+    -115,
+    9,
+    48
+  ],
+  "flyYaw": 0,
+  "flyPitch": -0.4,
+  "sourceSha256": "ac8534149415142120f325986c7abd3818c38005206d45354f1ebb2619f3a7d9",
+  "sourceBytes": 977933624,
+  "sourceFactsMade": "2026-10-12T07:12:37.100Z",
+  "roots": [
+    {
+      "sourceIndex": 4007,
+      "sourceName": "house_shop:pawn_vis",
+      "role": "building"
+    },
+    {
+      "sourceIndex": 4018,
+      "sourceName": "house_shop:pawn_vis_openings",
+      "role": "opening-markers"
+    },
+    {
+      "sourceIndex": 4024,
+      "sourceName": "shutters_shop:pawn_vis",
+      "role": "shutters"
+    },
+    {
+      "sourceIndex": 4516,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4592,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4675,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4677,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4690,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4724,
+      "sourceName": "house_tavern:vliet",
+      "role": "building"
+    },
+    {
+      "sourceIndex": 4735,
+      "sourceName": "house_tavern:vliet_openings",
+      "role": "opening-markers"
+    },
+    {
+      "sourceIndex": 4798,
+      "sourceName": "house_poesje",
+      "role": "building"
+    },
+    {
+      "sourceIndex": 4809,
+      "sourceName": "house_poesje_openings",
+      "role": "opening-markers"
+    },
+    {
+      "sourceIndex": 4928,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 4933,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 4938,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 4943,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 4948,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 4953,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 4958,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 4963,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 4968,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 4973,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 4978,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 6644,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 6684,
+      "sourceName": "market_vismarkt",
+      "role": "fish-market"
+    },
+    {
+      "sourceIndex": 10313,
+      "sourceName": "ROOM_shop:pawn_vis",
+      "role": "room"
+    },
+    {
+      "sourceIndex": 11795,
+      "sourceName": "ROOM_tavern:vliet",
+      "role": "room"
+    },
+    {
+      "sourceIndex": 12155,
+      "sourceName": "ROOM_poesje",
+      "role": "room"
+    }
+  ],
+  "sharedRoots": [
+    4,
+    320,
+    352,
+    1526,
+    1530,
+    1531,
+    1532,
+    1533,
+    1537,
+    1538,
+    1539,
+    1540,
+    1541,
+    1542,
+    1543,
+    1595,
+    1609,
+    1610,
+    3358,
+    3628,
+    5768,
+    5859,
+    6116,
+    6137,
+    6138,
+    6139,
+    6140,
+    6147,
+    6211,
+    6230,
+    6245,
+    6258,
+    6274,
+    6277,
+    6280,
+    6283,
+    6286,
+    6289,
+    6318,
+    6338,
+    6339,
+    6347,
+    6431,
+    6734,
+    6773,
+    7692,
+    7947,
+    8034,
+    8043,
+    8052,
+    8062,
+    8132,
+    8211,
+    8212,
+    8217,
+    8330,
+    8370,
+    12420,
+    12438,
+    12456,
+    12474,
+    12492,
+    12510,
+    12528,
+    12546
+  ],
+  "rooms": [
+    {
+      "id": "shop:pawn_vis",
+      "sourceIndices": [
+        10313
+      ],
+      "expectedNodes": 56,
+      "expectedHiddenNodes": 3,
+      "expectedSkinNodes": 0
+    },
+    {
+      "id": "tavern:vliet",
+      "sourceIndices": [
+        11795
+      ],
+      "expectedNodes": 84,
+      "expectedHiddenNodes": 4,
+      "expectedSkinNodes": 1
+    },
+    {
+      "id": "poesje",
+      "sourceIndices": [
+        12155
+      ],
+      "expectedNodes": 55,
+      "expectedHiddenNodes": 4,
+      "expectedSkinNodes": 0
+    }
+  ],
+  "entrances": [
+    {
+      "id": "opening_shop:pawn_vis_door",
+      "sourceIndices": [
+        4018,
+        4019
+      ],
+      "kind": "street-door"
+    },
+    {
+      "id": "opening_tavern:vliet_door",
+      "sourceIndices": [
+        4735,
+        4736
+      ],
+      "kind": "street-door"
+    },
+    {
+      "id": "opening_poesje_door",
+      "sourceIndices": [
+        4809,
+        4810
+      ],
+      "kind": "street-door"
+    }
+  ],
+  "checks": [
+    {
+      "id": "preserve-room-shop:pawn_vis",
+      "description": "Preserve room root, all nested hidden nodes, semantic id and lights/fog metadata; check ingress/egress in-game."
+    },
+    {
+      "id": "preserve-room-tavern:vliet",
+      "description": "Preserve room root, all nested hidden nodes, semantic id and lights/fog metadata; check ingress/egress in-game."
+    },
+    {
+      "id": "preserve-room-poesje",
+      "description": "Preserve room root, all nested hidden nodes, semantic id and lights/fog metadata; check ingress/egress in-game."
+    },
+    {
+      "id": "direct-root-hierarchy",
+      "description": "Every listed root remains a direct world child, at the original world transform. Shared roots are instantiated exactly once."
+    },
+    {
+      "id": "edge-material-weather",
+      "description": "Rendered close/low views from both sides and below; verify geometry bevels, aligned relief, dry daylight, rain/wetness, darkness and reflections."
+    },
+    {
+      "id": "clear-walk-spawn",
+      "description": "Physics ray/body sweep at walkSpawn must find navigable ground and body clearance; source bounds alone do not prove this."
+    },
+    {
+      "id": "editor-authoring",
+      "description": "Open native subset, select an independent lamp root, duplicate/place/save in a copied test scene and verify the placement in-game."
+    }
+  ],
+  "exceptions": [],
+  "notes": [
+    "Root indices identify this exact completed snapshot; names may be empty or duplicated. Do not locate roots by name alone.",
+    "Bounds constrain author placement and review cameras. They never clip root geometry or reparent runtime children.",
+    "Shared city, quay/pier, tide/water, traffic, bridges, moorings, railway, generic dressing and crowd roots occur once under the runtime world. These indices are references only.",
+    "mills3628 spans the harbour led dray3629 and outer mill assets; retain the complete shared root and inspect child3629 in this region.",
+    "ROOM roots retain all nested hidden door/window punch meshes, shutters, lamps, fire data and opening metadata.",
+    "Original Rijnkaai seed and Steve's saved 15-object authoring layout remain authoritative; preserve ids and resolve source-overlay duplication before release."
+  ]
+}

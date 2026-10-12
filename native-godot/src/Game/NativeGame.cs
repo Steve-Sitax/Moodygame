@@ -7,35 +7,18 @@ using Scheldemist.World;
 
 namespace Scheldemist.Native.Game;
 
-/// <summary>The existing Godot game, supplied with an editable native district.</summary>
+/// <summary>Isolated material review scene. The playable full game starts at town.tscn.</summary>
 public partial class NativeGame : Scheldemist.Main
 {
     protected override BakedWorld CreateWorld() => new NativeGameWorld();
     public override bool MultiplayerAvailable => false;
-    private bool SurfaceOnly => Flag("surface-only") || Flag("review-surfaces") || Arg("native-game-test") != "" || Arg("surface-test") != "";
-    protected override bool UseMenus => !SurfaceOnly && Scheldemist.Menu.MainMenu.Wanted(this);
+    private const bool SurfaceOnly = true;
+    protected override bool UseMenus => false;
     protected override IEnumerable<Node> CreateParts()
     {
-        if (!SurfaceOnly)
-        {
-            // Parts whose world dependencies are present on the recovered quay. Whole-city movers/interiors
-            // remain a separate intake; constructing them would create activity outside the playable ground.
-            var enabled = new HashSet<string> { "GameState", "Daylight", "Solid", "Lightning", "Jef", "ServerLink", "Sky", "Lights", "RainSheets", "Rain", "Waters", "Mirrors", "Blobs", "BlobFeet", "Rooms", "Interact", "Doors", "Goods", "Hud", "MainMenu", "DaySheets", "TownMap", "Townspeople", "PostedPeople", "Talk", "Shop", "Pockets", "Press", "Jobs", "Bubbles", "Dice", "Day", "Deeds", "Wiring", "Dialogs", "Soundscape", "LifeSound", "Snap", "MenuTest", "NetTest" };
-            enabled.UnionWith(new[] { "IndoorSave", "RideSaves" });
-            return GamePartAttribute.Make(this, type => enabled.Contains(type.Name));
-        }
         var parts = new Node[] { new Daylight(), new Solid(), new Lightning(), new Jef(), new Scheldemist.World.Sky(), new Lights(), new RainSheets(), new Rain(), new Waters(), new Mirrors() };
         foreach (var part in parts) part.Name = part.GetType().Name;
         return parts;
-    }
-
-    protected override async Task PrepareWorld()
-    {
-        if (SurfaceOnly) return;
-        // Wait for native colliders to reach physics before sampling the edited scene for the crowd.
-        await ToSignal(GetTree(), SceneTree.SignalName.PhysicsFrame);
-        await ToSignal(GetTree(), SceneTree.SignalName.PhysicsFrame);
-        ((NativeGameWorld)World).BuildNavigation();
     }
 
     private Label status = null!;
@@ -47,6 +30,7 @@ public partial class NativeGame : Scheldemist.Main
     public override void _Ready()
     {
         NativeGlobals.Ensure();
+        Scheldemist.Native.World.NativeData.Initialize();
         Scheldemist.Models.ModelLibrary.NativeScene = name =>
         {
             string path = "res://assets/game-models/" + name + ".scn";
@@ -63,7 +47,6 @@ public partial class NativeGame : Scheldemist.Main
         if (Arg("native-game-test") != "") _ = NativeGameProof.Run(this, Arg("native-game-test"));
         if (Arg("surface-test") != "") _ = NativeSurfaceProof.Run(this, Arg("surface-test"));
         if (Flag("review-surfaces")) _ = ReviewSurfaces();
-        if (Arg("native-play-proof") != "") _ = NativePlayProof.Run(this, Arg("native-play-proof"));
     }
 
     private async Task ReviewSurfaces()

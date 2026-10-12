@@ -18,7 +18,7 @@ public partial class PlacesWhere : Node
     private Func<WhereReport> report=null!;
     public override void _Ready()
     {
-        using var data=JsonDocument.Parse(File.ReadAllText(ProjectSettings.GlobalizePath("res://assets/places.json")));
+        using var data=JsonDocument.Parse(Godot.FileAccess.GetFileAsString("res://assets/places.json"));
         foreach(var e in data.RootElement.GetProperty("counters").EnumerateArray())
         {
             var o=e.GetProperty("origin");var b=e.GetProperty("rect");float a=e.GetProperty("yaw").GetSingle();

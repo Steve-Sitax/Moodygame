@@ -18,6 +18,8 @@ public partial class Velocipedes:Node
     public sealed class Machine
     {public VeloInfo Info=new();public Node3D Root=null!;public Node3D? Steer,Front,Rear;public StaticBody3D Solid=null!;}
     public readonly Dictionary<string,Machine> Machines=new();
+    private readonly HashSet<string> residentUse=new();
+    public void ResidentUse(string id,bool on,Vector3? at=null){if(on)residentUse.Add(id);else residentUse.Remove(id);if(Machines.TryGetValue(id,out var m)&&m!=Ridden){if(at is Vector3 p)m.Info=m.Info with{X=p.X,Z=p.Y,Yaw=p.Z};Park(m);}}
     public Machine? Ridden {get;private set;}
     public VeloJef? Ownership {get;private set;}
     public bool Busy {get;private set;}
@@ -99,7 +101,7 @@ public partial class Velocipedes:Node
     {
         m.Solid.CollisionLayer=0;float feet=Floor(m.Info.X,m.Info.Z,0);if(!float.IsFinite(feet))feet=0;
         m.Root.Position=new(m.Info.X,feet+(m.Info.Down?.33f:0),m.Info.Z);m.Root.Rotation=new(0,m.Info.Yaw,m.Info.Down?-1.42f:.06f);
-        m.Root.Visible=!m.Info.Ridden;m.Solid.CollisionLayer=m.Info.Ridden?0:Solid.Layer;
+        m.Root.Visible=!m.Info.Ridden&&!residentUse.Contains(m.Info.Id);m.Solid.CollisionLayer=m.Root.Visible?Solid.Layer:0;
         if(m.Steer!=null)m.Steer.Rotation=new(0,m.Info.Down?.3f:.12f,0);
     }
     private Offers Keys(float px,float pz)
@@ -201,7 +203,7 @@ public partial class Velocipedes:Node
     public override void _Process(double delta)
     {
         float dt=(float)delta;pollT+=dt;seenT+=dt;if(pollT>15&&!Busy){pollT=0;_=Load();}if(seenT>5&&Ownership?.List.Count>0){seenT=0;_=Seen();}
-        foreach(var m in Machines.Values)if(m!=Ridden)m.Root.Visible=!m.Info.Ridden&&new Vector2(m.Info.X-Jef.I.X,m.Info.Z-Jef.I.Z).Length()<70;
+        foreach(var m in Machines.Values)if(m!=Ridden){bool travelling=residentUse.Contains(m.Info.Id)||ResidentJourneys.I?.ResidentVehicleActive(m.Info.Owner,1)==true;m.Root.Visible=!m.Info.Ridden&&!travelling&&new Vector2(m.Info.X-Jef.I.X,m.Info.Z-Jef.I.Z).Length()<70;m.Solid.CollisionLayer=m.Root.Visible?Solid.Layer:0;}
     }
     private async Task Seen(){try{await ServerLink.I!.Api!.VeloSeen(Jef.I.X,Jef.I.Z);}catch(ApiException){}}
 }

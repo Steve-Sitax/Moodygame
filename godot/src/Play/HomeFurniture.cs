@@ -74,7 +74,7 @@ public partial class HomeFurniture : Node
     public override void _Ready()
     {
         I = this;
-        using var doc = JsonDocument.Parse(File.ReadAllText(ProjectSettings.GlobalizePath("res://assets/places.json")));
+        using var doc = JsonDocument.Parse(Godot.FileAccess.GetFileAsString("res://assets/places.json"));
         foreach (var h in doc.RootElement.GetProperty("homes").EnumerateArray()) classes[h.GetProperty("id").GetString()!] = h.GetProperty("definition").Clone();
         lampGlass=(ShaderMaterial)Goods.I.Plain(0xffd490).Duplicate();lampGlass.Shader=Psx.ShaderOf(Psx.KindOf(lampGlass.Shader)!.Value with {Unlit=true});
         foreach (var f in doc.RootElement.GetProperty("furniture").EnumerateObject()) { var d = f.Value; defs[f.Name] = new(d.GetProperty("layer").GetString()!, d.GetProperty("carry").GetString()!, d.GetProperty("w").GetInt32(), d.GetProperty("d").GetInt32()); templates[f.Name] = Make(f.Name); }

@@ -1,0 +1,23 @@
+{
+  "retired": true,
+  "archivedFiles": 493,
+  "fingerprint": "d6c10262930d03ef76aef873c8297d1acfa9c9c22bba0b647eb5497ed4735e2e",
+  "standaloneProof": "D:\\Code\\MoodyGame-native-authoring\\native-godot\\proof\\standalone-9e4aa7698cb14248b80bde89d790d3e3",
+  "removedTrees": [
+    "client",
+    "server",
+    "shared",
+    "node_modules",
+    "godot/baked",
+    "tools/city",
+    "tools/blender",
+    "tools/textures",
+    "tools/templates",
+    "tools/godot",
+    "tools/release",
+    "tools/demo"
+  ],
+  "removedFiles": 208,
+  "scope": "D:\\Code\\MoodyGame-native-authoring",
+  "userDataTouched": false
+}

@@ -27,10 +27,12 @@ public partial class HomeVisitors : Node
     {
         I = this;
         town = GetParent().GetNodeOrNull<Townspeople>("Townspeople");
+        if (town != null) town.PopulationChanged += PopulationChanged;
         using var data = JsonDocument.Parse(HallPeopleData.Json);
         foreach (var home in data.RootElement.GetProperty("homes").EnumerateArray())
             spots[home.GetProperty("id").GetString()!] = home.GetProperty("spots").EnumerateArray().Select(p => new Vector3(p.GetProperty("x").GetSingle(), p.GetProperty("y").GetSingle(), p.GetProperty("z").GetSingle())).ToList();
     }
+    private void PopulationChanged() { foreach (var home in visitors.Keys.ToList()) Visit(home, null); expired.Clear(); time = 0; }
     public Vector3? PositionOf(string id) { if (town?.ActionPerson(id)?.ActionHeld == true) return null; foreach (var v in visitors.Values) if (v.id == id) return v.group.GlobalPosition; return null; }
     /// <summary>Pass the server's person, or null when the room is left. The homes helper can supply its furniture free-space check.</summary>
     public bool Visit(string home, Resident? person, double seconds = 14)
@@ -78,5 +80,5 @@ public partial class HomeVisitors : Node
         }
         foreach (string id in expired) Visit(id, null);
     }
-    public override void _ExitTree() { foreach (var home in visitors.Keys.ToList()) Visit(home, null); if (I == this) I = null; }
+    public override void _ExitTree() { if (town != null) town.PopulationChanged -= PopulationChanged; PopulationChanged(); if (I == this) I = null; }
 }

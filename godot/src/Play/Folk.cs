@@ -119,26 +119,42 @@ public static class Folk
     {
         public Node3D Node = null!;
         internal Scheldemist.People.Human? Human;
+        internal string Kind = "recipient";
+        private Node3D? load;
+        internal bool carrying;
         public Vector3 Position => Node.Position;
         public void Update(float dt) => Human?.Update(dt);
+        public void SetMotion(string motion,float speed=0,bool carry=false)
+        {
+            Human?.SetPace(speed);Human?.Play(motion);
+            if(carrying==carry)return;carrying=carry;
+            if(load!=null){load.QueueFree();load=null;}
+            if(carry&&(load=Scheldemist.People.Carried.Load("crate",Human?.Scale??1))!=null)Node.AddChild(load);
+        }
         /// <summary>Turn to look at (x, z).</summary>
         public void Face(float x, float z) => Node.Rotation = new Vector3(0, MathF.Atan2(x - Node.Position.X, z - Node.Position.Z), 0);
         public void Remove()
         {
+            Scheldemist.Net.Mp.NativeJobFigures.I?.Remove(this);
             if (GodotObject.IsInstanceValid(Node)) Node.QueueFree();
         }
     }
 
     /// <summary>A figure of a kind of people.glb ("recipient", "stranger", "foreman", "thief"), feet at (x, y, z); the grey-box stand-in when the models are not there.</summary>
-    public static Figure MakeFigure(string kind, float x, float z, float y = 0)
+    public static Figure MakeFigure(string kind, float x, float z, float y = 0,bool remote=false)
     {
         var h = Scheldemist.People.Humans.Make(kind);
-        if (h == null) return new Figure { Node = StandIn(kind, x, z, y, 0x2a3440) };
-        h.Root.Name = "figure_" + kind;
-        h.Root.Position = new Vector3(x, y, z);
-        Main.I.View.AddChild(h.Root);
-        h.Start();
-        return new Figure { Node = h.Root, Human = h };
+        Figure f;
+        if (h == null) f=new Figure { Node = StandIn(kind, x, z, y, 0x2a3440),Kind=kind };
+        else{
+            h.Root.Name = "figure_" + kind;
+            h.Root.Position = new Vector3(x, y, z);
+            Main.I.View.AddChild(h.Root);
+            h.Start();
+            f=new Figure { Node = h.Root, Human = h,Kind=kind };
+        }
+        if(!remote)Scheldemist.Net.Mp.NativeJobFigures.I?.Register(f,kind,()=> (f.Position,f.Node.Rotation.Y,f.Human?.Motion??"idle",f.carrying));
+        return f;
     }
 
     /// <summary>

@@ -1,0 +1,27 @@
+import fs from 'node:fs';import vm from 'node:vm';import {stripTypeScriptTypes} from 'node:module';
+import {dice} from '../../client/src/game/share.ts';import {h01} from '../../server/src/town/doorlife.ts';
+const source=fs.readFileSync('client/src/game/lively.ts','utf8');
+const select=source.slice(source.indexOf('const narrow = [...houses.entries()]'),source.indexOf('this.stats_.hens = this.hens.length;'));
+const methods=source.slice(source.indexOf('  private updateHens('),source.indexOf('  // ------------------------------------------------------------------ checks and the dev')).replace(/private /g,'');
+const dist=(a:number,b:number,c:number,d:number)=>Math.hypot(a-c,b-d),rnd=(a:number,b:number)=>a+Math.random()*(b-a);
+let seed=7;const roll=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
+const rect=(x:number,z:number,h:any)=>{const dx=x-h.x,dz=z-h.z;return{f:dx*h.ox+dz*h.oz,s:-dx*h.oz+dz*h.ox};};
+const out:any={selections:[],motions:[]};
+for(let test=0;test<48;test++){
+ const homes=Array.from({length:70},(_,i)=>({house:i,x:(i%10)*50-220,z:Math.floor(i/10)*50-100,ox:[1,0,-1,0][i%4],oz:[0,1,0,-1][i%4],width:1.5+(i+test)%6,blocked:(i+test)%9===0}));
+ const open=(x:number,z:number)=>{const h=homes.find(h=>Math.hypot(x-h.x,z-h.z)<20);if(!h)return false;const q=rect(x,z,h);return q.f>=0&&q.f<h.width&&Math.abs(q.s)<14;};
+ const free=(x:number,z:number,_r:number)=>{const h=homes.find(h=>Math.hypot(x-h.x,z-h.z)<20);return h&&!h.blocked;};const clear=(x:number,z:number,_r:number)=>!(test%3===0&&x>120);
+ const context:any={houses:new Map(homes.map(h=>[h.house,h])),open,isClear:clear,h01,dice,dist,result:[],Math};context.self={hens:[],goats:[],world:{isFree:free},addHen(x:number,z:number,hx:number,hz:number,id:string){this.hens.push({id,kind:'hen',hx,hz,x,z,yaw:dice(id,1)*6.28,t:dice(id,2)*3,tx:x,tz:z,peck:0,gait:0});},addGoat(x:number,z:number,id:string){this.goats.push({id,kind:'goat',hx:x,hz:z,x,z,yaw:dice(id,1)*6.28,t:0,tx:x,tz:z,peck:0,gait:0});}};
+ vm.createContext(context);vm.runInContext('(function(){'+stripTypeScriptTypes(select,{mode:'transform'})+'}).call(self);',context);out.selections.push({test,homes,result:[...context.self.hens,...context.self.goats]});
+}
+for(let test=0;test<700;test++){
+ const kind=test%2?'goat':'hen',state={id:'test',kind,hx:roll()*4-2,hz:roll()*4-2,x:roll()*6-3,z:roll()*6-3,yaw:roll()*15-7,t:roll()*5-1,tx:roll()*6-3,tz:roll()*6-3,peck:roll()*8,gait:roll()*8};
+ const players=[{x:roll()*6-3,z:roll()*6-3},{x:roll()*6-3,z:roll()*6-3}],dt=[.01,.016,.05,.1][test%4],initial=structuredClone(state),rngSeed=seed;let output:any=null;
+ const body={visible:true,position:{set(){}},rotation:{y:0}},animal={...state,body,head:{rotation:{x:0}},legs:Array.from({length:kind==='hen'?2:4},()=>({rotation:{x:0}}))};
+ const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;},math=Object.create(Math);math.random=random;
+ const context:any={Math:math,NEAR:45,dist,angDiff:(a:number,b:number)=>Math.atan2(Math.sin(a-b),Math.cos(a-b)),rnd:(a:number,b:number)=>a+random()*(b-a),performance:{now:()=>10000},runsHere:()=>true,share:{on:true,players:()=>players,net:{putAnimal(_id:string,s:any){output=s;}}}};vm.createContext(context);
+ vm.runInContext(stripTypeScriptTypes('class Life{'+methods+'}\nglobalThis.Life=Life;',{mode:'transform'}),context);
+ const life=new context.Life();life.world={isFree:(x:number,z:number,_r:number)=>test%3!==0||x*x+z*z>1};life.hens=kind==='hen'?[animal]:[];life.goats=kind==='goat'?[animal]:[];if(kind==='hen')life.updateHens(dt,players[0]);else life.updateGoats(dt,players[0]);
+ const {id,hx,hz,x,z,yaw,t,tx,tz,peck,gait}=animal;out.motions.push({test,kind,initial,players,dt,rngSeed,result:{id,hx,hz,x,z,yaw,t,tx,tz,peck,gait},pose:output});
+}
+fs.writeFileSync('native-godot/services/proof/courtyard-oracles.json',JSON.stringify(out)+'\n');console.log(JSON.stringify({selectionCases:out.selections.length,movementCases:out.motions.length}));

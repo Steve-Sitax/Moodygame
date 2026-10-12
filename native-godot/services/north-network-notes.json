@@ -1,0 +1,109 @@
+{
+  "scope": "Native multiplayer, secure LAN/VPN transport, moving world and resident journeys",
+  "runtime": {
+    "service": "src/Services/Multiplayer/NativeMultiplayer*.cs; call stateful methods under NativeServiceHost.WithState",
+    "transport": "src/World/NativeNetworkHost.cs and src/World/Network; HTTP/WebSocket authority stays inside Godot",
+    "protocol": 6,
+    "legacyPoseLayout": 5,
+    "worldPacket": "Kind64/version1: Brotli-compressed state JSON, 14-byte header, 64KiB wire and512KiB expansion limits",
+    "identity": "Host token is random per process. Guest tokens are hashed in mp_player. Seat/body player IDs never authenticate a caller.",
+    "privateState": "Host.ForPlayer scope and RoutedPush recipient identity isolate needs, money, jobs and conversations.",
+    "ownership": "NativeStreet owns ordinary residents; live Actors claims preempt unpinned street owners and release back to normal simulation. Goods NPC reports, including haul_in, require the actual walker.",
+    "heartbeat": "Relay every50ms; heartbeat every10seconds. Running heartbeat on each relay prematurely disconnects healthy clients.",
+    "shutdown": "Hosting StopAsync/DisposeAsync execute outside Godot's synchronization context. NativeSocketPipe cancellation and disposal are serialized and idempotent."
+  },
+  "secureConnections": {
+    "menu": "Together: host the game, independently open home network or VPN, then copy secure connection details. HTTP LAN joining needs only address/code/name.",
+    "join": "For the first private-CA HTTPS join, copy the host's full SHA-256 house fingerprint into the optional fingerprint field. CLI: --join https://host:port --code CODE --name NAME --house-ca SHA256.",
+    "trust": "HouseTrust fetches only public CA PEM before authentication, verifies the exact copied fingerprint and constrained custom-root chain plus hostname, then permits API/push/movement calls. It never trusts all self-signed certificates.",
+    "remember": "Verified public CAs are saved in the local database's .house-trust directory, keyed by HTTPS origin. A changed CA requires a newly copied fingerprint; an independent client process reuse is tested.",
+    "routes": "GET /house-ca.crt is intentionally retained as a native HTTPS trust bootstrap. Wrong method or HTTP returns404; Origin, Host and network checks apply before serving it. Private keys are never sent.",
+    "bindings": "Always bind HTTP loopback. Enabled LAN adds private10/172.16-31/192.168 interface HTTP and HTTPS listeners. Enabled VPN adds100.64/10 interface HTTPS only. Public interfaces are excluded.",
+    "addresses": "Settings changes queue outside the game-state gate. A30second address watch follows interfaces and cached NetBird FQDN; absolute executable paths only. SCHELDEMIST_VPN_FQDN can specify a VPN DNS name.",
+    "certificates": "Per-database P-256/SHA-256 house CA: serverAuth only, pathlen0 and critical constraints for own DNS names and exact /32 IPs. CA lifetime3652days; leaf397days; renewal within30days.",
+    "rotation": "Removed addresses retain the CA; changed leaf SAN renews only the leaf. A newly uncovered address/name rotates the CA. Include currently inactive known VPN/LAN addresses in first CA creation.",
+    "keys": "PKCS8 key files are protected before bytes are written: current-user-only Windows ACL or Unix0600. Schannel requires Windows-compatible in-process certificate key handles; temporary imported handles are disposed with listeners.",
+    "port": "HTTPS normally uses HTTP+1, with a bounded fallback if unavailable. The host panel publishes the actual HTTPS port and addresses. Firewall rules remain the computer owner's configuration.",
+    "readiness": "After changing settings through WithState, await network.WaitForConfigurationAsync() outside that gate before publishing dedicated connection details/server-ready. It coalesces revisions, defaults to20seconds, accepts cancellation, surfaces listener errors and stops on shutdown."
+  },
+  "movingWorld": {
+    "subsystems": [
+      "omnibus passengers/waiters",
+      "drawbridges and passage boats",
+      "lock/chamber boats",
+      "river/anchorage",
+      "railway/cranes/piles/feed",
+      "traffic",
+      "goods drays",
+      "family rowing boats including landed hulls"
+    ],
+    "takeover": "Snapshots include discrete queues, route/path counters and ownership state needed to continue simulation after worldPC changes. Waiter IDs are restored after rebuilding replicas.",
+    "bounds": "Authenticate owner and apply packet/rate limits before Brotli decode; validate exact expanded size, completed stream and JSON. Retain compressed frames for new joiners.",
+    "diagnostics": "NativeMovingWorld.Report exposes per-subsystem expanded bytes, compressed bytes, invalid frames and oversized snapshots."
+  },
+  "residentJourneys": {
+    "source": "JourneyRules port preserves source mode choice, seller loads, family loading plans and float32 open-water path search.",
+    "models": "Crowd.Vehicles draws owned bicycle, loaded handcart or articulated horse dray. Real wheels/pedals/cargo/body colliders accompany the person; parked original vehicles are hidden during use.",
+    "family": "Loading uses eligible household helpers with actual carrying props. Ending releases all helper holds and disposes travelling rigs. Explicit Sim.InTrip must be cleared with Journey/Aboard.",
+    "boat": "Family boat crew/oars/cargo are separate native models. Landing keeps a tied hull and hides its original berth; shared snapshots retain both. Return or cancellation restores the home boat.",
+    "renderedProof": "--native-journey-proof OUTPUT requires its own database and --no-ai. It tests physical gear, wheels, helper loading and cleanup; reports native-journeys.json with four PNGs.",
+    "fixture": "Simulation starts6AM for household eligibility. Captures use the real10AM Daylight curve, then restore simulation lighting. Closer2-3m camera rays accept only the subject rig as a blocker; a temporary current camera follows the actual gear for24frames. Straight-down fallback uses a safe alternate up vector. Horse focus follows its body node because the articulated dray root remains at world origin.",
+    "diagnostics": "Failed fetch records town seed, owner/home/parking, phase/time/current point, chosen supported route, vehicle/state, goal/nextpoint, native fallback/cache searches, accepted yaw/readiness, actual nose/rear support and straight-waypoint nose, hold/remote state and parked visibility/layer. Cart loading_start/loading_timeline/loading_end record driver/helper step/load/door/bed/positions/support/holds before assertions. Dray approach uses verified supported ground near its actual yard.",
+    "assembly": "Native proof code must use public Crowd.MovementSnapshot. Combined-source compilation hides internal visibility errors; verify Godot/native as separate project-reference assemblies.",
+    "fixtureEligibility": "Select a published weekday1-6 boat errand with at least2 real available crew; some source-correct boat errands are solo. Preserve failed disposable databases for exact-seed navigation regressions rather than silently generating another town.",
+    "navigation": "Crowd keeps its cheap1m local search for on-grid goals. For a destination outside that window, or a doorway the coarse cells cannot connect, NativeCrowdRoute follows cached32m windows of Ways.NativePath using exact native half-metre coordinates. Map support continuity, live-body separation, own-body-aware vehicle nose clearance and raised-bridge checks still govern every actual step. Nearest-cell snapping cannot cross a wall or ledge. Clear the route cache when authored props rebuild the grid.",
+    "navigationRegression": "Disposable town seed1997587309, resident r037, home(-220.2,123.1), bike velo:1: coarse Crowd search returned an empty path even though the native route bent out of the doorway. Keep its closed failed database for rendered regression; do not change the owner or silently reroll. The proof destination now comes from an actual published parking or supported landmark with an authoritative route.",
+    "steering": "NativeBicycleTurn anticipates retained route corners without shortening the .8m nose. Accepted yaw is rendered directly. Every translation/rotation samples the full front/rear spokes at at most.125m arc intervals, native support, live-body/bridge clearance and actual handlebar grips. Static .4m body clearance plus rear axle.62 covers the model tail1.0; grip spokes add.025 to cover static±.42 grips, while separate actual grip points test live boxes. A new local bicycle is hidden until a supported initial pose is chosen; an existing invalid pose cannot silently skip its sweep.",
+    "renderedRegression": {
+      "proof": "proof/native-journey-pose-7c19c4177a6e4ca6ae1528f33d05f887",
+      "seed": 1997587309,
+      "resident": "r037",
+      "bicycle": "velo:1",
+      "scope": "full",
+      "checks": 37,
+      "stages": [
+        "bicycle",
+        "handcart",
+        "dray",
+        "family boat"
+      ],
+      "result": "PASS with clean shutdown. Original failed owner/parking retained. Native doorway route and full-size swept front/rear clearance succeed. Measured actual ride clip remains stable, leg joints cycle with distance, both hands reach toward bars, hips sit over saddle, torso leans forward. Final rider PNG visually inspected; previous upright idle blend is gone. Cart carries genuine deposited cargo with original partial-load timeout; dray physics and crew/oars/landed-hull replication/return pass."
+    },
+    "poseSource": {
+      "file": "tools/blender/build_people.py",
+      "sha256": "1243b5b0b56edbc6ee2e5ded2d84eae1ebff0b4258d8b75ab6c9c3a478a64d98",
+      "function": "pose_ride, line2043",
+      "authoredPose": "Spine18degrees forward, both arms reaching toward grips, seated wheel-synchronised leg IK; RIDE_LIFT=.14m and RIDE_BACK=.05m. The upright arms-down rider was not intended source art."
+    },
+    "controlledPhase": "Crowd and vehicle renderer must choose the same ride/push motion, avoiding a restarted walk blend each frame. In Human.SetPhase, speed0 can freeze an initial fade: Stop(keepState), zero-blend Play once per controlled clip, then immediate Seek/Advance(0) applies the full authored pose. Actual motion changes clear phaseClip. This also applies to rowing and phase-controlled street-game clips.",
+    "poseMetrics": {
+      "hipHorizontalGapM": 0.0300004,
+      "hipAboveSaddleM": 0.1227586,
+      "forwardLean": 0.3090133,
+      "wristToGripM": [
+        0.2310338,
+        0.2369481
+      ],
+      "legJointChangeRad": 1.3218366,
+      "cycleError": 2.064e-08,
+      "clipChangesAcross60Frames": 0,
+      "note": "Hand() measures wrist joints; authored hands extend toward the grips beyond these joints. Screenshot is dark but actual bent legs, forward torso and arms at bars are visible."
+    }
+  },
+  "proofs": {
+    "multiplayer": "services/proofs/Multiplayer.Proof.csproj:62 stateful checks +16851 exact original comparisons, including ordinary/event ActionsPayload deserialization and NPC haul authority",
+    "house": "services/proofs/House.Proof.csproj:31 native TLS/runtime/security checks +2931 exact original address/DNS/DER/NetBird comparisons; real isolated Kestrel HTTPS/WS and independent-client persisted trust",
+    "socketRace": "House proof exercises500 concurrent close/dispose races against the actual NativeSocketPipe class",
+    "journeyRules": "services/proofs/Journeys.Proof.csproj:2858 checks,2857 exact source comparisons",
+    "output": "All durable proof projects write binaries/intermediates under workspace .scratch and use disposable databases/certificates. Never run a proof against a user's save.",
+    "sharedBuild": "Root coordinates engine runs, content-identity preparation and exports. Isolated native assembly-boundary compilation uses .scratch/north-native-boundary-compile referencing .scratch/north-game-compile.",
+    "sourceProvenance": "services/proofs/data/native-house-source.json, native-multiplayer-source.json, native-moving-world-source.json and native-journeys-source.json retain recovered original results/hashes. Original web/Node sources are released for retirement.",
+    "layers": "House.Proof directly exercises production NativeHouseCertificateStore, NativeHouseAddressSource, NativeHouseListeners, HouseTrust and NativeSocketPipe. It does not instantiate NativeNetworkHost. Root dedicated25 checks cover NativeNetworkHost authenticated HTTP/movement/private pushes/shutdown; rendered two-client proof covers full game ownership and moving-world behavior.",
+    "nativeRoute": "services/proofs/NativeRoute.Proof.csproj:31 production map/route/steering checks; reproduces disconnected1m doorway and straight-nose corner overshoot, verifies supported half-metre route,32m bounds/cache/progress/reset, safe snapping/scene identity, full-sized corner advance, front/rear swing obstacles, shortest angular wrap and actual live grips. Durable NativeRoute.Game.csproj builds Godot sources with implicit usings disabled into private .scratch outputs, without an engine or shared build.",
+    "renderedFamily": "Final full37-check receipt is proof/native-journey-pose-7c19c4177a6e4ca6ae1528f33d05f887. It covers bicycle/cart/dray/family boat and full authored riding pose. Earlier f283/fb77 receipts remain historical only.",
+    "renderedMultiplayer": "Parent proof/native-multiplayer-c08b0b336b3d4b6fbb3ef3f11ab1f1ea passed final native two-client walking, action handover/termination/release notification, shared bus with0m platform gap, character creation, return to local game and clean shutdown. Sustained capture clearly shows the actual omnibus/horse.",
+    "rendered1873": "Centre proof/native-journey-cart-dray-1873-6fa6f4fd32ac40869f09227ecafede88:28 scoped bicycle/cart/dray checks PASS, clean shutdown. Explicit cart-dray scope records only completed stages;1873 has no eligible multi-person family boat. Genuine1-item cargo departs after original40.0104s timeout; no cargo is invented.",
+    "proofDataRetention": "All failed-seed runtime SQLite databases may be removed after packaging; no further database dependence or blocker remains. Keep native-journeys.json/engine logs/PNGs and permanent original-comparison JSON fixtures. Future regressions can regenerate by documented seed or use a new disposable DB."
+  },
+  "status": "North network/moving-world/journey scope complete; no remaining blocker or pending runtime edit. Parent coordinates final frozen exports."
+}

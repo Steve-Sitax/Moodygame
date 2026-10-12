@@ -93,6 +93,7 @@ public sealed class NavGrid
     /// </summary>
     public bool LineOpen(double ax, double az, double bx, double bz)
     {
+        if (map != null && !map.CanStep(ax, az, bx, bz)) return false;
         double len = Whereabouts.Hypot(bx - ax, bz - az);
         int steps = Math.Max(1, (int)Math.Ceiling(len / 0.35));
         for (int i = 1; i <= steps; i++)
@@ -179,6 +180,7 @@ public sealed class NavGrid
                     if (nx < 0 || nz < 0 || nx >= n || nz >= n) continue;
                     int nc = nz * n + nx;
                     if (open[nc] == 0 || closed[nc] == id) continue;
+                    if (map != null && !map.CanStep(X0 + cx + 0.5, Z0 + cz + 0.5, X0 + nx + 0.5, Z0 + nz + 0.5)) continue;
                     // no cutting corners past a wall
                     if (dx != 0 && dz != 0 && (open[cz * n + nx] == 0 || open[nz * n + cx] == 0)) continue;
                     float ng = g[c] + (dx != 0 && dz != 0 ? 1.4142f : 1);
@@ -238,6 +240,7 @@ public sealed class Puppet
     internal bool TownFollow;
     internal double Drop;
     public bool Shown;
+    public bool Remote;
     internal double AnimAcc;
     internal double BestD = double.PositiveInfinity, StuckT;
     /// <summary>Standing at the end of a bridge that is up, until it is down (Walk).</summary>
@@ -245,6 +248,9 @@ public sealed class Puppet
     internal string PMotion = "idle";
     internal double? PYaw;
     internal bool Repath;
+    internal bool NativeRouting;
+    internal NativeCrowdRoute? NativeRoute;
+    internal double? VehicleStepYaw;
     /// <summary>Carrying a load (the wider berth; in the hands when HandCarry).</summary>
     public bool Loaded;
     /// <summary>Dockers who pick up and put down a load at each end (the others carry by their build: the shoulder sack, the truck).</summary>
@@ -256,8 +262,13 @@ public sealed class Puppet
     internal Node3D? Lantern;
     internal LanternPool.Source? Light;
     internal PushCart? Cart;
+    public string? Bought;
+    internal Node3D? BoughtNode;
     /// <summary>Pushes a handcart (the mill's man on a run): the cart on its own wheels before him, the push clips.</summary>
     public bool Pushes;
+    public int NetworkVehicle,NetworkLoad,NetworkGoods;
+    internal NativePersonVehicle? Vehicle;
+    internal (double x,double z)? WayHome;
 }
 
 /// <summary>
@@ -265,10 +276,10 @@ public sealed class Puppet
 /// each one goes and what they do there; the crowd walks them on its grid (A*, keep right, go round the player, stuck
 /// checks, bodies keep apart), draws and animates them and keeps the bodies in a pool.
 /// Loads in the hands, the carter's handcart and lanterns: People/Carried.cs.
-/// Not ported yet: the nameless crowd (it stays home once the town is in), vehicles and giving way to them, the
-/// opening bridges' gate, the groups sitting on crates.
+/// Resident journeys supply bicycles, carts and horse drays; live-body lanes and opening-bridge gates govern
+/// their shared street movement. The named town replaces the initial nameless crowd once its people arrive.
 /// </summary>
-public sealed class Crowd
+public sealed partial class Crowd
 {
     private const double BodyGap = 0.6, BodyShove = 1.2, LoadGap = 0.15, MaxGap = BodyGap + 2 * LoadGap;
     private const double AnimNear = 25, AnimFar = 45;
@@ -317,7 +328,7 @@ public sealed class Crowd
     private double Rnd(double a, double b) => a + rng.NextDouble() * (b - a);
     private static double AngDiff(double a, double b) => Math.Atan2(Math.Sin(a - b), Math.Cos(a - b));
     /// <summary>A new permanent prop changed the walk map: use its footprint before taking another step.</summary>
-    public void RebuildGrid(double x, double z) { grid.Build(map, x, z); gridAge = 0; }
+    public void RebuildGrid(double x, double z) { grid.Build(map, x, z); gridAge = 0; foreach (var p in people) p.NativeRoute?.Clear(); }
     private static double Hyp(double a, double b) => Math.Sqrt(a * a + b * b);
 
     public void Update(double dt, double vx, double vz, (double x, double z)? playerBody, Camera3D? camera)
@@ -342,7 +353,8 @@ public sealed class Crowd
             for (int i = 0; i < 6; i++) frustum[i] = transform * projection.GetProjectionPlane((Projection.Planes)i);
         }
         pathBudget = 3;
-        foreach (var p in people) Think(p, dt);
+        VehicleLanes(dt);
+        foreach (var p in people) if (!p.Remote) Think(p, dt);
         KeepApart(dt);
         int drawn = 0, animated = 0;
         foreach (var p in people)
@@ -373,13 +385,15 @@ public sealed class Crowd
             if (inView) y = p.Drop + Math.Max(0, lift) + (p.State == "sit" ? 0 : p.Human.Bob() * p.Size);
             p.Group.Position = new Vector3((float)p.X, (float)(y + ground), (float)p.Z);
             p.Group.Rotation = new Vector3(0, (float)p.Yaw, 0);
-            if (p.Kind == "carter" || p.Pushes) PushTheCart(p, dt, inView, ground);
+            if (p.Vehicle != null) MoveVehicle(p, dt, inView, ground);
+            else if (p.Kind == "carter" || p.Pushes) PushTheCart(p, dt, inView, ground);
             else if (p.Cart != null)
             {
                 p.Cart.Dispose();
                 p.Cart = null;
             }
             if (p.Lantern != null) PlaceLantern(p, d, ground, camera);
+            PlaceBought(p);
         }
         Drawn = drawn;
         Animated = animated;
@@ -421,7 +435,7 @@ public sealed class Crowd
     {
         if (pace is > 0) p.Pace = pace.Value;
         double tx = x, tz = z;
-        if (grid.Built && !grid.Inside(x, z, 4))
+        if (!map.IsNative && grid.Built && !grid.Inside(x, z, 4))
         {
             // beyond the walk grid round the viewer: head for its edge that way; the town sends them on from there
             for (double t = 1; t > 0.02; t -= 0.04)
@@ -577,7 +591,7 @@ public sealed class Crowd
             p.Repath = false;
             p.State = "stand";
             p.PMotion = "idle";
-            p.Human.Play("idle", 0.3f);
+            p.Human.Play(StillMotion(p), 0.3f);
         }
     }
 
@@ -589,6 +603,7 @@ public sealed class Crowd
         if (p.Follower != null) p.Follower.Lead = null;
         if (p.Lead != null) p.Lead.Follower = null;
         if (p.Lantern != null) DropLantern(p);
+        DropVehicle(p);
         p.Cart?.Dispose();
         p.Cart = null;
         p.Group.RemoveChild(p.Human.Root);
@@ -675,6 +690,7 @@ public sealed class Crowd
     private void Think(Puppet p, double dt)
     {
         p.SinceDetour += dt;
+        if(GiveWay(p,dt))return;
         if (p.Role == "follow")
         {
             Follow(p, dt);
@@ -696,7 +712,7 @@ public sealed class Crowd
                 break;
             case "blocked":
                 // the player in the way: face him, wait, then find a way round
-                p.Human.Play("idle", 0.3f);
+                p.Human.Play(StillMotion(p), 0.3f);
                 if (body == null)
                 {
                     p.State = "walk";
@@ -745,7 +761,7 @@ public sealed class Crowd
             p.Role = "puppet";
             p.State = "stand";
             p.PMotion = "idle";
-            p.Human.Play("idle", 0.3f);
+            p.Human.Play(StillMotion(p), 0.3f);
             return;
         }
         if (p.State == "walk" && p.Path.Count > 0)
@@ -794,7 +810,7 @@ public sealed class Crowd
                 p.Human.Play(StillMotion(p), 0.3f);
                 return;
             }
-            p.Human.Play("walk", 0.25f);
+            p.Human.Play(p.Vehicle!=null?WalkMotion(p):"walk", 0.25f);
             p.Human.SetPace((float)(sp / p.Size));
         }
         else
@@ -803,10 +819,10 @@ public sealed class Crowd
             if (walking)
             {
                 Face(p, l.Yaw, dt);
-                p.Human.Play("walk", 0.25f);
+                p.Human.Play(p.Vehicle!=null?WalkMotion(p):"walk", 0.25f);
                 p.Human.SetPace((float)(l.Pace / p.Size));
             }
-            else p.Human.Play("idle", 0.35f);
+            else p.Human.Play(StillMotion(p), 0.35f);
             if (!walking && l.State != "pause") Face(p, l.Yaw, dt);
             if (!walking && l.State == "pause") Face(p, Math.Atan2(l.X - p.X, l.Z - p.Z), dt);
         }
@@ -815,7 +831,8 @@ public sealed class Crowd
     private static void Face(Puppet p, double yaw, double dt) => p.Yaw += AngDiff(yaw, p.Yaw) * Math.Min(1, dt * 5);
 
     /// <summary>What someone plays while not moving: a townsperson's own pose (never a walk), or a stand.</summary>
-    private static string StillMotion(Puppet p) => !WalkClips.Contains(p.PMotion) ? p.PMotion : "idle";
+    private static string StillMotion(Puppet p) => VehicleMotion.Waiting(p.Vehicle?.Kind??0,p.PMotion);
+    private static string WalkMotion(Puppet p) => VehicleMotion.Walking(p.Vehicle?.Kind??0,p.Kind,p.Pushes,p.Loaded,p.HandCarry);
 
     /// <summary>
     /// May this body step to (x, z)? Where the colliders let it. Someone already standing where that does not hold
@@ -930,6 +947,7 @@ public sealed class Crowd
     /// <summary>How readily a body is eased aside: 0 held on its spot, a little when standing, most when walking.</summary>
     private static double ShoveWeight(Puppet p)
     {
+        if (p.Remote||p.Vehicle!=null) return 0;
         if (p.State == "sit" || p.Kind == "carter") return 0;
         if (p.Role == "puppet" && p.State != "walk" && !FreePoses.Contains(p.PMotion)) return 0;
         return p.State == "walk" ? 1 : 0.4;
@@ -1039,19 +1057,19 @@ public sealed class Crowd
         // the last leg may leave the grid (it keeps half a metre off the walls) for a spot the colliders allow:
         // a doorstep, a corner, a bench by a wall
         bool lastLeg = p.Pi == p.Path.Count - 1;
-        if (TryMove(p, p.X + mx * step, p.Z + mz * step, lastLeg, ux, uz))
+        if (TryMove(p, p.X + mx * step, p.Z + mz * step, lastLeg, ux, uz,dt))
         {
             p.X += mx * step;
             p.Z += mz * step;
         }
-        else if (TryMove(p, p.X + ux * step, p.Z + uz * step, lastLeg, ux, uz))
+        else if (TryMove(p, p.X + ux * step, p.Z + uz * step, lastLeg, ux, uz,dt))
         {
             p.X += ux * step;
             p.Z += uz * step;
             mx = ux;
             mz = uz;
         }
-        else if (Slide(p, ux, uz, step, lastLeg) is { } slid)
+        else if (Slide(p, ux, uz, step, lastLeg,dt) is { } slid)
         {
             // a wall's corner the grid rounds too tightly: along the wall instead of giving up the way
             mx = slid.x;
@@ -1065,6 +1083,8 @@ public sealed class Crowd
         }
         else
         {
+            if(map.IsNative&&p.Vehicle?.Kind==1&&TryBicycleStep(p,p.X,p.Z,Math.Min(1,dt*7),out double turnYaw)
+                && Math.Abs(NativeBicycleTurn.Angle(turnYaw-p.Yaw))>.001){p.Yaw=turnYaw;p.StuckT=0;return;}
             // something the walk map does not know: remember it and find another way; stand while it is worked out
             p.Human.Play(StillMotion(p), 0.3f);
             grid.Block(p.X + ux * 0.6, p.Z + uz * 0.6);
@@ -1073,29 +1093,34 @@ public sealed class Crowd
             else GoTo(p, p.Dest.Value);
             return;
         }
-        Face(p, Math.Atan2(mx, mz), dt * 1.4);
+        if(p.VehicleStepYaw is double vehicleYaw){p.Yaw=vehicleYaw;p.VehicleStepYaw=null;if(p.Vehicle!=null)p.Vehicle.InitialHeading=false;}
+        else Face(p, Math.Atan2(mx, mz), dt * 1.4);
         // no nearer for a second (someone in the way pushes him back): he waits, standing
         if (p.StuckT > 1)
         {
             p.Human.Play(StillMotion(p), 0.3f);
             return;
         }
-        p.Human.Play(p.Pushes ? "push" : p.Loaded && p.HandCarry ? "carry" : "walk", 0.25f);
+        p.Human.Play(WalkMotion(p), 0.25f);
         p.Human.SetPace((float)(p.Pace / p.Size));
     }
 
     /// <summary>Blocked straight on: a step turned up to 70 degrees either way, if one is free (the way it went).</summary>
     private static readonly double[] SlideAngles = { 0.6, -0.6, 1.2, -1.2 };
-    private bool TryMove(Puppet p, double x, double z, bool lastLeg, double ux, double uz) => StepFree(p, x, z)
-        && (lastLeg || grid.IsOpen(x, z) || !grid.IsOpen(p.X, p.Z))
-        && (p.Nose == 0 || map.FreeFor(p, x + ux * p.Nose, z + uz * p.Nose));
-    private (double x, double z)? Slide(Puppet p, double ux, double uz, double step, bool lastLeg)
+    private bool TryMove(Puppet p, double x, double z, bool lastLeg, double ux, double uz,double dt)
+    {
+        if(!StepFree(p,x,z)||p.NativeRouting&&!map.SupportsStep(p.X,p.Z,x,z)
+            ||!(p.NativeRouting||lastLeg||grid.IsOpen(x,z)||!grid.IsOpen(p.X,p.Z)))return false;
+        if(map.IsNative&&p.Vehicle?.Kind==1){if(!TryBicycleStep(p,x,z,Math.Min(1,dt*7),out double yaw))return false;p.VehicleStepYaw=yaw;return true;}
+        return p.Nose==0||map.FreeFor(p,x+ux*p.Nose,z+uz*p.Nose);
+    }
+    private (double x, double z)? Slide(Puppet p, double ux, double uz, double step, bool lastLeg,double dt)
     {
         foreach (double a in SlideAngles)
         {
             double c = Math.Cos(a), sn = Math.Sin(a);
             double x = ux * c - uz * sn, z = ux * sn + uz * c;
-            if (TryMove(p, p.X + x * step, p.Z + z * step, lastLeg, ux, uz))
+            if (TryMove(p, p.X + x * step, p.Z + z * step, lastLeg, ux, uz,dt))
             {
                 p.X += x * step;
                 p.Z += z * step;
@@ -1173,11 +1198,19 @@ public sealed class Crowd
         if (pathBudget <= 0)
         {
             p.State = "wait";
-            p.Human.Play("idle", 0.3f);
+            p.Human.Play(StillMotion(p), 0.3f);
             return;
         }
         pathBudget--;
-        var path = grid.Path(p.X, p.Z, dest.x, dest.z, 9000, standFree, p.Path);
+        p.NativeRouting = false;
+        var path = grid.Inside(dest.x, dest.z, 4) || !map.IsNative
+            ? grid.Path(p.X, p.Z, dest.x, dest.z, 9000, standFree, p.Path) : null;
+        if (path is not { Count: > 0 } && map.IsNative) {
+            p.NativeRoute ??= new NativeCrowdRoute(map);
+            if (p.NativeRoute.Window(new Vector2((float)p.X, (float)p.Z), new Vector2((float)dest.x, (float)dest.z), p.Path)) {
+                p.NativeRouting = true; path = p.Path;
+            }
+        }
         if (path is { Count: > 0 })
         {
             p.Path = path;

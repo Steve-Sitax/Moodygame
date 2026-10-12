@@ -5,6 +5,22 @@ dist/
 
 # local game data (M2+): save file, WAL files, the empty AI work folder
 data/
+# These are immutable native game assets/rules, never player data.
+!/native-godot/world/data/
+!/native-godot/world/data/**/
+!/native-godot/world/data/**/*.json
+!/native-godot/world/data/**/*.jpg
+!/native-godot/world/data/**/*.jpeg
+!/native-godot/world/data/**/*.png
+!/native-godot/world/data/**/*.webp
+!/native-godot/world/data/**/*.ogg
+!/native-godot/world/data/**/*.txt
+!/native-godot/world/data/**/*.bin
+!/native-godot/services/data/
+!/native-godot/services/data/*.json
+!/native-godot/services/data/*.sql
+!/native-godot/services/proofs/data/
+!/native-godot/services/proofs/data/*.json
 .test-stacks/
 *.db
 *.db-journal

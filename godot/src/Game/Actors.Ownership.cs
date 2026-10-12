@@ -25,6 +25,9 @@ public partial class Actors
             string id = row[1].GetString() ?? ""; int owner = row[2].GetInt32();
             ReplicaOwner(id,(ushort)row[0].GetInt32(),owner);
             if (owner == 0) npcOwners.Remove(id); else npcOwners[id] = owner;
+            // NativeStreet defers held event people to this adapter, including the movement/simulation handover.
+            if(town?.ActionPerson(id) is {P:not null} person&&ReferenceEquals(person.ActionOwner,this))
+                person.P.Remote=owner>0&&owner!=Scheldemist.Net.Mp.Together.I?.PlayerId;
         }
     }
 }

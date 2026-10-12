@@ -1,0 +1,13 @@
+// Original pure stocks/carts and original board engine; fresh in-memory fixture only.
+import {MILLS,millTurning,runsOf,runNow,freshStocks,stepStocks,millPay,breadExtra} from '../../shared/mills.ts';
+import {openDb} from '../../server/src/db.ts';
+import {buildMillJob} from '../../server/src/town/mills.ts';
+import {writeFileSync} from 'node:fs';
+process.env.SCHELDEMIST_TOWN_SEED='1873';process.env.SCHELDEMIST_NO_AI='1';const cases:any[]=[];
+for(let day=1;day<=8;day++)for(const w of ['fog','mist','clear','rain','storm'])for(const hour of [0,4.5,6,7,13.5,16,18.5,23.9])cases.push({type:'turn',day,weather:w,hour,expected:millTurning(w,day,hour)});
+for(const mill of MILLS)for(let day=1;day<=8;day++){cases.push({type:'runs',mill,day,expected:runsOf(mill,day)});for(let n=0;n<96;n++){const hour=n/4;cases.push({type:'run',mill,day,hour,expected:runNow(mill,day,hour)});}}
+for(const weather of ['fog','mist','clear','rain','storm'])for(const from of [0,155,359,1435,8600])for(const dt of [0,5,20,120,720,1440,4320,9000]){const state=freshStocks(from),events=stepStocks(state,from+dt,()=>weather);cases.push({type:'stocks',from,to:from+dt,weather,expected:{state,events}});}
+for(const n of [1,2,3,6])for(const way of [0,50,200,337,361,900])for(const cart of [false,true])for(const band of [[25,150],[150,300],[300,500],[500,800],[800,1200]]as[number,number][])cases.push({type:'pay',n,way,cart,band,expected:millPay(n,way,cart,band)});
+for(const flour of [-1,0,.1,1,1.1,2,8])cases.push({type:'bread',flour,expected:breadExtra(flour)});
+const db=openDb(':memory:');for(let day=1;day<=7;day++)for(const tier of [0,1,4]){db.prepare('UPDATE player SET day=?,hour=10,minute=0 WHERE id=1').run(day);db.prepare('UPDATE faction_trust SET trust=?').run(tier===4?9:tier===1?3:0);for(const mill of MILLS)for(const kind of ['flour','grain','help']as const)for(const cart of [false,true]){const expected=buildMillJob(db,mill,kind,{cart});cases.push({type:'job',day,tier,mill,kind,cart,expected});}}
+db.close();writeFileSync('native-godot/services/proof/mills-oracles.json',JSON.stringify({version:1,source:'Original shared/mills and town/mills pure rules, original isolated board/town1873.',cases})+'\n');console.log(JSON.stringify({cases:cases.length}));

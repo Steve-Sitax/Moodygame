@@ -1,0 +1,145 @@
+using System.Buffers.Binary;
+using System.Text.Json.Nodes;
+using Scheldemist.Native.Services;
+using Scheldemist.Native.Services.Multiplayer;
+using Scheldemist.Net.Mp;
+using Scheldemist.Net;
+using System.Text.Json;
+
+int checks=0,sourceChecks=0;
+void Check(bool okay,string label){if(!okay)throw new Exception(label);checks++;Console.WriteLine("PASS "+label);}
+void Source(bool okay,string label){if(!okay)throw new Exception("SOURCE "+label);sourceChecks++;}
+double N(JsonNode? node,string key,double fallback=0)=>NativeGoods.N(node,key,fallback);
+string S(JsonNode? node,string key,string fallback="")=>NativeGoods.S(node,key,fallback);
+bool B(JsonNode? node,string key)=>NativeGoods.B(node,key);
+JsonArray A(JsonNode? node)=>node as JsonArray??new();
+var oracle=JsonNode.Parse(File.ReadAllText("native-godot/services/proofs/data/native-multiplayer-source.json"))!.AsObject();
+var owners=new NativeMpOwners();
+foreach(var test in A(oracle["owners"])){
+ int player=(int)N(test,"pid");string[] ids=A(test!["ids"]).Select(n=>n!.GetValue<string>()).ToArray();JsonNode actual;
+ if(S(test,"op")=="claim"){var result=owners.Claim(player,ids,B(test,"steal"),id=>test["pin"]![id]==null?null:(int)NativeGoods.Number(test["pin"]![id]));actual=new JsonObject{["changes"]=result.Changes,["denied"]=result.Denied};}
+ else if(S(test,"op")=="release")actual=owners.Release(player,ids,A(test["gone"]).Select(n=>n!.GetValue<string>()));else actual=owners.DropAll(player);
+ Source(JsonNode.DeepEquals(actual,test["result"])&&JsonNode.DeepEquals(owners.List(),test["list"]),"owner priority/release/number "+sourceChecks);
+}
+foreach(var run in A(oracle["world"])) {var world=new NativeMpWorldPc();foreach(var test in A(run)){long time=(long)N(test,"now");if(B(test,"heard"))world.Heard(time);var choices=A(test!["seats"]).Select(s=>new NativeMpWorldSeat((int)N(s,"id"),B(s,"host"),B(s,"online"),(long)N(s,"stateAt"),N(s,"rate"))).ToArray();int? result=world.Choose(choices,time);Source(result==(test["result"]==null?null:(int)N(test,"result"))&&world.Id==N(test,"id")&&world.LastWorldAt==N(test,"last"),"world choice "+sourceChecks);}}
+NativeMpState State(JsonNode s)=>new((uint)N(s,"seq"),N(s,"t"),N(s,"x"),N(s,"y"),N(s,"z"),N(s,"vx"),N(s,"vy"),N(s,"vz"),N(s,"yaw"),N(s,"pitch"),(int)N(s,"mode"),(int)N(s,"flags"),(int)N(s,"base"),(int)N(s,"gear"),N(s,"lx"),N(s,"ly"),N(s,"lz"),N(s,"lyaw"));
+foreach(var run in A(oracle["plausible"])) {var plausible=new NativeMpPlausible(B(run,"trusted"));foreach(var test in A(run!["cases"])) {var result=plausible.Check(State(test!["s"]!),(long)N(test,"now"));var expected=test["result"]!;Source(result.Ok==B(expected,"ok")&&(result.Why??"")==S(expected,"why")&&result.Anchored==B(expected,"anchored")&&Math.Abs(result.Dist-N(expected,"dist"))<1e-7&&Math.Abs(result.Speed-N(expected,"speed"))<1e-6&&JsonNode.DeepEquals(plausible.Stats,test["stats"]),"movement verdict "+sourceChecks);}}
+foreach(var run in A(oracle["limits"])) {var limiter=new NativeMpSeatLimiter();foreach(var test in A(run!["cases"]))Source(limiter.Message(S(run,"kind"),(long)N(test,"now"))==S(test,"result"),"socket rate/flood "+sourceChecks);Source(JsonNode.DeepEquals(limiter.Dropped,run["dropped"]),"limit dropped counters");}
+foreach(var run in A(oracle["buckets"])) {var bucket=new NativeMpBucket(N(run,"rate"),N(run,"burst"),100000);foreach(var test in A(run!["cases"]))Source(bucket.Take((long)N(test,"now"))==B(test,"result"),"token bucket "+sourceChecks);}
+foreach(var test in A(oracle["names"]))Source(NativeMultiplayer.CleanGuestName(test!["s"]?.GetValue<string>())==test["result"]?.GetValue<string>(),"Unicode guest name");
+foreach(var test in A(oracle["codes"]))Source(NativeMultiplayer.CodeKey(test!["s"]?.GetValue<string>())==S(test,"key")&&NativeMultiplayer.SameCode("KADE-47",test["s"]?.GetValue<string>())==B(test,"same"),"join code");
+foreach(var test in A(oracle["protocol"])) {
+ if(S(test,"kind")=="state") {var state=State(test!["s"]!);var bytes=NativeMpProtocol.EncodeState(state);Source(Convert.ToHexString(bytes).ToLowerInvariant()==S(test,"bytes")&&Convert.ToHexString(NativeMpProtocol.EncodeBatch(100000+state.Seq-1,new[]{(2,state)})).ToLowerInvariant()==S(test,"batch"),"exact state/batch bytes");Source(NativeMpProtocol.DecodeState(bytes)!=null,"valid state decoding");}
+ else {int kind=(int)N(test,"kind");var bytes=Convert.FromHexString(S(test,"bytes"));Source(NativeMpProtocol.ValidBatch(bytes,kind),"source actor batch");byte[] kept;if(kind==4){kept=(byte[])bytes.Clone();BinaryPrimitives.WriteUInt16LittleEndian(kept.AsSpan(2),2);}else kept=NativeMpProtocol.KeepOwned(bytes,n=>n%2==1);Source(Convert.ToHexString(kept).ToLowerInvariant()==S(test,"keep"),"exact owned/sender batch bytes");}
+}
+Console.WriteLine("PASS "+sourceChecks+" original multiplayer rule/protocol comparisons");
+bool Same(JsonNode? a,JsonNode? b){if(a==null||b==null)return a==null&&b==null;if(a is JsonObject ao&&b is JsonObject bo)return ao.Count==bo.Count&&ao.All(p=>bo.ContainsKey(p.Key)&&Same(p.Value,bo[p.Key]));if(a is JsonArray aa&&b is JsonArray ba)return aa.Count==ba.Count&&aa.Select((v,i)=>Same(v,ba[i])).All(v=>v);if(a.GetValueKind()==System.Text.Json.JsonValueKind.Number&&b.GetValueKind()==System.Text.Json.JsonValueKind.Number)return Math.Abs(NativeGoods.Number(a)-NativeGoods.Number(b))<1e-8;return JsonNode.DeepEquals(a,b);}
+var moving=JsonNode.Parse(File.ReadAllText("native-godot/services/proofs/data/native-moving-world-source.json"))!.AsObject();foreach(var test in A(moving["lerps"]))Source(Same(NativeWorldInterpolation.Lerp(test!["a"],test["b"],N(test,"u")),test["result"]),"world recursive interpolation/angles/id matching");
+double worldNow=100000;int me=2;var sentWorld=new List<JsonObject>();var worldBuffer=new NativeMovingWorldBuffer(()=>me,()=>worldNow,message=>{sentWorld.Add(message);return true;});worldBuffer.SetPc(1);
+foreach(var test in A(moving["frames"])){worldNow=N(test,"now");me=(int)N(test,"me");if(test!["pc"]!=null)worldBuffer.SetPc((int)N(test,"pc"));if(test["incoming"] is JsonObject incoming)worldBuffer.Receive(N(incoming,"t"),incoming["d"]!.AsObject(),worldNow);sentWorld.Clear();var shown=worldBuffer.Frame(1.0/60,()=>new JsonObject{["mover"]=test["own"]!.DeepClone()});Source(Same(shown?["mover"],test["applied"])&&Same(new JsonArray(sentWorld.Select(x=>(JsonNode)x.DeepClone()).ToArray()),test["sent"])&&Same(worldBuffer.Report(),test["report"]),"adaptive world delay/buffering/authority takeover "+sourceChecks);}
+Console.WriteLine("PASS "+sourceChecks+" source comparisons including moving-world buffering");
+long now=1000000;
+using var host=new NativeServiceHost(new NativeServiceOptions(":memory:",Path.GetFullPath("native-godot/services/data"),Path.GetFullPath(".scratch/native-multiplayer-proof/saves"),()=>now));
+var goods=new NativeGoods(host);host.AddModule(goods);
+var mp=new NativeMultiplayer(host,null,"pack-proof-1");
+mp.EnsurePlayer=host.Saves.EnsurePlayer;
+mp.CreateProfile=(id,name)=>host.Context.Execute("INSERT OR REPLACE INTO player_profile(player_id,profile_json,code,updated_at) VALUES($p0,$p1,'Ahosttest','now')",id,new JsonObject{["first"]=name,["sex"]="man"}.ToJsonString());
+mp.Profile=id=>new JsonObject{["first"]=host.Context.Scalar<string>("SELECT name FROM player WHERE id=$p0",id),["code"]="Ahosttest"};
+int left=0,closedPush=0;mp.PlayerLeft=(id,point)=>{left++;goods.PlayerLeft(id,point);};mp.ClosePush=_=>closedPush++;
+host.AddModule(mp);host.MultiplayerEnabled=()=>mp.Enabled;host.OnlinePlayers=mp.OnlineIds;
+NativeMpResponse Local(string method,string path,JsonObject? body=null,int player=1)=>mp.HandleLocal(method,"/api/mp/"+path,player,body??new());
+Check(mp.Authorize("GET","/api/state",null,"127.0.0.1").Status==401,"loopback without host token has no host rights");
+Check(mp.Authorize("POST","/api/new-game",mp.HostToken,"127.0.0.1").Identity?.Host==true,"issued host token authenticates host explicitly");
+Check(mp.Handle("GET","/api/mp/info",null,new(),"127.0.0.1").Body["you"]==null&&!mp.Handle("GET","/api/mp/info",null,new(),"127.0.0.1").Body.ContainsKey("code"),"public info exposes protocol/fingerprint without join code or host identity");
+Check(mp.Authorize("GET","/api/state",mp.HostToken,"192.168.1.9").Status==403,"closed house refuses remote address even with token");
+Local("POST","config",new(){["multiplayer"]=true});string code=S(Local("GET","host").Body,"code");
+JsonObject JoinBody(string name,string? fp=null)=>new(){["code"]=code,["name"]=name,["protocol"]=MpProtocol.Protocol,["fingerprint"]=fp??mp.Fingerprint};
+int count=host.Context.Scalar<int>("SELECT COUNT(*) FROM mp_player");
+Check(mp.Handle("POST","/api/mp/join",null,JoinBody("Jan","wrong-pack"),"127.0.0.1").Status==409&&host.Context.Scalar<int>("SELECT COUNT(*) FROM mp_player")==count,"mismatching native pack cannot allocate guest");
+for(int i=0;i<5;i++)Check(mp.Handle("POST","/api/mp/join",null,new(){["code"]="wrong"},"127.0.0.2").Status==403,"wrong join code counted "+i);
+Check(mp.Handle("POST","/api/mp/join",null,JoinBody("Jan"),"127.0.0.2").Status==429,"sixth address join attempt throttled for one minute");
+now+=60001;var join=mp.Handle("POST","/api/mp/join",null,JoinBody("Jan"),"127.0.0.2");int guest=(int)N(join.Body,"id");string token=S(join.Body,"token");
+Check(join.Status==200&&guest==2&&token.Length==32&&host.Context.Scalar<string>("SELECT token_hash FROM mp_player WHERE id=2")!=token,"join allocates own starting player and stores only token hash");
+Check(mp.Authorize("POST","/api/goods",token,"127.0.0.1").Identity?.Id==guest,"guest identity comes from token");
+Check(Local("GET","host",player:guest).Status==403&&Local("POST","pause-all",new(){["on"]=true},guest).Status==403,"ordinary guest cannot inspect join code or pause all");
+Check(mp.Authorize("POST","/api/load",token,"127.0.0.1").Status==403&&mp.Authorize("GET","/api/dev/town",token,"127.0.0.1").Status==403,"guest cannot load or use dev routes");
+Local("POST","admin",new(){["id"]=guest,["on"]=true});
+Check(Local("GET","host",player:guest).Status==200&&mp.Authorize("POST","/api/settings/population",token,"127.0.0.1").Status==200,"host can grant settings admin without granting host identity");
+Check(Local("POST","admin",new(){["id"]=guest,["on"]=true},guest).Status==403&&Local("POST","pause-all",new(){["on"]=true},guest).Status==403,"admin cannot promote others or pause the town");
+var ht=new List<JsonObject>();var hb=new List<byte[]>();var gt=new List<JsonObject>();var gb=new List<byte[]>();var closes=new List<(int Code,string Reason)>();
+NativeMpConnection Peer(List<JsonObject> texts,List<byte[]> binaries)=>mp.OpenPeer(new(){SendText=s=>texts.Add(JsonNode.Parse(s)!.AsObject()),SendBinary=b=>binaries.Add(b),Close=(c,r)=>closes.Add((c,r))},"127.0.0.1");
+void Hello(NativeMpConnection connection,string? auth,string fp="pack-proof-1")=>mp.ReceiveText(connection,new JsonObject{["type"]="hello",["protocol"]=MpProtocol.Protocol,["fingerprint"]=fp,["token"]=auth,["seat"]=999,["id"]=1}.ToJsonString());
+var bad=Peer(new(),new());Hello(bad,null);Check(bad.PlayerId==0&&closes.Any(c=>c.Code==4001),"socket hello cannot use spoofed seat or id without authenticated token");
+var old=Peer(new(),new());Hello(old,token,"other");Check(old.PlayerId==0&&closes.Any(c=>c.Code==4002),"socket fingerprint checked before welcome");
+var hc=Peer(ht,hb);var gc=Peer(gt,gb);Hello(hc,mp.HostToken);Hello(gc,token);
+Check(hc.PlayerId==1&&gc.PlayerId==2&&gt.First(m=>S(m,"type")=="welcome")["host"]!.GetValue<bool>()==false,"host and guest welcomed with authenticated protocol identities");
+for(int i=0;i<12;i++){now+=50;mp.ReceiveBinary(hc,NativeMpProtocol.EncodeState(new((uint)i+1,now,X:i*.1,Flags:4)));mp.ReceiveBinary(gc,NativeMpProtocol.EncodeState(new((uint)i+1,now,X:2+i*.1,Flags:4)));mp.Relay();}
+Check(mp.OnlineIds().Order().SequenceEqual(new[]{1,2})&&mp.Position(guest)!=null&&N(mp.Stats(),"worldPc")==1&&gb.Any(b=>b[0]==2),"fresh accepted states drive roster, positions and host world ownership");
+mp.ReceiveText(gc,"{\"type\":\"claim\",\"ids\":[\"resident-proof\",\"another-proof\"]}");
+Check(mp.Walker("resident-proof")==guest,"first eligible guest owns shared resident");
+mp.ReceiveText(hc,"{\"type\":\"claim\",\"ids\":[\"resident-proof\"],\"steal\":true}");
+Check(mp.Walker("resident-proof")==1,"host can take unpinned guest resident");
+var puppet=Convert.FromHexString(S(A(oracle["protocol"]).First(x=>N(x,"kind")==3),"bytes"));int before=hb.Count;mp.ReceiveBinary(gc,puppet);
+Check(hb.Count==before+1&&hb[^1][0]==3&&hb[^1][1]==1,"only guest-owned puppet entries reach the other client");
+mp.ReceiveText(gc,"{\"type\":\"claim\",\"ids\":[\"guest-first-action\"]}");Check(mp.Walker("guest-first-action")==guest,"action handover fixture begins on a guest-owned ordinary resident");
+mp.ReceiveText(hc,"{\"type\":\"claim\",\"ids\":[\"guest-first-action\"],\"steal\":true}");Check(mp.Walker("guest-first-action")==1,"host action claims take an existing unpinned guest resident");
+mp.ReceiveText(hc,"{\"type\":\"release\",\"ids\":[\"guest-first-action\"]}");mp.ReceiveText(gc,"{\"type\":\"claim\",\"ids\":[\"guest-first-action\"]}");Check(mp.Walker("guest-first-action")==guest,"released action returns to ordinary street ownership");
+before=ht.Count;mp.ReceiveText(gc,"{\"type\":\"world\",\"t\":1000000,\"d\":{\"cranes\":[999]}}");Check(ht.Count==before,"non-world guest cannot overwrite moving world");
+before=gt.Count;mp.ReceiveText(hc,"{\"type\":\"world\",\"t\":1000000,\"d\":{\"cranes\":[1]}}");Check(gt.Count==before+1&&S(gt[^1],"type")=="world","authoritative world PC state relayed unchanged");
+var largeWorld=new JsonObject{["cranes"]=new JsonArray(Enumerable.Range(0,150).Select(i=>(JsonNode)new JsonObject{["id"]=i,["x"]=i*.37,["yaw"]=i*.03,["_ops"]=new string('Q',1000)}).ToArray())};
+byte[] compressed=NativeWorldPacket.Encode(now,largeWorld)!;
+Check(System.Text.Encoding.UTF8.GetByteCount(largeWorld.ToJsonString())>65536&&compressed.Length<65536&&NativeWorldPacket.TryDecode(compressed,out double worldTime,out var unpacked)&&worldTime==now&&JsonNode.DeepEquals(largeWorld,unpacked),"world above text cap is losslessly compressed within native frame bound");
+before=hb.Count;int rejected=(int)N(mp.Stats(),"worldInvalid");mp.ReceiveBinary(gc,compressed);Check(hb.Count==before&&N(mp.Stats(),"worldInvalid")==rejected,"nonowner compressed world refused before decompression");
+before=gb.Count;mp.ReceiveBinary(hc,compressed);Check(gb.Count==before+1&&gb[^1].SequenceEqual(compressed),"authenticated owner compressed world relayed as bounded binary");
+var latest=gb;var reconnectWorld=Peer(gt,gb);Hello(reconnectWorld,token);Check(latest.Any(frame=>frame.SequenceEqual(compressed)),"joining movement seat receives retained compressed world frame");gc=reconnectWorld;
+var badSize=(byte[])compressed.Clone();BinaryPrimitives.WriteInt32LittleEndian(badSize.AsSpan(2),NativeWorldPacket.MaxExpanded+1);Check(!NativeWorldPacket.TryDecode(badSize,out _,out _),"declared world expansion over bound rejected");
+badSize=(byte[])compressed.Clone();BinaryPrimitives.WriteInt32LittleEndian(badSize.AsSpan(2),2);Check(!NativeWorldPacket.TryDecode(badSize,out _,out _),"dishonest smaller expansion length rejected");
+Check(!NativeWorldPacket.TryDecode(compressed[..^1],out _,out _)&&!NativeWorldPacket.TryDecode(new byte[]{64,1,2},out _,out _),"truncated Brotli world and incomplete headers rejected");
+var junk=compressed.Concat(new byte[]{1,2,3}).ToArray();Check(!NativeWorldPacket.TryDecode(junk,out _,out _),"trailing garbage after Brotli stream rejected");
+Check(NativeWorldPacket.Encode(now,new(){["bad"]=new string('X',NativeWorldPacket.MaxExpanded)})==null&&NativeWorldPacket.Encode(double.NaN,largeWorld)==null,"world encoder refuses excessive expansion and invalid clock");
+before=latest.Count;mp.ReceiveBinary(hc,badSize);Check(latest.Count==before&&N(mp.Stats(),"worldInvalid")==rejected+1,"malformed owner packet counted without being relayed or replacing retained state");
+mp.ReceiveText(gc,"{\"type\":\"ask\",\"what\":\"hold\",\"args\":[1]}");Check(S(ht[^1],"type")=="asked"&&N(ht[^1],"from")==guest,"mover requests use authenticated sender rather than supplied player id");
+host.Jobs.EnsureStartup();host.Context.Execute("UPDATE job SET status='taken',taken_by=$p0 WHERE id=(SELECT MIN(id) FROM job)",guest);now+=300;
+var figs=Convert.FromHexString(S(A(oracle["protocol"]).First(x=>N(x,"kind")==4),"bytes"));before=hb.Count;mp.ReceiveBinary(gc,figs);Check(hb.Count==before+1&&BinaryPrimitives.ReadUInt16LittleEndian(hb[^1].AsSpan(2))==guest,"job figure sender is rewritten from authenticated seat");
+Local("POST","pause-all",new(){["on"]=true});Check(host.Saves.PausedAll&&gt.Any(m=>S(m,"type")=="pause_all"&&B(m,"on")),"host pause all changes authority and reaches all seats");Local("POST","pause-all",new(){["on"]=false});
+goods.GiveTo(guest,new(){["kind"]="parcel"});mp.Closed(gc);Check(left==0&&goods.CarriedBy(guest)!=null&&mp.Walker("another-proof")==0,"disconnect releases walkers immediately but keeps goods during reconnect grace");
+var reText=new List<JsonObject>();var reBinary=new List<byte[]>();var re=Peer(reText,reBinary);Hello(re,token);now+=50;mp.ReceiveBinary(re,NativeMpProtocol.EncodeState(new(99,now,X:30,Flags:4)));
+Check(re.PlayerId==guest&&gb.Count>0&&N(mp.Position(guest),"x")==30&&hb[^1].Length==78&&(BinaryPrimitives.ReadUInt16LittleEndian(hb[^1].AsSpan(13))&32)!=0,"reconnect resets movement baseline and relays snap rather than sliding");
+var newer=Peer(new(),new());Hello(newer,token);Check(closes.Any(c=>c.Code==4005)&&newer.PlayerId==guest,"new socket takes over same seat and closes old socket");
+mp.Closed(newer);now+=30001;mp.Relay();Check(left==1&&goods.CarriedBy(guest)==null&&host.Context.Scalar<int>("SELECT COUNT(*) FROM mp_player WHERE id=2")==1,"expired grace sets down held goods while retaining reconnect identity");
+var transfer=Local("POST","transfer",player:guest);string move=S(transfer.Body,"code");var moved=mp.Handle("POST","/api/mp/move",null,new(){["code"]=move},"127.0.0.1");string nextToken=S(moved.Body,"token");Check(moved.Status==200&&mp.Authorize("GET","/api/state",token,"127.0.0.1").Status==401&&mp.Authorize("GET","/api/state",nextToken,"127.0.0.1").Identity?.Id==guest&&closedPush==1,"one-time transfer rotates token and closes old private push sessions");
+Check(mp.Handle("POST","/api/mp/move",null,new(){["code"]=move},"127.0.0.1").Status==403,"transfer code single-use");
+Check(Local("POST","kick",new(){["id"]=1}).Status==400&&Local("POST","kick",new(){["id"]=guest}).Status==200&&mp.Authorize("GET","/api/state",nextToken,"127.0.0.1").Status==401,"host cannot kick self; kicked guest token ends immediately");
+var nextJoin=mp.Handle("POST","/api/mp/join",null,JoinBody("Marie"),"127.0.0.1");Check(N(nextJoin.Body,"id")==3,"removed seat id is never reused for another person's belongings or memories");
+var nt=new List<JsonObject>();var nc=Peer(nt,new());Hello(nc,S(nextJoin.Body,"token"));var hanging=Peer(new(),new());now+=5001;mp.Relay();Check(closes.Any(c=>c.Reason=="no hello"),"unidentified websocket expires after five seconds");
+host.Reset();Check(mp.Authorize("GET","/api/state",S(nextJoin.Body,"token"),"127.0.0.1").Identity?.Id==3&&host.Context.Scalar<int>("SELECT COUNT(*) FROM player WHERE id=3")==1&&N(mp.Stats(),"worldPc")==0,"new week preserves authenticated identity but clears stale world ownership");
+var transport=new NativeTransport(host,goods);host.AddModule(transport);var deeds=new NativeDeeds(host,transport);host.AddModule(deeds);var actions=new NativeActions(host,goods);host.AddModule(actions);actions.Walker=mp.Walker;goods.NpcMayReport=mp.MayReportNpc;
+now+=50;mp.ReceiveBinary(nc,NativeMpProtocol.EncodeState(new(200,now,X:10,Flags:4)));
+var resident=host.Context.Rows("SELECT id FROM resident LIMIT 1")[0]!.AsObject();string residentId=S(resident,"id");
+mp.ReceiveText(nc,new JsonObject{["type"]="claim",["ids"]=new JsonArray(residentId)}.ToJsonString());
+var action=actions.Start(new(){["npc_id"]=residentId,["kind"]="go_to",["target"]="door",["target_x"]=0,["target_z"]=0,["minutes"]=40,["source"]="talk"},1);
+var clientActions=JsonSerializer.Deserialize<ActionsPayload>(await host.Call("GET","/api/actions",null,1),Api.Json)!;
+Check(clientActions.Actions.Single(a=>a.Id==N(action,"id")) is {Kind:"go_to",Order:0,N:0,Role:null,Lead:null},"actual ActionsPayload deserializes ordinary action with exact source ordinal defaults");
+string eventPerson=S(host.Context.Rows("SELECT id FROM resident WHERE id!=$p0 LIMIT 1",residentId)[0],"id");
+var eventAction=actions.Start(new(){["npc_id"]=eventPerson,["kind"]="attend",["target"]="event",["minutes"]=40,["data"]=new JsonObject{["order"]=3,["n"]=2,["role"]="guest",["lead"]="bearers"}},1);
+clientActions=JsonSerializer.Deserialize<ActionsPayload>(await host.Call("GET","/api/actions",null,1),Api.Json)!;
+Check(clientActions.Actions.Single(a=>a.Id==N(eventAction,"id")) is {Kind:"attend",Order:3,N:2,Role:"guest",Lead:"bearers"},"actual ActionsPayload deserializes event ordinal and role without numeric nulls");actions.End((int)N(eventAction,"id"),"done","proof");
+bool reportDenied=false;try{actions.Report(new(host.Context,"POST","/api/actions/report",2,new(){["phase"]="arrived"},new(),new()),action);}catch(NativeServiceException e){reportDenied=e.Status==409;}
+Check(reportDenied,"a third seat cannot complete another player's action");
+var ownedReport=actions.Report(new(host.Context,"POST","/api/actions/report",3,new(){["phase"]="arrived"},new(),new()),action);
+Check(S(ownedReport,"status")=="done"&&host.Context.Scalar<int>("SELECT COUNT(*) FROM log WHERE player_id=1 AND verb='action_end'")>0,"designated walker can report while consequences remain action owner's");
+Check(mp.MayReportNpc(3,residentId)&&!mp.MayReportNpc(1,residentId),"NPC goods reports require actual walker rather than host privilege");
+string goodsBefore=goods.View(1).ToJsonString();var unauthorizedHaul=goods.Operate(1,new JsonObject{["op"]="haul_in",["npc"]=residentId,["id"]="missing:fixture"});Check(!B(unauthorizedHaul,"ok")&&S(unauthorizedHaul,"why")=="Not yours to report."&&goods.View(1).ToJsonString()==goodsBefore,"NPC haul-in enforces designated walker before cargo lookup or mutation");
+var routed=new List<(int? Recipient,JsonObject Body)>();host.RoutedPush+=(to,text)=>routed.Add((to,JsonNode.Parse(text)!.AsObject()));host.PublishState(3);
+Check(routed.Any(p=>p.Recipient==3&&S(p.Body,"type")=="jobs")&&!routed.Any(p=>p.Recipient==null&&S(p.Body,"type")=="jobs"),"player payload pushes carry private recipient identity");
+host.Context.Execute("UPDATE player SET hour=18,minute=0 WHERE id=1");var beforeClock=host.Clock.View().ToJsonString();
+string agent=S(host.Context.Rows("SELECT id FROM npc LIMIT 1")[0],"id");
+host.Context.SetPlayerState(3,"police",new JsonObject{["record"]=new JsonObject{["warnings"]=0,["fines"]=0,["arrests"]=0,["fled"]=0,["lies"]=0},["visit"]=new JsonObject{["id"]=1,["state"]="talking",["agent"]=agent,["reason"]="deed",["deeds"]=new JsonArray(),["fled"]=0,["offered"]=new JsonObject()},["nextId"]=2});
+var arrested=JsonNode.Parse(await host.Call("POST","/api/police/seize","{}",3))!.AsObject();
+Check(B(arrested["night"],"pending")&&host.Rest.InCell(3)&&host.Clock.View().ToJsonString()==beforeClock,"multiplayer arrest creates pending cell rest without advancing shared clock");
+for(int i=0;i<24;i++){now+=301;await host.ServerTick();}
+Check(!host.Rest.InCell(3)&&N(host.Clock.View(),"hour")==6&&N(host.Clock.View(),"day")==2&&host.Context.PlayerState(3,"police")?["cell"]?["pending"]==null,"cell release waits for authoritative dawn and stores completed summary");
+mp.Stop();Check(closes.Any(c=>c.Code==1001),"server shutdown closes sockets and ephemeral transfer codes");
+Console.WriteLine("PASS "+checks+" stateful multiplayer checks, "+sourceChecks+" original comparisons");
+
+

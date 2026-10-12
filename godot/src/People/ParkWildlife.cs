@@ -69,7 +69,7 @@ public partial class ParkWildlife : Node
         I = this;
         town = GetParent().GetNodeOrNull<Townspeople>("Townspeople");
         string repo = Path.GetFullPath(Path.Combine(ProjectSettings.GlobalizePath("res://"), ".."));
-        string file = Main.I.Arg("park-habitat", Path.Combine(repo, "client/public/models/park_plants.json"));
+        string file = Main.I.Arg("park-habitat", Paths.Public("models/park_plants.json"));
         if (town == null || !File.Exists(file)) { SetProcess(false); return; }
         using var d = JsonDocument.Parse(File.ReadAllText(file));
         var data = d.RootElement;
@@ -88,7 +88,7 @@ public partial class ParkWildlife : Node
                 if (!((a < 0 || b < 0 || c < 0) && (a > 0 || b > 0 || c > 0))) land.Add(Cell(x, z));
             }
         }
-        using var oak = JsonDocument.Parse(File.ReadAllText(Path.Combine(repo, "shared/parkTreeLife.json")));
+        using var oak = JsonDocument.Parse(File.ReadAllText(Paths.Shared("parkTreeLife.json")));
         var life = oak.RootElement.GetProperty("old_oak");
         trunkRadius = life.GetProperty("trunkRadius").GetDouble(); climbHeight = life.GetProperty("climbHeight").GetDouble();
         perches = life.GetProperty("perches").EnumerateArray().Select(p => new Vector3(p[0].GetSingle(), p[1].GetSingle(), p[2].GetSingle())).ToArray();

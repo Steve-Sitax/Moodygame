@@ -11,15 +11,17 @@ namespace Scheldemist.Menu;
 public static class TogetherSheet
 {
     private static Sheet? sheet;
-    private static string address = "", code = "", name = "Anna", note = "";
+    private static string address = "", code = "", name = "Anna", note = "", caFingerprint = "";
     private static bool busy;
 
     public static void Open()
     {
         note = "";
+        if (Together.I is { } together) { together.Changed -= DrawIfOpen; together.Changed += DrawIfOpen; }
         Draw();
         if (Together.I is { On: true, Guest: false } tg) _ = Run(() => tg.Refresh());
     }
+    private static void DrawIfOpen() { if (!busy && sheet != null && Dialogs.IsOpen(sheet)) Draw(); }
 
     private static void Draw()
     {
@@ -45,6 +47,20 @@ public static class TogetherSheet
                 var h = tg.House;
                 s.Body.AddChild(Kit.Para("Address: " + (h?.Urls.Count > 0 ? string.Join("\n", h.Urls) : ServerLink.I?.Api?.Url)));
                 s.Body.AddChild(Kit.Para("Join code: " + (h?.Code ?? "Waiting for the host...")));
+                if (h is { } house)
+                {
+                    s.Body.AddChild(new InkButton(InkButton.Look.Btn, house.Lan ? "Close the home network" : "Open the home network", () => _ = Run(() => tg.Networks(!house.Lan,house.Vpn))) { Disabled=busy });
+                    s.Body.AddChild(new InkButton(InkButton.Look.Btn, house.Vpn ? "Close my VPN" : "Open to my VPN", () => _ = Run(() => tg.Networks(house.Lan,!house.Vpn))) { Disabled=busy });
+                    if (house.Secure.House.Count>0) s.Body.AddChild(Kit.Para("Secure home addresses: " + string.Join("\n",house.Secure.House)));
+                    if (house.Secure.Vpn.Count>0) s.Body.AddChild(Kit.Para("VPN addresses: " + string.Join("\n",house.Secure.Vpn)));
+                    if (house.Tls is {CaSha256.Length:>0} tls)
+                    {
+                        s.Body.AddChild(Kit.Para("House fingerprint (SHA-256): " + tls.CaSha256));
+                        string secureAddress=house.Secure.Vpn.Count>0?house.Secure.Vpn[0]:house.Secure.House.Count>0?house.Secure.House[0]:"";
+                        if (secureAddress!="") s.Body.AddChild(new InkButton(InkButton.Look.Btn,"Copy secure connection details",()=>DisplayServer.ClipboardSet(secureAddress+"\nJoin code: "+house.Code+"\nHouse fingerprint (SHA-256): "+tls.CaSha256)));
+                    }
+                    if (!string.IsNullOrEmpty(house.NetworkError)) s.Body.AddChild(Kit.Para(house.NetworkError));
+                }
                 foreach (var r in tg.Roster) s.Body.AddChild(Kit.Para(r.Name + (r.Host ? " (host)" : "") + (r.Online ? "" : " (away)")));
                 s.Body.AddChild(new InkButton(InkButton.Look.Btn, tg.PausedAll ? "Go on for everyone" : "Pause the town for everyone", () => _ = Run(() => tg.PauseAll(!tg.PausedAll))) { Disabled = busy });
             }
@@ -52,11 +68,13 @@ public static class TogetherSheet
             Field(s, "Host address", address, "http://192.168.1.20:8800", v => address = v);
             Field(s, "Join code", code, "KADE-47", v => code = v);
             Field(s, "Your first name", name, "Anna", v => name = v);
+            Field(s, "House fingerprint (HTTPS only)", caFingerprint, "SHA-256 copied from the host; blank for HTTP", v => caFingerprint = v);
             s.Body.AddChild(new InkButton(InkButton.Look.Btn, "Join", () =>
             {
                 if (!Uri.TryCreate(Together.AddressOf(address), UriKind.Absolute, out var u) || u.Scheme is not ("http" or "https") || string.IsNullOrWhiteSpace(name))
                 { note = "Type the host's address and your first name."; Draw(); return; }
-                tg?.Join(address, code, name);
+                if (!string.IsNullOrWhiteSpace(caFingerprint) && HouseTrust.NormalizeFingerprint(caFingerprint)==null) { note="Copy the complete SHA-256 fingerprint from the host."; Draw(); return; }
+                tg?.Join(address, code, name,caFingerprint:caFingerprint);
             }) { Disabled = busy || tg == null });
         }
         if (note != "") s.Body.AddChild(Kit.Para(note));

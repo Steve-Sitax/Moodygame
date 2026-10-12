@@ -1,0 +1,67 @@
+using System;
+using System.Collections.Generic;
+using Godot;
+using Scheldemist.Town;
+using Scheldemist.World;
+
+int checks=0;
+void Check(string name,bool passed){checks++;if(!passed)throw new Exception(name);}
+const int width=48,depth=24;
+var cells=new byte[width*depth*16];var heights=new short[cells.Length];
+for(int z=0;z<depth*4;z++)for(int x=0;x<width*4;x++){
+    double wx=(x+.5)/4,wz=(z+.5)/4;
+    // A supported narrow doorway missed by all the 1m cell centres, opening into a real long street.
+    bool room=wx>=2&&wx<8&&wz>=6&&wz<10,door=wx>=8&&wx<9&&wz>=8&&wz<8.5,street=wx>=9&&wx<46&&wz>=2&&wz<22;
+    if(room||door||street)cells[z*width*4+x]=1;
+}
+var map=WalkMap.FromNativeData(new Rect2(0,0,width,depth),cells,new short[width*depth*4],heights);
+Ways.InstallNative(map,(_,_)=>false);var grid=new NavGrid(22);grid.Build(map,20,12);
+Vector2 start=new(5.5f,8.5f),goal=new(42.5f,12.5f);
+Check("coarse crowd grid loses narrow native doorway",grid.Path(start.X,start.Y,goal.X,goal.Y)==null);
+Check("exact native support retains narrow doorway",Ways.NativePath(map,start,goal) is {Count:>2});
+Check("native body origin retains sub-metre position",Ways.NativePath(map,start,goal)![0].DistanceTo(start)<.5);
+var route=new NativeCrowdRoute(map);var output=new List<(double x,double z)>();
+Check("native fallback supplies actual supported route window",route.Window(start,goal,output));
+double length=0;var at=start;bool doorway=false;
+foreach(var p in output){Check("route leg stays on supported authored ground",map.SupportsStep(at.X,at.Y,p.x,p.z));var to=new Vector2((float)p.x,(float)p.z);length+=at.DistanceTo(to);if(at.X<8.5&&to.X>=8.5){float z=at.Y+(to.Y-at.Y)*(8.5f-at.X)/(to.X-at.X);doorway|=z>=8&&z<8.5;}at=to;}
+Check("bounded route keeps doorway bend",doorway);
+Check("window never exceeds32m",length<=NativeCrowdRoute.WindowLength+.001);
+Check("long endpoint is deferred to following window",at.DistanceTo(goal)>2);
+Check("route refuses direct wall shortcut",!map.SupportsStep(start.X,start.Y,goal.X,goal.Y));
+Check("repeating same goal uses cached route",route.Window(start,goal,output)&&route.Searches==1);
+Check("advanced body gets next route window",route.Window(at,goal,output)&&route.Searches==1&&output[^1].x>40);
+Check("changing goal invalidates cached route",route.Window(start,new Vector2(20.5f,12.5f),output)&&route.Searches==2);
+route.Clear();Check("explicit reset invalidates cached route",route.Window(start,goal,output)&&route.Searches==3);
+Check("snapping from across a solid cannot create an escape",!new NativeCrowdRoute(map).Window(new Vector2(8.5f,9.5f),goal,output));
+var other=WalkMap.FromNativeData(new Rect2(0,0,width,depth),cells,new short[width*depth*4],heights);
+Check("route cannot borrow another scene's installed navigation",!new NativeCrowdRoute(other).Window(start,goal,output));
+var bend=new List<(double x,double z)>{(-220.25,123.25),(-220.25,124.75),(-219.25,125.25),(-216.75,125.25)};
+bool Wall(double ax,double az,double bx,double bz)=>Math.Min(ax,bx)>=-220.28;
+var stalled=new Vector2(-219.52896f,123.14765f);var corner=new Vector2(-220.25f,123.25f);var straight=(corner-stalled).Normalized();
+Check("old straight nose extends past first corner into wall",!Wall(stalled.X,stalled.Y,stalled.X+straight.X*.8,stalled.Y+straight.Y*.8));
+Check("new initial heading retains full nose and clears bend",NativeBicycleTurn.Step(stalled,stalled,-Math.PI/2,.8,.35,bend,0,1,true,Wall,out double initialYaw));
+Check("accepted initial heading is a real turn",Math.Abs(NativeBicycleTurn.Angle(initialYaw+Math.PI/2))>.1);
+Check("existing invalid pose cannot be silently skipped",!NativeBicycleTurn.Sweep(stalled,stalled,-Math.PI/2,initialYaw,.8,false,Wall));
+var riding=new Vector2(-219.5f,122.5f);double yaw=Math.PI/2;int pi=0;double travelled=0;bool mounted=true;
+for(int i=0;i<140&&pi<bend.Count;i++){
+    var target=new Vector2((float)bend[pi].x,(float)bend[pi].z);var difference=target-riding;float distance=difference.Length();if(distance<.35){pi++;continue;}
+    var to=riding+difference/distance*Math.Min(distance,.04f);
+    if(!NativeBicycleTurn.Step(riding,to,yaw,.8,.35,bend,pi,.07,mounted,Wall,out double facing)){
+        if(NativeBicycleTurn.Step(riding,riding,yaw,.8,.35,bend,pi,.07,mounted,Wall,out facing)){yaw=facing;mounted=false;continue;}
+        break;
+    }
+    travelled+=riding.DistanceTo(to);riding=to;yaw=facing;mounted=false;
+}
+Check("full-sized bike advances around first corner",travelled>1.8&&pi>0);
+bool Obstacle(Vector2 centre,double radius,double ax,double az,double bx,double bz){var a=new Vector2((float)ax,(float)az);var d=new Vector2((float)(bx-ax),(float)(bz-az));float t=d.LengthSquared()==0?0:Math.Clamp((centre-a).Dot(d)/d.LengthSquared(),0,1);return centre.DistanceTo(a+d*t)>radius;}
+Check("inside bend obstacle refuses intermediate front-wheel sweep",!NativeBicycleTurn.Sweep(Vector2.Zero,Vector2.Zero,0,Math.PI/2,.8,false,(ax,az,bx,bz)=>Obstacle(new(.5657f,.5657f),.08,ax,az,bx,bz)));
+Check("swinging rear wheel cannot cross a hidden obstacle",!NativeBicycleTurn.Sweep(Vector2.Zero,Vector2.Zero,0,Math.PI/2,.8,false,(ax,az,bx,bz)=>Obstacle(new(-.4384f,-.4384f),.08,ax,az,bx,bz)));
+Check("actual handlebar grip also avoids live boxes",!NativeBicycleTurn.Sweep(Vector2.Zero,Vector2.Zero,0,0,.8,false,(ax,az,bx,bz)=>true,(x,z)=>x<.4));
+int probes=0;Check("heading wraps by shortest arc",NativeBicycleTurn.Sweep(Vector2.Zero,Vector2.Zero,Math.PI-.02,-Math.PI+.02,.8,false,(ax,az,bx,bz)=>{probes++;return true;})&&probes<20);
+Check("bicycle keeps ride clip while advancing",VehicleMotion.Walking(1,"gentleman",false,false,false)=="ride");
+Check("mounted bicycle waits in ride pose",VehicleMotion.Waiting(1,"walk")=="ride");
+Check("ordinary pushed cart keeps push clip while advancing",VehicleMotion.Walking(2,"wife_a",false,false,false)=="push");
+Check("carter retains its mapped push-walk clip",VehicleMotion.Walking(2,"carter",false,false,false)=="walk");
+Check("unmounted carrier retains carry clip",VehicleMotion.Walking(0,"gentleman",false,true,true)=="carry");
+Check("posted unmounted pose remains stable",VehicleMotion.Waiting(0,"write")=="write");
+Console.WriteLine($"Native crowd route: {checks} checks PASS (coarse doorway failure reproduced, bounded native path preserved)");

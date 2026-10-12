@@ -1,0 +1,346 @@
+{
+  "version": 1,
+  "id": "outer-south-east",
+  "title": "Southern and eastern streets",
+  "bounds": [
+    -245,
+    165,
+    495,
+    200
+  ],
+  "walkSpawn": [
+    -213,
+    0.2,
+    234
+  ],
+  "flySpawn": [
+    -205,
+    12,
+    226
+  ],
+  "flyYaw": 180,
+  "flyPitch": -12,
+  "roots": [
+    {
+      "sourceIndex": 4220,
+      "sourceName": "house_shop:bakery_south",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4231,
+      "sourceName": "house_shop:bakery_south_openings",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4234,
+      "sourceName": "shutters_shop:bakery_south",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4237,
+      "sourceName": "house_shop:grocer_south",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4248,
+      "sourceName": "house_shop:grocer_south_openings",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4251,
+      "sourceName": "shutters_shop:grocer_south",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4254,
+      "sourceName": "house_shop:cobbler_east",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4265,
+      "sourceName": "house_shop:cobbler_east_openings",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4268,
+      "sourceName": "shutters_shop:cobbler_east",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4463,
+      "sourceName": "house_home:alley",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4474,
+      "sourceName": "house_home:alley_openings",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4770,
+      "sourceName": "house_tavern:linde",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4781,
+      "sourceName": "house_tavern:linde_openings",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4784,
+      "sourceName": "house_tavern:zwarte_kat",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4795,
+      "sourceName": "house_tavern:zwarte_kat_openings",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 11134,
+      "sourceName": "ROOM_shop:bakery_south",
+      "role": "room"
+    },
+    {
+      "sourceIndex": 11206,
+      "sourceName": "ROOM_shop:grocer_south",
+      "role": "room"
+    },
+    {
+      "sourceIndex": 11273,
+      "sourceName": "ROOM_shop:cobbler_east",
+      "role": "room"
+    },
+    {
+      "sourceIndex": 11503,
+      "sourceName": "ROOM_home:alley",
+      "role": "room"
+    },
+    {
+      "sourceIndex": 12018,
+      "sourceName": "ROOM_tavern:linde",
+      "role": "room"
+    },
+    {
+      "sourceIndex": 12084,
+      "sourceName": "ROOM_tavern:zwarte_kat",
+      "role": "room"
+    },
+    {
+      "sourceIndex": 1480,
+      "sourceName": "place_rond",
+      "role": "scenery",
+      "sourceParentIndex": 1479
+    },
+    {
+      "sourceIndex": 1509,
+      "sourceName": "place_court_green",
+      "role": "scenery",
+      "sourceParentIndex": 1479
+    },
+    {
+      "sourceIndex": 3645,
+      "sourceName": "pushcart",
+      "role": "scenery",
+      "sourceParentIndex": 3628
+    },
+    {
+      "sourceIndex": 3655,
+      "sourceName": "mill_sack",
+      "role": "scenery",
+      "sourceParentIndex": 3628
+    },
+    {
+      "sourceIndex": 3657,
+      "sourceName": "mill_sack",
+      "role": "scenery",
+      "sourceParentIndex": 3628
+    },
+    {
+      "sourceIndex": 3659,
+      "sourceName": "mill_sack",
+      "role": "scenery",
+      "sourceParentIndex": 3628
+    },
+    {
+      "sourceIndex": 3661,
+      "sourceName": "mill_sack",
+      "role": "scenery",
+      "sourceParentIndex": 3628
+    },
+    {
+      "sourceIndex": 3663,
+      "sourceName": "mill_sack",
+      "role": "scenery",
+      "sourceParentIndex": 3628
+    },
+    {
+      "sourceIndex": 3665,
+      "sourceName": "",
+      "role": "scenery",
+      "sourceParentIndex": 3628
+    },
+    {
+      "sourceIndex": 3667,
+      "sourceName": "",
+      "role": "scenery",
+      "sourceParentIndex": 3628
+    },
+    {
+      "sourceIndex": 3669,
+      "sourceName": "mill_sack",
+      "role": "scenery",
+      "sourceParentIndex": 3628
+    },
+    {
+      "sourceIndex": 3671,
+      "sourceName": "mill_sack",
+      "role": "scenery",
+      "sourceParentIndex": 3628
+    },
+    {
+      "sourceIndex": 3673,
+      "sourceName": "mill_sack",
+      "role": "scenery",
+      "sourceParentIndex": 3628
+    },
+    {
+      "sourceIndex": 3675,
+      "sourceName": "mill_sack",
+      "role": "scenery",
+      "sourceParentIndex": 3628
+    },
+    {
+      "sourceIndex": 3677,
+      "sourceName": "mill_sack",
+      "role": "scenery",
+      "sourceParentIndex": 3628
+    },
+    {
+      "sourceIndex": 3679,
+      "sourceName": "",
+      "role": "scenery",
+      "sourceParentIndex": 3628
+    },
+    {
+      "sourceIndex": 3681,
+      "sourceName": "",
+      "role": "scenery",
+      "sourceParentIndex": 3628
+    }
+  ],
+  "sharedRoots": [
+    {
+      "sourceIndex": 4,
+      "sourceName": "city",
+      "note": "Shared native ground/building tile store; keep one runtime copy. Region bounds do not clip merged meshes."
+    },
+    {
+      "sourceIndex": 3628,
+      "sourceName": "mills",
+      "note": "Mixed parent: led_dray3629 is north; southern/eastern mill sacks and carts are outer. Preserve parent once."
+    }
+  ],
+  "rooms": [
+    {
+      "id": "shop:bakery_south",
+      "sourceIndex": 11134,
+      "sourceName": "ROOM_shop:bakery_south"
+    },
+    {
+      "id": "shop:grocer_south",
+      "sourceIndex": 11206,
+      "sourceName": "ROOM_shop:grocer_south"
+    },
+    {
+      "id": "shop:cobbler_east",
+      "sourceIndex": 11273,
+      "sourceName": "ROOM_shop:cobbler_east"
+    },
+    {
+      "id": "home:alley",
+      "sourceIndex": 11503,
+      "sourceName": "ROOM_home:alley"
+    },
+    {
+      "id": "tavern:linde",
+      "sourceIndex": 12018,
+      "sourceName": "ROOM_tavern:linde"
+    },
+    {
+      "id": "tavern:zwarte_kat",
+      "sourceIndex": 12084,
+      "sourceName": "ROOM_tavern:zwarte_kat"
+    }
+  ],
+  "entrances": [
+    {
+      "id": "shop:bakery_south",
+      "sourceIndices": [
+        4231
+      ]
+    },
+    {
+      "id": "shop:grocer_south",
+      "sourceIndices": [
+        4248
+      ]
+    },
+    {
+      "id": "shop:cobbler_east",
+      "sourceIndices": [
+        4265
+      ]
+    },
+    {
+      "id": "home:alley",
+      "sourceIndices": [
+        4474
+      ]
+    },
+    {
+      "id": "tavern:linde",
+      "sourceIndices": [
+        4781
+      ]
+    },
+    {
+      "id": "tavern:zwarte_kat",
+      "sourceIndices": [
+        4795
+      ]
+    }
+  ],
+  "checks": [
+    "Every selected source index has the recorded name, parent and fingerprint.",
+    "Rooms retain room extras, material metadata and street opening markers.",
+    "Hidden templates stay hidden until their live game system owns them.",
+    "No runtime original GLB, bake sidecar, client URL or Node asset loading.",
+    "Render dry/day, rain/night and both sides/below of exposed solid edges.",
+    "Test walk spawns with native physics after all shared ground resources are loaded.",
+    "Use isolated proof layouts; preserve Rijnkaai authored identities and Steve's saved lamp.",
+    "South/east shop opening groups and shutters retain semantic room ids and live hours.",
+    "Home/tavern street doors and indoor floors agree after native collision generation.",
+    "Centre agent owns Sint-Jacob/Sint-Paulus shells, rooms and yard1499; these are shared neighbors, not duplicated by outer scenes."
+  ],
+  "exceptions": [
+    {
+      "feature": "Leaf cards, grass/ivy cards and feather quads",
+      "reason": "Thin cutout surfaces have no solid thickness; preserve alpha, wind and double-sided intent."
+    },
+    {
+      "feature": "Glazing, hidden/mating join faces and thin roof flashing",
+      "reason": "Do not open watertight joints or make thin sheet thicker with a large bevel."
+    },
+    {
+      "feature": "Merged native source stone/wood/metal meshes",
+      "reason": "Intake preserves source geometry. Every exposed silhouette is subject to the AGENTS material-edge review; source preservation is not approval to leave a visibly sharp edge."
+    }
+  ],
+  "source": {
+    "snapshot": "next-20261012",
+    "sourceCommit": "6b447c1",
+    "sourceSha256": "ac8534149415142120f325986c7abd3818c38005206d45354f1ebb2619f3a7d9",
+    "sourceBytes": 977933624
+  }
+}

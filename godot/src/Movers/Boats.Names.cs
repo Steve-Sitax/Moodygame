@@ -53,7 +53,12 @@ public partial class Boats
         }
         // A separate follower updates row lettering from the existing live frames; W4 owns their motion.
         foreach (var node in BakedWorld.All(Mv.Town))
-            if (node is GeometryInstance3D mesh && (mesh.MaterialOverride ?? (mesh as MeshInstance3D)?.Mesh?.SurfaceGetMaterial(0) ?? (mesh as MultiMeshInstance3D)?.Multimesh.Mesh?.SurfaceGetMaterial(0)) is ShaderMaterial material && Psx.KindOf(material.Shader)?.NameCell > 0) mesh.Visible = false;
+            if (node is GeometryInstance3D mesh)
+            {
+                var surfaceMesh = (mesh as MeshInstance3D)?.Mesh ?? (mesh as MultiMeshInstance3D)?.Multimesh?.Mesh;
+                var surface = surfaceMesh?.GetSurfaceCount() > 0 ? surfaceMesh.SurfaceGetMaterial(0) : null;
+                if ((mesh.MaterialOverride ?? surface) is ShaderMaterial material && Psx.KindOf(material.Shader)?.NameCell > 0) mesh.Visible = false;
+            }
         AddChild(new NameRows { OwnerBoats = this, ProcessPriority = -49 });
     }
 

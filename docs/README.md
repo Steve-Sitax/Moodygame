@@ -1,13 +1,16 @@
 # Scheldemist (working title) - design docs
 
-A 3D browser game demo. Antwerp, autumn 1873. You are a poor workman.
+A native Godot game. Antwerp, autumn 1873. You are a poor workman.
 You find jobs, earn money, buy food and medicine, and build a name.
 Claude runs the jobs, events, dialogue and memory.
 
-Status: documentation phase. No game code yet. Written 2026-09-23.
+Start with the [native game/editor instructions](../native-godot/README.md), [native services and proofs](../native-godot/services/README.md) and [Windows packaging](release.md). The design documents below record the original September 2026 decisions and later milestones; browser commands inside historical notes do not describe the active runtime.
 
 | File | What it holds |
 |---|---|
+| [Native game/editor](../native-godot/README.md) | Current launch, editing, native resources and worktree status |
+| [Native checks](../native-godot/services/README.md) | Current rule, gameplay and multiplayer evidence; workshop checks are in the native project README |
+| [Native packages](release.md) | Current standalone Windows client/server export and relocation checks |
 | [01-game-design.md](01-game-design.md) | Setting, player, needs, jobs, trust, NPCs, events |
 | [02-tech-stack.md](02-tech-stack.md) | Engine, server, database, why each one |
 | [03-ai-design.md](03-ai-design.md) | Where Claude is called, prompts, schemas, memory, pacing, cost |
@@ -17,16 +20,16 @@ Status: documentation phase. No game code yet. Written 2026-09-23.
 | [07-spike-results.md](07-spike-results.md) | Tests done today with local Claude |
 | [08-open-questions.md](08-open-questions.md) | Decisions, all answered 2026-09-23 |
 | [09-backlog.md](09-backlog.md) | Ideas not yet in a milestone (job interaction, ...) |
-| [testing.md](testing.md) | How to check a change in the browser: the test stack, the test kit, where and when things happen |
+| [testing.md](testing.md) | Historical browser test stack and kit; use the native checks above for current testing |
 | [ai-setup.md](ai-setup.md) | The AI setup: an AI per kind of work (Claude login or key, Codex, OpenAI-compatible, Ollama), the test button, walk-around mode with no AI; the API the menu uses |
-| [multiplayer-plan.md](multiplayer-plan.md) | Plan (not built): the town for the whole house. LAN hosting, join code, assets cached by hash, own movement local and never pulled back, others interpolated, no pause, per-player saves, phases M8a-M8e |
-| [trade-plan.md](trade-plan.md) | Plan (not built): townspeople far away keep going on real ways (runs owned by the server, seen the same by every PC and the map); the town's trade (stock per place, a dispatcher that sends workers, small jobs at every place); 18 goods chains |
+| [multiplayer-plan.md](multiplayer-plan.md) | Historical multiplayer design and phases; hosting/joining now run in Godot, described in the native instructions |
+| [trade-plan.md](trade-plan.md) | Historical trade and transport design: stocks, dispatch, town ways and goods chains |
 | [rendering.md](rendering.md) | No stutter: the shader warm-up, fixed light counts, the rules for anything that draws |
 | [performance.md](performance.md) | The frame budget: where the time goes, rules for new models, textures, mirrors and every-frame logic, proving a speed change |
-| [godot-status.md](godot-status.md) | Start here for the Godot port: where it is, how to test it, what is open, traps met |
+| [godot-status.md](godot-status.md) | Historical hybrid-port status and traps; start with the native game/editor instructions above |
 | [godot-perf2.md](godot-perf2.md) | Godot allocation and timing pass: per-part measurements, exact pixel proof, functional checks and remaining frame-budget failures |
 | [godot-bisect.md](godot-bisect.md) | Three-run Godot history bisect, scene/physics inventories, measured causes and subsequent speed experiments |
-| [building-with-interior.md](building-with-interior.md) | A building with an inside: the real shell, the plan, the rooms at true size, every window an opening, the checks; the template in `tools/templates/interior/` |
+| [building-with-interior.md](building-with-interior.md) | Construction rules for real shells/rooms and openings; the original template is preserved under `art-source/tools/templates/interior/` after archival |
 | [learnings-for-next-game.md](learnings-for-next-game.md) | Rules and lessons from this project for the next game: process, AI, rendering, world building, testing, saves, multiplayer, releases |
 | [milestones/](milestones/) | One note per finished milestone; [milestones/M6.md](milestones/M6.md) is the index of the M6 parts |
 

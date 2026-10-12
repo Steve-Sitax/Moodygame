@@ -1,0 +1,3 @@
+using System;
+namespace Scheldemist.Net;
+public sealed class ApiException : Exception { public int Status {get;} public ApiException(string message,int status,Exception? inner=null):base(message,inner)=>Status=status; }

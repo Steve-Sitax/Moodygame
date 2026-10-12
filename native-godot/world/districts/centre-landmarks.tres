@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="script"]
+[ext_resource type="PackedScene" path="res://world/districts/centre-landmarks.tscn" id="scene"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-recovered/catalog.tres" id="catalog"]
+
+[resource]
+script = ExtResource("script")
+Id = "centre-landmarks"
+Title = "City centre and churches"
+Scene = ExtResource("scene")
+Catalog = ExtResource("catalog")
+Bounds = Rect2(-325, 25, 490, 325)
+WalkSpawn = Vector3(-254, 0.02, 96)
+FlySpawn = Vector3(-254, 8, 118)
+FlyYaw = 3.141592653589793
+FlyPitch = -0.3

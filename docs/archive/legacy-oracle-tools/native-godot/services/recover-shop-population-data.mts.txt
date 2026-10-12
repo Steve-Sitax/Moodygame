@@ -1,0 +1,9 @@
+// Original authored business definitions; no database or server is opened.
+import {NEW_SHOPS,OLD_SHOP_TRADE} from '../../shared/shops.ts';
+import {NEIGHBOURHOOD_CAFES,GANG_CAFE} from '../../shared/neighbourhoodCafes.ts';
+import {TRADES,TAVERNS} from '../../server/src/town/places.ts';
+import {readFileSync,writeFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+const files=['server/src/shops/town.ts','server/src/town/neighbourhoodCafes.ts','shared/shops.ts','shared/neighbourhoodCafes.ts','shared/inworld_houses.json'];
+writeFileSync('native-godot/services/data/native-shop-population.json',JSON.stringify({version:1,provenance:'Source authored businesses and trade/stat rules, no saved people.',newShops:NEW_SHOPS,oldShops:OLD_SHOP_TRADE,cafes:NEIGHBOURHOOD_CAFES,gangCafe:GANG_CAFE,trades:TRADES,taverns:TAVERNS,hashes:Object.fromEntries(files.map(f=>[f,createHash('sha256').update(readFileSync(f)).digest('hex')]))},null,2)+'\n');
+console.log(JSON.stringify({shops:NEW_SHOPS.length,cafes:NEIGHBOURHOOD_CAFES.length}));

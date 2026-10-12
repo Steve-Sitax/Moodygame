@@ -1,0 +1,75 @@
+[gd_scene load_steps=24 format=3]
+
+[ext_resource type="Script" path="res://src/World/NativeDistrictScene.cs" id="native_editor"]
+
+[ext_resource type="PackedScene" path="res://world/town/roots/node-00355.scn" id="1_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-00383.scn" id="2_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-00633.scn" id="3_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-00653.scn" id="4_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-05332.scn" id="5_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-05487.scn" id="6_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-05488.scn" id="7_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-05489.scn" id="8_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-05490.scn" id="9_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-05491.scn" id="10_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-05492.scn" id="11_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-05493.scn" id="12_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-05494.scn" id="13_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-05495.scn" id="14_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-05496.scn" id="15_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-05497.scn" id="16_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-05498.scn" id="17_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-05499.scn" id="18_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-05500.scn" id="19_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-05505.scn" id="20_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-00004.scn" id="21_root"]
+[ext_resource type="PackedScene" path="res://world/districts/outer-wall.objects.tscn" id="objects"]
+
+[node name="outer_wall" type="Node3D"]
+script = ExtResource("native_editor")
+
+[node name="Scenery" type="Node3D" parent="."]
+
+[node name="source_00355" parent="Scenery" instance=ExtResource("1_root")]
+
+[node name="source_00383" parent="Scenery" instance=ExtResource("2_root")]
+
+[node name="source_00633" parent="Scenery" instance=ExtResource("3_root")]
+
+[node name="source_00653" parent="Scenery" instance=ExtResource("4_root")]
+
+[node name="source_05332" parent="Scenery" instance=ExtResource("5_root")]
+
+[node name="source_05487" parent="Scenery" instance=ExtResource("6_root")]
+
+[node name="source_05488" parent="Scenery" instance=ExtResource("7_root")]
+
+[node name="source_05489" parent="Scenery" instance=ExtResource("8_root")]
+
+[node name="source_05490" parent="Scenery" instance=ExtResource("9_root")]
+
+[node name="source_05491" parent="Scenery" instance=ExtResource("10_root")]
+
+[node name="source_05492" parent="Scenery" instance=ExtResource("11_root")]
+
+[node name="source_05493" parent="Scenery" instance=ExtResource("12_root")]
+
+[node name="source_05494" parent="Scenery" instance=ExtResource("13_root")]
+
+[node name="source_05495" parent="Scenery" instance=ExtResource("14_root")]
+
+[node name="source_05496" parent="Scenery" instance=ExtResource("15_root")]
+
+[node name="source_05497" parent="Scenery" instance=ExtResource("16_root")]
+
+[node name="source_05498" parent="Scenery" instance=ExtResource("17_root")]
+
+[node name="source_05499" parent="Scenery" instance=ExtResource("18_root")]
+
+[node name="source_05500" parent="Scenery" instance=ExtResource("19_root")]
+
+[node name="source_05505" parent="Scenery" instance=ExtResource("20_root")]
+
+[node name="source_00004" parent="Scenery" instance=ExtResource("21_root")]
+
+[node name="Objects" parent="." instance=ExtResource("objects")]

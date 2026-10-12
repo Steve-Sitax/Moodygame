@@ -43,6 +43,8 @@ public partial class Actors : Node
     private Action<ActionsPayload> applied = null!;
     private Action<ApiException> pollFailed = null!, syncFailed = null!;
     private Action<OkReply> synced = null!;
+    private int populationGeneration;
+    private bool stopped;
     public double LogicMs { get; private set; }
     public long AllocatedBytes { get; private set; }
     public int Reports { get; private set; }
@@ -55,10 +57,20 @@ public partial class Actors : Node
         I = this;
         if (Scheldemist.Net.Mp.Together.I is { } together) {together.OtherText += OwnershipText;together.OtherBatch+=ReplicaBatch;}
         town = GetParent().GetNodeOrNull<Townspeople>("Townspeople");
-        applied = PollApplied; pollFailed = _ => polling = false; syncFailed = _ => syncing = false; synced = _ => syncing = false;
+        BindCallbacks();
+        if (town != null) town.PopulationChanged += PopulationChanged;
         if (Scheldemist.Movers.Omnibus.I != null) Scheldemist.Movers.Omnibus.I.ResidentOff += OffBus;
         if (Scheldemist.Menu.MainMenu.I != null) Scheldemist.Menu.MainMenu.I.WorldReplaced += Replaced;
     }
+    private void BindCallbacks()
+    {
+        int generation = populationGeneration;
+        applied = p => { if (!stopped && generation == populationGeneration) PollApplied(p); };
+        pollFailed = _ => { if (!stopped && generation == populationGeneration) polling = false; };
+        syncFailed = _ => { if (!stopped && generation == populationGeneration) syncing = false; };
+        synced = _ => { if (!stopped && generation == populationGeneration) syncing = false; };
+    }
+    private void PopulationChanged() => Replaced("population", null);
     private void Replaced(string how, ClientState? client) { Reset(); Hearses.I?.Reset(); TownLife.I?.Reset(); dirty = true; poll = 0; }
     private void Push(PushMsg p)
     {
@@ -116,7 +128,7 @@ public partial class Actors : Node
         if (r.Person != null && !HeldElsewhere(r.Person)) town?.ActionRelease(r.Person, this);
         if (r.Other != null && !HeldElsewhere(r.Other)) town?.ActionRelease(r.Other, this);
     }
-    public void Reset() { ClearReplicas();npcOwners.Clear(); if (town != null && ordinaryCapacity > 0) town.MaxPuppets = ordinaryCapacity; while (Runs.Count > 0) { var r = Runs[^1]; Runs.RemoveAt(Runs.Count - 1); End(r); } Events.I?.Reset(); }
+    public void Reset() { populationGeneration++; polling = syncing = false; poll = sync = 0; dirty = true; BindCallbacks(); ClearReplicas();npcOwners.Clear(); if (town != null && ordinaryCapacity > 0) town.MaxPuppets = ordinaryCapacity; while (Runs.Count > 0) { var r = Runs[^1]; Runs.RemoveAt(Runs.Count - 1); End(r); } Events.I?.Reset(); }
     public override void _Process(double delta)
     {
         if (town?.Data == null || town.Crowd == null) return;
@@ -349,12 +361,14 @@ public partial class Actors : Node
         if (!NpcOwned(r.Action.Npc) || api == null || r.Reported || r.Reporting) return;
         if (r.Action.ForPlayer.HasValue && r.Action.ForPlayer.Value != (Scheldemist.Net.Mp.Together.I?.PlayerId ?? 1)) return;
         r.Reporting = true; Reports++;
+        int generation = populationGeneration;
         api.Run(api.ActionReport(r.Action.Id, phase, r.Person?.P?.X ?? r.Person?.X, r.Person?.P?.Z ?? r.Person?.Z, found, why), reply =>
         {
+            if (stopped || generation != populationGeneration) return;
             r.Reporting = false; r.Reported = true;
             var state = reply.Deserialize<JobsPayload>(Api.Json); if (state != null) GameState.I.Apply(state);
             dirty = true;
-        }, e => { r.Reporting = false; r.Reported = e.Status == 404 || e.Status == 409; r.Repath = 2; });
+        }, e => { if (stopped || generation != populationGeneration) return; r.Reporting = false; r.Reported = e.Status == 404 || e.Status == 409; r.Repath = 2; });
     }
     private void Dress(Run r, Puppet p)
     {
@@ -465,6 +479,8 @@ public partial class Actors : Node
     }
     public override void _ExitTree()
     {
+        stopped = true;
+        if (town != null) town.PopulationChanged -= PopulationChanged;
         if (api != null) api.OtherPushed -= Push;
         if (Scheldemist.Movers.Omnibus.I != null) Scheldemist.Movers.Omnibus.I.ResidentOff -= OffBus;
         if (Scheldemist.Menu.MainMenu.I != null) Scheldemist.Menu.MainMenu.I.WorldReplaced -= Replaced;

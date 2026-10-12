@@ -31,7 +31,7 @@ public partial class Railway
     private bool StartFeed(Crane c,float dt)
     {
         if(!craneFeeds.TryGetValue(c,out var state))return false;if(c.Ops.Count==0&&state.OldGoods!=null){c.Goods=state.OldGoods;state.OldGoods=null;state.Current=null;}state.Wait=Math.Max(0,state.Wait-dt);
-        if(c.Mode!="berth"||c.Reserved||c.Ops.Count>0||state.Wait>0||Together.I?.Guest==true||Play.Goods.I?.Loaded!=true)return false;
+        if(c.Mode!="berth"||c.Reserved||c.Ops.Count>0||state.Wait>0||NetRemote||Play.Goods.I?.Loaded!=true)return false;
         foreach(var b in state.Berths)
         {
             if(Math.Abs(b.P-c.Pos)>.3f)continue;int need=Play.Goods.I.PileNeed(b.Feed.Route);if(need==0)continue;

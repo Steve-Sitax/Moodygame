@@ -1,0 +1,17 @@
+// Read-only model geometry for original layout proofs; native rendering reads PackedScenes.
+import fs from 'node:fs';import {createRequire} from 'node:module';import {createHash} from 'node:crypto';
+const require=createRequire('D:/Code/MoodyGame/package.json');
+const {NodeIO}=require('@gltf-transform/core'),{ALL_EXTENSIONS}=require('@gltf-transform/extensions'),draco=require('draco3dgltf');
+const THREE=await import('file:///D:/Code/MoodyGame/client/node_modules/three/build/three.module.js');
+const io=new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({'draco3d.decoder':await draco.createDecoderModule()});
+const models:any={};const hashes:any={};
+for(const name of ['stalls','trades']){
+ const path='D:/Code/MoodyGame-godot/godot/baked/models/'+name+'.glb';const bytes=fs.readFileSync(path);hashes[name]=createHash('sha256').update(bytes).digest('hex');
+ const doc=await io.read(path),scene=doc.getRoot().listScenes()[0],roots:any={};
+ for(const root of scene.listChildren()){const parts:any[]=[];const inverse=new THREE.Matrix4().fromArray(root.getWorldMatrix()).invert();
+  root.traverse((node:any)=>{const mesh=node.getMesh();if(!mesh)return;const transform=new THREE.Matrix4().multiplyMatrices(inverse,new THREE.Matrix4().fromArray(node.getWorldMatrix()));
+   for(const prim of mesh.listPrimitives()){const p=prim.getAttribute('POSITION');if(!p)continue;const positions:number[]=[];const v=new THREE.Vector3();for(let i=0;i<p.getCount();i++){const arr:number[]=[];p.getElement(i,arr);v.set(arr[0],arr[1],arr[2]).applyMatrix4(transform);positions.push(Math.fround(v.x),Math.fround(v.y),Math.fround(v.z));}parts.push({material:prim.getMaterial()?.getName()??'',positions});}
+  });roots[root.getName()]=parts;
+ }models[name]=roots;
+}
+fs.writeFileSync('native-godot/services/proof/market-models.json',JSON.stringify({version:1,hashes,models})+'\n');console.log(JSON.stringify({stalls:Object.keys(models.stalls).length,trades:Object.keys(models.trades).length,hashes}));

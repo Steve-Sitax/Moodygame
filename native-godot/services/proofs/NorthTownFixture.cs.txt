@@ -1,0 +1,23 @@
+// Pure service fixture: the engine's NativeTown/Whereabouts integration is checked by the shared Godot build.
+// These adapters expose the same resident data, schedule tuple and hash without loading a graphics engine.
+using System.Text.Json.Nodes;
+namespace Scheldemist.Native.Services
+{
+    public sealed class NativeTown
+    {
+        private readonly NativeServiceHost host;
+        public NativeTown(NativeServiceHost host)=>this.host=host;
+        public IReadOnlyDictionary<string,JsonObject> Residents=>host.Context.Rows("SELECT data_json FROM resident ORDER BY id").Select(row=>JsonNode.Parse(S(row,"data_json"))!.AsObject()).ToDictionary(row=>S(row,"id"));
+        public JsonObject? Resident(string id)=>Residents.GetValueOrDefault(id);
+        public (string Act,string Place) Activity(string id){var clock=host.Clock.View();var now=NativeShops.Activity(Resident(id)!,(int)NativeGoods.N(clock,"day"),NativeGoods.N(clock,"hour")+NativeGoods.N(clock,"minute")/60);return(now.act,now.place);}
+        internal static string S(JsonNode? n,string k,string fallback="")=>NativeGoods.S(n,k,fallback);
+        internal static double N(JsonNode? n)=>NativeGoods.Number(n);
+    }
+}
+namespace Scheldemist.Town
+{
+    public static class Whereabouts
+    {
+        public static uint HashId(string text){uint hash=2166136261;foreach(char c in text)hash=unchecked((hash^c)*16777619);return hash;}
+    }
+}

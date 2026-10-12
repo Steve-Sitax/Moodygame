@@ -157,6 +157,9 @@ public partial class TownMap : Node
     // the town's places from the server
     private JsonElement? town;
     private List<MapMark> townMarks = new(), landings = new();
+    private Town.Townspeople? population;
+    private int populationGeneration;
+    private bool stopped;
 
     // the way on foot
     private (List<Vector2>? Pts, Vector2 Goal, Vector2 Asked)? way;
@@ -185,21 +188,41 @@ public partial class TownMap : Node
         making = Task.Run(() => MapBase.Make(dir));
         Ways.Warm();
         LoadHidden();
+        Callable.From(BindPopulation).CallDeferred();
+        if (Menu.MainMenu.I is { } menu) menu.WorldReplaced += WorldReplaced;
         if (ServerLink.I is { } link)
-            link.WhenUp(() =>
-            {
-                var api = link.Api!;
-                api.Run(api.Town(), t =>
-                {
-                    town = t;
-                    townMarks = TownMarks(t);
-                }, e => GD.PrintErr($"the map has no town places: {e.Message}"));
-                api.Run(api.Get<JsonElement>("api/row/world"), w => landings = Landings(w), _ => { });
-            });
+            link.WhenUp(LoadPlaces);
     }
 
+    private void BindPopulation()
+    {
+        if (stopped) return;
+        population = GetParent().GetNodeOrNull<Town.Townspeople>("Townspeople");
+        if (population != null) population.PopulationChanged += PopulationChanged;
+    }
+    private void WorldReplaced(string how, ClientState? state)
+    {
+        Close(); ClearPlaces();
+    }
+    private void ClearPlaces()
+    {
+        populationGeneration++; town = null; townMarks.Clear(); landings.Clear(); way = null; wayBusy = false; wayAt = -10;
+        listed.Clear(); hits.Clear(); hot = null; hotHit = null; hotRow = -2;
+    }
+    private void PopulationChanged() { ClearPlaces(); LoadPlaces(); }
+    private void LoadPlaces()
+    {
+        if (stopped || ServerLink.I?.Api is not { } api) return;
+        int g = populationGeneration;
+        api.Run(api.Town(), t => { if (stopped || g != populationGeneration) return; town = t; townMarks = TownMarks(t); if (Open) Render(); },
+            e => { if (!stopped && g == populationGeneration) GD.PrintErr($"the map has no town places: {e.Message}"); });
+        api.Run(api.Get<JsonElement>("api/row/world"), w => { if (!stopped && g == populationGeneration) landings = Landings(w); }, _ => { });
+    }
     public override void _ExitTree()
     {
+        stopped = true; populationGeneration++;
+        if (population != null) population.PopulationChanged -= PopulationChanged;
+        if (Menu.MainMenu.I is { } menu) menu.WorldReplaced -= WorldReplaced;
         if (I == this) I = null;
     }
 
@@ -765,8 +788,10 @@ public partial class TownMap : Node
         {
             wayBusy = true;
             wayAt = now;
+            int generation = populationGeneration;
             Task.Run(() => Ways.Path(me, g)).ContinueWith(t => Callable.From(() =>
             {
+                if (stopped || generation != populationGeneration) return;
                 wayBusy = false;
                 var pts = t.Status == TaskStatus.RanToCompletion ? t.Result : null;
                 way = (pts is { Count: > 1 } ? pts : null, g, me);

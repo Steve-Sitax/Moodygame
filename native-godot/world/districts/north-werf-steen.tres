@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="script"]
+[ext_resource type="PackedScene" path="res://world/districts/north-werf-steen.tscn" id="scene"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-recovered/catalog.tres" id="catalog"]
+
+[resource]
+script = ExtResource("script")
+Id = "north-werf-steen"
+Title = "Werf and Het Steen"
+Scene = ExtResource("scene")
+Catalog = ExtResource("catalog")
+Bounds = Rect2(-345, -72, 205, 144)
+WalkSpawn = Vector3(-270, 0.02, 8.3)
+FlySpawn = Vector3(-205, 12, 4)
+FlyYaw = 0
+FlyPitch = -0.4

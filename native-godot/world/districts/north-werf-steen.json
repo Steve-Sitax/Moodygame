@@ -1,0 +1,484 @@
+{
+  "version": 1,
+  "id": "north-werf-steen",
+  "title": "Werf and Het Steen",
+  "bounds": [
+    -345,
+    -72,
+    205,
+    144
+  ],
+  "walkSpawn": [
+    -270,
+    0.02,
+    8.3
+  ],
+  "flySpawn": [
+    -205,
+    12,
+    4
+  ],
+  "flyYaw": 0,
+  "flyPitch": -0.4,
+  "sourceSha256": "ac8534149415142120f325986c7abd3818c38005206d45354f1ebb2619f3a7d9",
+  "sourceBytes": 977933624,
+  "sourceFactsMade": "2026-10-12T07:12:37.100Z",
+  "roots": [
+    {
+      "sourceIndex": 355,
+      "sourceName": "railway_gate",
+      "role": "railway-gate"
+    },
+    {
+      "sourceIndex": 1783,
+      "sourceName": "steenlife",
+      "role": "landmark-life"
+    },
+    {
+      "sourceIndex": 1967,
+      "sourceName": "steen",
+      "role": "landmark"
+    },
+    {
+      "sourceIndex": 2490,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 3935,
+      "sourceName": "house_shop:bakery_steen",
+      "role": "building"
+    },
+    {
+      "sourceIndex": 3946,
+      "sourceName": "house_shop:bakery_steen_openings",
+      "role": "opening-markers"
+    },
+    {
+      "sourceIndex": 3951,
+      "sourceName": "shutters_shop:bakery_steen",
+      "role": "shutters"
+    },
+    {
+      "sourceIndex": 3973,
+      "sourceName": "house_shop:chandler_werf",
+      "role": "building"
+    },
+    {
+      "sourceIndex": 3984,
+      "sourceName": "house_shop:chandler_werf_openings",
+      "role": "opening-markers"
+    },
+    {
+      "sourceIndex": 3987,
+      "sourceName": "shutters_shop:chandler_werf",
+      "role": "shutters"
+    },
+    {
+      "sourceIndex": 4081,
+      "sourceName": "house_shop:colonial_steen",
+      "role": "building"
+    },
+    {
+      "sourceIndex": 4092,
+      "sourceName": "house_shop:colonial_steen_openings",
+      "role": "opening-markers"
+    },
+    {
+      "sourceIndex": 4095,
+      "sourceName": "shutters_shop:colonial_steen",
+      "role": "shutters"
+    },
+    {
+      "sourceIndex": 4281,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4282,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4292,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4293,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4294,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4324,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4535,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4611,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4672,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4674,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 4710,
+      "sourceName": "house_tavern:schipke",
+      "role": "building"
+    },
+    {
+      "sourceIndex": 4721,
+      "sourceName": "house_tavern:schipke_openings",
+      "role": "opening-markers"
+    },
+    {
+      "sourceIndex": 4873,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 4878,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 4883,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 4888,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 4893,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 4898,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 4903,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 4908,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 4913,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 4918,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 4923,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 5133,
+      "sourceName": "gas_lamp",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 5253,
+      "sourceName": "lantern_bracket",
+      "role": "lamp"
+    },
+    {
+      "sourceIndex": 5696,
+      "sourceName": "landing_stage",
+      "role": "landing-stage"
+    },
+    {
+      "sourceIndex": 5709,
+      "sourceName": "landing_stage_piles",
+      "role": "landing-stage-piles"
+    },
+    {
+      "sourceIndex": 6101,
+      "sourceName": "portal_crane",
+      "role": "portal-crane"
+    },
+    {
+      "sourceIndex": 6106,
+      "sourceName": "portal_crane",
+      "role": "portal-crane"
+    },
+    {
+      "sourceIndex": 6111,
+      "sourceName": "portal_crane",
+      "role": "portal-crane"
+    },
+    {
+      "sourceIndex": 6654,
+      "sourceName": "",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 9343,
+      "sourceName": "ROOM_steen",
+      "role": "room"
+    },
+    {
+      "sourceIndex": 10047,
+      "sourceName": "ROOM_shop:bakery_steen",
+      "role": "room"
+    },
+    {
+      "sourceIndex": 10185,
+      "sourceName": "ROOM_shop:chandler_werf",
+      "role": "room"
+    },
+    {
+      "sourceIndex": 10553,
+      "sourceName": "ROOM_shop:colonial_steen",
+      "role": "room"
+    },
+    {
+      "sourceIndex": 11724,
+      "sourceName": "ROOM_tavern:schipke",
+      "role": "room"
+    }
+  ],
+  "sharedRoots": [
+    4,
+    320,
+    352,
+    1526,
+    1530,
+    1531,
+    1532,
+    1533,
+    1537,
+    1538,
+    1539,
+    1540,
+    1541,
+    1542,
+    1543,
+    1595,
+    1609,
+    1610,
+    3358,
+    3628,
+    5768,
+    5859,
+    6116,
+    6137,
+    6138,
+    6139,
+    6140,
+    6147,
+    6211,
+    6230,
+    6245,
+    6258,
+    6274,
+    6277,
+    6280,
+    6283,
+    6286,
+    6289,
+    6318,
+    6338,
+    6339,
+    6347,
+    6431,
+    6734,
+    6773,
+    7692,
+    7947,
+    8034,
+    8043,
+    8052,
+    8062,
+    8132,
+    8211,
+    8212,
+    8217,
+    8330,
+    8370,
+    12420,
+    12438,
+    12456,
+    12474,
+    12492,
+    12510,
+    12528,
+    12546
+  ],
+  "rooms": [
+    {
+      "id": "steen",
+      "sourceIndices": [
+        9343
+      ],
+      "expectedNodes": 39,
+      "expectedHiddenNodes": 4,
+      "expectedSkinNodes": 0
+    },
+    {
+      "id": "shop:bakery_steen",
+      "sourceIndices": [
+        10047
+      ],
+      "expectedNodes": 71,
+      "expectedHiddenNodes": 5,
+      "expectedSkinNodes": 0
+    },
+    {
+      "id": "shop:chandler_werf",
+      "sourceIndices": [
+        10185
+      ],
+      "expectedNodes": 61,
+      "expectedHiddenNodes": 4,
+      "expectedSkinNodes": 0
+    },
+    {
+      "id": "shop:colonial_steen",
+      "sourceIndices": [
+        10553
+      ],
+      "expectedNodes": 74,
+      "expectedHiddenNodes": 4,
+      "expectedSkinNodes": 0
+    },
+    {
+      "id": "tavern:schipke",
+      "sourceIndices": [
+        11724
+      ],
+      "expectedNodes": 71,
+      "expectedHiddenNodes": 3,
+      "expectedSkinNodes": 0
+    }
+  ],
+  "entrances": [
+    {
+      "id": "opening_shop:bakery_steen_door",
+      "sourceIndices": [
+        3946,
+        3947
+      ],
+      "kind": "street-door"
+    },
+    {
+      "id": "opening_shop:chandler_werf_door",
+      "sourceIndices": [
+        3984,
+        3985
+      ],
+      "kind": "street-door"
+    },
+    {
+      "id": "opening_shop:colonial_steen_door",
+      "sourceIndices": [
+        4092,
+        4093
+      ],
+      "kind": "street-door"
+    },
+    {
+      "id": "opening_tavern:schipke_door",
+      "sourceIndices": [
+        4721,
+        4722
+      ],
+      "kind": "street-door"
+    },
+    {
+      "id": "steen_museum",
+      "sourceIndices": [
+        1967,
+        1968,
+        9343
+      ],
+      "kind": "landmark-door",
+      "step": [
+        -183.5,
+        2.2,
+        -21.6
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "id": "preserve-room-steen",
+      "description": "Preserve room root, all nested hidden nodes, semantic id and lights/fog metadata; check ingress/egress in-game."
+    },
+    {
+      "id": "preserve-room-shop:bakery_steen",
+      "description": "Preserve room root, all nested hidden nodes, semantic id and lights/fog metadata; check ingress/egress in-game."
+    },
+    {
+      "id": "preserve-room-shop:chandler_werf",
+      "description": "Preserve room root, all nested hidden nodes, semantic id and lights/fog metadata; check ingress/egress in-game."
+    },
+    {
+      "id": "preserve-room-shop:colonial_steen",
+      "description": "Preserve room root, all nested hidden nodes, semantic id and lights/fog metadata; check ingress/egress in-game."
+    },
+    {
+      "id": "preserve-room-tavern:schipke",
+      "description": "Preserve room root, all nested hidden nodes, semantic id and lights/fog metadata; check ingress/egress in-game."
+    },
+    {
+      "id": "direct-root-hierarchy",
+      "description": "Every listed root remains a direct world child, at the original world transform. Shared roots are instantiated exactly once."
+    },
+    {
+      "id": "edge-material-weather",
+      "description": "Rendered close/low views from both sides and below; verify geometry bevels, aligned relief, dry daylight, rain/wetness, darkness and reflections."
+    },
+    {
+      "id": "clear-walk-spawn",
+      "description": "Physics ray/body sweep at walkSpawn must find navigable ground and body clearance; source bounds alone do not prove this."
+    },
+    {
+      "id": "editor-authoring",
+      "description": "Open native subset, select an independent lamp root, duplicate/place/save in a copied test scene and verify the placement in-game."
+    }
+  ],
+  "exceptions": [
+    "Hidden/mating masonry joins may remain sharp. Museum door hinges, glazing/sheet rims and machined rail surfaces retain construction-appropriate edges; this is not an exemption for exposed stone arrises."
+  ],
+  "notes": [
+    "Root indices identify this exact completed snapshot; names may be empty or duplicated. Do not locate roots by name alone.",
+    "Bounds constrain author placement and review cameras. They never clip root geometry or reparent runtime children.",
+    "Shared city, quay/pier, tide/water, traffic, bridges, moorings, railway, generic dressing and crowd roots occur once under the runtime world. These indices are references only.",
+    "mills3628 spans the harbour led dray3629 and outer mill assets; retain the complete shared root and inspect child3629 in this region.",
+    "ROOM roots retain all nested hidden door/window punch meshes, shutters, lamps, fire data and opening metadata.",
+    "Original Rijnkaai seed and Steve's saved 15-object authoring layout remain authoritative; preserve ids and resolve source-overlay duplication before release."
+  ]
+}

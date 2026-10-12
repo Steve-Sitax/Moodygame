@@ -13,9 +13,20 @@ public static class ModelExtras
     {
         if(!files.TryGetValue(file,out var nodes))
         {
+            if (ModelLibrary.NativeScene != null)
+            {
+                string native = "res://assets/game-models/" + file + ".extras.json";
+                nodes = new(); files[file] = nodes;
+                if (!Godot.FileAccess.FileExists(native)) return null;
+                using var metadata = JsonDocument.Parse(Godot.FileAccess.GetFileAsString(native));
+                foreach (var property in metadata.RootElement.EnumerateObject()) nodes[property.Name] = property.Value.Clone();
+            }
+            else
+            {
             nodes=new();files[file]=nodes;string path=Path.Combine(ModelLibrary.Dir,file+".glb");if(!File.Exists(path))return null;
             using var read=new BinaryReader(File.OpenRead(path));if(read.ReadUInt32()!=0x46546c67)return null;read.ReadUInt32();read.ReadUInt32();int len=read.ReadInt32();if(read.ReadUInt32()!=0x4e4f534a)return null;
             using var doc=JsonDocument.Parse(read.ReadBytes(len));foreach(var n in doc.RootElement.GetProperty("nodes").EnumerateArray())if(n.TryGetProperty("name",out var name)&&n.TryGetProperty("extras",out var extra))nodes[name.GetString()!]=extra.Clone();
+            }
         }
         if(!nodes.TryGetValue(node,out var ex)||!ex.TryGetProperty(key,out var value))return null;
         if(value.ValueKind!=JsonValueKind.String)return value;

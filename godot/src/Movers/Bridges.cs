@@ -350,6 +350,7 @@ public partial class Bridges : Node
 
     public override void _Process(double delta)
     {
+        if(NetRemote)return;
         if (devOpen && Lock.I != null)
         {
             devOpen = false;
@@ -401,6 +402,7 @@ public partial class Bridges : Node
     /// <summary>A rowing boat that does not fit under a bridge asks it to open, or lets it go; `who` names the asker.</summary>
     public void Request(string key, string who, bool on)
     {
+        if(NetRemote){NetAsk?.Invoke("bridge",new System.Text.Json.Nodes.JsonArray(key,on));return;}
         var c = ctls.FirstOrDefault(q => q.Key == key);
         if (c != null)
         {

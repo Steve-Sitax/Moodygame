@@ -44,7 +44,7 @@ public partial class HomeLife : Node
     public override void _Ready()
     {
         I = this;
-        using var doc = JsonDocument.Parse(File.ReadAllText(ProjectSettings.GlobalizePath("res://assets/places.json")));
+        using var doc = JsonDocument.Parse(Godot.FileAccess.GetFileAsString("res://assets/places.json"));
         foreach (var h in doc.RootElement.GetProperty("homes").EnumerateArray())
         {
             var o = h.GetProperty("origin"); var rf = h.GetProperty("room_frame"); var def = h.GetProperty("definition");

@@ -1,0 +1,4441 @@
+{
+  "version": 1,
+  "items": {
+    "herring": {
+      "name": "a salt herring",
+      "food": 2,
+      "use": "eat"
+    },
+    "eel": {
+      "name": "a smoked eel",
+      "food": 4,
+      "use": "eat"
+    },
+    "biscuit": {
+      "name": "ship's biscuit",
+      "food": 2,
+      "use": "eat"
+    },
+    "jenever": {
+      "name": "a nip of jenever",
+      "warmth": 2,
+      "health": -1,
+      "use": "drink",
+      "note": "Warms you now. The pastoor will smell it."
+    },
+    "bread": {
+      "name": "a loaf of rye bread",
+      "food": 3,
+      "use": "eat"
+    },
+    "apple": {
+      "name": "an apple",
+      "food": 1,
+      "use": "eat"
+    },
+    "beer": {
+      "name": "a pot of brown beer",
+      "food": 1,
+      "warmth": 1,
+      "use": "drink"
+    },
+    "parcel": {
+      "name": "a parcel",
+      "note": "Tied with tarred string. Don't open it."
+    },
+    "lantern": {
+      "name": "a hand lantern",
+      "note": "Tin and horn, a tallow candle inside. L to hold it up."
+    },
+    "soup": {
+      "name": "a bowl of pea soup",
+      "food": 3,
+      "warmth": 2,
+      "use": "eat",
+      "atCounter": true
+    },
+    "newspaper": {
+      "name": "the morning Handelsblad",
+      "use": "read",
+      "note": "Four pages of small print, still smelling of ink."
+    },
+    "letter": {
+      "name": "a letter",
+      "use": "read",
+      "note": "Folded and sealed with a blob of wax."
+    },
+    "letters": {
+      "name": "a bundle of letters",
+      "note": "Tied with string. Each goes to its own door."
+    },
+    "pawn_ticket": {
+      "name": "a pawn ticket",
+      "use": "read",
+      "note": "Printed card from the Berg van Barmhartigheid. Keep it safe."
+    },
+    "pocket_watch": {
+      "name": "a silver pocket watch",
+      "note": "Not yours. Somebody's initials on the lid."
+    },
+    "handkerchief": {
+      "name": "a linen handkerchief",
+      "note": "Good linen, a stranger's initials stitched in the corner."
+    },
+    "medal": {
+      "name": "your mother's silver medal",
+      "note": "Our Lady, on a worn blue ribbon. She pressed it into your hand the day you left."
+    },
+    "velocipede_new": {
+      "name": "a new velocipede",
+      "note": "Iron backbone, oak wheels with iron tyres, a leather saddle. Yours."
+    },
+    "velocipede_used": {
+      "name": "a second-hand velocipede",
+      "note": "Scratched paint, a patched saddle, and it goes as well as any. Yours."
+    },
+    "velocipede_hire": {
+      "name": "a velocipede for the day",
+      "note": "Back at his door before the day is out, or his boy fetches it."
+    },
+    "milk": {
+      "name": "a mug of fresh milk",
+      "food": 1,
+      "use": "drink"
+    },
+    "roll": {
+      "name": "a white roll",
+      "food": 1,
+      "use": "eat"
+    },
+    "mussels": {
+      "name": "a cone of boiled mussels",
+      "food": 2,
+      "warmth": 1,
+      "use": "eat"
+    },
+    "broom": {
+      "name": "a birch broom",
+      "note": "Birch twigs bound to a hazel stick. Every house in the lane has one like it."
+    },
+    "scarf": {
+      "name": "an old woollen scarf",
+      "note": "Darned in three colours, but it keeps the wind off your neck."
+    },
+    "knife": {
+      "name": "a clasp knife",
+      "note": "Horn handle, a blade he ground on his wheel while you waited."
+    },
+    "coal": {
+      "name": "a small bag of coal",
+      "note": "Heavy for its size, and black on everything it touches."
+    },
+    "candle": {
+      "name": "a votive candle",
+      "note": "Tallow, with a paper collar printed with Our Lady."
+    },
+    "rosary": {
+      "name": "a rosary of wooden beads",
+      "note": "Boxwood beads on a cord, a tin cross."
+    },
+    "holy_picture": {
+      "name": "a holy picture",
+      "note": "A small print of Our Lady of Antwerp, coloured by hand."
+    },
+    "peperkoek": {
+      "name": "a slice of peperkoek",
+      "food": 1,
+      "use": "eat",
+      "note": "Honey cake with anise, dark and sticky."
+    },
+    "sausage": {
+      "name": "a smoked sausage",
+      "food": 3,
+      "use": "eat"
+    },
+    "bacon": {
+      "name": "a piece of fat bacon",
+      "food": 4,
+      "warmth": 1,
+      "use": "eat"
+    },
+    "brawn": {
+      "name": "a slice of brawn",
+      "food": 2,
+      "use": "eat",
+      "note": "Head cheese in its jelly, wrapped in a cabbage leaf."
+    },
+    "cheese": {
+      "name": "a wedge of cheese",
+      "food": 2,
+      "use": "eat"
+    },
+    "candy": {
+      "name": "a twist of sugar candy",
+      "food": 1,
+      "use": "eat"
+    },
+    "figs": {
+      "name": "a bag of dried figs",
+      "food": 2,
+      "use": "eat"
+    },
+    "chocolate": {
+      "name": "a bar of chocolate",
+      "food": 2,
+      "warmth": 1,
+      "use": "eat"
+    },
+    "tea": {
+      "name": "a packet of tea",
+      "note": "A quarter pound of black tea in a paper with a Chinese stamp. A present, or to sell."
+    },
+    "pipe": {
+      "name": "a clay pipe with shag",
+      "warmth": 1,
+      "use": "smoke",
+      "note": "A short white clay pipe, filled. Lit with a lucifer from the box on the counter."
+    },
+    "cigar": {
+      "name": "a cigar",
+      "warmth": 1,
+      "use": "smoke",
+      "note": "A cheap Dutch cigar in a paper band."
+    },
+    "matches": {
+      "name": "a box of lucifers",
+      "note": "Sulphur matches in a card box. They strike on anything."
+    },
+    "syrup": {
+      "name": "a bottle of cough syrup",
+      "health": 1,
+      "use": "drink",
+      "note": "Brown, sweet and bitter, with a label in Latin."
+    },
+    "powder": {
+      "name": "a fever powder",
+      "health": 2,
+      "use": "eat",
+      "note": "Quinine and chalk folded in a paper. Swallowed with water."
+    },
+    "liquorice": {
+      "name": "a stick of liquorice",
+      "food": 1,
+      "use": "eat"
+    },
+    "wool_vest": {
+      "name": "a knitted wool vest",
+      "warmth": 3,
+      "use": "wear",
+      "note": "Grey wool, thick as a blanket. It goes under your coat."
+    },
+    "shawl": {
+      "name": "a woollen neckerchief",
+      "warmth": 2,
+      "use": "wear"
+    },
+    "flat_cap": {
+      "name": "a cloth flat cap",
+      "warmth": 1,
+      "use": "wear",
+      "note": "Tweed, lined. It keeps the drizzle off your head."
+    },
+    "felt_hat": {
+      "name": "a second-hand felt hat",
+      "warmth": 1,
+      "use": "wear",
+      "note": "A brown bowler with a worn band. You look almost like a clerk in it."
+    },
+    "boot_mend": {
+      "name": "your boots mended",
+      "warmth": 1,
+      "atCounter": true
+    },
+    "laces": {
+      "name": "a pair of leather laces",
+      "note": "Tanned thongs, long enough for any boot."
+    },
+    "shave": {
+      "name": "a shave",
+      "atCounter": true
+    },
+    "haircut": {
+      "name": "a haircut",
+      "atCounter": true
+    },
+    "coffee": {
+      "name": "a cup of coffee",
+      "warmth": 2,
+      "use": "drink"
+    },
+    "coffee_beans": {
+      "name": "a bag of roasted coffee",
+      "note": "Half a pound, still warm from the drum. A present fit for anyone."
+    },
+    "almanac": {
+      "name": "a printed almanac",
+      "note": "This year's Antwerp almanac: saints' days, tides, the fairs and a few jokes."
+    },
+    "paper_env": {
+      "name": "a sheet of paper and an envelope",
+      "note": "Good paper, for a letter of your own."
+    },
+    "penny_book": {
+      "name": "a cheap novel",
+      "note": "Thirty pages of murder and a lost heiress, printed in Brussels."
+    },
+    "prayer_book": {
+      "name": "a second-hand prayer book",
+      "note": "Leather worn to the board at the corners, somebody's name inside the cover."
+    },
+    "watch": {
+      "name": "a second-hand pocket watch",
+      "note": "Nickel case, a white dial, it keeps time if you wind it. The Berg lends on it."
+    },
+    "watch_key": {
+      "name": "a watch key",
+      "note": "A small brass key on a ring."
+    },
+    "chair": {
+      "name": "a rush-seated chair",
+      "note": "Rush seat, one leg mended.",
+      "carry": "arms"
+    },
+    "table": {
+      "name": "a deal table",
+      "note": "Scrubbed pine, rings from other men's pots.",
+      "carry": "arms"
+    },
+    "rug": {
+      "name": "a rag rug",
+      "note": "Woven from old coats. Keeps the cold off the floor.",
+      "carry": "arms"
+    },
+    "stove": {
+      "name": "a cast-iron stove",
+      "note": "A little pot-bellied stove, pipe included. Heavy.",
+      "carry": "arms"
+    },
+    "plant": {
+      "name": "a geranium in a pot",
+      "note": "Red, a bit leggy. Wants the light.",
+      "carry": "arms"
+    },
+    "birdcage": {
+      "name": "a finch in a cage",
+      "note": "A chaffinch in a wicker cage on a stand. It sings at dawn.",
+      "carry": "arms"
+    },
+    "picture": {
+      "name": "a framed print",
+      "note": "The cathedral spire in a black frame. Hang it on a wall."
+    },
+    "lamp": {
+      "name": "a hanging oil lamp",
+      "note": "Brass font, glass chimney. Hang it from a beam."
+    },
+    "clock": {
+      "name": "a wall clock",
+      "note": "A Black Forest clock. It ticks; the hour is the town's."
+    },
+    "curtains": {
+      "name": "a pair of curtains",
+      "note": "Faded red wool. For a window."
+    },
+    "handcart_new": {
+      "name": "a new handcart",
+      "note": "Ash shafts, elm wheels with iron tyres, a plank bed with rails. Yours."
+    },
+    "handcart_used": {
+      "name": "a second-hand handcart",
+      "note": "The paint is gone and one rail is new wood, but the wheels run true. Yours."
+    },
+    "handcart_hire": {
+      "name": "a handcart for the day",
+      "note": "Back at his door before the day is out, or his boy fetches it."
+    },
+    "ballad": {
+      "name": "a ballad sheet",
+      "use": "read",
+      "note": "Coarse grey paper, a smudged woodcut at the top, the words in cramped type."
+    }
+  },
+  "wares": {
+    "fientje": [
+      {
+        "kind": "herring",
+        "price_c": 5
+      },
+      {
+        "kind": "eel",
+        "price_c": 12
+      }
+    ],
+    "peeters": [
+      {
+        "kind": "biscuit",
+        "price_c": 4
+      },
+      {
+        "kind": "lantern",
+        "price_c": 40
+      }
+    ],
+    "tuur": [
+      {
+        "kind": "jenever",
+        "price_c": 10
+      }
+    ]
+  },
+  "npcWares": {
+    "bk001": [
+      {
+        "kind": "beer",
+        "price_c": 5
+      },
+      {
+        "kind": "jenever",
+        "price_c": 10
+      },
+      {
+        "kind": "soup",
+        "price_c": 8
+      }
+    ],
+    "bk003": [
+      {
+        "kind": "beer",
+        "price_c": 5
+      },
+      {
+        "kind": "jenever",
+        "price_c": 10
+      },
+      {
+        "kind": "soup",
+        "price_c": 8
+      }
+    ],
+    "bk005": [
+      {
+        "kind": "beer",
+        "price_c": 5
+      },
+      {
+        "kind": "jenever",
+        "price_c": 10
+      },
+      {
+        "kind": "soup",
+        "price_c": 8
+      }
+    ],
+    "bk007": [
+      {
+        "kind": "beer",
+        "price_c": 5
+      },
+      {
+        "kind": "jenever",
+        "price_c": 10
+      },
+      {
+        "kind": "soup",
+        "price_c": 8
+      }
+    ],
+    "bk542": [
+      {
+        "kind": "knife",
+        "price_c": 35
+      }
+    ],
+    "bk543": [
+      {
+        "kind": "scarf",
+        "price_c": 12
+      }
+    ],
+    "cafe_linde_0": [
+      {
+        "kind": "beer",
+        "price_c": 5
+      },
+      {
+        "kind": "jenever",
+        "price_c": 10
+      },
+      {
+        "kind": "soup",
+        "price_c": 8
+      }
+    ],
+    "cafe_zwarte_kat_0": [
+      {
+        "kind": "beer",
+        "price_c": 5
+      },
+      {
+        "kind": "jenever",
+        "price_c": 10
+      },
+      {
+        "kind": "soup",
+        "price_c": 8
+      }
+    ],
+    "dealer": [
+      {
+        "kind": "chair",
+        "price_c": 60
+      },
+      {
+        "kind": "table",
+        "price_c": 150
+      },
+      {
+        "kind": "rug",
+        "price_c": 80
+      },
+      {
+        "kind": "stove",
+        "price_c": 400
+      },
+      {
+        "kind": "plant",
+        "price_c": 15
+      },
+      {
+        "kind": "birdcage",
+        "price_c": 70
+      },
+      {
+        "kind": "picture",
+        "price_c": 40
+      },
+      {
+        "kind": "lamp",
+        "price_c": 90
+      },
+      {
+        "kind": "clock",
+        "price_c": 250
+      },
+      {
+        "kind": "curtains",
+        "price_c": 50
+      }
+    ],
+    "fientje": [
+      {
+        "kind": "herring",
+        "price_c": 5
+      },
+      {
+        "kind": "eel",
+        "price_c": 12
+      }
+    ],
+    "lv001": [
+      {
+        "kind": "milk",
+        "price_c": 3
+      }
+    ],
+    "lv002": [
+      {
+        "kind": "milk",
+        "price_c": 3
+      }
+    ],
+    "lv003": [
+      {
+        "kind": "roll",
+        "price_c": 2
+      },
+      {
+        "kind": "bread",
+        "price_c": 6
+      }
+    ],
+    "lv004": [
+      {
+        "kind": "roll",
+        "price_c": 2
+      },
+      {
+        "kind": "bread",
+        "price_c": 6
+      }
+    ],
+    "lv005": [
+      {
+        "kind": "knife",
+        "price_c": 35
+      }
+    ],
+    "lv006": [
+      {
+        "kind": "scarf",
+        "price_c": 12
+      }
+    ],
+    "lv007": [
+      {
+        "kind": "coal",
+        "price_c": 10
+      }
+    ],
+    "lv009": [
+      {
+        "kind": "mussels",
+        "price_c": 5
+      }
+    ],
+    "lv010": [
+      {
+        "kind": "broom",
+        "price_c": 15
+      }
+    ],
+    "lv014": [
+      {
+        "kind": "candle",
+        "price_c": 3
+      },
+      {
+        "kind": "holy_picture",
+        "price_c": 5
+      },
+      {
+        "kind": "rosary",
+        "price_c": 20
+      }
+    ],
+    "lv015": [
+      {
+        "kind": "candle",
+        "price_c": 3
+      },
+      {
+        "kind": "holy_picture",
+        "price_c": 5
+      },
+      {
+        "kind": "rosary",
+        "price_c": 20
+      }
+    ],
+    "lv016": [
+      {
+        "kind": "candle",
+        "price_c": 3
+      },
+      {
+        "kind": "holy_picture",
+        "price_c": 5
+      },
+      {
+        "kind": "rosary",
+        "price_c": 20
+      }
+    ],
+    "lv017": [
+      {
+        "kind": "candle",
+        "price_c": 3
+      },
+      {
+        "kind": "holy_picture",
+        "price_c": 5
+      },
+      {
+        "kind": "rosary",
+        "price_c": 20
+      }
+    ],
+    "peeters": [
+      {
+        "kind": "biscuit",
+        "price_c": 4
+      },
+      {
+        "kind": "lantern",
+        "price_c": 40
+      }
+    ],
+    "r014": [
+      {
+        "kind": "bread",
+        "price_c": 6
+      },
+      {
+        "kind": "peperkoek",
+        "price_c": 3
+      }
+    ],
+    "r015": [
+      {
+        "kind": "bread",
+        "price_c": 6
+      },
+      {
+        "kind": "peperkoek",
+        "price_c": 3
+      }
+    ],
+    "r016": [
+      {
+        "kind": "bread",
+        "price_c": 6
+      },
+      {
+        "kind": "peperkoek",
+        "price_c": 3
+      }
+    ],
+    "r019": [
+      {
+        "kind": "apple",
+        "price_c": 2
+      },
+      {
+        "kind": "cheese",
+        "price_c": 6
+      }
+    ],
+    "r022": [
+      {
+        "kind": "apple",
+        "price_c": 2
+      },
+      {
+        "kind": "cheese",
+        "price_c": 6
+      }
+    ],
+    "r023": [
+      {
+        "kind": "biscuit",
+        "price_c": 4
+      },
+      {
+        "kind": "lantern",
+        "price_c": 40
+      },
+      {
+        "kind": "matches",
+        "price_c": 2
+      }
+    ],
+    "r024": [
+      {
+        "kind": "biscuit",
+        "price_c": 4
+      },
+      {
+        "kind": "lantern",
+        "price_c": 40
+      },
+      {
+        "kind": "matches",
+        "price_c": 2
+      }
+    ],
+    "r027": [
+      {
+        "kind": "matches",
+        "price_c": 2
+      },
+      {
+        "kind": "pipe",
+        "price_c": 4
+      },
+      {
+        "kind": "cigar",
+        "price_c": 8
+      }
+    ],
+    "r028": [
+      {
+        "kind": "matches",
+        "price_c": 2
+      },
+      {
+        "kind": "pipe",
+        "price_c": 4
+      },
+      {
+        "kind": "cigar",
+        "price_c": 8
+      }
+    ],
+    "r030": [
+      {
+        "kind": "laces",
+        "price_c": 3
+      },
+      {
+        "kind": "boot_mend",
+        "price_c": 12
+      }
+    ],
+    "r031": [
+      {
+        "kind": "laces",
+        "price_c": 3
+      },
+      {
+        "kind": "boot_mend",
+        "price_c": 12
+      }
+    ],
+    "r034": [
+      {
+        "kind": "shawl",
+        "price_c": 25
+      },
+      {
+        "kind": "wool_vest",
+        "price_c": 45
+      }
+    ],
+    "r035": [
+      {
+        "kind": "shawl",
+        "price_c": 25
+      },
+      {
+        "kind": "wool_vest",
+        "price_c": 45
+      }
+    ],
+    "r037": [
+      {
+        "kind": "beer",
+        "price_c": 5
+      },
+      {
+        "kind": "jenever",
+        "price_c": 10
+      },
+      {
+        "kind": "soup",
+        "price_c": 8
+      }
+    ],
+    "r038": [
+      {
+        "kind": "beer",
+        "price_c": 5
+      },
+      {
+        "kind": "jenever",
+        "price_c": 10
+      },
+      {
+        "kind": "soup",
+        "price_c": 8
+      }
+    ],
+    "r039": [
+      {
+        "kind": "bread",
+        "price_c": 6
+      }
+    ],
+    "r043": [
+      {
+        "kind": "beer",
+        "price_c": 5
+      },
+      {
+        "kind": "jenever",
+        "price_c": 10
+      },
+      {
+        "kind": "soup",
+        "price_c": 8
+      }
+    ],
+    "r044": [
+      {
+        "kind": "beer",
+        "price_c": 5
+      },
+      {
+        "kind": "jenever",
+        "price_c": 10
+      },
+      {
+        "kind": "soup",
+        "price_c": 8
+      }
+    ],
+    "r048": [
+      {
+        "kind": "beer",
+        "price_c": 5
+      },
+      {
+        "kind": "jenever",
+        "price_c": 10
+      },
+      {
+        "kind": "soup",
+        "price_c": 8
+      }
+    ],
+    "r061": [
+      {
+        "kind": "herring",
+        "price_c": 5
+      },
+      {
+        "kind": "eel",
+        "price_c": 12
+      }
+    ],
+    "r066": [
+      {
+        "kind": "newspaper",
+        "price_c": 5
+      }
+    ],
+    "r106": [
+      {
+        "kind": "apple",
+        "price_c": 2
+      }
+    ],
+    "r108": [
+      {
+        "kind": "newspaper",
+        "price_c": 5
+      }
+    ],
+    "r122": [
+      {
+        "kind": "herring",
+        "price_c": 5
+      },
+      {
+        "kind": "eel",
+        "price_c": 12
+      }
+    ],
+    "r136": [
+      {
+        "kind": "herring",
+        "price_c": 5
+      },
+      {
+        "kind": "eel",
+        "price_c": 12
+      }
+    ],
+    "r141": [
+      {
+        "kind": "apple",
+        "price_c": 2
+      }
+    ],
+    "r153": [
+      {
+        "kind": "newspaper",
+        "price_c": 5
+      }
+    ],
+    "r155": [
+      {
+        "kind": "herring",
+        "price_c": 5
+      },
+      {
+        "kind": "eel",
+        "price_c": 12
+      }
+    ],
+    "r164": [
+      {
+        "kind": "herring",
+        "price_c": 5
+      },
+      {
+        "kind": "eel",
+        "price_c": 12
+      }
+    ],
+    "r175": [
+      {
+        "kind": "apple",
+        "price_c": 2
+      }
+    ],
+    "r184": [
+      {
+        "kind": "herring",
+        "price_c": 5
+      },
+      {
+        "kind": "eel",
+        "price_c": 12
+      }
+    ],
+    "sk_apothecary_markt": [
+      {
+        "kind": "liquorice",
+        "price_c": 2
+      },
+      {
+        "kind": "syrup",
+        "price_c": 15
+      },
+      {
+        "kind": "powder",
+        "price_c": 30
+      }
+    ],
+    "sk_bakery_south": [
+      {
+        "kind": "bread",
+        "price_c": 6
+      },
+      {
+        "kind": "peperkoek",
+        "price_c": 3
+      }
+    ],
+    "sk_barber_lane": [
+      {
+        "kind": "shave",
+        "price_c": 3
+      },
+      {
+        "kind": "haircut",
+        "price_c": 6
+      }
+    ],
+    "sk_books_kathedraal": [
+      {
+        "kind": "penny_book",
+        "price_c": 8
+      },
+      {
+        "kind": "prayer_book",
+        "price_c": 25
+      }
+    ],
+    "sk_butcher_vlees": [
+      {
+        "kind": "brawn",
+        "price_c": 4
+      },
+      {
+        "kind": "sausage",
+        "price_c": 7
+      },
+      {
+        "kind": "bacon",
+        "price_c": 10
+      }
+    ],
+    "sk_clock_markt": [
+      {
+        "kind": "watch_key",
+        "price_c": 5
+      },
+      {
+        "kind": "watch",
+        "price_c": 150
+      }
+    ],
+    "sk_cobbler_east": [
+      {
+        "kind": "laces",
+        "price_c": 3
+      },
+      {
+        "kind": "boot_mend",
+        "price_c": 12
+      }
+    ],
+    "sk_colonial_steen": [
+      {
+        "kind": "candy",
+        "price_c": 2
+      },
+      {
+        "kind": "figs",
+        "price_c": 5
+      },
+      {
+        "kind": "chocolate",
+        "price_c": 6
+      },
+      {
+        "kind": "tea",
+        "price_c": 18
+      }
+    ],
+    "sk_grocer_south": [
+      {
+        "kind": "apple",
+        "price_c": 2
+      },
+      {
+        "kind": "cheese",
+        "price_c": 6
+      }
+    ],
+    "sk_hatter_markt": [
+      {
+        "kind": "flat_cap",
+        "price_c": 25
+      },
+      {
+        "kind": "felt_hat",
+        "price_c": 60
+      }
+    ],
+    "sk_printer_jezuiet": [
+      {
+        "kind": "paper_env",
+        "price_c": 3
+      },
+      {
+        "kind": "almanac",
+        "price_c": 10
+      }
+    ],
+    "sk_roaster_canal": [
+      {
+        "kind": "coffee",
+        "price_c": 4
+      },
+      {
+        "kind": "coffee_beans",
+        "price_c": 20
+      }
+    ],
+    "tuur": [
+      {
+        "kind": "jenever",
+        "price_c": 10
+      }
+    ],
+    "velo_maker": [
+      {
+        "kind": "velocipede_used",
+        "price_c": 600
+      },
+      {
+        "kind": "velocipede_new",
+        "price_c": 1200
+      },
+      {
+        "kind": "velocipede_hire",
+        "price_c": 30
+      }
+    ],
+    "vishandel": [
+      {
+        "kind": "herring",
+        "price_c": 5
+      },
+      {
+        "kind": "eel",
+        "price_c": 12
+      }
+    ],
+    "wheelwright": [
+      {
+        "kind": "handcart_used",
+        "price_c": 200
+      },
+      {
+        "kind": "handcart_new",
+        "price_c": 380
+      },
+      {
+        "kind": "handcart_hire",
+        "price_c": 12
+      }
+    ]
+  },
+  "employers": {
+    "sooi": {
+      "name": "Sooi",
+      "faction": "naties",
+      "door": "hessenatie_door",
+      "note": "foreman of the Hessenatie, gruff but fair, hires day men at dawn",
+      "area": [
+        "pier_head",
+        "crane_foot",
+        "hessenatie_door",
+        "katoen_door",
+        "peeters_dock",
+        "ship_gangway",
+        "west_sheds",
+        "east_carts"
+      ],
+      "town": false
+    },
+    "peeters": {
+      "name": "Widow Peeters",
+      "faction": "burgerij",
+      "door": "peeters_dock",
+      "note": "ship chandler, careful with money, remembers favours",
+      "area": [
+        "pier_head",
+        "crane_foot",
+        "hessenatie_door",
+        "katoen_door",
+        "peeters_dock",
+        "ship_gangway",
+        "west_sheds",
+        "east_carts"
+      ],
+      "town": false
+    },
+    "tuur": {
+      "name": "Tuur",
+      "faction": "smokkelaars",
+      "door": "pier_head",
+      "note": "ferryman and night lighter, pays for silence, asks few questions",
+      "area": [
+        "pier_head",
+        "crane_foot",
+        "hessenatie_door",
+        "katoen_door",
+        "peeters_dock",
+        "ship_gangway",
+        "west_sheds",
+        "east_carts"
+      ],
+      "town": false
+    },
+    "katoen": {
+      "faction": "naties",
+      "door": "katoen_door",
+      "note": "foreman of the Katoennatie at the Entrepot on the Petit Bassin, loud and quick, pays by the load",
+      "area": [
+        "katoen_door",
+        "entrepot_quay",
+        "bassin_quay"
+      ],
+      "town": true
+    },
+    "vishandel": {
+      "faction": "burgerij",
+      "door": "vismarkt_stalls",
+      "note": "fish merchant who supplies the stalls of the Vismarkt, sharp and fast, hates waste",
+      "area": [
+        "vismarkt_stalls",
+        "vliet_steps",
+        "west_sheds",
+        "vleeshuis_door"
+      ],
+      "town": true
+    },
+    "waterschout": {
+      "faction": "politie",
+      "door": "werf_pontoon",
+      "note": "sergeant of the water police at the Werf, watches the ferry and seizes smuggled goods, wants honest eyes",
+      "area": [
+        "werf_pontoon",
+        "werf_quay",
+        "steen_gate"
+      ],
+      "town": true
+    },
+    "brouwer": {
+      "faction": "burgerij",
+      "door": "canal_quay",
+      "note": "brewer on the Canal des Brasseurs, barrels in and out all day, generous when the beer sells",
+      "area": [
+        "canal_quay",
+        "brewery_yard",
+        "canal_west"
+      ],
+      "town": true
+    },
+    "koster": {
+      "faction": "kerk",
+      "door": "cathedral_door",
+      "note": "sexton of the cathedral, errands for the chapter and the poor box, trusts the sober and the pious",
+      "area": [
+        "cathedral_door",
+        "markt_stalls",
+        "handschoen_well"
+      ],
+      "town": true
+    },
+    "fence": {
+      "faction": "smokkelaars",
+      "door": "vliet_steps",
+      "note": "a fence who waits behind De Vliet at the Vliet landing after dark, buys what fell off a cart, pays for quick errands and no questions",
+      "area": [
+        "vliet_steps",
+        "west_sheds",
+        "vleeshuis_door"
+      ],
+      "town": true,
+      "night": true
+    },
+    "smuggler": {
+      "faction": "smokkelaars",
+      "door": "werf_quay",
+      "note": "a night lighterman who lands untaxed goods on the Werf when the water police are abed, pays for strong backs and closed mouths",
+      "area": [
+        "werf_quay",
+        "werf_pontoon",
+        "steen_gate"
+      ],
+      "town": true,
+      "night": true
+    },
+    "nightcarter": {
+      "faction": "smokkelaars",
+      "door": "canal_west",
+      "note": "a carter on the west canal quay who moves barrels by night for men who do not give their names, and asks no questions",
+      "area": [
+        "canal_west",
+        "canal_quay",
+        "brewery_yard"
+      ],
+      "town": true,
+      "night": true
+    },
+    "cracksman": {
+      "faction": "smokkelaars",
+      "door": "bassin_south",
+      "note": "a man in a dark coat by the Petit Bassin who wants a lookout kept while he sees to a warehouse door",
+      "area": [
+        "bassin_south",
+        "bassin_quay",
+        "entrepot_quay"
+      ],
+      "town": true,
+      "night": true
+    }
+  },
+  "fallbackJobs": [
+    {
+      "title": "Two crates off the pier",
+      "employer": "sooi",
+      "task_type": "carry",
+      "goods": "crates",
+      "from": "pier_head",
+      "to": "crane_foot",
+      "twist": "none",
+      "urgent": false,
+      "recipient": "",
+      "pay_c": 90,
+      "risk": "low",
+      "pitch": "Two crates of coffee from the lighter at the pier head, to the foot of the crane. Mind the wet planks.",
+      "items": 2,
+      "cart": false,
+      "task": {
+        "kind": "carry",
+        "goods": "crates",
+        "count": 2,
+        "from": "pier_head",
+        "to": "crane_foot",
+        "twist": "none",
+        "limit_s": null
+      }
+    },
+    {
+      "title": "Stores for the widow",
+      "employer": "peeters",
+      "task_type": "carry",
+      "goods": "rope",
+      "from": "crane_foot",
+      "to": "peeters_dock",
+      "twist": "broken_goods",
+      "urgent": false,
+      "recipient": "",
+      "pay_c": 90,
+      "risk": "low",
+      "pitch": "Two coils of tarred rope from under the crane to my loading door. Count them twice.",
+      "items": 2,
+      "cart": false,
+      "task": {
+        "kind": "carry",
+        "goods": "rope",
+        "count": 2,
+        "from": "crane_foot",
+        "to": "peeters_dock",
+        "twist": "broken_goods",
+        "limit_s": null
+      }
+    },
+    {
+      "title": "Watch the west sheds",
+      "employer": "sooi",
+      "task_type": "watch",
+      "goods": "barrels",
+      "from": "west_sheds",
+      "to": "west_sheds",
+      "twist": "thief",
+      "urgent": false,
+      "recipient": "",
+      "pay_c": 80,
+      "risk": "medium",
+      "pitch": "Stand by the barrels at the west sheds till the bell. Keep your eyes open and your mouth shut.",
+      "task": {
+        "kind": "watch",
+        "goods": "barrels",
+        "post": "west_sheds",
+        "duration_s": 90,
+        "twist": "thief"
+      }
+    },
+    {
+      "title": "A parcel for the Anna Maria",
+      "employer": "tuur",
+      "task_type": "deliver",
+      "goods": "parcel",
+      "from": "pier_head",
+      "to": "ship_gangway",
+      "twist": "stranger_offer",
+      "urgent": true,
+      "recipient": "the mate of the Anna Maria",
+      "pay_c": 100,
+      "risk": "medium",
+      "pitch": "Take this to the mate at the gangway before the tide turns. Don't open it. Don't sell it.",
+      "task": {
+        "kind": "deliver",
+        "goods": "parcel",
+        "from": "pier_head",
+        "to": "ship_gangway",
+        "recipient": "the mate of the Anna Maria",
+        "twist": "stranger_offer",
+        "limit_s": 108
+      }
+    },
+    {
+      "title": "Cotton bales to the Entrepot",
+      "employer": "katoen",
+      "task_type": "carry",
+      "goods": "sacks",
+      "from": "entrepot_quay",
+      "to": "katoen_door",
+      "twist": "none",
+      "urgent": false,
+      "recipient": "",
+      "pay_c": 80,
+      "risk": "low",
+      "pitch": "Two bales off the lighter on the Entrepot quay, in at our door. Quick about it.",
+      "items": 2,
+      "cart": false,
+      "task": {
+        "kind": "carry",
+        "goods": "sacks",
+        "count": 2,
+        "from": "entrepot_quay",
+        "to": "katoen_door",
+        "twist": "none",
+        "limit_s": null
+      }
+    },
+    {
+      "title": "A letter for the pump",
+      "employer": "koster",
+      "task_type": "deliver",
+      "goods": "parcel",
+      "from": "cathedral_door",
+      "to": "handschoen_well",
+      "twist": "none",
+      "urgent": false,
+      "recipient": "the chapter's messenger",
+      "pay_c": 60,
+      "risk": "low",
+      "pitch": "The chapter's letter, to the messenger who waits by the pump on the Handschoenmarkt. Straight there.",
+      "task": {
+        "kind": "deliver",
+        "goods": "parcel",
+        "from": "cathedral_door",
+        "to": "handschoen_well",
+        "recipient": "the chapter's messenger",
+        "twist": "none",
+        "limit_s": null
+      }
+    },
+    {
+      "title": "A cartload for the natie",
+      "employer": "sooi",
+      "task_type": "carry",
+      "goods": "crates",
+      "from": "crane_foot",
+      "to": "hessenatie_door",
+      "twist": "none",
+      "urgent": false,
+      "recipient": "",
+      "pay_c": 140,
+      "risk": "low",
+      "pitch": "Five crates off the crane, in at the Hessenatie door. Take my handcart, it stands by the crates, and bring it back where it stood.",
+      "items": 5,
+      "cart": true,
+      "task": {
+        "kind": "carry",
+        "goods": "crates",
+        "count": 5,
+        "from": "crane_foot",
+        "to": "hessenatie_door",
+        "twist": "none",
+        "limit_s": null,
+        "cart": true
+      }
+    },
+    {
+      "title": "Two sacks off the gangway",
+      "employer": "sooi",
+      "task_type": "carry",
+      "goods": "sacks",
+      "from": "ship_gangway",
+      "to": "hessenatie_door",
+      "twist": "none",
+      "urgent": false,
+      "recipient": "",
+      "pay_c": 80,
+      "risk": "low",
+      "pitch": "Two sacks of grain off the gangway, in at the Hessenatie door. Keep them dry.",
+      "items": 2,
+      "cart": false,
+      "task": {
+        "kind": "carry",
+        "goods": "sacks",
+        "count": 1,
+        "from": "ship_gangway",
+        "to": "hessenatie_door",
+        "twist": "none",
+        "limit_s": null
+      }
+    },
+    {
+      "title": "Candles for the ship's cook",
+      "employer": "peeters",
+      "task_type": "deliver",
+      "goods": "parcel",
+      "from": "peeters_dock",
+      "to": "ship_gangway",
+      "twist": "none",
+      "urgent": false,
+      "recipient": "the cook at the gangway",
+      "pay_c": 70,
+      "risk": "low",
+      "pitch": "Candles and matches for the cook at the gangway. He has paid. Into his hands and nobody else's.",
+      "task": {
+        "kind": "deliver",
+        "goods": "parcel",
+        "from": "peeters_dock",
+        "to": "ship_gangway",
+        "recipient": "the cook at the gangway",
+        "twist": "none",
+        "limit_s": null
+      }
+    },
+    {
+      "title": "Mind the carts at the east end",
+      "employer": "tuur",
+      "task_type": "watch",
+      "goods": "barrels",
+      "from": "east_carts",
+      "to": "east_carts",
+      "twist": "bribe",
+      "urgent": false,
+      "recipient": "",
+      "pay_c": 80,
+      "risk": "medium",
+      "pitch": "Stand by the carts at the east end till the bell. Nobody touches the barrels, whatever they offer you.",
+      "task": {
+        "kind": "watch",
+        "goods": "barrels",
+        "post": "east_carts",
+        "duration_s": 90,
+        "twist": "bribe"
+      }
+    },
+    {
+      "title": "Hides to the west sheds",
+      "employer": "sooi",
+      "task_type": "carry",
+      "goods": "hides",
+      "from": "pier_head",
+      "to": "west_sheds",
+      "twist": "heavy_load",
+      "urgent": false,
+      "recipient": "",
+      "pay_c": 90,
+      "risk": "low",
+      "pitch": "Two bundles of hides from the pier head to the west sheds. They stink, and they are heavier than they look.",
+      "items": 2,
+      "cart": false,
+      "task": {
+        "kind": "carry",
+        "goods": "hides",
+        "count": 1,
+        "from": "pier_head",
+        "to": "crane_foot",
+        "twist": "heavy_load",
+        "limit_s": null
+      }
+    },
+    {
+      "title": "Rope back to the chandler",
+      "employer": "peeters",
+      "task_type": "carry",
+      "goods": "rope",
+      "from": "west_sheds",
+      "to": "peeters_dock",
+      "twist": "foreman_watches",
+      "urgent": false,
+      "recipient": "",
+      "pay_c": 80,
+      "risk": "low",
+      "pitch": "Two coils of my rope were left at the west sheds. Bring them back to my door. I shall be watching from the window.",
+      "items": 2,
+      "cart": false,
+      "task": {
+        "kind": "carry",
+        "goods": "rope",
+        "count": 1,
+        "from": "west_sheds",
+        "to": "peeters_dock",
+        "twist": "foreman_watches",
+        "limit_s": null
+      }
+    },
+    {
+      "title": "A parcel for the carter",
+      "employer": "tuur",
+      "task_type": "deliver",
+      "goods": "parcel",
+      "from": "pier_head",
+      "to": "east_carts",
+      "twist": "stranger_offer",
+      "urgent": false,
+      "recipient": "the carter at the east end",
+      "pay_c": 90,
+      "risk": "medium",
+      "pitch": "A small parcel for the carter at the east end. Ask him no questions and he will ask you none.",
+      "task": {
+        "kind": "deliver",
+        "goods": "parcel",
+        "from": "pier_head",
+        "to": "east_carts",
+        "recipient": "the carter at the east end",
+        "twist": "stranger_offer",
+        "limit_s": null
+      }
+    },
+    {
+      "title": "Watch the crates by the crane",
+      "employer": "sooi",
+      "task_type": "watch",
+      "goods": "crates",
+      "from": "crane_foot",
+      "to": "crane_foot",
+      "twist": "foreman_watches",
+      "urgent": false,
+      "recipient": "",
+      "pay_c": 70,
+      "risk": "low",
+      "pitch": "The crates under the crane want watching till the lighter comes back. Stay put and keep awake.",
+      "task": {
+        "kind": "watch",
+        "goods": "crates",
+        "post": "crane_foot",
+        "duration_s": 90,
+        "twist": "foreman_watches"
+      }
+    },
+    {
+      "title": "A barrel of tar",
+      "employer": "peeters",
+      "task_type": "carry",
+      "goods": "barrels",
+      "from": "katoen_door",
+      "to": "peeters_dock",
+      "twist": "broken_goods",
+      "urgent": false,
+      "recipient": "",
+      "pay_c": 70,
+      "risk": "low",
+      "pitch": "One barrel of tar from the Katoen door to my loading door. Roll it gently: it leaks.",
+      "items": 1,
+      "cart": false,
+      "task": {
+        "kind": "carry",
+        "goods": "barrels",
+        "count": 1,
+        "from": "katoen_door",
+        "to": "east_carts",
+        "twist": "broken_goods",
+        "limit_s": null
+      }
+    },
+    {
+      "title": "Crates to the crane",
+      "employer": "sooi",
+      "task_type": "carry",
+      "goods": "crates",
+      "from": "east_carts",
+      "to": "crane_foot",
+      "twist": "none",
+      "urgent": false,
+      "recipient": "",
+      "pay_c": 80,
+      "risk": "low",
+      "pitch": "Two crates from the carts at the east end to the foot of the crane. Mind the rails.",
+      "items": 2,
+      "cart": false,
+      "task": {
+        "kind": "carry",
+        "goods": "crates",
+        "count": 1,
+        "from": "east_carts",
+        "to": "crane_foot",
+        "twist": "none",
+        "limit_s": null
+      }
+    },
+    {
+      "title": "Back to the pier head",
+      "employer": "tuur",
+      "task_type": "deliver",
+      "goods": "parcel",
+      "from": "ship_gangway",
+      "to": "pier_head",
+      "twist": "thick_fog",
+      "urgent": true,
+      "recipient": "Tuur's boy at the pier head",
+      "pay_c": 90,
+      "risk": "medium",
+      "pitch": "Bring this from the gangway to my boy at the pier head before the ferry goes. Don't dawdle.",
+      "task": {
+        "kind": "deliver",
+        "goods": "parcel",
+        "from": "pier_head",
+        "to": "ship_gangway",
+        "recipient": "Tuur's boy at the pier head",
+        "twist": "thick_fog",
+        "limit_s": 108
+      }
+    }
+  ],
+  "fallbackBoards": {
+    "0:false": [
+      {
+        "title": "Two crates off the pier",
+        "employer": "sooi",
+        "task_type": "carry",
+        "goods": "crates",
+        "from": "pier_head",
+        "to": "crane_foot",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 90,
+        "risk": "low",
+        "pitch": "Two crates of coffee from the lighter at the pier head, to the foot of the crane. Mind the wet planks.",
+        "items": 2,
+        "cart": false,
+        "task": {
+          "kind": "carry",
+          "goods": "crates",
+          "count": 2,
+          "from": "pier_head",
+          "to": "crane_foot",
+          "twist": "none",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "Stores for the widow",
+        "employer": "peeters",
+        "task_type": "carry",
+        "goods": "rope",
+        "from": "crane_foot",
+        "to": "peeters_dock",
+        "twist": "broken_goods",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 90,
+        "risk": "low",
+        "pitch": "Two coils of tarred rope from under the crane to my loading door. Count them twice.",
+        "items": 2,
+        "cart": false,
+        "task": {
+          "kind": "carry",
+          "goods": "rope",
+          "count": 2,
+          "from": "crane_foot",
+          "to": "peeters_dock",
+          "twist": "broken_goods",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "Watch the west sheds",
+        "employer": "sooi",
+        "task_type": "watch",
+        "goods": "barrels",
+        "from": "west_sheds",
+        "to": "west_sheds",
+        "twist": "thief",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 80,
+        "risk": "medium",
+        "pitch": "Stand by the barrels at the west sheds till the bell. Keep your eyes open and your mouth shut.",
+        "task": {
+          "kind": "watch",
+          "goods": "barrels",
+          "post": "west_sheds",
+          "duration_s": 90,
+          "twist": "thief"
+        }
+      },
+      {
+        "title": "A parcel for the Anna Maria",
+        "employer": "tuur",
+        "task_type": "deliver",
+        "goods": "parcel",
+        "from": "pier_head",
+        "to": "ship_gangway",
+        "twist": "stranger_offer",
+        "urgent": true,
+        "recipient": "the mate of the Anna Maria",
+        "pay_c": 100,
+        "risk": "medium",
+        "pitch": "Take this to the mate at the gangway before the tide turns. Don't open it. Don't sell it.",
+        "task": {
+          "kind": "deliver",
+          "goods": "parcel",
+          "from": "pier_head",
+          "to": "ship_gangway",
+          "recipient": "the mate of the Anna Maria",
+          "twist": "stranger_offer",
+          "limit_s": 108
+        }
+      },
+      {
+        "title": "Cotton bales to the Entrepot",
+        "employer": "katoen",
+        "task_type": "carry",
+        "goods": "sacks",
+        "from": "entrepot_quay",
+        "to": "katoen_door",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 80,
+        "risk": "low",
+        "pitch": "Two bales off the lighter on the Entrepot quay, in at our door. Quick about it.",
+        "items": 2,
+        "cart": false,
+        "task": {
+          "kind": "carry",
+          "goods": "sacks",
+          "count": 2,
+          "from": "entrepot_quay",
+          "to": "katoen_door",
+          "twist": "none",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "A letter for the pump",
+        "employer": "koster",
+        "task_type": "deliver",
+        "goods": "parcel",
+        "from": "cathedral_door",
+        "to": "handschoen_well",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "the chapter's messenger",
+        "pay_c": 60,
+        "risk": "low",
+        "pitch": "The chapter's letter, to the messenger who waits by the pump on the Handschoenmarkt. Straight there.",
+        "task": {
+          "kind": "deliver",
+          "goods": "parcel",
+          "from": "cathedral_door",
+          "to": "handschoen_well",
+          "recipient": "the chapter's messenger",
+          "twist": "none",
+          "limit_s": null
+        }
+      }
+    ],
+    "0:true": [
+      {
+        "title": "Two crates off the pier",
+        "employer": "sooi",
+        "task_type": "carry",
+        "goods": "crates",
+        "from": "pier_head",
+        "to": "crane_foot",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 90,
+        "risk": "low",
+        "pitch": "Two crates of coffee from the lighter at the pier head, to the foot of the crane. Mind the wet planks.",
+        "items": 2,
+        "cart": false,
+        "task": {
+          "kind": "carry",
+          "goods": "crates",
+          "count": 2,
+          "from": "pier_head",
+          "to": "crane_foot",
+          "twist": "none",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "Stores for the widow",
+        "employer": "peeters",
+        "task_type": "carry",
+        "goods": "rope",
+        "from": "crane_foot",
+        "to": "peeters_dock",
+        "twist": "broken_goods",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 90,
+        "risk": "low",
+        "pitch": "Two coils of tarred rope from under the crane to my loading door. Count them twice.",
+        "items": 2,
+        "cart": false,
+        "task": {
+          "kind": "carry",
+          "goods": "rope",
+          "count": 2,
+          "from": "crane_foot",
+          "to": "peeters_dock",
+          "twist": "broken_goods",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "Watch the west sheds",
+        "employer": "sooi",
+        "task_type": "watch",
+        "goods": "barrels",
+        "from": "west_sheds",
+        "to": "west_sheds",
+        "twist": "thief",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 80,
+        "risk": "medium",
+        "pitch": "Stand by the barrels at the west sheds till the bell. Keep your eyes open and your mouth shut.",
+        "task": {
+          "kind": "watch",
+          "goods": "barrels",
+          "post": "west_sheds",
+          "duration_s": 90,
+          "twist": "thief"
+        }
+      },
+      {
+        "title": "A parcel for the Anna Maria",
+        "employer": "tuur",
+        "task_type": "deliver",
+        "goods": "parcel",
+        "from": "pier_head",
+        "to": "ship_gangway",
+        "twist": "stranger_offer",
+        "urgent": true,
+        "recipient": "the mate of the Anna Maria",
+        "pay_c": 100,
+        "risk": "medium",
+        "pitch": "Take this to the mate at the gangway before the tide turns. Don't open it. Don't sell it.",
+        "task": {
+          "kind": "deliver",
+          "goods": "parcel",
+          "from": "pier_head",
+          "to": "ship_gangway",
+          "recipient": "the mate of the Anna Maria",
+          "twist": "stranger_offer",
+          "limit_s": 108
+        }
+      },
+      {
+        "title": "Cotton bales to the Entrepot",
+        "employer": "katoen",
+        "task_type": "carry",
+        "goods": "sacks",
+        "from": "entrepot_quay",
+        "to": "katoen_door",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 80,
+        "risk": "low",
+        "pitch": "Two bales off the lighter on the Entrepot quay, in at our door. Quick about it.",
+        "items": 2,
+        "cart": false,
+        "task": {
+          "kind": "carry",
+          "goods": "sacks",
+          "count": 2,
+          "from": "entrepot_quay",
+          "to": "katoen_door",
+          "twist": "none",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "A letter for the pump",
+        "employer": "koster",
+        "task_type": "deliver",
+        "goods": "parcel",
+        "from": "cathedral_door",
+        "to": "handschoen_well",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "the chapter's messenger",
+        "pay_c": 60,
+        "risk": "low",
+        "pitch": "The chapter's letter, to the messenger who waits by the pump on the Handschoenmarkt. Straight there.",
+        "task": {
+          "kind": "deliver",
+          "goods": "parcel",
+          "from": "cathedral_door",
+          "to": "handschoen_well",
+          "recipient": "the chapter's messenger",
+          "twist": "none",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "A cartload for the natie",
+        "employer": "sooi",
+        "task_type": "carry",
+        "goods": "crates",
+        "from": "crane_foot",
+        "to": "hessenatie_door",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 140,
+        "risk": "low",
+        "pitch": "Five crates off the crane, in at the Hessenatie door. Take my handcart, it stands by the crates, and bring it back where it stood.",
+        "items": 5,
+        "cart": true,
+        "task": {
+          "kind": "carry",
+          "goods": "crates",
+          "count": 5,
+          "from": "crane_foot",
+          "to": "hessenatie_door",
+          "twist": "none",
+          "limit_s": null,
+          "cart": true
+        }
+      }
+    ],
+    "1:false": [
+      {
+        "title": "Two crates off the pier",
+        "employer": "sooi",
+        "task_type": "carry",
+        "goods": "crates",
+        "from": "pier_head",
+        "to": "crane_foot",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 150,
+        "risk": "low",
+        "pitch": "Two crates of coffee from the lighter at the pier head, to the foot of the crane. Mind the wet planks.",
+        "items": 2,
+        "cart": false,
+        "task": {
+          "kind": "carry",
+          "goods": "crates",
+          "count": 2,
+          "from": "pier_head",
+          "to": "crane_foot",
+          "twist": "none",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "Stores for the widow",
+        "employer": "peeters",
+        "task_type": "carry",
+        "goods": "rope",
+        "from": "crane_foot",
+        "to": "peeters_dock",
+        "twist": "broken_goods",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 150,
+        "risk": "low",
+        "pitch": "Two coils of tarred rope from under the crane to my loading door. Count them twice.",
+        "items": 2,
+        "cart": false,
+        "task": {
+          "kind": "carry",
+          "goods": "rope",
+          "count": 2,
+          "from": "crane_foot",
+          "to": "peeters_dock",
+          "twist": "broken_goods",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "Watch the west sheds",
+        "employer": "sooi",
+        "task_type": "watch",
+        "goods": "barrels",
+        "from": "west_sheds",
+        "to": "west_sheds",
+        "twist": "thief",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 150,
+        "risk": "medium",
+        "pitch": "Stand by the barrels at the west sheds till the bell. Keep your eyes open and your mouth shut.",
+        "task": {
+          "kind": "watch",
+          "goods": "barrels",
+          "post": "west_sheds",
+          "duration_s": 120,
+          "twist": "thief"
+        }
+      },
+      {
+        "title": "A parcel for the Anna Maria",
+        "employer": "tuur",
+        "task_type": "deliver",
+        "goods": "parcel",
+        "from": "pier_head",
+        "to": "ship_gangway",
+        "twist": "stranger_offer",
+        "urgent": true,
+        "recipient": "the mate of the Anna Maria",
+        "pay_c": 150,
+        "risk": "medium",
+        "pitch": "Take this to the mate at the gangway before the tide turns. Don't open it. Don't sell it.",
+        "task": {
+          "kind": "deliver",
+          "goods": "parcel",
+          "from": "pier_head",
+          "to": "ship_gangway",
+          "recipient": "the mate of the Anna Maria",
+          "twist": "stranger_offer",
+          "limit_s": 108
+        }
+      },
+      {
+        "title": "Cotton bales to the Entrepot",
+        "employer": "katoen",
+        "task_type": "carry",
+        "goods": "sacks",
+        "from": "entrepot_quay",
+        "to": "katoen_door",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 150,
+        "risk": "low",
+        "pitch": "Two bales off the lighter on the Entrepot quay, in at our door. Quick about it.",
+        "items": 2,
+        "cart": false,
+        "task": {
+          "kind": "carry",
+          "goods": "sacks",
+          "count": 2,
+          "from": "entrepot_quay",
+          "to": "katoen_door",
+          "twist": "none",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "A letter for the pump",
+        "employer": "koster",
+        "task_type": "deliver",
+        "goods": "parcel",
+        "from": "cathedral_door",
+        "to": "handschoen_well",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "the chapter's messenger",
+        "pay_c": 150,
+        "risk": "low",
+        "pitch": "The chapter's letter, to the messenger who waits by the pump on the Handschoenmarkt. Straight there.",
+        "task": {
+          "kind": "deliver",
+          "goods": "parcel",
+          "from": "cathedral_door",
+          "to": "handschoen_well",
+          "recipient": "the chapter's messenger",
+          "twist": "none",
+          "limit_s": null
+        }
+      }
+    ],
+    "1:true": [
+      {
+        "title": "Two crates off the pier",
+        "employer": "sooi",
+        "task_type": "carry",
+        "goods": "crates",
+        "from": "pier_head",
+        "to": "crane_foot",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 150,
+        "risk": "low",
+        "pitch": "Two crates of coffee from the lighter at the pier head, to the foot of the crane. Mind the wet planks.",
+        "items": 2,
+        "cart": false,
+        "task": {
+          "kind": "carry",
+          "goods": "crates",
+          "count": 2,
+          "from": "pier_head",
+          "to": "crane_foot",
+          "twist": "none",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "Stores for the widow",
+        "employer": "peeters",
+        "task_type": "carry",
+        "goods": "rope",
+        "from": "crane_foot",
+        "to": "peeters_dock",
+        "twist": "broken_goods",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 150,
+        "risk": "low",
+        "pitch": "Two coils of tarred rope from under the crane to my loading door. Count them twice.",
+        "items": 2,
+        "cart": false,
+        "task": {
+          "kind": "carry",
+          "goods": "rope",
+          "count": 2,
+          "from": "crane_foot",
+          "to": "peeters_dock",
+          "twist": "broken_goods",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "Watch the west sheds",
+        "employer": "sooi",
+        "task_type": "watch",
+        "goods": "barrels",
+        "from": "west_sheds",
+        "to": "west_sheds",
+        "twist": "thief",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 150,
+        "risk": "medium",
+        "pitch": "Stand by the barrels at the west sheds till the bell. Keep your eyes open and your mouth shut.",
+        "task": {
+          "kind": "watch",
+          "goods": "barrels",
+          "post": "west_sheds",
+          "duration_s": 120,
+          "twist": "thief"
+        }
+      },
+      {
+        "title": "A parcel for the Anna Maria",
+        "employer": "tuur",
+        "task_type": "deliver",
+        "goods": "parcel",
+        "from": "pier_head",
+        "to": "ship_gangway",
+        "twist": "stranger_offer",
+        "urgent": true,
+        "recipient": "the mate of the Anna Maria",
+        "pay_c": 150,
+        "risk": "medium",
+        "pitch": "Take this to the mate at the gangway before the tide turns. Don't open it. Don't sell it.",
+        "task": {
+          "kind": "deliver",
+          "goods": "parcel",
+          "from": "pier_head",
+          "to": "ship_gangway",
+          "recipient": "the mate of the Anna Maria",
+          "twist": "stranger_offer",
+          "limit_s": 108
+        }
+      },
+      {
+        "title": "Cotton bales to the Entrepot",
+        "employer": "katoen",
+        "task_type": "carry",
+        "goods": "sacks",
+        "from": "entrepot_quay",
+        "to": "katoen_door",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 150,
+        "risk": "low",
+        "pitch": "Two bales off the lighter on the Entrepot quay, in at our door. Quick about it.",
+        "items": 2,
+        "cart": false,
+        "task": {
+          "kind": "carry",
+          "goods": "sacks",
+          "count": 2,
+          "from": "entrepot_quay",
+          "to": "katoen_door",
+          "twist": "none",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "A letter for the pump",
+        "employer": "koster",
+        "task_type": "deliver",
+        "goods": "parcel",
+        "from": "cathedral_door",
+        "to": "handschoen_well",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "the chapter's messenger",
+        "pay_c": 150,
+        "risk": "low",
+        "pitch": "The chapter's letter, to the messenger who waits by the pump on the Handschoenmarkt. Straight there.",
+        "task": {
+          "kind": "deliver",
+          "goods": "parcel",
+          "from": "cathedral_door",
+          "to": "handschoen_well",
+          "recipient": "the chapter's messenger",
+          "twist": "none",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "A cartload for the natie",
+        "employer": "sooi",
+        "task_type": "carry",
+        "goods": "crates",
+        "from": "crane_foot",
+        "to": "hessenatie_door",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 225,
+        "risk": "low",
+        "pitch": "Five crates off the crane, in at the Hessenatie door. Take my handcart, it stands by the crates, and bring it back where it stood.",
+        "items": 5,
+        "cart": true,
+        "task": {
+          "kind": "carry",
+          "goods": "crates",
+          "count": 5,
+          "from": "crane_foot",
+          "to": "hessenatie_door",
+          "twist": "none",
+          "limit_s": null,
+          "cart": true
+        }
+      }
+    ],
+    "2:false": [
+      {
+        "title": "Two crates off the pier",
+        "employer": "sooi",
+        "task_type": "carry",
+        "goods": "crates",
+        "from": "pier_head",
+        "to": "crane_foot",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 300,
+        "risk": "low",
+        "pitch": "Two crates of coffee from the lighter at the pier head, to the foot of the crane. Mind the wet planks.",
+        "items": 2,
+        "cart": false,
+        "task": {
+          "kind": "carry",
+          "goods": "crates",
+          "count": 2,
+          "from": "pier_head",
+          "to": "crane_foot",
+          "twist": "none",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "Stores for the widow",
+        "employer": "peeters",
+        "task_type": "carry",
+        "goods": "rope",
+        "from": "crane_foot",
+        "to": "peeters_dock",
+        "twist": "broken_goods",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 300,
+        "risk": "low",
+        "pitch": "Two coils of tarred rope from under the crane to my loading door. Count them twice.",
+        "items": 2,
+        "cart": false,
+        "task": {
+          "kind": "carry",
+          "goods": "rope",
+          "count": 2,
+          "from": "crane_foot",
+          "to": "peeters_dock",
+          "twist": "broken_goods",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "Watch the west sheds",
+        "employer": "sooi",
+        "task_type": "watch",
+        "goods": "barrels",
+        "from": "west_sheds",
+        "to": "west_sheds",
+        "twist": "thief",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 300,
+        "risk": "medium",
+        "pitch": "Stand by the barrels at the west sheds till the bell. Keep your eyes open and your mouth shut.",
+        "task": {
+          "kind": "watch",
+          "goods": "barrels",
+          "post": "west_sheds",
+          "duration_s": 120,
+          "twist": "thief"
+        }
+      },
+      {
+        "title": "A parcel for the Anna Maria",
+        "employer": "tuur",
+        "task_type": "deliver",
+        "goods": "parcel",
+        "from": "pier_head",
+        "to": "ship_gangway",
+        "twist": "stranger_offer",
+        "urgent": true,
+        "recipient": "the mate of the Anna Maria",
+        "pay_c": 300,
+        "risk": "medium",
+        "pitch": "Take this to the mate at the gangway before the tide turns. Don't open it. Don't sell it.",
+        "task": {
+          "kind": "deliver",
+          "goods": "parcel",
+          "from": "pier_head",
+          "to": "ship_gangway",
+          "recipient": "the mate of the Anna Maria",
+          "twist": "stranger_offer",
+          "limit_s": 108
+        }
+      },
+      {
+        "title": "Cotton bales to the Entrepot",
+        "employer": "katoen",
+        "task_type": "carry",
+        "goods": "sacks",
+        "from": "entrepot_quay",
+        "to": "katoen_door",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 300,
+        "risk": "low",
+        "pitch": "Two bales off the lighter on the Entrepot quay, in at our door. Quick about it.",
+        "items": 2,
+        "cart": false,
+        "task": {
+          "kind": "carry",
+          "goods": "sacks",
+          "count": 2,
+          "from": "entrepot_quay",
+          "to": "katoen_door",
+          "twist": "none",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "A letter for the pump",
+        "employer": "koster",
+        "task_type": "deliver",
+        "goods": "parcel",
+        "from": "cathedral_door",
+        "to": "handschoen_well",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "the chapter's messenger",
+        "pay_c": 300,
+        "risk": "low",
+        "pitch": "The chapter's letter, to the messenger who waits by the pump on the Handschoenmarkt. Straight there.",
+        "task": {
+          "kind": "deliver",
+          "goods": "parcel",
+          "from": "cathedral_door",
+          "to": "handschoen_well",
+          "recipient": "the chapter's messenger",
+          "twist": "none",
+          "limit_s": null
+        }
+      }
+    ],
+    "2:true": [
+      {
+        "title": "Two crates off the pier",
+        "employer": "sooi",
+        "task_type": "carry",
+        "goods": "crates",
+        "from": "pier_head",
+        "to": "crane_foot",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 300,
+        "risk": "low",
+        "pitch": "Two crates of coffee from the lighter at the pier head, to the foot of the crane. Mind the wet planks.",
+        "items": 2,
+        "cart": false,
+        "task": {
+          "kind": "carry",
+          "goods": "crates",
+          "count": 2,
+          "from": "pier_head",
+          "to": "crane_foot",
+          "twist": "none",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "Stores for the widow",
+        "employer": "peeters",
+        "task_type": "carry",
+        "goods": "rope",
+        "from": "crane_foot",
+        "to": "peeters_dock",
+        "twist": "broken_goods",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 300,
+        "risk": "low",
+        "pitch": "Two coils of tarred rope from under the crane to my loading door. Count them twice.",
+        "items": 2,
+        "cart": false,
+        "task": {
+          "kind": "carry",
+          "goods": "rope",
+          "count": 2,
+          "from": "crane_foot",
+          "to": "peeters_dock",
+          "twist": "broken_goods",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "Watch the west sheds",
+        "employer": "sooi",
+        "task_type": "watch",
+        "goods": "barrels",
+        "from": "west_sheds",
+        "to": "west_sheds",
+        "twist": "thief",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 300,
+        "risk": "medium",
+        "pitch": "Stand by the barrels at the west sheds till the bell. Keep your eyes open and your mouth shut.",
+        "task": {
+          "kind": "watch",
+          "goods": "barrels",
+          "post": "west_sheds",
+          "duration_s": 120,
+          "twist": "thief"
+        }
+      },
+      {
+        "title": "A parcel for the Anna Maria",
+        "employer": "tuur",
+        "task_type": "deliver",
+        "goods": "parcel",
+        "from": "pier_head",
+        "to": "ship_gangway",
+        "twist": "stranger_offer",
+        "urgent": true,
+        "recipient": "the mate of the Anna Maria",
+        "pay_c": 300,
+        "risk": "medium",
+        "pitch": "Take this to the mate at the gangway before the tide turns. Don't open it. Don't sell it.",
+        "task": {
+          "kind": "deliver",
+          "goods": "parcel",
+          "from": "pier_head",
+          "to": "ship_gangway",
+          "recipient": "the mate of the Anna Maria",
+          "twist": "stranger_offer",
+          "limit_s": 108
+        }
+      },
+      {
+        "title": "Cotton bales to the Entrepot",
+        "employer": "katoen",
+        "task_type": "carry",
+        "goods": "sacks",
+        "from": "entrepot_quay",
+        "to": "katoen_door",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 300,
+        "risk": "low",
+        "pitch": "Two bales off the lighter on the Entrepot quay, in at our door. Quick about it.",
+        "items": 2,
+        "cart": false,
+        "task": {
+          "kind": "carry",
+          "goods": "sacks",
+          "count": 2,
+          "from": "entrepot_quay",
+          "to": "katoen_door",
+          "twist": "none",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "A letter for the pump",
+        "employer": "koster",
+        "task_type": "deliver",
+        "goods": "parcel",
+        "from": "cathedral_door",
+        "to": "handschoen_well",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "the chapter's messenger",
+        "pay_c": 300,
+        "risk": "low",
+        "pitch": "The chapter's letter, to the messenger who waits by the pump on the Handschoenmarkt. Straight there.",
+        "task": {
+          "kind": "deliver",
+          "goods": "parcel",
+          "from": "cathedral_door",
+          "to": "handschoen_well",
+          "recipient": "the chapter's messenger",
+          "twist": "none",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "A cartload for the natie",
+        "employer": "sooi",
+        "task_type": "carry",
+        "goods": "crates",
+        "from": "crane_foot",
+        "to": "hessenatie_door",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 450,
+        "risk": "low",
+        "pitch": "Five crates off the crane, in at the Hessenatie door. Take my handcart, it stands by the crates, and bring it back where it stood.",
+        "items": 5,
+        "cart": true,
+        "task": {
+          "kind": "carry",
+          "goods": "crates",
+          "count": 5,
+          "from": "crane_foot",
+          "to": "hessenatie_door",
+          "twist": "none",
+          "limit_s": null,
+          "cart": true
+        }
+      }
+    ],
+    "3:false": [
+      {
+        "title": "Two crates off the pier",
+        "employer": "sooi",
+        "task_type": "carry",
+        "goods": "crates",
+        "from": "pier_head",
+        "to": "crane_foot",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 600,
+        "risk": "low",
+        "pitch": "Two crates of coffee from the lighter at the pier head, to the foot of the crane. Mind the wet planks.",
+        "items": 2,
+        "cart": false,
+        "task": {
+          "kind": "carry",
+          "goods": "crates",
+          "count": 2,
+          "from": "pier_head",
+          "to": "crane_foot",
+          "twist": "none",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "Stores for the widow",
+        "employer": "peeters",
+        "task_type": "carry",
+        "goods": "rope",
+        "from": "crane_foot",
+        "to": "peeters_dock",
+        "twist": "broken_goods",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 600,
+        "risk": "low",
+        "pitch": "Two coils of tarred rope from under the crane to my loading door. Count them twice.",
+        "items": 2,
+        "cart": false,
+        "task": {
+          "kind": "carry",
+          "goods": "rope",
+          "count": 2,
+          "from": "crane_foot",
+          "to": "peeters_dock",
+          "twist": "broken_goods",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "Watch the west sheds",
+        "employer": "sooi",
+        "task_type": "watch",
+        "goods": "barrels",
+        "from": "west_sheds",
+        "to": "west_sheds",
+        "twist": "thief",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 600,
+        "risk": "medium",
+        "pitch": "Stand by the barrels at the west sheds till the bell. Keep your eyes open and your mouth shut.",
+        "task": {
+          "kind": "watch",
+          "goods": "barrels",
+          "post": "west_sheds",
+          "duration_s": 120,
+          "twist": "thief"
+        }
+      },
+      {
+        "title": "A parcel for the Anna Maria",
+        "employer": "tuur",
+        "task_type": "deliver",
+        "goods": "parcel",
+        "from": "pier_head",
+        "to": "ship_gangway",
+        "twist": "stranger_offer",
+        "urgent": true,
+        "recipient": "the mate of the Anna Maria",
+        "pay_c": 600,
+        "risk": "medium",
+        "pitch": "Take this to the mate at the gangway before the tide turns. Don't open it. Don't sell it.",
+        "task": {
+          "kind": "deliver",
+          "goods": "parcel",
+          "from": "pier_head",
+          "to": "ship_gangway",
+          "recipient": "the mate of the Anna Maria",
+          "twist": "stranger_offer",
+          "limit_s": 108
+        }
+      },
+      {
+        "title": "Cotton bales to the Entrepot",
+        "employer": "katoen",
+        "task_type": "carry",
+        "goods": "sacks",
+        "from": "entrepot_quay",
+        "to": "katoen_door",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 600,
+        "risk": "low",
+        "pitch": "Two bales off the lighter on the Entrepot quay, in at our door. Quick about it.",
+        "items": 2,
+        "cart": false,
+        "task": {
+          "kind": "carry",
+          "goods": "sacks",
+          "count": 2,
+          "from": "entrepot_quay",
+          "to": "katoen_door",
+          "twist": "none",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "A letter for the pump",
+        "employer": "koster",
+        "task_type": "deliver",
+        "goods": "parcel",
+        "from": "cathedral_door",
+        "to": "handschoen_well",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "the chapter's messenger",
+        "pay_c": 600,
+        "risk": "low",
+        "pitch": "The chapter's letter, to the messenger who waits by the pump on the Handschoenmarkt. Straight there.",
+        "task": {
+          "kind": "deliver",
+          "goods": "parcel",
+          "from": "cathedral_door",
+          "to": "handschoen_well",
+          "recipient": "the chapter's messenger",
+          "twist": "none",
+          "limit_s": null
+        }
+      }
+    ],
+    "3:true": [
+      {
+        "title": "Two crates off the pier",
+        "employer": "sooi",
+        "task_type": "carry",
+        "goods": "crates",
+        "from": "pier_head",
+        "to": "crane_foot",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 600,
+        "risk": "low",
+        "pitch": "Two crates of coffee from the lighter at the pier head, to the foot of the crane. Mind the wet planks.",
+        "items": 2,
+        "cart": false,
+        "task": {
+          "kind": "carry",
+          "goods": "crates",
+          "count": 2,
+          "from": "pier_head",
+          "to": "crane_foot",
+          "twist": "none",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "Stores for the widow",
+        "employer": "peeters",
+        "task_type": "carry",
+        "goods": "rope",
+        "from": "crane_foot",
+        "to": "peeters_dock",
+        "twist": "broken_goods",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 600,
+        "risk": "low",
+        "pitch": "Two coils of tarred rope from under the crane to my loading door. Count them twice.",
+        "items": 2,
+        "cart": false,
+        "task": {
+          "kind": "carry",
+          "goods": "rope",
+          "count": 2,
+          "from": "crane_foot",
+          "to": "peeters_dock",
+          "twist": "broken_goods",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "Watch the west sheds",
+        "employer": "sooi",
+        "task_type": "watch",
+        "goods": "barrels",
+        "from": "west_sheds",
+        "to": "west_sheds",
+        "twist": "thief",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 600,
+        "risk": "medium",
+        "pitch": "Stand by the barrels at the west sheds till the bell. Keep your eyes open and your mouth shut.",
+        "task": {
+          "kind": "watch",
+          "goods": "barrels",
+          "post": "west_sheds",
+          "duration_s": 120,
+          "twist": "thief"
+        }
+      },
+      {
+        "title": "A parcel for the Anna Maria",
+        "employer": "tuur",
+        "task_type": "deliver",
+        "goods": "parcel",
+        "from": "pier_head",
+        "to": "ship_gangway",
+        "twist": "stranger_offer",
+        "urgent": true,
+        "recipient": "the mate of the Anna Maria",
+        "pay_c": 600,
+        "risk": "medium",
+        "pitch": "Take this to the mate at the gangway before the tide turns. Don't open it. Don't sell it.",
+        "task": {
+          "kind": "deliver",
+          "goods": "parcel",
+          "from": "pier_head",
+          "to": "ship_gangway",
+          "recipient": "the mate of the Anna Maria",
+          "twist": "stranger_offer",
+          "limit_s": 108
+        }
+      },
+      {
+        "title": "Cotton bales to the Entrepot",
+        "employer": "katoen",
+        "task_type": "carry",
+        "goods": "sacks",
+        "from": "entrepot_quay",
+        "to": "katoen_door",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 600,
+        "risk": "low",
+        "pitch": "Two bales off the lighter on the Entrepot quay, in at our door. Quick about it.",
+        "items": 2,
+        "cart": false,
+        "task": {
+          "kind": "carry",
+          "goods": "sacks",
+          "count": 2,
+          "from": "entrepot_quay",
+          "to": "katoen_door",
+          "twist": "none",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "A letter for the pump",
+        "employer": "koster",
+        "task_type": "deliver",
+        "goods": "parcel",
+        "from": "cathedral_door",
+        "to": "handschoen_well",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "the chapter's messenger",
+        "pay_c": 600,
+        "risk": "low",
+        "pitch": "The chapter's letter, to the messenger who waits by the pump on the Handschoenmarkt. Straight there.",
+        "task": {
+          "kind": "deliver",
+          "goods": "parcel",
+          "from": "cathedral_door",
+          "to": "handschoen_well",
+          "recipient": "the chapter's messenger",
+          "twist": "none",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "A cartload for the natie",
+        "employer": "sooi",
+        "task_type": "carry",
+        "goods": "crates",
+        "from": "crane_foot",
+        "to": "hessenatie_door",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 1050,
+        "risk": "low",
+        "pitch": "Five crates off the crane, in at the Hessenatie door. Take my handcart, it stands by the crates, and bring it back where it stood.",
+        "items": 5,
+        "cart": true,
+        "task": {
+          "kind": "carry",
+          "goods": "crates",
+          "count": 5,
+          "from": "crane_foot",
+          "to": "hessenatie_door",
+          "twist": "none",
+          "limit_s": null,
+          "cart": true
+        }
+      }
+    ],
+    "4:false": [
+      {
+        "title": "Two crates off the pier",
+        "employer": "sooi",
+        "task_type": "carry",
+        "goods": "crates",
+        "from": "pier_head",
+        "to": "crane_foot",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 1500,
+        "risk": "low",
+        "pitch": "Two crates of coffee from the lighter at the pier head, to the foot of the crane. Mind the wet planks.",
+        "items": 2,
+        "cart": false,
+        "task": {
+          "kind": "carry",
+          "goods": "crates",
+          "count": 2,
+          "from": "pier_head",
+          "to": "crane_foot",
+          "twist": "none",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "Stores for the widow",
+        "employer": "peeters",
+        "task_type": "carry",
+        "goods": "rope",
+        "from": "crane_foot",
+        "to": "peeters_dock",
+        "twist": "broken_goods",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 1500,
+        "risk": "low",
+        "pitch": "Two coils of tarred rope from under the crane to my loading door. Count them twice.",
+        "items": 2,
+        "cart": false,
+        "task": {
+          "kind": "carry",
+          "goods": "rope",
+          "count": 2,
+          "from": "crane_foot",
+          "to": "peeters_dock",
+          "twist": "broken_goods",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "Watch the west sheds",
+        "employer": "sooi",
+        "task_type": "watch",
+        "goods": "barrels",
+        "from": "west_sheds",
+        "to": "west_sheds",
+        "twist": "thief",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 1500,
+        "risk": "medium",
+        "pitch": "Stand by the barrels at the west sheds till the bell. Keep your eyes open and your mouth shut.",
+        "task": {
+          "kind": "watch",
+          "goods": "barrels",
+          "post": "west_sheds",
+          "duration_s": 120,
+          "twist": "thief"
+        }
+      },
+      {
+        "title": "A parcel for the Anna Maria",
+        "employer": "tuur",
+        "task_type": "deliver",
+        "goods": "parcel",
+        "from": "pier_head",
+        "to": "ship_gangway",
+        "twist": "stranger_offer",
+        "urgent": true,
+        "recipient": "the mate of the Anna Maria",
+        "pay_c": 1500,
+        "risk": "medium",
+        "pitch": "Take this to the mate at the gangway before the tide turns. Don't open it. Don't sell it.",
+        "task": {
+          "kind": "deliver",
+          "goods": "parcel",
+          "from": "pier_head",
+          "to": "ship_gangway",
+          "recipient": "the mate of the Anna Maria",
+          "twist": "stranger_offer",
+          "limit_s": 108
+        }
+      },
+      {
+        "title": "Cotton bales to the Entrepot",
+        "employer": "katoen",
+        "task_type": "carry",
+        "goods": "sacks",
+        "from": "entrepot_quay",
+        "to": "katoen_door",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 1500,
+        "risk": "low",
+        "pitch": "Two bales off the lighter on the Entrepot quay, in at our door. Quick about it.",
+        "items": 2,
+        "cart": false,
+        "task": {
+          "kind": "carry",
+          "goods": "sacks",
+          "count": 2,
+          "from": "entrepot_quay",
+          "to": "katoen_door",
+          "twist": "none",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "A letter for the pump",
+        "employer": "koster",
+        "task_type": "deliver",
+        "goods": "parcel",
+        "from": "cathedral_door",
+        "to": "handschoen_well",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "the chapter's messenger",
+        "pay_c": 1500,
+        "risk": "low",
+        "pitch": "The chapter's letter, to the messenger who waits by the pump on the Handschoenmarkt. Straight there.",
+        "task": {
+          "kind": "deliver",
+          "goods": "parcel",
+          "from": "cathedral_door",
+          "to": "handschoen_well",
+          "recipient": "the chapter's messenger",
+          "twist": "none",
+          "limit_s": null
+        }
+      }
+    ],
+    "4:true": [
+      {
+        "title": "Two crates off the pier",
+        "employer": "sooi",
+        "task_type": "carry",
+        "goods": "crates",
+        "from": "pier_head",
+        "to": "crane_foot",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 1500,
+        "risk": "low",
+        "pitch": "Two crates of coffee from the lighter at the pier head, to the foot of the crane. Mind the wet planks.",
+        "items": 2,
+        "cart": false,
+        "task": {
+          "kind": "carry",
+          "goods": "crates",
+          "count": 2,
+          "from": "pier_head",
+          "to": "crane_foot",
+          "twist": "none",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "Stores for the widow",
+        "employer": "peeters",
+        "task_type": "carry",
+        "goods": "rope",
+        "from": "crane_foot",
+        "to": "peeters_dock",
+        "twist": "broken_goods",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 1500,
+        "risk": "low",
+        "pitch": "Two coils of tarred rope from under the crane to my loading door. Count them twice.",
+        "items": 2,
+        "cart": false,
+        "task": {
+          "kind": "carry",
+          "goods": "rope",
+          "count": 2,
+          "from": "crane_foot",
+          "to": "peeters_dock",
+          "twist": "broken_goods",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "Watch the west sheds",
+        "employer": "sooi",
+        "task_type": "watch",
+        "goods": "barrels",
+        "from": "west_sheds",
+        "to": "west_sheds",
+        "twist": "thief",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 1500,
+        "risk": "medium",
+        "pitch": "Stand by the barrels at the west sheds till the bell. Keep your eyes open and your mouth shut.",
+        "task": {
+          "kind": "watch",
+          "goods": "barrels",
+          "post": "west_sheds",
+          "duration_s": 120,
+          "twist": "thief"
+        }
+      },
+      {
+        "title": "A parcel for the Anna Maria",
+        "employer": "tuur",
+        "task_type": "deliver",
+        "goods": "parcel",
+        "from": "pier_head",
+        "to": "ship_gangway",
+        "twist": "stranger_offer",
+        "urgent": true,
+        "recipient": "the mate of the Anna Maria",
+        "pay_c": 1500,
+        "risk": "medium",
+        "pitch": "Take this to the mate at the gangway before the tide turns. Don't open it. Don't sell it.",
+        "task": {
+          "kind": "deliver",
+          "goods": "parcel",
+          "from": "pier_head",
+          "to": "ship_gangway",
+          "recipient": "the mate of the Anna Maria",
+          "twist": "stranger_offer",
+          "limit_s": 108
+        }
+      },
+      {
+        "title": "Cotton bales to the Entrepot",
+        "employer": "katoen",
+        "task_type": "carry",
+        "goods": "sacks",
+        "from": "entrepot_quay",
+        "to": "katoen_door",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 1500,
+        "risk": "low",
+        "pitch": "Two bales off the lighter on the Entrepot quay, in at our door. Quick about it.",
+        "items": 2,
+        "cart": false,
+        "task": {
+          "kind": "carry",
+          "goods": "sacks",
+          "count": 2,
+          "from": "entrepot_quay",
+          "to": "katoen_door",
+          "twist": "none",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "A letter for the pump",
+        "employer": "koster",
+        "task_type": "deliver",
+        "goods": "parcel",
+        "from": "cathedral_door",
+        "to": "handschoen_well",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "the chapter's messenger",
+        "pay_c": 1500,
+        "risk": "low",
+        "pitch": "The chapter's letter, to the messenger who waits by the pump on the Handschoenmarkt. Straight there.",
+        "task": {
+          "kind": "deliver",
+          "goods": "parcel",
+          "from": "cathedral_door",
+          "to": "handschoen_well",
+          "recipient": "the chapter's messenger",
+          "twist": "none",
+          "limit_s": null
+        }
+      },
+      {
+        "title": "A cartload for the natie",
+        "employer": "sooi",
+        "task_type": "carry",
+        "goods": "crates",
+        "from": "crane_foot",
+        "to": "hessenatie_door",
+        "twist": "none",
+        "urgent": false,
+        "recipient": "",
+        "pay_c": 2250,
+        "risk": "low",
+        "pitch": "Five crates off the crane, in at the Hessenatie door. Take my handcart, it stands by the crates, and bring it back where it stood.",
+        "items": 5,
+        "cart": true,
+        "task": {
+          "kind": "carry",
+          "goods": "crates",
+          "count": 5,
+          "from": "crane_foot",
+          "to": "hessenatie_door",
+          "twist": "none",
+          "limit_s": null,
+          "cart": true
+        }
+      }
+    ]
+  },
+  "homeClasses": {
+    "cellar": {
+      "label": "a cellar room",
+      "week_c": 100,
+      "W": 3.5,
+      "D": 4,
+      "H": 2.1,
+      "door": [
+        2,
+        4
+      ],
+      "doorWall": 0,
+      "fixed": [
+        {
+          "kind": "bed_straw",
+          "gx": 0,
+          "gz": 4,
+          "w": 2,
+          "d": 4,
+          "rot": 2
+        },
+        {
+          "kind": "crate",
+          "gx": 6,
+          "gz": 7,
+          "w": 1,
+          "d": 1,
+          "rot": 2
+        }
+      ],
+      "windows": [
+        [
+          5,
+          6
+        ]
+      ],
+      "noHang": [],
+      "base": {
+        "warmth": 0,
+        "light": 0,
+        "cheer": 0
+      },
+      "fire": false,
+      "nightFood": 2,
+      "notice": "CELLAR ROOM TO LET. Dry enough. A straw bed and a crate.",
+      "night": "You sleep on the straw in your cellar, your own door bolted. Damp, but nobody snores but you."
+    },
+    "garret": {
+      "label": "a garret room",
+      "week_c": 140,
+      "W": 3.5,
+      "D": 4.5,
+      "H": 2.4,
+      "door": [
+        2,
+        4
+      ],
+      "doorWall": 0,
+      "fixed": [
+        {
+          "kind": "bed_plank",
+          "gx": 0,
+          "gz": 5,
+          "w": 2,
+          "d": 4,
+          "rot": 2
+        },
+        {
+          "kind": "crate",
+          "gx": 6,
+          "gz": 8,
+          "w": 1,
+          "d": 1,
+          "rot": 2
+        }
+      ],
+      "windows": [
+        [
+          5,
+          5
+        ]
+      ],
+      "noHang": [],
+      "eaves": 4,
+      "base": {
+        "warmth": 0,
+        "light": 1,
+        "cheer": 0
+      },
+      "fire": false,
+      "nightFood": 2,
+      "notice": "GARRET TO LET under the roof. A plank bed. Light from the dormer window.",
+      "night": "You sleep in your garret under the tiles. The wind walks on the roof, but the door is yours."
+    },
+    "widow": {
+      "label": "a room at a widow's",
+      "week_c": 220,
+      "W": 3.5,
+      "D": 4.5,
+      "H": 2.7,
+      "door": [
+        2,
+        4
+      ],
+      "fixed": [
+        {
+          "kind": "bed",
+          "gx": 0,
+          "gz": 5,
+          "w": 2,
+          "d": 4,
+          "rot": 2
+        },
+        {
+          "kind": "washstand",
+          "gx": 6,
+          "gz": 8,
+          "w": 1,
+          "d": 1,
+          "rot": 3
+        },
+        {
+          "kind": "chair_plain",
+          "gx": 6,
+          "gz": 5,
+          "w": 1,
+          "d": 1,
+          "rot": 3
+        }
+      ],
+      "windows": [
+        [
+          5,
+          6
+        ]
+      ],
+      "noHang": [
+        [
+          0,
+          3,
+          3
+        ]
+      ],
+      "base": {
+        "warmth": 2,
+        "light": 1,
+        "cheer": 2
+      },
+      "fire": false,
+      "nightFood": 1,
+      "notice": "A CLEAN ROOM TO LET to a quiet single man. Bed and linen. Coffee in the morning. Ask the widow.",
+      "night": "You sleep between the widow's linen sheets. In the morning there is coffee and a heel of bread."
+    },
+    "alley": {
+      "label": "a small house in an alley",
+      "week_c": 320,
+      "W": 4.5,
+      "D": 5,
+      "H": 2.5,
+      "door": [
+        3,
+        5
+      ],
+      "fixed": [
+        {
+          "kind": "bedstee",
+          "gx": 0,
+          "gz": 8,
+          "w": 4,
+          "d": 2,
+          "rot": 2
+        },
+        {
+          "kind": "hearth",
+          "gx": 0,
+          "gz": 3,
+          "w": 1,
+          "d": 2,
+          "rot": 1
+        },
+        {
+          "kind": "chest",
+          "gx": 8,
+          "gz": 9,
+          "w": 1,
+          "d": 1,
+          "rot": 2
+        }
+      ],
+      "windows": [
+        [
+          6,
+          7
+        ]
+      ],
+      "noHang": [
+        [
+          3,
+          2,
+          5
+        ],
+        [
+          0,
+          0,
+          3
+        ]
+      ],
+      "base": {
+        "warmth": 2,
+        "light": 1,
+        "cheer": 1
+      },
+      "fire": true,
+      "nightFood": 2,
+      "notice": "HOUSE TO LET in the alley. One room down, a box bed, its own hearth.",
+      "night": "You sleep in the box bed of your own house, the hearth's last embers ticking. The alley is quiet."
+    },
+    "merchant": {
+      "label": "a merchant's upper floor",
+      "week_c": 900,
+      "W": 6,
+      "D": 6,
+      "H": 3.1,
+      "door": [
+        4,
+        7
+      ],
+      "doorWall": 0,
+      "fixed": [
+        {
+          "kind": "bed_fine",
+          "gx": 0,
+          "gz": 8,
+          "w": 3,
+          "d": 4,
+          "rot": 2
+        },
+        {
+          "kind": "alcove",
+          "gx": 0,
+          "gz": 7,
+          "w": 4,
+          "d": 1,
+          "rot": 2
+        },
+        {
+          "kind": "wardrobe",
+          "gx": 10,
+          "gz": 11,
+          "w": 2,
+          "d": 1,
+          "rot": 2
+        },
+        {
+          "kind": "bookcase",
+          "gx": 8,
+          "gz": 11,
+          "w": 2,
+          "d": 1,
+          "rot": 2
+        },
+        {
+          "kind": "desk",
+          "gx": 5,
+          "gz": 0,
+          "w": 2,
+          "d": 2,
+          "rot": 0
+        },
+        {
+          "kind": "mantel",
+          "gx": 11,
+          "gz": 5,
+          "w": 1,
+          "d": 3,
+          "rot": 3
+        },
+        {
+          "kind": "armchair",
+          "gx": 9,
+          "gz": 4,
+          "w": 1,
+          "d": 1,
+          "rot": 1
+        },
+        {
+          "kind": "armchair",
+          "gx": 9,
+          "gz": 8,
+          "w": 1,
+          "d": 1,
+          "rot": 1
+        },
+        {
+          "kind": "table_fine",
+          "gx": 5,
+          "gz": 5,
+          "w": 2,
+          "d": 2,
+          "rot": 0
+        }
+      ],
+      "windows": [
+        [
+          1,
+          3
+        ],
+        [
+          8,
+          10
+        ]
+      ],
+      "drapes": true,
+      "noHang": [
+        [
+          0,
+          8,
+          11
+        ],
+        [
+          1,
+          5,
+          7
+        ],
+        [
+          3,
+          2,
+          5
+        ]
+      ],
+      "base": {
+        "warmth": 4,
+        "light": 3,
+        "cheer": 4
+      },
+      "fire": true,
+      "nightFood": 2,
+      "notice": "FIRST FLOOR TO LET over the counting house. Two tall windows on the river, a marble fireplace, a bed in an alcove, furnished.",
+      "night": "You sleep in the alcove bed on the first floor, the fire ticking as it dies. Ships' lights move on the ceiling."
+    }
+  },
+  "furniture": {
+    "chair": {
+      "name": "a rush-seated chair",
+      "price_c": 60,
+      "carry": "arms",
+      "layer": "floor",
+      "w": 1,
+      "d": 1,
+      "comfort": {
+        "cheer": 1
+      },
+      "note": "Rush seat, one leg mended."
+    },
+    "table": {
+      "name": "a deal table",
+      "price_c": 150,
+      "carry": "arms",
+      "layer": "floor",
+      "w": 2,
+      "d": 2,
+      "comfort": {
+        "cheer": 1
+      },
+      "note": "Scrubbed pine, rings from other men's pots."
+    },
+    "rug": {
+      "name": "a rag rug",
+      "price_c": 80,
+      "carry": "arms",
+      "layer": "rug",
+      "w": 3,
+      "d": 2,
+      "comfort": {
+        "warmth": 1,
+        "cheer": 1
+      },
+      "note": "Woven from old coats. Keeps the cold off the floor."
+    },
+    "stove": {
+      "name": "a cast-iron stove",
+      "price_c": 400,
+      "carry": "arms",
+      "layer": "floor",
+      "w": 2,
+      "d": 2,
+      "comfort": {
+        "warmth": 3
+      },
+      "note": "A little pot-bellied stove, pipe included. Heavy."
+    },
+    "plant": {
+      "name": "a geranium in a pot",
+      "price_c": 15,
+      "carry": "arms",
+      "layer": "floor",
+      "w": 1,
+      "d": 1,
+      "comfort": {
+        "cheer": 1
+      },
+      "note": "Red, a bit leggy. Wants the light."
+    },
+    "birdcage": {
+      "name": "a finch in a cage",
+      "price_c": 70,
+      "carry": "arms",
+      "layer": "floor",
+      "w": 1,
+      "d": 1,
+      "comfort": {
+        "cheer": 1
+      },
+      "note": "A chaffinch in a wicker cage on a stand. It sings at dawn."
+    },
+    "picture": {
+      "name": "a framed print",
+      "price_c": 40,
+      "carry": "pocket",
+      "layer": "wall",
+      "w": 1,
+      "d": 1,
+      "comfort": {
+        "cheer": 1
+      },
+      "note": "The cathedral spire in a black frame. Hang it on a wall."
+    },
+    "lamp": {
+      "name": "a hanging oil lamp",
+      "price_c": 90,
+      "carry": "pocket",
+      "layer": "ceiling",
+      "w": 1,
+      "d": 1,
+      "comfort": {
+        "light": 2
+      },
+      "note": "Brass font, glass chimney. Hang it from a beam."
+    },
+    "clock": {
+      "name": "a wall clock",
+      "price_c": 250,
+      "carry": "pocket",
+      "layer": "wall",
+      "w": 1,
+      "d": 1,
+      "comfort": {
+        "cheer": 1
+      },
+      "note": "A Black Forest clock. It ticks; the hour is the town's."
+    },
+    "curtains": {
+      "name": "a pair of curtains",
+      "price_c": 50,
+      "carry": "pocket",
+      "layer": "wall",
+      "w": 2,
+      "d": 1,
+      "comfort": {
+        "warmth": 1
+      },
+      "note": "Faded red wool. For a window."
+    }
+  },
+  "benches": [
+    {
+      "id": "rond:0",
+      "label": "a bench on the Sint-Jansplein",
+      "x": 22.047,
+      "z": 300.943,
+      "y": 0,
+      "fine": true
+    },
+    {
+      "id": "rond:1",
+      "label": "a bench on the Sint-Jansplein",
+      "x": 17.953,
+      "z": 300.943,
+      "y": 0,
+      "fine": true
+    },
+    {
+      "id": "rond:2",
+      "label": "a bench on the Sint-Jansplein",
+      "x": 17.953,
+      "z": 291.057,
+      "y": 0,
+      "fine": true
+    },
+    {
+      "id": "rond:3",
+      "label": "a bench on the Sint-Jansplein",
+      "x": 22.047,
+      "z": 291.057,
+      "y": 0,
+      "fine": true
+    },
+    {
+      "id": "green:lijnwaadmarkt:0",
+      "label": "a bench on the green strip of the Lijnwaadmarkt",
+      "x": -214.98,
+      "z": 166.8,
+      "y": 0,
+      "fine": true
+    },
+    {
+      "id": "green:lijnwaadmarkt:1",
+      "label": "a bench on the green strip of the Lijnwaadmarkt",
+      "x": -214.98,
+      "z": 181.8,
+      "y": 0,
+      "fine": true
+    },
+    {
+      "id": "green:lijnwaadmarkt:2",
+      "label": "a bench on the green strip of the Lijnwaadmarkt",
+      "x": -214.98,
+      "z": 196.6,
+      "y": 0,
+      "fine": true
+    },
+    {
+      "id": "green:lijnwaadmarkt:3",
+      "label": "a bench on the green strip of the Lijnwaadmarkt",
+      "x": -211.22,
+      "z": 174.2,
+      "y": 0,
+      "fine": true
+    },
+    {
+      "id": "green:lijnwaadmarkt:4",
+      "label": "a bench on the green strip of the Lijnwaadmarkt",
+      "x": -211.22,
+      "z": 189.3,
+      "y": 0,
+      "fine": true
+    },
+    {
+      "id": "green:stjacob_yard:0",
+      "label": "a bench on St James's churchyard",
+      "x": -100.6,
+      "z": 339.6,
+      "y": 0,
+      "fine": false
+    },
+    {
+      "id": "green:stjacob_yard:1",
+      "label": "a bench on St James's churchyard",
+      "x": -96.4,
+      "z": 339.6,
+      "y": 0,
+      "fine": false
+    },
+    {
+      "id": "green:court_green:0",
+      "label": "a bench on the green in the court behind the Sint-Jansplein",
+      "x": -3,
+      "z": 313.6,
+      "y": 0,
+      "fine": false
+    },
+    {
+      "id": "green:court_green:1",
+      "label": "a bench on the green in the court behind the Sint-Jansplein",
+      "x": -3,
+      "z": 322.8,
+      "y": 0,
+      "fine": false
+    },
+    {
+      "id": "stop:werf:kaaien",
+      "label": "the bench at the Werf stop",
+      "x": -271.9,
+      "z": 10.85,
+      "y": 0,
+      "fine": false
+    },
+    {
+      "id": "stop:steenplein:kaaien",
+      "label": "the bench at the Steenplein stop",
+      "x": -181.9,
+      "z": 10.85,
+      "y": 0,
+      "fine": false
+    },
+    {
+      "id": "stop:vismarkt:kaaien",
+      "label": "the bench at the Vismarkt stop",
+      "x": -110.1,
+      "z": 10.85,
+      "y": 0,
+      "fine": false
+    },
+    {
+      "id": "stop:rijnkaai:kaaien",
+      "label": "the bench at the Rijnkaai stop",
+      "x": 28.1,
+      "z": 10.85,
+      "y": 0,
+      "fine": false
+    },
+    {
+      "id": "stop:bassin:kaaien",
+      "label": "the bench at the Petit Bassin stop",
+      "x": 78.5,
+      "z": 29.1,
+      "y": 0,
+      "fine": false
+    },
+    {
+      "id": "stop:rijnkaai_back:kaaien",
+      "label": "the bench at the Rijnkaai stop",
+      "x": 1.9,
+      "z": 39.75,
+      "y": 0,
+      "fine": false
+    },
+    {
+      "id": "stop:vismarkt:markt",
+      "label": "the bench at the Vismarkt stop",
+      "x": -98.75,
+      "z": 29.1,
+      "y": 0,
+      "fine": false
+    },
+    {
+      "id": "stop:vleeshuis:markt",
+      "label": "the bench at the Vleeshuis stop",
+      "x": -119.9,
+      "z": 111.15,
+      "y": 0,
+      "fine": false
+    },
+    {
+      "id": "stop:grote_markt:markt",
+      "label": "the bench at the Grote Markt stop",
+      "x": -249.69,
+      "z": 67.41,
+      "y": 0,
+      "fine": false
+    },
+    {
+      "id": "stop:sint_jorispoort:markt",
+      "label": "the bench at the Sint-Jorispoort stop",
+      "x": -334,
+      "z": 152.75,
+      "y": 0,
+      "fine": false
+    },
+    {
+      "id": "stop:stadspark:markt",
+      "label": "the bench at the Stadspark stop",
+      "x": -307.85,
+      "z": 229.9,
+      "y": 0,
+      "fine": false
+    },
+    {
+      "id": "stop:cathedral:markt",
+      "label": "the bench at the Cathedral stop",
+      "x": -249.9,
+      "z": 132.75,
+      "y": 0,
+      "fine": false
+    },
+    {
+      "id": "stop:meir:markt",
+      "label": "the bench at the road to the Meir stop",
+      "x": -141.15,
+      "z": 196.1,
+      "y": 0,
+      "fine": false
+    },
+    {
+      "id": "stop:brouwersvliet:markt",
+      "label": "the bench at the Brouwersvliet stop",
+      "x": -87.24,
+      "z": 177.52,
+      "y": 0,
+      "fine": false
+    },
+    {
+      "id": "stop:sint_jacob:keizer",
+      "label": "the bench at the Sint-Jacob stop",
+      "x": -147.5,
+      "z": 291.2,
+      "y": 0,
+      "fine": false
+    },
+    {
+      "id": "stop:kipdorppoort:keizer",
+      "label": "the bench at the Kipdorppoort stop",
+      "x": -147.75,
+      "z": 324.2,
+      "y": 0,
+      "fine": false
+    },
+    {
+      "id": "stop:ramparts:keizer",
+      "label": "the bench at the Ramparts stop",
+      "x": -92.12,
+      "z": 350.05,
+      "y": 0,
+      "fine": false
+    },
+    {
+      "id": "stop:keizerspoort:keizer",
+      "label": "the bench at the Keizerspoort stop",
+      "x": 64.84,
+      "z": 331.78,
+      "y": 0,
+      "fine": false
+    },
+    {
+      "id": "stop:conscienceplein:keizer",
+      "label": "the bench at the Conscienceplein stop",
+      "x": -121.26,
+      "z": 158.82,
+      "y": 0,
+      "fine": false
+    },
+    {
+      "id": "steen:0",
+      "label": "a bench on the Steen's promontory",
+      "x": -203,
+      "z": -27.5,
+      "y": 0,
+      "fine": false
+    },
+    {
+      "id": "steen:1",
+      "label": "a bench on the Steen's promontory",
+      "x": -209.5,
+      "z": -8.5,
+      "y": 0,
+      "fine": false
+    },
+    {
+      "id": "park:0",
+      "label": "a bench in the Stadspark",
+      "x": -272.548,
+      "z": 294.725,
+      "y": 0,
+      "fine": true
+    },
+    {
+      "id": "park:1",
+      "label": "a bench in the Stadspark",
+      "x": -294.122,
+      "z": 292.819,
+      "y": 0,
+      "fine": true
+    },
+    {
+      "id": "park:2",
+      "label": "a bench in the Stadspark",
+      "x": -305.316,
+      "z": 297.794,
+      "y": 0,
+      "fine": true
+    },
+    {
+      "id": "park:3",
+      "label": "a bench in the Stadspark",
+      "x": -328.539,
+      "z": 304.762,
+      "y": 0,
+      "fine": true
+    },
+    {
+      "id": "park:4",
+      "label": "a bench in the Stadspark",
+      "x": -278.044,
+      "z": 323.743,
+      "y": 0,
+      "fine": true
+    },
+    {
+      "id": "park:5",
+      "label": "a bench in the Stadspark",
+      "x": -273.296,
+      "z": 311.083,
+      "y": 0,
+      "fine": true
+    },
+    {
+      "id": "park:6",
+      "label": "a bench in the Stadspark",
+      "x": -290.79,
+      "z": 320.466,
+      "y": 0,
+      "fine": true
+    },
+    {
+      "id": "park:7",
+      "label": "a bench in the Stadspark",
+      "x": -321.879,
+      "z": 294.296,
+      "y": 0,
+      "fine": true
+    },
+    {
+      "id": "park:8",
+      "label": "a bench in the Stadspark",
+      "x": -261.619,
+      "z": 306.529,
+      "y": 0,
+      "fine": true
+    },
+    {
+      "id": "park:9",
+      "label": "a bench in the Stadspark",
+      "x": -330.658,
+      "z": 313.891,
+      "y": 0,
+      "fine": true
+    },
+    {
+      "id": "wall:0",
+      "label": "a bench on the wall walk",
+      "x": 218.732,
+      "z": 28.666,
+      "y": 6.5,
+      "fine": false
+    },
+    {
+      "id": "wall:1",
+      "label": "a bench on the wall walk",
+      "x": 224.917,
+      "z": 66.167,
+      "y": 6.5,
+      "fine": false
+    },
+    {
+      "id": "wall:2",
+      "label": "a bench on the wall walk",
+      "x": 221.626,
+      "z": 80.227,
+      "y": 6.5,
+      "fine": false
+    },
+    {
+      "id": "wall:3",
+      "label": "a bench on the wall walk",
+      "x": 232.175,
+      "z": 150.502,
+      "y": 6.5,
+      "fine": false
+    },
+    {
+      "id": "wall:4",
+      "label": "a bench on the wall walk",
+      "x": 234.647,
+      "z": 197.058,
+      "y": 6.5,
+      "fine": false
+    },
+    {
+      "id": "wall:5",
+      "label": "a bench on the wall walk",
+      "x": 228.642,
+      "z": 185.247,
+      "y": 6.5,
+      "fine": false
+    },
+    {
+      "id": "wall:6",
+      "label": "a bench on the wall walk",
+      "x": 233.083,
+      "z": 220.981,
+      "y": 6.5,
+      "fine": false
+    },
+    {
+      "id": "wall:7",
+      "label": "a bench on the wall walk",
+      "x": 226.835,
+      "z": 271.655,
+      "y": 6.5,
+      "fine": false
+    },
+    {
+      "id": "wall:8",
+      "label": "a bench on the wall walk",
+      "x": 194.928,
+      "z": 325.872,
+      "y": 6.5,
+      "fine": false
+    },
+    {
+      "id": "wall:9",
+      "label": "a bench on the wall walk",
+      "x": 162.23,
+      "z": 336.562,
+      "y": 6.5,
+      "fine": false
+    },
+    {
+      "id": "wall:10",
+      "label": "a bench on the wall walk",
+      "x": 126.804,
+      "z": 348.175,
+      "y": 6.5,
+      "fine": false
+    },
+    {
+      "id": "wall:11",
+      "label": "a bench on the wall walk",
+      "x": 204.38,
+      "z": 317.058,
+      "y": 6.5,
+      "fine": false
+    },
+    {
+      "id": "wall:12",
+      "label": "a bench on the wall walk",
+      "x": 157.184,
+      "z": 332.53,
+      "y": 6.5,
+      "fine": false
+    },
+    {
+      "id": "wall:13",
+      "label": "a bench on the wall walk",
+      "x": 100.319,
+      "z": 351.934,
+      "y": 6.5,
+      "fine": false
+    },
+    {
+      "id": "wall:14",
+      "label": "a bench on the wall walk",
+      "x": 17.15,
+      "z": 355.602,
+      "y": 6.5,
+      "fine": false
+    },
+    {
+      "id": "wall:15",
+      "label": "a bench on the wall walk",
+      "x": -16.97,
+      "z": 357.135,
+      "y": 6.5,
+      "fine": false
+    },
+    {
+      "id": "wall:16",
+      "label": "a bench on the wall walk",
+      "x": -81.482,
+      "z": 358.14,
+      "y": 6.5,
+      "fine": false
+    },
+    {
+      "id": "wall:17",
+      "label": "a bench on the wall walk",
+      "x": -116.962,
+      "z": 356.606,
+      "y": 6.5,
+      "fine": false
+    },
+    {
+      "id": "wall:18",
+      "label": "a bench on the wall walk",
+      "x": -164.24,
+      "z": 354.632,
+      "y": 6.5,
+      "fine": false
+    },
+    {
+      "id": "wall:19",
+      "label": "a bench on the wall walk",
+      "x": -265.618,
+      "z": 345.007,
+      "y": 6.5,
+      "fine": false
+    },
+    {
+      "id": "wall:20",
+      "label": "a bench on the wall walk",
+      "x": -316.599,
+      "z": 329.893,
+      "y": 6.5,
+      "fine": false
+    },
+    {
+      "id": "wall:21",
+      "label": "a bench on the wall walk",
+      "x": -361.842,
+      "z": 294.412,
+      "y": 6.5,
+      "fine": false
+    },
+    {
+      "id": "wall:22",
+      "label": "a bench on the wall walk",
+      "x": -369.141,
+      "z": 188.516,
+      "y": 6.5,
+      "fine": false
+    },
+    {
+      "id": "wall:23",
+      "label": "a bench on the wall walk",
+      "x": -360.685,
+      "z": 76.39,
+      "y": 6.5,
+      "fine": false
+    },
+    {
+      "id": "wall:24",
+      "label": "a bench on the wall walk",
+      "x": -356.885,
+      "z": 32.524,
+      "y": 6.5,
+      "fine": false
+    },
+    {
+      "id": "wall:25",
+      "label": "a bench on the wall walk",
+      "x": -55.481,
+      "z": 378.797,
+      "y": 6.5,
+      "fine": false
+    },
+    {
+      "id": "wall:26",
+      "label": "a bench on the wall walk",
+      "x": -64.481,
+      "z": 378.803,
+      "y": 6.5,
+      "fine": false
+    },
+    {
+      "id": "wall:27",
+      "label": "a bench on the wall walk",
+      "x": 241.511,
+      "z": 328.757,
+      "y": 6.5,
+      "fine": false
+    },
+    {
+      "id": "wall:28",
+      "label": "a bench on the wall walk",
+      "x": 236.298,
+      "z": 335.087,
+      "y": 6.5,
+      "fine": false
+    },
+    {
+      "id": "wall:29",
+      "label": "a bench on the wall walk",
+      "x": 234.202,
+      "z": 89.031,
+      "y": 6.5,
+      "fine": false
+    },
+    {
+      "id": "wall:30",
+      "label": "a bench on the wall walk",
+      "x": -57.495,
+      "z": 366.763,
+      "y": 6.5,
+      "fine": false
+    },
+    {
+      "id": "wall:31",
+      "label": "a bench on the wall walk",
+      "x": -376.013,
+      "z": 217.588,
+      "y": 6.5,
+      "fine": false
+    }
+  ],
+  "dossStep": {
+    "x": -180.96,
+    "z": 38.8
+  },
+  "epilogues": {
+    "health": {
+      "title": "The fog keeps what it takes",
+      "paragraphs": [
+        "Jef came off the ferry with fifty centimes and no name, and for a few days he carried what he was told to carry. The cold and the hunger were patient with him, and then they were not.",
+        "They found him one morning under a tarpaulin by the bollards. The Hessenatie paid for nothing, and the priest said a few words that the wind took away. Nobody on the kaai remembered his surname."
+      ]
+    },
+    "week": {
+      "title": "A week on the Rijnkaai",
+      "paragraphs": [
+        "Jef lived through his first week on the Rijnkaai: fog in the morning, work when there was work, a herring when there was money for one. Some on the quay began to know his face.",
+        "What came after is not written down. Maybe he stayed and became one of the day men the naties call by name. Maybe he went back to the Kempen with a cough and a story. The Schelde does not say."
+      ]
+    }
+  },
+  "useText": {
+    "roll": "White bread, soft inside. Gone in four bites.",
+    "mussels": "Hot, salty, a little sand between your teeth. You drink the juice from the last shells.",
+    "peperkoek": "Sticky honey and anise. You lick your fingers after.",
+    "sausage": "Smoky and salty, the fat running down your chin.",
+    "bacon": "You cut it with your knife in thin slices. Fat and warm in the belly.",
+    "brawn": "Cold and trembling in its jelly, but it is meat.",
+    "cheese": "Hard yellow cheese, a little sweaty. Good with nothing at all.",
+    "candy": "You suck the brown sugar crystal slowly. Sweet for a long while.",
+    "figs": "Chewy and sweet, the little seeds crunch between your teeth.",
+    "chocolate": "Dark and gritty, it melts in your mouth. A rich man's thing.",
+    "pipe": "You strike a lucifer and draw. Warm smoke, and for a moment the fog is somebody else's.",
+    "cigar": "It burns hot and bitter. You feel like a merchant for a quarter of an hour.",
+    "syrup": "Thick and sweet, then bitter at the back of the throat. Your chest eases a little.",
+    "powder": "Chalky and very bitter. You wash it down and your head clears.",
+    "liquorice": "Black and salty-sweet. It lasts.",
+    "wool_vest": "You put it on under your coat. For the first time today the wind does not reach your ribs.",
+    "shawl": "You knot it round your neck. The draught down your collar stops.",
+    "flat_cap": "You pull it on. The drizzle runs off the peak instead of down your neck.",
+    "felt_hat": "You set it on your head and catch yourself in a window: almost a clerk.",
+    "coffee": "Black, strong and scalding. Warmth spreads from your middle to your fingers."
+  },
+  "serviceLine": {
+    "shave": "Lather, the razor scraping, a hot towel. Your cheeks tingle and the mirror shows a cleaner man.",
+    "haircut": "Snip, snip. The barber brushes the hair off your collar and holds up the glass.",
+    "boot_mend": "You sit in your stockings while he stitches the soles and hammers on new heels. Dry feet for a while.",
+    "coffee": "He pours from the pot on the stove into a thick white cup."
+  },
+  "postHours": {
+    "sooi": [
+      5,
+      20
+    ],
+    "peeters": [
+      7,
+      19
+    ],
+    "fientje": [
+      6,
+      18
+    ],
+    "tuur": [
+      7,
+      26
+    ]
+  }
+}

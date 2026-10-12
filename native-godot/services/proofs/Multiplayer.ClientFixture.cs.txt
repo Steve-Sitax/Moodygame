@@ -1,0 +1,3 @@
+// Pure API/DTO contract proof: disable optional frame profiling; no Godot scene is instantiated.
+namespace Scheldemist.Dev;
+public static class FrameCost { private sealed class Empty:System.IDisposable {public void Dispose(){}} public static System.IDisposable Callback(System.Action action)=>new Empty(); }

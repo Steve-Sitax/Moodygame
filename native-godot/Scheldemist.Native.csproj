@@ -4,8 +4,31 @@
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <Nullable>enable</Nullable>
     <RootNamespace>Scheldemist.Native</RootNamespace>
+    <NativeAspNetRuntimeVersion>8.0.31</NativeAspNetRuntimeVersion>
+    <NativeAspNetEditorRid>$(NETCoreSdkRuntimeIdentifier)</NativeAspNetEditorRid>
   </PropertyGroup>
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <Compile Remove="proof/**/*.cs;services/proofs/**/*.cs;services/proof/**/*.cs" />
+    <Compile Remove="addons/**/*.cs" Condition="'$(Configuration)' != 'Debug'" />
     <ProjectReference Include="../godot/Scheldemist.csproj" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.30" />
   </ItemGroup>
+  <!-- Godot's editor ALC needs explicit local dependency entries. It does not activate an
+       additional shared framework from the game's runtimeconfig. Export uses the SDK's
+       ordinary self-contained FrameworkReference publication instead. -->
+  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageDownload Include="Microsoft.AspNetCore.App.Runtime.$(NativeAspNetEditorRid)" Version="[$(NativeAspNetRuntimeVersion)]" />
+  </ItemGroup>
+  <Target Name="NativeAspNetEditorReferences" BeforeTargets="ResolveAssemblyReferences" Condition="'$(Configuration)' == 'Debug'">
+    <PropertyGroup>
+      <NativeAspNetEditorLibrary>$(NuGetPackageRoot)microsoft.aspnetcore.app.runtime.$(NativeAspNetEditorRid)/$(NativeAspNetRuntimeVersion)/runtimes/$(NativeAspNetEditorRid)/lib/net8.0/</NativeAspNetEditorLibrary>
+    </PropertyGroup>
+    <Error Condition="!Exists('$(NativeAspNetEditorLibrary)Microsoft.AspNetCore.dll')" Text="Restore the native project to obtain its ASP.NET editor runtime pack." />
+    <ItemGroup>
+      <Reference Include="$(NativeAspNetEditorLibrary)*.dll">
+        <Private>true</Private>
+      </Reference>
+    </ItemGroup>
+  </Target>
 </Project>

@@ -198,6 +198,7 @@ public partial class Railway : Node
             bodies[1].Transform = t1;
         }
 
+        public void NetworkSet(float amount){Amount=amount;Place(amount);}
         public void Update(float dt)
         {
             float target = WantOpen ? 1 : 0;
@@ -1243,7 +1244,7 @@ public partial class Railway : Node
     // ---------------------------------------------------------------- per frame
     public override void _Process(double delta)
     {
-        if (!ok) return;
+        if (!ok || NetRemote) return;
         MoverCost.Begin("railway");
         float dt = (float)MoverClock.Dt;
         if (state == "shed")

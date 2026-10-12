@@ -1,0 +1,59 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using Scheldemist.Native.Services;
+
+string root=args[0],data=Path.Combine(root,"native-godot/services/data"),output=Path.Combine(root,"native-godot/proof/ballads-"+Guid.NewGuid().ToString("N"));
+Directory.CreateDirectory(output);var checks=new List<object>();
+void Check(string name,JsonNode? expected,JsonNode? actual){bool passed=JsonNode.DeepEquals(expected,actual);checks.Add(new{name,passed});if(!passed)throw new Exception(name+"\nEXPECTED "+expected+"\nACTUAL "+actual);}
+void Ok(string name,bool pass)=>Check(name,JsonValue.Create(true),JsonValue.Create(pass));
+string S(JsonNode? n,string k)=>NativeGoods.S(n,k);double N(JsonNode? n,string k)=>NativeGoods.N(n,k);
+using(var host=new NativeServiceHost(new NativeServiceOptions(":memory:",data,Path.Combine(output,"saves")))){
+ var c=host.Context;var goods=new NativeGoods(host);var actions=new NativeActions(host,goods);var events=new NativeEvents(host,actions);var songs=new NativeBallads(host,actions,events);
+ foreach(var test in JsonNode.Parse(File.ReadAllText(Path.Combine(root,"native-godot/services/proof/ballad-oracles.json")))!["cases"]!.AsArray()){
+  switch(S(test,"type")){
+   case "kind":Check("source public fact classifier",test!["expected"],JsonValue.Create(NativeBallads.KindOf(test["row"]!.AsObject())));break;
+   case "tide":Check("source tidal news",test!["expected"],JsonValue.Create(NativeBallads.TideLine((int)N(test,"day"))));break;
+   case "guard":Check("source wording guard",test!["expected"],JsonValue.Create(songs.CleanVerse(S(test,"input"),songs.AllowedNames(test["facts"]!.AsArray().Select(f=>f!.GetValue<string>())))));break;
+   case "words":{
+    var facts=test!["facts"]!.AsArray();var hint=test["hint"]as JsonObject;int day=(int)N(test,"day");
+    Check("source fallback song",test["ballad"],songs.FallbackBallad(facts,day));Check("source fallback sermon",test["sermon"],songs.FallbackSermon(facts,hint,day));
+    Check("source checked song",test["cleanBallad"],songs.CleanBallad(test["ballad"]!.AsObject(),facts));Check("source checked sermon",test["cleanSermon"],songs.CleanSermon(test["sermon"]!.AsArray(),facts,hint));break;
+   }
+   case "singer":{
+    int day=(int)N(test,"day");Check("source singer and evening counter",test!["expected"],new JsonObject{["id"]=S(songs.Singer(),"id"),["corners"]=new JsonArray(NativeBallads.Corners[day%4],NativeBallads.Corners[(day+2)%4]),["tavern"]=songs.EveningTavern(day)});break;
+   }
+   case "facts":c.Execute(S(test,"sql"));Check("source witnessed ballad facts",test!["ballad"],songs.Facts());Check("source sermon facts",test["sermon"],songs.SermonFacts());Check("source anonymous rumour hint",test["hint"],songs.Hint());break;
+  }
+ }
+}
+string database=Path.Combine(output,"song.sqlite");
+using(var host=new NativeServiceHost(new NativeServiceOptions(database,data,Path.Combine(output,"saves")))){
+ var c=host.Context;var goods=new NativeGoods(host);host.AddModule(goods);var actions=new NativeActions(host,goods);host.AddModule(actions);var events=new NativeEvents(host,actions);host.AddModule(events);var songs=new NativeBallads(host,actions,events);host.AddModule(songs);
+ c.Execute("UPDATE player SET day=1,hour=10,minute=0,money_c=20; DELETE FROM item; DELETE FROM town_event; DELETE FROM npc_action");
+ var today=JsonNode.Parse(await host.Call("POST","/api/ballad/today","{}"))!;await songs.WritingSettled;
+ Ok("a ballad is available without a provider",today["ballad"]!=null&&S(today["ballad"],"source")=="engine");
+ string kept=c.World("ballad:1")!.ToJsonString();await songs.Write(false);Ok("one saved song per day",kept==c.World("ballad:1")!.ToJsonString());
+ var planned=songs.Plan("grote_markt",0,true);Ok("a real street event is accepted",planned["ok"]!.GetValue<bool>());int eventId=(int)N(planned["event"],"id");events.Tick(false);
+ var ev=events.Row(eventId)!;var leads=JsonNode.Parse(S(ev,"leads_json"))!.AsArray();var people=JsonNode.Parse(S(ev,"people_json"))!.AsArray();
+ Ok("singer has a real attendance action",leads.Count==1&&actions.Of(S(leads[0],"id"))!=null);Ok("ten distinct listeners plus singer",people.Count==11&&people.Select(p=>p!.GetValue<string>()).Distinct().Count()==11);
+ Ok("public song event keeps source reference",c.Scalar<int>("SELECT COUNT(*) FROM world_event WHERE verb='ballad_sung' AND ref_type='town_event' AND ref_id=$p0",eventId)==1);
+ var bought=JsonNode.Parse(await host.Call("POST","/api/ballad/buy","{}"))!;Ok("one centime and a real sheet",N(bought,"paid_c")==1&&c.Scalar<int>("SELECT money_c FROM player WHERE id=1")==19&&c.Scalar<int>("SELECT COUNT(*) FROM item WHERE kind='ballad' AND ref=1 AND player_id=1")==1);
+ try{await host.Call("POST","/api/ballad/buy","{}");throw new Exception("duplicate purchase allowed");}catch(NativeServiceException e){Ok("duplicate purchase rejected without payment",e.Status==409&&c.Scalar<int>("SELECT money_c FROM player WHERE id=1")==19);}
+ var sheet=JsonNode.Parse(await host.Call("GET","/api/ballad/sheet/1",null))!;Check("owned sheet retains its saved words",c.World("ballad:1")!["text"]!["verses"],sheet["verses"]);
+ c.Execute("DELETE FROM item");for(int i=0;i<6;i++)c.Execute("INSERT INTO item(kind,player_id) VALUES('bread',1)");
+ try{songs.Buy(1);throw new Exception("full pockets allowed");}catch(NativeServiceException e){Ok("six pocket slots respected",e.Message=="your pockets are full"&&c.Scalar<int>("SELECT money_c FROM player WHERE id=1")==19);}
+ try{songs.Sheet(2,1);throw new Exception("another player's sheet readable");}catch(NativeServiceException e){Ok("sheet ownership checked",e.Status==404);}
+ c.Execute("UPDATE player SET day=7,hour=10,minute=0; DELETE FROM npc_memory");string? inside=null;songs.Inside=_=>inside;
+ var sermon=await songs.Write(true);await songs.WritingSettled;Ok("Sunday engine sermon",sermon!=null&&sermon["lines"]!.AsArray().Count>=6);
+ Ok("outside cathedral earns no trust",N(songs.Hear(1),"delta")==0);inside="cathedral";int trust=c.Scalar<int>("SELECT trust FROM faction_trust WHERE player_id=1 AND faction='kerk'");
+ Ok("attendance changes actual church trust",N(songs.Hear(1),"delta")==1&&c.Scalar<int>("SELECT trust FROM faction_trust WHERE player_id=1 AND faction='kerk'")==Math.Min(10,trust+1));Ok("once per Sunday",N(songs.Hear(1),"delta")==0);
+ c.Execute("UPDATE player SET hour=11");songs.LogSermon();songs.LogSermon();Ok("one public sermon log",c.Scalar<int>("SELECT COUNT(*) FROM world_event WHERE verb='sermon' AND day=7")==1);
+ c.Execute("UPDATE player SET day=8,hour=10");Ok("weekday has no sermon",await songs.Write(true)==null);
+ var started=new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);var answer=new TaskCompletionSource<JsonObject?>(TaskCreationOptions.RunContinuationsAsynchronously);songs.NarrateAsync=(_,_,_)=>{started.TrySetResult(true);return answer.Task;};
+ var pending=songs.Write(false);await started.Task.WaitAsync(TimeSpan.FromSeconds(3));
+ await host.Call("GET","/api/state",null).WaitAsync(TimeSpan.FromSeconds(3));Ok("narration releases the game state lock",!pending.IsCompleted);
+ await host.Call("POST","/api/new-game","{}");answer.SetResult(null);try{await pending;throw new Exception("stale words accepted");}catch(NativeServiceException e){Ok("reset discards a late song",e.Status==409&&c.World("ballad:8")==null);}
+ await songs.Write(false);await songs.WritingSettled;
+}
+using(var host=new NativeServiceHost(new NativeServiceOptions(database,data,Path.Combine(output,"saves"))))Ok("song survives cold database reopen",host.Context.World("ballad:1")!=null);
+File.WriteAllText(Path.Combine(output,"result.json"),JsonSerializer.Serialize(new{passed=true,checks}));Console.WriteLine($"native song/sermon proof: {checks.Count} comparisons passed; {output}");

@@ -1,0 +1,6 @@
+# Native assets and content-addressed packs must survive checkout byte-for-byte.
+/native-godot/** -text
+/art-source/** -text
+/docs/archive/** -text
+# Shell hooks must remain executable by Git's POSIX shell on Windows.
+/.githooks/* text eol=lf

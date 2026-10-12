@@ -39,5 +39,6 @@ public sealed record RoutineStepInfo
     public string? Label { get; init; } public string? Place { get; init; } public int? Job { get; init; }
     public string? Item { get; init; } public int Count { get; init; } = 1; public string? Who { get; init; }
     public bool Off { get; init; } public string? Inside { get; init; } public string? Gid { get; init; }
+    public List<string> Gids { get; init; } = new();
 }
 public sealed record RoutineStepReply : JobsPayload { public bool Ok { get; init; } public RoutineInfo? Routine { get; init; } }

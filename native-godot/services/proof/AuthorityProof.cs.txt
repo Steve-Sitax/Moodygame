@@ -1,0 +1,76 @@
+using Scheldemist.Native.Services;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Globalization;
+var project=Path.GetFullPath(args[0]);var output=Path.Combine(project,"native-godot/proof/authority-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(output);var checks=new List<object>();int originalSteps=0;
+void Check(string name,bool pass){checks.Add(new{name,pass});if(!pass)throw new Exception(name);}
+double N(JsonNode? n)=>n==null?0:double.Parse(n.ToJsonString(),CultureInfo.InvariantCulture);
+JsonNode? WithoutEpilogues(JsonNode? n){
+ if(n is JsonObject o)return new JsonObject(o.Where(p=>p.Key!="epilogue").Select(p=>new KeyValuePair<string,JsonNode?>(p.Key,WithoutEpilogues(p.Value))));
+ if(n is JsonArray a)return new JsonArray(a.Select(WithoutEpilogues).ToArray());
+ return n?.DeepClone();
+}
+string? Difference(JsonNode? a,JsonNode? b,string path="$"){
+ if(a==null||b==null)return a==b?null:path+" null differs";
+ if(a is JsonObject aa&&b is JsonObject bb){foreach(var k in aa.Select(p=>p.Key).Union(bb.Select(p=>p.Key))){var d=Difference(aa[k],bb[k],path+"."+k);if(d!=null)return d;}return null;}
+ if(a is JsonArray ar&&b is JsonArray br){if(ar.Count!=br.Count)return path+" array lengths "+ar.Count+"/"+br.Count;for(int i=0;i<ar.Count;i++){var d=Difference(ar[i],br[i],path+"["+i+"]");if(d!=null)return d;}return null;}
+ if(a.GetValueKind()==JsonValueKind.Number&&b.GetValueKind()==JsonValueKind.Number)return Math.Abs(N(a)-N(b))<1e-9?null:path+" "+a+" != "+b;
+ return JsonNode.DeepEquals(a,b)?null:path+" "+a+" != "+b;
+}
+NativeServiceOptions Options(string db,Func<long> clock)=>new(Path.Combine(output,db),Path.Combine(project,"native-godot/services/data"),Path.Combine(output,"saves-"+db),clock,()=>.42);
+var fixture=JsonNode.Parse(File.ReadAllText(Path.Combine(project,"native-godot/services/proof/authority-oracles.json")))!;
+int scenario=0;
+foreach(var row in fixture["cases"]!.AsArray()){
+ var test=row!;long now=10000;using var h=new NativeServiceHost(Options("case-"+scenario+".sqlite",()=>now));var c=h.Context;
+ h.MultiplayerEnabled=()=>true;h.OnlinePlayers=()=>new[]{1,2};h.SleepHooks.Clear();h.Saves.EnsurePlayer(2,"Guest2");h.Saves.EnsurePlayer(3,"Guest3");
+ int day=(int)N(test["day"]),hour=(int)N(test["start"]!["h"]),minute=(int)N(test["start"]!["m"]);h.Clock.SetTime(day,hour,minute);h.Clock.SetWeather("clear");
+ c.Execute("DELETE FROM player_state WHERE key IN('ending','nights_slept')");c.Execute("UPDATE player SET sleep=7,food=7,warmth=7,health=8,money_c=50,rent_paid_until=7");string mode=test["mode"]!.GetValue<string>();
+ if(mode=="asleep"||mode=="mixed")foreach(int id in mode=="asleep"?new[]{1,2}:new[]{2})await h.Call("POST","/api/sleep",test["body"]!.ToJsonString(),id);
+ if(mode=="collapse")c.Execute("UPDATE player SET sleep=0 WHERE id=2");
+ if(mode=="cell")foreach(int id in new[]{1,2})h.ForPlayer(id,()=>h.Rest.CellRest(id,35,new JsonObject{["x"]=-284.8,["z"]=100,["yaw"]=0},new JsonArray("Held until morning.")));
+ foreach(var step in test["steps"]!.AsArray()){
+  now=(long)N(step!["now"]);var full=JsonNode.Parse(await h.ServerTick())!.AsObject();var result=new JsonObject();
+  foreach(string key in new[]{"advanced","ended","night","turned"})if(full.ContainsKey(key))result[key]=full[key]?.DeepClone();
+  var actual=await h.WithState(_=>{
+   var rests=new JsonArray();var endings=new JsonArray();foreach(int id in new[]{1,2,3}){rests.Add(new JsonObject{["id"]=id,["rest"]=h.Rest.View(id),["woke"]=h.Rest.TakeWoke(id)});endings.Add(new JsonObject{["id"]=id,["ending"]=c.PlayerState(id,"ending")});}
+   return new JsonObject{["now"]=now,["result"]=result,["clock"]=h.Clock.View(),["players"]=c.Rows("SELECT id,name,money_c,food,warmth,health,sleep,district FROM player ORDER BY id"),["rests"]=rests,["endings"]=endings};
+  });
+  if(Difference(WithoutEpilogues(actual),WithoutEpilogues(step))is{} d)throw new Exception("Source scenario "+scenario+" "+mode+" "+d+"\n"+actual.ToJsonString()+"\n"+step!.ToJsonString());
+  originalSteps++;
+ }
+ await h.Night.BoardSettled();scenario++;
+}
+Check("Original multiplayer clock and sleep scenarios",scenario==30&&originalSteps==120);
+long time=10000;using var host=new NativeServiceHost(Options("state.sqlite",()=>time));var C=host.Context;host.Saves.EnsurePlayer(2,"Guest2");host.Saves.EnsurePlayer(3,"Guest3");bool mp=true;host.MultiplayerEnabled=()=>mp;host.OnlinePlayers=()=>new[]{1,2};host.Clock.SetTime(1,10,0);host.Clock.SetWeather("clear");
+var pushed=new List<(int? to,JsonObject message)>();host.RoutedPush+=(to,text)=>pushed.Add((to,JsonNode.Parse(text)!.AsObject()));var local=new List<JsonObject>();host.Push+=text=>local.Add(JsonNode.Parse(text)!.AsObject());
+C.Execute("UPDATE player SET money_c=id*100");C.Execute("INSERT INTO item(kind,player_id)VALUES('bread',2)");host.PublishState(2);
+Check("Each player receives a private payload",pushed.Count(p=>p.message["type"]!.GetValue<string>()=="jobs")==3&&pushed.All(p=>N(p.message["player"]!["money_c"])==p.to*100));
+Check("Pockets are never broadcast to another player",pushed.Where(p=>p.message["type"]!.GetValue<string>()=="jobs").All(p=>p.message["pockets"]!.AsArray().Count==(p.to==2?1:0)));
+Check("Local legacy push sees only host private state",local.Count==1&&N(local[0]["player"]!["money_c"])==100);
+host.Register("POST","/test/private",r=>{host.Publish("hands",new JsonObject{["own"]=r.PlayerId});return new{ok=true};});
+await host.Call("POST","/test/private","{}",2);Check("Personal synchronous pushes target caller only",pushed.Last().to==2&&N(pushed.Last().message["own"])==2&&local.Count==1);
+host.RegisterAsync("POST","/test/async-private",async r=>{await Task.Delay(r.PlayerId==2?20:1);await host.WithState(_=>{host.Publish("outcome",new JsonObject{["own"]=r.PlayerId});return true;});return new{ok=true};});
+await Task.WhenAll(host.Call("POST","/test/async-private","{}",2),host.Call("POST","/test/async-private","{}",3));
+Check("Concurrent asynchronous contexts stay recipient-scoped",pushed.Where(p=>p.message["type"]!.GetValue<string>()=="outcome").All(p=>p.to==N(p.message["own"]))&&host.CurrentPlayer==null);
+host.Publish("events",new JsonObject{["world"]=true});Check("Public world events are explicitly broadcast",pushed.Last().to==null&&local.Last()["type"]!.GetValue<string>()=="events");
+host.PublishFor(3,"notice",new JsonObject{["secret"]="private"});Check("Explicit recipient routing also protects custom event types",pushed.Last().to==3&&local.Last()["type"]!.GetValue<string>()=="events");
+var before=host.Clock.GameMinute();var beat=JsonNode.Parse(await host.Call("POST","/api/tick","{\"asleep\":false,\"pos\":{\"x\":1,\"z\":2}}",2));Check("Client heartbeat cannot advance shared time",host.Clock.GameMinute()==before&&beat!["together"]!.GetValue<bool>());
+int presence=0;host.PresenceHooks.Add(r=>{if(r.PlayerId==2)presence++;});await host.Call("POST","/api/tick","{}",2);Check("Presence hooks run even without a world advance",presence==1);
+await host.Call("POST","/api/pause","{\"on\":true,\"client\":\"guest-menu\"}",2);Check("Guest menu does not pause the world",!host.Saves.Paused);
+host.Saves.SetPausedAll(true);var held=JsonNode.Parse(await host.ServerTick());Check("Pause all holds server clock",held!["advanced"]!.GetValue<bool>()==false&&host.Clock.GameMinute()==before);host.Saves.SetPausedAll(false);time+=10000;await host.ServerTick();Check("Server resumes after pause all",host.Clock.GameMinute()==before+5);
+before=host.Clock.GameMinute();host.Clock.PassTime(2,480);Check("One player's cell or sleep cannot skip multiplayer time",host.Clock.GameMinute()==before);
+int world=0;var players=new List<int>();host.TickHooks.Add((_,a)=>{if(a)world++;});host.PlayerTickHooks.Add((r,a)=>{if(a)players.Add(r.PlayerId);});time+=10000;await host.ServerTick();Check("World hooks run once while player hooks cover online players",world==1&&players.SequenceEqual(new[]{1,2}));
+host.Rest.Collapse(2);await host.Call("POST","/api/tick","{\"asleep\":false}",2);Check("Server-started collapse waits for first sleep acknowledgement",host.Rest.IsAsleep(2)&&!host.Rest.Acked(2));await host.Call("POST","/api/tick","{\"asleep\":true}",2);Check("Sleep heartbeat acknowledges the fade",host.Rest.Acked(2));var wake=JsonNode.Parse(await host.Call("POST","/api/tick","{\"asleep\":false}",2));Check("An acknowledged sleeper may wake",host.Rest.View(2)==null&&wake!["woke"]!["reason"]!.GetValue<string>()=="up");
+var cell=host.Rest.CellRest(2,10,new JsonObject{["x"]=1,["z"]=2,["yaw"]=0},new JsonArray("Held."));Check("A cell cannot be ended by the wake key",host.Rest.Wake(2)==null&&host.Rest.InCell(2));int cellFinished=0;host.Rest.CellEnded=(id,_,__)=>{if(id==2)cellFinished++;};time+=10000;await host.ServerTick();time+=10000;await host.ServerTick();Check("Cell ends after actual world minutes",!host.Rest.InCell(2)&&cellFinished==1);var cellWake=host.Rest.TakeWoke(2);Check("Cell wake notification is consumed only once",cellWake?["place"]?.GetValue<string>()=="cell"&&host.Rest.TakeWoke(2)==null);
+C.Execute("INSERT INTO mp_player(id,name,token_hash,admin,created_at)VALUES(2,'Joined Two','hash-two',0,'2026-10-12')");C.Execute("INSERT INTO player_profile(player_id,profile_json,code,updated_at)VALUES(2,'{\"first\":\"Saved\"}','code-two','2026-10-12')");
+await host.Call("POST","/api/save","{\"slot\":\"slot1\",\"label\":\"Authority\"}");C.Execute("INSERT INTO mp_player(id,name,token_hash,admin,created_at)VALUES(3,'Joined Later','hash-later',0,'2026-10-12')");C.Execute("INSERT INTO player_profile(player_id,profile_json,code,updated_at)VALUES(3,'{\"first\":\"Later\"}','code-three','2026-10-12')");
+await host.Call("POST","/api/load","{\"slot\":\"slot1\"}");
+Check("Loading keeps current authenticated connection accounts",C.Scalar<string>("SELECT token_hash FROM mp_player WHERE id=3")=="hash-later"&&C.Scalar<int>("SELECT COUNT(*) FROM player WHERE id=3")==1);
+Check("Post-save guest character survives loading",C.Scalar<string>("SELECT code FROM player_profile WHERE player_id=3")=="code-three");
+await host.Call("POST","/api/new-game","{}");
+Check("New week preserves connection identities and recreates guest needs",C.Scalar<string>("SELECT token_hash FROM mp_player WHERE id=2")=="hash-two"&&N(host.Player(2)["money_c"])==50&&N(host.Player(2)["sleep"])==7);
+Check("New week restores neutral relationships for every guest",C.Scalar<int>("SELECT COUNT(*) FROM npc_relationship WHERE player_id=2")==C.Scalar<int>("SELECT COUNT(*) FROM npc_relationship WHERE player_id=1"));
+Check("New week clears former sleeps and wakes",host.Rest.View(2)==null&&host.Rest.TakeWoke(2)==null);
+mp=false;await host.Call("POST","/api/pause","{\"on\":true,\"client\":\"local-menu\"}");Check("Single-player menu still pauses",host.Saves.Paused);mp=true;host.Saves.MultiplayerModeChanged(true);Check("Enabling shared play clears an earlier local pause",!host.Saves.Paused&&!host.Saves.Gate()["holders"]!.AsArray().Any(n=>n?.GetValue<string>()=="local-menu"));
+string closedFile=Path.Combine(output,"closed.sqlite");using(var transient=new NativeServiceContext(Options("closed.sqlite",()=>time)))transient.SetWorld("proof_closed",true);using(var exclusive=new FileStream(closedFile,FileMode.Open,FileAccess.ReadWrite,FileShare.None))Check("Disposed native context releases the database file immediately",exclusive.Length>0);
+var report=new{passed=true,checks=checks.Count,sourceScenarios=scenario,sourceWorldSteps=originalSteps,assertions=checks};File.WriteAllText(Path.Combine(output,"result.json"),JsonSerializer.Serialize(report,new JsonSerializerOptions{WriteIndented=true}));Console.WriteLine(JsonSerializer.Serialize(new{passed=true,checks=checks.Count,sourceScenarios=scenario,sourceWorldSteps=originalSteps,output}));

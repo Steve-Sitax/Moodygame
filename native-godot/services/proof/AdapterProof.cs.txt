@@ -1,0 +1,17 @@
+using Scheldemist.Native.Services;using Scheldemist.Native.World;using Scheldemist.Menu;using Scheldemist.Net;using System.Text.Json.Nodes;
+string root=Path.GetFullPath(args[0]),folder=Path.Combine(root,"native-godot/proof/adapter-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(folder);
+using var host=new NativeServiceHost(new(Path.Combine(folder,"game.sqlite"),Path.Combine(root,"native-godot/services/data"),Path.Combine(folder,"saves"),()=>10000,()=>.42));host.Saves.EnsurePlayer(2,"Guest2");
+var profile=new NativeTownProfile(host);profile.Register(host);
+JsonObject Name(string first,string sex){var p=JsonNode.Parse(Character.ToElement(Character.Jef).GetRawText())!.AsObject();p["first"]=first;p["sex"]=sex;return p;}
+await host.Call("PUT","/api/player/profile",Name("Anna","woman").ToJsonString(),2);await host.Call("PUT","/api/player/profile",Name("Pieter","man").ToJsonString(),1);
+using var one=new NativeBackendAdapter(host,profile:profile,playerId:1,ownsBackend:false);var two=new NativeBackendAdapter(host,profile:profile,playerId:2,ownsBackend:false);var a=new List<JsonObject>();var b=new List<JsonObject>();one.Push+=text=>a.Add(JsonNode.Parse(text)!.AsObject());two.Push+=text=>b.Add(JsonNode.Parse(text)!.AsObject());int checks=0;
+void Check(bool pass,string message){if(!pass)throw new Exception(message);checks++;}
+host.Register("GET","/test/words",r=>new JsonObject{["who"]=r.PlayerId,["line"]="Jef, a young man, has arrived.",["nested"]=new JsonArray("Jef will find it.")});
+var response=JsonNode.Parse(await two.Call("GET","/test/words",null))!;Check(response["who"]!.GetValue<int>()==2&&response["line"]!.GetValue<string>()=="Anna, a young woman, has arrived."&&response["nested"]![0]!.GetValue<string>()=="Anna will find it.","Per-seat API and deep female character translation");
+Check(JsonNode.Parse(await one.Call("GET","/test/words",null))!["line"]!.GetValue<string>()=="Pieter, a young man, has arrived.","Host translation stays his own");
+await host.WithState(_=>{host.PublishFor(2,"press",new(){["text"]="Jef, a young man, has a letter."});return true;});Check(a.Count==0&&b.Count==1&&b[0]["text"]!.GetValue<string>()=="Anna, a young woman, has a letter.","Private push filtering and recipient character translation");
+await host.WithState(_=>{host.Publish("news",new(){["text"]="Jef heard the town news."});return true;});Check(a.Count==1&&b.Count==2&&a[0]["text"]!.GetValue<string>()=="Pieter heard the town news."&&b[1]["text"]!.GetValue<string>()=="Anna heard the town news.","Public push translated independently for every seat");
+await host.WithState(c=>{c.Execute("UPDATE player SET money_c=100 WHERE id=1");c.Execute("UPDATE player SET money_c=200 WHERE id=2");host.PublishState();return true;});Check(a.Last()["player"]!["money_c"]!.GetValue<int>()==100&&b.Last()["player"]!["money_c"]!.GetValue<int>()==200,"Jobs payload retains each private player's state");
+two.Dispose();int seen=b.Count;await host.WithState(_=>{host.PublishFor(2,"press",new(){["text"]="late"});return true;});Check(b.Count==seen,"Disposed adapter unsubscribes");Check((await one.Call("GET","/test/words",null)).Contains("Pieter"),"Pooled guest disposal leaves host alive");
+try{await two.Call("GET","/test/words",null);throw new Exception("Disposed adapter accepted call");}catch(ApiException e){Check(e.Status==503,"Disposed seat refuses calls");}
+Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new{passed=true,checks,folder}));

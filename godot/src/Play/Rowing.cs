@@ -59,8 +59,8 @@ public partial class Rowing:Node,RowPhysics.IWorld
     }
     private (int Kind,int Sub,float Heading)? Gear()=>Boat!=null?(MpProtocol.GearRowboat,Array.IndexOf(Kinds,Boat.Kind),Rower.Heading):otherGear?.Invoke();
     private void Clear(){ReleaseNavigation();if(Jef.I.Drive==drive){Jef.I.Drive=null;Jef.I.DrivenEye=Jef.Eye;Jef.I.DrivenRoll=0;}Boat=null;}
-    private void Replaced(string how,ClientState? client){savedRow=RideSaves.Read<RowSaved>(client,"row");epoch++;Clear();foreach(var d in Drawings.Values)d.Root.QueueFree();Drawings.Clear();Boats.I.PlayerShowSmall();_=Load(true);}
-    public override void _ExitTree(){Clear();Jef.I.OnJump=oldJump;Boats.I.PlayerShowSmall();if(Together.I is {} together)together.Gear=otherGear;if(Scheldemist.Menu.MainMenu.I is {} menu)menu.WorldReplaced-=Replaced;}
+    private void Replaced(string how,ClientState? client){savedRow=RideSaves.Read<RowSaved>(client,"row");epoch++;ClearResidentBoats();Clear();foreach(var d in Drawings.Values)d.Root.QueueFree();Drawings.Clear();Boats.I.PlayerShowSmall();_=Load(true);}
+    public override void _ExitTree(){ClearResidentBoats();Clear();Jef.I.OnJump=oldJump;Boats.I.PlayerShowSmall();if(Together.I is {} together)together.Gear=otherGear;if(Scheldemist.Menu.MainMenu.I is {} menu)menu.WorldReplaced-=Replaced;}
     public async Task Load(bool restore=false)
     {
         var api=ServerLink.I?.Api;if(api==null||polling)return;polling=true;int e=epoch;
@@ -100,7 +100,7 @@ public partial class Rowing:Node,RowPhysics.IWorld
     }
     public void Apply(RowWorld data)
     {
-        Data=data;Boats.I.PlayerShowSmall();var wanted=new HashSet<string>();
+        Data=data;Boats.I.PlayerShowSmall();var wanted=new HashSet<string>(Drawings.Keys.Where(k=>k.StartsWith("town:",StringComparison.Ordinal)));
         foreach(var l in data.Landings)
         {Boats.I.PlayerHideSmall(l.X,l.Z,true);string key="berth:"+l.Id;wanted.Add(key);if(!Drawings.TryGetValue(key,out var d))d=Make(key,l.Kind,l.X,l.Z,l.Yaw);if(d!=Boat){d.X=l.X;d.Z=l.Z;d.Yaw=l.Yaw;}d.Root.Visible=!(Boat?.Key==key||data.On=="hire"&&data.Hire?.Landing==l.Id);}
         foreach(var b in data.Boats)
@@ -245,5 +245,6 @@ public partial class Rowing:Node,RowPhysics.IWorld
         foreach(var hull in Drawings.Values){var at=new Vector2(hull.X,hull.Z);if(at.DistanceSquaredTo(hull.LastPosition)>.01f){hull.LastMoved=MoverClock.T;hull.LastPosition=at;}}
         foreach(var d in Drawings.Values)if(d!=Boat)
         {if(d.Drift){var c=((RowPhysics.IWorld)this).Current(d.X,d.Z);d.X+=c.X*dt;d.Z+=c.Y*dt;}d.Root.Position=new(d.X,MathF.Max(BoatWater.At(d.X,d.Z),BoatGround.Floor(d.Kind,d.X,d.Z,d.Yaw)),d.Z);d.Root.Rotation=new(0,d.Yaw,0);}
+        UpdateResidentBoats(dt);
     }
 }

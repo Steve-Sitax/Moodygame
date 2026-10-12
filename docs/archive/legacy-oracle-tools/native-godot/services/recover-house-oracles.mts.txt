@@ -1,0 +1,20 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import vm from 'node:vm';
+import {stripTypeScriptTypes} from 'node:module';
+import {createHash} from 'node:crypto';
+const tls=fs.readFileSync('server/src/mp/tls.ts','utf8'), lan=fs.readFileSync('server/src/mp/lan.ts','utf8');
+const pure=tls.slice(tls.indexOf('const EC ='),tls.indexOf('// ------------------------------------------------------------------ files')).replace(/\bexport\s+/g,'');
+const context=vm.createContext({Buffer,path,os:{hostname:()=> 'Test-PC'},process:{env:{}}});
+vm.runInContext(stripTypeScriptTypes(pure,{mode:'transform'})+';globalThis.rules={tlsDirFor,hostName,privateIp,vpnIp,dnsName,nameConstraintsDer,readNameConstraints};',context);
+const parsing=lan.slice(lan.indexOf('export function parseNetbird'),lan.indexOf('function run(')).replace(/\bexport\s+/g,'');
+vm.runInContext(stripTypeScriptTypes(parsing,{mode:'transform'})+';globalThis.parse=parseNetbird;',context);
+const rules=context.rules, out:any={source:{tls:createHash('sha256').update(tls).digest('hex'),lan:createHash('sha256').update(lan).digest('hex')},ips:[],dns:[],constraints:[],netbird:[]};
+for(let a=0;a<256;a++)for(const b of [0,15,16,31,32,63,64,127,128,168,255]){const ip=`${a}.${b}.7.22`;out.ips.push({ip,private:rules.privateIp(ip),vpn:rules.vpnIp(ip)});}
+for(const ip of ['','localhost','192.168.1.999','1.2.3','::1','::ffff:192.168.0.1','127.000.000.001','100.063.0.1','256.1.1.1'])out.ips.push({ip,private:rules.privateIp(ip),vpn:rules.vpnIp(ip)});
+for(const name of ['localhost','test-pc','pc.local','a'.repeat(63)+'.local','a'.repeat(64)+'.local','a'.repeat(253),'a'.repeat(254),'PC.LOCAL','-pc.local','pc-.local','pc..local','a_b.local','localhost.','evil/pc','é.local','a'.repeat(63)+'.'+('a'.repeat(63)+'.').repeat(2)+'a'.repeat(61)])out.dns.push({name,result:rules.dnsName(name)});
+for(let n=0;n<40;n++){const dns=Array.from({length:n%9},(_,i)=>`host${i}.house.local`),ranges=Array.from({length:n%11},(_,i)=>[`192.168.${i}.17`,(n+i)%33]);const der=rules.nameConstraintsDer(dns,ranges);out.constraints.push({dns,ranges,der:der.toString('hex'),decoded:rules.readNameConstraints(der)});}
+for(const text of ['{"fqdn":"Test-PC.NETBIRD.cloud."}',' FQDN: Test-PC.netbird.cloud.\r\n','{"fqdn":null}','{"fqdn":42}','{"fqdn":"localhost"}','FQDN: evil/pc.net','FQDN: a..net','{"fqdn":" pc.home.arpa "}','junk','FQDN: a.net\nFQDN: b.net'])out.netbird.push({text,result:context.parse(text)});
+fs.writeFileSync('native-godot/services/proofs/data/native-house-source.json',JSON.stringify(out,null,2)+'\n');
+console.log(JSON.stringify({ips:out.ips.length,dns:out.dns.length,constraints:out.constraints.length,netbird:out.netbird.length}));
+

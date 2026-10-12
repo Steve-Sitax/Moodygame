@@ -9,18 +9,17 @@
 </p>
 
 <p align="center">
-  <a href="https://steve-sitax.github.io/Moodygame/"><b>Try it in your browser</b></a> (a limited demo, just a look)
-  &nbsp;·&nbsp; <a href="https://github.com/Steve-Sitax/Moodygame/releases/latest"><b>Download the full game</b></a>
-  <br><a href="#play-it">How to play</a>
+  <a href="#play-it"><b>Play in Godot</b></a>
+  &nbsp;·&nbsp; <a href="native-godot/README.md"><b>Edit the town yourself</b></a>
   &nbsp;·&nbsp; <a href="docs/README.md">Design notes</a>
   &nbsp;·&nbsp; <a href="#made-with-ai">Made with AI</a>
 </p>
 
-A 3D browser game in first person. You are Jef, new in town, with a few coins and
+A native Godot game in first person. You are Jef, new in town, with a few coins and
 rent due by Sunday. You look for work on the quays. The townspeople talk, remember and act: an AI
 proposes their words and plans, and the game engine checks every proposal and owns every number.
 
-- **A real town.** The streets are traced from the 1873 Vuillaume map. About 190 townspeople have
+- **A real town.** The streets are traced from the 1873 Vuillaume map. Several hundred townspeople have
   homes, trades, families and a day of their own.
 - **Talk to anyone, in your own words.** Ask the fishwife for work, haggle at a stall, lie to the
   police. The town answers in its own voice, and the engine decides what it costs you.
@@ -31,8 +30,8 @@ proposes their words and plans, and the game engine checks every proposal and ow
   tall ships, cranes, opening bridges and a working lock.
 - **Real rooms.** Every building you can enter is built inside, at its true size. You see the street
   from inside and the room from the street.
-- **Play alone, or with the people in your house.** And with no AI at all, if you like: then it is a
-  walk through 1873.
+- **Play alone, or with the people in your house.** Godot runs the town's rules and multiplayer server.
+  With AI disabled, the game uses written dialogue and engine-controlled events.
 
 <table>
   <tr>
@@ -51,29 +50,31 @@ proposes their words and plans, and the game engine checks every proposal and ow
 
 ## Play it
 
-**Just a look: [try the web demo in your browser](https://steve-sitax.github.io/Moodygame/).** It is a limited version: you walk about the
-town among its people, press **F9** to fly over it, and **F8** to set the time and the weather or start
-one of the town's events (a wedding, a house fire, street musicians, the night watch and ten more). No talking, no jobs, no AI and no saves. About 80 MB loads the first time.
+In this checkout, open `native-godot/Start Native Town Game.cmd` and choose **Walk into town**.
+The full town, menus, residents, interiors, weather and game rules run in Godot. The Windows standalone
+package opens with `Play Scheldemist.cmd`; keep its executable, PCK and runtime folder together. It needs
+no Node, browser, source checkout or runtime bake. Export and multiplayer test evidence is recorded in
+[native project notes](native-godot/README.md) and [packaging notes](native-godot/world/notes/standalone-export.md).
 
-**The whole game:** download it below.
+WASD moves, Shift runs, Space jumps, E interacts, I opens pockets, J opens the quest book, M opens the map,
+P pauses and Esc opens the menu. For object placement, open `native-godot/Start Workshop.cmd`; place, move,
+copy or delete a lamp and save its district layout. The full game reads those saved layouts.
 
-**[Download the latest version](https://github.com/Steve-Sitax/Moodygame/releases/latest)**. You need to
-install nothing. What changed in each version: [CHANGELOG.md](CHANGELOG.md).
+Native game data uses `%APPDATA%/ScheldemistWorkshop/native-playtest`; dedicated servers use a separate
+`native-server` folder. Editor layouts remain under `ScheldemistWorkshop/layouts`. Steve explicitly waived
+old game-save compatibility, and the identified legacy game saves were removed. Layouts, preferences and
+provider credentials were retained.
 
-1. On the download page, pick the file for your computer: Windows (`windows-x64.zip`), Mac with an Apple
-   M1 or newer (`mac-arm64.zip`), or Linux (`linux-x64.tar.gz`).
-2. Unzip it.
-3. Start it:
-   - **Windows:** double-click `Start Scheldemist.bat`. If Windows says "Windows protected your PC",
-     click **More info**, then **Run anyway**.
-   - **Mac:** double-click `Start Scheldemist.command`. If the Mac says it cannot open it, open
-     **System Settings > Privacy & Security**, scroll down, click **Open Anyway**, and double-click the
-     file again.
-   - **Linux:** run `./start-scheldemist.sh`.
-4. The game opens in your browser. Keep the small black window open while you play. Close it to stop.
+Steve authorized integrating the completed Godot conversion into `main` on 2026-10-12. Automated checks
+are recorded separately from his manual testing. The final standalone folders are
+`D:/Code/ScheldemistPackages/final-client-20261012-portable` and
+`D:/Code/ScheldemistPackages/final-server-20261012-portable`; open their Play or Start Server shortcut.
+The old browser/server/bake entrypoints have been removed from the active project, with original art and useful
+historical references checksum-archived under `art-source` and `docs/archive`.
 
-Chrome gives the best speed. Your save is in the `data` folder; to move to a new version, copy `data`
-into the new folder. `PLAY.txt` in the download says the same.
+Multiplayer uses the same native rules in an in-game host or a headless Godot process. Development server:
+`native-godot/Start Native Server.cmd -Port 8800`. Exported server: `Start Server.cmd --port 8800`.
+Join through the game's Together menu using the host's address and join code.
 
 **The town's voice (AI).** The game works with no AI at all: the townspeople then use written lines. To let
 an AI speak for the town, open the menu (Esc), then **AI setup**, and pick one:
@@ -85,18 +86,26 @@ an AI speak for the town, open the menu (Esc), then **AI setup**, and pick one:
 | Codex (GPT) | the Codex CLI installed and logged in |
 | Ollama | [Ollama](https://ollama.com) on your computer with a model pulled (free) |
 | Any OpenAI-compatible server | its address, model name and key |
-| No AI | nothing: walk around |
+| No AI | nothing: use written dialogue and native game rules |
 
 Press **Test** next to your choice to see if it works. More in `docs/ai-setup.md`.
 
 ## Run it from the source (developers)
 
-1. Install Node.js 24 or newer.
-2. `npm run setup` once, then `npm run dev` in this folder.
-3. Open http://localhost:5173. The server runs on 127.0.0.1:8787; the save is `data/game.sqlite`.
+Use Godot 4.7.2 Mono and a .NET SDK supporting .NET 8. Build `native-godot/Scheldemist.Native.csproj` or
+use its launchers. Open `native-godot/project.godot`: F5 runs the full game; F6 runs the currently edited
+district. The sibling `godot/src` project supplies the native C# core and is built automatically.
 
-`node tools/package.mjs` makes the player's download for your own system; `docs/release.md` says how a
-Release is made. The design notes start at `docs/README.md`.
+```powershell
+dotnet build native-godot/Scheldemist.Native.csproj
+pwsh -File native-godot/scripts/open-native-town.ps1
+pwsh -File native-godot/scripts/export-native-windows.ps1 -Output D:/Code/ScheldemistPackages/client
+```
+
+Game services, networking, navigation and saves are native C#/SQLite. Godot resources supply the town and
+models. Static rules, audio and auxiliary images are bundled and extracted into a versioned local cache.
+No web build or bake step belongs in the game startup. See [service checks](native-godot/services/README.md),
+[authoring](native-godot/README.md) and [standalone export](native-godot/world/notes/standalone-export.md).
 
 ## Made with AI
 
@@ -118,6 +127,9 @@ What it took, up to version 0.1.0 (counted from the Claude Code logs on the main
 
 Not counted: the work on the laptop, the Codex runs for the pictures, and the AI calls the game makes
 while you play.
+
+The October 2026 Godot conversion moved the complete town, object editing, gameplay services and multiplayer
+into native resources and C#. The figures above describe the original 0.1.0 development, before this conversion.
 
 ## Licence
 

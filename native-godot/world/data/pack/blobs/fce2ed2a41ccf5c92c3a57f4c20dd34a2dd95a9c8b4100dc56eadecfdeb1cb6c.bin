@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "named": {
+    "fientje": {
+      "sex": "f",
+      "label": "fishwife",
+      "stats": {
+        "greed": 5,
+        "warmth": 6,
+        "temper": 5,
+        "honesty": 6,
+        "courage": 6
+      }
+    },
+    "peeters": {
+      "sex": "f",
+      "label": "widow and ship's chandler",
+      "stats": {
+        "greed": 8,
+        "warmth": 3,
+        "temper": 4,
+        "honesty": 7,
+        "courage": 5
+      }
+    },
+    "tuur": {
+      "sex": "m",
+      "label": "boatman",
+      "stats": {
+        "greed": 6,
+        "warmth": 4,
+        "temper": 3,
+        "honesty": 4,
+        "courage": 5
+      }
+    }
+  },
+  "support": {
+    "stale_goods": "\\b(old|stale|yesterday'?s?|days?|fresh|rotten|smells?|stinks?|dry|hard|off|week|morning|last)\\b",
+    "regular_customer": "\\b(every|always|regular\\w*|often|each|loyal|again|daily|customer|come here|buy here|mornings)\\b",
+    "cheaper_elsewhere": "\\b(cheap\\w*|less|elsewhere|down the|other|widow|next|sells?|across|over there|round the corner)\\b",
+    "buy_several": "\\b(two|three|four|five|six|several|few|dozen|all|more|lot|pair|both)\\b",
+    "hard_up": "\\b(hungry|hunger|poor|money|children|sick|mother|eat|broke|starv\\w*|widow|nothing|coins?|purse|penn\\w*|wife|little ones)\\b",
+    "flattery": "\\b(beautiful|lovely|fine|finest|best|handsome|pretty|kind|good|honest|famous|smile|eyes)\\b",
+    "quality": "\\b(small|bruised?|thin|poor|bad|worms?|soft|tiny|scrawny|skinny|mean|sorry-looking|burnt|stale)\\b"
+  },
+  "wareWords": {
+    "herring": "herring",
+    "eel": "\\beels?\\b",
+    "bread": "\\b(bread|loaf|loaves|rye)\\b",
+    "apple": "\\bapples?\\b",
+    "beer": "\\bbeer\\b",
+    "jenever": "\\b(jenever|gin)\\b",
+    "soup": "\\bsoup\\b",
+    "biscuit": "\\bbiscuits?\\b",
+    "lantern": "\\b(lantern|lamp)\\b",
+    "newspaper": "\\b(paper|newspaper|handelsblad)\\b"
+  },
+  "claimSaid": {
+    "stale_goods": "said my goods were old",
+    "regular_customer": "said he buys from me every day",
+    "cheaper_elsewhere": "said it was cheaper down the quay",
+    "buy_several": "said he would take several",
+    "hard_up": "told me a hard-luck story"
+  },
+  "priceTalk": "\\b(price|prices|cheaper|cheap|too dear|so dear|dear for|expensive|discount|knock|bargain|haggle|lower|less for|centimes?|sous|how much|a deal|two for|three for)\\b"
+}

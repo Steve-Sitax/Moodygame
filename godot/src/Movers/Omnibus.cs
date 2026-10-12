@@ -341,6 +341,7 @@ public partial class Omnibus : Node
         var b = new AnimatableBody3D { Name = name, SyncToPhysics = false, CollisionLayer = Solid.Layer, CollisionMask = 0 };
         AddChild(b);
         b.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = size }, Position = new Vector3(0, size.Y / 2 + 0.25f, 0) });
+        Scheldemist.Town.WalkMap.RegisterBody(b,new Aabb(new Vector3(-size.X/2,.25f,-size.Z/2),size),true);
         return b;
     }
 
@@ -783,10 +784,10 @@ public partial class Omnibus : Node
         for (int i = 0; i < buses.Count; i++)
         {
             var b = buses[i];
-            Move(b, dt);
+            if(NetRemote)Place(b,dt);else Move(b,dt);
             float dist = new Vector2(b.Pa.X - cam.X, b.Pa.Y - cam.Z).Length();
             b.Near = dist < far;
-            PeopleStep(b,dt);
+            if(NetRemote)NetAnimatePeople(b,dt);else PeopleStep(b,dt);
             float cy = MathF.Cos(b.HorseYaw), sy = MathF.Sin(b.HorseYaw), amp = Math.Min(1, b.V / 0.8f);
             bool trot = b.V > 1.9f;
             for (int k = 0; k < 2; k++)
@@ -837,7 +838,7 @@ public partial class Omnibus : Node
         interiorM?.Commit();
         farGlassM?.Commit();
         lampsM?.Commit();
-        WaitersStep(dt);
+        if(NetRemote)NetAnimateWaiters(dt);else WaitersStep(dt);
         MoverCost.End("omnibus");
     }
 

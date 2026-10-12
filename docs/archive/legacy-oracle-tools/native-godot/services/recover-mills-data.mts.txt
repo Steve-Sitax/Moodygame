@@ -1,0 +1,7 @@
+// Authored mill geometry and rules, intake only. No server or database.
+import {MILLS,MILL_DAY,WIND,HELP_MIN,HELP_TURNS,HELP_PAY} from '../../shared/mills.ts';
+import {readFileSync,writeFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+const files=['shared/mills.ts','server/src/town/mills.ts','shared/spots.json'];
+writeFileSync('native-godot/services/data/native-mills.json',JSON.stringify({version:1,provenance:'Original authored mill/carts/stock rule constants; no saved state.',mills:MILLS,day:MILL_DAY,wind:WIND,helpMinutes:HELP_MIN,helpTurns:HELP_TURNS,helpPay:HELP_PAY,hashes:Object.fromEntries(files.map(f=>[f,createHash('sha256').update(readFileSync(f)).digest('hex')]))},null,2)+'\n');
+console.log(JSON.stringify({mills:MILLS.length}));

@@ -1,0 +1,65 @@
+// Original rule oracles on isolated SQLite only. Never opens a player's save or calls a model.
+import { openDb } from '../../server/src/db.ts';
+import { dropTownCache } from '../../server/src/town/store.ts';
+import { loanFor, hotLoan, rateFor, dueDay, redeemCost, pawn, redeem, bergView, ticketView, forfeitPawns } from '../../server/src/paper/pawn.ts';
+import { ensureLetterRound, postView, pickUp, deliverAt, sendTelegram, collectWaiting, discard, planLetter, fallbackLetter, cleanLetter, letterDue, sumsOk } from '../../server/src/paper/post.ts';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { writeHarbour, paperFacts, enginePaper, cleanPaper, pricesNow } from '../../server/src/paper/newspaper.ts';
+process.env.SCHELDEMIST_TOWN_SEED='1873'; process.env.SCHELDEMIST_NO_AI='1';
+const db=openDb(':memory:');
+const seed=JSON.parse(readFileSync('native-godot/services/data/native-seed.json','utf8'));
+function reset(){
+  db.pragma('foreign_keys=OFF');
+  db.transaction(()=>{for(const [table,rows] of Object.entries(seed.tables) as Array<[string,any[]]>){db.exec(`DELETE FROM "${table}"`);for(const row of rows){const cols=Object.keys(row);db.prepare(`INSERT INTO "${table}" (${cols.map(c=>'"'+c+'"').join(',')}) VALUES (${cols.map(()=>'?').join(',')})`).run(...cols.map(c=>row[c]));}}})();
+  db.pragma('foreign_keys=ON'); dropTownCache(db);
+  db.exec('UPDATE player SET day=1,hour=10,minute=0,money_c=200 WHERE id=1');
+}
+const cases:any[]=[];
+const boardFixture="INSERT INTO job(id,day,title,employer_npc,district,task_type,pay_c,risk,tier,pitch,task_json,source,status) VALUES(900,1,'Finished work','sooi','rijnkaai','carry',50,'low',0,'Already done.','{}','test','done')";
+reset();db.exec(boardFixture);const harbour=[];
+for(let day=1;day<=7;day++){db.prepare('UPDATE player SET day=?').run(day);if(day>1)db.prepare('UPDATE job SET day=? WHERE id=900').run(day);harbour.push({day,ships:writeHarbour(db,day)});}
+cases.push({type:'harbour',sql:boardFixture,days:harbour});
+const verbs=['started','cancelled','robbed','caught_thief','restitution','police_warning','police_fine','arrested','cell','caught_stealing','police_search','rumour','town_rumour','private_confession'];
+for(const verb of verbs){
+ reset();db.exec(boardFixture);db.exec('UPDATE player SET day=2');db.exec('UPDATE job SET day=2 WHERE id=900');
+ const sql=`INSERT INTO world_event(day,hour,minute,kind,verb,actor,target,place,text,weight,data_json) VALUES(1,10,0,'${verb==='started'||verb==='cancelled'?'event':'log'}','${verb}',NULL,NULL,'rijnkaai','Jef lost 35 centimes.',7,'{}'),(2,8,0,'log','weather_day',NULL,NULL,NULL,'The day came up with rain.',2,'{}'),(2,8,0,'log','prices',NULL,NULL,NULL,'Bread is 5 c.',2,'{}'),(2,8,0,'log','news_abroad',NULL,NULL,NULL,'A strike abroad: coal costs 12 c.',6,'{}')`;
+ db.exec(sql);const facts=paperFacts(db,2);cases.push({type:'paperFacts',sql:boardFixture+'; UPDATE player SET day=2; UPDATE job SET day=2 WHERE id=900;'+sql,expected:facts});
+ for(const bad of [false,true]){
+  const out={cry:bad?'Buy for 100 centimes!':'Handelsblad! News from abroad!',articles:facts.map(f=>({fact:f.n,headline:'THE TOWN',text:bad?'All citizens received 500 centimes today.':f.text})),shipping:[]};
+  cases.push({type:'paperWords',day:2,facts,out,engine:enginePaper(2,facts),clean:cleanPaper(2,facts,out)});
+ }
+}
+for(const tone of [-2,0,2]) for(let seed=1;seed<=25;seed++){
+ reset();const npc:any=db.prepare("SELECT id FROM resident WHERE trade='baker' LIMIT 1").get();
+ db.prepare("UPDATE npc_relationship SET times_met=3,last_seen_day=1,view_of_player='A willing fellow.' WHERE npc_id=? AND player_id=1").run(npc.id);
+ db.prepare("INSERT INTO npc_memory(npc_id,text,source,weight,day,spread,about_player,gist,tone) VALUES(?,'Jef carried the bread.','seen',5,1,0,1,'Jef helped',?)").run(npc.id,tone);
+ let state=seed;const rng=()=>((state=(Math.imul(state,1664525)+1013904223)>>>0)/4294967296);
+ const plan=planLetter(db,rng);cases.push({type:'letterPlan',tone,npc:npc.id,seed,expected:plan,fallback:fallbackLetter(plan)});
+ for(const body of ['Please carry it for me. I will be grateful for your trouble.','There are 500 centimes in it. I reward you with a gold coin.','I enclose a banknote for your trouble.','You shall have three francs for your trouble.']){
+  const out={salutation:'Jef,',body,closing:'Yours,',signature:'Wrong signature',telegram:'COME ON MONDAY STOP'};cases.push({type:'cleanLetter',plan,out,expected:cleanLetter(plan,out)});
+ }
+}
+for(let day=1;day<=7;day++)for(const days of [[],[1],[2],[1,2,3,4]])for(const random of [.1,.35,.59,.6,.8]){
+ reset();db.prepare('UPDATE player SET day=? WHERE id=1').run(day);for(const d of days)db.prepare("INSERT INTO letter(day,hour,sender,sender_name,why,kind,status,player_id) VALUES(?,8,'postclerk','The clerk','stranger','news','waiting',1)").run(d);
+ cases.push({type:'letterDue',day,days,random,expected:letterDue(db,()=>random)});
+}
+for(const kind of ['medal','lantern','pocket_watch','handkerchief','bread','bogus']) for(let day=1;day<=8;day++){
+ const loan=loanFor(kind); const p={loan_c:loan,rate_c:rateFor(loan),day};
+ for(const at of [day-1,day,day+1,day+3,8])cases.push({type:'terms',kind,day,at,expected:{loan,hot:hotLoan(kind),rate:rateFor(loan),due:dueDay(day),cost:redeemCost(p,at)}});
+}
+function call(op:any):any {
+ switch(op.action){case 'pawn':return pawn(db,op.id);case 'redeem':return redeem(db,op.id);case 'berg':return bergView(db);case 'ticket':return ticketView(db,op.id);case 'forfeit':return forfeitPawns(db);
+ case 'round':return ensureLetterRound(db);case 'post':return postView(db);case 'pickup':return pickUp(db,op.id,op.at);case 'deliver':return deliverAt(db,op.id,op.index,op.at);case 'telegram':return sendTelegram(db,op.id,op.at);case 'collect':return collectWaiting(db);case 'discard':discard(db,op.id);return null; }
+}
+function scenario(name:string, steps:any[]){reset();const out:any[]=[];for(const op of steps){if(op.sql){db.exec(op.sql);dropTownCache(db);out.push(op);continue;}let result;try{result={value:call(op)};}catch(e:any){result={error:e.message,status:e.status??400};}out.push({...op,...result});}cases.push({type:'scenario',name,steps:out,state:{player:db.prepare('SELECT money_c FROM player WHERE id=1').get(),items:db.prepare('SELECT id,kind,job_id,ref,player_id FROM item ORDER BY id').all(),pawns:db.prepare('SELECT * FROM pawn ORDER BY id').all()}});}
+scenario('medal loan and redemption',[{action:'berg'},{action:'pawn',id:0},{action:'ticket',id:1},{action:'pawn',id:0},{action:'redeem',id:1},{action:'redeem',id:1},{action:'ticket',id:1}]);
+scenario('pocket ownership and durable goods',[{sql:"INSERT INTO item(id,kind,player_id) VALUES(100,'lantern',1),(101,'bread',1)"},{action:'pawn',id:101},{action:'pawn',id:100},{action:'ticket',id:1},{action:'redeem',id:1},{action:'pawn',id:999},{action:'pawn',id:100.5}]);
+scenario('no ticket no pledge',[{action:'pawn',id:0},{action:'discard',id:1},{sql:'DELETE FROM item'},{action:'redeem',id:1}]);
+scenario('full pockets and overnight interest',[{sql:"INSERT INTO item(kind,player_id) VALUES('bread',1),('bread',1),('bread',1),('bread',1),('bread',1),('bread',1)"},{action:'pawn',id:0},{sql:'DELETE FROM item'},{action:'pawn',id:0},{sql:'UPDATE player SET day=2,money_c=0 WHERE id=1'},{action:'ticket',id:1},{action:'redeem',id:1},{sql:'UPDATE player SET money_c=200 WHERE id=1'},{action:'redeem',id:1}]);
+scenario('expired pledge and ticket disappear once',[{action:'pawn',id:0},{sql:'UPDATE player SET day=4 WHERE id=1'},{action:'forfeit'},{sql:'UPDATE player SET day=5 WHERE id=1'},{action:'forfeit'},{action:'forfeit'},{action:'ticket',id:1},{action:'berg'}]);
+scenario('shut counter',[{sql:'UPDATE player SET hour=3 WHERE id=1'},{action:'pawn',id:0},{action:'redeem',id:1},{action:'collect'}]);
+for(let day=1;day<=7;day++){reset();db.prepare('UPDATE player SET day=?').run(day);const id=ensureLetterRound(db);cases.push({type:'round',day,expected:id?db.prepare('SELECT * FROM job WHERE id=?').get(id):null});}
+reset();const first=ensureLetterRound(db)!;const job:any=db.prepare('SELECT * FROM job WHERE id=?').get(first);const task=JSON.parse(job.task_json);
+const sql="INSERT INTO job("+Object.keys(job).join(',')+") VALUES("+Object.values(job).map(v=>v===null?'NULL':typeof v==='number'?String(v):"'"+String(v).replaceAll("'","''")+"'").join(',')+"); UPDATE job SET status='taken',taken_by=1 WHERE id="+first;
+scenario('letter round checks each real door',[{sql},{action:'pickup',id:first,at:{x:0,z:0}},{action:'pickup',id:first,at:task.from},{action:'pickup',id:first,at:task.from},{action:'deliver',id:first,index:0,at:{x:0,z:0}},...task.stops.map((s:any,index:number)=>({action:'deliver',id:first,index,at:s})),{action:'deliver',id:first,index:0,at:task.stops[0]},{action:'deliver',id:first,index:1.5,at:task.stops[0]}]);
+writeFileSync('native-godot/services/proof/press-oracles.json',JSON.stringify({version:1,source:'Original paper/pawn.ts and paper/post.ts on recovered fresh seed, no AI.',cases})+'\n');db.close();console.log(JSON.stringify({cases:cases.length}));

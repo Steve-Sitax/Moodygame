@@ -163,7 +163,7 @@ public partial class Day : Node
         // shared/sleep.ts STEEN_BENCHES
         benches.Add(new Bench("steen:0", "a bench on the Steen's promontory", -203, -27.5f, 0, false));
         benches.Add(new Bench("steen:1", "a bench on the Steen's promontory", -209.5f, -8.5f, 0, false));
-        string park = Path.Combine(shared, "..", "client", "public", "models", "park.json");
+        string park = Paths.Public("models/park.json");
         if (File.Exists(park))
         {
             using var doc = JsonDocument.Parse(File.ReadAllText(park));

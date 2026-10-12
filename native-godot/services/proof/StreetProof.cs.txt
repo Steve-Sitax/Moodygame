@@ -1,0 +1,46 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using Scheldemist.Native.Services;
+string root=args[0],data=Path.Combine(root,"native-godot/services/data"),output=Path.Combine(root,"native-godot/proof/street-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(output);
+var checks=new List<object>();
+void Check(string name,JsonNode? expected,JsonNode? actual){bool passed=JsonNode.DeepEquals(expected,actual);checks.Add(new{name,passed});if(!passed)throw new Exception(name+" EXPECTED "+expected+" ACTUAL "+actual);}
+void Ok(string name,bool passed)=>Check(name,JsonValue.Create(true),JsonValue.Create(passed));
+int N(JsonNode? n,string key)=>n is JsonObject row?NativeCoreClock.Number(row,key):0;
+long now=100000;double roll=.1;int rolls=0;
+using var host=new NativeServiceHost(new NativeServiceOptions(":memory:",data,Path.Combine(output,"saves"),()=>now,()=>rolls++==0?roll:.5));
+var c=host.Context;var incidents=new NativeStreetIncidents(host);host.AddModule(incidents);
+foreach(var test in JsonNode.Parse(File.ReadAllText(Path.Combine(root,"native-godot/services/proof/street-oracles.json")))!["cases"]!.AsArray()){
+ if(test!["type"]!.GetValue<string>()=="fall"){
+  c.Execute("UPDATE player SET health=$p0 WHERE id=1",N(test,"health"));Check("source fall result",test["expected"],incidents.Fall(1,test["body"]!.AsObject()));Check("source fall remaining health",test["after"],c.One("SELECT health FROM player WHERE id=1"));
+ }else{
+  host.NotifyLoaded();c.Execute("DELETE FROM world_state WHERE key LIKE 'picks:%'");c.Execute("UPDATE player SET day=1,hour=22,money_c=$p0 WHERE id=1",N(test,"money"));now=100000;roll=test["roll"]!.GetValue<double>();rolls=0;string id=test["id"]!.GetValue<string>();
+  Check("source night theft",test["picked"],incidents.Pick(1,id));Check("source stolen coins",test["afterPick"],JsonValue.Create(c.Scalar<int>("SELECT money_c FROM player WHERE id=1")));now+=N(test,"delay");JsonObject caught;
+  try{caught=incidents.Catch(1,id);}catch(NativeServiceException e){caught=new(){["error"]=e.Message,["status"]=e.Status};}
+  Check("source catch deadline",test["caught"],caught);Check("source returned coins",test["afterCatch"],JsonValue.Create(c.Scalar<int>("SELECT money_c FROM player WHERE id=1")));
+ }
+}
+var thieves=c.Rows("SELECT id FROM resident WHERE trade='thief' ORDER BY id").Select(r=>r!["id"]!.GetValue<string>()).Take(3).ToArray();
+async Task Refused(string name,Func<Task> action,string message){try{await action();throw new Exception("Allowed: "+name);}catch(NativeServiceException e){Ok(name,e.Message==message);}}
+c.Execute("UPDATE player SET day=1,hour=13,money_c=100,health=10 WHERE id=1; DELETE FROM world_state WHERE key LIKE 'picks:%'");
+await Refused("daylight prevents theft",()=>Task.Run(()=>incidents.Pick(1,thieves[0])),"too light for that");
+c.Execute("UPDATE player SET hour=22 WHERE id=1");now=100000;rolls=0;roll=.1;incidents.Pick(1,thieves[0]);
+await Refused("same thief cannot rob twice tonight",()=>Task.Run(()=>incidents.Pick(1,thieves[0])),"this one has tried already tonight");
+await Refused("another player cannot claim the recovery",()=>Task.Run(()=>incidents.Catch(2,thieves[0])),"nothing to get back from this one");
+await Refused("wrong resident cannot refund money",()=>Task.Run(()=>incidents.Catch(1,thieves[1])),"nothing to get back from this one");
+bool jail=false;incidents.ThiefCaught=(player,id)=>{jail=player==1&&id==thieves[0];return " Prison consequence.";};
+var recovered=JsonNode.Parse(await host.Call("POST","/api/resident/"+thieves[0]+"/catch","{}"));Ok("catch route attaches real prison hook and payload",jail&&recovered?["player"]!=null&&recovered["text"]!.GetValue<string>().EndsWith(" Prison consequence."));
+await Refused("money can only be recovered once",()=>Task.Run(()=>incidents.Catch(1,thieves[0])),"nothing to get back from this one");
+rolls=0;incidents.Pick(1,thieves[1]);await Refused("two thefts per world night",()=>Task.Run(()=>incidents.Pick(1,thieves[2])),"enough for one night");
+host.NotifyLoaded();await Refused("load clears transient theft claim",()=>Task.Run(()=>incidents.Catch(1,thieves[1])),"nothing to get back from this one");
+int pushes=0;host.Push+=_=>pushes++;var fall=JsonNode.Parse(await host.Call("POST","/api/fall","{\"height\":12}"));Ok("fall endpoint returns and publishes actual new health",N(fall,"hurt")==4&&N(fall?["player"],"health")==6&&pushes>0);
+using(var closingHost=new NativeServiceHost(new NativeServiceOptions(":memory:",data,Path.Combine(output,"closing-saves")))){
+ using var entered=new ManualResetEventSlim();using var release=new ManualResetEventSlim();
+ var active=Task.Run(()=>closingHost.WithState(state=>{entered.Set();release.Wait();return state.Scalar<int>("SELECT COUNT(*) FROM player");}));
+ if(!entered.Wait(TimeSpan.FromSeconds(3)))throw new Exception("state holder never started");
+ bool lateRan=false;var queued=closingHost.WithState(_=>{lateRan=true;return 1;});var closing=Task.Run(closingHost.Dispose);
+ bool refused=false;for(int attempt=0;attempt<100&&!refused;attempt++){try{await closingHost.Call("GET","/api/state",null).WaitAsync(TimeSpan.FromMilliseconds(5));}catch(TimeoutException){}catch(NativeServiceException e){refused=e.Status==503;}}
+ Ok("shutdown refuses new calls before closing active state",refused&&!closing.IsCompleted);
+ release.Set();Ok("active transaction finishes before shutdown",await active.WaitAsync(TimeSpan.FromSeconds(3))>0);await closing.WaitAsync(TimeSpan.FromSeconds(3));
+ await Refused("queued work cannot touch closed SQLite",async()=>{await queued;},"the game has closed");Ok("queued mutation did not execute",!lateRan);closingHost.Dispose();
+}
+File.WriteAllText(Path.Combine(output,"result.json"),JsonSerializer.Serialize(new{passed=true,checks}));Console.WriteLine($"native street incident proof: {checks.Count} checks passed; {output}");

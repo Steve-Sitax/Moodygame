@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "sourceCommit": "294d7bb",
+  "seed": 1873,
+  "provenance": "Fresh in-memory authored town, data/rules recovery only. No player database or AI calls.",
+  "hashes": {
+    "server/src/db.ts": "f7fb0e1e6414189a6d314baed28f3499bfc6583f5489cede1601749a8d0fb866",
+    "server/src/day.ts": "e95ab7d3e7cc5b0a3bc18740508a0b75aa57228703ec0dbc990d7a4fcdfe7abf",
+    "server/src/game.ts": "0b99fb5a731064fe28469f0ff891127e2a73ead953e10766d6824ee547ed2674",
+    "server/src/trade.ts": "b59055bc6ded49efdc15e99ffd89bcfcd6ce9402a532fbea133c8e81d9449bf9",
+    "server/src/hooks/jobBoard.ts": "21ddadde7fd714843767cdd4912c0d4732f22054d5996fcfb8a700d26ff69634",
+    "server/src/hooks/loads.ts": "f82d53b6093d613cbe9f5abd79527518fcaf34d805a0a839baba424187d9c0be",
+    "shared/night.ts": "c32b588f4f1c1a585b6b75512d20789a8cb436045bb188514f81edaf8a499fe5",
+    "shared/clock.ts": "ae6bb5aec2d0830d2f32d5f640c5aa010d8e91944b185d5914158ec5d61f0461"
+  },
+  "tableCount": 35,
+  "residents": 895,
+  "npcCount": 903,
+  "ruleCount": 75
+}

@@ -105,17 +105,29 @@ public partial class MpTest : Node
         doc["ok"] = ok;
         string name = guest ? (wentHome ? "mptest-guest-home.json" : "mptest-guest.json") : "mptest.json";
         File.WriteAllText(Path.Combine(dir, name), JsonSerializer.Serialize(doc, new JsonSerializerOptions(Api.Json) { WriteIndented = true }));
-        if (!guest)
+        try
         {
-            StopOther();
-            // Every server gone, and the disposable test databases with them.
-            var link = ServerLink.I;
-            string db = TestDb(Main.I);
-            link?.Shutdown();
-            Clean(db);
-            Clean(Path.Combine(dir, "mp-guest.sqlite"));
-            foreach (string f in new[] { "mp-tokens.json", "mp-host.mp-config.json", "mp-guest.mp-config.json" }) File.Delete(Path.Combine(dir, f));
+            if (!guest)
+            {
+                GD.Print("mptest: stopping second game");
+                StopOther();
+                // Every server gone, and the disposable test databases with them.
+                var link = ServerLink.I;
+                string db = TestDb(Main.I);
+                link?.Shutdown();
+                GD.Print("mptest: native game server closed");
+                Clean(db);
+                Clean(Path.Combine(dir, "mp-guest.sqlite"));
+                foreach (string f in new[] { "mp-tokens.json", "mp-host.mp-config.json", "mp-guest.mp-config.json" }) File.Delete(Path.Combine(dir, f));
+            }
         }
+        catch (Exception error)
+        {
+            ok = false; doc["ok"] = false; doc["cleanup_error"] = error.ToString();
+            File.WriteAllText(Path.Combine(dir, name), JsonSerializer.Serialize(doc, new JsonSerializerOptions(Api.Json) { WriteIndented = true }));
+            GD.PrintErr("mptest cleanup: " + error);
+        }
+        GD.Print("mptest: quitting");
         GetTree().Quit(ok ? 0 : 1);
     }
 
@@ -174,7 +186,13 @@ public partial class MpTest : Node
         await Frames(6);
         var fig = tg.FigureOf(otherId);
         var cam = Main.I.Cam;
+        // The guest's character sheet is deliberately submitted after the moving-world checks.
+        // Hide it for this render capture and frame the actual replicated player explicitly.
+        bool uiWasVisible = Main.I.Ui.Visible;
+        Main.I.Ui.Visible = false;
+        await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePreDraw);
         var there = tg.PlayerAt(otherId);
+        if (there is { } subject) cam.LookAt(subject + Vector3.Up);
         bool inView = false;
         if (there is { } q && cam != null && !cam.IsPositionBehind(q + Vector3.Up))
         {
@@ -186,13 +204,18 @@ public partial class MpTest : Node
             ["file"] = picture, ["other_shown"] = fig?.Shown, ["other_in_view"] = inView, ["other_motion"] = fig?.Figure?.Motion, ["other_name"] = fig?.Name,
             ["other_at"] = there is { } w ? new[] { w.X, w.Y, w.Z } : null, ["distance"] = there is { } v ? Math.Round(new Vector2(v.X - Jef.I.X, v.Z - Jef.I.Z).Length(), 2) : null,
         };
+        await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
         GetViewport().GetTexture().GetImage().SavePng(Path.Combine(dir, picture));
+        Main.I.Ui.Visible = uiWasVisible;
         await Until(() => At() >= lookTo, 10);
         lookAt = null;
         walking = true;
         await Until(() => At() >= 13.5, 20);
         walking = false;
         doc["report_whole"] = tg.Report();
+        doc["resident_replication"] = new { received = NativeStreet.I?.Received, sent = NativeStreet.I?.Transmitted, remotes = NativeStreet.I?.RemoteCount };
+        doc["moving_world"] = NativeMovingWorld.I?.Report();
+        if (guest && NativeStreet.I?.Received is not > 0) return Fail("no shared resident movement reached the guest");
         var rep = (Dictionary<string, object?>)doc["report"]!;
         var remotes = (List<Dictionary<string, object?>>)rep["remotes"]!;
         var r = remotes.FirstOrDefault(x => (int)x["id"]! == otherId);
@@ -210,7 +233,7 @@ public partial class MpTest : Node
     {
         var st = GameState.I;
         if (ServerLink.I is not { } link || Together.I is not { } tg) return Fail("a part is off");
-        if (!await Until(() => st.Live && link.Up && Jef.I != null, 110)) return Fail(link.Error != "" ? link.Error : "no first state");
+        if (!await Until(() => st.Live && link.Up && Jef.I != null && Main.I.GetNode<Town.Townspeople>("Townspeople").Sims.Count > 0, 110)) return Fail(link.Error != "" ? link.Error : "no first state");
         var api = link.Api!;
         var jef = Jef.I;
         jef.TestInput = true;
@@ -242,10 +265,10 @@ public partial class MpTest : Node
 
         // the guest: a second game, on this PC, with nothing but the host's address
         string exe = OS.GetExecutablePath();
-        var info = new ProcessStartInfo { FileName = exe, UseShellExecute = false, CreateNoWindow = false };
+        var info = new ProcessStartInfo { FileName = exe, UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden };
         // Keep the guest's own server beside the test host's port, including after it leaves.
         string guestPort = (new Uri(link.Server!.Url).Port + 1).ToString();
-        foreach (string a in new[] { "--path", ProjectSettings.GlobalizePath("res://"), "--log-file", Path.Combine(dir, "guest-engine.log"), "--position", "120,120", "--", "--join", link.Server.Url, "--seat", "2", "--port", guestPort, "--prefs", Path.Combine(dir, "guest-settings.json"), "--no-ai", "--mptest", dir })
+        foreach (string a in new[] { "--path", ProjectSettings.GlobalizePath("res://"), "--log-file", Path.Combine(dir, "guest-engine.log"), "--position", "120,120", "--", "--join", link.Server.Url, "--code", house.Code, "--name", "Anna", "--seat", "2", "--port", guestPort, "--prefs", Path.Combine(dir, "guest-settings.json"), "--no-ai", "--mptest", dir })
             info.ArgumentList.Add(a);
         if (Main.I.Arg("town") != "")
         {
@@ -254,8 +277,7 @@ public partial class MpTest : Node
         }
         foreach (string f in new[] { "mptest-guest.json", "mptest-guest-home.json", "mptest-start.json", "mptest.json", "mp_host.png", "mp_guest.png" }) File.Delete(Path.Combine(dir, f));
         if (Main.I.Flag("mpmoving")) info.ArgumentList.Add("--mpmoving");
-        info.ArgumentList.Add("--models");
-        info.ArgumentList.Add(Models.ModelLibrary.Dir);
+        if (Main.I.Arg("author-root") != "") { info.ArgumentList.Add("--author-root"); info.ArgumentList.Add(Main.I.Arg("author-root")); }
         if (OS.GetCmdlineArgs().Contains("--verbose")) info.ArgumentList.Insert(0, "--verbose");
         other = Process.Start(info);
         if (other == null) return Fail("the second game did not start");
@@ -269,12 +291,16 @@ public partial class MpTest : Node
         File.WriteAllText(Path.Combine(dir, "mptest-start.json"), JsonSerializer.Serialize(new { t0 }));
         bool ok = await Play(t0, 2, WalkS + 0.3, WalkS + 2.0, "mp_host.png");
         if (ok && Main.I.Flag("mpmoving")) ok = await HostMoving();
+        if (!ok) return false;
 
         // the guest's own numbers, its going home, and its end
         string gfile = Path.Combine(dir, "mptest-guest.json"), hfile = Path.Combine(dir, "mptest-guest-home.json");
         if (!await Until(() => File.Exists(gfile), 30)) return Fail("the guest wrote no report");
         await Frames(10);
         doc["guest"] = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(gfile));
+        bool guestOk = doc["guest"] is JsonElement g && g.TryGetProperty("ok", out var gk) && gk.ValueKind == JsonValueKind.True;
+        if (!ok) return false;
+        if (!guestOk) return Fail("the guest's side failed (see guest.why)");
         bool went = await Until(() => tg.Roster.All(r => r.Id != 2 || !r.Online), 40);
         doc["guest_went"] = went;
         bool home = await Until(() => File.Exists(hfile) || other.HasExited, 120);
@@ -283,10 +309,7 @@ public partial class MpTest : Node
         doc["guest_exited"] = other.HasExited;
         StopOther();
         foreach (string f in new[] { "mptest-guest.json", "mptest-guest-home.json", "mptest-start.json" }) File.Delete(Path.Combine(dir, f));
-        bool guestOk = doc["guest"] is JsonElement g && g.TryGetProperty("ok", out var gk) && gk.ValueKind == JsonValueKind.True;
         bool homeOk = doc["guest_home"] is JsonElement h && h.TryGetProperty("ok", out var hk) && hk.ValueKind == JsonValueKind.True;
-        if (!ok) return false;
-        if (!guestOk) return Fail("the guest's side failed (see guest.why)");
         if (!went) return Fail("the host never heard the guest go");
         if (!home || !homeOk) return Fail("the guest did not get home to its own game");
         return true;

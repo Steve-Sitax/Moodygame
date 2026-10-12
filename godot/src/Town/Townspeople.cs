@@ -3,8 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
-using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Godot;
@@ -107,6 +105,8 @@ public partial class Townspeople : Node
         /// <summary>An action owns this resident until it releases him; his day must not pull him away.</summary>
         public bool ActionHeld;
         public object? ActionOwner;
+        public Scheldemist.Play.ResidentJourneys.Trip? Journey;
+        public bool InTrip,Aboard;
         internal string GamePlace = "", GameKind = "", PropBase = "", PropGame = "", PropKey = "";
         internal int GameDay = -1, GameSlice = -1, ScheduleStorm = -1;
         internal string ScheduleAct = "", SchedulePlace = "", ScheduleLife = "", ScheduleShelter = "", ScheduleRun = "";
@@ -141,6 +141,11 @@ public partial class Townspeople : Node
 
     /// <summary>The town as the server gave it; null until it is in.</summary>
     public TownData? Data { get; private set; }
+    /// <summary>Fresh people and places have replaced the previous saved town, on the main thread.</summary>
+    public event Action? PopulationChanged;
+    public Func<string, bool>? MaySimulate;
+    public event Action<double>? BeforeCrowd;
+    public event Action<double>? AfterCrowd;
     /// <summary>How many townspeople walk in the street round the viewer at once (the browser's Settings, "People in the street").</summary>
     public int MaxPuppets = 50;
     /// <summary>Is this tavern or shop ("shop:id") open in the world, so its people go in at the door? The rooms' part sets it; until then they stand before the door.</summary>
@@ -194,7 +199,10 @@ public partial class Townspeople : Node
     private readonly ConcurrentQueue<Action> inbox = new();
     private readonly Random rng = new();
     private LanternPool? lanterns;
-    private readonly ShopCalls shopCalls = new();
+    private ShopCalls shopCalls = new();
+    private int townRevision;
+    private bool stopped;
+    private bool CurrentTown(int revision) => !System.Threading.Volatile.Read(ref stopped) && revision == System.Threading.Volatile.Read(ref townRevision);
     private double stormLevel;
     private int stormEvent;
     private List<string>? taverns;
@@ -223,8 +231,7 @@ public partial class Townspeople : Node
 
     /// <summary>Is it raining hard enough to empty the park? (the weather part may set it; else the store's weather says)</summary>
     public Func<bool> Raining = () => Scheldemist.Game.GameState.I.Weather is "rain" or "storm";
-    private System.Net.Http.HttpClient? http;
-    private string server = "";
+    private Scheldemist.Net.Api? nativeApi;
     private double wayAskT, thinkT, spawnT, lagT, lagAt = -1;
     private int coarseTurn;
     private bool filled, waysIn;
@@ -274,12 +281,11 @@ public partial class Townspeople : Node
         warmLantern.Name = "lantern_warm";
         warmLantern.Visible = false;
         AddChild(warmLantern);
-        server = main.Arg("server", "").TrimEnd('/');
         hour = double.TryParse(main.Arg("hour", "13"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var h) ? h : 13;
         day = int.TryParse(main.Arg("day", "1"), out var d) ? d : 1;
         if (!Humans.Ready)
         {
-            Status = "no people.glb (node tools/godot/models.mjs)";
+            Status = "The native people models could not be loaded.";
             GD.PrintErr("townspeople: " + Status);
             return;
         }
@@ -292,36 +298,29 @@ public partial class Townspeople : Node
         }
         if (Walk == null)
         {
-            Status = "no walk dump (node tools/godot/export-scene.mjs --walk-only)";
+            Status = "The district walking map could not be loaded.";
             GD.PrintErr("townspeople: " + Status);
             return;
         }
         Crowd = new Crowd(main.View, Walk);
         lanterns = new LanternPool(main.View);
+        if (Scheldemist.Menu.MainMenu.I is { } menu) menu.WorldReplaced += WorldReplaced;
         var facts = main.World.Facts.RootElement.GetProperty("facts");
         if (facts.TryGetProperty("fog", out var fog) && fog.ValueKind == JsonValueKind.Object && fog.TryGetProperty("far", out var far) && far.ValueKind == JsonValueKind.Number) Crowd.FogDistance = far.GetDouble();
-        if (server == "")
+        if (Scheldemist.Net.ServerLink.I is { } link)
         {
-            // the server the game started itself (Net/ServerLink.cs)
-            if (Scheldemist.Net.ServerLink.I is { } link)
+            Status = "waiting for the game";
+            link.WhenUp(() =>
             {
-                Status = "waiting for the server";
-                link.WhenUp(() =>
-                {
-                    server = link.Api!.Url.TrimEnd('/');
-                    http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-                    Status = "loading";
-                    _ = LoadTown();
-                });
-                return;
-            }
-            Status = "no server (--server http://127.0.0.1:PORT): no townspeople";
-            GD.Print("townspeople: " + Status);
+                // Local rules and a joined server use the same authenticated player API.
+                nativeApi = link.Api;
+                Status = "loading";
+                _ = LoadTown(System.Threading.Interlocked.Increment(ref townRevision));
+            });
             return;
         }
-        http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-        Status = "loading";
-        _ = LoadTown();
+        Status = "The game service is unavailable.";
+        GD.PrintErr("townspeople: " + Status);
     }
 
     /// <summary>
@@ -354,7 +353,9 @@ public partial class Townspeople : Node
 
     public override void _ExitTree()
     {
-        http?.Dispose();
+        System.Threading.Volatile.Write(ref stopped, true);
+        System.Threading.Interlocked.Increment(ref townRevision);
+        if (Scheldemist.Menu.MainMenu.I is { } menu) menu.WorldReplaced -= WorldReplaced;
         Scheldemist.Play.Folk.Forget();
         Crowd?.Dispose();
         Indoors?.Dispose();
@@ -366,35 +367,54 @@ public partial class Townspeople : Node
 
     // ------------------------------------------------------------------ the server (never waited for in a frame)
 
-    private async Task LoadTown()
+    private void WorldReplaced(string how, Scheldemist.Net.ClientState? client)
+    {
+        int revision = System.Threading.Interlocked.Increment(ref townRevision);
+        foreach (var prop in lifeProps.Values) if (GodotObject.IsInstanceValid(prop.prop)) prop.prop.QueueFree();
+        lifeProps.Clear();
+        foreach (var sim in sims) if (sim.P is { } puppet) { Crowd?.RemovePuppet(puppet); sim.P = null; }
+        Indoors?.Dispose(); Indoors = null; Data = null;
+        sims.Clear(); byId.Clear(); peopleInfo.Clear(); employers.Clear(); sellerSpots.Clear(); shopPlaces.Clear();
+        games.Clear(); placesClaimed.Clear(); doorLife.Clear(); browsing.Clear(); forcedGames.Clear(); marketPlaces.Clear(); browseTargets.Clear();
+        ways.Clear(); wayNames.Clear(); wayAsk.Clear(); wayAsked.Clear(); planWaysPending.Clear();
+        spawnWanted.Clear(); spawnGone.Clear(); playKids.Clear(); shopCalls = new(); taverns = null; doorList = null;
+        filled = waysIn = false; wayAskT = thinkT = spawnT = lagT = 0; lagAt = -1; stormLevel = 0;
+        Whereabouts.Forget(); Scheldemist.Play.Folk.Forget();
+        Status = "loading";
+        _ = LoadTown(revision);
+    }
+
+    private async Task LoadTown(int revision)
     {
         // the server may still be starting: ask again, waiting longer each time
-        for (int wait = 2000; ; wait = Math.Min(wait * 2, 30_000))
+        for (int wait = 2000; CurrentTown(revision); wait = Math.Min(wait * 2, 30_000))
         {
             try
             {
-                string json = await http!.GetStringAsync(server + "/api/town").ConfigureAwait(false);
+                string json = await ReadTownJson("api/town").ConfigureAwait(false);
                 var d = TownData.Parse(json);
-                using var life = JsonDocument.Parse(await http.GetStringAsync(server + "/api/lively").ConfigureAwait(false));
+                using var life = JsonDocument.Parse(await ReadTownJson("api/lively").ConfigureAwait(false));
                 var plan = life.RootElement.Clone();
-                inbox.Enqueue(() => ReadDoorLife(plan));
-                inbox.Enqueue(() => TownIn(d));
+                if (!CurrentTown(revision)) return;
+                inbox.Enqueue(() => { if (CurrentTown(revision)) { ReadDoorLife(plan); TownIn(d); } });
                 break;
             }
             catch (Exception e)
             {
+                if (!CurrentTown(revision)) return;
                 GD.Print($"townspeople: the town did not load ({e.Message}); again in {wait / 1000} s");
                 await Task.Delay(wait).ConfigureAwait(false);
             }
         }
-        for (int wait = 2000; ; wait = Math.Min(wait * 2, 30_000))
+        for (int wait = 2000; CurrentTown(revision); wait = Math.Min(wait * 2, 30_000))
         {
             try
             {
-                string json = await http!.GetStringAsync(server + "/api/town/ways").ConfigureAwait(false);
+                string json = await ReadTownJson("api/town/ways").ConfigureAwait(false);
                 var got = ParseWays(json);
                 inbox.Enqueue(() =>
                 {
+                    if (!CurrentTown(revision)) return;
                     foreach (var (k, w) in got)
                     {
                         ways[k] = w;
@@ -407,11 +427,14 @@ public partial class Townspeople : Node
             }
             catch (Exception e)
             {
-                GD.Print($"townspeople: the town's ways did not load ({e.Message}); again in {wait / 1000} s");
+                if (!CurrentTown(revision)) return;
+                GD.Print($"townspeople: the town's ways did not load ({e}); again in {wait / 1000} s");
                 await Task.Delay(wait).ConfigureAwait(false);
             }
         }
     }
+
+    private Task<string> ReadTownJson(string path) => nativeApi!.GetJson(path, 30_000);
 
     private static Dictionary<string, Pt[]?> ParseWays(string json)
     {
@@ -462,6 +485,7 @@ public partial class Townspeople : Node
         if (Scheldemist.Game.TownMap.I is { } map) map.PersonAt ??= id => PositionOf(id) is { } q ? new Vector2((float)q.x, (float)q.z) : null;
         Status = "in";
         GD.Print($"townspeople: {d.Residents.Count} residents, {employers.Count} of them employers at their posts, {d.Places.Count} places");
+        PopulationChanged?.Invoke();
     }
 
     /// <summary>Where someone is now, by id: a townsperson in the street or indoors (his door), or one of the people at their posts. Null: not known.</summary>
@@ -506,15 +530,16 @@ public partial class Townspeople : Node
     // Keep the request closure out of the per-frame AskWays call.
     private void RequestWays(List<string> keys)
     {
+        int revision = System.Threading.Volatile.Read(ref townRevision);
         _ = Task.Run(async () =>
         {
             try
             {
-                var body = new StringContent(JsonSerializer.Serialize(new { keys }), Encoding.UTF8, "application/json");
-                var res = await http!.PostAsync(server + "/api/town/ways", body).ConfigureAwait(false);
-                var got = ParseWays(await res.Content.ReadAsStringAsync().ConfigureAwait(false));
+                string reply = await nativeApi!.PostJson("api/town/ways", new { keys }, 30_000).ConfigureAwait(false);
+                var got = ParseWays(reply);
                 inbox.Enqueue(() =>
                 {
+                    if (!CurrentTown(revision)) return;
                     bool planChanged = false;
                     foreach (var k in keys)
                     {
@@ -529,6 +554,7 @@ public partial class Townspeople : Node
             {
                 inbox.Enqueue(() =>
                 {
+                    if (!CurrentTown(revision)) return;
                     foreach (var k in keys)
                     {
                         wayAsked.Remove(k);
@@ -613,9 +639,11 @@ public partial class Townspeople : Node
         if (Scheldemist.World.Daylight.I is { } sky) Crowd.FogDistance = sky.FogFar;
         ulong t0 = Time.GetTicksUsec();
         long allocatedAt = GC.GetAllocatedBytesForCurrentThread();
+        BeforeCrowd?.Invoke(delta);
         Step(delta, cp.X, cp.Z, body);
         long mark = GC.GetAllocatedBytesForCurrentThread(); AllocationParts[0] = mark - allocatedAt;
         Crowd.Update(delta, cp.X, cp.Z, body, cam);
+        AfterCrowd?.Invoke(delta);
         long next = GC.GetAllocatedBytesForCurrentThread(); AllocationParts[1] = next - mark; mark = next;
         lanterns?.Update(delta, cp, hour);
         next = GC.GetAllocatedBytesForCurrentThread(); AllocationParts[2] = next - mark; mark = next;
@@ -647,6 +675,7 @@ public partial class Townspeople : Node
         {
             var s = sims[i];
             n++;
+            if (MaySimulate?.Invoke(s.R.Id) == false) continue;
             if (s.P != null && !Crowd!.Alive(s.P)) Lose(s);
             if (s.P != null)
             {
@@ -683,6 +712,7 @@ public partial class Townspeople : Node
 
     private void Reschedule(Sim s, bool first)
     {
+        if (MaySimulate?.Invoke(s.R.Id) == false) return;
         if (s.ActionHeld) return;
         var now = PlanNow(s);
         // the great storm: no calls at the shops, everyone out of it
@@ -713,10 +743,12 @@ public partial class Townspeople : Node
             Lanterns(s);
             return;
         }
+        if(s.P!=null)MarketForget?.Invoke(s.P);
         string journeyFrom = s.Key;
         s.Tav = tav;
         s.Key = key;
         s.Goal = call != null ? new Goal { Mode = "inside", X = call.Value.X, Z = call.Value.Z } : GoalFor(s, now);
+        if(!storm&&Scheldemist.Play.ResidentJourneys.I?.ScheduledErrandPoint(s) is Pt errand){s.Goal=new Goal{Mode="stand",X=errand.X,Z=errand.Z,Motion="idle"};s.Plain=false;}
         if (call != null) s.Plain = false;
         s.MillRun = run != null && !sheltered;
         if (s.MillRun)
@@ -1125,7 +1157,7 @@ public partial class Townspeople : Node
             return;
         }
         var want = spawnWanted; want.Clear();
-        foreach (var person in sims) if (person.P == null && !person.Inside && !person.ActionHeld && Dist(person.X, person.Z, px, pz) < SpawnR) want.Add(person);
+        foreach (var person in sims) if (person.P == null && !person.Inside && !person.ActionHeld && MaySimulate?.Invoke(person.R.Id) != false && Dist(person.X, person.Z, px, pz) < SpawnR) want.Add(person);
         spawnOrder.FarFirst = false; want.Sort(spawnOrder);
         if (alive >= MaxPuppets)
         {
@@ -1183,6 +1215,7 @@ public partial class Townspeople : Node
     /// <summary>Back to the schedule only (out of range, or in at the door).</summary>
     private void Lose(Sim s, bool remove = false)
     {
+        if(s.P!=null)MarketForget?.Invoke(s.P);
         if (s.P != null && remove) Crowd!.RemovePuppet(s.P);
         s.P = null;
         // (the lantern went with the puppet: drawn again, he takes it up again)

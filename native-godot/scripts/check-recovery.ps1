@@ -21,7 +21,7 @@ foreach ($recoveryDistrict in @($recoveryFixtureId, $District)) {
     $recoveryLayout = Join-Path $recoveryEvidence $recoveryDistrict
     New-Item -ItemType Directory -Path $recoveryLayout | Out-Null
     foreach ($recoveryStage in @('write', 'reload')) {
-        Invoke-WorkshopEngine $recoveryEngine $recoveryProject @('--headless', '--path', $recoveryProject, '--', '--district', $recoveryDistrict,
+        Invoke-WorkshopEngine $recoveryEngine $recoveryProject @('--headless', '--path', $recoveryProject, 'res://main.tscn', '--', '--district', $recoveryDistrict,
             '--author-dir', $recoveryLayout, '--recovery-test', $recoveryLayout, '--proof-stage', $recoveryStage) (Join-Path $recoveryLayout "$recoveryStage.log")
         $recoveryReport = Get-Content -Raw -LiteralPath (Join-Path $recoveryLayout "$recoveryStage.json") | ConvertFrom-Json
         if ($recoveryReport.error -or @($recoveryReport.rows | Where-Object { -not $_.pass }).Count -gt 0) { throw "$recoveryStage proof failed." }

@@ -22,6 +22,8 @@ public partial class TownLife
     private TownLifeData? life;
     private double lifePoll;
     private bool lifePolling;
+    private int lifeGeneration;
+    private bool lifeStopped;
     public int SootCount { get { int n = 0; foreach (var s in sootPool) if (s.Event != 0) n++; return n; } }
     public int ChainHands { get; private set; }
     public float SootOpacity(int id) { foreach (var s in sootPool) if (s.Event == id) return s.Opacity; return 0; }
@@ -53,9 +55,10 @@ public partial class TownLife
     public void ApplyLife(TownLifeData data) { life = data; SetRounds(data.Rounds); }
     private void PollLife(double delta)
     {
-        if (ServerLink.I?.Api is not { } api || lifePolling || (lifePoll -= delta) > 0) return;
+        if (lifeStopped || town?.Data == null || ServerLink.I?.Api is not { } api || lifePolling || (lifePoll -= delta) > 0) return;
         lifePolling = true; lifePoll = 10;
-        api.Run(api.TownLife(), reply => { lifePolling = false; var data = reply.Deserialize<TownLifeData>(Api.Json); if (data != null) ApplyLife(data); }, _ => lifePolling = false);
+        int generation = lifeGeneration;
+        api.Run(api.TownLife(), reply => { if (lifeStopped || generation != lifeGeneration) return; lifePolling = false; var data = reply.Deserialize<TownLifeData>(Api.Json); if (data != null) ApplyLife(data); }, _ => { if (!lifeStopped && generation == lifeGeneration) lifePolling = false; });
     }
     private void SetSoot(int id, double[] door, double[] outward, int storeys, float opacity)
     {
@@ -84,7 +87,7 @@ public partial class TownLife
     }
     private void ResetLife()
     {
-        life = null; lifePoll = 0;
+        lifeGeneration++; life = null; lifePoll = 0; lifePolling = false; windowFog = null; LampsWorked = ChainHands = 0;
         foreach (var s in sootPool) { s.Event = 0; s.Seen = false; s.Node.Visible = false; }
         DropRounds();
     }

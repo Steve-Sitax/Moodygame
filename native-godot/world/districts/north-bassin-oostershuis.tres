@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="script"]
+[ext_resource type="PackedScene" path="res://world/districts/north-bassin-oostershuis.tscn" id="scene"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-recovered/catalog.tres" id="catalog"]
+
+[resource]
+script = ExtResource("script")
+Id = "north-bassin-oostershuis"
+Title = "Petit Bassin, lock and Oostershuis"
+Scene = ExtResource("scene")
+Catalog = ExtResource("catalog")
+Bounds = Rect2(70, -24, 146, 208)
+WalkSpawn = Vector3(90, 0.02, 46)
+FlySpawn = Vector3(94, 12, 54)
+FlyYaw = 0
+FlyPitch = -0.4

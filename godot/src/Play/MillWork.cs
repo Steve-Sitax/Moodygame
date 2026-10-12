@@ -44,7 +44,7 @@ public sealed class MillWork : IRun
     public MillWork(Job job, MillTask task, RunCtx ctx)
     {
         this.job = job; this.task = task; this.ctx = ctx;
-        using var doc = JsonDocument.Parse(File.ReadAllText(ProjectSettings.GlobalizePath("res://assets/places.json")));
+        using var doc = JsonDocument.Parse(Godot.FileAccess.GetFileAsString("res://assets/places.json"));
         foreach (var m in doc.RootElement.GetProperty("mills").EnumerateArray()) if (m.GetProperty("id").GetString() == task.Mill)
         {
             if (m.GetProperty("capstan") is { ValueKind: JsonValueKind.Array } c) { capstan = true; cap = new(c[0].GetSingle(), Jef.I.Y + 0.9f, c[1].GetSingle()); stand = cap + new Vector3(1.25f, -0.9f, 0); }

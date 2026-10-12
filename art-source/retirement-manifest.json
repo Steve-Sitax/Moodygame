@@ -1,0 +1,2467 @@
+[
+  {
+    "source": "client/public/audio/bigsoundbank/anvil-3589-loop.ogg",
+    "archive": "art-source/client/public/audio/bigsoundbank/anvil-3589-loop.ogg",
+    "sha256": "efe887a88d4626d26169b321e6ba5ea4e553a9685c349e0606f64f151edbc2f4"
+  },
+  {
+    "source": "client/public/audio/bigsoundbank/bell-5-oclock-3445.ogg",
+    "archive": "art-source/client/public/audio/bigsoundbank/bell-5-oclock-3445.ogg",
+    "sha256": "eaa709e653b6798a740006cada3a026bef7fff1b73ad11767e90bea97391556c"
+  },
+  {
+    "source": "client/public/audio/bigsoundbank/bell-hour-stroke-0994.ogg",
+    "archive": "art-source/client/public/audio/bigsoundbank/bell-hour-stroke-0994.ogg",
+    "sha256": "2a06666e8f0f4bfd434f037cc8c06c7ad8c616ff50fff3efe687422f8c7ab143"
+  },
+  {
+    "source": "client/public/audio/bigsoundbank/gale-trees-1450-loop.ogg",
+    "archive": "art-source/client/public/audio/bigsoundbank/gale-trees-1450-loop.ogg",
+    "sha256": "b072ed982e610eb021f4a6151587f3918ae5a8420579950f3e0bee5afe471cb3"
+  },
+  {
+    "source": "client/public/audio/bigsoundbank/gulls-harbor-2573-mono.ogg",
+    "archive": "art-source/client/public/audio/bigsoundbank/gulls-harbor-2573-mono.ogg",
+    "sha256": "6621b94b1b158b6e516465aa28173eb3bc10747f9c180a099cd372c65e80ecd3"
+  },
+  {
+    "source": "client/public/audio/bigsoundbank/handbell-2113.ogg",
+    "archive": "art-source/client/public/audio/bigsoundbank/handbell-2113.ogg",
+    "sha256": "b5c70911ce6490b225d58ec27c6a41ec472b7524c7267868b618ba869e11b228"
+  },
+  {
+    "source": "client/public/audio/bigsoundbank/rain-heavy-1019-loop.ogg",
+    "archive": "art-source/client/public/audio/bigsoundbank/rain-heavy-1019-loop.ogg",
+    "sha256": "0207f26f9287332e2e519aea75bad6f3bf8f93bbd455b1bf398cda4a9fb1934d"
+  },
+  {
+    "source": "client/public/audio/bigsoundbank/rain-puddle-1290-loop.ogg",
+    "archive": "art-source/client/public/audio/bigsoundbank/rain-puddle-1290-loop.ogg",
+    "sha256": "f80e2e40384052e06368aca1029ada4a6096520ea9c83021c6e48d7a28731307"
+  },
+  {
+    "source": "client/public/audio/bigsoundbank/ratchet-large-0795.ogg",
+    "archive": "art-source/client/public/audio/bigsoundbank/ratchet-large-0795.ogg",
+    "sha256": "2a57bb4c9372208e5663a9a017e9ba514b71f007cc67c33cff75349950dc65dc"
+  },
+  {
+    "source": "client/public/audio/bigsoundbank/splash-big-1519.ogg",
+    "archive": "art-source/client/public/audio/bigsoundbank/splash-big-1519.ogg",
+    "sha256": "56fa2b91af891561c8886bcadb505f51220c6547086ab75ceb0722d3d10f08a4"
+  },
+  {
+    "source": "client/public/audio/bigsoundbank/thunder-2718.ogg",
+    "archive": "art-source/client/public/audio/bigsoundbank/thunder-2718.ogg",
+    "sha256": "a04fc8b029c0daa2d218d351510b0eb4695b9f05373c672661e31a571ad58c30"
+  },
+  {
+    "source": "client/public/audio/bigsoundbank/thunder-3113.ogg",
+    "archive": "art-source/client/public/audio/bigsoundbank/thunder-3113.ogg",
+    "sha256": "d8f205434fa1f02289dfa8e7d360eb71906199c977b655018edc10e9cdbbe02d"
+  },
+  {
+    "source": "client/public/audio/bigsoundbank/thunder-3114.ogg",
+    "archive": "art-source/client/public/audio/bigsoundbank/thunder-3114.ogg",
+    "sha256": "36e185f08aac4765c9f5877c615ed4e72be276e9bc56bff0ccfd121c5c586703"
+  },
+  {
+    "source": "client/public/audio/bigsoundbank/thunder-3115.ogg",
+    "archive": "art-source/client/public/audio/bigsoundbank/thunder-3115.ogg",
+    "sha256": "0c8a9564b0b56c9d11101b9d9f2f3f588f2d28f69bb3a9ce1695c4c62f50a68b"
+  },
+  {
+    "source": "client/public/audio/bigsoundbank/thunder-3116.ogg",
+    "archive": "art-source/client/public/audio/bigsoundbank/thunder-3116.ogg",
+    "sha256": "b9a03c40fc644d5d165051658a8b05e5653670533a69d1f1a1cc7d4fbff641ed"
+  },
+  {
+    "source": "client/public/audio/bigsoundbank/thunder-3179.ogg",
+    "archive": "art-source/client/public/audio/bigsoundbank/thunder-3179.ogg",
+    "sha256": "5dfd96b801572f01e9c37422a1b315de1237cc535c6af330e4170a40b2cefce9"
+  },
+  {
+    "source": "client/public/audio/bigsoundbank/thunder-3180.ogg",
+    "archive": "art-source/client/public/audio/bigsoundbank/thunder-3180.ogg",
+    "sha256": "6e097d2b06617ecf11c7b0b02298e65b5aa5f59fef92402f5977463b415fa689"
+  },
+  {
+    "source": "client/public/audio/bigsoundbank/thunder-3181.ogg",
+    "archive": "art-source/client/public/audio/bigsoundbank/thunder-3181.ogg",
+    "sha256": "b8222fcba3e34a46e94da7f94b19fd48085c6e17670ca2bba47d301e20997ca1"
+  },
+  {
+    "source": "client/public/audio/bigsoundbank/thunder-3182.ogg",
+    "archive": "art-source/client/public/audio/bigsoundbank/thunder-3182.ogg",
+    "sha256": "6a20b6338fce36debd62a11085294c6a3992ffaaabc3e87ca8cb09fdff840d18"
+  },
+  {
+    "source": "client/public/audio/bigsoundbank/thunder-3183.ogg",
+    "archive": "art-source/client/public/audio/bigsoundbank/thunder-3183.ogg",
+    "sha256": "c123acad4ada08f32114a61b99e1577c1015c45e979297e7b7cbe3888dd9f3cd"
+  },
+  {
+    "source": "client/public/audio/bigsoundbank/thunder-3184.ogg",
+    "archive": "art-source/client/public/audio/bigsoundbank/thunder-3184.ogg",
+    "sha256": "2d1d7546f673397fe3ea754f98aa0ad73d5612696381578926a1c0109100d10c"
+  },
+  {
+    "source": "client/public/audio/bigsoundbank/walla-0684-loop.ogg",
+    "archive": "art-source/client/public/audio/bigsoundbank/walla-0684-loop.ogg",
+    "sha256": "cdb802a36949c2732e7f4f457a5d1310a4ce5db62ea8111c29e990e974233420"
+  },
+  {
+    "source": "client/public/audio/bigsoundbank/water-pontoon-1444-loop.ogg",
+    "archive": "art-source/client/public/audio/bigsoundbank/water-pontoon-1444-loop.ogg",
+    "sha256": "fa82871381d0ba31a785e467005212c6aa4449821d1f223f013a427d4ac15128"
+  },
+  {
+    "source": "client/public/audio/bigsoundbank/winch-manual-0901.ogg",
+    "archive": "art-source/client/public/audio/bigsoundbank/winch-manual-0901.ogg",
+    "sha256": "c47e027a5e28cc6fc34e9ce2fa5aa77428480e3bd437a7a8b27b4961f21aafa7"
+  },
+  {
+    "source": "client/public/audio/bigsoundbank/wind-inside-1714-loop.ogg",
+    "archive": "art-source/client/public/audio/bigsoundbank/wind-inside-1714-loop.ogg",
+    "sha256": "b1d240ac51709283d2fb381c458eef4dab5a29f345a425b851861a6d6ada90c4"
+  },
+  {
+    "source": "client/public/audio/bigsoundbank/wind-masts-2443-loop.ogg",
+    "archive": "art-source/client/public/audio/bigsoundbank/wind-masts-2443-loop.ogg",
+    "sha256": "2b0f87de3eec77a122f4ccd64b85eebba14bd258e4895c5e03cbf18637217511"
+  },
+  {
+    "source": "client/public/audio/freesound/carillon-brussels-274987.ogg",
+    "archive": "art-source/client/public/audio/freesound/carillon-brussels-274987.ogg",
+    "sha256": "3e65ac5e6b1543d5e0c021e1ef4d598d6a0e7be88852b5c350253e042eb1ef79"
+  },
+  {
+    "source": "client/public/audio/freesound/cart-wheels-437077-loop.ogg",
+    "archive": "art-source/client/public/audio/freesound/cart-wheels-437077-loop.ogg",
+    "sha256": "293f71046fe1f2d4288feb89cdba1ea7a801261f46305eb9886328b42083087a"
+  },
+  {
+    "source": "client/public/audio/freesound/chain-pulley-386174.ogg",
+    "archive": "art-source/client/public/audio/freesound/chain-pulley-386174.ogg",
+    "sha256": "3318d93a42e072f380f9139b4ddd58b03aa77495bf371d0858a8e16f083fe549"
+  },
+  {
+    "source": "client/public/audio/freesound/dog-far-440865.ogg",
+    "archive": "art-source/client/public/audio/freesound/dog-far-440865.ogg",
+    "sha256": "b79a0cb5db27c58a9421955df348761eac34926f007bd7ffef0b1d63065580aa"
+  },
+  {
+    "source": "client/public/audio/freesound/heave-shout-47891.ogg",
+    "archive": "art-source/client/public/audio/freesound/heave-shout-47891.ogg",
+    "sha256": "b31b596fb79a9e7dd45810dab4f84d0f83f5f65dddbc34c435611d918511c3a7"
+  },
+  {
+    "source": "client/public/audio/freesound/horse-arches-bruges-53488.ogg",
+    "archive": "art-source/client/public/audio/freesound/horse-arches-bruges-53488.ogg",
+    "sha256": "6a11ada4990ef9ef25622a930b0d522003de362dc363f82365464670bcdd652d"
+  },
+  {
+    "source": "client/public/audio/freesound/horse-carriage-far-479797.ogg",
+    "archive": "art-source/client/public/audio/freesound/horse-carriage-far-479797.ogg",
+    "sha256": "a09277e287120b726951e6ee64d28d6b279fd50e86b898aad2ef8006badd4e9f"
+  },
+  {
+    "source": "client/public/audio/freesound/horse-walk-437103-loop.ogg",
+    "archive": "art-source/client/public/audio/freesound/horse-walk-437103-loop.ogg",
+    "sha256": "e4130a008e279eaf984ebec974a622437e6e0ac90c68ecb248ba90cda564ebb6"
+  },
+  {
+    "source": "client/public/audio/freesound/market-venice-266691-loop.ogg",
+    "archive": "art-source/client/public/audio/freesound/market-venice-266691-loop.ogg",
+    "sha256": "41dd66994c925b027313f590ebb8da2f436323fd6b634bfbdb6f9bef7558b205"
+  },
+  {
+    "source": "client/public/audio/freesound/paddle-steamer-481793-loop.ogg",
+    "archive": "art-source/client/public/audio/freesound/paddle-steamer-481793-loop.ogg",
+    "sha256": "a370e7bbb3367d52a971c6a706a35004e06b6403ce3b252f417a250045026f5e"
+  },
+  {
+    "source": "client/public/audio/freesound/puddle-steps-531566.ogg",
+    "archive": "art-source/client/public/audio/freesound/puddle-steps-531566.ogg",
+    "sha256": "00c502bf4ca51b813d5697fe5557a4ab485c31c173cb743d2a446ad534eb7147"
+  },
+  {
+    "source": "client/public/audio/freesound/puddle-walk-106395.ogg",
+    "archive": "art-source/client/public/audio/freesound/puddle-walk-106395.ogg",
+    "sha256": "0433ed3bfbdfe2cbdfdd5e61f29fb83382c4468cb3ba06798de59bd3afa3c39b"
+  },
+  {
+    "source": "client/public/audio/freesound/pulley-creak-438350.ogg",
+    "archive": "art-source/client/public/audio/freesound/pulley-creak-438350.ogg",
+    "sha256": "9c9cebaad65b81ff15aee3bf0c9d3518fef0d1fe6a920e061d78da5f825847a5"
+  },
+  {
+    "source": "client/public/audio/freesound/pump-815126.ogg",
+    "archive": "art-source/client/public/audio/freesound/pump-815126.ogg",
+    "sha256": "e5e5405899ca4b61aabf06e09e4d2c675f48ecf896411bfc7e36911fe7348c7d"
+  },
+  {
+    "source": "client/public/audio/freesound/rain-roofs-669487-loop.ogg",
+    "archive": "art-source/client/public/audio/freesound/rain-roofs-669487-loop.ogg",
+    "sha256": "bf9fc30b09a79210321cd45109c73981d5e89f765b735b0f43ae4f7667d2676d"
+  },
+  {
+    "source": "client/public/audio/freesound/ship-bell-353233.ogg",
+    "archive": "art-source/client/public/audio/freesound/ship-bell-353233.ogg",
+    "sha256": "46177d3efda3033a3970c9f907f2fbbd5c8af98c0dcc718d87fbcecfc7de1298"
+  },
+  {
+    "source": "client/public/audio/freesound/ship-creak-483355-loop.ogg",
+    "archive": "art-source/client/public/audio/freesound/ship-creak-483355-loop.ogg",
+    "sha256": "a234860a61406e5c0d79d28271f7f7cbf695565f6e12fc3a1ad67e0cc9e7808f"
+  },
+  {
+    "source": "client/public/audio/freesound/ship-engine-587171-loop.ogg",
+    "archive": "art-source/client/public/audio/freesound/ship-engine-587171-loop.ogg",
+    "sha256": "f1b840d30165162e38f27da7f9e8ced118dc54ef8773305635c3d4fa591228c3"
+  },
+  {
+    "source": "client/public/audio/freesound/steam-whistle-far-9923.ogg",
+    "archive": "art-source/client/public/audio/freesound/steam-whistle-far-9923.ogg",
+    "sha256": "f439baca9c441c1de060813f442e10e59864084882a9742cfd3122d6c84cc545"
+  },
+  {
+    "source": "client/public/audio/freesound/steamboat-toots-840326.ogg",
+    "archive": "art-source/client/public/audio/freesound/steamboat-toots-840326.ogg",
+    "sha256": "410557e1414e708c09a207477c3ba0c5a15084fc5f4b7629bbbe23df91f2c610"
+  },
+  {
+    "source": "client/public/audio/freesound/steamboat-whistle-840325.ogg",
+    "archive": "art-source/client/public/audio/freesound/steamboat-whistle-840325.ogg",
+    "sha256": "e549396f83f47fcd0f53756cd53be30cfa8d64b1e00043f8bbe991f9518c095d"
+  },
+  {
+    "source": "client/public/audio/freesound/tavern-crowd-438379-loop.ogg",
+    "archive": "art-source/client/public/audio/freesound/tavern-crowd-438379-loop.ogg",
+    "sha256": "cde468aede955a65058cca85a8c8e94f184f4703c2f41ef10b05ca6ab518725e"
+  },
+  {
+    "source": "client/public/audio/freesound/tavern-song-410739-loop.ogg",
+    "archive": "art-source/client/public/audio/freesound/tavern-song-410739-loop.ogg",
+    "sha256": "1cc8dfcf55ce8e6aed00518603ff5ad964bbc38646c6daab4489f0b7e5e346f2"
+  },
+  {
+    "source": "client/public/audio/freesound/water-boardwalk-758858-loop.ogg",
+    "archive": "art-source/client/public/audio/freesound/water-boardwalk-758858-loop.ogg",
+    "sha256": "6ab3e894e0b1714a86c9ce2088cbae43405cf8801746f9a36cfc884da5a21718"
+  },
+  {
+    "source": "client/public/audio/freesound/water-wall-851906-loop.ogg",
+    "archive": "art-source/client/public/audio/freesound/water-wall-851906-loop.ogg",
+    "sha256": "b44a73f3eab3f301c95b9e683727efb2e306f4efbe738a68a9b199f81531aad3"
+  },
+  {
+    "source": "client/public/audio/kenney-impact/License.txt",
+    "archive": "art-source/client/public/audio/kenney-impact/License.txt",
+    "sha256": "b49aa9c56b04528b95913de13e506a0f7c5e807b9925db9bfef86af1f91120db"
+  },
+  {
+    "source": "client/public/audio/kenney-impact/footstep_concrete_000.ogg",
+    "archive": "art-source/client/public/audio/kenney-impact/footstep_concrete_000.ogg",
+    "sha256": "d7267e183067757c92c169de2a379abea592cfca6b39bb2e8feea15221ad79fe"
+  },
+  {
+    "source": "client/public/audio/kenney-impact/footstep_concrete_001.ogg",
+    "archive": "art-source/client/public/audio/kenney-impact/footstep_concrete_001.ogg",
+    "sha256": "507a75eb19b897087855a3be3cf11a12d7fa37d143ad535eeebe0b8031c7325d"
+  },
+  {
+    "source": "client/public/audio/kenney-impact/footstep_concrete_002.ogg",
+    "archive": "art-source/client/public/audio/kenney-impact/footstep_concrete_002.ogg",
+    "sha256": "b21fa546d74941196b25da8a20b7010abd8c05c4fcf93545d1f344e66a664e13"
+  },
+  {
+    "source": "client/public/audio/kenney-impact/footstep_concrete_003.ogg",
+    "archive": "art-source/client/public/audio/kenney-impact/footstep_concrete_003.ogg",
+    "sha256": "8b513c2f0316324060b9174b8f28df6c2147418c506e6a53b77f18e149a5547b"
+  },
+  {
+    "source": "client/public/audio/kenney-impact/footstep_concrete_004.ogg",
+    "archive": "art-source/client/public/audio/kenney-impact/footstep_concrete_004.ogg",
+    "sha256": "24dd8db2413e5b81ad181e1205c12a1c7801da5f85715d471b92a4b2f632e45e"
+  },
+  {
+    "source": "client/public/audio/kenney-impact/footstep_wood_000.ogg",
+    "archive": "art-source/client/public/audio/kenney-impact/footstep_wood_000.ogg",
+    "sha256": "5f1c252942a220d658121bd9417448cd19649ded9fff2ff15f6e50899373ce8e"
+  },
+  {
+    "source": "client/public/audio/kenney-impact/footstep_wood_001.ogg",
+    "archive": "art-source/client/public/audio/kenney-impact/footstep_wood_001.ogg",
+    "sha256": "e4f68e1c9fd55b4dc8ca89ed2bbab6f200171bc54bdc18aa96b80d8e7336f462"
+  },
+  {
+    "source": "client/public/audio/kenney-impact/footstep_wood_002.ogg",
+    "archive": "art-source/client/public/audio/kenney-impact/footstep_wood_002.ogg",
+    "sha256": "9ff095b05cee5eec40b081defe3f0eef7232bb16d4865ce03b9f6dbab875cfdd"
+  },
+  {
+    "source": "client/public/audio/kenney-impact/footstep_wood_003.ogg",
+    "archive": "art-source/client/public/audio/kenney-impact/footstep_wood_003.ogg",
+    "sha256": "2a68a083daa9eda08fed0ea5da5280dfbe0de226196c576be02f95259dd139d9"
+  },
+  {
+    "source": "client/public/audio/kenney-impact/footstep_wood_004.ogg",
+    "archive": "art-source/client/public/audio/kenney-impact/footstep_wood_004.ogg",
+    "sha256": "b33e0854e2b3f6b6492e25c25ef8f90447a332f7c6bb25dd02edced9581d3441"
+  },
+  {
+    "source": "client/public/audio/kenney-impact/impactPlank_medium_000.ogg",
+    "archive": "art-source/client/public/audio/kenney-impact/impactPlank_medium_000.ogg",
+    "sha256": "8403cd7a043f0391574c88c55dd205743725b5363d2407f6de145f201690b68f"
+  },
+  {
+    "source": "client/public/audio/kenney-impact/impactPlank_medium_001.ogg",
+    "archive": "art-source/client/public/audio/kenney-impact/impactPlank_medium_001.ogg",
+    "sha256": "d7c304319f8beac616231b62041fa8da74045b62d7155965516efb9b19303df4"
+  },
+  {
+    "source": "client/public/audio/kenney-impact/impactPlank_medium_002.ogg",
+    "archive": "art-source/client/public/audio/kenney-impact/impactPlank_medium_002.ogg",
+    "sha256": "f6a14da45994229676b4f29e6a35f504b5c2ec2b8166fb1a3b1aa004bc6911ef"
+  },
+  {
+    "source": "client/public/audio/kenney-impact/impactSoft_heavy_000.ogg",
+    "archive": "art-source/client/public/audio/kenney-impact/impactSoft_heavy_000.ogg",
+    "sha256": "49e7ca88743fca974bb8676ea138b751cfd8f9033b5e7af8736c2a215d6edbc1"
+  },
+  {
+    "source": "client/public/audio/kenney-impact/impactSoft_heavy_001.ogg",
+    "archive": "art-source/client/public/audio/kenney-impact/impactSoft_heavy_001.ogg",
+    "sha256": "4d0096364ba9e46119d2ff6df493fdc101bd2e1efae061da5e5f77a53b3fdcb6"
+  },
+  {
+    "source": "client/public/audio/kenney-impact/impactSoft_heavy_002.ogg",
+    "archive": "art-source/client/public/audio/kenney-impact/impactSoft_heavy_002.ogg",
+    "sha256": "d130ae541951243d3f6ed963d0057450a445ffe117fbf9a084d34eb1635cb563"
+  },
+  {
+    "source": "client/public/audio/kenney-impact/impactWood_heavy_000.ogg",
+    "archive": "art-source/client/public/audio/kenney-impact/impactWood_heavy_000.ogg",
+    "sha256": "15ff82332f342c30e469215539e1cc57e11b221aa2cf7e11e811d313a9927f3d"
+  },
+  {
+    "source": "client/public/audio/kenney-impact/impactWood_heavy_001.ogg",
+    "archive": "art-source/client/public/audio/kenney-impact/impactWood_heavy_001.ogg",
+    "sha256": "f1b07a53ac10c615fff9ba470511fdeb722b5902e1a8520759fc20ad6f546015"
+  },
+  {
+    "source": "client/public/audio/kenney-impact/impactWood_heavy_002.ogg",
+    "archive": "art-source/client/public/audio/kenney-impact/impactWood_heavy_002.ogg",
+    "sha256": "ce1e06f2a05f2634c645cb72f6a1623e64bc2d92be34917430a61031fb6597d4"
+  },
+  {
+    "source": "client/public/boot/loading.jpg",
+    "archive": "art-source/client/public/boot/loading.jpg",
+    "sha256": "7bb76b774ef3f669172055f3805bb76032e2cd05d6fb6e725873cac9dadbbb98"
+  },
+  {
+    "source": "client/public/city/walk.png",
+    "archive": "art-source/client/public/city/walk.png",
+    "sha256": "b6e1615b0037aa5cc02a87179efb7e6f8f4f2961b504c6ec14cb70fa5b308d36"
+  },
+  {
+    "source": "client/public/models/animals.glb",
+    "archive": "art-source/client/public/models/animals.glb",
+    "sha256": "f9d3dc754ffa318e0b97c18d093a2f413ce0154a8f2279f8c5af76e408179f51"
+  },
+  {
+    "source": "client/public/models/boat_names.json",
+    "archive": "art-source/client/public/models/boat_names.json",
+    "sha256": "48c06edf677731b20ed6b55413d3bfa907b4de8fe43597b316f089238bbea4ce"
+  },
+  {
+    "source": "client/public/models/boat_names.png",
+    "archive": "art-source/client/public/models/boat_names.png",
+    "sha256": "c5cbc0398458299c2f7e1da47d21c504e9dbc0929f0aeb4cbf37e3f985b8c279"
+  },
+  {
+    "source": "client/public/models/boat_names_1.png",
+    "archive": "art-source/client/public/models/boat_names_1.png",
+    "sha256": "e44472b3267701032bb38f3985e09e184cd830b993f1612248f55c0c805b0abf"
+  },
+  {
+    "source": "client/public/models/boat_names_2.png",
+    "archive": "art-source/client/public/models/boat_names_2.png",
+    "sha256": "80df1f9f699cb34b0d875560664b606efeff4abf083d7f1b8cd1a7d3b9e307ac"
+  },
+  {
+    "source": "client/public/models/boat_names_3.png",
+    "archive": "art-source/client/public/models/boat_names_3.png",
+    "sha256": "5e79da6ad356d2f0d87f73d33753aed5241dc091d2560638fe2e49510d207e12"
+  },
+  {
+    "source": "client/public/models/boat_names_4.png",
+    "archive": "art-source/client/public/models/boat_names_4.png",
+    "sha256": "54654f2b1ec6eef1a553c48099695928b62bc8961e2bf61c0b8445638df4cb38"
+  },
+  {
+    "source": "client/public/models/boat_names_5.png",
+    "archive": "art-source/client/public/models/boat_names_5.png",
+    "sha256": "78614befb02ded6942934b9c97bb35e806c0c56fe183a7a7f9862e08499e3025"
+  },
+  {
+    "source": "client/public/models/boat_names_6.png",
+    "archive": "art-source/client/public/models/boat_names_6.png",
+    "sha256": "b387fa56493aeea119a258c008957c352aa2d0412ba37047e1a0c334b435afd7"
+  },
+  {
+    "source": "client/public/models/boats.glb",
+    "archive": "art-source/client/public/models/boats.glb",
+    "sha256": "9b164bf5bb33c9aae6a06235655f3e436652c0fc613e1d9ec7ea0c926de20505"
+  },
+  {
+    "source": "client/public/models/bridges.glb",
+    "archive": "art-source/client/public/models/bridges.glb",
+    "sha256": "a2f9ed822cc4fd9710751393252185e53db88aa6ef7b19a8db1fdee7c752c9f1"
+  },
+  {
+    "source": "client/public/models/cathedral.glb",
+    "archive": "art-source/client/public/models/cathedral.glb",
+    "sha256": "dfb3fb7e6eae4da38633d6e1b37507691cd6513999c415d93f3dd92bdb370994"
+  },
+  {
+    "source": "client/public/models/cathedral_walk.json",
+    "archive": "art-source/client/public/models/cathedral_walk.json",
+    "sha256": "ba65fd8b45a964be71c3b79ae8f8bc473602c66ca5be88134937d606ec016c0c"
+  },
+  {
+    "source": "client/public/models/churches.glb",
+    "archive": "art-source/client/public/models/churches.glb",
+    "sha256": "0ef4b1f7b90d1d51be66861553df8153b342bebc84708d0c769642ec11f40116"
+  },
+  {
+    "source": "client/public/models/city.glb",
+    "archive": "art-source/client/public/models/city.glb",
+    "sha256": "18e29e47cc41a0c0cf838807199c35526f1e96a42d4b2c9961e7ca91d48299db"
+  },
+  {
+    "source": "client/public/models/clutter.glb",
+    "archive": "art-source/client/public/models/clutter.glb",
+    "sha256": "3661ddf06a9e231006d61c7408c611cb6c2031176decb9167c3a1e70bdc264a2"
+  },
+  {
+    "source": "client/public/models/crate.glb",
+    "archive": "art-source/client/public/models/crate.glb",
+    "sha256": "baf12559ed8baa8efc742ec872955b6614a274142e901eca24d828a8f2aa2b04"
+  },
+  {
+    "source": "client/public/models/ferry.glb",
+    "archive": "art-source/client/public/models/ferry.glb",
+    "sha256": "b745682382ac5d1605a702e8930409d5f06f5244da2a79ce7952fcedec0f9462"
+  },
+  {
+    "source": "client/public/models/landmarks.glb",
+    "archive": "art-source/client/public/models/landmarks.glb",
+    "sha256": "ba9a0027ba40420d43546af5f0e3331f7b5c041015758efad01a4dedac301ea6"
+  },
+  {
+    "source": "client/public/models/litter.glb",
+    "archive": "art-source/client/public/models/litter.glb",
+    "sha256": "da56bd207ffcd1fe599a38d63dfd306fe213ce90b41c8d6fa462f133c647c6a2"
+  },
+  {
+    "source": "client/public/models/lively.glb",
+    "archive": "art-source/client/public/models/lively.glb",
+    "sha256": "daf32fd56d2200d65f4945052f7f819e3422e0b5d4eef0871dfbbf3b039170d6"
+  },
+  {
+    "source": "client/public/models/lock.glb",
+    "archive": "art-source/client/public/models/lock.glb",
+    "sha256": "756364be7e6a7f52fdbed37d2b1e8caf12635af009301b69a99280d31092a68c"
+  },
+  {
+    "source": "client/public/models/omnibus.glb",
+    "archive": "art-source/client/public/models/omnibus.glb",
+    "sha256": "9f53f59e3a884062cca6290728aa17db785df7947403a1a625d4179aa4610c1e"
+  },
+  {
+    "source": "client/public/models/oostershuis.glb",
+    "archive": "art-source/client/public/models/oostershuis.glb",
+    "sha256": "3ae170c83d6eeb855c248330dfbdbdcb77c64b9b544bd1b9ddf4437e1da7af51"
+  },
+  {
+    "source": "client/public/models/park.json",
+    "archive": "art-source/client/public/models/park.json",
+    "sha256": "ad5a1a7d07c7dde98c6628a23bd5a032bfaa5a302ed9ca226b4875d57ba99ec8"
+  },
+  {
+    "source": "client/public/models/park_animals.glb",
+    "archive": "art-source/client/public/models/park_animals.glb",
+    "sha256": "7ac87dc3fa1a7244d3cac3272e7389501f438582d0f11e9340bed6bf8a324ec8"
+  },
+  {
+    "source": "client/public/models/park_plants.glb",
+    "archive": "art-source/client/public/models/park_plants.glb",
+    "sha256": "adf1817dc4d7be2f8f428bfe73109f7ad4501a9e7b60cf77ce2d19c2578b7aac"
+  },
+  {
+    "source": "client/public/models/park_plants.json",
+    "archive": "art-source/client/public/models/park_plants.json",
+    "sha256": "bdf5200f20fb531085f32803fd79e6eae1165b59bd7b02ef68bfbd53f36b0ffa"
+  },
+  {
+    "source": "client/public/models/people.glb",
+    "archive": "art-source/client/public/models/people.glb",
+    "sha256": "a37c4a66e1b01694a0b204fe0b33183846d6a7f4802cc96b3c993d77d6b34378"
+  },
+  {
+    "source": "client/public/models/places.glb",
+    "archive": "art-source/client/public/models/places.glb",
+    "sha256": "fdd2f888b86de6dc99285912762d23e5a598b7e091801f4fa2656bcc39b96fff"
+  },
+  {
+    "source": "client/public/models/player.glb",
+    "archive": "art-source/client/public/models/player.glb",
+    "sha256": "7995546ededf025b248d8b1e38c3aff397c2d62382e6ff1a2df0ac4e3ef37883"
+  },
+  {
+    "source": "client/public/models/player_atlas.json",
+    "archive": "art-source/client/public/models/player_atlas.json",
+    "sha256": "ef8a3a709e76de5fc648e6c82df35c1abf415d5147a01b07679102e0a728e9c9"
+  },
+  {
+    "source": "client/public/models/player_base.png",
+    "archive": "art-source/client/public/models/player_base.png",
+    "sha256": "913deeae36a7eb42019b898f995c54b7e4c66335b5428a04121361ebf554048a"
+  },
+  {
+    "source": "client/public/models/player_shade.png",
+    "archive": "art-source/client/public/models/player_shade.png",
+    "sha256": "066dc985d6f2637992e3b6b10035169d2e9b6ba350ec5a1e3ff16deb51ea9666"
+  },
+  {
+    "source": "client/public/models/player_slot.png",
+    "archive": "art-source/client/public/models/player_slot.png",
+    "sha256": "f8b3696b4234c1863f045a64153293d9b6219c71441b7cff4401f6a02f60a968"
+  },
+  {
+    "source": "client/public/models/prison.glb",
+    "archive": "art-source/client/public/models/prison.glb",
+    "sha256": "2f6fc0df3017cf6795cdb37b4ec847be4fdb698fbcc3cc6fbe8ec54d3cfa28f5"
+  },
+  {
+    "source": "client/public/models/props.glb",
+    "archive": "art-source/client/public/models/props.glb",
+    "sha256": "fe21bdc0e7e2e302881c3e0c25f5bcf7229c45c639e4ad9de0a6ff2fc11a01de"
+  },
+  {
+    "source": "client/public/models/quayfurniture.glb",
+    "archive": "art-source/client/public/models/quayfurniture.glb",
+    "sha256": "3e1b740cb476f29d8c22e64b4ba41d3892cd5a7e38220e353d1eb789aea00c5c"
+  },
+  {
+    "source": "client/public/models/quaygoods.glb",
+    "archive": "art-source/client/public/models/quaygoods.glb",
+    "sha256": "63984b5d72da330b7a9cd71809fde4ed3dbed76f29aad4e01aca95b52864432c"
+  },
+  {
+    "source": "client/public/models/quaygoods_surface.png",
+    "archive": "art-source/client/public/models/quaygoods_surface.png",
+    "sha256": "084d3de23c322d51bf8e8b11c0fbfd8c6e969044446c8c34071d789ceb56fbb4"
+  },
+  {
+    "source": "client/public/models/stadhuis.glb",
+    "archive": "art-source/client/public/models/stadhuis.glb",
+    "sha256": "e00fc2a86d08681b297a77550e0a45076c46a9201a0f477bf959acfa88879224"
+  },
+  {
+    "source": "client/public/models/stalls.glb",
+    "archive": "art-source/client/public/models/stalls.glb",
+    "sha256": "aa0235535b9e059ef5384b0e53dd745d3f8194fa99e571f75665204c4603d856"
+  },
+  {
+    "source": "client/public/models/steen.glb",
+    "archive": "art-source/client/public/models/steen.glb",
+    "sha256": "ec1fe1eecbebb921b91d6a2cda2257f396d474250161e5f21dd2c93d67922cbf"
+  },
+  {
+    "source": "client/public/models/steen_features.json",
+    "archive": "art-source/client/public/models/steen_features.json",
+    "sha256": "be771c90bb2452e4a29959d531afa6bac7425743f37fe75867b15f696d97d9d2"
+  },
+  {
+    "source": "client/public/models/streetlife.glb",
+    "archive": "art-source/client/public/models/streetlife.glb",
+    "sha256": "199634ae7ff3cc29d61df42db8db67c993072a8ec10b88063fc670a846c7b030"
+  },
+  {
+    "source": "client/public/models/trades.glb",
+    "archive": "art-source/client/public/models/trades.glb",
+    "sha256": "b8410c1f73ea7979fb00923c1f2f907df6ae35e1c64eb97822f1bce61136ddfc"
+  },
+  {
+    "source": "client/public/models/trees.glb",
+    "archive": "art-source/client/public/models/trees.glb",
+    "sha256": "8d79d3dd738d6dc4a00aeb7140f270378ae6a73767cacaeef6c10c541e39a2a3"
+  },
+  {
+    "source": "client/public/models/trees_bark_surface.png",
+    "archive": "art-source/client/public/models/trees_bark_surface.png",
+    "sha256": "1f021ede26d9b4235bb09ce9196ec13924db685abb78e247841d6fb00479eb65"
+  },
+  {
+    "source": "client/public/models/velocipede.glb",
+    "archive": "art-source/client/public/models/velocipede.glb",
+    "sha256": "1135984b95586b35ed2036fcb409b2c399eb5c84d1555972c39462c12deadaa3"
+  },
+  {
+    "source": "client/public/models/vleeshuis.glb",
+    "archive": "art-source/client/public/models/vleeshuis.glb",
+    "sha256": "a316f7c46372cc6017d4b4dcd56664bc145a0892bbba6f10b94717cde1baed9b"
+  },
+  {
+    "source": "client/public/models/wagons.glb",
+    "archive": "art-source/client/public/models/wagons.glb",
+    "sha256": "fa626cfd5d087158c9580912cfc0f71ec376f8d2676df73dbab35fe3d6d8baf1"
+  },
+  {
+    "source": "client/public/models/wall.glb",
+    "archive": "art-source/client/public/models/wall.glb",
+    "sha256": "3268956f0b7038722ff50d10abcc524a3e1c445ed1aff3011e84c5ffe5867f86"
+  },
+  {
+    "source": "client/public/sw.js",
+    "archive": "art-source/client/public/sw.js",
+    "sha256": "f716a3e2094c692e3836ac92eaf238b5e663dc10528615c7c86f75685a8bf290"
+  },
+  {
+    "source": "client/public/textures/bluestone_flags.jpg",
+    "archive": "art-source/client/public/textures/bluestone_flags.jpg",
+    "sha256": "57c4f3a3ec4778c8b4707c438ceca579e1a6b28e073ab1d238f49bf088cb190f"
+  },
+  {
+    "source": "client/public/textures/bluestone_flags_h.png",
+    "archive": "art-source/client/public/textures/bluestone_flags_h.png",
+    "sha256": "11aa368d2dd7b1f862e2855481faef4ccf98616e02fbe58ad1e10d746fe76a46"
+  },
+  {
+    "source": "client/public/textures/bluestone_flags_id.png",
+    "archive": "art-source/client/public/textures/bluestone_flags_id.png",
+    "sha256": "f09923ae95e8459f052072058200540a79ec0916a17e682efa069adde91d2733"
+  },
+  {
+    "source": "client/public/textures/bluestone_kerb.jpg",
+    "archive": "art-source/client/public/textures/bluestone_kerb.jpg",
+    "sha256": "51abd36d1b356872f23151689b9e8319ad0a78ba6a6211bfd4264740c0955f8e"
+  },
+  {
+    "source": "client/public/textures/bluestone_kerb_h.png",
+    "archive": "art-source/client/public/textures/bluestone_kerb_h.png",
+    "sha256": "ddba646a7364c2c2a456ce89ad7844f0f424d223a9ccc811955ab34980b7a961"
+  },
+  {
+    "source": "client/public/textures/boats_atlas.json",
+    "archive": "art-source/client/public/textures/boats_atlas.json",
+    "sha256": "c4341c6a308b4bbb03501c85d3eebde7cee13f0b6a3a43fdeb79149915ba7c80"
+  },
+  {
+    "source": "client/public/textures/boats_atlas.webp",
+    "archive": "art-source/client/public/textures/boats_atlas.webp",
+    "sha256": "4311a013c07341eba8fd9e71dd94a12014be85a026cd110f364dc899e0f9286c"
+  },
+  {
+    "source": "client/public/textures/boats_atlas_h.png",
+    "archive": "art-source/client/public/textures/boats_atlas_h.png",
+    "sha256": "049f293620e0b8d0581a673ec23026cc6dd58f47d907345043a034f76815476b"
+  },
+  {
+    "source": "client/public/textures/cafe_sea_chart.jpg",
+    "archive": "art-source/client/public/textures/cafe_sea_chart.jpg",
+    "sha256": "1fc9bcff79ef977bd8b1401ae4859bd312f2c73af2663c84b3afb532b6a1eef3"
+  },
+  {
+    "source": "client/public/textures/cafe_ship_painting.jpg",
+    "archive": "art-source/client/public/textures/cafe_ship_painting.jpg",
+    "sha256": "6154666917e5ef23c8561fe66dfde81e26dae0a6473823c7b5e8aad000f691cf"
+  },
+  {
+    "source": "client/public/textures/cafe_tiles_checker.jpg",
+    "archive": "art-source/client/public/textures/cafe_tiles_checker.jpg",
+    "sha256": "5e7b603b0821d7520beac51ad0da1b67ae9917d25403bfea67f6047d0c231733"
+  },
+  {
+    "source": "client/public/textures/cafe_tiles_encaustic.jpg",
+    "archive": "art-source/client/public/textures/cafe_tiles_encaustic.jpg",
+    "sha256": "95f9b91470934dc530ccaa3fa11285da6268fa7b0da1faed8bd0a94189c65ff9"
+  },
+  {
+    "source": "client/public/textures/cafe_wainscot.jpg",
+    "archive": "art-source/client/public/textures/cafe_wainscot.jpg",
+    "sha256": "506d061909ca1c16eb84fca90ebe6852e6815fa1106239b4a6b9c01c87b8fa34"
+  },
+  {
+    "source": "client/public/textures/cafe_wallpaper_red.jpg",
+    "archive": "art-source/client/public/textures/cafe_wallpaper_red.jpg",
+    "sha256": "36e963b0a0aab0d6f690a8d2a1884912efff6de1792d4a13bf923bf36dd44142"
+  },
+  {
+    "source": "client/public/textures/carolus_bluestone.jpg",
+    "archive": "art-source/client/public/textures/carolus_bluestone.jpg",
+    "sha256": "a94a93dddd7a94780bb0f61d21316484ad25511f179d0a2aedd4b51010c9c6ae"
+  },
+  {
+    "source": "client/public/textures/carolus_floor.jpg",
+    "archive": "art-source/client/public/textures/carolus_floor.jpg",
+    "sha256": "4ff57a550235d8dc13782f3d0818070c8139c980ce467bffae32ee1ef04fa91c"
+  },
+  {
+    "source": "client/public/textures/carolus_marble_panel.jpg",
+    "archive": "art-source/client/public/textures/carolus_marble_panel.jpg",
+    "sha256": "7c05b000b9f63bb1ad4707e599c02b7190f48349648d8c30fdc4a326d4272ecf"
+  },
+  {
+    "source": "client/public/textures/carolus_oak.jpg",
+    "archive": "art-source/client/public/textures/carolus_oak.jpg",
+    "sha256": "4c8c23d8063ddeed31c471f5e9030fd68d66c77ea539281176081e39006b2e65"
+  },
+  {
+    "source": "client/public/textures/carolus_paint_altar.jpg",
+    "archive": "art-source/client/public/textures/carolus_paint_altar.jpg",
+    "sha256": "9d95b858912e6ca7fbf18e2fc8cc0035a07cb65071f4b8893ca75a0322e4b33f"
+  },
+  {
+    "source": "client/public/textures/carolus_paint_lady.jpg",
+    "archive": "art-source/client/public/textures/carolus_paint_lady.jpg",
+    "sha256": "e642aa2fc7a5236bed35b1e05d1281af76137c6ddf0b10a84b4217fec70e5933"
+  },
+  {
+    "source": "client/public/textures/carolus_paint_side.jpg",
+    "archive": "art-source/client/public/textures/carolus_paint_side.jpg",
+    "sha256": "cd6dcaec70d67c715869e534823781688968fb8190347ad6f9cbce97904fce00"
+  },
+  {
+    "source": "client/public/textures/carolus_plaster.jpg",
+    "archive": "art-source/client/public/textures/carolus_plaster.jpg",
+    "sha256": "cbd83ac0f799ab375a6dcbaff2c07ec24e6f897468b2d534a640b0f2b5b32ef6"
+  },
+  {
+    "source": "client/public/textures/carolus_sandstone.jpg",
+    "archive": "art-source/client/public/textures/carolus_sandstone.jpg",
+    "sha256": "84685603bfdbffaaab8666a5b6c1ff4aab6751d8b4504e5be57e7307dfe4d1d3"
+  },
+  {
+    "source": "client/public/textures/cath_dome.jpg",
+    "archive": "art-source/client/public/textures/cath_dome.jpg",
+    "sha256": "b980ee2135a5bad5cff73b493f9419de608b59b3e3b702fb6f547f2e527c47b3"
+  },
+  {
+    "source": "client/public/textures/cath_floor.jpg",
+    "archive": "art-source/client/public/textures/cath_floor.jpg",
+    "sha256": "5607997f955a6e56517d32b4478990b9cb3c2d4874ed0f776414024910d0792c"
+  },
+  {
+    "source": "client/public/textures/cath_glass.jpg",
+    "archive": "art-source/client/public/textures/cath_glass.jpg",
+    "sha256": "fbbaf7dca7a471367fffa6d13b411c4bbbef051adc26019fcfaa973d2086daa0"
+  },
+  {
+    "source": "client/public/textures/cath_paint_assumption.jpg",
+    "archive": "art-source/client/public/textures/cath_paint_assumption.jpg",
+    "sha256": "84969fd7f8e1ac83926aefdbdd378ddac54a742a995f62ac155550dde15ba3c3"
+  },
+  {
+    "source": "client/public/textures/cath_paint_christopher.jpg",
+    "archive": "art-source/client/public/textures/cath_paint_christopher.jpg",
+    "sha256": "0bb38171f2ac2686d247d3e27c91b1f737e11221f3d04ea33ebd0a5da84abe03"
+  },
+  {
+    "source": "client/public/textures/cath_paint_desc_l.jpg",
+    "archive": "art-source/client/public/textures/cath_paint_desc_l.jpg",
+    "sha256": "5963d92aff516963b80c8096ebd8f7b37006c5c6d1986f99312529cb50b19c7e"
+  },
+  {
+    "source": "client/public/textures/cath_paint_desc_r.jpg",
+    "archive": "art-source/client/public/textures/cath_paint_desc_r.jpg",
+    "sha256": "cb4c6f332cee43a95a0504260b921432858fb4dcf82c304feb59309797c6f94c"
+  },
+  {
+    "source": "client/public/textures/cath_paint_descent.jpg",
+    "archive": "art-source/client/public/textures/cath_paint_descent.jpg",
+    "sha256": "16b324e9e755dd5afd6e45a9ae11ee1e5b647cf9dfe53daca79ff4af74290054"
+  },
+  {
+    "source": "client/public/textures/cath_paint_elev_l.jpg",
+    "archive": "art-source/client/public/textures/cath_paint_elev_l.jpg",
+    "sha256": "f6eed38bf30e7b67aca790bdf19b5e5fac65d52bc2c2e730c2176e1a46610ec1"
+  },
+  {
+    "source": "client/public/textures/cath_paint_elev_r.jpg",
+    "archive": "art-source/client/public/textures/cath_paint_elev_r.jpg",
+    "sha256": "a682f65be33f9f68a687b133bf7f51ca554e94934d32d486b2dba6679685e623"
+  },
+  {
+    "source": "client/public/textures/cath_paint_elevation.jpg",
+    "archive": "art-source/client/public/textures/cath_paint_elevation.jpg",
+    "sha256": "25a67f8b0fdb508adaabe8e0793f3b4efa17d2718817d5344985b08bfdfb8e12"
+  },
+  {
+    "source": "client/public/textures/cath_paint_nativity.jpg",
+    "archive": "art-source/client/public/textures/cath_paint_nativity.jpg",
+    "sha256": "7e496f768bf86d3b9fbee92d60c36fdc76be76af6b6a0aba861cf3b5e5065273"
+  },
+  {
+    "source": "client/public/textures/cath_paint_res_l.jpg",
+    "archive": "art-source/client/public/textures/cath_paint_res_l.jpg",
+    "sha256": "8d894c129f5ba14a547151d9d46704b53bbcbe5ccf5e9252ab0bddb7cda88c7b"
+  },
+  {
+    "source": "client/public/textures/cath_paint_res_r.jpg",
+    "archive": "art-source/client/public/textures/cath_paint_res_r.jpg",
+    "sha256": "1b401aa12c4c0077482feac647330112e7e78b76fc899e686577ebd7299592de"
+  },
+  {
+    "source": "client/public/textures/cath_paint_resurrection.jpg",
+    "archive": "art-source/client/public/textures/cath_paint_resurrection.jpg",
+    "sha256": "5642c32e64a4c993649f606091a3538eaec70f76236d68286319706647b6df97"
+  },
+  {
+    "source": "client/public/textures/cath_paint_saints.jpg",
+    "archive": "art-source/client/public/textures/cath_paint_saints.jpg",
+    "sha256": "b5dc75b7778a9cf17a830f67ce2284d234a4a102886fcc50b81192f0a8fb6963"
+  },
+  {
+    "source": "client/public/textures/cath_paint_supper.jpg",
+    "archive": "art-source/client/public/textures/cath_paint_supper.jpg",
+    "sha256": "28b77cc0fd03f9c14f6b91611956ce56e2981452cc76d8c746174a75bb0811e0"
+  },
+  {
+    "source": "client/public/textures/cath_stone.jpg",
+    "archive": "art-source/client/public/textures/cath_stone.jpg",
+    "sha256": "887b08a3fc93c38e891b67f7fc39c27374be0dad861decb9d9d2c1545f12b039"
+  },
+  {
+    "source": "client/public/textures/cathx_ashlar.jpg",
+    "archive": "art-source/client/public/textures/cathx_ashlar.jpg",
+    "sha256": "993db0195295a3e074cea3e66788f44badad5e003545a3bd2139a5f4f405ee78"
+  },
+  {
+    "source": "client/public/textures/cathx_ashlar_h.png",
+    "archive": "art-source/client/public/textures/cathx_ashlar_h.png",
+    "sha256": "a6783af6a5031e29058f73ceea62562639c9254ecd59c4afe23e36e2607513be"
+  },
+  {
+    "source": "client/public/textures/cathx_carved.jpg",
+    "archive": "art-source/client/public/textures/cathx_carved.jpg",
+    "sha256": "32b4421ddbf28ad2a704a4442e5ba07ed55d3ec0d24587ccd9d9780ef064e31a"
+  },
+  {
+    "source": "client/public/textures/cathx_carved_h.png",
+    "archive": "art-source/client/public/textures/cathx_carved_h.png",
+    "sha256": "7ab9f6e429fd311515234d26471b4a2cce3b311cf61ffa53db8c67aed7371b0b"
+  },
+  {
+    "source": "client/public/textures/cathx_door.jpg",
+    "archive": "art-source/client/public/textures/cathx_door.jpg",
+    "sha256": "d636c35b5869d2398d00f002421afe6377f9ae7526a1043e81ae3d627621378b"
+  },
+  {
+    "source": "client/public/textures/cathx_door_h.png",
+    "archive": "art-source/client/public/textures/cathx_door_h.png",
+    "sha256": "e7ff579fd9c18f0b9b3a079b9a850f37178afe2a8b1df5a925ae16b70f648a01"
+  },
+  {
+    "source": "client/public/textures/cathx_plinth.jpg",
+    "archive": "art-source/client/public/textures/cathx_plinth.jpg",
+    "sha256": "d24dc8822a5571bdc8504a9d98004e9bd9e4110de562a44fdb1addb11801f364"
+  },
+  {
+    "source": "client/public/textures/cathx_plinth_h.png",
+    "archive": "art-source/client/public/textures/cathx_plinth_h.png",
+    "sha256": "9ecd1c8d4092482ab320115060b0e535650aaf502bfcd343ac079f4c4c496c5a"
+  },
+  {
+    "source": "client/public/textures/cathx_tympanum.jpg",
+    "archive": "art-source/client/public/textures/cathx_tympanum.jpg",
+    "sha256": "570e896f2f0d0ffa0a8738e743561fd1395a172b90739cbbf392cceea2e0cef3"
+  },
+  {
+    "source": "client/public/textures/cathx_tympanum_h.png",
+    "archive": "art-source/client/public/textures/cathx_tympanum_h.png",
+    "sha256": "a27191c9d0028592b07e6d5e2b304cfd6b9ab776ad44101fd29085d1baab3786"
+  },
+  {
+    "source": "client/public/textures/mud_bed.jpg",
+    "archive": "art-source/client/public/textures/mud_bed.jpg",
+    "sha256": "0d9630b68c46307648afbc6435c36840736826797fd4388dd33c8ed8ffbced90"
+  },
+  {
+    "source": "client/public/textures/mud_bed_h.png",
+    "archive": "art-source/client/public/textures/mud_bed_h.png",
+    "sha256": "d9b94796f51f7efec58c5bb020e9e0757dac8359ce642acbe9ab4b501bbb25ef"
+  },
+  {
+    "source": "client/public/textures/park_gravel.jpg",
+    "archive": "art-source/client/public/textures/park_gravel.jpg",
+    "sha256": "90ece884230aa156bfe39b912838d657f80c7a24b11c97233e58f2e9701effef"
+  },
+  {
+    "source": "client/public/textures/park_gravel_h.png",
+    "archive": "art-source/client/public/textures/park_gravel_h.png",
+    "sha256": "6f3c0bac65954871621d9ed544a23f5440534ddd6cc105f064d9fcbe7d89185b"
+  },
+  {
+    "source": "client/public/textures/park_lawn.jpg",
+    "archive": "art-source/client/public/textures/park_lawn.jpg",
+    "sha256": "01711a3492ae3e141448071b2b18ce8c87fbbde85f9cb9e22f8d470ad00c5035"
+  },
+  {
+    "source": "client/public/textures/park_lawn_h.png",
+    "archive": "art-source/client/public/textures/park_lawn_h.png",
+    "sha256": "e9609b6251c669dc8a662bf02dc0ebe3666dd6cb7c7ac58e3ab759f70bede4e3"
+  },
+  {
+    "source": "client/public/textures/park_mud.jpg",
+    "archive": "art-source/client/public/textures/park_mud.jpg",
+    "sha256": "fb9661d1264cae7532b0ca0b6094e00d381f43f68b4dbba7ce6db561c57530af"
+  },
+  {
+    "source": "client/public/textures/park_mud_h.png",
+    "archive": "art-source/client/public/textures/park_mud_h.png",
+    "sha256": "9934e6713d86a9e33609cc59c68b6149c1bf9c6a17cb27b95df9a05abc927a6d"
+  },
+  {
+    "source": "client/public/textures/pj_brabant.jpg",
+    "archive": "art-source/client/public/textures/pj_brabant.jpg",
+    "sha256": "04b561c6004dc26958f7c34ea10d2fab339e4a098652493c2ac257f49394cf26"
+  },
+  {
+    "source": "client/public/textures/pj_brick.jpg",
+    "archive": "art-source/client/public/textures/pj_brick.jpg",
+    "sha256": "8e53dc3f7f63e84b0d5a7ef951530dba81a355623df63dca513d9e93ef423dbd"
+  },
+  {
+    "source": "client/public/textures/pj_paint_james_altar.jpg",
+    "archive": "art-source/client/public/textures/pj_paint_james_altar.jpg",
+    "sha256": "7e83d90c14ad6b90908465c2e0da99f7d51d94a05b8eec555c9904c02778833b"
+  },
+  {
+    "source": "client/public/textures/pj_paint_james_chapel.jpg",
+    "archive": "art-source/client/public/textures/pj_paint_james_chapel.jpg",
+    "sha256": "198282db42fdcabc35252d184e7722e3b22ff252817a1136fcba7c9ff892e4c2"
+  },
+  {
+    "source": "client/public/textures/pj_paint_paul_altar.jpg",
+    "archive": "art-source/client/public/textures/pj_paint_paul_altar.jpg",
+    "sha256": "8bdb17aec3cc1ac46a358fcc1c5ab9d44d5e1d28eedd34e55449ce16aab8ea12"
+  },
+  {
+    "source": "client/public/textures/pj_paint_rosary_a.jpg",
+    "archive": "art-source/client/public/textures/pj_paint_rosary_a.jpg",
+    "sha256": "adad4a2133cb24288ebb6f4d22bef0042b8d48626f4c677c2ddbca1df9da85a7"
+  },
+  {
+    "source": "client/public/textures/pj_paint_rosary_b.jpg",
+    "archive": "art-source/client/public/textures/pj_paint_rosary_b.jpg",
+    "sha256": "6a052e8e451d100091a5cb84859c4e098f618ee929d69884a9b025500d431b4a"
+  },
+  {
+    "source": "client/public/textures/pj_paint_rosary_c.jpg",
+    "archive": "art-source/client/public/textures/pj_paint_rosary_c.jpg",
+    "sha256": "2ff50b745c032822d418d00e06d48a31e182ebc0709d02d42605fd442af77ef3"
+  },
+  {
+    "source": "client/public/textures/pj_slabs.jpg",
+    "archive": "art-source/client/public/textures/pj_slabs.jpg",
+    "sha256": "070540e4cc2d86bb242bb71e26682e28e46839fd003a2becf247bf74f9c1b143"
+  },
+  {
+    "source": "client/public/textures/pj_slabs_h.png",
+    "archive": "art-source/client/public/textures/pj_slabs_h.png",
+    "sha256": "05c7093404c5ecc3177bf30849da56935fa445dbb774be72ea1a782b0c4f3f56"
+  },
+  {
+    "source": "client/public/textures/pj_wash.jpg",
+    "archive": "art-source/client/public/textures/pj_wash.jpg",
+    "sha256": "cfd07c19638306bf0df02a5e50591a30365e5fe4a3e3e35dede99d0ab805c1bc"
+  },
+  {
+    "source": "client/public/textures/pj_white.jpg",
+    "archive": "art-source/client/public/textures/pj_white.jpg",
+    "sha256": "216ef821dd583328a1b8712c8a30b84690215bb30136c377b4f1dd22fe30ec7c"
+  },
+  {
+    "source": "client/public/textures/poster_cuts.png",
+    "archive": "art-source/client/public/textures/poster_cuts.png",
+    "sha256": "5f681e24e62c86e11c3b1186499f5445d33d039094e7a83be88257db57ab49dc"
+  },
+  {
+    "source": "client/public/textures/quay_coping_c.jpg",
+    "archive": "art-source/client/public/textures/quay_coping_c.jpg",
+    "sha256": "da91e6db40fff24e110f9101e44eb9b4395ec4932b8babd97013bf2043664725"
+  },
+  {
+    "source": "client/public/textures/quay_coping_h.png",
+    "archive": "art-source/client/public/textures/quay_coping_h.png",
+    "sha256": "96931f6071dc4ff79594b1453503958c3402f91b34d67a484af0ae5dde448c2e"
+  },
+  {
+    "source": "client/public/textures/quay_setts.jpg",
+    "archive": "art-source/client/public/textures/quay_setts.jpg",
+    "sha256": "800ad1108ed5afa2c343acb49c8fad19d51b065e4fd87ecb24544ddd3cb8d222"
+  },
+  {
+    "source": "client/public/textures/quay_setts_h.png",
+    "archive": "art-source/client/public/textures/quay_setts_h.png",
+    "sha256": "c298fffcdaadc7e16b5d6f75276c8b04607faa7472933c0dd6b7898120744f93"
+  },
+  {
+    "source": "client/public/textures/quay_setts_id.png",
+    "archive": "art-source/client/public/textures/quay_setts_id.png",
+    "sha256": "d19b9740545cc156606167ab52597d65242511605dbbb24e574e20c75accfb80"
+  },
+  {
+    "source": "client/public/textures/quay_wall_c.jpg",
+    "archive": "art-source/client/public/textures/quay_wall_c.jpg",
+    "sha256": "e96e449464cf1694fa3318304b1dd841f7572ff2ccea22bd264b54f9ec6f3c85"
+  },
+  {
+    "source": "client/public/textures/quay_wall_h.png",
+    "archive": "art-source/client/public/textures/quay_wall_h.png",
+    "sha256": "467a0e53b3d803b9a60b7b9a8d5e34975c5e6c5682c6f5f124a3d3f0af347f09"
+  },
+  {
+    "source": "client/public/textures/rope_hemp.jpg",
+    "archive": "art-source/client/public/textures/rope_hemp.jpg",
+    "sha256": "bd067d99ec6a3b426b8d0035c654a3138b38d79e9092748af710f00efcbfd4f5"
+  },
+  {
+    "source": "client/public/textures/shop_books.jpg",
+    "archive": "art-source/client/public/textures/shop_books.jpg",
+    "sha256": "fd1f7a1451f09fb03fb7439bcb36da0ba32a3185778d4fc411624ed73c5af6f9"
+  },
+  {
+    "source": "client/public/textures/shop_drawers.jpg",
+    "archive": "art-source/client/public/textures/shop_drawers.jpg",
+    "sha256": "178f92ea0c453ce9136bc5983f7d7d7e9cf0c34c32ad6a266708684880d2c0a4"
+  },
+  {
+    "source": "client/public/textures/shop_jars.jpg",
+    "archive": "art-source/client/public/textures/shop_jars.jpg",
+    "sha256": "f381e4cff11e3d2bd83823c436b0a472c3b5f0dd8ccaa75d688838ef7095403b"
+  },
+  {
+    "source": "client/public/textures/skyshade.json",
+    "archive": "art-source/client/public/textures/skyshade.json",
+    "sha256": "f818acb98ca99b894664c95e29e57eda19dc264aa86c692baa81481d4bd1c7ef"
+  },
+  {
+    "source": "client/public/textures/skyshade.png",
+    "archive": "art-source/client/public/textures/skyshade.png",
+    "sha256": "012527c9e1b9e6d50c0e555b035deb560724a02663dda270124c7cb35968bae3"
+  },
+  {
+    "source": "client/public/textures/stadhuis_arms.png",
+    "archive": "art-source/client/public/textures/stadhuis_arms.png",
+    "sha256": "92117017dab95896bf3b457bcd77e3e575f939c4cae2ac8a37b4aa4b0df277f7"
+  },
+  {
+    "source": "client/public/textures/stadhuis_arms_h.png",
+    "archive": "art-source/client/public/textures/stadhuis_arms_h.png",
+    "sha256": "b9ef6a617cec2a35bbfb025b521cbd83fbe63c065f5e8956862dc6af1995ae8c"
+  },
+  {
+    "source": "client/public/textures/stadhuis_bluestone.jpg",
+    "archive": "art-source/client/public/textures/stadhuis_bluestone.jpg",
+    "sha256": "4483ec3c4d482cf3d1f82abe75bd64eec08e4849e182d6edc7d82ffdb89c095d"
+  },
+  {
+    "source": "client/public/textures/stadhuis_bluestone_h.png",
+    "archive": "art-source/client/public/textures/stadhuis_bluestone_h.png",
+    "sha256": "bbf055afcad0c74796cc3b81f32e1710cc71b742f4e8afd6a950cf149d915970"
+  },
+  {
+    "source": "client/public/textures/stadhuis_carved.jpg",
+    "archive": "art-source/client/public/textures/stadhuis_carved.jpg",
+    "sha256": "91c173efe80309248b0b13a5b9edde8d0dd6d204799673e2b06c423377cb5a8a"
+  },
+  {
+    "source": "client/public/textures/stadhuis_carved_h.png",
+    "archive": "art-source/client/public/textures/stadhuis_carved_h.png",
+    "sha256": "cc00b86f375f7ef3a29d93c3255243e7685b08858dcdf04430693c67779d4828"
+  },
+  {
+    "source": "client/public/textures/stadhuis_glass.jpg",
+    "archive": "art-source/client/public/textures/stadhuis_glass.jpg",
+    "sha256": "b6ec94bf3c13333e60401d6d7dfa0d5986fbc3a16f30a963fb04b5f9e53c4860"
+  },
+  {
+    "source": "client/public/textures/stadhuis_glass_h.png",
+    "archive": "art-source/client/public/textures/stadhuis_glass_h.png",
+    "sha256": "92fc7dd771c171c292fe6405b10dcb6faf287d948b07b30bf65f0b45dc4eb719"
+  },
+  {
+    "source": "client/public/textures/stadhuis_limestone.jpg",
+    "archive": "art-source/client/public/textures/stadhuis_limestone.jpg",
+    "sha256": "1a7a6f708a6cee9514cca5c60a1a25216b5f54d174d4c7346e7eefbb92b8b407"
+  },
+  {
+    "source": "client/public/textures/stadhuis_limestone_h.png",
+    "archive": "art-source/client/public/textures/stadhuis_limestone_h.png",
+    "sha256": "ffa7200ecece93a9db3d3e9373091a6036f181f69fef4e5f45bf9743cbb7b6c2"
+  },
+  {
+    "source": "client/public/textures/stadhuis_oak.jpg",
+    "archive": "art-source/client/public/textures/stadhuis_oak.jpg",
+    "sha256": "ad2a771e582d4db299da9fd8d3fde125ce8f0e4a1399bc3e9401ba4d3b86d386"
+  },
+  {
+    "source": "client/public/textures/stadhuis_oak_h.png",
+    "archive": "art-source/client/public/textures/stadhuis_oak_h.png",
+    "sha256": "5be1c0cd8bf183cb3e7a7fdf2537ec73d7a91f629b07b8ef30495b697c59cb2d"
+  },
+  {
+    "source": "client/public/textures/stadhuis_slate.jpg",
+    "archive": "art-source/client/public/textures/stadhuis_slate.jpg",
+    "sha256": "f1a03ec7424acb08386619824fc981e71f903a6629efd9f5917fa722f9032142"
+  },
+  {
+    "source": "client/public/textures/stadhuis_slate_h.png",
+    "archive": "art-source/client/public/textures/stadhuis_slate_h.png",
+    "sha256": "030e904dab8df9e636da06d4e9654798e0608c1c2dc0c5187db91a07a7699d5d"
+  },
+  {
+    "source": "client/public/textures/steen_blue.jpg",
+    "archive": "art-source/client/public/textures/steen_blue.jpg",
+    "sha256": "c34b82c4a9aba3df887fc31bcd6a97b14ec897543be6930c28f59e81edb49109"
+  },
+  {
+    "source": "client/public/textures/steen_blue_h.png",
+    "archive": "art-source/client/public/textures/steen_blue_h.png",
+    "sha256": "9a38c7f61bebda50ecb2c0ed80e6cc53794516c49c85c56007483e9c35023628"
+  },
+  {
+    "source": "client/public/textures/steen_brick.jpg",
+    "archive": "art-source/client/public/textures/steen_brick.jpg",
+    "sha256": "c1dd94b29904ed17677f816c1faf2a4485ba03d33f39d0f1da2e562b60ec5f74"
+  },
+  {
+    "source": "client/public/textures/steen_brick_h.png",
+    "archive": "art-source/client/public/textures/steen_brick_h.png",
+    "sha256": "1cd419a09ec4dd2d391aa4c1c70eeaf4dd5bc09b024d173319e59e915f684380"
+  },
+  {
+    "source": "client/public/textures/steen_carve.jpg",
+    "archive": "art-source/client/public/textures/steen_carve.jpg",
+    "sha256": "b5b5261924660195933259d954bb799561f38c43df9f6c64397151c60cf9a373"
+  },
+  {
+    "source": "client/public/textures/steen_carve_h.png",
+    "archive": "art-source/client/public/textures/steen_carve_h.png",
+    "sha256": "43c66ce9f7a7b350641a478a2d361f5944beac9376317e59fa1d260987d38f3d"
+  },
+  {
+    "source": "client/public/textures/steen_maps.json",
+    "archive": "art-source/client/public/textures/steen_maps.json",
+    "sha256": "fff1553efa31591fc4bb26dfc7386939a2d5a431ee864f4c0150cee9bf51c49c"
+  },
+  {
+    "source": "client/public/textures/steen_sand.jpg",
+    "archive": "art-source/client/public/textures/steen_sand.jpg",
+    "sha256": "a088e0d32db8037905e73a42e26b7026dc7ad4a04789a7ddfa13fe321f573ca2"
+  },
+  {
+    "source": "client/public/textures/steen_sand_h.png",
+    "archive": "art-source/client/public/textures/steen_sand_h.png",
+    "sha256": "add85009eb3de6885c0379ed481e220832041ca9faa98662299ec10e8bbe3d4a"
+  },
+  {
+    "source": "client/public/textures/steen_slate.jpg",
+    "archive": "art-source/client/public/textures/steen_slate.jpg",
+    "sha256": "f2df06edfcd76eef1cbf6e7dcabbebbaa74729bd547a7ee3e1993584f7c2df5a"
+  },
+  {
+    "source": "client/public/textures/steen_slate_h.png",
+    "archive": "art-source/client/public/textures/steen_slate_h.png",
+    "sha256": "72bc590bcffe7a27138629b445a46654de3c852b76ebf61bc84ba089cc405f9c"
+  },
+  {
+    "source": "client/public/textures/steen_tournai.jpg",
+    "archive": "art-source/client/public/textures/steen_tournai.jpg",
+    "sha256": "e3ab068d4b87b985810b68ebd53871c40dbee969c26644c49ee7e4c8b2eafb36"
+  },
+  {
+    "source": "client/public/textures/steen_tournai_h.png",
+    "archive": "art-source/client/public/textures/steen_tournai_h.png",
+    "sha256": "5da9900f3f2db6a4a71a7a8c90f8b3f8e7a564dbb26bdaba2caab739a7ea0afe"
+  },
+  {
+    "source": "client/public/textures/street_cobble.jpg",
+    "archive": "art-source/client/public/textures/street_cobble.jpg",
+    "sha256": "75f02dfd7aa6cb19e5740d1b7c490b78dcb98a7e9ab6b6d8168d536ee0141586"
+  },
+  {
+    "source": "client/public/textures/street_cobble_h.png",
+    "archive": "art-source/client/public/textures/street_cobble_h.png",
+    "sha256": "33d10137a47142352fc9ba9cc29a53733ed5c106b51dcec9c6b8887fc8373000"
+  },
+  {
+    "source": "client/public/textures/street_cobble_id.png",
+    "archive": "art-source/client/public/textures/street_cobble_id.png",
+    "sha256": "5412855f3afd4429bb5ff9284af5d7cc5190c7f948222dd979616189ad144734"
+  },
+  {
+    "source": "client/public/textures/townwall_arms_h.png",
+    "archive": "art-source/client/public/textures/townwall_arms_h.png",
+    "sha256": "e0fea8528c240d11da43a6cda26896663269a05d41e30e852727caa7d4215f92"
+  },
+  {
+    "source": "client/public/textures/townwall_brick_h.png",
+    "archive": "art-source/client/public/textures/townwall_brick_h.png",
+    "sha256": "c0a0a12c1bb4d2d12f35c12223bf4a404fb2bc460eb4655f315723d342230daf"
+  },
+  {
+    "source": "client/public/textures/townwall_canvas_h.png",
+    "archive": "art-source/client/public/textures/townwall_canvas_h.png",
+    "sha256": "f2e5021d3b94d95b60b647ebcab774b8d6c327095b010a42567e75b56cfbaa63"
+  },
+  {
+    "source": "client/public/textures/townwall_coping_h.png",
+    "archive": "art-source/client/public/textures/townwall_coping_h.png",
+    "sha256": "7d3acad1ff2455fe70b22e977dfc452409489451e8450aea63d3ed04bf172830"
+  },
+  {
+    "source": "client/public/textures/townwall_iron_h.png",
+    "archive": "art-source/client/public/textures/townwall_iron_h.png",
+    "sha256": "09f42020feb62a80862a2735fc1d274cd9068438cc02def2f52446d620c911f4"
+  },
+  {
+    "source": "client/public/textures/townwall_maps.json",
+    "archive": "art-source/client/public/textures/townwall_maps.json",
+    "sha256": "b507a738cda5812846e4929a6a7defedb97100ab53b30aad06cd9593f0805674"
+  },
+  {
+    "source": "client/public/textures/townwall_plinth_h.png",
+    "archive": "art-source/client/public/textures/townwall_plinth_h.png",
+    "sha256": "ee70beab8f4b8c4c42d033b08d7783cc266e4f3f208acd77d20da44c024e7e5e"
+  },
+  {
+    "source": "client/public/textures/townwall_props_h.png",
+    "archive": "art-source/client/public/textures/townwall_props_h.png",
+    "sha256": "243819fb0f1d89c904d27a7f14b76fc1f2649e2875f579019229a9a97acf8210"
+  },
+  {
+    "source": "client/public/textures/townwall_quoin_h.png",
+    "archive": "art-source/client/public/textures/townwall_quoin_h.png",
+    "sha256": "de0ca111064fac6f6255f4f9a20a65298a74acc1ada36698bbebe12da8e1b27e"
+  },
+  {
+    "source": "client/public/textures/townwall_slate_h.png",
+    "archive": "art-source/client/public/textures/townwall_slate_h.png",
+    "sha256": "44c8e7f4f8ac69869e11dd7f9e280b8a07a48c3f6e1871d4843c8cd01c008e62"
+  },
+  {
+    "source": "client/public/textures/townwall_stone_h.png",
+    "archive": "art-source/client/public/textures/townwall_stone_h.png",
+    "sha256": "bb9698eb74da2c86564a557c72df0a5d13dfd2d32daf908c824b82c1c641de21"
+  },
+  {
+    "source": "client/public/textures/townwall_window_h.png",
+    "archive": "art-source/client/public/textures/townwall_window_h.png",
+    "sha256": "cc560391add5832ca2b95e072976f6d4689300fd503244b9f77a4a571db5517e"
+  },
+  {
+    "source": "client/public/textures/townwall_wood_h.png",
+    "archive": "art-source/client/public/textures/townwall_wood_h.png",
+    "sha256": "3d9e6f2e6713d8a8193ab335dd1fdfa93a169940c7d67b4045d833cbccb07b9d"
+  },
+  {
+    "source": "client/public/textures/vleeshuis_bands.jpg",
+    "archive": "art-source/client/public/textures/vleeshuis_bands.jpg",
+    "sha256": "1b6c7170222ce59183f5d458476e293d13c1bca3b06109de36b186202cff179c"
+  },
+  {
+    "source": "client/public/textures/vleeshuis_bands_h.png",
+    "archive": "art-source/client/public/textures/vleeshuis_bands_h.png",
+    "sha256": "15954b31edb91ffbfa21473506d75cf48ad80d261130e3f1edaebd5192373f94"
+  },
+  {
+    "source": "client/public/textures/vleeshuis_blue.jpg",
+    "archive": "art-source/client/public/textures/vleeshuis_blue.jpg",
+    "sha256": "bcc832a88b41f99b05f165bb367688365839d4e1e79d4f48a47d6b906c8a656b"
+  },
+  {
+    "source": "client/public/textures/vleeshuis_blue_h.png",
+    "archive": "art-source/client/public/textures/vleeshuis_blue_h.png",
+    "sha256": "ad4865b7213856e204e556bf53229addfc675416642a17f793967211f8cfa866"
+  },
+  {
+    "source": "client/public/textures/vleeshuis_glass.jpg",
+    "archive": "art-source/client/public/textures/vleeshuis_glass.jpg",
+    "sha256": "83de36a5e2734fc073d8cebabb457d009af674f1b0e5e9cc88e6dc99b73c543b"
+  },
+  {
+    "source": "client/public/textures/vleeshuis_glass_h.png",
+    "archive": "art-source/client/public/textures/vleeshuis_glass_h.png",
+    "sha256": "514858a6b092578001c66e95685eaabf537a184f9bc8019f0953987513e4760a"
+  },
+  {
+    "source": "client/public/textures/vleeshuis_madonna.jpg",
+    "archive": "art-source/client/public/textures/vleeshuis_madonna.jpg",
+    "sha256": "8fd2f3dcb003789f74bca896673b67213feec1c988f8e56b6ecc3d6a56fb9457"
+  },
+  {
+    "source": "client/public/textures/vleeshuis_madonna_h.png",
+    "archive": "art-source/client/public/textures/vleeshuis_madonna_h.png",
+    "sha256": "78b425aa2392e3303cc3f36d889a3ae764ba24fd1d67fafdf62a9029e8c85bd6"
+  },
+  {
+    "source": "client/public/textures/vleeshuis_oak.jpg",
+    "archive": "art-source/client/public/textures/vleeshuis_oak.jpg",
+    "sha256": "01cc7c05c98686dec7ee3e19d35cf2780ae1730c67d53dac5bc319a8cb30349b"
+  },
+  {
+    "source": "client/public/textures/vleeshuis_oak_h.png",
+    "archive": "art-source/client/public/textures/vleeshuis_oak_h.png",
+    "sha256": "9f569449c6791268fea5c14f37d3737cf4a6e42c0944fbf8e43b67db066c0aec"
+  },
+  {
+    "source": "client/public/textures/vleeshuis_sand.jpg",
+    "archive": "art-source/client/public/textures/vleeshuis_sand.jpg",
+    "sha256": "cb773e4308c21d0f4075ed93890e1ca0b2fa2fa103e0e4da0643f371c2831f1b"
+  },
+  {
+    "source": "client/public/textures/vleeshuis_sand_h.png",
+    "archive": "art-source/client/public/textures/vleeshuis_sand_h.png",
+    "sha256": "873f7288d14d6208ee4d4a040fb66a00ddf4bf485729a626a325e6c5b62de4d7"
+  },
+  {
+    "source": "client/public/textures/vleeshuis_slate.jpg",
+    "archive": "art-source/client/public/textures/vleeshuis_slate.jpg",
+    "sha256": "4c9fc6f7010b529dbfd54d179504254b44990ebb33aeb9b90e73514aa2d19aef"
+  },
+  {
+    "source": "client/public/textures/vleeshuis_slate_h.png",
+    "archive": "art-source/client/public/textures/vleeshuis_slate_h.png",
+    "sha256": "b96ee6c78177ac1efa5247be06df522e0dd8fc736af666a4c38c15b74ef21413"
+  },
+  {
+    "source": "client/public/textures/wall_ashlar_blue.jpg",
+    "archive": "art-source/client/public/textures/wall_ashlar_blue.jpg",
+    "sha256": "821cf7a6889b8f6d196dea7754a244f13d59f0c3012c6ff9028e9ec6bf1d1d98"
+  },
+  {
+    "source": "client/public/textures/wall_ashlar_blue_h.png",
+    "archive": "art-source/client/public/textures/wall_ashlar_blue_h.png",
+    "sha256": "6b8ae0e4ea4d4803685f388e0ded760f42b63dd2ecac6a6a0d171bed441a9c06"
+  },
+  {
+    "source": "client/public/textures/wall_ashlar_sand.jpg",
+    "archive": "art-source/client/public/textures/wall_ashlar_sand.jpg",
+    "sha256": "9d078053668fca9f00e8fc2d924d69e98722e5814b968dd7b63084dcf453a91c"
+  },
+  {
+    "source": "client/public/textures/wall_ashlar_sand_h.png",
+    "archive": "art-source/client/public/textures/wall_ashlar_sand_h.png",
+    "sha256": "a2be2028e2bb46670f6334d77be0c8312e5c0a3ddfef83b99c2eb2d1df8b2529"
+  },
+  {
+    "source": "client/public/textures/wall_brick.jpg",
+    "archive": "art-source/client/public/textures/wall_brick.jpg",
+    "sha256": "25845e39ceff608d0b13ac44f4c5212b811c72d01db9d1bca5e8624f5ddee14a"
+  },
+  {
+    "source": "client/public/textures/wall_brick_clinker.jpg",
+    "archive": "art-source/client/public/textures/wall_brick_clinker.jpg",
+    "sha256": "4a7a1e893a448c09013f0b1e304b1cc0e142699eb3bb31d3202c7ab68ae8aec3"
+  },
+  {
+    "source": "client/public/textures/wall_brick_clinker_h.png",
+    "archive": "art-source/client/public/textures/wall_brick_clinker_h.png",
+    "sha256": "25392d9d08ca86d4acedfa815f26db3f3568286a8bda651d56a8e6b341085a2e"
+  },
+  {
+    "source": "client/public/textures/wall_brick_fine.jpg",
+    "archive": "art-source/client/public/textures/wall_brick_fine.jpg",
+    "sha256": "bd3282e4d5c739f1f43d4ebe64ba1dda36a6d6cfd9014426d66739d43bc64d77"
+  },
+  {
+    "source": "client/public/textures/wall_brick_fine_h.png",
+    "archive": "art-source/client/public/textures/wall_brick_fine_h.png",
+    "sha256": "20512168263f4ef809faa564a21ba241aa07b9e665ff7ed813bfeb6d5687ea1d"
+  },
+  {
+    "source": "client/public/textures/wall_brick_h.png",
+    "archive": "art-source/client/public/textures/wall_brick_h.png",
+    "sha256": "71b15a897dab6b9700d2f9e28cbaa445064f5d5cc35cf95c98698bae357e4bdd"
+  },
+  {
+    "source": "client/public/textures/wall_brick_white.jpg",
+    "archive": "art-source/client/public/textures/wall_brick_white.jpg",
+    "sha256": "20c51f70c9ab2e472790c73f9d02d30e968719ef2271443aad68dd86da25e626"
+  },
+  {
+    "source": "client/public/textures/wall_brick_white_h.png",
+    "archive": "art-source/client/public/textures/wall_brick_white_h.png",
+    "sha256": "c1bd5956326a841f5dc30b0cb1acc6d00972a3769975b0a0ddc2f1266193cca0"
+  },
+  {
+    "source": "client/public/textures/wall_brick_yellow.jpg",
+    "archive": "art-source/client/public/textures/wall_brick_yellow.jpg",
+    "sha256": "eb389cdc7d8d9b9b2b775683c85a3a57bb206d6f6f82d81290576720632a5adf"
+  },
+  {
+    "source": "client/public/textures/wall_brick_yellow_h.png",
+    "archive": "art-source/client/public/textures/wall_brick_yellow_h.png",
+    "sha256": "fdadb86f1606b12ab0111a17a078b659d9027b04c16db2711ba3adb4fb4c0bc3"
+  },
+  {
+    "source": "client/public/textures/wall_brick_yellow_old.jpg",
+    "archive": "art-source/client/public/textures/wall_brick_yellow_old.jpg",
+    "sha256": "66c09db6701b8696a584d9ec2715f457faac295f4b5f1d180e70931c5eefc0b0"
+  },
+  {
+    "source": "client/public/textures/wall_brick_yellow_old_h.png",
+    "archive": "art-source/client/public/textures/wall_brick_yellow_old_h.png",
+    "sha256": "d3815eceb780edfd68da61cae75e8089f51be5a877c7bcc2212c6d793c6a0443"
+  },
+  {
+    "source": "client/public/textures/wall_heights.json",
+    "archive": "art-source/client/public/textures/wall_heights.json",
+    "sha256": "94c000d01e6a100540ae8f2cbf5329aed291d053700f98ba77d30d5e6e7ec14d"
+  },
+  {
+    "source": "client/public/textures/wall_plaster.jpg",
+    "archive": "art-source/client/public/textures/wall_plaster.jpg",
+    "sha256": "76734049c5b21cc9114c049ebe398aa5625a4b7109c877555a5886fd3fc5473d"
+  },
+  {
+    "source": "client/public/textures/wall_plaster_h.png",
+    "archive": "art-source/client/public/textures/wall_plaster_h.png",
+    "sha256": "b8fb27a9febaffbe9ff202ec7da9fb37731a409832ebd76a8a4ba8766f5c5c92"
+  },
+  {
+    "source": "client/public/textures/wall_plaster_rough.jpg",
+    "archive": "art-source/client/public/textures/wall_plaster_rough.jpg",
+    "sha256": "f2b35ef235ed0158435217715a345c30ba0ae515825c3a3948b5273bcfaa8068"
+  },
+  {
+    "source": "client/public/textures/wall_plaster_rough_h.png",
+    "archive": "art-source/client/public/textures/wall_plaster_rough_h.png",
+    "sha256": "be55aa3e9d68289703179c3b0cd53e89b36952f2acbcf9078871dae36a0fd80e"
+  },
+  {
+    "source": "client/public/textures/wall_plaster_smooth.jpg",
+    "archive": "art-source/client/public/textures/wall_plaster_smooth.jpg",
+    "sha256": "9e7ba74e9e7e471ff3c047e879345cb5599b27b161f78d19b50e8fc6065f4e7b"
+  },
+  {
+    "source": "client/public/textures/wall_plaster_smooth_h.png",
+    "archive": "art-source/client/public/textures/wall_plaster_smooth_h.png",
+    "sha256": "efc9911a457985e1925ec7f50364162b32c1f113061933660e1a5f8cdf6cf05b"
+  },
+  {
+    "source": "client/public/textures/wall_render.jpg",
+    "archive": "art-source/client/public/textures/wall_render.jpg",
+    "sha256": "c45cb37c8d815bad2a284b173a6b5a380900ccdf104b5ca457097fd376374bd1"
+  },
+  {
+    "source": "client/public/textures/wall_render_h.png",
+    "archive": "art-source/client/public/textures/wall_render_h.png",
+    "sha256": "4cf13aabe165919d9c5a28ba4d09ee70bd5b2d995bdc51ab233fe25e97a50804"
+  },
+  {
+    "source": "client/public/textures/wall_speklagen.jpg",
+    "archive": "art-source/client/public/textures/wall_speklagen.jpg",
+    "sha256": "35cbda77898aa6be63b9f247bbd369ef554bc7a596345ad3c38c2930ab77e699"
+  },
+  {
+    "source": "client/public/textures/wall_speklagen_h.png",
+    "archive": "art-source/client/public/textures/wall_speklagen_h.png",
+    "sha256": "68dbd36e90579da9f99c3fbbce02e91098424edc328cd481c1a6a2da0ec56f30"
+  },
+  {
+    "source": "client/public/textures/wall_walk_setts.jpg",
+    "archive": "art-source/client/public/textures/wall_walk_setts.jpg",
+    "sha256": "875938e33f09374f1093c0007a619c2958b0a5dd2ad202c173acb1f7009f209c"
+  },
+  {
+    "source": "client/public/textures/wall_walk_setts_h.png",
+    "archive": "art-source/client/public/textures/wall_walk_setts_h.png",
+    "sha256": "c3d051d3cd5e9179565d2333824a30d17528f9e49a249312f0172fade78c96f1"
+  },
+  {
+    "source": "client/public/textures/wall_walk_setts_id.png",
+    "archive": "art-source/client/public/textures/wall_walk_setts_id.png",
+    "sha256": "581559d6d2dbb7eb1490e0f2c7fcb9805c0510bb0265b3aba909e13c0202cf01"
+  },
+  {
+    "source": "client/public/textures/wood_planks.jpg",
+    "archive": "art-source/client/public/textures/wood_planks.jpg",
+    "sha256": "e69a86510860cda30e177ff8f669f1de08ec73ae65df5bec7cba390753f1b5d3"
+  },
+  {
+    "source": "client/public/ui/quay_woodcut.jpg",
+    "archive": "art-source/client/public/ui/quay_woodcut.jpg",
+    "sha256": "50dbad0ba51f5d2e81b872306e68b93127be87bcbe18b9630b3ed4089e0ae5c3"
+  },
+  {
+    "source": "godot/editor/town_preview.tscn",
+    "archive": "docs/archive/legacy-godot-entry/godot/editor/town_preview.tscn.txt",
+    "sha256": "7658b7b3a4f913d0352d47e78409c0f35b3b64464e5746d4d56c3a559cb8d3d4"
+  },
+  {
+    "source": "godot/export_presets.cfg",
+    "archive": "docs/archive/legacy-godot-entry/godot/export_presets.cfg.txt",
+    "sha256": "317c503dfe0f273efecdd875e8b81740d69a064310480668dce9f81dbc19393d"
+  },
+  {
+    "source": "godot/main.tscn",
+    "archive": "docs/archive/legacy-godot-entry/godot/main.tscn.txt",
+    "sha256": "21be119063ff0b179ff16a8573b770a101f896c9f3dfccd35ded35e56ae14df2"
+  },
+  {
+    "source": "godot/project.godot",
+    "archive": "docs/archive/legacy-godot-entry/godot/project.godot.txt",
+    "sha256": "3fc4d50f5627eab3d925e682460b0a78d47cbfcd8aca1acebf54f3c1afb43066"
+  },
+  {
+    "source": "godot/spike/spike.tscn",
+    "archive": "docs/archive/legacy-godot-entry/godot/spike/spike.tscn.txt",
+    "sha256": "e3a87d07dead6eb5baa2f96839c67e844ab12cd5f3307103ca602f9f119c7d0f"
+  },
+  {
+    "source": "native-godot/recovery/full/outer-back-geometry-oracle.mjs",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/recovery/full/outer-back-geometry-oracle.mjs.txt",
+    "sha256": "4726d45f09794d581b52375cb303d30f14de17fcfcad61b30f60466ee9c9614d"
+  },
+  {
+    "source": "native-godot/recovery/full/outer-back-population-oracle.mjs",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/recovery/full/outer-back-population-oracle.mjs.txt",
+    "sha256": "a60c8b9f27a7d3db1c08ec1d4e530204eb9f56503257fe160dd459384def3f7c"
+  },
+  {
+    "source": "native-godot/recovery/full/outer-lamps-population-oracle.mjs",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/recovery/full/outer-lamps-population-oracle.mjs.txt",
+    "sha256": "bca39e29dc20b3794aeaa58848e6efd91e0cefcd6d136174b31b3a91e782a1ee"
+  },
+  {
+    "source": "native-godot/recovery/full/outer-landmarks-oracle.mjs",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/recovery/full/outer-landmarks-oracle.mjs.txt",
+    "sha256": "3699956b54b6c053770afb0a6644b780ea23636c340e1695784e41e11d7a774f"
+  },
+  {
+    "source": "native-godot/recovery/full/outer-lively-population-oracle.mjs",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/recovery/full/outer-lively-population-oracle.mjs.txt",
+    "sha256": "3fdc149b98da194a6c0f89ff6326c28ca5eca5503f2c2184fc54a22863adeb67"
+  },
+  {
+    "source": "native-godot/recovery/full/outer-park-oracle.mjs",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/recovery/full/outer-park-oracle.mjs.txt",
+    "sha256": "a5e9279be982b63364eb869eaff649f41087ef8d0f6e467d88d9025e5951d9d9"
+  },
+  {
+    "source": "native-godot/recovery/full/outer-player-names-oracle.mjs",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/recovery/full/outer-player-names-oracle.mjs.txt",
+    "sha256": "d1ae61384c4c34b0d3ae1f92ead1cb3a9d883ea6fd23c8a53544adc13f0bf7eb"
+  },
+  {
+    "source": "native-godot/recovery/full/outer-population-facts.mjs",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/recovery/full/outer-population-facts.mjs.txt",
+    "sha256": "d2fd71f1b8c38f631ae8a1b03181538232498b6ffa2e96a2f9ee0d15b65ee155"
+  },
+  {
+    "source": "native-godot/recovery/full/outer-population-lifecycle-oracle.mjs",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/recovery/full/outer-population-lifecycle-oracle.mjs.txt",
+    "sha256": "d6e83247abb00480e7b4f8f3133a1c51b3b64127dac948ae810d1fe5008a6bca"
+  },
+  {
+    "source": "native-godot/recovery/full/outer-population-oracle.mjs",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/recovery/full/outer-population-oracle.mjs.txt",
+    "sha256": "855dea2dc53a84db0ff6e2118929da039c3727c7c55adfe00a1576f4f65dcb62"
+  },
+  {
+    "source": "native-godot/recovery/full/outer-press-oracle.mjs",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/recovery/full/outer-press-oracle.mjs.txt",
+    "sha256": "636806863ebd8c702f71236ebdc7f77dcfeb00b04cb14d1e3d7d4936f2f54c62"
+  },
+  {
+    "source": "native-godot/recovery/full/outer-profile-oracle.mjs",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/recovery/full/outer-profile-oracle.mjs.txt",
+    "sha256": "d341d203a6c161841788e761b59b2e7e13b32440bede024b55a7a874ea8beeaa"
+  },
+  {
+    "source": "native-godot/recovery/full/outer-role-population-oracle.mjs",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/recovery/full/outer-role-population-oracle.mjs.txt",
+    "sha256": "e20e1e5ef26ef1ccb1178b1ad394c849062abd5a20b6ed2dd51ee40b555779f3"
+  },
+  {
+    "source": "native-godot/recovery/full/outer-street-lighting-oracle.mjs",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/recovery/full/outer-street-lighting-oracle.mjs.txt",
+    "sha256": "7403ac7e1f4697022495d689740963d660edb00a5d2be527d7fbb4081f253976"
+  },
+  {
+    "source": "native-godot/recovery/full/outer-transport-population-oracle.mjs",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/recovery/full/outer-transport-population-oracle.mjs.txt",
+    "sha256": "5d2d01d6c83ec0e242bdcabee856fc31077725fc5e84a4f4c754fb5098424d21"
+  },
+  {
+    "source": "native-godot/recovery/full/outer-wall-population-oracle.mjs",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/recovery/full/outer-wall-population-oracle.mjs.txt",
+    "sha256": "98fae53ad39de987a722469e21833fb41273b74a9655fea05ac41b967dcbb6b0"
+  },
+  {
+    "source": "native-godot/recovery/full/outer-workshops-population-oracle.mjs",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/recovery/full/outer-workshops-population-oracle.mjs.txt",
+    "sha256": "d8894ace8538653f66ef04186061ea47fbd83a173f6a0e636dabaffb35eef5fc"
+  },
+  {
+    "source": "native-godot/scripts/capture-posted-lanes.mjs",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/scripts/capture-posted-lanes.mjs.txt",
+    "sha256": "021622400ca08807618dfb13141c0cb4e358303e09ddc93b3a2e2377d6a82cd0"
+  },
+  {
+    "source": "native-godot/services/authority-oracles.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/authority-oracles.mts.txt",
+    "sha256": "0de8e1c9818c6283d83fc505fb8259925558662cae38ad79c1547e293f93cdd0"
+  },
+  {
+    "source": "native-godot/services/ballad-oracles.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/ballad-oracles.mts.txt",
+    "sha256": "4d686b22f189e1421d802a6362ee72785d3655d665630cec1dc315e5b1ddae75"
+  },
+  {
+    "source": "native-godot/services/core-oracles.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/core-oracles.mts.txt",
+    "sha256": "58e0a9c0496b5ddcee6b1f31b457dc1c21c545c1cf44133f3818e2b6b9ecab80"
+  },
+  {
+    "source": "native-godot/services/courtyard-oracles.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/courtyard-oracles.mts.txt",
+    "sha256": "798777f28a3e5ef4630975ab44ffaee087dc60dc4d6e303b2d7797c627156d59"
+  },
+  {
+    "source": "native-godot/services/extras-oracles.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/extras-oracles.mts.txt",
+    "sha256": "4c6a0f117c1777d2c504bb0f7b5ef14d8582962e2499186c3b9c124460a95ba4"
+  },
+  {
+    "source": "native-godot/services/homes-night-population-oracles.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/homes-night-population-oracles.mts.txt",
+    "sha256": "82ac5e15f2a979f3fb0a781e6ab55edb0ae7aa3f8a491cd4d00356dcf240ebbc"
+  },
+  {
+    "source": "native-godot/services/ideas-oracles.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/ideas-oracles.mts.txt",
+    "sha256": "fcac9d021c4920e4baf1df2b75524694968ffed29341525c17c5fde84a168baa"
+  },
+  {
+    "source": "native-godot/services/interiors-oracles.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/interiors-oracles.mts.txt",
+    "sha256": "0d83550acb465c9d52bb3b8354be4b932d8eb8660643f86c399257b8e744fddc"
+  },
+  {
+    "source": "native-godot/services/jobs-oracles.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/jobs-oracles.mts.txt",
+    "sha256": "3ef3e21e4ae1aede1b7f6ce886683dec4303b48dd76dff604f090163469d03ae"
+  },
+  {
+    "source": "native-godot/services/lamps-oracles.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/lamps-oracles.mts.txt",
+    "sha256": "7f71a885e63fa25799b06a6c0d7edb8afeb46ebb0ed537be254b7b3094496669"
+  },
+  {
+    "source": "native-godot/services/market-oracles.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/market-oracles.mts.txt",
+    "sha256": "30f81e284a5d4a7be54a9f0f71b9f44fc0fc3a6655e30c052b3968159464ba40"
+  },
+  {
+    "source": "native-godot/services/mills-oracles.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/mills-oracles.mts.txt",
+    "sha256": "1af991a972d31cfa835e763aa6c8154c33425800712db3094f665856b01f02a1"
+  },
+  {
+    "source": "native-godot/services/night-oracles.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/night-oracles.mts.txt",
+    "sha256": "029b6becea37673fd459de403200b57b31da8c144d5975df151106fb68d98b8c"
+  },
+  {
+    "source": "native-godot/services/press-oracles.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/press-oracles.mts.txt",
+    "sha256": "ea4deee3c7a7f58cf0830d85295b00893dba7e4993cdf1f002c46a736720f5b3"
+  },
+  {
+    "source": "native-godot/services/proofs/recover-puppet-wire.mjs",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/proofs/recover-puppet-wire.mjs.txt",
+    "sha256": "4372c2afb525d08ab82086cdd4352d563ecca6e026ed30697b80dd97d735007e"
+  },
+  {
+    "source": "native-godot/services/recover-ai-data.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/recover-ai-data.mts.txt",
+    "sha256": "049a725c15e6ed6e10ab529e89f879c4ca1c3da309eac06979922b758ad72292"
+  },
+  {
+    "source": "native-godot/services/recover-assets-data.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/recover-assets-data.mts.txt",
+    "sha256": "8c98aa3fb37ffe7603b4ea24e7ee9f797e8f480a95251504c4fecc5666ef9034"
+  },
+  {
+    "source": "native-godot/services/recover-ballad-data.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/recover-ballad-data.mts.txt",
+    "sha256": "e759a0e67bf2fb4d738491c1474069787ad25cc0fcae575abc168e87849e34b6"
+  },
+  {
+    "source": "native-godot/services/recover-director-data.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/recover-director-data.mts.txt",
+    "sha256": "067dfe97e646d7683ac6b9d11091d697c80f1f29e734fb444a0c263378b5eda4"
+  },
+  {
+    "source": "native-godot/services/recover-emigrants-data.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/recover-emigrants-data.mts.txt",
+    "sha256": "9d69a52230daf942f8fcdd41dffe2850c58dc2a4679dee30784180f5e4fa1906"
+  },
+  {
+    "source": "native-godot/services/recover-extras-data.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/recover-extras-data.mts.txt",
+    "sha256": "f4fb2bc83bc181f8afef79826439d0ae48090c47eab5ccd8ba4a1dfb701399cc"
+  },
+  {
+    "source": "native-godot/services/recover-family-data.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/recover-family-data.mts.txt",
+    "sha256": "2a9e1839f4f2b9545d154d57f011f5ee896b7f2fbeb0ef36553cb633ea31953e"
+  },
+  {
+    "source": "native-godot/services/recover-goods-data.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/recover-goods-data.mts.txt",
+    "sha256": "a59ba23422e63abe44092d4b55469c65519df29668a71e6631bc30fb4aa239e5"
+  },
+  {
+    "source": "native-godot/services/recover-haggle-data.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/recover-haggle-data.mts.txt",
+    "sha256": "0f80f6dae7b8448bc39b48f55f15b8374b93c667741d33d0c959ad9646af32bc"
+  },
+  {
+    "source": "native-godot/services/recover-house-oracles.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/recover-house-oracles.mts.txt",
+    "sha256": "119c45a582db6f62fcec12ab35ab29e2ca23df5f56a1eb08fb48b74f1e357e47"
+  },
+  {
+    "source": "native-godot/services/recover-ideas-data.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/recover-ideas-data.mts.txt",
+    "sha256": "4aa17de8f86850f0fd5bd39f2d1e77dc9743ffa061f555d28311a5141a86716c"
+  },
+  {
+    "source": "native-godot/services/recover-interiors-data.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/recover-interiors-data.mts.txt",
+    "sha256": "1fa5778263ac5f79a76805144a0c0bd5baedc8ddbf2edacabe68c465d17cb7c1"
+  },
+  {
+    "source": "native-godot/services/recover-journeys-oracles.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/recover-journeys-oracles.mts.txt",
+    "sha256": "20b789644328d26c44e21ec3f2b2ef9b13417eb296b233aca1b44750417b0dfb"
+  },
+  {
+    "source": "native-godot/services/recover-market-models.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/recover-market-models.mts.txt",
+    "sha256": "a43870e6a39df0ee97646c73c05de3c1866752564f5315ec0c42914cc3cee5bc"
+  },
+  {
+    "source": "native-godot/services/recover-mills-data.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/recover-mills-data.mts.txt",
+    "sha256": "76b9ad1af0a4d0b6149ad8a7439876c9a56ad46c3810a667045ff53eca0f9803"
+  },
+  {
+    "source": "native-godot/services/recover-moving-world-oracles.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/recover-moving-world-oracles.mts.txt",
+    "sha256": "730e912b19f645b93aa9391e5b7df55be06830a2514edf57fc1076b7d4a50f53"
+  },
+  {
+    "source": "native-godot/services/recover-multiplayer-oracles.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/recover-multiplayer-oracles.mts.txt",
+    "sha256": "a1b55b3e811ae6c28542fe23a8f2e1cee4f457c0012a7c2c42446dd826002f5c"
+  },
+  {
+    "source": "native-godot/services/recover-night-data.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/recover-night-data.mts.txt",
+    "sha256": "b1c0fdc09dc36cef2c1d8d6b30daeafb7560b7869109c5384c2359a3d1237ccb"
+  },
+  {
+    "source": "native-godot/services/recover-press-data.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/recover-press-data.mts.txt",
+    "sha256": "c86bf47154af43426387ff82b2dfcc453a78b4cb4012564cc8febf8a96ffebf3"
+  },
+  {
+    "source": "native-godot/services/recover-service-data.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/recover-service-data.mts.txt",
+    "sha256": "0846d99850d9ba6536c87703fa90f32b47b572681b7d07c4dbda0a26938aaba1"
+  },
+  {
+    "source": "native-godot/services/recover-shop-population-data.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/recover-shop-population-data.mts.txt",
+    "sha256": "935d13a51dd5377142b04f4fee5757a2f7eefd18e1d63430a90ff52f2add04cd"
+  },
+  {
+    "source": "native-godot/services/recover-surprises-oracles.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/recover-surprises-oracles.mts.txt",
+    "sha256": "eba3da8652a5b337d7b8f8127d7e7617dc58098b275c55a31eefc85f1af451b8"
+  },
+  {
+    "source": "native-godot/services/recover-trade-data.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/recover-trade-data.mts.txt",
+    "sha256": "802124395c4698c9b752e396e175188b698a308e5fe94d11e0c0af6c104c89c9"
+  },
+  {
+    "source": "native-godot/services/recover-trade-ledger-data.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/recover-trade-ledger-data.mts.txt",
+    "sha256": "eccfaa56e90c68fbc4f68d6d10f24d1cb5924714df5a1bd1e069a7ec6d025ca2"
+  },
+  {
+    "source": "native-godot/services/shop-population-oracles.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/shop-population-oracles.mts.txt",
+    "sha256": "78ceaaf5e9144d5486e7c3de48b5b8f3f057d529eb7898f37f7a45d358da4418"
+  },
+  {
+    "source": "native-godot/services/steen-oracles.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/steen-oracles.mts.txt",
+    "sha256": "240c80c7c10fdc72e3d6daef58cdda37fe2dd9284144a61bc906e5b3e9507280"
+  },
+  {
+    "source": "native-godot/services/street-oracles.mts",
+    "archive": "docs/archive/legacy-oracle-tools/native-godot/services/street-oracles.mts.txt",
+    "sha256": "5ec23303025cbfa9c21f4ac3e8bdb43233ced55d9d1cfd6b3f4835789fd0c0a3"
+  },
+  {
+    "source": "shared/city.json",
+    "archive": "art-source/shared/city.json",
+    "sha256": "b7daf28947346131d1a368aa58480d70374d968690827c992780e7c389517e84"
+  },
+  {
+    "source": "shared/city_build.json",
+    "archive": "art-source/shared/city_build.json",
+    "sha256": "53ebfe2ec8508974a5659e0cc692d3b160798df6b1d6a667ed37729dade39adf"
+  },
+  {
+    "source": "shared/city_gable_windows.json",
+    "archive": "art-source/shared/city_gable_windows.json",
+    "sha256": "712ddeec759ddf1f7a3ea29d65236217b7f1c1d39cf8caed424baf9bc977c5f8"
+  },
+  {
+    "source": "shared/city_guild_fronts.json",
+    "archive": "art-source/shared/city_guild_fronts.json",
+    "sha256": "737de6e1060d0510ccc2a4ba3004abf19163e77345f9fddba5b7453a25f8a05e"
+  },
+  {
+    "source": "shared/city_yard_windows.json",
+    "archive": "art-source/shared/city_yard_windows.json",
+    "sha256": "ce868a8fb620d1478fc99be54c637d1ceed415373d91f411e6ff794f6303293c"
+  },
+  {
+    "source": "shared/fleet.json",
+    "archive": "art-source/shared/fleet.json",
+    "sha256": "2795fb9fb3597514a0156732d9bef2baa091f6d9e256ad34d4dd22a82bf72211"
+  },
+  {
+    "source": "shared/inworld_build.json",
+    "archive": "art-source/shared/inworld_build.json",
+    "sha256": "303ca64ca00c48e367a92985171e828b34b8c74186890bd8fbbda53f7153b0af"
+  },
+  {
+    "source": "shared/inworld_dormers.json",
+    "archive": "art-source/shared/inworld_dormers.json",
+    "sha256": "07848d6eaf96216459115f8b7b9816994dd3121a09670d5161d145e6dffe7276"
+  },
+  {
+    "source": "shared/inworld_houses.json",
+    "archive": "art-source/shared/inworld_houses.json",
+    "sha256": "9e2a829412a4f3e89f9bb0a04a4b0e92ab06f5346d4fbc167f6c43fd375879b5"
+  },
+  {
+    "source": "shared/parkTreeLife.json",
+    "archive": "art-source/shared/parkTreeLife.json",
+    "sha256": "a31dd7f89299bfba90f6e1a1813626346047d52b0a209627270cc1e4985dfea0"
+  },
+  {
+    "source": "shared/quaycargo.json",
+    "archive": "art-source/shared/quaycargo.json",
+    "sha256": "249ff578895004f3bea55d821a06901e5b4441d2917d23075575eca55fc380dd"
+  },
+  {
+    "source": "shared/spots.json",
+    "archive": "art-source/shared/spots.json",
+    "sha256": "6c2c3af18e04831ea48ad21c52691c8a1c617ba9dc8f47e81a77252fd4fbd827"
+  },
+  {
+    "source": "shared/townplaces.json",
+    "archive": "art-source/shared/townplaces.json",
+    "sha256": "f77d5c01d91278bfa1489ecca62160f2c8efac158dea738cf9697557c8586aca"
+  },
+  {
+    "source": "tools/blender/art/carolus_ihs.jpg",
+    "archive": "art-source/tools/blender/art/carolus_ihs.jpg",
+    "sha256": "9287a50a7bf1e74670180bec8c7811475e05a1300822fde2a2dce15014691ed7"
+  },
+  {
+    "source": "tools/blender/art/carolus_relief.jpg",
+    "archive": "art-source/tools/blender/art/carolus_relief.jpg",
+    "sha256": "12c2c874bb9eb342dbb51d44f067e8d18821c8b2a25d3369a120edd55b54a64b"
+  },
+  {
+    "source": "tools/blender/art/crate/crate_sheet.jpg",
+    "archive": "art-source/tools/blender/art/crate/crate_sheet.jpg",
+    "sha256": "a4621e973de5119047f1913d8f2df221c080aa0888932ce3e610b7e752b73571"
+  },
+  {
+    "source": "tools/blender/art/crate/crate_sheet.json",
+    "archive": "art-source/tools/blender/art/crate/crate_sheet.json",
+    "sha256": "33289e89cb66979d0fcd5c0fb9a9de1a74d629083b2d3bdacdc09731931dd826"
+  },
+  {
+    "source": "tools/blender/art/market/awning_blue.png",
+    "archive": "art-source/tools/blender/art/market/awning_blue.png",
+    "sha256": "98557e26adf6aefb30ec62a00005ee0019f00bb645cb49fef57eae2d8e6d0b23"
+  },
+  {
+    "source": "tools/blender/art/market/awning_red.png",
+    "archive": "art-source/tools/blender/art/market/awning_red.png",
+    "sha256": "dd552e3317d3d99bf54881054b45f74964f5b7234cb0f826e517d23d07c66f93"
+  },
+  {
+    "source": "tools/blender/art/market/bread.png",
+    "archive": "art-source/tools/blender/art/market/bread.png",
+    "sha256": "539dc22b6b6111e0a0a672a014db09a320077af64dfc2eae547784ad7ee97021"
+  },
+  {
+    "source": "tools/blender/art/market/canvas_patched.png",
+    "archive": "art-source/tools/blender/art/market/canvas_patched.png",
+    "sha256": "1b17b5a186ae18955fa936797fa6c394565b1a409e0ad5f3bb6f8f068ce26d8c"
+  },
+  {
+    "source": "tools/blender/art/market/cheese.png",
+    "archive": "art-source/tools/blender/art/market/cheese.png",
+    "sha256": "3d42d54babb88fb2f5f2cf8e2598b0b3a619d4bea2813ef9fc0a92e9d4c2af3a"
+  },
+  {
+    "source": "tools/blender/art/market/cloth.png",
+    "archive": "art-source/tools/blender/art/market/cloth.png",
+    "sha256": "38c4929e61125d8848bb01f048ae268a66f40397d6a23f27ecd03fee3d75bcda"
+  },
+  {
+    "source": "tools/blender/art/market/crate.png",
+    "archive": "art-source/tools/blender/art/market/crate.png",
+    "sha256": "e35e3a5fcc805b5121fb8dcbf4bd6008798c309a26e691506047e721cdfc85ef"
+  },
+  {
+    "source": "tools/blender/art/market/fish.png",
+    "archive": "art-source/tools/blender/art/market/fish.png",
+    "sha256": "d15358287ce0c87c784961cc4d203f22b918804fe7d7663d066ea72c9465d8c4"
+  },
+  {
+    "source": "tools/blender/art/market/pots.png",
+    "archive": "art-source/tools/blender/art/market/pots.png",
+    "sha256": "1a6f4f2140bf41314872ccba79bb62fb389a0c311d46f502fcec41a9999a009b"
+  },
+  {
+    "source": "tools/blender/art/market/sacking.png",
+    "archive": "art-source/tools/blender/art/market/sacking.png",
+    "sha256": "7e574764b02ff50ae37d963f32cbb49ebfbab176c2e38618b5544e4315b86bfb"
+  },
+  {
+    "source": "tools/blender/art/market/straw.png",
+    "archive": "art-source/tools/blender/art/market/straw.png",
+    "sha256": "918ac647837e3b1915ee57eb75eb67979ae77e9e427191dbd4b3ab58bfed4a95"
+  },
+  {
+    "source": "tools/blender/art/market/veg.png",
+    "archive": "art-source/tools/blender/art/market/veg.png",
+    "sha256": "f226b97ec44629d6f4032245cb0cebe0fdd68e77d056ba7442344d2cc6f2c68a"
+  },
+  {
+    "source": "tools/blender/art/market/wet_wood.png",
+    "archive": "art-source/tools/blender/art/market/wet_wood.png",
+    "sha256": "36c62934441848a99be855763e0485d7dc4e17257d5e53dfda7141ae18d82eb6"
+  },
+  {
+    "source": "tools/blender/art/market/wicker.png",
+    "archive": "art-source/tools/blender/art/market/wicker.png",
+    "sha256": "e2be301c3fbfad1d1e446718d43eaf212e7ed5f47f27795b3a177177e2d0dfef"
+  },
+  {
+    "source": "tools/blender/art/park_foliage.png",
+    "archive": "art-source/tools/blender/art/park_foliage.png",
+    "sha256": "862425b8fedc10923e92bda6610c82726422d86d54e468ec64463ece8616d2dc"
+  },
+  {
+    "source": "tools/blender/art/park_lilies.png",
+    "archive": "art-source/tools/blender/art/park_lilies.png",
+    "sha256": "30c5fad930fab516109ca75f7b224f16370aaff2cba17a1c312170c6239b0659"
+  },
+  {
+    "source": "tools/blender/art/park_reeds.png",
+    "archive": "art-source/tools/blender/art/park_reeds.png",
+    "sha256": "45df3260889383b99000db2e6aa3dacdcd3c974383da5e3365707e55bdef4259"
+  },
+  {
+    "source": "tools/blender/art/stadspark_foliage.png",
+    "archive": "art-source/tools/blender/art/stadspark_foliage.png",
+    "sha256": "4b524fce21d25572882d526056e5079b8d74896d1431b75277a75ac454373ac2"
+  },
+  {
+    "source": "tools/blender/boats/__init__.py",
+    "archive": "art-source/tools/blender/boats/__init__.py",
+    "sha256": "b0d1106546e9bbd25b8ff3b27853841185bfd3b6fb8e0c3d67f5e8dd170437a0"
+  },
+  {
+    "source": "tools/blender/boats/common.py",
+    "archive": "art-source/tools/blender/boats/common.py",
+    "sha256": "84d54ebf7bb3e2646455464b07e371337ce352444c3ad0234a2ee739fe4c81b3"
+  },
+  {
+    "source": "tools/blender/boats/cranes.py",
+    "archive": "art-source/tools/blender/boats/cranes.py",
+    "sha256": "c776bc6122de62bf8287bedb64da41c59d3a2c3b255f2952abaca5cffc6c0e02"
+  },
+  {
+    "source": "tools/blender/boats/inland.py",
+    "archive": "art-source/tools/blender/boats/inland.py",
+    "sha256": "96afb87913216956578c143dcc53a515ddf224979e553b80cc63045723e42cd2"
+  },
+  {
+    "source": "tools/blender/boats/lettering.py",
+    "archive": "art-source/tools/blender/boats/lettering.py",
+    "sha256": "e20f2513a8cd8b53577d1797b80826182205a2e8f99c5e6bc57c189c9161063a"
+  },
+  {
+    "source": "tools/blender/boats/ships.py",
+    "archive": "art-source/tools/blender/boats/ships.py",
+    "sha256": "f98208b95c84a61a7483d72933fa9a780c71cce753fdb1ce68073f75bb8c9b05"
+  },
+  {
+    "source": "tools/blender/boats/small.py",
+    "archive": "art-source/tools/blender/boats/small.py",
+    "sha256": "3c13de85bd8ea8cad53b189437f96def150a9241a48877cf587c03c6d044ce08"
+  },
+  {
+    "source": "tools/blender/boats/tugs.py",
+    "archive": "art-source/tools/blender/boats/tugs.py",
+    "sha256": "0c817ff4793e2fba2a89da65aefdd958ca1eea5cf6a9505d5a812fd18e27b9b9"
+  },
+  {
+    "source": "tools/blender/build_animals.py",
+    "archive": "art-source/tools/blender/build_animals.py",
+    "sha256": "bc8bcec490f8d6b5fa26d49614113c5b87241574f881e9d34ae47170e19d598c"
+  },
+  {
+    "source": "tools/blender/build_boats.py",
+    "archive": "art-source/tools/blender/build_boats.py",
+    "sha256": "1619356b0a19d9a59fb744738c99848772aeb9b9632a81ae2cb2ed082060d48f"
+  },
+  {
+    "source": "tools/blender/build_bridges.py",
+    "archive": "art-source/tools/blender/build_bridges.py",
+    "sha256": "b91536409ff682e1b158c94a0029a06b4a5a6a310f9d0801dfdf9fa2bf699364"
+  },
+  {
+    "source": "tools/blender/build_churches.py",
+    "archive": "art-source/tools/blender/build_churches.py",
+    "sha256": "37395c815ac22754280ba046f3f7fa0757e8359c14e52a91b7e3826fc913bfe3"
+  },
+  {
+    "source": "tools/blender/build_city.py",
+    "archive": "art-source/tools/blender/build_city.py",
+    "sha256": "bb5ba10100e5e9e6ac770adec04c1b899380660d3190584041fd39ef84118e60"
+  },
+  {
+    "source": "tools/blender/build_clutter.py",
+    "archive": "art-source/tools/blender/build_clutter.py",
+    "sha256": "9fc746ef607e0e744483892a790a2bd31abf20fada242f7bbf82caa0ca89275f"
+  },
+  {
+    "source": "tools/blender/build_crate.py",
+    "archive": "art-source/tools/blender/build_crate.py",
+    "sha256": "463afe43198f1b4857780b8088581bed5a12485d3ba4649d52c6d03c3a383385"
+  },
+  {
+    "source": "tools/blender/build_ferry.py",
+    "archive": "art-source/tools/blender/build_ferry.py",
+    "sha256": "a5c6d4e878e6b0e0813cda891f1ca3976332473c720614e43bf027e5d54bccb6"
+  },
+  {
+    "source": "tools/blender/build_landmarks.py",
+    "archive": "art-source/tools/blender/build_landmarks.py",
+    "sha256": "f14960bdedd9df33948e2a4e8b6f323c3bc6ffaa7aa5dda99fc2947e28bdf864"
+  },
+  {
+    "source": "tools/blender/build_litter.py",
+    "archive": "art-source/tools/blender/build_litter.py",
+    "sha256": "31b11e23d13eb17805e37183f0f6702ea4939f3b4bf30400b260fd1a0c5b4e5f"
+  },
+  {
+    "source": "tools/blender/build_lively.py",
+    "archive": "art-source/tools/blender/build_lively.py",
+    "sha256": "d2ddc4f85d857f38632362725e1e97b265df2ee5671ebff49da423edac4502a5"
+  },
+  {
+    "source": "tools/blender/build_lock.py",
+    "archive": "art-source/tools/blender/build_lock.py",
+    "sha256": "5cdd6a261bce446dfffb40a51636a1194d0009d6f7eeb87ff6e334ead5b91f72"
+  },
+  {
+    "source": "tools/blender/build_omnibus.py",
+    "archive": "art-source/tools/blender/build_omnibus.py",
+    "sha256": "8db5d23b00f9f7724159ad088c042b28be434362be5b7503cfe3f023a43b0a3e"
+  },
+  {
+    "source": "tools/blender/build_oostershuis.py",
+    "archive": "art-source/tools/blender/build_oostershuis.py",
+    "sha256": "1d6781d0779e6392b5bcd6f1c79837ccf1deea5015b122b1351db33d462bbffc"
+  },
+  {
+    "source": "tools/blender/build_park_animals.py",
+    "archive": "art-source/tools/blender/build_park_animals.py",
+    "sha256": "3eda415b0940a8a473b5f3619ac337483670ee8d4013bf3e9e6eedf84dcb3876"
+  },
+  {
+    "source": "tools/blender/build_park_plants.py",
+    "archive": "art-source/tools/blender/build_park_plants.py",
+    "sha256": "76ee556e3a95586fdef41486e18db4b845b2ee00d19861b6258b89c09cdd9b22"
+  },
+  {
+    "source": "tools/blender/build_people.py",
+    "archive": "art-source/tools/blender/build_people.py",
+    "sha256": "1243b5b0b56edbc6ee2e5ded2d84eae1ebff0b4258d8b75ab6c9c3a478a64d98"
+  },
+  {
+    "source": "tools/blender/build_places.py",
+    "archive": "art-source/tools/blender/build_places.py",
+    "sha256": "7ce2650fa19d53598c0c7ea5b4115dbacd671300126757b2a9a435a70af3bdf2"
+  },
+  {
+    "source": "tools/blender/build_player.py",
+    "archive": "art-source/tools/blender/build_player.py",
+    "sha256": "bfd302845f447deb29f25cd7b8322ecf3d627957956c2789ba8200d0fba3a9da"
+  },
+  {
+    "source": "tools/blender/build_prison.py",
+    "archive": "art-source/tools/blender/build_prison.py",
+    "sha256": "2995598ad1048cc7b3a9c6b13b80cdd967a136d6830793c6189e27750ed7f304"
+  },
+  {
+    "source": "tools/blender/build_props.py",
+    "archive": "art-source/tools/blender/build_props.py",
+    "sha256": "03aca6d3760dbfe3e8d2f762ae7bf9f4a0ef3fb4b6129e790da44db949624ee0"
+  },
+  {
+    "source": "tools/blender/build_quayfurniture.py",
+    "archive": "art-source/tools/blender/build_quayfurniture.py",
+    "sha256": "d59b7f4cf609c76bee68bac2022bfcbdf609ba273ea89fc95dec4e2a17f89773"
+  },
+  {
+    "source": "tools/blender/build_quaygoods.py",
+    "archive": "art-source/tools/blender/build_quaygoods.py",
+    "sha256": "2f38d6fd873acd1c74520c1df902427bc351d41e9a31d52d9158e4bc2e308ebc"
+  },
+  {
+    "source": "tools/blender/build_stadhuis.py",
+    "archive": "art-source/tools/blender/build_stadhuis.py",
+    "sha256": "e75d2b4c63ebbe028a77be2a8c7b66ac8e634b8d8e152bc5710f720cb098db46"
+  },
+  {
+    "source": "tools/blender/build_stalls.py",
+    "archive": "art-source/tools/blender/build_stalls.py",
+    "sha256": "e838578612b7c56b6a74aa2aa492f6c5863c6e1f045bef022f2c849c8e79dbce"
+  },
+  {
+    "source": "tools/blender/build_steen.py",
+    "archive": "art-source/tools/blender/build_steen.py",
+    "sha256": "222e3b395b91e2f5588015a36106eefbca24109e9ddaee11be7f5305aff32216"
+  },
+  {
+    "source": "tools/blender/build_streetlife.py",
+    "archive": "art-source/tools/blender/build_streetlife.py",
+    "sha256": "d5348ef9b15988964d248b923415926ee34c607f97ff4b3d3a7054daddf26e86"
+  },
+  {
+    "source": "tools/blender/build_trades.py",
+    "archive": "art-source/tools/blender/build_trades.py",
+    "sha256": "8a046faf2f4643f8594a02c55373e4050940662c13f6d74fd956aca1fc5f7b07"
+  },
+  {
+    "source": "tools/blender/build_trees.py",
+    "archive": "art-source/tools/blender/build_trees.py",
+    "sha256": "db07e08b64090a7d26ac475fc79c92be456943c93c76d0b66a852c2a3770ab1d"
+  },
+  {
+    "source": "tools/blender/build_velocipede.py",
+    "archive": "art-source/tools/blender/build_velocipede.py",
+    "sha256": "f68b7a9e40a4f4eae784917f622a467084776ed9bd4a61d2749d7a51f75a32ea"
+  },
+  {
+    "source": "tools/blender/build_vleeshuis.py",
+    "archive": "art-source/tools/blender/build_vleeshuis.py",
+    "sha256": "d848d2b8285226d5e8e6ae2f7a781208f832232def57cf521af7c2caf1dc33be"
+  },
+  {
+    "source": "tools/blender/build_wagons.py",
+    "archive": "art-source/tools/blender/build_wagons.py",
+    "sha256": "7199030d75ce74b278dbe933ce2f6286e21702ae8670d6970a458f693267d685"
+  },
+  {
+    "source": "tools/blender/build_wall.py",
+    "archive": "art-source/tools/blender/build_wall.py",
+    "sha256": "ab9264b2dcb85a01539945992ff61c802d0e2e059b59eef31c075c90b2372dbf"
+  },
+  {
+    "source": "tools/blender/glbhash.mjs",
+    "archive": "art-source/tools/blender/glbhash.mjs",
+    "sha256": "fdc62d8300ac0523e4c18c18cd658a6fbe430ac769ee6fc08e3796c53b7f2a83"
+  },
+  {
+    "source": "tools/blender/guild_fronts.py",
+    "archive": "art-source/tools/blender/guild_fronts.py",
+    "sha256": "0f558f1f20007a29ea4973a3cf8630f61bea794a13f0339a72584b26671843e3"
+  },
+  {
+    "source": "tools/blender/lantern_kit.py",
+    "archive": "art-source/tools/blender/lantern_kit.py",
+    "sha256": "9ca6fe03fe564ab7387aa89fef98e17c491c7746374f61935a19666321e80b05"
+  },
+  {
+    "source": "tools/blender/preview_quay_props.py",
+    "archive": "art-source/tools/blender/preview_quay_props.py",
+    "sha256": "3971fdb2be321451d7d1ad807fe0cdf765295739fb4d15cefc965261fd368c03"
+  },
+  {
+    "source": "tools/city/alleys.py",
+    "archive": "art-source/tools/city/alleys.py",
+    "sha256": "6adf77b8cd4395ec258b4aab2a38f774ea90ad114a5f911ca9ef5a57b0eeab85"
+  },
+  {
+    "source": "tools/city/design.py",
+    "archive": "art-source/tools/city/design.py",
+    "sha256": "2e72a120673e2a825df6dd3c4c90a0526a772a49dd02968d3d96054535286256"
+  },
+  {
+    "source": "tools/city/extract.py",
+    "archive": "art-source/tools/city/extract.py",
+    "sha256": "f0e933f915b7f50ccf1b5538202a123880118b69d31ff6245e7ad9d71b253712"
+  },
+  {
+    "source": "tools/city/inworld.mts",
+    "archive": "art-source/tools/city/inworld.mts",
+    "sha256": "1bd03bbd66128b924cc7695288998b3eb1e6cdd43cc824f55c189e8e5a6b9755"
+  },
+  {
+    "source": "tools/city/omnibus_map.py",
+    "archive": "art-source/tools/city/omnibus_map.py",
+    "sha256": "072bd173178423b27809a5c899e4d514e332a30fb7080655bf71f13167396488"
+  },
+  {
+    "source": "tools/city/park.py",
+    "archive": "art-source/tools/city/park.py",
+    "sha256": "de9ced82fb4b4edc541d08951da6503bbe750518c705fa56c83b8d13a06c0c75"
+  },
+  {
+    "source": "tools/city/park_check.py",
+    "archive": "art-source/tools/city/park_check.py",
+    "sha256": "72089c198eccf1f678a0ef72ed256081f118091f0861c525e6c152fe254bf0e1"
+  },
+  {
+    "source": "tools/city/park_plants.py",
+    "archive": "art-source/tools/city/park_plants.py",
+    "sha256": "42b9ada17480c986a6c5792fdcf35a27f3f5db60fd6637096b355e39e2cffdf7"
+  },
+  {
+    "source": "tools/city/places.py",
+    "archive": "art-source/tools/city/places.py",
+    "sha256": "5f5e144ae8c44849165af0dc1796ac1f209dc9dd85e54d0e9a97b1bc4414d47e"
+  },
+  {
+    "source": "tools/city/plan.py",
+    "archive": "art-source/tools/city/plan.py",
+    "sha256": "cf83ce65df3c2292bf9329f747770b6924f175f6916d634352027c420f2a094d"
+  },
+  {
+    "source": "tools/city/rampart.py",
+    "archive": "art-source/tools/city/rampart.py",
+    "sha256": "8146b90f5a04ee81c09e58844d10576794e8fcc0739a0cc7dc2df3fbd0310ded"
+  },
+  {
+    "source": "tools/city/skyshade.mjs",
+    "archive": "art-source/tools/city/skyshade.mjs",
+    "sha256": "00a9e2a7d327e460d6fcb60b1776987f342ae95b17e7162c9c5bfeff8697432e"
+  },
+  {
+    "source": "tools/city/streets.py",
+    "archive": "art-source/tools/city/streets.py",
+    "sha256": "a954fffb571df1a7f979415680f3a4663d05dbceb15c3e41ffb9793e1b8105ef"
+  },
+  {
+    "source": "tools/city/walk_only.py",
+    "archive": "art-source/tools/city/walk_only.py",
+    "sha256": "43348dff430e88016a96434f73182b482387a7a21b428d0e715f05af0b7fc32b"
+  },
+  {
+    "source": "tools/codexImage.mjs",
+    "archive": "art-source/tools/codexImage.mjs",
+    "sha256": "5c924960d8824bcdcd3bc6419ba7b34c0f1f0448358e8359dfea8587e43e697f"
+  },
+  {
+    "source": "tools/release/PLAY.txt",
+    "archive": "docs/archive/legacy-release-tools/tools/release/PLAY.txt.txt",
+    "sha256": "c25b6d3c02dea2114ec86d42416b721c2eb57ffab8f400b16b8dfa9a454e7399"
+  },
+  {
+    "source": "tools/release/changelog.mjs",
+    "archive": "docs/archive/legacy-release-tools/tools/release/changelog.mjs.txt",
+    "sha256": "fcc4109cf20889e00fcd296158337b02f8adeade887dc953fa0e2902c71ce896"
+  },
+  {
+    "source": "tools/release/launch.mjs",
+    "archive": "docs/archive/legacy-release-tools/tools/release/launch.mjs.txt",
+    "sha256": "123446fc4b95929b92f80e349f75fbd261778cd181de75f995d86865d453027d"
+  },
+  {
+    "source": "tools/release/notes.md",
+    "archive": "docs/archive/legacy-release-tools/tools/release/notes.md.txt",
+    "sha256": "8bcac658030b73dbf98792e1616e923201da4ed91e522a7f7b9732d77be394cf"
+  },
+  {
+    "source": "tools/release/start-linux.sh",
+    "archive": "docs/archive/legacy-release-tools/tools/release/start-linux.sh.txt",
+    "sha256": "07ee8de5dce72a93349bb74cc22d1c5e95bddc7f0a502be15e5484509f2adcf3"
+  },
+  {
+    "source": "tools/release/start-mac.command",
+    "archive": "docs/archive/legacy-release-tools/tools/release/start-mac.command.txt",
+    "sha256": "eaf83476b9fa72704701929947a61d9e862982202607b5d5a5ee62a1d0cbb527"
+  },
+  {
+    "source": "tools/release/start-windows.bat",
+    "archive": "docs/archive/legacy-release-tools/tools/release/start-windows.bat.txt",
+    "sha256": "5389eb8ca03875583b8fcce5d0a248aff787bacf13bbc3c381d836cc4384f41a"
+  },
+  {
+    "source": "tools/templates/interior/build_name_openings.py",
+    "archive": "art-source/tools/templates/interior/build_name_openings.py",
+    "sha256": "7fdef819dca6df73798d850298decc9aa1024bef35160973ad6d225cf8c6e696"
+  },
+  {
+    "source": "tools/templates/interior/nameHall.ts",
+    "archive": "art-source/tools/templates/interior/nameHall.ts",
+    "sha256": "d281d2f607fa5fffa29826ffb3a2f8b9f6f34ed0be4508879d4aa9a980ad61cc"
+  },
+  {
+    "source": "tools/templates/interior/namePlan.ts",
+    "archive": "art-source/tools/templates/interior/namePlan.ts",
+    "sha256": "07a922479e188d3d5b0851148d447ffe7db34e79a7baf82dc434f1eece586b4d"
+  },
+  {
+    "source": "tools/templates/interior/nameRooms.ts",
+    "archive": "art-source/tools/templates/interior/nameRooms.ts",
+    "sha256": "e23b24a0aad4a31287135fc49e79cdab5711013db92d309820db4dca45d7b14c"
+  },
+  {
+    "source": "tools/textures/bluestone_maps.py",
+    "archive": "art-source/tools/textures/bluestone_maps.py",
+    "sha256": "dc27bd60a7846a4fdce7a99fe4352a70063658d44b7bc94c7cdc953a75fa3ecd"
+  },
+  {
+    "source": "tools/textures/cathedral_maps.py",
+    "archive": "art-source/tools/textures/cathedral_maps.py",
+    "sha256": "faa6c8ba8ace3d09b727719c768db64bb5ec3231162df97cb1486c609a27840b"
+  },
+  {
+    "source": "tools/textures/crate_sheet.mjs",
+    "archive": "art-source/tools/textures/crate_sheet.mjs",
+    "sha256": "19cebf3783dfd30879f33ce92e5b24feccb95978b374997e5f7e581d94502a8e"
+  },
+  {
+    "source": "tools/textures/mud_maps.py",
+    "archive": "art-source/tools/textures/mud_maps.py",
+    "sha256": "2efea399c6cdfa4f4dad98ac1de4e7cf9641c7d64cced81f7ade6b521ff4e99b"
+  },
+  {
+    "source": "tools/textures/park_maps.py",
+    "archive": "art-source/tools/textures/park_maps.py",
+    "sha256": "9acfc8ec2ade01f0a1a9b96665e8b4261ba38501ef88d4cdf3df297409ffeccf"
+  },
+  {
+    "source": "tools/textures/park_sprites.py",
+    "archive": "art-source/tools/textures/park_sprites.py",
+    "sha256": "ccdab778745e65575a3b3da0afd50e401bb61b64ac3ae6e9515b1f3dd3ff6932"
+  },
+  {
+    "source": "tools/textures/quay_maps.py",
+    "archive": "art-source/tools/textures/quay_maps.py",
+    "sha256": "ec5895b8213bb30b4a83c8c633356231712c815e6262fc27c305f2fed83a177a"
+  },
+  {
+    "source": "tools/textures/setts_maps.py",
+    "archive": "art-source/tools/textures/setts_maps.py",
+    "sha256": "59ff9221cf4bb487eaa5f91688b00987cf8e2994e405fc7052ef58e1ba85d010"
+  },
+  {
+    "source": "tools/textures/setts_synth.py",
+    "archive": "art-source/tools/textures/setts_synth.py",
+    "sha256": "03e70dec04c263f93eb08b42cc794378e2913afde5a1920e0937e5bec16739d6"
+  },
+  {
+    "source": "tools/textures/src/bluestone_flag_codex.jpg",
+    "archive": "art-source/tools/textures/src/bluestone_flag_codex.jpg",
+    "sha256": "6828d4010410759de35b9f2e471e6c33a5fc3a2acc204ac4315ba7d86f8ea134"
+  },
+  {
+    "source": "tools/textures/src/bluestone_kerb_codex.jpg",
+    "archive": "art-source/tools/textures/src/bluestone_kerb_codex.jpg",
+    "sha256": "32b6a80bd5bc4dc97e5ce162f82fd44c5c4635ddb465c2e34bcda230d4794ef4"
+  },
+  {
+    "source": "tools/textures/src/quay_setts_codex.jpg",
+    "archive": "art-source/tools/textures/src/quay_setts_codex.jpg",
+    "sha256": "e7d074eff157ea8e1340b9804dc87f465a8f2cc0e810da65804e5b8ff26bcf02"
+  },
+  {
+    "source": "tools/textures/src/rope_hemp_codex.jpg",
+    "archive": "art-source/tools/textures/src/rope_hemp_codex.jpg",
+    "sha256": "7af130e8f783e51f9bb6e19c90630e68442998cacfe5723c0a7625db59439076"
+  },
+  {
+    "source": "tools/textures/src/street_cobble_codex.jpg",
+    "archive": "art-source/tools/textures/src/street_cobble_codex.jpg",
+    "sha256": "9445600a3040e8e4bb3e49077349e521dc6ff648cf63b41525a92b578f8a0d5d"
+  },
+  {
+    "source": "tools/textures/src/wall_walk_setts_codex.jpg",
+    "archive": "art-source/tools/textures/src/wall_walk_setts_codex.jpg",
+    "sha256": "7b78b467f6831bd2b6813ee763a6436fb92ac4f7e04e9481b1e4b1ef4ea6b33e"
+  },
+  {
+    "source": "tools/textures/src/wood_planks_codex.jpg",
+    "archive": "art-source/tools/textures/src/wood_planks_codex.jpg",
+    "sha256": "d5b607f16c561dbbeb4b6cd5ba68c7789b555623636a9e632993e5caa1652035"
+  },
+  {
+    "source": "tools/textures/stadhuis_maps.py",
+    "archive": "art-source/tools/textures/stadhuis_maps.py",
+    "sha256": "0d368deb964087e862d806a70f12ce2278c6ebd8f52cbb64a88a9285ab7e54c6"
+  },
+  {
+    "source": "tools/textures/stadspark_atlas.py",
+    "archive": "art-source/tools/textures/stadspark_atlas.py",
+    "sha256": "be5643cac7e31f45880f398ee33612bb892da6f8a7d79711af348019e57e3ffd"
+  },
+  {
+    "source": "tools/textures/steen_maps.py",
+    "archive": "art-source/tools/textures/steen_maps.py",
+    "sha256": "539822e59f415da85f81622a5e91c20bea6de082fda20611bcd8b181c796d872"
+  },
+  {
+    "source": "tools/textures/townwall_maps.py",
+    "archive": "art-source/tools/textures/townwall_maps.py",
+    "sha256": "cf0ffbf2c154ca1c926221eb0bbc225f37a732ec18be60f0e58aad159ab15ef3"
+  },
+  {
+    "source": "tools/textures/vleeshuis_maps.py",
+    "archive": "art-source/tools/textures/vleeshuis_maps.py",
+    "sha256": "68cee61455b5f36c9e4e942893c30f2456791c77844e34fa3774c9e23f921bfd"
+  },
+  {
+    "source": "tools/textures/wall_heights.py",
+    "archive": "art-source/tools/textures/wall_heights.py",
+    "sha256": "16c359d46d5f5f0aa662c85f4064c937a47692034c2fea497988b35ea721b6cb"
+  }
+]

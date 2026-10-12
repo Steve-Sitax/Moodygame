@@ -51,7 +51,10 @@ public partial class WorkshopSession : Node3D
             {
                 if (!LayoutDocument.ValidId(requested)) throw new InvalidOperationException("Invalid district id.");
                 string path = requested == "quay-pilot" ? "res://districts/quay-pilot.tres" : "res://recovered/" + requested + "/district.tres";
+                string native = World.NativeDistrictLayouts.ResourcePath(requested);
+                if (ResourceLoader.Exists(native)) path = native;
                 if (!ResourceLoader.Exists(path)) throw new FileNotFoundException("Recover this district first: " + requested);
+                if (path.StartsWith(World.NativeDistrictLayouts.DistrictDirectory + "/", StringComparison.Ordinal)) Game.NativeGlobals.Ensure();
                 District = ResourceLoader.Load<AuthorDistrict>(path);
             }
             District.Validate();
@@ -65,7 +68,7 @@ public partial class WorkshopSession : Node3D
             Document = new() { District = DistrictId, Objects = objectRoot.GetChildren().OfType<AuthoredObject>().Select(o => o.Record()).ToList() };
             Document.Validate(DistrictId, Assets);
             foreach (var node in objectRoot.GetChildren().OfType<AuthoredObject>()) objects.Add(node.ObjectId, node);
-            var directory = Arg("author-dir", ProjectSettings.GlobalizePath("user://layouts/" + DistrictId));
+            var directory = Arg("author-dir", World.NativeDistrictLayouts.LayoutDirectory(DistrictId));
             Store = new LayoutStore(Path.Combine(directory, "layout.json"));
             string? warning = null;
             try
@@ -215,13 +218,14 @@ public partial class WorkshopSession : Node3D
             var corner = position + basis * (offset + new Vector3(size.X * dx, 0, size.Z * dz));
             inside &= District.Bounds.HasPoint(new Vector2(corner.X, corner.Z));
         }
-        if (!inside || Math.Abs(position.Y) > 0.05f)
-        { why = "Place the object on the quay."; return false; }
+        if (!inside)
+        { why = "Place the object inside this district."; return false; }
         foreach (float dx in new[] { -0.5f, 0.5f }) foreach (float dz in new[] { -0.5f, 0.5f })
         {
             var foot = position + basis * (offset + new Vector3(size.X * dx, 0, size.Z * dz));
             using var support = PhysicsRayQueryParameters3D.Create(new(foot.X, position.Y + 0.2f, foot.Z), new(foot.X, position.Y - 0.2f, foot.Z), 1);
-            if (GetWorld3D().DirectSpaceState.IntersectRay(support).Count == 0)
+            var ground = GetWorld3D().DirectSpaceState.IntersectRay(support);
+            if (ground.Count == 0 || ground["normal"].AsVector3().Dot(Vector3.Up) < 0.7f)
             { why = "The object needs solid ground under its footprint."; return false; }
         }
         var exclude = new Godot.Collections.Array<Rid>();
@@ -290,7 +294,8 @@ public partial class WorkshopSession : Node3D
             {
                 var position = hit["position"].AsVector3();
                 if (Snap) { position.X = Mathf.Snapped(position.X, Grid); position.Z = Mathf.Snapped(position.Z, Grid); }
-                position.Y = 0;
+                // Retain the surface height: ramparts, steps and raised pavements are real native geometry.
+                if (Math.Abs(position.Y) < 0.03f) position.Y = 0;
                 candidate = new() { Id = movingId ?? "preview", Asset = previewAsset, Position = LayoutDocument.Floats(position),
                     Rotation = LayoutDocument.Floats(previewRotation), Scale = LayoutDocument.Floats(previewScale) };
                 previewValid = Clear(candidate, out previewReason);

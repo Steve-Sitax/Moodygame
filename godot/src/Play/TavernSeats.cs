@@ -39,7 +39,7 @@ public partial class TavernSeats : Node
     {
         I = this; town = GetParent().GetNodeOrNull<Townspeople>("Townspeople");
         ProcessPriority = 20; // after Jef (rides run his step at 10), before lighting and mirrors
-        using var doc = JsonDocument.Parse(File.ReadAllText(ProjectSettings.GlobalizePath("res://assets/places.json")));
+        using var doc = JsonDocument.Parse(Godot.FileAccess.GetFileAsString("res://assets/places.json"));
         foreach (var c in doc.RootElement.GetProperty("counters").EnumerateArray())
         {
             if (c.GetProperty("kind").GetString() != "tavern") continue;

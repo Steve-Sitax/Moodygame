@@ -1,0 +1,866 @@
+{
+  "version": 1,
+  "origins": {
+    "german": {
+      "label": "Germany",
+      "weight": 0.42,
+      "regions": [
+        [
+          "Hesse",
+          [
+            "Alsfeld",
+            "Lauterbach",
+            "Schotten",
+            "Grebenhain"
+          ]
+        ],
+        [
+          "Wurttemberg",
+          [
+            "Heilbronn",
+            "Balingen",
+            "Nagold",
+            "Calw"
+          ]
+        ],
+        [
+          "Baden",
+          [
+            "Mosbach",
+            "Bretten",
+            "Sinsheim"
+          ]
+        ],
+        [
+          "the Palatinate",
+          [
+            "Kusel",
+            "Kirchheimbolanden",
+            "Zweibrucken"
+          ]
+        ],
+        [
+          "the Hunsruck, in the Rhineland",
+          [
+            "Simmern",
+            "Kirn",
+            "Kastellaun"
+          ]
+        ]
+      ],
+      "men": [
+        "Johann",
+        "Heinrich",
+        "Friedrich",
+        "Wilhelm",
+        "Karl",
+        "Georg",
+        "Jakob",
+        "Peter",
+        "Konrad",
+        "Philipp",
+        "Adam",
+        "Ludwig"
+      ],
+      "women": [
+        "Anna",
+        "Maria",
+        "Katharina",
+        "Elisabeth",
+        "Margaretha",
+        "Christina",
+        "Sophie",
+        "Barbara",
+        "Luise",
+        "Magdalena"
+      ],
+      "surnames": [
+        "Weber",
+        "Schmidt",
+        "Becker",
+        "Hoffmann",
+        "Wagner",
+        "Schneider",
+        "Fischer",
+        "Bauer",
+        "Koch",
+        "Richter",
+        "Keller",
+        "Vogel",
+        "Hartmann",
+        "Zimmermann",
+        "Krause",
+        "Seitz",
+        "Roth",
+        "Hahn"
+      ],
+      "bound": [
+        "Cincinnati in Ohio, where a brother keeps a bakery",
+        "Milwaukee in Wisconsin",
+        "a farm in Iowa, bought on paper",
+        "Philadelphia, and then west into Pennsylvania",
+        "Kansas, where the railway sells land cheap",
+        "Saint Louis on the Mississippi"
+      ],
+      "why": [
+        "the farm was too small to split among four sons",
+        "two bad harvests, and a debt at the savings bank",
+        "since the war the eldest would serve seven years in the army and five more in the reserve",
+        "a brother in Ohio writes that there is land for anyone who works",
+        "the weaving in the village went to the factories, and the wages with it"
+      ],
+      "faith": [
+        [
+          "Lutheran",
+          0.55
+        ],
+        [
+          "Catholic",
+          0.45
+        ]
+      ],
+      "speech": "You speak English as a German farmer who learned a little from a phrasebook on the train: short careful sentences, now and then the verb at the end ('Tomorrow we to the ship go'), many pleases and thank-yous.",
+      "greet": [
+        "Good day, good day. You are from this city, yes?",
+        "Ah, a young man. Please, it is here the boats to the big ship come?",
+        "Good day. We wait for the ship. Always we wait."
+      ]
+    },
+    "swiss": {
+      "label": "Switzerland",
+      "weight": 0.25,
+      "regions": [
+        [
+          "the canton of Glarus",
+          [
+            "Elm",
+            "Schwanden",
+            "Matt",
+            "Linthal"
+          ]
+        ],
+        [
+          "the Emmental, in the canton of Bern",
+          [
+            "Langnau",
+            "Trub",
+            "Eggiwil",
+            "Sumiswald"
+          ]
+        ],
+        [
+          "the Zurich uplands",
+          [
+            "Wald",
+            "Fischenthal",
+            "Bauma"
+          ]
+        ]
+      ],
+      "men": [
+        "Fridolin",
+        "Kaspar",
+        "Ulrich",
+        "Jakob",
+        "Hans",
+        "Niklaus",
+        "Heinrich",
+        "Rudolf",
+        "Melchior"
+      ],
+      "women": [
+        "Verena",
+        "Regula",
+        "Anna",
+        "Barbara",
+        "Magdalena",
+        "Elsbeth",
+        "Rosina"
+      ],
+      "surnames": [
+        "Tschudi",
+        "Zwicky",
+        "Blumer",
+        "Streiff",
+        "Hefti",
+        "Aebi",
+        "Gerber",
+        "Zbinden",
+        "Luethi",
+        "Baumgartner",
+        "Kundert",
+        "Stauffer"
+      ],
+      "bound": [
+        "New Glarus in Wisconsin, where cousins keep cows",
+        "Highland in Illinois",
+        "Ohio, to a cheese maker from the next valley",
+        "Missouri, where the land is cheap"
+      ],
+      "why": [
+        "the cheese fell in price and the farm went with it",
+        "the parish paid half the fare, to have one family less on the poor box",
+        "the spinning mill in the valley shut its doors",
+        "cousins in Wisconsin write that the grass is good and nobody owns it yet"
+      ],
+      "faith": [
+        [
+          "Reformed",
+          0.7
+        ],
+        [
+          "Catholic",
+          0.3
+        ]
+      ],
+      "speech": "You speak English slowly, a word at a time, and apologise for it; you are proud, tidy and careful with money.",
+      "greet": [
+        "Good day to you. Please speak slow, my English is from a little book.",
+        "Good day. It is very flat here. At home the mountains stand up to the sky.",
+        "Good day. We are the family from the mountains, you see."
+      ]
+    },
+    "dutch": {
+      "label": "the Netherlands",
+      "weight": 0.12,
+      "regions": [
+        [
+          "Zeeland",
+          [
+            "Axel",
+            "Goes",
+            "Zierikzee",
+            "Tholen"
+          ]
+        ],
+        [
+          "the Achterhoek, in Gelderland",
+          [
+            "Winterswijk",
+            "Aalten",
+            "Varsseveld"
+          ]
+        ],
+        [
+          "Groningen",
+          [
+            "Ulrum",
+            "Uithuizen",
+            "Leens"
+          ]
+        ]
+      ],
+      "men": [
+        "Hendrik",
+        "Jan",
+        "Klaas",
+        "Dirk",
+        "Pieter",
+        "Gerrit",
+        "Arie",
+        "Cornelis"
+      ],
+      "women": [
+        "Geertje",
+        "Jantje",
+        "Aaltje",
+        "Neeltje",
+        "Trijntje",
+        "Maartje",
+        "Grietje"
+      ],
+      "surnames": [
+        "de Vries",
+        "Bakker",
+        "Visser",
+        "van der Meulen",
+        "Kuiper",
+        "Dijkstra",
+        "Mulder",
+        "Hoekstra",
+        "de Boer",
+        "Brouwer"
+      ],
+      "bound": [
+        "Holland in Michigan",
+        "Pella in Iowa",
+        "Grand Rapids in Michigan",
+        "Sheboygan in Wisconsin"
+      ],
+      "why": [
+        "the landlord raised the rent after the potato rot",
+        "our church stands apart from the old one, and the village never forgave us",
+        "an uncle in Michigan sent the fare in a letter",
+        "there is no land to buy at home, not for money we will ever have"
+      ],
+      "faith": [
+        [
+          "Reformed",
+          1
+        ]
+      ],
+      "speech": "You speak plain careful English with a Dutch tongue, and are glad a Fleming half understands you; you say 'yes, yes' when you are thinking.",
+      "greet": [
+        "Good day. Yes, yes, we are for America.",
+        "Good day, young man. You are a Fleming? Then we almost understand each other.",
+        "Good day. The quay is big, the ship is bigger."
+      ]
+    },
+    "belgian": {
+      "label": "Belgium",
+      "weight": 0.09,
+      "regions": [
+        [
+          "the country round Wavre, in Brabant",
+          [
+            "Grez-Doiceau",
+            "Chaumont",
+            "Tourinnes"
+          ]
+        ],
+        [
+          "the province of Luxembourg",
+          [
+            "Bastogne",
+            "Neufchateau",
+            "Houffalize"
+          ]
+        ],
+        [
+          "West Flanders",
+          [
+            "Tielt",
+            "Ardooie",
+            "Pittem"
+          ]
+        ]
+      ],
+      "men": [
+        "Joseph",
+        "Jean",
+        "Francois",
+        "Pierre",
+        "Lambert",
+        "Desire"
+      ],
+      "women": [
+        "Marie",
+        "Josephine",
+        "Catherine",
+        "Anne",
+        "Rosalie",
+        "Sidonie"
+      ],
+      "surnames": [
+        "Delfosse",
+        "Lefebvre",
+        "Collignon",
+        "Thiry",
+        "Detienne",
+        "Gigot",
+        "Vandewalle",
+        "Verhaeghe",
+        "Vanneste",
+        "Callewaert"
+      ],
+      "bound": [
+        "Green Bay in Wisconsin, where the Walloons are",
+        "Detroit in Michigan",
+        "Moline in Illinois"
+      ],
+      "why": [
+        "the flax work is gone, and the linen with it",
+        "letters from Wisconsin were read out at the church door, and half the parish talks of nothing else",
+        "the farm goes to the eldest brother, and there is nothing for the rest of us"
+      ],
+      "faith": [
+        [
+          "Catholic",
+          1
+        ]
+      ],
+      "speech": "You are a country person from the far side of Belgium: slow, shy of the big city, better at French than at Flemish; plain words.",
+      "greet": [
+        "Good day. We are from the country, you see. This city is too big.",
+        "Good day. You are from the Kempen? No, we are from further off.",
+        "Good day, young man. Is it always so loud here?"
+      ]
+    },
+    "bohemian": {
+      "label": "Bohemia",
+      "weight": 0.06,
+      "regions": [
+        [
+          "southern Bohemia",
+          [
+            "Pisek",
+            "Tabor",
+            "Strakonice"
+          ]
+        ],
+        [
+          "the Chodsko, near Domazlice",
+          [
+            "Domazlice",
+            "Kdyne",
+            "Klenci"
+          ]
+        ]
+      ],
+      "men": [
+        "Josef",
+        "Vaclav",
+        "Frantisek",
+        "Jan",
+        "Karel",
+        "Matej"
+      ],
+      "women": [
+        "Marie",
+        "Anna",
+        "Katerina",
+        "Barbora",
+        "Josefa",
+        "Terezie"
+      ],
+      "surnames": [
+        "Novak",
+        "Dvorak",
+        "Svoboda",
+        "Prochazka",
+        "Kucera",
+        "Vesely",
+        "Horak",
+        "Cerny"
+      ],
+      "bound": [
+        "Chicago, to the Bohemians on the west side",
+        "Racine in Wisconsin",
+        "Cedar Rapids in Iowa",
+        "the prairie of Nebraska"
+      ],
+      "why": [
+        "no land of our own, only day work on the estate",
+        "the army wanted the eldest son",
+        "a man from the next village came back from America with a gold watch"
+      ],
+      "faith": [
+        [
+          "Catholic",
+          1
+        ]
+      ],
+      "speech": "You know only a handful of English words and use them bravely, with long pauses and your hands.",
+      "greet": [
+        "Good day. You know, please, when the ship goes?",
+        "Good day. Sorry, my words are few.",
+        "Good... good day. America, yes. Soon."
+      ]
+    },
+    "hungarian": {
+      "label": "Upper Hungary",
+      "weight": 0.06,
+      "regions": [
+        [
+          "Saros county, in Upper Hungary",
+          [
+            "Bartfeld",
+            "Eperjes",
+            "Kisszeben"
+          ]
+        ],
+        [
+          "Zemplen county, in Upper Hungary",
+          [
+            "Homonna",
+            "Varanno",
+            "Sztropko"
+          ]
+        ]
+      ],
+      "men": [
+        "Janos",
+        "Istvan",
+        "Ferenc",
+        "Mihaly",
+        "Andras",
+        "Jozsef"
+      ],
+      "women": [
+        "Erzsebet",
+        "Maria",
+        "Julianna",
+        "Katalin",
+        "Borbala",
+        "Zsuzsanna"
+      ],
+      "surnames": [
+        "Kovacs",
+        "Toth",
+        "Nagy",
+        "Horvath",
+        "Szabo",
+        "Varga",
+        "Molnar"
+      ],
+      "bound": [
+        "the coal mines of Pennsylvania",
+        "Cleveland in Ohio",
+        "the iron works of Pittsburgh"
+      ],
+      "why": [
+        "the land gives nothing, and a man back from the mines had money in his pockets",
+        "the lord's steward took the best field",
+        "the eldest must go for a soldier, and we would rather go all together to America"
+      ],
+      "faith": [
+        [
+          "Catholic",
+          0.8
+        ],
+        [
+          "Reformed",
+          0.2
+        ]
+      ],
+      "speech": "You have very little English: short words, many pauses, a smile when you are lost; you understand more than you can say.",
+      "greet": [
+        "Good... good day. English, a little. Very little.",
+        "Day, sir. The ship? Today? No? Tomorrow.",
+        "Good day. We go far, far. America."
+      ]
+    }
+  },
+  "fears": [
+    "the sea, and the weeks below deck",
+    "sickness on board: they say the ship fever takes the little ones first",
+    "being cheated before we even leave; everybody here wants our money",
+    "that the money runs out before the land is found",
+    "that the children forget their prayers and their mother tongue",
+    "not understanding a word over there",
+    "that the brother's letters were too kind about America"
+  ],
+  "lostAt": [
+    [
+      "hessenatie_door",
+      "by the door of the Hessenatie"
+    ],
+    [
+      "peeters_dock",
+      "by the widow's shop door"
+    ],
+    [
+      "east_carts",
+      "at the cart stand"
+    ],
+    [
+      "crane_foot",
+      "at the foot of the crane"
+    ]
+  ],
+  "stats": [
+    "honesty",
+    "temper",
+    "piety",
+    "warmth",
+    "greed",
+    "courage",
+    "gossip"
+  ],
+  "bias": {
+    "emigrant": {
+      "piety": 1,
+      "courage": -1,
+      "gossip": -1
+    }
+  },
+  "keeperPrototypes": [
+    {
+      "id": "em_keeper",
+      "first": "Henriette",
+      "surname": "Kruger",
+      "name": "Henriette Kruger",
+      "age": 54,
+      "sex": "f",
+      "household": 82,
+      "family_role": "widow",
+      "trade": "lodging_keeper",
+      "faction": null,
+      "kind": "wife_b",
+      "home": {
+        "house": 768,
+        "x": 5.9,
+        "z": 61.9,
+        "sx": 6,
+        "sz": 63.1
+      },
+      "work": {
+        "place": "logement",
+        "kind": "post",
+        "at": [
+          6.054,
+          63.7,
+          0.08975817418995052
+        ]
+      },
+      "sched": {
+        "day": [
+          [
+            6.5,
+            12.5,
+            "work"
+          ],
+          [
+            13.25,
+            21.5,
+            "work"
+          ]
+        ],
+        "sunday": [
+          [
+            6.5,
+            8.5,
+            "work"
+          ],
+          [
+            8.75,
+            11,
+            "church",
+            "church"
+          ],
+          [
+            11.5,
+            21.5,
+            "work"
+          ]
+        ]
+      },
+      "stats": {
+        "honesty": 6,
+        "temper": 5,
+        "piety": 6,
+        "warmth": 5,
+        "greed": 6,
+        "courage": 6,
+        "gossip": 8,
+        "wealth": 4
+      },
+      "dog": null,
+      "origin": "Aachen, in the Rhineland"
+    },
+    {
+      "id": "em_runner",
+      "first": "Staf",
+      "surname": "Verbiest",
+      "name": "Staf Verbiest",
+      "age": 31,
+      "sex": "m",
+      "household": 83,
+      "family_role": "single",
+      "trade": "runner",
+      "faction": "smokkelaars",
+      "kind": "gentleman",
+      "home": {
+        "house": 846,
+        "x": -39.6,
+        "z": 66.3,
+        "sx": -39.6,
+        "sz": 67.2
+      },
+      "work": {
+        "place": "rijnkaai",
+        "kind": "roam",
+        "route": [
+          [
+            20,
+            28.5
+          ],
+          [
+            27.5,
+            31
+          ],
+          [
+            35,
+            28.5
+          ],
+          [
+            42.5,
+            31
+          ]
+        ]
+      },
+      "sched": {
+        "day": [
+          [
+            9.5,
+            15.5,
+            "loiter",
+            "rijnkaai"
+          ],
+          [
+            18,
+            22.5,
+            "tavern",
+            "tavern:ankere"
+          ]
+        ],
+        "sunday": [
+          [
+            10,
+            15,
+            "loiter",
+            "rijnkaai"
+          ],
+          [
+            17,
+            22.5,
+            "tavern",
+            "tavern:ankere"
+          ]
+        ]
+      },
+      "stats": {
+        "honesty": 1,
+        "temper": 4,
+        "piety": 2,
+        "warmth": 7,
+        "greed": 9,
+        "courage": 5,
+        "gossip": 7,
+        "wealth": 3
+      },
+      "dog": null,
+      "origin": "Antwerp, the Sint-Andries quarter"
+    }
+  ],
+  "camps": [
+    [
+      20,
+      24.5
+    ],
+    [
+      27.5,
+      27
+    ],
+    [
+      35,
+      24.5
+    ],
+    [
+      42.5,
+      27
+    ],
+    [
+      31,
+      32
+    ]
+  ],
+  "policePost": {
+    "x": -284.8,
+    "z": 100,
+    "yaw": -1.5707963267948966,
+    "door": [
+      -286,
+      100
+    ],
+    "label": "the police post by the town hall"
+  },
+  "labels": {
+    "docker": "docker",
+    "natie": "natie man",
+    "porter": "porter with a sack truck",
+    "carter": "carter",
+    "boatman": "boatman",
+    "sailor": "sailor ashore",
+    "fishwife": "fishwife",
+    "market_woman": "market woman",
+    "baker": "baker",
+    "grocer": "grocer",
+    "chandler": "ship's chandler",
+    "tobacconist": "tobacconist",
+    "pawnbroker": "clerk of the Berg van Barmhartigheid",
+    "cobbler": "cobbler",
+    "draper": "draper",
+    "shopwife": "shopkeeper's wife",
+    "publican": "publican",
+    "clerk": "clerk",
+    "merchant": "merchant",
+    "maid": "maid",
+    "laundress": "laundress",
+    "seamstress": "seamstress",
+    "housewife": "housewife",
+    "police": "police agent",
+    "priest": "priest",
+    "sexton": "sexton of the cathedral",
+    "lamplighter": "lamplighter",
+    "beggar": "beggar",
+    "thief": "pickpocket",
+    "retired": "old hand, past work",
+    "child": "child",
+    "street_child": "street child",
+    "errand_boy": "errand boy",
+    "infant": "small child",
+    "foreman": "foreman of the Katoennatie",
+    "fish_merchant": "fish merchant",
+    "water_bailiff": "sergeant of the water police",
+    "brewer": "brewer",
+    "soldier": "soldier of the line",
+    "sentry": "soldier of the line, on guard",
+    "corporal": "corporal of the guard",
+    "customs": "customs officer",
+    "navvy": "labourer of the town's works, pulling down the old wall",
+    "works_foreman": "foreman of the town's works on the ramparts",
+    "newsboy": "newsboy",
+    "post_clerk": "clerk of the post and telegraph office",
+    "dealer": "second-hand dealer",
+    "velo_maker": "velocipede maker, a smith who builds and hires out velocipedes",
+    "wheelwright": "wheelwright, who builds and hires out handcarts",
+    "emigrant": "emigrant bound for America",
+    "lodging_keeper": "keeper of the emigrants' lodging house",
+    "runner": "agent's man",
+    "organist": "organist of the cathedral",
+    "beadle": "beadle of the cathedral (the suisse, who keeps order at mass)",
+    "chair_woman": "chair woman of the cathedral (she lets the chairs at mass)",
+    "registrar": "clerk of the civil registry at the town hall",
+    "alderman": "alderman of the civil registry, who marries couples at the town hall",
+    "concierge": "porter of the town hall",
+    "cellar_master": "cellar master of Peyrot's wine warehouse in the Vleeshuis",
+    "cellarman": "cellarman at Peyrot's wine warehouse in the Vleeshuis",
+    "painter": "painter with a studio in the Vleeshuis",
+    "attendant": "attendant of the Museum of Antiquities in the Steen",
+    "storekeeper": "storekeeper of the State warehouse in the Oostershuis",
+    "milk_woman": "milk woman with a dog cart",
+    "baker_boy": "baker's boy with the bread cart",
+    "grinder": "knife grinder",
+    "ragman": "rag-and-bone man",
+    "coalman": "coal man",
+    "sweep": "chimney sweep",
+    "mussel_seller": "mussel seller",
+    "broom_seller": "broom seller from the Kempen",
+    "devotion_seller": "keeper of a stall against the cathedral (rosaries, candles, holy pictures)",
+    "nun": "Black Sister, who nurses the sick at home",
+    "beguine": "beguine",
+    "tourist": "English traveller come to see the Rubens paintings",
+    "fence": "dealer in odds and ends, after dark",
+    "smuggler": "night lighterman",
+    "nightcarter": "carter who works by night and asks no questions",
+    "cracksman": "a man in a dark coat who needs a lookout",
+    "butcher": "butcher",
+    "colonial": "grocer in colonial goods (coffee, tea, sugar, spices)",
+    "apothecary": "apothecary",
+    "barber": "barber",
+    "hatter": "hatter",
+    "roaster": "coffee roaster",
+    "printer": "printer and bookbinder",
+    "bookseller": "bookseller",
+    "clockmaker": "clockmaker",
+    "washerwoman": "washerwoman, who washes for the better houses at the court pump",
+    "loafer": "lad out of work who hangs about a street corner with his mates",
+    "watchman": "night watchman of the back streets",
+    "parish_priest": "parish priest",
+    "doctor": "physician, on his rounds of the back streets",
+    "drunkard": "docker out of work, too fond of the jenever",
+    "miller": "miller of a mill on the town wall",
+    "miller_man": "miller's man, who carries the sacks and drives the mill's cart"
+  }
+}

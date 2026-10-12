@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="script"]
+[ext_resource type="PackedScene" path="res://world/districts/outer-park-prison.tscn" id="scene"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-recovered/catalog.tres" id="catalog"]
+
+[resource]
+script = ExtResource("script")
+Id = "outer-park-prison"
+Title = "Stadspark and prison"
+Scene = ExtResource("scene")
+Catalog = ExtResource("catalog")
+Bounds = Rect2(-365.0,160.0,125.0,195.0)
+WalkSpawn = Vector3(-300.0,0.2,280.0)
+FlySpawn = Vector3(-300.0,16.0,260.0)
+FlyYaw = 3.141592653589793
+FlyPitch = -0.3490658503988659

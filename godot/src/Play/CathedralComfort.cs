@@ -39,7 +39,7 @@ public partial class CathedralComfort : Node
         input.AddThemeStyleboxOverride("normal",new StyleBoxFlat{BgColor=Css.Hex("e6ddc6")});
         input.AddThemeFontOverride("font",PaperFonts.Print);input.AddThemeFontSizeOverride("font_size",20);
         paper=new Window("confessional",Write,OnKey);
-        using var doc=JsonDocument.Parse(File.ReadAllText(ProjectSettings.GlobalizePath("res://assets/places.json")));
+        using var doc=JsonDocument.Parse(Godot.FileAccess.GetFileAsString("res://assets/places.json"));
         var origin=LandmarkLife.I.LocalPoint("cathedral",0,0);var one=LandmarkLife.I.LocalPoint("cathedral",0,1)-origin;float turn=MathF.Atan2(one.X,one.Z);
         foreach(var s in doc.RootElement.GetProperty("cathedralSeats").EnumerateArray())
         {

@@ -1,0 +1,32 @@
+// Original worldTick/rest rules, isolated in-memory players. No API process, settings writes or real save.
+process.env.VITEST='1';process.env.SCHELDEMIST_TOWN_SEED='1873';process.env.SCHELDEMIST_NO_AI='1';
+const {openDb}=await import('../../server/src/db.ts');
+const {worldTick,resetTickLimit,clock,SLEEP_HOOKS}=await import('../../server/src/day.ts');
+const {clearRests,setOnline,startRest,restOf,takeWoke,forgetRest,setRestDice,cellRest}=await import('../../server/src/rest.ts');
+const {ensurePlayerRow}=await import('../../server/src/player/multi.ts');
+const {asPlayer}=await import('../../server/src/player/current.ts');
+const {setWorldClock}=await import('../../server/src/mp/worldClock.ts');
+const {resetMpSettings}=await import('../../server/src/mp/settings.ts');
+const {readFileSync,writeFileSync}=await import('node:fs');
+Math.random=()=>.42;resetMpSettings({multiplayer:true});setRestDice(()=>.42);SLEEP_HOOKS.splice(0);
+const doss=JSON.parse(readFileSync('native-godot/services/data/native-rules.json','utf8')).dossStep;
+const cases:any[]=[];
+for(const day of [1,6,7])for(const start of [{h:10,m:50},{h:23,m:55}])for(const mode of ['awake','mixed','asleep','collapse','cell']){
+ const db=openDb(':memory:');for(const id of [2,3])ensurePlayerRow(db,id,'Guest'+id);
+ clearRests();for(const id of [1,2,3])forgetRest(id);resetTickLimit();setOnline(()=>[1,2]);setWorldClock(db,{day,hour:start.h,minute:start.m});
+ db.prepare("INSERT INTO world_state(key,value_json)VALUES('weather',?)ON CONFLICT(key)DO UPDATE SET value_json=excluded.value_json").run('"clear"');
+ db.prepare('DELETE FROM player_state WHERE key IN (\'ending\',\'nights_slept\')').run();db.prepare('UPDATE player SET sleep=7,food=7,warmth=7,health=8,money_c=50,rent_paid_until=7').run();
+ const sleeping=mode==='asleep'?[1,2]:mode==='mixed'?[2]:[],body={place:'doss',hours:1,pos:{x:doss.x,z:doss.z}};
+ for(const id of sleeping)asPlayer(id,()=>startRest(db,body,10000,id));
+ if(mode==='collapse')db.prepare('UPDATE player SET sleep=0 WHERE id=2').run();
+ if(mode==='cell')for(const id of [1,2])asPlayer(id,()=>cellRest(db,id,35,{x:-284.8,z:100,yaw:0},['Held until morning.']));
+ const steps:any[]=[];let now=10000;
+ for(let i=0;i<4;i++){
+  const result=worldTick(db,now),rests=[1,2,3].map(id=>({id,rest:restOf(db,id),woke:takeWoke(id)}));
+  const ending=(id:number)=>{const r=db.prepare("SELECT value_json FROM player_state WHERE player_id=? AND key='ending'").get(id)as any;return r?JSON.parse(r.value_json):null;};
+  steps.push({now,result,clock:clock(db),players:db.prepare('SELECT id,name,money_c,food,warmth,health,sleep,district FROM player ORDER BY id').all(),rests,endings:[1,2,3].map(id=>({id,ending:ending(id)}))});
+  now+=mode==='awake'||mode==='mixed'||mode==='collapse'?9000:300;
+ }
+ cases.push({day,start,mode,body,steps});db.close();
+}
+setOnline(null);resetMpSettings();writeFileSync('native-godot/services/proof/authority-oracles.json',JSON.stringify({version:1,source:'Original day.worldTick and rest piece/needs/ending rules, 30 independent in-memory three-player scenarios; original hooks other than sleep disabled to isolate authority.',cases})+'\n');console.log(JSON.stringify({scenarios:cases.length,worldSteps:cases.length*4}));

@@ -51,6 +51,19 @@ public partial class MarketStalls : Node
     {
         I = this; town = GetParent().GetNodeOrNull<Townspeople>("Townspeople");
         root = new Node3D { Name = "live_town_stalls" }; Main.I.View.AddChild(root);
+        if (town != null) town.PopulationChanged += PopulationChanged;
+    }
+    private void PopulationChanged()
+    {
+        foreach (var child in root.GetChildren())
+        {
+            if (child is GeometryInstance3D geometry) geometry.Visible = false;
+            if (child is CollisionObject3D body) body.CollisionLayer = 0;
+            child.QueueFree();
+        }
+        foreach (var mesh in batchMeshes.Values) mesh.Dispose();
+        List.Clear(); keepers = null; parts.Clear(); batches.Clear(); batchMeshes.Clear(); instances.Clear();
+        sockets?.Dispose(); sockets = null; model = null; loaded = false; wait = 0; RebuildMs = 0;
     }
     private static bool Rough(string where) => Regex.IsMatch(where, "vismarkt|werf|rijn|kaai|quay|canal|lane|steenplein", RegexOptions.IgnoreCase);
     private List<Part> Parts(string name)
@@ -86,7 +99,7 @@ public partial class MarketStalls : Node
         model = ModelLibrary.Get("stalls", new ModelLibrary.Look(TwoSided: true, Affine: 0.6, VertexColor: true));
         if (model == null) return;
         string shared = Path.GetDirectoryName(Water.CityJson())!;
-        string socketFile = Path.GetFullPath(Path.Combine(shared, "..", "client", "src", "game", "stalls_sack_sockets.json"));
+        string socketFile = Paths.NativeDataRoot != null ? Paths.Public("models/stalls_sack_sockets.json") : Path.GetFullPath(Path.Combine(shared, "..", "client", "src", "game", "stalls_sack_sockets.json"));
         if (File.Exists(socketFile)) sockets = JsonDocument.Parse(File.ReadAllText(socketFile));
         foreach (var s in town!.Data!.Stalls)
         {
@@ -113,8 +126,9 @@ public partial class MarketStalls : Node
             double half = (shop ? 0.8 : 1.4) * table.Scale, z0 = shop ? 0.25 : -0.71, z1 = shop ? 0.95 : 0.71;
             var body = new StaticBody3D { CollisionLayer = Solid.Layer, CollisionMask = 0, Position = new Vector3((float)table.X, (float)town.Walk!.BaseAt(table.X, table.Z), (float)table.Z), Rotation = new Vector3(0, (float)table.Yaw, 0) };
             body.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3((float)(half * 2), 0.88f, (float)(z1 - z0)) }, Position = new Vector3(0, 0.44f, (float)((z0 + z1) / 2)) }); root.AddChild(body);
-            town.Walk.AddBox(table.X, table.Z, -half, half, z0, z1, table.Yaw);
+            WalkMap.RegisterBody(body, new Aabb(new Vector3((float)-half, 0, (float)z0), new Vector3((float)(half * 2), 0.88f, (float)(z1 - z0))));
         }
+        town.Walk!.RefreshBodies();
         var eye = Main.I.Cam.GlobalPosition; town.Crowd!.RebuildGrid(eye.X, eye.Z);
         PrepareBatches();
         UpdateHours(true);
@@ -213,5 +227,5 @@ public partial class MarketStalls : Node
         if ((wait -= delta) > 0 || model == null) return;
         wait = 1; UpdateHours();
     }
-    public override void _ExitTree() { root.QueueFree(); sockets?.Dispose(); if (I == this) I = null; }
+    public override void _ExitTree() { if (town != null) town.PopulationChanged -= PopulationChanged; PopulationChanged(); root.QueueFree(); if (I == this) I = null; }
 }

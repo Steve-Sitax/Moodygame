@@ -1,0 +1,22 @@
+// One-time authored-data intake; no server or player database is opened.
+import {NEWS_TABLE,NEWS_TRADES} from '../../server/src/ideas/abroad.ts';
+import {SAILINGS,POSTER_SYSTEM} from '../../server/src/ideas/posters.ts';
+import {REPLY_SYSTEM} from '../../server/src/ideas/letters.ts';
+import {TRADES} from '../../server/src/town/places.ts';
+import {DIARY_SYSTEM} from '../../server/src/ideas/diaries.ts';
+import {TROUBLE_SYSTEM,engineWords,TROUBLE_KINDS} from '../../server/src/ideas/trouble.ts';
+import {THINGS} from '../../server/src/town/deeds.ts';
+import {policePost} from '../../server/src/town/police.ts';
+import {ITEMS} from '../../server/src/trade.ts';
+import {houseWalls} from '../../shared/posterWalls.ts';
+import {readFileSync,writeFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+const files=['server/src/ideas/abroad.ts','server/src/ideas/common.ts','server/src/ideas/posters.ts','server/src/ideas/letters.ts','server/src/ideas/diaries.ts','server/src/ideas/trouble.ts','shared/posterWalls.ts','shared/city_build.json','shared/city_gable_windows.json','shared/inworld_houses.json'];
+const build=JSON.parse(readFileSync('shared/city_build.json','utf8'));
+const kept=JSON.parse(readFileSync('shared/inworld_houses.json','utf8'));
+const lamps=JSON.parse(readFileSync('shared/city_gable_windows.json','utf8')).lamps??[];
+const data={policePost:policePost(),version:1,provenance:'Original authored constants and intake house-wall geometry. Native rules compute openings, placement, effects and saved state. No player save.',news:NEWS_TABLE,newsTrades:[...NEWS_TRADES],tradeLabels:Object.fromEntries(Object.entries(TRADES).map(([k,v])=>[k,v.label])),sailings:SAILINGS.map(s=>({key:s.key,days:s.days,factsByDay:Object.fromEntries(Array.from({length:7},(_,i)=>[i+1,s.facts(i+1)]))})),posterSystem:POSTER_SYSTEM,replySystem:REPLY_SYSTEM,diarySystem:DIARY_SYSTEM,troubleSystem:TROUBLE_SYSTEM,troubleWords:Object.fromEntries(TROUBLE_KINDS.map(kind=>[kind,engineWords({kind,cast:[],options:[]})])),things:THINGS,walls:houseWalls(build,kept.houses.map((h:any)=>h.house)),lamps,hashes:Object.fromEntries(files.map(f=>[f,createHash('sha256').update(readFileSync(f)).digest('hex')]))};
+Object.assign(data,{items:{found:ITEMS.found,diary:ITEMS.diary}});
+writeFileSync('native-godot/services/data/native-ideas.json',JSON.stringify(data,null,2)+'\n');
+console.log(JSON.stringify({news:data.news.length,walls:data.walls.length,lamps:lamps.length}));
+

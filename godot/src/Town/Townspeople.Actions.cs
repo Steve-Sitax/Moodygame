@@ -6,9 +6,11 @@ public partial class Townspeople
 {
     // game/town.ts claim/release/moveHidden. The crowd still owns walking and body separation.
     public Sim? ActionPerson(string id) => byId.TryGetValue(id, out var s) ? s : null;
+    private bool CurrentPerson(Sim s) => Data != null && byId.TryGetValue(s.R.Id, out var current) && ReferenceEquals(current, s);
 
     public bool ActionHold(Sim s, object? owner = null, bool preempt = false)
     {
+        if (!CurrentPerson(s)) return false;
         owner ??= this;
         if (s.ActionHeld && !ReferenceEquals(s.ActionOwner, owner) && !preempt) return false;
         if (s.ActionHeld && ReferenceEquals(s.ActionOwner, owner)) return true;
@@ -27,7 +29,7 @@ public partial class Townspeople
 
     public Puppet? ActionClaim(Sim s)
     {
-        if (Crowd == null) return null;
+        if (Crowd == null || !CurrentPerson(s)) return null;
         if (s.P != null && Crowd.Alive(s.P)) return s.P;
         var at = Crowd.OpenNearFree(s.X, s.Z);
         if (at == null) return null;
@@ -48,7 +50,7 @@ public partial class Townspeople
 
     public void ActionMoveHidden(Sim s, double x, double z, double step)
     {
-        if (s.P != null || Walk == null) return;
+        if (s.P != null || Walk == null || !CurrentPerson(s)) return;
         double d = Dist(s.X, s.Z, x, z), k = d > 0 ? Math.Min(1, step / d) : 1;
         // Only unseen action travel may skip a distant grid; emergence is checked on the crowd grid.
         s.X += (x - s.X) * k; s.Z += (z - s.Z) * k;
@@ -59,6 +61,8 @@ public partial class Townspeople
     {
         if (!ReferenceEquals(s.ActionOwner, owner ?? this)) return;
         s.ActionOwner = null; s.ActionHeld = false; s.Key = ""; s.Plain = false;
+        // New/load removes the old population before other scene holders release their references.
+        if (!CurrentPerson(s)) return;
         if (s.P != null && Crowd != null) { Crowd.PuppetFollow(s.P, null); s.P.Human.Root.Rotation = Godot.Vector3.Zero; }
         Reschedule(s, false);
     }

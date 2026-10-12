@@ -380,7 +380,7 @@ public sealed partial class Anchorage
     public void Update(double t, double dt, List<River.Mover> traffic)
     {
         if (!ok) return;
-        PlaceLiner(t);
+        networkClock=t;PlaceLiner(t);
         foreach (var tow in Tows)
         {
             tow.Why = "";

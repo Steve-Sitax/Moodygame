@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="script"]
+[ext_resource type="PackedScene" path="res://world/districts/outer-hinterland.tscn" id="scene"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-recovered/catalog.tres" id="catalog"]
+
+[resource]
+script = ExtResource("script")
+Id = "outer-hinterland"
+Title = "Far bank, industry and countryside"
+Scene = ExtResource("scene")
+Catalog = ExtResource("catalog")
+Bounds = Rect2(-1910.0,-610.0,3577.0,2500.0)
+WalkSpawn = Vector3(215.0,0.2,176.0)
+FlySpawn = Vector3(210.0,28.0,170.0)
+FlyYaw = 1.5707963267948966
+FlyPitch = -0.17453292519943295

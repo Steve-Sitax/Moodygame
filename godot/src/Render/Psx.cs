@@ -50,6 +50,7 @@ public static class Psx
     private static readonly Dictionary<Shader, Kind> Kinds = new();
     /// <summary>The switches a psx shader was made with (a part that needs the same material with one more).</summary>
     public static Kind? KindOf(Shader? s) => s != null && Kinds.TryGetValue(s, out var k) ? k : null;
+    public static void RegisterNative(Shader shader, Kind kind) => Kinds[shader] = kind;
 
     /// <summary>A hex colour (sRGB, as the TypeScript writes them) as the linear colour the shaders count in.</summary>
     public static Color Hex(int h) => new Color(((h >> 16) & 255) / 255f, ((h >> 8) & 255) / 255f, (h & 255) / 255f).SrgbToLinear();
@@ -281,17 +282,15 @@ public static class Psx
     /// </summary>
     private static string sharedDir = "";
     /// <summary>Where the shared pictures are looked for, in order: the bake's texture folder, the project's own, the browser's.</summary>
-    public static string[] SharedDirs() => new[] { sharedDir, ProjectSettings.GlobalizePath("res://baked/town_tex"), Path.GetFullPath(Path.Combine(ProjectSettings.GlobalizePath("res://"), "../client/public/textures")) };
+    public static string[] SharedDirs() => new[] { sharedDir, Paths.Textures };
 
     public static void LoadShared(string texDir)
     {
         EnsureGlobals();
         sharedDir = texDir;
-        string own = ProjectSettings.GlobalizePath("res://baked/town_tex");
-        string web = Path.GetFullPath(Path.Combine(ProjectSettings.GlobalizePath("res://"), "../client/public/textures"));
         string? Find(string file)
         {
-            foreach (var d in new[] { texDir, own, web })
+            foreach (var d in SharedDirs())
                 if (File.Exists(Path.Combine(d, file))) return Path.Combine(d, file);
             return null;
         }
@@ -315,14 +314,14 @@ public static class Psx
             RenderingServer.GlobalShaderParameterSet("psx_dirt", dirt.GetRid());
             if (Box(Find("dirt.json")) is { } b) RenderingServer.GlobalShaderParameterSet("psx_dirt_box", b);
         }
-        else GD.Print("psx: no dirt.png: the paving is clean (bake again, or node tools/godot/export-scene.mjs --ref-only)");
+        else GD.PrintErr("psx: the native dirt mask is missing");
         if (Find("shore.png") is { } sh)
         {
             shore = ImageTexture.CreateFromImage(Image.LoadFromFile(sh));
             RenderingServer.GlobalShaderParameterSet("psx_shore", shore.GetRid());
             if (Box(Find("shore.json")) is { } b) RenderingServer.GlobalShaderParameterSet("psx_shore_box", b);
         }
-        else GD.Print("psx: no shore.png: no foam at the quay walls (node tools/godot/export-scene.mjs --ref-only)");
+        else GD.PrintErr("psx: the native shoreline mask is missing");
         if (Find("foul.png") is { } fl)
         {
             foul = ImageTexture.CreateFromImage(Image.LoadFromFile(fl));

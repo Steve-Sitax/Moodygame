@@ -45,7 +45,7 @@ function Invoke-Workshop([string[]]$EngineArguments, [string]$Name) {
 if ($LASTEXITCODE -ne 0) { throw 'Native Godot build failed.' }
 Invoke-Workshop @('--headless', '--editor', '--path', $workshopProject, '--import', '--quit', '--log-file', (Join-Path $workshopProof 'engine-import.log')) 'import'
 foreach ($workshopStage in @('write', 'reload')) {
-    Invoke-Workshop @('--headless', '--path', $workshopProject, '--log-file', (Join-Path $workshopProof "engine-$workshopStage.log"), '--',
+    Invoke-Workshop @('--headless', '--path', $workshopProject, 'res://main.tscn', '--log-file', (Join-Path $workshopProof "engine-$workshopStage.log"), '--',
         '--district', 'quay-pilot', '--author-dir', $workshopProof, '--author-test', $workshopProof, '--proof-stage', $workshopStage) $workshopStage
     $workshopReport = Get-Content -Raw -LiteralPath (Join-Path $workshopProof "$workshopStage.json") | ConvertFrom-Json
     if ($workshopReport.error -or @($workshopReport.rows | Where-Object { -not $_.pass }).Count -gt 0) { throw "$workshopStage proof failed." }

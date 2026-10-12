@@ -1,0 +1,129 @@
+[gd_scene load_steps=42 format=3]
+
+[ext_resource type="Script" path="res://src/World/NativeDistrictScene.cs" id="native_editor"]
+
+[ext_resource type="PackedScene" path="res://world/town/roots/node-04220.scn" id="1_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-04231.scn" id="2_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-04234.scn" id="3_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-04237.scn" id="4_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-04248.scn" id="5_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-04251.scn" id="6_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-04254.scn" id="7_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-04265.scn" id="8_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-04268.scn" id="9_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-04463.scn" id="10_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-04474.scn" id="11_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-04770.scn" id="12_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-04781.scn" id="13_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-04784.scn" id="14_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-04795.scn" id="15_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-11134.scn" id="16_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-11206.scn" id="17_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-11273.scn" id="18_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-11503.scn" id="19_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-12018.scn" id="20_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-12084.scn" id="21_root"]
+[ext_resource type="PackedScene" path="res://world/town/fragments/node-01480.scn" id="22_root"]
+[ext_resource type="PackedScene" path="res://world/town/fragments/node-01509.scn" id="23_root"]
+[ext_resource type="PackedScene" path="res://world/town/fragments/node-03645.scn" id="24_root"]
+[ext_resource type="PackedScene" path="res://world/town/fragments/node-03655.scn" id="25_root"]
+[ext_resource type="PackedScene" path="res://world/town/fragments/node-03657.scn" id="26_root"]
+[ext_resource type="PackedScene" path="res://world/town/fragments/node-03659.scn" id="27_root"]
+[ext_resource type="PackedScene" path="res://world/town/fragments/node-03661.scn" id="28_root"]
+[ext_resource type="PackedScene" path="res://world/town/fragments/node-03663.scn" id="29_root"]
+[ext_resource type="PackedScene" path="res://world/town/fragments/node-03665.scn" id="30_root"]
+[ext_resource type="PackedScene" path="res://world/town/fragments/node-03667.scn" id="31_root"]
+[ext_resource type="PackedScene" path="res://world/town/fragments/node-03669.scn" id="32_root"]
+[ext_resource type="PackedScene" path="res://world/town/fragments/node-03671.scn" id="33_root"]
+[ext_resource type="PackedScene" path="res://world/town/fragments/node-03673.scn" id="34_root"]
+[ext_resource type="PackedScene" path="res://world/town/fragments/node-03675.scn" id="35_root"]
+[ext_resource type="PackedScene" path="res://world/town/fragments/node-03677.scn" id="36_root"]
+[ext_resource type="PackedScene" path="res://world/town/fragments/node-03679.scn" id="37_root"]
+[ext_resource type="PackedScene" path="res://world/town/fragments/node-03681.scn" id="38_root"]
+[ext_resource type="PackedScene" path="res://world/town/roots/node-00004.scn" id="39_root"]
+[ext_resource type="PackedScene" path="res://world/districts/outer-south-east.objects.tscn" id="objects"]
+
+[node name="outer_south_east" type="Node3D"]
+script = ExtResource("native_editor")
+
+[node name="Scenery" type="Node3D" parent="."]
+
+[node name="source_04220" parent="Scenery" instance=ExtResource("1_root")]
+
+[node name="source_04231" parent="Scenery" instance=ExtResource("2_root")]
+
+[node name="source_04234" parent="Scenery" instance=ExtResource("3_root")]
+
+[node name="source_04237" parent="Scenery" instance=ExtResource("4_root")]
+
+[node name="source_04248" parent="Scenery" instance=ExtResource("5_root")]
+
+[node name="source_04251" parent="Scenery" instance=ExtResource("6_root")]
+
+[node name="source_04254" parent="Scenery" instance=ExtResource("7_root")]
+
+[node name="source_04265" parent="Scenery" instance=ExtResource("8_root")]
+
+[node name="source_04268" parent="Scenery" instance=ExtResource("9_root")]
+
+[node name="source_04463" parent="Scenery" instance=ExtResource("10_root")]
+
+[node name="source_04474" parent="Scenery" instance=ExtResource("11_root")]
+
+[node name="source_04770" parent="Scenery" instance=ExtResource("12_root")]
+
+[node name="source_04781" parent="Scenery" instance=ExtResource("13_root")]
+
+[node name="source_04784" parent="Scenery" instance=ExtResource("14_root")]
+
+[node name="source_04795" parent="Scenery" instance=ExtResource("15_root")]
+
+[node name="source_11134" parent="Scenery" instance=ExtResource("16_root")]
+
+[node name="source_11206" parent="Scenery" instance=ExtResource("17_root")]
+
+[node name="source_11273" parent="Scenery" instance=ExtResource("18_root")]
+
+[node name="source_11503" parent="Scenery" instance=ExtResource("19_root")]
+
+[node name="source_12018" parent="Scenery" instance=ExtResource("20_root")]
+
+[node name="source_12084" parent="Scenery" instance=ExtResource("21_root")]
+
+[node name="source_01480" parent="Scenery" instance=ExtResource("22_root")]
+
+[node name="source_01509" parent="Scenery" instance=ExtResource("23_root")]
+
+[node name="source_03645" parent="Scenery" instance=ExtResource("24_root")]
+
+[node name="source_03655" parent="Scenery" instance=ExtResource("25_root")]
+
+[node name="source_03657" parent="Scenery" instance=ExtResource("26_root")]
+
+[node name="source_03659" parent="Scenery" instance=ExtResource("27_root")]
+
+[node name="source_03661" parent="Scenery" instance=ExtResource("28_root")]
+
+[node name="source_03663" parent="Scenery" instance=ExtResource("29_root")]
+
+[node name="source_03665" parent="Scenery" instance=ExtResource("30_root")]
+
+[node name="source_03667" parent="Scenery" instance=ExtResource("31_root")]
+
+[node name="source_03669" parent="Scenery" instance=ExtResource("32_root")]
+
+[node name="source_03671" parent="Scenery" instance=ExtResource("33_root")]
+
+[node name="source_03673" parent="Scenery" instance=ExtResource("34_root")]
+
+[node name="source_03675" parent="Scenery" instance=ExtResource("35_root")]
+
+[node name="source_03677" parent="Scenery" instance=ExtResource("36_root")]
+
+[node name="source_03679" parent="Scenery" instance=ExtResource("37_root")]
+
+[node name="source_03681" parent="Scenery" instance=ExtResource("38_root")]
+
+[node name="source_00004" parent="Scenery" instance=ExtResource("39_root")]
+
+[node name="Objects" parent="." instance=ExtResource("objects")]

@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "seed": 1873,
+  "provenance": "Authored rules and deterministic oracles from a fresh in-memory town; original runtime not required.",
+  "hashes": {
+    "server/src/town/deeds.ts": "c53af2e0903ec80f51c04b04e8bd50159cb802e0ddc934f71b277411ee1fc59d",
+    "server/src/town/police.ts": "c5db7512ec37e0806e05a9b1cb9a1fe8d7fe713b05e729eb81101af9c43fffb1",
+    "server/src/town/pickpocket.ts": "00243770d4944e7436428339cb5978866520cbe417bfe41094471f6068c7acc8",
+    "server/src/town/confront.ts": "8edc7203b22569f7602327474cfe1a14c8616f15b1dd41df9daa2a196ca076a8",
+    "server/src/town/charisma.ts": "b5b32a457f4baaac57d7397257e97d1ea649d5eab0fdd8cfca6bd62ee8d8db79",
+    "server/src/shops/state.ts": "f3f90d26710e06e586a0dc4dda91166393e19a2ff3f6ef440275bf8c2934102a",
+    "server/src/shops/routes.ts": "1771efd74b39041478fbc0499a777dd98716a27eccb08670793c5dab13889424",
+    "shared/shops.ts": "66e321ae2b2034fdd7627905d433f5684c9d626049e610d5af656abb70a64f91",
+    "server/src/town/gifts.ts": "fe443612949ac36efbeeb036387a0859eb7532229c28bfad43e8dd800edc417b",
+    "server/src/town/hire.ts": "9a75e20c57e755f41ac5a292e49a6363766d1e4fb7f51ffd9291716efa53390d",
+    "server/src/director/families.ts": "ae81daf93f1ab620126fc60911fb15ba0e7902ba223d88d87d1d7bc7a13cb0c6",
+    "server/src/town/walkup.ts": "ed538d6017834a23581978731be130e646877fb2ecdad5af473adfe6fac2f99e"
+  },
+  "lamps": 8,
+  "food": 16,
+  "shops": 21,
+  "decisionChecks": 1152
+}

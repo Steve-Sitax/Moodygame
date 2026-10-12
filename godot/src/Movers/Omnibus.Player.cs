@@ -8,6 +8,7 @@ public partial class Omnibus
     private readonly Dictionary<Bus, int> playerSeats = new();
     public void HoldPlayer(Bus bus, bool held)
     {
+        if(NetRemote){NetAsk?.Invoke("bus_hold",new System.Text.Json.Nodes.JsonArray(bus.Index,held));return;}
         if (held) playerHeld.Add(bus);
         else { playerHeld.Remove(bus); if (bus.At != null) bus.DwellT = System.Math.Max(bus.DwellT, 2.5f); }
     }

@@ -226,7 +226,6 @@ public partial class NetTest : Node
             ["first_state_by_push"] = pushed,
             ["push_linked"] = link?.Api?.Linked,
             ["pause"] = new Dictionary<string, object?> { ["server_paused"] = pausedSeen, ["push_held_while_paused"] = heldWhilePaused, ["server_unpaused"] = unpausedSeen, ["push_came_after"] = cameAfter },
-            ["map"] = new Dictionary<string, object?> { ["url"] = link?.MapUrl, ["reports"] = link?.MapReports },
             ["tick"] = tick == null ? null : new Dictionary<string, object?> { ["advanced"] = tick.Advanced, ["clock"] = tick.Clock, ["where"] = tick.Where },
             ["store"] = new Dictionary<string, object?>
             {

@@ -23,7 +23,7 @@ public partial class ServerLink : Node
 
     /// <summary>The calls and the push channel; null until the server answers.</summary>
     public Api? Api { get; private set; }
-    public ServerProcess? Server { get; private set; }
+    public ServerEndpoint? Server { get; private set; }
     public bool Up => Api != null;
     /// <summary>What the link is doing, for the screen ("Starting the game server..."); empty when all is well.</summary>
     public string Status { get; private set; } = "";
@@ -66,77 +66,10 @@ public partial class ServerLink : Node
     /// <summary>A word about the line for the middle of the screen ("Connection lost, trying again..."); empty: none.</summary>
     public void Note(string text) => SetStatus(text, Error);
 
-    // ------------------------------------------------------------------ Jef's place for the host's town map (net/mp/together.ts soloMap)
-
-    private bool mapOn;
-    private double mapAcc;
-    private bool mapBusy;
-    private readonly Dictionary<string, (double X, double Z)> soloWas = new();
-    /// <summary>The town map's address on this PC (the host's own game only), or empty.</summary>
-    public string MapUrl { get; private set; } = "";
-    /// <summary>Jef is out of sight indoors or in a menu ("away" on the map). Set by the rooms' or the menus' part.</summary>
+    /// <summary>The player is out of sight indoors or in a menu.</summary>
     public Func<bool> Away { get; set; } = () => false;
-    /// <summary>The townspeople this game moves unseen off their day plan, for the map (town.offPlan()); set by the townspeople's part. Sent once a second.</summary>
-    public Func<IEnumerable<MapOff>>? OffPlan { get; set; }
-    /// <summary>How many times the map took Jef's place (the checks).</summary>
-    public int MapReports { get; private set; }
-    private double offAcc;
-    private bool offBusy;
-
-    /// <summary>How Jef moves now, in the words the server and the other players know (shared/mpProtocol.ts MpMode).</summary>
     public static string ModeOf(Scheldemist.Player.Jef j) =>
         j.Fly ? "fly" : j.Climbing ? "ladder" : j.Swimming ? "swim" : j.Crouching ? "crouch" : "walk";
-
-    /// <summary>Played alone there is no movement socket: four times a second the game says where Jef is, and the townspeople it draws round him.</summary>
-    private void SoloMap(double delta)
-    {
-        var api = Api;
-        var jef = Scheldemist.Player.Jef.I;
-        if (api == null || !mapOn || Together || jef == null || !GameState.I.Live) return;
-        mapAcc += delta;
-        if (mapAcc >= 0.25 && !mapBusy)
-        {
-            double span = mapAcc;
-            mapAcc = 0;
-            var people = new List<Dictionary<string, object?>>();
-            var town = Main.I.GetNodeOrNull<Scheldemist.Town.Townspeople>("Townspeople");
-            if (town != null)
-            {
-                var seen = new HashSet<string>();
-                foreach (var sim in town.Sims)
-                {
-                    if (sim.P is not { } q) continue;
-                    string id = sim.R.Id;
-                    double speed = soloWas.TryGetValue(id, out var was) ? Math.Min(8, Math.Sqrt((q.X - was.X) * (q.X - was.X) + (q.Z - was.Z) * (q.Z - was.Z)) / Math.Max(0.05, span)) : 0;
-                    soloWas[id] = (q.X, q.Z);
-                    seen.Add(id);
-                    string motion = q.Human.Motion ?? "idle";
-                    people.Add(new Dictionary<string, object?>
-                    {
-                        ["id"] = id, ["x"] = Math.Round(q.X, 1), ["z"] = Math.Round(q.Z, 1), ["yaw"] = Math.Round(q.Yaw, 2), ["speed"] = Math.Round(speed, 1),
-                        ["motion"] = motion, ["sit"] = q.State == "sit", ["lantern"] = false, ["sack"] = q.Loaded, ["bought"] = null, ["vehicle"] = null,
-                    });
-                    if (people.Count >= 80) break;
-                }
-                foreach (string id in new List<string>(soloWas.Keys))
-                    if (!seen.Contains(id)) soloWas.Remove(id);
-            }
-            mapBusy = true;
-            var body = new Dictionary<string, object?> { ["x"] = jef.X, ["y"] = jef.Y, ["z"] = jef.Z, ["yaw"] = jef.Yaw, ["mode"] = ModeOf(jef), ["away"] = Away(), ["people"] = people };
-            api.Run(api.Post<OkReply>("api/map/me", body), r =>
-            {
-                mapBusy = false;
-                if (r.Ok) MapReports++;
-            }, _ => mapBusy = false);
-        }
-        offAcc += delta;
-        if (offAcc >= 1 && !offBusy && OffPlan != null)
-        {
-            offAcc = 0;
-            offBusy = true;
-            api.Run(api.MapOff(System.Linq.Enumerable.Take(OffPlan(), 400)), _ => offBusy = false, _ => offBusy = false);
-        }
-    }
     private readonly CancellationTokenSource stopping = new();
     private double sinceTick;
     private double sinceWhere;
@@ -163,75 +96,58 @@ public partial class ServerLink : Node
         ProcessMode = ProcessModeEnum.Always;
         Scheldemist.Menu.Pause.Changed += OnPause;
         var main = Main.I;
-        int port = int.TryParse(main.Arg("port"), out int p) ? p : ServerProcess.FirstPort;
-        // a guest: into another PC's game (the menu's Together screen, or --join address --seat 2 --code X --name N)
+        HouseTrust.ConfigureStore(System.IO.Path.ChangeExtension(Paths.Database, ".house-trust"));
         join = Mp.Together.Pending;
         if (join == null && main.Arg("join") != "" && !Mp.Together.LeftAsGuest)
         {
-            int seat = int.TryParse(main.Arg("seat"), out int n) ? Math.Max(2, n) : 2;
-            string[] names = { "Anna", "Piet", "Mie", "Tist", "Lien", "Rik", "Wannes" };
-            join = new Mp.JoinAsk(main.Arg("join"), main.Arg("code") == "" ? null : main.Arg("code"), main.Arg("name", names[Math.Min(names.Length - 1, seat - 2)]), seat);
+            int seat = int.TryParse(main.Arg("seat"), out int n) ? Math.Clamp(n, 2, 6) : 2;
+            join = new Mp.JoinAsk(main.Arg("join"), main.Arg("code") == "" ? null : main.Arg("code"), main.Arg("name", "Anna"), seat, main.Arg("house-ca") == "" ? null : main.Arg("house-ca"));
         }
-        var opt = new ServerOptions
-        {
-            External = join != null ? Mp.Together.AddressOf(join.Address) : main.Arg("server"),
-            FirstPort = port,
-            // A test uses a fresh database: no player save is opened.
-            Db = main.Arg("db") != "" ? main.Arg("db") : main.Arg("mptest") != "" ? Mp.MpTest.TestDb(main) : "",
-            // a test never spends model calls
-            NoAi = main.Flag("no-ai") || main.Arg("nettest") != "" || main.Arg("mptest") != "",
-        };
-        var paths = Paths.Server;
-        SetStatus(join != null ? $"Looking for the host's game at {opt.External}..." : opt.External != "" ? $"Looking for the game server at {opt.External}..." : "Starting the game server...", "");
-        // the game must never leave its server behind: the tree's end, the window's close and the program's end all stop it
         AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
-        var stop = stopping.Token;
-        starting = Task.Run(() => ServerProcess.StartAsync(paths, opt, stop));
+        if (join == null && main.Arg("server") == "")
+        {
+            SetStatus("Starting the game...", "");
+            StartLocal(main);
+            return;
+        }
+        string address = Mp.Together.AddressOf(join?.Address ?? main.Arg("server"));
+        SetStatus($"Looking for the host's game at {address}...", "");
+        joiningApi = new Api(address) { WorldFingerprint = main.WorldFingerprint };
+        var remote = joiningApi;
+        joining = Task.Run(async () =>
+        {
+            if (join != null) await Mp.Together.JoinAsync(remote, join).ConfigureAwait(false);
+            else throw new ApiException("Join the server with --join, --code and your name.", 400);
+        });
     }
 
-    /// <summary>The start's outcome, taken up on the main thread (_Process).</summary>
-    private Task<ServerProcess>? starting;
+    private async void StartLocal(Main main)
+    {
+        try
+        {
+            var backend = await main.CreateLocalBackend();
+            if (stopping.IsCancellationRequested || !IsInsideTree()) { backend.Dispose(); return; }
+            var api = new Api(backend);
+            GD.Print("game rules started in the Godot process");
+            Linked(api);
+        }
+        catch (Exception e)
+        {
+            if (stopping.IsCancellationRequested) return;
+            GD.PrintErr(e);
+            SetStatus("", $"The game did not start: {e.Message}");
+        }
+    }
     /// <summary>This game is a guest in another PC's game: what it asked to come in with (null: its own game).</summary>
     public Mp.JoinAsk? JoinedAs => join;
     private Mp.JoinAsk? join;
     private Task? joining;
     private Api? joiningApi;
 
-    private void Started(Task<ServerProcess> t)
-    {
-        if (t.Status != TaskStatus.RanToCompletion)
-        {
-            if (stopping.IsCancellationRequested) return;
-            var e = t.Exception?.GetBaseException();
-            string why = e is ServerStartException ? e.Message : $"The game server did not start: {e?.Message ?? "stopped"}";
-            if (join != null) why = $"The host's PC does not answer at {Mp.Together.AddressOf(join.Address)}. Is the game running there, and open to others?";
-            GD.PrintErr(why);
-            SetStatus("", why);
-            return;
-        }
-        Server = t.Result;
-        if (stopping.IsCancellationRequested || !IsInsideTree())
-        {
-            Server.Stop();
-            return;
-        }
-        GD.Print($"game server {(Server.Own ? $"started (pid {Server.Pid})" : "found")}: {Server.Url}");
-        var api = new Api(Server.Url);
-        api.Failed += e => GD.PrintErr($"a push handler failed: {e}");
-        if (join != null)
-        {
-            // the host must know this player before the first call: the token from the join rides on all of them
-            SetStatus("Asking the host...", "");
-            joiningApi = api;
-            var ask = join;
-            joining = Task.Run(() => Mp.Together.JoinAsync(api, ask));
-            return;
-        }
-        Linked(api);
-    }
-
     private void Linked(Api api)
     {
+        api.Failed += e => GD.PushError("A game response could not be applied: " + e.Message);
+        Server = new ServerEndpoint(api.Url, api.IsLocal);
         var state = GameState.I;
         api.JobsPushed += state.Apply;
         api.LinkChanged += on =>
@@ -249,13 +165,6 @@ public partial class ServerLink : Node
         api.Run(set != null ? api.Post<JobsPayload>("api/dev/set", set) : api.Jobs(), state.Apply, e => GD.PrintErr($"the first state did not come: {e.Message}"));
         api.ConnectPush();
         if (Paused) api.HoldPushes(true);
-        // the host's own game has a town map on this PC: Jef's place goes to it
-        if (!api.Guest)
-            api.Run(api.Get<Dictionary<string, string>>("api/map"), m =>
-            {
-                MapUrl = m.TryGetValue("url", out string? u) ? u : "";
-                mapOn = MapUrl != "";
-            }, _ => { });
         var waiting = up;
         up = null;
         waiting?.Invoke();
@@ -302,12 +211,6 @@ public partial class ServerLink : Node
                 SetStatus("", why);
             }
         }
-        if (starting is { IsCompleted: true })
-        {
-            var t = starting;
-            starting = null;
-            Started(t);
-        }
         var api = Api;
         if (api == null) return;
         api.Pump();
@@ -315,7 +218,7 @@ public partial class ServerLink : Node
         // day.ts: a tick every 10 s while Jef plays; through a door (or the lantern up or down) the server hears of it now
         var state = GameState.I;
         if (Paused) return;
-        SoloMap(delta);
+
         if (!state.Playing)
         {
             sinceTick = 0;
@@ -380,21 +283,6 @@ public partial class ServerLink : Node
         joiningApi?.Dispose();
         joiningApi = null;
         Scheldemist.Menu.Pause.ForgetServer();
-        // a start still on its way: it ends by the cancel and stops what it started; one that just came up is stopped here
-        var t = starting;
-        starting = null;
-        if (t != null)
-        {
-            try
-            {
-                if (t.Wait(5000)) t.Result.Stop();
-            }
-            catch (AggregateException)
-            {
-                // it did not come up
-            }
-        }
-        Server?.Stop();
         if (I == this) I = null;
     }
 }

@@ -1,0 +1,33 @@
+{
+  "client": "D:/Code/ScheldemistPackages/final-client-20261012-portable",
+  "server": "D:/Code/ScheldemistPackages/final-server-20261012-portable",
+  "fingerprint": "58dd5812d2b9b777f71736c2046210bdb2f8b7bf421032be55d5c20469c558db",
+  "runtimeUnchangedByPortableExclusion": true,
+  "clientPackChecks": 57497,
+  "serverPackChecks": 57498,
+  "packedResources": 14075,
+  "staticFiles": 319,
+  "staticBytes": 70820986,
+  "clientRelocation": "proof/standalone-94b490f5e11945508de09b2b76e98275",
+  "clientRelocationChecks": 28,
+  "serverRelocation": "proof/standalone-b6fa0c97929a4f05a15dc913edc43647",
+  "retirement": "legacy-retired.json",
+  "postRetirement": {
+    "workshopChecks": 39,
+    "cleanBuild": true,
+    "recoveryChecks": 56,
+    "capturedMarketComparisons": 4972
+  },
+  "residualDiagnostics": {
+    "meaning": "Frozen source house-fire POINTS snapshot, explicitly hidden in native PackedScene; TownLife renders active events.",
+    "visible": false,
+    "labels": [
+      "fires8/Mesh2869",
+      "fires8/Mesh2870"
+    ]
+  },
+  "serverRelocatedBootApiDataPassed": true,
+  "serverRelocatedTlsInitialized": true,
+  "serverShutdownProof": "proof/native-network-421f71d4c4064384bd4d69fb6bb7510f",
+  "sourceBranch": "godot/native-authoring; main integration authorized by Steve on 2026-10-12"
+}

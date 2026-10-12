@@ -56,6 +56,7 @@ public partial class BoatLamps : Node
         var mm=new MultiMesh {TransformFormat=MultiMesh.TransformFormatEnum.Transform3D,UseColors=true,Mesh=mesh,InstanceCount=Math.Max(512,lamps.Count+128)};
         var node=new MultiMeshInstance3D {Name="live_boat_lanterns",Multimesh=mm};
         Mv.Town.AddChild(node); draw=new Copies(node); draw.ZeroAll(); draw.Commit();
+        if(lamps.Count>0)Main.I.World.Unported.Remove("boat_lamps");
         GD.Print($"boat lanterns: {lamps.Count} on live hulls, fixed spill slots");
         if(MoversTest.On && lamps.Count>0)
         {

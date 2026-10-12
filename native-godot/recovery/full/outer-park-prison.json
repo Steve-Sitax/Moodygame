@@ -1,0 +1,221 @@
+{
+  "version": 1,
+  "id": "outer-park-prison",
+  "title": "Stadspark and prison",
+  "bounds": [
+    -365,
+    160,
+    125,
+    195
+  ],
+  "walkSpawn": [
+    -300,
+    0.2,
+    280
+  ],
+  "flySpawn": [
+    -300,
+    16,
+    260
+  ],
+  "flyYaw": 180,
+  "flyPitch": -20,
+  "roots": [
+    {
+      "sourceIndex": 1153,
+      "sourceName": "park_1",
+      "role": "scenery",
+      "sourceParentIndex": 798
+    },
+    {
+      "sourceIndex": 1154,
+      "sourceName": "park_2",
+      "role": "scenery",
+      "sourceParentIndex": 798
+    },
+    {
+      "sourceIndex": 1155,
+      "sourceName": "park_3",
+      "role": "scenery",
+      "sourceParentIndex": 798
+    },
+    {
+      "sourceIndex": 1156,
+      "sourceName": "park_4",
+      "role": "scenery",
+      "sourceParentIndex": 798
+    },
+    {
+      "sourceIndex": 1157,
+      "sourceName": "park_5",
+      "role": "scenery",
+      "sourceParentIndex": 798
+    },
+    {
+      "sourceIndex": 1158,
+      "sourceName": "park_6",
+      "role": "scenery",
+      "sourceParentIndex": 798
+    },
+    {
+      "sourceIndex": 1159,
+      "sourceName": "park_7",
+      "role": "scenery",
+      "sourceParentIndex": 798
+    },
+    {
+      "sourceIndex": 1160,
+      "sourceName": "park_8",
+      "role": "scenery",
+      "sourceParentIndex": 798
+    },
+    {
+      "sourceIndex": 1225,
+      "sourceName": "park_nature",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 1235,
+      "sourceName": "prison",
+      "role": "scenery"
+    },
+    {
+      "sourceIndex": 3683,
+      "sourceName": "park_keeper_and_work",
+      "role": "actor-template"
+    },
+    {
+      "sourceIndex": 4841,
+      "sourceName": "park_wildlife",
+      "role": "actor-template"
+    },
+    {
+      "sourceIndex": 9493,
+      "sourceName": "ROOM_prison",
+      "role": "room"
+    },
+    {
+      "sourceIndex": 9755,
+      "sourceName": "ROOM_prison_chapel",
+      "role": "room"
+    },
+    {
+      "sourceIndex": 9781,
+      "sourceName": "ROOM_prison_governor",
+      "role": "room"
+    }
+  ],
+  "sharedRoots": [
+    {
+      "sourceIndex": 4,
+      "sourceName": "city",
+      "note": "Shared native ground/building tile store; keep one runtime copy. Region bounds do not clip merged meshes."
+    },
+    {
+      "sourceIndex": 798,
+      "sourceName": "churches",
+      "note": "Park child meshes 1153\u20131160 belong to outer-park-prison; church shells and openings remain centre-owned."
+    }
+  ],
+  "rooms": [
+    {
+      "id": "prison",
+      "sourceIndex": 9493,
+      "sourceName": "ROOM_prison"
+    },
+    {
+      "id": "prison_chapel",
+      "sourceIndex": 9755,
+      "sourceName": "ROOM_prison_chapel"
+    },
+    {
+      "id": "prison_governor",
+      "sourceIndex": 9781,
+      "sourceName": "ROOM_prison_governor"
+    }
+  ],
+  "entrances": [
+    {
+      "id": "the gate",
+      "sourceIndices": [
+        1303
+      ],
+      "openingKind": "door"
+    },
+    {
+      "id": "governor's house, the front door",
+      "sourceIndices": [
+        1322
+      ],
+      "openingKind": "door"
+    },
+    {
+      "id": "governor's house, the garden door",
+      "sourceIndices": [
+        1343
+      ],
+      "openingKind": "door"
+    },
+    {
+      "id": "wing A, the yard door",
+      "sourceIndices": [
+        1385
+      ],
+      "openingKind": "door"
+    },
+    {
+      "id": "wing B, the yard door",
+      "sourceIndices": [
+        1438
+      ],
+      "openingKind": "door"
+    },
+    {
+      "id": "the chapel, the side door to the court",
+      "sourceIndices": [
+        1474
+      ],
+      "openingKind": "door"
+    },
+    {
+      "id": "the chapel, the door",
+      "sourceIndices": [
+        1475
+      ],
+      "openingKind": "door"
+    }
+  ],
+  "checks": [
+    "Every selected source index has the recorded name, parent and fingerprint.",
+    "Rooms retain room extras, material metadata and street opening markers.",
+    "Hidden templates stay hidden until their live game system owns them.",
+    "No runtime original GLB, bake sidecar, client URL or Node asset loading.",
+    "Render dry/day, rain/night and both sides/below of exposed solid edges.",
+    "Test walk spawns with native physics after all shared ground resources are loaded.",
+    "Use isolated proof layouts; preserve Rijnkaai authored identities and Steve's saved lamp.",
+    "Prison preserves 198 opening markers including seven door markers and clock1246.",
+    "Prison ground/3.6m/7.2m galleries retain local stairs, floor bodies and clear headroom.",
+    "Park keeper stays hidden until live keeper system; park wildlife templates are replaced by live animals.",
+    "Park pond boundary keeps water out of crowd ground cells; grass/tree instance transforms retain source world positions."
+  ],
+  "exceptions": [
+    {
+      "feature": "Leaf cards, grass/ivy cards and feather quads",
+      "reason": "Thin cutout surfaces have no solid thickness; preserve alpha, wind and double-sided intent."
+    },
+    {
+      "feature": "Glazing, hidden/mating join faces and thin roof flashing",
+      "reason": "Do not open watertight joints or make thin sheet thicker with a large bevel."
+    },
+    {
+      "feature": "Merged native source stone/wood/metal meshes",
+      "reason": "Intake preserves source geometry. Every exposed silhouette is subject to the AGENTS material-edge review; source preservation is not approval to leave a visibly sharp edge."
+    }
+  ],
+  "source": {
+    "snapshot": "next-20261012",
+    "sourceCommit": "6b447c1",
+    "sourceSha256": "ac8534149415142120f325986c7abd3818c38005206d45354f1ebb2619f3a7d9",
+    "sourceBytes": 977933624
+  }
+}

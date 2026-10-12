@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "provenance": "Static source-authored templates and vocabulary; no runtime TypeScript.",
+  "hashes": {
+    "server/src/director/actions.ts": "b2b5eed76cc649f083081441309d2c2510c19c6d416824238ccf2e8586ad08e2",
+    "server/src/director/templates.ts": "68270a5c210f858a3de439399d07778aa4d673ee2ed0e77c5916303cd950ad89",
+    "server/src/director/vocab.ts": "f078fe081e7028cfb04b83d7cb3ce5f1b5cd61791b3fbb5b2beab12d86ecc425",
+    "server/src/director/routines.ts": "c02b1407ab2f164d73897ec4438326c38095e99ff5b73b1d1121a0379111ce45",
+    "server/src/director/steps.ts": "8775e871f96305bbdedd6608b9ec021cdbd13c1c6a899c2fabd0791834bfcd05",
+    "server/src/director/scheduler.ts": "513bd496ce4cce74029fbbc75b469347b710f81fddbddfa25d0df2dcfa9c2200",
+    "server/src/director/townlife-routes.ts": "62778083623d961c0de56932d876e8673148bbc7e413ecda14b1d8619f847053"
+  },
+  "templates": 16
+}

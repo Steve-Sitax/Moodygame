@@ -1,0 +1,8 @@
+// Full original lively generation on independent synthetic streets; recorded snap queries are test input only.
+import fs from'node:fs';import{walkMap,houseDoors}from'../../../server/src/town/walkmap.ts';import{generateLively}from'../../../server/src/town/lively.ts';
+const root=new URL('../../../',import.meta.url),read=p=>JSON.parse(fs.readFileSync(new URL(p,root),'utf8')),inputs=read('native-godot/services/fixtures/press-population-1873.json'),wm=walkMap(),doors=houseDoors(),queries={};
+const original=wm.nearestOpen.bind(wm);wm.nearestOpen=(...args)=>{const value=original(...args);queries[args.map(n=>Math.floor(n*1000000+.5)).join(',')]=value;return value;};
+const line=n=>Math.abs(n-Math.floor(n/45+.5)*45);const free=(x,z)=>x>=-370&&x<=240&&z>=60&&z<=360&&(line(x+366)<=3||line(z-60)<=3||Math.hypot(x+300,z-300)<8);
+wm.flags=(x,z)=>free(x,z)?0:1;wm.reachable=free;wm.open=(x,z,r)=>[[0,0],[r,0],[-r,0],[0,r],[0,-r],[r,r],[-r,-r],[r,-r],[-r,r]].every(([dx,dz])=>free(x+dx,z+dz));
+const cases=inputs.cases.map(c=>({seed:c.seed,size:c.size,input:c.town,expected:generateLively(c.seed,c.town.places,c.town.residents)}));
+fs.writeFileSync(new URL('native-godot/services/fixtures/lively-population.json',root),JSON.stringify({info:wm.info,doors,queries,cases}));console.log(JSON.stringify({cases:cases.length,residents:cases.map(c=>c.expected.residents.length),routes:cases.map(c=>c.expected.residents.filter(r=>r.work.kind==='round').map(r=>r.work.route.length)),queries:Object.keys(queries).length}));

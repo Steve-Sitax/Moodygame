@@ -57,6 +57,8 @@ public sealed partial class Api : IDisposable
     /// </summary>
     public string? Token { get; set; }
     public bool Guest => Token != null;
+    public string? MovementToken => local is ILocalMultiplayerBackend hosted ? hosted.HostToken : Token;
+    public string WorldFingerprint { get; set; } = "";
     public const string TokenHeader = "X-Scheldemist-Player";
 
     // M8e review 4 (net/mp/link.ts): a call the host answered 429 is tried again after its Retry-After
@@ -70,13 +72,29 @@ public sealed partial class Api : IDisposable
     private readonly ConcurrentQueue<Action> inbox = new();
     private readonly CancellationTokenSource closing = new();
     private Task? pushLoop;
+    private readonly ILocalGameBackend? local;
+    private bool localPushConnected;
+    public bool IsLocal => local != null;
 
     public Api(string url)
     {
         Url = url.TrimEnd('/');
         // the time limit is each call's own (a talk may take 30 s)
-        http = new HttpClient { BaseAddress = new Uri(Url + "/"), Timeout = Timeout.InfiniteTimeSpan };
+        http = new HttpClient(HouseTrust.Handler(Url)) { BaseAddress = new Uri(Url + "/"), Timeout = Timeout.InfiniteTimeSpan };
     }
+
+    public Api(ILocalGameBackend backend)
+    {
+        local = backend;
+        Url = backend is ILocalMultiplayerBackend hosted ? hosted.ServerUrl : "native://game";
+        if (backend is ILocalMultiplayerBackend multiplayer) WorldFingerprint = multiplayer.WorldFingerprint;
+        http = new HttpClient();
+    }
+
+    public async Task<string> GetJson(string path, int timeoutMs = DefaultTimeoutMs) =>
+        (await Get<JsonElement>(path, timeoutMs).ConfigureAwait(false)).GetRawText();
+    public async Task<string> PostJson(string path, object body, int timeoutMs = DefaultTimeoutMs) =>
+        (await Post<JsonElement>(path, body, timeoutMs).ConfigureAwait(false)).GetRawText();
 
     // ------------------------------------------------------------------ the main thread
 
@@ -121,6 +139,14 @@ public sealed partial class Api : IDisposable
         try
         {
             string? json = body == null ? null : JsonSerializer.Serialize(body, body.GetType(), Json);
+            if (local != null)
+            {
+                // SQLite and route finding may complete synchronously. Keep that work off
+                // Godot's render thread, just as the external server's calls already are.
+                string reply = await Task.Run(() => local.Call(method.Method, path, json), limit.Token).WaitAsync(limit.Token).ConfigureAwait(false);
+                try { return JsonSerializer.Deserialize<T>(reply == "" ? "{}" : reply, Json) ?? throw new JsonException("null"); }
+                catch (JsonException e) { throw InvalidReply(url, 200, e); }
+            }
             HttpResponseMessage? got = null;
             string text;
             // (a call whose time runs out while it waits its turn never goes out)
@@ -170,7 +196,7 @@ public sealed partial class Api : IDisposable
             }
             catch (JsonException e)
             {
-                throw new ApiException($"bad reply from /{url}", (int)res.StatusCode, e);
+                throw InvalidReply(url, (int)res.StatusCode, e);
             }
         }
         catch (OperationCanceledException e)
@@ -181,6 +207,14 @@ public sealed partial class Api : IDisposable
         {
             throw new ApiException($"the game server does not answer (/{url})", 0, e);
         }
+    }
+
+    private ApiException InvalidReply(string path, int status, JsonException cause)
+    {
+        var error = new ApiException($"bad game reply from /{path.Split('?')[0]} at {cause.Path}", status, cause);
+        // Polls often handle temporary refusals quietly. A broken response contract must remain observable.
+        inbox.Enqueue(() => Failed?.Invoke(error));
+        return error;
     }
 
     /// <summary>link.ts retryAfterMs: how long to wait before a call answered 429 goes again, or null: not again.</summary>
@@ -368,6 +402,14 @@ public sealed partial class Api : IDisposable
     /// </summary>
     public void ConnectPush()
     {
+        if (local != null)
+        {
+            if (localPushConnected) return;
+            localPushConnected = true;
+            local.Push += Deliver;
+            inbox.Enqueue(() => { Linked = true; LinkChanged?.Invoke(true); });
+            return;
+        }
         pushLoop ??= Task.Run(() => PushLoop(closing.Token));
     }
 
@@ -380,6 +422,7 @@ public sealed partial class Api : IDisposable
         while (!stop.IsCancellationRequested)
         {
             using var ws = new ClientWebSocket();
+            HouseTrust.Configure(ws.Options, wsUrl);
             try
             {
                 using (var connect = CancellationTokenSource.CreateLinkedTokenSource(stop))
@@ -539,6 +582,12 @@ public sealed partial class Api : IDisposable
     {
         if (closing.IsCancellationRequested) return;
         closing.Cancel();
+        if (local != null)
+        {
+            local.Push -= Deliver;
+            local.Dispose();
+            Linked = false;
+        }
         try
         {
             pushLoop?.Wait(1500);

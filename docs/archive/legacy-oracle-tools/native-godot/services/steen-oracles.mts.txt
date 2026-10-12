@@ -1,0 +1,14 @@
+import fs from 'node:fs';import vm from 'node:vm';import {stripTypeScriptTypes} from 'node:module';
+const source=fs.readFileSync('client/src/world/steenlife.ts','utf8'),pure=source.slice(source.indexOf('  function drop(v:'),source.indexOf('  function update(dt:'));
+const LOOK=[[-183.3,-20.2],[-181.2,-19.6],[-185.6,-19.8],[-179.2,-20.4]],ENDS=[[-196,12],[-178,22],[-210,-18],[-157,-12],[-212,12]],VISITORS=['gentleman','wife_a','wife_b','clerk','priest','old_woman','sailor_b','maid','wife_a','gentleman'];
+let seed=71;const roll=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};const cases:any[]=[];
+const normalize=(v:any)=>({kind:v.kind,state:v.state,t:v.t,goesIn:v.goesIn,look:v.look,to:v.to,p:v.p?{x:v.p.x,z:v.p.z}:null});
+for(let test=0;test<1400;test++){
+ const phase=['coming','looking','entering','stepIn','inside','stepOut','leaving'][test%7],body=test%12===0?null:{num:1,x:-183.5+(roll()-.5)*8,z:-23+(roll()-.5)*8};
+ const v={kind:'wife_a',p:body,state:phase,t:roll()*155-5,goesIn:test%2===0,look:LOOK[test%LOOK.length],to:[-183.5+(roll()-.5)*2,-22.7]},initial=normalize(v),spawn=test%5===0?0:3,dt=[.01,.016,.05,.1][test%4],cx=-190,cz=-12,open=test%4!==0,near=test%13!==0,rngSeed=seed,commands:any[]=[];
+ let num=2;const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;},math=Object.create(Math);math.random=random;
+ const crowd={alive:(_p:any)=>test%11!==0,isHidden:(x:number,z:number)=>test%6!==0||x< -200,puppetBusy:(_p:any)=>test%3===0,removePuppet:(p:any)=>commands.push(['remove',p.num]),addPuppet:(kind:string,x:number,z:number,yaw:number,pace:number)=>{commands.push(['add',kind,x,z,yaw,pace]);return test%17===0?null:{num:num++,x,z};},puppetGo:(p:any,x:number,z:number,pace?:number)=>commands.push(['go',p.num,x,z,pace??null]),puppetStand:(p:any,m:string,yaw:number)=>commands.push(['stand',p.num,m,yaw])};
+ const context:any={Math:math,LOOK,ENDS,VISITORS,STEEN_DOOR:{x:-183.5,z:-23},crowd,visitors:[v],spawnT:spawn,share:{on:false,net:null,seenByOthers:()=>test%19===0},runsHere:()=>test%23!==0,nearestPlayer:()=>0,face:(x:number,z:number,a:number,b:number)=>Math.atan2(a-x,b-z)};vm.createContext(context);vm.runInContext(stripTypeScriptTypes(pure,{mode:'transform'})+'\nvisitorsUpdate('+dt+','+open+','+near+','+cx+','+cz+');',context);
+ cases.push({test,initial,spawn,dt,cx,cz,open,near,rngSeed,result:context.visitors.map(normalize),spawnAfter:context.spawnT,commands});
+}
+fs.writeFileSync('native-godot/services/proof/steen-oracles.json',JSON.stringify({source:'Original entire visitorsUpdate/spawnVisitor/stepTo/drop closure, controlled crowd callbacks and 1,400 independent states.',cases})+'\n');console.log(JSON.stringify({cases:cases.length}));

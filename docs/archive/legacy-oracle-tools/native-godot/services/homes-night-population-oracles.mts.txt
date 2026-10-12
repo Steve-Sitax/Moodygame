@@ -1,0 +1,27 @@
+// Original augmentation output and navigation queries. Fresh isolated databases only.
+import {openDb} from '../../server/src/db.ts';
+import {ensureHomesTown} from '../../server/src/homes/town.ts';
+import {ensureNightTown} from '../../server/src/night/givers.ts';
+import {ensurePressTown} from '../../server/src/paper/town.ts';
+import {dropTownCache,town} from '../../server/src/town/store.ts';
+import {houseDoors,walkMap} from '../../server/src/town/walkmap.ts';
+import {shownTrade} from '../../server/src/town/places.ts';
+import {readFileSync,writeFileSync} from 'node:fs';
+process.env.SCHELDEMIST_TOWN_SEED='1873';process.env.SCHELDEMIST_NO_AI='1';
+const source=JSON.parse(readFileSync('native-godot/services/fixtures/population-1873.json','utf8'));
+const wm=walkMap(),queries:any={open:{},nearestOpen:{},reachable:{},flags:{}};
+let tracking=false,depth=0;
+const key=(...n:number[])=>n.map(v=>Math.round(v*1e6)).join(',');
+for(const name of ['open','nearestOpen','reachable','flags'] as const){const original=(wm as any)[name].bind(wm);(wm as any)[name]=(...args:number[])=>{depth++;const got=original(...args);depth--;if(tracking&&depth===0)queries[name][key(...args)]=got;return got;};}
+const cases:any[]=[];
+for(const example of source.cases){const db=openDb(':memory:');db.pragma('foreign_keys=OFF');for(const table of ['resident','npc_memory','npc_relationship','npc','job','world_event_who','world_event','log'])db.prepare(`DELETE FROM ${table}`).run();for(const state of ['homes','press','poesje:door','night_board'])db.prepare('DELETE FROM world_state WHERE key=?').run(state);
+ const base=example.town;for(const r of base.residents){db.prepare("INSERT INTO npc(id,name,role,district,faction,persona_json,spot_id,active) VALUES(?,?,?,'town',?,'{}',NULL,1)").run(r.id,r.name,shownTrade(r),r.faction);db.prepare('INSERT INTO npc_relationship(npc_id) VALUES(?)').run(r.id);db.prepare('INSERT INTO resident(id,household,trade,data_json) VALUES(?,?,?,?)').run(r.id,r.household,r.trade,JSON.stringify(r));}
+ const {residents,...rest}=base;db.prepare("INSERT OR REPLACE INTO world_state(key,value_json) VALUES('town',?)").run(JSON.stringify(rest));db.pragma('foreign_keys=ON');dropTownCache(db);
+ ensurePressTown(db);const beforeWorld=JSON.parse((db.prepare("SELECT value_json FROM world_state WHERE key='town'").get()as any).value_json);tracking=true;const before=structuredClone(town(db).town);const press=JSON.parse((db.prepare("SELECT value_json FROM world_state WHERE key='press'").get() as any).value_json);
+ const added=ensureHomesTown(db);const homed=structuredClone(town(db).town);const homes=JSON.parse((db.prepare("SELECT value_json FROM world_state WHERE key='homes'").get() as any).value_json);const homeRoles=db.prepare("SELECT id,name,role,district,faction FROM npc WHERE id IN('dealer','widow_landlady') ORDER BY id").all();
+ const nightAdded=ensureNightTown(db);const nighted=structuredClone(town(db).town);tracking=false;const nightRoles=db.prepare("SELECT id,name,role,district,faction FROM npc WHERE id IN('fence','smuggler','nightcarter','cracksman') ORDER BY id").all();
+ cases.push({seed:example.seed,size:example.size,beforeWorld,before,press,added,homed,homes,homeRoles,nightAdded,nighted,nightRoles});db.close();
+}
+writeFileSync('native-godot/services/fixtures/homes-night-population.json',JSON.stringify({doors:houseDoors(),queries,cases})+'\n');console.log(JSON.stringify({cases:cases.length,queries:Object.fromEntries(Object.entries(queries).map(([k,v])=>[k,Object.keys(v as any).length]))}));
+
+

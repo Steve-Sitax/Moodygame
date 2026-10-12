@@ -1,0 +1,7 @@
+// One-time recovery of public authored option labels/routing defaults. No player configuration is loaded.
+import { writeFileSync } from 'node:fs';
+import { defaults, options, KIND_HOOKS, KIND_IDS, PROVIDER_IDS, normalChoice } from '../../server/src/ai/setup.ts';
+import { MODELS, MODEL_ROUTE, PLAYER_TEXT_HOOKS } from '../../server/src/config.ts';
+const normalCases = PROVIDER_IDS.flatMap(provider => [undefined, 'example-model', 'claude-haiku-4-5'].flatMap(model =>
+  [undefined, 'low', 'medium', 'high'].map(effort => {const input = {provider,...model?{model}:{},...effort?{effort}:{}}; return {input,result:normalChoice(input)};})));
+writeFileSync(new URL('./data/native-ai.json', import.meta.url), JSON.stringify({defaults:defaults(), options:options(), hooks:KIND_HOOKS,kinds:KIND_IDS,providers:PROVIDER_IDS,models:MODELS,routes:MODEL_ROUTE,typedHooks:[...PLAYER_TEXT_HOOKS],normalCases},null,2)+'\n');

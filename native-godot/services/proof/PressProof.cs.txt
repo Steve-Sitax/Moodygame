@@ -1,0 +1,94 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using Scheldemist.Native.Services;
+
+string root=args[0], data=Path.Combine(root,"native-godot/services/data"), output=Path.Combine(root,"native-godot/proof/press-"+Guid.NewGuid().ToString("N"));
+Directory.CreateDirectory(output);var checks=new List<object>();
+double N(JsonNode? n,string key)=>NativeGoods.N(n,key);string S(JsonNode? n,string key)=>NativeGoods.S(n,key);
+void Check(string name,JsonNode? expected,JsonNode? actual){bool passed=JsonNode.DeepEquals(expected,actual);checks.Add(new{name,passed});if(!passed)throw new Exception(name+"\nEXPECTED "+expected+"\nACTUAL "+actual);}
+foreach(var item in JsonNode.Parse(File.ReadAllText(Path.Combine(root,"native-godot/services/proof/press-oracles.json")))!["cases"]!.AsArray())
+{
+ if(S(item,"type")=="paperWords"){
+  Check("original engine newspaper",item!["engine"],NativePress.EnginePaper((int)N(item,"day"),item["facts"]!.AsArray()));Check("original generated newspaper guard",item["clean"],NativePress.CleanPaper((int)N(item,"day"),item["facts"]!.AsArray(),item["out"]!.AsObject()));continue;
+ }
+ if(S(item,"type")=="terms"){
+  string kind=S(item,"kind");int day=(int)N(item,"day"),loan=NativePress.LoanFor(kind),rate=NativePress.RateFor(loan);
+  Check("original pledge terms",item!["expected"],JsonSerializer.SerializeToNode(new{loan,hot=NativePress.HotLoan(kind),rate,due=NativePress.DueDay(day),cost=NativePress.RedeemCost(new JsonObject{["loan_c"]=loan,["rate_c"]=rate,["day"]=day},(int)N(item,"at"))}));continue;
+ }
+ using var host=new NativeServiceHost(new NativeServiceOptions(":memory:",data,Path.Combine(output,"saves")));
+ var c=host.Context;var press=new NativePress(host); // Method oracles deliberately do not mount unrelated startup hooks.
+ c.Execute("UPDATE player SET day=1,hour=10,minute=0,money_c=200 WHERE id=1");
+ if(S(item,"type")=="harbour"){
+  c.Execute(S(item,"sql"));foreach(var day in item!["days"]!.AsArray()){int n=(int)N(day,"day");c.Execute("UPDATE player SET day=$p0",n);c.Execute("UPDATE job SET day=$p0 WHERE id=900",n);Check("original harbour day "+n,day!["ships"],press.WriteHarbour(n));}continue;
+ }
+ if(S(item,"type")=="paperFacts"){c.Execute(S(item,"sql"));Check("only witnessed public newspaper facts",item!["expected"],press.PaperFacts(2));continue;}
+ if(S(item,"type")=="letterPlan"){
+  string npc=S(item,"npc");c.Execute("UPDATE npc_relationship SET times_met=3,last_seen_day=1,view_of_player='A willing fellow.' WHERE npc_id=$p0 AND player_id=1",npc);
+  c.Execute("INSERT INTO npc_memory(npc_id,text,source,weight,day,spread,about_player,gist,tone) VALUES($p0,'Jef carried the bread.','seen',5,1,0,1,'Jef helped',$p1)",npc,(int)N(item,"tone"));
+  uint seed=(uint)N(item,"seed");double Random(){seed=unchecked(seed*1664525+1013904223);return seed/4294967296.0;}
+  var plan=press.PlanLetter(1,Random);Check("original letter plan",item!["expected"],plan);Check("original handwritten letter",item["fallback"],NativePress.FallbackLetter(plan));continue;
+ }
+ if(S(item,"type")=="cleanLetter"){
+  var cleaned=NativePress.CleanLetter(item!["plan"]!.AsObject(),item["out"]!.AsObject());Check("original generated letter guard",item["expected"],new JsonObject{["text"]=cleaned.Text,["ok"]=cleaned.Ok});continue;
+ }
+ if(S(item,"type")=="letterDue"){
+  c.Execute("UPDATE player SET day=$p0 WHERE id=1",(int)N(item,"day"));foreach(var day in item!["days"]!.AsArray())c.Execute("INSERT INTO letter(day,hour,sender,sender_name,why,kind,status,player_id) VALUES($p0,8,'postclerk','The clerk','stranger','news','waiting',1)",day!.GetValue<int>());
+  Check("original incoming letter schedule",item["expected"],JsonValue.Create(press.LetterDue(1,()=>N(item,"random"))));continue;
+ }
+ if(S(item,"type")=="round"){
+  c.Execute("UPDATE player SET day=$p0 WHERE id=1",(int)N(item,"day"));var id=press.EnsureLetterRound();
+  Check("original full letter route day "+N(item,"day"),item!["expected"],id==null?null:c.One("SELECT * FROM job WHERE id=$p0",id));continue;
+ }
+ foreach(var step in item!["steps"]!.AsArray()){
+  if(step?["sql"]!=null){c.Execute(S(step,"sql"));continue;}
+  object? result=null;string? error=null;int status=0;double id=N(step,"id");
+  try{result=S(step,"action") switch{
+   "pawn"=>press.Pawn(1,id),"redeem"=>press.Redeem(1,id),"berg"=>press.Berg(1),"ticket"=>press.Ticket(1,id),"forfeit"=>press.ForfeitPawns(),
+   "round"=>press.EnsureLetterRound(),"post"=>press.Post(1),"pickup"=>press.PickUpLetters(1,id,step!["at"]!.AsObject()),"deliver"=>press.DeliverLetter(1,id,N(step,"index"),step!["at"]!.AsObject()),
+   "telegram"=>press.SendTelegram(1,id,step!["at"]!.AsObject()),"collect"=>press.CollectWaiting(1),"discard"=>Discard(),_=>throw new Exception("Unknown oracle operation")};
+   object? Discard(){press.Discard(1,id);return null;}
+  }catch(NativeServiceException e){error=e.Message;status=e.Status;}
+  string name=S(item,"name")+": "+S(step,"action");
+  if(step?["error"]!=null)Check(name,new JsonObject{["error"]=step["error"]!.DeepClone(),["status"]=step["status"]!.DeepClone()},new JsonObject{["error"]=error,["status"]=status});
+  else{if(error!=null)throw new Exception(name+": "+error);Check(name,step?["value"],JsonSerializer.SerializeToNode(result));}
+ }
+ Check(S(item,"name")+" durable rows",item["state"],new JsonObject{["player"]=c.One("SELECT money_c FROM player WHERE id=1"),["items"]=c.Rows("SELECT id,kind,job_id,ref,player_id FROM item ORDER BY id"),["pawns"]=c.Rows("SELECT * FROM pawn ORDER BY id")});
+}
+// Mounted routes and asynchronous narration use a separate real save. Provider stubs never spend money or call an external model.
+string database=Path.Combine(output,"press.sqlite");
+using(var host=new NativeServiceHost(new NativeServiceOptions(database,data,Path.Combine(output,"saves"),Random:()=>.5)))
+{
+ var c=host.Context;c.Execute("UPDATE player SET hour=10,money_c=200 WHERE id=1");host.Jobs.EnsureStartup();
+ var press=new NativePress(host);host.AddModule(press);
+ var made=await press.MakePaper();Check("paper is persisted once",JsonValue.Create(1),JsonValue.Create(c.Scalar<int>("SELECT COUNT(*) FROM newspaper")));
+ Check("second printing keeps same paper",made["paper"],(await press.MakePaper())["paper"]);
+ string seller=NativeGoods.S((c.World("press")!["corners"]!.AsArray())[0],"boy");
+ int before=c.Scalar<int>("SELECT money_c FROM player WHERE id=1");var bought=host.Trade.Buy(1,seller,"newspaper");
+ Check("newspaper costs exactly five",JsonValue.Create(before-5),JsonValue.Create(c.Scalar<int>("SELECT money_c FROM player WHERE id=1")));
+ Check("paper reference follows buyer",JsonValue.Create(1),JsonValue.Create(c.Scalar<int>("SELECT ref FROM item WHERE kind='newspaper' AND player_id=1")));
+ bool duplicate=false;try{host.Trade.Buy(1,seller,"newspaper");}catch(NativeServiceException e){duplicate=e.Status==409;}
+ Check("duplicate paper leaves coins unchanged",JsonValue.Create(true),JsonValue.Create(duplicate&&c.Scalar<int>("SELECT money_c FROM player WHERE id=1")==before-5));
+ var read=JsonNode.Parse(await host.Call("GET","/api/paper/1",null))!;Check("paper route includes notices",JsonValue.Create(true),JsonValue.Create(read["notices"] is JsonArray));
+ var arrived=await press.MaybeLetter(1,true);int letter=(int)N(arrived,"id");Check("incoming letter exists in player's pocket",JsonValue.Create(true),JsonValue.Create(c.Scalar<int>("SELECT COUNT(*) FROM item WHERE kind='letter' AND ref=$p0 AND player_id=1",letter)==1));
+ var first=press.Letter(1,letter);c.Execute("DELETE FROM item WHERE kind='letter' AND ref=$p0",letter);Check("a read letter remains readable after discard",first,press.Letter(1,letter));
+ c.Execute("INSERT INTO item(kind,player_id) VALUES('bread',1),('bread',1),('bread',1),('bread',1),('bread',1)");
+ var waiting=await press.MaybeLetter(1,true);Check("full pockets leave letter at post office",JsonValue.Create("waiting"),waiting?["status"]);
+ c.Execute("DELETE FROM item WHERE id=(SELECT MIN(id) FROM item WHERE kind='bread')");Check("collect only available pocket space",JsonValue.Create(1),press.CollectWaiting(1)["n"]);
+ bool protectedTicket=false;
+ c.Execute("DELETE FROM item");await host.Call("POST","/api/berg/pawn","{\"item\":0}");int ticket=c.Scalar<int>("SELECT id FROM item WHERE kind='pawn_ticket'");try{press.Discard(1,ticket);}catch(NativeServiceException){protectedTicket=true;}
+ Check("pawn ticket cannot be discarded",JsonValue.Create(true),JsonValue.Create(protectedTicket));
+ await press.WritingSettled();
+}
+using(var reopened=new NativeServiceHost(new NativeServiceOptions(database,data,Path.Combine(output,"saves"))))
+{
+ var press=new NativePress(reopened);Check("paper survives cold reopen",JsonValue.Create(true),JsonValue.Create(press.PaperOf(1)!=null));
+ Check("pledge and medal state survive cold reopen",JsonValue.Create("pawned"),JsonValue.Create(press.Medal(1)));
+ var pending=new TaskCompletionSource<JsonObject?>(TaskCreationOptions.RunContinuationsAsynchronously);
+ hostSetup();
+ void hostSetup(){reopened.AddModule(press);press.NarrateAsync=(_,hook,_)=>hook=="letter"?pending.Task:Task.FromResult<JsonObject?>(null);}
+ var writing=press.MaybeLetter(1,true);await Task.Delay(10);
+ var state=reopened.Call("GET","/api/state",null);Check("pending letter does not block gameplay state",JsonValue.Create(true),JsonValue.Create(await Task.WhenAny(state,Task.Delay(300))==state));await state;
+ await reopened.Call("POST","/api/new-game","{}");pending.SetResult(null);
+ Check("late letter cannot enter a new week",null,await writing);await press.WritingSettled();
+}
+File.WriteAllText(Path.Combine(output,"result.json"),JsonSerializer.Serialize(new{passed=true,checks},new JsonSerializerOptions{WriteIndented=true}));Console.WriteLine($"native press proof: {checks.Count} comparisons passed; {output}");

@@ -1,0 +1,29 @@
+// Read-only original TypeScript oracle, used during migration validation only. No Node is used by the game.
+import fs from 'node:fs';
+import vm from 'node:vm';
+import { stripTypeScriptTypes } from 'node:module';
+const root = new URL('../../../', import.meta.url);
+const read = path => fs.readFileSync(new URL(path, root), 'utf8');
+const original = read('server/src/town/park.ts').replace(/^import .*\r?\n/gm, '').replace(/\bexport /g, '');
+const tidy = read('server/src/town/population.ts').slice(read('server/src/town/population.ts').indexOf('export function tidy')).replace(/\bexport /g, '');
+const seed = JSON.parse(read('native-godot/services/data/native-seed.json'));
+const residents = new Map(seed.tables.resident.map(row => [row.id, JSON.parse(row.data_json)]));
+const state = new Map(); let day = 1;
+const db = { prepare(sql) { return {
+  get(key) { return state.has(key) ? { value_json: state.get(key) } : undefined; },
+  all() { return [...residents.values()].filter(r => r.trade === 'housewife' && r.id.startsWith('bk')).sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0).map(r=>({id:r.id,data_json:JSON.stringify(r)})); },
+  run(...args) { if (sql.startsWith('UPDATE resident')) residents.set(args[1],JSON.parse(args[0])); else state.set(args[0],args[1]); },
+}; }, transaction(fn) { return fn; } };
+const context = {
+  CITY: JSON.parse(read('shared/city.json')), PARK_KEEPER:{x:-302.7,z:299.5}, PARK_FEED:[{x:-306,z:303},{x:-286,z:292}], PARK_CLEAN_COUNT:10,PARK_CLEAN_PAY:35,
+  clock:()=>({day,hour:10,minute:0}),weather:()=> 'fog',pid:()=>1,positionOf:()=>null,
+  resident:(_,id)=>residents.get(id),dropTownCache:()=>{},walkMap:()=>({open:()=>true,reachable:()=>true}),
+  inPolygon(x,z,poly) { let inside=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const a=poly[i],b=poly[j];if((a[1]>z)!==(b[1]>z)&&x<(b[0]-a[0])*(z-a[1])/(b[1]-a[1])+a[0])inside=!inside;}return inside; },
+  db, console,
+};
+vm.createContext(context);vm.runInContext(stripTypeScriptTypes(tidy+'\n'+original),context);
+const days=[];for(day=1;day<=28;day++)days.push({day,piles:context.read(db).piles});
+context.ensureParkWalkers(db);
+const walkers = [...residents.values()].filter(r=>r.trade==='housewife' && r.id.startsWith('bk') && r.sched.day.some(s=>s[2]==='stroll'&&s[3]==='park')).filter(r=>r.dog).map(r=>({id:r.id,dog:r.dog,day:r.sched.day}));
+fs.writeFileSync(new URL('native-godot/services/fixtures/park-work-1873.json',root),JSON.stringify({days,walkers}));
+console.log(JSON.stringify({days:days.length,piles:days.reduce((sum,s)=>sum+s.piles.length,0),walkers:walkers.length}));

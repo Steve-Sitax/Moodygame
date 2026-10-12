@@ -175,25 +175,16 @@ public partial class Gulls : Node
     {
         built = true;
         // the bollards (rijnkaai.ts): the top of each, facing the river or along it
-        foreach (var nd in BakedWorld.All(Main.I.World))
+        foreach (var perch in GullPerches.Find(Main.I.World))
         {
-            if (nd is not Node3D n3 || !n3.Name.ToString().StartsWith("bollard") || !n3.IsVisibleInTree()) continue;
-            Aabb? box = null;
-            foreach (var c in BakedWorld.All(n3))
-                if (c is MeshInstance3D mi && mi.Mesh != null)
-                {
-                    var bb = mi.GlobalTransform * mi.GetAabb();
-                    box = box is { } b0 ? b0.Merge(bb) : bb;
-                }
-            if (box is not { } bx || bx.Size.Y > 2 || bx.Size.X > 1.5f) continue;
-            var top = new Vector3(bx.GetCenter().X, bx.End.Y, bx.GetCenter().Z);
+            var top = perch.Top;
             Add(Place.Bollard, top, Rand(-1, 1) + (R01() < 0.5f ? 0 : MathF.PI));
             // the quay beside it: on the land side, where a gull may walk
             for (int k = 0; k < 4; k++)
             {
                 float a = k * MathF.PI / 2, x = top.X + MathF.Sin(a) * 1.6f, z = top.Z + MathF.Cos(a) * 1.6f;
                 if (Water.In(x, z) || !Air.OpenAt(x, z, 0.5f)) continue;
-                if (GroundAt(x, z, top.Y + 3) is { } gy && Math.Abs(gy - (top.Y - bx.Size.Y)) < 0.4f) { Add(Place.Quay, new Vector3(x, gy, z), Rand(0, MathF.Tau)); break; }
+                if (GroundAt(x, z, top.Y + 3) is { } gy && Math.Abs(gy - (top.Y - perch.Height)) < 0.4f) { Add(Place.Quay, new Vector3(x, gy, z), Rand(0, MathF.Tau)); break; }
             }
         }
         // the roof ridges of the houses by the river (shared/city_build.json): a ray down on the middle of each

@@ -10,10 +10,13 @@ namespace Scheldemist;
 /// Fonts, UI and shaders are res:// resources packed by Godot, rather than ordinary disk files.</summary>
 public static class Paths
 {
+    /// <summary>Native projects point file-based game systems at packaged static data, not client/.</summary>
+    public static string? NativeDataRoot { get; set; }
+    /// <summary>A native project's own game saves, separate from its workshop layouts.</summary>
+    public static string? NativeUserDirectory { get; set; }
     public static string Root { get; private set; } = "";
     public static string Data { get; private set; } = "";
     public static string Baked { get; private set; } = "";
-    public static bool Packaged { get; private set; }
     public static string Town { get; private set; } = "";
     public static string Models { get; private set; } = "";
     public static string City { get; private set; } = "";
@@ -24,17 +27,15 @@ public static class Paths
     public static string AiSetup => Path.Combine(Path.GetDirectoryName(Database)!, Path.GetFileName(Database) == "game.sqlite" ? "ai-config.json" : Path.GetFileNameWithoutExtension(Database) + ".ai-config.json");
     public static string MapSettings => Path.Combine(Data, "map.json");
     public static string EngineLog => Path.Combine(ProjectSettings.GlobalizePath("user://"), "logs", "godot.log");
-    public static string ServerDirectory => Path.Combine(Root, "server");
-    public static string ServerEntry => Packaged ? "src/index.js" : "src/index.ts";
-    public static string ServerLog => Path.Combine(Data, "godot-server.log");
+    public static string ServerLog => EngineLog;
     public static string WalkAiSetup => Path.Combine(Data, "godot-no-ai.ai-config.json");
-    public static string PublicDir => Path.Combine(Root, "client", Directory.Exists(Path.Combine(Root, "client/public")) ? "public" : "dist");
+    public static string PublicDir => Path.Combine(NativeDataRoot ?? throw new InvalidOperationException("Initialize the native Godot data pack first."), "public");
     public static string Audio => Path.Combine(PublicDir, "audio");
     public static string Textures => Path.Combine(PublicDir, "textures");
     public static string TownFacts(string town) => Path.ChangeExtension(town, ".json");
     public static string TownTextures(string town) => Path.Combine(Path.GetDirectoryName(town)!, Path.GetFileNameWithoutExtension(town) + "_tex");
     public static string TownSide(string suffix) => Path.Combine(Path.GetDirectoryName(Town)!, Path.GetFileNameWithoutExtension(Town) + suffix);
-    public static string Shared(string file) => Path.Combine(Root, "shared", file);
+    public static string Shared(string file) => Path.Combine(NativeDataRoot ?? Root, "shared", file);
     public static string Public(string file) => Path.Combine(PublicDir, file.TrimStart('/'));
     public static string Font(string file) => "res://fonts/" + file;
     public const string RetroShader = "res://shaders/retro.gdshader";
@@ -47,14 +48,9 @@ public static class Paths
 
     public static void Initialize()
     {
-        string exe = Path.GetDirectoryName(OS.GetExecutablePath())!;
-        // macOS keeps its program inside the app bundle; the server stays beside the .app.
-        if (OperatingSystem.IsMacOS() && exe.EndsWith("Contents/MacOS")) exe = Path.GetFullPath(Path.Combine(exe, "../../.."));
-        Packaged = File.Exists(Path.Combine(exe, "server", "src", "index.js"));
-        Root = Absolute(Env("SCHELDEMIST_ROOT") ?? (Packaged ? exe : Path.Combine(ProjectSettings.GlobalizePath("res://"), "..")));
-        Packaged = File.Exists(Path.Combine(Root, "server", "src", "index.js"));
-        Data = Absolute(Env("SCHELDEMIST_USER_DATA") ?? ProjectSettings.GlobalizePath("user://"));
-        Baked = Path.Combine(Root, Packaged ? "baked" : "godot/baked");
+        Root = Absolute(Env("SCHELDEMIST_ROOT") ?? Path.Combine(ProjectSettings.GlobalizePath("res://"), ".."));
+        Data = Absolute(Env("SCHELDEMIST_USER_DATA") ?? NativeUserDirectory ?? ProjectSettings.GlobalizePath("user://"));
+        Baked = Path.Combine(Root, "godot/baked");
         Town = Override("town", Env("SCHELDEMIST_BAKE") ?? Path.Combine(Baked, "town.glb"));
         Models = Override("models", Path.Combine(Baked, "models"));
         City = Override("city", Shared("city.json"));
@@ -66,10 +62,4 @@ public static class Paths
         Directory.CreateDirectory(Data);
     }
 
-    public static ServerPaths Server => new()
-    {
-        Root = Root, ServerDir = ServerDirectory, DataDir = Data, Packaged = Packaged,
-        Entry = ServerEntry,
-        Node = Env("SCHELDEMIST_NODE") ?? (Packaged ? Path.Combine(Root, "runtime", OperatingSystem.IsWindows() ? "node.exe" : "node") : "node")
-    };
 }

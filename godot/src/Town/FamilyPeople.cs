@@ -26,7 +26,15 @@ public partial class FamilyPeople : Node
     private string visitNpc = "";
     private double visitLeft, retry;
     private bool busy;
-    public override void _Ready() { I = this; town = GetParent().GetNodeOrNull<Townspeople>("Townspeople"); }
+    private int generation;
+    private bool stopped;
+    public override void _Ready() { I = this; town = GetParent().GetNodeOrNull<Townspeople>("Townspeople"); if (town != null) town.PopulationChanged += PopulationChanged; if (Menu.MainMenu.I is { } menu) menu.WorldReplaced += WorldReplaced; }
+    private void WorldReplaced(string how, ClientState? state) => PopulationChanged();
+    private void PopulationChanged()
+    {
+        generation++; Loaded = busy = false; retry = visitLeft = 0; visit = default; visitNpc = ""; VisitorsPatched = 0;
+        if (Table != null) { Table.Visible = false; foreach (var n in BakedWorld.All(Table)) if (n is CollisionObject3D body) body.CollisionLayer = 0; Table.QueueFree(); Table = null; }
+    }
     public void Apply(JsonElement state)
     {
         if (state.TryGetProperty("visitors", out var visitors)) foreach (var visitor in visitors.EnumerateArray()) Patch(visitor);
@@ -66,7 +74,8 @@ public partial class FamilyPeople : Node
         foreach (var tool in merged.Values) { Table.AddChild(new MeshInstance3D { Mesh = tool.Commit() }); tool.Dispose(); }
         var body = new StaticBody3D { CollisionLayer = Solid.Layer, CollisionMask = 0 };
         body.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(0.74f, 0.76f, 0.54f) }, Position = new Vector3(0, 0.38f, 0) }); Table.AddChild(body);
-        town.Walk.AddBox(x, z, -0.37, 0.37, -0.27, 0.27, yaw);
+        WalkMap.RegisterBody(body, new Aabb(new Vector3(-0.37f, 0, -0.27f), new Vector3(0.74f, 0.76f, 0.54f)));
+        town.Walk.RefreshBodies();
         var crowd = town.Crowd!; var eye = Main.I.Cam.GlobalPosition; crowd.RebuildGrid(eye.X, eye.Z);
         foreach (var p in crowd.Walking.Where(p => !town.Walk.Free(p.X, p.Z)).ToList())
             if (crowd.OpenNearFree(p.X, p.Z) is { } safe) { p.X = safe.x; p.Z = safe.z; }
@@ -85,12 +94,13 @@ public partial class FamilyPeople : Node
         if (!Loaded && !busy && (retry -= delta) <= 0 && api != null)
         {
             busy = true;
-            api.Run(api.Get<JsonElement>("api/families/state"), state => { busy = false; Loaded = true; Apply(state); }, _ => { busy = false; retry = 5; });
+            int g = generation;
+            api.Run(api.Get<JsonElement>("api/families/state"), state => { if (stopped || g != generation) return; busy = false; Loaded = true; Apply(state); }, _ => { if (stopped || g != generation) return; busy = false; retry = 5; });
         }
         if (visit.ValueKind != JsonValueKind.Object || (visitLeft -= delta) <= 0 || Scheldemist.Player.Jef.I is not { } jef || Scheldemist.Talks.Talk.I is not { IsOpen: false } talk || Scheldemist.Windows.Dialogs.I?.Any == true) return;
         var at = town.PositionOf(visitNpc);
         if (at != null && Whereabouts.Hypot(at.Value.x - jef.X, at.Value.z - jef.Z) > 8) return;
         talk.Open(visit.GetProperty("npc").GetString()!, visit.GetProperty("name").GetString()!, visit.GetProperty("title").GetString()); visit = default;
     }
-    public override void _ExitTree() { if (api != null) api.OtherPushed -= Push; Table?.QueueFree(); if (I == this) I = null; }
+    public override void _ExitTree() { stopped = true; if (town != null) town.PopulationChanged -= PopulationChanged; if (Menu.MainMenu.I is { } menu) menu.WorldReplaced -= WorldReplaced; if (api != null) api.OtherPushed -= Push; PopulationChanged(); if (I == this) I = null; }
 }

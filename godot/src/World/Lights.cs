@@ -184,14 +184,15 @@ public partial class Lights : Node
             Power = F("power"), Range = F("range"), Decay = F("decay"), Depth = F("depth"), Soft = F("soft"), Bars = F("bars"), Level = F("level"),
         };
         if (e.GetProperty("sched").ValueKind == JsonValueKind.Array) s.Sched = e.GetProperty("sched").EnumerateArray().Select(x => x.GetSingle()).ToArray();
-        if (s.Kind == "lamp" && s.Label.StartsWith("gas lamp "))
+        string id = e.TryGetProperty("id", out var explicitId) ? explicitId.GetString() ?? "" : s.Label.StartsWith("gas lamp ") ? s.Label[9..] : "";
+        if (s.Kind == "lamp" && id.Length > 0)
         {
             // the flame's own dice, as gaslamps.ts gives them: a quay lamp q<i>, a city lamp d<i>
             s.Lamp = true;
-            string id = s.Label[9..];
             s.Id = id;
-            int.TryParse(id[1..], out int i);
-            s.Seed = id[0] == 'q' ? i * 1.37f + 0.5f : i * 2.31f + 7.1f;
+            if (id.Length > 1 && int.TryParse(id[1..], out int i))
+                s.Seed = id[0] == 'q' ? i * 1.37f + 0.5f : i * 2.31f + 7.1f;
+            else { uint hash = 2166136261; foreach (char letter in id) hash = unchecked((hash ^ letter) * 16777619); s.Seed = hash % 10000 * 0.0137f; }
         }
         return s;
     }
@@ -382,7 +383,7 @@ void fragment() {
             if (n is not MeshInstance3D mi || mi.Mesh == null) continue;
             for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
             {
-                if (mi.Mesh.SurfaceGetMaterial(s) is not ShaderMaterial m) continue;
+                if (mi.GetActiveMaterial(s) is not ShaderMaterial m) continue;
                 string name = m.ResourceName;
                 if (name == "landmark_window_light" && mi.Mesh.GetSurfaceCount() == 1 && Psx.KindOf(m.Shader) is { Unlit: true, Add: true, Fog: false, DepthWrite: false, Ground: false, Wall: false, Water: 0, Far: false })
                 {

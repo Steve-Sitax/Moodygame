@@ -36,6 +36,7 @@ public partial class Omnibus
     /// <summary>The town's trip owner boards its Human here; the same id chooses the same free bench as the browser.</summary>
     public bool BoardResident(Bus bus,string id,string kind,string alight)
     {
+        if(NetRemote){NetAsk?.Invoke("bus_board",new System.Text.Json.Nodes.JsonArray(bus.Index,id,kind,alight));return true;}
         if (!passengers.TryGetValue(bus,out var list)) passengers[bus]=list=new();
         if (list.Any(p=>p.Id==id)) return true;
         var human=Humans.Make(kind); if (human==null) return false;

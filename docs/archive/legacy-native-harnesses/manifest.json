@@ -1,0 +1,47 @@
+[
+  {
+    "source": "godot/src/Play/PlayTest.cs",
+    "archive": "docs/archive/legacy-native-harnesses/godot/src/Play/PlayTest.cs.txt",
+    "sha256": "7d4093e25769006e501d21648b20576e8e008424a7313eab4557b26663beed66"
+  },
+  {
+    "source": "godot/src/Play/PlayTest.cs.uid",
+    "archive": "docs/archive/legacy-native-harnesses/godot/src/Play/PlayTest.cs.uid.txt",
+    "sha256": "118135bd745ddab4e174d32394911529e870bca503843a3448bcdc5f6bdd6407"
+  },
+  {
+    "source": "godot/src/Play/DeedsTest.cs",
+    "archive": "docs/archive/legacy-native-harnesses/godot/src/Play/DeedsTest.cs.txt",
+    "sha256": "c238755fa00291e6a1628419a6ab4f39d74de09c4b867d6ccca310d36e1c54af"
+  },
+  {
+    "source": "godot/src/Play/DeedsTest.cs.uid",
+    "archive": "docs/archive/legacy-native-harnesses/godot/src/Play/DeedsTest.cs.uid.txt",
+    "sha256": "eb278afcf6700fff5f603b77ee28687740703d60f20d32745716b550d2293df5"
+  },
+  {
+    "source": "godot/src/Play/DeedsTest.Indoor.cs",
+    "archive": "docs/archive/legacy-native-harnesses/godot/src/Play/DeedsTest.Indoor.cs.txt",
+    "sha256": "699b533112af1e1e529c73d6f6365632cb3a678584a40eaea2ce512483d07951"
+  },
+  {
+    "source": "godot/src/Play/DeedsTest.Indoor.cs.uid",
+    "archive": "docs/archive/legacy-native-harnesses/godot/src/Play/DeedsTest.Indoor.cs.uid.txt",
+    "sha256": "39382f153b4fa78246fee5e91dfd1adf62c31cccc05251cb5c0872a287ea421f"
+  },
+  {
+    "source": "native-godot/src/Game/NativePlayProof.cs",
+    "archive": "docs/archive/legacy-native-harnesses/native-godot/src/Game/NativePlayProof.cs.txt",
+    "sha256": "6c84dd6ee840cbc48b211c91a905da14176d539b6c629f1e168e1922e391efaa"
+  },
+  {
+    "source": "native-godot/src/Game/NativePlayProof.cs.uid",
+    "archive": "docs/archive/legacy-native-harnesses/native-godot/src/Game/NativePlayProof.cs.uid.txt",
+    "sha256": "65984c8c37ff410f8d217a73216e61c43dddec09b24173de76a8a92e18c48953"
+  },
+  {
+    "source": "godot/src/Net/ServerProcess.cs.uid",
+    "archive": "docs/archive/legacy-native-harnesses/godot/src/Net/ServerProcess.cs.uid.txt",
+    "sha256": "657bd6d9daaa9ce8a35eea24a6397d120c95e454076081ff705150898d019ed8"
+  }
+]

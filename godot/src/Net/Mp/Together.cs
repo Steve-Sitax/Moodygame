@@ -11,7 +11,7 @@ using Scheldemist.Windows;
 namespace Scheldemist.Net.Mp;
 
 /// <summary>What a guest asks to come into a host's game with.</summary>
-public sealed record JoinAsk(string Address, string? Code, string Name, int Seat);
+public sealed record JoinAsk(string Address, string? Code, string Name, int Seat, string? CaFingerprint = null);
 
 /// <summary>The house as the host sees it (/api/mp/host, /api/mp/config).</summary>
 public sealed record HostView
@@ -23,12 +23,18 @@ public sealed record HostView
     public JsonElement? Open { get; init; }
     /// <summary>The addresses the house may type (http://192.168.1.20:8800).</summary>
     public List<string> Urls { get; init; } = new();
+    public HostSecure Secure { get; init; } = new();
+    public HostTls? Tls { get; init; }
+    [System.Text.Json.Serialization.JsonPropertyName("networkError")] public string? NetworkError { get; init; }
     public string Code { get; init; } = "";
     public List<RosterEntry> Players { get; init; } = new();
     [System.Text.Json.Serialization.JsonPropertyName("pausedAll")] public bool PausedAll { get; init; }
 }
 
 /// <summary>/api/mp/info: is the game there played together, and who this game is to it.</summary>
+public sealed record HostSecure { public List<string> House { get; init; } = new(); public List<string> Vpn { get; init; } = new(); }
+public sealed record HostTls { [System.Text.Json.Serialization.JsonPropertyName("caSha256")] public string CaSha256 { get; init; } = ""; }
+
 public sealed record MpInfo
 {
     public bool Multiplayer { get; init; }
@@ -165,6 +171,7 @@ public partial class Together : Node
     {
         // together nothing pauses, and under the host's "pause all" this game still says where it stands
         ProcessMode = ProcessModeEnum.Always;
+        if (!Main.I.MultiplayerAvailable) return;
         ServerLink.I?.WhenUp(Begin);
     }
 
@@ -193,6 +200,7 @@ public partial class Together : Node
 
     private void OnPush(PushMsg m)
     {
+        if (m.Type == "mp_network" && !Guest && ServerLink.I?.Api is { } api) { api.Run(api.Get<HostView>("api/mp/host"), view => { House=view; Changed?.Invoke(); }); return; }
         if (m.Type == "mp_pause_all" && m.Body.TryGetProperty("on", out var paused))
         {
             SetPausedAll(paused.ValueKind == JsonValueKind.True);
@@ -212,7 +220,7 @@ public partial class Together : Node
         if (link?.Api is not { } api || session != null) return;
         On = true;
         link.SetTogether(true);
-        var s = new MpSession(api.Url, api.Token, Guest ? Math.Max(2, seat) : 1);
+        var s = new MpSession(api.Url, api.MovementToken, Guest ? Math.Max(2, seat) : 1, api.WorldFingerprint);
         session = s;
         s.Batch += OnBatch;
         s.Roster += r =>
@@ -284,6 +292,13 @@ public partial class Together : Node
     }
 
     /// <summary>The host plays alone again: the guests are told the game is closed.</summary>
+    public async Task<HostView> Networks(bool lan,bool vpn)
+    {
+        if (ServerLink.I?.Api is not {Guest:false} api) throw new ApiException("Only the host opens this game to another network.",403);
+        await api.Post<JsonElement>("api/mp/config",new {multiplayer=true,lan,vpn},20_000);
+        return await Refresh();
+    }
+
     public async Task StopHosting()
     {
         if (ServerLink.I?.Api is not { Guest: false } api) return;
@@ -306,7 +321,7 @@ public partial class Together : Node
     /// host's screen (not needed again on a PC that was in before), a first name. This game ends and starts again
     /// in the host's town; the game's own server is stopped.
     /// </summary>
-    public void Join(string address, string? code = null, string name = "Anna", int seat = 2)
+    public void Join(string address, string? code = null, string name = "Anna", int seat = 2, string? caFingerprint = null)
     {
         // A code alone joins the server this game already knows; another PC also needs its address.
         if (System.Text.RegularExpressions.Regex.IsMatch(address.Trim(), "^[A-Za-z]{4}-?[0-9]{2}$"))
@@ -315,7 +330,7 @@ public partial class Together : Node
             address = ServerLink.I?.Api?.Url ?? throw new ApiException("Type the host's address first.", 400);
         }
         Scheldemist.Menu.Pause.Clear();
-        Pending = new JoinAsk(address, code, name, seat);
+        Pending = new JoinAsk(address, code, name, seat, caFingerprint);
         GetTree().CallDeferred(SceneTree.MethodName.ReloadCurrentScene);
     }
 
@@ -380,6 +395,7 @@ public partial class Together : Node
     /// </summary>
     public static async Task JoinAsync(Api api, JoinAsk ask)
     {
+        await HouseTrust.Prepare(api.Url, ask.CaFingerprint).ConfigureAwait(false);
         string key = $"{api.Url}|{ask.Seat}";
         string? token = Tokens().GetValueOrDefault(key);
         MpInfo? info = null;
@@ -406,13 +422,8 @@ public partial class Together : Node
             info = await api.Get<MpInfo>("api/mp/info").ConfigureAwait(false);
             if (!info.Multiplayer) throw new ApiException("The game on the host's PC is not open to others. Ask the host to open it (Together), then join again.", 409);
             string? code = ask.Code;
-            if (string.IsNullOrWhiteSpace(code) && new Uri(api.Url).IsLoopback)
-            {
-                // tests: a second game on the host's own PC joins with the code the host's side can read
-                code = (await api.Get<HostView>("api/mp/host").ConfigureAwait(false)).Code;
-            }
             if (string.IsNullOrWhiteSpace(code)) throw new ApiException("Type the code on the host's screen.", 400);
-            var r = await api.Post<Dictionary<string, JsonElement>>("api/mp/join", new { code, name = ask.Name }).ConfigureAwait(false);
+            var r = await api.Post<Dictionary<string, JsonElement>>("api/mp/join", new { code, name = ask.Name, fingerprint = api.WorldFingerprint, protocol = MpProtocol.Protocol }).ConfigureAwait(false);
             token = r.TryGetValue("token", out var t) && t.ValueKind == JsonValueKind.String ? t.GetString() : null;
             if (token == null) throw new ApiException("The host did not let you in.", 403);
             KeepToken(key, token);
@@ -876,7 +887,7 @@ public partial class Together : Node
         {
             ["frames"] = frames, ["camSnaps"] = camSnaps, ["maxCamStep"] = Math.Round(maxCamStep, 3),
             ["rtt"] = s == null ? null : Math.Round(s.Rtt, 2), ["offset"] = s == null ? null : Math.Round(s.Offset),
-            ["session"] = s == null ? null : new Dictionary<string, object?> { ["up"] = s.Up, ["down"] = s.Down, ["sent"] = s.Sent, ["batches"] = s.Batches, ["reconnects"] = s.Reconnects, ["skipped"] = s.Skipped },
+            ["session"] = s == null ? null : new Dictionary<string, object?> { ["up"] = s.Up, ["down"] = s.Down, ["sent"] = s.Sent, ["batches"] = s.Batches, ["reconnects"] = s.Reconnects, ["skipped"] = s.Skipped, ["lastCloseCode"] = s.LastCloseCode, ["lastCloseReason"] = s.LastCloseReason },
             ["me"] = PlayerId, ["guest"] = Guest, ["remotes"] = remotes,
             ["figures"] = figs.Values.Select(f => new Dictionary<string, object?> { ["id"] = f.Id, ["name"] = f.Name, ["body"] = f.Figure?.Kind, ["shown"] = f.Shown, ["states"] = tracks.GetValueOrDefault(f.Id)?.States ?? 0 }).ToList(),
         };

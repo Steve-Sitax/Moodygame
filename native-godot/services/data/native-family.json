@@ -1,0 +1,658 @@
+{
+  "version": 1,
+  "prototypes": [
+    {
+      "id": "fortune",
+      "first": "Zelie",
+      "surname": "Vermandel",
+      "name": "Madame Zelie",
+      "age": 58,
+      "sex": "f",
+      "household": 80,
+      "family_role": "widow",
+      "trade": "retired",
+      "faction": null,
+      "kind": "old_woman",
+      "home": {
+        "house": 936,
+        "x": -200,
+        "z": 109.8,
+        "sx": -200.9,
+        "sz": 109.8
+      },
+      "work": {
+        "place": "grote_markt",
+        "kind": "post",
+        "at": [
+          -240,
+          101,
+          -2.0344439357957027
+        ]
+      },
+      "sched": {
+        "day": [
+          [
+            9.5,
+            12.5,
+            "work"
+          ],
+          [
+            13.25,
+            17.5,
+            "work"
+          ]
+        ],
+        "sunday": [
+          [
+            13.5,
+            17,
+            "work"
+          ]
+        ]
+      },
+      "stats": {
+        "honesty": 4,
+        "temper": 3,
+        "piety": 4,
+        "warmth": 6,
+        "greed": 6,
+        "courage": 6,
+        "gossip": 9,
+        "wealth": 2
+      },
+      "dog": null,
+      "visitor": {
+        "role": "fortune",
+        "label": "a fortune teller with cards"
+      }
+    },
+    {
+      "id": "stranger_gambler",
+      "first": "Victor",
+      "surname": "Delorme",
+      "name": "Victor Delorme",
+      "age": 39,
+      "sex": "m",
+      "household": 81,
+      "family_role": "lodger",
+      "trade": "sailor",
+      "faction": null,
+      "kind": "stranger",
+      "home": {
+        "house": 914,
+        "x": -187.1,
+        "z": 40,
+        "sx": -187.1,
+        "sz": 39.1
+      },
+      "work": {
+        "place": "visitor",
+        "kind": "roam",
+        "route": [
+          [
+            -187.1,
+            39.1
+          ]
+        ]
+      },
+      "sched": {
+        "day": [
+          [
+            0,
+            24,
+            "home"
+          ]
+        ],
+        "sunday": [
+          [
+            0,
+            24,
+            "home"
+          ]
+        ]
+      },
+      "stats": {
+        "honesty": 2,
+        "temper": 5,
+        "piety": 1,
+        "warmth": 7,
+        "greed": 8,
+        "courage": 6,
+        "gossip": 6,
+        "wealth": 5
+      },
+      "dog": null,
+      "visitor": {
+        "role": "stranger",
+        "kind": "gambler",
+        "label": "a stranger off the ships, a card player",
+        "here": false
+      }
+    },
+    {
+      "id": "stranger_merchant",
+      "first": "Arnold",
+      "surname": "Brugmann",
+      "name": "Arnold Brugmann",
+      "age": 47,
+      "sex": "m",
+      "household": 81,
+      "family_role": "lodger",
+      "trade": "merchant",
+      "faction": null,
+      "kind": "gentleman",
+      "home": {
+        "house": 914,
+        "x": -187.1,
+        "z": 40,
+        "sx": -187.1,
+        "sz": 39.1
+      },
+      "work": {
+        "place": "visitor",
+        "kind": "roam",
+        "route": [
+          [
+            -187.1,
+            39.1
+          ]
+        ]
+      },
+      "sched": {
+        "day": [
+          [
+            0,
+            24,
+            "home"
+          ]
+        ],
+        "sunday": [
+          [
+            0,
+            24,
+            "home"
+          ]
+        ]
+      },
+      "stats": {
+        "honesty": 5,
+        "temper": 4,
+        "piety": 5,
+        "warmth": 5,
+        "greed": 7,
+        "courage": 5,
+        "gossip": 5,
+        "wealth": 8
+      },
+      "dog": null,
+      "visitor": {
+        "role": "stranger",
+        "kind": "merchant",
+        "label": "a stranger off the ships, a merchant",
+        "here": false
+      }
+    },
+    {
+      "id": "stranger_preacher",
+      "first": "Josephus",
+      "surname": "Terlinck",
+      "name": "Josephus Terlinck",
+      "age": 52,
+      "sex": "m",
+      "household": 81,
+      "family_role": "lodger",
+      "trade": "retired",
+      "faction": null,
+      "kind": "clerk",
+      "home": {
+        "house": 914,
+        "x": -187.1,
+        "z": 40,
+        "sx": -187.1,
+        "sz": 39.1
+      },
+      "work": {
+        "place": "visitor",
+        "kind": "roam",
+        "route": [
+          [
+            -187.1,
+            39.1
+          ]
+        ]
+      },
+      "sched": {
+        "day": [
+          [
+            0,
+            24,
+            "home"
+          ]
+        ],
+        "sunday": [
+          [
+            0,
+            24,
+            "home"
+          ]
+        ]
+      },
+      "stats": {
+        "honesty": 7,
+        "temper": 5,
+        "piety": 10,
+        "warmth": 5,
+        "greed": 2,
+        "courage": 7,
+        "gossip": 6,
+        "wealth": 2
+      },
+      "dog": null,
+      "visitor": {
+        "role": "stranger",
+        "kind": "preacher",
+        "label": "a stranger, a travelling preacher",
+        "here": false
+      }
+    },
+    {
+      "id": "stranger_runaway",
+      "first": "Mietje",
+      "surname": "Claes",
+      "name": "Mietje Claes",
+      "age": 17,
+      "sex": "f",
+      "household": 81,
+      "family_role": "lodger",
+      "trade": "maid",
+      "faction": null,
+      "kind": "maid",
+      "home": {
+        "house": 914,
+        "x": -187.1,
+        "z": 40,
+        "sx": -187.1,
+        "sz": 39.1
+      },
+      "work": {
+        "place": "visitor",
+        "kind": "roam",
+        "route": [
+          [
+            -187.1,
+            39.1
+          ]
+        ]
+      },
+      "sched": {
+        "day": [
+          [
+            0,
+            24,
+            "home"
+          ]
+        ],
+        "sunday": [
+          [
+            0,
+            24,
+            "home"
+          ]
+        ]
+      },
+      "stats": {
+        "honesty": 6,
+        "temper": 4,
+        "piety": 5,
+        "warmth": 6,
+        "greed": 3,
+        "courage": 4,
+        "gossip": 3,
+        "wealth": 1
+      },
+      "dog": null,
+      "visitor": {
+        "role": "stranger",
+        "kind": "runaway",
+        "label": "a stranger, a girl with a bundle",
+        "here": false
+      }
+    },
+    {
+      "id": "stranger_sailor",
+      "first": "Hendrik",
+      "surname": "Aalders",
+      "name": "Hendrik Aalders",
+      "age": 34,
+      "sex": "m",
+      "household": 81,
+      "family_role": "lodger",
+      "trade": "sailor",
+      "faction": null,
+      "kind": "sailor",
+      "home": {
+        "house": 914,
+        "x": -187.1,
+        "z": 40,
+        "sx": -187.1,
+        "sz": 39.1
+      },
+      "work": {
+        "place": "visitor",
+        "kind": "roam",
+        "route": [
+          [
+            -187.1,
+            39.1
+          ]
+        ]
+      },
+      "sched": {
+        "day": [
+          [
+            0,
+            24,
+            "home"
+          ]
+        ],
+        "sunday": [
+          [
+            0,
+            24,
+            "home"
+          ]
+        ]
+      },
+      "stats": {
+        "honesty": 5,
+        "temper": 6,
+        "piety": 3,
+        "warmth": 6,
+        "greed": 5,
+        "courage": 7,
+        "gossip": 7,
+        "wealth": 3
+      },
+      "dog": null,
+      "visitor": {
+        "role": "stranger",
+        "kind": "sailor",
+        "label": "a stranger off the ships, a sailor",
+        "here": false
+      }
+    }
+  ],
+  "fortuneFallback": {
+    "meeting": "The Knave of Hearts, and next to him the road. Someone is looking for you, my dear. Let them find you.",
+    "loss": "The Five of Spades, upside down. Hold on to what is yours; something small slips away before long. Don't grieve it.",
+    "gift": "The Ace of Hearts. An open hand. Before two days are out, somebody gives you something you did not ask for.",
+    "stranger": "The Knight of Cups, come over the water. A stranger will know your name soon, and you his."
+  },
+  "strangerFallback": {
+    "sailor": {
+      "first": "Jan",
+      "surname": "Hovinga",
+      "origin": "Harlingen",
+      "story": "A deck hand off a Dutch coaster, paid off at the Rijnkaai with a week to spare. He has been to Riga and back and talks of it.",
+      "goal": "to find word of his brother, a boatman on the Schelde",
+      "secret": "He jumped his last ship owing the mate money.",
+      "greeting": "You're local? Then you'll know the boatmen. I'm looking for one."
+    },
+    "merchant": {
+      "first": "Arthur",
+      "surname": "Pembury",
+      "origin": "Hull",
+      "story": "A coffee merchant from Hull, come to see the new docks with his own eyes. He writes everything in a little book.",
+      "goal": "to find a chandler or grocer who will buy coffee by the sack",
+      "secret": "His firm is nearly bankrupt; this trip is his last chance.",
+      "greeting": "Good day. A town of warehouses, this. Who buys here, and who only talks?"
+    },
+    "runaway": {
+      "first": "Marie",
+      "surname": "Lenoir",
+      "origin": "Namur",
+      "story": "A girl in service who ran from a hard house in Namur with a bundle and a few francs. She sleeps where she can.",
+      "goal": "to find honest work, washing or sewing, where nobody asks questions",
+      "secret": "She took her wages from her mistress's drawer before she ran.",
+      "greeting": "Please, mister. Is there anyone here who needs a girl for the washing?"
+    },
+    "preacher": {
+      "first": "Elias",
+      "surname": "Groenveld",
+      "origin": "Utrecht",
+      "story": "A travelling preacher of temperance with a Bible worn soft. He has walked from Rotterdam, preaching in every square.",
+      "goal": "to be let preach at the church door on Sunday",
+      "secret": "He drank himself out of a good living ten years ago.",
+      "greeting": "Peace be with you, young man. Tell me: do the dockers here drink as hard as they say?"
+    },
+    "gambler": {
+      "first": "Lucien",
+      "surname": "Dufresne",
+      "origin": "Lille",
+      "story": "A smooth man in a good coat gone thin, off the Ostend steamer. He shuffles a pack of cards without looking.",
+      "goal": "to find a back room and a few men with money for a game of cards tonight",
+      "secret": "His cards are marked, and he is known in Ghent for it.",
+      "greeting": "Ah, a face with sense in it. Tell me, where do men play cards in this town?"
+    }
+  },
+  "strangerDay": {
+    "sailor": [
+      [
+        8,
+        11,
+        "loiter",
+        "rijnkaai"
+      ],
+      [
+        11,
+        14,
+        "stroll",
+        "play:vismarkt"
+      ],
+      [
+        14,
+        17,
+        "loiter",
+        "steenplein"
+      ],
+      [
+        17.5,
+        22.5,
+        "tavern",
+        "tavern:ankere"
+      ]
+    ],
+    "merchant": [
+      [
+        8.5,
+        12,
+        "stroll",
+        "play:grote_markt"
+      ],
+      [
+        12,
+        13,
+        "tavern",
+        "tavern:engel"
+      ],
+      [
+        13,
+        17,
+        "loiter",
+        "rijnkaai"
+      ],
+      [
+        18,
+        21,
+        "stroll",
+        "play:grote_markt"
+      ]
+    ],
+    "runaway": [
+      [
+        8,
+        12,
+        "loiter",
+        "steenplein"
+      ],
+      [
+        12,
+        16,
+        "loiter",
+        "play:vismarkt"
+      ],
+      [
+        16,
+        19,
+        "loiter",
+        "werf"
+      ]
+    ],
+    "preacher": [
+      [
+        9,
+        12,
+        "loiter",
+        "play:grote_markt"
+      ],
+      [
+        13,
+        17,
+        "loiter",
+        "play:vismarkt"
+      ],
+      [
+        17,
+        19,
+        "stroll",
+        "steenplein"
+      ]
+    ],
+    "gambler": [
+      [
+        10,
+        14,
+        "stroll",
+        "play:vismarkt"
+      ],
+      [
+        14,
+        18,
+        "loiter",
+        "steenplein"
+      ],
+      [
+        18,
+        23.5,
+        "tavern",
+        "tavern:schipke"
+      ]
+    ]
+  },
+  "errands": {
+    "sailor": {
+      "trades": [
+        "boatman",
+        "sailor",
+        "docker"
+      ],
+      "ask": "whether a boatman called {surname} works the river",
+      "yes": "he knows the man, and where he ties up",
+      "no": "he never heard the name"
+    },
+    "merchant": {
+      "trades": [
+        "chandler",
+        "grocer",
+        "tobacconist"
+      ],
+      "ask": "whether they would buy coffee by the sack",
+      "yes": "they would, at a fair price",
+      "no": "they have coffee enough"
+    },
+    "runaway": {
+      "trades": [
+        "laundress",
+        "seamstress",
+        "housewife"
+      ],
+      "ask": "whether they need a girl for the washing",
+      "yes": "they could use a pair of hands, for board",
+      "no": "they have no work to give"
+    },
+    "preacher": {
+      "trades": [
+        "sexton",
+        "priest"
+      ],
+      "ask": "whether a travelling man may speak at the church door on Sunday",
+      "yes": "after the high mass, and briefly",
+      "no": "the church door is the church's"
+    },
+    "gambler": {
+      "trades": [
+        "publican"
+      ],
+      "ask": "whether there is a back room free tonight",
+      "yes": "there is, for a price",
+      "no": "not for card players"
+    }
+  },
+  "strangerWants": {
+    "sailor": "word of his brother, a boatman on the Schelde with the same surname as his own",
+    "merchant": "a chandler or grocer who will buy coffee by the sack",
+    "runaway": "honest work, washing or sewing, where nobody asks questions",
+    "preacher": "leave to preach at the church door on Sunday",
+    "gambler": "a back room at a tavern, and a few men with money, for a game of cards tonight"
+  },
+  "schemeLines": {
+    "lost_dog": {
+      "ok": [
+        "{B}, have you seen {dog}? He's been gone since the morning.",
+        "Your dog? He was nosing round the fish crates by the Vismarkt not an hour ago.",
+        "Bless you. I'll go and fetch him."
+      ],
+      "no": [
+        "{B}, have you seen {dog}? He's been gone since the morning.",
+        "Not a whisker of him. Sorry.",
+        "If you do, send him home. He'll be starving."
+      ]
+    },
+    "pay_debt": {
+      "ok": [
+        "{B}. What I owe you. It's all there, count it.",
+        "Well now. I'd given it up for lost. Thank you.",
+        "A debt's a debt."
+      ],
+      "no": [
+        "{B}. About what I owe you. I can give you half now.",
+        "Half. Again. And the rest?",
+        "Saturday. On my mother's grave."
+      ]
+    },
+    "court": {
+      "ok": [
+        "{B}, would you walk out with me on Sunday, after mass?",
+        "I might. If you wash behind your ears.",
+        "I'll call for you, then."
+      ],
+      "no": [
+        "{B}, would you walk out with me on Sunday, after mass?",
+        "I've other plans. For every Sunday.",
+        "Well. A man can ask."
+      ]
+    },
+    "grudge": {
+      "ok": [
+        "{B}. That business last winter. Let's put it to bed.",
+        "It's gone on long enough. Here's my hand.",
+        "Done, then."
+      ],
+      "no": [
+        "{B}. That business last winter. You still owe me an apology.",
+        "I owe you nothing, and you know it.",
+        "Then we've nothing to say to each other."
+      ]
+    }
+  }
+}

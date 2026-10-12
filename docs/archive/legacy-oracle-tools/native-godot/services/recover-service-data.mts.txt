@@ -1,0 +1,41 @@
+// One-time recovery of authored rules/data from a fresh, isolated database.
+// Never opens a player's database or starts an HTTP/AI service.
+import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { createHash } from "node:crypto";
+import { openDb } from "../../server/src/db.ts";
+import { ITEMS, WARES, waresOf } from "../../server/src/trade.ts";
+import { ALL_EMPLOYERS, FALLBACK_BOARD, FALLBACK_CART_JOB, FALLBACK_EXTRA_JOBS, taskFor, fallbackBoard, clampBoard } from "../../server/src/hooks/jobBoard.ts";
+import { fallbackEpilogue } from "../../server/src/hooks/epilogue.ts";
+import { LIVELY_USE_TEXT } from "../../server/src/town/livelyWares.ts";
+import { SHOP_USE_TEXT, SHOP_SERVICE_LINE } from "../../server/src/shops/wares.ts";
+import { POST_HOURS } from "../../shared/night.ts";
+import { benches } from "../../server/src/rest.ts";
+import CITY from "../../shared/city.json" with { type: "json" };
+import { CLASSES, FURNITURE } from "../../shared/homes.ts";
+
+process.env.SCHELDEMIST_TOWN_SEED = "1873";
+process.env.SCHELDEMIST_NO_AI = "1";
+const output = resolve(process.argv[2] ?? "native-godot/services/data");
+mkdirSync(output, { recursive: true });
+const db = openDb(":memory:");
+const schema = db.prepare("SELECT type,name,sql FROM sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' ORDER BY CASE type WHEN 'table' THEN 0 WHEN 'index' THEN 1 ELSE 2 END,name").all() as Array<{type:string,name:string,sql:string}>;
+writeFileSync(resolve(output, "native-schema.sql"), schema.map(s => s.sql + ";").join("\n\n") + "\n");
+const tables: Record<string, unknown[]> = {};
+for (const table of schema.filter(s => s.type === "table")) tables[table.name] = db.prepare('SELECT * FROM "' + table.name + '"').all();
+writeFileSync(resolve(output, "native-seed.json"), JSON.stringify({version:1, seed:1873, tables}) + "\n");
+const npcWares: Record<string, unknown> = {};
+for (const npc of db.prepare("SELECT id FROM npc").all() as Array<{id:string}>) {
+  const wares = waresOf(db, npc.id);
+  if (wares.length) npcWares[npc.id] = wares;
+}
+const jobs = [...FALLBACK_BOARD.jobs, FALLBACK_CART_JOB, ...FALLBACK_EXTRA_JOBS].map(j => ({...j, task:taskFor(j)}));
+const boards: Record<string, unknown> = {};
+for (let tier=0;tier<5;tier++) for (const carts of [false,true]) boards[`${tier}:${carts}`] = clampBoard(fallbackBoard(1,carts),tier).jobs.map(j => ({...j,task:taskFor(j)}));
+const doss = (CITY as any).doors.doss;
+writeFileSync(resolve(output, "native-rules.json"), JSON.stringify({version:1, items:ITEMS, wares:WARES, npcWares, employers:ALL_EMPLOYERS, fallbackJobs:jobs, fallbackBoards:boards, homeClasses:CLASSES,furniture:FURNITURE,benches:benches(),dossStep:{x:doss.x+doss.out[0]*1.2,z:doss.z+doss.out[1]*1.2}, epilogues:{health:fallbackEpilogue({kind:"health",day:1}),week:fallbackEpilogue({kind:"week",day:7})}, useText:{...LIVELY_USE_TEXT,...SHOP_USE_TEXT}, serviceLine:SHOP_SERVICE_LINE, postHours:POST_HOURS}, null, 2) + "\n");
+const files = ["server/src/db.ts","server/src/day.ts","server/src/game.ts","server/src/trade.ts","server/src/hooks/jobBoard.ts","server/src/hooks/loads.ts","shared/night.ts","shared/clock.ts"];
+const hashes = Object.fromEntries(files.map(file => [file,createHash("sha256").update(readFileSync(resolve(file))).digest("hex")]));
+writeFileSync(resolve(output, "native-intake.json"), JSON.stringify({version:1, sourceCommit:"294d7bb", seed:1873, provenance:"Fresh in-memory authored town, data/rules recovery only. No player database or AI calls.", hashes, tableCount:Object.keys(tables).length, residents:tables.resident.length, npcCount:tables.npc.length, ruleCount:Object.keys(ITEMS).length}, null, 2) + "\n");
+db.close();
+console.log(JSON.stringify({output, tables:Object.keys(tables).length, residents:tables.resident.length,npcs:tables.npc.length,items:Object.keys(ITEMS).length}));

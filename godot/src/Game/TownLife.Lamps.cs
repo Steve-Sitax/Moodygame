@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 using Scheldemist.Net;
 using Scheldemist.Town;
@@ -26,10 +27,16 @@ public partial class TownLife
     public Func<LampsHelp?>? LampsHelpNow { get; set; }
     public Func<LampsFog?>? LampsFogNow { get; set; }
     private LampsFog? windowFog;
+    public static bool SameLampRound(LampRound a, LampRound b)
+    {
+        if (a.Id != b.Id || a.Lamplighter != b.Lamplighter || a.Len != b.Len || a.Dusk != b.Dusk || !a.Lamps.SequenceEqual(b.Lamps) || !a.At.SequenceEqual(b.At) || a.Path.Count != b.Path.Count) return false;
+        for (int i=0;i<a.Path.Count;i++) if (!a.Path[i].SequenceEqual(b.Path[i])) return false;
+        return true;
+    }
     private void SetRounds(List<LampRound> rounds)
     {
         bool same = rounds.Count == LampRuns.Count;
-        if (same) for (int i = 0; i < rounds.Count; i++) if (rounds[i].Id != LampRuns[i].Round.Id || rounds[i].Lamps.Count != LampRuns[i].Round.Lamps.Count) { same = false; break; }
+        if (same) for (int i = 0; i < rounds.Count; i++) if (!SameLampRound(rounds[i], LampRuns[i].Round)) { same = false; break; }
         if (same) return;
         DropRounds(); foreach (var round in rounds) LampRuns.Add(new LampRun { Round = round });
         windowFog = null; BuildWindows(life?.Fog);

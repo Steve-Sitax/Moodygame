@@ -30,7 +30,7 @@ public partial class InsideCounters : Node
     public override void _Ready()
     {
         I = this;if(Scheldemist.Menu.MainMenu.I is {} menu)menu.WorldReplaced+=Reset;
-        using var doc = JsonDocument.Parse(File.ReadAllText(ProjectSettings.GlobalizePath("res://assets/places.json")));
+        using var doc = JsonDocument.Parse(Godot.FileAccess.GetFileAsString("res://assets/places.json"));
         foreach (var item in doc.RootElement.GetProperty("counters").EnumerateArray())
         {
             var p = item.GetProperty("counter"); var o = item.GetProperty("origin"); float yaw = item.GetProperty("yaw").GetSingle(), x = p.GetProperty("x").GetSingle(), z = p.GetProperty("z").GetSingle();

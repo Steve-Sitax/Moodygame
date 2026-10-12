@@ -2,7 +2,9 @@
 
 Use the existing town export once to produce native Godot scenes and reusable assets. Runtime must load those
 native resources without the browser, Node, the original GLB, or its JSON sidecars. Rijnkaai is the working example.
-Steve wants to test this update in the game and editor before work expands to other districts or merges back into main.
+All eleven districts now have native resources, with whole-game gameplay and networking in Godot. Steve later
+authorized completing the conversion and retiring the old runtime after validation. Keep this worktree separate
+from main until his manual game/editor test; that review does not block the already authorized migration work.
 
 ## Current district and sources
 
@@ -11,12 +13,17 @@ was merged into this branch. The finished town is `D:/Code/MoodyGame-godot/godot
 made on 2026-10-12; model packs are beside it in `../models/`. Treat both directories as read-only inputs.
 The recovery reports retain SHA256 fingerprints and modification times. They are the authoritative import records.
 
-`recovered/rijnkaai-recovered/district.tres` is the active district. Its district id stays `rijnkaai-recovered` so
+`recovered/rijnkaai-recovered/district.tres` is the reviewed quay district. Its district id stays `rijnkaai-recovered` so
 existing layouts still load. Its resources now reference the reviewed `rijnkaai-20261012` snapshot and three model
 intakes. All 14 original object ids remain. Bench, crate and library lamp use detailed models; five harbour assets
 are also placeable. The older resource files remain available while Steve reviews this update.
 
-## Prepare another district
+## Repair or extend a native district
+
+Reuse the existing native district scenes and library first. No original GLB, browser export or bake is needed to
+edit them or place props. The following one-time intake procedure is for genuinely new external source material;
+it is not a game-startup or ordinary editing step. Current complete-town fragments live under `world/town` and
+editor district descriptors under `world/districts`; their notes record ownership, shared roots and exceptions.
 
 1. Work in an isolated branch/worktree. Check status and local instructions before editing. Coordinate ownership
    of `main.tscn`, the default launchers and shared recovery code; district work should normally add its own files.
@@ -106,14 +113,19 @@ native scene/asset edits and reconcile them explicitly; matching ids alone does 
 
 Commit only the reviewed scenes, native resources, plans, source changes and notes. Run `git diff --cached --check`
 and the repository's commit check. Keep logs, screenshots, temporary GLBs, layouts and fixture runs out of git.
-Do not delete the browser/server pipeline or merge this branch back into main before Steve's review.
+Steve's later authorization permitted retiring the browser/server runtime after native validation; it is now
+removed from this worktree, with original art and references checksum-archived. The retained
+original-oracle fixtures and checksum-verified artwork archive preserve the necessary evidence and inputs.
+Keep the branch separate from main until his manual review. Editor layouts, preferences and credentials remain
+outside game-save cleanup and source retirement.
 
 ## Rendering and format limits
 
 The selective GLB reader copies only referenced mesh, accessor, image and buffer data before Godot imports it.
 Nested transforms, hidden flags, selected instance transforms/colours and material metadata are preserved.
-Sparse accessors, skinned actors, morph targets, compressed mesh/texture extensions and external image paths
-are refused rather than treated as complete imports. Add a tested recovery path when one of these is needed.
+This selective static tool refuses sparse accessors, skinned actors, morph targets, compressed mesh/texture
+extensions and external image paths. These limits do not describe the separate complete-town/model intake,
+which already preserved actor skeletons, animations and rooms. Use the appropriate tested intake for new assets.
 
 Meshes, textures, materials and collision shapes are saved as shared native `.res` files. Set their resource
 paths explicitly after saving. Relative binary resource references failed on a cold load, even though cached
@@ -131,7 +143,8 @@ documents the ordinary material limitation.
 Static recovery alone leaves PSX auxiliary map references as metadata. Rijnkaai's separate native game intake now
 stores those maps and the existing Godot game shaders as native resources; it reuses the actual player, weather,
 wetness, relief, sky, lamps, river and planar mirror systems. See [game integration notes](../game/README.md).
-Interiors, openings, moving bridges/boats, NPC navigation and game services remain outside this district test.
+Interiors, openings, moving bridges/boats, NPC navigation and services are outside the older isolated surface
+fixture. They are present in the full native `town.tscn` game; use its current service/gameplay/transport proofs.
 
 ## Steve testing lamps
 
@@ -145,11 +158,11 @@ value such as `my-lamp-001`; duplicating a wrapper also duplicates this id unles
 gizmo or Inspector transform fields, keeping Y at zero for quay placement, then Ctrl+S.
 
 Launch `Test Editor Changes.cmd` to run the saved scene with a fresh layout, because an existing workshop layout
-overrides the scene seed. This preview saves only to its own new directory under `proof/`. F5 in the editor also
-runs the recovered quay, but uses the normal existing layout. Edit the authored wrapper, not its generated Asset
+overrides the scene seed. This preview saves only to its own new directory under `proof/`. F5 in the editor runs
+the full native town with saved layouts; F6 runs the currently edited district. Edit the authored wrapper, not its generated Asset
 child. Every scene in `Objects` must have a unique id and a library asset reference.
 
-Use `Start Native District Game.cmd` to test your saved workshop layout with game effects, or
+Use `Start Native Town Game.cmd` to test your saved workshop layout in the complete game, or
 `Test Editor Changes In Game.cmd` to test the saved editor seed. The game's lamp sources are rebuilt from authored
 objects, so added, moved and deleted lamps affect illumination and reflections. Neither launcher promotes an
 export into the source scene or writes the workshop layout.

@@ -97,6 +97,7 @@ public partial class Traffic : Node
         var b = new AnimatableBody3D { SyncToPhysics = false, CollisionLayer = Solid.Layer, CollisionMask = 0 };
         AddChild(b);
         b.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = size }, Position = new Vector3(0, size.Y / 2, 0) });
+        Scheldemist.Town.WalkMap.RegisterBody(b,new Aabb(new Vector3(-size.X/2,0,-size.Z/2),size),true);
         return b;
     }
 
@@ -169,6 +170,7 @@ public partial class Traffic : Node
 
     private void Move(Vehicle v,float dt)
     {
+        if(ResidentGone(v)){v.V=0;Place(v,0,0,false);return;}
         float target=v.Pace;
         if (v.State=="stand") { target=0; v.Timer-=dt; if (v.Timer<=0) v.State="go"; }
         else
@@ -222,6 +224,7 @@ public partial class Traffic : Node
 
     private void Place(Vehicle v,float dt,float ds,bool near)
     {
+        bool absent=ResidentGone(v);if(absent)near=false;
         var a=At(v,v.S); v.At=a;
         v.Frame.Visible=near;
         if (v.Kind=="dray")
@@ -263,11 +266,13 @@ public partial class Traffic : Node
             v.Cart.Root.Visible=near;
         }
         v.Man?.Play(v.V>0.08f?"walk":"idle"); v.Man?.SetPace(Math.Max(0.3f,v.V));
+        if(absent){v.Frame.Visible=false;if(v.BedBody!=null)v.BedBody.Position=new(0,-100,0);if(v.HorseBody!=null)v.HorseBody.Position=new(0,-100,0);}
         if (near) v.Man?.Update(dt);
     }
 
     public override void _Process(double delta)
     {
+        if(NetRemote)return;
         MoverCost.Begin("traffic");
         foreach (var v in vehicles) Move(v,(float)MoverClock.Dt);
         bed?.Commit(); fore?.Commit(); rear?.Commit(); front?.Commit(); horse?.Commit();
