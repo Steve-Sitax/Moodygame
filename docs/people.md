@@ -26,6 +26,8 @@ uncompressed-geometry GLB outside the art archive; the compressed art master rem
 Run `recovery/recover-game-models.tscn -- --source-models <plain-folder> --resume-intake yes --only people2`
 through the bounded engine helper (see `docs/godot-people2.md`). It adds `native-godot/assets/game-models/people2.scn`,
 its external resources and extras, preserving existing scenes and merging both intake manifests.
+After rebuilding, `pwsh -File native-godot/scripts/replace-people2.ps1` replaces only people2, installs its matching rig
+and prepares the native pack. It verifies all other model files and manifest entries; see `docs/godot-people2.md`.
 Copy the authored rig to `native-godot/world/data/shared/peopleRig.json`, register `shared/peopleRig.json`
 in the loose data manifest, then run `native-godot/scripts/prepare-native-package.ps1`. Future `faceTypes.json`
 uses the same shared-data registration. `Paths.Shared` reads the extracted checksummed native pack.
@@ -452,7 +454,9 @@ as its base body (`kinds.<kind>.body`), so every clip of that body plays on it u
 3. The body's picture (A's skin through the position map, B's hands, the kind's `skin` extras: socks, stockings,
    red or grimy hands) and the face square (512 px, 1024 for the named cast).
 4. The garments: `Kind.dress(fit)` returns `clothes_kit.Piece`s. They are joined into one cage, unwrapped, subdivided
-   once (the near copy) and moved onto their limit surface (the far copy), as A's bodies are.
+   once (the near copy) and moved onto their limit surface (the far copy), as A's bodies are. Redundant tessellation
+   is then collapsed on the rounded clothing surface within each kind's remaining triangle allowance. Near skin,
+   face and hand topology and morphs stay intact; the clothing carries interpolated UVs and rig weights.
 5. The body under the clothes is cut away (`Kind.covers(point, part)`): what nobody sees costs nothing and cannot
    poke through. Head, eyes and hair always stay.
 6. The cloth picture is painted in 3D on the garments (below).
@@ -501,7 +505,7 @@ the held things. Linear, mipmapped. With four kinds the sixteen cells are full: 
 One model each, under the node `people2_held` (`peopleRig.json held`): `held_sabre` (the police short sabre: ribbed
 brass grip, knuckle bow, a curved 60 cm blade), `held_scabbard` (black leather, brass locket and chape; hangs on
 `hipL`, turned back 28 degrees, `held.hang`), `held_truncheon` (a turned hardwood baton, 40 cm), `held_basket` (an oval
-wicker basket with a bow handle and herring in it; hangs from `gripL`). Grips at the origin, tips along +y, a blade's
+wicker basket with rounded structural withies, a bow handle and herring in it; carried upright on `hipL`). Grips at the origin, tips along +y, a blade's
 edge along -z (docs above, "Sockets"); the sabre sits in its scabbard at `held.sheathed`. A kind lists what it holds
 and where in `kinds.<kind>.held`.
 
@@ -546,6 +550,38 @@ The plan (2.2) budgeted 6,000-9,000 near triangles for the crowd and 12,000 for 
 shadow) is about a quarter. With 12 people inside 15 m and 38 beyond (a busy view), that is about the 450,000
 triangles a frame the plan estimated; draws stay one per person, materials go from 51 to 1.
 
+### Clothing second pass (2026-10-13)
+
+| Kind | Before near / far | After near / far | Clothes near / far |
+|---|---:|---:|---:|
+| docker_a | 18,112 / 4,306 | 8,899 / 2,098 | 3,331 / 886 |
+| fishwife_a | 22,248 / 5,348 | 8,900 / 2,099 | 2,076 / 571 |
+| police | 19,228 / 4,628 | 8,898 / 2,099 | 3,542 / 895 |
+| sooi | 23,664 / 5,722 | 11,500 / 2,097 | 5,940 / 848 |
+
+These before counts are the actual ported art3 master, rather than the older first-pass table.
+After counts use the shipped plain GLB indices. Blender's pre-export far counters are 2,100 / 2,099 /
+2,099 / 2,100; exporter validation removes two/three redundant far triangles from docker/Sooi.
+The exported meshes have no zero-area triangles, finite positions/normals and four normalized joint weights.
+All three crowd kinds meet 6–9k; named Sooi stays below 12k; far copies are about 2k.
+Held props are counted separately: the basket is 2,000 triangles (was 3,600), with rounded structural
+withies, a rim, an inward bow handle and six herring. Other held models retain their counts above.
+The full rebuild prints every garment and prop piece; `kinds.<kind>.pieceTriangles` records the final
+near/far garment breakdown in both authored and shipped peopleRig.json.
+
+The fishwife carries the basket upright at her left hip. Its mesh is in hipL's downward frame:
+local +y down, -z forward; its near side clears the full skirt, and its handle bows toward the forearm.
+Idle, talk and walk no longer turn it like a plate with the hand. The apron has 18 mm clearance at the
+band and 24–42 mm over the skirt, without the old inward wrinkle offset; its hidden full lining was
+replaced by an edge facing. The flatter shawl panels use fewer rows and columns.
+Clogs retain their rounded wooden geometry, with darker willow grain and dirt higher up the sides.
+
+Near faces and hands retain their topology and morphs. Clothing is painted on the rounded surface,
+then reduced with interpolated UVs and weights. Far clothing uses a separate reduction on its limit
+surface. Edge exceptions remain thin cloth hems/creases, hidden garment interfaces and the sabre's
+intentional cutting edge. Withies and the handle have geometric rounded sections; fine wicker strands
+and wood grain use the height map. No shader kind, gameplay light or collision is added.
+
 ### Period sources
 
 The look follows public photographs, paintings and sculpture of Antwerp's working people of the 1860s-1880s:
@@ -573,7 +609,7 @@ The police tunic's exact cut, button metal, collar facing and docker's shoulder 
 - Edge exceptions: thin garment rims retain creases limited by their authored thickness; hidden body/clothing
   interfaces retain their fitted edges. Visible silhouettes come from the existing subdivision/limit geometry,
   not normal maps. Day, rain and evening proofs include low rear views; no geometry was changed in the port.
-- Counts are about twice the plan's (above).
+- The historical first-pass counts above were over budget; the second-pass counts are under “Clothing second pass”.
 - No cloth simulation: the legs drive skirts, aprons and smocks; in a wide stride a skirt divides a little between the
   legs, seated it drapes over the lap and down the shins; the spring bones add the swing in the games.
 - Faces are B's until the face package's types arrive (`face_of`).
@@ -775,7 +811,7 @@ for the sack, crate, cart and truck), `blend_<style>.png` (stroll to the fastest
 - The face shapes have no shape-key normals: lighting follows the base face (the shapes are small).
 - Beards are shells over the decimated face: big beards (mutton chops) show a small dent or two over the cheekbone
   at 1 m (`faces_hero.png`); hair cards add little on top of a shell of the same colour.
-- Counts are over A's crowd budget (see Counts).
+- Undressed base bodies remain over A's crowd budget; the dressed kinds have separate clothing budgets (see Counts).
 - The crown is about 1 cm higher than the table height (1.68 m for 1.67 m).
 - The little finger has no bones of its own (it curls with the ring finger), as the plan allows.
 - `girths()` cannot measure the old bodies' necks (the stoop tilts them out of a level cut).

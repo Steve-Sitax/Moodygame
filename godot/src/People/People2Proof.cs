@@ -77,6 +77,14 @@ internal partial class People2Proof : Node
             Game.GameState.I.PlayingWhen = () => false;
             for (int i = 0; !Dev.Kit.I.IsReady && i < 1800; i++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             if (!Dev.Kit.I.IsReady) throw new InvalidOperationException("Native dev API did not become ready.");
+            if (Main.I.Flag("people2-dress-proof"))
+            {
+                // Keep live residents from crossing the close inspection cameras. The four
+                // exhibit humans still use the real sampler, and the town/light resources stay intact.
+                town.SetProcess(false);
+                if (town.Crowd is { } crowd)
+                    foreach (var resident in crowd.Walking) resident.Group.Visible = false;
+            }
             if (Player.Jef.I is { Fly: false } jef) jef.ToggleFly();
             Player.Jef.I.TestInput = true;
             Main.I.Cam.SetProcess(false);
@@ -87,21 +95,39 @@ internal partial class People2Proof : Node
                 await Dev.Kit.I.Light(hour, weather);
                 for (int settle = 0; settle < 90; settle++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
                 foreach (var human in people)
-                    foreach (var (distance, angle) in new[] { (1f, "front"), (3f, "front"), (3f, "back-low") })
+                    foreach (string motion in Main.I.Flag("people2-dress-proof") ? new[] { "idle", "walk", "talk" } : new[] { "current" })
+                    foreach (var (distance, angle) in Main.I.Flag("people2-dress-proof")
+                        ? new[] { (1f, "front"), (3f, "front"), (1f, "back-low"), (3f, "back-low"), (1f, "feet-low"), (1f, "top"), (3f, "far-front") }
+                        : new[] { (1f, "front"), (3f, "front"), (3f, "back-low") })
                     {
+                        if (motion != "current") human.Play(motion, 0);
+                        foreach (var mesh in World.BakedWorld.All(human.Root).OfType<MeshInstance3D>())
+                        {
+                            if (mesh.Name.ToString().EndsWith("_lod0", StringComparison.Ordinal)) mesh.Visible = angle != "far-front";
+                            if (mesh.Name.ToString().EndsWith("_lod1", StringComparison.Ordinal)) mesh.VisibilityRangeBegin = angle == "far-front" ? 0 : 15;
+                        }
                         var at = human.Root.GlobalPosition;
-                        var from = at + (angle == "front" ? new Vector3(0, distance == 1 ? 1.55f : 1.3f, -distance) : new Vector3(2.4f, 0.35f, 1.8f));
-                        var target = at + new Vector3(0, angle == "front" && distance == 1 ? 1.5f : 0.85f, 0);
+                        bool front = angle is "front" or "far-front";
+                        var from = at + (front ? new Vector3(0, distance == 1 ? 1.55f : 1.3f, -distance)
+                            : angle == "feet-low" ? new Vector3(0.6f, 0.12f, -0.8f)
+                            : angle == "top" ? new Vector3(0.75f, 2.2f, -0.65f)
+                            : new Vector3(distance * 0.8f, 0.35f, distance * 0.6f));
+                        var target = at + new Vector3(0, angle == "feet-low" ? 0.2f : angle == "top" ? 1.0f : angle == "front" && distance == 1 ? 1.5f : 0.85f, 0);
                         Main.I.Cam.LookAtFromPosition(from, target);
                         if (Main.I.Cam is Player.FlyCam fly) fly.Face(Main.I.Cam.GlobalBasis.GetRotationQuaternion());
                         for (int settle = 0; settle < 12; settle++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-                        string name = $"{label}-{human.Kind}-{distance:0}m" + (angle == "front" ? "" : "-" + angle) + ".png";
+                        string name = $"{label}-{human.Kind}-{distance:0}m" + (angle == "front" ? "" : "-" + angle) + (motion == "current" ? "" : "-" + motion) + ".png";
                         Main.I.View.GetTexture().GetImage().SavePng(Path.Combine(dir, name));
                         var daylight = World.Daylight.I;
                         if (Math.Abs(daylight.Hour - hour) > 0.02 || daylight.Weather != weather)
                             throw new InvalidOperationException($"Capture {name} has wrong live clock/weather: {daylight.Hour} {daylight.Weather}");
                         if (Main.I.Cam.GlobalPosition.DistanceTo(from) > 0.01f) throw new InvalidOperationException("Capture camera moved: " + name);
-                        pictures.Add(new { name, hour = daylight.Hour, weather = daylight.Weather, daylight.Night, daylight.Rain, distance, angle, x = at.X, y = at.Y, z = at.Z });
+                        pictures.Add(new { name, hour = daylight.Hour, weather = daylight.Weather, daylight.Night, daylight.Rain, distance, angle, motion, phase = human.AnimationState.Cycle, forcedFar = angle == "far-front", x = at.X, y = at.Y, z = at.Z });
+                        foreach (var mesh in World.BakedWorld.All(human.Root).OfType<MeshInstance3D>())
+                        {
+                            if (mesh.Name.ToString().EndsWith("_lod0", StringComparison.Ordinal)) mesh.Visible = true;
+                            if (mesh.Name.ToString().EndsWith("_lod1", StringComparison.Ordinal)) mesh.VisibilityRangeBegin = 15;
+                        }
                     }
             }
             File.WriteAllText(Path.Combine(dir, "captures.json"), JsonSerializer.Serialize(new { ok = true, place = "vismarkt", fingerprint = Main.I.WorldFingerprint, pictures }, new JsonSerializerOptions { WriteIndented = true }));

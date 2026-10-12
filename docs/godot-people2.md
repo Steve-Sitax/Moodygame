@@ -6,16 +6,16 @@ The dev console accepts `people2 on|off` for later spawns. `p2:<body>` selects a
 body while enabled, and `--people2-map docker_a=man_middling,fishwife_a=woman_stout`
 overrides routing. The multiplayer `Humans.Motions` list is unchanged.
 
-## Authoring and additive intake
+## Authoring and intake
 
 The kit keeps its filenames and internal layout under `art-source/tools/blender/people2/`.
 It imports legacy pose functions from `art-source/tools/blender/build_people.py`.
-Bodies, faces and clothes are unchanged by this port. Masters are
+Bodies and faces retain the port's source artwork. Dressed kinds have a second clothing pass. Masters are
 `art-source/client/public/models/people2.glb` and `art-source/shared/peopleRig.json`.
 Blender check pictures go to `.scratch/people2-build/shots`, outside git.
 
 ```powershell
-& $blender -b --factory-startup -P art-source/tools/blender/build_people2.py -- --plain .scratch/people2-plain/people2.glb
+& $blender -b --factory-startup --python-exit-code 1 -P art-source/tools/blender/build_people2.py -- --plain .scratch/people2-plain/people2.glb
 dotnet build native-godot/Scheldemist.Native.csproj
 . ./native-godot/scripts/engine-tools.ps1
 $engine = Resolve-WorkshopGodot
@@ -25,16 +25,29 @@ $env:SCHELDEMIST_USER_DATA = Join-Path $intake 'userdata'
 Invoke-WorkshopEngine $engine (Join-Path (Get-Location) 'native-godot') @('--rendering-method','forward_plus','--path',(Join-Path (Get-Location) 'native-godot'),'--log-file',(Join-Path $intake 'live.log'),'res://recovery/recover-game-models.tscn','--','--source-models',(Join-Path (Get-Location) '.scratch/people2-plain'),'--resume-intake','yes','--only','people2','--author-root',(Join-Path $intake 'layouts')) (Join-Path $intake 'engine.log') 180
 ```
 
-Set `$blender` to the installed Blender 5.2 executable. Run Blender with a process
+Set `$blender` to the installed Blender 5.2 executable. Use `--python-exit-code 1` so a Python failure cannot look like a successful build. Run Blender with a process
 timeout (25 minutes for the full build) and restore the environment after intake.
 Use disposable data/layout directories; retain logs and delete only those test data.
 The plain GLB has dense morph accessors and ordinary geometry. It replaces the retired
 Node decoder; there is no decoder or GLB import during game startup or export.
 
 Intake adds one scene plus `people2-resources/` and `people2.extras.json`, merging
-`intake.json` and `full-intake.json`. It refuses to replace an existing stored scene
-or resource directory. A repeated identical intake checks the source hash and keeps
-native edits. Existing scenes, authored placements and permanent IDs remain intact.
+`intake.json` and `full-intake.json`. Normal resume keeps an identical scene and rejects
+a changed source. After rebuilding the plain GLB, replace the people2 kit in one command:
+
+```powershell
+pwsh -File native-godot/scripts/replace-people2.ps1
+```
+
+Optional `-SourceModels <directory>` and `-Rig <peopleRig.json>` select another full build.
+The wrapper builds C#, imports the model with `--resume-intake yes --only people2 --replace people2`,
+copies the matching rig and prepares the native pack/fingerprint. It records hashes of every
+other model file and checks both manifests' other entries. The intake validates/imports the
+GLB before replacing anything, backs up only people2's three owned paths and the manifests,
+and restores them if saving fails. People2 rejects headless intake, whose dummy renderer cannot
+persist usable ImageTexture resources; atlas images are checked before replacement. No other model can use `--replace`. Stored placements,
+permanent IDs and editor layouts are untouched. Evidence lives in `.scratch/people2-replace-*`;
+its isolated test data are removed automatically.
 
 Copy the authored rig to `native-godot/world/data/shared/peopleRig.json` and register
 `shared/peopleRig.json` in `native-godot/world/data/manifest.json`. Future
@@ -63,6 +76,7 @@ integration metadata; this port does not invent the pending face-type schema or 
 
 ```powershell
 pwsh -File native-godot/scripts/check-people2.ps1
+& ./native-godot/scripts/check-people2.ps1 -Modes dress-captures -Port 8903
 & ./native-godot/scripts/check-people2.ps1 -Modes legacy-timing,timing
 & ./native-godot/scripts/check-people2.ps1 -Modes routing
 ```
@@ -70,7 +84,7 @@ pwsh -File native-godot/scripts/check-people2.ps1
 The routing fixture verifies the map overrides, all fourteen body/kind roots, the
 16/64-bone off/on switch and the face setter/reset contract.
 
-The runner builds/prepares once, uses ports 8890–8899, disables AI and writes evidence
+The runner builds/prepares once, uses ports 8900–8909 (default 8903), disables AI and writes evidence
 under `.scratch/people2-native-*`. Each process has separate saves, settings, layouts
 and static cache, a 420-second timeout and guaranteed shutdown/data cleanup.
 Timing rejects other running Godot engines before and throughout the run. An inert
@@ -83,6 +97,11 @@ at 13:00 clear, 13:00 rain and 19:30 beside an existing lamp, with low rear view
 The capture checks the live clock/weather and camera position. Inspect the PNGs.
 The parade samples blend_walk, idle, walk and talk. Ordinary `--snap <dir> --views ...`
 also works on `res://town.tscn`; use `--no-mainmenu` for automated snapshots/parades.
+`dress-captures` adds 252 pictures: each kind in idle, walk and talk, front/back at 1/3 m,
+plus low feet/undersides and elevated cap/shoulder/basket views, in all three environments.
+It also shows the far copy at 3 m for silhouette inspection. The receipt records the live animation phase as well as clock, weather and camera position.
+The inspection fixture freezes/hides the ordinary crowd so walkers cannot obscure the close views;
+its four exhibit humans retain native animation, and the environment/light resources stay intact.
 
 The shader audit requires exactly one people2 kind, zero late kinds and zero problems.
 PeopleTest directly times every `Human.Update` and the existing `Townspeople.LogicMs`
@@ -146,3 +165,58 @@ Shipped content fingerprint:
 The optional legacy timing comparison was interrupted by another engine and discarded.
 It supplies no performance comparison. All completed runs' test databases, settings,
 layouts and extracted caches were deleted; logs, pictures and receipts remain outside git.
+
+## Clothing second-pass evidence (2026-10-13)
+
+The repaired build entrypoint keeps `--only` and `--kinds` independent. The documented
+command enables `--python-exit-code 1`; the accepted bounded rebuild also rejected
+Python tracebacks in its wrapper. Full rebuild: 669 seconds, ten bodies, four dressed kinds,
+64 bones, 102 clips and one atlas material. Counts and edge notes are in
+`docs/people.md`, under “Clothing second pass”; near crowd kinds are 8,898–8,900,
+named Sooi is 11,500, and shipped far copies are 2,097–2,099 triangles. The basket
+is 2,000. `.scratch/dress-pass/build.log` prints every garment/prop piece;
+`.scratch/dress-pass/geometry.json` checks exported indices, finite positions/normals,
+zero-area triangles (none) and four normalized joint weights.
+
+Final rendered intake/preservation receipt:
+`.scratch/people2-replace-dc50dbef600a4f0dba07b8fa801ab7a3/replacement.json`.
+All 1,582 other model files and both manifests' other entries were preserved.
+The scene has 150 external resources, largest 16,423,935 bytes. Guards reject
+another model and headless people2 intake without changing any of the 1,736 stored
+model/manifest files: `.scratch/dress-pass/intake-guards/guards.json`.
+
+Accepted and inspected final pictures:
+`.scratch/people2-native-1119086e80904e3aa5d6950b05b8b235/dress-captures/`.
+All 252 PNGs were reviewed through the twelve `review/*.jpg` contact sheets,
+including fronts, low backs, tops, feet, forced far copies, idle/walk/talk,
+13:00 clear/rain and 19:30 lamplight. The basket stays upright beside the skirt;
+its withies, handle and herring are visible from above. The apron edge stays clear
+of the skirt in these poses; clogs retain a dark wooden surface under the lamps.
+The retake freezes/hides ordinary crowd walkers to keep close inspection unobstructed.
+This is automated art evidence, not manual player acceptance.
+
+Technical receipts: `.scratch/people2-native-80c0e54a321d4842a10f11d3627fa4fb/`.
+The shader audit passes 532 samples: exactly one people2 kind, zero late kinds/problems,
+generated cache 29 throughout, 121 gameplay point lights and one sun unchanged.
+Six disabled workshop preview lights remain separate. The fourteen-kind, four-row
+parade passes; all sixteen PNGs were inspected (`parade/review.jpg`). Seven content
+identity checks, 341 data-pack checks across 320 files and 25 multiplayer checks pass,
+including matching clients and rejection of a mismatched content fingerprint.
+
+Final shipped content fingerprint:
+`e821b1b44b0812cd5be2dccc25dfc99c075d8731510a586834fd794ab0b54c99`.
+The original headless intake attempt and aborted/occluded captures are not acceptance
+evidence. Completed runs removed isolated databases, settings, layouts and extracted
+caches; logs, art inputs, pictures and receipts remain outside git.
+
+Second-pass timing is **not accepted**:
+`.scratch/people2-native-6d4d7c99b11d48f09799face655b61ce/timing/`.
+The runner waited for an exclusive start, then other worktrees launched engines during
+measurement. All 190 process-isolation samples record overlap, so the runner rejected
+this run despite `peopletest.json` reporting `ok: true`. Its test data were cleaned and
+its own engine stopped. An uninterrupted exclusive window is still required; the
+historical port timing above is not a new measurement of these assets. Re-run:
+
+```powershell
+& ./native-godot/scripts/check-people2.ps1 -Modes timing -Port 8905
+```

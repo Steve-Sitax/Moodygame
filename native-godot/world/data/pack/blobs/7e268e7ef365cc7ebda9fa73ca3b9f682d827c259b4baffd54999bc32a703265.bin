@@ -13682,8 +13682,32 @@
     "ride": "the smock's skirt rides up through the saddle"
    },
    "triangles": {
-    "lod0": 18112,
-    "lod1": 4306
+    "lod0": 8899,
+    "lod1": 2100
+   },
+   "pieceTriangles": {
+    "lod0": {
+     "smock": 1541,
+     "trousers": 706,
+     "clogL": 144,
+     "clogR": 142,
+     "cap": 202,
+     "cap_peak": 44,
+     "kerchief": 398,
+     "kerchief_ends": 8,
+     "pad": 146
+    },
+    "lod1": {
+     "smock": 414,
+     "trousers": 172,
+     "clogL": 30,
+     "clogR": 24,
+     "cap": 51,
+     "cap_peak": 16,
+     "kerchief": 137,
+     "kerchief_ends": 4,
+     "pad": 38
+    }
    },
    "note": "natieman of the quays: blue kiel, corduroy, clogs, flat cap, a leather pad on the left shoulder for sacks"
   },
@@ -13739,8 +13763,8 @@
    "held": [
     {
      "model": "held_basket",
-     "socket": "gripL",
-     "note": "the basket of herring hangs from her left fist (hand shape grip)"
+     "socket": "hipL",
+     "note": "upright herring basket carried at the left hip, clear of the apron; handle above the rim"
     }
    ],
    "shapeKeys": {
@@ -13755,8 +13779,34 @@
     "ride": "the skirt"
    },
    "triangles": {
-    "lod0": 22248,
-    "lod1": 5348
+    "lod0": 8900,
+    "lod1": 2099
+   },
+   "pieceTriangles": {
+    "lod0": {
+     "skirt": 262,
+     "bodice": 911,
+     "chemise": 60,
+     "apron": 113,
+     "apron_band": 104,
+     "shawl": 246,
+     "cap": 116,
+     "cap_frill": 32,
+     "boots": 144,
+     "soles": 88
+    },
+    "lod1": {
+     "skirt": 63,
+     "bodice": 265,
+     "chemise": 32,
+     "apron": 32,
+     "apron_band": 36,
+     "shawl": 61,
+     "cap": 28,
+     "cap_frill": 20,
+     "boots": 20,
+     "soles": 14
+    }
    },
    "note": "Vismarkt fishwife: white cap, checked shawl, striped red skirt, apron, basket of herring"
   },
@@ -13836,8 +13886,34 @@
     "scrub": "not on duty"
    },
    "triangles": {
-    "lod0": 19228,
-    "lod1": 4628
+    "lod0": 8898,
+    "lod1": 2099
+   },
+   "pieceTriangles": {
+    "lod0": {
+     "tunic": 1756,
+     "collar": 110,
+     "belt": 144,
+     "buckle": 52,
+     "frog": 52,
+     "trousers": 819,
+     "boots": 284,
+     "soles": 132,
+     "kepi": 153,
+     "kepi_peak": 40
+    },
+    "lod1": {
+     "tunic": 466,
+     "collar": 36,
+     "belt": 52,
+     "buckle": 22,
+     "frog": 18,
+     "trousers": 185,
+     "boots": 40,
+     "soles": 28,
+     "kepi": 34,
+     "kepi_peak": 14
+    }
    },
    "note": "agent of the Antwerp city police: dark blue tunic, kepi, belt and sabre, truncheon when needed"
   },
@@ -13908,8 +13984,42 @@
     "rifle_talk": "no rifle"
    },
    "triangles": {
-    "lod0": 23664,
-    "lod1": 5722
+    "lod0": 11500,
+    "lod1": 2100
+   },
+   "pieceTriangles": {
+    "lod0": {
+     "shirt": 212,
+     "shirt_collar": 434,
+     "waistcoat": 531,
+     "kerchief": 618,
+     "kerchief_ends": 16,
+     "coat": 1504,
+     "coat_collar": 514,
+     "cuffL": 96,
+     "cuffR": 96,
+     "trousers": 1065,
+     "boots": 364,
+     "soles": 178,
+     "cap": 258,
+     "cap_peak": 54
+    },
+    "lod1": {
+     "shirt": 22,
+     "shirt_collar": 112,
+     "waistcoat": 50,
+     "kerchief": 168,
+     "kerchief_ends": 4,
+     "coat": 171,
+     "coat_collar": 132,
+     "cuffL": 20,
+     "cuffR": 20,
+     "trousers": 115,
+     "boots": 12,
+     "soles": 8,
+     "cap": 12,
+     "cap_peak": 2
+    }
    },
    "note": "Sooi, foreman of the Hessenatie: open brown coat shiny at the elbows, waistcoat, neckerchief, flat cap"
   }
