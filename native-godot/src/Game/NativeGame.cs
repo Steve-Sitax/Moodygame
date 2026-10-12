@@ -36,7 +36,7 @@ public partial class NativeGame : Scheldemist.Main
         status.AddThemeColorOverride("font_shadow_color", Colors.Black);
         status.AddThemeConstantOverride("shadow_offset_x", 2); status.AddThemeConstantOverride("shadow_offset_y", 2);
         Ui.AddChild(status);
-        DisplayServer.WindowSetTitle("Scheldemist · Native Rijnkaai Game");
+        GetTree().Root.Title = "Scheldemist · Native Rijnkaai Game";
         if (Arg("native-game-test") != "") _ = NativeGameProof.Run(this, Arg("native-game-test"));
         if (Arg("surface-test") != "") _ = NativeSurfaceProof.Run(this, Arg("surface-test"));
         if (Flag("review-surfaces")) _ = ReviewSurfaces();
@@ -51,7 +51,7 @@ public partial class NativeGame : Scheldemist.Main
         Cam.GlobalPosition = new Vector3(17.08f, 1.13f, 2.08f); Cam.LookAt(new Vector3(18, 0.35f, 0.9f));
         Daylight.I.SetTime(13); Daylight.I.SetWeather("clear"); Daylight.I.SetRain(0); Daylight.I.Settle();
         // FlyCam keeps its own mouse angles; sync them after positioning the review camera.
-        if (Cam is FlyCam fly) fly.Face(Cam.GlobalBasis.GetRotationQuaternion());
+        if (Cam is FlyCam fly) { fly.Face(Cam.GlobalBasis.GetRotationQuaternion()); fly.SpeedScale = 0.125f; }
     }
 
     public override void _UnhandledInput(InputEvent input)

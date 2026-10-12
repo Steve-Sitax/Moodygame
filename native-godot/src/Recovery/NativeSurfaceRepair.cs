@@ -33,7 +33,7 @@ public partial class NativeSurfaceRepair : Node
             if (ResourceSaver.Save(resource, path, ResourceSaver.SaverFlags.Compress) != Error.Ok) throw new IOException("Could not save " + path);
         }
         var old = ResourceLoader.Load<ArrayMesh>("res://recovered/rijnkaai-20261012/resources/r0085.res");
-        if (!old.HasMeta("native_coping_projection") || WorkshopSession.Arg("rebuild-coping") == "yes")
+        if (!old.HasMeta("native_coping_projection") || old.GetMeta("native_coping_projection").AsInt32() < 3 || WorkshopSession.Arg("rebuild-coping") == "yes")
         {
             using var source = new RecoveryGlb(input, new JsonObject(), new Rect2(-1000, -1000, 2000, 2000));
             int node = source.Json["nodes"]!.AsArray().Select((n, i) => (n, i)).Single(p => p.n!["name"]?.GetValue<string>() == "quay_coping").i;
@@ -47,15 +47,19 @@ public partial class NativeSurfaceRepair : Node
             var mesh = RecoveryCoping.Build(source, node, material); Save(mesh, old.ResourcePath);
             var shape = mesh.CreateTrimeshShape(); shape.BackfaceCollision = true;
             Save(shape, "res://recovered/rijnkaai-20261012/resources/r0164.res");
-            if (!game.HasMeta("native_coping_detail")) { NativeSurfaceMaterials.Coping(game); Save(game, game.ResourcePath); }
+            if (!game.HasMeta("native_coping_detail") || game.GetMeta("native_coping_detail").AsInt32() < 3) { NativeSurfaceMaterials.Coping(game); Save(game, game.ResourcePath); }
             GD.Print($"Coping: {mesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array().Length} full-precision vertices, metric height map, rounded nose.");
         }
         foreach (string id in new[] { "bollard-cannon", "bollard-mushroom" })
         {
             var scene = ResourceLoader.Load<PackedScene>("res://recovered/quay-models-20261012/props/" + id + ".tscn").Instantiate();
             foreach (var instance in TownRecovery.Nodes(scene).OfType<MeshInstance3D>())
-                if (instance.Mesh is { } mesh && !mesh.HasMeta("native_iron_detail"))
-                { var made = RecoveryIron.Build(mesh); Save(made, mesh.ResourcePath); GD.Print(id + ": stone seat, detailed iron, translucent ground stain."); }
+                if (instance.Mesh is { } mesh && (!mesh.HasMeta("native_iron_detail") || mesh.GetMeta("native_iron_detail").AsInt32() < 2))
+                {
+                    var made = RecoveryIron.Build(mesh); Save(made, mesh.ResourcePath);
+                    foreach (var collider in TownRecovery.Nodes(instance).OfType<CollisionShape3D>()) if (collider.Shape is { ResourcePath.Length: > 0 } previous) Save(RecoveryIron.Collider(made), previous.ResourcePath);
+                    GD.Print(id + ": bevelled cast-iron flange/body, transparent non-solid ground stain.");
+                }
             scene.Free();
         }
         GD.Print("Original native resources backed up at " + backup);

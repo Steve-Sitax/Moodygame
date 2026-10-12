@@ -166,7 +166,7 @@ public partial class TownRecovery : Node
     {
         if (!Solid(mesh) || mesh.Mesh == null || mesh.Mesh.GetFaces().Length == 0) return;
         var body = new StaticBody3D { Name = "Solid", CollisionLayer = layer, CollisionMask = 0 };
-        var shape = mesh.Mesh.CreateTrimeshShape(); shape.BackfaceCollision = true;
+        var shape = mesh.Mesh.HasMeta("native_iron_detail") ? RecoveryIron.Collider(mesh.Mesh) : mesh.Mesh.CreateTrimeshShape(); shape.BackfaceCollision = true;
         body.AddChild(new CollisionShape3D { Name = "Shape", Shape = shape }); mesh.AddChild(body); collisions++;
     }
     private void Recover()

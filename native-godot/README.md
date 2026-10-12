@@ -26,9 +26,13 @@ layout. This is a district game test: NPCs, missions, interiors and moving ships
 
 `Review Quay Surfaces.cmd` starts the actual game next to the corrected bollard and coping in free-camera mode.
 Use B to compare surface relief, F6 for rain and F7 for evening/night. The opaque rust square is fixed; the bollard
-has casting pits, corrosion and rope wear. The original model's pedestal is bluestone, with a chamfered edge.
+has casting pits, corrosion and rope wear. Its base uses the same iron, with bevels and rounded plan corners.
 Steve requested full Godot conversion after his test. Complete the remaining world/game systems and district
 resources, then verify a standalone Godot export before removing the web/server/bake runtime dependencies.
+
+Follow the [model edge rule](../AGENTS.md) for every asset converted or authored in Godot. The coping now also
+has a worn paving-side arris, rounded lower lip and bevelled exposed vertical corners. Its underside receives
+environment-driven indirect light so the stone remains visible in shadow and darkens at night.
 
 ## Place objects yourself
 

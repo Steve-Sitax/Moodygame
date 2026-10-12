@@ -38,10 +38,21 @@ public static class NativeSurfaceMaterials
     {
         const string old = "NORMAL = bump_normal(VERTEX, NORMAL, bump_dh(raw_uv, vec2(0.0), VIEWPORT_SIZE.y / 270.0));";
         string code = material.Shader.Code;
-        if (!code.Contains(old, StringComparison.Ordinal)) throw new InvalidOperationException("Coping game shader has no original bump hook.");
-        code = code.Replace("void vertex() {", Read("surface_normal.gdshaderinc") + "\nvoid vertex() {");
-        code = code.Replace(old, "NORMAL = metric_surface_normal(VERTEX, NORMAL, bump_scale * textureGrad(bump_map, raw_uv, dFdx(raw_uv), dFdy(raw_uv)).r);");
+        if (!material.HasMeta("native_coping_detail"))
+        {
+            if (!code.Contains(old, StringComparison.Ordinal)) throw new InvalidOperationException("Coping game shader has no original bump hook.");
+            code = code.Replace("void vertex() {", Read("surface_normal.gdshaderinc") + "\nvoid vertex() {");
+            code = code.Replace(old, "NORMAL = metric_surface_normal(VERTEX, NORMAL, bump_scale * textureGrad(bump_map, raw_uv, dFdx(raw_uv), dFdy(raw_uv)).r);");
+        }
+        if (!code.Contains("// Native coping underside", StringComparison.Ordinal))
+        {
+            const string paint = "vec4 c = texture(tex, uv);";
+            const string sky = "vec3 sky = mix(psx_hemi_ground.rgb, psx_hemi_sky.rgb, nw.y * 0.5 + 0.5) * bump_k * psx_sky_seen(world, nw);";
+            if (!code.Contains(paint, StringComparison.Ordinal) || !code.Contains(sky, StringComparison.Ordinal)) throw new InvalidOperationException("Review the coping indirect-light hooks.");
+            code = code.Replace(paint, paint + "\n // Native coping underside: undo painted shadow in linear colour; leave mortar joints unchanged.\n float under_stone = smoothstep(0.25, 0.5, textureGrad(bump_map, raw_uv, dFdx(raw_uv), dFdy(raw_uv)).r);\n c.rgb *= 1.0 + 3.0 * under_stone * (1.0 - smoothstep(0.21, 0.225, raw_uv.y));");
+            code = code.Replace(sky, sky + "\n // Light returned from the water follows sky intensity, weather and night.\n sky += psx_hemi_sky.rgb * (0.22 * smoothstep(0.05, 0.85, -nw.y)) * psx_sky_seen(world, nw);");
+        }
         material.Shader = new Shader { Code = code }; material.SetShaderParameter("bump_scale", 0.008f);
-        material.SetMeta("native_coping_detail", 1);
+        material.SetMeta("native_coping_detail", 3);
     }
 }

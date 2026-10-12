@@ -85,7 +85,12 @@ The coping colour and height images already agree and have straight joints. Mitr
 both width corners, causing a diagonal texture seam through each quad. `RecoveryCoping` projects U along the
 quay normal's perpendicular, rebases each short patch by an integer repeat, and saves uncompressed positions
 and UVs. It refines the existing 50 mm nose from four to twelve strips. Mitre displacement must affect positions
-only; derive normals from the original outward normal or the rounded edge gets incorrect shading.
+only; derive normals from the original outward normal or the rounded edge gets incorrect shading. The paving-side
+top arris has a 12 mm radius and the exposed underside lip has a 10 mm radius. `RecoveryCopingCorners` clips
+convex vertical corners with an 8 mm bevel and caps the cut through the entire profile. Inside/mating junctions
+stay fitted. Preserve the underside's contact with the wall at Y = -0.28; the former black band was a surface,
+not a gap. The game compensates its painted shadow in linear colour and adds indirect light scaled by the live
+sky, weather and night, leaving mortar dark. No constant emissive wash is added.
 
 The native sampler now accepts a metric height texture. Rijnkaai's coping uses the game's existing height map
 with 8 mm depth in both workshop and game. Colour/height are both flipped vertically by the source export;
@@ -93,7 +98,10 @@ keep them aligned. `NativeSurfaceMaterials.Coping` replaces the old screen-scale
 For a new visual intake, attach its matching height texture to the recovered coping material and apply this
 game helper to that snapshot's coping shader. Source material/resource numbers can differ in another district.
 
-`RecoveryIron` splits cannon/mushroom bollards into the original bluestone seat, iron and rust stain. Iron uses
+`RecoveryIron` replaces the imported bluestone pedestal with a cast mounting flange, following Steve's requested
+matching finish. Base and body share one iron material. The flange keeps the source dimensions, with 2 mm edge
+bevels, 6 mm rounded plan corners and a chamfered shoulder. Its collider is rebuilt from solid surfaces; the
+transparent paving stain adds no raised collision plane. Iron uses
 model-space casting pits (about 1 mm), larger corrosion dents (about 3 mm), rust patches and a worn rope band.
 The shader fades subpixel detail with distance. The ground stain sits 2 mm above the paving. Game conversion
 must preserve AlphaDepthPrePass as blending without depth writing; treating only Alpha as blended produced
@@ -109,4 +117,7 @@ no GLB/bake intake is needed for surface or placement edits.
 `NativeSurfaceProof` checks straight top joints across both triangles, a 50 mm round profile and normals, height
 maps, transparency, saved object count and B toggling. `--surface-test <proof-directory>` on `game.tscn` captures
 day/rain/no-bump close views; `--surface-shot <proof-directory>` on `main.tscn` captures the native workshop in
-Compatibility. Use copied layouts with `--author-dir`. Evidence for this pass is under `proof/surface-after`.
+Compatibility. It also verifies all three coping radii, the vertical corner bevel, shared base/body materials,
+wall contact and a ray through the stain reaching the actual paving. Views cover the land edge, underside,
+quay corner and night. Use copied layouts with `--author-dir`. Current evidence is under `proof/edge-after`.
+The project-wide [edge rule](../../AGENTS.md) applies to future districts and direct Godot modelling.
