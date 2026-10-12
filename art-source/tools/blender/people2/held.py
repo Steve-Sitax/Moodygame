@@ -12,8 +12,8 @@ held_truncheon, held_basket.
   cap, a slightly curved single-edged blade of 60 cm. Sheathed: in held_scabbard's frame at SHEATHED.
 - held_scabbard: black leather with a brass locket (the stud that hooks into the belt's frog) and a brass chape.
 - held_truncheon: a turned hardwood baton of 40 cm with a grip and a thong hole.
-- held_basket: a fishwife's oval wicker basket with a bow handle, herring in it; the handle's top runs through
-  the fist along +y, the basket hangs below the hand (-z when the arm hangs: away from the wrist).
+- held_basket: a fishwife's oval wicker basket with rounded withies, an inward bow handle and herring;
+  exported in hipL's downward frame, with its opening horizontal and its near side outside the skirt.
 """
 
 import math
@@ -216,7 +216,7 @@ def _truncheon(ctx):
 
 
 def basket():
-    """An oval wicker basket with a bow handle, the handle's top at the origin along +y; herring in it."""
+    """An oval woven basket, painted in its own frame then transformed to the left-hip carry."""
     bk = ck.Piece("basket", Cloth((0.58, 0.47, 0.30), "wood", wear=0.2, folds=0.0, extra=_wicker), scale=1.0)
     n = 14
     depth = 0.17
@@ -237,12 +237,27 @@ def basket():
     bk.seam(cv, ids[0, n // 2])
     bk.orient(lambda q: q - np.array((0.0, 0.0, top_z - depth * 0.4)))
     ck.thicken(bk, 0.008, depth=None, crease=0.08)
-    # the bow handle: a round withy arc from one end of the rim, up through the fist, down to the other
+    # Rounded structural withies give the weave an actual rim and side relief.
+    # Fine alternating strands remain in the height map, below silhouette scale.
+    weave = ck.Piece("basket_withies", Cloth((0.46, 0.35, 0.21), "wood", folds=0.0, extra=_wicker))
+    for level in range(5):
+        z = top_z - depth * (0.9 - 0.225 * level)
+        scale = 0.82 + 0.18 * level / 4
+        path = [(0.12 * scale * math.sin(a), 0.19 * scale * math.cos(a), z)
+                for a in np.linspace(0, 2 * math.pi, 17)]
+        sweep(weave, path, 0.0035 if level < 4 else 0.005, 0.0035 if level < 4 else 0.005,
+              4, caps=(False, False), up=(0, 0, 1))
+    for a in np.linspace(0, 2 * math.pi, 12, endpoint=False):
+        path = [(0.12 * scale * math.sin(a), 0.19 * scale * math.cos(a), z)
+                for z, scale in ((top_z - depth, 0.79), (top_z - depth * 0.75, 0.94),
+                                 (top_z - depth * 0.3, 1.0), (top_z, 1.025))]
+        sweep(weave, path, 0.003, 0.003, 4)
+    # the bow handle curves inward toward the forearm above the hip
     hd = ck.Piece("basket_handle", Cloth((0.55, 0.44, 0.28), "wood", folds=0.0, extra=_withy), scale=1.2)
     arc = []
     for k in range(13):
         a = math.pi * k / 12
-        arc.append((0.0, -0.17 * math.cos(a), top_z + 0.004 + (0.0 - top_z - 0.004) * math.sin(a) ** 0.8))
+        arc.append((-0.16 * math.sin(a) ** 0.8, -0.17 * math.cos(a), top_z + 0.004 + (0.0 - top_z - 0.004) * math.sin(a) ** 0.8))
     sweep(hd, arc, 0.0085, 0.0085, 8, up=(1.0, 0.0, 0.0))
     # herring: silver fish lying across the top, heads out
     fish = ck.Piece("herring", Cloth((0.62, 0.66, 0.68), "metal", folds=0.0, extra=_herring), scale=1.4)
@@ -261,7 +276,7 @@ def basket():
             wx.append(0.006 * body + 0.001)
             wz.append(0.018 * body + 0.002)
         sweep(fish, path, wz, wx, 5, up=(1.0, 0.0, 0.0))
-    return [bk, hd, fish]
+    return [bk, weave, hd, fish]
 
 
 def _wicker(ctx):
@@ -346,8 +361,19 @@ def build_all(kinds, layout, atl, tex=2048):
         bmesh.ops.delete(bm, geom=gone, context="VERTS")
         bm.to_mesh(ob.data)
         bm.free()
+        if name == "held_basket":
+            dress.reduce_cloth(ob, 2000)
+        print("[people2] held %s pieces: %s" % (name, dress.piece_counts(ob)))
         for vg in list(ob.vertex_groups):
             ob.vertex_groups.remove(vg)
+        if name == "held_basket":
+            from . import B, G
+            # hipL points down (+y), with -z forward. Paint in the wicker's
+            # original frame first, then carry it upright beside the skirt.
+            for vertex in ob.data.vertices:
+                x, y, z = G(vertex.co)
+                vertex.co = B(x + 0.25, -z - 0.12, y)
+            ob.data.update()
         ob.parent = root
         obs.append(ob)
     bpy.data.objects.remove(near)

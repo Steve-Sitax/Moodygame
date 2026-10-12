@@ -7,6 +7,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The optional people2 cast has lighter clothing meshes and simpler far copies. The fishwife carries her herring basket upright at her hip, her apron clears the skirt, and the docker wears darker, dirtier wooden clogs.
+
 - The complete town now runs in Godot: eleven editable districts, the title menu, residents, interiors, jobs, weather and harbour traffic. The finished model and texture work described below has been imported into native resources. Playing and editing no longer need the web game or a bake.
 - Place, move, rotate, copy and remove lamps and other library objects in the workshop, then test the saved layout in the full game. Existing object identities and saved district layouts are preserved. Exposed model edges now follow a material-specific bevel and wear rule.
 - Multiplayer uses a native Godot host or a separate headless server, with authenticated players and LAN/VPN connections. Windows exports include their required runtime.

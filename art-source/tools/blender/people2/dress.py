@@ -103,6 +103,34 @@ def limit4(ob):
     wt.apply(ob, W, limit=4)
 
 
+def reduce_cloth(ob, budget):
+    """Collapse redundant tessellation after rounding, before adding any face morphs.
+
+    The decimator interpolates UVs and rig weights on the painted surface.
+    The rounded limit surface, hems and folds are already geometry at this stage.
+    """
+    import bpy
+    count = lod.tris(ob)
+    if budget <= 0:
+        raise ValueError("Exposed body leaves no clothing budget: %s" % ob.name)
+    if count <= budget:
+        return
+    bpy.context.view_layer.objects.active = ob
+    modifier = ob.modifiers.new("cloth_budget", "DECIMATE")
+    modifier.ratio = budget / count
+    modifier.use_collapse_triangulate = True
+    bpy.ops.object.modifier_apply(modifier=modifier.name)
+
+
+def piece_counts(ob):
+    parts = wt.parts(ob)
+    counts = {}
+    for face in ob.data.polygons:
+        name = (parts[face.vertices[0]] or "unknown").removeprefix("in_")
+        counts[name] = counts.get(name, 0) + len(face.vertices) - 2
+    return counts
+
+
 def join(target, src):
     import bpy
 
@@ -227,6 +255,13 @@ def build(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
     # the body under the clothes
     cut0 = ck.cut_body(b["lod0"], kind.covers)
     cut1 = ck.cut_body(b["lod1"], kind.covers)
+    # Keep near skin/face/hand topology and all its morphs intact. Spend the remaining
+    # crowd budget on cloth; named people have a larger allowance.
+    reduce_cloth(near, (11500 if kind.hero else 8900) - lod.tris(b["lod0"]))
+    reduce_cloth(cage, 2100 - lod.tris(b["lod1"]))
+    b["piece_counts"] = {"lod0": piece_counts(near), "lod1": piece_counts(cage)}
+    log("[people2]   %s final clothes near/far: %s / %s" %
+        (kind.name, b["piece_counts"]["lod0"], b["piece_counts"]["lod1"]))
     # UVs into the atlas
     at.remap_uv(b["lod0"], layout["body_" + kind.name], layout["face_" + kind.name])
     at.remap_uv(b["lod1"], layout["body_" + kind.name], layout["face_" + kind.name])
@@ -284,5 +319,6 @@ def kind_json(b):
         "held": [{"model": m, "socket": s, "note": n} for m, s, n in k.held],
         "shapeKeys": {"hands_hard": k.hands_hard},
         "avoid": k.avoid, "triangles": {"lod0": b["counts"]["lod0"], "lod1": b["counts"]["lod1"]},
+        "pieceTriangles": b["piece_counts"],
         "note": k.note,
     }

@@ -97,7 +97,7 @@ CORD = Cloth(hexrgb(0x4a4032), "corduroy", wear=0.5, mud=0.9, dust=0.2, extra=_t
 CAP = Cloth(hexrgb(0x3a342c), "wool", wear=0.4, dust=0.2, folds=0.5, extra=_cap_extra)
 PEAK = Cloth(hexrgb(0x2e2a24), "felt", wear=0.5, folds=0.0)
 KERCHIEF = Cloth(hexrgb(0x8a2c22), "cotton", wear=0.5, dust=0.15, folds=1.2)
-WOOD = Cloth((0.66, 0.56, 0.41), "wood", wear=0.0, mud=0.35, folds=0.0, mud_h=0.03)
+WOOD = Cloth((0.34, 0.25, 0.15), "wood", wear=0.0, mud=0.65, folds=0.0, mud_h=0.055)
 LEATHER = Cloth((0.36, 0.24, 0.15), "leather", wear=0.6, folds=0.3, extra=_pad_extra)
 
 

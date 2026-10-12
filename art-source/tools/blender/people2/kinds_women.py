@@ -5,7 +5,7 @@ frill over hair pinned flat; a chemise's white collar at the throat; a checked w
 point down the back, its ends crossed over the breast and tucked into the apron's band; a slate-blue bodice (jak)
 with its sleeves pushed up to the forearm; a full red skirt striped in fawn, to the ankles, with real folds; a
 brownish linen apron with a waistband tied behind; dark stockings, laced ankle boots; big red hands. The basket of
-herring (held.py) hangs from her left hand. Colours from the old kit's fishwife_a; the hands and the basket from
+herring (held.py) is carried upright at her left hip. Colours from the old kit's fishwife_a; the hands and the basket from
 the persona of Fientje, the named fishwife ("big red hands, a shawl, a basket of herring on her hip").
 """
 
@@ -120,7 +120,7 @@ def fishwife_a_dress(fit):
     ck.skirt(fit, sk, top_row=3, hem_y=hem, n=24, ease=0.013, hip_rows=(2, 1), clear=0.05, flare=0.22, folds=8,
              fold_depth=0.022, spring=0.2, back_legs=0.8)
     sk.meta.update(hem=hem, band=Y(0.626) - 0.02)
-    ck.thicken(sk, 0.003, depth=lambda p: 0.28 if p[1] < 0.5 else 0.03)
+    ck.thicken(sk, 0.003, depth=lambda p: 0.12 if p[1] < 0.5 else 0.03)
     pieces.append(sk)
     on_skirt = ck.Onto([sk])
 
@@ -159,14 +159,13 @@ def fishwife_a_dress(fit):
     loop = []
     for t in th:
         q = on_skirt.snap(np.array((math.sin(t) * 0.4, top, math.cos(t) * 0.4)), 0.0)
-        q = on_skirt.snap(np.array((q[0], top, q[2])), 0.006)
+        q = on_skirt.snap(np.array((q[0], top, q[2])), 0.018)
         loop.append(ap.add(q, on_skirt.weights(q), zone="skirt"))
     hs = [top + (bottom - top) * k / 4 for k in range(1, 5)]
     ck.hang(fit, ap, loop, hs, clear=0.06, closed=False,
-            push=lambda j, p, d: on_skirt.snap(p, 0.008 + 0.018 * min(1.0, d / 0.3)) + np.array((0, 0, 1.0)) * (
-                0.007 * min(1.0, d / 0.15) * math.cos(j * math.pi * 0.9 + 0.4)), wfn=on_skirt.weights)
+            push=lambda j, p, d: on_skirt.snap(p, 0.024 + 0.018 * min(1.0, d / 0.3)), wfn=on_skirt.weights)
     ap.meta.update(top=top, bottom=bottom)
-    ck.thicken(ap, 0.0022, depth=None)
+    ck.thicken(ap, 0.0022, depth=0.035)
     pieces.append(ap)
     # its band round the waist, over the bodice's skirt
     bd_ = ck.Piece("apron_band", BAND, scale=1.2)
@@ -178,11 +177,11 @@ def fishwife_a_dress(fit):
     sw = ck.Piece("shawl", SHAWL, scale=0.9)
     ck.strap_grid(fit, sw, [(0.0, Y(0.848), -0.055), (0.0, Y(0.80), -0.115), (0.0, Y(0.73), -0.13),
                             (0.0, Y(0.66), -0.125), (0.0, Y(0.615), -0.12)],
-                  [0.46, 0.40, 0.28, 0.13, 0.015], 0.007, cols=9, rows=9, onto=on_bodice)
+                  [0.46, 0.40, 0.28, 0.13, 0.015], 0.007, cols=7, rows=7, onto=on_bodice)
     for sg, lift in ((1, 0.007), (-1, 0.013)):
         path = [(sg * 0.11, Y(0.826), -0.09), (sg * 0.145, Y(0.840), -0.015), (sg * 0.125, Y(0.815), 0.07),
                 (sg * 0.05, Y(0.765), 0.135), (-sg * 0.035, Y(0.695), 0.15), (-sg * 0.085, Y(0.625), 0.14)]
-        ck.strap_grid(fit, sw, path, [0.16, 0.19, 0.17, 0.15, 0.12, 0.08], lift, cols=6, rows=12, onto=on_bodice)
+        ck.strap_grid(fit, sw, path, [0.16, 0.19, 0.17, 0.15, 0.12, 0.08], lift, cols=5, rows=9, onto=on_bodice)
     ck.thicken(sw, 0.003, depth=0.035, crease=0.06)
     pieces.append(sw)
 
@@ -233,7 +232,7 @@ FISHWIFE_A = Kind(
               look=dict(weather=0.85, ruddy=0.65, hair="brown", hair_rgb=hexrgb(0x6a4a30))),
     hair=dict(hair="undercap", beard=None, moustache=None),
     dress=fishwife_a_dress, covers=fishwife_a_covers, skin=fishwife_a_skin, hats=("cap", "cap_frill"),
-    held=[("held_basket", "gripL", "the basket of herring hangs from her left fist (hand shape grip)")],
+    held=[("held_basket", "hipL", "upright herring basket carried at the left hip, clear of the apron; handle above the rim")],
     avoid={"walk": "a man's walk (walk_f is hers)", "talk": "talk_f is hers", "rifle_idle": "no rifle",
            "rifle_walk": "no rifle", "rifle_talk": "no rifle", "ride": "the skirt"},
     note="Vismarkt fishwife: white cap, checked shawl, striped red skirt, apron, basket of herring")

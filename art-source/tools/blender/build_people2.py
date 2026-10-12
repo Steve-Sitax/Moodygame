@@ -63,18 +63,7 @@ if PLAIN:
     if in_workspace and not in_scratch:
         raise ValueError("--plain must be outside git: use .scratch/people2-plain/people2.glb or an external directory")
 ONLY = ARGS[ARGS.index("--only") + 1].split(",") if "--only" in ARGS else None
-KINDS_PLAIN = os.path.abspath(ARGS[ARGS.index("--plain") + 1]) if "--plain" in ARGS else None
-if PLAIN:
-    workspace = os.path.abspath(os.path.join(people2.ROOT, ".."))
-    scratch = os.path.join(workspace, ".scratch")
-    try:
-        in_workspace = os.path.normcase(os.path.commonpath([PLAIN, workspace])) == os.path.normcase(workspace)
-        in_scratch = os.path.normcase(os.path.commonpath([PLAIN, scratch])) == os.path.normcase(scratch)
-    except ValueError:  # A different drive is outside this repository.
-        in_workspace, in_scratch = False, False
-    if in_workspace and not in_scratch:
-        raise ValueError("--plain must be outside git: use .scratch/people2-plain/people2.glb or an external directory")
-ONLY = ARGS[ARGS.index("--kinds") + 1].split(",") if "--kinds" in ARGS else None
+KINDS_ONLY = ARGS[ARGS.index("--kinds") + 1].split(",") if "--kinds" in ARGS else None
 TEX = 1024 if "--fast" in ARGS else 2048
 # the pictures (B): one per group of bodies, each with its own face (the old grey, the boys without stubble)
 PICTURES = [("m", "man_middling"), ("f", "woman_middling"), ("boy", "child_middling"), ("old_m", "old_man"),
