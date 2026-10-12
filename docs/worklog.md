@@ -7,6 +7,14 @@
 - Inspected 36 Vismarkt day/rain/evening pictures; 539-sample shader audit has one people2 kind, zero problems and stable lights. Pack 341, identity 7 and multiplayer 25 checks pass.
 - Exclusive CPU means: animation 0.492/0.461 ms, town update 1.019/1.041 ms; both squares have zero overlaps/blocked/stuck. Optional legacy comparison was contaminated and discarded.
 - Proof paths and limits are in `docs/godot-people2.md`. Face/clothing repairs and future faceTypes remain art work; people2 stays off by default.
+- Before the port (branch art2, old layout): the people2 kit got clothes (docker_a, fishwife_a, police, Sooi), body fixes
+  (shoulder helper bones, limbs, feet, hands, builds, occlusion) and the Godot runtime; four reviews of faces and bodies
+  are in `D:/Code/MoodyGame-art2/.scratch/face-review/`. Faces (form, 22 face types, paint) in progress on art2-faces;
+  clothes pass 2 (basket, clogs, triangle budget) on art3-dress.
+- Issues: [#78](https://github.com/Steve-Sitax/Moodygame/issues/78) run-time models draw no relief,
+  [#82](https://github.com/Steve-Sitax/Moodygame/issues/82) people2 first-pass leftovers,
+  [#83](https://github.com/Steve-Sitax/Moodygame/issues/83) dressed people over the triangle budget,
+  [#84](https://github.com/Steve-Sitax/Moodygame/issues/84) texture plan to finish on the native resources.
 
 ## The Grote Markt's guild houses made by hand, and its liberty tree, 2026-10-12 (branch sv-s3b, survey #17)
 
