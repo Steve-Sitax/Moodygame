@@ -297,3 +297,14 @@ every shader is ready. Keys and clicks wait until then. `__scheldemist.free(true
   (new shaders, textures, files), the worst, and `playableAt` (from then on a whole second without a frame over 100 ms).
 - `__scheldemistBoot.files()`: every file the loading counted, with its start and end.
 - In a production build the probe is there with `?probe` in the address (`enter()`, `walk(s)`, `report()`).
+
+### Hull names (W5)
+
+`__scheldemist.world.boats().nameCheck()` lists every drawn vessel, her registry id, name, port, atlas cells
+and live position; `problems` rejects the same name within 200 m. Ship's boats keep their mother's name with `II`.
+`boatNames.ts` exports `boatNameViews(boats)` for cameras measured 10 m and 40 m from a bow, stern and paddle box.
+Check both sides: the outward faces draw once and the inside never shows mirrored letters. A paddle box replaces
+its bow's side lettering. Include a small boat taken from her mooring: her id and cells must survive the model swap.
+Godot's `--boatnames-test <absolute scratch directory>` takes the same six pictures from decoded models, without
+speed measurements; give it `--no-river --no-movingsounds` for unobstructed views, and its own `--db`, `--prefs` and `--port`.
+Old baked hulls have no separate zones: the town and decoded boat models need the lead's next bake/refresh.

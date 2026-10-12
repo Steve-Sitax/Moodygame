@@ -1,3 +1,4 @@
+import { shipName } from "../../../shared/fleet.ts";
 import { sexed } from "../player/profile.ts"; // M7 character: lines said to the player follow the profile
 import type { DB } from "../db.ts";
 import { clock } from "../day.ts";
@@ -845,7 +846,7 @@ function arrive(db: DB, e: EmigrantTown, n: number, quiet = false): Family {
   })();
   if (quiet) return fam;
   const who = fam.members.length === 2 ? "two" : `${fam.members.length}`;
-  logRow(db, fam.head, "emigrants_arrived", String(fam.household), `The ${fam.surname} family, ${who} of them from ${fam.from} in ${fam.region}, came to the Logement on the Rijnkaai to wait for the Kempenland, bound for ${fam.bound.split(",")[0]}.`);
+  logRow(db, fam.head, "emigrants_arrived", String(fam.household), `The ${fam.surname} family, ${who} of them from ${fam.from} in ${fam.region}, came to the Logement on the Rijnkaai to wait for the ${shipName("kempenland")}, bound for ${fam.bound.split(",")[0]}.`);
   remember(db, e.keeper, `The ${fam.surname} family from ${ORIGINS[fam.country].label} took beds at my house; they go out on the ship's day.`, 3);
   return fam;
 }
@@ -875,7 +876,7 @@ function board(db: DB, e: EmigrantTown, fam: Family, by: "lighter" | "engine"): 
     }
   })();
   if (e.scam?.family === fam.n && e.scam.state === "working") e.scam.state = "sold"; // they went with his paper in their pocket
-  logRow(db, fam.head, "emigrants_boarded", String(fam.household), `The ${fam.surname} family went out by lighter to the Kempenland at anchor, bound for ${fam.bound.split(",")[0]}.`);
+  logRow(db, fam.head, "emigrants_boarded", String(fam.household), `The ${fam.surname} family went out by lighter to the ${shipName("kempenland")} at anchor, bound for ${fam.bound.split(",")[0]}.`);
   remember(db, e.keeper, `The ${fam.surname} family left my house for the ship today.`, 2);
 }
 
@@ -930,7 +931,7 @@ export function emigrantsTick(db: DB, rng: () => number = Math.random, quiet = f
   if (isShipDay(c.day) && c.hour >= 6 && !e.notices.includes(c.day)) {
     e.notices.push(c.day);
     db.prepare("INSERT INTO world_fact (text, weight, day, tags) VALUES (?, 5, ?, 'notice,emigrants')").run(
-      "Red Star Line: the Kempenland at anchor off the Rijnkaai takes her emigrants on board today. Lighters from the quay from seven in the morning.",
+      `Red Star Line: the ${shipName("kempenland")} at anchor off the Rijnkaai takes her emigrants on board today. Lighters from the quay from seven in the morning.`,
       c.day,
     );
     out.changed = true;
@@ -1363,7 +1364,7 @@ export function installEmigrantTalk(): void {
     const c = clock(db);
     const s = emigrantTown(db)?.scam;
     const scam = s && s.family === f.n && s.day === c.day ? (s.state === "working" ? "A friendly man who calls himself an agent's man is selling you railway tickets for the journey on from Philadelphia; you think he is kind. " : s.state === "warned" ? "Jef warned you that the friendly man's tickets were false; you are grateful to him. " : "") : "";
-    return `EMIGRANT: you and your family (${f.names.join(", ")}) come from ${f.from}, in ${f.region} (${ORIGINS[f.country].label}), and wait in Antwerp for the Red Star Line's liner Kempenland, at anchor in the Schelde; the lighters take you out to her on ${dayName(f.board_day)}${f.board_day === c.day ? " (today)" : ""}. You sleep at the Logement by the Rijnkaai and wait by your chests on the quay by day. Why you left: ${f.why}. Where you go: ${f.bound}. Your faith: ${f.faith}. What you fear: ${f.fear}. ${f.scammed ? "A runner sold you worthless railway tickets; you are ashamed and angry. " : ""}${scam}
+    return `EMIGRANT: you and your family (${f.names.join(", ")}) come from ${f.from}, in ${f.region} (${ORIGINS[f.country].label}), and wait in Antwerp for the Red Star Line's liner ${shipName("kempenland")}, at anchor in the Schelde; the lighters take you out to her on ${dayName(f.board_day)}${f.board_day === c.day ? " (today)" : ""}. You sleep at the Logement by the Rijnkaai and wait by your chests on the quay by day. Why you left: ${f.why}. Where you go: ${f.bound}. Your faith: ${f.faith}. What you fear: ${f.fear}. ${f.scammed ? "A runner sold you worthless railway tickets; you are ashamed and angry. " : ""}${scam}
 HOW YOU SPEAK: ${ORIGINS[f.country].speech} Plain English words only: never words of your own language, except names. You may ask Jef for help only with the work listed as YOUR OWN WORK; never offer other pay or other work.`;
   });
 }

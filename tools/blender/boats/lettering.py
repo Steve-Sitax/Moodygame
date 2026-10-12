@@ -1257,7 +1257,10 @@ def plan_cells(fleet):
         if owner:
             lines = [{"runs": [[owner, font]], "cap": 0.34}, {"runs": [[port, font]], "cap": sub, "track": 0.08}]
         elif num and name and style != "block_plank":
-            lines = [{"runs": [[name, font]], "cap": 0.38}, {"runs": number_runs(num), "cap": 0.3}]
+            # The police gig keeps her number and also shows her port on the stern.
+            lines = ([{"runs": [[name + "  ", font]] + number_runs(num), "cap": 0.38},
+                      {"runs": [[port, font]], "cap": sub, "track": 0.1}] if port else
+                     [{"runs": [[name, font]], "cap": 0.38}, {"runs": number_runs(num), "cap": 0.3}])
         elif name and port:
             lines = [{"runs": [[name, font]], "cap": 0.38}, {"runs": [[port, font]], "cap": sub, "track": 0.1}]
         elif port:

@@ -1,3 +1,4 @@
+import { demoBoats } from "./fleet.ts";
 // A try of the town map with no game running (docs/mapview.md): a new game's save in memory (never
 // data/game.sqlite), a made-up feed (two players, twenty townspeople walked live, omnibuses, boats, a
 // train, cranes, drays and the lock bridge), on port 8799. It stops by itself.
@@ -66,11 +67,7 @@ const tick = setInterval(() => {
       { id: "A", line: "Grote Markt - Entrepot", x: lane(-250, 150, 3), z: 60, yaw: Math.PI / 2, stop: "Vismarkt", load: 7 },
       { id: "B", line: "Steen - Keizerspoort", x: 0, z: lane(40, 330, 2.5), yaw: 0, stop: "Sint-Jansplein", load: 3 },
     ],
-    boats: [
-      { id: "anna_maria", name: "Anna Maria", kind: "brig", x: -42, z: -8, yaw: Math.PI / 2, moored: true },
-      { id: "lighter1", name: "De Hoop", kind: "lighter", x: lane(-400, 200, 2), z: -40, yaw: Math.PI / 2, cargo: "coffee" },
-      { id: "liner", name: "Vaderland", kind: "liner", x: 150 - lane(0, 500, 1), z: -65, yaw: -Math.PI / 2, tide: "high" },
-    ],
+    boats: demoBoats(lane),
     train: [{ id: "goods", x: lane(-300, 80, 4), z: 4, yaw: Math.PI / 2, wagons: 6 }],
     cranes: [
       { id: "crane1", x: -18, z: 4, turn: s % 360 },

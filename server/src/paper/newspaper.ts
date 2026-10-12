@@ -1,3 +1,4 @@
+import { vessels, shipType } from "../../../shared/fleet.ts";
 import { z } from "zod";
 import { gameGeneration, type DB } from "../db.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
@@ -56,11 +57,9 @@ export interface ShipFact {
   dir: "in" | "out";
 }
 
-const SHIPS: Array<[string, string]> = [
-  ["Vaderland", "steamer"], ["Nederland", "steamer"], ["Stad Antwerpen", "steamer"], ["Leopold", "steamer"], ["Flandre", "steamer"],
-  ["Jonge Jan", "schooner"], ["Elise", "schooner"], ["Concordia", "barque"], ["Hoop op Zegen", "barque"], ["Twee Gebroeders", "galliot"],
-  ["Maria Theresia", "brig"], ["Johanna", "brig"], ["Fortuna", "barque"], ["Schelde", "steamer"], ["Caroline", "schooner"],
-];
+const SHIPS: Array<[string, string]> = vessels
+  .filter((v) => v.name && ["liner", "steamer", "steamer_line", "barque", "barque_grain", "barque_sail", "brig", "schooner"].includes(v.kind))
+  .map((v) => [v.name!, shipType(v.kind)]);
 const MASTERS = ["Maes", "Verbeke", "Jansen", "Smit", "Olsen", "De Vries", "Petersen", "Brown", "Hansen", "Claessens", "Roberts", "Lindqvist"];
 const PORTS: Array<[string, string]> = [
   ["London", "general goods"], ["Hull", "coal"], ["Riga", "timber"], ["Odessa", "grain"], ["Rio de Janeiro", "coffee"],

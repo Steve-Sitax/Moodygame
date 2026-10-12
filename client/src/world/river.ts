@@ -60,7 +60,7 @@ type Kind = { parts: BoatName[]; speed: number; scale?: number };
 const BIG: Array<[Kind, number]> = [
   [{ parts: ["tug", "barque"], speed: 1.7 }, 2],
   [{ parts: ["barque_sail"], speed: 2.4 }, 2],
-  [{ parts: ["steamer"], speed: 3.4 }, 2],
+  [{ parts: ["steamer_line"], speed: 3.4 }, 2],
   [{ parts: ["paddle_tug"], speed: 3.0, scale: 1.4 }, 1.5],
   [{ parts: ["schooner"], speed: 2.6 }, 1.5],
 ];

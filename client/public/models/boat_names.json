@@ -40,6 +40,18 @@
   {
    "file": "boat_names_3.png",
    "size": [
+    2048,
+    2048
+   ],
+   "cell": [
+    512,
+    128
+   ],
+   "group": "big"
+  },
+  {
+   "file": "boat_names_4.png",
+   "size": [
     1024,
     1024
    ],
@@ -50,7 +62,19 @@
    "group": "small"
   },
   {
-   "file": "boat_names_4.png",
+   "file": "boat_names_5.png",
+   "size": [
+    1024,
+    1024
+   ],
+   "cell": [
+    256,
+    64
+   ],
+   "group": "small"
+  },
+  {
+   "file": "boat_names_6.png",
    "size": [
     1024,
     1024
@@ -149,16 +173,16 @@
   {
    "id": 2,
    "page": 0,
-   "cell": 37,
+   "cell": 49,
    "px": [
     512,
-    1152,
+    1536,
     512,
     128
    ],
    "rect": [
     0.25,
-    0.5625,
+    0.75,
     0.25,
     0.0625
    ],
@@ -172,16 +196,16 @@
   {
    "id": 3,
    "page": 0,
-   "cell": 38,
+   "cell": 50,
    "px": [
     1024,
-    1152,
+    1536,
     512,
     128
    ],
    "rect": [
     0.5,
-    0.5625,
+    0.75,
     0.25,
     0.0625
    ],
@@ -196,16 +220,16 @@
   {
    "id": 4,
    "page": 0,
-   "cell": 39,
+   "cell": 51,
    "px": [
     1536,
-    1152,
+    1536,
     512,
     128
    ],
    "rect": [
     0.75,
-    0.5625,
+    0.75,
     0.25,
     0.0625
    ],
@@ -290,16 +314,16 @@
   {
    "id": 8,
    "page": 0,
-   "cell": 40,
+   "cell": 52,
    "px": [
     0,
-    1280,
+    1664,
     512,
     128
    ],
    "rect": [
     0.0,
-    0.625,
+    0.8125,
     0.25,
     0.0625
    ],
@@ -313,16 +337,16 @@
   {
    "id": 9,
    "page": 0,
-   "cell": 41,
+   "cell": 53,
    "px": [
     512,
-    1280,
+    1664,
     512,
     128
    ],
    "rect": [
     0.25,
-    0.625,
+    0.8125,
     0.25,
     0.0625
    ],
@@ -384,711 +408,6 @@
   {
    "id": 12,
    "page": 0,
-   "cell": 42,
-   "px": [
-    1024,
-    1280,
-    512,
-    128
-   ],
-   "rect": [
-    0.5,
-    0.625,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "MARIA"
-   ],
-   "style": "white_roman",
-   "look": "white",
-   "aspect": 7.31
-  },
-  {
-   "id": 13,
-   "page": 0,
-   "cell": 43,
-   "px": [
-    1536,
-    1280,
-    512,
-    128
-   ],
-   "rect": [
-    0.75,
-    0.625,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "MARIA",
-    "DOEL"
-   ],
-   "style": "white_roman",
-   "look": "white",
-   "aspect": 6.36
-  },
-  {
-   "id": 14,
-   "page": 0,
-   "cell": 44,
-   "px": [
-    0,
-    1408,
-    512,
-    128
-   ],
-   "rect": [
-    0.0,
-    0.6875,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "ELLIDA"
-   ],
-   "style": "white_roman",
-   "look": "white",
-   "aspect": 8.1
-  },
-  {
-   "id": 15,
-   "page": 0,
-   "cell": 45,
-   "px": [
-    512,
-    1408,
-    512,
-    128
-   ],
-   "rect": [
-    0.25,
-    0.6875,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "ELLIDA",
-    "DRAMMEN"
-   ],
-   "style": "white_roman",
-   "look": "white",
-   "aspect": 5.83
-  },
-  {
-   "id": 16,
-   "page": 1,
-   "cell": 44,
-   "px": [
-    0,
-    1408,
-    512,
-    128
-   ],
-   "rect": [
-    0.0,
-    0.6875,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "GOTTES SEGEN"
-   ],
-   "style": "cream_shaded",
-   "look": "cream",
-   "aspect": 7.5
-  },
-  {
-   "id": 17,
-   "page": 1,
-   "cell": 45,
-   "px": [
-    512,
-    1408,
-    512,
-    128
-   ],
-   "rect": [
-    0.25,
-    0.6875,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "J. W. HAAS",
-    "RUHRORT"
-   ],
-   "style": "cream_shaded",
-   "look": "cream",
-   "aspect": 5.4
-  },
-  {
-   "id": 18,
-   "page": 1,
-   "cell": 46,
-   "px": [
-    1024,
-    1408,
-    512,
-    128
-   ],
-   "rect": [
-    0.5,
-    0.6875,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "TWEE GEBROEDERS"
-   ],
-   "style": "cream_shaded",
-   "look": "cream",
-   "aspect": 7.62
-  },
-  {
-   "id": 19,
-   "page": 1,
-   "cell": 47,
-   "px": [
-    1536,
-    1408,
-    512,
-    128
-   ],
-   "rect": [
-    0.75,
-    0.6875,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "TWEE GEBROEDERS",
-    "ARNEMUIDEN"
-   ],
-   "style": "cream_shaded",
-   "look": "cream",
-   "aspect": 6.32
-  },
-  {
-   "id": 20,
-   "page": 0,
-   "cell": 46,
-   "px": [
-    1024,
-    1408,
-    512,
-    128
-   ],
-   "rect": [
-    0.5,
-    0.6875,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "HERCULES"
-   ],
-   "style": "white_slab",
-   "look": "white",
-   "aspect": 4.0
-  },
-  {
-   "id": 21,
-   "page": 0,
-   "cell": 47,
-   "px": [
-    1536,
-    1408,
-    512,
-    128
-   ],
-   "rect": [
-    0.75,
-    0.6875,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "HERCULES",
-    "ANTWERPEN"
-   ],
-   "style": "white_slab",
-   "look": "white",
-   "aspect": 4.0
-  },
-  {
-   "id": 22,
-   "page": 1,
-   "cell": 48,
-   "px": [
-    0,
-    1536,
-    512,
-    128
-   ],
-   "rect": [
-    0.0,
-    0.75,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "MATHILDE"
-   ],
-   "style": "cream_shaded",
-   "look": "cream",
-   "aspect": 7.5
-  },
-  {
-   "id": 23,
-   "page": 1,
-   "cell": 49,
-   "px": [
-    512,
-    1536,
-    512,
-    128
-   ],
-   "rect": [
-    0.25,
-    0.75,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "W. SCHMITZ",
-    "DUISBURG"
-   ],
-   "style": "cream_shaded",
-   "look": "cream",
-   "aspect": 5.4
-  },
-  {
-   "id": 24,
-   "page": 0,
-   "cell": 48,
-   "px": [
-    0,
-    1536,
-    512,
-    128
-   ],
-   "rect": [
-    0.0,
-    0.75,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "ZEEMEEUW"
-   ],
-   "style": "white_roman",
-   "look": "white",
-   "aspect": 7.31
-  },
-  {
-   "id": 25,
-   "page": 0,
-   "cell": 49,
-   "px": [
-    512,
-    1536,
-    512,
-    128
-   ],
-   "rect": [
-    0.25,
-    0.75,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "ZEEMEEUW",
-    "LILLO"
-   ],
-   "style": "white_roman",
-   "look": "white",
-   "aspect": 6.36
-  },
-  {
-   "id": 26,
-   "page": 2,
-   "cell": 12,
-   "px": [
-    0,
-    384,
-    512,
-    128
-   ],
-   "rect": [
-    0.0,
-    0.1875,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "SINT-JOZEF  No 12"
-   ],
-   "style": "block_plank",
-   "look": "plank",
-   "aspect": 9.23
-  },
-  {
-   "id": 27,
-   "page": 2,
-   "cell": 13,
-   "px": [
-    512,
-    384,
-    512,
-    128
-   ],
-   "rect": [
-    0.25,
-    0.1875,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "H. VERSTRAETEN",
-    "BOOM"
-   ],
-   "style": "block_plank",
-   "look": "plank",
-   "aspect": 7.69
-  },
-  {
-   "id": 28,
-   "page": 1,
-   "cell": 50,
-   "px": [
-    1024,
-    1536,
-    512,
-    128
-   ],
-   "rect": [
-    0.5,
-    0.75,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "FORTUNA"
-   ],
-   "style": "cream_shaded",
-   "look": "cream",
-   "aspect": 7.5
-  },
-  {
-   "id": 29,
-   "page": 1,
-   "cell": 51,
-   "px": [
-    1536,
-    1536,
-    512,
-    128
-   ],
-   "rect": [
-    0.75,
-    0.75,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "G. DE GROOT",
-    "NIJMEGEN"
-   ],
-   "style": "cream_shaded",
-   "look": "cream",
-   "aspect": 5.4
-  },
-  {
-   "id": 30,
-   "page": 2,
-   "cell": 14,
-   "px": [
-    1024,
-    384,
-    512,
-    128
-   ],
-   "rect": [
-    0.5,
-    0.1875,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "NOOIT GEDACHT  No 7"
-   ],
-   "style": "block_plank",
-   "look": "plank",
-   "aspect": 9.23
-  },
-  {
-   "id": 31,
-   "page": 2,
-   "cell": 15,
-   "px": [
-    1536,
-    384,
-    512,
-    128
-   ],
-   "rect": [
-    0.75,
-    0.1875,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "P. DE BACKER",
-    "ANTWERPEN"
-   ],
-   "style": "block_plank",
-   "look": "plank",
-   "aspect": 7.69
-  },
-  {
-   "id": 32,
-   "page": 2,
-   "cell": 16,
-   "px": [
-    0,
-    512,
-    512,
-    128
-   ],
-   "rect": [
-    0.0,
-    0.25,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "DE TOEKOMST  No 3"
-   ],
-   "style": "block_plank",
-   "look": "plank",
-   "aspect": 9.23
-  },
-  {
-   "id": 33,
-   "page": 2,
-   "cell": 17,
-   "px": [
-    512,
-    512,
-    512,
-    128
-   ],
-   "rect": [
-    0.25,
-    0.25,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "J. VAN DAMME",
-    "TEMSE"
-   ],
-   "style": "block_plank",
-   "look": "plank",
-   "aspect": 7.69
-  },
-  {
-   "id": 34,
-   "page": 2,
-   "cell": 18,
-   "px": [
-    1024,
-    512,
-    512,
-    128
-   ],
-   "rect": [
-    0.5,
-    0.25,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "LEOPOLD  No 21"
-   ],
-   "style": "block_plank",
-   "look": "plank",
-   "aspect": 9.23
-  },
-  {
-   "id": 35,
-   "page": 2,
-   "cell": 19,
-   "px": [
-    1536,
-    512,
-    512,
-    128
-   ],
-   "rect": [
-    0.75,
-    0.25,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "F. PEETERS",
-    "RUPELMONDE"
-   ],
-   "style": "block_plank",
-   "look": "plank",
-   "aspect": 7.69
-  },
-  {
-   "id": 36,
-   "page": 0,
-   "cell": 50,
-   "px": [
-    1024,
-    1536,
-    512,
-    128
-   ],
-   "rect": [
-    0.5,
-    0.75,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "SIMSON"
-   ],
-   "style": "white_slab",
-   "look": "white",
-   "aspect": 4.0
-  },
-  {
-   "id": 37,
-   "page": 0,
-   "cell": 51,
-   "px": [
-    1536,
-    1536,
-    512,
-    128
-   ],
-   "rect": [
-    0.75,
-    0.75,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "SIMSON",
-    "ANTWERPEN"
-   ],
-   "style": "white_slab",
-   "look": "white",
-   "aspect": 4.0
-  },
-  {
-   "id": 38,
-   "page": 0,
-   "cell": 52,
-   "px": [
-    0,
-    1664,
-    512,
-    128
-   ],
-   "rect": [
-    0.0,
-    0.8125,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "TITAN"
-   ],
-   "style": "white_slab",
-   "look": "white",
-   "aspect": 4.0
-  },
-  {
-   "id": 39,
-   "page": 0,
-   "cell": 53,
-   "px": [
-    512,
-    1664,
-    512,
-    128
-   ],
-   "rect": [
-    0.25,
-    0.8125,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "TITAN",
-    "ANTWERPEN"
-   ],
-   "style": "white_slab",
-   "look": "white",
-   "aspect": 4.0
-  },
-  {
-   "id": 40,
-   "page": 1,
-   "cell": 52,
-   "px": [
-    0,
-    1664,
-    512,
-    128
-   ],
-   "rect": [
-    0.0,
-    0.8125,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "DREI GEBRÜDER"
-   ],
-   "style": "cream_shaded",
-   "look": "cream",
-   "aspect": 7.5
-  },
-  {
-   "id": 41,
-   "page": 1,
-   "cell": 53,
-   "px": [
-    512,
-    1664,
-    512,
-    128
-   ],
-   "rect": [
-    0.25,
-    0.8125,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "C. VOGEL",
-    "MANNHEIM"
-   ],
-   "style": "cream_shaded",
-   "look": "cream",
-   "aspect": 5.4
-  },
-  {
-   "id": 42,
-   "page": 1,
    "cell": 54,
    "px": [
     1024,
@@ -1103,15 +422,15 @@
     0.0625
    ],
    "text": [
-    "JONGE PIETER"
+    "MARIA"
    ],
-   "style": "cream_shaded",
-   "look": "cream",
-   "aspect": 7.62
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 7.31
   },
   {
-   "id": 43,
-   "page": 1,
+   "id": 13,
+   "page": 0,
    "cell": 55,
    "px": [
     1536,
@@ -1126,63 +445,16 @@
     0.0625
    ],
    "text": [
-    "JONGE PIETER",
-    "BRUINISSE"
+    "MARIA",
+    "DOEL"
    ],
-   "style": "cream_shaded",
-   "look": "cream",
-   "aspect": 6.32
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 6.36
   },
   {
-   "id": 44,
-   "page": 2,
-   "cell": 20,
-   "px": [
-    0,
-    640,
-    512,
-    128
-   ],
-   "rect": [
-    0.0,
-    0.3125,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "VOORUIT  No 5"
-   ],
-   "style": "block_plank",
-   "look": "plank",
-   "aspect": 9.23
-  },
-  {
-   "id": 45,
-   "page": 2,
-   "cell": 21,
-   "px": [
-    512,
-    640,
-    512,
-    128
-   ],
-   "rect": [
-    0.25,
-    0.3125,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "L. JANSSENS",
-    "HEMIKSEM"
-   ],
-   "style": "block_plank",
-   "look": "plank",
-   "aspect": 7.69
-  },
-  {
-   "id": 46,
-   "page": 1,
+   "id": 14,
+   "page": 0,
    "cell": 56,
    "px": [
     0,
@@ -1197,15 +469,15 @@
     0.0625
    ],
    "text": [
-    "WILHELMINA"
+    "ELLIDA"
    ],
-   "style": "cream_shaded",
-   "look": "cream",
-   "aspect": 7.5
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 8.1
   },
   {
-   "id": 47,
-   "page": 1,
+   "id": 15,
+   "page": 0,
    "cell": 57,
    "px": [
     512,
@@ -1220,110 +492,110 @@
     0.0625
    ],
    "text": [
-    "A. KRAMER",
-    "EMMERICH"
+    "ELLIDA",
+    "DRAMMEN"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 5.83
+  },
+  {
+   "id": 16,
+   "page": 2,
+   "cell": 30,
+   "px": [
+    1024,
+    896,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.4375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "GOTTES SEGEN"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 7.5
+  },
+  {
+   "id": 17,
+   "page": 2,
+   "cell": 31,
+   "px": [
+    1536,
+    896,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.4375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "J. W. HAAS",
+    "RUHRORT"
    ],
    "style": "cream_shaded",
    "look": "cream",
    "aspect": 5.4
   },
   {
-   "id": 48,
+   "id": 18,
    "page": 2,
-   "cell": 22,
-   "px": [
-    1024,
-    640,
-    512,
-    128
-   ],
-   "rect": [
-    0.5,
-    0.3125,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "DRIE GEBROEDERS  No 9"
-   ],
-   "style": "block_plank",
-   "look": "plank",
-   "aspect": 9.23
-  },
-  {
-   "id": 49,
-   "page": 2,
-   "cell": 23,
-   "px": [
-    1536,
-    640,
-    512,
-    128
-   ],
-   "rect": [
-    0.75,
-    0.3125,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "K. MERTENS",
-    "BOOM"
-   ],
-   "style": "block_plank",
-   "look": "plank",
-   "aspect": 7.69
-  },
-  {
-   "id": 50,
-   "page": 2,
-   "cell": 24,
+   "cell": 32,
    "px": [
     0,
-    768,
+    1024,
     512,
     128
    ],
    "rect": [
     0.0,
-    0.375,
+    0.5,
     0.25,
     0.0625
    ],
    "text": [
-    "DE EENDRACHT  No 14"
+    "TWEE GEBROEDERS"
    ],
-   "style": "block_plank",
-   "look": "plank",
-   "aspect": 9.23
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 7.62
   },
   {
-   "id": 51,
+   "id": 19,
    "page": 2,
-   "cell": 25,
+   "cell": 33,
    "px": [
     512,
-    768,
+    1024,
     512,
     128
    ],
    "rect": [
     0.25,
-    0.375,
+    0.5,
     0.25,
     0.0625
    ],
    "text": [
-    "E. WOUTERS",
-    "ANTWERPEN"
+    "TWEE GEBROEDERS",
+    "ARNEMUIDEN"
    ],
-   "style": "block_plank",
-   "look": "plank",
-   "aspect": 7.69
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 6.32
   },
   {
-   "id": 52,
-   "page": 1,
+   "id": 20,
+   "page": 0,
    "cell": 58,
    "px": [
     1024,
@@ -1338,15 +610,15 @@
     0.0625
    ],
    "text": [
-    "ST. NIKOLAUS"
+    "HERCULES"
    ],
-   "style": "cream_shaded",
-   "look": "cream",
-   "aspect": 7.5
+   "style": "white_slab",
+   "look": "white",
+   "aspect": 4.0
   },
   {
-   "id": 53,
-   "page": 1,
+   "id": 21,
+   "page": 0,
    "cell": 59,
    "px": [
     1536,
@@ -1357,6 +629,758 @@
    "rect": [
     0.75,
     0.875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "HERCULES",
+    "ANTWERPEN"
+   ],
+   "style": "white_slab",
+   "look": "white",
+   "aspect": 4.0
+  },
+  {
+   "id": 22,
+   "page": 2,
+   "cell": 34,
+   "px": [
+    1024,
+    1024,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.5,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "MATHILDE"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 7.5
+  },
+  {
+   "id": 23,
+   "page": 2,
+   "cell": 35,
+   "px": [
+    1536,
+    1024,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.5,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "W. SCHMITZ",
+    "DUISBURG"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 5.4
+  },
+  {
+   "id": 24,
+   "page": 0,
+   "cell": 60,
+   "px": [
+    0,
+    1920,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.9375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "ZEEMEEUW"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 7.31
+  },
+  {
+   "id": 25,
+   "page": 0,
+   "cell": 61,
+   "px": [
+    512,
+    1920,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.9375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "ZEEMEEUW",
+    "LILLO"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 6.36
+  },
+  {
+   "id": 26,
+   "page": 3,
+   "cell": 15,
+   "px": [
+    1536,
+    384,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.1875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "SINT-JOZEF  No 12"
+   ],
+   "style": "block_plank",
+   "look": "plank",
+   "aspect": 9.23
+  },
+  {
+   "id": 27,
+   "page": 3,
+   "cell": 16,
+   "px": [
+    0,
+    512,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.25,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "H. VERSTRAETEN",
+    "BOOM"
+   ],
+   "style": "block_plank",
+   "look": "plank",
+   "aspect": 7.69
+  },
+  {
+   "id": 28,
+   "page": 2,
+   "cell": 36,
+   "px": [
+    0,
+    1152,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.5625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "FORTUNA"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 7.5
+  },
+  {
+   "id": 29,
+   "page": 2,
+   "cell": 37,
+   "px": [
+    512,
+    1152,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.5625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "G. DE GROOT",
+    "NIJMEGEN"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 5.4
+  },
+  {
+   "id": 30,
+   "page": 3,
+   "cell": 17,
+   "px": [
+    512,
+    512,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.25,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "NOOIT GEDACHT  No 7"
+   ],
+   "style": "block_plank",
+   "look": "plank",
+   "aspect": 9.23
+  },
+  {
+   "id": 31,
+   "page": 3,
+   "cell": 18,
+   "px": [
+    1024,
+    512,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.25,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "P. DE BACKER",
+    "ANTWERPEN"
+   ],
+   "style": "block_plank",
+   "look": "plank",
+   "aspect": 7.69
+  },
+  {
+   "id": 32,
+   "page": 3,
+   "cell": 19,
+   "px": [
+    1536,
+    512,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.25,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE TOEKOMST  No 3"
+   ],
+   "style": "block_plank",
+   "look": "plank",
+   "aspect": 9.23
+  },
+  {
+   "id": 33,
+   "page": 3,
+   "cell": 20,
+   "px": [
+    0,
+    640,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.3125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "J. VAN DAMME",
+    "TEMSE"
+   ],
+   "style": "block_plank",
+   "look": "plank",
+   "aspect": 7.69
+  },
+  {
+   "id": 34,
+   "page": 3,
+   "cell": 21,
+   "px": [
+    512,
+    640,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.3125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "LEOPOLD  No 21"
+   ],
+   "style": "block_plank",
+   "look": "plank",
+   "aspect": 9.23
+  },
+  {
+   "id": 35,
+   "page": 3,
+   "cell": 22,
+   "px": [
+    1024,
+    640,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.3125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "F. PEETERS",
+    "RUPELMONDE"
+   ],
+   "style": "block_plank",
+   "look": "plank",
+   "aspect": 7.69
+  },
+  {
+   "id": 36,
+   "page": 0,
+   "cell": 62,
+   "px": [
+    1024,
+    1920,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.9375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "SIMSON"
+   ],
+   "style": "white_slab",
+   "look": "white",
+   "aspect": 4.0
+  },
+  {
+   "id": 37,
+   "page": 0,
+   "cell": 63,
+   "px": [
+    1536,
+    1920,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.9375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "SIMSON",
+    "ANTWERPEN"
+   ],
+   "style": "white_slab",
+   "look": "white",
+   "aspect": 4.0
+  },
+  {
+   "id": 38,
+   "page": 1,
+   "cell": 0,
+   "px": [
+    0,
+    0,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.0,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "TITAN"
+   ],
+   "style": "white_slab",
+   "look": "white",
+   "aspect": 4.0
+  },
+  {
+   "id": 39,
+   "page": 1,
+   "cell": 1,
+   "px": [
+    512,
+    0,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.0,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "TITAN",
+    "ANTWERPEN"
+   ],
+   "style": "white_slab",
+   "look": "white",
+   "aspect": 4.0
+  },
+  {
+   "id": 40,
+   "page": 2,
+   "cell": 38,
+   "px": [
+    1024,
+    1152,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.5625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DREI GEBRÜDER"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 7.5
+  },
+  {
+   "id": 41,
+   "page": 2,
+   "cell": 39,
+   "px": [
+    1536,
+    1152,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.5625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "C. VOGEL",
+    "MANNHEIM"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 5.4
+  },
+  {
+   "id": 42,
+   "page": 2,
+   "cell": 40,
+   "px": [
+    0,
+    1280,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "JONGE PIETER"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 7.62
+  },
+  {
+   "id": 43,
+   "page": 2,
+   "cell": 41,
+   "px": [
+    512,
+    1280,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "JONGE PIETER",
+    "BRUINISSE"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 6.32
+  },
+  {
+   "id": 44,
+   "page": 3,
+   "cell": 23,
+   "px": [
+    1536,
+    640,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.3125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "VOORUIT  No 5"
+   ],
+   "style": "block_plank",
+   "look": "plank",
+   "aspect": 9.23
+  },
+  {
+   "id": 45,
+   "page": 3,
+   "cell": 24,
+   "px": [
+    0,
+    768,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "L. JANSSENS",
+    "HEMIKSEM"
+   ],
+   "style": "block_plank",
+   "look": "plank",
+   "aspect": 7.69
+  },
+  {
+   "id": 46,
+   "page": 2,
+   "cell": 42,
+   "px": [
+    1024,
+    1280,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "WILHELMINA"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 7.5
+  },
+  {
+   "id": 47,
+   "page": 2,
+   "cell": 43,
+   "px": [
+    1536,
+    1280,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "A. KRAMER",
+    "EMMERICH"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 5.4
+  },
+  {
+   "id": 48,
+   "page": 3,
+   "cell": 25,
+   "px": [
+    512,
+    768,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DRIE GEBROEDERS  No 9"
+   ],
+   "style": "block_plank",
+   "look": "plank",
+   "aspect": 9.23
+  },
+  {
+   "id": 49,
+   "page": 3,
+   "cell": 26,
+   "px": [
+    1024,
+    768,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "K. MERTENS",
+    "BOOM"
+   ],
+   "style": "block_plank",
+   "look": "plank",
+   "aspect": 7.69
+  },
+  {
+   "id": 50,
+   "page": 3,
+   "cell": 27,
+   "px": [
+    1536,
+    768,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE EENDRACHT  No 14"
+   ],
+   "style": "block_plank",
+   "look": "plank",
+   "aspect": 9.23
+  },
+  {
+   "id": 51,
+   "page": 3,
+   "cell": 28,
+   "px": [
+    0,
+    896,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.4375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "E. WOUTERS",
+    "ANTWERPEN"
+   ],
+   "style": "block_plank",
+   "look": "plank",
+   "aspect": 7.69
+  },
+  {
+   "id": 52,
+   "page": 2,
+   "cell": 44,
+   "px": [
+    0,
+    1408,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.6875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "ST. NIKOLAUS"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 7.5
+  },
+  {
+   "id": 53,
+   "page": 2,
+   "cell": 45,
+   "px": [
+    512,
+    1408,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.6875,
     0.25,
     0.0625
    ],
@@ -1417,17 +1441,17 @@
   },
   {
    "id": 56,
-   "page": 0,
-   "cell": 54,
+   "page": 1,
+   "cell": 2,
    "px": [
     1024,
-    1664,
+    0,
     512,
     128
    ],
    "rect": [
     0.5,
-    0.8125,
+    0.0,
     0.25,
     0.0625
    ],
@@ -1440,17 +1464,17 @@
   },
   {
    "id": 57,
-   "page": 0,
-   "cell": 55,
+   "page": 1,
+   "cell": 3,
    "px": [
     1536,
-    1664,
+    0,
     512,
     128
    ],
    "rect": [
     0.75,
-    0.8125,
+    0.0,
     0.25,
     0.0625
    ],
@@ -1464,17 +1488,17 @@
   },
   {
    "id": 58,
-   "page": 2,
-   "cell": 26,
+   "page": 3,
+   "cell": 29,
    "px": [
-    1024,
-    768,
+    512,
+    896,
     512,
     128
    ],
    "rect": [
-    0.5,
-    0.375,
+    0.25,
+    0.4375,
     0.25,
     0.0625
    ],
@@ -1487,17 +1511,17 @@
   },
   {
    "id": 59,
-   "page": 2,
-   "cell": 27,
+   "page": 3,
+   "cell": 30,
    "px": [
-    1536,
-    768,
+    1024,
+    896,
     512,
     128
    ],
    "rect": [
-    0.75,
-    0.375,
+    0.5,
+    0.4375,
     0.25,
     0.0625
    ],
@@ -1558,16 +1582,16 @@
   },
   {
    "id": 62,
-   "page": 2,
-   "cell": 28,
+   "page": 3,
+   "cell": 31,
    "px": [
-    0,
+    1536,
     896,
     512,
     128
    ],
    "rect": [
-    0.0,
+    0.75,
     0.4375,
     0.25,
     0.0625
@@ -1581,17 +1605,17 @@
   },
   {
    "id": 63,
-   "page": 2,
-   "cell": 29,
+   "page": 3,
+   "cell": 32,
    "px": [
-    512,
-    896,
+    0,
+    1024,
     512,
     128
    ],
    "rect": [
-    0.25,
-    0.4375,
+    0.0,
+    0.5,
     0.25,
     0.0625
    ],
@@ -1605,17 +1629,17 @@
   },
   {
    "id": 64,
-   "page": 0,
-   "cell": 56,
+   "page": 1,
+   "cell": 4,
    "px": [
     0,
-    1792,
+    128,
     512,
     128
    ],
    "rect": [
     0.0,
-    0.875,
+    0.0625,
     0.25,
     0.0625
    ],
@@ -1628,17 +1652,17 @@
   },
   {
    "id": 65,
-   "page": 0,
-   "cell": 57,
+   "page": 1,
+   "cell": 5,
    "px": [
     512,
-    1792,
+    128,
     512,
     128
    ],
    "rect": [
     0.25,
-    0.875,
+    0.0625,
     0.25,
     0.0625
    ],
@@ -1652,17 +1676,17 @@
   },
   {
    "id": 66,
-   "page": 0,
-   "cell": 58,
+   "page": 1,
+   "cell": 6,
    "px": [
     1024,
-    1792,
+    128,
     512,
     128
    ],
    "rect": [
     0.5,
-    0.875,
+    0.0625,
     0.25,
     0.0625
    ],
@@ -1675,17 +1699,17 @@
   },
   {
    "id": 67,
-   "page": 0,
-   "cell": 59,
+   "page": 1,
+   "cell": 7,
    "px": [
     1536,
-    1792,
+    128,
     512,
     128
    ],
    "rect": [
     0.75,
-    0.875,
+    0.0625,
     0.25,
     0.0625
    ],
@@ -1699,17 +1723,17 @@
   },
   {
    "id": 68,
-   "page": 0,
-   "cell": 60,
+   "page": 1,
+   "cell": 8,
    "px": [
     0,
-    1920,
+    256,
     512,
     128
    ],
    "rect": [
     0.0,
-    0.9375,
+    0.125,
     0.25,
     0.0625
    ],
@@ -1722,17 +1746,17 @@
   },
   {
    "id": 69,
-   "page": 0,
-   "cell": 61,
+   "page": 1,
+   "cell": 9,
    "px": [
     512,
-    1920,
+    256,
     512,
     128
    ],
    "rect": [
     0.25,
-    0.9375,
+    0.125,
     0.25,
     0.0625
    ],
@@ -1793,17 +1817,17 @@
   },
   {
    "id": 72,
-   "page": 0,
-   "cell": 62,
+   "page": 1,
+   "cell": 10,
    "px": [
     1024,
-    1920,
+    256,
     512,
     128
    ],
    "rect": [
     0.5,
-    0.9375,
+    0.125,
     0.25,
     0.0625
    ],
@@ -1887,17 +1911,17 @@
   },
   {
    "id": 76,
-   "page": 0,
-   "cell": 63,
+   "page": 1,
+   "cell": 11,
    "px": [
     1536,
-    1920,
+    256,
     512,
     128
    ],
    "rect": [
     0.75,
-    0.9375,
+    0.125,
     0.25,
     0.0625
    ],
@@ -1911,16 +1935,16 @@
   {
    "id": 77,
    "page": 1,
-   "cell": 0,
+   "cell": 12,
    "px": [
     0,
-    0,
+    384,
     512,
     128
    ],
    "rect": [
     0.0,
-    0.0,
+    0.1875,
     0.25,
     0.0625
    ],
@@ -1935,16 +1959,16 @@
   {
    "id": 78,
    "page": 1,
-   "cell": 1,
+   "cell": 13,
    "px": [
     512,
-    0,
+    384,
     512,
     128
    ],
    "rect": [
     0.25,
-    0.0,
+    0.1875,
     0.25,
     0.0625
    ],
@@ -1958,16 +1982,16 @@
   {
    "id": 79,
    "page": 1,
-   "cell": 2,
+   "cell": 14,
    "px": [
     1024,
-    0,
+    384,
     512,
     128
    ],
    "rect": [
     0.5,
-    0.0,
+    0.1875,
     0.25,
     0.0625
    ],
@@ -1982,16 +2006,16 @@
   {
    "id": 80,
    "page": 1,
-   "cell": 3,
+   "cell": 15,
    "px": [
     1536,
-    0,
+    384,
     512,
     128
    ],
    "rect": [
     0.75,
-    0.0,
+    0.1875,
     0.25,
     0.0625
    ],
@@ -2005,16 +2029,16 @@
   {
    "id": 81,
    "page": 1,
-   "cell": 4,
+   "cell": 16,
    "px": [
     0,
-    128,
+    512,
     512,
     128
    ],
    "rect": [
     0.0,
-    0.0625,
+    0.25,
     0.25,
     0.0625
    ],
@@ -2029,16 +2053,16 @@
   {
    "id": 82,
    "page": 1,
-   "cell": 5,
+   "cell": 17,
    "px": [
     512,
-    128,
+    512,
     512,
     128
    ],
    "rect": [
     0.25,
-    0.0625,
+    0.25,
     0.25,
     0.0625
    ],
@@ -2052,16 +2076,16 @@
   {
    "id": 83,
    "page": 1,
-   "cell": 6,
+   "cell": 18,
    "px": [
     1024,
-    128,
+    512,
     512,
     128
    ],
    "rect": [
     0.5,
-    0.0625,
+    0.25,
     0.25,
     0.0625
    ],
@@ -2075,17 +2099,17 @@
   },
   {
    "id": 84,
-   "page": 1,
-   "cell": 60,
+   "page": 2,
+   "cell": 46,
    "px": [
-    0,
-    1920,
+    1024,
+    1408,
     512,
     128
    ],
    "rect": [
-    0.0,
-    0.9375,
+    0.5,
+    0.6875,
     0.25,
     0.0625
    ],
@@ -2098,17 +2122,17 @@
   },
   {
    "id": 85,
-   "page": 1,
-   "cell": 61,
+   "page": 2,
+   "cell": 47,
    "px": [
-    512,
-    1920,
+    1536,
+    1408,
     512,
     128
    ],
    "rect": [
-    0.25,
-    0.9375,
+    0.75,
+    0.6875,
     0.25,
     0.0625
    ],
@@ -2122,17 +2146,17 @@
   },
   {
    "id": 86,
-   "page": 1,
-   "cell": 62,
+   "page": 2,
+   "cell": 48,
    "px": [
-    1024,
-    1920,
+    0,
+    1536,
     512,
     128
    ],
    "rect": [
-    0.5,
-    0.9375,
+    0.0,
+    0.75,
     0.25,
     0.0625
    ],
@@ -2145,17 +2169,17 @@
   },
   {
    "id": 87,
-   "page": 1,
-   "cell": 63,
+   "page": 2,
+   "cell": 49,
    "px": [
+    512,
     1536,
-    1920,
     512,
     128
    ],
    "rect": [
+    0.25,
     0.75,
-    0.9375,
     0.25,
     0.0625
    ],
@@ -2169,7 +2193,7 @@
   },
   {
    "id": 88,
-   "page": 3,
+   "page": 4,
    "cell": 0,
    "px": [
     0,
@@ -2192,7 +2216,7 @@
   },
   {
    "id": 89,
-   "page": 3,
+   "page": 4,
    "cell": 1,
    "px": [
     256,
@@ -2216,7 +2240,7 @@
   },
   {
    "id": 90,
-   "page": 3,
+   "page": 4,
    "cell": 2,
    "px": [
     512,
@@ -2231,7 +2255,7 @@
     0.0625
    ],
    "text": [
-    "ANTWERPEN"
+    "KATRIEN"
    ],
    "style": "small_hand",
    "look": "hand",
@@ -2239,17 +2263,41 @@
   },
   {
    "id": 91,
-   "page": 2,
-   "cell": 30,
+   "page": 4,
+   "cell": 3,
    "px": [
+    768,
+    0,
+    256,
+    64
+   ],
+   "rect": [
+    0.75,
+    0.0,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "KATRIEN",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 92,
+   "page": 3,
+   "cell": 33,
+   "px": [
+    512,
     1024,
-    896,
     512,
     128
    ],
    "rect": [
+    0.25,
     0.5,
-    0.4375,
     0.25,
     0.0625
    ],
@@ -2261,18 +2309,18 @@
    "aspect": 9.23
   },
   {
-   "id": 92,
-   "page": 2,
-   "cell": 31,
+   "id": 93,
+   "page": 3,
+   "cell": 34,
    "px": [
-    1536,
-    896,
+    1024,
+    1024,
     512,
     128
    ],
    "rect": [
-    0.75,
-    0.4375,
+    0.5,
+    0.5,
     0.25,
     0.0625
    ],
@@ -2285,17 +2333,17 @@
    "aspect": 7.69
   },
   {
-   "id": 93,
-   "page": 2,
-   "cell": 32,
+   "id": 94,
+   "page": 3,
+   "cell": 35,
    "px": [
-    0,
+    1536,
     1024,
     512,
     128
    ],
    "rect": [
-    0.0,
+    0.75,
     0.5,
     0.25,
     0.0625
@@ -2308,18 +2356,18 @@
    "aspect": 9.23
   },
   {
-   "id": 94,
+   "id": 95,
    "page": 1,
-   "cell": 7,
+   "cell": 19,
    "px": [
     1536,
-    128,
+    512,
     512,
     128
    ],
    "rect": [
     0.75,
-    0.0625,
+    0.25,
     0.25,
     0.0625
    ],
@@ -2331,18 +2379,18 @@
    "aspect": 4.0
   },
   {
-   "id": 95,
+   "id": 96,
    "page": 1,
-   "cell": 8,
+   "cell": 20,
    "px": [
     0,
-    256,
+    640,
     512,
     128
    ],
    "rect": [
     0.0,
-    0.125,
+    0.3125,
     0.25,
     0.0625
    ],
@@ -2355,7 +2403,7 @@
    "aspect": 4.0
   },
   {
-   "id": 96,
+   "id": 97,
    "page": 0,
    "cell": 16,
    "px": [
@@ -2378,7 +2426,7 @@
    "aspect": 4.0
   },
   {
-   "id": 97,
+   "id": 98,
    "page": 0,
    "cell": 17,
    "px": [
@@ -2402,18 +2450,18 @@
    "aspect": 4.0
   },
   {
-   "id": 98,
+   "id": 99,
    "page": 2,
-   "cell": 0,
+   "cell": 50,
    "px": [
-    0,
-    0,
+    1024,
+    1536,
     512,
     128
    ],
    "rect": [
-    0.0,
-    0.0,
+    0.5,
+    0.75,
     0.25,
     0.0625
    ],
@@ -2425,18 +2473,18 @@
    "aspect": 7.62
   },
   {
-   "id": 99,
+   "id": 100,
    "page": 2,
-   "cell": 1,
+   "cell": 51,
    "px": [
-    512,
-    0,
+    1536,
+    1536,
     512,
     128
    ],
    "rect": [
-    0.25,
-    0.0,
+    0.75,
+    0.75,
     0.25,
     0.0625
    ],
@@ -2449,18 +2497,18 @@
    "aspect": 6.32
   },
   {
-   "id": 100,
+   "id": 101,
    "page": 1,
-   "cell": 9,
+   "cell": 21,
    "px": [
     512,
-    256,
+    640,
     512,
     128
    ],
    "rect": [
     0.25,
-    0.125,
+    0.3125,
     0.25,
     0.0625
    ],
@@ -2472,18 +2520,18 @@
    "aspect": 7.31
   },
   {
-   "id": 101,
+   "id": 102,
    "page": 1,
-   "cell": 10,
+   "cell": 22,
    "px": [
     1024,
-    256,
+    640,
     512,
     128
    ],
    "rect": [
     0.5,
-    0.125,
+    0.3125,
     0.25,
     0.0625
    ],
@@ -2496,7 +2544,7 @@
    "aspect": 6.36
   },
   {
-   "id": 102,
+   "id": 103,
    "page": 0,
    "cell": 18,
    "px": [
@@ -2519,7 +2567,7 @@
    "aspect": 4.0
   },
   {
-   "id": 103,
+   "id": 104,
    "page": 0,
    "cell": 19,
    "px": [
@@ -2543,31 +2591,8 @@
    "aspect": 4.0
   },
   {
-   "id": 104,
-   "page": 3,
-   "cell": 3,
-   "px": [
-    768,
-    0,
-    256,
-    64
-   ],
-   "rect": [
-    0.75,
-    0.0,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "MIE"
-   ],
-   "style": "small_hand",
-   "look": "hand",
-   "aspect": 4.0
-  },
-  {
    "id": 105,
-   "page": 3,
+   "page": 4,
    "cell": 4,
    "px": [
     0,
@@ -2582,8 +2607,7 @@
     0.0625
    ],
    "text": [
-    "MIE",
-    "ANTWERPEN"
+    "MIE"
    ],
    "style": "small_hand",
    "look": "hand",
@@ -2591,7 +2615,7 @@
   },
   {
    "id": 106,
-   "page": 3,
+   "page": 4,
    "cell": 5,
    "px": [
     256,
@@ -2606,7 +2630,8 @@
     0.0625
    ],
    "text": [
-    "ROSALIE"
+    "MIE",
+    "ANTWERPEN"
    ],
    "style": "small_hand",
    "look": "hand",
@@ -2614,7 +2639,7 @@
   },
   {
    "id": 107,
-   "page": 3,
+   "page": 4,
    "cell": 6,
    "px": [
     512,
@@ -2629,8 +2654,7 @@
     0.0625
    ],
    "text": [
-    "ROSALIE",
-    "ANTWERPEN"
+    "ROSALIE"
    ],
    "style": "small_hand",
    "look": "hand",
@@ -2638,7 +2662,7 @@
   },
   {
    "id": 108,
-   "page": 3,
+   "page": 4,
    "cell": 7,
    "px": [
     768,
@@ -2653,6 +2677,7 @@
     0.0625
    ],
    "text": [
+    "ROSALIE",
     "ANTWERPEN"
    ],
    "style": "small_hand",
@@ -2661,7 +2686,7 @@
   },
   {
    "id": 109,
-   "page": 3,
+   "page": 4,
    "cell": 8,
    "px": [
     0,
@@ -2676,7 +2701,7 @@
     0.0625
    ],
    "text": [
-    "DE PALING"
+    "BIEKE"
    ],
    "style": "small_hand",
    "look": "hand",
@@ -2684,7 +2709,7 @@
   },
   {
    "id": 110,
-   "page": 3,
+   "page": 4,
    "cell": 9,
    "px": [
     256,
@@ -2699,8 +2724,8 @@
     0.0625
    ],
    "text": [
-    "DE PALING",
-    "LILLO"
+    "BIEKE",
+    "ANTWERPEN"
    ],
    "style": "small_hand",
    "look": "hand",
@@ -2708,7 +2733,7 @@
   },
   {
    "id": 111,
-   "page": 3,
+   "page": 4,
    "cell": 10,
    "px": [
     512,
@@ -2723,7 +2748,7 @@
     0.0625
    ],
    "text": [
-    "BROOD - BIER"
+    "DE PALING"
    ],
    "style": "small_hand",
    "look": "hand",
@@ -2731,7 +2756,7 @@
   },
   {
    "id": 112,
-   "page": 3,
+   "page": 4,
    "cell": 11,
    "px": [
     768,
@@ -2746,8 +2771,8 @@
     0.0625
    ],
    "text": [
-    "BROOD - BIER",
-    "ANTWERPEN"
+    "DE PALING",
+    "LILLO"
    ],
    "style": "small_hand",
    "look": "hand",
@@ -2755,7 +2780,7 @@
   },
   {
    "id": 113,
-   "page": 3,
+   "page": 4,
    "cell": 12,
    "px": [
     0,
@@ -2770,7 +2795,7 @@
     0.0625
    ],
    "text": [
-    "ANNA MARIA"
+    "BROOD - BIER"
    ],
    "style": "small_hand",
    "look": "hand",
@@ -2778,7 +2803,7 @@
   },
   {
    "id": 114,
-   "page": 3,
+   "page": 4,
    "cell": 13,
    "px": [
     256,
@@ -2793,7 +2818,7 @@
     0.0625
    ],
    "text": [
-    "ANNA MARIA",
+    "BROOD - BIER",
     "ANTWERPEN"
    ],
    "style": "small_hand",
@@ -2802,7 +2827,7 @@
   },
   {
    "id": 115,
-   "page": 3,
+   "page": 4,
    "cell": 14,
    "px": [
     512,
@@ -2817,7 +2842,7 @@
     0.0625
    ],
    "text": [
-    "BOOM"
+    "ANNA MARIA II"
    ],
    "style": "small_hand",
    "look": "hand",
@@ -2825,7 +2850,7 @@
   },
   {
    "id": 116,
-   "page": 3,
+   "page": 4,
    "cell": 15,
    "px": [
     768,
@@ -2840,7 +2865,8 @@
     0.0625
    ],
    "text": [
-    "KLEIN JAN"
+    "ANNA MARIA II",
+    "ANTWERPEN"
    ],
    "style": "small_hand",
    "look": "hand",
@@ -2848,7 +2874,7 @@
   },
   {
    "id": 117,
-   "page": 3,
+   "page": 4,
    "cell": 16,
    "px": [
     0,
@@ -2863,8 +2889,7 @@
     0.0625
    ],
    "text": [
-    "KLEIN JAN",
-    "ANTWERPEN"
+    "FONSKE"
    ],
    "style": "small_hand",
    "look": "hand",
@@ -2872,7 +2897,7 @@
   },
   {
    "id": 118,
-   "page": 3,
+   "page": 4,
    "cell": 17,
    "px": [
     256,
@@ -2887,7 +2912,8 @@
     0.0625
    ],
    "text": [
-    "ELLIDA"
+    "FONSKE",
+    "BOOM"
    ],
    "style": "small_hand",
    "look": "hand",
@@ -2895,7 +2921,7 @@
   },
   {
    "id": 119,
-   "page": 3,
+   "page": 4,
    "cell": 18,
    "px": [
     512,
@@ -2910,8 +2936,7 @@
     0.0625
    ],
    "text": [
-    "ELLIDA",
-    "DRAMMEN"
+    "KLEIN JAN"
    ],
    "style": "small_hand",
    "look": "hand",
@@ -2919,7 +2944,7 @@
   },
   {
    "id": 120,
-   "page": 3,
+   "page": 4,
    "cell": 19,
    "px": [
     768,
@@ -2934,7 +2959,8 @@
     0.0625
    ],
    "text": [
-    "DE MOL"
+    "KLEIN JAN",
+    "ANTWERPEN"
    ],
    "style": "small_hand",
    "look": "hand",
@@ -2942,7 +2968,7 @@
   },
   {
    "id": 121,
-   "page": 3,
+   "page": 4,
    "cell": 20,
    "px": [
     0,
@@ -2957,8 +2983,7 @@
     0.0625
    ],
    "text": [
-    "DE MOL",
-    "HEMIKSEM"
+    "ROOSKE"
    ],
    "style": "small_hand",
    "look": "hand",
@@ -2966,7 +2991,7 @@
   },
   {
    "id": 122,
-   "page": 3,
+   "page": 4,
    "cell": 21,
    "px": [
     256,
@@ -2981,7 +3006,8 @@
     0.0625
    ],
    "text": [
-    "GERMANIA"
+    "ROOSKE",
+    "ANTWERPEN"
    ],
    "style": "small_hand",
    "look": "hand",
@@ -2989,7 +3015,7 @@
   },
   {
    "id": 123,
-   "page": 3,
+   "page": 4,
    "cell": 22,
    "px": [
     512,
@@ -3004,8 +3030,7 @@
     0.0625
    ],
    "text": [
-    "GERMANIA",
-    "BREMEN"
+    "ELLIDA II"
    ],
    "style": "small_hand",
    "look": "hand",
@@ -3013,7 +3038,7 @@
   },
   {
    "id": 124,
-   "page": 3,
+   "page": 4,
    "cell": 23,
    "px": [
     768,
@@ -3028,7 +3053,8 @@
     0.0625
    ],
    "text": [
-    "LIEVEKE"
+    "ELLIDA II",
+    "DRAMMEN"
    ],
    "style": "small_hand",
    "look": "hand",
@@ -3036,7 +3062,7 @@
   },
   {
    "id": 125,
-   "page": 3,
+   "page": 4,
    "cell": 24,
    "px": [
     0,
@@ -3051,8 +3077,7 @@
     0.0625
    ],
    "text": [
-    "LIEVEKE",
-    "ANTWERPEN"
+    "DE MOL"
    ],
    "style": "small_hand",
    "look": "hand",
@@ -3060,7 +3085,7 @@
   },
   {
    "id": 126,
-   "page": 3,
+   "page": 4,
    "cell": 25,
    "px": [
     256,
@@ -3075,7 +3100,8 @@
     0.0625
    ],
    "text": [
-    "TRIENTJE"
+    "DE MOL",
+    "HEMIKSEM"
    ],
    "style": "small_hand",
    "look": "hand",
@@ -3083,7 +3109,7 @@
   },
   {
    "id": 127,
-   "page": 3,
+   "page": 4,
    "cell": 26,
    "px": [
     512,
@@ -3098,8 +3124,7 @@
     0.0625
    ],
    "text": [
-    "TRIENTJE",
-    "ANTWERPEN"
+    "GERMANIA II"
    ],
    "style": "small_hand",
    "look": "hand",
@@ -3107,54 +3132,7 @@
   },
   {
    "id": 128,
-   "page": 1,
-   "cell": 11,
-   "px": [
-    1536,
-    256,
-    512,
-    128
-   ],
-   "rect": [
-    0.75,
-    0.125,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "POLITIE"
-   ],
-   "style": "white_slab",
-   "look": "white",
-   "aspect": 4.0
-  },
-  {
-   "id": 129,
-   "page": 1,
-   "cell": 12,
-   "px": [
-    0,
-    384,
-    512,
-    128
-   ],
-   "rect": [
-    0.0,
-    0.1875,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "POLITIE",
-    "No 2"
-   ],
-   "style": "white_slab",
-   "look": "white",
-   "aspect": 4.01
-  },
-  {
-   "id": 130,
-   "page": 3,
+   "page": 4,
    "cell": 27,
    "px": [
     768,
@@ -3169,38 +3147,15 @@
     0.0625
    ],
    "text": [
-    "FIENTJE"
+    "GERMANIA II",
+    "BREMEN"
    ],
    "style": "small_hand",
    "look": "hand",
    "aspect": 4.0
   },
   {
-   "id": 131,
-   "page": 3,
-   "cell": 28,
-   "px": [
-    0,
-    448,
-    256,
-    64
-   ],
-   "rect": [
-    0.0,
-    0.4375,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "FIENTJE",
-    "ANTWERPEN"
-   ],
-   "style": "small_hand",
-   "look": "hand",
-   "aspect": 4.0
-  },
-  {
-   "id": 132,
+   "id": 129,
    "page": 4,
    "cell": 28,
    "px": [
@@ -3216,15 +3171,15 @@
     0.0625
    ],
    "text": [
-    "ELISA"
+    "LIEVEKE"
    ],
-   "style": "scraped",
-   "look": "scraped",
+   "style": "small_hand",
+   "look": "hand",
    "aspect": 4.0
   },
   {
-   "id": 133,
-   "page": 3,
+   "id": 130,
+   "page": 4,
    "cell": 29,
    "px": [
     256,
@@ -3239,15 +3194,16 @@
     0.0625
    ],
    "text": [
-    "BURCHT"
+    "LIEVEKE",
+    "ANTWERPEN"
    ],
    "style": "small_hand",
    "look": "hand",
    "aspect": 4.0
   },
   {
-   "id": 134,
-   "page": 3,
+   "id": 131,
+   "page": 4,
    "cell": 30,
    "px": [
     512,
@@ -3262,15 +3218,15 @@
     0.0625
    ],
    "text": [
-    "NELLEKE"
+    "TRIENTJE"
    ],
    "style": "small_hand",
    "look": "hand",
    "aspect": 4.0
   },
   {
-   "id": 135,
-   "page": 3,
+   "id": 132,
+   "page": 4,
    "cell": 31,
    "px": [
     768,
@@ -3285,7 +3241,7 @@
     0.0625
    ],
    "text": [
-    "NELLEKE",
+    "TRIENTJE",
     "ANTWERPEN"
    ],
    "style": "small_hand",
@@ -3293,31 +3249,55 @@
    "aspect": 4.0
   },
   {
-   "id": 136,
-   "page": 4,
-   "cell": 29,
+   "id": 133,
+   "page": 1,
+   "cell": 23,
    "px": [
-    256,
-    448,
-    256,
-    64
+    1536,
+    640,
+    512,
+    128
    ],
    "rect": [
-    0.25,
-    0.4375,
+    0.75,
+    0.3125,
     0.25,
     0.0625
    ],
    "text": [
-    "DE MEEUW"
+    "POLITIE"
    ],
-   "style": "scraped",
-   "look": "scraped",
+   "style": "white_slab",
+   "look": "white",
    "aspect": 4.0
   },
   {
-   "id": 137,
-   "page": 3,
+   "id": 134,
+   "page": 1,
+   "cell": 24,
+   "px": [
+    0,
+    768,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "POLITIE  No 2",
+    "ANTWERPEN"
+   ],
+   "style": "white_slab",
+   "look": "white",
+   "aspect": 4.01
+  },
+  {
+   "id": 135,
+   "page": 4,
    "cell": 32,
    "px": [
     0,
@@ -3332,15 +3312,15 @@
     0.0625
    ],
    "text": [
-    "KOFFIE - JENEVER"
+    "FIENTJE"
    ],
    "style": "small_hand",
    "look": "hand",
    "aspect": 4.0
   },
   {
-   "id": 138,
-   "page": 3,
+   "id": 136,
+   "page": 4,
    "cell": 33,
    "px": [
     256,
@@ -3355,7 +3335,7 @@
     0.0625
    ],
    "text": [
-    "KOFFIE - JENEVER",
+    "FIENTJE",
     "ANTWERPEN"
    ],
    "style": "small_hand",
@@ -3363,8 +3343,8 @@
    "aspect": 4.0
   },
   {
-   "id": 139,
-   "page": 3,
+   "id": 137,
+   "page": 4,
    "cell": 34,
    "px": [
     512,
@@ -3379,15 +3359,15 @@
     0.0625
    ],
    "text": [
-    "BETJE"
+    "JULIE"
    ],
    "style": "small_hand",
    "look": "hand",
    "aspect": 4.0
   },
   {
-   "id": 140,
-   "page": 3,
+   "id": 138,
+   "page": 4,
    "cell": 35,
    "px": [
     768,
@@ -3402,7 +3382,7 @@
     0.0625
    ],
    "text": [
-    "BETJE",
+    "JULIE",
     "ANTWERPEN"
    ],
    "style": "small_hand",
@@ -3410,55 +3390,8 @@
    "aspect": 4.0
   },
   {
-   "id": 141,
-   "page": 3,
-   "cell": 36,
-   "px": [
-    0,
-    576,
-    256,
-    64
-   ],
-   "rect": [
-    0.0,
-    0.5625,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "MIEKE"
-   ],
-   "style": "small_hand",
-   "look": "hand",
-   "aspect": 4.0
-  },
-  {
-   "id": 142,
-   "page": 3,
-   "cell": 37,
-   "px": [
-    256,
-    576,
-    256,
-    64
-   ],
-   "rect": [
-    0.25,
-    0.5625,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "MIEKE",
-    "ANTWERPEN"
-   ],
-   "style": "small_hand",
-   "look": "hand",
-   "aspect": 4.0
-  },
-  {
-   "id": 143,
-   "page": 3,
+   "id": 139,
+   "page": 6,
    "cell": 38,
    "px": [
     512,
@@ -3473,15 +3406,15 @@
     0.0625
    ],
    "text": [
-    "HOBOKEN"
+    "ELISA"
    ],
-   "style": "small_hand",
-   "look": "hand",
+   "style": "scraped",
+   "look": "scraped",
    "aspect": 4.0
   },
   {
-   "id": 144,
-   "page": 3,
+   "id": 140,
+   "page": 6,
    "cell": 39,
    "px": [
     768,
@@ -3496,7 +3429,102 @@
     0.0625
    ],
    "text": [
-    "ANNEKE"
+    "ELISA",
+    "ANTWERPEN"
+   ],
+   "style": "scraped",
+   "look": "scraped",
+   "aspect": 4.0
+  },
+  {
+   "id": 141,
+   "page": 4,
+   "cell": 36,
+   "px": [
+    0,
+    576,
+    256,
+    64
+   ],
+   "rect": [
+    0.0,
+    0.5625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "JANNEKE"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 142,
+   "page": 4,
+   "cell": 37,
+   "px": [
+    256,
+    576,
+    256,
+    64
+   ],
+   "rect": [
+    0.25,
+    0.5625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "JANNEKE",
+    "BURCHT"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 143,
+   "page": 4,
+   "cell": 38,
+   "px": [
+    512,
+    576,
+    256,
+    64
+   ],
+   "rect": [
+    0.5,
+    0.5625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "NELLEKE"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 144,
+   "page": 4,
+   "cell": 39,
+   "px": [
+    768,
+    576,
+    256,
+    64
+   ],
+   "rect": [
+    0.75,
+    0.5625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "NELLEKE",
+    "ANTWERPEN"
    ],
    "style": "small_hand",
    "look": "hand",
@@ -3504,7 +3532,7 @@
   },
   {
    "id": 145,
-   "page": 3,
+   "page": 6,
    "cell": 40,
    "px": [
     0,
@@ -3519,16 +3547,15 @@
     0.0625
    ],
    "text": [
-    "ANNEKE",
-    "ANTWERPEN"
+    "DE MEEUW"
    ],
-   "style": "small_hand",
-   "look": "hand",
+   "style": "scraped",
+   "look": "scraped",
    "aspect": 4.0
   },
   {
    "id": 146,
-   "page": 3,
+   "page": 6,
    "cell": 41,
    "px": [
     256,
@@ -3543,38 +3570,63 @@
     0.0625
    ],
    "text": [
-    "DOEL"
-   ],
-   "style": "small_hand",
-   "look": "hand",
-   "aspect": 4.0
-  },
-  {
-   "id": 147,
-   "page": 4,
-   "cell": 30,
-   "px": [
-    512,
-    448,
-    256,
-    64
-   ],
-   "rect": [
-    0.5,
-    0.4375,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "JOHANNA"
+    "DE MEEUW",
+    "ANTWERPEN"
    ],
    "style": "scraped",
    "look": "scraped",
    "aspect": 4.0
   },
   {
+   "id": 147,
+   "page": 4,
+   "cell": 40,
+   "px": [
+    0,
+    640,
+    256,
+    64
+   ],
+   "rect": [
+    0.0,
+    0.625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "TIST"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
    "id": 148,
-   "page": 3,
+   "page": 4,
+   "cell": 41,
+   "px": [
+    256,
+    640,
+    256,
+    64
+   ],
+   "rect": [
+    0.25,
+    0.625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "TIST",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 149,
+   "page": 4,
    "cell": 42,
    "px": [
     512,
@@ -3589,15 +3641,15 @@
     0.0625
    ],
    "text": [
-    "TREESKE"
+    "KOFFIE - JENEVER"
    ],
    "style": "small_hand",
    "look": "hand",
    "aspect": 4.0
   },
   {
-   "id": 149,
-   "page": 3,
+   "id": 150,
+   "page": 4,
    "cell": 43,
    "px": [
     768,
@@ -3612,7 +3664,7 @@
     0.0625
    ],
    "text": [
-    "TREESKE",
+    "KOFFIE - JENEVER",
     "ANTWERPEN"
    ],
    "style": "small_hand",
@@ -3620,8 +3672,8 @@
    "aspect": 4.0
   },
   {
-   "id": 150,
-   "page": 3,
+   "id": 151,
+   "page": 4,
    "cell": 44,
    "px": [
     0,
@@ -3636,15 +3688,15 @@
     0.0625
    ],
    "text": [
-    "TEMSE"
+    "BETJE"
    ],
    "style": "small_hand",
    "look": "hand",
    "aspect": 4.0
   },
   {
-   "id": 151,
-   "page": 3,
+   "id": 152,
+   "page": 4,
    "cell": 45,
    "px": [
     256,
@@ -3659,15 +3711,16 @@
     0.0625
    ],
    "text": [
-    "STANSKE"
+    "BETJE",
+    "ANTWERPEN"
    ],
    "style": "small_hand",
    "look": "hand",
    "aspect": 4.0
   },
   {
-   "id": 152,
-   "page": 3,
+   "id": 153,
+   "page": 4,
    "cell": 46,
    "px": [
     512,
@@ -3682,16 +3735,15 @@
     0.0625
    ],
    "text": [
-    "STANSKE",
-    "ANTWERPEN"
+    "NAND"
    ],
    "style": "small_hand",
    "look": "hand",
    "aspect": 4.0
   },
   {
-   "id": 153,
-   "page": 3,
+   "id": 154,
+   "page": 4,
    "cell": 47,
    "px": [
     768,
@@ -3706,15 +3758,16 @@
     0.0625
    ],
    "text": [
-    "BATH"
+    "NAND",
+    "ANTWERPEN"
    ],
    "style": "small_hand",
    "look": "hand",
    "aspect": 4.0
   },
   {
-   "id": 154,
-   "page": 3,
+   "id": 155,
+   "page": 4,
    "cell": 48,
    "px": [
     0,
@@ -3729,15 +3782,15 @@
     0.0625
    ],
    "text": [
-    "ROZEKE"
+    "MIEKE"
    ],
    "style": "small_hand",
    "look": "hand",
    "aspect": 4.0
   },
   {
-   "id": 155,
-   "page": 3,
+   "id": 156,
+   "page": 4,
    "cell": 49,
    "px": [
     256,
@@ -3752,7 +3805,7 @@
     0.0625
    ],
    "text": [
-    "ROZEKE",
+    "MIEKE",
     "ANTWERPEN"
    ],
    "style": "small_hand",
@@ -3760,31 +3813,8 @@
    "aspect": 4.0
   },
   {
-   "id": 156,
-   "page": 4,
-   "cell": 31,
-   "px": [
-    768,
-    448,
-    256,
-    64
-   ],
-   "rect": [
-    0.75,
-    0.4375,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "AMELIE"
-   ],
-   "style": "scraped",
-   "look": "scraped",
-   "aspect": 4.0
-  },
-  {
    "id": 157,
-   "page": 3,
+   "page": 4,
    "cell": 50,
    "px": [
     512,
@@ -3799,7 +3829,7 @@
     0.0625
    ],
    "text": [
-    "TABAK - BROOD"
+    "KOBE"
    ],
    "style": "small_hand",
    "look": "hand",
@@ -3807,7 +3837,7 @@
   },
   {
    "id": 158,
-   "page": 3,
+   "page": 4,
    "cell": 51,
    "px": [
     768,
@@ -3822,8 +3852,8 @@
     0.0625
    ],
    "text": [
-    "TABAK - BROOD",
-    "ANTWERPEN"
+    "KOBE",
+    "HOBOKEN"
    ],
    "style": "small_hand",
    "look": "hand",
@@ -3831,7 +3861,7 @@
   },
   {
    "id": 159,
-   "page": 3,
+   "page": 4,
    "cell": 52,
    "px": [
     0,
@@ -3846,7 +3876,7 @@
     0.0625
    ],
    "text": [
-    "KLEIN PIERKE"
+    "LEONIE"
    ],
    "style": "small_hand",
    "look": "hand",
@@ -3854,7 +3884,7 @@
   },
   {
    "id": 160,
-   "page": 3,
+   "page": 4,
    "cell": 53,
    "px": [
     256,
@@ -3869,7 +3899,7 @@
     0.0625
    ],
    "text": [
-    "KLEIN PIERKE",
+    "LEONIE",
     "ANTWERPEN"
    ],
    "style": "small_hand",
@@ -3878,7 +3908,7 @@
   },
   {
    "id": 161,
-   "page": 3,
+   "page": 4,
    "cell": 54,
    "px": [
     512,
@@ -3893,7 +3923,7 @@
     0.0625
    ],
    "text": [
-    "DE REIGER"
+    "ANNEKE"
    ],
    "style": "small_hand",
    "look": "hand",
@@ -3901,7 +3931,7 @@
   },
   {
    "id": 162,
-   "page": 3,
+   "page": 4,
    "cell": 55,
    "px": [
     768,
@@ -3916,8 +3946,8 @@
     0.0625
    ],
    "text": [
-    "DE REIGER",
-    "RUPELMONDE"
+    "ANNEKE",
+    "ANTWERPEN"
    ],
    "style": "small_hand",
    "look": "hand",
@@ -3925,7 +3955,7 @@
   },
   {
    "id": 163,
-   "page": 3,
+   "page": 4,
    "cell": 56,
    "px": [
     0,
@@ -3940,7 +3970,7 @@
     0.0625
    ],
    "text": [
-    "KALLO"
+    "MARTA"
    ],
    "style": "small_hand",
    "look": "hand",
@@ -3948,7 +3978,7 @@
   },
   {
    "id": 164,
-   "page": 3,
+   "page": 4,
    "cell": 57,
    "px": [
     256,
@@ -3963,7 +3993,8 @@
     0.0625
    ],
    "text": [
-    "MARIEKE"
+    "MARTA",
+    "DOEL"
    ],
    "style": "small_hand",
    "look": "hand",
@@ -3971,7 +4002,7 @@
   },
   {
    "id": 165,
-   "page": 3,
+   "page": 4,
    "cell": 58,
    "px": [
     512,
@@ -3986,8 +4017,7 @@
     0.0625
    ],
    "text": [
-    "MARIEKE",
-    "ANTWERPEN"
+    "SIDONIE"
    ],
    "style": "small_hand",
    "look": "hand",
@@ -3996,29 +4026,6 @@
   {
    "id": 166,
    "page": 4,
-   "cell": 32,
-   "px": [
-    0,
-    512,
-    256,
-    64
-   ],
-   "rect": [
-    0.0,
-    0.5,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "PIETERTJE"
-   ],
-   "style": "scraped",
-   "look": "scraped",
-   "aspect": 4.0
-  },
-  {
-   "id": 167,
-   "page": 3,
    "cell": 59,
    "px": [
     768,
@@ -4033,15 +4040,63 @@
     0.0625
    ],
    "text": [
-    "MOSSELEN - BIER"
+    "SIDONIE",
+    "ANTWERPEN"
    ],
    "style": "small_hand",
    "look": "hand",
    "aspect": 4.0
   },
   {
+   "id": 167,
+   "page": 6,
+   "cell": 42,
+   "px": [
+    512,
+    640,
+    256,
+    64
+   ],
+   "rect": [
+    0.5,
+    0.625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "JOHANNA"
+   ],
+   "style": "scraped",
+   "look": "scraped",
+   "aspect": 4.0
+  },
+  {
    "id": 168,
-   "page": 3,
+   "page": 6,
+   "cell": 43,
+   "px": [
+    768,
+    640,
+    256,
+    64
+   ],
+   "rect": [
+    0.75,
+    0.625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "JOHANNA",
+    "ANTWERPEN"
+   ],
+   "style": "scraped",
+   "look": "scraped",
+   "aspect": 4.0
+  },
+  {
+   "id": 169,
+   "page": 4,
    "cell": 60,
    "px": [
     0,
@@ -4056,16 +4111,15 @@
     0.0625
    ],
    "text": [
-    "MOSSELEN - BIER",
-    "ANTWERPEN"
+    "TREESKE"
    ],
    "style": "small_hand",
    "look": "hand",
    "aspect": 4.0
   },
   {
-   "id": 169,
-   "page": 3,
+   "id": 170,
+   "page": 4,
    "cell": 61,
    "px": [
     256,
@@ -4080,15 +4134,16 @@
     0.0625
    ],
    "text": [
-    "TOONTJE"
+    "TREESKE",
+    "ANTWERPEN"
    ],
    "style": "small_hand",
    "look": "hand",
    "aspect": 4.0
   },
   {
-   "id": 170,
-   "page": 3,
+   "id": 171,
+   "page": 4,
    "cell": 62,
    "px": [
     512,
@@ -4103,16 +4158,15 @@
     0.0625
    ],
    "text": [
-    "TOONTJE",
-    "ANTWERPEN"
+    "JULES"
    ],
    "style": "small_hand",
    "look": "hand",
    "aspect": 4.0
   },
   {
-   "id": 171,
-   "page": 3,
+   "id": 172,
+   "page": 4,
    "cell": 63,
    "px": [
     768,
@@ -4127,15 +4181,16 @@
     0.0625
    ],
    "text": [
-    "JOSEFIEN"
+    "JULES",
+    "TEMSE"
    ],
    "style": "small_hand",
    "look": "hand",
    "aspect": 4.0
   },
   {
-   "id": 172,
-   "page": 4,
+   "id": 173,
+   "page": 5,
    "cell": 0,
    "px": [
     0,
@@ -4150,16 +4205,15 @@
     0.0625
    ],
    "text": [
-    "JOSEFIEN",
-    "ANTWERPEN"
+    "STANSKE"
    ],
    "style": "small_hand",
    "look": "hand",
    "aspect": 4.0
   },
   {
-   "id": 173,
-   "page": 4,
+   "id": 174,
+   "page": 5,
    "cell": 1,
    "px": [
     256,
@@ -4174,15 +4228,16 @@
     0.0625
    ],
    "text": [
-    "VIRGINIE"
+    "STANSKE",
+    "ANTWERPEN"
    ],
    "style": "small_hand",
    "look": "hand",
    "aspect": 4.0
   },
   {
-   "id": 174,
-   "page": 4,
+   "id": 175,
+   "page": 5,
    "cell": 2,
    "px": [
     512,
@@ -4197,16 +4252,15 @@
     0.0625
    ],
    "text": [
-    "VIRGINIE",
-    "ANTWERPEN"
+    "CELINE"
    ],
    "style": "small_hand",
    "look": "hand",
    "aspect": 4.0
   },
   {
-   "id": 175,
-   "page": 4,
+   "id": 176,
+   "page": 5,
    "cell": 3,
    "px": [
     768,
@@ -4221,15 +4275,16 @@
     0.0625
    ],
    "text": [
-    "CELESTINE"
+    "CELINE",
+    "ANTWERPEN"
    ],
    "style": "small_hand",
    "look": "hand",
    "aspect": 4.0
   },
   {
-   "id": 176,
-   "page": 4,
+   "id": 177,
+   "page": 5,
    "cell": 4,
    "px": [
     0,
@@ -4244,16 +4299,15 @@
     0.0625
    ],
    "text": [
-    "CELESTINE",
-    "ANTWERPEN"
+    "GUST"
    ],
    "style": "small_hand",
    "look": "hand",
    "aspect": 4.0
   },
   {
-   "id": 177,
-   "page": 4,
+   "id": 178,
+   "page": 5,
    "cell": 5,
    "px": [
     256,
@@ -4268,38 +4322,16 @@
     0.0625
    ],
    "text": [
-    "LILLO"
+    "GUST",
+    "BATH"
    ],
    "style": "small_hand",
    "look": "hand",
    "aspect": 4.0
   },
   {
-   "id": 178,
-   "page": 4,
-   "cell": 33,
-   "px": [
-    256,
-    512,
-    256,
-    64
-   ],
-   "rect": [
-    0.25,
-    0.5,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "DE SPOOR"
-   ],
-   "style": "scraped",
-   "look": "scraped",
-   "aspect": 4.0
-  },
-  {
    "id": 179,
-   "page": 4,
+   "page": 5,
    "cell": 6,
    "px": [
     512,
@@ -4314,7 +4346,7 @@
     0.0625
    ],
    "text": [
-    "DE VINK"
+    "ROZEKE"
    ],
    "style": "small_hand",
    "look": "hand",
@@ -4322,7 +4354,7 @@
   },
   {
    "id": 180,
-   "page": 4,
+   "page": 5,
    "cell": 7,
    "px": [
     768,
@@ -4337,7 +4369,7 @@
     0.0625
    ],
    "text": [
-    "DE VINK",
+    "ROZEKE",
     "ANTWERPEN"
    ],
    "style": "small_hand",
@@ -4346,7 +4378,54 @@
   },
   {
    "id": 181,
-   "page": 4,
+   "page": 6,
+   "cell": 44,
+   "px": [
+    0,
+    704,
+    256,
+    64
+   ],
+   "rect": [
+    0.0,
+    0.6875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "AMELIE"
+   ],
+   "style": "scraped",
+   "look": "scraped",
+   "aspect": 4.0
+  },
+  {
+   "id": 182,
+   "page": 6,
+   "cell": 45,
+   "px": [
+    256,
+    704,
+    256,
+    64
+   ],
+   "rect": [
+    0.25,
+    0.6875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "AMELIE",
+    "ANTWERPEN"
+   ],
+   "style": "scraped",
+   "look": "scraped",
+   "aspect": 4.0
+  },
+  {
+   "id": 183,
+   "page": 5,
    "cell": 8,
    "px": [
     0,
@@ -4361,15 +4440,15 @@
     0.0625
    ],
    "text": [
-    "VERHUUR No 1"
+    "MATHILDEKE"
    ],
    "style": "small_hand",
    "look": "hand",
    "aspect": 4.0
   },
   {
-   "id": 182,
-   "page": 4,
+   "id": 184,
+   "page": 5,
    "cell": 9,
    "px": [
     256,
@@ -4384,7 +4463,7 @@
     0.0625
    ],
    "text": [
-    "VERHUUR No 1",
+    "MATHILDEKE",
     "ANTWERPEN"
    ],
    "style": "small_hand",
@@ -4392,8 +4471,8 @@
    "aspect": 4.0
   },
   {
-   "id": 183,
-   "page": 4,
+   "id": 185,
+   "page": 5,
    "cell": 10,
    "px": [
     512,
@@ -4408,15 +4487,15 @@
     0.0625
    ],
    "text": [
-    "VERHUUR No 2"
+    "TABAK - BROOD"
    ],
    "style": "small_hand",
    "look": "hand",
    "aspect": 4.0
   },
   {
-   "id": 184,
-   "page": 4,
+   "id": 186,
+   "page": 5,
    "cell": 11,
    "px": [
     768,
@@ -4431,7 +4510,7 @@
     0.0625
    ],
    "text": [
-    "VERHUUR No 2",
+    "TABAK - BROOD",
     "ANTWERPEN"
    ],
    "style": "small_hand",
@@ -4439,8 +4518,8 @@
    "aspect": 4.0
   },
   {
-   "id": 185,
-   "page": 4,
+   "id": 187,
+   "page": 5,
    "cell": 12,
    "px": [
     0,
@@ -4455,15 +4534,15 @@
     0.0625
    ],
    "text": [
-    "VERHUUR No 3"
+    "KLEIN PIERKE"
    ],
    "style": "small_hand",
    "look": "hand",
    "aspect": 4.0
   },
   {
-   "id": 186,
-   "page": 4,
+   "id": 188,
+   "page": 5,
    "cell": 13,
    "px": [
     256,
@@ -4478,7 +4557,7 @@
     0.0625
    ],
    "text": [
-    "VERHUUR No 3",
+    "KLEIN PIERKE",
     "ANTWERPEN"
    ],
    "style": "small_hand",
@@ -4486,8 +4565,8 @@
    "aspect": 4.0
   },
   {
-   "id": 187,
-   "page": 4,
+   "id": 189,
+   "page": 5,
    "cell": 14,
    "px": [
     512,
@@ -4502,15 +4581,15 @@
     0.0625
    ],
    "text": [
-    "PHILOMENA"
+    "LOWIE"
    ],
    "style": "small_hand",
    "look": "hand",
    "aspect": 4.0
   },
   {
-   "id": 188,
-   "page": 4,
+   "id": 190,
+   "page": 5,
    "cell": 15,
    "px": [
     768,
@@ -4525,7 +4604,7 @@
     0.0625
    ],
    "text": [
-    "PHILOMENA",
+    "LOWIE",
     "ANTWERPEN"
    ],
    "style": "small_hand",
@@ -4533,8 +4612,8 @@
    "aspect": 4.0
   },
   {
-   "id": 189,
-   "page": 4,
+   "id": 191,
+   "page": 5,
    "cell": 16,
    "px": [
     0,
@@ -4549,15 +4628,15 @@
     0.0625
    ],
    "text": [
-    "DE KIEVIT"
+    "DE REIGER"
    ],
    "style": "small_hand",
    "look": "hand",
    "aspect": 4.0
   },
   {
-   "id": 190,
-   "page": 4,
+   "id": 192,
+   "page": 5,
    "cell": 17,
    "px": [
     256,
@@ -4572,6 +4651,1134 @@
     0.0625
    ],
    "text": [
+    "DE REIGER",
+    "RUPELMONDE"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 193,
+   "page": 5,
+   "cell": 18,
+   "px": [
+    512,
+    256,
+    256,
+    64
+   ],
+   "rect": [
+    0.5,
+    0.25,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "FELIX"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 194,
+   "page": 5,
+   "cell": 19,
+   "px": [
+    768,
+    256,
+    256,
+    64
+   ],
+   "rect": [
+    0.75,
+    0.25,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "FELIX",
+    "KALLO"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 195,
+   "page": 5,
+   "cell": 20,
+   "px": [
+    0,
+    320,
+    256,
+    64
+   ],
+   "rect": [
+    0.0,
+    0.3125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "MARIEKE"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 196,
+   "page": 5,
+   "cell": 21,
+   "px": [
+    256,
+    320,
+    256,
+    64
+   ],
+   "rect": [
+    0.25,
+    0.3125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "MARIEKE",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 197,
+   "page": 6,
+   "cell": 46,
+   "px": [
+    512,
+    704,
+    256,
+    64
+   ],
+   "rect": [
+    0.5,
+    0.6875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "PIETERTJE"
+   ],
+   "style": "scraped",
+   "look": "scraped",
+   "aspect": 4.0
+  },
+  {
+   "id": 198,
+   "page": 6,
+   "cell": 47,
+   "px": [
+    768,
+    704,
+    256,
+    64
+   ],
+   "rect": [
+    0.75,
+    0.6875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "PIETERTJE",
+    "ANTWERPEN"
+   ],
+   "style": "scraped",
+   "look": "scraped",
+   "aspect": 4.0
+  },
+  {
+   "id": 199,
+   "page": 5,
+   "cell": 22,
+   "px": [
+    512,
+    320,
+    256,
+    64
+   ],
+   "rect": [
+    0.5,
+    0.3125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "LENA"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 200,
+   "page": 5,
+   "cell": 23,
+   "px": [
+    768,
+    320,
+    256,
+    64
+   ],
+   "rect": [
+    0.75,
+    0.3125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "LENA",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 201,
+   "page": 5,
+   "cell": 24,
+   "px": [
+    0,
+    384,
+    256,
+    64
+   ],
+   "rect": [
+    0.0,
+    0.375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "MOSSELEN - BIER"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 202,
+   "page": 5,
+   "cell": 25,
+   "px": [
+    256,
+    384,
+    256,
+    64
+   ],
+   "rect": [
+    0.25,
+    0.375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "MOSSELEN - BIER",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 203,
+   "page": 5,
+   "cell": 26,
+   "px": [
+    512,
+    384,
+    256,
+    64
+   ],
+   "rect": [
+    0.5,
+    0.375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "TOONTJE"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 204,
+   "page": 5,
+   "cell": 27,
+   "px": [
+    768,
+    384,
+    256,
+    64
+   ],
+   "rect": [
+    0.75,
+    0.375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "TOONTJE",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 205,
+   "page": 5,
+   "cell": 28,
+   "px": [
+    0,
+    448,
+    256,
+    64
+   ],
+   "rect": [
+    0.0,
+    0.4375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "BABET"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 206,
+   "page": 5,
+   "cell": 29,
+   "px": [
+    256,
+    448,
+    256,
+    64
+   ],
+   "rect": [
+    0.25,
+    0.4375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "BABET",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 207,
+   "page": 5,
+   "cell": 30,
+   "px": [
+    512,
+    448,
+    256,
+    64
+   ],
+   "rect": [
+    0.5,
+    0.4375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "JOSEFIEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 208,
+   "page": 5,
+   "cell": 31,
+   "px": [
+    768,
+    448,
+    256,
+    64
+   ],
+   "rect": [
+    0.75,
+    0.4375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "JOSEFIEN",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 209,
+   "page": 5,
+   "cell": 32,
+   "px": [
+    0,
+    512,
+    256,
+    64
+   ],
+   "rect": [
+    0.0,
+    0.5,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "MARCEL"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 210,
+   "page": 5,
+   "cell": 33,
+   "px": [
+    256,
+    512,
+    256,
+    64
+   ],
+   "rect": [
+    0.25,
+    0.5,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "MARCEL",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 211,
+   "page": 5,
+   "cell": 34,
+   "px": [
+    512,
+    512,
+    256,
+    64
+   ],
+   "rect": [
+    0.5,
+    0.5,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "VIRGINIE"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 212,
+   "page": 5,
+   "cell": 35,
+   "px": [
+    768,
+    512,
+    256,
+    64
+   ],
+   "rect": [
+    0.75,
+    0.5,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "VIRGINIE",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 213,
+   "page": 5,
+   "cell": 36,
+   "px": [
+    0,
+    576,
+    256,
+    64
+   ],
+   "rect": [
+    0.0,
+    0.5625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "TONNEKE"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 214,
+   "page": 5,
+   "cell": 37,
+   "px": [
+    256,
+    576,
+    256,
+    64
+   ],
+   "rect": [
+    0.25,
+    0.5625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "TONNEKE",
+    "BOOM"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 215,
+   "page": 5,
+   "cell": 38,
+   "px": [
+    512,
+    576,
+    256,
+    64
+   ],
+   "rect": [
+    0.5,
+    0.5625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "JOSKE"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 216,
+   "page": 5,
+   "cell": 39,
+   "px": [
+    768,
+    576,
+    256,
+    64
+   ],
+   "rect": [
+    0.75,
+    0.5625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "JOSKE",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 217,
+   "page": 5,
+   "cell": 40,
+   "px": [
+    0,
+    640,
+    256,
+    64
+   ],
+   "rect": [
+    0.0,
+    0.625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "CELESTINE"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 218,
+   "page": 5,
+   "cell": 41,
+   "px": [
+    256,
+    640,
+    256,
+    64
+   ],
+   "rect": [
+    0.25,
+    0.625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "CELESTINE",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 219,
+   "page": 5,
+   "cell": 42,
+   "px": [
+    512,
+    640,
+    256,
+    64
+   ],
+   "rect": [
+    0.5,
+    0.625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "LISA"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 220,
+   "page": 5,
+   "cell": 43,
+   "px": [
+    768,
+    640,
+    256,
+    64
+   ],
+   "rect": [
+    0.75,
+    0.625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "LISA",
+    "LILLO"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 221,
+   "page": 5,
+   "cell": 44,
+   "px": [
+    0,
+    704,
+    256,
+    64
+   ],
+   "rect": [
+    0.0,
+    0.6875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "LUCIE"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 222,
+   "page": 5,
+   "cell": 45,
+   "px": [
+    256,
+    704,
+    256,
+    64
+   ],
+   "rect": [
+    0.25,
+    0.6875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "LUCIE",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 223,
+   "page": 6,
+   "cell": 48,
+   "px": [
+    0,
+    768,
+    256,
+    64
+   ],
+   "rect": [
+    0.0,
+    0.75,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE SPOOR"
+   ],
+   "style": "scraped",
+   "look": "scraped",
+   "aspect": 4.0
+  },
+  {
+   "id": 224,
+   "page": 6,
+   "cell": 49,
+   "px": [
+    256,
+    768,
+    256,
+    64
+   ],
+   "rect": [
+    0.25,
+    0.75,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE SPOOR",
+    "ANTWERPEN"
+   ],
+   "style": "scraped",
+   "look": "scraped",
+   "aspect": 4.0
+  },
+  {
+   "id": 225,
+   "page": 5,
+   "cell": 46,
+   "px": [
+    512,
+    704,
+    256,
+    64
+   ],
+   "rect": [
+    0.5,
+    0.6875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE VINK"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 226,
+   "page": 5,
+   "cell": 47,
+   "px": [
+    768,
+    704,
+    256,
+    64
+   ],
+   "rect": [
+    0.75,
+    0.6875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE VINK",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 227,
+   "page": 5,
+   "cell": 48,
+   "px": [
+    0,
+    768,
+    256,
+    64
+   ],
+   "rect": [
+    0.0,
+    0.75,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "VERHUUR No 1"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 228,
+   "page": 5,
+   "cell": 49,
+   "px": [
+    256,
+    768,
+    256,
+    64
+   ],
+   "rect": [
+    0.25,
+    0.75,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "VERHUUR No 1",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 229,
+   "page": 5,
+   "cell": 50,
+   "px": [
+    512,
+    768,
+    256,
+    64
+   ],
+   "rect": [
+    0.5,
+    0.75,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "VERHUUR No 2"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 230,
+   "page": 5,
+   "cell": 51,
+   "px": [
+    768,
+    768,
+    256,
+    64
+   ],
+   "rect": [
+    0.75,
+    0.75,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "VERHUUR No 2",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 231,
+   "page": 5,
+   "cell": 52,
+   "px": [
+    0,
+    832,
+    256,
+    64
+   ],
+   "rect": [
+    0.0,
+    0.8125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "VERHUUR No 3"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 232,
+   "page": 5,
+   "cell": 53,
+   "px": [
+    256,
+    832,
+    256,
+    64
+   ],
+   "rect": [
+    0.25,
+    0.8125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "VERHUUR No 3",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 233,
+   "page": 5,
+   "cell": 54,
+   "px": [
+    512,
+    832,
+    256,
+    64
+   ],
+   "rect": [
+    0.5,
+    0.8125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "PHILOMENA"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 234,
+   "page": 5,
+   "cell": 55,
+   "px": [
+    768,
+    832,
+    256,
+    64
+   ],
+   "rect": [
+    0.75,
+    0.8125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "PHILOMENA",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 235,
+   "page": 5,
+   "cell": 56,
+   "px": [
+    0,
+    896,
+    256,
+    64
+   ],
+   "rect": [
+    0.0,
+    0.875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "JOZEFKE"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 236,
+   "page": 5,
+   "cell": 57,
+   "px": [
+    256,
+    896,
+    256,
+    64
+   ],
+   "rect": [
+    0.25,
+    0.875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "JOZEFKE",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 237,
+   "page": 5,
+   "cell": 58,
+   "px": [
+    512,
+    896,
+    256,
+    64
+   ],
+   "rect": [
+    0.5,
+    0.875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "ODETTE"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 238,
+   "page": 5,
+   "cell": 59,
+   "px": [
+    768,
+    896,
+    256,
+    64
+   ],
+   "rect": [
+    0.75,
+    0.875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "ODETTE",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 239,
+   "page": 5,
+   "cell": 60,
+   "px": [
+    0,
+    960,
+    256,
+    64
+   ],
+   "rect": [
+    0.0,
+    0.9375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE KIEVIT"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 240,
+   "page": 5,
+   "cell": 61,
+   "px": [
+    256,
+    960,
+    256,
+    64
+   ],
+   "rect": [
+    0.25,
+    0.9375,
+    0.25,
+    0.0625
+   ],
+   "text": [
     "DE KIEVIT",
     "ANTWERPEN"
    ],
@@ -4580,18 +5787,18 @@
    "aspect": 4.0
   },
   {
-   "id": 191,
+   "id": 241,
    "page": 1,
-   "cell": 13,
+   "cell": 25,
    "px": [
     512,
-    384,
+    768,
     512,
     128
    ],
    "rect": [
     0.25,
-    0.1875,
+    0.375,
     0.25,
     0.0625
    ],
@@ -4603,7 +5810,7 @@
    "aspect": 8.0
   },
   {
-   "id": 192,
+   "id": 242,
    "page": 0,
    "cell": 20,
    "px": [
@@ -4627,18 +5834,18 @@
    "aspect": 5.81
   },
   {
-   "id": 193,
+   "id": 243,
    "page": 1,
-   "cell": 14,
+   "cell": 26,
    "px": [
     1024,
-    384,
+    768,
     512,
     128
    ],
    "rect": [
     0.5,
-    0.1875,
+    0.375,
     0.25,
     0.0625
    ],
@@ -4650,7 +5857,7 @@
    "aspect": 8.0
   },
   {
-   "id": 194,
+   "id": 244,
    "page": 0,
    "cell": 21,
    "px": [
@@ -4674,18 +5881,18 @@
    "aspect": 5.81
   },
   {
-   "id": 195,
+   "id": 245,
    "page": 1,
-   "cell": 15,
+   "cell": 27,
    "px": [
     1536,
-    384,
+    768,
     512,
     128
    ],
    "rect": [
     0.75,
-    0.1875,
+    0.375,
     0.25,
     0.0625
    ],
@@ -4697,7 +5904,7 @@
    "aspect": 8.0
   },
   {
-   "id": 196,
+   "id": 246,
    "page": 0,
    "cell": 22,
    "px": [
@@ -4721,18 +5928,18 @@
    "aspect": 5.81
   },
   {
-   "id": 197,
+   "id": 247,
    "page": 1,
-   "cell": 16,
+   "cell": 28,
    "px": [
     0,
-    512,
+    896,
     512,
     128
    ],
    "rect": [
     0.0,
-    0.25,
+    0.4375,
     0.25,
     0.0625
    ],
@@ -4744,7 +5951,7 @@
    "aspect": 8.0
   },
   {
-   "id": 198,
+   "id": 248,
    "page": 0,
    "cell": 23,
    "px": [
@@ -4768,18 +5975,18 @@
    "aspect": 5.81
   },
   {
-   "id": 199,
+   "id": 249,
    "page": 1,
-   "cell": 17,
+   "cell": 29,
    "px": [
     512,
-    512,
+    896,
     512,
     128
    ],
    "rect": [
     0.25,
-    0.25,
+    0.4375,
     0.25,
     0.0625
    ],
@@ -4791,7 +5998,7 @@
    "aspect": 8.0
   },
   {
-   "id": 200,
+   "id": 250,
    "page": 0,
    "cell": 24,
    "px": [
@@ -4815,18 +6022,18 @@
    "aspect": 5.81
   },
   {
-   "id": 201,
+   "id": 251,
    "page": 1,
-   "cell": 18,
+   "cell": 30,
    "px": [
     1024,
-    512,
+    896,
     512,
     128
    ],
    "rect": [
     0.5,
-    0.25,
+    0.4375,
     0.25,
     0.0625
    ],
@@ -4838,7 +6045,7 @@
    "aspect": 8.0
   },
   {
-   "id": 202,
+   "id": 252,
    "page": 0,
    "cell": 25,
    "px": [
@@ -4862,18 +6069,18 @@
    "aspect": 5.81
   },
   {
-   "id": 203,
+   "id": 253,
    "page": 1,
-   "cell": 19,
+   "cell": 31,
    "px": [
     1536,
-    512,
+    896,
     512,
     128
    ],
    "rect": [
     0.75,
-    0.25,
+    0.4375,
     0.25,
     0.0625
    ],
@@ -4885,7 +6092,7 @@
    "aspect": 8.0
   },
   {
-   "id": 204,
+   "id": 254,
    "page": 0,
    "cell": 26,
    "px": [
@@ -4909,18 +6116,18 @@
    "aspect": 5.81
   },
   {
-   "id": 205,
+   "id": 255,
    "page": 1,
-   "cell": 20,
+   "cell": 32,
    "px": [
     0,
-    640,
+    1024,
     512,
     128
    ],
    "rect": [
     0.0,
-    0.3125,
+    0.5,
     0.25,
     0.0625
    ],
@@ -4932,7 +6139,7 @@
    "aspect": 8.0
   },
   {
-   "id": 206,
+   "id": 256,
    "page": 0,
    "cell": 27,
    "px": [
@@ -4956,18 +6163,18 @@
    "aspect": 5.81
   },
   {
-   "id": 207,
+   "id": 257,
    "page": 1,
-   "cell": 21,
+   "cell": 33,
    "px": [
     512,
-    640,
+    1024,
     512,
     128
    ],
    "rect": [
     0.25,
-    0.3125,
+    0.5,
     0.25,
     0.0625
    ],
@@ -4979,7 +6186,7 @@
    "aspect": 8.0
   },
   {
-   "id": 208,
+   "id": 258,
    "page": 0,
    "cell": 28,
    "px": [
@@ -5003,18 +6210,18 @@
    "aspect": 5.81
   },
   {
-   "id": 209,
+   "id": 259,
    "page": 1,
-   "cell": 22,
+   "cell": 34,
    "px": [
     1024,
-    640,
+    1024,
     512,
     128
    ],
    "rect": [
     0.5,
-    0.3125,
+    0.5,
     0.25,
     0.0625
    ],
@@ -5026,18 +6233,18 @@
    "aspect": 8.1
   },
   {
-   "id": 210,
+   "id": 260,
    "page": 1,
-   "cell": 23,
+   "cell": 35,
    "px": [
     1536,
-    640,
+    1024,
     512,
     128
    ],
    "rect": [
     0.75,
-    0.3125,
+    0.5,
     0.25,
     0.0625
    ],
@@ -5050,18 +6257,18 @@
    "aspect": 5.83
   },
   {
-   "id": 211,
+   "id": 261,
    "page": 1,
-   "cell": 24,
+   "cell": 36,
    "px": [
     0,
-    768,
+    1152,
     512,
     128
    ],
    "rect": [
     0.0,
-    0.375,
+    0.5625,
     0.25,
     0.0625
    ],
@@ -5073,18 +6280,18 @@
    "aspect": 8.1
   },
   {
-   "id": 212,
+   "id": 262,
    "page": 1,
-   "cell": 25,
+   "cell": 37,
    "px": [
     512,
-    768,
+    1152,
     512,
     128
    ],
    "rect": [
     0.25,
-    0.375,
+    0.5625,
     0.25,
     0.0625
    ],
@@ -5097,7 +6304,7 @@
    "aspect": 5.83
   },
   {
-   "id": 213,
+   "id": 263,
    "page": 0,
    "cell": 29,
    "px": [
@@ -5120,7 +6327,7 @@
    "aspect": 8.1
   },
   {
-   "id": 214,
+   "id": 264,
    "page": 0,
    "cell": 30,
    "px": [
@@ -5144,18 +6351,18 @@
    "aspect": 5.83
   },
   {
-   "id": 215,
+   "id": 265,
    "page": 1,
-   "cell": 26,
+   "cell": 38,
    "px": [
     1024,
-    768,
+    1152,
     512,
     128
    ],
    "rect": [
     0.5,
-    0.375,
+    0.5625,
     0.25,
     0.0625
    ],
@@ -5167,18 +6374,18 @@
    "aspect": 8.1
   },
   {
-   "id": 216,
+   "id": 266,
    "page": 1,
-   "cell": 27,
+   "cell": 39,
    "px": [
     1536,
-    768,
+    1152,
     512,
     128
    ],
    "rect": [
     0.75,
-    0.375,
+    0.5625,
     0.25,
     0.0625
    ],
@@ -5191,7 +6398,7 @@
    "aspect": 5.83
   },
   {
-   "id": 217,
+   "id": 267,
    "page": 0,
    "cell": 31,
    "px": [
@@ -5214,7 +6421,7 @@
    "aspect": 8.1
   },
   {
-   "id": 218,
+   "id": 268,
    "page": 0,
    "cell": 32,
    "px": [
@@ -5238,759 +6445,7 @@
    "aspect": 5.83
   },
   {
-   "id": 219,
-   "page": 1,
-   "cell": 28,
-   "px": [
-    0,
-    896,
-    512,
-    128
-   ],
-   "rect": [
-    0.0,
-    0.4375,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "DAGMAR"
-   ],
-   "style": "white_roman",
-   "look": "white",
-   "aspect": 7.19
-  },
-  {
-   "id": 220,
-   "page": 1,
-   "cell": 29,
-   "px": [
-    512,
-    896,
-    512,
-    128
-   ],
-   "rect": [
-    0.25,
-    0.4375,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "DAGMAR",
-    "MARSTAL"
-   ],
-   "style": "white_roman",
-   "look": "white",
-   "aspect": 5.21
-  },
-  {
-   "id": 221,
-   "page": 1,
-   "cell": 30,
-   "px": [
-    1024,
-    896,
-    512,
-    128
-   ],
-   "rect": [
-    0.5,
-    0.4375,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "ELIZA JANE"
-   ],
-   "style": "white_roman",
-   "look": "white",
-   "aspect": 7.19
-  },
-  {
-   "id": 222,
-   "page": 1,
-   "cell": 31,
-   "px": [
-    1536,
-    896,
-    512,
-    128
-   ],
-   "rect": [
-    0.75,
-    0.4375,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "ELIZA JANE",
-    "PADSTOW"
-   ],
-   "style": "white_roman",
-   "look": "white",
-   "aspect": 5.21
-  },
-  {
-   "id": 223,
-   "page": 1,
-   "cell": 32,
-   "px": [
-    0,
-    1024,
-    512,
-    128
-   ],
-   "rect": [
-    0.0,
-    0.5,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "VROUW ALIDA"
-   ],
-   "style": "white_roman",
-   "look": "white",
-   "aspect": 7.19
-  },
-  {
-   "id": 224,
-   "page": 1,
-   "cell": 33,
-   "px": [
-    512,
-    1024,
-    512,
-    128
-   ],
-   "rect": [
-    0.25,
-    0.5,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "VROUW ALIDA",
-    "GRONINGEN"
-   ],
-   "style": "white_roman",
-   "look": "white",
-   "aspect": 5.21
-  },
-  {
-   "id": 225,
-   "page": 1,
-   "cell": 34,
-   "px": [
-    1024,
-    1024,
-    512,
-    128
-   ],
-   "rect": [
-    0.5,
-    0.5,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "DE JONGE JAN"
-   ],
-   "style": "white_roman",
-   "look": "white",
-   "aspect": 7.19
-  },
-  {
-   "id": 226,
-   "page": 1,
-   "cell": 35,
-   "px": [
-    1536,
-    1024,
-    512,
-    128
-   ],
-   "rect": [
-    0.75,
-    0.5,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "DE JONGE JAN",
-    "DELFZIJL"
-   ],
-   "style": "white_roman",
-   "look": "white",
-   "aspect": 5.21
-  },
-  {
-   "id": 227,
-   "page": 2,
-   "cell": 2,
-   "px": [
-    1024,
-    0,
-    512,
-    128
-   ],
-   "rect": [
-    0.5,
-    0.0,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "HOFFNUNG"
-   ],
-   "style": "cream_shaded",
-   "look": "cream",
-   "aspect": 7.5
-  },
-  {
-   "id": 228,
-   "page": 2,
-   "cell": 3,
-   "px": [
-    1536,
-    0,
-    512,
-    128
-   ],
-   "rect": [
-    0.75,
-    0.0,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "F. LANGEN",
-    "KÖLN"
-   ],
-   "style": "cream_shaded",
-   "look": "cream",
-   "aspect": 5.4
-  },
-  {
-   "id": 229,
-   "page": 2,
-   "cell": 4,
-   "px": [
-    0,
-    128,
-    512,
-    128
-   ],
-   "rect": [
-    0.0,
-    0.0625,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "EINTRACHT"
-   ],
-   "style": "cream_shaded",
-   "look": "cream",
-   "aspect": 7.5
-  },
-  {
-   "id": 230,
-   "page": 2,
-   "cell": 5,
-   "px": [
-    512,
-    128,
-    512,
-    128
-   ],
-   "rect": [
-    0.25,
-    0.0625,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "J. SCHULTE",
-    "DUISBURG"
-   ],
-   "style": "cream_shaded",
-   "look": "cream",
-   "aspect": 5.4
-  },
-  {
-   "id": 231,
-   "page": 2,
-   "cell": 6,
-   "px": [
-    1024,
-    128,
-    512,
-    128
-   ],
-   "rect": [
-    0.5,
-    0.0625,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "CATHARINA"
-   ],
-   "style": "cream_shaded",
-   "look": "cream",
-   "aspect": 7.5
-  },
-  {
-   "id": 232,
-   "page": 2,
-   "cell": 7,
-   "px": [
-    1536,
-    128,
-    512,
-    128
-   ],
-   "rect": [
-    0.75,
-    0.0625,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "W. DE BRUIJN",
-    "NIJMEGEN"
-   ],
-   "style": "cream_shaded",
-   "look": "cream",
-   "aspect": 5.4
-  },
-  {
-   "id": 233,
-   "page": 2,
-   "cell": 8,
-   "px": [
-    0,
-    256,
-    512,
-    128
-   ],
-   "rect": [
-    0.0,
-    0.125,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "DE VLIJT"
-   ],
-   "style": "cream_shaded",
-   "look": "cream",
-   "aspect": 7.62
-  },
-  {
-   "id": 234,
-   "page": 2,
-   "cell": 9,
-   "px": [
-    512,
-    256,
-    512,
-    128
-   ],
-   "rect": [
-    0.25,
-    0.125,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "DE VLIJT",
-    "LILLO"
-   ],
-   "style": "cream_shaded",
-   "look": "cream",
-   "aspect": 6.32
-  },
-  {
-   "id": 235,
-   "page": 2,
-   "cell": 10,
-   "px": [
-    1024,
-    256,
-    512,
-    128
-   ],
-   "rect": [
-    0.5,
-    0.125,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "DE HOOP"
-   ],
-   "style": "cream_shaded",
-   "look": "cream",
-   "aspect": 7.62
-  },
-  {
-   "id": 236,
-   "page": 2,
-   "cell": 11,
-   "px": [
-    1536,
-    256,
-    512,
-    128
-   ],
-   "rect": [
-    0.75,
-    0.125,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "DE HOOP",
-    "DOEL"
-   ],
-   "style": "cream_shaded",
-   "look": "cream",
-   "aspect": 6.32
-  },
-  {
-   "id": 237,
-   "page": 1,
-   "cell": 36,
-   "px": [
-    0,
-    1152,
-    512,
-    128
-   ],
-   "rect": [
-    0.0,
-    0.5625,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "DE KOMEET"
-   ],
-   "style": "white_roman",
-   "look": "white",
-   "aspect": 7.31
-  },
-  {
-   "id": 238,
-   "page": 1,
-   "cell": 37,
-   "px": [
-    512,
-    1152,
-    512,
-    128
-   ],
-   "rect": [
-    0.25,
-    0.5625,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "DE KOMEET",
-    "KALLO"
-   ],
-   "style": "white_roman",
-   "look": "white",
-   "aspect": 6.36
-  },
-  {
-   "id": 239,
-   "page": 2,
-   "cell": 33,
-   "px": [
-    512,
-    1024,
-    512,
-    128
-   ],
-   "rect": [
-    0.25,
-    0.5,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "DE VREDE  No 6"
-   ],
-   "style": "block_plank",
-   "look": "plank",
-   "aspect": 9.23
-  },
-  {
-   "id": 240,
-   "page": 2,
-   "cell": 34,
-   "px": [
-    1024,
-    1024,
-    512,
-    128
-   ],
-   "rect": [
-    0.5,
-    0.5,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "M. DE SMET",
-    "TEMSE"
-   ],
-   "style": "block_plank",
-   "look": "plank",
-   "aspect": 7.69
-  },
-  {
-   "id": 241,
-   "page": 2,
-   "cell": 35,
-   "px": [
-    1536,
-    1024,
-    512,
-    128
-   ],
-   "rect": [
-    0.75,
-    0.5,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "ROSALIA  No 11"
-   ],
-   "style": "block_plank",
-   "look": "plank",
-   "aspect": 9.23
-  },
-  {
-   "id": 242,
-   "page": 2,
-   "cell": 36,
-   "px": [
-    0,
-    1152,
-    512,
-    128
-   ],
-   "rect": [
-    0.0,
-    0.5625,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "T. BOEL",
-    "RUPELMONDE"
-   ],
-   "style": "block_plank",
-   "look": "plank",
-   "aspect": 7.69
-  },
-  {
-   "id": 243,
-   "page": 2,
-   "cell": 37,
-   "px": [
-    512,
-    1152,
-    512,
-    128
-   ],
-   "rect": [
-    0.25,
-    0.5625,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "SINT-ANTONIUS  No 15"
-   ],
-   "style": "block_plank",
-   "look": "plank",
-   "aspect": 9.23
-  },
-  {
-   "id": 244,
-   "page": 2,
-   "cell": 38,
-   "px": [
-    1024,
-    1152,
-    512,
-    128
-   ],
-   "rect": [
-    0.5,
-    0.5625,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "G. DE WINTER",
-    "BOOM"
-   ],
-   "style": "block_plank",
-   "look": "plank",
-   "aspect": 7.69
-  },
-  {
-   "id": 245,
-   "page": 2,
-   "cell": 39,
-   "px": [
-    1536,
-    1152,
-    512,
-    128
-   ],
-   "rect": [
-    0.75,
-    0.5625,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "DE ARBEID  No 19"
-   ],
-   "style": "block_plank",
-   "look": "plank",
-   "aspect": 9.23
-  },
-  {
-   "id": 246,
-   "page": 2,
-   "cell": 40,
-   "px": [
-    0,
-    1280,
-    512,
-    128
-   ],
-   "rect": [
-    0.0,
-    0.625,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "V. MOENS",
-    "ANTWERPEN"
-   ],
-   "style": "block_plank",
-   "look": "plank",
-   "aspect": 7.69
-  },
-  {
-   "id": 247,
-   "page": 2,
-   "cell": 41,
-   "px": [
-    512,
-    1280,
-    512,
-    128
-   ],
-   "rect": [
-    0.25,
-    0.625,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "STAD TEMSE  No 23"
-   ],
-   "style": "block_plank",
-   "look": "plank",
-   "aspect": 9.23
-  },
-  {
-   "id": 248,
-   "page": 2,
-   "cell": 42,
-   "px": [
-    1024,
-    1280,
-    512,
-    128
-   ],
-   "rect": [
-    0.5,
-    0.625,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "D. VAN HOVE",
-    "TEMSE"
-   ],
-   "style": "block_plank",
-   "look": "plank",
-   "aspect": 7.69
-  },
-  {
-   "id": 249,
-   "page": 1,
-   "cell": 38,
-   "px": [
-    1024,
-    1152,
-    512,
-    128
-   ],
-   "rect": [
-    0.5,
-    0.5625,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "SCALDIS"
-   ],
-   "style": "white_slab",
-   "look": "white",
-   "aspect": 4.0
-  },
-  {
-   "id": 250,
-   "page": 1,
-   "cell": 39,
-   "px": [
-    1536,
-    1152,
-    512,
-    128
-   ],
-   "rect": [
-    0.75,
-    0.5625,
-    0.25,
-    0.0625
-   ],
-   "text": [
-    "SCALDIS",
-    "ANTWERPEN"
-   ],
-   "style": "white_slab",
-   "look": "white",
-   "aspect": 4.0
-  },
-  {
-   "id": 251,
+   "id": 269,
    "page": 1,
    "cell": 40,
    "px": [
@@ -6006,14 +6461,14 @@
     0.0625
    ],
    "text": [
-    "NEPTUNUS"
+    "FAMILIEN 2"
    ],
-   "style": "white_slab",
+   "style": "white_roman",
    "look": "white",
-   "aspect": 4.0
+   "aspect": 8.1
   },
   {
-   "id": 252,
+   "id": 270,
    "page": 1,
    "cell": 41,
    "px": [
@@ -6029,15 +6484,15 @@
     0.0625
    ],
    "text": [
-    "NEPTUNUS",
-    "ANTWERPEN"
+    "FAMILIEN 2",
+    "TVEDESTRAND"
    ],
-   "style": "white_slab",
+   "style": "white_roman",
    "look": "white",
-   "aspect": 4.0
+   "aspect": 5.83
   },
   {
-   "id": 253,
+   "id": 271,
    "page": 1,
    "cell": 42,
    "px": [
@@ -6053,14 +6508,14 @@
     0.0625
    ],
    "text": [
-    "GOLIATH"
+    "FAMILIEN 3"
    ],
-   "style": "white_slab",
+   "style": "white_roman",
    "look": "white",
-   "aspect": 4.0
+   "aspect": 8.1
   },
   {
-   "id": 254,
+   "id": 272,
    "page": 1,
    "cell": 43,
    "px": [
@@ -6076,6 +6531,1882 @@
     0.0625
    ],
    "text": [
+    "FAMILIEN 3",
+    "TVEDESTRAND"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 5.83
+  },
+  {
+   "id": 273,
+   "page": 1,
+   "cell": 44,
+   "px": [
+    0,
+    1408,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.6875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "FAMILIEN 4"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 8.1
+  },
+  {
+   "id": 274,
+   "page": 1,
+   "cell": 45,
+   "px": [
+    512,
+    1408,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.6875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "FAMILIEN 4",
+    "TVEDESTRAND"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 5.83
+  },
+  {
+   "id": 275,
+   "page": 1,
+   "cell": 46,
+   "px": [
+    1024,
+    1408,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.6875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DAGMAR"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 7.19
+  },
+  {
+   "id": 276,
+   "page": 1,
+   "cell": 47,
+   "px": [
+    1536,
+    1408,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.6875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DAGMAR",
+    "MARSTAL"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 5.21
+  },
+  {
+   "id": 277,
+   "page": 1,
+   "cell": 48,
+   "px": [
+    0,
+    1536,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.75,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "ELIZA JANE"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 7.19
+  },
+  {
+   "id": 278,
+   "page": 1,
+   "cell": 49,
+   "px": [
+    512,
+    1536,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.75,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "ELIZA JANE",
+    "PADSTOW"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 5.21
+  },
+  {
+   "id": 279,
+   "page": 1,
+   "cell": 50,
+   "px": [
+    1024,
+    1536,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.75,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "VROUW ALIDA"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 7.19
+  },
+  {
+   "id": 280,
+   "page": 1,
+   "cell": 51,
+   "px": [
+    1536,
+    1536,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.75,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "VROUW ALIDA",
+    "GRONINGEN"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 5.21
+  },
+  {
+   "id": 281,
+   "page": 1,
+   "cell": 52,
+   "px": [
+    0,
+    1664,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.8125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE JONGE JAN"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 7.19
+  },
+  {
+   "id": 282,
+   "page": 1,
+   "cell": 53,
+   "px": [
+    512,
+    1664,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.8125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE JONGE JAN",
+    "DELFZIJL"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 5.21
+  },
+  {
+   "id": 283,
+   "page": 1,
+   "cell": 54,
+   "px": [
+    1024,
+    1664,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.8125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DAGMAR 2"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 7.19
+  },
+  {
+   "id": 284,
+   "page": 1,
+   "cell": 55,
+   "px": [
+    1536,
+    1664,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.8125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DAGMAR 2",
+    "MARSTAL"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 5.21
+  },
+  {
+   "id": 285,
+   "page": 1,
+   "cell": 56,
+   "px": [
+    0,
+    1792,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DAGMAR 3"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 7.19
+  },
+  {
+   "id": 286,
+   "page": 1,
+   "cell": 57,
+   "px": [
+    512,
+    1792,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DAGMAR 3",
+    "MARSTAL"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 5.21
+  },
+  {
+   "id": 287,
+   "page": 1,
+   "cell": 58,
+   "px": [
+    1024,
+    1792,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DAGMAR 4"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 7.19
+  },
+  {
+   "id": 288,
+   "page": 1,
+   "cell": 59,
+   "px": [
+    1536,
+    1792,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DAGMAR 4",
+    "MARSTAL"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 5.21
+  },
+  {
+   "id": 289,
+   "page": 1,
+   "cell": 60,
+   "px": [
+    0,
+    1920,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.9375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DAGMAR 5"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 7.19
+  },
+  {
+   "id": 290,
+   "page": 1,
+   "cell": 61,
+   "px": [
+    512,
+    1920,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.9375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DAGMAR 5",
+    "MARSTAL"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 5.21
+  },
+  {
+   "id": 291,
+   "page": 2,
+   "cell": 52,
+   "px": [
+    0,
+    1664,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.8125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "HOFFNUNG"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 7.5
+  },
+  {
+   "id": 292,
+   "page": 2,
+   "cell": 53,
+   "px": [
+    512,
+    1664,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.8125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "F. LANGEN",
+    "KÖLN"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 5.4
+  },
+  {
+   "id": 293,
+   "page": 2,
+   "cell": 54,
+   "px": [
+    1024,
+    1664,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.8125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "EINTRACHT"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 7.5
+  },
+  {
+   "id": 294,
+   "page": 2,
+   "cell": 55,
+   "px": [
+    1536,
+    1664,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.8125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "J. SCHULTE",
+    "DUISBURG"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 5.4
+  },
+  {
+   "id": 295,
+   "page": 2,
+   "cell": 56,
+   "px": [
+    0,
+    1792,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "CATHARINA"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 7.5
+  },
+  {
+   "id": 296,
+   "page": 2,
+   "cell": 57,
+   "px": [
+    512,
+    1792,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "W. DE BRUIJN",
+    "NIJMEGEN"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 5.4
+  },
+  {
+   "id": 297,
+   "page": 2,
+   "cell": 58,
+   "px": [
+    1024,
+    1792,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "HOFFNUNG 2"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 7.5
+  },
+  {
+   "id": 298,
+   "page": 2,
+   "cell": 59,
+   "px": [
+    1536,
+    1792,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "HOFFNUNG 3"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 7.5
+  },
+  {
+   "id": 299,
+   "page": 2,
+   "cell": 60,
+   "px": [
+    0,
+    1920,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.9375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "HOFFNUNG 4"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 7.5
+  },
+  {
+   "id": 300,
+   "page": 2,
+   "cell": 61,
+   "px": [
+    512,
+    1920,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.9375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "HOFFNUNG 5"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 7.5
+  },
+  {
+   "id": 301,
+   "page": 2,
+   "cell": 62,
+   "px": [
+    1024,
+    1920,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.9375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "HOFFNUNG 6"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 7.5
+  },
+  {
+   "id": 302,
+   "page": 2,
+   "cell": 63,
+   "px": [
+    1536,
+    1920,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.9375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE VLIJT"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 7.62
+  },
+  {
+   "id": 303,
+   "page": 3,
+   "cell": 0,
+   "px": [
+    0,
+    0,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.0,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE VLIJT",
+    "LILLO"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 6.32
+  },
+  {
+   "id": 304,
+   "page": 3,
+   "cell": 1,
+   "px": [
+    512,
+    0,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.0,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE HOOP"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 7.62
+  },
+  {
+   "id": 305,
+   "page": 3,
+   "cell": 2,
+   "px": [
+    1024,
+    0,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.0,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE HOOP",
+    "DOEL"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 6.32
+  },
+  {
+   "id": 306,
+   "page": 3,
+   "cell": 3,
+   "px": [
+    1536,
+    0,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.0,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE VLIJT 2"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 7.62
+  },
+  {
+   "id": 307,
+   "page": 3,
+   "cell": 4,
+   "px": [
+    0,
+    128,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.0625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE VLIJT 2",
+    "LILLO"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 6.32
+  },
+  {
+   "id": 308,
+   "page": 3,
+   "cell": 5,
+   "px": [
+    512,
+    128,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.0625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE VLIJT 3"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 7.62
+  },
+  {
+   "id": 309,
+   "page": 3,
+   "cell": 6,
+   "px": [
+    1024,
+    128,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.0625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE VLIJT 3",
+    "LILLO"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 6.32
+  },
+  {
+   "id": 310,
+   "page": 3,
+   "cell": 7,
+   "px": [
+    1536,
+    128,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.0625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE VLIJT 4"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 7.62
+  },
+  {
+   "id": 311,
+   "page": 3,
+   "cell": 8,
+   "px": [
+    0,
+    256,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE VLIJT 4",
+    "LILLO"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 6.32
+  },
+  {
+   "id": 312,
+   "page": 3,
+   "cell": 9,
+   "px": [
+    512,
+    256,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE VLIJT 5"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 7.62
+  },
+  {
+   "id": 313,
+   "page": 3,
+   "cell": 10,
+   "px": [
+    1024,
+    256,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE VLIJT 5",
+    "LILLO"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 6.32
+  },
+  {
+   "id": 314,
+   "page": 3,
+   "cell": 11,
+   "px": [
+    1536,
+    256,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE VLIJT 6"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 7.62
+  },
+  {
+   "id": 315,
+   "page": 3,
+   "cell": 12,
+   "px": [
+    0,
+    384,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.1875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE VLIJT 6",
+    "LILLO"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 6.32
+  },
+  {
+   "id": 316,
+   "page": 3,
+   "cell": 13,
+   "px": [
+    512,
+    384,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.1875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE VLIJT 7"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 7.62
+  },
+  {
+   "id": 317,
+   "page": 3,
+   "cell": 14,
+   "px": [
+    1024,
+    384,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.1875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE VLIJT 7",
+    "LILLO"
+   ],
+   "style": "cream_shaded",
+   "look": "cream",
+   "aspect": 6.32
+  },
+  {
+   "id": 318,
+   "page": 1,
+   "cell": 62,
+   "px": [
+    1024,
+    1920,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.9375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE KOMEET"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 7.31
+  },
+  {
+   "id": 319,
+   "page": 1,
+   "cell": 63,
+   "px": [
+    1536,
+    1920,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.9375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE KOMEET",
+    "KALLO"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 6.36
+  },
+  {
+   "id": 320,
+   "page": 2,
+   "cell": 0,
+   "px": [
+    0,
+    0,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.0,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE KOMEET 2"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 7.31
+  },
+  {
+   "id": 321,
+   "page": 2,
+   "cell": 1,
+   "px": [
+    512,
+    0,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.0,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE KOMEET 2",
+    "KALLO"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 6.36
+  },
+  {
+   "id": 322,
+   "page": 2,
+   "cell": 2,
+   "px": [
+    1024,
+    0,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.0,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE KOMEET 3"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 7.31
+  },
+  {
+   "id": 323,
+   "page": 2,
+   "cell": 3,
+   "px": [
+    1536,
+    0,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.0,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE KOMEET 3",
+    "KALLO"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 6.36
+  },
+  {
+   "id": 324,
+   "page": 2,
+   "cell": 4,
+   "px": [
+    0,
+    128,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.0625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE KOMEET 4"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 7.31
+  },
+  {
+   "id": 325,
+   "page": 2,
+   "cell": 5,
+   "px": [
+    512,
+    128,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.0625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE KOMEET 4",
+    "KALLO"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 6.36
+  },
+  {
+   "id": 326,
+   "page": 2,
+   "cell": 6,
+   "px": [
+    1024,
+    128,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.0625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE KOMEET 5"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 7.31
+  },
+  {
+   "id": 327,
+   "page": 2,
+   "cell": 7,
+   "px": [
+    1536,
+    128,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.0625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE KOMEET 5",
+    "KALLO"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 6.36
+  },
+  {
+   "id": 328,
+   "page": 2,
+   "cell": 8,
+   "px": [
+    0,
+    256,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE KOMEET 6"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 7.31
+  },
+  {
+   "id": 329,
+   "page": 2,
+   "cell": 9,
+   "px": [
+    512,
+    256,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE KOMEET 6",
+    "KALLO"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 6.36
+  },
+  {
+   "id": 330,
+   "page": 2,
+   "cell": 10,
+   "px": [
+    1024,
+    256,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE KOMEET 7"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 7.31
+  },
+  {
+   "id": 331,
+   "page": 2,
+   "cell": 11,
+   "px": [
+    1536,
+    256,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE KOMEET 7",
+    "KALLO"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 6.36
+  },
+  {
+   "id": 332,
+   "page": 2,
+   "cell": 12,
+   "px": [
+    0,
+    384,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.1875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE KOMEET 8"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 7.31
+  },
+  {
+   "id": 333,
+   "page": 2,
+   "cell": 13,
+   "px": [
+    512,
+    384,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.1875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE KOMEET 8",
+    "KALLO"
+   ],
+   "style": "white_roman",
+   "look": "white",
+   "aspect": 6.36
+  },
+  {
+   "id": 334,
+   "page": 3,
+   "cell": 36,
+   "px": [
+    0,
+    1152,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.5625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE VREDE  No 6"
+   ],
+   "style": "block_plank",
+   "look": "plank",
+   "aspect": 9.23
+  },
+  {
+   "id": 335,
+   "page": 3,
+   "cell": 37,
+   "px": [
+    512,
+    1152,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.5625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "M. DE SMET",
+    "TEMSE"
+   ],
+   "style": "block_plank",
+   "look": "plank",
+   "aspect": 7.69
+  },
+  {
+   "id": 336,
+   "page": 3,
+   "cell": 38,
+   "px": [
+    1024,
+    1152,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.5625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "ROSALIA  No 11"
+   ],
+   "style": "block_plank",
+   "look": "plank",
+   "aspect": 9.23
+  },
+  {
+   "id": 337,
+   "page": 3,
+   "cell": 39,
+   "px": [
+    1536,
+    1152,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.5625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "T. BOEL",
+    "RUPELMONDE"
+   ],
+   "style": "block_plank",
+   "look": "plank",
+   "aspect": 7.69
+  },
+  {
+   "id": 338,
+   "page": 3,
+   "cell": 40,
+   "px": [
+    0,
+    1280,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "SINT-ANTONIUS  No 15"
+   ],
+   "style": "block_plank",
+   "look": "plank",
+   "aspect": 9.23
+  },
+  {
+   "id": 339,
+   "page": 3,
+   "cell": 41,
+   "px": [
+    512,
+    1280,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "G. DE WINTER",
+    "BOOM"
+   ],
+   "style": "block_plank",
+   "look": "plank",
+   "aspect": 7.69
+  },
+  {
+   "id": 340,
+   "page": 3,
+   "cell": 42,
+   "px": [
+    1024,
+    1280,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE ARBEID  No 19"
+   ],
+   "style": "block_plank",
+   "look": "plank",
+   "aspect": 9.23
+  },
+  {
+   "id": 341,
+   "page": 3,
+   "cell": 43,
+   "px": [
+    1536,
+    1280,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "V. MOENS",
+    "ANTWERPEN"
+   ],
+   "style": "block_plank",
+   "look": "plank",
+   "aspect": 7.69
+  },
+  {
+   "id": 342,
+   "page": 3,
+   "cell": 44,
+   "px": [
+    0,
+    1408,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.6875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "STAD TEMSE  No 23"
+   ],
+   "style": "block_plank",
+   "look": "plank",
+   "aspect": 9.23
+  },
+  {
+   "id": 343,
+   "page": 3,
+   "cell": 45,
+   "px": [
+    512,
+    1408,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.6875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "D. VAN HOVE",
+    "TEMSE"
+   ],
+   "style": "block_plank",
+   "look": "plank",
+   "aspect": 7.69
+  },
+  {
+   "id": 344,
+   "page": 3,
+   "cell": 46,
+   "px": [
+    1024,
+    1408,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.6875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE VREDE 2  No 6"
+   ],
+   "style": "block_plank",
+   "look": "plank",
+   "aspect": 9.23
+  },
+  {
+   "id": 345,
+   "page": 3,
+   "cell": 47,
+   "px": [
+    1536,
+    1408,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.6875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE VREDE 3  No 6"
+   ],
+   "style": "block_plank",
+   "look": "plank",
+   "aspect": 9.23
+  },
+  {
+   "id": 346,
+   "page": 3,
+   "cell": 48,
+   "px": [
+    0,
+    1536,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.75,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE VREDE 4  No 6"
+   ],
+   "style": "block_plank",
+   "look": "plank",
+   "aspect": 9.23
+  },
+  {
+   "id": 347,
+   "page": 2,
+   "cell": 14,
+   "px": [
+    1024,
+    384,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.1875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "SCALDIS"
+   ],
+   "style": "white_slab",
+   "look": "white",
+   "aspect": 4.0
+  },
+  {
+   "id": 348,
+   "page": 2,
+   "cell": 15,
+   "px": [
+    1536,
+    384,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.1875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "SCALDIS",
+    "ANTWERPEN"
+   ],
+   "style": "white_slab",
+   "look": "white",
+   "aspect": 4.0
+  },
+  {
+   "id": 349,
+   "page": 2,
+   "cell": 16,
+   "px": [
+    0,
+    512,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.25,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "NEPTUNUS"
+   ],
+   "style": "white_slab",
+   "look": "white",
+   "aspect": 4.0
+  },
+  {
+   "id": 350,
+   "page": 2,
+   "cell": 17,
+   "px": [
+    512,
+    512,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.25,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "NEPTUNUS",
+    "ANTWERPEN"
+   ],
+   "style": "white_slab",
+   "look": "white",
+   "aspect": 4.0
+  },
+  {
+   "id": 351,
+   "page": 2,
+   "cell": 18,
+   "px": [
+    1024,
+    512,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.25,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "GOLIATH"
+   ],
+   "style": "white_slab",
+   "look": "white",
+   "aspect": 4.0
+  },
+  {
+   "id": 352,
+   "page": 2,
+   "cell": 19,
+   "px": [
+    1536,
+    512,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.25,
+    0.25,
+    0.0625
+   ],
+   "text": [
     "GOLIATH",
     "ANTWERPEN"
    ],
@@ -6084,7 +8415,242 @@
    "aspect": 4.0
   },
   {
-   "id": 255,
+   "id": 353,
+   "page": 2,
+   "cell": 20,
+   "px": [
+    0,
+    640,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.3125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "SCALDIS 2"
+   ],
+   "style": "white_slab",
+   "look": "white",
+   "aspect": 4.0
+  },
+  {
+   "id": 354,
+   "page": 2,
+   "cell": 21,
+   "px": [
+    512,
+    640,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.3125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "SCALDIS 2",
+    "ANTWERPEN"
+   ],
+   "style": "white_slab",
+   "look": "white",
+   "aspect": 4.0
+  },
+  {
+   "id": 355,
+   "page": 2,
+   "cell": 22,
+   "px": [
+    1024,
+    640,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.3125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "SCALDIS 3"
+   ],
+   "style": "white_slab",
+   "look": "white",
+   "aspect": 4.0
+  },
+  {
+   "id": 356,
+   "page": 2,
+   "cell": 23,
+   "px": [
+    1536,
+    640,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.3125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "SCALDIS 3",
+    "ANTWERPEN"
+   ],
+   "style": "white_slab",
+   "look": "white",
+   "aspect": 4.0
+  },
+  {
+   "id": 357,
+   "page": 2,
+   "cell": 24,
+   "px": [
+    0,
+    768,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "SCALDIS 4"
+   ],
+   "style": "white_slab",
+   "look": "white",
+   "aspect": 4.0
+  },
+  {
+   "id": 358,
+   "page": 2,
+   "cell": 25,
+   "px": [
+    512,
+    768,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "SCALDIS 4",
+    "ANTWERPEN"
+   ],
+   "style": "white_slab",
+   "look": "white",
+   "aspect": 4.0
+  },
+  {
+   "id": 359,
+   "page": 2,
+   "cell": 26,
+   "px": [
+    1024,
+    768,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "SCALDIS 5"
+   ],
+   "style": "white_slab",
+   "look": "white",
+   "aspect": 4.0
+  },
+  {
+   "id": 360,
+   "page": 2,
+   "cell": 27,
+   "px": [
+    1536,
+    768,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "SCALDIS 5",
+    "ANTWERPEN"
+   ],
+   "style": "white_slab",
+   "look": "white",
+   "aspect": 4.0
+  },
+  {
+   "id": 361,
+   "page": 2,
+   "cell": 28,
+   "px": [
+    0,
+    896,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.4375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "SCALDIS 6"
+   ],
+   "style": "white_slab",
+   "look": "white",
+   "aspect": 4.0
+  },
+  {
+   "id": 362,
+   "page": 2,
+   "cell": 29,
+   "px": [
+    512,
+    896,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.4375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "SCALDIS 6",
+    "ANTWERPEN"
+   ],
+   "style": "white_slab",
+   "look": "white",
+   "aspect": 4.0
+  },
+  {
+   "id": 363,
    "page": 0,
    "cell": 33,
    "px": [
@@ -6107,7 +8673,7 @@
    "aspect": 4.0
   },
   {
-   "id": 256,
+   "id": 364,
    "page": 0,
    "cell": 34,
    "px": [
@@ -6131,7 +8697,7 @@
    "aspect": 4.0
   },
   {
-   "id": 257,
+   "id": 365,
    "page": 0,
    "cell": 35,
    "px": [
@@ -6154,7 +8720,7 @@
    "aspect": 4.0
   },
   {
-   "id": 258,
+   "id": 366,
    "page": 0,
    "cell": 36,
    "px": [
@@ -6178,8 +8744,760 @@
    "aspect": 4.0
   },
   {
-   "id": 259,
-   "page": 4,
+   "id": 367,
+   "page": 0,
+   "cell": 37,
+   "px": [
+    512,
+    1152,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.5625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "NETHE 2"
+   ],
+   "style": "gilt_roman",
+   "look": "gilt",
+   "aspect": 4.0
+  },
+  {
+   "id": 368,
+   "page": 0,
+   "cell": 38,
+   "px": [
+    1024,
+    1152,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.5625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "NETHE 2",
+    "ANTWERPEN"
+   ],
+   "style": "gilt_roman",
+   "look": "gilt",
+   "aspect": 4.0
+  },
+  {
+   "id": 369,
+   "page": 0,
+   "cell": 39,
+   "px": [
+    1536,
+    1152,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.5625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "NETHE 3"
+   ],
+   "style": "gilt_roman",
+   "look": "gilt",
+   "aspect": 4.0
+  },
+  {
+   "id": 370,
+   "page": 0,
+   "cell": 40,
+   "px": [
+    0,
+    1280,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "NETHE 3",
+    "ANTWERPEN"
+   ],
+   "style": "gilt_roman",
+   "look": "gilt",
+   "aspect": 4.0
+  },
+  {
+   "id": 371,
+   "page": 0,
+   "cell": 41,
+   "px": [
+    512,
+    1280,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "NETHE 4"
+   ],
+   "style": "gilt_roman",
+   "look": "gilt",
+   "aspect": 4.0
+  },
+  {
+   "id": 372,
+   "page": 0,
+   "cell": 42,
+   "px": [
+    1024,
+    1280,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "NETHE 4",
+    "ANTWERPEN"
+   ],
+   "style": "gilt_roman",
+   "look": "gilt",
+   "aspect": 4.0
+  },
+  {
+   "id": 373,
+   "page": 0,
+   "cell": 43,
+   "px": [
+    1536,
+    1280,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "NETHE 5"
+   ],
+   "style": "gilt_roman",
+   "look": "gilt",
+   "aspect": 4.0
+  },
+  {
+   "id": 374,
+   "page": 0,
+   "cell": 44,
+   "px": [
+    0,
+    1408,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.6875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "NETHE 5",
+    "ANTWERPEN"
+   ],
+   "style": "gilt_roman",
+   "look": "gilt",
+   "aspect": 4.0
+  },
+  {
+   "id": 375,
+   "page": 0,
+   "cell": 45,
+   "px": [
+    512,
+    1408,
+    512,
+    128
+   ],
+   "rect": [
+    0.25,
+    0.6875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "NETHE 6"
+   ],
+   "style": "gilt_roman",
+   "look": "gilt",
+   "aspect": 4.0
+  },
+  {
+   "id": 376,
+   "page": 0,
+   "cell": 46,
+   "px": [
+    1024,
+    1408,
+    512,
+    128
+   ],
+   "rect": [
+    0.5,
+    0.6875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "NETHE 6",
+    "ANTWERPEN"
+   ],
+   "style": "gilt_roman",
+   "look": "gilt",
+   "aspect": 4.0
+  },
+  {
+   "id": 377,
+   "page": 0,
+   "cell": 47,
+   "px": [
+    1536,
+    1408,
+    512,
+    128
+   ],
+   "rect": [
+    0.75,
+    0.6875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "NETHE 7"
+   ],
+   "style": "gilt_roman",
+   "look": "gilt",
+   "aspect": 4.0
+  },
+  {
+   "id": 378,
+   "page": 0,
+   "cell": 48,
+   "px": [
+    0,
+    1536,
+    512,
+    128
+   ],
+   "rect": [
+    0.0,
+    0.75,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "NETHE 7",
+    "ANTWERPEN"
+   ],
+   "style": "gilt_roman",
+   "look": "gilt",
+   "aspect": 4.0
+  },
+  {
+   "id": 379,
+   "page": 5,
+   "cell": 62,
+   "px": [
+    512,
+    960,
+    256,
+    64
+   ],
+   "rect": [
+    0.5,
+    0.9375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "MOOI WEER"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 380,
+   "page": 5,
+   "cell": 63,
+   "px": [
+    768,
+    960,
+    256,
+    64
+   ],
+   "rect": [
+    0.75,
+    0.9375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "MOOI WEER",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 381,
+   "page": 6,
+   "cell": 0,
+   "px": [
+    0,
+    0,
+    256,
+    64
+   ],
+   "rect": [
+    0.0,
+    0.0,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE SNOEK"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 382,
+   "page": 6,
+   "cell": 1,
+   "px": [
+    256,
+    0,
+    256,
+    64
+   ],
+   "rect": [
+    0.25,
+    0.0,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "DE SNOEK",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 383,
+   "page": 6,
+   "cell": 2,
+   "px": [
+    512,
+    0,
+    256,
+    64
+   ],
+   "rect": [
+    0.5,
+    0.0,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "ZOETE LIEF"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 384,
+   "page": 6,
+   "cell": 3,
+   "px": [
+    768,
+    0,
+    256,
+    64
+   ],
+   "rect": [
+    0.75,
+    0.0,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "ZOETE LIEF",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 385,
+   "page": 6,
+   "cell": 4,
+   "px": [
+    0,
+    64,
+    256,
+    64
+   ],
+   "rect": [
+    0.0,
+    0.0625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "KLEINE MON"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 386,
+   "page": 6,
+   "cell": 5,
+   "px": [
+    256,
+    64,
+    256,
+    64
+   ],
+   "rect": [
+    0.25,
+    0.0625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "KLEINE MON",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 387,
+   "page": 6,
+   "cell": 6,
+   "px": [
+    512,
+    64,
+    256,
+    64
+   ],
+   "rect": [
+    0.5,
+    0.0625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "TRESKE"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 388,
+   "page": 6,
+   "cell": 7,
+   "px": [
+    768,
+    64,
+    256,
+    64
+   ],
+   "rect": [
+    0.75,
+    0.0625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "TRESKE",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 389,
+   "page": 6,
+   "cell": 8,
+   "px": [
+    0,
+    128,
+    256,
+    64
+   ],
+   "rect": [
+    0.0,
+    0.125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "MOOI WEER 2"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 390,
+   "page": 6,
+   "cell": 9,
+   "px": [
+    256,
+    128,
+    256,
+    64
+   ],
+   "rect": [
+    0.25,
+    0.125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "MOOI WEER 2",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 391,
+   "page": 6,
+   "cell": 10,
+   "px": [
+    512,
+    128,
+    256,
+    64
+   ],
+   "rect": [
+    0.5,
+    0.125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "MOOI WEER 3"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 392,
+   "page": 6,
+   "cell": 11,
+   "px": [
+    768,
+    128,
+    256,
+    64
+   ],
+   "rect": [
+    0.75,
+    0.125,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "MOOI WEER 3",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 393,
+   "page": 6,
+   "cell": 12,
+   "px": [
+    0,
+    192,
+    256,
+    64
+   ],
+   "rect": [
+    0.0,
+    0.1875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "MOOI WEER 4"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 394,
+   "page": 6,
+   "cell": 13,
+   "px": [
+    256,
+    192,
+    256,
+    64
+   ],
+   "rect": [
+    0.25,
+    0.1875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "MOOI WEER 4",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 395,
+   "page": 6,
+   "cell": 14,
+   "px": [
+    512,
+    192,
+    256,
+    64
+   ],
+   "rect": [
+    0.5,
+    0.1875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "MOOI WEER 5"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 396,
+   "page": 6,
+   "cell": 15,
+   "px": [
+    768,
+    192,
+    256,
+    64
+   ],
+   "rect": [
+    0.75,
+    0.1875,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "MOOI WEER 5",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 397,
+   "page": 6,
+   "cell": 16,
+   "px": [
+    0,
+    256,
+    256,
+    64
+   ],
+   "rect": [
+    0.0,
+    0.25,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "MOOI WEER 6"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 398,
+   "page": 6,
+   "cell": 17,
+   "px": [
+    256,
+    256,
+    256,
+    64
+   ],
+   "rect": [
+    0.25,
+    0.25,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "MOOI WEER 6",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 399,
+   "page": 6,
    "cell": 18,
    "px": [
     512,
@@ -6194,15 +9512,15 @@
     0.0625
    ],
    "text": [
-    "MOOI WEER"
+    "MOOI WEER 7"
    ],
    "style": "small_hand",
    "look": "hand",
    "aspect": 4.0
   },
   {
-   "id": 260,
-   "page": 4,
+   "id": 400,
+   "page": 6,
    "cell": 19,
    "px": [
     768,
@@ -6217,7 +9535,7 @@
     0.0625
    ],
    "text": [
-    "MOOI WEER",
+    "MOOI WEER 7",
     "ANTWERPEN"
    ],
    "style": "small_hand",
@@ -6225,8 +9543,8 @@
    "aspect": 4.0
   },
   {
-   "id": 261,
-   "page": 4,
+   "id": 401,
+   "page": 6,
    "cell": 20,
    "px": [
     0,
@@ -6241,15 +9559,15 @@
     0.0625
    ],
    "text": [
-    "DE SNOEK"
+    "MOOI WEER 8"
    ],
    "style": "small_hand",
    "look": "hand",
    "aspect": 4.0
   },
   {
-   "id": 262,
-   "page": 4,
+   "id": 402,
+   "page": 6,
    "cell": 21,
    "px": [
     256,
@@ -6264,7 +9582,7 @@
     0.0625
    ],
    "text": [
-    "DE SNOEK",
+    "MOOI WEER 8",
     "ANTWERPEN"
    ],
    "style": "small_hand",
@@ -6272,8 +9590,8 @@
    "aspect": 4.0
   },
   {
-   "id": 263,
-   "page": 4,
+   "id": 403,
+   "page": 6,
    "cell": 22,
    "px": [
     512,
@@ -6288,15 +9606,15 @@
     0.0625
    ],
    "text": [
-    "ZOETE LIEF"
+    "MOOI WEER 9"
    ],
    "style": "small_hand",
    "look": "hand",
    "aspect": 4.0
   },
   {
-   "id": 264,
-   "page": 4,
+   "id": 404,
+   "page": 6,
    "cell": 23,
    "px": [
     768,
@@ -6311,7 +9629,7 @@
     0.0625
    ],
    "text": [
-    "ZOETE LIEF",
+    "MOOI WEER 9",
     "ANTWERPEN"
    ],
    "style": "small_hand",
@@ -6319,8 +9637,8 @@
    "aspect": 4.0
   },
   {
-   "id": 265,
-   "page": 4,
+   "id": 405,
+   "page": 6,
    "cell": 24,
    "px": [
     0,
@@ -6335,15 +9653,15 @@
     0.0625
    ],
    "text": [
-    "KLEINE MON"
+    "MOOI WEER 10"
    ],
    "style": "small_hand",
    "look": "hand",
    "aspect": 4.0
   },
   {
-   "id": 266,
-   "page": 4,
+   "id": 406,
+   "page": 6,
    "cell": 25,
    "px": [
     256,
@@ -6358,7 +9676,7 @@
     0.0625
    ],
    "text": [
-    "KLEINE MON",
+    "MOOI WEER 10",
     "ANTWERPEN"
    ],
    "style": "small_hand",
@@ -6366,8 +9684,8 @@
    "aspect": 4.0
   },
   {
-   "id": 267,
-   "page": 4,
+   "id": 407,
+   "page": 6,
    "cell": 26,
    "px": [
     512,
@@ -6382,15 +9700,15 @@
     0.0625
    ],
    "text": [
-    "TRESKE"
+    "MOOI WEER 11"
    ],
    "style": "small_hand",
    "look": "hand",
    "aspect": 4.0
   },
   {
-   "id": 268,
-   "page": 4,
+   "id": 408,
+   "page": 6,
    "cell": 27,
    "px": [
     768,
@@ -6405,7 +9723,242 @@
     0.0625
    ],
    "text": [
-    "TRESKE",
+    "MOOI WEER 11",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 409,
+   "page": 6,
+   "cell": 28,
+   "px": [
+    0,
+    448,
+    256,
+    64
+   ],
+   "rect": [
+    0.0,
+    0.4375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "MOOI WEER 12"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 410,
+   "page": 6,
+   "cell": 29,
+   "px": [
+    256,
+    448,
+    256,
+    64
+   ],
+   "rect": [
+    0.25,
+    0.4375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "MOOI WEER 12",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 411,
+   "page": 6,
+   "cell": 30,
+   "px": [
+    512,
+    448,
+    256,
+    64
+   ],
+   "rect": [
+    0.5,
+    0.4375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "MOOI WEER 13"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 412,
+   "page": 6,
+   "cell": 31,
+   "px": [
+    768,
+    448,
+    256,
+    64
+   ],
+   "rect": [
+    0.75,
+    0.4375,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "MOOI WEER 13",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 413,
+   "page": 6,
+   "cell": 32,
+   "px": [
+    0,
+    512,
+    256,
+    64
+   ],
+   "rect": [
+    0.0,
+    0.5,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "MOOI WEER 14"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 414,
+   "page": 6,
+   "cell": 33,
+   "px": [
+    256,
+    512,
+    256,
+    64
+   ],
+   "rect": [
+    0.25,
+    0.5,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "MOOI WEER 14",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 415,
+   "page": 6,
+   "cell": 34,
+   "px": [
+    512,
+    512,
+    256,
+    64
+   ],
+   "rect": [
+    0.5,
+    0.5,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "MOOI WEER 15"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 416,
+   "page": 6,
+   "cell": 35,
+   "px": [
+    768,
+    512,
+    256,
+    64
+   ],
+   "rect": [
+    0.75,
+    0.5,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "MOOI WEER 15",
+    "ANTWERPEN"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 417,
+   "page": 6,
+   "cell": 36,
+   "px": [
+    0,
+    576,
+    256,
+    64
+   ],
+   "rect": [
+    0.0,
+    0.5625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "MOOI WEER 16"
+   ],
+   "style": "small_hand",
+   "look": "hand",
+   "aspect": 4.0
+  },
+  {
+   "id": 418,
+   "page": 6,
+   "cell": 37,
+   "px": [
+    256,
+    576,
+    256,
+    64
+   ],
+   "rect": [
+    0.25,
+    0.5625,
+    0.25,
+    0.0625
+   ],
+   "text": [
+    "MOOI WEER 16",
     "ANTWERPEN"
    ],
    "style": "small_hand",
@@ -6598,501 +10151,804 @@
    "stern": 89
   },
   "river_row_1": {
-   "stern": 90
+   "bow": 90,
+   "stern": 91
   },
   "de_nijverheid": {
-   "bow": 91,
-   "stern": 92
+   "bow": 92,
+   "stern": 93
   },
   "sint_amandus": {
-   "bow": 93,
+   "bow": 94,
    "stern": 27
   },
   "brabo": {
-   "bow": 94,
-   "stern": 95
+   "bow": 95,
+   "stern": 96
   },
   "waesland": {
-   "bow": 96,
-   "stern": 97,
-   "box": 96
+   "bow": 97,
+   "stern": 98,
+   "box": 97
   },
   "sint_pieter": {
-   "bow": 98,
-   "stern": 99
+   "bow": 99,
+   "stern": 100
   },
   "zeelelie": {
-   "bow": 100,
-   "stern": 101
+   "bow": 101,
+   "stern": 102
   },
   "st_anna": {
-   "bow": 102,
-   "stern": 103,
-   "box": 102
+   "bow": 103,
+   "stern": 104,
+   "box": 103
   },
   "boat:canal": {
-   "bow": 104,
-   "stern": 105
+   "bow": 105,
+   "stern": 106
   },
   "boat:cartstand": {
-   "bow": 106,
-   "stern": 107
-  },
-  "boat:north": {
+   "bow": 107,
    "stern": 108
   },
-  "boat:vismarkt_eel": {
+  "boat:north": {
    "bow": 109,
    "stern": 110
   },
-  "boat:rijnkaai_bum": {
+  "boat:vismarkt_eel": {
    "bow": 111,
    "stern": 112
   },
-  "boat:cartstand_sloep": {
+  "boat:rijnkaai_bum": {
    "bow": 113,
    "stern": 114
   },
+  "boat:cartstand_sloep": {
+   "bow": 115,
+   "stern": 116
+  },
   "boat:north_vlet": {
-   "stern": 115
+   "bow": 117,
+   "stern": 118
   },
   "boat:canal_jol": {
-   "bow": 116,
-   "stern": 117
+   "bow": 119,
+   "stern": 120
   },
   "boat:bassin_punt": {
-   "stern": 90
+   "bow": 121,
+   "stern": 122
   },
   "boat:bassin_north_sloep": {
-   "bow": 118,
-   "stern": 119
+   "bow": 123,
+   "stern": 124
   },
   "boat:vismarkt_west_vlet": {
-   "bow": 120,
-   "stern": 121
+   "bow": 125,
+   "stern": 126
   },
   "boat:vismarkt_west_sloep": {
-   "bow": 122,
-   "stern": 123
+   "bow": 127,
+   "stern": 128
   },
   "boat:vismarkt_east_row": {
-   "bow": 124,
-   "stern": 125
+   "bow": 129,
+   "stern": 130
   },
   "boat:vismarkt_east_jol": {
-   "bow": 126,
-   "stern": 127
-  },
-  "boat:werf_gig": {
-   "bow": 128,
-   "stern": 129
-  },
-  "boat:werf_ferry": {
-   "bow": 130,
-   "stern": 131
-  },
-  "boat:pier_jol": {
-   "stern": 108
-  },
-  "boat:rijnkaai_old": {
-   "bow": 132,
+   "bow": 131,
    "stern": 132
   },
-  "boat:canal_west_vlet": {
-   "stern": 133
+  "boat:werf_gig": {
+   "bow": 133,
+   "stern": 134
   },
-  "boat:canal_wash_punt": {
-   "bow": 134,
-   "stern": 135
-  },
-  "boat:yard_old": {
-   "bow": 136,
+  "boat:werf_ferry": {
+   "bow": 135,
    "stern": 136
   },
-  "boat:yard_rowboat": {
-   "stern": 108
-  },
-  "boat:bassin_bum": {
+  "boat:pier_jol": {
    "bow": 137,
    "stern": 138
   },
-  "boat:bassin_south_jol": {
+  "boat:rijnkaai_old": {
    "bow": 139,
    "stern": 140
   },
-  "boat:row0_0": {
-   "stern": 108
-  },
-  "boat:row0_1": {
+  "boat:canal_west_vlet": {
    "bow": 141,
    "stern": 142
   },
-  "boat:row0_2": {
-   "stern": 143
+  "boat:canal_wash_punt": {
+   "bow": 143,
+   "stern": 144
   },
-  "boat:row0_3": {
-   "stern": 108
-  },
-  "boat:row0_4": {
-   "bow": 144,
-   "stern": 145
-  },
-  "boat:row0_5": {
+  "boat:yard_old": {
+   "bow": 145,
    "stern": 146
   },
-  "boat:row1_0": {
-   "stern": 90
-  },
-  "boat:row1_1": {
+  "boat:yard_rowboat": {
    "bow": 147,
-   "stern": 147
+   "stern": 148
   },
-  "boat:row1_2": {
-   "bow": 148,
-   "stern": 149
-  },
-  "boat:row1_3": {
+  "boat:bassin_bum": {
+   "bow": 149,
    "stern": 150
   },
-  "boat:row1_4": {
+  "boat:bassin_south_jol": {
    "bow": 151,
    "stern": 152
   },
-  "boat:row1_5": {
-   "stern": 108
+  "boat:row0_0": {
+   "bow": 153,
+   "stern": 154
   },
-  "boat:row1_6": {
-   "stern": 153
-  },
-  "boat:row2_0": {
-   "bow": 154,
-   "stern": 155
-  },
-  "boat:row2_1": {
-   "bow": 156,
+  "boat:row0_1": {
+   "bow": 155,
    "stern": 156
   },
-  "boat:row2_2": {
-   "stern": 108
-  },
-  "boat:row2_3": {
+  "boat:row0_2": {
    "bow": 157,
    "stern": 158
   },
-  "boat:row2_4": {
+  "boat:row0_3": {
    "bow": 159,
    "stern": 160
   },
-  "boat:row3_0": {
-   "stern": 90
-  },
-  "boat:row3_1": {
+  "boat:row0_4": {
    "bow": 161,
    "stern": 162
   },
-  "boat:row4_0": {
-   "stern": 163
+  "boat:row0_5": {
+   "bow": 163,
+   "stern": 164
   },
-  "boat:row5_0": {
-   "bow": 164,
-   "stern": 165
-  },
-  "boat:row5_1": {
-   "bow": 166,
+  "boat:row1_0": {
+   "bow": 165,
    "stern": 166
   },
-  "boat:row5_2": {
-   "stern": 90
-  },
-  "boat:row5_3": {
+  "boat:row1_1": {
    "bow": 167,
    "stern": 168
   },
-  "boat:row5_4": {
+  "boat:row1_2": {
    "bow": 169,
    "stern": 170
   },
-  "boat:row5_5": {
-   "stern": 108
-  },
-  "boat:row5_6": {
+  "boat:row1_3": {
    "bow": 171,
    "stern": 172
   },
-  "boat:row5_7": {
-   "stern": 108
-  },
-  "boat:row6_0": {
+  "boat:row1_4": {
    "bow": 173,
    "stern": 174
   },
-  "boat:row6_1": {
-   "stern": 115
-  },
-  "boat:row6_2": {
-   "stern": 108
-  },
-  "boat:row7_0": {
+  "boat:row1_5": {
    "bow": 175,
    "stern": 176
   },
-  "boat:row7_1": {
-   "stern": 177
-  },
-  "boat:row7_2": {
-   "stern": 90
-  },
-  "boat:row8_0": {
-   "bow": 178,
+  "boat:row1_6": {
+   "bow": 177,
    "stern": 178
   },
-  "boat:row8_1": {
+  "boat:row2_0": {
    "bow": 179,
    "stern": 180
   },
-  "hire:rijnkaai": {
+  "boat:row2_1": {
    "bow": 181,
    "stern": 182
   },
-  "hire:vismarkt": {
+  "boat:row2_2": {
    "bow": 183,
    "stern": 184
   },
-  "hire:bassin": {
+  "boat:row2_3": {
    "bow": 185,
    "stern": 186
   },
-  "passage:canal:punt": {
+  "boat:row2_4": {
    "bow": 187,
    "stern": 188
   },
-  "passage:canal:rowboat": {
-   "stern": 90
-  },
-  "passage:vliet:punt": {
-   "stern": 108
-  },
-  "passage:vliet:rowboat": {
+  "boat:row3_0": {
    "bow": 189,
    "stern": 190
+  },
+  "boat:row3_1": {
+   "bow": 191,
+   "stern": 192
+  },
+  "boat:row4_0": {
+   "bow": 193,
+   "stern": 194
+  },
+  "boat:row5_0": {
+   "bow": 195,
+   "stern": 196
+  },
+  "boat:row5_1": {
+   "bow": 197,
+   "stern": 198
+  },
+  "boat:row5_2": {
+   "bow": 199,
+   "stern": 200
+  },
+  "boat:row5_3": {
+   "bow": 201,
+   "stern": 202
+  },
+  "boat:row5_4": {
+   "bow": 203,
+   "stern": 204
+  },
+  "boat:row5_5": {
+   "bow": 205,
+   "stern": 206
+  },
+  "boat:row5_6": {
+   "bow": 207,
+   "stern": 208
+  },
+  "boat:row5_7": {
+   "bow": 209,
+   "stern": 210
+  },
+  "boat:row6_0": {
+   "bow": 211,
+   "stern": 212
+  },
+  "boat:row6_1": {
+   "bow": 213,
+   "stern": 214
+  },
+  "boat:row6_2": {
+   "bow": 215,
+   "stern": 216
+  },
+  "boat:row7_0": {
+   "bow": 217,
+   "stern": 218
+  },
+  "boat:row7_1": {
+   "bow": 219,
+   "stern": 220
+  },
+  "boat:row7_2": {
+   "bow": 221,
+   "stern": 222
+  },
+  "boat:row8_0": {
+   "bow": 223,
+   "stern": 224
+  },
+  "boat:row8_1": {
+   "bow": 225,
+   "stern": 226
+  },
+  "hire:rijnkaai": {
+   "bow": 227,
+   "stern": 228
+  },
+  "hire:vismarkt": {
+   "bow": 229,
+   "stern": 230
+  },
+  "hire:bassin": {
+   "bow": 231,
+   "stern": 232
+  },
+  "passage:canal:punt": {
+   "bow": 233,
+   "stern": 234
+  },
+  "passage:canal:rowboat": {
+   "bow": 235,
+   "stern": 236
+  },
+  "passage:vliet:punt": {
+   "bow": 237,
+   "stern": 238
+  },
+  "passage:vliet:rowboat": {
+   "bow": 239,
+   "stern": 240
   }
  },
  "spare": {
   "steamer": [
    {
     "name": "OUSE",
-    "bow": 191,
-    "stern": 192
+    "bow": 241,
+    "stern": 242
    },
    {
     "name": "TYNESIDE",
-    "bow": 193,
-    "stern": 194
+    "bow": 243,
+    "stern": 244
    },
    {
     "name": "CITY OF LEITH",
-    "bow": 195,
-    "stern": 196
+    "bow": 245,
+    "stern": 246
    },
    {
     "name": "LADY ALICE",
-    "bow": 197,
-    "stern": 198
+    "bow": 247,
+    "stern": 248
    },
    {
     "name": "VILLE DE GAND",
-    "bow": 199,
-    "stern": 200
+    "bow": 249,
+    "stern": 250
    },
    {
     "name": "SCHELDESTAD",
-    "bow": 201,
-    "stern": 202
+    "bow": 251,
+    "stern": 252
    },
    {
     "name": "WESER",
-    "bow": 203,
-    "stern": 204
+    "bow": 253,
+    "stern": 254
    },
    {
     "name": "ELBE",
-    "bow": 205,
-    "stern": 206
+    "bow": 255,
+    "stern": 256
    },
    {
     "name": "MAAS",
-    "bow": 207,
-    "stern": 208
+    "bow": 257,
+    "stern": 258
    }
   ],
   "barque": [
    {
     "name": "FAMILIEN",
-    "bow": 209,
-    "stern": 210
+    "bow": 259,
+    "stern": 260
    },
    {
     "name": "SVANEN",
-    "bow": 211,
-    "stern": 212
+    "bow": 261,
+    "stern": 262
    },
    {
     "name": "JOHANNE",
-    "bow": 213,
-    "stern": 214
+    "bow": 263,
+    "stern": 264
    },
    {
     "name": "HOPPET",
-    "bow": 215,
-    "stern": 216
+    "bow": 265,
+    "stern": 266
    },
    {
     "name": "FREJA",
-    "bow": 217,
-    "stern": 218
+    "bow": 267,
+    "stern": 268
+   },
+   {
+    "name": "FAMILIEN 2",
+    "bow": 269,
+    "stern": 270
+   },
+   {
+    "name": "FAMILIEN 3",
+    "bow": 271,
+    "stern": 272
+   },
+   {
+    "name": "FAMILIEN 4",
+    "bow": 273,
+    "stern": 274
    }
   ],
   "schooner": [
    {
     "name": "DAGMAR",
-    "bow": 219,
-    "stern": 220
+    "bow": 275,
+    "stern": 276
    },
    {
     "name": "ELIZA JANE",
-    "bow": 221,
-    "stern": 222
+    "bow": 277,
+    "stern": 278
    },
    {
     "name": "VROUW ALIDA",
-    "bow": 223,
-    "stern": 224
+    "bow": 279,
+    "stern": 280
    },
    {
     "name": "DE JONGE JAN",
-    "bow": 225,
-    "stern": 226
+    "bow": 281,
+    "stern": 282
+   },
+   {
+    "name": "DAGMAR 2",
+    "bow": 283,
+    "stern": 284
+   },
+   {
+    "name": "DAGMAR 3",
+    "bow": 285,
+    "stern": 286
+   },
+   {
+    "name": "DAGMAR 4",
+    "bow": 287,
+    "stern": 288
+   },
+   {
+    "name": "DAGMAR 5",
+    "bow": 289,
+    "stern": 290
    }
   ],
   "rhine_barge": [
    {
     "name": "HOFFNUNG",
-    "bow": 227,
-    "stern": 228
+    "bow": 291,
+    "stern": 292
    },
    {
     "name": "EINTRACHT",
-    "bow": 229,
-    "stern": 230
+    "bow": 293,
+    "stern": 294
    },
    {
     "name": "CATHARINA",
-    "bow": 231,
-    "stern": 232
+    "bow": 295,
+    "stern": 296
+   },
+   {
+    "name": "HOFFNUNG 2",
+    "bow": 297,
+    "stern": 292
+   },
+   {
+    "name": "HOFFNUNG 3",
+    "bow": 298,
+    "stern": 292
+   },
+   {
+    "name": "HOFFNUNG 4",
+    "bow": 299,
+    "stern": 292
+   },
+   {
+    "name": "HOFFNUNG 5",
+    "bow": 300,
+    "stern": 292
+   },
+   {
+    "name": "HOFFNUNG 6",
+    "bow": 301,
+    "stern": 292
    }
   ],
   "hengst": [
    {
     "name": "DE VLIJT",
-    "bow": 233,
-    "stern": 234
+    "bow": 302,
+    "stern": 303
    },
    {
     "name": "DE HOOP",
-    "bow": 235,
-    "stern": 236
+    "bow": 304,
+    "stern": 305
+   },
+   {
+    "name": "DE VLIJT 2",
+    "bow": 306,
+    "stern": 307
+   },
+   {
+    "name": "DE VLIJT 3",
+    "bow": 308,
+    "stern": 309
+   },
+   {
+    "name": "DE VLIJT 4",
+    "bow": 310,
+    "stern": 311
+   },
+   {
+    "name": "DE VLIJT 5",
+    "bow": 312,
+    "stern": 313
+   },
+   {
+    "name": "DE VLIJT 6",
+    "bow": 314,
+    "stern": 315
+   },
+   {
+    "name": "DE VLIJT 7",
+    "bow": 316,
+    "stern": 317
    }
   ],
   "sloop": [
    {
     "name": "DE KOMEET",
-    "bow": 237,
-    "stern": 238
+    "bow": 318,
+    "stern": 319
+   },
+   {
+    "name": "DE KOMEET 2",
+    "bow": 320,
+    "stern": 321
+   },
+   {
+    "name": "DE KOMEET 3",
+    "bow": 322,
+    "stern": 323
+   },
+   {
+    "name": "DE KOMEET 4",
+    "bow": 324,
+    "stern": 325
+   },
+   {
+    "name": "DE KOMEET 5",
+    "bow": 326,
+    "stern": 327
+   },
+   {
+    "name": "DE KOMEET 6",
+    "bow": 328,
+    "stern": 329
+   },
+   {
+    "name": "DE KOMEET 7",
+    "bow": 330,
+    "stern": 331
+   },
+   {
+    "name": "DE KOMEET 8",
+    "bow": 332,
+    "stern": 333
    }
   ],
   "lighter": [
    {
     "name": "DE VREDE",
-    "bow": 239,
-    "stern": 240
+    "bow": 334,
+    "stern": 335
    },
    {
     "name": "ROSALIA",
-    "bow": 241,
-    "stern": 242
+    "bow": 336,
+    "stern": 337
    },
    {
     "name": "SINT-ANTONIUS",
-    "bow": 243,
-    "stern": 244
+    "bow": 338,
+    "stern": 339
    },
    {
     "name": "DE ARBEID",
-    "bow": 245,
-    "stern": 246
+    "bow": 340,
+    "stern": 341
    },
    {
     "name": "STAD TEMSE",
-    "bow": 247,
-    "stern": 248
+    "bow": 342,
+    "stern": 343
+   },
+   {
+    "name": "DE VREDE 2",
+    "bow": 344,
+    "stern": 335
+   },
+   {
+    "name": "DE VREDE 3",
+    "bow": 345,
+    "stern": 335
+   },
+   {
+    "name": "DE VREDE 4",
+    "bow": 346,
+    "stern": 335
    }
   ],
   "tug": [
    {
     "name": "SCALDIS",
-    "bow": 249,
-    "stern": 250
+    "bow": 347,
+    "stern": 348
    },
    {
     "name": "NEPTUNUS",
-    "bow": 251,
-    "stern": 252
+    "bow": 349,
+    "stern": 350
    },
    {
     "name": "GOLIATH",
-    "bow": 253,
-    "stern": 254
+    "bow": 351,
+    "stern": 352
+   },
+   {
+    "name": "SCALDIS 2",
+    "bow": 353,
+    "stern": 354
+   },
+   {
+    "name": "SCALDIS 3",
+    "bow": 355,
+    "stern": 356
+   },
+   {
+    "name": "SCALDIS 4",
+    "bow": 357,
+    "stern": 358
+   },
+   {
+    "name": "SCALDIS 5",
+    "bow": 359,
+    "stern": 360
+   },
+   {
+    "name": "SCALDIS 6",
+    "bow": 361,
+    "stern": 362
    }
   ],
   "paddle_tug": [
    {
     "name": "NETHE",
-    "bow": 255,
-    "stern": 256,
-    "box": 255
+    "bow": 363,
+    "stern": 364,
+    "box": 363
    },
    {
     "name": "DIJLE",
-    "bow": 257,
-    "stern": 258,
-    "box": 257
+    "bow": 365,
+    "stern": 366,
+    "box": 365
+   },
+   {
+    "name": "NETHE 2",
+    "bow": 367,
+    "stern": 368,
+    "box": 367
+   },
+   {
+    "name": "NETHE 3",
+    "bow": 369,
+    "stern": 370,
+    "box": 369
+   },
+   {
+    "name": "NETHE 4",
+    "bow": 371,
+    "stern": 372,
+    "box": 371
+   },
+   {
+    "name": "NETHE 5",
+    "bow": 373,
+    "stern": 374,
+    "box": 373
+   },
+   {
+    "name": "NETHE 6",
+    "bow": 375,
+    "stern": 376,
+    "box": 375
+   },
+   {
+    "name": "NETHE 7",
+    "bow": 377,
+    "stern": 378,
+    "box": 377
    }
   ],
   "small": [
    {
     "name": "MOOI WEER",
-    "bow": 259,
-    "stern": 260
+    "bow": 379,
+    "stern": 380
    },
    {
     "name": "DE SNOEK",
-    "bow": 261,
-    "stern": 262
+    "bow": 381,
+    "stern": 382
    },
    {
     "name": "ZOETE LIEF",
-    "bow": 263,
-    "stern": 264
+    "bow": 383,
+    "stern": 384
    },
    {
     "name": "KLEINE MON",
-    "bow": 265,
-    "stern": 266
+    "bow": 385,
+    "stern": 386
    },
    {
     "name": "TRESKE",
-    "bow": 267,
-    "stern": 268
+    "bow": 387,
+    "stern": 388
+   },
+   {
+    "name": "MOOI WEER 2",
+    "bow": 389,
+    "stern": 390
+   },
+   {
+    "name": "MOOI WEER 3",
+    "bow": 391,
+    "stern": 392
+   },
+   {
+    "name": "MOOI WEER 4",
+    "bow": 393,
+    "stern": 394
+   },
+   {
+    "name": "MOOI WEER 5",
+    "bow": 395,
+    "stern": 396
+   },
+   {
+    "name": "MOOI WEER 6",
+    "bow": 397,
+    "stern": 398
+   },
+   {
+    "name": "MOOI WEER 7",
+    "bow": 399,
+    "stern": 400
+   },
+   {
+    "name": "MOOI WEER 8",
+    "bow": 401,
+    "stern": 402
+   },
+   {
+    "name": "MOOI WEER 9",
+    "bow": 403,
+    "stern": 404
+   },
+   {
+    "name": "MOOI WEER 10",
+    "bow": 405,
+    "stern": 406
+   },
+   {
+    "name": "MOOI WEER 11",
+    "bow": 407,
+    "stern": 408
+   },
+   {
+    "name": "MOOI WEER 12",
+    "bow": 409,
+    "stern": 410
+   },
+   {
+    "name": "MOOI WEER 13",
+    "bow": 411,
+    "stern": 412
+   },
+   {
+    "name": "MOOI WEER 14",
+    "bow": 413,
+    "stern": 414
+   },
+   {
+    "name": "MOOI WEER 15",
+    "bow": 415,
+    "stern": 416
+   },
+   {
+    "name": "MOOI WEER 16",
+    "bow": 417,
+    "stern": 418
    }
   ]
  },
@@ -7101,10 +10957,6 @@
    "gilt_roman": {
     "bow": 0,
     "stern": 1
-   },
-   "small_hand": {
-    "bow": 113,
-    "stern": 114
    }
   },
   "FREMAD": {
@@ -7123,10 +10975,6 @@
    "gilt_roman": {
     "bow": 6,
     "stern": 7
-   },
-   "small_hand": {
-    "bow": 122,
-    "stern": 123
    }
   },
   "HAABET": {
@@ -7151,10 +10999,6 @@
    "white_roman": {
     "bow": 14,
     "stern": 15
-   },
-   "small_hand": {
-    "bow": 118,
-    "stern": 119
    }
   },
   "GOTTES SEGEN": {
@@ -7379,514 +11223,1018 @@
     "stern": 89
    }
   },
+  "KATRIEN": {
+   "small_hand": {
+    "bow": 90,
+    "stern": 91
+   }
+  },
   "DE NIJVERHEID": {
    "block_plank": {
-    "bow": 91,
-    "stern": 92
+    "bow": 92,
+    "stern": 93
    }
   },
   "SINT-AMANDUS": {
    "block_plank": {
-    "bow": 93,
+    "bow": 94,
     "stern": 27
    }
   },
   "BRABO": {
    "white_slab": {
-    "bow": 94,
-    "stern": 95
+    "bow": 95,
+    "stern": 96
    }
   },
   "WAESLAND": {
    "gilt_roman": {
-    "bow": 96,
-    "stern": 97
+    "bow": 97,
+    "stern": 98
    }
   },
   "SINT-PIETER": {
    "cream_shaded": {
-    "bow": 98,
-    "stern": 99
+    "bow": 99,
+    "stern": 100
    }
   },
   "ZEELELIE": {
    "white_roman": {
-    "bow": 100,
-    "stern": 101
+    "bow": 101,
+    "stern": 102
    }
   },
   "ST. ANNA": {
    "gilt_roman": {
-    "bow": 102,
-    "stern": 103
+    "bow": 103,
+    "stern": 104
    }
   },
   "MIE": {
    "small_hand": {
-    "bow": 104,
-    "stern": 105
+    "bow": 105,
+    "stern": 106
    }
   },
   "ROSALIE": {
    "small_hand": {
-    "bow": 106,
-    "stern": 107
+    "bow": 107,
+    "stern": 108
    }
   },
-  "DE PALING": {
+  "BIEKE": {
    "small_hand": {
     "bow": 109,
     "stern": 110
    }
   },
-  "BROOD - BIER": {
+  "DE PALING": {
    "small_hand": {
     "bow": 111,
     "stern": 112
    }
   },
+  "BROOD - BIER": {
+   "small_hand": {
+    "bow": 113,
+    "stern": 114
+   }
+  },
+  "ANNA MARIA II": {
+   "small_hand": {
+    "bow": 115,
+    "stern": 116
+   }
+  },
+  "FONSKE": {
+   "small_hand": {
+    "bow": 117,
+    "stern": 118
+   }
+  },
   "KLEIN JAN": {
    "small_hand": {
-    "bow": 116,
-    "stern": 117
+    "bow": 119,
+    "stern": 120
+   }
+  },
+  "ROOSKE": {
+   "small_hand": {
+    "bow": 121,
+    "stern": 122
+   }
+  },
+  "ELLIDA II": {
+   "small_hand": {
+    "bow": 123,
+    "stern": 124
    }
   },
   "DE MOL": {
    "small_hand": {
-    "bow": 120,
-    "stern": 121
+    "bow": 125,
+    "stern": 126
+   }
+  },
+  "GERMANIA II": {
+   "small_hand": {
+    "bow": 127,
+    "stern": 128
    }
   },
   "LIEVEKE": {
    "small_hand": {
-    "bow": 124,
-    "stern": 125
+    "bow": 129,
+    "stern": 130
    }
   },
   "TRIENTJE": {
    "small_hand": {
-    "bow": 126,
-    "stern": 127
+    "bow": 131,
+    "stern": 132
    }
   },
   "POLITIE": {
    "white_slab": {
-    "bow": 128,
-    "stern": 129
+    "bow": 133,
+    "stern": 134
    }
   },
   "FIENTJE": {
    "small_hand": {
-    "bow": 130,
-    "stern": 131
-   }
-  },
-  "ELISA": {
-   "scraped": {
-    "bow": 132,
-    "stern": 132
-   }
-  },
-  "NELLEKE": {
-   "small_hand": {
-    "bow": 134,
-    "stern": 135
-   }
-  },
-  "DE MEEUW": {
-   "scraped": {
-    "bow": 136,
+    "bow": 135,
     "stern": 136
    }
   },
-  "KOFFIE - JENEVER": {
+  "JULIE": {
    "small_hand": {
     "bow": 137,
     "stern": 138
    }
   },
-  "BETJE": {
-   "small_hand": {
+  "ELISA": {
+   "scraped": {
     "bow": 139,
     "stern": 140
    }
   },
-  "MIEKE": {
+  "JANNEKE": {
    "small_hand": {
     "bow": 141,
     "stern": 142
    }
   },
-  "ANNEKE": {
+  "NELLEKE": {
    "small_hand": {
-    "bow": 144,
-    "stern": 145
+    "bow": 143,
+    "stern": 144
    }
   },
-  "JOHANNA": {
+  "DE MEEUW": {
    "scraped": {
-    "bow": 147,
-    "stern": 147
+    "bow": 145,
+    "stern": 146
    }
   },
-  "TREESKE": {
+  "TIST": {
    "small_hand": {
-    "bow": 148,
-    "stern": 149
+    "bow": 147,
+    "stern": 148
    }
   },
-  "STANSKE": {
+  "KOFFIE - JENEVER": {
+   "small_hand": {
+    "bow": 149,
+    "stern": 150
+   }
+  },
+  "BETJE": {
    "small_hand": {
     "bow": 151,
     "stern": 152
    }
   },
-  "ROZEKE": {
+  "NAND": {
    "small_hand": {
-    "bow": 154,
-    "stern": 155
+    "bow": 153,
+    "stern": 154
    }
   },
-  "AMELIE": {
-   "scraped": {
-    "bow": 156,
+  "MIEKE": {
+   "small_hand": {
+    "bow": 155,
     "stern": 156
    }
   },
-  "TABAK - BROOD": {
+  "KOBE": {
    "small_hand": {
     "bow": 157,
     "stern": 158
    }
   },
-  "KLEIN PIERKE": {
+  "LEONIE": {
    "small_hand": {
     "bow": 159,
     "stern": 160
    }
   },
-  "DE REIGER": {
+  "ANNEKE": {
    "small_hand": {
     "bow": 161,
     "stern": 162
    }
   },
-  "MARIEKE": {
+  "MARTA": {
    "small_hand": {
-    "bow": 164,
-    "stern": 165
+    "bow": 163,
+    "stern": 164
    }
   },
-  "PIETERTJE": {
-   "scraped": {
-    "bow": 166,
+  "SIDONIE": {
+   "small_hand": {
+    "bow": 165,
     "stern": 166
    }
   },
-  "MOSSELEN - BIER": {
-   "small_hand": {
+  "JOHANNA": {
+   "scraped": {
     "bow": 167,
     "stern": 168
    }
   },
-  "TOONTJE": {
+  "TREESKE": {
    "small_hand": {
     "bow": 169,
     "stern": 170
    }
   },
-  "JOSEFIEN": {
+  "JULES": {
    "small_hand": {
     "bow": 171,
     "stern": 172
    }
   },
-  "VIRGINIE": {
+  "STANSKE": {
    "small_hand": {
     "bow": 173,
     "stern": 174
    }
   },
-  "CELESTINE": {
+  "CELINE": {
    "small_hand": {
     "bow": 175,
     "stern": 176
    }
   },
-  "DE SPOOR": {
-   "scraped": {
-    "bow": 178,
+  "GUST": {
+   "small_hand": {
+    "bow": 177,
     "stern": 178
    }
   },
-  "DE VINK": {
+  "ROZEKE": {
    "small_hand": {
     "bow": 179,
     "stern": 180
    }
   },
-  "VERHUUR No 1": {
-   "small_hand": {
+  "AMELIE": {
+   "scraped": {
     "bow": 181,
     "stern": 182
    }
   },
-  "VERHUUR No 2": {
+  "MATHILDEKE": {
    "small_hand": {
     "bow": 183,
     "stern": 184
    }
   },
-  "VERHUUR No 3": {
+  "TABAK - BROOD": {
    "small_hand": {
     "bow": 185,
     "stern": 186
    }
   },
-  "PHILOMENA": {
+  "KLEIN PIERKE": {
    "small_hand": {
     "bow": 187,
     "stern": 188
    }
   },
-  "DE KIEVIT": {
+  "LOWIE": {
    "small_hand": {
     "bow": 189,
     "stern": 190
    }
   },
-  "OUSE": {
-   "white_roman": {
+  "DE REIGER": {
+   "small_hand": {
     "bow": 191,
     "stern": 192
    }
   },
-  "TYNESIDE": {
-   "white_roman": {
+  "FELIX": {
+   "small_hand": {
     "bow": 193,
     "stern": 194
    }
   },
-  "CITY OF LEITH": {
-   "white_roman": {
+  "MARIEKE": {
+   "small_hand": {
     "bow": 195,
     "stern": 196
    }
   },
-  "LADY ALICE": {
-   "white_roman": {
+  "PIETERTJE": {
+   "scraped": {
     "bow": 197,
     "stern": 198
    }
   },
-  "VILLE DE GAND": {
-   "white_roman": {
+  "LENA": {
+   "small_hand": {
     "bow": 199,
     "stern": 200
    }
   },
-  "SCHELDESTAD": {
-   "white_roman": {
+  "MOSSELEN - BIER": {
+   "small_hand": {
     "bow": 201,
     "stern": 202
    }
   },
-  "WESER": {
-   "white_roman": {
+  "TOONTJE": {
+   "small_hand": {
     "bow": 203,
     "stern": 204
    }
   },
-  "ELBE": {
-   "white_roman": {
+  "BABET": {
+   "small_hand": {
     "bow": 205,
     "stern": 206
    }
   },
-  "MAAS": {
-   "white_roman": {
+  "JOSEFIEN": {
+   "small_hand": {
     "bow": 207,
     "stern": 208
    }
   },
-  "FAMILIEN": {
-   "white_roman": {
+  "MARCEL": {
+   "small_hand": {
     "bow": 209,
     "stern": 210
    }
   },
-  "SVANEN": {
-   "white_roman": {
+  "VIRGINIE": {
+   "small_hand": {
     "bow": 211,
     "stern": 212
    }
   },
-  "JOHANNE": {
-   "gilt_roman": {
+  "TONNEKE": {
+   "small_hand": {
     "bow": 213,
     "stern": 214
    }
   },
-  "HOPPET": {
-   "white_roman": {
+  "JOSKE": {
+   "small_hand": {
     "bow": 215,
     "stern": 216
    }
   },
-  "FREJA": {
-   "gilt_roman": {
+  "CELESTINE": {
+   "small_hand": {
     "bow": 217,
     "stern": 218
    }
   },
-  "DAGMAR": {
-   "white_roman": {
+  "LISA": {
+   "small_hand": {
     "bow": 219,
     "stern": 220
    }
   },
-  "ELIZA JANE": {
-   "white_roman": {
+  "LUCIE": {
+   "small_hand": {
     "bow": 221,
     "stern": 222
    }
   },
-  "VROUW ALIDA": {
-   "white_roman": {
+  "DE SPOOR": {
+   "scraped": {
     "bow": 223,
     "stern": 224
    }
   },
-  "DE JONGE JAN": {
-   "white_roman": {
+  "DE VINK": {
+   "small_hand": {
     "bow": 225,
     "stern": 226
    }
   },
-  "HOFFNUNG": {
-   "cream_shaded": {
+  "VERHUUR No 1": {
+   "small_hand": {
     "bow": 227,
     "stern": 228
    }
   },
-  "EINTRACHT": {
-   "cream_shaded": {
+  "VERHUUR No 2": {
+   "small_hand": {
     "bow": 229,
     "stern": 230
    }
   },
-  "CATHARINA": {
-   "cream_shaded": {
+  "VERHUUR No 3": {
+   "small_hand": {
     "bow": 231,
     "stern": 232
    }
   },
-  "DE VLIJT": {
-   "cream_shaded": {
+  "PHILOMENA": {
+   "small_hand": {
     "bow": 233,
     "stern": 234
    }
   },
-  "DE HOOP": {
-   "cream_shaded": {
+  "JOZEFKE": {
+   "small_hand": {
     "bow": 235,
     "stern": 236
    }
   },
-  "DE KOMEET": {
-   "white_roman": {
+  "ODETTE": {
+   "small_hand": {
     "bow": 237,
     "stern": 238
    }
   },
-  "DE VREDE": {
-   "block_plank": {
+  "DE KIEVIT": {
+   "small_hand": {
     "bow": 239,
     "stern": 240
    }
   },
-  "ROSALIA": {
-   "block_plank": {
+  "OUSE": {
+   "white_roman": {
     "bow": 241,
     "stern": 242
    }
   },
-  "SINT-ANTONIUS": {
-   "block_plank": {
+  "TYNESIDE": {
+   "white_roman": {
     "bow": 243,
     "stern": 244
    }
   },
-  "DE ARBEID": {
-   "block_plank": {
+  "CITY OF LEITH": {
+   "white_roman": {
     "bow": 245,
     "stern": 246
    }
   },
-  "STAD TEMSE": {
-   "block_plank": {
+  "LADY ALICE": {
+   "white_roman": {
     "bow": 247,
     "stern": 248
    }
   },
-  "SCALDIS": {
-   "white_slab": {
+  "VILLE DE GAND": {
+   "white_roman": {
     "bow": 249,
     "stern": 250
    }
   },
-  "NEPTUNUS": {
-   "white_slab": {
+  "SCHELDESTAD": {
+   "white_roman": {
     "bow": 251,
     "stern": 252
    }
   },
-  "GOLIATH": {
-   "white_slab": {
+  "WESER": {
+   "white_roman": {
     "bow": 253,
     "stern": 254
    }
   },
-  "NETHE": {
-   "gilt_roman": {
+  "ELBE": {
+   "white_roman": {
     "bow": 255,
     "stern": 256
    }
   },
-  "DIJLE": {
-   "gilt_roman": {
+  "MAAS": {
+   "white_roman": {
     "bow": 257,
     "stern": 258
    }
   },
-  "MOOI WEER": {
-   "small_hand": {
+  "FAMILIEN": {
+   "white_roman": {
     "bow": 259,
     "stern": 260
    }
   },
-  "DE SNOEK": {
-   "small_hand": {
+  "SVANEN": {
+   "white_roman": {
     "bow": 261,
     "stern": 262
    }
   },
-  "ZOETE LIEF": {
-   "small_hand": {
+  "JOHANNE": {
+   "gilt_roman": {
     "bow": 263,
     "stern": 264
    }
   },
-  "KLEINE MON": {
-   "small_hand": {
+  "HOPPET": {
+   "white_roman": {
     "bow": 265,
     "stern": 266
    }
   },
-  "TRESKE": {
-   "small_hand": {
+  "FREJA": {
+   "gilt_roman": {
     "bow": 267,
     "stern": 268
+   }
+  },
+  "FAMILIEN 2": {
+   "white_roman": {
+    "bow": 269,
+    "stern": 270
+   }
+  },
+  "FAMILIEN 3": {
+   "white_roman": {
+    "bow": 271,
+    "stern": 272
+   }
+  },
+  "FAMILIEN 4": {
+   "white_roman": {
+    "bow": 273,
+    "stern": 274
+   }
+  },
+  "DAGMAR": {
+   "white_roman": {
+    "bow": 275,
+    "stern": 276
+   }
+  },
+  "ELIZA JANE": {
+   "white_roman": {
+    "bow": 277,
+    "stern": 278
+   }
+  },
+  "VROUW ALIDA": {
+   "white_roman": {
+    "bow": 279,
+    "stern": 280
+   }
+  },
+  "DE JONGE JAN": {
+   "white_roman": {
+    "bow": 281,
+    "stern": 282
+   }
+  },
+  "DAGMAR 2": {
+   "white_roman": {
+    "bow": 283,
+    "stern": 284
+   }
+  },
+  "DAGMAR 3": {
+   "white_roman": {
+    "bow": 285,
+    "stern": 286
+   }
+  },
+  "DAGMAR 4": {
+   "white_roman": {
+    "bow": 287,
+    "stern": 288
+   }
+  },
+  "DAGMAR 5": {
+   "white_roman": {
+    "bow": 289,
+    "stern": 290
+   }
+  },
+  "HOFFNUNG": {
+   "cream_shaded": {
+    "bow": 291,
+    "stern": 292
+   }
+  },
+  "EINTRACHT": {
+   "cream_shaded": {
+    "bow": 293,
+    "stern": 294
+   }
+  },
+  "CATHARINA": {
+   "cream_shaded": {
+    "bow": 295,
+    "stern": 296
+   }
+  },
+  "HOFFNUNG 2": {
+   "cream_shaded": {
+    "bow": 297,
+    "stern": 292
+   }
+  },
+  "HOFFNUNG 3": {
+   "cream_shaded": {
+    "bow": 298,
+    "stern": 292
+   }
+  },
+  "HOFFNUNG 4": {
+   "cream_shaded": {
+    "bow": 299,
+    "stern": 292
+   }
+  },
+  "HOFFNUNG 5": {
+   "cream_shaded": {
+    "bow": 300,
+    "stern": 292
+   }
+  },
+  "HOFFNUNG 6": {
+   "cream_shaded": {
+    "bow": 301,
+    "stern": 292
+   }
+  },
+  "DE VLIJT": {
+   "cream_shaded": {
+    "bow": 302,
+    "stern": 303
+   }
+  },
+  "DE HOOP": {
+   "cream_shaded": {
+    "bow": 304,
+    "stern": 305
+   }
+  },
+  "DE VLIJT 2": {
+   "cream_shaded": {
+    "bow": 306,
+    "stern": 307
+   }
+  },
+  "DE VLIJT 3": {
+   "cream_shaded": {
+    "bow": 308,
+    "stern": 309
+   }
+  },
+  "DE VLIJT 4": {
+   "cream_shaded": {
+    "bow": 310,
+    "stern": 311
+   }
+  },
+  "DE VLIJT 5": {
+   "cream_shaded": {
+    "bow": 312,
+    "stern": 313
+   }
+  },
+  "DE VLIJT 6": {
+   "cream_shaded": {
+    "bow": 314,
+    "stern": 315
+   }
+  },
+  "DE VLIJT 7": {
+   "cream_shaded": {
+    "bow": 316,
+    "stern": 317
+   }
+  },
+  "DE KOMEET": {
+   "white_roman": {
+    "bow": 318,
+    "stern": 319
+   }
+  },
+  "DE KOMEET 2": {
+   "white_roman": {
+    "bow": 320,
+    "stern": 321
+   }
+  },
+  "DE KOMEET 3": {
+   "white_roman": {
+    "bow": 322,
+    "stern": 323
+   }
+  },
+  "DE KOMEET 4": {
+   "white_roman": {
+    "bow": 324,
+    "stern": 325
+   }
+  },
+  "DE KOMEET 5": {
+   "white_roman": {
+    "bow": 326,
+    "stern": 327
+   }
+  },
+  "DE KOMEET 6": {
+   "white_roman": {
+    "bow": 328,
+    "stern": 329
+   }
+  },
+  "DE KOMEET 7": {
+   "white_roman": {
+    "bow": 330,
+    "stern": 331
+   }
+  },
+  "DE KOMEET 8": {
+   "white_roman": {
+    "bow": 332,
+    "stern": 333
+   }
+  },
+  "DE VREDE": {
+   "block_plank": {
+    "bow": 334,
+    "stern": 335
+   }
+  },
+  "ROSALIA": {
+   "block_plank": {
+    "bow": 336,
+    "stern": 337
+   }
+  },
+  "SINT-ANTONIUS": {
+   "block_plank": {
+    "bow": 338,
+    "stern": 339
+   }
+  },
+  "DE ARBEID": {
+   "block_plank": {
+    "bow": 340,
+    "stern": 341
+   }
+  },
+  "STAD TEMSE": {
+   "block_plank": {
+    "bow": 342,
+    "stern": 343
+   }
+  },
+  "DE VREDE 2": {
+   "block_plank": {
+    "bow": 344,
+    "stern": 335
+   }
+  },
+  "DE VREDE 3": {
+   "block_plank": {
+    "bow": 345,
+    "stern": 335
+   }
+  },
+  "DE VREDE 4": {
+   "block_plank": {
+    "bow": 346,
+    "stern": 335
+   }
+  },
+  "SCALDIS": {
+   "white_slab": {
+    "bow": 347,
+    "stern": 348
+   }
+  },
+  "NEPTUNUS": {
+   "white_slab": {
+    "bow": 349,
+    "stern": 350
+   }
+  },
+  "GOLIATH": {
+   "white_slab": {
+    "bow": 351,
+    "stern": 352
+   }
+  },
+  "SCALDIS 2": {
+   "white_slab": {
+    "bow": 353,
+    "stern": 354
+   }
+  },
+  "SCALDIS 3": {
+   "white_slab": {
+    "bow": 355,
+    "stern": 356
+   }
+  },
+  "SCALDIS 4": {
+   "white_slab": {
+    "bow": 357,
+    "stern": 358
+   }
+  },
+  "SCALDIS 5": {
+   "white_slab": {
+    "bow": 359,
+    "stern": 360
+   }
+  },
+  "SCALDIS 6": {
+   "white_slab": {
+    "bow": 361,
+    "stern": 362
+   }
+  },
+  "NETHE": {
+   "gilt_roman": {
+    "bow": 363,
+    "stern": 364
+   }
+  },
+  "DIJLE": {
+   "gilt_roman": {
+    "bow": 365,
+    "stern": 366
+   }
+  },
+  "NETHE 2": {
+   "gilt_roman": {
+    "bow": 367,
+    "stern": 368
+   }
+  },
+  "NETHE 3": {
+   "gilt_roman": {
+    "bow": 369,
+    "stern": 370
+   }
+  },
+  "NETHE 4": {
+   "gilt_roman": {
+    "bow": 371,
+    "stern": 372
+   }
+  },
+  "NETHE 5": {
+   "gilt_roman": {
+    "bow": 373,
+    "stern": 374
+   }
+  },
+  "NETHE 6": {
+   "gilt_roman": {
+    "bow": 375,
+    "stern": 376
+   }
+  },
+  "NETHE 7": {
+   "gilt_roman": {
+    "bow": 377,
+    "stern": 378
+   }
+  },
+  "MOOI WEER": {
+   "small_hand": {
+    "bow": 379,
+    "stern": 380
+   }
+  },
+  "DE SNOEK": {
+   "small_hand": {
+    "bow": 381,
+    "stern": 382
+   }
+  },
+  "ZOETE LIEF": {
+   "small_hand": {
+    "bow": 383,
+    "stern": 384
+   }
+  },
+  "KLEINE MON": {
+   "small_hand": {
+    "bow": 385,
+    "stern": 386
+   }
+  },
+  "TRESKE": {
+   "small_hand": {
+    "bow": 387,
+    "stern": 388
+   }
+  },
+  "MOOI WEER 2": {
+   "small_hand": {
+    "bow": 389,
+    "stern": 390
+   }
+  },
+  "MOOI WEER 3": {
+   "small_hand": {
+    "bow": 391,
+    "stern": 392
+   }
+  },
+  "MOOI WEER 4": {
+   "small_hand": {
+    "bow": 393,
+    "stern": 394
+   }
+  },
+  "MOOI WEER 5": {
+   "small_hand": {
+    "bow": 395,
+    "stern": 396
+   }
+  },
+  "MOOI WEER 6": {
+   "small_hand": {
+    "bow": 397,
+    "stern": 398
+   }
+  },
+  "MOOI WEER 7": {
+   "small_hand": {
+    "bow": 399,
+    "stern": 400
+   }
+  },
+  "MOOI WEER 8": {
+   "small_hand": {
+    "bow": 401,
+    "stern": 402
+   }
+  },
+  "MOOI WEER 9": {
+   "small_hand": {
+    "bow": 403,
+    "stern": 404
+   }
+  },
+  "MOOI WEER 10": {
+   "small_hand": {
+    "bow": 405,
+    "stern": 406
+   }
+  },
+  "MOOI WEER 11": {
+   "small_hand": {
+    "bow": 407,
+    "stern": 408
+   }
+  },
+  "MOOI WEER 12": {
+   "small_hand": {
+    "bow": 409,
+    "stern": 410
+   }
+  },
+  "MOOI WEER 13": {
+   "small_hand": {
+    "bow": 411,
+    "stern": 412
+   }
+  },
+  "MOOI WEER 14": {
+   "small_hand": {
+    "bow": 413,
+    "stern": 414
+   }
+  },
+  "MOOI WEER 15": {
+   "small_hand": {
+    "bow": 415,
+    "stern": 416
+   }
+  },
+  "MOOI WEER 16": {
+   "small_hand": {
+    "bow": 417,
+    "stern": 418
    }
   }
  }

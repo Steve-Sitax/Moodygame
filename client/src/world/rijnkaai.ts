@@ -908,7 +908,7 @@ export function buildRijnkaai(): World {
       moor(scene, 60, 0, 100, 0, river, ["tug", "lighter", "hengst", "lighter_coal"], { seed: 6 });
       moor(scene, 120, 0, 176, 0, river, ["rhine_barge", "lighter_loaded", "sloop", "lighter_timber"], { rows: 2, seed: 7 });
       put("steamer", -150, -62, Math.PI / 2, scene);
-      put("barque", -40, -48, Math.PI / 2, scene);
+      put("barque_grain", -40, -48, Math.PI / 2, scene);
       put("barque", 110, -44, -Math.PI / 2, scene);
       put("paddle_tug", -205, -64, Math.PI / 2 + 0.3, scene);
       put("sloop", 30, -70, 1.2, scene);
