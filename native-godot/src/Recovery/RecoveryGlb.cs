@@ -50,6 +50,25 @@ public sealed class RecoveryGlb : IDisposable
         catch { source.Dispose(); throw; }
     }
     public void Dispose() => source.Dispose();
+    public float[] ReadFloats(int index, int components)
+    {
+        var accessor = At("accessors", index);
+        if (accessor["componentType"]!.GetValue<int>() != 5126 || accessor["type"]!.GetValue<string>() != "VEC" + components || accessor["sparse"] != null)
+            throw new InvalidDataException("Expected an ordinary floating-point vector accessor.");
+        var view = At("bufferViews", accessor["bufferView"]!.GetValue<int>());
+        int count = accessor["count"]!.GetValue<int>(), stride = view["byteStride"]?.GetValue<int>() ?? components * 4;
+        long offset = view["byteOffset"]?.GetValue<long>() ?? 0, local = accessor["byteOffset"]?.GetValue<long>() ?? 0;
+        long size = view["byteLength"]!.GetValue<long>();
+        if (view["buffer"]!.GetValue<int>() != 0 || stride < components * 4 || local < 0 || offset < 0 || offset + size > binaryLength || local + (long)(count - 1) * stride + components * 4 > size)
+            throw new InvalidDataException("Accessor escapes its GLB buffer view.");
+        var values = new float[checked(count * components)]; using var reader = new BinaryReader(source, Encoding.UTF8, true);
+        for (int i = 0; i < count; i++)
+        {
+            source.Position = binaryOffset + offset + local + (long)i * stride;
+            for (int j = 0; j < components; j++) values[i * components + j] = reader.ReadSingle();
+        }
+        return values;
+    }
     public static Transform3D Transform(JsonObject node)
     {
         if (node["matrix"] is JsonArray matrix)

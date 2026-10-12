@@ -19,7 +19,7 @@ public static class RecoverySampler
 
     public static ShaderMaterial Create(BaseMaterial3D standard, int u, int v)
     {
-        var key = ((int)standard.CullMode, standard.Transparency == BaseMaterial3D.TransparencyEnum.Alpha);
+        var key = ((int)standard.CullMode, standard.Transparency is BaseMaterial3D.TransparencyEnum.Alpha or BaseMaterial3D.TransparencyEnum.AlphaDepthPrePass or BaseMaterial3D.TransparencyEnum.AlphaHash);
         if (!shaders.TryGetValue(key, out var shader))
         {
             string code = ResourceLoader.Load<Shader>("res://shaders/recovered_sampler.gdshader").Code;

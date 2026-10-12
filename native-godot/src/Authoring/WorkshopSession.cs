@@ -85,6 +85,7 @@ public partial class WorkshopSession : Node3D
             if (Arg("recovery-test") != "") _ = Recovery.RecoveryWorkshopProof.Run(this, Arg("recovery-test"), Arg("proof-stage", "write"));
             else if (proof != "") _ = WorkshopProof.Run(this, proof, Arg("proof-stage", "write"));
             else if (Arg("author-shot") != "") _ = WorkshopProof.Picture(this, Arg("author-shot"));
+            else if (Arg("surface-shot") != "") _ = Game.NativeSurfaceProof.Workshop(this, Arg("surface-shot"));
         }
         catch (Exception e) { GD.PrintErr(e); GetTree().Quit(1); }
     }

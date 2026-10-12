@@ -20,11 +20,12 @@ public partial class NativeGameWorld : BakedWorld
     public string LayoutSource { get; private set; } = "scene seed";
     public int AuthoredCount => districtScene.GetNode("Objects").GetChildCount();
     private readonly Dictionary<int, ShaderMaterial> materials = new();
+    private readonly Dictionary<ulong, ShaderMaterial> surfaceMaterials = new();
     private readonly Dictionary<(ShaderMaterial material, string parameter), Variant> bumpValues = new();
     public void SetBumps(bool enabled)
     {
-        foreach (var material in materials.Values)
-            foreach (string parameter in new[] { "bump_scale", "relief_bump", "slab_dome", "wall_hk" })
+        foreach (var material in materials.Values.Concat(surfaceMaterials.Values))
+            foreach (string parameter in new[] { "bump_scale", "relief_bump", "slab_dome", "wall_hk", "surface_depth" })
             {
                 if (material.GetShaderParameter(parameter).VariantType == Variant.Type.Nil) continue;
                 var key = (material, parameter);
@@ -90,10 +91,18 @@ public partial class NativeGameWorld : BakedWorld
             {
                 var original = native.SurfaceGetMaterial(surface);
                 if (original == null) continue;
-                if (original.HasMeta("legacy_material_index") && !original.HasMeta("native_gltf_material") && materials.TryGetValue(original.GetMeta("legacy_material_index").AsInt32(), out var gameMaterial)) native.SurfaceSetMaterial(surface, gameMaterial);
+                if (original is ShaderMaterial detail && original.HasMeta("native_surface_kind") && original.GetMeta("native_surface_kind").AsString() == "cast_iron")
+                {
+                    if (!surfaceMaterials.TryGetValue(original.GetInstanceId(), out var made)) surfaceMaterials[original.GetInstanceId()] = made = NativeSurfaceMaterials.CastIron(detail);
+                    native.SurfaceSetMaterial(surface, made);
+                }
+                else if (original.HasMeta("legacy_material_index") && !original.HasMeta("native_gltf_material") && materials.TryGetValue(original.GetMeta("legacy_material_index").AsInt32(), out var gameMaterial)) native.SurfaceSetMaterial(surface, gameMaterial);
                 else if (original is BaseMaterial3D standard && original.HasMeta("native_gltf_material"))
-                    native.SurfaceSetMaterial(surface, PsxMaterial(standard, new Psx.Kind(false, standard.Transparency == BaseMaterial3D.TransparencyEnum.Alpha,
-                        standard.Transparency == BaseMaterial3D.TransparencyEnum.AlphaScissor, standard.CullMode == BaseMaterial3D.CullModeEnum.Disabled, true, false, 0, standard.VertexColorUseAsAlbedo, false, true), 0));
+                {
+                    bool blend = IsBlended(standard);
+                    native.SurfaceSetMaterial(surface, PsxMaterial(standard, new Psx.Kind(false, blend,
+                        standard.Transparency == BaseMaterial3D.TransparencyEnum.AlphaScissor, standard.CullMode == BaseMaterial3D.CullModeEnum.Disabled, !blend, false, 0, standard.VertexColorUseAsAlbedo, false, true), 0, alphaTest: standard.AlphaScissorThreshold));
+                }
             }
         }
         // Existing native collision is authoritative. The game's solid service still supplies movement queries.
@@ -105,6 +114,8 @@ public partial class NativeGameWorld : BakedWorld
         BuildLights();
         Report["objects"] = AuthoredCount;
     }
+
+    public static bool IsBlended(BaseMaterial3D material) => material.Transparency is BaseMaterial3D.TransparencyEnum.Alpha or BaseMaterial3D.TransparencyEnum.AlphaDepthPrePass or BaseMaterial3D.TransparencyEnum.AlphaHash;
 
     private void BuildLights()
     {

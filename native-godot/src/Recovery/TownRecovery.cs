@@ -235,6 +235,13 @@ public partial class TownRecovery : Node
                     for (int surface = 0; surface < mesh.Mesh.GetSurfaceCount(); surface++)
                         if (mesh.Mesh.SurfaceGetMaterial(surface) is { } current && replacements.TryGetValue(current.GetInstanceId(), out var replacement))
                             mesh.Mesh.SurfaceSetMaterial(surface, replacement);
+                    if (original["name"]?.GetValue<string>() == "quay_coping")
+                    {
+                        mesh.Mesh = RecoveryCoping.Build(source, i, mesh.Mesh.SurfaceGetMaterial(0));
+                        notes.Add("Coping uses full-precision projected UVs and a 12-strip, 50 mm rounded nose.");
+                    }
+                    if (original["name"]?.GetValue<string>() is "bollard_cannon" or "bollard_mushroom")
+                        mesh.Mesh = RecoveryIron.Build(mesh.Mesh);
                     bool hidden = Enumerable.Range(0, mesh.Mesh.GetSurfaceCount()).Any(s => mesh.Mesh.SurfaceGetMaterial(s)?.HasMeta("legacy_unported") == true);
                     bool invisible = Enumerable.Range(0, mesh.Mesh.GetSurfaceCount()).All(s => mesh.Mesh.SurfaceGetMaterial(s)?.HasMeta("legacy_hidden") == true);
                     mesh.Visible &= !hidden && !invisible;

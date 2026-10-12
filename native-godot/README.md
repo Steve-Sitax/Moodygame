@@ -24,6 +24,12 @@ F7 changes the hour, F9 switches fly/walk, B compares bump/relief, and M compare
 to rise and Ctrl to descend. `Test Editor Changes In Game.cmd` uses the saved district scene instead of a workshop
 layout. This is a district game test: NPCs, missions, interiors and moving ships/bridges are still outside its scope.
 
+`Review Quay Surfaces.cmd` starts the actual game next to the corrected bollard and coping in free-camera mode.
+Use B to compare surface relief, F6 for rain and F7 for evening/night. The opaque rust square is fixed; the bollard
+has casting pits, corrosion and rope wear. The original model's pedestal is bluestone, with a chamfered edge.
+Steve requested full Godot conversion after his test. Complete the remaining world/game systems and district
+resources, then verify a standalone Godot export before removing the web/server/bake runtime dependencies.
+
 ## Place objects yourself
 
 Choose a bench, crate, or lamp and click clear quay ground. R turns the preview by 15 degrees; Shift+R turns it back.

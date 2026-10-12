@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Godot;
 using Scheldemist.Player;
 using Scheldemist.World;
@@ -37,6 +38,20 @@ public partial class NativeGame : Scheldemist.Main
         Ui.AddChild(status);
         DisplayServer.WindowSetTitle("Scheldemist · Native Rijnkaai Game");
         if (Arg("native-game-test") != "") _ = NativeGameProof.Run(this, Arg("native-game-test"));
+        if (Arg("surface-test") != "") _ = NativeSurfaceProof.Run(this, Arg("surface-test"));
+        if (Flag("review-surfaces")) _ = ReviewSurfaces();
+    }
+
+    private async Task ReviewSurfaces()
+    {
+        for (int i = 0; i < 120 && !Loaded; i++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        if (!Loaded) return;
+        for (int i = 0; i < 8; i++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        if (!Jef.I.Fly) Jef.I.ToggleFly();
+        Cam.GlobalPosition = new Vector3(17.08f, 1.13f, 2.08f); Cam.LookAt(new Vector3(18, 0.35f, 0.9f));
+        Daylight.I.SetTime(13); Daylight.I.SetWeather("clear"); Daylight.I.SetRain(0); Daylight.I.Settle();
+        // FlyCam keeps its own mouse angles; sync them after positioning the review camera.
+        if (Cam is FlyCam fly) fly.Face(Cam.GlobalBasis.GetRotationQuaternion());
     }
 
     public override void _UnhandledInput(InputEvent input)

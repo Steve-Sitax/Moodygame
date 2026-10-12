@@ -11,6 +11,9 @@ uniform bool use_vertex_color = false;
 uniform float alpha_cut = 0.0;
 uniform float roughness = 1.0;
 uniform float metallic = 0.0;
+uniform sampler2D bump_tex : filter_linear_mipmap_anisotropic, repeat_enable;
+uniform float bump_depth = 0.0;
+#include "res://shaders/surface_normal.gdshaderinc"
 
 float wrapped_axis(float value, int mode, float texel) {
     if (mode == 33071) return clamp(value, texel * 0.5, 1.0 - texel * 0.5);
@@ -30,5 +33,9 @@ void fragment() {
     EMISSION = paint.rgb * emission_color * tint;
     ROUGHNESS = roughness;
     METALLIC = metallic;
+    if (bump_depth > 0.0) {
+        float height = textureGrad(bump_tex, sampled_uv, dFdx(uv), dFdy(uv)).r * bump_depth;
+        NORMAL = metric_surface_normal(VERTEX, NORMAL, height);
+    }
     // ALPHA_OUTPUT
 }

@@ -16,6 +16,10 @@ toggles the two reflection passes. The controls do not change saved player setti
 uses a complete saved workshop layout when present, so it preserves deletions and can override an edited seed.
 Exports remain separate object scenes until explicitly integrated. Neither game test writes or promotes a layout.
 
+`Review Quay Surfaces.cmd` opens a close view of the corrected quay surfaces in the real game. It starts flying;
+click and use WASD/Space/Ctrl to inspect them. F9 returns to walking. Restart an already-open game to load new
+native resources. Save editor changes before reopening the district; never force a live editor reload.
+
 ## Runtime connection
 
 `Scheldemist.Native.csproj` references the existing `godot/Scheldemist.csproj`; there is one implementation of Jef,
@@ -74,3 +78,35 @@ copied 15-object layout, weather state, animated water and both reflection passe
 night rain, fog, water-facing and reflections-off views. Rendered and headless runs reject engine errors. Logs and
 images are under `proof/native-game-check`. The fixture currently targets this Rijnkaai review layout; adapt its
 counts and resource assertions deliberately when testing another district.
+
+## Quay surface repair and future intakes
+
+The coping colour and height images already agree and have straight joints. Mitred sweep ends used equal U at
+both width corners, causing a diagonal texture seam through each quad. `RecoveryCoping` projects U along the
+quay normal's perpendicular, rebases each short patch by an integer repeat, and saves uncompressed positions
+and UVs. It refines the existing 50 mm nose from four to twelve strips. Mitre displacement must affect positions
+only; derive normals from the original outward normal or the rounded edge gets incorrect shading.
+
+The native sampler now accepts a metric height texture. Rijnkaai's coping uses the game's existing height map
+with 8 mm depth in both workshop and game. Colour/height are both flipped vertically by the source export;
+keep them aligned. `NativeSurfaceMaterials.Coping` replaces the old screen-scaled bump with metric derivatives.
+For a new visual intake, attach its matching height texture to the recovered coping material and apply this
+game helper to that snapshot's coping shader. Source material/resource numbers can differ in another district.
+
+`RecoveryIron` splits cannon/mushroom bollards into the original bluestone seat, iron and rust stain. Iron uses
+model-space casting pits (about 1 mm), larger corrosion dents (about 3 mm), rust patches and a worn rope band.
+The shader fades subpixel detail with distance. The ground stain sits 2 mm above the paving. Game conversion
+must preserve AlphaDepthPrePass as blending without depth writing; treating only Alpha as blended produced
+the giant opaque brown square. The editor uses native PBR; the game adapts the same detail to its sun, sky,
+spill lights, fog and wetness. B toggles the iron height as well as the existing bump and relief maps.
+
+Static intake invokes both geometry helpers by semantic source name. `recovery/repair-surfaces.tscn` repaired
+the existing Rijnkaai snapshot only: it checks the recorded source hash, backs up changed resources under
+`proof/surface-backup-*`, and never saves the district scene, catalogue or player layout. Its resource paths are
+specific to this snapshot; do not reuse them against another district. Once Godot assets are authored directly,
+no GLB/bake intake is needed for surface or placement edits.
+
+`NativeSurfaceProof` checks straight top joints across both triangles, a 50 mm round profile and normals, height
+maps, transparency, saved object count and B toggling. `--surface-test <proof-directory>` on `game.tscn` captures
+day/rain/no-bump close views; `--surface-shot <proof-directory>` on `main.tscn` captures the native workshop in
+Compatibility. Use copied layouts with `--author-dir`. Evidence for this pass is under `proof/surface-after`.
