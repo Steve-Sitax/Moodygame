@@ -44,6 +44,17 @@ public partial class MoveTest : Node
         try
         {
             if (!await Until(() => Main.I.Loaded && Jef.I != null, 120)) throw new InvalidOperationException("the town did not load");
+            // with a server (no --no-serverlink): never on the player's own save, and off the arrival ferry first
+            // (a new game starts on its deck, and its ride owns Jef's moves)
+            if (!Main.I.Flag("no-serverlink"))
+            {
+                if (Main.I.Arg("db") == "") throw new InvalidOperationException("movetest with a server needs --db <a test save> (or --no-serverlink)");
+                if (!await Until(() => Scheldemist.Net.ServerLink.I?.Up == true && Scheldemist.Game.GameState.I.Live, 100)) throw new InvalidOperationException("the server did not come up");
+                await Scheldemist.Net.ServerLink.I!.Api!.Post<Scheldemist.Net.OkReply>("api/arrival/ashore");
+                Jef.I.Place(-118, 36, 0);
+                if (!await Until(() => Scheldemist.Play.FerryArrival.I == null || Scheldemist.Play.FerryArrival.I.Ashore && !Jef.I.Riding, 15)) throw new InvalidOperationException("Jef stayed on the arrival ferry");
+                Scheldemist.Game.GameState.I.PlayingWhen = () => false;
+            }
             await Frames(30);
             Jef.I.TestInput = true;
             if (Main.I.Arg("moveonly").Split(',').Contains("probe")) await Probe();

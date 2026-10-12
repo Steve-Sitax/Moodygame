@@ -322,3 +322,58 @@ export function buildGroundProbe(roots: THREE.Object3D[], maxHeight=2.5): Ground
   };
   return probe;
 }
+
+// ------------------------------------------------------------------ the wall across the way
+
+/** A wall of the plan as street life and the clutter keep it: a start, a unit along, a unit out, a length, its eaves. */
+export interface PlanWall {
+  ax: number;
+  az: number;
+  tx: number;
+  tz: number;
+  ox: number;
+  oz: number;
+  L: number;
+  H: number;
+}
+
+const facingGrids = new WeakMap<readonly PlanWall[], Map<string, PlanWall[]>>();
+
+/**
+ * The wall that stands at (x, z) and faces back along (ox, oz), or null: the house a washing line is tied to on the
+ * far side of a lane (survey 2026-10-11, finding 14: a line from a tall front to a low cottage hung its sheets over
+ * the cottage's roof). Its H is that house's eaves. Within `tol` metres of its plane, inside its length.
+ */
+export function facingWall(walls: readonly PlanWall[], x: number, z: number, ox: number, oz: number, tol = 0.6): PlanWall | null {
+  let grid = facingGrids.get(walls);
+  if (!grid) {
+    grid = new Map();
+    for (const w of walls) {
+      const seen = new Set<string>();
+      for (let d = 0; d <= w.L + 4; d += 4) {
+        const s = Math.min(d, w.L);
+        const k = `${Math.floor((w.ax + w.tx * s) / 8)},${Math.floor((w.az + w.tz * s) / 8)}`;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        let l = grid.get(k);
+        if (!l) grid.set(k, (l = []));
+        l.push(w);
+      }
+    }
+    facingGrids.set(walls, grid);
+  }
+  let best: PlanWall | null = null;
+  let bestD = tol;
+  for (let i = -1; i <= 1; i++)
+    for (let j = -1; j <= 1; j++)
+      for (const w of grid.get(`${Math.floor(x / 8) + i},${Math.floor(z / 8) + j}`) ?? []) {
+        if (w.ox * ox + w.oz * oz > -0.5) continue;
+        const d = Math.abs((x - w.ax) * w.ox + (z - w.az) * w.oz);
+        const s = (x - w.ax) * w.tx + (z - w.az) * w.tz;
+        if (d < bestD && s > -0.3 && s < w.L + 0.3) {
+          best = w;
+          bestD = d;
+        }
+      }
+  return best;
+}

@@ -34,7 +34,8 @@ routes), `--movetest <dir>` (Jef's jump, coyote time and jump buffer, a fall off
 and the flooded steps at high water, the hulls' shape, a dive under a moored ship, the crane's ladder on and off, over
 the gallery's railing and back: every frame sampled, the jump's arc and timings and the largest step of the view in a
 sixtieth of a second in `movetest.json`, pictures beside it; `--moveonly jump,dive` picks parts, `--move-breath` adds
-a dive that runs out of breath), `--solidlazy` (make the walls near the camera only), `--city <json>` (`shared/city.json` somewhere else).
+a dive that runs out of breath; with a server it needs its own `--db` and gets Jef off the arrival ferry, and the
+tide checks set the server's clock too), `--solidlazy` (make the walls near the camera only), `--city <json>` (`shared/city.json` somewhere else).
 (game parts off). The townspeople: `--server http://127.0.0.1:PORT` (a running game server: the town comes from
 it), `--hour 13.5` and `--day 1` (the clock; with `--weather`, the game's server is set to the same clock and sky
 at the start, so the light, the HUD and the people agree), `--models <dir>`, `--walk <town_walk.json>`, `--peopletest <dir>` and
@@ -60,6 +61,13 @@ The menus' options: `--prefs <file>` (the settings kept somewhere else than the 
 beside it), `--no-mainmenu` (no loading screen and no menus: the town at once, as before), `--menutest <dir>` (the
 menus' own test, below). A run with `--shots` or another part's `--...test` has no menus either, and keeps the
 picture at its default (the full window, 4x multisampling) whatever the player's settings say.
+
+For tide checks, `--boatcheck <absolute dir>` runs every hull at the seven tide and storm levels
+(`--boatcheck-levels -5.2,-2.8,-0.4` narrows it; `--boatcheck-seconds 60` is the default).
+Add `--boatcheck-clock-jump` with an isolated server to exercise the real `skip 120` command;
+the report checks hulls against the shared eased water throughout the jump, with normal heave removed.
+Give the run its own `--port`, `--db` and `--prefs` under `.scratch`, and remove those files afterward.
+For pictures without speed measurements, use `--snap-no-timing` with `--snap`.
 
 ## Godot milestone checks (G8)
 

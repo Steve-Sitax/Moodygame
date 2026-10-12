@@ -50,6 +50,7 @@ public partial class WaterSheets : Node
     {
         // (the browser eases a jump of the clock at 0.6 m a second; here the sheet, the boats and Jef's swimming all read
         // the one level in World/Tide.cs, so they agree at every moment)
+        Tide.Advance((float)delta);
         shown = Tide.River;
         foreach (var s in river) s.Position = s.Position with { Y = shown };
         foreach (var s in dock) s.Position = s.Position with { Y = Tide.Dock };

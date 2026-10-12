@@ -143,7 +143,9 @@ _TOWNPLACES = json.load(open(_TP_PATH)) if os.path.exists(_TP_PATH) else {}
 DECOR = {
     "trees": [(x, z) for z in (24.0, 34.0) for x in range(-208, -150, 8)]
     + [(x, 11.0) for x in range(-300, -222, 12)],
-    "rails": [[-222, 0.6, -214, 0.6], [-150, 0.6, -142, 0.6], [-214, 0.6, -214, -29.4], [-214, -29.4, -204, -41.4],
+    # (2026-10-11: no railing across the vliet's mouth, x -150..-142 at z 0.6: that is water, and the railing stood
+    # in the air beside the vliet mouth bridge; the promontory's railing stops at its corner, -150, 0.6)
+    "rails": [[-222, 0.6, -214, 0.6], [-214, 0.6, -214, -29.4], [-214, -29.4, -204, -41.4],
               [-204, -41.4, -160, -41.4], [-160, -41.4, -150, -29.4], [-150, -29.4, -150, 0.6]],
     # the quay railway (standard gauge, laid in the cobbles; client/src/world/tracks.ts draws it).
     # Polylines; every corner is rounded with radius r. One line runs along all the river quays

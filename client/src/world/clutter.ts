@@ -23,7 +23,7 @@ import { tradeKeepOut } from "./trades";
 import { trafficLanes } from "./traffic";
 import { addProp, dropProps, propIndex } from "./propSpots";
 import INWORLD from "../../../shared/inworld_houses.json";
-import { boxesOverlap, kerbFront, type GroundProbe, type WallBox, type WallProbe } from "./wallprobe";
+import { boxesOverlap, facingWall, kerbFront, type GroundProbe, type WallBox, type WallProbe } from "./wallprobe";
 import { yardWindowColumn } from "./yardWindows";
 
 // Clutter (Steve 2026-09-24: "the city feels empty and some street ends look unfinished").
@@ -1480,6 +1480,8 @@ export async function createClutter(scene: THREE.Scene, flags: Flags, opts: Clut
     W: number;
   }
   const slotsBy = new Map<number, Slot[]>();
+  /** The houses a washing line across an alley may be tied to. */
+  const lineWalls = [...walls, ...landmarkWalls];
   for (const w of [...walls, ...landmarkWalls]) {
     for (let s = 0.4; s < w.L - 0.4; s += 0.5) {
       const px = w.ax + w.tx * s + w.ox * 0.75;
@@ -1594,32 +1596,36 @@ export async function createClutter(scene: THREE.Scene, flags: Flags, opts: Clut
         const x0 = w.ax + w.tx * sl.s;
         const z0 = w.az + w.tz * sl.s;
         const D = sl.W;
-        const y = Math.min(w.H - 0.8, 3.0 + R() * 1.4);
-        const sag = 0.12 + D * 0.04;
-        // two lengths of rope, down to the middle and up again
-        const half = D / 2;
-        const tilt = Math.atan2(sag, half);
-        const len = Math.hypot(half, sag);
-        const yaw = Math.atan2(w.ox, w.oz) - Math.PI / 2; // local +x along the outward normal
-        for (const [px, py, pz, pitch] of [
-          [x0, y, z0, -tilt],
-          [x0 + w.ox * half, y - sag, z0 + w.oz * half, tilt],
-        ] as Array<[number, number, number, number]>) {
-          const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, pitch, "YXZ"));
-          puts.push({ name: "rope_unit", m: new THREE.Matrix4().compose(new THREE.Vector3(px, py, pz), q, new THREE.Vector3(len, 1, 1)), shade: 1 });
-        }
-        count("washing line");
-        const kinds = ["cloth_shirt_0", "cloth_shirt_1", "cloth_sheet_0", "cloth_sheet_1", "cloth_trousers_0", "cloth_trousers_1", "cloth_stockings_0", "cloth_towel_0", "cloth_apron_0", "cloth_shift_0"];
-        let t = 0.35 + R() * 0.3;
-        while (t < D - 0.4) {
-          const kind = kinds[Math.floor(R() * kinds.length)];
-          const wide = kind.includes("sheet") ? 1.3 : kind.includes("stockings") ? 0.45 : 0.6;
-          if (t + wide / 2 > D - 0.3) break;
-          const tt = t + wide / 2;
-          const yy = y - sag * (1 - Math.pow((tt - half) / half, 2));
-          // the garment's plane across the line (its x along the line)
-          put(kind, x0 + w.ox * tt, yy, z0 + w.oz * tt, Math.atan2(w.ox, w.oz) - Math.PI / 2, 1, 1, 1, 0.9 + R() * 0.15);
-          t += wide + 0.08 + R() * 0.35;
+        // under the eaves on both sides (survey 2026-10-11, finding 14): the house across may be lower
+        const far = facingWall(lineWalls, x0 + w.ox * D, z0 + w.oz * D, w.ox, w.oz, 0.8);
+        const y = Math.min(w.H - 0.8, far ? far.H - 0.8 : 0, 3.0 + R() * 1.4);
+        if (y >= 2.9) {
+          const sag = 0.12 + D * 0.04;
+          // two lengths of rope, down to the middle and up again
+          const half = D / 2;
+          const tilt = Math.atan2(sag, half);
+          const len = Math.hypot(half, sag);
+          const yaw = Math.atan2(w.ox, w.oz) - Math.PI / 2; // local +x along the outward normal
+          for (const [px, py, pz, pitch] of [
+            [x0, y, z0, -tilt],
+            [x0 + w.ox * half, y - sag, z0 + w.oz * half, tilt],
+          ] as Array<[number, number, number, number]>) {
+            const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, pitch, "YXZ"));
+            puts.push({ name: "rope_unit", m: new THREE.Matrix4().compose(new THREE.Vector3(px, py, pz), q, new THREE.Vector3(len, 1, 1)), shade: 1 });
+          }
+          count("washing line");
+          const kinds = ["cloth_shirt_0", "cloth_shirt_1", "cloth_sheet_0", "cloth_sheet_1", "cloth_trousers_0", "cloth_trousers_1", "cloth_stockings_0", "cloth_towel_0", "cloth_apron_0", "cloth_shift_0"];
+          let t = 0.35 + R() * 0.3;
+          while (t < D - 0.4) {
+            const kind = kinds[Math.floor(R() * kinds.length)];
+            const wide = kind.includes("sheet") ? 1.3 : kind.includes("stockings") ? 0.45 : 0.6;
+            if (t + wide / 2 > D - 0.3) break;
+            const tt = t + wide / 2;
+            const yy = y - sag * (1 - Math.pow((tt - half) / half, 2));
+            // the garment's plane across the line (its x along the line)
+            put(kind, x0 + w.ox * tt, yy, z0 + w.oz * tt, Math.atan2(w.ox, w.oz) - Math.PI / 2, 1, 1, 1, 0.9 + R() * 0.15);
+            t += wide + 0.08 + R() * 0.35;
+          }
         }
       }
     }

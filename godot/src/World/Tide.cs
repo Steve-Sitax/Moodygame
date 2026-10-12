@@ -32,30 +32,42 @@ public static class Tide
     public static float ChamberA = DockY;
     public static float ChamberB = DockY;
 
-    /// <summary>
-    /// The dev panel holds the river at spring high or low water ("high", "low"; null: it follows the clock), as the
-    /// browser's tideDev.hold. Only this game's picture: the save and the server's clock are not touched.
-    /// </summary>
-    public static string? Hold
-    {
-        get => hold;
-        set
-        {
-            hold = value is "high" or "low" ? value : null;
-            if (hold != null) River = hold == "high" ? HwMax : LwMin;
-            else if (lastDay > 0) River = At(lastDay, lastHour);
-        }
-    }
-    private static string? hold;
-    private static int lastDay;
-    private static float lastHour;
+    /// <summary>The level the river is held at (the W1 tide kit), or null: it follows the clock.</summary>
+    public static float? Held { get; private set; }
 
-    /// <summary>The game clock moved: day 1 is Monday, the hour with fractions.</summary>
+    /// <summary>The requested tide, including the great storm's surge.</summary>
+    public static float Target { get; private set; } = River;
+    private static int clockDay = 1;
+    private static float clockHour = 13;
+    private static bool started;
+
     public static void Set(int day, float hour)
     {
-        lastDay = day;
-        lastHour = hour;
-        River = hold == "high" ? HwMax : hold == "low" ? LwMin : At(day, hour);
+        clockDay = day;
+        clockHour = hour;
+        Retarget();
+    }
+
+    private static void Retarget()
+    {
+        float tide = At(clockDay, clockHour), storm = Daylight.I?.Storm ?? 0;
+        Target = Held ?? MathF.Max(tide, MathF.Min(tide + storm, HwMax - 0.1f));
+    }
+
+    /// <summary>Advance once before movers: every boat and sheet reads this eased level.</summary>
+    public static void Advance(float dt)
+    {
+        Retarget();
+        River = !started ? Target : River + Math.Clamp(Target - River, -0.6f * dt, 0.6f * dt);
+        started = true;
+    }
+
+    /// <summary>Dev: hold an exact level, or return to the clock and storm surge.</summary>
+    public static void Hold(float? y)
+    {
+        if (y is { } v && !float.IsFinite(v)) throw new ArgumentException("tide hold: a level in metres");
+        Held = y;
+        Retarget();
     }
 
     /// <summary>The dev panel's line on the tide (the browser's tideDev.read): the water now, rising or falling, the next high and low water.</summary>
@@ -76,7 +88,7 @@ public static class Tide
             prev = y;
             rise = r;
         }
-        string held = hold != null ? $" (held at {hold} water)" : "";
+        string held = Held is { } hv ? $" (held at {F(hv)} m)" : "";
         string next = (high is { } a ? $" High water day {a.day} {Hm(a.hour)} ({F(a.y)})." : "") + (low is { } b ? $" Low water day {b.day} {Hm(b.hour)} ({F(b.y)})." : "");
         return $"River {F(River)} m (quay top 0; {F(River - MidY)} m from half tide), {(soon > now ? "rising" : "falling")}{held}.{next} Dock {F(Dock)}, lock {F(ChamberA)} / {F(ChamberB)}.";
     }

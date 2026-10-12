@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { bindBoatName } from "../world/boatNames";
 import { LAMP_LIGHT, lanternPower } from "../world/lampLight";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import type { World, WalkArea } from "../world/rijnkaai";
@@ -321,6 +322,7 @@ export class FerryArrival {
     const inner = proto.clone();
     inner.name = "arrival_ferry_hull";
     outer.add(inner);
+    bindBoatName(inner, "ferry", "st_anna");
     world.scene.add(outer);
     this.outer = outer;
     this.inner = inner;

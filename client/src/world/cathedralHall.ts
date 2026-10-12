@@ -10,7 +10,7 @@ import { planarUV } from "./carolusHall";
 import { SHELL_OPENINGS } from "../../../shared/cathedralShell";
 import { inFrame, type ShellFace, type ShellOpening } from "../../../shared/shellOpening";
 import { lining } from "./realOpenings";
-import { roomGlassFrom, whenShellGlass } from "./shellGlass";
+import { whenShellGlass } from "./shellGlass";
 
 /**
  * Issue #10 (interiors are real): the shell's real openings (the windows over the hall and the west door), in the hall's
@@ -393,7 +393,13 @@ function groin(k: Kit, def: MatDef, rib: MatDef, x0: number, x1: number, z0: num
  * the windows glow inside by day and the sky shows through the clear ones. One-sided each: from either side one pane shows, the other side comes through it a little.
  * At night the hall's lamplight in the leaded panes, seen from the street (a third mesh, facing out, added over the
  * shell's pane in the hall's own pass: the street's glow of world/landmarkWindows.ts lies under the hall's pass there).
- * World coordinates (the room's scene). Returns the stained glass, the clear glass and the night's glow.
+ * The look survey's point 20 (2026-10-11): from the street every light is glazed too, the same glass seen from its
+ * back (facing out, the picture mirrored as real glass is from outside): dark by day with a little of its colour, the
+ * hall behind it only a shadow (the old pane of the atlas was see-through to half and lit like the stone: the windows
+ * read as empty, a far window's stained glass framed in a near one). The low windows, the ones the street sees, are
+ * all stained glass now; the clerestory's grisaille and the lantern's clear faces stay.
+ * World coordinates (the room's scene). Returns the stained glass, the clear glass, the night's glow and the stained
+ * and the clear glass seen from outside.
  */
 function hallGlassFrom(src: THREE.Mesh, stained: THREE.Texture, clear: THREE.Texture): THREE.Mesh[] {
   const g = src.geometry.clone();
@@ -411,15 +417,11 @@ function hallGlassFrom(src: THREE.Mesh, stained: THREE.Texture, clear: THREE.Tex
   const isClear = (o: ShellOpening) => {
     const bay = +(/bay (\d+)/.exec(o.label)?.[1] ?? 0);
     if (/clerestory/.test(o.label)) return (bay - 1) % 3 !== 1;
-    if (/over the aisles, lancet|west gable/.test(o.label)) return true;
+    if (/over the aisles, lancet/.test(o.label)) return true;
     if (/lantern/.test(o.label)) return /lantern, the (north|south|east|west) face/.test(o.label);
     return false;
   };
-  const out: Array<{ pos: number[]; uv: number[] }> = [
-    { pos: [], uv: [] },
-    { pos: [], uv: [] },
-    { pos: [], uv: [] },
-  ];
+  const out: Array<{ pos: number[]; uv: number[] }> = [0, 1, 2, 3, 4].map(() => ({ pos: [], uv: [] }));
   const c = new THREE.Vector3();
   for (let t = 0; t + 2 < pos.count; t += 3) {
     let cu = 0;
@@ -436,13 +438,23 @@ function hallGlassFrom(src: THREE.Mesh, stained: THREE.Texture, clear: THREE.Tex
       const dd = Math.hypot(o.x - c.x, o.z - c.z);
       if (dd < best) [best, wi] = [dd, i];
     });
-    const o = out[isClear(wins[wi]) ? 1 : 0];
+    const clear = isClear(wins[wi]);
+    const o = out[clear ? 1 : 0];
     // facing in: the triangle turned round; every other window its picture mirrored (not all the same glass)
     for (const j of [0, 2, 1]) {
       const x = (uv.getX(t + j) * 512 - cx - 0.5) / (cw - 1);
       const y = 1 - (uv.getY(t + j) * 1024 - cy - 0.5) / (ch - 1);
       o.pos.push(pos.getX(t + j), pos.getY(t + j), pos.getZ(t + j));
       o.uv.push(wi % 2 ? 1 - x : x, y);
+    }
+    // the same glass from the street: facing out, 5 mm out of the pane, the same uv (so its picture is the mirror of the
+    // inside's, as a real window's is)
+    const ob = out[clear ? 4 : 3];
+    for (const j of [0, 1, 2]) {
+      const x = (uv.getX(t + j) * 512 - cx - 0.5) / (cw - 1);
+      const y = 1 - (uv.getY(t + j) * 1024 - cy - 0.5) / (ch - 1);
+      ob.pos.push(pos.getX(t + j) + wins[wi].nx * 0.005, pos.getY(t + j), pos.getZ(t + j) + wins[wi].nz * 0.005);
+      ob.uv.push(wi % 2 ? 1 - x : x, y);
     }
     // the night's glow: facing out, 1 cm out of the pane
     for (const j of [0, 1, 2]) {
@@ -457,8 +469,8 @@ function hallGlassFrom(src: THREE.Mesh, stained: THREE.Texture, clear: THREE.Tex
     geo.setAttribute("position", new THREE.Float32BufferAttribute(q.pos, 3));
     geo.setAttribute("uv", new THREE.Float32BufferAttribute(q.uv, 2));
     geo.computeBoundingSphere();
-    const name = ["cathedral_stained_glass", "cathedral_clear_glass", "cathedral_window_glow"][i];
-    const mat = new THREE.MeshBasicMaterial({ map: i ? clear : stained, color: i === 2 ? 0x000000 : 0x707070, transparent: true, opacity: [0.8, 0.6, 1][i], depthWrite: false, side: THREE.FrontSide });
+    const name = ["cathedral_stained_glass", "cathedral_clear_glass", "cathedral_window_glow", "cathedral_stained_glass_out", "cathedral_clear_glass_out"][i];
+    const mat = new THREE.MeshBasicMaterial({ map: i === 0 || i === 3 ? stained : clear, color: i === 2 ? 0x000000 : i > 2 ? 0x202224 : 0x707070, transparent: true, opacity: [0.8, 0.6, 1, 0.9, 0.86][i], depthWrite: false, side: THREE.FrontSide });
     if (i === 2) mat.blending = THREE.AdditiveBlending;
     mat.name = name;
     const m = new THREE.Mesh(geo, mat);
@@ -886,7 +898,7 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
   const altarLit = new Flames(group, 8, 0.2);
   const chand = new Flames(group, 90, 0.18);
   // (issue #10: the windows' glass, when the shell is in (below): world/shellGlass.ts; see hallGlassFrom)
-  const glasses: { out: THREE.MeshBasicMaterial | null; in: THREE.MeshBasicMaterial[]; glow: THREE.MeshBasicMaterial | null } = { out: null, in: [], glow: null };
+  const glasses: { out: THREE.MeshBasicMaterial[]; in: THREE.MeshBasicMaterial[]; glow: THREE.MeshBasicMaterial | null } = { out: [], in: [], glow: null };
   const { VAULT, WEST_BAY: WB, TE, PORTAL_ZONE: PZ } = P;
   const HS = VAULT.spring;
   const HV = VAULT.crown;
@@ -1727,7 +1739,9 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
     const g0 = 0.95 * day * sky;
     // (issue #10: the stained glass inside as the old panes were; the shell's pane outside as its stone round it by day)
     for (const q of glasses.in) q.color.setRGB(0.07 + g0 + 0.05 * moon, 0.08 + g0 + 0.08 * moon, 0.1 + g0 + 0.17 * moon);
-    glasses.out?.color.setScalar(0.3 + 1.3 * day * (0.55 + 0.45 * sky));
+    // (from the street the glass is dark by day, its colours only a hint, a little of the grey sky on it; dark at night)
+    const gOut = 0.012 + 0.05 * day * (0.55 + 0.45 * sky); // (linear: about a third of white in the picture at noon)
+    for (const [i, q] of glasses.out.entries()) q.color.setRGB(gOut * (i ? 1.1 : 1), gOut * (i ? 1.15 : 1.02), gOut * (i ? 1.2 : 1.06));
     // (the lamplight in the panes after dusk, amber, dim as a church by its candles: world/landmarkWindows.ts)
     glasses.glow?.color.setRGB(1.0, 0.56, 0.22).multiplyScalar(0.36 * THREE.MathUtils.clamp((0.5 - day) / 0.3, 0, 1));
     sunLight.set(day, sky);
@@ -1746,15 +1760,12 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
   // issue #10: the windows' glass from the shell's old panes, when the shell is in (world/cathedralOutside.ts): the pane
   // seen from the street facing out, the hall's own glass facing in (see hallGlassFrom); world coordinates
   whenShellGlass("cathedral", (litGlass) => {
-    // (from the street see-through enough for the hall to show behind the lead: the atlas paints plain leaded glass)
-    const outer = roomGlassFrom(litGlass, { name: "cathedral", opacity: 0.5 });
-    const om = outer.material as THREE.MeshBasicMaterial;
-    om.side = THREE.FrontSide;
+    // (the look survey's point 20: the glass seen from the street is the hall's own from its back, dark, see hallGlassFrom)
     const inner = hallGlassFrom(litGlass, picture("/textures/cath_glass.jpg", { clamp: true }), glass("grisaille", 31));
-    glasses.out = om;
+    glasses.out = inner.slice(3).map((q) => q.material as THREE.MeshBasicMaterial);
     glasses.in = inner.slice(0, 2).map((q) => q.material as THREE.MeshBasicMaterial);
     glasses.glow = inner[2].material as THREE.MeshBasicMaterial;
-    scene.add(outer, ...inner);
+    scene.add(...inner);
     glassLight();
   });
   const room: LandmarkRoom = {
@@ -1762,6 +1773,7 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
     landmark: "cathedral",
     scene,
     group,
+    eyeIn: (k) => sunLight.inside(k),
     walk: walkJef,
     peopleFree: (x, z, feet) => P.peopleFreeAt(x, z, feet),
     seats,

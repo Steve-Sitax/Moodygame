@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { boatFloor } from "../world/boatGround";
 import CITY_DATA from "../../../shared/city.json";
 import { HULLS, type SmallKind } from "../../../shared/smallBoats";
 import { ropeMaterial } from "../world/boats";
@@ -43,13 +44,7 @@ export function mudAt(x: number, z: number): number {
  * (the deepest point under her hull, as she lies along the wall: her outer side is further out).
  */
 export function floorOf(kind: SmallKind, x: number, z: number, yaw: number): number {
-  const h = HULLS[kind];
-  const c = Math.cos(yaw);
-  const s = Math.sin(yaw);
-  let mud = -Infinity;
-  // the keel line: her middle and her two ends (the mud is highest right at the wall)
-  for (const f of [-0.7, 0, 0.7]) mud = Math.max(mud, mudAt(x + s * h.half * f, z + c * h.half * f));
-  return mud + h.draft;
+  return boatFloor(kind, x, z, yaw);
 }
 
 /** Ropes drawn at once at most (two a boat). */

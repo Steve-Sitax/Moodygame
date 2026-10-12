@@ -61,10 +61,13 @@ IDX = {}
 def paint_fan(seed):
     """A paddle box's face: black, a fan of cream vent slots rising from the shaft, a gilt rim."""
     rng = np.random.default_rng(seed)
-    n = 128
+    n = 256
+    q = n / 128  # (drawn at the cell's 256 px: the measures below are in 128ths)
     img = np.ones((n, n, 3)) * col((0.055, 0.052, 0.05))
     img *= (0.85 + 0.3 * bb.noise(rng, n, n, 8, 8))[..., None]
     vv, uu = np.meshgrid(np.arange(n), np.arange(n), indexing="ij")
+    vv, uu = vv / q, uu / q
+    n = 128
     cx, cy = n / 2, 10.0  # the shaft, low in the picture (row 0 is the bottom)
     dx, dy = uu - cx, vv - cy
     r = np.hypot(dx, dy)
@@ -83,9 +86,9 @@ def paint_fan(seed):
     img[gilt2] = col((0.55, 0.42, 0.18))
     # rust weeping from the slots, soot high up
     for _ in range(40):
-        u = int(rng.integers(8, n - 8))
-        v0 = int(rng.integers(20, 90))
-        img[max(0, v0 - int(rng.integers(6, 22))):v0, u] *= col((1.5, 0.9, 0.6))
+        u = int(rng.integers(8, n - 8) * q)
+        v0 = int(rng.integers(20, 90) * q)
+        img[max(0, v0 - int(rng.integers(6, 22) * q)):v0, u:u + 2] *= col((1.5, 0.9, 0.6))
     img *= (1 - 0.35 * np.clip((vv - 90) / 38, 0, 1))[..., None]
     return speckle(img, rng, 0.05)
 
@@ -274,6 +277,44 @@ def make_materials():
         bb.MATS.append(name)
 
 
+# ------------------------------------------------------------------ the far copy's mesh
+
+
+class FarMesh(bb.Mesh):
+    """The far copy's mesh (docs/boats.md <kind>_far): the same builder, but the small parts are left out (thin bars,
+    small boxes, ropes and lines, lanterns) and round things get half their sides."""
+
+    def beam(self, a, b, w, h, mat, *args, **kw):
+        if max(w, h) < 0.13 and (Vector(b) - Vector(a)).length < 3.0:
+            return
+        super().beam(a, b, w, h, mat, *args, **kw)
+
+    def box(self, c, size, mat, *args, **kw):
+        if max(size) < 0.6:
+            return
+        super().box(c, size, mat, *args, **kw)
+
+    def tube(self, path, radii, sides, mat, *args, **kw):
+        r = max(max(x) if isinstance(x, tuple) else x for x in radii)
+        if r < 0.06:
+            return
+        super().tube(path, radii, max(4, sides // 2), mat, *args, **kw)
+
+    def lathe(self, prof, sides, mat, *args, **kw):
+        if max(p[0] for p in prof) < 0.25 and max(p[1] for p in prof) - min(p[1] for p in prof) < 1.5:
+            return
+        super().lathe(prof, max(6, sides // 2), mat, *args, **kw)
+
+    def line(self, a, b):
+        pass
+
+    def lamp(self, p, kind=0):
+        pass
+
+    def stove(self, p):
+        pass
+
+
 # ------------------------------------------------------------------ small parts
 
 
@@ -313,6 +354,8 @@ def fender(m, top, length=0.55, r=0.12):
 def lantern(m, c, glass=None, h=0.42, w=0.26, roof=True):
     """An oil lantern, the town's (2026-10-11, tools/blender/lantern_kit.py oil_lantern): a base pan, four panes in
     corner posts with wire guards, a hood, a chimney and a bail ring. c = the middle of the glass."""
+    if isinstance(m, FarMesh):
+        return
     g = IDX["lamp_glass"] if glass is None else glass
     k = lantern_kit.Kit()
     with k.at(lantern_kit.move(*Vector(c))):
@@ -360,6 +403,24 @@ def puddle(m, c, rx, ry, seed, z):
         k = rnd.uniform(0.7, 1.15)
         pts.append(V(c[0] + rx * k * math.cos(a), c[1] + ry * k * math.sin(a), z))
     m.poly(pts, IDX["wet"], out=(0, 0, 1), uvs=[((p.x - c[0]) / 1.2 + 0.5, (p.y - c[1]) / 1.2 + 0.5) for p in pts])
+
+
+def chain(m, a, b, sag=0.0, link=0.15, wire=0.018):
+    """A chain of oval links from a to b (sagging by `sag` in the middle), each link turned a quarter to the last."""
+    a, b = Vector(a), Vector(b)
+    n = max(2, int((b - a).length / (link * 0.78)))
+    pts = [a.lerp(b, k / n) - V(0, 0, sag * math.sin(math.pi * k / n)) for k in range(n + 1)]
+    for k in range(n):
+        p, q = pts[k], pts[k + 1]
+        d = (q - p).normalized()
+        side = d.cross(V(0, 0, 1))
+        side = V(1, 0, 0) if side.length < 1e-4 else side.normalized()
+        if k % 2:
+            side = d.cross(side).normalized()
+        c = (p + q) / 2
+        L2, W2 = link * 0.5, link * 0.3
+        ring = [c + d * L2 * math.cos(2 * math.pi * i / 6) + side * W2 * math.sin(2 * math.pi * i / 6) for i in range(6)]
+        m.tube(ring, [wire] * 6, 3, bb.IRON, side=tuple(d.cross(side)), closed_path=True, smooth=False)
 
 
 def ladder(m, top, bottom_z, along=(1, 0, 0), half=0.22, step=0.3, mat=None):
@@ -432,9 +493,88 @@ def in_port(sx, ta, tb):
     return sx == 1 and ta >= PORT[0] - 1e-6 and tb <= PORT[1] + 1e-6
 
 
-def ferry():
-    m = bb.Mesh(ao=0.0)
-    ts = [0, 0.03, 0.07, 0.12, 0.2, 0.3, 0.38, 0.44, 0.5, 0.58, PORT[0], PORT[1], 0.78, 0.85, 0.9, 0.94, 0.97, 0.99, 1.0]
+# the paddle box's face: the painted fan inside RF (its gilt ring at 60 of the picture's 128 px), the name band round
+# it (BOX_R0 to BOX_R1, a 4:1 arc of BOX_W m at its middle: the "box" cell of the names atlas)
+RF = 1.36
+BOX_R0, BOX_R1 = 1.45, 1.98
+BOX_W = (BOX_R1 - BOX_R0) * 4
+BOX_HALF = BOX_W / (BOX_R0 + BOX_R1)
+
+
+def box_face(m, sx, xout, yc):
+    """A paddle box's outer face: the fan of vent slots round the shaft (the fan picture, round, as a reader alongside
+    sees it), a black plate round it where her name runs, the strip below the shaft."""
+    x = sx * xout
+    k = (60 / 128) / RF  # picture units a metre
+    n = 14
+
+    def uv(y, z):
+        dy = (y - yc) * (1 if sx > 0 else -1)
+        return (0.5 + dy * k, 10 / 128 + (z - ZA) * k)
+    disc = [V(x, yc + RF * math.cos(math.pi * j / n), ZA + RF * math.sin(math.pi * j / n)) for j in range(n + 1)]
+    m.poly(disc, IDX["fan"], out=(sx, 0, 0), uvs=[uv(p.y, p.z) for p in disc])
+    for j in range(n):
+        a0, a1 = math.pi * j / n, math.pi * (j + 1) / n
+        pts = [V(x, yc + r * math.cos(a), ZA + r * math.sin(a)) for r, a in ((RF, a0), (RB, a0), (RB, a1), (RF, a1))]
+        m.poly(pts, bb.IRONHULL, out=(sx, 0, 0), uvs=[(p.y / 2.0, p.z / 2.0) for p in pts])
+    pts = [V(x, yc - RB, 0.85), V(x, yc + RB, 0.85), V(x, yc + RB, ZA), V(x, yc - RB, ZA)]
+    m.poly(pts, bb.IRONHULL, out=(sx, 0, 0), uvs=[(p.y / 2.0, p.z / 2.0) for p in pts])
+
+
+def awning(m, t0, t1, strips=10):
+    """An awning over the fore deck: striped canvas on a ridge, iron hoops from rail to rail at its ends and middle,
+    a scalloped valance along each eave."""
+    ys = [yat(t0) + (yat(t1) - yat(t0)) * k / strips for k in range(strips + 1)]
+
+    def eave(y):
+        t = tat(y)
+        return hbf(t, sheer(t)) - 0.08, deckz(t) + 2.15
+
+    def ridge(y):
+        return deckz(tat(y)) + 2.55
+    for i in range(strips):
+        ya, yb = ys[i], ys[i + 1]
+        (xa, za), (xb, zb) = eave(ya), eave(yb)
+        red = i % 2 == 1
+        tint = (1.0, 0.42, 0.34) if red else (1.05, 1.02, 0.95)
+        with bb.tinted(m, tint):
+            for sx in (1, -1):
+                pts = [V(sx * xa, ya, za), V(sx * xb, yb, zb), V(0, yb, ridge(yb)), V(0, ya, ridge(ya))]
+                m.poly(pts, bb.CANVAS, out=(sx * 0.3, 0, 1), uvs=[(0, 0), (0.5, 0), (0.5, 0.6), (0, 0.6)])
+                # the valance: a scallop hanging from the eave
+                mid = V(sx * (xa + xb) / 2, (ya + yb) / 2, (za + zb) / 2)
+                m.poly([V(sx * xa, ya, za), V(sx * xb, yb, zb), V(sx * xb, yb, zb - 0.08), mid - V(0, 0, 0.2), V(sx * xa, ya, za - 0.08)],
+                       bb.CANVAS, out=(sx, 0, 0), uvs=[(0, 0.2), (0.5, 0.2), (0.5, 0.12), (0.25, 0.0), (0, 0.12)])
+    for y in (ys[0], ys[3], ys[7], ys[-1]):  # (none over the gangway port)
+        t = tat(y)
+        xe, ze = eave(y)
+        xr = hbf(t, sheer(t)) - 0.05
+        zr = sheer(t) + 0.84
+        path = [V(xr, y, zr), V(xe, y, ze), V(0, y, ridge(y)), V(-xe, y, ze), V(-xr, y, zr)]
+        m.tube(path, [0.025] * 5, 4, bb.IRON, side=(0, 1, 0), smooth=False)
+    for y in (ys[1], ys[5], ys[9]):
+        t = tat(y)
+        xe, ze = eave(y)
+        for sx in (1, -1):
+            if sx == 1 and PORT[0] - 0.01 < t < PORT[1] + 0.01:
+                continue  # (the gangway port stays clear)
+            xr = hbf(t, sheer(t)) - 0.05
+            m.beam(V(sx * xr, y, sheer(t) + 0.84), V(sx * xe, y, ze), 0.03, 0.03, bb.IRON)
+    m.line(V(0, ys[0], ridge(ys[0]) + 0.01), V(0, ys[-1], ridge(ys[-1]) + 0.01))
+
+
+def ferry(far=False):
+    """The ferry St. Anna; far=True her far copy (FarMesh: no small parts)."""
+    m = FarMesh(ao=0.0) if far else bb.Mesh(ao=0.0)
+    ts = [0, 0.012, 0.03, 0.05, 0.07, 0.095, 0.12, 0.16, 0.2, 0.25, 0.3, 0.34, 0.38, 0.41, 0.44, 0.47, 0.5, 0.54, 0.58,
+          0.62, PORT[0], PORT[1], 0.74, 0.78, 0.81, 0.85, 0.875, 0.9, 0.92, 0.94, 0.955, 0.97, 0.985, 0.99, 1.0]
+    if far:
+        ts = [0, 0.03, 0.07, 0.12, 0.2, 0.3, 0.44, 0.58, PORT[0], PORT[1], 0.78, 0.85, 0.9, 0.94, 0.97, 1.0]
+    walk, block = bb.Mesh(ao=0.0), bb.Mesh(ao=0.0)
+    n_parts0 = len(PARTS)
+
+    def blk(c, size):
+        block.box(c, size, bb.DARK)
     levels = [keel, lambda t: keel(t) + 0.5, lambda t: -0.05, lambda t: 0.95, lambda t: sheer(t) - 0.12, sheer]
     mats = [(bb.REDLEAD, 0), (bb.REDLEAD, 0), (bb.IRONHULL, 0), (bb.IRONHULL, 0), (IDX["ferry_band"], 3.0)]
     hull = bb.Hull(L, ts, levels, hbf, mats, yfn=yfn, shade=lambda p: 0.5 + 0.5 * sm((p.z + 1.6) / 3.0))
@@ -444,6 +584,7 @@ def ferry():
         pts = [hull.P(ta, 0.95, 1), hull.P(tb, 0.95, 1), hull.P(tb, deckz(tb) + 0.04, 1), hull.P(ta, deckz(ta) + 0.04, 1)]
         m.poly(pts, bb.IRONHULL, out=(1, 0, 0), uvs=[(-p.y / 4, p.z / 4) for p in pts])
     hull.deck(m, deckz, 0, 1, 0.1, bb.DECK)
+    hull.deck(walk, deckz, 0, 1, 0.1, bb.DECK)
     hull.rail(m, deckz, sheer, 0, 1, 0.1, bb.DARK, bb.WOOD, skip=lambda sx, k, ta, tb: in_port(sx, ta, tb))
     # the sill of the port: a worn oak board flush with the deck, and the gate posts at its ends
     pa, pb = hull.P(PORT[0], deckz(PORT[0]), 1, 0.05), hull.P(PORT[1], deckz(PORT[1]), 1, 0.05)
@@ -492,10 +633,12 @@ def ferry():
         arc = [(yc + RB * math.cos(math.pi * j / 10), ZA + RB * math.sin(math.pi * j / 10)) for j in range(11)]
         prof = [(yc + RB, 0.85)] + arc + [(yc - RB, 0.85)]
         # the outer face with the fan, the inner face plain, the arched top
-        for x, n, mat in ((sx * xout, sx, IDX["fan"]), (sx * xin, -sx, bb.DARK)):
-            pts = [V(x, y, z) for y, z in prof]
-            uvs = [((yc - y) / (2 * RB) * (1 if sx > 0 else -1) + 0.5, (z - 0.85) / (ZA + RB - 0.85) * 0.92 + 0.02) for y, z in prof]
-            m.poly(pts, mat, out=(n, 0, 0), uvs=uvs)
+        pts = [V(sx * xin, y, z) for y, z in prof]
+        m.poly(pts, bb.DARK, out=(-sx, 0, 0), uvs=[((yc - y) / 1.6, z / 1.6) for y, z in prof])
+        box_face(m, sx, xout, yc)
+        # the guard along the foot of the box: a timber rubbing piece, its iron strip outside
+        m.beam(V(sx * (xout + 0.07), yc - RB - 0.3, 0.86), V(sx * (xout + 0.07), yc + RB + 0.3, 0.86), 0.14, 0.16, bb.DARK, side=(1, 0, 0), shade=0.8)
+        m.beam(V(sx * (xout + 0.15), yc - RB - 0.2, 0.86), V(sx * (xout + 0.15), yc + RB + 0.2, 0.86), 0.03, 0.05, bb.IRON, side=(1, 0, 0))
         for (ya, za), (yb, zb) in zip(prof, prof[1:]):
             pts = [V(sx * xin, ya, za), V(sx * xout, ya, za), V(sx * xout, yb, zb), V(sx * xin, yb, zb)]
             mid = V(0, (ya + yb) / 2 - yc, (za + zb) / 2 - ZA)
@@ -503,7 +646,6 @@ def ferry():
         # a moulding round the face, the name on a board below the fan
         for (ya, za), (yb, zb) in zip(arc, arc[1:]):
             m.beam(V(sx * (xout + 0.03), ya, za), V(sx * (xout + 0.03), yb, zb), 0.06, 0.08, bb.WOOD, side=(1, 0, 0), caps=False)
-        bb.name_board(m, (sx * (xout + 0.02), yc, ZA + 0.02), (0, sx, 0), (0, 0, 1), 2.4, 0.3, 6, off=0.02)
         # the wheel under the box: two iron rims, spokes, ten floats
         wx = sx * (xin + xout) / 2
         for dx in (-0.42, 0.42):
@@ -525,6 +667,7 @@ def ferry():
             z = deckz(tat(y0)) - 0.05
             tri = [V(sx * xin, y0, z), V(sx * xout, y0, z), V(sx * xin, y1, z)]
             m.prism([p - V(0, 0, 0.14) for p in tri], (0, 0, 0.14), bb.DECK, side_mat=bb.DARK)
+            walk.poly(tri, bb.DECK, out=(0, 0, 1))
             m.beam(V(sx * xout, y0, z - 0.1), V(sx * (xin + 0.05), y1, z - 0.1), 0.12, 0.2, bb.DARK, side=(0, 0, 1))
             for f in (0.0, 0.5, 1.0):
                 p = V(sx * xout, y0, z).lerp(V(sx * (xin + 0.05), y1, z), f)
@@ -537,15 +680,19 @@ def ferry():
         lantern(m, lp, h=0.36, w=0.24)
         lights["side"].append([round(lp.x, 3), round(lp.y, 3), round(lp.z, 3), sx])
         # fenders hanging over the side on the pontoon side, and a lifebuoy on each box
-        lifebuoy(m, (sx * (xout + 0.1), yc + RB * 0.62, ZA + 0.9), (sx, 0, 0), r=0.3)
+        lb = V(sx * xout, yc + RB, deckz(TP) + 0.45).lerp(V(sx * (xin + 0.05), yc + RB + 2.2, deckz(TP) + 0.45), 0.3)
+        lifebuoy(m, lb + V(sx * 0.07, 0, 0), (sx, 0, 0), r=0.28)  # (on the after sponson's rail: the box carries her name)
     for sx in (1, -1):
-        for t in (0.2, 0.3, 0.58, 0.63, 0.76, 0.84):
+        for t in (0.2, 0.3, 0.58, 0.63, 0.76, 0.8):
             p = hull.P(t, sheer(t), sx)
             fender(m, p + V(sx * 0.12, 0, 0.1))
 
     # --- the bridge across the boxes: deck, rails, the helm and the telegraph, ladders up from the deck
     zb = ZA + RB + 0.05
     m.box((0, yc, zb - 0.04), (2 * xout + 0.2, 1.1, 0.08), bb.DECK, shade=1.0)
+    walk.box((0, yc, zb - 0.04), (2 * xout + 0.2, 1.1, 0.08), bb.DECK, skip=("-z", "-x", "+x", "-y", "+y"))
+    for sx in (1, -1):
+        blk((sx * (xin + xout) / 2, yc, ZA + 0.4), (xout - xin + 0.1, 2 * RB, 2 * RB - 0.4))
     m.beam(V(-xout, yc - 0.5, zb - 0.14), V(xout, yc - 0.5, zb - 0.14), 0.12, 0.16, bb.DARK, side=(0, 1, 0))
     m.beam(V(-xout, yc + 0.5, zb - 0.14), V(xout, yc + 0.5, zb - 0.14), 0.12, 0.16, bb.DARK, side=(0, 1, 0))
     for dy in (-0.52, 0.52):
@@ -613,9 +760,22 @@ def ferry():
     s0, s1 = 5.8, 9.9
     hz = deckz(tat(7.5))
     wins = [6.4, 7.2, 8.0, 8.8, 9.5]
-    bb.house(m, -1.5, 1.5, s0, s1, hz - 0.03, hz + 2.05, wall=bb.WOOD, roof=bb.DARK, over=0.12,
-             windows=[("+x", y, hz + 1.35) for y in wins] + [("-x", y, hz + 1.35) for y in wins] + [("+y", -0.7, hz + 1.35), ("+y", 0.7, hz + 1.35)],
+    bb.house(m, -1.5, 1.5, s0, s1, hz - 0.03, hz + 2.05, wall=bb.VARNISH, roof=bb.DARK, over=0.12,
              door=("-y", 0.0, 0.8, 1.8), roof_rise=0.14)
+    blk((0, (s0 + s1) / 2, hz + 1.0), (3.1, s1 - s0 + 0.1, 2.1))
+    wpos = [((sx * 1.5, y, hz + 1.35), (0, sx, 0), (sx, 0, 0)) for y in wins for sx in (1, -1)]
+    wpos += [((x, s1, hz + 1.35), (-1, 0, 0), (0, 1, 0)) for x in (-0.7, 0.7)]
+    for c, right, n in wpos:
+        c, n = V(*c), V(*n)
+        bb.window_pane(m, c + n * 0.01, right, (0, 0, 1), 0.48, 0.42, bars=1)
+        # curtains drawn back each side behind the glass, a valance across the top
+        with bb.tinted(m, (0.9, 0.42, 0.32)):
+            for sgn in (-1, 1):
+                bb.panel(m, c + n * 0.014 + V(*right) * sgn * 0.19 + V(0, 0, 0.02), right, (0, 0, 1), 0.1, 0.36, bb.CANVAS, off=0.0)
+            bb.panel(m, c + n * 0.015 + V(0, 0, 0.17), right, (0, 0, 1), 0.46, 0.07, bb.CANVAS, off=0.0)
+    for sx in (1, -1):
+        bb.panelled_wall(m, (sx * 1.5, s0, 0), (sx * 1.5, s1, 0), hz - 0.03, hz + 2.05, (sx, 0, 0), bb.VARNISH, bb.DARK, panels=5)
+    bb.panelled_wall(m, (-1.5, s1, 0), (1.5, s1, 0), hz - 0.03, hz + 2.05, (0, 1, 0), bb.VARNISH, bb.DARK, panels=3)
     for y in wins:
         for sx in (1, -1):
             lights["windows"].append([round(sx * 1.53, 3), y, round(hz + 1.35, 3), sx, 0, 0.5, 0.44])
@@ -633,8 +793,6 @@ def ferry():
     fs = V(0, hull.y(0.01, sheer(0.01)) - 0.3, sheer(0.01))
     bb.spar(m, fs, fs + V(0, 0.25, 3.0), 0.045, 0.03, cap=True)
     bb.flag(m, fs + V(0, 0.28, 2.9), 1.3, 0.85, along=(0, 1, -0.1), kind="belgian")
-    bb.name_board(m, (0, hull.y(0.0, sheer(0.0) - 0.35) + 0.05, sheer(0.0) - 0.4), (1, 0, 0), (0, 0, 1), 1.9, 0.26, 1, off=0.03)
-    bb.hull_name(m, hull, 0.9, sheer(0.9) - 0.4, 1.9, 0.26, 6)
     for sx in (1, -1):
         track(m, f"stern bitts {sx}", "ferry", lambda: bb.bitts(m, sx * 0.9, yat(0.05), deckz(0.05), 0.45, 0.18))
         track(m, f"stern coil {sx}", "ferry", lambda: bb.coil(m, (sx * 0.9, yat(0.08), deckz(0.08)), 0.24))
@@ -660,7 +818,13 @@ def ferry():
             for dz in (0.66, 0.84):
                 m.beam(V(sx * (xr - 0.06), ya, z + dz), V(sx * (xr - 0.06), yb, z + dz), 0.035, 0.09, bb.WOOD, side=(1, 0, 0))
             for y in (ya - 0.08 if k else ya - 0.1, yb + 0.1):
-                m.box((x, y, z + 0.21), (0.36, 0.04, 0.42), bb.IRON)
+                o = V(x, y, z)
+                front = [o + V(-sx * 0.17, 0, 0.0), o + V(-sx * 0.19, 0, 0.18), o + V(-sx * 0.15, 0, 0.36), o + V(-sx * 0.16, 0, 0.42),
+                         o + V(0.0, 0, 0.43), o + V(sx * 0.15, 0, 0.45), o + V(sx * 0.19, 0, 0.66), o + V(sx * 0.2, 0, 0.88)]
+                m.tube(front, [0.022] * len(front), 4, bb.IRON, side=(0, 1, 0), smooth=False, cap0=True, cap1=True)
+                m.tube([o + V(sx * 0.15, 0, 0.0), o + V(sx * 0.12, 0, 0.22), o + V(sx * 0.14, 0, 0.44)], [0.022] * 3, 4, bb.IRON,
+                       side=(0, 1, 0), smooth=False, cap0=True)
+                m.box(o + V(0, 0, 0.12), (0.3, 0.025, 0.025), bb.IRON)
 
     bench(0.555, PORT[0] - 0.012, 1, "bench port aft")
     bench(PORT[1] + 0.012, 0.8, 1, "bench port fore")
@@ -690,7 +854,7 @@ def ferry():
     track(m, "windlass", "ferry", lambda: bb.windlass(m, 0, yat(0.925), deckz(0.925) + 0.35, w=1.1, r=0.16))
     for sx in (1, -1):
         track(m, f"bow bitts {sx}", "ferry", lambda: bb.bitts(m, sx * 0.55, yat(0.895), deckz(0.895), 0.5, 0.18))
-    ta = 0.93
+    ta = 0.955
     ap = hull.P(ta, sheer(ta) - 0.15, -1) + V(-0.2, 0, 0)
     m.beam(hull.P(ta, sheer(ta), -1, 0.1), ap + V(0, 0, 0.1), 0.14, 0.14, bb.DARK)
     bb.anchor(m, ap, side=(1, 0, 0), size=0.5)
@@ -714,7 +878,31 @@ def ferry():
     lantern(m, lp, h=0.3, w=0.2)
     lights["lanterns"].append([round(lp.x, 3), round(lp.y, 3), round(lp.z, 3)])
 
+    # --- the awning over the fore deck (its hoops clear of the gangway port)
+    awning(m, 0.565, 0.79)
+
+    # --- what a walker cannot pass: the loose things on deck (benches, bitts, goods), the funnel, the skylight, the
+    # mast; and the name zones (docs/boats.md), 4:1
+    for name, where, lo, hi, on in PARTS[n_parts0:]:
+        blk((lo + hi) / 2, tuple(max(0.05, hi[k] - lo[k]) for k in range(3)))
+    blk((0, fy, fz + 1.0), (1.3, 1.3, 2.0))
+    blk((0, (sy0 + sy1) / 2, sz + 0.4), (1.6, sy1 - sy0, 0.9))
+    blk((0, my, mz + 0.5), (0.4, 0.4, 1.0))
+    parts = {"walk": walk, "block": block}
+    zones = {}
+    bw, bh = 1.9, 0.475
+    for sx, key in ((1, "bow_p"), (-1, "bow_s")):
+        parts[f"name_{key}"] = bb.bow_zone(hull, 0.875, sheer(0.875) - 0.42, bw, bh, sx, off=0.035)
+        zones[key] = [bw, bh]
+    parts["name_stern"] = bb.stern_zone(hull, sheer(0.0) - 0.42, bw, bh, off=0.03)
+    zones["stern"] = [bw, bh]
+    for sx, key in ((1, "box_p"), (-1, "box_s")):
+        parts[f"name_{key}"] = bb.box_zone(sx * (xout + 0.02), yc, ZA, BOX_R0, BOX_R1, sx, BOX_HALF)
+        zones[key] = [round(BOX_W, 2), round(BOX_R1 - BOX_R0, 2)]
+    m.children = parts
+
     m.extras = {
+        "name_zones": zones,
         "lights": lights,
         "gangway": {"y": -4.5, "x": round(hbf(0.6875, deckz(0.6875)), 3), "deck": round(deckz(0.6875), 3), "half": 0.6},
         "helm": helm,
@@ -757,6 +945,13 @@ def stage():
                 m.poly(pts, slime, out=(c.x, c.y, 0), uvs=[(acc / 2, 0), ((acc + ln) / 2, 0), ((acc + ln) / 2, 1), (acc / 2, 1)])
                 acc += ln
             m.poly([p + V(0, 0, 0.6) for p in out], bb.TAR, out=(0, 0, 1))
+            # the float's plank seams (iron straps) and its tarred top rim
+            for yy in np.linspace(y0 + 1.0, y1 - 1.0, 4):
+                for xs in (cx - 0.76, cx + 0.76):
+                    m.beam(V(xs, float(yy), -0.3), V(xs, float(yy), 0.62), 0.05, 0.03, bb.IRON, side=(0, 1, 0), shade=0.7)
+            for k in range(len(out)):
+                a, b = out[k], out[(k + 1) % len(out)]
+                m.beam(a + V(0, 0, 0.6), b + V(0, 0, 0.6), 0.08, 0.06, bb.TAR, side=(0, 0, 1), caps=False, shade=0.8)
             m.box((cx, (y0 + y1) / 2, 0.63), (1.2, y1 - y0 - 1.2, 0.05), bb.DARK)
             for y in (y0 + 1.2, (y0 + y1) / 2, y1 - 1.2):
                 m.beam((cx, y, 0.6), (cx, y, 1.5), 0.2, 0.2, bb.DARK, side=(1, 0, 0))
@@ -816,6 +1011,12 @@ def stage():
     # quay's gangway rolls on (its foot lands 0.2 to 1 m onto the stage, as the tide stands)
     m.beam(V(-SW - 0.1, GAP - 0.1, DT - 0.2), V(SW + 0.1, GAP - 0.1, DT - 0.2), 0.25, 0.3, bb.DARK, side=(0, 1, 0))
     m.box((0, GAP + 0.75, DT + 0.004), (3.5, 1.3, 0.012), bb.IRON, shade=0.8)
+    # the two flat rails the gangway's rollers run on, and the stop bar at their end
+    for x in (-1.25, 1.25):
+        m.box((x, GAP + 0.8, DT + 0.025), (0.12, 1.4, 0.03), bb.IRON, shade=1.0)
+        for yy in (GAP + 0.2, GAP + 0.8, GAP + 1.4):
+            m.box((x, yy, DT + 0.042), (0.05, 0.05, 0.006), bb.IRON, shade=1.2)
+    m.beam(V(-1.45, GAP + 1.52, DT + 0.05), V(1.45, GAP + 1.52, DT + 0.05), 0.08, 0.08, bb.IRON)
     # the bollards at the head corners (the ferry's gangway lies on the boards between them)
     bolls = []
     for sx in (1, -1):
@@ -898,6 +1099,27 @@ def stage():
     for (x, yy, rx, ry, s) in ((0.4, 11.8, 0.7, 0.45, 1), (-0.8, 26.5, 0.5, 0.8, 2), (0.9, 38.2, 0.6, 0.35, 3),
                                (-0.3, 48.7, 1.0, 0.5, 4), (0.5, 57.2, 0.45, 0.3, 5), (-1.2, 18.0, 0.35, 0.5, 6)):
         puddle(m, (x, yy), rx, ry, s, DT + 0.008)
+    # --- the mooring chains: from eyes on the floats' outer sides at the head and the middle, down to the anchors
+    for sx in (1, -1):
+        for yy, dy in ((SL - 2.0, -0.6), (31.0, 0.0), (GAP + 3.0, -1.0)):
+            eye = V(sx * 2.15, yy, 0.42)
+            m.box(eye + V(0, 0, 0.05), (0.06, 0.24, 0.22), bb.IRON)
+            chain(m, eye + V(sx * 0.05, 0, -0.05), eye + V(sx * 2.4, dy * 1.2, -2.6), sag=0.25)
+    # --- the deck one can walk (docs/boats.md _walk), and what one cannot walk through (_block)
+    walk = bb.Mesh(ao=0.0)
+    walk.poly([V(-SW, GAP, DT), V(SW, GAP, DT), V(SW, SL, DT), V(-SW, SL, DT)], bb.DECK, out=(0, 0, 1))
+    block = bb.Mesh(ao=0.0)
+    for x0, x1, y0, y1 in solids:
+        block.box(((x0 + x1) / 2, (y0 + y1) / 2, DT + 1.0), (x1 - x0, y1 - y0, 2.0), bb.DARK)
+    for b_ in bolls:
+        block.box((b_[0], b_[1], DT + 0.3), (0.4, 0.4, 0.6), bb.DARK)
+    for sx in (1, -1):
+        block.box((sx * 2.17, (GAP + SL) / 2, DT + 0.6), (0.12, SL - GAP, 1.2), bb.DARK)
+    for a, b_ in ((-2.17, -0.78), (0.78, 2.17)):
+        block.box(((a + b_) / 2, SL - 0.12, DT + 0.6), (b_ - a, 0.12, 1.2), bb.DARK)
+    for (x, yy) in ((1.95, SL - 1.1), (2.0, 30.0), (-2.0, GAP + 2.6)):
+        block.box((x, yy, DT + 1.45), (0.2, 0.2, 2.9), bb.DARK)
+    m.children = {"walk": walk, "block": block}
     m.extras = {"deck_top": DT, "length": SL, "half_width": SW, "lamps": lamps, "bollards": bolls, "collars": collars,
                 "solids": [[round(v, 3) for v in r] for r in solids],
                 "head_rail": [[-2.22, -0.71], [0.71, 2.22]]}
@@ -943,28 +1165,63 @@ def check_parts():
 # ------------------------------------------------------------------ main
 
 
-def main():
-    argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
-    bpy.ops.wm.read_factory_settings(use_empty=True)
-    make_materials()
+def children(m, name, ob, hull=None, far=False):
+    """A model's children (docs/boats.md): the water cap, the walk floor, the blocks, the name zones, the far copy
+    (the ferry built again with FarMesh: no lamps, no sockets, no parts recorded)."""
+    if hull is not None:
+        bb.cap_object(hull, f"{name}_cap", ob)
+    for suffix, part in (getattr(m, "children", None) or {}).items():
+        if part is not None and len(part.bm.faces):
+            bb.to_object(part, f"{name}_{suffix}", parent=ob)
+    if far:
+        n, cur, nos = len(PARTS), bb.CUR[0], bb.NO_SACKS[0]
+        bb.CUR[0], bb.NO_SACKS[0] = None, True
+        try:
+            fm, _ = ferry(far=True)
+        finally:
+            bb.CUR[0], bb.NO_SACKS[0] = cur, nos
+            del PARTS[n:]
+        fm.extras, fm.smoke, fm.lines = {}, [], []
+        f = bb.to_object(fm, f"{name}_far", parent=ob)
+        print(f"[build_ferry] {name}_far {bb.tris(f):6d} tris ({bb.tris(f) / max(1, bb.tris(ob)):.0%})")
+
+
+def build_objects():
+    """The ferry and the landing stage, each again without its sacks (the "_bare" copies), with their children.
+    Returns {name: object}."""
     # (2026-09-28: the sacks' places recorded, and the ferry and the stage built again without them: the game draws the
     # one sack model there, client game/sackModel.ts; client/src/game/ferry_sack_sockets.json)
     bb.CUR[0] = "ferry"
     fm, hull = ferry()
     fo = bb.to_object(fm, "ferry")
-    bb.cap_object(hull, "ferry_cap", fo)
+    children(fm, "ferry", fo, hull, far=True)
     bb.CUR[0] = "landing_stage"
-    so = bb.to_object(stage(), "landing_stage")
+    sm_ = stage()
+    so = bb.to_object(sm_, "landing_stage")
+    children(sm_, "landing_stage", so)
     bb.CUR[0] = None
     n_parts = len(PARTS)
     bb.NO_SACKS[0] = True
     try:
-        fb, _ = ferry()
-        bb.to_object(fb, "ferry_bare")
-        bb.to_object(stage(), "landing_stage_bare")
+        fb, hull_b = ferry()
+        # the copy the game draws in her place keeps the water cap over her rail and every child (docs/boats.md)
+        fbo = bb.to_object(fb, "ferry_bare")
+        children(fb, "ferry_bare", fbo, hull_b, far=True)
+        sb = stage()
+        sbo = bb.to_object(sb, "landing_stage_bare")
+        children(sb, "landing_stage_bare", sbo)
     finally:
         bb.NO_SACKS[0] = False
     del PARTS[n_parts:]
+    return {"ferry": fo, "landing_stage": so, "ferry_bare": fbo, "landing_stage_bare": sbo}
+
+
+def main():
+    argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    make_materials()
+    objs = build_objects()
+    fo, so = objs["ferry"], objs["landing_stage"]
     with open(os.path.join(bb.ROOT, "client", "src", "game", "ferry_sack_sockets.json"), "w", encoding="utf-8") as f:
         json.dump(bb.SACK_SOCKETS, f, separators=(",", ":"))
     bb.OUT = OUT

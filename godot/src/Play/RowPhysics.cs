@@ -11,10 +11,11 @@ public sealed class RowPhysics
 {
     public readonly record struct Hull(float Half,float Beam,float SeatZ,float SeatY,float Speed,Vector3 Pin,float Draft)
     {
+        public string Kind { get; init; } = "rowboat";
         public static Hull Of(string kind)
         {
             // shared/smallBoats.ts is authoritative for the browser; an older shared model bake can carry older extras.
-            return kind switch
+            Hull hull = kind switch
             {
                 "rowboat"=>new(2.65f,.72f,-.43f,.38f,1,new(.77f,.62f,.25f),.25f),
                 "punt"=>new(2.55f,.64f,-1.25f,.38f,.9f,new(.68f,.56f,-.6f),.2f),
@@ -27,6 +28,7 @@ public sealed class RowPhysics
                 "oldboat"=>new(2.4f,.698f,-.294f,.386f,.7f,new(.757f,.606f,.386f),.3f),
                 _=>throw new InvalidOperationException("no rowing hull for "+kind)
             };
+            return hull with { Kind = kind };
         }
     }
     public interface IWorld {bool Free(float x,float z,float radius);Vector2 Current(float x,float z);}
@@ -35,7 +37,7 @@ public sealed class RowPhysics
     public Hull Shape;
     private bool caught;
     public void Start(float x,float z,float heading,Hull hull)
-    {X=x;Z=z;Heading=heading;Shape=hull;Y=BoatWater.At(x,z);Speed=Turn=Phase=Port=Starboard=Pitch=Roll=Time=0;caught=false;}
+    {X=x;Z=z;Heading=heading;Shape=hull;Y=MathF.Max(BoatWater.At(x,z),BoatGround.Floor(hull.Kind,x,z,heading));Speed=Turn=Phase=Port=Starboard=Pitch=Roll=Time=0;caught=false;}
     public Vector3 Seat=>new(X+MathF.Sin(Heading)*Shape.SeatZ,Y+Shape.SeatY,Z+MathF.Cos(Heading)*Shape.SeatZ);
     public bool Blocked(IWorld w,float x,float z,float h)
     {float hl=Shape.Half-Shape.Beam*.6f,fx=MathF.Sin(h),fz=MathF.Cos(h);for(int k=-1;k<=1;k++)if(!w.Free(x+fx*hl*k,z+fz*hl*k,Shape.Beam))return true;return false;}
@@ -70,6 +72,8 @@ public sealed class RowPhysics
         float fx=MathF.Sin(h),fz=MathF.Cos(h),len=Shape.Half*.8f,beam=Shape.Beam;
         float mid=BoatWater.At(X,Z),bow=BoatWater.At(X+fx*len,Z+fz*len),stern=BoatWater.At(X-fx*len,Z-fz*len),py=BoatWater.At(X+fz*beam,Z-fx*beam),sy=BoatWater.At(X-fz*beam,Z+fx*beam),e=1-MathF.Exp(-dt*4);
         Y+=((mid*2+bow+stern)/4-Y)*e;Pitch+=(MathF.Atan2(bow-stern,2*len)*.8f+surge*.004f-Pitch)*e;Roll+=(MathF.Atan2(py-sy,2*beam)*.7f+MathF.Sin(Time*1.9f)*.008f*Math.Min(sea,2.5f)-Roll)*e;
+        float floor=BoatGround.Floor(Shape.Kind,X,Z,Heading);
+        if(Y<floor+0.06f){Y=MathF.Max(Y,floor);Pitch=Roll=0;}
         return stroke;
     }
 }

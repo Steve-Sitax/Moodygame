@@ -91,6 +91,12 @@ export interface HallSun {
   group: THREE.Group;
   /** day 0..1, sky (weather 0.5..1), the room's ambient knob */
   set(day: number, sky: number): void;
+  /**
+   * How far in the eye is (0 on the street .. 1 inside; world/inworld.ts insideness). The shafts are light in the hall's
+   * dusty air, seen only from in it: from the street they stood as white sheets in the windows and the open doors (the
+   * look survey's point 20). The sun's patches on the floor stay.
+   */
+  inside(k: number): void;
   /** Dev: how much floor is lit, the windows that let the sun in, the build's ms. */
   info(): { litTexels: number; wallTexels: number; texels: number; polyLit: number; polyTexels: number; sunWindows: number; shafts: number; ms: number };
 }
@@ -533,6 +539,14 @@ export function buildHallSun(frame: THREE.Group, spec: HallSunSpec): HallSun {
   const SUN = new THREE.Color(1.0, 0.93, 0.8);
   const MOON = new THREE.Color(0.42, 0.55, 0.85);
   const moonC = new THREE.Color();
+  const shafts = group.getObjectByName("hall_sun_shafts");
+  let sunNow = 0;
+  let moonNow = 0;
+  let eyeIn = 1;
+  const showBeams = () => {
+    beamMat.color.copy(SUN).multiplyScalar(0.22 * shaftK * sunNow).add(moonC.copy(MOON).multiplyScalar(0.035 * shaftK * moonNow)).multiplyScalar(eyeIn);
+    if (shafts) shafts.visible = eyeIn > 0.001;
+  };
   const ms = performance.now() - t0;
   const info = () => ({ litTexels: lit, wallTexels: wallLit, texels: W * H, polyLit, polyTexels, sunWindows: sunWins.length, shafts: beams.length / 2, ms: Math.round(ms) });
   // (dev: the halls' checks find it in the room's scene)
@@ -546,7 +560,15 @@ export function buildHallSun(frame: THREE.Group, spec: HallSunSpec): HallSun {
       const moon = (1 - THREE.MathUtils.smoothstep(day, 0.0, 0.25)) * clear;
       // (a patch of sun is several times the light of the sky inside: the slab under it x4 and more)
       for (const { m, k } of lightMats) m.color.copy(SUN).multiplyScalar(4.2 * power * k * sun).add(moonC.copy(MOON).multiplyScalar(0.45 * power * k * moon));
-      beamMat.color.copy(SUN).multiplyScalar(0.22 * shaftK * sun).add(moonC.copy(MOON).multiplyScalar(0.035 * shaftK * moon));
+      sunNow = sun;
+      moonNow = moon;
+      showBeams();
+    },
+    inside(k) {
+      const e = THREE.MathUtils.clamp(k, 0, 1);
+      if (e === eyeIn) return;
+      eyeIn = e;
+      showBeams();
     },
     info,
   };

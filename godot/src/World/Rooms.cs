@@ -53,6 +53,9 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
         public readonly List<Vector3> Openings = new();
         public readonly List<(string kind, Aabb box, bool open)> AuditOpenings = new();
         public readonly List<GeometryInstance3D> Meshes = new();
+        /// <summary>The sun's shafts in a hall (hallSun.ts hall_sun_shafts): light in the hall's air, shown only from inside.</summary>
+        public readonly List<GeometryInstance3D> Shafts = new();
+        public bool? ShaftsOn;
         public Vector3 SkyDay, GroundDay, AmbDay, SkyLit, GroundLit, AmbLit;
         public bool? Open;
         public float Level;
@@ -263,6 +266,7 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
             // (on the rooms' own layer only: the mirrors leave it out, as the browser's show a room's dark lining)
             gi.Layers = RoomLayer;
             room.Meshes.Add(gi);
+            if (gi.Name.ToString().Contains("hall_sun_shafts")) room.Shafts.Add(gi);
             for (int s = 0; s < mesh.GetSurfaceCount(); s++)
             {
                 if (mesh.SurfaceGetMaterial(s) is not ShaderMaterial m) continue;
@@ -407,6 +411,12 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
             }
             // from the bright street by day a room looks dim through its windows
             bool inside = r.Box.HasPoint(eye);
+            // (the look survey's point 20: from the street the shafts stood as white sheets in the windows and the doors)
+            if (r.Shafts.Count > 0 && r.ShaftsOn != inside)
+            {
+                r.ShaftsOn = inside;
+                foreach (var g in r.Shafts) g.Visible = inside;
+            }
             float dim = inside ? 1 : 1 - 0.45f * dayK;
             var sky = r.SkyDay.Lerp(r.SkyLit, night) * dim;
             var ground = r.GroundDay.Lerp(r.GroundLit, night) * dim;

@@ -35,6 +35,7 @@ import { createCloudSky } from "./sky"; // package 4: the clouds
 import { createWorks } from "./works"; // package 5: works chimneys
 import { buildVegetation } from "./vegetation";
 import { buildTrees3D } from "./trees3d";
+import { loadLibertyTree } from "./libertyTree";
 import { applyDirt } from "./dirt";
 import { createFires, type Fires } from "./fire";
 import { createGasLamps, flameColor, FOG_DAY_GLOW, glassColor, LIT_GLASS_GAIN, LIT_REACH, type GasLamps } from "./gaslamps";
@@ -47,14 +48,14 @@ import { createStreetLife, type StreetLife } from "./streetlife";
 import { buildGroundProbe, buildingRoots, buildWallProbe } from "./wallprobe";
 import { tradeKeepOut } from "./trades";
 import { marketKeepOut } from "../game/market";
-import { createQuayFurniture, type QuayFurniture } from "./quayfurniture";
+import { createQuayFurniture, standIns, type QuayFurniture } from "./quayfurniture";
 import { createTraffic, type Traffic } from "./traffic";
 import { createRailway, type CraneSite, type RaisedDeck, type Railway } from "./railway";
 import { createRailGate, type RailGate } from "./railgate";
 import { createOmnibuses, loadOmnibusModel, OMNIBUS_HORSES, omnibusKeepOut, STOPS as OMNIBUS_STOPS, stopSolids, type Omnibuses } from "./omnibus";
 import { quaySteps, shoreTexture, frameAt, type Exit } from "./quaysteps";
 import { buildPier, PIER_BOLLARD } from "./pier";
-import { waveAt } from "../retro/psx";
+import { ripples, setTideWet, waveAt } from "../retro/psx";
 import { createMirror } from "./mirror";
 import { BRIG_FLOOR, CHAMBER, DOCK, HW_MAX, LW_MIN, MID_Y, gateLine, levelAt, tideAt, tideDev, tideInfo, water as tideWater } from "./tide";
 import { buildTideMud } from "./tidemud";
@@ -315,8 +316,8 @@ export interface World {
   update(t: number, dt: number, camera?: THREE.Camera): void;
   /** M6 tides: the game clock the river follows (day 1 = Monday, hour with fractions). */
   setTideClock(fn: () => { day: number; hour: number }): void;
-  /** M6 tides, dev: the tide now in words, and hold the river at high or low water (null: the clock). */
-  tideDev: { read(): string; hold(v: "high" | "low" | null): void };
+  /** M6 tides, dev: the tide now in words, and hold the river at high or low water or at a level y (null: the clock). */
+  tideDev: { read(): string; hold(v: "high" | "low" | number | null): void; target(): number };
 }
 
 // Thin details that sit on a wall or the ground (windows, doors, rails, planks).
@@ -358,8 +359,9 @@ function mats(tex: Textures) {
       new THREE.MeshPhongMaterial({
         map: tex.water,
         color: 0x8a9a92, // the deep Schelde: dark, a little green
-        specular: 0x3a342a,
-        shininess: 120,
+        // (D3: a lower, wider sheen on the ripples than the old 120's hard white cone)
+        specular: 0x2a2823,
+        shininess: 40,
       }),
       { water: true, affine: 0.6 },
     ),
@@ -610,6 +612,8 @@ export function buildRijnkaai(): World {
   // M7 prison and squares: the Sint-Jansplein and the greens (world/townplaces.ts)
   const townPlaces = loadTownPlaces(scene, city.ready);
   colliders.push(...townPlaces.colliders);
+  // the Grote Markt's liberty tree, a lime in its railing (world/libertyTree.ts)
+  colliders.push(...loadLibertyTree(scene, city.ready));
   colliders.push(...pumpColliders());
   colliders.push(...carolusSolids()); // the Carolus's terrace railing (shared/carolusPlan.ts)
   const wildTrees = (CITY_DATA as unknown as { decor?: { trees_wild?: Array<[number, number]> } }).decor?.trees_wild ?? [];
@@ -661,7 +665,7 @@ export function buildRijnkaai(): World {
   const waterTex = tex.water;
   // M6 tides: the Petit Bassin and the lock chamber have water of their own at their own levels
   // (world/tide.ts); drawn before the river sheet, which the stencil keeps out from under them
-  const dockMat = psx(new THREE.MeshPhongMaterial({ map: tex.water, color: 0x8a9a92, specular: 0x3a342a, shininess: 120 }), { water: true, affine: 0.6 });
+  const dockMat = psx(new THREE.MeshPhongMaterial({ map: tex.water, color: 0x8a9a92, specular: 0x2a2823, shininess: 40 }), { water: true, affine: 0.6 });
   dockWaterStencil(dockMat);
   /**
    * A sheet of still water over a rectangle. `ends` (fixes 2026-09-24): the near and far edges in z
@@ -753,13 +757,11 @@ export function buildRijnkaai(): World {
   psxUniforms.uWaterMirrorOn.value = 1;
 
   // M6 tides: the mud at the foot of the walls and in the canal and vliet beds, bare at low water
-  buildTideMud(scene, {
+  // (D1: the canal and vliet beds sculpted, their low water, the outfalls and the debris: world/tidemud.ts)
+  const tideMud = buildTideMud(scene, {
     quays: (CITY_DATA as unknown as { quays: number[][] }).quays,
     inWater,
-    beds: [
-      { minX: -82, maxX: -70, minZ: 0.5, maxZ: 205 },
-      { minX: -150, maxX: -142, minZ: 0.5, maxZ: 72 },
-    ],
+    stone: quayStoneMaterials()?.coping ?? null,
   });
 
   // --- stone steps down to the water and iron ladders to climb out (world/quaysteps.ts)
@@ -906,7 +908,7 @@ export function buildRijnkaai(): World {
       moor(scene, 60, 0, 100, 0, river, ["tug", "lighter", "hengst", "lighter_coal"], { seed: 6 });
       moor(scene, 120, 0, 176, 0, river, ["rhine_barge", "lighter_loaded", "sloop", "lighter_timber"], { rows: 2, seed: 7 });
       put("steamer", -150, -62, Math.PI / 2, scene);
-      put("barque", -40, -48, Math.PI / 2, scene);
+      put("barque_grain", -40, -48, Math.PI / 2, scene);
       put("barque", 110, -44, -Math.PI / 2, scene);
       put("paddle_tug", -205, -64, Math.PI / 2 + 0.3, scene);
       put("sloop", 30, -70, 1.2, scene);
@@ -1965,6 +1967,20 @@ export function buildRijnkaai(): World {
   // the grime pass (2026-09-26): even a clear day keeps the town's coal-smoke haze (fog far x7, about 200 m;
   // was x16, 480 m) and only a little of the clear sky's colour
   const WEATHER = { fog: [1, 1, 1, 0], mist: [2.5, 3.5, 0.6, 0.25], clear: [12, 7, 0.35, 0.6], rain: [1.8, 2.5, 0.8, 0], storm: [1.3, 1.6, 0.9, 0] } as const;
+  /**
+   * The mist by the clock (the look survey's point 19, 2026-10-11: "mist at 9:00 looks clear"): a misty day's mist lies
+   * thick in the morning (fog far x1.25 of the day's, about 35 m at 9:00), lifts from 9:36 to 12:48 to the haze of the
+   * table above, and closes in a little again from the evening. Godot: World/Daylight.cs MistLift, the same numbers.
+   */
+  const mistLift = (h: number) => THREE.MathUtils.smoothstep(h, 9.6, 12.8) * (1 - 0.55 * THREE.MathUtils.smoothstep(h, 16.5, 19.5));
+  const MIST_THICK = [0.9, 1.25, 0.85, 0.12] as const;
+  const mistNow = [0, 0, 0, 0];
+  const weatherAt = (w: keyof typeof WEATHER, h: number): readonly number[] => {
+    if (w !== "mist") return WEATHER[w];
+    const k = mistLift(h);
+    for (let i = 0; i < 4; i++) mistNow[i] = MIST_THICK[i] + (WEATHER.mist[i] - MIST_THICK[i]) * k;
+    return mistNow;
+  };
   /** The air of a clear autumn noon: lighter than the grey of a fog day, but smoky (was 0x9db0c2, a blue sky). */
   const CLEAR_SKY = new THREE.Color(0x8b9398);
   /** The great storm's air under the black cloud (world/tempest.ts). */
@@ -2039,6 +2055,7 @@ export function buildRijnkaai(): World {
   function tideTarget(): number {
     if (tideDev.hold === "high") return HW_MAX;
     if (tideDev.hold === "low") return LW_MIN;
+    if (typeof tideDev.hold === "number" && Number.isFinite(tideDev.hold)) return tideDev.hold;
     if (!tideClock) return tideWater.river;
     const c = tideClock();
     // the great storm drives the sea up the river: up to a metre over the tide, but never over the lowest quays
@@ -2052,7 +2069,9 @@ export function buildRijnkaai(): World {
     const d = target - tideWater.river;
     tideWater.river += tideSeen ? THREE.MathUtils.clamp(d, -0.6 * dt, 0.6 * dt) : d;
     if (tideClock) tideSeen = true;
+    if (tideClock) setTideWet(tideClock().day, tideClock().hour); // (the tide's wet band on the walls: retro/psx.ts)
     water.position.y = tideWater.river;
+    tideMud.update(tideWater.river); // (the beds' low water: world/tidemud.ts)
     dockSheet.position.y = tideWater.dock;
     dockMouth.position.y = tideWater.dock;
     // the chamber: level, or sloping from the river gates to the dock gates while both pairs stand open
@@ -2104,6 +2123,11 @@ export function buildRijnkaai(): World {
       mirror.setPlane(pondMirror ? POND_LEVEL : inLock ? tideWater.chamber : nearDock ? tideWater.dock : tideWater.river);
     }
     psxUniforms.uTime.value = t;
+    if (camera) {
+      // (D3) the ships under way leave their wakes; the nearest ripple sources go to the water's shader
+      for (const s of boats?.moving() ?? []) if (!s.anchored) ripples.wake(s.id, s.x, s.z, Math.sin(s.heading), Math.cos(s.heading), s.speed, boats!.dims(s.kind).beam);
+      ripples.update(camera.position.x, camera.position.z);
+    }
     fogMix += (fogTarget - fogMix) * Math.min(1, dt * 0.4);
     // ease along the clock, the short way round midnight
     let dh = dayTarget - dayNow;
@@ -2113,6 +2137,7 @@ export function buildRijnkaai(): World {
       dayNow = (dayNow + dh * Math.min(1, dt * 0.8) + 24) % 24;
       applyDaylight(dayNow);
     }
+    wTarget = weatherAt(weatherNow, dayNow);
     for (let i = 0; i < 4; i++) wNow[i] += (wTarget[i] - wNow[i]) * Math.min(1, dt * 0.5);
     // a clear day: the air lighter and bluer (by day only)
     fog.color.copy(baseFog).lerp(CLEAR_SKY, wNow[3] * sunDay * 0.6);
@@ -2235,7 +2260,7 @@ export function buildRijnkaai(): World {
     city,
     setWeather: (w) => {
       weatherNow = w in WEATHER ? w : "fog";
-      wTarget = WEATHER[weatherNow];
+      wTarget = weatherAt(weatherNow, dayNow);
     },
     ambient,
     streetLife: () => street,
@@ -2299,16 +2324,21 @@ export function buildRijnkaai(): World {
         const f = (y: number) => `${y >= 0 ? "+" : ""}${y.toFixed(2)}`;
         const hm = (h: number) => `${Math.floor(h)}:${String(Math.floor((h % 1) * 60)).padStart(2, "0")}`;
         const c = tideClock?.();
-        const hold = tideDev.hold ? ` (held at ${tideDev.hold} water)` : "";
+        const hold = tideDev.hold === null ? "" : typeof tideDev.hold === "number" ? ` (held at ${f(tideDev.hold)} m)` : ` (held at ${tideDev.hold} water)`;
         if (!c) return `river ${f(tideWater.river)} m${hold}`;
         const i = tideInfo(c.day, c.hour);
         return (
-          `river ${f(tideWater.river)} m (quay top 0; ${f(i.fromMid)} m from half tide), ${i.rising ? "rising" : "falling"}, range ${i.range.toFixed(2)} m today${hold}. ` +
+          `river ${f(tideWater.river)} m (quay top 0; ${f(tideWater.river - MID_Y)} m from half tide), by the clock ${i.rising ? "rising" : "falling"}, range ${i.range.toFixed(2)} m today${hold}. ` +
           `High water day ${i.nextHigh.day} ${hm(i.nextHigh.hour)} (${f(i.nextHigh.y)}), low water day ${i.nextLow.day} ${hm(i.nextLow.hour)} (${f(i.nextLow.y)}). ` +
           `Dock ${f(tideWater.dock)}, lock ${f(tideWater.chamberA)} / ${f(tideWater.chamberB)}.`
         );
       },
-      hold: (v) => (tideDev.hold = v),
+      hold: (v) => {
+        if (typeof v === "number" && !Number.isFinite(v)) throw new Error("tide hold: a level in metres, \"high\", \"low\" or null");
+        tideDev.hold = v;
+      },
+      // where the river is going now (the hold, the clock and the storm's surge): the sheet eases there at 0.6 m a second
+      target: tideTarget,
     },
   };
 }
@@ -2584,30 +2614,16 @@ function cart(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: numb
   colliders.push(rectAround(x + 0.4, z + 0.6, 1.3, 1.6));
 }
 
-function bollard(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: number): void {
-  // its body and its head one mesh (world/staticMerge.ts)
-  const g = new THREE.Group();
-  g.name = "bollard";
-  g.position.set(x, 0, z);
-  g.add(cyl(0.2, 0.24, 0.7, 7, m.iron, 0, 0.35, 0), cyl(0.3, 0.2, 0.12, 7, m.iron, 0, 0.74, 0));
-  mergeParts(g);
-  scene.add(g);
+function bollard(_scene: THREE.Scene, _m: Mats, colliders: Rect[], x: number, z: number): void {
+  // (D4, 2026-10-11: drawn by the quay furniture in its cast-iron cannon bollard, world/quayfurniture.ts standIns; the
+  // collider stays the quay's own)
+  standIns.bollards.push([x, z]);
   colliders.push(rectAround(x, z, 0.28, 0.28, 0.8));
 }
 
-function ropeCoil(scene: THREE.Scene, m: Mats, x: number, z: number): void {
-  // the three turns one mesh (world/staticMerge.ts)
-  const g = new THREE.Group();
-  g.name = "rope_coil";
-  g.position.set(x, 0, z);
-  for (let i = 0; i < 3; i++) {
-    const t = new THREE.Mesh(new THREE.TorusGeometry(0.34 - i * 0.04, 0.06, 4, 8), m.rope);
-    t.rotation.x = Math.PI / 2;
-    t.position.set(0, 0.06 + i * 0.1, 0);
-    g.add(t);
-  }
-  mergeParts(g);
-  scene.add(g);
+function ropeCoil(_scene: THREE.Scene, _m: Mats, x: number, z: number): void {
+  // (D4: the quay furniture's hawser coil, laid down flat in three layers, world/quayfurniture.ts standIns)
+  standIns.coils.push([x, z]);
 }
 
 

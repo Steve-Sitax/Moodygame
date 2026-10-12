@@ -54,6 +54,7 @@ public partial class FerryArrival:Node
         // LandingStage uses its model's flat deck_top and solids. Rays through the 22 mm plank seams are not holes a foot can fall through.
         landingDeck=MeshDeck.Flat(-2.05f,2.05f,-59.75f,-5.9f,1.8f,obstacles.ToArray(),.25f);
         ferry=model.Copy("ferry")!;landing=model.Copy("landing_stage")!;Main.I.View.AddChild(ferry);Main.I.View.AddChild(landing);ferry.Transform=Transform3D.Identity;landing.Transform=Transform3D.Identity;ferry.Visible=false;
+        Movers.Boats.I.NameCopy(ferry,"ferry","st_anna");
         foreach(var n in BakedWorld.All(Main.I.World))if(n is Node3D n3&&(n3.Name.ToString() is "landing_stage" or "pontoon_section" or "pontoon_gangway"))n3.Visible=false;
         Movers.BoatLamps.I?.AddFerry(()=>ferry.GlobalTransform,()=>ferry.IsVisibleInTree());
         foreach(var f in Movers.Boats.I.Floats)if(f.Kind=="pontoon_section")f.Outer.Visible=false;

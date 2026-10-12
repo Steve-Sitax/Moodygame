@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { psx } from "../retro/psx";
 import type { Rect } from "./geom";
+import { COURSE_BEDS, QUAY_WALL_ALONG, courseAt, courseV, wallV } from "./quayStone";
 import { DOCK_Y, HW_MAX, LW_MIN, MHW, MID_Y, MLW, WADE, levelAt, regionAt } from "./tide";
 
 // Stone steps down the quay walls to the water, and iron ladders to climb out (Steve, 2026-09-23: "stairs that go
@@ -96,6 +97,43 @@ export function tideShade(dry: V3 = [1, 1, 1]): (y: number) => V3 {
 }
 /** Where the tidal wall's colours change (cut tall faces there). */
 export const tideCuts = (): number[] => TIDE_STOPS.map(([y]) => y);
+
+/**
+ * The quay masonry's colour by height (D2, 2026-10-11): its picture carries the tide's marks (quayStone.ts), so the
+ * vertex colour only deepens them a little toward the water. The Petit Bassin keeps one level near the river's mean
+ * high water: a wet, slimy band just at its waterline.
+ */
+const RIVER_MASONRY: Array<[number, V3]> = [
+  [LW_MIN - 0.3, [0.9, 0.9, 0.88]],
+  [MLW + 0.3, [0.93, 0.94, 0.92]],
+  [MID_Y, [0.96, 0.97, 0.95]],
+  [MHW, [0.98, 0.98, 0.97]],
+  [HW_MAX + 0.2, [1, 1, 1]],
+];
+const dockMasonry = (waterY: number): Array<[number, V3]> => [
+  [waterY - 0.4, [0.72, 0.8, 0.66]],
+  [waterY + 0.12, [0.8, 0.86, 0.74]],
+  [waterY + 0.45, [0.94, 0.95, 0.92]],
+  [waterY + 0.8, [1, 1, 1]],
+];
+function byStops(stops: Array<[number, V3]>): (y: number) => V3 {
+  return (y) => {
+    if (y <= stops[0][0]) return stops[0][1];
+    for (let i = 1; i < stops.length; i++) {
+      const [y1, c1] = stops[i];
+      if (y <= y1) {
+        const [y0, c0] = stops[i - 1];
+        const k = (y - y0) / (y1 - y0);
+        return [c0[0] + (c1[0] - c0[0]) * k, c0[1] + (c1[1] - c0[1]) * k, c0[2] + (c1[2] - c0[2]) * k];
+      }
+    }
+    return stops[stops.length - 1][1];
+  };
+}
+/** The quay masonry's colour by height: the river's tidal walls, or a dock's at its one level. */
+export const masonryShade = (dockY: number | null) => byStops(dockY === null ? RIVER_MASONRY : dockMasonry(dockY));
+/** Where it changes (cut tall faces there). */
+export const masonryCuts = (dockY: number | null): number[] => (dockY === null ? RIVER_MASONRY : dockMasonry(dockY)).map(([y]) => y);
 
 /**
  * A merged mesh built from boxes and rods, with world-space UVs and a colour per
@@ -245,8 +283,6 @@ const LIP = 0.03; // how far they and the copings stand out over the face below
 const RAIL_H = 0.9; // the iron handrail over the line of the nosings
 const RAIL_QUAY = 1.0; // the rail along the quay edge over the flight
 const OPEN = TOP + 0.3; // the quay rail leaves the head of the flight open, where you step onto it
-/** The foot of the quay walls (city.ts): the masonry's courses lie at the wall's heights. */
-const Y0 = LW_MIN - 1.2;
 /** The flights' masonry is drawn from here up: below it lies always under water (the wall behind goes on down). */
 const FOOT_Y = LW_MIN - 0.35;
 /** Walkers keep their middle this far off the parapet's face (the camera never comes within its near plane). */
@@ -269,10 +305,15 @@ const unit = (a: V3): V3 => {
 };
 
 /**
- * Where on the quay wall's picture (4 m a tile, 8 courses of half a metre) a slab takes its stone: v of a point m
- * metres into course k, kept inside the course (clear of its mortar joints) for up to 0.41 m.
+ * Where on the quay wall's picture (world/quayStone.ts: the whole wall's height, its tide marks at their true heights)
+ * a slab at height y takes its stone: v of a point m metres into the course at that height, kept inside the course
+ * (clear of its joints). So a tread low on the flight carries the weed and the mussels of the wall beside it.
  */
-const course = (k: number, m: number) => 0.125 * (((k % 8) + 8) % 8) + 0.009 + Math.min(0.102, Math.max(0, m) / 4);
+const course = (y: number, m: number) => courseV(courseAt(y), m);
+/** Metres along the wall that the picture covers (u = metres / UA). */
+const UA = QUAY_WALL_ALONG;
+/** A height in the dry courses (the undersides of the copings and caps take their stone there). */
+const DRY = 0.4;
 
 /** A corner: where it is, which way it faces, its uv, and a tint on the colour its height gives it. */
 interface Pt {
@@ -515,8 +556,8 @@ export function quaySteps(waterY: number, mats: { wall: THREE.Material; iron: TH
     const dock = regionAt(...onFrame(f, END / 2, W + 1.5)) === 1;
     const still = dock ? DOCK_Y : -Infinity;
     const highMark = dock ? DOCK_Y + 0.15 : MHW;
-    wall.shade = dock ? slimeShade(DOCK_Y) : tideShade();
-    wall.cuts = dock ? slimeCuts(DOCK_Y) : tideCuts();
+    wall.shade = masonryShade(dock ? DOCK_Y : null);
+    wall.cuts = masonryCuts(dock ? DOCK_Y : null);
     const P = (s: number, u: number, y: number): V3 => {
       const [px, pz] = onFrame(f, s, u);
       return [px, y, pz];
@@ -525,9 +566,9 @@ export function quaySteps(waterY: number, mats: { wall: THREE.Material; iron: TH
     const N: V3 = [f.nx, 0, f.nz];
     const nT = neg(T);
     const nN = neg(N);
-    // the masonry's picture as on the wall: 4 m a tile, its courses at the wall's heights (city.ts: v = (y - y0) / 4)
-    const alongT = (p: V3): V2 => [(p[0] * f.tx + p[2] * f.tz) / 4, (p[1] - Y0) / 4];
-    const alongN = (p: V3): V2 => [(p[0] * f.nx + p[2] * f.nz) / 4, (p[1] - Y0) / 4];
+    // the masonry's picture as on the wall: its courses and tide marks at the wall's heights (city.ts, quayStone.ts)
+    const alongT = (p: V3): V2 => [(p[0] * f.tx + p[2] * f.tz) / UA, wallV(p[1])];
+    const alongN = (p: V3): V2 => [(p[0] * f.nx + p[2] * f.nz) / UA, wallV(p[1])];
     /** A face of masonry at u, from s0 to s1, its foot and top at both ends (sloped tops for the parapet). */
     const faceU = (u: number, s0: number, s1: number, b0: number, t0: number, b1: number, t1: number, n: V3) => {
       if (s1 - s0 < 1e-3) return;
@@ -576,16 +617,18 @@ export function quaySteps(waterY: number, mats: { wall: THREE.Material; iron: TH
     }
 
     // the corners over the water in big dressed quoins, long and short by turns, a little proud of the face and
-    // lighter, laid in the wall's half-metre courses
+    // lighter, laid in the wall's courses
     const quoins = (sc: number, ds: number, top: number) => {
       const o = 0.015;
       const kk: V3 = [1.07, 1.065, 1.05];
       const sE = sc - ds * o; // the stone's face round the corner stands out past the end
       const along = (a: number, b: number) => [Math.min(a, b), Math.max(a, b)];
-      for (let yc = Y0, k = 0; yc < top - 0.05; yc += 0.5, k++) {
-        if (yc + 0.5 < FOOT_Y) continue;
+      for (let k = 0; k < COURSE_BEDS.length; k++) {
+        const [yc, yt] = COURSE_BEDS[k];
+        if (yc >= top - 0.05) break;
+        if (yt < FOOT_Y) continue;
         const y = Math.max(yc, FOOT_Y);
-        const y1 = Math.min(top, yc + 0.5) - 0.012;
+        const y1 = Math.min(top, yt) - 0.012;
         const sIn = sc + ds * (k % 2 ? 0.34 : 0.72); // long and short by turns along the face over the water
         const uIn = W - (k % 2 ? 0.62 : 0.3); // and the other way round the corner
         const [a0, a1] = along(sE, sIn);
@@ -618,8 +661,6 @@ export function quaySteps(waterY: number, mats: { wall: THREE.Material; iron: TH
       // (the top landing starts past the quay's edge stones, which lie level with it: no face in theirs)
       const uu = i === -1 ? [0.25, ...us.slice(1)] : us;
       const off = rnd() * 4; // where the joint between the tread's two stones falls
-      const kTop = Math.floor(rnd() * 8); // which course of the picture its top takes, and its riser
-      const kLow = (kTop + 3) % 8;
       // the profile from the back of the tread over the nosing and down the riser: s, y, normal (along s, up), v
       const prof = wear.map((w) => {
         const d = 0.012 * w; // worn hollow
@@ -648,8 +689,9 @@ export function quaySteps(waterY: number, mats: { wall: THREE.Material; iron: TH
           const low = a >= 6; // (the underside and the riser)
           const C = (jj: number, k: number): Pt => {
             const q = prof[jj][k];
-            const v = low ? course(kLow, k === 6 ? 0 : k === 7 ? NOSE : NOSE + (prof[jj][7][1] - q[1])) : course(kTop, q[4] * Math.min(0.95, 0.4 / prof[jj][6][4]));
-            return { p: P(q[0], uu[jj], q[1]), n: n ?? tn(q[2], q[3]), uv: [(uu[jj] + off) / 4, v], k: tint(wear[jj], q[1]) };
+            // (its top takes the course at its own height, its riser the one under it: the wall's marks there)
+            const v = low ? course(y - SLAB - 0.05, k === 6 ? 0 : k === 7 ? NOSE : NOSE + (prof[jj][7][1] - q[1])) : course(y, q[4] * Math.min(0.95, 0.36 / prof[jj][6][4]));
+            return { p: P(q[0], uu[jj], q[1]), n: n ?? tn(q[2], q[3]), uv: [(uu[jj] + off) / UA, v], k: tint(wear[jj], q[1]) };
           };
           wall.quad(C(j, a), C(j, b), C(j + 1, b), C(j + 1, a));
         }
@@ -664,24 +706,23 @@ export function quaySteps(waterY: number, mats: { wall: THREE.Material; iron: TH
         { p: P(s1, u1, y), n, uv: uv(s1, u1), k },
         { p: P(s0, u1, y), n, uv: uv(s0, u1), k },
       );
-    const under = () => [0.1, course(2, 0.2)] as V2;
+    const under = () => [0.1, course(DRY, 0.2)] as V2;
     /** A side of a slab facing n (T or N either way): a rectangle between two corners on the ground plan. */
     const side = (sa: number, ua: number, sb: number, ub: number, y0: number, y1: number, n: V3, len: number) =>
       wall.quad(
-        { p: P(sa, ua, y0), n, uv: [0, course(6, 0)] },
-        { p: P(sb, ub, y0), n, uv: [len / 4, course(6, 0)] },
-        { p: P(sb, ub, y1), n, uv: [len / 4, course(6, y1 - y0)] },
-        { p: P(sa, ua, y1), n, uv: [0, course(6, y1 - y0)] },
+        { p: P(sa, ua, y0), n, uv: [0, course(y1, y1 - y0)] },
+        { p: P(sb, ub, y0), n, uv: [len / UA, course(y1, y1 - y0)] },
+        { p: P(sb, ub, y1), n, uv: [len / UA, course(y1, 0)] },
+        { p: P(sa, ua, y1), n, uv: [0, course(y1, 0)] },
       );
     const ub = W - ROW;
     for (let r = 0; r < 3; r++) {
       const u0 = U0 + ((ub - U0) * r) / 3;
       const u1 = U0 + ((ub - U0) * (r + 1)) / 3;
-      const o = rnd() * 4;
-      const kc = Math.floor(rnd() * 8);
-      flat(FLIGHT - NOSE, END - ROW, u0, u1, landY, (s, u) => [(s + o) / 4, course(kc, u - u0)], tint(0.5, landY));
+      const o = rnd() * UA;
+      flat(FLIGHT - NOSE, END - ROW, u0, u1, landY, (s, u) => [(s + o) / UA, course(landY, u - u0)], tint(0.5, landY));
     }
-    flat(FLIGHT - NOSE, FOOT0, ub, WIDTH, landY, (s, u) => [s / 4, course(5, u - ub)], tint(0.3, landY));
+    flat(FLIGHT - NOSE, FOOT0, ub, WIDTH, landY, (s, u) => [s / UA, course(landY, u - ub)], tint(0.3, landY));
     // the edge stones and the copings are drawn with their real cross-sections: rounded arrises and nosings
     /** A cross-section: across position c, height dy under the stone's top, its normal across and up. */
     type Sec = Array<[number, number, number, number]>;
@@ -718,7 +759,7 @@ export function quaySteps(waterY: number, mats: { wall: THREE.Material; iron: TH
       const L = [0];
       for (let i = 1; i < sec.length; i++) L.push(L[i - 1] + Math.hypot(sec[i][0] - sec[i - 1][0], sec[i][1] - sec[i - 1][1]));
       const tot = L[L.length - 1] || 1;
-      const kRun = Math.floor(rnd() * 8);
+      const kRun = (y(a0) + y(a1)) / 2; // (the course at its height)
       const nrm = (nc: number, ny: number): V3 => unit([C[0] * nc - A[0] * g * ny, ny, C[2] * nc - A[2] * g * ny]);
       for (let i = 0; i < sec.length - 1; i++) {
         const [ca, ya, na, ma] = sec[i];
@@ -732,16 +773,16 @@ export function quaySteps(waterY: number, mats: { wall: THREE.Material; iron: TH
         const va = course(kRun, L[i] * squeeze);
         const vb = course(kRun, L[i + 1] * squeeze);
         wall.quad(
-          { p: at(a0, ca, ya), n: nA, uv: [off / 4, va], k },
-          { p: at(a1, ca, ya), n: nA, uv: [(off + len) / 4, va], k },
-          { p: at(a1, cb, yb), n: nB, uv: [(off + len) / 4, vb], k },
-          { p: at(a0, cb, yb), n: nB, uv: [off / 4, vb], k },
+          { p: at(a0, ca, ya), n: nA, uv: [off / UA, va], k },
+          { p: at(a1, ca, ya), n: nA, uv: [(off + len) / UA, va], k },
+          { p: at(a1, cb, yb), n: nB, uv: [(off + len) / UA, vb], k },
+          { p: at(a0, cb, yb), n: nB, uv: [off / UA, vb], k },
         );
       }
       const outline = sec.filter((q, i) => i === 0 || Math.hypot(q[0] - sec[i - 1][0], q[1] - sec[i - 1][1]) > 1e-5);
       // (the ends: the picture laid flat on them, across and down)
       for (const [end, a, n] of [[caps[0], a0, neg(A)], [caps[1], a1, A]] as const)
-        if (end) wall.face(outline.map(([c, dy]) => at(a, c, dy)), n, (q) => [(q[0] * C[0] + q[2] * C[2]) / 4, course(kRun, y(a) - q[1])], k, false);
+        if (end) wall.face(outline.map(([c, dy]) => at(a, c, dy)), n, (q) => [(q[0] * C[0] + q[2] * C[2]) / UA, course(kRun, y(a) - q[1])], k, false);
       return len;
     };
     {
@@ -752,7 +793,7 @@ export function quaySteps(waterY: number, mats: { wall: THREE.Material; iron: TH
       // the open side, from the foot pier to the end row: a rounded nosing over the face
       run(FOOT1, END - ROW, true, lv, edgeSec(ub, W + LIP, W, r), k, rnd() * 4, [true, false]);
       // where it meets the end row, the end row's back stands over its nosing
-      wall.face([P(END - ROW, W + LIP, landY), ...roundOut(W + LIP, r).reverse().map(([c, dy]) => P(END - ROW, c, landY + dy))], nT, () => [0.2, course(1, 0.05)], k, false);
+      wall.face([P(END - ROW, W + LIP, landY), ...roundOut(W + LIP, r).reverse().map(([c, dy]) => P(END - ROW, c, landY + dy))], nT, () => [0.2, course(landY, 0.05)], k, false);
       // the end row, the full width of the landing
       run(U0, W + LIP, false, lv, edgeSec(END - ROW, e1, END, r), k, rnd() * 4, [true, true]);
     }
@@ -769,20 +810,20 @@ export function quaySteps(waterY: number, mats: { wall: THREE.Material; iron: TH
         const ya = pt(sa);
         const yb = pt(sb);
         const len = run(sa, sb, true, pt, sec, k, at);
-        const [ua, ub2] = [at / 4, (at + len) / 4];
+        const [ua, ub2] = [at / UA, (at + len) / UA];
         at += len;
         // its undersides where it stands out over the faces
         for (const [u0, u1] of [[c0, WIDTH], [W, c1]] as const)
           wall.quad(
-            { p: P(sa, u0, ya - PAR_COPE), n: DOWN, uv: [ua, course(2, 0.1)], k },
-            { p: P(sb, u0, yb - PAR_COPE), n: DOWN, uv: [ub2, course(2, 0.1)], k },
-            { p: P(sb, u1, yb - PAR_COPE), n: DOWN, uv: [ub2, course(2, 0.1)], k },
-            { p: P(sa, u1, ya - PAR_COPE), n: DOWN, uv: [ua, course(2, 0.1)], k },
+            { p: P(sa, u0, ya - PAR_COPE), n: DOWN, uv: [ua, course(ya - PAR_COPE, 0.1)], k },
+            { p: P(sb, u0, yb - PAR_COPE), n: DOWN, uv: [ub2, course(ya - PAR_COPE, 0.1)], k },
+            { p: P(sb, u1, yb - PAR_COPE), n: DOWN, uv: [ub2, course(ya - PAR_COPE, 0.1)], k },
+            { p: P(sa, u1, ya - PAR_COPE), n: DOWN, uv: [ua, course(ya - PAR_COPE, 0.1)], k },
           );
       }
       // its ends where it stands out past the piers: the outer part of its section
       const outer = (s0: number, n: V3) =>
-        wall.face([P(s0, W, pt(s0)), ...sec.filter(([c]) => c > W).map(([c, dy]) => P(s0, c, pt(s0) + dy)), P(s0, W, pt(s0) - PAR_COPE)], n, () => [0.3, course(1, 0.05)], k, false);
+        wall.face([P(s0, W, pt(s0)), ...sec.filter(([c]) => c > W).map(([c, dy]) => P(s0, c, pt(s0) + dy)), P(s0, W, pt(s0) - PAR_COPE)], n, () => [0.3, course(pt(s0), 0.05)], k, false);
       outer(0, nT);
       outer(FOOT0, T);
     }
@@ -815,7 +856,7 @@ export function quaySteps(waterY: number, mats: { wall: THREE.Material; iron: TH
         const b = c[(i + 1) % 4];
         const n = unit(cross(sub(b, a), sub(top, a)));
         const nn: V3 = n[1] < 0 ? neg(n) : n;
-        wall.tri({ p: a, n: nn, uv: [0, course(4, 0)] }, { p: b, n: nn, uv: [0.15, course(4, 0)] }, { p: top, n: nn, uv: [0.075, course(4, 0.36)] });
+        wall.tri({ p: a, n: nn, uv: [0, course(y1, 0)] }, { p: b, n: nn, uv: [0.15, course(y1, 0)] }, { p: top, n: nn, uv: [0.075, course(y1, 0.3)] });
       }
     };
     cap(-HEAD, 0, W - NEWEL, W, headTop);
@@ -854,6 +895,21 @@ export function quaySteps(waterY: number, mats: { wall: THREE.Material; iron: TH
       const out = (k: number) => new THREE.Vector3(p[0] + n[0] * k, p[1], p[2] + n[2] * k);
       iron.add(staple, new THREE.Matrix4().makeBasis(new THREE.Vector3(...t), new THREE.Vector3(0, 1, 0), new THREE.Vector3(...n)).setPosition(out(0.02)));
       iron.add(ringGeo, new THREE.Matrix4().makeBasis(new THREE.Vector3(...t), new THREE.Vector3(0, 1, 0), new THREE.Vector3(...n)).setPosition(out(0.03).setY(y - 0.085)));
+      // the rust run under it (D2): a strip of the wall's own stone 6 mm proud of the face, rust-brown under the
+      // staple and fading out down the wall (a tint on the picture, never brighter than it)
+      const len = 0.55 + rnd() * 0.5;
+      const lo = Math.max(y - 0.05 - len, still + 0.02);
+      const w0 = 0.035;
+      const w1 = 0.012;
+      const q = (ds: number, yy: number, k: V3): Pt => {
+        const pp: V3 = [p[0] + t[0] * ds + n[0] * 0.006, yy, p[2] + t[2] * ds + n[2] * 0.006];
+        return { p: pp, n, uv: alongT(pp), k };
+      };
+      const RUST: V3 = [0.8, 0.52, 0.36];
+      const mid: V3 = [0.9, 0.74, 0.62];
+      const ym = (y - 0.02 + lo) / 2;
+      wall.quad(q(-w0, y - 0.02, RUST), q(w0, y - 0.02, RUST), q(w0 * 0.6, ym, mid), q(-w0 * 0.6, ym, mid));
+      wall.quad(q(-w0 * 0.6, ym, mid), q(w0 * 0.6, ym, mid), q(w1, lo, ONE), q(-w1, lo, ONE));
     };
     /** A chain hung in a swag along a face at u (facing N), from s0 to s1, its ends at y, sagging `sag`. */
     const chain = (s0: number, s1: number, u: number, y: number, sag: number) => {

@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { withPicture } from "./quayStone";
 
 // Placeholder textures, painted in code at 64x64. Crushed and dirty on purpose.
 // No third-party images. Replace with the Blender kit later (docs/05).
@@ -136,14 +137,11 @@ export function makeTextures() {
     grime(g, r, s, 0.4);
   });
 
-  const water = make(64, 15, (g, r, s) => {
+  // (D3, 2026-10-11: its colour alone. The 64 px dashes drew a zigzag stamp and bands over every water; the ripples
+  // are the psx water's own wave normal now, retro/psx.ts psxWaves. Godot gives its water the same colour.)
+  const water = make(4, 15, (g, _r, s) => {
     g.fillStyle = rgb(58, 70, 62);
     g.fillRect(0, 0, s, s);
-    for (let i = 0; i < 140; i++) {
-      const v = r() < 0.5 ? 40 : 88;
-      g.fillStyle = rgb(v * 0.9, v * 1.05, v, 0.6);
-      g.fillRect((r() * s) | 0, (r() * s) | 0, 3 + ((r() * 8) | 0), 1);
-    }
   });
 
   const iron = make(64, 16, (g, r, s) => {
@@ -229,6 +227,17 @@ export function makeTextures() {
   // (the bump audit, 2026-09-26: each named for what it shows, for its bump from its own picture: world/bumps.ts)
   const all = { cobble, quayWall, brick, planks, water, iron, hull, crate, slate, sack, rope };
   for (const [k, t] of Object.entries(all)) t.name = k;
+  // (2026-10-12, Steve: "all textures with the same detail" as the quay wall) the wood planks and the rope are Codex
+  // pictures now (docs/plans/textures.md): five weathered oak and pine boards a tile as the painted ones, at 512 px,
+  // and tarred hemp at 256 px; mipmaps, no PS1 pixels up close. The painted ones show until they load; their bumps
+  // are made again from the pictures (psx.ts bumpFromMap, onPicture).
+  for (const [t, url] of [[planks, "/textures/wood_planks.jpg"], [rope, "/textures/rope_hemp.jpg"]] as const) {
+    t.magFilter = THREE.LinearFilter;
+    t.minFilter = THREE.LinearMipmapLinearFilter;
+    t.generateMipmaps = true;
+    t.anisotropy = 8;
+    withPicture(t, url);
+  }
   return all;
 }
 

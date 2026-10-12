@@ -73,7 +73,7 @@ if (args.includes("--strip-only")) {
   stripInstancing(`${out}.glb`);
   process.exit(0);
 }
-const stack = (cmd) => execFileSync(process.execPath, [path.join(root, "tools/teststack.mjs"), cmd, `godot${SERVER}`, "--server", String(SERVER), "--vite", String(VITE)], { stdio: "inherit", timeout: 180_000 });
+const stack = (cmd) => execFileSync(process.execPath, [path.join(root, "tools/teststack.mjs"), cmd, `godot${SERVER}`, "--fresh", "--server", String(SERVER), "--vite", String(VITE)], { stdio: "inherit", timeout: 180_000 });
 
 // ---- the receiver: the page posts the glb here
 let received = 0;

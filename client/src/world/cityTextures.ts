@@ -304,27 +304,48 @@ function lampPane(g: CanvasRenderingContext2D, x: number, y: number): void {
   g.fillRect(x + C - 4, y, 4, C);
 }
 
-/** Round fanlight: a half disc (u across, v from the springing line up to the crown) of glass
- * with a sunburst of glazing bars round a small hub, in a painted frame. */
+/** Round fanlight: a half disc (u across, v from the springing line up to the crown) of glass with a sunburst of thin
+ * dark glazing bars round a half-round hub, a ring of bar half-way out, in a dark frame (the look survey's point 12,
+ * 2026-10-11: they were thick cream bars that read as a white spider and glowed in the dark). Old glass, dark, with a
+ * little of the grey sky on its upper panes; each pixel the mean of 4 x 4 samples, so the bars are smooth lines. Up
+ * close the same bars stand in 3D over it (build_city.py fanlight_bars). */
 function fanlight(g: CanvasRenderingContext2D, x: number, y: number): void {
+  const BAR = [38, 35, 31];
+  const FRAME = [30, 28, 25];
+  const N = 4;
+  const img = g.getImageData(x, y, C, C);
   for (let py = 0; py < C; py++) {
     for (let px = 0; px < C; px++) {
-      const X = ((px + 0.5) / C - 0.5) * 2;
-      const Y = 1 - (py + 0.5) / C;
-      const rho = Math.hypot(X, Y);
-      const phi = Math.atan2(Y, X);
-      let col = "#161b20";
-      if (Y > 0.35 && rho < 0.84) col = "#1d242b";
-      if (rho > 0.86 || Y < 0.08) col = "#3a332c";
-      else if (rho < 0.22) col = "#e0d8c4";
-      else if (rho > 0.24) {
-        for (let k = 1; k < 6; k++) if (Math.abs(phi - (k * Math.PI) / 6) * rho < 0.035) col = "#e0d8c4";
-        if (Math.abs(rho - 0.6) < 0.03) col = "#e0d8c4";
+      let r = 0, gg = 0, b = 0;
+      for (let sy = 0; sy < N; sy++) {
+        for (let sx = 0; sx < N; sx++) {
+          const X = ((px + (sx + 0.5) / N) / C - 0.5) * 2;
+          const Y = 1 - (py + (sy + 0.5) / N) / C;
+          const rho = Math.hypot(X, Y);
+          const phi = Math.atan2(Y, X);
+          // the glass: dark, the sky caught a little higher up, a pane or two a shade apart (old glass)
+          const pane = Math.floor(phi / (Math.PI / 6)) + (rho > 0.6 ? 7 : 0);
+          const k = 0.92 + 0.16 * (((pane * 37) % 11) / 11);
+          let c = [(34 + 44 * Y) * k, (40 + 50 * Y) * k, (47 + 54 * Y) * k];
+          let bar = rho > 0.9 || Y < 0.045 || rho < 0.22;
+          if (!bar) {
+            for (let s = 1; s < 6; s++) if (Math.abs(Math.sin(phi - (s * Math.PI) / 6)) * rho < 0.022) bar = true;
+            if (Math.abs(rho - 0.6) < 0.019) bar = true;
+          }
+          if (bar) c = rho > 0.9 || Y < 0.045 ? FRAME : BAR;
+          r += c[0];
+          gg += c[1];
+          b += c[2];
+        }
       }
-      g.fillStyle = col;
-      g.fillRect(x + px, y + py, 1, 1);
+      const o = (py * C + px) * 4;
+      img.data[o] = r / (N * N);
+      img.data[o + 1] = gg / (N * N);
+      img.data[o + 2] = b / (N * N);
+      img.data[o + 3] = 255;
     }
   }
+  g.putImageData(img, x, y);
 }
 
 /** Loading door of a storehouse: two leaves of vertical tarred planks, a Z brace, strap hinges. */
@@ -429,6 +450,53 @@ function sash(g: CanvasRenderingContext2D, x: number, y: number, frame: string, 
   g.fillRect(x, y, 1, C);
   g.fillRect(x + C - 1, y, 1, C);
   noise(g, x, y, C, C, 0.06, r);
+}
+
+/**
+ * The Grote Markt's guild fronts (tools/blender/guild_fronts.py LEADED, LEADED_SHUT): one panel of a leaded light,
+ * 64 x 64 px over about 0.36 x 0.42 m, tiling (the glass's uv repeats it over each light): small oblong quarries of
+ * old crown glass in lead cames, each a little different in tone, a sky sheen on some, the room dark behind. With
+ * `shut`, the inner shutters closed behind the glass: brown boards seen through it. All opaque (alpha 1): the lit
+ * panes' probe takes it for a window (ambient.ts onPlainWall).
+ */
+function leadedLight(g: CanvasRenderingContext2D, x: number, y: number, shut: boolean, r: () => number): void {
+  g.fillStyle = "#2b2c2b";
+  g.fillRect(x, y, C, C);
+  const cols = 4;
+  const rows = 4;
+  const qw = C / cols;
+  const qh = C / rows;
+  for (let j = 0; j < rows; j++)
+    for (let i = 0; i < cols; i++) {
+      const px = x + i * qw + 1;
+      const py = y + j * qh + 1;
+      const w = qw - 2;
+      const h = qh - 2;
+      const t = r();
+      // the room behind: near black, a cold sky sheen on the old glass (lighter at the top of the pane)
+      const base = shut ? [58 + t * 14, 40 + t * 10, 26 + t * 8] : [24 + t * 16, 30 + t * 16, 36 + t * 18];
+      const green = r() < 0.18 ? 10 : 0;
+      for (let k = 0; k < h; k++) {
+        const f = 1 - k / h;
+        const sheen = shut ? 6 * f : 26 * f * (0.4 + 0.6 * t);
+        g.fillStyle = `rgb(${Math.round(base[0] + sheen)},${Math.round(base[1] + sheen + green)},${Math.round(base[2] + sheen * 1.15)})`;
+        g.fillRect(px, py + k, w, 1);
+      }
+      if (shut && i % 2 === 0) {
+        // the boards' joint and a hinge strap, through the glass
+        g.fillStyle = "rgba(20,12,8,0.6)";
+        g.fillRect(px + w - 1, py, 1, h);
+      }
+      // a bubble or a streak in the glass now and then
+      if (!shut && r() < 0.35) {
+        g.fillStyle = "rgba(190,205,215,0.18)";
+        g.fillRect(px + Math.floor(r() * (w - 3)), py + Math.floor(r() * (h - 2)), 3, 1);
+      }
+    }
+  // the cames: lead, a highlight along their top edges
+  g.fillStyle = "rgba(120,120,112,0.35)";
+  for (let j = 0; j < rows; j++) g.fillRect(x, y + j * qh, C, 1);
+  for (let i = 0; i < cols; i++) g.fillRect(x + i * qw, y, 1, C);
 }
 
 /** A shop window, 64 x 64 px over about 1.9 x 2.26 m: a slim frame, a transom light up top, a mullion;
@@ -556,6 +624,12 @@ export function facadeAtlas(): THREE.CanvasTexture {
   shopWindow(g, ...at(5, 1), "#2a4232", false, r2);
   shopWindow(g, ...at(6, 1), "#4a3322", true, r2);
   dormerWindow(g, ...at(7, 1), r2);
+  // the guild fronts' leaded lights (build_city.py guild_fronts LEADED, LEADED_SHUT): their own dice
+  {
+    const r4 = rand(1879);
+    leadedLight(g, ...at(0, 4), false, r4);
+    leadedLight(g, ...at(1, 4), true, r4);
+  }
   shutterLeaf(g, ...at(4, 2), true, r2);
   shutterLeaf(g, ...at(5, 2), false, r2);
   // grime pass 2: a sash with one pane gone (black) and a crack across another (build_city.py SASH_CRACKED)

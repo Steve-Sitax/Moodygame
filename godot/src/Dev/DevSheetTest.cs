@@ -261,7 +261,7 @@ public partial class DevSheetTest : Node
         }
         string clock = await Press("tide_clock");
         float atClock = Tide.At(GameState.I.Day, (float)GameState.I.HourF);
-        Note("Tide: follow the clock", new { clock, river = Math.Round(Tide.River, 2), atClock = Math.Round(atClock, 2) }, Tide.Hold == null && Math.Abs(Tide.River - atClock) < 0.05f);
+        Note("Tide: follow the clock", new { clock, river = Math.Round(Tide.River, 2), atClock = Math.Round(atClock, 2) }, Tide.Held == null && Math.Abs(Tide.River - atClock) < 0.05f);
         string now = await Press("tide_now");
         Note("Tide: now", now, now.StartsWith("River") && now.Contains("High water") && now.Contains("Low water"));
 
@@ -381,7 +381,7 @@ public partial class DevSheetTest : Node
         Note("Console: hour 15; go -254 90 (the Grote Markt)", new { ran, hour = Math.Round(GameState.I.HourF, 2), x = Math.Round(Jef.I.X), z = Math.Round(Jef.I.Z) }, Math.Abs(GameState.I.HourF - 15) < 0.1 && Whereabouts.Hypot(Jef.I.X + 254, Jef.I.Z - 90) < 12);
         line.Text = "tide high; tide clock; fog on; fog off";
         ran = await Press("console_run");
-        Note("Console: the new commands", ran, ran.Contains("held at high") && Tide.Hold == null && !Daylight.I.ThickFog);
+        Note("Console: the new commands", ran, ran.Contains("held at high") && Tide.Held == null && !Daylight.I.ThickFog);
 
         // ---- F9: fly over the town and land
         await Play(1);

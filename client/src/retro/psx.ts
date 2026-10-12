@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import SKY_BOX from "../../public/textures/skyshade.json";
+import { PERIOD, RISE, tideAt } from "../world/tide";
 
 // PS1-style material patch: vertex snap, affine texture warp, and fog that
 // picks up warm light from the gas lamps (analytic in-scatter per lamp).
@@ -28,11 +29,44 @@ export const MAX_SPILL = 48;
  * (`up`: the sine of the angle over the flame, from the flame to the lit point).
  */
 export const GAS_LAMP_DECAY = 1.7;
+/**
+ * Gas light on the ground (the look survey's point 18, 2026-10-11: "lamps light round blobs on the walls, the paving
+ * stays black"). No new light and the light table (world/lampLight.ts) as it was; the gas lamp's own shape instead:
+ * - under its cap the slanted glass and the cap's white underside throw the light down and out: straight down 2.6 times
+ *   the table's, level with the flame 0.42 (psxLampCap), so the paving under a lamp takes a pool and a wall beside it
+ *   far less;
+ * - a soft core (PSX_LAMP_CORE, added to the fall-off's d^1.7): no hot blob on a wall right by a bracket lantern, the
+ *   frame and the burner shade the nearest stone (1 m off it gives 62 % of the plain fall-off, 3.6 m off 94 %);
+ * - the light on the ground is uneven (psxPoolTone): worn hollows and damp stone take more, dirt and dry crowns less,
+ *   0.35 to 1.65 over 1 to 3 m, so a pool is never a clean disc. Every spilt light (lamps, windows, doors) and the real
+ *   gas lamps' point lights take it; walls take their light evenly.
+ * Godot: Render/Psx.cs psx_lamp_cap, psx_lamp_core, psx_pool_tone (the same numbers).
+ */
+export const PSX_LAMP_CORE = 0.6;
 const lampCapGlsl = /* glsl */ `
 #ifndef PSX_LAMP_CAP
 #define PSX_LAMP_CAP
 float psxLampCap(float decay, float up) {
-  return abs(decay - ${GAS_LAMP_DECAY.toFixed(2)}) < 0.001 ? 1.0 - smoothstep(0.5, 0.8, up) : 1.0;
+  return abs(decay - ${GAS_LAMP_DECAY.toFixed(2)}) < 0.001 ? (1.0 - smoothstep(0.5, 0.8, up)) * (0.42 + 2.2 * smoothstep(-0.05, 0.75, -up)) : 1.0;
+}
+float psxLampCore(float decay) {
+  return abs(decay - ${GAS_LAMP_DECAY.toFixed(2)}) < 0.001 ? ${PSX_LAMP_CORE.toFixed(2)} : 0.0;
+}
+float psxPoolH(vec2 p) {
+  vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
+}
+float psxPoolN(vec2 p) {
+  vec2 i = floor(p), f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(psxPoolH(i), psxPoolH(i + vec2(1.0, 0.0)), f.x), mix(psxPoolH(i + vec2(0.0, 1.0)), psxPoolH(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+float psxPoolTone(vec3 P, vec3 N) {
+  float g = smoothstep(0.55, 0.9, N.y);
+  if (g <= 0.0) return 1.0;
+  float n = 0.62 * psxPoolN(P.xz / 2.6) + 0.38 * psxPoolN(P.xz / 0.95 + 17.3);
+  return 1.0 + g * (n - 0.5) * 1.3;
 }
 #endif
 `;
@@ -42,8 +76,12 @@ const lightsBeginCapped = (() => {
   const line = "getPointLightInfo( pointLight, geometryPosition, directLight );";
   const head = "#if ( NUM_POINT_LIGHTS > 0 ) && defined( RE_Direct )";
   const out = src
-    .replace(line, `${line}\n\t\tdirectLight.color *= psxLampCap( pointLight.decay, dot( normalize( geometryPosition - pointLight.position ), psxUpView ) );`)
-    .replace(head, `vec3 psxUpView = normalize( ( viewMatrix * vec4( 0.0, 1.0, 0.0, 0.0 ) ).xyz );\n${head}`)
+    // (and its soft core and the ground's uneven take of it: PSX_LAMP_CORE, psxPoolTone)
+    .replace(
+      line,
+      `${line}\n\t\t{ float psxLk = pow( max( length( geometryPosition - pointLight.position ), 0.05 ), pointLight.decay ); float psxCore = psxLampCore( pointLight.decay );\n\t\tdirectLight.color *= psxLampCap( pointLight.decay, dot( normalize( geometryPosition - pointLight.position ), psxUpView ) ) * psxLk / ( psxLk + psxCore ) * ( psxCore > 0.0 ? psxPoolK : 1.0 ); }`,
+    )
+    .replace(head, `vec3 psxUpView = normalize( ( viewMatrix * vec4( 0.0, 1.0, 0.0, 0.0 ) ).xyz );\nfloat psxPoolK = psxPoolTone( vPsxWorld, normalize( ( vec4( geometryNormal, 0.0 ) * viewMatrix ).xyz ) );\n${head}`)
     // the sun kept off by the houses between it and the point (psxSunShadow, 2026-09-30)
     .replace(
       "getDirectionalLightInfo( directionalLight, directLight );",
@@ -123,11 +161,21 @@ export const psxUniforms = {
   uBumpRes: { value: 1 },
   /** Where water lies: a soft tiling noise (low spots fill first). */
   uPudNoise: { value: null as THREE.Texture | null },
+  /** The water's wave normal (waveNormals, D3): R and G a tiling noise's slope, B its height; read twice per pixel. */
+  uWaveN: { value: null as THREE.Texture | null },
+  /**
+   * The tide's wet band (setTideWet; the psx option `tideWet`): the last high water's level, the game hours since,
+   * the lowest water since and the hours the ebb ran till then. No band until it is set.
+   */
+  uTideWet: { value: new THREE.Vector4(-99, 0, -99, 1) },
   /** The spill sources (world/spill.ts; see MAX_SPILL). */
   uSpillA: { value: Array.from({ length: MAX_SPILL }, () => new THREE.Vector4(0, -999, 0, 0)) },
   uSpillB: { value: Array.from({ length: MAX_SPILL }, () => new THREE.Vector4()) },
   uSpillC: { value: Array.from({ length: MAX_SPILL }, () => new THREE.Vector4()) },
   uSpillD: { value: Array.from({ length: MAX_SPILL }, () => new THREE.Vector4(1, 2, 0, 1)) },
+  /** The water's ripple sources (`ripples`, MAX_RIPPLES; filled by ripples.update). */
+  uRipA: { value: Array.from({ length: 16 }, () => new THREE.Vector4()) },
+  uRipB: { value: Array.from({ length: 16 }, () => new THREE.Vector4()) },
 };
 
 /**
@@ -152,7 +200,7 @@ vec3 spillOne(vec3 P, vec3 N, vec4 A, vec4 B, vec4 C, vec4 D) {
     float dl = sqrt(dd);
     float cr = max(dot(N, -d / max(dl, 1e-4)), 0.0);
     // (a gas lamp: nothing over its cap, as its point light: psxLampCap, issue #11)
-    return C.rgb * (A.w * cr * fade * psxLampCap(D.y, d.y / max(dl, 1e-4)) / (pow(max(dl, 0.05), D.y) + D.w));
+    return C.rgb * (A.w * cr * fade * psxLampCap(D.y, d.y / max(dl, 1e-4)) / (pow(max(dl, 0.05), D.y) + D.w + psxLampCore(D.y)));
   }
   float o = dot(d, n);
   if (o < -0.08) return vec3(0.0);
@@ -229,7 +277,7 @@ vec3 psxSpill(vec3 P, vec3 N) {
     if (uSpillA[i].w <= 0.0) break;
     E += spillOne(P, N, uSpillA[i], uSpillB[i], uSpillC[i], uSpillD[i]);
   }
-  return E;
+  return E * psxPoolTone(P, N);
 }
 `;
 
@@ -315,6 +363,294 @@ function puddleNoise(): THREE.DataTexture {
   t.needsUpdate = true;
   return t;
 }
+
+/**
+ * The water's wave normal (D3, 2026-10-11; Godot's Render/Psx.cs WaveNormalData makes the same numbers): one tiling
+ * gradient noise of four octaves, a little longer across than along, 256 px. R and G its slope along u and v (0.5 flat,
+ * scaled to the steepest), B its height. The water reads it twice (psxWaves), at two scales turned against each other,
+ * in place of the old 64 px dash picture (its zigzag stamp and bands; the look survey's point 10).
+ */
+export function waveNormalData(): Uint8Array {
+  const n = 256;
+  let seed = 5150;
+  const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+  const h = new Float64Array(n * n);
+  for (const [cx, cy, amp] of [
+    [4, 6, 1],
+    [8, 12, 0.5],
+    [16, 24, 0.25],
+    [32, 48, 0.125],
+  ]) {
+    const gx = new Float64Array(cx * cy);
+    const gy = new Float64Array(cx * cy);
+    for (let i = 0; i < cx * cy; i++) {
+      const a = rnd() * 2 * Math.PI;
+      gx[i] = Math.cos(a);
+      gy[i] = Math.sin(a);
+    }
+    for (let y = 0; y < n; y++)
+      for (let x = 0; x < n; x++) {
+        const fx = ((x + 0.5) / n) * cx;
+        const fy = ((y + 0.5) / n) * cy;
+        const x0 = Math.floor(fx);
+        const y0 = Math.floor(fy);
+        const sx = fx - x0;
+        const sy = fy - y0;
+        const D = (i: number, j: number) => {
+          const k = ((y0 + j) % cy) * cx + ((x0 + i) % cx);
+          return gx[k] * (sx - i) + gy[k] * (sy - j);
+        };
+        const u = sx * sx * sx * (sx * (sx * 6 - 15) + 10);
+        const v = sy * sy * sy * (sy * (sy * 6 - 15) + 10);
+        const p = D(0, 0) + (D(1, 0) - D(0, 0)) * u;
+        const q = D(0, 1) + (D(1, 1) - D(0, 1)) * u;
+        h[y * n + x] += (p + (q - p) * v) * amp;
+      }
+  }
+  let lo = Infinity;
+  let hi = -Infinity;
+  let m = 1e-9;
+  const dx = new Float64Array(n * n);
+  const dy = new Float64Array(n * n);
+  for (let y = 0; y < n; y++)
+    for (let x = 0; x < n; x++) {
+      const i = y * n + x;
+      dx[i] = (h[y * n + ((x + 1) % n)] - h[y * n + ((x + n - 1) % n)]) * 0.5;
+      dy[i] = (h[((y + 1) % n) * n + x] - h[((y + n - 1) % n) * n + x]) * 0.5;
+      m = Math.max(m, Math.abs(dx[i]), Math.abs(dy[i]));
+      lo = Math.min(lo, h[i]);
+      hi = Math.max(hi, h[i]);
+    }
+  const b = new Uint8Array(n * n * 4);
+  for (let i = 0; i < n * n; i++) {
+    b[i * 4] = Math.floor(127.5 + (127.5 * dx[i]) / m + 0.5);
+    b[i * 4 + 1] = Math.floor(127.5 + (127.5 * dy[i]) / m + 0.5);
+    b[i * 4 + 2] = Math.floor(((h[i] - lo) / (hi - lo)) * 255 + 0.5);
+    b[i * 4 + 3] = 255;
+  }
+  return b;
+}
+function waveNormals(): THREE.DataTexture {
+  const t = new THREE.DataTexture(waveNormalData(), 256, 256);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.magFilter = THREE.LinearFilter;
+  // mipmapped: far off the slopes average out to still water (no sparkle at the fog line)
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.generateMipmaps = true;
+  t.anisotropy = 4;
+  t.needsUpdate = true;
+  return t;
+}
+
+/**
+ * The tide's wet band (docs/rendering.md, the switches): set every frame from the game clock (world/rijnkaai.ts
+ * updateTide): the last high water before game day `day` at `hour`, the hours since, the lowest water since and how long
+ * the ebb ran till then. Godot: Render/Psx.cs TideWetAt, set by World/Waters.cs.
+ */
+export function setTideWet(day: number, hour: number): void {
+  const t = (Math.max(1, day) - 1) * 24 + hour;
+  const ph = ((((t - 9.6) % PERIOD) + PERIOD) % PERIOD); // (tide.ts HW0 9.6: the first high water, hours since Monday 0:00)
+  const fall = PERIOD - RISE;
+  const level = (h: number) => tideAt(1, h); // (day 1 and any hour: the hours since Monday 0:00)
+  psxUniforms.uTideWet.value.set(level(t - ph), ph, ph < fall ? level(t) : level(t - ph + fall), Math.min(ph, fall));
+}
+
+/**
+ * How wet a wall or the mud is at height y after the last high water (the psx option `tideWet`; Godot's Psx.cs
+ * TideWetGlsl): above the high-water line dry; the ebb uncovered each height in turn (as if it fell evenly from the high
+ * to the lowest water since), and from then on it dries, by half in about 1.7 game hours.
+ */
+export const tideWetGlsl = /* glsl */ `
+uniform vec4 uTideWet;
+float psxTideWet(float y) {
+  float above = uTideWet.x - y;
+  if (above < 0.0) return 0.0;
+  float uncovered = uTideWet.w * clamp(above / max(uTideWet.x - uTideWet.z, 0.01), 0.0, 1.0);
+  return exp(-max(uTideWet.y - uncovered, 0.0) / 2.5) * smoothstep(0.0, 0.06, above);
+}
+`;
+
+/**
+ * The wave normal at world (x, z) (Godot's Psx.cs psx_waves, the same): the tiling noise read twice, at 9 m and at
+ * 3.1 m, turned against each other and drifting their own ways, so no tile and no band shows. xy the slope in the
+ * world's x and z, z how high a crest is (0..1).
+ */
+const wavesGlsl = /* glsl */ `
+uniform sampler2D uWaveN;
+vec3 psxWaves(vec2 p, float t) {
+  vec2 a = vec2(0.921 * p.x - 0.391 * p.y, 0.391 * p.x + 0.921 * p.y) / 9.0 + t * vec2(0.013, 0.006);
+  vec2 b = vec2(0.485 * p.x + 0.875 * p.y, -0.875 * p.x + 0.485 * p.y) / 3.1 + t * vec2(-0.021, 0.034);
+  vec3 wa = texture2D(uWaveN, a).rgb;
+  vec3 wb = texture2D(uWaveN, b).rgb;
+  vec2 sa = wa.rg * 2.0 - 1.0;
+  vec2 sb = wb.rg * 2.0 - 1.0;
+  // (each slope turned back into the world's axes)
+  vec2 s = vec2(0.921 * sa.x + 0.391 * sa.y, -0.391 * sa.x + 0.921 * sa.y) * 0.1 + vec2(0.485 * sb.x - 0.875 * sb.y, 0.875 * sb.x + 0.485 * sb.y) * 0.05;
+  return vec3(s, wa.b * 0.6 + wb.b * 0.4);
+}
+`;
+
+
+/**
+ * The water's ripple sources (D3; Steve 2026-10-11: "boats creating ripples, swimming also"): the nearest MAX_RIPPLES
+ * of them, the active ones first (strength 0 ends the list), as two vec4s each (Godot: a MAX_RIPPLES x 2 picture):
+ *   a ring (an oar's stroke, a swimmer's stroke, a moored hull bobbing): A (x, z, born at uTime, 0), B (0, spreading
+ *   m/s, life s, strength);
+ *   a wake (a boat under way, a swimmer): A (bow x, z, heading x, z), B (1, speed m/s, beam m, strength).
+ * Fed by `ripples` below (world/rijnkaai.ts sends them every frame).
+ */
+export const MAX_RIPPLES = 16;
+const ripplesGlsl = /* glsl */ `
+uniform vec4 uRipA[${MAX_RIPPLES}];
+uniform vec4 uRipB[${MAX_RIPPLES}];
+// the ripple sources' slope at p (xy) and their height (z): rings that spread and fade, and each boat's V wake (the
+// Kelvin angle, 19.5 degrees each side; its waves stand still to the boat, their length from the speed) with the
+// waves across inside the V and the bow wave
+vec3 psxRipples(vec2 p, float t) {
+  vec2 s = vec2(0.0);
+  float hz = 0.0;
+  for (int i = 0; i < ${MAX_RIPPLES}; i++) {
+    vec4 A = uRipA[i];
+    vec4 B = uRipB[i];
+    if (B.w <= 0.0) break;
+    vec2 q = p - A.xy;
+    if (B.x < 0.5) {
+      float age = t - A.z;
+      if (age < 0.0 || age > B.z) continue;
+      float d = max(length(q), 1e-3);
+      float x = d - B.y * age;
+      if (abs(x) > 1.2) continue;
+      float lam = 0.22 + 0.25 * age;
+      float sig = 0.16 + 0.22 * age;
+      float k = 6.283 / lam;
+      float e = exp(-x * x / (sig * sig));
+      float f = (1.0 - age / B.z);
+      float a = 0.011 * B.w * f * f / (1.0 + 1.5 * B.y * age);
+      s += a * (-k * sin(k * x) - 2.0 * x / (sig * sig) * cos(k * x)) * e * q / d;
+      hz += a * cos(k * x) * e;
+    } else {
+      vec2 dir = A.zw;
+      vec2 perp = vec2(-dir.y, dir.x);
+      float b = -dot(q, dir);
+      float ac = dot(q, perp);
+      float v = max(B.y, 0.3);
+      float beam = B.z;
+      // the bow wave: a hump pushed ahead and to the sides
+      vec2 qb = q - dir * beam * 0.15;
+      float sb = beam * beam * 0.35;
+      float eb = exp(-dot(qb, qb) / sb);
+      float ab = 0.03 * B.w * min(v / 3.0, 1.0) * beam;
+      s += ab * (-2.0 / sb) * eb * qb;
+      hz += ab * eb;
+      if (b < 0.0 || b > 25.0 + 12.0 * v || abs(ac) > 0.4 * b + beam + 2.0) continue;
+      float fade = B.w * exp(-b / (10.0 + 6.0 * v)) * smoothstep(0.0, beam, b) * min(v / 2.0, 1.0);
+      // the arms of the V: short crests along each arm
+      float da = abs(ac) - (0.354 * b + 0.5 * beam);
+      float sg = 0.35 + 0.05 * b;
+      float ka = clamp(15.0 / (v * v), 0.8, 14.0);
+      float g = exp(-da * da / (sg * sg));
+      float sl = 0.6 * fade;
+      float ah = sl / max(ka, 2.0 / sg);
+      float c = cos(ka * b);
+      float dDa = ah * c * g * (-2.0 * da / (sg * sg)) * sign(ac);
+      float dB = -ah * g * ka * sin(ka * b);
+      // the waves across inside the V, half as steep
+      float kt = clamp(9.81 / (v * v), 0.5, 12.0);
+      float inside = smoothstep(0.5, -0.5, da);
+      float at = 0.5 * sl / max(kt, 1.0);
+      dB += -at * inside * kt * sin(kt * b);
+      s += perp * dDa - dir * dB;
+      hz += ah * c * g + at * inside * cos(kt * b);
+    }
+  }
+  return vec3(s, hz);
+}
+`;
+
+/** The ripple sources now (see MAX_RIPPLES): register them every frame; `update` keeps the nearest for the shader. */
+export const ripples = (() => {
+  type Ring = { x: number; z: number; t0: number; c: number; life: number; s: number };
+  type Wake = { x: number; z: number; dx: number; dz: number; v: number; beam: number; s: number; seen: number };
+  type Emitter = { next: number };
+  const rings: Ring[] = [];
+  const wakes = new Map<unknown, Wake>();
+  const emit = new Map<unknown, Emitter>();
+  const now = () => psxUniforms.uTime.value;
+  let seed = 77;
+  const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  // (the eye at the last update: rings born far off are never kept, so they never push out the near ones)
+  let camX = 0;
+  let camZ = 0;
+  const api = {
+    /** A ring born now at (x, z): an oar dipping, a stroke, a splash. `speed` how fast it spreads (m/s), `life` s. */
+    ring(x: number, z: number, strength = 1, speed = 0.45, life = 2.6): void {
+      if (Math.hypot(x - camX, z - camZ) > 70) return;
+      if (rings.length >= 64) rings.shift();
+      rings.push({ x, z, t0: now(), c: speed, life, s: strength });
+    },
+    /** A boat under way this frame (`key` the boat): its bow at (x, z), heading (dx, dz), speed m/s, beam m. */
+    wake(key: unknown, x: number, z: number, dx: number, dz: number, speed: number, beam: number, strength = 1): void {
+      const l = Math.hypot(dx, dz) || 1;
+      const w = wakes.get(key) ?? { x, z, dx, dz, v: 0, beam, s: 0, seen: 0 };
+      Object.assign(w, { x, z, dx: dx / l, dz: dz / l, v: speed, beam, s: speed > 0.15 ? strength : 0, seen: now() });
+      wakes.set(key, w);
+    },
+    /** A swimmer this frame: a ring at every stroke while moving, a small wake (`key` the swimmer). */
+    swim(key: unknown, x: number, z: number, dx: number, dz: number, speed: number): void {
+      api.wake(key, x, z, dx, dz, speed, 0.5, 0.6);
+      const e = emit.get(key) ?? { next: 0 };
+      emit.set(key, e);
+      if (now() >= e.next) {
+        e.next = now() + (speed > 0.2 ? 0.85 : 2.2);
+        api.ring(x, z, speed > 0.2 ? 0.9 : 0.45, 0.4, 2.4);
+      }
+    },
+    /** A moored hull bobbing this frame (centre, heading, length, beam): now and then a faint ring against its side. */
+    moored(key: unknown, x: number, z: number, dx: number, dz: number, length: number, beam: number): void {
+      if (Math.abs(x - camX) > 50 || Math.abs(z - camZ) > 50) return;
+      const e = emit.get(key) ?? { next: now() + rnd() * 3 };
+      emit.set(key, e);
+      if (now() < e.next) return;
+      e.next = now() + 1.8 + rnd() * 2.5;
+      const l = Math.hypot(dx, dz) || 1;
+      const along = (rnd() - 0.5) * length * 0.8;
+      const side = (rnd() < 0.5 ? -1 : 1) * beam * 0.5;
+      api.ring(x + (dx / l) * along - (dz / l) * side, z + (dz / l) * along + (dx / l) * side, 0.35, 0.3, 3.2);
+    },
+    /** Every frame (world/rijnkaai.ts): the nearest sources to (cx, cz) into the shader's lists. */
+    update(cx: number, cz: number): void {
+      camX = cx;
+      camZ = cz;
+      const t = now();
+      for (let i = rings.length - 1; i >= 0; i--) if (t - rings[i].t0 > rings[i].life || t < rings[i].t0) rings.splice(i, 1);
+      for (const [k, w] of wakes) if (t - w.seen > 0.5 || t < w.seen) wakes.delete(k);
+      for (const [k, e] of emit) if (e.next > t + 10) emit.delete(k);
+      const list: Array<{ d: number; a: [number, number, number, number]; b: [number, number, number, number] }> = [];
+      for (const r of rings) {
+        const d = Math.hypot(r.x - cx, r.z - cz) - r.c * (t - r.t0);
+        if (d < 60) list.push({ d, a: [r.x, r.z, r.t0, 0], b: [0, r.c, r.life, r.s] });
+      }
+      for (const w of wakes.values()) {
+        if (w.s <= 0) continue;
+        const d = Math.hypot(w.x - cx, w.z - cz) - 15;
+        if (d < 120) list.push({ d: d - 40, a: [w.x, w.z, w.dx, w.dz], b: [1, w.v, w.beam, w.s] });
+      }
+      list.sort((p, q) => p.d - q.d);
+      const A = psxUniforms.uRipA.value;
+      const B = psxUniforms.uRipB.value;
+      for (let i = 0; i < MAX_RIPPLES; i++) {
+        const e = list[i];
+        if (e) {
+          A[i].set(...e.a);
+          B[i].set(...e.b);
+        } else B[i].set(0, 0, 0, 0);
+      }
+    },
+    /** Dev: how many sources there are and how many the shader gets. */
+    info: () => ({ rings: rings.length, wakes: wakes.size, sent: psxUniforms.uRipB.value.filter((b) => b.w > 0).length }),
+  };
+  return api;
+})();
 
 /** Until the litter layer sets its own: clean water everywhere. */
 function noFoul(): THREE.DataTexture {
@@ -411,6 +747,19 @@ float pudVal(vec2 p) {
 export interface PsxOptions {
   /** Animate vertices as water waves. */
   water?: boolean;
+  /**
+   * A name plate on an InstancedMesh (D3, the boats' names; docs/rendering.md, the switches): the map is a names atlas
+   * of N x N cells and each instance draws the cell its instance colour names (setNameCell; red the column, green the
+   * row from the top, as n / 255). The plate's uv runs 0..1 over the plate. The instance colour then tints nothing.
+   * Set every instance's cell before the mesh is first drawn (instanceColor must be there when its shader is built).
+   */
+  nameCell?: number;
+  /**
+   * The tide's wet band on this surface (D3, for the quay walls and the mud; docs/rendering.md, the switches): how
+   * much darker the stone goes where the ebb has just uncovered it (0..1, about 0.35 for stone), drying over the game
+   * hours after (psxTideWet, the shared uTideWet). Faces of any slope; by world height.
+   */
+  tideWet?: number;
   /** Sheltered ponds: same water shader, shorter ripples than the open river. */
   waterCalm?: boolean;
   /** Affine texture warp strength, 0..1. */
@@ -734,20 +1083,35 @@ float wetStreak(vec3 ro, vec3 rr, vec3 p) {
   float dv = length(perp - across * da);
   return 1.0 / (1.0 + da * da * 5.0 + dv * dv * 0.35) / (1.0 + t0 * 0.08);
 }
-// Rain rings: drops land in a grid of cells, each ring grows and fades.
-float rainRings(vec2 wp, float t, float amount) {
-  float ring = 0.0;
-  for (int k = 0; k < 2; k++) {
-    vec2 g = wp * 1.3 + float(k) * vec2(0.37, 0.71);
+// Rain on water (D3; Steve 2026-10-11: "the rounds the rain creates seem very drawn and cartoonish"): many small rings
+// of their own sizes that spread and fade within a second, a dimple where each drop lands, the more the harder it
+// rains. Only a slope (xy, in the world's x and z) for the normal: nothing is drawn on top; the ring shows as the sky
+// and the street bend in it. Three layers of cells, one drop at a time in each cell, every drop at a new place.
+vec2 rainRipples(vec2 p, float t, float amount) {
+  vec2 s = vec2(0.0);
+  for (int k = 0; k < 3; k++) {
+    float cs = 0.62 - 0.15 * float(k);
+    vec2 g = p / cs + float(k) * vec2(0.37, 0.71);
     vec2 id = floor(g);
-    vec2 f = fract(g) - 0.5;
     float h = fract(sin(dot(id, vec2(127.1, 311.7)) + float(k) * 13.1) * 43758.5453);
-    vec2 c = (vec2(fract(h * 7.13), fract(h * 3.71)) - 0.5) * 0.4;
-    float ph = fract(t * 0.8 + h * 5.0);
-    float d = length(f - c);
-    ring += smoothstep(0.045, 0.0, abs(d - ph * 0.3)) * (1.0 - ph) * step(h, amount * 1.1);
+    float life = 0.5 + 0.45 * fract(h * 3.3);
+    float cyc = t / life + h * 7.0;
+    float ph = fract(cyc);
+    float h2 = fract(sin(dot(id + floor(cyc) * 0.173, vec2(269.5, 183.3)) + float(k)) * 43758.5453);
+    if (h2 > amount * 1.15) continue;
+    vec2 q = (fract(g) - 0.5 - (vec2(fract(h2 * 7.13), fract(h2 * 3.71)) - 0.5) * 0.4) * cs;
+    float d = max(length(q), 1e-3);
+    // the ring: one crest with a trough on each side, spreading fast then slower, flattening as it goes
+    float x = d - cs * (0.18 + 0.2 * fract(h2 * 11.0)) * sqrt(ph);
+    float lam = 0.055 + 0.045 * ph;
+    float e = exp(-x * x / (lam * lam * 0.5));
+    float a = 0.002 * (1.0 - ph) * (1.0 - ph);
+    float dh = a * (-6.283 / lam * sin(6.283 * x / lam) - 4.0 * x / (lam * lam) * cos(6.283 * x / lam)) * e;
+    // the dimple where the drop went in, gone in a tenth of a second
+    dh += 0.0025 * (1.0 - smoothstep(0.0, 0.14, ph)) * (2.0 * d / 0.0004) * exp(-d * d / 0.0004);
+    s += dh * q / d;
   }
-  return ring;
+  return s;
 }
 `;
 
@@ -821,7 +1185,15 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
       shader.uniforms.uMirrorOn = psxUniforms.uMirrorOn;
       shader.uniforms.uPudNoise = psxUniforms.uPudNoise;
     }
+    if (opts.tideWet) {
+      shader.uniforms.uTideWet = psxUniforms.uTideWet;
+      shader.uniforms.uTideWetK = { value: opts.tideWet };
+    }
     if (opts.water) {
+      psxUniforms.uWaveN.value ??= waveNormals();
+      shader.uniforms.uWaveN = psxUniforms.uWaveN;
+      shader.uniforms.uRipA = psxUniforms.uRipA;
+      shader.uniforms.uRipB = psxUniforms.uRipB;
       shader.uniforms.uShore = psxUniforms.uShore;
       shader.uniforms.uShoreBox = psxUniforms.uShoreBox;
       shader.uniforms.uWaterMirror = psxUniforms.uWaterMirror;
@@ -834,9 +1206,24 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
     let vs = shader.vertexShader;
     vs = vs.replace(
       "#include <common>",
-      "#include <common>\n" + commonVertex + (opts.atlas ? "attribute vec2 cell;\nvarying vec2 vCell;\n" : "") + (opts.water ? "varying float vWaveH;\n" : ""),
+      "#include <common>\n" + commonVertex + (opts.atlas ? "attribute vec2 cell;\nvarying vec2 vCell;\n" : "") + (opts.water ? "varying float vWaveH;\n" : "") + (opts.nameCell ? "varying vec2 vNameCell;\n" : ""),
     );
     if (opts.atlas) vs = vs.replace("#include <uv_vertex>", "#include <uv_vertex>\nvCell = cell;");
+    if (opts.nameCell)
+      // (a name plate: its cell in the names atlas from its instance colour, which then tints nothing)
+      vs = vs.replace(
+        "#include <color_vertex>",
+        `#include <color_vertex>
+      #ifdef USE_INSTANCING_COLOR
+      vNameCell = floor(instanceColor.rg * 255.0 + 0.5);
+      vColor.xyz = vec3(1.0);
+      #ifdef USE_COLOR
+      vColor.xyz *= color.xyz;
+      #endif
+      #else
+      vNameCell = vec2(0.0);
+      #endif`,
+      );
 
     if (opts.water) {
       // Plane is rotated -90 deg on X: local x = world x, local y = -world z,
@@ -847,17 +1234,14 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
         {
           vec4 wp = modelMatrix * vec4(position, 1.0);
           float t = uTime;
-          // slopes of the waves below (a little steeper than true, for the glints)
+          // slopes of the swell's long waves below (D3: the short ones fell between the sheet's vertices, 5 m apart, and
+          // drew bands; the ripples are the wave normal's, per pixel: psxWaves)
           float sw = cos(wp.x * 0.11 + wp.z * 0.07 + t * 0.45);
           float dx = sw * 0.018
                    + cos(wp.x * 0.35 + t * 0.9) * 0.045
-                   + cos(wp.z * 0.55 - t * 0.7 + wp.x * 0.2) * 0.016
-                   + cos((wp.x + wp.z) * 1.3 + t * 1.7) * 0.039
-                   + cos(wp.x * 3.1 - wp.z * 1.7 + t * 2.3) * 0.07;
+                   + cos(wp.z * 0.55 - t * 0.7 + wp.x * 0.2) * 0.016;
           float dz = sw * 0.012
-                   + cos(wp.z * 0.55 - t * 0.7 + wp.x * 0.2) * 0.05
-                   + cos((wp.x + wp.z) * 1.3 + t * 1.7) * 0.039
-                   - cos(wp.x * 3.1 - wp.z * 1.7 + t * 2.3) * 0.04;
+                   + cos(wp.z * 0.55 - t * 0.7 + wp.x * 0.2) * 0.05;
           objectNormal = normalize(vec3(-dx * ${opts.waterCalm ? "0.28" : "1.0"}, dz * ${opts.waterCalm ? "0.28" : "1.0"}, 1.0));
         }
         #ifdef USE_TANGENT
@@ -924,6 +1308,9 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
       "#include <common>\n" +
         commonFragment +
         (opts.atlas ? "varying vec2 vCell;\n" : "") +
+        (opts.nameCell ? "varying vec2 vNameCell;\n" : "") +
+        (opts.tideWet ? tideWetGlsl + "uniform float uTideWetK;\n" : "") +
+        (opts.water ? wavesGlsl + ripplesGlsl : "") +
         (opts.wet || opts.water ? wetFragment : "") +
         (spillOn ? spillSumGlsl : "") +
         (spillOn && opts.wet ? spillWetGlsl : "") +
@@ -1019,6 +1406,7 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
     fs = fs.replace(
       "#include <map_fragment>",
       /* glsl */ `float psxH = 0.5; // how high the stone is here (relief height map); the puddles leave the tops dry
+      ${opts.water ? "vec3 psxWave = vec3(0.0, 0.0, 0.5); // the ripples here (psxWaves): the slope in x and z, a crest's height" : ""}
       // how worn the ground is here: the cart roads (world/dirt.ts, green channel)
       float psxWear = ${opts.vary ? "texture2D(uDirt, (vPsxWorld.xz - uDirtBox.xy) / uDirtBox.zw).g" : "0.0"};
       #ifdef USE_MAP
@@ -1029,6 +1417,7 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
         float near = smoothstep(4.0, 14.0, length(vPsxWorld - cameraPosition));
         vec2 psxUv = mix(vMapUv, affUv, uAffine * near);
         ${opts.atlas ? `psxUv = (vCell + fract(psxUv)) / ${opts.atlas.toFixed(1)};` : ""}
+        ${opts.nameCell ? `psxUv = (vec2(vNameCell.x, ${(opts.nameCell - 1).toFixed(1)} - vNameCell.y) + clamp(psxUv, 0.0, 1.0)) / ${opts.nameCell.toFixed(1)};` : ""}
         ${
           opts.relief && opts.relief.depth > 0
             ? `// parallax occlusion: step into the stones along the view ray, near the eye only
@@ -1179,8 +1568,20 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
           vec2 wxz = vPsxWorld.xz;
           float detail = smoothstep(70.0, 10.0, length(vPsxWorld - cameraPosition));
           diffuseColor.rgb = mix(diffuse * vec3(0.045, 0.062, 0.05), diffuseColor.rgb, detail);
+          // the ripples (psxWaves): rougher in the rain and in a blow, a sheltered pond far calmer
+          psxWave = psxWaves(wxz, uTime);
+          psxWave.xy *= (0.6 + 0.4 * min(uSea, 3.0)) * (1.0 + 0.9 * uRain * uRain) * ${opts.waterCalm ? "0.3" : "1.0"};
+          {
+            // the rain's rings (gone where a ring is under a pixel) and the boats' and swimmers' wakes and rings
+            float near = 1.0 - smoothstep(14.0, 40.0, length(vPsxWorld - cameraPosition));
+            if (uRain > 0.001 && near > 0.0) psxWave.xy += rainRipples(wxz, uTime, uRain) * near;
+            vec3 rip = psxRipples(wxz, uTime);
+            psxWave.xy += rip.xy;
+            // (a wake's crests a shade lighter: the bow wave and the arms near a boat)
+            diffuseColor.rgb *= 1.0 + clamp(rip.z * 5.0, -0.15, 0.3);
+          }
           // wave crests a shade lighter, troughs darker
-          diffuseColor.rgb *= 1.0 + clamp(vWaveH * 0.18, -0.45, 0.7);
+          diffuseColor.rgb *= (1.0 + clamp(vWaveH * 0.18, -0.45, 0.7)) * (0.94 + 0.12 * psxWave.z);
           // along the walls: lighter, silty water and foam lapping at the stone, in 20 cm pixels
           float shore = texture2D(uShore, (wxz - uShoreBox.xy) / uShoreBox.zw).r * 8.0;
           vec2 cell = floor(wxz * 5.0);
@@ -1221,6 +1622,17 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
         reflectedLight.directDiffuse += psxSpill(vPsxWorld, spillN) * BRDF_Lambert(material.diffuseColor);
       }`,
       );
+    }
+    if (opts.water) {
+      // the ripples tilt the normal every light sees: the sun's sheen, the mirror's Fresnel (D3)
+      fs = fs.replace(
+        "#include <normal_fragment_maps>",
+        "#include <normal_fragment_maps>\n      normal = normalize((viewMatrix * vec4(normalize((vec4(normal, 0.0) * viewMatrix).xyz + vec3(-psxWave.x, 0.0, -psxWave.y)), 0.0)).xyz);",
+      );
+    }
+    if (opts.tideWet) {
+      // the tide's wet band: darker stone and mud where the ebb has just uncovered it
+      fs = fs.replace("#include <color_fragment>", "#include <color_fragment>\n      diffuseColor.rgb *= 1.0 - uTideWetK * psxTideWet(vPsxWorld.y);");
     }
     if (opts.relief || opts.slabs) {
       // the ground bump: the lights (sun, sky, lamps, the lantern, the spilt light) see the stones' own normal
@@ -1299,17 +1711,14 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
         ${
           opts.water
             ? `{
-          // a dark mirror: the misty sky at low angles, black water looking down, the gas
-          // lamps drawn out into long broken streaks by fine ripples (in chunky world pixels)
-          vec3 wn = normalize((vec4(normal, 0.0) * viewMatrix).xyz);
-          vec2 rp = floor(vPsxWorld.xz * 6.0) / 6.0;
-          vec2 rip = vec2(sin(rp.x * 2.7 + rp.y * 0.9 + uTime * 1.9), sin(rp.y * 3.3 - rp.x * 0.7 - uTime * 1.5)) * ${opts.waterCalm ? "0.006 * (1.0 + uRain * 1.5)" : "0.06"};
-          vec3 rn = normalize(wn + vec3(rip.x, 0.0, rip.y));
+          // a dark mirror: the misty sky at low angles, black water looking down, the gas lamps drawn out into long
+          // broken streaks by the ripples (the wave normal is in normal; D3: no more chunky world pixels, the zigzag stamp)
+          vec3 rn = normalize((vec4(normal, 0.0) * viewMatrix).xyz);
           float cosV = max(dot(rn, -rd), 0.0);
           if (uWaterMirrorOn > 0.5) {
             // the quays, ships and sky mirrored (world/mirror.ts), shaken by the ripples
             vec4 mr = uWaterMirrorMat * vec4(vPsxWorld, 1.0);
-            mr.xy += rip * 0.35 * mr.w;
+            mr.xy += psxWave.xy * 0.22 * mr.w;
             vec3 mc = texture2DProj(uWaterMirror, mr).rgb;
             float f = ${opts.waterCalm ? "0.48 + 0.48 * pow(1.0 - cosV, 3.0)" : "max(0.22, 0.04 + 0.96 * pow(1.0 - cosV, 5.0))"};
             // (the great storm: the torn-up water mirrors nothing; Steve 2026-09-28)
@@ -1331,18 +1740,19 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
             }
           }
           vec3 rr = reflect(rd, rn);
+          // (D3) a ripple facing the eye mirrors higher, brighter sky, one turned away the dark water's own: the rings,
+          // the wakes and the rain show as light on their slopes, as on real water under a grey sky
+          gl_FragColor.rgb += fogColor * clamp(rr.y + rd.y, -0.2, 0.25) * 0.55 * (1.0 - smoothstep(25.0, 70.0, length(vPsxWorld - cameraPosition)));
           float refl = 0.0;
           float streak = 0.0;
           for (int i = 0; i < MAX_LAMPS; i++) {
             refl += uLamps[i].w * lampReflect(vPsxWorld, rr, uLamps[i].xyz);
             streak += uLamps[i].w * wetStreak(vPsxWorld, rr, uLamps[i].xyz);
           }
-          float dash = 0.5 + 0.5 * sin(rp.y * 7.0 + rp.x * 1.3 + uTime * 2.2);
-          gl_FragColor.rgb += uLampColor * (refl * 0.09 + streak * 0.5 * dash * dash);
-          if (uRain > 0.001) {
-            // rain on the water: rings that catch the sky
-            gl_FragColor.rgb += (fogColor * 0.7 + 0.015) * rainRings(vPsxWorld.xz, uTime, uRain) * 0.6 * uRain;
-          }
+          // (a lamp's streak breaks up on the crests)
+          float brk = smoothstep(0.35, 0.75, psxWave.z);
+          gl_FragColor.rgb += uLampColor * (refl * 0.09 + streak * 0.5 * brk);
+          // (rain on the water: its rings are in the normal, psxWave; D3, no drawn outline)
         }`
             : ""
         }
@@ -1357,23 +1767,25 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
           float stone = smoothstep(0.06, 0.4, dot(diffuseColor.rgb, vec3(0.333)));
           float patchy = pudVal(vPsxWorld.xz / 1.7) * 0.6 + pudVal(vPsxWorld.xz * 4.0) * 0.4;
           float wetK = uWet * smoothstep(0.15, 0.65, patchy + uWet * 0.35);
-          gl_FragColor.rgb *= 1.0 - 0.36 * wetK * (1.25 - 0.5 * stone);
-          float grazing = pow(1.0 - clamp(-rd.y, 0.0, 1.0), 3.0);
+          // (the look survey's point 19: rain showed no wet: a little darker, and the sky's sheen on the stones' wet tops
+          // rises toward a slant as on water, Fresnel's way)
+          gl_FragColor.rgb *= 1.0 - 0.44 * wetK * (1.25 - 0.5 * stone);
+          float grazing = 0.06 + pow(1.0 - clamp(-rd.y, 0.0, 1.0), 5.0);
           // half-metre faces: big enough to show at the game's picture size
           float glint = step(0.6, pudHash(floor(vPsxWorld.xz * 2.2)));
           ${opts.relief || opts.slabs ? "// (the ground bump) the wet tops of the stones glint, the joints stay dark\n          glint = smoothstep(0.3, 0.65, psxH) * (0.45 + 0.55 * glint);" : ""}
-          gl_FragColor.rgb += fogColor * grazing * 0.2 * wetK * stone * (0.25 + 0.75 * glint);
+          gl_FragColor.rgb += fogColor * grazing * 0.45 * wetK * stone * (0.2 + 0.8 * glint);
           vec3 rr = vec3(rd.x, -rd.y, rd.z);
           float wrefl = 0.0;
           for (int i = 0; i < MAX_LAMPS; i++) {
             wrefl += uLamps[i].w * wetStreak(vPsxWorld, rr, uLamps[i].xyz);
           }
-          gl_FragColor.rgb += uLampColor * wrefl * wetK * stone * (0.15 + 0.85 * glint) * 0.4;
+          gl_FragColor.rgb += uLampColor * wrefl * wetK * stone * (0.15 + 0.85 * glint) * 0.65;
           // (the lit windows and doors: only on the wet tops of the stones, the joints dark. Steve 2026-09-27, 20:40 in
           // the rain before a shop: "the flatness in front", the streak laid over joints and stones alike, one smooth
           // pale sheet that hid the setts, the barrels' old rain sheen on the ground)
-          ${spillOn ? "gl_FragColor.rgb += psxSpillWet(vPsxWorld, rr, 0.0) * wetK * stone * (0.1 + 0.9 * glint) * 0.15;" : ""}
-          if (uRain > 0.001) gl_FragColor.rgb += fogColor * rainRings(vPsxWorld.xz * 1.6, uTime * 1.3, uRain * 0.6) * 0.18 * wetK;
+          ${spillOn ? "gl_FragColor.rgb += psxSpillWet(vPsxWorld, rr, 0.0) * wetK * stone * (0.1 + 0.9 * glint) * 0.25;" : ""}
+          // (D3: no drawn rings on the wet stone; a drop on stone splashes, it leaves no ring. The puddles have them.)
         }`
             : ""
         }
@@ -1398,13 +1810,17 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
           // the slow noise filled it wall to wall, a street-long mirror): a second, finer noise cuts it up
           water *= smoothstep(0.46, 0.56, pudVal(pp / 2.1 + 57.1)) * smoothstep(0.3, 0.42, pudVal(pp / 4.7 - 23.9));
           // stones and pebbles stand out of the water: the shallower the puddle, the more of them
-          ${opts.relief ? "water *= 1.0 - smoothstep(0.6 + lvl * 0.2, 0.7 + lvl * 0.2, psxH) * (1.0 - smoothstep(th + 0.05, th + 0.3, pn));" : ""}
+          // (survey finding 23, 2026-10-11: they stood out as hard black specks on a pale sheet; now only the high ones,
+          // with a soft edge, where the puddle is shallow)
+          ${opts.relief ? "water *= 1.0 - smoothstep(0.66 + lvl * 0.2, 0.84 + lvl * 0.2, psxH) * (1.0 - smoothstep(th + 0.03, th + 0.2, pn));" : ""}
           water = clamp(water, 0.0, 1.0);
           float damp = smoothstep(th - 0.09, th, pn);
           gl_FragColor.rgb *= 1.0 - 0.38 * damp * (1.0 - water);
           if (water > 0.0) {
             float cosT = clamp(-rd.y, 0.0, 1.0);
-            float F = max(0.02 + 0.98 * pow(1.0 - cosT, 5.0), 0.22);
+            // (survey finding 23, 2026-10-11: a pale sheet of sky; a puddle is dark water that mirrors softly: little of
+            // the picture looking down, more at a slant)
+            float F = max(0.02 + 0.98 * pow(1.0 - cosT, 5.0), 0.1);
             // wind ripples (Steve 2026-09-28; after Lagarde's rainy-world study): fine crests across the wind that run
             // with it at a ripple's pace (~0.25 m/s), in gust patches a few metres across that drift downwind; between
             // the gusts a puddle is a still, sharp mirror. The sea state (uSea: fog 0.85, clear 1.1, rain 1.5, storm
@@ -1422,11 +1838,17 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
             vec2 rip = vec2(sin(ph + pudVal(rp * 1.9) * 5.0), sin(ph * 0.87 + 1.7 + pudVal(rp * 2.6 + 9.0) * 5.0));
             float near = 1.0 - smoothstep(10.0, 30.0, distance(vPsxWorld, cameraPosition));
             vec2 wob = (wd * rip.x + vec2(-wd.y, wd.x) * rip.y * 0.45) * (0.0006 + gust * (0.0045 + 0.006 * wk * wk)) * wind * near;
-            ${opts.wet ? "if (uRain > 0.001) wob += vec2(rainRings(vPsxWorld.xz * 1.4, uTime * 1.2, uRain)) * 0.012;" : ""}
+            ${opts.wet ? "if (uRain > 0.001) wob += rainRipples(vPsxWorld.xz, uTime, uRain) * 0.045 * (1.0 - smoothstep(10.0, 30.0, length(vPsxWorld - cameraPosition)));" : ""}
             vec4 mr = uMirrorMat * vec4(vPsxWorld, 1.0);
             mr.xy += wob * mr.w;
             // (reflections off: no street in it, dark water with a little of the sky's grey at a slant)
-            vec3 refl = uMirrorOn > 0.5 ? texture2DProj(uMirror, mr).rgb * 1.1 : fogColor * 0.3;
+            // (survey finding 23: the 320 x 180 picture read sharp, in blocks; five taps soften it as still, dirty water does)
+            vec3 refl = fogColor * 0.3;
+            if (uMirrorOn > 0.5) {
+              vec2 tx = vec2(1.3 / 320.0, 1.3 / 180.0) * mr.w;
+              refl = (texture2DProj(uMirror, mr).rgb * 2.0 + texture2DProj(uMirror, mr + vec4(tx.x, tx.y * 0.4, 0.0, 0.0)).rgb + texture2DProj(uMirror, mr - vec4(tx.x, tx.y * 0.4, 0.0, 0.0)).rgb
+                + texture2DProj(uMirror, mr + vec4(-tx.x * 0.4, tx.y, 0.0, 0.0)).rgb + texture2DProj(uMirror, mr - vec4(-tx.x * 0.4, tx.y, 0.0, 0.0)).rgb) / 6.0 * 0.85;
+            }
             // a rippled patch scatters the picture a little: duller than the still water round it
             refl *= 1.0 - 0.12 * gust * min(1.0, wind - 0.6);
             // (the great storm: the puddles are all rain-splash and wind; no picture in them)
@@ -1437,7 +1859,7 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
             refl += uLampColor * lamp * 0.8;
             ${spillOn && opts.wet ? "refl += psxSpillWet(vPsxWorld, rr, 1.0) * 0.05;" : ""}
             // shallow, a little brown: the ground under it, darker
-            vec3 under = gl_FragColor.rgb * vec3(0.52, 0.48, 0.42);
+            vec3 under = gl_FragColor.rgb * vec3(0.38, 0.35, 0.31);
             gl_FragColor.rgb = mix(gl_FragColor.rgb, mix(under, refl, F), water);
           }
         }`
@@ -1457,7 +1879,7 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
   // M7 rendering (world/cull.ts): how far the fog lets this material show, and water (waves reach over the sheet)
   // (`bake`: the options as plain data for the Godot port's bake, tools/godot/export-scene.mjs; a texture as its uuid)
   mat.userData.psx = { fogReach: opts.fogReach ?? 1, water: !!opts.water, waterCalm: !!opts.waterCalm, bake: bakeOptions(opts) };
-  mat.customProgramCacheKey = () => `psx-${opts.water ? 2 : 0}${opts.waterCalm ? "-pond" : ""}-${opts.noSnap ? 1 : 0}-${opts.atlas ?? 0}-${opts.fogReach ?? 1}${opts.wet ? "-wet" : ""}${opts.puddles ? `-pud${opts.puddles}` : ""}${opts.relief ? `-rel${opts.relief.tile}${opts.relief.id ? `-id${opts.relief.holes ?? 0}` : ""}${opts.relief.reach ? `-r${opts.relief.reach}` : ""}` : ""}${opts.vary ? `-v${opts.vary}` : ""}${opts.detile ? "-dt" : ""}${opts.slabs ? `-slab${opts.slabs.tile}-${opts.slabs.yMax}` : ""}${opts.foot ? `-foot${opts.foot.amount}${opts.foot.vertexWear ? "w" : ""}` : ""}${opts.mottle ? `-mot${opts.mottle}` : ""}${opts.spill === false ? "-nosp" : ""}`;
+  mat.customProgramCacheKey = () => `psx-${opts.water ? 2 : 0}${opts.waterCalm ? "-pond" : ""}-${opts.noSnap ? 1 : 0}-${opts.atlas ?? 0}-${opts.fogReach ?? 1}${opts.wet ? "-wet" : ""}${opts.puddles ? `-pud${opts.puddles}` : ""}${opts.relief ? `-rel${opts.relief.tile}${opts.relief.id ? `-id${opts.relief.holes ?? 0}` : ""}${opts.relief.reach ? `-r${opts.relief.reach}` : ""}` : ""}${opts.vary ? `-v${opts.vary}` : ""}${opts.detile ? "-dt" : ""}${opts.slabs ? `-slab${opts.slabs.tile}-${opts.slabs.yMax}` : ""}${opts.foot ? `-foot${opts.foot.amount}${opts.foot.vertexWear ? "w" : ""}` : ""}${opts.mottle ? `-mot${opts.mottle}` : ""}${opts.spill === false ? "-nosp" : ""}${opts.nameCell ? `-nc${opts.nameCell}` : ""}${opts.tideWet ? "-tw" : ""}`;
   return mat;
 }
 
@@ -2028,3 +2450,48 @@ if (typeof document !== "undefined") new THREE.TextureLoader().load(`${import.me
   psxUniforms.uSkyShade.value = t;
   psxUniforms.uSkyOn.value = SKY_SHADE;
 });
+
+/**
+ * A name plate's cell in its names atlas (the psx option `nameCell`): instance `i` of `mesh` draws cell `cell` of an
+ * atlas of `cells` x `cells` (counted along the rows from the top left). Call it for every instance before the mesh is
+ * first drawn (rendering.md rule 3), then set `mesh.instanceColor.needsUpdate` after a later change.
+ */
+export function setNameCell(mesh: THREE.InstancedMesh, i: number, cell: number, cells: number): void {
+  mesh.setColorAt(i, new THREE.Color((cell % cells) / 255, Math.floor(cell / cells) / 255, 1));
+}
+
+/**
+ * The shader switches' tiny test (D3; Godot's World/Waters.cs SwitchTest, the same things, -- --switch-test x,y,z):
+ * four name plates on one InstancedMesh showing the cells 3, 2, 1, 0 of a 2 x 2 atlas (yellow, blue, green, red, each
+ * with its white mark top left) centred at (x, y, z), and 4 m east a stone pillar from 6 m under the quay up to its top
+ * with the tide's wet band (tideWet 0.6). In the test tab: `(await import("/src/retro/psx.ts")).psxSwitchTest(
+ * __scheldemist.world.scene, x, y, z)`. Returns the shared tide value.
+ */
+export function psxSwitchTest(scene: THREE.Object3D, x: number, y: number, z: number): number[] {
+  const c = document.createElement("canvas");
+  c.width = c.height = 64;
+  const g = c.getContext("2d")!;
+  ["#cc1a1a", "#1ab21a", "#1a33e6", "#e6cc1a"].forEach((col, cell) => {
+    const x0 = (cell % 2) * 32;
+    const y0 = Math.floor(cell / 2) * 32;
+    g.fillStyle = col;
+    g.fillRect(x0, y0, 32, 32);
+    g.fillStyle = "#ffffff";
+    g.fillRect(x0 + 3, y0 + 3, 9, 9);
+  });
+  const atlas = new THREE.CanvasTexture(c);
+  atlas.colorSpace = THREE.SRGBColorSpace;
+  const plates = new THREE.InstancedMesh(new THREE.PlaneGeometry(1.2, 1.2), psx(new THREE.MeshLambertMaterial({ map: atlas, side: THREE.DoubleSide }), { nameCell: 2 }), 4);
+  for (let i = 0; i < 4; i++) {
+    plates.setMatrixAt(i, new THREE.Matrix4().makeTranslation(-2.1 + 1.4 * i, 0, 0));
+    setNameCell(plates, i, 3 - i, 2);
+  }
+  plates.position.set(x, y, z);
+  plates.name = "switch_test_names";
+  scene.add(plates);
+  const pillar = new THREE.Mesh(new THREE.BoxGeometry(1, 6, 1), psx(new THREE.MeshLambertMaterial({ color: new THREE.Color().setRGB(0.55, 0.52, 0.48, THREE.SRGBColorSpace) }), { tideWet: 0.6 }));
+  pillar.position.set(x + 4, -3, z);
+  pillar.name = "switch_test_tide";
+  scene.add(pillar);
+  return psxUniforms.uTideWet.value.toArray();
+}

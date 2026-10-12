@@ -223,6 +223,7 @@ export function createHallInWorld(world: World, inWorld: InWorld, plan: HallPlan
       fog.far = THREE.MathUtils.lerp(street.far, AIR.far, k);
       // the eye coming in from the bright street: the hall looks darker from outside by day
       room.setAmbient?.(1 - 0.4 * (1 - k) * dayNow);
+      room.eyeIn?.(k);
     },
     lamps: () => room.lamps,
     scatter,

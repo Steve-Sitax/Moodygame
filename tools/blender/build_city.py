@@ -49,6 +49,7 @@ from mathutils import Vector
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import lantern_kit  # noqa: E402  (the town's lamps and lanterns, one design)
+import guild_fronts  # noqa: E402  (the Grote Markt's guild houses, made by hand: survey #17)
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 SRC = os.path.join(ROOT, "shared", "city_build.json")
@@ -482,6 +483,8 @@ class Builder:
         if o["top"] == "flat":
             return [(sc - w / 2, o["yt"] + grow), (sc + w / 2, o["yt"] + grow)]
         if o["top"] == "round":
+            # (12 pieces, was 6: the fanlight's half disc and its arch read as a hexagon up close)
+            n = max(n, 12)
             r = w / 2
             return [(sc - r * math.cos(math.pi * i / n), o["ys"] + r * math.sin(math.pi * i / n)) for i in range(n + 1)]
         hr = o["hr"] + grow
@@ -587,6 +590,7 @@ class Builder:
                 for (s1, y1), (s2, y2) in zip(arc, arc[1:]):
                     self.face([W(sc, ys, d), W(s1, y1, d), W(s2, y2, d)], MAT_FACADE,
                               [(0.5, 0), ((s1 - left) / w, (y1 - ys) / r), ((s2 - left) / w, (y2 - ys) / r)], FANLIGHT, f, 0.95)
+                self.fanlight_bars(W, ux, uz, f, sc, ys, r, d)
         # the surround: jambs of two or three dressed stones on each side
         fine_door = o["kind"] == "house" and not o.get("open") and self.ds is not None and self.ds.get("klass") == "fine"
         if o["kind"] == "house" and not o.get("open") and self.ds is not None and self.ds.get("klass") in ("fine", "good"):
@@ -616,6 +620,67 @@ class Builder:
             kw = 0.17 if o["kind"] == "gate" else 0.12
             # 8 cm proud of the ring: at 3 cm its face lay over the ring's and the wobble made them fight (z-fight check)
             self.slab(W, ux, uz, f, sc - kw, sc + kw, apex - 0.02, apex + J + 0.04, 0, P + 0.08, stone * 1.05)
+
+    def fanlight_bars(self, W, ux, uz, f, sc, ys, r, d):
+        """The look survey's point 12 (2026-10-11): the glazing bars of a round fanlight in 3D, in the near-only detail
+        mesh, over the painted ones of the atlas (cityTextures.ts fanlight, the same pattern for far off): a sunburst of
+        five thin bars from a half-round hub, a ring of bar half-way out, the frame round the glass and the transom
+        under it; slim moulded wood, painted dark like the door, 2 to 5 cm proud of the glass at the back of the reveal.
+        (They were painted only: thick cream bars in a 64 px cell that read as a white spider and glowed in the dark.)"""
+        was = self.bm is self.dbm
+        self.detail(True)
+        sh = 0.3  # the paint: dark (the wood's planks picture, tinted down by the vertex colour)
+        d0, d1 = d + 0.004, d + 0.032
+        uvw = [(0.02, 0.02), (0.06, 0.02), (0.06, 0.06), (0.02, 0.06)]
+
+        def P(rho, phi):
+            return (sc + rho * math.cos(phi), ys + rho * math.sin(phi))
+
+        def bar(a, b, wd, dz=d1):
+            """A straight bar from (s, y) a to b, wd wide: its front and its two sides (its back lies on the glass)."""
+            (sa, ya), (sb, yb) = a, b
+            ln = math.hypot(sb - sa, yb - ya)
+            if ln < 1e-4:
+                return
+            ns, ny = -(yb - ya) / ln * wd / 2, (sb - sa) / ln * wd / 2
+            q = [(sa - ns, ya - ny), (sb - ns, yb - ny), (sb + ns, yb + ny), (sa + ns, ya + ny)]
+            self.face([W(s_, y_, dz) for s_, y_ in q], MAT_WOOD, uvw, (0, 0), f, sh)
+            for (s0, y0), (s1, y1), out in ((q[0], q[1], (-ns, -ny)), (q[3], q[2], (ns, ny))):
+                o3 = (ux * out[0], out[1], uz * out[0])
+                self.face([W(s0, y0, d0), W(s1, y1, d0), W(s1, y1, dz), W(s0, y0, dz)], MAT_WOOD, uvw, (0, 0), o3, sh * 0.8)
+
+        def ring(rho, wd, n, dz=d1, inner=True):
+            """A curved bar at rho (its middle), wd wide, in n pieces: its front, its inner side and its outer side."""
+            pts = [k / n * math.pi for k in range(n + 1)]
+            for a, b in zip(pts, pts[1:]):
+                q = [P(rho - wd / 2, a), P(rho - wd / 2, b), P(rho + wd / 2, b), P(rho + wd / 2, a)]
+                self.face([W(s_, y_, dz) for s_, y_ in q], MAT_WOOD, uvw, (0, 0), f, sh)
+                m = (a + b) / 2
+                if inner:
+                    o3 = (-ux * math.cos(m), -math.sin(m), -uz * math.cos(m))
+                    self.face([W(*P(rho - wd / 2, a), d0), W(*P(rho - wd / 2, b), d0), W(*P(rho - wd / 2, b), dz), W(*P(rho - wd / 2, a), dz)],
+                              MAT_WOOD, uvw, (0, 0), o3, sh * 0.75)
+                o3 = (ux * math.cos(m), math.sin(m), uz * math.cos(m))
+                self.face([W(*P(rho + wd / 2, a), d0), W(*P(rho + wd / 2, b), d0), W(*P(rho + wd / 2, b), dz), W(*P(rho + wd / 2, a), dz)],
+                          MAT_WOOD, uvw, (0, 0), o3, sh * 0.9)
+
+        # the frame round the glass (its outer edge on the reveal), the transom under the glass
+        ring(r * 0.95, r * 0.1, 12, d + 0.05, inner=True)
+        bar((sc - r, ys + 0.025), (sc + r, ys + 0.025), 0.05, d + 0.055)
+        # the hub: a half disc with a rim
+        hub = r * 0.22
+        steps = [k / 8 * math.pi for k in range(9)]
+        for a, b in zip(steps, steps[1:]):
+            self.face([W(sc, ys, d1 + 0.006), W(*P(hub, a), d1 + 0.006), W(*P(hub, b), d1 + 0.006)], MAT_WOOD, uvw[:3], (0, 0), f, sh)
+            m = (a + b) / 2
+            self.face([W(*P(hub, a), d0), W(*P(hub, b), d0), W(*P(hub, b), d1 + 0.006), W(*P(hub, a), d1 + 0.006)], MAT_WOOD, uvw, (0, 0),
+                      (ux * math.cos(m), math.sin(m), uz * math.cos(m)), sh * 0.9)
+        # the five spokes and the ring half-way out
+        for k in range(1, 6):
+            phi = k * math.pi / 6
+            bar(P(hub, phi), P(r * 0.9, phi), 0.022)
+        ring(r * 0.6, 0.02, 10)
+        self.detail(was)
 
     def slab(self, W, ux, uz, f, s0, s1, y0, y1, d0, d1, shade, blocks=1, mat=MAT_STONE, under=False, cell=(0, 0), ends=True, top=True):
         """A block of stone lying on the wall, s0..s1 along it, y0..y1 up, d0..d1 out. No back and no
@@ -1871,6 +1936,16 @@ class Builder:
                 self.ghost_marks(a, b, outs[i], ghosts, y1)
             self.wallmat = keep
             return
+        # (the look survey's point 22, 2026-10-11: a plastered house's blind side and back walls stood as tall flat grey
+        # slabs over the yards, e.g. at (-323, 177). Only the front was rendered and painted in 1873; the sides and backs
+        # are the bare brick of the house, by its own dice from its class's bricks)
+        if STYLE_ROW.get(style) in (1, 2) and self.wallmat[0] not in BY_CLASS[self.klass][0]:
+            keep = self.wallmat
+            r = random.Random(self.hid_seed * 53 + 5)
+            self.wallmat = (r.choice(BY_CLASS[self.klass][0]), r.choice(PAINTS["tint"]))
+            self.side_wall_(ring, street, outs, i, y0, y1, style, H)
+            self.wallmat = keep
+            return
         self.side_wall_(ring, street, outs, i, y0, y1, style, H)
 
     def side_wall_(self, ring, street, outs, i, y0, y1, style, H):
@@ -1904,6 +1979,7 @@ class Builder:
                            h["seed"] % 5 < 2))
         self.wear = wear_of(h, self.klass)
         self.wallmat = wall_material(h, self.klass)
+        self.hid_seed = h["seed"]
         self.ds["klass"] = self.klass
         self.ds["seed"] = h["seed"]  # (yard windows: their own dice from it)
         # (the districts pass) some fine fronts take corner pilasters in place of quoins; by the seed, the dice untouched
@@ -2024,6 +2100,14 @@ class Builder:
                 dops = ops if i == 0 else ([back_op] if pt and i == 2 else None)
                 if pt and i in (0, 2):
                     self.rec, self.rec_wall = OPENINGS["plain_ground"].setdefault(str(h.get("_i")), []), i
+                if i == 0 and h.get("_i") in guild_fronts.FRONTS:
+                    # (the Grote Markt's guild houses, survey #17) the ground storey as it was, and over it the front
+                    # made by hand (tools/blender/guild_fronts.py), not the old grid
+                    self.quoins = (False, False)
+                    self.wall(c[0], c[1], 0, self.gh, style, True, outs[0], door=dops, holes=hl)
+                    GUILD_FRONTS[str(h["_i"])] = guild_fronts.build(self, h, c[0], c[1], outs[0], guild_fronts.FRONTS[h["_i"]])
+                    self.rec = None
+                    continue
                 self.wall(c[i], c[(i + 1) % 4], 0, H, style, True, outs[i], door=dops, holes=hl)
                 self.rec = None
             elif yard[i]:
@@ -2091,7 +2175,9 @@ class Builder:
                 self.face([(a[0], H, a[1]), (b[0], H, b[1]), (r1[0], H + rise, r1[1]), (r0[0], H + rise, r0[1])], MAT_ROOF,
                           [(0, 0), (D / BAY, 0), (D / BAY, (W / 2) / math.cos(pitch) / BAY), (0, (W / 2) / math.cos(pitch) / BAY)],
                           roof_cell, (ux * side, 1.2, uz * side), shade=1.0)
-            self.gable(h, P, s0, s1, t0, H, rise, front=True, street=street[0], style=style, rng=rng)
+            guild = h.get("_i") in guild_fronts.FRONTS
+            if not guild:
+                self.gable(h, P, s0, s1, t0, H, rise, front=True, street=street[0], style=style, rng=rng)
             self.gable(h, P, s0, s1, t1, H, rise, front=False, street=street[2] or yard[2], style=style, rng=rng)
             if rng.random() < 0.6:
                 cs, ct = rng.uniform(s0 + 0.8, s1 - 0.8), rng.uniform(t0 + D * 0.5, t1 - 0.6)
@@ -2106,7 +2192,7 @@ class Builder:
                     pts = [(P(sa_, ta_)[0], ry(sa_), P(sa_, ta_)[1]), (P(sb_, ta_)[0], ry(sb_), P(sb_, ta_)[1]),
                            (P(sb_, tb_)[0], ry(sb_), P(sb_, tb_)[1]), (P(sa_, tb_)[0], ry(sa_), P(sa_, tb_)[1])]
                     self.roof_soot(pts, (0, 1, 0))
-            if street[0] and not cottage and not overlapped(self.hid, c[0], c[1]):
+            if street[0] and not cottage and not guild and not overlapped(self.hid, c[0], c[1]):
                 # M7 quays pass 2: a stone band across the front at the gable's foot
                 def Wg(s, y, d=0.0):
                     x, z = P(s0 + s, t0 - d)
@@ -3078,6 +3164,7 @@ def prime_front(a, b, f):
 # the taverns in the world (inworld_build.json, their doors)
 SOOTY = [(10, 72), (-200, 40), (-160.8, 98.7), (-27.7, 66.1)]
 LAMPS = []  # the lanterns by the doors and passages: [x, y, z of the glass, outward x, z, pane width, height, out], for ambient.ts
+GUILD_FRONTS = {}  # the Grote Markt's guild fronts (guild_fronts.py): by house index, their windows (shared/city_guild_fronts.json)
 GABLE_WINDOWS = {}  # M7 quays pass 2: by house index, the windows cut into its front gable (shared/city_gable_windows.json)
 ID_ALLEY = {}  # id(house) -> a cottage of the back alleys
 # M7 back alleys: where this builder put openings the plan does not say, for the game's lit windows and street
@@ -3503,6 +3590,8 @@ def main():
             SOOTY.append(((ring[0][0] + ring[1][0]) / 2, (ring[0][1] + ring[1][1]) / 2))  # (the middle of its front)
     for h in data["houses"]:
         ID_ALLEY[id(h)] = bool(h.get("alley"))
+    guild_fronts.set_constants(MAT_STONE=MAT_STONE, MAT_FACADE=MAT_FACADE, MAT_WOOD=MAT_WOOD, MAT_ROOF=MAT_ROOF, BAY=BAY,
+                               PART_COL=PART_COL, SASH=SASH, LOADING=LOADING)
     for i, h in enumerate(data["houses"]):
         h["_i"] = i
     for h in live:
@@ -3541,6 +3630,13 @@ def main():
             json.dump({"about": "tools/blender/build_city.py gable_front: by house index, the windows cut into its front gable: "
                                 "[s_mid from the front's first corner, y0, y1, width, small]; lamps: the lanterns by the doors "
                                 "[x, y, z of the glass, outward x, z, front pane width, height, how far out]", "houses": GABLE_WINDOWS, "lamps": LAMPS}, fh, separators=(",", ":"))
+        # the Grote Markt's guild fronts (guild_fronts.py): their windows, for the lit panes and the heads at the window
+        with open(os.path.join(ROOT, "shared", "city_guild_fronts.json"), "w", encoding="utf-8") as fh:
+            json.dump({"about": "tools/blender/build_city.py + guild_fronts.py: the Grote Markt's guild houses, by house index: their front "
+                                "(wall 0) over the ground storey made by hand. windows [s_mid from the front's first corner, y0, y1, width, "
+                                "out: the lit pane's distance out of the wall line, storey (0 the first floor; 90 an oculus), kind (0 a room, "
+                                "2 a garret in the gable)]; the ground storey keeps the city's grid",
+                       "houses": GUILD_FRONTS}, fh, separators=(",", ":"))
         # (yard windows) the windows cut into the backs on the yards that can be lit (world/yardWindows.ts)
         with open(os.path.join(ROOT, "shared", "city_yard_windows.json"), "w", encoding="utf-8") as fh:
             json.dump({"about": "tools/blender/build_city.py yard_run: by house index, the glass of the windows cut into its back "
@@ -3586,6 +3682,8 @@ def main():
         print(f"[build_city] {len(data['houses'])} houses, {len(data['backs'])} backs, {count} chunks, {faces} faces, {tris} triangles -> {OUT} ({os.path.getsize(OUT)//1024} KB)")
     else:
         print(f"[build_city] {len(data['houses'])} houses, {count} chunks, {faces} faces, {tris} triangles (not exported)")
+    if "--guild-preview" in argv:
+        guild_fronts.preview(os.path.abspath(argv[argv.index("--guild-preview") + 1]))
     if "--preview" in argv:
         i = argv.index("--preview")
         only = argv[i + 1].split(",") if i + 1 < len(argv) and not argv[i + 1].startswith("--") else None

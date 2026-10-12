@@ -1,5 +1,33 @@
 # Work log
 
+## The Grote Markt's guild houses made by hand, and its liberty tree, 2026-10-12 (branch sv-s3b, survey #17)
+
+- `tools/blender/guild_fronts.py` (imported by `build_city.py`): 14 fronts on the square (houses 18-25, 50-55), seven designs in
+  two variants each. The ground storeys stay as `build_city.py` builds them (doors, shop windows, the rooms of Den Engel and the
+  tobacconist); over them the new front, a slab 0.32 m before the old wall line, clear of the roof everywhere.
+- `shared/city_guild_fronts.json`: the fronts' windows; `ambient.ts` lights them at night, `lively.ts` puts the head at the
+  window over the door. Two new facade atlas cells (leaded glass, `cityTextures.ts leadedLight`).
+- `world/libertyTree.ts`: a lime (trees.glb) at (-262, 86) in the places' railing on a bluestone ring.
+- Checks: paths none, shaders none, z-fight nothing near the square, interiorcheck Den Engel 0; the tobacconist's one problem
+  was there before: issue https://github.com/Steve-Sitax/Moodygame/issues/71. Godot needs the bake.
+## Look survey 8, 12, 20, 21, 22 and #65, 2026-10-12 (branch sv-s3a)
+- 8, the town hall's bright slivers: the sky map's town hall stood 16 m high (`tools/city/skyshade.mjs`), so its top
+  storey was lit by the sun from behind its own front; now 26 m (its cornice). Every jamb in shade like the wall.
+- 12, fanlights: thin dark bars in a dark frame, painted smooth in the atlas and in 3D near (`build_city.py
+  fanlight_bars`, detail mesh, +75k triangles near-only); round door arches in 12 pieces.
+- 20, the cathedral: every window glazed from the street (dark, its colours a hint), the low ones all stained glass
+  inside; the sun's shafts only from inside (hallSun `inside(k)`, all halls; Godot `Rooms.cs`).
+- 21, the Steen: sooted and streaked, green-black damp at the foot (vertex colour, `build_steen.py weather`), no lift.
+- 22: Godot's beige slabs at the Vleeshuis ([#65](https://github.com/Steve-Sitax/Moodygame/issues/65)), the
+  Oostershuis and the town hall were `HallFloors.cs` stand-ins: collision only now where the bake brings the room.
+  Plastered houses' blind side and back walls are bare brick; portal steps in worn bluestone blocks; the arms of
+  Antwerp redrawn and carved on a block in the Oostershuis tympanum.
+- Find: [#74](https://github.com/Steve-Sitax/Moodygame/issues/74), the cathedral's nave floor black in Godot.
+## Goods test crate dimensions, 2026-10-12 (branch fx-goodstest)
+
+- Updated stale M8f assertions for the intentional 2026-10-11 crate replacement; the server, browser and Godot agree.
+- Found old dimensions in the browser's temporary Rijnkaai crate keep-outs: [#76](https://github.com/Steve-Sitax/Moodygame/issues/76).
+
 ## Fix wave 2 (bugs): omnibus boards in the air, people on lifted bridges, 2026-10-11
 
 Branch `fx-bugs` (helper). Godot only, no bake needed.
@@ -614,3 +642,7 @@ Fixed trade cries retaining a disposed puppet; seven trade logic rows pass in di
 with no managed exceptions. Its inspected images fail visual review. Normal Vulkan startup crashes
 before game loading, and D3D12 fails command-queue initialization. Filed [#59](https://github.com/Steve-Sitax/Moodygame/issues/59).
 No cause is attributed to the overlay or driver yet. Checks now reject ERROR logs/nonzero exits.
+
+- 2026-10-11 23:05: bake of main efbb90f (all of wave 2) by a Codex Sol 6.1 xhigh run: 590 s, town.glb 849 MB, menu test 36/36. Now live in the play folder `godot/baked/next/`; the old one is `next-prev` until Steve has checked. Models written again (crate.glb was missing). Helpers paused for tokens: see the paused list in memory.
+
+- 2026-10-12 morning: next-update (boats B1-B4, W4 tide, W5 names, D4, D6, survey S1-S4, fx-tex) merged into main 2928e88 and the play folder; new bake by Codex (978 MB; menu 36/36, boats 109 hulls clean at -5.2 and -0.4, movetest flaky on the crane ladder: #77). Live in `godot/baked/next` and `models`; the old ones are `next-prev` and `models-prev` until Steve has checked. Issues: #75 anchorage spacing, #76 keep-out, #77.

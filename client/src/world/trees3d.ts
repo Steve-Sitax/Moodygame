@@ -133,7 +133,7 @@ export interface Trees3D {
 export async function buildTrees3D(
   scene: THREE.Scene,
   trees: P[],
-  opts: { baseAt?: (x: number, z: number) => number; willows?: P[]; kindAt?: (x: number, z: number) => string | null; collisions?: boolean } = {},
+  opts: { baseAt?: (x: number, z: number) => number; willows?: P[]; kindAt?: (x: number, z: number) => string | null; collisions?: boolean; scale?: number } = {},
 ): Promise<Trees3D> {
   const draco = new DRACOLoader().setDecoderPath("/draco/");
   const gltf = await new GLTFLoader().setDRACOLoader(draco).loadAsync("/models/trees.glb");
@@ -197,7 +197,7 @@ export async function buildTrees3D(
   for (const s of spots) {
     if (!geo.has(s.kind)) continue;
     const yaw = hash(s.x, s.z, 1) * Math.PI * 2;
-    const k = 0.85 + 0.3 * hash(s.x, s.z, 2);
+    const k = (0.85 + 0.3 * hash(s.x, s.z, 2)) * (opts.scale ?? 1); // (scale: an old tree, the liberty tree)
     q.setFromAxisAngle(up, yaw);
     m4.compose(new THREE.Vector3(s.x, baseAt(s.x, s.z), s.z), q, new THREE.Vector3(k, k, k));
     const list = byKind.get(s.kind) ?? [];

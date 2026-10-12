@@ -137,6 +137,75 @@ and clicks wait. The screen fades into the menu. Numbers: `__scheldemistBoot` (d
 Add a new kind of thing that loads late? It is counted if it loads through three's loaders or `fetch`, and
 drawn once if it is in the scene or a room when the loading ends.
 
+## The water and the shared switches (D3, 2026-10-11)
+- **The wave normal.** The water's ripples are no picture any more: the 64 px dash texture (`world/textures.ts`) drew a
+  zigzag stamp and bands over every water (the look survey's point 10). One tiling noise of 256 px (`retro/psx.ts`
+  `waveNormalData`, Godot's `Render/Psx.cs WaveNormalData`, the same numbers: R and G its slope, B its height,
+  mipmapped) is read twice per pixel (`psxWaves` / `psx_waves`), at 9 m and at 3.1 m, turned against each other and
+  drifting their own ways. The swell's vertex normal keeps only its long waves (the short ones fell between the
+  sheet's vertices, 5 m apart: the bands). The ripples tilt the normal every light sees, bend the mirror's picture
+  (no more chunky 17 cm world pixels) and lighten the slopes that face the eye (a grey sky mirrored higher up). The
+  sun's highlight is lower and wider (river specular `0x2a2823`, shininess 40, was 120).
+- **Rain on the water** (Steve, 2026-10-11: "the rounds the rain creates seem very drawn"): `rainRipples` /
+  `rain_ripples`, three layers of cells, one drop at a time in each, many small rings of their own sizes that spread
+  and fade within a second and a dimple where each lands, as many as the rain is hard; only in the normal, nothing drawn
+  on top. The puddles use it for their wobble; the wet stone has no rings (a drop on stone splashes). In a downpour the
+  ripples roughen as a whole (`1 + 0.9 rain^2`).
+- **Wakes and rings** (`ripples` in psx.ts, Godot's `World/Waters.cs` Ring/Wake/Swim/Moored): a fixed list of
+  `MAX_RIPPLES` (16) sources, the nearest to the eye, the active ones first (strength 0 ends the list), light counts
+  style: the shader never changes. A ring (an oar dipping, a swimmer's stroke, a moored hull bobbing) spreads and fades;
+  a wake (a boat under way, a swimmer) is the Kelvin V (19.5 degrees each side, its waves standing still to the boat,
+  their length from the speed), the waves across inside it and the bow wave. Browser: uniform arrays `uRipA`/`uRipB`;
+  Godot: a 16 x 2 float picture `psx_ripples`. Fed by: `world/rijnkaai.ts` (every ship of `boats.moving()`, and
+  `ripples.update` each frame), `world/boats.ts` (the floats and the moored rows: `moored`), `game/rowing.ts` (the
+  stroke's two rings, the boat's wake), `player/firstPerson.ts` updateSwim (`swim`); Godot `World/Waters.cs` (the river's
+  movers, the send), `Movers/Boats.cs` (floats and rows), `Play/Rowing.cs` Drive, `Player/Jef.cs` UpdateSwim. Dev:
+  `-- --ripple-test` in Godot, `.scratch`'s look-refs `--before` in the browser: a boat at 3 m/s, a swimmer, a ring.
+- **Cost**: two texture reads and the rain's three cells per water pixel, the ripple loop stops at the first empty slot.
+
+Two switches for other parts, each fixed when the material is made (rule 3: one shader kind each, made once):
+- **`nameCell: N`** (psx option; Godot `Kind.NameCell = N`): an instanced name plate draws one cell of an N x N names
+  atlas (its map / `tex`). Browser: an `InstancedMesh` whose instance colour names the cell, `setNameCell(mesh, i, cell,
+  N)` (red the column, green the row from the top, as n / 255; the colour then tints nothing), set before the first draw.
+  Godot: a MultiMesh with `UseCustomData`, custom data x the column, y the row from the top. The plate's uv runs 0..1.
+- **`tideWet: k`** (psx option; Godot `Kind.TideWet` with the material's `tide_wet` = k): walls and mud go darker by up to
+  k (about 0.35 for stone) where the ebb has just uncovered them, drying over the game hours after; dry above the last
+  high water. One shared value, `uTideWet` / `psx_tide_wet` (the last high water's level, the hours since, the lowest
+  water since, how long the ebb ran: `setTideWet` from rijnkaai.ts updateTide, `Psx.TideWetNow` from World/Waters.cs);
+  `psxTideWet(y)` / `psx_tide_wet_at(y)` for a part that wants the wetness itself (weed, a sheen).
+- **Stencil bits** (the water's): 1 the hull caps (`boats.ts`), 2 the basins' and the canals' calm water, 4 the canal and
+  vliet beds while the river stands below `TOE_TOP` (`tidemud.ts`: the river's sheet, which draws only where the stencil
+  is 0, keeps off the bed then and the beds' calm sheet takes its place), 8 the beds' pools. Godot has no such stencil
+  for the beds: its river shader discards over the canals while `river` is 2 (`Psx.cs in_canal`, set by `Waters.cs`).
+- Their tiny test: `(await import("/src/retro/psx.ts")).psxSwitchTest(__scheldemist.world.scene, x, y, z)` in the test
+  tab, Godot `-- --switch-test x,y,z`: four plates showing cells 3, 2, 1, 0 of a 2 x 2 atlas (yellow, blue, green, red,
+  a white mark top left) and a stone pillar from 6 m down to the quay top with its wet band.
+
+## The quay walls (D2, 2026-10-11)
+- **Pictures** of our own (`tools/textures/quay_maps.py`, numbers in `world/quayStone.ts`): the wall's covers 8 m along
+  by the whole wall's height (-6.4 to +1.2 m), so the tide's marks (salt, the high-water mark, film and barnacles, weed,
+  mussels) sit at their true heights; u runs on round each quay ring (`city.ts`). The flights of steps
+  (`quaysteps.ts`) take each slab from the course at its own height. Each picture has its height map (`bumpMap`).
+- **No fixed glow.** A material lit by day must not carry a constant emissive: Godot bakes it as a fixed emission and
+  it glows all night (Steve's night test of the stairs). The north-facing river walls take "the light off the water"
+  instead: an emissive from their picture that follows the sky light's colour and the square of its strength, set each
+  frame (`city.ts`, `WATER_FILL`); Godot does the same by the material's name `quay_wall` (`World/Daylight.cs`, `fill`
+  and `waterFill`). The wet band is the psx `tideWet: 0.3`.
+
+## Fog and sky, gas-light pools, rain and mist (survey 9, 18, 19; 2026-10-12)
+- **Sky = fog where the fog is thick** (`world/sky.ts`, Godot `World/Sky.cs`): the clouds show only where a roof `DAY_DECK`
+  (60 m) over the eye would show through the fog (by night `FOG_DECK`, 16 m, as before). A fog day's sky is the air's
+  colour, a shade brighter overhead (`SKY_LIFT` 0.14 by day), so anything fogged away melts into it and anything half
+  hidden stands darker. No more direction steps in the sky (the PS1 blocky cloud edges).
+- **Mist by the clock** (`rijnkaai.ts mistLift`, `Daylight.cs MistLift`): a misty day's fog far is x1.25 of the day's until
+  9:36 (about 35 m at 9:00), lifting to the table's x3.5 by 12:48, closing in a little again from 16:30.
+- **Gas lamps throw down** (`psxLampCap`, `psx_lamp_cap`): under the cap 0.42 level with the flame up to 2.6 straight down;
+  a soft core (`PSX_LAMP_CORE` 0.6, added to d^1.7) so a wall right by a lantern has no hot blob; the light table
+  (`world/lampLight.ts`) unchanged. The ground takes every spilt light and the real gas lamps' unevenly (`psxPoolTone`:
+  0.35 to 1.65 over 1 to 3 m, only on faces looking up). No new light, no new shader kind.
+- **Rain**: streaks at least a 30th of a second long, out to 11 m, lighter than the air and 55 % of the drops at full
+  rain; wet stone 0.44 darker at most, the sky's sheen on the wet tops by Fresnel, the lamps' streaks 0.65, the windows'
+  0.25.
 ## Layers on a surface (no flicker)
 Steve, 2026-10-11 ("constant texture flickering" on the cobbles in Godot): two surfaces never share a plane.
 - Build a real height: the edge stones on the ground's seams stand 2 cm proud with rounded edges set into the ground

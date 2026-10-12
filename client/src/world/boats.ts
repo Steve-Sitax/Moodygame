@@ -6,11 +6,12 @@ import FERRY_SACKS from "../game/ferry_sack_sockets.json";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { psx, psxUniforms, AIR_GLOW_GLSL, airGlowUniforms } from "../retro/psx";
+import { psx, psxUniforms, AIR_GLOW_GLSL, airGlowUniforms, ripples } from "../retro/psx";
 import type { Rect } from "./geom";
-import { bedAt, draftOf, levelAt, levelOf, regionAt } from "./tide";
+import { BRIG_FLOOR, draftOf, levelAt, regionAt } from "./tide";
+import { boatFloor, registerBoatBottom } from "./boatGround";
 import { addLantern, type LanternSource } from "./lanternLights";
-import { flatLettering } from "./bumps";
+import { namedBoats, prepareBoatNames } from "./boatNames";
 
 // Boats, ships and quay cranes from Blender (tools/blender/build_boats.py ->
 // /models/boats.glb). Our own models, made by script. A vessel's origin is the
@@ -27,7 +28,9 @@ import { flatLettering } from "./bumps";
 /** Every model in boats.glb. */
 export const BOAT_NAMES = [
   "barque",
+  "barque_grain",
   "steamer",
+  "steamer_line",
   "rhine_barge",
   "hengst",
   "lighter",
@@ -136,6 +139,8 @@ export interface PontoonOptions {
 export interface Boats {
   names: BoatName[];
   dims(name: BoatName): Dims;
+  /** The lowest waterline supported by the drawn mud under this hull. */
+  floor(name: BoatName, x: number, z: number, yaw: number): number;
   /**
    * A copy of a model at (x, z), turned by `yaw` about +y (0 = bow along +z). Vessels float
    * at WATER_Y and bob; cranes stand at y = 0 and keep still (use crane() for one that swings).
@@ -214,7 +219,9 @@ export interface Boats {
 /** Heave (m), roll and pitch (rad), period (s): small boats move more and faster. */
 const MOTION: Record<string, [number, number, number, number]> = {
   barque: [0.03, 0.006, 0.002, 8.5],
+  barque_grain: [0.03, 0.006, 0.002, 8.5],
   steamer: [0.03, 0.005, 0.002, 8.0],
+  steamer_line: [0.03, 0.005, 0.002, 8.0],
   rhine_barge: [0.025, 0.006, 0.002, 7.0],
   hengst: [0.03, 0.01, 0.004, 6.0],
   lighter: [0.03, 0.012, 0.005, 5.5],
@@ -247,6 +254,8 @@ const DOUBLE = new Set(["shrouds", "lattice", "flag", "canvas", "canvas_tan", "t
 const JIB_NODES = ["jib", "hand_crane_jib"];
 /** M7 boats: a child node merged on its own (a crane's jib; a small boat's oars laid in, "<kind>_stow"). */
 const ownNode = (o: THREE.Object3D) => JIB_NODES.includes(o.name) || o.name.endsWith("_stow");
+/** docs/boats.md: a hull's helper children, not drawn with it: the walk floor, the blocks, the far copy. */
+const HELPER = /_(walk|block|far)$/;
 
 function rng(seed: number): () => number {
   let s = seed >>> 0;
@@ -291,6 +300,7 @@ interface Part {
 }
 
 interface Fleet {
+  name: BoatName;
   meshes: THREE.InstancedMesh[];
   /** Rigging drawn once per boat: one instanced line set; matrices in four vec4 attributes. */
   lines: THREE.LineSegments | null;
@@ -431,7 +441,7 @@ export interface MovingShip {
   anchored?: boolean;
 }
 
-const STEAM = new Set<BoatName>(["steamer", "paddle_tug", "tug", "liner"]);
+const STEAM = new Set<BoatName>(["steamer", "steamer_line", "paddle_tug", "tug", "liner"]);
 export const isSteam = (k: BoatName): boolean => STEAM.has(k);
 const movingSources = new Set<(out: MovingShip[]) => void>();
 const movingOut: MovingShip[] = [];
@@ -455,10 +465,13 @@ export function signal(ship: MovingShip, where: "lock" | "bridge"): void {
 }
 
 let loading: Promise<Boats> | null = null;
+let holdQuery: (x: number, z: number) => number = levelAt;
+/** The live waterline of the moored hull beside a crane. */
+export const boatHoldLevel = (x: number, z: number): number => holdQuery(x, z);
 
 /** Load boats.glb once; later calls get the same promise. */
 export function loadBoats(): Promise<Boats> {
-  if (!loading) loading = load();
+  if (!loading) loading = load().then(namedBoats);
   return loading;
 }
 
@@ -468,25 +481,122 @@ export interface ModelSet {
   /** The glTF extras of each model's node (rig, smoke, deck sizes...). */
   extras: Map<string, Record<string, unknown>>;
   materials: Record<string, THREE.Material>;
+  /**
+   * docs/boats.md: each model's helper children by their full name ("tug_walk", "tug_block", "tug_far"), taken out of
+   * the drawn model (never drawn, instanced or hit by a ray here) and kept for their readers; the far copy is merged
+   * as the model is.
+   */
+  helpers: Map<string, Map<string, THREE.Object3D>>;
 }
 
-/**
- * Load a model file made by our Blender scripts (boats.glb, bridges.glb): every material's
- * picture goes into one texture atlas, and each model is merged into two meshes, solid and
- * thin (double-sided, cut-out), so a model costs two draw calls, three with its rigging lines.
- */
 /** The sacks the builders recorded, by model file (tools/blender/build_boats.py, build_ferry.py). */
 const SACK_ROWS = { "/models/boats.glb": BOAT_SACKS, "/models/ferry.glb": FERRY_SACKS };
 
+/**
+ * The boat atlas (B0, 2026-10-11: the boats in high detail): every boat material (and the lock's, the bridges' and
+ * the ferry's) painted at 512 px and kept in a 256 px cell of one 2048 px picture, with its height for the bump in a
+ * second one, by tools/blender/boats/common.py write_atlas: /textures/boats_atlas.webp (colour, the cut-out in
+ * alpha), boats_atlas_h.png (height, grey), boats_atlas.json (the cells by material name). Loaded once for every
+ * model file: one picture and one height map on the GPU for all of them.
+ */
+interface BoatAtlas {
+  map: THREE.Texture;
+  height: THREE.DataTexture;
+  n: number;
+  cells: Map<string, [number, number]>;
+  missing: [number, number];
+}
+let boatAtlasP: Promise<BoatAtlas> | null = null;
+/** How strongly the atlas's height tilts the light (three's bumpScale; the heights are painted to their kind). */
+const BOAT_BUMP = 1.4;
+
+async function bitmap(url: string): Promise<ImageBitmap> {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`${url}: ${r.status}`);
+  // (no premultiplied alpha: the cut-out cells keep their colour to the edge)
+  return createImageBitmap(await r.blob(), { premultiplyAlpha: "none", colorSpaceConversion: "none", imageOrientation: "none" });
+}
+
+function loadBoatAtlas(): Promise<BoatAtlas> {
+  if (!boatAtlasP)
+    boatAtlasP = (async () => {
+      const [layout, colour, hpic] = await Promise.all([
+        fetch("/textures/boats_atlas.json").then((r) => r.json() as Promise<{ n: number; cells: Record<string, [number, number]>; missing: [number, number] }>),
+        bitmap("/textures/boats_atlas.webp"),
+        bitmap("/textures/boats_atlas_h.png"),
+      ]);
+      // smooth, mipmapped, sharp at a slant (docs/05-art-direction.md: no blocky pixels, no swimming)
+      const map = new THREE.Texture(colour);
+      map.name = "boats_atlas";
+      map.flipY = false; // glTF uv: v = 0 at the top of each picture, as the atlas is laid out
+      map.colorSpace = THREE.SRGBColorSpace;
+      map.magFilter = THREE.LinearFilter;
+      map.minFilter = THREE.LinearMipmapLinearFilter;
+      map.generateMipmaps = true;
+      map.anisotropy = 8;
+      map.needsUpdate = true;
+      // the height: one grey channel (a quarter of the memory of a colour picture)
+      const c = document.createElement("canvas");
+      c.width = hpic.width;
+      c.height = hpic.height;
+      const g = c.getContext("2d", { willReadFrequently: true })!;
+      g.drawImage(hpic, 0, 0);
+      const px = g.getImageData(0, 0, c.width, c.height).data;
+      const grey = new Uint8Array(c.width * c.height);
+      for (let i = 0; i < grey.length; i++) grey[i] = px[i * 4];
+      hpic.close();
+      const height = new THREE.DataTexture(grey, c.width, c.height, THREE.RedFormat, THREE.UnsignedByteType);
+      height.name = "boats_atlas_h";
+      height.flipY = false;
+      height.unpackAlignment = 1;
+      height.colorSpace = THREE.NoColorSpace;
+      height.magFilter = THREE.LinearFilter;
+      height.minFilter = THREE.LinearMipmapLinearFilter;
+      height.generateMipmaps = true;
+      height.needsUpdate = true;
+      return { map, height, n: layout.n, cells: new Map(Object.entries(layout.cells)), missing: layout.missing };
+    })();
+  return boatAtlasP;
+}
+
+/**
+ * The atlas's colour read with the slope of the uv before it is wrapped into its cell (psx `atlas` wraps it with
+ * fract): where a tile repeats, the GPU would otherwise take the smallest mipmap for that pixel and draw a seam. The
+ * cut-out (thin) material reads its alpha two mipmaps sharper, so shrouds and nets do not fade out at a distance.
+ */
+function atlasGrad(mat: THREE.Material, n: number, thin: boolean): void {
+  const base = mat.onBeforeCompile;
+  const N = n.toFixed(1);
+  mat.onBeforeCompile = (shader, renderer) => {
+    base.call(mat, shader, renderer);
+    const from = "vec4 sampledDiffuseColor = texture2D(map, psxUv);";
+    if (!shader.fragmentShader.includes(from)) {
+      console.warn("boats: the psx colour read changed; the atlas keeps its mipmap seams");
+      return;
+    }
+    shader.fragmentShader = shader.fragmentShader.replace(
+      from,
+      `vec2 bAtGx = dFdx(vMapUv) / ${N};
+        vec2 bAtGy = dFdy(vMapUv) / ${N};
+        vec4 sampledDiffuseColor = textureGrad(map, psxUv, bAtGx, bAtGy);` +
+        (thin ? `\n        sampledDiffuseColor.a = textureGrad(map, psxUv, bAtGx * 0.25, bAtGy * 0.25).a;` : ""),
+    );
+  };
+  const key = mat.customProgramCacheKey.bind(mat);
+  mat.customProgramCacheKey = () => `${key()}-agrad${thin ? "t" : ""}`;
+}
+
+/**
+ * Load a model file made by our Blender scripts (boats.glb, bridges.glb, ferry.glb): every material is drawn from
+ * its cell of the boat atlas, and each model is merged into two meshes, solid and thin (double-sided, cut-out), so a
+ * model costs two draw calls, three with its rigging lines.
+ */
 export async function loadModelSet(url: string): Promise<ModelSet> {
   const draco = new DRACOLoader().setDecoderPath("/draco/");
-  const gltf = await new GLTFLoader().setDRACOLoader(draco).loadAsync(url);
+  const [gltf, ba] = await Promise.all([new GLTFLoader().setDRACOLoader(draco).loadAsync(url), loadBoatAtlas()]);
   draco.dispose();
+  const restoreNames = await prepareBoatNames(gltf.scene);
 
-  // One texture atlas for the whole file: every material's picture in a 128 px cell. Each
-  // model (and a crane's turning jib) is merged into two meshes, solid and thin (double-sided,
-  // cut-out), so a ship costs two draw calls, three with its rigging lines.
-  const CELL = 128;
   const srcMats = new Map<string, THREE.MeshStandardMaterial>();
   gltf.scene.traverse((o) => {
     const m = o as THREE.Mesh;
@@ -495,43 +605,32 @@ export async function loadModelSet(url: string): Promise<ModelSet> {
       if (!srcMats.has(mt.name)) srcMats.set(mt.name, mt as THREE.MeshStandardMaterial);
     }
   });
-  const matNames = [...srcMats.keys()].filter((n) => n !== "cap");
-  const N = Math.max(1, Math.ceil(Math.sqrt(matNames.length)));
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = N * CELL;
-  const g2 = canvas.getContext("2d")!;
-  g2.imageSmoothingEnabled = false;
+  const N = ba.n;
   const cellOf = new Map<string, [number, number]>();
-  matNames.forEach((name, i) => {
-    const c = i % N;
-    const r = Math.floor(i / N);
-    cellOf.set(name, [c, r]);
-    const img = srcMats.get(name)!.map?.image as CanvasImageSource | undefined;
-    if (img) g2.drawImage(img, c * CELL, r * CELL, CELL, CELL);
-    else {
-      g2.fillStyle = "#555";
-      g2.fillRect(c * CELL, r * CELL, CELL, CELL);
-    }
-  });
-  const atlas = new THREE.CanvasTexture(canvas);
-  atlas.flipY = false; // glTF uv: v = 0 at the top of each picture, as in the canvas
-  atlas.magFilter = THREE.NearestFilter;
-  atlas.minFilter = THREE.NearestFilter;
-  atlas.generateMipmaps = false;
-  atlas.colorSpace = THREE.SRGBColorSpace;
-  // (the ships' names, the ferry stage's notice boards: flat in the atlas's bump, world/bumps.ts)
-  flatLettering(atlas, [...cellOf].map(([name, [c, r]]) => [name, [c * CELL, r * CELL, CELL, CELL]] as [string, number[]]), N * CELL, N * CELL);
+  for (const name of srcMats.keys()) {
+    if (name === "cap") continue;
+    const cell = ba.cells.get(name);
+    if (!cell) console.warn(`boats: ${url} material "${name}" is not in the boat atlas (run tools/blender/build_boats.py)`);
+    cellOf.set(name, cell ?? ba.missing);
+  }
+  // (the glb's own pictures are for lock.ts and the Godot model library; the atlas has them in high detail)
   for (const m of srcMats.values()) {
     m.map?.dispose();
     m.dispose();
   }
-  const solidMat = psx(new THREE.MeshLambertMaterial({ map: atlas, vertexColors: true }), { affine: 0.6, atlas: N });
+  const solidMat = psx(new THREE.MeshLambertMaterial({ map: ba.map, bumpMap: ba.height, bumpScale: BOAT_BUMP, vertexColors: true }), { affine: 0.6, atlas: N });
   const thinMat = psx(
-    new THREE.MeshLambertMaterial({ map: atlas, vertexColors: true, side: THREE.DoubleSide, alphaTest: 0.5 }),
+    new THREE.MeshLambertMaterial({ map: ba.map, bumpMap: ba.height, bumpScale: BOAT_BUMP, vertexColors: true, side: THREE.DoubleSide, alphaTest: 0.5 }),
     { affine: 0.6, atlas: N },
   );
+  atlasGrad(solidMat, N, false);
+  atlasGrad(thinMat, N, true);
   solidMat.name = "boats_solid";
   thinMat.name = "boats_thin";
+  for (const m of [solidMat, thinMat]) {
+    m.userData.bumpKind = "boat atlas height";
+    m.userData.bumpBefore = 0;
+  }
   const lineMat = ropeMaterial();
   lineMat.name = "boats_rigging";
   const materials: Record<string, THREE.Material> = { solid: solidMat, thin: thinMat, rigging: lineMat };
@@ -614,11 +713,20 @@ export async function loadModelSet(url: string): Promise<ModelSet> {
 
   const protos = new Map<string, THREE.Object3D>();
   const extras = new Map<string, Record<string, unknown>>();
+  const helpers = new Map<string, Map<string, THREE.Object3D>>();
   for (const node of [...gltf.scene.children]) {
     node.removeFromParent();
     node.position.set(0, 0, 0);
     node.rotation.set(0, 0, 0);
     node.updateMatrixWorld(true);
+    const own = new Map<string, THREE.Object3D>();
+    for (const c of [...node.children]) {
+      if (!HELPER.test(c.name)) continue;
+      c.removeFromParent();
+      if (c.name.endsWith("_far")) atlasify(c);
+      own.set(c.name, c);
+    }
+    if (own.size) helpers.set(node.name, own);
     atlasify(node);
     node.traverse((o) => {
       if (o !== node && ownNode(o)) atlasify(o);
@@ -631,7 +739,8 @@ export async function loadModelSet(url: string): Promise<ModelSet> {
   // (game/sackModel.ts), in the places their builders recorded; each model with sacks is its "_bare" copy and those
   const rows = (SACK_ROWS as Record<string, Record<string, SackRow[]>>)[url];
   if (rows) swapSacks(protos, rows, "quay", url);
-  return { protos, extras, materials };
+  restoreNames(protos);
+  return { protos, extras, materials, helpers };
 }
 
 async function load(): Promise<Boats> {
@@ -639,6 +748,7 @@ async function load(): Promise<Boats> {
   const protos = set.protos as Map<BoatName, THREE.Object3D>;
   const extras = set.extras as Map<BoatName, Record<string, unknown>>;
   const materials = set.materials;
+  for (const [kind, model] of protos) registerBoatBottom(kind, model);
   const proto = (name: BoatName): THREE.Object3D => {
     const p = protos.get(name);
     if (!p) throw new Error(`no boat ${name}`);
@@ -858,6 +968,16 @@ async function load(): Promise<Boats> {
 
   // ---- M7 boats: every vessel set down, for the boat check
   const placedAll: Placement[] = [];
+  holdQuery = (x, z) => {
+    let best: Placement | undefined, distance = 26;
+    for (const p of placedAll) {
+      if (dims(p.name).length < 9 || p.name === "pontoon_section") continue;
+      if (p.obj && p.obj.parent?.type !== "Scene") continue;
+      const d = Math.hypot(p.x - x, p.z - z);
+      if (d < distance) { best = p; distance = d; }
+    }
+    return best ? Math.max(levelAt(best.x, best.z), (best.obj?.userData.floor as number | undefined) ?? boatFloor(best.name, best.x, best.z, best.yaw)) : levelAt(x, z);
+  };
 
   // ---- smoke from the funnels: one Points object, a few puffs per funnel
   // (picture round 2026-09-26, package 5: a longer, fuller plume off every funnel, bent by the wind; was 9 puffs, 8 s)
@@ -1005,7 +1125,8 @@ async function load(): Promise<Boats> {
     floats.push({ inner, outer, draft: draftOf(name), list: (motionRand() - 0.5) * 0.08, m: MOTION[name] ?? MOTION.lighter, p: phases(), heel: HEEL[name] ?? 0 });
     for (const sp of smokePoints(name)) {
       const local = sp.clone();
-      addEmitter({ at: (out) => void out.copy(local).applyMatrix4(inner.matrixWorld), strength: 0.55, phase: motionRand(), root: () => rootOf(outer) });
+      // (only while she is shown: a steamer put away smoked on where she had been, survey 2026-10-11 finding 5)
+      addEmitter({ at: (out) => void (outer.visible && outer.parent ? out.copy(local).applyMatrix4(inner.matrixWorld) : out.set(0, -999, 0)), strength: 0.55, phase: motionRand(), root: () => rootOf(outer) });
     }
     // M7 boats: a barge's stove smokes thinly; her lanterns burn at night (only while she is shown)
     for (const sp of stovePoints(name)) {
@@ -1016,7 +1137,7 @@ async function load(): Promise<Boats> {
       const local = lpnt.clone();
       addLamp((out) => void (outer.visible && outer.parent ? out.copy(local).applyMatrix4(inner.matrixWorld) : out.set(0, -999, 0)), kind, () => rootOf(outer));
     }
-    placedAll.push({ name, x, z, yaw, floor: bedAt(x, z) + draftOf(name), y: () => outer.position.y, single: true, obj: outer });
+    placedAll.push({ name, x, z, yaw, floor: boatFloor(name, x, z, yaw), y: () => outer.position.y, single: true, obj: outer });
     parent?.add(outer);
     return outer;
   }
@@ -1165,16 +1286,19 @@ async function load(): Promise<Boats> {
       const b = f.boats[i];
       const sea = psxUniforms.uSea.value;
       const [h0, roll0, pitch0, period] = b.m;
-      // on the mud (M6 tides): no heave, no roll, a small list
-      const level = levelOf(b.region);
-      const aground = Math.min(1, Math.max(0, (b.floor - level) / 0.25));
+      // on the mud: the hull is supported upright, with no heave or roll
+      const level = levelAt(b.x, b.z);
+      b.floor = boatFloor(f.name, b.x, b.z, b.yaw);
+      const aground = level <= b.floor + 0.06 ? 1 : 0;
       const free = 1 - aground;
-      const h = h0 * sea * free;
+      if (free > 0.5 && !b.hidden) ripples.moored(b, b.x, b.z, Math.sin(b.yaw), Math.cos(b.yaw), 8, 2.5); // (D3: faint rings at the hull)
+      // A hull follows the long swell; storm chop cannot submerge its rail.
+      const h = h0 * Math.min(sea, 3.6) * free;
       const roll = roll0 * Math.min(sea, 2.5) * free;
       const pitch = pitch0 * Math.min(sea, 2.5) * free;
       const w = (Math.PI * 2) / period;
       tmpP.set(b.x, Math.max(level, b.floor) + h * Math.sin(w * t + b.p[0]) + h * 0.4 * Math.sin(2.3 * w * t + b.p[0] * 1.7), b.z);
-      tmpE.set(pitch * Math.sin(1.13 * w * t + b.p[2]), b.yaw, roll * Math.sin(0.83 * w * t + b.p[1]) + b.list * aground);
+      tmpE.set(pitch * Math.sin(1.13 * w * t + b.p[2]), b.yaw, roll * Math.sin(0.83 * w * t + b.p[1]));
       tmpQ.setFromEuler(tmpE);
       tmpM.compose(tmpP, tmpQ, b.hidden ? zero : one);
       for (let k = 0; k < f.meshes.length; k++) {
@@ -1226,6 +1350,7 @@ async function load(): Promise<Boats> {
       const name = key.split(":")[0] as BoatName;
       const ps = mergedParts(name);
       const fleet: Fleet = {
+        name,
         meshes: [],
         lines: null,
         parts: ps,
@@ -1255,7 +1380,7 @@ async function load(): Promise<Boats> {
           const local = lpnt.clone();
           addLamp((out) => void (b.hidden ? out.set(0, -999, 0) : out.copy(local).applyMatrix4(b.world)), kind, () => rootOf(group));
         }
-        placedAll.push({ name, x: b.x, z: b.z, yaw: b.yaw, floor: b.floor, y: () => b.world.elements[13], single: false });
+        placedAll.push({ name, x: b.x, z: b.z, yaw: b.yaw, get floor() { return b.floor; }, y: () => b.world.elements[13], single: false });
       });
       writeFleet(fleet, 0);
       // the tide lifts and lowers them some 5 m: room for that round the instances
@@ -1309,6 +1434,7 @@ async function load(): Promise<Boats> {
     for (const [name, list] of byKind) {
       const ps = parts(name);
       const fleet: Fleet = {
+        name,
         meshes: [],
         lines: null,
         parts: ps,
@@ -1320,7 +1446,7 @@ async function load(): Promise<Boats> {
           p: [r() * 6.283, r() * 6.283, r() * 6.283] as [number, number, number],
           world: new THREE.Matrix4(),
           region: regionAt(b.x, b.z),
-          floor: bedAt(b.x, b.z) + draftOf(name),
+          floor: boatFloor(name, b.x, b.z, b.yaw),
           list: (r() - 0.5) * 0.08,
         })),
       };
@@ -1358,7 +1484,7 @@ async function load(): Promise<Boats> {
           addLamp((out) => void out.copy(local).applyMatrix4(b.world), kind, () => rootOf(group));
         }
         list[i].world = b.world;
-        placedAll.push({ name, x: b.x, z: b.z, yaw: b.yaw, floor: b.floor, y: () => b.world.elements[13], single: false, world: b.world });
+        placedAll.push({ name, x: b.x, z: b.z, yaw: b.yaw, get floor() { return b.floor; }, y: () => b.world.elements[13], single: false, world: b.world });
       });
       writeFleet(fleet, 0);
       for (const im of fleet.meshes) im.computeBoundingSphere();
@@ -1395,7 +1521,7 @@ async function load(): Promise<Boats> {
         for (const b of list) place(b.name, b.x, b.z, b.yaw, scene);
       }
     }
-    return [{ minX: x - half, maxX: x + half, minZ: Math.min(z0, zEnd), maxZ: Math.max(z0, zEnd), y: levelAt(x, (z0 + zEnd) / 2) + deckTop }];
+    return [{ minX: x - half, maxX: x + half, minZ: Math.min(z0, zEnd), maxZ: Math.max(z0, zEnd), get y() { return levelAt(x, (z0 + zEnd) / 2) + deckTop; } }];
   }
 
   function update(t: number, dt: number, lit = 0): void {
@@ -1407,16 +1533,18 @@ async function load(): Promise<Boats> {
       // (river.ts, lock.ts, anchorage.ts, route.ts and rowing.ts set their own boats' y after this)
       const o = f.outer.position;
       const level = levelAt(o.x, o.z);
-      const floor = (f.outer.userData.floor as number | undefined) ?? bedAt(o.x, o.z) + f.draft;
-      const aground = Math.min(1, Math.max(0, (floor - level) / 0.25));
+      const floor = (f.outer.userData.floor as number | undefined) ?? boatFloor(f.outer.name, o.x, o.z, f.outer.rotation.y);
+      const aground = level <= floor + 0.06 ? 1 : 0;
       const free = 1 - aground;
       o.y = Math.max(level, floor);
-      const h = h0 * sea * free;
+      if (free > 0.5) ripples.moored(f, o.x, o.z, Math.sin(f.outer.rotation.y), Math.cos(f.outer.rotation.y), 7, 2.2); // (D3: faint rings at the hull)
+      // A hull follows the long swell; storm chop cannot submerge its rail.
+      const h = h0 * Math.min(sea, 3.6) * free;
       const roll = roll0 * Math.min(sea, 2.5) * free;
       const pitch = pitch0 * Math.min(sea, 2.5) * free;
       const w = (Math.PI * 2) / period;
       f.inner.position.y = h * Math.sin(w * t + f.p[0]) + h * 0.4 * Math.sin(2.3 * w * t + f.p[0] * 1.7);
-      f.inner.rotation.z = f.heel + roll * Math.sin(0.83 * w * t + f.p[1]) + f.list * aground;
+      f.inner.rotation.z = f.heel * free + roll * Math.sin(0.83 * w * t + f.p[1]);
       f.inner.rotation.x = pitch * Math.sin(1.13 * w * t + f.p[2]);
     }
     for (const f of fleets) writeFleet(f, t);
@@ -1448,6 +1576,7 @@ async function load(): Promise<Boats> {
     crane,
     colliders,
     tall,
+    floor: boatFloor,
     deck(name, x, z, yaw) {
       const raw = extras.get(name)?.deck as string | undefined;
       if (!raw) return null;
@@ -1462,7 +1591,7 @@ async function load(): Promise<Boats> {
         return { minX: Math.min(ax, bx), maxX: Math.max(ax, bx), minZ: Math.min(az, bz), maxZ: Math.max(az, bz) };
       };
       const [gx, gz] = at(d.gangway[0], d.gangway[1]);
-      return { rect: box(d.rect), y: levelAt(x, z) + d.y, obstacles: d.obstacles.map(box), gangway: { x: gx, z: gz } };
+      return { rect: box(d.rect), get y() { return Math.max(levelAt(x, z), name === "brig" ? BRIG_FLOOR : boatFloor(name, x, z, yaw)) + d.y; }, obstacles: d.obstacles.map(box), gangway: { x: gx, z: gz } };
     },
     pontoon,
     mooreAlong,

@@ -2,7 +2,7 @@ import * as THREE from "three";
 import type { World, Surface } from "../world/rijnkaai";
 import type { Exit } from "../world/quaysteps";
 import { WADE } from "../world/tide";
-import { psxUniforms } from "../retro/psx";
+import { psxUniforms, ripples } from "../retro/psx";
 import { Glide } from "./glide";
 
 // First person walker: WASD, pointer-lock mouse look, head bob, footstep events.
@@ -550,6 +550,7 @@ export class FirstPerson {
       this.onStroke?.();
     }
     const speed = moved / Math.max(dt, 1e-4);
+    ripples.swim(this, this.x, this.z, this.vel.x, this.vel.y, speed); // (D3: rings at each stroke, a small wake)
     // (the bob grows in again after he comes up from a dive, so the eye goes on smoothly)
     this.bobIn = Math.min(1, this.bobIn + dt * 1.5);
     const bob = (Math.sin(this.swimT * 1.7) * 0.035 + Math.sin(this.swimT * 5.2) * 0.012 * Math.min(1, speed)) * this.bobIn;

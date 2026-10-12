@@ -704,6 +704,7 @@ export function buildCarolusHall(): LandmarkRoom {
     landmark: "carolus" as unknown as LandmarkRoom["landmark"],
     scene,
     group,
+    eyeIn: (k) => sunLight.inside(k),
     walk: (fx, fz, x, z) => (free(x, z) ? [x, z] : free(x, fz) ? [x, fz] : free(fx, z) ? [fx, z] : [fx, fz]),
     floor: (x, z) => HP.floorAt(P, x, z, 0),
     peopleFloor: () => 0,

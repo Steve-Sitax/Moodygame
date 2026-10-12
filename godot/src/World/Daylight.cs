@@ -40,6 +40,23 @@ public partial class Daylight : Node
         _ => new[] { 1f, 1f, 1f, 0f },
     };
 
+    /// <summary>
+    /// The mist by the clock (the look survey's point 19: "mist at 9:00 looks clear"; rijnkaai.ts mistLift): a misty
+    /// day's mist lies thick in the morning (fog far x1.25 of the day's, about 35 m at 9:00), lifts from 9:36 to 12:48
+    /// to the haze of the table, and closes in a little again from the evening.
+    /// </summary>
+    private static float MistLift(float h) => Smooth(h, 9.6f, 12.8f) * (1 - 0.55f * Smooth(h, 16.5f, 19.5f));
+    private static readonly float[] MistThick = { 0.9f, 1.25f, 0.85f, 0.12f };
+    private static readonly float[] MistHaze = WeatherOf("mist");
+    private readonly float[] mistNow = new float[4];
+    private float[] WeatherAt(string w, float h)
+    {
+        if (w != "mist") return WeatherOf(w);
+        float k = MistLift(h);
+        for (int i = 0; i < 4; i++) mistNow[i] = MistThick[i] + (MistHaze[i] - MistThick[i]) * k;
+        return mistNow;
+    }
+
     private static readonly Color ClearSky = Psx.Hex(0x8b9398), GoldAir = Psx.Hex(0xdca868), SunWhite = Psx.Hex(0xfff0d8), SunGold = Psx.Hex(0xffa24a);
     private static readonly Color SkyCold = Psx.Hex(0x8494a6), SkyWarm = Psx.Hex(0xb49a7c), Ground = Psx.Hex(0x2a2822);
     /// <summary>The lamps' glow in the air on a fog day (psx.ts uScatter at the start).</summary>
@@ -95,6 +112,8 @@ public partial class Daylight : Node
     private readonly float[] wNow = { 1, 1, 1, 0 };
     private float manualRain, pudBase = 0.34f, pudFixed = -1, sea = 1, bakeSky = 1.3936f;
     private static readonly Color FillWarm = new(0.62f, 0.6f, 0.56f);
+    /// <summary>The quay walls' light off the water (city.ts): their baked emission, scaled once more by the sky (its square).</summary>
+    private readonly System.Collections.Generic.List<(ShaderMaterial m, Vector3 e)> waterFill = new();
     private DirectionalLight3D sun = null!;
     private Godot.Environment env = null!;
     private bool lightSent;
@@ -132,15 +151,20 @@ public partial class Daylight : Node
         main.View.AddChild(sun);
 
         // the cathedral's stone takes a fill light from the sky (cathedralOutside.ts skyFill), baked as it was at the
-        // bake's hour: it follows the sky from here on
+        // bake's hour: it follows the sky from here on; so do the quay walls and their flights of steps (city.ts, the
+        // light off the water, with the square of the sky; D2 2026-10-11: before it they glowed all night with the bake's
+        // fixed emission, Steve's night test)
         foreach (var l in main.World.Facts.RootElement.GetProperty("facts").GetProperty("lights").EnumerateArray())
             if (l.GetProperty("type").GetString() == "HemisphereLight") bakeSky = l.GetProperty("intensity").GetSingle();
         var seen = new System.Collections.Generic.HashSet<Material>();
         foreach (var n in BakedWorld.All(main.World))
             if (n is MeshInstance3D mi && mi.Mesh != null)
                 for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
-                    if (mi.Mesh.SurfaceGetMaterial(s) is ShaderMaterial m && seen.Add(m) && (m.ResourceName.StartsWith("cath_") || m.ResourceName == "gilt") && m.GetShaderParameter("emission").VariantType != Variant.Type.Nil)
+                    if (mi.Mesh.SurfaceGetMaterial(s) is ShaderMaterial m && seen.Add(m) && (m.ResourceName.StartsWith("cath_") || m.ResourceName == "gilt" || m.ResourceName == "quay_wall") && m.GetShaderParameter("emission").VariantType != Variant.Type.Nil)
+                    {
                         m.SetShaderParameter("fill", 1f);
+                        if (m.ResourceName == "quay_wall") waterFill.Add((m, m.GetShaderParameter("emission").AsVector3()));
+                    }
 
         string h = main.Arg("hour"), w = main.Arg("weather");
         if (h != "" && float.TryParse(h, System.Globalization.CultureInfo.InvariantCulture, out float hour)) SetTime(hour);
@@ -156,7 +180,7 @@ public partial class Daylight : Node
     public void SetWeather(string w)
     {
         Weather = w is "fog" or "mist" or "clear" or "rain" or "storm" ? w : "fog";
-        wTarget = WeatherOf(Weather);
+        wTarget = WeatherAt(Weather, Hour);
     }
 
     /// <summary>The job twist "thick fog": it closes in whatever the weather (rijnkaai.ts setThickFog).</summary>
@@ -196,6 +220,7 @@ public partial class Daylight : Node
     {
         Hour = dayTarget;
         fogMix = fogTarget;
+        wTarget = WeatherAt(Weather, Hour);
         for (int i = 0; i < 4; i++) wNow[i] = wTarget[i];
         Rain = Math.Max(manualRain, AutoRain());
         Wet = WetTarget();
@@ -301,6 +326,7 @@ public partial class Daylight : Node
         gale = dt <= 0 ? bendTo : gale + (bendTo - gale) * Math.Min(1, dt * 3);
         var wd = Wind.LengthSquared() > 1e-6f ? Wind.Normalized() : new Vector2(1, 0);
         Psx.Set("psx_gale", new Vector3(wd.X, wd.Y, gale));
+        if (Weather == "mist") wTarget = WeatherAt(Weather, Hour);
         for (int i = 0; i < 4; i++) wNow[i] += (wTarget[i] - wNow[i]) * Math.Min(1, dt * 0.5f);
 
         // a clear day: the air lighter (by day only); the golden hour: warm air, a low warm sun from the west
@@ -369,6 +395,9 @@ public partial class Daylight : Node
         var fillNow = skyCol.Lerp(FillWarm, 0.6f) * SkyIntensity;
         var fillBake = SkyCold.Lerp(FillWarm, 0.6f) * bakeSky;
         rs("psx_fill", new Vector4(fillNow.R / fillBake.R, fillNow.G / fillBake.G, fillNow.B / fillBake.B, 1));
+        // (the quay walls' fill goes with the square of the sky's strength, as in the browser: the water gives back the
+        // day's light, hardly any of the night's)
+        foreach (var (m, e) in waterFill) m.SetShaderParameter("emission", e * (SkyIntensity / bakeSky));
         rs("psx_sun_dir", SunDir);
         // the houses' shadows: hard in a clear day's sun, soft in the glow through fog
         rs("psx_sun_shade", 0.3f + 0.7f * bright);

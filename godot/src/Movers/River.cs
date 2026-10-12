@@ -15,7 +15,7 @@ public sealed class TrainPart
 
     public void Put(double x, double z, double yaw)
     {
-        Boat.Outer.Position = new Vector3((float)x, Tide.LevelAt((float)x, (float)z), (float)z);
+        Boat.Outer.Position = new Vector3((float)x, MathF.Max(Tide.LevelAt((float)x, (float)z), BoatGround.Floor(Boat.Kind, (float)x, (float)z, (float)yaw)), (float)z);
         Boat.Outer.Rotation = new Vector3(0, (float)yaw, 0);
     }
 }
@@ -44,7 +44,7 @@ public partial class River : Node
     {
         (new Kind(new[] { "tug", "barque" }, 1.7), 2),
         (new Kind(new[] { "barque_sail" }, 2.4), 2),
-        (new Kind(new[] { "steamer" }, 3.4), 2),
+        (new Kind(new[] { "steamer_line" }, 3.4), 2),
         (new Kind(new[] { "paddle_tug" }, 3.0, 1.4f), 1.5),
         (new Kind(new[] { "schooner" }, 2.6), 1.5),
     };

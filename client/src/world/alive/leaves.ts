@@ -17,7 +17,7 @@ import { neverMirrored } from "../mirror";
 // too far, or out of sight behind Jef, is laid down again ahead of him. Their scrape (made in
 // code) is heard within 8 m. One instanced mesh, one draw call.
 
-// (picture round 2026-09-26, package 1: more of them and bigger, plane leaves as big as a hand; was 96, 14-24 cm)
+// (picture round 2026-09-26, package 1: more of them; survey finding 23, 2026-10-11: real leaf size again, 10-18 cm, was 17-30)
 const N_LEAF = 150;
 const N_PAPER = 8;
 const N = N_LEAF + N_PAPER;
@@ -78,47 +78,78 @@ function geometry(): THREE.BufferGeometry {
   return g;
 }
 
-/** 32 x 16 texture: a leaf on the left half (alpha), a scrap of printed paper on the right. */
+/**
+ * 128 x 64 texture: a plane leaf on the left half (alpha), a scrap of printed paper on the right. Survey finding 23
+ * (2026-10-11): it was a 16 px star read as an orange square with a stripe; now 64 px for a 10 to 18 cm leaf, its five
+ * pointed lobes from the stalk, the veins, the edge curled browner, read smoothly (mipmapped). The tint per leaf
+ * (instance colour) gives each its own autumn colour.
+ */
 function texture(): THREE.Texture {
-  const W = 32, H = 16;
+  const W = 128, H = 64, L = 64;
   const c = document.createElement("canvas");
   c.width = W;
   c.height = H;
   const g = c.getContext("2d")!;
   g.clearRect(0, 0, W, H);
-  // leaf: a pointed oval with a midrib
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < 16; x++) {
-      const u = (x + 0.5) / 16 - 0.5;
-      const v = (y + 0.5) / H;
-      // (package 1: a plane leaf, five-lobed, not an oval: its points read at a few metres)
-      const lu = u * 2;
-      const lv = (v - 0.55) * 2;
-      const r = Math.hypot(lu, lv);
-      const t = Math.atan2(lv, lu);
-      const edge = (0.62 + 0.3 * Math.abs(Math.cos(t * 2.5 + 1.57))) * (v > 0.9 ? 0.5 : 1);
-      if (r > edge) continue;
-      const rib = Math.abs(u) < 0.05;
-      const shade = 0.85 + 0.15 * Math.sin(y * 1.7 + x);
-      g.fillStyle = rib ? "rgba(90,60,30,1)" : `rgba(${Math.round(200 * shade)},${Math.round(150 * shade)},${Math.round(70 * shade)},1)`;
-      g.fillRect(x, y, 1, 1);
+  const img = g.getImageData(0, 0, W, H);
+  const d = img.data;
+  // the leaf, in leaf units: the stalk's end at (0, -0.18), the midrib up toward the top of the cell (v = 0 is the tip)
+  const tips: Array<[number, number]> = [[0, 1], [0.85, 0.82], [-0.85, 0.82], [1.7, 0.5], [-1.7, 0.5]];
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < L; x++) {
+      const lx = ((x + 0.5) / L) * 2 - 1;
+      const ly = 1 - ((y + 0.5) / H) * 2 + 0.18;
+      const r = Math.hypot(lx, ly);
+      const t = Math.atan2(lx, ly);
+      let lobe = 0;
+      for (const [ti, li] of tips) lobe = Math.max(lobe, li * Math.exp(-(((t - ti) / 0.46) ** 2)));
+      let edge = 0.8 * (0.48 + 0.52 * lobe) * (1 + 0.03 * Math.sin(t * 23));
+      if (Math.abs(t) > 2.45) edge = 0.12;
+      const dist = edge - r;
+      const stalk = Math.abs(lx) < 0.035 && ly < 0.02 && ly > -0.2;
+      const a = stalk ? 1 : Math.max(0, Math.min(1, dist * (L / 2) * 0.9 + 0.5));
+      if (a <= 0) continue;
+      let vein = 0;
+      for (const [ti] of tips) {
+        const along = lx * Math.sin(ti) + ly * Math.cos(ti);
+        const off = Math.abs(lx * Math.cos(ti) - ly * Math.sin(ti));
+        if (along > 0 && along < edge * 0.92 && off < 0.025 + 0.015 * (1 - along)) vein = 1;
+      }
+      // the curled edge browner and darker, one side of the leaf a little lighter (as it lies), soft mottling
+      const rim = Math.max(0, Math.min(1, 1 - dist / 0.14));
+      const mott = 0.92 + 0.08 * Math.sin(lx * 9.1 + ly * 5.3) * Math.sin(ly * 7.7 - lx * 3.1);
+      const side = 1 + 0.1 * Math.sign(lx + 0.3 * ly);
+      let k = mott * side * (1 - 0.32 * rim);
+      if (vein) k *= 1.12;
+      let cr = 205 * k, cg = 160 * k * (1 - 0.15 * rim), cb = 80 * k * (1 - 0.3 * rim);
+      if (stalk) [cr, cg, cb] = [95, 65, 35];
+      const i = (y * W + x) * 4;
+      d[i] = Math.min(255, cr);
+      d[i + 1] = Math.min(255, cg);
+      d[i + 2] = Math.min(255, cb);
+      d[i + 3] = Math.round(a * 255);
     }
-  }
-  g.fillStyle = "rgba(70,45,25,1)";
-  g.fillRect(7, 14, 2, 2);
+  g.putImageData(img, 0, 0);
   // paper: off-white, torn edges, lines of print
-  for (let y = 1; y < H - 1; y++) {
-    for (let x = 17; x < 31; x++) {
-      if ((x === 17 || x === 30 || y === 1 || y === H - 2) && ((x * 7 + y * 13) % 3 === 0)) continue;
-      const print = y > 2 && y < H - 3 && x > 18 && x < 29 && y % 3 !== 0 && ((x * 31 + y * 17) % 5 !== 0);
-      g.fillStyle = print ? "rgba(70,65,60,1)" : "rgba(208,200,178,1)";
-      g.fillRect(x, y, 1, 1);
-    }
+  g.fillStyle = "rgba(208,200,178,1)";
+  g.beginPath();
+  const pts: Array<[number, number]> = [];
+  for (let k = 0; k < 24; k++) {
+    const side = Math.floor(k / 6);
+    const f = (k % 6) / 6;
+    const j = ((k * 37) % 7) - 3;
+    pts.push(side === 0 ? [70 + f * 52, 6 + j * 0.6] : side === 1 ? [122 + j * 0.6, 6 + f * 52] : side === 2 ? [122 - f * 52, 58 + j * 0.6] : [70 + j * 0.6, 58 - f * 52]);
   }
+  g.moveTo(pts[0][0], pts[0][1]);
+  for (const p of pts) g.lineTo(p[0], p[1]);
+  g.closePath();
+  g.fill();
+  g.fillStyle = "rgba(70,65,60,0.85)";
+  for (let y = 12; y < 52; y += 4) for (let x = 76; x < 116; x += 5 + ((x * 7 + y) % 4)) g.fillRect(x, y, 3 + ((x + y) % 3), 2);
   const t = new THREE.CanvasTexture(c);
-  t.magFilter = THREE.NearestFilter;
-  t.minFilter = THREE.NearestFilter;
-  t.generateMipmaps = false;
+  t.magFilter = THREE.LinearFilter;
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.generateMipmaps = true;
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
@@ -182,7 +213,7 @@ export function createLeaves(ctx: Ctx): Part {
             : new THREE.Color().setHSL(0.05 + fr() * 0.07, 0.6 + fr() * 0.3, 0.3 + fr() * 0.2);
     flyMesh.setColorAt(i, c);
     flyMesh.setMatrixAt(i, new THREE.Matrix4().makeScale(0, 0, 0));
-    flyers.push({ p: new THREE.Vector3(), v: new THREE.Vector3(), rot: new THREE.Euler(fr() * 6, fr() * 6, fr() * 6), quat: new THREE.Quaternion(), spin: new THREE.Vector3(), s: rag ? 0.35 + fr() * 0.3 : paper ? 0.25 + fr() * 0.2 : dark || straw ? 0.08 + fr() * 0.12 : 0.16 + fr() * 0.12, paper: paper || rag, live: false, down: 0, ph: fr() * 100, leaf: !paper && !rag && !straw && !dark, sink: paper || rag ? 0.8 : straw ? 1.1 : dark ? 2.4 : 1.0, wait: fr() * 2, still: 0, age: 0 });
+    flyers.push({ p: new THREE.Vector3(), v: new THREE.Vector3(), rot: new THREE.Euler(fr() * 6, fr() * 6, fr() * 6), quat: new THREE.Quaternion(), spin: new THREE.Vector3(), s: rag ? 0.35 + fr() * 0.3 : paper ? 0.25 + fr() * 0.2 : dark || straw ? 0.08 + fr() * 0.12 : 0.1 + fr() * 0.08, paper: paper || rag, live: false, down: 0, ph: fr() * 100, leaf: !paper && !rag && !straw && !dark, sink: paper || rag ? 0.8 : straw ? 1.1 : dark ? 2.4 : 1.0, wait: fr() * 2, still: 0, age: 0 });
   }
   flyGeo.setAttribute("aKind", flyKind);
   ctx.scene.add(flyMesh);
@@ -305,7 +336,7 @@ export function createLeaves(ctx: Ctx): Part {
       ctx.wind.at(q.p.x, q.p.z, fw);
       const gust = ctx.wind.gustAt(q.p.x, q.p.z);
       // carried with the wind (a scrap of paper more, a slate chip less), tossed up and down in the eddies
-      const drag = q.paper ? 2.2 : q.s < 0.16 ? 1.2 : 1.7;
+      const drag = q.paper ? 2.2 : !q.leaf && q.s < 0.16 ? 1.2 : 1.7;
       const tx = Math.min(24, fw.x * 0.9), tz = Math.min(24, fw.y * 0.9);
       q.v.x += (tx - q.v.x) * Math.min(1, dt * drag);
       q.v.z += (tz - q.v.z) * Math.min(1, dt * drag);
@@ -415,7 +446,7 @@ export function createLeaves(ctx: Ctx): Part {
       if (!Number.isFinite(y)) continue;
       // (package 1: ochre, rust and brown, a little brighter than the drifts: the loose ones lie on top, dry)
       const tint = paper ? new THREE.Color(0.8, 0.78, 0.72) : new THREE.Color().setHSL(0.05 + h * 0.07, 0.6 + sat * 0.3, 0.34 + lit * 0.2);
-      out.push({ key, p: new THREE.Vector3(x, y + 0.025, z), v: new THREE.Vector3(), yaw, tilt: 0, spin: 0, paper, air: 0, s: paper ? 0.28 + s * 0.12 : 0.17 + s * 0.13, tint, seed: hash32(key, k) });
+      out.push({ key, p: new THREE.Vector3(x, y + 0.025, z), v: new THREE.Vector3(), yaw, tilt: 0, spin: 0, paper, air: 0, s: paper ? 0.28 + s * 0.12 : 0.1 + s * 0.08, tint, seed: hash32(key, k) });
     }
     return out;
   }

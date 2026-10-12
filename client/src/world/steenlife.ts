@@ -563,7 +563,7 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null, world: 
       }
     }
     easel.visible = hour >= 10 && hour < 16;
-    if (fishLine && fishFloat && near) {
+    if (fishLine && fishFloat) {
       const y = water.river + 0.02 + Math.sin(t * 1.3) * 0.02;
       fishFloat.position.y = y;
       const a = fishLine.getAttribute("position") as THREE.BufferAttribute;

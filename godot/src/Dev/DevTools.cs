@@ -98,16 +98,13 @@ public partial class DevTools : Node
 
     // ------------------------------------------------------------------ the tide (World/Tide.cs Hold)
 
-    /// <summary>"now" (just say it), "high", "low" (held at spring high or low water), "clock" (follow the clock).</summary>
+    /// <summary>"now" (just say it), "high", "low" (held at spring high or low water), a level in metres, "clock" (follow the clock).</summary>
     public string TideHold(string how)
     {
-        switch (how)
-        {
-            case "high" or "low": Tide.Hold = how; break;
-            case "clock" or "off" or "": Tide.Hold = null; break;
-            case "now": break;
-            default: throw new ArgumentException("tide now, high, low or clock");
-        }
+        // (one hold for the dev panel and the W1 tide kit: a level in metres, "high", "low" or "clock"; Kit.TideHold)
+        string a = how.Trim().ToLowerInvariant();
+        if (a is "off" or "") a = "clock";
+        if (a != "now") Kit.TideHold(a);
         return Tide.Describe((int)GameState.I.Day, (float)GameState.I.HourF);
     }
 

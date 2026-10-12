@@ -6,7 +6,7 @@ import { BOAT_NAMES, type BoatName, type SmallFleet } from "../world/boats";
 import { DECK_UNDER } from "../world/bridges";
 import { bedAt, HW_MAX, levelAt, LW_MIN, MID_Y, tideRate, water } from "../world/tide";
 import type { Rect } from "../world/geom";
-import { psx, psxUniforms } from "../retro/psx";
+import { psx, psxUniforms, ripples } from "../retro/psx";
 import type { JobsPayload } from "../net/api";
 import type { Jobs } from "./jobs";
 import type { Deeds } from "./deeds";
@@ -18,6 +18,7 @@ import { bootRestore } from "./restoreData";
 import { HULLS, MOORINGS, SMALL_KINDS, isSmallKind, type Mooring, type SmallKind } from "../../../shared/smallBoats";
 import { Moorings, floorOf, type RopeEnd } from "./boatMoorings";
 import { LifeAboard } from "./lifeAboard";
+import { bindBoatName } from "../world/boatNames";
 
 // Rowing boats (M3j), on the client. Steve, 2026-09-23: "We should be able to take a boat and
 // row to other places. Bridge goes up if we don't fit underneath. Only rowing boats, no big
@@ -208,6 +209,11 @@ export class Rowing {
     player.rowFree = (x, z, r) => this.free(x, z, r);
     player.rowCurrent = (x, z) => this.current(x, z);
     player.onRowStroke = (hard) => {
+      // (D3) the blades dip in: a ring off each side
+      const c = Math.cos(player.rowHeading);
+      const s = Math.sin(player.rowHeading);
+      ripples.ring(player.x + c * 1.4, player.z - s * 1.4, hard ? 1.2 : 0.9);
+      ripples.ring(player.x - c * 1.4, player.z + s * 1.4, hard ? 1.2 : 0.9);
       this.stroke();
       if (hard) this.hard++;
     };
@@ -422,6 +428,7 @@ export class Rowing {
     if (!l) {
       const o = obj ?? this.objFor(kind);
       if (!o) return null;
+      bindBoatName(o, kind, key === "mine" ? `hire:${this.data?.hire?.landing}` : key.replace(/^berth:/, "hire:"));
       l = { key, kind, obj: o, rect: this.rectOf(x, z, yaw, kind), x, z, yaw, drift };
       this.world.addWaterSolid(l.rect);
       this.lying.set(key, l);
@@ -524,7 +531,7 @@ export class Rowing {
     for (const L of high ? [] : w.landings) {
       const l = this.lying.get(`berth:${L.id}`);
       const d = Math.hypot(L.landing[0] - x, L.landing[1] - z);
-      const flooded = levelAt(L.x, L.z) > WATER_Y + 0.4 + 0.3;
+      const flooded = this.landingFlooded(L.x, L.z, L.landing);
       if (!l || d > (flooded ? 4.8 : 2.4)) continue;
       const what = L.kind === "punt" ? "a punt" : "a rowing boat";
       const debt = w.debt_c ? `, and the ${w.debt_c} c you owe` : "";
@@ -768,11 +775,16 @@ export class Rowing {
     }
   }
 
-  /** M7 boats: climb down the ladder (or step down off the quay) to her thwart, then `then`. */
+  /** The hire landing's actual floor, including floating stages and the tide. */
+  landingFlooded(x: number, z: number, landing: [number, number]): boolean {
+    return levelAt(x, z) > this.world.baseAt(landing[0], landing[1]) + 0.3;
+  }
+
+  /** Climb down the ladder (or step off the quay) to her grounded thwart, then `then`. */
   private climbInto(l: Lying, via: { ladder?: Extract<Mooring["board"], { kind: "ladder" }>; jump?: boolean }, then: () => void): void {
     const p = this.player;
     const h = HULL[l.kind];
-    const lv = levelAt(l.x, l.z);
+    const lv = Math.max(levelAt(l.x, l.z), floorOf(l.kind, l.x, l.z, l.yaw));
     const seat: [number, number] = [l.x + Math.sin(l.yaw) * h.seatZ, l.z + Math.cos(l.yaw) * h.seatZ];
     const top = this.world.baseAt(p.x, p.z);
     const keys: Array<[number, number, number, number]> = [];
@@ -812,6 +824,7 @@ export class Rowing {
       yaw = l.yaw;
     } else obj = this.objFor(kind);
     if (!obj) return;
+    bindBoatName(obj, kind, what === "hire" ? `hire:${this.data?.hire?.landing}` : what);
     this.world.boats()?.stowed(obj, false);
     this.boat = { obj, what, kind, oars: this.oarsFor(obj, kind) };
     this.player.rowStart(x, z, yaw, HULL[kind]);
@@ -1406,6 +1419,7 @@ export class Rowing {
         // the hull where the rower's physics put it; no float bob of its own (the rower's view moves with it)
         b.obj.position.set(p.x, p.rowY, p.z);
         b.obj.rotation.set(-p.rowPitch, p.rowHeading, p.rowRoll, "YXZ");
+        ripples.wake(this, p.x + Math.sin(p.rowHeading) * 1.9, p.z + Math.cos(p.rowHeading) * 1.9, Math.sin(p.rowHeading) * Math.sign(p.rowSpeed || 1), Math.cos(p.rowHeading) * Math.sign(p.rowSpeed || 1), Math.abs(p.rowSpeed), 1.3, 0.7); // (D3)
         const inner = b.obj.children[0];
         if (inner && inner.name !== "row_oars") {
           inner.position.y = 0;
@@ -1443,7 +1457,8 @@ export class Rowing {
         l.z = nz;
         l.drifted = true;
         Object.assign(l.rect, this.rectOf(nx, nz, l.yaw, l.kind));
-        l.obj.position.set(nx, levelAt(nx, nz), nz);
+        l.obj.userData.floor = floorOf(l.kind, nx, nz, l.yaw);
+        l.obj.position.set(nx, Math.max(levelAt(nx, nz), l.obj.userData.floor as number), nz);
       } else l.drift = false;
     }
     // wrecks going down

@@ -11,7 +11,8 @@ namespace Scheldemist.Dev;
 /// Test pictures from chosen views, hours and weathers in one run (docs/testing.md: a good view, midday and clear
 /// unless the dark or the fog is what is tested):
 ///   -- --snap dir --views "day:-118,1.62,36,180,0,13,clear;night:-118,1.62,36,180,10,22,mist"
-/// Each view: name:x,y,z,yaw,pitch[,hour,weather,storm] (degrees; storm: the great storm's level 0..1; yaw 0 looks to -z, 180 to +z; pitch up). A view with no
+/// Each view: name:x,y,z,yaw,pitch[,hour,weather,storm,tide] (degrees; storm: the great storm's level 0..1; tide: the
+/// river held at that level in metres, or high or low, also written tide=-5.2 (W1); yaw 0 looks to -z, 180 to +z; pitch up). A view with no
 /// place ("name:,,,,,21,rain") keeps the camera of the bake's first place. A view named lantern... follows the
 /// burning lantern nearest its camera from a few steps away. Writes dir/name.png and prints the mean
 /// frame time there, then quits.
@@ -26,6 +27,8 @@ public partial class Snap : Node
     private readonly List<double> times = new();
     private readonly List<Node3D> hidden = new();
     private const int Wait = 50, Timed = 90;
+    private bool settle;
+    private int settled;
 
     public override void _Ready()
     {
@@ -56,11 +59,13 @@ public partial class Snap : Node
     {
         view++;
         frame = 0;
+        settled = 0;
         times.Clear();
         if (view >= views.Count)
         {
             // (dev: --whatis x,y,z lists the drawn meshes whose box holds that point, small ones first)
-            if (Main.I.Arg("whatis") is { Length: > 0 } wi)
+            // (several points: x,y,z;x,y,z)
+            foreach (var wi in Main.I.Arg("whatis").Split(';', StringSplitOptions.RemoveEmptyEntries))
             {
                 var q = wi.Split(',').Select(F).ToArray();
                 var pt = new Vector3(q[0], q[1], q[2]);
@@ -71,7 +76,7 @@ public partial class Snap : Node
                         var mat = (gi as MeshInstance3D)?.Mesh?.SurfaceGetMaterial(0) as ShaderMaterial;
                         hits.Add(((gi.GlobalTransform * gi.GetAabb()).Size.Length(), $"{gi.GetPath().ToString().Split('/').TakeLast(3).Aggregate((x, y) => x + "/" + y)} mat {mat?.ResourceName} kind {(mat != null ? Render.Psx.KindOf(mat.Shader)?.ToString() : "")}"));
                     }
-                foreach (var (size, what) in hits.OrderBy(h => h.Item1).Take(12)) GD.Print($"whatis {size:0.0} {what}".Substring(0, Math.Min(300, $"whatis {size:0.0} {what}".Length)));
+                foreach (var (size, what) in hits.OrderBy(h => h.Item1).Take(12)) GD.Print($"whatis {wi} {size:0.0} {what}".Substring(0, Math.Min(300, $"whatis {wi} {size:0.0} {what}".Length)));
             }
             // (what the bake still hides as not ported)
             System.IO.File.WriteAllLines(System.IO.Path.Combine(dir, "unported.txt"), Main.I.World.Unported.Distinct());
@@ -115,17 +120,24 @@ public partial class Snap : Node
             if (cam is Player.FlyCam fly) fly.Face(q);
             else cam.Quaternion = q;
         }
-        if (a.Length > 6 && a[6] != "")
+        // (W1: the tide held for this view, and the picture waits until the drawn water stands there; a view without
+        // one lets the river follow the view's hour again)
+        string tide = a.Skip(6).FirstOrDefault(f => f.StartsWith("tide=")) is { } tf ? tf[5..] : a.Length > 9 && !a[9].Contains('=') ? a[9] : "";
+        settle = tide != "";
+        if (tide != "") Dev.Kit.TideHold(tide);
+        else if (Tide.Held != null) Tide.Hold(null);
+        if (a.Length > 6 && a[6] != "" && !a[6].StartsWith("tide="))
         {
             Daylight.I.SetTime(F(a[6]));
             Tide.Set(1, F(a[6])); // (Monday's tide at that hour)
         }
-        if (a.Length > 7 && a[7] != "") Daylight.I.SetWeather(a[7]);
+        if (a.Length > 7 && a[7] != "" && !a[7].StartsWith("tide=")) Daylight.I.SetWeather(a[7]);
         // (a view named bilge...: the pumps near it work now)
         if (ShipWater.I is { } sw) sw.PumpNow = a[0].StartsWith("bilge");
         // (held: the events part sets the storm every frame, and the test's level would fade)
-        Daylight.I.StormHold = a.Length > 8 && a[8] != "" ? F(a[8]) : null;
-        Daylight.I.SetStorm(a.Length > 8 && a[8] != "" ? F(a[8]) : 0);
+        bool storm = a.Length > 8 && a[8] != "" && !a[8].StartsWith("tide=");
+        Daylight.I.StormHold = storm ? F(a[8]) : null;
+        Daylight.I.SetStorm(storm ? F(a[8]) : 0);
         Daylight.I.Settle();
     }
 
@@ -209,8 +221,15 @@ public partial class Snap : Node
     public override void _Process(double delta)
     {
         if (view < 0 || view >= views.Count) return;
+        // (a held tide: the drawn water eases there at 0.6 m a second; the frames count from when it stands there)
+        if (settle && MathF.Abs(Tide.River - Tide.Target) > 0.004f && settled++ < 6000)
+        {
+            frame = 0;
+            times.Clear();
+            return;
+        }
         ulong now = Time.GetTicksUsec();
-        if (frame > Wait) times.Add((now - last) / 1000.0);
+        if (!Main.I.Flag("snap-no-timing") && frame > Wait) times.Add((now - last) / 1000.0);
         last = now;
         frame++;
         if (views[view][0].StartsWith("lantern") && People.LanternPool.I?.NearestLit(Main.I.Cam.GlobalPosition) is { } lamp)
@@ -255,17 +274,18 @@ public partial class Snap : Node
                         hits.Add(((gi.GlobalTransform * gi.GetAabb()).Size.Length(), $"{(gi.GlobalTransform * gi.GetAabb()).GetCenter().DistanceTo(o):0} m {gi.GetPath().ToString().Split('/').TakeLast(3).Aggregate((x, y) => x + "/" + y)} {gi.GetClass()} mat {(gi.MaterialOverride ?? (gi as MeshInstance3D)?.Mesh?.SurfaceGetMaterial(0))?.ResourceName}"));
                 foreach (var (size, what) in hits.OrderBy(h => h.Item1).Take(60)) GD.Print($"whatray {name} {one} {size:0} {what}");
             }
+        GD.Print($"snap {name} tide: the river {Tide.River:0.00}{(Tide.Held is { } th ? $" (held at {th:0.00})" : "")}, drawn at {Waters.Level:0.00}, the dock {Tide.Dock:0.00}, the lock {Tide.ChamberA:0.00} / {Tide.ChamberB:0.00}");
         if (ShipWater.I is { } sw) GD.Print($"snap {name} ship water: {sw.Info}");
         if (Bats.I is { } bts) GD.Print($"snap {name} bats: {bts.Info}");
-        if (Gulls.I is { } gls) GD.Print($"snap {name} gulls: {gls.Info}, {gls.MeanMs:0.000} ms a frame ({gls.CostParts}), {gls.AllocatedLastFrame} bytes");
+        if (!Main.I.Flag("snap-no-timing") && Gulls.I is { } gls) GD.Print($"snap {name} gulls: {gls.Info}, {gls.MeanMs:0.000} ms a frame ({gls.CostParts}), {gls.AllocatedLastFrame} bytes");
         if (Debris.I is { } db) GD.Print($"snap {name} debris: {db.Info}");
         if (Gutters.I is { } gt) GD.Print($"snap {name} eaves drops: {gt.DropInfo}");
         if (Breath.I is { } br) GD.Print($"snap {name} horses' breath: {br.HorseInfo}");
         if (Lightning.I is { } lg) GD.Print($"snap {name} lightning: {lg.Info}, flash {Daylight.I.Flash:0.00}");
         if (LandmarkRooms.I is { } lr) GD.Print($"snap {name} landmark rooms: {string.Join(", ", lr.Info.Select(i => $"{i.building} {i.lit}/{i.windows}"))}; steen lanterns {lr.LanternInfo.lit}/{lr.LanternInfo.lanterns}");
-        times.Sort();
+        if (!Main.I.Flag("snap-no-timing")) times.Sort();
         GD.Print($"snap {name} air: wind {Daylight.I.Wind.Length():0.00}, rain {Daylight.I.Rain:0.00}, storm {Daylight.I.Storm:0.00}, night life {NightLife.I?.Info}, surf {Surf.I?.Info}, gutters {Gutters.I?.Info}, breath {Breath.I?.Info}, blobs {Blobs.I?.Count}");
-        GD.Print($"snap {name}: {times.Average():0.00} ms a frame (p95 {times[(int)(times.Count * 0.95)]:0.00}), {RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalDrawCallsInFrame)} draws, {Render.Psx.ShaderCount} psx shaders");
+        if (!Main.I.Flag("snap-no-timing")) GD.Print($"snap {name}: {times.Average():0.00} ms a frame (p95 {times[(int)(times.Count * 0.95)]:0.00}), {RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalDrawCallsInFrame)} draws, {Render.Psx.ShaderCount} psx shaders");
         Next();
     }
 }

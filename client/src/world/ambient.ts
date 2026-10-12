@@ -9,6 +9,7 @@ import { LAMP_LIGHT } from "./lampLight";
 import { sharedFacadeProbe, type FacadeProbe } from "./facadeProbe";
 import INWORLD from "../../../shared/inworld_houses.json";
 import YARDS from "../../../shared/city_yard_windows.json";
+import GUILDS from "../../../shared/city_guild_fronts.json";
 import { YARD_PANE_OFF, yardPanes } from "./yardWindows";
 import { tempest } from "./tempest";
 import { neverMirrored } from "./mirror";
@@ -528,6 +529,10 @@ interface House {
   gone?: boolean;
 }
 
+/** A guild front's window (shared/city_guild_fronts.json): s along the front, y0, y1, width, the pane's distance out of the wall line, storey, kind. */
+type GuildWin = [number, number, number, number, number, number, number];
+const GUILD_FRONTS = (GUILDS as unknown as { houses: Record<string, { windows: GuildWin[] }> }).houses;
+
 /** on, off, morning on, morning off; hours from noon (so 25 = 1:00 at night). 99 = never. */
 type Lit = [number, number, number, number];
 
@@ -832,6 +837,8 @@ function buildWindows(houses: House[], gables: Record<string, GableWin[]> = {}, 
     let loads: number[] = [];
     /** The gable's cut windows (a front gable with the whole dress), or null: the painted ones as before. */
     let cutGable: GableWin[] | null = null;
+    /** The Grote Markt's guild fronts (build_city.py guild_fronts): over the ground storey their own windows, not the grid. */
+    let guildWins: GuildWin[] | null = null;
     const wall = (ax: number, az: number, bx: number, bz: number, ox: number, oz: number, door: boolean, gable?: (d: number) => number, gableStep?: number) => {
       const L = Math.hypot(bx - ax, bz - az);
       if (L < 0.05) return;
@@ -854,6 +861,15 @@ function buildWindows(houses: House[], gables: Record<string, GableWin[]> = {}, 
             addWindow(x, z, ox, oz, ux, uz, (bw * 36) / 64, 0.83, 2.85, l, tone, 1, setIn ? -0.095 : 0.04);
           }
         }
+      }
+      if (guildWins) {
+        for (const [s, y0, y1, w, out, k, kind] of guildWins) {
+          const l = litOf(k, kind === 2);
+          if (l[0] >= 99 && l[2] >= 99) continue;
+          const [x, z] = at(s);
+          addWindow(x, z, ox, oz, ux, uz, w, y0, y1, l, tone, kind, out, `${hi}:guild:${k}`);
+        }
+        return;
       }
       // upper storeys: tall windows 18/64 of a bay wide, 0.66 to 2.34 m above the storey floor (col 1)
       const maxUp = gable ? H + 12 : H;
@@ -930,8 +946,10 @@ function buildWindows(houses: House[], gables: Record<string, GableWin[]> = {}, 
         if (store && i === 0) for (let g = 4.5; g < W - 3; g += 9) loads.push(g);
         setIn = !flat.has(`${hi}:${i}`);
         cutGable = i === 0 ? (gables[String(hi)] ?? null) : null;
+        guildWins = i === 0 ? (GUILD_FRONTS[String(hi)]?.windows ?? null) : null;
         wall(ax, az, bx, bz, outs[i][0], outs[i][1], i === 0, g);
         cutGable = null;
+        guildWins = null;
         loads = [];
       }
     } else {
@@ -1130,7 +1148,8 @@ function buildRain(): THREE.Mesh {
         vec3 head = lo + mod(position + vel * uTime - lo, box);
         // a streak is the drop's fall in one frame (uExpo), a little more or less drop by drop: this frame's streak meets
         // the last one's, and the eye follows the drop down; both ends in front of the eye, or none
-        float expo = uExpo * (0.85 + 0.3 * fract(aSeed * 5.31));
+        // (the look survey's point 19: never shorter than a 30th of a second's fall, about as long as the eye sees a drop)
+        float expo = max(uExpo, 1.0 / 30.0) * (0.85 + 0.3 * fract(aSeed * 5.31));
         vec3 tail = head - vel * expo;
         vec4 mh = modelViewMatrix * vec4(head, 1.0);
         vec4 mt = modelViewMatrix * vec4(tail, 1.0);
@@ -1153,7 +1172,8 @@ function buildRain(): THREE.Mesh {
         gl_Position.xy += perp * aSide * px * (2.0 / 270.0) * gl_Position.w;
         // rain barely shows in grey daylight (a little lighter than the air); a drop by a
         // gas lamp catches its glow and shows clearly
-        vec3 col = fogColor * (1.3 + 0.5 * uTempest) + 0.01 + 0.05 * uTempest;
+        // (survey 19: the rain hardly showed) a drop catches the bright sky: lighter than the air
+        vec3 col = fogColor * (1.55 + 0.4 * uTempest) + 0.025 + 0.04 * uTempest;
         for (int i = 0; i < AMB_LAMPS; i++) {
           vec3 d = p - uLamps[i].xyz;
           col += uLampColor * uLamps[i].w * 1.3 / (1.0 + dot(d, d) * 0.3);
@@ -1161,12 +1181,10 @@ function buildRain(): THREE.Mesh {
         vCol = col;
         // close drops only: far off, rain is thicker air (the weather's fog), not streaks
         // (the great storm: sheets of it, seen farther off: the whole box)
-        float near = smoothstep(0.4, 1.2, vFogDepth) * (1.0 - smoothstep(3.0 + 5.0 * uTempest, 7.0 + 6.0 * uTempest, vFogDepth));
+        float near = smoothstep(0.3, 0.9, vFogDepth) * (1.0 - smoothstep(5.0 + 3.0 * uTempest, 11.0 + 2.0 * uTempest, vFogDepth));
         float za = -mh.z;
         float zb = -mt.z;
-        vA = step(aSeed, uRainAmt * (0.267 + 0.733 * uTempest)) * near * (0.08 + 0.2 * fract(aSeed * 7.3)) * (0.5 + 0.5 * uRainAmt) * (1.0 + 2.6 * uTempest) * step(0.7, min(za, zb));
-        // (thicker strips than the old lines: the same rain a little fainter per pixel)
-        vA *= 0.75;
+        vA = step(aSeed, uRainAmt * (0.55 + 0.45 * uTempest)) * near * (0.12 + 0.26 * fract(aSeed * 7.3)) * (0.5 + 0.5 * uRainAmt) * (1.0 + 2.0 * uTempest) * step(0.7, min(za, zb));
         // the great storm: the rain comes in curtains that sweep along with the wind, thick and thin by turns
         if (uTempest > 0.0) {
           vec2 wd = normalize(uWind + vec2(1e-4));
