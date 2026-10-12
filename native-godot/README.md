@@ -5,9 +5,15 @@ press F6 on `main.tscn` (or F5). On Steve's Windows PC, double-click `Start Work
 existing game database, or existing game settings are used. Workshop data goes to its own `ScheldemistWorkshop`
 user folder.
 
-The quay and three simple assets are migration fixtures, not replacements for the models and textures currently
+The pilot quay and three simple assets are migration fixtures, not replacements for the models and textures currently
 being improved in the other session. The entire implementation is additive in `native-godot/`, on
 `godot/native-authoring`, in `D:/Code/MoodyGame-native-authoring`. Nothing has been merged into the running game.
+
+Double-click `Start Recovered Quay.cmd` to edit the first recovered Rijnkaai section. Its native scenes, meshes,
+materials, textures and collision are included in this branch; the original town GLB is not needed to run it.
+The recovered bollards and gas lamps can be moved, copied and deleted. Other scenery is saved as ordinary Godot
+nodes and can be edited in `recovered/rijnkaai-recovered/district.tscn`. Merged buildings and cargo remain chunks;
+the export did not retain all individual object boundaries. New objects must have ground under their footprint.
 
 ## Place objects yourself
 
@@ -28,6 +34,9 @@ asset references and transforms. Copy that file into this Godot project to use i
 The Godot editor can also directly change `districts/quay-pilot.tscn`. A saved workshop layout overrides that seed
 when running; use a fresh `--author-dir` to check changes to the seed itself.
 
+Each district resource supplies its own boundary, camera/walk spawns, scene and asset catalog. The recovered quay
+has a separate layout directory from the pilot; saving one does not replace the other.
+
 ## Asset intake after the helpers finish
 
 Each asset in `assets/library/` has a stable id, a display name, a reusable PackedScene, and a conservative clearance
@@ -47,7 +56,7 @@ shared bake directories remain untouched. Stable ids and external resource refer
 | In-game placement, selection, ground snapping, exact transforms | Working for simple static assets; occupied and off-quay placements refused. |
 | Undo/redo, persistent layout, editable Godot scene export | Working; checked across separate Godot processes. |
 | Model/texture intake | Wrappers ready; final helper assets deliberately not copied yet. |
-| Existing town | Pending one-time recovery into district scenes; retain the old game as a reference until reviewed. |
+| Existing town | First static Rijnkaai section recovered: 14 authored props and 68 mesh colliders. Other districts and dynamic parts remain. |
 | Navigation | Pending scene-derived navigation and moving-bridge links. The pilot has player collision, not NPC pathfinding. |
 | Game services | Pending C# ports of rules, SQLite persistence, AI providers, and multiplayer. The old server is not part of this pilot. |
 | Retiring the browser and Node game | Pending parity checks and save migration; remove only once the native game covers those behaviors. |
@@ -58,6 +67,22 @@ does not complete the migration. Move district by district, replace fragile mesh
 object/anchor ids, and derive gameplay coordinates from the native scene. Port offline game rules before provider
 and LAN integrations. Preserve existing saves and compare the current tests' outcomes when moving each service.
 
+## One-time recovery
+
+`pwsh -File scripts/recover-town.ps1 -Source <existing town.glb> -Plan <plan.json>` reads a snapshot and its adjacent
+`town.json`; it does not run a browser, start Node or write the source files. The default plan is `recovery/rijnkaai.json`.
+It selects static geometry and embedded textures, keeps nested transforms and hidden-node/material metadata,
+expands in-bound instances with their colours, and saves native resources shared between editable scenes.
+UV2 atlas cells use `shaders/recovered_atlas.gdshader`; recovered textures have mipmaps. Wetness, relief, grime,
+water, decals and the original lighting still require rendering work. Auxiliary PSX texture references remain in
+the metadata report; those maps are not silently treated as imported native effects.
+
+The tool refuses an existing output district to protect native edits. Give another snapshot a new plan id.
+`recovery-report.json` records the source fingerprint, plan, source node ids, material/instance metadata, checks,
+and remaining work. Scenery intersecting the boundary retains its whole mesh; editing limits apply to placement.
+Only the reviewed Rijnkaai output is tracked; fixture runs and other recovery attempts are ignored. Helpers' final
+art must still be integrated deliberately, preserving the authored object and asset ids.
+
 ## Checks
 
 On Windows with PowerShell 7: `pwsh -File scripts/check-workshop.ps1 [-Godot <console exe>]`.
@@ -65,3 +90,8 @@ The runner builds this project, imports it in a headless editor, and runs write/
 processes with a fresh layout directory. It rejects engine ERROR logs as well as nonzero exits. Reports remain in
 ignored `proof/` directories. It never reads a player save, launches a Node server, writes the shared bake, or
 runs a GPU performance measurement. `--author-shot <absolute png>` gives a short rendered picture run for visual QA.
+
+`pwsh -File scripts/check-recovery.ps1` checks a generated fixture with nested transforms, hidden geometry,
+coloured instances and an unused invalid image, then checks the real quay. Both run write and reload in separate
+Godot processes with isolated layouts. Together with the pilot, 91 runtime assertions pass; recovery also checks
+native resource references and source preservation. The fixture's invalid unused image is pruned before import.

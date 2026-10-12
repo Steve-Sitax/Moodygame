@@ -1,0 +1,43 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0010.res" id="1_grtcu"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0012.res" id="2_ey73a"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0011.res" id="3_pasjs"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0013.res" id="4_wmybc"]
+
+[node name="source_1579" type="Node3D" unique_id=1710023443]
+metadata/source_node_index = 1579
+metadata/source_name = "bollard"
+
+[node name="recover_1579" type="Node3D" parent="." unique_id=1232468551]
+metadata/source_node_index = 1579
+metadata/source_name = "bollard"
+metadata/legacy_extras_json = "{}"
+
+[node name="recover_1580" type="MeshInstance3D" parent="recover_1579" unique_id=544863639]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.35, 0)
+mesh = ExtResource("1_grtcu")
+metadata/source_node_index = 1580
+metadata/source_name = ""
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="recover_1579/recover_1580" unique_id=1425669677]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="recover_1579/recover_1580/Solid" unique_id=278572974]
+shape = ExtResource("2_ey73a")
+
+[node name="recover_1581" type="MeshInstance3D" parent="recover_1579" unique_id=1923337913]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.74, 0)
+mesh = ExtResource("3_pasjs")
+metadata/source_node_index = 1581
+metadata/source_name = ""
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="recover_1579/recover_1581" unique_id=1443475803]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="recover_1579/recover_1581/Solid" unique_id=909639889]
+shape = ExtResource("4_wmybc")

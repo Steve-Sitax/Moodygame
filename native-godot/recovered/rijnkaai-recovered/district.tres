@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://recovered/rijnkaai-recovered/catalog.tres" id="1_h7rgw"]
+[ext_resource type="PackedScene" path="res://recovered/rijnkaai-recovered/district.tscn" id="2_gw8b1"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="3_vuals"]
+
+[resource]
+script = ExtResource("3_vuals")
+Id = "rijnkaai-recovered"
+Title = "Rijnkaai · recovered town"
+Scene = ExtResource("2_gw8b1")
+Catalog = ExtResource("1_h7rgw")
+Bounds = Rect2(-12, -6, 72, 68)
+WalkSpawn = Vector3(20, 0.02, 26)
+FlySpawn = Vector3(20, 6, 26)
+FlyYaw = 3.1415927

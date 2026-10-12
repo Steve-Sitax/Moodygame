@@ -9,6 +9,12 @@ public partial class WorkshopCamera : CharacterBody3D
     public Vector3? ProofDrive { get; set; }
     private float yaw, pitch = -0.35f;
     private Vector3 flyPosition;
+    private Vector3 walkSpawn = new(0, 0.02f, 8);
+    public void Configure(AuthorDistrict district)
+    {
+        walkSpawn = district.WalkSpawn; Position = district.FlySpawn;
+        yaw = district.FlyYaw; pitch = district.FlyPitch; Eye.Rotation = new(pitch, yaw, 0);
+    }
     public override void _Ready()
     {
         Eye = GetNode<Camera3D>("Eye");
@@ -23,8 +29,7 @@ public partial class WorkshopCamera : CharacterBody3D
         if (!editing)
         {
             flyPosition = Position;
-            // A test walk starts on a clear part of the pilot quay.
-            Position = new(0, 0.02f, 8); pitch = 0;
+            Position = walkSpawn; pitch = 0;
         }
         else { Position = flyPosition; pitch = -0.35f; }
         Editing = editing; Velocity = Vector3.Zero;

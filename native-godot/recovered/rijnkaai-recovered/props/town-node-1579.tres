@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://recovered/rijnkaai-recovered/props/town-node-1579.tscn" id="1_hoae3"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_b3n1p"]
+
+[resource]
+script = ExtResource("2_b3n1p")
+Id = "town-node-1579"
+Title = "Recovered bollard · 1579"
+Category = "Recovered quay"
+Scene = ExtResource("1_hoae3")
+Footprint = Vector3(0.58495677, 0.8, 0.5702907)
+FootprintOffset = Vector3(0, 0, 0.01485467)

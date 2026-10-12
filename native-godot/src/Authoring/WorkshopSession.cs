@@ -9,8 +9,9 @@ namespace Scheldemist.Native.Authoring;
 /// <summary>Godot-native scene instances and layout edits. No Main, BakedWorld, Node server or browser dependencies.</summary>
 public partial class WorkshopSession : Node3D
 {
-    [Export] public AuthorCatalog Catalog { get; set; } = null!;
-    [Export] public string DistrictId { get; set; } = "quay-pilot";
+    [Export] public AuthorDistrict District { get; set; } = null!;
+    public AuthorCatalog Catalog => District.Catalog;
+    public string DistrictId => District.Id;
     public Dictionary<string, AuthorAsset> Assets { get; private set; } = new();
     public LayoutDocument Document { get; private set; } = null!;
     public LayoutStore Store { get; private set; } = null!;
@@ -45,8 +46,21 @@ public partial class WorkshopSession : Node3D
     {
         try
         {
+            var requested = Arg("district");
+            if (requested != "")
+            {
+                if (!LayoutDocument.ValidId(requested)) throw new InvalidOperationException("Invalid district id.");
+                string path = "res://recovered/" + requested + "/district.tres";
+                if (!ResourceLoader.Exists(path)) throw new FileNotFoundException("Recover this district first: " + requested);
+                District = ResourceLoader.Load<AuthorDistrict>(path);
+            }
+            District.Validate();
+            // main.tscn retains a visible seed for the Godot editor. Runtime selects the requested native district.
+            if (GetNodeOrNull<Node3D>("District") is { } seed) { RemoveChild(seed); seed.Free(); }
+            var districtScene = District.Scene.Instantiate<Node3D>(); districtScene.Name = "District"; AddChild(districtScene);
             Assets = Catalog.Index();
             Camera = GetNode<WorkshopCamera>("Camera");
+            Camera.Configure(District);
             objectRoot = GetNode<Node3D>("District/Objects");
             Document = new() { District = DistrictId, Objects = objectRoot.GetChildren().OfType<AuthoredObject>().Select(o => o.Record()).ToList() };
             Document.Validate(DistrictId, Assets);
@@ -68,7 +82,8 @@ public partial class WorkshopSession : Node3D
             GetTree().Root.CloseRequested += RequestQuit;
             if (warning != null) Ui.Note(warning);
             var proof = Arg("author-test");
-            if (proof != "") _ = WorkshopProof.Run(this, proof, Arg("proof-stage", "write"));
+            if (Arg("recovery-test") != "") _ = Recovery.RecoveryWorkshopProof.Run(this, Arg("recovery-test"), Arg("proof-stage", "write"));
+            else if (proof != "") _ = WorkshopProof.Run(this, proof, Arg("proof-stage", "write"));
             else if (Arg("author-shot") != "") _ = WorkshopProof.Picture(this, Arg("author-shot"));
         }
         catch (Exception e) { GD.PrintErr(e); GetTree().Quit(1); }
@@ -192,14 +207,27 @@ public partial class WorkshopSession : Node3D
         var scale = LayoutDocument.Vector(p.Scale); var rotation = LayoutDocument.Vector(p.Rotation);
         var size = asset.Footprint * scale;
         var basis = Basis.FromEuler(rotation);
-        float reach = Math.Max(size.X, size.Z) * 0.5f;
-        if (Math.Abs(position.X) + reach > 19.8f || Math.Abs(position.Z) + reach > 15.8f || Math.Abs(position.Y) > 0.05f)
+        var offset = asset.FootprintOffset * scale + new Vector3(0, size.Y * 0.5f, 0);
+        bool inside = true;
+        foreach (float dx in new[] { -0.5f, 0.5f }) foreach (float dz in new[] { -0.5f, 0.5f })
+        {
+            var corner = position + basis * (offset + new Vector3(size.X * dx, 0, size.Z * dz));
+            inside &= District.Bounds.HasPoint(new Vector2(corner.X, corner.Z));
+        }
+        if (!inside || Math.Abs(position.Y) > 0.05f)
         { why = "Place the object on the quay."; return false; }
+        foreach (float dx in new[] { -0.5f, 0.5f }) foreach (float dz in new[] { -0.5f, 0.5f })
+        {
+            var foot = position + basis * (offset + new Vector3(size.X * dx, 0, size.Z * dz));
+            using var support = PhysicsRayQueryParameters3D.Create(new(foot.X, position.Y + 0.2f, foot.Z), new(foot.X, position.Y - 0.2f, foot.Z), 1);
+            if (GetWorld3D().DirectSpaceState.IntersectRay(support).Count == 0)
+            { why = "The object needs solid ground under its footprint."; return false; }
+        }
         var exclude = new Godot.Collections.Array<Rid>();
         if (objects.TryGetValue(p.Id, out var own)) foreach (var body in Nodes(own).OfType<CollisionObject3D>()) exclude.Add(body.GetRid());
         using var shape = new BoxShape3D { Size = size * 0.98f };
         using var query = new PhysicsShapeQueryParameters3D { Shape = shape,
-            Transform = new Transform3D(basis, position + basis * new Vector3(0, size.Y * 0.5f, 0)), CollisionMask = 2, Exclude = exclude, Margin = 0.001f };
+            Transform = new Transform3D(basis, position + basis * offset), CollisionMask = 2, Exclude = exclude, Margin = 0.001f };
         bool free = GetWorld3D().DirectSpaceState.IntersectShape(query, 1).Count == 0;
         why = free ? "Click to place. R turns the object; Esc cancels." : "There is another object here.";
         return free;

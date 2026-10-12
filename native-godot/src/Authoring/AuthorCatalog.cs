@@ -16,7 +16,8 @@ public partial class AuthorCatalog : Resource
         foreach (var asset in Assets)
         {
             if (asset == null || !LayoutDocument.ValidId(asset.Id) || asset.Scene == null || !asset.Scene.CanInstantiate()
-                || !asset.Footprint.IsFinite() || asset.Footprint.X <= 0 || asset.Footprint.Y <= 0 || asset.Footprint.Z <= 0)
+                || !asset.Footprint.IsFinite() || !asset.FootprintOffset.IsFinite()
+                || asset.Footprint.X <= 0 || asset.Footprint.Y <= 0 || asset.Footprint.Z <= 0)
                 throw new InvalidOperationException("The object library contains an incomplete asset.");
             if (!index.TryAdd(asset.Id, asset)) throw new InvalidOperationException($"Duplicate asset id: {asset.Id}");
         }

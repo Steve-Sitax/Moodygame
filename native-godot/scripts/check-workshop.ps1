@@ -10,6 +10,7 @@ if (-not $Godot) {
 if (-not $Godot -or -not (Test-Path -LiteralPath $Godot)) { throw 'Pass -Godot with the real Godot Mono console executable.' }
 $workshopProof = Join-Path $workshopProject ('proof\run-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $workshopProof | Out-Null
+Set-Content -LiteralPath (Join-Path $workshopProject 'proof\.gdignore') -Value ''
 
 function Invoke-Workshop([string[]]$EngineArguments, [string]$Name) {
     $workshopStart = [Diagnostics.ProcessStartInfo]::new()

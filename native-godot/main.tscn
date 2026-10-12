@@ -1,6 +1,6 @@
 [gd_scene load_steps=9 format=3]
 [ext_resource type="Script" path="res://src/Authoring/WorkshopSession.cs" id="1"]
-[ext_resource type="Resource" path="res://assets/library/catalog.tres" id="2"]
+[ext_resource type="Resource" path="res://districts/quay-pilot.tres" id="2"]
 [ext_resource type="PackedScene" path="res://districts/quay-pilot.tscn" id="3"]
 [ext_resource type="Script" path="res://src/Authoring/WorkshopCamera.cs" id="4"]
 [sub_resource type="ProceduralSkyMaterial" id="sky_material"]
@@ -20,7 +20,7 @@ radius = 0.3
 height = 1.7
 [node name="Workshop" type="Node3D"]
 script = ExtResource("1")
-Catalog = ExtResource("2")
+District = ExtResource("2")
 [node name="District" parent="." instance=ExtResource("3")]
 [node name="Sun" type="DirectionalLight3D" parent="."]
 rotation_degrees = Vector3(-45, -35, 0)

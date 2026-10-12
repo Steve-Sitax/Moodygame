@@ -1,4 +1,4 @@
-param([string]$Godot, [switch]$Editor)
+param([string]$Godot, [switch]$Editor, [string]$District)
 $ErrorActionPreference = 'Stop'
 $workshopProject = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 if (-not $Godot) {
@@ -12,5 +12,6 @@ if (-not $Godot -or -not (Test-Path -LiteralPath $Godot)) { throw 'Pass -Godot w
 if ($LASTEXITCODE -ne 0) { throw 'Native Godot build failed.' }
 $workshopArguments = @('--path', $workshopProject)
 if ($Editor) { $workshopArguments += '--editor' }
+if ($District) { $workshopArguments += @('--', '--district', $District) }
 & $Godot @workshopArguments
 exit $LASTEXITCODE

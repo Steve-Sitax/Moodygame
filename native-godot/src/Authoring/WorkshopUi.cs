@@ -42,7 +42,9 @@ public partial class WorkshopUi : Control
         AddChild(side); var col = new VBoxContainer(); col.AddThemeConstantOverride("separation", 8); side.AddChild(col);
         col.AddChild(new Label { Text = "OBJECT LIBRARY" });
         search = new LineEdit { PlaceholderText = "Find an object…" }; col.AddChild(search); search.TextChanged += _ => FilterLibrary();
-        library = new VBoxContainer(); col.AddChild(library); FilterLibrary();
+        var libraryScroll = new ScrollContainer { CustomMinimumSize = new Vector2(0, 145), HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
+        col.AddChild(libraryScroll);
+        library = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; libraryScroll.AddChild(library); FilterLibrary();
         var grid = new HBoxContainer(); col.AddChild(grid);
         var snap = new CheckButton { Text = "Snap", ButtonPressed = true }; grid.AddChild(snap); snap.Toggled += value => session.Snap = value;
         var distance = new SpinBox { MinValue = 0.05, MaxValue = 2, Step = 0.05, Value = 0.25, Suffix = "m", SizeFlagsHorizontal = SizeFlags.ExpandFill };
@@ -51,7 +53,8 @@ public partial class WorkshopUi : Control
         placed = new ItemList { CustomMinimumSize = new Vector2(0, 120), SizeFlagsVertical = SizeFlags.ExpandFill };
         col.AddChild(placed); placed.ItemSelected += i => { if (!refreshing) session.Select(placed.GetItemMetadata((int)i).AsString()); };
         selection = new Label { Text = "Select an object in the town." }; col.AddChild(selection);
-        x = Number(col, "X", -20, 20, 0.05); z = Number(col, "Z", -16, 16, 0.05); angle = Number(col, "Turn", -3600, 3600, 15);
+        x = Number(col, "X", session.District.Bounds.Position.X, session.District.Bounds.End.X, 0.05);
+        z = Number(col, "Z", session.District.Bounds.Position.Y, session.District.Bounds.End.Y, 0.05); angle = Number(col, "Turn", -3600, 3600, 15);
         Button(col, "Apply position", ApplyPosition);
         var actions = new HBoxContainer(); col.AddChild(actions);
         move = Button(actions, "Move", session.MoveSelected); duplicate = Button(actions, "Copy", session.DuplicateSelected); delete = Button(actions, "Delete", session.DeleteSelected);
@@ -112,7 +115,7 @@ public partial class WorkshopUi : Control
         save.Disabled = !session.Store.Writable;
         walk.Text = session.Editing ? "Walk the quay · F2" : "Edit town · F2";
         side.Visible = session.Editing;
-        state.Text = $"{(session.Editing ? "EDITING" : "WALKING")}  ·  {session.Document.Objects.Count} objects  ·  {(session.Night ? "Night" : "Day")}  ·  {(session.Dirty ? "Unsaved changes" : "Layout saved")}";
+        state.Text = $"{session.District.Title}  ·  {(session.Editing ? "EDITING" : "WALKING")}  ·  {session.Document.Objects.Count} objects  ·  {(session.Night ? "Night" : "Day")}  ·  {(session.Dirty ? "Unsaved changes" : "Layout saved")}";
         refreshing = false;
     }
     public bool OverPanel(Vector2 p) => (side.Visible && side.GetGlobalRect().HasPoint(p)) || top.GetGlobalRect().HasPoint(p) || p.Y > GetViewportRect().Size.Y - 85;

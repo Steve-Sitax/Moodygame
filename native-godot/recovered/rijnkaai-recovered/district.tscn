@@ -1,0 +1,895 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0098.res" id="1_3xv4g"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0187.res" id="2_m5wl1"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0101.res" id="3_80w5t"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0188.res" id="4_c2cvs"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0104.res" id="5_n0o10"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0189.res" id="6_jetnc"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0107.res" id="7_xfop8"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0190.res" id="8_akw3d"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0110.res" id="9_smtgv"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0191.res" id="10_wbw42"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0113.res" id="11_ykr68"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0116.res" id="12_wrttc"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0192.res" id="13_tgyko"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0119.res" id="14_h6twq"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0193.res" id="15_x50b4"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0121.res" id="16_2511h"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0194.res" id="17_hrd8v"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0124.res" id="18_3wco1"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0195.res" id="19_b8vkv"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0127.res" id="20_1fefm"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0196.res" id="21_1rnsw"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0130.res" id="22_bg2xa"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0197.res" id="23_4jqk2"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0132.res" id="24_djvwr"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0133.res" id="25_t4pmk"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0198.res" id="26_6iqhf"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0134.res" id="27_lcm7o"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0199.res" id="28_71chb"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0135.res" id="29_812ei"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0200.res" id="30_ndebp"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0136.res" id="31_hxu4q"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0137.res" id="32_8vmyh"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0201.res" id="33_q5yor"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0138.res" id="34_ngnse"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0202.res" id="35_ojc0x"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0141.res" id="36_j1pt8"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0203.res" id="37_5oq7a"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0144.res" id="38_wur6r"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0204.res" id="39_frs67"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0145.res" id="40_74x0t"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0148.res" id="41_r43ud"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0205.res" id="42_o1ymo"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0150.res" id="43_qb7ks"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0206.res" id="44_j370a"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0152.res" id="45_x7yxx"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0207.res" id="46_d8i5w"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0153.res" id="47_x7ivi"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0208.res" id="48_pmwmm"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0155.res" id="49_mjnoa"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0209.res" id="50_8koxs"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0156.res" id="51_fl552"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0210.res" id="52_ocgo7"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0159.res" id="53_u5tp0"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0211.res" id="54_d7oyv"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0162.res" id="55_megck"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0163.res" id="56_shlea"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0212.res" id="57_j5yp1"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0164.res" id="58_bfhqk"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0165.res" id="59_ekpxa"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0213.res" id="60_4mng1"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0166.res" id="61_0srie"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0214.res" id="62_72g66"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0167.res" id="63_2kr5t"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0215.res" id="64_rhfv5"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0169.res" id="65_o1cvw"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0171.res" id="66_5tads"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0174.res" id="67_igxtu"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0216.res" id="68_pnour"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0177.res" id="69_jtdvf"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0217.res" id="70_nu14o"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0180.res" id="71_i5xhv"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0183.res" id="72_6ptc2"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0218.res" id="73_qc17v"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0184.res" id="74_4m5d1"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0219.res" id="75_7gtmc"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0185.res" id="76_4ooum"]
+[ext_resource type="ArrayMesh" path="res://recovered/rijnkaai-recovered/resources/r0186.res" id="77_g4t48"]
+[ext_resource type="Shape3D" path="res://recovered/rijnkaai-recovered/resources/r0220.res" id="78_my67m"]
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="79_c7hw2"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-recovered/props/town-node-1530.tres" id="80_iqp6n"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-recovered/props/town-node-1576.tres" id="81_aabqg"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-recovered/props/town-node-1579.tres" id="82_as01d"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-recovered/props/town-node-1582.tres" id="83_k6uaq"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-recovered/props/town-node-1585.tres" id="84_if7s0"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-recovered/props/town-node-1588.tres" id="85_7n2e5"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-recovered/props/town-node-1591.tres" id="86_4qp5c"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-recovered/props/town-node-1594.tres" id="87_hmqxv"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-recovered/props/town-node-5920.tres" id="88_1n5xe"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-recovered/props/town-node-5925.tres" id="89_y5v4d"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-recovered/props/town-node-5960.tres" id="90_k0kko"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-recovered/props/town-node-5965.tres" id="91_hxhyq"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-recovered/props/town-node-5970.tres" id="92_necsf"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-recovered/props/town-node-5975.tres" id="93_77iqp"]
+
+[node name="Rijnkaai" type="Node3D" unique_id=1130102212]
+
+[node name="Scenery" type="Node3D" parent="." unique_id=682390472]
+
+[node name="source_5" type="Node3D" parent="Scenery" unique_id=737913290]
+metadata/source_node_index = 5
+metadata/source_name = "ground_earth"
+
+[node name="recover_5" type="MeshInstance3D" parent="Scenery/source_5" unique_id=656733927]
+mesh = ExtResource("1_3xv4g")
+metadata/source_node_index = 5
+metadata/source_name = "ground_earth"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_5/recover_5" unique_id=1378925226]
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_5/recover_5/Solid" unique_id=1060187597]
+shape = ExtResource("2_m5wl1")
+
+[node name="source_6" type="Node3D" parent="Scenery" unique_id=2118635387]
+metadata/source_node_index = 6
+metadata/source_name = "ground_flags"
+
+[node name="recover_6" type="MeshInstance3D" parent="Scenery/source_6" unique_id=456284997]
+mesh = ExtResource("3_80w5t")
+metadata/source_node_index = 6
+metadata/source_name = "ground_flags"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_6/recover_6" unique_id=2125230391]
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_6/recover_6/Solid" unique_id=1400167590]
+shape = ExtResource("4_c2cvs")
+
+[node name="source_7" type="Node3D" parent="Scenery" unique_id=868797162]
+metadata/source_node_index = 7
+metadata/source_name = "ground_cobble"
+
+[node name="recover_7" type="MeshInstance3D" parent="Scenery/source_7" unique_id=1550810299]
+mesh = ExtResource("5_n0o10")
+metadata/source_node_index = 7
+metadata/source_name = "ground_cobble"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_7/recover_7" unique_id=1304550912]
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_7/recover_7/Solid" unique_id=1025068175]
+shape = ExtResource("6_jetnc")
+
+[node name="source_8" type="Node3D" parent="Scenery" unique_id=427236639]
+metadata/source_node_index = 8
+metadata/source_name = "ground_grass"
+
+[node name="recover_8" type="MeshInstance3D" parent="Scenery/source_8" unique_id=1939550277]
+mesh = ExtResource("7_xfop8")
+metadata/source_node_index = 8
+metadata/source_name = "ground_grass"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_8/recover_8" unique_id=1486476981]
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_8/recover_8/Solid" unique_id=1832628915]
+shape = ExtResource("8_akw3d")
+
+[node name="source_9" type="Node3D" parent="Scenery" unique_id=1068683451]
+metadata/source_node_index = 9
+metadata/source_name = "ground_quay"
+
+[node name="recover_9" type="MeshInstance3D" parent="Scenery/source_9" unique_id=1490673942]
+mesh = ExtResource("9_smtgv")
+metadata/source_node_index = 9
+metadata/source_name = "ground_quay"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_9/recover_9" unique_id=1311041014]
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_9/recover_9/Solid" unique_id=1769280208]
+shape = ExtResource("10_wbw42")
+
+[node name="source_10" type="Node3D" parent="Scenery" unique_id=530624872]
+metadata/source_node_index = 10
+metadata/source_name = "ground_seams"
+
+[node name="recover_10" type="MeshInstance3D" parent="Scenery/source_10" unique_id=455899173]
+mesh = ExtResource("11_ykr68")
+metadata/source_node_index = 10
+metadata/source_name = "ground_seams"
+metadata/legacy_extras_json = "{}"
+
+[node name="source_11" type="Node3D" parent="Scenery" unique_id=1754099227]
+metadata/source_node_index = 11
+metadata/source_name = "unnamed"
+
+[node name="recover_11" type="MeshInstance3D" parent="Scenery/source_11" unique_id=125123159]
+mesh = ExtResource("12_wrttc")
+metadata/source_node_index = 11
+metadata/source_name = ""
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_11/recover_11" unique_id=180372976]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_11/recover_11/Solid" unique_id=1286315051]
+shape = ExtResource("13_tgyko")
+
+[node name="source_12" type="Node3D" parent="Scenery" unique_id=838227330]
+metadata/source_node_index = 12
+metadata/source_name = "unnamed"
+
+[node name="recover_12" type="MeshInstance3D" parent="Scenery/source_12" unique_id=253208041]
+mesh = ExtResource("14_h6twq")
+metadata/source_node_index = 12
+metadata/source_name = ""
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_12/recover_12" unique_id=1628881620]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_12/recover_12/Solid" unique_id=1624856850]
+shape = ExtResource("15_x50b4")
+
+[node name="source_13" type="Node3D" parent="Scenery" unique_id=119051788]
+metadata/source_node_index = 13
+metadata/source_name = "quay_coping_face"
+
+[node name="recover_13" type="MeshInstance3D" parent="Scenery/source_13" unique_id=107679015]
+mesh = ExtResource("16_2511h")
+metadata/source_node_index = 13
+metadata/source_name = "quay_coping_face"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_13/recover_13" unique_id=595248017]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_13/recover_13/Solid" unique_id=643702524]
+shape = ExtResource("17_hrd8v")
+
+[node name="source_63" type="Node3D" parent="Scenery" unique_id=821355448]
+metadata/source_node_index = 63
+metadata/source_name = "city_0_0_1"
+
+[node name="recover_63" type="MeshInstance3D" parent="Scenery/source_63" unique_id=1107028517]
+mesh = ExtResource("18_3wco1")
+metadata/source_node_index = 63
+metadata/source_name = "city_0_0_1"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_63/recover_63" unique_id=832244993]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_63/recover_63/Solid" unique_id=740778713]
+shape = ExtResource("19_b8vkv")
+
+[node name="source_64" type="Node3D" parent="Scenery" unique_id=1728274353]
+metadata/source_node_index = 64
+metadata/source_name = "city_0_0_2"
+
+[node name="recover_64" type="MeshInstance3D" parent="Scenery/source_64" unique_id=1987674715]
+mesh = ExtResource("20_1fefm")
+metadata/source_node_index = 64
+metadata/source_name = "city_0_0_2"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_64/recover_64" unique_id=870738616]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_64/recover_64/Solid" unique_id=1266783255]
+shape = ExtResource("21_1rnsw")
+
+[node name="source_65" type="Node3D" parent="Scenery" unique_id=1217135725]
+metadata/source_node_index = 65
+metadata/source_name = "city_0_0_3"
+
+[node name="recover_65" type="MeshInstance3D" parent="Scenery/source_65" unique_id=330157431]
+mesh = ExtResource("22_bg2xa")
+metadata/source_node_index = 65
+metadata/source_name = "city_0_0_3"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_65/recover_65" unique_id=1476392816]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_65/recover_65/Solid" unique_id=1589642604]
+shape = ExtResource("23_4jqk2")
+
+[node name="source_67" type="Node3D" parent="Scenery" unique_id=993247888]
+metadata/source_node_index = 67
+metadata/source_name = "city_0_0_5"
+
+[node name="recover_67" type="MeshInstance3D" parent="Scenery/source_67" unique_id=978443566]
+mesh = ExtResource("24_djvwr")
+metadata/source_node_index = 67
+metadata/source_name = "city_0_0_5"
+metadata/legacy_extras_json = "{}"
+
+[node name="source_176" type="Node3D" parent="Scenery" unique_id=1355918407]
+metadata/source_node_index = 176
+metadata/source_name = "city_-1_0_1"
+
+[node name="recover_176" type="MeshInstance3D" parent="Scenery/source_176" unique_id=520908918]
+mesh = ExtResource("25_t4pmk")
+metadata/source_node_index = 176
+metadata/source_name = "city_-1_0_1"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_176/recover_176" unique_id=1320398086]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_176/recover_176/Solid" unique_id=639898338]
+shape = ExtResource("26_6iqhf")
+
+[node name="source_177" type="Node3D" parent="Scenery" unique_id=948656663]
+metadata/source_node_index = 177
+metadata/source_name = "city_-1_0_2"
+
+[node name="recover_177" type="MeshInstance3D" parent="Scenery/source_177" unique_id=875578465]
+mesh = ExtResource("27_lcm7o")
+metadata/source_node_index = 177
+metadata/source_name = "city_-1_0_2"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_177/recover_177" unique_id=1983625975]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_177/recover_177/Solid" unique_id=1936777616]
+shape = ExtResource("28_71chb")
+
+[node name="source_178" type="Node3D" parent="Scenery" unique_id=280758267]
+metadata/source_node_index = 178
+metadata/source_name = "city_-1_0_3"
+
+[node name="recover_178" type="MeshInstance3D" parent="Scenery/source_178" unique_id=1723668414]
+mesh = ExtResource("29_812ei")
+metadata/source_node_index = 178
+metadata/source_name = "city_-1_0_3"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_178/recover_178" unique_id=290786723]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_178/recover_178/Solid" unique_id=921918895]
+shape = ExtResource("30_ndebp")
+
+[node name="source_180" type="Node3D" parent="Scenery" unique_id=1485366141]
+metadata/source_node_index = 180
+metadata/source_name = "city_-1_0_5"
+
+[node name="recover_180" type="MeshInstance3D" parent="Scenery/source_180" unique_id=1720904430]
+mesh = ExtResource("31_hxu4q")
+metadata/source_node_index = 180
+metadata/source_name = "city_-1_0_5"
+metadata/legacy_extras_json = "{}"
+
+[node name="source_181" type="Node3D" parent="Scenery" unique_id=1960423137]
+metadata/source_node_index = 181
+metadata/source_name = "city_-1_0_d_1"
+
+[node name="recover_181" type="MeshInstance3D" parent="Scenery/source_181" unique_id=889265428]
+mesh = ExtResource("32_8vmyh")
+metadata/extras = {
+"near": true
+}
+metadata/source_node_index = 181
+metadata/source_name = "city_-1_0_d_1"
+metadata/legacy_extras_json = "{\"near\":true}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_181/recover_181" unique_id=1206420912]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_181/recover_181/Solid" unique_id=69696256]
+shape = ExtResource("33_q5yor")
+
+[node name="source_182" type="Node3D" parent="Scenery" unique_id=453908115]
+metadata/source_node_index = 182
+metadata/source_name = "city_-1_0_d_2"
+
+[node name="recover_182" type="MeshInstance3D" parent="Scenery/source_182" unique_id=2064345273]
+mesh = ExtResource("34_ngnse")
+metadata/extras = {
+"near": true
+}
+metadata/source_node_index = 182
+metadata/source_name = "city_-1_0_d_2"
+metadata/legacy_extras_json = "{\"near\":true}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_182/recover_182" unique_id=166419268]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_182/recover_182/Solid" unique_id=433002617]
+shape = ExtResource("35_ojc0x")
+
+[node name="source_183" type="Node3D" parent="Scenery" unique_id=1437713026]
+metadata/source_node_index = 183
+metadata/source_name = "city_-1_0_d_3"
+
+[node name="recover_183" type="MeshInstance3D" parent="Scenery/source_183" unique_id=500112478]
+mesh = ExtResource("36_j1pt8")
+metadata/extras = {
+"near": true
+}
+metadata/source_node_index = 183
+metadata/source_name = "city_-1_0_d_3"
+metadata/legacy_extras_json = "{\"near\":true}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_183/recover_183" unique_id=1526324560]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_183/recover_183/Solid" unique_id=1022936645]
+shape = ExtResource("37_5oq7a")
+
+[node name="source_184" type="Node3D" parent="Scenery" unique_id=545015696]
+metadata/source_node_index = 184
+metadata/source_name = "city_-1_0_d_4"
+
+[node name="recover_184" type="MeshInstance3D" parent="Scenery/source_184" unique_id=958884031]
+mesh = ExtResource("38_wur6r")
+metadata/extras = {
+"near": true
+}
+metadata/source_node_index = 184
+metadata/source_name = "city_-1_0_d_4"
+metadata/legacy_extras_json = "{\"near\":true}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_184/recover_184" unique_id=898194113]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_184/recover_184/Solid" unique_id=1351164826]
+shape = ExtResource("39_frs67")
+
+[node name="source_185" type="Node3D" parent="Scenery" unique_id=752931213]
+metadata/source_node_index = 185
+metadata/source_name = "city_-1_0_d_5"
+
+[node name="recover_185" type="MeshInstance3D" parent="Scenery/source_185" unique_id=452358405]
+mesh = ExtResource("40_74x0t")
+metadata/extras = {
+"near": true
+}
+metadata/source_node_index = 185
+metadata/source_name = "city_-1_0_d_5"
+metadata/legacy_extras_json = "{\"near\":true}"
+
+[node name="source_1527" type="Node3D" parent="Scenery" unique_id=1600415753]
+metadata/source_node_index = 1527
+metadata/source_name = "pier_deck"
+
+[node name="recover_1527" type="MeshInstance3D" parent="Scenery/source_1527" unique_id=1961952111]
+mesh = ExtResource("41_r43ud")
+metadata/source_node_index = 1527
+metadata/source_name = "pier_deck"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_1527/recover_1527" unique_id=1311028150]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_1527/recover_1527/Solid" unique_id=1658451835]
+shape = ExtResource("42_o1ymo")
+
+[node name="source_1528" type="Node3D" parent="Scenery" unique_id=545695834]
+metadata/source_node_index = 1528
+metadata/source_name = "pier_timber"
+
+[node name="recover_1528" type="MeshInstance3D" parent="Scenery/source_1528" unique_id=237476295]
+mesh = ExtResource("43_qb7ks")
+metadata/source_node_index = 1528
+metadata/source_name = "pier_timber"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_1528/recover_1528" unique_id=1326562262]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_1528/recover_1528/Solid" unique_id=642355457]
+shape = ExtResource("44_j370a")
+
+[node name="source_1529" type="Node3D" parent="Scenery" unique_id=1811709436]
+metadata/source_node_index = 1529
+metadata/source_name = "pier_barnacles"
+
+[node name="recover_1529" type="MeshInstance3D" parent="Scenery/source_1529" unique_id=413237036]
+mesh = ExtResource("45_x7yxx")
+metadata/source_node_index = 1529
+metadata/source_name = "pier_barnacles"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_1529/recover_1529" unique_id=1937724238]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_1529/recover_1529/Solid" unique_id=1740466494]
+shape = ExtResource("46_d8i5w")
+
+[node name="source_1533" type="Node3D" parent="Scenery" unique_id=1333580145]
+metadata/source_node_index = 1533
+metadata/source_name = "quay_steps"
+
+[node name="recover_1533" type="MeshInstance3D" parent="Scenery/source_1533" unique_id=2001144466]
+mesh = ExtResource("47_x7ivi")
+metadata/extras = {
+"flightTris": {
+"iron": 17448.0,
+"stone": 11488.0
+}
+}
+metadata/source_node_index = 1533
+metadata/source_name = "quay_steps"
+metadata/legacy_extras_json = "{\"flightTris\":{\"stone\":11488,\"iron\":17448}}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_1533/recover_1533" unique_id=2121589527]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_1533/recover_1533/Solid" unique_id=1773971277]
+shape = ExtResource("48_pmwmm")
+
+[node name="source_1534" type="Node3D" parent="Scenery" unique_id=666361677]
+metadata/source_node_index = 1534
+metadata/source_name = "quay_iron"
+
+[node name="recover_1534" type="MeshInstance3D" parent="Scenery/source_1534" unique_id=419282667]
+mesh = ExtResource("49_mjnoa")
+metadata/source_node_index = 1534
+metadata/source_name = "quay_iron"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_1534/recover_1534" unique_id=1345559614]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_1534/recover_1534/Solid" unique_id=1268244104]
+shape = ExtResource("50_8koxs")
+
+[node name="source_6466" type="Node3D" parent="Scenery" unique_id=765887143]
+metadata/source_node_index = 6466
+metadata/source_name = "quay_iron"
+
+[node name="recover_6466" type="MeshInstance3D" parent="Scenery/source_6466" unique_id=239904784]
+mesh = ExtResource("51_fl552")
+metadata/source_node_index = 6466
+metadata/source_name = "quay_iron"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_6466/recover_6466" unique_id=890206415]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_6466/recover_6466/Solid" unique_id=427086435]
+shape = ExtResource("52_ocgo7")
+
+[node name="source_7995" type="Node3D" parent="Scenery" unique_id=1409731540]
+metadata/source_node_index = 7995
+metadata/source_name = "quayfurniture_-1,0,0"
+
+[node name="recover_7995" type="MeshInstance3D" parent="Scenery/source_7995" unique_id=310108806]
+mesh = ExtResource("53_u5tp0")
+metadata/source_node_index = 7995
+metadata/source_name = "quayfurniture_-1,0,0"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_7995/recover_7995" unique_id=1683169116]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_7995/recover_7995/Solid" unique_id=1397824424]
+shape = ExtResource("54_d7oyv")
+
+[node name="source_7996" type="Node3D" parent="Scenery" unique_id=504254158]
+metadata/source_node_index = 7996
+metadata/source_name = "quayfurniture_-1,0,1"
+
+[node name="recover_7996" type="MeshInstance3D" parent="Scenery/source_7996" unique_id=1946425102]
+mesh = ExtResource("55_megck")
+metadata/extras = {
+"ro": 1.0
+}
+metadata/source_node_index = 7996
+metadata/source_name = "quayfurniture_-1,0,1"
+metadata/legacy_extras_json = "{\"ro\":1}"
+
+[node name="source_7997" type="Node3D" parent="Scenery" unique_id=2008861891]
+metadata/source_node_index = 7997
+metadata/source_name = "quayfurniture_0,0,0"
+
+[node name="recover_7997" type="MeshInstance3D" parent="Scenery/source_7997" unique_id=677739089]
+mesh = ExtResource("56_shlea")
+metadata/source_node_index = 7997
+metadata/source_name = "quayfurniture_0,0,0"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_7997/recover_7997" unique_id=1804961158]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_7997/recover_7997/Solid" unique_id=2146487814]
+shape = ExtResource("57_j5yp1")
+
+[node name="source_7998" type="Node3D" parent="Scenery" unique_id=1928948756]
+metadata/source_node_index = 7998
+metadata/source_name = "quayfurniture_0,0,1"
+
+[node name="recover_7998" type="MeshInstance3D" parent="Scenery/source_7998" unique_id=1575987526]
+mesh = ExtResource("58_bfhqk")
+metadata/extras = {
+"ro": 1.0
+}
+metadata/source_node_index = 7998
+metadata/source_name = "quayfurniture_0,0,1"
+metadata/legacy_extras_json = "{\"ro\":1}"
+
+[node name="source_8018" type="Node3D" parent="Scenery" unique_id=38950526]
+metadata/source_node_index = 8018
+metadata/source_name = "quayfurniture_-1,-1,0"
+
+[node name="recover_8018" type="MeshInstance3D" parent="Scenery/source_8018" unique_id=1745060433]
+mesh = ExtResource("59_ekpxa")
+metadata/source_node_index = 8018
+metadata/source_name = "quayfurniture_-1,-1,0"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_8018/recover_8018" unique_id=635438358]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_8018/recover_8018/Solid" unique_id=2013288294]
+shape = ExtResource("60_4mng1")
+
+[node name="source_8019" type="Node3D" parent="Scenery" unique_id=1512011430]
+metadata/source_node_index = 8019
+metadata/source_name = "quayfurniture_0,-1,0"
+
+[node name="recover_8019" type="MeshInstance3D" parent="Scenery/source_8019" unique_id=1391746300]
+mesh = ExtResource("61_0srie")
+metadata/source_node_index = 8019
+metadata/source_name = "quayfurniture_0,-1,0"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_8019/recover_8019" unique_id=970777417]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_8019/recover_8019/Solid" unique_id=1380835058]
+shape = ExtResource("62_72g66")
+
+[node name="source_8020" type="Node3D" parent="Scenery" unique_id=489786882]
+metadata/source_node_index = 8020
+metadata/source_name = "quayfurniture_1,-1,0"
+
+[node name="recover_8020" type="MeshInstance3D" parent="Scenery/source_8020" unique_id=2121722913]
+mesh = ExtResource("63_2kr5t")
+metadata/source_node_index = 8020
+metadata/source_name = "quayfurniture_1,-1,0"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_8020/recover_8020" unique_id=1261838132]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_8020/recover_8020/Solid" unique_id=813031637]
+shape = ExtResource("64_rhfv5")
+
+[node name="source_8037" type="Node3D" parent="Scenery" unique_id=1080248576]
+metadata/source_node_index = 8037
+metadata/source_name = "quayfurniture_0,0,2"
+
+[node name="recover_8037" type="MeshInstance3D" parent="Scenery/source_8037" unique_id=1536825230]
+mesh = ExtResource("65_o1cvw")
+metadata/extras = {
+"ro": 1.0
+}
+metadata/source_node_index = 8037
+metadata/source_name = "quayfurniture_0,0,2"
+metadata/legacy_extras_json = "{\"ro\":1}"
+
+[node name="source_8039" type="Node3D" parent="Scenery" unique_id=1522757388]
+metadata/source_node_index = 8039
+metadata/source_name = "unnamed"
+
+[node name="recover_8039" type="MeshInstance3D" parent="Scenery/source_8039" unique_id=1966420216]
+visible = false
+mesh = ExtResource("66_5tads")
+metadata/source_node_index = 8039
+metadata/source_name = ""
+metadata/legacy_extras_json = "{}"
+
+[node name="source_8166" type="Node3D" parent="Scenery" unique_id=627672615]
+metadata/source_node_index = 8166
+metadata/source_name = "quaygoods_sacks"
+
+[node name="recover_8166" type="MeshInstance3D" parent="Scenery/source_8166" unique_id=1071725231]
+mesh = ExtResource("67_igxtu")
+metadata/source_node_index = 8166
+metadata/source_name = "quaygoods_sacks"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_8166/recover_8166" unique_id=1347537060]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_8166/recover_8166/Solid" unique_id=1548621250]
+shape = ExtResource("68_pnour")
+
+[node name="source_8183" type="Node3D" parent="Scenery" unique_id=1216440492]
+metadata/source_node_index = 8183
+metadata/source_name = "quaygoods"
+
+[node name="recover_8183" type="MeshInstance3D" parent="Scenery/source_8183" unique_id=1133620044]
+mesh = ExtResource("69_jtdvf")
+metadata/source_node_index = 8183
+metadata/source_name = "quaygoods"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_8183/recover_8183" unique_id=1373932112]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_8183/recover_8183/Solid" unique_id=567914464]
+shape = ExtResource("70_nu14o")
+
+[node name="source_8184" type="Node3D" parent="Scenery" unique_id=1008479025]
+metadata/source_node_index = 8184
+metadata/source_name = "quaygoods_decals"
+
+[node name="recover_8184" type="MeshInstance3D" parent="Scenery/source_8184" unique_id=1734838133]
+mesh = ExtResource("71_i5xhv")
+metadata/extras = {
+"ro": 2.0
+}
+metadata/source_node_index = 8184
+metadata/source_name = "quaygoods_decals"
+metadata/legacy_extras_json = "{\"ro\":2}"
+
+[node name="source_8185" type="Node3D" parent="Scenery" unique_id=1652366890]
+metadata/source_node_index = 8185
+metadata/source_name = "quaygoods_crates"
+
+[node name="recover_8185" type="MeshInstance3D" parent="Scenery/source_8185" unique_id=2019929554]
+mesh = ExtResource("72_6ptc2")
+metadata/source_node_index = 8185
+metadata/source_name = "quaygoods_crates"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_8185/recover_8185" unique_id=1146825500]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_8185/recover_8185/Solid" unique_id=1820910755]
+shape = ExtResource("73_qc17v")
+
+[node name="source_8189" type="Node3D" parent="Scenery" unique_id=516809618]
+metadata/source_node_index = 8189
+metadata/source_name = "quaygoods"
+
+[node name="recover_8189" type="MeshInstance3D" parent="Scenery/source_8189" unique_id=2077848644]
+mesh = ExtResource("74_4m5d1")
+metadata/source_node_index = 8189
+metadata/source_name = "quaygoods"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_8189/recover_8189" unique_id=1543918145]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_8189/recover_8189/Solid" unique_id=684475397]
+shape = ExtResource("75_7gtmc")
+
+[node name="source_8190" type="Node3D" parent="Scenery" unique_id=492250075]
+metadata/source_node_index = 8190
+metadata/source_name = "quaygoods_decals"
+
+[node name="recover_8190" type="MeshInstance3D" parent="Scenery/source_8190" unique_id=378787868]
+mesh = ExtResource("76_4ooum")
+metadata/extras = {
+"ro": 2.0
+}
+metadata/source_node_index = 8190
+metadata/source_name = "quaygoods_decals"
+metadata/legacy_extras_json = "{\"ro\":2}"
+
+[node name="source_8191" type="Node3D" parent="Scenery" unique_id=1899866337]
+metadata/source_node_index = 8191
+metadata/source_name = "quaygoods_crates"
+
+[node name="recover_8191" type="MeshInstance3D" parent="Scenery/source_8191" unique_id=1276998450]
+mesh = ExtResource("77_g4t48")
+metadata/source_node_index = 8191
+metadata/source_name = "quaygoods_crates"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="Scenery/source_8191/recover_8191" unique_id=1156267609]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Scenery/source_8191/recover_8191/Solid" unique_id=2066087695]
+shape = ExtResource("78_my67m")
+
+[node name="Objects" type="Node3D" parent="." unique_id=1630730348]
+
+[node name="object_town-node-1530" type="Node3D" parent="Objects" unique_id=636490722]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.35, 0, -5.6)
+script = ExtResource("79_c7hw2")
+ObjectId = "town-node-1530"
+Asset = ExtResource("80_iqp6n")
+
+[node name="object_town-node-1576" type="Node3D" parent="Objects" unique_id=893522837]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 0, 0.9)
+script = ExtResource("79_c7hw2")
+ObjectId = "town-node-1576"
+Asset = ExtResource("81_aabqg")
+
+[node name="object_town-node-1579" type="Node3D" parent="Objects" unique_id=1525157258]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.9)
+script = ExtResource("79_c7hw2")
+ObjectId = "town-node-1579"
+Asset = ExtResource("82_as01d")
+
+[node name="object_town-node-1582" type="Node3D" parent="Objects" unique_id=1559646790]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 0, 0.9)
+script = ExtResource("79_c7hw2")
+ObjectId = "town-node-1582"
+Asset = ExtResource("83_k6uaq")
+
+[node name="object_town-node-1585" type="Node3D" parent="Objects" unique_id=1332833405]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27, 0, 0.9)
+script = ExtResource("79_c7hw2")
+ObjectId = "town-node-1585"
+Asset = ExtResource("84_if7s0")
+
+[node name="object_town-node-1588" type="Node3D" parent="Objects" unique_id=559782053]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 36, 0, 0.9)
+script = ExtResource("79_c7hw2")
+ObjectId = "town-node-1588"
+Asset = ExtResource("85_7n2e5")
+
+[node name="object_town-node-1591" type="Node3D" parent="Objects" unique_id=1851096838]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 45, 0, 0.9)
+script = ExtResource("79_c7hw2")
+ObjectId = "town-node-1591"
+Asset = ExtResource("86_4qp5c")
+
+[node name="object_town-node-1594" type="Node3D" parent="Objects" unique_id=289481318]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 54, 0, 0.9)
+script = ExtResource("79_c7hw2")
+ObjectId = "town-node-1594"
+Asset = ExtResource("87_hmqxv")
+
+[node name="object_town-node-5920" type="Node3D" parent="Objects" unique_id=955671762]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0, 43.4)
+script = ExtResource("79_c7hw2")
+ObjectId = "town-node-5920"
+Asset = ExtResource("88_1n5xe")
+
+[node name="object_town-node-5925" type="Node3D" parent="Objects" unique_id=98012215]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 36, 0, 43.4)
+script = ExtResource("79_c7hw2")
+ObjectId = "town-node-5925"
+Asset = ExtResource("89_y5v4d")
+
+[node name="object_town-node-5960" type="Node3D" parent="Objects" unique_id=1386612816]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 0, 20.4)
+script = ExtResource("79_c7hw2")
+ObjectId = "town-node-5960"
+Asset = ExtResource("90_k0kko")
+
+[node name="object_town-node-5965" type="Node3D" parent="Objects" unique_id=233037766]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 2.2)
+script = ExtResource("79_c7hw2")
+ObjectId = "town-node-5965"
+Asset = ExtResource("91_hxhyq")
+
+[node name="object_town-node-5970" type="Node3D" parent="Objects" unique_id=491394383]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0, 2.2)
+script = ExtResource("79_c7hw2")
+ObjectId = "town-node-5970"
+Asset = ExtResource("92_necsf")
+
+[node name="object_town-node-5975" type="Node3D" parent="Objects" unique_id=1777067691]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 44, 0, 19.8)
+script = ExtResource("79_c7hw2")
+ObjectId = "town-node-5975"
+Asset = ExtResource("93_77iqp")

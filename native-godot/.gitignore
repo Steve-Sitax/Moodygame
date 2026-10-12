@@ -1,4 +1,6 @@
 .godot/
 *.import
 proof/
+recovered/*
+!recovered/rijnkaai-recovered/
 dist/
