@@ -190,6 +190,7 @@ public partial class TownRecovery : Node
         var imported = document.GenerateScene(state) ?? throw new IOException("Godot generated no recovery scene.");
         ConvertMaterials(source, state, plan["modelPack"]?.GetValue<bool>() == true);
         Directory.CreateDirectory(Path.Combine(absolute, "resources")); Directory.CreateDirectory(Path.Combine(absolute, "props"));
+        if (id.StartsWith("recovery-fixture-", StringComparison.Ordinal)) File.WriteAllText(Path.Combine(absolute, ".gdignore"), "");
         var district = new Node3D { Name = "Rijnkaai" };
         var scenery = new Node3D { Name = "Scenery" }; var objects = new Node3D { Name = "Objects" };
         district.AddChild(scenery); district.AddChild(objects);
