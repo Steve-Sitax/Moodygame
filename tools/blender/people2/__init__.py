@@ -1,6 +1,6 @@
 """people2: the second people kit of Scheldemist (docs/people.md).
 
-One skeleton of 60 bones (rig.py) for every person, four base bodies (man, woman, child, old) in builds
+One skeleton of 62 bones (rig.py) for every person, four base bodies (man, woman, child, old) in builds
 (body.py), weights by rule (weights.py), a far copy per body (lod.py), the base skin pictures (paint.py), the
 36 old clips keyed onto the new rig (clips_legacy.py), the export (export.py) and the check pictures
 (preview.py). The entry is tools/blender/build_people2.py.

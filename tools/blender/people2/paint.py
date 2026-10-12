@@ -163,24 +163,7 @@ def paint_skin(pos, nrm, part, names, P, female, seed=1873):
     mix(nose * 0.3, flush)
     ears = is_head * np.exp(-(((hx - 0.077) / 0.008) ** 2 + ((t - 0.105) / 0.03) ** 2 + ((hz + 0.005) / 0.02) ** 2))
     mix(ears * 0.4, flush)
-    # the nails: the backs of the finger tips
-    tipf = np.zeros_like(y)
-    for side in ("L", "R"):
-        hf = bd.hand_frame(P, side)
-        sg = 1 if side == "L" else -1
-        for fname in ("index", "middle", "ring", "little", "thumb"):
-            pts = np.array(hf[fname])
-            a, b = pts[-2], pts[-1]
-            d = b - a
-            L = np.linalg.norm(d)
-            d /= L
-            rel = pos - a
-            along = rel @ d
-            perp = rel - along[..., None] * d
-            back = perp[..., 0] * sg if fname != "thumb" else perp @ (np.array((0.55 * sg, 0, 0.85)))
-            nail = (along > L * 0.25) & (along < L * 1.05) & (back > 0.004) & (np.linalg.norm(perp, axis=-1) < 0.016)
-            tipf = np.maximum(tipf, nail * is_finger)
-    mix(tipf * 0.7, (0.90, 0.78, 0.74))
+    # the nails are painted by B (hands.paint_hands), on the modelled hands
     # a little shade in the deep parts: under the chin, the armpits, between the legs
     under = is_neck * np.clip((chin - y) / (0.03 * H) + 0.3, 0, 1) * (z > 0) * 0.0
     pit = (is_torso | is_arm) * np.exp(-((y - Y(0.765)) / (0.02 * H)) ** 2) * np.exp(-((ax - sh + 0.04) / 0.02) ** 2)
