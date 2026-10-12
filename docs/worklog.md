@@ -1,5 +1,10 @@
 # Work log
 
+## Goods test crate dimensions, 2026-10-12 (branch fx-goodstest)
+
+- Updated stale M8f assertions for the intentional 2026-10-11 crate replacement; the server, browser and Godot agree.
+- Found old dimensions in the browser's temporary Rijnkaai crate keep-outs: [#76](https://github.com/Steve-Sitax/Moodygame/issues/76).
+
 ## Fix wave 2 (bugs): omnibus boards in the air, people on lifted bridges, 2026-10-11
 
 Branch `fx-bugs` (helper). Godot only, no bake needed.
