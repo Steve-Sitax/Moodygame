@@ -14,6 +14,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - The legless horse body that hung in the air at the Rijnkaai quay edge, at the middle of the map, is gone. It was a leftover model part of the horses; the working horses are unchanged.
 - Handcarts, drays and their loads, and the draught and hearse horses, no longer show a patchwork of mixed textures. Planks, iron, sacking and the bay coat with black mane, tail and harness now sit where they belong (issue 81).
 - Gas lamps, bollards and other placed quay objects now fade into mist, fog and rain like the rest of the town, instead of standing out as sharp black shapes far away. Lamp glass and flames fade with the air and still glow at night (issue #79).
+- The floor of the cathedral's nave, and of the other churches, shows its stone paving again instead of a flat black plane. The sun's coloured patches from the windows now light the floor by day in clear weather (issue #74).
 
 - Boats rest on the drawn mud at low water, rise with every tide and stay above water in the great storm. Ladder boarding and crane loads follow grounded hulls, and the pier has fenders for the full tide range. In Godot, boats stay with the water during clock jumps and the storm brings the same surge as in the browser.
 - Boats carry their own readable names and home ports, upright on their bows, sterns and paddle boxes; the paper, map and harbour calls use the same names. Germania is a German grain barque and Stad Antwerpen a Belgian line steamer.
