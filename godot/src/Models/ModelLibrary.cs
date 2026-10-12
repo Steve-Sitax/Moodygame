@@ -116,9 +116,12 @@ public static class ModelLibrary
     private static void Convert(Model m, Look look)
     {
         var made = new Dictionary<Material, Material>();
+        var atlased = new Dictionary<Material, Material>();
+        var turned = new HashSet<Mesh>();
         foreach (var n in BakedWorld.All(m.Scene))
         {
             if (n is not MeshInstance3D mi || mi.Mesh == null) continue;
+            if (turned.Add(mi.Mesh)) TurnCellRows(mi.Mesh);
             for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
             {
                 var old = mi.Mesh.SurfaceGetMaterial(s);
@@ -135,7 +138,12 @@ public static class ModelLibrary
                     mi.Mesh.SurfaceSetMaterial(s,converted);continue;
                 }
                 if (old is not BaseMaterial3D bm) continue;
-                if (!made.TryGetValue(old, out var psx))
+                // an atlas mesh (the goods atlas "goods", the draught team's "goods_team") is read as the town bake reads it:
+                // Atlas 4, cell = UV2, uv = (cell + fract(uv)) / 4 (build_props.py, ATLAS_N). The same material could sit on
+                // a mesh with and without a cell set, so the two are kept apart.
+                bool cells = IsAtlasSurface(mi.Mesh, s);
+                var atlasKey = cells ? atlased : made;
+                if (!atlasKey.TryGetValue(old, out var psx))
                 {
                     bool blend = bm.Transparency is BaseMaterial3D.TransparencyEnum.Alpha or BaseMaterial3D.TransparencyEnum.AlphaDepthPrePass;
                     bool scissor = bm.Transparency == BaseMaterial3D.TransparencyEnum.AlphaScissor;
@@ -146,7 +154,7 @@ public static class ModelLibrary
                         TwoSided: look.TwoSided || bm.CullMode == BaseMaterial3D.CullModeEnum.Disabled,
                         DepthWrite: true,
                         Snap: look.Snap,
-                        Atlas: 0,
+                        Atlas: cells ? AtlasCells : 0,
                         VertexColor: look.VertexColor,
                         Add: false,
                         Fog: true);
@@ -154,12 +162,51 @@ public static class ModelLibrary
                     if(policy!=null)kind=policy.Value;
                     psx = BakedWorld.PsxMaterial(bm, kind, look.Affine, look.FogReach, scissor ? bm.AlphaScissorThreshold : 0);
                     if(policy!=null && psx is ShaderMaterial adapted){adapted.SetShaderParameter("affine",0.0);adapted.SetShaderParameter("fog_reach",bm.ResourceName=="tr_glow"?1.3:1.0);if(policy.Value.Scissor)adapted.SetShaderParameter("alpha_cut",.3);}
-                    made[old] = psx;
+                    atlasKey[old] = psx;
                 }
                 mi.Mesh.SurfaceSetMaterial(s, psx);
             }
         }
-        m.Materials = made.Count;
+        m.Materials = made.Count + atlased.Count;
+    }
+
+    /// <summary>The goods and team atlases are 4 x 4 cells of 64 px (build_props.py ATLAS_N): the town bake's Atlas value.</summary>
+    public const int AtlasCells = 4;
+
+    /// <summary>A surface that draws on the goods atlas ("goods") or the draught team's ("goods_team") and names its cell in UV2.</summary>
+    private static bool IsAtlasSurface(Mesh mesh, int surface) =>
+        mesh is ArrayMesh am && am.SurfaceGetFormat(surface).HasFlag(Mesh.ArrayFormat.FormatTexUV2)
+        && am.SurfaceGetMaterial(surface) is BaseMaterial3D { ResourceName: "goods" or "goods_team" };
+
+    /// <summary>
+    /// The props file's cells arrive with Godot's glTF import's V flip (row r is stored as 1 - r: the top row as 1, the
+    /// bottom as -2), while the town bake's cells are the rows themselves (the shader reads cell = UV2, row 0 the top).
+    /// Turned back once per mesh, so one shader kind reads both. (A cell row is whole: 1 - y keeps it whole.)
+    /// </summary>
+    private static void TurnCellRows(Mesh mesh)
+    {
+        if (mesh is not ArrayMesh am) return;
+        int n = am.GetSurfaceCount();
+        bool any = false;
+        for (int s = 0; s < n && !any; s++) any = IsAtlasSurface(am, s);
+        if (!any) return;
+        var kept = new List<(Mesh.PrimitiveType Type, Godot.Collections.Array Arrays, Godot.Collections.Array<Godot.Collections.Array> Shapes, Material? Material, string Name, bool Turn)>();
+        for (int s = 0; s < n; s++)
+            kept.Add((am.SurfaceGetPrimitiveType(s), am.SurfaceGetArrays(s), am.SurfaceGetBlendShapeArrays(s), am.SurfaceGetMaterial(s), am.SurfaceGetName(s), IsAtlasSurface(am, s)));
+        am.ClearSurfaces();
+        foreach (var k in kept)
+        {
+            if (k.Turn)
+            {
+                var cells = k.Arrays[(int)Mesh.ArrayType.TexUV2].AsVector2Array();
+                for (int i = 0; i < cells.Length; i++) cells[i] = new Vector2(cells[i].X, 1 - cells[i].Y);
+                k.Arrays[(int)Mesh.ArrayType.TexUV2] = cells;
+            }
+            am.AddSurfaceFromArrays(k.Type, k.Arrays, k.Shapes);
+            int at = am.GetSurfaceCount() - 1;
+            if (k.Material != null) am.SurfaceSetMaterial(at, k.Material);
+            if (k.Name != "") am.SurfaceSetName(at, k.Name);
+        }
     }
 
     /// <summary>Loader semantics that plain glTF material flags cannot express; shared with geometry proofs.</summary>
