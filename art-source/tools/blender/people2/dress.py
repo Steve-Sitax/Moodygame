@@ -376,8 +376,8 @@ def build(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
     # the crowd's near copies within 8,900 triangles, the named within 11,500 (MakeHuman's face keeps its density)
     # which piece lies over which, read before the reduction; after it, every layer is put back under the next
     order0, order1 = ck.layer_order(near), ck.layer_order(cage)
-    reduce_cloth(near, (NEAR_HERO if kind.hero else NEAR_CROWD) - lod.tris(b["lod0"]))
-    reduce_cloth(cage, FAR - lod.tris(b["lod1"]))
+    reduce_cloth(near, getattr(kind, "near_budget", NEAR_HERO if kind.hero else NEAR_CROWD) - lod.tris(b["lod0"]))
+    reduce_cloth(cage, getattr(kind, "far_budget", FAR) - lod.tris(b["lod1"]))
     m0 = ck.clear_layers(near, b["lod0"], order0)
     m1 = ck.clear_layers(cage, b["lod1"], order1)
     log("[people2]   %s layers: %s; points put back under the layer over them: %d near, %d far" % (

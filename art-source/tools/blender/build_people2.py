@@ -116,9 +116,9 @@ def grips_json(g):
 
 def all_kinds():
     """Every kind of package C, from the group files (people2/kinds_*.py), in a fixed order."""
-    from people2 import kinds_cast, kinds_uniform, kinds_women, kinds_workers
+    from people2 import kinds_cast, kinds_uniform, kinds_uniform2, kinds_women, kinds_workers
     out = []
-    for mod in (kinds_workers, kinds_women, kinds_uniform, kinds_cast):
+    for mod in (kinds_workers, kinds_women, kinds_uniform, kinds_uniform2, kinds_cast):
         out += mod.KINDS
     return out
 
