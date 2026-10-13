@@ -16,7 +16,7 @@ public partial class Velocipedes:Node
 {
     public static Velocipedes I {get;private set;}=null!;
     public sealed class Machine
-    {public VeloInfo Info=new();public Node3D Root=null!;public Node3D? Steer,Front,Rear;public StaticBody3D Solid=null!;}
+    {public VeloInfo Info=new();public Node3D Root=null!;public Node3D? Steer,Front,Rear;public StaticBody3D Solid=null!;public bool Parking;}
     public readonly Dictionary<string,Machine> Machines=new();
     private readonly HashSet<string> residentUse=new();
     public void ResidentUse(string id,bool on,Vector3? at=null){if(on)residentUse.Add(id);else residentUse.Remove(id);if(Machines.TryGetValue(id,out var m)&&m!=Ridden){if(at is Vector3 p)m.Info=m.Info with{X=p.X,Z=p.Y,Yaw=p.Z};Park(m);}}
@@ -90,7 +90,11 @@ public partial class Velocipedes:Node
                 var node=model?.Copy("velocipede");if(node==null)continue;root.AddChild(node);
                 m=new(){Root=node};foreach(var n in BakedWorld.All(node))if(n is Node3D c){if(c.Name=="velocipede_steer")m.Steer=c;if(c.Name=="velocipede_front")m.Front=c;if(c.Name=="velocipede_rear")m.Rear=c;}
                 m.Solid=new StaticBody3D{CollisionLayer=Solid.Layer,CollisionMask=0};node.AddChild(m.Solid);
-                m.Solid.AddChild(new CollisionShape3D{Shape=new BoxShape3D{Size=new(.5f,1.1f,1.7f)},Position=new(0,.55f,0)});Machines[v.Id]=m;
+                var box=new Aabb(new(-.25f,0,-.85f),new(.5f,1.1f,1.7f));
+                m.Solid.AddChild(new CollisionShape3D{Shape=new BoxShape3D{Size=box.Size},Position=box.GetCenter()});
+                // Parked machines must obstruct crowd routes as well as Jef. The live body follows
+                // parking/lean transforms and its collision layer disables it while ridden or hidden.
+                Scheldemist.Town.WalkMap.RegisterBody(m.Solid,box);Machines[v.Id]=m;
             }
             m.Info=v;if(m==Ridden&&(!v.Mine||!v.Ridden))Clear();if(m==Ridden)continue;Park(m);
         }
@@ -101,7 +105,7 @@ public partial class Velocipedes:Node
     {
         m.Solid.CollisionLayer=0;float feet=Floor(m.Info.X,m.Info.Z,0);if(!float.IsFinite(feet))feet=0;
         m.Root.Position=new(m.Info.X,feet+(m.Info.Down?.33f:0),m.Info.Z);m.Root.Rotation=new(0,m.Info.Yaw,m.Info.Down?-1.42f:.06f);
-        m.Root.Visible=!m.Info.Ridden&&!residentUse.Contains(m.Info.Id);m.Solid.CollisionLayer=m.Root.Visible?Solid.Layer:0;
+        m.Root.Visible=!m.Info.Ridden&&!residentUse.Contains(m.Info.Id);m.Solid.CollisionLayer=m.Root.Visible&&!m.Parking?Solid.Layer:0;
         if(m.Steer!=null)m.Steer.Rotation=new(0,m.Info.Down?.3f:.12f,0);
     }
     private Offers Keys(float px,float pz)
@@ -155,9 +159,11 @@ public partial class Velocipedes:Node
         for(int i=0;i<3;i++)
         {float a=heading+(i==0?MathF.PI/2:i==1?-MathF.PI/2:MathF.PI);float xx=x-MathF.Sin(a)*(down?.9f:.75f),zz=z-MathF.Cos(a)*(down?.9f:.75f);if(Free(xx,zz,y)&&Math.Abs(Floor(xx,zz,y)-y)<.2f){x=xx;z=zz;break;}}
         if(down){FallT=1.6f;Jef.I.Carry(new(x,y,z));}else{Clear();Jef.I.Carry(new(x,y,z));}
-        m.Info=m.Info with{X=at.X,Z=at.Z,Yaw=heading+MathF.PI,Ridden=false,Down=down};Park(m);
+        // The server checks this spot against the live walk map. Do not let the
+        // machine being parked reject its own request while that check is pending.
+        m.Parking=true;m.Info=m.Info with{X=at.X,Z=at.Z,Yaw=heading+MathF.PI,Ridden=false,Down=down};Park(m);
         try{var reply=await ServerLink.I!.Api!.VeloLeave(m.Info.Id,at.X,at.Z,heading+MathF.PI,down);if(e!=epoch)return;m.Info=reply with{Id=m.Info.Id,Mine=m.Info.Mine,Owner=m.Info.Owner};Park(m);Answered?.Invoke(down?"fall":"leave",reply);}
-        catch(ApiException ex){GameState.I.Say(ex.Message);}finally{Busy=false;}
+        catch(ApiException ex){GameState.I.Say(ex.Message);}finally{m.Parking=false;if(GodotObject.IsInstanceValid(m.Root))Park(m);Busy=false;}
     }
     private float Floor(float xx,float zz,float feet)
     {floor.GlobalPosition=new(xx,feet+.3f,zz);floor.ForceRaycastUpdate();return floor.IsColliding()?floor.GetCollisionPoint().Y:float.NegativeInfinity;}
@@ -203,7 +209,7 @@ public partial class Velocipedes:Node
     public override void _Process(double delta)
     {
         float dt=(float)delta;pollT+=dt;seenT+=dt;if(pollT>15&&!Busy){pollT=0;_=Load();}if(seenT>5&&Ownership?.List.Count>0){seenT=0;_=Seen();}
-        foreach(var m in Machines.Values)if(m!=Ridden){bool travelling=residentUse.Contains(m.Info.Id)||ResidentJourneys.I?.ResidentVehicleActive(m.Info.Owner,1)==true;m.Root.Visible=!m.Info.Ridden&&!travelling&&new Vector2(m.Info.X-Jef.I.X,m.Info.Z-Jef.I.Z).Length()<70;m.Solid.CollisionLayer=m.Root.Visible?Solid.Layer:0;}
+        foreach(var m in Machines.Values)if(m!=Ridden){bool travelling=residentUse.Contains(m.Info.Id)||!string.IsNullOrEmpty(m.Info.Owner)&&ResidentJourneys.I?.ResidentVehicleActive(m.Info.Owner,1)==true;m.Root.Visible=!m.Info.Ridden&&!travelling&&new Vector2(m.Info.X-Jef.I.X,m.Info.Z-Jef.I.Z).Length()<70;m.Solid.CollisionLayer=m.Root.Visible&&!m.Parking?Solid.Layer:0;}
     }
     private async Task Seen(){try{await ServerLink.I!.Api!.VeloSeen(Jef.I.X,Jef.I.Z);}catch(ApiException){}}
 }
