@@ -158,7 +158,7 @@ def main():
         t1 = time.time()
         frgb, fnrm = mhface.paint(lk)
         face_pics[cname] = (frgb, fnrm)
-        cells_meta[cname] = mhskin.cell_meta(cname, lk, frgb)
+        cells_meta[cname] = mhskin.cell_meta(cname, lk, frgb[..., :3])
         print(f"[people2] face picture {cname}: {time.time() - t1:.1f} s")
     # the base bodies' pictures: MakeHuman's skin with the linen drawers and vest
     mats = {}
