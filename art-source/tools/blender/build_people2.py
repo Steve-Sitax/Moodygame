@@ -225,6 +225,10 @@ def main():
     for k in kinds:
         dressed.append(dress.build(k, make_body, ref_uv, layout, atl, tex=TEX))
     held_obs = held.build_all(kinds, layout, atl, tex=TEX)
+    from people2 import motion
+    for b in bodies + dressed:
+        changed, difference = motion.match_lod_weights(b["lod0"], b["lod1"])
+        print("[people2] LOD weights %s: %d vertices matched to near, largest difference %.3f" % (b["name"], changed, difference))
     def default_face(b):
         if "face" in b and b["face"]["cell"] in face_pics:
             return b["face"]["cell"]

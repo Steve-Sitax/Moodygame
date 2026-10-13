@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Text.Json;
 using Godot;
 using Scheldemist.World;
 
@@ -10,7 +12,28 @@ internal sealed class HumanLayers
 {
     private sealed record Rig(int[] Springs, Vector3[] Contacts);
     private static readonly Dictionary<string, Rig> rigs = new();
-    internal static void Forget() => rigs.Clear();
+    private sealed record HandTrack(string Model, float[] Keys);
+    private static readonly Dictionary<string, HandTrack> handTracks = new();
+    private static bool tracksLoaded;
+    internal static Vector3 TrackBase { get; private set; }
+    internal static void Forget() { rigs.Clear(); handTracks.Clear(); tracksLoaded = false; }
+    private static void LoadTracks()
+    {
+        if (tracksLoaded) return;
+        using var json = JsonDocument.Parse(File.ReadAllText(Paths.Shared("peopleRig.json")));
+        var rig = json.RootElement;
+        var p = rig.GetProperty("locomotion").GetProperty("trackBase");
+        TrackBase = new Vector3(p[0].GetSingle(), p[1].GetSingle(), p[2].GetSingle());
+        foreach (var c in rig.GetProperty("work").GetProperty("clips").EnumerateObject())
+        {
+            if (!c.Value.TryGetProperty("handContacts", out var h)) continue;
+            var rows = h.GetProperty("keys");
+            var keys = new float[rows.GetArrayLength() * 14]; int at = 0;
+            foreach (var row in rows.EnumerateArray()) foreach (var x in row.EnumerateArray()) keys[at++] = x.GetSingle();
+            handTracks[c.Name] = new HandTrack(h.GetProperty("model").GetString()!, keys);
+        }
+        tracksLoaded = true;
+    }
     private readonly Node3D root;
     private readonly Skeleton3D sk;
     private readonly int head, chest, eyeL, eyeR;
@@ -27,17 +50,26 @@ internal sealed class HumanLayers
     private readonly Quaternion[] footRotations = new Quaternion[2];
     private readonly bool[] supports = new bool[2];
     private readonly int hipBone;
+    private readonly int[] arm = new int[2], forearm = new int[2], hand = new int[2];
+    private readonly int[] armTwist = new int[2];
+    private readonly int[] clavicle = new int[2];
+    private readonly Dictionary<string, Node3D?> contactThings = new();
+    internal float HandReachError { get; private set; }
     private Vector3 lastPosition, lastForward;
     private Vector2 look;
     private bool hadPosition;
     public HumanLayers(Node3D root, Skeleton3D sk)
     {
         this.root = root; this.sk = sk;
+        LoadTracks();
         hipBone = sk.FindBone("hips");
         head = sk.FindBone("head"); chest = sk.FindBone("chest"); eyeL = sk.FindBone("eyeL"); eyeR = sk.FindBone("eyeR");
         for (int i = 0; i < 2; i++)
         {
             string suffix = i == 0 ? "L" : "R";
+            arm[i] = sk.FindBone("armUp" + suffix); forearm[i] = sk.FindBone("armLow" + suffix); hand[i] = sk.FindBone("hand" + suffix);
+            armTwist[i] = sk.FindBone("armTwist" + suffix);
+            clavicle[i] = sk.FindBone("clavicle" + suffix);
             toe[i] = sk.FindBone("toe" + suffix);
             up[i] = sk.FindBone("legUp" + suffix); low[i] = sk.FindBone("legLow" + suffix); foot[i] = sk.FindBone("foot" + suffix);
         }
@@ -134,7 +166,8 @@ internal sealed class HumanLayers
             want = new Vector2(Math.Clamp(yaw, -0.6f, 0.6f), Math.Clamp(pitch, -0.3f, 0.3f));
         }
         look = look.Lerp(want, 1 - MathF.Exp(-dt * 6));
-        Turn(chest, look * 0.18f); Turn(head, look * 0.82f);
+        float attention = Math.Clamp((225 - distance) / 81, 0, 1);
+        Turn(chest, look * (0.18f * attention)); Turn(head, look * (0.82f * attention));
         // Eye bones point along local +y (forward), unlike the upright head frame.
         Vector2 eyes = new Vector2(Math.Clamp(want.X - look.X * 0.6f, -0.4363f, 0.4363f), Math.Clamp(want.Y - look.Y * 0.6f, -0.2618f, 0.2618f));
         Eye(eyeL, eyes); Eye(eyeR, eyes);
@@ -150,7 +183,7 @@ internal sealed class HumanLayers
                 springVelocity[i] += ((drive - springAngle[i]) * 65 - springVelocity[i] * 12) * step;
                 springAngle[i] = Math.Clamp(springAngle[i] + springVelocity[i] * step, -0.22f, 0.22f);
             }
-            sk.SetBonePoseRotation(springs[i], sk.GetBonePoseRotation(springs[i]) * new Quaternion(Vector3.Right, springAngle[i]));
+            sk.SetBonePoseRotation(springs[i], sk.GetBonePoseRotation(springs[i]) * new Quaternion(Vector3.Right, springAngle[i] * attention));
         }
         if (sitFeet != 0) SitFeet(sitFeet);
         if (!walk && !standLock) { ReleaseFeet(); return; }
@@ -235,12 +268,82 @@ internal sealed class HumanLayers
     {
         if (bone >= 0) sk.SetBonePoseRotation(bone, sk.GetBoneRest(bone).Basis.GetRotationQuaternion() * Quaternion.FromEuler(new Vector3(angle.Y, 0, -angle.X)));
     }
-    private void Reach(int upper, int lower, int end, Vector3 target)
+    internal void Hands(string clip, float time, float ratio, float strength)
+    {
+        bool carry = clip == "sack_walk";
+        if (!handTracks.TryGetValue(carry ? "sack_hold" : clip, out var track) || strength <= 0) return;
+        if (carry) time = 0;
+        Node3D? thing = null;
+        if (track.Model.Length > 0 && (!contactThings.TryGetValue(track.Model, out thing) || thing != null && (!GodotObject.IsInstanceValid(thing) || thing.GetParent() != sk)))
+            contactThings[track.Model] = thing = sk.GetNodeOrNull<Node3D>("work_" + track.Model);
+        Transform3D frame = thing?.Transform ?? Transform3D.Identity;
+        if (track.Model == "cask") frame.Basis = Basis.Identity;
+        int count = track.Keys.Length / 14;
+        float f = Math.Clamp(time * 24, 0, count - 1);
+        int a = (int)f, b = Math.Min(count - 1, a + 1); float w = f - a;
+        for (int side = 0; side < (carry ? 1 : 2); side++)
+        {
+            int i = a * 14 + side * 7, j = b * 14 + side * 7;
+            var k = track.Keys;
+            Vector3 p = new Vector3(k[i], k[i + 1], k[i + 2]).Lerp(new Vector3(k[j], k[j + 1], k[j + 2]), w) * ratio;
+            Quaternion q = new Quaternion(k[i + 3], k[i + 4], k[i + 5], k[i + 6]).Normalized().Slerp(new Quaternion(k[j + 3], k[j + 4], k[j + 5], k[j + 6]).Normalized(), w);
+            var now = sk.GetBoneGlobalPose(hand[side]);
+            Vector3 target = now.Origin.Lerp(frame * p, strength);
+            Quaternion rotation = now.Basis.GetRotationQuaternion().Slerp(frame.Basis.GetRotationQuaternion() * q, strength);
+            Arm(side, target, rotation);
+        }
+        People2Shoulders.Apply(sk);
+    }
+
+    internal void Arm(int side, Vector3 target, Quaternion rotation)
+    {
+        // Interpolated clips and attention can leave a target just outside the current
+        // shoulder's reach. Let the clavicle follow it; keep both limb lengths unchanged.
+        for (int attempt = 0; attempt < 2 && clavicle[side] >= 0; attempt++)
+        {
+            Vector3 shoulder = sk.GetBoneGlobalPose(arm[side]).Origin;
+            Vector3 elbow = sk.GetBoneGlobalPose(forearm[side]).Origin;
+            Vector3 wrist = sk.GetBoneGlobalPose(hand[side]).Origin;
+            float excess = shoulder.DistanceTo(target) - shoulder.DistanceTo(elbow) - elbow.DistanceTo(wrist) + 0.0003f;
+            if (excess <= 0) break;
+            Aim(clavicle[side], shoulder, shoulder + (target - shoulder).Normalized() * Math.Min(excess, 0.036f));
+        }
+        Vector3 pole = new Vector3(side == 0 ? 0.8f : -0.8f, -0.35f, -0.6f);
+        Reach(arm[side], forearm[side], hand[side], target, pole);
+        int parent = sk.GetBoneParent(hand[side]);
+        sk.SetBonePoseRotation(hand[side], (sk.GetBoneGlobalPose(parent).Basis.GetRotationQuaternion().Inverse() * rotation).Normalized());
+        WristTwist(side);
+        HandReachError = Math.Max(HandReachError, sk.GetBoneGlobalPose(hand[side]).Origin.DistanceTo(target));
+    }
+
+    internal void ForearmCarry(int side, Vector3 upperDirection, Vector3 forearmDirection, Quaternion rotation)
+    {
+        Vector3 shoulder = sk.GetBoneGlobalPose(arm[side]).Origin;
+        Vector3 elbow = sk.GetBoneGlobalPose(forearm[side]).Origin;
+        float length = shoulder.DistanceTo(elbow);
+        Aim(arm[side], elbow, shoulder + upperDirection.Normalized() * length);
+        elbow = sk.GetBoneGlobalPose(forearm[side]).Origin;
+        Vector3 wrist = sk.GetBoneGlobalPose(hand[side]).Origin;
+        Aim(forearm[side], wrist, elbow + forearmDirection.Normalized() * elbow.DistanceTo(wrist));
+        sk.SetBonePoseRotation(hand[side], (sk.GetBoneGlobalPose(forearm[side]).Basis.GetRotationQuaternion().Inverse() * rotation).Normalized());
+        WristTwist(side);
+    }
+
+    private void WristTwist(int side)
+    {
+        Quaternion delta = sk.GetBonePoseRotation(hand[side]) * sk.GetBoneRest(hand[side]).Basis.GetRotationQuaternion().Inverse();
+        Quaternion twist = new Quaternion(0, delta.Y, 0, delta.W);
+        if (armTwist[side] >= 0 && twist.LengthSquared() > 1e-8f)
+            sk.SetBonePoseRotation(armTwist[side], sk.GetBoneRest(armTwist[side]).Basis.GetRotationQuaternion() * Quaternion.Identity.Slerp(twist.Normalized(), 0.6f));
+    }
+
+    private void Reach(int upper, int lower, int end, Vector3 target, Vector3? bend = null)
     {
         if (upper < 0 || lower < 0) return;
         Vector3 s = sk.GetBoneGlobalPose(upper).Origin, e = sk.GetBoneGlobalPose(lower).Origin, f = sk.GetBoneGlobalPose(end).Origin;
         float a = s.DistanceTo(e), b = e.DistanceTo(f), d = Math.Clamp(s.DistanceTo(target), Math.Abs(a - b) + 0.0001f, a + b - 0.0001f);
-        Vector3 dir = (target - s).Normalized(), pole = Vector3.Back - dir * dir.Dot(Vector3.Back);
+        Vector3 bendDirection = bend ?? Vector3.Back;
+        Vector3 dir = (target - s).Normalized(), pole = bendDirection - dir * dir.Dot(bendDirection);
         if (pole.LengthSquared() < 0.00001f) return;
         float c = Math.Clamp((a * a + d * d - b * b) / (2 * a * d), -1, 1);
         Aim(upper, e, s + dir * (a * c) + pole.Normalized() * (a * MathF.Sqrt(1 - c * c)));

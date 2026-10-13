@@ -61,7 +61,7 @@ internal sealed class People2Things
     }
 
     /// <summary>Does the game have a model for this thing?</summary>
-    internal static bool Has(string model) => model is "sack" or "cask" or "broom" or "brush" or "pipe";
+    internal static bool Has(string model) => model is "sack" or "cask" or "broom" or "brush" or "pipe" or "crank";
 
     private static Mesh? pipeStem, pipeBowl;
     private static readonly ModelLibrary.Look Plain = new(TwoSided: true, Affine: 0, VertexColor: true);
@@ -95,6 +95,16 @@ internal sealed class People2Things
             case "brush":
                 part = ModelLibrary.Get("lively", Plain)?.Copy("brush");
                 if (part != null) part.Position = new Vector3(0, -0.03f, 0);
+                break;
+            case "crank":
+                // Reuse the town ropewalk's independent crank wheel. Its handle lies 0.45 m
+                // from the axle and projects 0.28 m: fit the work rig's 0.24/0.36 m dimensions.
+                part = ModelLibrary.Get("trades", Plain)?.Copy("tr_rope_spin");
+                if (part != null)
+                {
+                    part.Rotation = new Vector3(MathF.PI, 0, 0);
+                    part.Scale = new Vector3(0.24f / 0.45f, 0.24f / 0.45f, 0.36f / 0.28f);
+                }
                 break;
             case "pipe":
                 pipeStem ??= Town.StreetWindows.PipeStem;

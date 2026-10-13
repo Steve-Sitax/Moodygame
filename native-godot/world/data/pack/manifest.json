@@ -1,6 +1,6 @@
 {
   "format": 2,
-  "version": "native-pack-5b5415c5a6fc3ffe89d657f039a81bfd9feb945210281feb022d8f170c926766",
+  "version": "native-pack-f0825c726add0f056c2ae8b94da30be82fa3f6422a9fcdcd94a5ef61cea2c065",
   "files": [
     {
       "file": "maps/dirt.json",
@@ -1906,9 +1906,9 @@
     },
     {
       "file": "shared/peopleRig.json",
-      "blob": "blobs/e945b0769a3abf67cf897526b1fab256c9360d220938d967b31f73a171e7de66.bin",
-      "sha256": "e945b0769a3abf67cf897526b1fab256c9360d220938d967b31f73a171e7de66",
-      "bytes": 573966
+      "blob": "blobs/4ec8c1f395a995d83cda8dc98ccec9570a4da30f778377be79e7c318204d2e03.bin",
+      "sha256": "4ec8c1f395a995d83cda8dc98ccec9570a4da30f778377be79e7c318204d2e03",
+      "bytes": 881978
     },
     {
       "file": "shared/peopleSliders.json",

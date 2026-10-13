@@ -334,29 +334,31 @@ def _hand_cam(cam, ao, S, off, look_off=(0, 0, 0), W=360, H=420, lens=70):
     return pv.shoot(cam, os.path.join(SHOTS, "_tmp.png"), hp + Vector(off), hp, W, H, lens=lens)
 
 
-GRIP_UP = 0.022  # and this far toward the wrist (the knuckle line), so the knuckle joints close as well
-GRIP_PALM = 0.0012  # gripL/R sit this far (m) palm-side of the palm's skin: a handle of radius r sits r - this further out
+GRIP_UP = -0.010  # the same grasp axis below the MakeHuman knuckles as clips_work
+GRIP_PALM = -0.003  # MakeHuman palm pad allowance; the same grasp axis as clips_work
 GRIPS = [("rope 2 cm", 0.010), ("knife 2.6 cm", 0.013), ("baton 3.2 cm", 0.016), ("handle 4 cm", 0.020)]
 
 
 def grip_pose(b, S, radius, off, thumb_k=1.0):
     """A hand closed round a handle: the fitted finger curls (hands.grip_fit) and a thumb over the fingers (closed
     by thumb_k of its full turn)."""
-    fit = hn.grip_fit(b["J"], b["P"], S, radius, off, up=GRIP_UP)
+    from . import clips_idle as ci, clips_work as cw
+    if "_grip_fam" not in b:
+        family = ci.BODY_FAMILY.get(b["name"], "man")
+        b["_grip_fam"] = ci.Fam(family, b, ci.STANCES[family])
+    shape = cw.grip_shape(b["_grip_fam"], S, radius)
+    fit = {f: (shape[f], 0) for f in ("index", "middle", "ring")}
     sg = 1 if S == "L" else -1
     pose = {}
-    for fname in ("index", "middle", "ring"):
-        curls = fit[fname][0]
-        for k, deg in enumerate(curls):
-            pose["%s%d%s" % (fname, k + 1, S)] = OLD.RY(sg * deg)
+    cl.finger_turns(pose, S, {f: fit[f][0] for f in ("index", "middle", "ring")}, cl.thumb_axes(b["J"]))
     flex, across = cl.thumb_axes(b["J"])[S]
     k = thumb_k
-    a = (30 + 300 * (0.02 - radius)) * k
+    a = shape["thumb"][0] * k
     pose["thumb1" + S] = Quaternion(across, math.radians(a * 0.6)) @ Quaternion(flex, math.radians(a * 0.4))
-    pose["thumb2" + S] = Quaternion(flex, math.radians((28 + 400 * (0.02 - radius)) * k))
-    pose["thumb3" + S] = Quaternion(flex, math.radians((24 + 300 * (0.02 - radius)) * k))
-    fit["thumb"] = (round(a * 0.6, 1), round(a * 0.4, 1), round((28 + 400 * (0.02 - radius)) * k, 1),
-                    round((24 + 300 * (0.02 - radius)) * k, 1))
+    pose["thumb2" + S] = Quaternion(flex, math.radians(shape["thumb"][1] * k))
+    pose["thumb3" + S] = Quaternion(flex, math.radians(shape["thumb"][2] * k))
+    fit["thumb"] = (round(a * 0.6, 1), round(a * 0.4, 1), round(shape["thumb"][1] * k, 1),
+                    round(shape["thumb"][2] * k, 1))
     return pose, fit
 
 
