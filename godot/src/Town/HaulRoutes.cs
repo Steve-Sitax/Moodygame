@@ -62,4 +62,14 @@ public sealed class HaulRoute
 
     /// <summary>What a docker carries in his arms on this route: the Vismarkt's routes carry boxes of fish.</summary>
     public string CarryKind => Place == "vismarkt" ? "fishbox" : Carry;
+
+    /// <summary>The route of a sack pile whose docker's end (A) is within `near` of (x, z), or null: there a docker
+    /// bending down takes a sack up onto his shoulder (people2's lift). From the routes alone, so every PC finds
+    /// the same.</summary>
+    public static HaulRoute? SackPileAt(double x, double z, double near = 2.5)
+    {
+        foreach (var r in All)
+            if (r.CarryKind == "sack" && Whereabouts.Hypot(x - r.A.X, z - r.A.Z) < near) return r;
+        return null;
+    }
 }

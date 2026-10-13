@@ -25,9 +25,11 @@ public partial class Townspeople
             case "hopscotch": break; // one shared lane on the street
             case "rope": break; // the shared lane connects the two turners' actual hands
             case "bucket": Add("bucket", Vector3.Zero); Add("brush", new(-.35f,.05f,.35f)); break;
+            case "bucket_only": Add("bucket", Vector3.Zero); break; // (the scrubbing brush is in her hand: people2)
             case "chair": Add("chair", Vector3.Zero); Add("lace_stand", new(0,0,.65f)); break;
             case "flowers": Add("flowers", new(0,.95f,.3f)); break;
             case "wash": Add("bucket", new(.5f,0,.5f)); Add("brush", new(.2f,.25f,.45f)); break;
+            case "wash_people2": Add("bucket", new(0,0,.34f)); break; // (the bucket she stoops over: people2's wash)
             case "pipe":
                 kit.AddChild(new MeshInstance3D{Mesh=StreetWindows.PipeStem,Position=new(0,1.42f,.18f),Rotation=new(MathF.PI/2,0,0)});
                 kit.AddChild(new MeshInstance3D{Mesh=StreetWindows.PipeBowl,Position=new(0,1.405f,.285f)});break;

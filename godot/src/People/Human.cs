@@ -274,7 +274,7 @@ public sealed class Human
     private float Phase => newer?.Phase ?? (current == null ? 0 : (float)(mixer.CurrentAnimationPosition / lengths[current]));
 
     /// <summary>How far to lower (negative) or lift the body for what it plays now: on the knees to scrub, on a chair at the lace pillow, crouched at marbles, off the ground in a hop.</summary>
-    public float MotionLift() => Motion switch
+    public float MotionLift() => newer != null ? newer.MotionLift() : Motion switch
     {
         "scrub" => -Humans.KneelDrop * Scale,
         "crouch" => -Humans.CrouchDrop * Scale,
@@ -294,6 +294,52 @@ public sealed class Human
 
     /// <summary>Seconds in one loop of what is playing now.</summary>
     public float LoopTime => newer?.LoopTime ?? (current != null ? lengths[current] : 1);
+
+    // ---- package D3: work (local choices only; nothing here goes on the wire)
+
+    /// <summary>A people2 body (its work clips position their own hips and carry their own things).</summary>
+    public bool IsPeople2 => newer != null;
+
+    /// <summary>The work context the game gives this figure: "haul_sack" at a sack pile, "fish_stall" behind a
+    /// fish table; null: none. Worked out from what every PC knows (the place, the kind).</summary>
+    public string? Work
+    {
+        get => newer?.Work;
+        set { if (newer != null) newer.Work = value; }
+    }
+
+    /// <summary>The height of the pile before a docker (picks the lift), when the game knows it.</summary>
+    public float PileTop { set { if (newer != null) newer.PileTop = value; } }
+
+    /// <summary>How long the work clip now playing still runs (a lift, a set-down): the game waits for it.</summary>
+    public float WorkSeconds => newer?.WorkSeconds ?? 0;
+
+    /// <summary>The clip a motion would play for this person (people2), to lay out the kit for it.</summary>
+    public string? WorkChoice(string motion) => newer?.Choose(motion);
+
+    /// <summary>A load carried by a people2 body ("sack" rides the shoulder; others are the game's node on the
+    /// chest); null: put down (a sack is set down first).</summary>
+    public void CarryLoad(string? kind) => newer?.Load(kind);
+
+    /// <summary>The game's node for a load the kit has no model of (a crate, a box of fish, a keg): held against
+    /// the belly by a people2 body.</summary>
+    public void CarryNode(Node3D? node) => newer?.CarryNode(node);
+
+    /// <summary>The proofs: play a work clip from t (frozen: held there).</summary>
+    internal void WorkClipNow(string clip, float t, bool frozen = false) { if (newer != null) { newer.PlayClip(clip, t, frozen); Motion = "work:" + clip; } }
+
+    internal int ThingsShown => newer?.ThingsShown ?? 0;
+
+    /// <summary>The proofs: a figure put somewhere else lets its planted feet go.</summary>
+    internal void ReleaseFeet() => newer?.ReleaseFeet();
+
+    /// <summary>Where a bone (a socket: gripL, gripR) is now, in the world.</summary>
+    internal Vector3? Socket(string bone)
+    {
+        skeleton ??= Root.GetNodeOrNull<Skeleton3D>("Skeleton3D");
+        int b = skeleton?.FindBone(bone) ?? -1;
+        return b < 0 ? null : skeleton!.GlobalTransform * skeleton.GetBoneGlobalPose(b).Origin;
+    }
 
     public int SetFace(IReadOnlyDictionary<string, float> weights) => People2Faces.SetFace(Root, weights);
     public int SetIdentity(string stableId)

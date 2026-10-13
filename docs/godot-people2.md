@@ -126,6 +126,54 @@ kind, no new kinds, 29 cache entries throughout, no problems). Timing under othe
 so not the gate): with the D2 moves the people2 animation mean was 0.47/0.38 ms at the Vismarkt/Grote Markt
 against 0.37/0.29 ms with them bypassed in the same conditions (+0.1 ms); all animation 0.86/0.73 ms.
 
+## Work (package D3)
+
+`People2Moves.LoadWork` reads `peopleRig.json work` (docs/people.md "Work"); `Human2` plays the work clips and
+`People2Things` shows what they move. The wire is unchanged: the motion stays the game's word, the clip is chosen
+locally from the motion, the person's stable id, a load and a context every PC works out the same.
+
+- motions: a family's work clips for scrub (a woman sweeps one doorstep in three, from the id), lace, wash, cross,
+  call, smoke, beg, wall, lean, write, grind, row, ride, crouch, hop, rope (the skipping rope), pull (the rope haul),
+  point (pointing the way or up at the spire, from the id); the family's fallback (D3's) where it has none.
+- kinds: the sentry marches and stands with the rifle (`rifle_*`); docker_sack walks and stands with the sack.
+- loads (`Crowd.PuppetLoad`, people2 only): a sack rides the left shoulder (`sack_walk`, `sack_hold`, the one sack
+  model at `loads.sack`); a crate, a box of fish or a keg is the game's node held against the belly (`crate_walk`,
+  `crate_hold`). A sack let go is set down from the shoulder first (`sack_down`) and stays where it was put until the
+  docker takes up the next or for 30 s.
+- contexts: `Human.Work` = `haul_sack` for a docker bending at a sack pile (HaulRoutes: the host's `Townspeople` and
+  the guest's `RemotePose` find it from the routes alone): he lifts the sack onto his shoulder (`sack_lift`, or
+  `_high` when `PileTop` says the pile is at his waist). The host waits for the lift and the set-down
+  (`Human.WorkSeconds`; positions are the host's). `fish_stall`: a fishwife behind a market fish table guts (`gut`)
+  while idle or with folded arms; she stands 0.19 m nearer the table (`NativeMarket.People`).
+- kits (`StreetLife`, `StreetKits`): a people2 scrubber's bucket at her left hand and no brush on the ground (it is in
+  her hand), the washer's bucket before her, a smoker's pipe in his hand (the kit's pipe meshes).
+- things (`People2Things`): the one sack (sized per frame: lying, draped over the shoulder), the quay's cask (turned by
+  the distance walked), the alleys' birch broom, the lively scrubbing brush and the pipe; on a bone or on a track in
+  the node's frame, shown within 60 m. A knife, a book, a rifle, a crank and the oars have no game model and are not
+  drawn.
+- the D3 clips put their own hips where the work needs them: `Human.MotionLift` is 0 for people2. Paced loops (the
+  carries, the cask, the march) play at the walker's pace (two strides a loop) and lock their planted feet as the
+  walks do.
+
+Proof: `& ./native-godot/scripts/check-people2.ps1 -Modes work -Port <port>` (`--people2-work <dir>`) stages on the
+Rijnkaai at the sack pile of haul route rk-m: a docker lifting (the game's context), lifts held at moments, a carrier
+walking with a sack, one standing with it, one setting it down, two passing a sack, a cask rolled, a rope hauled from
+a block, a fishwife at a fish table, a woman sweeping; pictures at 3 m and 6 m at 13:00, in rain and at 19:30, twelve pictures
+0.25 s apart of a lift and of a pass, 60 s of their life at 30 Hz, and 45 s of the town's own hauling dockers live
+(with `--people2-map docker_b=docker_a,docker_c=docker_a,docker_sack=docker_a,fishwife_b=fishwife_a`), with pictures
+of their lifts and set-downs (`work.json`).
+
+Evidence (2026-10-13, 235 clips): `.scratch/people2-native-59590afb765d413cb2eb0b6b26a2466a/` (work with rain, pictures
+inspected; content identity 7 checks and multiplayer 25 checks pass with the new fingerprint) and
+`.scratch/people2-native-9254f7b2a2ed433d96227592ab2f0dfb/work/`;
+the paced loops' planted feet moved 0.002 mm (the sack walk) and 0.004 mm (the cask) under the runtime lock; in 45 s
+eleven town dockers played `sack_lift`, `sack_lift_high`, `sack_walk`, `sack_hold`, `sack_down`, `crate_walk` and
+`crate_hold` from the game's own haul. `.scratch/people2-native-3ad95f007a014193828d2099f90343f5/`: the D2 motion
+proof (0 frames with both talkers speaking, 12 turns), routing and parade pass; the shader audit has one people2 kind,
+29 programs throughout and no problems. Timing under other worktrees' Godot load (not exclusive, not the gate): all
+animation 0.61/0.68 ms at the Vismarkt/Grote Markt, people2 0.30/0.38 ms, layers 0.03/0.06 ms, town update 1.06/1.26
+ms (`.scratch/people2-native-5b0be255907f453e9d202078e972bb01/timing/`).
+
 ## Verification
 
 ```powershell
@@ -353,3 +401,48 @@ map and albedo); people keep the Texture2DArrays. people2 was rebuilt once from 
   so no accepted 1.5 ms result. In those runs people+animals means were 0.71-1.48 ms except one
   Grote Markt at 1.78 ms, caused by a single 235.8 ms spike in the animals' update (median 0.19 ms);
   20-35 ms animal-update spikes occur in most runs. Re-run `check-people2.ps1 -Modes timing` alone.
+
+## Integration evidence: D3 work on layered pictures + animals + D2 (2026-10-13)
+
+Branch `art3-integrate2` merges `art3-work` with `--no-ff`. Authoring conflicts retain the layered
+`pictures` export and add D3 `work` metadata; runtime D3 code and the work proof are retained.
+Generated conflicts were resolved by rebuilding every people2 output together. The original layered
+export, people material, shader, animal sources and multiplayer wire remain unchanged.
+
+Blender plain build: 1087 s, 235 clips (97 D2 and 36 D3), 64 bones, one material. Both glbs contain
+every declared clip; the plain intake has no required extension or sparse accessor. Replacement
+preserved 1703 other model files and both manifests' other entries. Native fingerprint: `6ec774fa...`.
+Build and preservation receipts: `.scratch/people2-integrate2-build/inventory.json`,
+`.scratch/people2-replace-55b3476afd244c788618b02707f3256c/replacement.json`.
+
+People proofs: `.scratch/people2-native-dda963720d6747118d18cdb74237cbbd/`.
+Work, motion, captures, integration-captures, dress-captures, distance-captures, routing and parade
+pass; all 1431 pictures were inspected using Photocraft contact sheets and full-size work views.
+Carry/cask stance drift: 0.002/0.004 mm; parade: 0.0078642 mm maximum. D2: 150 s, 12 talk turns,
+never both speaking, standing drift zero. Identity (7), pack (341 over 320 files), network (25) pass.
+
+Animal proofs: `.scratch/animals-native-dac90b14b2994147884deec4b0f053de/`.
+Slide (24 moving cases, maximum stance drift 2.32 mm), 774 captures, identity and network pass.
+All 774 captures and four sun-test pictures were inspected through 27 Photocraft contact sheets.
+Inherited animal follow-ups: faceted haunches/silhouettes and passing residents obscuring some lamp
+views (`captures/lamps-dog_draught_brindle-1m-sit.png`); the animal geometry and capture code are unchanged.
+
+Shader audit: `.scratch/people2-native-957a4d29342e40aebd2f24ebb8d09cc7/shaders/` passes with exactly
+130 first-frame kinds, one people2 kind, 29 programs/cache entries, no problems, and unchanged
+lights (one directional, 121 omni throughout clear/rain/fog). The runner now enforces 130 kinds.
+Exclusive timing: `.scratch/people2-native-afda867edbc84621adfd9201ce4fe591/timing/` passes at
+Vismarkt/Grote Markt: people + animals means 0.849/0.730 ms, town logic means 0.891/1.043 ms;
+198 isolation samples, no other Godot engine. Animal updates still have isolated 42.068/20.554 ms
+maxima; the mean gate is unchanged and passes.
+Legacy timing also passes (0.822/0.524 ms people + animals; 187 isolation samples, zero overlap):
+`.scratch/people2-native-3cba8808a621435696af0c398843979b/legacy-timing/`.
+Animal shader/timing modes also pass: `.scratch/animals-native-ad780eb10b3047a9acc79fd33e23a102/`
+and `.scratch/animals-native-c2e5eed833b34e8d8e69db1954883379/`. Shader inventory is again 130 kinds;
+combined CPU means 0.717/0.485 ms, logic 0.853/0.817 ms, 196 isolation samples without overlap.
+All 14 people2 modes and all six animal modes pass; all 2245 PNGs were inspected. Test data is removed,
+proof logs and pictures remain under `.scratch`, and all engines started by these runs have stopped.
+
+No merge-specific visual defect found. Art follow-ups: coarse faces and pale body-only exhibits,
+police/Sooi waist and vest gaps, fishwife shawl edges, flattened broom bristles, missing gutting knife
+(no native model), and dim work views away from lamps. See `work/day-gut-3m.png`,
+`work/day-sweep-3m.png`, `captures/day-police-1m.png`, and the work lift/pass sequences.
