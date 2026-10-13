@@ -115,8 +115,9 @@ public partial class Jef
         return GroundAt(x, z, level - Step) < level - Tide.Wade && NearestSwim(x, z) != null;
     }
 
-    private void EnterWater()
+    private void EnterWater(bool keepView = false)
     {
+        var viewBefore = Cam.GlobalPosition - Vector3.Up * dip * Bob;
         Swimming = true;
         Diving = false;
         Grounded = false;
@@ -134,6 +135,14 @@ public partial class Jef
         if (spot != null) (X, Z) = spot.Value;
         strokeDist = 0;
         stepLag = 0;
+        // walked down into deep water (issue 88): the eye was a step lag and a walking bob over the feet, and he may
+        // have been moved clear of the wall; the view settles to the swimmer's in a moment instead of jumping
+        viewCarry = Vector3.Zero;
+        if (keepView)
+        {
+            viewCarry = viewBefore - new Vector3(X, Y + SwimFeet + SwimEye, Z);
+            if (viewCarry.Length() > 0.4f) viewCarry = viewCarry.Normalized() * 0.4f;
+        }
         Splashed?.Invoke();
     }
 
@@ -278,11 +287,14 @@ public partial class Jef
         Look(dt, 0, MathF.Sin(swimT * 1.1f) * 0.02f, SwimFeet + SwimEye + bob);
     }
     private bool duckHeld;
+    /// <summary>How far the view still is from where the swimmer's should be, after a walk into the water; Look lets it die away.</summary>
+    private Vector3 viewCarry;
 
     private void StartDive(float level)
     {
         // head first from where the eyes are now: a short push down
         var e = Cam.GlobalPosition;
+        viewCarry = Vector3.Zero;
         Diving = true;
         SetShape(2);
         X = e.X;

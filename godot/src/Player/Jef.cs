@@ -583,7 +583,7 @@ public partial class Jef : Node, Mantle.IWorld
         // M6 tides: down a flight of steps into deep water (or the tide came up round you): swim
         if (Grounded && Y < level - Tide.Wade && Water.In(X, Z))
         {
-            EnterWater();
+            EnterWater(true);
             return;
         }
         eye += ((Crouching ? EyeCrouch : Eye) - eye) * (1 - MathF.Exp(-dt * 10));
@@ -628,7 +628,8 @@ public partial class Jef : Node, Mantle.IWorld
         }
         if (MathF.Abs(dip) < 1e-4f && MathF.Abs(dipV) < 1e-3f) dip = dipV = 0;
         float sin = MathF.Sin(Yaw), cos = MathF.Cos(Yaw);
-        Cam.GlobalPosition = new Vector3(X + cos * side, Y + up + dip * Bob, Z - sin * side);
+        viewCarry *= MathF.Exp(-dt * 8);
+        Cam.GlobalPosition = new Vector3(X + cos * side, Y + up + dip * Bob, Z - sin * side) + viewCarry;
         Cam.Rotation = new Vector3(lookPitch + dip * 0.35f * Bob, lookYaw, roll);
     }
 
