@@ -39,9 +39,9 @@ normal server dev routes, crowd and job-taking path. Four of them are exercised 
 
 Direct check options go after Godot's `--`: `--paths <dir>`, `--stuck <dir>`, `--shaders <dir>`,
 `--perfcheck <dir>`, `--clocks --check-out <dir>`, `--interiors --check-out <dir>`. Each writes its named JSON and
-<<<<<<< HEAD
-quits. These modes bypass the menus. Pass the shared town and decoded model paths above, plus a test server or
-fresh `--db` and a port from 8900. Use the real Godot 4.7.2 Mono console executable described in the README.
+quits. These modes bypass the menus. Give each a fresh `--db`, `--prefs`, `--author-root` and `SCHELDEMIST_USER_DATA`
+folder, and a free port from 8900.
+Use the real Godot 4.7.2 Mono console executable described in the README.
 `--interiors` takes `--interior-rooms id,id` (for example `home:cellar,shop:cobbler_east`) and `--interior-ray-details`;
 the four-minute limit holds, so the whole town (45 rooms) runs best in four chunks of about a dozen rooms. The check holds
 every door open, a rented home's too (`Doors.Held`), and counts a cellar window onto a light well as seeing the street when
@@ -58,10 +58,6 @@ name instead. Its third form, `--homedoortest <dir> --walk-room poesje:-2.2 --wa
 walks Jef on foot through a room's street door, held open, down to the floor at that height and back out, with pictures; the Poesje
 opens at half past six and sends Jef back out of its door before that, so it is walked at 19. `--keep-soot` leaves the bake's
 leftover soot sheet over the Poesje's front (`NativeTown.cs` hides it), for the before.
-=======
-quits. These modes bypass the menus. Give each a fresh `--db`, `--prefs`, `--author-root` and `SCHELDEMIST_USER_DATA`
-folder, and a free port from 8900.
->>>>>>> worktree-agent-a222071b3de7ecf52
 
 Limitations are evidence, not passes: `notCovered` is in every report. The path check tests the baked crowd map,
 not Jef's physics or changed moving geometry. Stuck covers a three-hour Monday route and drawn-body collisions,
