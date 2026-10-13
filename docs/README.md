@@ -30,6 +30,7 @@ Start with the [native game/editor instructions](../native-godot/README.md), [na
 | [godot-perf2.md](godot-perf2.md) | Godot allocation and timing pass: per-part measurements, exact pixel proof, functional checks and remaining frame-budget failures |
 | [godot-bisect.md](godot-bisect.md) | Three-run Godot history bisect, scene/physics inventories, measured causes and subsequent speed experiments |
 | [building-with-interior.md](building-with-interior.md) | Construction rules for real shells/rooms and openings; the original template is preserved under `art-source/tools/templates/interior/` after archival |
+| [cc0-assets.md](cc0-assets.md) | Free assets: CC0 and public domain may be used; the rules (check, adapt, record) and the sources |
 | [learnings-for-next-game.md](learnings-for-next-game.md) | Rules and lessons from this project for the next game: process, AI, rendering, world building, testing, saves, multiplayer, releases |
 | [milestones/](milestones/) | One note per finished milestone; [milestones/M6.md](milestones/M6.md) is the index of the M6 parts |
 
