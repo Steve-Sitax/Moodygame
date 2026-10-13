@@ -20,7 +20,9 @@ public sealed partial class Crowd
             var centre=body.World.GetCenter();double vx=0,vz=0;
             if(laneWas.TryGetValue(body.Node,out var before)&&dt>0){double k=Math.Min(1,dt*6);vx=before.Vx+((centre.X-before.X)/dt-before.Vx)*k;vz=before.Vz+((centre.Z-before.Z)/dt-before.Vz)*k;if(Hyp(centre.X-before.X,centre.Z-before.Z)>3)vx=vz=0;}
             var was=laneWas.GetValue(body.Node,_=>new());was.X=centre.X;was.Z=centre.Z;was.Vx=vx;was.Vz=vz;
-            double rank=body.Owner?.Vehicle?.Kind==3?2:body.Owner!=null?1:body.Node.Name.ToString().StartsWith("omnibus",StringComparison.Ordinal)?2.5:body.Node.GetParent() is Scheldemist.Movers.Railway?3:2;
+            string bodyName=body.Owner==null?body.Node.Name.ToString():"";
+            // a portal crane's leg on its rails (Railway.RegisterLegs) outranks everything on the quay, like the train
+            double rank=body.Owner?.Vehicle?.Kind==3?2:body.Owner!=null?1:bodyName.StartsWith("omnibus",StringComparison.Ordinal)?2.5:bodyName.StartsWith("crane_leg",StringComparison.Ordinal)||body.Node.GetParent() is Scheldemist.Movers.Railway?3:2;
             Add(centre.X,centre.Z,vx,vz,body.World.Size.X/2,body.World.Size.Z/2,rank,body.Owner);
         }
         foreach(var p in people){if(p.Vehicle==null||p.State!="walk"||p.Remote)continue;double fx=Math.Sin(p.Yaw),fz=Math.Cos(p.Yaw);int before=lanes.Count;Add(p.X+fx*p.Nose*.5,p.Z+fz*p.Nose*.5,fx*p.Pace,fz*p.Pace,0,0,p.Vehicle.Kind==3?2:1,p);if(lanes.Count>before){lanes[^1].HalfLength=Math.Max(.6,p.Nose/2+.4);lanes[^1].HalfWidth=Math.Max(.45,p.Reach);}}

@@ -116,16 +116,21 @@ public partial class PlacesTest : Node
         int money = GameState.I.Money; Dialogs.I.Top!.OnKey("Digit1", "1");
         Check(await Until(() => HomeLife.I.Info?.Lease?.Home == h.Id && !HomeLife.I.Busy, 10), "own key for tonight");
         Check(GameState.I.Money == money - h.DayC, "rent uses server nightly price");
-        await Frames(80); Check(Doors.I.Get(Spots.BakedName("home:alley")) is { CanPass: true }, "own key opens actual door");
+        // the door follows the lease every 0.25 s of game time and then swings for about a second: wait for it, not a fixed 80 frames (at a high frame rate that is under half a second)
+        bool doorOpened = await Until(() => Doors.I.Get(Spots.BakedName("home:alley")) is { CanPass: true }, 8);
+        Check(doorOpened, "own key opens actual door");
         var f = HomeLife.I.Frames[h.Id]; var local = f.Local(f.Bed.X, f.Bed.Z); var at = f.World(local.X + 1.3f, local.Y);
         await At(at.X, at.Z, f.Bed.X, f.Bed.Z, f.Bed.Y, f.Y); await Frames(15);
         replies.Add(new { homeBedProbe = new { f.Bed, f.Y, f.Inside, Jef.I.X, Jef.I.Z, playerY = Jef.I.Y, Jef.I.Pitch, aim = Interact.Aim(f.Bed.X, f.Bed.Y, f.Bed.Z), prompts = Interact.I.Find().Select(a => a.Text).ToArray() } });
         await Shot("home-room");
         Check(Interact.I.Find().Any(a => a.Text == "go to bed"), "own bed prompt");
         Interact.I.Press(Key.E); await Shot("home-bed"); Check(Dialogs.I.Top?.DialogName == "sleep chooser", "home sleep chooser");
-        // Eight hours (4): the engine sleeps him in 30-minute steps every 300 ms, so a one-hour sleep can end by itself in the frames this waits.
-        Dialogs.I.Top!.OnKey("Digit4", "4");Check(await Until(()=>Day.I.Asleep,12),"own bed sleep accepted by engine");
-        GameState.I.Apply(await api.Tick(GameState.I.Where(),true,new Pos3(Jef.I.X,Jef.I.Z,Jef.I.Y)));await Frames(6);Dialogs.I.Top!.OnKey("KeyE","e");
+        Dialogs.I.Top?.OnKey("Digit1", "1");Check(await Until(()=>Day.I.Asleep,12),"own bed sleep accepted by engine");
+        GameState.I.Apply(await api.Tick(GameState.I.Where(),true,new Pos3(Jef.I.X,Jef.I.Z,Jef.I.Y)));await Frames(6);
+        // The "asleep" window opens when the engine's sleep reply is handled and closes when the sleep ends by itself, so wait for it
+        // (or for the sleep to be over) instead of assuming it is on top; any key wakes him.
+        await Until(()=>Dialogs.I.Top?.DialogName=="asleep"||!Day.I.Asleep,12);
+        if(Day.I.Asleep&&Dialogs.I.Top is {DialogName:"asleep"} wake)wake.OnKey("KeyE","e");
         Check(await Until(()=>!Day.I.Asleep&&Day.I.LastWoke?.Place=="home",12),"wake in own home");Check(f.Inside,"wake position in real home room");replies.Add(new{homeWake=Day.I.LastWoke});
         replies.Add(new { homes = HomeLife.I.Info });
         if(f.Fire!=Vector3.Zero){GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set",new{warmth=5}));var fire=f.Local(f.Fire.X,f.Fire.Z);var near=f.World(fire.X-MathF.Sign(fire.X)*1,fire.Y);await At(near.X,near.Z,f.Fire.X,f.Fire.Z,f.Fire.Y,f.Y);

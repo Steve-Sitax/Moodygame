@@ -33,6 +33,24 @@ public partial class NativeTown : BakedWorld
             return walk;
         }
     }
+    private static string SourceOf(Node n) => n.HasMeta("source_name") ? n.GetMeta("source_name").AsString() : "";
+    private static int IndexOf(Node n) => n.HasMeta("source_node_index") ? n.GetMeta("source_node_index").AsInt32() : -1;
+    /// <summary>
+    /// The bake's frozen event and crowd pictures that nothing at run time draws or moves (found by the leftover scan, godot/src/Play/LeftoverScan.cs;
+    /// issues 111, 80 and the scan of 2026-10-13). Each is matched by the bake's own node number, so a scene that is re-baked or edited shows them again
+    /// rather than hiding something else. Not in the list, on purpose: the Steen's fisher, children and sailor and the net-mender at the trades (steenlife.ts, permanent
+    /// street scenery), the goods and traffic rigs (their movers claim them), and everything the runtime parts hide themselves (the fire's crowd, the market).
+    /// </summary>
+    private static readonly (string What, Func<Node3D, bool> Match)[] LeftoverSnapshots =
+    {
+        ("soot sheet", n => n.Name == "soot" || SourceOf(n) == "soot"),
+        // the fire hose of the Poesje's fire, laid from the pump snapshot to the door (the live pump has its own hose)
+        ("fire hose", n => IndexOf(n) == 13830 && n.Name == "Mesh2948"),
+        // the carts of the crowd that stood in the street when the bake was taken (their carters are hidden by Townspeople): the fish market's three and the one at the fire
+        ("crowd cart", n => SourceOf(n) == "pushcart" && (IndexOf(n) is 8454 or 8464 or 8474 or 13561)),
+        // the prison yard's ring of walkers, eight of ten frozen mid-stride (PrisonPeople walks its own at the exercise hour)
+        ("prison ring figure", n => IndexOf(n) is 12420 or 12438 or 12456 or 12474 or 12492 or 12510 or 12528 or 12546),
+    };
     public override Error Load(string unused)
     {
         Stage = "read";
@@ -54,6 +72,22 @@ public partial class NativeTown : BakedWorld
         }
         // Active fires construct their own moving pump. Keep the one-time scene snapshot intact on disk.
         if (eventSnapshots > 0) Unported.Remove("Node1476/Mesh2924");
+        // The bake is a picture of one instant, and a few things in it belong to events and crowds that the game now draws and moves
+        // itself. They stay in the scene on disk, but never show: the town's own soot (TownLife.Fire) draws a burned front after a real
+        // fire, the live pump brings its own hose, the prison's rounds (PrisonPeople) walk their own ring, the street crowd its own carts.
+        // (dev: --keep-leftovers leaves all of them as the bake has them, for a before-and-after; --keep-soot only the soot sheet)
+        var leftoverCounts = new SortedDictionary<string, int>();
+        if (!Scheldemist.Main.I.Flag("keep-leftovers"))
+            foreach (var snapshot in town.GetChildren().OfType<Node3D>().ToArray())
+                foreach (var (what, match) in LeftoverSnapshots)
+                {
+                    if (!match(snapshot) || what == "soot sheet" && Scheldemist.Main.I.Flag("keep-soot")) continue;
+                    snapshot.Visible = false;
+                    foreach (var child in All(snapshot)) child.SetMeta("native_replaced_event_snapshot", true);
+                    leftoverCounts[what] = leftoverCounts.GetValueOrDefault(what) + 1;
+                    break;
+                }
+        int sootSnapshots = leftoverCounts.GetValueOrDefault("soot sheet");
         // The bake also kept the horse model parts the pool's copies were made from (second "horses" group: whole mesh parts at the
         // origin, legs hanging below the quay). The pool draws its own copies; the template stays on disk but never shows.
         int horseTemplates = 0;
@@ -84,6 +118,9 @@ public partial class NativeTown : BakedWorld
         Report["districts"] = Layouts.Districts.Count;
         Report["replacedEventSnapshots"] = eventSnapshots;
         Report["hiddenHorseTemplates"] = horseTemplates;
+        Report["hiddenSootSnapshots"] = sootSnapshots;
+        Report["hiddenLeftoverSnapshots"] = leftoverCounts.Values.Sum();
+        Report["hiddenLeftoverSnapshotKinds"] = string.Join(", ", leftoverCounts.Select(c => c.Value + " " + c.Key));
         Stage = "done";
         return Error.Ok;
     }
