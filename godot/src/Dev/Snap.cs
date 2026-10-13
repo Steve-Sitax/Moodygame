@@ -14,7 +14,9 @@ namespace Scheldemist.Dev;
 /// Each view: name:x,y,z,yaw,pitch[,hour,weather,storm,tide] (degrees; storm: the great storm's level 0..1; tide: the
 /// river held at that level in metres, or high or low, also written tide=-5.2 (W1); yaw 0 looks to -z, 180 to +z; pitch up). A view with no
 /// place ("name:,,,,,21,rain") keeps the camera of the bake's first place. A view named lantern... follows the
-/// burning lantern nearest its camera from a few steps away. Writes dir/name.png and prints the mean
+/// burning lantern nearest its camera from a few steps away. A view's hour and weather are held: the live clock
+/// never moves the light or the tide off them during a snap run (a view with none keeps the last ones; the log line
+/// "snap name light:" says the light each picture was taken in). Writes dir/name.png and prints the mean
 /// frame time there, then quits.
 /// </summary>
 [GamePart(900)]
@@ -292,6 +294,9 @@ public partial class Snap : Node
         if (frame < Wait + Timed + (view == 0 ? 240 : 0)) return;
         string name = views[view][0];
         Main.I.GetViewport().GetTexture().GetImage().SavePng(System.IO.Path.Combine(dir, name + ".png"));
+        // (the light this picture was really taken in, so a mist or a dusk that crept in shows in the log)
+        var dl = Daylight.I;
+        GD.Print($"snap {name} light: {dl.Hour:0.##} h, {dl.Weather}, fog #{dl.FogColor.LinearToSrgb().ToHtml(false)} {dl.FogNear:0.#}-{dl.FogFar:0.#} m, sky {dl.SkyIntensity:0.###}, sun {dl.SunIntensity:0.###}; the game's clock {Game.GameState.I?.HourF:0.##} h, {Game.GameState.I?.Weather}");
         // (dev: --whatray fx,fy;... lists the drawn meshes whose box the ray through that point of the picture meets,
         // small ones first; fx, fy are 0..1 across and down)
         if (Main.I.Arg("whatray") is { Length: > 0 } wr)

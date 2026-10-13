@@ -38,11 +38,13 @@ public partial class Wiring : Node
         GameState.I.WeatherChanged -= WeatherChanged;
     }
 
+    private static bool SnapHolds => Main.I.Arg("views") != "";
+
     private static void SetTide()
     {
         var s = GameState.I;
         // (--hour or a part's own test holds the clock: then the server's is not passed on)
-        if (s == null || !s.Live || Main.I.Arg("hour") != "" || Main.I.Arg("peopletest") != "") return;
+        if (s == null || !s.Live || Main.I.Arg("hour") != "" || Main.I.Arg("peopletest") != "" || SnapHolds) return;
         Tide.Set((int)s.Day, (float)s.HourF);
     }
 
@@ -64,7 +66,8 @@ public partial class Wiring : Node
         // (--hour or a part's own test holds the clock: then the server's is not passed on)
         if (s == null || !s.Live || Main.I.Arg("hour") != "" || Main.I.Arg("peopletest") != "") return;
         SetTide();
-        if (Daylight.I != null)
+        // (a --snap run's views set their own hour and weather: the live clock never pulls the light off them, issue 86)
+        if (Daylight.I != null && !SnapHolds)
         {
             Daylight.I.SetTime((float)s.HourF);
             if (Main.I.Arg("weather") == "") Daylight.I.SetWeather(s.Weather);
