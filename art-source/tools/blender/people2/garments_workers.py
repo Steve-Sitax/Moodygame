@@ -395,7 +395,8 @@ def transfer_uv(near,far):
         chosen=bypart[part][index]
         # Keep the reduced face inside one painted triangle. A chord across a
         # concave chart can cut through another garment's packed UV island.
-        local=tree([chosen])
+        vertices=triangles[chosen].vertices
+        local=BVHTree.FromPolygons([points[v] for v in vertices],[(0,1,2)],all_triangles=True)
         for li in face.loop_indices:
             q=far.data.vertices[far.data.loops[li].vertex_index].co
             loc,_,index,_=local.find_nearest(q)
@@ -458,6 +459,8 @@ def export_glb(path, plain=False):
             continue
         bm=bmesh.new()
         bm.from_mesh(ob.data)
+        # A sound quad can contain a collapsed export triangle on one side.
+        bmesh.ops.triangulate(bm,faces=list(bm.faces))
         bmesh.ops.delete(bm,geom=[f for f in bm.faces if f.calc_area()<1e-12],context="FACES_ONLY")
         bm.to_mesh(ob.data)
         bm.free()
