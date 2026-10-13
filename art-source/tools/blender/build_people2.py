@@ -116,9 +116,9 @@ def grips_json(g):
 
 def all_kinds():
     """Every kind of package C, from the group files (people2/kinds_*.py), in a fixed order."""
-    from people2 import kinds_cast, kinds_uniform, kinds_women, kinds_workers
+    from people2 import kinds_cast, kinds_cast2, kinds_uniform, kinds_women, kinds_workers
     out = []
-    for mod in (kinds_workers, kinds_women, kinds_uniform, kinds_cast):
+    for mod in (kinds_workers, kinds_women, kinds_uniform, kinds_cast, kinds_cast2):
         out += mod.KINDS
     return out
 
@@ -222,8 +222,15 @@ def main():
     for cname, (frgb, fnrm) in face_pics.items():
         atl.face(cname, frgb, fnrm)
     dressed = []
+    from people2 import kinds_cast2
     for k in kinds:
+        limits = dress.NEAR_HERO, dress.NEAR_CROWD, dress.FAR
+        if k in kinds_cast2.KINDS:
+            dress.NEAR_HERO, dress.NEAR_CROWD, dress.FAR = 16000, 14000, 2500
         dressed.append(dress.build(k, make_body, ref_uv, layout, atl, tex=TEX))
+        dress.NEAR_HERO, dress.NEAR_CROWD, dress.FAR = limits
+    from people2 import held_cast
+    held_cast.register()
     held_obs = held.build_all(kinds, layout, atl, tex=TEX)
     def default_face(b):
         if "face" in b and b["face"]["cell"] in face_pics:

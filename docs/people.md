@@ -645,6 +645,29 @@ keys 0.8 MB, meshes 1.5 MB, clips 0.4 MB).
 
 ## Kinds and clothes (package C)
 
+### C4 wide: cast and children (2026-10-13)
+
+`kinds_cast2.py`, `garments_cast.py` and `held_cast.py` extend the cast without changing the four first-pass kinds.
+Peeters keeps her black widow's clothes and account ledger; Tuur his navy jersey, russet knit cap and cold pipe;
+Fientje her russet dress, checked shawl, blue-grey apron and shared herring basket; the Anna Maria sailor his
+navy double-breasted pea jacket and knit cap. Roles come from `services/data/native-rules.json` and
+`native-seed.json`; fixed faces remain in `shared/faceTypes.json CAST`, placements in `PostedPeople.cs`.
+The C4 build registration temporarily selects 16,000 near triangles for cast, 14,000 for crowd, 2,500 far,
+then restores the shared kit's limits. The cloth lane owns reduction and painting changes.
+
+Period references (shape references only, no new downloaded artwork in the game):
+
+- Jozef Israëls, [Children of the Sea, 1872](https://id.rijksmuseum.nl/200109406), Rijksmuseum SK-A-2382:
+  worn children's tops, short trousers and bare feet; a regional comparison rather than Antwerp documentation.
+- V&A [bonnet T.163-1923, 1870s](https://collections.vam.ac.uk/item/O233687/bonnet-unknown/):
+  the small tied bonnet construction; Peeters' plain black version follows the game's existing widow description.
+- New-York Historical Society [frock coat, 1870–1880](https://emuseum.nyhistory.org/objects/21304/frock-coat):
+  full coat skirt, lapels and waist shaping for the stranger, foreman and old man.
+
+Closed garment shells have 1.5–3.5 mm facings and rounded hems; felt brims 2.5–3 mm, doubled knitted cap bands
+3 mm. Socket objects remain separate models. Ledger page lips are intentionally thin sheet edges; leather covers,
+pipe wood, cane and metal ferrule have subdivision-rounded edges. No shader kinds, lights or wire motions added.
+
 First pass (2026-10-12): four kinds, one from each group, so the owner sees the new people before C goes wide:
 `docker_a` (workers), `fishwife_a` (women), `police` (uniforms), `sooi` (the cast). Each is its own armature in
 people2.glb, named after the kind, with `<kind>_lod0` and `<kind>_lod1`, on the same 64 bones and the same rest pose

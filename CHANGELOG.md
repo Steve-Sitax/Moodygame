@@ -1,5 +1,7 @@
 # Changelog
 
+- People2's cast gains period clothing for Widow Peeters, Tuur, Fientje and the Anna Maria sailor, with separate account ledger and pipe models.
+
 - People2 now uses independent clothes and full-square face pictures with close-up fabric and skin grain, sharing one compressed layered material.
 
 What changed in each version of Scheldemist, for players first. The format follows
