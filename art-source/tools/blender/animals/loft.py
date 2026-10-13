@@ -87,7 +87,11 @@ class Loft:
         nv = np.cross(tv, sv)
         self._vf = (T, Ls, sv, nv)
         slope = np.max(np.abs(np.stack([np.diff(self.W), np.diff(self.A), np.diff(self.D)], 1)), axis=1) / np.maximum(Ls, 1e-9)
-        self._lean = np.sqrt(1.0 + slope * slope)
+        lean = np.sqrt(1.0 + slope * slope)
+        # per curve point (the mean of the spans either side), so the scale runs on smoothly from span to span: a lean
+        # that jumps at a span's end puts a step in the field there (a flat facet in the mesh, a kink in the normals)
+        self._leanv = np.concatenate([lean[:1], (lean[:-1] + lean[1:]) / 2, lean[-1:]])
+        self._lean = lean
         return self._vf
 
     def __call__(self, p):
@@ -138,7 +142,7 @@ class Loft:
         d2 = np.maximum(d2, -np.minimum(np.minimum(w, up), dn))
         # where the cross-section swells or shrinks fast along the spine, the surface leans and the true distance is
         # shorter than across the section: scaled down by the lean (keeps the field a distance, so meshing stays even)
-        d2 = d2 / self._lean[seg]
+        d2 = d2 / (self._leanv[j0] * (1 - h) + self._leanv[j1] * h)
         # past the loft's two ends: capped
         ax = np.where(seg == 0, np.maximum(-hraw, 0.0) * Ls[0], 0.0) + np.where(seg == m - 1, np.maximum(hraw - 1.0, 0.0) * Ls[-1], 0.0)
         return np.where(ax > 0, np.where(d2 > 0, np.sqrt(d2 * d2 + ax * ax), ax), d2)

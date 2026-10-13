@@ -165,10 +165,10 @@ def ear_shape(kind, H, L):
         spine = [(0.0, -0.05, 0.0), (0.03, 0.07, -0.01), (0.065, 0.18, -0.02), (0.09, 0.28, -0.03), (0.11, 0.37, -0.04)]
         width = [0.42, 0.4, 0.3, 0.15, 0.02]
         thick = 0.028
-    else:  # "lop": the pig's big ears, out and falling forward over the eyes
-        spine = [(0.0, 0.0, 0.0), (0.06, 0.04, 0.05), (0.105, 0.025, 0.14), (0.13, -0.04, 0.24), (0.14, -0.11, 0.32), (0.13, -0.16, 0.37)]
-        width = [0.24, 0.34, 0.4, 0.38, 0.28, 0.1]
-        thick = 0.02
+    else:  # "lop": the Kempen pig's big ears, out a little, then falling forward over the eyes and the face
+        spine = [(0.0, 0.0, 0.0), (0.07, 0.05, 0.06), (0.125, 0.03, 0.17), (0.16, -0.05, 0.28), (0.175, -0.14, 0.37), (0.17, -0.22, 0.43)]
+        width = [0.26, 0.38, 0.46, 0.46, 0.36, 0.12]
+        thick = 0.018
     return spine, width, thick
 
 
@@ -191,7 +191,10 @@ def ear(Bd, S_, kind, nu=9, nv=16):
     wd = np.interp(vs * tot, s, np.array(width) * L)
     wd = wd * np.where(vs > 0.4, np.sqrt(np.clip(1 - ((vs - 0.4) / 0.62) ** 2, 0.03, 1)), 1.0)
     erect = kind in ("cat", "prick")
-    n0 = unit(R @ np.array((sg * 0.35, 0.0, 1.0))) if erect else unit(R @ np.array((sg * 1.0, 0.25, 0.1)))
+    lop = kind == "lop"
+    # the flap's facing: an erect ear opens to the front, a drop ear lies on the cheek, the pig's lop ear lies over the
+    # face like a roof, its outer face up and out
+    n0 = unit(R @ np.array((sg * 0.35, 0.0, 1.0))) if erect else unit(R @ np.array((sg * 0.55, 1.0, -0.25))) if lop else unit(R @ np.array((sg * 1.0, 0.25, 0.1)))
     tk = thick * L
     # the mid-surface first
     mids = np.zeros((nv, nu, 3))
@@ -204,7 +207,7 @@ def ear(Bd, S_, kind, nu=9, nv=16):
         if i > 0 and nrm @ nrms[i - 1] < 0:
             nrm = -nrm
             across = -across
-        elif i == 0 and not erect and nrm @ (R @ np.array((sg, 0.0, 0.0))) < 0:
+        elif i == 0 and not erect and nrm @ (R @ np.array((sg, 1.0 if lop else 0.0, 0.0))) < 0:
             nrm = -nrm
             across = -across
         nrms[i] = nrm
@@ -490,7 +493,7 @@ def build_rig_mesh(name, Bd, h, target0=4400, verbose=True):
     V0 = game_co(body)
     soft = Bd.parts(V0, 0.02 * H)
     weight = {"head": 0.3, "muzzle": 0.25, "nose": 0.2, "jaw": 0.3, "beard": 0.4, "paw": 0.55, "pad": 0.6, "hoof": 0.55,
-              "leg": 0.85, "ruff": 0.95}
+              "leg": 0.85, "ruff": 0.95, "tail": 0.45}
     keep = np.array([weight.get(p_, 1.0) for p_ in soft])
     decimate(body, max(1500, target0 - extra_tris), keep)
     P = settle(body, Bd)

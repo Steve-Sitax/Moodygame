@@ -1,7 +1,7 @@
 param(
     [string]$SourceModels,
     [string]$Godot,
-    [ValidateRange(8800,8999)][int]$Port = 8971
+    [ValidateRange(8800,9099)][int]$Port = 9001
 )
 # Replace the animals' stored scene after a rebuild (art-source/tools/blender/build_animals.py --plain ...): import the
 # animal pictures (native-godot/assets/animal-pictures, BPTC colour and RGTC normals), take the plain animals.glb in

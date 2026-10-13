@@ -2,7 +2,7 @@ param(
     [string]$Godot,
     [ValidateSet('captures','slide','trace','shaders','timing','identity','network')]
     [string[]]$Modes = @('slide','captures','trace','shaders','timing','identity','network'),
-    [ValidateRange(8800,8999)][int]$Port = 8912,
+    [ValidateRange(8800,9099)][int]$Port = 9002,
     [ValidateRange(0,3600)][int]$WaitForTimingSeconds = 900,
     [switch]$NoPrepare,
     [string[]]$Extra = @()
@@ -90,7 +90,7 @@ try {
         foreach ($arg in $args) { $start.ArgumentList.Add($arg) }
         $child = [Diagnostics.Process]::new(); $child.StartInfo = $start
         $isolation = [Collections.Generic.List[object]]::new()
-        $limit = if ($mode -eq 'captures') { 900 } else { 420 }
+        $limit = if ($mode -eq 'captures') { 1500 } elseif ($mode -eq 'slide') { 900 } else { 420 }
         try {
             [void]$child.Start()
             $stdout = $child.StandardOutput.ReadToEndAsync(); $stderr = $child.StandardError.ReadToEndAsync()

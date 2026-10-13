@@ -497,13 +497,16 @@ def leg_hind(B, S_, r, pig=False):
                   (st + (ho - st) * 0.12, r["ga_w"] * 1.0, r["ga_f"] * 1.1, r["ga_b"] * 1.1, 2.0)], side=(sg, 0, 0)),
           thigh_b, "thigh", k, flow_chain([hp, st, ho]))
     seat = r["seat"]
-    B.add(lofted([(seat + X * 0.0, r["hm_w"] * 0.9, r["hm_r"] * 0.8, r["hm_r"] * 0.8, 2.0),
+    # (the pig's hams are one big mass of their own: no separate hamstrings)
+    if not pig:
+        B.add(lofted([(seat + X * 0.0, r["hm_w"] * 0.9, r["hm_r"] * 0.8, r["hm_r"] * 0.8, 2.0),
                   (seat + (st - seat) * 0.42 + V(0, 0, -r["hm_r"] * 0.7) - X * r["hm_w"] * 0.2, r["hm_w"] * 1.15, r["hm_r"], r["hm_r"] * 1.1, 2.0),
                   (st + (ho - st) * 0.25 + V(0, 0, -r["ga_b"] * 0.7), r["ga_w"] * 0.9, r["ga_b"] * 0.8, r["ga_b"] * 0.8, 2.0)], side=(sg, 0, 0)),
-          mix((thigh_b, 0.8), (bone("hips"), 0.2)), "thigh", k * 0.8, flow_chain([seat, st, ho]))
-    # the kneecap in front of the stifle
-    B.add(ell(st + unit(st - hp) * 0.006 * H + V(0, 0.004 * H, r["ga_f"] * 0.9), (r["ga_w"] * 0.55, r["ga_f"] * 0.9, r["ga_f"] * 0.55)),
-          chain([hp, st, ho], ["thigh" + S_, "shin" + S_], bl), "leg", r["k_pt"], flow_chain([st, ho]))
+              mix((thigh_b, 0.8), (bone("hips"), 0.2)), "thigh", k * 0.8, flow_chain([seat, st, ho]))
+    # the kneecap in front of the stifle (the pig's lies hidden in the flank)
+    if not pig:
+        B.add(ell(st + unit(st - hp) * 0.006 * H + V(0, 0.004 * H, r["ga_f"] * 0.9), (r["ga_w"] * 0.55, r["ga_f"] * 0.9, r["ga_f"] * 0.55)),
+              chain([hp, st, ho], ["thigh" + S_, "shin" + S_], bl), "leg", r["k_pt"], flow_chain([st, ho]))
     # the gaskin: the calf muscle bulging behind the upper shin, the shin bony in front; the hock tendon behind
     d_g = ho - st
     B.add(lofted([(st + V(0, -0.006 * H, 0), r["ga_w"], r["ga_f"], r["ga_b"], 2.0),
@@ -747,6 +750,24 @@ def dog_head(Bd, P):
             (zs + 0.6 * (zf - zs), 0.072, -0.21 * md - fl, 0.148 * mw, 2.4),
             (0.93, 0.058, -0.19 * md - fl * 0.6, 0.124 * mw, 2.4),
             (0.99, 0.04, -0.155 * md, 0.09 * mw, 2.3)]
+    mastiff = bool(P.get("mastiff"))
+    if mastiff:
+        # the Belgian cart dog (a matin, the mastiff kind): a broad skull, a clear stop, and a muzzle as deep as it is
+        # broad that keeps its width to a blunt, nearly upright front; the upper lips (flews) hang square below the
+        # jaw from under the nose back to the corner of the mouth; the nose leather broad, flush with the front
+        prof = [(-0.085, 0.16 * dome, -0.01, 0.09 * sw, 2.0),
+                (0.0, 0.215 * dome, -0.15, 0.18 * sw, 2.0),
+                (0.15 * u, 0.24 * dome, -0.235, 0.24 * sw, 2.0),
+                (0.3 * u, 0.232 * dome, -0.25, 0.255 * sw, 2.05),
+                (zs - 0.08, 0.196 * dome, -0.255, 0.236 * sw, 2.1),
+                (zs - 0.02, 0.148, -0.262, 0.2, 2.15),
+                (zs + 0.05, 0.126, -0.27, 0.182, 2.2),
+                (m0, 0.117, -0.275, 0.176, 2.25),
+                (0.78, 0.107, -0.272, 0.172, 2.25),
+                (0.88, 0.1, -0.262, 0.166, 2.25),
+                (0.95, 0.094, -0.25, 0.158, 2.2),
+                (0.995, 0.087, -0.235, 0.145, 2.15),
+                (1.02, 0.075, -0.215, 0.118, 2.1)]
     wedge = [(z, (t + b) / 2, w, (t - b) / 2, (t - b) / 2, e) for z, t, b, w, e in prof]
     Bd.add(lofted([(at(0, y, z), w * L, a * L, b * L, e) for z, y, w, a, b, e in wedge], side=side, per=6), hb, "head", 0.0, fl_back)
     # the occipital crest down the middle of the skull, faint
@@ -765,29 +786,57 @@ def dog_head(Bd, P):
         # the upper lips hanging at the sides over the lower jaw, deepest at the mouth's corner (the flews of the
         # mastiff kind hang well below the jaw line)
         lw = 0.045 * mw * (1.25 if flews else 1.0)
+        if mastiff:
+            # the flews: the upper lip hanging soft and full at each side, from under the nose round and back to the
+            # corner of the mouth, lower than the jaw and broader than the bridge (the muzzle wider at the lips)
+            Bd.add(lofted([(at(s * 0.105, -0.17, 1.0), 0.045 * L, 0.06 * L, 0.06 * L, 2.0),
+                           (at(s * 0.13, -0.215, 0.93), 0.06 * L, 0.07 * L, 0.085 * L, 2.0),
+                           (at(s * 0.142, -0.23, 0.8), 0.062 * L, 0.07 * L, 0.095 * L, 2.0),
+                           (at(s * 0.14, -0.225, 0.68), 0.058 * L, 0.06 * L, 0.08 * L, 2.0),
+                           (at(s * 0.125, -0.19, m0 - 0.1), 0.04 * L, 0.035 * L, 0.035 * L, 2.0)], side=side, per=6),
+                   mix((hb, 0.75), (bone("jaw"), 0.25)), "muzzle", 0.045 * L, lambda p: np.tile(unit(-R[:, 2] - R[:, 1] * 0.6), (len(p), 1)), 0.7)
+            continue
         Bd.add(lofted([(at(s * (0.162 * mw - 0.035), -0.13, m0 - 0.08), lw * L, 0.04 * L, (0.05 + 2 * fl) * L, 2.0),
                        (at(s * (0.148 * mw - 0.035), -0.14 - fl, m0 + 0.15), lw * L, 0.05 * L, (0.06 + 2 * fl) * L, 2.0),
                        (at(s * (0.125 * mw - 0.035), -0.12 - fl * 0.6, 0.9), lw * 0.9 * L, 0.04 * L, (0.05 + 1.5 * fl) * L, 2.0)], side=side),
                hb, "muzzle", 0.02 * L, lambda p: np.tile(unit(-R[:, 2] - R[:, 1] * 0.6), (len(p), 1)), 0.7)
     # the lower jaw from under the ear to the chin, its rami showing under the cheeks
     jb = chain([J["jaw"], J["chin"]], ["jaw"], 0.01)
-    Bd.add(lofted([(at(0, -0.2, 0.1 * u), 0.16 * sw * L, 0.05 * L, 0.06 * L, 2.0), (at(0, -0.2 - fl, zs + 0.1), 0.11 * mw * L, 0.04 * L, 0.045 * L, 2.0),
-                   (at(0, -0.175 - fl * 0.5, 0.88), 0.08 * mw * L, 0.035 * L, 0.035 * L, 2.0), (at(0, -0.16, 0.95), 0.055 * mw * L, 0.03 * L, 0.028 * L, 2.0)],
-                  side=side), jb, "jaw", 0.025 * L, fl_back, 0.8)
+    if mastiff:
+        # the lower jaw under and inside the flews, its chin just showing under the front
+        Bd.add(lofted([(at(0, -0.21, 0.1 * u), 0.17 * sw * L, 0.05 * L, 0.07 * L, 2.0), (at(0, -0.25, zs + 0.1), 0.15 * L, 0.04 * L, 0.05 * L, 2.0),
+                       (at(0, -0.26, 0.86), 0.12 * L, 0.035 * L, 0.04 * L, 2.0), (at(0, -0.25, 0.94), 0.09 * L, 0.03 * L, 0.035 * L, 2.0)],
+                      side=side), jb, "jaw", 0.03 * L, fl_back, 0.8)
+    else:
+        Bd.add(lofted([(at(0, -0.2, 0.1 * u), 0.16 * sw * L, 0.05 * L, 0.06 * L, 2.0), (at(0, -0.2 - fl, zs + 0.1), 0.11 * mw * L, 0.04 * L, 0.045 * L, 2.0),
+                       (at(0, -0.175 - fl * 0.5, 0.88), 0.08 * mw * L, 0.035 * L, 0.035 * L, 2.0), (at(0, -0.16, 0.95), 0.055 * mw * L, 0.03 * L, 0.028 * L, 2.0)],
+                      side=side), jb, "jaw", 0.025 * L, fl_back, 0.8)
     # the mouth: its line along the sides between lip and jaw, and the corner
     mz_c, mz_r = zs + 0.55 * (zf - zs), 0.42 * (zf - zs)
     # (the lip line is where the hanging lips meet the jaw: a crease of the blend, darkened in the picture)
     # the nose leather: its top on the line of the bridge, standing a little proud of the front; nostrils open to the
     # front and the sides; the groove down its middle into the lip
     nz = 0.99
-    Bd.add(lofted([(at(0, 0.0, nz - 0.07), 0.085 * mw * L, 0.05 * L, 0.055 * L, 2.1), (at(0, 0.008, nz - 0.005), 0.098 * mw * L, 0.06 * L, 0.058 * L, 2.1),
-                   (at(0, 0.004, nz + 0.022), 0.085 * mw * L, 0.05 * L, 0.048 * L, 2.0), (at(0, 0.0, nz + 0.038), 0.05 * mw * L, 0.03 * L, 0.03 * L, 2.0)],
-                  side=side), hb, "nose", 0.02 * L, fl_back, 0.0)
-    for s in (-1, 1):
-        # the nostrils: commas on the front, opening out to the sides
-        Bn = frame(R @ np.array((s * 0.55, -0.05, 1.0)), side=R @ np.array((1.0, -s * 0.6, 0.0)))
-        Bd.cut(ell(at(s * 0.038 * mw, -0.006, nz + 0.03), np.array((0.024, 0.009, 0.016)) * L, Bn), 0.004 * L)
-    Bd.cut(ell(at(0, -0.04, nz + 0.03), np.array((0.006, 0.04, 0.02)) * L, R), 0.004 * L)
+    if mastiff:
+        # a broad nose leather on the top of the blunt front, standing only a little proud of it
+        ny = 0.022
+        nw = 0.118
+        Bd.add(lofted([(at(0, ny, nz - 0.04), nw * L, 0.058 * L, 0.06 * L, 2.3), (at(0, ny + 0.004, nz + 0.012), nw * 1.05 * L, 0.064 * L, 0.066 * L, 2.4),
+                       (at(0, ny + 0.002, nz + 0.034), nw * 0.95 * L, 0.056 * L, 0.058 * L, 2.3), (at(0, ny, nz + 0.044), nw * 0.6 * L, 0.034 * L, 0.036 * L, 2.0)],
+                      side=side), hb, "nose", 0.022 * L, fl_back, 0.0)
+        for s in (-1, 1):
+            Bn = frame(R @ np.array((s * 0.55, -0.05, 1.0)), side=R @ np.array((1.0, -s * 0.6, 0.0)))
+            Bd.cut(ell(at(s * 0.048, ny - 0.012, nz + 0.04), np.array((0.024, 0.01, 0.016)) * L, Bn), 0.008 * L)
+        Bd.cut(ell(at(0, ny - 0.07, nz + 0.035), np.array((0.006, 0.05, 0.016)) * L, R), 0.008 * L)
+    else:
+        Bd.add(lofted([(at(0, 0.0, nz - 0.07), 0.085 * mw * L, 0.05 * L, 0.055 * L, 2.1), (at(0, 0.008, nz - 0.005), 0.098 * mw * L, 0.06 * L, 0.058 * L, 2.1),
+                       (at(0, 0.004, nz + 0.022), 0.085 * mw * L, 0.05 * L, 0.048 * L, 2.0), (at(0, 0.0, nz + 0.038), 0.05 * mw * L, 0.03 * L, 0.03 * L, 2.0)],
+                      side=side), hb, "nose", 0.02 * L, fl_back, 0.0)
+        for s in (-1, 1):
+            # the nostrils: commas on the front, opening out to the sides
+            Bn = frame(R @ np.array((s * 0.55, -0.05, 1.0)), side=R @ np.array((1.0, -s * 0.6, 0.0)))
+            Bd.cut(ell(at(s * 0.038 * mw, -0.006, nz + 0.03), np.array((0.024, 0.009, 0.016)) * L, Bn), 0.004 * L)
+        Bd.cut(ell(at(0, -0.04, nz + 0.03), np.array((0.006, 0.04, 0.02)) * L, R), 0.004 * L)
     # the eyes: at the stop under the brows, looking forward and a little out, each in a shallow socket so the lids
     # lie round it (no goggle)
     er = 0.046 * L / max(sk, 0.9) ** 0.5
@@ -795,9 +844,12 @@ def dog_head(Bd, P):
         eye(Bd, at(s * 0.135 * sw, 0.1, zs - 0.07), unit(R @ np.array((s * 0.42, 0.06, 1.0))), er, R, 0.98, 0.004 * H, lids=(1.22, 0.8))
     for c_, look_, er_, lids_ in Bd.marks["eyes"]:
         Bd.cut(ell(c_ + look_ * er_ * 0.9, (er_ * 1.1, er_ * 0.78, er_ * 0.3), frame(look_)), er_ * 0.15)
-    Bd.marks["nose"] = at(0, 0.0, 1.03)
+    Bd.marks["nose"] = at(0, 0.03 if mastiff else 0.0, 1.03)
     Bd.marks["head"] = (o, R, L)
-    Bd.marks["mouth"] = (at(0, -0.135 - fl, mz_c), np.array((0.2 * mw, 0.008, mz_r)) * L, R)
+    if mastiff:
+        Bd.marks["mouth"] = (at(0, -0.262, 0.74), np.array((0.21, 0.01, 0.26)) * L, R)
+    else:
+        Bd.marks["mouth"] = (at(0, -0.135 - fl, mz_c), np.array((0.2 * mw, 0.008, mz_r)) * L, R)
     Bd.marks["stop"] = zs
     ey, ez = {"drop": (0.13, 0.1), "drop_small": (0.15, 0.1), "semi": (0.15, 0.1), "button": (0.17, 0.08), "prick": (0.17, 0.13)}[P["ears"]]
     seat_ears(Bd, ey * dome, ez * u)
@@ -891,53 +943,144 @@ def cat_head(Bd):
 
 # ---------------------------------------------------------------- the pig
 
-PIG_TRUNK = [  # z, top, under, widest, half-width (metres; the Kempen pig, 0.72 m at the back)
-    (-0.715, 0.655, 0.545, 0.600, 0.050),
-    (-0.660, 0.700, 0.420, 0.575, 0.118),
-    (-0.540, 0.728, 0.375, 0.560, 0.145),
-    (-0.400, 0.738, 0.360, 0.555, 0.150),
-    (-0.240, 0.744, 0.340, 0.548, 0.158),
-    (-0.060, 0.746, 0.330, 0.545, 0.160),
-    (0.110, 0.742, 0.340, 0.548, 0.158),
-    (0.260, 0.732, 0.360, 0.552, 0.152),
-    (0.390, 0.705, 0.400, 0.560, 0.135),
-    (0.470, 0.672, 0.440, 0.565, 0.110),
+PIG_TRUNK = [  # z, top, under, widest, half-width (metres; the Kempen pig, 0.70 m at the back): a deep barrel, the belly
+    # sagging a hand's breadth above the hocks, round hams behind, the shoulders broad, the back rising to the loin
+    (-0.612, 0.535, 0.462, 0.500, 0.050),
+    (-0.592, 0.592, 0.392, 0.490, 0.112),
+    (-0.555, 0.638, 0.330, 0.484, 0.165),
+    (-0.500, 0.666, 0.296, 0.478, 0.198),
+    (-0.390, 0.688, 0.268, 0.470, 0.212),
+    (-0.230, 0.703, 0.250, 0.462, 0.215),
+    (-0.070, 0.701, 0.238, 0.458, 0.219),
+    (0.080, 0.691, 0.242, 0.460, 0.216),
+    (0.205, 0.677, 0.258, 0.466, 0.207),
+    (0.305, 0.652, 0.290, 0.470, 0.188),
+    (0.380, 0.615, 0.330, 0.470, 0.150),
+    (0.428, 0.578, 0.372, 0.470, 0.098),
 ]
+
+
+def _crease(q, at, width, depth, roll=0.6):
+    """A skin fold across the coordinate q: a groove `depth` deep at q = at, the skin rolled up on its far side (the
+    fat of the fold lying over the crease), `width` across."""
+    x = (q - at) / width
+    return -depth * np.exp(-x * x * 4.0) + depth * roll * np.exp(-(x - 1.1) ** 2 * 1.6)
+
+
+def pig_folds(Bd):
+    """The pig's skin folds as relief on the field (they reach the normal picture through the bake): rolls of fat round
+    the neck behind the jowls and under the throat, the jowl's own fold, creases across the front of the knees and the
+    hocks, the skin gathered behind the elbow and from the stifle into the flank, fine wrinkles across the snout. None
+    is regular: each crease wanders (noise in its line), changes depth along its length and stops short."""
+    J, H = Bd.J, Bd.H
+    o, R, L = Bd.marks["head"]
+    ax_n = unit(J["head"] - J["chest"])
+    n2 = J["neck2"]
+
+    def wob(p, f, seed, amp):
+        return (_vnoise(p, f, seed) - 0.5) * 2 * amp
+
+    def f(p):
+        out = np.zeros(len(p))
+        # the neck: four rolls round its sides and throat, spaced unevenly, fading over the crest
+        q = (p - n2) @ ax_n + wob(p, 28.0, 3, 0.012)
+        side = np.clip(1.0 - ((p[:, 1] - n2[1] + 0.07) / 0.09), 0, 1) ** 1.5
+        near = np.exp(-(((p - n2) @ ax_n) / 0.12) ** 2) * side
+        for k, (at, d) in enumerate(((-0.06, 0.0028), (-0.022, 0.0048), (0.016, 0.004), (0.05, 0.0026))):
+            vary = 0.55 + 0.9 * _vnoise(p, 22.0, 10 + k)
+            out += near * _crease(q, at, 0.016, d * vary)
+        # the jowl's fold under the jaw, from the corner of the mouth back to the throat
+        jq = (p - (o + R @ np.array((0, -0.25, 0.25)) * L)) @ unit(R[:, 1] - 0.4 * R[:, 2])
+        jw = np.exp(-(((p - (o + R @ np.array((0, -0.3, 0.25)) * L)) @ R[:, 2]) / (0.22 * L)) ** 2)
+        out += jw * _crease(jq + wob(p, 30.0, 4, 0.008), 0.0, 0.02, 0.006)
+        # the knees and the hocks: creases across the bend's front, partial, wandering
+        for S_ in "LR":
+            for jn, cuts in (("carpus", ((-0.018, 0.0028), (0.002, 0.0034), (0.019, 0.0024), (0.036, 0.0016))),
+                             ("hock", ((-0.012, 0.0022), (0.008, 0.003), (0.027, 0.0018)))):
+                c = J[jn + S_]
+                r = np.linalg.norm(p - c, axis=1)
+                w = np.exp(-(r / 0.06) ** 2) * np.clip(0.3 + 0.9 * (p[:, 2] - c[2]) / 0.04, 0, 1)
+                if not (w > 1e-3).any():
+                    continue
+                yq = p[:, 1] - c[1] + wob(p, 60.0, 21 + ord(S_), 0.006) + 0.12 * (p[:, 2] - c[2])
+                for k, (at, d) in enumerate(cuts):
+                    part = np.clip((_vnoise(p, 45.0, 30 + k + ord(S_)) - 0.25) / 0.4, 0, 1)
+                    out += w * part * _crease(yq, at, 0.009, d, 0.4)
+            # the skin gathered behind the elbow
+            e = J["elbow" + S_]
+            w = np.exp(-(np.linalg.norm((p - e - np.array((0, 0.03, -0.05))) / np.array((0.08, 0.06, 0.05)), axis=1)) ** 2)
+            zq = p[:, 2] - e[2] + 0.03 + wob(p, 40.0, 41 + ord(S_), 0.006)
+            out += w * (_crease(zq, 0.0, 0.012, 0.004) + _crease(zq, -0.03, 0.012, 0.0025))
+            # the flank fold, from the stifle forward and up into the belly
+            st = J["stifle" + S_]
+            dirf = unit(np.array((0.0, 0.55, 1.0)))
+            rel = p - st
+            along = rel @ dirf
+            acr = rel @ unit(np.cross(dirf, np.array((1.0, 0, 0)))) + wob(p, 25.0, 51 + ord(S_), 0.008)
+            w = np.clip(1 - np.abs(along - 0.06) / 0.12, 0, 1) * (np.abs(p[:, 0]) > 0.06)
+            out += w * _crease(acr, 0.0, 0.016, 0.0045)
+        # the snout: fine wrinkles across its top behind the disc, irregular
+        hq = (p - o) @ R / L
+        sw = np.clip((hq[:, 2] - 0.55) / 0.08, 0, 1) * np.clip((0.88 - hq[:, 2]) / 0.06, 0, 1) * np.clip((hq[:, 1] + 0.02) / 0.06, 0, 1)
+        if (sw > 1e-3).any():
+            zq = hq[:, 2] * L + wob(p, 70.0, 61, 0.004)
+            for k, at in enumerate((0.62, 0.665, 0.7, 0.745, 0.79, 0.825)):
+                part = np.clip((_vnoise(p, 80.0, 70 + k) - 0.2) / 0.4, 0, 1)
+                out += sw * part * _crease(zq, at * L, 0.005, 0.0016, 0.35)
+        return out
+    return f
 
 
 def pig(rig):
     Bd = Body(rig)
     J, H = Bd.J, rig["H"]
     tb = torso_bind(J, 0.07 * H)
-    back = flow_trunk(0.74, 0.5)
-    st = [(V(0, yc, z), w, T - yc, yc - U, 2.45) for z, T, U, yc, w in PIG_TRUNK]
+    back = flow_trunk(0.70, 0.5)
+    st = [(V(0, yc, z), w, T - yc, yc - U, 2.35) for z, T, U, yc, w in PIG_TRUNK]
     Bd.add(lofted(st, per=6), tb, "torso", 0.0, back)
-    rf = dict(blend=0.03, k=0.06, k_sc=0.05, k_pt=0.02, k_leg=0.025, scap_t=0.025, scap_w=0.08, scap_out=-0.01,
-              ua_top=0.02, ua_out=-0.02, ua_w=0.065, ua_f=0.06, ua_b=0.09, point=0.045, olec=0.032, fa_w=0.052, fa_f=0.047, fa_b=0.047,
-              carpus=0.038, past=0.034, paw=0.078)
-    rh = dict(blend=0.03, k=0.07, k_pt=0.02, k_leg=0.025, th_top=0.0, th_back=0.03, th_out=-0.025, th_w=0.085, th_f=0.09, th_b=0.13,
-              hm_w=0.08, hm_r=0.075, ga_w=0.056, ga_f=0.038, ga_b=0.06, hock=0.032, meta=0.034, paw=0.078)
+    # the hams: each a big round muscle mass over the thigh, down to the gaskin, behind the line of the rump; the heavy
+    # shoulders: the blade's muscles and the point of the shoulder
+    for S_, sg in (("L", 1.0), ("R", -1.0)):
+        th = chain([J["hips"], J["hip" + S_], J["stifle" + S_], J["hock" + S_]], ["hips", "thigh" + S_, "shin" + S_], 0.05)
+        Bd.add(ell(V(sg * 0.1, 0.4, -0.47), (0.112, 0.205, 0.165)), mix((th, 0.75), (bone("hips"), 0.25)), "thigh", 0.06,
+               flow_chain([J["hip" + S_], J["stifle" + S_], J["hock" + S_]]))
+        sh = chain([J["scapula" + S_], J["shoulder" + S_], J["elbow" + S_]], ["scapula" + S_, "humerus" + S_], 0.05)
+        Bd.add(ell(V(sg * 0.125, 0.47, 0.27), (0.095, 0.16, 0.13)), mix((sh, 0.6), (bone("chest"), 0.4)), "shoulder", 0.06,
+               flow_chain([J["scapula" + S_], J["shoulder" + S_], J["elbow" + S_]]))
+    # the belly's soft floor
+    Bd.add(ell(V(0, 0.27, -0.12), (0.17, 0.06, 0.3)), tb, "belly", 0.06, flow_back(0.9))
+    rf = dict(blend=0.03, k=0.05, k_sc=0.045, k_pt=0.018, k_leg=0.02, scap_t=0.03, scap_w=0.09, scap_out=-0.01,
+              ua_top=0.02, ua_out=-0.015, ua_w=0.075, ua_f=0.07, ua_b=0.1, point=0.05, olec=0.035, fa_w=0.06, fa_f=0.056, fa_b=0.054,
+              carpus=0.044, past=0.04, paw=0.088)
+    rh = dict(blend=0.03, k=0.055, k_pt=0.018, k_leg=0.02, th_top=0.0, th_back=0.03, th_out=-0.03, th_w=0.075, th_f=0.08, th_b=0.095,
+              hm_w=0.1, hm_r=0.095, ga_w=0.074, ga_f=0.05, ga_b=0.082, hock=0.042, meta=0.042, paw=0.086)
     for S_ in "LR":
         sg = 1 if S_ == "L" else -1
         leg_front(Bd, S_, rf, pig=True)
-        rh["seat"] = V(sg * 0.07, 0.58, -0.69)
+        rh["seat"] = V(sg * 0.075, 0.50, -0.575)
         leg_hind(Bd, S_, rh, pig=True)
     nb, n2, hd, ch = J["neck"], J["neck2"], J["head"], J["chest"]
     neck_b = chain([ch, nb, n2, hd], ["chest", "neck", "neck2"], 0.05)
-    Bd.add(lofted([(V(0, 0.56, 0.36), 0.14, 0.15, 0.17, 2.3), (V(0, 0.575, 0.46), 0.125, 0.12, 0.16, 2.3), ((n2 + hd) / 2 + V(0, -0.02, 0), 0.115, 0.1, 0.15, 2.2),
-                   (hd + V(0, -0.03, 0.02), 0.1, 0.08, 0.13, 2.1)]), neck_b, "neck", 0.05, flow_chain([hd, n2, nb, ch]))
-    # the jowls under the jaw, heavy, in two soft folds
-    for i, (dz, dy, r_) in enumerate(((-0.02, -0.15, 0.085), (0.05, -0.15, 0.07))):
-        Bd.add(ell(hd + V(0, dy, dz), (0.1 - 0.015 * i, r_, 0.08)), mix((bone("neck2"), 0.5), (bone("head"), 0.3), (bone("jaw"), 0.2)), "throat", 0.025,
-               flow_back(0.8))
+    # the neck: short and thick, as deep as the shoulders it grows from
+    Bd.add(lofted([(V(0, 0.45, 0.24), 0.17, 0.15, 0.19, 2.3), (V(0, 0.475, 0.36), 0.17, 0.155, 0.2, 2.3), (V(0, 0.48, 0.43), 0.163, 0.15, 0.2, 2.3),
+                   ((n2 + hd) / 2 + V(0, -0.05, 0), 0.15, 0.13, 0.17, 2.2), (hd + V(0, -0.06, 0.03), 0.13, 0.1, 0.14, 2.1)]),
+           neck_b, "neck", 0.05, flow_chain([hd, n2, nb, ch]))
+    # the jowls under the jaw, heavy, hanging in two soft folds to the throat
+    for i, (dz, dy, rr, rz) in enumerate(((0.0, -0.16, 0.1, 0.1), (0.07, -0.15, 0.085, 0.08))):
+        Bd.add(ell(hd + V(0, dy, dz), (0.12 - 0.02 * i, rr, rz)), mix((bone("neck2"), 0.45), (bone("head"), 0.3), (bone("jaw"), 0.25)), "throat",
+               0.03, flow_back(0.8))
     pig_head(Bd)
-    tail(Bd, [0.015, 0.011, 0.0095, 0.0085, 0.008, 0.012], k=0.006, fur=0.4)
+    tail(Bd, [0.021, 0.016, 0.0125, 0.011, 0.0105, 0.016], k=0.006, fur=0.4)
+    import sys as _sys
+    if "--no-relief" not in _sys.argv:
+        Bd.relief = pig_folds(Bd)
     return Bd
 
 
 def pig_head(Bd):
-    """The Kempen pig's head: long and straight in the face (the old landrace, not the dished modern one), a broad
-    forehead, heavy jowls, small eyes under the lop ears, the snout ending in its disc with a firm rim."""
+    """The Kempen pig's head: big (0.43 m from the poll to the disc), long and straight in the face (the old landrace,
+    not the dished modern one), a broad forehead between the ears, heavy cheeks and jowls, small eyes under the lop
+    ears, the snout ending in its disc with a firm rim."""
     J = Bd.J
     o, R, L = head_frame(J)
 
@@ -947,32 +1090,34 @@ def pig_head(Bd):
     hb = bone("head")
     fl_back = lambda p: np.tile(-R[:, 2], (len(p), 1))
     side = R[:, 0]
-    prof = [(-0.06, 0.12, -0.14, 0.22), (0.05, 0.2, -0.28, 0.3), (0.2, 0.205, -0.33, 0.32), (0.35, 0.165, -0.3, 0.28),
-            (0.5, 0.115, -0.25, 0.22), (0.7, 0.075, -0.18, 0.17), (0.88, 0.06, -0.135, 0.15), (0.95, 0.07, -0.13, 0.158)]
+    # z (head lengths from the poll), top, under, half-width
+    prof = [(-0.06, 0.14, -0.2, 0.26), (0.05, 0.21, -0.35, 0.32), (0.18, 0.22, -0.39, 0.34), (0.32, 0.19, -0.35, 0.3),
+            (0.46, 0.15, -0.275, 0.24), (0.6, 0.115, -0.21, 0.185), (0.74, 0.093, -0.168, 0.152), (0.86, 0.082, -0.142, 0.137),
+            (0.93, 0.079, -0.132, 0.136), (0.96, 0.081, -0.13, 0.139)]
     Bd.add(lofted([(at(0, (t + b) / 2, z), w * L, (t - b) / 2 * L, (t - b) / 2 * L, 2.3) for z, t, b, w in prof], side=side), hb, "head", 0.0, fl_back)
     for s in (-1, 1):
-        # the bony ridges over the eyes, and the cheek's fold below them
-        Bd.add(ell(at(s * 0.15, 0.16, 0.36), np.array((0.08, 0.035, 0.1)) * L, R), hb, "head", 0.06 * L, fl_back)
-        Bd.add(ell(at(s * 0.22, -0.12, 0.26), np.array((0.12, 0.17, 0.2)) * L, R), mix((hb, 0.7), (bone("jaw"), 0.3)), "head", 0.06 * L, fl_back)
+        # the bony ridges over the eyes, and the heavy cheek below them
+        Bd.add(ell(at(s * 0.15, 0.165, 0.33), np.array((0.085, 0.035, 0.1)) * L, R), hb, "head", 0.05 * L, fl_back)
+        Bd.add(ell(at(s * 0.2, -0.13, 0.24), np.array((0.13, 0.18, 0.2)) * L, R), mix((hb, 0.7), (bone("jaw"), 0.3)), "head", 0.05 * L, fl_back)
     # the snout disc: a flat oval end standing a little proud, its rim firm
-    Bd.add(lofted([(at(0, -0.035, 0.93), 0.16 * L, 0.115 * L, 0.115 * L, 2.3), (at(0, -0.03, 0.985), 0.178 * L, 0.13 * L, 0.13 * L, 2.4),
-                   (at(0, -0.03, 1.005), 0.172 * L, 0.125 * L, 0.125 * L, 2.4)], side=side), hb, "nose", 0.006, fl_back, 0.0)
+    Bd.add(lofted([(at(0, -0.026, 0.93), 0.13 * L, 0.095 * L, 0.095 * L, 2.3), (at(0, -0.022, 0.985), 0.142 * L, 0.104 * L, 0.104 * L, 2.4),
+                   (at(0, -0.022, 1.005), 0.137 * L, 0.1 * L, 0.1 * L, 2.4)], side=side), hb, "nose", 0.005, fl_back, 0.0)
     for s in (-1, 1):
-        Bd.cut(ell(at(s * 0.062, -0.035, 1.01), np.array((0.032, 0.048, 0.035)) * L, R), 0.003)
+        Bd.cut(ell(at(s * 0.05, -0.026, 1.01), np.array((0.026, 0.038, 0.03)) * L, R), 0.003)
     # the lower jaw and the chin under the disc
-    Bd.add(lofted([(at(0, -0.24, 0.18), 0.2 * L, 0.06 * L, 0.09 * L, 2.0), (at(0, -0.22, 0.55), 0.13 * L, 0.05 * L, 0.06 * L, 2.0),
-                   (at(0, -0.17, 0.86), 0.085 * L, 0.04 * L, 0.045 * L, 2.0)], side=side), chain([J["jaw"], J["chin"]], ["jaw"], 0.01), "jaw", 0.04 * L,
+    Bd.add(lofted([(at(0, -0.29, 0.2), 0.2 * L, 0.07 * L, 0.08 * L, 2.0), (at(0, -0.21, 0.55), 0.12 * L, 0.05 * L, 0.05 * L, 2.0),
+                   (at(0, -0.145, 0.84), 0.075 * L, 0.035 * L, 0.035 * L, 2.0)], side=side), chain([J["jaw"], J["chin"]], ["jaw"], 0.01), "jaw", 0.07 * L,
            fl_back, 0.5)
-    er = 0.032 * L
+    er = 0.026 * L
     for s in (-1, 1):
-        eye(Bd, at(s * 0.18, 0.12, 0.36), unit(R @ np.array((s * 0.7, 0.12, 1.0))), er, R, 0.7, 0.004, lids=(1.3, 0.75))
+        eye(Bd, at(s * 0.17, 0.12, 0.33), unit(R @ np.array((s * 0.7, 0.15, 1.0))), er, R, 0.7, 0.004, lids=(1.3, 0.75))
     for c_, look_, er_, lids_ in Bd.marks["eyes"]:
         Bd.cut(ell(c_ + look_ * er_ * 0.5, (er_ * 1.3, er_ * 0.95, er_ * 0.6), frame(look_)), er_ * 0.4)
-    Bd.marks["nose"] = at(0, -0.03, 1.02)
+    Bd.marks["nose"] = at(0, -0.022, 1.02)
     Bd.marks["head"] = (o, R, L)
-    Bd.marks["mouth"] = (at(0, -0.13, 0.70), np.array((0.11, 0.02, 0.22)) * L, R)
+    Bd.marks["mouth"] = (at(0, -0.12, 0.70), np.array((0.1, 0.02, 0.22)) * L, R)
     Bd.marks["stop"] = 0.45
-    seat_ears(Bd, 0.17, 0.1)
+    seat_ears(Bd, 0.17, 0.08)
 
 
 def build(rig):

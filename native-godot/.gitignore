@@ -41,3 +41,6 @@ dist/
 
 # These presets are required to assemble compressed people2 arrays on a clean checkout.
 !/assets/people2-pictures/*.png.import
+# The animal pictures' presets (BPTC colour, RGTC normals, mipmaps): Animal.cs refuses pictures imported otherwise.
+!/assets/animal-pictures/*.png.import
+!/assets/horse-pictures/*.png.import
