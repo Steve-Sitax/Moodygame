@@ -46,6 +46,17 @@ def material(name, img, normal=None):
 
 def export_glb(path, plain=False):
     os.makedirs(os.path.dirname(path), exist_ok=True)
+    for ob in bpy.data.objects:
+        if ob.type == "MESH" and ob.name.startswith("held_") and not ob.data.materials:
+            # Saved authoring scenes precede build_people2's final held-material assignment.
+            placeholder = bpy.data.materials.get("people2_atlas")
+            if placeholder is not None:
+                ob.data.materials.append(placeholder)
+        if ob.type == "MESH" and "_lod" in ob.name:
+            if not ob.get("people2_occlusion_baked"):
+                bake_occlusion(ob)
+            if ob.name.endswith("_lod0") and "head" in ob.vertex_groups and not any(k in ob.name for k in ("_hair_", "_beard_", "_mous_")):
+                live_expressions(ob)
     bpy.ops.export_scene.gltf(
         filepath=path, export_format="GLB", export_yup=True, export_texcoords=True, export_normals=True,
         export_materials="EXPORT", export_vertex_color="ACTIVE", use_selection=False, export_skins=True, export_animations=True,
@@ -55,6 +66,121 @@ def export_glb(path, plain=False):
         export_draco_position_quantization=14, export_draco_normal_quantization=10,
         export_draco_texcoord_quantization=12, export_rest_position_armature=True, export_def_bones=False,
         export_morph_normal=MORPH_NORMALS or plain, export_try_sparse_sk=not plain)
+
+
+def bake_occlusion(ob, blockers=None, reach=0.18, samples=12):
+    """Bake hemisphere visibility into vertex BLUE (1 open, >=.22 occluded).
+    Preserve red eye flag, green picture flag and alpha hair coverage. Call after
+    reduction; blockers are sibling garments/hair in the same rest coordinate frame.
+    This is indirect occlusion only: do not paint albedo or attenuate direct lamps.
+    """
+    from mathutils.bvhtree import BVHTree
+    me = ob.data
+    vertices = [tuple(v.co) for v in me.vertices]
+    faces = [tuple(p.vertices) for p in me.polygons]
+    for other in blockers or ():
+        offset = len(vertices)
+        transform = ob.matrix_world.inverted() @ other.matrix_world
+        vertices.extend(tuple(transform @ v.co) for v in other.data.vertices)
+        faces.extend(tuple(offset + i for i in p.vertices) for p in other.data.polygons)
+    tree = BVHTree.FromPolygons(vertices, faces)
+    visibility = np.ones(len(me.vertices), np.float32)
+    for v in me.vertices:
+        n = v.normal.normalized()
+        tangent = n.cross(Vector((0, 0, 1)))
+        if tangent.length < .01:
+            tangent = n.cross(Vector((0, 1, 0)))
+        tangent.normalize()
+        bitangent = n.cross(tangent)
+        blocked = 0.0
+        for k in range(samples):
+            z = ((k + .5) / samples) ** .5
+            r = (1 - z*z) ** .5
+            angle = k * 2.39996323
+            direction = n*z + tangent*(r*np.cos(angle)) + bitangent*(r*np.sin(angle))
+            hit, _, _, distance = tree.ray_cast(v.co + n*.0015, direction, reach)
+            if hit is not None:
+                blocked += (1 - distance/reach) * .9
+        visibility[v.index] = max(.22, 1 - blocked/samples)
+    attr = me.color_attributes.active_color
+    if attr is None:
+        attr = me.color_attributes.new(name="picture_flags", type="FLOAT_COLOR", domain="CORNER")
+        rgba = np.zeros((len(me.loops), 4), np.float32); rgba[:, 3] = 1
+    else:
+        rgba = np.empty((len(attr.data), 4), np.float32)
+        attr.data.foreach_get("color", rgba.ravel())
+    rgba[:, 2] = visibility[[l.vertex_index for l in me.loops]] if attr.domain == "CORNER" else visibility
+    attr.data.foreach_set("color", rgba.ravel())
+    me.color_attributes.active_color = attr
+    ob["people2_occlusion_baked"] = True
+
+
+def live_expressions(ob):
+    """Three restrained near-copy expressions, in metres, on head/lid skin only.
+    The eye bones supply each fitted eye centre; dense slider keys remain separate.
+    """
+    if ob.data.shape_keys and "blink" in ob.data.shape_keys.key_blocks:
+        return
+    if not ob.data.shape_keys:
+        ob.shape_key_add(name="Basis", from_mix=False)
+    ao = next((m.object for m in ob.modifiers if m.type == "ARMATURE"), None)
+    if ao is None:
+        return
+    co = np.array([G(v.co) for v in ob.data.vertices])
+    eye = [np.array(G(ao.data.bones["eye"+side].head_local)) for side in "LR"]
+    # build_people2 strips part_* authoring groups before export; bone groups survive.
+    head_group = ob.vertex_groups["head"].index
+    mask = np.array([any(g.group == head_group and g.weight > .5 for g in v.groups) for v in ob.data.vertices])
+    opening = ob.data.shape_keys.key_blocks.get("s_eyes_open_neg")
+    lid_support = mask.copy()
+    if opening:
+        opening_co = np.array([G(v.co) for v in opening.data])
+        lid_support &= np.linalg.norm(opening_co-co, axis=1) > .00001
+    moves = {name: np.zeros_like(co) for name in ("blink", "brow_raise", "smile")}
+    for centre in eye:
+        d = co-centre
+        # Only the fitted opening, with a soft shoulder in the surrounding skin.
+        width = np.clip((.025-np.abs(d[:, 0]))/.009, 0, 1)
+        width = width*width*(3-2*width)
+        front = (d[:, 2] > .002) & (d[:, 2] < .027) & mask
+        vertical = np.clip((.021-np.abs(d[:, 1]))/.007, 0, 1)
+        lid = width * vertical*vertical*(3-2*vertical) * front * lid_support
+        moves["blink"][:, 1] -= d[:, 1] * lid
+        # Lids stay outside the eye sphere as they close.
+        radius = .0155
+        dest_y = d[:, 1]*(1-lid)
+        surface = np.sqrt(np.maximum(radius**2-d[:, 0]**2-dest_y**2, 0)) + .001
+        moves["blink"][:, 2] += np.maximum(0, surface-d[:, 2]) * lid
+        brow = np.exp(-(d[:, 0]/.026)**4-((d[:, 1]-.022)/.012)**2)*front
+        moves["brow_raise"][:, 1] += .004*brow
+    mid = (eye[0]+eye[1])*.5
+    d = co-mid
+    mouth = np.exp(-((np.abs(d[:, 0])-.023)/.013)**2-((d[:, 1]+.055)/.018)**2) * mask * (d[:, 2] > .018)
+    moves["smile"][:, 1] += .0035*mouth
+    moves["smile"][:, 0] += np.sign(d[:, 0])*.002*mouth
+    if opening:
+        raw = opening_co-co
+        moves["blink"] = raw*np.where(raw[:, 1] < 0, 8.0, 4.0)[:, None]*mask[:, None]
+        # Carry MakeHuman's own smooth lid motion around the cornea, rather than
+        # pulling the whole orbital skin into a flat seam.
+        strength = np.clip(np.linalg.norm(moves["blink"], axis=1)/.001, 0, 1)
+        for centre in eye:
+            d = co-centre
+            orbital = (np.abs(d[:, 0]) < .026) & (np.abs(d[:, 1]) < .022) & (d[:, 2] > -.002)
+            closing = orbital & (raw[:, 1] != 0)
+            target_y = centre[1]-.002
+            top = closing & (co[:, 1] > target_y)
+            bottom = closing & ~top
+            moves["blink"][top, 1] = np.maximum(moves["blink"][top, 1], target_y-co[top, 1])
+            moves["blink"][bottom, 1] = np.minimum(moves["blink"][bottom, 1], target_y-co[bottom, 1])
+            q = co + moves["blink"] - centre
+            surface = np.sqrt(np.maximum(.016**2-q[:, 0]**2-q[:, 1]**2, 0)) + .0015
+            contact = (np.abs(q[:, 0]) < .018) & (np.abs(q[:, 1]) < .016) & (q[:, 2] > -.002) & (q[:, 2] < .027)
+            moves["blink"][:, 2] += np.maximum(0, surface-q[:, 2])*contact*strength
+    for name, move in moves.items():
+        key = ob.shape_key_add(name=name, from_mix=False); key.value = 0
+        target = co + move
+        key.data.foreach_set("co", np.stack((target[:, 0], -target[:, 2], target[:, 1]), 1).ravel())
 
 
 def bone_frame(ao, n):

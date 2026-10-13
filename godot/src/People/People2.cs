@@ -14,6 +14,10 @@ public static class People2
     public static bool Enabled { get; set; } = Array.IndexOf(OS.GetCmdlineUserArgs(), "--people2") >= 0;
     private static ModelLibrary.Model? model;
     private static bool tried;
+    private static Exception? loadFailure;
+    private static ulong makeFrame;
+    private static double makeMs;
+    internal static double MakeMsThisFrame => makeFrame == Engine.GetProcessFrames() ? makeMs : 0;
     private static readonly Dictionary<string, string> map = new();
     internal static readonly Dictionary<string, Clip> Clips = new();
     internal static string[] BoneNames = Array.Empty<string>();
@@ -55,9 +59,10 @@ public static class People2
         return model != null && Bodies.ContainsKey(Body(kind)) && model.Roots.ContainsKey(Body(kind));
     }
     private static string Body(string kind) => kind.StartsWith("p2:", StringComparison.Ordinal) ? kind[3..] : map.GetValueOrDefault(kind, kind);
-    public static void Forget() { model?.Scene.Free(); model = null; tried = false; Clips.Clear(); Bodies.Clear(); BaseBody.Clear(); held.Clear(); kindBase.Clear(); map.Clear(); HumanLayers.Forget(); People2Material.Forget(); People2Faces.Forget(); People2Moves.Forget(); People2Shoulders.Forget(); }
+    public static void Forget() { model?.Scene.Free(); model = null; tried = false; loadFailure = null; Clips.Clear(); Bodies.Clear(); BaseBody.Clear(); held.Clear(); kindBase.Clear(); map.Clear(); HumanLayers.Forget(); People2Material.Forget(); People2Faces.Forget(); People2Moves.Forget(); People2Shoulders.Forget(); }
     public static void Load()
     {
+        if (loadFailure != null) throw new InvalidDataException("People2 cannot fall back after a failed import.", loadFailure);
         if (tried) return;
         tried = true;
         var args = OS.GetCmdlineUserArgs();
@@ -68,7 +73,13 @@ public static class People2
                 var parts = pair.Split('=', 2);
                 if (parts.Length == 2) map[parts[0]] = parts[1];
             }
-        model = People2Material.Load();
+        try { model = People2Material.Load(); }
+        catch (Exception error)
+        {
+            loadFailure = error;
+            if (GodotObject.IsInstanceValid(Main.I) && Main.I.IsInsideTree()) Main.I.GetTree().Quit(1);
+            throw;
+        }
         if (model == null) return;
         using var rig = JsonDocument.Parse(File.ReadAllText(Paths.Shared("peopleRig.json")));
         foreach (var b in rig.RootElement.GetProperty("bodies").EnumerateObject())
@@ -174,6 +185,7 @@ public static class People2
     internal static Human? Make(string kind)
     {
         Load();
+        ulong begin = Time.GetTicksUsec();
         string body = Body(kind);
         if (!Bodies.ContainsKey(body)) return null;
         if (model?.Copy(body) is not { } root) return null;
@@ -202,9 +214,12 @@ public static class People2
         var (baseBody, handsHard) = kindBase.GetValueOrDefault(body, (body, 0f));
         root.SetMeta("people2_kind", kind.StartsWith("p2:", StringComparison.Ordinal) ? kind[3..] : kind);
         root.SetMeta("people2_body", baseBody);
+        root.SetMeta("people2_mesh_kind", body);
         root.SetMeta("people2_female", female || info.Item2);
         root.SetMeta("people2_hands_hard", handsHard);
-        People2Faces.Next(human);
+        ulong frame = Engine.GetProcessFrames();
+        if (frame != makeFrame) { makeFrame = frame; makeMs = 0; }
+        makeMs += (Time.GetTicksUsec()-begin)/1000.0;
         return human;
     }
 }

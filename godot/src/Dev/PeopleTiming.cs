@@ -10,6 +10,7 @@ public partial class PeopleTiming : Node
 {
     private static bool enabled;
     public static double LegacyMs, People2Ms, LayersMs;
+    public static double LastHumanMs;
     public static int LegacyCalls, People2Calls;
     public readonly struct Scope : IDisposable
     {
@@ -33,6 +34,6 @@ public partial class PeopleTiming : Node
         if (enabled) RenderingServer.FramePostDraw += Reset;
         SetProcess(false);
     }
-    private static void Reset() { LegacyMs = People2Ms = LayersMs = 0; LegacyCalls = People2Calls = 0; }
+    private static void Reset() { LastHumanMs = LegacyMs + People2Ms; LegacyMs = People2Ms = LayersMs = 0; LegacyCalls = People2Calls = 0; }
     public override void _ExitTree() { if (enabled) RenderingServer.FramePostDraw -= Reset; enabled = false; Reset(); }
 }

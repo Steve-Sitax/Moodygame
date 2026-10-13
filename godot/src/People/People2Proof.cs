@@ -70,7 +70,7 @@ internal partial class People2Proof : Node
         if (dir != "")
         {
             Directory.CreateDirectory(dir);
-            File.WriteAllText(Path.Combine(dir, "people2-proof.json"), JsonSerializer.Serialize(new { figures, bodyHeights, faceSetter = FaceProof(), textureBytes = People2Material.TextureBytes, projectionBytes = People2Material.ProjectionBytes, gpuBefore = People2Material.GpuBefore, gpuAfter = People2Material.GpuAfter, off, on, fallback, fallbackBones, optedIn, optedInBones, switchOkay = fallbackBones == 16 && optedInBones == 64, retained = people[0].Root.Name.ToString(), motions = Humans.Motions }, new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(Path.Combine(dir, "people2-proof.json"), JsonSerializer.Serialize(new { figures, bodyHeights, faceSetter = await FaceProof(), textureBytes = People2Material.TextureBytes, projectionBytes = People2Material.ProjectionBytes, gpuBefore = People2Material.GpuBefore, gpuAfter = People2Material.GpuAfter, off, on, fallback, fallbackBones, optedIn, optedInBones, switchOkay = fallbackBones == 16 && optedInBones == 64, retained = people[0].Root.Name.ToString(), motions = Humans.Motions }, new JsonSerializerOptions { WriteIndented = true }));
         }
         if (Main.I.Arg("people2-captures") != "") await Capture(dir);
     }
@@ -198,7 +198,7 @@ internal partial class People2Proof : Node
         }
         catch (Exception error) { GD.PrintErr(error); GetTree().Quit(1); }
     }
-    private static object FaceProof()
+    private async System.Threading.Tasks.Task<object> FaceProof()
     {
         using var root = new Node3D();
         using var mesh = new ArrayMesh { BlendShapeMode = Mesh.BlendShapeMode.Relative };
@@ -217,19 +217,35 @@ internal partial class People2Proof : Node
         root.Free();
         // the face recipe against face_types.py's own answers, and a baked person the same twice over
         var (testsOk, tests) = People2Faces.SelfTest();
-        string Bake(string id)
+        var (youngBald, wrongAge) = People2Faces.YoungBaldTest();
+        var bakeSamples = new List<object>();
+        long eyeAllocationBytes = 0;
+        async System.Threading.Tasks.Task<string> Bake(string id)
         {
             var h = Humans.Make("docker_a")!;
             h.SetIdentity(id);
+            h.Root.Visible = false; h.Root.Position = Main.I.Cam.GlobalPosition;
+            Main.I.View.AddChild(h.Root);
+            bool built = false;
+            for (int f = 0; f < 600; f++)
+            {
+                h.Root.GlobalPosition = Main.I.Cam.GlobalPosition; // loading can hand the camera to Jef
+                var nearMesh = World.BakedWorld.All(h.Root).OfType<MeshInstance3D>().First(m => m.Name.ToString().EndsWith("_lod0", StringComparison.Ordinal));
+                if ((nearMesh.Mesh as ArrayMesh)?.GetBlendShapeCount() == 3) { built = true; break; }
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            }
+            if (!built) throw new InvalidDataException("Identity near build did not finish: " + id);
             var mesh = World.BakedWorld.All(h.Root).OfType<MeshInstance3D>().First(m => m.Name.ToString().EndsWith("_lod0", StringComparison.Ordinal)).Mesh;
             var v = mesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array();
             string sig = v.Length + ":" + v.Sum(q => q.X * 3.1f + q.Y * 7.7f + q.Z * 1.3f).ToString("F5") + ":" + h.Root.GetMeta("face_cell").AsString() + ":" + h.Root.GetMeta("face_hair").AsString();
+            eyeAllocationBytes += h.EyeAllocationProof();
+            bakeSamples.Add(new { id, meshId = mesh.GetInstanceId(), signature = sig });
             h.Dispose();
             return sig;
         }
-        string a1 = Bake("fixture:7"), a2 = Bake("fixture:7"), b1 = Bake("fixture:8");
-        return new { assigned, actual, reset, id1, id2, testsOk, tests, bakeSame = a1 == a2, bakeDiffers = a1 != b1, sample = a1, other = b1, bakes = People2Faces.BakeCount, bakeMeanMs = People2Faces.BakeCount > 0 ? People2Faces.BakeMs / People2Faces.BakeCount : 0, bakeMaxMs = People2Faces.MaxBakeMs,
-            ok = assigned == 1 && actual == 1.25f && reset == 0 && id1 == id2 && testsOk == tests && a1 == a2 && a1 != b1 };
+        string a1 = await Bake("fixture:7"), a2 = await Bake("fixture:7"), b1 = await Bake("fixture:8");
+        return new { assigned, actual, reset, id1, id2, testsOk, tests, youngBald, wrongAge, eyeAllocationCalls = 3000, eyeAllocationBytes, bakeSamples, bakeSame = a1 == a2, bakeDiffers = a1 != b1, sample = a1, repeated = a2, other = b1, bakes = People2Faces.BakeCount, bakeMeanMs = People2Faces.BakeCount > 0 ? People2Faces.BakeMs / People2Faces.BakeCount : 0, bakeMaxMs = People2Faces.MaxBakeMs,
+            ok = assigned == 1 && actual == 1.25f && reset == 0 && id1 == id2 && testsOk == tests && youngBald > 0 && wrongAge == 0 && eyeAllocationBytes == 0 && a1 == a2 && a1 != b1 };
     }
     private async System.Threading.Tasks.Task CrowdCapture(string dir, Town.Townspeople town)
     {
@@ -240,6 +256,15 @@ internal partial class People2Proof : Node
         Main.I.Cam.SetProcess(false);
         var pictures = new List<object>();
         var centre = people.Aggregate(Vector3.Zero, (a, h) => a + h.Root.GlobalPosition) / people.Count;
+        Main.I.Cam.LookAtFromPosition(centre + new Vector3(0, 1.5f, -3), centre + Vector3.Up*1.25f);
+        bool ready = false;
+        for (int f = 0; f < 900; f++)
+        {
+            ready = people.All(h => World.BakedWorld.All(h.Root).OfType<MeshInstance3D>().Any(m => m.Name.ToString().EndsWith("_lod0") && (m.Mesh as ArrayMesh)?.GetBlendShapeCount() == 3));
+            if (ready) break;
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
+        if (!ready) throw new InvalidDataException("Crowd near meshes did not finish.");
         var faces = people.Select(h => new
         {
             kind = h.Kind,
@@ -257,10 +282,12 @@ internal partial class People2Proof : Node
                 ("3m", centre + new Vector3(0.3f, 1.55f, -3.4f), centre + new Vector3(0, 1.25f, 0)),
                 ("3m-side", centre + new Vector3(3.2f, 1.5f, -1.0f), centre + new Vector3(0, 1.2f, 0)),
             };
-            foreach (int k in new[] { 0, 1, 4, 5, 8, 9 })
+            foreach (int k in new[] { 0, 1, 4, 5, 8, 12, 14 })
             {
                 var at = people[k].Root.GlobalPosition;
-                shots.Add(("1m-" + k, at + new Vector3(0.25f, 1.55f, -1.0f), at + new Vector3(0, 1.52f, 0)));
+                var eyes = people[k].Socket("eyeL") ?? at + Vector3.Up*1.5f;
+                shots.Add(("1m-" + k, new Vector3(at.X + .1f, eyes.Y + .01f, at.Z - 1), new Vector3(at.X, eyes.Y - .025f, at.Z)));
+                shots.Add(("2m-" + k, new Vector3(at.X + .1f, eyes.Y + .01f, at.Z - 2), new Vector3(at.X, eyes.Y - .025f, at.Z)));
             }
             foreach (var (name, from, to) in shots)
             {
@@ -274,10 +301,37 @@ internal partial class People2Proof : Node
                 pictures.Add(new { name = file, hour = daylight.Hour, weather = daylight.Weather });
             }
         }
+        var blinkProof = new List<object>();
+        await Dev.Kit.I.Light(13, "clear");
+        foreach (int k in new[] { 0, 5, 12, 8, 14 })
+        {
+            var h = people[k]; var at = h.Root.GlobalPosition;
+            var eye = h.Socket("eyeL") ?? at+Vector3.Up*1.5f;
+            Main.I.Cam.LookAtFromPosition(new Vector3(at.X+.08f, eye.Y+.01f, at.Z-1), new Vector3(at.X, eye.Y-.02f, at.Z));
+            if (Main.I.Cam is Player.FlyCam fly) fly.Face(Main.I.Cam.GlobalBasis.GetRotationQuaternion());
+            var near = World.BakedWorld.All(h.Root).OfType<MeshInstance3D>().First(m => m.Name.ToString().EndsWith("_lod0"));
+            int key = near.FindBlendShapeByName("blink");
+            if (key < 0 || (near.Mesh as ArrayMesh)?.GetBlendShapeCount() != 3) throw new InvalidDataException("Near face needs three live expressions.");
+            bool found = false;
+            for (int f = 0; f < 900; f++)
+            {
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                if (near.GetBlendShapeValue(key) > .01f) { found = true; break; }
+            }
+            if (!found) throw new InvalidDataException("Natural blink was not observed: " + k);
+            for (int f = 0; f < 14; f++)
+            {
+                await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+                string file = $"blink-{k}-{f:D2}.png";
+                Main.I.View.GetTexture().GetImage().SavePng(Path.Combine(dir, file));
+                blinkProof.Add(new { file, subject = k, closure = near.GetBlendShapeValue(key) });
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            }
+        }
         var shapeBench = await ShapeBench(centre);
         File.WriteAllText(Path.Combine(dir, "captures.json"), JsonSerializer.Serialize(new
         {
-            ok = true, place = "vismarkt", crowd = faces, bakes = People2Faces.BakeCount, shapeBench,
+            ok = true, place = "vismarkt", crowd = faces, blinkProof, bakes = People2Faces.BakeCount, shapeBench,
             bakeMeanMs = People2Faces.BakeCount > 0 ? People2Faces.BakeMs / People2Faces.BakeCount : 0, bakeMaxMs = People2Faces.MaxBakeMs,
             fingerprint = Main.I.WorldFingerprint, pictures,
         }, new JsonSerializerOptions { WriteIndented = true }));

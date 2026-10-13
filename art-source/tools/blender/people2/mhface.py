@@ -168,6 +168,11 @@ def eye_picture(iris):
     1 m in the game's light)."""
     p = mh.path("system/eyes/materials/%s_eye.png" % EYES.get(iris, "brown"))
     pic = mhskin.read_png(p, 3)
+    # Enlarge the iris 9%, around the source picture's centre; whites retain their veins.
+    yy, xx = np.mgrid[:pic.shape[0], :pic.shape[1]]
+    u = ((xx + .5) / pic.shape[1] - .5) / 1.09 + .5
+    v = ((yy + .5) / pic.shape[0] - .5) / 1.09 + .5
+    pic = mhskin.sample(pic, u, v)
     lum = pic.mean(-1, keepdims=True)
     return np.clip(lum + (pic - lum) * 0.72, 0, 1)
 
@@ -270,6 +275,18 @@ def paint(look):
     cheek = head & (np.abs(x) > 0.025) & (np.abs(x) < 0.05) & (y < -0.01) & (y > -0.04) & (z > 0)
     tone = np.array(lk.get("tone", (1, 1, 1)), np.float32)
     rgb = np.clip(rgb * tone, 0, 1)
+    # Reduce saturation in the source lips/lid rims without flattening the rest of the face.
+    mouth = _blob(pos, G["mouth"], np.array((.027, .008, .010))) * head
+    lids = sum(_blob(pos, G["eye"+side] + np.array((0, 0, .013)), np.array((.025, .009, .010))) for side in "LR") * has
+    neutral = rgb.mean(-1, keepdims=True) * np.array((1.08, .98, .92))
+    quiet = np.clip(mouth*.65 + lids*.55, 0, .75)[..., None]
+    rgb = rgb*(1-quiet) + neutral*quiet
+    sockets = np.isin(isl, [mhbody.ISLAND_NAMES.index("socketL"), mhbody.ISLAND_NAMES.index("socketR")])
+    lid_skin = np.median(rgb[cheek], axis=0) if cheek.any() else np.array((.57, .43, .34))
+    rgb[sockets] = rgb[sockets]*.12 + lid_skin*.88
+    # Subtle uneven outdoor skin, rather than a uniform waxy sheet.
+    skin_mottle = _noise3(pos, 145.0, seed+53)
+    rgb *= 1 + .025*skin_mottle[..., None]*head[..., None]
     # weathering: outdoor skin darker, browner and rougher on the face's front
     w = float(lk.get("weather", 0.0))
     front = _sm(-0.06, 0.04, z) * head
