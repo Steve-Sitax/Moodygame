@@ -152,6 +152,17 @@ public partial class Boats : Node
             for (int i=0;i<row.N;i++) { int index=i; yield return (row.Kind, () => row.World[index]); }
     }
 
+    /// <summary>The drawn meshes of each moored boat with the part's place in the boat's frame (hull, cap and rigging rows
+    /// alike: the part is what the row multiplies in when it writes: Dev/BoatWaterCheck.cs measures the real outlines).</summary>
+    public IEnumerable<(string Kind, Func<Transform3D> World, IReadOnlyList<(Mesh Mesh, Transform3D Part)> Parts)> MooredDrawn()
+    {
+        foreach (var row in rows)
+        {
+            var parts = row.Meshes.Where(m => m.Mm.Mesh != null).Select(m => (m.Mm.Mesh!, m.Part)).ToList();
+            for (int i = 0; i < row.N; i++) { int index = i; yield return (row.Kind, () => row.World[index], parts); }
+        }
+    }
+
     /// <summary>The moored and small boats with whether each is drawn now (her row shown, she not taken away): what
     /// rides on her (smoke, lamps) goes with her (survey 2026-10-11, finding 5: smoke over the river off hidden boats).</summary>
     public IEnumerable<(string Kind, Func<Transform3D> World, Func<bool> Shown)> MooredHulls()
@@ -454,6 +465,8 @@ public partial class Boats : Node
                     var t = mm.GetInstanceTransform(i);
                     row.Gone[i] = MathF.Abs(t.Basis.Determinant()) < 1e-9f;
                     if (!row.Gone[i] && row.Ref < 0) row.Ref = i;
+                    var (dx, dz) = MooredRespace.At(t.Origin.X, t.Origin.Z); // (issue 98: boats the bake laid too close)
+                    t.Origin += new Vector3(dx, 0, dz);
                     row.X[i] = t.Origin.X;
                     row.Z[i] = t.Origin.Z;
                     row.Yaw[i] = MathF.Atan2(t.Basis.Z.X, t.Basis.Z.Z);
