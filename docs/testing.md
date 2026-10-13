@@ -40,7 +40,11 @@ door, finds it shut, takes the key at the notice, and walks him in (down the ste
 window, and back out, with pictures and `homedoortest.json`; the way inside is found with Jef's own ground test. Its second
 form, `--homedoortest <dir> --route-rooms home_cellar:-2.2,poesje:-2.2`, only asks whether a walkable route runs from a room's street
 door down to the floor at that height (no server needed); `--no-stair-holes` shows the answer without the stair holes in the
-paving and the house linings (`World/Solid.cs`).
+paving and the house linings (`World/Solid.cs`). `--route-dump x0,x1,z0,z1` (with `--route-rooms`) prints the room's meshes as
+boxes in that window of the plan, to see what the search ran into; add `--route-dump-name soot` to list the town's mesh of that
+name instead. Its third form, `--homedoortest <dir> --walk-room poesje:-2.2 --walk-hour 19 --db <dir>/test.sqlite` (and `--hour 19`),
+walks Jef on foot through a room's street door, held open, down to the floor at that height and back out, with pictures; the Poesje
+opens at half past six and sends Jef back out of its door before that, so it is walked at 19.
 
 Limitations are evidence, not passes: `notCovered` is in every report. The path check tests the baked crowd map,
 not Jef's physics or changed moving geometry. Stuck covers a three-hour Monday route and drawn-body collisions,
