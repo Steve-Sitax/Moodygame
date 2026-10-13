@@ -71,6 +71,7 @@ public partial class HomeLife : Node
         if ((poll -= delta) <= 0 && !Busy && ServerLink.I?.Up == true) { poll = 10; _ = Load(); }
         if ((doorTime -= delta) > 0) return;
         doorTime = 0.25;
+        if (Doors.I.Held) return; // a check holds the doors open
         foreach (var f in frames.Values)
         {
             var d = Doors.I.Get(Dev.SpeedComparison.Cached ? DoorName(f.Id) : Spots.BakedName("home:" + f.Id));

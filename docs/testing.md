@@ -30,6 +30,17 @@ Direct check options go after Godot's `--`: `--paths <dir>`, `--stuck <dir>`, `-
 `--perfcheck <dir>`, `--clocks --check-out <dir>`, `--interiors --check-out <dir>`. Each writes its named JSON and
 quits. These modes bypass the menus. Pass the shared town and decoded model paths above, plus a test server or
 fresh `--db` and a port from 8900. Use the real Godot 4.7.2 Mono console executable described in the README.
+`--interiors` takes `--interior-rooms id,id` (for example `home:cellar,shop:cobbler_east`) and `--interior-ray-details`;
+the four-minute limit holds, so the whole town (45 rooms) runs best in four chunks of about a dozen rooms. The check holds
+every door open, a rented home's too (`Doors.Held`), and counts a cellar window onto a light well as seeing the street when
+the shaft is open to the sky through its grating.
+
+`--homedoortest <dir> --home cellar --no-ai --db <dir>/test.sqlite --hour 13 --weather clear` walks Jef to a home's street
+door, finds it shut, takes the key at the notice, and walks him in (down the steps, for the cellar), through the room, to each
+window, and back out, with pictures and `homedoortest.json`; the way inside is found with Jef's own ground test. Its second
+form, `--homedoortest <dir> --route-rooms home_cellar:-2.2,poesje:-2.2`, only asks whether a walkable route runs from a room's street
+door down to the floor at that height (no server needed); `--no-stair-holes` shows the answer without the stair holes in the
+paving and the house linings (`World/Solid.cs`).
 
 Limitations are evidence, not passes: `notCovered` is in every report. The path check tests the baked crowd map,
 not Jef's physics or changed moving geometry. Stuck covers a three-hour Monday route and drawn-body collisions,

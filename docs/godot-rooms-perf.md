@@ -116,6 +116,15 @@ geometry fix and a bake into this worktree, not the shared folder. Detailed rays
 `cellar-final/interiors/interiors.json`; the earlier 120-second diagnostic timed out before BVHs were restricted
 to the selected room's bounds. The final full audit finished within its timeout beside the other helpers, as instructed.
 
+Follow-up, 2026-10-13 (issue #96): the cellar window is a design, not a hole. The M7 plan puts it under the pavement, onto a
+light well with an iron grating in the kerb; the well's outer wall stands 0.55 m from the glass by intent. The check now counts
+such a window as seeing the street when a look straight up the well, from the air in front of the opening, passes only the
+(see-through) grating before the sky: 12 of 12 samples do. A solid cover over the well would still fail. The street-door
+findings of the same run were the check's own: a rented home's door shuts itself every quarter second unless the player holds
+its lease, which undid the check's forcing; the check now holds the doors (`Doors.Held`). Walking the route as Jef showed two
+real faults the rays cannot see, both fixed: the room's hidden copy of the door leaf stood solid in the open doorway, and the
+paving and the house lining lay as a floor over the cellar's flight of steps. `--homedoortest` (docs/testing.md) proves it on foot.
+
 The 51 deliberately closed doors are not counted as open views. `building-with-interior.md` explicitly allows
 "A door that never opens: its leaves in the street's scene, and an opening with `open: () => false`."
 Most are Oostershuis warehouse leaves; others are the town hall, Steen museum and prison. Their exact places follow.
