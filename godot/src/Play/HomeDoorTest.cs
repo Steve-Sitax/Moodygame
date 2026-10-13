@@ -65,7 +65,9 @@ public partial class HomeDoorTest : Node
             Note("door", new { door.Id, door.Kind, door.Open, canPass = door.CanPass, h.Wall, h.Out });
 
             // 1. from the street, without the key: the door is shut and solid
-            var street = wall + outward * 6;
+            // six metres out when that is street; an alley is narrower, and six metres out is inside the house across it
+            float away = new[] { 6f, 4f, 3f, 2f }.FirstOrDefault(d => Scheldemist.World.Ways.Reachable(wall.X + outward.X * d, wall.Y + outward.Y * d), 1.6f);
+            var street = wall + outward * away;
             Jef.I.Place(street.X, street.Y, MathF.Atan2(-(wall.X - street.X), -(wall.Y - street.Y)));
             await Frames(30);
             await Shot("1-street");
