@@ -2,7 +2,7 @@
 
 People2 is on by default for dressed kinds; `--people2 off` selects the original kit. `--people2` selects the matching dressed kind from
 `res://assets/game-models/people2.scn`; missing kinds use the existing native people scene.
-Missing/unimported people2 pictures are a fatal error while opted in; run replacement/import first.
+Missing/unimported people2 pictures are a fatal error; run replacement/import first.
 The dev console accepts `people2 on|off` for later spawns. `p2:<body>` selects a base
 body while enabled, and `--people2-map docker_a=man_middling,fishwife_a=woman_stout`
 overrides routing. The multiplayer `Humans.Motions` list is unchanged.
@@ -12,7 +12,8 @@ overrides routing. The multiplayer `Humans.Motions` list is unchanged.
 The kit keeps its filenames and internal layout under `art-source/tools/blender/people2/`.
 It imports legacy pose functions from `art-source/tools/blender/build_people.py`.
 Bodies and faces retain the port's source artwork. Dressed kinds have a second clothing pass. Masters are
-`art-source/client/public/models/people2.glb` and `art-source/shared/peopleRig.json`.
+`art-source/client/public/models/people2.glb` (the core), the `people2_<root>.glb` parts and
+`art-source/shared/peopleRig.json`.
 Blender check pictures go to `.scratch/people2-build/shots`, outside git.
 
 ```powershell
@@ -79,9 +80,9 @@ play the D2 clips (below).
 `HumanLayers` caches attention, cloth springs and foot stance correction, stopping near
 layers at 15 m. Main's animation snapshots and phase-controlled rider behavior remain.
 **Faces and sliders (MakeHuman, 2026-10-13).** The intake (`NativeModelRecovery`, `People2Morphs.Extract`)
-takes every people2 mesh's slider morphs out into one sparse file, `people2-resources/morphs.bin` (the vertices
-each key moves, the move and the normal's change as half floats; 16.7 MB), and stores the meshes without blend shapes.
-At load `People2Material` reads the file (`People2Faces.LoadMorphs`) and keeps each mesh's arrays and keys in RAM
+takes each part's slider morphs out into its own `people2*-resources/morphs.bin` (the vertices
+each key moves, the move and the normal's change as half floats), and stores the meshes without blend shapes.
+When a part is requested, `People2Material` reads its file (`People2Faces.LoadMorphs`) and keeps the mesh's arrays and keys in RAM
 (`Capture`). A person's stable id (`Human.SetIdentity`) gives their face through `People2Faces.FaceFor`, the C#
 twin of `face_types.face_for` over `shared/faceTypes.json` (type, slider values, face picture, hair, beard,
 moustache), and `People2Faces.SetIdentity` queues their own far and near meshes once: every slider's move added, the hair

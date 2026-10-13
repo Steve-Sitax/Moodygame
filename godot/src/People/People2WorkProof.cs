@@ -68,7 +68,7 @@ internal partial class People2WorkProof : Node
                     Freeze(freeze);
                     await Look(at, look, 10);
                     string name = $"{label}-{view}.png";
-                    Main.I.View.GetTexture().GetImage().SavePng(Path.Combine(dir, name));
+                    SavePicture(Path.Combine(dir, name));
                     var day = World.Daylight.I;
                     if (Math.Abs(day.Hour - hour) > 0.02 || day.Weather != weather) throw new InvalidOperationException("wrong live clock or weather in " + name);
                     pictures.Add(new { name, hour = day.Hour, weather = day.Weather, cam = new[] { at.X, at.Y, at.Z } });
@@ -91,7 +91,7 @@ internal partial class People2WorkProof : Node
                             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
                             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
                             string name = $"seq-{seq}-{k:00}.png";
-                            Main.I.View.GetTexture().GetImage().SavePng(Path.Combine(dir, name));
+                            SavePicture(Path.Combine(dir, name));
                             pictures.Add(new { name, t = 0.8 + k * 0.25, clip = f.Human.AnimationState.Clip });
                         }
                         manual = false;
@@ -100,6 +100,13 @@ internal partial class People2WorkProof : Node
             var life = Life(60);
             var townHaul = await TownHaul(dir, 45);
             File.WriteAllText(Path.Combine(dir, "work.json"), JsonSerializer.Serialize(new { ok = true, route = route.Id, pileTop = pile, origin = new[] { origin.X, origin.Y, origin.Z }, yaw, figures = report, life, townHaul, pictures }, new JsonSerializerOptions { WriteIndented = true }));
+            manual = true; SetProcess(false);
+            World.Blobs.I?.Set("people2-work", null);
+            foreach (var figure in figs) { figure.Human.Dispose(); figure.Group.QueueFree(); }
+            figs.Clear();
+            foreach (var segment in ropeSegs) segment.QueueFree();
+            ropeSegs = Array.Empty<MeshInstance3D>();
+            for (int i = 0; i < 2; i++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             GetTree().Quit();
         }
         catch (Exception error) { GD.PrintErr(error); GetTree().Quit(1); }
@@ -430,7 +437,7 @@ internal partial class People2WorkProof : Node
                         // (a lift from before him over the pile; a set-down at a door from behind, the house before him)
                         var eye = c == "sack_down" ? at - face * 2.8f + face.Cross(Vector3.Up) * 1.6f + Vector3.Up * 1.7f : at + face * 3.2f + face.Cross(Vector3.Up) * 1.8f + Vector3.Up * 1.6f;
                         await Look(eye, at + Vector3.Up * 0.9f, 40);
-                        Main.I.View.GetTexture().GetImage().SavePng(Path.Combine(dir, $"town-{c}-{shots++}.png"));
+                        SavePicture(Path.Combine(dir, $"town-{c}-{shots++}.png"));
                     }
                 }
             }
@@ -457,6 +464,12 @@ internal partial class People2WorkProof : Node
         Main.I.Cam.LookAtFromPosition(at, look, Vector3.Up);
         if (Main.I.Cam is Player.FlyCam fly) fly.Face(Main.I.Cam.GlobalBasis.GetRotationQuaternion());
         for (int i = 0; i < settle; i++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+    }
+
+    private static void SavePicture(string path)
+    {
+        using var image = Main.I.View.GetTexture().GetImage();
+        if (image.SavePng(path) != Error.Ok) throw new IOException(path);
     }
 
     public override void _Process(double delta)
