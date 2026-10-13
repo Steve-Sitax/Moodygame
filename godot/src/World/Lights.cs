@@ -470,10 +470,14 @@ void fragment() {
                 float gv = window ? Mathf.Clamp(dark, 0, 1) : lamp == null ? v : Mathf.Clamp(lamp.Lit * v, 0, 1);
                 // a lantern's one flame (gaslamps.ts flameColor): the dark burner tip out, white-yellow burning
                 if (flame) Scheldemist.Render.UniformUpdates.Material(m, "albedo", new Color(0.14f + 1.06f * gv, 0.11f + 0.9f * gv, 0.08f + 0.55f * gv));
+                // a window's glow is drawn added over its own picture: by day it adds nothing (the air's colour added made the
+                // glass paler than the stone round it, a hole of sky in the west front in mist, #90)
+                else if (window) Scheldemist.Render.UniformUpdates.Material(m, "albedo", new Color(1.0f * gv, 0.72f * gv, 0.38f * gv, alpha < 0.999f ? Math.Min(1, alpha + 0.22f * gv) : 1));
                 // the glass: the air's colour unlit, the flame's lit; clear glass a little less see-through lit (LIT_GLASS_GAIN)
                 else Scheldemist.Render.UniformUpdates.Material(m, "albedo", new Color(fog.R * 0.8f * (1 - gv) + 1.0f * gv, fog.G * 0.8f * (1 - gv) + 0.72f * gv, fog.B * 0.8f * (1 - gv) + 0.38f * gv,
                     alpha < 0.999f ? Math.Min(1, alpha + 0.22f * gv) : 1));
-                Scheldemist.Render.UniformUpdates.Material(m, "fog_reach", 1 + 0.6f * gv);
+                // (an added layer fogged is the fog's colour added: a window's glow by day is not fogged at all, and as it lights, as before)
+                Scheldemist.Render.UniformUpdates.Material(m, "fog_reach", window ? Mathf.Lerp(1000f, 1.6f, gv) : 1 + 0.6f * gv);
             }
         }
         // the psx lamp slots (the glow in the fog, the streaks on wet stone): the lit lamps nearest the eye

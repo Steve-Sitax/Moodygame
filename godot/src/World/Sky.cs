@@ -153,6 +153,9 @@ void fragment() {
             dome = new MeshInstance3D { Name = "cloud_sky", Mesh = new SphereMesh { Radius = 560, Height = 1120, RadialSegments = 16, Rings = 8 } };
             Main.I.View.AddChild(dome);
         }
+        // (drawn before everything see-through: the dome was sorted after the glass of the cathedral's windows and painted
+        // the sky over their pictures wherever it showed through them, #93)
+        mat.RenderPriority = -128;
         dome.MaterialOverride = mat;
         dome.Visible = true;
         dome.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
