@@ -14,7 +14,7 @@ namespace Scheldemist.Dev;
 /// Each view: name:x,y,z,yaw,pitch[,hour,weather,storm,tide] (degrees; storm: the great storm's level 0..1; tide: the
 /// river held at that level in metres, or high or low, also written tide=-5.2 (W1); yaw 0 looks to -z, 180 to +z; pitch up). A view with no
 /// place ("name:,,,,,21,rain") keeps the camera of the bake's first place. A view named lantern... follows the
-/// burning lantern nearest its camera from a few steps away. A view's hour and weather are held: the live clock
+/// burning lantern nearest its camera from a few steps away. A view named berth... holds the Rijnkaai lighter alongside. A view's hour and weather are held: the live clock
 /// never moves the light or the tide off them during a snap run (a view with none keeps the last ones; the log line
 /// "snap name light:" says the light each picture was taken in). Writes dir/name.png and prints the mean
 /// frame time there, then quits.
@@ -284,6 +284,14 @@ public partial class Snap : Node
             if (cam is Player.FlyCam fly) fly.Face(q);
             else cam.Quaternion = q;
         }
+        // (a view named berth...: the tow at the Rijnkaai berth stays alongside the quay for the picture, issue 35)
+        if (views[view][0].StartsWith("berth") && Movers.River.I?.Anchorage is { } anch)
+            foreach (var tow in anch.Tows.Where(q => q.Stop == 1))
+            {
+                tow.Phase = "dwell";
+                tow.Crab = 1;
+                tow.Dwell = 180;
+            }
         // (a view named bolt...: a near strike in front of the camera two frames before the picture)
         if (views[view][0].StartsWith("bolt") && frame == Wait + Timed + (view == 0 ? 240 : 0) - 2 && Lightning.I is { } li)
         {

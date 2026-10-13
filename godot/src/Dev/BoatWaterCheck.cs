@@ -31,7 +31,7 @@ public partial class BoatWaterCheck : Node
         (-0.65f, "mean high water"), (-0.4f, "spring high water"), (-0.5f, "the great storm's top"),
     };
     private const float Afloat = 0.05f, MudIn = 0.06f, Holds = 0.06f, Cell = 0.25f, CanalBed = -5.05f;
-    private const float SpacingReport = 6f, OutlineUp = 1.5f, SweepMin = 1.0f, SweepLiner = 0.3f;
+    private const float SpacingReport = 6f, OutlineUp = 1.5f, SweepMin = 1.0f, SweepLiner = 0.3f, BerthWalk = 2f, BerthAt = 3f;
     private const float StormSurgeTop = Tide.HwMax - 0.1f; // the browser's rijnkaai.ts STORM_SURGE_TOP
 
     private string dir = "";
@@ -451,11 +451,15 @@ public partial class BoatWaterCheck : Node
                 float gl = Gap(lighter, stillOut[k]), gt = Gap(tug, stillOut[k]);
                 Note($"{towLocal[ti].L} (lighter, tow {ti}) against {still[k].Name}", gl, at);
                 Note($"{towLocal[ti].T} (tug, tow {ti}) against {still[k].Name}", gt, at);
-                // (issue 35: the browser wanted 2 m clear of everything on the walk in and 3 m at the berth; here: a note, not a problem)
-                if (what.StartsWith("the berth") && a == 0 && Math.Min(gl, gt) < 3f) berth.Add($"{what}: {Math.Min(gl, gt):0.00} m from {still[k].Name} (tow {ti})");
+                // (issue 35: the browser wanted 2 m clear of everything on the walk in and 3 m at the berth: a problem below those)
+                if (what.StartsWith("the berth") && a == 0)
+                {
+                    float g = Math.Min(gl, gt), need = what.Contains(" 100% ") ? BerthAt : BerthWalk;
+                    if (g < need) berth.Add($"{what}: {g:0.00} m from {still[k].Name} (tow {ti}, needs {need:0.0} m)");
+                }
             }
         });
-        foreach (var line in berth) notes.Add("berth walk (sheer 0): " + line);
+        foreach (var line in berth) sweepProblems.Add(Tag(11, "berth walk: " + line));
         // the liner herself, at the two ends of her sheer, against the boats that lie still
         foreach (double a in new[] { -Anchorage.SheerMax, Anchorage.SheerMax })
         {
