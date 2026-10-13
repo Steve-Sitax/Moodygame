@@ -674,12 +674,13 @@ public sealed partial class Crowd
     /// <summary>The nearest open grid point where nobody is yet, or null.</summary>
     public (double x, double z)? OpenNearFree(double x, double z) => grid.Built ? grid.NearestOpen(x, z, 4, noPerson) : null;
 
-    /// <summary>The walk on the grid round the viewer from a to b (corner points), or null.</summary>
-    public List<(double x, double z)>? PathOn(double ax, double az, double bx, double bz, List<(double x, double z)>? output = null)
+    /// <summary>The walk on the grid round the viewer from a to b (corner points), or null. `maxExpand` bounds the
+    /// search (cells looked at): a caller with a frame budget (the animals) gives a small one and tries again later.</summary>
+    public List<(double x, double z)>? PathOn(double ax, double az, double bx, double bz, List<(double x, double z)>? output = null, int maxExpand = 6000)
     {
         if (!grid.Built || !grid.Inside(bx, bz, 2)) return null;
         var a = grid.NearestOpen(ax, az, 6);
-        return a != null ? grid.Path(a.Value.x, a.Value.z, bx, bz, 6000, null, output) : null;
+        return a != null ? grid.Path(a.Value.x, a.Value.z, bx, bz, maxExpand, null, output) : null;
     }
 
     /// <summary>The overlap check (the browser's `__scheldemist.overlaps()`): pairs whose middles are nearer than `min` m.</summary>

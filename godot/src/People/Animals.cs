@@ -72,8 +72,19 @@ public partial class Animals : Node
     public int Count => beasts.Count;
     /// <summary>For the frame-time trace: animals taken from the pool and route searches in the last update.</summary>
     public int SpawnedLastFrame { get; private set; }
+    /// <summary>For the frame-time trace: the part of the last update spent on spawning, and the slowest single animal
+    /// (its logic and its skeleton) with what it was doing.</summary>
+    public double SpawnMsLastFrame { get; private set; }
+    public double SlowestBeastMs { get; private set; }
+    public string SlowestBeast { get; private set; } = "";
     public int PathsLastFrame { get; private set; }
     private int pathsThisFrame, spawnedThisFrame;
+    /// <summary>The most grid cells (1 m) one animal's route search looks at: about 0.5 ms.</summary>
+    private const int PathCells = 80;
+    /// <summary>Walk-map samples for straight-way checks a frame (a long look down a street is 140 of them).</summary>
+    private const int LineSamplesPerFrame = 160;
+    private int lineSamples;
+    private bool outOfBudget;
     private long frameNo;
     /// <summary>For the frame-time trace: where the strays and cats live.</summary>
     internal IEnumerable<Vector2> HauntPoints => (haunts ?? new List<Haunt>()).Select(h => new Vector2((float)h.X, (float)h.Z));
@@ -100,14 +111,20 @@ public partial class Animals : Node
         // the player): about as many of each kind as the busiest street ever holds at once
         if (town != null && Animal.Ready) Animal.Prepare(PoolWant);
         if (town?.Data != null) MakeHaunts();
+        // compiled now rather than at an animal's first gait change or route in the street (each first call cost
+        // about a millisecond there)
+        foreach (var type in new[] { typeof(Animal), typeof(Animals) })
+            foreach (var m in type.GetMethods(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.DeclaredOnly))
+                if (!m.IsAbstract && !m.ContainsGenericParameters && m.GetMethodBody() != null)
+                    try { System.Runtime.CompilerServices.RuntimeHelpers.PrepareMethod(m.MethodHandle); } catch (Exception) { }
     }
 
     /// <summary>How many copies of a kind to keep ready: its share of the strays or cats, the cart dogs, the pigs.</summary>
     private int PoolWant(string kind)
     {
         int want = kind.StartsWith("pig", StringComparison.Ordinal) ? 1 : kind.StartsWith("dog_draught", StringComparison.Ordinal) ? 4 : 3;
-        foreach (var (k, share) in Dogs) if (k == kind) want = 3 + share / 4;
-        foreach (var (k, share) in Cats) if (k == kind) want = 3 + share / 4;
+        foreach (var (k, share) in Dogs) if (k == kind) want = 4 + share / 3;
+        foreach (var (k, share) in Cats) if (k == kind) want = 4 + share / 3;
         return Math.Max(want, needOf.GetValueOrDefault(kind));
     }
     private readonly Dictionary<string, int> needOf = new();
@@ -221,6 +238,7 @@ public partial class Animals : Node
         double dt = Math.Min(delta, 0.1);
         pathsThisFrame = 0;
         spawnedThisFrame = 0;
+        lineSamples = 0;
         frameNo++;
         var cam = Main.I.Cam;
         var eye = cam.GlobalPosition;
@@ -275,6 +293,9 @@ public partial class Animals : Node
                 beasts.Add(new Beast { A = a, X = side.Value.x, Z = side.Value.z, Owner = s, Speed = 0, Id = "dog:" + s.R.Id });
             }
         }
+        SpawnMsLastFrame = (Time.GetTicksUsec() - t0) / 1000.0;
+        double slowest = 0;
+        string slowestWhat = "";
         bool storm = town.StormLevel > 0.3;
         dogs.Clear();
         foreach (var beast in beasts) if (beast.A.Species == "dog") dogs.Add(beast);
@@ -282,6 +303,7 @@ public partial class Animals : Node
         shadows.Clear();
         for (int index = beasts.Count - 1; index >= 0; index--)
         {
+            ulong tb = Time.GetTicksUsec();
             var b = beasts[index];
             double d = Hyp(b.X - eye.X, b.Z - eye.Z);
             if (b.Owner == null && d > DropR)
@@ -334,7 +356,11 @@ public partial class Animals : Node
                 }
             }
             if(here&&b.Id!=null)Net.Mp.NativeExtras.I?.PutAnimal(b.Id,new(b.X,b.Z,b.Yaw,b.A.Motion??"idle"),b.Owner?.R.Id);
+            double bm = (Time.GetTicksUsec() - tb) / 1000.0;
+            if (bm > slowest) { slowest = bm; slowestWhat = b.A.Kind + ":" + b.A.ClipName + (b.Owner != null ? ":heel" : "") + (show ? ":shown" : ""); }
         }
+        SlowestBeastMs = slowest;
+        SlowestBeast = slowestWhat;
         World.Blobs.I?.Set("animals", shadows);
         AllocatedBytesLastFrame = GC.GetAllocatedBytesForCurrentThread() - allocated;
         Shown = shown;
@@ -424,6 +450,7 @@ public partial class Animals : Node
     private bool LineFree(double ax, double az, double bx, double bz)
     {
         int n = Math.Max(1, (int)Math.Ceiling(Hyp(bx - ax, bz - az) / 0.25));
+        lineSamples += n;
         for (int i = 1; i <= n; i++)
             if (!Free(ax + (bx - ax) * i / n, az + (bz - az) * i / n)) return false;
         return true;
@@ -433,6 +460,8 @@ public partial class Animals : Node
     private bool Aim(Beast b, double x, double z, double maxLen = 35)
     {
         var crowd = town!.Crowd!;
+        // the frame's share of looking is spent: try again next frame
+        if (lineSamples > LineSamplesPerFrame) { outOfBudget = true; return false; }
         if (Free(x, z) && LineFree(b.X, b.Z, x, z))
         {
             b.Goal = (x, z);
@@ -440,13 +469,14 @@ public partial class Animals : Node
             b.Stuck = 0;
             return true;
         }
-        // one route search on the walk grid a frame at most (a cat fleeing tries a dozen ways out): the rest wait for
-        // the next frame, so the animals' update stays well inside its millisecond
-        if (pathsThisFrame >= 1) return false;
+        // one route search on the walk grid a frame at most (a cat fleeing tries a dozen ways out), and a short one:
+        // a search that may look at the grid's 6,000 cells took 20-30 ms (the animals' stutter); an animal's way is a
+        // few streets at most, and one it cannot find in PathCells cells it gives up and picks another goal
+        if (pathsThisFrame >= 1) { outOfBudget = true; return false; }
         pathsThisFrame++;
         var q = crowd.OpenNear(x, z);
         if (q == null || !crowd.CanStand(q.Value.x, q.Value.z)) return false;
-        var way = crowd.PathOn(b.X, b.Z, q.Value.x, q.Value.z, routeScratch);
+        var way = crowd.PathOn(b.X, b.Z, q.Value.x, q.Value.z, routeScratch, PathCells);
         if (way == null || way.Count == 0) return false;
         // the grid keeps half a metre off the walls: from a doorstep, first out onto it
         if (!crowd.CanStand(b.X, b.Z))
@@ -574,12 +604,13 @@ public partial class Animals : Node
         bool ok = toJef && Aim(b, jef!.Value.x + Rnd(-1, 1), jef.Value.z + Rnd(-1, 1));
         if (!toJef && rng.NextDouble() < .5) foreach (var scrap in MarketScraps)
         { double d=Hyp(scrap.X-b.X,scrap.Y-b.Z); if(d<30&&d>1) { ok=Aim(b,scrap.X+Rnd(-.4,.4),scrap.Y+Rnd(-.4,.4));break; } }
-        for (int i = 0; !ok && i < 6; i++)
+        outOfBudget = false;
+        for (int i = 0; !ok && i < 6 && !outOfBudget; i++)
         {
             double a = rng.NextDouble() * Math.PI * 2, r = Rnd(4, 14);
             ok = Aim(b, b.X + Math.Cos(a) * r, b.Z + Math.Sin(a) * r);
         }
-        if (!ok) b.Timer = Rnd(1, 3);
+        if (!ok) b.Timer = outOfBudget ? 0.05 : Rnd(1, 3);
     }
 
     /// <summary>The great storm: back to its doorstep at a run, then flat on the stone, trembling; if the way is shut it cowers where it is.</summary>
@@ -672,7 +703,8 @@ public partial class Animals : Node
                 double len = Hyp(tx, tz);
                 if (len == 0) len = 1;
                 // cornered: it crouches where it is and looks again in a moment
-                if (!Flee(b, tx / len, tz / len)) b.Timer = 0.8;
+                outOfBudget = false;
+                if (!Flee(b, tx / len, tz / len)) b.Timer = outOfBudget ? 0.05 : 0.8;
             }
             if (b.Goal != null)
             {

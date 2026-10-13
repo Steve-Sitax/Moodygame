@@ -446,3 +446,46 @@ No merge-specific visual defect found. Art follow-ups: coarse faces and pale bod
 police/Sooi waist and vest gaps, fishwife shawl edges, flattened broom bristles, missing gutting knife
 (no native model), and dim work views away from lamps. See `work/day-gut-3m.png`,
 `work/day-sweep-3m.png`, `captures/day-police-1m.png`, and the work lift/pass sequences.
+
+## Animals, round 2 (art3-animals2, 2026-10-13)
+
+The kit `art-source/tools/blender/animals/` builds the trunk, neck and head as lofts (`loft.py`: cross-sections
+along a spine, so the top line, under line and widths are given directly) with muscles and bony points laid on;
+ears are drop, button or prick flaps seated on the skull and pushed out of it; eyes sit flush in sockets. Near copies
+have 6,450-8,950 triangles, far copies 1,150-1,250. Pictures are 1024 px PNG masters in
+`native-godot/assets/animal-pictures` (BPTC colour, RGTC normals, mipmapped, the same presets as people2); the normal
+picture carries the full field's shape baked over the cut-down mesh plus hair or skin relief. The glbs carry 8 px
+stand-ins, so `animals-resources` holds shapes and clips only (7.2 MB, was 28 MB). The draught rig has its harness
+(`harness.py`: breast, neck and back straps, a loin band with a tug round each shaft end, skinned) and the `dog_trace`
+model, which `Animal.Hitch` stretches from each trace ring to its shaft hook; `StreetTrades` stands the dog 1.57 m
+ahead of the cart's axle so the shafts run through the tugs.
+
+Build and replace (only the animals' own stored files move; every other model file and manifest entry is hashed
+before and after):
+
+```powershell
+& $blender -b --factory-startup --python-exit-code 1 -P art-source/tools/blender/build_animals.py -- --plain .scratch/animals-plain/animals.glb --preview --clips
+pwsh -File native-godot/scripts/replace-animals.ps1 -Port 8971
+pwsh -Command "& ./native-godot/scripts/check-animals.ps1 -Modes slide,captures,trace,shaders,identity,network -Port 8972"
+```
+
+Runtime: `Animal.Prepare` copies every kind into a hidden pool while the town loads (124 copies at the start of the trace; the haunts' busiest
+75 m sets the counts), so nothing is built in front of the player; `Dispose` returns a copy. The 20-35 ms spikes
+of round 1 (and the 235.8 ms one) were route searches on the walk grid inside the update (`Crowd.PathOn`, up to 6,000
+cells): an animal now searches at most 80 cells, one search and 160 straight-way samples a frame, poses animals past
+12 m every other frame and past 25 m every third, and its code is compiled while loading.
+
+Evidence: replacement `.scratch/animals-replace-ca0f875fd9dc4106a9d41bb0775ae07b/` (1,814 other model files
+unchanged). Captures (928 PNGs: 17 kinds x 16 views at day, rain and 19:30; gait strips; the cart from 2 m) and slide:
+`.scratch/animals-native-aff28908abc6412c859c5369db45c9cc/` (review sheets in `review/`). Trace (90 s round 107
+haunts, 5,740 frames): max 0.847 ms, p99 0.154 ms, mean 0.053 ms, no frame over 1 ms, no copy made on demand:
+`.scratch/animals-native-1d8c7c18d4474688b14aa3a83e0aee53/`. Shader audit (exclusive): 130 first-frame kinds,
+identical to the accepted art3 audit (people2 kind `BFA6D53A6F703F10`), no kind after the first frame, 29 programs,
+1 directional and 121 omni lights: `.scratch/animals-native-fd00bfe0e43a4a6c905048673c785226/`. Identity (7) and
+network pass: `.scratch/animals-native-c8274555df904126a39acba1d216d136/`.
+People and animals timing (`check-animals.ps1 -Modes timing`): another worktree's engine started during the run, so
+no accepted result; the contaminated numbers were inside the 1.5 ms gate (Vismarkt 0.59 ms people+animals mean,
+animals max 0.84 ms; Grote Markt 0.49 ms, animals max 0.45 ms): `.scratch/animals-native-e410ba015b414e6f87eb79487d236c5c/`.
+Re-run it alone. Open: gait changes from a stand still slide a paw in the slide proof's start-ups (20-36 mm, once 226 mm for the
+mongrel's run; round 1 had 20-31 mm); steady walk, trot and gallop 0.02-0.15 mm, two run paws about 1 mm; the pig's
+knee folds are too regular.

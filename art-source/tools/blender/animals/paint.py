@@ -375,10 +375,10 @@ def coat(F, coat_name, rig, seed=1873, strand_v=None):
         drop = np.clip((J["chest"][1] - P[:, 1]) / H, 0, 1)  # how far down the side
         # wavy stripes about a centimetre wide down the sides from the spine, leaning back as they go down, breaking
         # into bars low down; soft edged, the hair tips of the stripe and the ground mixing at the border
-        sides = np.sin(2 * math.pi * (z * 7.0 + w * 0.9 + drop * 1.6))
+        sides = np.sin(2 * math.pi * (z * 9.0 + w * 1.6 + drop * 1.9 + 0.5 * (fbm(P, 25 / H, 2, rng_seed + 36) - 0.5)))
         brk = smoothstep(0.3, 0.5, fbm(P, 22 / H, 2, rng_seed + 33) + 0.35 * (1 - drop))
         torso = F.s("torso", "belly", "chest", "thigh", "shoulder", "neck")
-        m = smoothstep(0.38, 0.8, sides + 0.25 * (fbm(P, 60 / H, 2, rng_seed + 35) - 0.5)) * brk * torso * smoothstep(-0.6, 0.1, up)
+        m = smoothstep(0.5, 0.92, sides + 0.35 * (fbm(P, 60 / H, 2, rng_seed + 35) - 0.5)) * brk * torso * smoothstep(-0.6, 0.1, up) * 0.85
         m = np.maximum(m, torso * smoothstep(0.035 * H, 0.012 * H, np.abs(P[:, 0])) * (up > 0.6))  # the spine line
         legs = F.s("leg", "arm", "paw")
         rings = np.sin(2 * math.pi * P[:, 1] / (0.05 * H) + 3 * w)

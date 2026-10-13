@@ -792,9 +792,9 @@ def dog_head(Bd, P):
     # lie round it (no goggle)
     er = 0.046 * L / max(sk, 0.9) ** 0.5
     for s in (-1, 1):
-        eye(Bd, at(s * 0.135 * sw, 0.1, zs - 0.07), unit(R @ np.array((s * 0.42, 0.06, 1.0))), er, R, 0.86, 0.004 * H, lids=(1.22, 0.8))
+        eye(Bd, at(s * 0.135 * sw, 0.1, zs - 0.07), unit(R @ np.array((s * 0.42, 0.06, 1.0))), er, R, 0.98, 0.004 * H, lids=(1.22, 0.8))
     for c_, look_, er_, lids_ in Bd.marks["eyes"]:
-        Bd.cut(ell(c_ + look_ * er_ * 0.55, (er_ * 1.12, er_ * 1.12, er_ * 0.6), frame(look_)), er_ * 0.35)
+        Bd.cut(ell(c_ + look_ * er_ * 0.9, (er_ * 1.1, er_ * 0.78, er_ * 0.3), frame(look_)), er_ * 0.15)
     Bd.marks["nose"] = at(0, 0.0, 1.03)
     Bd.marks["head"] = (o, R, L)
     Bd.marks["mouth"] = (at(0, -0.135 - fl, mz_c), np.array((0.2 * mw, 0.008, mz_r)) * L, R)
@@ -808,12 +808,12 @@ def dog_head(Bd, P):
 CAT_TRUNK = [  # z, top, under, widest, half-width (metres; the alley cat, 0.25 m at the shoulder)
     (-0.205, 0.207, 0.170, 0.190, 0.016),
     (-0.180, 0.222, 0.128, 0.180, 0.040),
-    (-0.135, 0.230, 0.118, 0.178, 0.047),
-    (-0.085, 0.231, 0.125, 0.183, 0.045),
-    (-0.030, 0.228, 0.122, 0.180, 0.050),
-    (0.020, 0.226, 0.122, 0.180, 0.052),
-    (0.065, 0.234, 0.128, 0.183, 0.049),
-    (0.100, 0.232, 0.140, 0.188, 0.043),
+    (-0.135, 0.230, 0.110, 0.176, 0.049),
+    (-0.085, 0.231, 0.112, 0.180, 0.048),
+    (-0.030, 0.228, 0.108, 0.176, 0.053),
+    (0.020, 0.226, 0.108, 0.176, 0.055),
+    (0.065, 0.234, 0.114, 0.180, 0.051),
+    (0.100, 0.232, 0.130, 0.186, 0.044),
     (0.128, 0.205, 0.160, 0.185, 0.028),
 ]
 
@@ -859,27 +859,29 @@ def cat_head(Bd):
     hb = bone("head")
     fl_back = lambda p: np.tile(-R[:, 2], (len(p), 1))
     side = R[:, 0]
-    prof = [(-0.06, 0.22, -0.02, 0.17), (0.05, 0.3, -0.13, 0.3), (0.2, 0.335, -0.19, 0.36), (0.35, 0.33, -0.21, 0.39),
-            (0.5, 0.31, -0.2, 0.37), (0.62, 0.27, -0.185, 0.32), (0.72, 0.2, -0.17, 0.24), (0.83, 0.13, -0.155, 0.17),
-            (0.93, 0.08, -0.13, 0.11), (0.99, 0.05, -0.09, 0.05)]
+    # (head lengths: the cat's head is short, so it is broad and high for its length)
+    prof = [(-0.07, 0.25, -0.03, 0.2), (0.05, 0.34, -0.15, 0.36), (0.2, 0.38, -0.22, 0.44), (0.35, 0.37, -0.24, 0.47),
+            (0.5, 0.34, -0.23, 0.44), (0.62, 0.29, -0.21, 0.37), (0.72, 0.21, -0.19, 0.28), (0.83, 0.14, -0.17, 0.19),
+            (0.93, 0.085, -0.14, 0.12), (0.99, 0.05, -0.1, 0.055)]
     Bd.add(lofted([(at(0, (t + b) / 2, z), w * L, (t - b) / 2 * L, (t - b) / 2 * L, 2.0) for z, t, b, w in prof], side=side), hb, "head", 0.0, fl_back)
     for s in (-1, 1):
         # the whisker pads, full and round, either side of the groove under the nose
-        Bd.add(ell(at(s * 0.072, -0.06, 0.86), np.array((0.08, 0.075, 0.085)) * L, R), hb, "muzzle", 0.025 * L,
+        Bd.add(ell(at(s * 0.08, -0.07, 0.85), np.array((0.09, 0.085, 0.09)) * L, R), hb, "muzzle", 0.025 * L,
                lambda p: np.tile(unit(-R[:, 2]), (len(p), 1)), 0.5)
         # the brow over each eye
-        Bd.add(ell(at(s * 0.17, 0.28, 0.52), np.array((0.1, 0.045, 0.09)) * L, R), hb, "head", 0.05 * L, fl_back)
+        Bd.add(ell(at(s * 0.19, 0.31, 0.5), np.array((0.11, 0.05, 0.1)) * L, R), hb, "head", 0.05 * L, fl_back)
     # the small chin and the lower jaw under the pads
     Bd.add(lofted([(at(0, -0.13, 0.3), 0.16 * L, 0.05 * L, 0.06 * L, 2.0), (at(0, -0.15, 0.6), 0.11 * L, 0.04 * L, 0.05 * L, 2.0),
                    (at(0, -0.155, 0.83), 0.06 * L, 0.035 * L, 0.04 * L, 2.0)], side=side), chain([J["jaw"], J["chin"]], ["jaw"], 0.005), "jaw",
            0.03 * L, fl_back, 0.8)
     # the nose leather: a small rounded triangle at the tip of the bridge
     Bd.add(ell(at(0, 0.045, 0.985), np.array((0.05, 0.034, 0.03)) * L, R), hb, "nose", 0.012 * L, fl_back, 0.0)
-    er = 0.11 * L
+    er = 0.115 * L
     for s in (-1, 1):
-        eye(Bd, at(s * 0.17, 0.165, 0.5), unit(R @ np.array((s * 0.3, 0.06, 1.0))), er, R, 0.74, 0.0016, lids=(1.16, 0.9))
+        eye(Bd, at(s * 0.19, 0.18, 0.45), unit(R @ np.array((s * 0.36, 0.06, 1.0))), er, R, 1.0, 0.0016, lids=(1.12, 0.88))
+    # the lids: a lens of skin taken off in front of each ball, so the cornea shows framed and the ball sits flush
     for c_, look_, er_, lids_ in Bd.marks["eyes"]:
-        Bd.cut(ell(c_ + look_ * er_ * 0.5, (er_ * 1.08, er_ * 1.0, er_ * 0.55), frame(look_)), er_ * 0.3)
+        Bd.cut(ell(c_ + look_ * er_ * 0.92, (er_ * 0.98, er_ * 0.8, er_ * 0.3), frame(look_)), er_ * 0.15)
     Bd.marks["nose"] = at(0, 0.05, 1.0)
     Bd.marks["head"] = (o, R, L)
     Bd.marks["mouth"] = (at(0, -0.11, 0.78), np.array((0.07, 0.012, 0.11)) * L, R)

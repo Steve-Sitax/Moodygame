@@ -67,10 +67,13 @@ internal partial class AnimalsTrace : Node
                 if (look.LengthSquared() < 1e-4f) look = new Vector3(0, -0.3f, 1);
                 Main.I.Cam.LookAtFromPosition(at, at + look.Normalized());
                 if (Main.I.Cam is Player.FlyCam fly) fly.Face(Main.I.Cam.GlobalBasis.GetRotationQuaternion());
+                int gc0 = GC.CollectionCount(0);
                 await Frame();
                 var a = Animals.I;
+                int gcs = GC.CollectionCount(0) - gc0;
                 rows.Add(new[] { Math.Round(t, 3), Math.Round(a.LogicMs, 4), a.Count, a.Shown, Animal.ColdMakes - cold0, Animal.Pooled, Math.Round(dt * 1000, 2) });
-                if (a.LogicMs >= 0.6) worst.Add(new { t = Math.Round(t, 2), ms = Math.Round(a.LogicMs, 3), about = a.Count, shown = a.Shown, spawned = a.SpawnedLastFrame, paths = a.PathsLastFrame });
+                if (a.LogicMs >= 0.6) worst.Add(new { t = Math.Round(t, 2), ms = Math.Round(a.LogicMs, 3), about = a.Count, shown = a.Shown, spawned = a.SpawnedLastFrame, paths = a.PathsLastFrame,
+                    spawnMs = Math.Round(a.SpawnMsLastFrame, 3), slowestMs = Math.Round(a.SlowestBeastMs, 3), slowest = a.SlowestBeast, gcInFrame = gcs, bytes = a.AllocatedBytesLastFrame });
             }
             var ms = rows.Skip(30).Select(r => r[1]).ToList();
             ms.Sort();
