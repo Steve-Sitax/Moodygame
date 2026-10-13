@@ -29,7 +29,7 @@ public partial class NativeTown : BakedWorld
     {
         get
         {
-            if (walk == null) { walk = NativeWorldNavigation.Build(town, new Rect2(-480, -80, 820, 560)); Ways.InstallNative(walk); }
+            if (walk == null) { walk = NativeWorldNavigation.Build(town, new Rect2(-480, -80, 820, 560)); Ways.InstallNative(walk, null, Ways.ReadHouseFootprints(Paths.Shared("city_build.json"))); }
             return walk;
         }
     }

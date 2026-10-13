@@ -107,6 +107,7 @@ public partial class PlacesTest : Node
         Scheldemist.World.Daylight.I!.SetTime(13.75f); Scheldemist.World.Daylight.I.Settle();
         await HomeLife.I.Load();
         Check(await Until(() => HomeLife.I.Info != null, 15), "home information");
+        Check(HomeLife.I.Info!.Homes.All(x => HomeLife.I.Frames.TryGetValue(x.Id, out var room) && RunWords.Dist(x.Wall[0], x.Wall[1], room.X, room.Z) < 1.5f), "every home's street door is the door its baked room stands behind");
         var h = HomeLife.I.Info!.Homes.First(h => h.Id == "alley");
         await At(h.Wall[0] + h.Out[0] * 1.1f, h.Wall[1] + h.Out[1] * 1.1f, h.Wall[0], h.Wall[1], 1.2f);
         Check(Interact.I.Find().Any(a => a.Text.StartsWith("read the notice:")), "home notice prompt");
@@ -246,12 +247,25 @@ public partial class PlacesTest : Node
         bool carried = await Until(() => Goods.I.Carried != null, 8);
         replies.Add(new { dockLift = new { intended = item.Id, actual = Goods.I.Carried?.Id, Goods.I.LastRefusal, DockWork.I.InBook } });
         Check(carried && Goods.I.Carried!.Id.StartsWith("haul:"), "dock piece carried"); item = Goods.I.Carried!;
+        // The hands show the lift at once; the engine hears it a moment later, and refuses it ("You cannot reach it from there.") if he is already
+        // somewhere else by then. A player cannot cross the dock in that time, so wait until the engine has him holding it before moving him.
+        Check(await Until(() => Goods.I.Carried == item, 8) && await EngineHolds(api, item.Id), "dock piece held by the engine");
         string routeId = item.Id[5..item.Id.LastIndexOf("a:", StringComparison.Ordinal)]; var route = Scheldemist.Town.HaulRoute.All.First(r => r.Id == routeId);
         await At((float)route.B.X, (float)route.B.Z, (float)route.B.X, (float)route.B.Z - 1, 1);
         Check(Interact.I.Find().Any(a => a.Text.Contains("paid by the piece")), "dock delivery prompt");
         int money = GameState.I.Money; await Shot("dock-piece"); Interact.I.Press(Key.E);
         Check(await Until(() => Goods.I.Carried == null && GameState.I.Money > money, 12), "dock piece server payment");
         replies.Add(new { dockPayment = new { before = money, after = GameState.I.Money } }); await Shot("dock-paid");
+    }
+    private async Task<bool> EngineHolds(Api api, string id)
+    {
+        for (int i = 0; i < 40; i++)
+        {
+            var list = await api.Goods<GoodsList>();
+            if (list.Items.Any(g => g.Id == id && g.ByPlayer == list.You)) return true;
+            await Frames(10);
+        }
+        return false;
     }
     private async Task Counters(Api api)
     {
@@ -420,7 +434,11 @@ public partial class PlacesTest : Node
         var ev = (await api.Actions()).Events.First(e => e.Hiring != null && e.Status == "running"); var sp = ev.Hiring!.Spots[0]; float x = (float)sp.X, z = (float)sp.Z;
         await At(x, z, x, z - 1, 1); await TownWork.I.Load(); Check(Interact.I.Find().Any(a => a.Text == "stand with the men to be hired"), "hiring stand prompt");await Shot("hiring-stand"); Interact.I.Press(Key.E);
         Check(await Until(() => !Interact.I.Find().Any(a => a.Text == "stand with the men to be hired"), 8), "hiring stand accepted once"); replies.Add(new { hiring = await api.Actions() });
-        var fire = await api.Post<JsonElement>("api/dev/director", new { template = "house_fire" }); replies.Add(new { fireFixture = fire }); Check(fire.GetProperty("ok").GetBoolean(), "fire fixture");
+        // The engine plans one event near another only after the first is over; the ballads and the hiring this run has started are still on, so let the hours pass until it takes the fire.
+        var fire = await api.Post<JsonElement>("api/dev/director", new { template = "house_fire" });
+        for (int wait = 0; wait < 6 && !fire.GetProperty("ok").GetBoolean() && fire.GetProperty("why").GetString() == "another event is too near then"; wait++)
+        { GameState.I.Apply(await api.Post<JobsPayload>("api/dev/advance", new { minutes = 60 })); await api.Tick(); fire = await api.Post<JsonElement>("api/dev/director", new { template = "house_fire" }); }
+        replies.Add(new { fireFixture = fire }); Check(fire.GetProperty("ok").GetBoolean(), "fire fixture");
         for (int i = 0; i < 15; i++) { GameState.I.Apply(await api.Post<JobsPayload>("api/dev/advance", new { minutes = 5 })); await api.Tick(); ev = (await api.Actions()).Events.First(e => e.Id == fire.GetProperty("id").GetInt32()); if (ev.Acts![ev.Stage] == "fire_chain") break; }
         Check(ev.Acts![ev.Stage] == "fire_chain", "fire reaches bucket line"); var chain = ev.Fire!.Chain[0]; x = (float)chain[0]; z = (float)chain[1];
         await At(x, z, x, z - 1, 1); await TownWork.I.Load(); Check(Interact.I.Find().Any(a => a.Text == "take a place in the bucket chain"), "fire chain prompt"); Interact.I.Press(Key.E); Check(await Until(() => TownWork.I.InChain, 8), "fire chain joined"); await Shot("fire-chain");
