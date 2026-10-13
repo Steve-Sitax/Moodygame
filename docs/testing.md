@@ -11,7 +11,7 @@ The stuck check (`--stuck <dir>`) plays a three-hour Monday route, seed 1873, wi
 inside a collider. It also lists `wedges`: every time a body's first step was refused for a second (with what refused it
 and a map of the free squares around it) and every time the safety net (`Crowd.Unwedge`) had to move one on. Wedges
 may show a body waiting for someone passing, but the safety net should not be needed on a plain street, and never for
-the carter near the Handschoenmarkt (issue 105). It also counts, in `craneLegsChecked` and `craneLegsOpen`, every time a portal crane's leg stood on ground the walk map called free (issue 118); `craneLegsOpen` must be empty. From the worktree:
+the carter near the Handschoenmarkt (issue 105). It also counts, in `craneLegsChecked` and `craneLegsOpen`, every time a portal crane's leg stood on ground the walk map called free (issue 118); `craneLegsOpen` must be empty. A body found inside a collider has its last seconds in `solidTrails` (what it was doing, where it was going, the points where the collider touched it), and every stuck entry lists the vehicle lanes around the body in `lanes` (where it stands in each, and which body carries them). From the worktree:
 
 ```powershell
 $run = 'C:\Temp\stuck1'                      # any empty folder outside the repo
