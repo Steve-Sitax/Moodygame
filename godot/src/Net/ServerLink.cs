@@ -179,8 +179,9 @@ public partial class ServerLink : Node
             int minutes = (int)Math.Round(h * 60) % (24 * 60);
             set["hour"] = minutes / 60;
             set["minute"] = minutes % 60;
-            if (int.TryParse(main.Arg("day"), out int d) && d > 0) set["day"] = d;
         }
+        // (--day alone sets the day and leaves the hour: it counted only beside --hour, issue 101)
+        if (int.TryParse(main.Arg("day"), out int d) && d > 0) set["day"] = d;
         if (main.Arg("weather") is "fog" or "mist" or "clear" or "rain" or "storm") set["weather"] = main.Arg("weather");
         return set.Count > 0 ? set : null;
     }

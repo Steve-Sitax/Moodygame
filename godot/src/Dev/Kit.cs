@@ -71,12 +71,16 @@ public partial class Kit : Node
         catch (Exception e) { Error = e.Message; GD.PrintErr("dev: " + Error); }
     }
     /// <summary>The clock and the weather through the server (`fill`: Jef's needs full too, as the checks want).</summary>
-    public async Task Light(double hour = 13, string weather = "clear", bool fill = true)
+    public async Task Light(double hour = 13, string weather = "clear", bool fill = true, int day = 0)
     {
         if (hour < 0 || hour >= 24 || !new[] { "clear", "fog", "mist", "rain", "storm" }.Contains(weather)) throw new ArgumentException("hour 0..24 and a known weather required");
         int whole = (int)hour, minute = (int)Math.Round((hour % 1) * 60);
         if (minute == 60) { whole = (whole + 1) % 24; minute = 0; }
-        var p = await Api.Post<JobsPayload>("api/dev/set", fill ? new { hour = whole, minute, weather, food = 10, warmth = 10, sleep = 10, health = 10 } : (object)new { hour = whole, minute, weather });
+        // (day > 0: the game's day too, 1 Monday to 7 Sunday)
+        var set = new Dictionary<string, object> { ["hour"] = whole, ["minute"] = minute, ["weather"] = weather };
+        if (day > 0) set["day"] = day;
+        if (fill) foreach (var need in new[] { "food", "warmth", "sleep", "health" }) set[need] = 10;
+        var p = await Api.Post<JobsPayload>("api/dev/set", set);
         GameState.I.Apply(p);
         if (Movers.MoverClock.Held) Movers.MoverClock.Hold(hour, GameState.I.Day);
         Daylight.I.SetTime((float)hour);

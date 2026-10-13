@@ -12,7 +12,8 @@ namespace Scheldemist.Dev;
 /// unless the dark or the fog is what is tested):
 ///   -- --snap dir --views "day:-118,1.62,36,180,0,13,clear;night:-118,1.62,36,180,10,22,mist"
 /// Each view: name:x,y,z,yaw,pitch[,hour,weather,storm,tide] (degrees; storm: the great storm's level 0..1; tide: the
-/// river held at that level in metres, or high or low, also written tide=-5.2 (W1); yaw 0 looks to -z, 180 to +z; pitch up). A view with no
+/// river held at that level in metres, or high or low, also written tide=-5.2 (W1); day=N: the game's day, 1 Monday to 7 Sunday, held from that view on, as is --day N for the first
+/// view); the game's own clock, day and weather follow each view, so the HUD and the market stalls agree with the picture (issue 101); yaw 0 looks to -z, 180 to +z; pitch up). A view with no
 /// place ("name:,,,,,21,rain") keeps the camera of the bake's first place. A view named lantern... follows the
 /// burning lantern nearest its camera from a few steps away. A view named berth... holds the Rijnkaai lighter alongside. A view's hour and weather are held: the live clock
 /// never moves the light or the tide off them during a snap run (a view with none keeps the last ones; the log line
@@ -56,6 +57,20 @@ public partial class Snap : Node
     }
 
     private static float F(string s) => float.Parse(s, CultureInfo.InvariantCulture);
+    private static bool IsKw(string s) => s.StartsWith("tide=") || s.StartsWith("day=");
+    private int? gameDay;
+
+    /// <summary>Puts the game's own clock, day and weather on this view's: waits for the first state, then asks the server (Kit.Light).</summary>
+    private async System.Threading.Tasks.Task SyncGame(float? hour, string? weather)
+    {
+        try
+        {
+            while (Kit.I == null || Scheldemist.Net.ServerLink.I?.Api == null || Game.GameState.I is not { Live: true }) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            var dl = Daylight.I;
+            await Kit.I.Light(hour ?? dl.Hour, weather ?? dl.Weather, fill: false, day: gameDay ?? 0);
+        }
+        catch (Exception e) { GD.PrintErr("snap: the game's clock did not follow the view: " + e.Message); }
+    }
 
     private void Next()
     {
@@ -128,16 +143,23 @@ public partial class Snap : Node
         settle = tide != "";
         if (tide != "") Dev.Kit.TideHold(tide);
         else if (Tide.Held != null) Tide.Hold(null);
-        if (a.Length > 6 && a[6] != "" && !a[6].StartsWith("tide="))
+        // (the game's own day: a view's day=N, else --day N for the first view; held from there on like the hour, issue 101)
+        if (a.Skip(6).FirstOrDefault(f => f.StartsWith("day=")) is { } df && int.TryParse(df[4..], out int vd) && vd > 0) gameDay = vd;
+        else if (view == 0 && int.TryParse(Main.I.Arg("day"), out int ad) && ad > 0) gameDay = ad;
+        bool hasHour = a.Length > 6 && a[6] != "" && !IsKw(a[6]), hasWeather = a.Length > 7 && a[7] != "" && !IsKw(a[7]);
+        if (hasHour)
         {
             Daylight.I.SetTime(F(a[6]));
-            Tide.Set(1, F(a[6])); // (Monday's tide at that hour)
+            Tide.Set(gameDay ?? 1, F(a[6])); // (that day's tide at that hour; Monday's when no day is asked)
         }
-        if (a.Length > 7 && a[7] != "" && !a[7].StartsWith("tide=")) Daylight.I.SetWeather(a[7]);
+        if (hasWeather) Daylight.I.SetWeather(a[7]);
+        // (the light alone is not enough: the HUD's clock and the stalls' and townspeople's day and hour follow the game's
+        // state, so a picture meant for Sunday, or for 13:00, sets that state too)
+        if (gameDay != null || hasHour || hasWeather) _ = SyncGame(hasHour ? F(a[6]) : null, hasWeather ? a[7] : null);
         // (a view named bilge...: the pumps near it work now)
         if (ShipWater.I is { } sw) sw.PumpNow = a[0].StartsWith("bilge");
         // (held: the events part sets the storm every frame, and the test's level would fade)
-        bool storm = a.Length > 8 && a[8] != "" && !a[8].StartsWith("tide=");
+        bool storm = a.Length > 8 && a[8] != "" && !IsKw(a[8]);
         Daylight.I.StormHold = storm ? F(a[8]) : null;
         Daylight.I.SetStorm(storm ? F(a[8]) : 0);
         Daylight.I.Settle();
@@ -304,7 +326,7 @@ public partial class Snap : Node
         Main.I.GetViewport().GetTexture().GetImage().SavePng(System.IO.Path.Combine(dir, name + ".png"));
         // (the light this picture was really taken in, so a mist or a dusk that crept in shows in the log)
         var dl = Daylight.I;
-        GD.Print($"snap {name} light: {dl.Hour:0.##} h, {dl.Weather}, fog #{dl.FogColor.LinearToSrgb().ToHtml(false)} {dl.FogNear:0.#}-{dl.FogFar:0.#} m, sky {dl.SkyIntensity:0.###}, sun {dl.SunIntensity:0.###}; the game's clock {Game.GameState.I?.HourF:0.##} h, {Game.GameState.I?.Weather}");
+        GD.Print($"snap {name} light: {dl.Hour:0.##} h, {dl.Weather}, fog #{dl.FogColor.LinearToSrgb().ToHtml(false)} {dl.FogNear:0.#}-{dl.FogFar:0.#} m, sky {dl.SkyIntensity:0.###}, sun {dl.SunIntensity:0.###}; the game's clock {Game.GameState.I?.Weekday} (day {Game.GameState.I?.Day}) {Game.GameState.I?.HourF:0.##} h, {Game.GameState.I?.Weather}");
         // (dev: --whatray fx,fy;... lists the drawn meshes whose box the ray through that point of the picture meets,
         // small ones first; fx, fy are 0..1 across and down)
         if (Main.I.Arg("whatray") is { Length: > 0 } wr)
