@@ -1,6 +1,8 @@
 # People: the people2 kit (skeleton, base bodies, kinds)
 
-Packages A, B and the first pass of C of the people plan (`docs/plans/people.md`, section 3). The native game's new people are built on this kit: one 64-bone skeleton for everybody, ten base bodies with faces, hands and hair (B), and
+Packages A, B and the first pass of C of the people plan (`docs/plans/people.md`, section 3); since 2026-10-13 the
+bodies, faces and sliders come from MakeHuman's CC0 core assets ("Bodies from MakeHuman" below, tools and licences in
+[makehuman.md](makehuman.md)). The native game's new people are built on this kit: one 64-bone skeleton for everybody, ten base bodies with faces, hands and hair (B), and
 the dressed kinds (C, "Kinds and clothes" below). Clothes and kinds (C), motion
 (D), the native Godot runtime (F), Jef (G), fight motion (J) and weapons (K) all build on it. The native runtime is opt-in (`--people2`); ordinary play keeps the existing native people scene.
 
@@ -12,6 +14,8 @@ blender -b --factory-startup -P art-source/tools/blender/build_people2.py -- [--
     [--idle] [--no-idle] [--fast]
 ```
 
+MPFB 2.0.18 must be installed the isolated way and `BLENDER_USER_RESOURCES` set for every build
+([makehuman.md](makehuman.md)). A full build with every clip takes about 13 minutes (2026-10-13). Before MakeHuman:
 Blender 5.2 (`C:/Program Files/Blender Foundation/Blender 5.2/blender.exe`), about 3 min (B's head is meshed once
 per build: about 1 min); the four kinds add about 3 min; `--cast` adds about 4 min, `--move` (the motion checks)
 about 2 min, `--faces --hands --sheet` about 4 min, `--dress` (C's checks) about 4 min, D2's clips about 3 min and
@@ -21,6 +25,8 @@ about 2 min, `--faces --hands --sheet` about 4 min, `--dress` (C's checks) about
 |---|---|
 | `art-source/client/public/models/people2.glb` | 10 bodies and the kinds, each an armature (named after the body or kind) with `<name>_lod0` and `<name>_lod1`; the held things under `people2_held`; one tiny intake placeholder material; independent clothes/face pictures in `native-godot/assets/people2-pictures`; 199 clips (36 old, their 4 variants for the old, 62 locomotion, 97 idles, talk and sitting), the near copies' shape keys; compressed art geometry, lossless PNG placeholder |
 | `art-source/shared/peopleRig.json` | the bones, sockets, grab marks, the Godot BoneMap, the grips and the shape keys, per body its joints, marks, figures and counts, `locomotion` (every D1 clip's speed, cycle, stride, travel and checks; the blend rule; the loads and handles), `idles` (D2 families, seats and clip checks), `heightFactor`, `oldStance`, and C's `kinds`, `held` and `pictures` manifest |
+| `art-source/shared/peopleSliders.json`, `faceTypes.json` | the sliders and the face types, pictures, cast and face recipe ("Bodies from MakeHuman" below) |
+| `art-source/third_party/makehuman/USED.json` | (full builds) the MakeHuman files the build read: nothing else is kept there |
 | `.scratch/people2-build/shots/*.png` | the check pictures (not in git) |
 
 Native intake replaces the retired Node decoder and model bake. `--plain` writes a second, dense-morph,
@@ -68,6 +74,199 @@ The kit, `art-source/tools/blender/people2/`:
 | `held.py` | (C) held things, one model each: the sabre, its scabbard, the truncheon, the basket of herring |
 | `kinds_workers.py`, `kinds_women.py`, `kinds_uniform.py`, `kinds_cast.py` | (C1-C4) the kinds, one group a file |
 | `preview_c.py` | (C) the kinds' check pictures (`--dress`) |
+
+## Bodies from MakeHuman (2026-10-13)
+
+The owner's decision of 2026-10-13: the kit's own heads looked odd and alike, so the bodies, faces and their
+sliders are now made from MakeHuman's CC0 core assets. What the tools are, their licences and how to install MPFB:
+[makehuman.md](makehuman.md). The skeleton, sockets, grab marks, clips, clothes and export path stay the kit's.
+Sections further down that describe the cage bodies' topology, UVs, weights, head, face painter, hands and hair
+(`body.py`'s cage, `head.py`, `face_paint.py`, `hands.py`, `hair.py`) are the history of the first kit: the
+build makes the bodies as below (the cage `C` is still made for every body and fitted onto its MakeHuman surface,
+because the clothes are built on it).
+
+| File | Does |
+|---|---|
+| `mh.py` | MakeHuman's files (read as data), MPFB's macro target stack (`macro_stack`), the targets as sparse moves, MakeHuman's CC0 weights summed onto our 64 bones, `Pose` (MakeHuman's A pose to our rest pose, one affine per vertex), `Binding` (the MakeClothes way of carrying any mesh on the base mesh), `MhAsset` (`.mhclo`/`.proxy`), the check of our copies against MPFB's |
+| `mhbody.py` | `Body` (a base and build: the macro mix, the pose, the table height, the old stoop), `topology(lod)` (the near and far copies: one reduced topology each, bound to the base mesh), `make_body`, the shoulder and finger weight rules, the eyes, the hair pieces |
+| `sliders.py` | the 51 sliders (`SLIDERS`), their shape keys and `shared/peopleSliders.json` |
+| `face_types.py` | the 22 face types and the builds as slider presets, the 30 face pictures (`CELLS`), the named cast, `face_for` and `shared/faceTypes.json` |
+| `mhskin.py` | MakeHuman's skins in our layouts, the body pictures (underwear for the base bodies, a kind's own paint), `bodyTone` |
+| `mhface.py` | the face pictures: a MakeHuman skin plus our painter (tone, weathering, flush, a drinker's nose, pox, freckles, soot, stubble, scalp hair, MakeHuman's brows and lashes baked in, the eye), the hair swatches |
+| `mhhair.py` | hair styles, beards and moustaches as shells and tubes on the head |
+| `preview_mh.py`, `../people2_sheets.py` | the check sheets (below) |
+
+### The bodies
+
+Each body is MakeHuman's base mesh (hm08) with the macro setting of its base and build (gender, age, weight,
+muscle; MPFB computes which macro targets mix and how much), turned from MakeHuman's A pose into our rest pose
+(arms hanging, palms to the thighs, legs straight, feet forward: `mh.Pose`), scaled to the table heights above
+(1.67, 1.57, 1.27, 1.64, 1.54 m) and, for the old, stooped by `body.stoop_fn`. Our skeleton's joints are measured on
+that posed body (`rig.py` with `P["mh"]`); the bone directions and names stay the kit's, so every clip plays.
+
+- **Near and far copies.** One reduced topology each, made once from the base mesh (`mhbody.topology`): the trunk,
+  limbs, hands and feet halved both ways where MakeHuman's quads form a grid (every other loop kept), then each region
+  collapsed to its budget (`LOD0`, `LOD1`); MakeHuman's face keeps its density. UV seams between islands and the cuts
+  inside the trunk's and head's islands are never collapsed (a face across a cut showed a shard of stretched
+  picture). Every copy vertex is bound to the base mesh (`mh.Binding`, binding error about 1e-7 m), so every body and
+  every slider is the same topology moved.
+- **Weights.** MakeHuman's own CC0 weights (MPFB's default rig), summed onto our bones (`mh.mh_to_ours`), then the
+  kit's shoulder rule (the helpers take the armpit and the deltoid's round) and a finger rule (one bone per finger
+  segment with a 3.5 mm blend at each joint, 9 mm at the thumb's root; the little finger follows the ring finger's
+  bones but bends at its own joints). At most 4 bones a vertex.
+- **Eyes.** MakeHuman's low-poly eyes on their helper, weighted to `eyeL`/`eyeR`, the eye picture in the face
+  square's corner (its iris a little quieter than MakeHuman's).
+- **Counts** (the same topology for every body): near copy about 8,790 triangles (face 2,682, scalp 289, ears 259,
+  neck 241, trunk 1,342, arms 1,045, hands 1,130, legs 1,104, feet 698: bare feet keep their toes at their
+  picture's density) plus the eyes 172; far copy 1,740 plus the eyes: 1,912. Hair pieces on top for a base body: hair 640 to 940, beard up to about 960, moustache about 150.
+- **Checks of the build** (2026-10-13, every body): skin triangles facing against their corners' normals 3 near and
+  7 to 15 far at rest (up to 22 near with every slider at +1; 0 on the dressed kinds' skin); triangles whose UV winding
+  is turned within their island about 130 near (MakeHuman's eyes, finger and toe slivers; 338 before the reduced faces
+  turned over were read again from the base mesh) and 12 far; no degenerate triangles. The build compares its 234
+  base files with MPFB's own: 0 differ.
+
+### Sliders (`sliders.py`, `shared/peopleSliders.json`)
+
+51 sliders, each one or two of MakeHuman's CC0 targets moved through the body's pose, scale and stoop: 44 for the
+face and head (head height, width and depth; round, square, oval, fat; forehead, brow; eyes: size, spacing, height,
+opening, hooded lids, slant, bags, fold; nose: length, width, projection, hump, hook, tip, bulb, nostrils; mouth
+width, lips, mouth projection and corners; cheekbones, cheeks; chin projection, width, height; jaw width and height;
+ears; neck; double chin; two origin sliders) and 7 for the body (weight, muscle, belly, shoulders, hips, buttocks,
+bust; from MakeHuman's macro and body targets). A value runs from -1 to 1 (one-way sliders 0 to 1). A two-way slider
+whose two targets mirror each other is one signed shape key `s_<name>`; otherwise two keys, `s_<name>` (plus side)
+and `s_<name>_neg`. The near copies carry every slider; the far copies the body ones; hair, beard and moustache
+pieces the ones that move them; the kinds' clothes carry the body sliders and the head ones under a hat (each
+garment point takes the mean move of the skin round its nearest skin point, over a reach of 8 mm, or two thirds of
+its distance from the skin: a cap's peak follows the forehead, not one small triangle of the nose).
+`peopleSliders.json` lists for each: group, keys, signed, range, default (0), `player` and `playerRange` (the
+character creator below), MakeHuman's targets and a description.
+
+### Faces in the game
+
+**Types and builds are presets.** Each of the 22 face types (`face_types.TYPES`: Flemish docker, fat publican,
+Walloon, Dutch skipper, Scandinavian, German emigrant, British stoker, southern sailor, Levantine, African sailor,
+Chinese cook, pale clerk, gentleman, gaunt porter and the women's, children's and old people's types) gives each
+slider a mean and a spread (the old face axes, `AXIS_MIX`, turned into sliders, times `TYPE_GAIN` 1.35 so types read
+apart at 5 m), its face pictures, hair, beard and moustache weights; the builds do the same for the body sliders.
+`face_for(seed, kind, sex, age)` draws a person from their stable id: the type (by kind and origin), every slider
+round its mean (Irwin-Hall normal, clamped to the slider's range), the face picture, hair (a kind's own hair under
+its hat: `KIND_HAIR`), beard, moustache, a crooked nose. The named cast has fixed faces (`CAST`).
+`shared/faceTypes.json` carries the tables, the random number recipe (FNV-1a of `<kind>:<seed>`, mulberry32) and
+test vectors; the game's `People2Faces.FaceFor` is the same recipe in C# and checks itself against the vectors.
+
+**Baked at spawn, not blended per frame.** The glb carries the sliders as live morph targets (for authoring and the
+character creator). At intake they leave the meshes for one sparse file, `people2-resources/morphs.bin` (per mesh
+and key: the vertices that move, their move and normal change as half floats; 16.7 MB, against over 100 MB of dense
+blend shapes), and the stored meshes carry none. At spawn `People2Faces.Bake` adds every slider's move to the
+person's own copy of the near and far mesh, merges the chosen hair, beard and moustache pieces into it (one draw
+per person) and sets the face picture's layer and `body_tone`. A person then costs what a body without sliders
+costs, whatever the number of sliders: see "Cost" below.
+
+### Skin and face pictures
+
+30 face pictures (`face_types.CELLS`, 1024 px colour and lossless normal in the face layer): MakeHuman's head island
+over the full square, the inside of the mouth, the eye sockets, the eye's picture and two hair swatches (strands, a
+plait's weave). Their base is one of nine MakeHuman skins (young, middle-aged and old; light, dark and East Asian
+skinned; men and women) moved into our layout; our painter adds the rest. Toward the seam under the jaw and the nape
+the face's own paint fades into its plain skin; `bodyTone` (per picture, in `faceTypes.json cells`) is that plain
+skin over the body picture's skin along the seam, so the body's skin (times `body_tone` in the shader) meets the face
+without a step. The body pictures: MakeHuman's skin of the body's group, the hands' weather, the base bodies' worn
+linen drawers and vest (by height, not by part: a part's edge is a staircase of triangles), a kind's own paint
+(stockings, chapped hands) and, under a garment's neckline and wherever the kind's cover rule hides the skin, the
+cloth worn under it or the garment's own colour (`clothes_kit.undershirt`), so a reduced neckline shows a shirt and a
+slider's broader shoulders pushing skin through a tunic show cloth, not bare skin.
+
+### Hair (`mhhair.py`)
+
+- **Shells** (crop, side, long, bald fringe; a woman's drawn-back hair under the bun, plaits and coronet; the
+  undercap; full, short, chin, chops and sideburn beards): MakeHuman's full head cut along the contour where the
+  hair's thickness reaches 0.9 mm (a smooth hairline), every point laid out from the near copy's own skin by its
+  thickness (the edge 0.5 mm under it, so hair grows out of the skin), lumps of locks inside but not at the edge,
+  reduced to the style's budget (crop 640, side 720, long 780, women's 660, full beard 760; far copies about a
+  quarter, cut from the far copy's head). Beards keep the lips bare with a margin and lie thin next to them.
+- **Tubes** (bun, plaits, coronet, the three moustaches, the imperial), their triangles turned to face out.
+- **Pictures.** Shells and tubes use the face picture's swatches: strands mirrored left and right (front 0, back 1:
+  no seam down the back of the head), fine straight streaks, soft locks and a sheen; a plait's weave. Beards run
+  down the face and on back under the jaw at the same density both ways (`beard_uv`: the scalp's elevation map
+  squeezed the strands under the chin into streaks; triangles stretched more than 4:1 in a full beard 388 of 760
+  before, 69 after); sideburns keep the scalp's map.
+- **Under hats.** Men's caps and kepis sit 11 mm over the scalp (a crop of hair fits under), and a kind with a hat
+  takes its hair from `KIND_HAIR` (crop for the men, the undercap for the women).
+
+### Clothes on the MakeHuman bodies
+
+The garments are built as before on the cage `C`, now fitted onto the MakeHuman surface (`fit_cage`: 1 to 15 mm). The
+kinds keep their budgets (near 8,900 for the crowd, 11,500 for the named; far 2,100), so with MakeHuman's face the
+clothes get about 3,000 to 4,000 near triangles. After the reduction `clothes_kit.clear_layers` puts every layer back
+under the one over it (`layer_order`, read before the reduction: the bodice under the shawl, the trousers under the
+smock) and the skin under every garment, by 2 mm, both ways. The body is cut away only where a garment really
+covers it (`cut_body` with the garments: a ray out from the skin meets one within 30 cm, or the skin pokes through one;
+the cover rules alone, drawn for the cage bodies, cut a see-through hole at the nape). The insides and the rims
+(hems, cuffs, the edges of brims and collars) are unwrapped at their cloth's own density (they were at 0.3: the
+owner's rule of 2026-10-13, small sides without stretched or blurred pictures).
+
+### Checks (`people2_sheets.py`)
+
+```
+set BLENDER_USER_RESOURCES=<worktree>/.scratch/blender-user
+blender -b <the build's scene: PEOPLE2_SAVE_BLEND> --python-exit-code 1 -P art-source/tools/blender/people2_sheets.py
+    -- [types] [crowd] [lineup] [poses] [hands] [kinds]
+```
+
+Pictures in `.scratch/people2-build/shots/mh/`: `types_06m.png`, `types_2m.png` (the 22 types, front and
+three-quarter), `crowd_2m.png`, `crowd_5m.png` (40 people from `face_for`), `bodies_front/side/back.png` and
+`bodies_front_lod1.png`, `poses.png`, `hands.png` (relaxed, fist, grip, open), `kinds.png` (the four kinds close).
+A trial build (`--out x.glb`) writes its pictures beside the trial glb; the sheets read a trial with
+`PEOPLE2_RIG=<x_rig.json>` and `PEOPLE2_PICTURES_DIR=<its people2-pictures>`.
+
+### Cost (measured 2026-10-13)
+
+Measured in the native game at the Vismarkt (crowd proof) and in the build:
+
+| What | Measure |
+|---|---|
+| Art glb (Draco, 235 clips) | 16.8 MB |
+| Plain intake glb (dense morphs; `.scratch` only) | 210 MB |
+| `morphs.bin` (sparse half floats, 162 meshes, 1.19 million vertex moves) | 16.7 MB; the same as dense Godot blend shapes: over 100 MB |
+| Bake at spawn, `People2Faces.Bake` (near and far mesh, hair merged) | 3.5 to 3.8 ms mean (crowd proof 97 bakes, routing proof 50); the first bake of a run about 65 ms (the code's first run) |
+| Live Godot blend shapes for comparison: 50 static copies of man_middling's near mesh in view, 0 / 8 / 24 / 51 sliders live and moving (90 frames each) | GPU 1.12 / 1.14 / 1.14 / 1.15 ms; render thread 1.74 / 1.77 / 1.73 / 1.78 ms |
+| People pictures in video memory (30 faces, 15 clothes layers, details; BC7/BC5 with mips) | 130 MB |
+| People per frame (timing proof, the 1.5 ms gate; two runs, neither exclusive: other helpers' engines ran during 147 of 173 and 136 of 178 samples) | people and animals 1.27 / 1.15 ms mean at the Vismarkt (51 / 50 drawn), 0.87 / 1.02 ms at the Grote Markt (52 / 55 drawn): the gate passed in both |
+
+So N = all 51: Godot's blend shapes would be cheap on this PC's GPU, but they cost their dense storage in every
+near mesh (about 5 MB each for 51 keys) and a value per slider per person; the bake makes a person cost what a body
+without sliders costs, every frame, and pays once at spawn instead. A town that spawns several people in one frame
+pays about 3.5 ms each there (see the known limits).
+
+### The character creator (proposal; nothing of it is built)
+
+- **Sliders the player moves:** the `player: true` sliders of `peopleSliders.json` (all but `face_age`, which
+  follows the chosen age), each within `playerRange`: the eyes' size, spacing and opening within -0.8..0.8, the body's
+  shape sliders within -0.6..0.6 (the belly -0.6..0.8), the origin sliders 0..1, everything else -1..1. On
+  MakeHuman's targets that range stays a plausible face and body of the period; no slider goes past its target. Then a face picture from the cells of the chosen sex, age and skin, a hair
+  style, beard and moustache from the same lists the types use, and a build.
+- **Stored** with the player's character in the game's database as one small JSON object (`{"v": 1, "base":
+  "man_middling", "cell": "m_mid_brown", "hair": "crop", "beard": null, "moustache": "walrus", "sliders": {"nose_long":
+  0.4, ...}}`, only non-zero sliders, values rounded to 1/100).
+- **Sent** to other players where the network now sends a person's kind and stable id: the same object, validated on
+  arrival (known names only, values clamped to `playerRange`), and baked by `People2Faces.Bake` like any other face.
+  No change to the wire format now.
+
+### Known limits (2026-10-13)
+
+- Fists and grips: the clips' hand shapes (`clips_legacy.HANDS`, motion packages) were set for the cage hands; on
+  MakeHuman's shorter proximal finger joints a fist overshoots and the fingertips come through the back of the
+  hand. The relaxed and open hands are right. The angles belong to the motion packages.
+- The kinds' clothes are coarse at a metre (3,000 to 4,000 triangles next to MakeHuman's face); raising the crowd's
+  near budget would buy them back.
+- Beard and hair edges still show small steps at 0.6 m; the far copies' hair is a coarse cap.
+- The fishwife's crossed shawl shows the bodice between and through its reduced bands.
+- Garment UVs: after the reduction about one triangle in five of the big garments (smock, tunic, coat) is stretched
+  more than 4:1 in its picture (the collapse moves points after the unwrap). No streak shows at a metre in the close
+  shots, but unwrapping and painting after the reduction would remove it (a clothes-package change: the far copy
+  shares the near copy's picture layout).
+- A bake costs about 3.5 ms at spawn (the first one of a run about 65 ms); people who come into view together should
+  be baked one per frame.
 
 ## Axes and units
 

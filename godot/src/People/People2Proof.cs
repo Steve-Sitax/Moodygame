@@ -30,12 +30,19 @@ internal partial class People2Proof : Node
             origin = nearest.at - new Vector3(0, nearest.at.Y, 5f);
         }
         string[] kinds = { "docker_a", "fishwife_a", "police", "sooi" };
+        bool crowdProof = Main.I.Flag("people2-crowd-proof");
         if (Main.I.Flag("people2-picture-proof"))
             kinds = kinds.Concat(People2.Kinds.Where(k => !new[] { "p2:docker_a", "p2:fishwife_a", "p2:police", "p2:sooi" }.Contains(k))).ToArray();
+        if (crowdProof)
+            kinds = new[] { "docker_a", "fishwife_a", "police", "docker_a", "p2:man_middling", "p2:woman_middling", "fishwife_a", "police",
+                            "p2:old_man", "p2:man_stout", "docker_a", "p2:woman_slight", "p2:child_middling", "sooi", "p2:old_woman", "p2:man_slight" };
         for (int i = 0; i < kinds.Length; i++)
         {
             var human = Humans.Make(kinds[i]); if (human == null) continue;
-            var at = origin + new Vector3((i - 1.5f) * 1.25f, 0, 3 + (lightProof ? 0 : i * 0.7f));
+            // a mixed crowd: every person their own face from their own id (as the town's residents get theirs)
+            if (crowdProof) human.SetIdentity("crowd-proof:" + i);
+            var at = crowdProof ? origin + new Vector3((i % 4 - 1.5f) * 0.95f + (i / 4 % 2) * 0.45f, 0, 3 + i / 4 * 1.1f)
+                : origin + new Vector3((i - 1.5f) * 1.25f, 0, 3 + (lightProof ? 0 : i * 0.7f));
             float ground = World.Lights.I?.GroundAt(at.X, at.Z) ?? 0;
             if (float.IsFinite(ground)) at.Y = ground;
             human.Root.Position = at;
@@ -74,11 +81,12 @@ internal partial class People2Proof : Node
         {
             var town = Main.I.GetNode<Town.Townspeople>("Townspeople");
             for (int i = 0; town.Data == null && i < 1800; i++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-            if (town.Data == null || people.Count != (Main.I.Flag("people2-picture-proof") ? 14 : 4)) throw new InvalidOperationException("People2 capture needs the native town and four dressed figures.");
+            if (town.Data == null || people.Count != (Main.I.Flag("people2-crowd-proof") ? 16 : Main.I.Flag("people2-picture-proof") ? 14 : 4)) throw new InvalidOperationException("People2 capture needs the native town and four dressed figures.");
             town.ClockRuns = false;
             Game.GameState.I.PlayingWhen = () => false;
             for (int i = 0; !Dev.Kit.I.IsReady && i < 1800; i++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             if (!Dev.Kit.I.IsReady) throw new InvalidOperationException("Native dev API did not become ready.");
+            if (Main.I.Flag("people2-crowd-proof")) { await CrowdCapture(dir, town); return; }
             if (Main.I.Flag("people2-dress-proof") || Main.I.Flag("people2-picture-proof"))
             {
                 // Keep live residents from crossing the close inspection cameras. The four
@@ -207,8 +215,119 @@ internal partial class People2Proof : Node
         float reset = near.GetBlendShapeValue(0);
         int id1 = People2Faces.SetIdentity(root, "fixture:42"), id2 = People2Faces.SetIdentity(root, "fixture:42");
         root.Free();
-        return new { assigned, actual, reset, id1, id2, ok = assigned == 1 && actual == 1.25f && reset == 0 && id1 == id2 };
+        // the face recipe against face_types.py's own answers, and a baked person the same twice over
+        var (testsOk, tests) = People2Faces.SelfTest();
+        string Bake(string id)
+        {
+            var h = Humans.Make("docker_a")!;
+            h.SetIdentity(id);
+            var mesh = World.BakedWorld.All(h.Root).OfType<MeshInstance3D>().First(m => m.Name.ToString().EndsWith("_lod0", StringComparison.Ordinal)).Mesh;
+            var v = mesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+            string sig = v.Length + ":" + v.Sum(q => q.X * 3.1f + q.Y * 7.7f + q.Z * 1.3f).ToString("F5") + ":" + h.Root.GetMeta("face_cell").AsString() + ":" + h.Root.GetMeta("face_hair").AsString();
+            h.Dispose();
+            return sig;
+        }
+        string a1 = Bake("fixture:7"), a2 = Bake("fixture:7"), b1 = Bake("fixture:8");
+        return new { assigned, actual, reset, id1, id2, testsOk, tests, bakeSame = a1 == a2, bakeDiffers = a1 != b1, sample = a1, other = b1, bakes = People2Faces.BakeCount, bakeMeanMs = People2Faces.BakeCount > 0 ? People2Faces.BakeMs / People2Faces.BakeCount : 0, bakeMaxMs = People2Faces.MaxBakeMs,
+            ok = assigned == 1 && actual == 1.25f && reset == 0 && id1 == id2 && testsOk == tests && a1 == a2 && a1 != b1 };
     }
+    private async System.Threading.Tasks.Task CrowdCapture(string dir, Town.Townspeople town)
+    {
+        town.SetProcess(false);
+        if (town.Crowd is { } crowd) foreach (var resident in crowd.Walking) resident.Group.Visible = false;
+        if (Player.Jef.I is { Fly: false } jef) jef.ToggleFly();
+        Player.Jef.I.TestInput = true;
+        Main.I.Cam.SetProcess(false);
+        var pictures = new List<object>();
+        var centre = people.Aggregate(Vector3.Zero, (a, h) => a + h.Root.GlobalPosition) / people.Count;
+        var faces = people.Select(h => new
+        {
+            kind = h.Kind,
+            type = h.Root.HasMeta("face_type") ? h.Root.GetMeta("face_type").AsString() : "",
+            cell = h.Root.HasMeta("face_cell") ? h.Root.GetMeta("face_cell").AsString() : "",
+            hair = h.Root.HasMeta("face_hair") ? h.Root.GetMeta("face_hair").AsString() : "",
+        }).ToArray();
+        foreach (var (label, hour, weather) in new[] { ("day", 13.0, "clear"), ("rain", 13.0, "rain"), ("lamps", 19.5, "clear") })
+        {
+            await Dev.Kit.I.Light(hour, weather);
+            for (int settle = 0; settle < 90; settle++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            var shots = new List<(string name, Vector3 from, Vector3 to)>
+            {
+                ("8m", centre + new Vector3(0, 1.6f, -8f), centre + new Vector3(0, 1.0f, 0)),
+                ("3m", centre + new Vector3(0.3f, 1.55f, -3.4f), centre + new Vector3(0, 1.25f, 0)),
+                ("3m-side", centre + new Vector3(3.2f, 1.5f, -1.0f), centre + new Vector3(0, 1.2f, 0)),
+            };
+            foreach (int k in new[] { 0, 1, 4, 5, 8, 9 })
+            {
+                var at = people[k].Root.GlobalPosition;
+                shots.Add(("1m-" + k, at + new Vector3(0.25f, 1.55f, -1.0f), at + new Vector3(0, 1.52f, 0)));
+            }
+            foreach (var (name, from, to) in shots)
+            {
+                Main.I.Cam.LookAtFromPosition(from, to);
+                if (Main.I.Cam is Player.FlyCam fly) fly.Face(Main.I.Cam.GlobalBasis.GetRotationQuaternion());
+                for (int settle = 0; settle < 12; settle++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                string file = "crowd-" + label + "-" + name + ".png";
+                Main.I.View.GetTexture().GetImage().SavePng(Path.Combine(dir, file));
+                var daylight = World.Daylight.I;
+                if (Math.Abs(daylight.Hour - hour) > 0.02 || daylight.Weather != weather) throw new InvalidOperationException("Crowd capture has the wrong clock or weather: " + file);
+                pictures.Add(new { name = file, hour = daylight.Hour, weather = daylight.Weather });
+            }
+        }
+        var shapeBench = await ShapeBench(centre);
+        File.WriteAllText(Path.Combine(dir, "captures.json"), JsonSerializer.Serialize(new
+        {
+            ok = true, place = "vismarkt", crowd = faces, bakes = People2Faces.BakeCount, shapeBench,
+            bakeMeanMs = People2Faces.BakeCount > 0 ? People2Faces.BakeMs / People2Faces.BakeCount : 0, bakeMaxMs = People2Faces.MaxBakeMs,
+            fingerprint = Main.I.WorldFingerprint, pictures,
+        }, new JsonSerializerOptions { WriteIndented = true }));
+        GetTree().Quit();
+    }
+    /// <summary>The sliders' cost as Godot blend shapes, for the record (docs/people.md "Cost"): 50 static copies of
+    /// man_middling's near mesh in view, with 8, 24 and all 51 sliders live and moving, against the same 50 with none
+    /// (0: baked, as the game draws people). Per setting, 90 frames: the process time, the render thread's CPU
+    /// time and the GPU time of the main view.</summary>
+    private async System.Threading.Tasks.Task<object> ShapeBench(Vector3 centre)
+    {
+        var vp = Main.I.View.GetViewportRid();
+        RenderingServer.ViewportSetMeasureRenderTime(vp, true);
+        Main.I.Cam.LookAtFromPosition(centre + new Vector3(0, 1.6f, -9f), centre + new Vector3(0, 1.0f, 0));
+        foreach (var h in people) h.Root.Visible = false;
+        var holder = new Node3D { Name = "people2_shape_bench" };
+        AddChild(holder);
+        var results = new List<object>();
+        foreach (int n in new[] { 0, 8, 24, 51 })
+        {
+            foreach (var c in holder.GetChildren()) { holder.RemoveChild(c); c.QueueFree(); }
+            var mesh = People2Faces.BenchMesh("man_middling_lod0", n);
+            if (mesh == null) return new { ok = false, reason = "no man_middling_lod0 template" };
+            int shapes = mesh.GetBlendShapeCount();
+            var copies = new List<MeshInstance3D>();
+            for (int i = 0; i < 50; i++)
+            {
+                var mi = new MeshInstance3D { Mesh = mesh, Position = centre + new Vector3((i % 10 - 4.5f) * 0.7f, 0, (i / 10) * 1.2f) };
+                holder.AddChild(mi);
+                copies.Add(mi);
+            }
+            for (int f = 0; f < 30; f++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            double proc = 0, cpu = 0, gpu = 0;
+            for (int f = 0; f < 90; f++)
+            {
+                // every live slider moves a little each frame (a blend shape set once costs the same per frame)
+                for (int i = 0; i < copies.Count; i++)
+                    for (int k = 0; k < shapes; k++) copies[i].SetBlendShapeValue(k, 0.5f + 0.4f * Mathf.Sin(0.05f * f + i + k));
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                proc += Performance.GetMonitor(Performance.Monitor.TimeProcess) * 1000.0;
+                cpu += RenderingServer.ViewportGetMeasuredRenderTimeCpu(vp);
+                gpu += RenderingServer.ViewportGetMeasuredRenderTimeGpu(vp);
+            }
+            results.Add(new { liveSliders = n, baked = n == 0, blendShapes = shapes, people = copies.Count, processMs = proc / 90, renderCpuMs = cpu / 90, gpuMs = gpu / 90 });
+        }
+        holder.QueueFree();
+        foreach (var h in people) h.Root.Visible = true;
+        return new { ok = true, mesh = "man_middling_lod0", results };
+    }
+
     private static float Height(Human human)
     {
         float low = float.MaxValue, high = float.MinValue;

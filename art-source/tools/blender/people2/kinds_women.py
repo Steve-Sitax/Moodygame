@@ -225,6 +225,10 @@ def fishwife_a_skin(ctx):
     ctx.h[leg] += 0.00015 * knit[leg]
     hand = ck.starts(ctx.part, ("finger", "arm")) & (ctx.y < bd.Y(ctx.P, 0.52))
     ctx.mix(hand * 0.35, (0.78, 0.42, 0.36))
+    # under the bodice its own blue (white chemise showing through a reduced bodice read as holes), the chemise's
+    # white only in the band its collar shows
+    ck.undershirt(ctx, (0.23, 0.29, 0.32), 0.0, zone=1, covers=fishwife_a_covers, skip=("leg",))  # BODICE
+    ck.undershirt(ctx, (0.84, 0.82, 0.76), bd.Y(ctx.P, 0.80), bottom=bd.Y(ctx.P, 0.765))
 
 
 FISHWIFE_A = Kind(

@@ -25,6 +25,8 @@ Start with the [native game/editor instructions](../native-godot/README.md), [na
 | [multiplayer-plan.md](multiplayer-plan.md) | Historical multiplayer design and phases; hosting/joining now run in Godot, described in the native instructions |
 | [trade-plan.md](trade-plan.md) | Historical trade and transport design: stocks, dispatch, town ways and goods chains |
 | [rendering.md](rendering.md) | No stutter: the shader warm-up, fixed light counts, the rules for anything that draws |
+| [people.md](people.md) | The people2 kit: skeleton, MakeHuman bodies, sliders, faces, hair, kinds and clothes, clips |
+| [makehuman.md](makehuman.md) | The MakeHuman tools behind the people2 bodies (MakeHuman, MPFB, MakeClothes, MakeTarget, MakeSkin): licences, the isolated MPFB install, rebuilding from scratch |
 | [performance.md](performance.md) | The frame budget: where the time goes, rules for new models, textures, mirrors and every-frame logic, proving a speed change |
 | [godot-status.md](godot-status.md) | Historical hybrid-port status and traps; start with the native game/editor instructions above |
 | [godot-perf2.md](godot-perf2.md) | Godot allocation and timing pass: per-part measurements, exact pixel proof, functional checks and remaining frame-budget failures |

@@ -78,6 +78,14 @@ public partial class NativeModelRecovery : Node
                                     if (image == null || image.IsEmpty())
                                         throw new IOException("People2 intake requires readable atlas images; use rendered --rendering-method forward_plus, not --headless.");
                                 }
+                // People2's sliders leave the meshes for one sparse file (People2Morphs): dense blend shapes would
+                // cost over 100 MB of stored resources.
+                byte[]? morphs = null;
+                if (name == "people2")
+                {
+                    morphs = Scheldemist.People.People2Morphs.Extract(scene, out int morphMeshes, out long morphMoves);
+                    GD.Print($"people2 morphs: {morphMeshes} meshes, {morphMoves} moves, {morphs.Length} bytes");
+                }
                 string resources = output + "/" + name + "-resources";
                 if (replace == name)
                 {
@@ -97,6 +105,7 @@ public partial class NativeModelRecovery : Node
                 }
                 if (Directory.Exists(ProjectSettings.GlobalizePath(resources))) throw new IOException("Keep existing model resources: " + resources);
                 new NativeResourceStore(resources).Scene(scene, output + "/" + name + ".scn");
+                if (morphs != null) File.WriteAllBytes(ProjectSettings.GlobalizePath(Scheldemist.People.People2Morphs.File), morphs);
                 File.WriteAllText(ProjectSettings.GlobalizePath(output + "/" + name + ".extras.json"), extras.ToJsonString());
                 manifest[name] = new JsonObject { ["sourceSha256"] = sha, ["nodes"] = BakedWorld.All(scene).Count(), ["animations"] = BakedWorld.All(scene).OfType<AnimationPlayer>().Sum(a => a.GetAnimationList().Length), ["extras"] = name + ".extras.json" };
                 full[name] = new JsonObject { ["sourceSha256"] = sha, ["nativeScene"] = output + "/" + name + ".scn", ["existingNativeScenePreserved"] = false };

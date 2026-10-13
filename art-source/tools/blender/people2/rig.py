@@ -128,6 +128,8 @@ MARKS = [
 def joints(P):
     """Head and tail of every bone for this body, in game space, after the stoop. Every bone keeps its rest
     direction (see the module note); the stoop moves the heads only."""
+    if "joints" in P:  # a MakeHuman body: measured on the body (mhbody.Body.joints)
+        return P["joints"]
     H, w = P["H"], P["w"]
     L = bd.landmarks(P)
     sh = bd.shoulder_x(P)
@@ -235,6 +237,8 @@ def build_armature(name, J):
 
 def marks(P, J):
     """Grab and hit marks: a point in game space at rest for each MARKS entry, and its bone."""
+    if "marks" in P:  # a MakeHuman body: on its own skin (mhbody.marks)
+        return P["marks"]
     w = P["w"]
     hs, hw = P["hs"], P["hw"]
     chin = bd.Y(P, 0.870)

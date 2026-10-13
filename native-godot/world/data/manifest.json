@@ -1,5 +1,5 @@
 {
-  "version": "native-pack-381195075b63e21a797c279a08f91036b1d2cfb53bc6eb3ad3f2d2c1ad015ed3",
+  "version": "native-pack-5b5415c5a6fc3ffe89d657f039a81bfd9feb945210281feb022d8f170c926766",
   "files": [
     "shared/city.json",
     "shared/city_build.json",
@@ -12,7 +12,9 @@
     "shared/inworld_houses.json",
     "shared/package.json",
     "shared/parkTreeLife.json",
+    "shared/faceTypes.json",
     "shared/peopleRig.json",
+    "shared/peopleSliders.json",
     "shared/quaycargo.json",
     "shared/spots.json",
     "shared/townplaces.json",

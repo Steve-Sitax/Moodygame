@@ -232,6 +232,8 @@ def docker_a_skin(ctx):
     ctx.h[sock] += 0.0002 * knit[sock]
     hand = ck.starts(ctx.part, ("finger", "arm")) & (ctx.y < 0.80)
     ctx.mul(hand, (0.88, 0.85, 0.82))
+    # under the smock's neckline and the kerchief: the smock's own blue in shadow (a lighter shirt read as a hole)
+    ck.undershirt(ctx, (0.17, 0.22, 0.32), bd.Y(PM, 0.842), zone=1, covers=docker_a_covers)
 
 
 DOCKER_A = Kind(

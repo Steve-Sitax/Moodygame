@@ -222,12 +222,17 @@ def police_covers(p, part):
     return False
 
 
+def police_skin(ctx):
+    """Under the tunic's neckline a dark wool undershirt shows, not the skin of the shoulders."""
+    ck.undershirt(ctx, (0.10, 0.11, 0.16), bd.Y(PM, 0.858), zone=1, covers=police_covers)  # up to the collar
+
+
 POLICE = Kind(
     "police", "uniform", "man_middling",
     face=dict(type="flemish_police", seed=1873186, sex="m", age=42,
               look=dict(stubble=0.2, weather=0.6, ruddy=0.3, hair="dark", hair_rgb=hexrgb(0x2a2420))),
-    hair=dict(hair="side", beard=None, moustache="handlebar"),
-    dress=police_dress, covers=police_covers, hats=("kepi", "kepi_peak"),
+    hair=dict(hair="crop", beard=None, moustache="handlebar"),  # under the kepi (kindHair police: crop)
+    dress=police_dress, covers=police_covers, skin=police_skin, hats=("kepi", "kepi_peak"),
     held=[("held_sabre", "hipL", "the sabre in its scabbard on the left hip (held_scabbard hangs on hipL; "
                                  "held_sabre sits in it at sheathed, or in gripR drawn)"),
           ("held_scabbard", "hipL", "hangs from the belt's frog"),

@@ -1,6 +1,6 @@
 param(
     [string]$Godot,
-    [ValidateSet('captures','integration-captures','motion','work','dress-captures','distance-captures','routing','shaders','parade','timing','legacy-timing','identity','pack','network')]
+    [ValidateSet('captures','integration-captures','crowd-captures','motion','work','dress-captures','distance-captures','routing','shaders','parade','timing','legacy-timing','identity','pack','network')]
     [string[]]$Modes = @('captures','shaders','parade','timing','identity','pack','network'),
     [ValidateRange(8800,8999)][int]$Port = 8980,
     [ValidateRange(0,3600)][int]$WaitForTimingSeconds = 900
@@ -62,6 +62,7 @@ try {
             'integration-captures' { $args += @('--people2-captures',$dir,'--people2-light-proof','--people2-picture-proof','--people2-integration-proof') }
             'distance-captures' { $args += @('--people2-captures',$dir,'--people2-light-proof','--people2-picture-proof','--people2-distance-proof') }
             'dress-captures' { $args += @('--people2-captures',$dir,'--people2-light-proof','--people2-dress-proof') }
+            'crowd-captures' { $args += @('--people2-captures',$dir,'--people2-light-proof','--people2-crowd-proof') }
             'motion' { $args += @('--people2-motion',$dir,'--people2-motion-bench','-3,313') }
             'work' { $args += @('--people2-work',$dir,'--people2-map','docker_b=docker_a,docker_c=docker_a,docker_sack=docker_a,fishwife_b=fishwife_a') }
             'routing' { $args += @('--people2-proof','--snap',$dir,'--views','routing:-118,1.6,30,180,0,13,clear','--people2-map','docker_a=man_middling,fishwife_a=woman_stout,police=man_stout,sooi=man_slight') }
@@ -107,10 +108,10 @@ try {
             if ($timing) { $isolation | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $dir 'process-isolation.json') }
             if ($contaminated) { throw 'People timing contaminated by another Godot process.' }
             if ($child.ExitCode -ne 0 -or $log -match '(?m)^ERROR:') { throw "People2 $mode failed; inspect $dir/engine.log" }
-            $reportFile = switch ($mode) { {$_ -in @('captures','integration-captures','dress-captures','distance-captures')} {'captures.json'} 'motion' {'motion.json'} 'work' {'work.json'} 'routing' {'people2-proof.json'} 'shaders' {'shaders.json'} 'parade' {'parade.json'} 'network' {'network.json'} default {'peopletest.json'} }
+            $reportFile = switch ($mode) { {$_ -in @('captures','integration-captures','dress-captures','distance-captures','crowd-captures')} {'captures.json'} 'motion' {'motion.json'} 'work' {'work.json'} 'routing' {'people2-proof.json'} 'shaders' {'shaders.json'} 'parade' {'parade.json'} 'network' {'network.json'} default {'peopletest.json'} }
             $report = Get-Content -LiteralPath (Join-Path $dir $reportFile) -Raw | ConvertFrom-Json
             if ($mode -eq 'shaders' -and ($report.firstKinds.Count -ne 130 -or $report.people2ShaderKindCount -ne 1 -or -not $report.ok -or $report.problems.Count)) { throw 'Shader inventory must keep 130 kinds, exactly one people2 kind, and zero problems.' }
-            if ($mode -in @('captures','integration-captures','motion','work','dress-captures','distance-captures','timing','legacy-timing') -and -not $report.ok) { throw "People2 $mode report failed." }
+            if ($mode -in @('captures','integration-captures','crowd-captures','motion','work','dress-captures','distance-captures','timing','legacy-timing') -and -not $report.ok) { throw "People2 $mode report failed." }
             if ($mode -eq 'network' -and -not $report.passed) { throw 'Native multiplayer identity proof failed.' }
             if ($mode -eq 'routing' -and (-not $report.switchOkay -or -not $report.faceSetter.ok -or $report.bodyHeights.Count -ne 14 -or $report.figures[0].body -ne 'man_middling' -or $report.figures[1].body -ne 'woman_stout' -or $report.figures[2].body -ne 'man_stout' -or $report.figures[3].body -ne 'man_slight')) { throw 'People2 map/body/toggle proof failed.' }
             Write-Output "PASS $mode"

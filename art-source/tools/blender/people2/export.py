@@ -18,7 +18,9 @@ from . import body as bd
 from . import rig
 
 
-MORPH_NORMALS = os.environ.get("PEOPLE2_MORPH_NORMALS", "0") == "1"  # B: shape-key normals cost 7x the file size
+# shape-key normals: always in the plain copy (the game bakes each person's sliders into their mesh, normals too);
+# in the compressed art master only on request (they cost several times the file size there)
+MORPH_NORMALS = os.environ.get("PEOPLE2_MORPH_NORMALS", "0") == "1"
 
 
 def material(name, img, normal=None):
@@ -52,7 +54,7 @@ def export_glb(path, plain=False):
         export_draco_mesh_compression_enable=not plain, export_draco_mesh_compression_level=7,
         export_draco_position_quantization=14, export_draco_normal_quantization=10,
         export_draco_texcoord_quantization=12, export_rest_position_armature=True, export_def_bones=False,
-        export_morph_normal=MORPH_NORMALS, export_try_sparse_sk=not plain)
+        export_morph_normal=MORPH_NORMALS or plain, export_try_sparse_sk=not plain)
 
 
 def bone_frame(ao, n):

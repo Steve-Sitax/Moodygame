@@ -17,6 +17,7 @@ internal static class People2Material
     private static ShaderMaterial? sharedMaterial;
     private static readonly List<Texture2DArray> arrays = new();
     private static readonly Dictionary<string, (int Clothes, int Face)> pictures = new();
+    private static readonly Dictionary<string, int> faceIds = new(StringComparer.Ordinal);
     internal static long TextureBytes { get; private set; }
     internal static long ProjectionBytes { get; private set; }
     private static long layerBytes, detailBytes;
@@ -27,7 +28,7 @@ internal static class People2Material
         foreach (var texture in colours.Values) texture.Dispose();
         foreach (var texture in normals.Values) texture.Dispose();
         colours.Clear(); normals.Clear(); AnimalTextureBytes = 0;
-        pictures.Clear(); sharedMaterial?.Dispose(); sharedMaterial = null;
+        pictures.Clear(); faceIds.Clear(); bodyTones.Clear(); sharedMaterial?.Dispose(); sharedMaterial = null;
         foreach (var array in arrays) array.Dispose(); arrays.Clear();
         shader?.Dispose(); shader = null; TextureBytes = ProjectionBytes = layerBytes = detailBytes = 0;
     }
@@ -119,6 +120,30 @@ internal static class People2Material
                 mi.SetInstanceShaderParameter("clothes_layer", entry.Clothes);
                 mi.SetInstanceShaderParameter("face_layer", entry.Face);
                 mi.SetInstanceShaderParameter("skin_tone_shift", Vector3.Zero);
+                mi.SetInstanceShaderParameter("body_tone", Vector3.One);
+            }
+    }
+    private static readonly Dictionary<string, Vector3> bodyTones = new(StringComparer.Ordinal);
+    /// <summary>A person's face picture (a layer of the face array, by its cell name) and the tone their body's skin
+    /// takes to match it at the neck and the hands (faceTypes.json cells.bodyTone).</summary>
+    internal static void Face(Node3D root, string cell)
+    {
+        if (!faceIds.TryGetValue(cell, out int layer)) return;
+        if (bodyTones.Count == 0 && File.Exists(Paths.Shared("faceTypes.json")))
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Paths.Shared("faceTypes.json")));
+            foreach (var c in doc.RootElement.GetProperty("cells").EnumerateObject())
+            {
+                var t = c.Value.GetProperty("bodyTone");
+                bodyTones[c.Name] = new Vector3(t[0].GetSingle(), t[1].GetSingle(), t[2].GetSingle());
+            }
+        }
+        var tone = bodyTones.GetValueOrDefault(cell, Vector3.One);
+        foreach (var n in BakedWorld.All(root))
+            if (n is MeshInstance3D mi)
+            {
+                mi.SetInstanceShaderParameter("face_layer", layer);
+                mi.SetInstanceShaderParameter("body_tone", tone);
             }
     }
     internal static void Tone(Node3D root, uint seed)
@@ -139,6 +164,8 @@ internal static class People2Material
         var data = manifest.RootElement;
         foreach (var entry in data.GetProperty("entries").EnumerateObject())
             pictures[entry.Name] = (entry.Value.GetProperty("clothes").GetInt32(), entry.Value.GetProperty("face").GetInt32());
+        if (data.TryGetProperty("faceIds", out var ids))
+            foreach (var id in ids.EnumerateObject()) if (id.Value.ValueKind == System.Text.Json.JsonValueKind.Number) faceIds[id.Name] = id.Value.GetInt32();
         var material = sharedMaterial = new ShaderMaterial { Shader = shader, ResourceName = "people2_pictures" };
         material.SetShaderParameter("clothes_colour", Layers(data.GetProperty("clothes"), "_colour"));
         material.SetShaderParameter("clothes_normal", Layers(data.GetProperty("clothes"), "_normal"));
@@ -146,30 +173,14 @@ internal static class People2Material
         material.SetShaderParameter("face_normal", Layers(data.GetProperty("faces"), "_face_normal"));
         material.SetShaderParameter("detail_colour", Layers(data.GetProperty("detail"), "_colour"));
         material.SetShaderParameter("detail_normal", Layers(data.GetProperty("detail"), "_normal"));
-        var stripped = new Dictionary<Mesh, ArrayMesh>();
+        // Every people mesh keeps its sliders' moves in RAM (People2Faces, from the intake's morph file) and draws
+        // without them: each person's sliders are baked into their own mesh once, at spawn.
+        People2Faces.LoadMorphs();
         foreach (var n in BakedWorld.All(scene))
         {
             if (n is not MeshInstance3D mi || mi.Mesh is not ArrayMesh source) continue;
-            bool far = mi.Name.ToString().EndsWith("_lod1", StringComparison.Ordinal);
-            if (far && source.GetBlendShapeCount() > 0)
-            {
-                if (!stripped.TryGetValue(source, out var mesh))
-                {
-                    mesh = new ArrayMesh();
-                    for (int s = 0; s < source.GetSurfaceCount(); s++)
-                    {
-                        mesh.AddSurfaceFromArrays(source.SurfaceGetPrimitiveType(s), source.SurfaceGetArrays(s));
-                        mesh.SurfaceSetMaterial(s, source.SurfaceGetMaterial(s));
-                    }
-                    stripped[source] = mesh;
-                }
-                mi.Mesh = mesh;
-            }
-            for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
-            {
-                mi.Mesh.SurfaceSetMaterial(s, material);
-            }
-            People2Faces.EyeFlags(mi);
+            for (int s = 0; s < source.GetSurfaceCount(); s++) source.SurfaceSetMaterial(s, material);
+            People2Faces.Capture(mi);
         }
         var result = new ModelLibrary.Model { Name = "people2", Scene = scene, Materials = 1 };
         foreach (var c in scene.GetChildren())
