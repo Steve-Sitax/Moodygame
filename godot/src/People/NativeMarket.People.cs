@@ -10,13 +10,23 @@ namespace Scheldemist.People;
 public partial class NativeMarket
 {
     public static double Share(string place,int day,double hour,double soldOutAt=double.NaN)=>NativeMarketCalendar.Share(place,day,hour,soldOutAt);
+    // people2 (package D3): a fishwife behind a fish table guts the catch while she stands there (her idle and her
+    // folded arms; calling stays a call); she stands at the board's edge (gut: the table's near edge 0.30 before
+    // her, the layout puts the seller 0.49 back). A local look: the sellers are drawn from the layout on every PC.
+    private static void FishTable(NativeMarketItem it,Puppet p)
+    {
+        if(it.Kind!="fishtable"||!p.Human.IsPeople2)return;
+        p.Human.Work="fish_stall";
+        p.X+=Math.Sin(it.Yaw)*.19;p.Z+=Math.Cos(it.Yaw)*.19;
+    }
+
     private void DrawSellers(Field f,double distance,Vector3 me)
     {
         var crowd=town.Crowd!;if(town.StormLevel>.3){foreach(var pair in f.Sellers){var it=pair.Key;var s=pair.Value;if(s.Fled)continue;s.Fled=true;if(it.Sits)crowd.PuppetSit(s.Body,it.Yaw);else crowd.PuppetStand(s.Body,"fold",it.Yaw);}return;}
         foreach(var s in f.Sellers.Values)if(s.Fled){s.Fled=false;s.Talk=0;}
         var near=f.Items.Where(it=>it.Rank>=f.Low&&it.Rank<f.High&&distance<92&&Distance(it.X,it.Z,me.X,me.Z)<32).OrderBy(it=>Distance(it.X,it.Z,me.X,me.Z)).Take(8).ToArray();
         foreach(var pair in f.Sellers.ToArray())if(!near.Contains(pair.Key)&&(crowd.IsHidden(pair.Key.Seller.X,pair.Key.Seller.Z)||pair.Key.Rank<f.Low||pair.Key.Rank>=f.High)){crowd.RemovePuppet(pair.Value.Body);f.Sellers.Remove(pair.Key);}
-        foreach(var it in near){if(f.Sellers.ContainsKey(it))continue;if(f.Sellers.Count>=8)break;double hash=Math.Sin(it.Seller.X*12.9898+it.Seller.Z*78.233)*43758.5453;var p=crowd.AddPuppet(it.SellerKind,it.Seller.X,it.Seller.Z,it.Yaw,1,(float)(.95+(hash-Math.Floor(hash))*.1));if(p==null)return;f.Sellers[it]=new(){Body=p,Talk=it.Talk};if(it.Sits)crowd.PuppetSit(p,it.Yaw);else crowd.PuppetStand(p,"idle",it.Yaw);}
+        foreach(var it in near){if(f.Sellers.ContainsKey(it))continue;if(f.Sellers.Count>=8)break;double hash=Math.Sin(it.Seller.X*12.9898+it.Seller.Z*78.233)*43758.5453;var p=crowd.AddPuppet(it.SellerKind,it.Seller.X,it.Seller.Z,it.Yaw,1,(float)(.95+(hash-Math.Floor(hash))*.1));if(p==null)return;FishTable(it,p);f.Sellers[it]=new(){Body=p,Talk=it.Talk};if(it.Sits)crowd.PuppetSit(p,it.Yaw);else crowd.PuppetStand(p,"idle",it.Yaw);}
     }
     private void StepSellers(Field f,double dt)
     {

@@ -469,6 +469,22 @@ public sealed partial class Crowd
     public void PuppetLoad(Puppet p, bool on, string kind = "sack", int crate = 0)
     {
         p.HandCarry = true;
+        if (p.Human.IsPeople2)
+        {
+            // people2 (package D3): the sack rides the shoulder (the kit's one sack, set down when let go); other
+            // loads are the game's node held against the belly. A local choice: the wire still says "loaded"
+            if (p.LoadNode != null && (!on || p.LoadKind != kind || kind == "sack"))
+            {
+                p.LoadNode.QueueFree();
+                p.LoadNode = null;
+                p.Human.CarryNode(null);
+            }
+            p.LoadKind = kind;
+            p.Loaded = on;
+            if (on && kind != "sack" && p.LoadNode == null && (p.LoadNode = Carried.Load(kind, p.Human.Scale, crate)) != null) p.Human.CarryNode(p.LoadNode);
+            p.Human.CarryLoad(on ? kind : null);
+            return;
+        }
         if (p.LoadNode != null && (!on || p.LoadKind != kind))
         {
             p.LoadNode.QueueFree();

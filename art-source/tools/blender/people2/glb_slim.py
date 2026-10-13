@@ -48,8 +48,105 @@ def _write(path, js, binc):
         f.write(binc)
 
 
-def slim(path):
-    """Rewrite the glb at path in place. Returns (channels before, after, bytes before, after)."""
+THIN_DEG = 0.04  # a thinned rotation key may be left out when the slerp of its neighbours is this close to it
+THIN_M = 0.00015  # and a hips position key when the line between its neighbours passes this close
+
+
+def _acc(js, binc, i):
+    import numpy as np
+
+    a = js["accessors"][i]
+    v = js["bufferViews"][a["bufferView"]]
+    n = {"SCALAR": 1, "VEC3": 3, "VEC4": 4}[a["type"]]
+    off = v.get("byteOffset", 0) + a.get("byteOffset", 0)
+    return np.frombuffer(binc, np.float32, a["count"] * n, off).reshape(a["count"], n).astype(np.float64)
+
+
+def _keep(t, v, err_fn, tol):
+    """Douglas-Peucker on keys: the indices to keep so every left-out key is within tol of the interpolation."""
+    n = len(t)
+    keep = {0, n - 1}
+    stack = [(0, n - 1)]
+    while stack:
+        i, j = stack.pop()
+        if j - i < 2:
+            continue
+        u = (t[i + 1:j] - t[i]) / (t[j] - t[i])
+        e = err_fn(v[i], v[j], u, v[i + 1:j])
+        k = int(e.argmax())
+        if e[k] > tol:
+            m = i + 1 + k
+            keep.add(m)
+            stack += [(i, m), (m, j)]
+    return sorted(keep)
+
+
+def _rot_err(a, b, u, mid):
+    import numpy as np
+
+    if np.dot(a, b) < 0:
+        b = -b
+    d = min(1.0, max(-1.0, float(np.dot(a, b))))
+    th = np.arccos(d)
+    if th < 1e-9:
+        q = np.outer(1 - u, a) + np.outer(u, b)
+    else:
+        q = (np.sin((1 - u) * th)[:, None] * a + np.sin(u * th)[:, None] * b) / np.sin(th)
+    q /= np.linalg.norm(q, axis=1)[:, None]
+    dots = np.abs((q * mid).sum(1)).clip(0, 1)
+    return np.degrees(2 * np.arccos(dots))
+
+
+def _lin_err(a, b, u, mid):
+    import numpy as np
+
+    p = np.outer(1 - u, a) + np.outer(u, b)
+    return np.linalg.norm(p - mid, axis=1)
+
+
+def _thin(js, binc, names):
+    """Leave out the keys of the named clips' channels that their neighbours' interpolation (slerp for turns, a line
+    for the hips) gives back within THIN_DEG / THIN_M: slow idles need few keys. Appends the new accessors to the
+    buffer; the old ones fall out in the repack. Returns (binc, keys before, keys after)."""
+    import numpy as np
+
+    out = bytearray(binc)
+    k0 = k1 = 0
+    for an in js.get("animations", []):
+        if an.get("name") not in names:
+            continue
+        for sm in an["samplers"]:
+            if sm.get("interpolation", "LINEAR") != "LINEAR":
+                continue
+            t = _acc(js, binc, sm["input"])[:, 0]
+            v = _acc(js, binc, sm["output"])
+            k0 += len(t)
+            if len(t) < 3:
+                k1 += len(t)
+                continue
+            if v.shape[1] == 4:
+                v = v / np.linalg.norm(v, axis=1)[:, None]
+                idx = _keep(t, v, _rot_err, THIN_DEG)
+            else:
+                idx = _keep(t, v, _lin_err, THIN_M)
+            k1 += len(idx)
+            for arr, key, typ in ((t[idx].astype(np.float32), "input", "SCALAR"),
+                                  (v[idx].astype(np.float32), "output", "VEC4" if v.shape[1] == 4 else "VEC3")):
+                out += b"\0" * ((4 - len(out) % 4) % 4)
+                js["bufferViews"].append({"buffer": 0, "byteOffset": len(out), "byteLength": arr.nbytes})
+                out += arr.tobytes()
+                acc = {"bufferView": len(js["bufferViews"]) - 1, "componentType": 5126, "count": len(idx), "type": typ}
+                if key == "input":
+                    acc["min"] = [float(arr.min())]
+                    acc["max"] = [float(arr.max())]
+                js["accessors"].append(acc)
+                sm[key] = len(js["accessors"]) - 1
+    return bytes(out), k0, k1
+
+
+def slim(path, thin_names=None, thin=None):
+    """Rewrite the glb at path in place. Returns (channels before, after, bytes before, after). thin: clip names
+    whose keys are thinned (thin())."""
     js, binc = _read(path)
     import os
 
@@ -71,6 +168,10 @@ def slim(path):
             ch["sampler"] = remap[ch["sampler"]]
         an["channels"] = keep
         n1 += len(keep)
+    names = thin if thin is not None else thin_names
+    if names:
+        binc, kb, ka = _thin(js, binc, set(names))
+        print("[people2] thinned %d clips: %d -> %d keys" % (len(names), kb, ka))
     # the accessors still used
     acc_used = set()
     for m in js.get("meshes", []):

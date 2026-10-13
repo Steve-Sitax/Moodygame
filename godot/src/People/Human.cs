@@ -28,8 +28,13 @@ public static class Humans
     public const float RideBack = 0.05f;
 
     internal static readonly HashSet<string> Women = new() { "peeters", "fientje", "fishwife_a", "fishwife_b", "maid", "girl", "wife_a", "wife_b", "shopwife", "old_woman", "girl_b", "milk_woman", "nun", "beguine", "tourist_lady" };
-    /// <summary>Long aprons are open shells: the thighs would show through in the sit clip.</summary>
+    /// <summary>The old people.glb only: its long aprons are open shells (the thighs would show through in its sit
+    /// clip) and its women have no sit clip. People2 bodies sit, skirts and aprons too (package D2).</summary>
     internal static readonly HashSet<string> NoSit = new() { "baker", "shopkeeper", "publican" };
+
+    /// <summary>Can a person of this kind sit (people2: everybody but those with a load; the old models: men
+    /// without a long apron)?</summary>
+    public static bool CanSitKind(string kind) => People2.Has(kind) ? !OwnClips.ContainsKey(kind) : !Women.Contains(kind) && !OwnClips.ContainsKey(kind) && !NoSit.Contains(kind);
 
     private static Dictionary<string, string> Same(string walk, string idle, string? talk = null, bool write = false)
     {
@@ -255,20 +260,25 @@ public sealed class Human
     /// <summary>A woman's clips (hands folded in front, shorter steps)?</summary>
     public bool Woman => newer?.Female ?? Humans.Women.Contains(Kind);
 
-    /// <summary>Can this body sit (the men's sit clip; not under a skirt, not with a load)?</summary>
-    public bool CanSit => !Woman && !Humans.OwnClips.ContainsKey(Kind) && !Humans.NoSit.Contains(Kind);
+    /// <summary>Can this body sit? People2 bodies all sit (women in skirts and aprons too) unless they carry a
+    /// load; the old models only the men without a long apron.</summary>
+    public bool CanSit => newer != null ? !Humans.OwnClips.ContainsKey(Kind) : !Woman && !Humans.OwnClips.ContainsKey(Kind) && !Humans.NoSit.Contains(Kind);
 
-    /// <summary>How far to lower the body (negative) so it sits on a seat `seat` metres high (the sit clip).</summary>
-    public float SitDrop(float seat = 0.45f) => seat + 0.07f * Scale - 0.9f * Scale;
+    /// <summary>How far to lower the body (negative) so it sits on a seat `seat` metres high (the sit clip). A
+    /// people2 body picks its seated clip by the seat's height (a step, a crate, a bench or a chair), whose hips
+    /// come down by themselves; a seat of 0 is a seat at the node's own height.</summary>
+    public float SitDrop(float seat = 0.45f) => newer?.SitDrop(seat) ?? LegacySitDrop(seat);
+
+    private float LegacySitDrop(float seat) => seat + 0.07f * Scale - 0.9f * Scale;
 
     private float Phase => newer?.Phase ?? (current == null ? 0 : (float)(mixer.CurrentAnimationPosition / lengths[current]));
 
     /// <summary>How far to lower (negative) or lift the body for what it plays now: on the knees to scrub, on a chair at the lace pillow, crouched at marbles, off the ground in a hop.</summary>
-    public float MotionLift() => Motion switch
+    public float MotionLift() => newer != null ? newer.MotionLift() : Motion switch
     {
         "scrub" => -Humans.KneelDrop * Scale,
         "crouch" => -Humans.CrouchDrop * Scale,
-        "lace" => SitDrop(0.45f),
+        "lace" => LegacySitDrop(0.45f),
         "hop" => 0.2f * Scale * Math.Max(0, MathF.Sin(Phase * MathF.PI * 2)),
         _ => 0,
     };
@@ -285,8 +295,58 @@ public sealed class Human
     /// <summary>Seconds in one loop of what is playing now.</summary>
     public float LoopTime => newer?.LoopTime ?? (current != null ? lengths[current] : 1);
 
+    // ---- package D3: work (local choices only; nothing here goes on the wire)
+
+    /// <summary>A people2 body (its work clips position their own hips and carry their own things).</summary>
+    public bool IsPeople2 => newer != null;
+
+    /// <summary>The work context the game gives this figure: "haul_sack" at a sack pile, "fish_stall" behind a
+    /// fish table; null: none. Worked out from what every PC knows (the place, the kind).</summary>
+    public string? Work
+    {
+        get => newer?.Work;
+        set { if (newer != null) newer.Work = value; }
+    }
+
+    /// <summary>The height of the pile before a docker (picks the lift), when the game knows it.</summary>
+    public float PileTop { set { if (newer != null) newer.PileTop = value; } }
+
+    /// <summary>How long the work clip now playing still runs (a lift, a set-down): the game waits for it.</summary>
+    public float WorkSeconds => newer?.WorkSeconds ?? 0;
+
+    /// <summary>The clip a motion would play for this person (people2), to lay out the kit for it.</summary>
+    public string? WorkChoice(string motion) => newer?.Choose(motion);
+
+    /// <summary>A load carried by a people2 body ("sack" rides the shoulder; others are the game's node on the
+    /// chest); null: put down (a sack is set down first).</summary>
+    public void CarryLoad(string? kind) => newer?.Load(kind);
+
+    /// <summary>The game's node for a load the kit has no model of (a crate, a box of fish, a keg): held against
+    /// the belly by a people2 body.</summary>
+    public void CarryNode(Node3D? node) => newer?.CarryNode(node);
+
+    /// <summary>The proofs: play a work clip from t (frozen: held there).</summary>
+    internal void WorkClipNow(string clip, float t, bool frozen = false) { if (newer != null) { newer.PlayClip(clip, t, frozen); Motion = "work:" + clip; } }
+
+    internal int ThingsShown => newer?.ThingsShown ?? 0;
+
+    /// <summary>The proofs: a figure put somewhere else lets its planted feet go.</summary>
+    internal void ReleaseFeet() => newer?.ReleaseFeet();
+
+    /// <summary>Where a bone (a socket: gripL, gripR) is now, in the world.</summary>
+    internal Vector3? Socket(string bone)
+    {
+        skeleton ??= Root.GetNodeOrNull<Skeleton3D>("Skeleton3D");
+        int b = skeleton?.FindBone(bone) ?? -1;
+        return b < 0 ? null : skeleton!.GlobalTransform * skeleton.GetBoneGlobalPose(b).Origin;
+    }
+
     public int SetFace(IReadOnlyDictionary<string, float> weights) => People2Faces.SetFace(Root, weights);
-    public int SetIdentity(string stableId) => People2Faces.SetIdentity(Root, stableId);
+    public int SetIdentity(string stableId)
+    {
+        newer?.SetIdentity(stableId);
+        return People2Faces.SetIdentity(Root, stableId);
+    }
 
     public void Update(float dt)
     {
@@ -314,12 +374,15 @@ public sealed class Human
     }
 
     internal float StanceSlide => newer?.StanceSlide ?? 0;
+    /// <summary>A people2 talker speaking now (not listening); for the proofs.</summary>
+    internal bool Speaking => newer?.Speaking ?? false;
     internal float StanceReach => newer?.StanceReach ?? 0;
     internal int StanceSamples => newer?.StanceSamples ?? 0;
     internal void ParadeClip(string clip) { Motion = clip; if (newer != null) newer.PlayRaw(clip); else Play(clip, 0); }
 
     public void Dispose()
     {
+        newer?.Dispose();
         Root.QueueFree();
     }
 }

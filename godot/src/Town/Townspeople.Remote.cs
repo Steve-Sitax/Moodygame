@@ -16,6 +16,9 @@ public partial class Townspeople
         puppet.Remote = true; puppet.X = pose.X; puppet.Z = pose.Z; puppet.Yaw = pose.Yaw;
         puppet.Size = size; puppet.Group.Scale = Vector3.One * size;
         string motion = EventPuppets.Motions[Math.Clamp(pose.Mode, 0, EventPuppets.Motions.Length - 1)];
+        // people2 (package D3): a hauler bending at a sack pile lifts a sack there, as on the host (from the routes)
+        if (puppet.Human.IsPeople2 && motion != puppet.Human.Motion)
+            puppet.Human.Work = motion == "crouch" && (pose.Gear & 4) == 0 && HaulRoute.SackPileAt(pose.X, pose.Z) != null ? "haul_sack" : null;
         if (puppet.Human.Motion != motion) puppet.Human.Play(motion, .15f);
         puppet.PMotion = motion; puppet.State = (pose.Gear & 1) != 0 ? "sit" : motion is "walk" or "carry" or "push" or "ride" ? "walk" : "stand";
         puppet.Human.SetPace(Math.Max(.3f, pose.Speed));

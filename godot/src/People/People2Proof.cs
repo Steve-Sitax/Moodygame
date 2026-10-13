@@ -101,6 +101,16 @@ internal partial class People2Proof : Node
             Input.MouseMode = Input.MouseModeEnum.Visible;
             var pictures = new List<object>();
             var wideExhibit = people[0].Root.GlobalPosition - new Vector3(0, 0, 4);
+            bool integration = Main.I.Flag("people2-integration-proof");
+            Node3D? stool = integration ? Models.ModelLibrary.Get("stalls")?.Copy("mk2_stool") : null;
+            float seatHeight = 0.45f;
+            if (integration && stool == null) throw new InvalidOperationException("Integration sitting proof needs the shared market stool.");
+            if (stool != null)
+            {
+                Main.I.View.AddChild(stool);
+                seatHeight = World.BakedWorld.All(stool).OfType<MeshInstance3D>().Max(mi => (mi.GlobalTransform * mi.GetAabb()).End.Y);
+                stool.Visible = false;
+            }
             foreach (var (label, hour, weather) in new[] { ("day", 13.0, "clear"), ("rain", 13.0, "rain"), ("lamps", 19.5, "clear") })
             {
                 await Dev.Kit.I.Light(hour, weather);
@@ -108,7 +118,7 @@ internal partial class People2Proof : Node
                 foreach (var human in people)
                 {
                     var originalPosition = human.Root.GlobalPosition;
-                    if (Main.I.Flag("people2-distance-proof"))
+                    if (Main.I.Flag("people2-distance-proof") || integration)
                     {
                         foreach (var other in people) other.Root.Visible = other == human;
                         var spot = wideExhibit;
@@ -118,14 +128,28 @@ internal partial class People2Proof : Node
                         human.Play("talk", 0); human.Play("idle", 0); // release old stance contacts after relocation
                         World.Blobs.I?.Set("people2-proof", new List<World.Blobs.Spot> { new(spot.X, spot.Z, spot.Y, 0.4f) });
                     }
-                    foreach (string motion in Main.I.Flag("people2-dress-proof") ? new[] { "idle", "walk", "talk" } : new[] { "current" })
-                    foreach (var (distance, angle) in Main.I.Flag("people2-dress-proof")
+                    var standingPosition = human.Root.GlobalPosition;
+                    foreach (string motion in integration ? new[] { "idle", "talk", "walk", "sit" } : Main.I.Flag("people2-dress-proof") ? new[] { "idle", "walk", "talk" } : new[] { "current" })
+                    {
+                    human.Root.GlobalPosition = standingPosition;
+                    if (stool != null)
+                    {
+                        stool.Position = standingPosition;
+                        stool.Visible = motion == "sit";
+                        if (motion == "sit") human.Root.GlobalPosition += Vector3.Up * human.SitDrop(seatHeight);
+                    }
+                    if (motion != "current") human.Play(motion, 0);
+                    if (integration) for (int settle = 0; settle < 60; settle++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                    foreach (var (distance, angle) in integration
+                        ? motion == "idle" ? new[] { (1f, "front"), (3f, "front"), (8f, "front"), (1f, "side"), (3f, "back-low"), (1f, "feet-low"), (1f, "top") }
+                            : motion == "sit" ? new[] { (1f, "front"), (3f, "front"), (3f, "side") }
+                            : new[] { (1f, "front"), (3f, "front") }
+                        : Main.I.Flag("people2-dress-proof")
                         ? new[] { (1f, "front"), (3f, "front"), (1f, "back-low"), (3f, "back-low"), (1f, "feet-low"), (1f, "top"), (3f, "far-front") }
                         : Main.I.Flag("people2-distance-proof")
                             ? new[] { (8f, "front"), (8f, "back-low"), (1f, "side"), (3f, "side"), (1f, "feet-low") }
                             : new[] { (1f, "front"), (3f, "front"), (1f, "back-low"), (3f, "back-low"), (1f, "top") })
                     {
-                        if (motion != "current") human.Play(motion, 0);
                         foreach (var mesh in World.BakedWorld.All(human.Root).OfType<MeshInstance3D>())
                         {
                             if (mesh.Name.ToString().EndsWith("_lod0", StringComparison.Ordinal)) mesh.Visible = angle != "far-front";
@@ -139,6 +163,13 @@ internal partial class People2Proof : Node
                             : angle == "top" ? new Vector3(0.75f, 2.2f, -0.65f)
                             : new Vector3(distance * 0.8f, 0.35f, distance * 0.6f));
                         var target = at + new Vector3(0, angle == "feet-low" ? 0.2f : angle == "top" ? 1.0f : (angle == "front" || angle == "side") && distance == 1 ? 1.5f : 0.85f, 0);
+                        if (integration && (front || angle == "side"))
+                        {
+                            var skeleton = human.Root.GetNode<Skeleton3D>("Skeleton3D");
+                            var headAt = skeleton.GlobalTransform * skeleton.GetBoneGlobalPose(skeleton.FindBone("head")).Origin;
+                            target.Y = distance == 1 ? headAt.Y + 0.08f : at.Y + (headAt.Y - at.Y) * 0.6f;
+                            from.Y = distance == 1 ? target.Y + 0.05f : at.Y + 1.3f;
+                        }
                         Main.I.Cam.LookAtFromPosition(from, target);
                         if (Main.I.Cam is Player.FlyCam fly) fly.Face(Main.I.Cam.GlobalBasis.GetRotationQuaternion());
                         for (int settle = 0; settle < 12; settle++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
@@ -148,16 +179,18 @@ internal partial class People2Proof : Node
                         if (Math.Abs(daylight.Hour - hour) > 0.02 || daylight.Weather != weather)
                             throw new InvalidOperationException($"Capture {name} has wrong live clock/weather: {daylight.Hour} {daylight.Weather}");
                         if (Main.I.Cam.GlobalPosition.DistanceTo(from) > 0.01f) throw new InvalidOperationException("Capture camera moved: " + name);
-                        pictures.Add(new { name, hour = daylight.Hour, weather = daylight.Weather, daylight.Night, daylight.Rain, distance, angle, motion, phase = human.AnimationState.Cycle, forcedFar = angle == "far-front", x = at.X, y = at.Y, z = at.Z });
+                        pictures.Add(new { name, hour = daylight.Hour, weather = daylight.Weather, daylight.Night, daylight.Rain, distance, angle, motion, clip = human.AnimationState.Clip, phase = human.AnimationState.Cycle, forcedFar = angle == "far-front", x = at.X, y = at.Y, z = at.Z });
                         foreach (var mesh in World.BakedWorld.All(human.Root).OfType<MeshInstance3D>())
                         {
                             if (mesh.Name.ToString().EndsWith("_lod0", StringComparison.Ordinal)) mesh.Visible = true;
                             if (mesh.Name.ToString().EndsWith("_lod1", StringComparison.Ordinal)) mesh.VisibilityRangeBegin = 15;
                         }
                     }
-                    if (Main.I.Flag("people2-distance-proof")) human.Root.GlobalPosition = originalPosition;
+                    }
+                    if (Main.I.Flag("people2-distance-proof") || integration) human.Root.GlobalPosition = originalPosition;
                 }
             }
+            stool?.QueueFree();
             foreach (var human in people) human.Root.Visible = true;
             World.Blobs.I?.Set("people2-proof", shadows);
             File.WriteAllText(Path.Combine(dir, "captures.json"), JsonSerializer.Serialize(new { ok = true, place = "vismarkt", fingerprint = Main.I.WorldFingerprint, pictures }, new JsonSerializerOptions { WriteIndented = true }));

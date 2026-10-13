@@ -73,12 +73,106 @@ red retains the eye highlight. A hidden mesh reference includes the kind in the 
 The current fourteen head pictures retain their authored body/kind assignment; the pending face-type
 schema does not yet replace the existing integration-only `face_id` metadata.
 
-`Human2` samples clips by bone name and blends locomotion at a shared heel phase.
+`Human2` samples clips by bone name and blends locomotion at a shared heel phase; standing, talking and sitting
+play the D2 clips (below).
 `HumanLayers` caches attention, cloth springs and foot stance correction, stopping near
 layers at 15 m. Main's animation snapshots and phase-controlled rider behavior remain.
 `People2Faces.SetFace` resets omitted weights without clamping. Stable resident IDs feed
 FNV-1a identity metadata immediately after spawn, including pooled bodies. Face IDs are
 integration metadata; this port does not invent the pending face-type schema or artwork.
+
+## Idles, talk and sitting (package D2)
+
+`People2Moves` reads `peopleRig.json idles` (docs/people.md "Idles, talk and sitting"). `Humans.Motions` and the
+wire are unchanged: the motion stays the game's word, and `Human2` picks the clip of the body's family locally.
+Every choice comes from the person's stable id (`Human.SetIdentity`, FNV-1a), so every PC shows the same.
+
+- idle: the family's idles; each person has its own (from the id) and changes now and then (after 20-50 s, at
+  the end of a loop, most often back to its own) with a 1 s crossfade; every loop of a family starts and ends in
+  the family's stance, so the feet stay. Each person plays standing and seated clips at its own rate (0.92-1.08).
+- fold, behind, pockets, point: the family's own clip for it (a woman's pockets are hands folded low).
+- talk: speaking (the calm, eager or cross set) and listening alternate at the end of each loop. A talker within
+  3 m who also talks is the partner: a speaker yields at the end of a turn and a listener speaks when the other is
+  quiet, so two never speak at once. The set follows the mood when the game knows it (a reply in Jef's talk:
+  angry or cold cross, warm or amused eager, else calm, for 3 minutes), else the id (half calm, three in ten eager,
+  two in ten cross). A shrug now and then in a calm or cross turn, a laugh now and then while listening to an
+  eager one.
+- sit: `SitDrop(seat)` picks the seated clip by the seat's height (under 0.32 m a step, under 0.43 a crate, else a
+  bench or a chair by the id) and returns `seat - seat(clip) x hips/hips(clip)`: the clip lowers the hips itself. A
+  seat of 0 is a seat at the node's own height (the omnibus, the boats). Near the camera `HumanLayers` puts the feet
+  back on the floor by leg IK for a seat that is not the clip's own height. Sitting down and getting up play when the
+  game changes between a standing motion and sit with a fade (not when it places a figure in its seat). Everyone
+  sits now, women in skirts and aprons too (`Human.CanSit`, `Humans.CanSitKind`); the old people.glb keeps its
+  rule (no women, no long aprons).
+- the old play their own `_old` versions of the old standing clips where they exist.
+- A fade between two standing clips locks the planted feet (`HumanLayers`, released when the node moves or
+  turns). Fades put the shoulder helpers back on their rule near the camera (`People2Shoulders`), and so
+  does code that turns an arm (`LeadLooks.Grip`, the emigrants' wave).
+
+Proof: `& ./native-godot/scripts/check-people2.ps1 -Modes motion -Port <port>` (`--people2-motion <dir>`) puts a
+row of eight people idling, a pair talking, a docker on the game's crate, a woman on a market stool, two people on
+doorsteps (found by the colliders: the houses' 12 cm plinths) and two women on a town bench, and takes them at
+3 m and 6 m at 13:00 and 19:30, with ten pictures 0.25 s apart of an idle, a talk, sitting down and getting up,
+then lets them live 150 s at 30 Hz and records every clip change, the talkers' turns and the stand lock's drift
+(`motion.json`).
+
+Evidence (2026-10-13, 199 clips): `.scratch/people2-native-b955c1da441b4bc7b444c18aa72d5637/` (motion, captures,
+routing, parade, identity, network, all PASS). 64 motion pictures inspected. In 150 s the pair spoke in turn: 0
+frames with both speaking, 8% with both listening (a pause), 12 turns; idles changed every 20-50 s per person;
+planted feet held by the stand lock moved 0.000 mm. Parade foot lock 0.008 mm; routing (14 roots, 16/64 bones,
+faces) and 25 multiplayer checks pass with the new content fingerprint.
+Shader audit: `.scratch/people2-native-5fdc2f50507e4d0184c3632444d6139a/shaders/` (532 samples, one people2
+kind, no new kinds, 29 cache entries throughout, no problems). Timing under other worktrees' load (not exclusive,
+so not the gate): with the D2 moves the people2 animation mean was 0.47/0.38 ms at the Vismarkt/Grote Markt
+against 0.37/0.29 ms with them bypassed in the same conditions (+0.1 ms); all animation 0.86/0.73 ms.
+
+## Work (package D3)
+
+`People2Moves.LoadWork` reads `peopleRig.json work` (docs/people.md "Work"); `Human2` plays the work clips and
+`People2Things` shows what they move. The wire is unchanged: the motion stays the game's word, the clip is chosen
+locally from the motion, the person's stable id, a load and a context every PC works out the same.
+
+- motions: a family's work clips for scrub (a woman sweeps one doorstep in three, from the id), lace, wash, cross,
+  call, smoke, beg, wall, lean, write, grind, row, ride, crouch, hop, rope (the skipping rope), pull (the rope haul),
+  point (pointing the way or up at the spire, from the id); the family's fallback (D3's) where it has none.
+- kinds: the sentry marches and stands with the rifle (`rifle_*`); docker_sack walks and stands with the sack.
+- loads (`Crowd.PuppetLoad`, people2 only): a sack rides the left shoulder (`sack_walk`, `sack_hold`, the one sack
+  model at `loads.sack`); a crate, a box of fish or a keg is the game's node held against the belly (`crate_walk`,
+  `crate_hold`). A sack let go is set down from the shoulder first (`sack_down`) and stays where it was put until the
+  docker takes up the next or for 30 s.
+- contexts: `Human.Work` = `haul_sack` for a docker bending at a sack pile (HaulRoutes: the host's `Townspeople` and
+  the guest's `RemotePose` find it from the routes alone): he lifts the sack onto his shoulder (`sack_lift`, or
+  `_high` when `PileTop` says the pile is at his waist). The host waits for the lift and the set-down
+  (`Human.WorkSeconds`; positions are the host's). `fish_stall`: a fishwife behind a market fish table guts (`gut`)
+  while idle or with folded arms; she stands 0.19 m nearer the table (`NativeMarket.People`).
+- kits (`StreetLife`, `StreetKits`): a people2 scrubber's bucket at her left hand and no brush on the ground (it is in
+  her hand), the washer's bucket before her, a smoker's pipe in his hand (the kit's pipe meshes).
+- things (`People2Things`): the one sack (sized per frame: lying, draped over the shoulder), the quay's cask (turned by
+  the distance walked), the alleys' birch broom, the lively scrubbing brush and the pipe; on a bone or on a track in
+  the node's frame, shown within 60 m. A knife, a book, a rifle, a crank and the oars have no game model and are not
+  drawn.
+- the D3 clips put their own hips where the work needs them: `Human.MotionLift` is 0 for people2. Paced loops (the
+  carries, the cask, the march) play at the walker's pace (two strides a loop) and lock their planted feet as the
+  walks do.
+
+Proof: `& ./native-godot/scripts/check-people2.ps1 -Modes work -Port <port>` (`--people2-work <dir>`) stages on the
+Rijnkaai at the sack pile of haul route rk-m: a docker lifting (the game's context), lifts held at moments, a carrier
+walking with a sack, one standing with it, one setting it down, two passing a sack, a cask rolled, a rope hauled from
+a block, a fishwife at a fish table, a woman sweeping; pictures at 3 m and 6 m at 13:00, in rain and at 19:30, twelve pictures
+0.25 s apart of a lift and of a pass, 60 s of their life at 30 Hz, and 45 s of the town's own hauling dockers live
+(with `--people2-map docker_b=docker_a,docker_c=docker_a,docker_sack=docker_a,fishwife_b=fishwife_a`), with pictures
+of their lifts and set-downs (`work.json`).
+
+Evidence (2026-10-13, 235 clips): `.scratch/people2-native-59590afb765d413cb2eb0b6b26a2466a/` (work with rain, pictures
+inspected; content identity 7 checks and multiplayer 25 checks pass with the new fingerprint) and
+`.scratch/people2-native-9254f7b2a2ed433d96227592ab2f0dfb/work/`;
+the paced loops' planted feet moved 0.002 mm (the sack walk) and 0.004 mm (the cask) under the runtime lock; in 45 s
+eleven town dockers played `sack_lift`, `sack_lift_high`, `sack_walk`, `sack_hold`, `sack_down`, `crate_walk` and
+`crate_hold` from the game's own haul. `.scratch/people2-native-3ad95f007a014193828d2099f90343f5/`: the D2 motion
+proof (0 frames with both talkers speaking, 12 turns), routing and parade pass; the shader audit has one people2 kind,
+29 programs throughout and no problems. Timing under other worktrees' Godot load (not exclusive, not the gate): all
+animation 0.61/0.68 ms at the Vismarkt/Grote Markt, people2 0.30/0.38 ms, layers 0.03/0.06 ms, town update 1.06/1.26
+ms (`.scratch/people2-native-5b0be255907f453e9d202078e972bb01/timing/`).
 
 ## Verification
 
@@ -92,12 +186,12 @@ pwsh -File native-godot/scripts/check-people2.ps1
 The routing fixture verifies the map overrides, all fourteen body/kind roots, the
 16/64-bone off/on switch and the face setter/reset contract.
 
-The runner builds/prepares once, uses ports 8900–8909 (default 8903), disables AI and writes evidence
+The runner builds/prepares once, accepts ports 8800–8999 with `-Port`, disables AI and writes evidence
 under `.scratch/people2-native-*`. Each process has separate saves, settings, layouts
 and static cache, a 420-second timeout and guaranteed shutdown/data cleanup.
-Timing rejects other running Godot engines before and throughout the run. An inert
-failed-launch dialog titled `.NET assemblies not found` has no game loop and is
-excluded explicitly in the isolation receipt. Engine errors,
+Timing rejects every other Godot process before and throughout the run, including failed-launch
+dialogs, and records a `tasklist` receipt before launch. `-WaitForTimingSeconds 3600` allows a one-hour wait.
+Engine errors,
 nonzero exits and failed JSON reports fail the runner.
 
 Captures show docker_a, fishwife_a, police, sooi and the ten base bodies at Vismarkt, at 1 m and 3 m,
@@ -283,3 +377,72 @@ Its 210 PNGs add 8 m fronts/low backs, 1/3 m sides and low feet in all three env
 reviewed through its 21 Photocraft contact sheets. The temporary figures use one clear
 exhibit point and are shown individually; earlier wide-rear cameras inside the building
 were discarded and the capture fixture corrected. Combined accepted art proof: 420 PNGs.
+
+## Integration evidence: animals + D2 motion on layered pictures (2026-10-13)
+
+Branch `art3-integrate` merges art3-animals and art3-motion onto the layered-picture export.
+Animals use the people2 shader with `layered_pictures = false` (their own coat picture, normal
+map and albedo); people keep the Texture2DArrays. people2 was rebuilt once from the merged sources
+(Blender plain glb, 1031 s, 199 clips of which 97 D2, one material) and replaced with
+`replace-people2.ps1`; content fingerprint `0798c577...`.
+
+- Shader audit (exclusive): 130 first-frame kinds before (art3) and after; the only change is the
+  people2 kind's hash (its source gained the animal path), and the animals moved from the generic
+  `qf_solid` kind onto it. 29 programs and cache entries; lights unchanged (1 directional, 121 omni).
+  `.scratch/people2-native-a44c6fcb9418438a8a2997d22a2e43ea/shaders/`, baseline
+  `.scratch/integrate-baseline/shaders.json`.
+- Captures: 588 people2 PNGs (14 kinds/bodies; idle, talk, walk, sitting; 1/3/8 m; 13:00 clear and
+  rain, 19:30), D2 motion (150 s: 12 talk turns, never both speaking, stand lock 0 mm), parade foot
+  lock under 0.008 mm, routing, identity (7), pack (341), network (25) all pass:
+  `.scratch/people2-native-8113126f929a41c795f66def2f6ad6f6/`, `.scratch/people2-native-b3dd30a4600f4cddba497418c563804e/`.
+  Animals: slide, 774 captures (18 kinds at 1/3 m walking, sitting, lying; the dog cart), identity,
+  network pass: `.scratch/animals-native-59b38b4840d140a9b2a55204ccf0d8b9/`.
+- Timing: no exclusive window in 60 minutes (9 runs, each overlapped by other worktrees' engines),
+  so no accepted 1.5 ms result. In those runs people+animals means were 0.71-1.48 ms except one
+  Grote Markt at 1.78 ms, caused by a single 235.8 ms spike in the animals' update (median 0.19 ms);
+  20-35 ms animal-update spikes occur in most runs. Re-run `check-people2.ps1 -Modes timing` alone.
+
+## Integration evidence: D3 work on layered pictures + animals + D2 (2026-10-13)
+
+Branch `art3-integrate2` merges `art3-work` with `--no-ff`. Authoring conflicts retain the layered
+`pictures` export and add D3 `work` metadata; runtime D3 code and the work proof are retained.
+Generated conflicts were resolved by rebuilding every people2 output together. The original layered
+export, people material, shader, animal sources and multiplayer wire remain unchanged.
+
+Blender plain build: 1087 s, 235 clips (97 D2 and 36 D3), 64 bones, one material. Both glbs contain
+every declared clip; the plain intake has no required extension or sparse accessor. Replacement
+preserved 1703 other model files and both manifests' other entries. Native fingerprint: `6ec774fa...`.
+Build and preservation receipts: `.scratch/people2-integrate2-build/inventory.json`,
+`.scratch/people2-replace-55b3476afd244c788618b02707f3256c/replacement.json`.
+
+People proofs: `.scratch/people2-native-dda963720d6747118d18cdb74237cbbd/`.
+Work, motion, captures, integration-captures, dress-captures, distance-captures, routing and parade
+pass; all 1431 pictures were inspected using Photocraft contact sheets and full-size work views.
+Carry/cask stance drift: 0.002/0.004 mm; parade: 0.0078642 mm maximum. D2: 150 s, 12 talk turns,
+never both speaking, standing drift zero. Identity (7), pack (341 over 320 files), network (25) pass.
+
+Animal proofs: `.scratch/animals-native-dac90b14b2994147884deec4b0f053de/`.
+Slide (24 moving cases, maximum stance drift 2.32 mm), 774 captures, identity and network pass.
+All 774 captures and four sun-test pictures were inspected through 27 Photocraft contact sheets.
+Inherited animal follow-ups: faceted haunches/silhouettes and passing residents obscuring some lamp
+views (`captures/lamps-dog_draught_brindle-1m-sit.png`); the animal geometry and capture code are unchanged.
+
+Shader audit: `.scratch/people2-native-957a4d29342e40aebd2f24ebb8d09cc7/shaders/` passes with exactly
+130 first-frame kinds, one people2 kind, 29 programs/cache entries, no problems, and unchanged
+lights (one directional, 121 omni throughout clear/rain/fog). The runner now enforces 130 kinds.
+Exclusive timing: `.scratch/people2-native-afda867edbc84621adfd9201ce4fe591/timing/` passes at
+Vismarkt/Grote Markt: people + animals means 0.849/0.730 ms, town logic means 0.891/1.043 ms;
+198 isolation samples, no other Godot engine. Animal updates still have isolated 42.068/20.554 ms
+maxima; the mean gate is unchanged and passes.
+Legacy timing also passes (0.822/0.524 ms people + animals; 187 isolation samples, zero overlap):
+`.scratch/people2-native-3cba8808a621435696af0c398843979b/legacy-timing/`.
+Animal shader/timing modes also pass: `.scratch/animals-native-ad780eb10b3047a9acc79fd33e23a102/`
+and `.scratch/animals-native-c2e5eed833b34e8d8e69db1954883379/`. Shader inventory is again 130 kinds;
+combined CPU means 0.717/0.485 ms, logic 0.853/0.817 ms, 196 isolation samples without overlap.
+All 14 people2 modes and all six animal modes pass; all 2245 PNGs were inspected. Test data is removed,
+proof logs and pictures remain under `.scratch`, and all engines started by these runs have stopped.
+
+No merge-specific visual defect found. Art follow-ups: coarse faces and pale body-only exhibits,
+police/Sooi waist and vest gaps, fishwife shawl edges, flattened broom bristles, missing gutting knife
+(no native model), and dim work views away from lamps. See `work/day-gut-3m.png`,
+`work/day-sweep-3m.png`, `captures/day-police-1m.png`, and the work lift/pass sequences.

@@ -27,7 +27,7 @@ internal sealed class HumanLayers
     private readonly Quaternion[] footRotations = new Quaternion[2];
     private readonly bool[] supports = new bool[2];
     private readonly int hipBone;
-    private Vector3 lastPosition;
+    private Vector3 lastPosition, lastForward;
     private Vector2 look;
     private bool hadPosition;
     public HumanLayers(Node3D root, Skeleton3D sk)
@@ -111,13 +111,19 @@ internal sealed class HumanLayers
         }
     }
     public void ReleaseFeet() { activeContact[0] = activeContact[1] = -1; Array.Clear(contactDown); }
-    public void Update(float dt, bool walk, float phase, float duty)
+    /// <param name="standLock">Hold the planted feet while one standing clip fades into another (D2).</param>
+    /// <param name="sitFeet">Seated: how far the node was raised (+) or lowered (-) from the clip's own seat
+    /// height; the feet go back to the floor by leg IK.</param>
+    public void Update(float dt, bool walk, float phase, float duty, bool standLock = false, float sitFeet = 0)
     {
         using var timing = Dev.PeopleTiming.Layers();
         Vector3 position = root.GlobalPosition;
         float distance = position.DistanceSquaredTo(Main.I.Cam.GlobalPosition);
         Vector3 velocity = hadPosition ? (position - lastPosition) / Math.Max(dt, 0.001f) : Vector3.Zero;
-        lastPosition = position; hadPosition = true;
+        Vector3 forward = root.GlobalBasis.Z;
+        // a node that moves or turns takes its feet with it: no stance lock across it
+        if (standLock && hadPosition && ((position - lastPosition).LengthSquared() > 0.000009f || forward.Dot(lastForward) < 0.99996f)) ReleaseFeet();
+        lastPosition = position; lastForward = forward; hadPosition = true;
         if (distance >= 225) { look = Vector2.Zero; ReleaseFeet(); return; }
         Vector3 target = root.GlobalTransform.AffineInverse() * Main.I.Cam.GlobalPosition;
         Vector2 want = Vector2.Zero;
@@ -146,7 +152,9 @@ internal sealed class HumanLayers
             }
             sk.SetBonePoseRotation(springs[i], sk.GetBonePoseRotation(springs[i]) * new Quaternion(Vector3.Right, springAngle[i]));
         }
-        if (!walk) { ReleaseFeet(); return; }
+        if (sitFeet != 0) SitFeet(sitFeet);
+        if (!walk && !standLock) { ReleaseFeet(); return; }
+        if (!walk) duty = 2; // standing: both feet stand all the time
         float pelvisDrop = 0;
         for (int i = 0; i < 2; i++)
         {
@@ -200,6 +208,22 @@ internal sealed class HumanLayers
             Vector3 supported = sk.GlobalTransform * (sk.GetBoneGlobalPose(selectedBone) * contacts[selected]);
             Vector3 drift = supported - contactAnchors[selected]; drift.Y = 0;
             MaxSlide = Math.Max(MaxSlide, drift.Length()); ContactSamples++;
+        }
+    }
+
+    private void SitFeet(float raised)
+    {
+        float scale = sk.GlobalTransform.Basis.Y.Length();
+        if (scale < 1e-4f) return;
+        Vector3 down = new Vector3(0, raised / scale, 0);
+        for (int i = 0; i < 2; i++)
+        {
+            if (foot[i] < 0) continue;
+            var pose = sk.GetBoneGlobalPose(foot[i]);
+            Quaternion keep = pose.Basis.GetRotationQuaternion();
+            Reach(up[i], low[i], foot[i], pose.Origin - down);
+            int parent = sk.GetBoneParent(foot[i]);
+            sk.SetBonePoseRotation(foot[i], sk.GetBoneGlobalPose(parent).Basis.GetRotationQuaternion().Inverse() * keep);
         }
     }
 

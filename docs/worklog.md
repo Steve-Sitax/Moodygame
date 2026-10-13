@@ -1,5 +1,21 @@
 # Work log
 
+## People and animals in high detail, 2026-10-13 (art3, in progress)
+
+- In art3 now: clothes pass 2 (#83 met), layered pictures (Texture2DArrays, 85 MB), the animals round 1 (dogs, cats, pigs;
+  they share the people2 shader kind), D2 idles/talk/sitting (97 clips), D3 work motions (36 clips: sack lift and carry,
+  passing, cask, rope, winch, gutting, sweeping). 130 shader kinds before and after; exclusive timing people+animals
+  0.849 ms Vismarkt, 0.730 ms Grote Markt (gate 1.5 ms).
+- Steve's decisions: rebuild bodies and faces on MakeHuman's CC0 core assets with live sliders (also for the character
+  creator later), use the MakeHuman tools (MPFB, MakeClothes, MakeTarget; `docs/makehuman.md`), CC0 assets allowed
+  (`docs/cc0-assets.md` on main). In progress: art3-mh, art3-animals2 (animal round 2 and the spawn stutter).
+- Issues from this work: [#128](https://github.com/Steve-Sitax/Moodygame/issues/128) cranks never turn,
+  [#129](https://github.com/Steve-Sitax/Moodygame/issues/129) grinder and fish table distances,
+  [#130](https://github.com/Steve-Sitax/Moodygame/issues/130) sack piles and stencils,
+  [#131](https://github.com/Steve-Sitax/Moodygame/issues/131) missing held items,
+  [#132](https://github.com/Steve-Sitax/Moodygame/issues/132) no cask job or sweeper,
+  [#91](https://github.com/Steve-Sitax/Moodygame/issues/91) setts smear from low down.
+
 ## People2 on native Godot, 2026-10-13 (art3, opt-in)
 
 - Moved the unchanged art kit/masters to `art-source`; Blender rebuild 567 s. Dense plain intake adds people2 only, preserving all 34 existing scenes.
