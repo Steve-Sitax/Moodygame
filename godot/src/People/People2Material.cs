@@ -220,6 +220,7 @@ internal static class People2Material
         }
         foreach (var child in scene.GetChildren()) if (child is Node3D root)
         {
+            foreach (var node in BakedWorld.All(root)) node.Owner = null;
             scene.RemoveChild(root); model.Scene.AddChild(root);
             model.Roots[root.Name] = root; Assign(root, root.Name);
         }

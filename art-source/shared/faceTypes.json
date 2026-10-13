@@ -77,9 +77,69 @@
    "desc": "short wide skull, wide low face, square jaw, blunt chin, short broad nose with a round tip, small deep-set eyes, thick neck",
    "origin": "flemish",
    "sliders": {
+    "chin_tall": [
+     -0.203,
+     0.15
+    ],
+    "nose_wide": [
+     0.54,
+     0.268
+    ],
+    "nostrils_wide": [
+     0.405,
+     0.216
+    ],
+    "brow_ridge": [
+     0.608,
+     0.295
+    ],
+    "face_square": [
+     0.54,
+     0.173
+    ],
     "skull_long": [
      -0.689,
      0.282
+    ],
+    "cheekbones": [
+     0.243,
+     0.295
+    ],
+    "chin_wide": [
+     0.486,
+     0.164
+    ],
+    "forehead_back": [
+     0.101,
+     0.142
+    ],
+    "face_round": [
+     0.405,
+     0.216
+    ],
+    "neck_thick": [
+     0.054,
+     0.2
+    ],
+    "cheeks_full": [
+     0.068,
+     0.233
+    ],
+    "eyes_hooded": [
+     0.338,
+     0.192
+    ],
+    "eyes_big": [
+     -0.472,
+     0.242
+    ],
+    "head_tall": [
+     -0.223,
+     0.204
+    ],
+    "nose_out": [
+     -0.162,
+     0.242
     ],
     "brow_high": [
      -0.27,
@@ -93,81 +153,21 @@
      0.236,
      0.159
     ],
-    "eyes_open": [
-     -0.338,
-     0.192
-    ],
-    "eyes_hooded": [
-     0.338,
-     0.192
-    ],
     "face_fat": [
      0.108,
      0.342
-    ],
-    "brow_ridge": [
-     0.608,
-     0.295
-    ],
-    "cheeks_full": [
-     0.068,
-     0.233
-    ],
-    "eyes_big": [
-     -0.472,
-     0.242
-    ],
-    "forehead_back": [
-     0.101,
-     0.142
-    ],
-    "head_wide": [
-     0.243,
-     0.15
-    ],
-    "nose_wide": [
-     0.54,
-     0.268
-    ],
-    "neck_thick": [
-     0.054,
-     0.2
     ],
     "jaw_wide": [
      0.864,
      0.233
     ],
-    "head_tall": [
-     -0.223,
-     0.204
+    "eyes_open": [
+     -0.338,
+     0.192
     ],
-    "chin_tall": [
-     -0.203,
-     0.15
-    ],
-    "nose_out": [
-     -0.162,
-     0.242
-    ],
-    "face_square": [
-     0.54,
-     0.173
-    ],
-    "cheekbones": [
+    "head_wide": [
      0.243,
-     0.295
-    ],
-    "chin_wide": [
-     0.486,
-     0.164
-    ],
-    "face_round": [
-     0.405,
-     0.216
-    ],
-    "nostrils_wide": [
-     0.405,
-     0.216
+     0.15
     ]
    },
    "cells": [
@@ -224,77 +224,37 @@
    "desc": "round skull, jowls that hide the jaw, a double chin, a small bulbous nose, puffy lids, a full lower lip",
    "origin": "flemish",
    "sliders": {
-    "skull_long": [
-     -0.574,
-     0.282
-    ],
-    "nose_long": [
-     -0.081,
-     0.216
-    ],
-    "chin_out": [
-     -0.365,
-     0.295
-    ],
-    "nose_bulb": [
-     0.236,
-     0.159
-    ],
-    "eyes_open": [
-     -0.405,
-     0.173
-    ],
-    "eyes_hooded": [
-     0.405,
-     0.173
-    ],
-    "face_fat": [
-     0.95,
-     0.17
-    ],
-    "double_chin": [
-     0.81,
-     0.277
-    ],
-    "cheeks_full": [
-     0.608,
-     0.142
-    ],
-    "eyes_big": [
-     -0.567,
-     0.212
-    ],
-    "head_wide": [
-     0.203,
+    "chin_tall": [
+     -0.121,
      0.15
     ],
     "nose_wide": [
      0.54,
      0.268
     ],
-    "neck_thick": [
-     0.486,
-     0.134
-    ],
-    "jaw_wide": [
-     0.324,
-     0.268
-    ],
-    "chin_tall": [
-     -0.121,
-     0.15
-    ],
-    "nose_out": [
-     -0.081,
+    "nostrils_wide": [
+     0.405,
      0.216
+    ],
+    "mouth_wide": [
+     0.169,
+     0.142
+    ],
+    "eye_bags": [
+     0.675,
+     0.277
+    ],
+    "double_chin": [
+     0.81,
+     0.277
     ],
     "face_square": [
      0.203,
      0.192
     ],
-    "eye_bags": [
-     0.675,
-     0.277
+    "skull_long": [
+     -0.574,
+     0.282
     ],
     "cheekbones": [
      -0.608,
@@ -304,21 +264,61 @@
      0.182,
      0.181
     ],
-    "lips_full": [
-     0.608,
-     0.295
-    ],
-    "mouth_wide": [
-     0.169,
-     0.142
-    ],
     "face_round": [
      0.243,
      0.216
     ],
-    "nostrils_wide": [
+    "neck_thick": [
+     0.486,
+     0.134
+    ],
+    "cheeks_full": [
+     0.608,
+     0.142
+    ],
+    "eyes_hooded": [
      0.405,
+     0.173
+    ],
+    "eyes_big": [
+     -0.567,
+     0.212
+    ],
+    "nose_out": [
+     -0.081,
      0.216
+    ],
+    "nose_long": [
+     -0.081,
+     0.216
+    ],
+    "nose_bulb": [
+     0.236,
+     0.159
+    ],
+    "lips_full": [
+     0.608,
+     0.295
+    ],
+    "face_fat": [
+     0.95,
+     0.17
+    ],
+    "jaw_wide": [
+     0.324,
+     0.268
+    ],
+    "chin_out": [
+     -0.365,
+     0.295
+    ],
+    "eyes_open": [
+     -0.405,
+     0.173
+    ],
+    "head_wide": [
+     0.203,
+     0.15
     ]
    },
    "cells": [
@@ -368,81 +368,33 @@
    "desc": "oval face, narrow jaw, strong chin, high cheekbones, a heavy straight brow, a high bridge, thin lips",
    "origin": "walloon",
    "sliders": {
-    "skull_long": [
-     0.23,
-     0.282
-    ],
-    "brow_high": [
-     -0.324,
-     0.17
-    ],
-    "nose_long": [
-     0.324,
-     0.216
-    ],
-    "nose_tip_down": [
-     0.081,
-     0.17
-    ],
-    "chin_out": [
-     0.729,
-     0.295
-    ],
-    "nose_bulb": [
-     -0.142,
-     0.159
-    ],
-    "nose_hump": [
-     0.135,
-     0.233
-    ],
-    "nose_hook": [
-     0.216,
-     0.342
-    ],
-    "face_fat": [
-     -0.432,
-     0.268
-    ],
-    "brow_ridge": [
-     0.729,
-     0.295
-    ],
-    "cheeks_full": [
-     -0.27,
+    "chin_tall": [
+     0.203,
      0.192
-    ],
-    "head_wide": [
-     -0.162,
-     0.162
     ],
     "nose_wide": [
      -0.324,
      0.268
     ],
-    "face_oval": [
-     0.243,
+    "nostrils_wide": [
+     -0.243,
      0.216
     ],
-    "neck_thick": [
-     -0.216,
-     0.17
+    "brow_ridge": [
+     0.729,
+     0.295
     ],
-    "jaw_wide": [
-     -0.432,
-     0.268
-    ],
-    "chin_tall": [
-     0.203,
-     0.192
-    ],
-    "nose_out": [
-     0.324,
-     0.216
+    "mouth_wide": [
+     -0.169,
+     0.142
     ],
     "face_square": [
      -0.27,
      0.192
+    ],
+    "skull_long": [
+     0.23,
+     0.282
     ],
     "cheekbones": [
      0.729,
@@ -452,17 +404,65 @@
      -0.243,
      0.181
     ],
+    "neck_thick": [
+     -0.216,
+     0.17
+    ],
+    "cheeks_full": [
+     -0.27,
+     0.192
+    ],
+    "nose_hook": [
+     0.216,
+     0.342
+    ],
+    "nose_hump": [
+     0.135,
+     0.233
+    ],
+    "nose_out": [
+     0.324,
+     0.216
+    ],
+    "brow_high": [
+     -0.324,
+     0.17
+    ],
+    "nose_tip_down": [
+     0.081,
+     0.17
+    ],
+    "nose_long": [
+     0.324,
+     0.216
+    ],
     "lips_full": [
      -0.608,
      0.295
     ],
-    "mouth_wide": [
-     -0.169,
-     0.142
+    "nose_bulb": [
+     -0.142,
+     0.159
     ],
-    "nostrils_wide": [
-     -0.243,
+    "face_fat": [
+     -0.432,
+     0.268
+    ],
+    "jaw_wide": [
+     -0.432,
+     0.268
+    ],
+    "chin_out": [
+     0.729,
+     0.295
+    ],
+    "face_oval": [
+     0.243,
      0.216
+    ],
+    "head_wide": [
+     -0.162,
+     0.162
     ]
    },
    "cells": [
@@ -500,6 +500,22 @@
    "desc": "long high skull, a long face and upper lip, a long narrow nose, flat cheeks, hooded eyes, big ears",
    "origin": "dutch",
    "sliders": {
+    "chin_tall": [
+     0.472,
+     0.156
+    ],
+    "nose_wide": [
+     -0.54,
+     0.268
+    ],
+    "nostrils_wide": [
+     -0.405,
+     0.216
+    ],
+    "brow_ridge": [
+     0.365,
+     0.295
+    ],
     "ears_out": [
      0.648,
      0.268
@@ -507,6 +523,42 @@
     "skull_long": [
      0.689,
      0.282
+    ],
+    "cheekbones": [
+     -0.608,
+     0.295
+    ],
+    "ears_big": [
+     0.324,
+     0.17
+    ],
+    "forehead_back": [
+     -0.169,
+     0.142
+    ],
+    "neck_thick": [
+     -0.108,
+     0.17
+    ],
+    "cheeks_full": [
+     -0.135,
+     0.192
+    ],
+    "eyes_hooded": [
+     0.27,
+     0.192
+    ],
+    "eyes_big": [
+     -0.378,
+     0.242
+    ],
+    "head_tall": [
+     0.371,
+     0.204
+    ],
+    "nose_out": [
+     0.405,
+     0.216
     ],
     "brow_high": [
      -0.162,
@@ -516,81 +568,29 @@
      0.736,
      0.233
     ],
-    "nostrils_wide": [
-     -0.405,
-     0.216
-    ],
     "nose_bulb": [
      -0.236,
      0.159
+    ],
+    "face_fat": [
+     -0.216,
+     0.268
     ],
     "eyes_open": [
      -0.27,
      0.192
     ],
-    "eyes_hooded": [
-     0.27,
-     0.192
-    ],
-    "ears_big": [
-     0.324,
+    "face_oval": [
+     0.567,
      0.17
-    ],
-    "brow_ridge": [
-     0.365,
-     0.295
-    ],
-    "cheeks_full": [
-     -0.135,
-     0.192
-    ],
-    "eyes_big": [
-     -0.378,
-     0.242
-    ],
-    "forehead_back": [
-     -0.169,
-     0.142
     ],
     "head_wide": [
      -0.432,
      0.155
     ],
-    "nose_wide": [
-     -0.54,
-     0.268
-    ],
-    "face_oval": [
-     0.567,
-     0.17
-    ],
-    "neck_thick": [
-     -0.108,
-     0.17
-    ],
-    "head_tall": [
-     0.371,
-     0.204
-    ],
-    "chin_tall": [
-     0.472,
-     0.156
-    ],
-    "nose_out": [
-     0.405,
-     0.216
-    ],
     "eyes_high": [
      0.331,
      0.149
-    ],
-    "cheekbones": [
-     -0.608,
-     0.295
-    ],
-    "face_fat": [
-     -0.216,
-     0.268
     ]
    },
    "cells": [
@@ -626,6 +626,26 @@
    "desc": "long narrow skull, a tall face, a high straight nose, the chin forward, deep-set eyes, ears that stand out",
    "origin": "scandinavian",
    "sliders": {
+    "chin_tall": [
+     0.405,
+     0.173
+    ],
+    "nose_wide": [
+     -0.54,
+     0.268
+    ],
+    "nostrils_wide": [
+     -0.405,
+     0.216
+    ],
+    "brow_ridge": [
+     0.608,
+     0.295
+    ],
+    "face_square": [
+     0.135,
+     0.192
+    ],
     "ears_out": [
      0.648,
      0.268
@@ -634,93 +654,73 @@
      0.803,
      0.244
     ],
-    "brow_high": [
-     -0.27,
-     0.17
-    ],
-    "nose_long": [
-     0.405,
-     0.216
-    ],
-    "nose_tip_down": [
-     -0.081,
-     0.15
-    ],
-    "chin_out": [
-     0.729,
+    "cheekbones": [
+     0.486,
      0.295
-    ],
-    "nose_bulb": [
-     -0.236,
-     0.159
-    ],
-    "eyes_open": [
-     -0.203,
-     0.192
-    ],
-    "eyes_hooded": [
-     0.203,
-     0.192
-    ],
-    "nose_hump": [
-     -0.135,
-     0.192
     ],
     "ears_big": [
      0.324,
      0.17
     ],
+    "chin_wide": [
+     0.122,
+     0.181
+    ],
+    "eyes_hooded": [
+     0.203,
+     0.192
+    ],
     "nose_hook": [
      -0.216,
      0.268
     ],
-    "brow_ridge": [
-     0.608,
-     0.295
+    "nose_hump": [
+     -0.135,
+     0.192
     ],
     "eyes_big": [
      -0.284,
      0.242
     ],
-    "head_wide": [
-     -0.445,
+    "nose_out": [
+     0.405,
+     0.216
+    ],
+    "brow_high": [
+     -0.27,
+     0.17
+    ],
+    "nose_tip_down": [
+     -0.081,
      0.15
     ],
-    "nose_wide": [
-     -0.54,
-     0.268
+    "nose_long": [
+     0.405,
+     0.216
     ],
-    "face_oval": [
-     0.486,
-     0.192
+    "nose_bulb": [
+     -0.236,
+     0.159
     ],
     "jaw_wide": [
      0.216,
      0.268
     ],
-    "chin_tall": [
-     0.405,
-     0.173
-    ],
-    "nose_out": [
-     0.405,
-     0.216
-    ],
-    "face_square": [
-     0.135,
-     0.192
-    ],
-    "cheekbones": [
-     0.486,
+    "chin_out": [
+     0.729,
      0.295
     ],
-    "chin_wide": [
-     0.122,
-     0.181
+    "eyes_open": [
+     -0.203,
+     0.192
     ],
-    "nostrils_wide": [
-     -0.405,
-     0.216
+    "face_oval": [
+     0.486,
+     0.192
+    ],
+    "head_wide": [
+     -0.445,
+     0.15
     ]
    },
    "cells": [
@@ -758,69 +758,25 @@
    "desc": "a very round skull with a flat back, a broad face, a short nose with a low root, wide-set eyes, a small chin",
    "origin": "german",
    "sliders": {
-    "skull_long": [
-     -0.95,
-     0.147
-    ],
-    "nose_long": [
-     -0.405,
-     0.216
-    ],
-    "nostrils_wide": [
-     0.162,
-     0.216
-    ],
-    "chin_out": [
-     -0.608,
-     0.295
-    ],
-    "eyes_apart": [
-     0.648,
-     0.268
-    ],
-    "nose_bulb": [
-     0.095,
-     0.159
-    ],
-    "cheeks_full": [
-     0.135,
-     0.233
-    ],
-    "forehead_back": [
-     -0.101,
-     0.142
-    ],
-    "head_wide": [
-     0.365,
-     0.124
+    "chin_tall": [
+     -0.121,
+     0.15
     ],
     "nose_wide": [
      0.216,
      0.268
     ],
-    "neck_thick": [
-     0.108,
-     0.2
-    ],
-    "jaw_wide": [
-     0.324,
-     0.268
-    ],
-    "head_tall": [
-     0.223,
-     0.204
-    ],
-    "chin_tall": [
-     -0.121,
-     0.15
-    ],
-    "nose_out": [
-     -0.405,
+    "nostrils_wide": [
+     0.162,
      0.216
     ],
     "face_square": [
      0.203,
      0.192
+    ],
+    "skull_long": [
+     -0.95,
+     0.147
     ],
     "cheekbones": [
      0.365,
@@ -830,13 +786,57 @@
      0.182,
      0.181
     ],
+    "forehead_back": [
+     -0.101,
+     0.142
+    ],
     "face_round": [
      0.243,
      0.216
     ],
+    "neck_thick": [
+     0.108,
+     0.2
+    ],
+    "cheeks_full": [
+     0.135,
+     0.233
+    ],
+    "eyes_apart": [
+     0.648,
+     0.268
+    ],
+    "head_tall": [
+     0.223,
+     0.204
+    ],
+    "nose_out": [
+     -0.405,
+     0.216
+    ],
+    "nose_long": [
+     -0.405,
+     0.216
+    ],
+    "nose_bulb": [
+     0.095,
+     0.159
+    ],
     "face_fat": [
      0.216,
      0.342
+    ],
+    "jaw_wide": [
+     0.324,
+     0.268
+    ],
+    "chin_out": [
+     -0.608,
+     0.295
+    ],
+    "head_wide": [
+     0.365,
+     0.124
     ]
    },
    "cells": [
@@ -873,6 +873,18 @@
    "desc": "a square face, a cleft chin, a snub nose, a wide mouth, big ears, ruddy and freckled",
    "origin": "british",
    "sliders": {
+    "chin_tall": [
+     -0.081,
+     0.15
+    ],
+    "mouth_wide": [
+     0.743,
+     0.287
+    ],
+    "face_square": [
+     0.472,
+     0.173
+    ],
     "ears_out": [
      0.756,
      0.233
@@ -881,13 +893,53 @@
      0.115,
      0.282
     ],
-    "nose_long": [
+    "ears_big": [
+     0.378,
+     0.156
+    ],
+    "chin_wide": [
+     0.425,
+     0.164
+    ],
+    "face_round": [
+     0.162,
+     0.216
+    ],
+    "eyes_hooded": [
+     0.135,
+     0.192
+    ],
+    "nose_hook": [
+     -0.648,
+     0.268
+    ],
+    "nose_hump": [
+     -0.405,
+     0.192
+    ],
+    "eyes_big": [
+     -0.189,
+     0.242
+    ],
+    "nose_out": [
      -0.405,
      0.216
     ],
     "nose_tip_down": [
      -0.243,
      0.15
+    ],
+    "nose_long": [
+     -0.405,
+     0.216
+    ],
+    "lips_full": [
+     0.243,
+     0.295
+    ],
+    "jaw_wide": [
+     0.756,
+     0.233
     ],
     "chin_out": [
      0.365,
@@ -897,61 +949,9 @@
      -0.135,
      0.192
     ],
-    "eyes_hooded": [
-     0.135,
-     0.192
-    ],
-    "nose_hump": [
-     -0.405,
-     0.192
-    ],
-    "ears_big": [
-     0.378,
-     0.156
-    ],
-    "nose_hook": [
-     -0.648,
-     0.268
-    ],
-    "eyes_big": [
-     -0.189,
-     0.242
-    ],
     "head_wide": [
      -0.041,
      0.15
-    ],
-    "jaw_wide": [
-     0.756,
-     0.233
-    ],
-    "chin_tall": [
-     -0.081,
-     0.15
-    ],
-    "nose_out": [
-     -0.405,
-     0.216
-    ],
-    "face_square": [
-     0.472,
-     0.173
-    ],
-    "chin_wide": [
-     0.425,
-     0.164
-    ],
-    "lips_full": [
-     0.243,
-     0.295
-    ],
-    "mouth_wide": [
-     0.743,
-     0.287
-    ],
-    "face_round": [
-     0.162,
-     0.216
     ]
    },
    "cells": [
@@ -993,21 +993,69 @@
    "desc": "an oval face, a hooked nose with a high bridge, a heavy brow, large eyes, full lips, olive skin",
    "origin": "southern",
    "sliders": {
+    "chin_tall": [
+     0.135,
+     0.192
+    ],
+    "nose_wide": [
+     0.0,
+     0.268
+    ],
+    "nostrils_wide": [
+     0.0,
+     0.216
+    ],
+    "brow_ridge": [
+     0.729,
+     0.295
+    ],
+    "mouth_wide": [
+     0.203,
+     0.142
+    ],
     "skull_long": [
      0.23,
      0.282
+    ],
+    "cheekbones": [
+     0.243,
+     0.295
+    ],
+    "eyes_hooded": [
+     -0.405,
+     0.192
+    ],
+    "nose_hook": [
+     0.756,
+     0.233
+    ],
+    "nose_hump": [
+     0.472,
+     0.173
+    ],
+    "eyes_big": [
+     0.567,
+     0.242
+    ],
+    "nose_out": [
+     0.486,
+     0.192
     ],
     "brow_high": [
      -0.324,
      0.17
     ],
+    "nose_tip_down": [
+     0.284,
+     0.142
+    ],
     "nose_long": [
      0.486,
      0.192
     ],
-    "nose_tip_down": [
-     0.284,
-     0.142
+    "lips_full": [
+     0.729,
+     0.295
     ],
     "nose_bulb": [
      0.0,
@@ -1017,61 +1065,13 @@
      0.405,
      0.192
     ],
-    "eyes_hooded": [
-     -0.405,
-     0.192
-    ],
-    "nose_hump": [
-     0.472,
-     0.173
-    ],
-    "nose_hook": [
-     0.756,
-     0.233
-    ],
-    "brow_ridge": [
-     0.729,
-     0.295
-    ],
-    "eyes_big": [
-     0.567,
-     0.242
-    ],
-    "head_wide": [
-     -0.135,
-     0.162
-    ],
-    "nose_wide": [
-     0.0,
-     0.268
-    ],
     "face_oval": [
      0.162,
      0.216
     ],
-    "chin_tall": [
-     0.135,
-     0.192
-    ],
-    "nose_out": [
-     0.486,
-     0.192
-    ],
-    "cheekbones": [
-     0.243,
-     0.295
-    ],
-    "lips_full": [
-     0.729,
-     0.295
-    ],
-    "mouth_wide": [
-     0.203,
-     0.142
-    ],
-    "nostrils_wide": [
-     0.0,
-     0.216
+    "head_wide": [
+     -0.135,
+     0.162
     ]
    },
    "cells": [
@@ -1106,89 +1106,29 @@
    "desc": "a long narrow face, a long high nose, prominent cheekbones, deep-set eyes, brown skin",
    "origin": "levantine",
    "sliders": {
-    "skull_long": [
-     0.459,
-     0.282
-    ],
-    "brow_high": [
-     -0.27,
-     0.17
-    ],
-    "nose_long": [
-     0.567,
-     0.192
-    ],
-    "nostrils_wide": [
-     -0.243,
-     0.216
-    ],
-    "nose_tip_down": [
-     0.203,
-     0.15
-    ],
-    "nose_bulb": [
-     -0.142,
-     0.159
-    ],
-    "eyes_open": [
-     0.068,
-     0.192
-    ],
-    "eyes_hooded": [
-     -0.068,
-     0.192
-    ],
-    "nose_hump": [
-     0.338,
-     0.192
-    ],
-    "nose_hook": [
-     0.54,
-     0.268
-    ],
-    "brow_ridge": [
-     0.608,
-     0.295
-    ],
-    "cheeks_full": [
-     -0.338,
-     0.192
-    ],
-    "eyes_big": [
-     0.095,
-     0.242
-    ],
-    "head_wide": [
-     -0.351,
-     0.158
+    "chin_tall": [
+     0.472,
+     0.173
     ],
     "nose_wide": [
      -0.324,
      0.268
     ],
-    "face_oval": [
-     0.567,
-     0.192
+    "nostrils_wide": [
+     -0.243,
+     0.216
     ],
-    "neck_thick": [
-     -0.27,
-     0.17
-    ],
-    "jaw_wide": [
-     -0.432,
-     0.268
-    ],
-    "chin_tall": [
-     0.472,
-     0.173
-    ],
-    "nose_out": [
-     0.567,
-     0.192
+    "brow_ridge": [
+     0.608,
+     0.295
     ],
     "face_square": [
      -0.27,
      0.192
+    ],
+    "skull_long": [
+     0.459,
+     0.282
     ],
     "cheekbones": [
      0.851,
@@ -1198,9 +1138,69 @@
      -0.243,
      0.181
     ],
+    "neck_thick": [
+     -0.27,
+     0.17
+    ],
+    "cheeks_full": [
+     -0.338,
+     0.192
+    ],
+    "eyes_hooded": [
+     -0.068,
+     0.192
+    ],
+    "nose_hook": [
+     0.54,
+     0.268
+    ],
+    "nose_hump": [
+     0.338,
+     0.192
+    ],
+    "eyes_big": [
+     0.095,
+     0.242
+    ],
+    "nose_out": [
+     0.567,
+     0.192
+    ],
+    "brow_high": [
+     -0.27,
+     0.17
+    ],
+    "nose_tip_down": [
+     0.203,
+     0.15
+    ],
+    "nose_long": [
+     0.567,
+     0.192
+    ],
+    "nose_bulb": [
+     -0.142,
+     0.159
+    ],
     "face_fat": [
      -0.54,
      0.268
+    ],
+    "jaw_wide": [
+     -0.432,
+     0.268
+    ],
+    "eyes_open": [
+     0.068,
+     0.192
+    ],
+    "face_oval": [
+     0.567,
+     0.192
+    ],
+    "head_wide": [
+     -0.351,
+     0.158
     ]
    },
    "cells": [
@@ -1232,44 +1232,68 @@
    "desc": "a rounded forehead, a broad nose with a low bridge, wide full lips, a strong jaw, dark skin",
    "origin": "african",
    "sliders": {
-    "brow_ridge": [
-     -0.243,
-     0.295
+    "nose_wide": [
+     0.648,
+     0.2
     ],
-    "origin_african": [
-     0.95,
-     0.17
-    ],
-    "eyes_big": [
-     0.284,
-     0.242
-    ],
-    "brow_high": [
-     0.108,
+    "nostrils_wide": [
+     0.486,
      0.17
     ],
     "forehead_back": [
      -0.101,
      0.142
     ],
-    "nose_wide": [
-     0.648,
-     0.2
+    "origin_african": [
+     0.95,
+     0.17
     ],
-    "jaw_wide": [
-     0.432,
-     0.268
+    "brow_ridge": [
+     -0.243,
+     0.295
+    ],
+    "mouth_wide": [
+     0.169,
+     0.13
+    ],
+    "eyes_hooded": [
+     -0.203,
+     0.192
+    ],
+    "face_square": [
+     0.27,
+     0.192
+    ],
+    "eyes_big": [
+     0.284,
+     0.242
     ],
     "head_tall": [
      0.223,
      0.204
     ],
+    "brow_high": [
+     0.108,
+     0.17
+    ],
+    "lips_full": [
+     0.608,
+     0.216
+    ],
+    "nose_bulb": [
+     0.284,
+     0.139
+    ],
+    "jaw_wide": [
+     0.432,
+     0.268
+    ],
     "chin_out": [
      0.243,
      0.295
     ],
-    "face_square": [
-     0.27,
+    "eyes_open": [
+     0.203,
      0.192
     ],
     "cheekbones": [
@@ -1279,30 +1303,6 @@
     "chin_wide": [
      0.243,
      0.181
-    ],
-    "nose_bulb": [
-     0.284,
-     0.139
-    ],
-    "eyes_open": [
-     0.203,
-     0.192
-    ],
-    "eyes_hooded": [
-     -0.203,
-     0.192
-    ],
-    "lips_full": [
-     0.608,
-     0.216
-    ],
-    "mouth_wide": [
-     0.169,
-     0.13
-    ],
-    "nostrils_wide": [
-     0.486,
-     0.17
     ]
    },
    "cells": [
@@ -1332,17 +1332,33 @@
    "desc": "a round skull, a flat broad midface, a low nose root, a lid fold over a narrow opening, a shallow brow",
    "origin": "chinese",
    "sliders": {
+    "chin_tall": [
+     -0.081,
+     0.15
+    ],
+    "face_round": [
+     0.162,
+     0.216
+    ],
     "brow_ridge": [
      -0.729,
      0.216
     ],
-    "skull_long": [
-     -0.689,
-     0.282
+    "origin_asian": [
+     0.95,
+     0.17
+    ],
+    "eyes_hooded": [
+     0.338,
+     0.156
     ],
     "eyes_big": [
      -0.472,
      0.184
+    ],
+    "nose_out": [
+     -0.405,
+     0.17
     ],
     "brow_high": [
      0.324,
@@ -1352,41 +1368,25 @@
      -0.405,
      0.17
     ],
-    "head_wide": [
-     0.243,
-     0.15
-    ],
-    "origin_asian": [
-     0.95,
-     0.17
-    ],
-    "chin_tall": [
-     -0.081,
-     0.15
-    ],
-    "nose_out": [
-     -0.405,
-     0.17
-    ],
-    "cheekbones": [
-     0.608,
-     0.255
-    ],
     "eye_fold": [
      0.81,
      0.233
+    ],
+    "skull_long": [
+     -0.689,
+     0.282
     ],
     "eyes_open": [
      -0.338,
      0.156
     ],
-    "eyes_hooded": [
-     0.338,
-     0.156
+    "head_wide": [
+     0.243,
+     0.15
     ],
-    "face_round": [
-     0.162,
-     0.216
+    "cheekbones": [
+     0.608,
+     0.255
     ]
    },
    "cells": [
@@ -1416,9 +1416,69 @@
    "desc": "a narrow face, a light jaw, a receding chin, a thin nose, large open eyes, a small mouth, flat ears",
    "origin": "flemish",
    "sliders": {
+    "chin_tall": [
+     0.203,
+     0.192
+    ],
+    "nose_wide": [
+     -0.648,
+     0.268
+    ],
+    "nostrils_wide": [
+     -0.486,
+     0.216
+    ],
+    "brow_ridge": [
+     -0.486,
+     0.295
+    ],
+    "mouth_wide": [
+     -0.675,
+     0.245
+    ],
+    "face_square": [
+     -0.472,
+     0.173
+    ],
     "ears_out": [
      -0.648,
      0.268
+    ],
+    "ears_big": [
+     -0.324,
+     0.17
+    ],
+    "chin_wide": [
+     -0.425,
+     0.164
+    ],
+    "forehead_back": [
+     -0.101,
+     0.142
+    ],
+    "neck_thick": [
+     -0.162,
+     0.17
+    ],
+    "cheeks_full": [
+     -0.203,
+     0.192
+    ],
+    "eyes_hooded": [
+     -0.405,
+     0.192
+    ],
+    "eyes_big": [
+     0.567,
+     0.242
+    ],
+    "head_tall": [
+     0.223,
+     0.204
+    ],
+    "nose_out": [
+     0.081,
+     0.216
     ],
     "brow_high": [
      0.216,
@@ -1428,97 +1488,37 @@
      0.081,
      0.216
     ],
-    "chin_out": [
-     -0.851,
-     0.255
-    ],
     "nose_bulb": [
      -0.284,
      0.159
-    ],
-    "eyes_open": [
-     0.405,
-     0.192
-    ],
-    "eyes_hooded": [
-     -0.405,
-     0.192
-    ],
-    "ears_big": [
-     -0.324,
-     0.17
-    ],
-    "face_fat": [
-     -0.324,
-     0.268
-    ],
-    "brow_ridge": [
-     -0.486,
-     0.295
-    ],
-    "cheeks_full": [
-     -0.203,
-     0.192
-    ],
-    "eyes_big": [
-     0.567,
-     0.242
-    ],
-    "forehead_back": [
-     -0.101,
-     0.142
-    ],
-    "head_wide": [
-     -0.081,
-     0.134
-    ],
-    "nose_wide": [
-     -0.648,
-     0.268
-    ],
-    "face_oval": [
-     0.243,
-     0.216
-    ],
-    "neck_thick": [
-     -0.162,
-     0.17
-    ],
-    "jaw_wide": [
-     -0.756,
-     0.233
-    ],
-    "head_tall": [
-     0.223,
-     0.204
-    ],
-    "chin_tall": [
-     0.203,
-     0.192
-    ],
-    "nose_out": [
-     0.081,
-     0.216
-    ],
-    "face_square": [
-     -0.472,
-     0.173
-    ],
-    "chin_wide": [
-     -0.425,
-     0.164
     ],
     "lips_full": [
      -0.486,
      0.295
     ],
-    "mouth_wide": [
-     -0.675,
-     0.245
+    "face_fat": [
+     -0.324,
+     0.268
     ],
-    "nostrils_wide": [
-     -0.486,
+    "jaw_wide": [
+     -0.756,
+     0.233
+    ],
+    "chin_out": [
+     -0.851,
+     0.255
+    ],
+    "eyes_open": [
+     0.405,
+     0.192
+    ],
+    "face_oval": [
+     0.243,
      0.216
+    ],
+    "head_wide": [
+     -0.081,
+     0.134
     ]
    },
    "cells": [
@@ -1562,89 +1562,89 @@
    "desc": "a long oval face, a high hooked nose, a firm chin, fleshy cheeks, heavy lids",
    "origin": "flemish",
    "sliders": {
+    "chin_tall": [
+     0.338,
+     0.173
+    ],
+    "nose_wide": [
+     -0.216,
+     0.268
+    ],
+    "nostrils_wide": [
+     -0.162,
+     0.216
+    ],
+    "brow_ridge": [
+     0.243,
+     0.295
+    ],
     "skull_long": [
      0.344,
      0.282
     ],
-    "brow_high": [
-     -0.108,
+    "neck_thick": [
+     0.162,
      0.17
     ],
-    "nose_long": [
-     0.486,
-     0.192
-    ],
-    "nose_tip_down": [
-     0.243,
-     0.15
-    ],
-    "chin_out": [
-     0.608,
-     0.295
-    ],
-    "nose_bulb": [
-     -0.095,
-     0.159
-    ],
-    "eyes_open": [
-     -0.27,
+    "cheeks_full": [
+     0.203,
      0.192
     ],
     "eyes_hooded": [
      0.27,
      0.192
     ],
-    "nose_hump": [
-     0.405,
-     0.192
-    ],
     "nose_hook": [
      0.648,
      0.268
     ],
-    "face_fat": [
-     0.324,
-     0.268
-    ],
-    "brow_ridge": [
-     0.243,
-     0.295
-    ],
-    "cheeks_full": [
-     0.203,
+    "nose_hump": [
+     0.405,
      0.192
     ],
     "eyes_big": [
      -0.378,
      0.242
     ],
-    "head_wide": [
-     -0.257,
-     0.158
+    "nose_out": [
+     0.486,
+     0.192
     ],
-    "nose_wide": [
-     -0.216,
+    "brow_high": [
+     -0.108,
+     0.17
+    ],
+    "nose_tip_down": [
+     0.243,
+     0.15
+    ],
+    "nose_long": [
+     0.486,
+     0.192
+    ],
+    "nose_bulb": [
+     -0.095,
+     0.159
+    ],
+    "face_fat": [
+     0.324,
      0.268
+    ],
+    "chin_out": [
+     0.608,
+     0.295
+    ],
+    "eyes_open": [
+     -0.27,
+     0.192
     ],
     "face_oval": [
      0.405,
      0.192
     ],
-    "neck_thick": [
-     0.162,
-     0.17
-    ],
-    "chin_tall": [
-     0.338,
-     0.173
-    ],
-    "nose_out": [
-     0.486,
-     0.192
-    ],
-    "nostrils_wide": [
-     -0.162,
-     0.216
+    "head_wide": [
+     -0.257,
+     0.158
     ]
    },
    "cells": [
@@ -1687,9 +1687,53 @@
    "desc": "hollow cheeks, jutting jaw angles, deep sockets, a crooked nose, ears out, a big Adam's apple",
    "origin": "flemish",
    "sliders": {
+    "chin_tall": [
+     0.27,
+     0.192
+    ],
+    "brow_ridge": [
+     0.851,
+     0.255
+    ],
+    "face_square": [
+     0.27,
+     0.192
+    ],
     "ears_out": [
      0.648,
      0.268
+    ],
+    "cheekbones": [
+     0.851,
+     0.255
+    ],
+    "ears_big": [
+     0.324,
+     0.17
+    ],
+    "chin_wide": [
+     0.243,
+     0.181
+    ],
+    "neck_thick": [
+     -0.486,
+     0.126
+    ],
+    "cheeks_full": [
+     -0.608,
+     0.13
+    ],
+    "eyes_hooded": [
+     0.203,
+     0.192
+    ],
+    "eyes_big": [
+     -0.284,
+     0.242
+    ],
+    "nose_out": [
+     0.243,
+     0.216
     ],
     "brow_high": [
      -0.378,
@@ -1699,69 +1743,25 @@
      0.243,
      0.216
     ],
-    "eyes_open": [
-     -0.203,
-     0.192
-    ],
-    "eyes_hooded": [
-     0.203,
-     0.192
-    ],
-    "ears_big": [
-     0.324,
-     0.17
-    ],
-    "brow_ridge": [
-     0.851,
-     0.255
-    ],
-    "cheeks_full": [
-     -0.608,
-     0.13
-    ],
-    "eyes_big": [
-     -0.284,
-     0.242
-    ],
-    "head_wide": [
-     -0.108,
-     0.134
-    ],
-    "face_oval": [
-     0.324,
-     0.216
-    ],
-    "neck_thick": [
-     -0.486,
-     0.126
+    "face_fat": [
+     -0.95,
+     0.144
     ],
     "jaw_wide": [
      0.432,
      0.268
     ],
-    "chin_tall": [
-     0.27,
+    "eyes_open": [
+     -0.203,
      0.192
     ],
-    "nose_out": [
-     0.243,
+    "face_oval": [
+     0.324,
      0.216
     ],
-    "face_square": [
-     0.27,
-     0.192
-    ],
-    "cheekbones": [
-     0.851,
-     0.255
-    ],
-    "chin_wide": [
-     0.243,
-     0.181
-    ],
-    "face_fat": [
-     -0.95,
-     0.144
+    "head_wide": [
+     -0.108,
+     0.134
     ]
    },
    "cells": [
@@ -1807,65 +1807,29 @@
    "desc": "a broad face with full cheeks, a soft jaw (nine tenths of a man's), a short upturned nose, full lips",
    "origin": "flemish",
    "sliders": {
-    "skull_long": [
-     -0.459,
-     0.282
-    ],
-    "nose_long": [
-     -0.405,
-     0.216
-    ],
-    "nose_tip_down": [
-     -0.203,
-     0.15
-    ],
-    "nose_bulb": [
-     0.142,
-     0.159
-    ],
-    "nose_hump": [
-     -0.338,
-     0.192
-    ],
-    "nose_hook": [
-     -0.54,
-     0.268
-    ],
-    "face_fat": [
-     0.648,
-     0.268
-    ],
-    "cheeks_full": [
-     0.405,
-     0.192
-    ],
-    "head_wide": [
-     0.162,
+    "chin_tall": [
+     -0.162,
      0.15
     ],
     "nose_wide": [
      0.324,
      0.268
     ],
-    "neck_thick": [
-     0.324,
-     0.17
-    ],
-    "jaw_wide": [
-     0.108,
-     0.268
-    ],
-    "chin_tall": [
-     -0.162,
-     0.15
-    ],
-    "nose_out": [
-     -0.405,
+    "nostrils_wide": [
+     0.243,
      0.216
+    ],
+    "mouth_wide": [
+     0.169,
+     0.142
     ],
     "face_square": [
      0.068,
      0.192
+    ],
+    "skull_long": [
+     -0.459,
+     0.282
     ],
     "cheekbones": [
      -0.243,
@@ -1875,21 +1839,57 @@
      0.061,
      0.181
     ],
-    "lips_full": [
-     0.608,
-     0.295
-    ],
-    "mouth_wide": [
-     0.169,
-     0.142
-    ],
     "face_round": [
      0.324,
      0.216
     ],
-    "nostrils_wide": [
-     0.243,
+    "neck_thick": [
+     0.324,
+     0.17
+    ],
+    "cheeks_full": [
+     0.405,
+     0.192
+    ],
+    "nose_hook": [
+     -0.54,
+     0.268
+    ],
+    "nose_hump": [
+     -0.338,
+     0.192
+    ],
+    "nose_out": [
+     -0.405,
      0.216
+    ],
+    "nose_tip_down": [
+     -0.203,
+     0.15
+    ],
+    "nose_long": [
+     -0.405,
+     0.216
+    ],
+    "nose_bulb": [
+     0.142,
+     0.159
+    ],
+    "lips_full": [
+     0.608,
+     0.295
+    ],
+    "face_fat": [
+     0.648,
+     0.268
+    ],
+    "jaw_wide": [
+     0.108,
+     0.268
+    ],
+    "head_wide": [
+     0.162,
+     0.15
     ]
    },
    "cells": [
@@ -1938,65 +1938,21 @@
    "desc": "a long face, a long thin nose, flat cheeks, a pointed chin, large eyes, thin lips",
    "origin": "flemish",
    "sliders": {
-    "nose_long": [
+    "chin_tall": [
      0.405,
-     0.216
-    ],
-    "chin_out": [
-     0.365,
-     0.295
-    ],
-    "nose_bulb": [
-     -0.284,
-     0.159
-    ],
-    "eyes_open": [
-     0.27,
-     0.192
-    ],
-    "eyes_hooded": [
-     -0.27,
-     0.192
-    ],
-    "face_fat": [
-     -0.648,
-     0.268
-    ],
-    "cheeks_full": [
-     -0.405,
-     0.192
-    ],
-    "eyes_big": [
-     0.378,
-     0.242
-    ],
-    "head_wide": [
-     -0.162,
-     0.13
+     0.173
     ],
     "nose_wide": [
      -0.648,
      0.268
     ],
-    "face_oval": [
-     0.486,
-     0.192
-    ],
-    "neck_thick": [
-     -0.324,
-     0.17
-    ],
-    "jaw_wide": [
-     -0.648,
-     0.233
-    ],
-    "chin_tall": [
-     0.405,
-     0.173
-    ],
-    "nose_out": [
-     0.405,
+    "nostrils_wide": [
+     -0.486,
      0.216
+    ],
+    "mouth_wide": [
+     -0.236,
+     0.135
     ],
     "face_square": [
      -0.405,
@@ -2010,17 +1966,61 @@
      -0.365,
      0.164
     ],
+    "neck_thick": [
+     -0.324,
+     0.17
+    ],
+    "cheeks_full": [
+     -0.405,
+     0.192
+    ],
+    "eyes_hooded": [
+     -0.27,
+     0.192
+    ],
+    "eyes_big": [
+     0.378,
+     0.242
+    ],
+    "nose_out": [
+     0.405,
+     0.216
+    ],
+    "nose_long": [
+     0.405,
+     0.216
+    ],
+    "nose_bulb": [
+     -0.284,
+     0.159
+    ],
     "lips_full": [
      -0.851,
      0.255
     ],
-    "mouth_wide": [
-     -0.236,
-     0.135
+    "face_fat": [
+     -0.648,
+     0.268
     ],
-    "nostrils_wide": [
-     -0.486,
-     0.216
+    "jaw_wide": [
+     -0.648,
+     0.233
+    ],
+    "chin_out": [
+     0.365,
+     0.295
+    ],
+    "eyes_open": [
+     0.27,
+     0.192
+    ],
+    "face_oval": [
+     0.486,
+     0.192
+    ],
+    "head_wide": [
+     -0.162,
+     0.13
     ]
    },
    "cells": [
@@ -2056,61 +2056,13 @@
    "desc": "a small oval face, high cheekbones, a small upturned nose, big wide-set eyes, a slim neck",
    "origin": "flemish",
    "sliders": {
-    "nose_long": [
-     -0.486,
-     0.192
-    ],
-    "nose_tip_down": [
-     -0.162,
-     0.15
-    ],
-    "chin_out": [
-     0.122,
-     0.295
-    ],
-    "eyes_apart": [
-     0.432,
-     0.268
-    ],
-    "eyes_open": [
-     0.472,
-     0.173
-    ],
-    "eyes_hooded": [
-     -0.472,
-     0.173
-    ],
-    "nose_hump": [
-     -0.27,
-     0.192
-    ],
-    "nose_hook": [
-     -0.432,
-     0.268
-    ],
-    "cheeks_full": [
-     -0.068,
-     0.192
-    ],
-    "eyes_big": [
-     0.661,
-     0.212
-    ],
-    "neck_thick": [
-     -0.054,
-     0.17
-    ],
-    "jaw_wide": [
-     -0.432,
-     0.268
-    ],
     "chin_tall": [
      -0.041,
      0.15
     ],
-    "nose_out": [
-     -0.486,
-     0.192
+    "mouth_wide": [
+     0.068,
+     0.142
     ],
     "face_square": [
      -0.27,
@@ -2124,21 +2076,69 @@
      -0.243,
      0.181
     ],
-    "lips_full": [
-     0.243,
-     0.295
-    ],
-    "mouth_wide": [
-     0.068,
-     0.142
-    ],
     "face_round": [
      0.081,
      0.216
     ],
+    "neck_thick": [
+     -0.054,
+     0.17
+    ],
+    "cheeks_full": [
+     -0.068,
+     0.192
+    ],
+    "eyes_hooded": [
+     -0.472,
+     0.173
+    ],
+    "nose_hook": [
+     -0.432,
+     0.268
+    ],
+    "eyes_apart": [
+     0.432,
+     0.268
+    ],
+    "nose_hump": [
+     -0.27,
+     0.192
+    ],
+    "eyes_big": [
+     0.661,
+     0.212
+    ],
+    "nose_out": [
+     -0.486,
+     0.192
+    ],
+    "nose_tip_down": [
+     -0.162,
+     0.15
+    ],
+    "nose_long": [
+     -0.486,
+     0.192
+    ],
+    "lips_full": [
+     0.243,
+     0.295
+    ],
     "face_fat": [
      -0.108,
      0.268
+    ],
+    "jaw_wide": [
+     -0.432,
+     0.268
+    ],
+    "chin_out": [
+     0.122,
+     0.295
+    ],
+    "eyes_open": [
+     0.472,
+     0.173
     ]
    },
    "cells": [
@@ -2171,69 +2171,69 @@
    "desc": "a strong straight nose, heavy brows, big dark eyes, full lips",
    "origin": "southern",
    "sliders": {
-    "brow_ridge": [
-     0.365,
-     0.295
-    ],
-    "eyes_big": [
-     0.567,
-     0.242
-    ],
-    "brow_high": [
-     -0.162,
-     0.17
-    ],
-    "nose_long": [
-     0.405,
-     0.216
-    ],
-    "head_wide": [
-     -0.054,
-     0.134
-    ],
-    "nose_tip_down": [
-     0.081,
-     0.15
-    ],
-    "face_oval": [
-     0.162,
-     0.216
-    ],
     "chin_tall": [
      0.135,
      0.192
     ],
-    "nose_out": [
-     0.405,
-     0.216
-    ],
-    "cheekbones": [
+    "brow_ridge": [
      0.365,
-     0.295
-    ],
-    "eyes_open": [
-     0.405,
-     0.192
-    ],
-    "eyes_hooded": [
-     -0.405,
-     0.192
-    ],
-    "nose_hump": [
-     0.135,
-     0.192
-    ],
-    "lips_full": [
-     0.729,
      0.295
     ],
     "mouth_wide": [
      0.203,
      0.142
     ],
+    "eyes_hooded": [
+     -0.405,
+     0.192
+    ],
     "nose_hook": [
      0.216,
      0.268
+    ],
+    "nose_hump": [
+     0.135,
+     0.192
+    ],
+    "eyes_big": [
+     0.567,
+     0.242
+    ],
+    "nose_out": [
+     0.405,
+     0.216
+    ],
+    "brow_high": [
+     -0.162,
+     0.17
+    ],
+    "nose_tip_down": [
+     0.081,
+     0.15
+    ],
+    "nose_long": [
+     0.405,
+     0.216
+    ],
+    "lips_full": [
+     0.729,
+     0.295
+    ],
+    "eyes_open": [
+     0.405,
+     0.192
+    ],
+    "face_oval": [
+     0.162,
+     0.216
+    ],
+    "head_wide": [
+     -0.054,
+     0.134
+    ],
+    "cheekbones": [
+     0.365,
+     0.295
     ]
    },
    "cells": [
@@ -2263,17 +2263,81 @@
    "desc": "a big skull, the face three quarters of an adult's height, a button nose, full cheeks, a tiny chin, big ears",
    "origin": "flemish",
    "sliders": {
+    "chin_tall": [
+     -0.203,
+     0.142
+    ],
+    "face_square": [
+     -0.203,
+     0.192
+    ],
     "ears_out": [
      0.432,
      0.268
     ],
-    "nose_long": [
+    "ears_big": [
+     0.216,
+     0.17
+    ],
+    "chin_wide": [
+     -0.182,
+     0.181
+    ],
+    "forehead_back": [
+     -0.135,
+     0.142
+    ],
+    "face_round": [
+     0.405,
+     0.192
+    ],
+    "neck_thick": [
+     0.27,
+     0.17
+    ],
+    "cheeks_full": [
+     0.338,
+     0.192
+    ],
+    "eyes_hooded": [
+     -0.27,
+     0.192
+    ],
+    "nose_hook": [
+     -0.54,
+     0.268
+    ],
+    "nose_hump": [
+     -0.338,
+     0.192
+    ],
+    "eyes_big": [
+     0.378,
+     0.242
+    ],
+    "head_tall": [
+     0.297,
+     0.204
+    ],
+    "nose_out": [
      -0.486,
      0.192
     ],
     "nose_tip_down": [
      -0.203,
      0.15
+    ],
+    "nose_long": [
+     -0.486,
+     0.192
+    ],
+    "face_fat": [
+     0.54,
+     0.268
+    ],
+    "jaw_wide": [
+     -0.324,
+     0.268
     ],
     "chin_out": [
      -0.365,
@@ -2282,70 +2346,6 @@
     "eyes_open": [
      0.27,
      0.192
-    ],
-    "eyes_hooded": [
-     -0.27,
-     0.192
-    ],
-    "nose_hump": [
-     -0.338,
-     0.192
-    ],
-    "ears_big": [
-     0.216,
-     0.17
-    ],
-    "nose_hook": [
-     -0.54,
-     0.268
-    ],
-    "cheeks_full": [
-     0.338,
-     0.192
-    ],
-    "eyes_big": [
-     0.378,
-     0.242
-    ],
-    "forehead_back": [
-     -0.135,
-     0.142
-    ],
-    "neck_thick": [
-     0.27,
-     0.17
-    ],
-    "jaw_wide": [
-     -0.324,
-     0.268
-    ],
-    "head_tall": [
-     0.297,
-     0.204
-    ],
-    "chin_tall": [
-     -0.203,
-     0.142
-    ],
-    "nose_out": [
-     -0.486,
-     0.192
-    ],
-    "face_square": [
-     -0.203,
-     0.192
-    ],
-    "chin_wide": [
-     -0.182,
-     0.181
-    ],
-    "face_round": [
-     0.405,
-     0.192
-    ],
-    "face_fat": [
-     0.54,
-     0.268
     ]
    },
    "cells": [
@@ -2375,61 +2375,61 @@
    "desc": "ten to fourteen: the face lengthening, ears out, a thin neck, hollow cheeks if poor",
    "origin": "flemish",
    "sliders": {
-    "ears_out": [
-     0.648,
-     0.268
-    ],
-    "cheeks_full": [
-     -0.27,
-     0.233
-    ],
-    "nose_long": [
-     0.0,
-     0.216
-    ],
-    "head_wide": [
-     -0.081,
-     0.134
-    ],
-    "face_oval": [
-     0.243,
-     0.216
+    "chin_tall": [
+     0.203,
+     0.192
     ],
     "neck_thick": [
      -0.216,
      0.2
     ],
-    "jaw_wide": [
-     -0.324,
-     0.268
+    "cheeks_full": [
+     -0.27,
+     0.233
     ],
-    "chin_tall": [
-     0.203,
+    "face_square": [
+     -0.203,
      0.192
     ],
     "nose_out": [
      0.0,
      0.216
     ],
-    "face_square": [
-     -0.203,
-     0.192
+    "nose_long": [
+     0.0,
+     0.216
+    ],
+    "ears_out": [
+     0.648,
+     0.268
+    ],
+    "face_fat": [
+     -0.432,
+     0.342
+    ],
+    "jaw_wide": [
+     -0.324,
+     0.268
+    ],
+    "face_oval": [
+     0.243,
+     0.216
+    ],
+    "head_wide": [
+     -0.081,
+     0.134
     ],
     "cheekbones": [
      0.243,
      0.295
     ],
-    "chin_wide": [
-     -0.182,
-     0.181
-    ],
     "ears_big": [
      0.324,
      0.17
     ],
-    "face_fat": [
-     -0.432,
-     0.342
+    "chin_wide": [
+     -0.182,
+     0.181
     ]
    },
    "cells": [
@@ -2459,81 +2459,81 @@
    "desc": "no teeth: the chin nearer the nose, the lips rolled in; a drooping nose tip, long ears, hollow temples",
    "origin": "flemish",
    "sliders": {
-    "ears_out": [
-     0.54,
-     0.268
-    ],
-    "brow_high": [
-     -0.162,
-     0.17
-    ],
-    "mouth_wide": [
-     -0.27,
-     0.13
-    ],
-    "nose_long": [
-     0.041,
+    "chin_tall": [
+     -0.675,
      0.233
-    ],
-    "nose_tip_down": [
-     0.661,
-     0.25
-    ],
-    "chin_out": [
-     0.365,
-     0.295
-    ],
-    "nose_hump": [
-     0.203,
-     0.192
-    ],
-    "ears_big": [
-     0.27,
-     0.17
-    ],
-    "nose_hook": [
-     0.324,
-     0.268
     ],
     "brow_ridge": [
      0.365,
      0.295
     ],
-    "cheeks_full": [
-     -0.405,
-     0.192
+    "mouth_wide": [
+     -0.27,
+     0.13
     ],
-    "neck_thick": [
-     -0.324,
-     0.17
-    ],
-    "chin_tall": [
-     -0.675,
-     0.233
-    ],
-    "nose_out": [
-     0.324,
-     0.216
-    ],
-    "eyes_high": [
-     -0.284,
-     0.149
+    "ears_out": [
+     0.54,
+     0.268
     ],
     "cheekbones": [
      0.486,
      0.295
     ],
-    "lips_full": [
-     -0.95,
-     0.216
+    "ears_big": [
+     0.27,
+     0.17
     ],
     "mouth_corners": [
      -0.675,
      0.233
     ],
+    "neck_thick": [
+     -0.324,
+     0.17
+    ],
+    "cheeks_full": [
+     -0.405,
+     0.192
+    ],
+    "nose_hook": [
+     0.324,
+     0.268
+    ],
+    "nose_hump": [
+     0.203,
+     0.192
+    ],
+    "nose_out": [
+     0.324,
+     0.216
+    ],
+    "brow_high": [
+     -0.162,
+     0.17
+    ],
+    "nose_tip_down": [
+     0.661,
+     0.25
+    ],
+    "nose_long": [
+     0.041,
+     0.233
+    ],
+    "lips_full": [
+     -0.95,
+     0.216
+    ],
     "face_fat": [
      -0.648,
      0.268
+    ],
+    "chin_out": [
+     0.365,
+     0.295
+    ],
+    "eyes_high": [
+     -0.284,
+     0.149
     ]
    },
    "cells": [
@@ -2577,6 +2577,26 @@
    "desc": "jowls, a bulbous veined nose, bags under the eyes, long ears, folds in the neck",
    "origin": "flemish",
    "sliders": {
+    "nose_wide": [
+     0.54,
+     0.268
+    ],
+    "nostrils_wide": [
+     0.405,
+     0.216
+    ],
+    "eye_bags": [
+     0.945,
+     0.233
+    ],
+    "double_chin": [
+     0.675,
+     0.277
+    ],
+    "face_square": [
+     0.27,
+     0.192
+    ],
     "ears_out": [
      0.54,
      0.268
@@ -2585,81 +2605,61 @@
      -0.23,
      0.282
     ],
-    "nose_long": [
-     0.405,
-     0.216
-    ],
-    "chin_out": [
-     -0.243,
-     0.295
-    ],
-    "nose_bulb": [
-     0.911,
-     0.256
-    ],
-    "eyes_open": [
-     -0.338,
-     0.192
-    ],
-    "eyes_hooded": [
-     0.338,
-     0.192
-    ],
     "ears_big": [
      0.27,
      0.17
-    ],
-    "face_fat": [
-     0.756,
-     0.233
-    ],
-    "double_chin": [
-     0.675,
-     0.277
-    ],
-    "cheeks_full": [
-     0.472,
-     0.173
-    ],
-    "eyes_big": [
-     -0.472,
-     0.242
-    ],
-    "head_wide": [
-     0.081,
-     0.15
-    ],
-    "nose_wide": [
-     0.54,
-     0.268
-    ],
-    "neck_thick": [
-     0.378,
-     0.156
-    ],
-    "jaw_wide": [
-     0.432,
-     0.268
-    ],
-    "nose_out": [
-     0.405,
-     0.216
-    ],
-    "face_square": [
-     0.27,
-     0.192
-    ],
-    "eye_bags": [
-     0.945,
-     0.233
     ],
     "chin_wide": [
      0.243,
      0.181
     ],
-    "nostrils_wide": [
+    "neck_thick": [
+     0.378,
+     0.156
+    ],
+    "cheeks_full": [
+     0.472,
+     0.173
+    ],
+    "eyes_hooded": [
+     0.338,
+     0.192
+    ],
+    "eyes_big": [
+     -0.472,
+     0.242
+    ],
+    "nose_out": [
      0.405,
      0.216
+    ],
+    "nose_long": [
+     0.405,
+     0.216
+    ],
+    "nose_bulb": [
+     0.911,
+     0.256
+    ],
+    "face_fat": [
+     0.756,
+     0.233
+    ],
+    "jaw_wide": [
+     0.432,
+     0.268
+    ],
+    "chin_out": [
+     -0.243,
+     0.295
+    ],
+    "eyes_open": [
+     -0.338,
+     0.192
+    ],
+    "head_wide": [
+     0.081,
+     0.15
     ]
    },
    "cells": [
@@ -3013,6 +3013,10 @@
   "tourist_lady": {
    "young_woman": 2,
    "lean_widow": 1
+  },
+  "old_woman_dressed": {
+   "shrunken_old": 3,
+   "lean_widow": 1
   }
  },
  "kindCells": {
@@ -3028,14 +3032,14 @@
  },
  "kindHair": {
   "docker_a": {
-   "crop": 3,
+   "capped": 3,
    "bald": 1
   },
   "police": {
-   "crop": 1
+   "capped": 1
   },
   "sooi": {
-   "crop": 1
+   "capped": 1
   },
   "fishwife_a": {
    "undercap": 1
@@ -3050,6 +3054,27 @@
    "undercap": 1
   },
   "maid": {
+   "undercap": 1
+  },
+  "wife_a": {
+   "undercap": 1
+  },
+  "wife_b": {
+   "undercap": 1
+  },
+  "shopwife": {
+   "undercap": 1
+  },
+  "old_woman": {
+   "undercap": 1
+  },
+  "milk_woman": {
+   "undercap": 1
+  },
+  "tourist_lady": {
+   "bun": 1
+  },
+  "old_woman_dressed": {
    "undercap": 1
   }
  },
@@ -3071,7 +3096,7 @@
     "chin_wide": 0.4
    },
    "cell": "m_weather_brown",
-   "hair": "crop",
+   "hair": "capped",
    "beard": null,
    "moustache": "walrus",
    "age": 52
@@ -3884,7 +3909,7 @@
     },
     "age": 35,
     "cell": "m_weather_brown",
-    "hair": "crop",
+    "hair": "capped",
     "beard": "sideburns",
     "moustache": "handlebar",
     "crook": 0.0,
@@ -3955,7 +3980,7 @@
      "bust": 0.0
     },
     "age": 44,
-    "cell": "om_bald_drink",
+    "cell": "m_olive_black",
     "hair": "bald",
     "beard": "short",
     "moustache": null,
@@ -4388,7 +4413,7 @@
     },
     "age": 38,
     "cell": "m_fair_brown",
-    "hair": "crop",
+    "hair": "capped",
     "beard": "imperial",
     "moustache": null,
     "crook": 0.0,
@@ -4460,7 +4485,7 @@
     },
     "age": 52,
     "cell": "m_weather_brown",
-    "hair": "crop",
+    "hair": "capped",
     "beard": null,
     "moustache": "walrus",
     "crook": 0.0,

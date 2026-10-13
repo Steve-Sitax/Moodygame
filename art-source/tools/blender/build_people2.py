@@ -257,19 +257,6 @@ def main():
     for m in list(bpy.data.materials):
         if m != mat and m.users == 0:
             bpy.data.materials.remove(m)
-    export.export_glb(OUT)
-    if "--plain" in ARGS:
-        plain = PLAIN
-        # The decoded intake stays outside git; art geometry and styling are unchanged.
-        export.export_glb(plain, plain=True)
-        print(f"[people2] plain native intake -> {plain}")
-    from people2 import glb_slim
-    if not os.environ.get("PEOPLE2_NO_SLIM"):  # trials: PEOPLE2_NO_SLIM=1 keeps Blender's file as it is
-        c0, c1, b0, b1 = glb_slim.slim(OUT, thin=set(idle_meta) | set(work_meta))
-        print(f"[people2] slimmed: {c0} -> {c1} animation channels, {b0 // 1024} -> {b1 // 1024} KB")
-        if "--plain" in ARGS:
-            c0, c1, b0, b1 = glb_slim.slim(plain, thin=set(idle_meta) | set(work_meta))
-            print(f"[people2] plain slimmed: {c0} -> {c1} animation channels, {b0 // 1024} -> {b1 // 1024} KB")
     hips_base = [round(float(c), 4) for c in people2.G(bodies[0]["ao"].data.bones["hips"].head_local)]
     loco = {"about": "package D1 clips (art-source/tools/blender/people2/clips_move.py, docs/people.md 'Locomotion'). Loops are "
                      "two strides, in place: move the node at their speed. Clips that travel move the hips: move the "
@@ -320,20 +307,30 @@ def main():
     checked, differ = mh.check_mpfb_copies()
     print(f"[people2] MakeHuman files: {len(mh._USED)} read, {checked} compared with MPFB {mh.MPFB_VERSION}'s own, "
           f"{len(differ)} differ{': ' + ', '.join(differ[:5]) if differ else ''}")
-    kb = os.path.getsize(OUT) // 1024
-    print(f"[people2] {len(bodies)} bodies, {len(dressed)} kinds, {len(rig.NAMES)} bones, {len(actions)} clips, "
-          f"{len(bpy.data.materials)} material(s) -> {OUT} ({kb} KB) in {time.time() - t0:.0f} s")
-    if "--dress" in ARGS:
-        from people2 import preview_c
-        for ln in preview_c.cast(dressed, bodies, actions, move_clips, held_obs):
-            print("[people2] " + ln)
+    from people2 import glb_slim, glb_animations
+    full_git_build = not ONLY and not KINDS_ONLY and "--out" not in ARGS
+    if full_git_build:
+        import split_people2
+        split_people2.main()
+    else:
+        export.export_glb(OUT)
+        if not os.environ.get("PEOPLE2_NO_SLIM"):
+            glb_slim.slim(OUT, thin=set(idle_meta) | set(work_meta))
+    if "--plain" in ARGS:
+        # Geometry is exported once without resampling the same clips onto every clothing rig.
+        # The core art part already holds the one shared sampled set.
+        export.export_glb(PLAIN, plain=True, animations=False)
+        copied = glb_animations.copy_into(PLAIN, OUT)
+        if set(copied) != {a.name for a in actions}:
+            raise RuntimeError("The native input lost a shared animation")
+        if not os.environ.get("PEOPLE2_NO_SLIM"):
+            glb_slim.slim(PLAIN, thin=set(idle_meta) | set(work_meta))
+        print(f"[people2] plain native intake -> {PLAIN}")
+    print(f"[people2] BUILD COMPLETE: {len(bodies)} bodies, {len(dressed)} kinds, {len(rig.NAMES)} bones, {len(actions)} clips in {time.time() - t0:.0f} s")
     if "--work" in ARGS and work_clips:
         from people2 import preview_work
         for ln in preview_work.run(work_clips, bodies):
             print("[people2] " + ln)
-    if not ONLY and not KINDS_ONLY and "--out" not in ARGS:
-        import split_people2
-        split_people2.main()
     if "--idle" in ARGS and idle_clips:
         from people2 import preview_idle
         for ln in preview_idle.run(idle_clips, bodies, dressed, kinds=True):

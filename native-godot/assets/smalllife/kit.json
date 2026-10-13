@@ -4,8 +4,8 @@
   "kinds": {
     "hen": {
       "height": 0.43,
-      "vertices": 15379,
-      "triangles": 25664,
+      "vertices": 9680,
+      "triangles": 10768,
       "bones": 12,
       "clips": {
         "idle": {
@@ -66,19 +66,19 @@
         }
       },
       "min": [
-        -0.48363280296325684,
-        -0.08214355260133743,
-        -0.27367186546325684
+        -0.33666014671325684,
+        -0.01106620766222477,
+        -0.16490723192691803
       ],
       "max": [
-        0.48363280296325684,
-        0.45702147483825684,
-        0.32542967796325684
+        0.33666014671325684,
+        0.44286131858825684,
+        0.26219725608825684
       ],
-      "stanceErrorMm": 2.7755575615628914e-14,
-      "jointGapMm": 4.046035655711836e-14,
+      "stanceErrorMm": 3.469446951953614e-14,
+      "jointGapMm": 2.0218274671598238e-13,
       "vatBytes": 147464,
-      "vatSha256": "97d98b861d2929d7e980dce1a143470bbd0f3cbb8af0e878f9da646ac5605c28"
+      "vatSha256": "72a0d9ddc80c9f39f4fd43ec01adff8dc788a4e419de2ea4c87ed3ee966e98f6"
     },
     "cockerel": {
       "height": 0.58,
@@ -978,8 +978,8 @@
     },
     "rat": {
       "height": 0.115,
-      "vertices": 4781,
-      "triangles": 8928,
+      "vertices": 8848,
+      "triangles": 14286,
       "bones": 16,
       "clips": {
         "idle": {
@@ -1012,14 +1012,14 @@
         }
       },
       "min": [
-        -0.08202148228883743,
-        -0.0094382856041193,
-        -0.36498045921325684
+        -0.06557250767946243,
+        -0.019422302022576332,
+        -0.36815428733825684
       ],
       "max": [
-        0.08202148228883743,
-        0.15733887255191803,
-        0.16649414598941803
+        0.06557250767946243,
+        0.12779785692691803,
+        0.16429688036441803
       ],
       "stanceErrorMm": 1.3877787807814457e-14,
       "jointGapMm": 2.7809732887839817e-14,
@@ -1028,8 +1028,8 @@
     }
   },
   "pictures": {
-    "hen_colour.png": "2363252b1212268b04b76ea6678e47e1eeacc15010e929faceb68463e9419f4a",
-    "hen_normal.png": "9f7312cdee9a25de34ad2c3fdddc1054b312d26caa819645e142cc8dd412600d",
+    "hen_colour.png": "de4aafd6bde6fe0db2c18532b2a935c43a77fbcd4b5f7bc04cb0fac964c59932",
+    "hen_normal.png": "0b7cd4803864366aaec90105adcd554f60251675c210c18a1e4215efed1e0007",
     "cockerel_colour.png": "dfd8a13277ad041aa59cbacf69d7bb03f4b13a262bc1eb6449476e55e8c1327f",
     "cockerel_normal.png": "9f7312cdee9a25de34ad2c3fdddc1054b312d26caa819645e142cc8dd412600d",
     "goat_colour.png": "4ed7451df597a7849c7242f09757132c0b7572f8521a78105e3ceeaeab8da44e",
@@ -1058,8 +1058,8 @@
     "jackdaw_normal.png": "9f7312cdee9a25de34ad2c3fdddc1054b312d26caa819645e142cc8dd412600d",
     "crow_colour.png": "631619f78c0eaca3886862edba572dba6c603d87cf7d4e079cf5145f0c53dfd2",
     "crow_normal.png": "9f7312cdee9a25de34ad2c3fdddc1054b312d26caa819645e142cc8dd412600d",
-    "rat_colour.png": "9ab12207c7ca8bba6264b8ca00cf820967ab2bea22fe609db326cf6fd9ef85f3",
-    "rat_normal.png": "f81555764af883a81e7902f247981901187695a78622432614dfcd9e15a0f739"
+    "rat_colour.png": "ca3500b0a28ee6ded699c776cd0ec750d7739bc904696130b6785a8e3a61d7a0",
+    "rat_normal.png": "ad5f3b8bc4246d3ec1c7debcebc2a627c12f30079712027c7c064496f4fdb663"
   },
   "notes": "All silhouettes use rounded lofts. Feather edges, horn tips, claws and whisker tips intentionally thin/pointed. Hidden tube ends mate inside bodies. No gameplay collision on these decorative animals."
 }

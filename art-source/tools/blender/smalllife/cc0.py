@@ -89,6 +89,7 @@ def adapt(kind, reference):
     m.normal = []
     for ob, ev, me, v in evaluated:
         groups = {g.index: g.name for g in ob.vertex_groups}
+        corners = {}
         def weights(vertex, point):
             result = {}
             if hen:
@@ -118,13 +119,19 @@ def adapt(kind, reference):
             face = []
             for loop in triangle.loops:
                 i = me.loops[loop].vertex_index
-                p = game(v[i])
-                face.append(len(m.v))
-                m.v.append(tuple(p)); m.uv.append(tuple(uv.data[loop].uv))
-                m.weights.append(weights(me.vertices[i], p))
-                m.eye.append(1 if ob.name.startswith('Eyes') else .04)
                 normal = ob.matrix_world.to_3x3().inverted().transposed() @ me.corner_normals[loop].vector
                 normal.normalize()
+                texture_uv = tuple(uv.data[loop].uv)
+                key = (i, texture_uv, tuple(normal))
+                if key in corners:
+                    face.append(corners[key])
+                    continue
+                p = game(v[i])
+                corners[key] = len(m.v)
+                face.append(len(m.v))
+                m.v.append(tuple(p)); m.uv.append(texture_uv)
+                m.weights.append(weights(me.vertices[i], p))
+                m.eye.append(1 if ob.name.startswith('Eyes') else .04)
                 m.normal.append((normal.x, normal.z, -normal.y))
             m.f.append(tuple(face))
         ev.to_mesh_clear()

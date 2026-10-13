@@ -114,8 +114,8 @@ public partial class NativeModelRecovery : Node
             foreach (var pair in backups)
                 if (Directory.Exists(pair.Backup)) Directory.Delete(pair.Backup, true);
                 else File.Delete(pair.Backup);
-            // Release managed importer wrappers and let the renderer retire their RIDs before exit.
-            GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+            // Let the renderer retire saved-scene RIDs before exit. Forcing the Mono finalizer
+            // thread here can dispose GLTF wrappers while the engine is still retiring them.
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             GetTree().Quit();
@@ -138,6 +138,7 @@ public partial class NativeModelRecovery : Node
         foreach (var child in scene.GetChildren().OfType<Node3D>().ToArray())
         {
             if (child.Name == "man_middling" || child.Name == "people2_held") continue;
+            foreach (var node in BakedWorld.All(child)) node.Owner = null;
             scene.RemoveChild(child);
             var part = new Node3D { Name = "PeoplePart" };
             part.AddChild(child);

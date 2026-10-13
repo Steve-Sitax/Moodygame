@@ -14,6 +14,18 @@
     "old_woman",
     "docker_a",
     "fishwife_a",
+    "fishwife_b",
+    "maid",
+    "wife_a",
+    "wife_b",
+    "shopwife",
+    "old_woman_dressed",
+    "milk_woman",
+    "girl",
+    "girl_b",
+    "nun",
+    "beguine",
+    "tourist_lady",
     "police",
     "sooi",
     "held"
@@ -93,22 +105,70 @@
     },
     "docker_a": {
       "clothes": 10,
-      "face": 16
+      "face": 6
     },
     "fishwife_a": {
       "clothes": 11,
       "face": 19
     },
-    "police": {
+    "fishwife_b": {
       "clothes": 12,
+      "face": 19
+    },
+    "maid": {
+      "clothes": 13,
+      "face": 17
+    },
+    "wife_a": {
+      "clothes": 14,
+      "face": 19
+    },
+    "wife_b": {
+      "clothes": 15,
+      "face": 19
+    },
+    "shopwife": {
+      "clothes": 16,
+      "face": 17
+    },
+    "old_woman_dressed": {
+      "clothes": 17,
+      "face": 24
+    },
+    "milk_woman": {
+      "clothes": 18,
+      "face": 22
+    },
+    "girl": {
+      "clothes": 19,
+      "face": 29
+    },
+    "girl_b": {
+      "clothes": 20,
+      "face": 29
+    },
+    "nun": {
+      "clothes": 21,
+      "face": 19
+    },
+    "beguine": {
+      "clothes": 22,
+      "face": 17
+    },
+    "tourist_lady": {
+      "clothes": 23,
+      "face": 21
+    },
+    "police": {
+      "clothes": 24,
       "face": 7
     },
     "sooi": {
-      "clothes": 13,
+      "clothes": 25,
       "face": 6
     },
     "people2_held": {
-      "clothes": 14,
+      "clothes": 26,
       "face": 0
     }
   },

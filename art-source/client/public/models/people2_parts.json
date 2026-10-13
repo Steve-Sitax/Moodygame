@@ -1,0 +1,106 @@
+{
+  "beguine": {
+    "part": "people2_beguine",
+    "bytes": 1690108
+  },
+  "child_middling": {
+    "part": "people2_child_middling",
+    "bytes": 1596240
+  },
+  "child_slight": {
+    "part": "people2_child_slight",
+    "bytes": 1842112
+  },
+  "docker_a": {
+    "part": "people2_docker_a",
+    "bytes": 1353508
+  },
+  "fishwife_a": {
+    "part": "people2_fishwife_a",
+    "bytes": 1564396
+  },
+  "fishwife_b": {
+    "part": "people2_fishwife_b",
+    "bytes": 1741352
+  },
+  "girl": {
+    "part": "people2_girl",
+    "bytes": 1319556
+  },
+  "girl_b": {
+    "part": "people2_girl_b",
+    "bytes": 1439868
+  },
+  "maid": {
+    "part": "people2_maid",
+    "bytes": 1611200
+  },
+  "man_middling": {
+    "part": "people2",
+    "bytes": 14322468
+  },
+  "man_slight": {
+    "part": "people2_man_slight",
+    "bytes": 4925976
+  },
+  "man_stout": {
+    "part": "people2_man_stout",
+    "bytes": 4719716
+  },
+  "milk_woman": {
+    "part": "people2_milk_woman",
+    "bytes": 1679876
+  },
+  "nun": {
+    "part": "people2_nun",
+    "bytes": 1665088
+  },
+  "old_man": {
+    "part": "people2_old_man",
+    "bytes": 4987660
+  },
+  "old_woman": {
+    "part": "people2_old_woman",
+    "bytes": 1879104
+  },
+  "old_woman_dressed": {
+    "part": "people2_old_woman_dressed",
+    "bytes": 1882668
+  },
+  "police": {
+    "part": "people2_police",
+    "bytes": 1378928
+  },
+  "shopwife": {
+    "part": "people2_shopwife",
+    "bytes": 1544648
+  },
+  "sooi": {
+    "part": "people2_sooi",
+    "bytes": 1601428
+  },
+  "tourist_lady": {
+    "part": "people2_tourist_lady",
+    "bytes": 1690080
+  },
+  "wife_a": {
+    "part": "people2_wife_a",
+    "bytes": 1567668
+  },
+  "wife_b": {
+    "part": "people2_wife_b",
+    "bytes": 1583024
+  },
+  "woman_middling": {
+    "part": "people2_woman_middling",
+    "bytes": 2448528
+  },
+  "woman_slight": {
+    "part": "people2_woman_slight",
+    "bytes": 2813272
+  },
+  "woman_stout": {
+    "part": "people2_woman_stout",
+    "bytes": 2369184
+  }
+}

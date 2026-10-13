@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -21,7 +22,8 @@ namespace Scheldemist.People;
 public static class People2Faces
 {
     private static readonly Dictionary<string, int> bags = new();
-    private static readonly Dictionary<string, Template> templates = new(StringComparer.Ordinal);
+    // New parts can arrive on the main thread while the shaping worker reads immutable templates.
+    private static readonly ConcurrentDictionary<string, Template> templates = new(StringComparer.Ordinal);
     private static JsonDocument? faceTypes, sliders;
     private static readonly Dictionary<string, int> faceLayers = new(StringComparer.Ordinal);
     internal static long BakeCount { get; private set; }

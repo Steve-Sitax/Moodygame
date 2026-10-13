@@ -10,10 +10,12 @@ from pathlib import Path
 import bpy
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from people2 import export, glb_slim, face_types
+from people2 import export, glb_slim, face_types, glb_animations
 
-def main():
+def main(animation_source=None):
     destination = Path(__file__).resolve().parents[2] / 'client/public/models'
+    rig_data = json.loads((Path(__file__).resolve().parents[2] / 'shared/peopleRig.json').read_text())
+    thin = set(rig_data['idles']['clips']) | set(rig_data['work']['clips'])
     roots = [o for o in bpy.data.objects if o.type == 'ARMATURE' or o.name == 'people2_held']
     index = {}
     for root in roots:
@@ -30,8 +32,10 @@ def main():
                     o.select_set(True)
         name = 'people2' if core else 'people2_' + root.name
         path = destination / (name + '.glb')
-        export.export_glb(str(path), selected=True, animations=core)
-        glb_slim.slim(str(path))
+        export.export_glb(str(path), selected=True, animations=core and animation_source is None)
+        if core and animation_source is not None:
+            glb_animations.copy_into(str(path), str(animation_source))
+        glb_slim.slim(str(path), thin=thin if core else None)
         if path.stat().st_size >= 20_000_000:
             raise RuntimeError('People part exceeds 20 MB: ' + name)
         index[root.name] = {'part': name, 'bytes': path.stat().st_size}
