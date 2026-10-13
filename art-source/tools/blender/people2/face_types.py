@@ -295,11 +295,11 @@ TYPES = {
                              "eyes_big": (0.6, 0.3), "lips_full": (0.6, 0.3), "face_long": (0.2, 0.3),
                              "cheekbones": (0.3, 0.3)},
                             ["f_olive_black", "f_mid_dark"], {"bun": 4, "plaits": 2, "coronet": 1}),
-    "small_child": _type("c", "a big skull, the face three quarters of an adult's height, a button nose, full cheeks, "
+    "small_child": _type("c", "a big skull, the face three quarters of an adult's height, a button nose, lean working-class cheeks, "
                          "a tiny chin, big ears", "flemish",
-                         {"fat": (0.5, 0.3), "nose_big": (-0.6, 0.25), "nose_hook": (-0.5, 0.3),
-                          "chin_out": (-0.3, 0.3), "ears_out": (0.4, 0.3), "eyes_big": (0.4, 0.3),
-                          "face_long": (-0.5, 0.25), "crown_high": (0.4, 0.3), "jaw_wide": (-0.3, 0.3)},
+                         {"fat": (-0.15, 0.25), "nose_big": (-0.6, 0.25), "nose_hook": (-0.5, 0.3),
+                          "chin_out": (-0.3, 0.3), "ears_out": (0.4, 0.3), "eyes_big": (0.3, 0.3),
+                          "face_long": (-0.15, 0.25), "crown_high": (0.4, 0.3), "jaw_wide": (-0.3, 0.3)},
                          ["c_boy_fair", "c_boy_brown", "c_sooty", "c_girl_fair"], {"crop": 1}, ages=(5, 11)),
     "lanky_child": _type("c", "ten to fourteen: the face lengthening, ears out, a thin neck, hollow cheeks if poor",
                          "flemish",
