@@ -8,161 +8,6 @@ using Scheldemist.Town;
 namespace Scheldemist.People;
 
 /// <summary>
-/// One dog, cat or pig of animals.glb (the browser's game/animals.ts Animal): its own skeleton, the species' clips by
-/// bone name. Walk and run are a wish: the legs move only while the animal really goes, at the pace of the ground it
-/// covers; held against a wall it stands.
-/// </summary>
-public sealed class Animal
-{
-    /// <summary>How far to lower the root so the body rests on the ground (build_animals.py report).</summary>
-    private static readonly Dictionary<string, (float sit, float lie)> Drop = new() { ["dog"] = (0.276f, 0.23f), ["dog_grey"] = (0.304f, 0.253f), ["cat"] = (0.131f, 0.139f), ["pig"] = (0, 0), ["pig_spotted"] = (0, 0) };
-    /// <summary>Metres per loop of walk and run (the paws stay planted at this).</summary>
-    private static readonly Dictionary<string, (float walk, float run)> Stride = new() { ["dog"] = (0.452f, 1.125f), ["dog_grey"] = (0.497f, 1.24f), ["cat"] = (0.21f, 0.531f), ["pig"] = (0.219f, 0.429f), ["pig_spotted"] = (0.206f, 0.403f) };
-    /// <summary>Above this ground speed (m/s) the run clip reads better than a hurried walk.</summary>
-    private static readonly Dictionary<string, float> RunFrom = new() { ["dog"] = 1.3f, ["dog_grey"] = 1.4f, ["cat"] = 0.8f, ["pig"] = 1.2f, ["pig_spotted"] = 1.2f };
-    private const float MoveOn = 0.2f, MoveOff = 0.15f;
-
-    private static ModelLibrary.Model? model;
-    private static AnimationLibrary? clips;
-    private static readonly Dictionary<string, float> Lengths = new();
-    private readonly Dictionary<string, (StringName name, float length)> clipNames = new();
-    private static bool tried;
-    private static readonly Random Rng = new();
-
-    public static bool Ready
-    {
-        get
-        {
-            if (tried) return model != null;
-            tried = true;
-            // (animals.ts: psx on a Lambert with the file's picture, both sides)
-            model = ModelLibrary.Get("animals", new ModelLibrary.Look(TwoSided: true));
-            if (model == null) return false;
-            foreach (var root in model.Roots.Values)
-            {
-                root.Position = Vector3.Zero;
-                foreach (var n in World.BakedWorld.All(root))
-                    if (n is MeshInstance3D mi) mi.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
-            }
-            // rotations only, by bone name (as the people's clips: Human.cs)
-            clips = new AnimationLibrary();
-            foreach (var (name, src) in model.Clips)
-            {
-                var a = new Animation { Length = src.Length, LoopMode = Animation.LoopModeEnum.Linear };
-                for (int t = 0; t < src.GetTrackCount(); t++)
-                {
-                    if (src.TrackGetType(t) != Animation.TrackType.Rotation3D) continue;
-                    string path = src.TrackGetPath(t).ToString();
-                    int colon = path.LastIndexOf(':');
-                    if (colon < 0) continue;
-                    int nt = a.AddTrack(Animation.TrackType.Rotation3D);
-                    a.TrackSetPath(nt, "Skeleton3D:" + path[(colon + 1)..]);
-                    for (int k = 0; k < src.TrackGetKeyCount(t); k++) a.RotationTrackInsertKey(nt, src.TrackGetKeyTime(t, k), src.TrackGetKeyValue(t, k).AsQuaternion());
-                }
-                clips.AddAnimation(name, a);
-                Lengths[name] = (float)src.Length;
-            }
-            return true;
-        }
-    }
-
-    public static void Forget() { model = null; clips = null; tried = false; Lengths.Clear(); }
-
-    public static Animal? Make(string kind) => Ready && model!.Copy(kind) is { } root ? new Animal(kind, root) : null;
-
-    public readonly string Kind, Species;
-    public readonly Node3D Group = new();
-    private readonly Node3D root;
-    private readonly AnimationPlayer mixer;
-    private readonly string key;
-    /// <summary>The clip that shows now (walk or run only while the animal really goes).</summary>
-    public string? Motion { get; private set; }
-    private string? gait;
-    /// <summary>Ground speed in m/s, measured from where the group really went (smoothed).</summary>
-    public float Speed { get; private set; }
-    private Vector3 last;
-    private bool hasLast;
-    private float drop;
-
-    private Animal(string kind, Node3D root)
-    {
-        Kind = kind;
-        Species = kind.StartsWith("dog") ? "dog" : kind.StartsWith("pig") ? "pig" : "cat";
-        key = kind is "dog_grey" or "pig_spotted" ? kind : Species;
-        this.root = root;
-        foreach (var entry in Lengths) if (entry.Key.StartsWith(Species + "_")) clipNames[entry.Key[(Species.Length + 1)..]] = (new StringName(entry.Key), entry.Value);
-        Group.Name = kind;
-        Group.AddChild(root);
-        mixer = new AnimationPlayer { Name = "clips", CallbackModeProcess = AnimationMixer.AnimationCallbackModeProcess.Manual };
-        root.AddChild(mixer);
-        mixer.RootNode = new NodePath("..");
-        mixer.AddAnimationLibrary("", clips!);
-    }
-
-    /// <summary>Once it is in the scene: idle, and not all in step.</summary>
-    public void Start()
-    {
-        Show("idle", 0);
-        mixer.Seek(Rng.NextDouble() * Lengths.GetValueOrDefault(Species + "_idle", 1), true);
-    }
-
-    public void Play(string m, float fade = 0.25f)
-    {
-        if (m is "walk" or "run")
-        {
-            gait = m;
-            return;
-        }
-        gait = null;
-        Show(m, fade);
-    }
-
-    private void Show(string m, float fade = 0.25f)
-    {
-        if (Motion == m) return;
-        var clip = clipNames.GetValueOrDefault(m, clipNames["idle"]);
-        bool first = Motion == null;
-        Motion = m;
-        mixer.SpeedScale = 1;
-        mixer.Play(clip.name, first ? 0 : fade);
-    }
-
-    public void Update(float dt)
-    {
-        // how fast it really goes (a jump of more than 2 m is a placement, not a step)
-        var p = Group.GlobalPosition;
-        if (hasLast && dt > 0.004f)
-        {
-            float d = new Vector2(p.X - last.X, p.Z - last.Z).Length();
-            float inst = d > 2 ? 0 : d / dt;
-            Speed += (inst - Speed) * Math.Min(1, dt * 10);
-        }
-        last = p;
-        hasLast = true;
-        if (gait != null)
-        {
-            bool going = Motion is "walk" or "run";
-            if (Speed > (going ? MoveOff : MoveOn))
-            {
-                float runFrom = RunFrom[key];
-                string m = Speed > (Motion == "run" ? runFrom - 0.2f : runFrom) ? "run" : "walk";
-                Show(m, 0.2f);
-                // one loop of the clip is one stride: loops per second = speed / stride
-                var s = Stride[key];
-                mixer.SpeedScale = Speed * clipNames[m].length / (m == "run" ? s.run : s.walk);
-            }
-            else if (going || Motion == null) Show("idle", 0.2f);
-        }
-        mixer.Advance(dt);
-        float want = Motion == "sit" ? -Drop[key].sit : Motion == "lie" ? -Drop[key].lie : 0;
-        drop += (want - drop) * Math.Min(1, dt * 5);
-        root.Position = new Vector3(0, drop, 0);
-    }
-
-    public void Dispose() => Group.QueueFree();
-}
-
-/// <summary>
 /// The animals of the town (the browser's game/animals.ts Animals): a cat on about nine doorsteps in twenty, a stray
 /// dog haunting some of the rest (a third of them only at night), each made when the viewer comes within 60 m of its
 /// haunt; a townsperson's dog at heel while they are out. Strays trot about, sniff, and come over to Jef now and
@@ -173,8 +18,22 @@ public sealed class Animal
 [GamePart(206)]
 public partial class Animals : Node
 {
-    private static readonly string[] Dogs = { "dog_brown", "dog_black", "dog_spotted", "dog_grey" };
-    private static readonly string[] Cats = { "cat_tabby", "cat_black", "cat_ginger", "cat_white" };
+    // the strays: mostly street mongrels, ratting terriers, a Schipperke off the barges; the cats in six coats
+    private static readonly (string kind, int share)[] Dogs = { ("dog_brown", 22), ("dog_black", 16), ("dog_spotted", 14), ("dog_grey", 12), ("dog_terrier", 14), ("dog_terrier_wheaten", 8), ("dog_schipperke", 14) };
+    private static readonly (string kind, int share)[] Cats = { ("cat_tabby", 30), ("cat_black", 18), ("cat_ginger", 16), ("cat_white", 10), ("cat_tuxedo", 14), ("cat_tortie", 12) };
+    private static readonly string[] OldDogs = { "dog_brown", "dog_black", "dog_spotted", "dog_grey" };
+    private static string Weighted((string kind, int share)[] list, double u)
+    {
+        int total = 0;
+        foreach (var e in list) total += e.share;
+        int roll = (int)(u * total);
+        foreach (var (kind, share) in list)
+        {
+            if (roll < share) return kind;
+            roll -= share;
+        }
+        return list[0].kind;
+    }
     private const double ReachR = 60, DropR = 75;
 
     private sealed class Beast
@@ -188,6 +47,7 @@ public partial class Animals : Node
         public string? Id;
         public int Shelter;
         public float Tremble;
+        public bool Exhibit;
     }
 
     private sealed record Haunt(string Id, string Kind, double X, double Z, double Yaw, bool Night, string Pose);
@@ -202,6 +62,8 @@ public partial class Animals : Node
     private readonly Plane[] frustum = new Plane[6];
     private readonly List<Beast> dogs = new(32);
     private readonly List<(double x, double z)> routeScratch = new(256);
+    /// <summary>The soft ground shadows (World.Blobs): two under each animal in view, at its shoulders and its hips.</summary>
+    private readonly List<World.Blobs.Spot> shadows = new(64);
     private Vector3 eyeNow;
     private double fogNow;
 
@@ -229,6 +91,7 @@ public partial class Animals : Node
 
     private void PopulationChanged()
     {
+        shadows.Clear();
         foreach (var b in beasts) { b.A.Group.Visible = false; b.A.Dispose(); }
         beasts.Clear(); dogs.Clear(); routeScratch.Clear();
         haunts = null; hauntOf.Clear(); spawnT = 0; Shown = 0;
@@ -274,9 +137,9 @@ public partial class Animals : Node
             if (!seen.Add(key)) continue; // (a family's one door)
             double i = Hash32(key) % 100000;
             if (Dice("cat", i) < 0.45)
-                o.Add(new Haunt($"a:cat:{key}", Cats[(int)Math.Floor(Dice("catkind", i) * 4)], r.HomeSx + (Dice("catx", i) - 0.5) * 1.2, r.HomeSz + (Dice("catz", i) - 0.5) * 1.2, Dice("catyaw", i) * 6.28, false, Dice("catpose", i) < 0.34 ? "lie" : "sit"));
+                o.Add(new Haunt($"a:cat:{key}", Weighted(Cats, Dice("catkind", i)), r.HomeSx + (Dice("catx", i) - 0.5) * 1.2, r.HomeSz + (Dice("catz", i) - 0.5) * 1.2, Dice("catyaw", i) * 6.28, false, Dice("catpose", i) < 0.34 ? "lie" : "sit"));
             else if (Dice("stray", i) < 0.6)
-                o.Add(new Haunt($"a:dog:{key}", Dogs[(int)Math.Floor(Dice("dogkind", i) * 4)], r.HomeSx, r.HomeSz, Dice("dogyaw", i) * 6.28, Dice("dognight", i) < 0.33, "sit"));
+                o.Add(new Haunt($"a:dog:{key}", Weighted(Dogs, Dice("dogkind", i)), r.HomeSx, r.HomeSz, Dice("dogyaw", i) * 6.28, Dice("dognight", i) < 0.33, "sit"));
         }
         o.Add(new Haunt("a:parkcat:0", "cat_tabby", -306, 303, 0, false, "sit"));
         o.Add(new Haunt("a:parkcat:1", "cat_ginger", -286, 292, 0, false, "sit"));
@@ -326,7 +189,7 @@ public partial class Animals : Node
             {
                 if (Hyp(h.X - eye.X, h.Z - eye.Z) > ReachR || (h.Night && !night) || HasBeast(h.Id)) continue;
                 if(Net.Mp.NativeExtras.I?.RunAnimal(h.Id,h.X,h.Z,ReachR)==false)continue;
-                var an = Animal.Make(h.Kind);
+                var an = Animal.Make(h.Kind, h.Id);
                 if (an == null) break;
                 Main.I.View.AddChild(an.Group);
                 an.Start();
@@ -350,7 +213,7 @@ public partial class Animals : Node
                     continue;
                 }
                 if (mine != null) continue;
-                var a = Animal.Make(Dogs.Contains(s.R.DogLook) ? s.R.DogLook : "dog_brown");
+                var a = Animal.Make(OldDogs.Contains(s.R.DogLook) || Animal.RigOf(s.R.DogLook) != null ? s.R.DogLook : "dog_brown", "dog:" + s.R.Id);
                 if (a == null) break;
                 Main.I.View.AddChild(a.Group);
                 a.Start();
@@ -365,6 +228,7 @@ public partial class Animals : Node
         dogs.Clear();
         foreach (var beast in beasts) if (beast.A.Species == "dog") dogs.Add(beast);
         int shown = 0;
+        shadows.Clear();
         for (int index = beasts.Count - 1; index >= 0; index--)
         {
             var b = beasts[index];
@@ -403,12 +267,45 @@ public partial class Animals : Node
             {
                 shown++;
                 b.A.Update((float)dt);
+                if (b.A.Motion is not ("lie") && shadows.Count < 60)
+                {
+                    float r = b.A.R.H * b.A.Size * 0.42f, off = b.A.R.H * b.A.Size * 0.32f;
+                    float fx = MathF.Sin((float)b.Yaw) * off, fz = MathF.Cos((float)b.Yaw) * off;
+                    shadows.Add(new World.Blobs.Spot((float)b.X + fx, (float)b.Z + fz, (float)b.Y, r));
+                    shadows.Add(new World.Blobs.Spot((float)b.X - fx, (float)b.Z - fz, (float)b.Y, r));
+                }
             }
             if(here&&b.Id!=null)Net.Mp.NativeExtras.I?.PutAnimal(b.Id,new(b.X,b.Z,b.Yaw,b.A.Motion??"idle"),b.Owner?.R.Id);
         }
+        World.Blobs.I?.Set("animals", shadows);
         AllocatedBytesLastFrame = GC.GetAllocatedBytesForCurrentThread() - allocated;
         Shown = shown;
         LogicMs = (Time.GetTicksUsec() - t0) / 1000.0;
+    }
+
+    /// <summary>For the timing check: `want` more strays and cats about `eye` (local only, nothing is shared).</summary>
+    internal void Exhibit(int want, Vector3 eye)
+    {
+        if (town?.Walk == null || !Animal.Ready) return;
+        var kinds = Animal.Kinds.ToArray();
+        for (int i = 0, made = 0; made < want && i < 200; i++)
+        {
+            double a = i * 2.399, r = 4 + (i % 9) * 1.1, x = eye.X + Math.Cos(a) * r, z = eye.Z + Math.Sin(a) * r;
+            if (!Free(x, z)) continue;
+            var an = Animal.Make(kinds[made % kinds.Length], "exhibit:" + made);
+            if (an == null) break;
+            Main.I.View.AddChild(an.Group);
+            an.Start();
+            if (an.Species == "cat") an.Play(made % 3 == 0 ? "lie" : "sit", 0);
+            beasts.Add(new Beast { A = an, X = x, Z = z, Yaw = a, Timer = (made % 4) * 0.7, Speed = an.Species == "cat" ? 0 : 1, Exhibit = true });
+            made++;
+        }
+    }
+
+    internal void ClearExhibits()
+    {
+        for (int i = beasts.Count - 1; i >= 0; i--)
+            if (beasts[i].Exhibit) { beasts[i].A.Dispose(); beasts.RemoveAt(i); }
     }
 
     private void DropBeast(Beast b)
@@ -648,7 +545,7 @@ public partial class Animals : Node
             }
         }
         b.Shelter = 2;
-        if (b.A.Motion != "lie") b.A.Play("lie", 0.4f);
+        if (b.A.Motion != "lie") b.A.Play("lie", 0.4f, plain: true);
         // trembling: a shiver of the whole body
         b.Timer += dt;
         b.Tremble = (float)(Math.Sin(b.Timer * 38) * 0.015);

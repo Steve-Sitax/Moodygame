@@ -20,11 +20,14 @@ public partial class StreetTrades : Node
         public bool Seen;
         public bool Cart;public Node3D? Bundle;
     }
-    private static readonly string[] DogLooks={"dog_brown","dog_black","dog_spotted","dog_grey"};
+    // the cart dog: the Belgian draught dog (matin), fawn or brindle
+    private static readonly string[] DogLooks={"dog_draught","dog_draught","dog_draught","dog_draught_brindle","dog_draught_brindle"};
     private readonly Dictionary<string,Kit> kits=new();
     private readonly List<string> gone=new(32);
     private Townspeople? town;
     internal bool HasKit(string id)=>kits.ContainsKey(id);
+    /// <summary>For a check: the dog carts out now and their first dog.</summary>
+    internal IEnumerable<(Node3D root,Animal? dog)> CartDogs{get{foreach(var k in kits.Values)if(k.DogsN>0&&k.Dogs[0]!=null&&k.Root.Visible)yield return(k.Root,k.Dogs[0]);}}
     internal Vector3? KitPosition(string id)=>kits.TryGetValue(id,out var k)?k.Bundle!=null?k.Puppet.Group.GlobalPosition:k.Root.GlobalPosition:null;
     public int DogCarts {get;private set;}public int Grinders {get;private set;}
     public override void _Ready(){town=Main.I.GetNodeOrNull<Townspeople>("Townspeople");ModelLibrary.Get("lively",new(TwoSided:true,Affine:0,VertexColor:true));if(Menu.MainMenu.I is {} menu)menu.WorldReplaced+=Reset;}
@@ -55,7 +58,7 @@ public partial class StreetTrades : Node
         {
             kit.Wheel=Part("dogcart_wheel",new(-.38f,.3f,0));kit.OtherWheel=Part("dogcart_wheel",new(.38f,.3f,0));
             kit.DogsN=milk&&Townspeople.TradeHash("dogs:"+s.R.Id)>=.5?2:1;
-            for(int i=0;i<kit.DogsN;i++){var dog=Animal.Make(DogLooks[(int)(Townspeople.TradeHash("dog:"+s.R.Id+":"+i)*4)]);if(dog==null)continue;kit.Dogs[i]=dog;Main.I.View.AddChild(dog.Group);var harness=model.Copy("harness");if(harness!=null){harness.Position=new(0,-.06f,.18f);dog.Group.AddChild(harness);}dog.Play("idle");var dogSolid=new StaticBody3D{CollisionLayer=Solid.Layer,CollisionMask=0};var dogBox=new BoxShape3D{Size=new(.6f,.6f,1)};dogSolid.AddChild(new CollisionShape3D{Shape=dogBox,Position=new(0,.3f,0)});dog.Group.AddChild(dogSolid);WalkMap.RegisterBody(dogSolid,new Aabb(new(-.3f,0,-.5f),dogBox.Size),owner:p);}
+            for(int i=0;i<kit.DogsN;i++){var dog=Animal.Make(DogLooks[(int)(Townspeople.TradeHash("dog:"+s.R.Id+":"+i)*DogLooks.Length)],"cart:"+s.R.Id+":"+i);if(dog==null)continue;kit.Dogs[i]=dog;Main.I.View.AddChild(dog.Group);if(model.Copy("harness") is {} harness&&dog.Harness(harness)==null){harness.Position=new(0,-.06f,.18f);dog.Group.AddChild(harness);}dog.Play("idle");var dogSolid=new StaticBody3D{CollisionLayer=Solid.Layer,CollisionMask=0};var dogBox=new BoxShape3D{Size=new(.6f,.6f,1)};dogSolid.AddChild(new CollisionShape3D{Shape=dogBox,Position=new(0,.3f,0)});dog.Group.AddChild(dogSolid);WalkMap.RegisterBody(dogSolid,new Aabb(new(-.3f,0,-.5f),dogBox.Size),owner:p);}
             for(int i=0;i<26;i++)kit.Trail[i]=new((float)(p.X-Math.Sin(p.Yaw)*i*.2),(float)(p.Z-Math.Cos(p.Yaw)*i*.2));kit.Count=26;DogCarts++;
         }
         var solid=new StaticBody3D{CollisionLayer=Solid.Layer,CollisionMask=0};

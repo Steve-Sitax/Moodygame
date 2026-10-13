@@ -17,6 +17,19 @@ internal static class People2Material
     internal static ulong GpuBefore { get; private set; }
     internal static ulong GpuAfter { get; private set; }
     internal static void Forget() { colours.Clear(); normals.Clear(); shader = null; TextureBytes = 0; }
+    /// <summary>The one skin shader (sun, sky, fog, lamp spill, normal maps, eye glints) for people2 and the animals.</summary>
+    internal static Shader Skin()
+    {
+        if (shader != null) return shader;
+        Psx.EnsureGlobals();
+        string code = Godot.FileAccess.GetFileAsString("res://shaders/people2.gdshader");
+        return shader = new Shader { Code = code.Replace("/*SCATTER*/", Psx.LampScatterGlsl).Replace("/*SPILL*/", Psx.SpillGlsl
+            .Replace("max(dot(N, -d / max(dl, 1e-4)), 0.0)", "max((dot(N, -d / max(dl, 1e-4)) + 0.35) / 1.35, 0.0)")
+            .Replace("max(dot(N, L1), 0.0)", "max((dot(N, L1) + 0.35) / 1.35, 0.0)")
+            .Replace("max(dot(N, L2), 0.0)", "max((dot(N, L2) + 0.35) / 1.35, 0.0)")), ResourceName = "people2" };
+    }
+    /// <summary>A picture with linear-light mipmaps (colour) or renormalised ones (normals); cached until Forget.</summary>
+    internal static Texture2D Mipmapped(Texture2D source, bool colour) => Mips(source, colour);
     private static Texture2D Mips(Texture2D source, bool colour)
     {
         var cache = colour ? colours : normals;
@@ -61,12 +74,7 @@ internal static class People2Material
         GpuBefore = RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TextureMemUsed);
         ulong start = Time.GetTicksUsec();
         if (ModelLibrary.NativeScene("people2") is not { } scene) return null;
-        Psx.EnsureGlobals();
-        string code = Godot.FileAccess.GetFileAsString("res://shaders/people2.gdshader");
-        shader = new Shader { Code = code.Replace("/*SCATTER*/", Psx.LampScatterGlsl).Replace("/*SPILL*/", Psx.SpillGlsl
-            .Replace("max(dot(N, -d / max(dl, 1e-4)), 0.0)", "max((dot(N, -d / max(dl, 1e-4)) + 0.35) / 1.35, 0.0)")
-            .Replace("max(dot(N, L1), 0.0)", "max((dot(N, L1) + 0.35) / 1.35, 0.0)")
-            .Replace("max(dot(N, L2), 0.0)", "max((dot(N, L2) + 0.35) / 1.35, 0.0)")), ResourceName = "people2" };
+        var shader = Skin();
         var made = new Dictionary<Material, Material>();
         var stripped = new Dictionary<Mesh, ArrayMesh>();
         foreach (var n in BakedWorld.All(scene))
