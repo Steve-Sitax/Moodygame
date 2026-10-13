@@ -26,7 +26,8 @@ public sealed partial class Anchorage
         (70, -22), (62, -15), (52, -13), (40, -13), (35, -13), (28, -13), (21, -13), (14.5, -17), (10.5, -23.5), (6.5, -31),
         (5.5, -38), (4.5, -46), (-1, -57), (-12, -67), (-26, -82), (-40, -98), (-52, -111), (-62, -119), (-60, -126), (-46, -128.5),
     };
-    private static readonly (double X, double Z) StopA = (14, -130.8), StopQ = (28, -13);
+    // (StopQ was x 28: the loaded lighter then lay 1.03 m off the dinghy moored at (16.2, -1.1), issue 35; 31.5 clears it by 3 m and more)
+    private static readonly (double X, double Z) StopA = (14, -130.8), StopQ = (31.5, -13);
     private const double CrabM = 9.9, CrabT = 40;
     private static readonly (double A, double B) DwellA = (100, 160), DwellQ = (80, 140);
     private const double Cruise = 1.8, Lash = 0.4, Strip = 11, PaceS = 16, PaceMin = 0.5, MergeGap = 30, Accel = 0.12, Brake = 0.35;

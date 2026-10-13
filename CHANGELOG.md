@@ -21,6 +21,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - The cathedral's great west window and its side windows no longer glow amber by day in mist, rain and fog. They now stay dark stained glass that fades into the air, and still light up after dark (issue #70).
 - The floor of the cathedral's nave, and of the other churches, shows its stone paving again instead of a flat black plane. The sun's coloured patches from the windows now light the floor by day in clear weather (issue #74).
 
+- The loaded lighter at the Rijnkaai berth now lies 3.5 m further east, so its hull stays at least 4.5 m from the dinghy moored there (it came within 1.0 m) and at least 2 m clear all the way in. The boat check fails a berth closer than 2 m on the walk in or 3 m alongside (issue #35).
 - Water from a broken gutter now lands on the pavement where the street has a raised pavement, and its wet patch shows there; before, the splash and the patch lay 12 cm under the paving stones (15 of the 50 broken gutters, issue 67).
 - The iron quay ladders are new: flat-bar stiles, round rungs, wall brackets and grab hoops that rise over the coping and come down on the quay, with light rust where the tide reaches. They stand clear of the stone instead of running through the coping. Press E at the hoops to climb down into the water (or onto the mud at a low spring tide) and E at the foot to climb up again; the climb out of the water follows the new rungs at every tide (issue #85).
 
