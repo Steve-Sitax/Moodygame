@@ -213,7 +213,7 @@ public static class People2
     }
     internal static Human? Make(string kind)
     {
-        Load();
+        if (!Has(kind)) return null;
         ulong begin = Time.GetTicksUsec();
         string body = Body(kind);
         if (!Bodies.ContainsKey(body)) return null;

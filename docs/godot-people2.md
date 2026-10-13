@@ -549,8 +549,10 @@ Round 3 supplies the Kempen pig proportions, draught-dog muzzle and paw-start fi
 People2 art and native resources are split by root: the core holds man_middling, shared clips and held props;
 `people2_<root>` holds each remaining body or dressed kind and its sparse morphs, loaded on demand.
 Every committed part must remain below 20,000,000 bytes; Godot export packs them into the PCK.
-Build once with `PEOPLE2_SAVE_BLEND=.scratch/batch1-people.blend`, then export git-sized parts with
-`blender -b .scratch/batch1-people.blend --disable-autoexec -P art-source/tools/blender/split_people2.py`.
+The default builder exports git-sized parts and samples the 252 shared clips only on the core rig.
+Use `PEOPLE2_SAVE_BLEND=.scratch/batch1-people.blend` to keep a geometry checkpoint; the standalone
+`split_people2.py` can re-export its selected roots without rebuilding bodies. Dense intake geometry receives
+the same sampled curves by full node path. Sparse morph buffer views are remapped when slimming each part.
 The full plain intake remains outside git. Replacement imports all pictures and preserves other model hashes.
 
 The hair shader keeps face fragments where picture alpha + vertex alpha > 1. Vertex alpha is preserved
