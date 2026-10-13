@@ -38,6 +38,11 @@ def make_kind(name, body, age, spec, female=False, held=(), hero=True):
                 ctx.detail_zone[legs] = 1
         exposed = ck.starts(ctx.part, ("finger", "arm", "leg"))
         ctx.mul(exposed, (0.94, 0.92, 0.88))
+        if spec.get("gloves"):
+            hands = ck.starts(ctx.part, ("finger", "arm")) & (ctx.y < bd.Y(ctx.P, 0.52))
+            ctx.rgb[hands] = gc.hexrgb(spec["gloves"])
+            if hasattr(ctx, "detail_zone"):
+                ctx.detail_zone[hands] = 4
         ck.undershirt(ctx, gc.hexrgb(spec.get("dress", spec.get("coat", spec.get("jersey", spec.get("shirt", 0x4a4034))))),
                       0, covers=covers, skip=("leg",))
 
@@ -69,4 +74,22 @@ SAILOR = make_kind("sailor", "man_middling", 40,
     dict(coat=0x1e2634, vest=0x242a36, shirt=0xa8a498, trousers=0x242a36, boots=0x1a1612,
          hat="knitcap", hat_col=0x262c38, pea=True, note="Anna Maria sailor: double-breasted navy pea jacket and knitted cap, pale shirt; fixed red hair and chops"))
 
-KINDS = [PEETERS, TUUR, FIENTJE, SAILOR]
+SAILOR_B = make_kind("sailor_b", "man_middling", 44,
+    dict(coat=0x6a5a2e, shirt=0xa8a498, trousers=0x2a2e36, boots=0x1a1612,
+         hat="souwester", hat_col=0x6a5a2e, oilskin=True, long=0.36,
+         note="Working quay sailor: ochre oiled-canvas coat, sou'wester with long neck brim, dark trousers, sea boots"), hero=False)
+STRANGER = make_kind("stranger", "man_slight", 40,
+    dict(coat=0x1a1a1e, shirt=0xd4d0c4, vest=0x4a4a4e, trousers=0x2a2a2e, boots=0x0e0e10,
+         hat="tophat", hat_col=0x121214, kerchief=0x121214, long=0.31, chain=True, gloves=0x3a3a3c,
+         wear=0.15, dust=0.03,
+         note="The stranger: black knee-length frock coat, silk top hat, grey waistcoat, black cravat, gloves, watch chain"))
+THIEF = make_kind("thief", "man_slight", 23,
+    dict(coat=0x26241f, shirt=0x6a6458, vest=0x2e2a24, trousers=0x2e2a24, boots=0x1e1814,
+         hat_col=0x1a1a18, kerchief=0x3a3a36, wear=0.9, dust=0.4, patched=True,
+         note="Young quay thief: dark worn short jacket, grey neckerchief, black flat cap, mismatched repairs and muddy hems"))
+FOREMAN = make_kind("foreman", "man_stout", 49,
+    dict(coat=0x4e4234, shirt=0xc0baa8, vest=0x3a3026, trousers=0x36322c, boots=0x1c1612,
+         hat="bowler", hat_col=0x161412, long=0.36, chain=True, wear=0.4,
+         note="Natie foreman: brown long coat, brown waistcoat and watch chain, black bowler; fixed moustached face"))
+
+KINDS = [PEETERS, TUUR, FIENTJE, SAILOR, SAILOR_B, STRANGER, THIEF, FOREMAN]

@@ -133,6 +133,17 @@ def double_breasted(ctx):
     seams(ctx)
 
 
+def repairs(ctx):
+    """Darned wool with soft irregular wear, rather than a jagged mesh edge."""
+    Y = lambda f: bd.Y(ctx.fit.P, f)
+    ck.patch(ctx, ctx.fit.snap((0.20 * ctx.fit.P["w"], Y(0.63), -0.045), 0.025),
+             (0.027, 0.04), (0.19, 0.16, 0.12))
+    ck.patch(ctx, ctx.fit.snap((-0.11, Y(0.55), 0.13), 0.03),
+             (0.033, 0.028), (0.25, 0.22, 0.16))
+    hem = ctx.piece.meta.get("hem", Y(0.52))
+    ctx.mix(sm(hem + 0.025, hem, ctx.y) * 0.25, (0.35, 0.29, 0.20))
+
+
 def closed_coat(fit, spec):
     co = ck.Piece("coat", cloth(spec["coat"], "canvas" if spec.get("oilskin") else "wool",
                                 wear=0.55, tar=0.2, sheen=0.4 if spec.get("oilskin") else 0,
@@ -169,6 +180,12 @@ def tailored(fit, spec):
         if pc.name in ("coat", "coat_collar"):
             pc.cloth.wear = spec.get("wear", 0.5)
             pc.cloth.dust = spec.get("dust", 0.12)
+        if pc.name == "coat" and spec.get("patched"):
+            old_extra = pc.cloth.extra
+            def extra(ctx, old_extra=old_extra):
+                old_extra(ctx)
+                repairs(ctx)
+            pc.cloth.extra = extra
     if "jersey" in spec or spec.get("shirt_only"):
         pcs = [p for p in pcs if p.name in ("trousers", "boots", "soles", "cap", "cap_peak")]
         pcs += working_top(fit, spec.get("jersey", spec.get("shirt")),

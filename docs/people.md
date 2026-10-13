@@ -652,6 +652,8 @@ Peeters keeps her black widow's clothes and account ledger; Tuur his navy jersey
 Fientje her russet dress, checked shawl, blue-grey apron and shared herring basket; the Anna Maria sailor his
 navy double-breasted pea jacket and knit cap. Roles come from `services/data/native-rules.json` and
 `native-seed.json`; fixed faces remain in `shared/faceTypes.json CAST`, placements in `PostedPeople.cs`.
+The second set adds the working sailor's ochre oilskins and long-brimmed sou'wester, the stranger's black
+frock coat/top hat/gloves, the thief's repaired dark short coat and the foreman's brown coat/bowler/watch chain.
 The C4 build registration temporarily selects 16,000 near triangles for cast, 14,000 for crowd, 2,500 far,
 then restores the shared kit's limits. The cloth lane owns reduction and painting changes.
 
