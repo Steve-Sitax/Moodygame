@@ -401,3 +401,48 @@ map and albedo); people keep the Texture2DArrays. people2 was rebuilt once from 
   so no accepted 1.5 ms result. In those runs people+animals means were 0.71-1.48 ms except one
   Grote Markt at 1.78 ms, caused by a single 235.8 ms spike in the animals' update (median 0.19 ms);
   20-35 ms animal-update spikes occur in most runs. Re-run `check-people2.ps1 -Modes timing` alone.
+
+## Integration evidence: D3 work on layered pictures + animals + D2 (2026-10-13)
+
+Branch `art3-integrate2` merges `art3-work` with `--no-ff`. Authoring conflicts retain the layered
+`pictures` export and add D3 `work` metadata; runtime D3 code and the work proof are retained.
+Generated conflicts were resolved by rebuilding every people2 output together. The original layered
+export, people material, shader, animal sources and multiplayer wire remain unchanged.
+
+Blender plain build: 1087 s, 235 clips (97 D2 and 36 D3), 64 bones, one material. Both glbs contain
+every declared clip; the plain intake has no required extension or sparse accessor. Replacement
+preserved 1703 other model files and both manifests' other entries. Native fingerprint: `6ec774fa...`.
+Build and preservation receipts: `.scratch/people2-integrate2-build/inventory.json`,
+`.scratch/people2-replace-55b3476afd244c788618b02707f3256c/replacement.json`.
+
+People proofs: `.scratch/people2-native-dda963720d6747118d18cdb74237cbbd/`.
+Work, motion, captures, integration-captures, dress-captures, distance-captures, routing and parade
+pass; all 1431 pictures were inspected using Photocraft contact sheets and full-size work views.
+Carry/cask stance drift: 0.002/0.004 mm; parade: 0.0078642 mm maximum. D2: 150 s, 12 talk turns,
+never both speaking, standing drift zero. Identity (7), pack (341 over 320 files), network (25) pass.
+
+Animal proofs: `.scratch/animals-native-dac90b14b2994147884deec4b0f053de/`.
+Slide (24 moving cases, maximum stance drift 2.32 mm), 774 captures, identity and network pass.
+All 774 captures and four sun-test pictures were inspected through 27 Photocraft contact sheets.
+Inherited animal follow-ups: faceted haunches/silhouettes and passing residents obscuring some lamp
+views (`captures/lamps-dog_draught_brindle-1m-sit.png`); the animal geometry and capture code are unchanged.
+
+Shader audit: `.scratch/people2-native-957a4d29342e40aebd2f24ebb8d09cc7/shaders/` passes with exactly
+130 first-frame kinds, one people2 kind, 29 programs/cache entries, no problems, and unchanged
+lights (one directional, 121 omni throughout clear/rain/fog). The runner now enforces 130 kinds.
+Exclusive timing: `.scratch/people2-native-afda867edbc84621adfd9201ce4fe591/timing/` passes at
+Vismarkt/Grote Markt: people + animals means 0.849/0.730 ms, town logic means 0.891/1.043 ms;
+198 isolation samples, no other Godot engine. Animal updates still have isolated 42.068/20.554 ms
+maxima; the mean gate is unchanged and passes.
+Legacy timing also passes (0.822/0.524 ms people + animals; 187 isolation samples, zero overlap):
+`.scratch/people2-native-3cba8808a621435696af0c398843979b/legacy-timing/`.
+Animal shader/timing modes also pass: `.scratch/animals-native-ad780eb10b3047a9acc79fd33e23a102/`
+and `.scratch/animals-native-c2e5eed833b34e8d8e69db1954883379/`. Shader inventory is again 130 kinds;
+combined CPU means 0.717/0.485 ms, logic 0.853/0.817 ms, 196 isolation samples without overlap.
+All 14 people2 modes and all six animal modes pass; all 2245 PNGs were inspected. Test data is removed,
+proof logs and pictures remain under `.scratch`, and all engines started by these runs have stopped.
+
+No merge-specific visual defect found. Art follow-ups: coarse faces and pale body-only exhibits,
+police/Sooi waist and vest gaps, fishwife shawl edges, flattened broom bristles, missing gutting knife
+(no native model), and dim work views away from lamps. See `work/day-gut-3m.png`,
+`work/day-sweep-3m.png`, `captures/day-police-1m.png`, and the work lift/pass sequences.
