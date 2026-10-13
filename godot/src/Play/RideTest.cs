@@ -49,6 +49,7 @@ public partial class RideTest : Node
             if(Main.I.Arg("ride-only")=="crane-rungs") {await CraneRungsCheck(api);return;}
             if(Main.I.Arg("ride-only")=="cart") {await HandcartCheck(api);return;}
             if(Main.I.Arg("ride-only")=="velo") {await VeloCheck(api);return;}
+            if(Main.I.Arg("ride-only")=="velo-navigation") {await VeloCheck(api,true);return;}
             if(Main.I.Arg("ride-only")=="row") {await RowCheck(api);return;}
             if(Main.I.Arg("ride-only")=="ship") {await ShipCheck(api);return;}
             if(Main.I.Arg("ride-only")=="water") {await ShipCheck(api);await FerryCheck(api);return;}
@@ -215,7 +216,7 @@ public partial class RideTest : Node
         var mounted=await api.VeloMount(m.Info,m.Info.X,m.Info.Z);replies.Add(new{veloFixtureMount=mounted});
         var left=await api.VeloLeave(m.Info.Id,x,z,yaw,false);replies.Add(new{veloFixtureLeave=left});await Velocipedes.I.Load();
     }
-    private async Task VeloCheck(Api api)
+    private async Task VeloCheck(Api api,bool navigationOnly=false)
     {
         MoverClock.Hold(13.75,1);
         GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set",new {hour=13,minute=45,weather="clear",money_c=2000,health=10}));
@@ -225,7 +226,21 @@ public partial class RideTest : Node
         Require(buy.PriceC==600&&GameState.I.Money==1400,"server sells owned used velocipede");await velo.Load();
         Require(velo.Machines.Values.Any(m=>m.Info.Own&&m.Info.Mine),"owned velocipede drawn from model library");var m=velo.Machines.Values.First(m=>m.Info.Own&&m.Info.Mine);
         await VeloFixture(api,m,-118,36,0);Jef.I.Place(-118.8f,36,-MathF.PI/2,-.65f);await Frames(15);await Shot("velocipede-parked");
+        var walk=Main.I.GetNode<Scheldemist.Town.Townspeople>("Townspeople").Walk!;
+        walk.RefreshBodies();Require(!walk.Free(m.Info.X,m.Info.Z),"parked velocipede blocks crowd navigation");
+        velo.ResidentUse(m.Info.Id,true);await Frames(2);walk.RefreshBodies();
+        Require(walk.Free(m.Info.X,m.Info.Z),"resident riding removes parked navigation obstacle");
+        velo.ResidentUse(m.Info.Id,false);await Frames(2);walk.RefreshBodies();
+        Require(!walk.Free(m.Info.X,m.Info.Z),"resident parking restores navigation obstacle");
         Require(Interact.I.Press(Key.E),"E mounts owned velocipede");Require(await Until(()=>velo.Ridden==m&&!velo.Busy,10),"server confirms mounted velocipede");
+        walk.RefreshBodies();Require(walk.Free(m.Info.X,m.Info.Z),"Jef riding removes parked navigation obstacle");
+        if(navigationOnly)
+        {
+            await velo.Leave();await Frames(2);walk.RefreshBodies();
+            Require(velo.Ridden==null&&!walk.Free(m.Info.X,m.Info.Z),"dismount restores parked navigation obstacle");
+            Require(!(await api.Velos()).Velos.First(v=>v.Id==m.Info.Id).Ridden,"parking validation does not collide with its own machine");
+            await Shot("velocipede-navigation-dismounted");return;
+        }
         var from=new Vector2(Jef.I.X,Jef.I.Z);Jef.I.SetKey(Key.W,true);Require(await Until(()=>new Vector2(Jef.I.X,Jef.I.Z).DistanceTo(from)>2,8),"velocipede travels two metres");Jef.I.ClearKeys();
         replies.Add(new{veloPedal=new{from=new{from.X,from.Y},Jef.I.X,Jef.I.Y,Jef.I.Z,velo.Speed,velo.LastEvent,velo.Heading}});
         Require(velo.Speed>1&&new Vector2(Jef.I.X,Jef.I.Z).DistanceTo(from)>1,"W pedals velocipede along flat street");Jef.I.Pitch=-.9f;await Shot("velocipede-riding");
