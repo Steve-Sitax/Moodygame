@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Godot;
 using Scheldemist.Game;
@@ -27,6 +28,28 @@ public partial class HomeDoorTest : Node
     private readonly List<object> steps = new();
     private readonly List<string> pictures = new();
     private int failures;
+
+    /// <summary>The server's JSON rules, but a number that is not finite (a ray that found no ground gives -infinity) is written as null: JSON has no infinity, and the writer would throw and hang the run.</summary>
+    private static readonly JsonSerializerOptions ReportJson = Finite(new JsonSerializerOptions(Api.Json));
+
+    private static JsonSerializerOptions Finite(JsonSerializerOptions options)
+    {
+        options.Converters.Add(new FiniteSingle());
+        options.Converters.Add(new FiniteDouble());
+        return options;
+    }
+
+    private sealed class FiniteSingle : JsonConverter<float>
+    {
+        public override float Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options) => reader.GetSingle();
+        public override void Write(Utf8JsonWriter writer, float value, JsonSerializerOptions options) { if (float.IsFinite(value)) writer.WriteNumberValue(value); else writer.WriteNullValue(); }
+    }
+
+    private sealed class FiniteDouble : JsonConverter<double>
+    {
+        public override double Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options) => reader.GetDouble();
+        public override void Write(Utf8JsonWriter writer, double value, JsonSerializerOptions options) { if (double.IsFinite(value)) writer.WriteNumberValue(value); else writer.WriteNullValue(); }
+    }
 
     public override void _Ready()
     {
@@ -147,7 +170,9 @@ public partial class HomeDoorTest : Node
         catch (Exception e) { error = e.ToString(); GD.PrintErr("homedoortest: " + error); }
         finally
         {
-            File.WriteAllText(Path.Combine(dir, "homedoortest.json"), JsonSerializer.Serialize(new { ok = error == "" && failures == 0, error, failures, steps, pictures }, new JsonSerializerOptions(Api.Json) { WriteIndented = true }));
+            // the report must never keep the game from quitting: a writer that throws here once left the run hanging
+            try { File.WriteAllText(Path.Combine(dir, "homedoortest.json"), JsonSerializer.Serialize(new { ok = error == "" && failures == 0, error, failures, steps, pictures }, new JsonSerializerOptions(ReportJson) { WriteIndented = true })); }
+            catch (Exception e) { GD.PrintErr("homedoortest: the report could not be written: " + e.Message); failures++; }
             await Frames(30);
             GetTree().Quit(error == "" && failures == 0 ? 0 : 1);
         }
@@ -282,7 +307,7 @@ public partial class HomeDoorTest : Node
         return false;
     }
 
-    private void Note(string name, object value) { steps.Add(new { name, value }); GD.Print($"homedoortest: {name} {JsonSerializer.Serialize(value, Api.Json)}"); }
+    private void Note(string name, object value) { steps.Add(new { name, value }); GD.Print($"homedoortest: {name} {JsonSerializer.Serialize(value, ReportJson)}"); }
     private void Check(bool ok, string name)
     {
         steps.Add(new { name, ok });
