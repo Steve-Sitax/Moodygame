@@ -253,11 +253,13 @@ def main():
     for m in list(bpy.data.materials):
         if m != mat and m.users == 0:
             bpy.data.materials.remove(m)
-    export.export_glb(OUT)
+    from people2 import garments_workers
+    write_glb = garments_workers.export_glb if any(hasattr(k, "build") for k in kinds) else export.export_glb
+    write_glb(OUT)
     if "--plain" in ARGS:
         plain = PLAIN
         # The decoded intake stays outside git; art geometry and styling are unchanged.
-        export.export_glb(plain, plain=True)
+        write_glb(plain, plain=True)
         print(f"[people2] plain native intake -> {plain}")
     from people2 import glb_slim
     if not os.environ.get("PEOPLE2_NO_SLIM"):  # trials: PEOPLE2_NO_SLIM=1 keeps Blender's file as it is

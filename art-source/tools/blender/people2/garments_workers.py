@@ -110,11 +110,21 @@ def cap(fit, rgb=0x2e2a26, style="flat", badge=False):
         rim.grid(np.array(rows), ck.hat_weights, closed=True, seam_col=16)
         rim.orient((0, 1, 0))
         if style == "bowler":
-            # Round the stiff drum into a modest dome.
-            for p in crown.V:
-                t = np.clip((p[1] - y) / height, 0, 1)
-                p[0] = c[0] + (p[0] - c[0]) * (1 - .28 * t * t)
-                p[2] = c[2] + (p[2] - c[2]) * (1 - .28 * t * t)
+            # A bowler has a domed crown, not the flat drum of a kepi.
+            crown=ck.Piece("cap",cloth,scale=1.3,hat=True)
+            a=np.arange(24)*2*math.pi/24
+            radius=ck.head_support(fit,y+.012,a)+.013
+            height=max(.095,top+.020-y)
+            rings=[]
+            for t,factor in ((0,1),(.12,1),(.40,.95),(.70,.78),(.90,.48),(.985,.16)):
+                rings.append(np.stack([c[0]+radius*factor*np.sin(a),np.full(24,y+height*t),
+                                       c[2]+radius*factor*np.cos(a)],-1))
+            ids=crown.grid(np.array(rings),ck.hat_weights,closed=True,seam_col=12)
+            pole=crown.add((c[0],y+height,c[2]),dict(ck.HEAD_ONLY))
+            for j in range(24):
+                crown.face((ids[-1,j],ids[-1,(j+1)%24],pole))
+            crown.seam(ids[-1,12],pole)
+            crown.orient(lambda q:q-np.array((c[0],y-.02,c[2])))
     ck.thicken(crown, .0025, depth=.025)
     out = [crown]
     if rim is not None:
@@ -286,7 +296,7 @@ def build_kind(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
     # Closed shirt/kiel sleeves replace the hidden upper arm even when a ray
     # misses the garment near a shoulder seam; slider blending can otherwise
     # uncover one retained skin triangle there. Hands and bare forearms stay.
-    hidden=lambda p,part: part=="torso" or part.startswith("arm") and p[1]>fit.Y(.66)
+    hidden=lambda p,part: part=="torso" or part.startswith("arm") and p[1]>fit.Y(kind.sleeve_cut)
     cut0+=ck.cut_body(b["lod0"],hidden)
     cut1+=ck.cut_body(b["lod1"],hidden)
     if not kind.barefoot:
@@ -317,32 +327,9 @@ def build_kind(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
     scales.update({"in_"+pc.name:pc.scale for pc in pieces})
     ck.unwrap(near,scales)
     ck.unwrap(cage,scales)
-    crgb,cnrm=dr.paint_clothes(near,pieces,fit,tex)
-    # The far copy has its own final unwrap. Transfer its UVs from the final near
-    # surface so both sample the same painted islands, including hems and brims.
-    from mathutils.bvhtree import BVHTree
-    from mathutils import Vector
-    near.data.calc_loop_triangles()
-    vparts=wt.parts(near)
-    cparts=wt.parts(cage)
-    uvn=near.data.uv_layers.active.data
-    uvc=cage.data.uv_layers.active.data
-    for part in set(cparts):
-        triangles=[t for t in near.data.loop_triangles if vparts[t.vertices[0]]==part]
-        if not triangles:
-            continue
-        tree=BVHTree.FromPolygons([v.co[:] for v in near.data.vertices],[t.vertices[:] for t in triangles],all_triangles=True)
-        from mathutils.geometry import barycentric_transform
-        for poly in cage.data.polygons:
-            if cparts[poly.vertices[0]]!=part:
-                continue
-            for li in poly.loop_indices:
-                q=cage.data.vertices[cage.data.loops[li].vertex_index].co
-                loc,_,ti,_=tree.find_nearest(q)
-                t=triangles[ti]
-                uvs=[Vector((*uvn[l].uv,0)) for l in t.loops]
-                val=barycentric_transform(loc,*[near.data.vertices[v].co for v in t.vertices],*uvs)
-                uvc[li].uv=val[:2]
+    # Project every reduced face into one painted near triangle of its garment.
+    transfer_uv(near,cage)
+    crgb,cnrm=paint_pair(near,cage,pieces,fit,tex)
     atl.put("cloth_"+kind.name,crgb,cnrm)
     atl.clothes_zones("cloth_"+kind.name,dr.paint_clothes.zones)
     b["piece_counts"]={"lod0":dr.piece_counts(near),"lod1":dr.piece_counts(cage)}
@@ -362,6 +349,60 @@ def build_kind(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
     log("[workers] kind %s: %d / %d triangles; cut %d/%d; pieces %s" %
         (kind.name,b["counts"]["lod0"],b["counts"]["lod1"],cut0,cut1,b["piece_counts"]))
     return b
+
+
+def paint_pair(near,far,pieces,fit,size):
+    """Fill the far triangles' UV chords, then retain the detailed near painting.
+
+    A reduced face can span a concave island's unpainted gap even when all corners
+    stay in that island. Both copies must contribute coverage to the shared layer.
+    """
+    from . import paint
+    far_rgb,far_nrm=dr.paint_clothes(far,pieces,fit,size)
+    far_zones=dr.paint_clothes.zones.copy()
+    near_rgb,near_nrm=dr.paint_clothes(near,pieces,fit,size)
+    near_zones=dr.paint_clothes.zones.copy()
+    _,_,part,_=paint.position_map(near,size,wt.parts(near))
+    covered=part>=0
+    rgb=np.where(covered[...,None],near_rgb,far_rgb)
+    normal=np.where(covered[...,None],near_nrm,far_nrm)
+    dr.paint_clothes.zones=np.where(covered,near_zones,far_zones)
+    return rgb,normal
+
+
+def transfer_uv(near,far):
+    """Project by garment into painted triangles, preserving atlas boundaries."""
+    from mathutils.bvhtree import BVHTree
+    from mathutils import Vector
+    from mathutils.geometry import barycentric_transform
+    near.data.calc_loop_triangles()
+    triangles=list(near.data.loop_triangles)
+    parts=wt.parts(near)
+    fparts=wt.parts(far)
+    uv=near.data.uv_layers.active.data
+    points=[v.co[:] for v in near.data.vertices]
+    bypart={}
+    for i,t in enumerate(triangles):
+        bypart.setdefault(parts[t.vertices[0]],[]).append(i)
+    def tree(ids):return BVHTree.FromPolygons(points,[triangles[i].vertices[:] for i in ids],all_triangles=True)
+    trees={p:tree(ids) for p,ids in bypart.items()}
+    out=far.data.uv_layers.active.data
+    for face in far.data.polygons:
+        part=fparts[face.vertices[0]]
+        if part not in trees:continue
+        centre=sum((far.data.vertices[v].co for v in face.vertices),Vector())/len(face.vertices)
+        _,_,index,_=trees[part].find_nearest(centre)
+        chosen=bypart[part][index]
+        # Keep the reduced face inside one painted triangle. A chord across a
+        # concave chart can cut through another garment's packed UV island.
+        local=tree([chosen])
+        for li in face.loop_indices:
+            q=far.data.vertices[far.data.loops[li].vertex_index].co
+            loc,_,index,_=local.find_nearest(q)
+            t=triangles[chosen]
+            uvs=[Vector((*uv[l].uv,0)) for l in t.loops]
+            value=barycentric_transform(loc,*[near.data.vertices[v].co for v in t.vertices],*uvs)
+            out[li].uv=value[:2]
 
 
 def check_sheets(dressed, bodies, actions, move_clips, held_obs, directory, rig_path):
@@ -400,3 +441,34 @@ def check_sheets(dressed, bodies, actions, move_clips, held_obs, directory, rig_
         return pc.cast(dressed,bodies,actions,move_clips,held_obs)
     finally:
         pv.clone=original
+
+
+def export_glb(path, plain=False):
+    """Export authored FK keys directly; the export rig has no IK or constraints.
+
+    Resampling the entire slotted clip bank against every dressed armature grows
+    prohibitively with a wide kit. Every animated bone is already keyed at 24 fps.
+    Keep that bank and dense native morphs, with the common export settings.
+    """
+    import bpy
+    import bmesh
+    from . import export
+    for ob in bpy.data.objects:
+        if ob.type != "MESH" or not ob.name.startswith("held_"):
+            continue
+        bm=bmesh.new()
+        bm.from_mesh(ob.data)
+        bmesh.ops.delete(bm,geom=[f for f in bm.faces if f.calc_area()<1e-12],context="FACES_ONLY")
+        bm.to_mesh(ob.data)
+        bm.free()
+        ob.data.update()
+    os.makedirs(os.path.dirname(path),exist_ok=True)
+    bpy.ops.export_scene.gltf(
+        filepath=path,export_format="GLB",export_yup=True,export_texcoords=True,export_normals=True,
+        export_materials="EXPORT",export_vertex_color="ACTIVE",use_selection=False,export_skins=True,
+        export_animations=True,export_animation_mode="ACTIONS",export_force_sampling=False,
+        export_image_format="AUTO",export_jpeg_quality=88,export_image_quality=88,export_extras=True,
+        export_influence_nb=4,export_draco_mesh_compression_enable=not plain,export_draco_mesh_compression_level=7,
+        export_draco_position_quantization=14,export_draco_normal_quantization=10,export_draco_texcoord_quantization=12,
+        export_rest_position_armature=True,export_def_bones=False,export_morph_normal=export.MORPH_NORMALS or plain,
+        export_try_sparse_sk=not plain)

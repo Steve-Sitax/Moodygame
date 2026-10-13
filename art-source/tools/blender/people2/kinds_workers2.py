@@ -15,7 +15,11 @@ PROFILES = {
  "porter": dict(body="man_middling",age=57,coat="short",coat_col=0x3a3a34,shirt=0xb0a898,vest=0x5a4a3a,trousers=0x36322c,badge=True,hat_col=0x2a2a28),
  "carter": dict(body="man_middling",age=42,shirt=0x3a3a30,rolled=True,trousers=0x44403a,kerchief=0x6a5a3a,hat_col=0x4a4238),
  "coalman": dict(body="man_stout",age=38,kiel=True,shirt=0x2a2a2a,trousers=0x222222,hat="hood",soot=.72,kerchief=0x2a2622,boots=0x141210),
+ "sweep": dict(body="man_slight",age=41,coat="short",coat_col=0x1e1c1a,shirt=0x2a2826,trousers=0x1c1a18,hat="top",hat_col=0x121212,ragged=True,soot=.65,boots=0x121010),
+ "sweep_boy": dict(body="child_slight",age=11,shirt=0x2a2826,rolled=True,trousers=0x1e1c1a,hat="knit",hat_col=0x1a1a1a,barefoot=True,soot=.65,ragged=True),
  "grinder": dict(body="man_middling",age=54,coat="short",coat_col=0x5a4632,shirt=0x9a9282,trousers=0x4a4236,hat="bowler",hat_col=0x3a3026,apron="leather",kerchief=0x6a2a22),
+ "ragman": dict(body="old_man",age=64,coat="long",coat_col=0x5a5040,shirt=0x6a6250,trousers=0x4a4032,hat="bowler",hat_col=0x2e2a24,ragged=True,kerchief=0x7a5a2a),
+ "baker_boy": dict(body="child_middling",age=14,shirt=0xe0dcd0,trousers=0xb8b2a2,rolled=True,hat="knit",hat_col=0xe4e0d6,apron="linen",flour=.8,boots=0x3a2e22),
 }
 
 
@@ -59,6 +63,7 @@ def make_kind(name,p,seed):
            held=held,hands_hard=.8 if not P["child"] else .35,note=note)
     k.build=gw.build_kind
     k.barefoot=p.get("barefoot",False)
+    k.sleeve_cut=.60 if p.get("rolled") else .54
     return k
 
 
