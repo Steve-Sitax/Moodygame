@@ -135,6 +135,7 @@ public partial class NativeTown : BakedWorld
         // The baked wall lamps are marked hidden at source; nothing else draws them, so the wall lights floated without lamps.
         if (town.GetNodeOrNull<Node3D>("wall_lamps") is { } wallLamps)
             foreach (var wallLamp in wallLamps.GetChildren().OfType<Node3D>()) wallLamp.Visible = true;
+        var wallChunks = new NativeWallChunks { Name = "wall_chunk_culling" }; wallChunks.Collect(All(town)); AddChild(wallChunks);
         var registered = new HashSet<ulong>();
         foreach (var node in All(town))
         {
