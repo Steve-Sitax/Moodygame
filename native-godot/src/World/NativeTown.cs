@@ -54,6 +54,18 @@ public partial class NativeTown : BakedWorld
         }
         // Active fires construct their own moving pump. Keep the one-time scene snapshot intact on disk.
         if (eventSnapshots > 0) Unported.Remove("Node1476/Mesh2924");
+        // The bake was taken while a house front stood scorched: its soot quad (6.4 m wide, the front's height, 6 cm out from the
+        // Poesje's door, drawn opaque black without its smoke texture) stayed in the scene as a one-time snapshot, hiding the front's
+        // sign, door and windows and standing as a solid sheet across the street door (issues 110, 111). The town's own soot
+        // (TownLife.Fire) draws a burned front when a fire has really happened; the snapshot stays on disk but never shows.
+        int sootSnapshots = 0;
+        // (dev: --keep-soot leaves the snapshot as the bake has it, for a before-and-after)
+        foreach (var soot in town.GetChildren().OfType<Node3D>().Where(n => !Scheldemist.Main.I.Flag("keep-soot") && (n.Name == "soot" || n.HasMeta("source_name") && n.GetMeta("source_name").AsString() == "soot")).ToArray())
+        {
+            soot.Visible = false;
+            foreach (var child in All(soot)) child.SetMeta("native_replaced_event_snapshot", true);
+            sootSnapshots++;
+        }
         // The bake also kept the horse model parts the pool's copies were made from (second "horses" group: whole mesh parts at the
         // origin, legs hanging below the quay). The pool draws its own copies; the template stays on disk but never shows.
         int horseTemplates = 0;
@@ -84,6 +96,7 @@ public partial class NativeTown : BakedWorld
         Report["districts"] = Layouts.Districts.Count;
         Report["replacedEventSnapshots"] = eventSnapshots;
         Report["hiddenHorseTemplates"] = horseTemplates;
+        Report["hiddenSootSnapshots"] = sootSnapshots;
         Stage = "done";
         return Error.Ok;
     }
