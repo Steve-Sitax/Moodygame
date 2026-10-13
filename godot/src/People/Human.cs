@@ -328,6 +328,8 @@ public sealed class Human
     }
 
     internal float StanceSlide => newer?.StanceSlide ?? 0;
+    /// <summary>A people2 talker speaking now (not listening); for the proofs.</summary>
+    internal bool Speaking => newer?.Speaking ?? false;
     internal float StanceReach => newer?.StanceReach ?? 0;
     internal int StanceSamples => newer?.StanceSamples ?? 0;
     internal void ParadeClip(string clip) { Motion = clip; if (newer != null) newer.PlayRaw(clip); else Play(clip, 0); }

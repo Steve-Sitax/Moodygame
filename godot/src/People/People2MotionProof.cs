@@ -69,9 +69,13 @@ internal partial class People2MotionProof : Node
                     {
                         await Look(at, look, 6);
                         manual = true;
+                        // sitting down and getting up: a man settled at a stool sits, then stands again
+                        if (seq == "sitdown" && sitter != null) { for (int s = 0; s < 60; s++) sitter.Human.Update(1f / 60); sitter.Human.Root.Position = sitterAt + Vector3.Up * sitter.Human.SitDrop(sitterSeat); sitter.Human.Play("sit", 0.3f); }
+                        if (seq == "standup" && sitter != null) { for (int s = 0; s < 60; s++) sitter.Human.Update(1f / 60); sitter.Human.Play("idle", 0.3f); }
                         for (int k = 0; k < 10; k++)
                         {
                             if (k > 0) for (int s = 0; s < 15; s++) foreach (var f in figs) f.Human.Update(1f / 60);
+                            if (seq == "standup" && sitter != null && sitter.Human.Motion != "sit") sitter.Human.Root.Position = sitterAt + Vector3.Up * Math.Min(0, (1 - Math.Min(1, k / 7f)) * sitterDrop);
                             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
                             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
                             string name = $"seq-{seq}-{k:00}.png";
@@ -82,10 +86,52 @@ internal partial class People2MotionProof : Node
                     }
                 }
             }
-            File.WriteAllText(Path.Combine(dir, "motion.json"), JsonSerializer.Serialize(new { ok = true, place = "vismarkt", origin = new[] { origin.X, origin.Y, origin.Z }, figures = report, doorProbes = probes, pictures }, new JsonSerializerOptions { WriteIndented = true }));
+            var life = Life(150);
+            File.WriteAllText(Path.Combine(dir, "motion.json"), JsonSerializer.Serialize(new { ok = true, place = "vismarkt", origin = new[] { origin.X, origin.Y, origin.Z }, figures = report, steps = probes, life, pictures }, new JsonSerializerOptions { WriteIndented = true }));
             GetTree().Quit();
         }
         catch (Exception error) { GD.PrintErr(error); GetTree().Quit(1); }
+    }
+
+    // A stretch of the figures' own life, driven at 30 Hz: which clip each one plays when (the idles' slow changes,
+    // the talkers' turns), the planted feet's drift while one standing clip fades into another.
+    private object Life(int seconds)
+    {
+        manual = true;
+        var changes = new List<object>();
+        var last = figs.ToDictionary(f => f, f => f.Human.AnimationState.Clip);
+        var a = figs.FirstOrDefault(f => f.Label == "pairA")?.Human;
+        var b = figs.FirstOrDefault(f => f.Label == "pairB")?.Human;
+        int both = 0, none = 0, aSpeaks = 0, bSpeaks = 0, turns = 0, frames = seconds * 30;
+        bool? lastA = null;
+        for (int i = 0; i < frames; i++)
+        {
+            foreach (var f in figs) f.Human.Update(1f / 30);
+            float t = (i + 1) / 30f;
+            foreach (var f in figs)
+            {
+                string? c = f.Human.AnimationState.Clip;
+                if (c != last[f]) { changes.Add(new { t = MathF.Round(t, 2), who = f.Label, clip = c }); last[f] = c; }
+            }
+            if (a != null && b != null)
+            {
+                bool sa = a.Speaking, sb = b.Speaking;
+                if (sa && sb) both++;
+                if (!sa && !sb) none++;
+                if (sa) aSpeaks++;
+                if (sb) bSpeaks++;
+                if (lastA != null && lastA != sa) turns++;
+                lastA = sa;
+            }
+        }
+        manual = false;
+        return new
+        {
+            seconds,
+            changes,
+            talk = new { frames, bothSpeakingFrames = both, bothListeningFrames = none, aSpeakingFrames = aSpeaks, bSpeakingFrames = bSpeaks, turnsOfA = turns },
+            standLockDriftMm = figs.Select(f => new { who = f.Label, mm = MathF.Round(f.Human.StanceSlide * 1000, 3), samples = f.Human.StanceSamples }).ToArray(),
+        };
     }
 
     private async System.Threading.Tasks.Task Look(Vector3 at, Vector3 look, int settle)
@@ -142,7 +188,9 @@ internal partial class People2MotionProof : Node
 
     // what stands where (relative to the lamp's square: the figures face -z, toward the cameras)
     private Vector3 At(float x, float z) { var p = origin + new Vector3(x, 0, z); p.Y = Ground(p.X, p.Z); return p; }
-    private Vector3 rowC, pairC, seatC, benchC;
+    private Vector3 rowC, pairC, seatC, benchC, sitterAt;
+    private Fig? sitter;
+    private float sitterSeat, sitterDrop;
     private float benchYaw;
 
     private void Stage()
@@ -161,6 +209,15 @@ internal partial class People2MotionProof : Node
         var stool = Prop("stalls", "mk2_stool", seatC + new Vector3(0.9f, 0, 0), 0);
         if (crate != null) Put("docker_a", "crate", seatC + new Vector3(-0.9f, 0, 0), MathF.PI, "sit", Top(crate) - seatC.Y);
         if (stool != null) Put("p2:woman_middling", "stool", seatC + new Vector3(0.9f, 0, 0), MathF.PI, "sit", Top(stool) - seatC.Y);
+        // a man standing at a second stool (he sits down and gets up in the sequences)
+        sitterAt = seatC + new Vector3(2.9f, 0, 0.4f);
+        var stool2 = Prop("stalls", "mk2_stool", sitterAt, 0);
+        if (stool2 != null)
+        {
+            sitterSeat = Top(stool2) - sitterAt.Y;
+            sitter = Put("p2:man_middling", "sitter", sitterAt, MathF.PI, "idle");
+            sitterDrop = sitter?.Human.SitDrop(sitterSeat) ?? 0;
+        }
         foreach (var (kind, i) in new[] { ("fishwife_a", 0), ("p2:old_man", 1) })
             if (Step(i) is { } st) Put(kind, "step" + i, st.at, st.yaw, "sit", st.h);
         // a town bench (shared/townplaces.json), the nearest to the square
@@ -289,6 +346,11 @@ internal partial class People2MotionProof : Node
     {
         yield return ("idle", rowC + new Vector3(-1.6f, 1.45f, -3.2f), rowC + new Vector3(-1.6f, 0.95f, 0));
         yield return ("talk", pairC + new Vector3(0.6f, 1.45f, -3.0f), pairC + new Vector3(0, 0.95f, 0));
+        if (sitter != null)
+        {
+            yield return ("sitdown", sitterAt + new Vector3(2.4f, 1.3f, -1.9f), sitterAt + new Vector3(0, 0.75f, 0));
+            yield return ("standup", sitterAt + new Vector3(2.4f, 1.3f, -1.9f), sitterAt + new Vector3(0, 0.75f, 0));
+        }
     }
 
     public override void _Process(double delta)

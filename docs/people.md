@@ -19,7 +19,7 @@ about 2 min, `--faces --hands --sheet` about 4 min, `--dress` (C's checks) about
 
 | Writes | What |
 |---|---|
-| `art-source/client/public/models/people2.glb` | 10 bodies and the kinds, each an armature (named after the body or kind) with `<name>_lod0` and `<name>_lod1`; the held things under `people2_held`; one material `people2_atlas` (colour and normal map, 4096 px); 197 clips (36 old, their 4 variants for the old, 62 locomotion, 95 idles, talk and sitting), the near copies' shape keys; compressed art geometry, JPEG |
+| `art-source/client/public/models/people2.glb` | 10 bodies and the kinds, each an armature (named after the body or kind) with `<name>_lod0` and `<name>_lod1`; the held things under `people2_held`; one material `people2_atlas` (colour and normal map, 4096 px); 199 clips (36 old, their 4 variants for the old, 62 locomotion, 97 idles, talk and sitting), the near copies' shape keys; compressed art geometry, JPEG |
 | `art-source/shared/peopleRig.json` | the bones, sockets, grab marks, the Godot BoneMap, the grips and the shape keys, per body its joints, marks, figures and counts, `locomotion` (every D1 clip's speed, cycle, stride, travel and checks; the blend rule; the loads and handles), `idles` (D2: the families, which clip serves which motion, the seats, every clip's checks), `heightFactor`, `oldStance`, and C's `kinds`, `held` and `atlas` |
 | `.scratch/people2-build/shots/*.png` | the check pictures (not in git) |
 
@@ -771,11 +771,11 @@ another at a seam without a foot moving. The shoulder helpers are keyed by the r
 
 | Family | Body | Plays on | Clips |
 |---|---|---|---|
-| man | man_middling | man_middling, man_slight | `man_idle_shift`, `_feet` (a foot shifts, a scratch at the nape), `_hips`, `_behind` (rocking heel to toe), `man_fold`, `man_pockets`; `man_talk_calm`, `_eager`, `_cross`, `man_listen`, `man_laugh`, `man_shrug`, `man_point`; `man_sit_bench`, `_chair`, `_crate`, `_step` and each one's `_down`, `_up` |
-| woman | woman_middling | woman_middling, woman_slight | a woman's stance (feet close, the right a little ahead and turned out): `woman_idle_shift` (hands folded before her), `_feet` (a hand to the temple), `_hips` (fists on the hips), `woman_fold`, `woman_behind`, `woman_pockets` (hands folded low); the seven talk clips; `woman_sit_bench`, `_chair`, `_crate`, `_step` (knees together, hands in the lap) with `_down`, `_up` |
+| man | man_middling | man_middling, man_slight | `man_idle_shift`, `_feet` (a foot shifts, a scratch at the nape), `_hips`, `_behind` (rocking heel to toe), `man_fold`, `man_pockets`; `man_talk_calm`, `_eager`, `_cross`, `man_listen`, `_listen_fold`, `man_laugh`, `man_shrug`, `man_point`; `man_sit_bench`, `_chair`, `_crate`, `_step` and each one's `_down`, `_up` |
+| woman | woman_middling | woman_middling, woman_slight | a woman's stance (feet close, the right a little ahead and turned out): `woman_idle_shift` (hands folded before her), `_feet` (a hand to the back of the head), `_hips` (fists on the hips), `woman_fold`, `woman_behind`, `woman_pockets` (hands folded low); the eight talk and listen clips; `woman_sit_bench`, `_chair`, `_crate`, `_step` (knees together, hands in the lap) with `_down`, `_up` |
 | stout | man_stout | man_stout (falls back on man) | `stout_idle_hips`, `stout_fold`, `stout_pockets` (hands on his own bigger belly), `stout_sit_bench` |
 | wstout | woman_stout | woman_stout (falls back on woman) | `wstout_idle_hips`, `wstout_fold`, `wstout_idle_shift`, `wstout_sit_bench` |
-| old | old_man | old_man | bent knees, eyes lower, slower: `old_idle_behind`, `_front`, `_back` (a hand rubs the small of the back, a stretch), `_feet` (a scratch at the crown); `old_talk_calm`, `_cross`, `old_listen`, `old_laugh`, `old_point`; `old_sit_bench`, `_step` |
+| old | old_man | old_man | bent knees, eyes lower, slower: `old_idle_behind`, `_front`, `_back` (a hand rubs the small of the back, a stretch), `_feet` (a scratch at the back of the head); `old_talk_calm`, `_cross`, `old_listen`, `old_laugh`, `old_point`; `old_sit_bench`, `_step` |
 | oldw | old_woman | old_woman (falls back on old) | `oldw_idle_front`, `oldw_idle_fold`, `oldw_talk_calm`, `oldw_listen`, `oldw_sit_bench` |
 | child | child_middling | child_middling, child_slight | quicker loops: `child_idle_shift`, `_rock`, `_feet`, `child_pockets`, `child_talk`, `child_listen`, `child_laugh`, `child_sit_bench` (the feet hang and swing), `child_sit_step` |
 
@@ -794,13 +794,13 @@ a seated person: the first half second stands where the seat is.
 
 ### Measures (printed by every build, in `peopleRig.json idles.clips.<name>.checks`)
 
-95 clips (67 loops and 28 changes of seat), 806 s, 19,444 frames. Planted feet at the keys: the ball and the toe
+97 clips (69 loops and 28 changes of seat), 831 s, 20,050 frames. Planted feet at the keys: the ball and the toe
 tips 0.000 mm in every clip; a heel that leaves the ground moves at most 0.31 mm while it rises (it turns about the
 toe joint). As played (slerp between the keys): at most 0.36 mm standing, 0.001 mm seated. Loop seams: at most
 0.00001 degrees, and the change of turning speed across a seam at most 0.76 deg/frame^2 (never above its loop's
 own). Sitting down and getting up: planted feet at most 0.6 mm at the keys and 2.7 mm as played, the stepping feet
-brush the ground at most 3 mm. `glb_slim` thins these clips' keys (572,000 to 115,000: a key left out is within
-0.04 degrees, or 0.15 mm for the hips, of its neighbours' interpolation); the art master grows from 7.4 to 11.3 MB.
+brush the ground at most 3 mm. `glb_slim` thins these clips' keys (587,000 to 116,000: a key left out is within
+0.04 degrees, or 0.15 mm for the hips, of its neighbours' interpolation); the art master grows from 7.4 to 11.4 MB.
 
 ### For the runtimes
 

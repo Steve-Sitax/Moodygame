@@ -90,8 +90,16 @@ Every choice comes from the person's stable id (`Human.SetIdentity`, FNV-1a), so
 
 Proof: `& ./native-godot/scripts/check-people2.ps1 -Modes motion -Port <port>` (`--people2-motion <dir>`) puts a
 row of eight people idling, a pair talking, a docker on the game's crate, a woman on a market stool, two people on
-doorsteps (found by the colliders) and two women on the nearest town bench, and takes them at 3 m and 6 m at 13:00
-and 19:30, with ten pictures 0.25 s apart of an idle and of a talk (`motion.json`).
+doorsteps (found by the colliders: the houses' 12 cm plinths) and two women on a town bench, and takes them at
+3 m and 6 m at 13:00 and 19:30, with ten pictures 0.25 s apart of an idle, a talk, sitting down and getting up,
+then lets them live 150 s at 30 Hz and records every clip change, the talkers' turns and the stand lock's drift
+(`motion.json`).
+
+Evidence (2026-10-13, 199 clips): `.scratch/people2-native-b955c1da441b4bc7b444c18aa72d5637/` (motion, captures,
+routing, parade, identity, network, all PASS). 64 motion pictures inspected. In 150 s the pair spoke in turn: 0
+frames with both speaking, 8% with both listening (a pause), 12 turns; idles changed every 20-50 s per person;
+planted feet held by the stand lock moved 0.000 mm. Parade foot lock 0.008 mm; routing (14 roots, 16/64 bones,
+faces) and 25 multiplayer checks pass with the new content fingerprint.
 
 ## Verification
 

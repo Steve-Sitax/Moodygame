@@ -11720,6 +11720,7 @@
   "man_talk_eager",
   "man_talk_cross",
   "man_listen",
+  "man_listen_fold",
   "man_laugh",
   "man_shrug",
   "man_point",
@@ -11733,6 +11734,7 @@
   "woman_talk_eager",
   "woman_talk_cross",
   "woman_listen",
+  "woman_listen_fold",
   "woman_laugh",
   "woman_shrug",
   "woman_point",
@@ -13599,7 +13601,8 @@
      ]
     },
     "listen": [
-     "man_listen"
+     "man_listen",
+     "man_listen_fold"
     ],
     "laugh": [
      "man_laugh"
@@ -13678,7 +13681,8 @@
      ]
     },
     "listen": [
-     "woman_listen"
+     "woman_listen",
+     "woman_listen_fold"
     ],
     "laugh": [
      "woman_laugh"
@@ -14114,7 +14118,7 @@
      "scuffMm": 0.0,
      "seamDeg": 0.0,
      "seamJerk": 0.0,
-     "jerkInside": 64.6
+     "jerkInside": 71.023
     }
    },
    "man_talk_cross": {
@@ -14151,6 +14155,24 @@
      "seamDeg": 0.0,
      "seamJerk": 0.0,
      "jerkInside": 0.359
+    }
+   },
+   "man_listen_fold": {
+    "role": "listen",
+    "family": "man",
+    "female": false,
+    "kind": "idle",
+    "body": "man_middling",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.175,
+     "slidePlayedMm": 0.175,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.416
     }
    },
    "man_laugh": {
@@ -14387,6 +14409,24 @@
      "jerkInside": 0.437
     }
    },
+   "woman_listen_fold": {
+    "role": "listen",
+    "family": "woman",
+    "female": true,
+    "kind": "idle",
+    "body": "woman_middling",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.056,
+     "slidePlayedMm": 0.056,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.424
+    }
+   },
    "woman_laugh": {
     "role": "laugh",
     "family": "woman",
@@ -14618,7 +14658,7 @@
      "scuffMm": 0.29,
      "seamDeg": 0.0,
      "seamJerk": 0.0,
-     "jerkInside": 171.451
+     "jerkInside": 25.116
     }
    },
    "old_talk_calm": {
@@ -14834,7 +14874,7 @@
      "scuffMm": 0.3,
      "seamDeg": 0.0,
      "seamJerk": 0.0,
-     "jerkInside": 314.057
+     "jerkInside": 25.116
     }
    },
    "child_pockets": {

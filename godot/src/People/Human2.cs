@@ -41,6 +41,9 @@ internal sealed class Human2
     private float sitFeet;
     private bool fadeStanding;
     internal bool Speaking { get; private set; }
+    private Human2? partner;
+    private float age; // seconds in the current motion
+    private float quiet, quietLimit = 1.5f;
     internal bool Alive => GodotObject.IsInstanceValid(root) && root.IsInsideTree() && motion == "talk";
     internal Vector3 Position => root.GlobalPosition;
     internal Human.AnimationSnapshot AnimationState => new(motion, clipName, Walking ? phase * LoopTime : time, Phase, clipChanges, held);
@@ -125,11 +128,12 @@ internal sealed class Human2
         // a speaker yields at the end of a turn; a listener speaks when the other is quiet (so two never speak at
         // once, and a pause now and then when both listen); alone (talking to Jef, or to someone out of sight) a
         // talker speaks most of the time
-        var partner = People2Moves.Partner(this, root.GlobalPosition);
+        partner = People2Moves.Partner(this, root.GlobalPosition);
         bool speak = partner != null ? !Speaking && !partner.Speaking : Speaking ? Next01() < 0.45f : Next01() < 0.8f;
+        quiet = 0; quietLimit = 0.8f + 1.6f * Next01();
         string set = TalkSet();
         string[] talk = fam!.List("talk_" + set);
-        if (talk.Length == 0) talk = fam.List("talk_calm");
+        foreach (string other in new[] { "calm", "eager", "cross" }) if (talk.Length == 0) talk = fam.List("talk_" + other);
         if (speak && talk.Length > 0)
         {
             Speaking = true;
@@ -141,7 +145,7 @@ internal sealed class Human2
         var laugh = fam.List("laugh");
         if (set == "eager" && laugh.Length > 0 && Next01() < 0.22f) return laugh[0];
         var listen = fam.List("listen");
-        return listen.Length > 0 ? listen[0] : IdleClip();
+        return listen.Length > 0 ? Pick(listen, 9) : IdleClip();
     }
 
     private People2Moves.Seat? SeatFor(float s)
@@ -207,6 +211,9 @@ internal sealed class Human2
     {
         if (motion == m && clip != null) return;
         string before = motion;
+        // a figure just put in place (spawned, then given its motion) sits or stands at once, without the change
+        bool settled = age > 0.8f;
+        age = 0;
         if (before == "talk") { People2Moves.Talkers.Remove(this); Speaking = false; }
         motion = m; held = false; clipChanges++;
         if (m == "talk") People2Moves.Talkers.Add(this);
@@ -214,10 +221,10 @@ internal sealed class Human2
         string name = Map(m);
         queued = null;
         // sitting down and getting up (only with a fade: a placement with none is a figure put in its seat)
-        if (fam != null && fade > 0 && clip != null)
+        if (fam != null && fade > 0 && clip != null && settled)
         {
             string seatKind = seatInfo != null ? SeatKind(seatInfo) : "bench";
-            if (m == "sit" && IsStanding(before) && fam.Change(true, seatKind) is { } down && People2.Clips.ContainsKey(down)) { queued = name; name = down; }
+            if (m == "sit" && (IsStanding(before) || before == "walk") && fam.Change(true, seatKind) is { } down && People2.Clips.ContainsKey(down)) { queued = name; name = down; }
             else if (before == "sit" && m != "walk" && IsStanding(m) && fam.Change(false, seatKind) is { } up && People2.Clips.ContainsKey(up)) { queued = name; name = up; }
         }
         SetClip(name, fade);
@@ -286,6 +293,7 @@ internal sealed class Human2
     public void Update(float dt)
     {
         if (dt <= 0 || !root.IsInsideTree()) return;
+        age += dt;
         var a = clip; var b = clip; float weight = 0;
         float bodyRatio = hips / clip.Hips;
         float rate = speeds.GetValueOrDefault(motion, 1);
@@ -327,6 +335,13 @@ internal sealed class Human2
                     rate = Math.Abs(Pace) / legacyStride * clip.Length;
                 else if (fam != null && !speeds.ContainsKey(motion)) rate *= rateK;
                 if (motion == "idle") idleClock += dt;
+                // a listener whose partner has fallen quiet takes the turn after a short pause, not at the end of
+                // its own loop (the feet stay: the fade between two standing clips is locked)
+                if (motion == "talk" && !Speaking && partner != null)
+                {
+                    quiet = partner.Alive && !partner.Speaking ? quiet + dt : 0;
+                    if (quiet > quietLimit && time > 1.5f) { string next = TalkClip(); if (next != clipName) SetClip(next, 0.8f); }
+                }
                 time += dt * rate;
                 if (clip.Loop)
                 {

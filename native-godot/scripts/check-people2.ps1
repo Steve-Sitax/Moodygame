@@ -61,7 +61,7 @@ try {
         if ($mode -ne 'legacy-timing') { $args += '--people2' }
         switch ($mode) {
             'captures' { $args += @('--people2-captures',$dir,'--people2-light-proof') }
-            'motion' { $args += @('--people2-motion',$dir) }
+            'motion' { $args += @('--people2-motion',$dir,'--people2-motion-bench','-3,313') }
             'routing' { $args += @('--people2-proof','--snap',$dir,'--views','routing:-118,1.6,30,180,0,13,clear','--people2-map','docker_a=man_middling,fishwife_a=woman_stout,police=man_stout,sooi=man_slight') }
             'shaders' { $args += @('--shaders',$dir) }
             'parade' { $args += @('--parade',$dir,'--parade-rows','blend_walk,idle,walk,talk') }

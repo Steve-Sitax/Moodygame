@@ -997,11 +997,13 @@ GP = {
 
 
 def on_chest():
-    """The palm on one's own chest ("I", "me")."""
-    return Place(lambda fam, S, ctx=None: spot_front(fam, 0.735, -sgn(S) * 0.02 * fam.k, clear=CLOTH + 0.015),
+    """The palm on one's own chest ("I", "me"): the forearm comes up across the body from a low elbow, so the hand
+    in its own forearm's line (no turn) lies with its palm on the chest."""
+    return Place(lambda fam, S, ctx=None: spot_front(fam, 0.765, -sgn(S) * 0.03 * fam.k, clear=0.022),
                  lambda fam, S, ctx=None: V(-sgn(S) * 0.8, 0.0, 0.55),
                  lambda fam, S, ctx=None: V(0.0, -1.0, 0.0),
-                 lambda fam, S, ctx=None: V(sgn(S) * 1.0, 0.2, -1.0), shape="rest", bone="upperChest")
+                 lambda fam, S, ctx=None: V(sgn(S) * 0.7, 0.1, -1.0), shape="rest", bone="upperChest",
+                 hand=(40.0, -15.0, 5.0))
 
 
 # a gesture: keys (seconds from its start, place, move time, overshoot); "_" is the arm's own rest for the talk
@@ -1160,7 +1162,8 @@ def laugh(fam, T, seed, rest, at=0.8, dur=2.4, hand=None):
         arms[S] = ArmTrack([(0.0, rest[S], 0.3), (at + 0.35, Place(
             lambda fam, S_, ctx=None: spot_front(fam, 0.6, -sgn(S_) * 0.03 * fam.k, clear=CLOTH + 0.015),
             lambda fam, S_, ctx=None: V(-sgn(S_) * 0.9, 0.0, 0.2), lambda fam, S_, ctx=None: V(0.0, -1.0, 0.0),
-            lambda fam, S_, ctx=None: V(sgn(S_) * 1.0, -0.2, -1.0), shape="rest", bone="spine"), 0.55),
+            lambda fam, S_, ctx=None: V(sgn(S_) * 1.0, -0.2, -1.0), shape="rest", bone="spine",
+            hand=(-10.0, -8.0, 4.0)), 0.55),
             (at + dur + 0.2, rest[S], 0.8)], T)
     sp.arms = arms
     return sp
@@ -1477,12 +1480,13 @@ def recipes():
         glances=[(4.5, 0.22, -9.0, 1.0, 0.0), (4.74, 0.24, 8.0, 1.0, 0.0), (5.0, 0.24, -6.0, 1.0, 0.0),
                  (5.26, 0.3, 0.0, 0.0, 0.0)], jaw_amp=7.0).spec(), role="talk_cross")
     add("man_listen", "man", lambda f: listen(f, 12.6, 24, hangs()), role="listen")
+    add("man_listen_fold", "man", lambda f: listen(f, 12.6, 28, folded(), lean_=-1.0), role="listen")
     add("man_laugh", "man", lambda f: laugh(f, 4.8, 25, hangs(), hand="R"), role="laugh")
     add("man_shrug", "man", lambda f: shrug(f, 3.6, 26, hangs()), role="shrug")
     add("man_point", "man", lambda f: point_way(f, 7.2, 27, hangs()), role="point")
     # ---- women: the hands folded before her, a narrower stance, smaller gestures
     add("woman_idle_shift", "woman", lambda f: idle_shift(f, seed=31, arms=front(), amp=0.8), role="idle")
-    add("woman_idle_feet", "woman", lambda f: idle_feet(f, seed=32, scratch="temple", foot="R"), role="idle",
+    add("woman_idle_feet", "woman", lambda f: idle_feet(f, seed=32, scratch="nape", foot="L"), role="idle",
         focus="head")
     add("woman_idle_hips", "woman", lambda f: idle_hold(f, hips_k(), seed=33, weight_hold=0.8), role="idle")
     add("woman_fold", "woman", lambda f: idle_hold(f, folded(), seed=34, lean_=-1.0), role="fold")
@@ -1501,6 +1505,7 @@ def recipes():
         glances=[(4.8, 0.22, 9.0, 1.0, 0.0), (5.04, 0.24, -8.0, 1.0, 0.0), (5.3, 0.24, 6.0, 1.0, 0.0),
                  (5.56, 0.3, 0.0, 0.0, 0.0)], jaw_amp=7.0).spec(), role="talk_cross")
     add("woman_listen", "woman", lambda f: listen(f, 12.6, 44, front(), tilt=6.0), role="listen")
+    add("woman_listen_fold", "woman", lambda f: listen(f, 12.6, 48, folded(), tilt=5.0, lean_=-1.0), role="listen")
     add("woman_laugh", "woman", lambda f: laugh(f, 4.8, 45, front(), hand="R"), role="laugh")
     add("woman_shrug", "woman", lambda f: shrug(f, 3.6, 46, front()), role="shrug")
     add("woman_point", "woman", lambda f: point_way(f, 7.2, 47, front()), role="point")
@@ -1516,7 +1521,7 @@ def recipes():
         role="idle")
     add("old_idle_front", "old", lambda f: idle_shift(f, seed=62, arms=front(), amp=0.6), role="idle")
     add("old_idle_back", "old", lambda f: rub_back(f, seed=63), role="idle")
-    add("old_idle_feet", "old", lambda f: idle_feet(f, seed=64, scratch="crown", T=16.1), role="idle", focus="head")
+    add("old_idle_feet", "old", lambda f: idle_feet(f, seed=64, scratch="nape", T=16.1), role="idle", focus="head")
     add("old_talk_calm", "old", lambda f: Talk(
         f, 13.8, [(0.6, 2.8, "offer", "R"), (3.6, 5.4, "count", "R"), (6.2, 7.4, None, "R"), (8.0, 10.4, "beat", "R"),
                   (11.0, 12.6, None, "R")], hangs(), 65, head_amp=0.8, jaw_amp=5.0).spec(), role="talk_calm")
@@ -1538,7 +1543,7 @@ def recipes():
     # ---- children: quicker, but calm
     add("child_idle_shift", "child", lambda f: idle_shift(f, T=9.0, seed=81, amp=1.2), role="idle")
     add("child_idle_rock", "child", lambda f: idle_rock(f, behind_back(), T=9.0, seed=82), role="behind")
-    add("child_idle_feet", "child", lambda f: idle_feet(f, T=12.0, seed=83, scratch="crown"), role="idle",
+    add("child_idle_feet", "child", lambda f: idle_feet(f, T=12.0, seed=83, scratch="nape"), role="idle",
         focus="head")
     add("child_pockets", "child", lambda f: idle_hold(f, pockets(), T=9.0, seed=84), role="pockets")
     add("child_talk", "child", lambda f: Talk(
