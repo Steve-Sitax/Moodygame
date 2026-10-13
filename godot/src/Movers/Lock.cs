@@ -125,7 +125,7 @@ public partial class Lock : Node
         {
             string n = Mv.Plain(c);
             // (D6: lock_buoys, the buoys off the Werf, ride the tide)
-            if (n == "gate_leaf" || n == "lock_buoys" || c is MeshInstance3D || (c is Node3D n3 && Mv.Kids(n3, n).Any())) Mv.Claim(c);
+            if (n is "gate_leaf" or "gate_leaf_east" || n == "lock_buoys" || c is MeshInstance3D || (c is Node3D n3 && Mv.Kids(n3, n).Any())) Mv.Claim(c);
         }
     }
 
@@ -147,7 +147,8 @@ public partial class Lock : Node
         group.AddChild(lines);
 
         // the gates, in the order the browser made them: the river pair (west leaf, east leaf), the dock pair
-        var leaves = Mv.Kids(group, "gate_leaf").ToList();
+        // (the east leaves are the mirrored model "gate_leaf_east": the model's own name, not the node's)
+        var leaves = Mv.Kids(group, "gate_leaf").Concat(Mv.Kids(group, "gate_leaf_east")).ToList();
         foreach (var (pair, z) in new[] { (0, Gz0), (1, Gz1) })
             for (int side = 0; side < 2; side++)
             {
@@ -513,7 +514,7 @@ public partial class Lock : Node
 
     private void Probes()
     {
-        string Note() => $"{state}, the bridge {Lift * 100:0} % up, river gates {gateOpen[0] * 100:0} %, dock gates {gateOpen[1] * 100:0} % open, chamber {flat:0.00}, river {Tide.River:0.00}, dock {Tide.Dock:0.00}, the boat at {s:0} m of {LEN:0}";
+        string Note() => $"{state}, the bridge {Lift * 100:0} % up, river gates {gateOpen[0] * 100:0} %, dock gates {gateOpen[1] * 100:0} % open, chamber {flat:0.00}, river {Tide.River:0.00}, dock {Tide.Dock:0.00}, the boat at {s:0} m of {LEN:0}, leaves {string.Join("/", gates.Select(g => $"{Mathf.RadToDeg(Mathf.AngleDifference(g.Closed, g.Obj.Rotation.Y)):0}"))} deg off shut";
         MoversTest.Add(new MoversTest.Probe
         {
             Name = "lock_bridge",

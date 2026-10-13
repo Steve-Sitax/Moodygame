@@ -7,6 +7,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Both gates of a lock pair now open for a boat. Only the west leaf of each pair swung; the east leaf stayed shut and blocked the channel (the lock code did not find the mirrored east leaves).
 - Job goods no longer lie in the middle of the road, where they blocked the omnibus and the carts (issue #134). Ten job places (the foot of the crane, the cart stand, the ferry pontoon and the Werf, the Petit Bassin quay and its south quay, the west canal quay, the gangway of the Anna Maria, the Kipdorp mill yard and the baker's door behind the Rijnkaai) stood on a vehicle's lane, so the sacks and crates laid there stopped the omnibus or dray until someone carried them off. The places now stand beside the lane, with their lent handcarts moved the same way; the dray in the baker's lane runs about 1 m further from the door. `native-godot/scripts/audit-goods-lanes.py` checks every job place against the lanes.
 - The city wall's lights no longer float in the air. The bake had hidden the wall's 34 walk-top lamp posts and most of the wall's own pieces (the guard huts with their hung lanterns, the gates and the walks), so only their lights showed. The lamp posts are drawn again, and each wall piece shows while it is within fog distance of the player, as in the old game.
 - Children playing hopscotch near the Rijnkaai now stand still when someone blocks their next hop, then resume when the space clears, instead of walking on the spot (issue #119).
