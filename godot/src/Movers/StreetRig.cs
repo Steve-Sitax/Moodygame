@@ -26,8 +26,12 @@ public sealed class PushCart
         wheels = root.GetChildren().OfType<MeshInstance3D>().First();
         Pivot.Transform = new Transform3D(Basis.Identity, new Vector3(0, Radius, 0));
         foreach (var c in Pivot.GetChildren().OfType<MeshInstance3D>()) c.Transform = new Transform3D(Basis.Identity, new Vector3(0, -Radius, 0));
-        Body = Mv.BoxBody(root, new Aabb(new Vector3(-0.72f, 0, -0.9f), new Vector3(1.44f, 1.3f, 1.9f)));
-        Mv.BoxBody(root, new Aabb(new Vector3(-0.42f, 0.25f, 0.98f), new Vector3(0.84f, 0.75f, 1.2f)), "shafts");
+        var bed = new Aabb(new Vector3(-0.72f, 0, -0.9f), new Vector3(1.44f, 1.3f, 1.9f));
+        var shafts = new Aabb(new Vector3(-0.42f, 0.25f, 0.98f), new Vector3(0.84f, 0.75f, 1.2f));
+        Body = Mv.BoxBody(root, bed);
+        // The crowd walks round a cart that rolls on its own round, as it does round the omnibus.
+        Scheldemist.Town.WalkMap.RegisterBody(Body, bed, true);
+        Scheldemist.Town.WalkMap.RegisterBody(Mv.BoxBody(root, shafts, "shafts"), shafts, true);
     }
 
     public void Place(float x, float z, float yaw)

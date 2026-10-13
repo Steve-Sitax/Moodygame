@@ -69,10 +69,11 @@ public partial class Townspeople
         double d=Dist(p.X,p.Z,x,z);
         if(d>1){Crowd!.PuppetGo(p,x,z,1.4);return false;}
         double k=d<=.001?1:Math.Min(1,1.1*dt/d),nx=p.X+(x-p.X)*k,nz=p.Z+(z-p.Z)*k;
-        if(!Walk!.Free(nx,nz))return false;
-        foreach(var other in Crowd!.Walking)if(other!=p&&Dist(other.X,other.Z,nx,nz)<.7)return false;
-        if(Player.Jef.I is {} j&&Dist(j.X,j.Z,nx,nz)<.8)return false;
-        Crowd.PuppetStand(p,d>.3?"walk":"idle",Math.Atan2(x-p.X,z-p.Z));p.X=nx;p.Z=nz;
+        // Held up by a wall, another body or the player: wait standing. Never keep the walk clip on while not moving.
+        bool held=!Walk!.Free(nx,nz)||Player.Jef.I is {} j&&Dist(j.X,j.Z,nx,nz)<.8;
+        if(!held)foreach(var other in Crowd!.Walking)if(other!=p&&Dist(other.X,other.Z,nx,nz)<.7){held=true;break;}
+        if(held){Crowd!.PuppetStand(p,"idle",Math.Atan2(x-p.X,z-p.Z));return false;}
+        Crowd!.PuppetStand(p,d>.3?"walk":"idle",Math.Atan2(x-p.X,z-p.Z));p.X=nx;p.Z=nz;
         return d<.3;
     }
     private void DrawRope(RopePitch r)
