@@ -39,6 +39,10 @@ def pose(ao, clip, t):
     act = bpy.data.actions.get(clip)
     if act is None:
         return False
+    for pb in ao.pose.bones:  # channels a clip does not key keep the last clip's values otherwise
+        pb.location = (0, 0, 0)
+        pb.rotation_quaternion = (1, 0, 0, 0)
+        pb.rotation_euler = (0, 0, 0)
     ad = ao.animation_data or ao.animation_data_create()
     ad.action = act
     if getattr(act, "slots", None) and len(act.slots):

@@ -2,7 +2,7 @@ param(
     [string]$Godot,
     [ValidateSet('captures','integration-captures','crowd-captures','motion','work','dress-captures','distance-captures','routing','shaders','parade','timing','legacy-timing','identity','pack','network')]
     [string[]]$Modes = @('captures','shaders','parade','timing','identity','pack','network'),
-    [ValidateRange(8800,8999)][int]$Port = 8980,
+    [ValidateRange(8800,9099)][int]$Port = 8980,
     [ValidateRange(0,3600)][int]$WaitForTimingSeconds = 900
 )
 $ErrorActionPreference = 'Stop'

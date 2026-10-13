@@ -31,12 +31,14 @@ from .clothes_kit import sm, norm
 # ---------------------------------------------------------------- relief (geometry on the near copy)
 
 def compose(*fns):
+    """Several reliefs added (offsets along the outward direction, or displacement vectors)."""
     fns = [f for f in fns if f is not None]
 
     def f(ctx):
-        out = np.zeros(len(ctx.pos))
+        out = np.zeros((len(ctx.pos), 3))
         for fn in fns:
-            out += fn(ctx)
+            d = np.asarray(fn(ctx), np.float64)
+            out += d if d.ndim == 2 else ctx.nrm * d[:, None]
         return out
     return f
 
@@ -51,7 +53,7 @@ def _mask(ctx, zone=None, inner=None, where=None):
     return m
 
 
-def hang_folds(top, hem, n=9, depth=0.012, centre=None, seed=1, start=0.05, back=1.0, sharp=0.75, wander=1.2,
+def hang_folds(top, hem, n=9, depth=0.012, centre=None, seed=1, start=0.05, back=1.0, sharp=1.0, wander=1.2,
                zone=None, exclude=None):
     """Folds of hanging cloth: crests and valleys running down from `top` (game y) and deepening to `depth` at
     `hem`; `n` folds round the body (about the vertical axis through `centre` = (x, z)), spaced unevenly and wandering
@@ -72,7 +74,11 @@ def hang_folds(top, hem, n=9, depth=0.012, centre=None, seed=1, start=0.05, back
         m = _mask(ctx, zone)
         if exclude is not None:
             m &= ~exclude(p)
-        return a * prof * m
+        # hanging folds move the cloth across, out from the axis: along a hem's normal (partly down) they would
+        # lift and drop the hem into teeth
+        d = np.stack((p[:, 0] - cx, np.zeros(len(p)), p[:, 2] - cz), 1)
+        d /= np.maximum(np.linalg.norm(d, axis=1, keepdims=True), 1e-6)
+        return d * (a * prof * m)[:, None]
     return f
 
 
@@ -229,9 +235,9 @@ def fringe(pc, edge, out, down, wts, length=0.05, spacing=0.02, width=0.006, seg
 # the wood, round the reference man's foot (scaled by the foot): z from the ankle's line forward, half width, the
 # sole's height (rising into the heel's round and the toe's spring), the rim's height (the heel cup high, the sides
 # low over the instep where the leather comes out, the toe box over the toes, the point)
-KLOMP = [(-0.074, 0.020, 0.020, 0.058), (-0.066, 0.034, 0.005, 0.077), (-0.046, 0.043, 0.000, 0.076),
-         (-0.018, 0.046, 0.000, 0.064), (0.020, 0.048, 0.000, 0.052), (0.062, 0.052, 0.000, 0.049),
-         (0.104, 0.055, 0.000, 0.051), (0.140, 0.055, 0.002, 0.060), (0.172, 0.051, 0.006, 0.066),
+KLOMP = [(-0.074, 0.020, 0.020, 0.062), (-0.066, 0.034, 0.005, 0.082), (-0.046, 0.043, 0.000, 0.080),
+         (-0.018, 0.046, 0.000, 0.070), (0.020, 0.048, 0.000, 0.060), (0.062, 0.052, 0.000, 0.056),
+         (0.104, 0.055, 0.000, 0.058), (0.140, 0.055, 0.002, 0.064), (0.172, 0.051, 0.006, 0.068),
          (0.202, 0.043, 0.013, 0.066), (0.226, 0.031, 0.024, 0.063), (0.243, 0.018, 0.036, 0.060),
          (0.252, 0.007, 0.045, 0.057)]
 FOOT_RINGS = ("t1", "t2", "heel", "f1", "f2", "f3", "toe")
@@ -328,7 +334,7 @@ def klomp_top_paint(ctx):
 # ---------------------------------------------------------------- the shawl
 
 
-def shawl(fit, pc, onto, path, widths, lift, rows=7, step=0.01, flip=None):
+def shawl(fit, pc, onto, path, widths, lift, rows=7, step=0.01, flip=None, samples=None):
     """A shawl as one sheet: its folded edge along `path` (points near the body, from one end over the shoulders to
     the other), the cloth falling from that edge over the surface `onto` (the bodice) for `widths` metres (one per
     path point: narrow ends, the point down the back), `lift` metres out (one per path point: the end that crosses
@@ -336,9 +342,22 @@ def shawl(fit, pc, onto, path, widths, lift, rows=7, step=0.01, flip=None):
     lies on the body. Gives pc.fabric (metres along the edge and down from it). Returns ids (len(path), rows)."""
     path = np.asarray(path, np.float64)
     widths = np.asarray(widths, np.float64)
-    lift = np.broadcast_to(np.asarray(lift, np.float64), (len(path),))
-    m = len(path)
+    lift = np.broadcast_to(np.asarray(lift, np.float64), (len(path),)).copy()
     L = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(path, axis=0), axis=1))])
+    if samples:
+        # a smooth path of even steps (a spline through the points: the edge does not kink at them)
+        t = np.linspace(0, L[-1], samples)
+        k = np.clip(np.searchsorted(L, t, side="right") - 1, 0, len(L) - 2)
+        f = (t - L[k]) / np.maximum(L[k + 1] - L[k], 1e-9)
+        P0, P1 = path[np.maximum(k - 1, 0)], path[k]
+        P2, P3 = path[k + 1], path[np.minimum(k + 2, len(path) - 1)]
+        f2, f3 = f * f, f * f * f
+        path = 0.5 * ((2 * P1) + (-P0 + P2) * f[:, None] + (2 * P0 - 5 * P1 + 4 * P2 - P3) * f2[:, None]
+                      + (-P0 + 3 * P1 - 3 * P2 + P3) * f3[:, None])
+        widths = np.interp(t, L, widths)
+        lift = np.interp(t, L, lift)
+        L = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(path, axis=0), axis=1))])
+    m = len(path)
     pts = np.zeros((m, rows, 3))
     fab = np.zeros((m, rows, 2))
     for k in range(m):

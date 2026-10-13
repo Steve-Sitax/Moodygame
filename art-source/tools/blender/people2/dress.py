@@ -331,13 +331,22 @@ def build(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
     log("[people2]   %s relief on %d points; hidden layers deleted near %s, far %s" % (kind.name, nrel, h0, h1))
     # which piece lies over which, read before the reduction; after it, every layer is put back under the next
     order0, order1 = ck.layer_order(near), ck.layer_order(cage)
+    told = set(getattr(kind, "layers", ()))  # (under, over) the kind states: they win over the rays' votes
+    order0 = {p for p in order0 if (p[1], p[0]) not in told} | told
+    order1 = {p for p in order1 if (p[1], p[0]) not in told} | told
     before = {"lod0": cb.tris(near), "lod1": cb.tris(cage)}
     budget0 = (NEAR_HERO if kind.hero else NEAR_CROWD) - lod.tris(b["lod0"])
     budget1 = FAR - lod.tris(b["lod1"])
     cb.reduce(near, budget0)
     cb.reduce(cage, budget1, weights=cb.protect_weights(cage, seam=0.4, rim=0.35))
-    m0 = ck.clear_layers(near, b["lod0"], order0)
-    m1 = ck.clear_layers(cage, b["lod1"], order1)
+    m0 = ck.clear_layers(near, b["lod0"], order0, clearance=0.0035, passes=3, body_clearance=0.005)
+    m1 = ck.clear_layers(cage, b["lod1"], order1, clearance=0.004, body_clearance=0.006)
+    # the reduced garments cut corners over curves (a shoulder): what pokes out is tucked back under, and skin that
+    # still lies outside them goes
+    m0 += cb.tuck(near, b["lod0"], order0, kind.covers)
+    m1 += cb.tuck(cage, b["lod1"], order1, kind.covers, clearance=0.005, body_clearance=0.006)
+    cut0 += ck.cut_body(b["lod0"], kind.covers, near)
+    cut1 += ck.cut_body(b["lod1"], kind.covers, cage)
     log("[people2]   %s layers: %s; points put back under the layer over them: %d near, %d far" % (
         kind.name, ", ".join("%s<%s" % (a, c) for a, c in sorted(order0)), m0, m1))
     # UVs after the reduction, straight into the kind's clothes rectangle; the picture painted on them

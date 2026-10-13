@@ -478,7 +478,8 @@ def ring_dirs(pts, c):
     return norm(d)
 
 
-def hang_weights(fit, p, front_legs=1.0, back_legs=0.35, spring=0.0, springs=("skirt",), knee_share=0.65):
+def hang_weights(fit, p, front_legs=1.0, back_legs=0.35, spring=0.0, springs=("skirt",), knee_share=0.65,
+                 knee_band=(0.12, 0.22)):
     """Bone weights of a point of cloth hanging below the hips: the hips, the legs by side (all of it in front,
     `back_legs` behind) and by height (the shin below the knee), and a share for the spring bones (moved by the
     games), more toward the hem and behind."""
@@ -492,7 +493,8 @@ def hang_weights(fit, p, front_legs=1.0, back_legs=0.35, spring=0.0, springs=("s
     ang = math.degrees(math.atan2(abs(x), z))  # 0 in front, 180 behind
     legs = front_legs + (back_legs - front_legs) * float(sm(60.0, 130.0, ang))
     a = float(sm(fit.hip_y + 0.07, fit.hip_y - 0.10, y)) * legs
-    k = float(sm(fit.knee_y + 0.12, fit.knee_y - 0.22, y)) * knee_share
+    # below the knee the cloth goes with the shin: seated, a skirt lies on the lap and falls from the knees
+    k = float(sm(fit.knee_y + knee_band[0], fit.knee_y - knee_band[1], y)) * knee_share
     w = {"hips": 1.0 - a}
     for S, s in (("L", sL), ("R", 1.0 - sL)):
         w["legUp" + S] = a * s * (1 - k)
@@ -743,11 +745,14 @@ def cut_body(ob, covered, over=None, reach=None, tilt=30.0):
                 continue
             t = n.orthogonal().normalized()
             bt = n.cross(t)
+            miss = 0
             for k in range(4):
                 ph = k * math.pi / 2
                 if tree.ray_cast(o, n * ca + (t * math.cos(ph) + bt * math.sin(ph)) * sa, r * 1.5)[0] is None:
-                    cov[i] = False
-                    break
+                    miss += 1
+            # one tilted ray may leave through an opening (the neck over a shoulder's top); two: the edge is near
+            if miss > 1:
+                cov[i] = False
     bm = bmesh.new()
     bm.from_mesh(ob.data)
     bm.verts.ensure_lookup_table()
@@ -784,12 +789,13 @@ def layer_order(ob):
     me = ob.data
     raw = wt.parts(ob)
     piece = _piece_of(raw)
-    names = sorted({p for p in piece if p})
+    # fringes and buttons hang on whatever is next to them: they take no part in the layers
+    names = sorted({p for p in piece if p and not p.endswith("fringe") and not p.startswith("button")})
     bvh = {n: _outer_bvh(ob, raw, n) for n in names}
     votes = {}
     for v in me.vertices:
         a = piece[v.index]
-        if not a or raw[v.index] != a:
+        if not a or raw[v.index] != a or a not in bvh:
             continue
         o = v.co + v.normal * 0.0003
         for b, tree in bvh.items():
@@ -801,7 +807,7 @@ def layer_order(ob):
     return {(a, b) for (a, b), n in votes.items() if n >= 5 and n > 2 * votes.get((b, a), 0)}
 
 
-def clear_layers(ob, body, order, clearance=0.002, passes=2):
+def clear_layers(ob, body, order, clearance=0.002, passes=2, body_clearance=0.004):
     """After the reduction: a reduced piece's flat triangles cut under the round piece beneath it, which then shows
     through (the bodice through the shawl). For every pair (under, over) of layer_order, and for the body's skin
     under any piece: each point of the lower layer lies at least `clearance` under the upper layer's outer surface,
@@ -841,8 +847,9 @@ def clear_layers(ob, body, order, clearance=0.002, passes=2):
                     hit = tree.ray_cast(o, n, 0.02)
                     if hit[0] is not None and (best is None or hit[3] < best):
                         best = hit[3]
-                if best is not None and best - 0.006 < clearance:
-                    shift(target, i, n * (best - 0.006 - clearance))
+                cl = body_clearance if target is body else clearance
+                if best is not None and best - 0.006 < cl:
+                    shift(target, i, n * (best - 0.006 - cl))
                     moved += 1
             me.update()
         # 2. the upper layer over the lower one (rays from 6 mm over each point, in along its normal): a reduced
@@ -1688,7 +1695,8 @@ def skirt(fit, pc, top_row, hem_y, n=24, ease=0.012, hip_rows=(2, 1), clear=0.03
         ph = 0.6 * math.sin(j * 1.7)
         return fold_depth * a ** 1.2 * math.cos(2 * math.pi * folds * j / n + ph)
     ids = hang(fit, pc, loop_ids[-1], hs, clear=clear, flare=flare, folds=fold if folds else None,
-               wfn=lambda p: hang_weights(fit, p, front_legs=1.0, back_legs=back_legs, spring=spring), seam_at=n // 2)
+               wfn=lambda p: hang_weights(fit, p, front_legs=1.0, back_legs=back_legs, spring=spring,
+                                          knee_share=1.0, knee_band=(0.04, 0.10)), seam_at=n // 2)
     for i in range(len(loop_ids) - 1):
         pc.seam(loop_ids[i][n // 2], loop_ids[i + 1][n // 2])
     pc.orient(lambda q: q - np.array((0.0, q[1], 0.0)))
@@ -1709,7 +1717,7 @@ def kepi(fit, pc, peak, n=16, margin=0.011, height=0.075, slope=0.022, taper=0.0
     r0 = sup(y0) + margin
     r1 = np.maximum(sup(y0 + 0.02) + margin, r0)
     rb = np.maximum(r0, r1)
-    ytop = np.maximum(top + 0.012, y0 + height) - slope * front
+    ytop = np.maximum(top + 0.020, y0 + height) - slope * front  # clear of the hair pieces under it
     rings = [(y0, r0), (y0 + 0.02, rb), (y0 + 0.5 * (ytop - y0), rb - 0.5 * taper),
              (ytop - 0.004, rb - taper), (ytop, rb - taper - 0.006), (ytop + 0.001, (rb - taper) * 0.55)]
     pts = np.array([np.stack([c[0] + r * np.sin(phis), y, c[2] + r * np.cos(phis)], -1) for y, r in rings])

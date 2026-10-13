@@ -15,6 +15,7 @@ from . import body as bd
 from . import clothes_kit as ck
 from .clothes_kit import Cloth, hexrgb, sm
 from .dress import Kind
+from . import cloth_detail as cd
 
 
 # ---------------------------------------------------------------- docker_a
@@ -118,6 +119,10 @@ def _clog_extra(ctx):
 
 
 WOOD.extra = _clog_extra
+# the klomp: worn dark willow, and its leather top
+WILLOW = Cloth((0.40, 0.29, 0.17), "wood", wear=0.0, mud=0.55, folds=0.0, mud_h=0.045, extra=cd.klomp_paint)
+CLOG_TOP = Cloth((0.24, 0.15, 0.09), "leather", wear=0.55, mud=0.35, mud_h=0.07, folds=0.0, extra=cd.klomp_top_paint,
+                 lining=(0.12, 0.08, 0.05))
 
 
 def docker_a_dress(fit):
@@ -147,7 +152,16 @@ def docker_a_dress(fit):
     ck.hang(fit, smock, loop, [Y(0.47), Y(0.435), hem], clear=0.028, flare=0.08,
             wfn=lambda p: ck.hang_weights(fit, p, front_legs=1.0, back_legs=0.5, spring=0.12), seam_at=8)
     smock.meta["hem"] = hem
-    ck.thicken(smock, 0.0025, depth=lambda p: 0.13 if p[1] < fit.hip_y else 0.03)
+    ck.thicken(smock, 0.0025, depth=lambda p: 0.07 if p[1] < fit.hip_y else 0.03)
+    cuff = Y(0.499)
+    # the kiel hangs loose from the yoke in long folds that deepen to the hem; the full sleeves bunch above the
+    # cuffs, which stand a little proud
+    smock.relief = cd.compose(
+        cd.hang_folds(Y(0.72), hem, n=5, depth=0.012, seed=3, zone=("torso", "skirt")),
+        cd.bunch(cuff + 0.05, cuff + 0.13, period=0.026, depth=0.0045, zone="arm"),
+        cd.band(cuff - 0.01, cuff + 0.05, 0.0022, zone="arm"),
+        cd.creases(lambda f: [np.asarray(f.J["armLow" + S][0]) + (0, 0, 0.03) for S in "LR"], 0.05, n=4,
+                   depth=0.0025, zone="arm"))
     pieces.append(smock)
 
     # corduroy trousers, straight from the knee
@@ -165,13 +179,13 @@ def docker_a_dress(fit):
     # cloth does not crease as sharply as skin: the knees' weights spread over 30 cm
     ck.smooth_weights(tr, iters=4, mask=lambda p: abs(p[1] - fit.knee_y) < 0.16)
     ck.thicken(tr, 0.0022, depth=0.05)
+    tr.relief = trouser_relief(fit)
     pieces.append(tr)
 
-    # clogs
+    # carved willow clogs with leather tops closing round the ankle (under the trousers' hem: no gap)
     for S in "LR":
-        cg = ck.Piece("clog" + S, WOOD, scale=1.2)
-        ck.clogs(fit, cg, S)
-        pieces.append(cg)
+        wd, lt = cd.klomp(fit, WILLOW, CLOG_TOP, S)
+        pieces += [wd, lt]
 
     # the cap and its peak
     cap = ck.Piece("cap", CAP, scale=1.3, hat=True)
@@ -205,6 +219,17 @@ def docker_a_dress(fit):
     return pieces
 
 
+def trouser_relief(fit):
+    """Trousers bag at the knees and break in soft folds over the shoe."""
+    hem = fit.Y(0.052)
+    return cd.compose(
+        cd.bulge(lambda f: [np.asarray(f.J["legLow" + S][0]) + (0, 0.0, 0.05) for S in "LR"], 0.06, 0.004,
+                 zone="leg", front=(0, 0, 1)),
+        cd.bunch(hem + 0.005, hem + 0.09, period=0.032, depth=0.004, zone="leg", limb=("legLow", "foot"), seed=5),
+        cd.creases(lambda f: [np.asarray(f.J["legLow" + S][0]) + (0, 0, -0.05) for S in "LR"], 0.05, n=3,
+                   depth=0.002, zone="leg"))
+
+
 PM = bd.params("man", "middling")
 
 
@@ -217,7 +242,7 @@ def docker_a_covers(p, part):
     if part.startswith("arm"):
         return y > bd.Y(PM, 0.499) + 0.022
     if part.startswith("leg"):
-        return y > 0.15 or y < 0.078
+        return y > 0.15 or y < 0.13
     return False
 
 

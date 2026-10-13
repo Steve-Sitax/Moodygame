@@ -94,6 +94,14 @@ def edge_distance(ob, raw=None):
     return dist
 
 
+def limbs(ob):
+    """Per vertex the rigid group of its strongest bone (an arm, a leg, the trunk with the head): parts of different
+    groups move apart, so one never hides or tucks the other."""
+    from .rig import NAMES
+    W = wt.read(ob)
+    return [_limb(NAMES[int(i)]) for i in np.argmax(W, 1)]
+
+
 def _outer_trees(ob, raw):
     """BVHs of every piece's outer faces (Blender space) and the faces' vertex lists."""
     from mathutils.bvhtree import BVHTree
@@ -140,8 +148,12 @@ def relief(ob, pieces, fit):
         ctx = ck.Ctx(co[idx], out[idx], inner[idx], pc, fit, np.zeros((len(idx), 3), np.float32), np.zeros(len(idx)), 0)
         ctx.zone = np.array([zone[i] for i in idx], dtype=object)
         d = np.asarray(fn(ctx), np.float64)
-        co[idx] += out[idx] * d[:, None]
-        moved += int((np.abs(d) > 1e-5).sum())
+        if d.ndim == 2:  # a displacement vector per point (hanging folds move across, not along a hem's normal)
+            co[idx] += d
+            moved += int((np.linalg.norm(d, axis=1) > 1e-5).sum())
+        else:
+            co[idx] += out[idx] * d[:, None]
+            moved += int((np.abs(d) > 1e-5).sum())
     for i, v in enumerate(me.vertices):
         v.co = B(*co[i])
     me.update()
@@ -165,6 +177,7 @@ def delete_hidden(ob, margin=0.025, hang_margin=0.10, reach=0.035, keep=(), tilt
     dist = edge_distance(ob, raw)
     trees = _outer_trees(ob, raw)
     hidden = np.zeros(len(me.vertices), bool)
+    limb = limbs(ob)
     ca, sa = math.cos(math.radians(tilt)), math.sin(math.radians(tilt))
     for v in me.vertices:
         a = piece[v.index]
@@ -184,6 +197,9 @@ def delete_hidden(ob, margin=0.025, hang_margin=0.10, reach=0.035, keep=(), tilt
         if best is None:
             continue
         fvs = best[1]
+        # a sleeve beside a skirt is not under it: only cloth moving with the same limb hides
+        if limb[fvs[0]] != limb[v.index]:
+            continue
         d_edge = float(min(dist[f] for f in fvs))
         m = hang_margin if any(zone[f] == "skirt" for f in fvs) else margin
         if d_edge < m:
@@ -277,6 +293,77 @@ def reduce(ob, budget, symmetry=True, factor=1.0, weights=None):
         bpy.ops.object.modifier_apply(modifier=m.name)
         n = tris(ob)
     return n
+
+
+def tuck(ob, body, order, covers, clearance=0.004, body_clearance=0.005, reach=0.035, agree=0.6):
+    """After the reduction, whatever lies under a garment is pulled under it, however far it pokes out: each point of
+    the body (the parts its cover rule hides, never the head or the hands) and of a lower layer (layer_order) whose
+    nearest point on the upper surface (outer faces only) lies within `reach` and faces the same way (normals agree
+    by `agree`) is put `clearance` under that surface, with all its shape keys. The ray test of clear_layers misses
+    a point that pokes out further than the ray's start (a shoulder's top through a reduced smock). Returns how many
+    points moved."""
+    from mathutils import Vector
+    from mathutils.bvhtree import BVHTree
+    raw = wt.parts(ob)
+    piece = piece_of(raw)
+    me = ob.data
+    vs = [v.co.copy() for v in me.vertices]
+    outer = {}
+    for p in me.polygons:
+        a = piece[p.vertices[0]]
+        if a and all(raw[v] == a for v in p.vertices):
+            outer.setdefault(a, []).append(tuple(p.vertices))
+    trees = {a: BVHTree.FromPolygons(vs, fs) for a, fs in outer.items()}
+    every = BVHTree.FromPolygons(vs, [f for fs in outer.values() for f in fs])
+    moved = 0
+
+    def shift(target, i, d):
+        m = target.data
+        m.vertices[i].co = m.vertices[i].co + d
+        if m.shape_keys:
+            for kb in m.shape_keys.key_blocks:
+                kb.data[i].co = kb.data[i].co + d
+
+    def pull(target, i, tree, cl):
+        v = target.data.vertices[i]
+        loc, n, _, dist = tree.find_nearest(v.co, reach)
+        if loc is None or n.dot(v.normal) < agree:
+            return 0
+        h = (v.co - loc).dot(n)  # height over the upper surface (negative: under it)
+        if h > -cl:
+            shift(target, i, n * (-cl - h))
+            return 1
+        return 0
+    if body is not None:
+        bparts = wt.parts(body)
+        bme = body.data
+        hand = np.zeros(len(bme.vertices), bool)
+        isl = bme.attributes.get("mh_island")
+        if isl is not None:
+            fi = np.zeros(len(bme.polygons), np.int32)
+            isl.data.foreach_get("value", fi)
+            for p in bme.polygons:
+                if fi[p.index] in (1, 2):
+                    hand[list(p.vertices)] = True
+        for i, v in enumerate(bme.vertices):
+            p = bparts[i] or ""
+            if hand[i] or p.startswith(("head", "eye", "hair", "finger")):
+                continue
+            if not covers(np.array(G(v.co)), p):
+                continue
+            moved += pull(body, i, every, body_clearance)
+        bme.update()
+    limb = limbs(ob)
+    vgrp = np.array(limb)
+    for (u, o) in sorted(order):
+        if o not in trees:
+            continue
+        ogrp = {vgrp[f[0]] for f in outer[o]}
+        for i in range(len(me.vertices)):
+            if piece[i] == u and limb[i] in ogrp:
+                moved += pull(ob, i, trees[o], clearance)
+    me.update()
+    return moved
 
 
 # ---------------------------------------------------------------- 5. islands
@@ -984,7 +1071,7 @@ def under_cloth(ctx, tree, face_piece, looks, covers=None, reach=None, tilt=28.0
         cov[i] = c
         if look is not None:
             col[i] = look.lining * 0.62
-    m = np.clip((cov - 0.55) / 0.4, 0, 1)
+    m = np.clip((cov - 0.5) / 0.25, 0, 1)
     m = m * m * (3 - 2 * m)
     ctx.rgb[:] = ctx.rgb * (1 - m[:, None]) + col * m[:, None]
     ctx.h[:] = ctx.h * (1 - m)
@@ -1057,15 +1144,16 @@ def occlusion(ob, P, reach=0.10, rays=40):
     return np.clip(occ, 0.0, 1.0)
 
 
-AO_RULE = ("picture_flags blue = ambient light reaching the point at rest, 1 open .. 0 closed: 1 - occlusion "
-           "(clothes_build.occlusion: 40 cosine-weighted rays per vertex over 10 cm, parts moving on their own not "
-           "counted), the shader multiplies the ambient and indirect light by it")
+AO_RULE = ("picture_flags blue = ambient light reaching the point at rest, 1 open .. 0.22 closed (the render "
+           "lane's rule, export.bake_occlusion): 1 - 0.85 x occlusion (clothes_build.occlusion: 40 cosine-weighted "
+           "rays per vertex over 10 cm, parts moving on their own not counted); the shader multiplies the ambient "
+           "and indirect light by it, never the lamps or the albedo")
 
 
 def bake_occlusion(ob, P, strength=0.85, reach=0.10):
     """Write 1 - strength x occlusion into vertex colour blue (picture_flags, every corner of the vertex)."""
     occ = occlusion(ob, P, reach=reach)
-    vis = 1.0 - strength * occ
+    vis = np.maximum(0.22, 1.0 - strength * occ)
     me = ob.data
     attr = me.color_attributes.get("picture_flags")
     if attr is None:
@@ -1082,4 +1170,5 @@ def bake_occlusion(ob, P, strength=0.85, reach=0.10):
     attr.data.foreach_set("color", rgba.ravel())
     me.color_attributes.active_color = attr
     me.update()
+    ob["people2_occlusion_baked"] = True  # export's own bake (render lane) leaves it
     return float(occ.mean()), float(occ.max())

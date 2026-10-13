@@ -17,6 +17,7 @@ from . import body as bd
 from . import clothes_kit as ck
 from .clothes_kit import Cloth, hexrgb, sm
 from .dress import Kind
+from . import cloth_detail as cd
 
 PW = bd.params("woman", "stout")
 
@@ -68,21 +69,30 @@ def _apron_extra(ctx):
     ck.seam_line(ctx, np.where(~ctx.inner, ctx.y - m["bottom"] - 0.02, 1.0))
 
 
+SHAWL_SETT = [((0.27, 0.20, 0.15), 0.018), ((0.50, 0.41, 0.28), 0.010), ((0.27, 0.20, 0.15), 0.006),
+              ((0.46, 0.15, 0.11), 0.003), ((0.27, 0.20, 0.15), 0.006), ((0.50, 0.41, 0.28), 0.010),
+              ((0.22, 0.17, 0.13), 0.012)]
+
+
 def _shawl_extra(ctx):
-    """A checked wool shawl: a dark brown ground, a lighter check and a thin red over-check; a fringe-like hem."""
-    p = ctx.pos
-    u = p[:, 0] + 0.3 * p[:, 2]
-    v = p[:, 1] - 0.3 * p[:, 2]
-    aa = 0.04
-    su = sm(0.18 + aa, 0.18 - aa, np.abs(((u / 0.05) % 1.0) - 0.5))
-    sv = sm(0.18 + aa, 0.18 - aa, np.abs(((v / 0.05) % 1.0) - 0.5))
-    a = np.maximum(su, sv)
-    b = su * sv
-    r = np.maximum(sm(0.02 + aa / 2, 0.02 - aa / 2, np.abs(((u / 0.10) % 1.0) - 0.1)),
-                   sm(0.02 + aa / 2, 0.02 - aa / 2, np.abs(((v / 0.10) % 1.0) - 0.1)))
-    ctx.mix(a * 0.35, (0.55, 0.46, 0.34))
-    ctx.mix(b * 0.25, (0.62, 0.54, 0.40))
-    ctx.mix(r * 0.6, (0.46, 0.16, 0.12))
+    """A woven wool shawl, a square folded on the diagonal: its check runs on the cloth's own threads, at 45 degrees
+    to the folded edge (fabric coordinates), the threads in a 2/2 twill; the folded edge rolled darker."""
+    fu, fv = ctx.fu, ctx.fv
+    ctx.fu, ctx.fv = (fu + fv) * 0.7071, (fu - fv) * 0.7071
+    cd.plaid(ctx, SHAWL_SETT, (1.0, 1.0, 1.0))
+    ctx.fu, ctx.fv = fu, fv
+    ctx.mul(sm(0.012, 0.0, fv) * (~ctx.inner), 0.85)
+    fz = ck._noise3(ctx.pos, 300.0, 41)
+    ctx.mul(np.ones(len(fz)), 1.0)
+    ctx.rgb[:] = ctx.rgb * (1 + 0.06 * fz)[:, None]
+    ctx.bump(fz, 0.00004)
+
+
+def _fringe_extra(ctx):
+    """The fringe's wool: the twisted threads of the shawl's colours."""
+    tw = np.sin(np.arctan2(ctx.nrm[:, 0], ctx.nrm[:, 2]) * 3 + ctx.y * 900)
+    ctx.rgb[:] = np.array((0.36, 0.28, 0.20), np.float32) * (0.85 + 0.2 * (0.5 + 0.5 * tw))[:, None]
+    ctx.bump(tw, 0.0002)
 
 
 def _cap_extra(ctx):
@@ -101,7 +111,9 @@ BODICE = Cloth(hexrgb(0x3a4a52), "wool", wear=0.4, dust=0.1, extra=_bodice_extra
 SKIRT = Cloth(hexrgb(0x6a2a24), "wool", wear=0.35, mud=0.8, mud_h=0.22, extra=_skirt_extra, lining=(0.36, 0.20, 0.17))
 APRON = Cloth(hexrgb(0x8a7a60), "linen", wear=0.45, mud=0.4, mud_h=0.2, extra=_apron_extra, folds=1.2)
 BAND = Cloth(hexrgb(0x7a6a52), "linen", wear=0.4, folds=0.2)
-SHAWL = Cloth(hexrgb(0x4a3a2c), "wool", wear=0.35, dust=0.1, extra=_shawl_extra, folds=1.3)
+SHAWL = Cloth(hexrgb(0x4a3a2c), "wool", wear=0.35, dust=0.1, extra=_shawl_extra, folds=1.0,
+              lining=(0.22, 0.17, 0.13))
+FRINGE = Cloth(hexrgb(0x4a3a2c), "wool", wear=0.2, folds=0.0, extra=_fringe_extra)
 LINEN_W = Cloth((0.86, 0.84, 0.79), "linen", wear=0.2, extra=_cap_extra, folds=0.4, lining=(0.80, 0.78, 0.73))
 FRILL = Cloth((0.88, 0.86, 0.81), "linen", wear=0.1, extra=_frill_extra, folds=0.0)
 CHEMISE = Cloth(hexrgb(0xc8c0b0), "linen", wear=0.3, folds=0.3)
@@ -117,10 +129,11 @@ def fishwife_a_dress(fit):
     # the skirt first: everything above sits on it
     sk = ck.Piece("skirt", SKIRT)
     hem = 0.075
-    ck.skirt(fit, sk, top_row=3, hem_y=hem, n=24, ease=0.013, hip_rows=(2, 1), clear=0.05, flare=0.22, folds=8,
-             fold_depth=0.022, spring=0.2, back_legs=0.8)
+    ck.skirt(fit, sk, top_row=3, hem_y=hem, n=40, ease=0.013, hip_rows=(2, 1), clear=0.05, flare=0.22, folds=0,
+             fold_depth=0.0, spring=0.2, back_legs=0.8)
     sk.meta.update(hem=hem, band=Y(0.626) - 0.02)
     ck.thicken(sk, 0.003, depth=lambda p: 0.12 if p[1] < 0.5 else 0.03)
+    sk.relief = cd.hang_folds(Y(0.56), hem, n=12, depth=0.016, seed=7, back=1.2)
     pieces.append(sk)
     on_skirt = ck.Onto([sk])
 
@@ -136,11 +149,16 @@ def fishwife_a_dress(fit):
         if part == "neck":
             return 0.007
         k = ck.ARM_SEQ.index(ring)
-        return [0.008, 0.010, 0.012, 0.012, 0.012, 0.013, 0.014, 0.015, 0.020][k]
+        return [0.008, 0.010, 0.012, 0.012, 0.012, 0.013, 0.015, 0.018, 0.026][k]
 
     bo = ck.Piece("bodice", BODICE)
     ck.upper(fit, bo, rows=(2, 9), neck=0, sleeve="f1", ease=ease)
     ck.thicken(bo, 0.0028, depth=0.035)
+    elbow = Y(0.586)
+    # the sleeves pushed up: a soft roll at their edge and the cloth bunched above it
+    bo.relief = cd.compose(cd.band(elbow - 0.004, elbow + 0.028, 0.004, zone="arm"),
+                           cd.bunch(elbow + 0.03, elbow + 0.10, period=0.022, depth=0.004, zone="arm",
+                                    limb=("armUp", "armLow")))
     pieces.append(bo)
     on_bodice = ck.Onto([bo])
 
@@ -154,7 +172,7 @@ def fishwife_a_dress(fit):
     ap = ck.Piece("apron", APRON)
     top = Y(0.600)
     bottom = Y(0.24)
-    n = 11
+    n = 21
     th = np.radians(np.linspace(-72, 72, n))
     loop = []
     for t in th:
@@ -166,24 +184,37 @@ def fishwife_a_dress(fit):
             push=lambda j, p, d: on_skirt.snap(p, 0.024 + 0.018 * min(1.0, d / 0.3)), wfn=on_skirt.weights)
     ap.meta.update(top=top, bottom=bottom)
     ck.thicken(ap, 0.0022, depth=0.035)
+    ap.relief = cd.hang_folds(top - 0.03, bottom, n=10, depth=0.007, seed=11)
     pieces.append(ap)
     # its band round the waist, over the bodice's skirt
     bd_ = ck.Piece("apron_band", BAND, scale=1.2)
-    ck.band(fit, bd_, ck.Onto([bo, sk], skip_zones=("arm",)), Y(0.612), 0.035, d=0.009, n=20, rows=2)
+    ck.band(fit, bd_, ck.Onto([bo, sk], skip_zones=("arm",)), Y(0.612), 0.035, d=0.022, n=24, rows=3)
     ck.thicken(bd_, 0.003, depth=None, crease=0.1)
     pieces.append(bd_)
 
-    # the shawl: the point down the back, over the shoulders, the ends crossed in front into the band
-    sw = ck.Piece("shawl", SHAWL, scale=0.9)
-    ck.strap_grid(fit, sw, [(0.0, Y(0.848), -0.055), (0.0, Y(0.80), -0.115), (0.0, Y(0.73), -0.13),
-                            (0.0, Y(0.66), -0.125), (0.0, Y(0.615), -0.12)],
-                  [0.46, 0.40, 0.28, 0.13, 0.015], 0.007, cols=7, rows=7, onto=on_bodice)
-    for sg, lift in ((1, 0.007), (-1, 0.013)):
-        path = [(sg * 0.11, Y(0.826), -0.09), (sg * 0.145, Y(0.840), -0.015), (sg * 0.125, Y(0.815), 0.07),
-                (sg * 0.05, Y(0.765), 0.135), (-sg * 0.035, Y(0.695), 0.15), (-sg * 0.085, Y(0.625), 0.14)]
-        ck.strap_grid(fit, sw, path, [0.16, 0.19, 0.17, 0.15, 0.12, 0.08], lift, cols=5, rows=9, onto=on_bodice)
-    ck.thicken(sw, 0.003, depth=0.035, crease=0.06)
+    # the shawl: a square of woven wool folded on the diagonal, one sheet: its folded edge round the neck, the point
+    # down the back to the waist, the ends crossed over the breast (the left one over the right) and tucked into
+    # the apron's band; a fringe along the back's two edges
+    sw = ck.Piece("shawl", SHAWL, scale=1.0)
+    right = [(-0.11, Y(0.826), -0.09), (-0.145, Y(0.840), -0.015), (-0.125, Y(0.815), 0.07),
+             (-0.05, Y(0.765), 0.135), (0.035, Y(0.695), 0.15), (0.085, Y(0.625), 0.14)]
+    left = [(-x, y, z) for x, y, z in right]
+    path = right[::-1] + [(0.0, Y(0.836), -0.10)] + left
+    widths = [0.08, 0.10, 0.12, 0.13, 0.14, 0.17, 0.34, 0.17, 0.14, 0.13, 0.12, 0.10, 0.08]
+    lift = [0.010, 0.011, 0.012, 0.013, 0.014, 0.014, 0.013, 0.014, 0.014, 0.015, 0.023, 0.024, 0.024]
+    ids = cd.shawl(fit, sw, on_bodice, path, widths, lift, rows=7, samples=37)
+    ck.thicken(sw, 0.0032, depth=0.03, crease=0.05)
     pieces.append(sw)
+    fr = ck.Piece("shawl_fringe", FRINGE, scale=1.0)
+    m = ids.shape[0]
+    back = [k for k in range(m) if sw.V[ids[k, -1]][2] < -0.04]
+    edge = [sw.V[ids[k, -1]] for k in back]
+    outs = [on_bodice.find(p)[1] for p in edge]
+    downs = [np.array((0.0, -1.0, 0.0))] * len(edge)
+    if len(edge) > 2:
+        cd.fringe(fr, edge, outs, downs, [on_bodice.weights(p) for p in edge], length=0.045, spacing=0.016,
+                  width=0.006)
+        pieces.append(fr)
 
     # the white cap and its frill
     cap = ck.Piece("cap", LINEN_W, scale=1.3, hat=True)
@@ -209,7 +240,7 @@ def fishwife_a_covers(p, part):
     if part == "neck":
         return y < bd.Y(PW, 0.812)
     if part.startswith("arm"):
-        return y > bd.Y(PW, 0.586) + 0.03
+        return y > bd.Y(PW, 0.586) + 0.008
     if part.startswith("leg"):
         return y > 0.45 or y < 0.105
     return False
@@ -238,5 +269,8 @@ FISHWIFE_A = Kind(
     avoid={"walk": "a man's walk (walk_f is hers)", "talk": "talk_f is hers", "rifle_idle": "no rifle",
            "rifle_walk": "no rifle", "rifle_talk": "no rifle", "ride": "the skirt"},
     note="Vismarkt fishwife: white cap, checked shawl, striped red skirt, apron, basket of herring")
+FISHWIFE_A.keep_layers = ("shawl", "shawl_fringe", "apron_band", "cap_frill")
+FISHWIFE_A.layers = [("bodice", "apron_band"), ("bodice", "shawl"), ("shawl", "apron_band"), ("skirt", "apron"),
+                     ("skirt", "apron_band"), ("bodice", "chemise")]
 
 KINDS = [FISHWIFE_A]

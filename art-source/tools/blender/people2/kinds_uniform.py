@@ -14,6 +14,7 @@ from . import body as bd
 from . import clothes_kit as ck
 from .clothes_kit import Cloth, hexrgb, sm
 from .dress import Kind
+from . import cloth_detail as cd
 
 PM = bd.params("man", "middling")
 BRASS_RGB = (0.66, 0.50, 0.22)
@@ -144,7 +145,10 @@ def police_dress(fit):
     loop = ck.row_loop(fit, vm, 0, dup)
     ck.hang(fit, tunic, loop, [Y(0.48), Y(0.44), Y(0.405)], clear=0.026, flare=0.10, closed=False,
             wfn=lambda p: ck.hang_weights(fit, p, front_legs=1.0, back_legs=0.4, spring=0.3, springs=("coat",)))
-    ck.thicken(tunic, 0.003, depth=lambda p: 0.12 if p[1] < fit.hip_y else 0.03)
+    ck.thicken(tunic, 0.003, depth=lambda p: 0.08 if p[1] < fit.hip_y else 0.03)
+    cuff = Y(0.499)
+    tunic.relief = cd.compose(cd.hang_folds(Y(0.50), Y(0.405), n=5, depth=0.007, seed=13, zone="skirt"),
+                              cd.bunch(cuff + 0.06, cuff + 0.13, period=0.03, depth=0.003, zone="arm"))
     pieces.append(tunic)
     on_tunic = ck.Onto([tunic], skip_zones=("arm",))
 
@@ -157,7 +161,7 @@ def police_dress(fit):
     by = Y(0.618)
     belt = ck.Piece("belt", BELT, scale=1.2)
     belt.meta["y"] = by
-    ck.band(fit, belt, on_tunic, by, 0.045, d=0.0025, n=20, rows=2)
+    ck.band(fit, belt, on_tunic, by, 0.045, d=0.006, n=24, rows=3)
     ck.thicken(belt, 0.004, depth=None, crease=0.1)
     on_belt = ck.Onto([belt])
     buckle = ck.Piece("buckle", BRASS, scale=1.5)
@@ -186,6 +190,8 @@ def police_dress(fit):
     ck.trousers(fit, tr, top_row=3, hem="t2", ease=tr_ease)
     ck.smooth_weights(tr, iters=4, mask=lambda p: abs(p[1] - fit.knee_y) < 0.16)
     ck.thicken(tr, 0.0022, depth=0.05)
+    from .kinds_workers import trouser_relief
+    tr.relief = trouser_relief(fit)
     pieces.append(tr)
 
     bt = ck.Piece("boots", BOOT, scale=1.2)

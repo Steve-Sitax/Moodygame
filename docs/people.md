@@ -195,15 +195,11 @@ slider's broader shoulders pushing skin through a tunic show cloth, not bare ski
 
 ### Clothes on the MakeHuman bodies
 
-The garments are built as before on the cage `C`, now fitted onto the MakeHuman surface (`fit_cage`: 1 to 15 mm). The
-kinds keep their budgets (near 8,900 for the crowd, 11,500 for the named; far 2,100), so with MakeHuman's face the
-clothes get about 3,000 to 4,000 near triangles. After the reduction `clothes_kit.clear_layers` puts every layer back
-under the one over it (`layer_order`, read before the reduction: the bodice under the shawl, the trousers under the
-smock) and the skin under every garment, by 2 mm, both ways. The body is cut away only where a garment really
-covers it (`cut_body` with the garments: a ray out from the skin meets one within 30 cm, or the skin pokes through one;
-the cover rules alone, drawn for the cage bodies, cut a see-through hole at the nape). The insides and the rims
-(hems, cuffs, the edges of brims and collars) are unwrapped at their cloth's own density (they were at 0.3: the
-owner's rule of 2026-10-13, small sides without stretched or blurred pictures).
+The garments are built on the cage `C`, fitted onto the MakeHuman surface (`fit_cage`: 1 to 15 mm). Since round 4
+(2026-10-13) the near copy of a dressed kind has 14,000 triangles for body and clothes (16,000 for the named cast),
+the far copy 2,500, and the clothes go through `clothes_build.py` (below, "Clothes: high detail"): garments reduced
+together with their hems and seams protected, hidden layers deleted, UVs and paint after the reduction, the skin under
+the cloth chosen by rays, occlusion baked into vertex colour blue.
 
 ### Checks (`people2_sheets.py`)
 
@@ -257,14 +253,7 @@ pays about 3.5 ms each there (see the known limits).
 - Fists and grips: the clips' hand shapes (`clips_legacy.HANDS`, motion packages) were set for the cage hands; on
   MakeHuman's shorter proximal finger joints a fist overshoots and the fingertips come through the back of the
   hand. The relaxed and open hands are right. The angles belong to the motion packages.
-- The kinds' clothes are coarse at a metre (3,000 to 4,000 triangles next to MakeHuman's face); raising the crowd's
-  near budget would buy them back.
 - Beard and hair edges still show small steps at 0.6 m; the far copies' hair is a coarse cap.
-- The fishwife's crossed shawl shows the bodice between and through its reduced bands.
-- Garment UVs: after the reduction about one triangle in five of the big garments (smock, tunic, coat) is stretched
-  more than 4:1 in its picture (the collapse moves points after the unwrap). No streak shows at a metre in the close
-  shots, but unwrapping and painting after the reduction would remove it (a clothes-package change: the far copy
-  shares the near copy's picture layout).
 - A bake costs about 3.5 ms at spawn (the first one of a run about 65 ms); people who come into view together should
   be baked one per frame.
 
@@ -652,22 +641,16 @@ as its base body (`kinds.<kind>.body`), so every clip of that body plays on it u
 
 ### How a kind is made (`dress.build`)
 
-1. The base body is made again under the kind's name (`build_people2.make_body`), with the kind's hair style.
-2. The face: one setting per kind, `Kind.face` (`type`, `seed`, `sex`, `age`, `look`), is turned into a face by
-   `dress.face_of()`: today B's look by seed, the hair style and the face-shape mix by seed. The mix is baked into the
-   near copy; the face-shape keys stay and add to it (a crowd of one kind can still vary). A face package changes
-   `face_of` and the settings, nothing else. `kinds.<kind>.face` and `faceMix` in peopleRig.json.
-3. The body's picture (A's skin through the position map, B's hands, the kind's `skin` extras: socks, stockings,
-   red or grimy hands) and the face square (512 px, 1024 for the named cast).
-4. The garments: `Kind.dress(fit)` returns `clothes_kit.Piece`s. They are joined into one cage, unwrapped, subdivided
-   once (the near copy) and moved onto their limit surface (the far copy), as A's bodies are. Redundant tessellation
-   is then collapsed on the rounded clothing surface within each kind's remaining triangle allowance. Near skin,
-   face and hand topology and morphs stay intact; the clothing carries interpolated UVs and rig weights.
-5. The body under the clothes is cut away (`Kind.covers(point, part)`): what nobody sees costs nothing and cannot
-   poke through. Head, eyes and hair always stay.
-6. The cloth picture is painted in 3D on the garments (below).
-7. UVs go into the kind’s clothes layer and full-square face layer, the clothes are joined into the body's two meshes, hats are made to follow the face
-   shapes of the head under them.
+1. The base body is made again under the kind's name (`build_people2.make_body`).
+2. The face: the kind's default face (`face_of`); the game gives every person their own at spawn.
+3. The garments: `Kind.dress(fit)` returns `clothes_kit.Piece`s; joined into one cage (`build_objects`: every piece's
+   winding made consistent first), subdivided once (the near copy), moved onto its limit surface (the far copy).
+4. `clothes_build.py`, in this order: relief (folds and bunching as geometry, near copy), hidden layers deleted, the
+   body cut (`clothes_kit.cut_body`), one reduction of all garments, layers cleared and tucked, the body cut again, the
+   islands checked, the unwrap, the paint, the far copy's UVs, the body's picture with the skin under the cloth
+   (`clothes_build` docstring and "Clothes: high detail" below).
+5. UVs of the body into the kind's layer, the clothes joined into the body's two meshes, the body sliders carried onto
+   the clothes (`clothes_keys`), occlusion baked over body and clothes.
 
 ### Garments (`clothes_kit.py`)
 
@@ -722,18 +705,24 @@ and where in `kinds.<kind>.held`.
 
 ### How to add a kind
 
-1. In its group file (`kinds_workers.py`, `kinds_women.py`, `kinds_uniform.py`, `kinds_cast.py`) write
-   `<kind>_dress(fit)` from the kit's functions, the `Cloth` looks with their `extra` painters, and
-   `<kind>_covers(point, part)`. Lay garments from the inside out: a piece laid on another (`Onto`) needs it made.
-   Ease: each layer at least the one below plus its thickness plus 3 mm.
-2. Add `Kind(name, group, body, face=dict(type, seed, sex, age, look), hair=dict(hair, beard, moustache), dress,
-   covers, skin, hats, held, avoid, note)` to the file's `KINDS`.
-3. Trials: `blender -b --factory-startup -P art-source/tools/blender/build_people2.py -- --only <body> --kinds <kind> --no-move
-   --fast --dress --out .scratch/try.glb` (writes the json beside the trial glb, not into shared/; with
-   `PEOPLE2_HEADCACHE=<file>` B's head is meshed once over many trials, `PEOPLE2_DRESS_SHOTS=studio,detail,clips` picks
-   the pictures, `PEOPLE2_SAVE_BLEND=<file>` keeps the scene, `PEOPLE2_NO_SLIM=1` leaves out `glb_slim`). Look at
-   `studio_`, `detail_`, `clips_<kind>.png`.
-4. A full build with `--plain`, additive native intake and data preparation as described above.
+1. In a group file (`kinds_*.py`, or a clothing group's own `kinds_*2.py` / `garments_*.py`) write
+   `<kind>_dress(fit)` from the kit (`clothes_kit`: `upper`, `trousers`, `hang`, `skirt`, `band`, `strap_grid`,
+   `collar`, `neckerchief`, `flat_cap`, `kepi`, `hood_cap`, `shoe`, `thicken`) and the shared detail set
+   (`cloth_detail`: `hang_folds`, `bunch`, `bulge`, `band`, `creases` as `pc.relief`; `buttons`, `fringe`, `klomp`,
+   `shawl`, `plaid`), its `Cloth` looks with their `extra` painters, and `<kind>_covers(point, part)`. Lay garments from
+   the inside out: a piece laid on another (`Onto`) needs it made. Ease: each layer at least the one below plus its
+   thickness plus 3 mm; a layer that must stay over another states it (`Kind.layers = [(under, over)]`); a piece that
+   must never be cut as hidden (a shawl, a frill) goes in `Kind.keep_layers`.
+2. Folds as geometry: at most one fold per six columns of the subdivided garment (`hang_folds(n=...)`: a smock or tunic
+   on the 16-column cage takes 5, a skirt of 40 columns 12), or the hem shows teeth.
+3. Add `Kind(name, group, body, face, hair, dress, covers, skin, hats, held, avoid, note)` to the file's `KINDS`.
+   `skin` paints only what the kind shows of its body (stockings, socks, red hands): the skin under the clothes is
+   painted by the ray test.
+4. Trials: `blender -b --factory-startup --python-exit-code 1 -P art-source/tools/blender/build_people2.py -- --only
+   <body> --kinds <kind> --no-move --no-work --fast --out .scratch/try/p2.glb` with `PEOPLE2_SAVE_BLEND`, then the
+   sheets (`people2_sheets.py -- cloth kinds=<kind>`, "Clothes: high detail"). The build log prints per kind the
+   islands, cuts, texel density and stretch; aim for 0 islands re-projected and under 2% of triangles over 2:1.
+5. A full build with `--plain`, then `replace-people2.ps1` as described above.
 
 ### Check pictures (`--dress`, `.scratch/people2-build/shots/kinds/`)
 
@@ -792,6 +781,65 @@ then reduced with interpolated UVs and weights. Far clothing uses a separate red
 surface. Edge exceptions remain thin cloth hems/creases, hidden garment interfaces and the sabre's
 intentional cutting edge. Withies and the handle have geometric rounded sections; fine wicker strands
 and wood grain use the height map. No shader kind, gameplay light or collision is added.
+
+### Clothes: high detail (round 4, 2026-10-13)
+
+| Kind | Near before / after | Far before / after | Clothes near before the reduction | Texel density | Over 2:1 |
+|---|---:|---:|---:|---:|---:|
+| docker_a | 8,899 / 13,979 | 2,099 / 2,488 | 13,892 | 297 px/m | 0.7% |
+| fishwife_a | 8,889 / 13,968 | 2,100 / 2,490 | 18,820 | 209 px/m | 3.0% |
+| police | 8,887 / 13,950 | 2,099 / 2,487 | 12,402 | 266 px/m | 0.7% |
+| sooi | 11,500 / 15,958 | 2,100 / 2,477 | 15,562 | 242 px/m | 2.5% |
+
+(Trial build figures; the full build prints its own, in `kinds.<kind>.clothChecks` of peopleRig.json.) Before, about
+one garment triangle in five was stretched over 4:1 and the clothes had 2,000 to 6,000 near triangles.
+
+- **Budget.** `dress.NEAR_CROWD, NEAR_HERO, FAR = 14000, 16000, 2500`. The cut body keeps 5,000 to 6,000 near
+  triangles (MakeHuman's face, the hands), so the clothes get 8,000 to 10,000.
+- **Hidden layers** (`delete_hidden`): a garment's faces go where a ray out and four rays tilted 30 degrees meet
+  another garment within 3.5 cm, 2.5 cm from its visible edge (10 cm on hanging cloth, which swings off the legs): the
+  trousers under the smock, the bodice under the shawl, the leather inside the clog's wood.
+- **The body cut** (`clothes_kit.cut_body`): never the head, eyes, hair or the hands (MakeHuman's hand islands and the
+  fingers); reach by part (`CUT_REACH`: 6 cm neck and arms, 25 cm torso, 30 cm legs); three of four tilted rays must
+  meet cloth, so the skin just inside a cuff or collar stays. It runs again after the reduction.
+- **Reduction** (`reduce`): one collapse of all garments together (the triangles go where the cloth curves), the rims,
+  creases and UV seams protected (`protect_weights`). After it `clothes_kit.clear_layers` (rays, 3.5 mm, skin 5 mm)
+  and `tuck` (nearest point: whatever pokes out from under a garment, however far, is pulled under it).
+- **UVs after the reduction** (`fix_islands`, `unwrap`): every island a disk (a tube gets a cut), Blender's
+  minimum-stretch unwrap along the seams, an island that will not lie flat halved and unwrapped again, every face at
+  its cloth's density (insides, rims, hems, cuffs and brims too), islands turned so the cloth's up is the picture's up,
+  packed bottom-left (skyline) into the kind's clothes rectangle with square texels (the old square pack was squashed
+  2:1 into the rectangle). The rim of a hem belongs to the outside's island, so the picture runs over the edge as the
+  cloth does.
+- **Paint** at twice the layer (2048 px) and filtered down; the painter also sees the distance to the piece's edge
+  (`ctx.edge`) and the cloth's own thread coordinates (`ctx.fu`, `ctx.fv`, from `Piece.fabric`: the shawl's check runs
+  at 45 degrees to its folded edge, as a square shawl folded on the diagonal does).
+- **The far copy** shares the near copy's picture: each far face takes the island nearest it (`project_uvs`).
+- **The skin under the cloth** (`under_cloth`): a ray out and four tilted rays from each body texel the cover rule
+  hides; where they meet cloth the texel takes that garment's lining in shadow, with a soft edge. The old rule by
+  height painted an ink-blot on every nape above the collar.
+- **Occlusion** (`bake_occlusion`) over body and clothes together in vertex colour blue, by the render lane's rule
+  (1 open .. 0.22 closed; `AO_RULE`): 40 rays over 10 cm, an arm against the trunk below the armpit and a leg against
+  the other below the crotch not counted. The mesh is flagged `people2_occlusion_baked` so export does not bake it
+  again. Held things are baked the same way.
+- **The shared detail set** (`cloth_detail.py`): geometry where it changes the silhouette (folds of hanging cloth
+  deepening to the hem and moving the cloth across, not along the hem's normal; sleeves bunched above cuffs and pushed
+  up; trousers bagged at the knee and broken over the shoe; cuffs standing proud; buttons; a shawl's fringe; the klomp),
+  the normal map and paint otherwise (weave, plaid, seams, stitches, nail heads, knife facets).
+- **The klomp** (`cloth_detail.klomp`): carved willow (sole, a heel cup 8 cm high, a toe box drawn out to a blunt
+  upturned point, a ledge round the foot), a leather top made on the foot's own cage from the toes over the instep to a
+  collar round the ankle at leg ring t1, above the trousers' hem (no gap at the ankle); the leather inside the wood is
+  deleted as hidden. Knife facets and grain along the clog, nail heads where the leather meets the wood.
+- **The fishwife's shawl** (`cloth_detail.shawl`): one sheet walked down the bodice from its folded edge along a
+  spline over the shoulders: the point down the back, the ends crossed over the breast (the left one 2.4 cm out, over
+  the right) and under the apron band; a woven check in a 2/2 twill; a fringe of twisted tassels along the back's edges.
+- **Seated drape**: skirts and aprons go with the shin below the knee (`hang_weights(knee_share=1, knee_band=(4, 10
+  cm))`), so seated they lie on the lap and fall from the knees instead of standing out like a shelf; nothing is needed
+  from the runtime. A corrective `sit` shape key (driven by the seated clips' weight) would let the side panels fall
+  over the seat's edge; not made.
+- **Check sheets**: `blender -b <scene> -P art-source/tools/blender/people2_sheets.py -- cloth [kinds=a,b] [out=dir]
+  [gas]` (`preview_cloth.py`): per kind front, side, back and three-quarter at 3 m and 1 m, walking, seated on a bench
+  (the family's D2 clip), close views of the collar, nape, cuff, waist, hem, shoulder, feet and cap, and low views.
 
 ### Period sources
 
