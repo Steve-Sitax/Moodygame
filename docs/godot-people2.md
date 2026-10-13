@@ -100,6 +100,10 @@ routing, parade, identity, network, all PASS). 64 motion pictures inspected. In 
 frames with both speaking, 8% with both listening (a pause), 12 turns; idles changed every 20-50 s per person;
 planted feet held by the stand lock moved 0.000 mm. Parade foot lock 0.008 mm; routing (14 roots, 16/64 bones,
 faces) and 25 multiplayer checks pass with the new content fingerprint.
+Shader audit: `.scratch/people2-native-5fdc2f50507e4d0184c3632444d6139a/shaders/` (532 samples, one people2
+kind, no new kinds, 29 cache entries throughout, no problems). Timing under other worktrees' load (not exclusive,
+so not the gate): with the D2 moves the people2 animation mean was 0.47/0.38 ms at the Vismarkt/Grote Markt
+against 0.37/0.29 ms with them bypassed in the same conditions (+0.1 ms); all animation 0.86/0.73 ms.
 
 ## Verification
 
