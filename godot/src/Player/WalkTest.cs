@@ -445,7 +445,8 @@ public partial class WalkTest : Node
     private Camera3D? outside;
     private Node3D? figure;
     private int doorsTried;
-    private bool doorScanWait, swimScanWait;
+    private bool doorScanWait, swimScanWait, doorsHeld;
+    private int liveFrames;
     private int squareWaits, detoured;
     private readonly List<string> detours = new();
     private ulong waitTick;
@@ -474,6 +475,18 @@ public partial class WalkTest : Node
             foreach (var l in QuayExits.Ladders.Where(a => MathF.Abs(a.Top) < 0.1f).OrderBy(a => new Vector2(a.X + 118, a.Z - 36).Length()))
                 Solid.I.Ensure(new Vector3(l.X + l.Nx * 2, 0, l.Z + l.Nz * 2), 10);
             waitTick = Engine.GetPhysicsFrames() + 1;
+            return;
+        }
+        if (r.Name == "door" && !doorsHeld)
+        {
+            // The route asks whether the bake's doorways can be walked, not what hour the shops keep: a fresh game's clock
+            // starts at six in the morning and the server bars the taverns and shuts the shops until their keepers come, so
+            // the doors are held open first (issue 126). The leaves turn in about a second; a house door's box is off at once.
+            doorsHeld = true;
+            if (Scheldemist.Play.Doors.I is { } doorPart)
+                foreach (var door in doorPart.All.Where(d => d.Kind is "house" or "shop" or "tavern" or "poesje" or "home" && !d.Fixed))
+                    doorPart.Force(door, true);
+            waitTick = Engine.GetPhysicsFrames() + 90;
             return;
         }
         if (r.Name == "door" && !doorScanWait)
@@ -617,7 +630,9 @@ public partial class WalkTest : Node
         if (route < 0)
         {
             // a few frames for the town to settle, then the first route
-            if (Engine.GetProcessFrames() > 10) Next();
+            // (and the first state of the game: it puts a new player on his start spot, which would carry Jef off in the middle
+            // of a route that starts first, issue 126; no state within two minutes is no reason to wait longer)
+            if (Engine.GetProcessFrames() > 10 && (Scheldemist.Game.GameState.I?.Live == true ? ++liveFrames > 120 : Time.GetTicksMsec() > 120_000)) Next();
             return;
         }
         if (waitTick != 0)
