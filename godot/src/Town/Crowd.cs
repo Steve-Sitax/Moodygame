@@ -251,6 +251,8 @@ public sealed class Puppet
     internal double YieldHold;
     /// <summary>Seconds in a row the walk could take no step at all.</summary>
     internal double Failed;
+    /// <summary>Ways round bodies that stay put taken on this route, and the way point index before which the way points are those ways round (issue 120).</summary>
+    internal int StandDetours, DetourEnd;
     internal double? PYaw;
     internal bool Repath;
     internal bool NativeRouting;
@@ -1092,19 +1094,21 @@ public sealed partial class Crowd
         // the last leg may leave the grid (it keeps half a metre off the walls) for a spot the colliders allow:
         // a doorstep, a corner, a bench by a wall
         bool lastLeg = p.Pi == p.Path.Count - 1;
-        if (TryMove(p, p.X + mx * step, p.Z + mz * step, lastLeg, ux, uz,dt))
+        // a way round a standing body may cross the grid cells it closed; the colliders still decide every step
+        bool offGrid = lastLeg || (p.Pi < p.DetourEnd && p.DetourEnd <= p.Path.Count);
+        if (TryMove(p, p.X + mx * step, p.Z + mz * step, offGrid, ux, uz,dt))
         {
             p.X += mx * step;
             p.Z += mz * step;
         }
-        else if (TryMove(p, p.X + ux * step, p.Z + uz * step, lastLeg, ux, uz,dt))
+        else if (TryMove(p, p.X + ux * step, p.Z + uz * step, offGrid, ux, uz,dt))
         {
             p.X += ux * step;
             p.Z += uz * step;
             mx = ux;
             mz = uz;
         }
-        else if (Slide(p, ux, uz, step, lastLeg,dt) is { } slid)
+        else if (Slide(p, ux, uz, step, offGrid,dt) is { } slid)
         {
             // a wall's corner the grid rounds too tightly: along the wall instead of giving up the way
             mx = slid.x;
@@ -1126,6 +1130,8 @@ public sealed partial class Crowd
             // nobody stands for ever at a place the walk map and the colliders never agreed on.
             double heldBefore = p.Failed;
             if ((p.Failed += dt) > 1 && heldBefore <= 1 && WedgeLog.Count < 200) WedgeLog.Add(WedgeNote(p, "first step refused", ux, uz, step));
+            // a body that stays put holds the step: go round its corners (a passing one is waited for)
+            if (p.Failed > 0.25 && DetourStanding(p, p.X + ux * step, p.Z + uz * step, ux, uz, step)) return;
             if (p.Failed > (p.Shown ? 6 : 3) && Unwedge(p, ux, uz, step)) return;
             grid.Block(p.X + ux * 0.6, p.Z + uz * 0.6);
             p.Replans++;
@@ -1304,6 +1310,8 @@ public sealed partial class Crowd
             return;
         }
         pathBudget--;
+        p.StandDetours = 0;
+        p.DetourEnd = 0;
         p.NativeRouting = false;
         var path = grid.Inside(dest.x, dest.z, 4) || !map.IsNative
             ? grid.Path(p.X, p.Z, dest.x, dest.z, 9000, standFree, p.Path) : null;
