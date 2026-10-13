@@ -1654,25 +1654,17 @@ def piece(head, kind, style, lod, sex):
         st = SCALP[style](base)
         sh = Shell(head, st, st.budget if lod == 0 else max(st.budget // 4, 180), style)
         sh.fmask = np.asarray(st.fur_mask(sh.D)) * np.ones(len(sh.D))
-        import os
-        only = os.environ.get("P2HAIR_PARTS", "shell,fur,locks,tubes").split(",")
-        base_part = sh.layer(0, 0.0, 1.0, 0.62)
-        if "shell" in only:
-            in_head.append(base_part)
+        in_head.append(sh.layer(0, 0.0, 1.0, 0.62))
         if lod == 0:
             for k, step, a, ao in st.fur:
                 lp = sh.layer(k, step, a, ao)
                 lp.A = lp.A * sh.fmask
-                if "fur" in only:
-                    in_head.append(lp)
-            if "locks" in only:
-                for lp in st.locks(sh, head):
-                    if st.locks_fade:
-                        c = np.clip(st.coverage(head, _unit(lp.P - HEAD_C)) * 1.4, 0, 1)
-                        lp.A = lp.A * c
-                    in_head.append(lp)
-        if "tubes" in only:
-            in_head += st.tubes(sh, head)
+                in_head.append(lp)
+            for lp in st.locks(sh, head):
+                if st.locks_fade:  # a lock fades where the style's own hair fades
+                    lp.A = lp.A * np.clip(st.coverage(head, _unit(lp.P - HEAD_C)) * 1.4, 0, 1)
+                in_head.append(lp)
+        in_head += st.tubes(sh, head)
     elif kind == "beard":
         if style == "imperial":
             in_head += lip_locks(head, "imperial")

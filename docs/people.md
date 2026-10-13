@@ -118,7 +118,7 @@ that posed body (`rig.py` with `P["mh"]`); the bone directions and names stay th
   square's corner (its iris a little quieter than MakeHuman's).
 - **Counts** (the same topology for every body): near copy about 8,790 triangles (face 2,682, scalp 289, ears 259,
   neck 241, trunk 1,342, arms 1,045, hands 1,130, legs 1,104, feet 698: bare feet keep their toes at their
-  picture's density) plus the eyes 172; far copy 1,740 plus the eyes: 1,912. Hair pieces on top for a base body: hair 640 to 940, beard up to about 960, moustache about 150.
+  picture's density) plus the eyes 172; far copy 1,740 plus the eyes: 1,912. Hair pieces on top: see "Hair" below (round 4: about 1,500 to 3,900 near triangles a style).
 - **Checks of the build** (2026-10-13, every body): skin triangles facing against their corners' normals 3 near and
   7 to 15 far at rest (up to 22 near with every slider at +1; 0 on the dressed kinds' skin); triangles whose UV winding
   is turned within their island about 130 near (MakeHuman's eyes, finger and toe slivers; 338 before the reduced faces
@@ -176,22 +176,61 @@ linen drawers and vest (by height, not by part: a part's edge is a staircase of 
 cloth worn under it or the garment's own colour (`clothes_kit.undershirt`), so a reduced neckline shows a shirt and a
 slider's broader shoulders pushing skin through a tunic show cloth, not bare skin.
 
-### Hair (`mhhair.py`)
+### Hair (`mhhair.py`, round 4)
 
-- **Shells** (crop, side, long, bald fringe; a woman's drawn-back hair under the bun, plaits and coronet; the
-  undercap; full, short, chin, chops and sideburn beards): MakeHuman's full head cut along the contour where the
-  hair's thickness reaches 0.9 mm (a smooth hairline), every point laid out from the near copy's own skin by its
-  thickness (the edge 0.5 mm under it, so hair grows out of the skin), lumps of locks inside but not at the edge,
-  reduced to the style's budget (crop 640, side 720, long 780, women's 660, full beard 760; far copies about a
-  quarter, cut from the far copy's head). Beards keep the lips bare with a margin and lie thin next to them.
-- **Tubes** (bun, plaits, coronet, the three moustaches, the imperial), their triangles turned to face out.
-- **Pictures.** Shells and tubes use the face picture's swatches: strands mirrored left and right (front 0, back 1:
-  no seam down the back of the head), fine straight streaks, soft locks and a sheen; a plait's weave. Beards run
-  down the face and on back under the jaw at the same density both ways (`beard_uv`: the scalp's elevation map
-  squeezed the strands under the chin into streaks; triangles stretched more than 4:1 in a full beard 388 of 760
-  before, 69 after); sideburns keep the scalp's map.
-- **Under hats.** Men's caps and kepis sit 11 mm over the scalp (a crop of hair fits under), and a kind with a hat
-  takes its hair from `KIND_HAIR` (crop for the men, the undercap for the women).
+Period styles of Antwerp in 1873, each one piece per base body (`<body>_hair|beard|mous_<style>_lod0/1`), bound to
+the base mesh (they carry the face and body sliders) and merged into the person at spawn as before.
+
+- **Men:** `crop` (a centimetre on top, short at the sides), `side` (a parting on the left, the top combed over in
+  locks, oiled), `long` (a workman's hair over the ear tops and to the collar, locks from the crown, forelocks),
+  `bald` (the crown bare, a fringe thinning up into it), `capped` (a crop under a cap or kepi: full below the hat's
+  band, pressed to under 3 mm above it and gone 1 to 2 cm higher). The old man's body builds its styles with a
+  receding line. Beards: `full`, `short`, `chops` (cheeks to the mouth's corners, the chin shaved round), `sideburns`,
+  `chin` (a chin curtain), `imperial`; moustaches `walrus`, `chevron`, `handlebar` (waxed points). Beards never grow
+  on the upper lip (the moustache's).
+- **Women:** parted in the middle, smoothed over the top, brought down over the temples and the ear tops and drawn
+  back to a knot low on the back of the head (`bun`); two plaits pinned round the back (`plaits`); plaits over the
+  crown (`coronet`); under the linen cap (`undercap`: the front shows, behind the cap's edge it lies under 4.2 mm
+  with a flat knot). The old woman's hair is thinner, the knot smaller. **Children:** boys `crop`, girls two plaits
+  hanging behind the ears (weighted over to the neck and chest as they hang).
+- **How a scalp style is made (`Shell`):** a fine sphere of directions from the head's middle; per direction the
+  style's coverage (1 where its hair is full, to 0 past its hairline), thickness and flow (u round, v along the
+  strands: from the crown's whorl, or into the knot for women), cut along coverage 0.02 and along the middle line
+  (the strands' UVs mirror there), laid on the skull and neck (ears left out, MakeHuman's full head under the near
+  copy) and out by the thickness, which grows over the whole fade band (no ledge); women's hair passes over the ear's
+  top; reduced to its budget with the fade band's points kept. Fuzz layers (the same shell 1.5 to 2 mm further out,
+  fewer strands) soften the silhouette; locks (`lock`: tapered three-point ribbons along the flow, sparser at their
+  edges, faded wherever the style's own coverage fades) give the clumps, the parting and the sweep; knots and plaits
+  are tubes with a fuzz tube round them.
+- **Beards and moustaches (`SkinShell`):** MakeHuman's face cut along the beard's coverage, out by a thickness that is
+  thin on the cheeks and long at the chin, with clumps, two fuzz layers and locks hanging up to 1.6 cm past the lower
+  edge; moustaches are a small shell on the upper lip under fanned locks.
+- **Pictures (`paint_swatches`, called by `mhface.paint`):** drawn strand by strand in the face picture's hair:
+  `HAIR_RECT` shell strands, `BRAID_RECT` the weave, `LOCK_RECT` (0.815..0.985, 0.015..0.385) four locks root to
+  tip (two fine, one coarse, one waxed point), `BEARD_RECT` (0.555..0.785, 0.805..0.990) coarse beard strands. Grey
+  and white are pigment and white strands mixed one by one (`PIGMENT`); the African sailors' cells get tightly
+  coiled hair. A bald crown is painted as clean skin from the forehead's colour (MakeHuman's old skins carry painted
+  stubble there: the "ginger scalp"); the fringe takes the cell's mixed grey.
+- **Under hats:** the hats are fitted to the bare skin with a margin (caps and kepi 11 mm, the women's cap 9 mm), so
+  `KIND_HAIR` gives docker_a `capped` (or `bald`), police and Sooi `capped`, the capped women `undercap`. The hats'
+  lines in head angles are `CAP_EL` and `HOOD_EL` in mhhair (measured on the built kinds; change them with the hats).
+
+**The fade contract (for the people2 shader):**
+
+| Channel | Who writes it | Meaning |
+|---|---|---|
+| vertex colour alpha (`picture_flags.a`) | hair, beard and moustache pieces (1 on every other mesh) | the piece's coverage 0..1: 1 every strand drawn, 0 none (the faded hairline, beard edge, a lock's root, a fuzz layer's share) |
+| face picture alpha | `mhhair.paint_swatches` | 1 everywhere but the hair swatches; there the strands' coverage 0.02..0.98, spread evenly so a vertex alpha a keeps about the share a of the strands (top strands first) |
+| vertex colour blue | hair pieces | baked occlusion 0..1 (1 open), lower deep in the hair and at a lock's edges |
+
+The rule: **a face-flag fragment is kept where picture alpha + vertex alpha > 1** (an alpha scissor, no blending, no
+dither; skin has 1 + 1). Hair fragments are face-flag fragments with picture alpha < 0.99 (for a hair roughness). The
+runtime must keep the pieces' vertex alpha when it captures them (`People2Faces.Capture` set it to 1).
+
+**Counts (near / far copy, man_middling):** crop 2,280 / 266, side 2,240 / 266, long 2,426 / 273, bald about 2,150 /
+254, capped 1,520 / 248; full beard 3,222 / 200, short 1,914, chops 2,004, chin 2,178, sideburns 740, imperial 84;
+walrus 980, chevron 840, handlebar 696. Women's styles 3,100 to 3,900. Slider morphs of the pieces: about 3.4 MB per
+men's body in `morphs.bin` (the morph file grows by roughly 15 MB).
 
 ### Clothes on the MakeHuman bodies
 
@@ -259,7 +298,7 @@ pays about 3.5 ms each there (see the known limits).
   hand. The relaxed and open hands are right. The angles belong to the motion packages.
 - The kinds' clothes are coarse at a metre (3,000 to 4,000 triangles next to MakeHuman's face); raising the crowd's
   near budget would buy them back.
-- Beard and hair edges still show small steps at 0.6 m; the far copies' hair is a coarse cap.
+- The far copies' hair is a plain shell (no fuzz or locks) at about 250 triangles.
 - The fishwife's crossed shawl shows the bodice between and through its reduced bands.
 - Garment UVs: after the reduction about one triangle in five of the big garments (smock, tunic, coat) is stretched
   more than 4:1 in its picture (the collapse moves points after the unwrap). No streak shows at a metre in the close
