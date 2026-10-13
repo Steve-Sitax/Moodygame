@@ -69,7 +69,7 @@ public partial class MainMenu : Node
         if (main.Flag("no-mainmenu")) return false;
         // Ride checks exercise the real save/load dispatcher, including world replacement.
         if (main.Flag("ride-saves-menu") || main.Arg("ridetest") != "") return true;
-        foreach (string check in new[] { "paths", "stuck", "shaders", "perfcheck", "clocks", "interiors", "devtest", "pixelcheck", "windows" })
+        foreach (string check in new[] { "paths", "stuck", "lanecheck", "shaders", "perfcheck", "clocks", "interiors", "devtest", "pixelcheck", "windows" })
             if (main.Flag(check)) return false;
         string only = main.Arg("only");
         if (only != "" && !only.Split(',').Contains("mainmenu")) return false;
