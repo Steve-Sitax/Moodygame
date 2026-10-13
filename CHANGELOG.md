@@ -7,6 +7,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Finishing night work after the employer has gone home no longer blanks your purse and the clock until the next update: the engine now answers with the full game state, as the old server did (issue 107).
 - The complete town now runs in Godot: eleven editable districts, the title menu, residents, interiors, jobs, weather and harbour traffic. The finished model and texture work described below has been imported into native resources. Playing and editing no longer need the web game or a bake.
 - Place, move, rotate, copy and remove lamps and other library objects in the workshop, then test the saved layout in the full game. Existing object identities and saved district layouts are preserved. Exposed model edges now follow a material-specific bevel and wear rule.
 - Multiplayer uses a native Godot host or a separate headless server, with authenticated players and LAN/VPN connections. Windows exports include their required runtime.
