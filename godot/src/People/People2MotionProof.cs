@@ -84,6 +84,8 @@ internal partial class People2MotionProof : Node
                         }
                         manual = false;
                     }
+                    // back on his stool for the evening pictures
+                    if (sitter != null) { sitter.Human.Root.Position = sitterAt + Vector3.Up * sitter.Human.SitDrop(sitterSeat); sitter.Human.Play("sit", 0); }
                 }
             }
             var life = Life(150);
