@@ -206,6 +206,25 @@ public partial class Solid : Node
         return hit.Count > 0 && names.TryGetValue(hit["rid"].AsRid(), out var s) ? s : "";
     }
 
+    /// <summary>
+    /// What a ray from a to b meets first, for a report of what holds someone: the baked part's name, or what a body the
+    /// game stands up itself (a stall, a parked cart) says it is in its "held_by" meta. `furniture` is true for the second
+    /// kind: things that stand in the street for a while and that a walker goes round, not walls.
+    /// </summary>
+    public string HeldBy(Vector3 a, Vector3 b, out bool furniture)
+    {
+        furniture = false;
+        var hit = Main.I.View.FindWorld3D().DirectSpaceState.IntersectRay(PhysicsRayQueryParameters3D.Create(a, b, Layer));
+        if (hit.Count == 0) return "";
+        if (names.TryGetValue(hit["rid"].AsRid(), out var s)) return s;
+        if (hit["collider"].AsGodotObject() is Node n && n.HasMeta("held_by"))
+        {
+            furniture = true;
+            return n.GetMeta("held_by").AsString();
+        }
+        return "";
+    }
+
     private void Add(Mesh mesh, Transform3D xf, Action<string> note, string name)
     {
         var box = xf * mesh.GetAabb();
