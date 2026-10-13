@@ -44,7 +44,8 @@ paving and the house linings (`World/Solid.cs`). `--route-dump x0,x1,z0,z1` (wit
 boxes in that window of the plan, to see what the search ran into; add `--route-dump-name soot` to list the town's mesh of that
 name instead. Its third form, `--homedoortest <dir> --walk-room poesje:-2.2 --walk-hour 19 --db <dir>/test.sqlite` (and `--hour 19`),
 walks Jef on foot through a room's street door, held open, down to the floor at that height and back out, with pictures; the Poesje
-opens at half past six and sends Jef back out of its door before that, so it is walked at 19.
+opens at half past six and sends Jef back out of its door before that, so it is walked at 19. `--keep-soot` leaves the bake's
+leftover soot sheet over the Poesje's front (`NativeTown.cs` hides it), for the before.
 
 Limitations are evidence, not passes: `notCovered` is in every report. The path check tests the baked crowd map,
 not Jef's physics or changed moving geometry. Stuck covers a three-hour Monday route and drawn-body collisions,
