@@ -123,7 +123,8 @@ public partial class PlacesTest : Node
         await Shot("home-room");
         Check(Interact.I.Find().Any(a => a.Text == "go to bed"), "own bed prompt");
         Interact.I.Press(Key.E); await Shot("home-bed"); Check(Dialogs.I.Top?.DialogName == "sleep chooser", "home sleep chooser");
-        Dialogs.I.Top!.OnKey("Digit1", "1");Check(await Until(()=>Day.I.Asleep,12),"own bed sleep accepted by engine");
+        // Eight hours (4): the engine sleeps him in 30-minute steps every 300 ms, so a one-hour sleep can end by itself in the frames this waits.
+        Dialogs.I.Top!.OnKey("Digit4", "4");Check(await Until(()=>Day.I.Asleep,12),"own bed sleep accepted by engine");
         GameState.I.Apply(await api.Tick(GameState.I.Where(),true,new Pos3(Jef.I.X,Jef.I.Z,Jef.I.Y)));await Frames(6);Dialogs.I.Top!.OnKey("KeyE","e");
         Check(await Until(()=>!Day.I.Asleep&&Day.I.LastWoke?.Place=="home",12),"wake in own home");Check(f.Inside,"wake position in real home room");replies.Add(new{homeWake=Day.I.LastWoke});
         replies.Add(new { homes = HomeLife.I.Info });
