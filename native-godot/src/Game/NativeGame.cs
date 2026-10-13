@@ -46,6 +46,7 @@ public partial class NativeGame : Scheldemist.Main
         GetTree().Root.Title = SurfaceOnly ? "Scheldemist · Rijnkaai Surface Viewer" : "Scheldemist · Rijnkaai Playtest";
         if (Arg("native-game-test") != "") _ = NativeGameProof.Run(this, Arg("native-game-test"));
         if (Arg("surface-test") != "") _ = NativeSurfaceProof.Run(this, Arg("surface-test"));
+        if (Arg("ladder-test") != "") _ = NativeLadderProof.Run(this, Arg("ladder-test"));
         if (Flag("review-surfaces")) _ = ReviewSurfaces();
     }
 

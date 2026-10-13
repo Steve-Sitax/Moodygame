@@ -19,6 +19,8 @@ public static class NativeQuayLadders
 {
     /// <summary>Rung line this far in front of the nearest stone behind it (toe room, as the issue asks: 0.15-0.18 m).</summary>
     public const float Clear = 0.17f;
+    /// <summary>The longest strap from a stile sideways to a pile (issue 95).</summary>
+    public const float TieReach = 1.6f;
     /// <summary>On the ladders' node: Solid makes no wall of the drawn ladders, their own bodies are their collision.</summary>
     public const string LeaveMeta = "native_quay_ladders";
     /// <summary>What a ladder stands against or on: wall, coping, flights and the pier.</summary>
@@ -29,7 +31,7 @@ public static class NativeQuayLadders
     public sealed class Result
     {
         public readonly List<QuayExits.Ladder> Ladders = new();
-        public int Meshes, RemovedTriangles;
+        public int Meshes, RemovedTriangles, CollisionShapes;
         public double Ms;
         public readonly List<string> Notes = new();
     }
@@ -40,11 +42,26 @@ public static class NativeQuayLadders
         public Basis Basis => new(T, Vector3.Up, N);
     }
 
-    public static Result Install(Node3D town)
+    /// <summary>
+    /// A node's recovered name: the town keeps its meshes as the root's children under their own names; the district
+    /// slice keeps them nested in wrapper nodes and renames them only when the game starts, so the bake's name is in
+    /// the node's `source_name` metadata.
+    /// </summary>
+    private static bool Is(Node node, Func<string, bool> wanted)
+        => wanted(node.Name.ToString()) || node.HasMeta("source_name") && wanted(node.GetMeta("source_name").AsString());
+
+    /// <summary>
+    /// Replace the baked ladders under `root` (the town's scene, or a district slice's: any depth) with the native
+    /// ladder, before the root is in the tree. Returns the ladders for the climb (QuayExits via BakedWorld.NativeQuayLadders).
+    /// A mesh that carries its own stored collision (the slice's `Solid` body) gets that shape rebuilt from the
+    /// iron that is left, so no solid ladder stands where the old one was.
+    /// </summary>
+    public static Result Install(Node3D root)
     {
+        var town = root;
         var result = new Result();
         var clock = System.Diagnostics.Stopwatch.StartNew();
-        var irons = town.GetChildren().OfType<MeshInstance3D>().Where(m => m.Mesh != null && m.Name.ToString().StartsWith("quay_iron")).ToArray();
+        var irons = BakedWorld.All(town).OfType<MeshInstance3D>().Where(m => m.Mesh != null && Is(m, name => name.StartsWith("quay_iron"))).ToArray();
         if (irons.Length == 0) return result;
         Material? material = null;
         var found = new List<(QuayExits.Ladder L, MeshInstance3D From)>();
@@ -64,6 +81,12 @@ public static class NativeQuayLadders
             var trimmed = Strip(iron.Mesh, Pose(iron, town), mine.Select(i => (frames[i], found[i].L)).ToArray(), out int removed);
             iron.Mesh = trimmed;
             result.RemovedTriangles += removed;
+            // (a stored collision shape was made from the old iron, ladders included)
+            foreach (var shape in iron.GetChildren().OfType<StaticBody3D>().SelectMany(b => b.GetChildren().OfType<CollisionShape3D>()).Where(s => s.Shape is ConcavePolygonShape3D))
+            {
+                shape.Shape = trimmed.GetSurfaceCount() > 0 ? Scheldemist.Native.Recovery.RecoveryIron.Collider(trimmed) : null;
+                result.CollisionShapes++;
+            }
         }
 
         var stone = new Triangles(town, frames.Select(f => f.O).ToArray(), Stone);
@@ -215,18 +238,31 @@ public static class NativeQuayLadders
         else { note += $"no ground for the hoops behind {front:0.00}; "; legZ = front - 0.62f; }
         // brackets: under the coping, then every 1.5 m down to the foot; each stile to the wall behind it
         var brackets = new List<(float, float, float)>();
+        var ties = new List<(float, float, float)>();
         float firstY = coping && float.IsFinite(copeBottom) ? copeBottom - 0.2f : topRung - 0.35f;
         int held = 0;
+        // a pile's face beside a stile, level with the rung line: how far out (along x, signed) a strap from the stile reaches it
+        float Beside(float y, float side)
+        {
+            float edge = sx + NativeQuayLadderModel.StileThick / 2;
+            float d = stone.Ray(f.At(side * edge, y, rungZ), f.T * side, TieReach);
+            return float.IsFinite(d) && d > 0.03f ? Cm(side * (edge + d)) : float.NaN;
+        }
         for (float y = firstY; y > foot + 0.3f; y -= 1.5f)
         {
             float left = Face(y, new[] { -sx }), right = Face(y, new[] { sx });
             left = float.IsFinite(left) && rungZ - left < 0.9f ? Cm(left) : float.NaN;
             right = float.IsFinite(right) && rungZ - right < 0.9f ? Cm(right) : float.NaN;
-            if (float.IsFinite(left) || float.IsFinite(right)) { brackets.Add((Cm(y), left, right)); held++; }
+            // no wall behind a stile (the pier head, standing on piles): a strap across to the nearest pile beside it (issue 95)
+            float tieLeft = float.IsFinite(left) ? float.NaN : Beside(y, -1), tieRight = float.IsFinite(right) ? float.NaN : Beside(y, 1);
+            if (float.IsFinite(left) || float.IsFinite(right)) brackets.Add((Cm(y), left, right));
+            if (float.IsFinite(tieLeft) || float.IsFinite(tieRight)) ties.Add((Cm(y), tieLeft, tieRight));
+            if (float.IsFinite(left) || float.IsFinite(right) || float.IsFinite(tieLeft) || float.IsFinite(tieRight)) held++;
         }
-        if (held < 2) note += $"only {held} wall brackets; ";
+        if (ties.Count > 0) note += $"straps to piles at {string.Join(", ", ties.Select(t => FormattableString.Invariant($"y {t.Item1:0.00} (x {t.Item2:0.00} / {t.Item3:0.00})")))}; ";
+        if (held < 2) note +=$"only {held} fixings (brackets to the wall or straps to a pile); ";
         return new NativeQuayLadderModel.Fit(Cm(topRung), Cm(rungZ), Cm(legZ), Cm(legY),
-            Tide.RegionAt(l.X + l.Nx * 2, l.Z + l.Nz * 2) == 1, coping ? Cm(front) : 0, brackets.ToArray());
+            Tide.RegionAt(l.X + l.Nx * 2, l.Z + l.Nz * 2) == 1, coping ? Cm(front) : 0, brackets.ToArray(), ties.ToArray());
     }
 
     /// <summary>The drawn quay triangles near the ladders, in a 2 m grid, for rays.</summary>
@@ -252,7 +288,7 @@ public static class NativeQuayLadders
                         wanted.Add((w.Item1 + dx, w.Item2 + dz));
             foreach (var mi in BakedWorld.All(town).OfType<MeshInstance3D>())
             {
-                if (mi.Mesh == null || !mi.Visible || !names.Contains(mi.Name.ToString())) continue;
+                if (mi.Mesh == null || !mi.Visible || !Is(mi, names.Contains)) continue;
                 var xf = Pose(mi, town);
                 for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
                 {

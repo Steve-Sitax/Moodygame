@@ -29,9 +29,11 @@ public static class NativeQuayLadderModel
 
     /// <summary>One wall's fit: all numbers in the ladder's frame, rounded to a centimetre so walls alike share a mesh.</summary>
     /// <summary>Brackets: height, and the wall behind the left and the right stile (NaN: nothing there to fix to).</summary>
-    public readonly record struct Fit(float TopRung, float RungZ, float LegZ, float LegY, bool Dock, float CopeZ, (float Y, float Left, float Right)[] Brackets)
+    /// <summary>Ties (issue 95): where a stile has no wall behind it (a pier head), a strap across to the pile beside it: height, and the x of the pile's face to the left and the right (NaN: none).</summary>
+    public readonly record struct Fit(float TopRung, float RungZ, float LegZ, float LegY, bool Dock, float CopeZ, (float Y, float Left, float Right)[] Brackets, (float Y, float Left, float Right)[]? Ties = null)
     {
-        public string Key => FormattableString.Invariant($"{TopRung:0.00}|{RungZ:0.00}|{LegZ:0.00}|{LegY:0.00}|{Dock}|{CopeZ:0.00}|") + string.Join(",", Array.ConvertAll(Brackets, b => FormattableString.Invariant($"{b.Y:0.00}:{b.Left:0.00}:{b.Right:0.00}")));
+        public string Key => FormattableString.Invariant($"{TopRung:0.00}|{RungZ:0.00}|{LegZ:0.00}|{LegY:0.00}|{Dock}|{CopeZ:0.00}|") + string.Join(",", Array.ConvertAll(Brackets, b => FormattableString.Invariant($"{b.Y:0.00}:{b.Left:0.00}:{b.Right:0.00}")))
+            + (Ties == null ? "" : "|" + string.Join(",", Array.ConvertAll(Ties, b => FormattableString.Invariant($"{b.Y:0.00}:{b.Left:0.00}:{b.Right:0.00}"))));
     }
 
     private sealed class Builder
@@ -258,6 +260,19 @@ public static class NativeQuayLadderModel
                 b.Box(new Vector3(x - 0.05f, y - 0.07f, wallZ), new Vector3(x + 0.05f, y + 0.07f, wallZ + 0.016f), 0.003f);
                 foreach (float dy in new[] { -0.045f, 0.045f })
                     b.Stud(new Vector3(x, y + dy, wallZ + 0.015f), Vector3.Back, 0.012f, 0.01f);
+            }
+            // straps to a pile where no wall stands behind the stile: flat bar from the stile's outer face across to a
+            // bolted plate on the pile's face (the pier head, issue 95)
+            foreach (var (y, left, right) in fit.Ties ?? Array.Empty<(float Y, float Left, float Right)>())
+            {
+                float pileX = s < 0 ? left : right;
+                if (!float.IsFinite(pileX)) continue;
+                float outer = s * (StileX + StileThick / 2);
+                lo = new Vector3(Math.Min(outer, pileX - s * 0.016f), y - 0.025f, zr - 0.006f); hi = new Vector3(Math.Max(outer, pileX - s * 0.016f), y + 0.025f, zr + 0.006f);
+                b.Box(lo, hi, 0.002f); solid.Box(lo, hi, 0);
+                b.Box(new Vector3(Math.Min(pileX, pileX - s * 0.016f), y - 0.07f, zr - 0.05f), new Vector3(Math.Max(pileX, pileX - s * 0.016f), y + 0.07f, zr + 0.05f), 0.003f);
+                foreach (float dy in new[] { -0.045f, 0.045f })
+                    b.Stud(new Vector3(pileX - s * 0.015f, y + dy, zr), new Vector3(-s, 0, 0), 0.012f, 0.01f);
             }
         }
         // a short bracket from each stile into the coping's face holds the head clear of it

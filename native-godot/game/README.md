@@ -163,3 +163,9 @@ Compatibility. It also verifies all three coping radii, the vertical corner beve
 wall contact and a ray through the stain reaching the actual paving. Views cover the land edge, underside,
 quay corner and night. Use copied layouts with `--author-dir`. Current evidence is under `proof/edge-after`.
 The project-wide [edge rule](../../AGENTS.md) applies to future districts and direct Godot modelling.
+
+The slice draws the town's native quay ladders (issue 94): `NativeQuayLadders.Install` runs on the district scene, finds
+the bake's `quay_iron` by its `source_name` at any depth, rebuilds the iron's stored collision without the old ladders
+and hands the rung lines to the climb. `--ladder-test <proof-directory>` on `game.tscn` checks that every ladder is the
+native model, shoots side-on, fixing and water views, and climbs out of the water in front of four of them, the pier
+head's included. Give it a fresh `--author-dir` and `--prefs`, never the player's.
