@@ -30,8 +30,11 @@ public static class NativeGameProof
             Check(game.Loaded && game.World is NativeGameWorld, "existing game runtime loads a native district");
             Check(!game.GetChildren().Any(n => n.GetType().Name == "ServerLink"), "district run does not start the original server");
             var world = (NativeGameWorld)game.World;
-            Check(world.AuthoredCount == 15, "copied player layout includes all 15 objects");
-            Check(Lights.I.LampCount == 7, "seven authored lamps supply live game lighting");
+            // The count follows the layout in use: a copy of Steve's saved layout holds 15 (the seed's 14 plus his lamp), a run on the scene seed
+            // (--scene-seed, or an --author-dir without a layout) holds the 14 of the committed seed (issue 102).
+            int expected = world.LayoutObjects ?? 14;
+            Check(world.AuthoredCount == expected, $"the {(world.LayoutObjects == null ? "scene seed" : "copied player layout")} builds all {expected} objects");
+            Check(world.AuthoredLamps > 0 && Lights.I.LampCount == world.AuthoredLamps, $"{world.AuthoredLamps} authored lamps supply live game lighting");
             Check(Jef.I.Grounded && Math.Abs(Jef.I.Y) < 0.2f && Jef.I.Rescued == 0, "real game player stands on native quay collision");
             var wall = ResourceLoader.Load<ShaderMaterial>("res://game/rijnkaai/resources/material-6.res");
             Check(wall.GetShaderParameter("bump_map").As<Texture2D>() is { ResourcePath.Length: > 0 }, "wall bump map is a saved native texture");

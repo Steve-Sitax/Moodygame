@@ -68,7 +68,8 @@ public static class NativeSurfaceProof
             Check(hit.Count > 0 && Math.Abs(hit["position"].AsVector3().Y) < 0.015f, "rust stain adds no floating collision plate above the paving");
             using (var alpha = new StandardMaterial3D { Transparency = BaseMaterial3D.TransparencyEnum.AlphaDepthPrePass })
                 Check(NativeGameWorld.IsBlended(alpha), "imported depth-prepass transparency remains blended");
-            Check(((NativeGameWorld)game.World).AuthoredCount == 15, "the copied saved layout still contains fifteen objects");
+            var surfaceWorld = (NativeGameWorld)game.World;
+            Check(surfaceWorld.AuthoredCount == (surfaceWorld.LayoutObjects ?? 14), $"the layout in use still builds all its {surfaceWorld.LayoutObjects ?? 14} objects");
             Daylight.I.SetTime(13); Daylight.I.SetWeather("clear"); Daylight.I.SetRain(0); Daylight.I.Settle();
             await Picture("01-coping-day", new Vector3(17.2f, 1.1f, -1.1f), new Vector3(18, 0.055f, 0.02f));
             await Picture("02-bollard-day", new Vector3(17.08f, 1.13f, 2.08f), new Vector3(18, 0.35f, 0.9f));

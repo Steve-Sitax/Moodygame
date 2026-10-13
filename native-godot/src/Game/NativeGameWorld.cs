@@ -39,6 +39,10 @@ public partial class NativeGameWorld : BakedWorld
     public override JsonDocument? NativeLights => lights;
     public string LayoutSource { get; private set; } = "scene seed";
     public int AuthoredCount => districtScene.GetNode("Objects").GetChildCount();
+    /// <summary>How many objects the saved layout in use holds (null: the committed scene seed is in use, which holds 14).</summary>
+    public int? LayoutObjects { get; private set; }
+    /// <summary>The authored objects that carry a lamp; each one supplies a live game light.</summary>
+    public int AuthoredLamps => districtScene.GetNode("Objects").GetChildren().OfType<AuthoredObject>().Count(o => All(o).OfType<WorkshopLamp>().Any(l => l.GetNodeOrNull<OmniLight3D>("Light") != null));
     private readonly Dictionary<int, ShaderMaterial> materials = new();
     private readonly Dictionary<ulong, ShaderMaterial> surfaceMaterials = new();
     private readonly Dictionary<(ShaderMaterial material, string parameter), Variant> bumpValues = new();
@@ -78,6 +82,7 @@ public partial class NativeGameWorld : BakedWorld
                 authored.Pose(record); objects.AddChild(authored);
             }
             LayoutSource = file;
+            LayoutObjects = document.Objects.Count;
         }
         var table = JsonNode.Parse(File.ReadAllText(ProjectSettings.GlobalizePath(Visuals + "/materials.json")))!.AsObject();
         foreach (var row in table) materials[int.Parse(row.Key)] = ResourceLoader.Load<ShaderMaterial>(row.Value!.GetValue<string>());
