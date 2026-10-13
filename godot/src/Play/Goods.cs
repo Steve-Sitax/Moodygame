@@ -455,8 +455,11 @@ public partial class Goods : Node
             it.Shape = new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(GoodsRules.Foot * 2, h, GoodsRules.Foot * 2) }, Position = new Vector3(0, h / 2, 0) };
             body.AddChild(it.Shape);
             it.Obj.AddChild(body);
+            // The crowd walks round lying goods. A layer of 0 (picked up) takes the box out of its map again.
+            Scheldemist.Town.WalkMap.RegisterBody(body, new Aabb(new Vector3(-GoodsRules.Foot, 0, -GoodsRules.Foot), new Vector3(GoodsRules.Foot * 2, h, GoodsRules.Foot * 2)));
         }
         it.Shape.Disabled = !on;
+        if (it.Shape.GetParent() is CollisionObject3D lying) lying.CollisionLayer = on ? Solid.Layer : 0;
     }
 
     private void Lay(Item it)

@@ -246,6 +246,11 @@ public sealed class Puppet
     /// <summary>Standing at the end of a bridge that is up, until it is down (Walk).</summary>
     public bool BridgeWait;
     internal string PMotion = "idle";
+    /// <summary>Why this body gave way to a moving vehicle in the last step ("" when it did not); read by the stuck check.</summary>
+    public string Yield = "";
+    internal double YieldHold;
+    /// <summary>Seconds in a row the walk could take no step at all.</summary>
+    internal double Failed;
     internal double? PYaw;
     internal bool Repath;
     internal bool NativeRouting;
@@ -546,6 +551,7 @@ public sealed partial class Crowd
     public void PuppetStand(Puppet p, string motion = "idle", double? yaw = null)
     {
         p.Path.Clear();
+        p.Failed = 0;
         p.Pi = 0;
         p.Dest = null;
         p.Repath = false;
@@ -653,6 +659,30 @@ public sealed partial class Crowd
         foreach (var q in people)
             if (Math.Abs(q.X - x) < BodyGap && Math.Abs(q.Z - z) < BodyGap && Hyp(q.X - x, q.Z - z) < BodyGap) return true;
         return false;
+    }
+
+    /// <summary>
+    /// A solid has just appeared (a cart parked for the player coming near): whoever stands or waits inside its
+    /// footprint, or within a body's clearance of it, is eased out onto the nearest free ground. Walkers step out by themselves.
+    /// </summary>
+    public void MoveOutOf(Aabb world, double clearance = 0.3)
+    {
+        map.RefreshBodies();
+        double x0 = world.Position.X - clearance, x1 = world.End.X + clearance, z0 = world.Position.Z - clearance, z1 = world.End.Z + clearance;
+        foreach (var p in people)
+        {
+            if (p.Remote || p.Vehicle != null || p.State is "walk" or "sit" || p.X < x0 || p.X > x1 || p.Z < z0 || p.Z > z1 || map.FreeFor(p, p.X, p.Z)) continue;
+            (double x, double z)? best = null;
+            for (double r = 0.25; r <= 3 && best == null; r += 0.25)
+                for (int k = 0; k < 24 && best == null; k++)
+                {
+                    double a = k * Math.PI / 12, qx = p.X + Math.Cos(a) * r, qz = p.Z + Math.Sin(a) * r;
+                    if (map.FreeFor(p, qx, qz) && !SomeoneAt(qx, qz)) best = (qx, qz);
+                }
+            if (best == null) continue;
+            p.X = best.Value.x;
+            p.Z = best.Value.z;
+        }
     }
 
     /// <summary>The nearest open grid point where nobody is yet, or null.</summary>
@@ -1012,6 +1042,7 @@ public sealed partial class Crowd
                     {
                         p.State = "blocked";
                         p.Held = 0;
+                        p.Human.Play(StillMotion(p), 0.3f);
                         return;
                     }
                     double lat = (px * rx + pz * rz) / pd; // > 0: the player is on our right
@@ -1087,12 +1118,16 @@ public sealed partial class Crowd
                 && Math.Abs(NativeBicycleTurn.Angle(turnYaw-p.Yaw))>.001){p.Yaw=turnYaw;p.StuckT=0;return;}
             // something the walk map does not know: remember it and find another way; stand while it is worked out
             p.Human.Play(StillMotion(p), 0.3f);
+            // Held at the same corner for seconds, however many ways were tried: go on to the next way point, so that
+            // nobody stands for ever at a place the walk map and the colliders never agreed on.
+            if ((p.Failed += dt) > (p.Shown ? 6 : 3) && Unwedge(p)) return;
             grid.Block(p.X + ux * 0.6, p.Z + uz * 0.6);
             p.Replans++;
             if (p.Replans > 3 || p.Dest == null) Next(p);
             else GoTo(p, p.Dest.Value);
             return;
         }
+        p.Failed = 0;
         if(p.VehicleStepYaw is double vehicleYaw){p.Yaw=vehicleYaw;p.VehicleStepYaw=null;if(p.Vehicle!=null)p.Vehicle.InitialHeading=false;}
         else Face(p, Math.Atan2(mx, mz), dt * 1.4);
         // no nearer for a second (someone in the way pushes him back): he waits, standing
@@ -1107,6 +1142,27 @@ public sealed partial class Crowd
 
     /// <summary>Blocked straight on: a step turned up to 70 degrees either way, if one is free (the way it went).</summary>
     private static readonly double[] SlideAngles = { 0.6, -0.6, 1.2, -1.2 };
+    /// <summary>
+    /// A body that has not been able to take a single step for seconds: set it on its next way point (or the nearest free ground
+    /// to it) when that is close, and go on from there. False when there is nowhere free to put it.
+    /// </summary>
+    private bool Unwedge(Puppet p)
+    {
+        if (p.Pi >= p.Path.Count) return false;
+        var t = p.Path[p.Pi];
+        if (Hyp(t.x - p.X, t.z - p.Z) > (p.Shown ? 3 : 12)) return false;
+        (double x, double z)? to = map.FreeFor(p, t.x, t.z) && !SomeoneAt(t.x, t.z) ? t : OpenNearFree(t.x, t.z);
+        if (to == null) return false;
+        p.X = to.Value.x;
+        p.Z = to.Value.z;
+        p.Pi++;
+        p.Failed = 0;
+        p.StuckT = 0;
+        p.BestD = double.PositiveInfinity;
+        if (p.Pi >= p.Path.Count) Arrive(p);
+        return true;
+    }
+
     private bool TryMove(Puppet p, double x, double z, bool lastLeg, double ux, double uz,double dt)
     {
         if(!StepFree(p,x,z)||p.NativeRouting&&!map.SupportsStep(p.X,p.Z,x,z)
@@ -1161,6 +1217,7 @@ public sealed partial class Crowd
         p.Path.Clear();
         p.Pi = 0;
         p.Replans = 0;
+        p.Failed = 0;
         if (p.Repath && p.Dest != null)
         {
             // the old way is walked out and a new goal waits: on there as soon as a way is found

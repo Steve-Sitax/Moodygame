@@ -15,7 +15,7 @@ namespace Scheldemist.Dev;
 /// <summary>Browser thresholds: 3 s within 0.3 m; 8 s, over 3 m travelled but under 0.8 m net.</summary>
 public sealed class StuckWatch
 {
-    private sealed record Sample(double At, double X, double Z, bool Move, string Goal);
+    private sealed record Sample(double At, double X, double Z, bool Move, string Goal, string Detail);
     private readonly Dictionary<string, List<Sample>> tracks = new();
     private readonly HashSet<string> walking = new();
     private readonly Dictionary<string, object> bad = new();
@@ -67,7 +67,9 @@ public sealed class StuckWatch
             bool move = !s.Inside && (p != null ? p.Human.Motion is "walk" or "carry" or "push" or "ride" || p.State == "blocked" && p.Held > 3 : hiddenMove);
             if (move) walking.Add(id);
             if (!tracks.TryGetValue(id, out var tr)) tracks[id] = tr = new();
-            tr.Add(new(seconds, x, z, move, goal));
+            // What the body was doing at each sample, kept so that a finding shows its last seconds.
+            string detail = p == null ? $"{seconds:0.00} {x:0.00},{z:0.00} hidden" : $"{seconds:0.00} {x:0.00},{z:0.00} {p.State}/{p.Human.Motion} path {p.Pi}/{p.Path.Count} stuckT {p.StuckT:0.00} held {p.Held:0.0} replans {p.Replans} pace {p.Pace:0.00} vehicle {p.Vehicle?.Kind} next {(p.Pi < p.Path.Count ? $"{p.Path[p.Pi].x:0.00},{p.Path[p.Pi].z:0.00}" : "-")} {p.Yield}";
+            tr.Add(new(seconds, x, z, move, goal, detail));
             tr.RemoveAll(a => a.At < seconds - 8.5);
             string? how = null;
             var recent = tr.Where(a => a.At >= seconds - 3.25).ToArray();
@@ -79,14 +81,14 @@ public sealed class StuckWatch
                 for (int i = 1; i < tr.Count; i++) travel += Whereabouts.Hypot(tr[i].X - tr[i - 1].X, tr[i].Z - tr[i - 1].Z);
                 if (travel > 3 && Whereabouts.Hypot(x - tr[0].X, z - tr[0].Z) < 0.8) how = "to and fro";
             }
-            if (how != null) bad.TryAdd(id, new { id, who = s.R.Name, s.R.Trade, how, x, z, place, atSeconds = seconds, goal, shown = p?.Shown ?? false, state = p?.State, dest = p?.Dest is { } d ? new[] { d.x, d.z } : null, replans = p?.Replans, free = town.Walk!.Free(x, z), source = "godot/src/Town/Townspeople.cs; godot/src/Town/Crowd.cs" });
+            if (how != null) bad.TryAdd(id, new { id, who = s.R.Name, s.R.Trade, how, x, z, place, atSeconds = seconds, goal, shown = p?.Shown ?? false, state = p?.State, motion = p?.Human.Motion, role = p?.Role, wait = s.Wait, held = p?.Held, stuckT = p?.StuckT, bridgeWait = p?.BridgeWait, vehicle = p?.Vehicle != null, dest = p?.Dest is { } d ? new[] { d.x, d.z } : null, replans = p?.Replans, free = town.Walk!.Free(x, z), trail = tr.TakeLast(14).Select(a => a.Detail).ToArray(), source = "godot/src/Town/Townspeople.cs; godot/src/Town/Crowd.cs" });
             if (p == null || !p.Shown) continue;
             bodyProbe.Transform = new Transform3D(Basis.Identity, new Vector3((float)x, (float)town.Walk!.BaseAt(x, z) + Jef.Step + (Jef.Tall - Jef.Step) / 2, (float)z));
             var hits = Main.I.View.FindWorld3D().DirectSpaceState.IntersectShape(bodyProbe, 1);
             if (!town.Walk!.Free(x, z) || hits.Count > 0)
             {
                 string hit = hits.Count == 0 ? "baked walk map" : hits[0]["collider"].AsGodotObject() is Node collider ? collider.GetPath().ToString() : Solid.I.BodyName(hits[0]["rid"].AsRid());
-                solids.Add($"{id} at {x:0.00},{z:0.00} ({place}): {hit}");
+                solids.Add($"{id} at {x:0.00},{z:0.00} ({place}): {hit} <{goal} {p.State}/{p.Human.Motion} t={Math.Floor(seconds / 10) * 10}>");
                 if (hits.Count > 0 && !solidEvidence.ContainsKey(hit))
                 {
                     var box = Solid.I.BodyBounds(hits[0]["rid"].AsRid());

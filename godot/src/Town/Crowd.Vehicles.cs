@@ -186,12 +186,15 @@ public sealed partial class Crowd
             if(v.Front!=null)v.Front.Rotation=new((float)(v.Distance/.46),0,0);
             if(v.Rear!=null)v.Rear.Rotation=new((float)(v.Distance/.38),0,0);
         } else if(v.Cart!=null) {
-            p.Human.Play(p.State=="walk"?(p.Kind is "carter" or "porter"?"walk":"push"):"idle",.25f);
+            // walking only while actually moving: held at a corner, the driver stands rather than walking on the spot
+            bool going=p.State=="walk"&&v.Speed>.1;
+            p.Human.Play(going?(p.Kind is "carter" or "porter"?"walk":"push"):"idle",.25f);
             var hands=Carters.Hands(p.Human,p.Group,new((float)p.X,(float)p.Z),(float)p.Yaw);
-            v.Cart.Push(dt,hands.X,hands.Z,hands.Y-ground,p.Yaw,p.State=="walk"?1:0,ground);v.Cart.Root.Visible=shown;
+            v.Cart.Push(dt,hands.X,hands.Z,hands.Y-ground,p.Yaw,going?1:0,ground);v.Cart.Root.Visible=shown;
         } else if(v.Dray!=null) {
-            p.Human.Play(p.State=="walk"?"walk":"idle",.25f);
-            v.Dray.Follow(dt,p.X,p.Z,p.Yaw,p.State=="walk"?v.Speed:0,ground);
+            bool going=p.State=="walk"&&v.Speed>.1;
+            p.Human.Play(going?"walk":"idle",.25f);
+            v.Dray.Follow(dt,p.X,p.Z,p.Yaw,going?v.Speed:0,ground);
             v.Dray.Root.Visible=Hyp(p.X-viewX,p.Z-viewZ)<FogDistance+10;
         }
     }
