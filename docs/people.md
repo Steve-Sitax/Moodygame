@@ -8,17 +8,19 @@ the dressed kinds (C, "Kinds and clothes" below). Clothes and kinds (C), motion
 
 ```
 blender -b --factory-startup -P art-source/tools/blender/build_people2.py -- [--preview] [--cast] [--move] [--faces] [--hands]
-    [--sheet] [--only a,b] [--out PATH] [--plain .scratch/people2-plain/people2.glb] [--kinds a,b | --nokinds] [--dress] [--no-move] [--fast]
+    [--sheet] [--only a,b] [--out PATH] [--plain .scratch/people2-plain/people2.glb] [--kinds a,b | --nokinds] [--dress] [--no-move]
+    [--idle] [--no-idle] [--fast]
 ```
 
 Blender 5.2 (`C:/Program Files/Blender Foundation/Blender 5.2/blender.exe`), about 3 min (B's head is meshed once
 per build: about 1 min); the four kinds add about 3 min; `--cast` adds about 4 min, `--move` (the motion checks)
-about 2 min, `--faces --hands --sheet` about 4 min, `--dress` (C's checks) about 4 min.
+about 2 min, `--faces --hands --sheet` about 4 min, `--dress` (C's checks) about 4 min, D2's clips about 3 min and
+`--idle` (their pictures) about 12 min.
 
 | Writes | What |
 |---|---|
-| `art-source/client/public/models/people2.glb` | 10 bodies and the kinds, each an armature (named after the body or kind) with `<name>_lod0` and `<name>_lod1`; the held things under `people2_held`; one material `people2_atlas` (colour and normal map, 4096 px); 102 clips (36 old, their 4 variants for the old, 62 locomotion), the near copies' shape keys; compressed art geometry, JPEG |
-| `art-source/shared/peopleRig.json` | the bones, sockets, grab marks, the Godot BoneMap, the grips and the shape keys, per body its joints, marks, figures and counts, `locomotion` (every D1 clip's speed, cycle, stride, travel and checks; the blend rule; the loads and handles), `heightFactor`, `oldStance`, and C's `kinds`, `held` and `atlas` |
+| `art-source/client/public/models/people2.glb` | 10 bodies and the kinds, each an armature (named after the body or kind) with `<name>_lod0` and `<name>_lod1`; the held things under `people2_held`; one material `people2_atlas` (colour and normal map, 4096 px); 197 clips (36 old, their 4 variants for the old, 62 locomotion, 95 idles, talk and sitting), the near copies' shape keys; compressed art geometry, JPEG |
+| `art-source/shared/peopleRig.json` | the bones, sockets, grab marks, the Godot BoneMap, the grips and the shape keys, per body its joints, marks, figures and counts, `locomotion` (every D1 clip's speed, cycle, stride, travel and checks; the blend rule; the loads and handles), `idles` (D2: the families, which clip serves which motion, the seats, every clip's checks), `heightFactor`, `oldStance`, and C's `kinds`, `held` and `atlas` |
 | `.scratch/people2-build/shots/*.png` | the check pictures (not in git) |
 
 Native intake replaces the retired Node decoder and model bake. `--plain` writes a second, dense-morph,
@@ -43,10 +45,12 @@ The kit, `art-source/tools/blender/people2/`:
 | `clips_legacy.py` | the 36 old clips keyed on the new rig |
 | `motion.py` | the motion tools (D1, for every clip package): FK, IK, holds, feet, curves, joining, foot lock, keying, checks |
 | `clips_move.py` | the locomotion clips (D1): the gait maker, the walkers, climbs, carries, start, stop, turns, the speed blend |
+| `clips_idle.py` | the idles, talk and sitting (D2): the standing and seated solver, arm places and tracks, gestures, the families' clips, sitting down and getting up |
 | `export.py` | the glb, the materials, `peopleRig.json` |
-| `glb_slim.py` | after the export: drops the animation channels that never move (3 MB of JSON) and repacks the buffer |
+| `glb_slim.py` | after the export: drops the animation channels that never move (3 MB of JSON), thins D2's keys and repacks the buffer |
 | `preview.py` | the check pictures |
 | `preview_move.py` | the motion check pictures (`--move`) |
+| `preview_idle.py` | the idle, talk and sitting check pictures (`--idle`) |
 | `sdf.py` | (B) signed distance tools: shapes, soft blends, surface nets, decimation, pulling points onto a surface |
 | `head.py` | (B) the head: its anatomy as a field, the one reference mesh, bodies and face shapes as moves of it, eyes, UVs, weights, the join to the neck |
 | `face_paint.py` | (B) the face painter: the head's square of the picture and its normal map, from a look |
@@ -734,13 +738,102 @@ and `turntable_*_climbs`, `_carries`, `_startstop` (a frame of each clip from ei
 for the sack, crate, cart and truck), `blend_<style>.png` (stroll to the fastest loop, one frame a half second) and
 `blend_man.mp4` (the same as a film).
 
+## Idles, talk and sitting (`clips_idle.py`, package D2)
+
+### How a clip is made (`Spec`, `frame`, `evaluate`)
+
+A clip is a `Spec` on a family's body (`Fam`: its skeleton, its stance, the near copy's surface for hands that rest
+on it). Every frame:
+1. the weight (`spec.weight(t)`, the share on the left foot) puts the hips over the loaded foot (`shift`), drops the
+   free side of the pelvis (`list`) and turns the free hip forward (`yaw`); the hips' height comes from the loaded
+   leg's knee (`kLoad`, nearly straight), never more than a leg reaches;
+2. the legs are solved by IK onto the planted feet (`motion.Skel.leg`); the free foot rises on its ball (`roll`) as
+   far as its relaxed knee (`kFree`) needs, the toes staying down; a shift of the feet is a short step (heel up,
+   lift 2.8 cm, set down flat);
+3. the spine chain counters the pelvis (the shoulders stay level) and breathes (a whole number of breaths a loop);
+4. the head goes where it looks (`spec.look`: held places with a small overshoot and a drift) and the chest
+   follows a share of it a moment later (`lead`, `lead_lag`): the head leads;
+5. each arm is a `Hang` (forward, out, elbow, breathing, and a pendulum trail on the hips' sway), a `Place` (a
+   hand's palm on a place of the body or in the space before it, by IK with the elbow toward a pole, the hand turned
+   either to world directions or against its own forearm, `hand_turn`: supination, flexion, deviation; the turn about
+   the forearm is held within 100 degrees, `limit_twist`), or an `ArmTrack` of them: between two poses the joints go
+   over one after the other from the shoulder out (the hand 0.09 s and the fingers 0.11 s after the shoulder), eased,
+   a stroke passing its end a little;
+6. hand shapes (`HANDS`: the kit's and rest, clasp, scratch, beat, palm, tuck, pocket, knuckle) blend with the arm;
+   the jaw speaks (`speech`: syllables of their own size inside each phrase).
+Sitting is the same with the pelvis on the seat: the hips' height is the seat plus the thigh's back
+(`sit_height`, from the near copy), the pelvis tilted back, the feet planted by IK (or, for a child on a bench,
+hanging and swinging). Every signal is periodic in the loop and every loop of a family starts and ends in the
+family's neutral stance (the weight in the middle, the feet at their base), so one idle or talk hands over to
+another at a seam without a foot moving. The shoulder helpers are keyed by the rule (`motion.shoulder_helpers`).
+
+### Families and clips
+
+| Family | Body | Plays on | Clips |
+|---|---|---|---|
+| man | man_middling | man_middling, man_slight | `man_idle_shift`, `_feet` (a foot shifts, a scratch at the nape), `_hips`, `_behind` (rocking heel to toe), `man_fold`, `man_pockets`; `man_talk_calm`, `_eager`, `_cross`, `man_listen`, `man_laugh`, `man_shrug`, `man_point`; `man_sit_bench`, `_chair`, `_crate`, `_step` and each one's `_down`, `_up` |
+| woman | woman_middling | woman_middling, woman_slight | a woman's stance (feet close, the right a little ahead and turned out): `woman_idle_shift` (hands folded before her), `_feet` (a hand to the temple), `_hips` (fists on the hips), `woman_fold`, `woman_behind`, `woman_pockets` (hands folded low); the seven talk clips; `woman_sit_bench`, `_chair`, `_crate`, `_step` (knees together, hands in the lap) with `_down`, `_up` |
+| stout | man_stout | man_stout (falls back on man) | `stout_idle_hips`, `stout_fold`, `stout_pockets` (hands on his own bigger belly), `stout_sit_bench` |
+| wstout | woman_stout | woman_stout (falls back on woman) | `wstout_idle_hips`, `wstout_fold`, `wstout_idle_shift`, `wstout_sit_bench` |
+| old | old_man | old_man | bent knees, eyes lower, slower: `old_idle_behind`, `_front`, `_back` (a hand rubs the small of the back, a stretch), `_feet` (a scratch at the crown); `old_talk_calm`, `_cross`, `old_listen`, `old_laugh`, `old_point`; `old_sit_bench`, `_step` |
+| oldw | old_woman | old_woman (falls back on old) | `oldw_idle_front`, `oldw_idle_fold`, `oldw_talk_calm`, `oldw_listen`, `oldw_sit_bench` |
+| child | child_middling | child_middling, child_slight | quicker loops: `child_idle_shift`, `_rock`, `_feet`, `child_pockets`, `child_talk`, `child_listen`, `child_laugh`, `child_sit_bench` (the feet hang and swing), `child_sit_step` |
+
+Talk: phrases with a gesture each (`GESTURES`: offer, offer_out, beat, beat2, point, chop, chest, open, stop,
+wave, fist, count) from places before the body (`GP`, the hand turned against its forearm); a calm set (one hand,
+small offers and beats, a hand to the chest), an eager one (both hands, bigger and quicker, leaning in) and a cross
+one (a hand on the hip, pointing, chopping, a fist, shaking the head). The head nods into each stroke 0.13 s before
+it lands. Listening: the weight shifts, small nods, the head tilted. A laugh, a shrug (shoulders up, palms up), and
+pointing the way (the head turns first, the chest follows, the arm points along the street twice, then explains).
+
+Seats (`SEATS`): bench 0.45 m, chair 0.46 (sitting back), crate 0.40 (elbows on the knees), step 0.20 (knees up).
+Sitting down and getting up (`sit_change`, 1.75 s) go from the family's stance at the node to the seat's frame 0
+and back: the feet step out from (or back under) the body, the hips come down late and soft with the trunk leaning
+over the feet; both ends hand over exactly (`ease_into`, `ease_from`). They stay over the node, as the games place
+a seated person: the first half second stands where the seat is.
+
+### Measures (printed by every build, in `peopleRig.json idles.clips.<name>.checks`)
+
+95 clips (67 loops and 28 changes of seat), 806 s, 19,444 frames. Planted feet at the keys: the ball and the toe
+tips 0.000 mm in every clip; a heel that leaves the ground moves at most 0.31 mm while it rises (it turns about the
+toe joint). As played (slerp between the keys): at most 0.36 mm standing, 0.001 mm seated. Loop seams: at most
+0.00001 degrees, and the change of turning speed across a seam at most 0.76 deg/frame^2 (never above its loop's
+own). Sitting down and getting up: planted feet at most 0.6 mm at the keys and 2.7 mm as played, the stepping feet
+brush the ground at most 3 mm. `glb_slim` thins these clips' keys (572,000 to 115,000: a key left out is within
+0.04 degrees, or 0.15 mm for the hips, of its neighbours' interpolation); the art master grows from 7.4 to 11.3 MB.
+
+### For the runtimes
+
+`peopleRig.json idles`: `bodyFamily`, per family its lists by motion (`idle`, `fold`, `behind`, `pockets`,
+`talk.calm|eager|cross`, `listen`, `laugh`, `shrug`, `point`), its seats (`sit.<kind>`: clip, seat height, seated hips)
+and changes (`sitDown`, `standUp`), the `fallback` family, `seats` and the `rules`. The hips translation tracks are
+the clip's own body's offset on `trackBase`, as D1's. The native runtime follows these rules: docs/godot-people2.md
+"Idles, talk and sitting".
+
+### Check pictures (`--idle`, `.scratch/people2-build/shots/idle/`)
+
+`sheet_<family>.png` (every clip a row: six moments from the front three-quarter and one from the side),
+`strip_<clip>.png` (twelve frames across the clip), `kinds_<clip>.png` (the men's clips on docker_a, fishwife_a,
+police and sooi, the women's on fishwife_a: two moments, front and back), with a stand-in seat under the seated ones.
+
+### Known limits (D2)
+
+- Clips play on other bodies of their family unchanged: on a slight body a hand that rests on the trunk stands off
+  it by a few millimetres; the stout bodies have their own versions of the resting hands.
+- A hand that rests on the body allows 3 cm for clothes (`CLOTH`): very thick layers (a shawl over a bodice) can
+  still take a fingertip.
+- Sitting down and getting up happen over the node (the seat): the first half second of sitting down stands in the
+  seat's place before the feet step out.
+- The eyes are the runtime's (`HumanLayers`), not the clips'; nothing blinks yet.
+- A held thing goes where its hand goes: the fishwife's basket (on `gripL`) comes before her with her folded hands.
+
 ## For the next packages
 
 - **B (faces, hands, hair):** done, see above.
 - **C (clothes, kinds):** the first pass is done (four kinds, "Kinds and clothes" above). The other kinds go into
   the four group files the same way; the shared functions are `clothes_kit.py`'s (ask before changing one another
   group relies on). The atlas needs a second sheet before more kinds fit.
-- **D (motion):** D1 is done ("Motion tools", "Locomotion" above). D2, D3 build on `motion.py`: author on the body
+- **D (motion):** D1 and D2 are done ("Motion tools", "Locomotion", "Idles, talk and sitting" above). D3 builds on `motion.py`: author on the body
   the clip is for, key the 47 `keyed` bones and the hips translation in every clip (`motion.key_clip` does), check
   with `slide`, `seam`, `joins`; add the clips to `make_all`'s list or a list of their own beside it.
 - **J (fights):** footwork is stances and swings in a `clips_move.Plan` (feet fixed while down, the body moving

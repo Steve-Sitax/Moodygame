@@ -26,6 +26,9 @@ the atlas). people.glb is not touched: the games switch later (packages E and F)
 --dress    C's check pictures, in data/shots/people2/kinds/: each kind front, side, back at 3 m and 10 m in the
            game's fog, close views at 1 and 2 m, the clips on each kind (a contact sheet), the held things
 --no-move  skip D1's locomotion clips (trials only: the glb then lacks them)
+--idle     D2's check pictures, in .scratch/people2-build/shots/idle/: every idle, talk and sitting clip as a contact
+           sheet per family and a strip per clip, and the clips on the dressed kinds
+--no-idle  skip D2's idles, talk and sitting (trials only)
 --fast     paint the pictures at the cell size, not twice it (trials only)
 """
 
@@ -40,7 +43,7 @@ import numpy as np  # noqa: E402
 
 import people2  # noqa: E402
 from people2 import body as bd  # noqa: E402
-from people2 import clips_legacy, clips_move, export, lod, paint, rig, weights  # noqa: E402
+from people2 import clips_idle, clips_legacy, clips_move, export, lod, paint, rig, weights  # noqa: E402
 from people2 import face_paint as fp  # noqa: E402
 from people2 import hair  # noqa: E402
 from people2 import hands  # noqa: E402
@@ -63,18 +66,7 @@ if PLAIN:
     if in_workspace and not in_scratch:
         raise ValueError("--plain must be outside git: use .scratch/people2-plain/people2.glb or an external directory")
 ONLY = ARGS[ARGS.index("--only") + 1].split(",") if "--only" in ARGS else None
-KINDS_PLAIN = os.path.abspath(ARGS[ARGS.index("--plain") + 1]) if "--plain" in ARGS else None
-if PLAIN:
-    workspace = os.path.abspath(os.path.join(people2.ROOT, ".."))
-    scratch = os.path.join(workspace, ".scratch")
-    try:
-        in_workspace = os.path.normcase(os.path.commonpath([PLAIN, workspace])) == os.path.normcase(workspace)
-        in_scratch = os.path.normcase(os.path.commonpath([PLAIN, scratch])) == os.path.normcase(scratch)
-    except ValueError:  # A different drive is outside this repository.
-        in_workspace, in_scratch = False, False
-    if in_workspace and not in_scratch:
-        raise ValueError("--plain must be outside git: use .scratch/people2-plain/people2.glb or an external directory")
-ONLY = ARGS[ARGS.index("--kinds") + 1].split(",") if "--kinds" in ARGS else None
+KINDS_ONLY = ARGS[ARGS.index("--kinds") + 1].split(",") if "--kinds" in ARGS else None
 TEX = 1024 if "--fast" in ARGS else 2048
 # the pictures (B): one per group of bodies, each with its own face (the old grey, the boys without stubble)
 PICTURES = [("m", "man_middling"), ("f", "woman_middling"), ("boy", "child_middling"), ("old_m", "old_man"),
@@ -257,6 +249,11 @@ def main():
     if "--no-move" not in ARGS:
         move_actions, move_meta, move_clips = clips_move.make_all(bodies, bodies[0]["ao"])
         actions += move_actions
+    # D2: idles, talk and sitting (docs/people.md "Idles, talk and sitting"), keyed on the same armature
+    idle_meta, idle_clips = {}, []
+    if "--no-idle" not in ARGS:
+        idle_actions, idle_meta, idle_clips = clips_idle.make_all(bodies, bodies[0]["ao"])
+        actions += idle_actions
     # B: the grips (curls and where a handle of each size sits in gripL/gripR), fitted on the first body
     from people2 import preview_b
     grips = preview_b.fit_grips(bodies[0])
@@ -319,10 +316,10 @@ def main():
         print(f"[people2] plain native intake -> {plain}")
     from people2 import glb_slim
     if not os.environ.get("PEOPLE2_NO_SLIM"):  # trials: PEOPLE2_NO_SLIM=1 keeps Blender's file as it is
-        c0, c1, b0, b1 = glb_slim.slim(OUT)
+        c0, c1, b0, b1 = glb_slim.slim(OUT, thin=set(idle_meta))
         print(f"[people2] slimmed: {c0} -> {c1} animation channels, {b0 // 1024} -> {b1 // 1024} KB")
         if "--plain" in ARGS:
-            c0, c1, b0, b1 = glb_slim.slim(plain)
+            c0, c1, b0, b1 = glb_slim.slim(plain, thin=set(idle_meta))
             print(f"[people2] plain slimmed: {c0} -> {c1} animation channels, {b0 // 1024} -> {b1 // 1024} KB")
     hips_base = [round(float(c), 4) for c in people2.G(bodies[0]["ao"].data.bones["hips"].head_local)]
     loco = {"about": "package D1 clips (art-source/tools/blender/people2/clips_move.py, docs/people.md 'Locomotion'). Loops are "
@@ -354,6 +351,7 @@ def main():
                                            "foot RX(footDeg) (pose convention, before the clip's own turn) and lower "
                                            "the hips by hipsDrop m (docs/people.md 'The old')"},
                      "locomotion": loco,
+                     "idles": clips_idle.rig_json(idle_meta),
                      "atlas": dress.atlas_json(layout),
                      "held": held.json_all(kinds),
                      "kinds": {b["name"]: dress.kind_json(b) for b in dressed}})
@@ -363,6 +361,10 @@ def main():
     if "--dress" in ARGS:
         from people2 import preview_c
         for ln in preview_c.cast(dressed, bodies, actions, move_clips, held_obs):
+            print("[people2] " + ln)
+    if "--idle" in ARGS and idle_clips:
+        from people2 import preview_idle
+        for ln in preview_idle.run(idle_clips, bodies, dressed, kinds=True):
             print("[people2] " + ln)
 
 

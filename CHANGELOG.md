@@ -7,6 +7,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- With the new people switched on (`--people2`), townsfolk stand, talk and sit like living people: they shift their weight from foot to foot, move a foot, look about, scratch their heads, stand with their hands in their pockets, arms folded, hands behind their backs or on their hips, and breathe; women stand with their hands folded before them. They talk with calm, eager or cross gestures (cross when a talk with Jef turns cold), take turns with the one they talk to, nod while they listen, laugh, shrug and point the way. Everybody sits now, women in skirts and aprons too, on benches, chairs, crates and doorsteps, and sits down and gets up again. Each person keeps their own way of standing, the same on every PC.
 - The complete town now runs in Godot: eleven editable districts, the title menu, residents, interiors, jobs, weather and harbour traffic. The finished model and texture work described below has been imported into native resources. Playing and editing no longer need the web game or a bake.
 - Place, move, rotate, copy and remove lamps and other library objects in the workshop, then test the saved layout in the full game. Existing object identities and saved district layouts are preserved. Exposed model edges now follow a material-specific bevel and wear rule.
 - Multiplayer uses a native Godot host or a separate headless server, with authenticated players and LAN/VPN connections. Windows exports include their required runtime.

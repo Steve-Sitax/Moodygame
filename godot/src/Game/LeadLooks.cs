@@ -110,6 +110,8 @@ internal static class LeadLooks
         }
         Reach(r, left.X < 0 ? r.UpR : r.UpL, left.X < 0 ? r.LowR : r.LowL, left.X < 0 ? r.HandR : r.HandL, r.GlobalTransform * left, new Vector3(left.X < 0 ? -1 : 1, -0.3f, 0.35f));
         if (both) Reach(r, right.X < 0 ? r.UpR : r.UpL, right.X < 0 ? r.LowR : r.LowL, right.X < 0 ? r.HandR : r.HandL, r.GlobalTransform * right, new Vector3(right.X < 0 ? -1 : 1, -0.3f, 0.35f));
+        // a people2 body's shoulder helpers follow the arm the IK turned (docs/people.md "Shoulder helpers")
+        People2Shoulders.Apply(r.Skeleton!);
     }
     private static void Reach(LeadWear r, int up, int low, int hand, Vector3 world, Vector3 pole)
     {

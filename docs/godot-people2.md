@@ -52,12 +52,46 @@ renormalize linear vectors. The shader is read with Godot FileAccess, including 
 One spatial shader kind covers sun, sky, fog, existing lamp/window spill and normal maps.
 No light counts change. A hidden mesh reference includes the kind in the first-frame audit.
 
-`Human2` samples clips by bone name and blends locomotion at a shared heel phase.
+`Human2` samples clips by bone name and blends locomotion at a shared heel phase; standing, talking and sitting
+play the D2 clips (below).
 `HumanLayers` caches attention, cloth springs and foot stance correction, stopping near
 layers at 15 m. Main's animation snapshots and phase-controlled rider behavior remain.
 `People2Faces.SetFace` resets omitted weights without clamping. Stable resident IDs feed
 FNV-1a identity metadata immediately after spawn, including pooled bodies. Face IDs are
 integration metadata; this port does not invent the pending face-type schema or artwork.
+
+## Idles, talk and sitting (package D2)
+
+`People2Moves` reads `peopleRig.json idles` (docs/people.md "Idles, talk and sitting"). `Humans.Motions` and the
+wire are unchanged: the motion stays the game's word, and `Human2` picks the clip of the body's family locally.
+Every choice comes from the person's stable id (`Human.SetIdentity`, FNV-1a), so every PC shows the same.
+
+- idle: the family's idles; each person has its own (from the id) and changes now and then (after 20-50 s, at
+  the end of a loop, most often back to its own) with a 1 s crossfade; every loop of a family starts and ends in
+  the family's stance, so the feet stay. Each person plays standing and seated clips at its own rate (0.92-1.08).
+- fold, behind, pockets, point: the family's own clip for it (a woman's pockets are hands folded low).
+- talk: speaking (the calm, eager or cross set) and listening alternate at the end of each loop. A talker within
+  3 m who also talks is the partner: a speaker yields at the end of a turn and a listener speaks when the other is
+  quiet, so two never speak at once. The set follows the mood when the game knows it (a reply in Jef's talk:
+  angry or cold cross, warm or amused eager, else calm, for 3 minutes), else the id (half calm, three in ten eager,
+  two in ten cross). A shrug now and then in a calm or cross turn, a laugh now and then while listening to an
+  eager one.
+- sit: `SitDrop(seat)` picks the seated clip by the seat's height (under 0.32 m a step, under 0.43 a crate, else a
+  bench or a chair by the id) and returns `seat - seat(clip) x hips/hips(clip)`: the clip lowers the hips itself. A
+  seat of 0 is a seat at the node's own height (the omnibus, the boats). Near the camera `HumanLayers` puts the feet
+  back on the floor by leg IK for a seat that is not the clip's own height. Sitting down and getting up play when the
+  game changes between a standing motion and sit with a fade (not when it places a figure in its seat). Everyone
+  sits now, women in skirts and aprons too (`Human.CanSit`, `Humans.CanSitKind`); the old people.glb keeps its
+  rule (no women, no long aprons).
+- the old play their own `_old` versions of the old standing clips where they exist.
+- A fade between two standing clips locks the planted feet (`HumanLayers`, released when the node moves or
+  turns). Fades and blends put the shoulder helpers back on their rule near the camera (`People2Shoulders`), and so
+  does code that turns an arm (`LeadLooks.Grip`, the emigrants' wave).
+
+Proof: `& ./native-godot/scripts/check-people2.ps1 -Modes motion -Port <port>` (`--people2-motion <dir>`) puts a
+row of eight people idling, a pair talking, a docker on the game's crate, a woman on a market stool, two people on
+doorsteps (found by the colliders) and two women on the nearest town bench, and takes them at 3 m and 6 m at 13:00
+and 19:30, with ten pictures 0.25 s apart of an idle and of a talk (`motion.json`).
 
 ## Verification
 
@@ -70,7 +104,7 @@ pwsh -File native-godot/scripts/check-people2.ps1
 The routing fixture verifies the map overrides, all fourteen body/kind roots, the
 16/64-bone off/on switch and the face setter/reset contract.
 
-The runner builds/prepares once, uses ports 8890–8899, disables AI and writes evidence
+The runner builds/prepares once, uses port 8893 (any of 8800–8999 with `-Port`), disables AI and writes evidence
 under `.scratch/people2-native-*`. Each process has separate saves, settings, layouts
 and static cache, a 420-second timeout and guaranteed shutdown/data cleanup.
 Timing rejects other running Godot engines before and throughout the run. An inert
