@@ -197,9 +197,14 @@ not to be built now.
 
 Every package uses its own worktree and isolated proof data. This port uses ports 8890-8899, commits by path after `tools/commit-check.ps1`, and does not push or merge. Add a changelog entry only for changes players see; people2 remains off by default.
 
-**Licence rule for all.** Everything is made by us in Blender or code: bodies, faces, clothes, textures (numpy painters
-or our own photos), clips. Rigify (bundled with Blender) may be used to author; what it generates is our own output.
-No model packs, no MakeHuman/MPFB assets, no Mixamo (Adobe's terms forbid passing the raw data on, and this repo and its
+**Licence rule for all.** Bodies, faces, clothes, textures and clips are made by us in Blender or code, or adapted
+from CC0 and public-domain assets under `docs/cc0-assets.md` (owner, 2026-10-13: check the licence on the item's own
+page, check it is useful, adapt it to the period, detail and budget, keep the originals in
+`art-source/third_party/<source>/`, a row in `assets/ATTRIBUTION.md`). The owner approved MakeHuman's CC0 core assets
+(base mesh, targets, rig weights, skins, eyes, brows, lashes) for people2 on 2026-10-13, with MPFB 2 (GPL code, never in
+the repo or the game) as the authoring tool: `docs/makehuman.md`. Rigify (bundled with Blender) may be used to author;
+what it generates is our own output. No model packs with other licences, no MakeHuman community uploads (their own
+licences), no Mixamo (Adobe's terms forbid passing the raw data on, and this repo and its
 releases are public), no motion capture unless it has a clear licence, is noted in `assets/ATTRIBUTION.md`, and the project owner
 said yes first. The CMU Graphics Lab motion capture database (free for any use, not for resale as data) is the one
 library worth asking the project owner about, for walks and boxing; it would need retargeting through the BoneMap and a cleanup

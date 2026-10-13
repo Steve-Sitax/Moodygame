@@ -1066,7 +1066,8 @@ def flat_cap(fit, pc, peak, n=16, band=0.020, margin=0.007, puff=0.012, fwd=0.01
     c, top = head_axis(fit)
     phis = 2 * math.pi * np.arange(n) / n
     front = 0.5 + 0.5 * np.cos(phis)
-    y0 = chin + hs * (0.116 + tilt * front + 0.004 * np.cos(2 * phis))
+    lift = 0.010 if "mh" in P else 0.0  # MakeHuman's head: the band sits on the forehead, not on the brows
+    y0 = chin + hs * (0.116 + lift + tilt * front + 0.004 * np.cos(2 * phis))
     sup = lambda yy: np.array([head_support(fit, yy[j], phis[j:j + 1])[0] for j in range(n)])
     r0 = sup(y0) + margin
     r1 = np.maximum(sup(y0 + band) + margin + 0.001, r0 - 0.002)
@@ -1086,7 +1087,7 @@ def flat_cap(fit, pc, peak, n=16, band=0.020, margin=0.007, puff=0.012, fwd=0.01
     # the peak: a stiff plate curving round the band's front, out 5 cm and down, tucked under the crown
     pa = np.linspace(-1.0, 1.0, 7)
     rows = []
-    y_front = chin + hs * (0.116 + tilt) + 0.004
+    y_front = chin + hs * (0.116 + lift + tilt) + 0.004
     for out, dy in ((-0.003, 0.0), (0.024, -0.009), (0.050, -0.020)):
         rr = np.array([head_support(fit, y_front, [a])[0] for a in pa]) + margin + 0.003
         rr = rr + out * np.cos(pa) ** 0.7

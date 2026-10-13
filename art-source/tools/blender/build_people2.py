@@ -1,5 +1,13 @@
-"""Build the people2 kit: the 62-bone skeleton, the base bodies with B's faces, hands and hair, and the dressed
-kinds of package C (docs/people.md).
+"""Build the people2 kit: the 64-bone skeleton, the base bodies (MakeHuman's CC0 base mesh and targets) with their
+faces, sliders and hair, and the dressed kinds of package C (docs/people.md, docs/makehuman.md).
+
+REQUIRED AUTHORING TOOL: MPFB 2.0.18 (the MakeHuman add-on for Blender, GPL-3.0 code, CC0 data), installed the
+isolated way so the owner's Blender settings stay untouched (docs/makehuman.md "MPFB"):
+
+    set BLENDER_USER_RESOURCES=<worktree>/.scratch/blender-user
+    blender -b --command extension install-file -r user_default --enable add-on-mpfb-v2.0.18.zip
+
+and the same BLENDER_USER_RESOURCES for every build. The game never needs MakeHuman or MPFB.
 
     blender -b --factory-startup -P art-source/tools/blender/build_people2.py [-- --preview] [--cast] [--out PATH] [--only a,b]
         [--kinds a,b | --nokinds] [--dress] [--no-move] [--fast]
@@ -43,8 +51,9 @@ from people2 import body as bd  # noqa: E402
 from people2 import clips_legacy, clips_move, export, lod, paint, rig, weights  # noqa: E402
 from people2 import face_paint as fp  # noqa: E402
 from people2 import hair, pictures  # noqa: E402
-from people2 import hands  # noqa: E402
-from people2 import head as hd  # noqa: E402
+from people2 import face_types as ft  # noqa: E402
+from people2 import mh, mhface, mhskin, sliders  # noqa: E402
+import json  # noqa: E402
 
 ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 OUT = people2.OUT
@@ -65,9 +74,11 @@ if PLAIN:
 ONLY = ARGS[ARGS.index("--only") + 1].split(",") if "--only" in ARGS else None
 KINDS_ONLY = ARGS[ARGS.index("--kinds") + 1].split(",") if "--kinds" in ARGS else None
 TEX = 1024 if "--fast" in ARGS else 2048
-# the pictures (B): one per group of bodies, each with its own face (the old grey, the boys without stubble)
-PICTURES = [("m", "man_middling"), ("f", "woman_middling"), ("boy", "child_middling"), ("old_m", "old_man"),
-            ("old_f", "old_woman")]
+# the face picture a base body shows by default (the game gives every person their own: face_types.face_for)
+DEFAULT_CELLS_OF = {"m": "m_mid_brown", "f": "f_fair_brown", "boy": "c_boy_brown", "old_m": "om_grey",
+                    "old_f": "of_grey"}
+DEFAULT_CELLS = set(DEFAULT_CELLS_OF.values())
+FAST_FACES = "--fast" in ARGS and os.environ.get("PEOPLE2_ALL_FACES") is None  # trials: only the default faces
 
 
 def picture_of(P):
@@ -76,80 +87,12 @@ def picture_of(P):
     if P["old"]:
         return "old_f" if P["female"] else "old_m"
     return "f" if P["female"] else "m"
-UV_SCALE = {"head": 2.7, "finger_": 1.15}
-
-
-def make_body(name, base, build, ref_uv, style=None):
-    """One body (A's cage, weights, near and far copies; B's head, hair and hands) under the name `name`: a base body,
-    or a kind's own copy of one (package C, people2/dress.py) with the kind's hair style."""
-    P = bd.params(base, build)
-    C = bd.build(P)
-    cage = bd.to_mesh(C, name + "_lod1")
-    # A's placeholder head is kept for the subdivision (the neck keeps its shape) and replaced after it (head.py)
-    for poly, fp in zip(cage.data.polygons, C.fpart):
-        if fp == "head":
-            poly.material_index = 1
-    W = weights.cage_weights(C, P)
-    weights.apply(cage, W, limit=0)
-    if ref_uv is None:
-        lod.uv_unwrap(cage, UV_SCALE)
-        hd.reserve_head_rect(cage)
-        ref_uv = np.array([l.uv[:] for l in cage.data.uv_layers.active.data])
-    else:
-        if not cage.data.uv_layers:
-            cage.data.uv_layers.new(name="UVMap")
-        uv = cage.data.uv_layers.active.data
-        assert len(uv) == len(ref_uv), "every body must have the same topology"
-        uv.foreach_set("uv", ref_uv.ravel())
-    lod0 = lod.subdivide(cage, name + "_lod0")
-    J = rig.joints(P)
-    Jg = {n: (h, t) for n, (h, t) in J.items()}
-    # sharpen the fingers on the near copy
-    vparts = weights.parts(lod0)
-    co = np.array([people2.G(v.co) for v in lod0.data.vertices])
-    fparts = [p if p and p.startswith("finger_") else None for p in vparts]
-    W0 = weights.read(lod0)
-    for i, wd in weights.finger_rule(co, fparts, Jg, P).items():
-        W0[i] = 0.0
-        for k, v in wd.items():
-            W0[i, weights.INDEX[k]] = v
-    for vg in list(lod0.vertex_groups):
-        if not vg.name.startswith("part_"):
-            lod0.vertex_groups.remove(vg)
-    weights.apply(lod0, W0, limit=4)
-    Wc = weights.read(cage)
-    for vg in list(cage.vertex_groups):
-        if not vg.name.startswith("part_"):
-            cage.vertex_groups.remove(vg)
-    weights.apply(cage, Wc, limit=4)
-    lod.to_limit(cage)
-    hd.attach(lod0, P, 0)
-    hd.attach(cage, P, 1)
-    # B: the base hair (hair.base_style), joined in
-    hair.attach(lod0, P, 0, style or hair.base_style(P))
-    hair.attach(cage, P, 1, style or hair.base_style(P))
-    vparts = weights.parts(lod0)
-    cparts = weights.parts(cage)
-    # B: the docker's hand as a shape key of the near copy
-    co0 = np.array([people2.G(v.co) for v in lod0.data.vertices])
-    off = hands.hard_offsets(co0, vparts, J, P)
-    sk = lod0.shape_key_add(name="hands_hard", from_mix=False)
-    sk.data.foreach_set("co", np.array([v.co[:] for v in lod0.data.vertices]).ravel() +
-                        np.array([people2.B(*d)[:] for d in off]).ravel())
-    ao = rig.build_armature(name, J)
-    for ob in (lod0, cage):
-        ob.parent = ao
-        m = ob.modifiers.new("rig", "ARMATURE")
-        m.object = ao
-    ao["people2"] = {"base": base, "build": build, "height": round(P["H"], 3), "female": P["female"],
-                     "scaleToOld": round(float(J["hips"][0][1]) / 0.95, 4)}
-    zs = [v.co.z for v in lod0.data.vertices]
-    counts = {"lod0": lod.tris(lod0), "lod1": lod.tris(cage), "bones": len(ao.data.bones),
-              "top": round(max(zs), 3), "bottom": round(min(zs), 3)}
-    bpy.context.view_layer.update()
-    counts["girths"] = {k: round(v, 3) for k, v in bd.girths(lod0, P, vparts).items()}
-    return dict(name=name, P=P, C=C, ao=ao, lod0=lod0, lod1=cage, J=J, counts=counts, vparts=vparts,
-                cparts=cparts), ref_uv
+def make_body(name, base, build, ref_uv=None, style=None, pieces=False):
+    """One body (people2/mhbody.py: MakeHuman's CC0 base mesh, our skeleton, the sliders as shape keys) under the name
+    `name`: a base body (with every hair, beard and moustache piece it can wear: pieces=True), or a kind's own copy
+    of one (package C, people2/dress.py)."""
+    from people2 import mhbody
+    return mhbody.make_body(name, base, build, ref_uv, style=style, pieces=pieces)
 
 
 def grips_json(g):
@@ -179,66 +122,46 @@ def clear_stage():
         o.hide_viewport = False
 
 
-def head_cache():
-    """Trials only (PEOPLE2_HEADCACHE=path): keep B's reference head between runs (it takes a minute to mesh)."""
-    path = os.environ.get("PEOPLE2_HEADCACHE")
-    if not path:
-        return
-    import pickle
-    if os.path.exists(path):
-        with open(path, "rb") as f:
-            hd._REF.update(pickle.load(f))
-    else:
-        hd.reference()
-        with open(path, "wb") as f:
-            pickle.dump(dict(hd._REF), f)
-
-
 def main():
     t0 = time.time()
     bpy.ops.wm.read_factory_settings(use_empty=True)
-    head_cache()
     ref_uv = None
     bodies = []
+    mh.ensure_mpfb()
     for name, base, build in bd.BODIES:
         if ONLY and name not in ONLY and name != "man_middling":
             continue
-        b, ref_uv = make_body(name, base, build, ref_uv)
+        b, ref_uv = make_body(name, base, build, ref_uv, pieces=True)
         bodies.append(b)
         print(f"[people2] {name}: {b['counts']['lod0']} / {b['counts']['lod1']} triangles, {b['counts']['bones']} bones, "
-              f"{b['counts']['bottom']} to {b['counts']['top']} m, girths {b['counts']['girths']}")
-    # the pictures: one for the men and boys, one for the women, painted on the middling bodies
+              f"{b['counts']['bottom']} to {b['counts']['top']} m, cage fit {b['counts']['cageFitMm']} mm, "
+              f"girths {b['counts']['girths']}, pieces {b['counts']['pieces']}")
+    present = {b["name"] for b in bodies}
     os.makedirs(people2.SHOTS, exist_ok=True)
+    # the face pictures (face_types.CELLS on MakeHuman's skins) and their tone for the body's skin
+    face_pics = {}
+    cells_meta = {}
+    for cname, lk in (ft.CELLS if not FAST_FACES else ft.CELLS[:1] + [c for c in ft.CELLS if c[0] in DEFAULT_CELLS]):
+        if cname in face_pics:
+            continue
+        t1 = time.time()
+        frgb, fnrm = mhface.paint(lk)
+        face_pics[cname] = (frgb, fnrm)
+        cells_meta[cname] = mhskin.cell_meta(cname, lk, frgb)
+        print(f"[people2] face picture {cname}: {time.time() - t1:.1f} s")
+    # the base bodies' pictures: MakeHuman's skin with the linen drawers and vest
     mats = {}
     skins = {}
-    present = {b["name"] for b in bodies}
-    for sex, ref in PICTURES:
-        if sex not in ("m", "f") and ref not in present:
-            continue
-        src = next((b for b in bodies if b["name"] == ref), bodies[0])
-        pos, nrm, part, names = paint.position_map(src["lod0"], TEX, src["vparts"])
-        # the body's own occlusion (armpits, crotch, under the chin, between the fingers), baked into the picture
-        occ = paint.vertex_occlusion(src["lod0"], src["vparts"], src["P"])
-        aom = paint.vertex_map(src["lod0"], TEX, occ)
-        rgb = paint.paint_skin(pos, nrm, part, names, src["P"], female=src["P"]["female"], ao=aom)
-        # B: the hands' nails, creases and knuckles, and their normal map
-        hgt = np.zeros(rgb.shape[:2], np.float32)
-        rgb, hgt = hands.paint_hands(rgb, hgt, pos, part, names, src["P"])
-        rgb = paint.dilate(rgb, part >= 0)
-        hn_map = hands.normal_from_height(hgt, pos, part >= 0)
-        # B: the head's square (face, scalp, ears, eyeball) from the face painter, and the normal map
-        frgb, _, fnrm = fp.paint(fp.BASE_LOOKS[sex], 512)
-        rgb = fp.insert(rgb, frgb, TEX)
-        nmap = fp.insert(hn_map, fnrm, TEX)
-        skins[sex] = (rgb, nmap, pictures.skin_zones(pos, part, names, src["P"]))
-        img = paint.to_image("people2_skin_" + sex, rgb, os.path.join(people2.SHOTS, "skin_%s.png" % sex))
-        nimg = paint.to_image("people2_skin_%s_n" % sex, nmap, os.path.join(people2.SHOTS, "skin_%s_n.png" % sex))
-        nimg.colorspace_settings.name = "Non-Color"
-        mats[sex] = export.material("people2_skin_" + sex, img, nimg)
     for b in bodies:
-        for ob in (b["lod0"], b["lod1"]):
+        grp = picture_of(b["P"])
+        rgb, nmap, zones = mhskin.body_picture(b, grp, size=1024)
+        skins[b["name"]] = (rgb, nmap, zones)
+        cell = DEFAULT_CELLS_OF[grp]
+        mats[b["name"]] = mhskin.preview_material("people2_" + b["name"], rgb, nmap, *face_pics[cell])
+        for ob in [b["lod0"], b["lod1"]] + b["hair_pieces"]:
             ob.data.materials.clear()
-            ob.data.materials.append(mats.get(picture_of(b["P"]), mats["f" if b["P"]["female"] else "m"]))
+            ob.data.materials.append(mats[b["name"]])
+        paint.to_image("people2_skin_" + b["name"], rgb, os.path.join(people2.SHOTS, "skin_%s.png" % b["name"]))
     actions = clips_legacy.make_actions(bodies[0]["ao"], bodies[0]["J"])
     # D1: locomotion (docs/people.md "Locomotion"), keyed on the same armature
     move_clips = []
@@ -271,30 +194,34 @@ def main():
                                             if (not KINDS_ONLY or k.name in KINDS_ONLY) and k.body in present]
     layout = at.cells([(k.name, k.hero) for k in kinds])
     atl = at.Pictures(layout)
-    for sex, (rgb, nmap, zones) in skins.items():
-        atl.put("skin_" + sex, rgb, nmap)
-        atl.clothes_zones("skin_" + sex, zones)
     for b in bodies:
-        sex = picture_of(b["P"]) if picture_of(b["P"]) in skins else ("f" if b["P"]["female"] else "m")
-        for ob in (b["lod0"], b["lod1"]):
-            at.remap_uv(ob, layout["skin_" + sex])
+        rgb, nmap, zones = skins[b["name"]]
+        atl.put("body_" + b["name"], rgb, nmap, placed=True)
+        atl.clothes_zones("body_" + b["name"], zones)
+    for cname, (frgb, fnrm) in face_pics.items():
+        atl.face(cname, frgb, fnrm)
     dressed = []
     for k in kinds:
         dressed.append(dress.build(k, make_body, ref_uv, layout, atl, tex=TEX))
     held_obs = held.build_all(kinds, layout, atl, tex=TEX)
-    picture_manifest = atl.write(bodies, dressed, os.path.join(people2.ROOT, "..", "native-godot", "assets", "people2-pictures"), picture_of)
+    def default_face(b):
+        if "face" in b and b["face"]["cell"] in face_pics:
+            return b["face"]["cell"]
+        return DEFAULT_CELLS_OF[picture_of(b["P"])]
+    picture_manifest = atl.write(bodies, dressed, os.path.join(people2.ROOT, "..", "native-godot", "assets",
+                                                               "people2-pictures"), default_face)
     # Tiny intake placeholder; native load replaces it with one layered material.
     img = paint.to_image("people2_placeholder", np.ones((4,4,3), np.float32))
     nimg = paint.to_image("people2_placeholder_n", np.tile((.5,.5,1.), (4,4,1)))
     mat = export.material("people2_atlas", img, nimg)  # retained intake label; images are tiny placeholders
     for b in bodies + dressed:
-        for ob in (b["lod0"], b["lod1"]):
+        for ob in [b["lod0"], b["lod1"]] + b.get("hair_pieces", []):
             ob.data.materials.clear()
             ob.data.materials.append(mat)
     if os.environ.get("PEOPLE2_SAVE_BLEND"):  # trials: keep the scene to look into
         bpy.ops.wm.save_as_mainfile(filepath=os.environ["PEOPLE2_SAVE_BLEND"], copy=True)
     for b in bodies + dressed:
-        for ob in (b["lod0"], b["lod1"]):
+        for ob in [b["lod0"], b["lod1"]] + b.get("hair_pieces", []):
             for vg in list(ob.vertex_groups):
                 if vg.name.startswith(("part_", "zone_")) and vg.name != "part_hair":  # (not a bone: never exported)
                     ob.vertex_groups.remove(vg)
@@ -326,10 +253,13 @@ def main():
             "slopeDeg": clips_move.SLOPE, "loads": clips_move.LOADS, "clips": move_meta}
     export.rig_json([(b["name"], b["P"], b["ao"], b["counts"]) for b in bodies],
                     {"clips": [a.name for a in actions], "grips": grips_json(grips),
-                     "shapeKeys": {"face": hd.SHAPE_NAMES, "blink": "blink", "hands": "hands_hard",
-                                   "note": "morph targets of each <body>_lod0 and <kind>_lod0, positions only: face "
-                                           "shapes mixed per person by seed (head.face_mix; a kind has its own mix "
-                                           "baked in and the keys add to it), blink 0..1, hands_hard 1 on dockers"},
+                     "shapeKeys": {"sliders": "shared/peopleSliders.json", "hands": "hands_hard",
+                                   "pieces": {b["name"]: sorted(b["counts"]["pieces"]) for b in bodies},
+                                   "note": "morph targets of <body>_lod0, <kind>_lod0 and the hair pieces "
+                                           "(<body>_<hair|beard|mous>_<style>_lod0): MakeHuman's targets as sliders "
+                                           "(peopleSliders.json), set once per person at spawn from faceTypes.json's "
+                                           "face_for; the far copies carry the body sliders. hands_hard 1 on dockers "
+                                           "(kinds.<kind>.shapeKeys)."},
                      "lod": {"lod1From": 15.0, "note": "LOD1 also for the mirrors and the lantern shadow"},
                      "heightFactor": {"min": 0.96, "max": 1.04, "sd": 0.02,
                                       "note": "per person, from the person's seed (a normal draw, sd 0.02, clamped to "
@@ -350,6 +280,18 @@ def main():
                      "pictures": picture_manifest,
                      "held": held.json_all(kinds),
                      "kinds": {b["name"]: dress.kind_json(b) for b in dressed}})
+    shared = os.path.dirname(export.RIG_JSON)
+    with open(os.path.join(shared, "peopleSliders.json" if export.RIG_JSON.endswith("peopleRig.json")
+                           else os.path.basename(export.RIG_JSON).replace("_rig.json", "_sliders.json")), "w",
+              encoding="utf-8") as f:
+        json.dump(sliders.to_json(), f, indent=1)
+    ft.to_json(os.path.join(shared, "faceTypes.json" if export.RIG_JSON.endswith("peopleRig.json")
+                            else os.path.basename(export.RIG_JSON).replace("_rig.json", "_faces.json")), cells_meta)
+    if not ONLY and not KINDS_ONLY:  # a full build: the MakeHuman files it read (third_party/makehuman/SOURCES.json)
+        mh.write_used(os.path.join(mh.THIRD, "USED.json"))
+    checked, differ = mh.check_mpfb_copies()
+    print(f"[people2] MakeHuman files: {len(mh._USED)} read, {checked} compared with MPFB {mh.MPFB_VERSION}'s own, "
+          f"{len(differ)} differ{': ' + ', '.join(differ[:5]) if differ else ''}")
     kb = os.path.getsize(OUT) // 1024
     print(f"[people2] {len(bodies)} bodies, {len(dressed)} kinds, {len(rig.NAMES)} bones, {len(actions)} clips, "
           f"{len(bpy.data.materials)} material(s) -> {OUT} ({kb} KB) in {time.time() - t0:.0f} s")

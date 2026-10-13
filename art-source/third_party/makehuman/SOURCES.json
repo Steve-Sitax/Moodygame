@@ -1,0 +1,1162 @@
+{
+ "about": "MakeHuman CC0 core assets used by the people2 build (docs/makehuman.md). base/ comes from MPFB 2.0.18's bundled data folder (the MakeHuman asset set: base mesh, targets, default rig); system/ from the MakeHuman system asset pack. Licence: CC0 1.0 (LICENSE.ASSETS.md, MakeHuman LICENSE.md part C). Only the files the build reads are kept (USED.json).",
+ "licence": "CC0-1.0",
+ "downloads": {
+  "mpfb": {
+   "url": "https://extensions.blender.org/add-ons/mpfb/",
+   "file": "add-on-mpfb-v2.0.18.zip",
+   "sha256": "c075b3e9b94b8e5556a5f03f4653602d02ea306de08126e8f55ed6dee28a2dad",
+   "note": "add-on code GPL-3.0-or-later (not copied); data/ folder: MakeHuman CC0 assets"
+  },
+  "system_assets": {
+   "url": "http://files.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip",
+   "file": "makehuman_system_assets_cc0.zip",
+   "sha256": "b542127a8e25547c7c29c19f2d1d2adb9a664c80396ecd694095dbc8028a0107"
+  },
+  "makehuman_repo": {
+   "url": "https://codeload.github.com/makehumancommunity/makehuman/tar.gz/refs/heads/master",
+   "file": "makehuman-master.tar.gz",
+   "sha256": "f0019bf6f717c1c30fb9d123ed760c9d39c3453beead3e8685566fca09d00171",
+   "note": "LICENSE.ASSETS.md and the base mesh comparison (base.obj identical)"
+  },
+  "downloaded": "2026-10-13"
+ },
+ "files": {
+  "base/3dobjs/base.obj": {
+   "from": "mpfb",
+   "sha256": "8e761e6624b8f54536409135d1636da63b32486a90d4897f84e121d144f6fb4c"
+  },
+  "base/rigs/rig.default.json": {
+   "from": "mpfb",
+   "sha256": "8b949de35c2dd70dbb5094e57a8586c3b9a9f650775a293212581a8f67be6797"
+  },
+  "base/rigs/weights.default.json": {
+   "from": "mpfb",
+   "sha256": "154b866774a8c2b055a8e86419f22a87b76c60440fdcb70bcb78345f00924e89"
+  },
+  "base/targets/breast/female-old-averagemuscle-averageweight-maxcup-averagefirmness.target.gz": {
+   "from": "mpfb",
+   "sha256": "a0916a319d648ff75dd6cfb19c1286f98c3da2296983604c9c6cdbe14e28f066"
+  },
+  "base/targets/breast/female-old-averagemuscle-averageweight-mincup-averagefirmness.target.gz": {
+   "from": "mpfb",
+   "sha256": "2f3be7f57ea3be591e511ac5ea4231c0cb2f31dd1380f8ae3b91a3b70b570e2c"
+  },
+  "base/targets/breast/female-old-averagemuscle-maxweight-maxcup-averagefirmness.target.gz": {
+   "from": "mpfb",
+   "sha256": "df6a2112637c5b1712c82cc51ec374c43b01fcac5be72391e38c9a10068f09fc"
+  },
+  "base/targets/breast/female-old-averagemuscle-maxweight-mincup-averagefirmness.target.gz": {
+   "from": "mpfb",
+   "sha256": "7c0af9312b0ccf3096ea1628c9969fc80f8f7293f5156061790ad846198d6edc"
+  },
+  "base/targets/breast/female-old-averagemuscle-minweight-maxcup-averagefirmness.target.gz": {
+   "from": "mpfb",
+   "sha256": "4b79cc1236336a06501b8a2d03b3ddd62561bf4be306e27b7f68031656eb2f87"
+  },
+  "base/targets/breast/female-old-averagemuscle-minweight-mincup-averagefirmness.target.gz": {
+   "from": "mpfb",
+   "sha256": "47705beda62f84438a635135c2e7f61b9c889cbba3004a53a8c84c374111e219"
+  },
+  "base/targets/breast/female-old-maxmuscle-averageweight-maxcup-averagefirmness.target.gz": {
+   "from": "mpfb",
+   "sha256": "70c10d76633a7d581e546b0da707807a78c47a76c6886e1fc7c23b49865e20be"
+  },
+  "base/targets/breast/female-old-maxmuscle-maxweight-maxcup-averagefirmness.target.gz": {
+   "from": "mpfb",
+   "sha256": "0119d3e3a03a8d3f268175ecefba6c8c946fda1b23b48a9423546f52599c64dd"
+  },
+  "base/targets/breast/female-old-minmuscle-averageweight-maxcup-averagefirmness.target.gz": {
+   "from": "mpfb",
+   "sha256": "d5f31a763797dc1249c56a21845614bfe82e3da98da3cac6eff1dfb501bd27c5"
+  },
+  "base/targets/breast/female-old-minmuscle-averageweight-mincup-averagefirmness.target.gz": {
+   "from": "mpfb",
+   "sha256": "9dfc36bd5ef98f5bbdd2aa24fc8ec1305c58731c822b0a2a37e81c1257dcc00e"
+  },
+  "base/targets/breast/female-old-minmuscle-maxweight-maxcup-averagefirmness.target.gz": {
+   "from": "mpfb",
+   "sha256": "0b2a3e69a751ca064916019b73038c1ec48ac0df45dd0d18af29e8654048790a"
+  },
+  "base/targets/breast/female-old-minmuscle-minweight-maxcup-averagefirmness.target.gz": {
+   "from": "mpfb",
+   "sha256": "1f6608ced3b970e01fc13903687670e33c0109c82bd949b6f6b1da7da0a0a834"
+  },
+  "base/targets/breast/female-old-minmuscle-minweight-mincup-averagefirmness.target.gz": {
+   "from": "mpfb",
+   "sha256": "e56b87382a63b8839214cb3d9fa5c01c84d615e5f5f76a7156d132c5212458be"
+  },
+  "base/targets/breast/female-young-averagemuscle-averageweight-maxcup-averagefirmness.target.gz": {
+   "from": "mpfb",
+   "sha256": "70e67e082034a80cb6a88abac95d6e11d305f769c98f2d70374dea97fa98c604"
+  },
+  "base/targets/breast/female-young-averagemuscle-averageweight-mincup-averagefirmness.target.gz": {
+   "from": "mpfb",
+   "sha256": "d891d82f4514e72f7d5691d8c83b934a195006ecd7b37954158b7b5fd9fb0804"
+  },
+  "base/targets/breast/female-young-averagemuscle-maxweight-maxcup-averagefirmness.target.gz": {
+   "from": "mpfb",
+   "sha256": "3e2eb9133eb4db59e558703c7acbdf8cb02594c6dec5f35225a30479c997e2c7"
+  },
+  "base/targets/breast/female-young-averagemuscle-maxweight-mincup-averagefirmness.target.gz": {
+   "from": "mpfb",
+   "sha256": "0e23567201f2937c210f5a33f029bbf0247d8badd322bed1ffc6c6e31ac7e4a3"
+  },
+  "base/targets/breast/female-young-averagemuscle-minweight-maxcup-averagefirmness.target.gz": {
+   "from": "mpfb",
+   "sha256": "31b4dcc0df8fde6e11199e50fac9e0b52155c204fdd5efd74be276fc982fb2c4"
+  },
+  "base/targets/breast/female-young-averagemuscle-minweight-mincup-averagefirmness.target.gz": {
+   "from": "mpfb",
+   "sha256": "f7062509f91c066071f0e79f85fccd4c925f8a8b7007641aa2fe8107f2c16ef4"
+  },
+  "base/targets/breast/female-young-maxmuscle-averageweight-maxcup-averagefirmness.target.gz": {
+   "from": "mpfb",
+   "sha256": "86325b43d5789f33cfeb653d79eb011159c616455875dd76a80b0117a0b2a8b6"
+  },
+  "base/targets/breast/female-young-maxmuscle-averageweight-mincup-averagefirmness.target.gz": {
+   "from": "mpfb",
+   "sha256": "7c23f7506490ff0749c2950a2c853b794d5a4db84f1808ae31be1373e3417a0f"
+  },
+  "base/targets/breast/female-young-maxmuscle-maxweight-maxcup-averagefirmness.target.gz": {
+   "from": "mpfb",
+   "sha256": "85d0f75db6f3224a9ae06da6e0b4c263de6e024547a5b9be3a76df5c7aced5a4"
+  },
+  "base/targets/breast/female-young-maxmuscle-minweight-mincup-averagefirmness.target.gz": {
+   "from": "mpfb",
+   "sha256": "9463dd80bb7cf376fc9bbcc9b65e641332da8a8a1d40faa42096959c150c9153"
+  },
+  "base/targets/breast/female-young-minmuscle-averageweight-maxcup-averagefirmness.target.gz": {
+   "from": "mpfb",
+   "sha256": "7baf8b2512208ba77aca20549eb3443ed9dc476ed2fe8870dfc4c23bf04eeba5"
+  },
+  "base/targets/breast/female-young-minmuscle-averageweight-mincup-averagefirmness.target.gz": {
+   "from": "mpfb",
+   "sha256": "f059ed6f7594cfc3f492f1a5ead9a7e4ecb48eb91f042e51d19db9245787211d"
+  },
+  "base/targets/breast/female-young-minmuscle-maxweight-maxcup-averagefirmness.target.gz": {
+   "from": "mpfb",
+   "sha256": "3b81830287d24ebf793bc6ec9e0b01819b5ad84a844fbee6d6a6ffe9bf4525d6"
+  },
+  "base/targets/breast/female-young-minmuscle-maxweight-mincup-averagefirmness.target.gz": {
+   "from": "mpfb",
+   "sha256": "0c6f6337eac665bfacb33dd6762f58051bc5aeb9474f605dcac2356975a549af"
+  },
+  "base/targets/breast/female-young-minmuscle-minweight-maxcup-averagefirmness.target.gz": {
+   "from": "mpfb",
+   "sha256": "9164512d1a005e94d1ca3ecf1b1fd4880b960dcdf1b198b71982b42ed3ce3ae3"
+  },
+  "base/targets/breast/female-young-minmuscle-minweight-mincup-averagefirmness.target.gz": {
+   "from": "mpfb",
+   "sha256": "a7dd130d9f560b807cb671dbccccce900f3bad56712627616568a16f7506d3cf"
+  },
+  "base/targets/buttocks/buttocks-volume-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "e7752ede368fb2b16c2a61fb1a2c57d70493e8cd5689574e3dc2dc22bd74ca1f"
+  },
+  "base/targets/buttocks/buttocks-volume-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "44d10afed96b0c29df25d7abe8c2e2f9eb50ad6c1906e2de7ab91612b39177e9"
+  },
+  "base/targets/cheek/l-cheek-bones-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "109d88ec6394cb3455073ae9f2a6038b8b4d6b57feeaf4633611bc60f27ed212"
+  },
+  "base/targets/cheek/l-cheek-bones-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "ea5aa60abcc2926e61cdabf5d40701c2b23b3f8027f949cea0b80bcbc55df301"
+  },
+  "base/targets/cheek/l-cheek-volume-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "202ff036e39abea154e0896ad34641184c5e8b77610dca9e1e8e4ce4a5db1bc4"
+  },
+  "base/targets/cheek/l-cheek-volume-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "75bf330b96d0036c46f779ed003782c7380c77dd06c14fd80f1fa20a5093fee1"
+  },
+  "base/targets/cheek/r-cheek-bones-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "f128fdcf1d91769a907dc2c74056edac427196c1900f875c34c03b01dee5b7af"
+  },
+  "base/targets/cheek/r-cheek-bones-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "c608528b9e5e1c670179cfb502dab3d9478a77bb942f7c8186cd072a7369e9b9"
+  },
+  "base/targets/cheek/r-cheek-volume-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "ea12455c7a85e7b3b5e6e4882b4b68823a00bcaef4ea048cc49be452a139c1bc"
+  },
+  "base/targets/cheek/r-cheek-volume-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "4df3e61e843c2d3381ef534e90d347b6b8ea763428d69eba8ef2ed5ab0affb8c"
+  },
+  "base/targets/chin/chin-bones-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "88613903c211706f31de1868318bfb88d51bd23791a11e1a4488266a88083396"
+  },
+  "base/targets/chin/chin-bones-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "72c76aeb7956fb083aaf0d5efa00b2cdfa0f328eefc01d5e28f4610719de50c3"
+  },
+  "base/targets/chin/chin-height-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "1f4196d330b418d576e9400a754cb99d7e60b069ee8fdef645713f84db984e0c"
+  },
+  "base/targets/chin/chin-height-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "4f05b61b39266801b0a333c208d274ff109250fe9e4512c486a455806878e15c"
+  },
+  "base/targets/chin/chin-jaw-drop-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "9176198f2ddcbb48d21d26b5c61e646bb656c6fc96508d4406272efa2aeab40c"
+  },
+  "base/targets/chin/chin-jaw-drop-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "b750b941a75badd7281db378356438dd8647ef043e3470f9e34bbf873e711e71"
+  },
+  "base/targets/chin/chin-prominent-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "4ed14cb51e7ea7b3ecd469a537733924353c683f3cfe545be182d18a220dcb4e"
+  },
+  "base/targets/chin/chin-prominent-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "e0d5ec5e213b88719def0f43ddaa7107796fc02f7447e2b2f140d9fe513a6ac8"
+  },
+  "base/targets/chin/chin-width-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "6c3aaca074630e89951184130a4a158b6f62c9d0cf57cf8eb828c445ff40c21a"
+  },
+  "base/targets/chin/chin-width-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "68764b6ec7c923597beaaf643f71c41f00c93639d9bb522c169c279db2ad299e"
+  },
+  "base/targets/ears/l-ear-flap-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "dc5e7a72948461f9f04fdec09d9570b5cfab122883e8fb0a0e1d711be14e5aff"
+  },
+  "base/targets/ears/l-ear-flap-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "452b154dff6c51d14f25782aa8e9bef0f96829e4fdda0dc9f06b6b62f80d36b2"
+  },
+  "base/targets/ears/l-ear-scale-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "109583d573fa8bb334b5c21488b66019665d977fe8fec9917568ad1a0a199500"
+  },
+  "base/targets/ears/l-ear-scale-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "6c49a5db6e24e7d026dc109292daf38414b90d9e52ed97c81e84f40cd47f107a"
+  },
+  "base/targets/ears/r-ear-flap-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "ad1acd7ca2ce2222ce88cfa8cc1af5c0bdacf997f033b4a47e5e4ae0d135b924"
+  },
+  "base/targets/ears/r-ear-flap-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "cc6f18629ae40a380ee2bcb10fa2fb83d9e0b232ee2ab66972888f7ddbd92b75"
+  },
+  "base/targets/ears/r-ear-scale-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "692fbd18e31098b8dbb2373e6010c80c8b01e64ac10c62f2c36a2884eee80d90"
+  },
+  "base/targets/ears/r-ear-scale-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "a3d8c08e86449d1c9c03bc00e58418e0d633a5f7f4ad745c2b9eacf88e6bcd50"
+  },
+  "base/targets/eyebrows/eyebrows-trans-backward.target.gz": {
+   "from": "mpfb",
+   "sha256": "afb3800c65cc2a2159091fbf44cd758e003fa73a4c9b9bd3a6c6b9c09527a058"
+  },
+  "base/targets/eyebrows/eyebrows-trans-down.target.gz": {
+   "from": "mpfb",
+   "sha256": "9f5bbb848e40d3a320492dd08ef8d1a926b50c7fd1ca279cf8f573e0f0cdd589"
+  },
+  "base/targets/eyebrows/eyebrows-trans-forward.target.gz": {
+   "from": "mpfb",
+   "sha256": "7bc54f886d3c2776829e47a7ed8b26d1e730ee473424fde7f3ff35137990f949"
+  },
+  "base/targets/eyebrows/eyebrows-trans-up.target.gz": {
+   "from": "mpfb",
+   "sha256": "fdaf3fb2ee5d1790202ede605d097e7666567237f1ab62a90729f72df0c16c52"
+  },
+  "base/targets/eyes/l-eye-bag-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "fda7aefa804aa2b27f4aac3eee02f43e1d874d79d3fa0a37b901bc654e139abb"
+  },
+  "base/targets/eyes/l-eye-bag-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "45bd5a9415b7da13e42fb1b8f33e8023d2948cdfa27e40cf393496e827d754b4"
+  },
+  "base/targets/eyes/l-eye-corner2-down.target.gz": {
+   "from": "mpfb",
+   "sha256": "33b0a44e47f35f510c296dbdc2d14d58c82e0bf13c3d5d782bf0223ccdf3eb09"
+  },
+  "base/targets/eyes/l-eye-corner2-up.target.gz": {
+   "from": "mpfb",
+   "sha256": "6ea4c8f018c1a54822d10f3abf68e112365541dce1d0e81ef7db01b189c28b29"
+  },
+  "base/targets/eyes/l-eye-epicanthus-in.target.gz": {
+   "from": "mpfb",
+   "sha256": "0dd894060ea9f420c7db57599d228e5df59f8836f794eb3172668c02dd4ef7ef"
+  },
+  "base/targets/eyes/l-eye-epicanthus-out.target.gz": {
+   "from": "mpfb",
+   "sha256": "10e7b41eef926e8e76bf44c2eaecb59e39ca9d1ef980da58e723a508d696e76d"
+  },
+  "base/targets/eyes/l-eye-eyefold-down.target.gz": {
+   "from": "mpfb",
+   "sha256": "b7b1589f224ed9f12bbb8ece904144023fde8ffe85355304299d24f5f6d292e5"
+  },
+  "base/targets/eyes/l-eye-eyefold-up.target.gz": {
+   "from": "mpfb",
+   "sha256": "fe10ce78fe291be9790f9d44a1653f39bc8f329497fa79719dbd93a998c33989"
+  },
+  "base/targets/eyes/l-eye-height2-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "516b10048290ce14704b8ff372f1e2f2367545ccdd2057c7b4f97f166fd2ff55"
+  },
+  "base/targets/eyes/l-eye-height2-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "2ad24113bdd67f07870cb0298d0b0732ab5185b11f890946212c4cbb19845e34"
+  },
+  "base/targets/eyes/l-eye-scale-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "ef7be84caabecc9c0e4d937b68b4438ce3719f4a197a7ec3298f67faea7c5dbc"
+  },
+  "base/targets/eyes/l-eye-scale-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "2d2d2d088931ce206eb6dad91e26318f045c7e4e6b6580acc812750b0f18f4bc"
+  },
+  "base/targets/eyes/l-eye-trans-down.target.gz": {
+   "from": "mpfb",
+   "sha256": "d4c5c982b6a62a357b155d8475475e1d2b0b8ff031d4a687993d525be8cdb9d9"
+  },
+  "base/targets/eyes/l-eye-trans-in.target.gz": {
+   "from": "mpfb",
+   "sha256": "2129b8e5ea7b3875f32f7a50733eb4f61ea313f7dcc7e38491573b0cbd2cddc0"
+  },
+  "base/targets/eyes/l-eye-trans-out.target.gz": {
+   "from": "mpfb",
+   "sha256": "b74b2e4266f3db6122baaad9a4f793b81285cb2ac405f9fa4163bc72e72e56fc"
+  },
+  "base/targets/eyes/l-eye-trans-up.target.gz": {
+   "from": "mpfb",
+   "sha256": "47b00a443ae2783774a56e8a5065b9f210377ac3e3e0afdecdfe87b156f0a575"
+  },
+  "base/targets/eyes/r-eye-bag-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "c2c8b58210122cbe5e0effbc4d4a1f5a23dbea800f0a34af48fb16d52aff4b05"
+  },
+  "base/targets/eyes/r-eye-bag-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "552483d9b4cd846d5bc864e6866d8bc9db79fdf44233cb30be2d084e5d4373d0"
+  },
+  "base/targets/eyes/r-eye-corner2-down.target.gz": {
+   "from": "mpfb",
+   "sha256": "89e20b2779fb0144008c357c4335732befa14afbf988136683644b6c2b863193"
+  },
+  "base/targets/eyes/r-eye-corner2-up.target.gz": {
+   "from": "mpfb",
+   "sha256": "a295f78da108875885ace05e059e5949cd67aeb4cfca7524950ed2b6e77d1682"
+  },
+  "base/targets/eyes/r-eye-epicanthus-in.target.gz": {
+   "from": "mpfb",
+   "sha256": "ec5e5b256e6529b0791cae2d7dc29f1aedaf381b6930d1d38c01c72643276bcc"
+  },
+  "base/targets/eyes/r-eye-epicanthus-out.target.gz": {
+   "from": "mpfb",
+   "sha256": "9fbfb5d1cf20bd3a8d762a662248993b54d5c4a9a370ca7c07a4d346fc9ebd39"
+  },
+  "base/targets/eyes/r-eye-eyefold-down.target.gz": {
+   "from": "mpfb",
+   "sha256": "a9225e4841241ef7a2d1f4db3b65d9caf09e23287f169f2d657a4bf9a95ff690"
+  },
+  "base/targets/eyes/r-eye-eyefold-up.target.gz": {
+   "from": "mpfb",
+   "sha256": "902d0936322f5f18aaea3d37ba996f453040a55223e55c56aebff654832a0f97"
+  },
+  "base/targets/eyes/r-eye-height2-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "b53bacabd4b07a5fbe90e28dcb09b4a8f8f727682bdd27dfb124db5211d3cf89"
+  },
+  "base/targets/eyes/r-eye-height2-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "22fce2f25e349ab9f2beff8e3a4b54bda757535169afcfa0b4d022548f14494e"
+  },
+  "base/targets/eyes/r-eye-scale-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "2ea82bce144a084c7c86c3e2b6b23b0c3f45293f6762fec4afba53e5c3684675"
+  },
+  "base/targets/eyes/r-eye-scale-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "af556b9a6f930ce74f86d64f32b2f801bb5f4bb91f49c3ed37225b7d0413c5af"
+  },
+  "base/targets/eyes/r-eye-trans-down.target.gz": {
+   "from": "mpfb",
+   "sha256": "f71785746b3cf2d171cb7f024d944d05af707e839908768425c66edd294c3318"
+  },
+  "base/targets/eyes/r-eye-trans-in.target.gz": {
+   "from": "mpfb",
+   "sha256": "5c0fbc8e74ac1450aa517a98f5522855a73d67dad2b759ebc2f9a3001bb7d5af"
+  },
+  "base/targets/eyes/r-eye-trans-out.target.gz": {
+   "from": "mpfb",
+   "sha256": "1fc70679c7c086d10adc405b57be80d757417e925f1884625d6bc24b6a9fd05d"
+  },
+  "base/targets/eyes/r-eye-trans-up.target.gz": {
+   "from": "mpfb",
+   "sha256": "7fa48e3d1790d148347629beca6a6a1087c3c804625a8bf853ad66bf52efde5d"
+  },
+  "base/targets/forehead/forehead-trans-backward.target.gz": {
+   "from": "mpfb",
+   "sha256": "1cb13b58f4c8f2482ad997528407b4b59ddd6db7e8e78c6130d6b3504e1d45fc"
+  },
+  "base/targets/forehead/forehead-trans-forward.target.gz": {
+   "from": "mpfb",
+   "sha256": "9add6a61672d0d9361ce1927c9096dfb718450fa679033ddad5b033b3cd914d1"
+  },
+  "base/targets/head/head-age-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "9952127abdd162c8d5a3cee5d368fa0bbdc6aab21fec799e9e8be84aa2351472"
+  },
+  "base/targets/head/head-age-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "ea5b7b9404daa1f6b8ea14a11a0e8ae6a082e98d0d65f63cc2150057a168e396"
+  },
+  "base/targets/head/head-fat-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "6ef17a5ba87b23aa11746ac8c539fef70be5a8f89cae4abb2c2f3f32a9c6cc57"
+  },
+  "base/targets/head/head-fat-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "28494dfd84ee8677000ef0a8d8e3b38dff0674d16c54103997b7bbe0de943a1a"
+  },
+  "base/targets/head/head-oval.target.gz": {
+   "from": "mpfb",
+   "sha256": "057eea7c5535c325493b9107228052b03c78fac1bcb24905313fae6351179cb8"
+  },
+  "base/targets/head/head-round.target.gz": {
+   "from": "mpfb",
+   "sha256": "9c5661568155231f4c5f13b0d332c09b0c27452cafc02f5685ff4d7c69010f50"
+  },
+  "base/targets/head/head-scale-depth-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "2bc2c4906b12000800c10e938bcab102814a33c2db0fbe021b3bba1be4c356bf"
+  },
+  "base/targets/head/head-scale-depth-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "2e7eb5bf8cf73c780ff66610cb15d97a2496c5c2855612bbf6c6f8fcf36c7ddd"
+  },
+  "base/targets/head/head-scale-horiz-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "ddec139b27d1f9b7a90f6474450c56897a4e417334af083e87e988fdf94ca343"
+  },
+  "base/targets/head/head-scale-horiz-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "671542640aec14d1740c1263deb0e274f3044edec761e6d4171329f0419be084"
+  },
+  "base/targets/head/head-scale-vert-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "64e86d59a469eeeb0201026880bcd6ebb0cbd590a74b179f58efa879b3772f6c"
+  },
+  "base/targets/head/head-scale-vert-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "be8b270ec67817578128396433d6e8ab9d530c9d81ea21db92cd1b9627a8110b"
+  },
+  "base/targets/head/head-square.target.gz": {
+   "from": "mpfb",
+   "sha256": "94b484ae145970e5368706d4f42711f50e18fcbf7d9f1ee800572c3fa69f855a"
+  },
+  "base/targets/hip/hip-scale-horiz-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "f000ad7589bb05813dd6296192a70e647b9c4866db22ebd642a0f889d37b2c99"
+  },
+  "base/targets/hip/hip-scale-horiz-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "12eab540daee8f1aa7fa06b9ca18224c987b057da369a2f4870228470b8d933a"
+  },
+  "base/targets/macrodetails/african-female-baby.target.gz": {
+   "from": "mpfb",
+   "sha256": "599de515efcd75069fe5186621c489d630c0a2d91a46ba1cc97966f98aae271e"
+  },
+  "base/targets/macrodetails/african-female-child.target.gz": {
+   "from": "mpfb",
+   "sha256": "71478670a8285dc6469e10e74e4746c75fef0592190e4eb3a63130178e4fd865"
+  },
+  "base/targets/macrodetails/african-female-old.target.gz": {
+   "from": "mpfb",
+   "sha256": "a097b300928d3be97f30b6182cb252c2de09433cb3a571de890952a1d25d3f18"
+  },
+  "base/targets/macrodetails/african-female-young.target.gz": {
+   "from": "mpfb",
+   "sha256": "1147ae55ecb0f66bade3f45176b3af187e265878322db172ad1090e9f3108e84"
+  },
+  "base/targets/macrodetails/african-male-baby.target.gz": {
+   "from": "mpfb",
+   "sha256": "e1000bed670bad91be11a6bbd3783975b3e9303ce85852635a5964078d52e339"
+  },
+  "base/targets/macrodetails/african-male-child.target.gz": {
+   "from": "mpfb",
+   "sha256": "578c3aad252de0868da7445d095f5acd8925b182c80812154065a37687c29b72"
+  },
+  "base/targets/macrodetails/african-male-old.target.gz": {
+   "from": "mpfb",
+   "sha256": "fb3477ab3c05d6ea421d82717c3df89ff23f926d1e5148092e30c0efe2ea96de"
+  },
+  "base/targets/macrodetails/african-male-young.target.gz": {
+   "from": "mpfb",
+   "sha256": "05ed84d6df36e788cdfa8da0be15376850524b960cf2f17f3e592b9cf7d21c85"
+  },
+  "base/targets/macrodetails/asian-female-baby.target.gz": {
+   "from": "mpfb",
+   "sha256": "4edf83ee2a3c103fce63756e1ed24571841d40dc2dc1bfbc6213e2e93d14003a"
+  },
+  "base/targets/macrodetails/asian-female-child.target.gz": {
+   "from": "mpfb",
+   "sha256": "3791c73a4a0e05e475d88341ce32f29a6eeefb054217e900497a1723e89bf70d"
+  },
+  "base/targets/macrodetails/asian-female-old.target.gz": {
+   "from": "mpfb",
+   "sha256": "b32b6d492ebf48cb26e11bf73bf979ba946316bf9e9f2ba291e0267a2846e3cf"
+  },
+  "base/targets/macrodetails/asian-female-young.target.gz": {
+   "from": "mpfb",
+   "sha256": "ee17da733288434e5b6fa120497f1fa6e72bf7faad5d694b0431d7275139170d"
+  },
+  "base/targets/macrodetails/asian-male-baby.target.gz": {
+   "from": "mpfb",
+   "sha256": "1cf994fc7a23aa2ab369aa3dcb1a48b36f7db6c46f47e72558907b1d3f76e2b9"
+  },
+  "base/targets/macrodetails/asian-male-child.target.gz": {
+   "from": "mpfb",
+   "sha256": "f2a9d1ba67aa79b613ff4ce245787b1ff2c7420f34d63bc7cfb5df2950b623e2"
+  },
+  "base/targets/macrodetails/asian-male-old.target.gz": {
+   "from": "mpfb",
+   "sha256": "8f931e96529904375a442c77be0c31d60ace6c0461645ed7ab1a43a3c378a247"
+  },
+  "base/targets/macrodetails/asian-male-young.target.gz": {
+   "from": "mpfb",
+   "sha256": "0928ed8b9f08f60afb9884cf9e9f33a939ed3a85d7f136de9ccc88a76981d6d7"
+  },
+  "base/targets/macrodetails/caucasian-female-baby.target.gz": {
+   "from": "mpfb",
+   "sha256": "400eecd4da943ce1018e0bd008d46249f7f1aca1280737d13fe13bc4ef819fcc"
+  },
+  "base/targets/macrodetails/caucasian-female-child.target.gz": {
+   "from": "mpfb",
+   "sha256": "ad1ce6b7955e4d610b75648ebdcc456cc8aa7e9e46af399f65265164ea39c844"
+  },
+  "base/targets/macrodetails/caucasian-female-old.target.gz": {
+   "from": "mpfb",
+   "sha256": "2f2e27968953da08ab3bb048ce178e2936e32856f65f397968499567d3afd08f"
+  },
+  "base/targets/macrodetails/caucasian-female-young.target.gz": {
+   "from": "mpfb",
+   "sha256": "e9d6212373ac5f1e2c596fa145e363385f4d169c3c6c88ede3bab93b681af041"
+  },
+  "base/targets/macrodetails/caucasian-male-baby.target.gz": {
+   "from": "mpfb",
+   "sha256": "b8806d6636653b72da0514321f939061d224d90237c6bf758e4198daef805abb"
+  },
+  "base/targets/macrodetails/caucasian-male-child.target.gz": {
+   "from": "mpfb",
+   "sha256": "18188350f6cfca20725f4057ba207ac5c7c759bfcc5badb212edabfd8563a544"
+  },
+  "base/targets/macrodetails/caucasian-male-old.target.gz": {
+   "from": "mpfb",
+   "sha256": "123cb7758c86aa2aa71d80ea0c8f5f4b3e96f394180edc1682e34720c4949df6"
+  },
+  "base/targets/macrodetails/caucasian-male-young.target.gz": {
+   "from": "mpfb",
+   "sha256": "ffe69537e53148edff2776204ba48cf3bf1f3cbc72966592c8a562ab80b07333"
+  },
+  "base/targets/macrodetails/universal-female-baby-averagemuscle-averageweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "dd77911ad616b3cce48e9a0ea4ec9d505fc6c6494a5f3f1ba3d98874aa3d8cc9"
+  },
+  "base/targets/macrodetails/universal-female-baby-averagemuscle-maxweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "81efc86be6a4dbbbdef4dc744400db9304d6f5b720a969b6efcc5bdde664ccbc"
+  },
+  "base/targets/macrodetails/universal-female-baby-averagemuscle-minweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "10df97f429a76bb10abc958ecdbd313c47647efa763f24c6a58a15167b7a8273"
+  },
+  "base/targets/macrodetails/universal-female-baby-maxmuscle-averageweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "221fd84ec98bbecae575c16bcd1e1ce06e4e39cd33579758002c5c60b34263e3"
+  },
+  "base/targets/macrodetails/universal-female-baby-minmuscle-averageweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "0d69a5f438dfc81912f506790ee85a159d6e80ac0cf6ea08b87caffcfc5dd741"
+  },
+  "base/targets/macrodetails/universal-female-child-averagemuscle-averageweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "8cd73335ac6f84b1f85b2fa2f44a5b23586aa7f152f0beb189b184761a8cc0ed"
+  },
+  "base/targets/macrodetails/universal-female-child-averagemuscle-maxweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "d10dbed57a4fa200500af91b50812547cded0c5e367a1736fcd05deb4b8fea43"
+  },
+  "base/targets/macrodetails/universal-female-child-averagemuscle-minweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "69c287f3c7cffd0613c469bdc42023e4379bf346a55d0e352b08bf5336066179"
+  },
+  "base/targets/macrodetails/universal-female-child-maxmuscle-averageweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "30fa6d5a224997ff171e4702dc18bba02a57aac1c2fd225f65fe3d2846f76e58"
+  },
+  "base/targets/macrodetails/universal-female-child-maxmuscle-minweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "29acbce44bb37651b93fd1e6e4c827ed19fe1b6ab7c76c01c27203297de0887b"
+  },
+  "base/targets/macrodetails/universal-female-child-minmuscle-averageweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "9b42a424040b43f67e9176f73a70764a6de6b3470233af238bda349c2a194b1f"
+  },
+  "base/targets/macrodetails/universal-female-child-minmuscle-minweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "d47d91dcb06b13bdc141b3200d2d602b6894b84642adcf9da8f594994287d95d"
+  },
+  "base/targets/macrodetails/universal-female-old-averagemuscle-averageweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "e592836eee975b83de976b30a04444a36c1f4da7abe8c7c910e751926f040a7e"
+  },
+  "base/targets/macrodetails/universal-female-old-averagemuscle-maxweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "020f83918f355e2a6a5b46d4707c0fa6a713c0e2923d686cb0f999978c34d956"
+  },
+  "base/targets/macrodetails/universal-female-old-averagemuscle-minweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "6714a95eb7af3b1247b4bf0446f8dfd57731362cc171dbbbdca97291c5dfe55a"
+  },
+  "base/targets/macrodetails/universal-female-old-maxmuscle-averageweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "01f0f6f44313e353d9ae2590035ff35cb91a18e46cb8e45d0933f0a8105129ca"
+  },
+  "base/targets/macrodetails/universal-female-old-maxmuscle-maxweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "ba2b2749f630071eb2a2f014ac5f3b8a5f0ece14f6d3a116a3eb2e4a22843e34"
+  },
+  "base/targets/macrodetails/universal-female-old-maxmuscle-minweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "c9fef1d7c1c388483e24ba80863444487791e1297958c9dc7fdbcb9cb4440193"
+  },
+  "base/targets/macrodetails/universal-female-old-minmuscle-averageweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "11939b61eb2735abd2d3aeb0b248dc6160706abcb635b5db45758bae956deddc"
+  },
+  "base/targets/macrodetails/universal-female-old-minmuscle-maxweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "0db6338ba03fc9e228dd884339ada9f3a0f48a7bad744dd809d4580413ac8e89"
+  },
+  "base/targets/macrodetails/universal-female-old-minmuscle-minweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "61927083c80a044ba64788eadf7341cec39f9da5c07aa4aa43625a73a929d099"
+  },
+  "base/targets/macrodetails/universal-female-young-averagemuscle-averageweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "30046c85a461249824548d5319d74c16392842a1ee00ca9a4485ea3eeb06e2e8"
+  },
+  "base/targets/macrodetails/universal-female-young-averagemuscle-maxweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "eaec00c7fe67738765170b94648e6cdf1078ff15a2c0f745645750eb6fef45bf"
+  },
+  "base/targets/macrodetails/universal-female-young-averagemuscle-minweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "5c65527e5d6e83b98ffa3da5bd61372eff70f89e95585bdacd0e3f70e48062aa"
+  },
+  "base/targets/macrodetails/universal-female-young-maxmuscle-averageweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "b1b77fc23f47ebe4a47b14651aadcedf44b2d9c2a1323fbda396952b98632627"
+  },
+  "base/targets/macrodetails/universal-female-young-maxmuscle-maxweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "6a36ca389bd4ba5e2efe1f885d493e19096cd12d2ae7c810add715f6d9fff0f2"
+  },
+  "base/targets/macrodetails/universal-female-young-maxmuscle-minweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "f67344b6aa1808737d78b619c062effe04aad0bfe67e9f80fa6294e2eb5342a5"
+  },
+  "base/targets/macrodetails/universal-female-young-minmuscle-averageweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "2d939513053fb4a58b6752457c00419c0a2b6a658f0f034dc079d59e19931627"
+  },
+  "base/targets/macrodetails/universal-female-young-minmuscle-maxweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "bb8da1aa94cecd782ae0d2b58067204589a06e55915717d5852452d60aa751e7"
+  },
+  "base/targets/macrodetails/universal-female-young-minmuscle-minweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "18ecff47c3606608472afab0f79a88afaf0c3d5c139bf81c1ef7867a9a9b78a5"
+  },
+  "base/targets/macrodetails/universal-male-baby-averagemuscle-averageweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "4ee9b113ba3d0cf51ca28ada2b1f2356b960d9a940ae72c4b3f79209aec6892f"
+  },
+  "base/targets/macrodetails/universal-male-baby-averagemuscle-maxweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "de3d3dd22ebf62e9c0e81bef7497bca75d1f0cb94faaa927d89e9df6ec3645db"
+  },
+  "base/targets/macrodetails/universal-male-baby-averagemuscle-minweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "c774a147e0bfd9a217440621c157f10a6a494710bd289ba0774996ba79d56fad"
+  },
+  "base/targets/macrodetails/universal-male-baby-maxmuscle-averageweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "6bfcdc371ce857fe4e8d68914b67cc6c3236c1c28ebf11fd809085d8ab707408"
+  },
+  "base/targets/macrodetails/universal-male-baby-maxmuscle-minweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "be46f41a492bda7a281a5af7f40e20d047bef8ff29214acc1b84f16ec5115e9d"
+  },
+  "base/targets/macrodetails/universal-male-baby-minmuscle-averageweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "23bffe2628f49f8437db0f0b52b631d52dacde79825d3faf7b91765aa1235941"
+  },
+  "base/targets/macrodetails/universal-male-baby-minmuscle-minweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "5136a5f609c78bd857a4d4745f06e2be450a8f137470bf43e3cb1f8e6acf2f17"
+  },
+  "base/targets/macrodetails/universal-male-child-averagemuscle-averageweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "2249784050014a68afac7efdbb9cae9e427fd8bdd2d7965f7898a6e8aec019dc"
+  },
+  "base/targets/macrodetails/universal-male-child-averagemuscle-maxweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "e02f491d34ded6e643ed21c7742d0f57247200fe5a20ba2f9172332697f45a13"
+  },
+  "base/targets/macrodetails/universal-male-child-averagemuscle-minweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "b8bf6b715c3ae4393f048bfcb2fa65379931ac5e4d435acc203ffb7c0cf04a73"
+  },
+  "base/targets/macrodetails/universal-male-child-maxmuscle-averageweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "bc06bec601982fafeb01d5a06912d5937b4a965af1fb8fa943e10fa0c43b8672"
+  },
+  "base/targets/macrodetails/universal-male-child-maxmuscle-minweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "9d59e00fb1ab6b0678a82aebe9c9e9620d3999f7c30a9587962afdb856a1f97d"
+  },
+  "base/targets/macrodetails/universal-male-child-minmuscle-averageweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "d6744fb32500d8e0c83be2aebfb20dca1ba4e0f20f0639e164ce6cee12244e86"
+  },
+  "base/targets/macrodetails/universal-male-child-minmuscle-minweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "29b37ca9b5c61e8d6d9e71bedbe9191ce4556c230e5b05a21ad99d4ed989dd75"
+  },
+  "base/targets/macrodetails/universal-male-old-averagemuscle-averageweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "3721ecc3f7a6af1d7c22ef20c709b1d37402445b3d203fe31e762b12356b59a6"
+  },
+  "base/targets/macrodetails/universal-male-old-averagemuscle-maxweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "185c7fba104d170770240e8700f0ff8ea03b348412af7f3496d6f047d50beb39"
+  },
+  "base/targets/macrodetails/universal-male-old-averagemuscle-minweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "c9698e079ab31870666948b804c1f3b633338c16a216e2494ede7809969dee40"
+  },
+  "base/targets/macrodetails/universal-male-old-maxmuscle-averageweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "d2443e0ce0b3acc60ee68e5617ab15c9ee2dffc646ef4ea2411ab4d123310327"
+  },
+  "base/targets/macrodetails/universal-male-old-maxmuscle-maxweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "d62997eae51a94b30ab91fb04c34698e2a019c43a36c21b975b8024649eed941"
+  },
+  "base/targets/macrodetails/universal-male-old-maxmuscle-minweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "7636801e3281c99fc0738d1e89685141fe5b31627fcb16e183b329b343a07d86"
+  },
+  "base/targets/macrodetails/universal-male-old-minmuscle-averageweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "8c7923d2afd0a53f317a89aa9a71f8ae57e0a7172ef3b577d4db7fd06c6a7a80"
+  },
+  "base/targets/macrodetails/universal-male-old-minmuscle-maxweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "770ee3076bc68c9a328e21d33b9e3b2ff5827b66d222e85f07a8ae018fd71a88"
+  },
+  "base/targets/macrodetails/universal-male-old-minmuscle-minweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "0d5e260cedd07cd8bacd14f74a5cda27977051cae413906996c59527f372ee42"
+  },
+  "base/targets/macrodetails/universal-male-young-averagemuscle-averageweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "e814651195c53971503d9823d6841216718a561951ef064f81d132297f4fa494"
+  },
+  "base/targets/macrodetails/universal-male-young-averagemuscle-maxweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "13b79074ecf00a0d028495a51865ae9e86c06b5801b6a614257b455ffbec7d10"
+  },
+  "base/targets/macrodetails/universal-male-young-averagemuscle-minweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "e4a993057e265088e082ee2aeccc860505e759b27251dc63a78314e1f8c78a16"
+  },
+  "base/targets/macrodetails/universal-male-young-maxmuscle-averageweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "833caafc302bd9306de494f32ee1bc51d3a2e6641183329b031ac06ef0f4277e"
+  },
+  "base/targets/macrodetails/universal-male-young-maxmuscle-maxweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "4c88d7850d64ae8a455bd375755769a2153cce98a7e0b1acce6fa0454083d14d"
+  },
+  "base/targets/macrodetails/universal-male-young-maxmuscle-minweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "0323cb5c604d13207d1a10ade8ce165df1cbf14d91de48ad959a082297669905"
+  },
+  "base/targets/macrodetails/universal-male-young-minmuscle-averageweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "d1c0a768f42219e9630f08805939510efbe2a390b451fa52cc575205bc761d7e"
+  },
+  "base/targets/macrodetails/universal-male-young-minmuscle-maxweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "5cd87b8e6856a3e9e6b71d15580e1ae9b058f478ce8c1ea73c1b145df9c8e0e6"
+  },
+  "base/targets/macrodetails/universal-male-young-minmuscle-minweight.target.gz": {
+   "from": "mpfb",
+   "sha256": "166a31465a2790a321e55e274a7f43c56bfe58ad1cf443afacd45a7a23abf407"
+  },
+  "base/targets/mouth/mouth-angles-down.target.gz": {
+   "from": "mpfb",
+   "sha256": "5c760f5bd32c6f7a0c3298840dcad2bc4a20eaf5dd167a7a548553d5c0e1f5d5"
+  },
+  "base/targets/mouth/mouth-angles-up.target.gz": {
+   "from": "mpfb",
+   "sha256": "81fb84776356e4f1f1f99bd6f7d16707f385568ed585df4d1826de8ff76e778f"
+  },
+  "base/targets/mouth/mouth-lowerlip-volume-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "01d4f0c2889b43d3b97e4c7c6179d1217214a7caa0073db36d09b2b4b6edcf18"
+  },
+  "base/targets/mouth/mouth-lowerlip-volume-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "6eefdf010318ac86aa59aeefffdf1f7e566f280a04e9843003b0543b4dc99179"
+  },
+  "base/targets/mouth/mouth-scale-horiz-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "aed1a3c27224d12828de1ffc3fe9c2895f4389417d016016dd4f1fefccdbc6c9"
+  },
+  "base/targets/mouth/mouth-scale-horiz-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "3bd6ff8195f77f0bcb586f3efec0eea1ae615eecba516e4d121025e40ed0ead2"
+  },
+  "base/targets/mouth/mouth-trans-backward.target.gz": {
+   "from": "mpfb",
+   "sha256": "2dab6b7ec52c47ee09c7eed0a469e55e1cbcad254a877de10e7d6d2feb17be47"
+  },
+  "base/targets/mouth/mouth-trans-forward.target.gz": {
+   "from": "mpfb",
+   "sha256": "d9ff6e5d30bea3b7fdd20a47f2d39a97c635462dcb15b8a6609249234195ecb7"
+  },
+  "base/targets/mouth/mouth-upperlip-volume-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "b2f940f8187112ee233ddfcdfb4a025fa01ee878b17dc44c64971c96583e7caf"
+  },
+  "base/targets/mouth/mouth-upperlip-volume-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "e11c109910b3941d5b6c809f6a1c28c12bf08f67f5c126d109002c1aacd43ef6"
+  },
+  "base/targets/neck/neck-double-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "cbdf3ac1e7f27d0a7f0fcc6e9aec9e9ac09de41dfcc77e1dd9b8f0f303b16e2a"
+  },
+  "base/targets/neck/neck-scale-depth-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "861805375b59cca7ef40d66277e99748b51149093838abaa19d6a50442a8be50"
+  },
+  "base/targets/neck/neck-scale-depth-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "c80de7e4c766b51a0a20f732f9153114686c4fe79adb4846d0aec00f7ea16883"
+  },
+  "base/targets/neck/neck-scale-horiz-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "64a6cff62244705a3ea3f005889dfb56641e8ed43389e2e1cb0b8bed0660dc53"
+  },
+  "base/targets/neck/neck-scale-horiz-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "8428be2a7c0e1554dbf6bb516e6ffbdfa564a8cc94d6a9ff08580c0127e44aeb"
+  },
+  "base/targets/nose/nose-curve-concave.target.gz": {
+   "from": "mpfb",
+   "sha256": "2103807fe041cc36c881d706e86bd65ac9d8a9bdce0b1c37b41e5911ecab753c"
+  },
+  "base/targets/nose/nose-curve-convex.target.gz": {
+   "from": "mpfb",
+   "sha256": "7c9232bd988ab0ed6373e994ac566623d3affac65c645aee78487a1e47a3253e"
+  },
+  "base/targets/nose/nose-hump-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "f24247d606ad4a9b3f15f6afa187009865cfadcd1669d79d30876a8085cadb53"
+  },
+  "base/targets/nose/nose-hump-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "ca6649d78752cca02fdb37f10804e021713b4fbfe2f85136e12b5787cc654aa6"
+  },
+  "base/targets/nose/nose-nostrils-width-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "7c08d53d08ad0d397853d8ecdef5df200c697dc9afee8bf09a73f94a8287664f"
+  },
+  "base/targets/nose/nose-nostrils-width-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "bc3d4108a0d10e8ef7dea5ebc7cbdc89da476285ff8413f58bcb4401bf2b122b"
+  },
+  "base/targets/nose/nose-point-down.target.gz": {
+   "from": "mpfb",
+   "sha256": "58498fbb0b77572e90bf4fd50ca30f4cb6c402a5720b0161b26a8497f897ded6"
+  },
+  "base/targets/nose/nose-point-up.target.gz": {
+   "from": "mpfb",
+   "sha256": "9ae8812270208a7c4da68bbe1e480430d1d674efcb8394e83b5c4d937fb3287d"
+  },
+  "base/targets/nose/nose-point-width-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "920cd53d57b8797414af73b59e54d34547ef2e1c79fa0a19ca55dbddc0aa7365"
+  },
+  "base/targets/nose/nose-point-width-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "bf5f782b014675be57aba4c840261308cc0d408660ecdfd22a42d47a756a016c"
+  },
+  "base/targets/nose/nose-scale-depth-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "0842aa0f4265fef85b6e708cdd0b0665e9a951c08a1c768dc285206f0ae4c7ad"
+  },
+  "base/targets/nose/nose-scale-depth-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "49f63b72f04f637ed38061acce579c0948d29175d949bf21e6bfed354c0a10bf"
+  },
+  "base/targets/nose/nose-scale-horiz-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "95d8dc4a3589bbb6105191abc6e3cae47c3c424ce189b5f0a611dc098806060d"
+  },
+  "base/targets/nose/nose-scale-horiz-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "ba550cc15c894a4412bb368acc92bd6ad94bbb63d0135c561fe30230ef6344bd"
+  },
+  "base/targets/nose/nose-scale-vert-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "3eea81bc82ddca8e20c8fc4279092eb2c8540d05e0c2aacf868af5da4ebac108"
+  },
+  "base/targets/nose/nose-scale-vert-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "63d297c237e7054a1ea700b83454ef508bf5f42ba8f2eb6bc1eb747ad261f34b"
+  },
+  "base/targets/stomach/stomach-pregnant-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "1667a6f0a54a7102e3dc21e991051441558a7dfc74e30baa1c04e9831ffecebf"
+  },
+  "base/targets/stomach/stomach-pregnant-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "52534e8d144d8bd492a471c78058f06428ab449569c578c6354580ee66d7a4d0"
+  },
+  "base/targets/torso/torso-scale-horiz-decr.target.gz": {
+   "from": "mpfb",
+   "sha256": "4d406859df3c8b9f5e3dbdd648ac64ae39f9fe729d629a1500db884e33634aa4"
+  },
+  "base/targets/torso/torso-scale-horiz-incr.target.gz": {
+   "from": "mpfb",
+   "sha256": "58978f5cd896b6c457c147a4312c76b079e499c9b721f06e735112df3ec0235f"
+  },
+  "system/eyebrows/eyebrow001/eyebrow001.mhclo": {
+   "from": "system_assets",
+   "sha256": "54c8892c2ba577f4152d779ce1f20f7cd323beb8cbd9cb701796165c221b4f5b"
+  },
+  "system/eyebrows/eyebrow001/eyebrow001.mhmat": {
+   "from": "system_assets",
+   "sha256": "976e5f4f1d3922d7a11c6e2db233f8b4584b068d00619d5749687e81c92d61fc"
+  },
+  "system/eyebrows/eyebrow001/eyebrow001.obj": {
+   "from": "system_assets",
+   "sha256": "88b13146395133f3901715e11706cdfd293e5d6087ad7c5e01efe1485a26b513"
+  },
+  "system/eyebrows/eyebrow001/eyebrow001.png": {
+   "from": "system_assets",
+   "sha256": "9940f7d0b1b223709a19b05156ba6f6e9e4dbdbced02d7574f4d51d72c58967b"
+  },
+  "system/eyebrows/eyebrow002/eyebrow002.mhclo": {
+   "from": "system_assets",
+   "sha256": "550781113f5c3971e7e200450d7d94e2290d43e9449a42667d2bf972c1eb0593"
+  },
+  "system/eyebrows/eyebrow002/eyebrow002.mhmat": {
+   "from": "system_assets",
+   "sha256": "57fc4d1f089be90b2ab4774bdc7c077b5a519f33a293e57ee74762c7714a3b34"
+  },
+  "system/eyebrows/eyebrow002/eyebrow002.obj": {
+   "from": "system_assets",
+   "sha256": "7fe4e036311c41802bd6889acb02d1b06184a0dd759ac72e1d9fba1037243667"
+  },
+  "system/eyebrows/eyebrow002/eyebrow002.png": {
+   "from": "system_assets",
+   "sha256": "1de4e4cb69b3f4324390219ffbeb17a0b2555104d3211d1ac667655b69b64038"
+  },
+  "system/eyebrows/eyebrow003/eyebrow003.mhclo": {
+   "from": "system_assets",
+   "sha256": "43028df55838152be8568eaa9a736746a2581ca327129a443d8d214554448632"
+  },
+  "system/eyebrows/eyebrow003/eyebrow003.mhmat": {
+   "from": "system_assets",
+   "sha256": "91d53fb4fad2927ae412b38aaa8785bb26c6e886be049d5889a276ad3a875ea2"
+  },
+  "system/eyebrows/eyebrow003/eyebrow003.obj": {
+   "from": "system_assets",
+   "sha256": "dda3828f484f877f011fb8c52b75be0d7870561111739ff4cc5c83fb5ac6acd7"
+  },
+  "system/eyebrows/eyebrow003/eyebrow003.png": {
+   "from": "system_assets",
+   "sha256": "e98837d77247f2c11a8259f8b265243b9053ba55683bd70223c668110e7dfb62"
+  },
+  "system/eyebrows/eyebrow005/eyebrow005.mhclo": {
+   "from": "system_assets",
+   "sha256": "84e8aa146f1c7a2985d024bb741f43323c65c2970b4bb86491d8e6a7b0daaeef"
+  },
+  "system/eyebrows/eyebrow005/eyebrow005.mhmat": {
+   "from": "system_assets",
+   "sha256": "28ecdda0aefc150974d30867e7ef3cfc8e720d2daaf52c33493138af5df4322a"
+  },
+  "system/eyebrows/eyebrow005/eyebrow005.obj": {
+   "from": "system_assets",
+   "sha256": "c89d4d0b6f89a6bdf5a33c5e3ed22414046d2465e37ba9ecd2d75613dcb74e63"
+  },
+  "system/eyebrows/eyebrow005/eyebrow005.png": {
+   "from": "system_assets",
+   "sha256": "7258dd3cf12413289ac814f81ab6b6afa00827f7cbd5deda80743308dd8c0389"
+  },
+  "system/eyebrows/eyebrow008/eyebrow008.mhclo": {
+   "from": "system_assets",
+   "sha256": "2b9de3129344240abbbf19fbcb88c5f29f34ce1b9883229516c7e60f51bed226"
+  },
+  "system/eyebrows/eyebrow008/eyebrow008.mhmat": {
+   "from": "system_assets",
+   "sha256": "02ce64d7fd998268e3b0632d80c455551752a3eef09eba1fca99104eb89e6bdf"
+  },
+  "system/eyebrows/eyebrow008/eyebrow008.obj": {
+   "from": "system_assets",
+   "sha256": "096453e23c6a626ec79045e3c157fc726b678d7d7d957ddc56673aa59c6d34ea"
+  },
+  "system/eyebrows/eyebrow008/eyebrow008.png": {
+   "from": "system_assets",
+   "sha256": "b2243e030ca6e74d402f2ec421262f67773b13e1b9f1930fcca626b5cd8e7d84"
+  },
+  "system/eyebrows/eyebrow010/eyebrow010.mhclo": {
+   "from": "system_assets",
+   "sha256": "f007d2739463323d1398f20e6c77afd683da997956527ce5bc7cf9e56160e81e"
+  },
+  "system/eyebrows/eyebrow010/eyebrow010.mhmat": {
+   "from": "system_assets",
+   "sha256": "5af8c410d415fc33bbb726245350cfd0ac7d6baec4a16ab07a2696c90539bfbb"
+  },
+  "system/eyebrows/eyebrow010/eyebrow010.obj": {
+   "from": "system_assets",
+   "sha256": "db7a9747ffdc534b10de584f2d140f2006cc528ffffb6eff5071fef2ed94dce9"
+  },
+  "system/eyebrows/eyebrow010/eyebrow010.png": {
+   "from": "system_assets",
+   "sha256": "d0aca671c7d51008177a2a607dc8eba3d3e84935375c6fcac2f85841563e44f3"
+  },
+  "system/eyelashes/eyelashes01/eyelashes01.mhclo": {
+   "from": "system_assets",
+   "sha256": "5a86b29c15649273d723084954b7fa7bf199112571d4f58539b46734d397ee6b"
+  },
+  "system/eyelashes/eyelashes01/eyelashes01.mhmat": {
+   "from": "system_assets",
+   "sha256": "8029c99d94f3d87a1e81825fad6b90eec773ae6955a5b2592222ef237377e190"
+  },
+  "system/eyelashes/eyelashes01/eyelashes01.obj": {
+   "from": "system_assets",
+   "sha256": "f78f5b93fea1946fcae103d32c4f082dd9612a1ec2e7e2f90b03ebe59b0baf20"
+  },
+  "system/eyelashes/eyelashes01/eyelashes01.png": {
+   "from": "system_assets",
+   "sha256": "4b69c0fff2648874460e9caf80c31413c444218a5c50afebc425aeaa65484a35"
+  },
+  "system/eyelashes/eyelashes02/eyelashes02.mhclo": {
+   "from": "system_assets",
+   "sha256": "51b858de6005bf9476035a739a695726b2227b853daf60cbf0f6b5eb9f70628e"
+  },
+  "system/eyelashes/eyelashes02/eyelashes02.mhmat": {
+   "from": "system_assets",
+   "sha256": "b4866317918a984e4a20a1ce67b56e7186da6dc5d5436fe0c36f1f058d7dcc6f"
+  },
+  "system/eyelashes/eyelashes02/eyelashes02.obj": {
+   "from": "system_assets",
+   "sha256": "331595b4e19a179be1fe603edc58ba6d088ab7898007b7e8321428efcbaf2eba"
+  },
+  "system/eyelashes/eyelashes02/eyelashes02.png": {
+   "from": "system_assets",
+   "sha256": "6375eb8934d86d49eb2a37589e179614fb557dd92a772ced11e269ad6d72d79d"
+  },
+  "system/eyes/low-poly/low-poly.mhclo": {
+   "from": "system_assets",
+   "sha256": "68582e28e9176cba7cfcf35208f671b6201b8d1bc95c32decff61a3160ec34d8"
+  },
+  "system/eyes/low-poly/low-poly.obj": {
+   "from": "system_assets",
+   "sha256": "783fe1e6331162c876520b4c2bed7a8ca06354ca15497e8ebd68bb1b59f4d3de"
+  },
+  "system/eyes/materials/blue_eye.png": {
+   "from": "system_assets",
+   "sha256": "572ddc93ab3e177100619ec7c00b2574540cfb382805afc2e450788117f6140c"
+  },
+  "system/eyes/materials/brown_eye.png": {
+   "from": "system_assets",
+   "sha256": "4659691c7295ad6206c78b003e5fd0e5f91dcd53032fa914a229bb48cabe424b"
+  },
+  "system/eyes/materials/brownlight_eye.png": {
+   "from": "system_assets",
+   "sha256": "3f43a4de70e446186dac1760cfa01dfe36d530ed7564208455395b0ebcdf788a"
+  },
+  "system/eyes/materials/green_eye.png": {
+   "from": "system_assets",
+   "sha256": "b9864ac4f4fa484b24e18f6aba030d70dbc8820cbbacfbe63a974c76772c2009"
+  },
+  "system/eyes/materials/grey_eye.png": {
+   "from": "system_assets",
+   "sha256": "ecb05613126036a3d017880fabbd570501c5f14032c186462d8f6e2d719f6c4f"
+  },
+  "system/eyes/materials/lightblue_eye.png": {
+   "from": "system_assets",
+   "sha256": "687c8f6d95a8550bcd4a34158f415d6bb376c0bb32e67d127bbb51e5fa469eef"
+  },
+  "system/skins/middleage_african_female/middleage_darkskinned_female_diffuse.png": {
+   "from": "system_assets",
+   "sha256": "c3c9ab972ad46fbda64cedfd1d0a626c2a8e739fd345c4c349102eaacc947699"
+  },
+  "system/skins/middleage_african_male/middleage_darkskinned_male_diffuse.png": {
+   "from": "system_assets",
+   "sha256": "ced478cfdd2b86391f0f92a4408b287ad70adb0dd0e9271ba606d0b028b47c6b"
+  },
+  "system/skins/middleage_asian_male/middleage_lightskinned_male_diffuse2.png": {
+   "from": "system_assets",
+   "sha256": "e897c4cc1b6ad5d10a7d2b2be92402feda4e772e6582dfaf0a1e8fc4621d8097"
+  },
+  "system/skins/middleage_caucasian_female/middleage_lightskinned_female_diffuse.png": {
+   "from": "system_assets",
+   "sha256": "bcb9c2c8ace23880bc4407602a249abbcf4608b6ba0894e423b031913012a363"
+  },
+  "system/skins/middleage_caucasian_male/middleage_lightskinned_male_diffuse.png": {
+   "from": "system_assets",
+   "sha256": "3f94f3f6a5cab92dedf5cce392a87332312fc435f1cb44c6e7b897daef9a5fbb"
+  },
+  "system/skins/old_caucasian_female/old_lightskinned_female_diffuse.png": {
+   "from": "system_assets",
+   "sha256": "00c45246c145562b917371e92de44a1fe394bc5f4bd91418addf24b6adff5e9d"
+  },
+  "system/skins/old_caucasian_male/old_lightskinned_male_diffuse.png": {
+   "from": "system_assets",
+   "sha256": "dfb2310ed3e0ad024ea7a3ad321215e2e9e2994cca64043d9f3d07c6543ec847"
+  },
+  "system/skins/young_caucasian_female/young_lightskinned_female_diffuse.png": {
+   "from": "system_assets",
+   "sha256": "b2a6ac8cd4f9febdb447368e29c76cd68410bb66e46d9dcfa2d5f75126eea8fc"
+  },
+  "system/skins/young_caucasian_male/young_lightskinned_male_diffuse.png": {
+   "from": "system_assets",
+   "sha256": "862a26e335e958b70534cb5f0d7c47ef30ab148a56c42b3e9da969cf76f12963"
+  },
+  "LICENSE.ASSETS.md": {
+   "from": "makehuman_repo",
+   "sha256": "f6089cba01cb570a24712b41ab8a586ccd3cc5ef53dc266ca50b95c288956d2c"
+  }
+ }
+}

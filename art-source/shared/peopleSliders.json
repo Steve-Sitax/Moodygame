@@ -1,0 +1,1530 @@
+{
+ "about": "people2 sliders (art-source/tools/blender/people2/sliders.py, docs/people.md 'Sliders'): MakeHuman's CC0 targets as shape keys of <body>_lod0 (face and body) and <body>_lod1 (body). A slider's value v runs -1..1 (oneWay: 0..1). signed: one key s_<name> with weight v. Otherwise v >= 0 sets s_<name> = v and v < 0 sets s_<name>_neg = -v. Keys missing from a mesh are not on it (the far copy has the body group only).",
+ "sliders": [
+  {
+   "name": "head_tall",
+   "group": "face",
+   "oneWay": false,
+   "signed": true,
+   "keys": [
+    "s_head_tall"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "head/head-scale-vert-incr": 1
+    },
+    "minus": {
+     "head/head-scale-vert-decr": 1
+    },
+    "macro": null
+   },
+   "desc": "a taller or shorter head"
+  },
+  {
+   "name": "head_wide",
+   "group": "face",
+   "oneWay": false,
+   "signed": true,
+   "keys": [
+    "s_head_wide"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "head/head-scale-horiz-incr": 1
+    },
+    "minus": {
+     "head/head-scale-horiz-decr": 1
+    },
+    "macro": null
+   },
+   "desc": "a broader or narrower head"
+  },
+  {
+   "name": "skull_long",
+   "group": "face",
+   "oneWay": false,
+   "signed": true,
+   "keys": [
+    "s_skull_long"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "head/head-scale-depth-incr": 1
+    },
+    "minus": {
+     "head/head-scale-depth-decr": 1
+    },
+    "macro": null
+   },
+   "desc": "a long skull from brow to back, or a short round one"
+  },
+  {
+   "name": "face_round",
+   "group": "face",
+   "oneWay": true,
+   "signed": false,
+   "keys": [
+    "s_face_round"
+   ],
+   "range": [
+    0.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    0.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "head/head-round": 1
+    },
+    "minus": null,
+    "macro": null
+   },
+   "desc": "a round face"
+  },
+  {
+   "name": "face_square",
+   "group": "face",
+   "oneWay": true,
+   "signed": false,
+   "keys": [
+    "s_face_square"
+   ],
+   "range": [
+    0.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    0.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "head/head-square": 1
+    },
+    "minus": null,
+    "macro": null
+   },
+   "desc": "a square face, a wide jaw"
+  },
+  {
+   "name": "face_oval",
+   "group": "face",
+   "oneWay": true,
+   "signed": false,
+   "keys": [
+    "s_face_oval"
+   ],
+   "range": [
+    0.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    0.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "head/head-oval": 1
+    },
+    "minus": null,
+    "macro": null
+   },
+   "desc": "a long oval face"
+  },
+  {
+   "name": "face_fat",
+   "group": "face",
+   "oneWay": false,
+   "signed": false,
+   "keys": [
+    "s_face_fat",
+    "s_face_fat_neg"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "head/head-fat-incr": 1
+    },
+    "minus": {
+     "head/head-fat-decr": 1
+    },
+    "macro": null
+   },
+   "desc": "a fleshy or a lean face"
+  },
+  {
+   "name": "face_age",
+   "group": "face",
+   "oneWay": false,
+   "signed": false,
+   "keys": [
+    "s_face_age",
+    "s_face_age_neg"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": false,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "head/head-age-incr": 1
+    },
+    "minus": {
+     "head/head-age-decr": 1
+    },
+    "macro": null
+   },
+   "desc": "an older or a younger face"
+  },
+  {
+   "name": "forehead_back",
+   "group": "face",
+   "oneWay": false,
+   "signed": false,
+   "keys": [
+    "s_forehead_back",
+    "s_forehead_back_neg"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "forehead/forehead-trans-backward": 1
+    },
+    "minus": {
+     "forehead/forehead-trans-forward": 1
+    },
+    "macro": null
+   },
+   "desc": "a sloping or an upright forehead"
+  },
+  {
+   "name": "brow_ridge",
+   "group": "face",
+   "oneWay": false,
+   "signed": false,
+   "keys": [
+    "s_brow_ridge",
+    "s_brow_ridge_neg"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "eyebrows/eyebrows-trans-forward": 1
+    },
+    "minus": {
+     "eyebrows/eyebrows-trans-backward": 1
+    },
+    "macro": null
+   },
+   "desc": "a heavy or a flat brow"
+  },
+  {
+   "name": "brow_high",
+   "group": "face",
+   "oneWay": false,
+   "signed": false,
+   "keys": [
+    "s_brow_high",
+    "s_brow_high_neg"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "eyebrows/eyebrows-trans-up": 1
+    },
+    "minus": {
+     "eyebrows/eyebrows-trans-down": 1
+    },
+    "macro": null
+   },
+   "desc": "brows high or low"
+  },
+  {
+   "name": "eyes_big",
+   "group": "face",
+   "oneWay": false,
+   "signed": true,
+   "keys": [
+    "s_eyes_big"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -0.8,
+    0.8
+   ],
+   "makehuman": {
+    "plus": {
+     "eyes/l-eye-scale-incr": 1.0,
+     "eyes/r-eye-scale-incr": 1.0
+    },
+    "minus": {
+     "eyes/l-eye-scale-decr": 1.0,
+     "eyes/r-eye-scale-decr": 1.0
+    },
+    "macro": null
+   },
+   "desc": "big or small eyes"
+  },
+  {
+   "name": "eyes_apart",
+   "group": "face",
+   "oneWay": false,
+   "signed": true,
+   "keys": [
+    "s_eyes_apart"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -0.8,
+    0.8
+   ],
+   "makehuman": {
+    "plus": {
+     "eyes/l-eye-trans-out": 1.0,
+     "eyes/r-eye-trans-out": 1.0
+    },
+    "minus": {
+     "eyes/l-eye-trans-in": 1.0,
+     "eyes/r-eye-trans-in": 1.0
+    },
+    "macro": null
+   },
+   "desc": "wide-set or close-set eyes"
+  },
+  {
+   "name": "eyes_high",
+   "group": "face",
+   "oneWay": false,
+   "signed": false,
+   "keys": [
+    "s_eyes_high",
+    "s_eyes_high_neg"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "eyes/l-eye-trans-up": 1.0,
+     "eyes/r-eye-trans-up": 1.0
+    },
+    "minus": {
+     "eyes/l-eye-trans-down": 1.0,
+     "eyes/r-eye-trans-down": 1.0
+    },
+    "macro": null
+   },
+   "desc": "eyes set high or low"
+  },
+  {
+   "name": "eyes_open",
+   "group": "face",
+   "oneWay": false,
+   "signed": false,
+   "keys": [
+    "s_eyes_open",
+    "s_eyes_open_neg"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -0.8,
+    0.8
+   ],
+   "makehuman": {
+    "plus": {
+     "eyes/l-eye-height2-incr": 1.0,
+     "eyes/r-eye-height2-incr": 1.0
+    },
+    "minus": {
+     "eyes/l-eye-height2-decr": 1.0,
+     "eyes/r-eye-height2-decr": 1.0
+    },
+    "macro": null
+   },
+   "desc": "eyes wide open or narrow"
+  },
+  {
+   "name": "eyes_hooded",
+   "group": "face",
+   "oneWay": false,
+   "signed": false,
+   "keys": [
+    "s_eyes_hooded",
+    "s_eyes_hooded_neg"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "eyes/l-eye-eyefold-down": 1.0,
+     "eyes/r-eye-eyefold-down": 1.0
+    },
+    "minus": {
+     "eyes/l-eye-eyefold-up": 1.0,
+     "eyes/r-eye-eyefold-up": 1.0
+    },
+    "macro": null
+   },
+   "desc": "heavy hooded lids"
+  },
+  {
+   "name": "eyes_slant",
+   "group": "face",
+   "oneWay": false,
+   "signed": true,
+   "keys": [
+    "s_eyes_slant"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "eyes/l-eye-corner2-up": 1.0,
+     "eyes/r-eye-corner2-up": 1.0
+    },
+    "minus": {
+     "eyes/l-eye-corner2-down": 1.0,
+     "eyes/r-eye-corner2-down": 1.0
+    },
+    "macro": null
+   },
+   "desc": "the outer corners up or down"
+  },
+  {
+   "name": "eye_bags",
+   "group": "face",
+   "oneWay": false,
+   "signed": false,
+   "keys": [
+    "s_eye_bags",
+    "s_eye_bags_neg"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "eyes/l-eye-bag-incr": 1.0,
+     "eyes/r-eye-bag-incr": 1.0
+    },
+    "minus": {
+     "eyes/l-eye-bag-decr": 1.0,
+     "eyes/r-eye-bag-decr": 1.0
+    },
+    "macro": null
+   },
+   "desc": "bags under the eyes"
+  },
+  {
+   "name": "eye_fold",
+   "group": "face",
+   "oneWay": false,
+   "signed": false,
+   "keys": [
+    "s_eye_fold",
+    "s_eye_fold_neg"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "eyes/l-eye-epicanthus-in": 1.0,
+     "eyes/r-eye-epicanthus-in": 1.0
+    },
+    "minus": {
+     "eyes/l-eye-epicanthus-out": 1.0,
+     "eyes/r-eye-epicanthus-out": 1.0
+    },
+    "macro": null
+   },
+   "desc": "the inner lid fold of East Asian eyes"
+  },
+  {
+   "name": "nose_long",
+   "group": "face",
+   "oneWay": false,
+   "signed": false,
+   "keys": [
+    "s_nose_long",
+    "s_nose_long_neg"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "nose/nose-scale-vert-incr": 1
+    },
+    "minus": {
+     "nose/nose-scale-vert-decr": 1
+    },
+    "macro": null
+   },
+   "desc": "a long or short nose"
+  },
+  {
+   "name": "nose_wide",
+   "group": "face",
+   "oneWay": false,
+   "signed": false,
+   "keys": [
+    "s_nose_wide",
+    "s_nose_wide_neg"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "nose/nose-scale-horiz-incr": 1
+    },
+    "minus": {
+     "nose/nose-scale-horiz-decr": 1
+    },
+    "macro": null
+   },
+   "desc": "a broad or narrow nose"
+  },
+  {
+   "name": "nose_out",
+   "group": "face",
+   "oneWay": false,
+   "signed": false,
+   "keys": [
+    "s_nose_out",
+    "s_nose_out_neg"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "nose/nose-scale-depth-incr": 1
+    },
+    "minus": {
+     "nose/nose-scale-depth-decr": 1
+    },
+    "macro": null
+   },
+   "desc": "a nose that stands out, or a flat one"
+  },
+  {
+   "name": "nose_hump",
+   "group": "face",
+   "oneWay": false,
+   "signed": false,
+   "keys": [
+    "s_nose_hump",
+    "s_nose_hump_neg"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "nose/nose-hump-incr": 1
+    },
+    "minus": {
+     "nose/nose-hump-decr": 1
+    },
+    "macro": null
+   },
+   "desc": "a hump on the bridge"
+  },
+  {
+   "name": "nose_hook",
+   "group": "face",
+   "oneWay": false,
+   "signed": true,
+   "keys": [
+    "s_nose_hook"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "nose/nose-curve-convex": 1
+    },
+    "minus": {
+     "nose/nose-curve-concave": 1
+    },
+    "macro": null
+   },
+   "desc": "a hooked (convex) or a turned-up (concave) nose"
+  },
+  {
+   "name": "nose_tip_down",
+   "group": "face",
+   "oneWay": false,
+   "signed": false,
+   "keys": [
+    "s_nose_tip_down",
+    "s_nose_tip_down_neg"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "nose/nose-point-down": 1
+    },
+    "minus": {
+     "nose/nose-point-up": 1
+    },
+    "macro": null
+   },
+   "desc": "a drooping or an upturned tip"
+  },
+  {
+   "name": "nose_bulb",
+   "group": "face",
+   "oneWay": false,
+   "signed": false,
+   "keys": [
+    "s_nose_bulb",
+    "s_nose_bulb_neg"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "nose/nose-point-width-incr": 1
+    },
+    "minus": {
+     "nose/nose-point-width-decr": 1
+    },
+    "macro": null
+   },
+   "desc": "a round bulbous tip or a fine one"
+  },
+  {
+   "name": "nostrils_wide",
+   "group": "face",
+   "oneWay": false,
+   "signed": false,
+   "keys": [
+    "s_nostrils_wide",
+    "s_nostrils_wide_neg"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "nose/nose-nostrils-width-incr": 1
+    },
+    "minus": {
+     "nose/nose-nostrils-width-decr": 1
+    },
+    "macro": null
+   },
+   "desc": "wide or narrow nostrils"
+  },
+  {
+   "name": "mouth_wide",
+   "group": "face",
+   "oneWay": false,
+   "signed": true,
+   "keys": [
+    "s_mouth_wide"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "mouth/mouth-scale-horiz-incr": 1
+    },
+    "minus": {
+     "mouth/mouth-scale-horiz-decr": 1
+    },
+    "macro": null
+   },
+   "desc": "a wide or small mouth"
+  },
+  {
+   "name": "lips_full",
+   "group": "face",
+   "oneWay": false,
+   "signed": false,
+   "keys": [
+    "s_lips_full",
+    "s_lips_full_neg"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "mouth/mouth-upperlip-volume-incr": 1,
+     "mouth/mouth-lowerlip-volume-incr": 1
+    },
+    "minus": {
+     "mouth/mouth-upperlip-volume-decr": 1,
+     "mouth/mouth-lowerlip-volume-decr": 1
+    },
+    "macro": null
+   },
+   "desc": "full or thin lips"
+  },
+  {
+   "name": "mouth_out",
+   "group": "face",
+   "oneWay": false,
+   "signed": false,
+   "keys": [
+    "s_mouth_out",
+    "s_mouth_out_neg"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "mouth/mouth-trans-forward": 1
+    },
+    "minus": {
+     "mouth/mouth-trans-backward": 1
+    },
+    "macro": null
+   },
+   "desc": "a mouth that juts or sits back"
+  },
+  {
+   "name": "mouth_corners",
+   "group": "face",
+   "oneWay": false,
+   "signed": true,
+   "keys": [
+    "s_mouth_corners"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "mouth/mouth-angles-up": 1
+    },
+    "minus": {
+     "mouth/mouth-angles-down": 1
+    },
+    "macro": null
+   },
+   "desc": "the corners of the mouth up or down"
+  },
+  {
+   "name": "cheekbones",
+   "group": "face",
+   "oneWay": false,
+   "signed": false,
+   "keys": [
+    "s_cheekbones",
+    "s_cheekbones_neg"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "cheek/l-cheek-bones-incr": 1.0,
+     "cheek/r-cheek-bones-incr": 1.0
+    },
+    "minus": {
+     "cheek/l-cheek-bones-decr": 1.0,
+     "cheek/r-cheek-bones-decr": 1.0
+    },
+    "macro": null
+   },
+   "desc": "high cheekbones or flat ones"
+  },
+  {
+   "name": "cheeks_full",
+   "group": "face",
+   "oneWay": false,
+   "signed": false,
+   "keys": [
+    "s_cheeks_full",
+    "s_cheeks_full_neg"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "cheek/l-cheek-volume-incr": 1.0,
+     "cheek/r-cheek-volume-incr": 1.0
+    },
+    "minus": {
+     "cheek/l-cheek-volume-decr": 1.0,
+     "cheek/r-cheek-volume-decr": 1.0
+    },
+    "macro": null
+   },
+   "desc": "full or hollow cheeks"
+  },
+  {
+   "name": "chin_out",
+   "group": "face",
+   "oneWay": false,
+   "signed": false,
+   "keys": [
+    "s_chin_out",
+    "s_chin_out_neg"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "chin/chin-prominent-incr": 1
+    },
+    "minus": {
+     "chin/chin-prominent-decr": 1
+    },
+    "macro": null
+   },
+   "desc": "a strong chin or a receding one"
+  },
+  {
+   "name": "chin_wide",
+   "group": "face",
+   "oneWay": false,
+   "signed": false,
+   "keys": [
+    "s_chin_wide",
+    "s_chin_wide_neg"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "chin/chin-width-incr": 1
+    },
+    "minus": {
+     "chin/chin-width-decr": 1
+    },
+    "macro": null
+   },
+   "desc": "a broad or a pointed chin"
+  },
+  {
+   "name": "chin_tall",
+   "group": "face",
+   "oneWay": false,
+   "signed": false,
+   "keys": [
+    "s_chin_tall",
+    "s_chin_tall_neg"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "chin/chin-height-incr": 1
+    },
+    "minus": {
+     "chin/chin-height-decr": 1
+    },
+    "macro": null
+   },
+   "desc": "a long or a short chin"
+  },
+  {
+   "name": "jaw_wide",
+   "group": "face",
+   "oneWay": false,
+   "signed": false,
+   "keys": [
+    "s_jaw_wide",
+    "s_jaw_wide_neg"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "chin/chin-bones-incr": 1
+    },
+    "minus": {
+     "chin/chin-bones-decr": 1
+    },
+    "macro": null
+   },
+   "desc": "a wide, angular jaw or a light one"
+  },
+  {
+   "name": "jaw_low",
+   "group": "face",
+   "oneWay": false,
+   "signed": true,
+   "keys": [
+    "s_jaw_low"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "chin/chin-jaw-drop-incr": 1
+    },
+    "minus": {
+     "chin/chin-jaw-drop-decr": 1
+    },
+    "macro": null
+   },
+   "desc": "the jaw's angle low or high"
+  },
+  {
+   "name": "ears_big",
+   "group": "face",
+   "oneWay": false,
+   "signed": true,
+   "keys": [
+    "s_ears_big"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "ears/l-ear-scale-incr": 1.0,
+     "ears/r-ear-scale-incr": 1.0
+    },
+    "minus": {
+     "ears/l-ear-scale-decr": 1.0,
+     "ears/r-ear-scale-decr": 1.0
+    },
+    "macro": null
+   },
+   "desc": "big or small ears"
+  },
+  {
+   "name": "ears_out",
+   "group": "face",
+   "oneWay": false,
+   "signed": false,
+   "keys": [
+    "s_ears_out",
+    "s_ears_out_neg"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "ears/l-ear-flap-incr": 1.0,
+     "ears/r-ear-flap-incr": 1.0
+    },
+    "minus": {
+     "ears/l-ear-flap-decr": 1.0,
+     "ears/r-ear-flap-decr": 1.0
+    },
+    "macro": null
+   },
+   "desc": "ears that stand out"
+  },
+  {
+   "name": "neck_thick",
+   "group": "face",
+   "oneWay": false,
+   "signed": true,
+   "keys": [
+    "s_neck_thick"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "neck/neck-scale-horiz-incr": 1,
+     "neck/neck-scale-depth-incr": 1
+    },
+    "minus": {
+     "neck/neck-scale-horiz-decr": 1,
+     "neck/neck-scale-depth-decr": 1
+    },
+    "macro": null
+   },
+   "desc": "a thick or a thin neck"
+  },
+  {
+   "name": "double_chin",
+   "group": "face",
+   "oneWay": true,
+   "signed": false,
+   "keys": [
+    "s_double_chin"
+   ],
+   "range": [
+    0.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    0.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": {
+     "neck/neck-double-incr": 1
+    },
+    "minus": null,
+    "macro": null
+   },
+   "desc": "a double chin"
+  },
+  {
+   "name": "origin_african",
+   "group": "face",
+   "oneWay": true,
+   "signed": false,
+   "keys": [
+    "s_origin_african"
+   ],
+   "range": [
+    0.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    0.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": null,
+    "minus": null,
+    "macro": [
+     "race",
+     "african"
+    ]
+   },
+   "desc": "the African build of face and body (MakeHuman's macro mix)"
+  },
+  {
+   "name": "origin_asian",
+   "group": "face",
+   "oneWay": true,
+   "signed": false,
+   "keys": [
+    "s_origin_asian"
+   ],
+   "range": [
+    0.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    0.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": null,
+    "minus": null,
+    "macro": [
+     "race",
+     "asian"
+    ]
+   },
+   "desc": "the East Asian build of face and body (MakeHuman's macro mix)"
+  },
+  {
+   "name": "weight",
+   "group": "body",
+   "oneWay": false,
+   "signed": false,
+   "keys": [
+    "s_weight",
+    "s_weight_neg"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": null,
+    "minus": null,
+    "macro": [
+     "weight",
+     0.3
+    ]
+   },
+   "desc": "heavier or lighter all over (MakeHuman's weight, +-0.3)"
+  },
+  {
+   "name": "muscle",
+   "group": "body",
+   "oneWay": false,
+   "signed": false,
+   "keys": [
+    "s_muscle",
+    "s_muscle_neg"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": null,
+    "minus": null,
+    "macro": [
+     "muscle",
+     0.3
+    ]
+   },
+   "desc": "more or less muscle (MakeHuman's muscle, +-0.3)"
+  },
+  {
+   "name": "belly",
+   "group": "body",
+   "oneWay": false,
+   "signed": false,
+   "keys": [
+    "s_belly",
+    "s_belly_neg"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -0.6,
+    0.8
+   ],
+   "makehuman": {
+    "plus": {
+     "stomach/stomach-pregnant-incr": 1
+    },
+    "minus": {
+     "stomach/stomach-pregnant-decr": 1
+    },
+    "macro": null
+   },
+   "desc": "a belly, or a flat stomach"
+  },
+  {
+   "name": "shoulders",
+   "group": "body",
+   "oneWay": false,
+   "signed": true,
+   "keys": [
+    "s_shoulders"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -0.6,
+    0.6
+   ],
+   "makehuman": {
+    "plus": {
+     "torso/torso-scale-horiz-incr": 1
+    },
+    "minus": {
+     "torso/torso-scale-horiz-decr": 1
+    },
+    "macro": null
+   },
+   "desc": "broad or narrow shoulders and chest"
+  },
+  {
+   "name": "hips_wide",
+   "group": "body",
+   "oneWay": false,
+   "signed": true,
+   "keys": [
+    "s_hips_wide"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -0.6,
+    0.6
+   ],
+   "makehuman": {
+    "plus": {
+     "hip/hip-scale-horiz-incr": 1
+    },
+    "minus": {
+     "hip/hip-scale-horiz-decr": 1
+    },
+    "macro": null
+   },
+   "desc": "wide or narrow hips"
+  },
+  {
+   "name": "buttocks",
+   "group": "body",
+   "oneWay": false,
+   "signed": false,
+   "keys": [
+    "s_buttocks",
+    "s_buttocks_neg"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -0.6,
+    0.6
+   ],
+   "makehuman": {
+    "plus": {
+     "buttocks/buttocks-volume-incr": 1
+    },
+    "minus": {
+     "buttocks/buttocks-volume-decr": 1
+    },
+    "macro": null
+   },
+   "desc": "full or flat buttocks"
+  },
+  {
+   "name": "bust",
+   "group": "body",
+   "oneWay": false,
+   "signed": false,
+   "keys": [
+    "s_bust",
+    "s_bust_neg"
+   ],
+   "range": [
+    -1.0,
+    1.0
+   ],
+   "default": 0.0,
+   "player": true,
+   "playerRange": [
+    -1.0,
+    1.0
+   ],
+   "makehuman": {
+    "plus": null,
+    "minus": null,
+    "macro": [
+     "cupsize",
+     0.3
+    ]
+   },
+   "desc": "a fuller or a smaller bust (women; MakeHuman's cup size, +-0.3)"
+  }
+ ]
+}

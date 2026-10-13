@@ -317,7 +317,9 @@ def row_width(f, ri):
 
 
 def shoulder_x(P):
-    """The shoulder joint's x: far enough out that the hanging arm clears the chest."""
+    """The shoulder joint's x: far enough out that the hanging arm clears the chest (a MakeHuman body: measured)."""
+    if "mh" in P:
+        return P["mh"]["shoulder_x"]
     f, w = P["f"], P["w"]
     chest = 0.141 * w * f["chest"] * row_width(f, 6)
     arm = 0.040 * w * f["arm"]
@@ -325,6 +327,8 @@ def shoulder_x(P):
 
 
 def hip_x(P):
+    if "mh" in P:
+        return P["mh"]["hip_x"]
     return (0.053 if not P["female"] else 0.057) * P["H"] * (0.98 if P["child"] else 1.0) * (P["f"]["hip"] ** 0.3)
 
 
@@ -863,7 +867,8 @@ def girths(ob, P, vparts):
     vp = np.array([p or "" for p in vparts])
 
     def cut(y, part):
-        ed = edges[(vp[edges[:, 0]] == part) & (vp[edges[:, 1]] == part)]
+        parts = (part,) if isinstance(part, str) else part
+        ed = edges[np.isin(vp[edges[:, 0]], parts) & np.isin(vp[edges[:, 1]], parts)]
         a, b = co[ed[:, 0]], co[ed[:, 1]]
         za, zb = a[:, 2] - y, b[:, 2] - y
         m = (za * zb) < 0
@@ -892,7 +897,7 @@ def girths(ob, P, vparts):
         "neck": cut(Y(P, 0.862), "neck"),
         "chest": cut(Y(P, 0.728), "torso"),
         "waist": cut(Y(P, 0.626), "torso"),
-        "hips": cut(Y(P, 0.556), "torso"),
+        "hips": cut(Y(P, 0.556), ("torso", "legL", "legR")),  # round the seat, as a tape goes
         "thigh": cut(Y(P, 0.45), "legL"),
         "calf": cut(Y(P, 0.196), "legL"),
         "upperarm": cut(Y(P, 0.72) + sj, "armL"),

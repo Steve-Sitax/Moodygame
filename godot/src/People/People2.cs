@@ -20,6 +20,7 @@ public static class People2
     internal static readonly Dictionary<string, (float hips, bool female, string style)> Bodies = new();
     private sealed record Held(string Model, string Socket, float Tilt, Vector3 Offset);
     private static readonly Dictionary<string, Held[]> held = new();
+    private static readonly Dictionary<string, (string body, float handsHard)> kindBase = new();
     internal sealed class Clip
     {
         public Animation Animation = null!;
@@ -49,7 +50,7 @@ public static class People2
         return model != null && Bodies.ContainsKey(Body(kind)) && model.Roots.ContainsKey(Body(kind));
     }
     private static string Body(string kind) => kind.StartsWith("p2:", StringComparison.Ordinal) ? kind[3..] : map.GetValueOrDefault(kind, kind);
-    public static void Forget() { model?.Scene.Free(); model = null; tried = false; Clips.Clear(); Bodies.Clear(); held.Clear(); map.Clear(); HumanLayers.Forget(); People2Material.Forget(); People2Faces.Forget(); }
+    public static void Forget() { model?.Scene.Free(); model = null; tried = false; Clips.Clear(); Bodies.Clear(); held.Clear(); kindBase.Clear(); map.Clear(); HumanLayers.Forget(); People2Material.Forget(); People2Faces.Forget(); }
     public static void Load()
     {
         if (tried) return;
@@ -76,6 +77,8 @@ public static class People2
             foreach (var kind in kinds.EnumerateObject())
             {
                 Bodies[kind.Name] = Bodies[kind.Value.GetProperty("body").GetString()!];
+                float hard = kind.Value.TryGetProperty("shapeKeys", out var sk) && sk.TryGetProperty("hands_hard", out var hh) ? hh.GetSingle() : 0;
+                kindBase[kind.Name] = (kind.Value.GetProperty("body").GetString()!, hard);
                 var items = new List<Held>();
                 if (kind.Value.TryGetProperty("held", out var kit))
                     foreach (var item in kit.EnumerateArray())
@@ -164,6 +167,12 @@ public static class People2
                     attachment.AddChild(copy);
                 }
         var human = new Human(kind, root, new AnimationLibrary(), new Dictionary<string, float>(), info.Item1 / 0.95f, runtime);
+        // who this is for the face recipe: the requested kind, the base body that carries the hair pieces
+        var (baseBody, handsHard) = kindBase.GetValueOrDefault(body, (body, 0f));
+        root.SetMeta("people2_kind", kind.StartsWith("p2:", StringComparison.Ordinal) ? kind[3..] : kind);
+        root.SetMeta("people2_body", baseBody);
+        root.SetMeta("people2_female", female || info.Item2);
+        root.SetMeta("people2_hands_hard", handsHard);
         People2Faces.Next(human);
         return human;
     }

@@ -16,6 +16,7 @@ uniform sampler2DArray detail_normal : hint_normal, filter_linear_mipmap_anisotr
 instance uniform int clothes_layer = 0;
 instance uniform int face_layer = 0;
 instance uniform vec3 skin_tone_shift = vec3(0.0);
+instance uniform vec3 body_tone = vec3(1.0); // the body's skin takes the tone of the person's face picture
 varying vec3 world;
 varying float fog_depth;
 varying float sun_lit;
@@ -80,6 +81,7 @@ void fragment() {
     vec4 cloth = texture(clothes_colour, vec3(UV, float(clothes_layer)));
     vec4 c = face ? texture(face_colour, vec3(UV, float(face_layer))) : cloth;
     float zone = face ? 5.0 : round(cloth.a * 5.0);
+    if (!face && zone > 4.5) c.rgb *= body_tone;
     if (face || zone > 4.5) c.rgb = clamp(c.rgb + skin_tone_shift, vec3(0.0), vec3(1.0));
     float close_detail = 1.0 - smoothstep(1.25, 3.5, length(world - CAMERA_POSITION_WORLD));
     vec2 detail_uv = UV * (face ? 4.0 : 8.0);

@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "size": 1024,
   "clothes": [
     "man_middling",
@@ -19,114 +19,130 @@
     "held"
   ],
   "faces": [
-    "man_middling",
-    "man_slight",
-    "man_stout",
-    "woman_middling",
-    "woman_slight",
-    "woman_stout",
-    "child_middling",
-    "child_slight",
-    "old_man",
-    "old_woman",
-    "docker_a",
-    "fishwife_a",
-    "police",
-    "sooi"
+    "m_young_fair",
+    "m_fair_fair",
+    "m_fair_brown",
+    "m_fair_red",
+    "m_mid_brown",
+    "m_mid_dark",
+    "m_weather_brown",
+    "m_weather_dark_drink",
+    "m_pox_brown",
+    "m_sooty",
+    "m_olive_black",
+    "m_dark_black",
+    "m_asian_black",
+    "om_grey",
+    "om_white_weather",
+    "om_bald_drink",
+    "om_bald_grey",
+    "f_fair_fair",
+    "f_fair_brown",
+    "f_mid_dark",
+    "f_weather_ruddy",
+    "f_red_freckled",
+    "f_olive_black",
+    "f_dark_black",
+    "of_grey",
+    "of_white_weather",
+    "c_boy_fair",
+    "c_boy_brown",
+    "c_sooty",
+    "c_girl_fair"
   ],
   "entries": {
     "man_middling": {
       "clothes": 0,
-      "face": 0
+      "face": 4
     },
     "man_slight": {
       "clothes": 1,
-      "face": 1
+      "face": 4
     },
     "man_stout": {
       "clothes": 2,
-      "face": 2
+      "face": 4
     },
     "woman_middling": {
       "clothes": 3,
-      "face": 3
+      "face": 18
     },
     "woman_slight": {
       "clothes": 4,
-      "face": 4
+      "face": 18
     },
     "woman_stout": {
       "clothes": 5,
-      "face": 5
+      "face": 18
     },
     "child_middling": {
       "clothes": 6,
-      "face": 6
+      "face": 27
     },
     "child_slight": {
       "clothes": 7,
-      "face": 7
+      "face": 27
     },
     "old_man": {
       "clothes": 8,
-      "face": 8
+      "face": 13
     },
     "old_woman": {
       "clothes": 9,
-      "face": 9
+      "face": 24
     },
     "docker_a": {
       "clothes": 10,
-      "face": 10
+      "face": 16
     },
     "fishwife_a": {
       "clothes": 11,
-      "face": 11
+      "face": 19
     },
     "police": {
       "clothes": 12,
-      "face": 12
+      "face": 7
     },
     "sooi": {
       "clothes": 13,
-      "face": 13
+      "face": 6
     },
     "people2_held": {
       "clothes": 14,
       "face": 0
     }
   },
-  "heads": {
-    "man_middling": 0,
-    "man_slight": 1,
-    "man_stout": 2,
-    "woman_middling": 3,
-    "woman_slight": 4,
-    "woman_stout": 5,
-    "child_middling": 6,
-    "child_slight": 7,
-    "old_man": 8,
-    "old_woman": 9,
-    "docker_a": 10,
-    "fishwife_a": 11,
-    "police": 12,
-    "sooi": 13
-  },
   "faceIds": {
-    "0": 0,
-    "1": 1,
-    "2": 2,
-    "3": 3,
-    "4": 4,
-    "5": 5,
-    "6": 6,
-    "7": 7,
-    "8": 8,
-    "9": 9,
-    "10": 10,
-    "11": 11,
-    "12": 12,
-    "13": 13
+    "m_young_fair": 0,
+    "m_fair_fair": 1,
+    "m_fair_brown": 2,
+    "m_fair_red": 3,
+    "m_mid_brown": 4,
+    "m_mid_dark": 5,
+    "m_weather_brown": 6,
+    "m_weather_dark_drink": 7,
+    "m_pox_brown": 8,
+    "m_sooty": 9,
+    "m_olive_black": 10,
+    "m_dark_black": 11,
+    "m_asian_black": 12,
+    "om_grey": 13,
+    "om_white_weather": 14,
+    "om_bald_drink": 15,
+    "om_bald_grey": 16,
+    "f_fair_fair": 17,
+    "f_fair_brown": 18,
+    "f_mid_dark": 19,
+    "f_weather_ruddy": 20,
+    "f_red_freckled": 21,
+    "f_olive_black": 22,
+    "f_dark_black": 23,
+    "of_grey": 24,
+    "of_white_weather": 25,
+    "c_boy_fair": 26,
+    "c_boy_brown": 27,
+    "c_sooty": 28,
+    "c_girl_fair": 29
   },
   "zones": {
     "none": 0,
@@ -145,6 +161,6 @@
     "detail_skin"
   ],
   "zoneChannel": "clothes colour alpha = zone / 5 (linear); face flag = vertex green",
-  "headUV": "full square",
+  "headUV": "MakeHuman's head island over the full square",
   "shaderKindsAdded": 0
 }

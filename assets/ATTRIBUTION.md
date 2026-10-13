@@ -553,3 +553,17 @@ The download adds no new npm dependencies.
 |---|---|---|
 | `native-godot/assets/people2-pictures/*_colour.png`, `*_normal.png` | Original skin, hand, face and garment painters in `art-source/tools/blender/people2`; independent PNG layers assembled by `pictures.py`. No external images. | Project original artwork |
 | `native-godot/assets/people2-pictures/detail_*.png` | Original periodic NumPy painter in `pictures.py`: wool fibres, linen slubs, canvas weave, leather grain and skin pores, 512 px colour/normal pairs. No external images or prompts. | Project original artwork |
+
+## MakeHuman CC0 core assets for people2 (2026-10-13)
+
+The people2 bodies, faces, sliders and skin pictures start from MakeHuman's CC0 core assets (the project owner's
+decision, 2026-10-13). Only the files the build reads are kept, in `art-source/third_party/makehuman/` with the CC0
+text (`LICENSE.ASSETS.md`), `USED.json` and `SOURCES.json` (each file's origin and SHA-256). The game ships only our
+own `people2.glb` output and pictures; MakeHuman's AGPL application code and MPFB's GPL add-on code are not in the
+repository or the game (MPFB 2.0.18 is a build-time authoring tool, installed outside the repo: `docs/makehuman.md`).
+
+| What | Source | Licence | Downloaded | SHA-256 of the download |
+|---|---|---|---|---|
+| Base mesh hm08 (`base/3dobjs/base.obj`), targets (`base/targets/**`), default rig and weights (`base/rigs/*`) | MPFB 2.0.18 bundled data, https://extensions.blender.org/add-ons/mpfb/ (same `base.obj` as https://github.com/makehumancommunity/makehuman `makehuman/data/3dobjs/base.obj`) | CC0 1.0 (MakeHuman `LICENSE.md` part C) | 2026-10-13 | `c075b3e9b94b8e5556a5f03f4653602d02ea306de08126e8f55ed6dee28a2dad` (add-on-mpfb-v2.0.18.zip) |
+| Skins (nine diffuse pictures), eye pictures, low-poly eyes, eyebrow and eyelash cards (`system/**`) | MakeHuman system asset pack, http://files.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip | CC0 1.0 | 2026-10-13 | `b542127a8e25547c7c29c19f2d1d2adb9a664c80396ecd694095dbc8028a0107` |
+| CC0 legal text (`LICENSE.ASSETS.md`) | MakeHuman repository master, https://github.com/makehumancommunity/makehuman | CC0 1.0 | 2026-10-13 | `f0019bf6f717c1c30fb9d123ed760c9d39c3453beead3e8685566fca09d00171` (master tarball) |
