@@ -22,6 +22,9 @@ public sealed class StuckWatch
     private readonly HashSet<string> overlaps = new();
     private readonly HashSet<string> solids = new();
     private readonly Dictionary<string, object> solidEvidence = new();
+    /// <summary>Portal crane legs the walk map called free ground while the crane stood on them (issue 118).</summary>
+    private readonly HashSet<string> craneLegsOpen = new();
+    private int craneLegsChecked;
     private readonly List<object> solidReplay = new();
     private readonly PhysicsShapeQueryParameters3D bodyProbe = new()
     {
@@ -54,6 +57,12 @@ public sealed class StuckWatch
     }
     public void SampleTown(Townspeople town, double seconds, string place)
     {
+        if (Scheldemist.Movers.Railway.I is { } railway)
+            foreach (var (name, lx, lz) in railway.LegSpots())
+            {
+                craneLegsChecked++;
+                if (craneLegsOpen.Count < 40 && town.Walk!.Free(lx, lz)) craneLegsOpen.Add($"{name} at {lx:0.0},{lz:0.0} ({place}, t={Math.Floor(seconds / 10) * 10})");
+            }
         foreach (var s in town.Sims)
         {
             string id = s.R.Id, goal = $"{s.Goal.Mode}:{s.Goal.X:0.0},{s.Goal.Z:0.0}";
@@ -115,7 +124,7 @@ public sealed class StuckWatch
             }
     }
     public void ResetWindow() => tracks.Clear();
-    public object Report(Townspeople town, double seconds) => new { ok = bad.Count == 0 && overlaps.Count == 0 && solids.Count == 0, watched = town.Sims.Count, walking = walking.Count, seconds, gameHours = seconds / 120, stuck = bad.Values, overlaps = overlaps.Order().ToArray(), insideSolids = solids.Order().ToArray(), solidEvidence = solidEvidence.Values, solidReplay,
+    public object Report(Townspeople town, double seconds) => new { ok = bad.Count == 0 && overlaps.Count == 0 && solids.Count == 0 && craneLegsOpen.Count == 0, watched = town.Sims.Count, walking = walking.Count, seconds, gameHours = seconds / 120, stuck = bad.Values, overlaps = overlaps.Order().ToArray(), insideSolids = solids.Order().ToArray(), craneLegsChecked, craneLegsOpen = craneLegsOpen.Order().ToArray(), solidEvidence = solidEvidence.Values, solidReplay, wedges = town.Crowd!.WedgeLog.ToArray(), wedgeMaps = town.Crowd.WedgeMaps.ToArray(),
         notCovered = new[] { "one three-hour Monday route through five places; other days and overnight plans", "hidden resident oscillation, overlaps and solids (scheduled rounds can repeat; only drawn bodies have physical presence)", "job figures, animals and vehicles outside the town crowd", "waiting for a server route is excluded until the simulation starts its walk" } };
 }
 

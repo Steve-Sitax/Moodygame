@@ -65,7 +65,8 @@ public partial class Omnibus
     private void WaitersReady(Node3D group)
     {
         foreach(var n in group.GetChildren().OfType<Node3D>())
-            if(n.GetChildren().Count==1 && n.GetChild(0) is Node3D child && Humans.IsKind(child.Name)) n.Visible=false;
+            // (a baked waiter's name carries the import's count, old_woman2, wife_b2, docker_b6: three stood frozen at their stops until the count was dropped here)
+            if(n.GetChildren().Count==1 && n.GetChild(0) is Node3D child && Humans.IsKind(child.Name.ToString().TrimEnd('0','1','2','3','4','5','6','7','8','9'))) n.Visible=false;
         waiterGroup=new Node3D {Name="live_waiters"}; group.AddChild(waiterGroup);
         if(MoversTest.On)
         {
