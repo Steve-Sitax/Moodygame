@@ -633,8 +633,8 @@ public partial class MoveTest
                     return down ? sAt < 4.6f && t < 16 : sAt > 0.6f && t < 16;
                 }, 15);
                 j.ClearKeys();
-                // (the view's largest step on the dry treads: below the dock water of the Petit Bassin the walk turns to wading)
-                var onSteps = s.Where(x => SOf(x.Feet) is > 0.4f and < 4.3f && UOf(x.Feet) > 0.5f && x.Feet.Y > -0.5f).ToList();
+                // (the view's largest step on the treads, the wet ones of the Petit Bassin too, where the walk turns to a swim: issue 88)
+                var onSteps = s.Where(x => SOf(x.Feet) is > 0.4f and < 4.3f && UOf(x.Feet) > 0.5f).ToList();
                 var snap = Snap(onSteps);
                 float uEnd = UOf(new Vector3(j.X, 0, j.Z));
                 string way = down ? "down" : "up";
@@ -642,7 +642,7 @@ public partial class MoveTest
                 // (down the treads, the feet go down to the foot landing; up, they come up to the head one: not along a flat ledge above them)
                 Check(down ? sMax > 4.0f && yLow < -1.5f : sMin < 0.7f && s[0].Feet.Y < -1.5f && s[^1].Feet.Y > -0.2f, $"flight {i} {way}: he walks the whole flight, on the treads", new { sMin = R(sMin), sMax = R(sMax), yLow = R(yLow), yStart = R(s[0].Feet.Y), yEnd = R(s[^1].Feet.Y) });
                 Check(inside == 0, $"flight {i} {way}: never inside the quay's mesh", new { inside, names = insideNames.ToArray() });
-                Check(snap.stepCm < 8, $"flight {i} {way}: smooth on the treads", R(snap.stepCm));
+                Check(snap.stepCm < 7, $"flight {i} {way}: smooth on the treads", R(snap.stepCm));
                 await Shot($"steps-{i}-{way}");
             }
         }
@@ -657,7 +657,10 @@ public partial class MoveTest
         await Tidy(9.6);
         // a flight with open water along its parapet (rowing boats lie at some)
         var fr = QuayExits.Flights[1];
-        foreach (var f in new[] { 3, 4, 5, 1, 6, 7, 2, 0 }.Select(i => QuayExits.Flights[i]))
+        // (`--floodflights 0,3,4` picks the flights and their order: issue 89 tried the Werf's first)
+        string orderArg = Main.I.Arg("floodflights");
+        int[] order = orderArg == "" ? new[] { 3, 4, 5, 1, 2 } : orderArg.Split(',').Select(int.Parse).ToArray();
+        foreach (var f in (orderArg == "" ? new[] { 3, 4, 5, 1, 6, 7, 2, 0 } : order).Select(i => QuayExits.Flights[i]))
         {
             var (fx, fz) = f.On(3, 1.9f);
             Solid.I.Ensure(new Vector3(fx, 0, fz), 12);
@@ -679,7 +682,7 @@ public partial class MoveTest
             if (float.IsNaN(sFloat) && Nose(s) + 0.9f < level - Jef.SwimDeep - 0.15f) sFloat = s + 0.3f;
         }
         var rows = new List<object>();
-        var flights = new[] { 3, 4, 5, 1, 2 }.Select(i => QuayExits.Flights[i]).Where(f =>
+        var flights = order.Select(i => QuayExits.Flights[i]).Where(f =>
         {
             var (ax, az) = f.On(1.5f, 2.4f);
             var (bx, bz) = f.On(4.2f, 2.4f);
