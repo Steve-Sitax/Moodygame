@@ -30,6 +30,11 @@ the path of the report are in the output. Read the report: a walker listed under
 The same shape runs every other check below; give each its own option and folder. Every place must be below 5 ms
 mean active main-frame time, and `paths` and `shaders` must have no findings.
 
+`--streetgametest <dir>` reproduces issue 119 near Rijnkaai (-2, 69) with the three reported resident ids. It holds
+each child's next hop behind another body for four simulated seconds, checks that the child waits without walking
+on the spot or advancing the hop timer, then removes the body and checks that hopping resumes. It writes
+`streetgametest.json` and front/side pictures. Resident names can differ in a freshly generated native town.
+
 The kit is `godot/src/Dev/Kit.cs`, reached through `--dev-command` or F9 with `--dev`. Use it only with a fresh
 test save (`--db <absolute test.sqlite> --port 8980 --no-ai --no-mainmenu`) or your own isolated test server.
 For example, `--dev-command 'hour 13 clear; go vismarkt; summon fishwife'`. Console commands are `hour H WEATHER`,
