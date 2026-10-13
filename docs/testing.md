@@ -2,22 +2,33 @@
 
 ## Testing the Godot port
 
-From the Godot worktree, run:
+The old `tools/godot/checks.mjs` runner and the baked `godot/baked/` files are retired. Every check is a direct
+option on the game itself, run from the real Godot 4.7.2 Mono console executable (the README says where it is), against
+the project `native-godot` (`res://town.tscn`). One run opens one real game window.
+
+The stuck check (`--stuck <dir>`) plays a three-hour Monday route, seed 1873, with no AI, and writes
+`<dir>/stuck.json`. `ok` must be true: no body walking on the spot or to and fro, no two drawn bodies overlapping, none
+inside a collider. It also lists `wedges`: every time a body's first step was refused for a second (with what refused it
+and a map of the free squares around it) and every time the safety net (`Crowd.Unwedge`) had to move one on. Wedges
+may show a body waiting for someone passing, but the safety net should not be needed on a plain street, and never for
+the carter near the Handschoenmarkt (issue 105). From the worktree:
 
 ```powershell
-npm --prefix server install
-node tools/godot/checks.mjs --town D:/Code/MoodyGame-godot/godot/baked/town.glb --models D:/Code/MoodyGame-godot/godot/baked/models
+$run = 'C:\Temp\stuck1'                      # any empty folder outside the repo
+New-Item -ItemType Directory -Force "$run\data", "$run\layouts" | Out-Null
+$env:SCHELDEMIST_USER_DATA = "$run\data"; $env:SCHELDEMIST_TOWN_SEED = '1873'
+dotnet build native-godot/Scheldemist.Native.csproj
+& $godotConsoleExe --rendering-method forward_plus --audio-driver Dummy --path native-godot res://town.tscn -- `
+  --native-services --no-ai --db "$run\game.sqlite" --prefs "$run\settings.json" --author-root "$run\layouts" `
+  --port 8981 --stuck "$run\out"
 ```
 
-This builds and imports the project, then runs `devtest`, `paths`, `stuck`, `shaders`, `perfcheck`, `clocks` and
-`interiors` in turn, with one real game window at a time and a four-minute timeout per run. Each uses a newly
-made test town with seed 1873, its own free port from 8980, full needs, midday and clear weather, and no AI. The
-runner never reads or copies the player's save, never bakes, stops only its own processes, and deletes each test
-save afterward. Reports and pictures go to `godot/baked/checks/`; look at each picture. A nonzero exit status
-means at least one FAIL or ERROR. Use `--only paths,shaders`, `--out <dir>`, `--seed N`, `--port N` or
-`--timeout 240` to narrow a run. Every place must be below 5 ms mean active main-frame time, and `paths` and
-`shaders` must have no findings. See [the Godot README](../godot/README.md#godot-milestone-checks-g8) for every
-option, metric and coverage limit.
+Use a free port from 8900 (never 8080, 8088 or 8090), a new `--db`, `--prefs` and `--author-root` for every run, and
+never Steve's own save or layouts. A run has a four-minute limit; two at the same time are the most the
+machine keeps up with. The exit code is 1 when `ok` is false, and the line `stuck: PASS` or `stuck: FAIL` and
+the path of the report are in the output. Read the report: a walker listed under `stuck` has its last 14 samples.
+The same shape runs every other check below; give each its own option and folder. Every place must be below 5 ms
+mean active main-frame time, and `paths` and `shaders` must have no findings.
 
 The kit is `godot/src/Dev/Kit.cs`, reached through `--dev-command` or F9 with `--dev`. Use it only with a fresh
 test save (`--db <absolute test.sqlite> --port 8980 --no-ai --no-mainmenu`) or your own isolated test server.
@@ -28,6 +39,7 @@ normal server dev routes, crowd and job-taking path. Four of them are exercised 
 
 Direct check options go after Godot's `--`: `--paths <dir>`, `--stuck <dir>`, `--shaders <dir>`,
 `--perfcheck <dir>`, `--clocks --check-out <dir>`, `--interiors --check-out <dir>`. Each writes its named JSON and
+<<<<<<< HEAD
 quits. These modes bypass the menus. Pass the shared town and decoded model paths above, plus a test server or
 fresh `--db` and a port from 8900. Use the real Godot 4.7.2 Mono console executable described in the README.
 `--interiors` takes `--interior-rooms id,id` (for example `home:cellar,shop:cobbler_east`) and `--interior-ray-details`;
@@ -46,6 +58,10 @@ name instead. Its third form, `--homedoortest <dir> --walk-room poesje:-2.2 --wa
 walks Jef on foot through a room's street door, held open, down to the floor at that height and back out, with pictures; the Poesje
 opens at half past six and sends Jef back out of its door before that, so it is walked at 19. `--keep-soot` leaves the bake's
 leftover soot sheet over the Poesje's front (`NativeTown.cs` hides it), for the before.
+=======
+quits. These modes bypass the menus. Give each a fresh `--db`, `--prefs`, `--author-root` and `SCHELDEMIST_USER_DATA`
+folder, and a free port from 8900.
+>>>>>>> worktree-agent-a222071b3de7ecf52
 
 Limitations are evidence, not passes: `notCovered` is in every report. The path check tests the baked crowd map,
 not Jef's physics or changed moving geometry. Stuck covers a three-hour Monday route and drawn-body collisions,
