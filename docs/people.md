@@ -231,7 +231,7 @@ Measured in the native game at the Vismarkt (crowd proof) and in the build:
 | Bake at spawn, `People2Faces.Bake` (near and far mesh, hair merged) | 3.5 to 3.8 ms mean (crowd proof 97 bakes, routing proof 50); the first bake of a run about 65 ms (the code's first run) |
 | Live Godot blend shapes for comparison: 50 static copies of man_middling's near mesh in view, 0 / 8 / 24 / 51 sliders live and moving (90 frames each) | GPU 1.12 / 1.14 / 1.14 / 1.15 ms; render thread 1.74 / 1.77 / 1.73 / 1.78 ms |
 | People pictures in video memory (30 faces, 15 clothes layers, details; BC7/BC5 with mips) | 130 MB |
-| People per frame (timing proof, the 1.5 ms gate) | TIMING |
+| People per frame (timing proof, the 1.5 ms gate; two runs, neither exclusive: other helpers' engines ran during 147 of 173 and 136 of 178 samples) | people and animals 1.27 / 1.15 ms mean at the Vismarkt (51 / 50 drawn), 0.87 / 1.02 ms at the Grote Markt (52 / 55 drawn): the gate passed in both |
 
 So N = all 51: Godot's blend shapes would be cheap on this PC's GPU, but they cost their dense storage in every
 near mesh (about 5 MB each for 51 keys) and a value per slider per person; the bake makes a person cost what a body
