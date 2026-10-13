@@ -16,6 +16,7 @@ from . import body as bd
 from . import clothes_kit as ck
 from .clothes_kit import Cloth, hexrgb, sm
 from .dress import Kind
+from . import cloth_detail as cd
 from .kinds_workers import CAP, PEAK
 
 PS = bd.params("man", "stout")
@@ -118,10 +119,7 @@ def sooi_dress(fit):
     ck.upper(fit, sh, rows=(5, 9), neck=0, sleeve=None, ease=lambda i: 0.006, keep=front)
     ck.thicken(sh, 0.0015, depth=0.01)
     pieces.append(sh)
-    cl = ck.Piece("shirt_collar", SHIRT, scale=1.3)
-    ck.collar(fit, cl, -0.1, 0.55, 0.012, 0.009, rows=2, front_gap=0.035, fold=(0.012, 0.016))
-    ck.thicken(cl, 0.0015, depth=None, crease=0.05)
-    pieces.append(cl)
+    # a collarless working shirt: the kerchief covers the throat (a collar band under it only showed as shards)
 
     # the waistcoat: buttoned to a V at the breast, sleeveless
     def v_neck(i):
@@ -181,7 +179,11 @@ def sooi_dress(fit):
             wfn=lambda p: ck.hang_weights(fit, p, front_legs=1.0, back_legs=0.4, spring=0.3, springs=("coat",)))
     r6 = fit.row(6)
     co.meta.update(hem=hem, edge_x=float(np.mean([abs(co.V[vm[r6[k]]][0]) for k in (1, 15)])))
-    ck.thicken(co, 0.0035, depth=lambda p: 0.08 if p[2] > 0.05 else (0.12 if p[1] < fit.hip_y else 0.03))
+    ck.thicken(co, 0.0035, depth=lambda p: 0.08 if p[2] > 0.05 else (0.08 if p[1] < fit.hip_y else 0.03))
+    cuff = Y(0.537)
+    co.relief = cd.compose(cd.hang_folds(Y(0.56), hem, n=5, depth=0.009, seed=17, zone=("skirt", "torso"),
+                                         exclude=lambda p: p[:, 1] > Y(0.62)),
+                           cd.bunch(cuff + 0.03, cuff + 0.11, period=0.028, depth=0.004, zone="arm"))
     pieces.append(co)
     # its turned-down collar round the back of the neck
     cc = ck.Piece("coat_collar", COAT_COLLAR, scale=1.2)
@@ -221,6 +223,8 @@ def sooi_dress(fit):
     ck.trousers(fit, tr, top_row=3, hem="t2", ease=tr_ease)
     ck.smooth_weights(tr, iters=4, mask=lambda p: abs(p[1] - fit.knee_y) < 0.16)
     ck.thicken(tr, 0.0024, depth=0.05)
+    from .kinds_workers import trouser_relief
+    tr.relief = trouser_relief(fit)
     pieces.append(tr)
     bt = ck.Piece("boots", BOOT, scale=1.2)
     so = ck.Piece("soles", SOLE, scale=0.8)
@@ -254,10 +258,7 @@ def sooi_skin(ctx):
     hand = ck.starts(ctx.part, ("finger", "arm")) & (ctx.y < bd.Y(ctx.P, 0.52))
     ctx.mix(hand * 0.15, (0.66, 0.44, 0.34))
     ctx.mul(hand, (0.92, 0.89, 0.86))
-    # under the coat its own brown (his white shirt through a reduced coat read as holes); the shirt's white only in
-    # the band its collar shows
-    ck.undershirt(ctx, (0.35, 0.27, 0.20), 0.0, zone=1, covers=sooi_covers)  # COAT
-    ck.undershirt(ctx, (0.64, 0.61, 0.55), bd.Y(ctx.P, 0.835), bottom=bd.Y(ctx.P, 0.80))  # SHIRT
+    # the skin under the coat, the shirt and its collar is painted by the ray test (clothes_build.under_cloth)
 
 
 SOOI = Kind(
