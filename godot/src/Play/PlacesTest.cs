@@ -247,12 +247,25 @@ public partial class PlacesTest : Node
         bool carried = await Until(() => Goods.I.Carried != null, 8);
         replies.Add(new { dockLift = new { intended = item.Id, actual = Goods.I.Carried?.Id, Goods.I.LastRefusal, DockWork.I.InBook } });
         Check(carried && Goods.I.Carried!.Id.StartsWith("haul:"), "dock piece carried"); item = Goods.I.Carried!;
+        // The hands show the lift at once; the engine hears it a moment later, and refuses it ("You cannot reach it from there.") if he is already
+        // somewhere else by then. A player cannot cross the dock in that time, so wait until the engine has him holding it before moving him.
+        Check(await Until(() => Goods.I.Carried == item, 8) && await EngineHolds(api, item.Id), "dock piece held by the engine");
         string routeId = item.Id[5..item.Id.LastIndexOf("a:", StringComparison.Ordinal)]; var route = Scheldemist.Town.HaulRoute.All.First(r => r.Id == routeId);
         await At((float)route.B.X, (float)route.B.Z, (float)route.B.X, (float)route.B.Z - 1, 1);
         Check(Interact.I.Find().Any(a => a.Text.Contains("paid by the piece")), "dock delivery prompt");
         int money = GameState.I.Money; await Shot("dock-piece"); Interact.I.Press(Key.E);
         Check(await Until(() => Goods.I.Carried == null && GameState.I.Money > money, 12), "dock piece server payment");
         replies.Add(new { dockPayment = new { before = money, after = GameState.I.Money } }); await Shot("dock-paid");
+    }
+    private async Task<bool> EngineHolds(Api api, string id)
+    {
+        for (int i = 0; i < 40; i++)
+        {
+            var list = await api.Goods<GoodsList>();
+            if (list.Items.Any(g => g.Id == id && g.ByPlayer == list.You)) return true;
+            await Frames(10);
+        }
+        return false;
     }
     private async Task Counters(Api api)
     {
