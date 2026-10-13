@@ -12,7 +12,11 @@ function Add-Result([string]$Icon, [bool]$Ok, [string]$Detail) { $results.Add([p
 $shell = New-Object -ComObject WScript.Shell
 $icons = Get-ChildItem -LiteralPath $IconFolder -Filter *.lnk
 if (-not $icons) { throw "No icons in $IconFolder" }
-$strippedPath = Join-Path $env:SystemRoot 'System32'
+# What the desktop can hand an icon: (a) the machine and user PATH as stored, which holds a broken entry (a stray quote after the
+# PowerShell 7 folder) that makes 'where pwsh' succeed while running pwsh fails; (b) a bare PATH with no PowerShell 7 at all.
+$registryPath = [Environment]::ExpandEnvironmentVariables([Environment]::GetEnvironmentVariable('PATH', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('PATH', 'User'))
+$pathCases = [ordered]@{ 'registry PATH' = $registryPath; 'bare PATH' = ((Join-Path $env:SystemRoot 'System32') + ';' + (Join-Path $env:ProgramFiles 'PowerShell\7') + '"') }
+$strippedPath = $pathCases['bare PATH']
 foreach ($icon in $icons) {
     $link = $shell.CreateShortcut($icon.FullName); $target = $link.TargetPath
     if (-not (Test-Path -LiteralPath $target)) { Add-Result $icon.BaseName $false "target missing: $target"; continue }
@@ -26,9 +30,12 @@ foreach ($icon in $icons) {
     $probe = Join-Path ([IO.Path]::GetTempPath()) ('icon-probe-' + [guid]::NewGuid().ToString('N') + '.cmd')
     $body = foreach ($line in $lines) { if ($line -eq $launch) { $line -replace '-File\s+"[^"]+"\s+\S+\.ps1.*$', '-Command "Write-Output icon-probe-ok"' } else { $line } }
     Set-Content -LiteralPath $probe -Value ($body | Where-Object { $_ -notmatch '^if errorlevel' }) -Encoding ascii
-    $saved = $env:PATH; $env:PATH = $strippedPath
-    try { $output = (& cmd /c "`"$probe`" 2>&1") -join ' ' } finally { $env:PATH = $saved; Remove-Item -LiteralPath $probe -Force -ErrorAction SilentlyContinue }
-    Add-Result $icon.BaseName ($output -match 'icon-probe-ok') $(if ($output -match 'icon-probe-ok') { "launcher finds PowerShell with no PATH; runs $script" } else { "launcher output: $output" })
+    foreach ($case in $pathCases.Keys) {
+        $saved = $env:PATH; $env:PATH = $pathCases[$case]
+        try { $output = (& cmd /c "`"$probe`" 2>&1") -join ' ' } finally { $env:PATH = $saved }
+        Add-Result "$($icon.BaseName) ($case)" ($output -match 'icon-probe-ok') $(if ($output -match 'icon-probe-ok') { "launcher runs PowerShell, then $script" } else { "launcher output: $output" })
+    }
+    Remove-Item -LiteralPath $probe -Force -ErrorAction SilentlyContinue
 }
 if ($Full) {
     $play = $icons | Where-Object { $_.BaseName -like 'Play*' } | Select-Object -First 1
