@@ -48,6 +48,9 @@ public partial class NativeTown : BakedWorld
         ("fire hose", n => IndexOf(n) == 13830 && n.Name == "Mesh2948"),
         // the carts of the crowd that stood in the street when the bake was taken (their carters are hidden by Townspeople): the fish market's three and the one at the fire
         ("crowd cart", n => SourceOf(n) == "pushcart" && (IndexOf(n) is 8454 or 8464 or 8474 or 13561)),
+        // Issue 122: unowned quay dressing has no cargo interactions, driver or horse gait. Live transport owns the usable carts and drays.
+        ("quay handcart", n => IndexOf(n) == 4854 && SourceOf(n) == "handcart_loaded"),
+        ("quay horse dray", n => IndexOf(n) == 4867 && SourceOf(n) == "dray_horse"),
         // the prison yard's ring of walkers, eight of ten frozen mid-stride (PrisonPeople walks its own at the exercise hour)
         ("prison ring figure", n => IndexOf(n) is 12420 or 12438 or 12456 or 12474 or 12492 or 12510 or 12528 or 12546),
     };
@@ -129,6 +132,9 @@ public partial class NativeTown : BakedWorld
         // Authored objects arrive with editor materials, which the game's fog and light never reach (issue 79).
         var authoredMaterials = new NativeTownMaterials(); authoredMaterials.Apply(town);
         Report["authoredMaterialsSwapped"] = authoredMaterials.Swapped; Report["authoredMaterialsLeft"] = authoredMaterials.Left;
+        // The baked wall lamps are marked hidden at source; nothing else draws them, so the wall lights floated without lamps.
+        if (town.GetNodeOrNull<Node3D>("wall_lamps") is { } wallLamps)
+            foreach (var wallLamp in wallLamps.GetChildren().OfType<Node3D>()) wallLamp.Visible = true;
         var registered = new HashSet<ulong>();
         foreach (var node in All(town))
         {
