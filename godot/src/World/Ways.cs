@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Godot;
@@ -76,7 +77,7 @@ public static class Ways
 
     /// <summary>Use the current native scene's navigation for every long-range route. No legacy walk image is read.
     /// Install once after static physics/edited placements, before townspeople and route requests attach.</summary>
-    public static void InstallNative(Scheldemist.Town.WalkMap map, Func<float, float, bool>? water = null)
+    public static void InstallNative(Scheldemist.Town.WalkMap map, Func<float, float, bool>? water = null, IReadOnlyList<Vector2[]>? houseFootprints = null)
     {
         lock (gate)
         {
@@ -115,9 +116,90 @@ public static class Ways
                 if (r > 0) Visit(index - g.W, 1); if (r + 1 < g.H) Visit(index + g.W, 6);
                 if (c > 0) Visit(index - 1, 3); if (c + 1 < g.W) Visit(index + 1, 4);
             }
+            // Some houses' floors are open in the native map (a room fills its shell, or a wall has a gap). This map is the
+            // outdoor one: every spot, side, queue place, drop place and route the town picks through it must stay in the street.
+            // Rooms are entered and walked by their own routes (Jef's ground test, the interior checks), never through here.
+            if (houseFootprints != null) CloseHouseFloors(g, houseFootprints);
             g.Cost = new float[count]; g.From = new int[count]; g.Stamp = new uint[count]; g.Closed = new uint[count];
             grid = g; failed = "";
         }
+    }
+
+    /// <summary>Close the floors inside the houses' outlines, except a floor that is the only way between two outdoor areas
+    /// (a real alley the outline covers, which would cut a court off from the street and take its homes' doors away).</summary>
+    private static void CloseHouseFloors(Grid g, IReadOnlyList<Vector2[]> polygons)
+    {
+        int count = g.W * g.H; var inside = new bool[count];
+        foreach (var p in polygons)
+        {
+            if (p.Length < 3) continue;
+            float x0 = p[0].X, x1 = x0, z0 = p[0].Y, z1 = z0;
+            foreach (var q in p) { x0 = Math.Min(x0, q.X); x1 = Math.Max(x1, q.X); z0 = Math.Min(z0, q.Y); z1 = Math.Max(z1, q.Y); }
+            int r0 = Math.Max(0, (int)Math.Floor((x0 - g.X0) / g.Res)), r1 = Math.Min(g.H - 1, (int)Math.Floor((x1 - g.X0) / g.Res));
+            int c0 = Math.Max(0, (int)Math.Floor((z0 - g.Z0) / g.Res)), c1 = Math.Min(g.W - 1, (int)Math.Floor((z1 - g.Z0) / g.Res));
+            for (int r = r0; r <= r1; r++) for (int c = c0; c <= c1; c++)
+                if (InPolygon(p, g.X0 + (r + 0.5) * g.Res, g.Z0 + (c + 0.5) * g.Res)) inside[r * g.W + c] = true;
+        }
+        // 1. the outdoor areas: reachable cells outside every outline, joined by the same four-way links the flood used
+        var label = new int[count]; int labels = 0; var stack = new Stack<int>();
+        void Neighbours(int i, Action<int> visit)
+        {
+            int r = i / g.W, c = i % g.W;
+            if (r > 0 && (g.NativeLinks[i] & (1 << 1)) != 0) visit(i - g.W);
+            if (r + 1 < g.H && (g.NativeLinks[i] & (1 << 6)) != 0) visit(i + g.W);
+            if (c > 0 && (g.NativeLinks[i] & (1 << 3)) != 0) visit(i - 1);
+            if (c + 1 < g.W && (g.NativeLinks[i] & (1 << 4)) != 0) visit(i + 1);
+        }
+        for (int i = 0; i < count; i++)
+        {
+            if (g.Pass[i] == 0 || inside[i] || label[i] != 0) continue;
+            label[i] = ++labels; stack.Push(i);
+            while (stack.Count > 0) Neighbours(stack.Pop(), n => { if (g.Pass[n] != 0 && !inside[n] && label[n] == 0) { label[n] = labels; stack.Push(n); } });
+        }
+        // 2. the reachable floors inside outlines, in pockets: a pocket that touches two outdoor areas is a way through, so it stays
+        var pocket = new int[count]; int pockets = 0; var keep = new HashSet<int>();
+        for (int i = 0; i < count; i++)
+        {
+            if (g.Pass[i] == 0 || !inside[i] || pocket[i] != 0) continue;
+            pocket[i] = ++pockets; var touched = new HashSet<int>(); stack.Push(i);
+            while (stack.Count > 0)
+            {
+                Neighbours(stack.Pop(), n => { if (g.Pass[n] == 0) return; if (inside[n]) { if (pocket[n] == 0) { pocket[n] = pockets; stack.Push(n); } } else touched.Add(label[n]); });
+            }
+            if (touched.Count >= 2) keep.Add(pockets);
+        }
+        // 3. close everything else inside an outline
+        for (int i = 0; i < count; i++)
+        {
+            if (!inside[i] || (pocket[i] != 0 && keep.Contains(pocket[i]))) continue;
+            g.Cells[i] = 128; g.Pass[i] = 0;
+        }
+    }
+
+    private static bool InPolygon(Vector2[] p, double x, double z)
+    {
+        bool inside = false;
+        for (int i = 0, j = p.Length - 1; i < p.Length; j = i++)
+            if ((p[i].Y > z) != (p[j].Y > z) && x < (p[j].X - p[i].X) * (z - p[i].Y) / (p[j].Y - p[i].Y) + p[i].X) inside = !inside;
+        return inside;
+    }
+
+    /// <summary>The houses' outlines (x, z) from the town's city_build.json, to close for outdoor routing. Houses that are gone, and
+    /// houses with a carriage passage (poort) through them, are left out: a passage is a street.</summary>
+    public static IReadOnlyList<Vector2[]> ReadHouseFootprints(string cityBuildPath)
+    {
+        var result = new List<Vector2[]>();
+        if (!File.Exists(cityBuildPath)) return result;
+        using var doc = JsonDocument.Parse(File.ReadAllText(cityBuildPath));
+        if (!doc.RootElement.TryGetProperty("houses", out var houses)) return result;
+        foreach (var h in houses.EnumerateArray())
+        {
+            if (h.TryGetProperty("gone", out var gone) && gone.ValueKind == JsonValueKind.True) continue;
+            if (h.TryGetProperty("poort", out var poort) && poort.ValueKind != JsonValueKind.Null) continue;
+            if (!h.TryGetProperty("fp", out var fp) || fp.ValueKind != JsonValueKind.Array || fp.GetArrayLength() < 3) continue;
+            result.Add(fp.EnumerateArray().Select(q => new Vector2((float)q[0].GetDouble(), (float)q[1].GetDouble())).ToArray());
+        }
+        return result;
     }
 
     private static int NearestNative(Grid g, double x, double z, double maximum)
