@@ -45,7 +45,12 @@ boxes in that window of the plan, to see what the search ran into; add `--route-
 name instead. Its third form, `--homedoortest <dir> --walk-room poesje:-2.2 --walk-hour 19 --db <dir>/test.sqlite` (and `--hour 19`),
 walks Jef on foot through a room's street door, held open, down to the floor at that height and back out, with pictures; the Poesje
 opens at half past six and sends Jef back out of its door before that, so it is walked at 19. `--keep-soot` leaves the bake's
-leftover soot sheet over the Poesje's front (`NativeTown.cs` hides it), for the before.
+leftover soot sheet over the Poesje's front (`NativeTown.cs` hides it), for the before. `--keep-leftovers` leaves all of the bake's
+frozen event and crowd pictures that `NativeTown.cs` hides (soot sheet, fire hose, four crowd carts, eight prison-ring figures).
+`--leftover-scan <dir> --no-ai --db <dir>/test.sqlite` (`Play/LeftoverScan.cs`) lists every mesh the loaded town draws, with its group,
+bake name, place, size and whether it shows, at 13:00 clear, in `leftover-scan.json`: look in it for a new frozen leftover after a re-bake or a
+new import. Add `--leftover-shot x,y,z,tx,ty,tz;...` for pictures from the free camera, `--leftover-solo <node name>` to show only the top-level group holding that
+mesh, `--leftover-detail Mesh1,Mesh2` to print their vertices, material and place.
 
 Limitations are evidence, not passes: `notCovered` is in every report. The path check tests the baked crowd map,
 not Jef's physics or changed moving geometry. Stuck covers a three-hour Monday route and drawn-body collisions,
