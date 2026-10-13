@@ -374,6 +374,32 @@ public sealed class Animal
                 stack.Push(a);
             }
         }
+        // each rig walks, trots, stops and sits once out of sight now, so the first start in the street does not pay
+        // for its first calls into the engine (about a millisecond for a dog's first walk)
+        var warmed = new HashSet<Rig>();
+        foreach (var (kind, stack) in pool)
+            if (stack.Count > 0 && rigOfKind.TryGetValue(kind, out var rig) && warmed.Add(rig)) stack.Peek().Warm();
+    }
+
+    /// <summary>Stand, set off, speed up, stop and sit, hidden at the view's origin; then back to as made.</summary>
+    private void Warm()
+    {
+        const float dt = 1 / 60f;
+        Reset("warm");
+        Play("idle");
+        float v = 0, z = 0;
+        for (int f = 0; f < 150; f++)
+        {
+            if (f == 5) Play("walk");
+            if (f == 110) Play("idle");
+            v = f < 5 ? 0 : f < 60 ? 0.8f * R.H : f < 110 ? 3 * R.H : Math.Max(0, v - 4 * R.H * dt);
+            z += v * dt;
+            Group.Position = new Vector3(0, 0, z);
+            Update(dt);
+        }
+        Play("sit");
+        for (int f = 0; f < 5; f++) Update(dt);
+        Reset("warm");
     }
 
     /// <summary>An animal of this kind, in the view and hidden until it is placed; `id` (stable: a haunt, an owner, a

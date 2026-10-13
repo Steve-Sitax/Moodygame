@@ -526,7 +526,13 @@ the chest, day, rain, 19:30; the dray at walk and trot, an omnibus at walk and t
 `.scratch/animals-native-bf1c9ffcb2874e15850ad9d905826f4e/`. Shader audit (exclusive): 130 first-frame kinds, one
 people2 kind, 29 programs, no new kind, 1 directional and 121 omni lights:
 `.scratch/animals-native-bee67a7841784f86b969250b526385b4/shaders/`. Identity (7 checks) and network pass:
-`.scratch/animals-native-2efe22cfb0d041608e6c73e6e0ef6570/`. TRACE_TIMING
+`.scratch/animals-native-2efe22cfb0d041608e6c73e6e0ef6570/`. Trace: the one repeatable spike (a dog's first walk, 1.0-1.4 ms at 7.4 s in every
+run: first calls into the engine) is gone since `Animal.Prepare` walks, trots, stops and sits each rig once out of
+sight; the runs still show 1-2.5 ms frames at random in idle and sit clips, spread over every part of the update and
+outside it, while two other Godot instances ran (latest: 3,747 frames, p99 0.48 ms, mean 0.10 ms, 7 frames over 1 ms:
+`.scratch/animals-native-5db94e18724c43bbb2cf26552f3b65cc/`). Timing was never exclusive (other worktrees' engines in
+both tries): people+animals mean Vismarkt 0.93 ms, Grote Markt 0.98 ms, animals mean 0.28/0.33 ms, gate false on the
+town's logic (1.6/2.0 ms, shared CPU): `.scratch/animals-native-f066b904a5bc40b8b8aa3adcfbb75fb7/`. Re-run both alone.
 Replacement receipts: animals `.scratch/animals-replace-cf766a60051841dc8c50e6775d306371/`, horse
 `.scratch/horse-replace-5bf2a9ce1180440ea89784511bb719f6/` (every other stored model file unchanged).
 
