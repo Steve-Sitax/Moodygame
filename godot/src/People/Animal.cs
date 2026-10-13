@@ -94,19 +94,51 @@ public sealed class Animal
         return table;
     }
 
-    /// <summary>The phase of gait `c` whose feet stand nearest to `toes` (skeleton space, size 1).</summary>
-    private static float NearestPhase(Clip c, Vector3[] toes)
+    /// <summary>The phase of gait `c` to go on from feet at `toes` (skeleton space, size 1) of which `down` stand on the
+    /// ground, and what it costs (the mean squared miss, metres squared): a standing paw should stand on in the new
+    /// gait near where it is (it is planted there through the change); a lifted one should be lifted there too, or at
+    /// least not be put down far from where it hangs.</summary>
+    private static (float phase, float cost) NearestPhase(Clip c, Rig rig, Vector3[] toes, bool[] down)
     {
-        if (c.Toes == null) return 0;
-        float best = float.MaxValue;
+        if (c.Toes == null) return (0, 0);
+        float best = float.MaxValue, H = rig.H;
         int at = 0;
         for (int k = 0; k < ToeSamples; k++)
         {
-            float cost = 0;
-            for (int i = 0; i < toes.Length; i++) cost += (c.Toes[k, i] - toes[i]).LengthSquared();
+            float cost = 0, ph = k / (float)ToeSamples;
+            for (int i = 0; i < toes.Length && i < rig.Contacts.Length; i++)
+            {
+                float s = ((ph - c.Phases.GetValueOrDefault(rig.Contacts[i].Leg)) % 1 + 1) % 1;
+                bool stands = s < c.Duty;
+                var d = c.Toes[k, i] - toes[i];
+                float d2 = d.X * d.X + d.Z * d.Z;
+                // a planted paw the gait wants further forward is left behind as the body goes on (the leg runs out of
+                // reach): weigh that four times; one the gait wants further back is lifted before it matters
+                if (down[i]) cost += stands ? (d.Z > 0 ? 4 * d2 : d2) : d2 + 0.0625f * H * H;
+                else cost += stands ? d2 + 0.01f * H * H : 0.25f * d2;
+            }
             if (cost < best) { best = cost; at = k; }
         }
-        return at / (float)ToeSamples;
+        return (at / (float)ToeSamples, best / Math.Max(1, toes.Length));
+    }
+
+    private static void Unset(float[] a) { for (int i = 0; i < a.Length; i++) a[i] = -1; }
+
+    /// <summary>Where the skeleton was when the paws were last shown (the group may have moved since).</summary>
+    private Transform3D ShownXf => hasLastXf && lastXf.Origin.DistanceSquaredTo(sk.GlobalTransform.Origin) < 0.25f ? lastXf : sk.GlobalTransform;
+
+    /// <summary>Which of the paws now stand on the ground (skeleton space: the ground is at 0), and where all four are.</summary>
+    private (Vector3[] toes, bool[] down) FeetNow()
+    {
+        var toes = feetNow;
+        var down = feetDown;
+        for (int i = 0; i < toes.Length; i++)
+        {
+            var (_, bone, at) = R.Contacts[i];
+            toes[i] = sk.GetBoneGlobalPose(bone) * sk.GetBoneGlobalRest(bone).AffineInverse() * at;
+            down[i] = toes[i].Y < 0.01f * R.H;
+        }
+        return (toes, down);
     }
 
     private Vector3[] ToesNow(Clip c, float ph)
@@ -393,13 +425,37 @@ public sealed class Animal
     private Vector3 last;
     private bool hasLast;
     private readonly Quaternion[] fadeRot;
+    private readonly bool[] legBone;
+    private readonly Quaternion[] restRot;
     private Vector3 fadeHips;
     // the foot lock of a gait change: while two gaits blend, a paw the new gait stands on stays where it is set down
     // until the new gait lifts it
     private readonly Vector3[] lockAt = new Vector3[4];
     private readonly float[] lockWeight = new float[4], lockDrop = new float[4];
     private readonly bool[] locked = new bool[4];
+    private readonly Vector3[] releaseFrom = new Vector3[4];
+    private readonly Vector3[] feetNow = new Vector3[4];
+    private readonly bool[] feetDown = new bool[4];
+    private static readonly bool[] AllDown = { true, true, true, true };
+    private readonly float[] releaseT = { -1, -1, -1, -1 }, releaseQ = new float[4];
+    // a paw planted out of the leg's reach steps to catch up with the gait (CatchSecs), instead of being dragged
+    private readonly Vector3[] catchFrom = new Vector3[4];
+    private readonly float[] catchT = { -1, -1, -1, -1 };
+    private const float CatchSecs = 0.18f;
+    // the skeleton's place in the world when it was last posed: a change starts from where the paws were shown
+    private Transform3D lastXf;
+    private bool hasLastXf;
     private bool planting;
+    // the stop: each paw that stood when the gait ended stays where it stood through the fade to the stand, then
+    // steps (lifted, one after another) to where the stand puts it; settleAt is the time since the stop
+    private readonly bool[] settle = new bool[4];
+    private readonly float[] stepAt = new float[4];
+    private bool settling;
+    private float settleAt;
+    // a wished gait change waits (up to half a cycle) for a moment the feet fit the new gait
+    private string? pendingGait;
+    private float pendingFor;
+    private const float StepSecs = 0.24f, StepGap = 0.13f;
     private static readonly Random Rng = new();
 
     private Animal(string kind, Node3D root, Rig rig)
@@ -410,6 +466,15 @@ public sealed class Animal
         this.root = root;
         sk = root.GetNode<Skeleton3D>("Skeleton3D");
         fadeRot = new Quaternion[sk.GetBoneCount()];
+        legBone = new bool[sk.GetBoneCount()];
+        restRot = new Quaternion[sk.GetBoneCount()];
+        for (int b = 0; b < restRot.Length; b++) restRot[b] = sk.GetBoneRest(b).Basis.GetRotationQuaternion().Normalized();
+        for (int b = 0; b < legBone.Length; b++)
+        {
+            string bn = sk.GetBoneName(b);
+            legBone[b] = bn.StartsWith("humerus") || bn.StartsWith("forearm") || bn.StartsWith("pastern") || bn.StartsWith("fpaw") || bn.StartsWith("thigh")
+                || bn.StartsWith("shin") || bn.StartsWith("meta") || bn.StartsWith("hpaw") || bn.Contains("Help") && !bn.StartsWith("neck");
+        }
         Group.Name = kind;
         Group.Visible = false;
         Group.AddChild(root);
@@ -434,6 +499,7 @@ public sealed class Animal
         time = phase = fade = fadeLen = prevPhase = mixT = mixLen = 0;
         wish = null; rest = "idle"; plain = false; nextLook = 0; hasLast = false; Speed = 0; Motion = null;
         Array.Clear(locked); Array.Clear(lockWeight); Array.Clear(lockDrop); planting = false;
+        Array.Clear(settle); settling = false; pendingGait = null; pendingFor = 0; Unset(releaseT); Unset(catchT); hasLastXf = false;
         Group.Position = Vector3.Zero; Group.Rotation = Vector3.Zero; Group.Scale = Vector3.One;
         Group.Visible = false;
         ShowHarness(false);
@@ -506,12 +572,14 @@ public sealed class Animal
             // feet stand nearest to where they are now, and each paw it stands on is planted where it is set down
             prev = clip;
             prevPhase = phase;
-            phase = NearestPhase(c, ToesNow(clip, phase));
+            var (now, down) = FeetNow();
+            phase = NearestPhase(c, R, now, down).phase;
             planting = R.Legs.Length == R.Contacts.Length;
             mixT = 0;
             mixLen = 0.25f;
             fade = 0;
             clip = c;
+            if (planting) PrimeLocks(c, now, down);
             return;
         }
         prev = null;
@@ -522,8 +590,28 @@ public sealed class Animal
             fade = fadeLen = fadeSecs;
         }
         else fade = 0;
-        // from a stand into a gait: at the phase whose feet are nearest the standing feet
-        if (c.Kind == "gait" && (clip == null || clip.Kind != "gait")) phase = NearestPhase(c, R.StandToes);
+        // from a stand into a gait: at the phase whose feet fit the standing feet best; the paws the gait stands on are
+        // planted where they stand through the fade (a paw still stepping into the stand is planted where it is)
+        if (c.Kind == "gait" && (clip == null || clip.Kind != "gait"))
+        {
+            if (clip != null)
+            {
+                var (now, down) = FeetNow();
+                phase = NearestPhase(c, R, now, down).phase;
+            }
+            else phase = NearestPhase(c, R, R.StandToes, AllDown).phase;
+            if (fade > 0 && R.Legs.Length == R.Contacts.Length)
+            {
+                planting = true;
+                var (now, down) = FeetNow();
+                Array.Clear(settle);
+                settling = false;
+                PrimeLocks(c, now, down);
+            }
+            Array.Clear(settle);
+            settling = false;
+        }
+        else if (c.Kind != "gait" && clip != null && clip.Kind == "gait" && fade > 0 && R.Legs.Length == R.Contacts.Length) Settle();
         clip = c;
         if (c.Kind != "gait") time = 0;
     }
@@ -578,7 +666,11 @@ public sealed class Animal
         if (wish != null)
         {
             bool going = clip?.Kind == "gait";
-            if (Speed > (going ? 0.12f : 0.2f))
+            // set off as soon as it moves (the paws are planted through the start, so a slow first step does not
+            // slide), and go on while it still moves; stop only when it has as good as stopped
+            float inst = d / dt;
+            // (the smoothed speed lags behind a stop: a start is taken from the step itself)
+            if (going ? Speed > 0.1f || inst > 0.04f : inst > 0.06f)
             {
                 // the gait the speed calls for, with some hysteresis and this animal's own pace
                 float v = Speed / Size;
@@ -586,8 +678,19 @@ public sealed class Animal
                 float trotAt = R.TrotFrom * pace, runAt = R.RunFrom * pace;
                 string g = v > (now == "run" ? runAt * 0.9f : runAt) ? "run" : v > (now is "trot" or "run" ? trotAt * 0.9f : trotAt) ? "trot" : "walk";
                 if (!R.Clips.ContainsKey(g)) g = "walk";
-                // change gait only as a hind foot comes down (phase 0 or a half in every gait), never mid-blend
-                if (!going || g == now || prev == null) Show(g, going ? 0.22f : 0.2f);
+                if (!going || g == now) { Show(g, 0.2f); pendingGait = null; }
+                else if (prev == null)
+                {
+                    // a gait change: when the paws on the ground fit the new gait (they are planted through the
+                    // change), or after half a cycle at most
+                    if (pendingGait != g) { pendingGait = g; pendingFor = 0; }
+                    pendingFor += dt;
+                    var (feet, down) = FeetNow();
+                    float cost = NearestPhase(R.Clips[g], R, feet, down).cost;
+                    float wait = Math.Clamp(pendingFor / Math.Max(0.1f, 0.5f * clip!.Cycle), 0, 1);
+                    float allow = (0.035f + 0.12f * wait) * R.H;
+                    if (cost <= allow * allow || wait >= 1) { Show(g, 0.22f); pendingGait = null; }
+                }
                 Motion = g == "run" ? "run" : "walk";
             }
             else if (going || Motion == null)
@@ -610,6 +713,7 @@ public sealed class Animal
                 mixT += dt;
                 if (mixT >= mixLen) { prev = null; planting = false; }
             }
+            else if (planting && fade <= 0) planting = false;
         }
         else
         {
@@ -627,39 +731,256 @@ public sealed class Animal
             }
         }
         Pose(dt);
-        if (planting || lockWeight[0] + lockWeight[1] + lockWeight[2] + lockWeight[3] > 0) Locks(dt);
+        lastXf = sk.GlobalTransform;
+        hasLastXf = true;
+        if (settling) SettleLocks(dt);
+        else if (planting || lockWeight[0] + lockWeight[1] + lockWeight[2] + lockWeight[3] > 0 || releaseT[0] >= 0 || releaseT[1] >= 0 || releaseT[2] >= 0 || releaseT[3] >= 0) Locks(dt);
     }
 
-    /// <summary>While two gaits blend, plant each paw the new gait stands on where it is set down (two-bone reach of
-    /// the upper leg) and hold it there until the new gait lifts it; then let it go over a moment.</summary>
+    /// <summary>A change begins: each paw starts from where it is now (skeleton space `now`, `down` on the ground): one the
+    /// new gait stands on is planted there (set down first if it is in the air); one it has in the air travels from
+    /// there to the gait's path while lifted.</summary>
+    private void PrimeLocks(Clip c, Vector3[] now, bool[] down)
+    {
+        var xf = ShownXf;
+        Unset(catchT);
+        int worst = -1;
+        float worstAhead = 0.08f * R.H;
+        for (int i = 0; i < R.Legs.Length && i < 4 && i < now.Length; i++)
+        {
+            var L = R.Legs[i];
+            float sn = ((phase - c.Phases.GetValueOrDefault(L.Leg)) % 1 + 1) % 1;
+            bool stance = sn < c.Duty * 0.97f;
+            if (stance)
+            {
+                lockAt[i] = xf * new Vector3(now[i].X, 0, now[i].Z);
+                lockDrop[i] = down[i] ? 1 : 0;
+                locked[i] = true;
+                lockWeight[i] = 1;
+                releaseT[i] = -1;
+                // where the new gait has this paw now: far behind it (the gait wants it further forward) the leg would
+                // soon run out of reach, so it steps there at once
+                int k = (int)(phase * ToeSamples) % ToeSamples;
+                var g = c.Toes != null ? c.Toes[k, i] : now[i];
+                float ahead = g.Z - now[i].Z;
+                if (ahead > worstAhead) { worstAhead = ahead; worst = i; }
+            }
+            else
+            {
+                locked[i] = false;
+                releaseFrom[i] = xf * now[i];
+                releaseT[i] = 0;
+                releaseQ[i] = Math.Clamp((sn - c.Duty) / Math.Max(0.05f, 1 - c.Duty), 0, 1);
+                lockWeight[i] = 1;
+            }
+        }
+        if (worst >= 0)
+        {
+            locked[worst] = false;
+            catchFrom[worst] = lockAt[worst];
+            catchT[worst] = 0;
+        }
+    }
+
+    /// <summary>The gait ends: each paw on the ground now stays planted there; the others come down into the stand.</summary>
+    private void Settle()
+    {
+        var xf = ShownXf;
+        Unset(catchT);
+        var (feet, down) = FeetNow();
+        settling = false;
+        for (int i = 0; i < R.Legs.Length && i < 4; i++)
+        {
+            locked[i] = false;
+            settle[i] = true;
+            settling = true;
+            lockWeight[i] = 1;
+            lockDrop[i] = 1;
+            // a paw on the ground holds where it is and steps later; a paw in the air steps down into the stand now
+            // (from where it hangs, never sliding in along the ground)
+            lockAt[i] = down[i] ? xf * new Vector3(feet[i].X, 0, feet[i].Z) : xf * feet[i];
+            stepAt[i] = down[i] ? -1 : 0;
+        }
+        settleAt = 0;
+        planting = false;
+    }
+
+    /// <summary>Through the stop: the planted paws hold while the body comes to the stand, then each steps (lifted a
+    /// little, the farthest first) to where the stand puts it, so no paw slides into place.</summary>
+    private void SettleLocks(float dt)
+    {
+        settleAt += dt;
+        var xf = sk.GlobalTransform;
+        var toSk = xf.AffineInverse();
+        bool any = false;
+        float hold = Math.Max(0.05f, fadeLen) + 0.02f;
+        // the order: the paw farthest from its stand first, each the gap after the one before
+        if (settleAt >= hold)
+        {
+            // (no LINQ here: a generic sort is compiled at its first call, a stall in front of the player)
+            Span<float> far = stackalloc float[4];
+            Span<int> idx = stackalloc int[4];
+            int n = 0;
+            for (int i = 0; i < R.Legs.Length && i < 4; i++)
+                if (settle[i] && stepAt[i] < 0)
+                {
+                    var L = R.Legs[i];
+                    var stand = xf * (sk.GetBoneGlobalPose(L.Paw) * sk.GetBoneGlobalRest(L.Paw).AffineInverse() * L.ContactAt);
+                    far[n] = new Vector2(stand.X - lockAt[i].X, stand.Z - lockAt[i].Z).Length();
+                    idx[n++] = i;
+                }
+            float next = hold;
+            for (int i = 0; i < 4; i++) if (stepAt[i] >= 0) next = Math.Max(next, stepAt[i] + StepGap);
+            for (int done = 0; done < n; done++)
+            {
+                // the farthest of those left first
+                int b = done;
+                for (int j = done + 1; j < n; j++) if (far[j] > far[b]) b = j;
+                (far[b], far[done]) = (far[done], far[b]);
+                (idx[b], idx[done]) = (idx[done], idx[b]);
+                int i = idx[done];
+                // a paw already within a few millimetres of its stand needs no step
+                if (far[done] < 0.004f) { settle[i] = false; lockWeight[i] = 0; continue; }
+                stepAt[i] = Math.Max(next, settleAt);
+                next = stepAt[i] + StepGap;
+            }
+        }
+        for (int i = 0; i < R.Legs.Length && i < 4; i++)
+        {
+            if (!settle[i]) continue;
+            var L = R.Legs[i];
+            float u = stepAt[i] < 0 || settleAt < stepAt[i] ? 0 : (settleAt - stepAt[i]) / StepSecs;
+            if (u >= 1) { settle[i] = false; lockWeight[i] = 0; continue; }
+            any = true;
+            var target = lockAt[i];
+            if (u > 0)
+            {
+                var stand = xf * (sk.GetBoneGlobalPose(L.Paw) * sk.GetBoneGlobalRest(L.Paw).AffineInverse() * L.ContactAt);
+                // forward only while lifted: the paw rises, travels and comes down where it stands
+                float a = Math.Clamp((u - 0.12f) / 0.76f, 0, 1);
+                a = a * a * (3 - 2 * a);
+                // (a paw stepping down from the air starts at its own height; the ground is the stand's)
+                target = lockAt[i].Lerp(stand, a);
+                float lift = 0.06f * R.H * Size * MathF.Sin(MathF.PI * u);
+                target.Y = Math.Max(target.Y, stand.Y + lift);
+                if (u > 0.999f) lockAt[i] = target;
+            }
+            Reach(L, toSk * target, 1, 1);
+        }
+        if (!any) { settling = false; Array.Clear(lockWeight); }
+    }
+
+    /// <summary>Through a change (a stand into a gait, one gait into another): each paw the new gait stands on is
+    /// planted where it comes down (or where it stands when the change begins) and held there until the new gait lifts
+    /// it; a paw the new gait has in the air follows the blend but never drags: it is kept off the ground by the new
+    /// gait's own swing, and a paw just let go travels from where it was planted to the gait's path while it is lifted.
+    /// Each paw keeps this until its first stance in the new gait is over, so the change never slides a paw.</summary>
     private void Locks(float dt)
     {
         var c = clip;
-        if (c == null || c.Kind != "gait" || c.Toes == null) { Array.Clear(locked); Array.Clear(lockWeight); planting = false; return; }
+        if (c == null || c.Kind != "gait" || c.Toes == null)
+        {
+            Array.Clear(locked); Array.Clear(lockWeight); Unset(releaseT); planting = false;
+            return;
+        }
         var xf = sk.GlobalTransform;
         var toSk = xf.AffineInverse();
-        int k = (int)(phase * ToeSamples) % ToeSamples;
+        float liftH = 0.05f * R.H;
         for (int i = 0; i < R.Legs.Length && i < 4; i++)
         {
             var L = R.Legs[i];
             float sn = ((phase - c.Phases.GetValueOrDefault(L.Leg)) % 1 + 1) % 1;
             bool stance = sn < c.Duty * 0.97f;
-            if (locked[i] && !stance) locked[i] = false;  // the new gait lifts it: let it go, quickly
-            if (!locked[i] && planting && stance && lockWeight[i] <= 0)
+            var toe = sk.GetBoneGlobalPose(L.Paw) * sk.GetBoneGlobalRest(L.Paw).AffineInverse() * L.ContactAt;
+            if (stance)
             {
-                // set down where the blend has it, on the new gait's ground; a paw still in the air comes down quickly
-                var toe = sk.GetBoneGlobalPose(L.Paw) * sk.GetBoneGlobalRest(L.Paw).AffineInverse() * L.ContactAt;
-                float ground = c.Toes[k, i].Y;
-                lockAt[i] = xf * new Vector3(toe.X, ground, toe.Z);
-                lockDrop[i] = toe.Y - ground > 0.004f ? 0 : 1;
-                locked[i] = true;
-                lockWeight[i] = 1;
+                if (catchT[i] >= 0)
+                {
+                    // a quick step to catch up with the gait: lifted, from where it was planted to where the gait stands it
+                    catchT[i] += dt;
+                    float u = Math.Clamp(catchT[i] / CatchSecs, 0, 1);
+                    var from = toSk * catchFrom[i];
+                    // lifted first, then carried, then set down: it never moves along the ground
+                    float a = Math.Clamp((u - 0.25f) / 0.6f, 0, 1);
+                    a = a * a * (3 - 2 * a);
+                    var t = from.Lerp(toe, a);
+                    t.Y = Math.Max(t.Y, toe.Y + 1.6f * liftH * MathF.Sin(MathF.PI * u));
+                    if (u >= 1) { catchT[i] = -1; lockWeight[i] = 0; continue; }
+                    lockWeight[i] = 1;
+                    Reach(L, t, 1, 1);
+                    continue;
+                }
+                if (!locked[i] && (planting || lockWeight[i] > 0 || releaseT[i] >= 0))
+                {
+                    // set down where the blend has it, on the ground; a paw still in the air comes down quickly
+                    lockAt[i] = xf * new Vector3(toe.X, 0, toe.Z);
+                    lockDrop[i] = toe.Y > 0.004f ? 0 : 1;
+                    locked[i] = true;
+                    lockWeight[i] = 1;
+                    releaseT[i] = -1;
+                }
+                if (!locked[i]) continue;
+                lockDrop[i] = Math.Min(1, lockDrop[i] + dt / 0.08f);
+                if (OutOfReach(L, toSk * lockAt[i], toe, out var reachable))
+                {
+                    // planted where the leg can no longer reach (the body has gone on): rather than drag it, step it on
+                    // from the farthest it can still reach
+                    locked[i] = false;
+                    catchFrom[i] = xf * reachable;
+                    catchT[i] = 0;
+                    lockWeight[i] = 1;
+                    Reach(L, reachable, 1, 1);
+                    continue;
+                }
+                Reach(L, toSk * lockAt[i], 1, lockDrop[i]);
+                continue;
             }
-            if (locked[i]) lockDrop[i] = Math.Min(1, lockDrop[i] + dt / 0.08f);
-            else lockWeight[i] = Math.Max(0, lockWeight[i] - dt / 0.12f);
-            if (lockWeight[i] <= 0) continue;
-            Reach(L, toSk * lockAt[i], lockWeight[i], lockDrop[i]);
+            // in the air in the new gait
+            float q = Math.Clamp((sn - c.Duty) / Math.Max(0.05f, 1 - c.Duty), 0, 1);
+            if (catchT[i] >= 0) { releaseFrom[i] = catchFrom[i]; releaseT[i] = 0; releaseQ[i] = q; catchT[i] = -1; }
+            if (locked[i])
+            {
+                // the new gait lifts it: from where it was planted to the gait's path, over the first part of the swing
+                locked[i] = false;
+                releaseFrom[i] = lockAt[i];
+                releaseT[i] = 0;
+                releaseQ[i] = q;
+            }
+            if (releaseT[i] < 0 && !planting) { lockWeight[i] = 0; continue; }
+            var target = toe;
+            if (releaseT[i] >= 0)
+            {
+                releaseT[i] += dt;
+                float u = Math.Clamp((q - releaseQ[i]) / Math.Max(0.05f, 0.6f - releaseQ[i]), 0, 1);
+                u = u * u * (3 - 2 * u);
+                var from = toSk * releaseFrom[i];
+                target = new Vector3(Mathf.Lerp(from.X, toe.X, u), Mathf.Lerp(Math.Max(from.Y, toe.Y), toe.Y, u), Mathf.Lerp(from.Z, toe.Z, u));
+                if (u >= 1 && !planting) releaseT[i] = -1;
+            }
+            // never on (or under) the ground while it travels: the gait's own swing height at least
+            float lift = liftH * MathF.Sin(MathF.PI * q);
+            if (target.Y < lift) target.Y = lift;
+            if ((target - toe).LengthSquared() < 1e-8f) continue;
+            lockWeight[i] = 1;
+            Reach(L, target, 1, 1);
         }
+        if (!planting && releaseT[0] < 0 && releaseT[1] < 0 && releaseT[2] < 0 && releaseT[3] < 0 && !locked[0] && !locked[1] && !locked[2] && !locked[3]
+            && catchT[0] < 0 && catchT[1] < 0 && catchT[2] < 0 && catchT[3] < 0)
+            Array.Clear(lockWeight);
+    }
+
+    /// <summary>Whether the leg would have to stretch past 99 % of its length to keep its toe on `target` (skeleton space;
+    /// the gaits themselves reach to 96.5 %): the catch-up step starts from the farthest it can still reach.</summary>
+    private bool OutOfReach(LegChain L, Vector3 target, Vector3 toe, out Vector3 reachable)
+    {
+        Vector3 S = sk.GetBoneGlobalPose(L.Upper).Origin, E = sk.GetBoneGlobalPose(L.Lower).Origin, C = sk.GetBoneGlobalPose(L.Distal).Origin;
+        float L1 = (E - S).Length(), L2 = (C - E).Length();
+        var want = target - (toe - C);
+        var d = want - S;
+        float max = 0.99f * (L1 + L2);
+        reachable = d.Length() > max ? S + d.Normalized() * max + (toe - C) : target;
+        if (reachable.Y < target.Y) reachable.Y = target.Y;
+        return d.Length() > max;
     }
 
     private void Reach(LegChain L, Vector3 target, float weight, float drop)
@@ -718,10 +1039,15 @@ public sealed class Animal
         }
         for (int b = 0; b < c.Rot.Length; b++)
         {
+            // a bone the clip has no track for stands at its rest (the importer drops a track that never leaves the
+            // rest): never the pose the last clip left it in (a paw would hover or sink by centimetres in the stand)
             int tr = c.Rot[b];
-            if (tr < 0) continue;
-            var q = c.Anim.RotationTrackInterpolate(tr, t).Normalized();
-            if (p != null && p.Rot[b] >= 0) q = p.Anim.RotationTrackInterpolate(p.Rot[b], tp).Normalized().Slerp(q, w);
+            var q = tr >= 0 ? c.Anim.RotationTrackInterpolate(tr, t).Normalized() : restRot[b];
+            if (p != null && !legBone[b])
+            {
+                var qp = p.Rot[b] >= 0 ? p.Anim.RotationTrackInterpolate(p.Rot[b], tp).Normalized() : restRot[b];
+                q = qp.Slerp(q, w);
+            }
             if (blend < 1) q = fadeRot[b].Normalized().Slerp(q, blend);
             sk.SetBonePoseRotation(b, q);
         }
@@ -732,6 +1058,10 @@ public sealed class Animal
             sk.SetBonePosePosition(R.Hips, blend < 1 ? fadeHips.Lerp(h, blend) : h);
         }
     }
+
+    /// <summary>For proofs: what the paws' planting is doing now (clip, blend, each paw's lock).</summary>
+    internal string DebugState() => $"{clip?.Name}|{prev?.Name}|mix {mixT:0.000}/{mixLen:0.00}|fade {fade:0.000}|plant {planting}|settle {settling}|ph {phase:0.000}|pend {pendingGait}|"
+        + string.Join(";", Enumerable.Range(0, 4).Select(i => $"{(locked[i] ? 'L' : '-')}{lockWeight[i]:0.00}{(settle[i] ? 'S' : '-')}"));
 
     /// <summary>For proofs: where each paw's toe is in the world now.</summary>
     public IEnumerable<(string leg, Vector3 at)> Toes()
@@ -752,6 +1082,7 @@ public sealed class Animal
         Array.Clear(locked);
         Array.Clear(lockWeight);
         planting = false;
+        Array.Clear(settle); settling = false; pendingGait = null; Unset(releaseT); Unset(catchT);
         if (c.Kind == "gait") { phase = at % 1f; time = phase * c.Length; }
         else time = Math.Clamp(at, 0, c.Length);
         Pose(0);

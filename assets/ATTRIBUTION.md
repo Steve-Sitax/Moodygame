@@ -208,7 +208,7 @@ The townspeople of the crowd in the same file (dockers, porter and sack truck, c
 The town's residents added in M3e to the same file (baker, shopkeeper, publican, clerk, old man, beggar, two wives, shopkeeper's wife, old woman, a street child, a second girl) are our own models, made by the same script; no third-party models or images.
 The player's figures (M7 character: `client/public/models/player.glb`, with `player_base.png`, `player_slot.png`, `player_shade.png` and `player_atlas.json`: ten cuts of clothes, seven hats, four hair pieces, the faces by sex, facial hair and age, and each pixel's colour slot and shade) are our own, made by script in `tools/blender/build_player.py` from the same kit (build_people.py's bodies, clothes, hats and painter); no third-party models, textures or images. The Flemish and Walloon given names and surnames in `shared/character.ts` are common names of the period, written from general knowledge; no list was copied.
 
-Dogs, cats and pigs (art3 package H, 2026-10-13, round 2 the same day; `client/public/models/animals.glb`, native `assets/game-models/animals.scn` and the pictures in native `assets/animal-pictures/`): the street mongrel (brown with a white chest, black, white with brown patches, grey brindle); the Belgian draught dog (fawn with a black mask, dark brindle) and its harness and traces for the dog carts; the Schipperke (black, the ruff, cape and culottes); the ratting terrier (white with a tan head and a black saddle, wheaten; wire coat); the alley cat (tabby, black, ginger, white with grey, black and white, tortoiseshell); the Kempen pig (pink, pink with black spots). The bodies are our own distance fields (lofted trunks, necks and heads with the muscles laid on) meshed by script, the skeletons, weights, harness and every
+Dogs, cats and pigs (art3 package H, 2026-10-13, rounds 2 and 3 the same day; `client/public/models/animals.glb`, native `assets/game-models/animals.scn` and the pictures in native `assets/animal-pictures/`): the street mongrel (brown with a white chest, black, white with brown patches, grey brindle); the Belgian draught dog (fawn with a black mask, dark brindle) and its harness and traces for the dog carts; the Schipperke (black, the ruff, cape and culottes); the ratting terrier (white with a tan head and a black saddle, wheaten; wire coat); the alley cat (tabby, black, ginger, white with grey, black and white, tortoiseshell); the Kempen pig (pink, pink with black spots). The bodies are our own distance fields (lofted trunks, necks and heads with the muscles laid on) meshed by script, the skeletons, weights, harness and every
 clip our own, made by `tools/blender/build_animals.py` and its kit `tools/blender/animals/`; the fur, skin and leather pictures are painted
 in code there (3D noise strands along the hair's flow, coat markings, eyes, noses, pads, skin folds, bristles, mud, the field's
 shape baked into the normal pictures), no photographs, scans, downloaded textures, models, motion capture or image-model
@@ -219,30 +219,48 @@ and A. S. Jayes, J. Zool. 1983); nothing copied. The SHA-256 of each PNG as writ
 
 | Picture | Animal | What | Made | File SHA-256 |
 |---|---|---|---|---|
-| `mongrel_normal.png` | the street mongrel | normal picture (the full field's shape baked, hair or skin relief), 1024 x 1024 | painted in code, 2026-10-13 | `e7fa631b321182f69da9a7cc6eea862043264680b971917df2b457e78b6e92d6` |
-| `dog_black_colour.png` | the street mongrel | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `3ba6ea892ba3d63a95ed7a57a63fc940b8e9ef81a52909d33b5e2cc4839e6e86` |
-| `dog_brown_colour.png` | the street mongrel | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `798c910249f242247867ac149746583837b169e37f281c7c1b9118e87492009b` |
-| `dog_grey_colour.png` | the street mongrel | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `86ac1f4ec1ad8d8f92a62e0a4eb4c55ea298fb1b97ebcccb8ec5a1c1b68a81fb` |
-| `dog_spotted_colour.png` | the street mongrel | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `c3704c5865e7f4fcdf2a842e3dbe1a749f3a18aed3388cbc61027c6d5277b8bf` |
-| `draught_normal.png` | the Belgian draught dog | normal picture (the full field's shape baked, hair or skin relief), 1024 x 1024 | painted in code, 2026-10-13 | `341239e6c4a22c5219e84f09526fcfc38c383e9db30293a0369f265697c1c18c` |
-| `dog_draught_brindle_colour.png` | the Belgian draught dog | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `422c47f7e87cd269e9eeffdc3e7a5f5d204f21d0da4ad07501da4fb116af0bc4` |
-| `dog_draught_colour.png` | the Belgian draught dog | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `fbb927422b5645d6e1db2c0546ad99d92f1612992de9d62be35141f56834848c` |
+| `mongrel_normal.png` | the street mongrel | normal picture (the full field's shape baked, hair or skin relief), 1024 x 1024 | painted in code, 2026-10-13 | `8bce501cf0bc3b6f3d9097f3b6ade129cc4ae845ac6512e1e932984f8037fff1` |
+| `dog_black_colour.png` | the street mongrel | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `96e559a3691007608de5d4ec2b2438c29ff0f2cf6b20e2af72f57eb39c42cdd1` |
+| `dog_brown_colour.png` | the street mongrel | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `106a06e21dd52d9822bb6a53505cd501e61da8b8fdac2ecb98e71ce644cb2e42` |
+| `dog_grey_colour.png` | the street mongrel | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `50873d6994de3e0da45d23055a50a71b85c1f640842aeabd9b941edb91977c7e` |
+| `dog_spotted_colour.png` | the street mongrel | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `04ba475969dbcd5005da1094b2601f9ee21dbcb11cacdcfc7b3df9ed0939aefb` |
+| `draught_normal.png` | the Belgian draught dog | normal picture (the full field's shape baked, hair or skin relief), 1024 x 1024 | painted in code, 2026-10-13 | `87905efd0b18cbfa1a9a129125b08d0c58d8923a28e7b9f26c8e4b1dc163aa46` |
+| `dog_draught_brindle_colour.png` | the Belgian draught dog | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `1e4cff83adedcaf58bc7f2ad919dddfa3b2695b77f473ab6c36d2e53865ce55e` |
+| `dog_draught_colour.png` | the Belgian draught dog | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `8a7c82167cec6c021e47df259f2566c44939112d44c1afc244d95029a369dc2f` |
 | `harness_colour.png` | the cart dog's harness and traces | colour picture (worn leather, stitching, brass), 256 x 256 | painted in code, 2026-10-13 | `479a5b4bcec934838ae11a79b19fd8d3575b76e5f5994a2934446b5bda031a7f` |
-| `schipperke_normal.png` | the Schipperke | normal picture (the full field's shape baked, hair or skin relief), 1024 x 1024 | painted in code, 2026-10-13 | `fe6143bcfe4488bc02a023fbc976ceb053705943dba09265a62df2c5f4ca9f07` |
-| `dog_schipperke_colour.png` | the Schipperke | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `21348ab2e3e1bf82d104e54f31e70036ddbb635cba6a6173549358895dca845a` |
-| `terrier_normal.png` | the ratting terrier | normal picture (the full field's shape baked, hair or skin relief), 1024 x 1024 | painted in code, 2026-10-13 | `1f18ff96f7d20d2ef188bd09c8c3dea7fc9d34a1a58b356f490b47c30426be16` |
-| `dog_terrier_colour.png` | the ratting terrier | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `ac846ca3f9b6332628867ff6c3b03bf526c3513ec9ab884fd07ffeda7aa10243` |
-| `dog_terrier_wheaten_colour.png` | the ratting terrier | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `8e405e83945b45bad74b60acd9b5f67847b18f23d49b02dcfee7fc379bcd20b9` |
-| `cat_normal.png` | the alley cat | normal picture (the full field's shape baked, hair or skin relief), 1024 x 1024 | painted in code, 2026-10-13 | `269ee24789bcd449efa7ee1f5db2045c4445c3e70d837cfe6c2108cbbbdf6a5a` |
-| `cat_black_colour.png` | the alley cat | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `b931423e9508ae09d1de724701b6ec1580345869869dcdf47d171e26b37b59be` |
-| `cat_ginger_colour.png` | the alley cat | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `223acc848748351ce74ce9e0835dc93dec48dbabe0e045f0b3039178a3fa9c8f` |
-| `cat_tabby_colour.png` | the alley cat | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `ad89844e1738ec1b512b860e32c6f82938f217a4b0a30abf9930ead3fa4d7acd` |
-| `cat_tortie_colour.png` | the alley cat | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `936de8184c2c8c48d93a844f4fdb806d783d74e5c6ea162b4c47784451b05afa` |
-| `cat_tuxedo_colour.png` | the alley cat | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `11a0d9b2dc594c265f83e30f15a5c5139b69d1ffa74d0c66e599f81d7bb5facd` |
-| `cat_white_colour.png` | the alley cat | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `8414a26dc3338fcef5f950a194b470a832b1e20619d0f77afbde7672461aa959` |
-| `pig_normal.png` | the Kempen pig | normal picture (the full field's shape baked, hair or skin relief), 1024 x 1024 | painted in code, 2026-10-13 | `991eee2ab08b6349e894deff5b1be1eb2fe36ef7e8285aba6cf08a71c0a6e43b` |
-| `pig_pink_colour.png` | the Kempen pig | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `9edff78e01a2213e7e9bc11493320448d77628f00a46019bbb678d922fd39675` |
-| `pig_spotted_colour.png` | the Kempen pig | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `55971bc77263997f586de4d537a14ffdf20cac966ecfebf24905ecb0f4b99e85` |
+| `schipperke_normal.png` | the Schipperke | normal picture (the full field's shape baked, hair or skin relief), 1024 x 1024 | painted in code, 2026-10-13 | `3c269f08437955c1b76ca0cb864fbc10920ff1cf017f52f2a23aa9ac89c59b09` |
+| `dog_schipperke_colour.png` | the Schipperke | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `06799a99a7739062f3dba8b8d4451708477a29d9a53a9e716b7cea675980144b` |
+| `terrier_normal.png` | the ratting terrier | normal picture (the full field's shape baked, hair or skin relief), 1024 x 1024 | painted in code, 2026-10-13 | `f26af16249724212686db942fce8ca3fbc5c1757181084d7db0830a230f2b847` |
+| `dog_terrier_colour.png` | the ratting terrier | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `a0558043dba624de9650e19ad30b76ebcf3bddf55df806fdac45a7ea684583e0` |
+| `dog_terrier_wheaten_colour.png` | the ratting terrier | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `a7ea9ed1a18e7f7dfc72d97e5e922f04c82cecc8d79593fe07bc0999a7cd17e4` |
+| `cat_normal.png` | the alley cat | normal picture (the full field's shape baked, hair or skin relief), 1024 x 1024 | painted in code, 2026-10-13 | `65f165eb4ed21908289e1018e416a5b907ea96cf1a9a5a0a3550c6098d8173cb` |
+| `cat_black_colour.png` | the alley cat | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `29a46b75e4883bc38c9c0f88fc09a2edf67a36ba61d491519b92e11913381564` |
+| `cat_ginger_colour.png` | the alley cat | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `a316e9ed557f5fd1e4678dd75c303cf62dec754cd591b322651487e747c327b2` |
+| `cat_tabby_colour.png` | the alley cat | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `e0e1247ddba84cbaa64af52d7f7ec6f62e6a2ad46134d63810d584ea85acb90b` |
+| `cat_tortie_colour.png` | the alley cat | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `43fe62dbd869c67dc5530bf7305c357aa6126fcce02a38c891eadcc9755cc89b` |
+| `cat_tuxedo_colour.png` | the alley cat | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `18ebf8812ad23c842efe21f9ccc598ee068e9f8cd70b0e5bc33d4e75f3d95d44` |
+| `cat_white_colour.png` | the alley cat | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `221718d2e2ef6cb539928c9db10116c51d092cd95d90405b174d40f7bba0aa17` |
+| `pig_normal.png` | the Kempen pig | normal picture (the full field's shape baked, hair or skin relief), 1024 x 1024 | painted in code, 2026-10-13 | `01535caf702b339cbd74fa2e3c474857bdb7cf592974cd8c8916f1a2e713606b` |
+| `pig_pink_colour.png` | the Kempen pig | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `c68a866a0c6ca7dc3885a1fcab382d322b74ed7b8f43b1d703a9ad689b45f09f` |
+| `pig_spotted_colour.png` | the Kempen pig | colour picture, 1024 x 1024 | painted in code, 2026-10-13 | `aa5907565a9b8d4a3866e56b2597a116def667e7aaffa8893a33273befcb119d` |
+
+The draught horse (art3 package H round 3, 2026-10-13; native `assets/game-models/horse.scn` and the pictures in native
+`assets/horse-pictures/`): a Brabant at true size in full harness, cut into rigid parts (body, neck with the collar, head
+with the bridle, ears, tail, four leg pieces, a rein and a trace strap). The shapes are build_props.py's own draught horse
+(its body, neck and head tables, harness and leg profiles), made denser by `tools/blender/build_horse.py` and its kit
+`tools/blender/horse/`, the head meshed from our own distance field; the coats (bay, chestnut, black, a brown roan), the
+harness, hooves and eyes are painted in code there (hair strands along the coat's growth, markings, mud, leather grain,
+brass, iron, wool); no photographs, scans, downloaded textures, models or image-model output. CC0 horse models and
+textures were considered and not used: the game's own horse already set the anatomy and the gait. The SHA-256 of each
+PNG as written by the build:
+
+| Picture | Animal | What | Made | File SHA-256 |
+|---|---|---|---|---|
+| `horse_normal.png` | the draught horse | normal picture (hair, leather grain, horn, wool relief), 2048 x 2048 | painted in code, 2026-10-13 | `7b4a8435efe137b80fdf3ffc9f90268449bdf379945dcddf37b8c23608d7201b` |
+| `horse_bay_colour.png` | the draught horse | colour picture (the coat with its hair, points, markings and dirt; the harness, hooves and eyes), 2048 x 2048 | painted in code, 2026-10-13 | `1b4147495ff69186ec1748e7604af1ec59c2763b91e9df41e882e2eaa82107bc` |
+| `horse_chestnut_colour.png` | the draught horse | colour picture (the coat with its hair, points, markings and dirt; the harness, hooves and eyes), 2048 x 2048 | painted in code, 2026-10-13 | `f02b28fd3cac7608000c062f06b0c7f7feb2897768cb02fc0a2b91649b02e30f` |
+| `horse_black_colour.png` | the draught horse | colour picture (the coat with its hair, points, markings and dirt; the harness, hooves and eyes), 2048 x 2048 | painted in code, 2026-10-13 | `39d965d4140b23813d9c533914cd35455d5c9380cd517e6fe30409223ae56e0e` |
+| `horse_roan_colour.png` | the draught horse | colour picture (the coat with its hair, points, markings and dirt; the harness, hooves and eyes), 2048 x 2048 | painted in code, 2026-10-13 | `e5d5546f77198545d250012bbc34d9d6e2fe4a2fa648e41757587da65cdda7a8` |
 
 Market stalls and shop fronts (`client/public/models/stalls.glb`, M3e: stall frame, open and rolled awnings, tarpaulins, goods for fish, bread, vegetables, wares and cloth, shop table and wall awning) are our own models and textures, made by script in `tools/blender/build_stalls.py` (it reuses the wood, iron, rope and sackcloth materials of `build_props.py`); no third-party models or images.
 

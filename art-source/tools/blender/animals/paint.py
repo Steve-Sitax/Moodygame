@@ -422,43 +422,60 @@ def coat(F, coat_name, rig, seed=1873, strand_v=None):
         # the longer hair of the ruff, cape and culottes: duller, browner at the tips
         mix(F.s("ruff", "culotte") * (0.6 + 0.4 * fbm(P, 30 / H, 2, 59)), hexc(c["ruff"]), 0.7)
     mud_m = np.zeros(n)
+    dry = np.zeros(n)
     if "mud" in marks:
-        m = smoothstep(0.3 * H, 0.08 * H, P[:, 1] + 0.12 * H * (fbm(P, 9 / H, 2, 51) - 0.5)) + F.s("belly") * smoothstep(0.0, -0.8, up) * 0.6
-        # splashes higher up the flanks and the hams
-        m = np.maximum(m, smoothstep(0.66, 0.74, fbm(P, 14 / H, 3, 52)) * smoothstep(0.65 * H, 0.35 * H, P[:, 1]))
+        # mud from the street and the sty: caked on the legs to above the knees and hocks, a dark wet band along the
+        # belly, splashes thrown up the flanks and the hams, a smear on the snout and the jowls
+        legs_up = smoothstep(0.30 * H, 0.10 * H, P[:, 1] + 0.12 * H * (fbm(P, 9 / H, 2, 51) - 0.5))
+        belly = F.s("belly") * smoothstep(0.0, -0.8, up) * 0.7
+        splash = smoothstep(0.64, 0.72, fbm(P, 14 / H, 3, 52)) * smoothstep(0.62 * H, 0.3 * H, P[:, 1])
+        drops = smoothstep(0.86, 0.9, vnoise(P * np.array((1.0, 2.2, 1.0)), 45 / H, 54)) * smoothstep(0.6 * H, 0.3 * H, P[:, 1]) * 0.7
+        snout = F.head * smoothstep(0.82, 0.95, hq[:, 2]) * smoothstep(0.55, 0.75, fbm(P, 25 / H, 2, 55)) * 0.8
+        m = np.maximum(np.maximum(legs_up, belly), np.maximum(np.maximum(splash, drops), snout))
         mud_m = np.clip(m, 0, 1) * (0.55 + 0.45 * fbm(P, 30 / H, 2, 53))
-        mix(mud_m, hexc(c["mud"]), 0.85)
+        # dried (pale grey-brown, cracked) where it is thin and high; wet and dark low down and along the belly
+        dry = np.clip(smoothstep(0.35, 0.65, fbm(P, 18 / H, 2, 56)) * smoothstep(0.04 * H, 0.16 * H, P[:, 1]) * (1 - belly), 0, 1)
+        mudc = hexc(c["mud"])[None, :] * (1 - dry[:, None]) + hexc(c.get("mud_dry", 0x84755f))[None, :] * dry[:, None]
+        mm = np.clip(mud_m, 0, 1)[:, None] * 0.88
+        col = col * (1 - mm) + mudc * mm
     # ---- the fur (or skin) itself
     if strand_v is None:
         strand_v = np.zeros(n)
     tips = hexc(c["tips"]) if "tips" in c else None
     hair = F.fur
     if skin:
-        # pig skin: fine mottling and pores; sparse pale bristles, longer and thicker in a crest along the spine; the
-        # skin folded in rings round the neck behind the jowls, across the snout, round the knees and the hocks;
-        # dried mud in clods
+        # pig skin: fine mottling, pores and the odd scratch; sparse pale bristles, longer and thicker in a crest along
+        # the spine; the folds (the field's own relief, uneven) darker in their creases where dirt and sweat collect;
+        # mud caked and cracked where it dried, smooth where it is wet
         mot = fbm(P, 60 / H, 3, rng_seed + 61)
         col *= (0.93 + 0.12 * mot)[:, None]
+        blot = smoothstep(0.55, 0.75, fbm(P, 22 / H, 2, rng_seed + 67)) * (1 - F.head * 0.5)
+        col = col * (1 - 0.1 * blot[:, None]) + hexc(0xc07868)[None, :] * 0.1 * blot[:, None]
         pores = vnoise(P, 1 / 0.0012, rng_seed + 62)
-        crest = smoothstep(0.05, 0.0, np.abs(P[:, 0])) * smoothstep(0.3, 0.8, up) * F.s("torso", "neck")
-        bristle = np.clip(strand_v ** (6 - 2.5 * crest) * hair * (1 + 1.5 * crest), 0, 1)
-        col = col * (1 - 0.3 * bristle[:, None]) + hexc(0xeee0c8)[None, :] * 0.3 * bristle[:, None]
-        height = 0.3 * strand_v * hair + 0.12 * pores
-        nk = F.s("neck", "throat") * smoothstep(-0.2, -0.7, up + 0.3)
-        along = P @ unit(J["neck2"] - J["chest"])
-        w1 = 0.5 + 0.5 * np.sin(2 * math.pi * along / 0.028 + 3 * fbm(P, 30 / H, 2, 63))
-        snout = F.head * smoothstep(0.5, 0.62, hq[:, 2]) * smoothstep(0.93, 0.86, hq[:, 2])
-        w2 = 0.5 + 0.5 * np.sin(2 * math.pi * hq[:, 2] / 0.065 + 4 * fbm(P, 30 / H, 2, 64))
-        jy = [J["carpusL"][1], J["hockL"][1], J["elbowL"][1]]
-        knee = sum(smoothstep(0.035, 0.0, np.abs(P[:, 1] - y0)) for y0 in jy) * F.s("leg")
-        w3 = 0.5 + 0.5 * np.sin(2 * math.pi * P[:, 1] / 0.011)
-        fold = nk * w1 ** 3 + snout * w2 ** 3 * 0.35 * (0.4 + fbm(P, 50 / H, 2, 66)) + knee * w3 ** 2 * 0.6
-        groove = nk * (1 - w1) ** 4 + snout * (1 - w2) ** 4 * 0.35 + knee * (1 - w3) ** 3 * 0.6
-        height = height + 1.1 * fold
-        col *= (1 - 0.18 * np.clip(groove, 0, 1))[:, None]
+        crest = smoothstep(0.06, 0.0, np.abs(P[:, 0])) * smoothstep(0.3, 0.8, up) * F.s("torso", "neck")
+        bristle = np.clip(strand_v ** (5.5 - 2.5 * crest) * hair * (1 + 1.8 * crest), 0, 1)
+        bc = hexc(c.get("bristle", 0xf0e2c8))
+        col = col * (1 - 0.38 * bristle[:, None]) + bc[None, :] * 0.38 * bristle[:, None]
+        height = 0.35 * strand_v * hair * (1 + crest) + 0.12 * pores
+        # scratches: thin pale lines here and there on the flanks (a fight, a fence)
+        scr = smoothstep(0.985, 0.995, np.abs(np.sin(2 * math.pi * (P @ unit(np.array((0.3, 0.8, 0.5)))) / 0.05 + 6 * fbm(P, 8 / H, 2, 68))))
+        scr *= smoothstep(0.6, 0.7, fbm(P, 6 / H, 2, 69)) * F.s("torso", "thigh", "shoulder")
+        col = col * (1 - 0.25 * scr[:, None]) + hexc(0xe8c0b0)[None, :] * 0.25 * scr[:, None]
+        if Bd.relief is not None:
+            rel = np.zeros(n)
+            for c0 in range(0, n, 200000):
+                rel[c0:c0 + 200000] = Bd.relief(P[c0:c0 + 200000])
+            groove = np.clip(-rel / 0.004, 0, 1)
+            ridge = np.clip(rel / 0.003, 0, 1)
+            col *= (1 - 0.28 * groove)[:, None]
+            col *= (1 + 0.05 * ridge)[:, None]
+            height = height - 0.6 * groove
         clod = fbm(P, 1 / 0.006, 2, rng_seed + 65)
-        height = height + mud_m * (0.5 + 1.2 * clod)
-        col *= (1 - 0.15 * mud_m * (1 - clod))[:, None]
+        # dried mud cracks: thin dark lines between plates
+        cell = np.abs(fbm(P, 1 / 0.012, 1, rng_seed + 66) - 0.5)
+        crack = smoothstep(0.03, 0.0, cell) * dry * mud_m
+        height = height + mud_m * (0.5 + 1.2 * clod) - 0.8 * crack
+        col *= (1 - 0.15 * mud_m * (1 - clod) - 0.3 * crack)[:, None]
     else:
         wire = c.get("wire", False)
         k = 0.42 if wire else 0.34

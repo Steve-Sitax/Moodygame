@@ -10,8 +10,8 @@ Sizes (shoulder height, the top of the withers):
   Schipperke ("little skipper", the barge dog) 0.32 m, black, tailless, a ruff on the neck; the ratting terrier
   0.38 m, square, wire-coated, a docked tail carried up;
 - the alley cat 0.25 m at the shoulder, 0.46 m nose to tail root, a 0.28 m tail;
-- the Kempen pig (the old Campine landrace: long, narrow, high on the leg, lop-eared) 0.72 m at the back, 1.45 m
-  snout to tail root.
+- the Kempen pig (the old Campine landrace, lop-eared) 0.70 m at the back, 1.50 m snout to tail root: a deep barrel on
+  short strong legs, heavy shoulders and hams, a big head with heavy jowls.
 """
 
 import math
@@ -113,9 +113,9 @@ BREEDS = {
     "mongrel": dict(H=0.50, L=1.0, leg=1.0, girth=1.0, bone=1.0, skull=1.0, muzzle=0.9, deep=1.0, ears="drop_small",
                     tail="long", tailp=[-28, -48, -60, -58, -46], taill=0.56, coat="short", tuck=0.02),
     # the Belgian matin: big boned, broad skull and deep square muzzle with hanging lips, a heavy neck, little tuck-up
-    "draught": dict(H=0.64, L=1.02, leg=0.97, girth=1.2, bone=1.25, skull=1.2, muzzle=0.72, deep=1.08, ears="drop",
-                    tail="long", tailp=[-40, -62, -74, -76, -70], taill=0.52, coat="smooth", flews=True,
-                    skull_w=1.24, muzzle_w=1.32, muzzle_d=1.3, stop=1.5, dome=1.1, neck=1.25, tuck=-0.03),
+    "draught": dict(H=0.64, L=1.02, leg=0.97, girth=1.2, bone=1.25, skull=1.2, muzzle=0.6, deep=1.08, ears="drop",
+                    tail="long", tailp=[-40, -62, -74, -76, -70], taill=0.52, coat="smooth", flews=True, mastiff=True,
+                    skull_w=1.12, muzzle_w=1.0, muzzle_d=1.0, stop=1.5, dome=1.08, neck=1.25, tuck=-0.03),
     # the Schipperke: cobby, the line falling from high withers to the croup, a fox's wedge of a head, small pricked ears
     "schipperke": dict(H=0.32, L=0.93, leg=0.95, girth=1.08, bone=1.0, skull=1.0, muzzle=0.76, deep=1.05,
                        ears="prick", tail="bob", tailp=[-20, -40, -50, -60, -60], taill=0.06, coat="ruff",
@@ -176,17 +176,20 @@ CAT_J = {
 }
 CAT_EAR = (0.024, 0.262, 0.178)
 
-PIG = dict(H=0.72, ears="lop", tail="pig", coat="pig")
+PIG = dict(H=0.70, ears="lop", tail="pig", coat="pig")
+# The Kempen pig of 1873 (a heavy landrace sow or barrow of some 150 kg): a deep barrel low on short strong legs, the
+# belly a hand's breadth above the hocks; heavy shoulders and round hams; a big head (0.43 m poll to disc) carried low
+# with heavy jowls under it; the back rising a little to the loin.
 PIG_J = {
-    "hips": (0, 0.665, -0.43), "spine": (0, 0.70, -0.13), "chest": (0, 0.685, 0.17), "neck": (0, 0.60, 0.40),
-    "neck2": (0, 0.61, 0.50), "head": (0, 0.62, 0.56), "nose": (0, 0.455, 0.815), "jaw": (0, 0.515, 0.615),
-    "chin": (0, 0.43, 0.775),
-    "scapulaL": (0.10, 0.635, 0.27), "shoulderL": (0.135, 0.49, 0.405), "elbowL": (0.15, 0.325, 0.33),
-    "carpusL": (0.13, 0.155, 0.36), "fmcpL": (0.12, 0.062, 0.385), "ftoeL": (0.12, 0.0, 0.44),
-    "hipL": (0.12, 0.585, -0.50), "stifleL": (0.14, 0.38, -0.395), "hockL": (0.13, 0.175, -0.555),
-    "hmcpL": (0.12, 0.062, -0.525), "htoeL": (0.12, 0.0, -0.475),
+    "hips": (0, 0.615, -0.36), "spine": (0, 0.66, -0.06), "chest": (0, 0.635, 0.20), "neck": (0, 0.56, 0.38),
+    "neck2": (0, 0.555, 0.46), "head": (0, 0.565, 0.52), "nose": (0, 0.355, 0.895), "jaw": (0, 0.455, 0.575),
+    "chin": (0, 0.33, 0.82),
+    "scapulaL": (0.10, 0.62, 0.25), "shoulderL": (0.135, 0.43, 0.36), "elbowL": (0.145, 0.275, 0.295),
+    "carpusL": (0.125, 0.13, 0.325), "fmcpL": (0.12, 0.055, 0.345), "ftoeL": (0.12, 0.0, 0.395),
+    "hipL": (0.12, 0.555, -0.42), "stifleL": (0.145, 0.345, -0.315), "hockL": (0.13, 0.175, -0.47),
+    "hmcpL": (0.12, 0.055, -0.44), "htoeL": (0.12, 0.0, -0.39),
 }
-PIG_EAR = (0.08, 0.68, 0.62)
+PIG_EAR = (0.09, 0.64, 0.58)
 
 
 def cat_joints():
@@ -201,7 +204,7 @@ def pig_joints():
     j = mirror(dict(PIG_J))
     j["earL"], j["earR"] = PIG_EAR, (-PIG_EAR[0], PIG_EAR[1], PIG_EAR[2])
     # the thin tail hangs from the rump with a curl
-    j.update(tail_chain((0, 0.64, -0.705), [-50, -72, -82, -70, -40], 0.24))
+    j.update(tail_chain((0, 0.585, -0.598), [-40, -70, -84, -72, -40], 0.22))
     return j
 
 

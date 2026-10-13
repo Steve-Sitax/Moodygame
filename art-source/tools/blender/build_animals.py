@@ -232,7 +232,8 @@ def shape_only(rigs):
             if o.type == "MESH" and o is not ob:
                 o.hide_render = True
         ob.hide_render = False
-        preview.clay(rname, rig["H"], head=Bd.marks["head"])
+        zs = [p_[2] for p_ in rig["J"].values()]
+        preview.clay(rname, rig["H"], head=Bd.marks["head"], span=max(zs) - min(zs), mid_z=(max(zs) + min(zs)) / 2)
         ob.hide_render = True
 
 

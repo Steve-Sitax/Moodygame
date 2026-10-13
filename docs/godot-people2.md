@@ -489,3 +489,32 @@ animals max 0.84 ms; Grote Markt 0.49 ms, animals max 0.45 ms): `.scratch/animal
 Re-run it alone. Open: gait changes from a stand still slide a paw in the slide proof's start-ups (20-36 mm, once 226 mm for the
 mongrel's run; round 1 had 20-31 mm); steady walk, trot and gallop 0.02-0.15 mm, two run paws about 1 mm; the pig's
 knee folds are too regular.
+
+## Animals, round 3, and the horse (art3-animals3, 2026-10-13)
+
+The Kempen pig has real proportions (`anatomy.py` PIG_J, `body.py` pig): 0.70 m at the back, 1.50 m snout to tail root,
+the belly a hand's breadth above the hocks, round hams and heavy shoulders as masses of their own, a 0.43 m head with
+heavy jowls and lop ears that lie over the eyes; its skin folds are relief in the field (`pig_folds`: neck rolls, the
+jowl's fold, partial wandering creases at the knees and hocks, the elbow, the flank fold, snout wrinkles; none
+regular), darkened in their creases, with pores, scratches, pale bristles in a crest and mud that is caked and cracked
+where it dried. The cart dog has a matin's head (`mastiff` in BREEDS): a shorter, deep muzzle that keeps its width to a
+blunt front, flews hanging below the jaw, a broad nose flush with the front. Lofts scale their distance by a lean that
+now runs on smoothly from span to span (a jump made flat facets where cross-sections change fast).
+
+The horse is one model of rigid parts, `horse.scn` (`build_horse.py`, kit `horse/`; replace with
+`native-godot/scripts/replace-horse.ps1`): the shapes of `build_props.py`'s horse (one source) at more sides, a rounded
+breast instead of the flat front cap (the "two lobes"), the head meshed from a distance field, cupped ears, round
+collar, rings and hooves; 17,428 triangles; one unwrap for all parts painted per coat at 2048 px with one normal picture
+(21.3 MB imported), drawn with the people2 skin shader (no new kind). `Movers/HorseModel.cs` puts the new meshes on the
+old body and leg copies (the gait is unchanged) and adds the neck, head, ears, tail, reins and, on shaft horses, the
+traces (`HorseCopies` for the pools, `HorseNodes` for node horses); `HorseGait.Life` nods the head and neck, turns the
+ears and swishes the tail from the gait and the shared mover clock. `StandingHorses.cs` stands the Rijnkaai's dray horse
+and the farrier's horse (its old triangles are cut out of the farrier's yard mesh when the town comes in: 350).
+
+The planting (`Animal.cs`): a start, a gait change and a stop plant every paw that stands, lift a paw the new gait has in
+the air, step a planted paw that falls out of the leg's reach (a quick lifted step, never a drag), and at the stop hold
+the paws, then step them one by one into the stand. A bone a clip has no track for now stands at its rest (it kept the
+last clip's pose: in round 2 the stand held paws 1-6 cm off the street after a walk). The slide proof adds a start and
+stop test (`startStop`: stand, speed up, four metres, slow down, stand; a paw counts while it is on the ground) and the
+rest clips' toe heights.
+

@@ -48,8 +48,14 @@ internal partial class AnimalsProof : Node
             var report = new Dictionary<string, object> { ["doorstep"] = new[] { sunSpot.X, sunSpot.Y, sunSpot.Z }, ["lampDoorstep"] = new[] { spot.X, spot.Y, spot.Z }, ["lamp"] = new[] { lamp.X, lamp.Y, lamp.Z } };
             // the slide on straight runs and through the gait changes, per rig
             var street = Street(town, spot, face);
-            report["slide"] = await Slide(town, street.from, street.dir);
-            if (Main.I.Flag("animals-sun-test"))
+            // (--horses-only: the horse's pictures alone, no animal measures or pictures)
+            bool horsesOnly = Main.I.Flag("horses-only");
+            if (!horsesOnly)
+            {
+                report["slide"] = await Slide(town, street.from, street.dir);
+                report["startStop"] = await StartStop(town, street.from, street.dir, false);
+            }
+            if (Main.I.Flag("animals-sun-test") && !horsesOnly)
             {
                 // the draught dog in open sun on the square, turned four ways (does the light fall smoothly over it?)
                 HideTownAnimals();
@@ -67,9 +73,18 @@ internal partial class AnimalsProof : Node
             }
             if (shots)
             {
-                await Captures(town, (sunSpot, sunFace), (spot, face));
-                await Strips(town, street.from, street.dir);
-                report["cart"] = await Cart(town);
+                if (!horsesOnly)
+                {
+                    await Captures(town, (sunSpot, sunFace), (spot, face));
+                    await Strips(town, street.from, street.dir);
+                    report["startStrips"] = await StartStop(town, street.from, street.dir, true);
+                    report["cart"] = await Cart(town);
+                }
+                if (horsesOnly || Main.I.Flag("horses-captures"))
+                {
+                    HideTownAnimals();
+                    report["horses"] = await new HorsesProof(this, dir, pictures).Run(town, (sunSpot, sunFace), (spot, face), street.from, street.dir);
+                }
             }
             report["pictures"] = pictures;
             report["ok"] = true;
@@ -229,6 +244,7 @@ internal partial class AnimalsProof : Node
             for (int i = 0; i < 60; i++) await Frame();
             foreach (string kind in Animal.Kinds)
             {
+                if (!Wanted(kind)) continue;
                 var rig = Animal.RigOf(kind)!;
                 float H = rig.H;
                 var a = Spawn(kind, spot, YawOf(face));
@@ -339,6 +355,112 @@ internal partial class AnimalsProof : Node
 
     private string dir_ => dir;
 
+    private static bool Wanted(string kind)
+    {
+        string only = Main.I.Arg("animals-kinds");
+        return only == "" || only.Split(',').Contains(kind);
+    }
+
+    /// <summary>From standing into each gait and back to a stand, the way an animal sets off in the street: it stands,
+    /// speeds up over a moment, goes four metres, slows down and stands again. Every paw is measured while it is on the
+    /// ground (its toe within a few millimetres of the street, whatever clip shows): how far it moves before it lifts.
+    /// Fixed steps of 1/60 s. With shots: a strip of the start and the stop for the pig and the draught dog, the camera
+    /// beside it, each frame named with the worst slide so far.</summary>
+    private async System.Threading.Tasks.Task<object> StartStop(Town.Townspeople town, Vector3 from, Vector3 dir, bool shots)
+    {
+        HideTownAnimals();
+        var rows = new List<object>();
+        var done = new HashSet<string>();
+        var side = new Vector3(dir.Z, 0, -dir.X);
+        if (shots) await Dev.Kit.I.Light(13, "clear");
+        foreach (string kind in Animal.Kinds)
+        {
+            var rig = Animal.RigOf(kind)!;
+            if (!done.Add(rig.Name)) continue;
+            if (shots && kind is not ("pig_pink" or "dog_draught")) continue;
+            foreach (string gait in shots ? new[] { "walk" } : new[] { "walk", "trot", "run" })
+            {
+                if (!rig.Clips.TryGetValue(gait, out var g)) continue;
+                var a = Spawn(kind, from, YawOf(dir));
+                float v = g.Speed * a.Size, acc = gait == "walk" ? 0.5f : gait == "trot" ? 0.9f : 1.4f;
+                // on the ground: the toe within a millimetre and a half or so of the street (a paw coming down or lifting
+                // off passes that height with its speed nearly gone)
+                float ground = from.Y, near = Math.Max(0.0012f, 0.003f * rig.H * a.Size), lowest = 9;
+                const float dt = 1 / 60f;
+                float t = 0, travelled = 0, stopAt = -1, speed = 0;
+                var start = new Dictionary<string, Vector3>();
+                var worst = new Dictionary<string, Dictionary<string, float>> { ["start"] = new(), ["going"] = new(), ["stop"] = new() };
+                var clips = new List<string>();
+                System.Text.StringBuilder? trace = Main.I.Flag("animals-slide-trace") && !shots ? new() : null;
+                int shot = 0;
+                float nextShot = 0.6f;
+                while (t < 14)
+                {
+                    t += dt;
+                    // stand 0.8 s, speed up, go on to 4 m, slow down, stand 2 s
+                    if (t < 0.8f) speed = 0;
+                    else if (stopAt < 0)
+                    {
+                        speed = v * Math.Min(1, (t - 0.8f) / acc);
+                        if (travelled >= 4f) stopAt = t;
+                    }
+                    else speed = Math.Max(0, v * (1 - (t - stopAt) / (acc * 0.8f)));
+                    if (stopAt > 0 && t > stopAt + acc * 0.8f + 2.0f) break;
+                    travelled += speed * dt;
+                    a.Group.Position = from + dir * travelled;
+                    a.Play("walk");
+                    a.Update(dt);
+                    if (clips.Count == 0 || clips[^1] != a.ClipName) clips.Add(a.ClipName);
+                    string part = stopAt > 0 ? "stop" : t < 0.8f + acc + 0.6f ? "start" : "going";
+                    if (shots)
+                    {
+                        var at = a.Group.Position + Vector3.Up * 0.5f * rig.H;
+                        Main.I.Cam.LookAtFromPosition(at + side * (3.0f * rig.H + 0.9f) + Vector3.Up * 0.1f, at);
+                        if (Main.I.Cam is Player.FlyCam fly) fly.Face(Main.I.Cam.GlobalBasis.GetRotationQuaternion());
+                    }
+                    await Frame();
+                    trace?.AppendLine(FormattableString.Invariant($"{t:0.000};{travelled:0.000};{a.Speed:0.000};") + a.DebugState() + ";" + string.Join(";", a.Toes().Select(x => FormattableString.Invariant($"{x.leg}:{x.at.X:0.0000}:{x.at.Y - ground:0.0000}:{x.at.Z:0.0000}"))));
+                    rig.Clips.TryGetValue(a.ClipName, out var shown);
+                    foreach (var (leg, toe) in a.Toes())
+                    {
+                        lowest = Math.Min(lowest, toe.Y - ground);
+                        // on the ground: in a gait, the paws its footfall table has standing (as the gait proof counts
+                        // them); at rest (the stand, the stop's steps), a toe within a millimetre or two of the street
+                        // (a paw the planting lifts to step it on, in a start, a change or a stop, is not on the ground)
+                        bool down = shown != null && shown.Kind == "gait"
+                            ? ((a.Phase - shown.Phases.GetValueOrDefault(leg)) % 1 + 1) % 1 < shown.Duty * 0.98f && toe.Y - ground < 0.004f
+                            : toe.Y - ground < near;
+                        if (down)
+                        {
+                            if (!start.TryGetValue(leg, out var p0)) { start[leg] = toe; continue; }
+                            float slide = new Vector2(toe.X - p0.X, toe.Z - p0.Z).Length();
+                            var w = worst[part];
+                            w[leg] = Math.Max(w.GetValueOrDefault(leg), slide);
+                        }
+                        else start.Remove(leg);
+                    }
+                    bool startShots = t >= nextShot && t < 0.8f + acc + 0.9f;
+                    bool stopShots = stopAt > 0 && t >= nextShot && t > stopAt - 0.2f && t < stopAt + acc * 0.8f + 1.2f;
+                    if (shots && (startShots || stopShots))
+                    {
+                        float worstMm = worst.Values.SelectMany(x => x.Values).DefaultIfEmpty(0).Max() * 1000;
+                        string name = $"start-{kind}-{shot:00}-t{t:0.00}-slide{worstMm:0.0}mm.png";
+                        Main.I.View.GetTexture().GetImage().SavePng(Path.Combine(dir_, name));
+                        pictures.Add(new { name, clip = a.ClipName, t, speed, worstSlideMm = Math.Round(worstMm, 2) });
+                        shot++;
+                        nextShot = t + 0.15f;
+                    }
+                    if (shots && stopAt > 0 && nextShot < stopAt - 0.2f) nextShot = stopAt - 0.2f;
+                }
+                if (trace != null) File.WriteAllText(Path.Combine(dir_, $"trace-start-{rig.Name}-{gait}.csv"), trace.ToString());
+                rows.Add(new { rig = rig.Name, kind, gait, speed = v, clips, groundMm = Math.Round(near * 1000, 2), lowestToeMm = Math.Round(lowest * 1000, 2), maxSlideMm = worst.ToDictionary(p => p.Key, p => p.Value.ToDictionary(q => q.Key, q => Math.Round(q.Value * 1000, 2))),
+                    worstMm = Math.Round(worst.Values.SelectMany(x => x.Values).DefaultIfEmpty(0).Max() * 1000, 2) });
+                a.Dispose();
+            }
+        }
+        return rows;
+    }
+
     /// <summary>Paw slide in stance on the live skeleton: each rig at each gait's speed, then through the gait changes.</summary>
     private async System.Threading.Tasks.Task<object> Slide(Town.Townspeople town, Vector3 from, Vector3 dir)
     {
@@ -397,6 +519,27 @@ internal partial class AnimalsProof : Node
             }
         }
         rows.Add(new { held });
+        // the rest clips held: where each toe is over the street (it should stand on it)
+        var rest = new List<object>();
+        done.Clear();
+        foreach (string kind in Animal.Kinds)
+        {
+            var rig = Animal.RigOf(kind)!;
+            if (!done.Add(rig.Name)) continue;
+            var a = Spawn(kind, from, 0);
+            foreach (string clip in new[] { "idle", "sniff" })
+            {
+                if (!rig.Clips.TryGetValue(clip, out var c)) continue;
+                foreach (float f in new[] { 0f, 0.3f, 0.6f })
+                {
+                    a.Hold(clip, f * c.Length);
+                    await Frame();
+                    rest.Add(new { rig = rig.Name, clip, at = f, toesMm = a.Toes().ToDictionary(x => x.leg, x => Math.Round((x.at.Y - from.Y) * 1000, 1)) });
+                }
+            }
+            a.Dispose();
+        }
+        rows.Add(new { rest });
         done.Clear();
         foreach (string kind in Animal.Kinds)
         {
@@ -414,6 +557,7 @@ internal partial class AnimalsProof : Node
             foreach (var (name, speed) in cases)
             {
                 var a = Spawn(kind, from, YawOf(dir));
+                System.Text.StringBuilder? trace = Main.I.Flag("animals-slide-trace") && name == "speeding-up" ? new() : null;
                 float travelled = 0, t = 0;
                 var start = new Dictionary<string, Vector3>();
                 var duringChange = new HashSet<string>();
@@ -433,13 +577,15 @@ internal partial class AnimalsProof : Node
                     if (a.ClipName != lastClip) { sinceSwitch = 0; lastClip = a.ClipName; start.Clear(); }
                     sinceSwitch += dt;
                     await Frame();
+                    trace?.AppendLine($"{t:0.000},{travelled:0.000},{a.Speed:0.000}," + a.DebugState() + "," + string.Join(",", a.Toes().Select(x => $"{x.leg}:{x.at.X:0.0000}:{x.at.Y:0.0000}:{x.at.Z:0.0000}")));
                     if (travelled < 1.5f || !rig.Clips.TryGetValue(a.ClipName, out var c) || c.Kind != "gait") continue;
                     frames++;
                     foreach (var (leg, at) in a.Toes())
                     {
                         float ph = c.Phases.GetValueOrDefault(leg);
                         float s = ((a.Phase - ph) % 1 + 1) % 1;
-                        if (s < c.Duty * 0.98f)
+                        // on the ground in the gait's stance (a paw the planting lifts to step it on is not)
+                        if (s < c.Duty * 0.98f && at.Y - from.Y < 0.004f)
                         {
                             if (!start.TryGetValue(leg, out var p0))
                             {
@@ -456,6 +602,7 @@ internal partial class AnimalsProof : Node
                         else { start.Remove(leg); duringChange.Remove(leg); }
                     }
                 }
+                if (trace != null) File.WriteAllText(Path.Combine(dir_, $"trace-{rig.Name}-{name}.csv"), trace.ToString());
                 rows.Add(new { rig = rig.Name, kind, test = name, frames, stances, maxSlideMm = worst.ToDictionary(p => p.Key, p => Math.Round(p.Value * 1000, 2)), maxSlideInGaitChangeMm = Math.Round(worstSwitch * 1000, 2) });
                 a.Dispose();
             }
