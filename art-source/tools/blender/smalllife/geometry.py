@@ -115,6 +115,24 @@ class Mesh:
             for k in range(4):
                 a,b,c,d=[back[i] for i in (ids[j][k],ids[j+1][k],ids[j+1][k+1],ids[j][k+1])]
                 self.f.extend([(a,b,c),(a,c,d)])
+        if thickness>.001:
+            # Cartilage has a closed semicircular rim; feather vanes retain their natural thin lip.
+            edge=ids[0][:]+[row[-1] for row in ids[1:]]+list(reversed(ids[-1][:-1]))+[row[0] for row in reversed(ids[1:-1])]
+            rings=[];radius=thickness*.5;length=max(np.linalg.norm(np.array(end)-p),.001)
+            for step in range(9):
+                angle=step*math.pi/8;row=[]
+                for j,i in enumerate(edge):
+                    before=np.array(self.v[edge[(j-1)%len(edge)]]);after=np.array(self.v[edge[(j+1)%len(edge)]])
+                    outward=np.cross(after-before,[0,1,0]);outward/=max(np.linalg.norm(outward),1e-9)
+                    uv=np.array([(self.uv[i][0]*4-tile%4-.04)/.92,((1-self.uv[i][1])*4-tile//4-.04)/.92])
+                    uv+=np.array([0,thickness/length*step/8])
+                    q=np.array(self.v[i])+outward*radius*math.sin(angle)+[0,-radius*(1-math.cos(angle)),0]
+                    row.append(self.vertex(q,uv,tile,{bone:1}))
+                rings.append(row)
+            for step in range(8):
+                for j in range(len(edge)):
+                    k=(j+1)%len(edge);a,b,c,d=rings[step][j],rings[step+1][j],rings[step+1][k],rings[step][k]
+                    self.f.extend([(a,b,c),(a,c,d)])
 
     def normals(self):
         p=np.array(self.v);f=np.array(self.f);n=np.zeros_like(p)

@@ -82,6 +82,11 @@ internal partial class SmallLifeProof : Node
         if(SmallLife.I is{} small){small.SetProcess(false);small.Batch.Root.Visible=false;}
         foreach(var court in Main.I.GetChildren().OfType<NativeCourtyards>()){court.SetProcess(false);foreach(var a in court.List)a.Body.Visible=false;}
         string[] kinds=Main.I.Flag("smalllife-preview")?new[]{"hen","goat","duck_mallard","swan","squirrel","pigeon","rat"}:SmallLifeKit.Kinds.Keys.ToArray();
+        string selected=Main.I.Arg("smalllife-kinds");
+        if(selected!="") {
+            kinds=selected.Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
+            if(kinds.Length==0||kinds.Any(k=>!SmallLifeKit.Kinds.ContainsKey(k)))throw new ArgumentException("smalllife-kinds");
+        }
         bool frontOnly=Main.I.Flag("smalllife-reframe-front");
         var batch=new SmallLifeKit.Batch(Main.I.View,"smalllife_art_exhibit",1,kinds);
         foreach(var (tag,hour,weather) in Main.I.Flag("smalllife-preview")?new[]{("day",13f,"clear")}:new[]{("day",13f,"clear"),("rain",13f,"rain"),("lamps",19.5f,"clear")})
@@ -182,25 +187,40 @@ internal partial class SmallLifeProof : Node
             await Dev.Kit.I.Light(hour,weather);for(int i=0;i<30;i++)await Frame();
             foreach(string kind in new[]{"hen","goat"})
             {
-                var a=court.List.First(b=>b.Kind==kind);var at=a.Body.GlobalPosition;
+                var a=court.List.First(b=>b.Kind==kind);
+                var stateAt=new Vector3((float)a.X,(float)town.Walk!.BaseAt(a.X,a.Z),(float)a.Z);
+                View(stateAt+new Vector3(2,1,2),stateAt+Vector3.Up*.2f);
+                for(int i=0;i<30;i++)await Frame();
+                a=court.List.First(b=>b.Id==a.Id);var at=a.Body.GlobalPosition;
                 float h=SmallLifeKit.Kinds[kind].Height;var target=at+Vector3.Up*h*.5f;
-                await Shot($"integration-{tag}-courtyard-{kind}",target+new Vector3(3,.3f,1),target,kind,"live",0);
+                await Shot($"integration-{tag}-courtyard-{kind}",ClearView(target,1.3f,.25f),target,kind,"live",0);
+                checks[$"{tag} courtyard {kind} actually drawn"]=a.Body.IsVisibleInTree()&&at.DistanceTo(stateAt)<5;
                 receipts.Add(new{phase=tag,kind,id=a.Id,at=new[]{at.X,at.Y,at.Z},drawn=a.Body.IsVisibleInTree()});
             }
             foreach(string kind in new[]{"duck","swan","goose","squirrel","songbird"})
             {
                 var a=ParkWildlife.I!.List.First(b=>b.Species==kind);var target=new Vector3((float)a.X,(float)a.Y+.25f,(float)a.Z);
-                await Shot($"integration-{tag}-park-{kind}",target+new Vector3(3,1,1),target,kind,a.Mode,0);
+                await Shot($"integration-{tag}-park-{kind}",ClearView(target,1.3f,.25f),target,kind,a.Mode,0);
                 receipts.Add(new{phase=tag,kind,id=a.Id,a.Home,a.Mode,at=new[]{a.X,a.Y,a.Z},instanced=true});
             }
             foreach(string kind in new[]{"sparrow","jackdaw","crow","rat"})
             {
                 var a=SmallLife.I.List.First(b=>b.Kind==kind);var target=a.At+Vector3.Up*SmallLifeKit.Kinds[kind].Height*.5f;
-                await Shot($"integration-{tag}-town-{kind}",target+new Vector3(3,.3f,1),target,kind,a.Motion,0);
+                await Shot($"integration-{tag}-town-{kind}",ClearView(target,1.3f,.25f),target,kind,a.Motion,0);
                 receipts.Add(new{phase=tag,kind,id=a.Id,at=new[]{a.At.X,a.At.Y,a.At.Z},home=new[]{a.Home.X,a.Home.Y,a.Home.Z},a.Perched,a.Size,instanced=true});
             }
         }
         File.WriteAllText(Path.Combine(dir,"smalllife-integration.json"),JsonSerializer.Serialize(new{ok=checks.Values.All(v=>v),checks,receipts,pictures},new JsonSerializerOptions{WriteIndented=true}));
         GD.Print($"smalllife integration: {checks.Count} checks, {pictures.Count} pictures");
+    }
+    private Vector3 ClearView(Vector3 target,float gap,float height)
+    {
+        for(int i=0;i<16;i++) {
+            float angle=i*MathF.Tau/16;
+            var at=target+new Vector3(MathF.Cos(angle)*gap,height,MathF.Sin(angle)*gap);
+            using var ray=PhysicsRayQueryParameters3D.Create(target,at);
+            if(Main.I.Cam.GetWorld3D().DirectSpaceState.IntersectRay(ray).Count==0)return at;
+        }
+        return target+Vector3.Up*gap+new Vector3(.1f,0,.1f);
     }
 }

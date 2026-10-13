@@ -75,7 +75,7 @@ try {
             while ((Other-Godot).Count -and [DateTime]::UtcNow -lt $until) { Start-Sleep -Seconds 2 }
             @(Other-Godot) | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $dir 'others-at-start.json')
         }
-        if ($timing) {
+        if ($timing -or $mode -eq 'shaders') {
             $exclusiveUntil = [DateTime]::UtcNow.AddSeconds($WaitForTimingSeconds)
             $waiting = 0
             $quietSince = [DateTime]::UtcNow
