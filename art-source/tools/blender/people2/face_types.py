@@ -366,8 +366,9 @@ KIND_TYPES = {
 }
 # kinds whose paint is set by their trade (soot, grime): the cell named here wins
 KIND_CELLS = {"coalman": ["m_sooty"], "sweep": ["m_sooty"], "sweep_boy": ["c_sooty"]}
-# kinds that wear a hat or a cap over their hair: the hair styles that fit under it
-KIND_HAIR = {"docker_a": {"crop": 3, "bald": 1}, "police": {"crop": 1}, "sooi": {"crop": 1},
+# kinds that wear a hat or a cap over their hair: the hair styles that fit under it (mhhair: "capped" is a crop
+# pressed flat under a cap's or kepi's band and gone above it; "undercap" a woman's hair under the linen cap)
+KIND_HAIR = {"docker_a": {"capped": 3, "bald": 1}, "police": {"capped": 1}, "sooi": {"capped": 1},
              "fishwife_a": {"undercap": 1}, "fishwife_b": {"undercap": 1}, "nun": {"undercap": 1},
              "beguine": {"undercap": 1}, "maid": {"undercap": 1}}
 
@@ -377,7 +378,7 @@ CAST = {
                                                    "nose_wide": 0.5, "nostrils_wide": 0.4, "face_fat": 0.2,
                                                    "brow_ridge": 0.6, "eyes_big": -0.4, "eyes_hooded": 0.3,
                                                    "ears_out": 0.3, "neck_thick": 0.4, "chin_wide": 0.4},
-                 cell="m_weather_brown", hair="crop", beard=None, moustache="walrus", age=52),
+                 cell="m_weather_brown", hair="capped", beard=None, moustache="walrus", age=52),
     "peeters": dict(type="lean_widow", sliders={"face_oval": 0.6, "face_fat": -0.5, "nose_long": 0.4, "nose_out": 0.3,
                                                 "nose_wide": -0.5, "lips_full": -0.6, "jaw_wide": -0.5,
                                                 "eyes_big": 0.3, "chin_out": 0.4},

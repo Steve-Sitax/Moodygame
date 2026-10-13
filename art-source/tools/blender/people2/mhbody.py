@@ -1038,7 +1038,8 @@ _HEADS = {}
 
 def hair_mesh(name, body, kind, style, lod, keys=None):
     """A hair, beard or moustache piece as a Blender object in the body's rest space: UVs in the face picture's hair
-    swatches (face flag set), weights from the skin under it, the sliders as shape keys (keys: {name: move}, LOD0)."""
+    swatches (face flag set, occlusion in blue, the fade in alpha), weights from the skin under it (a girl's plaits
+    hanging below the head: the neck's and chest's), the sliders as shape keys (keys: {name: move}, LOD0)."""
     import bpy
     from . import mhhair
     from . import weights as wt
@@ -1046,23 +1047,24 @@ def hair_mesh(name, body, kind, style, lod, keys=None):
     if key not in _HEADS:
         _HEADS[key] = mhhair.Head(body, lod)
     head = _HEADS[key]
-    co, faces, uvs = mhhair.piece(head, kind, style, lod, "f" if body.params["female"] else "m")
+    co, faces, uv, col = mhhair.piece(head, kind, style, lod, "f" if body.params["female"] else "m")
     b = body.b
     btris, _ = b.tris()
     hd = np.isin(body.parts[btris], ("head",)).all(1)
     bind = mh.Binding.fit(co, body.Pf, btris[hd])
-    W = bind.interp(body.W)
+    W = mhhair.hang_weights(co, bind.interp(body.W), body)
     me = bpy.data.meshes.new(name)
-    me.from_pydata([tuple(B(*p)) for p in co], [], [list(f) for f in faces])
+    me.from_pydata([tuple(B(*p)) for p in co], [], [list(int(i) for i in f) for f in faces])
     me.update()
     for p in me.polygons:
         p.use_smooth = True
+    loops = np.zeros(len(me.loops), np.int64)
+    me.loops.foreach_get("vertex_index", loops)
     uvl = me.uv_layers.new(name="UVMap")
-    uvl.data.foreach_set("uv", np.concatenate([np.array(u) for u in uvs]).ravel())
+    uvl.data.foreach_set("uv", np.asarray(uv, np.float32)[loops].ravel())
+    # picture_flags: green the face picture, blue the piece's occlusion, alpha its fade (docs/people.md "Hair")
     attr = me.color_attributes.new(name="picture_flags", type="FLOAT_COLOR", domain="CORNER")
-    rgba = np.zeros((len(me.loops), 4), np.float32)
-    rgba[:, 1] = 1
-    rgba[:, 3] = 1
+    rgba = np.asarray(col, np.float32)[loops]
     attr.data.foreach_set("color", rgba.ravel())
     me.color_attributes.active_color = attr
     ob = bpy.data.objects.new(name, me)

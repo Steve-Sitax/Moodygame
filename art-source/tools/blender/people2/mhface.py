@@ -245,7 +245,8 @@ def _blob(pos, c, r):
 
 
 def paint(look):
-    """A face picture and its normal map (SIZE, v up, sRGB colour; normals OpenGL green-up) for a look:
+    """A face picture and its normal map (SIZE, v up, sRGB colour and alpha: 1 but in the hair swatches, where it is
+    the strands' coverage, mhhair.paint_swatches; normals OpenGL green-up) for a look:
     group (m, f, c, om, of), skin (light, dark, asian), age (young, middle, old), tone (rgb multiplier), hair (HAIR
     name or rgb), scalp (hair, bald, fringe), brow (eyebrow asset), stubble, weather, ruddy, drinker, pox, freckles,
     soot (0..1), iris, seed."""
@@ -317,21 +318,8 @@ def paint(look):
     hair = np.array(HAIR.get(lk.get("hair"), lk.get("hair_rgb", HAIR["brown"])) if isinstance(lk.get("hair"), str)
                     else lk.get("hair", HAIR["brown"]), np.float32)
     # the scalp: hair-coloured under the hair pieces (no skin through a gap), or a bald crown with a fringe
-    scalp = lk.get("scalp", "hair")
-    el, az = head_angles(pos)
-    line = hairline(az, sex, lk.get("recede", 0.0)) + 1.2 * _noise3(pos, 70.0, seed + 41)
-    thin = 0.55 + 0.45 * np.clip(_noise3(pos, 900.0, seed + 47) * 0.8 + 0.5, 0, 1)  # single hairs at the line
-    sc = above(el, line - 3.0, line + 3.5) * head
-    sc = np.where(el < line + 3.5, sc * thin, sc)
-    if scalp == "bald":
-        bl = bald_line(az) + 3.0 * _noise3(pos, 120.0, seed + 43)
-        sc = sc * below(el, bl - 5.0, bl + 3.0) * 0.85
-    if scalp != "none":
-        strands = 0.5 + 0.5 * _noise3(pos * np.array((1.0, 0.3, 1.0)), 650.0, seed + 7)
-        hc = hair * (0.52 + 0.30 * strands[..., None])  # as dark as the shaded hair pieces over it (no light rim)
-        sc = sc * (0.80 + 0.2 * strands)
-        rgb = rgb * (1 - 0.95 * sc[..., None]) + hc * 0.95 * sc[..., None]
-        hgt += 0.00025 * sc * strands
+    from . import mhhair
+    sc = mhhair.paint_scalp(rgb, hgt, lk, G, pos, head, sex, seed)
     # stubble: the beard's zone (below the cheekbones, the upper lip, the chin, under the jaw, the sideburns)
     st = float(lk.get("stubble", 0.0))
     if st > 0:
@@ -378,35 +366,10 @@ def paint(look):
     ev = mhskin.sample(eye, (xx - x0 + 0.5) / (x1 - x0), (yy - y0 + 0.5) / (y1 - y0))
     ev = ev * np.array((0.86, 0.84, 0.82))  # the whites dimmed (they glow in the fog otherwise)
     rgb[y0:y1, x0:x1] = ev
-    # the hair swatches: strands along v, and a plait's weave
-    for (a0, b0, a1, b1), braid in ((HAIR_RECT, False), (BRAID_RECT, True)):
-        X0, Y0, X1, Y1 = int(a0 * SIZE), int(b0 * SIZE), int(a1 * SIZE), int(b1 * SIZE)
-        yy, xx = np.mgrid[Y0:Y1, X0:X1].astype(np.float32)
-        u = (xx - X0) / (X1 - X0)
-        v = (yy - Y0) / (Y1 - Y0)
-        p3 = np.stack((u * 0.12, v * 0.5, np.zeros_like(u)), -1)
-        if braid:
-            ph = (v * 7 + 0.5 * np.abs(np.sin(u * math.pi * 3))) % 1.0
-            band = np.sin(ph * math.pi) ** 0.6
-            st_ = 0.55 + 0.45 * _noise3(np.stack((u * 0.5, ph * 0.04, np.zeros_like(u)), -1), 900.0, seed + 23)
-            k = 0.45 + 0.55 * band * st_
-            h = 0.0012 * band + 0.0002 * st_
-        else:
-            # strands along v: fine straight streaks (about 2.5 texels wide, half the swatch long), a few broader
-            # ones, soft locks and a sheen band that wanders with them (no wavy grain: that read as wood)
-            q = lambda fu, fv: np.stack((u * fu, v * fv, np.zeros_like(u)), -1)  # noqa: E731
-            wav = 0.010 * np.sin(v * 7.0 + u * 19.0)
-            st_ = 0.5 + 0.5 * _noise3(q(165.0, 2.2) + np.stack((wav * 165, 0 * u, 0 * u), -1), 1.0, seed + 29)
-            st2 = 0.5 + 0.5 * _noise3(q(62.0, 1.4), 1.0, seed + 31)
-            lock = 0.5 + 0.5 * _noise3(q(9.0, 0.6), 1.0, seed + 33)
-            part_ = np.clip(1.0 - np.abs(lock - 0.5) * 16.0, 0, 1)  # a faint line between two locks
-            sheen = np.exp(-((v - 0.5 - 0.08 * np.sin(u * 23.0) - 0.05 * (lock - 0.5)) / 0.09) ** 2)
-            k = 0.60 + 0.36 * (st_ - 0.5) + 0.16 * (st2 - 0.5) + 0.10 * (lock - 0.5) - 0.10 * part_ +                 0.20 * sheen * (0.6 + 0.8 * st_)
-            h = 0.00050 * st_ + 0.00020 * st2 + 0.00030 * lock - 0.0002 * part_
-        rgb[Y0:Y1, X0:X1] = np.clip(hair * k[..., None], 0, 1)
-        hgt[Y0:Y1, X0:X1] = h
+    # the hair pieces' pictures (mhhair: strands drawn one by one; their coverage in the picture's alpha)
+    alpha = mhhair.paint_swatches(rgb, hgt, lk, SIZE)
     nm = normal_map(hgt, pos, has)
-    return np.clip(rgb, 0, 1).astype(np.float32), nm
+    return np.dstack((np.clip(rgb, 0, 1), alpha)).astype(np.float32), nm
 
 
 def seam_fade(mask, px):
