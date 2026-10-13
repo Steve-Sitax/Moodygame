@@ -29,6 +29,9 @@ the picture manifest). people.glb is not touched: the games switch later (packag
 --idle     D2's check pictures, in .scratch/people2-build/shots/idle/: every idle, talk and sitting clip as a contact
            sheet per family and a strip per clip, and the clips on the dressed kinds
 --no-idle  skip D2's idles, talk and sitting (trials only)
+--work     D3's check pictures, in .scratch/people2-build/shots/work/: every work clip as a strip (front and side)
+           with stand-ins for what it moves, a frame sequence 0.25 s apart and the feet from above
+--no-work  skip D3's work clips (trials only); --work-only a,b makes only these work clips (trials)
 --fast     paint the pictures at the cell size, not twice it (trials only)
 """
 
@@ -43,7 +46,7 @@ import numpy as np  # noqa: E402
 
 import people2  # noqa: E402
 from people2 import body as bd  # noqa: E402
-from people2 import clips_idle, clips_legacy, clips_move, export, lod, paint, rig, weights  # noqa: E402
+from people2 import clips_idle, clips_legacy, clips_move, clips_work, export, lod, paint, rig, weights  # noqa: E402
 from people2 import face_paint as fp  # noqa: E402
 from people2 import hair, pictures  # noqa: E402
 from people2 import hands  # noqa: E402
@@ -68,6 +71,7 @@ if PLAIN:
 ONLY = ARGS[ARGS.index("--only") + 1].split(",") if "--only" in ARGS else None
 KINDS_ONLY = ARGS[ARGS.index("--kinds") + 1].split(",") if "--kinds" in ARGS else None
 TEX = 1024 if "--fast" in ARGS else 2048
+WORK_ONLY = ARGS[ARGS.index("--work-only") + 1].split(",") if "--work-only" in ARGS else None
 # the pictures (B): one per group of bodies, each with its own face (the old grey, the boys without stubble)
 PICTURES = [("m", "man_middling"), ("f", "woman_middling"), ("boy", "child_middling"), ("old_m", "old_man"),
             ("old_f", "old_woman")]
@@ -254,6 +258,11 @@ def main():
     if "--no-idle" not in ARGS:
         idle_actions, idle_meta, idle_clips = clips_idle.make_all(bodies, bodies[0]["ao"])
         actions += idle_actions
+    # D3: work (docs/people.md "Work"), keyed on the same armature
+    work_meta, work_clips = {}, []
+    if "--no-work" not in ARGS:
+        work_actions, work_meta, work_clips = clips_work.make_all(bodies, bodies[0]["ao"], names=WORK_ONLY)
+        actions += work_actions
     # B: the grips (curls and where a handle of each size sits in gripL/gripR), fitted on the first body
     from people2 import preview_b
     grips = preview_b.fit_grips(bodies[0])
@@ -320,10 +329,10 @@ def main():
         print(f"[people2] plain native intake -> {plain}")
     from people2 import glb_slim
     if not os.environ.get("PEOPLE2_NO_SLIM"):  # trials: PEOPLE2_NO_SLIM=1 keeps Blender's file as it is
-        c0, c1, b0, b1 = glb_slim.slim(OUT, thin=set(idle_meta))
+        c0, c1, b0, b1 = glb_slim.slim(OUT, thin=set(idle_meta) | set(work_meta))
         print(f"[people2] slimmed: {c0} -> {c1} animation channels, {b0 // 1024} -> {b1 // 1024} KB")
         if "--plain" in ARGS:
-            c0, c1, b0, b1 = glb_slim.slim(plain, thin=set(idle_meta))
+            c0, c1, b0, b1 = glb_slim.slim(plain, thin=set(idle_meta) | set(work_meta))
             print(f"[people2] plain slimmed: {c0} -> {c1} animation channels, {b0 // 1024} -> {b1 // 1024} KB")
     hips_base = [round(float(c), 4) for c in people2.G(bodies[0]["ao"].data.bones["hips"].head_local)]
     loco = {"about": "package D1 clips (art-source/tools/blender/people2/clips_move.py, docs/people.md 'Locomotion'). Loops are "
@@ -357,6 +366,7 @@ def main():
                      "locomotion": loco,
                      "pictures": picture_manifest,
                      "idles": clips_idle.rig_json(idle_meta),
+                     "work": clips_work.rig_json(work_meta),
                      "held": held.json_all(kinds),
                      "kinds": {b["name"]: dress.kind_json(b) for b in dressed}})
     kb = os.path.getsize(OUT) // 1024
@@ -365,6 +375,10 @@ def main():
     if "--dress" in ARGS:
         from people2 import preview_c
         for ln in preview_c.cast(dressed, bodies, actions, move_clips, held_obs):
+            print("[people2] " + ln)
+    if "--work" in ARGS and work_clips:
+        from people2 import preview_work
+        for ln in preview_work.run(work_clips, bodies):
             print("[people2] " + ln)
     if "--idle" in ARGS and idle_clips:
         from people2 import preview_idle

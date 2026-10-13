@@ -209,10 +209,13 @@ public partial class Townspeople
         }
         if (g.Mode == "stand" && !Crowd!.PuppetBusy(p) && Dist(p.X, p.Z, g.X, g.Z) < 1.4)
         {
-            if (g.Motion == "scrub") LifeProp(s, s.Key, "lively", "bucket", new Vector3(0.5f, 0, 0));
+            // people2 (package D3) scrubbers kneel with the bucket by their left hand and the brush in their own
+            // hand; sweepers have the broom; washers stoop over the bucket before them; smokers hold their pipe
+            string? work = p.Human.IsPeople2 ? p.Human.WorkChoice(g.Motion ?? "") : null;
+            if (g.Motion == "scrub") LifeProp(s, s.Key, "lively", work == "scrub" ? "bucket_only" : "bucket", work == "scrub" ? new Vector3(0.30f, 0, 0.30f) : new Vector3(0.5f, 0, 0));
             if (g.Motion == "lace") LifeProp(s, s.Key, "lively", "chair", Vector3.Zero);
-            if (g.Motion == "smoke") LifeProp(s, s.Key, "lively", "pipe", Vector3.Zero);
-            if (g.Motion == "wash") LifeProp(s, s.Key, "lively", "wash", Vector3.Zero);
+            if (g.Motion == "smoke" && work != "smoke") LifeProp(s, s.Key, "lively", "pipe", Vector3.Zero);
+            if (g.Motion == "wash") LifeProp(s, s.Key, "lively", work == "wash" ? "wash_people2" : "wash", Vector3.Zero);
             if (g.Motion == "cross") LifeProp(s, s.Key, "lively", "flowers", Vector3.Zero);
             if (g.Place?.StartsWith("cards:") == true) LifeProp(s, s.Key, "lively", "cards", Vector3.Zero);
             if (s.R.Trade == "beggar") { Crowd.PuppetStand(p, "beg", g.Yaw); return true; }

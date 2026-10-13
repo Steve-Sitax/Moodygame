@@ -41,6 +41,69 @@ internal static class People2Moves
     }
 
     private static readonly Dictionary<string, Family> families = new();
+
+    // D3: per family the work clips that serve a motion or a context the game knows; the kinds whose load decides
+    // their clips; where a carried load rides (peopleRig.json "work")
+    internal sealed class WorkFamily
+    {
+        public string Name = "";
+        public string? FallbackName;
+        public WorkFamily? Fallback;
+        public readonly Dictionary<string, string[]> Motions = new(), Contexts = new();
+        public string[] Motion(string m)
+        {
+            for (var f = this; f != null; f = f.Fallback)
+                if (f.Motions.TryGetValue(m, out var l) && l.Length > 0) return l;
+            return Array.Empty<string>();
+        }
+        public string[] Context(string c)
+        {
+            for (var f = this; f != null; f = f.Fallback)
+                if (f.Contexts.TryGetValue(c, out var l) && l.Length > 0) return l;
+            return Array.Empty<string>();
+        }
+    }
+    internal sealed record LoadSpec(string Bone, Transform3D Offset, Vector3 Size, string Walk, string Hold, string[] Lift, string? Down);
+    private static readonly Dictionary<string, WorkFamily> work = new();
+    private static readonly Dictionary<string, Dictionary<string, string>> workKinds = new();
+    internal static readonly Dictionary<string, LoadSpec> Loads = new();
+    internal static WorkFamily? WorkOf(string? family) => family != null && work.TryGetValue(family, out var f) ? f : null;
+    internal static string? KindClip(string kind, string motion) => workKinds.TryGetValue(kind, out var k) && k.TryGetValue(motion, out var c) ? c : null;
+
+    internal static void LoadWork(JsonElement w)
+    {
+        if (w.TryGetProperty("families", out var fams))
+            foreach (var p in fams.EnumerateObject())
+            {
+                var f = new WorkFamily { Name = p.Name };
+                if (p.Value.TryGetProperty("fallback", out var fb) && fb.ValueKind == JsonValueKind.String) f.FallbackName = fb.GetString();
+                foreach (var (key, into) in new[] { ("motions", f.Motions), ("contexts", f.Contexts) })
+                    if (p.Value.TryGetProperty(key, out var d))
+                        foreach (var m in d.EnumerateObject()) into[m.Name] = Names(m.Value);
+                work[p.Name] = f;
+            }
+        foreach (var f in work.Values) if (f.FallbackName != null) f.Fallback = work.GetValueOrDefault(f.FallbackName);
+        if (w.TryGetProperty("kinds", out var kinds))
+            foreach (var k in kinds.EnumerateObject())
+            {
+                var d = new Dictionary<string, string>();
+                foreach (var m in k.Value.EnumerateObject()) d[m.Name] = m.Value.GetString()!;
+                workKinds[k.Name] = d;
+            }
+        if (w.TryGetProperty("loads", out var loads))
+            foreach (var l in loads.EnumerateObject())
+            {
+                var v = l.Value;
+                var o = v.GetProperty("offset"); var q = v.GetProperty("turn"); var sz = v.GetProperty("size");
+                var offset = new Transform3D(new Basis(new Quaternion(q[0].GetSingle(), q[1].GetSingle(), q[2].GetSingle(), q[3].GetSingle()).Normalized()),
+                    new Vector3(o[0].GetSingle(), o[1].GetSingle(), o[2].GetSingle()));
+                // the size as the game's model has it: length, thickness (up), width
+                Loads[l.Name] = new LoadSpec(v.GetProperty("bone").GetString()!, offset, new Vector3(sz[0].GetSingle(), sz[2].GetSingle(), sz[1].GetSingle()),
+                    v.GetProperty("walk").GetString()!, v.GetProperty("hold").GetString()!,
+                    v.TryGetProperty("lift", out var lift) ? Names(lift) : Array.Empty<string>(),
+                    v.TryGetProperty("down", out var down) ? down.GetString() : null);
+            }
+    }
     private static readonly Dictionary<string, string> bodyFamily = new();
     internal static readonly HashSet<string> Standing = new();
     internal static readonly List<Human2> Talkers = new();
@@ -49,7 +112,7 @@ internal static class People2Moves
 
     internal static void Forget()
     {
-        families.Clear(); bodyFamily.Clear(); Standing.Clear(); Talkers.Clear(); byId.Clear();
+        families.Clear(); bodyFamily.Clear(); Standing.Clear(); Talkers.Clear(); byId.Clear(); work.Clear(); workKinds.Clear(); Loads.Clear();
         if (hooked && Talks.Talk.I is { } talk) talk.OnReply -= Replied;
         hooked = false;
     }

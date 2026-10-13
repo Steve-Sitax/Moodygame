@@ -5,7 +5,9 @@ using Godot;
 namespace Scheldemist.People;
 
 // A shared-phase sampler: blend stride and cycle rather than linearly blending speeds. Standing, talking and
-// sitting motions play the D2 clips of the body's family (People2Moves), chosen per person from the stable id.
+// sitting motions play the D2 clips of the body's family (People2Moves), chosen per person from the stable id; work
+// motions play the D3 clips (the family's, a context the game gives: a sack pile, a fish table; a carried load),
+// and the things those clips move (People2Things).
 internal sealed class Human2
 {
     private readonly Skeleton3D sk;
@@ -44,6 +46,46 @@ internal sealed class Human2
     private Human2? partner;
     private float age; // seconds in the current motion
     private float quiet, quietLimit = 1.5f;
+    // D3: work
+    private readonly People2Moves.WorkFamily? workFam;
+    private readonly People2Things things;
+    private string? load;          // what is carried: "sack", "crate", "fishbox", "keg" (Crowd.PuppetLoad)
+    private bool dropPending;      // a sack just let go: set it down before standing
+    private float roll;            // the distance walked (a rolled cask turns by it)
+    private Vector3 lastAt;
+    private bool hadAt;
+    /// <summary>The context the game gives (not on the wire; worked out the same on every PC): "haul_sack" at a
+    /// sack pile, "fish_stall" behind a fish table. A figure already standing takes up the work at once.</summary>
+    internal string? Work
+    {
+        get => work;
+        set
+        {
+            if (value == work) return;
+            work = value;
+            if (clip != null && !held && motion is "idle" or "fold" or "crouch" or "pull" && !(clip.Work && !clip.Loop) && Map(motion) is { } n && n != clipName) SetClip(n, 0.5f);
+        }
+    }
+    private string? work;
+    private readonly List<BoneAttachment3D> inHand = new();
+
+    /// <summary>The kind's things held in a fist (the fishwife's basket), hung on the sockets once the body is
+    /// made (People2.Make): put away while the hands work or carry (D3).</summary>
+    internal void HeldReady()
+    {
+        inHand.Clear();
+        foreach (var n in sk.GetChildren())
+            if (n is BoneAttachment3D att && att.BoneName.ToString() is "gripL" or "gripR") inHand.Add(att);
+        ShowHeld();
+    }
+
+    private void ShowHeld()
+    {
+        bool busy = (clip?.Work ?? false) || load != null;
+        foreach (var b in inHand) if (GodotObject.IsInstanceValid(b)) b.Visible = !busy;
+    }
+    /// <summary>The height of the pile in front (m over the feet), when the game knows it: picks the lift.</summary>
+    internal float PileTop = -1;
     internal bool Alive => GodotObject.IsInstanceValid(root) && root.IsInsideTree() && motion == "talk";
     internal Vector3 Position => root.GlobalPosition;
     internal Human.AnimationSnapshot AnimationState => new(motion, clipName, Walking ? phase * LoopTime : time, Phase, clipChanges, held);
@@ -70,8 +112,12 @@ internal sealed class Human2
         stroll = People2.Clips[style + "_stroll"]; walking = People2.Clips[style + "_walk"]; hurry = People2.Clips[style + "_hurry"];
         run = People2.Clips.GetValueOrDefault(style + "_run", hurry); sprint = People2.Clips.GetValueOrDefault(style + "_sprint", hurry);
         layers = new HumanLayers(root, sk);
+        things = new People2Things(sk);
         string body = root.Name.ToString();
         fam = People2Moves.Of(People2.BaseBody.GetValueOrDefault(body, body));
+        workFam = People2Moves.WorkOf(fam?.Name);
+        // a kind that always carries its sack (docker_sack) has it on the shoulder from the start
+        if (People2Moves.KindClip(kind, "walk") == People2Moves.Loads.GetValueOrDefault("sack")?.Walk) load = "sack";
         Seed(People2Moves.Hash(kind) ^ (uint)Humans.Rng.Next());
         Play("idle", 0);
     }
@@ -93,7 +139,7 @@ internal sealed class Human2
         People2Moves.Identify(this, id, stableId);
         id = stableId;
         Seed(People2Moves.Hash(stableId));
-        if (motion == "idle" && fam != null) { string n = IdleClip(); if (n != clipName) SetClip(n, 0.6f); }
+        if (motion == "idle" && fam != null) { string n = Map("idle"); if (n != clipName) SetClip(n, 0.6f); }
     }
 
     internal void SetMood(string m) { mood = m; moodAt = Time.GetTicksMsec(); }
@@ -148,6 +194,85 @@ internal sealed class Human2
         return listen.Length > 0 ? Pick(listen, 9) : IdleClip();
     }
 
+    /// <summary>A stable choice among a work motion's variants (sweeping is one doorstep in three; the rest
+    /// evenly).</summary>
+    private string PickWork(string[] list, string m)
+    {
+        if (list.Length == 1) return list[0];
+        if (m == "scrub" && Array.IndexOf(list, "sweep") >= 0 && Array.IndexOf(list, "scrub") >= 0)
+            return People2Moves.Pick(seed, 41, 3) == 0 ? "sweep" : "scrub";
+        return Pick(list, 40u + (uint)m.Length);
+    }
+
+    /// <summary>The D3 clip for a motion (null: none; the D2 and the old ones decide).</summary>
+    private string? WorkClip(string m)
+    {
+        if (People2Moves.KindClip(kind, m) is { } own && People2.Clips.ContainsKey(own)) return own;
+        // a load decides how he walks and stands with it
+        if (load != null && People2Moves.Loads.TryGetValue(load == "sack" ? "sack" : "crate", out var spec))
+        {
+            if (m is "walk" or "carry") return spec.Walk;
+            // (a docker who always has his sack bends at the pile: he stands with it)
+            if (m is "idle" or "talk" or "fold" or "crouch") return spec.Hold;
+        }
+        if (workFam == null) return null;
+        if (Work == "haul_sack" && m == "crouch" && load == null)
+        {
+            var lifts = workFam.Context("haul_sack");
+            if (lifts.Length > 0)
+            {
+                // the pile's height picks the lift when the game knows it, else the person
+                if (PileTop >= 0) return Array.Find(lifts, n => PileTop < 0.45f ? !n.EndsWith("_high", StringComparison.Ordinal) : n.EndsWith("_high", StringComparison.Ordinal)) ?? lifts[0];
+                return Pick(lifts, 43);
+            }
+        }
+        if (Work == "fish_stall" && m is "idle" or "fold")
+        {
+            var gut = workFam.Context("fish_stall");
+            if (gut.Length > 0) return gut[0];
+        }
+        if (Work is { } w && m == "pull" && workFam.Context(w) is { Length: > 0 } wl) return wl[0];
+        var list = workFam.Motion(m);
+        if (m == "point" && fam != null)
+        {
+            // pointing the way (D2) or pointing up at the spire (D3)
+            var d2 = fam.List("point");
+            if (d2.Length > 0 && list.Length > 0) return People2Moves.Pick(seed, 44, 2) == 0 ? d2[0] : list[0];
+        }
+        return list.Length > 0 ? PickWork(list, m) : null;
+    }
+
+    /// <summary>Which clip a motion would play now (the kits are laid out for it: a scrubber's bucket, a
+    /// sweeper's).</summary>
+    internal string? Choose(string m) => WorkClip(m);
+
+    /// <summary>How long the work clip now playing has still to run (a lift, a set-down; 0 for a loop).</summary>
+    internal float WorkSeconds => clip != null && clip.Work && !clip.Loop ? Math.Max(0, clip.Length - time) + (queued != null ? 0.3f : 0) : 0;
+
+    /// <summary>A load in his arms or on his shoulder (null: put down). A sack let go is set down first.</summary>
+    internal void Load(string? kind_)
+    {
+        if (kind_ == load) return;
+        if (kind_ == null && load == "sack" && clip != null && !(clip.Work && !clip.Loop)) dropPending = true;
+        if (kind_ == "sack") { things.DropClear(); dropPending = false; }
+        load = kind_;
+        ShowHeld();
+        // already standing (a guest is told the motion before the load): set the sack down now
+        if (dropPending && motion is "idle" or "crouch" or "talk" or "fold" && People2Moves.Loads.TryGetValue("sack", out var sk_) && sk_.Down is { } dn && People2.Clips.ContainsKey(dn))
+        {
+            dropPending = false;
+            queued = motion == "crouch" ? Map("idle") : Map(motion);
+            SetClip(dn, 0.2f);
+            return;
+        }
+        // a figure standing with its load changes clip at once (a docker stood at his pile gets his sack)
+        if (motion is "idle" or "carry" or "walk" && WorkClip(motion) is { } n && n != clipName && !(clip?.Work == true && !clip.Loop)) SetClip(n, 0.3f);
+    }
+
+    internal string? Carrying => load;
+
+    internal void CarryNode(Node3D? node) => things.Attach(node);
+
     private People2Moves.Seat? SeatFor(float s)
     {
         if (fam == null) return null;
@@ -173,6 +298,7 @@ internal sealed class Human2
     private string Map(string m)
     {
         if (People2.Clips.ContainsKey(m) && !Array.Exists(Humans.Motions, x => x == m)) return m; // Parade only.
+        if (WorkClip(m) is { } work && People2.Clips.ContainsKey(work)) return work;
         if (Humans.OwnClips.TryGetValue(kind, out var own) && own.TryGetValue(m, out var name)) return name;
         if (m == "walk") return style + "_walk";
         if (fam != null)
@@ -220,6 +346,18 @@ internal sealed class Human2
         if (m == "idle") { idleClock = 0; idleNext = 20 + 30 * Next01(); }
         string name = Map(m);
         queued = null;
+        // a sack let go is set down from the shoulder first (the docker at the door or the pile)
+        if (dropPending)
+        {
+            dropPending = false;
+            if (m is "idle" or "crouch" or "talk" or "fold" && People2Moves.Loads.TryGetValue("sack", out var sack) && sack.Down is { } down && People2.Clips.ContainsKey(down))
+            {
+                // the set-down is the bend: he stands after it
+                queued = m == "crouch" ? Map("idle") : name;
+                SetClip(down, Math.Min(0.25f, Math.Max(0.1f, fade)));
+                return;
+            }
+        }
         // sitting down and getting up (only with a fade: a placement with none is a figure put in its seat)
         if (fam != null && fade > 0 && clip != null && settled)
         {
@@ -242,14 +380,35 @@ internal sealed class Human2
         for (int b = 0; b < rest.Length; b++) fadeFrom[b] = sk.GetBonePoseRotation(b);
         fadeHips = sk.GetBonePosePosition(hipBone);
         bool wasStanding = clip != null && People2Moves.Standing.Contains(clipName);
+        // a sack set down stays where it was put
+        if (clip != null && clip.Work && !clip.Loop && clipName == People2Moves.Loads.GetValueOrDefault("sack")?.Down && time >= clip.Length - 0.05f) things.Drop();
         clipName = name;
         legacyStride = Humans.Stride.GetValueOrDefault(name, 1.2f) * hips / 0.95f;
         clip = People2.Clips.GetValueOrDefault(name, People2.Clips["idle"]);
+        // a carry or work loop with its own pace (D1's sack walk, the cask, the sentry's march): two strides a loop
+        if (clip.Stride > 0) legacyStride = 2 * clip.Stride * hips / clip.Hips;
+        ShowHeld();
         time = 0; fadeDuration = fadeLeft = Math.Max(0, fade);
         // a fade between two standing clips keeps the feet where they are (HumanLayers' lock)
         fadeStanding = wasStanding && People2Moves.Standing.Contains(name);
         layers.ReleaseFeet();
     }
+
+    /// <summary>A work clip from time t, as the proofs show it (frozen: held at t).</summary>
+    internal void PlayClip(string name, float t, bool frozen)
+    {
+        if (!People2.Clips.ContainsKey(name)) return;
+        string m = "work:" + name;
+        if (motion != m || clipName != name) { Play(m, 0); SetClip(name, 0); motion = m; }
+        speeds[m] = 1;
+        held = frozen;
+        fadeLeft = 0;
+        time = Math.Clamp(t, 0, clip.Length);
+    }
+
+    internal int ThingsShown => things.Shown;
+
+    internal void ReleaseFeet() => layers.ReleaseFeet();
 
     internal void PlayRaw(string name)
     {
@@ -263,14 +422,16 @@ internal sealed class Human2
         bool l = left < runDuty, r = right < runDuty;
         return l != r && l == (left < walkDuty) && r == (right < walkDuty);
     }
-    private bool Walking => !held && motion == "walk" && clip.Cycle > 0;
+    private bool Walking => !held && motion == "walk" && clip.Cycle > 0 && clipName == style + "_walk";
+    /// <summary>A loop that walks with its own pace (a carry, a push, the cask, the sentry's march).</summary>
+    private bool PacedLoop => !held && clip.Loop && clip.Cycle > 0 && clip.Stride > 0 && (motion is "walk" or "carry" or "push" || motion.StartsWith("work:", StringComparison.Ordinal)) && !Walking;
 
     /// <summary>At the end of a loop: an idle may give way to another of the family's (now and then, back to the
     /// person's own one most often); a conversation takes its next turn.</summary>
     private void Seam()
     {
         if (fam == null) return;
-        if (motion == "idle" && idleClock > idleNext)
+        if (motion == "idle" && idleClock > idleNext && !clip.Work)
         {
             var list = fam.List("idle");
             if (list.Length > 1)
@@ -383,9 +544,30 @@ internal sealed class Human2
         // (the speed blend mixes two neighbouring loops whose arms swing alike: their keyed helpers mix well enough)
         if (blend < 1 && root.GlobalPosition.DistanceSquaredTo(Main.I.Cam.GlobalPosition) < 225) People2Shoulders.Apply(sk);
         bool stand = !locomotion && blend < 1 && fadeStanding;
-        layers.Update(dt, locomotion && Math.Abs(Pace) > 0.01f, phase, Mathf.Lerp(a.Duty, b.Duty, weight), stand,
-            motion == "sit" && queued == null ? sitFeet : 0);
+        // a paced loop (a carry, the cask) locks its planted feet as the walks do
+        bool paced = PacedLoop && Math.Abs(Pace) > 0.01f;
+        layers.Update(dt, (locomotion || paced) && Math.Abs(Pace) > 0.01f, paced ? time / clip.Length : phase,
+            paced ? clip.Duty : Mathf.Lerp(a.Duty, b.Duty, weight), stand, motion == "sit" && queued == null ? sitFeet : 0);
+        // the things the work moves (D3), or the load carried
+        var at = root.GlobalPosition;
+        if (hadAt) roll += new Vector2(at.X - lastAt.X, at.Z - lastAt.Z).Length() / Math.Max(0.01f, root.GlobalBasis.Y.Length());
+        lastAt = at; hadAt = true;
+        if (clip.Things.Length > 0 || load != null)
+        {
+            if (root.GlobalPosition.DistanceSquaredTo(Main.I.Cam.GlobalPosition) < 3600) things.Show(clip, time, bodyRatio, load, roll);
+            else things.HideAll();
+        }
+        else if (things.Shown > 0) things.HideAll();
+        things.Tick(dt);
     }
 
-    internal void Dispose() => People2Moves.Drop(this, id);
+    /// <summary>The D3 clips put their own hips where the work needs them (on the knees, crouched, seated at the
+    /// lace pillow, in the air): no lift from the game.</summary>
+    internal float MotionLift() => 0;
+
+    internal void Dispose()
+    {
+        People2Moves.Drop(this, id);
+        things.Dispose();
+    }
 }

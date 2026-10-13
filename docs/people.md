@@ -48,6 +48,8 @@ The kit, `art-source/tools/blender/people2/`:
 | `motion.py` | the motion tools (D1, for every clip package): FK, IK, holds, feet, curves, joining, foot lock, keying, checks |
 | `clips_move.py` | the locomotion clips (D1): the gait maker, the walkers, climbs, carries, start, stop, turns, the speed blend |
 | `clips_idle.py` | the idles, talk and sitting (D2): the standing and seated solver, arm places and tracks, gestures, the families' clips, sitting down and getting up |
+| `clips_work.py` | the work (D3): the work stance, kneeling legs, fists on handles (the grip sockets), the things a clip moves (the sack, a broom, a cask), the sack lifted, held, set down and passed, and the old work clips re-made |
+| `preview_work.py` | the work check pictures (`--work`) |
 | `export.py` | the glb, the materials, `peopleRig.json` |
 | `glb_slim.py` | after the export: drops the animation channels that never move (3 MB of JSON), thins D2's keys and repacks the buffer |
 | `preview.py` | the check pictures |
@@ -869,13 +871,72 @@ police and sooi, the women's on fishwife_a: two moments, front and back), with a
 - The eyes are the runtime's (`HumanLayers`), not the clips'; nothing blinks yet.
 - A held thing goes where its hand goes: the fishwife's basket (on `gripL`) comes before her with her folded hands.
 
+## Work (`clips_work.py`, package D3)
+
+### How a clip is made
+
+D2's solver (`clips_idle.Spec`, its `frame`) with three things added (`WSpec`, `wframe`):
+- a work stance: the feet set for the job (`base`: wider, staggered) and stepped into and out of where the clip must
+  start or end in the family's stance; kneeling legs (`kneel_hips`, `kneel_leg`: a knee joint on the ground, the
+  shin back along it, the instep flat or the toes tucked) and given feet (a treadle, the pedals, a foot up on a wall);
+- `Grip`: a fist round a handle, solved so the grip socket's fitted handle axis (`peopleRig.json grips`, `axisAt`)
+  lies on the handle with the thumb along it and the wrist on its side; the hand takes the fitted curls for that
+  handle's radius (`hands.grip_fit`); `Along` moves the fist along a path (a rope, a crank, a broom's handle);
+- things: what the work moves (`things(t, ctx)`, a matrix and a size each, in the node's frame, made from the pose so a
+  sack on the shoulder rides on the shoulder; `things_late` for a thing in a hand). The arms are solved onto them.
+Every frame the settled grips and palms are measured against their targets (`gripMm`, `reachMm`).
+
+### The clips
+
+| Clips | Family | What |
+|---|---|---|
+| `sack_lift`, `sack_lift_high` | man | a sack off a pile onto the left shoulder: the stagger, the squat with a flat back (low) or the lean and the draw over the edge (waist high), the ears taken, the strain, the rise on straight arms rolled to the belly, the dip and the drive, the sack swung up and over (turning a quarter), the body giving under it, the left hand to the front end, the step up into the stance |
+| `sack_hold`, `sack_down` | man | standing with the sack (weight shifts, deeper breathing, the head held away); setting it down onto a pile (tipped off the shoulder into the hands, lowered with a squat) |
+| `sack_pass_give`, `sack_pass_take` | man | two men: the one at the pile lifts and heaves the sack onto the shoulder of the carrier at his right, who sets his knees and takes it; made together, the taker 0.50 m to the giver's right and 0.24 ahead (`partnerAt`) |
+| `cask_roll` | man | a cask rolled along at 0.8 m/s: D1's gait bent over it, the palms pressing on its upper back in turn with the steps (a paced loop: the game turns the cask by the distance) |
+| `rope_haul` (`pull`), `winch` | man | hand over hand on a rope from a block overhead (the body sinking into each pull); a winch's crank turned with both hands (two turns a loop, the body rocking with the handle) |
+| `gut` (`fish_stall`) | wstout | a fishwife at her table: a fish taken from the heap, held down by the head, slit toward her, the guts scraped over the edge into the bucket, the fish to the basket, a glance up at the market |
+| `sweep`, `man_sweep`, `scrub` | woman, man | a birch broom swept across (five strokes, the trunk turning, the weight from foot to foot); on hands and knees with the scrubbing brush, the left hand propped, once a loop the brush wetted in the bucket |
+| `wash`, `lace`, `cross`, `woman_call` | woman | stooped over the bucket rubbing and wringing; at the lace pillow on a chair; the sign of the cross and a prayer; a street cry |
+| `call`, `smoke`, `beg` (`old`), `man_beg`, `wall`, `lean_rail`, `point_up`, `write`, `man_cross` | man | a cry with the hand at the mouth; the pipe to the mouth and the smoke let out; alms with the cupped hand; leaning back on a wall with a foot up; forearms on a rail; pointing up at the spire with the guidebook; writing in the book on the forearm |
+| `rifle_idle`, `rifle_talk`, `rifle_walk` | man | the sentry: the rifle at the shoulder in the right hand (still, talking with the left hand, marching) |
+| `grind`, `row`, `ride` | man | the knife grinder (the treadle, the blade to the stone); rowing on a thwart (the drive 0..0.42 as the game's oars); the velocipede (one loop a wheel turn, the feet on the pedals) |
+| `crouch`, `child_crouch`, `hop`, `rope_turn` | man, child | one knee down working at the ground (marbles, stones, cards); a hop (the game moves the node); turning a skipping rope |
+
+The old `push`, `carry`, `walk_sack`, `idle_sack`, `push_idle` are D1's carry clips (`sack_walk`, `crate_walk`,
+`truck_push`, `cart_push` and their holds) and `sack_hold`; `pockets`, `behind`, `fold` are D2's.
+
+### Measures (printed by every build, in `peopleRig.json work.clips.<name>.checks`)
+
+Planted feet at the keys at most 0.3 mm in every clip; loop seams under 0.0002 degrees; the hands on their handles
+(`gripMm`) and palms on their places (`reachMm`) are printed with where the worst is: within 7 mm for the sack, the
+cask, the rope, the winch, the broom, the knife and the oars' drive; known misses are the scrubbing hand at the far
+end of a stroke (21 mm), the lace maker's right hand (18 mm), the oars in the recovery (24 mm) and the cross's touch
+on the forehead (14 mm).
+
+### For the runtimes
+
+`peopleRig.json work`: `families` (per family the clips for a game motion, `motions`, and for a context the game
+knows, `contexts`: `haul_sack`, `haul_pass`, `fish_stall`, `cask`, `winch`; `fallback`), `kinds` (kinds whose load
+decides their clips: the sentry, docker_sack, the porter, the carter), `loads` (where the sack and a crate ride: a
+bone, the offset and turn in the bone's frame, the size, the walk, the hold, the lifts and the set-down) and `clips`
+(each with its `things`: on a bone, or a track of `[t, x, y, z, qx, qy, qz, qw, length, thickness, width]` in the
+node's frame in game axes). The native runtime: docs/godot-people2.md "Work".
+
+### Check pictures (`--work`, `.scratch/people2-build/shots/work/`)
+
+`strip_<clip>.png` (twelve frames, front three-quarter and side, with stand-ins for the things and the props),
+`seq_<clip>.png` (twelve frames across a transition), `feet_<clip>.png` (the feet's contacts from above). Trials:
+`--only man_middling,woman_middling,woman_stout,child_middling,old_man --nokinds --no-move --no-idle --fast --work
+[--work-only a,b]`.
+
 ## For the next packages
 
 - **B (faces, hands, hair):** done, see above.
 - **C (clothes, kinds):** the first pass is done (four kinds, "Kinds and clothes" above). The other kinds go into
   the four group files the same way; the shared functions are `clothes_kit.py`'s (ask before changing one another
   group relies on). New kinds receive independent picture layers from `pictures.py`.
-- **D (motion):** D1 and D2 are done ("Motion tools", "Locomotion", "Idles, talk and sitting" above). D3 builds on `motion.py`: author on the body
+- **D (motion):** D1, D2 and D3 are done ("Motion tools", "Locomotion", "Idles, talk and sitting", "Work" above). New motion builds on `motion.py`: author on the body
   the clip is for, key the 47 `keyed` bones and the hips translation in every clip (`motion.key_clip` does), check
   with `slide`, `seam`, `joins`; add the clips to `make_all`'s list or a list of their own beside it.
 - **J (fights):** footwork is stances and swings in a `clips_move.Plan` (feet fixed while down, the body moving
