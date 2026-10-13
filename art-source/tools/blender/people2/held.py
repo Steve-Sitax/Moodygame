@@ -303,6 +303,7 @@ def _herring(ctx):
     ctx.mix(back * 0.6, (0.22, 0.28, 0.32))
 
 
+BASKET_TRIS = 2400
 MODELS = {"held_sabre": sabre, "held_scabbard": scabbard, "held_truncheon": truncheon, "held_basket": basket}
 
 
@@ -334,19 +335,34 @@ def build_all(kinds, layout, atl, tex=2048):
         allp += pieces
         groups.append((name, pieces))
     cage, _ = ck.build_objects(allp, "_held_cage")
-    ck.unwrap(cage, {pc.name: pc.scale for pc in allp} | {"in_" + pc.name: 0.4 for pc in allp}, margin=0.006)
     near = lod.subdivide(cage, "_held_near")
     bpy.data.objects.remove(cage)
-    rgb, nrm = dress.paint_clothes(near, allp, None, tex)
-    atl.put("held", rgb, nrm)
+    from . import clothes_build as cb
+    from . import weights as wt
+    # the basket within its budget (the other models keep their subdivided cage), then UVs after the reduction:
+    # every face at its material's density, insides and rims too
+    vparts = [(p or "").replace("in_", "", 1) for p in wt.parts(near)]
+    basket = {pc.name for name, pcs in groups if name == "held_basket" for pc in pcs}
+    if basket:
+        have = sum(len(f.vertices) - 2 for f in near.data.polygons if vparts[f.vertices[0]] in basket)
+        w = cb.protect_weights(near)
+        for i, p in enumerate(vparts):
+            if p not in basket:
+                w[i] = 0.0
+        cb.reduce(near, cb.tris(near) - max(0, have - BASKET_TRIS), symmetry=False, factor=4.0, weights=w)
+    cb.fix_islands(near)
+    cb.unwrap(near, (0, 0, at.SIZE, at.SIZE), {pc.name: pc.scale for pc in allp} | {"in_" + pc.name: pc.scale for pc in allp})
+    rgb, nrm = dress.paint_clothes(near, allp, None, 1024 * max(1, tex // 1024), layer=True)
+    atl.put("held", rgb, nrm, placed=True)
     if os.environ.get("PEOPLE2_SHOTS_CELLS"):
         from . import paint
         paint.to_image("held_cell", rgb, os.path.join(SHOTS, "held_cell.png"))
+    cb.drop_layers(near)
     at.remap_uv(near, layout["held"])
     # one object per model: split the near copy by its pieces' part groups
     import bmesh
 
-    from . import weights as wt
+    from . import body as bd
     vparts = [(p or "").replace("in_", "", 1) for p in wt.parts(near)]
     for name, pieces in groups:
         keep = {pc.name for pc in pieces}
@@ -361,8 +377,6 @@ def build_all(kinds, layout, atl, tex=2048):
         bmesh.ops.delete(bm, geom=gone, context="VERTS")
         bm.to_mesh(ob.data)
         bm.free()
-        if name == "held_basket":
-            dress.reduce_cloth(ob, 2000)
         print("[people2] held %s pieces: %s" % (name, dress.piece_counts(ob)))
         for vg in list(ob.vertex_groups):
             ob.vertex_groups.remove(vg)
@@ -374,6 +388,8 @@ def build_all(kinds, layout, atl, tex=2048):
                 x, y, z = G(vertex.co)
                 vertex.co = B(x + 0.25, -z - 0.12, y)
             ob.data.update()
+        # baked occlusion (vertex colour blue, clothes_build.AO_RULE): the basket's inside, under the herring
+        cb.bake_occlusion(ob, bd.params("man", "middling"), reach=0.08)
         ob.parent = root
         obs.append(ob)
     bpy.data.objects.remove(near)

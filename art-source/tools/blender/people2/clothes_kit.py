@@ -208,6 +208,8 @@ class Piece:
         self.seams = set()
         self.crease = {}
         self.meta = {}
+        self.relief = None  # relief(ctx) -> metres along the cloth's outward direction (clothes_build.relief)
+        self.fabric = None  # {vertex: (u, v)}: the cloth's own coordinates, metres along warp and weft (cloth_detail)
 
     def add(self, p, w, inner=False, zone=""):
         self.V.append(np.asarray(p, np.float64))
@@ -278,6 +280,45 @@ class Piece:
             if np.dot(n, o) < 0:
                 self.F[k] = tuple(reversed(f))
 
+    def consistent(self):
+        """Make the winding agree across every edge (each connected part turned to the way most of its faces already
+        face): the orient() rules decide face by face and can disagree where two rules meet (a smock's skirt under
+        its body), and thicken() would take such an edge for an open one and give it a rim. Returns faces turned."""
+        ef = {}
+        for k, f in enumerate(self.F):
+            for j in range(len(f)):
+                a, b = f[j], f[(j + 1) % len(f)]
+                ef.setdefault((min(a, b), max(a, b)), []).append(k)
+        seen = [False] * len(self.F)
+        turned = 0
+        for s0 in range(len(self.F)):
+            if seen[s0]:
+                continue
+            flip = {s0: False}
+            seen[s0] = True
+            queue = [s0]
+            while queue:
+                k = queue.pop()
+                f = self.F[k][::-1] if flip[k] else self.F[k]
+                for j in range(len(f)):
+                    a, b = f[j], f[(j + 1) % len(f)]
+                    for m in ef[(min(a, b), max(a, b))]:
+                        if m == k or seen[m]:
+                            continue
+                        g = self.F[m]
+                        # agreeing neighbours run the shared edge the other way (b, a)
+                        same = any(g[i] == a and g[(i + 1) % len(g)] == b for i in range(len(g)))
+                        flip[m] = same
+                        seen[m] = True
+                        queue.append(m)
+            n_flip = sum(flip.values())
+            invert = n_flip > len(flip) - n_flip
+            for k, fl in flip.items():
+                if fl != invert:
+                    self.F[k] = tuple(reversed(self.F[k]))
+                    turned += 1
+        return turned
+
     def loops(self):
         """The open edge loops (ordered vertex ids, in the faces' winding)."""
         de = {}
@@ -307,8 +348,9 @@ class Piece:
 def thicken(pc, thick, depth=0.06, crease=0.08, rim_seam=True, skip=None):
     """Give the open outer surface of pc a thickness: an inside offset inward by `thick` over the faces within
     `depth` metres of an open edge (None: all of it), and a rim along every open edge (both its edges creased).
-    The outer faces must already face outward (orient). skip: loops (lists of vertex ids) that get no rim (where a
-    piece is joined to another one)."""
+    The outer faces must already face outward (orient; their winding is made consistent here). skip: loops (lists of
+    vertex ids) that get no rim (where a piece is joined to another one)."""
+    pc.consistent()
     V = np.array(pc.V)
     Nv = pc.normals()
     F0 = list(pc.F)
@@ -367,6 +409,10 @@ def thicken(pc, thick, depth=0.06, crease=0.08, rim_seam=True, skip=None):
                 inn[v] = pc.add(V[v] - Nv[v] * d, pc.W[v], inner=True, zone=pc.zone[v])
     for f in sel:
         pc.face(tuple(inn[v] for v in reversed(f)))
+    if pc.fabric:
+        for v, iv in inn.items():
+            if v in pc.fabric:
+                pc.fabric[iv] = pc.fabric[v]
     # the inside is cut where the outside is (a tube's facing is a ring: without a cut it cannot be laid flat), and
     # so is the rim where a cut meets the open edge
     for (a, b) in list(pc.seams):
@@ -382,8 +428,9 @@ def thicken(pc, thick, depth=0.06, crease=0.08, rim_seam=True, skip=None):
         pc.set_crease(a, b, crease)
         pc.set_crease(inn[a], inn[b], crease)
         if rim_seam:
+            # the rim belongs to the outside's island (the picture runs on over the hem's edge as the cloth does);
+            # the inside is cut off at the rim's inner edge
             pc.seam(inn[a], inn[b])
-            pc.seam(a, b)
     return inn
 
 
@@ -569,6 +616,7 @@ def build_objects(pieces, name):
     verts, faces, W, parts, zones = [], [], [], [], []
     seams, creases = [], []
     for pc in pieces:
+        pc.consistent()  # one winding across every edge (pieces not thickened: boots, soles, buttons)
         base = len(verts)
         verts += [B(*p) for p in pc.V]
         faces += [tuple(v + base for v in f) for f in pc.F]
@@ -585,6 +633,20 @@ def build_objects(pieces, name):
     me.from_pydata([tuple(v) for v in verts], [], faces)
     me.update()
     me.uv_layers.new(name="UVMap")
+    # the cloth's own coordinates (cloth_detail: a check on the threads), carried per corner through the subdivision
+    # and the reduction in a second UV layer, removed after the paint
+    fab = np.zeros((len(verts), 2), np.float32)
+    base = 0
+    for pc in pieces:
+        if pc.fabric:
+            for v, uv in pc.fabric.items():
+                fab[base + v] = uv
+        base += len(pc.V)
+    fl = me.uv_layers.new(name="fabric")
+    lv = np.zeros(len(me.loops), np.int64)
+    me.loops.foreach_get("vertex_index", lv)
+    fl.data.foreach_set("uv", fab[lv].ravel())
+    me.uv_layers.active = me.uv_layers["UVMap"]
     ob = bpy.data.objects.new(name, me)
     bpy.context.scene.collection.objects.link(ob)
     ek = {tuple(sorted(e.vertices)): e.index for e in me.edges}
@@ -633,25 +695,59 @@ def to_limit_keep_creases(ob):
     me.update()
 
 
-def cut_body(ob, covered, over=None, reach=0.3):
+CUT_REACH = {"neck": 0.06, "arm": 0.06, "torso": 0.25, "leg": 0.30}
+
+
+def cut_body(ob, covered, over=None, reach=None, tilt=30.0):
     """Remove the body faces nobody can see: every face whose vertices are all covered(point, part) (game space
-    at rest, part name) and, given the garments (`over`, in the same space), lie under one of them (a ray out along
-    the skin's normal meets a garment within `reach`): the cover rules were drawn for the cage bodies, and on the
-    MakeHuman bodies a rule alone cut a hole at the nape that no collar covered. Head, eyes and hair stay."""
+    at rest, part name) and, given the garments (`over`, in the same space), lie under one of them: a ray out along
+    the skin's normal meets a garment within the part's reach (CUT_REACH: 6 cm on the neck and arms, where a
+    sleeve or collar is close, 30 cm on the legs under a skirt) and so do four rays tilted `tilt` degrees (so the
+    skin just inside a cuff or a collar's edge stays: it is in sight when the limb bends), or the skin pokes out
+    through a garment just there (a ray in meets it within 3 cm). The cover rules were drawn for the cage bodies;
+    on the MakeHuman bodies a rule alone cut a hole at the nape that no collar covered. Head, eyes and hair stay,
+    and so do the hands (MakeHuman's hand islands and the fingers): nothing covers them, and the old 30 cm reach cut
+    faces of a hand hanging beside a smock."""
     import bmesh
 
+    reach = dict(CUT_REACH, **(reach or {})) if not isinstance(reach, float) else {k: reach for k in CUT_REACH}
     vparts = wt.parts(ob)
-    co = np.array([G(v.co) for v in ob.data.vertices])
-    cov = np.array([(p not in ("head", "eye", "hair")) and bool(covered(co[i], p or "")) for i, p in enumerate(vparts)])
+    me = ob.data
+    co = np.array([G(v.co) for v in me.vertices])
+    hand = np.zeros(len(co), bool)
+    isl = me.attributes.get("mh_island")
+    if isl is not None:
+        fi = np.zeros(len(me.polygons), np.int32)
+        isl.data.foreach_get("value", fi)
+        for p in me.polygons:
+            if fi[p.index] in (1, 2):  # handL, handR (mhbody.ISLAND_NAMES)
+                hand[list(p.vertices)] = True
+    cov = np.array([(not str(p).startswith(("head", "eye", "hair", "finger"))) and not hand[i] and
+                    bool(covered(co[i], p or "")) for i, p in enumerate(vparts)])
     if over is not None:
         from mathutils.bvhtree import BVHTree
         tree = BVHTree.FromPolygons([tuple(v.co) for v in over.data.vertices],
                                     [tuple(f.vertices) for f in over.data.polygons])
+        ca, sa = math.cos(math.radians(tilt)), math.sin(math.radians(tilt))
         for i in np.nonzero(cov)[0]:
-            v = ob.data.vertices[int(i)]
-            # under a garment (a ray out meets it), or poking out through one just there (a ray in meets it)
-            if tree.ray_cast(v.co + v.normal * 0.0005, v.normal, reach)[0] is None and                     tree.ray_cast(v.co, -v.normal, 0.03)[0] is None:
+            v = me.vertices[int(i)]
+            p = vparts[int(i)] or ""
+            r = next((x for k, x in reach.items() if p.startswith(k)), 0.06)
+            n = v.normal
+            o = v.co + n * 0.0005
+            # poking out through a garment just there (a ray in meets it): cut
+            if tree.ray_cast(v.co, -n, 0.03)[0] is not None:
+                continue
+            if tree.ray_cast(o, n, r)[0] is None:
                 cov[i] = False
+                continue
+            t = n.orthogonal().normalized()
+            bt = n.cross(t)
+            for k in range(4):
+                ph = k * math.pi / 2
+                if tree.ray_cast(o, n * ca + (t * math.cos(ph) + bt * math.sin(ph)) * sa, r * 1.5)[0] is None:
+                    cov[i] = False
+                    break
     bm = bmesh.new()
     bm.from_mesh(ob.data)
     bm.verts.ensure_lookup_table()
@@ -1163,7 +1259,7 @@ def loft_z(pc, stations, n, weights, cx=0.0, power=3.2, power_bottom=6.0, caps=T
             for j in range(n):
                 a, b = ids[k, j], ids[k, (j + 1) % n]
                 pc.face((cv, b, a) if end == 0 else (cv, a, b))
-            pc.seam(cv, ids[k, n // 2])  # cut from end to end along the bottom: the shape unfolds
+                pc.seam(a, b)  # each end its own island: the tube and its caps lie flat apart
     for j in crease_cols:
         for i in range(len(stations) - 1):
             pc.set_crease(ids[i, j], ids[i + 1, j], crease)

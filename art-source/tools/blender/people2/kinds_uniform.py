@@ -223,8 +223,8 @@ def police_covers(p, part):
 
 
 def police_skin(ctx):
-    """Under the tunic's neckline a dark wool undershirt shows, not the skin of the shoulders."""
-    ck.undershirt(ctx, (0.10, 0.11, 0.16), bd.Y(PM, 0.858), zone=1, covers=police_covers)  # up to the collar
+    """Nothing of his own: the skin under the tunic and the collar is painted by the ray test
+    (clothes_build.under_cloth)."""
 
 
 POLICE = Kind(
