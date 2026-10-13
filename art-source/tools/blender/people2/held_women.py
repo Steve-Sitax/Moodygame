@@ -20,7 +20,7 @@ from . import clothes_kit as ck
 from .clothes_kit import Cloth, sm
 from .held import loft_y, sweep
 
-OUT = 0.235  # the middle of a basket out from the socket
+OUT = 0.165  # the middle of a basket out from the socket (its near side just clear of the skirt)
 
 
 def _wicker(ctx):
@@ -37,12 +37,11 @@ def _withy(ctx):
     ctx.mul(0.5 + 0.5 * tw, 0.88)
 
 
-def _basket(name, rx, rz, depth, rim_y, cloth_rgb=(0.58, 0.47, 0.30), n=14):
+def _basket(name, rx, rz, depth, rim_y, cloth_rgb=(0.58, 0.47, 0.30), n=12):
     """An oval wicker basket in hipL's frame: its rim at rim_y below the socket, `depth` deep, a bow handle."""
     bk = ck.Piece(name, Cloth(cloth_rgb, "wood", wear=0.2, folds=0.0, extra=_wicker))
     rows = []
-    for yy, sc in ((rim_y + depth, 0.80), (rim_y + depth * 0.7, 0.94), (rim_y + depth * 0.3, 0.99), (rim_y, 1.0),
-                   (rim_y - 0.008, 1.02)):
+    for yy, sc in ((rim_y + depth, 0.80), (rim_y + depth * 0.55, 0.97), (rim_y, 1.0)):
         rows.append([(OUT + rx * sc * math.sin(2 * math.pi * j / n), yy, rz * sc * math.cos(2 * math.pi * j / n))
                      for j in range(n)])
     ids = bk.grid(np.array(rows), lambda p: {}, closed=True, seam_col=n // 2)
@@ -54,7 +53,7 @@ def _basket(name, rx, rz, depth, rim_y, cloth_rgb=(0.58, 0.47, 0.30), n=14):
     ck.thicken(bk, 0.007, depth=None, crease=0.08)
     rim = ck.Piece(name + "_rim", Cloth((0.47, 0.36, 0.22), "wood", folds=0.0, extra=_withy))
     path = [(OUT + rx * 1.02 * math.sin(a), rim_y - 0.004, rz * 1.02 * math.cos(a)) for a in np.linspace(0, 2 * math.pi, 17)]
-    sweep(rim, path, 0.006, 0.006, 5, caps=(False, False), up=(0.0, 1.0, 0.0))
+    sweep(rim, path[::2], 0.006, 0.006, 4, caps=(False, False), up=(0.0, 1.0, 0.0))
     hd = ck.Piece(name + "_handle", Cloth((0.55, 0.44, 0.28), "wood", folds=0.0, extra=_withy), scale=1.2)
     arc = [(OUT, rim_y - (rim_y + 0.02) * math.sin(math.pi * k / 12) ** 0.8 - 0.004,
             -rz * 0.98 * math.cos(math.pi * k / 12)) for k in range(13)]
@@ -74,7 +73,7 @@ def basket_cloth():
     cl = ck.Piece("mbasket_cloth", Cloth((0.90, 0.89, 0.85), "cotton", wear=0.1, folds=1.0, extra=_cloth_extra),
                   scale=1.2)
     rows = []
-    n, m = 9, 7
+    n, m = 7, 5
     for i in range(m):
         row = []
         for j in range(n):
@@ -115,7 +114,8 @@ def mussels():
     heap = ck.Piece("mussels", Cloth((0.10, 0.11, 0.15), "metal", folds=0.0, extra=_mussel), scale=1.6)
     n = 16
     rows = []
-    for k, (r, y) in enumerate(((0.148, 0.116), (0.12, 0.092), (0.08, 0.078), (0.04, 0.072))):
+    n = 12
+    for k, (r, y) in enumerate(((0.148, 0.116), (0.10, 0.088), (0.045, 0.074))):
         rows.append([(OUT + r * math.sin(2 * math.pi * j / n), y - 0.004 * math.sin(j * 2.1 + k),
                       r * math.cos(2 * math.pi * j / n)) for j in range(n)])
     ids = heap.grid(np.array(rows), lambda p: {}, closed=True, seam_col=n // 2)
@@ -136,24 +136,24 @@ def _brass(ctx):
 
 
 def rosary():
+    """Black wooden beads (each a small diamond-section lozenge: rounded by the subdivision) on a loop from the
+    belt, five decades shown by larger beads, and a brass crucifix on a short strand."""
     beads = ck.Piece("rosary_beads", Cloth((0.06, 0.045, 0.035), "wood", folds=0.0, extra=_bead), scale=2.0)
-    # a loop hanging from the belt, the beads along a catenary; then the short strand to the cross
     pts = []
     for k in range(25):
         t = k / 24
         a = math.pi * t
-        pts.append((0.10 + 0.035 * math.sin(2 * a) * 0.3, 0.012 + 0.20 * math.sin(a) ** 1.2, -0.02 * math.cos(a)))
-    tail = [(0.10, 0.212 + 0.012 * k, 0.0) for k in range(1, 6)]
+        pts.append((0.10 + 0.01 * math.sin(2 * a), 0.012 + 0.20 * math.sin(a) ** 1.2, -0.02 * math.cos(a)))
+    tail = [(0.10, 0.212 + 0.014 * k, 0.0) for k in range(1, 4)]
     for k, p in enumerate(pts[1:-1] + tail):
-        r = 0.0055 if k % 11 != 5 else 0.0075
-        loft_y(beads, [(p[1] - r, p[0], p[2], 0.0005, 0.0005, 2.0), (p[1] - r * 0.6, p[0], p[2], r * 0.8, r * 0.8, 2.0),
-                       (p[1], p[0], p[2], r, r, 2.0), (p[1] + r * 0.6, p[0], p[2], r * 0.8, r * 0.8, 2.0),
-                       (p[1] + r, p[0], p[2], 0.0005, 0.0005, 2.0)], 6, caps=(True, True))
+        r = 0.0055 if k % 6 != 3 else 0.0075
+        loft_y(beads, [(p[1] - r, p[0], p[2], 0.0006, 0.0006, 2.0), (p[1], p[0], p[2], r, r, 2.0),
+                       (p[1] + r, p[0], p[2], 0.0006, 0.0006, 2.0)], 4, caps=(True, True))
     cr = ck.Piece("rosary_cross", Cloth((0.62, 0.47, 0.20), "metal", folds=0.0, extra=_brass), scale=2.0)
-    y0 = 0.212 + 0.012 * 5 + 0.008
+    y0 = 0.212 + 0.014 * 3 + 0.008
     loft_y(cr, [(y0, 0.10, 0.0, 0.003, 0.0018, 4.0), (y0 + 0.048, 0.10, 0.0, 0.003, 0.0018, 4.0)], 4)
-    for sg in (1, -1):
-        sweep(cr, [(0.10, y0 + 0.014, 0.0), (0.10 + sg * 0.016, y0 + 0.014, 0.0)], 0.0028, 0.0018, 4, up=(0.0, 1.0, 0.0))
+    sweep(cr, [(0.10 - 0.016, y0 + 0.014, 0.0), (0.10, y0 + 0.014, 0.0), (0.10 + 0.016, y0 + 0.014, 0.0)], 0.0028,
+          0.0018, 4, up=(0.0, 1.0, 0.0))
     return [beads, cr]
 
 

@@ -828,6 +828,57 @@ The police tunic's exact cut, button metal, collar facing and docker's shoulder 
 - Hair is painted under the hats (B's scalp shells are not built at this commit: `hair.scalp_thickness` returns zero
   unless the style has a fringe), so caps were fitted with room for real hair to come.
 
+### The women of 1873 (package C2: `kinds_women2.py`, `garments_women.py`, `held_women.py`)
+
+Twelve kinds on the MakeHuman bodies, each within about 14,000 near and 2,500 far triangles (the budgets in
+`dress.py`: 14,000 crowd, 16,000 named, 2,500 far):
+
+| Kind | Body | Reads as |
+|---|---|---|
+| fishwife_b | woman_slight | older fishwife: red printed kerchief tied under the chin, grey knitted shawl crossed, near-black bodice, dark green skirt, grey canvas apron, clogs, basket of mussels |
+| maid | woman_slight | navy dress, white collar and cuffs, small white cap set back with lappets, long white bib apron tied in a bow behind, basket under a cloth |
+| wife_a | woman_middling | white linen cap with a pleated brim tied under the chin, red check shawl with a fringe, blue-grey dress, white apron, laced boots |
+| wife_b | woman_middling | blue dotted kerchief knotted at the nape with its point hanging, dark knitted shawl crossed and tied, brown dress with elbow sleeves, clogs |
+| shopwife | woman_stout | black dress with jet buttons, lace collar, lace cap with a double frill and lappets, white bib apron, keys at the waist |
+| old_woman_dressed | old_woman | white cap with a deep goffered frill and black strings, dark check shawl with a fringe crossed over the breast, black dress |
+| milk_woman | woman_middling | white frilled cap tied under the chin, red check neckerchief, sleeves to the elbow, wide blue apron, clogs, leather money pouch (the dog cart and its cans are the game's `dogcart_milk`) |
+| girl | child_middling | brown dress to the calf, small knitted shawl crossed and tied behind, plaits, clogs |
+| girl_b | child_slight | green plaid (a woven sett) dress, white collar, pinafore with straps over the shoulders, plaits, boots |
+| nun | woman_slight | a Black Sister (Zwartzuster): black habit with wide sleeves and a leather belt, white coif, wimple and bib, black veil, rosary |
+| beguine | woman_middling | black dress and small collar, the white cap framing the face under the falie (the long black hooded mantle, open in front), rosary |
+| tourist_lady | woman_slight | English visitor: dark green walking dress of 1873, bustle and train, overskirt looped up at the hips and puffed behind with a sash bow, pleated flounce, basque bodice, white collar and cuffs, small plum hat with ribbon and feather over the chignon, cream kid gloves, chatelaine bag |
+
+Each kind has its own headwear and hair under it (`kinds_women2.KIND_HAIR`, added to `face_types.KIND_HAIR` when the
+file is read, so `faceTypes.json kindHair` carries it): the undercap under every cap and kerchief, the bun under the
+lady's hat, plaits for the girls. The kind "old_woman" cannot be a dressed root of the same name (the base body's
+armature is called old_woman): the dressed one is `old_woman_dressed`; the game reaches it with
+`--people2-map old_woman=old_woman_dressed` until `People2.Body` maps it.
+
+How the garments are made (`garments_women.py`, on clothes_kit): skirts are full tubes with real folds, flat in front
+(the 1870s cut) with their fullness at the sides and behind, and below the knee the cloth follows the shin, so a
+seated skirt and an apron fall from the knees instead of standing out like a plate; the lady's skirt has a bustle
+pad, a train and a pleated flounce. Bodices are oriented by the cage's normals (a few faces at the breast came out
+turned in, and their facing then lay outside the bodice, over the shawl) and pushed clear of MakeHuman's skin (the
+cage-made sleeves let the upper arm's skin stand out by up to 3 cm); the stooped old woman's cage arms are flat, so
+her sleeves are rebuilt round her own arms. Shawls are one band round the neck (point down the back, ends hanging or
+crossed), weighted to the bodice without the elbow; fringes hang straight down as one row of creased tassels.
+Kerchiefs, caps with frills, ties, lappets and bows, the nun's coif, wimple and veil, the beguine's hood-and-mantle
+and the lady's hat are fitted by rays on the built head. Held things (`held_women.py`) hang from hipL: the maid's
+basket under a cloth, mussels, a rosary, keys, a money pouch, a chatelaine bag.
+
+Period sources (women): Henri De Braekeleer's Antwerp interiors and street scenes of the 1860s-1880s and Henri Leys's
+Antwerp genre pictures (caps, shawls, aprons, the jak); the photographs collected in *Antwerpen: de oudste foto's
+1847-1880* (white caps, kerchiefs, clogs, the falie worn by Antwerp women to church); the Zwartzusters' and the
+Antwerp beguines' habits as shown in 19th-century photographs of the Sint-Catharinabegijnhof and the order's own
+history; for the visitor, the fashion plates of 1873 (*La Mode Illustree*, *The Englishwoman's Domestic Magazine*)
+and James Tissot's pictures of 1873-1874. The exact Antwerp beguine cap and the milk women's headwear are assumptions.
+
+Counts (full build of 2026-10-13, 1,298 s, 16 kinds, 235 clips): every C2 kind 13,974-13,996 near and 2,479-2,500 far triangles; held things basket under a cloth 2,180, mussels 2,072, rosary 3,104, keys 1,820, purse 804, bag 748. Native evidence (replaced with `replace-people2.ps1`, all other model files preserved): dress captures of all twelve kinds at the Vismarkt (1 and 3 m, low backs, feet and tops, 13:00 clear and rain, 19:30 under the lamp), three runs with `--people2-map` putting four kinds at a time in the fixture's four places (the fixture's faces then follow the place's kind); shader audit: one people2 kind, 29 programs, no new kind; content identity 7 checks.
+
+Known limits (C2): the baskets, pouch and bag hang at hipL, so they do not follow the hand (the clips have no basket
+arm yet); held things show the held layer's placeholder in Blender's sheets; the shawls' and kerchiefs' clearance is
+checked in Blender poses, the folds of a seated skirt are skinning, not simulation.
+
 ## Checks
 
 `--preview` and `--cast` write to `.scratch/people2-build/shots/`:

@@ -777,7 +777,7 @@ def wimple(fit, pc, onto, n=13, rows=5, half=118.0, lift=0.006, margin=0.008):
             # a straight fall from the chin, eased out over the throat (not a collar on the neck)
             p = top_p * (1 - t) + bot * t
             s_, nrm = fit.surface(p, ("neck", "head", "torso"))
-            gap = 0.010 + 0.006 * math.sin(math.pi * t)
+            gap = 0.005 + 0.004 * math.sin(math.pi * t)
             if np.dot(p - s_, nrm) < gap:
                 p = s_ + nrm * gap
             col.append(p)
@@ -1027,15 +1027,17 @@ def proj_uv(ctx, slant=0.3):
     return p[:, 0] + slant * p[:, 2] * np.sign(p[:, 0] + 1e-9) * 0.0 + slant * p[:, 2], p[:, 1] - slant * p[:, 2]
 
 
-def check(ctx, u, v, size, ground, bars, aa=0.04):
-    """A woven check: `bars` = [(colour, width share, every n-th check (1 every), strength)], over `ground`."""
+def check(ctx, u, v, size, ground, bars, aa=0.06):
+    """A woven check: bars = [(colour, width share of the repeat, every n-th repeat, strength)] laid both ways over
+    the cloth's own colour; where two bars cross the colour is stronger (warp and weft both)."""
     for col, wsh, every, k in bars:
-        su = sm(wsh + aa, wsh - aa, np.abs(((u / (size * every)) % 1.0) - 0.5) * 2 - (1 - wsh) + wsh)
-        sv = sm(wsh + aa, wsh - aa, np.abs(((v / (size * every)) % 1.0) - 0.5) * 2 - (1 - wsh) + wsh)
-        a = np.maximum(su, sv)
-        b = su * sv
-        ctx.mix(a * k * 0.75 * (~ctx.inner), col)
-        ctx.mix(b * k * 0.35 * (~ctx.inner), col)
+        per = size * every
+        du = np.abs(((u / per) + 0.5) % 1.0 - 0.5)
+        dv = np.abs(((v / per) + 0.5) % 1.0 - 0.5)
+        half = wsh / 2
+        su = sm(half + aa * wsh, half - aa * wsh, du)
+        sv = sm(half + aa * wsh, half - aa * wsh, dv)
+        ctx.mix((np.maximum(su, sv) * 0.55 + su * sv * 0.45) * k * (~ctx.inner), col)
 
 
 def tartan(ctx, u, v, sett):

@@ -38,6 +38,9 @@ def register_hair():
     from . import face_types as ft
     for k, v in KIND_HAIR.items():
         ft.KIND_HAIR.setdefault(k, v)
+    # the dressed old woman's root (see OLD_WOMAN below) draws faces as the old_woman kind does
+    ft.KIND_TYPES.setdefault("old_woman_dressed", ft.KIND_TYPES["old_woman"])
+    ft.KIND_HAIR.setdefault("old_woman_dressed", KIND_HAIR["old_woman"])
 
 
 register_hair()
@@ -242,7 +245,7 @@ WA_SKIRT = Cloth(WA_DRESS, "wool", wear=0.35, mud=0.7, mud_h=0.20, extra=_skirt_
 WA_APRON = Cloth(hexrgb(0xd8d4c8), "linen", wear=0.3, mud=0.25, mud_h=0.16, extra=_apron_extra(0.18), folds=1.0)
 WA_BAND = Cloth(hexrgb(0xd0ccbf), "linen", wear=0.3, folds=0.2)
 WA_SHAWL = Cloth(hexrgb(0x8a3a2e), "wool", wear=0.3, dust=0.05, folds=1.2, lining=(0.42, 0.18, 0.14),
-                 extra=_shawl_check(None, [((0.16, 0.10, 0.09), 0.18, 1, 0.9), ((0.70, 0.56, 0.40), 0.06, 2, 0.7)]))
+                 extra=_shawl_check(None, [((0.20, 0.10, 0.09), 0.16, 1, 0.85), ((0.74, 0.60, 0.44), 0.05, 2, 0.8)]))
 WA_FRINGE = Cloth(hexrgb(0x7a3228), "wool", wear=0.2, folds=0.0, extra=_fringe_extra)
 WA_CAP = Cloth((0.87, 0.85, 0.80), "linen", wear=0.15, extra=_linen_white, folds=0.3, lining=(0.80, 0.78, 0.73))
 WA_BRIM = Cloth((0.89, 0.87, 0.82), "linen", wear=0.1, extra=_frill_extra, folds=0.0)
@@ -328,7 +331,7 @@ def wife_a_dress(fit):
     # the cap: plain linen with a narrow pleated brim and strings tied under the chin
     cap = ck.Piece("cap", WA_CAP, scale=1.3, hat=True)
     brim = ck.Piece("cap_brim", WA_BRIM, scale=1.3, hat=True)
-    cid = ck.hood_cap(fit, cap, frill=brim, margin=0.009, front=-30.0, back=110.0, side=100.0, cols=13, rows=9)
+    cid = ck.hood_cap(fit, cap, frill=brim, margin=0.015, front=-30.0, back=110.0, side=100.0, cols=13, rows=9)
     ck.thicken(cap, 0.0016, depth=0.02)
     ck.thicken(brim, 0.0011, depth=None, crease=0.06)
     tie = ck.Piece("cap_ties", WA_TIES, scale=1.3, hat=True)
@@ -433,7 +436,7 @@ def maid_dress(fit):
     # the cap: small, set back on the head over the pinned hair, a frill round it and two short lappets behind
     cap = ck.Piece("cap", MD_CAP, scale=1.4, hat=True)
     fr = ck.Piece("cap_frill", MD_FRILL, scale=1.4, hat=True)
-    cid = ck.hood_cap(fit, cap, frill=fr, margin=0.008, front=8.0, back=112.0, side=78.0, cols=11, rows=7)
+    cid = ck.hood_cap(fit, cap, frill=fr, margin=0.015, front=8.0, back=112.0, side=78.0, cols=11, rows=7)
     ck.thicken(cap, 0.0014, depth=0.02)
     ck.thicken(fr, 0.0010, depth=None, crease=0.06)
     lp = ck.Piece("cap_lappets", MD_FRILL, scale=1.4, hat=True)
@@ -829,7 +832,7 @@ def shopwife_dress(fit):
     pieces.append(bb)
     cap = ck.Piece("cap", SW_CAP, scale=1.4, hat=True)
     fr = ck.Piece("cap_frill", SW_FRILL, scale=1.4, hat=True)
-    cid = ck.hood_cap(fit, cap, frill=fr, margin=0.009, front=-14.0, back=106.0, side=92.0, cols=13, rows=8)
+    cid = ck.hood_cap(fit, cap, frill=fr, margin=0.015, front=-14.0, back=106.0, side=92.0, cols=13, rows=8)
     fr2 = frill_round(fit, cap, cid, "cap_frill2", SW_FRILL, (0.006, 0.016, 0.026))
     lp = ck.Piece("cap_lappets", SW_FRILL, scale=1.4, hat=True)
     V = np.array(cap.V)
@@ -879,7 +882,7 @@ def old_woman_dress(fit):
                 shoulder=0.19, front=0.13, front_y=0.60)
     cap = ck.Piece("cap", OW_CAP, scale=1.3, hat=True)
     fr = ck.Piece("cap_frill", OW_FRILL, scale=1.3, hat=True)
-    cid = ck.hood_cap(fit, cap, frill=fr, margin=0.010, front=-40.0, back=112.0, side=104.0, cols=13, rows=9)
+    cid = ck.hood_cap(fit, cap, frill=fr, margin=0.015, front=-40.0, back=112.0, side=104.0, cols=13, rows=9)
     fr2 = frill_round(fit, cap, cid, "cap_frill2", OW_FRILL, (0.0, 0.012, 0.024))
     tie = ck.Piece("cap_ties", OW_TIES, scale=1.3, hat=True)
     gw.ties(fit, tie, cap_corners(cap, cid), width=0.014)
@@ -892,8 +895,11 @@ def old_woman_dress(fit):
 
 
 old_woman_covers = covers_dress(PO)
+# The dressed old woman cannot carry the kind's own name: "old_woman" is also the base body's armature (the build
+# would make a second "old_woman" and Blender renames it). The game routes the kind to this root with
+# --people2-map old_woman=old_woman_dressed until People2.Body learns the alias (see the C2 report).
 OLD_WOMAN = Kind(
-    "old_woman", "women", "old_woman",
+    "old_woman_dressed", "women", "old_woman",
     face=dict(type="shrunken_old", seed=1873206, sex="f", age=72,
               look=dict(weather=0.7, ruddy=0.3, hair="grey", hair_rgb=hexrgb(0xb0aca4))),
     hair=dict(hair="undercap", beard=None, moustache=None),
@@ -928,7 +934,7 @@ def milk_woman_dress(fit):
     apron_with_band(fit, pieces, MW_APRON, MW_APRON, sk, bo, Y(0.600), Y(0.14), half=95.0, n=17, folds=0.008)
     cap = ck.Piece("cap", MW_CAP, scale=1.3, hat=True)
     fr = ck.Piece("cap_frill", MW_FRILL, scale=1.3, hat=True)
-    cid = ck.hood_cap(fit, cap, frill=fr, margin=0.009, front=-36.0, back=110.0, side=100.0, cols=13, rows=9)
+    cid = ck.hood_cap(fit, cap, frill=fr, margin=0.015, front=-36.0, back=110.0, side=100.0, cols=13, rows=9)
     tie = ck.Piece("cap_ties", MW_CAP, scale=1.3, hat=True)
     gw.ties(fit, tie, cap_corners(cap, cid))
     ck.thicken(cap, 0.0016, depth=0.02)
@@ -1084,7 +1090,7 @@ def beguine_dress(fit):
     pieces.append(col)
     cap = ck.Piece("cap", BG_CAP, scale=1.3, hat=True)
     fr = ck.Piece("cap_frill", BG_FRILL, scale=1.3, hat=True)
-    ck.hood_cap(fit, cap, frill=fr, margin=0.008, front=-44.0, back=112.0, side=108.0, cols=13, rows=9)
+    ck.hood_cap(fit, cap, frill=fr, margin=0.015, front=-44.0, back=112.0, side=108.0, cols=13, rows=9)
     ck.thicken(cap, 0.0015, depth=0.02)
     ck.thicken(fr, 0.0010, depth=None, crease=0.06)
     pieces += [cap, fr]
