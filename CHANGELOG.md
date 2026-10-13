@@ -1,7 +1,5 @@
 # Changelog
 
-- People2 now uses independent clothes and full-square face pictures with close-up fabric and skin grain, sharing one compressed layered material.
-
 What changed in each version of Scheldemist, for players first. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
 Each release on the [Releases page](https://github.com/Steve-Sitax/Moodygame/releases) carries its part of this file.
@@ -10,6 +8,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 ## [Unreleased]
 
 - Detailed dressed townspeople now appear by default, alongside the original kinds that await new clothes. The new animals and wildlife are active too; hens and street rats use adapted CC0 models. Use `--people2 off` or the console switch to compare. The existing horse is retained.
+- People2 now uses independent clothes and full-square face pictures with close-up fabric and skin grain, sharing one compressed layered material.
 - Nearby people2 faces blink, glance and react during conversation. Their skin and clothes have softer indirect shadows and distinct dry/wet surfaces; young bald men keep young faces. Identity meshes build once in the background, with one mesh upload per frame.
 - With `--people2`, fingers account for MakeHuman's resting joint bends, workers keep their hands on sacks and tools, sack lifting has a deeper squat and a pause under strain, fishwives carry their basket in the elbow crook, and standing crowds have more idle poses.
 - The new people's (`--people2`) hair is real hair now: strands, locks and a soft, thinning hairline instead of a painted cap. Women wear their hair parted in the middle, brought down over the temples and drawn back into a knot, plaits or a coronet; girls wear plaits, men a crop, a side parting, longer hair or a bald crown with a grey fringe. Beards and moustaches have volume and clumps with soft edges (full beards, mutton chops, chin curtains, side whiskers, walrus, waxed and trimmed moustaches), the old go grey strand by strand, and hair stays under caps, kepis and the fishwives' linen caps.

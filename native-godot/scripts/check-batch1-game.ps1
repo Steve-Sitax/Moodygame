@@ -16,6 +16,17 @@ try {
     Invoke-WorkshopEngine (Resolve-WorkshopGodot $Godot) $project @('--rendering-method','forward_plus','--path',$project,'--log-file',(Join-Path $proof 'live.log'),'res://town.tscn','--','--no-ai','--no-mainmenu','--dev','--port',$Port.ToString(),'--db',(Join-Path $proof 'game.sqlite'),'--prefs',(Join-Path $proof 'settings.json'),'--author-root',(Join-Path $proof 'layouts'),'--native-pack-test','--batch1-captures',$proof) (Join-Path $proof 'engine.log') 900
     $receipt = Get-Content (Join-Path $proof 'default-game.json') -Raw | ConvertFrom-Json
     if (-not $receipt.ok -or $receipt.pictures.Count -ne 12) { throw 'Default-game capture proof failed.' }
+    $names = [Collections.Generic.HashSet[string]]::new()
+    foreach ($picture in $receipt.pictures) {
+        $expectedHour = if ($picture.file -like '*-lamps-*') { 19.5 } else { 13 }
+        $expectedWeather = if ($picture.file -like '*-rain-*') { 'rain' } else { 'clear' }
+        if (-not $names.Add($picture.file) -or -not (Test-Path -LiteralPath (Join-Path $proof $picture.file)) -or
+            -not $picture.defaultRouting -or $picture.hour -ne $expectedHour -or $picture.weather -ne $expectedWeather -or
+            $picture.place -notin @('vismarkt','rijnkaai') -or $picture.metres -notin @(3,8) -or
+            @($picture.people | Where-Object Newer).Count -eq 0 -or @($picture.people | Where-Object { -not $_.Newer }).Count -eq 0) {
+            throw "Invalid default-game picture receipt: $($picture.file)"
+        }
+    }
     Write-Output "Default game evidence: $proof"
 } finally {
     $env:SCHELDEMIST_USER_DATA = $oldData; $env:SCHELDEMIST_TOWN_SEED = $oldSeed

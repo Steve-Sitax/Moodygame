@@ -69,11 +69,13 @@ internal partial class People2Proof : Node
             bodyHeights.Add(new { kind = body, height = Height(h) }); h.Dispose();
         }
         var defaultRouting = new List<object>();
-        foreach (var (kind, bones) in new[] { ("old_man", 16), ("docker_b", 16), ("old_woman", 64), ("maid", 64) })
+        foreach (var (kind, bones) in new[] { ("old_man", 16), ("docker_b", 16), ("old_woman", 64), ("maid", 64), ("p2:girl", 64), ("p2:girl_b", 64) })
         {
             var h = Humans.Make(kind) ?? throw new InvalidOperationException("Missing default kind: " + kind);
             int actual = h.Root.GetNode<Skeleton3D>("Skeleton3D").GetBoneCount();
-            defaultRouting.Add(new { kind, expectedBones = bones, actualBones = actual });
+            bool female = h.Root.HasMeta("people2_female") && h.Root.GetMeta("people2_female").AsBool();
+            defaultRouting.Add(new { kind, expectedBones = bones, actualBones = actual, female });
+            if (kind.StartsWith("p2:girl", StringComparison.Ordinal) && !female) throw new InvalidOperationException("Girl exhibit lost female identity: " + kind);
             h.Dispose();
             if (actual != bones) throw new InvalidOperationException("Default dressed/fallback route: " + kind);
         }

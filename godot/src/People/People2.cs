@@ -222,7 +222,8 @@ public static class People2
         People2Material.Assign(root, body);
         var sk = root.GetNode<Skeleton3D>("Skeleton3D");
         float height = sk.GetBoneRest(sk.FindBone("hips")).Origin.Y;
-        bool female = Humans.Women.Contains(kind);
+        string recipeKind = kind.StartsWith("p2:", StringComparison.Ordinal) ? kind[3..] : kind;
+        bool female = Humans.Women.Contains(recipeKind);
         string style = height < 0.75f ? "child" : kind.StartsWith("old_", StringComparison.Ordinal) ? "old" : female ? "woman" : "man";
         var info = Bodies.GetValueOrDefault(body, (height, female, style));
         var runtime = new Human2(kind, root, info);
@@ -242,7 +243,7 @@ public static class People2
         var human = new Human(kind, root, new AnimationLibrary(), new Dictionary<string, float>(), info.Item1 / 0.95f, runtime);
         // who this is for the face recipe: the requested kind, the base body that carries the hair pieces
         var (baseBody, handsHard) = kindBase.GetValueOrDefault(body, (body, 0f));
-        root.SetMeta("people2_kind", kind.StartsWith("p2:", StringComparison.Ordinal) ? kind[3..] : kind);
+        root.SetMeta("people2_kind", recipeKind);
         root.SetMeta("people2_body", baseBody);
         root.SetMeta("people2_mesh_kind", body);
         root.SetMeta("people2_female", female || info.Item2);
