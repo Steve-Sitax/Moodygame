@@ -52,12 +52,19 @@ door, finds it shut, takes the key at the notice, and walks him in (down the ste
 window, and back out, with pictures and `homedoortest.json`; the way inside is found with Jef's own ground test. Its second
 form, `--homedoortest <dir> --route-rooms home_cellar:-2.2,poesje:-2.2`, only asks whether a walkable route runs from a room's street
 door down to the floor at that height (no server needed); `--no-stair-holes` shows the answer without the stair holes in the
-paving and the house linings (`World/Solid.cs`). `--route-dump x0,x1,z0,z1` (with `--route-rooms`) prints the room's meshes as
-boxes in that window of the plan, to see what the search ran into; add `--route-dump-name soot` to list the town's mesh of that
-name instead. Its third form, `--homedoortest <dir> --walk-room poesje:-2.2 --walk-hour 19 --db <dir>/test.sqlite` (and `--hour 19`),
-walks Jef on foot through a room's street door, held open, down to the floor at that height and back out, with pictures; the Poesje
-opens at half past six and sends Jef back out of its door before that, so it is walked at 19. `--keep-soot` leaves the bake's
-leftover soot sheet over the Poesje's front (`NativeTown.cs` hides it), for the before. `--keep-leftovers` leaves all of the bake's
+paving and the house linings (`World/Solid.cs`). The route must also run at least 2.5 m in from the door, and a number that is not
+finite is written as null. Shops and taverns: pass `shop_<id>:0.0` and `tavern_<id>:0.0`. `--route-dump x0,x1,z0,z1` (with
+`--route-rooms`) prints the room's meshes as boxes in that window of the plan, to see what the search ran into; add
+`--route-dump-name soot` to list the town's mesh of that name instead.
+
+Its third form, `--homedoortest <dir> --walk-room <room>[:<floor>] --db <dir>/test.sqlite`, walks Jef on foot from the street
+through the room's street door, held open, with pictures. With a floor (`poesje:-2.2 --walk-hour 19`) he is walked down the found
+route to the floor at that height and back out; the Poesje opens at half past six and sends Jef back out of its door before that, so
+it is walked at 19 (`--hour 19` as well). Without a floor (`--walk-room shop_tobacco_markt`) he is walked straight in with W held, at
+least 3 m: unless `--walk-hour` is given it steps the hours on from 13:00 until the server says the shop's keeper is at work, and if
+he is stopped the report names what his body overlaps. `--keep-soot` leaves the bake's leftover soot sheet over the Poesje's front
+(`NativeTown.cs` hides it), for the before.
+`--keep-leftovers` leaves all of the bake's
 frozen event and crowd pictures that `NativeTown.cs` hides (soot sheet, fire hose, four crowd carts, eight prison-ring figures).
 `--leftover-scan <dir> --no-ai --db <dir>/test.sqlite` (`Play/LeftoverScan.cs`) lists every mesh the loaded town draws, with its group,
 bake name, place, size and whether it shows, at 13:00 clear, in `leftover-scan.json`: look in it for a new frozen leftover after a re-bake or a
