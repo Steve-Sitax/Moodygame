@@ -11,7 +11,7 @@ import os
 
 import numpy as np
 
-from . import body as bd, clothes_kit as ck, dress as dr, lod, pictures as at, weights as wt
+from . import B, G, body as bd, clothes_kit as ck, dress as dr, lod, pictures as at, weights as wt
 from . import kinds_workers as kw, kinds_cast as kc
 from .clothes_kit import Cloth, hexrgb, sm
 
@@ -226,7 +226,16 @@ def clothing(fit, profile):
             pieces = [pc for pc in pieces if pc.name not in ("shirt","shirt_collar")]
             sh = ck.Piece("shirt",copy.copy(kc.SHIRT))
             sleeve = "f1" if p.get("rolled") else "w1"
-            ck.upper(fit,sh,rows=(2,9),neck=0,sleeve=sleeve,ease=lambda i:.006)
+            ck.upper(fit,sh,rows=(7 if p.get("vest") else 2,9),neck=0,sleeve=sleeve,ease=lambda i:.006)
+            ck.thicken(sh,.002,depth=.025)
+            pieces.insert(0,sh)
+        elif p.get("vest"):
+            # The lower shirt is fully hidden by the buttoned waistcoat. Keep
+            # its exposed neck/chest panel; a coarse full panel cuts through
+            # the waistcoat's broad FAR triangles despite vertex clearance.
+            pieces=[pc for pc in pieces if pc.name!="shirt"]
+            sh=ck.Piece("shirt",copy.copy(kc.SHIRT))
+            ck.upper(fit,sh,rows=(7,9),neck=0,sleeve=None,ease=lambda i:.006)
             ck.thicken(sh,.002,depth=.025)
             pieces.insert(0,sh)
         if p.get("coat") == "short":
@@ -306,10 +315,24 @@ def build_kind(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
         cut0+=ck.cut_body(b["lod0"],foot)
         cut1+=ck.cut_body(b["lod1"],foot)
     order0,order1=ck.layer_order(near),ck.layer_order(cage)
+    names={pc.name for pc in pieces}
+    # The worker shirt is complete, unlike the foreman's chest panel. Its
+    # overlap votes can point both ways around sleeves and neckline seams.
+    for under,over in (("shirt","waistcoat"),("shirt","coat"),("waistcoat","coat"),("trousers","apron"),("trousers","waistcoat"),("trousers","coat")):
+        if under in names and over in names:
+            for order in (order0,order1):
+                order.discard((over,under))
+                order.add((under,over))
     dr.reduce_cloth(near,14000-lod.tris(b["lod0"]))
     dr.reduce_cloth(cage,2500-lod.tris(b["lod1"]))
-    ck.clear_layers(near,b["lod0"],order0)
-    ck.clear_layers(cage,b["lod1"],order1)
+    clear_worker_layers(near,b["lod0"],order0)
+    clear_worker_layers(cage,b["lod1"],order1,clearance=.006,passes=4)
+    if "coat" in names:
+        raw=wt.parts(cage)
+        for v in cage.data.vertices:
+            if raw[v.index] in ("coat","in_coat"):
+                v.co+=B(fit.surface(G(v.co),("torso","arm","neck"))[1])*.012
+        cage.data.update()
     # Layer clearance can collapse a redundant far rim onto its neighbour.
     # Discard only zero-area faces before unwrap and UV projection.
     import bmesh
@@ -349,6 +372,27 @@ def build_kind(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
     log("[workers] kind %s: %d / %d triangles; cut %d/%d; pieces %s" %
         (kind.name,b["counts"]["lod0"],b["counts"]["lod1"],cut0,cut1,b["piece_counts"]))
     return b
+
+
+def clear_worker_layers(ob,body,order,**options):
+    """Clear lining in the outer direction, then restore its inward winding."""
+    import bmesh
+    import bpy
+    def reverse_lining():
+        raw=wt.parts(ob)
+        bm=bmesh.new()
+        bm.from_mesh(ob.data)
+        faces=[f for f in bm.faces if all((raw[v.index] or "").startswith("in_") for v in f.verts)]
+        bmesh.ops.reverse_faces(bm,faces=faces)
+        bm.to_mesh(ob.data)
+        bm.free()
+        ob.data.update()
+        bpy.context.view_layer.update()
+    reverse_lining()
+    try:
+        return ck.clear_layers(ob,body,order,**options)
+    finally:
+        reverse_lining()
 
 
 def paint_pair(near,far,pieces,fit,size):
