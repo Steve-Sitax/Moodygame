@@ -23,7 +23,8 @@ public partial class ParkWildlife : Node
         public int? Parent;
         public string Species = "duck", Mode = "swim";
         public bool Female, Young;
-        public double X, Z, Y = -0.34, Yaw, Timer, Phase, Alarm, Flight, Duration, TargetY;
+        public double X, Z, Y = -0.34, Yaw, Timer, Phase, Alarm, Flight, Duration, TargetY, WalkDistance, Speed, PendingStep;
+        public float Size = 1;
         public Vector3 Start;
         public Pt Target;
     }
@@ -31,20 +32,21 @@ public partial class ParkWildlife : Node
     private record Tree(double X, double Z, string Kind, double Scale, double Yaw);
     public static ParkWildlife? I { get; private set; }
     public readonly List<Beast> List = new();
-    public IEnumerable<Node3D> Groups => meshes.Values;
+    public IEnumerable<Node3D> Groups { get { yield return root; } }
     public Func<IEnumerable<Pt>> Boats = () => Array.Empty<Pt>();
     public double LogicMs { get; private set; }
     public int Shown { get; private set; }
     private readonly List<Home> homes = new();
     private readonly List<Tree> trees = new();
     private readonly HashSet<long> land = new();
-    private readonly Dictionary<string, MultiMeshInstance3D> meshes = new();
+    private SmallLifeKit.Batch batch = null!;
     private readonly Dictionary<int, double> watched = new();
     private readonly Dictionary<int, double> huntUntil = new();
     public int Captures { get; private set; }
     private readonly List<(Pt point, double until)> food = new();
     private Vector3[] perches = Array.Empty<Vector3>();
     private double trunkRadius, climbHeight, clock, coarse;
+    private int frameNumber;
     private int parkHomes;
     private uint seed = 1873;
     private Townspeople? town;
@@ -111,23 +113,15 @@ public partial class ParkWildlife : Node
         { var a = Add("squirrel", t.X + (t.Kind == "old_oak" ? 1.8 : 0.45), t.Z, trees.IndexOf(t)); a.Mode = "forage"; a.Y = 0.08; }
         int oldOak = trees.FindIndex(t => t.Kind == "old_oak");
         for (int i = 0; i < 6 && oldOak >= 0; i++) { var a = Add("songbird", 0, 0, oldOak); a.Branch = i; Put(a, BranchPoint(a)); a.Mode = "perch"; a.Timer = 3 + i * 3; }
-        var model = ModelLibrary.Get("park_animals", new ModelLibrary.Look(Affine: 0, VertexColor: true));
-        if (model == null) { SetProcess(false); return; }
+        if (!SmallLifeKit.Ready) throw new InvalidDataException("smalllife native kit missing");
         Main.I.View.AddChild(root);
-        foreach (var (name, n) in model.Roots)
-        {
-            var source = n as MeshInstance3D ?? BakedWorld.All(n).OfType<MeshInstance3D>().FirstOrDefault();
-            if (source?.Mesh == null) continue;
-            var mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, Mesh = source.Mesh, InstanceCount = 96, VisibleInstanceCount = 0 };
-            var inst = new MultiMeshInstance3D { Name = name, Multimesh = mm, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
-            meshes[name] = inst;
-            multiMeshes[name] = mm; root.AddChild(inst);
-        }
+        batch = new(root, "weighted_park_skins", 96, "duck_mallard", "duck_female", "duck_young", "swan", "swan_young", "goose", "squirrel", "songbird");
         foreach (var n in BakedWorld.All(Main.I.World).OfType<Node3D>().Where(n => n.Name.ToString() == "park_wildlife")) n.Visible = false;
     }
     private Beast Add(string species, double x, double z, int home)
     {
         var a = new Beast { Id = List.Count, Species = species, X = x, Z = z, Home = home, Timer = 3 + Random() * 12, Phase = Random() * 6.28, Target = new Pt(x, z), Start = new Vector3((float)x, -0.34f, (float)z) };
+        a.Size = .95f + .10f * (float)NativeCourtyardRules.Dice("park-size", a.Id);
         List.Add(a); return a;
     }
     private static void Put(Beast a, Vector3 p) { a.X = p.X; a.Y = p.Y; a.Z = p.Z; }
@@ -141,13 +135,13 @@ public partial class ParkWildlife : Node
         double d = Distance(a.X, a.Z, p.X, p.Z); if (d < 0.05) return;
         double f = Math.Min(1, speed * dt / d), x = a.X + (p.X - a.X) * f, z = a.Z + (p.Z - a.Z) * f;
         if (onLand && !OnLand(x, z)) { a.Timer = 0; return; }
-        a.Yaw = Math.Atan2(-(p.Z - a.Z), p.X - a.X); a.X = x; a.Z = z;
+        a.Speed = Distance(a.X, a.Z, x, z) / Math.Max(dt, .00001);
+        a.WalkDistance += Distance(a.X, a.Z, x, z);
+        a.Yaw = Math.Atan2(p.X - a.X, p.Z - a.Z); a.X = x; a.Z = z;
     }
     private bool HasBrood(Beast a) { foreach (var b in List) if (b.Parent == a.Id && b.Mode != "caught") return true; return false; }
     private readonly List<Pt> people = new(64), cats = new(32), dogs = new(32), boats = new(32), threats = new(128);
     private readonly int[] freeBranches = new int[6];
-    private readonly Dictionary<string, int> drawCounts = new();
-    private readonly Dictionary<string, MultiMesh> multiMeshes = new();
     public long AllocatedBytesLastFrame { get; private set; }
     private static bool Near(List<Pt> points, Beast a, double radius) { foreach (var p in points) if (Distance(a.X, a.Z, p.X, p.Z) < radius) return true; return false; }
     private int Elsewhere(Beast a, bool away)
@@ -163,7 +157,7 @@ public partial class ParkWildlife : Node
     }
     public override void _Process(double delta)
     {
-        if (town?.Data == null || town.Paused || meshes.Count == 0) return;
+        if (town?.Data == null || town.Paused || batch == null) return;
         long allocated = GC.GetAllocatedBytesForCurrentThread();
         ulong started = Time.GetTicksUsec();
         double dt = Math.Min(delta, 0.1); clock += dt; coarse += dt;
@@ -180,7 +174,16 @@ public partial class ParkWildlife : Node
             foreach (var child in List) if (child.Young && child.Parent is int mother && child.Mode != "caught" && List[mother].Mode != "flight" && Distance(child.X, child.Z, List[mother].X, List[mother].Z) < 6)
                 foreach (var cat in cats) if (Distance(child.X, child.Z, cat.X, cat.Z) < 5) { List[mother].Mode = "defend"; List[mother].Timer = 5; List[mother].Target = cat; break; }
         bool farTick = coarse >= 1;
-        foreach (var a in List) { bool far = Distance(a.X, a.Z, eye.X, eye.Z) >= 160; if (!far || farTick) Step(a, far ? Math.Min(coarse, 5) : dt, people, cats, dogs, boats); }
+        frameNumber++;
+        foreach (var a in List)
+        {
+            a.PendingStep += dt;
+            double distance = Distance(a.X, a.Z, eye.X, eye.Z);
+            int rate = distance < 12 ? 1 : distance < 25 ? 2 : 3;
+            bool far = distance >= 160;
+            if (far ? farTick : frameNumber % rate == a.Id % rate)
+            { a.Speed = 0; Step(a, Math.Min(a.PendingStep, 5), people, cats, dogs, boats); a.PendingStep = 0; }
+        }
         for (int i = 0; i < List.Count; i++)
         {
             var a = List[i];
@@ -189,7 +192,9 @@ public partial class ParkWildlife : Node
             {
                 var b = List[j];
                 if (b.Species is "songbird" or "squirrel" || b.Mode is "flight" or "caught") continue;
-                double d = Distance(a.X, a.Z, b.X, b.Z), gap = (a.Species == "swan" ? 0.62 : 0.31) + (b.Species == "swan" ? 0.62 : 0.31);
+                double gap = (a.Species == "swan" ? 0.62 : 0.31) + (b.Species == "swan" ? 0.62 : 0.31);
+                if (Math.Abs(a.X-b.X) >= gap || Math.Abs(a.Z-b.Z) >= gap) continue;
+                double d = Distance(a.X, a.Z, b.X, b.Z);
                 if (d >= gap) continue;
                 double dx = d > 0.001 ? (a.X - b.X) / d : Math.Cos(i * 2.399), dz = d > 0.001 ? (a.Z - b.Z) / d : Math.Sin(i * 2.399), push = (gap - d) * Math.Min(0.45, dt * 2);
                 for (int side = 0; side < 2; side++)
@@ -219,7 +224,7 @@ public partial class ParkWildlife : Node
         if (a.Mode == "flight")
         {
             a.Flight += dt; double f = Math.Min(1, a.Flight / a.Duration), smooth = f * f * (3 - 2 * f);
-            a.X = a.Start.X + (a.Target.X - a.Start.X) * smooth; a.Z = a.Start.Z + (a.Target.Z - a.Start.Z) * smooth; a.Y = a.Start.Y * (1 - f) + water * f + Math.Sin(Math.PI * f) * (a.Duration > 12 ? 42 : 4.5); a.Yaw = Math.Atan2(-(a.Target.Z - a.Start.Z), a.Target.X - a.Start.X);
+            a.X = a.Start.X + (a.Target.X - a.Start.X) * smooth; a.Z = a.Start.Z + (a.Target.Z - a.Start.Z) * smooth; a.Y = a.Start.Y * (1 - f) + water * f + Math.Sin(Math.PI * f) * (a.Duration > 12 ? 42 : 4.5); a.Yaw = Math.Atan2(a.Target.X - a.Start.X, a.Target.Z - a.Start.Z);
             if (f == 1) { a.Mode = "swim"; a.Timer = 16 + Random() * 18; } return;
         }
         Pt? cat = null;
@@ -231,7 +236,7 @@ public partial class ParkWildlife : Node
             huntUntil[a.Id] = clock + 45;
             if (Random() < .12) { a.Mode = "caught"; a.Timer = 240; Captures++; return; }
         }
-        if (a.Mode == "defend" && a.Timer > 0 && cat is { } c) { a.Yaw = Math.Atan2(-(c.Z - a.Z), c.X - a.X); return; }
+        if (a.Mode == "defend" && a.Timer > 0 && cat is { } c) { a.Yaw = Math.Atan2(c.X - a.X, c.Z - a.Z); return; }
         bool fear = cat is { } cp && Distance(a.X, a.Z, cp.X, cp.Z) < (a.Mode == "feed" ? 1.2 : 3) || Near(dogs, a, 4) || Near(boats, a, 7);
         var person = people[0];
         double nearest = Distance(a.X, a.Z, person.X, person.Z);
@@ -270,7 +275,7 @@ public partial class ParkWildlife : Node
         var t = trees[a.Home]; bool danger = Near(threats, a, 3);
         if (a.Species == "songbird")
         {
-            if (a.Mode == "flight") { a.Flight = Math.Min(1, a.Flight + dt / a.Duration); double f = a.Flight; a.X = a.Start.X + (a.Target.X - a.Start.X) * f; a.Z = a.Start.Z + (a.Target.Z - a.Start.Z) * f; a.Y = a.Start.Y + (a.TargetY - a.Start.Y) * f + Math.Sin(Math.PI * f) * 2.1; a.Yaw = Math.Atan2(-(a.Target.Z - a.Start.Z), a.Target.X - a.Start.X); if (f == 1) { a.Mode = a.TargetY < 0.2 ? "forage" : "perch"; a.Timer = 7 + Random() * 16; } return; }
+            if (a.Mode == "flight") { a.Flight = Math.Min(1, a.Flight + dt / a.Duration); double f = a.Flight; a.X = a.Start.X + (a.Target.X - a.Start.X) * f; a.Z = a.Start.Z + (a.Target.Z - a.Start.Z) * f; a.Y = a.Start.Y + (a.TargetY - a.Start.Y) * f + Math.Sin(Math.PI * f) * 2.1; a.Yaw = Math.Atan2(a.Target.X - a.Start.X, a.Target.Z - a.Start.Z); if (f == 1) { a.Mode = a.TargetY < 0.2 ? "forage" : "perch"; a.Timer = 7 + Random() * 16; } return; }
             danger &= a.Y < 2;
             if (a.Timer > 0 && !danger && !(shelter && a.Y < 2)) return;
             if (shelter && a.Y > 2) { a.Mode = "shelter"; a.Timer = 10; return; }
@@ -289,32 +294,29 @@ public partial class ParkWildlife : Node
         }
         bool oak = t.Kind == "old_oak"; double radius = (oak ? trunkRadius : 0.24) * t.Scale, top = (oak ? climbHeight : 3.3) * t.Scale;
         if ((danger || shelter) && a.Mode != "perch") a.Mode = "climb";
-        if (a.Mode == "climb") { Go(a, new Pt(t.X + radius, t.Z), 2.8, dt, true); if (Distance(a.X, a.Z, t.X, t.Z) < radius + 0.4) { a.Y = Math.Min(top, a.Y + dt * 1.7); a.X = t.X + radius; a.Z = t.Z; a.Yaw = Math.PI; if (a.Y >= top) { a.Mode = "perch"; a.Timer = 8 + Random() * 18; } } return; }
+        if (a.Mode == "climb") { Go(a, new Pt(t.X + radius, t.Z), 2.8, dt, true); if (Distance(a.X, a.Z, t.X, t.Z) < radius + 0.4) { double beforeY = a.Y; a.Y = Math.Min(top, a.Y + dt * 1.7); a.WalkDistance += a.Y-beforeY; a.Speed = 1.7; a.X = t.X + radius; a.Z = t.Z; a.Yaw = Math.PI; if (a.Y >= top) { a.Mode = "perch"; a.Timer = 8 + Random() * 18; } } return; }
         if (a.Mode == "perch") { if (shelter || danger) a.Timer = Math.Max(a.Timer, 5); else if (a.Timer <= 0) { a.Y = Math.Max(0.08, a.Y - dt * 1.4); if (a.Y <= 0.08) { a.Mode = "forage"; a.Timer = 0; } } return; }
         if (a.Timer <= 0) { double angle = Random() * 6.28, r = 1 + Random() * 3; a.Target = new Pt(t.X + Math.Cos(angle) * r, t.Z + Math.Sin(angle) * r); a.Timer = 3 + Random() * 6; if (Random() < 0.18) a.Mode = "climb"; }
-        Go(a, a.Target, 1.1, dt, true); a.Y = 0.08 + Math.Abs(Math.Sin(clock * 13 + a.Phase)) * 0.08;
+        Go(a, a.Target, 1.1, dt, true); a.Y = 0;
     }
     private void Draw(Vector3 eye)
     {
-        var counts = drawCounts;
-        foreach (string key in meshes.Keys) counts[key] = 0;
+        batch.Begin();
         int shown = 0;
-        void Set(string kind, Transform3D transform) { if (meshes.TryGetValue(kind, out var m) && counts[kind] < 96) multiMeshes[kind].SetInstanceTransform(counts[kind]++, transform); }
         foreach (var a in List)
         {
             if (a.Mode == "caught" || Distance(a.X, a.Z, eye.X, eye.Z) > 90) continue;
             string kind = a.Species == "duck" ? a.Young ? "duck_young" : a.Female ? "duck_female" : "duck_mallard" : a.Species == "swan" && a.Young ? "swan_young" : a.Species;
-            bool fly = a.Mode == "flight"; float peck = a.Mode is "feed" or "forage" or "swim" && Distance(a.X, a.Z, a.Target.X, a.Target.Z) < 0.65 ? (float)(-(0.15 + 0.15 * Math.Sin(clock * 5 + a.Phase)) * (a.Species == "squirrel" ? 0.5 : 1)) : 0;
-            var tr = new Transform3D(Basis.FromEuler(new Vector3(0, (float)a.Yaw, a.Mode == "climb" && a.Y > 0.25 ? MathF.PI / 2 : fly ? -0.08f : peck)), new Vector3((float)a.X, (float)(a.Y + (a.Mode == "swim" ? Math.Sin(clock * 2 + a.Phase) * 0.012 : 0)), (float)a.Z));
-            Set(kind, tr); shown++;
-            if (fly || a.Mode == "defend") for (int sign = -1; sign <= 1; sign += 2)
-            {
-                string wing = a.Species == "swan" ? "wing_swan" : a.Species == "goose" ? "wing_goose" : a.Species == "songbird" ? "wing_songbird" : "wing_duck";
-                var local = new Transform3D(Basis.FromEuler(new Vector3((float)(sign * (fly ? Math.Sin(clock * (a.Species == "swan" ? 7 : a.Species == "goose" ? 10 : 15) + a.Phase) * 0.8 : 0.75)), 0, 0)).Scaled(new Vector3(1, 1, sign)), new Vector3(0, a.Species == "songbird" ? 0.11f : 0.27f, sign * (a.Species == "songbird" ? 0.045f : 0.12f)));
-                Set(wing, tr * local);
-            }
+            bool fly = a.Mode == "flight" && a.Species != "squirrel";
+            string motion = fly ? "fly" : a.Mode == "swim" ? "swim" : a.Speed > .02 ? a.Species == "squirrel" ? "scurry" : "walk" : a.Mode is "feed" or "forage" ? "peck" : "idle";
+            double phase = motion == "walk" || motion == "scurry" ? a.WalkDistance / (batch.Stride(kind, motion) * a.Size) : clock / batch.Seconds(kind, motion) + a.Phase;
+            // The source's +z forward replaces the historical +x bird kit. Feet meet land; water hides the lower keel.
+            double y = a.Y > -.1 && a.Mode is "forage" or "feed" ? 0 : a.Y;
+            if (a.Mode is "swim" or "shelter" && a.Species is not ("songbird" or "squirrel")) y -= SmallLifeKit.Kinds[kind].Height * .22;
+            var tr = new Transform3D(Basis.FromEuler(new Vector3(a.Mode == "climb" && a.Y > .25 ? -MathF.PI/2 : fly ? -.08f : 0, (float)a.Yaw, 0)).Scaled(Vector3.One*a.Size), new Vector3((float)a.X, (float)y, (float)a.Z));
+            batch.Put(kind, motion, phase, tr); shown++;
         }
-        foreach (var (k, m) in multiMeshes) m.VisibleInstanceCount = counts[k]; Shown = shown;
+        batch.End(); Shown = shown;
     }
     public override void _ExitTree() { root.QueueFree(); if (I == this) I = null; }
 }
