@@ -1,0 +1,1065 @@
+{
+  "format": 1,
+  "framesPerClip": 32,
+  "kinds": {
+    "hen": {
+      "height": 0.43,
+      "vertices": 15379,
+      "triangles": 25664,
+      "bones": 12,
+      "clips": {
+        "idle": {
+          "first": 0,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "peck": {
+          "first": 32,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "scratch": {
+          "first": 64,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "walk": {
+          "first": 96,
+          "frames": 32,
+          "seconds": 0.2752,
+          "stride": 0.1376,
+          "duty": 0.64
+        },
+        "run": {
+          "first": 128,
+          "frames": 32,
+          "seconds": 0.32,
+          "stride": 0.19263999999999998,
+          "duty": 0.42
+        },
+        "flap": {
+          "first": 160,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "fly": {
+          "first": 192,
+          "frames": 32,
+          "seconds": 0.26,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "takeoff": {
+          "first": 224,
+          "frames": 32,
+          "seconds": 0.8,
+          "stride": 0.0,
+          "duty": 0.42
+        }
+      },
+      "min": [
+        -0.48363280296325684,
+        -0.08214355260133743,
+        -0.27367186546325684
+      ],
+      "max": [
+        0.48363280296325684,
+        0.45702147483825684,
+        0.32542967796325684
+      ],
+      "stanceErrorMm": 2.7755575615628914e-14,
+      "jointGapMm": 4.046035655711836e-14,
+      "vatBytes": 147464,
+      "vatSha256": "97d98b861d2929d7e980dce1a143470bbd0f3cbb8af0e878f9da646ac5605c28"
+    },
+    "cockerel": {
+      "height": 0.58,
+      "vertices": 15919,
+      "triangles": 26432,
+      "bones": 12,
+      "clips": {
+        "idle": {
+          "first": 0,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "peck": {
+          "first": 32,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "scratch": {
+          "first": 64,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "walk": {
+          "first": 96,
+          "frames": 32,
+          "seconds": 0.3712,
+          "stride": 0.1856,
+          "duty": 0.64
+        },
+        "run": {
+          "first": 128,
+          "frames": 32,
+          "seconds": 0.32,
+          "stride": 0.25983999999999996,
+          "duty": 0.42
+        },
+        "flap": {
+          "first": 160,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "fly": {
+          "first": 192,
+          "frames": 32,
+          "seconds": 0.26,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "takeoff": {
+          "first": 224,
+          "frames": 32,
+          "seconds": 0.8,
+          "stride": 0.0,
+          "duty": 0.42
+        }
+      },
+      "min": [
+        -0.6486718654632568,
+        -0.10722900182008743,
+        -0.45726561546325684
+      ],
+      "max": [
+        0.6486718654632568,
+        0.6789453029632568,
+        0.44676756858825684
+      ],
+      "stanceErrorMm": 4.163336342344337e-14,
+      "jointGapMm": 5.250225931237847e-14,
+      "vatBytes": 147464,
+      "vatSha256": "195110e12567dc85aa31319f2c68232f47633bcf8934d4a1bd9f5c4a5a4a702d"
+    },
+    "goat": {
+      "height": 0.76,
+      "vertices": 11801,
+      "triangles": 22284,
+      "bones": 17,
+      "clips": {
+        "idle": {
+          "first": 0,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "graze": {
+          "first": 32,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "chew": {
+          "first": 64,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "walk": {
+          "first": 96,
+          "frames": 32,
+          "seconds": 0.8782222222222222,
+          "stride": 0.3952,
+          "duty": 0.64
+        },
+        "butt": {
+          "first": 128,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "lie": {
+          "first": 160,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        }
+      },
+      "min": [
+        -0.22997070848941803,
+        -0.05898071080446243,
+        -0.6227929592132568
+      ],
+      "max": [
+        0.22997070848941803,
+        1.1262109279632568,
+        0.8376367092132568
+      ],
+      "stanceErrorMm": 1.1102230246251565e-13,
+      "jointGapMm": 1.942890293094024e-13,
+      "vatBytes": 156680,
+      "vatSha256": "4d8db39baa647084298597cbd72449b754684fec4df6d9256a3f79016b2efe07"
+    },
+    "duck_mallard": {
+      "height": 0.38,
+      "vertices": 13002,
+      "triangles": 21040,
+      "bones": 12,
+      "clips": {
+        "idle": {
+          "first": 0,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "peck": {
+          "first": 32,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "walk": {
+          "first": 64,
+          "frames": 32,
+          "seconds": 0.18823529411764706,
+          "stride": 0.1216,
+          "duty": 0.64
+        },
+        "takeoff": {
+          "first": 96,
+          "frames": 32,
+          "seconds": 0.8,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "fly": {
+          "first": 128,
+          "frames": 32,
+          "seconds": 0.26,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "swim": {
+          "first": 160,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        }
+      },
+      "min": [
+        -0.47972655296325684,
+        -0.13878418505191803,
+        -0.29198241233825684
+      ],
+      "max": [
+        0.47972655296325684,
+        0.42088866233825684,
+        0.34593749046325684
+      ],
+      "stanceErrorMm": 2.0816681711721685e-14,
+      "jointGapMm": 3.469446951953614e-14,
+      "vatBytes": 110600,
+      "vatSha256": "0a73abb51e5ab4fbf7bcbf19df0e6ba198fc2ea51913ac4b446d2bead31f95ba"
+    },
+    "duck_female": {
+      "height": 0.36,
+      "vertices": 13002,
+      "triangles": 21040,
+      "bones": 12,
+      "clips": {
+        "idle": {
+          "first": 0,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "peck": {
+          "first": 32,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "walk": {
+          "first": 64,
+          "frames": 32,
+          "seconds": 0.18823529411764706,
+          "stride": 0.1152,
+          "duty": 0.64
+        },
+        "takeoff": {
+          "first": 96,
+          "frames": 32,
+          "seconds": 0.8,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "fly": {
+          "first": 128,
+          "frames": 32,
+          "seconds": 0.26,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "swim": {
+          "first": 160,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        }
+      },
+      "min": [
+        -0.45506834983825684,
+        -0.13200928270816803,
+        -0.27708983421325684
+      ],
+      "max": [
+        0.45506834983825684,
+        0.39916014671325684,
+        0.32835936546325684
+      ],
+      "stanceErrorMm": 2.0816681711721685e-14,
+      "jointGapMm": 2.1942709178604382e-14,
+      "vatBytes": 110600,
+      "vatSha256": "8c200ec72a4011d69b71b4d07701c8ec7a43524d33f7de06377df161d44bf4e5"
+    },
+    "duck_young": {
+      "height": 0.16,
+      "vertices": 13002,
+      "triangles": 21040,
+      "bones": 12,
+      "clips": {
+        "idle": {
+          "first": 0,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "peck": {
+          "first": 32,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "walk": {
+          "first": 64,
+          "frames": 32,
+          "seconds": 0.18823529411764706,
+          "stride": 0.0512,
+          "duty": 0.64
+        },
+        "takeoff": {
+          "first": 96,
+          "frames": 32,
+          "seconds": 0.8,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "fly": {
+          "first": 128,
+          "frames": 32,
+          "seconds": 0.26,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "swim": {
+          "first": 160,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        }
+      },
+      "min": [
+        -0.20775391161441803,
+        -0.06426025182008743,
+        -0.12871338427066803
+      ],
+      "max": [
+        0.20775391161441803,
+        0.18297363817691803,
+        0.15147949755191803
+      ],
+      "stanceErrorMm": 1.0408340855860843e-14,
+      "jointGapMm": 1.2212564154686428e-14,
+      "vatBytes": 110600,
+      "vatSha256": "2b50c0a3c61aab4b0ccaa5b36d94926023caa8ada0363362b497419b9d8fe425"
+    },
+    "swan": {
+      "height": 1.02,
+      "vertices": 13002,
+      "triangles": 21040,
+      "bones": 12,
+      "clips": {
+        "idle": {
+          "first": 0,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "peck": {
+          "first": 32,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "walk": {
+          "first": 64,
+          "frames": 32,
+          "seconds": 0.18823529411764708,
+          "stride": 0.3264,
+          "duty": 0.64
+        },
+        "takeoff": {
+          "first": 96,
+          "frames": 32,
+          "seconds": 0.8,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "fly": {
+          "first": 128,
+          "frames": 32,
+          "seconds": 0.75,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "swim": {
+          "first": 160,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        }
+      },
+      "min": [
+        -1.1750390529632568,
+        -0.44969725608825684,
+        -0.7224023342132568
+      ],
+      "max": [
+        1.1750390529632568,
+        0.9699609279632568,
+        0.7722070217132568
+      ],
+      "stanceErrorMm": 5.551115123125783e-14,
+      "jointGapMm": 6.206335383118183e-14,
+      "vatBytes": 110600,
+      "vatSha256": "522e644bf45eaa14f6a1ac38a17469a0d2588b9a475a7278627369a0979a9b68"
+    },
+    "swan_young": {
+      "height": 0.66,
+      "vertices": 13002,
+      "triangles": 21040,
+      "bones": 12,
+      "clips": {
+        "idle": {
+          "first": 0,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "peck": {
+          "first": 32,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "walk": {
+          "first": 64,
+          "frames": 32,
+          "seconds": 0.18823529411764706,
+          "stride": 0.21120000000000003,
+          "duty": 0.64
+        },
+        "takeoff": {
+          "first": 96,
+          "frames": 32,
+          "seconds": 0.8,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "fly": {
+          "first": 128,
+          "frames": 32,
+          "seconds": 0.75,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "swim": {
+          "first": 160,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        }
+      },
+      "min": [
+        -0.7639062404632568,
+        -0.29442381858825684,
+        -0.47118163108825684
+      ],
+      "max": [
+        0.7639062404632568,
+        0.6310937404632568,
+        0.5031640529632568
+      ],
+      "stanceErrorMm": 2.7755575615628914e-14,
+      "jointGapMm": 5.887846720064156e-14,
+      "vatBytes": 110600,
+      "vatSha256": "f1751773b512c0b6dda2929fdce55f36ac15639b0c0bbf6a1357cc525b1dd662"
+    },
+    "goose": {
+      "height": 0.76,
+      "vertices": 13002,
+      "triangles": 21040,
+      "bones": 12,
+      "clips": {
+        "idle": {
+          "first": 0,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "peck": {
+          "first": 32,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "walk": {
+          "first": 64,
+          "frames": 32,
+          "seconds": 0.18823529411764706,
+          "stride": 0.2432,
+          "duty": 0.64
+        },
+        "takeoff": {
+          "first": 96,
+          "frames": 32,
+          "seconds": 0.8,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "fly": {
+          "first": 128,
+          "frames": 32,
+          "seconds": 0.55,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "swim": {
+          "first": 160,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        }
+      },
+      "min": [
+        -0.8781640529632568,
+        -0.33763670921325684,
+        -0.5407617092132568
+      ],
+      "max": [
+        0.8781640529632568,
+        0.7253320217132568,
+        0.5778710842132568
+      ],
+      "stanceErrorMm": 4.163336342344337e-14,
+      "jointGapMm": 5.003707553108401e-14,
+      "vatBytes": 110600,
+      "vatSha256": "8dc02765112099bf2932b300cd2cffd8341f240db104a622af9ec6c0bdb57de0"
+    },
+    "squirrel": {
+      "height": 0.24,
+      "vertices": 6941,
+      "triangles": 12000,
+      "bones": 16,
+      "clips": {
+        "idle": {
+          "first": 0,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "peck": {
+          "first": 32,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "walk": {
+          "first": 64,
+          "frames": 32,
+          "seconds": 0.18823529411764706,
+          "stride": 0.0768,
+          "duty": 0.64
+        },
+        "scurry": {
+          "first": 96,
+          "frames": 32,
+          "seconds": 0.32,
+          "stride": 0.10751999999999999,
+          "duty": 0.42
+        }
+      },
+      "min": [
+        -0.08922363072633743,
+        -0.010469445958733559,
+        -0.39720702171325684
+      ],
+      "max": [
+        0.12267089635133743,
+        0.40208983421325684,
+        0.16563965380191803
+      ],
+      "stanceErrorMm": 2.7755575615628914e-14,
+      "jointGapMm": 4.819909745438293e-14,
+      "vatBytes": 98312,
+      "vatSha256": "82adc11cf76e7143defd072742d68ba208f2bb75a2249fa8078e3b0395a2e752"
+    },
+    "songbird": {
+      "height": 0.15,
+      "vertices": 12642,
+      "triangles": 20528,
+      "bones": 12,
+      "clips": {
+        "idle": {
+          "first": 0,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "peck": {
+          "first": 32,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "walk": {
+          "first": 64,
+          "frames": 32,
+          "seconds": 0.18823529411764706,
+          "stride": 0.048,
+          "duty": 0.64
+        },
+        "takeoff": {
+          "first": 96,
+          "frames": 32,
+          "seconds": 0.8,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "fly": {
+          "first": 128,
+          "frames": 32,
+          "seconds": 0.12,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "swim": {
+          "first": 160,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        }
+      },
+      "min": [
+        -0.19542481005191803,
+        -0.06087280064821243,
+        -0.12126708775758743
+      ],
+      "max": [
+        0.19542481005191803,
+        0.17210938036441803,
+        0.12108398228883743
+      ],
+      "stanceErrorMm": 1.0408340855860843e-14,
+      "jointGapMm": 1.2509268882771003e-14,
+      "vatBytes": 110600,
+      "vatSha256": "157fa9fc6dbd1403e741ebed9bfc8bd41e41f35dfeee55915774519536f949ae"
+    },
+    "pigeon": {
+      "height": 0.29,
+      "vertices": 12899,
+      "triangles": 21008,
+      "bones": 12,
+      "clips": {
+        "idle": {
+          "first": 0,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "peck": {
+          "first": 32,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "walk": {
+          "first": 64,
+          "frames": 32,
+          "seconds": 0.18823529411764706,
+          "stride": 0.0928,
+          "duty": 0.64
+        },
+        "takeoff": {
+          "first": 96,
+          "frames": 32,
+          "seconds": 0.8,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "fly": {
+          "first": 128,
+          "frames": 32,
+          "seconds": 0.16,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "swim": {
+          "first": 160,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        }
+      },
+      "min": [
+        -0.36839842796325684,
+        -0.10832763463258743,
+        -0.22508789598941803
+      ],
+      "max": [
+        0.36839842796325684,
+        0.32347655296325684,
+        0.22484375536441803
+      ],
+      "stanceErrorMm": 1.3877787807814457e-14,
+      "jointGapMm": 2.0816681711721685e-14,
+      "vatBytes": 110600,
+      "vatSha256": "9555958b84aaaf240dd12b34d6e2aca7415e4b110876197ec44012b6ec12980e"
+    },
+    "sparrow": {
+      "height": 0.145,
+      "vertices": 12642,
+      "triangles": 20528,
+      "bones": 12,
+      "clips": {
+        "idle": {
+          "first": 0,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "peck": {
+          "first": 32,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "walk": {
+          "first": 64,
+          "frames": 32,
+          "seconds": 0.18823529411764706,
+          "stride": 0.0464,
+          "duty": 0.64
+        },
+        "takeoff": {
+          "first": 96,
+          "frames": 32,
+          "seconds": 0.8,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "fly": {
+          "first": 128,
+          "frames": 32,
+          "seconds": 0.1,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "swim": {
+          "first": 160,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        }
+      },
+      "min": [
+        -0.18932129442691803,
+        -0.05919433385133743,
+        -0.11754394322633743
+      ],
+      "max": [
+        0.18932129442691803,
+        0.16673828661441803,
+        0.11742187291383743
+      ],
+      "stanceErrorMm": 6.938893903907228e-15,
+      "jointGapMm": 1.0408340855860843e-14,
+      "vatBytes": 110600,
+      "vatSha256": "d2941e5b9866e777d9f63fc7542e573db787895fb18199df14cade68eb1b86e0"
+    },
+    "jackdaw": {
+      "height": 0.34,
+      "vertices": 12642,
+      "triangles": 20528,
+      "bones": 12,
+      "clips": {
+        "idle": {
+          "first": 0,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "peck": {
+          "first": 32,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "walk": {
+          "first": 64,
+          "frames": 32,
+          "seconds": 0.18823529411764706,
+          "stride": 0.10880000000000001,
+          "duty": 0.64
+        },
+        "takeoff": {
+          "first": 96,
+          "frames": 32,
+          "seconds": 0.8,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "fly": {
+          "first": 128,
+          "frames": 32,
+          "seconds": 0.32,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "swim": {
+          "first": 160,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        }
+      },
+      "min": [
+        -0.43041014671325684,
+        -0.12523438036441803,
+        -0.26219725608825684
+      ],
+      "max": [
+        0.43041014671325684,
+        0.37743163108825684,
+        0.29002928733825684
+      ],
+      "stanceErrorMm": 2.0816681711721685e-14,
+      "jointGapMm": 2.8609792490763985e-14,
+      "vatBytes": 110600,
+      "vatSha256": "f62028d1d538942ae9e40b048f42ae46ca28a891dea371373b373556a0cda16b"
+    },
+    "crow": {
+      "height": 0.44,
+      "vertices": 12642,
+      "triangles": 20528,
+      "bones": 12,
+      "clips": {
+        "idle": {
+          "first": 0,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "peck": {
+          "first": 32,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "walk": {
+          "first": 64,
+          "frames": 32,
+          "seconds": 0.18823529411764708,
+          "stride": 0.1408,
+          "duty": 0.64
+        },
+        "takeoff": {
+          "first": 96,
+          "frames": 32,
+          "seconds": 0.8,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "fly": {
+          "first": 128,
+          "frames": 32,
+          "seconds": 0.32,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "swim": {
+          "first": 160,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        }
+      },
+      "min": [
+        -0.5539453029632568,
+        -0.15904785692691803,
+        -0.33641600608825684
+      ],
+      "max": [
+        0.5539453029632568,
+        0.48558592796325684,
+        0.37230467796325684
+      ],
+      "stanceErrorMm": 2.7755575615628914e-14,
+      "jointGapMm": 4.39196904579864e-14,
+      "vatBytes": 110600,
+      "vatSha256": "acb565cd3353c2143f2f826249b46be0e65326a38d19cd85b000cd687ed647c1"
+    },
+    "rat": {
+      "height": 0.115,
+      "vertices": 4781,
+      "triangles": 8928,
+      "bones": 16,
+      "clips": {
+        "idle": {
+          "first": 0,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "peck": {
+          "first": 32,
+          "frames": 32,
+          "seconds": 2.0,
+          "stride": 0.0,
+          "duty": 0.42
+        },
+        "walk": {
+          "first": 64,
+          "frames": 32,
+          "seconds": 0.20588235294117646,
+          "stride": 0.04025,
+          "duty": 0.64
+        },
+        "scurry": {
+          "first": 96,
+          "frames": 32,
+          "seconds": 0.32,
+          "stride": 0.05635,
+          "duty": 0.42
+        }
+      },
+      "min": [
+        -0.08202148228883743,
+        -0.0094382856041193,
+        -0.36498045921325684
+      ],
+      "max": [
+        0.08202148228883743,
+        0.15733887255191803,
+        0.16649414598941803
+      ],
+      "stanceErrorMm": 1.3877787807814457e-14,
+      "jointGapMm": 2.7809732887839817e-14,
+      "vatBytes": 98312,
+      "vatSha256": "2568480ed15daf49fa3563add3fa28c3b5bbdd093ebecab9adc821b48a9e4af3"
+    }
+  },
+  "pictures": {
+    "hen_colour.png": "2363252b1212268b04b76ea6678e47e1eeacc15010e929faceb68463e9419f4a",
+    "hen_normal.png": "9f7312cdee9a25de34ad2c3fdddc1054b312d26caa819645e142cc8dd412600d",
+    "cockerel_colour.png": "dfd8a13277ad041aa59cbacf69d7bb03f4b13a262bc1eb6449476e55e8c1327f",
+    "cockerel_normal.png": "9f7312cdee9a25de34ad2c3fdddc1054b312d26caa819645e142cc8dd412600d",
+    "goat_colour.png": "4ed7451df597a7849c7242f09757132c0b7572f8521a78105e3ceeaeab8da44e",
+    "goat_normal.png": "8716ee3e43e92fe3a4c163b411f97e4c6912b41338dd98619cf16e3b81df6f8c",
+    "duck_mallard_colour.png": "745150690171e7448cbb56180f0311fca22dcfea7036fd21f9fe9cdb333c80ef",
+    "duck_mallard_normal.png": "9f7312cdee9a25de34ad2c3fdddc1054b312d26caa819645e142cc8dd412600d",
+    "duck_female_colour.png": "c4501fa31d15a022f410042ff8f697b100f7e6829f6dc8ad05cd0c35bd9b2e63",
+    "duck_female_normal.png": "9f7312cdee9a25de34ad2c3fdddc1054b312d26caa819645e142cc8dd412600d",
+    "duck_young_colour.png": "72f6c4b6de9173a4d7aa94dcefc5d9195d26e548e2ed1d967cab2703d3c0a640",
+    "duck_young_normal.png": "9f7312cdee9a25de34ad2c3fdddc1054b312d26caa819645e142cc8dd412600d",
+    "swan_colour.png": "6c6ff340a161d515722b7b7747f1b7805350c6995d1d2528bacf7570a10d0d5e",
+    "swan_normal.png": "c5923108adf69f5c1ced90d2f0766c4f956131cf6ffc91aaffc9e4a0561891fe",
+    "swan_young_colour.png": "4c24b3faf05a1b341a93ed2a9b6366f0f0bc0f34b41e6568e2d508e2ac52bb0b",
+    "swan_young_normal.png": "c5923108adf69f5c1ced90d2f0766c4f956131cf6ffc91aaffc9e4a0561891fe",
+    "goose_colour.png": "5d921a7d092741d4532bfdd20f1b80bf5eadc218afc3beba3495dcfafc9e225a",
+    "goose_normal.png": "9f7312cdee9a25de34ad2c3fdddc1054b312d26caa819645e142cc8dd412600d",
+    "squirrel_colour.png": "0bc34751be84df0e691c9cf7200779c877a582d942f7d9aa4c4466ef07de14b5",
+    "squirrel_normal.png": "50f63cbbc480f1e6abccef025dd8332e461a9533e3c4b9af0915259235241da7",
+    "songbird_colour.png": "e17955f0e63116315d5e6b390927aeb4d70d59c37cc19333e09f72f376921696",
+    "songbird_normal.png": "9f7312cdee9a25de34ad2c3fdddc1054b312d26caa819645e142cc8dd412600d",
+    "pigeon_colour.png": "9664765e2e598daaef46713950287f8962f1d0ffe9150e635f7a0d713cbb1835",
+    "pigeon_normal.png": "9f7312cdee9a25de34ad2c3fdddc1054b312d26caa819645e142cc8dd412600d",
+    "sparrow_colour.png": "bc41427b9d07a684dece4358b64cd8085e15744aab580fd488242d8dba13f701",
+    "sparrow_normal.png": "9f7312cdee9a25de34ad2c3fdddc1054b312d26caa819645e142cc8dd412600d",
+    "jackdaw_colour.png": "ced9b562342903c8e93d3e348eb052720e33ff64ff3b078406f1ab49f4922db1",
+    "jackdaw_normal.png": "9f7312cdee9a25de34ad2c3fdddc1054b312d26caa819645e142cc8dd412600d",
+    "crow_colour.png": "631619f78c0eaca3886862edba572dba6c603d87cf7d4e079cf5145f0c53dfd2",
+    "crow_normal.png": "9f7312cdee9a25de34ad2c3fdddc1054b312d26caa819645e142cc8dd412600d",
+    "rat_colour.png": "9ab12207c7ca8bba6264b8ca00cf820967ab2bea22fe609db326cf6fd9ef85f3",
+    "rat_normal.png": "f81555764af883a81e7902f247981901187695a78622432614dfcd9e15a0f739"
+  },
+  "notes": "All silhouettes use rounded lofts. Feather edges, horn tips, claws and whisker tips intentionally thin/pointed. Hidden tube ends mate inside bodies. No gameplay collision on these decorative animals."
+}

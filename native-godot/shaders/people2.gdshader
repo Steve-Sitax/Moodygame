@@ -13,6 +13,11 @@ uniform sampler2D tex : source_color, hint_default_white, filter_linear_mipmap_a
 uniform sampler2D skin_normal : hint_normal, filter_linear_mipmap_anisotropic, repeat_disable;
 uniform vec4 albedo : source_color = vec4(1.0);
 uniform float normal_strength = 1.0;
+// Optional baked weighted skins for instanced small wildlife; the same shader kind as people/animals.
+uniform bool vertex_animation = false;
+uniform sampler2D pose_positions : filter_nearest, repeat_disable;
+uniform sampler2D pose_normals : filter_nearest, repeat_disable;
+instance uniform vec3 skin_pose = vec3(-1.0);
 uniform sampler2DArray clothes_colour : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
 uniform sampler2DArray clothes_normal : hint_normal, filter_linear_mipmap_anisotropic, repeat_disable;
 uniform sampler2DArray face_colour : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
@@ -75,7 +80,28 @@ vec3 eye_lamp(vec4 lamp, vec3 n, vec3 v) {
     float cap = psx_lamp_cap(1.7, -l.y);
     return psx_lamp_color.rgb * lamp.w * cap * glint * 0.6 / (pow(max(dl, 0.05), 1.7) + 0.6) / PI;
 }
+vec3 palette_point(sampler2D image, float bone, vec3 pose, vec4 point) {
+    vec2 dimensions = vec2(textureSize(image, 0));
+    vec2 a = vec2((bone * 3.0 + 0.5) / dimensions.x, (pose.x + 0.5) / dimensions.y);
+    vec2 b = vec2(a.x, (pose.y + 0.5) / dimensions.y);
+    vec4 r0 = mix(textureLod(image, a, 0.0), textureLod(image, b, 0.0), pose.z);
+    a.x += 1.0 / dimensions.x; b.x = a.x;
+    vec4 r1 = mix(textureLod(image, a, 0.0), textureLod(image, b, 0.0), pose.z);
+    a.x += 1.0 / dimensions.x; b.x = a.x;
+    vec4 r2 = mix(textureLod(image, a, 0.0), textureLod(image, b, 0.0), pose.z);
+    return vec3(dot(r0, point), dot(r1, point), dot(r2, point));
+}
 void vertex() {
+    if (vertex_animation) {
+        vec3 pose = skin_pose.x >= 0.0 ? skin_pose : INSTANCE_CUSTOM.rgb;
+        vec2 bone = floor(UV2);
+        vec2 weight = max((fract(UV2) - vec2(0.25)) * 2.0, vec2(0.0));
+        weight /= max(weight.x + weight.y, 0.0001);
+        vec4 point = vec4(VERTEX, 1.0);
+        VERTEX = palette_point(pose_positions, bone.x, pose, point) * weight.x + palette_point(pose_positions, bone.y, pose, point) * weight.y;
+        vec4 direction = vec4(NORMAL, 0.0);
+        NORMAL = normalize(palette_point(pose_normals, bone.x, pose, direction) * weight.x + palette_point(pose_normals, bone.y, pose, direction) * weight.y);
+    }
     vec4 view = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
     world = (INV_VIEW_MATRIX * view).xyz;
     fog_depth = -view.z;

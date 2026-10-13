@@ -1,0 +1,24 @@
+[
+  {
+    "file": "feather-source.png",
+    "date": "2026-10-13",
+    "generator": "OpenAI built-in imagegen",
+    "prompt": "Use case: photorealistic-natural. Asset type: ORIGINAL 2048x2048 square photographic animal surface detail sheet for a realistic 3D game in Antwerp 1873. Create a perfectly square 2 by 2 texture sheet, NO gutters, borders, labels, text, bird silhouettes or objects. Every quadrant filled edge to edge with extremely fine realistic material microdetail, flat diffuse neutral lighting, no hard cast shadows, no perspective, no highlights. Top left: dense overlapping small brown contour feathers from a hen, shafts going vertically, individual downy edges, subtly irregular scale-like overlaps. Top right: close macro of a grey bird flight feather vane, one slender central rachis vertically at exact centre, fine diagonal parallel barbs on either side, feather material fills entire quadrant with no background, not a cutout. Bottom left: delicate tiny grey short bird head/neck feathers, softly overlapping irregular fine feather tips, continuous material. Bottom right: fine soft dense white waterfowl contour feathers, tight irregular overlapping feather tips and visible fine fibres, no clumps, continuous material. Physically believable photographic surface texture, high frequency natural details, subdued tones, suitable as an albedo detail texture, not a drawing, not a stylized render. The four quadrants are perfectly rectangular texture fields of equal size.",
+    "sha256": "04777d2c9fc5967a5eef8b591636ffdac7c8dc08b2c2a72d54d71d06523ded11",
+    "actualSize": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "file": "fur-source.png",
+    "date": "2026-10-13",
+    "generator": "OpenAI built-in imagegen",
+    "prompt": "Use case: photorealistic-natural. Asset type: ORIGINAL square 2048x2048 photographic animal coat material sheet for a realistic 3D game. Make a perfectly square two by two sheet, four equal rectangular quadrants, no gutters, borders, labels, text, silhouettes, animals or background. Every quadrant completely filled with continuous natural coat microdetail in flat neutral diffuse light, no perspective, no hard shadows, no specular highlight. Top left: macro of short dense grey-brown Norway rat fur, thousands of overlapping individual guard hairs, soft fine brown underfur, irregular organic hair clumping, the hairs follow a gentle top-to-bottom direction. Top right: dense short warm ivory and light tawny goat hair, fine straight irregular short hairs with soft undercoat, actual animal fur not a fabric and not wool, mainly top-to-bottom direction. Bottom left: European red squirrel tail fur, dense russet and chestnut long fluffy hairs, natural fine wiry strands and soft downy undercoat, uncombed organic irregularity, material completely fills the quadrant. Bottom right: short reddish brown squirrel body fur, very fine dense warm russet hairs and slightly paler undercoat, close macro material completely fills the quadrant. True photographic fine detail, subtle organic chromatic variation, flat evenly lit albedo material; absolutely not drawing, paint strokes, sculpted hair, 3D render, textile or plastic.",
+    "sha256": "585b2ea52ac473d1bb0c9ff382410740e0fb3de083aedbda2b49d68dd24fabf6",
+    "actualSize": [
+      1254,
+      1254
+    ]
+  }
+]

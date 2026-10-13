@@ -361,6 +361,7 @@ public partial class Townspeople : Node
         Indoors?.Dispose();
         Humans.Forget();
         Animal.Forget();
+        SmallLifeKit.Forget();
         Whereabouts.Forget();
         Models.ModelLibrary.FreeAll();
     }

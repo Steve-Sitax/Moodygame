@@ -44,7 +44,7 @@ public partial class Gulls : Node
         public int Id;
         public bool Pigeon;
         public int Flock = -1;
-        public float Seed;
+        public float Seed, Size = 1;
         public Color Tint = Colors.White;
         public Mode M = Mode.Sit;
         public int Spot = -1;
@@ -91,6 +91,7 @@ public partial class Gulls : Node
     private bool built;
     private int frameNo;
     private float clock;
+    private Scheldemist.People.SmallLifeKit.Batch pigeonSkins = null!;
     private Vector3 threatPrev;
     private float threatSpeed;
     private int lastFlushSound = -1000;
@@ -101,6 +102,7 @@ public partial class Gulls : Node
     private int costN;
     public long AllocatedLastFrame { get; private set; }
     public double MeanMs => costN > 0 ? costSum / costN : 0;
+    public double SmallPigeonMs { get; private set; }
     private readonly long[] parts = new long[3];
     private long sendTicks, jointTicks;
     /// <summary>The mean ms of the gulls, the pigeons and the drawing.</summary>
@@ -128,6 +130,7 @@ public partial class Gulls : Node
     {
         I = this;
         ProcessPriority = 62;
+        pigeonSkins = new(Main.I.View, "weighted_town_pigeons", NPigeon, "pigeon");
         rigs = new[] { GullModel.Make(false), GullModel.Make(true) };
         var kind = new Psx.Kind(Unlit: false, Blend: false, Scissor: false, TwoSided: true, DepthWrite: true, Snap: true, Atlas: 0, VertexColor: true, Add: false, Fog: true);
         var mat = BakedWorld.PsxMaterial(new StandardMaterial3D { AlbedoColor = Colors.White, ResourceName = "alive_gulls" }, kind, 0, 1);
@@ -297,6 +300,7 @@ public partial class Gulls : Node
             {
                 if (SquareSpot(f, null) is not { } p) continue;
                 var b = birds[pi] = new Bird { Id = pi, Pigeon = true, Flock = q, Seed = R01(), Pos = p, Ground = p, Prev = p, Yaw = R01() * MathF.Tau, Next = R01() * 3, Fold = 1, Phase = R01() * 6 };
+                b.Size = .94f + .12f * (float)Scheldemist.People.NativeCourtyardRules.Dice("pigeon-size", b.Id);
                 float g = Rand(0.85f, 1.1f);
                 b.Tint = R01() < 0.12f ? new Color(1.35f, 1.3f, 1.25f) : R01() < 0.15f ? new Color(0.62f, 0.5f, 0.44f) : new Color(g, g, g * 1.02f);
                 f.Birds.Add(b);
@@ -680,7 +684,9 @@ public partial class Gulls : Node
         for (int i = 0; i < NGull; i++) StepGull(birds[i], dt, eye, threat, awake, ref air, wantAir);
         long t1 = Stopwatch.GetTimestamp();
         if (Market()) Squabble();
+        long smallStart = Stopwatch.GetTimestamp();
         StepPigeons(dt, threat);
+        SmallPigeonMs = (Stopwatch.GetTimestamp()-smallStart)*1000.0/Stopwatch.Frequency;
         if (Sheet) PoseSheet();
         TestStep(dt);
         long t2 = Stopwatch.GetTimestamp();
@@ -1175,6 +1181,9 @@ public partial class Gulls : Node
 
     private void Draw(Vector3 eye)
     {
+        long pigeonTicks = -Stopwatch.GetTimestamp();
+        pigeonSkins.Begin();
+        pigeonTicks += Stopwatch.GetTimestamp();
         float far = Math.Min(170, Daylight.I!.FogFar * 1.4f + 30);
         frameNo++;
         drawn[0] = drawn[1] = 0;
@@ -1192,14 +1201,27 @@ public partial class Gulls : Node
             if (dist > 4 && to.Dot(camFw) < -0.25f * to.Length()) continue;
             // (the pigeons are small: only near)
             if (b.Pigeon && dist > 80) continue;
-            Pose(b, s, drawn[s]++, dist);
+            if (b.Pigeon)
+            {
+                long started = Stopwatch.GetTimestamp();
+                string motion = b.M is Mode.Fly or Mode.Wheel ? b.Air < .8f ? "takeoff" : "fly" : b.Walking ? "walk" : b.Act == 3 ? "peck" : "idle";
+                double phase = motion == "walk" ? b.Step * .05 / (pigeonSkins.Stride("pigeon", "walk") * b.Size) : clock / pigeonSkins.Seconds("pigeon", motion) + b.Seed;
+                var transform = new Transform3D(Basis.FromEuler(new Vector3(b.M == Mode.Sit ? 0 : b.Pitch, b.Yaw, b.Roll)).Scaled(Vector3.One * b.Size), b.Pos);
+                pigeonSkins.Put("pigeon", motion, phase, transform); drawn[s]++;
+                pigeonTicks += Stopwatch.GetTimestamp()-started;
+            }
+            else Pose(b, s, drawn[s]++, dist);
         }
+        pigeonTicks -= Stopwatch.GetTimestamp();
+        pigeonSkins.End();
+        pigeonTicks += Stopwatch.GetTimestamp();
+        SmallPigeonMs += pigeonTicks*1000.0/Stopwatch.Frequency;
         sendTicks -= Stopwatch.GetTimestamp();
         for (int s = 0; s < 2; s++)
             for (int p = 0; p < GullModel.Parts; p++)
             {
                 if (drawn[s] > 0) RenderingServer.MultimeshSetBuffer(rid[s, p], buf[s][p]);
-                if (shownN[s] != drawn[s]) mm[s, p].VisibleInstanceCount = drawn[s];
+                if (shownN[s] != drawn[s]) mm[s, p].VisibleInstanceCount = s == 1 ? 0 : drawn[s];
             }
         shownN[0] = drawn[0]; shownN[1] = drawn[1];
         sendTicks += Stopwatch.GetTimestamp();

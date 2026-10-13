@@ -1,0 +1,2 @@
+# Keep this kit's portable BC7/BC5 and mipmap presets in a cold checkout.
+!*.png.import

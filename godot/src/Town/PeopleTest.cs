@@ -298,7 +298,7 @@ public partial class PeopleTest : Node
                 if (frames > 5)
                 {
                     animationTime.Add(Dev.PeopleTiming.LegacyMs + Dev.PeopleTiming.People2Ms);
-                    animalTime.Add(Scheldemist.People.Animals.I?.LogicMs ?? 0);
+                    animalTime.Add((Scheldemist.People.Animals.I?.LogicMs ?? 0) + SmallLife.AllMs);
                     animalsShown.Add(Scheldemist.People.Animals.I?.Shown ?? 0);
                     legacyTime.Add(Dev.PeopleTiming.LegacyMs); newTime.Add(Dev.PeopleTiming.People2Ms);
                     layerTime.Add(Dev.PeopleTiming.LayersMs);
@@ -337,7 +337,7 @@ public partial class PeopleTest : Node
                 row["animationDirectMs"] = Stats(animationTime);
                 row["legacyAnimationDirectMs"] = Stats(legacyTime); row["people2AnimationDirectMs"] = Stats(newTime);
                 row["layersDirectMs"] = Stats(layerTime);
-                row["directTimingScope"] = "All Human.Update calls (includes layers) plus the animals' whole update (Animals.LogicMs: their logic, routing and skeletons). Excludes crowd routing and GPU drawing. Layers are a subset, not an added cost.";
+                row["directTimingScope"] = "All Human.Update calls (includes layers), Animals.LogicMs, park wildlife, courtyard skins, town small-life and pigeons. Includes MultiMesh uploads; excludes crowd routing and GPU execution. Layers are a subset, not an added cost.";
                 animationTime.Clear(); layerTime.Clear(); legacyTime.Clear(); newTime.Clear();
                 row["allocationSamples"] = allocations.Count;
                 row["collectionsDuringSample"] = Enumerable.Range(0, 3).Select(i => GC.CollectionCount(i) - collectionsAt[i]).ToArray();

@@ -587,3 +587,11 @@ The download adds no new npm dependencies.
 |---|---|---|
 | `native-godot/assets/people2-pictures/*_colour.png`, `*_normal.png` | Original skin, hand, face and garment painters in `art-source/tools/blender/people2`; independent PNG layers assembled by `pictures.py`. No external images. | Project original artwork |
 | `native-godot/assets/people2-pictures/detail_*.png` | Original periodic NumPy painter in `pictures.py`: wool fibres, linen slubs, canvas weave, leather grain and skin pores, 512 px colour/normal pairs. No external images or prompts. | Project original artwork |
+
+## Small-life kit (2026-10-13)
+
+| Asset | Authoring / origin | Licence |
+|---|---|---|
+| `art-source/client/public/models/smalllife.glb`; native `smalllife.scn` and baked bone palettes | Original metre-scale lofts, anatomy, weights and IK clips in `art-source/tools/blender/smalllife`, built by `build_smalllife.py`. No downloaded models. | Project original artwork |
+| `art-source/smalllife/pictures/feather-source.png`, `fur-source.png` | Original material sheets generated with OpenAI's built-in imagegen tool on 2026-10-13; exact prompts, original dimensions and file SHA-256 in adjacent `prompts.json`. Adapted to anatomical UV cells, period colours and matching normal relief by `smalllife/paint.py`. | Project original generated artwork |
+| `native-godot/assets/smalllife/*_colour.png`, `*_normal.png` | Original painter combines the retained material sheets with species markings, bare skin, scales, horn and eye zones. Every 1024 px output's file SHA-256 is recorded in `kit.json`; colour is sRGB, normals linear, both mipmapped. | Project original artwork |

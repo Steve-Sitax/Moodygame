@@ -9,6 +9,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Courtyard hens, cockerels and goats, park wildlife and town birds now have rounded, weighted models with feather/fur pictures and species-specific movement. Jackdaws and crows perch on native roofs, sparrows gather at door fronts, and live rats scurry along checked wall feet.
+
 - The dogs, cats and pigs are sculpted again with real anatomy: skull, stop and muzzle, cheekbones, ears that hang, fold or stand by breed, shoulder blades, ribs, tuck-up, thighs, hocks and paws; their pictures are four times as fine. Black coats show their sheen and lighter under-coat, the Schipperke its ruff, the pigs their skin folds, bristles and mud. Dogs sit with their haunches folded and lie like a sphinx. The cart dog wears a real leather harness and stands in the cart's shafts, its traces running to the shaft hooks. Animals no longer make the game stutter as they come into view.
 - The optional people2 cast has lighter clothing meshes and simpler far copies. The fishwife carries her herring basket upright at her hip, her apron clears the skirt, and the docker wears darker, dirtier wooden clogs.
 
