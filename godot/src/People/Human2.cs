@@ -379,9 +379,9 @@ internal sealed class Human2
             p = p.Lerp(pb, weight);
         }
         sk.SetBonePosePosition(hipBone, blend < 1 ? fadeHips.Lerp(p, blend) : p);
-        bool near = root.GlobalPosition.DistanceSquaredTo(Main.I.Cam.GlobalPosition) < 225;
-        // a mix of clips mixes the shoulder helpers' turns too: put them back on their rule near the camera
-        if (near && (blend < 1 || (a != b && weight > 0 && weight < 1))) People2Shoulders.Apply(sk);
+        // a fade between two clips mixes the shoulder helpers' turns too: put them back on their rule near the camera
+        // (the speed blend mixes two neighbouring loops whose arms swing alike: their keyed helpers mix well enough)
+        if (blend < 1 && root.GlobalPosition.DistanceSquaredTo(Main.I.Cam.GlobalPosition) < 225) People2Shoulders.Apply(sk);
         bool stand = !locomotion && blend < 1 && fadeStanding;
         layers.Update(dt, locomotion && Math.Abs(Pace) > 0.01f, phase, Mathf.Lerp(a.Duty, b.Duty, weight), stand,
             motion == "sit" && queued == null ? sitFeet : 0);

@@ -85,7 +85,7 @@ Every choice comes from the person's stable id (`Human.SetIdentity`, FNV-1a), so
   rule (no women, no long aprons).
 - the old play their own `_old` versions of the old standing clips where they exist.
 - A fade between two standing clips locks the planted feet (`HumanLayers`, released when the node moves or
-  turns). Fades and blends put the shoulder helpers back on their rule near the camera (`People2Shoulders`), and so
+  turns). Fades put the shoulder helpers back on their rule near the camera (`People2Shoulders`), and so
   does code that turns an arm (`LeadLooks.Grip`, the emigrants' wave).
 
 Proof: `& ./native-godot/scripts/check-people2.ps1 -Modes motion -Port <port>` (`--people2-motion <dir>`) puts a
