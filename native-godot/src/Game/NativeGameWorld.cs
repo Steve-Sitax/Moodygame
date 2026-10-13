@@ -18,6 +18,8 @@ public partial class NativeGameWorld : BakedWorld
     private AuthorDistrict district = null!;
     private Scheldemist.Town.WalkMap? walk;
     public override Scheldemist.Town.WalkMap? NativeWalk => walk;
+    private List<QuayExits.Ladder>? quayLadders;
+    public override IReadOnlyList<QuayExits.Ladder>? NativeQuayLadders => quayLadders;
     public override bool ContainsPlayPoint(double x, double z) => district.Bounds.HasPoint(new Vector2((float)x, (float)z));
     public void BuildNavigation() => walk = Scheldemist.Town.WalkMap.FromNative(district.Bounds, GetWorld3D().DirectSpaceState, Solid.Layer);
     public override bool SupportsJob(Scheldemist.Net.Job job)
@@ -80,6 +82,15 @@ public partial class NativeGameWorld : BakedWorld
         var table = JsonNode.Parse(File.ReadAllText(ProjectSettings.GlobalizePath(Visuals + "/materials.json")))!.AsObject();
         foreach (var row in table) materials[int.Parse(row.Key)] = ResourceLoader.Load<ShaderMaterial>(row.Value!.GetValue<string>());
         Psx.LoadShared(ProjectSettings.GlobalizePath(Visuals + "/maps"));
+        // The bake's quay ladders ran through the coping into the stone (issues 85, 94): the slice draws the town's native ladder too.
+        var ladders = Scheldemist.Native.World.NativeQuayLadders.Install(districtScene);
+        quayLadders = ladders.Ladders;
+        foreach (var note in ladders.Notes) GD.Print("quay ladders: " + note);
+        Report["quayLadders"] = ladders.Ladders.Count;
+        Report["quayLadderMeshes"] = ladders.Meshes;
+        Report["quayLadderOldTriangles"] = ladders.RemovedTriangles;
+        Report["quayLadderCollisionShapes"] = ladders.CollisionShapes;
+        Report["quayLadderMs"] = ladders.Ms;
         AddChild(districtScene);
         Report["source"] = "native Godot district";
         Report["layout"] = LayoutSource;
