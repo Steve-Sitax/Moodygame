@@ -16,6 +16,15 @@ public static class NativeTownHouseDoors
         // JavaScript Math.round preserves negative zero; side-of-door atan2 needs its direction at ±pi.
         return value == 0 && BitConverter.DoubleToInt64Bits(n) < 0 ? -0.0 : value;
     }
+    private static bool Inside(JsonArray polygon, double px, double pz)
+    {
+        bool inside = false;
+        for (int i = 0, j = polygon.Count - 1; i < polygon.Count; j = i++) {
+            double xi = N(polygon[i]?[0]), zi = N(polygon[i]?[1]), xj = N(polygon[j]?[0]), zj = N(polygon[j]?[1]);
+            if ((zi > pz) != (zj > pz) && px < (xj - xi) * (pz - zi) / (zj - zi) + xi) inside = !inside;
+        }
+        return inside;
+    }
     public static List<JsonObject> Build(JsonArray houses, Func<double, double, double, bool> open, Func<double, double, bool> reachable, bool stores = false)
     {
         var result = new List<JsonObject>();
@@ -31,7 +40,11 @@ public static class NativeTownHouseDoors
             }
             double span = H(bx - ax, bz - az); int bays = Math.Max(1, (int)Math.Floor(span / 3 + .5)); double fraction = (Math.Floor(bays / 2.0) + .5) / bays;
             double x = ax + (bx - ax) * fraction, z = az + (bz - az) * fraction, ex = (bx - ax) / span, ez = (bz - az) / span, outX = -ez, outZ = ex;
-            if (!open(x + outX * 1.2, z + outZ * 1.2, .3)) { outX = ez; outZ = -ex; }
+            // Which side is the street: the side that is not the house. The footprint decides, never the walk map: a house
+            // whose floor the native map leaves open (a room that fills its shell) used to keep its inward normal and lose
+            // its door (issue 112). Only a house with no footprint falls back on which side is open ground.
+            if (h["fp"] is JsonArray outline && outline.Count >= 3) { if (Inside(outline, x + outX * .4, z + outZ * .4)) { outX = ez; outZ = -ex; } }
+            else if (!open(x + outX * 1.2, z + outZ * 1.2, .3)) { outX = ez; outZ = -ex; }
             foreach (double step in new[] { .9, 1.2, 1.6, 2.0 }) { double sx = x + outX * step, sz = z + outZ * step; if (!reachable(sx, sz)) continue;
                 var door = new JsonObject { ["house"] = index, ["x"] = Round(x, 10), ["z"] = Round(z, 10), ["out"] = new JsonArray(Round(outX, 100), Round(outZ, 100)), ["sx"] = Round(sx, 10), ["sz"] = Round(sz, 10), ["storeys"] = h["st"]?.DeepClone() };
                 if (h["alley"]?.GetValue<bool>() == true) door["alley"] = true; if (h["store"] != null) door["store"] = h["store"]!.DeepClone(); result.Add(door); break;
