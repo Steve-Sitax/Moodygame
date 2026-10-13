@@ -222,13 +222,17 @@ def main():
     for cname, (frgb, fnrm) in face_pics.items():
         atl.face(cname, frgb, fnrm)
     dressed = []
-    from people2 import kinds_cast2
+    from people2 import kinds_cast2, garments_cast
+    # A dressed old_man and its undressed base share a recipe name, but need unique GLB roots.
+    for b in bodies:
+        if any(k.name == b["name"] for k in kinds):
+            for key in ("ao", "lod0", "lod1"):
+                b[key].name = "base_" + b[key].name
     for k in kinds:
-        limits = dress.NEAR_HERO, dress.NEAR_CROWD, dress.FAR
         if k in kinds_cast2.KINDS:
-            dress.NEAR_HERO, dress.NEAR_CROWD, dress.FAR = 16000, 14000, 2500
-        dressed.append(dress.build(k, make_body, ref_uv, layout, atl, tex=TEX))
-        dress.NEAR_HERO, dress.NEAR_CROWD, dress.FAR = limits
+            dressed.append(garments_cast.build(k, make_body, ref_uv, layout, atl, tex=TEX))
+        else:
+            dressed.append(dress.build(k, make_body, ref_uv, layout, atl, tex=TEX))
     from people2 import held_cast
     held_cast.register()
     held_obs = held.build_all(kinds, layout, atl, tex=TEX)
@@ -326,7 +330,7 @@ def main():
           f"{len(bpy.data.materials)} material(s) -> {OUT} ({kb} KB) in {time.time() - t0:.0f} s")
     if "--dress" in ARGS:
         from people2 import preview_c
-        for ln in preview_c.cast(dressed, bodies, actions, move_clips, held_obs):
+        for ln in garments_cast.proof(dressed, bodies, actions, move_clips, held_obs, PICTURES_DIR, export.RIG_JSON):
             print("[people2] " + ln)
     if "--work" in ARGS and work_clips:
         from people2 import preview_work

@@ -1,6 +1,6 @@
 # Changelog
 
-- People2's cast gains period clothing for Widow Peeters, Tuur, Fientje and the Anna Maria sailor, with separate account ledger and pipe models.
+- People2 gains period clothing for Peeters, Tuur, Fientje, both sailors, the stranger, thief, foreman, delivery recipient, street boy, urchin and old man, with separate ledger, pipe and walking-stick models.
 
 - People2 now uses independent clothes and full-square face pictures with close-up fabric and skin grain, sharing one compressed layered material.
 

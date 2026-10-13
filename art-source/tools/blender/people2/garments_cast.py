@@ -261,6 +261,12 @@ def women(fit, spec):
             pc.cloth.extra = plain_shawl
     if spec.get("mourning"):
         pcs = [p for p in pcs if p.name not in ("apron", "apron_band", "cap_frill")]
+        old = next(p for p in pcs if p.name == "bodice")
+        pcs.remove(old)
+        bodice = ck.Piece("bodice", old.cloth)
+        ck.upper(fit, bodice, rows=(2, 9), neck=0, sleeve="w1", ease=lambda i: 0.017)
+        ck.thicken(bodice, 0.003, depth=0.04)
+        pcs.insert(1, bodice)
         bonnet = next(p for p in pcs if p.name == "cap")
         bonnet.cloth.kind = "felt"
         bonnet.cloth.extra = None
@@ -275,3 +281,106 @@ def women(fit, spec):
         ck.thicken(ties, 0.0015, depth=None)
         pcs.append(ties)
     return pcs
+
+
+def reduce_cast(ob, budget):
+    """Reduce separate garment shells, so a masked global decimator cannot erase another garment.
+
+    This is scoped to C4. The shared cloth lane can replace it when its reducer lands.
+    Each shell keeps its own weighted share, including linings, cuffs and brim edges.
+    """
+    import bpy
+    import bmesh
+    from . import lod, weights as wt
+    if lod.tris(ob) <= budget:
+        return
+    if budget <= 0:
+        raise ValueError("Cast body leaves no cloth budget: " + ob.name)
+    parts = [(p or "").removeprefix("in_") for p in wt.parts(ob)]
+    counts = {}
+    for f in ob.data.polygons:
+        name = parts[f.vertices[0]]
+        counts[name] = counts.get(name, 0) + len(f.vertices) - 2
+    left = budget
+    free = dict(counts)
+    targets = {}
+    while free:
+        total = sum(n ** 0.7 for n in free.values())
+        share = {p: left * n ** 0.7 / total for p, n in free.items()}
+        capped = [p for p in free if share[p] >= free[p]]
+        if not capped:
+            targets.update({p: max(12, int(share[p])) for p in free})
+            break
+        for p in capped:
+            targets[p] = free.pop(p)
+            left -= targets[p]
+    shells = []
+    for name, count in counts.items():
+        shell = ob.copy()
+        shell.data = ob.data.copy()
+        shell.name = "_cast_reduce_" + name
+        bpy.context.scene.collection.objects.link(shell)
+        bm = bmesh.new()
+        bm.from_mesh(shell.data)
+        bm.verts.ensure_lookup_table()
+        bmesh.ops.delete(bm, geom=[v for v in bm.verts if parts[v.index] != name], context="VERTS")
+        bm.to_mesh(shell.data)
+        bm.free()
+        bpy.context.view_layer.objects.active = shell
+        if count > targets[name]:
+            dec = shell.modifiers.new("cast_budget", "DECIMATE")
+            dec.ratio = targets[name] / count
+            dec.use_collapse_triangulate = True
+            bpy.ops.object.modifier_apply(modifier=dec.name)
+        shells.append(shell)
+    # Keep the caller's object and name; its vertex groups are merged by name.
+    for obj in bpy.context.selected_objects:
+        obj.select_set(False)
+    ob.data.clear_geometry()
+    ob.select_set(True)
+    for shell in shells:
+        shell.select_set(True)
+    bpy.context.view_layer.objects.active = ob
+    bpy.ops.object.join()
+
+
+def build(kind, make_body, ref_uv, layout, atl, tex):
+    """C4's scoped budget and reducer; restore shared settings even when a trial fails."""
+    from . import dress
+    old = dress.NEAR_HERO, dress.NEAR_CROWD, dress.FAR, dress.reduce_cloth
+    try:
+        dress.NEAR_HERO, dress.NEAR_CROWD, dress.FAR = 16000, 14000, 2500
+        dress.reduce_cloth = reduce_cast
+        return dress.build(kind, make_body, ref_uv, layout, atl, tex=tex)
+    finally:
+        dress.NEAR_HERO, dress.NEAR_CROWD, dress.FAR, dress.reduce_cloth = old
+
+
+def proof(dressed, bodies, actions, move_clips, held_obs, pictures_dir, rig_path):
+    """Use the existing face-aware preview for C4 cast/clip sheets, rather than white intake placeholders."""
+    import json
+    import os
+    from . import preview as pv, preview_c, preview_mh as pm, dress
+    pm.PICS = pictures_dir
+    pm._MATS.clear()
+    pm._IMGS.clear()
+    with open(rig_path, encoding="utf-8") as f:
+        recipe = json.load(f)
+    with open(rig_path.replace("peopleRig.json", "faceTypes.json").replace("_rig.json", "_faces.json"), encoding="utf-8") as f:
+        cells = json.load(f)["cells"]
+    old_clone = pv.clone
+    def clone(b, lod="lod0", name=None):
+        if "kind" not in b:
+            return old_clone(b, lod, name)
+        ao, meshes = pm.person(b["name"], dress.face_of(b["kind"], b["P"]),
+                               lod=int(lod[-1]), rig=recipe, cells=cells)
+        return ao, meshes[0]
+    pm.hide_all()
+    for ob in held_obs:
+        ob.data.materials.clear()
+        ob.data.materials.append(pm.material("held", "m_mid_brown"))
+    try:
+        pv.clone = clone
+        return preview_c.cast(dressed, bodies, actions, move_clips, held_obs)
+    finally:
+        pv.clone = old_clone

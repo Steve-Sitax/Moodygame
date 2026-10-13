@@ -92,4 +92,23 @@ FOREMAN = make_kind("foreman", "man_stout", 49,
          hat="bowler", hat_col=0x161412, long=0.36, chain=True, wear=0.4,
          note="Natie foreman: brown long coat, brown waistcoat and watch chain, black bowler; fixed moustached face"))
 
-KINDS = [PEETERS, TUUR, FIENTJE, SAILOR, SAILOR_B, STRANGER, THIEF, FOREMAN]
+RECIPIENT = make_kind("recipient", "man_middling", 28,
+    dict(coat=0x343a46, shirt=0xbab4a4, vest=0x3a3e44, trousers=0x3a3a3c, boots=0x221a14,
+         hat_col=0x3a3a36, wear=0.3,
+         note="Delivery recipient: blue-grey open sack coat, dark waistcoat, cream shirt and grey flat cap; fixed young clean face"))
+BOY = make_kind("boy", "child_middling", 11,
+    dict(coat=0x4a4034, shirt=0x8a8274, vest=0x3a3630, trousers=0x3a3630,
+         hat_col=0x3a3a36, barefoot=True, breeches=True, patched=True, wear=0.8,
+         note="Street boy: short repaired brown jacket, grey shirt, knee breeches, flat cap, bare dirty feet"), hero=False)
+URCHIN = make_kind("urchin", "child_slight", 9,
+    dict(shirt=0x8a7e66, shirt_only=True, rolled=True, trousers=0x4a4032,
+         hat_col=0x5a4a36, barefoot=True, breeches=True, wear=0.9,
+         note="Small street urchin: worn linen shirt with rolled sleeves, brown knee breeches, oversized brown flat cap, bare feet"), hero=False)
+OLD_MAN = make_kind("old_man", "old_man", 72,
+    dict(coat=0x6a4632, shirt=0xa8a090, vest=0x3a342a, trousers=0x3e3a32, boots=0x221a12,
+         hat_col=0x4a463e, kerchief=0x3a3634, long=0.32, wear=0.8, patched=True,
+         note="Old town man: stooped body, worn long rust-brown coat, grey scarf and flat cap, blackthorn walking stick"),
+    hero=False, held=[("held_cane", "gripR", "blackthorn stick with rounded knob and metal ferrule")])
+
+KINDS = [PEETERS, TUUR, FIENTJE, SAILOR, SAILOR_B, STRANGER, THIEF, FOREMAN,
+         RECIPIENT, BOY, URCHIN, OLD_MAN]
