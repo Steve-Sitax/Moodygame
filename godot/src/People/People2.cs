@@ -29,6 +29,9 @@ public static class People2
         public bool Loop = true;
         public int[] RotationTracks = Array.Empty<int>();
         public int PositionTrack = -1;
+        /// <summary>Package D3: what the clip moves (a sack, a broom, a cask), and whether it is a work clip.</summary>
+        public People2Things.Thing[] Things = Array.Empty<People2Things.Thing>();
+        public bool Work;
     }
     internal static Mesh? PreparedMesh
     {
@@ -104,6 +107,10 @@ public static class People2
         JsonElement idleMeta = default;
         bool idles = rig.RootElement.TryGetProperty("idles", out var idleBlock) && idleBlock.TryGetProperty("clips", out idleMeta);
         if (idles) People2Moves.Load(idleBlock);
+        // D3: work (the families' work clips, the loads, the things the clips move)
+        JsonElement workMeta = default;
+        bool work = rig.RootElement.TryGetProperty("work", out var workBlock) && workBlock.TryGetProperty("clips", out workMeta);
+        if (work) People2Moves.LoadWork(workBlock);
         // All skeletons have the same names; tracks from the source armature are rebound by name.
         var reference = model.Roots["man_middling"].GetNode<Skeleton3D>("Skeleton3D");
         BoneNames = new string[reference.GetBoneCount()];
@@ -126,6 +133,17 @@ public static class People2
             {
                 c.Loop = im.GetProperty("loop").GetBoolean();
                 c.Hips = Bodies[im.GetProperty("body").GetString()!].hips;
+            }
+            if (work && workMeta.TryGetProperty(name, out var wm))
+            {
+                c.Work = true;
+                c.Loop = wm.GetProperty("loop").GetBoolean();
+                if (wm.TryGetProperty("body", out var wb) && Bodies.TryGetValue(wb.GetString()!, out var winfo)) c.Hips = winfo.hips;
+                if (wm.TryGetProperty("cycle", out var cycle)) c.Cycle = cycle.GetSingle();
+                if (wm.TryGetProperty("stride", out var stride)) c.Stride = stride.GetSingle();
+                if (wm.TryGetProperty("speed", out var speed)) c.Speed = speed.GetSingle();
+                if (wm.TryGetProperty("duty", out var duty)) c.Duty = duty.GetSingle();
+                if (wm.TryGetProperty("things", out var things)) c.Things = People2Things.Parse(things);
             }
             if (meta.TryGetProperty(name, out var m))
             {

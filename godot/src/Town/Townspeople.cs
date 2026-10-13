@@ -1248,6 +1248,7 @@ public partial class Townspeople : Node
         var crowd = Crowd!;
         double pace = PaceOf(s);
         if (g.Mode != "haul" && p.HandCarry) crowd.PuppetLoad(p, false);
+        if (g.Mode != "haul") p.Human.Work = null;
         switch (g.Mode)
         {
             case "haul":
@@ -1378,7 +1379,11 @@ public partial class Townspeople : Node
                         // set down: in at the door, onto the pile, at the fish bank
                         crowd.PuppetLoad(p, false, carry);
                     }
+                    // people2 (package D3): at a sack pile he takes the sack up onto his shoulder, at the door he sets
+                    // it down from there; he stays for the work's length (a local look: positions are the host's)
+                    p.Human.Work = route != null && nearA && carry == "sack" && !bare ? "haul_sack" : null;
                     crowd.PuppetStand(p, bend ? "crouch" : "idle", yaw);
+                    s.Wait = Math.Max(s.Wait, p.Human.WorkSeconds + 0.3);
                     return;
                 }
                 if ((s.Wait -= dt) > 0) return;

@@ -930,9 +930,12 @@ def swing_keys(g, plan, S, a, b, stairs=None):
 # person's node (the thing rolls along with him). These go to peopleRig.json "locomotion.loads": whoever places the
 # sack, crate, handcart or sack truck model puts its handles there.
 LOADS = {
-    "sack": dict(bone="upperChest", centre=(0.03, -0.02, 0.11), axis="fwd", size=(0.26, 0.88, 0.26),
-                 note="a sack across the left shoulder, its length along the person's forward; centre given from the "
-                      "left shoulder joint (armUpL head) at rest; the left hand holds its front end"),
+    "sack": dict(bone="upperChest", centre=(0.07, -0.01, 0.075), axis="fwd", size=(0.30, 0.86, 0.21), tilt=6.0,
+                 grip=(-0.01, 0.40, -0.02), fingers=(0.15, -0.25, 1.0), palm=(0.0, -1.0, 0.1), pole=(0.8, 0.5, -1.0),
+                 note="a sack across the left shoulder, its length along the person's forward, the front end 6 degrees "
+                      "down; centre given from the left shoulder joint (armUpL head) at rest; size: across, length, "
+                      "thickness (the one sack model draped over the shoulder); the left hand's fist holds the bunched "
+                      "front end at `grip` from the centre (clips_work's lift and hold end in the same hold)"),
     "crate": dict(bone="chest", centre=(0.0, 0.26, -0.12), size=(0.55, 0.34, 0.42),
                   note="a crate held in front against the belly, both hands under its sides; centre from the chest "
                        "bone's head at rest"),
@@ -983,9 +986,10 @@ def carry_hold(kind, sk):
         ctx["side"] = -4.0  # leaning away from the load
         ctx["look"] = -4.0
         ctx["headTilt"] = -11.0  # the head pressed away from the sack
-        grip = c + V(-0.02, 0.27, 0.03)
-        hold_on_bone(pose, sk, ctx, "L", "upperChest", grip, V(0.1, -0.35, 1.0), V(0.0, -1.0, 0.0),
-                     V(0.8, 0.5, -1.0), shape="grip", use_grip=True)
+        S_ = LOADS["sack"]
+        grip = c + V(*S_["grip"])
+        hold_on_bone(pose, sk, ctx, "L", "upperChest", grip, V(*S_["fingers"]), V(*S_["palm"]), V(*S_["pole"]),
+                     shape="grip", use_grip=True)
         # the free arm swings wider, for balance
         ctx["armOutAdd"] = 4.0
         return "L"

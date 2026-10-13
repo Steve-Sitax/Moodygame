@@ -105,6 +105,41 @@ kind, no new kinds, 29 cache entries throughout, no problems). Timing under othe
 so not the gate): with the D2 moves the people2 animation mean was 0.47/0.38 ms at the Vismarkt/Grote Markt
 against 0.37/0.29 ms with them bypassed in the same conditions (+0.1 ms); all animation 0.86/0.73 ms.
 
+## Work (package D3)
+
+`People2Moves.LoadWork` reads `peopleRig.json work` (docs/people.md "Work"); `Human2` plays the work clips and
+`People2Things` shows what they move. The wire is unchanged: the motion stays the game's word, the clip is chosen
+locally from the motion, the person's stable id, a load and a context every PC works out the same.
+
+- motions: a family's work clips for scrub (a woman sweeps one doorstep in three, from the id), lace, wash, cross,
+  call, smoke, beg, wall, lean, write, grind, row, ride, crouch, hop, rope (the skipping rope), pull (the rope haul),
+  point (pointing the way or up at the spire, from the id); the family's fallback (D3's) where it has none.
+- kinds: the sentry marches and stands with the rifle (`rifle_*`); docker_sack walks and stands with the sack.
+- loads (`Crowd.PuppetLoad`, people2 only): a sack rides the left shoulder (`sack_walk`, `sack_hold`, the one sack
+  model at `loads.sack`); a crate, a box of fish or a keg is the game's node held against the belly (`crate_walk`,
+  `crate_hold`). A sack let go is set down from the shoulder first (`sack_down`) and stays where it was put until the
+  docker takes up the next or for 30 s.
+- contexts: `Human.Work` = `haul_sack` for a docker bending at a sack pile (HaulRoutes: the host's `Townspeople` and
+  the guest's `RemotePose` find it from the routes alone): he lifts the sack onto his shoulder (`sack_lift`, or
+  `_high` when `PileTop` says the pile is at his waist). The host waits for the lift and the set-down
+  (`Human.WorkSeconds`; positions are the host's). `fish_stall`: a fishwife behind a market fish table guts (`gut`)
+  while idle or with folded arms; she stands 0.19 m nearer the table (`NativeMarket.People`).
+- kits (`StreetLife`, `StreetKits`): a people2 scrubber's bucket at her left hand and no brush on the ground (it is in
+  her hand), the washer's bucket before her, a smoker's pipe in his hand (the kit's pipe meshes).
+- things (`People2Things`): the one sack (sized per frame: lying, draped over the shoulder), the quay's cask (turned by
+  the distance walked), the alleys' birch broom, the lively scrubbing brush and the pipe; on a bone or on a track in
+  the node's frame, shown within 60 m. A knife, a book, a rifle, a crank and the oars have no game model and are not
+  drawn.
+- the D3 clips put their own hips where the work needs them: `Human.MotionLift` is 0 for people2. Paced loops (the
+  carries, the cask, the march) play at the walker's pace (two strides a loop) and lock their planted feet as the
+  walks do.
+
+Proof: `& ./native-godot/scripts/check-people2.ps1 -Modes work -Port <port>` (`--people2-work <dir>`) stages on the
+Rijnkaai at the sack pile of haul route rk-m: a docker lifting (the game's context), lifts held at moments, a carrier
+walking with a sack, one standing with it, one setting it down, two passing a sack, a cask rolled, a rope hauled from
+a block, a fishwife at a fish table, a woman sweeping; pictures at 3 m and 6 m at 13:00 and 19:30, twelve pictures
+0.25 s apart of a lift and of a pass, and 60 s of their life at 30 Hz (`work.json`).
+
 ## Verification
 
 ```powershell
