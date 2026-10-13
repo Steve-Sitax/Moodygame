@@ -32,10 +32,21 @@ _CACHE = {}
 
 
 def load(key):
-    """A MakeHuman skin as a float array (v up), 2048 px."""
+    """A MakeHuman skin as a float array (v up), 2048 px. MakeHuman's pictures are pale at and outside their
+    islands' edges: the texels within 4 px of an edge and outside are filled from the skin inside (a body face at
+    a seam sampled that pale margin: a white notch at the nape)."""
     if key not in _CACHE:
         folder, fname = SKINS[key]
-        _CACHE[key] = read_png(mh.path("system/skins/%s/%s" % (folder, fname)))
+        img = read_png(mh.path("system/skins/%s/%s" % (folder, fname)))
+        inside = island_mask(img.shape[0]) >= 0
+        for _ in range(4):
+            e = inside.copy()
+            e[1:, :] &= inside[:-1, :]
+            e[:-1, :] &= inside[1:, :]
+            e[:, 1:] &= inside[:, :-1]
+            e[:, :-1] &= inside[:, 1:]
+            inside = e
+        _CACHE[key] = dilate(img, inside, 48)
     return _CACHE[key]
 
 
@@ -190,30 +201,6 @@ def body_raster(body, size, rect):
     return out[..., :3], out[..., 3:6], part, names, out[..., 7:9], has
 
 
-def seam_away(body, pos, sel, near=0.004, far=0.030):
-    """0 at the seam between the head's island and the body's (the neck), rising to 1 `far` metres from it; 1 where
-    sel is False. pos: texel positions (rest space)."""
-    T = mhbody.topology(0)
-    co = T.binding.eval(body.Pf)
-    head_v, body_v = set(), set()
-    for fi, f in enumerate(T.faces):
-        (head_v if T.face_island[fi] == "head" else body_v if T.face_island[fi] not in mhbody.FACE_ISLANDS
-         else set()).update(f)
-    seam = co[sorted(head_v & body_v)]
-    out = np.ones(pos.shape[:2], np.float32)
-    if not len(seam):
-        return out
-    idx = np.nonzero(sel)
-    pts = pos[idx]
-    d = np.full(len(pts), 1.0)
-    for k in range(0, len(seam), 64):
-        sk = seam[k:k + 64]
-        d = np.minimum(d, np.sqrt(((pts[:, None, :] - sk[None]) ** 2).sum(-1)).min(1))
-    t = np.clip((d - near) / (far - near), 0, 1)
-    out[idx] = t * t * (3 - 2 * t)
-    return out
-
-
 def body_picture(b, group, tone=(1.0, 1.0, 1.0), size=1024, rect=None, underwear=True, kind=None):
     """A body's picture in the clothes layer: MakeHuman's skin of the group (SKIN_REF) moved into the rectangle,
     the tone, the sun on the hands and the neck, the base bodies' worn linen drawers and vest, a kind's own extras
@@ -244,9 +231,9 @@ def body_picture(b, group, tone=(1.0, 1.0, 1.0), size=1024, rect=None, underwear
     amount = 0.55 if female else (0.6 if P["child"] else 1.0)
     ta = np.clip((Y(0.60) - y) / (Y(0.60) - Y(0.49)), 0, 1)
     tan = (is_arm | is_finger) * ta * ta * (3 - 2 * ta)
-    tn = np.clip((y - Y(0.80)) / max(Y(0.845) - Y(0.80), 1e-3), 0, 1)
-    tn = tn * seam_away(body, pos, has & (is_neck | is_torso) & (y > Y(0.76)))  # plain at the head's seam
-    tan = np.clip(tan + (is_neck | is_torso) * tn * np.clip(1.3 - ax / 0.09, 0, 1), 0, 1) * amount
+    # the neck keeps the plain skin: MakeHuman's head island ends under the jaw, so the face picture's own
+    # weathering (faded to the plain skin at that seam) and the body's skin times bodyTone meet without a step
+    tan = np.clip(tan, 0, 1) * amount
     rgb *= (1 - tan[..., None] * (1 - paint.TAN))
     hand = is_finger | (is_arm & (y < Y(0.49)))
     rgb = rgb * np.where(hand[..., None], np.array((0.96, 0.92, 0.90), np.float32), 1.0)
@@ -260,15 +247,16 @@ def body_picture(b, group, tone=(1.0, 1.0, 1.0), size=1024, rect=None, underwear
         n4 = _noise3(pos, 22.0, 7)
         weave = 1 + 0.035 * np.sin(y * 2200) * np.sin(x * 2100 + z * 2100) + 0.03 * n2 + 0.035 * n4
         knee, waist = Y(0.33), Y(0.607)
-        drawers = (is_leg | is_torso) & (y > knee) & (y < waist + 0.01)
+        # by height, not by part: a part's edge runs along triangles (a staircase where the masks met it)
+        drawers = ~is_arm & ~is_finger & (y > knee) & (y < waist + 0.01)
         if not female:
             neck_line = np.where(z > 0, Y(0.790) + (ax / 0.12) ** 2 * (Y(0.83) - Y(0.79)), Y(0.825))
             sleeve = Y(0.735)
         else:
             neck_line = np.where(z > 0, Y(0.775) + (ax / 0.11) ** 1.5 * (Y(0.83) - Y(0.775)), Y(0.815))
             sleeve = Y(0.715)
-            drawers = drawers | (is_torso & (y < waist))
-        vest = (is_torso | is_arm | is_neck) & (y > waist - 0.06) & (y < neck_line - 0.012) & (~is_arm | (y > sleeve))
+            drawers = drawers | (~is_arm & ~is_finger & ~is_leg & (y < waist))
+        vest = ~is_leg & ~is_finger & (y > waist - 0.06) & (y < neck_line - 0.012) & (~is_arm | (y > sleeve))
         cloth = (drawers | vest) & has
         shade = 1 - 0.06 * np.clip(-nrm[..., 1], 0, 1)
         cl = np.array(paint.LINEN, np.float32) * (weave * shade)[..., None]
@@ -312,7 +300,7 @@ def cell_meta(name, lk, rgb):
     # (its skin times bodyTone) must carry on with the same colour
     from .mhface import seam_fade
     holes = (np.linalg.norm(pos - G["eyeL"], axis=-1) < 0.03) | (np.linalg.norm(pos - G["eyeR"], axis=-1) < 0.03) |         (np.linalg.norm((pos - G["mouth"]) * (1, 1.4, 1), axis=-1) < 0.04)
-    cheek = head & ~holes & (seam_fade(head, 40) < 0.3) & (y < G["chin"][1] - 0.01)
+    cheek = head & ~holes & (seam_fade(head, 40) < 0.3)  # MakeHuman's head island ends under the jaw and the nape
     sex = "f" if group in ("f", "of") or lk.get("sex") == "f" else "m"
     ref_key = SKIN_REF[{"m": "m", "f": "f", "c": "boy", "om": "old_m", "of": "old_f"}[group]]  # the body's own
     ref, _ = remap(load(ref_key), "face", 1024)

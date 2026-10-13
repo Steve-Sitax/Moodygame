@@ -274,14 +274,60 @@ internal partial class People2Proof : Node
                 pictures.Add(new { name = file, hour = daylight.Hour, weather = daylight.Weather });
             }
         }
+        var shapeBench = await ShapeBench(centre);
         File.WriteAllText(Path.Combine(dir, "captures.json"), JsonSerializer.Serialize(new
         {
-            ok = true, place = "vismarkt", crowd = faces, bakes = People2Faces.BakeCount,
+            ok = true, place = "vismarkt", crowd = faces, bakes = People2Faces.BakeCount, shapeBench,
             bakeMeanMs = People2Faces.BakeCount > 0 ? People2Faces.BakeMs / People2Faces.BakeCount : 0, bakeMaxMs = People2Faces.MaxBakeMs,
             fingerprint = Main.I.WorldFingerprint, pictures,
         }, new JsonSerializerOptions { WriteIndented = true }));
         GetTree().Quit();
     }
+    /// <summary>The sliders' cost as Godot blend shapes, for the record (docs/people.md "Cost"): 50 static copies of
+    /// man_middling's near mesh in view, with 8, 24 and all 51 sliders live and moving, against the same 50 with none
+    /// (0: baked, as the game draws people). Per setting, 90 frames: the process time, the render thread's CPU
+    /// time and the GPU time of the main view.</summary>
+    private async System.Threading.Tasks.Task<object> ShapeBench(Vector3 centre)
+    {
+        var vp = Main.I.View.GetViewportRid();
+        RenderingServer.ViewportSetMeasureRenderTime(vp, true);
+        Main.I.Cam.LookAtFromPosition(centre + new Vector3(0, 1.6f, -9f), centre + new Vector3(0, 1.0f, 0));
+        foreach (var h in people) h.Root.Visible = false;
+        var holder = new Node3D { Name = "people2_shape_bench" };
+        AddChild(holder);
+        var results = new List<object>();
+        foreach (int n in new[] { 0, 8, 24, 51 })
+        {
+            foreach (var c in holder.GetChildren()) { holder.RemoveChild(c); c.QueueFree(); }
+            var mesh = People2Faces.BenchMesh("man_middling_lod0", n);
+            if (mesh == null) return new { ok = false, reason = "no man_middling_lod0 template" };
+            int shapes = mesh.GetBlendShapeCount();
+            var copies = new List<MeshInstance3D>();
+            for (int i = 0; i < 50; i++)
+            {
+                var mi = new MeshInstance3D { Mesh = mesh, Position = centre + new Vector3((i % 10 - 4.5f) * 0.7f, 0, (i / 10) * 1.2f) };
+                holder.AddChild(mi);
+                copies.Add(mi);
+            }
+            for (int f = 0; f < 30; f++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            double proc = 0, cpu = 0, gpu = 0;
+            for (int f = 0; f < 90; f++)
+            {
+                // every live slider moves a little each frame (a blend shape set once costs the same per frame)
+                for (int i = 0; i < copies.Count; i++)
+                    for (int k = 0; k < shapes; k++) copies[i].SetBlendShapeValue(k, 0.5f + 0.4f * Mathf.Sin(0.05f * f + i + k));
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                proc += Performance.GetMonitor(Performance.Monitor.TimeProcess) * 1000.0;
+                cpu += RenderingServer.ViewportGetMeasuredRenderTimeCpu(vp);
+                gpu += RenderingServer.ViewportGetMeasuredRenderTimeGpu(vp);
+            }
+            results.Add(new { liveSliders = n, baked = n == 0, blendShapes = shapes, people = copies.Count, processMs = proc / 90, renderCpuMs = cpu / 90, gpuMs = gpu / 90 });
+        }
+        holder.QueueFree();
+        foreach (var h in people) h.Root.Visible = true;
+        return new { ok = true, mesh = "man_middling_lod0", results };
+    }
+
     private static float Height(Human human)
     {
         float low = float.MaxValue, high = float.MinValue;

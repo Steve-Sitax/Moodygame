@@ -633,14 +633,25 @@ def to_limit_keep_creases(ob):
     me.update()
 
 
-def cut_body(ob, covered):
+def cut_body(ob, covered, over=None, reach=0.3):
     """Remove the body faces nobody can see: every face whose vertices are all covered(point, part) (game space
-    at rest, part name). Head, eyes and hair stay."""
+    at rest, part name) and, given the garments (`over`, in the same space), lie under one of them (a ray out along
+    the skin's normal meets a garment within `reach`): the cover rules were drawn for the cage bodies, and on the
+    MakeHuman bodies a rule alone cut a hole at the nape that no collar covered. Head, eyes and hair stay."""
     import bmesh
 
     vparts = wt.parts(ob)
     co = np.array([G(v.co) for v in ob.data.vertices])
     cov = np.array([(p not in ("head", "eye", "hair")) and bool(covered(co[i], p or "")) for i, p in enumerate(vparts)])
+    if over is not None:
+        from mathutils.bvhtree import BVHTree
+        tree = BVHTree.FromPolygons([tuple(v.co) for v in over.data.vertices],
+                                    [tuple(f.vertices) for f in over.data.polygons])
+        for i in np.nonzero(cov)[0]:
+            v = ob.data.vertices[int(i)]
+            # under a garment (a ray out meets it), or poking out through one just there (a ray in meets it)
+            if tree.ray_cast(v.co + v.normal * 0.0005, v.normal, reach)[0] is None and                     tree.ray_cast(v.co, -v.normal, 0.03)[0] is None:
+                cov[i] = False
     bm = bmesh.new()
     bm.from_mesh(ob.data)
     bm.verts.ensure_lookup_table()
@@ -652,6 +663,114 @@ def cut_body(ob, covered):
     bm.free()
     ob.data.update()
     return len(gone)
+
+
+def _piece_of(parts):
+    return [(p or "").removeprefix("in_") for p in parts]
+
+
+def _outer_bvh(ob, parts, name):
+    """A BVH of one piece's outer faces (not its lining), in the object's own (Blender) space."""
+    from mathutils.bvhtree import BVHTree
+    me = ob.data
+    vs = [tuple(v.co) for v in me.vertices]
+    faces = [tuple(f.vertices) for f in me.polygons if parts[f.vertices[0]] == name]
+    if not faces:
+        return None
+    return BVHTree.FromPolygons(vs, faces)
+
+
+def layer_order(ob):
+    """Which piece lies over which, read on the full garments before they are reduced: from every outer vertex of a
+    piece a ray out along its normal; a hit on another piece within 15 mm is a vote that the other lies over it.
+    Returns {(under, over)} for the pairs whose votes agree."""
+    from mathutils import Vector
+    me = ob.data
+    raw = wt.parts(ob)
+    piece = _piece_of(raw)
+    names = sorted({p for p in piece if p})
+    bvh = {n: _outer_bvh(ob, raw, n) for n in names}
+    votes = {}
+    for v in me.vertices:
+        a = piece[v.index]
+        if not a or raw[v.index] != a:
+            continue
+        o = v.co + v.normal * 0.0003
+        for b, tree in bvh.items():
+            if b == a or tree is None:
+                continue
+            hit = tree.ray_cast(o, v.normal, 0.015)
+            if hit[0] is not None:
+                votes[(a, b)] = votes.get((a, b), 0) + 1
+    return {(a, b) for (a, b), n in votes.items() if n >= 5 and n > 2 * votes.get((b, a), 0)}
+
+
+def clear_layers(ob, body, order, clearance=0.002, passes=2):
+    """After the reduction: a reduced piece's flat triangles cut under the round piece beneath it, which then shows
+    through (the bodice through the shawl). For every pair (under, over) of layer_order, and for the body's skin
+    under any piece: each point of the lower layer lies at least `clearance` under the upper layer's outer surface,
+    and each point of the upper layer at least `clearance` over the lower layer's (both along the point's own
+    normal; all shape keys move with it). Returns how many points moved."""
+    from mathutils.bvhtree import BVHTree
+    moved = 0
+
+    def shift(target, i, d):
+        me = target.data
+        me.vertices[i].co = me.vertices[i].co + d
+        if me.shape_keys:
+            for kb in me.shape_keys.key_blocks:
+                kb.data[i].co = kb.data[i].co + d
+
+    for _ in range(passes):
+        raw = wt.parts(ob)
+        piece = _piece_of(raw)
+        names = sorted({p for p in piece if p})
+        outer = {n: _outer_bvh(ob, raw, n) for n in names}
+        idx_of = {n: [i for i, p in enumerate(piece) if p == n] for n in names}
+        # 1. the lower layer under the upper one (rays from 6 mm under each point, out along its normal)
+        jobs = [(ob, idx_of[a], [b for (u, b) in order if u == a]) for a in names]
+        if body is not None:
+            jobs.append((body, list(range(len(body.data.vertices))), names))
+        for target, idx, overs in jobs:
+            trees = [outer[b] for b in overs if outer.get(b) is not None]
+            if not trees or not idx:
+                continue
+            me = target.data
+            for i in idx:
+                v = me.vertices[i]
+                n = v.normal.copy()
+                o = v.co - n * 0.006
+                best = None
+                for tree in trees:
+                    hit = tree.ray_cast(o, n, 0.02)
+                    if hit[0] is not None and (best is None or hit[3] < best):
+                        best = hit[3]
+                if best is not None and best - 0.006 < clearance:
+                    shift(target, i, n * (best - 0.006 - clearance))
+                    moved += 1
+            me.update()
+        # 2. the upper layer over the lower one (rays from 6 mm over each point, in along its normal): a reduced
+        # upper piece's points that dipped under the lower piece's flat triangles
+        me = ob.data
+        vs = [tuple(v.co) for v in me.vertices]
+        for (u, b) in sorted(order):
+            fu = [tuple(f.vertices) for f in me.polygons if raw[f.vertices[0]] == u]
+            if not fu:
+                continue
+            tree = BVHTree.FromPolygons(vs, fu)
+            for i in idx_of.get(b, []):
+                if raw[i] != b:  # the upper piece's outer points only
+                    continue
+                v = me.vertices[i]
+                n = v.normal.copy()
+                o = v.co + n * 0.006
+                hit = tree.ray_cast(o, -n, 0.02)
+                # its height over the lower piece: the hit's distance less the 6 mm the ray started out
+                if hit[0] is not None and hit[3] - 0.006 < clearance:
+                    shift(ob, i, n * (clearance - (hit[3] - 0.006)))
+                    moved += 1
+        me.update()
+    return moved
 
 
 def follow_face_shapes(ob, hat_parts):
@@ -726,6 +845,27 @@ WEAVE = {
     "wood": (0.0, 0.10, 0.00008, 0.0),
     "metal": (0.0, 0.0, 0.0, 0.0),
 }
+
+
+def undershirt(ctx, rgb, top, zone=2, bottom=None, covers=None, skip=()):
+    """The body's skin painted as the cloth worn under a garment, on the trunk and the neck below `top` (metres)
+    and, given the kind's cover rule, wherever that rule says a garment covers the skin: where a reduced garment's
+    neckline leaves the skin of the shoulders in sight, or a slider's broader shoulders push the skin through the
+    cloth, a shirt or a lining shows there, not bare skin. zone: the detail zone (pictures.ZONES: 1 wool, 2 linen)."""
+    m = starts(ctx.part, ("torso", "neck")) & (ctx.y < top)
+    if covers is not None:
+        pts = np.stack((ctx.x, ctx.y, ctx.z), -1)
+        never = ("head", "eye", "finger") + tuple(skip)  # skip: parts the kind paints itself (stockings)
+        m |= np.array([bool(covers(pts[i], p or "")) and not str(p).startswith(never)
+                       for i, p in enumerate(ctx.part)])
+    if bottom is not None:
+        m &= ctx.y > bottom
+    n = 0.5 + 0.5 * _noise3(np.stack((ctx.x, ctx.y, ctx.z), -1), 140.0, 5)
+    col = np.asarray(rgb, np.float32)[None] * (0.93 + 0.10 * n)[:, None]
+    ctx.rgb[m] = col[m]
+    ctx.h[m] += 0.0001 * n[m]
+    if hasattr(ctx, "detail_zone"):
+        ctx.detail_zone[m] = zone
 
 
 class Ctx:
@@ -1056,7 +1196,7 @@ def hat_weights(p):
     return dict(HEAD_ONLY)
 
 
-def flat_cap(fit, pc, peak, n=16, band=0.020, margin=0.007, puff=0.012, fwd=0.012, tilt=0.024):
+def flat_cap(fit, pc, peak, n=16, band=0.020, margin=0.011, puff=0.012, fwd=0.012, tilt=0.024):
     """The workman's cloth cap of the docks: a band round the head above the ears (lower at the back), a soft, low
     crown a little wider than the band and pulled forward over a short stiff peak (its own piece), its top nearly
     flat. Fitted to the head and hair of the built body; weighted to the head."""
@@ -1335,7 +1475,7 @@ def unwrap(ob, scales, margin=0.004):
             for p in polys:
                 t = q[[at[li] for li in p.loop_indices]]
                 a2 += 0.5 * abs(np.dot(t[:, 0], np.roll(t[:, 1], -1)) - np.dot(t[:, 1], np.roll(t[:, 0], -1)))
-        # rims and insides (any vertex inside) at the insides' density: they are seldom seen
+        # rims and insides (any vertex inside) at the insides' density (dress.build: the same as the outside)
         vp = [vparts[v] for p in polys for v in p.vertices]
         part = next((x for x in vp if x.startswith("in_")), vp[0])
         k = scales.get(part, 1.0)
@@ -1459,7 +1599,7 @@ def skirt(fit, pc, top_row, hem_y, n=24, ease=0.012, hip_rows=(2, 1), clear=0.03
     return ids
 
 
-def kepi(fit, pc, peak, n=16, margin=0.007, height=0.075, slope=0.022, taper=0.010, tilt=0.03):
+def kepi(fit, pc, peak, n=16, margin=0.011, height=0.075, slope=0.022, taper=0.010, tilt=0.03):
     """The police kepi: a stiff drum on a band round the head, narrowing a little to its flat top, which slopes
     down to the front; a short black leather peak, near flat. Weighted to the head."""
     P = fit.P

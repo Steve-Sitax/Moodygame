@@ -23,7 +23,7 @@ from . import ROOT, SHOTS
 from . import face_types as ft
 from . import sliders as sl
 
-PICS = os.path.join(ROOT, "..", "native-godot", "assets", "people2-pictures")
+PICS = os.environ.get("PEOPLE2_PICTURES_DIR") or os.path.join(ROOT, "..", "native-godot", "assets", "people2-pictures")
 OUT = os.path.join(SHOTS, "mh")
 _MATS = {}
 _IMGS = {}
@@ -96,12 +96,15 @@ def material(clothes, cell, tone=(1.0, 1.0, 1.0)):
 
 
 def _rig():
-    with open(os.path.join(ROOT, "shared", "peopleRig.json"), encoding="utf-8") as f:
+    # a trial build's rig and faces (build_people2 --out x.glb writes x_rig.json, x_faces.json): PEOPLE2_RIG
+    with open(os.environ.get("PEOPLE2_RIG") or os.path.join(ROOT, "shared", "peopleRig.json"), encoding="utf-8") as f:
         return json.load(f)
 
 
 def _faces_json():
-    with open(os.path.join(ROOT, "shared", "faceTypes.json"), encoding="utf-8") as f:
+    rig = os.environ.get("PEOPLE2_RIG")
+    p = rig.replace("_rig.json", "_faces.json") if rig else os.path.join(ROOT, "shared", "faceTypes.json")
+    with open(p, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -463,9 +466,13 @@ def hands():
         ao, ms = person("man_middling", face, rig=rig, cells=cells)
         J = {b.name: (np.array((b.head_local.x, b.head_local.z, -b.head_local.y)),
                       np.array((b.tail_local.x, b.tail_local.z, -b.tail_local.y))) for b in ao.data.bones}
-        pose = {}
+        # the arm a little out and forward, so the hand hangs free of the thigh
+        import sys
+        sys.path.insert(0, os.path.join(ROOT, "tools", "blender"))
+        from build_people import limb  # noqa: E402
+        pose = {"armUpL": limb("L", out=28, fwd=12)}
         cl.hand_pose(pose, "L", shape, cl.thumb_axes(J))
-        cl.set_pose(ao, pose)
+        cl.set_pose(ao, cl.shoulder_rule(pose))
         bpy.context.view_layer.update()
         # aimed at the middle of the hand: between the wrist and the middle finger's second joint
         hand = ao.matrix_world @ ((ao.pose.bones["handL"].head + ao.pose.bones["middle2L"].tail) * 0.5)

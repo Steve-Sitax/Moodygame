@@ -9,6 +9,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The new people (`--people2`) are rebuilt on MakeHuman's free (CC0) bodies and faces: every townsperson gets a face of their own from one of 22 face types of the port in 1873 (Flemish dockers, Walloons, Dutch skippers, sailors from the north, the south and further away, clerks, gentlemen, fishwives, widows, children, the old), with real eyes, brows, stubble, weathered or ruddy skin, and hair, beards and moustaches that are shaped, not painted on. The same person looks the same on every PC.
+
 - The optional people2 cast has lighter clothing meshes and simpler far copies. The fishwife carries her herring basket upright at her hip, her apron clears the skirt, and the docker wears darker, dirtier wooden clogs.
 
 - With the new people switched on (`--people2`), the town works like people do: dockers squat or lean in at the sack pile, take a sack by its ears, heave it up onto the left shoulder and carry it away with a hand on its front end, then set it down again at the door or the pile and leave it lying there; crates and boxes of fish are carried against the belly. Fishwives gut the catch at their fish tables, women scrub their doorsteps on hands and knees or sweep them with a birch broom, wash linen stooped over a bucket and make lace at the door; the knife grinder works his treadle, the sentry keeps his rifle at the shoulder, beggars hold out a cupped hand, criers call with a hand at the mouth, smokers take their pipe to their lips, lads lean back against a wall with a foot up, and children turn a skipping rope, hop and crouch at marbles. Each person keeps their own way of working, the same on every PC.

@@ -204,6 +204,32 @@ public static class People2Faces
         return mesh;
     }
 
+    /// <summary>For the cost proof only: a static copy of a people2 mesh (no skeleton) with its first nKeys sliders as
+    /// live Godot blend shapes (dense, absolute targets), to compare per-frame blend-shape cost against the bake.</summary>
+    internal static ArrayMesh? BenchMesh(string name, int nKeys)
+    {
+        if (!templates.TryGetValue(name, out var t)) return null;
+        var a = new Godot.Collections.Array(); a.Resize((int)Mesh.ArrayType.Max);
+        a[(int)Mesh.ArrayType.Vertex] = t.V; a[(int)Mesh.ArrayType.Normal] = t.N;
+        a[(int)Mesh.ArrayType.TexUV] = t.UV!; a[(int)Mesh.ArrayType.Color] = t.C!;
+        if (t.Index.Length > 0) a[(int)Mesh.ArrayType.Index] = t.Index;
+        var keys = t.Keys.OrderBy(k => k.Key, StringComparer.Ordinal).Take(nKeys).ToList();
+        var mesh = new ArrayMesh { BlendShapeMode = Mesh.BlendShapeMode.Normalized };
+        var shapes = new Godot.Collections.Array<Godot.Collections.Array>();
+        foreach (var (key, k) in keys)
+        {
+            mesh.AddBlendShape(key);
+            var sv = (Vector3[])t.V.Clone(); var sn = (Vector3[])t.N.Clone();
+            for (int i = 0; i < k.idx.Length; i++) { sv[k.idx[i]] += k.dp[i]; sn[k.idx[i]] = (sn[k.idx[i]] + k.dn[i]).Normalized(); }
+            var sa = new Godot.Collections.Array(); sa.Resize((int)Mesh.ArrayType.Max);
+            sa[(int)Mesh.ArrayType.Vertex] = sv; sa[(int)Mesh.ArrayType.Normal] = sn;
+            shapes.Add(sa);
+        }
+        mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, a, shapes);
+        if (t.Material != null) mesh.SurfaceSetMaterial(0, t.Material);
+        return mesh;
+    }
+
     private static readonly Dictionary<(string, string), int[]> bindMaps = new();
     private static int[] BindMap(Template piece, Template body)
     {

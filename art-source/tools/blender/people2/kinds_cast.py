@@ -254,6 +254,10 @@ def sooi_skin(ctx):
     hand = ck.starts(ctx.part, ("finger", "arm")) & (ctx.y < bd.Y(ctx.P, 0.52))
     ctx.mix(hand * 0.15, (0.66, 0.44, 0.34))
     ctx.mul(hand, (0.92, 0.89, 0.86))
+    # under the coat its own brown (his white shirt through a reduced coat read as holes); the shirt's white only in
+    # the band its collar shows
+    ck.undershirt(ctx, (0.35, 0.27, 0.20), 0.0, zone=1, covers=sooi_covers)  # COAT
+    ck.undershirt(ctx, (0.64, 0.61, 0.55), bd.Y(ctx.P, 0.835), bottom=bd.Y(ctx.P, 0.80))  # SHIRT
 
 
 SOOI = Kind(

@@ -328,7 +328,7 @@ def paint(look):
         sc = sc * below(el, bl - 5.0, bl + 3.0) * 0.85
     if scalp != "none":
         strands = 0.5 + 0.5 * _noise3(pos * np.array((1.0, 0.3, 1.0)), 650.0, seed + 7)
-        hc = hair * (0.72 + 0.42 * strands[..., None])
+        hc = hair * (0.52 + 0.30 * strands[..., None])  # as dark as the shaded hair pieces over it (no light rim)
         sc = sc * (0.80 + 0.2 * strands)
         rgb = rgb * (1 - 0.95 * sc[..., None]) + hc * 0.95 * sc[..., None]
         hgt += 0.00025 * sc * strands
@@ -392,17 +392,17 @@ def paint(look):
             k = 0.45 + 0.55 * band * st_
             h = 0.0012 * band + 0.0002 * st_
         else:
-            # strands along v: long thin streaks (about 3 texels wide, a third of the swatch long) in locks
-            # (darker partings between them), a sheen band that wanders with the locks
+            # strands along v: fine straight streaks (about 2.5 texels wide, half the swatch long), a few broader
+            # ones, soft locks and a sheen band that wanders with them (no wavy grain: that read as wood)
             q = lambda fu, fv: np.stack((u * fu, v * fv, np.zeros_like(u)), -1)  # noqa: E731
-            wav = 0.035 * np.sin(v * 9.0 + u * 23.0)
-            st_ = 0.5 + 0.5 * _noise3(q(130.0, 3.0) + np.stack((wav * 130, 0 * u, 0 * u), -1), 1.0, seed + 29)
-            st2 = 0.5 + 0.5 * _noise3(q(55.0, 2.0), 1.0, seed + 31)
-            lock = 0.5 + 0.5 * _noise3(q(11.0, 0.9), 1.0, seed + 33)
-            part_ = np.clip(1.0 - np.abs(lock - 0.5) * 9.0, 0, 1)  # the dark line between two locks
-            sheen = np.exp(-((v - 0.5 - 0.10 * np.sin(u * 31.0) - 0.06 * (lock - 0.5)) / 0.10) ** 2)
-            k = 0.62 + 0.30 * (st_ - 0.5) * 2 * 0.5 + 0.14 * st2 + 0.10 * lock - 0.30 * part_ + 0.22 * sheen * st_
-            h = 0.00040 * st_ + 0.00020 * st2 + 0.00060 * lock - 0.0005 * part_
+            wav = 0.010 * np.sin(v * 7.0 + u * 19.0)
+            st_ = 0.5 + 0.5 * _noise3(q(165.0, 2.2) + np.stack((wav * 165, 0 * u, 0 * u), -1), 1.0, seed + 29)
+            st2 = 0.5 + 0.5 * _noise3(q(62.0, 1.4), 1.0, seed + 31)
+            lock = 0.5 + 0.5 * _noise3(q(9.0, 0.6), 1.0, seed + 33)
+            part_ = np.clip(1.0 - np.abs(lock - 0.5) * 16.0, 0, 1)  # a faint line between two locks
+            sheen = np.exp(-((v - 0.5 - 0.08 * np.sin(u * 23.0) - 0.05 * (lock - 0.5)) / 0.09) ** 2)
+            k = 0.60 + 0.36 * (st_ - 0.5) + 0.16 * (st2 - 0.5) + 0.10 * (lock - 0.5) - 0.10 * part_ +                 0.20 * sheen * (0.6 + 0.8 * st_)
+            h = 0.00050 * st_ + 0.00020 * st2 + 0.00030 * lock - 0.0002 * part_
         rgb[Y0:Y1, X0:X1] = np.clip(hair * k[..., None], 0, 1)
         hgt[Y0:Y1, X0:X1] = h
     nm = normal_map(hgt, pos, has)

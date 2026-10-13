@@ -117,6 +117,7 @@ AXIS_MIX = {
     "chin_out": {"chin_out": 0.9},
     "ears_out": {"ears_out": 0.8, "ears_big": 0.4},
 }
+TYPE_GAIN = 1.35  # the types' means, stronger: at 5 m a type's face reads apart from the others (2026-10-13 sheets)
 DEFAULT_SPREAD = 0.28  # a slider a type does not name: every face still differs a little everywhere
 
 
@@ -133,7 +134,7 @@ def _type(sex, desc, origin, axes, cells, hair, beard=None, moustache=None, extr
     for s, (m, sd) in (extra or {}).items():
         sl_mean[s] = sl_mean.get(s, 0.0) + m
         sl_var[s] = sl_var.get(s, 0.0) + sd * sd
-    presets = {s: (round(max(-1.0, min(1.0, sl_mean.get(s, 0.0))), 3),
+    presets = {s: (round(max(-0.95, min(0.95, TYPE_GAIN * sl_mean.get(s, 0.0))), 3),
                    round(math.sqrt(sl_var.get(s, 0.0) + 0.12 ** 2), 3)) for s in set(sl_mean) | set(sl_var)}
     return dict(sex=sex, desc=desc, origin=origin, sliders=presets, cells=cells, hair=hair,
                 beard=beard or {None: 1}, moustache=moustache or {None: 1}, extras=extras or {}, ages=ages,

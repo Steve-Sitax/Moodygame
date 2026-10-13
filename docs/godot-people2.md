@@ -70,16 +70,24 @@ persisted compressed resources; no editor compression, PNG repaint or GLB decodi
 The existing people2 spatial shader kind covers sun, sky, fog, lamp/window spill, normal maps and
 near detail. No shader kinds or lights are added. Vertex green selects the full-square head picture;
 red retains the eye highlight. A hidden mesh reference includes the kind in the first-frame audit.
-The current fourteen head pictures retain their authored body/kind assignment; the pending face-type
-schema does not yet replace the existing integration-only `face_id` metadata.
+Since the MakeHuman rebuild (2026-10-13, `docs/people.md` "Bodies from MakeHuman") the face layers are the 30
+face pictures of `faceTypes.json cells`, chosen per person (below), not per body or kind.
 
 `Human2` samples clips by bone name and blends locomotion at a shared heel phase; standing, talking and sitting
 play the D2 clips (below).
 `HumanLayers` caches attention, cloth springs and foot stance correction, stopping near
 layers at 15 m. Main's animation snapshots and phase-controlled rider behavior remain.
-`People2Faces.SetFace` resets omitted weights without clamping. Stable resident IDs feed
-FNV-1a identity metadata immediately after spawn, including pooled bodies. Face IDs are
-integration metadata; this port does not invent the pending face-type schema or artwork.
+**Faces and sliders (MakeHuman, 2026-10-13).** The intake (`NativeModelRecovery`, `People2Morphs.Extract`)
+takes every people2 mesh's slider morphs out into one sparse file, `people2-resources/morphs.bin` (the vertices
+each key moves, the move and the normal's change as half floats; 16.7 MB), and stores the meshes without blend shapes.
+At load `People2Material` reads the file (`People2Faces.LoadMorphs`) and keeps each mesh's arrays and keys in RAM
+(`Capture`). A person's stable id (`Human.SetIdentity`) gives their face through `People2Faces.FaceFor`, the C#
+twin of `face_types.face_for` over `shared/faceTypes.json` (type, slider values, face picture, hair, beard,
+moustache), and `People2Faces.Bake` builds their own near and far mesh once: every slider's move added, the hair
+pieces merged in (one draw), `face_layer` and `body_tone` set as instance uniforms. The same id gives the same
+person on every PC; nothing about a face is sent over the network. `shared/faceTypes.json` and
+`shared/peopleSliders.json` travel with the rig in the native data pack (`replace-people2.ps1` copies them).
+The routing proof checks the face recipe against the json's test vectors and that a bake is the same twice.
 
 ## Idles, talk and sitting (package D2)
 

@@ -40,8 +40,10 @@ SPECS = {
 }
 
 # triangle budgets of the two copies per region (mh.regions), both sides together
-LOD0 = {"face": 2700, "scalp": 260, "ear": 260, "neck": 240, "torso": 1500, "arm": 1130, "hand": 850, "leg": 1210,
-        "foot": 440}
+# the hands keep enough to read as hands at a metre (knuckles, nails, a closed fist): the trunk, arms and legs give
+# up a little (mostly under clothes, cut away in the kinds)
+LOD0 = {"face": 2700, "scalp": 260, "ear": 260, "neck": 240, "torso": 1350, "arm": 1050, "hand": 1150, "leg": 1100,
+        "foot": 700}  # bare feet: toes at their picture's density (the kinds' feet are cut away under shoes)
 LOD1 = {"face": 330, "scalp": 110, "ear": 40, "neck": 50, "torso": 420, "arm": 220, "hand": 170, "leg": 340,
         "foot": 110}
 REGION_ORDER = ["torso", "leg", "arm", "neck", "foot", "hand", "scalp", "ear", "face"]
@@ -340,6 +342,84 @@ class Topo:
 _TOPO = {}
 
 
+def _uv_flips(T):
+    """Triangles (fans of the copy's faces) whose UV winding is the opposite of MakeHuman's (all of its are
+    counter-clockwise)."""
+    n = 0
+    for fi, f in enumerate(T.faces):
+        ls = T.loop_start[fi]
+        uv = T.loop_uv[ls:ls + len(f)]
+        for k in range(1, len(f) - 1):
+            a, b_, c = uv[0], uv[k], uv[k + 1]
+            if (b_[0] - a[0]) * (c[1] - a[1]) - (b_[1] - a[1]) * (c[0] - a[0]) < 0:
+                n += 1
+    return n
+
+
+def reproject_uv(T, b, P0, isl_of_base):
+    """A reduced copy's UVs read again from MakeHuman's own: every corner of a face takes the UV its point has on
+    the base mesh triangle of the face's own island nearest to a point a little inside the face (so a corner on a UV
+    cut takes its own side's UV), by that triangle's affine UV map. The decimator's interpolated UVs flipped a few
+    hundred small triangles (fingers, toes) and mixed the sides of cuts."""
+    from mathutils import Vector
+    from mathutils.bvhtree import BVHTree
+    btris, bsrc = b.tris()
+    k_of = {int(fi): k for k, fi in enumerate(b.body_faces)}
+    tisl = np.array([isl_of_base[k_of[int(fi)]] for fi in bsrc])
+    # each base triangle's corner UVs (the fan of its face, as b.tris makes it)
+    tuv = []
+    for fi in b.body_faces:
+        ft = b.FT[fi]
+        for k in range(1, len(ft) - 1):
+            tuv.append((b.VT[ft[0]], b.VT[ft[k]], b.VT[ft[k + 1]]))
+    tuv = np.array(tuv, np.float64)
+    trees = {}
+    for name in sorted(set(tisl)):
+        idx = np.nonzero(tisl == name)[0]
+        trees[name] = (idx, BVHTree.FromPolygons([tuple(p) for p in P0], [tuple(t) for t in btris[idx]],
+                                                 all_triangles=True))
+    out = T.loop_uv.copy()
+
+    def flips(uv):
+        n = 0
+        for k in range(1, len(uv) - 1):
+            a, b_, c = uv[0], uv[k], uv[k + 1]
+            n += (b_[0] - a[0]) * (c[1] - a[1]) - (b_[1] - a[1]) * (c[0] - a[0]) < 0
+        return n
+    for fi, f in enumerate(T.faces):
+        name = T.face_island[fi]
+        if name not in trees:
+            continue
+        ls = T.loop_start[fi]
+        before = T.loop_uv[ls:ls + len(f)]
+        if not flips(before):
+            continue  # only a face the decimator turned over is read again
+        idx, tree = trees[name]
+        c = T.co[list(f)].mean(0)
+        for j, v in enumerate(f):
+            p = T.co[v]
+            q = p * 0.8 + c * 0.2
+            loc, nrm, ti, d = tree.find_nearest(Vector(q))
+            if loc is None:
+                continue
+            t = btris[idx[ti]]
+            A, B_, C = P0[t[0]], P0[t[1]], P0[t[2]]
+            v0, v1, v2 = B_ - A, C - A, p - A
+            d00, d01, d11 = v0 @ v0, v0 @ v1, v1 @ v1
+            d20, d21 = v2 @ v0, v2 @ v1
+            den = d00 * d11 - d01 * d01
+            if abs(den) < 1e-20:
+                continue
+            wb = (d11 * d20 - d01 * d21) / den
+            wc = (d00 * d21 - d01 * d20) / den
+            wa = 1.0 - wb - wc
+            uvs = tuv[idx[ti]]
+            out[ls + j] = wa * uvs[0] + wb * uvs[1] + wc * uvs[2]
+        if flips(out[ls:ls + len(f)]) >= flips(before):
+            out[ls:ls + len(f)] = before  # no better: keep the decimator's
+    return out
+
+
 def topology(lod):
     if lod in _TOPO:
         return _TOPO[lod]
@@ -384,6 +464,18 @@ def topology(lod):
     band = {v for v, s in vis.items() if len(s) > 1}
     if lod == 1:  # the far copy keeps only the neck's seam (between the head's and the body's pictures) whole
         band = {v for v, s in vis.items() if "head" in s and len(s) > 1}
+    # and the cuts inside an island (down the back, inside the arms and legs): a vertex with two UVs. A collapse
+    # across such a cut gave a face one corner from each side of the picture: a shard of stretched texture
+    # (the near copy's trunk, limbs and head; the hands and feet are cut everywhere and stay reducible, and the far
+    # copy is seen too small for a shard to show)
+    if lod == 0:
+        vuv = {}
+        for fi, f, name in zip(bfaces, faces, isl):
+            if name not in ("body", "head"):
+                continue
+            for v, t in zip(f, b.FT[fi]):
+                vuv.setdefault(v, set()).add((round(float(b.VT[t][0]), 5), round(float(b.VT[t][1]), 5)))
+        band |= {v for v, s in vuv.items() if len(s) > 1 and vis.get(v, set()) <= {"body", "head"}}
     for _ in range(2 if lod == 0 else 1):
         ring = set()
         for f in faces:
@@ -412,14 +504,16 @@ def topology(lod):
             r = vr[p.vertices[0]]
             cnt[r] = cnt.get(r, 0) + len(p.vertices) - 2
         return cnt
-    # the trunk and the limbs: MakeHuman's quads halved both ways where the grid allows (every other loop kept:
-    # clean rings at the joints), then the rest by collapse within each region's budget
+    # the trunk, the limbs, the hands and the feet: MakeHuman's quads halved both ways where the grid allows (every
+    # other loop kept: clean rings at the joints and round each finger), then the rest by collapse within each
+    # region's budget
     if lod == 0:
         import bmesh
         bpy.ops.object.mode_set(mode="EDIT")
         bm = bmesh.from_edit_mesh(me)
         dl = bm.verts.layers.deform.verify()
-        keep = {g.index for g in ob.vertex_groups if g.name in ("dec_torso", "dec_arm", "dec_leg", "dec_neck")}
+        keep = {g.index for g in ob.vertex_groups if g.name in ("dec_torso", "dec_arm", "dec_leg", "dec_neck",
+                                                                "dec_hand", "dec_foot")}
         for f in bm.faces:
             f.select = all(any(k in keep for k in v[dl].keys()) for v in f.verts)
         bmesh.update_edit_mesh(me)
@@ -488,6 +582,10 @@ def topology(lod):
         pairs.append((pm, tm))
     T.binding = mh.Binding.fit(T.co, P0, btris, pairs)
     err = np.linalg.norm(T.binding.eval(P0) - T.co, axis=1).max()
+    flips0 = _uv_flips(T)
+    T.loop_uv = reproject_uv(T, b, P0, isl_of_base=island_ids())
+    print("[people2] LOD%d UVs read again from MakeHuman's: %d flipped triangles before, %d after" % (
+        lod, flips0, _uv_flips(T)))
     T.tris = sum(len(f) - 2 for f in T.faces)
     print("[people2] MakeHuman topology LOD%d: %d triangles, %d vertices, binding error %.2e m, regions %s" % (
         lod, T.tris, len(T.co), err, region_tris()))
@@ -497,6 +595,63 @@ def topology(lod):
 
 
 # ---------------------------------------------------------------- weights: MakeHuman's, then the kit's rules
+
+def finger_rule(Wv, co, J, body):
+    """Sharper finger weights (as weights.finger_rule did for the cage bodies): MakeHuman's own blend runs over a
+    whole finger segment, and a fist (90 to 100 degrees at each joint) then collapses each knuckle's inside into a
+    spike. A finger vertex takes its weights from where it sits along its finger: one bone along each segment, a
+    3.5 mm blend at each joint (9 mm at the thumb's root, which leaves the palm's side). The little finger has no
+    bones of its own: its points follow the ring finger's bones but blend at its own joints (MakeHuman's
+    joint-*-finger-5-* cubes)."""
+    ix = {n: i for i, n in enumerate(rig.NAMES)}
+    W = Wv.copy()
+    half = 0.0035
+
+    def sm(a, b, x):
+        t = min(1.0, max(0.0, (x - a) / (b - a)))
+        return t * t * (3 - 2 * t)
+    for S, s in (("L", "l"), ("R", "r")):
+        chains = {}
+        for f in ("thumb", "index", "middle", "ring"):
+            chains[f] = (f, [np.asarray(J[f + "1" + S][0]), np.asarray(J[f + "2" + S][0]),
+                             np.asarray(J[f + "3" + S][0]), np.asarray(J[f + "3" + S][1])])
+        chains["little"] = ("ring", [body.b.cube(body.Pf, "%s-finger-5-%d" % (s, k)) for k in range(1, 5)])
+        bones = {f: [ix["hand" + S]] + [ix["%s%d%s" % (f, k, S)] for k in (1, 2, 3)]
+                 for f in ("thumb", "index", "middle", "ring")}
+        fing = [i for f in bones for i in bones[f][1:]]
+        on = W[:, fing].sum(1) > 0.5
+        for i in np.nonzero(on)[0]:
+            p = co[i]
+            # which finger: the nearest chain (the ring finger's weights cover the little finger too)
+            best = None
+            for name, (bf, pts) in chains.items():
+                for k in range(3):
+                    a, c = pts[k], pts[k + 1]
+                    d = c - a
+                    t = float(np.clip(np.dot(p - a, d) / np.dot(d, d), -0.6 if k == 0 else 0.0,
+                                      1.0 if k < 2 else 1.6))
+                    dist = float(np.linalg.norm(a + d * t - p))
+                    if best is None or dist < best[0]:
+                        best = (dist, name, bf, k, t, float(np.linalg.norm(d)))
+            dist, name, bf, k, t, L = best
+            names = bones[bf]
+            hb = 0.009 if name == "thumb" else half
+            s_ = t * L
+            if k == 0 and s_ < 0:
+                u = sm(-hb, hb, s_)
+                w = {names[0]: 1 - u, names[1]: u}
+            else:
+                u = sm(-(hb if k <= 1 else half), hb if k <= 1 else half, s_)
+                w = {names[k]: 1 - u, names[k + 1]: u}
+                if k < 2:
+                    v = sm(-half, half, s_ - L)
+                    if v > 0:
+                        w = {names[k + 1]: 1 - v, names[k + 2]: v}
+            W[i] = 0.0
+            for b_, wv in w.items():
+                W[i, b_] += wv
+    return W
+
 
 def shoulder_rule(Wv, co, J):
     """The kit's shoulder helpers (docs/people.md "Shoulder helpers"): the skin round the arm hole, the armpit and the
@@ -579,7 +734,7 @@ def build_mesh(name, lod, body, J, with_eyes=True):
     loop_uv = [uv[T.loop_start[f]:T.loop_start[f] + len(face)] for f, face in enumerate(faces)]
     loop_flag = [flag[T.loop_start[f]:T.loop_start[f] + len(face)] for f, face in enumerate(faces)]
     loop_isl = [island[T.loop_start[f]] for f in range(len(faces))]
-    W = shoulder_rule(T.binding.interp(body.W), co, J)
+    W = finger_rule(shoulder_rule(T.binding.interp(body.W), co, J), co, J, body)
     parts = list(T.part)
     n0 = len(co)
     if with_eyes:

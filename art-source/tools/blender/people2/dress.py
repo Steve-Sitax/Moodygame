@@ -12,12 +12,14 @@ steps, in build():
 7. UVs into the kind layer and full-square face, the clothes joined into the body's two meshes, hats made to follow the face shapes.
 """
 
+import math
 import os
 
 import numpy as np
 
 from . import SHOTS
 from . import pictures as at
+from . import G as toG
 from . import clothes_kit as ck
 from . import lod
 from . import paint
@@ -137,6 +139,7 @@ def reduce_cloth(ob, budget):
             left -= free[pn]
             del free[pn]
     bpy.context.view_layer.objects.active = ob
+
     for pn, want in targets.items():
         have = tris.get(pn, 0)
         if have <= want or have == 0:
@@ -207,9 +210,13 @@ def paint_body(b, kind, rect, size=1024):
 
 
 def clothes_keys(ob, b, first, lod):
-    """The MakeClothes way: every garment vertex (from index `first` on) bound to the body's base mesh where it lies
-    (an arm's cloth to the arm, a leg's to the leg, a hat to the head), and every slider's move carried to it."""
-    from . import G as toG
+    """The MakeClothes way, made smooth: every garment vertex (from index `first` on) finds the body's base mesh
+    where it lies (an arm's cloth on the arm, a leg's on the leg, a hat on the head) and takes each slider's move as
+    the mean move of the skin round that point, over a reach that grows with its distance from the skin (8 mm for
+    cloth on the skin, about two thirds of the distance for a cap's peak). A far point bound to one small triangle
+    would swing with that triangle's turn (a kepi's peak pulled down the nose by a nose slider)."""
+    from mathutils import Vector
+    from mathutils.kdtree import KDTree
     from . import mh, mhbody, rig
     me = ob.data
     if not me.shape_keys:
@@ -225,6 +232,7 @@ def clothes_keys(ob, b, first, lod):
     dom = np.array([rig.NAMES[i] for i in np.argmax(W, 1)])
     btris, _ = body.b.tris()
     tpart = body.parts[btris]
+
     def tris_of(names):
         return np.isin(tpart, names).sum(1) >= 2
     groups = []
@@ -238,12 +246,37 @@ def clothes_keys(ob, b, first, lod):
     rest = ~np.any([g[0] for g in groups], axis=0)
     groups.append((rest, tris_of(["torso", "neck", "legL", "legR", "head"])))
     bind = mh.Binding.fit(co[idx], body.Pf, btris, groups)
-    base_pos = bind.eval(body.Pf)
+    skin = bind.interp(body.Pf)  # the nearest skin point of every garment vertex
+    dist = np.linalg.norm(co[idx] - skin, axis=1)
+    rows, cols, wts = [], [], []
+    done = np.zeros(len(idx), bool)
+    for pm, tm in groups:
+        pm = pm & ~done
+        if not pm.any():
+            continue
+        verts = np.unique(btris[tm])
+        kd = KDTree(len(verts))
+        for k, v in enumerate(verts):
+            kd.insert(Vector(body.Pf[v]), k)
+        kd.balance()
+        for i in np.nonzero(pm)[0]:
+            sig = max(0.008, 0.6 * float(dist[i]))
+            hits = kd.find_range(Vector(skin[i]), 2.5 * sig)
+            if not hits:
+                hits = [kd.find(Vector(skin[i]))]
+            ww = np.array([math.exp(-0.5 * (h[2] / sig) ** 2) for h in hits])
+            ww /= ww.sum()
+            rows += [i] * len(hits)
+            cols += [int(verts[h[1]]) for h in hits]
+            wts += list(ww)
+        done |= pm
+    rows, cols, wts = np.array(rows), np.array(cols), np.array(wts)
     kb = me.shape_keys.key_blocks
     for kn, Dm in keys.items():
         if kn not in kb:
             continue
-        d = bind.eval(body.Pf + Dm) - base_pos
+        d = np.zeros((len(idx), 3))
+        np.add.at(d, rows, Dm[cols] * wts[:, None])
         k = np.zeros(n * 3)
         kb[kn].data.foreach_get("co", k)
         k = k.reshape(-1, 3)
@@ -322,7 +355,9 @@ def build(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
     for pc in pieces:
         scales[pc.name] = pc.scale
     for pc in pieces:
-        scales["in_" + pc.name] = 0.3 * pc.scale
+        # the insides and the rims (hems, cuffs, brims' edges) at the cloth's own density too (the owner's rule of
+        # 2026-10-13: no stretched or blurred small sides); they were at 0.3
+        scales["in_" + pc.name] = pc.scale
     ck.unwrap(cage, scales, margin=0.004)
     near = lod.subdivide(cage, kind.name + "_clothes_lod0")
     ck.to_limit_keep_creases(cage)
@@ -334,13 +369,19 @@ def build(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
     if os.environ.get("PEOPLE2_SHOTS_CELLS"):
         paint.to_image("cloth_" + kind.name, crgb, os.path.join(SHOTS, "cloth_%s.png" % kind.name))
     # the body under the clothes
-    cut0 = ck.cut_body(b["lod0"], kind.covers)
-    cut1 = ck.cut_body(b["lod1"], kind.covers)
+    cut0 = ck.cut_body(b["lod0"], kind.covers, near)
+    cut1 = ck.cut_body(b["lod1"], kind.covers, cage)
     # Keep near skin/face/hand topology and all its morphs intact. Spend the remaining
     # crowd budget on cloth; named people have a larger allowance.
     # the crowd's near copies within 8,900 triangles, the named within 11,500 (MakeHuman's face keeps its density)
+    # which piece lies over which, read before the reduction; after it, every layer is put back under the next
+    order0, order1 = ck.layer_order(near), ck.layer_order(cage)
     reduce_cloth(near, (NEAR_HERO if kind.hero else NEAR_CROWD) - lod.tris(b["lod0"]))
     reduce_cloth(cage, FAR - lod.tris(b["lod1"]))
+    m0 = ck.clear_layers(near, b["lod0"], order0)
+    m1 = ck.clear_layers(cage, b["lod1"], order1)
+    log("[people2]   %s layers: %s; points put back under the layer over them: %d near, %d far" % (
+        kind.name, ", ".join("%s<%s" % (a, c) for a, c in sorted(order0)), m0, m1))
     b["piece_counts"] = {"lod0": piece_counts(near), "lod1": piece_counts(cage)}
     log("[people2]   %s final clothes near/far: %s / %s" %
         (kind.name, b["piece_counts"]["lod0"], b["piece_counts"]["lod1"]))

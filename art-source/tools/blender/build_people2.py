@@ -66,6 +66,10 @@ OUT = people2.OUT
 if "--out" in ARGS:
     OUT = os.path.abspath(ARGS[ARGS.index("--out") + 1])
     export.RIG_JSON = os.path.splitext(OUT)[0] + "_rig.json"  # trials leave shared/peopleRig.json alone
+# the layered pictures: the game's folder, or beside a trial's glb (trials leave the game's pictures alone)
+PICTURES_DIR = os.environ.get("PEOPLE2_PICTURES_DIR") or (
+    os.path.join(os.path.dirname(OUT), "people2-pictures") if "--out" in ARGS
+    else os.path.join(people2.ROOT, "..", "native-godot", "assets", "people2-pictures"))
 PLAIN = os.path.abspath(ARGS[ARGS.index("--plain") + 1]) if "--plain" in ARGS else None
 if PLAIN:
     workspace = os.path.abspath(os.path.join(people2.ROOT, ".."))
@@ -225,8 +229,7 @@ def main():
         if "face" in b and b["face"]["cell"] in face_pics:
             return b["face"]["cell"]
         return DEFAULT_CELLS_OF[picture_of(b["P"])]
-    picture_manifest = atl.write(bodies, dressed, os.path.join(people2.ROOT, "..", "native-godot", "assets",
-                                                               "people2-pictures"), default_face)
+    picture_manifest = atl.write(bodies, dressed, PICTURES_DIR, default_face)
     # Tiny intake placeholder; native load replaces it with one layered material.
     img = paint.to_image("people2_placeholder", np.ones((4,4,3), np.float32))
     nimg = paint.to_image("people2_placeholder_n", np.tile((.5,.5,1.), (4,4,1)))

@@ -86,7 +86,7 @@ Downloads (all into new empty `.scratch` folders, read as data by our own Python
 2. The asset files are in git (`art-source/third_party/makehuman/`); to fetch them again: download the asset pack and
    MPFB, unpack with Python's `zipfile` into new folders, copy the files `USED.json` names (`base/...` from MPFB's
    `data/`, `system/...` from the pack), and compare with `SOURCES.json`.
-3. Build (about 25 minutes for everything; see [people.md](people.md) "Build"):
+3. Build (about 13 minutes for everything with the clips; see [people.md](people.md) "Build"):
 
    ```
    export BLENDER_USER_RESOURCES="<worktree>/.scratch/blender-user"
