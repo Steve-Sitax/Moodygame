@@ -69,12 +69,37 @@ def apron_detail(ctx):
 def trousers(fit, colour, stripe=None, checked=False, flour=False):
     pc = ck.Piece("trousers", Cloth(colour, "wool" if not flour else "linen", wear=.25,
                                      mud=.35, dust=.25 if flour else .06, extra=trouser_detail))
-    pc.meta.update(stripe=stripe, check=checked)
+    pc.meta.update(stripe=None, check=checked)
     straight = ck.straight_leg(fit, .070 * fit.P["w"], fit.knee_y - .10)
-    ck.trousers(fit, pc, top_row=3, hem="t2", ease=lambda i: straight(i, .016))
+    vmap = ck.trousers(fit, pc, top_row=3, hem="t2", ease=lambda i: straight(i, .016))
+    if stripe:
+        paths = []
+        for side in "LR":
+            rings = {}
+            for source, vertex in vmap.items():
+                tag = fit.C.tag[source]
+                if fit.C.part[source] != "leg" + side:
+                    continue
+                ring = tag.get("ring")
+                if ring is not None:
+                    current = rings.get(ring)
+                    if current is None or abs(pc.V[vertex][0]) > abs(current[0]):
+                        rings[ring] = pc.V[vertex].copy()
+            paths.append(sorted(rings.values(), key=lambda p: -p[1]))
+        pc.meta["stripe_paths"] = paths
     ck.smooth_weights(pc, iters=4, mask=lambda p: abs(p[1] - fit.knee_y) < .16)
     ck.thicken(pc, .0022, depth=.05)
     return pc
+
+
+def trouser_stripes(fit, tr):
+    """A sewn cloth ribbon, so the red stripe cannot become a jagged UV boundary."""
+    stripe = ck.Piece("trouser_stripes", Cloth(RED, "wool", wear=.3, mud=.35), scale=1.3)
+    onto = ck.Onto([tr])
+    for path in tr.meta["stripe_paths"]:
+        ck.strap_grid(fit, stripe, path, .018, .0012, onto=onto, cols=3, rows=14)
+    ck.thicken(stripe, .0009, depth=None)
+    return stripe
 
 
 def boots(fit):
@@ -236,7 +261,8 @@ def dress_soldier(fit, corporal=False, sentry=False):
     if sentry:
         from .held_uniform import fit_rifle_socket
         fit_rifle_socket(fit)
-    p = [trousers(fit, (.29, .33, .39), RED)] + boots(fit)
+    tr = trousers(fit, (.29, .33, .39), RED)
+    p = [tr, trouser_stripes(fit, tr)] + boots(fit)
     coat = upper(fit, "tunic", NAVY, hem=fit.Y(.405), facing=RED,
                  buttons=BRASS.rgb, corporal=corporal)
     p += coat + belt(fit, coat[0]) + military_hat(fit)
