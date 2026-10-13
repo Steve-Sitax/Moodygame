@@ -90,7 +90,7 @@ try {
         foreach ($arg in $args) { $start.ArgumentList.Add($arg) }
         $child = [Diagnostics.Process]::new(); $child.StartInfo = $start
         $isolation = [Collections.Generic.List[object]]::new()
-        $limit = if ($mode -eq 'captures') { 900 } else { 420 }
+        $limit = if ($mode -eq 'captures') { 1500 } elseif ($mode -eq 'slide') { 900 } else { 420 }
         try {
             [void]$child.Start()
             $stdout = $child.StandardOutput.ReadToEndAsync(); $stderr = $child.StandardError.ReadToEndAsync()

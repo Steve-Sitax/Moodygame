@@ -518,3 +518,15 @@ last clip's pose: in round 2 the stand held paws 1-6 cm off the street after a w
 stop test (`startStop`: stand, speed up, four metres, slow down, stand; a paw counts while it is on the ground) and the
 rest clips' toe heights.
 
+Evidence (round 3): slide `.scratch/animals-native-0643da92650e420baafa634280dac767/` (steady gaits up to 1.77 mm,
+gait changes up to 0.15 mm; from standing 0.5-2.4 mm; stops up to 2.5 mm except the cart dog's trot and gallop stops, 6.1
+and 7.6 mm, one-frame shifts in the last half metre; every rest clip's toes on the street). Captures with the start and
+stop strips (`strip-start-stop-*.png`) and the horse's pictures (each coat, 1 m and 3 m, front, side, back, low before
+the chest, day, rain, 19:30; the dray at walk and trot, an omnibus at walk and trot, both standing horses):
+`.scratch/animals-native-bf1c9ffcb2874e15850ad9d905826f4e/`. Shader audit (exclusive): 130 first-frame kinds, one
+people2 kind, 29 programs, no new kind, 1 directional and 121 omni lights:
+`.scratch/animals-native-bee67a7841784f86b969250b526385b4/shaders/`. Identity (7 checks) and network pass:
+`.scratch/animals-native-2efe22cfb0d041608e6c73e6e0ef6570/`. TRACE_TIMING
+Replacement receipts: animals `.scratch/animals-replace-cf766a60051841dc8c50e6775d306371/`, horse
+`.scratch/horse-replace-5bf2a9ce1180440ea89784511bb719f6/` (every other stored model file unchanged).
+

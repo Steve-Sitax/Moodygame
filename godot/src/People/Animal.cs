@@ -754,7 +754,8 @@ public sealed class Animal
             if (stance)
             {
                 lockAt[i] = xf * new Vector3(now[i].X, 0, now[i].Z);
-                lockDrop[i] = down[i] ? 1 : 0;
+                // (a paw a few millimetres up comes down over a moment, not in one frame)
+                lockDrop[i] = now[i].Y < 0.0015f ? 1 : 0;
                 locked[i] = true;
                 lockWeight[i] = 1;
                 releaseT[i] = -1;
@@ -914,7 +915,7 @@ public sealed class Animal
                 {
                     // set down where the blend has it, on the ground; a paw still in the air comes down quickly
                     lockAt[i] = xf * new Vector3(toe.X, 0, toe.Z);
-                    lockDrop[i] = toe.Y > 0.004f ? 0 : 1;
+                    lockDrop[i] = toe.Y > 0.0015f ? 0 : 1;
                     locked[i] = true;
                     lockWeight[i] = 1;
                     releaseT[i] = -1;
