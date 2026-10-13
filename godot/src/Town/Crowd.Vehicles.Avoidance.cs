@@ -27,15 +27,27 @@ public sealed partial class Crowd
         }
         foreach(var p in people){if(p.Vehicle==null||p.State!="walk"||p.Remote)continue;double fx=Math.Sin(p.Yaw),fz=Math.Cos(p.Yaw);int before=lanes.Count;Add(p.X+fx*p.Nose*.5,p.Z+fz*p.Nose*.5,fx*p.Pace,fz*p.Pace,0,0,p.Vehicle.Kind==3?2:1,p);if(lanes.Count>before){lanes[^1].HalfLength=Math.Max(.6,p.Nose/2+.4);lanes[^1].HalfWidth=Math.Max(.45,p.Reach);}}
     }
+    /// <summary>The vehicle lanes within 20 m of a body and where it stands in each, for the stuck check's report.</summary>
+    public string[] LanesNear(Puppet p){var notes=new List<string>();foreach(var l in lanes){double dx=p.X-l.X,dz=p.Z-l.Z;if(Math.Abs(dx)>20||Math.Abs(dz)>20)continue;notes.Add($"lane at {l.X:0.0},{l.Z:0.0} heading {l.Ux:0.00},{l.Uz:0.00} half {l.HalfLength:0.0} x {l.HalfWidth:0.0} look {l.Look:0.0} rank {l.Rank} {(l.Owner==null?"body":"carried by puppet "+l.Owner.Id)}; body is {dx*l.Ux+dz*l.Uz:0.0} along, {dx*l.Rx+dz*l.Rz:0.0} across");}return notes.ToArray();}
+    /// <summary>Is there free ground from here, step by step across, far enough to stand clear of a lane's room on that side?</summary>
+    private bool Clears(Puppet p,Lane l,int side,double lateral,double room){double need=room-side*lateral;for(double d=.25;d<=need+.05;d+=.25){double x=p.X+l.Rx*side*d,z=p.Z+l.Rz*side*d;if(!(map.FreeFor(p,x,z)&&grid.IsOpen(x,z)))return false;}return true;}
     private bool GiveWay(Puppet p,double dt)
     {
-        p.Yield="";if(p.Remote||lanes.Count==0){p.YieldHold=0;return false;}double rank=p.Vehicle?.Kind==3?2:p.Vehicle!=null?1:0;Lane? hit=null,near=null;double lateral=0;
-        foreach(var l in lanes){if(l.Owner==p||l.Rank<=rank)continue;double dx=p.X-l.X,dz=p.Z-l.Z;if(Math.Abs(dx)>20||Math.Abs(dz)>20)continue;double along=dx*l.Ux+dz*l.Uz;if(along< -l.HalfLength-.4||along>l.HalfLength+l.Look)continue;double lat=dx*l.Rx+dz*l.Rz,room=l.HalfWidth+.55+p.Reach*.5;if(Math.Abs(lat)<room){hit=l;lateral=lat;break;}if(Math.Abs(lat)<room+1.2)near=l;}
+        p.Yield="";p.PushAge+=dt;if(p.Remote||lanes.Count==0){p.YieldHold=0;return false;}double rank=p.Vehicle?.Kind==3?2:p.Vehicle!=null?1:0;Lane? hit=null,near=null;double lateral=0,alongHit=0;
+        foreach(var l in lanes){if(l.Owner==p||l.Rank<=rank)continue;double dx=p.X-l.X,dz=p.Z-l.Z;if(Math.Abs(dx)>20||Math.Abs(dz)>20)continue;double along=dx*l.Ux+dz*l.Uz;if(along< -l.HalfLength-.4||along>l.HalfLength+l.Look)continue;double lat=dx*l.Rx+dz*l.Rz,room=l.HalfWidth+.55+p.Reach*.5;if(Math.Abs(lat)<room){hit=l;lateral=lat;alongHit=along;break;}if(Math.Abs(lat)<room+1.2)near=l;}
         string Moving()=>p.Vehicle?.Kind==1?"ride":p.Vehicle?.Kind==2?(p.Kind is "carter" or "porter"?"walk":"push"):"walk";
         if(hit is {} lane){p.Yield="in a lane";p.YieldHold=1.2;if(p.State!="walk"&&p.WayHome==null)p.WayHome=(p.X,p.Z);double want=lane.HalfWidth+.55+.9,step=1.7*dt;int[] sides=Math.Abs(lateral)<.15?new[]{1,-1}:new[]{Math.Sign(lateral),-Math.Sign(lateral)};
-            foreach(int side in sides){if(side== -Math.Sign(lateral)&&Math.Abs(lateral)>want*.5)continue;double x=p.X+lane.Rx*side*step,z=p.Z+lane.Rz*side*step;
-                if(map.FreeFor(p,x,z)&&grid.IsOpen(x,z)&&(p.Nose==0||map.FreeFor(p,x+Math.Sin(p.Yaw)*p.Nose,z+Math.Cos(p.Yaw)*p.Nose))){p.X=x;p.Z=z;Face(p,Math.Atan2(lane.Rx*side,lane.Rz*side),dt*3);p.Human.Play(Moving(),.2f);p.Human.SetPace(1.7f/p.Size);p.StuckT=0;return true;}}
-            double bx=p.X-lane.Ux*step,bz=p.Z-lane.Uz*step;if(map.FreeFor(p,bx,bz)&&grid.IsOpen(bx,bz)){p.X=bx;p.Z=bz;}p.Human.Play(StillMotion(p),.3f);return true;
+            // The way out is the near side. Deep in the lane the far side means crossing in front of the body: done only when the
+            // body is on the walker (inside its width and a body's radius) and the near side has no ground to clear the lane
+            // (a bridge's rail at the Vismarkt, issue 117), so that he is not flattened against it. Short of that he stands where
+            // he is; stepping across and back from the kerb side, one step at a time, was a body walking to and fro (issue 116).
+            double inside=lane.HalfWidth+.35;bool onBody=Math.Abs(lateral)<inside;
+            double room=lane.HalfWidth+.55+p.Reach*.5;int outward=Math.Sign(lateral);bool across=onBody&&Math.Abs(lateral)>=.15&&!Clears(p,lane,outward,lateral,room)&&Clears(p,lane,-outward,lateral,room);foreach(int side in sides){if(across?side==outward:side==-outward&&Math.Abs(lateral)>want*.5)continue;double x=p.X+lane.Rx*side*step,z=p.Z+lane.Rz*side*step;
+                if(map.FreeFor(p,x,z)&&grid.IsOpen(x,z)&&(p.Nose==0||map.FreeFor(p,x+Math.Sin(p.Yaw)*p.Nose,z+Math.Cos(p.Yaw)*p.Nose))){double sx=lane.Rx*side,sz=lane.Rz*side;if(p.PushAge<.4&&sx*p.PushX+sz*p.PushZ<-.3){p.StuckT=0;p.Human.Play(StillMotion(p),.3f);return true;}p.PushX=sx;p.PushZ=sz;p.PushAge=0;p.X=x;p.Z=z;Face(p,Math.Atan2(lane.Rx*side,lane.Rz*side),dt*3);p.Human.Play(Moving(),.2f);p.Human.SetPace(1.7f/p.Size);p.StuckT=0;return true;}}
+            // No side is open. Under the body: away from it along its way (ahead of it on, behind it back), never towards it.
+            // Beside it with no room to clear the lane: stand still.
+            if(onBody){double away=alongHit>=0?1:-1,bx=p.X+lane.Ux*away*step,bz=p.Z+lane.Uz*away*step;if(map.FreeFor(p,bx,bz)&&grid.IsOpen(bx,bz)){p.X=bx;p.Z=bz;}}
+            p.Human.Play(StillMotion(p),.3f);return true;
         }
         // Shoved out of a lane, wait standing for a moment: walking straight back in, only to be shoved out again,
         // is a body walking on the spot.

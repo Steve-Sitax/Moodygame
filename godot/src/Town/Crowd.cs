@@ -249,6 +249,9 @@ public sealed class Puppet
     /// <summary>Why this body gave way to a moving vehicle in the last step ("" when it did not); read by the stuck check.</summary>
     public string Yield = "";
     internal double YieldHold;
+    /// <summary>The way this body last stepped out of a vehicle's lane (a unit vector) and how long ago: a step straight back, from
+    /// between two lanes, is never taken at once (it was a body walking to and fro).</summary>
+    internal double PushX, PushZ, PushAge = 9;
     /// <summary>Seconds in a row the walk could take no step at all.</summary>
     internal double Failed;
     /// <summary>Ways round bodies that stay put taken on this route, and the way point index before which the way points are those ways round (issue 120).</summary>
