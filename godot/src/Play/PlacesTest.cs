@@ -107,6 +107,7 @@ public partial class PlacesTest : Node
         Scheldemist.World.Daylight.I!.SetTime(13.75f); Scheldemist.World.Daylight.I.Settle();
         await HomeLife.I.Load();
         Check(await Until(() => HomeLife.I.Info != null, 15), "home information");
+        Check(HomeLife.I.Info!.Homes.All(x => HomeLife.I.Frames.TryGetValue(x.Id, out var room) && RunWords.Dist(x.Wall[0], x.Wall[1], room.X, room.Z) < 1.5f), "every home's street door is the door its baked room stands behind");
         var h = HomeLife.I.Info!.Homes.First(h => h.Id == "alley");
         await At(h.Wall[0] + h.Out[0] * 1.1f, h.Wall[1] + h.Out[1] * 1.1f, h.Wall[0], h.Wall[1], 1.2f);
         Check(Interact.I.Find().Any(a => a.Text.StartsWith("read the notice:")), "home notice prompt");

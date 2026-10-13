@@ -31,7 +31,10 @@ public static class NativeTownHouseDoors
             }
             double span = H(bx - ax, bz - az); int bays = Math.Max(1, (int)Math.Floor(span / 3 + .5)); double fraction = (Math.Floor(bays / 2.0) + .5) / bays;
             double x = ax + (bx - ax) * fraction, z = az + (bz - az) * fraction, ex = (bx - ax) / span, ez = (bz - az) / span, outX = -ez, outZ = ex;
-            if (!open(x + outX * 1.2, z + outZ * 1.2, .3)) { outX = ez; outZ = -ex; }
+            // The street side is the side that is open and that a body can walk to from the town: the room behind a door
+            // can be open ground too (its walls are the only thing that closes it), but nothing walks from it to the street.
+            bool Reaches(double dx, double dz) { foreach (double step in new[] { .9, 1.2, 1.6, 2.0 }) if (reachable(x + dx * step, z + dz * step)) return true; return false; }
+            if (!open(x + outX * 1.2, z + outZ * 1.2, .3) || !Reaches(outX, outZ) && Reaches(ez, -ex)) { outX = ez; outZ = -ex; }
             foreach (double step in new[] { .9, 1.2, 1.6, 2.0 }) { double sx = x + outX * step, sz = z + outZ * step; if (!reachable(sx, sz)) continue;
                 var door = new JsonObject { ["house"] = index, ["x"] = Round(x, 10), ["z"] = Round(z, 10), ["out"] = new JsonArray(Round(outX, 100), Round(outZ, 100)), ["sx"] = Round(sx, 10), ["sz"] = Round(sz, 10), ["storeys"] = h["st"]?.DeepClone() };
                 if (h["alley"]?.GetValue<bool>() == true) door["alley"] = true; if (h["store"] != null) door["store"] = h["store"]!.DeepClone(); result.Add(door); break;
