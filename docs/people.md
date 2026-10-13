@@ -867,9 +867,10 @@ The old `push`, `carry`, `walk_sack`, `idle_sack`, `push_idle` are D1's carry cl
 ### Measures (printed by every build, in `peopleRig.json work.clips.<name>.checks`)
 
 Planted feet at the keys at most 0.3 mm in every clip; loop seams under 0.0002 degrees; the hands on their handles
-(`gripMm`) and palms on their places (`reachMm`) are printed with where the worst is. Known misses: the winch's outer
-hand at the bottom of the turn (33 mm), the scrubber's propped hand at the far end of a stroke (about 70 mm), the
-sweeper's top hand (25 mm), the lace maker's right hand (18 mm), the oars' handles in the recovery (63 mm).
+(`gripMm`) and palms on their places (`reachMm`) are printed with where the worst is: within 7 mm for the sack, the
+cask, the rope, the winch, the broom, the knife and the oars' drive; known misses are the scrubbing hand at the far
+end of a stroke (21 mm), the lace maker's right hand (18 mm), the oars in the recovery (24 mm) and the cross's touch
+on the forehead (14 mm).
 
 ### For the runtimes
 

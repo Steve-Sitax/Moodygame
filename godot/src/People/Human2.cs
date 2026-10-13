@@ -68,6 +68,22 @@ internal sealed class Human2
     }
     private string? work;
     private readonly List<BoneAttachment3D> inHand = new();
+
+    /// <summary>The kind's things held in a fist (the fishwife's basket), hung on the sockets once the body is
+    /// made (People2.Make): put away while the hands work or carry (D3).</summary>
+    internal void HeldReady()
+    {
+        inHand.Clear();
+        foreach (var n in sk.GetChildren())
+            if (n is BoneAttachment3D att && att.BoneName.ToString() is "gripL" or "gripR") inHand.Add(att);
+        ShowHeld();
+    }
+
+    private void ShowHeld()
+    {
+        bool busy = (clip?.Work ?? false) || load != null;
+        foreach (var b in inHand) if (GodotObject.IsInstanceValid(b)) b.Visible = !busy;
+    }
     /// <summary>The height of the pile in front (m over the feet), when the game knows it: picks the lift.</summary>
     internal float PileTop = -1;
     internal bool Alive => GodotObject.IsInstanceValid(root) && root.IsInsideTree() && motion == "talk";
@@ -97,12 +113,11 @@ internal sealed class Human2
         run = People2.Clips.GetValueOrDefault(style + "_run", hurry); sprint = People2.Clips.GetValueOrDefault(style + "_sprint", hurry);
         layers = new HumanLayers(root, sk);
         things = new People2Things(sk);
-        // a kind's things held in a fist (the fishwife's basket): put away while the hands work (D3)
-        foreach (var n in sk.GetChildren())
-            if (n is BoneAttachment3D b && b.BoneName.ToString() is "gripL" or "gripR") inHand.Add(b);
         string body = root.Name.ToString();
         fam = People2Moves.Of(People2.BaseBody.GetValueOrDefault(body, body));
         workFam = People2Moves.WorkOf(fam?.Name);
+        // a kind that always carries its sack (docker_sack) has it on the shoulder from the start
+        if (People2Moves.KindClip(kind, "walk") == People2Moves.Loads.GetValueOrDefault("sack")?.Walk) load = "sack";
         Seed(People2Moves.Hash(kind) ^ (uint)Humans.Rng.Next());
         Play("idle", 0);
     }
@@ -197,7 +212,8 @@ internal sealed class Human2
         if (load != null && People2Moves.Loads.TryGetValue(load == "sack" ? "sack" : "crate", out var spec))
         {
             if (m is "walk" or "carry") return spec.Walk;
-            if (m is "idle" or "talk" or "fold") return spec.Hold;
+            // (a docker who always has his sack bends at the pile: he stands with it)
+            if (m is "idle" or "talk" or "fold" or "crouch") return spec.Hold;
         }
         if (workFam == null) return null;
         if (Work == "haul_sack" && m == "crouch" && load == null)
@@ -237,9 +253,10 @@ internal sealed class Human2
     internal void Load(string? kind_)
     {
         if (kind_ == load) return;
-        if (kind_ == null && load == "sack" && age > 0.2f && clip != null && !(clip.Work && !clip.Loop)) dropPending = true;
+        if (kind_ == null && load == "sack" && clip != null && !(clip.Work && !clip.Loop)) dropPending = true;
         if (kind_ == "sack") { things.DropClear(); dropPending = false; }
         load = kind_;
+        ShowHeld();
         // already standing (a guest is told the motion before the load): set the sack down now
         if (dropPending && motion is "idle" or "crouch" or "talk" or "fold" && People2Moves.Loads.TryGetValue("sack", out var sk_) && sk_.Down is { } dn && People2.Clips.ContainsKey(dn))
         {
@@ -370,8 +387,7 @@ internal sealed class Human2
         clip = People2.Clips.GetValueOrDefault(name, People2.Clips["idle"]);
         // a carry or work loop with its own pace (D1's sack walk, the cask, the sentry's march): two strides a loop
         if (clip.Stride > 0) legacyStride = 2 * clip.Stride * hips / clip.Hips;
-        bool busy = clip.Work || load != null;
-        foreach (var b in inHand) if (GodotObject.IsInstanceValid(b)) b.Visible = !busy;
+        ShowHeld();
         time = 0; fadeDuration = fadeLeft = Math.Max(0, fade);
         // a fade between two standing clips keeps the feet where they are (HumanLayers' lock)
         fadeStanding = wasStanding && People2Moves.Standing.Contains(name);

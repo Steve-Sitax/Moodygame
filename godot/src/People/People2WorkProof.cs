@@ -98,7 +98,8 @@ internal partial class People2WorkProof : Node
                     }
             }
             var life = Life(60);
-            File.WriteAllText(Path.Combine(dir, "work.json"), JsonSerializer.Serialize(new { ok = true, route = route.Id, pileTop = pile, origin = new[] { origin.X, origin.Y, origin.Z }, yaw, figures = report, life, pictures }, new JsonSerializerOptions { WriteIndented = true }));
+            var townHaul = await TownHaul(dir, 45);
+            File.WriteAllText(Path.Combine(dir, "work.json"), JsonSerializer.Serialize(new { ok = true, route = route.Id, pileTop = pile, origin = new[] { origin.X, origin.Y, origin.Z }, yaw, figures = report, life, townHaul, pictures }, new JsonSerializerOptions { WriteIndented = true }));
             GetTree().Quit();
         }
         catch (Exception error) { GD.PrintErr(error); GetTree().Quit(1); }
@@ -393,6 +394,50 @@ internal partial class People2WorkProof : Node
     }
 
     private bool walking = true;
+
+    // the town's own hauling dockers (people2 bodies) on these quays, live for some seconds: the clips their job
+    // plays (the lift at the pile, the walk with the sack, the set-down at the door), and a picture now and then
+    private async System.Threading.Tasks.Task<object> TownHaul(string dir, int seconds)
+    {
+        var town = Main.I.GetNode<Town.Townspeople>("Townspeople");
+        await Dev.Kit.I.Light(10.5, "clear");
+        town.ClockRuns = true;
+        var ids = new Dictionary<Town.Puppet, int>();
+        var last = new Dictionary<Town.Puppet, string?>();
+        var clips = new List<object>();
+        var seen = new HashSet<string>();
+        await Look(origin - fwd * 7 + right * 3 + Vector3.Up * 3, origin + right * 3, 5);
+        ulong start = Time.GetTicksMsec();
+        int shots = 0;
+        while (Time.GetTicksMsec() - start < (ulong)seconds * 1000)
+        {
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            foreach (var s in town.Simulations)
+            {
+                if (s.Goal.Mode != "haul" || s.P is not { } p || !p.Human.IsPeople2) continue;
+                if (!ids.TryGetValue(p, out int id)) ids[p] = id = ids.Count;
+                string? c = p.Human.AnimationState.Clip;
+                if (!last.TryGetValue(p, out var was) || was != c)
+                {
+                    last[p] = c;
+                    if (c != null) seen.Add(c);
+                    clips.Add(new { t = MathF.Round((Time.GetTicksMsec() - start) / 1000f, 2), who = id, kind = p.Kind, motion = p.Human.Motion, clip = c, loaded = p.Loaded, work = p.Human.Work, x = MathF.Round(p.Group.GlobalPosition.X, 1), z = MathF.Round(p.Group.GlobalPosition.Z, 1) });
+                    // a picture of a lift or a set-down as it starts, from a few metres
+                    if (shots < 6 && c is "sack_lift" or "sack_lift_high" or "sack_down")
+                    {
+                        var at = p.Group.GlobalPosition;
+                        var face = p.Group.GlobalBasis.Z;
+                        // (a lift from before him over the pile; a set-down at a door from behind, the house before him)
+                        var eye = c == "sack_down" ? at - face * 2.8f + face.Cross(Vector3.Up) * 1.6f + Vector3.Up * 1.7f : at + face * 3.2f + face.Cross(Vector3.Up) * 1.8f + Vector3.Up * 1.6f;
+                        await Look(eye, at + Vector3.Up * 0.9f, 40);
+                        Main.I.View.GetTexture().GetImage().SavePng(Path.Combine(dir, $"town-{c}-{shots++}.png"));
+                    }
+                }
+            }
+        }
+        town.ClockRuns = false;
+        return new { seconds, haulers = ids.Count, seen = seen.ToArray(), clips };
+    }
 
     private void Walk(float dt)
     {

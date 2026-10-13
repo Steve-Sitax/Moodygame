@@ -138,7 +138,18 @@ Proof: `& ./native-godot/scripts/check-people2.ps1 -Modes work -Port <port>` (`-
 Rijnkaai at the sack pile of haul route rk-m: a docker lifting (the game's context), lifts held at moments, a carrier
 walking with a sack, one standing with it, one setting it down, two passing a sack, a cask rolled, a rope hauled from
 a block, a fishwife at a fish table, a woman sweeping; pictures at 3 m and 6 m at 13:00 and 19:30, twelve pictures
-0.25 s apart of a lift and of a pass, and 60 s of their life at 30 Hz (`work.json`).
+0.25 s apart of a lift and of a pass, 60 s of their life at 30 Hz, and 45 s of the town's own hauling dockers live
+(with `--people2-map docker_b=docker_a,docker_c=docker_a,docker_sack=docker_a,fishwife_b=fishwife_a`), with pictures
+of their lifts and set-downs (`work.json`).
+
+Evidence (2026-10-13, 235 clips): `.scratch/people2-native-9254f7b2a2ed433d96227592ab2f0dfb/work/` (pictures inspected);
+the paced loops' planted feet moved 0.002 mm (the sack walk) and 0.004 mm (the cask) under the runtime lock; in 45 s
+eleven town dockers played `sack_lift`, `sack_lift_high`, `sack_walk`, `sack_hold`, `sack_down`, `crate_walk` and
+`crate_hold` from the game's own haul. `.scratch/people2-native-3ad95f007a014193828d2099f90343f5/`: the D2 motion
+proof (0 frames with both talkers speaking, 12 turns), routing and parade pass; the shader audit has one people2 kind,
+29 programs throughout and no problems. Timing under other worktrees' Godot load (not exclusive, not the gate): all
+animation 0.61/0.68 ms at the Vismarkt/Grote Markt, people2 0.30/0.38 ms, layers 0.03/0.06 ms, town update 1.06/1.26
+ms (`.scratch/people2-native-5b0be255907f453e9d202078e972bb01/timing/`).
 
 ## Verification
 

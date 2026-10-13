@@ -1049,7 +1049,7 @@ def rope_haul(fam, T=2.8, seed=341):
 # ---------------------------------------------------------------- cranking a winch
 
 
-WINCH = {"axle": (0.04, 0.42, 1.02), "radius": 0.26, "handle": 0.36}
+WINCH = {"axle": (0.04, 0.42, 1.02), "radius": 0.24, "handle": 0.36}
 
 
 def winch(fam, T=3.4, seed=351):
@@ -1076,7 +1076,7 @@ def winch(fam, T=3.4, seed=351):
             x = 0.07 if S == "L" else 0.20
             p = m @ Vector((r, x * k, 0.0))
             sg = 1 if S == "L" else -1
-            axis = Vector((sg, 0.0, 0.0))  # thumbs toward each other
+            axis = Vector((-sg, 0.0, 0.0))  # thumbs toward each other
             sh = ctx["posed"].P["armUp" + S]
             w = sh - p
             return p, axis, w
@@ -1114,15 +1114,15 @@ TABLE = {"top": 0.85, "near": 0.30, "board": 0.46}
 def gut(fam, T=10.2, seed=361):
     """A fishwife gutting at her table: she takes a fish from the heap at her left, lays it on the board, holds it
     down by the head with her left hand, slits the belly with two strokes of the knife toward her, turns the knife
-    and scrapes the guts over the edge into the bucket at her right, lays the fish in the basket at her right and
+    and scrapes the guts over the edge into the bucket at her right, lays the fish in the basket at her left and
     takes the next; between two fish a glance up at the market. The head bent over the work, the weight shifting
     slowly, the elbows working close to the body."""
     k = fam.k
     sp = WSpec(fam, T, loop=True, base={"L": (0.03, 0.0, 2.0), "R": (-0.03, -0.03, -4.0)})
     top = (TABLE["top"] + 0.03) * k
     B_ = V(0.0, TABLE["board"], 0.0) * k + Vector((0, 0, top))
-    heap = V(0.34, 0.50, 0.0) * k + Vector((0, 0, top + 0.03))
-    basket = V(-0.36, 0.52, 0.0) * k + Vector((0, 0, top + 0.02))
+    heap = V(0.34, 0.54, 0.0) * k + Vector((0, 0, top + 0.03))
+    basket = V(0.30, 0.34, 0.0) * k + Vector((0, 0, top + 0.02))
     bucket = V(-0.32, 0.22, 0.0) * k + Vector((0, 0, 0.45 * k))
     # one fish's work (from t0): take (0.0-0.7), lay (0.7-1.2), slit (1.4-2.6), scrape (2.7-3.7), into the basket
     # (3.8-4.5); two fish a loop, a glance up between
@@ -1161,26 +1161,30 @@ def gut(fam, T=10.2, seed=361):
     rest = Palm(lambda f, S, c: B_ + V(0.22, -0.08, 0.02) * k, lambda f, S, c: V(-0.5, 0.8, 0.0),
                 lambda f, S, c: V(0.0, 0.0, -1.0), lambda f, S, c: V(1.0, -0.5, -0.4), shape="rest")
 
+    # the knife's path through one fish (seconds from the fish's start): rest, the slit (two strokes toward her
+    # along the belly), the knife turned flat and the guts scraped over the edge and flicked into the bucket, back
+    # to rest; between the keys an eased move. Each key: (t, point, the tip's way, the wrist's side)
+    rest_k = (B_ + V(-0.04, -0.10, 0.12) * k, V(0.05, 0.85, -0.5), V(0.0, -0.4, 1.0))
+    slit_a = (B_ + V(0.0, 0.10, 0.08) * k, V(0.1, 0.9, -0.45), V(-0.2, -0.3, 1.0))
+    slit_b = (B_ + V(0.0, -0.07, 0.065) * k, V(0.1, 0.9, -0.45), V(-0.2, -0.3, 1.0))
+    lift_k = (B_ + V(0.0, 0.08, 0.10) * k, V(0.1, 0.9, -0.45), V(-0.2, -0.3, 1.0))
+    flat_k = (B_ + V(0.0, -0.02, 0.07) * k, V(-0.3, 0.9, -0.6), V(0.3, -0.2, 1.0))
+    edge_k = (B_ + V(-0.10, -0.16, 0.08) * k, V(-0.3, 0.9, -0.6), V(0.3, -0.2, 1.0))
+    flick_k = (bucket + V(0.04, 0.04, 0.32) * k, V(-0.3, 0.8, -0.8), V(0.3, -0.2, 1.0))
+    keys = [(0.0, rest_k), (1.15, rest_k), (1.4, slit_a), (1.9, slit_b), (2.0, lift_k), (2.15, slit_a),
+            (2.65, slit_b), (2.85, flat_k), (3.2, edge_k), (3.55, flick_k), (3.75, flick_k), (4.2, rest_k)]
+
     def knife_at(t, fam_, S, ctx):
-        # the knife's tip along the grip socket's +y; its edge (-z) down onto the fish
         tt = t % (T / 2)
         u0 = tt - fish_t[0] if t < T / 2 else tt - (fish_t[1] - T / 2)
-        base = B_ + V(-0.02, -0.10, 0.12) * k
-        tip = V(0.05, 0.85, -0.5)
-        if 1.4 <= u0 < 2.6:
-            # two strokes from the vent to the throat: drawn toward her along the belly
-            s = ((u0 - 1.4) / 0.6) % 1.0
-            e = smootherstep(s / 0.7) if s < 0.7 else 1.0 - smootherstep((s - 0.7) / 0.3)
-            p = B_ + V(-0.0, 0.10 - 0.17 * e, 0.065 + 0.01 * (1 - e)) * k
-            return p, V(0.1, 0.9, -0.45), V(-0.2, -0.3, 1.0)
-        if 2.6 <= u0 < 3.7:
-            # the knife turned flat, the guts scraped over the edge and flicked into the bucket
-            s = (u0 - 2.6) / 1.1
-            e = smootherstep(s)
-            p = (B_ + V(0.0, -0.02, 0.07) * k).lerp(bucket + V(0.04, 0.04, 0.32) * k, e)
-            p = p + Vector((0.0, 0.0, 0.06 * k * math.sin(math.pi * e)))
-            return p, V(-0.3, 0.9, -0.6), V(0.3, -0.2, 1.0)
-        return base, tip, V(0.0, -0.4, 1.0)
+        if u0 <= keys[0][0] or u0 >= keys[-1][0]:
+            p_, a_, w_ = rest_k
+            return p_, a_, w_
+        for (ta, ka), (tb, kb) in zip(keys, keys[1:]):
+            if ta <= u0 <= tb:
+                e = smootherstep((u0 - ta) / max(1e-6, tb - ta))
+                return (ka[0].lerp(kb[0], e), ka[1].lerp(kb[1], e).normalized(), ka[2].lerp(kb[2], e).normalized())
+        return rest_k
 
     knife = Along(knife_at, lambda f, S, c: V(-1.0, -0.6, -0.5), r=0.013)
 
@@ -1254,7 +1258,7 @@ def sweep(fam, T=6.0, seed=371):
                 p = m @ Vector((0.86 * k, 0.0, 0.0))
                 return p, ax, Vector((-0.6, 0.6, 0.4))
             p = m @ Vector((1.17 * k, 0.0, 0.0))
-            return p, -ax, Vector((0.6, 0.5, 0.5))
+            return p, ax, Vector((0.7, 0.4, 0.3))
         return fn
 
     sp.arms = {"R": Along(grip_at("R"), lambda f, S, c: V(-1.0, -0.6, -0.5), r=0.018),
@@ -1302,8 +1306,8 @@ def scrub(fam, T=6.4, seed=381):
     def hips_at(t):
         r = rock(t)
         b = to_bucket(t)
-        qh = yaw(10.0 * b) @ bow(58.0 + 3.0 * r - 30.0 * b)
-        return kneel_hips(fam, knees, -2.0 - 3.0 * r + 22.0 * b, qh), qh
+        qh = yaw(10.0 * b) @ bow(59.0 + 1.5 * r - 30.0 * b)
+        return kneel_hips(fam, knees, -3.0 - 2.0 * r + 22.0 * b, qh), qh
 
     sp.hips_at = hips_at
     sp.feet_at = lambda t: {S: kneel_leg(fam, S, knees[S]) for S in "LR"}
@@ -1331,8 +1335,9 @@ def scrub(fam, T=6.4, seed=381):
 
     hand = Palm(on_brush, lambda f, S, c: c["things"]["brush"][0].to_3x3() @ Vector((1.0, 0.0, -0.1)),
                 lambda f, S, c: V(0.0, 0.0, -1.0), lambda f, S, c: V(-1.0, -0.3, 0.6), shape="cup")
-    prop = Palm(lambda f, S, c: V(0.15, 0.37, 0.035) * k, lambda f, S, c: V(-0.3, 1.0, 0.0),
-                lambda f, S, c: V(0.0, 0.0, -1.0), lambda f, S, c: V(1.0, -0.5, 0.4), shape="open")
+    prop = Palm(lambda f, S, c: V(0.15, 0.44, 0.04) * k, lambda f, S, c: V(-0.5, 1.0, 0.0),
+                lambda f, S, c: V(0.0, 0.0, -1.0), lambda f, S, c: V(1.0, -0.4, 0.0), shape="open",
+                hand=(0.0, -60.0, 0.0))
     prop2 = ci.on_thigh(0.62)
     sp.arms = {"R": hand, "L": ci.ArmTrack([(0.0, prop, 0.3), (strokes_end + 0.05, prop2, 0.45),
                                            (T - 0.65, prop, 0.5)], T)}
@@ -1358,9 +1363,9 @@ def crouch(fam, T=4.0, seed=391, what="pick"):
 
     def hips_at(t):
         r = 0.5 + 0.5 * math.sin(TAU * t / T)
-        qh = yaw(-6.0) @ bow(10.0 + 6.0 * r) @ lean(-3.0)
+        qh = yaw(-6.0) @ bow(24.0 + 6.0 * r) @ lean(-3.0)
         knees = {"L": kneeL, "R": kneeL + V(-0.26, 0.0, 0.0) * k}
-        return kneel_hips(fam, knees, 4.0 - 4.0 * r, qh, lift=-0.01 * k), qh
+        return kneel_hips(fam, knees, 34.0 - 4.0 * r, qh, lift=-0.01 * k), qh
 
     sp.hips_at = hips_at
     sp.feet_at = lambda t: {"L": kneel_leg(fam, "L", kneelL_(), toes="tucked"), "R": footR}
@@ -1368,8 +1373,8 @@ def crouch(fam, T=4.0, seed=391, what="pick"):
     def kneelL_():
         return kneeL
 
-    sp.trunk = lambda t: (30.0 + 4.0 * math.sin(TAU * t / T), 0.0, -6.0)
-    sp.look = lambda t: (-8.0, 34.0 + 4.0 * math.sin(TAU * t / T), 0.0)
+    sp.trunk = lambda t: (40.0 + 4.0 * math.sin(TAU * t / T), 0.0, -8.0)
+    sp.look = lambda t: (-8.0, 26.0 + 4.0 * math.sin(TAU * t / T), 0.0)
     sp.keep = 0.4
 
     def work_at(fam_, S, ctx):
@@ -1377,10 +1382,10 @@ def crouch(fam, T=4.0, seed=391, what="pick"):
         u = (t % T) / T
         flick = ci.pulse(u, 0.55, 0.7, 0.04, 0.08)
         reach = 0.5 + 0.5 * math.sin(TAU * u)
-        return V(-0.15 - 0.04 * reach, 0.34 + 0.06 * reach + 0.03 * flick, 0.05 + 0.05 * (1 - reach)) * k
+        return V(-0.24 - 0.03 * reach, 0.20 + 0.06 * reach + 0.03 * flick, 0.08 + 0.04 * (1 - reach)) * k
 
-    hand = Palm(work_at, lambda f, S, c: V(0.2, 1.0, -0.5), lambda f, S, c: V(0.0, -0.2, -1.0),
-                lambda f, S, c: V(-1.0, -0.3, 0.3), shape="pinch")
+    hand = Palm(work_at, lambda f, S, c: V(0.3, 1.0, -0.8), lambda f, S, c: V(0.0, -0.3, -1.0),
+                lambda f, S, c: V(-0.6, -1.0, 0.0), shape="pinch")
 
     def on_knee(fam_, S, ctx):
         ps = ctx["posed"]
@@ -1873,8 +1878,8 @@ def row(fam, T=2.0, seed=521):
         def fn(t, fam_, S_, ctx):
             d = drive(t)
             u = (t % T) / T
-            low = 0.0 if u < 0.42 else math.sin(math.pi * (u - 0.42) / 0.58) * 0.06
-            p = V(sgn(S) * hand_x, lerp(0.70, 0.20, d), ROW["seat"] + lerp(0.18, 0.31, d) - low) * k
+            low = 0.0 if u < 0.42 else math.sin(math.pi * (u - 0.42) / 0.58) * 0.03
+            p = V(sgn(S) * hand_x, lerp(0.62, 0.20, d), ROW["seat"] + lerp(0.20, 0.31, d) - low) * k
             lock = V(sgn(S) * ROW["rowlock"][0], ROW["rowlock"][1], ROW["seat"] + ROW["rowlock"][2]) * k
             ax = (lock - p).normalized()
             return p, ax, Vector((0.0, 1.0, -0.4))

@@ -191,6 +191,7 @@ public static class People2
                     copy.Rotation = new Vector3(Mathf.DegToRad(item.Tilt), 0, 0);
                     attachment.AddChild(copy);
                 }
+        runtime.HeldReady();
         var human = new Human(kind, root, new AnimationLibrary(), new Dictionary<string, float>(), info.Item1 / 0.95f, runtime);
         People2Faces.Next(human);
         return human;
