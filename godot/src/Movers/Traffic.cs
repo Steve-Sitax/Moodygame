@@ -33,7 +33,6 @@ public partial class Traffic : Node
     private readonly List<Vehicle> vehicles = new();
     private Copies? bed, fore, rear, front, horse;
     private readonly Copies?[] legs = new Copies?[4];
-    private HorseCopies? horseParts;
     private readonly Dictionary<string, Copies?> loads = new();
     private readonly HorseGait.Pose pose = new();
     private MoverOverlap overlap = null!;
@@ -51,7 +50,6 @@ public partial class Traffic : Node
         rear = Copies.Find(g, "trwheelsrear"); front = Copies.Find(g, "trwheelsfront"); horse = Copies.Find(g, "trhorsebody");
         string[] names = { "trlegfront", "trlegfrontlo", "trleghind", "trleghindlo" };
         for (int i = 0; i < 4; i++) legs[i] = Copies.Find(g, names[i]);
-        if (horse != null && HorseModel.Ready) horseParts = new HorseCopies(g, horse, legs, "bay", true, "traffic");
         foreach (string name in new[] { "casks", "sacks", "bales", "tarp" }) loads[name] = Copies.Find(g, "trload" + name);
         var frames = g.GetChildren().OfType<Node3D>().Where(n => n is not MeshInstance3D and not MultiMeshInstance3D && !Mv.Plain(n).StartsWith("pushcart")).ToList();
         var carts = g.GetChildren().OfType<Node3D>().Where(n => Mv.Plain(n) == "pushcart").ToList();
@@ -243,11 +241,6 @@ public partial class Traffic : Node
                 loads[v.Load]?.Put(v.LoadIndex,a.X,0,a.Y,by);
                 HorseGait.PoseAt(pose,v.Gait,Math.Min(1,v.V/0.8f),0,1.35f);
                 horse?.Put(v.Index,c.X,pose.Bob,c.Y,hy);
-                if (horseParts != null)
-                {
-                    HorseGait.Life(pose,v.Gait,Math.Min(1,v.V/0.8f),0,MoverClock.T,100+v.Index);
-                    horseParts.Set(v.Index,new Transform3D(new Basis(Vector3.Up,hy),new Vector3(c.X,pose.Bob,c.Y)),pose);
-                }
                 float cy=MathF.Cos(hy),sy=MathF.Sin(hy);
                 for (int k=0;k<4;k++)
                 {
@@ -258,7 +251,7 @@ public partial class Traffic : Node
             }
             else
             {
-                bed?.Zero(v.Index); fore?.Zero(v.Index); rear?.Zero(v.Index); front?.Zero(v.Index); horse?.Zero(v.Index); horseParts?.Zero(v.Index);
+                bed?.Zero(v.Index); fore?.Zero(v.Index); rear?.Zero(v.Index); front?.Zero(v.Index); horse?.Zero(v.Index);
                 loads[v.Load]?.Zero(v.LoadIndex);
                 foreach (var m in legs) { m?.Zero(v.Index*2); m?.Zero(v.Index*2+1); }
             }
@@ -282,7 +275,7 @@ public partial class Traffic : Node
         if(NetRemote)return;
         MoverCost.Begin("traffic");
         foreach (var v in vehicles) Move(v,(float)MoverClock.Dt);
-        bed?.Commit(); fore?.Commit(); rear?.Commit(); front?.Commit(); horse?.Commit(); horseParts?.Commit();
+        bed?.Commit(); fore?.Commit(); rear?.Commit(); front?.Commit(); horse?.Commit();
         foreach (var m in legs) m?.Commit();
         foreach (var m in loads.Values) m?.Commit();
         MoverCost.End("traffic");

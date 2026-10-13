@@ -32,6 +32,9 @@ public static class People2Faces
     {
         // Loading/unloading may wait; gameplay never waits for a shaping worker.
         foreach (var job in jobs) if (job.Worker != null) job.Worker.GetAwaiter().GetResult();
+        foreach (var job in cache.Values) { job.Near?.Dispose(); job.Far?.Dispose(); }
+        foreach (var template in templates.Values) template.Stripped.Dispose();
+        morphFile = null;
         requests.Clear(); activeRequests.Clear(); jobs.Clear(); cache.Clear(); bindMaps.Clear();
         bags.Clear(); templates.Clear(); faceLayers.Clear();
         faceTypes?.Dispose(); faceTypes = null; sliders?.Dispose(); sliders = null;
@@ -75,11 +78,12 @@ public static class People2Faces
 
     private static Dictionary<string, (int verts, Dictionary<string, People2Morphs.Key> keys)>? morphFile;
     /// <summary>The sliders' moves of every people2 mesh (written at intake: People2Morphs).</summary>
-    internal static void LoadMorphs()
+    internal static void LoadMorphs(string part = "people2")
     {
         morphFile = null;
-        if (!Godot.FileAccess.FileExists(People2Morphs.File)) return;
-        morphFile = People2Morphs.Read(Godot.FileAccess.GetFileAsBytes(People2Morphs.File));
+        string file = "res://assets/game-models/" + part + "-resources/morphs.bin";
+        if (!Godot.FileAccess.FileExists(file)) throw new InvalidDataException("Missing people morph part: " + file);
+        morphFile = People2Morphs.Read(Godot.FileAccess.GetFileAsBytes(file));
     }
 
     /// <summary>At load: keep a mesh's arrays and its sliders' moves (the morph file, or the mesh's own shape keys);
@@ -671,11 +675,7 @@ public static class People2Faces
             var f = FaceFor((uint)a.GetProperty("seed").GetInt64(), a.GetProperty("kind").GetString()!, a.GetProperty("sex").GetString()!, a.GetProperty("age").GetDouble());
             var e = t.GetProperty("face");
             string expectedCell = e.GetProperty("cell").GetString()!;
-            // One round-3 Python vector encodes the faulty young-bald -> old-portrait fallback.
-            // Keep every other recipe field exact; this regression must now select an eligible young cell.
-            bool staleBald = a.GetProperty("seed").GetInt64() == 2 && a.GetProperty("kind").GetString() == "docker_a" && a.GetProperty("age").GetDouble() == 44 && expectedCell == "om_bald_drink";
-            // Independently recomputed with the age-safe Python selector: seed 2 is m_olive_black.
-            bool cellOkay = f.Cell == (staleBald ? "m_olive_black" : expectedCell);
+            bool cellOkay = f.Cell == expectedCell;
             bool same = f.Type == e.GetProperty("type").GetString() && cellOkay && f.Hair == e.GetProperty("hair").GetString()
                 && f.Beard == Str(e.GetProperty("beard")) && f.Moustache == Str(e.GetProperty("moustache"));
             foreach (var p in e.GetProperty("sliders").EnumerateObject())

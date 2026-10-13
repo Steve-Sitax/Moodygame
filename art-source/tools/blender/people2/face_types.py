@@ -473,7 +473,7 @@ def _cells_for(t, sex, age, kind, hair):
         cells = [c for c in cells if c.startswith(sex + "_")] or cells
     bald = [c for c in cells if "bald" in c]
     if hair == "bald":
-        cells = bald or [c for c in CELL_NAMES if "bald" in c]
+        cells = bald or cells  # Keep the age/sex group when it has no bald portrait.
     else:
         cells = [c for c in cells if "bald" not in c] or cells
     return cells

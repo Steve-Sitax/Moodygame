@@ -603,7 +603,7 @@ The download adds no new npm dependencies.
 
 | Asset | Authoring / origin | Licence |
 |---|---|---|
-| `art-source/client/public/models/smalllife.glb`; native `smalllife.scn` and baked bone palettes | Original metre-scale lofts, anatomy, weights and IK clips in `art-source/tools/blender/smalllife`, built by `build_smalllife.py`. No downloaded models. | Project original artwork |
+| `art-source/client/public/models/smalllife.glb`; native `smalllife.scn` and baked bone palettes | Original metre-scale lofts, anatomy, weights and IK clips in `art-source/tools/blender/smalllife`, built by `build_smalllife.py`; batch 1 replaces the hen and rat with the CC0 donors recorded below. | Project original artwork |
 | `art-source/smalllife/pictures/feather-source.png`, `fur-source.png` | Original material sheets generated with OpenAI's built-in imagegen tool on 2026-10-13; exact prompts, original dimensions and file SHA-256 in adjacent `prompts.json`. Adapted to anatomical UV cells, period colours and matching normal relief by `smalllife/paint.py`. | Project original generated artwork |
 | `native-godot/assets/smalllife/*_colour.png`, `*_normal.png` | Original painter combines the retained material sheets with species markings, bare skin, scales, horn and eye zones. Every 1024 px output's file SHA-256 is recorded in `kit.json`; colour is sRGB, normals linear, both mipmapped. | Project original artwork |
 

@@ -8,10 +8,16 @@ using Scheldemist.World;
 
 namespace Scheldemist.People;
 
-// Opt-in model routing and data prepared once, before any new body is drawn.
+// Dressed models are the default; missing kinds retain the original people kit.
 public static class People2
 {
-    public static bool Enabled { get; set; } = Array.IndexOf(OS.GetCmdlineUserArgs(), "--people2") >= 0;
+    public static bool Enabled { get; set; } = DefaultEnabled();
+    private static bool DefaultEnabled()
+    {
+        var args = OS.GetCmdlineUserArgs();
+        int i = Array.IndexOf(args, "--people2");
+        return i < 0 || i + 1 >= args.Length || args[i + 1] != "off";
+    }
     private static ModelLibrary.Model? model;
     private static bool tried;
     private static Exception? loadFailure;
@@ -49,16 +55,39 @@ public static class People2
     }
     public static IEnumerable<string> Kinds
     {
-        get { Load(); if (model != null) foreach (var k in model.Roots.Keys) if (Bodies.ContainsKey(k)) yield return "p2:" + k; }
+        get { Load(); if (model != null) foreach (var k in Bodies.Keys) yield return "p2:" + k; }
     }
     public static IEnumerable<string> ClipNames { get { Load(); return Clips.Keys; } }
     internal static bool Has(string kind)
     {
         if (!Enabled) return false;
         Load();
-        return model != null && Bodies.ContainsKey(Body(kind)) && model.Roots.ContainsKey(Body(kind));
+        string body = Body(kind);
+        if (model == null || !Bodies.ContainsKey(body)) return false;
+        // Base-body names can collide with legacy kinds (old_man). Ordinary play only routes
+        // dressed kinds; explicit p2: exhibits and map overrides may still select a base body.
+        if (!kind.StartsWith("p2:", StringComparison.Ordinal) && !map.ContainsKey(kind) && !kindBase.ContainsKey(body)) return false;
+        EnsureRoot(body);
+        return model.Roots.ContainsKey(body);
     }
-    private static string Body(string kind) => kind.StartsWith("p2:", StringComparison.Ordinal) ? kind[3..] : map.GetValueOrDefault(kind, kind);
+    private static string Body(string kind) => kind.StartsWith("p2:", StringComparison.Ordinal) ? kind[3..] : map.GetValueOrDefault(kind, kind == "old_woman" ? "old_woman_dressed" : kind);
+    private static void EnsureRoot(string body)
+    {
+        if (model == null || model.Roots.ContainsKey(body)) return;
+        People2Material.LoadPart(model, body);
+        if (BaseBody.TryGetValue(body, out string? basis) && !model.Roots.ContainsKey(basis)) People2Material.LoadPart(model, basis);
+        foreach (var root in model.Roots.Values) PrepareRoot(root);
+    }
+    private static void PrepareRoot(Node3D root)
+    {
+        root.Position = Vector3.Zero;
+        foreach (var n in BakedWorld.All(root)) if (n is MeshInstance3D mi)
+        {
+            mi.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
+            if (mi.Name.ToString().EndsWith("_lod0", StringComparison.Ordinal)) mi.VisibilityRangeEnd = 15;
+            if (mi.Name.ToString().EndsWith("_lod1", StringComparison.Ordinal)) mi.VisibilityRangeBegin = 15;
+        }
+    }
     public static void Forget() { model?.Scene.Free(); model = null; tried = false; loadFailure = null; Clips.Clear(); Bodies.Clear(); BaseBody.Clear(); held.Clear(); kindBase.Clear(); map.Clear(); HumanLayers.Forget(); People2Material.Forget(); People2Faces.Forget(); People2Moves.Forget(); People2Shoulders.Forget(); }
     public static void Load()
     {
@@ -188,6 +217,7 @@ public static class People2
         ulong begin = Time.GetTicksUsec();
         string body = Body(kind);
         if (!Bodies.ContainsKey(body)) return null;
+        EnsureRoot(body);
         if (model?.Copy(body) is not { } root) return null;
         People2Material.Assign(root, body);
         var sk = root.GetNode<Skeleton3D>("Skeleton3D");

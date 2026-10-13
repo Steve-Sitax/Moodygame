@@ -94,7 +94,7 @@ public partial class TownLife : Node
             if (f.Pump == null)
             {
                 f.Pump = MakePump(f); Main.I.View.AddChild(f.Pump);
-                foreach (float x in new[] { -0.55f, 0.55f }) { var horse = new EventHorse("chestnut"); horse.Root.Position = new Vector3(x, 0, 3.6f); f.Pump.AddChild(horse.Root); f.Horses.Add(horse); }
+                foreach (float x in new[] { -0.55f, 0.55f }) { var horse = new EventHorse(); horse.Root.Position = new Vector3(x, 0, 3.6f); f.Pump.AddChild(horse.Root); f.Horses.Add(horse); }
             }
             double from = Math.Max(0, f.PumpLength - 150), seconds = (Events.StageOf(ev)!.Minutes - live.Left) * 2;
             double travelled = act != "fire_brigade" ? f.PumpLength : Math.Min(f.PumpLength, from + seconds * Math.Max(3.5, (f.PumpLength - from) / 16));

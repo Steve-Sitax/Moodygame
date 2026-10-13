@@ -115,8 +115,9 @@ void fragment() {
     bool face = layered_pictures && COLOR.g > 0.5;
     vec4 cloth = layered_pictures ? texture(clothes_colour, vec3(UV, float(clothes_layer))) : texture(tex, UV) * albedo;
     vec4 c = face ? texture(face_colour, vec3(UV, float(face_layer))) : cloth;
-    // Picture alpha stores the cloth zone; only vertex alpha stores hair coverage.
-    ALPHA = layered_pictures ? COLOR.a : 1.0;
+    // Strand coverage and the geometric fade together retain an opaque depth/shadow path.
+    if (face && c.a + COLOR.a <= 1.0) discard;
+    ALPHA = 1.0;
     ALPHA_SCISSOR_THRESHOLD = 0.42;
     float zone = layered_pictures ? (face ? 5.0 : round(cloth.a * 5.0)) : 0.0;
     if (!face && zone > 1.5 && zone < 2.5) c.rgb *= 1.0 - underwear_wear * (0.23 + 0.035 * sin(UV.y * 150.0) * sin(UV.x * 110.0));
@@ -129,7 +130,7 @@ void fragment() {
         c.rgb *= mix(vec3(1.0), grain / vec3(0.5), close_detail * 0.35);
     }
     eye = COLOR.r;
-    bool hair = face && eye < 0.5 && UV.x > 0.58 && UV.y > 0.20 && UV.y < 0.61;
+    bool hair = face && eye < 0.5 && c.a < 0.99;
     float dry = face ? (hair ? 0.48 : 0.76) : zone < 0.5 ? 0.42 : zone < 1.5 ? 0.94 : zone < 2.5 ? 0.87 : zone < 3.5 ? 0.91 : zone < 4.5 ? 0.62 : 0.76;
     // Wool/linen/canvas absorb more water than skin, leather or metal fittings (zone zero).
     float wet = layered_pictures ? clamp(psx_wet, 0.0, 1.0) : 0.0;

@@ -3,7 +3,7 @@ param(
     [ValidateSet('captures','integration','trace','shaders','timing','identity','network')]
     [string[]]$Modes = @('captures','integration','trace','shaders','timing','identity','network'),
     # Native HTTPS uses Port+1; keep both listeners inside this helper's 8990-8999 range.
-    [ValidateRange(8990,8998)][int]$Port = 8991,
+    [ValidateRange(8800,9119)][int]$Port = 8991,
     [ValidateRange(0,3600)][int]$WaitForTimingSeconds = 900,
     [ValidateRange(0,120)][int]$QuietSeconds = 30,
     [switch]$NoPrepare,

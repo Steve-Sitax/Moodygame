@@ -1,7 +1,7 @@
 """Build package H: Blender skinned sources plus baked skins for the native MultiMesh path.
 
 blender -b --factory-startup --python-exit-code 1 -P art-source/tools/blender/build_smalllife.py -- --plain .scratch/smalllife-plain/smalllife.glb
-No third-party inputs. The native game loads stored resources, never Blender or a GLB.
+The hen and rat use preserved CC0 donors through smalllife/cc0.py. The native game loads stored resources, never Blender or a GLB.
 """
 import gzip
 import hashlib
@@ -16,7 +16,7 @@ import numpy as np
 from mathutils import Matrix, Vector
 
 sys.path.insert(0,str(Path(__file__).resolve().parent))
-from smalllife import models, motion, paint
+from smalllife import models, motion, paint, cc0
 from animals.pictures import png_bytes, IMPORT
 
 ROOT=Path(__file__).resolve().parents[3]
@@ -39,6 +39,8 @@ def object_mesh(kind,m,J):
     mesh=bpy.data.meshes.new(kind)
     mesh.from_pydata((np.array(m.v)@C.T).tolist(),[],m.f);mesh.update()
     for p in mesh.polygons:p.use_smooth=True
+    if hasattr(m, 'normal'):
+        mesh.normals_split_custom_set([Vector(C @ np.array(m.normal[loop.vertex_index])) for loop in mesh.loops])
     uv=mesh.uv_layers.new(name='UVMap');lookup=mesh.uv_layers.new(name='SkinVertex')
     for loop in mesh.loops:
         uv.data[loop.index].uv=m.uv[loop.vertex_index]
@@ -54,6 +56,7 @@ def object_mesh(kind,m,J):
     # Float normals from Blender agree across the closed lofts and UV seams.
     normals=np.empty(len(mesh.vertices)*3,np.float32);mesh.vertices.foreach_get('normal',normals)
     normals=normals.reshape(-1,3)@C
+    if hasattr(m, 'normal'):normals=np.array(m.normal, np.float32)
     ob=bpy.data.objects.new(kind,mesh);bpy.context.scene.collection.objects.link(ob)
     return ob,normals
 
@@ -103,8 +106,8 @@ def main():
     report={'format':1,'framesPerClip':motion.FRAMES,'kinds':{},'pictures':{},'notes':
             'All silhouettes use rounded lofts. Feather edges, horn tips, claws and whisker tips intentionally thin/pointed. Hidden tube ends mate inside bodies. No gameplay collision on these decorative animals.'}
     for kind in ONLY:
-        m,J,parents,contacts,h=models.build(kind);J={k:np.array(v) for k,v in J.items()}
-        ob,normals=object_mesh(kind,m,J);col,nrm=paint.pictures(kind)
+        m,J,parents,contacts,h=cc0.adapt(kind, models.build(kind));J={k:np.array(v) for k,v in J.items()}
+        ob,normals=object_mesh(kind,m,J);col,nrm=cc0.pictures(kind) if kind in ('hen','rat') else paint.pictures(kind)
         for suffix,data in [('colour',col),('normal',nrm)]:report['pictures'][kind+'_'+suffix+'.png']=picture(kind+'_'+suffix,data,suffix=='normal')
         mat=bpy.data.materials.new(kind);mat.use_nodes=True
         bsdf=mat.node_tree.nodes.get('Principled BSDF');bsdf.inputs['Base Color'].default_value=(*col.mean(axis=(0,1)),1);bsdf.inputs['Roughness'].default_value=.8

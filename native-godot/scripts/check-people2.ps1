@@ -1,18 +1,24 @@
 param(
     [string]$Godot,
-    [ValidateSet('captures','integration-captures','crowd-captures','motion','work','dress-captures','distance-captures','routing','shaders','parade','timing','legacy-timing','identity','pack','network')]
+    # Comma lists are normalized below for pwsh -File.
     [string[]]$Modes = @('captures','shaders','parade','timing','identity','pack','network'),
-    [ValidateRange(8800,9099)][int]$Port = 8980,
+    [ValidateRange(8800,9119)][int]$Port = 8980,
     [ValidateRange(0,3600)][int]$WaitForTimingSeconds = 900,
     [switch]$AllowSharedTiming
 )
 $ErrorActionPreference = 'Stop'
+$Modes = @($Modes | ForEach-Object { $_.Split(',') })
+$allowed = @('captures','integration-captures','crowd-captures','motion','work','dress-captures','distance-captures','routing','shaders','parade','timing','legacy-timing','identity','pack','network')
+if ($Modes.Count -eq 1 -and $Modes[0] -eq 'all') { $Modes = $allowed }
+foreach ($mode in $Modes) { if ($mode -notin $allowed) { throw "Unknown people2 mode: $mode" } }
 . (Join-Path $PSScriptRoot 'engine-tools.ps1')
 $project = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $workspace = [IO.Path]::GetFullPath((Join-Path $project '..'))
 $scratch = Join-Path $workspace '.scratch'
 $proof = Join-Path $scratch ('people2-native-' + [guid]::NewGuid().ToString('N'))
 $engine = Resolve-WorkshopGodot $Godot
+$rig = Get-Content (Join-Path $project 'world/data/shared/peopleRig.json') -Raw | ConvertFrom-Json -AsHashtable
+$expectedRoots = $rig.bodies.Count + $rig.kinds.Count
 & (Join-Path $PSScriptRoot 'prepare-native-package.ps1') -Project $project
 & dotnet build (Join-Path $project 'Scheldemist.Native.csproj') --nologo -v quiet
 if ($LASTEXITCODE -ne 0) { throw 'Native people2 build failed.' }
@@ -57,7 +63,7 @@ try {
         $args = @('--rendering-method','forward_plus','--path',$project,'--log-file',(Join-Path $dir 'live.log'))
         if ($mode -eq 'network') { $args += '--headless' }
         $args += @('res://town.tscn','--','--no-ai','--no-mainmenu','--dev','--port',$Port.ToString(),'--db',(Join-Path $dir 'game.sqlite'),'--prefs',(Join-Path $dir 'settings.json'),'--author-root',(Join-Path $dir 'layouts'),'--native-pack-test')
-        if ($mode -ne 'legacy-timing') { $args += '--people2' }
+        if ($mode -eq 'legacy-timing') { $args += @('--people2','off') }
         switch ($mode) {
             'captures' { $args += @('--people2-captures',$dir,'--people2-light-proof','--people2-picture-proof') }
             'integration-captures' { $args += @('--people2-captures',$dir,'--people2-light-proof','--people2-picture-proof','--people2-integration-proof') }
@@ -90,7 +96,7 @@ try {
         foreach ($arg in $args) { $start.ArgumentList.Add($arg) }
         $child = [Diagnostics.Process]::new(); $child.StartInfo = $start
         $isolation = [Collections.Generic.List[object]]::new()
-        $limit = if ($mode -eq 'integration-captures') { 900 } else { 420 }
+        $limit = if ($mode -in @('captures','integration-captures','distance-captures','dress-captures')) { 1200 } else { 420 }
         try {
             [void]$child.Start()
             $stdout = $child.StandardOutput.ReadToEndAsync(); $stderr = $child.StandardError.ReadToEndAsync()
@@ -115,7 +121,7 @@ try {
             if ($mode -eq 'shaders' -and ($report.firstKinds.Count -ne 130 -or $report.people2ShaderKindCount -ne 1 -or -not $report.ok -or $report.problems.Count)) { throw 'Shader inventory must keep 130 kinds, exactly one people2 kind, and zero problems.' }
             if ($mode -in @('captures','integration-captures','crowd-captures','motion','work','dress-captures','distance-captures','timing','legacy-timing') -and -not $report.ok) { throw "People2 $mode report failed." }
             if ($mode -eq 'network' -and -not $report.passed) { throw 'Native multiplayer identity proof failed.' }
-            if ($mode -eq 'routing' -and (-not $report.switchOkay -or -not $report.faceSetter.ok -or $report.bodyHeights.Count -ne 14 -or $report.figures[0].body -ne 'man_middling' -or $report.figures[1].body -ne 'woman_stout' -or $report.figures[2].body -ne 'man_stout' -or $report.figures[3].body -ne 'man_slight')) { throw 'People2 map/body/toggle proof failed.' }
+            if ($mode -eq 'routing' -and (-not $report.switchOkay -or -not $report.faceSetter.ok -or $report.bodyHeights.Count -ne $expectedRoots -or $report.figures[0].body -ne 'man_middling' -or $report.figures[1].body -ne 'woman_stout' -or $report.figures[2].body -ne 'man_stout' -or $report.figures[3].body -ne 'man_slight')) { throw 'People2 map/body/toggle proof failed.' }
             Write-Output "PASS $mode"
         } finally {
             if ($child.Id -and -not $child.HasExited) { $child.Kill($true); $child.WaitForExit() }

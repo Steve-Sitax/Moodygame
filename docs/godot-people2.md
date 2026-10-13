@@ -1,6 +1,6 @@
 # Native Godot people2
 
-People2 stays off by default. `--people2` selects the matching dressed kind from
+People2 is on by default for dressed kinds; `--people2 off` selects the original kit. `--people2` selects the matching dressed kind from
 `res://assets/game-models/people2.scn`; missing kinds use the existing native people scene.
 Missing/unimported people2 pictures are a fatal error while opted in; run replacement/import first.
 The dev console accepts `people2 on|off` for later spawns. `p2:<body>` selects a base
@@ -499,50 +499,60 @@ Re-run it alone. Open: gait changes from a stand still slide a paw in the slide 
 mongrel's run; round 1 had 20-31 mm); steady walk, trot and gallop 0.02-0.15 mm, two run paws about 1 mm; the pig's
 knee folds are too regular.
 
-## Animals, round 3, and the horse (art3-animals3, 2026-10-13)
+## Round-4 render checks
 
-The Kempen pig has real proportions (`anatomy.py` PIG_J, `body.py` pig): 0.70 m at the back, 1.50 m snout to tail root,
-the belly a hand's breadth above the hocks, round hams and heavy shoulders as masses of their own, a 0.43 m head with
-heavy jowls and lop ears that lie over the eyes; its skin folds are relief in the field (`pig_folds`: neck rolls, the
-jowl's fold, partial wandering creases at the knees and hocks, the elbow, the flank fold, snout wrinkles; none
-regular), darkened in their creases, with pores, scratches, pale bristles in a crest and mud that is caked and cracked
-where it dried. The cart dog has a matin's head (`mastiff` in BREEDS): a shorter, deep muzzle that keeps its width to a
-blunt front, flews hanging below the jaw, a broad nose flush with the front. Lofts scale their distance by a lean that
-now runs on smoothly from span to span (a jump made flat facets where cross-sections change fast).
+`check-people2.ps1 -Modes crowd-captures` includes fitted-eye cameras at 1/2 m for men, women, children and
+old people, and natural blink sequences for five subjects. `-Modes timing` also writes
+`people2-spawn-trace.json`: every frame during square arrivals, mesh upload count/time, background shaping
+maximum, pending requests and the full frame/process time. A successful animation mean alone does not
+establish that every whole frame meets 16.7 ms. The same runner supports lane ports 9040–9049.
 
-The existing art3 horse is retained in batch 1 by the owner's decision.
+Round-4 receipts (2026-10-13): `.scratch/art4/geometry.json` checks all 28 body LODs: finite positions, varying
+blue occlusion, opaque body alpha, three live expressions on each near body and none on far bodies. The compressed
+art master is 17.0 MB. Replacement `people2-replace-512fd8fca7f842ec912331d98f7736a1/replacement.json` preserved
+all 1,711 other model files and both manifests' other entries. The missing-import guard exits 1:
+`.scratch/art4/import-guard/result.json`.
 
-`native-godot/scripts/replace-horse.ps1`): the shapes of `build_props.py`'s horse (one source) at more sides, a rounded
-breast instead of the flat front cap (the "two lobes"), the head meshed from a distance field, cupped ears, round
-collar, rings and hooves; 17,428 triangles; one unwrap for all parts painted per coat at 2048 px with one normal picture
-(21.3 MB imported), drawn with the people2 skin shader (no new kind). `Movers/HorseModel.cs` puts the new meshes on the
-old body and leg copies (the gait is unchanged) and adds the neck, head, ears, tail, reins and, on shaft horses, the
-traces (`HorseCopies` for the pools, `HorseNodes` for node horses); `HorseGait.Life` nods the head and neck, turns the
-ears and swishes the tail from the gait and the shared mover clock. `StandingHorses.cs` stands the Rijnkaai's dray horse
-and the farrier's horse (its old triangles are cut out of the farrier's yard mesh when the town comes in: 350).
+Inspected native pictures: `.scratch/people2-native-89d1b3a6d8a84d51b72b88dc47335af7/crowd-captures/` (121 PNGs;
+the `review/` sheets cover every day/rain/19:30 view and all five natural blink sequences). Live targets use
+absolute positions and unit normal targets: Godot packs blend normals as directions, so normal deltas lose their
+magnitude in the [skin/blend compute pass](https://github.com/godotengine/godot/blob/master/servers/rendering/renderer_rd/shaders/skeleton.glsl).
+Additional tops and low backs from 1/3 m: `.scratch/people2-native-deddb9b8a364438b9a95091603771a53/captures/`
+(210 PNGs, all inspected through nine `review/` sheets). Shaded fronts stay dark when the lamp lights the back.
 
-The planting (`Animal.cs`): a start, a gait change and a stop plant every paw that stands, lift a paw the new gait has in
-the air, step a planted paw that falls out of the leg's reach (a quick lifted step, never a drag), and at the stop hold
-the paws, then step them one by one into the stand. A bone a clip has no track for now stands at its rest (it kept the
-last clip's pose: in round 2 the stand held paws 1-6 cm off the street after a walk). The slide proof adds a start and
-stop test (`startStop`: stand, speed up, four metres, slow down, stand; a paw counts while it is on the ground) and the
-rest clips' toe heights.
+Final checks: `.scratch/people2-native-b5d45f8ce8b2439ea92299705e4d9b47/`. Routing passes nine recipe vectors,
+512 young-man seeds (112 bald, zero old portraits), repeated-ID mesh reuse, and 3,000 eye updates with zero managed
+bytes. Package: 343 checks / 322 files; content identity: seven checks; multiplayer: 25 checks including matching
+guests and fingerprint mismatch rejection. Shader inventory: 130 kinds, one people2 kind, generated cache 29,
+no new kinds/problems, one sun and 121 point lights unchanged (six disabled workshop preview lights separate).
+The shader audit covers 532 scene samples. Final source/content fingerprint:
+`4d46ac8b062df7c039e4e0e5ce8e72fdb0fdd6a7393667484241e84a8198108c`.
 
-Evidence (round 3): slide `.scratch/animals-native-0643da92650e420baafa634280dac767/` (steady gaits up to 1.77 mm,
-gait changes up to 0.15 mm; from standing 0.5-2.4 mm; stops up to 2.5 mm except the cart dog's trot and gallop stops, 6.1
-and 7.6 mm, one-frame shifts in the last half metre; every rest clip's toes on the street). Captures with the start and
-stop strips (`strip-start-stop-*.png`) and the horse's pictures (each coat, 1 m and 3 m, front, side, back, low before
-the chest, day, rain, 19:30; the dray at walk and trot, an omnibus at walk and trot, both standing horses):
-`.scratch/animals-native-bf1c9ffcb2874e15850ad9d905826f4e/`. Shader audit (exclusive): 130 first-frame kinds, one
-people2 kind, 29 programs, no new kind, 1 directional and 121 omni lights:
-`.scratch/animals-native-bee67a7841784f86b969250b526385b4/shaders/`. Identity (7 checks) and network pass:
-`.scratch/animals-native-2efe22cfb0d041608e6c73e6e0ef6570/`. Trace: the one repeatable spike (a dog's first walk, 1.0-1.4 ms at 7.4 s in every
-run: first calls into the engine) is gone since `Animal.Prepare` walks, trots, stops and sits each rig once out of
-sight; the runs still show 1-2.5 ms frames at random in idle and sit clips, spread over every part of the update and
-outside it, while two other Godot instances ran (latest: 3,747 frames, p99 0.48 ms, mean 0.10 ms, 7 frames over 1 ms:
-`.scratch/animals-native-5db94e18724c43bbb2cf26552f3b65cc/`). Timing was never exclusive (other worktrees' engines in
-both tries): people+animals mean Vismarkt 0.93 ms, Grote Markt 0.98 ms, animals mean 0.28/0.33 ms, gate false on the
-town's logic (1.6/2.0 ms, shared CPU): `.scratch/animals-native-f066b904a5bc40b8b8aa3adcfbb75fb7/`. Re-run both alone.
-Replacement receipts: animals `.scratch/animals-replace-cf766a60051841dc8c50e6775d306371/`, horse
-`.scratch/horse-replace-5bf2a9ce1180440ea89784511bb719f6/` (every other stored model file unchanged).
+Shared-process timing only: `.scratch/people2-native-30e1858b847e4c1a907d3cfeeb81b52b/timing/`.
+9,325 frames, 52 upload frames, at most one upload/frame; uploads mean .630 ms / maximum 1.933 ms, shaping worker
+maximum 4.310 ms. Measured rig-copy + upload + human-animation CPU maximum 16.545 ms, zero over 16.7 ms. Whole-frame
+maximum 479.550 ms; worst upload frame 302.406 ms. Square animation means 1.073 / .965 ms; town logic means
+1.690 / 1.725 ms fail the 1.5 ms gate. These numbers are **not exclusive acceptance**: the main dedicated server
+and other worktrees were active; even the no-people frame means were 16.411 / 17.186 ms. `-AllowSharedTiming`
+records this condition without weakening the default exclusive guard. An exclusive timing rerun remains for the lead.
 
+Outside this lane: animal PNG import presets are absent from git, causing default lossless/no-mipmap imports in
+a fresh worktree. The local cache used their author's `animals/pictures.py IMPORT` settings for these checks;
+no animal source/artwork changed. `face_types.py _cells_for` still encodes the old bald fallback (hair lane owns
+that file); the native regression uses the independently recomputed corrected seed-2 portrait `m_olive_black`.
+Fishwife shawl/collar shards and rigid held items remain visible in the pictures for the cloth/hands lanes.
+
+## Batch 1 integration
+
+All seven art lanes are integrated. The art3 horse is retained everywhere by the owner's decision.
+Round 3 supplies the Kempen pig proportions, draught-dog muzzle and paw-start fixes.
+People2 art and native resources are split by root: the core holds man_middling, shared clips and held props;
+`people2_<root>` holds each remaining body or dressed kind and its sparse morphs, loaded on demand.
+Every committed part must remain below 20,000,000 bytes; Godot export packs them into the PCK.
+Build once with `PEOPLE2_SAVE_BLEND=.scratch/batch1-people.blend`, then export git-sized parts with
+`blender -b .scratch/batch1-people.blend --disable-autoexec -P art-source/tools/blender/split_people2.py`.
+The full plain intake remains outside git. Replacement imports all pictures and preserves other model hashes.
+
+The hair shader keeps face fragments where picture alpha + vertex alpha > 1. Vertex alpha is preserved
+by Capture; the surviving fragment uses opaque alpha-scissor depth/shadows. `old_woman` routes to
+`old_woman_dressed`, while `p2:old_woman` remains the base body exhibit. Proof runners accept 9100–9119.

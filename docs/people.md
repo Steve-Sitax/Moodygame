@@ -4,7 +4,7 @@ Packages A, B and the first pass of C of the people plan (`docs/plans/people.md`
 bodies, faces and sliders come from MakeHuman's CC0 core assets ("Bodies from MakeHuman" below, tools and licences in
 [makehuman.md](makehuman.md)). The native game's new people are built on this kit: one 64-bone skeleton for everybody, ten base bodies with faces, hands and hair (B), and
 the dressed kinds (C, "Kinds and clothes" below). Clothes and kinds (C), motion
-(D), the native Godot runtime (F), Jef (G), fight motion (J) and weapons (K) all build on it. The native runtime is opt-in (`--people2`); ordinary play keeps the existing native people scene.
+(D), the native Godot runtime (F), Jef (G), fight motion (J) and weapons (K) all build on it. The native runtime uses every dressed people2 kind by default; other kinds keep the original people scene.
 
 ## Build
 
@@ -230,6 +230,22 @@ the base mesh (they carry the face and body sliders) and merged into the person 
   `KIND_HAIR` gives docker_a `capped` (or `bald`), police and Sooi `capped`, the capped women `undercap`. The hats'
   lines in head angles are `CAP_EL` and `HOOD_EL` in mhhair (measured on the built kinds; change them with the hats).
 
+**The fade contract (for the people2 shader):**
+
+| Channel | Who writes it | Meaning |
+|---|---|---|
+| vertex colour alpha (`picture_flags.a`) | hair, beard and moustache pieces (1 on every other mesh) | the piece's coverage 0..1: 1 every strand drawn, 0 none (the faded hairline, beard edge, a lock's root, a fuzz layer's share) |
+| face picture alpha | `mhhair.paint_swatches` | 1 everywhere but the hair swatches; there the strands' coverage 0.02..0.98, spread evenly so a vertex alpha a keeps about the share a of the strands (top strands first) |
+| vertex colour blue | hair pieces | baked occlusion 0..1 (1 open), lower deep in the hair and at a lock's edges |
+
+The rule: **a face-flag fragment is kept where picture alpha + vertex alpha > 1** (an alpha scissor, no blending, no
+dither; skin has 1 + 1). Hair fragments are face-flag fragments with picture alpha < 0.99 (for a hair roughness). The
+runtime must keep the pieces' vertex alpha when it captures them (`People2Faces.Capture` set it to 1).
+
+**Counts (near / far copy, man_middling):** crop 2,280 / 266, side 2,240 / 266, long 2,426 / 273, bald about 2,150 /
+254, capped 1,520 / 248; full beard 3,222 / 200, short 1,914, chops 2,004, chin 2,178, sideburns 740, imperial 84;
+walrus 980, chevron 840, handlebar 696. Women's styles 3,100 to 3,900. Slider morphs of the pieces: about 3.4 MB per
+men's body in `morphs.bin` (the morph file grows by roughly 15 MB).
 
 ### Clothes on the MakeHuman bodies
 

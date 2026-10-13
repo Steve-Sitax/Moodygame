@@ -44,7 +44,7 @@ def material(name, img, normal=None):
     return mt
 
 
-def export_glb(path, plain=False):
+def export_glb(path, plain=False, selected=False, animations=True):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     for ob in bpy.data.objects:
         if ob.type == "MESH" and ob.name.startswith("held_") and not ob.data.materials:
@@ -59,7 +59,7 @@ def export_glb(path, plain=False):
                 live_expressions(ob)
     bpy.ops.export_scene.gltf(
         filepath=path, export_format="GLB", export_yup=True, export_texcoords=True, export_normals=True,
-        export_materials="EXPORT", export_vertex_color="ACTIVE", use_selection=False, export_skins=True, export_animations=True,
+        export_materials="EXPORT", export_vertex_color="ACTIVE", use_selection=selected, export_skins=True, export_animations=animations,
         export_animation_mode="ACTIONS", export_force_sampling=True, export_image_format="AUTO",
         export_jpeg_quality=88, export_image_quality=88, export_extras=True, export_influence_nb=4,
         export_draco_mesh_compression_enable=not plain, export_draco_mesh_compression_level=7,

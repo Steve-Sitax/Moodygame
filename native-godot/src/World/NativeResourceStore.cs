@@ -51,7 +51,7 @@ public sealed class NativeResourceStore
                 Visit(node.Get(name));
             }
         }
-        var scene = new PackedScene();
+        using var scene = new PackedScene();
         if (scene.Pack(root) != Error.Ok || ResourceSaver.Save(scene, path, ResourceSaver.SaverFlags.Compress) != Error.Ok) throw new IOException("Cannot pack " + path);
     }
 }

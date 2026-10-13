@@ -331,6 +331,9 @@ def main():
         from people2 import preview_work
         for ln in preview_work.run(work_clips, bodies):
             print("[people2] " + ln)
+    if not ONLY and not KINDS_ONLY and "--out" not in ARGS:
+        import split_people2
+        split_people2.main()
     if "--idle" in ARGS and idle_clips:
         from people2 import preview_idle
         for ln in preview_idle.run(idle_clips, bodies, dressed, kinds=True):

@@ -2,7 +2,7 @@ param(
     [string]$SourceModels,
     [string]$Rig,
     [string]$Godot,
-    [ValidateRange(8800,9099)][int]$Port = 8900
+    [ValidateRange(8800,9119)][int]$Port = 8900
 )
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'engine-tools.ps1')
@@ -22,7 +22,7 @@ function Other-ModelHashes {
     $hashes = [Collections.Generic.SortedDictionary[string,string]]::new([StringComparer]::Ordinal)
     foreach ($file in Get-ChildItem -LiteralPath $models -Recurse -File) {
         $relative = [IO.Path]::GetRelativePath($models,$file.FullName).Replace('\','/')
-        if ($relative -in @('people2.scn','people2.extras.json','intake.json','full-intake.json') -or $relative.StartsWith('people2-resources/')) { continue }
+        if ($relative -in @('people2.scn','people2.extras.json','intake.json','full-intake.json') -or $relative.StartsWith('people2-resources/') -or $relative.StartsWith('people2_')) { continue }
         $hashes[$relative] = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash
     }
     return ,$hashes

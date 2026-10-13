@@ -103,7 +103,7 @@ public partial class Hearses : Node
         }
         foreach (float x in new[] { -0.55f, 0.55f })
         {
-            var horse = new EventHorse("black"); horse.Root.Position = new Vector3(x, 0, 4); r.Root.AddChild(horse.Root); r.Horses.Add(horse);
+            var horse = new EventHorse(); horse.Root.Position = new Vector3(x, 0, 4); r.Root.AddChild(horse.Root); r.Horses.Add(horse);
         }
         r.Coffin = LeadLooks.Coffin(); r.Coffin.Position = new Vector3(0, 0.98f, -0.05f); r.Root.AddChild(r.Coffin);
     }

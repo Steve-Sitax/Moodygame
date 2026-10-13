@@ -9,7 +9,7 @@ $start = [Diagnostics.ProcessStartInfo]::new($Blender)
 $start.WorkingDirectory = $workspace; $start.UseShellExecute = $false; $start.CreateNoWindow = $true
 $start.WindowStyle = [Diagnostics.ProcessWindowStyle]::Hidden
 $start.RedirectStandardOutput = $true; $start.RedirectStandardError = $true
-foreach ($arg in @('-b','--factory-startup','--python-exit-code','1','-P','art-source/tools/blender/build_smalllife.py','--','--plain',$output)) { $start.ArgumentList.Add($arg) }
+foreach ($arg in @('-b','--factory-startup','--disable-autoexec','--python-exit-code','1','-P','art-source/tools/blender/build_smalllife.py','--','--plain',$output)) { $start.ArgumentList.Add($arg) }
 $child = [Diagnostics.Process]::new(); $child.StartInfo = $start
 try {
     [void]$child.Start(); $stdout = $child.StandardOutput.ReadToEndAsync(); $stderr = $child.StandardError.ReadToEndAsync()

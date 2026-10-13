@@ -206,6 +206,9 @@ def slim(path, thin_names=None, thin=None):
     js["accessors"] = accessors
     # the buffer views still used, repacked in order
     bv_used = set(a["bufferView"] for a in accessors if "bufferView" in a)
+    for a in accessors:
+        if "sparse" in a:
+            bv_used.update(a["sparse"][key]["bufferView"] for key in ("indices", "values"))
     for im in js.get("images", []):
         if "bufferView" in im:
             bv_used.add(im["bufferView"])
@@ -231,6 +234,9 @@ def slim(path, thin_names=None, thin=None):
     for a in accessors:
         if "bufferView" in a:
             a["bufferView"] = bmap[a["bufferView"]]
+        if "sparse" in a:
+            for key in ("indices", "values"):
+                a["sparse"][key]["bufferView"] = bmap[a["sparse"][key]["bufferView"]]
     for im in js.get("images", []):
         if "bufferView" in im:
             im["bufferView"] = bmap[im["bufferView"]]

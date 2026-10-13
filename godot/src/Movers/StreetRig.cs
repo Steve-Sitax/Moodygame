@@ -147,28 +147,12 @@ public sealed class DrayHorse
     private readonly Node3D body;
     private readonly Node3D[] legs;
     private readonly HorseGait.Pose pose = new();
-    private readonly HorseNodes? parts;
-    private static int made;
-    private readonly int id = 200 + made++;
     public float Bob => pose.Bob;
-    /// <summary>A shaft horse (traces from its hame tugs to the shafts' hooks) in this coat.</summary>
-    public DrayHorse(Node3D body, Node3D[] legs, string coat = "bay")
+    public DrayHorse(Node3D body, Node3D[] legs) { this.body = body; this.legs = legs; }
+    public void Set(Vector2 p, float yaw, float gait, float amp)
     {
-        this.body = body; this.legs = legs;
-        parts = HorseNodes.Make(body, legs, coat, true, id);
-    }
-    public void Set(Vector2 p, float yaw, float gait, float amp) => Set(p, yaw, gait, amp, false);
-
-    /// <summary>trot: a dray at the trot (the caller moves `gait` one cycle per 2.8 m then).</summary>
-    public void Set(Vector2 p, float yaw, float gait, float amp, bool trot)
-    {
-        HorseGait.PoseAt(pose, gait, amp, trot ? 1 : 0, trot ? null : 1.35f);
+        HorseGait.PoseAt(pose, gait, amp, 0, 1.35f);
         Put(body, p, pose.Bob, yaw);
-        if (parts != null)
-        {
-            HorseGait.Life(pose, gait, amp, trot ? 1 : 0, MoverClock.T, id);
-            parts.Set(pose);
-        }
         float cy = MathF.Cos(yaw), sy = MathF.Sin(yaw);
         for (int k = 0; k < 4; k++)
         {

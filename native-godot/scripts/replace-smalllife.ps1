@@ -1,7 +1,7 @@
 param(
     [string]$SourceModels,
     [string]$Godot,
-    [ValidateRange(8990,8998)][int]$Port = 8990
+    [ValidateRange(8800,9119)][int]$Port = 8990
 )
 # Replace the small-life stored scene after a rebuild (art-source/tools/blender/build_smalllife.py --plain ...): import the
 # animal pictures (native-godot/assets/smalllife, BPTC colour and RGTC normals), take the plain smalllife.glb in

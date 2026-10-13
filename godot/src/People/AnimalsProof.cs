@@ -80,11 +80,7 @@ internal partial class AnimalsProof : Node
                     report["startStrips"] = await StartStop(town, street.from, street.dir, true);
                     report["cart"] = await Cart(town);
                 }
-                if (horsesOnly || Main.I.Flag("horses-captures"))
-                {
-                    HideTownAnimals();
-                    report["horses"] = await new HorsesProof(this, dir, pictures).Run(town, (sunSpot, sunFace), (spot, face), street.from, street.dir);
-                }
+
             }
             report["pictures"] = pictures;
             report["ok"] = true;

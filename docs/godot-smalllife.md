@@ -3,6 +3,9 @@
 `build_smalllife.py` and its independent `smalllife/` kit author sixteen metre-scale kinds: hen,
 cockerel, goat, mallard/female/young ducks, adult/young swans, goose, squirrel, songbird, pigeon,
 sparrow, jackdaw, crow and rat. Dogs, cats, pigs and horses retain their separate authoring kits.
+The hen uses CDmir's CC0 Chicken (animated); the rat uses Sean Buckley's CC0 Street Rat. Their original downloads,
+licences and file hashes are preserved in `art-source/third_party`; `smalllife/cc0.py` adapts their scale, rig weights,
+UVs and smooth normals, with 1024 px donor colour/normal pictures. The other kinds keep the original kit.
 Original photographic feather/fur sources, exact imagegen prompts and source-file hashes are in
 `art-source/smalllife/pictures/`; the painter adapts their detail to anatomical UV cells and species
 colours. Every delivered 1024 px colour/normal pair is hashed in the native `kit.json`.

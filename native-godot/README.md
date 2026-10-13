@@ -6,7 +6,7 @@ and its real title menu. Its native services run inside Godot, without a browser
 The browser, Node server and bake pipeline have been retired from the active project. Native multiplayer and all
 four resident transport stages have passed rendered tests; standalone packages are checked in cold relocated folders.
 
-The new people2 kit is available through `--people2`, off by default. It uses a native stored scene and
+The new people2 kit is on by default for dressed kinds (`--people2 off` compares the original kit). It uses a native stored scene and
 checksummed shared rig data. Its authoring/intake commands and isolated day/rain/night, shader, timing and
 multiplayer proofs are documented in [people2 notes](../docs/godot-people2.md).
 

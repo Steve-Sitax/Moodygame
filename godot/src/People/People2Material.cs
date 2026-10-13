@@ -124,7 +124,8 @@ internal static class People2Material
                 mi.SetInstanceShaderParameter("face_layer", entry.Face);
                 mi.SetInstanceShaderParameter("skin_tone_shift", Vector3.Zero);
                 mi.SetInstanceShaderParameter("body_tone", Vector3.One);
-                mi.SetInstanceShaderParameter("underwear_wear", body.StartsWith("man_") || body.StartsWith("woman_") || body.StartsWith("child_") || body.StartsWith("old_") ? 1f : 0f);
+                bool baseBody = body.StartsWith("man_") || body.StartsWith("woman_") || body.StartsWith("child_") || (body.StartsWith("old_") && !body.EndsWith("_dressed", StringComparison.Ordinal));
+                mi.SetInstanceShaderParameter("underwear_wear", baseBody ? 1f : 0f);
             }
     }
     private static readonly Dictionary<string, Vector3> bodyTones = new(StringComparer.Ordinal);
@@ -205,5 +206,23 @@ internal static class People2Material
         GpuAfter = RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TextureMemUsed);
         GD.Print($"people2 textures: {TextureBytes} bytes; GPU before/after import {GpuBefore}/{GpuAfter}");
         return result;
+    }
+    internal static void LoadPart(ModelLibrary.Model model, string rootName)
+    {
+        string part = "people2_" + rootName;
+        if (ModelLibrary.NativeScene?.Invoke(part) is not { } scene)
+            throw new InvalidDataException("Missing people model part: " + part);
+        People2Faces.LoadMorphs(part);
+        foreach (var n in BakedWorld.All(scene)) if (n is MeshInstance3D mi && mi.Mesh is ArrayMesh mesh)
+        {
+            for (int s = 0; s < mesh.GetSurfaceCount(); s++) mesh.SurfaceSetMaterial(s, sharedMaterial);
+            People2Faces.Capture(mi);
+        }
+        foreach (var child in scene.GetChildren()) if (child is Node3D root)
+        {
+            scene.RemoveChild(root); model.Scene.AddChild(root);
+            model.Roots[root.Name] = root; Assign(root, root.Name);
+        }
+        scene.Free();
     }
 }

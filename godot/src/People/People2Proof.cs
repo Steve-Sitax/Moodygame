@@ -17,6 +17,7 @@ internal partial class People2Proof : Node
     private bool written;
     private int measuredFrames;
     private long updateBytes, maxUpdateBytes;
+    private int expectedPeople;
     public override async void _Ready()
     {
         if ((!Main.I.Flag("people2-proof") && Main.I.Arg("people2-captures") == "") || !People2.Enabled) { SetProcess(false); return; }
@@ -36,6 +37,7 @@ internal partial class People2Proof : Node
         if (crowdProof)
             kinds = new[] { "docker_a", "fishwife_a", "police", "docker_a", "p2:man_middling", "p2:woman_middling", "fishwife_a", "police",
                             "p2:old_man", "p2:man_stout", "docker_a", "p2:woman_slight", "p2:child_middling", "sooi", "p2:old_woman", "p2:man_slight" };
+        expectedPeople = kinds.Length;
         for (int i = 0; i < kinds.Length; i++)
         {
             var human = Humans.Make(kinds[i]); if (human == null) continue;
@@ -66,11 +68,20 @@ internal partial class People2Proof : Node
             var h = Humans.Make(body); if (h == null) continue;
             bodyHeights.Add(new { kind = body, height = Height(h) }); h.Dispose();
         }
+        var defaultRouting = new List<object>();
+        foreach (var (kind, bones) in new[] { ("old_man", 16), ("docker_b", 16), ("old_woman", 64), ("maid", 64) })
+        {
+            var h = Humans.Make(kind) ?? throw new InvalidOperationException("Missing default kind: " + kind);
+            int actual = h.Root.GetNode<Skeleton3D>("Skeleton3D").GetBoneCount();
+            defaultRouting.Add(new { kind, expectedBones = bones, actualBones = actual });
+            h.Dispose();
+            if (actual != bones) throw new InvalidOperationException("Default dressed/fallback route: " + kind);
+        }
         string dir = Output;
         if (dir != "")
         {
             Directory.CreateDirectory(dir);
-            File.WriteAllText(Path.Combine(dir, "people2-proof.json"), JsonSerializer.Serialize(new { figures, bodyHeights, faceSetter = await FaceProof(), textureBytes = People2Material.TextureBytes, projectionBytes = People2Material.ProjectionBytes, gpuBefore = People2Material.GpuBefore, gpuAfter = People2Material.GpuAfter, off, on, fallback, fallbackBones, optedIn, optedInBones, switchOkay = fallbackBones == 16 && optedInBones == 64, retained = people[0].Root.Name.ToString(), motions = Humans.Motions }, new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(Path.Combine(dir, "people2-proof.json"), JsonSerializer.Serialize(new { figures, bodyHeights, defaultRouting, faceSetter = await FaceProof(), textureBytes = People2Material.TextureBytes, projectionBytes = People2Material.ProjectionBytes, gpuBefore = People2Material.GpuBefore, gpuAfter = People2Material.GpuAfter, off, on, fallback, fallbackBones, optedIn, optedInBones, switchOkay = fallbackBones == 16 && optedInBones == 64, retained = people[0].Root.Name.ToString(), motions = Humans.Motions }, new JsonSerializerOptions { WriteIndented = true }));
         }
         if (Main.I.Arg("people2-captures") != "") await Capture(dir);
     }
@@ -81,7 +92,7 @@ internal partial class People2Proof : Node
         {
             var town = Main.I.GetNode<Town.Townspeople>("Townspeople");
             for (int i = 0; town.Data == null && i < 1800; i++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-            if (town.Data == null || people.Count != (Main.I.Flag("people2-crowd-proof") ? 16 : Main.I.Flag("people2-picture-proof") ? 14 : 4)) throw new InvalidOperationException("People2 capture needs the native town and four dressed figures.");
+            if (town.Data == null || people.Count != expectedPeople) throw new InvalidOperationException("People2 capture did not load every requested part.");
             town.ClockRuns = false;
             Game.GameState.I.PlayingWhen = () => false;
             for (int i = 0; !Dev.Kit.I.IsReady && i < 1800; i++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);

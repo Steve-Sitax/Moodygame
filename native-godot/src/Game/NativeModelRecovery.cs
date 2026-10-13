@@ -14,7 +14,7 @@ namespace Scheldemist.Native.Game;
 /// <summary>One-time model intake, retaining skeletons and clips in native PackedScenes.</summary>
 public partial class NativeModelRecovery : Node
 {
-    public override void _Ready()
+    public override async void _Ready()
     {
         var backups = new System.Collections.Generic.List<(string Original, string Backup)>();
         var replacements = new System.Collections.Generic.List<string>();
@@ -80,18 +80,15 @@ public partial class NativeModelRecovery : Node
                                 }
                 // People2's sliders leave the meshes for one sparse file (People2Morphs): dense blend shapes would
                 // cost over 100 MB of stored resources.
-                byte[]? morphs = null;
-                if (name == "people2")
-                {
-                    morphs = Scheldemist.People.People2Morphs.Extract(scene, out int morphMeshes, out long morphMoves);
-                    GD.Print($"people2 morphs: {morphMeshes} meshes, {morphMoves} moves, {morphs.Length} bytes");
-                }
                 string resources = output + "/" + name + "-resources";
                 if (replace == name)
                 {
                     // Validate/import the new source before moving any native artwork. Only this
                     // model's owned paths and the two intake manifests enter the rollback set.
-                    foreach (string relative in new[] { name + ".scn", name + "-resources", name + ".extras.json", "intake.json", "full-intake.json" })
+                    var owned = new System.Collections.Generic.List<string> { name + ".scn", name + "-resources", name + ".extras.json", "intake.json", "full-intake.json" };
+                    if (name == "people2")
+                        owned.AddRange(Directory.EnumerateFileSystemEntries(ProjectSettings.GlobalizePath(output), "people2_*").Select(Path.GetFileName)!);
+                    foreach (string relative in owned.Distinct())
                     {
                         string original = ProjectSettings.GlobalizePath(output + "/" + relative);
                         string backup = original + ".replace-" + Guid.NewGuid().ToString("N");
@@ -104,8 +101,8 @@ public partial class NativeModelRecovery : Node
                     manifest.Remove(name); full.Remove(name);
                 }
                 if (Directory.Exists(ProjectSettings.GlobalizePath(resources))) throw new IOException("Keep existing model resources: " + resources);
-                new NativeResourceStore(resources).Scene(scene, output + "/" + name + ".scn");
-                if (morphs != null) File.WriteAllBytes(ProjectSettings.GlobalizePath(Scheldemist.People.People2Morphs.File), morphs);
+                if (name == "people2") StorePeopleParts(scene, output);
+                else new NativeResourceStore(resources).Scene(scene, output + "/" + name + ".scn");
                 File.WriteAllText(ProjectSettings.GlobalizePath(output + "/" + name + ".extras.json"), extras.ToJsonString());
                 manifest[name] = new JsonObject { ["sourceSha256"] = sha, ["nodes"] = BakedWorld.All(scene).Count(), ["animations"] = BakedWorld.All(scene).OfType<AnimationPlayer>().Sum(a => a.GetAnimationList().Length), ["extras"] = name + ".extras.json" };
                 full[name] = new JsonObject { ["sourceSha256"] = sha, ["nativeScene"] = output + "/" + name + ".scn", ["existingNativeScenePreserved"] = false };
@@ -117,6 +114,10 @@ public partial class NativeModelRecovery : Node
             foreach (var pair in backups)
                 if (Directory.Exists(pair.Backup)) Directory.Delete(pair.Backup, true);
                 else File.Delete(pair.Backup);
+            // Release managed importer wrappers and let the renderer retire their RIDs before exit.
+            GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             GetTree().Quit();
         }
         catch (Exception error)
@@ -129,5 +130,32 @@ public partial class NativeModelRecovery : Node
                 else if (File.Exists(pair.Backup)) File.Move(pair.Backup, pair.Original);
             GD.PrintErr(error); GetTree().Quit(1);
         }
+    }
+
+    private static void StorePeopleParts(Node3D scene, string output)
+    {
+        var parts = new System.Collections.Generic.List<(string Name, Node3D Scene)>();
+        foreach (var child in scene.GetChildren().OfType<Node3D>().ToArray())
+        {
+            if (child.Name == "man_middling" || child.Name == "people2_held") continue;
+            scene.RemoveChild(child);
+            var part = new Node3D { Name = "PeoplePart" };
+            part.AddChild(child);
+            parts.Add(("people2_" + child.Name, part));
+        }
+        parts.Insert(0, ("people2", scene));
+        var index = new JsonObject();
+        foreach (var (name, part) in parts)
+        {
+            byte[] morphs = Scheldemist.People.People2Morphs.Extract(part, out int meshes, out long moves);
+            if (morphs.Length >= 20_000_000) throw new IOException("People morph part exceeds 20 MB: " + name);
+            string resources = output + "/" + name + "-resources";
+            new NativeResourceStore(resources).Scene(part, output + "/" + name + ".scn");
+            File.WriteAllBytes(ProjectSettings.GlobalizePath(resources + "/morphs.bin"), morphs);
+            foreach (var root in part.GetChildren().OfType<Node3D>()) index[root.Name] = name;
+            GD.Print($"Stored people part {name}: {meshes} morph meshes, {moves} moves, {morphs.Length} bytes");
+            if (part != scene) part.Free();
+        }
+        File.WriteAllText(ProjectSettings.GlobalizePath(output + "/people2_parts.json"), index.ToJsonString());
     }
 }
