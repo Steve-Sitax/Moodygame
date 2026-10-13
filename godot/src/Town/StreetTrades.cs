@@ -23,6 +23,12 @@ public partial class StreetTrades : Node
     // the cart dog: the Belgian draught dog (matin), fawn or brindle
     private static readonly string[] DogLooks={"dog_draught","dog_draught","dog_draught","dog_draught_brindle","dog_draught_brindle"};
     private readonly Dictionary<string,Kit> kits=new();
+    /// <summary>The cart dog's place in the cart's frame: its middle this far ahead of the axle (its hindquarters clear the
+    /// cross bar at 1.2 m), the second dog this far beside the first (+x, the cart's left), outside the left shaft.</summary>
+    private const float DogAhead=1.57f,DogBeside=.44f;
+    // the trace hooks on the outer faces of the shafts, the shafts' ends (in the tugs, 0.03 m past them), cart-local;
+    // the second dog's traces go to the front corner of the cart's box and to the left shaft
+    private static readonly Vector3 HookL=new(.24f,.345f,1.31f),HookR=new(-.24f,.345f,1.31f),TipL=new(.22f,.34f,1.45f),TipR=new(-.22f,.34f,1.45f),HookL2=new(.34f,.5f,.42f),HookL2b=new(.24f,.345f,1.0f);
     private readonly List<string> gone=new(32);
     private Townspeople? town;
     internal bool HasKit(string id)=>kits.ContainsKey(id);
@@ -58,7 +64,7 @@ public partial class StreetTrades : Node
         {
             kit.Wheel=Part("dogcart_wheel",new(-.38f,.3f,0));kit.OtherWheel=Part("dogcart_wheel",new(.38f,.3f,0));
             kit.DogsN=milk&&Townspeople.TradeHash("dogs:"+s.R.Id)>=.5?2:1;
-            for(int i=0;i<kit.DogsN;i++){var dog=Animal.Make(DogLooks[(int)(Townspeople.TradeHash("dog:"+s.R.Id+":"+i)*DogLooks.Length)],"cart:"+s.R.Id+":"+i);if(dog==null)continue;kit.Dogs[i]=dog;Main.I.View.AddChild(dog.Group);if(model.Copy("harness") is {} harness&&dog.Harness(harness)==null){harness.Position=new(0,-.06f,.18f);dog.Group.AddChild(harness);}dog.Play("idle");var dogSolid=new StaticBody3D{CollisionLayer=Solid.Layer,CollisionMask=0};var dogBox=new BoxShape3D{Size=new(.6f,.6f,1)};dogSolid.AddChild(new CollisionShape3D{Shape=dogBox,Position=new(0,.3f,0)});dog.Group.AddChild(dogSolid);WalkMap.RegisterBody(dogSolid,new Aabb(new(-.3f,0,-.5f),dogBox.Size),owner:p);}
+            for(int i=0;i<kit.DogsN;i++){var dog=Animal.Make(DogLooks[(int)(Townspeople.TradeHash("dog:"+s.R.Id+":"+i)*DogLooks.Length)],"cart:"+s.R.Id+":"+i);if(dog==null)continue;kit.Dogs[i]=dog;dog.ShowHarness(true);dog.Play("idle");var dogSolid=new StaticBody3D{CollisionLayer=Solid.Layer,CollisionMask=0};var dogBox=new BoxShape3D{Size=new(.6f,.6f,1)};dogSolid.AddChild(new CollisionShape3D{Shape=dogBox,Position=new(0,.3f,0)});dog.Group.AddChild(dogSolid);WalkMap.RegisterBody(dogSolid,new Aabb(new(-.3f,0,-.5f),dogBox.Size),owner:p);}
             for(int i=0;i<26;i++)kit.Trail[i]=new((float)(p.X-Math.Sin(p.Yaw)*i*.2),(float)(p.Z-Math.Cos(p.Yaw)*i*.2));kit.Count=26;DogCarts++;
         }
         var solid=new StaticBody3D{CollisionLayer=Solid.Layer,CollisionMask=0};
@@ -95,10 +101,14 @@ public partial class StreetTrades : Node
             {
                 var current=new Vector2((float)p.X,(float)p.Z);double step=current.DistanceTo(k.Trail[0]);k.Speed+=(Math.Min(3,step/Math.Max(.001,dt))-k.Speed)*Math.Min(1,dt*5);
                 if(step>.2){for(int i=Math.Min(39,k.Count);i>0;i--)k.Trail[i]=k.Trail[i-1];k.Trail[0]=current;k.Count=Math.Min(40,k.Count+1);}else k.Trail[0]=current;
-                Vector2 dogAt=Behind(k,.5),cartAt=Behind(k,2);var dir=dogAt-cartAt;double yaw=dir.LengthSquared()>.001?Math.Atan2(dir.X,dir.Y):p.Yaw;var right=new Vector2((float)Math.Cos(yaw),(float)-Math.Sin(yaw));dogAt-=right*.55f;cartAt-=right*.55f;
+                // the dog stands in the shafts: its harness's tugs carry the shaft ends and its traces run back to the
+                // hooks on the shafts (lively.glb dogcart: shafts at x +-0.22, 0.34 m up, their ends 1.45 m ahead of the
+                // axle); a second dog pulls beside the left shaft
+                Vector2 headAt=Behind(k,.4),cartAt=Behind(k,2.2);var dir=headAt-cartAt;double yaw=dir.LengthSquared()>.001?Math.Atan2(dir.X,dir.Y):p.Yaw;var right=new Vector2((float)Math.Cos(yaw),(float)-Math.Sin(yaw));var fwd=new Vector2((float)Math.Sin(yaw),(float)Math.Cos(yaw));cartAt-=right*.55f;
                 k.Root.Position=new(cartAt.X,(float)town.Walk!.BaseAt(cartAt.X,cartAt.Y),cartAt.Y);k.Root.Rotation=new(0,(float)yaw,0);k.Roll+=k.Speed*dt/.3;
                 if(k.Wheel!=null)k.Wheel.Rotation=new((float)k.Roll,0,0);if(k.OtherWheel!=null)k.OtherWheel.Rotation=new((float)k.Roll,0,0);
-                for(int i=0;i<k.DogsN;i++)if(k.Dogs[i] is {} dog){var a=dogAt+right*(k.DogsN==1?0:i==0?-.2f:.2f);dog.Group.Position=new(a.X,(float)town.Walk.BaseAt(a.X,a.Y),a.Y);dog.Group.Rotation=new(0,(float)yaw,0);dog.Play(k.Speed>.15?"walk":"idle");dog.Update((float)dt);dog.Group.Visible=p.Shown;}
+                for(int i=0;i<k.DogsN;i++)if(k.Dogs[i] is {} dog){var a=cartAt+fwd*DogAhead+right*(i==0?0:DogBeside);dog.Group.Position=new(a.X,(float)town.Walk.BaseAt(a.X,a.Y),a.Y);dog.Group.Rotation=new(0,(float)yaw,0);dog.Play(k.Speed>.15?"walk":"idle");dog.Update((float)dt);dog.Group.Visible=p.Shown;
+                    if(p.Shown){var xf=k.Root.GlobalTransform;dog.Hitch(xf*(i==0?HookL:HookL2),xf*(i==0?HookR:HookL2b),i==0?xf*TipL:(Vector3?)null,i==0?xf*TipR:(Vector3?)null);}}
             }
             k.Root.Visible=p.Shown;
         }

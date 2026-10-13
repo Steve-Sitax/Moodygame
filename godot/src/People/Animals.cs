@@ -48,6 +48,8 @@ public partial class Animals : Node
         public int Shelter;
         public float Tremble;
         public bool Exhibit;
+        /// <summary>Time not yet given to its skeleton (far animals are posed in turns).</summary>
+        public double Acc;
     }
 
     private sealed record Haunt(string Id, string Kind, double X, double Z, double Yaw, bool Night, string Pose);
@@ -68,6 +70,13 @@ public partial class Animals : Node
     private double fogNow;
 
     public int Count => beasts.Count;
+    /// <summary>For the frame-time trace: animals taken from the pool and route searches in the last update.</summary>
+    public int SpawnedLastFrame { get; private set; }
+    public int PathsLastFrame { get; private set; }
+    private int pathsThisFrame, spawnedThisFrame;
+    private long frameNo;
+    /// <summary>For the frame-time trace: where the strays and cats live.</summary>
+    internal IEnumerable<Vector2> HauntPoints => (haunts ?? new List<Haunt>()).Select(h => new Vector2((float)h.X, (float)h.Z));
     public int Shown { get; private set; }
     public int Haunts => haunts?.Count ?? 0;
     public double LogicMs { get; private set; }
@@ -87,7 +96,43 @@ public partial class Animals : Node
         town = GetParent().GetNodeOrNull<Townspeople>("Townspeople");
         if (town != null) town.PopulationChanged += PopulationChanged;
         if (town == null) SetProcess(false);
+        // the animals' model, pictures and the pool of copies, made now while the game loads (never in front of
+        // the player): about as many of each kind as the busiest street ever holds at once
+        if (town != null && Animal.Ready) Animal.Prepare(PoolWant);
+        if (town?.Data != null) MakeHaunts();
     }
+
+    /// <summary>How many copies of a kind to keep ready: its share of the strays or cats, the cart dogs, the pigs.</summary>
+    private int PoolWant(string kind)
+    {
+        int want = kind.StartsWith("pig", StringComparison.Ordinal) ? 1 : kind.StartsWith("dog_draught", StringComparison.Ordinal) ? 4 : 3;
+        foreach (var (k, share) in Dogs) if (k == kind) want = 3 + share / 4;
+        foreach (var (k, share) in Cats) if (k == kind) want = 3 + share / 4;
+        return Math.Max(want, needOf.GetValueOrDefault(kind));
+    }
+    private readonly Dictionary<string, int> needOf = new();
+
+    /// <summary>The most of each kind ever near at once: for every haunt, the haunts of its kind within reach of it,
+    /// with the townspeople's dogs of that look on top (all of them could be out).</summary>
+    private void Needs()
+    {
+        needOf.Clear(); heelDogs.Clear();
+        foreach (var h in haunts!)
+        {
+            int n = 0;
+            foreach (var o in haunts) if (o.Kind == h.Kind && Hyp(o.X - h.X, o.Z - h.Z) < DropR + 10) n++;
+            needOf[h.Kind] = Math.Max(needOf.GetValueOrDefault(h.Kind), n);
+        }
+        // the townspeople's dogs out at heel: a few of each look at most near one place
+        foreach (var r in town!.Data!.Residents)
+            if (r.DogLook is { } look)
+            {
+                string k = OldDogs.Contains(look) || Animal.RigOf(look) != null ? look : "dog_brown";
+                heelDogs[k] = heelDogs.GetValueOrDefault(k) + 1;
+            }
+        foreach (var (k, n) in heelDogs) needOf[k] = needOf.GetValueOrDefault(k) + Math.Min(n, 4);
+    }
+    private readonly Dictionary<string, int> heelDogs = new();
 
     private void PopulationChanged()
     {
@@ -145,6 +190,9 @@ public partial class Animals : Node
         o.Add(new Haunt("a:parkcat:1", "cat_ginger", -286, 292, 0, false, "sit"));
         haunts = o;
         hauntOf = o.ToDictionary(h => h.Id);
+        Needs();
+        GD.Print("animals: pool needs " + string.Join(", ", needOf.OrderBy(kv => kv.Key).Select(kv => kv.Key + " " + kv.Value)) + "; dogs of the townspeople " + string.Join(", ", heelDogs.Select(kv => kv.Key + " " + kv.Value)));
+        Animal.Prepare(PoolWant);
     }
 
     private bool Free(double x, double z) => town!.Walk!.Free(x, z);
@@ -166,10 +214,14 @@ public partial class Animals : Node
     public override void _Process(double delta)
     {
         if (town?.Data == null || town.Walk == null || town.Crowd == null || town.Paused || !Animal.Ready) return;
+        // (once per town, as it comes in: the haunts and the pool topped up to them)
+        if (haunts == null) MakeHaunts();
         long allocated = GC.GetAllocatedBytesForCurrentThread();
         ulong t0 = Time.GetTicksUsec();
         double dt = Math.Min(delta, 0.1);
-        if (haunts == null) MakeHaunts();
+        pathsThisFrame = 0;
+        spawnedThisFrame = 0;
+        frameNo++;
         var cam = Main.I.Cam;
         var eye = cam.GlobalPosition;
         var projection = cam.GetCameraProjection();
@@ -191,7 +243,7 @@ public partial class Animals : Node
                 if(Net.Mp.NativeExtras.I?.RunAnimal(h.Id,h.X,h.Z,ReachR)==false)continue;
                 var an = Animal.Make(h.Kind, h.Id);
                 if (an == null) break;
-                Main.I.View.AddChild(an.Group);
+                spawnedThisFrame++;
                 an.Start();
                 if (an.Species == "cat")
                 {
@@ -215,7 +267,6 @@ public partial class Animals : Node
                 if (mine != null) continue;
                 var a = Animal.Make(OldDogs.Contains(s.R.DogLook) || Animal.RigOf(s.R.DogLook) != null ? s.R.DogLook : "dog_brown", "dog:" + s.R.Id);
                 if (a == null) break;
-                Main.I.View.AddChild(a.Group);
                 a.Start();
                 // Wait for a clear side rather than beginning inside the owner's body.
                 (double x, double z)? side = null;
@@ -266,7 +317,14 @@ public partial class Animals : Node
             if (show)
             {
                 shown++;
-                b.A.Update((float)dt);
+                // near ones every frame; past 12 m every other frame, past 25 m every third (their skeletons only)
+                b.Acc += dt;
+                int every = d < 12 ? 1 : d < 25 ? 2 : 3;
+                if ((frameNo + index) % every == 0 || b.Acc > 0.2)
+                {
+                    b.A.Update((float)b.Acc);
+                    b.Acc = 0;
+                }
                 if (b.A.Motion is not ("lie") && shadows.Count < 60)
                 {
                     float r = b.A.R.H * b.A.Size * 0.42f, off = b.A.R.H * b.A.Size * 0.32f;
@@ -280,6 +338,8 @@ public partial class Animals : Node
         World.Blobs.I?.Set("animals", shadows);
         AllocatedBytesLastFrame = GC.GetAllocatedBytesForCurrentThread() - allocated;
         Shown = shown;
+        PathsLastFrame = pathsThisFrame;
+        SpawnedLastFrame = spawnedThisFrame;
         LogicMs = (Time.GetTicksUsec() - t0) / 1000.0;
     }
 
@@ -294,7 +354,6 @@ public partial class Animals : Node
             if (!Free(x, z)) continue;
             var an = Animal.Make(kinds[made % kinds.Length], "exhibit:" + made);
             if (an == null) break;
-            Main.I.View.AddChild(an.Group);
             an.Start();
             if (an.Species == "cat") an.Play(made % 3 == 0 ? "lie" : "sit", 0);
             beasts.Add(new Beast { A = an, X = x, Z = z, Yaw = a, Timer = (made % 4) * 0.7, Speed = an.Species == "cat" ? 0 : 1, Exhibit = true });
@@ -381,6 +440,10 @@ public partial class Animals : Node
             b.Stuck = 0;
             return true;
         }
+        // one route search on the walk grid a frame at most (a cat fleeing tries a dozen ways out): the rest wait for
+        // the next frame, so the animals' update stays well inside its millisecond
+        if (pathsThisFrame >= 1) return false;
+        pathsThisFrame++;
         var q = crowd.OpenNear(x, z);
         if (q == null || !crowd.CanStand(q.Value.x, q.Value.z)) return false;
         var way = crowd.PathOn(b.X, b.Z, q.Value.x, q.Value.z, routeScratch);

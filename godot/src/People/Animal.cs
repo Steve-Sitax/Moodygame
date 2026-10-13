@@ -49,6 +49,8 @@ public sealed class Animal
         public int HarnessBone = -1;
         public Vector3 HarnessCentre;
         public Vector2 HarnessRadius;
+        /// <summary>The harness's trace rings and shaft tugs (left, right): bone and rest point (skeleton space, size 1).</summary>
+        public (int Bone, Vector3 At)[] HarnessPoints = Array.Empty<(int, Vector3)>();
         public float TrotFrom, RunFrom;
         public Vector3[] StandToes = Array.Empty<Vector3>();
         public LegChain[] Legs = Array.Empty<LegChain>();
@@ -138,6 +140,8 @@ public sealed class Animal
 
     public static void Forget()
     {
+        foreach (var stack in pool.Values) foreach (var a in stack) if (GodotObject.IsInstanceValid(a.Group)) a.Group.QueueFree();
+        pool.Clear(); outNow.Clear();
         model?.Scene.Free();
         model = null;
         tried = false;
@@ -145,11 +149,35 @@ public sealed class Animal
         rigOfKind.Clear();
     }
 
+    /// <summary>The pictures (art-source/tools/blender/animals/pictures.py): each kind's colour, each rig's normal, the
+    /// harness's; imported by Godot as mipmapped BPTC colour and RGTC normals, the glb holding only stand-ins.</summary>
+    private const string PictureRoot = "res://assets/animal-pictures/";
+    public static long PictureBytes { get; private set; }
+
+    private static Texture2D Picture(string name, bool normal)
+    {
+        var tex = ResourceLoader.Load<Texture2D>(PictureRoot + name + ".png") ?? throw new System.IO.FileNotFoundException("animal picture " + name);
+        using var image = tex.GetImage();
+        if (image == null || !image.IsCompressed() || !image.HasMipmaps())
+            throw new System.IO.InvalidDataException("Animal pictures require imported GPU compression and mipmaps: " + name);
+        var want = normal ? Image.Format.RgtcRg : Image.Format.BptcRgba;
+        if (image.GetFormat() != want) throw new System.IO.InvalidDataException("Animal picture format must be " + want + ": " + name);
+        PictureBytes += image.GetData().LongLength;
+        return tex;
+    }
+
     private static ModelLibrary.Model? Load()
     {
         if (ModelLibrary.NativeScene == null || !ModelLibrary.Available("animals") || ModelLibrary.NativeScene("animals") is not { } scene) return null;
         var shader = People2Material.Skin();
         var mats = new Dictionary<Material, Material>();
+        // which rig each kind is on (its normal picture is the rig's)
+        var rigName = new Dictionary<string, string>();
+        foreach (var c in scene.GetChildren())
+            if (c is Node3D r && ModelExtras.Get("animals", r.Name.ToString(), "animal") is { } f) rigName[r.Name.ToString()] = f.GetProperty("rig").GetString()!;
+        PictureBytes = 0;
+        var pics = new Dictionary<string, Texture2D>();
+        Texture2D Pic(string name, bool normal) => pics.TryGetValue(name, out var t) ? t : pics[name] = Picture(name, normal);
         foreach (var n in BakedWorld.All(scene))
         {
             if (n is not MeshInstance3D mi || mi.Mesh == null) continue;
@@ -162,14 +190,15 @@ public sealed class Animal
                 if (mi.Mesh.SurfaceGetMaterial(s) is not BaseMaterial3D bm) continue;
                 if (!mats.TryGetValue(bm, out var m))
                 {
-                    var sm = new ShaderMaterial { Shader = shader, ResourceName = "animal_" + bm.ResourceName };
+                    string kind = bm.ResourceName;
+                    var sm = new ShaderMaterial { Shader = shader, ResourceName = "animal_" + kind };
                     sm.SetShaderParameter("layered_pictures", false);
-                    sm.SetShaderParameter("albedo", bm.AlbedoColor);
-                    if (bm.AlbedoTexture is { } tex) sm.SetShaderParameter("tex", People2Material.Mipmapped(tex, true));
-                    if (bm.NormalTexture is { } nrm) sm.SetShaderParameter("skin_normal", People2Material.Mipmapped(nrm, false));
+                    sm.SetShaderParameter("albedo", Colors.White);
+                    sm.SetShaderParameter("tex", Pic(kind + "_colour", false));
+                    if (rigName.TryGetValue(kind, out var rig)) sm.SetShaderParameter("skin_normal", Pic(rig + "_normal", true));
                     else sm.SetShaderParameter("normal_strength", 0f);
                     if (Main.I.Arg("animals-normal-strength") is { Length: > 0 } ns) sm.SetShaderParameter("normal_strength", float.Parse(ns, System.Globalization.CultureInfo.InvariantCulture));
-                    // the eyes (vertex red 1) and the wet nose (0.45) catch the light
+                    // the eyes (vertex red 1), the wet nose (0.45) and the coat's sheen (a black coat 0.14) catch the light
                     mats[bm] = m = sm;
                 }
                 mi.Mesh.SurfaceSetMaterial(s, m);
@@ -198,7 +227,7 @@ public sealed class Animal
             }
             rigOfKind[kind] = rig;
         }
-        GD.Print($"animals: {rigOfKind.Count} kinds on {rigs.Count} rigs, {result.Clips.Count} clips, {mats.Count} materials");
+        GD.Print($"animals: {rigOfKind.Count} kinds on {rigs.Count} rigs, {result.Clips.Count} clips, {mats.Count} materials, {pics.Count} pictures ({PictureBytes / 1048576.0:0.0} MB)");
         return rigOfKind.Count > 0 ? result : null;
     }
 
@@ -249,6 +278,17 @@ public sealed class Animal
             var rr = h.GetProperty("radius");
             rig.HarnessCentre = new Vector3(c[0].GetSingle(), c[1].GetSingle(), c[2].GetSingle());
             rig.HarnessRadius = new Vector2(rr[0].GetSingle(), rr[1].GetSingle());
+            if (h.TryGetProperty("points", out var pts))
+            {
+                var list = new List<(int, Vector3)>();
+                foreach (string key in new[] { "traceL", "traceR", "tugL", "tugR" })
+                    if (pts.TryGetProperty(key, out var q))
+                    {
+                        var at = q.GetProperty("rest");
+                        list.Add((sk.FindBone(q.GetProperty("bone").GetString()!), new Vector3(at[0].GetSingle(), at[1].GetSingle(), at[2].GetSingle())));
+                    }
+                if (list.Count == 4 && list.All(x => x.Item1 >= 0)) rig.HarnessPoints = list.ToArray();
+            }
         }
         foreach (var clip in rig.Clips.Values)
             if (clip.Kind == "gait") clip.Toes = ToeTable(clip, sk, rig);
@@ -276,11 +316,57 @@ public sealed class Animal
         return rig;
     }
 
-    /// <summary>A new animal of this kind; `id` (stable: a haunt, an owner, a cart) chooses its size, pace and flourishes.</summary>
+    // The pool: animals copied while the game loads, hidden in the view, and handed out and back again, so no animal
+    // is ever built in front of the player (a copy and its first entry into the tree took 2-3 ms each, and a street
+    // of new animals at once 20-35 ms). Each kind keeps its own; a kind that runs dry makes one more and counts it.
+    private static readonly Dictionary<string, Stack<Animal>> pool = new();
+    private static readonly Dictionary<string, int> outNow = new();
+    /// <summary>Animals made on demand because their kind's pool was empty (the frame-time proof expects none).</summary>
+    public static int ColdMakes { get; private set; }
+    /// <summary>Animals waiting in the pool now, all kinds.</summary>
+    public static int Pooled { get { int n = 0; foreach (var st in pool.Values) n += st.Count; return n; } }
+
+    /// <summary>Copies of each kind made ahead (at loading): `want(kind)` in all, counting those waiting and those out.</summary>
+    public static void Prepare(Func<string, int> want)
+    {
+        if (!Ready || Main.I?.View is not { } view) return;
+        foreach (var kind in rigOfKind.Keys)
+        {
+            if (!pool.TryGetValue(kind, out var stack)) pool[kind] = stack = new Stack<Animal>();
+            int need = want(kind) - stack.Count - outNow.GetValueOrDefault(kind);
+            for (int i = 0; i < need; i++)
+            {
+                if (model!.Copy(kind) is not { } root) break;
+                var a = new Animal(kind, root, rigOfKind[kind]) { pooled = true };
+                view.AddChild(a.Group);
+                stack.Push(a);
+            }
+        }
+    }
+
+    /// <summary>An animal of this kind, in the view and hidden until it is placed; `id` (stable: a haunt, an owner, a
+    /// cart) chooses its size, pace and flourishes. From the pool when one waits there.</summary>
     public static Animal? Make(string kind, string? id = null)
     {
-        if (!Ready || !rigOfKind.TryGetValue(kind, out var rig) || model!.Copy(kind) is not { } root) return null;
-        return new Animal(kind, root, rig, id ?? kind + ":" + made++);
+        if (!Ready || !rigOfKind.TryGetValue(kind, out var rig)) return null;
+        Animal? a = null;
+        if (pool.TryGetValue(kind, out var stack))
+            while (stack.Count > 0 && a == null)
+            {
+                var b = stack.Pop();
+                if (GodotObject.IsInstanceValid(b.Group) && b.Group.IsInsideTree()) a = b;
+            }
+        if (a == null)
+        {
+            if (model!.Copy(kind) is not { } root) return null;
+            a = new Animal(kind, root, rig);
+            ColdMakes++;
+        }
+        if (a.Group.GetParent() == null) Main.I.View.AddChild(a.Group);
+        a.Reset(id ?? kind + ":" + made++);
+        a.pooled = false;
+        outNow[kind] = outNow.GetValueOrDefault(kind) + 1;
+        return a;
     }
 
     public readonly string Kind, Species;
@@ -288,9 +374,10 @@ public sealed class Animal
     private readonly Node3D root;
     private readonly Skeleton3D sk;
     internal readonly Rig R;
-    private readonly uint seed;
-    public readonly float Size;
-    private readonly float pace, rate;
+    private uint seed;
+    public float Size { get; private set; }
+    private float pace, rate;
+    private bool pooled;
     /// <summary>The shared motion (the six that go between players).</summary>
     public string? Motion { get; private set; }
     /// <summary>The clip that shows now (local: walk, trot, run, idle, scratch ...).</summary>
@@ -315,22 +402,41 @@ public sealed class Animal
     private bool planting;
     private static readonly Random Rng = new();
 
-    private Animal(string kind, Node3D root, Rig rig, string id)
+    private Animal(string kind, Node3D root, Rig rig)
     {
         Kind = kind;
         R = rig;
         Species = rig.Species;
         this.root = root;
         sk = root.GetNode<Skeleton3D>("Skeleton3D");
+        fadeRot = new Quaternion[sk.GetBoneCount()];
+        Group.Name = kind;
+        Group.Visible = false;
+        Group.AddChild(root);
+        foreach (var n in BakedWorld.All(root))
+            if (n is MeshInstance3D mi && mi.Name.ToString().Contains("_harness", StringComparison.Ordinal))
+                (mi.Name.ToString().Contains("_harness_tugs", StringComparison.Ordinal) ? tugMeshes : harnessMeshes).Add(mi);
+        if (harnessMeshes.Count > 0)
+            for (int i = 0; i < 2; i++)
+                if (model!.Copy("dog_trace") is { } t) { t.Name = i == 0 ? "trace_left" : "trace_right"; Group.AddChild(t); traces[i] = t; }
+        ShowHarness(false);
+    }
+
+    /// <summary>A fresh start for a new owner of this copy: its own size (a few per cent), pace and tempo from the id.</summary>
+    private void Reset(string id)
+    {
         seed = Hash(id);
-        // a size of its own (a few per cent), a pace and a tempo
         Size = 1 + (Unit(seed, 1) - 0.5f) * (Species == "pig" ? 0.08f : 0.12f);
         pace = 0.92f + Unit(seed, 2) * 0.16f;
         rate = 0.9f + Unit(seed, 3) * 0.2f;
         root.Scale = Vector3.One * Size;
-        fadeRot = new Quaternion[sk.GetBoneCount()];
-        Group.Name = kind;
-        Group.AddChild(root);
+        clip = prev = null;
+        time = phase = fade = fadeLen = prevPhase = mixT = mixLen = 0;
+        wish = null; rest = "idle"; plain = false; nextLook = 0; hasLast = false; Speed = 0; Motion = null;
+        Array.Clear(locked); Array.Clear(lockWeight); Array.Clear(lockDrop); planting = false;
+        Group.Position = Vector3.Zero; Group.Rotation = Vector3.Zero; Group.Scale = Vector3.One;
+        Group.Visible = false;
+        ShowHarness(false);
     }
 
     private static uint Hash(string s)
@@ -651,19 +757,59 @@ public sealed class Animal
         Pose(0);
     }
 
-    /// <summary>The lively.glb harness on the dog's chest, fitted to the breed (the dog carts).</summary>
-    public Node3D? Harness(Node3D harness)
+    private readonly List<MeshInstance3D> harnessMeshes = new(), tugMeshes = new();
+    private readonly Node3D?[] traces = new Node3D?[2];
+
+    /// <summary>Hitched to a cart: each trace runs from its ring on the breast strap to its hook on the shaft (world
+    /// points); the tugs show when the shafts' ends lie in them (the dog in the shafts), not for a dog beside them.</summary>
+    public void Hitch(Vector3 hookL, Vector3 hookR, Vector3? tipL, Vector3? tipR)
     {
-        if (!R.HasHarness || R.HarnessBone < 0) return null;
-        var att = new BoneAttachment3D { Name = "harness_socket", BoneName = R.Bones[R.HarnessBone], BoneIdx = R.HarnessBone };
-        sk.AddChild(att);
-        // the model's breast band: a ring of 0.13 m round (0, 0.36, 0); fit it round the chest just behind the forelegs
-        var fit = new Transform3D(Basis.FromScale(new Vector3(R.HarnessRadius.X / 0.13f * 1.06f, R.HarnessRadius.Y / 0.13f * 1.06f, 1)), R.HarnessCentre)
-                  * new Transform3D(Basis.Identity, new Vector3(0, -0.36f, 0));
-        harness.Transform = sk.GetBoneGlobalRest(R.HarnessBone).AffineInverse() * fit;
-        att.AddChild(harness);
-        return att;
+        if (HarnessPoints() is not { } h) return;
+        Strap(traces[0], h.traceL, hookL);
+        Strap(traces[1], h.traceR, hookR);
+        foreach (var mi in tugMeshes) mi.Visible = tipL != null && tipR != null;
     }
 
-    public void Dispose() => Group.QueueFree();
+    private static void Strap(Node3D? t, Vector3 from, Vector3 to)
+    {
+        if (t == null) return;
+        var d = to - from;
+        float len = d.Length();
+        t.Visible = len > 0.01f;
+        if (!t.Visible) return;
+        // the trace model is a strap a metre long along +z from its ring end: stretched to the hook
+        t.GlobalTransform = new Transform3D(Basis.LookingAt(d / len, Vector3.Up, true) * Basis.FromScale(new Vector3(1, 1, len)), from);
+    }
+    /// <summary>The draught dog's own harness (animals.glb: breast strap, back pad and girth with the shaft tugs,
+    /// skinned to its chest so it moves with it), shown on the cart dogs only. False for a kind without one.</summary>
+    public bool ShowHarness(bool on)
+    {
+        foreach (var mi in harnessMeshes) mi.Visible = on;
+        foreach (var mi in tugMeshes) mi.Visible = on;
+        foreach (var t in traces) if (t != null) t.Visible = false;
+        return harnessMeshes.Count > 0;
+    }
+
+    /// <summary>Where the harness's trace rings (at the ends of the breast strap) and shaft tugs (at the girth) are now,
+    /// in the world, left then right: the cart's traces and shafts are set to meet them. Null without a harness.</summary>
+    public (Vector3 traceL, Vector3 traceR, Vector3 tugL, Vector3 tugR)? HarnessPoints()
+    {
+        if (R.HarnessPoints.Length < 4) return null;
+        var xf = sk.GlobalTransform;
+        Vector3 At(int i) { var (bone, rest) = R.HarnessPoints[i]; return xf * (sk.GetBoneGlobalPose(bone) * sk.GetBoneGlobalRest(bone).AffineInverse() * rest); }
+        return (At(0), At(1), At(2), At(3));
+    }
+
+    /// <summary>Back to the pool: hidden, what others hung on it taken off, ready for the next owner.</summary>
+    public void Dispose()
+    {
+        if (pooled || !GodotObject.IsInstanceValid(Group)) return;
+        pooled = true;
+        outNow[Kind] = Math.Max(0, outNow.GetValueOrDefault(Kind) - 1);
+        foreach (var n in Group.GetChildren()) if (n != root && n != traces[0] && n != traces[1]) n.QueueFree();
+        Group.Visible = false;
+        ShowHarness(false);
+        if (!pool.TryGetValue(Kind, out var stack)) pool[Kind] = stack = new Stack<Animal>();
+        stack.Push(this);
+    }
 }

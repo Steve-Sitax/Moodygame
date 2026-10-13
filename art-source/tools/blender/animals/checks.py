@@ -70,7 +70,7 @@ def kinds_pictures(built):
     for rname, b in built.items():
         H = b["rig"]["H"]
         for ao in b["arms"]:
-            kids = [c for c in ao.children if c.name.endswith("_lod0")]
+            kids = [c for c in ao.children if c.name.endswith("_lod0") or "_harness" in c.name]
             hide_all_but([ao] + kids)
             ao.location = (0, 0, 0)
             act = bpy.data.actions.get(rname + "_idle")

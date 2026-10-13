@@ -63,7 +63,7 @@ internal partial class AnimalsProof : Node
                     a.Hold("idle", 0);
                     await Shoot($"sun-{k}", open + sd * 2.4f + street.dir * 0.6f + Vector3.Up * 0.9f, open + Vector3.Up * 0.4f, 13, "clear");
                 }
-                a.Group.Free();
+                a.Dispose();
             }
             if (shots)
             {
@@ -197,7 +197,7 @@ internal partial class AnimalsProof : Node
     private Animal Spawn(string kind, Vector3 at, float yaw)
     {
         var a = Animal.Make(kind, "proof:" + kind) ?? throw new InvalidOperationException("no animal " + kind);
-        Main.I.View.AddChild(a.Group);
+        a.Group.Visible = true;
         a.Group.Position = at;
         a.Group.Rotation = new Vector3(0, yaw, 0);
         a.Start();
@@ -268,6 +268,18 @@ internal partial class AnimalsProof : Node
                         await Pose("walk", 0.35f, YawOf(side));
                         await Shoot($"{label}-{kind}-1m-walk", spot + face * 1f + Vector3.Up * (mid + 0.3f), c, hour, weather);
                         await Shoot($"{label}-{kind}-3m-walk", spot + face * 3f + Vector3.Up * 1.4f, c, hour, weather);
+                        await Pose("trot", 0.3f, YawOf(side));
+                        await Shoot($"{label}-{kind}-3m-trot", spot + face * 3f + Vector3.Up * 1.4f, c, hour, weather);
+                        // from above: the back, the croup and the head seen from a person's eye straight over it
+                        await Pose("idle", 1.2f, YawOf(side));
+                        await Shoot($"{label}-{kind}-1m-above", spot + face * 0.25f + Vector3.Up * (1.05f + H), spot + Vector3.Up * mid * 0.6f, hour, weather);
+                        // in the street, walking along it, three metres off
+                        var street = spot + face * 2.6f;
+                        street.Y = (float)town.Walk!.BaseAt(street.X, street.Z);
+                        a.Group.Position = street;
+                        await Pose("walk", 0.6f, YawOf(side));
+                        await Shoot($"{label}-{kind}-street-3m", street + face * 3f + side * 0.6f + Vector3.Up * 1.3f, street + Vector3.Up * mid, hour, weather);
+                        a.Group.Position = spot;
                     }
                 }
                 else
@@ -275,7 +287,7 @@ internal partial class AnimalsProof : Node
                     await Pose("idle", 1.2f, YawOf(side));
                     await Shoot($"{label}-{kind}-3m-side", spot + face * 3f + Vector3.Up * 1.4f, c, hour, weather);
                 }
-                a.Group.Free();
+                a.Dispose();
             }
         }
         await Dev.Kit.I.Light(13, "clear");
@@ -320,7 +332,7 @@ internal partial class AnimalsProof : Node
                     else await Frame();
                     if (travelled > 11) break;
                 }
-                a.Group.Free();
+                a.Dispose();
             }
         }
     }
@@ -381,7 +393,7 @@ internal partial class AnimalsProof : Node
                         if (k == 0) GD.Print("animals skeleton: " + string.Join(",", Enumerable.Range(0, sk.GetBoneCount()).Select(b2 => sk.GetBoneName(b2) + "<" + sk.GetBoneParent(b2))) + " skel xf " + sk.Transform + " root " + a.Group.GetChild(0).GetType().Name + " " + ((Node3D)a.Group.GetChild(0)).Transform);
                     }
                 held.Add(new { rig = rig.Name, gait, size = a.Size, posTrack = c.Pos, deviationMm = dev.ToDictionary(p => p.Key, p => Math.Round(p.Value * 1000, 2)), track });
-                a.Group.Free();
+                a.Dispose();
             }
         }
         rows.Add(new { held });
@@ -445,7 +457,7 @@ internal partial class AnimalsProof : Node
                     }
                 }
                 rows.Add(new { rig = rig.Name, kind, test = name, frames, stances, maxSlideMm = worst.ToDictionary(p => p.Key, p => Math.Round(p.Value * 1000, 2)), maxSlideInGaitChangeMm = Math.Round(worstSwitch * 1000, 2) });
-                a.Group.Free();
+                a.Dispose();
             }
         }
         return rows;
@@ -500,6 +512,30 @@ internal partial class AnimalsProof : Node
             Main.I.View.GetTexture().GetImage().SavePng(Path.Combine(dir, name));
             shots.Add(name);
             pictures.Add(new { name, clip = cart.dog.ClipName, kind = cart.dog.Kind, hour = World.Daylight.I.Hour });
+        }
+        {
+            // two metres from the dog's side, at its middle's height: the harness, the traces and the shafts
+            for (int i = 0; i < 10; i++) await Frame();
+            var d = cart.dog.Group.GlobalTransform;
+            var fwd = d.Basis.Z.Normalized();
+            var sd = d.Basis.X.Normalized();
+            var at = d.Origin + Vector3.Up * 0.38f - fwd * 0.12f;
+            Vector3 from = at + sd * 2f + Vector3.Up * 0.25f;
+            foreach (var off in new[] { sd * 2f, -sd * 2f })
+            {
+                var c = at + off + Vector3.Up * 0.25f;
+                if (!town.Walk!.Free(c.X, c.Z)) continue;
+                from = c;
+                break;
+            }
+            Main.I.Cam.LookAtFromPosition(from, at);
+            if (Main.I.Cam is Player.FlyCam fly2) fly2.Face(Main.I.Cam.GlobalBasis.GetRotationQuaternion());
+            for (int i = 0; i < 4; i++) await Frame();
+            Main.I.View.GetTexture().GetImage().SavePng(Path.Combine(dir, "cart-side-2m.png"));
+            shots.Add("cart-side-2m.png");
+            var hp = cart.dog.HarnessPoints();
+            pictures.Add(new { name = "cart-side-2m.png", clip = cart.dog.ClipName, kind = cart.dog.Kind, hour = World.Daylight.I.Hour,
+                harness = hp is { } h ? new[] { h.traceL.X, h.traceL.Y, h.traceL.Z, h.tugL.X, h.tugL.Y, h.tugL.Z } : null });
         }
         return new { found = true, kind = cart.dog.Kind, clip = cart.dog.ClipName, shots };
     }

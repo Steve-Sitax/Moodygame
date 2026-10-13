@@ -54,7 +54,7 @@ CLIPS = "--clips" in ARGS
 NOGLB = "--no-glb" in ARGS
 
 GRID = {"mongrel": 0.0028, "draught": 0.0034, "schipperke": 0.0019, "terrier": 0.0022, "cat": 0.0014, "pig": 0.004}
-TRIS = {"mongrel": 5000, "draught": 5000, "schipperke": 5000, "terrier": 5000, "cat": 5000, "pig": 5000}
+TRIS = {"mongrel": 8500, "draught": 9000, "schipperke": 8000, "terrier": 8000, "cat": 6500, "pig": 9000}
 
 
 def harness_fit(Bd, J, H):
@@ -95,6 +95,11 @@ def build_rig(rig, variants, report):
     else:
         pics, nmap, F = paint.paint_rig(ob, Bd, parts, rig, coats, size=animals.TEX)
     nimg = export.image(name + "_normal", nmap, colour=False)
+    from animals import pictures
+    png_hashes = {} if "--nopaint" in ARGS else {name + "_normal.png": pictures.write(name + "_normal", nmap, normal=True)}
+    if "--nopaint" not in ARGS:
+        for v in variants:
+            png_hashes[v["name"] + "_colour.png"] = pictures.write(v["name"] + "_colour", pics[v["coat"]])
     # what the pictures are: a SHA-256 of each one's 8-bit pixels (top row first), for assets/ATTRIBUTION.md
     import hashlib
     hashes = {name + "_normal": hashlib.sha256((np.clip(nmap, 0, 1) * 255 + 0.5).astype(np.uint8).tobytes()).hexdigest()}
@@ -118,6 +123,20 @@ def build_rig(rig, variants, report):
         poses, inf = clips.bake_action(R, fn, secs, kind, verts, W, mask, fps=animals.FPS // 2, base=base)
         baked.append((cname, poses, 2, dict(kind="once" if cname in clips.ONCE else "pose", base=base, loop=cname not in clips.ONCE,
                                             secs=secs, **inf)))
+    # the cart dog's harness (the draught rig): straps and tugs skinned to its chest and back, their own picture
+    hz = None
+    if rig["species"] == "dog" and name == "draught":
+        from animals import harness
+        hp_, tg_, hpts = harness.build(Bd)
+        hpic = harness.picture()
+        himg = export.image("harness_colour", hpic)
+        from animals import pictures as pictures_
+        png_hashes["harness_colour.png"] = pictures_.write("harness_colour", hpic)
+        hmat = export.material("harness", himg, None, rough=0.7)
+        hz = (hp_, tg_, hpts, hmat)
+        if not bpy.data.objects.get("dog_trace"):
+            tob = harness.to_object("dog_trace", harness.trace(), skinned=False)
+            tob.data.materials.append(hmat)
     # the animals: an armature per kind, the meshes copied, one material each
     arms = []
     for i, v in enumerate(variants):
@@ -135,10 +154,27 @@ def build_rig(rig, variants, report):
         m1.name = m1.data.name = v["name"] + "_lod1"
         cimg = export.image(v["name"] + "_colour", pics[v["coat"]])
         mat = export.material(v["name"], cimg, nimg, rough=0.85)
+        sheen = paint.COATS[v["coat"]].get("sheen", 0.05 if rig["species"] != "pig" else 0.08)
+        if hz is not None:
+            from animals import harness
+            for piece, suffix in ((hz[0], "_harness"), (hz[1], "_harness_tugs")):
+                hob = harness.to_object(v["name"] + suffix, piece)
+                hob.data.materials.append(hz[3])
+                export.attach(hob, ao)
         for m in (m0, m1):
             m.data.materials.clear()
             m.data.materials.append(mat)
             export.attach(m, ao)
+            # the coat's sheen in the shader's eye channel (vertex red: 0 dull, 0.45 the wet nose, 1 the eyes): the
+            # glossy guard hairs of a black coat catch the light, so its shape reads in sun and under the lamps
+            at = m.data.color_attributes.get("Col")
+            if at is not None:
+                c = np.zeros(len(at.data) * 4, np.float32)
+                at.data.foreach_get("color", c)
+                c = c.reshape(-1, 4)
+                low = c[:, 0] < 0.3
+                c[low, 0] = sheen
+                at.data.foreach_set("color", c.ravel())
         arms.append(ao)
     rest = export.rest_mats(arms[0])
     clip_info = {}
@@ -154,9 +190,12 @@ def build_rig(rig, variants, report):
                  triangles=[tris0, tris1])
     if rig["species"] == "dog":
         facts["harness"] = harness_fit(Bd, J, H)
+        if hz is not None:
+            bone_of = {"traceL": "chest", "traceR": "chest", "tugL": "spine", "tugR": "spine"}
+            facts["harness"]["points"] = {k: dict(bone=bone_of[k], rest=[round(float(c), 4) for c in p]) for k, p in hz[2].items()}
     for ao in arms:
         export.set_extras(ao, dict(facts, kind=ao.name))
-    report[name] = dict(triangles=[tris0, tris1], vertices=len(ob.data.vertices), secs=round(time.time() - t0, 1), pictures=hashes,
+    report[name] = dict(triangles=[tris0, tris1], vertices=len(ob.data.vertices), secs=round(time.time() - t0, 1), pictures=hashes, pngs=png_hashes,
                         clips={k: {kk: vv for kk, vv in v.items() if kk in ("stance_miss_mm", "drop_mm", "wave_mm", "ik_miss_mm", "secs")}
                                for k, v in clip_info.items()})
     print(f"[animals] {name}: {tris0}/{tris1} triangles, {len(ob.data.vertices)} vertices, {len(clip_info)} clips, "
@@ -166,10 +205,44 @@ def build_rig(rig, variants, report):
     return dict(rig=rig, Bd=Bd, arms=arms, R=R, baked=baked, ob=ob, parts=parts, verts=verts, W=W)
 
 
+def shape_only(rigs):
+    """--shape: the bodies alone, meshed as the game gets them, in plain clay views (.scratch/animals-build/shape)."""
+    for rname, rig in rigs.items():
+        if ONLY and rname not in ONLY:
+            continue
+        t0 = time.time()
+        Bd = body.build(rig)
+        if "--raw" in ARGS:
+            verts, faces = mesh.surface(Bd, GRID[rname])
+            ob = mesh.to_object(rname + "_raw", verts, faces)
+            pcs = [mesh.ear(Bd, S_, rig["P"]["ears"])[0] for S_ in "LR"]
+            pcs += [mesh.eyeball(c, look, r, shape=lids) for c, look, r, lids in Bd.marks.get("eyes", [])]
+            if rig["species"] == "dog":
+                pcs += mesh.claws(Bd, rig["H"])
+            pob = mesh.pieces_object(rname + "_pieces", pcs)[0]
+            mesh.select_only(ob)
+            pob.select_set(True)
+            bpy.ops.object.join()
+            for p_ in ob.data.polygons:
+                p_.use_smooth = True
+        else:
+            ob, parts, ear_j = mesh.build_rig_mesh(rname, Bd, GRID[rname], TRIS[rname])
+        print(f"[animals] shape {rname}: {mesh.tri_count(ob)} triangles, {time.time() - t0:.1f} s")
+        for o in bpy.data.objects:
+            if o.type == "MESH" and o is not ob:
+                o.hide_render = True
+        ob.hide_render = False
+        preview.clay(rname, rig["H"], head=Bd.marks["head"])
+        ob.hide_render = True
+
+
 def main():
     bpy.ops.wm.read_factory_settings(use_empty=True)
     bpy.context.scene.render.fps = animals.FPS
     rigs = anatomy.rigs()
+    if "--shape" in ARGS:
+        shape_only(rigs)
+        return
     report = {}
     built = {}
     for rname, rig in rigs.items():
@@ -183,11 +256,11 @@ def main():
     if not NOGLB:
         from animals import slim
         if PLAIN:
-            export.export_glb(PLAIN, plain=True)
+            export.stand_ins(lambda: export.export_glb(PLAIN, plain=True))
             slim.slim(PLAIN)
             print(f"[animals] plain -> {PLAIN} ({os.path.getsize(PLAIN) // 1024} KB)")
         if not ONLY:
-            export.export_glb(OUT, plain=False)
+            export.stand_ins(lambda: export.export_glb(OUT, plain=False))
             slim.slim(OUT)
             print(f"[animals] -> {OUT} ({os.path.getsize(OUT) // 1024} KB)")
     if PREVIEW or CLIPS:

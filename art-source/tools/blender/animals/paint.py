@@ -179,28 +179,28 @@ def smoothstep(e0, e1, x):
 
 COATS = {
     # base, back (dorsal), belly, plus markings; tone of the hair tips; strand contrast
-    "mongrel_brown": dict(base=0x80552f, back=0x4a301a, belly=0xc9a275, marks=["blaze", "toes_white", "muzzle_dark"], blaze=0xe6dccb,
-                          muzzle=0x3a2616, pad=0x1e1814, nose=0x16110e, iris=0x5a3714, claw=0x2a2420),
-    "mongrel_black": dict(base=0x24211e, back=0x151312, belly=0x3a3530, marks=["blaze"], blaze=0xd8d0c2, pad=0x151211, nose=0x0e0c0b,
-                          iris=0x5c3a16, claw=0x1a1816, tips=0x4a3f34),
-    "mongrel_spotted": dict(base=0xdcd3c1, back=0xd2c8b2, belly=0xe9e3d6, marks=["patches", "ears_patch", "eye_patch"], patch=0x6b4426,
-                            pad=0x2a2220, nose=0x231a16, iris=0x4a2f12, claw=0xb8ab98),
-    "mongrel_grey": dict(base=0x7d7a74, back=0x55524e, belly=0xb5b0a6, marks=["brindle", "muzzle_dark"], brindle=0x3a3734,
-                         muzzle=0x4a4744, pad=0x1e1c1b, nose=0x141313, iris=0x6a4a20, claw=0x2a2826),
-    "draught_fawn": dict(base=0xb88a52, back=0x8e6538, belly=0xd8b88a, marks=["mask", "ears_dark"], mask=0x2a2018, ears=0x3a2a1c,
-                         pad=0x1c1714, nose=0x120f0d, iris=0x4a2c10, claw=0x262220),
-    "draught_brindle": dict(base=0x7a5531, back=0x5a3c22, belly=0xa27c55, marks=["brindle", "mask", "blaze_small"], brindle=0x241a12,
-                            mask=0x1e1712, blaze=0xd8ccb6, pad=0x1a1512, nose=0x100d0b, iris=0x4a2c10, claw=0x22201e),
-    "schipperke_black": dict(base=0x1b1a19, back=0x121111, belly=0x262422, marks=[], pad=0x141211, nose=0x0b0a0a, iris=0x4a2a10,
-                             claw=0x1a1817, tips=0x3a3632),
-    "terrier_white": dict(base=0xe8e3d7, back=0xe0dacb, belly=0xefebe2, marks=["head_tan", "saddle", "beard_grey"], tan=0xa8733c,
+    "mongrel_brown": dict(base=0x80552f, back=0x4a301a, belly=0xc9a275, marks=["blaze", "toes_white", "muzzle_dark", "dirt"], blaze=0xe6dccb,
+                          muzzle=0x3a2616, pad=0x1e1814, nose=0x16110e, iris=0x3e2610, claw=0x2a2420),
+    "mongrel_black": dict(base=0x2c2926, back=0x1e1c1a, belly=0x3d3833, marks=["blaze_small", "dirt"], blaze=0xd8d0c2, pad=0x151211, nose=0x0e0c0b,
+                          iris=0x3a2410, claw=0x1a1816, tips=0x6e5d4e, under=0x4c4640, sheen=0.14),
+    "mongrel_spotted": dict(base=0xdcd3c1, back=0xd2c8b2, belly=0xe9e3d6, marks=["patches", "ears_patch", "eye_patch", "dirt"], patch=0x6b4426,
+                            pad=0x2a2220, nose=0x231a16, iris=0x3a2410, claw=0xb8ab98),
+    "mongrel_grey": dict(base=0x7d7a74, back=0x55524e, belly=0xb5b0a6, marks=["brindle", "muzzle_dark", "dirt"], brindle=0x3a3734,
+                         muzzle=0x4a4744, pad=0x1e1c1b, nose=0x141313, iris=0x4a3014, claw=0x2a2826),
+    "draught_fawn": dict(base=0xb08450, back=0x8a6238, belly=0xd2b286, marks=["mask", "ears_dark", "dirt"], mask=0x2a2018, ears=0x6a4a2c,
+                         pad=0x1c1714, nose=0x120f0d, iris=0x34200c, claw=0x262220),
+    "draught_brindle": dict(base=0x7a5531, back=0x5a3c22, belly=0xa27c55, marks=["brindle", "mask", "blaze_small", "dirt"], brindle=0x241a12,
+                            mask=0x1e1712, blaze=0xd8ccb6, pad=0x1a1512, nose=0x100d0b, iris=0x34200c, claw=0x22201e),
+    "schipperke_black": dict(base=0x2a2725, back=0x1d1b1a, belly=0x38332f, marks=["ruff_light", "dirt"], pad=0x141211, nose=0x0b0a0a, iris=0x4a2a10,
+                             claw=0x1a1817, tips=0x6b5c4e, under=0x4f4943, ruff=0x3c3631, sheen=0.15),
+    "terrier_white": dict(base=0xe8e3d7, back=0xe0dacb, belly=0xefebe2, marks=["head_tan", "saddle", "beard_grey", "dirt"], tan=0xa8733c,
                           saddle=0x2a2420, beard=0xcfc8b8, pad=0x2a2321, nose=0x141110, iris=0x3e2610, claw=0xb5a995, wire=True),
-    "terrier_wheaten": dict(base=0xc9a86a, back=0xb08d52, belly=0xdcc493, marks=["ears_dark", "beard_grey"], ears=0x8a6638,
+    "terrier_wheaten": dict(base=0xc9a86a, back=0xb08d52, belly=0xdcc493, marks=["ears_dark", "beard_grey", "dirt"], ears=0x8a6638,
                             beard=0xd2bf96, pad=0x231d19, nose=0x141110, iris=0x3e2610, claw=0x2a2420, wire=True),
     "cat_tabby": dict(base=0x86735a, back=0x6a5a44, belly=0xc4b49a, marks=["tabby", "chin_pale"], stripes=0x2e261c, pad=0x3a2a28,
                       nose=0xa06a62, iris=0x8c9440, claw=0xd8d0c4),
-    "cat_black": dict(base=0x1e1d1c, back=0x161515, belly=0x2a2826, marks=[], pad=0x1a1716, nose=0x2a2222, iris=0xc8b42a, claw=0xd0c8bc,
-                      tips=0x3a332c),
+    "cat_black": dict(base=0x292725, back=0x1d1c1b, belly=0x35312e, marks=[], pad=0x1a1716, nose=0x2a2222, iris=0xc8b42a, claw=0xd0c8bc,
+                      tips=0x62544a, under=0x48423d, sheen=0.14),
     "cat_ginger": dict(base=0xc8762f, back=0xa85b1f, belly=0xebcb9c, marks=["tabby", "chin_pale"], stripes=0x8a4416, stripe_amt=0.6,
                        pad=0xc08070, nose=0xc07a70, iris=0xb0a030, claw=0xe0d8cc),
     "cat_white": dict(base=0xe4e2da, back=0xdcdad2, belly=0xefeee8, marks=["cap_grey", "tail_grey"], patch=0x6a6a68, pad=0xd09a94,
@@ -209,10 +209,10 @@ COATS = {
                        iris=0xb8a830, claw=0xd8d0c4),
     "cat_tortie": dict(base=0x2a221c, back=0x1e1814, belly=0x4a3828, marks=["tortie", "chin_pale"], orange=0xb2622a, cream=0xd8a86a,
                        pad=0x2e2222, nose=0x3a2626, iris=0xb09028, claw=0xd0c8bc),
-    "pig_pink": dict(base=0xddac9a, back=0xd29e8b, belly=0xe8c0ae, marks=["mud"], mud=0x5e4a36, pad=0x6a5a4c, nose=0xc88878,
-                     iris=0x2a1c12, claw=0x6a5a4c, skin=True),
-    "pig_spotted": dict(base=0xe0b5a3, back=0xd6a894, belly=0xebc6b4, marks=["pig_spots", "mud"], patch=0x2a2422, mud=0x5a4634,
-                        pad=0x5e5044, nose=0xc4887a, iris=0x2a1c12, claw=0x5e5044, skin=True),
+    "pig_pink": dict(base=0xd8a898, back=0xcc9a88, belly=0xe4bcac, marks=["mud"], mud=0x4e3e2e, pad=0x6a5a4c, nose=0xc88878,
+                     iris=0x2a1c12, claw=0x6a5a4c, skin=True, sheen=0.08),
+    "pig_spotted": dict(base=0xdcb2a0, back=0xd2a690, belly=0xe8c4b2, marks=["pig_spots", "mud"], patch=0x2a2422, mud=0x4a3a2c,
+                        pad=0x5e5044, nose=0xc4887a, iris=0x2a1c12, claw=0x5e5044, skin=True, sheen=0.08),
 }
 
 
@@ -346,10 +346,12 @@ def coat(F, coat_name, rig, seed=1873, strand_v=None):
         mix(m, hexc(c["patch"]))
     if "brindle" in marks:
         # stripes running down the sides, broken and wavy
-        z = P[:, 2] / H + 0.05 * fbm(P, 14 / H, 2, rng_seed + 21) + 0.02 * P[:, 1] / H
-        s = np.sin(2 * math.pi * z * 13.0 + 2.6 * fbm(P, 7 / H, 2, rng_seed + 22))
-        brk = smoothstep(0.35, 0.6, fbm(P, 20 / H, 2, rng_seed + 23))
-        m = smoothstep(0.5, 0.85, s) * brk * smoothstep(0.9, 0.3, np.abs(up)) * (1 - F.head) * (1 - F.s("paw", "pad", "claw")) * 0.6
+        # brindle: fine dark streaks, leaning back as they run down the sides, broken, branching and blurred into the
+        # ground colour, not bands
+        z = P[:, 2] / H + 0.09 * fbm(P, 11 / H, 3, rng_seed + 21) + 0.035 * (J["chest"][1] - P[:, 1]) / H
+        s = np.sin(2 * math.pi * z * 22.0 + 4.0 * fbm(P, 6 / H, 3, rng_seed + 22))
+        brk = smoothstep(0.3, 0.62, fbm(P, 16 / H, 3, rng_seed + 23))
+        m = smoothstep(0.35, 0.95, s) * brk * smoothstep(0.95, 0.35, np.abs(up)) * (1 - F.head * 0.7) * (1 - F.s("paw", "pad", "claw")) * 0.5
         mix(m, hexc(c["brindle"]))
     if "head_tan" in marks:
         m = np.maximum(F.head * smoothstep(0.62, 0.48, hq[:, 2]) * (hq[:, 1] > -0.05), (part == "ear") * 1.0)
@@ -411,21 +413,52 @@ def coat(F, coat_name, rig, seed=1873, strand_v=None):
         v2 = fbm(P, 16 / H, 3, rng_seed + 43)
         mix(smoothstep(0.5, 0.56, v1), hexc(c["orange"]))
         mix(smoothstep(0.62, 0.68, v2) * 0.8, hexc(c["cream"]))
+    if "dirt" in marks:
+        # street dirt on the lower legs and paws: grey-brown, patchy
+        lo = smoothstep(0.16 * H, 0.03 * H, P[:, 1] + 0.05 * H * (fbm(P, 16 / H, 2, 57) - 0.5))
+        m = lo * F.s("leg", "paw", "pad") * (0.35 + 0.65 * fbm(P, 40 / H, 2, 58))
+        mix(m, hexc(0x5a4c3e), 0.45)
+    if "ruff_light" in marks:
+        # the longer hair of the ruff, cape and culottes: duller, browner at the tips
+        mix(F.s("ruff", "culotte") * (0.6 + 0.4 * fbm(P, 30 / H, 2, 59)), hexc(c["ruff"]), 0.7)
+    mud_m = np.zeros(n)
     if "mud" in marks:
-        m = smoothstep(0.22 * H, 0.06 * H, P[:, 1] + 0.08 * H * fbm(P, 12 / H, 2, 51)) + np.isin(part, ["belly"]) * smoothstep(0.0, -0.8, up) * 0.5
-        mix(m * F.s("leg", "paw", "belly", "hoof", "thigh"), hexc(c["mud"]), 0.7)
+        m = smoothstep(0.3 * H, 0.08 * H, P[:, 1] + 0.12 * H * (fbm(P, 9 / H, 2, 51) - 0.5)) + F.s("belly") * smoothstep(0.0, -0.8, up) * 0.6
+        # splashes higher up the flanks and the hams
+        m = np.maximum(m, smoothstep(0.66, 0.74, fbm(P, 14 / H, 3, 52)) * smoothstep(0.65 * H, 0.35 * H, P[:, 1]))
+        mud_m = np.clip(m, 0, 1) * (0.55 + 0.45 * fbm(P, 30 / H, 2, 53))
+        mix(mud_m, hexc(c["mud"]), 0.85)
     # ---- the fur (or skin) itself
     if strand_v is None:
         strand_v = np.zeros(n)
     tips = hexc(c["tips"]) if "tips" in c else None
     hair = F.fur
     if skin:
-        # pig skin: fine mottling, sparse pale bristles, wrinkles at the neck and the joints
+        # pig skin: fine mottling and pores; sparse pale bristles, longer and thicker in a crest along the spine; the
+        # skin folded in rings round the neck behind the jowls, across the snout, round the knees and the hocks;
+        # dried mud in clods
         mot = fbm(P, 60 / H, 3, rng_seed + 61)
-        col *= (0.94 + 0.10 * mot)[:, None]
-        bristle = strand_v ** 6 * hair
-        col = col * (1 - 0.18 * bristle[:, None]) + hexc(0xf0e0c8)[None, :] * 0.18 * bristle[:, None]
-        height = 0.35 * strand_v * hair
+        col *= (0.93 + 0.12 * mot)[:, None]
+        pores = vnoise(P, 1 / 0.0012, rng_seed + 62)
+        crest = smoothstep(0.05, 0.0, np.abs(P[:, 0])) * smoothstep(0.3, 0.8, up) * F.s("torso", "neck")
+        bristle = np.clip(strand_v ** (6 - 2.5 * crest) * hair * (1 + 1.5 * crest), 0, 1)
+        col = col * (1 - 0.3 * bristle[:, None]) + hexc(0xeee0c8)[None, :] * 0.3 * bristle[:, None]
+        height = 0.3 * strand_v * hair + 0.12 * pores
+        nk = F.s("neck", "throat") * smoothstep(-0.2, -0.7, up + 0.3)
+        along = P @ unit(J["neck2"] - J["chest"])
+        w1 = 0.5 + 0.5 * np.sin(2 * math.pi * along / 0.028 + 3 * fbm(P, 30 / H, 2, 63))
+        snout = F.head * smoothstep(0.5, 0.62, hq[:, 2]) * smoothstep(0.93, 0.86, hq[:, 2])
+        w2 = 0.5 + 0.5 * np.sin(2 * math.pi * hq[:, 2] / 0.065 + 4 * fbm(P, 30 / H, 2, 64))
+        jy = [J["carpusL"][1], J["hockL"][1], J["elbowL"][1]]
+        knee = sum(smoothstep(0.035, 0.0, np.abs(P[:, 1] - y0)) for y0 in jy) * F.s("leg")
+        w3 = 0.5 + 0.5 * np.sin(2 * math.pi * P[:, 1] / 0.011)
+        fold = nk * w1 ** 3 + snout * w2 ** 3 * 0.35 * (0.4 + fbm(P, 50 / H, 2, 66)) + knee * w3 ** 2 * 0.6
+        groove = nk * (1 - w1) ** 4 + snout * (1 - w2) ** 4 * 0.35 + knee * (1 - w3) ** 3 * 0.6
+        height = height + 1.1 * fold
+        col *= (1 - 0.18 * np.clip(groove, 0, 1))[:, None]
+        clod = fbm(P, 1 / 0.006, 2, rng_seed + 65)
+        height = height + mud_m * (0.5 + 1.2 * clod)
+        col *= (1 - 0.15 * mud_m * (1 - clod))[:, None]
     else:
         wire = c.get("wire", False)
         k = 0.42 if wire else 0.34
@@ -433,6 +466,10 @@ def coat(F, coat_name, rig, seed=1873, strand_v=None):
         if tips is not None:
             t = (strand_v ** 3 * hair)[:, None]
             col = col * (1 - 0.35 * t) + tips[None, :] * 0.35 * t
+        if "under" in c:
+            # a dark coat shows its softer, lighter under-coat in the partings between the clumps
+            u_ = ((1 - strand_v) ** 2.5 * hair * 0.55)[:, None]
+            col = col * (1 - u_) + hexc(c["under"])[None, :] * u_
         height = strand_v * hair
     # ---- the parts that are not fur
     pad = np.isin(part, ["pad"]) | (np.isin(part, ["paw", "hoof"]) & (N[:, 1] < -0.55) & (P[:, 1] < 0.03 * H))
@@ -558,16 +595,67 @@ def normal_map(height, pos, mask, strength):
     return (n * 0.5 + 0.5).astype(np.float32)
 
 
-def paint_rig(ob, Bd, vparts, rig, coats, size=512, seed=1873):
-    """Colour pictures for each coat of a rig and the rig's one normal picture. Painted at 2x and filtered down."""
+def tetra_grad(f, p, e):
+    """The field's gradient by four samples on a tetrahedron (a third fewer than central differences)."""
+    k = np.array(((1.0, -1.0, -1.0), (-1.0, -1.0, 1.0), (-1.0, 1.0, -1.0), (1.0, 1.0, 1.0)))
+    g = np.zeros_like(p)
+    for kk in k:
+        g += kk[None, :] * f(p + kk[None, :] * e)[:, None]
+    return g / (4.0 * e)
+
+
+def field_bake(Bd, pos, nrm, part, names, eps):
+    """Tangent-space normals of the full field over the meshed surface, at every other texel of the 2x raster (the
+    picture's own texels). The near copy is cut down to some thousands of triangles; what the field has beyond them
+    (the eye sockets and lids, the lips' line, the nostrils, the toes' grooves, the muscles' edges) comes back in the
+    normal picture. Frames: across the picture's columns and down its rows, as the shader builds them."""
+    P = pos[0::2, 0::2].astype(np.float64)
+    N = nrm[0::2, 0::2].astype(np.float64)
+    pr = part[0::2, 0::2]
+    out = np.zeros(P.shape, np.float64)
+    out[..., 2] = 1.0
+    T = np.gradient(P, axis=1)
+    Bv = np.gradient(P, axis=0)
+    edge = (np.linalg.norm(T, axis=-1) > 0.02) | (np.linalg.norm(Bv, axis=-1) > 0.02)
+    body = pr >= 0
+    for nm in ("eye", "ear", "claw", "harness", "tug"):
+        if nm in names:
+            body &= pr != names.index(nm)
+    sel = body & ~edge
+    idx = np.nonzero(sel.ravel())[0]
+    Pf, Nf, Tf, Bf = P.reshape(-1, 3), N.reshape(-1, 3), T.reshape(-1, 3), Bv.reshape(-1, 3)
+    of = out.reshape(-1, 3)
+    for c0 in range(0, len(idx), 150000):
+        ii = idx[c0:c0 + 150000]
+        Pm, Nm = Pf[ii], Nf[ii]
+        Nm = Nm / np.maximum(np.linalg.norm(Nm, axis=1, keepdims=True), 1e-9)
+        d = Bd.sdf(Pm)
+        Pm = Pm - Nm * d[:, None]
+        g = tetra_grad(Bd.sdf, Pm, eps)
+        Nd = g / np.maximum(np.linalg.norm(g, axis=1, keepdims=True), 1e-9)
+        bad = (Nd * Nm).sum(1) < 0.3
+        Nd[bad] = Nm[bad]
+        Tm = Tf[ii] - Nm * (Nm * Tf[ii]).sum(1, keepdims=True)
+        Tm /= np.maximum(np.linalg.norm(Tm, axis=1, keepdims=True), 1e-12)
+        Bm = Bf[ii] - Nm * (Nm * Bf[ii]).sum(1, keepdims=True)
+        Bm /= np.maximum(np.linalg.norm(Bm, axis=1, keepdims=True), 1e-12)
+        of[ii] = np.stack([(Nd * Tm).sum(1), (Nd * Bm).sum(1), (Nd * Nm).sum(1)], 1)
+    out = of.reshape(out.shape)
+    out[..., 2] = np.maximum(out[..., 2], 0.05)
+    return out / np.linalg.norm(out, axis=-1, keepdims=True), sel
+
+
+def paint_rig(ob, Bd, vparts, rig, coats, size=1024, seed=1873):
+    """Colour pictures for each coat of a rig and the rig's one normal picture. Painted at 2x and filtered down; the
+    normal picture is the full field's shape (baked) with the hair's or the skin's relief on it."""
     S2 = size * 2
     pos, nrm, part, names, vert = raster(ob, S2, vparts)
     F = Field(Bd, pos, nrm, part, names, S2, vert)
     H = Bd.H
     sp = rig["species"]
     coat_kind = rig["P"].get("coat", "short")
-    width = {"cat": 0.0008, "pig": 0.0016}.get(sp, 0.0012 * math.sqrt(H / 0.5))
-    length = {"short": 0.012, "smooth": 0.010, "ruff": 0.022, "wire": 0.016, "cat": 0.010, "pig": 0.008}.get(coat_kind, 0.012)
+    width = {"cat": 0.0009, "pig": 0.0018}.get(sp, 0.0013 * math.sqrt(H / 0.5))
+    length = {"short": 0.012, "smooth": 0.010, "ruff": 0.024, "wire": 0.016, "cat": 0.011, "pig": 0.008}.get(coat_kind, 0.012)
     sv, _ = strands(F.P, F.flow, F.N, width, length, taps=12, seed=seed)
     clump = fbm(F.P, 1.0 / (width * 6), 2, seed + 3)
     sv = np.clip(0.75 * sv + 0.45 * (clump - 0.5) + 0.12, 0, 1)
@@ -582,8 +670,13 @@ def paint_rig(ob, Bd, vparts, rig, coats, size=512, seed=1873):
             hgt = height
     hmap = F.put(hgt[:, None])[..., 0]
     strength = {"cat": 0.0014, "pig": 0.0018}.get(sp, 0.002)
-    nm = normal_map(hmap, pos, F.mask, strength)
-    nm = dilate(nm, F.mask)
-    n = down2(nm) * 2 - 1
+    nm = normal_map(hmap, pos, F.mask, strength) * 2 - 1
+    nm = down2(nm)
+    nm /= np.maximum(np.linalg.norm(nm, axis=-1, keepdims=True), 1e-6)
+    bake, ok = field_bake(Bd, pos, nrm, part, names, {"cat": 0.00025}.get(sp, 0.0004))
+    # the hair's relief on the baked shape (whiteout: slopes add, the z's multiply)
+    n = np.stack([bake[..., 0] + nm[..., 0], bake[..., 1] + nm[..., 1], bake[..., 2] * nm[..., 2]], -1)
     n /= np.maximum(np.linalg.norm(n, axis=-1, keepdims=True), 1e-6)
-    return out, (n * 0.5 + 0.5).astype(np.float32), F
+    mask1 = part[0::2, 0::2] >= 0
+    n = dilate(n * 0.5 + 0.5, mask1)
+    return out, n.astype(np.float32), F

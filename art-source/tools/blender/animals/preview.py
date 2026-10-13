@@ -80,3 +80,29 @@ def views(prefix, H, centre=(0, 0, 0), size=None, textured=False):
           lens=60, w=900, h=760)
     shoot(os.path.join(SHOTS, f"{prefix}_paw.png"), (cx + 0.9 * H, cy + 0.35 * H, cz + 1.0 * H), (cx + 0.14 * H, cy + 0.06 * H, cz + 0.45 * H),
           lens=60, w=900, h=760)
+
+
+def clay(prefix, H, nose_z=None, head=None, folder=None):
+    """Plain clay views of whatever is in the scene (the shape alone, cavity shaded): side, front, back, top,
+    three-quarters from the front and from behind, the head close, low behind."""
+    setup(False, bg=0.5)
+    sh = bpy.context.scene.display.shading
+    sh.cavity_ridge_factor = 1.4
+    sh.cavity_valley_factor = 1.4
+    out = folder or os.path.join(SHOTS, "..", "shape")
+    os.makedirs(out, exist_ok=True)
+    s = 2.3 * H
+    mid = (0, 0.55 * H, -0.02 * H)
+    views = [("side", (6 * H, 0.55 * H, -0.02 * H), mid, s), ("front", (0.001, 0.62 * H, 6 * H), mid, s * 0.8),
+             ("back", (0.001, 0.62 * H, -6 * H), mid, s * 0.8), ("top", (0.001, 6 * H, -0.02 * H), (0, 0, -0.02 * H), s)]
+    for name, eye, at, o in views:
+        shoot(os.path.join(out, f"{prefix}_{name}.png"), eye, at, ortho=o, w=900, h=700)
+    shoot(os.path.join(out, f"{prefix}_34f.png"), (2.4 * H, 1.25 * H, 2.4 * H), (0, 0.5 * H, 0.05 * H), lens=40, w=900, h=700)
+    shoot(os.path.join(out, f"{prefix}_34b.png"), (-2.4 * H, 1.2 * H, -2.6 * H), (0, 0.5 * H, -0.05 * H), lens=40, w=900, h=700)
+    shoot(os.path.join(out, f"{prefix}_low.png"), (1.6 * H, 0.12 * H, 1.8 * H), (0, 0.45 * H, 0), lens=35, w=900, h=700)
+    if head is not None:
+        c, R, L = head
+        fc = c + R[:, 2] * 0.55 * L
+        shoot(os.path.join(out, f"{prefix}_face34.png"), tuple(fc + R @ (L * __import__("numpy").array((1.1, 0.5, 1.7)))), tuple(fc), lens=50, w=900, h=700)
+        shoot(os.path.join(out, f"{prefix}_faceside.png"), tuple(fc + R @ (L * __import__("numpy").array((2.4, 0.0, 0.0)))), tuple(fc), ortho=1.9 * L, w=900, h=700)
+        shoot(os.path.join(out, f"{prefix}_facefront.png"), tuple(fc + R @ (L * __import__("numpy").array((0.0, 0.25, 2.6)))), tuple(fc), ortho=1.6 * L, w=900, h=700)

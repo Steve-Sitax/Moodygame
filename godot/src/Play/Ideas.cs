@@ -59,6 +59,7 @@ public partial class Ideas : Node
     {
         foreach (var e in entries) e.Dispose(); entries.Clear();
         foreach (var n in marks) if (GodotObject.IsInstanceValid(n)) n.QueueFree(); marks.Clear();
+        foreach (var d in dogs.Values) d.Dispose();
         dogs.Clear(); following.Clear();
     }
     public async Task Load()
@@ -82,7 +83,7 @@ public partial class Ideas : Node
                 int id = lost.Poster;
                 if (lost.Dog != null && Animal.Make(lost.Dog.Look is "dog_brown" or "dog_black" or "dog_spotted" or "dog_grey" ? lost.Dog.Look : "dog_brown") is { } dog)
                 {
-                    Main.I.View.AddChild(dog.Group); marks.Add(dog.Group); dog.Start(); dogs[id] = dog;
+                    dog.Group.Visible = true; dog.Start(); dogs[id] = dog;
                     dog.Group.Position = lost.State == "lying" ? Ground(lost.X, lost.Z, 0) : Ground(Jef.I.X, Jef.I.Z, 0);
                     if (lost.State == "held") following.Add(id);
                 }

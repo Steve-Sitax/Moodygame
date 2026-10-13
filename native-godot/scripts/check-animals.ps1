@@ -1,7 +1,7 @@
 param(
     [string]$Godot,
-    [ValidateSet('captures','slide','shaders','timing','identity','network')]
-    [string[]]$Modes = @('slide','captures','shaders','timing','identity','network'),
+    [ValidateSet('captures','slide','trace','shaders','timing','identity','network')]
+    [string[]]$Modes = @('slide','captures','trace','shaders','timing','identity','network'),
     [ValidateRange(8800,8999)][int]$Port = 8912,
     [ValidateRange(0,3600)][int]$WaitForTimingSeconds = 900,
     [switch]$NoPrepare,
@@ -61,11 +61,18 @@ try {
         switch ($mode) {
             'captures' { $args += @('--animals-captures',$dir,'--animals-integration-proof') }
             'slide' { $args += @('--animals-slide',$dir,'--animals-sun-test') }
+            'trace' { $args += @('--animals-trace',$dir) }
             'shaders' { $args += @('--shaders',$dir) }
             'timing' { $args += @('--peopletest',$dir,'--peoplechecks','crowds','--hour','13') }
             'network' { $args += @('--dedicated','--native-network-smoke',$dir) }
         }
         $timing = $mode -eq 'timing'
+        if ($mode -eq 'trace') {
+            # the trace times the animals' own update: run it alone when the other engines allow, else note who ran
+            $until = [DateTime]::UtcNow.AddSeconds([Math]::Min($WaitForTimingSeconds, 300))
+            while ((Other-Godot).Count -and [DateTime]::UtcNow -lt $until) { Start-Sleep -Seconds 2 }
+            @(Other-Godot) | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $dir 'others-at-start.json')
+        }
         if ($timing -or $mode -eq 'shaders') {
             $exclusiveUntil = [DateTime]::UtcNow.AddSeconds($WaitForTimingSeconds)
             $waiting = 0
@@ -102,10 +109,10 @@ try {
             if ($timing) { $isolation | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $dir 'process-isolation.json') }
             if ($contaminated) { throw 'Timing contaminated by another Godot process.' }
             if ($child.ExitCode -ne 0 -or $log -match '(?m)^ERROR:') { throw "Animals $mode failed; inspect $dir/engine.log" }
-            $reportFile = switch ($mode) { 'captures' {'animals-captures.json'} 'slide' {'animals-slide.json'} 'shaders' {'shaders.json'} 'network' {'network.json'} default {'peopletest.json'} }
+            $reportFile = switch ($mode) { 'captures' {'animals-captures.json'} 'slide' {'animals-slide.json'} 'trace' {'animals-trace.json'} 'shaders' {'shaders.json'} 'network' {'network.json'} default {'peopletest.json'} }
             $report = Get-Content -LiteralPath (Join-Path $dir $reportFile) -Raw | ConvertFrom-Json
             if ($mode -eq 'shaders' -and (-not $report.ok -or $report.problems.Count -or $report.people2ShaderKindCount -ne 1)) { throw 'Shader inventory: a problem, or not exactly one people2 (skin) kind.' }
-            if ($mode -in @('captures','slide','timing') -and -not $report.ok) { throw "Animals $mode report failed." }
+            if ($mode -in @('captures','slide','timing','trace') -and -not $report.ok) { throw "Animals $mode report failed." }
             if ($mode -eq 'network' -and -not $report.passed) { throw 'Native multiplayer identity proof failed.' }
             Write-Output "PASS $mode"
         } finally {

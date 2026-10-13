@@ -348,7 +348,9 @@ def sit_legs(R, ps, skip=()):
         if "H" + S_ not in skip:
             hip = ps.girdle_top("H" + S_)
             ht = R.toe_rest("H" + S_)
-            ps.leg("H" + S_, np.array((ht[0] * 1.15, 0.0, hip[2] + 0.36 * H)), low=-72, paw=0, out=10)
+            # the haunches folded under: the hock and the whole metatarsus on the ground, the paw a little ahead of
+            # the hip, the stifle forward and a little out
+            ps.leg("H" + S_, np.array((ht[0] * 1.12, 0.0, hip[2] + 0.25 * H)), low=-80, paw=0, out=9)
 
 
 def sit(R):
@@ -379,7 +381,8 @@ def lie(R):
                 ps.front_flat("F" + S_, elbow_y=0.045 * H)
             hip = ps.girdle_top("H" + S_)
             ht = R.toe_rest("H" + S_)
-            ps.leg("H" + S_, np.array((ht[0] * 1.5, 0.0, hip[2] + 0.30 * H)), low=-80, paw=0, out=24 if not cat else 14)
+            # the hind legs folded beside the body, the hocks on the ground behind, the paws beside the flank
+            ps.leg("H" + S_, np.array((ht[0] * 1.45, 0.0, hip[2] + 0.17 * H)), low=-86, paw=0, out=20 if not cat else 14)
     return fn, 5.0, "settle", "lie"
 
 
@@ -427,9 +430,9 @@ def scratch(R):
         sc = math.sin(2 * math.pi * 7.0 * t)
         target = target + np.array((0, 0.03 * H, -0.035 * H)) * sc
         ht = R.toe_rest("HL")
-        folded = np.array((ht[0] * 1.15, 0.0, hip[2] + 0.36 * H))
+        folded = np.array((ht[0] * 1.12, 0.0, hip[2] + 0.25 * H))
         toe = folded + (target - folded) * env
-        ps.leg("HL", toe, low=-72 + 82 * env, paw=30 * env, out=10 + 34 * env, pole_out=0.8 * env)
+        ps.leg("HL", toe, low=-80 + 90 * env, paw=30 * env, out=9 + 35 * env, pole_out=0.8 * env)
     return fn, 2.6, "settle", "sit"
 
 

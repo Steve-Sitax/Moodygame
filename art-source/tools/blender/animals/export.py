@@ -171,3 +171,36 @@ def export_glb(path, plain=False):
         export_draco_mesh_compression_enable=not plain, export_draco_mesh_compression_level=7,
         export_rest_position_armature=True, export_def_bones=False, export_try_sparse_sk=False,
         export_anim_slide_to_zero=True, export_optimize_animation_size=False)
+
+
+def stand_ins(fn):
+    """Run fn (an export) with every big picture swapped for an 8 x 8 stand-in of its mean colour (the native game
+    loads the real pictures, imported and compressed, from native-godot/assets/animal-pictures), then put them back."""
+    swaps = []
+    for mt in bpy.data.materials:
+        if not mt.use_nodes or mt.node_tree is None:
+            continue
+        for nd in mt.node_tree.nodes:
+            if nd.type != "TEX_IMAGE" or nd.image is None or nd.image.size[0] <= 16:
+                continue
+            big = nd.image
+            small = bpy.data.images.get(big.name + "_s")
+            if small is None:
+                px = np.zeros(len(big.pixels), np.float32)
+                big.pixels.foreach_get(px)
+                mean = px.reshape(-1, 4)[:, :3].mean(0)
+                small = bpy.data.images.new(big.name + "_s", 8, 8, alpha=False, is_data=big.colorspace_settings.name == "Non-Color")
+                if big.colorspace_settings.name == "Non-Color":
+                    small.colorspace_settings.name = "Non-Color"
+                rgba = np.ones((8, 8, 4), np.float32)
+                rgba[..., :3] = mean
+                small.pixels.foreach_set(rgba.ravel())
+                small.file_format = "PNG"
+                small.pack()
+            nd.image = small
+            swaps.append((nd, big))
+    try:
+        fn()
+    finally:
+        for nd, big in swaps:
+            nd.image = big

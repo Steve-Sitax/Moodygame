@@ -19,7 +19,7 @@ OUT = os.path.join(ROOT, "client", "public", "models", "animals.glb")
 SHOTS = os.path.join(ROOT, "..", ".scratch", "animals-build", "shots")
 
 FPS = 60
-TEX = 512
+TEX = 1024
 
 
 def B(x, y=None, z=None):

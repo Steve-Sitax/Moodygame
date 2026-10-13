@@ -110,14 +110,20 @@ DOG_EAR = (0.085, 1.175, 0.74)  # ear base on the skull, H units
 BREEDS = {
     # H: shoulder height (m); L: body length factor; leg: leg length factor; girth: barrel width; bone: limb
     # thickness; skull: head size; muzzle: muzzle length; ears, tail: kinds; tailp: segment pitches; taill: length
-    "mongrel": dict(H=0.50, L=1.0, leg=1.0, girth=1.0, bone=1.0, skull=1.0, muzzle=1.0, deep=1.0, ears="semi",
-                    tail="long", tailp=[-28, -48, -60, -58, -46], taill=0.56, coat="short"),
-    "draught": dict(H=0.64, L=1.02, leg=0.97, girth=1.2, bone=1.25, skull=1.2, muzzle=0.66, deep=1.08, ears="drop",
-                    tail="long", tailp=[-40, -62, -74, -76, -70], taill=0.52, coat="smooth", flews=True),
-    "schipperke": dict(H=0.32, L=0.93, leg=0.95, girth=1.08, bone=1.0, skull=1.0, muzzle=0.88, deep=1.05,
-                       ears="prick", tail="bob", tailp=[-20, -40, -50, -60, -60], taill=0.06, coat="ruff"),
-    "terrier": dict(H=0.38, L=0.92, leg=1.04, girth=0.94, bone=1.05, skull=0.98, muzzle=1.1, deep=1.0, ears="button",
-                    tail="docked", tailp=[58, 72, 80, 82, 82], taill=0.30, coat="wire"),
+    "mongrel": dict(H=0.50, L=1.0, leg=1.0, girth=1.0, bone=1.0, skull=1.0, muzzle=0.9, deep=1.0, ears="drop_small",
+                    tail="long", tailp=[-28, -48, -60, -58, -46], taill=0.56, coat="short", tuck=0.02),
+    # the Belgian matin: big boned, broad skull and deep square muzzle with hanging lips, a heavy neck, little tuck-up
+    "draught": dict(H=0.64, L=1.02, leg=0.97, girth=1.2, bone=1.25, skull=1.2, muzzle=0.72, deep=1.08, ears="drop",
+                    tail="long", tailp=[-40, -62, -74, -76, -70], taill=0.52, coat="smooth", flews=True,
+                    skull_w=1.24, muzzle_w=1.32, muzzle_d=1.3, stop=1.5, dome=1.1, neck=1.25, tuck=-0.03),
+    # the Schipperke: cobby, the line falling from high withers to the croup, a fox's wedge of a head, small pricked ears
+    "schipperke": dict(H=0.32, L=0.93, leg=0.95, girth=1.08, bone=1.0, skull=1.0, muzzle=0.76, deep=1.05,
+                       ears="prick", tail="bob", tailp=[-20, -40, -50, -60, -60], taill=0.06, coat="ruff",
+                       skull_w=1.06, muzzle_w=0.82, muzzle_d=0.86, stop=0.9, neck=1.1, slope=0.08),
+    # the ratting terrier: square, a flat narrow skull and a long muzzle with little stop, button ears, a docked tail up
+    "terrier": dict(H=0.38, L=0.92, leg=1.04, girth=0.94, bone=1.05, skull=0.98, muzzle=1.1, deep=1.04, ears="button",
+                    tail="docked", tailp=[58, 72, 80, 82, 82], taill=0.30, coat="wire",
+                    skull_w=0.86, muzzle_w=0.9, muzzle_d=0.95, stop=0.6, dome=0.86, neck=0.92, tuck=0.05),
 }
 
 

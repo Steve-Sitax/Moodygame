@@ -29,7 +29,7 @@ def bounds(Bd, pad):
 
 def surface(Bd, h):
     lo, hi = bounds(Bd, 0.18 * Bd.H)
-    d, lo, h = S.grid_eval(Bd.sdf, lo, hi, h, coarse=3 * h, band=3.6 * h)
+    d, lo, h = S.grid_eval(Bd.sdf, lo, hi, h, coarse=3 * h, band=5.0 * h)
     verts, faces = S.surface_nets(d, lo, h)
     return verts, faces
 
@@ -142,38 +142,40 @@ def eyeball(c, look, r, seg=12, rings=8, bone="head", part="eye", shape=(1.0, 1.
 
 
 def ear_shape(kind, H, L):
-    """The ear's mid-line (points in the head frame, head units), widths and the way the flap faces, by kind."""
-    if kind == "semi":  # up and out, the top third folded forward
-        # the street dog's ear: up off the skull a little, then folding over forward and down beside the head
-        spine = [(0.0, -0.03, 0.0), (0.05, 0.06, -0.005), (0.095, 0.085, 0.045), (0.12, 0.03, 0.10), (0.13, -0.05, 0.13)]
-        width = [0.26, 0.31, 0.30, 0.24, 0.09]
-        thick = 0.022
-    elif kind == "drop":  # hanging flat by the cheek
-        spine = [(0.0, -0.02, 0.0), (0.08, 0.03, 0.02), (0.14, -0.07, 0.05), (0.165, -0.20, 0.06), (0.17, -0.33, 0.05)]
-        width = [0.26, 0.34, 0.36, 0.30, 0.12]
+    """The ear's mid-line (points in the head frame, head units), widths and thickness, by kind. Drop ears rise a
+    little off the skull, fold over at the crease and hang flat against the cheek; button ears stand at the base and
+    fold forward, the tip pointing at the eye; prick ears stand open to the front."""
+    if kind == "drop":  # the draught dog: big, hanging flat by the cheek to below the eye
+        spine = [(0.0, 0.0, 0.0), (0.05, 0.022, 0.0), (0.095, 0.004, 0.02), (0.118, -0.11, 0.045), (0.124, -0.25, 0.06), (0.12, -0.38, 0.055)]
+        width = [0.28, 0.36, 0.4, 0.38, 0.3, 0.1]
+        thick = 0.018
+    elif kind in ("drop_small", "semi"):  # the street dog: a smaller hanging ear
+        spine = [(0.0, 0.0, 0.0), (0.045, 0.022, -0.005), (0.085, 0.004, 0.018), (0.105, -0.07, 0.035), (0.113, -0.18, 0.045), (0.108, -0.27, 0.04)]
+        width = [0.25, 0.31, 0.33, 0.31, 0.23, 0.08]
         thick = 0.02
-    elif kind == "prick":  # small, erect, close set
-        spine = [(0.0, -0.04, 0.0), (0.02, 0.08, 0.0), (0.035, 0.18, -0.01), (0.045, 0.27, -0.02), (0.05, 0.36, -0.03)]
-        width = [0.34, 0.31, 0.23, 0.12, 0.02]
-        thick = 0.03
+    elif kind == "prick":  # small, erect, close set, triangular
+        spine = [(0.0, -0.02, 0.0), (0.012, 0.06, -0.01), (0.022, 0.13, -0.017), (0.03, 0.19, -0.023), (0.034, 0.235, -0.027)]
+        width = [0.24, 0.21, 0.15, 0.075, 0.012]
+        thick = 0.026
     elif kind == "button":  # a V folded forward, the tip pointing to the eye
-        spine = [(0.0, -0.03, 0.0), (0.06, 0.06, 0.0), (0.10, 0.11, 0.05), (0.12, 0.08, 0.12), (0.12, 0.02, 0.17)]
-        width = [0.24, 0.27, 0.23, 0.14, 0.03]
+        spine = [(0.0, 0.0, 0.0), (0.012, 0.045, -0.005), (0.022, 0.062, 0.022), (0.036, 0.036, 0.07), (0.046, 0.0, 0.11), (0.05, -0.03, 0.14)]
+        width = [0.24, 0.25, 0.24, 0.2, 0.12, 0.025]
         thick = 0.024
     elif kind == "cat":
         spine = [(0.0, -0.05, 0.0), (0.03, 0.07, -0.01), (0.065, 0.18, -0.02), (0.09, 0.28, -0.03), (0.11, 0.37, -0.04)]
         width = [0.42, 0.4, 0.3, 0.15, 0.02]
         thick = 0.028
     else:  # "lop": the pig's big ears, out and falling forward over the eyes
-        spine = [(0.0, -0.02, 0.0), (0.08, 0.06, 0.04), (0.17, 0.06, 0.13), (0.24, -0.01, 0.23), (0.27, -0.08, 0.32)]
-        width = [0.22, 0.32, 0.36, 0.30, 0.10]
+        spine = [(0.0, 0.0, 0.0), (0.06, 0.04, 0.05), (0.105, 0.025, 0.14), (0.13, -0.04, 0.24), (0.14, -0.11, 0.32), (0.13, -0.16, 0.37)]
+        width = [0.24, 0.34, 0.4, 0.38, 0.28, 0.1]
         thick = 0.02
     return spine, width, thick
 
 
-def ear(Bd, S_, kind, nu=8, nv=13):
-    """A closed flap: front and back skins round a thin mid-surface, a rounded rim. Returns the piece and the
-    joints for the two ear bones (base, middle, tip)."""
+def ear(Bd, S_, kind, nu=9, nv=16):
+    """A closed flap: front and back skins round a thin mid-surface, a rounded rim. A hanging flap lies against the
+    head: wherever its mid-surface would be in the skull or the cheek it is pushed out onto the skin. Returns the
+    piece and the joints for the two ear bones (base, middle, tip)."""
     J = Bd.J
     o, R, L = Bd.marks["head"]
     sg = 1.0 if S_ == "L" else -1.0
@@ -181,33 +183,63 @@ def ear(Bd, S_, kind, nu=8, nv=13):
     spine, width, thick = ear_shape(kind, Bd.H, L)
     sp = np.array([[sg * a, b, c] for a, b, c in spine]) * L
     sp = np.array([base + R @ q for q in sp])
-    # resample the spine smoothly along its length
     seg = np.linalg.norm(np.diff(sp, axis=0), axis=1)
     s = np.concatenate([[0], np.cumsum(seg)])
     tot = s[-1]
     vs = np.linspace(0, 1, nv)
     pts = np.array([np.interp(vs * tot, s, sp[:, i]) for i in range(3)]).T
     wd = np.interp(vs * tot, s, np.array(width) * L)
-    # a leaf: the outline rounds into the tip
     wd = wd * np.where(vs > 0.4, np.sqrt(np.clip(1 - ((vs - 0.4) / 0.62) ** 2, 0.03, 1)), 1.0)
-    # across: perpendicular to the spine, roughly front-to-back of the head (a flap facing sideways/forward)
-    fwd = R[:, 2]
     erect = kind in ("cat", "prick")
-    # the way the flap faces: erect ears open forward (and a little out), flaps face out from the head
     n0 = unit(R @ np.array((sg * 0.35, 0.0, 1.0))) if erect else unit(R @ np.array((sg * 1.0, 0.25, 0.1)))
-    pc = Piece("ear")
     tk = thick * L
-    rows_f, rows_b = [], []
+    # the mid-surface first
+    mids = np.zeros((nv, nu, 3))
+    nrms = np.zeros((nv, 3))
     for i, v in enumerate(vs):
         tang = unit(pts[min(i + 1, nv - 1)] - pts[max(i - 1, 0)])
         across = unit(np.cross(tang, n0))
         nrm = unit(np.cross(across, tang))
-        rf, rb = [], []
+        # keep the flap's facing continuous from row to row (a fold is not a twist)
+        if i > 0 and nrm @ nrms[i - 1] < 0:
+            nrm = -nrm
+            across = -across
+        elif i == 0 and not erect and nrm @ (R @ np.array((sg, 0.0, 0.0))) < 0:
+            nrm = -nrm
+            across = -across
+        nrms[i] = nrm
         for j in range(nu):
             u = j / (nu - 1) - 0.5
             cup = -(u * u * 4 - 0.5) * wd[i] * (0.22 if erect else 0.08)
+            mids[i, j] = pts[i] + across * u * wd[i] + nrm * cup
+    if not erect:
+        # lie against the head, never in it (the root stays where it grows from)
+        flat = mids.reshape(-1, 3)
+        free = np.repeat(vs > 0.18, nu)
+        for _ in range(4):
+            d = Bd.base(flat)
+            need = (d < tk * 0.7 + 0.004 * L) & free
+            if not need.any():
+                break
+            gr = S.gradient(Bd.base, flat[need])
+            gr /= np.maximum(np.linalg.norm(gr, axis=1, keepdims=True), 1e-9)
+            flat[need] += gr * (tk * 0.7 + 0.004 * L - d[need])[:, None]
+        mids = flat.reshape(nv, nu, 3)
+        # smooth the pushed sheet a little along its rows and columns so it stays a flap, not a shell
+        for _ in range(2):
+            m2 = mids.copy()
+            m2[1:-1, 1:-1] = (mids[1:-1, 1:-1] * 4 + mids[:-2, 1:-1] + mids[2:, 1:-1] + mids[1:-1, :-2] + mids[1:-1, 2:]) / 8
+            m2[:3] = mids[:3]
+            mids = m2
+    pc = Piece("ear")
+    rows_f, rows_b = [], []
+    for i, v in enumerate(vs):
+        nrm = nrms[i]
+        rf, rb = [], []
+        for j in range(nu):
+            u = j / (nu - 1) - 0.5
             t = tk * (1.0 - 0.55 * abs(u * 2) ** 2) * (1.0 - 0.45 * v) * (1.0 + 0.9 * (1 - v) ** 3)
-            mid = pts[i] + across * u * wd[i] + nrm * cup
+            mid = mids[i, j]
             wv = {"head": max(0.0, 1 - v / 0.12)} if v < 0.12 else {}
             share = 1.0 - sum(wv.values())
             b2 = float(np.clip((v - 0.35) / 0.3, 0, 1))
@@ -221,15 +253,13 @@ def ear(Bd, S_, kind, nu=8, nv=13):
         for j in range(nu - 1):
             pc.f(rows_f[i][j], rows_f[i + 1][j], rows_f[i + 1][j + 1], rows_f[i][j + 1])
             pc.f(rows_b[i][j], rows_b[i][j + 1], rows_b[i + 1][j + 1], rows_b[i + 1][j])
-        # the rims along both edges
         pc.f(rows_f[i][0], rows_b[i][0], rows_b[i + 1][0], rows_f[i + 1][0])
         pc.f(rows_f[i][nu - 1], rows_f[i + 1][nu - 1], rows_b[i + 1][nu - 1], rows_b[i][nu - 1])
-    # the tip and the root closed
     for j in range(nu - 1):
         pc.f(rows_f[-1][j], rows_b[-1][j], rows_b[-1][j + 1], rows_f[-1][j + 1])
         pc.f(rows_f[0][j], rows_f[0][j + 1], rows_b[0][j + 1], rows_b[0][j])
     mid_i = nv // 2
-    joints = (pts[0], pts[mid_i], pts[-1])
+    joints = (pts[0], mids[mid_i, nu // 2], mids[-1, nu // 2])
     return pc, joints
 
 
