@@ -27,6 +27,10 @@ Use a free port from 8900 (never 8080, 8088 or 8090), a new `--db`, `--prefs` an
 never Steve's own save or layouts. A run has a four-minute limit; two at the same time are the most the
 machine keeps up with. The exit code is 1 when `ok` is false, and the line `stuck: PASS` or `stuck: FAIL` and
 the path of the report are in the output. Read the report: a walker listed under `stuck` has its last 14 samples.
+The report also includes `laneChecks`: controlled milk-woman fixtures exercise overlapping vehicle lanes at
+three frame rates and both lane orders, crossing waits, a blocked lateral escape, the bridge-rail escape,
+vehicle ownership and priority, and release after a vehicle departs. Every entry must be true. Run only these
+fixtures with `--lanecheck <dir>` in place of `--stuck <dir>`; it writes `lanecheck.json` and quits.
 The same shape runs every other check below; give each its own option and folder. Every place must be below 5 ms
 mean active main-frame time, and `paths` and `shaders` must have no findings.
 

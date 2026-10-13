@@ -44,7 +44,7 @@ public partial class Checks : Node
     private static readonly string[] Places = { "grote markt", "cathedral", "handschoenmarkt", "vismarkt", "rijnkaai" };
     public override void _Ready()
     {
-        foreach (string m in new[] { "devtest", "paths", "stuck", "shaders", "perfcheck", "clocks", "interiors", "pixelcheck", "windows" })
+        foreach (string m in new[] { "devtest", "paths", "stuck", "lanecheck", "shaders", "perfcheck", "clocks", "interiors", "pixelcheck", "windows" })
             if (Main.I.Flag(m))
             {
                 if (mode != "") throw new ArgumentException("one Godot check per run");
@@ -155,6 +155,7 @@ public partial class Checks : Node
                 "devtest" => await DevTest(),
                 "paths" => PathCheck.Run(Town),
                 "stuck" => await Stuck(),
+                "lanecheck" => LaneCheck(),
                 "shaders" => await Shaders(),
                 "perfcheck" => await Perf(),
                 "clocks" => await BuildingAudit.Clocks(this, Frames),
@@ -232,6 +233,8 @@ public partial class Checks : Node
     }
     private async Task<object> Stuck()
     {
+        var laneChecks = Crowd.CheckVehicleLanes(Main.I);
+        GD.Print("vehicle lane checks: " + JsonSerializer.Serialize(laneChecks));
         var watch = new StuckWatch();
         watch.ReplaySolids(Town, Path.Combine(dir, "original-solid-cases.json"));
         double simulated = 0, sample = 0;
@@ -254,7 +257,15 @@ public partial class Checks : Node
             Picture("stuck-" + Places[place].Replace(' ', '-'));
         }
         Town.SetProcess(true);
-        return watch.Report(Town, Math.Round(simulated, 2));
+        var report = JsonSerializer.SerializeToNode(watch.Report(Town, Math.Round(simulated, 2)))!.AsObject();
+        report["laneChecks"] = JsonSerializer.SerializeToNode(laneChecks);
+        report["ok"] = report["ok"]!.GetValue<bool>() && laneChecks.Values.All(ok => ok);
+        return report;
+    }
+    private object LaneCheck()
+    {
+        var checks = Crowd.CheckVehicleLanes(Main.I);
+        return new { ok = checks.Values.All(ok => ok), checks };
     }
     private async Task<object> Shaders()
     {
