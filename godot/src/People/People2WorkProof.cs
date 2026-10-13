@@ -10,7 +10,7 @@ namespace Scheldemist.People;
 // Package D3's native proof (--people2 --people2-work <dir>): on the Rijnkaai at a docker's sack pile (HaulRoutes
 // rk-m) dockers take sacks up onto the shoulder, carry them and set them down, two pass a sack, one rolls a cask,
 // one hauls a rope; a fishwife guts at a fish table, a woman sweeps. Pictures at 3 m and 6 m by day and at 19:30, a
-// sequence of a lift (every 0.25 s), and a stretch of their life recorded (clips, things, planted feet).
+// sequence of a lift (every 0.25 s), and a stretch of their life recorded (clips, things, planted feet). Rain too.
 // docs/godot-people2.md "Work".
 [GamePart(899)]
 internal partial class People2WorkProof : Node
@@ -58,7 +58,7 @@ internal partial class People2WorkProof : Node
             Stage(pile);
             World.Blobs.I?.Set("people2-work", shadows);
             var pictures = new List<object>();
-            foreach (var (label, hour, weather) in new[] { ("day", 13.0, "clear"), ("lamps", 19.5, "clear") })
+            foreach (var (label, hour, weather) in new[] { ("day", 13.0, "clear"), ("rain", 13.0, "rain"), ("lamps", 19.5, "clear") })
             {
                 await Dev.Kit.I.Light(hour, weather);
                 for (int settle = 0; settle < 60; settle++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);

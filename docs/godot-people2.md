@@ -137,12 +137,14 @@ locally from the motion, the person's stable id, a load and a context every PC w
 Proof: `& ./native-godot/scripts/check-people2.ps1 -Modes work -Port <port>` (`--people2-work <dir>`) stages on the
 Rijnkaai at the sack pile of haul route rk-m: a docker lifting (the game's context), lifts held at moments, a carrier
 walking with a sack, one standing with it, one setting it down, two passing a sack, a cask rolled, a rope hauled from
-a block, a fishwife at a fish table, a woman sweeping; pictures at 3 m and 6 m at 13:00 and 19:30, twelve pictures
+a block, a fishwife at a fish table, a woman sweeping; pictures at 3 m and 6 m at 13:00, in rain and at 19:30, twelve pictures
 0.25 s apart of a lift and of a pass, 60 s of their life at 30 Hz, and 45 s of the town's own hauling dockers live
 (with `--people2-map docker_b=docker_a,docker_c=docker_a,docker_sack=docker_a,fishwife_b=fishwife_a`), with pictures
 of their lifts and set-downs (`work.json`).
 
-Evidence (2026-10-13, 235 clips): `.scratch/people2-native-9254f7b2a2ed433d96227592ab2f0dfb/work/` (pictures inspected);
+Evidence (2026-10-13, 235 clips): `.scratch/people2-native-59590afb765d413cb2eb0b6b26a2466a/` (work with rain, pictures
+inspected; content identity 7 checks and multiplayer 25 checks pass with the new fingerprint) and
+`.scratch/people2-native-9254f7b2a2ed433d96227592ab2f0dfb/work/`;
 the paced loops' planted feet moved 0.002 mm (the sack walk) and 0.004 mm (the cask) under the runtime lock; in 45 s
 eleven town dockers played `sack_lift`, `sack_lift_high`, `sack_walk`, `sack_hold`, `sack_down`, `crate_walk` and
 `crate_hold` from the game's own haul. `.scratch/people2-native-3ad95f007a014193828d2099f90343f5/`: the D2 motion
