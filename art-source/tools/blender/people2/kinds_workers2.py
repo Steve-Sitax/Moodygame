@@ -20,6 +20,7 @@ PROFILES = {
  "grinder": dict(body="man_middling",age=54,coat="short",coat_col=0x5a4632,shirt=0x9a9282,trousers=0x4a4236,hat="bowler",hat_col=0x3a3026,apron="leather",kerchief=0x6a2a22),
  "ragman": dict(body="old_man",age=64,coat="long",coat_col=0x5a5040,shirt=0x6a6250,trousers=0x4a4032,hat="bowler",hat_col=0x2e2a24,ragged=True,kerchief=0x7a5a2a),
  "baker_boy": dict(body="child_middling",age=14,shirt=0xe0dcd0,trousers=0xb8b2a2,rolled=True,hat="knit",hat_col=0xe4e0d6,apron="linen",flour=.8,boots=0x3a2e22),
+ "beggar": dict(body="old_man",age=66,coat="long",coat_col=0x4a4236,shirt=0x5a5446,trousers=0x3e3830,hat="top",hat_col=0x3a342c,ragged=True,kerchief=0x5a4a34),
 }
 
 

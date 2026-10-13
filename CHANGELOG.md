@@ -9,6 +9,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The optional people2 workers wear distinct dock smocks, worn working coats, a coal sack hood, soot-stained sweep clothes and a flour-dusted baker boy's apron.
 - The dogs, cats and pigs are sculpted again with real anatomy: skull, stop and muzzle, cheekbones, ears that hang, fold or stand by breed, shoulder blades, ribs, tuck-up, thighs, hocks and paws; their pictures are four times as fine. Black coats show their sheen and lighter under-coat, the Schipperke its ruff, the pigs their skin folds, bristles and mud. Dogs sit with their haunches folded and lie like a sphinx. The cart dog wears a real leather harness and stands in the cart's shafts, its traces running to the shaft hooks. Animals no longer make the game stutter as they come into view.
 - The new people (`--people2`) are rebuilt on MakeHuman's free (CC0) bodies and faces: every townsperson gets a face of their own from one of 22 face types of the port in 1873 (Flemish dockers, Walloons, Dutch skippers, sailors from the north, the south and further away, clerks, gentlemen, fishwives, widows, children, the old), with real eyes, brows, stubble, weathered or ruddy skin, and hair, beards and moustaches that are shaped, not painted on. The same person looks the same on every PC.
 
