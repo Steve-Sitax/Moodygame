@@ -88,7 +88,7 @@ public sealed partial class NativeEmigrants : INativeServiceModule
     private void Push(JsonObject result){if(!B(result,"changed"))return;host.Publish("emigrants",new JsonObject{["arrived"]=A(result["arrived"]).Count,["boarded"]=A(result["boarded"]).Count});host.Publish("jobs",host.Payload(1));}
     public void Register(NativeServiceHost service)
     {
-        service.Register("GET","/api/emigrants",r=>View());service.Register("POST","/api/emigrants/board",r=>{var result=BoardByLighter(r.Int("household"));if(B(result,"ok")){host.Publish("emigrants",new JsonObject{["boarded"]=1});host.Publish("jobs",host.Payload(r.PlayerId));}result["view"]=View();return result;});service.Register("POST","/api/dev/emigrants",Dev);
+        service.Register("GET","/api/emigrants",r=>View());service.Register("POST","/api/emigrants/board",r=>{var result=BoardByLighter(r.Int("household"));if(!B(result,"ok"))throw new NativeServiceException(S(result,"why","they cannot board now"),409);{host.Publish("emigrants",new JsonObject{["boarded"]=1});host.Publish("jobs",host.Payload(r.PlayerId));}result["view"]=View();return result;});service.Register("POST","/api/dev/emigrants",Dev);
         service.TickAfterHooks.Add(_=>Push(Tick()));service.SleepEndedHooks.Add(_=>Push(Tick()));service.NewGame+=()=>{DevEarly.Clear();if(Doors!=null&&State==null)Ensure((uint)N(C.World("town"),"seed"));};service.Loaded+=()=>{DevEarly.Clear();if(State!=null){if(Doors!=null)Rehouse(State!);Tick(true);}};
     }
 }

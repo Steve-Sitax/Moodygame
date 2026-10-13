@@ -377,7 +377,16 @@ public sealed partial class Api : IDisposable
     /// <summary>M8f: every liftable thing of the town as the server has it (shared/goods.ts; the records are in Play/GoodsData.cs).</summary>
     public Task<T> Goods<T>() => Get<T>("api/goods", 10_000);
     /// <summary>M8f: ask to lift, put down, hand over ... (shared/goods.ts GoodsAsk). A refusal (409) comes back as an answer with its reason.</summary>
-    public Task<T> GoodsAsk<T>(object ask) => Call<T>(HttpMethod.Post, "api/goods", ask, DefaultTimeoutMs, refusalToo: true);
+    public Task<T> GoodsAsk<T>(object ask)
+    {
+        // where he stands now, so the server judges his reach by this and not by the last tick
+        if (JsonSerializer.SerializeToNode(ask, Json) is System.Text.Json.Nodes.JsonObject body && !body.ContainsKey("pos") && Scheldemist.Game.GameState.I is { } state)
+        {
+            var at = state.Pos;
+            if (float.IsFinite(at.X) && float.IsFinite(at.Z)) { body["pos"] = new System.Text.Json.Nodes.JsonObject { ["x"] = at.X, ["z"] = at.Z }; ask = body; }
+        }
+        return Call<T>(HttpMethod.Post, "api/goods", ask, DefaultTimeoutMs, refusalToo: true);
+    }
     private static string Esc(string id) => Uri.EscapeDataString(id);
 
     // ------------------------------------------------------------------ the push channel
