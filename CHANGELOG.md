@@ -20,6 +20,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - Things the game puts out while you play, such as barrels, crates, sacks, market stalls, carts, boats and the ferry, now have the same fine relief as the rest of the town: staves, planks, rope, sacking and iron bands catch the light at close range instead of looking like flat pictures (issue #78). Glass, paper, animals and people stay smooth.
 - The cathedral's great west window and its side windows no longer glow amber by day in mist, rain and fog. They now stay dark stained glass that fades into the air, and still light up after dark (issue #70).
 - The floor of the cathedral's nave, and of the other churches, shows its stone paving again instead of a flat black plane. The sun's coloured patches from the windows now light the floor by day in clear weather (issue #74).
+- The beams of sunlight through the church windows now follow the sun, the weather and the hour. Before, those of the cathedral, Carolus and St Jacob were invisible and St Paul's never changed. Now all four show by day in clear weather, vanish in rain, fog and storm, and turn to a faint cold moon shaft on clear nights (issue #92).
 
 - Water from a broken gutter now lands on the pavement where the street has a raised pavement, and its wet patch shows there; before, the splash and the patch lay 12 cm under the paving stones (15 of the 50 broken gutters, issue 67).
 
