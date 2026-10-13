@@ -93,7 +93,7 @@ def limit4(ob):
     wt.apply(ob, W, limit=4)
 
 
-NEAR_CROWD, NEAR_HERO, FAR = 8900, 11500, 2100
+NEAR_CROWD, NEAR_HERO, FAR = 14000, 16000, 2500
 
 
 def reduce_cloth(ob, budget):
