@@ -7,6 +7,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The tobacconist on the Grote Markt can be walked into again. The bundles of leaf tobacco on its shelves were taken for a great hall door, and an invisible wall the size of the whole shop stood in the doorway; now Jef walks in through the open door and through the shop (issue #114).
 - Townspeople no longer get stuck or walk on the spot (issue #64). Children waiting for a place at hopscotch or skipping rope stand still instead of walking in place. People walk round the goods dray, the sack handcart and crates lying on the quay, instead of through them, and a handcart that is parked next to someone no longer lands on top of him. A walker shoved aside by a passing cart waits a moment before trying again, a cart driver held at a corner stands instead of walking in place and, after a few seconds, goes on to the next point of his way, and a child held up by the player stands still.
 - Walking down the stone steps of the Petit Bassin into the dock water no longer makes the view jerk when you start to swim. The eye used to drop by up to 17 cm in one frame, and he could be shifted sideways at the same moment; now the view settles to swimming height in a moment (issue 88).
 - Finishing night work after the employer has gone home no longer blanks your purse and the clock until the next update: the engine now answers with the full game state, as the old server did (issue 107).

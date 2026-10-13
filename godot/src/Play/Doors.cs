@@ -180,7 +180,16 @@ public partial class Doors : Node
             string m = LeafMaterial(c);
             if (m != "") hall = m;
         }
-        return hall;
+        // A prop in a room is never a leaf of the street: the tobacconist's bundles of leaf tobacco (material "sh_leaf")
+        // made a "hall" door called "sh", with a doorway box as big as the whole shop standing across its door.
+        return hall != "" && InRoom(n) ? "" : hall;
+    }
+
+    private static bool InRoom(Node n)
+    {
+        for (var p = n.GetParent(); p != null; p = p.GetParent())
+            if (p.Name.ToString().StartsWith("ROOM_", StringComparison.Ordinal)) return true;
+        return false;
     }
 
     public override void _Ready()

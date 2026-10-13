@@ -66,18 +66,8 @@ public partial class HomeDoorTest : Node
         try
         {
             if (Main.I.Arg("route-rooms") is { Length: > 0 } rooms) { await RouteRooms(rooms.Split(',')); return; }
-            if (!Main.I.Flag("no-ai") || Paths.Database != Path.Combine(dir, "test.sqlite")) throw new InvalidOperationException("homedoortest needs --no-ai and --db <dir>/test.sqlite");
-            await Until(() => ServerLink.I?.Up == true && GameState.I.Live, 100);
-            Jef.I.TestInput = true;
-            GameState.I.PlayingWhen = () => false;
-            Dialogs.I!.KeepMouse = true;
-            var api = ServerLink.I!.Api!;
-            await api.Post<OkReply>("api/arrival/ashore");
-            Jef.I.Place(10, 12, 0);
-            await Until(() => FerryArrival.I.Ashore && !Jef.I.Riding, 15);
-            GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { hour = 13, minute = 0, weather = "clear", food = 10, sleep = 10, warmth = 10, health = 10, money_c = 500 }));
-            Scheldemist.World.Daylight.I!.SetTime(13f);
-            Scheldemist.World.Daylight.I.Settle();
+            var api = await Start();
+            if (Main.I.Arg("walk-room") is { Length: > 0 } walk) { await WalkRoom(walk); return; }
             await HomeLife.I.Load();
             Check(await Until(() => HomeLife.I.Info != null, 15), "home information");
             string id = Main.I.Arg("home", "cellar");
@@ -178,6 +168,86 @@ public partial class HomeDoorTest : Node
         }
     }
 
+    /// <summary>The test town at 13:00 in clear weather, Jef ashore with full needs.</summary>
+    private async Task<Api> Start()
+    {
+        if (!Main.I.Flag("no-ai") || Paths.Database != Path.Combine(dir, "test.sqlite")) throw new InvalidOperationException("homedoortest needs --no-ai and --db <dir>/test.sqlite");
+        await Until(() => ServerLink.I?.Up == true && GameState.I.Live, 100);
+        Jef.I.TestInput = true;
+        GameState.I.PlayingWhen = () => false;
+        Dialogs.I!.KeepMouse = true;
+        var api = ServerLink.I!.Api!;
+        await api.Post<OkReply>("api/arrival/ashore");
+        Jef.I.Place(10, 12, 0);
+        await Until(() => FerryArrival.I.Ashore && !Jef.I.Riding, 15);
+        GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { hour = 13, minute = 0, weather = "clear", food = 10, sleep = 10, warmth = 10, health = 10, money_c = 500 }));
+        Scheldemist.World.Daylight.I!.SetTime(13f);
+        Scheldemist.World.Daylight.I.Settle();
+        return api;
+    }
+
+    /// <summary>
+    /// `--walk-room shop_tobacco_markt`: Jef walks in through a shop's or tavern's street door in opening hours, as the
+    /// player does: from the street with W held, over the threshold, in to the middle of the room. The door opens by
+    /// the server's own hours (it is waited for, not forced). Writes the pictures and says whether he stands inside.
+    /// </summary>
+    private async Task WalkRoom(string room)
+    {
+        var marker = Scheldemist.World.BakedWorld.All(Main.I.World).OfType<Node3D>().FirstOrDefault(n => n.Name.ToString() == "opening_" + room + "_door" && n.HasMeta("extras"));
+        if (marker == null) { Check(false, $"{room}: its door marker is found"); return; }
+        var e = marker.GetMeta("extras").AsGodotDictionary();
+        var normal = (((marker.GetParent() as Node3D)?.GlobalTransform.Basis ?? Basis.Identity) * new Vector3(e["nx"].AsSingle(), 0, e["nz"].AsSingle())).Normalized();
+        var outward = new Vector2(normal.X, normal.Z);
+        var wall = new Vector2(marker.GlobalPosition.X, marker.GlobalPosition.Z);
+        var door = Doors.I.Get(room);
+        Note("door", new { door?.Id, door?.Kind, door?.Open, canPass = door?.CanPass, wall = new[] { wall.X, wall.Y }, outward = new[] { outward.X, outward.Y } });
+        var street = wall + outward * 6;
+        Jef.I.Place(street.X, street.Y, MathF.Atan2(-(wall.X - street.X), -(wall.Y - street.Y)));
+        await Frames(60);
+        await Shot("1-street");
+        // is the keeper at work now? If not, the hours are stepped on (13:00 on a Monday may be the keeper's dinner) until the shop is open
+        var api = ServerLink.I!.Api!;
+        async Task<bool> ServerSaysOpen()
+        {
+            var shops = await api.Get<System.Text.Json.JsonElement>("api/shops");
+            foreach (var s in shops.GetProperty("shops").EnumerateArray())
+                if (Spots.BakedName("shop:" + s.GetProperty("place").GetString()) == room) return s.GetProperty("open").GetBoolean();
+            return false;
+        }
+        var opened = new List<int>();
+        for (int hour = 13; hour != 12 && !await ServerSaysOpen(); hour = hour % 23 + 1)
+        {
+            if (hour == 13 && opened.Count == 0) Note("the keeper is not at work at 13:00; looking for the opening hours", 13);
+            GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { hour, minute = 30, weather = "clear" }));
+            opened.Add(hour);
+            if (opened.Count > 24) break;
+        }
+        Scheldemist.World.Daylight.I!.SetTime(Math.Clamp(GameState.I.Hour + 0.5f, 7f, 17f)); Scheldemist.World.Daylight.I.Settle();
+        Note("the shop is open at", new { GameState.I.Hour, tried = opened });
+        Check(opened.Count <= 24, $"{room}: the server says the shop is open at some hour");
+        // The server says the keeper is at work; the clock runs on while the door waits for its next 15 s poll, and the
+        // keeper's shift may end first, so the door is held as the server last said (open) while Jef walks.
+        if (door != null) Doors.I.Force(door, true);
+        Check(door != null && await Until(() => door.CanPass, 6), $"{room}: the door stands open in opening hours");
+        await Frames(100);
+        await Shot("2-door-open");
+        Look(Jef.I.X, Jef.I.Z, wall.X, wall.Y, 1.3f);
+        bool toDoor = await WalkTo(wall + outward * 0.5f, 12);
+        Note("at the threshold", Here());
+        await Shot("3-threshold");
+        bool inside = toDoor;
+        for (int depth = 1; depth <= 6 && inside; depth++) inside &= await WalkTo(wall - outward * depth, 6);
+        Note("inside", Here());
+        float indoors = (wall - new Vector2(Jef.I.X, Jef.I.Z)).Dot(outward);
+        // held up: say what a body-sized cylinder just ahead of him overlaps (the way it was found that a "door" the size of a shop stood in the tobacconist's doorway)
+        if (!inside || indoors <= 3f) DiagBody(new Vector3(Jef.I.X - outward.X * 0.3f, Jef.I.Y, Jef.I.Z - outward.Y * 0.3f), "0.3 m ahead of where he stopped");
+        Check(inside && indoors > 3f, $"{room}: Jef walked in through the door to {indoors:0.0} m inside");
+        Look(Jef.I.X, Jef.I.Z, wall.X, wall.Y, 1.3f);
+        await Shot("4-inside-looking-out");
+        Look(Jef.I.X, Jef.I.Z, Jef.I.X - outward.X * 4, Jef.I.Z - outward.Y * 4, 1.3f);
+        await Shot("5-inside");
+    }
+
     /// <summary>`--route-rooms home_cellar,poesje`: is there a way on foot from each room's street door down to its lowest floor? (No server, no key: the door's leaf is not asked.)</summary>
     private async Task RouteRooms(string[] rooms)
     {
@@ -197,10 +267,21 @@ public partial class HomeDoorTest : Node
             Jef.I.Place(wall.X + normal.X * 2, wall.Y + normal.Z * 2, 0);
             await Frames(10);
             if (float.IsNaN(floorY)) floorY = lowest;
-            var route = Route(wall, new Vector2(normal.X, normal.Z), (p, g) => g < floorY + 0.3f);
-            Check(route != null, $"{room}: a walkable route runs from the street door down to the floor at {floorY:0.00}");
+            // down to the floor, and at least 2.5 m in from the door (a shop's floor is the doorstep's own height: the first cell would do)
+            var inward = new Vector2(-normal.X, -normal.Z);
+            var route = Route(wall, new Vector2(normal.X, normal.Z), (p, g) => g < floorY + 0.3f && (p - wall).Dot(inward) >= 2.5f);
+            Check(route != null, $"{room}: a walkable route runs from the street door in and down to the floor at {floorY:0.00}");
             if (route != null) Note(room, new { cells = route.Count, lowest = route.Min(p => p.Y) });
         }
+    }
+
+    /// <summary>What a body-sized cylinder at a point overlaps in Solid's layer (names, and the colliders that carry none).</summary>
+    private void DiagBody(Vector3 feet, string label)
+    {
+        var q = new PhysicsShapeQueryParameters3D { CollisionMask = Scheldemist.World.Solid.Layer, Margin = 0, Shape = new CylinderShape3D { Radius = Jef.Radius, Height = Jef.Tall - Jef.Step }, Transform = new Transform3D(Basis.Identity, feet + new Vector3(0, Jef.Step + (Jef.Tall - Jef.Step) / 2, 0)) };
+        var hits = GetViewport().FindWorld3D().DirectSpaceState.IntersectShape(q, 8);
+        // a baked part has a name in Solid; a body the game stands up itself (a door's box) is a node
+        Note($"the body overlaps, {label}", hits.Select(h => h["collider"].AsGodotObject() is Node n ? $"{n.Name} {(n is Node3D n3 ? n3.GlobalPosition.ToString() : "")} {string.Join(" ", n.GetChildren().OfType<CollisionShape3D>().Select(c => (c.Disabled ? "off " : "on ") + (c.Shape is BoxShape3D b ? b.Size.ToString() : "")))}".Trim() : Scheldemist.World.Solid.I.BodyName(h["rid"].AsRid())).Distinct().ToArray());
     }
 
     private static IEnumerable<(string, Vector3, Vector3)> Windows(string id)

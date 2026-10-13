@@ -40,7 +40,11 @@ door, finds it shut, takes the key at the notice, and walks him in (down the ste
 window, and back out, with pictures and `homedoortest.json`; the way inside is found with Jef's own ground test. Its second
 form, `--homedoortest <dir> --route-rooms home_cellar:-2.2,poesje:-2.2`, only asks whether a walkable route runs from a room's street
 door down to the floor at that height (no server needed); `--no-stair-holes` shows the answer without the stair holes in the
-paving and the house linings (`World/Solid.cs`).
+paving and the house linings (`World/Solid.cs`). A route must also run at least 2.5 m in from the door, and a number that is not
+finite is written as null. Shops and taverns: pass `shop_<id>:0.0` and `tavern_<id>:0.0`. The third form,
+`--homedoortest <dir> --walk-room shop_tobacco_markt --no-ai --db <dir>/test.sqlite`, walks Jef in through a shop's or tavern's street
+door with W held (it finds an hour when the server says the keeper is at work, and holds the door open), 6 m or more into the room,
+with pictures; if he is stopped it says what the body overlaps.
 
 Limitations are evidence, not passes: `notCovered` is in every report. The path check tests the baked crowd map,
 not Jef's physics or changed moving geometry. Stuck covers a three-hour Monday route and drawn-body collisions,
