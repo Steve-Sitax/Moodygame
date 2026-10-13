@@ -434,7 +434,11 @@ public partial class PlacesTest : Node
         var ev = (await api.Actions()).Events.First(e => e.Hiring != null && e.Status == "running"); var sp = ev.Hiring!.Spots[0]; float x = (float)sp.X, z = (float)sp.Z;
         await At(x, z, x, z - 1, 1); await TownWork.I.Load(); Check(Interact.I.Find().Any(a => a.Text == "stand with the men to be hired"), "hiring stand prompt");await Shot("hiring-stand"); Interact.I.Press(Key.E);
         Check(await Until(() => !Interact.I.Find().Any(a => a.Text == "stand with the men to be hired"), 8), "hiring stand accepted once"); replies.Add(new { hiring = await api.Actions() });
-        var fire = await api.Post<JsonElement>("api/dev/director", new { template = "house_fire" }); replies.Add(new { fireFixture = fire }); Check(fire.GetProperty("ok").GetBoolean(), "fire fixture");
+        // The engine plans one event near another only after the first is over; the ballads and the hiring this run has started are still on, so let the hours pass until it takes the fire.
+        var fire = await api.Post<JsonElement>("api/dev/director", new { template = "house_fire" });
+        for (int wait = 0; wait < 6 && !fire.GetProperty("ok").GetBoolean() && fire.GetProperty("why").GetString() == "another event is too near then"; wait++)
+        { GameState.I.Apply(await api.Post<JobsPayload>("api/dev/advance", new { minutes = 60 })); await api.Tick(); fire = await api.Post<JsonElement>("api/dev/director", new { template = "house_fire" }); }
+        replies.Add(new { fireFixture = fire }); Check(fire.GetProperty("ok").GetBoolean(), "fire fixture");
         for (int i = 0; i < 15; i++) { GameState.I.Apply(await api.Post<JobsPayload>("api/dev/advance", new { minutes = 5 })); await api.Tick(); ev = (await api.Actions()).Events.First(e => e.Id == fire.GetProperty("id").GetInt32()); if (ev.Acts![ev.Stage] == "fire_chain") break; }
         Check(ev.Acts![ev.Stage] == "fire_chain", "fire reaches bucket line"); var chain = ev.Fire!.Chain[0]; x = (float)chain[0]; z = (float)chain[1];
         await At(x, z, x, z - 1, 1); await TownWork.I.Load(); Check(Interact.I.Find().Any(a => a.Text == "take a place in the bucket chain"), "fire chain prompt"); Interact.I.Press(Key.E); Check(await Until(() => TownWork.I.InChain, 8), "fire chain joined"); await Shot("fire-chain");
