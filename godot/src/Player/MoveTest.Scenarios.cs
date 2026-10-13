@@ -197,6 +197,62 @@ public partial class MoveTest
         return new { t = R(b.T), dt = R(b.T - a.T), b.State, from = a.State, speed = R(v), a = new[] { R(a.Eye.X), R(a.Eye.Y), R(a.Eye.Z) }, b = new[] { R(b.Eye.X), R(b.Eye.Y), R(b.Eye.Z) } };
     }
 
+    /// <summary>
+    /// Issue 85: E at the hoops takes him down the quay ladder into the water and W brings him up it again, at low and
+    /// at high water; the rungs reach from under the water to the quay, and the view moves smoothly all the way.
+    /// </summary>
+    private async Task QuayLadderDownUpCheck()
+    {
+        var j = Jef.I;
+        var l = QuayExits.Ladders.Where(a => MathF.Abs(a.Top) < 0.1f && Water.Level(a.X + a.Nx * 2, a.Z + a.Nz * 2) < -1.5f).OrderBy(a => new Vector2(a.X + 118, a.Z - 36).Length())
+            .FirstOrDefault(a => { Solid.I.Ensure(new Vector3(a.X, 0, a.Z), 10); return Clear(a.X + a.Nx * 0.75f, a.Z + a.Nz * 0.75f, a.X + a.Nx * 2.2f, a.Z + a.Nz * 2.2f); });
+        if (l == null) { Check(false, "a quay ladder for the way down"); return; }
+        var e = QuayExits.Exits.First(x => x.Ladder && MathF.Abs(x.Wx - l.X) < 0.01f && MathF.Abs(x.Wz - l.Z) < 0.01f);
+        foreach (var (tide, level) in new[] { ("low", Tide.LwMin), ("high", Tide.HwMax) })
+        {
+            Tide.Hold(level);
+            await Until(() => MathF.Abs(Tide.River - level) < 0.02f, 20);
+            Check(l.Foot < level - 0.4f && l.Rung > 0.15f, $"at {tide} water the rungs reach under the water", new { l.Foot, level, l.Rung });
+            j.Place(l.X - l.Nx * 0.9f, l.Z - l.Nz * 0.9f, Facing(l.Nx, l.Nz), -0.3f);
+            await Frames(40);
+            Check(Scheldemist.Play.Interact.I.Find().Any(a => a.Text == "climb down the ladder"), $"at {tide} water the ladder's head offers the way down");
+            bool shot = false;
+            var down = await Sampled(t =>
+            {
+                if (t < 0.05f) Scheldemist.Play.Interact.I.Press(Key.E);
+                if (!shot && j.Climbing && j.Y < l.Top - 1.0f) { shot = true; _ = Shot($"ladder-down-{tide}", 0); }
+                return t < 0.3f || j.Climbing;
+            }, 20);
+            await Frames(30);
+            var g = new Vector2(e.Gx, e.Gz);
+            var dn = Snap(down);
+            // afloat, or (a spring low water over the mud at the wall's foot) on his feet on the mud
+            bool afloat = j.Swimming, onMud = !j.Swimming && j.Grounded && j.Y < l.Top - 1.2f;
+            Check((afloat || onMud) && new Vector2(j.X, j.Z).DistanceTo(g) < 0.5f, $"at {tide} water down the ladder to its foot ({(afloat ? "afloat" : onMud ? "on the mud" : "neither")})", new { j.Swimming, j.Grounded, at = new[] { R(j.X), R(j.Y), R(j.Z) }, g = new[] { R(g.X), R(g.Y) } });
+            if (onMud) await Shot($"ladder-foot-mud-{tide}");
+            Check(dn.stepCm < 4 && dn.speed < 2.6f, $"at {tide} water down the ladder the view moves no more than a few cm a frame", new { stepCm = R(dn.stepCm), speed = R(dn.speed) });
+            bool was = false;
+            float outAt = -1;
+            var up = await Sampled(t =>
+            {
+                if (j.Climbing) was = true;
+                if (was && !j.Climbing && outAt < 0) outAt = t;
+                // afloat: W into the rungs; on the mud: E at the foot
+                if (onMud && !was && t < 0.1f) Scheldemist.Play.Interact.I.Press(Key.E);
+                j.SetKey(Key.W, afloat && outAt < 0);
+                return t < 1 || j.Climbing || j.Swimming && t < 6 || outAt >= 0 && t < outAt + 0.6f;
+            }, 16);
+            await Frames(20);
+            j.ClearKeys();
+            var upS = Snap(up);
+            Check(was && !j.Swimming && j.Grounded && MathF.Abs(j.Y - l.Top) < 0.2f, $"at {tide} water up the same ladder onto the quay", new { j.Y, l.Top });
+            Check(upS.stepCm < 4 && upS.speed < 2.6f, $"at {tide} water up the ladder the view moves no more than a few cm a frame", new { stepCm = R(upS.stepCm), speed = R(upS.speed) });
+            reports.Add(new { quayLadderDownUp = new { tide, level, afloat, onMud, at = new[] { R(l.X), R(l.Z) }, rung = R(l.Rung), foot = R(l.Foot), downS = R(down[^1].T), downCm = R(dn.stepCm), upCm = R(upS.stepCm), end = new[] { R(j.X), R(j.Y), R(j.Z) } } });
+        }
+        Tide.Hold(null);
+        await Until(() => MathF.Abs(Tide.River - Tide.Target) < 0.02f, 20); // (the next checks find the water where the clock has it)
+    }
+
     private async Task QuayLadderCheck()
     {
         var j = Jef.I;
@@ -436,7 +492,7 @@ public partial class MoveTest
         j.Surfaced -= OnUp;
         var end = world().AffineInverse() * new Vector3(j.X, xf.Origin.Y, j.Z);
         var snap = Snap(s);
-        reports.Add(new { dive = new { surface = j.LastSurface.ToString(), peak = Peak(s), upInfo, firstIn = new { l = new[] { R(firstIn.local.X), R(firstIn.local.Y), R(firstIn.local.Z) }, firstIn.phase, h = new[] { R(firstIn.hull.X), R(firstIn.hull.Z) } }, snapAt = R(snap.atT), kind, keel = R(keel), deepestEye = R(minEye), breathUsed = R(breath0 - j.Breath), underS = R(under), dives, ups, framesInHull = inHull, endLocal = new[] { R(end.X), R(end.Z) }, worstCm = R(snap.stepCm), maxSpeed = R(snap.speed) }, track = Track(s, 6) });
+        reports.Add(new { dive = new { surface = j.LastSurface.ToString(), peak = Peak(s), upInfo, firstIn = new { l = new[] { R(firstIn.local.X), R(firstIn.local.Y), R(firstIn.local.Z) }, firstIn.phase, h = new[] { R(firstIn.hull.X), R(firstIn.hull.Z) } }, snapAt = R(snap.atT), kind, keel = R(keel), deepestEye = R(minEye), breathUsed = R(breath0 - j.Breath), underS = R(under), dives, ups, framesInHull = inHull, endLocal = new[] { R(end.X), R(end.Z) }, worstCm = R(snap.stepCm), maxSpeed = R(snap.speed) }, track = Track(s, 20) });
         Check(dives == 1 && ups == 1 && j.Swimming && !j.Diving, "C dives, Space brings him up again", new { dives, ups });
         Check(minEye < keel - 0.3f && end.X < -d.Beam / 2, $"he dives under the {kind}'s keel and comes up on her other side", new { keel, minEye, end.X });
         Check(inHull == 0, "never inside the hull on the way", inHull);
@@ -478,6 +534,122 @@ public partial class MoveTest
         }
     }
 
+    /// <summary>
+    /// On foot down and up each stone flight at low water, on the middle of the treads (u 1 m out from the wall line):
+    /// the view must not jump, and the body must never stand inside the quay's own mesh (issue 68).
+    /// </summary>
+    private async Task StepsCheck()
+    {
+        var j = Jef.I;
+        string hourArg = Main.I.Arg("stepshour");
+        await Tidy(hourArg != "" ? double.Parse(hourArg, System.Globalization.CultureInfo.InvariantCulture) : 5);
+        var rows = new List<object>();
+        string only = Main.I.Arg("stepsonly");
+        for (int i = 0; i < QuayExits.Flights.Count; i++)
+        {
+            if (only != "" && !only.Split(',').Contains(i.ToString())) continue;
+            var f = QuayExits.Flights[i];
+            if (i == 0)
+            {
+                Check(f == QuayExits.WerfFrame, "the Werf flight's frame is the one the ground is cut for", new { f, QuayExits.WerfFrame });
+                // the spot the issue names: on the treads, 1 m out from the wall line, where the quay's mesh stood over the walk
+                Solid.I.Ensure(new Vector3(-322.1f, 0, -1.0f), 12);
+                await Frames(8);
+                string around = Around(-322.1f, -0.9f, -1.0f);
+                Check(!around.Contains("in:city"), "the Werf treads, 1 m out: the body overlaps none of the quay's mesh", around);
+            }
+            if (Main.I.Flag("stepsmap"))
+            {
+                // the ground a ray from above finds on a grid of the flight's frame (rows: u out from the wall line, columns: s down the flight)
+                var (mx, mz) = f.On(2, 0);
+                Solid.I.Ensure(new Vector3(mx, 0, mz), 20);
+                await Frames(8);
+                var lines = new List<string> { "u\\s  " + string.Join(" ", Enumerable.Range(-6, 28).Select(k => (k * 0.25f).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture).PadLeft(6))) };
+                var names = new HashSet<string>();
+                for (float u = -2.0f; u <= 2.21f; u += 0.25f)
+                {
+                    var cells = new List<string>();
+                    for (int k = -6; k < 22; k++)
+                    {
+                        var (px, pz) = f.On(k * 0.25f, u);
+                        var hit = j.Body.GetWorld3D().DirectSpaceState.IntersectRay(PhysicsRayQueryParameters3D.Create(new Vector3(px, 4, pz), new Vector3(px, -9, pz), Solid.Layer));
+                        if (hit.Count == 0) { cells.Add("  none"); continue; }
+                        string bn = Solid.I.BodyName(hit["rid"].AsRid());
+                        names.Add(bn);
+                        cells.Add(hit["position"].AsVector3().Y.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture).PadLeft(6) + (char)('a' + names.ToList().IndexOf(bn)));
+                    }
+                    lines.Add(u.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture).PadLeft(5) + " " + string.Join(" ", cells));
+                }
+                // the wall face: rays from the water side in toward the wall at several heights, along the flight and either side of it
+                var faces = new List<string>();
+                foreach (float sf in new[] { -10f, -4f, 2f, 3.5f, 5f, 8f, 12f })
+                    foreach (float yf in new[] { -2.5f, -1.2f, -0.4f, 0.03f })
+                    {
+                        var (ax, az) = f.On(sf, 3.5f);
+                        var (bx, bz) = f.On(sf, -2.5f);
+                        var hit = j.Body.GetWorld3D().DirectSpaceState.IntersectRay(PhysicsRayQueryParameters3D.Create(new Vector3(ax, yf, az), new Vector3(bx, yf, bz), Solid.Layer));
+                        string what = hit.Count == 0 ? "none" : $"{Solid.I.BodyName(hit["rid"].AsRid())} at u {((hit["position"].AsVector3().X - f.Ox) * f.Nx + (hit["position"].AsVector3().Z - f.Oz) * f.Nz):0.00}";
+                        faces.Add($"s {sf} y {yf}: {what}");
+                    }
+                reports.Add(new { faces = faces.ToArray() });
+                reports.Add(new { map = i, origin = new[] { f.Ox, f.Oz }, t = new[] { f.Tx, f.Tz }, n = new[] { f.Nx, f.Nz }, bodies = names.ToArray(), rows = lines.ToArray() });
+                continue;
+            }
+            foreach (bool down in new[] { true, false })
+            {
+                // down: from the top landing along the middle of the treads; up: from the foot of the treads back to the landing
+                var (sx, sz) = down ? f.On(0.4f, 0.99f) : f.On(4.0f, 0.99f);
+                Solid.I.Ensure(new Vector3(sx, 0, sz), 20);
+                await Frames(5);
+                j.Place(sx, sz, down ? Facing(f.Tx, f.Tz) : Facing(-f.Tx, -f.Tz));
+                await Frames(40);
+                int inside = 0, mid = 0;
+                var insideNames = new HashSet<string>();
+                float sMax = -99, sMin = 99, yLow = 99, uMax = -99, uMin = 99;
+                float SOf(Vector3 p) => (p.X - f.Ox) * f.Tx + (p.Z - f.Oz) * f.Tz;
+                float UOf(Vector3 p) => (p.X - f.Ox) * f.Nx + (p.Z - f.Oz) * f.Nz;
+                var s = await Sampled(t =>
+                {
+                    j.SetKey(Key.W, true);
+                    float sAt = SOf(new Vector3(j.X, 0, j.Z)), uAt = UOf(new Vector3(j.X, 0, j.Z));
+                    uMax = MathF.Max(uMax, uAt);
+                    uMin = MathF.Min(uMin, uAt);
+                    j.Yaw = down ? Facing(f.Tx, f.Tz) : Facing(-f.Tx, -f.Tz);
+                    if (mid < 3 && (down ? sAt > 0.9f + mid * 1.1f : sAt < 3.2f - mid * 1.1f))
+                    {
+                        GetViewport().GetTexture().GetImage().SavePng(System.IO.Path.Combine(dir, $"steps-{i}-{(down ? "down" : "up")}-mid{mid}.png"));
+                        mid++;
+                    }
+                    sMax = MathF.Max(sMax, sAt);
+                    sMin = MathF.Min(sMin, sAt);
+                    yLow = MathF.Min(yLow, j.Y);
+                    var q = new PhysicsShapeQueryParameters3D { CollisionMask = Solid.Layer, Margin = 0, Shape = new CylinderShape3D { Radius = Jef.Radius, Height = Jef.Tall - Jef.Step }, Transform = new Transform3D(Basis.Identity, new Vector3(j.X, j.Y + Jef.Step + (Jef.Tall - Jef.Step) / 2, j.Z)) };
+                    foreach (var hit in j.Body.GetWorld3D().DirectSpaceState.IntersectShape(q, 4))
+                    {
+                        string name = Solid.I.BodyName(hit["rid"].AsRid());
+                        // (the flight's own stone and iron are what he walks on and by; the quay's mesh is what must stay clear)
+                        if (name.StartsWith("city/")) { inside++; insideNames.Add(name); }
+                    }
+                    return down ? sAt < 4.6f && t < 16 : sAt > 0.6f && t < 16;
+                }, 15);
+                j.ClearKeys();
+                // (the view's largest step on the treads, the wet ones of the Petit Bassin too, where the walk turns to a swim: issue 88)
+                var onSteps = s.Where(x => SOf(x.Feet) is > 0.4f and < 4.3f && UOf(x.Feet) > 0.5f).ToList();
+                var snap = Snap(onSteps);
+                float uEnd = UOf(new Vector3(j.X, 0, j.Z));
+                string way = down ? "down" : "up";
+                rows.Add(new { flight = i, dir = way, uMin = R(uMin), uMax = R(uMax), sMin = R(sMin), sMax = R(sMax), yLow = R(yLow), uEnd = R(uEnd), inside, names = insideNames.ToArray(), worstCm = R(snap.stepCm), peak = Peak(onSteps), track = Track(s, 20) });
+                // (down the treads, the feet go down to the foot landing; up, they come up to the head one: not along a flat ledge above them)
+                Check(down ? sMax > 4.0f && yLow < -1.5f : sMin < 0.7f && s[0].Feet.Y < -1.5f && s[^1].Feet.Y > -0.2f, $"flight {i} {way}: he walks the whole flight, on the treads", new { sMin = R(sMin), sMax = R(sMax), yLow = R(yLow), yStart = R(s[0].Feet.Y), yEnd = R(s[^1].Feet.Y) });
+                Check(inside == 0, $"flight {i} {way}: never inside the quay's mesh", new { inside, names = insideNames.ToArray() });
+                Check(snap.stepCm < 7, $"flight {i} {way}: smooth on the treads", R(snap.stepCm));
+                await Shot($"steps-{i}-{way}");
+            }
+        }
+        reports.Add(new { steps = rows });
+        await Tidy(13);
+    }
+
     private async Task FloodCheck()
     {
         var j = Jef.I;
@@ -485,7 +657,10 @@ public partial class MoveTest
         await Tidy(9.6);
         // a flight with open water along its parapet (rowing boats lie at some)
         var fr = QuayExits.Flights[1];
-        foreach (var f in new[] { 3, 4, 5, 1, 6, 7, 2, 0 }.Select(i => QuayExits.Flights[i]))
+        // (`--floodflights 0,3,4` picks the flights and their order: issue 89 tried the Werf's first)
+        string orderArg = Main.I.Arg("floodflights");
+        int[] order = orderArg == "" ? new[] { 3, 4, 5, 1, 2 } : orderArg.Split(',').Select(int.Parse).ToArray();
+        foreach (var f in (orderArg == "" ? new[] { 3, 4, 5, 1, 6, 7, 2, 0 } : order).Select(i => QuayExits.Flights[i]))
         {
             var (fx, fz) = f.On(3, 1.9f);
             Solid.I.Ensure(new Vector3(fx, 0, fz), 12);
@@ -507,7 +682,7 @@ public partial class MoveTest
             if (float.IsNaN(sFloat) && Nose(s) + 0.9f < level - Jef.SwimDeep - 0.15f) sFloat = s + 0.3f;
         }
         var rows = new List<object>();
-        var flights = new[] { 3, 4, 5, 1, 2 }.Select(i => QuayExits.Flights[i]).Where(f =>
+        var flights = order.Select(i => QuayExits.Flights[i]).Where(f =>
         {
             var (ax, az) = f.On(1.5f, 2.4f);
             var (bx, bz) = f.On(4.2f, 2.4f);

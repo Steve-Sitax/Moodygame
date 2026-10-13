@@ -24,8 +24,8 @@ public partial class Gulls : Node
 {
     public static Gulls? I { get; private set; }
 
-    private const int NGull = 36, NPigeon = 32;
-    private enum Mode : byte { Wheel, Fly, Sit, Float }
+    private const int NGull = 36, NPigeon = 64;
+    private enum Mode : byte { Wheel, Fly, Sit, Float, Round }
     private enum Place : byte { Bollard, Ridge, Rail, Water, Market, Quay, Square }
 
     private sealed class Spot
@@ -44,6 +44,8 @@ public partial class Gulls : Node
         public int Id;
         public bool Pigeon;
         public int Flock = -1;
+        /// <summary>A loft's pigeon: its loft (-1: not one).</summary>
+        public int Loft = -1;
         public float Seed, Size = 1;
         public Color Tint = Colors.White;
         public Mode M = Mode.Sit;
@@ -77,6 +79,19 @@ public partial class Gulls : Node
         public readonly List<Bird> Birds = new();
     }
 
+    /// <summary>A racing-pigeon loft (alive/lofts.ts): its birds sit about the board, and in its two rounds a day go up and circle.</summary>
+    private sealed class Loft
+    {
+        public Vector3 C;
+        public float R, Y0, Dir, Speed, StartAm, StartPm;
+        public int Done;
+        public bool Flying;
+        public readonly List<Bird> Birds = new();
+    }
+
+    private readonly List<Loft> lofts = new();
+    /// <summary>Where the bake froze the loft birds (INST8_alivepigeons): the places they sit on, and their bearings.</summary>
+    private readonly List<(Vector3 p, float yaw)> loftSrc = new();
     private readonly Bird[] birds = new Bird[NGull + NPigeon];
     private readonly List<Spot> spots = new();
     private readonly List<Flock> flocks = new();
@@ -149,9 +164,19 @@ public partial class Gulls : Node
             }
         }
         // the bake's frozen birds (ambient.ts: the gulls in mid-air, the pigeons with their wings spread on the squares)
+        // and the loft pigeons (lofts.ts: 4 birds a loft, frozen on the boards with their wings spread flat): they sit there
+        // again, and go up and circle in the loft rounds
         foreach (var nd in BakedWorld.All(Main.I.World))
-            if (nd is GeometryInstance3D g && (g.Name.ToString().EndsWith("ambientbirds_mm") || g.Name.ToString() == "ambient_birds"))
+        {
+            if (nd is MultiMeshInstance3D { Multimesh: { } lm } lmi && lmi.Name.ToString().EndsWith("alivepigeons_mm"))
+                for (int i = 0; i < lm.InstanceCount; i++)
+                {
+                    var t = lmi.GlobalTransform * lm.GetInstanceTransform(i);
+                    loftSrc.Add((t.Origin, MathF.Atan2(t.Basis.Z.X, t.Basis.Z.Z)));
+                }
+            if (nd is GeometryInstance3D g && (g.Name.ToString().EndsWith("ambientbirds_mm") || g.Name.ToString().EndsWith("alivepigeons_mm") || g.Name.ToString() == "ambient_birds"))
                 g.Visible = false;
+        }
         Main.I.World.Unported.Remove("ambient_birds");
         // over the river, the Petit Bassin, the canal and the vliet (ambient.ts anchors), and over the quays
         for (int x = -330; x <= 190; x += 26) anchors.Add(new Vector2(x, -16 - (((x * 7919) % 13 + 13) % 13)));
@@ -307,7 +332,42 @@ public partial class Gulls : Node
                 pi++;
             }
         }
-        GD.Print($"gulls: {spots.Count} places ({Count(Place.Bollard)} bollards, {Count(Place.Ridge)} ridges, {Count(Place.Rail)} rails, {Count(Place.Water)} on the water, {Count(Place.Quay)} quay, {Count(Place.Market)} market), {NGull} gulls, {pi - NGull} pigeons, {rigs[0].Triangles} and {rigs[1].Triangles} triangles a bird");
+        // the loft pigeons: the baked birds in groups round each loft's board
+        var taken = new bool[loftSrc.Count];
+        for (int i = 0; i < loftSrc.Count && pi < NGull + NPigeon; i++)
+        {
+            if (taken[i]) continue;
+            var l = new Loft();
+            var sum = Vector3.Zero;
+            float low = float.MaxValue;
+            for (int j = i; j < loftSrc.Count; j++)
+                if (!taken[j] && new Vector2(loftSrc[j].p.X - loftSrc[i].p.X, loftSrc[j].p.Z - loftSrc[i].p.Z).Length() < 4 && MathF.Abs(loftSrc[j].p.Y - loftSrc[i].p.Y) < 4)
+                {
+                    taken[j] = true;
+                    sum += loftSrc[j].p;
+                    low = Math.Min(low, loftSrc[j].p.Y);
+                    if (pi >= NGull + NPigeon) continue;
+                    var b = birds[pi] = new Bird { Id = pi, Pigeon = true, Loft = lofts.Count, Seed = R01(), Pos = loftSrc[j].p, Ground = loftSrc[j].p, Prev = loftSrc[j].p, Yaw = loftSrc[j].yaw, Heading = loftSrc[j].yaw, Next = R01() * 3, Fold = 1, Phase = R01() * 6 };
+                    float g = Rand(0.85f, 1.1f);
+                    b.Tint = R01() < 0.12f ? new Color(1.35f, 1.3f, 1.25f) : R01() < 0.15f ? new Color(0.62f, 0.5f, 0.44f) : new Color(g, g, g * 1.02f);
+                    l.Birds.Add(b);
+                    pi++;
+                }
+            if (l.Birds.Count == 0) continue;
+            l.C = new Vector3(sum.X / l.Birds.Count, low, sum.Z / l.Birds.Count);
+            // (each loft its own circle and hours: 25-50 m round, 18-25 m up; rounds about 7:40-9:20 and 14:50-16:30)
+            float u = Math.Abs(MathF.Sin(l.C.X * 12.9898f + l.C.Z * 78.233f) * 43758.5453f % 1);
+            float u2 = Math.Abs(MathF.Sin(l.C.X * 3.17f + l.C.Z * 9.91f) * 24634.6345f % 1);
+            float u3 = Math.Abs(MathF.Sin(l.C.X * 5.43f - l.C.Z * 2.77f) * 13758.123f % 1);
+            l.R = 25 + 25 * u;
+            l.Y0 = l.C.Y + 9.5f + 7 * u2;
+            l.Dir = u3 < 0.5f ? 1 : -1;
+            l.Speed = 8.5f + 2 * u2;
+            l.StartAm = 7.67f + 0.5f * u3;
+            l.StartPm = 14.83f + 0.5f * u2;
+            lofts.Add(l);
+        }
+        GD.Print($"gulls: {spots.Count} places ({Count(Place.Bollard)} bollards, {Count(Place.Ridge)} ridges, {Count(Place.Rail)} rails, {Count(Place.Water)} on the water, {Count(Place.Quay)} quay, {Count(Place.Market)} market), {NGull} gulls, {pi - NGull} pigeons ({lofts.Count} lofts), {rigs[0].Triangles} and {rigs[1].Triangles} triangles a bird");
     }
 
     private int Count(Place k) { int n = 0; foreach (var s in spots) if (s.Kind == k) n++; return n; }
@@ -1090,12 +1150,15 @@ public partial class Gulls : Node
             }
             if (up > 0) Audio.LifeAnimalSounds.Wings(f.X, 1, f.Z);
         }
+        StepLofts(out_);
         for (int i = NGull; i < NGull + NPigeon; i++)
         {
             var b = birds[i];
             if (b == null) continue;
             b.Prev = b.Pos;
-            b.Shown = out_;
+            // (a loft's birds are inside the hut at night and in the rain, and show while they fly)
+            b.Shown = out_ || (b.Loft >= 0 && b.M != Mode.Sit);
+            if (b.M == Mode.Round) { StepRound(b, dt); continue; }
             if (b.M == Mode.Fly)
             {
                 b.Air += dt;
@@ -1103,7 +1166,7 @@ public partial class Gulls : Node
                 b.K = Math.Min(1, b.K + dt / b.T);
                 float hump = MathF.Sin(MathF.PI * b.K);
                 b.Pos = Hermite(b.P0, b.V0, b.P1, b.V1, b.T, b.K) + Vector3.Up * (b.Lift * hump * hump);
-                b.Flare = Math.Clamp((b.K - (1 - 0.7f / b.T)) / (0.7f / b.T), 0, 1);
+                b.Flare = b.ToWheel ? 0 : Math.Clamp((b.K - (1 - 0.7f / b.T)) / (0.7f / b.T), 0, 1);
                 Wings(b, dt, true);
                 var v = (b.Pos - b.Prev) / Math.Max(dt, 1e-4f);
                 b.Vel = b.Vel.Lerp(v, 1 - MathF.Exp(-dt * 10));
@@ -1114,6 +1177,8 @@ public partial class Gulls : Node
                 b.Tuck = b.Flare > 0.05f ? 0 : 1;
                 if (b.K >= 1)
                 {
+                    // (a loft bird going up joins its circle; every other lands)
+                    if (b.ToWheel) { b.M = Mode.Round; b.Pos = b.P1; continue; }
                     b.M = Mode.Sit;
                     b.Ground = b.P1;
                     b.Pos = b.P1;
@@ -1123,6 +1188,7 @@ public partial class Gulls : Node
                 }
                 continue;
             }
+            if (b.Loft >= 0) { StepLoftSit(b, dt); continue; }
             // on the ground: walk, peck, turn (a step of about two seconds each)
             b.Fold = Math.Min(1, b.Fold + dt * 3);
             b.Amp = 0;
@@ -1177,6 +1243,128 @@ public partial class Gulls : Node
         }
     }
 
+    // ------------------------------------------------------------------ the loft pigeons (lofts.ts)
+
+    /// <summary>
+    /// Each loft's two rounds a day (about 7:40-9:20 and 14:50-16:30, each loft its own start): its birds go up off the
+    /// board and circle half a game hour, then land on it again. Dry days only (no fog, rain, storm), by day; only a loft
+    /// within 220 m goes up. At any other time they sit by the board (inside the hut at night and in the rain).
+    /// </summary>
+    private void StepLofts(bool out_)
+    {
+        var d = Daylight.I!;
+        float hour = d.Hour;
+        bool dry = out_ && d.Weather != "fog" && d.Weather != "storm" && !d.ThickFog;
+        int key = hour >= 7.6f && hour <= 9.4f ? 1 : hour >= 14.8f && hour <= 16.5f ? 2 : 0;
+        var eye = Eye;
+        foreach (var l in lofts)
+        {
+            if (key == 0) l.Done = 0;
+            float start = key == 1 ? l.StartAm : l.StartPm;
+            bool active = dry && key != 0 && hour >= start && hour < start + 0.5f;
+            if (!l.Flying)
+            {
+                if (!active || l.Done == key || new Vector2(l.C.X - eye.X, l.C.Z - eye.Z).LengthSquared() > 220 * 220) continue;
+                l.Flying = true;
+                l.Done = key;
+                GD.Print($"loft pigeons: the loft at {l.C.X:0},{l.C.Z:0} goes up at {hour:0.00} h, {l.Birds.Count} birds circling {l.R:0} m round at {l.Y0:0} m");
+                float a0 = R01() * MathF.Tau;
+                int k = 0;
+                foreach (var b in l.Birds) LaunchLoft(l, b, a0 + k++ * 0.45f);
+                Audio.Soundscape.I?.Placed(l.C + Vector3.Up * 1.5f, new(Ref: 3, Reach: 30, Max: 60, Occl: 0.3), Audio.AliveSounds.Wings(8), "loft pigeons go up");
+            }
+            else if (!active)
+            {
+                l.Flying = false;
+                GD.Print($"loft pigeons: the loft at {l.C.X:0},{l.C.Z:0} comes down at {hour:0.00} h");
+                foreach (var b in l.Birds) LandLoft(b);
+            }
+        }
+    }
+
+    private static void RoundPoint(Loft l, Bird b, float t, out Vector3 p)
+    {
+        float r = b.R + 3.5f * MathF.Sin(t * 0.37f + b.Seed * 20);
+        p = new Vector3(l.C.X + MathF.Cos(b.Th) * r, b.Y0 + 1.8f * MathF.Sin(t * 0.6f + b.Seed * 40), l.C.Z + MathF.Sin(b.Th) * r);
+    }
+
+    /// <summary>Up off the board, climbing to a place on the circle that the bird reaches as its flight ends.</summary>
+    private void LaunchLoft(Loft l, Bird b, float angle)
+    {
+        TakeOff(b, null, null);
+        b.R = l.R + Rand(-4, 4);
+        b.Y0 = l.Y0 + Rand(-2.5f, 2.5f);
+        b.Th = angle;
+        b.W = l.Dir * l.Speed * Rand(0.92f, 1.08f) / b.R;
+        b.Delay = R01() * 1.2f;
+        RoundPoint(l, b, clock, out b.P1);
+        var dir = new Vector3(b.P1.X - b.P0.X, 0, b.P1.Z - b.P0.Z);
+        float dist = dir.Length();
+        dir = dist > 1e-3f ? dir / dist : Vector3.Forward;
+        b.T = Math.Clamp(dist / 6.5f + 1.5f, 3.5f, 9);
+        RoundPoint(l, b, clock + b.Delay + b.T, out b.P1);
+        b.V0 = dir * 4 + Vector3.Up * 3.5f;
+        b.Vel = b.V0;
+        b.V1 = new Vector3(-MathF.Sin(b.Th), 0, MathF.Cos(b.Th)) * (b.W * b.R);
+        b.Lift = 0;
+        b.ToWheel = true;
+    }
+
+    /// <summary>Round and round: its place on the circle at its own speed, banked into the turn, now wheeling out, now swooping in.</summary>
+    private void StepRound(Bird b, float dt)
+    {
+        var l = lofts[b.Loft];
+        b.Th += b.W * dt;
+        if (b.Th > 1000) b.Th -= MathF.Tau * 100;
+        RoundPoint(l, b, clock, out b.Pos);
+        var v = (b.Pos - b.Prev) / Math.Max(dt, 1e-4f);
+        b.Vel = b.Vel.Lerp(v, 1 - MathF.Exp(-dt * 10));
+        float hs = new Vector2(b.Vel.X, b.Vel.Z).Length();
+        if (hs > 0.3f) b.Yaw += Mathf.Wrap(MathF.Atan2(b.Vel.X, b.Vel.Z) - b.Yaw, -MathF.PI, MathF.PI) * Math.Min(1, dt * 10);
+        b.Pitch = Mathf.Lerp(b.Pitch, -MathF.Atan2(b.Vel.Y, hs + 0.5f) * 0.5f, 1 - MathF.Exp(-dt * 6));
+        b.Roll = Mathf.Lerp(b.Roll, 0.4f * l.Dir, 1 - MathF.Exp(-dt * 3));
+        b.HP = 0.5f;
+        b.Tuck = 1;
+        b.Flare = 0;
+        Wings(b, dt, true);
+    }
+
+    /// <summary>Down onto its place by the board again, from wherever it is.</summary>
+    private void LandLoft(Bird b)
+    {
+        if (b.M is not (Mode.Round or Mode.Fly)) return;
+        b.M = Mode.Fly;
+        b.P0 = b.Pos;
+        b.V0 = b.Vel;
+        b.P1 = b.Ground;
+        var dir = new Vector3(b.P1.X - b.P0.X, 0, b.P1.Z - b.P0.Z);
+        float dist = dir.Length();
+        dir = dist > 1e-3f ? dir / dist : Vector3.Forward;
+        b.V1 = dir * 1.0f + Vector3.Down * 0.3f;
+        b.T = Math.Clamp((b.P1 - b.P0).Length() / 6 + 1.8f, 3, 8) + Rand(0, 0.6f);
+        b.K = 0;
+        b.Air = 2;
+        b.Lift = 0;
+        b.ToWheel = false;
+        b.Delay = R01() * 0.8f;
+        b.Roll = 0;
+    }
+
+    /// <summary>A loft bird by its board: its head turns, now and then a nod; its bearing comes back to the way it sat.</summary>
+    private void StepLoftSit(Bird b, float dt)
+    {
+        b.Fold = Math.Min(1, b.Fold + dt * 3);
+        b.Amp = 0;
+        b.Tuck = 0;
+        b.Roll = Mathf.Lerp(b.Roll, 0, 1 - MathF.Exp(-dt * 6));
+        b.Pitch = Mathf.Lerp(b.Pitch, 0, 1 - MathF.Exp(-dt * 6));
+        b.Yaw += Mathf.Wrap(b.Heading - b.Yaw, -MathF.PI, MathF.PI) * Math.Min(1, dt * 2);
+        float hp = 0.8f * MathF.Max(0, MathF.Sin(clock * 5 + b.Seed * 50)) * MathF.Max(0, MathF.Sin(clock * 0.7f + b.Seed * 20));
+        b.HP = Mathf.Lerp(b.HP, hp, 1 - MathF.Exp(-dt * 14));
+        b.HY = Mathf.Lerp(b.HY, 0.6f * MathF.Sin(clock * 0.9f + b.Seed * 30), 1 - MathF.Exp(-dt * 2));
+        b.Walking = false;
+    }
+
     // ------------------------------------------------------------------ drawing
 
     private void Draw(Vector3 eye)
@@ -1200,7 +1388,7 @@ public partial class Gulls : Node
             // (well behind the camera: not drawn, not even in the river's mirror)
             if (dist > 4 && to.Dot(camFw) < -0.25f * to.Length()) continue;
             // (the pigeons are small: only near)
-            if (b.Pigeon && dist > 80) continue;
+            if (b.Pigeon && dist > (b.Loft >= 0 && b.M != Mode.Sit ? 130 : 80)) continue;
             if (b.Pigeon)
             {
                 long started = Stopwatch.GetTimestamp();
@@ -1374,12 +1562,12 @@ public partial class Gulls : Node
         }
         Bird? best = null;
         float bd = float.MaxValue;
-        bool sky = name == "gullsky", under = name == "gullunder", fly = name.StartsWith("gullfly") || sky || under, pig = name.StartsWith("pigeon");
+        bool sky = name == "gullsky", under = name == "gullunder", fly = name.StartsWith("gullfly") || name.StartsWith("pigeonfly") || sky || under, pig = name.StartsWith("pigeon");
         for (int i = 0; i < NGull + NPigeon; i++)
         {
             var b = birds[i];
             if (b == null || b.Pigeon != pig) continue;
-            bool ok = fly ? b.M is Mode.Wheel or Mode.Fly && b.Id >= 3
+            bool ok = fly ? b.M is Mode.Wheel or Mode.Fly or Mode.Round && b.Id >= 3
                 : name.StartsWith("gullwater") ? b.M == Mode.Float
                 : name.StartsWith("gullmarket") ? b.M == Mode.Sit && b.Spot >= 0 && spots[b.Spot].Kind is Place.Market
                 : name.StartsWith("gullridge") ? b.M == Mode.Sit && b.Spot >= 0 && spots[b.Spot].Kind is Place.Ridge

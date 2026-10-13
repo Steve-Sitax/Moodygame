@@ -19,7 +19,7 @@ public sealed class WalkMap
         public Node3D Node = null!;
         public Aabb Box, World;
         public Transform3D Inverse;
-        public bool Transit, Active;
+        public bool Transit, Active, Moves;
         public Puppet? Owner;
     }
     private static readonly List<BodyBox> bodies = new();
@@ -29,7 +29,7 @@ public sealed class WalkMap
     private ulong[] bodyBits = Array.Empty<ulong>();
     private int bodyWords;
     /// <summary>Live boxes absent from the static browser dump: piles, carts and posted people.</summary>
-    public static void RegisterBody(Node3D node, Aabb box, bool transit = false, Puppet? owner = null) => bodies.Add(new() { Node = node, Box = box, Transit = transit, Owner = owner });
+    public static void RegisterBody(Node3D node, Aabb box, bool transit = false, Puppet? owner = null, bool moves = false) => bodies.Add(new() { Node = node, Box = box, Transit = transit, Owner = owner, Moves = moves });
     public IEnumerable<(Node3D Node,Aabb World,Puppet? Owner)> TransitBodies()
     {foreach(var b in bodies)if(b.Transit&&b.Active&&GodotObject.IsInstanceValid(b.Node))yield return(b.Node,b.World,b.Owner);}
     public void RefreshBodies()
@@ -92,6 +92,42 @@ public sealed class WalkMap
         }
         return true;
     }
+    /// <summary>The live bodies whose boxes (with a body's margin) take this point, by name, for reports. Main thread only.</summary>
+    public string BlockedBy(Puppet owner, double x, double z)
+    {
+        var names = new List<string>();
+        foreach (var b in bodies)
+        {
+            if (!b.Active || !GodotObject.IsInstanceValid(b.Node) || b.Owner == owner) continue;
+            var w = b.World;
+            if (x >= w.Position.X - .3 && x <= w.End.X + .3 && z >= w.Position.Z - .3 && z <= w.End.Z + .3) names.Add(b.Node.GetPath().ToString().Replace("/root/NativeTownGame/@SubViewport@2/", "") + (b.Transit ? " (moving)" : ""));
+        }
+        return string.Join(" | ", names);
+    }
+    /// <summary>
+    /// The world box of a live body that stays put (a goods crate, a posted figure, a parked cart, a stall) whose margin takes
+    /// this point. False when none does, or when a moving body (a dray, the omnibus) takes it too: that one is waited for, not walked
+    /// round. Main thread only, and only for a step that was already refused, so it scans the list without a lookup.
+    /// </summary>
+    public bool StandingBodyAt(Puppet owner, double x, double z, out Aabb world)
+    {
+        world = default;
+        bool found = false;
+        double feet = double.NaN;
+        foreach (var b in bodies)
+        {
+            if (!b.Active || b.Owner == owner || !GodotObject.IsInstanceValid(b.Node)) continue;
+            var w = b.World;
+            if (x < w.Position.X - .3 || x > w.End.X + .3 || z < w.Position.Z - .3 || z > w.End.Z + .3) continue;
+            if (double.IsNaN(feet)) feet = BaseAt(x, z);
+            if (w.End.Y <= feet + 0.36 || w.Position.Y >= feet + 1.75) continue;
+            if (b.Transit || b.Moves || b.Owner is { State: "walk" }) return false;
+            world = found ? world.Merge(w) : w;
+            found = true;
+        }
+        return found;
+    }
+
     public bool FreeFor(Puppet owner, double x, double z)
     {
         int ix = (int)Math.Floor((x-X0)*4), iz = (int)Math.Floor((z-Z0)*4);
@@ -143,6 +179,25 @@ public sealed class WalkMap
     }
 
     public bool NativeCellFree(int x, int z) => x >= 0 && z >= 0 && x < W * 4 && z < D * 4 && free[z * W * 4 + x] != 0;
+
+    /// <summary>The static free cells (quarter-metre) around a point as text, one row per z, for the stuck check's report:
+    /// '.' free, '#' not free, 'm' marks (x, z) pairs given. Rows run from the lower z; the first column is the lower x.</summary>
+    public string[] DumpCells(double cx, double cz, double radius, params (char mark, double x, double z)[] marks)
+    {
+        var rows = new List<string>();
+        for (double z = cz - radius; z <= cz + radius; z += .25)
+        {
+            var row = new System.Text.StringBuilder();
+            for (double x = cx - radius; x <= cx + radius; x += .25)
+            {
+                char c = NativeCellFree((int)Math.Floor((x - X0) * 4), (int)Math.Floor((z - Z0) * 4)) ? '.' : '#';
+                foreach (var m in marks) if (Math.Abs(m.x - x) < .125 && Math.Abs(m.z - z) < .125) c = m.mark;
+                row.Append(c);
+            }
+            rows.Add($"{z:0.00} {row}");
+        }
+        return rows.ToArray();
+    }
 
     private void RebuildNativeOpenCells()
     {

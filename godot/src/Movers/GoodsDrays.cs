@@ -82,8 +82,12 @@ public partial class GoodsDrays : Node
                 r.Horse=new DrayHorse(r.Parts[4],r.Parts.Skip(5).Take(8).Cast<Node3D>().ToArray());
                 r.Bed=root.GetChildren().OfType<Node3D>().FirstOrDefault(n=>n is not MeshInstance3D)??new Node3D();
                 if (r.Bed.GetParent()==null) root.AddChild(r.Bed);
-                r.Body=Mv.BoxBody(root,new Aabb(new(-0.95f,0,-1.9f),new(1.9f,1.7f,3.8f)),"bed_solid");
-                r.HorseBody=Mv.BoxBody(root,new Aabb(new(-0.4f,0,-1.2f),new(0.8f,1.8f,2.4f)),"horse_solid");
+                var bed=new Aabb(new(-0.95f,0,-1.9f),new(1.9f,1.7f,3.8f)); var horse=new Aabb(new(-0.4f,0,-1.2f),new(0.8f,1.8f,2.4f));
+                r.Body=Mv.BoxBody(root,bed,"bed_solid");
+                r.HorseBody=Mv.BoxBody(root,horse,"horse_solid");
+                // The crowd walks round the dray and gives way to it on its round, as it does for the omnibus.
+                Scheldemist.Town.WalkMap.RegisterBody(r.Body,bed,true);
+                Scheldemist.Town.WalkMap.RegisterBody(r.HorseBody,horse,true);
             }
             else { r.Cart=new PushCart(root); r.Bed=r.Cart.Pivot; }
             rigs.Add(r);

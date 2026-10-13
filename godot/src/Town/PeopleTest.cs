@@ -74,6 +74,8 @@ public partial class PeopleTest : Node
     private readonly string[] childGames = { "rope", "tops", "hoops", "tag", "marbles", "hopscotch" };
     private readonly string[] trades={"milk_woman","baker_boy","grinder","ragman","coalman","mussel_seller","broom_seller"};
     private int tradeStep;private Townspeople.Sim? workingTrade;private Vector2 tradeStart;
+    private Vector3 grinderPhotoOffset;
+    private bool tradeClockReady;
     private int childGame;
     private Townspeople.Sim? playingChild;
 
@@ -775,8 +777,30 @@ public partial class PeopleTest : Node
             case "trades":
                 if(tradeStep>=trades.Length){Next("done");break;}
                 if(t<1)break;
-                if(workingTrade==null){workingTrade=town.Sims.FirstOrDefault(s=>s.R.Trade==trades[tradeStep]);if(workingTrade==null){Fail("no working "+trades[tradeStep]);break;}var work=workingTrade.R.Sched.Day.First(seg=>seg.Act=="work");town.SetClock(1,(work.A+work.B)/2);Main.I.Cam.Position=new((float)workingTrade.R.Work.Route![0].X+4,1.6f,(float)workingTrade.R.Work.Route[0].Z+4);town.Refill();}
+                if(workingTrade==null)
+                {
+                    workingTrade=town.Sims.FirstOrDefault(s=>s.R.Trade==trades[tradeStep]);
+                    if(workingTrade==null){Fail("no working "+trades[tradeStep]);break;}
+                    var work=workingTrade.R.Sched.Day.First(seg=>seg.Act=="work");double hour=(work.A+work.B)/2;
+                    if(Scheldemist.Net.ServerLink.I?.Api is not {} tradeApi){Fail("trade test has no server");break;}
+                    // A later server poll must not send the trader home during this local check.
+                    tradeClockReady=false;
+                    tradeApi.Run(tradeApi.Post<JsonElement>("api/dev/set",new{day=1,hour=(int)hour,minute=(int)((hour%1)*60)}),
+                        _=>{town.SetClock(1,hour);tradeClockReady=true;},e=>Fail("trade clock setting: "+e.Message));
+                    Main.I.Cam.Position=new((float)workingTrade.R.Work.Route![0].X+4,1.6f,(float)workingTrade.R.Work.Route[0].Z+4);town.Refill();
+                }
+                if(!tradeClockReady){if(t>35)Fail("trade clock was not set");break;}
                 if(workingTrade.P is not {} trader||Main.I.GetNode<StreetTrades>("StreetTrades") is not {} equipment||!equipment.HasKit(workingTrade.R.Id)){if(workingTrade.P==null){Main.I.Cam.Position=new((float)workingTrade.X+4,(float)town.Walk!.BaseAt(workingTrade.X,workingTrade.Z)+1.6f,(float)workingTrade.Z+4);town.Refill();}if(t>35)Fail("trade equipment did not draw: "+trades[tradeStep]+" "+workingTrade.Goal.Mode);break;}
+                if(workingTrade.R.Trade=="grinder")
+                {
+                    using var capsule=new CapsuleShape3D{Radius=.25f,Height=Jef.Tall-Jef.Step};
+                    using var probe=new PhysicsShapeQueryParameters3D{Shape=capsule,CollisionMask=World.Solid.Layer,Margin=0,
+                        Transform=new Transform3D(Basis.Identity,new Vector3((float)trader.X,(float)town.Walk!.BaseAt(trader.X,trader.Z)+Jef.Step+(Jef.Tall-Jef.Step)/2,(float)trader.Z))};
+                    var kit=Main.I.View.GetNode<Node3D>("street_trade_"+workingTrade.R.Id);
+                    foreach(var hit in Main.I.View.FindWorld3D().DirectSpaceState.IntersectShape(probe,32))
+                        if(hit["collider"].AsGodotObject() is Node body&&kit.IsAncestorOf(body)){Fail("grinder overlaps his barrow");return;}
+                    layersRow["grinder body clears barrow"]=true;
+                }
                 if(tradeStart==default){tradeStart=new((float)trader.X,(float)trader.Z);t=1;}
                 if(t<5)break;
                 if(new Vector2((float)trader.X,(float)trader.Z).DistanceTo(tradeStart)<.2){if(t>35)Fail("trade walker is blocked by equipment");break;}
@@ -792,7 +816,31 @@ public partial class PeopleTest : Node
                     }
                 }
                 if(t<1)break;
-                Shot("people_trade_"+trades[tradeStep]+".png");workingTrade=null;tradeStart=default;tradeStep++;Next("trades");break;
+                Shot("people_trade_"+trades[tradeStep]+".png");
+                if(workingTrade?.R.Trade=="grinder"&&workingTrade.P is {} photoGrinder)
+                {
+                    // Keep the actual walking pose and kit spacing, but photograph them on the
+                    // open quay: the trader's narrow alley hides the handles behind other walkers.
+                    town.Paused=true;grinderPhotoOffset=new Vector3(-118,0,36)-photoGrinder.Group.GlobalPosition;
+                    photoGrinder.Group.GlobalPosition+=grinderPhotoOffset;
+                    Main.I.View.GetNode<Node3D>("street_trade_"+workingTrade.R.Id).GlobalPosition+=grinderPhotoOffset;
+                    Next("grinderside");break;
+                }
+                workingTrade=null;tradeStart=default;tradeStep++;Next("trades");break;
+            case "grinderside":
+            case "grinderfront":
+                if(frames==1&&workingTrade?.P is {} grinder&&Main.I.GetNode<StreetTrades>("StreetTrades").KitPosition(workingTrade.R.Id) is {} barrow)
+                {
+                    var target=(barrow+grinder.Group.GlobalPosition)*.5f+Vector3.Up*.85f;
+                    double angle=grinder.Yaw+(phase=="grinderside"?Math.PI/2:0);
+                    Main.I.Cam.LookAtFromPosition(target+new Vector3((float)Math.Sin(angle)*2.4f,1.1f,(float)Math.Cos(angle)*2.4f),target,Vector3.Up);
+                }
+                if(t<.3)break;
+                Shot("people_trade_"+phase+".png");
+                if(phase=="grinderside"){Next("grinderfront");break;}
+                workingTrade!.P!.Group.GlobalPosition-=grinderPhotoOffset;
+                Main.I.View.GetNode<Node3D>("street_trade_"+workingTrade.R.Id).GlobalPosition-=grinderPhotoOffset;
+                town.Paused=false;workingTrade=null;tradeStart=default;tradeStep++;Next("trades");break;
 
             case "games":
                 town.SetClock(1, 14.5);

@@ -26,7 +26,8 @@ public sealed partial class Anchorage
         (70, -22), (62, -15), (52, -13), (40, -13), (35, -13), (28, -13), (21, -13), (14.5, -17), (10.5, -23.5), (6.5, -31),
         (5.5, -38), (4.5, -46), (-1, -57), (-12, -67), (-26, -82), (-40, -98), (-52, -111), (-62, -119), (-60, -126), (-46, -128.5),
     };
-    private static readonly (double X, double Z) StopA = (14, -130.8), StopQ = (28, -13);
+    // (StopQ was x 28: the loaded lighter then lay 1.03 m off the dinghy moored at (16.2, -1.1), issue 35; 31.5 clears it by 3 m and more)
+    private static readonly (double X, double Z) StopA = (14, -130.8), StopQ = (31.5, -13);
     private const double CrabM = 9.9, CrabT = 40;
     private static readonly (double A, double B) DwellA = (100, 160), DwellQ = (80, 140);
     private const double Cruise = 1.8, Lash = 0.4, Strip = 11, PaceS = 16, PaceMin = 0.5, MergeGap = 30, Accel = 0.12, Brake = 0.35;
@@ -192,6 +193,53 @@ public sealed partial class Anchorage
         ok = true;
         PlaceLiner(0);
         PlaceTows();
+    }
+
+    /// <summary>The most the liner sheers either way about her hawse (rad): the sum of the sheer's amplitudes.</summary>
+    public static readonly double SheerMax = Sheer.Sum(q => q.A);
+    /// <summary>The loop's length (m) and the s of the two stops, for the dev checks.</summary>
+    public double LoopLength => LEN;
+
+    /// <summary>The liner's pose with the sheer at a (rad): the middle of the hull and her yaw.</summary>
+    public (double X, double Z, double Yaw) LinerPoseAt(double a)
+    {
+        double yaw = LinerAt0.Yaw + a, c = Math.Cos(yaw), s = Math.Sin(yaw);
+        return (Hx - (hx * c + hz * s), Hz - (-hx * s + hz * c), yaw);
+    }
+
+    /// <summary>
+    /// Dev check (Dev/BoatWaterCheck.cs --boatcheck-spacing): every pose a tow can take, with the liner's sheer at
+    /// each of five angles from one side to the other: all round the loop every `step` m, the stops, and the walk in
+    /// to the quay and out again (the crab, with the bow turned either way). The callback gets the tow's number, what
+    /// it is, the sheer, and the lighter's and the tug's middles with the shared yaw.
+    /// </summary>
+    public void Sweep(double step, Action<int, string, double, double, double, double, double, double> pose)
+    {
+        if (!ok) return;
+        double keep = sheer;
+        foreach (double a in new[] { -SheerMax, -SheerMax / 2, 0, SheerMax / 2, SheerMax })
+        {
+            sheer = a;
+            for (int ti = 0; ti < Tows.Count; ti++)
+            {
+                var tow = Tows[ti];
+                var at = new List<(double S, string What)>();
+                for (double s = 0; s < LEN; s += step) at.Add((s, $"loop s {s:0}"));
+                at.Add((stops[0], "the liner's stop"));
+                foreach (var (s, what) in at)
+                {
+                    var q = TowPose(tow, s, 0, 0);
+                    pose(ti, what, a, q.Lx, q.Lz, q.Tx, q.Tz, q.Yaw);
+                }
+                for (double c = 0; c <= 1.0001; c += 0.1)
+                    foreach (double sign in new[] { 1.0, -1.0 })
+                    {
+                        var q = TowPose(tow, stops[1], c, sign * 0.06 * Math.Sin(Math.PI * c));
+                        pose(ti, $"the berth, {c * 100:0}% in", a, q.Lx, q.Lz, q.Tx, q.Tz, q.Yaw);
+                    }
+            }
+        }
+        sheer = keep;
     }
 
     private double SAt(double px, double pz)

@@ -70,7 +70,8 @@ public partial class Townspeople
                 double along=from+(to-from)*e,x=r.X+fx*along,z=r.Z+fz*along;
                 bool free=Walk!.Free(x,z);foreach(var other in Crowd!.Walking)if(other!=p&&Dist(other.X,other.Z,x,z)<.7)free=false;
                 if(Dist(Player.Jef.I.X,Player.Jef.I.Z,x,z)<.8)free=false;
-                if(!free){r.Hop-=dt;return true;}
+                // A lane or the approach to the pitch may have left a walk clip active. A blocked hop waits in place.
+                if(!free){r.Hop-=dt;Crowd!.PuppetStand(p,"idle",yaw);return true;}
                 Crowd.PuppetStand(p,"hop",yaw);p.X=x;p.Z=z;p.Human.SetPhase("hop",(float)frac);return true;
             }
             int q=i<0?n:i-1;double offset=(q-(n-2)/2.0)*.7;

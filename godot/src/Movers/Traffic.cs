@@ -84,7 +84,7 @@ public partial class Traffic : Node
                 Place(v, 0, 0, true);
             }
         }
-        Route("rijnkaai_back", new (float,float)[] { (-4.2f,66.4f),(0,66),(30.9f,63.1f),(29.2f,80),(28,100),(28.6f,108.7f),(14,106.8f),(-0.5f,105.4f),(-3,88),(-4.2f,66.4f) }, true, new(14,106.8f),18,0.5f,("dray",0.1f,"casks"));
+        Route("rijnkaai_back", new (float,float)[] { (-4.9f,66.4f),(0,66),(30.9f,63.1f),(29.2f,80),(28,100),(28.6f,108.7f),(14,106.8f),(-0.5f,105.4f),(-4.3f,88),(-4.9f,66.4f) }, true, new(14,106.8f),18,0.5f,("dray",0.1f,"casks"));
         Route("eilandje", new (float,float)[] { (120,11),(158.6f,11),(158.6f,43),(122,43),(122,35),(120,32) }, true,new(137.5f,43),25,0.7f,("dray",0.05f,"bales"),("handcart",0.55f,""));
         Route("werf", new (float,float)[] { (-305,8.3f),(-216,8.3f),(-216,30),(-305,30) }, true,new(-249,8.3f),20,0.6f,("dray",0.2f,"tarp"),("handcart",0.7f,""));
         Route("bassin_south", new (float,float)[] { (74,119.5f),(168,119.5f),(176,122),(196,122) }, false,new(186.5f,122),20,0.8f,("handcart",0.3f,""));

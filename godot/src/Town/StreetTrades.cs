@@ -22,6 +22,9 @@ public partial class StreetTrades : Node
     }
     // the cart dog: the Belgian draught dog (matin), fawn or brindle
     private static readonly string[] DogLooks={"dog_draught","dog_draught","dog_draught","dog_draught_brindle","dog_draught_brindle"};
+    // The handles end 1.6 m behind the wheel. Leave them 30 cm in front of the
+    // operator, with room for his body and a walking step before the kit updates.
+    private const double GrinderWheelAhead=1.9;
     private readonly Dictionary<string,Kit> kits=new();
     /// <summary>The cart dog's place in the cart's frame: its middle this far ahead of the axle (its hindquarters clear the
     /// cross bar at 1.2 m), the second dog this far beside the first (+x, the cart's left), outside the left shaft.</summary>
@@ -58,7 +61,7 @@ public partial class StreetTrades : Node
         }
         else if(grinder)
         {
-            kit.Wheel=Part("barrow_wheel",new(0,.3f,0));kit.Stone=Part("barrow_stone",new(0,1.02f,-.55f));kit.Fly=Part("barrow_fly",new(.3f,.85f,-.8f));Grinders++;p.Nose=1.3;p.Reach=.4;
+            kit.Wheel=Part("barrow_wheel",new(0,.3f,0));kit.Stone=Part("barrow_stone",new(0,1.02f,-.55f));kit.Fly=Part("barrow_fly",new(.3f,.85f,-.8f));Grinders++;p.Nose=GrinderWheelAhead;p.Reach=.4;
         }
         else
         {
@@ -91,7 +94,7 @@ public partial class StreetTrades : Node
             if(s.R.Trade=="broom_seller")continue;
             if(s.R.Trade=="grinder")
             {
-                double x=p.X+Math.Sin(p.Yaw)*1.6,z=p.Z+Math.Cos(p.Yaw)*1.6;
+                double x=p.X+Math.Sin(p.Yaw)*GrinderWheelAhead,z=p.Z+Math.Cos(p.Yaw)*GrinderWheelAhead;
                 var at=new Vector3((float)x,(float)town.Walk!.BaseAt(x,z),(float)z);double step=k.Root.Position.DistanceTo(at);k.Root.Position=at;k.Root.Rotation=new(0,(float)p.Yaw,0);
                 k.Roll+=moving?step/.3:0;k.Spin+=moving?0:dt*14;
                 if(k.Wheel!=null)k.Wheel.Rotation=new((float)k.Roll,0,0);if(k.Stone!=null)k.Stone.Rotation=new((float)k.Spin,0,0);if(k.Fly!=null)k.Fly.Rotation=new((float)(k.Spin*.6),0,0);

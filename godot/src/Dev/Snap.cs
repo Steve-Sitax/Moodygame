@@ -12,9 +12,12 @@ namespace Scheldemist.Dev;
 /// unless the dark or the fog is what is tested):
 ///   -- --snap dir --views "day:-118,1.62,36,180,0,13,clear;night:-118,1.62,36,180,10,22,mist"
 /// Each view: name:x,y,z,yaw,pitch[,hour,weather,storm,tide] (degrees; storm: the great storm's level 0..1; tide: the
-/// river held at that level in metres, or high or low, also written tide=-5.2 (W1); yaw 0 looks to -z, 180 to +z; pitch up). A view with no
+/// river held at that level in metres, or high or low, also written tide=-5.2 (W1); day=N: the game's day, 1 Monday to 7 Sunday, held from that view on, as is --day N for the first
+/// view); the game's own clock, day and weather follow each view, so the HUD and the market stalls agree with the picture (issue 101); yaw 0 looks to -z, 180 to +z; pitch up). A view with no
 /// place ("name:,,,,,21,rain") keeps the camera of the bake's first place. A view named lantern... follows the
-/// burning lantern nearest its camera from a few steps away. Writes dir/name.png and prints the mean
+/// burning lantern nearest its camera from a few steps away. A view named berth... holds the Rijnkaai lighter alongside. A view's hour and weather are held: the live clock
+/// never moves the light or the tide off them during a snap run (a view with none keeps the last ones; the log line
+/// "snap name light:" says the light each picture was taken in). Writes dir/name.png and prints the mean
 /// frame time there, then quits.
 /// </summary>
 [GamePart(900)]
@@ -54,6 +57,20 @@ public partial class Snap : Node
     }
 
     private static float F(string s) => float.Parse(s, CultureInfo.InvariantCulture);
+    private static bool IsKw(string s) => s.StartsWith("tide=") || s.StartsWith("day=");
+    private int? gameDay;
+
+    /// <summary>Puts the game's own clock, day and weather on this view's: waits for the first state, then asks the server (Kit.Light).</summary>
+    private async System.Threading.Tasks.Task SyncGame(float? hour, string? weather)
+    {
+        try
+        {
+            while (Kit.I == null || Scheldemist.Net.ServerLink.I?.Api == null || Game.GameState.I is not { Live: true }) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            var dl = Daylight.I;
+            await Kit.I.Light(hour ?? dl.Hour, weather ?? dl.Weather, fill: false, day: gameDay ?? 0);
+        }
+        catch (Exception e) { GD.PrintErr("snap: the game's clock did not follow the view: " + e.Message); }
+    }
 
     private void Next()
     {
@@ -126,16 +143,23 @@ public partial class Snap : Node
         settle = tide != "";
         if (tide != "") Dev.Kit.TideHold(tide);
         else if (Tide.Held != null) Tide.Hold(null);
-        if (a.Length > 6 && a[6] != "" && !a[6].StartsWith("tide="))
+        // (the game's own day: a view's day=N, else --day N for the first view; held from there on like the hour, issue 101)
+        if (a.Skip(6).FirstOrDefault(f => f.StartsWith("day=")) is { } df && int.TryParse(df[4..], out int vd) && vd > 0) gameDay = vd;
+        else if (view == 0 && int.TryParse(Main.I.Arg("day"), out int ad) && ad > 0) gameDay = ad;
+        bool hasHour = a.Length > 6 && a[6] != "" && !IsKw(a[6]), hasWeather = a.Length > 7 && a[7] != "" && !IsKw(a[7]);
+        if (hasHour)
         {
             Daylight.I.SetTime(F(a[6]));
-            Tide.Set(1, F(a[6])); // (Monday's tide at that hour)
+            Tide.Set(gameDay ?? 1, F(a[6])); // (that day's tide at that hour; Monday's when no day is asked)
         }
-        if (a.Length > 7 && a[7] != "" && !a[7].StartsWith("tide=")) Daylight.I.SetWeather(a[7]);
+        if (hasWeather) Daylight.I.SetWeather(a[7]);
+        // (the light alone is not enough: the HUD's clock and the stalls' and townspeople's day and hour follow the game's
+        // state, so a picture meant for Sunday, or for 13:00, sets that state too)
+        if (gameDay != null || hasHour || hasWeather) _ = SyncGame(hasHour ? F(a[6]) : null, hasWeather ? a[7] : null);
         // (a view named bilge...: the pumps near it work now)
         if (ShipWater.I is { } sw) sw.PumpNow = a[0].StartsWith("bilge");
         // (held: the events part sets the storm every frame, and the test's level would fade)
-        bool storm = a.Length > 8 && a[8] != "" && !a[8].StartsWith("tide=");
+        bool storm = a.Length > 8 && a[8] != "" && !IsKw(a[8]);
         Daylight.I.StormHold = storm ? F(a[8]) : null;
         Daylight.I.SetStorm(storm ? F(a[8]) : 0);
         Daylight.I.Settle();
@@ -200,6 +224,39 @@ public partial class Snap : Node
             if (name.EndsWith("_right")) return (at + x * 7.5f + z * 5f + new Vector3(0, 0.4f, 0), at);
             return (at - x * 7.5f + z * 5f + new Vector3(0, 0.4f, 0), at);
         }
+        // (a view named pushcart... / dray...: the nearest street-traffic handcart or dray from its left side, a few metres off;
+        // ..._far 6 m, ..._front from ahead)
+        if ((name.StartsWith("pushcart") || name.StartsWith("dray")) && Scheldemist.Movers.Traffic.I is { } tr)
+        {
+            string kind = name.StartsWith("dray") ? "dray" : "handcart";
+            var v = tr.Vehicles.Where(x => x.Kind == kind).OrderBy(x => x.At.DistanceSquaredTo(new Vector2(cam.X, cam.Z))).FirstOrDefault();
+            if (v != null)
+            {
+                // (the rig's Frame stays at the origin; the route puts the vehicle at v.At, facing v.Yaw)
+                var fwd = new Vector3(MathF.Sin(v.Yaw), 0, MathF.Cos(v.Yaw));
+                var side = new Vector3(fwd.Z, 0, -fwd.X);
+                float d = name.Contains("_far") ? 7f : 3.4f;
+                var mid = new Vector3(v.At.X, 0, v.At.Y) + fwd * (kind == "dray" ? 2.6f : -1.9f);
+                var at = mid + new Vector3(0, kind == "dray" ? 1.1f : 0.8f, 0);
+                var from = name.Contains("_front") ? mid + fwd * d * 1.4f + side * 1.2f + new Vector3(0, 1.5f, 0) : mid + side * d + new Vector3(0, 1.5f, 0);
+                return (from, at);
+            }
+        }
+        // (a view named gdray... / gcart...: the Rijnkaai's goods dray with the casks, or the sack handcart, same options)
+        if ((name.StartsWith("gdray") || name.StartsWith("gcart")) && Scheldemist.Movers.GoodsDrays.I is { } gd)
+        {
+            var r = gd.Rigs.FirstOrDefault(x => (x.Cart == null) == name.StartsWith("gdray"));
+            if (r != null)
+            {
+                var fwd = new Vector3(MathF.Sin(r.Yaw), 0, MathF.Cos(r.Yaw));
+                var side = new Vector3(fwd.Z, 0, -fwd.X);
+                float d = name.Contains("_far") ? 7f : 3.4f;
+                var mid = new Vector3(r.At.X, 0, r.At.Y) + fwd * (r.Cart == null ? -2.8f : 1.5f);
+                var at = mid + new Vector3(0, r.Cart == null ? 1.1f : 0.8f, 0);
+                var from = name.Contains("_front") ? mid + fwd * d * 1.4f + side * 1.2f + new Vector3(0, 1.5f, 0) : mid + side * d + new Vector3(0, 1.5f, 0);
+                return (from, at);
+            }
+        }
         if (name.StartsWith("bilge") && ShipWater.I is { } sw)
         {
             var (o, outward) = sw.NearestOutlet(cam);
@@ -249,6 +306,14 @@ public partial class Snap : Node
             if (cam is Player.FlyCam fly) fly.Face(q);
             else cam.Quaternion = q;
         }
+        // (a view named berth...: the tow at the Rijnkaai berth stays alongside the quay for the picture, issue 35)
+        if (views[view][0].StartsWith("berth") && Movers.River.I?.Anchorage is { } anch)
+            foreach (var tow in anch.Tows.Where(q => q.Stop == 1))
+            {
+                tow.Phase = "dwell";
+                tow.Crab = 1;
+                tow.Dwell = 180;
+            }
         // (a view named bolt...: a near strike in front of the camera two frames before the picture)
         if (views[view][0].StartsWith("bolt") && frame == Wait + Timed + (view == 0 ? 240 : 0) - 2 && Lightning.I is { } li)
         {
@@ -259,6 +324,9 @@ public partial class Snap : Node
         if (frame < Wait + Timed + (view == 0 ? 240 : 0)) return;
         string name = views[view][0];
         Main.I.GetViewport().GetTexture().GetImage().SavePng(System.IO.Path.Combine(dir, name + ".png"));
+        // (the light this picture was really taken in, so a mist or a dusk that crept in shows in the log)
+        var dl = Daylight.I;
+        GD.Print($"snap {name} light: {dl.Hour:0.##} h, {dl.Weather}, fog #{dl.FogColor.LinearToSrgb().ToHtml(false)} {dl.FogNear:0.#}-{dl.FogFar:0.#} m, sky {dl.SkyIntensity:0.###}, sun {dl.SunIntensity:0.###}; the game's clock {Game.GameState.I?.Weekday} (day {Game.GameState.I?.Day}) {Game.GameState.I?.HourF:0.##} h, {Game.GameState.I?.Weather}");
         // (dev: --whatray fx,fy;... lists the drawn meshes whose box the ray through that point of the picture meets,
         // small ones first; fx, fy are 0..1 across and down)
         if (Main.I.Arg("whatray") is { Length: > 0 } wr)

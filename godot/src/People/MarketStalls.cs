@@ -125,7 +125,7 @@ public partial class MarketStalls : Node
             bool shop = table.Always[0] == "shop_table";
             double half = (shop ? 0.8 : 1.4) * table.Scale, z0 = shop ? 0.25 : -0.71, z1 = shop ? 0.95 : 0.71;
             var body = new StaticBody3D { CollisionLayer = Solid.Layer, CollisionMask = 0, Position = new Vector3((float)table.X, (float)town.Walk!.BaseAt(table.X, table.Z), (float)table.Z), Rotation = new Vector3(0, (float)table.Yaw, 0) };
-            body.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3((float)(half * 2), 0.88f, (float)(z1 - z0)) }, Position = new Vector3(0, 0.44f, (float)((z0 + z1) / 2)) }); root.AddChild(body);
+            body.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3((float)(half * 2), 0.88f, (float)(z1 - z0)) }, Position = new Vector3(0, 0.44f, (float)((z0 + z1) / 2)) }); body.SetMeta("held_by", $"a {(shop ? "shop" : "market")} stall ({table.Label}) at {table.X:0.0}, {table.Z:0.0}"); root.AddChild(body);
             WalkMap.RegisterBody(body, new Aabb(new Vector3((float)-half, 0, (float)z0), new Vector3((float)(half * 2), 0.88f, (float)(z1 - z0))));
         }
         town.Walk!.RefreshBodies();

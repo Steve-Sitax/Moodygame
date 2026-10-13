@@ -77,7 +77,7 @@ public partial class WalkTest : Node
         routes.Add(new Route
         {
             Name = "square", What = "across the Vismarkt square, at a walk and then at a run",
-            X = -118, Z = 36, EndY = 0,
+            X = -118, Z = 36, Near = float.NaN, EndY = 0,
             Legs = new[] { new Leg(-118, 30, Run: false), new Leg(-124, 22), new Leg(-112, 14), new Leg(-118, 36) },
         });
         routes.Add(new Route
@@ -101,7 +101,7 @@ public partial class WalkTest : Node
         });
         routes.Add(new Route
         {
-            Name = "swim", What = "off the quay edge into the Schelde, a swim round the steps, out up the ladder at the landing's end and up the steps to the quay",
+            Name = "swim", What = "off the quay edge into the Schelde, a swim to the nearest place where he can climb out",
             X = 0, Z = 0, Near = float.NaN, EndY = 0,
         });
         // the Werf's railing along the river (shared/city.json decor rails): it holds him; with Space he vaults it
@@ -138,31 +138,75 @@ public partial class WalkTest : Node
                 r.X = x;
                 r.Z = 2.5f;
                 r.Near = 0;
-                r.Legs = new[]
+                // Rowing boats lie moored at the landing and at the ladders, and a swimmer is held off their hulls. So the
+                // swim goes where the water is open, as a player would: to the nearest place from where the game offers a
+                // way out (a ladder, the landing's edge, the stone flight), found on a map of the water at the bake's tide.
+                var way = SwimTo(new Vector2(x, -4), p => QuayExits.Near(p.X, p.Y, 1.2f), out var exit, 30);
+                if (way == null || exit == null)
                 {
-                    new Leg(x, -4, Until.Swim, Run: false), new Leg(-112, -3.6f), new Leg(-118.6f, -3.2f), new Leg(-118.6f, -0.81f),
-                    new Leg(-114.5f, -0.81f, Until.Out, Timeout: 14), new Leg(-114.5f, -0.65f, Run: false), new Leg(-110.5f, -0.65f, Run: false), new Leg(-110.4f, 2.5f, Run: false),
-                };
+                    swimNoWay = "no place to climb out can be reached from the Vismarkt quay edge through open water (boats or piles close the way)";
+                    return false;
+                }
+                var legs = new List<Leg> { new Leg(x, -4, Until.Swim, Run: false) };
+                legs.AddRange(way.Select(p => new Leg(p.X, p.Y)));
+                // push in at the exit (the game asks for a push towards the wall, the ladder or the landing)
+                legs.Add(new Leg(exit.Tx, exit.Tz, Until.Out, Timeout: 14));
+                r.EndY = exit.Ty;
+                r.What += $" (out by the {(exit.Ladder ? "ladder" : exit.Over > 0 ? "flight over its rail" : "landing's edge")} at {exit.Gx:0.0}, {exit.Gz:0.0})";
+                r.Legs = legs.ToArray();
                 return true;
             }
             return false;
         }
         if (r.Name == "ladder")
         {
-            var l = QuayExits.Ladders.Where(a => MathF.Abs(a.Top) < 0.1f).OrderBy(a => new Vector2(a.X + 118, a.Z - 36).Length()).FirstOrDefault();
-            if (l == null) return false;
-            // from the quay behind the ladder, 3 m along the wall: off the edge, swim to the foot of the ladder, push in
-            float tx = -l.Nz, tz = l.Nx;
-            r.X = l.X - l.Nx * 2 + tx * 3;
-            r.Z = l.Z - l.Nz * 2 + tz * 3;
-            r.Near = 0;
-            r.EndY = l.Top;
-            r.What += $" (the ladder at {l.X:0.0}, {l.Z:0.0})";
-            r.Legs = new[]
+            // the nearest ladder up the quay wall that a swimmer can use. Boats lie moored at most ladders and hold a
+            // swimmer off them; the others are used: the water at the foot is deep enough to swim (not mud at low
+            // tide) and there is open water to a place from where the game offers the ladder.
+            var jef = Jef.I;
+            var tried = new List<string>();
+            foreach (var l in QuayExits.Ladders.Where(a => MathF.Abs(a.Top) < 0.1f).OrderBy(a => new Vector2(a.X + 118, a.Z - 36).Length()))
             {
-                new Leg(l.X + l.Nx * 3 + tx * 3, l.Z + l.Nz * 3 + tz * 3, Until.Swim),
-                new Leg(l.X - l.Nx * 2, l.Z - l.Nz * 2, Until.Out, Timeout: 15),
-            };
+                float tx = -l.Nz, tz = l.Nx;
+                var outer = new Vector2(l.X + l.Nx * 3 + tx * 3, l.Z + l.Nz * 3 + tz * 3);
+                // where the swimmer takes hold, in front of the rungs (QuayExits.AddLadder)
+                var hold = new Vector2(l.X + l.Nx * (l.Rung + 0.415f), l.Z + l.Nz * (l.Rung + 0.415f));
+                string why = "";
+                List<Vector2>? way = null;
+                Exit? exit = null;
+                if (!jef.Swimmable(outer.X, outer.Y)) why = "too shallow to swim there (mud at this tide)";
+                else
+                {
+                    way = SwimTo(outer, p => QuayExits.Near(p.X, p.Y, 1.2f) is { Ladder: true } e && MathF.Abs(e.Gx - hold.X) < 0.05f && MathF.Abs(e.Gz - hold.Y) < 0.05f ? e : null, out exit);
+                    if (way == null || exit == null) why = "no open water to it (a boat is moored there)";
+                }
+                if (why != "")
+                {
+                    tried.Add($"{l.X:0.0}, {l.Z:0.0}: {why}");
+                    continue;
+                }
+                // from the quay behind the ladder, 3 m along the wall: off the edge, swim to the foot of the ladder, push in
+                r.X = l.X - l.Nx * 2 + tx * 3;
+                r.Z = l.Z - l.Nz * 2 + tz * 3;
+                r.Near = 0;
+                r.EndY = l.Top;
+                r.What += $" (the ladder at {l.X:0.0}, {l.Z:0.0}; {tried.Count} nearer ones have a boat moored at them or stand in mud)";
+                var legs = new List<Leg> { new Leg(outer.X, outer.Y, Until.Swim) };
+                legs.AddRange(way!.Select(p => new Leg(p.X, p.Y)));
+                legs.Add(new Leg(l.X - l.Nx * 2, l.Z - l.Nz * 2, Until.Out, Timeout: 15));
+                r.Legs = legs.ToArray();
+                return true;
+            }
+            ladderNoWay = $"none of the {tried.Count} ladders at the quay edge can be reached by a swimmer: {string.Join("; ", tried.Take(6))}{(tried.Count > 6 ? "; ..." : "")}";
+            return false;
+        }
+        if (r.Name == "square")
+        {
+            // The Vismarkt's stalls and the day's market stand on the square; the route is a walk across it, as a player
+            // walks: round whatever stands in the line (a stall's table is a wall, and the walk check says so).
+            r.Near = 0;
+            r.Legs = Around(new Vector2(r.X, r.Z), r.Legs, out var detours);
+            if (detours.Count > 0) r.What += $" (round {string.Join("; ", detours)})";
             return true;
         }
         if (r.Name == "door")
@@ -178,6 +222,180 @@ public partial class WalkTest : Node
             return true;
         }
         return true;
+    }
+
+    /// <summary>A body walks the straight line from a to b on the ground level, with 0.3 m to spare on both sides (not
+    /// within `grace` metres of a: he may stand with his shoulder to the thing he walks away from).</summary>
+    private static bool LineFree(Vector2 a, Vector2 b, float grace = 0)
+    {
+        var jef = Jef.I;
+        var d = b - a;
+        float len = d.Length();
+        if (len < 1e-3f) return jef.BodyFree(a.X, 0, a.Y);
+        var side = new Vector2(-d.Y, d.X) / len * 0.3f;
+        for (float s = 0; s <= len + 0.05f; s += 0.1f)
+        {
+            var m = a + d * (MathF.Min(s, len) / len);
+            if (!jef.BodyFree(m.X, 0, m.Y)) return false;
+            if (s >= grace && (!jef.BodyFree(m.X + side.X, 0, m.Y + side.Y) || !jef.BodyFree(m.X - side.X, 0, m.Y - side.Y))) return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// The legs, with a corner added where the straight line to a leg's goal is held by something that stands there (a
+    /// stall, a barrow): the nearest free corner, found on a 0.5 m grid round the line. A leg whose goal itself is
+    /// blocked stays as it is, and fails on it. `detours` says what was walked round, by the name the walk check gives it.
+    /// </summary>
+    private static Leg[] Around(Vector2 from, Leg[] legs, out List<string> detours, float grace = 0)
+    {
+        detours = new List<string>();
+        var result = new List<Leg>();
+        foreach (var leg in legs)
+        {
+            var to = new Vector2(leg.X, leg.Z);
+            if (!LineFree(from, to, grace) && Jef.I.BodyFree(to.X, 0, to.Y))
+            {
+                var mid = (from + to) / 2;
+                Vector2? best = null;
+                float bestLen = float.PositiveInfinity;
+                for (float dx = -12; dx <= 12; dx += 0.5f)
+                    for (float dz = -12; dz <= 12; dz += 0.5f)
+                    {
+                        var w = mid + new Vector2(dx, dz);
+                        float total = (w - from).Length() + (to - w).Length();
+                        if (total >= bestLen || !Jef.I.BodyFree(w.X, 0, w.Y) || !LineFree(from, w, grace) || !LineFree(w, to)) continue;
+                        best = w;
+                        bestLen = total;
+                    }
+                if (best is { } c)
+                {
+                    var hold = Ahead(from, to);
+                    detours.Add($"{(hold != "" ? hold : "something")} on the way from {from.X:0.#}, {from.Y:0.#} to {to.X:0.#}, {to.Y:0.#}, by {c.X:0.#}, {c.Y:0.#}");
+                    result.Add(leg with { X = c.X, Z = c.Y });
+                }
+            }
+            result.Add(leg);
+            from = to;
+        }
+        return result.ToArray();
+    }
+
+    /// <summary>What a ray at hip height from a towards b meets first, as the walk check names it.</summary>
+    private static string Ahead(Vector2 a, Vector2 b)
+    {
+        foreach (float h in new[] { 0.5f, 1.0f, 0.38f, 1.5f })
+        {
+            string s = Solid.I.HeldBy(new Vector3(a.X, h, a.Y), new Vector3(b.X, h, b.Y), out _);
+            if (s != "") return s;
+        }
+        return "";
+    }
+
+    /// <summary>Can he be here in the water: swimming at the surface, or wading where the bed is within the wade depth (low tide), clear of walls and hulls.</summary>
+    private static bool Passable(float x, float z)
+    {
+        var jef = Jef.I;
+        if (!Water.In(x, z)) return false;
+        if (jef.SwimFree(x, z)) return true;
+        float level = Water.Level(x, z);
+        float g = jef.GroundAt(x, z, level - 0.3f);
+        return float.IsFinite(g) && g >= level - Tide.Wade + 0.1f && jef.BodyFree(x, g, z)
+            && !(Scheldemist.Movers.Boats.I?.HullIn(x, z, Jef.Radius, g, g + 1.7f, out _) ?? false);
+    }
+
+    private string swimNoWay = "", ladderNoWay = "";
+    private bool ladderScanWait;
+
+    /// <summary>
+    /// A swim from `a` through open water (boats' hulls, piles and walls round it) to the nearest place `goal` accepts
+    /// (it returns the exit the game offers there, or null). The way is a breadth first search on a 25 cm map of the
+    /// water round `a`; only its corners are kept. Null when no such place can be reached.
+    /// </summary>
+    private static List<Vector2>? SwimTo(Vector2 a, Func<Vector2, Exit?> goal, out Exit? exit, float Reach = 10)
+    {
+        exit = null;
+        const float Cell = 0.25f;
+        int n = (int)(2 * Reach / Cell) + 1;
+        float x0 = a.X - Reach, z0 = a.Y - Reach;
+        var free = new sbyte[n * n];
+        Vector2 Pos(int i) => new(x0 + i % n * Cell, z0 + i / n * Cell);
+        bool Free(int i)
+        {
+            if (free[i] == 0) free[i] = (sbyte)(Passable(Pos(i).X, Pos(i).Y) ? 1 : -1);
+            return free[i] > 0;
+        }
+        int from = -1;
+        float bd = 1.5f;
+        for (int i = 0; i < n * n; i++)
+            if ((Pos(i) - a).Length() < bd && Free(i))
+            {
+                bd = (Pos(i) - a).Length();
+                from = i;
+            }
+        if (from < 0) return null;
+        var prev = new int[n * n];
+        Array.Fill(prev, -2);
+        var queue = new Queue<int>();
+        prev[from] = -1;
+        queue.Enqueue(from);
+        int found = -1;
+        while (queue.Count > 0)
+        {
+            int c = queue.Dequeue();
+            if ((exit = goal(Pos(c))) != null)
+            {
+                found = c;
+                break;
+            }
+            int cx = c % n, cz = c / n;
+            for (int dz = -1; dz <= 1; dz++)
+                for (int dx = -1; dx <= 1; dx++)
+                {
+                    int x = cx + dx, z = cz + dz;
+                    if ((dx == 0 && dz == 0) || x < 0 || z < 0 || x >= n || z >= n) continue;
+                    int m = z * n + x;
+                    if (prev[m] != -2 || !Free(m)) continue;
+                    // (a corner is cut only when both cells beside it are free too)
+                    if (dx != 0 && dz != 0 && (!Free(cz * n + x) || !Free(z * n + cx))) continue;
+                    prev[m] = c;
+                    queue.Enqueue(m);
+                }
+        }
+        if (found < 0)
+        {
+            exit = null;
+            return null;
+        }
+        var cells = new List<Vector2>();
+        for (int c = found; c != -1; c = prev[c]) cells.Add(Pos(c));
+        cells.Reverse();
+        // keep the corners: from each kept point on to the farthest one that is seen straight, with room on both sides
+        bool Seen(Vector2 p, Vector2 q)
+        {
+            var d = q - p;
+            float len = d.Length();
+            if (len < 1e-3f) return true;
+            var side = new Vector2(-d.Y, d.X) / len * 0.2f;
+            for (float s = 0; s <= len; s += 0.1f)
+            {
+                var m = p + d * (s / len);
+                if (!Passable(m.X + side.X, m.Y + side.Y) || !Passable(m.X - side.X, m.Y - side.Y) || !Passable(m.X, m.Y)) return false;
+            }
+            return true;
+        }
+        var way = new List<Vector2>();
+        int at = 0;
+        while (at < cells.Count - 1)
+        {
+            int next = at + 1;
+            for (int k = cells.Count - 1; k > at + 1; k--)
+                if (Seen(cells[at], cells[k])) { next = k; break; }
+            way.Add(cells[next]);
+            at = next;
+        }
+        if (way.Count == 0) way.Add(cells[^1]);
+        return way;
     }
 
     /// <summary>
@@ -227,17 +445,48 @@ public partial class WalkTest : Node
     private Camera3D? outside;
     private Node3D? figure;
     private int doorsTried;
-    private bool doorScanWait, swimScanWait;
+    private bool doorScanWait, swimScanWait, doorsHeld;
+    private int liveFrames;
+    private int squareWaits, detoured;
+    private readonly List<string> detours = new();
     private ulong waitTick;
 
     private void Start()
     {
         var r = routes[route];
+        if (r.Name == "square" && squareWaits < 600 && !(Scheldemist.People.MarketStalls.I is { List.Count: > 0 } && squareWaits >= 2))
+        {
+            // the fixed stalls are stood up a few frames after the town: wait for them, and a physics tick to know them
+            squareWaits++;
+            waitTick = Engine.GetPhysicsFrames() + 1;
+            return;
+        }
         if (r.Name == "swim" && !swimScanWait)
         {
             swimScanWait = true;
-            Solid.I.Ensure(new Vector3(-96, 0, 0), 20);
+            Solid.I.Ensure(new Vector3(-108, 0, 0), 26);
             waitTick = Engine.GetPhysicsFrames() + 1;
+            return;
+        }
+        if (r.Name == "ladder" && !ladderScanWait)
+        {
+            // the quay round the nearest ladders is made solid first; the physics knows it a tick later
+            ladderScanWait = true;
+            foreach (var l in QuayExits.Ladders.Where(a => MathF.Abs(a.Top) < 0.1f).OrderBy(a => new Vector2(a.X + 118, a.Z - 36).Length()))
+                Solid.I.Ensure(new Vector3(l.X + l.Nx * 2, 0, l.Z + l.Nz * 2), 10);
+            waitTick = Engine.GetPhysicsFrames() + 1;
+            return;
+        }
+        if (r.Name == "door" && !doorsHeld)
+        {
+            // The route asks whether the bake's doorways can be walked, not what hour the shops keep: a fresh game's clock
+            // starts at six in the morning and the server bars the taverns and shuts the shops until their keepers come, so
+            // the doors are held open first (issue 126). The leaves turn in about a second; a house door's box is off at once.
+            doorsHeld = true;
+            if (Scheldemist.Play.Doors.I is { } doorPart)
+                foreach (var door in doorPart.All.Where(d => d.Kind is "house" or "shop" or "tavern" or "poesje" or "home" && !d.Fixed))
+                    doorPart.Force(door, true);
+            waitTick = Engine.GetPhysicsFrames() + 90;
             return;
         }
         if (r.Name == "door" && !doorScanWait)
@@ -252,7 +501,7 @@ public partial class WalkTest : Node
         }
         if (float.IsNaN(r.Near) && !Prepare(r))
         {
-            results.Add(new() { ["route"] = r.Name, ["what"] = r.What, ["ok"] = false, ["skipped"] = r.Name == "door" ? $"no street door is open in the bake ({doorsTried} door sides tried)" : r.Name == "swim" ? "no free stretch of quay edge found" : "no ladder found in the baked quay iron" });
+            results.Add(new() { ["route"] = r.Name, ["what"] = r.What, ["ok"] = false, ["skipped"] = r.Name == "door" ? $"no street door is open in the bake ({doorsTried} door sides tried)" : r.Name == "swim" ? (swimNoWay != "" ? swimNoWay : "no free stretch of quay edge found") : ladderNoWay != "" ? ladderNoWay : "no ladder found in the baked quay iron" });
             Next();
             return;
         }
@@ -268,6 +517,8 @@ public partial class WalkTest : Node
         splashes = climbOuts = landings = steps = 0;
         legRows = new();
         track = new();
+        detoured = 0;
+        detours.Clear();
         last = new Vector3(r.X, 0, r.Z);
         started = false;
     }
@@ -317,6 +568,7 @@ public partial class WalkTest : Node
         results.Add(new()
         {
             ["route"] = r.Name, ["what"] = r.What, ["ok"] = legsOk && yOk && j.Rescued == 0 && (float.IsNaN(r.High) || maxY >= r.High),
+            ["wentRound"] = detours.ToArray(),
             ["start"] = new[] { r.X, r.Z }, ["end"] = Round(j.X, j.Y, j.Z), ["endState"] = State(j),
             ["seconds"] = Math.Round(routeT, 1), ["metres"] = Math.Round(walked, 1),
             ["stoppedByWall"] = legRows.Any(l => (string)l["result"]! == "blocked"),
@@ -328,15 +580,35 @@ public partial class WalkTest : Node
         shotWait = 0.4f; // stand still a moment, then the picture
     }
 
-    /// <summary>What stands in front of him: rays ahead at shin, hip and chest height.</summary>
-    private static string Ahead(Jef j)
+    /// <summary>
+    /// What stands in front of him: rays ahead at shin, hip and chest height, then whatever touches him. `furniture` is
+    /// true for a thing the game stood in the street (a stall, a parked cart) rather than a wall of the town.
+    /// </summary>
+    private static string Ahead(Jef j, out bool furniture)
     {
+        furniture = false;
         var d = new Vector3(-MathF.Sin(j.Yaw), 0, -MathF.Cos(j.Yaw));
         foreach (float h in new[] { 1.0f, 0.5f, 1.5f, 0.38f })
         {
             var a = new Vector3(j.X, j.Y + h, j.Z);
-            string s = Solid.I.NameAt(a, a + d * 1.2f);
+            string s = Solid.I.HeldBy(a, a + d * 1.2f, out furniture);
             if (s != "") return s;
+        }
+        // (a ray that starts inside a box finds nothing: ask what is within reach of him)
+        var q = new PhysicsShapeQueryParameters3D { Shape = new SphereShape3D { Radius = Jef.Radius + 0.2f }, Transform = new Transform3D(Basis.Identity, new Vector3(j.X, j.Y + 1f, j.Z)), CollisionMask = Solid.Layer };
+        foreach (var hit in Main.I.View.FindWorld3D().DirectSpaceState.IntersectShape(q, 4))
+            if (hit["collider"].AsGodotObject() is Node n && n.HasMeta("held_by"))
+            {
+                furniture = true;
+                return n.GetMeta("held_by").AsString();
+            }
+        // a swimmer is also held by the boats' hulls (no ray finds those)
+        if (j.Swimming && Scheldemist.Movers.Boats.I != null)
+        {
+            float level = Water.Level(j.X, j.Z);
+            for (float s = 0.1f; s <= 1.2f; s += 0.1f)
+                if (Scheldemist.Movers.Boats.I.HullIn(j.X + d.X * s, j.Z + d.Z * s, Jef.Radius, level - Jef.SwimDeep, level + Jef.SwimTop, out var hull))
+                    return $"a boat's hull at {hull.Origin.X:0.0}, {hull.Origin.Z:0.0}";
         }
         return "";
     }
@@ -358,7 +630,9 @@ public partial class WalkTest : Node
         if (route < 0)
         {
             // a few frames for the town to settle, then the first route
-            if (Engine.GetProcessFrames() > 10) Next();
+            // (and the first state of the game: it puts a new player on his start spot, which would carry Jef off in the middle
+            // of a route that starts first, issue 126; no state within two minutes is no reason to wait longer)
+            if (Engine.GetProcessFrames() > 10 && (Scheldemist.Game.GameState.I?.Live == true ? ++liveFrames > 120 : Time.GetTicksMsec() > 120_000)) Next();
             return;
         }
         if (waitTick != 0)
@@ -447,6 +721,24 @@ public partial class WalkTest : Node
         j.SetKey(Key.Space, l.Jump);
         blockedT = j.Blocked ? blockedT + dt : 0;
 
+        // Held by something the game stood in the street (a stall, a parked cart that came with the transport data): a
+        // walker goes round it. A wall of the town stays a wall: that is what this check is for.
+        if (l.Until == Until.Reach && blockedT > 0.6f && detoured < 4 && Ahead(j, out bool furniture) is { Length: > 0 } what && furniture)
+        {
+            var round = Around(new Vector2(j.X, j.Z), new[] { l }, out _, 0.8f);
+            if (round.Length > 1)
+            {
+                detoured++;
+                detours.Add($"{what} at {j.X:0.#}, {j.Z:0.#}");
+                var legs = r.Legs.ToList();
+                legs.Insert(leg, round[0]);
+                r.Legs = legs.ToArray();
+                legT = 0;
+                blockedT = 0;
+                return;
+            }
+        }
+
         string? result = null;
         switch (l.Until)
         {
@@ -462,7 +754,7 @@ public partial class WalkTest : Node
         legRows.Add(new()
         {
             ["to"] = new[] { l.X, l.Z }, ["until"] = l.Until.ToString().ToLowerInvariant(), ["result"] = result == "timeout" && blockedT > 0.8f ? "timeout" : result,
-            ["heldByWall"] = blockedT > 0.8f, ["heldBy"] = blockedT > 0.8f ? Ahead(j) : null, ["standsOn"] = Solid.I.NameAt(new Vector3(j.X, j.Y + 0.3f, j.Z), new Vector3(j.X, j.Y - 0.5f, j.Z)), ["seconds"] = Math.Round(legT, 1), ["at"] = Round(j.X, j.Y, j.Z), ["state"] = State(j),
+            ["heldByWall"] = blockedT > 0.8f, ["heldBy"] = blockedT > 0.8f || result == "timeout" ? Ahead(j, out _) : null, ["standsOn"] = Solid.I.NameAt(new Vector3(j.X, j.Y + 0.3f, j.Z), new Vector3(j.X, j.Y - 0.5f, j.Z)), ["seconds"] = Math.Round(legT, 1), ["at"] = Round(j.X, j.Y, j.Z), ["state"] = State(j),
         });
         legT = 0;
         blockedT = 0;

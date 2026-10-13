@@ -84,6 +84,12 @@ public partial class Doors : Node
     }
     private Door? GetOriginal(string id) => doors.FirstOrDefault(d => d.Id == id);
 
+    /// <summary>
+    /// A check holds every door as it set it (Force): the rules that open and shut doors of their own (a home's
+    /// door opens only for the one who holds its lease) leave them alone until it lets go.
+    /// </summary>
+    public bool Held { get; set; }
+
     /// <summary>Is Jef carrying goods (the goods' part says)? Then no house door lets him in.</summary>
     public Func<bool> HandsFull { get; set; } = () => false;
 
@@ -154,8 +160,14 @@ public partial class Doors : Node
     {
         var p = n.GetParent();
         if (p != null && IsHouse(p) && HouseHinge(p) == n) return true;
+        // the room's own copy of the street door's leaf (house_<place>_in): Rooms hides it, the street's leaf turns
+        if (p != null && n is Node3D && n is not GeometryInstance3D && IsRoomLeafCopy(p, n)) return true;
         return HallOf(n) != "";
     }
+
+    /// <summary>The leaf and transom copies the room's scene carries inside `house_&lt;place&gt;_in` (the punches are the room's own).</summary>
+    public static bool IsRoomLeafCopy(Node parent, Node n) =>
+        parent.Name.ToString().StartsWith("house_", StringComparison.Ordinal) && parent.Name.ToString().EndsWith("_in", StringComparison.Ordinal) && !n.Name.ToString().Contains("punch");
 
     /// <summary>A hall's hinge: a group of meshes only, one of them in the hall's leaf material (the frame above it holds groups too). "": not one.</summary>
     private static string HallOf(Node n)
@@ -168,7 +180,16 @@ public partial class Doors : Node
             string m = LeafMaterial(c);
             if (m != "") hall = m;
         }
-        return hall;
+        // A prop in a room is never a leaf of the street: the tobacconist's bundles of leaf tobacco (material "sh_leaf")
+        // made a "hall" door called "sh", with a doorway box as big as the whole shop standing across its door.
+        return hall != "" && InRoom(n) ? "" : hall;
+    }
+
+    private static bool InRoom(Node n)
+    {
+        for (var p = n.GetParent(); p != null; p = p.GetParent())
+            if (p.Name.ToString().StartsWith("ROOM_", StringComparison.Ordinal)) return true;
+        return false;
     }
 
     public override void _Ready()

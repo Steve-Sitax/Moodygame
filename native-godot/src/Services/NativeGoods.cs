@@ -164,6 +164,8 @@ public sealed class NativeGoods : INativeServiceModule
     private JsonObject Ask(NativeServiceRequest r)
     {
         var touched=new HashSet<string>(StringComparer.Ordinal);var state=State();
+        // The ask carries where he stands now: a tick every ten seconds is too old to judge the reach of a man who walked up to the crate.
+        if(r.Body["pos"] is JsonObject here&&Finite(here["x"],here["z"]))C.SetPlayerState(r.PlayerId,"native_position",new{x=N(here,"x"),z=N(here,"z"),at=C.Now});
         try { return C.Atomic(()=>Run(r,state,touched)); }
         catch(NativeServiceException e){var now=State();return new(){["ok"]=false,["why"]=e.Message,["error"]=e.Message,["v"]=now["v"]!.DeepClone(),["items"]=Copies(Items(now).Where(i=>touched.Contains(S(i,"id"))))};}
     }

@@ -246,6 +246,16 @@ public sealed class Puppet
     /// <summary>Standing at the end of a bridge that is up, until it is down (Walk).</summary>
     public bool BridgeWait;
     internal string PMotion = "idle";
+    /// <summary>Why this body gave way to a moving vehicle in the last step ("" when it did not); read by the stuck check.</summary>
+    public string Yield = "";
+    internal double YieldHold;
+    /// <summary>The way this body last stepped out of a vehicle's lane (a unit vector) and how long ago: a step straight back, from
+    /// between two lanes, is never taken at once (it was a body walking to and fro).</summary>
+    internal double PushX, PushZ, PushAge = 9;
+    /// <summary>Seconds in a row the walk could take no step at all.</summary>
+    internal double Failed;
+    /// <summary>Ways round bodies that stay put taken on this route, and the way point index before which the way points are those ways round (issue 120).</summary>
+    internal int StandDetours, DetourEnd;
     internal double? PYaw;
     internal bool Repath;
     internal bool NativeRouting;
@@ -562,6 +572,7 @@ public sealed partial class Crowd
     public void PuppetStand(Puppet p, string motion = "idle", double? yaw = null)
     {
         p.Path.Clear();
+        p.Failed = 0;
         p.Pi = 0;
         p.Dest = null;
         p.Repath = false;
@@ -669,6 +680,30 @@ public sealed partial class Crowd
         foreach (var q in people)
             if (Math.Abs(q.X - x) < BodyGap && Math.Abs(q.Z - z) < BodyGap && Hyp(q.X - x, q.Z - z) < BodyGap) return true;
         return false;
+    }
+
+    /// <summary>
+    /// A solid has just appeared (a cart parked for the player coming near): whoever stands or waits inside its
+    /// footprint, or within a body's clearance of it, is eased out onto the nearest free ground. Walkers step out by themselves.
+    /// </summary>
+    public void MoveOutOf(Aabb world, double clearance = 0.3)
+    {
+        map.RefreshBodies();
+        double x0 = world.Position.X - clearance, x1 = world.End.X + clearance, z0 = world.Position.Z - clearance, z1 = world.End.Z + clearance;
+        foreach (var p in people)
+        {
+            if (p.Remote || p.Vehicle != null || p.State is "walk" or "sit" || p.X < x0 || p.X > x1 || p.Z < z0 || p.Z > z1 || map.FreeFor(p, p.X, p.Z)) continue;
+            (double x, double z)? best = null;
+            for (double r = 0.25; r <= 3 && best == null; r += 0.25)
+                for (int k = 0; k < 24 && best == null; k++)
+                {
+                    double a = k * Math.PI / 12, qx = p.X + Math.Cos(a) * r, qz = p.Z + Math.Sin(a) * r;
+                    if (map.FreeFor(p, qx, qz) && !SomeoneAt(qx, qz)) best = (qx, qz);
+                }
+            if (best == null) continue;
+            p.X = best.Value.x;
+            p.Z = best.Value.z;
+        }
     }
 
     /// <summary>The nearest open grid point where nobody is yet, or null.</summary>
@@ -981,7 +1016,11 @@ public sealed partial class Crowd
         }
         var t = p.Path[p.Pi];
         double dx = t.x - p.X, dz = t.z - p.Z, len = Hyp(dx, dz);
-        if (len < 0.35)
+        // A native route may squeeze through gaps a quarter metre wide, and its way points lie on the edge of the free squares: from a
+        // spot 0.35 m short of one, the straight line to the next may graze a wall the map refuses. Close in on the way point first.
+        bool closeIn = len > 0.05 && p.NativeRouting && p.Pi + 1 < p.Path.Count
+            && !map.SupportsStep(p.X, p.Z, p.Path[p.Pi + 1].x, p.Path[p.Pi + 1].z);
+        if (len < 0.35 && !closeIn)
         {
             p.Pi++;
             p.BestD = double.PositiveInfinity;
@@ -1029,6 +1068,7 @@ public sealed partial class Crowd
                     {
                         p.State = "blocked";
                         p.Held = 0;
+                        p.Human.Play(StillMotion(p), 0.3f);
                         return;
                     }
                     double lat = (px * rx + pz * rz) / pd; // > 0: the player is on our right
@@ -1074,19 +1114,21 @@ public sealed partial class Crowd
         // the last leg may leave the grid (it keeps half a metre off the walls) for a spot the colliders allow:
         // a doorstep, a corner, a bench by a wall
         bool lastLeg = p.Pi == p.Path.Count - 1;
-        if (TryMove(p, p.X + mx * step, p.Z + mz * step, lastLeg, ux, uz,dt))
+        // a way round a standing body may cross the grid cells it closed; the colliders still decide every step
+        bool offGrid = lastLeg || (p.Pi < p.DetourEnd && p.DetourEnd <= p.Path.Count);
+        if (TryMove(p, p.X + mx * step, p.Z + mz * step, offGrid, ux, uz,dt))
         {
             p.X += mx * step;
             p.Z += mz * step;
         }
-        else if (TryMove(p, p.X + ux * step, p.Z + uz * step, lastLeg, ux, uz,dt))
+        else if (TryMove(p, p.X + ux * step, p.Z + uz * step, offGrid, ux, uz,dt))
         {
             p.X += ux * step;
             p.Z += uz * step;
             mx = ux;
             mz = uz;
         }
-        else if (Slide(p, ux, uz, step, lastLeg,dt) is { } slid)
+        else if (Slide(p, ux, uz, step, offGrid,dt) is { } slid)
         {
             // a wall's corner the grid rounds too tightly: along the wall instead of giving up the way
             mx = slid.x;
@@ -1104,12 +1146,20 @@ public sealed partial class Crowd
                 && Math.Abs(NativeBicycleTurn.Angle(turnYaw-p.Yaw))>.001){p.Yaw=turnYaw;p.StuckT=0;return;}
             // something the walk map does not know: remember it and find another way; stand while it is worked out
             p.Human.Play(StillMotion(p), 0.3f);
+            // Held at the same corner for seconds, however many ways were tried: go on to the next way point, so that
+            // nobody stands for ever at a place the walk map and the colliders never agreed on.
+            double heldBefore = p.Failed;
+            if ((p.Failed += dt) > 1 && heldBefore <= 1 && WedgeLog.Count < 200) WedgeLog.Add(WedgeNote(p, "first step refused", ux, uz, step));
+            // a body that stays put holds the step: go round its corners (a passing one is waited for)
+            if (p.Failed > 0.25 && DetourStanding(p, p.X + ux * step, p.Z + uz * step, ux, uz, step)) return;
+            if (p.Failed > (p.Shown ? 6 : 3) && Unwedge(p, ux, uz, step)) return;
             grid.Block(p.X + ux * 0.6, p.Z + uz * 0.6);
             p.Replans++;
             if (p.Replans > 3 || p.Dest == null) Next(p);
             else GoTo(p, p.Dest.Value);
             return;
         }
+        p.Failed = 0;
         if(p.VehicleStepYaw is double vehicleYaw){p.Yaw=vehicleYaw;p.VehicleStepYaw=null;if(p.Vehicle!=null)p.Vehicle.InitialHeading=false;}
         else Face(p, Math.Atan2(mx, mz), dt * 1.4);
         // no nearer for a second (someone in the way pushes him back): he waits, standing
@@ -1122,14 +1172,74 @@ public sealed partial class Crowd
         p.Human.SetPace((float)(p.Pace / p.Size));
     }
 
+    /// <summary>Everything that can refuse a body's step, for the stuck check's report (what held it, and where).</summary>
+    public readonly List<string> WedgeLog = new(), WedgeMaps = new();
+    private string WedgeNote(Puppet p, string what, double ux, double uz, double step)
+    {
+        var t = p.Pi < p.Path.Count ? p.Path[p.Pi] : (x: p.X, z: p.Z);
+        double nx = p.X + ux * step, nz = p.Z + uz * step;
+        var nose = p.Nose == 0 ? (x: nx, z: nz) : NosePoint(p, nx, nz, ux, uz);
+        if (what.StartsWith("first") && WedgeMaps.Count < 24) WedgeMaps.Add($"puppet {p.Id} at {p.X:0.00},{p.Z:0.00} (x from {p.X - 6:0.00}), P body, T target, N nose, # not free:\n"
+            + string.Join("\n", map.DumpCells(p.X, p.Z, 6, ('P', p.X, p.Z), ('T', t.x, t.z), ('N', nose.x, nose.z))));
+        return $"{what}: puppet {p.Id} {p.Role} nose {p.Nose} at {p.X:0.00},{p.Z:0.00} yaw {p.Yaw:0.00} to {t.x:0.00},{t.z:0.00} (leg {p.Pi}/{p.Path.Count}, native {p.NativeRouting}, shown {p.Shown}); "
+            + $"standHere {map.FreeFor(p, p.X, p.Z)}, bodyFreeStep {StepFree(p, nx, nz)}, supportsStep {map.SupportsStep(p.X, p.Z, nx, nz)}, supportsLeg {map.SupportsStep(p.X, p.Z, t.x, t.z)}, "
+            + $"noseFree {p.Nose == 0 || map.FreeFor(p, nose.x, nose.z)}, noseStatic {p.Nose == 0 || map.SupportsStep(nose.x, nose.z, nose.x, nose.z)}, "
+            + $"noseAt {nose.x:0.00},{nose.z:0.00}, gridOpen {grid.IsOpen(nx, nz)}, bodiesAtNose [{(p.Nose == 0 ? "" : map.BlockedBy(p, nose.x, nose.z))}], bodiesAtStep [{map.BlockedBy(p, nx, nz)}]";
+    }
+
     /// <summary>Blocked straight on: a step turned up to 70 degrees either way, if one is free (the way it went).</summary>
     private static readonly double[] SlideAngles = { 0.6, -0.6, 1.2, -1.2 };
+    /// <summary>
+    /// A body that has not been able to take a single step for seconds: set it on its next way point (or the nearest free ground
+    /// to it) when that is close, and go on from there. False when there is nowhere free to put it.
+    /// </summary>
+    private bool Unwedge(Puppet p, double ux, double uz, double step)
+    {
+        if (p.Pi >= p.Path.Count) return false;
+        var t = p.Path[p.Pi];
+        if (Hyp(t.x - p.X, t.z - p.Z) > (p.Shown ? 3 : 12)) return false;
+        (double x, double z)? to = map.FreeFor(p, t.x, t.z) && !SomeoneAt(t.x, t.z) ? t : OpenNearFree(t.x, t.z);
+        if (to == null) return false;
+        if (WedgeLog.Count < 200) WedgeLog.Add(WedgeNote(p, "safety net used", ux, uz, step));
+        p.X = to.Value.x;
+        p.Z = to.Value.z;
+        p.Pi++;
+        p.Failed = 0;
+        p.StuckT = 0;
+        p.BestD = double.PositiveInfinity;
+        if (p.Pi >= p.Path.Count) Arrive(p);
+        return true;
+    }
+
     private bool TryMove(Puppet p, double x, double z, bool lastLeg, double ux, double uz,double dt)
     {
         if(!StepFree(p,x,z)||p.NativeRouting&&!map.SupportsStep(p.X,p.Z,x,z)
             ||!(p.NativeRouting||lastLeg||grid.IsOpen(x,z)||!grid.IsOpen(p.X,p.Z)))return false;
         if(map.IsNative&&p.Vehicle?.Kind==1){if(!TryBicycleStep(p,x,z,Math.Min(1,dt*7),out double yaw))return false;p.VehicleStepYaw=yaw;return true;}
-        return p.Nose==0||map.FreeFor(p,x+ux*p.Nose,z+uz*p.Nose);
+        if (p.Nose == 0) return true;
+        var nose = NosePoint(p, x, z, ux, uz);
+        return map.FreeFor(p, nose.x, nose.z);
+    }
+
+    /// <summary>
+    /// Where the front of a long vehicle (a dray's nose, 3.3 m) will be when its body is at (x, z): that far ahead along the route,
+    /// round the corners it still has, not straight on towards the next way point. Straight on, a way point half a metre off
+    /// across a lane's corner pointed the nose into the wall and the cart never started (issue 105).
+    /// </summary>
+    private (double x, double z) NosePoint(Puppet p, double x, double z, double ux, double uz)
+    {
+        if (!p.NativeRouting) return (x + ux * p.Nose, z + uz * p.Nose);
+        double left = p.Nose, cx = x, cz = z, dirX = ux, dirZ = uz;
+        for (int i = p.Pi; i < p.Path.Count; i++)
+        {
+            double sx = p.Path[i].x - cx, sz = p.Path[i].z - cz, l = Hyp(sx, sz);
+            if (l < 1e-6) continue;
+            dirX = sx / l; dirZ = sz / l;
+            if (l >= left) return (cx + dirX * left, cz + dirZ * left);
+            left -= l; cx = p.Path[i].x; cz = p.Path[i].z;
+        }
+        // the route ends short of the nose: on in the last direction
+        return (cx + dirX * left, cz + dirZ * left);
     }
     private (double x, double z)? Slide(Puppet p, double ux, double uz, double step, bool lastLeg,double dt)
     {
@@ -1178,6 +1288,7 @@ public sealed partial class Crowd
         p.Path.Clear();
         p.Pi = 0;
         p.Replans = 0;
+        p.Failed = 0;
         if (p.Repath && p.Dest != null)
         {
             // the old way is walked out and a new goal waits: on there as soon as a way is found
@@ -1219,6 +1330,8 @@ public sealed partial class Crowd
             return;
         }
         pathBudget--;
+        p.StandDetours = 0;
+        p.DetourEnd = 0;
         p.NativeRouting = false;
         var path = grid.Inside(dest.x, dest.z, 4) || !map.IsNative
             ? grid.Path(p.X, p.Z, dest.x, dest.z, 9000, standFree, p.Path) : null;

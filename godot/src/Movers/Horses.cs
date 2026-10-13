@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 
 namespace Scheldemist.Movers;
@@ -346,7 +347,9 @@ public partial class HorsePool : Node
     {
         I = this;
         HorseGait.Warm();
-        var g = Mv.Top("horses");
+        // the pool is the "horses" group that holds the copies (INST..._horsebody_mm); the bake also has a second group of that
+        // name with the model parts the copies were made from, which is no pool
+        var g = Mv.Tops("horses").Find(t => t.GetChildren().OfType<MultiMeshInstance3D>().Any(m => m.Name.ToString().EndsWith("_horsebody_mm")));
         if (g == null) return;
         body = Copies.Find(g, "horsebody");
         string[] names = { "horselegfront", "horselegfrontlo", "horseleghind", "horseleghindlo" };

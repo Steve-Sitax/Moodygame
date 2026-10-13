@@ -145,6 +145,7 @@ public static class InteriorVisibility
         foreach (var m in markers) if (targets.Count(t => t.Openings.Contains(m)) != 1) problems.Add("opening must have exactly one room: " + m.GetPath());
         try
         {
+            Doors.I.Held = true; // a rented home's door is shut for everyone but its tenant: the check holds it open
             foreach (var d in Doors.I.All.Where(d => !d.Fixed)) Doors.I.Force(d, true);
             await frames(480); // heavy leaves swing at 0.55 rad/s: let the actual door finish opening
             // Read all meshes, including culled rooms. Visibility is selected again at each real room visit.
@@ -194,8 +195,24 @@ public static class InteriorVisibility
                             angles?.Add(new { slope, inside = new[] { inside.X, inside.Y, inside.Z }, hit = angled });
                             if (angled == null || angled.Distance > (insideDepth + 0.6f) / outward) { streetDirection = direction; break; }
                         }
+                        // A cellar's window looks onto a light well under the kerb (docs/milestones/M7-taverns-homes-inworld.md): the
+                        // well's own outer wall stands a few tenths of a metre out, by design. What matters is that the shaft is
+                        // open to the street: straight up from the air of the well, nothing but the iron grating (see-through)
+                        // before the sky.
+                        bool viaWell = false;
+                        if (streetDirection == null && reverse is { } wellWall && wellWall.Path.EndsWith("_light_well", StringComparison.Ordinal) && wellWall.Distance < insideDepth + 1.2f)
+                        {
+                            Hit? up = null; float travel = 0;
+                            for (int pass = 0; pass < 4; pass++)
+                            {
+                                up = Cast(near, p + normal * 0.3f + Vector3.Up * travel, Vector3.Up, 30 - travel, target.Room);
+                                if (up == null || !up.Path.Contains("_grating", StringComparison.Ordinal)) break;
+                                travel += up.Distance + 0.02f;
+                            }
+                            if (up == null) { streetDirection = Vector3.Up; viaWell = true; }
+                        }
                         if (streetDirection != null) toStreet++;
-                        probes.Add(new { point = new[] { p.X, p.Y, p.Z }, hit, reverse, streetDirection = streetDirection is { } sd ? new[] { sd.X, sd.Y, sd.Z } : null, angles, through, blocked = wall });
+                        probes.Add(new { point = new[] { p.X, p.Y, p.Z }, hit, reverse, streetDirection = streetDirection is { } sd ? new[] { sd.X, sd.Y, sd.Z } : null, viaWell, angles, through, blocked = wall });
                     }
                     bool occluded = !closed && toRoom == 0 && toShell >= pts.Count * 0.6f;
                     bool absent = !closed && toRoom == 0 && toNothing > 0;
@@ -217,6 +234,7 @@ public static class InteriorVisibility
         finally
         {
             Rooms.I.AuditRoom = null; cam.GlobalTransform = saved;
+            Doors.I.Held = false;
             foreach (var (d, forced, known, target) in doorStates) { Doors.I.Release(d); d.Forced = forced; d.Known = known; d.Target = target; }
             if (!fly) Player.Jef.I.ToggleFly();
         }

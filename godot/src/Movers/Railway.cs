@@ -545,6 +545,7 @@ public partial class Railway : Node
             }
             // the legs: solid, and they go with it
             Mv.Body(c.Obj, "portal", m => m.GetParent() == c.Obj);
+            RegisterLegs(c);
             if (c.Pile != null)
             {
                 c.Pile.Body = NewBox($"pile_{c.Index}", new Vector3(2.2f, 1.6f, 2.2f));
@@ -554,6 +555,38 @@ public partial class Railway : Node
         foreach (var c in cranes)
             foreach (var o in cranes)
                 if (o != c) c.Near.Add(o); // (RoomOf leaves out those too far to touch)
+    }
+
+    /// <summary>
+    /// The walk map knows the still world only; the portal is claimed as a mover, so its four legs were open ground to every
+    /// walker and cart, and a crane that rolled along its rails ran into the people crossing them (issue 118). Each leg
+    /// is a body of its own (a node of its own, so the crowd reads each one's speed) in the crane's frame: where the leg
+    /// stands at a walker's height, between the foot and the first metres of its lean. Between the legs stays open, and so
+    /// do the rails when the crane is away.
+    /// </summary>
+    private readonly List<(Node3D Leg, Vector3 Centre)> legSpots = new();
+    private void RegisterLegs(Crane c)
+    {
+        for (int i = 0; i < CraneFeet.Length; i++)
+        {
+            var (fx, fz) = CraneFeet[i];
+            var leg = new Node3D { Name = "crane_leg_" + i };
+            c.Obj.AddChild(leg);
+            float sx = Math.Sign(fx), sz = Math.Sign(fz);
+            // the leg leans in from (2.2, 2.6) at the foot to (1.15, 2.35) at the top, 0.75 m thick: at 1.75 m it is about (1.93, 2.54)
+            float x0 = 1.18f, x1 = 2.95f, z0 = 1.79f, z1 = 3.35f;
+            var lo = new Vector3(sx > 0 ? x0 : -x1, 0, sz > 0 ? z0 : -z1);
+            var box = new Aabb(lo, new Vector3(x1 - x0, 4, z1 - z0));
+            Scheldemist.Town.WalkMap.RegisterBody(leg, box, true);
+            legSpots.Add((leg, new Vector3(lo.X + (x1 - x0) / 2, 0, lo.Z + (z1 - z0) / 2)));
+        }
+    }
+
+    /// <summary>Where each crane leg stands now, for the stuck check: the walk map must call these spots taken.</summary>
+    public IEnumerable<(string Name, double X, double Z)> LegSpots()
+    {
+        foreach (var (leg, centre) in legSpots)
+            if (IsInstanceValid(leg)) { var at = leg.GlobalTransform * centre; yield return (leg.GetParent().Name + "/" + leg.Name, at.X, at.Z); }
     }
 
     private static bool SameRunway(Crane a, Crane b) => a.Axis != ' ' && a.Axis == b.Axis && (a.Axis == 'x' ? Math.Abs(a.Z - b.Z) < 0.5f : Math.Abs(a.X - b.X) < 0.5f) && a.Lo < b.Hi + 40 && b.Lo < a.Hi + 40;

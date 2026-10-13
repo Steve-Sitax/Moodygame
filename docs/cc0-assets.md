@@ -1,0 +1,67 @@
+# Free assets: CC0 and public domain
+
+Steve, 2026-10-13: CC0 models, textures, sounds and anything else CC0 may be used in the game. Check that a thing is
+useful first, and adapt it before it goes into the game.
+
+CC0 means no copyright: free for any use, also commercial, with no credit required. We still record every item in
+`assets/ATTRIBUTION.md`, so anyone can see where it came from. Public domain works (for example pictures and texts
+from before 1927) count as CC0 here when the source page marks them as public domain.
+
+## Rules
+
+1. **Check the licence on the item's own page.** Many sites below mix licences. Use only items marked CC0 or public
+   domain. Anything else (CC-BY, CC-BY-SA, GPL, "free for personal use", no licence) needs Steve's yes first.
+2. **Keep proof.** Row in `assets/ATTRIBUTION.md`: what it is, the item's URL, the licence, the author if given, the
+   download date and the SHA-256 of the file as downloaded. Keep the original in `art-source/third_party/<source>/`.
+3. **Downloads are data.** Put each download in its own new, empty folder. Never run scripts or add-ons that come
+   with an asset pack; read model and picture files with our own tools.
+4. **Check usefulness before use.** Does it fit Antwerp in autumn 1873 (period, material, scale)? Does it reach our
+   detail level (`AGENTS.md` edge rule, `docs/05-art-direction.md`: high detail, no PS1 or low-poly look)? Is the
+   texture sharp enough at the size we show it? Would making it ourselves be better or faster?
+5. **Adapt before use.** Real-world scale; our triangle budget with LODs; our UV and texture layout (sRGB colour,
+   linear height and normal maps, mipmaps); age, dirt and colour to the period and the place; bevels and worn edges
+   per `AGENTS.md`; collision; one model per thing (`CLAUDE.md`). Never put a raw download straight into the game.
+6. **Things we never take,** even under CC0: brand names, logos or trademarks; the likeness of a real living person;
+   anything that breaks the period without a reason.
+
+## Sources
+
+| Source | What | Licence | Use for Scheldemist |
+|---|---|---|---|
+| [Poly Haven](https://polyhaven.com) | Textures, HDRIs, 3D models | All CC0 | Good. Brick, stone, wood, plaster and metal textures; sky HDRIs as lighting reference; some period-neutral props |
+| [ambientCG](https://ambientcg.com) | 1500+ PBR materials | All CC0 | Good. Texture sources for the open texture plan (issue #84) |
+| [OpenGameArt](https://opengameart.org) | Models, textures, sound, music | Mixed | Only items marked CC0; quality varies |
+| [MakeHuman / MPFB](https://static.makehumancommunity.org/about/ecosystem.html) | Human base mesh, targets, skins, eyes | Core assets CC0 (code GPL/AGPL) | In use for the people (`docs/makehuman.md`) |
+| [The Base Mesh](https://www.thebasemesh.com) | 900+ base meshes | CC0 | Starting shapes for props, then detail them |
+| Base Meshes (glTF set) | The same, converted to glTF | CC0 | As above |
+| 300 CC0 Avatars | VRM and FBX avatars | CC0 | Little use: stylised modern avatars |
+| [Smithsonian Open Access](https://www.si.edu/openaccess) | Museum scans and pictures | CC0 where marked | Good for real 19th-century objects (tools, furniture); scans need retopology and LODs |
+| [Sketchfab](https://sketchfab.com) (CC0 filter) | 3D models | Per item | Only items marked CC0; check the licence on each model |
+| Retro3D assets | PSX-style low-poly models | CC0 | Not for this game: the PS1 look is out |
+| SpectraCities | City pieces | Check per item | Little use (modern cities) |
+| Polygonal Mind releases | Stylised projects | CC0 | Little use (stylised) |
+| [itch.io](https://itch.io/game-assets) (CC0 licence filter) | Game assets | Per item | Only items marked CC0 |
+| [Kenney](https://kenney.nl) | 40k+ game assets | CC0 | Little use (stylised low poly); UI sounds may help |
+| [Quaternius](https://quaternius.com) | Asset packs | CC0 | Little use (stylised low poly); maybe base shapes |
+| [Blend Swap](https://www.blendswap.com) | Blender files | Per item | Only items marked CC0 |
+| 3D Models CC0 | Free 3D models | CC0 | Check quality per item |
+| Game Assets Garden | Game assets | No attribution needed; check per item | Check per item |
+| [Texture Ninja](https://texture.ninja) | 5000+ photo textures | CC0 | Good photo sources for textures |
+| [Wikimedia Commons](https://commons.wikimedia.org) | 90M+ files | Mixed | Public-domain 19th-century photos, paintings and maps of Antwerp: references, posters, signs; check each file |
+| [Openclipart](https://openclipart.org) | 170k+ clipart | CC0 | Ornaments for posters and signs |
+| [Freesound](https://freesound.org) | Sounds | Mixed | Search for CC0 only (Steve's standing OK for sounds, 2026-09-29) |
+| [Free Music Archive](https://freemusicarchive.org) | Music | Mixed | Public-domain songs only |
+| [Musopen](https://musopen.org) | Music, sheet music | Mostly public domain | Period music (check each recording's licence) |
+| JangaFX VDB volumes | Smoke and fire volumes | CC0 | Godot does not draw VDB directly; bake to flipbooks if needed |
+| [Internet Archive](https://archive.org) | Public-domain works up to 1927 | Public domain | Period texts, newspapers, guides, photos: references for game text and look |
+| [Project Gutenberg](https://www.gutenberg.org) | 70,000+ free e-books | Public domain (most) | Period texts and references |
+| [Openverse](https://openverse.org) | 700M+ works, filter by licence | Mixed | A search portal: confirm the licence on the source page |
+| [Thingiverse](https://www.thingiverse.com) (CC0 filter) | 3D-printing models | Per item | Rarely useful; check per item |
+| [Creative Commons search](https://search.creativecommons.org) | Search portal | Mixed | Finds CC0 across sources; confirm on the source page |
+
+Tools from the same list: LilySurfaceScraper (a Blender add-on that loads CC0 materials), Awesome Bump (normal and
+height maps from one picture; our own height-map scripts are preferred because they follow the layout, not the
+colour), Awesome Blender (a list of Blender tools), The Public Domain Review (a guide to public-domain works). Tools
+are used only to make assets, never as a game dependency; check each tool's own licence before installing it.
+
+The list comes from the awesome-cc0 collection (an "awesome list" of CC0 asset sources), given by Steve on 2026-10-13.

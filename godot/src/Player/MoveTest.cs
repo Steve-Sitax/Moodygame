@@ -61,9 +61,11 @@ public partial class MoveTest : Node
             if (Wants("jump")) await JumpCheck();
             if (Wants("ledge")) await LedgeCheck();
             if (Wants("ladder")) await QuayLadderCheck();
+            if (Wants("ladder")) await QuayLadderDownUpCheck();
             if (Wants("landing")) await LandingCheck();
             if (Wants("hull")) await HullCheck();
             if (Wants("dive")) await DiveCheck();
+            if (Wants("steps")) await StepsCheck();
             if (Wants("flood")) await FloodCheck();
             if (Wants("crane")) await CraneCheck();
             if (Wants("look")) await LookCheck();

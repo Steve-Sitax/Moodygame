@@ -107,6 +107,7 @@ public partial class PlacesTest : Node
         Scheldemist.World.Daylight.I!.SetTime(13.75f); Scheldemist.World.Daylight.I.Settle();
         await HomeLife.I.Load();
         Check(await Until(() => HomeLife.I.Info != null, 15), "home information");
+        Check(HomeLife.I.Info!.Homes.All(x => HomeLife.I.Frames.TryGetValue(x.Id, out var room) && RunWords.Dist(x.Wall[0], x.Wall[1], room.X, room.Z) < 1.5f), "every home's street door is the door its baked room stands behind");
         var h = HomeLife.I.Info!.Homes.First(h => h.Id == "alley");
         await At(h.Wall[0] + h.Out[0] * 1.1f, h.Wall[1] + h.Out[1] * 1.1f, h.Wall[0], h.Wall[1], 1.2f);
         Check(Interact.I.Find().Any(a => a.Text.StartsWith("read the notice:")), "home notice prompt");
@@ -115,15 +116,21 @@ public partial class PlacesTest : Node
         int money = GameState.I.Money; Dialogs.I.Top!.OnKey("Digit1", "1");
         Check(await Until(() => HomeLife.I.Info?.Lease?.Home == h.Id && !HomeLife.I.Busy, 10), "own key for tonight");
         Check(GameState.I.Money == money - h.DayC, "rent uses server nightly price");
-        await Frames(80); Check(Doors.I.Get(Spots.BakedName("home:alley")) is { CanPass: true }, "own key opens actual door");
+        // the door follows the lease every 0.25 s of game time and then swings for about a second: wait for it, not a fixed 80 frames (at a high frame rate that is under half a second)
+        bool doorOpened = await Until(() => Doors.I.Get(Spots.BakedName("home:alley")) is { CanPass: true }, 8);
+        Check(doorOpened, "own key opens actual door");
         var f = HomeLife.I.Frames[h.Id]; var local = f.Local(f.Bed.X, f.Bed.Z); var at = f.World(local.X + 1.3f, local.Y);
         await At(at.X, at.Z, f.Bed.X, f.Bed.Z, f.Bed.Y, f.Y); await Frames(15);
         replies.Add(new { homeBedProbe = new { f.Bed, f.Y, f.Inside, Jef.I.X, Jef.I.Z, playerY = Jef.I.Y, Jef.I.Pitch, aim = Interact.Aim(f.Bed.X, f.Bed.Y, f.Bed.Z), prompts = Interact.I.Find().Select(a => a.Text).ToArray() } });
         await Shot("home-room");
         Check(Interact.I.Find().Any(a => a.Text == "go to bed"), "own bed prompt");
         Interact.I.Press(Key.E); await Shot("home-bed"); Check(Dialogs.I.Top?.DialogName == "sleep chooser", "home sleep chooser");
-        Dialogs.I.Top!.OnKey("Digit1", "1");Check(await Until(()=>Day.I.Asleep,12),"own bed sleep accepted by engine");
-        GameState.I.Apply(await api.Tick(GameState.I.Where(),true,new Pos3(Jef.I.X,Jef.I.Z,Jef.I.Y)));await Frames(6);Dialogs.I.Top!.OnKey("KeyE","e");
+        Dialogs.I.Top?.OnKey("Digit1", "1");Check(await Until(()=>Day.I.Asleep,12),"own bed sleep accepted by engine");
+        GameState.I.Apply(await api.Tick(GameState.I.Where(),true,new Pos3(Jef.I.X,Jef.I.Z,Jef.I.Y)));await Frames(6);
+        // The "asleep" window opens when the engine's sleep reply is handled and closes when the sleep ends by itself, so wait for it
+        // (or for the sleep to be over) instead of assuming it is on top; any key wakes him.
+        await Until(()=>Dialogs.I.Top?.DialogName=="asleep"||!Day.I.Asleep,12);
+        if(Day.I.Asleep&&Dialogs.I.Top is {DialogName:"asleep"} wake)wake.OnKey("KeyE","e");
         Check(await Until(()=>!Day.I.Asleep&&Day.I.LastWoke?.Place=="home",12),"wake in own home");Check(f.Inside,"wake position in real home room");replies.Add(new{homeWake=Day.I.LastWoke});
         replies.Add(new { homes = HomeLife.I.Info });
         if(f.Fire!=Vector3.Zero){GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set",new{warmth=5}));var fire=f.Local(f.Fire.X,f.Fire.Z);var near=f.World(fire.X-MathF.Sign(fire.X)*1,fire.Y);await At(near.X,near.Z,f.Fire.X,f.Fire.Z,f.Fire.Y,f.Y);
@@ -240,12 +247,25 @@ public partial class PlacesTest : Node
         bool carried = await Until(() => Goods.I.Carried != null, 8);
         replies.Add(new { dockLift = new { intended = item.Id, actual = Goods.I.Carried?.Id, Goods.I.LastRefusal, DockWork.I.InBook } });
         Check(carried && Goods.I.Carried!.Id.StartsWith("haul:"), "dock piece carried"); item = Goods.I.Carried!;
+        // The hands show the lift at once; the engine hears it a moment later, and refuses it ("You cannot reach it from there.") if he is already
+        // somewhere else by then. A player cannot cross the dock in that time, so wait until the engine has him holding it before moving him.
+        Check(await Until(() => Goods.I.Carried == item, 8) && await EngineHolds(api, item.Id), "dock piece held by the engine");
         string routeId = item.Id[5..item.Id.LastIndexOf("a:", StringComparison.Ordinal)]; var route = Scheldemist.Town.HaulRoute.All.First(r => r.Id == routeId);
         await At((float)route.B.X, (float)route.B.Z, (float)route.B.X, (float)route.B.Z - 1, 1);
         Check(Interact.I.Find().Any(a => a.Text.Contains("paid by the piece")), "dock delivery prompt");
         int money = GameState.I.Money; await Shot("dock-piece"); Interact.I.Press(Key.E);
         Check(await Until(() => Goods.I.Carried == null && GameState.I.Money > money, 12), "dock piece server payment");
         replies.Add(new { dockPayment = new { before = money, after = GameState.I.Money } }); await Shot("dock-paid");
+    }
+    private async Task<bool> EngineHolds(Api api, string id)
+    {
+        for (int i = 0; i < 40; i++)
+        {
+            var list = await api.Goods<GoodsList>();
+            if (list.Items.Any(g => g.Id == id && g.ByPlayer == list.You)) return true;
+            await Frames(10);
+        }
+        return false;
     }
     private async Task Counters(Api api)
     {
@@ -391,7 +411,7 @@ public partial class PlacesTest : Node
         var a=Scheldemist.Movers.River.I.Anchorage!; if(quayTow>=0){var tow=a.Tows[quayTow];tow.S=quayS;tow.Stop=1;tow.Phase="dwell";tow.Crab=1;tow.Dwell=180;}
         await At(31,27,31,29,1); await Emigrants.I.Load(); Check(await Until(()=>Emigrants.I.CampCount>0,12),"emigrant camp from engine");Check(Emigrants.I.NoticeText.Contains("EMIGRANTS BOARD"),"emigrant notice follows engine ship day");var notice=Emigrants.I.NoticeAt;await At(notice.X,notice.Z+2,notice.X,notice.Z,notice.Y);await Shot("emigrant-notice");if(Emigrants.I.Info!.Families.Any(f=>f.Baby!=null)){Check(await Until(()=>Emigrants.I.BabyAt!=null,12),"emigrant babies visible in mothers’ arms");var baby=Emigrants.I.BabyAt!.Value;pictureAt=baby+new Vector3(1.5f,.7f,-1.5f);pictureTarget=baby;await Shot("emigrant-mother-baby");pictureAt=pictureTarget=null;} replies.Add(new{emigrants=await api.Emigrants()});Check(await Until(()=>Emigrants.I.CampProp!=null,8),"camp luggage visible");var campAt=Emigrants.I.CampProp!.Value;await At(campAt.X,campAt.Z+2.3f,campAt.X,campAt.Z,campAt.Y+.35f);await Shot("emigrant-camp");
         Emigrants.I.SetProcess(false);
-        GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set",new{day=2,hour=9,minute=0}));replies.Add(new{shipFixture=await api.Post<JsonElement>("api/dev/emigrants",new{ship_today=true})});await api.Tick();GameState.I.Apply(await api.Jobs());
+        GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set",new{day=2,hour=13,minute=0,weather="clear"}));Scheldemist.World.Daylight.I!.SetTime(13f);Scheldemist.World.Daylight.I.Settle();replies.Add(new{shipFixture=await api.Post<JsonElement>("api/dev/emigrants",new{ship_today=true})});await api.Tick();GameState.I.Apply(await api.Jobs());
         var info=await api.Emigrants();var f=info.Families.First(f=>f.BoardingToday);var j=GameState.I.Jobs.First(j=>j.EmployerNpc==f.Head && j.TaskType=="carry" && j.Status=="offered");await Jobs.I.TakeJob(j);Check(Jobs.I.Run is HaulRun,"emigrant luggage follows carry run");
         await Emigrants.I.Load();Check((await api.Emigrants()).Families.First(q=>q.Household==f.Household).WaitingForJef,"family waits for taken luggage");
         bool refused=false;try{await api.EmigrantBoard(f.Household);}catch(ApiException e){refused=e.Status==409;replies.Add(new{boardingRefused=e.Message});}Check(refused,"engine refuses boarding before luggage");
@@ -414,7 +434,11 @@ public partial class PlacesTest : Node
         var ev = (await api.Actions()).Events.First(e => e.Hiring != null && e.Status == "running"); var sp = ev.Hiring!.Spots[0]; float x = (float)sp.X, z = (float)sp.Z;
         await At(x, z, x, z - 1, 1); await TownWork.I.Load(); Check(Interact.I.Find().Any(a => a.Text == "stand with the men to be hired"), "hiring stand prompt");await Shot("hiring-stand"); Interact.I.Press(Key.E);
         Check(await Until(() => !Interact.I.Find().Any(a => a.Text == "stand with the men to be hired"), 8), "hiring stand accepted once"); replies.Add(new { hiring = await api.Actions() });
-        var fire = await api.Post<JsonElement>("api/dev/director", new { template = "house_fire" }); replies.Add(new { fireFixture = fire }); Check(fire.GetProperty("ok").GetBoolean(), "fire fixture");
+        // The engine plans one event near another only after the first is over; the ballads and the hiring this run has started are still on, so let the hours pass until it takes the fire.
+        var fire = await api.Post<JsonElement>("api/dev/director", new { template = "house_fire" });
+        for (int wait = 0; wait < 6 && !fire.GetProperty("ok").GetBoolean() && fire.GetProperty("why").GetString() == "another event is too near then"; wait++)
+        { GameState.I.Apply(await api.Post<JobsPayload>("api/dev/advance", new { minutes = 60 })); await api.Tick(); fire = await api.Post<JsonElement>("api/dev/director", new { template = "house_fire" }); }
+        replies.Add(new { fireFixture = fire }); Check(fire.GetProperty("ok").GetBoolean(), "fire fixture");
         for (int i = 0; i < 15; i++) { GameState.I.Apply(await api.Post<JobsPayload>("api/dev/advance", new { minutes = 5 })); await api.Tick(); ev = (await api.Actions()).Events.First(e => e.Id == fire.GetProperty("id").GetInt32()); if (ev.Acts![ev.Stage] == "fire_chain") break; }
         Check(ev.Acts![ev.Stage] == "fire_chain", "fire reaches bucket line"); var chain = ev.Fire!.Chain[0]; x = (float)chain[0]; z = (float)chain[1];
         await At(x, z, x, z - 1, 1); await TownWork.I.Load(); Check(Interact.I.Find().Any(a => a.Text == "take a place in the bucket chain"), "fire chain prompt"); Interact.I.Press(Key.E); Check(await Until(() => TownWork.I.InChain, 8), "fire chain joined"); await Shot("fire-chain");

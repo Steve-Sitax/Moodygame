@@ -49,7 +49,7 @@ public sealed class DrawBridge
             // The browser only boxes the gallows posts; Godot also collides with the leaf's rails.
             // Keep walkers off those rails while leaving the deck between them open.
             foreach (int side in new[] { -1, 1 })
-                Scheldemist.Town.WalkMap.RegisterBody(found[0], new Aabb(new Vector3(0, 0.36f, side * spec.Half - 0.05f), new Vector3(spec.L, 0.74f, 0.1f)));
+                Scheldemist.Town.WalkMap.RegisterBody(found[0], new Aabb(new Vector3(0, 0.36f, side * spec.Half - 0.05f), new Vector3(spec.L, 0.74f, 0.1f)), moves: true);
         }
         chains = new RopeLines(name + "_chains", Boats.I?.Rope);
         group.AddChild(chains);

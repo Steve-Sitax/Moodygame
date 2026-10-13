@@ -23,14 +23,37 @@ public partial class NativeTown : BakedWorld
     public NativeDistrictLayouts.Result Layouts { get; private set; } = null!;
     public JsonArray LampFacts { get; private set; } = new();
     public override JsonDocument? NativeLights => lights;
+    private List<QuayExits.Ladder>? quayLadders;
+    public override IReadOnlyList<QuayExits.Ladder>? NativeQuayLadders => quayLadders;
     public override Scheldemist.Town.WalkMap? NativeWalk
     {
         get
         {
-            if (walk == null) { walk = NativeWorldNavigation.Build(town, new Rect2(-480, -80, 820, 560)); Ways.InstallNative(walk); }
+            if (walk == null) { walk = NativeWorldNavigation.Build(town, new Rect2(-480, -80, 820, 560)); Ways.InstallNative(walk, null, Ways.ReadHouseFootprints(Paths.Shared("city_build.json"))); }
             return walk;
         }
     }
+    private static string SourceOf(Node n) => n.HasMeta("source_name") ? n.GetMeta("source_name").AsString() : "";
+    private static int IndexOf(Node n) => n.HasMeta("source_node_index") ? n.GetMeta("source_node_index").AsInt32() : -1;
+    /// <summary>
+    /// The bake's frozen event and crowd pictures that nothing at run time draws or moves (found by the leftover scan, godot/src/Play/LeftoverScan.cs;
+    /// issues 111, 80 and the scan of 2026-10-13). Each is matched by the bake's own node number, so a scene that is re-baked or edited shows them again
+    /// rather than hiding something else. Not in the list, on purpose: the Steen's fisher, children and sailor and the net-mender at the trades (steenlife.ts, permanent
+    /// street scenery), the goods and traffic rigs (their movers claim them), and everything the runtime parts hide themselves (the fire's crowd, the market).
+    /// </summary>
+    private static readonly (string What, Func<Node3D, bool> Match)[] LeftoverSnapshots =
+    {
+        ("soot sheet", n => n.Name == "soot" || SourceOf(n) == "soot"),
+        // the fire hose of the Poesje's fire, laid from the pump snapshot to the door (the live pump has its own hose)
+        ("fire hose", n => IndexOf(n) == 13830 && n.Name == "Mesh2948"),
+        // the carts of the crowd that stood in the street when the bake was taken (their carters are hidden by Townspeople): the fish market's three and the one at the fire
+        ("crowd cart", n => SourceOf(n) == "pushcart" && (IndexOf(n) is 8454 or 8464 or 8474 or 13561)),
+        // Issue 122: unowned quay dressing has no cargo interactions, driver or horse gait. Live transport owns the usable carts and drays.
+        ("quay handcart", n => IndexOf(n) == 4854 && SourceOf(n) == "handcart_loaded"),
+        ("quay horse dray", n => IndexOf(n) == 4867 && SourceOf(n) == "dray_horse"),
+        // the prison yard's ring of walkers, eight of ten frozen mid-stride (PrisonPeople walks its own at the exercise hour)
+        ("prison ring figure", n => IndexOf(n) is 12420 or 12438 or 12456 or 12474 or 12492 or 12510 or 12528 or 12546),
+    };
     public override Error Load(string unused)
     {
         Stage = "read";
@@ -52,17 +75,67 @@ public partial class NativeTown : BakedWorld
         }
         // Active fires construct their own moving pump. Keep the one-time scene snapshot intact on disk.
         if (eventSnapshots > 0) Unported.Remove("Node1476/Mesh2924");
+        // The bake is a picture of one instant, and a few things in it belong to events and crowds that the game now draws and moves
+        // itself. They stay in the scene on disk, but never show: the town's own soot (TownLife.Fire) draws a burned front after a real
+        // fire, the live pump brings its own hose, the prison's rounds (PrisonPeople) walk their own ring, the street crowd its own carts.
+        // (dev: --keep-leftovers leaves all of them as the bake has them, for a before-and-after; --keep-soot only the soot sheet)
+        var leftoverCounts = new SortedDictionary<string, int>();
+        if (!Scheldemist.Main.I.Flag("keep-leftovers"))
+            foreach (var snapshot in town.GetChildren().OfType<Node3D>().ToArray())
+                foreach (var (what, match) in LeftoverSnapshots)
+                {
+                    if (!match(snapshot) || what == "soot sheet" && Scheldemist.Main.I.Flag("keep-soot")) continue;
+                    snapshot.Visible = false;
+                    foreach (var child in All(snapshot)) child.SetMeta("native_replaced_event_snapshot", true);
+                    leftoverCounts[what] = leftoverCounts.GetValueOrDefault(what) + 1;
+                    break;
+                }
+        int sootSnapshots = leftoverCounts.GetValueOrDefault("soot sheet");
+        // The bake also kept the horse model parts the pool's copies were made from (second "horses" group: whole mesh parts at the
+        // origin, legs hanging below the quay). The pool draws its own copies; the template stays on disk but never shows.
+        int horseTemplates = 0;
+        foreach (var template in town.GetChildren().OfType<Node3D>().Where(n => n.HasMeta("source_name") && n.GetMeta("source_name").AsString() == "horses"
+            && n.GetChildren().OfType<MeshInstance3D>().Any(m => m.Name == "horse_body")).ToArray())
+        {
+            template.Visible = false;
+            foreach (var child in All(template)) child.SetMeta("native_replaced_event_snapshot", true);
+            horseTemplates++;
+        }
+        // The Werf's ground chunk hangs a kerb and an apron out over the water, over the inner treads of its stone flight (issue 68).
+        // Its footprint is cut out of the mesh, so what is drawn, what is walked on and what is solid agree with the steps.
+        // (dev: --no-werf-cut leaves the ground as the bake has it, for a before-and-after)
+        int werfCut = Scheldemist.Main.I.Flag("no-werf-cut") ? 0 : QuayNotch.Cut(town, "city_-4_0_3", QuayExits.WerfFrame, QuayExits.WerfNotchS0, QuayExits.WerfNotchS1, QuayExits.WerfNotchU0, QuayExits.WerfNotchU1);
+        // The baked quay ladders ran through the coping and into the stone (issue 85): the native ladder replaces them.
+        var ladders = Scheldemist.Native.World.NativeQuayLadders.Install(town);
+        quayLadders = ladders.Ladders;
+        foreach (var note in ladders.Notes) GD.Print("quay ladders: " + note);
         AddChild(town);
+        Report["werfStepsCutTriangles"] = werfCut;
         Report["source"] = "complete native Godot town";
+        Report["quayLadders"] = ladders.Ladders.Count;
+        Report["quayLadderMeshes"] = ladders.Meshes;
+        Report["quayLadderOldTriangles"] = ladders.RemovedTriangles;
+        Report["quayLadderMs"] = ladders.Ms;
         Report["sourceSha256"] = intake["sourceSha256"]!.GetValue<string>();
         Report["authoredObjects"] = Layouts.ObjectCount;
         Report["districts"] = Layouts.Districts.Count;
         Report["replacedEventSnapshots"] = eventSnapshots;
+        Report["hiddenHorseTemplates"] = horseTemplates;
+        Report["hiddenSootSnapshots"] = sootSnapshots;
+        Report["hiddenLeftoverSnapshots"] = leftoverCounts.Values.Sum();
+        Report["hiddenLeftoverSnapshotKinds"] = string.Join(", ", leftoverCounts.Select(c => c.Value + " " + c.Key));
         Stage = "done";
         return Error.Ok;
     }
     public override void _Ready()
     {
+        // Authored objects arrive with editor materials, which the game's fog and light never reach (issue 79).
+        var authoredMaterials = new NativeTownMaterials(); authoredMaterials.Apply(town);
+        Report["authoredMaterialsSwapped"] = authoredMaterials.Swapped; Report["authoredMaterialsLeft"] = authoredMaterials.Left;
+        // The baked wall lamps are marked hidden at source; nothing else draws them, so the wall lights floated without lamps.
+        if (town.GetNodeOrNull<Node3D>("wall_lamps") is { } wallLamps)
+            foreach (var wallLamp in wallLamps.GetChildren().OfType<Node3D>()) wallLamp.Visible = true;
+        var wallChunks = new NativeWallChunks { Name = "wall_chunk_culling" }; wallChunks.Collect(All(town)); AddChild(wallChunks);
         var registered = new HashSet<ulong>();
         foreach (var node in All(town))
         {
@@ -93,6 +166,7 @@ public partial class NativeTown : BakedWorld
         }
         Solid.Leave.Add(n => n.HasMeta("native_author_district"));
         Solid.Leave.Add(n => n.HasMeta("native_replaced_event_snapshot"));
+        Solid.Leave.Add(n => n.HasMeta(Scheldemist.Native.World.NativeQuayLadders.LeaveMeta));
         BuildLights();
     }
     private void BuildLights()

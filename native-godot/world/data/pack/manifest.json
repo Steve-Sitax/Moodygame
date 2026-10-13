@@ -1,6 +1,6 @@
 {
   "format": 2,
-  "version": "native-pack-9e1a5fd2947e4b4f36eb5e4e9414e82a2cf86a363759338005b683ec9c64c0f3",
+  "version": "native-pack-6b6b541cdd914b86c5defc5145c02d4f73f0d55ec86af8eead5cb98f3bbe7c70",
   "files": [
     {
       "file": "maps/dirt.json",
@@ -1738,9 +1738,9 @@
     },
     {
       "file": "services/native-goods.json",
-      "blob": "blobs/14d4d214cfc8839a946acb5df64d8c09d605af16645c05fe114ab4828701d4ab.bin",
-      "sha256": "14d4d214cfc8839a946acb5df64d8c09d605af16645c05fe114ab4828701d4ab",
-      "bytes": 550483
+      "blob": "blobs/922661b8c9933abd981fa28e521b4251463ca0ec1ec595fa31e4a652ec977b69.bin",
+      "sha256": "922661b8c9933abd981fa28e521b4251463ca0ec1ec595fa31e4a652ec977b69",
+      "bytes": 550490
     },
     {
       "file": "services/native-haggle-intake.json",
@@ -1828,9 +1828,9 @@
     },
     {
       "file": "services/native-trade-ledger.json",
-      "blob": "blobs/7db80d163cec1ae2ae6d7a3622290c2131dde3fe67b6ec3dfa05d92d79382857.bin",
-      "sha256": "7db80d163cec1ae2ae6d7a3622290c2131dde3fe67b6ec3dfa05d92d79382857",
-      "bytes": 27913
+      "blob": "blobs/1d31d59524594407fcdf82a28ec8c288d1ad3799ca5ac62af1435a574b97fcde.bin",
+      "sha256": "1d31d59524594407fcdf82a28ec8c288d1ad3799ca5ac62af1435a574b97fcde",
+      "bytes": 27921
     },
     {
       "file": "services/native-trade.json",
@@ -1924,9 +1924,9 @@
     },
     {
       "file": "shared/spots.json",
-      "blob": "blobs/6c2c3af18e04831ea48ad21c52691c8a1c617ba9dc8f47e81a77252fd4fbd827.bin",
-      "sha256": "6c2c3af18e04831ea48ad21c52691c8a1c617ba9dc8f47e81a77252fd4fbd827",
-      "bytes": 5772
+      "blob": "blobs/2b6d9909c6def4178407906975d285b1d9f52df63e83ad669b9dbe8b001f3641.bin",
+      "sha256": "2b6d9909c6def4178407906975d285b1d9f52df63e83ad669b9dbe8b001f3641",
+      "bytes": 5778
     },
     {
       "file": "shared/townplaces.json",

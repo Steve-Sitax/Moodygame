@@ -126,6 +126,8 @@ public static class Psx
     /// sky shade; the spilt light; the houses' age; the bump maps).
     /// </summary>
     private static readonly HashSet<string> Off = new((Array.IndexOf(OS.GetCmdlineUserArgs(), "--psx-off") is var i and >= 0 && i + 1 < OS.GetCmdlineUserArgs().Length ? OS.GetCmdlineUserArgs()[i + 1] : "").Split(',', StringSplitOptions.RemoveEmptyEntries));
+    /// <summary>Dev: --psx-off bump (also for the models' own bump, Models/ModelBump.cs).</summary>
+    public static bool BumpOff => Off.Contains("bump");
     private static ImageTexture? skyShade, dirt, spill, shore, foul, waves, waterTint;
     private static Image? spillImage;
     private static readonly float[] SpillData = new float[MaxSpill * 4 * 4];

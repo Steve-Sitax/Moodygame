@@ -115,8 +115,9 @@ menus alone save the camera but those adapters capture feet and restore the walk
 It captures five UI/game screenshots under ignored `proof/playtest`; use no AI and a free isolated server port.
 This proves the connected slice, not completion of all jobs or the remaining service migration.
 
-`NativeGameProof` checks the real player on native collision, native bump/relief maps, all seven lamps in Steve's
-copied 15-object layout, weather state, animated water and both reflection passes. It captures day, rain, no-bump,
+`NativeGameProof` checks the real player on native collision, native bump/relief maps, every authored lamp (seven in
+a copy of Steve's 15-object layout, six in the committed 14-object scene seed that `--scene-seed` or an empty
+`--author-dir` uses; the expected counts follow the layout in use), weather state, animated water and both reflection passes. It captures day, rain, no-bump,
 night rain, fog, water-facing and reflections-off views. Rendered and headless runs reject engine errors. Logs and
 images are under `proof/native-game-check`. The fixture currently targets this Rijnkaai review layout; adapt its
 counts and resource assertions deliberately when testing another district.
@@ -163,3 +164,9 @@ Compatibility. It also verifies all three coping radii, the vertical corner beve
 wall contact and a ray through the stain reaching the actual paving. Views cover the land edge, underside,
 quay corner and night. Use copied layouts with `--author-dir`. Current evidence is under `proof/edge-after`.
 The project-wide [edge rule](../../AGENTS.md) applies to future districts and direct Godot modelling.
+
+The slice draws the town's native quay ladders (issue 94): `NativeQuayLadders.Install` runs on the district scene, finds
+the bake's `quay_iron` by its `source_name` at any depth, rebuilds the iron's stored collision without the old ladders
+and hands the rung lines to the climb. `--ladder-test <proof-directory>` on `game.tscn` checks that every ladder is the
+native model, shoots side-on, fixing and water views, and climbs out of the water in front of four of them, the pier
+head's included. Give it a fresh `--author-dir` and `--prefs`, never the player's.

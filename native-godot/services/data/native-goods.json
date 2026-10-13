@@ -22951,7 +22951,7 @@
       "label": "the foot of the crane",
       "desc": "beside the crane on the quay",
       "x": -18,
-      "z": 8.2,
+      "z": 13.2,
       "dir": [
         1,
         0
@@ -22991,7 +22991,7 @@
       "label": "the gangway of the Anna Maria",
       "desc": "the quay by the gangway of the brig moored at the kaai",
       "x": -42,
-      "z": 7.6,
+      "z": 13.1,
       "dir": [
         1,
         0
@@ -23011,7 +23011,7 @@
       "label": "the cart stand",
       "desc": "where the carts wait, far east end of the quay",
       "x": 50.5,
-      "z": 8,
+      "z": 11,
       "dir": [
         0,
         1
@@ -23030,7 +23030,7 @@
     "bassin_quay": {
       "label": "the Petit Bassin quay",
       "desc": "the open quay by the Petit Bassin, near the lock",
-      "x": 160,
+      "x": 164.3,
       "z": 30,
       "dir": [
         -1,
@@ -23041,7 +23041,7 @@
       "label": "the south quay of the Petit Bassin",
       "desc": "the quay below the Hanseatic House, on the far side of the basin",
       "x": 120,
-      "z": 120.8,
+      "z": 122.8,
       "dir": [
         1,
         0
@@ -23081,7 +23081,7 @@
       "label": "the ferry pontoon",
       "desc": "the foot of the ferry pontoon on the Werf",
       "x": -249,
-      "z": 8.2,
+      "z": 11.7,
       "dir": [
         1,
         0
@@ -23091,7 +23091,7 @@
       "label": "the Werf",
       "desc": "the river wall of the Werf, west end",
       "x": -295,
-      "z": 8.2,
+      "z": 11.7,
       "dir": [
         1,
         0
@@ -23130,8 +23130,8 @@
     "canal_west": {
       "label": "the west canal quay",
       "desc": "the west quay of the Canal des Brasseurs",
-      "x": -87,
-      "z": 100,
+      "x": -92,
+      "z": 100.65,
       "dir": [
         0,
         1
@@ -23191,7 +23191,7 @@
       "label": "the Kipdorp mill's sack store",
       "desc": "the foot of the wall stair by the Kipdorp gate, where the miller's man stacks the flour and the grain",
       "x": -138.5,
-      "z": 345,
+      "z": 347,
       "dir": [
         -1,
         0
@@ -23210,8 +23210,8 @@
     "bakery_rijn_door": {
       "label": "the bakery behind the Rijnkaai",
       "desc": "the baker's door in the lane behind the Rijnkaai",
-      "x": -3.2,
-      "z": 77.5,
+      "x": -2.1,
+      "z": 80,
       "dir": [
         0,
         1
@@ -23308,7 +23308,7 @@
     "pier_head": null,
     "crane_foot": [
       -17.7,
-      13.2,
+      18.2,
       1.571
     ],
     "hessenatie_door": [
@@ -23323,8 +23323,8 @@
       1.571
     ],
     "ship_gangway": [
-      -40.8,
-      13.1,
+      -43.8,
+      16.1,
       1.571
     ],
     "west_sheds": [
@@ -23334,12 +23334,12 @@
     ],
     "east_carts": [
       52.7,
-      13.8,
+      16.8,
       0
     ],
     "entrepot_quay": null,
     "bassin_quay": [
-      163.2,
+      167.5,
       30,
       -1.571
     ],
@@ -23364,13 +23364,13 @@
       1.571
     ],
     "werf_pontoon": [
-      -248.1,
-      11.9,
+      -242.5,
+      11.8,
       1.571
     ],
     "werf_quay": [
-      -294.1,
-      11.9,
+      -288.5,
+      11.8,
       1.571
     ],
     "steen_gate": [
@@ -23390,7 +23390,7 @@
     ],
     "canal_west": [
       -92.4,
-      103,
+      96,
       0
     ],
     "cathedral_door": [

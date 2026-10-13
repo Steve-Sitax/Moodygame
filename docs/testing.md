@@ -2,22 +2,42 @@
 
 ## Testing the Godot port
 
-From the Godot worktree, run:
+The old `tools/godot/checks.mjs` runner and the baked `godot/baked/` files are retired. Every check is a direct
+option on the game itself, run from the real Godot 4.7.2 Mono console executable (the README says where it is), against
+the project `native-godot` (`res://town.tscn`). One run opens one real game window.
+
+The stuck check (`--stuck <dir>`) plays a three-hour Monday route, seed 1873, with no AI, and writes
+`<dir>/stuck.json`. `ok` must be true: no body walking on the spot or to and fro, no two drawn bodies overlapping, none
+inside a collider. It also lists `wedges`: every time a body's first step was refused for a second (with what refused it
+and a map of the free squares around it) and every time the safety net (`Crowd.Unwedge`) had to move one on. Wedges
+may show a body waiting for someone passing, but the safety net should not be needed on a plain street, and never for
+the carter near the Handschoenmarkt (issue 105). It also counts, in `craneLegsChecked` and `craneLegsOpen`, every time a portal crane's leg stood on ground the walk map called free (issue 118); `craneLegsOpen` must be empty. A body found inside a collider has its last seconds in `solidTrails` (what it was doing, where it was going, the points where the collider touched it), and every stuck entry lists the vehicle lanes around the body in `lanes` (where it stands in each, and which body carries them). From the worktree:
 
 ```powershell
-npm --prefix server install
-node tools/godot/checks.mjs --town D:/Code/MoodyGame-godot/godot/baked/town.glb --models D:/Code/MoodyGame-godot/godot/baked/models
+$run = 'C:\Temp\stuck1'                      # any empty folder outside the repo
+New-Item -ItemType Directory -Force "$run\data", "$run\layouts" | Out-Null
+$env:SCHELDEMIST_USER_DATA = "$run\data"; $env:SCHELDEMIST_TOWN_SEED = '1873'
+dotnet build native-godot/Scheldemist.Native.csproj
+& $godotConsoleExe --rendering-method forward_plus --audio-driver Dummy --path native-godot res://town.tscn -- `
+  --native-services --no-ai --db "$run\game.sqlite" --prefs "$run\settings.json" --author-root "$run\layouts" `
+  --port 8981 --stuck "$run\out"
 ```
 
-This builds and imports the project, then runs `devtest`, `paths`, `stuck`, `shaders`, `perfcheck`, `clocks` and
-`interiors` in turn, with one real game window at a time and a four-minute timeout per run. Each uses a newly
-made test town with seed 1873, its own free port from 8980, full needs, midday and clear weather, and no AI. The
-runner never reads or copies the player's save, never bakes, stops only its own processes, and deletes each test
-save afterward. Reports and pictures go to `godot/baked/checks/`; look at each picture. A nonzero exit status
-means at least one FAIL or ERROR. Use `--only paths,shaders`, `--out <dir>`, `--seed N`, `--port N` or
-`--timeout 240` to narrow a run. Every place must be below 5 ms mean active main-frame time, and `paths` and
-`shaders` must have no findings. See [the Godot README](../godot/README.md#godot-milestone-checks-g8) for every
-option, metric and coverage limit.
+Use a free port from 8900 (never 8080, 8088 or 8090), a new `--db`, `--prefs` and `--author-root` for every run, and
+never Steve's own save or layouts. A run has a four-minute limit; two at the same time are the most the
+machine keeps up with. The exit code is 1 when `ok` is false, and the line `stuck: PASS` or `stuck: FAIL` and
+the path of the report are in the output. Read the report: a walker listed under `stuck` has its last 14 samples.
+The report also includes `laneChecks`: controlled milk-woman fixtures exercise overlapping vehicle lanes at
+three frame rates and both lane orders, crossing waits, a blocked lateral escape, the bridge-rail escape,
+vehicle ownership and priority, and release after a vehicle departs. Every entry must be true. Run only these
+fixtures with `--lanecheck <dir>` in place of `--stuck <dir>`; it writes `lanecheck.json` and quits.
+The same shape runs every other check below; give each its own option and folder. Every place must be below 5 ms
+mean active main-frame time, and `paths` and `shaders` must have no findings.
+
+`--streetgametest <dir>` reproduces issue 119 near Rijnkaai (-2, 69) with the three reported resident ids. It holds
+each child's next hop behind another body for four simulated seconds, checks that the child waits without walking
+on the spot or advancing the hop timer, then removes the body and checks that hopping resumes. It writes
+`streetgametest.json` and front/side pictures. Resident names can differ in a freshly generated native town.
 
 The kit is `godot/src/Dev/Kit.cs`, reached through `--dev-command` or F9 with `--dev`. Use it only with a fresh
 test save (`--db <absolute test.sqlite> --port 8980 --no-ai --no-mainmenu`) or your own isolated test server.
@@ -28,8 +48,37 @@ normal server dev routes, crowd and job-taking path. Four of them are exercised 
 
 Direct check options go after Godot's `--`: `--paths <dir>`, `--stuck <dir>`, `--shaders <dir>`,
 `--perfcheck <dir>`, `--clocks --check-out <dir>`, `--interiors --check-out <dir>`. Each writes its named JSON and
-quits. These modes bypass the menus. Pass the shared town and decoded model paths above, plus a test server or
-fresh `--db` and a port from 8900. Use the real Godot 4.7.2 Mono console executable described in the README.
+quits. These modes bypass the menus. Give each a fresh `--db`, `--prefs`, `--author-root` and `SCHELDEMIST_USER_DATA`
+folder, and a free port from 8900.
+Use the real Godot 4.7.2 Mono console executable described in the README.
+`--interiors` takes `--interior-rooms id,id` (for example `home:cellar,shop:cobbler_east`) and `--interior-ray-details`;
+the four-minute limit holds, so the whole town (45 rooms) runs best in four chunks of about a dozen rooms. The check holds
+every door open, a rented home's too (`Doors.Held`), and counts a cellar window onto a light well as seeing the street when
+the shaft is open to the sky through its grating.
+
+`--homedoortest <dir> --home cellar --no-ai --db <dir>/test.sqlite --hour 13 --weather clear` walks Jef to a home's street
+door, finds it shut, takes the key at the notice, and walks him in (down the steps, for the cellar), through the room, to each
+window, and back out, with pictures and `homedoortest.json`; the way inside is found with Jef's own ground test. Its second
+form, `--homedoortest <dir> --route-rooms home_cellar:-2.2,poesje:-2.2`, only asks whether a walkable route runs from a room's street
+door down to the floor at that height (no server needed); `--no-stair-holes` shows the answer without the stair holes in the
+paving and the house linings (`World/Solid.cs`). The route must also run at least 2.5 m in from the door, and a number that is not
+finite is written as null. Shops and taverns: pass `shop_<id>:0.0` and `tavern_<id>:0.0`. `--route-dump x0,x1,z0,z1` (with
+`--route-rooms`) prints the room's meshes as boxes in that window of the plan, to see what the search ran into; add
+`--route-dump-name soot` to list the town's mesh of that name instead.
+
+Its third form, `--homedoortest <dir> --walk-room <room>[:<floor>] --db <dir>/test.sqlite`, walks Jef on foot from the street
+through the room's street door, held open, with pictures. With a floor (`poesje:-2.2 --walk-hour 19`) he is walked down the found
+route to the floor at that height and back out; the Poesje opens at half past six and sends Jef back out of its door before that, so
+it is walked at 19 (`--hour 19` as well). Without a floor (`--walk-room shop_tobacco_markt`) he is walked straight in with W held, at
+least 3 m: unless `--walk-hour` is given it steps the hours on from 13:00 until the server says the shop's keeper is at work, and if
+he is stopped the report names what his body overlaps. `--keep-soot` leaves the bake's leftover soot sheet over the Poesje's front
+(`NativeTown.cs` hides it), for the before.
+`--keep-leftovers` leaves all of the bake's
+frozen event and crowd pictures that `NativeTown.cs` hides (soot sheet, fire hose, four crowd carts, eight prison-ring figures).
+`--leftover-scan <dir> --no-ai --db <dir>/test.sqlite` (`Play/LeftoverScan.cs`) lists every mesh the loaded town draws, with its group,
+bake name, place, size and whether it shows, at 13:00 clear, in `leftover-scan.json`: look in it for a new frozen leftover after a re-bake or a
+new import. Add `--leftover-shot x,y,z,tx,ty,tz;...` for pictures from the free camera, `--leftover-solo <node name>` to show only the top-level group holding that
+mesh, `--leftover-detail Mesh1,Mesh2` to print their vertices, material and place.
 
 Limitations are evidence, not passes: `notCovered` is in every report. The path check tests the baked crowd map,
 not Jef's physics or changed moving geometry. Stuck covers a three-hour Monday route and drawn-body collisions,
@@ -240,7 +289,8 @@ seconds; `shared/clock.ts`, M7). Jump the clock with `t.skip(min)` rather than w
 | Lamplighters | every lamp round | dusk from 17:36, dawn from 5:30 | `time(17, 30)`, `find("lamplighter")` |
 | The lock and its chamber | Lock, x 104 to 116, gates at z 7 and 42 | any tide: a tug, a paddle tug, a sailing hengst or sloop every few minutes (tows never: they do not fit); rowing boats any time | `__scheldemist.world.lock().passNow("in", ["tug"])`, `run()`; `.traffic()` for the log and its waits, `.fitTable()` for what fits. A rowing boat: `.request(true, () => ({ x: 110, z: 0 }))`, move the point into the chamber (z 25), `run()` |
 | Any water level (W1 tide kit) | the river, the canal and the vlieten (the dock and the lock keep theirs) | any time | Browser: `t.tide(-5.2)` (a level in m, quay top 0, or `"high"`, `"low"`; `null` back to the clock; it runs until the water stands there), or the Dev menu's Tide buttons. Godot: the kit's `tide -5.2` (`high`, `low`, `clock`), a 10th `--snap` view field (`...,13,clear,,-5.2` or `tide=-5.2`). Pictures: `look-refs.mjs --tide -5.2`. Godot keeps one oddity: after a view near high water, a later view with the camera below the quay over low water draws a flat grey plane; order tide views low to high |
-| Every hull at every tide (W1) | every vessel | any time | Browser: `await __scheldemist.boatWater()` (or `t.boatWater({ levels: [-5.2], seconds: 20 })`): -5.20, -4.95, -4.40, -2.80, -0.65, -0.40 and the storm's top -0.50, 60 s each with the test steps, plus probes (ladder climb, drift, lock chamber slope, cranes, build-time heights, bed mesh); `problems` must be empty, `cases` counts them by the plan's list (docs/plans/next-update.md 1.2). Godot: `-- --boatcheck <dir>` (`--boatcheck-seconds`, `--boatcheck-levels -5.2,-0.4`) writes `boatcheck.json`, or `node tools/godot/checks.mjs --only boatcheck --timeout 480` |
+| Every hull at every tide (W1) | every vessel | any time | Browser: `await __scheldemist.boatWater()` (or `t.boatWater({ levels: [-5.2], seconds: 20 })`): -5.20, -4.95, -4.40, -2.80, -0.65, -0.40 and the storm's top -0.50, 60 s each with the test steps, plus probes (ladder climb, drift, lock chamber slope, cranes, build-time heights, bed mesh); `problems` must be empty, `cases` counts them by the plan's list (docs/plans/next-update.md 1.2). Godot: `-- --boatcheck <dir>` (`--boatcheck-seconds`, `--boatcheck-levels -5.2,-0.4`; `--boatcheck-spacing` instead measures hull-to-hull gaps of boats that lie still, the landing stage's pontoon and deck against the hulls beside her (by her own surface, not one outline; the legs under the water are listed as `stageClash` notes, issue 103) and sweeps the liner and her tows through every pose, 40 s) writes `boatcheck.json`, or `node tools/godot/checks.mjs --only boatcheck --timeout 480` |
+| A chosen weekday (market and Sunday rules, the HUD's day) | stalls, townspeople, the HUD clock | any time | Godot: `--day 7` (1 Monday to 7 Sunday) alone or with `--hour`, or a `--snap` view field `day=7` (held from that view on); each view's hour, weather and day also set the game's own clock, and the log line `snap name light:` says the weekday it was taken on |
 | Jobs with a twist | the job's spots | any time | `job({ type, twist })` |
 | Anyone in town | wherever their day takes them | their schedule | `find(...)`, then `meet(...)` or `summon(...)` |
 | The ferry opening (M7) | the ferry at the Werf pontoon's end | a new game only, until Jef steps ashore | on the test stack only: `curl -X POST http://127.0.0.1:<server>/api/new-game`, reload the tab; `__scheldemist.ferry.info(true)`, `ferry.devIdle(40)` for the ferryman's lines |

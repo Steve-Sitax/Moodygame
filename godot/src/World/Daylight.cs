@@ -153,14 +153,15 @@ public partial class Daylight : Node
         // the cathedral's stone takes a fill light from the sky (cathedralOutside.ts skyFill), baked as it was at the
         // bake's hour: it follows the sky from here on; so do the quay walls and their flights of steps (city.ts, the
         // light off the water, with the square of the sky; D2 2026-10-11: before it they glowed all night with the bake's
-        // fixed emission, Steve's night test)
+        // fixed emission, Steve's night test); so does the mill sails' cloth (wall_canvas, issue 73: as pale at 3 in the
+        // night as at noon)
         foreach (var l in main.World.Facts.RootElement.GetProperty("facts").GetProperty("lights").EnumerateArray())
             if (l.GetProperty("type").GetString() == "HemisphereLight") bakeSky = l.GetProperty("intensity").GetSingle();
         var seen = new System.Collections.Generic.HashSet<Material>();
         foreach (var n in BakedWorld.All(main.World))
             if (n is MeshInstance3D mi && mi.Mesh != null)
                 for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
-                    if (mi.Mesh.SurfaceGetMaterial(s) is ShaderMaterial m && seen.Add(m) && (m.ResourceName.StartsWith("cath_") || m.ResourceName == "gilt" || m.ResourceName == "quay_wall") && m.GetShaderParameter("emission").VariantType != Variant.Type.Nil)
+                    if (mi.Mesh.SurfaceGetMaterial(s) is ShaderMaterial m && seen.Add(m) && (m.ResourceName.StartsWith("cath_") || m.ResourceName == "gilt" || m.ResourceName == "quay_wall" || m.ResourceName == "wall_canvas") && m.GetShaderParameter("emission").VariantType != Variant.Type.Nil)
                     {
                         m.SetShaderParameter("fill", 1f);
                         if (m.ResourceName == "quay_wall") waterFill.Add((m, m.GetShaderParameter("emission").AsVector3()));
