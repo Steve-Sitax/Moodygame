@@ -25,6 +25,9 @@ dotnet build native-godot/Scheldemist.Native.csproj
 pwsh -File native-godot/scripts/open-native-town.ps1
 pwsh -File native-godot/services/check-market.ps1
 pwsh -File native-godot/scripts/export-native-windows.ps1 -Output D:/Code/ScheldemistPackages/client
+pwsh -File native-godot/scripts/test-icons.ps1 -Full
 ```
+
+The game is started from the desktop icons (the `native-godot/*.cmd` launchers). After every build of main, run `test-icons.ps1 -Full`: it must pass before you hand the build over. Launcher logs: `%LOCALAPPDATA%` under `ScheldemistWorkshop/launch-logs`.
 
 The native README records current evidence and worktree status. Do not infer that this branch is merged or that Steve has tested it from automated proofs.
