@@ -116,9 +116,11 @@ def grips_json(g):
 
 def all_kinds():
     """Every kind of package C, from the group files (people2/kinds_*.py), in a fixed order."""
-    from people2 import kinds_cast, kinds_uniform, kinds_women, kinds_workers
+    from people2 import kinds_cast, kinds_uniform, kinds_women, kinds_workers, kinds_workers2
+    from people2 import held, held_workers
+    held_workers.register(held)
     out = []
-    for mod in (kinds_workers, kinds_women, kinds_uniform, kinds_cast):
+    for mod in (kinds_workers, kinds_workers2, kinds_women, kinds_uniform, kinds_cast):
         out += mod.KINDS
     return out
 
@@ -223,7 +225,7 @@ def main():
         atl.face(cname, frgb, fnrm)
     dressed = []
     for k in kinds:
-        dressed.append(dress.build(k, make_body, ref_uv, layout, atl, tex=TEX))
+        dressed.append(getattr(k, "build", dress.build)(k, make_body, ref_uv, layout, atl, tex=TEX))
     held_obs = held.build_all(kinds, layout, atl, tex=TEX)
     def default_face(b):
         if "face" in b and b["face"]["cell"] in face_pics:
@@ -318,8 +320,11 @@ def main():
     print(f"[people2] {len(bodies)} bodies, {len(dressed)} kinds, {len(rig.NAMES)} bones, {len(actions)} clips, "
           f"{len(bpy.data.materials)} material(s) -> {OUT} ({kb} KB) in {time.time() - t0:.0f} s")
     if "--dress" in ARGS:
-        from people2 import preview_c
-        for ln in preview_c.cast(dressed, bodies, actions, move_clips, held_obs):
+        from people2 import preview_c, garments_workers
+        checks = (garments_workers.check_sheets(dressed, bodies, actions, move_clips, held_obs, PICTURES_DIR, export.RIG_JSON)
+                  if any(k.group == "workers" and hasattr(k, "build") for k in kinds)
+                  else preview_c.cast(dressed, bodies, actions, move_clips, held_obs))
+        for ln in checks:
             print("[people2] " + ln)
     if "--work" in ARGS and work_clips:
         from people2 import preview_work

@@ -1,0 +1,402 @@
+"""Antwerp workers, 1873. Closed cloth rims; worn edges are geometry, grain is paint.
+
+Factories reuse the fitted kiel and open working coat, without changing their originals.
+Worker intake uses 14k/2.5k budgets and paints AFTER reduction and final unwrap.
+Thin cloth lips and stitched seams intentionally remain crisp; wooden/leather corners
+are rounded by the subdivision surface. No sack or vehicle is welded into a body.
+"""
+import copy
+import math
+import os
+
+import numpy as np
+
+from . import body as bd, clothes_kit as ck, dress as dr, lod, pictures as at, weights as wt
+from . import kinds_workers as kw, kinds_cast as kc
+from .clothes_kit import Cloth, hexrgb, sm
+
+
+def work_finish(ctx):
+    """Stitches, repaired elbows, occupational dust with clean creases under folds."""
+    m = ctx.piece.meta
+    n = ck._noise3(ctx.pos, 26, 73)
+    exposed = ~ctx.inner
+    if m.get("soot"):
+        dust = sm(.18, .75, n) * exposed
+        ctx.mix(dust * m["soot"], (.045, .039, .033))
+        ctx.bump(dust, .00007)
+    if m.get("flour"):
+        dust = sm(.15, .7, n) * exposed
+        dust *= .35 + .65 * sm(bd.Y(ctx.fit.P, .75), bd.Y(ctx.fit.P, .45), ctx.y)
+        ctx.mix(dust * m["flour"], (.79, .76, .67))
+        ctx.bump(dust, .00008)
+    if m.get("patched"):
+        for sg in (-1, 1):
+            ck.patch(ctx, (sg * ctx.fit.hip_x, ctx.fit.knee_y + .01, .075),
+                     (.033, .055), (.28, .25, .20))
+    if "apron_top" in m:
+        ck.seam_line(ctx, ctx.y - m["apron_bottom"] - .016)
+        pocket = (np.abs(ctx.x + .055) < .048) & (np.abs(ctx.y - m["apron_top"] + .085) < .045)
+        ctx.mul(pocket & exposed, .91)
+        ck.seam_line(ctx, np.where(pocket & exposed, ctx.y - m["apron_top"] + .04, 1))
+
+
+def finish(pc, rgb=None, weave=None, soot=0, flour=0, patched=False):
+    cl = copy.copy(pc.cloth)
+    if rgb is not None:
+        cl.rgb = np.array(hexrgb(rgb), np.float32)
+        cl.lining = cl.rgb * .75
+    if weave is not None:
+        cl.kind = weave
+    previous = cl.extra
+
+    def extra(ctx):
+        if previous:
+            previous(ctx)
+        work_finish(ctx)
+        if soot:
+            # Legacy kiel elbow patches and wear used a blue palette. Coal and
+            # soot workers' repairs are charcoal sackcloth on both faces.
+            grey=ctx.rgb.mean(axis=1)
+            ctx.rgb[:]=grey[:,None]*np.array((1.0,.97,.91))
+    cl.extra = extra
+    pc.cloth = cl
+    pc.meta.update(soot=soot, flour=flour, patched=patched)
+    return pc
+
+
+def boots(fit, rgb=0x241a12):
+    bt = ck.Piece("boots", copy.copy(kc.BOOT), scale=1.2)
+    finish(bt, rgb)
+    so = ck.Piece("soles", copy.copy(kc.SOLE), scale=1.2)
+    for side in "LR":
+        ck.shoe(fit, bt, so, side, shaft=.15)
+    return [bt, so]
+
+
+def cap(fit, rgb=0x2e2a26, style="flat", badge=False):
+    cloth = Cloth(hexrgb(rgb), "wool" if style in ("flat", "knit") else "felt", wear=.65, dust=.25)
+    crown = ck.Piece("cap", cloth, scale=1.3, hat=True)
+    rim = ck.Piece("cap_peak", Cloth(hexrgb(rgb), "felt", wear=.6), scale=1.3, hat=True)
+    if style == "flat":
+        ids, _ = ck.flat_cap(fit, crown, rim, puff=.015)
+        crown.meta["band_top"] = float(np.array(crown.V)[ids[1]][:, 1].mean())
+        crown.meta["top"] = np.array(crown.V)[ids.max() + 1]
+        crown.cloth.extra = kw._cap_extra
+    elif style == "knit":
+        # Close knitted stocking cap, rolled 18 mm band, not a brimmed natie cap.
+        ids, _ = ck.flat_cap(fit, crown, rim, puff=.002, fwd=0, tilt=.007)
+        rim = None
+        def knit(ctx):
+            rib = .5 + .5 * np.sin(np.arctan2(ctx.x, ctx.z) * 96)
+            ctx.bump(rib, .00028)
+            ctx.mul(rib, .9)
+            ck.seam_line(ctx, ctx.y - crown.meta["band_top"])
+        crown.meta["band_top"] = float(np.array(crown.V)[ids[1]][:, 1].mean())
+        crown.cloth.extra = knit
+    else:
+        height = .145 if style == "top" else .070
+        ck.kepi(fit, crown, rim, n=24, height=height, slope=0, taper=.006, tilt=.005)
+        # Replace the peak by a continuous felt brim, with a rounded rolled edge.
+        rim = ck.Piece("cap_peak", Cloth(hexrgb(rgb), "felt", wear=.7), scale=1.3, hat=True)
+        c, top = ck.head_axis(fit)
+        y = bd.Y(fit.P, .870) + fit.P["hs"] * .125
+        angles = np.arange(32) * 2 * math.pi / 32
+        r = ck.head_support(fit, y, angles) + .013
+        rows = []
+        for out, dy in ((0, 0), (.035, -.004), (.046, -.001), (.048, .004)):
+            rows.append(np.stack([c[0] + (r + out) * np.sin(angles),
+                                  np.full(32, y + dy), c[2] + (r + out) * np.cos(angles)], -1))
+        rim.grid(np.array(rows), ck.hat_weights, closed=True, seam_col=16)
+        rim.orient((0, 1, 0))
+        if style == "bowler":
+            # Round the stiff drum into a modest dome.
+            for p in crown.V:
+                t = np.clip((p[1] - y) / height, 0, 1)
+                p[0] = c[0] + (p[0] - c[0]) * (1 - .28 * t * t)
+                p[2] = c[2] + (p[2] - c[2]) * (1 - .28 * t * t)
+    ck.thicken(crown, .0025, depth=.025)
+    out = [crown]
+    if rim is not None:
+        ck.thicken(rim, .003, depth=None, crease=.05)
+        out.append(rim)
+    if badge:
+        def brass(ctx):
+            pos = fit.snap((0, bd.Y(fit.P, .95), .15), .018, ("head", "hair"))
+            ck.button(ctx, pos, r=.011, rgb=(.53, .39, .16), metal=True)
+        previous = crown.cloth.extra
+        def extra(ctx):
+            if previous:
+                previous(ctx)
+            brass(ctx)
+        crown.cloth.extra = extra
+    return out
+
+
+def shoulder_pad(fit, onto):
+    sh, Y = bd.shoulder_x(fit.P), fit.Y
+    path = [(sh*.66,Y(.772),.098), (sh*.72,Y(.808),.068), (sh*.75,Y(.830),.022),
+            (sh*.73,Y(.832),-.030), (sh*.68,Y(.806),-.080), (sh*.62,Y(.770),-.108)]
+    pc = ck.Piece("pad", copy.copy(kw.LEATHER), scale=1.3)
+    ck.strap_grid(fit, pc, path, [.11,.13,.14,.14,.13,.11], .009,
+                  parts=("torso","arm","neck"), cols=8, onto=onto, rows=12)
+    pc.meta["centre"] = onto.snap(path[3], .005)
+    ck.thicken(pc, .004, depth=None, crease=.05)
+    return pc
+
+
+def apron(fit, onto, leather=False, flour=False):
+    cl = Cloth(hexrgb(0x65452c if leather else 0xd2cabb), "leather" if leather else "linen",
+               wear=.7, mud=.4, mud_h=.22, folds=.5 if leather else 1.2, extra=work_finish)
+    pc = ck.Piece("apron", cl, scale=1.2)
+    top, bottom = fit.Y(.61), fit.Y(.25)
+    angles = np.radians(np.linspace(-65,65,17))
+    rows = []
+    for i, y in enumerate(np.linspace(top,bottom,9)):
+        row = []
+        for a in angles:
+            q = onto.snap((.4*math.sin(a),y,.4*math.cos(a)), .02) if y > fit.hip_y else np.array(
+                (math.sin(a)*(.18 + .055*i/8)*fit.P["w"], y, math.cos(a)*(.15 + .055*i/8)))
+            q[1] = y
+            q[2] += .006 * math.cos(a * 9) * i/8
+            row.append(q)
+        rows.append(row)
+    pc.grid(np.array(rows), lambda p: ck.hang_weights(fit,p,front_legs=1,back_legs=.3,spring=.12))
+    pc.orient((0,0,1))
+    pc.meta.update(apron_top=top, apron_bottom=bottom, flour=.8 if flour else 0)
+    ck.thicken(pc, .003 if leather else .002, depth=None, crease=.05)
+    belt = ck.Piece("apron_band", copy.copy(cl))
+    belt.cloth.extra = None
+    ck.band(fit,belt,onto,top,.035,d=.015)
+    ck.thicken(belt,.002,depth=None)
+    return [pc,belt]
+
+
+def coal_hood(fit, onto):
+    """A cut sack over the crown, with a protective cape on neck and shoulders."""
+    cl = Cloth(hexrgb(0x554b3b), "linen", wear=.85, dust=.6, folds=.8, extra=work_finish)
+    pc = ck.Piece("sack_hood",cl,scale=1.3,hat=True)
+    ids = ck.hood_cap(fit,pc,margin=.012,front=-26,back=110,side=106,cols=19,rows=10)
+    # The sack's open back falls to the shoulders; face stays clear.
+    loop = ids[-1]
+    lower = []
+    for j in loop:
+        p = pc.V[j].copy()
+        p[1] = fit.Y(.79)
+        p[0] *= 1.65
+        p[2] -= .035
+        lower.append(onto.snap(p,.02))
+    end = [pc.add(p,fit.near_w(p,("neck","torso"))) for p in lower]
+    pc.grid_faces(np.array([loop,end]))
+    pc.meta["soot"] = .8
+    ck.thicken(pc,.003,depth=None,crease=.05)
+    return pc
+
+
+def clothing(fit, profile):
+    """Make independent Pieces per kind; never mutate another kind's cloth constants."""
+    p = profile
+    kiel = p.get("kiel",False)
+    pieces = kw.docker_a_dress(fit) if kiel else kc.sooi_dress(fit)
+    pieces = [pc for pc in pieces if pc.name not in ("cap","cap_peak","clogL","clogR","boots","soles")]
+    if not kiel:
+        if not p.get("coat"):
+            pieces = [pc for pc in pieces if pc.name not in ("coat","coat_collar","cuffL","cuffR")]
+        if not p.get("vest"):
+            pieces = [pc for pc in pieces if pc.name != "waistcoat"]
+            if p.get("coat"):
+                # A coat worn open needs a real shirt below its chest panel.
+                pieces = [pc for pc in pieces if pc.name != "shirt"]
+                sh=ck.Piece("shirt",copy.copy(kc.SHIRT))
+                ck.upper(fit,sh,rows=(2,9),neck=0,sleeve=None,ease=lambda i:.006)
+                ck.thicken(sh,.002,depth=.025)
+                pieces.insert(0,sh)
+        # A complete shirt when not covered by a working jacket; long sleeves or rolled cuffs.
+        if not p.get("coat"):
+            pieces = [pc for pc in pieces if pc.name not in ("shirt","shirt_collar")]
+            sh = ck.Piece("shirt",copy.copy(kc.SHIRT))
+            sleeve = "f1" if p.get("rolled") else "w1"
+            ck.upper(fit,sh,rows=(2,9),neck=0,sleeve=sleeve,ease=lambda i:.006)
+            ck.thicken(sh,.002,depth=.025)
+            pieces.insert(0,sh)
+        if p.get("coat") == "short":
+            co = next(pc for pc in pieces if pc.name == "coat")
+            hem = fit.Y(.49)
+            for v in co.V:
+                if v[1] < hem:
+                    v[1] = hem + .35*(v[1]-hem)
+            co.meta["hem"] = min(v[1] for v in co.V)
+        if p.get("ragged"):
+            co = next((pc for pc in pieces if pc.name == "coat"),None)
+            if co:
+                hem=co.meta["hem"]
+                for v in co.V:
+                    a=sm(hem+.08,hem,v[1])
+                    v[1] += a * .009 * math.sin(v[0]*90 + v[2]*55)
+    for pc in pieces:
+        if pc.name in ("shirt","smock","coat","waistcoat","pad"):
+            # Loose working cloth must clear the MakeHuman shoulder sliders and
+            # the rolled forearm, including the garment's inside surface.
+            for v in pc.V:
+                if v[1] > fit.Y(.55):
+                    v += fit.surface(v,("torso","arm","neck"))[1] * .008
+        key = {"smock":"shirt","coat":"coat_col","coat_collar":"coat_col","cuffL":"shirt","cuffR":"shirt",
+               "kerchief_ends":"kerchief","waistcoat":"vest"}.get(pc.name,pc.name)
+        finish(pc,p.get(key),soot=p.get("soot",0),flour=p.get("flour",0),
+               patched=p.get("ragged",False) and pc.name=="trousers")
+    if not p.get("barefoot"):
+        pieces += boots(fit,p.get("boots",0x241a12))
+    if p.get("hat") != "hood":
+        pieces += cap(fit,p.get("hat_col",0x2e2a26),p.get("hat","flat"),p.get("badge",False))
+    else:
+        pieces.append(coal_hood(fit,ck.Onto(pieces)))
+    if p.get("pad") and not kiel:
+        pieces.append(shoulder_pad(fit,ck.Onto(pieces)))
+    if p.get("apron"):
+        pieces += apron(fit,ck.Onto(pieces),p["apron"]=="leather",bool(p.get("flour")))
+    return pieces
+
+
+def build_kind(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
+    """Worker build: reduce, restore layers, unwrap, then paint the final near topology.
+
+    Keeping this pass here leaves the round-4 cloth lane's common pipeline untouched.
+    """
+    base = {n:(bb,bl) for n,bb,bl in bd.BODIES}[kind.body]
+    face = dr.face_of(kind,bd.params(*base))
+    b,_ = make_body(kind.name,*base,ref_uv)
+    import bpy
+    bpy.context.view_layer.update()
+    b["vparts"] = wt.parts(b["lod0"])
+    fit = ck.Fit(b)
+    rgb,nmap = dr.paint_body(b,kind,layout["body_"+kind.name])
+    atl.put("body_"+kind.name,rgb,nmap,placed=True)
+    atl.clothes_zones("body_"+kind.name,dr.paint_body.zones)
+    pieces=kind.dress(fit)
+    cage,_=ck.build_objects(pieces,kind.name+"_clothes_lod1")
+    near=lod.subdivide(cage,kind.name+"_clothes_lod0")
+    ck.to_limit_keep_creases(cage)
+    for ob in (near,cage):
+        dr.limit4(ob)
+    # Ray deletion excludes hands: their geometry is never clothing-covered skin.
+    def covered(p,part):
+        return not part.startswith(("finger","hand")) and (not part.startswith("arm") or p[1]>fit.Y(.55)) and kind.covers(p,part)
+    cut0=ck.cut_body(b["lod0"],covered,near)
+    cut1=ck.cut_body(b["lod1"],covered,cage)
+    # Closed shirt/kiel sleeves replace the hidden upper arm even when a ray
+    # misses the garment near a shoulder seam; slider blending can otherwise
+    # uncover one retained skin triangle there. Hands and bare forearms stay.
+    hidden=lambda p,part: part=="torso" or part.startswith("arm") and p[1]>fit.Y(.66)
+    cut0+=ck.cut_body(b["lod0"],hidden)
+    cut1+=ck.cut_body(b["lod1"],hidden)
+    if not kind.barefoot:
+        # A closed shoe replaces the foot, including rays which miss the last at
+        # the toes. Retaining that skin produced an exposed bare foot in one boot.
+        foot=lambda p,part: part.startswith("leg") and p[1]<.13
+        cut0+=ck.cut_body(b["lod0"],foot)
+        cut1+=ck.cut_body(b["lod1"],foot)
+    order0,order1=ck.layer_order(near),ck.layer_order(cage)
+    dr.reduce_cloth(near,14000-lod.tris(b["lod0"]))
+    dr.reduce_cloth(cage,2500-lod.tris(b["lod1"]))
+    ck.clear_layers(near,b["lod0"],order0)
+    ck.clear_layers(cage,b["lod1"],order1)
+    # Layer clearance can collapse a redundant far rim onto its neighbour.
+    # Discard only zero-area faces before unwrap and UV projection.
+    import bmesh
+    for ob in (near,cage):
+        bm=bmesh.new()
+        bm.from_mesh(ob.data)
+        gone=[f for f in bm.faces if f.calc_area()<1e-12]
+        bmesh.ops.delete(bm,geom=gone,context="FACES_ONLY")
+        loose=[v for v in bm.verts if not v.link_faces]
+        bmesh.ops.delete(bm,geom=loose,context="VERTS")
+        bm.to_mesh(ob.data)
+        bm.free()
+        ob.data.update()
+    scales={pc.name:pc.scale for pc in pieces}
+    scales.update({"in_"+pc.name:pc.scale for pc in pieces})
+    ck.unwrap(near,scales)
+    ck.unwrap(cage,scales)
+    crgb,cnrm=dr.paint_clothes(near,pieces,fit,tex)
+    # The far copy has its own final unwrap. Transfer its UVs from the final near
+    # surface so both sample the same painted islands, including hems and brims.
+    from mathutils.bvhtree import BVHTree
+    from mathutils import Vector
+    near.data.calc_loop_triangles()
+    vparts=wt.parts(near)
+    cparts=wt.parts(cage)
+    uvn=near.data.uv_layers.active.data
+    uvc=cage.data.uv_layers.active.data
+    for part in set(cparts):
+        triangles=[t for t in near.data.loop_triangles if vparts[t.vertices[0]]==part]
+        if not triangles:
+            continue
+        tree=BVHTree.FromPolygons([v.co[:] for v in near.data.vertices],[t.vertices[:] for t in triangles],all_triangles=True)
+        from mathutils.geometry import barycentric_transform
+        for poly in cage.data.polygons:
+            if cparts[poly.vertices[0]]!=part:
+                continue
+            for li in poly.loop_indices:
+                q=cage.data.vertices[cage.data.loops[li].vertex_index].co
+                loc,_,ti,_=tree.find_nearest(q)
+                t=triangles[ti]
+                uvs=[Vector((*uvn[l].uv,0)) for l in t.loops]
+                val=barycentric_transform(loc,*[near.data.vertices[v].co for v in t.vertices],*uvs)
+                uvc[li].uv=val[:2]
+    atl.put("cloth_"+kind.name,crgb,cnrm)
+    atl.clothes_zones("cloth_"+kind.name,dr.paint_clothes.zones)
+    b["piece_counts"]={"lod0":dr.piece_counts(near),"lod1":dr.piece_counts(cage)}
+    for ob in (b["lod0"],b["lod1"]):
+        at.remap_uv(ob,layout["body_"+kind.name],layout["face_"+kind.name])
+    for ob in (near,cage):
+        at.remap_uv(ob,layout["cloth_"+kind.name])
+        ob.parent=b["ao"]
+        ob.modifiers.new("rig","ARMATURE").object=b["ao"]
+    n0,n1=len(b["lod0"].data.vertices),len(b["lod1"].data.vertices)
+    dr.join(b["lod0"],near)
+    dr.join(b["lod1"],cage)
+    dr.clothes_keys(b["lod0"],b,n0,0)
+    dr.clothes_keys(b["lod1"],b,n1,1)
+    b.update(vparts=wt.parts(b["lod0"]),cparts=wt.parts(b["lod1"]),kind=kind,face=face,pieces=pieces,fit=fit)
+    b["counts"].update(lod0=lod.tris(b["lod0"]),lod1=lod.tris(b["lod1"]))
+    log("[workers] kind %s: %d / %d triangles; cut %d/%d; pieces %s" %
+        (kind.name,b["counts"]["lod0"],b["counts"]["lod1"],cut0,cut1,b["piece_counts"]))
+    return b
+
+
+def check_sheets(dressed, bodies, actions, move_clips, held_obs, directory, rig_path):
+    """Proofs use the real layered pictures and each kind's face/hair, after export.
+
+    The generic C preview only knows the export placeholder, and does not hide
+    MakeHuman's loose hair library. Adapt its clone locally for these worker sheets.
+    """
+    import json
+    from . import preview as pv, preview_c as pc, preview_mh as pm
+    with open(rig_path,encoding="utf-8") as f:
+        rig=json.load(f)
+    with open(os.path.join(directory,"manifest.json"),encoding="utf-8") as f:
+        manifest=json.load(f)
+    with open(rig_path.replace("_rig.json","_faces.json") if rig_path.endswith("_rig.json")
+              else os.path.join(os.path.dirname(rig_path),"faceTypes.json"),encoding="utf-8") as f:
+        cells=json.load(f)["cells"]
+    pm.PICS=directory
+    pm._MATS.clear()
+    pm._IMGS.clear()
+    pm.hide_all()
+    if held_obs:
+        material=pm.material("held",manifest["faces"][0])
+        for ob in held_obs:
+            ob.data.materials.clear()
+            ob.data.materials.append(material)
+    original=pv.clone
+    def clone(b,lod="lod0",name=None):
+        face=dict(b["face"])
+        if face["cell"] not in manifest["faces"]:
+            face["cell"]=manifest["faces"][manifest["entries"][b["name"]]["face"]]
+        ao,meshes=pm.person(b["name"],face,lod=int(lod[-1]),rig=rig,cells=cells)
+        return ao,meshes[0]
+    pv.clone=clone
+    try:
+        return pc.cast(dressed,bodies,actions,move_clips,held_obs)
+    finally:
+        pv.clone=original
