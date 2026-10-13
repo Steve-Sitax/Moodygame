@@ -194,6 +194,53 @@ public sealed partial class Anchorage
         PlaceTows();
     }
 
+    /// <summary>The most the liner sheers either way about her hawse (rad): the sum of the sheer's amplitudes.</summary>
+    public static readonly double SheerMax = Sheer.Sum(q => q.A);
+    /// <summary>The loop's length (m) and the s of the two stops, for the dev checks.</summary>
+    public double LoopLength => LEN;
+
+    /// <summary>The liner's pose with the sheer at a (rad): the middle of the hull and her yaw.</summary>
+    public (double X, double Z, double Yaw) LinerPoseAt(double a)
+    {
+        double yaw = LinerAt0.Yaw + a, c = Math.Cos(yaw), s = Math.Sin(yaw);
+        return (Hx - (hx * c + hz * s), Hz - (-hx * s + hz * c), yaw);
+    }
+
+    /// <summary>
+    /// Dev check (Dev/BoatWaterCheck.cs --boatcheck-spacing): every pose a tow can take, with the liner's sheer at
+    /// each of five angles from one side to the other: all round the loop every `step` m, the stops, and the walk in
+    /// to the quay and out again (the crab, with the bow turned either way). The callback gets the tow's number, what
+    /// it is, the sheer, and the lighter's and the tug's middles with the shared yaw.
+    /// </summary>
+    public void Sweep(double step, Action<int, string, double, double, double, double, double, double> pose)
+    {
+        if (!ok) return;
+        double keep = sheer;
+        foreach (double a in new[] { -SheerMax, -SheerMax / 2, 0, SheerMax / 2, SheerMax })
+        {
+            sheer = a;
+            for (int ti = 0; ti < Tows.Count; ti++)
+            {
+                var tow = Tows[ti];
+                var at = new List<(double S, string What)>();
+                for (double s = 0; s < LEN; s += step) at.Add((s, $"loop s {s:0}"));
+                at.Add((stops[0], "the liner's stop"));
+                foreach (var (s, what) in at)
+                {
+                    var q = TowPose(tow, s, 0, 0);
+                    pose(ti, what, a, q.Lx, q.Lz, q.Tx, q.Tz, q.Yaw);
+                }
+                for (double c = 0; c <= 1.0001; c += 0.1)
+                    foreach (double sign in new[] { 1.0, -1.0 })
+                    {
+                        var q = TowPose(tow, stops[1], c, sign * 0.06 * Math.Sin(Math.PI * c));
+                        pose(ti, $"the berth, {c * 100:0}% in", a, q.Lx, q.Lz, q.Tx, q.Tz, q.Yaw);
+                    }
+            }
+        }
+        sheer = keep;
+    }
+
     private double SAt(double px, double pz)
     {
         int best = 0;
