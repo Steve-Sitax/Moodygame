@@ -2,8 +2,9 @@ param(
     [string]$Godot,
     [ValidateSet('captures','integration-captures','crowd-captures','motion','work','dress-captures','distance-captures','routing','shaders','parade','timing','legacy-timing','identity','pack','network')]
     [string[]]$Modes = @('captures','shaders','parade','timing','identity','pack','network'),
-    [ValidateRange(8800,8999)][int]$Port = 8980,
-    [ValidateRange(0,3600)][int]$WaitForTimingSeconds = 900
+    [ValidateRange(8800,9099)][int]$Port = 8980,
+    [ValidateRange(0,3600)][int]$WaitForTimingSeconds = 900,
+    [switch]$AllowSharedTiming
 )
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'engine-tools.ps1')
@@ -72,7 +73,7 @@ try {
             'network' { $args += @('--dedicated','--native-network-smoke',$dir) }
         }
         $timing = $mode -in @('timing','legacy-timing')
-        if ($timing -or $mode -eq "shaders") {
+        if (($timing -or $mode -eq "shaders") -and -not $AllowSharedTiming) {
             $exclusiveUntil = [DateTime]::UtcNow.AddSeconds($WaitForTimingSeconds)
             $waiting = 0
             while ((Other-Godot).Count) {
@@ -106,7 +107,8 @@ try {
             $log = $stdout.GetAwaiter().GetResult() + $stderr.GetAwaiter().GetResult()
             [IO.File]::WriteAllText((Join-Path $dir 'engine.log'),$log)
             if ($timing) { $isolation | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $dir 'process-isolation.json') }
-            if ($contaminated) { throw 'People timing contaminated by another Godot process.' }
+            if ($contaminated -and -not $AllowSharedTiming) { throw 'People timing contaminated by another Godot process.' }
+            if ($contaminated) { Write-Warning 'Shared-process timing trace only: not an accepted exclusive performance gate.' }
             if ($child.ExitCode -ne 0 -or $log -match '(?m)^ERROR:') { throw "People2 $mode failed; inspect $dir/engine.log" }
             $reportFile = switch ($mode) { {$_ -in @('captures','integration-captures','dress-captures','distance-captures','crowd-captures')} {'captures.json'} 'motion' {'motion.json'} 'work' {'work.json'} 'routing' {'people2-proof.json'} 'shaders' {'shaders.json'} 'parade' {'parade.json'} 'network' {'network.json'} default {'peopletest.json'} }
             $report = Get-Content -LiteralPath (Join-Path $dir $reportFile) -Raw | ConvertFrom-Json

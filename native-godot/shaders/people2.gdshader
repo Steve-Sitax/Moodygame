@@ -7,6 +7,7 @@ global uniform vec4 psx_hemi_sky;
 global uniform vec4 psx_hemi_ground;
 global uniform vec4 psx_mir0;
 global uniform vec4 psx_mir1;
+global uniform float psx_wet;
 // Animals retain their own coat pictures while sharing this exact shader with layered people.
 uniform bool layered_pictures = true;
 uniform sampler2D tex : source_color, hint_default_white, filter_linear_mipmap_anisotropic, repeat_disable;
@@ -23,10 +24,12 @@ instance uniform int clothes_layer = 0;
 instance uniform int face_layer = 0;
 instance uniform vec3 skin_tone_shift = vec3(0.0);
 instance uniform vec3 body_tone = vec3(1.0); // the body's skin takes the tone of the person's face picture
+instance uniform float underwear_wear = 0.0;
 varying vec3 world;
 varying float fog_depth;
 varying float sun_lit;
 varying float eye;
+varying float surface_roughness;
 
 global uniform sampler2D psx_sky_shade : filter_linear, repeat_disable;
 global uniform vec4 psx_sky_box;
@@ -86,7 +89,11 @@ void fragment() {
     bool face = layered_pictures && COLOR.g > 0.5;
     vec4 cloth = layered_pictures ? texture(clothes_colour, vec3(UV, float(clothes_layer))) : texture(tex, UV) * albedo;
     vec4 c = face ? texture(face_colour, vec3(UV, float(face_layer))) : cloth;
+    // Picture alpha stores the cloth zone; only vertex alpha stores hair coverage.
+    ALPHA = layered_pictures ? COLOR.a : 1.0;
+    ALPHA_SCISSOR_THRESHOLD = 0.42;
     float zone = layered_pictures ? (face ? 5.0 : round(cloth.a * 5.0)) : 0.0;
+    if (!face && zone > 1.5 && zone < 2.5) c.rgb *= 1.0 - underwear_wear * (0.23 + 0.035 * sin(UV.y * 150.0) * sin(UV.x * 110.0));
     if (!face && zone > 4.5) c.rgb *= body_tone;
     if (face || zone > 4.5) c.rgb = clamp(c.rgb + skin_tone_shift, vec3(0.0), vec3(1.0));
     float close_detail = 1.0 - smoothstep(1.25, 3.5, length(world - CAMERA_POSITION_WORLD));
@@ -96,6 +103,14 @@ void fragment() {
         c.rgb *= mix(vec3(1.0), grain / vec3(0.5), close_detail * 0.35);
     }
     eye = COLOR.r;
+    bool hair = face && eye < 0.5 && UV.x > 0.58 && UV.y > 0.20 && UV.y < 0.61;
+    float dry = face ? (hair ? 0.48 : 0.76) : zone < 0.5 ? 0.42 : zone < 1.5 ? 0.94 : zone < 2.5 ? 0.87 : zone < 3.5 ? 0.91 : zone < 4.5 ? 0.62 : 0.76;
+    // Wool/linen/canvas absorb more water than skin, leather or metal fittings (zone zero).
+    float wet = layered_pictures ? clamp(psx_wet, 0.0, 1.0) : 0.0;
+    float absorb = !face && zone > 0.5 && zone < 3.5 ? 0.28 : hair ? 0.18 : 0.09;
+    c.rgb *= 1.0 - wet * absorb;
+    surface_roughness = layered_pictures ? mix(dry, max(0.23, dry * 0.58), wet) : 0.55;
+    surface_roughness = mix(surface_roughness, 0.12, eye);
     // Cotangent frame from the actual skinned surface; handles mirrored UVs without imported tangents.
     vec3 dp1 = dFdx(VERTEX), dp2 = dFdy(VERTEX);
     vec2 duv1 = dFdx(UV), duv2 = dFdy(UV);
@@ -117,12 +132,14 @@ void fragment() {
     vec3 rd = ray / max(len, 1e-4);
     vec3 halo = psx_lamp_color.rgb * psx_glow(CAMERA_POSITION_WORLD, rd, glow_reach(len, psx_fog_far, rd)) * psx_scatter * (0.35 + 0.65 * fog_k);
     ALBEDO = c.rgb;
-    EMISSION = c.rgb * (sky + spilt) + halo;
+    float occlusion = layered_pictures ? clamp(COLOR.b, 0.22, 1.0) : 1.0;
+    EMISSION = c.rgb * (sky * occlusion + spilt) + halo;
     if (eye > 0.5) {
         vec3 v = normalize(CAMERA_POSITION_WORLD - world);
         EMISSION += eye * (eye_lamp(psx_lamp0, nw, v) + eye_lamp(psx_lamp1, nw, v) + eye_lamp(psx_lamp2, nw, v) + eye_lamp(psx_lamp3, nw, v) + eye_lamp(psx_lamp4, nw, v) + eye_lamp(psx_lamp5, nw, v));
+        if (layered_pictures) EMISSION += eye * psx_hemi_sky.rgb * pow(max(dot(nw, normalize(v + vec3(-0.3, 0.8, 0.4))), 0.0), 100.0) * 0.18;
     }
-    ROUGHNESS = mix(0.55, 0.12, eye);
+    ROUGHNESS = surface_roughness;
     FOG = vec4(psx_fog_color.rgb + halo, fog_k);
 }
 void light() {
@@ -135,7 +152,8 @@ void light() {
     // Psx convention: LIGHT_COLOR includes pi; Godot converts the lights' sRGB colours.
     DIFFUSE_LIGHT += wrap * tint * a * LIGHT_COLOR / PI;
     vec3 hv = normalize(LIGHT + VIEW);
-    float power = mix(18.0, 150.0, eye);
-    float strength = mix(0.035, 0.6, eye);
+    float power = layered_pictures ? mix(8.0, 150.0, pow(1.0 - surface_roughness, 2.0)) : mix(18.0, 150.0, eye);
+    float strength = layered_pictures ? mix(0.012, 0.24, pow(1.0 - surface_roughness, 2.0)) : 0.035;
+    strength = mix(strength, 0.6, eye);
     SPECULAR_LIGHT += pow(max(dot(NORMAL, hv), 0.0), power) * strength * max(ndl, 0.0) * a * LIGHT_COLOR / PI;
 }

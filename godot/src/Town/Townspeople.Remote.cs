@@ -11,7 +11,10 @@ public partial class Townspeople
         if (!CurrentPerson(person) || Crowd == null) return;
         person.X = pose.X; person.Z = pose.Z; person.Inside = false;
         if (person.P == null && Crowd.Walking.Count < Math.Max(150, MaxPuppets))
+        {
             person.P = Crowd.AddPuppet(person.Kind, pose.X, pose.Z, pose.Yaw, size: size);
+            person.P?.Human.SetIdentity(person.R.Id);
+        }
         if (person.P is not { } puppet) return;
         puppet.Remote = true; puppet.X = pose.X; puppet.Z = pose.Z; puppet.Yaw = pose.Yaw;
         puppet.Size = size; puppet.Group.Scale = Vector3.One * size;

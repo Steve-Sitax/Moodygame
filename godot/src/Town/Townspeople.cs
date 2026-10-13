@@ -1141,6 +1141,7 @@ public partial class Townspeople : Node
             return FarFirst ? -order : order;
         }
     }
+    private ulong people2SpawnFrame = ulong.MaxValue;
     private void Spawn(bool anywhere)
     {
         var crowd = Crowd!;
@@ -1199,8 +1200,12 @@ public partial class Townspeople : Node
             if (at == null) continue;
             if (!Humans.IsKind(s.Kind)) s.Kind = KindFallback.GetValueOrDefault(s.Kind, "docker_a");
             var a = Anchor(s);
+            // Rig copying also has a cost: don't create a square's whole population in one frame.
+            ulong frame = Engine.GetProcessFrames();
+            if (People2.Enabled && people2SpawnFrame == frame) return;
             var p = crowd.AddPuppet(s.Kind, at.Value.x, at.Value.z, Math.Atan2(a.X - at.Value.x, a.Z - at.Value.z), PaceOf(s));
             if (p == null) return;
+            if (People2.Enabled) people2SpawnFrame = frame;
             p.Human.SetIdentity(s.R.Id);
             s.P = p;
             s.X = at.Value.x;

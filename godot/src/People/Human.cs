@@ -163,10 +163,14 @@ public sealed class Human
     public readonly record struct AnimationSnapshot(string? Motion,string? Clip,double Time,double Cycle,int ClipChanges,bool PhaseControlled);
     public AnimationSnapshot AnimationState=>newer?.AnimationState ?? new(Motion,current,mixer.CurrentAnimationPosition,current==null?0:mixer.CurrentAnimationPosition/lengths[current],clipChanges,phaseClip==current&&current!=null);
     private readonly Human2? newer;
+    private readonly People2Eyes? eyes;
+    private string? stableIdentity;
+    private bool identityReady;
 
     internal Human(string kind, Node3D root, AnimationLibrary clips, Dictionary<string, float> lengths, float scale, Human2? newer = null)
     {
         this.newer = newer;
+        if (newer != null) eyes = new People2Eyes(root);
         Kind = kind;
         Root = root;
         Scale = scale;
@@ -342,16 +346,33 @@ public sealed class Human
     }
 
     public int SetFace(IReadOnlyDictionary<string, float> weights) => People2Faces.SetFace(Root, weights);
+    internal long EyeAllocationProof() => eyes?.AllocationProof() ?? -1;
     public int SetIdentity(string stableId)
     {
+        if (stableIdentity == stableId && Root.HasMeta("face_id")) return Root.GetMeta("face_id").AsInt32();
+        stableIdentity = stableId;
+        identityReady = true;
         newer?.SetIdentity(stableId);
-        return People2Faces.SetIdentity(Root, stableId);
+        int face = People2Faces.SetIdentity(Root, stableId);
+        if (Root.HasMeta("face_seed")) eyes?.Seed((uint)Root.GetMeta("face_seed").AsInt64());
+        return face;
     }
 
     public void Update(float dt)
     {
         using var timing = Dev.PeopleTiming.Track(newer != null);
-        if (newer != null) { newer.Update(dt); return; }
+        if (newer != null)
+        {
+            // Townspeople/remote identities are assigned before the first update. Only nameless
+            // decorative/proof figures need a local identity here; Make never builds a temporary face.
+            if (!identityReady)
+            {
+                People2Faces.Next(this);
+                identityReady = true;
+                if (Root.HasMeta("face_seed")) eyes?.Seed((uint)Root.GetMeta("face_seed").AsInt64());
+            }
+            newer.Update(dt); eyes?.Update(dt, newer.Speaking); return;
+        }
         mixer.SpeedScale = SpeedOf(Motion);
         mixer.Advance(dt);
     }

@@ -89,7 +89,10 @@ internal static class People2Material
         var images = new Godot.Collections.Array<Image>();
         foreach (var name in names.EnumerateArray())
         {
-            using var texture = ResourceLoader.Load<Texture2D>(PictureRoot + name.GetString() + suffix + ".png");
+            string path = PictureRoot + name.GetString() + suffix + ".png";
+            if (!ResourceLoader.Exists(path)) throw new InvalidDataException("People2 picture is not imported: " + path + ". Run replace-people2.ps1 (Godot --editor --import) before --people2.");
+            using var texture = ResourceLoader.Load<Texture2D>(path)
+                ?? throw new InvalidDataException("People2 picture failed to load: " + path);
             var image = texture.GetImage();
             if (!image.IsCompressed() || !image.HasMipmaps())
                 throw new InvalidDataException("People pictures require imported GPU compression and mipmaps: " + name);
@@ -121,6 +124,7 @@ internal static class People2Material
                 mi.SetInstanceShaderParameter("face_layer", entry.Face);
                 mi.SetInstanceShaderParameter("skin_tone_shift", Vector3.Zero);
                 mi.SetInstanceShaderParameter("body_tone", Vector3.One);
+                mi.SetInstanceShaderParameter("underwear_wear", body.StartsWith("man_") || body.StartsWith("woman_") || body.StartsWith("child_") || body.StartsWith("old_") ? 1f : 0f);
             }
     }
     private static readonly Dictionary<string, Vector3> bodyTones = new(StringComparer.Ordinal);
@@ -155,10 +159,14 @@ internal static class People2Material
     }
     internal static ModelLibrary.Model? Load()
     {
-        if (!ModelLibrary.Available("people2") || ModelLibrary.NativeScene == null) return null;
+        if (!ModelLibrary.Available("people2") || ModelLibrary.NativeScene == null)
+        {
+            if (People2.Enabled) throw new InvalidDataException("--people2 requires the imported native people2 scene and pictures. Run replace-people2.ps1.");
+            return null;
+        }
         GpuBefore = RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TextureMemUsed);
         ulong start = Time.GetTicksUsec();
-        if (ModelLibrary.NativeScene("people2") is not { } scene) return null;
+        if (ModelLibrary.NativeScene("people2") is not { } scene) throw new InvalidDataException("People2 native scene failed to load; --people2 cannot fall back to people.glb.");
         var shader = Skin();
         using var manifest = System.Text.Json.JsonDocument.Parse(Godot.FileAccess.GetFileAsString(PictureRoot + "manifest.json"));
         var data = manifest.RootElement;

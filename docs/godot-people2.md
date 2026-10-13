@@ -2,6 +2,7 @@
 
 People2 stays off by default. `--people2` selects the matching dressed kind from
 `res://assets/game-models/people2.scn`; missing kinds use the existing native people scene.
+Missing/unimported people2 pictures are a fatal error while opted in; run replacement/import first.
 The dev console accepts `people2 on|off` for later spawns. `p2:<body>` selects a base
 body while enabled, and `--people2-map docker_a=man_middling,fishwife_a=woman_stout`
 overrides routing. The multiplayer `Humans.Motions` list is unchanged.
@@ -69,7 +70,7 @@ normals BC5/RGTC, all mipmapped with linear anisotropic shader filtering. Export
 persisted compressed resources; no editor compression, PNG repaint or GLB decoding occurs at startup.
 The existing people2 spatial shader kind covers sun, sky, fog, lamp/window spill, normal maps and
 near detail. No shader kinds or lights are added. Vertex green selects the full-square head picture;
-red retains the eye highlight. A hidden mesh reference includes the kind in the first-frame audit.
+red retains the eye highlight, blue stores baked indirect visibility, alpha stores hair coverage. A hidden mesh reference includes the kind in the first-frame audit.
 Since the MakeHuman rebuild (2026-10-13, `docs/people.md` "Bodies from MakeHuman") the face layers are the 30
 face pictures of `faceTypes.json cells`, chosen per person (below), not per body or kind.
 
@@ -83,7 +84,7 @@ each key moves, the move and the normal's change as half floats; 16.7 MB), and s
 At load `People2Material` reads the file (`People2Faces.LoadMorphs`) and keeps each mesh's arrays and keys in RAM
 (`Capture`). A person's stable id (`Human.SetIdentity`) gives their face through `People2Faces.FaceFor`, the C#
 twin of `face_types.face_for` over `shared/faceTypes.json` (type, slider values, face picture, hair, beard,
-moustache), and `People2Faces.Bake` builds their own near and far mesh once: every slider's move added, the hair
+moustache), and `People2Faces.SetIdentity` queues their own far and near meshes once: every slider's move added, the hair
 pieces merged in (one draw), `face_layer` and `body_tone` set as instance uniforms. The same id gives the same
 person on every PC; nothing about a face is sent over the network. `shared/faceTypes.json` and
 `shared/peopleSliders.json` travel with the rig in the native data pack (`replace-people2.ps1` copies them).
@@ -497,3 +498,46 @@ animals max 0.84 ms; Grote Markt 0.49 ms, animals max 0.45 ms): `.scratch/animal
 Re-run it alone. Open: gait changes from a stand still slide a paw in the slide proof's start-ups (20-36 mm, once 226 mm for the
 mongrel's run; round 1 had 20-31 mm); steady walk, trot and gallop 0.02-0.15 mm, two run paws about 1 mm; the pig's
 knee folds are too regular.
+
+## Round-4 render checks
+
+`check-people2.ps1 -Modes crowd-captures` includes fitted-eye cameras at 1/2 m for men, women, children and
+old people, and natural blink sequences for five subjects. `-Modes timing` also writes
+`people2-spawn-trace.json`: every frame during square arrivals, mesh upload count/time, background shaping
+maximum, pending requests and the full frame/process time. A successful animation mean alone does not
+establish that every whole frame meets 16.7 ms. The same runner supports lane ports 9040–9049.
+
+Round-4 receipts (2026-10-13): `.scratch/art4/geometry.json` checks all 28 body LODs: finite positions, varying
+blue occlusion, opaque body alpha, three live expressions on each near body and none on far bodies. The compressed
+art master is 17.0 MB. Replacement `people2-replace-512fd8fca7f842ec912331d98f7736a1/replacement.json` preserved
+all 1,711 other model files and both manifests' other entries. The missing-import guard exits 1:
+`.scratch/art4/import-guard/result.json`.
+
+Inspected native pictures: `.scratch/people2-native-89d1b3a6d8a84d51b72b88dc47335af7/crowd-captures/` (121 PNGs;
+the `review/` sheets cover every day/rain/19:30 view and all five natural blink sequences). Live targets use
+absolute positions and unit normal targets: Godot packs blend normals as directions, so normal deltas lose their
+magnitude in the [skin/blend compute pass](https://github.com/godotengine/godot/blob/master/servers/rendering/renderer_rd/shaders/skeleton.glsl).
+Additional tops and low backs from 1/3 m: `.scratch/people2-native-deddb9b8a364438b9a95091603771a53/captures/`
+(210 PNGs, all inspected through nine `review/` sheets). Shaded fronts stay dark when the lamp lights the back.
+
+Final checks: `.scratch/people2-native-b5d45f8ce8b2439ea92299705e4d9b47/`. Routing passes nine recipe vectors,
+512 young-man seeds (112 bald, zero old portraits), repeated-ID mesh reuse, and 3,000 eye updates with zero managed
+bytes. Package: 343 checks / 322 files; content identity: seven checks; multiplayer: 25 checks including matching
+guests and fingerprint mismatch rejection. Shader inventory: 130 kinds, one people2 kind, generated cache 29,
+no new kinds/problems, one sun and 121 point lights unchanged (six disabled workshop preview lights separate).
+The shader audit covers 532 scene samples. Final source/content fingerprint:
+`4d46ac8b062df7c039e4e0e5ce8e72fdb0fdd6a7393667484241e84a8198108c`.
+
+Shared-process timing only: `.scratch/people2-native-30e1858b847e4c1a907d3cfeeb81b52b/timing/`.
+9,325 frames, 52 upload frames, at most one upload/frame; uploads mean .630 ms / maximum 1.933 ms, shaping worker
+maximum 4.310 ms. Measured rig-copy + upload + human-animation CPU maximum 16.545 ms, zero over 16.7 ms. Whole-frame
+maximum 479.550 ms; worst upload frame 302.406 ms. Square animation means 1.073 / .965 ms; town logic means
+1.690 / 1.725 ms fail the 1.5 ms gate. These numbers are **not exclusive acceptance**: the main dedicated server
+and other worktrees were active; even the no-people frame means were 16.411 / 17.186 ms. `-AllowSharedTiming`
+records this condition without weakening the default exclusive guard. An exclusive timing rerun remains for the lead.
+
+Outside this lane: animal PNG import presets are absent from git, causing default lossless/no-mipmap imports in
+a fresh worktree. The local cache used their author's `animals/pictures.py IMPORT` settings for these checks;
+no animal source/artwork changed. `face_types.py _cells_for` still encodes the old bald fallback (hair lane owns
+that file); the native regression uses the independently recomputed corrected seed-2 portrait `m_olive_black`.
+Fishwife shawl/collar shards and rigid held items remain visible in the pictures for the cloth/hands lanes.

@@ -154,13 +154,28 @@ its hat: `KIND_HAIR`), beard, moustache, a crooked nose. The named cast has fixe
 `shared/faceTypes.json` carries the tables, the random number recipe (FNV-1a of `<kind>:<seed>`, mulberry32) and
 test vectors; the game's `People2Faces.FaceFor` is the same recipe in C# and checks itself against the vectors.
 
-**Baked at spawn, not blended per frame.** The glb carries the sliders as live morph targets (for authoring and the
-character creator). At intake they leave the meshes for one sparse file, `people2-resources/morphs.bin` (per mesh
-and key: the vertices that move, their move and normal change as half floats; 16.7 MB, against over 100 MB of dense
-blend shapes), and the stored meshes carry none. At spawn `People2Faces.Bake` adds every slider's move to the
-person's own copy of the near and far mesh, merges the chosen hair, beard and moustache pieces into it (one draw
-per person) and sets the face picture's layer and `body_tone`. A person then costs what a body without sliders
-costs, whatever the number of sliders: see "Cost" below.
+**Identity meshes and live faces (round 4).** Intake keeps authored sliders and expressions in the sparse
+morph file. `People2.Make` copies the rig without constructing an identity mesh. `SetIdentity` queues the real
+stable id; a single worker applies sliders, normal changes and merges the selected hair using managed arrays.
+`People2Warmup` creates throwaway far/near meshes during loading. Its process uploads at most one mesh per frame
+on the main thread: far first, near only within 15 m. Finished builds are shared by id/kind, with 128 completed
+identities retained for respawns. A far template covers the short wait for the first finished far mesh.
+
+Near meshes retain exactly `blink`, `brow_raise`, `smile`; far meshes have no blend shapes. `People2Eyes` closes
+lids at varied 2.2–8 second intervals (occasional double blink), makes saccades, looks at a nearby speaker or
+Jef within 6 m, and stops expressions/eyes beyond 15 m. Its update uses cached nodes and value types. Eye opening
+is reduced in the baked recipe without changing the stable face slider contract. Young bald men keep an
+age/sex-compatible picture when their group has no bald cell; they never borrow an old man's portrait.
+
+### Indirect occlusion and wet surfaces
+
+`export.bake_occlusion(ob, blockers=None, reach=.18, samples=12)` ray-samples the rest mesh after reduction,
+writing hemisphere visibility to vertex blue: 1 open, minimum .22. Cloth/hair lanes can pass sibling blockers
+in the same rest frame. Red (eye), green (face-picture selector) and alpha (coverage) are preserved. The final
+export bakes each unbaked body's geometry; the shader multiplies only sky/indirect light by blue, keeping lamp
+spill and direct light separate. Dry roughness: skin .76, wool .94, linen .87, canvas .91, leather .62, metal
+fittings/zone zero .42, hair .48, eyeball .12. `psx_wet` darkens absorbent cloth and reduces roughness for wet
+sheen in the existing shader; no shader kind or light is added. Base underwear has darker, uneven worn linen.
 
 ### Skin and face pictures
 
@@ -177,6 +192,12 @@ cloth worn under it or the garment's own colour (`clothes_kit.undershirt`), so a
 slider's broader shoulders pushing skin through a tunic show cloth, not bare skin.
 
 ### Hair (`mhhair.py`)
+
+**Round-4 edge contract:** vertex colour alpha is hair/beard/moustache coverage, 0 at the outside contour,
+rising to 1 in the interior. Keep skin/cloth alpha 1. `People2Faces` preserves alpha when marking eyes and
+merging pieces. The existing people2 shader uses alpha-scissor .42, keeping the depth/shadow path opaque
+and avoiding sorted transparency or visible dither. Picture alpha continues to store cloth zones.
+
 
 - **Shells** (crop, side, long, bald fringe; a woman's drawn-back hair under the bun, plaits and coronet; the
   undercap; full, short, chin, chops and sideburn beards): MakeHuman's full head cut along the contour where the

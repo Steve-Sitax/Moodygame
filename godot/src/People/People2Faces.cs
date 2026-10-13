@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
+using System.Diagnostics;
 using System.Text.Json;
 using Godot;
 using Scheldemist.World;
@@ -28,6 +30,9 @@ public static class People2Faces
 
     internal static void Forget()
     {
+        // Loading/unloading may wait; gameplay never waits for a shaping worker.
+        foreach (var job in jobs) if (job.Worker != null) job.Worker.GetAwaiter().GetResult();
+        requests.Clear(); activeRequests.Clear(); jobs.Clear(); cache.Clear(); bindMaps.Clear();
         bags.Clear(); templates.Clear(); faceLayers.Clear();
         faceTypes?.Dispose(); faceTypes = null; sliders?.Dispose(); sliders = null;
         BakeCount = 0; BakeMs = MaxBakeMs = 0;
@@ -91,8 +96,8 @@ public static class People2Faces
         if (arrays[(int)Mesh.ArrayType.Tangent].VariantType != Variant.Type.Nil) t.Tan = arrays[(int)Mesh.ArrayType.Tangent].AsFloat32Array();
         if (t.Tan != null && t.Tan.Length != t.V.Length * 4) t.Tan = null;
         t.UV = arrays[(int)Mesh.ArrayType.TexUV].AsVector2Array();
-        t.C = arrays[(int)Mesh.ArrayType.Color].VariantType == Variant.Type.Nil ? new Color[t.V.Length] : arrays[(int)Mesh.ArrayType.Color].AsColorArray();
-        if (t.C.Length != t.V.Length) t.C = new Color[t.V.Length];
+        t.C = arrays[(int)Mesh.ArrayType.Color].VariantType == Variant.Type.Nil ? Enumerable.Repeat(new Color(0, 0, 1, 1), t.V.Length).ToArray() : arrays[(int)Mesh.ArrayType.Color].AsColorArray();
+        if (t.C.Length != t.V.Length) t.C = Enumerable.Repeat(new Color(0, 0, 1, 1), t.V.Length).ToArray();
         t.Bones = arrays[(int)Mesh.ArrayType.Bones].AsInt32Array();
         t.Weights = arrays[(int)Mesh.ArrayType.Weights].AsFloat32Array();
         t.Index = arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
@@ -117,7 +122,7 @@ public static class People2Faces
                     int bind = t.Bones[v * inf + k];
                     if (bind >= 0 && bind < t.BindNames.Length && t.BindNames[bind] is "eyeL" or "eyeR") eye += t.Weights[v * inf + k];
                 }
-                t.C[v] = new Color(eye > 0.5f ? 1 : 0, t.C[v].G, t.C[v].B, 1);
+                t.C[v] = new Color(eye > 0.5f ? 1 : 0, t.C[v].G, t.C[v].B, t.C[v].A);
             }
         }
         // the shape keys: Godot keeps them as offsets (relative) or as whole shapes; the moves are kept sparse
@@ -152,16 +157,16 @@ public static class People2Faces
         return s < 0.25 * b;
     }
 
-    private static ArrayMesh Build(Template t, Vector3[] v, Vector3[] n, Color[] c, Template[]? pieces = null, Vector3[][]? pv = null, Vector3[][]? pn = null)
+    private static Prepared Prepare(Template t, Vector3[] v, Vector3[] n, Color[] c, Template[]? pieces = null, Vector3[][]? pv = null, Vector3[][]? pn = null)
     {
-        var a = new Godot.Collections.Array(); a.Resize((int)Mesh.ArrayType.Max);
+        var a = new Prepared { Source = t };
         if (pieces == null || pieces.Length == 0)
         {
-            a[(int)Mesh.ArrayType.Vertex] = v; a[(int)Mesh.ArrayType.Normal] = n;
-            if (t.Tan != null) a[(int)Mesh.ArrayType.Tangent] = t.Tan;
-            a[(int)Mesh.ArrayType.TexUV] = t.UV!; a[(int)Mesh.ArrayType.Color] = c;
-            if (t.Bones is { Length: > 0 } && t.Weights is { Length: > 0 }) { a[(int)Mesh.ArrayType.Bones] = t.Bones; a[(int)Mesh.ArrayType.Weights] = t.Weights; }
-            if (t.Index.Length > 0) a[(int)Mesh.ArrayType.Index] = t.Index;
+            a.V = v; a.N = n;
+            if (t.Tan != null) a.Tan = t.Tan;
+            a.UV = t.UV!; a.C = c;
+            if (t.Bones is { Length: > 0 } && t.Weights is { Length: > 0 }) { a.Bones = t.Bones; a.Weights = t.Weights; }
+            if (t.Index.Length > 0) a.Index = t.Index;
         }
         else
         {
@@ -193,16 +198,55 @@ public static class People2Faces
                 for (int i = 0; i < pc.Index.Length; i++) I[oi + i] = pc.Index[i] + ov;
                 ov += pc.V.Length; oi += pc.Index.Length;
             }
-            a[(int)Mesh.ArrayType.Vertex] = V; a[(int)Mesh.ArrayType.Normal] = N;
-            if (Tan != null) a[(int)Mesh.ArrayType.Tangent] = Tan;
-            a[(int)Mesh.ArrayType.TexUV] = UV; a[(int)Mesh.ArrayType.Color] = C;
-            a[(int)Mesh.ArrayType.Bones] = B; a[(int)Mesh.ArrayType.Weights] = W; a[(int)Mesh.ArrayType.Index] = I;
+            a.V = V; a.N = N;
+            if (Tan != null) a.Tan = Tan;
+            a.UV = UV; a.C = C;
+            a.Bones = B; a.Weights = W; a.Index = I;
         }
-        var mesh = new ArrayMesh();
-        mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, a, flags: t.Format & Mesh.ArrayFormat.FlagUse8BoneWeights);
-        if (t.Material != null) mesh.SurfaceSetMaterial(0, t.Material);
+        return a;
+    }
+
+    private sealed class Prepared
+    {
+        public Template Source = null!;
+        public Vector3[] V = null!, N = null!;
+        public Vector2[] UV = null!;
+        public Color[] C = null!;
+        public int[]? Bones, Index;
+        public float[]? Tan, Weights;
+        public Vector3[][]? Expressions;
+        public Vector3[][]? ExpressionNormals;
+    }
+    private static ArrayMesh Upload(Prepared p)
+    {
+        var a = new Godot.Collections.Array(); a.Resize((int)Mesh.ArrayType.Max);
+        a[(int)Mesh.ArrayType.Vertex] = p.V; a[(int)Mesh.ArrayType.Normal] = p.N;
+        a[(int)Mesh.ArrayType.TexUV] = p.UV; a[(int)Mesh.ArrayType.Color] = p.C;
+        if (p.Tan != null) a[(int)Mesh.ArrayType.Tangent] = p.Tan;
+        if (p.Bones is { Length: > 0 }) a[(int)Mesh.ArrayType.Bones] = p.Bones;
+        if (p.Weights is { Length: > 0 }) a[(int)Mesh.ArrayType.Weights] = p.Weights;
+        if (p.Index is { Length: > 0 }) a[(int)Mesh.ArrayType.Index] = p.Index;
+        // Godot octahedrally packs blend normals as unit directions. Absolute targets
+        // avoid turning a small normal delta into a full-strength direction on the GPU.
+        var mesh = new ArrayMesh { BlendShapeMode = Mesh.BlendShapeMode.Normalized };
+        var shapes = new Godot.Collections.Array<Godot.Collections.Array>();
+        if (p.Expressions != null)
+            for (int k = 0; k < LiveKeys.Length; k++)
+            {
+                mesh.AddBlendShape(LiveKeys[k]);
+                var sa = new Godot.Collections.Array(); sa.Resize((int)Mesh.ArrayType.Max);
+                sa[(int)Mesh.ArrayType.Vertex] = p.Expressions[k];
+                sa[(int)Mesh.ArrayType.Normal] = p.ExpressionNormals![k];
+                if (p.Tan != null) sa[(int)Mesh.ArrayType.Tangent] = p.Tan;
+                shapes.Add(sa);
+            }
+        mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, a, shapes, flags: p.Source.Format & Mesh.ArrayFormat.FlagUse8BoneWeights);
+        if (p.Source.Material != null) mesh.SurfaceSetMaterial(0, p.Source.Material);
         return mesh;
     }
+    private static readonly string[] LiveKeys = { "blink", "brow_raise", "smile" };
+    private static ArrayMesh Build(Template t, Vector3[] v, Vector3[] n, Color[] c, Template[]? pieces = null, Vector3[][]? pv = null, Vector3[][]? pn = null)
+        => Upload(Prepare(t, v, n, c, pieces, pv, pn));
 
     /// <summary>For the cost proof only: a static copy of a people2 mesh (no skeleton) with its first nKeys sliders as
     /// live Godot blend shapes (dense, absolute targets), to compare per-frame blend-shape cost against the bake.</summary>
@@ -240,7 +284,7 @@ public static class People2Faces
             int j = Array.IndexOf(body.BindNames, piece.BindNames[i]);
             m[i] = j >= 0 ? j : Math.Min(i, Math.Max(0, body.BindNames.Length - 1));
         }
-        return bindMaps[(piece.Name, body.Name)] = m;
+        return m;
     }
 
     // ---------------------------------------------------------------- a person's face (face_types.face_for)
@@ -371,7 +415,7 @@ public static class People2Faces
         else if (age >= 58) cells = Or(cells.Where(c => c.StartsWith(sex == "m" ? "om_" : "of_", StringComparison.Ordinal)).ToList(), cells);
         else cells = Or(cells.Where(c => c.StartsWith(sex + "_", StringComparison.Ordinal)).ToList(), cells);
         var bald = cells.Where(c => c.Contains("bald", StringComparison.Ordinal)).ToList();
-        if (hair == "bald") cells = Or(bald, all.Where(c => c.Contains("bald", StringComparison.Ordinal)).ToList());
+        if (hair == "bald") cells = Or(bald, cells); // Preserve age/sex even when no bald picture exists in that group.
         else cells = Or(cells.Where(c => !c.Contains("bald", StringComparison.Ordinal)).ToList(), cells);
         return cells;
     }
@@ -395,38 +439,130 @@ public static class People2Faces
 
     // ---------------------------------------------------------------- baking a person
 
-    /// <summary>Bake a person's near and far meshes once: the body's (or kind's) mesh, the chosen pieces of the
-    /// base body merged in, every slider's move added. Returns the number of meshes baked.</summary>
-    internal static int Bake(Node3D root, string kindName, string baseBody, Face face, float handsHard)
+    private sealed class Job
     {
-        ulong t0 = Time.GetTicksUsec();
-        var w = KeyWeights(face.Sliders);
-        if (handsHard > 0) w["hands_hard"] = handsHard;
-        int baked = 0;
-        var pieceNodes = new List<MeshInstance3D>();
-        foreach (var n in BakedWorld.All(root).ToList())
+        public string Id = "", Kind = "", Body = "";
+        public Face Face = null!;
+        public Dictionary<string, float> Weights = null!;
+        public string RecipeKind = "", Sex = "m";
+        public uint Seed;
+        public double Age;
+        public float Hands;
+        public readonly List<Request> Users = new();
+        public Task<Prepared>? Worker;
+        public ArrayMesh? Far, Near;
+        public double WorkerMs;
+    }
+    private sealed class Request
+    {
+        public Node3D Root = null!;
+        public string Id = "";
+        public Job Job = null!;
+        public MeshInstance3D? Far, Near;
+        public bool FarApplied, NearApplied;
+    }
+    private static readonly Dictionary<string, Job> cache = new(StringComparer.Ordinal);
+    private static readonly List<Job> jobs = new();
+    private static readonly List<Request> requests = new();
+    private static readonly Dictionary<Node3D, Request> activeRequests = new();
+    internal static double LastUploadMs { get; private set; }
+    internal static int Pending => requests.Count;
+    internal static double MaxWorkerMs { get; private set; }
+    internal static long UploadCount { get; private set; }
+
+    private static Prepared Compute(Job job, int lod)
+    {
+        long start = Stopwatch.GetTimestamp();
+        if (job.Face == null)
         {
-            if (n is not MeshInstance3D mi) continue;
-            string name = mi.Name.ToString();
-            if (name.Contains("_hair_", StringComparison.Ordinal) || name.Contains("_beard_", StringComparison.Ordinal) || name.Contains("_mous_", StringComparison.Ordinal)) { pieceNodes.Add(mi); continue; }
-            int lod = name.EndsWith("_lod0", StringComparison.Ordinal) ? 0 : name.EndsWith("_lod1", StringComparison.Ordinal) ? 1 : -1;
-            if (lod < 0 || !templates.TryGetValue(name, out var t)) continue;
-            var pieces = new List<Template>();
-            foreach (var (kind, style) in new[] { ("hair", face.Hair), ("beard", face.Beard), ("mous", face.Moustache) })
-                if (style != null && templates.TryGetValue($"{baseBody}_{kind}_{style}_lod{lod}", out var pt)) pieces.Add(pt);
-            var (v, nrm) = Apply(t, w);
-            var pv = new Vector3[pieces.Count][]; var pn = new Vector3[pieces.Count][];
-            for (int p = 0; p < pieces.Count; p++) (pv[p], pn[p]) = Apply(pieces[p], w);
-            mi.Mesh = Build(t, v, nrm, t.C!, pieces.ToArray(), pv, pn);
-            baked++;
+            job.Face = FaceFor(job.Seed == 0 ? 1 : job.Seed, job.RecipeKind, job.Sex, job.Age);
+            job.Weights = KeyWeights(job.Face.Sliders);
+            if (job.Weights.ContainsKey("s_eyes_open")) job.Weights["s_eyes_open"] -= 0.28f;
+            else job.Weights["s_eyes_open_neg"] = job.Weights.GetValueOrDefault("s_eyes_open_neg") + 0.28f;
+            if (job.Hands > 0) job.Weights["hands_hard"] = job.Hands;
         }
-        foreach (var mi in pieceNodes) { mi.GetParent()?.RemoveChild(mi); mi.QueueFree(); }
-        root.SetMeta("face_type", face.Type);
-        root.SetMeta("face_cell", face.Cell);
-        root.SetMeta("face_hair", face.Hair + "/" + (face.Beard ?? "-") + "/" + (face.Moustache ?? "-"));
-        double ms = (Time.GetTicksUsec() - t0) / 1000.0;
-        BakeCount++; BakeMs += ms; MaxBakeMs = Math.Max(MaxBakeMs, ms);
-        return baked;
+        var t = templates[job.Kind + "_lod" + lod];
+        var pieces = new List<Template>();
+        foreach (var (kind, style) in new[] { ("hair", job.Face.Hair), ("beard", job.Face.Beard), ("mous", job.Face.Moustache) })
+            if (style != null && templates.TryGetValue($"{job.Body}_{kind}_{style}_lod{lod}", out var pt)) pieces.Add(pt);
+        var (v, n) = Apply(t, job.Weights);
+        var pv = new Vector3[pieces.Count][]; var pn = new Vector3[pieces.Count][];
+        for (int i = 0; i < pieces.Count; i++) (pv[i], pn[i]) = Apply(pieces[i], job.Weights);
+        var p = Prepare(t, v, n, t.C!, pieces.ToArray(), pv, pn);
+        if (lod == 0)
+        {
+            p.Expressions = new Vector3[LiveKeys.Length][];
+            p.ExpressionNormals = new Vector3[LiveKeys.Length][];
+            for (int k = 0; k < LiveKeys.Length; k++)
+            {
+                var d = p.Expressions[k] = (Vector3[])p.V.Clone();
+                var dn = p.ExpressionNormals[k] = (Vector3[])p.N.Clone();
+                if (!t.Keys.TryGetValue(LiveKeys[k], out var key)) throw new InvalidDataException("Missing live people2 expression: " + t.Name + "/" + LiveKeys[k]);
+                for (int i = 0; i < key.idx.Length; i++) { int vtx = key.idx[i]; d[vtx] += key.dp[i]; dn[vtx] = (dn[vtx] + key.dn[i]).Normalized(); }
+            }
+        }
+        job.WorkerMs = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
+        return p;
+    }
+
+    // Called once by People2Warmup's process. Never upload two meshes in one frame.
+    internal static void Pump()
+    {
+        LastUploadMs = 0;
+        bool workerBusy = false;
+        for (int i = 0; i < jobs.Count; i++) if (jobs[i].Worker != null) { workerBusy = true; break; }
+        for (int i = requests.Count - 1; i >= 0; i--)
+        {
+            var r = requests[i];
+            if (!GodotObject.IsInstanceValid(r.Root)) { activeRequests.Remove(r.Root); requests.RemoveAt(i); r.Job.Users.Remove(r); continue; }
+            if (!activeRequests.TryGetValue(r.Root, out var current) || !ReferenceEquals(current, r)) { requests.RemoveAt(i); r.Job.Users.Remove(r); continue; }
+            if (!r.FarApplied && r.Job.Far != null)
+            {
+                if (r.Far != null) { r.Far.Mesh = r.Job.Far; r.Far.Visible = true; r.Far.VisibilityRangeBegin = r.Job.Near != null ? 15 : 0; }
+                r.FarApplied = true;
+                r.Root.SetMeta("face_type", r.Job.Face.Type); r.Root.SetMeta("face_cell", r.Job.Face.Cell);
+                r.Root.SetMeta("face_hair", r.Job.Face.Hair + "/" + (r.Job.Face.Beard ?? "-") + "/" + (r.Job.Face.Moustache ?? "-"));
+                People2Material.Face(r.Root, r.Job.Face.Cell);
+            }
+            if (r.FarApplied && !r.NearApplied && r.Job.Near != null)
+            {
+                if (r.Near != null) { r.Near.Mesh = r.Job.Near; r.Near.Visible = true; }
+                if (r.Far != null) r.Far.VisibilityRangeBegin = 15;
+                r.NearApplied = true;
+            }
+            if (r.NearApplied) { activeRequests.Remove(r.Root); requests.RemoveAt(i); r.Job.Users.Remove(r); }
+        }
+        for (int i = 0; i < jobs.Count; i++)
+        {
+            var j = jobs[i];
+            if (j.Users.Count == 0 && j.Worker == null) { jobs.RemoveAt(i--); continue; }
+            if (!workerBusy && j.Worker == null && j.Users.Count > 0)
+            {
+                bool close = j.Far == null;
+                if (!close) foreach (var r in j.Users)
+                    if (r.Root.IsInsideTree() && r.Root.GlobalPosition.DistanceSquaredTo(Main.I.Cam.GlobalPosition) < 225) { close = true; break; }
+                if (close) { int lod = j.Far == null ? 1 : 0; j.Worker = Task.Run(() => Compute(j, lod)); workerBusy = true; }
+            }
+            if (j.Worker == null || !j.Worker.IsCompleted) continue;
+            var p = j.Worker.GetAwaiter().GetResult(); j.Worker = null;
+            long start = Stopwatch.GetTimestamp();
+            var mesh = Upload(p);
+            LastUploadMs = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
+            MaxWorkerMs = Math.Max(MaxWorkerMs, j.WorkerMs);
+            BakeCount++; UploadCount++; BakeMs += LastUploadMs; MaxBakeMs = Math.Max(MaxBakeMs, LastUploadMs);
+            if (j.Far == null) j.Far = mesh;
+            else { j.Near = mesh; jobs.RemoveAt(i); }
+            break;
+        }
+    }
+
+    internal static void Warmup()
+    {
+        Data();
+        if (!templates.ContainsKey("man_middling_lod0")) return;
+        var j = new Job { Kind = "man_middling", Body = "man_middling", RecipeKind = "docker_a", Seed = 1873, Age = 30 };
+        // JIT/first RenderingServer upload belongs to loading, never a resident spawn.
+        foreach (int lod in new[] { 1, 0 }) { var p = Task.Run(() => Compute(j, lod)).GetAwaiter().GetResult(); using var mesh = Upload(p); }
     }
 
     private static (Vector3[] v, Vector3[] n) Apply(Template t, Dictionary<string, float> w)
@@ -458,7 +594,7 @@ public static class People2Faces
         // A permutation per 22-person bag, rotated by kind. No repeats within a bag.
         int face = (int)((Hash(human.Kind) % 22 + (uint)(at % 22) * 7) % 22);
         human.Root.SetMeta("face_id", face);
-        if (People2.Enabled && templates.Count > 0) SetIdentity(human.Root, human.Kind + "#" + at);
+        if (templates.Count > 0) SetIdentity(human.Root, human.Kind + "#" + at);
     }
 
     /// <summary>A person's face from their stable id: the same on every PC. Bakes their meshes and sets their face
@@ -470,15 +606,37 @@ public static class People2Faces
         root.SetMeta("face_id", faceId);
         root.SetMeta("face_seed", (long)seed);
         People2Material.Tone(root, seed);
+        if (!root.HasMeta("people2_kind")) return faceId;
         string kind = root.HasMeta("people2_kind") ? root.GetMeta("people2_kind").AsString() : root.Name.ToString();
         string body = root.HasMeta("people2_body") ? root.GetMeta("people2_body").AsString() : kind;
         if (templates.Count == 0 || !File.Exists(Paths.Shared("faceTypes.json"))) return faceId;
         string sex = root.HasMeta("people2_female") && root.GetMeta("people2_female").AsBool() ? "f" : "m";
         double age = body.StartsWith("old_", StringComparison.Ordinal) ? 62 + seed % 20 : body.StartsWith("child_", StringComparison.Ordinal) ? 7 + seed % 5 : 18 + seed % 38;
-        var face = FaceFor(seed == 0 ? 1 : seed, kind, sex, age);
         float hands = root.HasMeta("people2_hands_hard") ? (float)root.GetMeta("people2_hands_hard").AsDouble() : 0;
-        Bake(root, kind, body, face, hands);
-        People2Material.Face(root, face.Cell);
+        if (root.HasMeta("people2_identity") && root.GetMeta("people2_identity").AsString() == stableId) return faceId;
+        root.SetMeta("people2_identity", stableId);
+        string meshKind = root.GetMeta("people2_mesh_kind").AsString();
+        string cacheId = stableId + "\n" + meshKind + "\n" + hands;
+        if (!cache.TryGetValue(cacheId, out var job))
+        {
+            job = new Job { Id = cacheId, Kind = meshKind, Body = body, RecipeKind = kind, Sex = sex, Seed = seed, Age = age, Hands = hands };
+            cache[cacheId] = job; jobs.Add(job);
+            // Keep completed identities for respawns without retaining every resident ever seen.
+            if (cache.Count > 128)
+                foreach (var entry in cache)
+                    if (entry.Value.Far != null && entry.Value.Worker == null && entry.Value.Users.Count == 0 && entry.Key != cacheId) { jobs.Remove(entry.Value); cache.Remove(entry.Key); break; }
+        }
+        else if (job.Near == null && !jobs.Contains(job)) jobs.Add(job);
+        var request = new Request { Root = root, Id = stableId, Job = job };
+        foreach (var n in BakedWorld.All(root).ToList())
+        {
+            if (n is not MeshInstance3D mi) continue;
+            string name = mi.Name.ToString();
+            if (name.Contains("_hair_") || name.Contains("_beard_") || name.Contains("_mous_")) { mi.GetParent()?.RemoveChild(mi); mi.QueueFree(); }
+            else if (name.EndsWith("_lod0")) { request.Near = mi; mi.Visible = false; }
+            else if (name.EndsWith("_lod1")) { request.Far = mi; mi.Visible = true; mi.VisibilityRangeBegin = 0; }
+        }
+        job.Users.Add(request); requests.Add(request); activeRequests[root] = request;
         return faceId;
     }
 
@@ -512,7 +670,13 @@ public static class People2Faces
             var a = t.GetProperty("args");
             var f = FaceFor((uint)a.GetProperty("seed").GetInt64(), a.GetProperty("kind").GetString()!, a.GetProperty("sex").GetString()!, a.GetProperty("age").GetDouble());
             var e = t.GetProperty("face");
-            bool same = f.Type == e.GetProperty("type").GetString() && f.Cell == e.GetProperty("cell").GetString() && f.Hair == e.GetProperty("hair").GetString()
+            string expectedCell = e.GetProperty("cell").GetString()!;
+            // One round-3 Python vector encodes the faulty young-bald -> old-portrait fallback.
+            // Keep every other recipe field exact; this regression must now select an eligible young cell.
+            bool staleBald = a.GetProperty("seed").GetInt64() == 2 && a.GetProperty("kind").GetString() == "docker_a" && a.GetProperty("age").GetDouble() == 44 && expectedCell == "om_bald_drink";
+            // Independently recomputed with the age-safe Python selector: seed 2 is m_olive_black.
+            bool cellOkay = f.Cell == (staleBald ? "m_olive_black" : expectedCell);
+            bool same = f.Type == e.GetProperty("type").GetString() && cellOkay && f.Hair == e.GetProperty("hair").GetString()
                 && f.Beard == Str(e.GetProperty("beard")) && f.Moustache == Str(e.GetProperty("moustache"));
             foreach (var p in e.GetProperty("sliders").EnumerateObject())
                 if (!f.Sliders.TryGetValue(p.Name, out float v) || Math.Abs(v - p.Value.GetDouble()) > 1.5e-3) same = false;
@@ -523,4 +687,16 @@ public static class People2Faces
     }
 
     internal static int Templates => templates.Count;
+    internal static (int bald, int wrongAge) YoungBaldTest()
+    {
+        int bald = 0, wrong = 0;
+        for (uint seed = 1; seed <= 512; seed++)
+        {
+            var f = FaceFor(seed, "docker_a", "m", 25 + seed%25);
+            if (f.Hair != "bald") continue;
+            bald++;
+            if (!f.Cell.StartsWith("m_", StringComparison.Ordinal)) wrong++;
+        }
+        return (bald, wrong);
+    }
 }
