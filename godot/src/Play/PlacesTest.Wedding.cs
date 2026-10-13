@@ -48,11 +48,14 @@ public partial class PlacesTest
         var plan=await api.DevEvent("wedding");Check(plan.Ok,"engine wedding fixture accepted");await AdvanceIndoor(api,2);
         TownEvent? live=(await api.Actions()).Events.FirstOrDefault(e=>e.Id==plan.Id);
         for(int i=0;i<16&&live!=null&&Events.StageOf(live)?.Op!="enter";i++){await AdvanceIndoor(api,(int)Math.Ceiling(live.StageLeft)+1);live=(await api.Actions()).Events.FirstOrDefault(e=>e.Id==plan.Id);}
-        Check(live!=null&&Events.StageOf(live)?.Op=="enter","wedding reaches cathedral ceremony");await AdvanceIndoor(api,12);
-        for(int i=0;i<12;i++){halls.ApplyHall("cathedral",await api.Get<JsonElement>("api/landmark/cathedral"));if(cath.Figures.Values.Any(f=>f.Ceremony&&f.Moving))break;await Frames(60);}
-        Check(cath.Figures.Values.Any(f=>f.Ceremony&&f.Moving),"wedding people walk from real cathedral door");await WeddingPicture("wedding-entry",cath.Figures.Values.First(f=>f.Ceremony&&f.Moving));
-        int entered=halls.CeremonyEntered;Check(await Until(()=>!cath.Figures.Values.Any(f=>f.Ceremony&&f.Moving&&!f.Leaving),78),"wedding party reaches ceremony positions");
-        Check(halls.CeremonyEntered>entered,"wedding entrance completion recorded");await WeddingPicture("wedding-ceremony",cath.Figures.Values.First(f=>f.Ceremony&&!f.Leaving));
+        Check(live!=null&&Events.StageOf(live)?.Op=="enter","wedding reaches cathedral ceremony");// The test jumps the engine clock, but the 35 guests are real residents who walk in from across town at walking pace
+        // (the server clock stands while the test runs). So count entrances from here and give the walkers real time to arrive.
+        int entered=halls.CeremonyEntered;await AdvanceIndoor(api,12);
+        for(int i=0;i<40;i++){halls.ApplyHall("cathedral",await api.Get<JsonElement>("api/landmark/cathedral"));if(cath.Figures.Values.Any(f=>f.Ceremony&&f.Moving&&!f.Leaving))break;await Frames(60);}
+        Check(cath.Figures.Values.Any(f=>f.Ceremony&&f.Moving&&!f.Leaving),"wedding people walk from real cathedral door");await WeddingPicture("wedding-entry",cath.Figures.Values.First(f=>f.Ceremony&&f.Moving));
+        for(ulong end=Time.GetTicksMsec()+240000;Time.GetTicksMsec()<end&&halls.CeremonyEntered-entered<10;){halls.ApplyHall("cathedral",await api.Get<JsonElement>("api/landmark/cathedral"));await Frames(60);}
+        Check(halls.CeremonyEntered-entered>=10,"wedding party reaches ceremony positions");
+        Check(cath.Figures.Values.Count(f=>f.Ceremony&&!f.Leaving&&!f.Moving)>=10,"wedding entrance completion recorded");await WeddingPicture("wedding-ceremony",cath.Figures.Values.First(f=>f.Ceremony&&!f.Leaving));
         live=(await api.Actions()).Events.First(e=>e.Id==plan.Id);await AdvanceIndoor(api,(int)Math.Ceiling(live.StageLeft)+1);halls.ApplyHall("cathedral",await api.Get<JsonElement>("api/landmark/cathedral"));
         Check(cath.Figures.Values.Any(f=>f.Ceremony&&f.Leaving&&f.Moving),"wedding party walks out of cathedral");Jef.I.Place(cath.Origin.X+1.4f,cath.Origin.Z-4,MathF.PI,0,0);await WeddingPicture("wedding-exit",cath.Figures.Values.First(f=>f.Ceremony&&f.Leaving));
         Check(await Until(()=>!cath.Figures.Values.Any(f=>f.Ceremony&&f.Leaving),55),"wedding party reaches street");
