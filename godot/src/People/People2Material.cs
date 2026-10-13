@@ -11,6 +11,8 @@ namespace Scheldemist.People;
 // Native scene loading keeps source normals and morphs before the ordinary material conversion.
 internal static class People2Material
 {
+    private static readonly Dictionary<Texture2D, Texture2D> colours = new(), normals = new();
+    internal static long AnimalTextureBytes { get; private set; }
     private static Shader? shader;
     private static ShaderMaterial? sharedMaterial;
     private static readonly List<Texture2DArray> arrays = new();
@@ -22,9 +24,63 @@ internal static class People2Material
     internal static ulong GpuAfter { get; private set; }
     internal static void Forget()
     {
+        foreach (var texture in colours.Values) texture.Dispose();
+        foreach (var texture in normals.Values) texture.Dispose();
+        colours.Clear(); normals.Clear(); AnimalTextureBytes = 0;
         pictures.Clear(); sharedMaterial?.Dispose(); sharedMaterial = null;
         foreach (var array in arrays) array.Dispose(); arrays.Clear();
         shader?.Dispose(); shader = null; TextureBytes = ProjectionBytes = layerBytes = detailBytes = 0;
+    }
+    /// <summary>The one skin shader (sun, sky, fog, lamp spill, normal maps, eye glints) for people2 and the animals.</summary>
+    internal static Shader Skin()
+    {
+        if (shader != null) return shader;
+        Psx.EnsureGlobals();
+        string code = Godot.FileAccess.GetFileAsString("res://shaders/people2.gdshader");
+        return shader = new Shader { Code = code.Replace("/*SCATTER*/", Psx.LampScatterGlsl).Replace("/*SPILL*/", Psx.SpillGlsl
+            .Replace("max(dot(N, -d / max(dl, 1e-4)), 0.0)", "max((dot(N, -d / max(dl, 1e-4)) + 0.35) / 1.35, 0.0)")
+            .Replace("max(dot(N, L1), 0.0)", "max((dot(N, L1) + 0.35) / 1.35, 0.0)")
+            .Replace("max(dot(N, L2), 0.0)", "max((dot(N, L2) + 0.35) / 1.35, 0.0)")), ResourceName = "people2" };
+    }
+    /// <summary>A picture with linear-light mipmaps (colour) or renormalised ones (normals); cached until Forget.</summary>
+    internal static Texture2D Mipmapped(Texture2D source, bool colour) => Mips(source, colour);
+    private static Texture2D Mips(Texture2D source, bool colour)
+    {
+        var cache = colour ? colours : normals;
+        if (cache.TryGetValue(source, out var known)) return known;
+        using var image = source.GetImage();
+        if (image.IsCompressed()) image.Decompress();
+        image.ClearMipmaps();
+        image.Convert(Image.Format.Rgba8);
+        if (colour)
+        {
+            byte[] pixels = image.GetData();
+            var linear = new float[pixels.Length];
+            var decode = new float[256];
+            for (int i = 0; i < 256; i++)
+            {
+                float x = i / 255f;
+                decode[i] = x <= 0.04045f ? x / 12.92f : MathF.Pow((x + 0.055f) / 1.055f, 2.4f);
+            }
+            for (int i = 0; i < pixels.Length; i++) linear[i] = i % 4 == 3 ? pixels[i] / 255f : decode[pixels[i]];
+            var data = new byte[linear.Length * 4]; Buffer.BlockCopy(linear, 0, data, 0, data.Length);
+            using var filtered = Image.CreateFromData(image.GetWidth(), image.GetHeight(), false, Image.Format.Rgbaf, data);
+            filtered.GenerateMipmaps();
+            data = filtered.GetData(); linear = new float[data.Length / 4]; Buffer.BlockCopy(data, 0, linear, 0, data.Length);
+            pixels = new byte[linear.Length];
+            for (int i = 0; i < linear.Length; i++)
+            {
+                float x = linear[i];
+                if (i % 4 != 3) x = x <= 0.0031308f ? x * 12.92f : 1.055f * MathF.Pow(x, 1 / 2.4f) - 0.055f;
+                pixels[i] = (byte)Math.Clamp((int)MathF.Round(x * 255), 0, 255);
+            }
+            image.SetData(image.GetWidth(), image.GetHeight(), true, Image.Format.Rgba8, pixels);
+        }
+        else image.GenerateMipmaps(true);
+        AnimalTextureBytes += image.GetData().LongLength;
+        var result = ImageTexture.CreateFromImage(image);
+        cache[source] = result;
+        return result;
     }
     private const string PictureRoot = "res://assets/people2-pictures/";
     private static Texture2DArray Layers(System.Text.Json.JsonElement names, string suffix)
@@ -78,12 +134,7 @@ internal static class People2Material
         GpuBefore = RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TextureMemUsed);
         ulong start = Time.GetTicksUsec();
         if (ModelLibrary.NativeScene("people2") is not { } scene) return null;
-        Psx.EnsureGlobals();
-        string code = Godot.FileAccess.GetFileAsString("res://shaders/people2.gdshader");
-        shader = new Shader { Code = code.Replace("/*SCATTER*/", Psx.LampScatterGlsl).Replace("/*SPILL*/", Psx.SpillGlsl
-            .Replace("max(dot(N, -d / max(dl, 1e-4)), 0.0)", "max((dot(N, -d / max(dl, 1e-4)) + 0.35) / 1.35, 0.0)")
-            .Replace("max(dot(N, L1), 0.0)", "max((dot(N, L1) + 0.35) / 1.35, 0.0)")
-            .Replace("max(dot(N, L2), 0.0)", "max((dot(N, L2) + 0.35) / 1.35, 0.0)")), ResourceName = "people2" };
+        var shader = Skin();
         using var manifest = System.Text.Json.JsonDocument.Parse(Godot.FileAccess.GetFileAsString(PictureRoot + "manifest.json"));
         var data = manifest.RootElement;
         foreach (var entry in data.GetProperty("entries").EnumerateObject())

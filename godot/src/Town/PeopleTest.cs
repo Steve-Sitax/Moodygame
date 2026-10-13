@@ -34,7 +34,7 @@ public partial class PeopleTest : Node
     private readonly List<double> times = new();
     private ulong drawCalls;
     private readonly List<double> logic = new();
-    private readonly List<double> animationTime = new(), layerTime = new(), legacyTime = new(), newTime = new();
+    private readonly List<double> animationTime = new(), layerTime = new(), legacyTime = new(), newTime = new(), animalTime = new(), animalsShown = new();
     private readonly List<double> allocations = new(256), animalAllocations = new(256), wildlifeAllocations = new(256);
     private readonly List<double> allAllocations = new(640);
     private readonly long[] allocationParts = new long[5];
@@ -292,10 +292,14 @@ public partial class PeopleTest : Node
                     }
                     town.MaxPuppets = 50 - timingPeople.Count;
                 }
+                // and a dozen animals about, as many as a busy corner has: the gate covers them too
+                if (frames == 1) Scheldemist.People.Animals.I?.Exhibit(12, Main.I.Cam.GlobalPosition);
                 if (frames == 5) for (int i = 0; i < 3; i++) collectionsAt[i] = GC.CollectionCount(i);
                 if (frames > 5)
                 {
                     animationTime.Add(Dev.PeopleTiming.LegacyMs + Dev.PeopleTiming.People2Ms);
+                    animalTime.Add(Scheldemist.People.Animals.I?.LogicMs ?? 0);
+                    animalsShown.Add(Scheldemist.People.Animals.I?.Shown ?? 0);
                     legacyTime.Add(Dev.PeopleTiming.LegacyMs); newTime.Add(Dev.PeopleTiming.People2Ms);
                     layerTime.Add(Dev.PeopleTiming.LayersMs);
                     times.Add(ms);
@@ -324,11 +328,16 @@ public partial class PeopleTest : Node
                 row["feetOffTheGroundMaxM"] = Math.Round(crowd.Walking.Max(p => Math.Abs(p.Group.Position.Y - town.Walk!.BaseAt(p.X, p.Z))), 3);
                 row["frame"] = Stats(times);
                 row["logicMs"] = Stats(logic);
-                row["peopleCpuGate"] = animationTime.Average() < 1.5 && logic.Average() < 1.5;
+                // the 1.5 ms gate covers people and animals: all Human.Update calls plus the animals' whole update
+                row["peopleCpuGate"] = animationTime.Average() + animalTime.Average() < 1.5 && logic.Average() < 1.5;
+                row["animalsDirectMs"] = Stats(animalTime);
+                row["animalsShownMean"] = Math.Round(animalsShown.Average(), 1);
+                row["peopleAndAnimalsMeanMs"] = Math.Round(animationTime.Average() + animalTime.Average(), 3);
+                animalTime.Clear(); animalsShown.Clear();
                 row["animationDirectMs"] = Stats(animationTime);
                 row["legacyAnimationDirectMs"] = Stats(legacyTime); row["people2AnimationDirectMs"] = Stats(newTime);
                 row["layersDirectMs"] = Stats(layerTime);
-                row["directTimingScope"] = "All Human.Update calls; includes layers. Excludes crowd routing, animals and GPU drawing. Layers are a subset, not an added cost.";
+                row["directTimingScope"] = "All Human.Update calls (includes layers) plus the animals' whole update (Animals.LogicMs: their logic, routing and skeletons). Excludes crowd routing and GPU drawing. Layers are a subset, not an added cost.";
                 animationTime.Clear(); layerTime.Clear(); legacyTime.Clear(); newTime.Clear();
                 row["allocationSamples"] = allocations.Count;
                 row["collectionsDuringSample"] = Enumerable.Range(0, 3).Select(i => GC.CollectionCount(i) - collectionsAt[i]).ToArray();
@@ -365,6 +374,7 @@ public partial class PeopleTest : Node
                 town.Paused = false;
                 foreach (var g in hiddenForTiming) g.Visible = true;
                 foreach (var extra in timingPeople) crowd!.RemovePuppet(extra);
+                Scheldemist.People.Animals.I?.ClearExhibits();
                 timingPeople.Clear(); town.MaxPuppets = 50;
                 Next("pick");
                 break;

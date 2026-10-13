@@ -7,6 +7,12 @@ global uniform vec4 psx_hemi_sky;
 global uniform vec4 psx_hemi_ground;
 global uniform vec4 psx_mir0;
 global uniform vec4 psx_mir1;
+// Animals retain their own coat pictures while sharing this exact shader with layered people.
+uniform bool layered_pictures = true;
+uniform sampler2D tex : source_color, hint_default_white, filter_linear_mipmap_anisotropic, repeat_disable;
+uniform sampler2D skin_normal : hint_normal, filter_linear_mipmap_anisotropic, repeat_disable;
+uniform vec4 albedo : source_color = vec4(1.0);
+uniform float normal_strength = 1.0;
 uniform sampler2DArray clothes_colour : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
 uniform sampler2DArray clothes_normal : hint_normal, filter_linear_mipmap_anisotropic, repeat_disable;
 uniform sampler2DArray face_colour : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
@@ -76,10 +82,10 @@ void vertex() {
 }
 void fragment() {
     if ((world.y < psx_mir0.w - 0.02 && distance(CAMERA_POSITION_WORLD, psx_mir0.xyz) < 0.02) || (world.y < psx_mir1.w - 0.02 && distance(CAMERA_POSITION_WORLD, psx_mir1.xyz) < 0.02)) discard;
-    bool face = COLOR.g > 0.5;
-    vec4 cloth = texture(clothes_colour, vec3(UV, float(clothes_layer)));
+    bool face = layered_pictures && COLOR.g > 0.5;
+    vec4 cloth = layered_pictures ? texture(clothes_colour, vec3(UV, float(clothes_layer))) : texture(tex, UV) * albedo;
     vec4 c = face ? texture(face_colour, vec3(UV, float(face_layer))) : cloth;
-    float zone = face ? 5.0 : round(cloth.a * 5.0);
+    float zone = layered_pictures ? (face ? 5.0 : round(cloth.a * 5.0)) : 0.0;
     if (face || zone > 4.5) c.rgb = clamp(c.rgb + skin_tone_shift, vec3(0.0), vec3(1.0));
     float close_detail = 1.0 - smoothstep(1.25, 3.5, length(world - CAMERA_POSITION_WORLD));
     vec2 detail_uv = UV * (face ? 4.0 : 8.0);
@@ -95,7 +101,7 @@ void fragment() {
     vec3 t = p2 * duv1.x + p1 * duv2.x;
     vec3 b = p2 * duv1.y + p1 * duv2.y;
     float inv = inversesqrt(max(max(dot(t,t), dot(b,b)), 1e-12));
-    vec2 xy = (face ? texture(face_normal, vec3(UV,float(face_layer))).rg : texture(clothes_normal, vec3(UV,float(clothes_layer))).rg) * 2.0 - 1.0;
+    vec2 xy = layered_pictures ? (face ? texture(face_normal, vec3(UV,float(face_layer))).rg : texture(clothes_normal, vec3(UV,float(clothes_layer))).rg) * 2.0 - 1.0 : (texture(skin_normal, UV).rg * 2.0 - 1.0) * normal_strength;
     if (zone > 0.5 && close_detail > 0.0 && eye < 0.5) xy += (texture(detail_normal, vec3(detail_uv,zone)).rg * 2.0 - 1.0) * close_detail * 0.4;
     vec3 nm = vec3(xy, sqrt(max(1.0 - dot(xy,xy), 0.001)));
     NORMAL = normalize(mat3(t * inv, b * inv, NORMAL) * normalize(nm));
