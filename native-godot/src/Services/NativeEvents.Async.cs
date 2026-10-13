@@ -25,9 +25,16 @@ public sealed partial class NativeEvents
     {
         JsonObject? response=null;try{response=await NarrateAsync!(1,"director_think",request).ConfigureAwait(false);}catch{}await host.WithState(_=>{if(generation!=started||Day!=day)return false;if(response!=null){response["source"]="claude";if(B(Plan(response),"ok"))return true;}EnginePick();return false;}).ConfigureAwait(false);
     }
+    /// <summary>The dev route answers as the retired server did: ok, id, title and where, beside the event row.</summary>
+    private static JsonObject DevReply(JsonObject plan)
+    {
+        if(!B(plan,"ok")||plan["event"]is not JsonObject ev)return plan;
+        string label=S(A(JsonNode.Parse(S(ev,"stages_json","[]"))).FirstOrDefault(),"label",S(ev,"place"));
+        plan["id"]=ev["id"]?.DeepClone();plan["title"]=ev["title"]?.DeepClone();plan["where"]=label;return plan;
+    }
     private async Task<object?> DevDirectorAsync(NativeServiceRequest r)
     {
-        var prepare=await host.WithState(_=>{if(r.Text("template")!="")return(Answer:(JsonObject?)FromTemplate(r.Text("template"),1,true),Request:(JsonObject?)null,Generation:generation);if(!r.Bool("think")&&!r.Bool("invent"))return(Answer:(JsonObject?)new JsonObject{["templates"]=new JsonArray(A(Data["templates"]).Select(t=>t!["id"]!.DeepClone()).ToArray())},Request:(JsonObject?)null,Generation:generation);return(Answer:(JsonObject?)null,Request:(JsonObject?)DirectorRequest(r.Bool("invent")),Generation:generation);}).ConfigureAwait(false);
-        if(prepare.Answer!=null)return prepare.Answer;JsonObject? output=null;if(NarrateAsync!=null)try{output=await NarrateAsync(r.PlayerId,"director_think",prepare.Request!).ConfigureAwait(false);}catch{}return await host.WithState(_=>{if(generation!=prepare.Generation)return new JsonObject{["ok"]=false,["why"]="The week changed while the director thought."};if(output==null)return new JsonObject{["ok"]=false,["source"]="engine",["why"]="No director provider is active."};output["source"]="claude";return Plan(output);}).ConfigureAwait(false);
+        var prepare=await host.WithState(_=>{if(r.Text("template")!="")return(Answer:(JsonObject?)DevReply(FromTemplate(r.Text("template"),1,true)),Request:(JsonObject?)null,Generation:generation);if(!r.Bool("think")&&!r.Bool("invent"))return(Answer:(JsonObject?)new JsonObject{["templates"]=new JsonArray(A(Data["templates"]).Select(t=>t!["id"]!.DeepClone()).ToArray())},Request:(JsonObject?)null,Generation:generation);return(Answer:(JsonObject?)null,Request:(JsonObject?)DirectorRequest(r.Bool("invent")),Generation:generation);}).ConfigureAwait(false);
+        if(prepare.Answer!=null)return prepare.Answer;JsonObject? output=null;if(NarrateAsync!=null)try{output=await NarrateAsync(r.PlayerId,"director_think",prepare.Request!).ConfigureAwait(false);}catch{}return await host.WithState(_=>{if(generation!=prepare.Generation)return new JsonObject{["ok"]=false,["why"]="The week changed while the director thought."};if(output==null)return new JsonObject{["ok"]=false,["source"]="engine",["why"]="No director provider is active."};output["source"]="claude";return DevReply(Plan(output));}).ConfigureAwait(false);
     }
 }
