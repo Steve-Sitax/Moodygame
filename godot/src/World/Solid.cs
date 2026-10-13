@@ -300,6 +300,23 @@ public partial class Solid : Node
             var meshes = BakedWorld.All(room).OfType<MeshInstance3D>().Where(m => m.Mesh != null).ToList();
             foreach (var m in meshes) lowest = Math.Min(lowest, (m.GlobalTransform * m.Mesh!.GetAabb()).Position.Y);
             if (lowest >= floor - 1f) continue; // a room at the street's level: its lining is its floor
+            // The room's floor: its lowest wide level surface (a slab's underside lies a hand below its top, so a tread
+            // counts from 0.15 m above that, or from 0.3 above the room's lowest point, whichever is lower). The
+            // flight's last treads open the ground too (issue 110: the Poesje's stayed closed, and the lining's floor,
+            // 2 cm into Jef's head at the last tread but one, stopped the way down).
+            float level = float.PositiveInfinity;
+            foreach (var m in meshes)
+            {
+                var f = FacesOf(m.Mesh!);
+                for (int i = 0; i + 2 < f.Length; i += 3)
+                {
+                    Vector3 a = m.GlobalTransform * f[i], b = m.GlobalTransform * f[i + 1], c = m.GlobalTransform * f[i + 2];
+                    var normal = (b - a).Cross(c - a);
+                    if (normal.Length() * 0.5f >= 1f && MathF.Abs(normal.Y) >= normal.Length() * 0.9f) level = Math.Min(level, (a.Y + b.Y + c.Y) / 3);
+                }
+            }
+            if (!float.IsFinite(level)) level = lowest + 0.2f;
+            float reach = Math.Min(lowest + 0.3f, level + 0.15f); // (the cellar's deep shadow quads put its `lowest` far below its floor)
             int before = holes.Count;
             foreach (var m in meshes)
             {
@@ -309,7 +326,7 @@ public partial class Solid : Node
                     Vector3 a = m.GlobalTransform * f[i], b = m.GlobalTransform * f[i + 1], c = m.GlobalTransform * f[i + 2];
                     var normal = (b - a).Cross(c - a);
                     float y = (a.Y + b.Y + c.Y) / 3;
-                    if (MathF.Abs(normal.Y) < normal.Length() * 0.9f || normal.Length() * 0.5f < 0.08f || y > floor - 0.1f || y < lowest + 0.3f) continue;
+                    if (MathF.Abs(normal.Y) < normal.Length() * 0.9f || normal.Length() * 0.5f < 0.08f || y > floor - 0.1f || y < reach) continue;
                     var poly = new[] { new Vector2(a.X, a.Z), new Vector2(b.X, b.Z), new Vector2(c.X, c.Z) };
                     if ((poly[1] - poly[0]).Cross(poly[2] - poly[0]) < 0) (poly[1], poly[2]) = (poly[2], poly[1]);
                     float x0 = Math.Min(poly[0].X, Math.Min(poly[1].X, poly[2].X)), x1 = Math.Max(poly[0].X, Math.Max(poly[1].X, poly[2].X));
