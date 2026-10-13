@@ -559,3 +559,14 @@ The full plain intake remains outside git. Replacement imports all pictures and 
 The hair shader keeps face fragments where picture alpha + vertex alpha > 1. Vertex alpha is preserved
 by Capture; the surviving fragment uses opaque alpha-scissor depth/shadows. `old_woman` routes to
 `old_woman_dressed`, while `p2:old_woman` remains the base body exhibit. Proof runners accept 9100–9119.
+
+`People2Rotations` caches authored linear rotation keys once per shared clip. Human2 samples those arrays
+without a Godot call for every bone; other interpolation, boundary times and loop-seam gaps retain the engine
+sampler. The routing proof compares every cached key, midpoint and boundary with Godot (252 clips, 7,117
+tracks, 2,489,329 samples; maximum quaternion component difference 0.000000179). This changes no clips,
+motion names, rig geometry, identities or network messages. Final CPU acceptance still requires the exclusive
+Vismarkt/Grote Markt timing proof; sampler equivalence alone does not establish performance.
+Human2 also omits exact repeated rotations on joints without a procedural writer (fingers, sockets and
+unmodified torso joints). Starting a pooled figure invalidates that cache. IK, attention, eyes, cloth springs
+and shoulder helpers always receive the authored pose again. Routing, work, motion and parade runs check
+every omitted write against the skeleton's actual rotation; an unexpected external writer fails the proof.

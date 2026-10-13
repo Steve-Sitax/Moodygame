@@ -21,6 +21,9 @@ public partial class Batch1GameProof : Node
         .Where(s => s.GetBoneCount() is 16 or 64 && s.GetParent() is Node3D r && r.IsVisibleInTree())
         .Select(s => new Person((Node3D)s.GetParent(), s.GetParent().HasMeta("people2_kind")
             ? s.GetParent().GetMeta("people2_kind").AsString() : s.GetParent().Name.ToString(), s.GetBoneCount() == 64)).ToArray();
+    private Node3D[] Fauna() => Animals.I!.Groups.Concat(BakedWorld.All(Main.I.View).OfType<Skeleton3D>()
+        .Where(s => s.GetParent() is Node3D root && root.IsVisibleInTree() && Animal.RigOf(root.Name.ToString()) != null)
+        .Select(s => s.GetParent().GetParent<Node3D>())).Distinct().ToArray();
     private void View(Vector3 from, Vector3 target)
     {
         Main.I.Cam.LookAtFromPosition(from, target);
@@ -56,13 +59,13 @@ public partial class Batch1GameProof : Node
                 var data = Main.I.World.Facts.RootElement.GetProperty("places").EnumerateArray().First(p => p.GetProperty("place").GetString() == place);
                 var xyz = data.GetProperty("pos"); var centre = new Vector3(xyz[0].GetSingle(), 0, xyz[2].GetSingle());
                 View(centre + new Vector3(0, 1.6f, 5), centre + Vector3.Up);
-                for (int i = 0; i < 240; i++) await Frame();
+                for (int i = 0; i < 480; i++) await Frame();
                 foreach (float metres in new[] { 3f, 8f })
                 {
                     var people = People();
-                    var animals = Animals.I!.Groups.Where(a => a.IsVisibleInTree()).ToArray();
+                    var animals = Fauna();
                     var candidates = people.Where(p => p.Newer && p.Root.GlobalPosition.DistanceSquaredTo(centre) < 2500)
-                        .OrderBy(p => p.Root.GlobalPosition.DistanceSquaredTo(centre)).Take(20).ToArray();
+                        .OrderBy(p => p.Root.GlobalPosition.DistanceSquaredTo(centre)).Take(80).ToArray();
                     (Person Person, Vector3 Camera, int Score)? best = null;
                     foreach (var person in candidates)
                     for (int angle = 0; angle < 8; angle++)
@@ -75,8 +78,13 @@ public partial class Batch1GameProof : Node
                         if (!Seen(at + Vector3.Up)) continue;
                         int newer = people.Count(p => p.Newer && Seen(p.Root.GlobalPosition + Vector3.Up));
                         int older = people.Count(p => !p.Newer && Seen(p.Root.GlobalPosition + Vector3.Up));
-                        int fauna = animals.Count(a => Seen(a.GlobalPosition + Vector3.Up * .3f));
+                        int fauna = animals.Count(a => a.GlobalPosition.DistanceSquaredTo(from) < 2025 && Seen(a.GlobalPosition + Vector3.Up * .3f));
                         int score = (newer > 0 ? 100 : 0) + (older > 0 ? 100 : 0) + (fauna > 0 ? 100 : 0) + Math.Min(newer + older, 20);
+                        if (tag == "lamps" && World.Lights.I is { } lamps && lamps.Lamps.Any())
+                        {
+                            float lampDistance = lamps.Lamps.Min(l => new Vector2(l.at.X - at.X, l.at.Z - at.Z).Length());
+                            score += (int)Math.Max(0, 90 - lampDistance * 6);
+                        }
                         if (best == null || score > best.Value.Score) best = (person, from, score);
                     }
                     if (best == null) throw new InvalidOperationException("No clear live default view: " + place);
@@ -88,7 +96,7 @@ public partial class Batch1GameProof : Node
                     using var image = Main.I.View.GetTexture().GetImage();
                     if (image.SavePng(Path.Combine(output, name)) != Error.Ok) throw new IOException(name);
                     var seen = People().Where(p => Seen(p.Root.GlobalPosition + Vector3.Up)).Select(p => new { p.Kind, p.Newer }).ToArray();
-                    var faunaSeen = Animals.I.List.Count(a => a.shown && Seen(new Vector3((float)a.x, .3f, (float)a.z)));
+                    var faunaSeen = Fauna().Count(a => a.IsVisibleInTree() && Seen(a.GlobalPosition + Vector3.Up * .3f));
                     receipts.Add(new { file = name, place, hour = Daylight.I.Hour, weather = Daylight.I.Weather, metres,
                         subject = chosen.Person.Kind, camera = chosen.Camera.ToString(), people = seen, animals = faunaSeen, defaultRouting = true });
                     GD.Print($"Default picture {name}: {seen.Count(p => p.Newer)} new, {seen.Count(p => !p.Newer)} original, {faunaSeen} animals");

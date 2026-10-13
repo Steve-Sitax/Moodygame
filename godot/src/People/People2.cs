@@ -36,6 +36,7 @@ public static class People2
     internal sealed class Clip
     {
         public Animation Animation = null!;
+        public People2Rotations Rotations = null!;
         public float Length, Cycle, Stride, Speed, Duty = 0.6f, Hips = 0.9118f;
         public bool Loop = true;
         public int[] RotationTracks = Array.Empty<int>();
@@ -197,6 +198,7 @@ public static class People2
                 if (m.TryGetProperty("duty", out var duty)) c.Duty = duty.GetSingle();
                 c.Hips = Bodies[m.GetProperty("body").GetString()!].hips;
             }
+            c.Rotations = new People2Rotations(animation);
             Clips[name] = c;
         }
         foreach (var root in model.Roots.Values)

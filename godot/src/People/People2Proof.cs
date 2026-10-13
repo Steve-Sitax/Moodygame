@@ -80,10 +80,22 @@ internal partial class People2Proof : Node
             if (actual != bones) throw new InvalidOperationException("Default dressed/fallback route: " + kind);
         }
         string dir = Output;
+        object? rotationSampler = null;
+        if (Main.I.Flag("people2-proof"))
+        {
+            int tracks = 0, samples = 0; float error = 0;
+            foreach (var clip in People2.Clips.Values)
+            {
+                var result = clip.Rotations.Verify(); tracks += result.Tracks; samples += result.Samples;
+                error = Math.Max(error, result.Error);
+            }
+            if (tracks == 0 || error > .00001f) throw new InvalidOperationException("Cached rotation sampler differs from Godot: " + error);
+            rotationSampler = new { clips = People2.Clips.Count, tracks, samples, maxQuaternionComponentError = error, validatedPoseSkips = Human2.ValidatedPoseSkips, ok = true };
+        }
         if (dir != "")
         {
             Directory.CreateDirectory(dir);
-            File.WriteAllText(Path.Combine(dir, "people2-proof.json"), JsonSerializer.Serialize(new { figures, bodyHeights, defaultRouting, faceSetter = await FaceProof(), textureBytes = People2Material.TextureBytes, projectionBytes = People2Material.ProjectionBytes, gpuBefore = People2Material.GpuBefore, gpuAfter = People2Material.GpuAfter, off, on, fallback, fallbackBones, optedIn, optedInBones, switchOkay = fallbackBones == 16 && optedInBones == 64, retained = people[0].Root.Name.ToString(), motions = Humans.Motions }, new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(Path.Combine(dir, "people2-proof.json"), JsonSerializer.Serialize(new { figures, bodyHeights, defaultRouting, rotationSampler, faceSetter = await FaceProof(), textureBytes = People2Material.TextureBytes, projectionBytes = People2Material.ProjectionBytes, gpuBefore = People2Material.GpuBefore, gpuAfter = People2Material.GpuAfter, off, on, fallback, fallbackBones, optedIn, optedInBones, switchOkay = fallbackBones == 16 && optedInBones == 64, retained = people[0].Root.Name.ToString(), motions = Humans.Motions }, new JsonSerializerOptions { WriteIndented = true }));
         }
         if (Main.I.Arg("people2-captures") != "") await Capture(dir);
     }
@@ -415,7 +427,7 @@ internal partial class People2Proof : Node
             if (measuredFrames == 120)
             {
                 string dir = Output;
-                if (dir != "") File.WriteAllText(Path.Combine(dir, "people2-updates.json"), JsonSerializer.Serialize(new { frames = measuredFrames, bodies = people.Count, updateBytes, maxUpdateBytes }));
+                if (dir != "") File.WriteAllText(Path.Combine(dir, "people2-updates.json"), JsonSerializer.Serialize(new { frames = measuredFrames, bodies = people.Count, updateBytes, maxUpdateBytes, validatedPoseSkips = Human2.ValidatedPoseSkips }));
             }
         }
         if (!written && people.Count > 0)

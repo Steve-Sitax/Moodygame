@@ -18,6 +18,17 @@ internal sealed class Human2
     private readonly int hipBone;
     private readonly float hips;
     private readonly Quaternion[] rest, fadeFrom;
+    private readonly Quaternion[] writtenPose;
+    private readonly bool[] poseWritten, cachePose;
+    private static readonly bool verifyPoseCache = VerifyPoseCache();
+    private static bool VerifyPoseCache()
+    {
+        var args = OS.GetCmdlineUserArgs();
+        foreach (string flag in new[] { "--people2-proof", "--people2-work", "--people2-motion", "--parade" })
+            if (Array.IndexOf(args, flag) >= 0) return true;
+        return false;
+    }
+    internal static long ValidatedPoseSkips { get; private set; }
     private readonly int[] boneMap;
     private readonly HumanLayers layers;
     private readonly Dictionary<string, float> speeds = new();
@@ -135,11 +146,18 @@ internal sealed class Human2
         this.kind = kind; this.root = root; hips = info.hips; Female = info.female; style = info.style;
         sk = root.GetNode<Skeleton3D>("Skeleton3D");
         rest = new Quaternion[sk.GetBoneCount()]; fadeFrom = new Quaternion[rest.Length];
+        writtenPose = new Quaternion[rest.Length]; poseWritten = new bool[rest.Length]; cachePose = new bool[rest.Length];
         boneMap = new int[rest.Length];
         for (int b = 0; b < rest.Length; b++)
         {
             rest[b] = sk.GetBoneRest(b).Basis.GetRotationQuaternion().Normalized();
-            boneMap[b] = Array.IndexOf(People2.BoneNames, sk.GetBoneName(b).ToString());
+            string name = sk.GetBoneName(b).ToString();
+            boneMap[b] = Array.IndexOf(People2.BoneNames, name);
+            // These joints have no procedural writer. IK, attention, eyes, springs and shoulder helpers
+            // must always receive the authored pose again before their overlays run.
+            cachePose[b] = name is "hips" or "spine" or "upperChest" or "neck" or "jaw" or "gripL" or "gripR" or "hipL" or "back" or "headTop"
+                || name.StartsWith("thumb", StringComparison.Ordinal) || name.StartsWith("index", StringComparison.Ordinal)
+                || name.StartsWith("middle", StringComparison.Ordinal) || name.StartsWith("ring", StringComparison.Ordinal);
         }
         hipBone = sk.FindBone("hips");
         stroll = People2.Clips[style + "_stroll"]; walking = People2.Clips[style + "_walk"]; hurry = People2.Clips[style + "_hurry"];
@@ -361,6 +379,7 @@ internal sealed class Human2
 
     internal void Start()
     {
+        Array.Clear(poseWritten);
         Play("idle", 0);
         time = (float)Humans.Rng.NextDouble() * clip.Length; phase = 0; speeds.Clear();
         idleClock = (float)Humans.Rng.NextDouble() * 20;
@@ -562,9 +581,18 @@ internal sealed class Human2
         {
             int source = boneMap[bone];
             int track = source >= 0 ? a.RotationTracks[source] : -1, other = source >= 0 ? b.RotationTracks[source] : -1;
-            Quaternion q = track >= 0 ? a.Animation.RotationTrackInterpolate(track, ta).Normalized() : rest[bone];
-            if (a != b && other >= 0) q = q.Slerp(b.Animation.RotationTrackInterpolate(other, tb).Normalized(), weight);
-            sk.SetBonePoseRotation(bone, blend < 1 ? fadeFrom[bone].Normalized().Slerp(q.Normalized(), blend) : q);
+            Quaternion q = track >= 0 ? a.Rotations.At(track, ta).Normalized() : rest[bone];
+            if (a != b && other >= 0) q = q.Slerp(b.Rotations.At(other, tb).Normalized(), weight);
+            q = blend < 1 ? fadeFrom[bone].Normalized().Slerp(q.Normalized(), blend) : q;
+            if (!cachePose[bone] || !poseWritten[bone] || writtenPose[bone] != q)
+            {
+                sk.SetBonePoseRotation(bone, q); writtenPose[bone] = q; poseWritten[bone] = true;
+            }
+            else if (verifyPoseCache)
+            {
+                if (!sk.GetBonePoseRotation(bone).IsEqualApprox(q)) throw new InvalidOperationException("Cached authored joint changed outside the sampler: " + bone);
+                ValidatedPoseSkips++;
+            }
         }
         Vector3 p = sk.GetBoneRest(hipBone).Origin;
         // Position keys are authored on trackBase, not on the receiving body's rest height.
