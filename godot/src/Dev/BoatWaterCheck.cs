@@ -20,7 +20,8 @@ namespace Scheldemist.Dev;
 /// the drawn meshes: her bottom against the baked tide mud (the canal and vliet beds, the bank at each wall's
 /// foot), her waterline against the water where she lies (within 5 cm, the mean of the run), her water cap. Also
 /// the drawn sheet against the boats while it eases after a jump (case 8) and the great storm's surge (case 9).
-/// Writes dir/boatcheck.json; `problems` must be empty (ok). Then quits.
+/// --boatcheck-spacing runs only the hulls against each other (the moored rows with every part's offset, as drawn) and the
+/// liner's tows: two moored hulls less than 5 cm apart are a problem (issue 98). Writes dir/boatcheck.json; `problems` must be empty (ok). Then quits.
 /// </summary>
 [GamePart(985)]
 public partial class BoatWaterCheck : Node
@@ -31,7 +32,7 @@ public partial class BoatWaterCheck : Node
         (-0.65f, "mean high water"), (-0.4f, "spring high water"), (-0.5f, "the great storm's top"),
     };
     private const float Afloat = 0.05f, MudIn = 0.06f, Holds = 0.06f, Cell = 0.25f, CanalBed = -5.05f;
-    private const float SpacingReport = 6f, OutlineUp = 1.5f, SweepMin = 1.0f, SweepLiner = 0.3f, BerthWalk = 2f, BerthAt = 3f;
+    private const float SpacingReport = 6f, OutlineUp = 1.5f, SweepMin = 1.0f, SweepLiner = 0.3f, BerthWalk = 2f, BerthAt = 3f, MooredGap = 0.05f;
     private const float StormSurgeTop = Tide.HwMax - 0.1f; // the browser's rijnkaai.ts STORM_SURGE_TOP
 
     private string dir = "";
@@ -60,7 +61,7 @@ public partial class BoatWaterCheck : Node
     private sealed class Pair
     {
         public string A = "", B = "", KindA = "", KindB = "", SourceA = "", SourceB = "";
-        public float Gap = float.MaxValue, Ax, Az, Bx, Bz;
+        public float Gap = float.MaxValue, Ax, Az, Bx, Bz, Depth;
         public bool Overlap;
     }
 
@@ -370,6 +371,24 @@ public partial class BoatWaterCheck : Node
         return best;
     }
 
+    /// <summary>How far two overlapping convex outlines run into each other: the least push that parts them (separating axes).</summary>
+    private static float Depth(List<Vector2> p, List<Vector2> q)
+    {
+        float best = float.MaxValue;
+        foreach (var poly in new[] { p, q })
+            for (int i = 0; i < poly.Count; i++)
+            {
+                var e = poly[(i + 1) % poly.Count] - poly[i];
+                if (e.LengthSquared() < 1e-12f) continue;
+                var n = new Vector2(-e.Y, e.X).Normalized();
+                float p0 = float.MaxValue, p1 = float.MinValue, q0 = float.MaxValue, q1 = float.MinValue;
+                foreach (var a in p) { float d = a.Dot(n); p0 = MathF.Min(p0, d); p1 = MathF.Max(p1, d); }
+                foreach (var a in q) { float d = a.Dot(n); q0 = MathF.Min(q0, d); q1 = MathF.Max(q1, d); }
+                best = MathF.Min(best, MathF.Min(p1, q1) - MathF.Max(p0, q0));
+            }
+        return best == float.MaxValue ? 0 : MathF.Max(0, best);
+    }
+
     private readonly Dictionary<string, string> listing = new();
     private void Listing()
     {
@@ -396,6 +415,7 @@ public partial class BoatWaterCheck : Node
                 var key = string.CompareOrdinal(a.Key, b.Key) < 0 ? (a.Key, b.Key) : (b.Key, a.Key);
                 if (!pairs.TryGetValue(key, out var pr)) pairs[key] = pr = new Pair { A = a.Name, B = b.Name, KindA = a.Kind, KindB = b.Kind, SourceA = a.Source, SourceB = b.Source, Ax = a.X, Az = a.Z, Bx = b.X, Bz = b.Z };
                 if (g < pr.Gap) { pr.Gap = g; pr.Overlap = g <= 0; pr.A = a.Name; pr.B = b.Name; pr.Ax = a.X; pr.Az = a.Z; pr.Bx = b.X; pr.Bz = b.Z; }
+                if (g <= 0) pr.Depth = MathF.Max(pr.Depth, Depth(outlines[i], outlines[j]));
             }
     }
 
@@ -553,14 +573,21 @@ public partial class BoatWaterCheck : Node
             list.Add(v);
         }
         int n = 0;
-        foreach (var (kind, world) in Boats.I.MooredFrames())
+        foreach (var (kind, world, parts) in Boats.I.MooredDrawn())
         {
             var w = world();
             n++;
             if (MathF.Abs(w.Basis.Determinant()) < 1e-9f) continue; // a small boat taken from her mooring
             var v = new Vessel { Key = "row" + n, Kind = kind, Source = "moored", X = w.Origin.X, Y = w.Origin.Y, Z = w.Origin.Z };
             v.Name = $"{kind} moored at ({w.Origin.X:0.0}, {w.Origin.Z:0.0})";
-            foreach (var m in RowMeshes(kind)) v.Hull.Add((Points(m), w));
+            RowMeshes(kind); // (reads which water caps are drawn)
+            // (the drawn hull: each mesh at her place in the boat's frame, as Movers/Boats.cs Write multiplies it in; not the cap, not the rigging's lines)
+            foreach (var (mesh, part) in parts)
+            {
+                if (mesh.GetSurfaceCount() == 1 && mesh.SurfaceGetMaterial(0)?.ResourceName == "cap") continue;
+                if (mesh is ArrayMesh am && am.GetSurfaceCount() > 0 && am.SurfaceGetPrimitiveType(0) is Mesh.PrimitiveType.Lines or Mesh.PrimitiveType.LineStrip) continue;
+                v.Hull.Add((Points(mesh), w * part));
+            }
             v.HasCap = rowCaps.ContainsKey(kind.Replace("_", ""));
             v.CapHidden = !rowCaps.GetValueOrDefault(kind.Replace("_", "")); // (the bake's cap rows are hidden: Movers/Boats.cs)
             list.Add(v);
@@ -703,6 +730,11 @@ public partial class BoatWaterCheck : Node
         // penetration above is the check that their actual support agrees.
         problems.AddRange(noCap);
         problems.AddRange(sweepProblems);
+        // the moored boats against each other (issue 98): the drawn hulls with every part's offset, resting at least 5 cm apart
+        foreach (var pr in pairs.Values.Where(p => p.SourceA == "moored" && p.SourceB == "moored" && p.Gap < MooredGap).OrderBy(p => p.Gap))
+            problems.Add(Tag(12, pr.Overlap
+                ? $"{pr.A} and {pr.B}: the hulls run {pr.Depth:0.00} m into each other"
+                : $"{pr.A} and {pr.B}: the hulls lie {pr.Gap:0.00} m apart (at least {MooredGap:0.00} m)"));
         var report = new
         {
             ok = problems.Count == 0,
@@ -710,7 +742,7 @@ public partial class BoatWaterCheck : Node
             levels = levelReports,
             cases,
             boats = listing.Values.OrderBy(k => k).ToArray(),
-            spacing = pairs.Values.OrderBy(p => p.Gap).Select(p => new { a = p.A, b = p.B, gap = MathF.Round(p.Gap, 2), overlap = p.Overlap, sources = p.SourceA + "/" + p.SourceB }).ToArray(),
+            spacing = pairs.Values.OrderBy(p => p.Gap).Select(p => new { a = p.A, b = p.B, gap = MathF.Round(p.Gap, 2), overlap = p.Overlap, depth = MathF.Round(p.Depth, 2), sources = p.SourceA + "/" + p.SourceB }).ToArray(),
             noCap,
             sweep = sweepLines.ToArray(),
             notes,
@@ -718,8 +750,7 @@ public partial class BoatWaterCheck : Node
             notCovered = new[]
             {
                 "the boats' sea follows the server's weather (Movers/MoverClock.cs Sea): the storm's top is run with the storm's look, not its waves",
-                "the moored rows' hulls are their kind's meshes in the row's frame (part offsets left out)",
-                "the hulls against the quay walls and each other, the lines to their rings, the browser's probes (ladder, drift, cranes, build-time heights)",
+                "the hulls against the quay walls, the lines to their rings, the browser's probes (ladder, drift, cranes, build-time heights)",
                 "the river's waves: the waterline is the mean over the run",
             },
         };

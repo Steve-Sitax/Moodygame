@@ -102,6 +102,18 @@ public partial class ShipLines : Node
             }
             lines[i] = l;
         }
+        // (issue 98: a boat the bake laid too close to her neighbour is moved, Boats.Respace.cs: her lines' ends on her go with her)
+        for (int i = 0; i < lines.Length; i++)
+        {
+            ref var l = ref lines[i];
+            if (l.A.V >= 0 && l.A.V < vessels.Length) { var (dx, dz) = MooredRespace.At(vessels[l.A.V].X, vessels[l.A.V].Y); l.A.X += dx; l.A.Z += dz; }
+            if (l.B.V >= 0 && l.B.V < vessels.Length) { var (dx, dz) = MooredRespace.At(vessels[l.B.V].X, vessels[l.B.V].Y); l.B.X += dx; l.B.Z += dz; }
+        }
+        for (int i = 0; i < vessels.Length; i++)
+        {
+            var (dx, dz) = MooredRespace.At(vessels[i].X, vessels[i].Y);
+            vessels[i] = new Vector3(vessels[i].X + dx, vessels[i].Y + dz, vessels[i].Z);
+        }
         last = new float[vessels.Length];
         now = new float[vessels.Length];
         Array.Fill(last, float.NaN);
