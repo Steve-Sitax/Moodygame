@@ -284,7 +284,7 @@ def wevaluate(spec, name, meta=None):
 
 # ---------------------------------------------------------------- grips: a fist round a handle
 
-GRIP_PALM, GRIP_UP = 0.0012, 0.022  # preview_b's fit: where a handle's axis sits from the grip socket
+GRIP_PALM, GRIP_UP = -0.003, -0.010  # the handle sits below MakeHuman's knuckles, clear of the palm pads
 _SHAPES = {}
 
 
@@ -293,13 +293,15 @@ def grip_shape(fam, S, r):
     as far as it closes without entering the handle: peopleRig.json grips)."""
     key = (fam.body, S, round(r, 4))
     if key not in _SHAPES:
-        fit = hn.grip_fit(fam.J, fam.P, S, r, GRIP_PALM - r, up=GRIP_UP)
+        fit = hn.grip_fit(fam.J, fam.P, S, r, GRIP_PALM - r, up=GRIP_UP,
+                          fingers=("index", "middle", "ring"), max_deg=(62.0, 80.0, 32.0))
         k = 1.0 if r <= 0.016 else max(-0.6, lerp(1.0, -0.3, (r - 0.016) / 0.004))
         a = (30 + 300 * (0.02 - r)) * k
         m = (28 + 400 * (0.02 - r)) * k
         i = (24 + 300 * (0.02 - r)) * k
-        _SHAPES[key] = {"index": tuple(fit["index"][0]), "middle": tuple(fit["middle"][0]),
-                        "ring": tuple(fit["ring"][0]), "thumb": (a, m, i)}
+        shape = {"index": tuple(fit["index"][0]), "middle": tuple(fit["middle"][0]),
+                 "ring": tuple(fit["ring"][0]), "thumb": (a, m, i)}
+        _SHAPES[key] = mo.fit_grip_surface(fam, S, r, GRIP_PALM - r, GRIP_UP, shape)
     return dict(_SHAPES[key])
 
 
@@ -348,6 +350,15 @@ class Grip:
         clav = self._get(self.clav, fam, S, ctx)
         sk.hold(pose, S, target, rot, pole, t=ctx["trans"], clav=clav)
         ci.limit_twist(pose, S)
+        # Limiting wrist twist changes the grasp point by several centimetres. Keep that
+        # comfortable wrist orientation, then solve its position again onto the handle.
+        actual = sk.fk(pose, ctx["trans"]).D["hand" + S]
+        wrist = Vector(P) - actual @ (sk.rest["grip" + S] - sk.rest["hand" + S] +
+                                      sk.restq["grip" + S] @ axis_at(S, self.r))
+        if clav is None:
+            pose["clavicle" + S] = Quaternion()
+            pose["clavicle" + S] = mo.clavicle_for(sk.fk(pose, ctx["trans"]), S, wrist)
+        sk.arm(pose, S, wrist, actual, pole, t=ctx["trans"])
         ctx.setdefault("targets", {})[(id(self), S)] = (Vector(P), self.r)
         sh = self._get(self.shape, fam, S, ctx) if self.shape is not None else None
         if isinstance(sh, str):
@@ -453,7 +464,12 @@ class SackFront:
         rot = ps.D["upperChest"] @ cm.hand_aim(S, V(*L_["fingers"]), V(*L_["palm"]))
         sk.hold(pose, S, p, rot, V(*L_["pole"]), t=ctx["trans"])
         ci.limit_twist(pose, S)
-        ctx.setdefault("targets", {})[(id(self), S)] = (p + rot @ (sk.restq["grip" + S] @ axis_at(S, 0.022)), 0.022)
+        contact = p + rot @ (sk.restq["grip" + S] @ axis_at(S, 0.022))
+        actual = sk.fk(pose, ctx["trans"]).D["hand" + S]
+        wrist = contact - actual @ (sk.rest["grip" + S] - sk.rest["hand" + S] +
+                                    sk.restq["grip" + S] @ axis_at(S, 0.022))
+        sk.arm(pose, S, wrist, actual, V(*L_["pole"]), t=ctx["trans"])
+        ctx.setdefault("targets", {})[(id(self), S)] = (contact, 0.022)
         return grip_shape(fam, S, 0.022)
 
 
@@ -473,7 +489,8 @@ def ear_grip(S_end, pole, near=True, r=0.024):
         m = ctx["things"]["sack"][0]
         R = m.to_3x3()
         sg = 1 if S_end == "L" else -1
-        return m @ sack_ear(S_end, near), R @ Vector((-sg, 0.0, 0.0)), R @ Vector((0.0, 0.55 if near else -0.55, 1.0))
+        p = m @ sack_ear(S_end, near)
+        return p, R @ Vector((-sg, 0.0, 0.0)), ctx["posed"].P["armUp" + S] - p
 
     return Grip(handle, pole, r=r)
 
@@ -490,8 +507,8 @@ def heading_of(ps):
 LIFT = {
     # the sack's middle on the pile: fwd, up (m, 1.67 m body); the bend; the times (bend, set, rise, dip, drive, land,
     # step); draw: how far the sack is drawn toward him over the pile's edge before it comes into his arms
-    "low": dict(fwd=0.47, up=0.34, dz=-0.43, back=-0.15, hb=26.0, tb=20.0, look=34.0, draw=0.0, u0=0.0,
-                times=(0.2, 1.05, 1.40, 2.25, 2.50, 2.86, 3.45), T=4.2),
+    "low": dict(fwd=0.47, up=0.34, dz=-0.48, back=-0.10, hb=18.0, tb=14.0, look=34.0, draw=0.0, u0=0.0,
+                times=(0.2, 1.05, 1.65, 2.35, 2.65, 3.08, 3.70), T=4.6),
     "high": dict(fwd=0.52, up=0.86, dz=-0.06, back=0.0, hb=8.0, tb=16.0, look=26.0, draw=0.17, u0=0.55,
                  times=(0.15, 0.62, 1.15, 1.72, 1.96, 2.32, 2.9), T=3.7),
 }
@@ -544,6 +561,8 @@ def sack_lift(fam, kind="low", seed=301):
     sp.look = lambda t: (yw(t), pt(t), tl(t))
     sp.keep = 0.45
     sp.lead = 0.1
+    sp.breath_amp = 1.4
+    sp.breath_T = 3.3
     sp.jaw = lambda t: 0.6 + 4.0 * ci.pulse(t, tv0 - 0.1, tv1 + 0.05, 0.08, 0.2)
     sp.steps["R"] = [(tq0, tq1, (0.05 * k, 0.15 * k, 10.0))]
     sp.steps["L"] = [(tq1 + 0.02, tq1 + 0.32, (-0.06 * k, -0.02 * k, -6.0))]
@@ -597,8 +616,8 @@ def sack_lift(fam, kind="low", seed=301):
     # the left hand rides up with its ear and lets go as the sack lands: out and round, under the front end
     out = ci.Hang(fwd=30.0, out=38.0, elbow=70.0, twist=-10.0, hand=10.0)
     sp.arms = {
-        "L": ci.ArmTrack([(0.0, ci.Hang(), 0.3), (tb0 + 0.18, gL, ts0 - tb0 - 0.05), (tl0 - 0.12, out, 0.24),
-                          (tl0 + 0.12, SackFront(), 0.36)], 1e9, loop=False),
+        "L": ci.ArmTrack([(0.0, ci.Hang(), 0.3), (tb0 + 0.18, gL, ts0 - tb0 - 0.05),
+                          (tl0 + 0.08, SackFront(), 0.36)], 1e9, loop=False),
         "R": ci.ArmTrack([(0.0, ci.Hang(), 0.3), (tb0 + 0.22, gR, ts0 - tb0 - 0.07), (tl0 + 0.12, steady, 0.3),
                           (tl0 + 0.62, ci.Hang(out=9.0, elbow=10.0), 0.6)], 1e9, loop=False),
     }
@@ -981,7 +1000,7 @@ def cask_roll(sk, axes, fam, name="cask_roll"):
 
 # ---------------------------------------------------------------- hauling a rope hand over hand
 
-ROPE = {"P0": (0.0, 0.36, 1.08), "anchor": (0.0, 2.5, 4.7), "top": 0.52, "low": -0.20}
+ROPE = {"P0": (0.0, 0.30, 1.08), "anchor": (0.0, 2.5, 4.7), "top": 0.42, "low": -0.20}
 
 
 def rope_haul(fam, T=2.8, seed=341):
@@ -1010,7 +1029,7 @@ def rope_haul(fam, T=2.8, seed=341):
         sg = 1 if S == "L" else -1
         p = P0 + d * s + Vector((sg * (0.025 + 0.08 * off) * k, -0.05 * off * k, 0.0))
         # the thumbs up the rope toward the block, the wrists below it and toward the body
-        w = Vector((0.0, 0.6, -1.0))
+        w = ctx["posed"].P["armUp" + S] - p
         return p, d, w
 
     def opened(S):
@@ -1243,7 +1262,8 @@ def sweep(fam, T=6.0, seed=371):
     def broom_m(t):
         x, lift, f = head(t)
         h = V(x, 0.50 + f, lift)
-        topp = V(0.18, 0.06, 1.20) * k + V(0.04 * math.sin(TAU * t / T), 0.0, 0.0)
+        # Keep the entire handle ahead of the apron and abdomen, including its upper end.
+        topp = V(0.18, 0.34, 1.20) * k + V(0.04 * math.sin(TAU * t / T), 0.0, 0.0)
         ax = (topp - h).normalized()
         side = Vector((0.0, 0.0, 1.0)).cross(ax).normalized()
         R = Matrix((ax, side, ax.cross(side))).transposed().to_quaternion()
@@ -1255,10 +1275,10 @@ def sweep(fam, T=6.0, seed=371):
             R = m.to_3x3()
             ax = R @ Vector((1, 0, 0))
             if S == "R":
-                p = m @ Vector((0.86 * k, 0.0, 0.0))
-                return p, ax, Vector((-0.6, 0.6, 0.4))
+                p = m @ Vector((0.96 * k, 0.0, 0.0))
+                return p, ax, ctx["posed"].P["armUp" + S_] - p
             p = m @ Vector((1.17 * k, 0.0, 0.0))
-            return p, ax, Vector((0.7, 0.4, 0.3))
+            return p, ax, ctx["posed"].P["armUp" + S_] - p
         return fn
 
     sp.arms = {"R": Along(grip_at("R"), lambda f, S, c: V(-1.0, -0.6, -0.5), r=0.018),
@@ -2187,6 +2207,29 @@ def public_meta(clip, chk):
     th = things_json(clip)
     if th:
         m["things"] = th
+    if clip.meta.get("work") in ("sack_lift", "sack_hold", "sack_down", "sack_pass", "cask_roll", "rope_haul", "winch", "sweep"):
+        # Wrist frames relative to the held object's frame. Runtime re-solves both arms after
+        # attention/foot layers; bone-attached sacks therefore remain in contact during blending.
+        model = next(iter(th), "")
+        if model and th[model].get("from") == "partner":
+            model = ""
+        contacts = {"model": model, "keys": []}
+        for i, pose in enumerate(clip.poses):
+            ps = clip.skel.fk(pose, clip.trans[i])
+            obj = clip.meta["_things"][i].get(model, (Matrix.Identity(4), None))[0] if model else Matrix.Identity(4)
+            # Palms slide on rolling staves: use the unspun frame, not the rotating surface.
+            if model == "cask":
+                obj = M(obj.to_translation())
+            row = []
+            for S in "LR":
+                wrist = obj.inverted() @ ps.frame("hand" + S)
+                p, _ = to_game(wrist)
+                # A hand frame's axes are bone axes, so only the object's axes convert on the left.
+                R = C_GAME @ wrist.to_3x3()
+                qh = R.to_quaternion()
+                row.extend(p + [round(qh.x, 6), round(qh.y, 6), round(qh.z, 6), round(qh.w, 6)])
+            contacts["keys"].append(row)
+        m["handContacts"] = contacts
     return m
 
 

@@ -68,6 +68,10 @@ internal sealed class Human2
     }
     private string? work;
     private readonly List<BoneAttachment3D> inHand = new();
+    private Node3D? basket;
+    private int basketElbow, basketHand, basketFreeHand;
+    private Vector3 basketPalm;
+    private Vector3 basketRim, basketForearm;
 
     /// <summary>The kind's things held in a fist (the fishwife's basket), hung on the sockets once the body is
     /// made (People2.Make): put away while the hands work or carry (D3).</summary>
@@ -75,7 +79,35 @@ internal sealed class Human2
     {
         inHand.Clear();
         foreach (var n in sk.GetChildren())
-            if (n is BoneAttachment3D att && att.BoneName.ToString() is "gripL" or "gripR") inHand.Add(att);
+            if (n is BoneAttachment3D att)
+            {
+                if (att.GetNodeOrNull<Node3D>("held_basket") is { } heldBasket)
+                {
+                    basket = heldBasket;
+                    basket.Reparent(sk, false);
+                    basketElbow = sk.FindBone("armLowL"); basketHand = sk.FindBone("handL");
+                    basketFreeHand = sk.FindBone("handR");
+                    var handRest = sk.GetBoneGlobalRest(basketHand);
+                    Vector3 palm = (sk.GetBoneGlobalRest(sk.FindBone("middle1L")).Origin - handRest.Origin) * 0.45f + new Vector3(-0.016f * hips / 0.902f, 0, 0);
+                    basketPalm = handRest.Basis.Inverse() * palm;
+                    Quaternion handTurn = new Basis(Vector3.Up, Vector3.Back, Vector3.Right).GetRotationQuaternion();
+                    float length = handRest.Origin.DistanceTo(sk.GetBoneGlobalRest(basketElbow).Origin);
+                    float best = float.MaxValue;
+                    // Pick a point on the inner/front rim whose wrist-to-elbow distance equals
+                    // this body's forearm. Both contacts then hold without stretching the rig.
+                    for (int i = 0; i <= 128; i++)
+                    {
+                        float angle = MathF.PI + i * MathF.PI / 256;
+                        Vector3 rim = new Vector3(0.25f + 0.12f * MathF.Cos(angle), 0.10f, 0.19f * MathF.Sin(angle));
+                        Vector3 delta = new Vector3(rim.X - 0.09f, -rim.Y - 0.12f, -rim.Z) - handTurn * basketPalm;
+                        float error = Math.Abs(delta.Length() - length);
+                        if (error < best) { best = error; basketRim = rim; basketForearm = delta; }
+                    }
+                    basket.SetMeta("rim_contact", basketRim);
+                    basket.SetMeta("palm_local", basketPalm);
+                }
+                else if (att.BoneName.ToString() is "gripL" or "gripR") inHand.Add(att);
+            }
         ShowHeld();
     }
 
@@ -83,6 +115,7 @@ internal sealed class Human2
     {
         bool busy = (clip?.Work ?? false) || load != null;
         foreach (var b in inHand) if (GodotObject.IsInstanceValid(b)) b.Visible = !busy;
+        if (basket != null) basket.Visible = !busy;
     }
     /// <summary>The height of the pile in front (m over the feet), when the game knows it: picks the lift.</summary>
     internal float PileTop = -1;
@@ -156,7 +189,9 @@ internal sealed class Human2
     {
         var list = fam!.List("idle");
         if (list.Length == 0) return Female ? "idle_f" : "idle";
-        if (idleClip == null || Array.IndexOf(list, idleClip) < 0) idleClip = Pick(list, 1);
+        // FNV's low bits stratify consecutive permanent ids across the idle bank. Applying
+        // another avalanche here clustered adjacent residents into the same arm silhouette.
+        if (idleClip == null || Array.IndexOf(list, idleClip) < 0) idleClip = list[(int)(seed % (uint)list.Length)];
         return idleClip;
     }
 
@@ -436,7 +471,7 @@ internal sealed class Human2
             var list = fam.List("idle");
             if (list.Length > 1)
             {
-                string own = Pick(list, 1);
+                string own = list[(int)(seed % (uint)list.Length)];
                 string next = idleClip != own && Next01() < 0.7f ? own : list[(int)(Next01() * list.Length) % list.Length];
                 if (next == idleClip) next = list[(Array.IndexOf(list, next) + 1) % list.Length];
                 idleClip = next;
@@ -533,10 +568,10 @@ internal sealed class Human2
         }
         Vector3 p = sk.GetBoneRest(hipBone).Origin;
         // Position keys are authored on trackBase, not on the receiving body's rest height.
-        if (a.PositionTrack >= 0) p += (a.Animation.PositionTrackInterpolate(a.PositionTrack, ta) - new Vector3(0, 0.9118f, 0)) * bodyRatio;
+        if (a.PositionTrack >= 0) p += (a.Animation.PositionTrackInterpolate(a.PositionTrack, ta) - HumanLayers.TrackBase) * bodyRatio;
         if (a != b && b.PositionTrack >= 0)
         {
-            Vector3 pb = sk.GetBoneRest(hipBone).Origin + (b.Animation.PositionTrackInterpolate(b.PositionTrack, tb) - new Vector3(0, 0.9118f, 0)) * bodyRatio;
+            Vector3 pb = sk.GetBoneRest(hipBone).Origin + (b.Animation.PositionTrackInterpolate(b.PositionTrack, tb) - HumanLayers.TrackBase) * bodyRatio;
             p = p.Lerp(pb, weight);
         }
         sk.SetBonePosePosition(hipBone, blend < 1 ? fadeHips.Lerp(p, blend) : p);
@@ -558,7 +593,30 @@ internal sealed class Human2
             else things.HideAll();
         }
         else if (things.Shown > 0) things.HideAll();
+        if (root.GlobalPosition.DistanceSquaredTo(Main.I.Cam.GlobalPosition) < 3600)
+            layers.Hands(clipName, time, bodyRatio, blend);
+        BasketPose();
         things.Tick(dt);
+    }
+
+    private void BasketPose()
+    {
+        if (basket == null || !basket.Visible) return;
+        // Keep the handle's crown in the elbow crook. The wicker model is in hipL's downward
+        // frame; the rim is 22 cm below its crown. Only the carrying arm overrides the clip.
+        Quaternion q = new Basis(Vector3.Up, Vector3.Back, Vector3.Right).GetRotationQuaternion();
+        layers.ForearmCarry(0, new Vector3(0.32f, -0.85f, 0.15f), basketForearm, q);
+        Vector3 crook = sk.GetBoneGlobalPose(basketElbow).Origin;
+        // Model handle crown: (0.09, -0.12, 0), rim forward: (0.25, 0.10, -0.17).
+        Basis down = new Basis(Vector3.Right, Vector3.Down, Vector3.Forward);
+        basket.Transform = new Transform3D(down, crook - down * new Vector3(0.09f, -0.12f, 0));
+        // The free hand may gesture, but an inherited folded/hip idle cannot put it inside
+        // the apron. Move only a hand in the waist band beyond the garment's side.
+        var free = sk.GetBoneGlobalPose(basketFreeHand);
+        float waist = sk.GetBoneGlobalPose(hipBone).Origin.Y, scale = hips / 0.902f;
+        if (free.Origin.Y > waist - 0.18f * scale && free.Origin.Y < waist + 0.17f * scale && free.Origin.X > -0.35f * scale)
+            layers.Arm(1, new Vector3(-0.35f * scale, free.Origin.Y, free.Origin.Z), free.Basis.GetRotationQuaternion());
+        People2Shoulders.Apply(sk);
     }
 
     /// <summary>The D3 clips put their own hips where the work needs them (on the knees, crouched, seated at the

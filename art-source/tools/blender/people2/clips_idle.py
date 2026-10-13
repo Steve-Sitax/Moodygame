@@ -128,7 +128,7 @@ HANDS.update({
     # in a pocket
     "pocket": dict(index=(28, 40, 22), middle=(32, 44, 24), ring=(36, 48, 26), thumb=(14, 12, 8)),
     # a loose fist on the hip
-    "knuckle": dict(index=(70, 92, 52), middle=(74, 96, 54), ring=(78, 98, 56), thumb=(30, 30, 24)),
+    "knuckle": dict(cl.HANDS["fist"]),
 })
 _FINGERS = ("index", "middle", "ring", "thumb")
 
@@ -145,9 +145,7 @@ def mix_shape(a, b, w):
 def set_hand(pose, S, h, axes):
     """The finger turns for shape values h (as clips_legacy.hand_pose, from numbers instead of a name)."""
     sg = 1 if S == "L" else -1
-    for f in ("index", "middle", "ring"):
-        for k, deg in enumerate(h[f]):
-            pose["%s%d%s" % (f, k + 1, S)] = RY(sg * deg)
+    cl.finger_turns(pose, S, h, axes)
     flex, across = axes[S]
     a, m, i = h["thumb"]
     pose["thumb1" + S] = Quaternion(across, math.radians(a * 0.6)) @ Quaternion(flex, math.radians(a * 0.4))
@@ -1463,6 +1461,11 @@ def recipes():
     add("man_idle_shift", "man", lambda f: idle_shift(f, seed=11), role="idle")
     add("man_idle_feet", "man", lambda f: idle_feet(f, seed=12), role="idle", focus="head")
     add("man_idle_hips", "man", lambda f: idle_hold(f, hips_m(), seed=13), role="idle")
+    add("man_idle_loose", "man", lambda f: idle_hold(f, hangs(), seed=15, look_amp=0.7), role="idle")
+    add("man_idle_fold", "man", lambda f: idle_hold(f, folded(), seed=16), role="idle")
+    add("man_idle_back", "man", lambda f: idle_rock(f, behind_back(), seed=17), role="idle")
+    add("man_idle_pocket", "man", lambda f: idle_hold(f, {"L": pockets()["L"], "R": Hang(out=10)}, seed=18), role="idle")
+    add("man_idle_onehip", "man", lambda f: idle_hold(f, {"L": Hang(out=10), "R": hips_m()["R"]}, seed=19), role="idle")
     add("man_idle_behind", "man", lambda f: idle_rock(f, behind_back(), seed=14), role="behind")
     add("man_fold", "man", lambda f: idle_hold(f, folded(), seed=15), role="fold")
     add("man_pockets", "man", lambda f: idle_hold(f, pockets(), seed=16, lean_=1.0), role="pockets")
@@ -1489,6 +1492,11 @@ def recipes():
     add("woman_idle_feet", "woman", lambda f: idle_feet(f, seed=32, scratch="nape", foot="L"), role="idle",
         focus="head")
     add("woman_idle_hips", "woman", lambda f: idle_hold(f, hips_k(), seed=33, weight_hold=0.8), role="idle")
+    add("woman_idle_loose", "woman", lambda f: idle_hold(f, hangs(), seed=37, look_amp=0.7), role="idle")
+    add("woman_idle_fold", "woman", lambda f: idle_hold(f, folded(), seed=38), role="idle")
+    add("woman_idle_back", "woman", lambda f: idle_rock(f, behind_back(), seed=39), role="idle")
+    add("woman_idle_low", "woman", lambda f: idle_hold(f, front(low=True), seed=40), role="idle")
+    add("woman_idle_onehip", "woman", lambda f: idle_hold(f, {"L": Hang(out=10), "R": hips_k()["R"]}, seed=49), role="idle")
     add("woman_fold", "woman", lambda f: idle_hold(f, folded(), seed=34, lean_=-1.0), role="fold")
     add("woman_behind", "woman", lambda f: idle_rock(f, behind_back(), seed=35), role="behind")
     add("woman_pockets", "woman", lambda f: idle_hold(f, front(low=True), seed=36, look_amp=0.7), role="pockets")
@@ -1511,11 +1519,18 @@ def recipes():
     add("woman_point", "woman", lambda f: point_way(f, 7.2, 47, front()), role="point")
     # ---- the stout bodies: their own versions where a hand rests on the body (the belly is bigger)
     add("stout_idle_hips", "stout", lambda f: idle_hold(f, hips_m(), seed=51), role="idle")
+    add("stout_idle_shift", "stout", lambda f: idle_shift(f, seed=57), role="idle")
+    add("stout_idle_loose", "stout", lambda f: idle_hold(f, hangs(), seed=58), role="idle")
+    add("stout_idle_back", "stout", lambda f: idle_rock(f, behind_back(), seed=59), role="idle")
+    add("stout_idle_fold", "stout", lambda f: idle_hold(f, folded(), seed=60), role="idle")
     add("stout_fold", "stout", lambda f: idle_hold(f, folded(), seed=52, lean_=-1.0), role="fold")
     add("stout_pockets", "stout", lambda f: idle_hold(f, pockets(), seed=53), role="pockets")
     add("wstout_idle_hips", "wstout", lambda f: idle_hold(f, hips_k(), seed=54, weight_hold=0.8), role="idle")
     add("wstout_fold", "wstout", lambda f: idle_hold(f, folded(), seed=55, lean_=-1.0), role="fold")
     add("wstout_idle_shift", "wstout", lambda f: idle_shift(f, seed=56, arms=front(), amp=0.8), role="idle")
+    add("wstout_idle_loose", "wstout", lambda f: idle_hold(f, hangs(), seed=91), role="idle")
+    add("wstout_idle_back", "wstout", lambda f: idle_rock(f, behind_back(), seed=92), role="idle")
+    add("wstout_idle_fold", "wstout", lambda f: idle_hold(f, folded(), seed=93), role="idle")
     # ---- the old: slower, smaller, on bent knees, the eyes lower
     add("old_idle_behind", "old", lambda f: idle_hold(f, behind_back(), seed=61, weight_hold=0.7, look_amp=0.7),
         role="idle")

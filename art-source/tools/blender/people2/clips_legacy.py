@@ -42,11 +42,13 @@ RX, RY, RZ = old.RX, old.RY, old.RZ
 HANDS = {
     # a hand at rest curls more toward the little finger, the thumb lying in along the index
     "relaxed": dict(index=(16, 24, 11), middle=(21, 31, 14), ring=(27, 38, 17), thumb=(20, 10, 12)),
-    "grip": dict(index=(62, 84, 40), middle=(68, 90, 44), ring=(74, 94, 46), thumb=(34, 30, 26)),
-    "fist": dict(index=(84, 102, 62), middle=(88, 104, 64), ring=(90, 104, 64), thumb=(40, 40, 32)),
-    "pinch": dict(index=(38, 46, 22), middle=(48, 58, 30), ring=(60, 70, 36), thumb=(26, 22, 20)),
+    # MakeHuman's longer proximal phalanges: keep the terminal segment below 180 degrees total,
+    # so its pad approaches the palm instead of coming back through the metacarpals.
+    "grip": dict(index=(45, 65, 28), middle=(48, 68, 30), ring=(50, 70, 30), thumb=(24, 22, 18)),
+    "fist": dict(index=(58, 78, 32), middle=(60, 80, 32), ring=(62, 80, 32), thumb=(28, 26, 20)),
+    "pinch": dict(index=(32, 42, 18), middle=(40, 50, 24), ring=(46, 58, 26), thumb=(24, 20, 16)),
     "open": dict(index=(3, 5, 3), middle=(4, 6, 3), ring=(6, 8, 4), thumb=(-4, 4, 4)),
-    "point": dict(index=(2, 3, 2), middle=(84, 100, 60), ring=(88, 102, 62), thumb=(36, 36, 28)),
+    "point": dict(index=(2, 3, 2), middle=(60, 80, 32), ring=(62, 80, 32), thumb=(28, 26, 20)),
     "cup": dict(index=(16, 22, 14), middle=(18, 24, 14), ring=(22, 26, 16), thumb=(12, 10, 8)),
 }
 # (left, right) per clip; anything not named is relaxed
@@ -84,15 +86,35 @@ def thumb_axes(J):
             across = Vector((0, 0, 1))
         across.normalize()
         out[S] = (flex, across)
+    # MakeHuman's rest fingers are already flexed (17–40 degrees toward the palm).
+    # HANDS describes anatomical curls from a straight chain, not additional rest-pose turns.
+    out["fingerRest"] = {}
+    for S, sg in (("L", 1), ("R", -1)):
+        out["fingerRest"][S] = {}
+        for f in ("index", "middle", "ring"):
+            previous, angles = 0.0, []
+            for k in (1, 2, 3):
+                h, t = J[f + str(k) + S]
+                d = Vector(t) - Vector(h)
+                angle = math.degrees(math.atan2(-sg * d.x, -d.y))
+                angles.append(angle - previous)
+                previous = angle
+            out["fingerRest"][S][f] = angles
     return out
+
+
+def finger_turns(pose, S, h, axes):
+    sg = 1 if S == "L" else -1
+    for f in ("index", "middle", "ring"):
+        rest = axes.get("fingerRest", {}).get(S, {}).get(f, (0, 0, 0))
+        for k, deg in enumerate(h[f]):
+            pose["%s%d%s" % (f, k + 1, S)] = RY(sg * (deg - rest[k]))
 
 
 def hand_pose(pose, S, shape, axes):
     sg = 1 if S == "L" else -1
     h = HANDS[shape]
-    for f in ("index", "middle", "ring"):
-        for k, deg in enumerate(h[f]):
-            pose["%s%d%s" % (f, k + 1, S)] = RY(sg * deg)
+    finger_turns(pose, S, h, axes)
     flex, across = axes[S]
     a, m, i = h["thumb"]
     pose["thumb1" + S] = Quaternion(across, math.radians(a * 0.6)) @ Quaternion(flex, math.radians(a * 0.4))

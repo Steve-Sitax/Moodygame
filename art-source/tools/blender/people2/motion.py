@@ -483,6 +483,77 @@ def twist_rule(pose, S):
     pose["armTwist" + S] = Quaternion().slerp(tw, 0.6)
 
 
+def fit_grip_surface(fam, side, radius, palm_offset, up, shape):
+    """Fit against the actual reduced MakeHuman skin, rather than cylindrical finger estimates.
+
+    One offline fit per body/side/radius. Keep the greatest safe curl toward the supplied shape;
+    the runtime only receives plain finger keys. Pad vertices must stay outside the handle.
+    """
+    import numpy as np
+    from . import clips_legacy as cl
+    sk = fam.sk
+    mesh = fam.b["lod0"]
+    cache = getattr(fam, "_grip_skin", None)
+    if cache is None:
+        names = {g.index: g.name for g in mesh.vertex_groups}
+        co = np.array([v.co[:] for v in mesh.data.vertices])
+        skin = {}
+        for s in "LR":
+            idx = []
+            for v in mesh.data.vertices:
+                if any(names[g.group].endswith(s) and names[g.group].startswith(("hand", "index", "middle", "ring", "thumb")) and g.weight > 0.1 for g in v.groups):
+                    idx.append(v.index)
+            W = np.zeros((len(idx), len(NAMES)))
+            for i, v in enumerate(idx):
+                for g in mesh.data.vertices[v].groups:
+                    if names[g.group] in NAMES:
+                        W[i, NAMES.index(names[g.group])] = g.weight
+            skin[s] = (co[idx], W)
+        fam._grip_skin = cache = skin
+    co, W = cache[side]
+    sg = 1 if side == "L" else -1
+    centre = Vector(B(*fam.J["grip" + side][0])) + B(sg * palm_offset, up, 0)
+    h = {f: tuple(v) for f, v in shape.items()}
+
+    for f in ("index", "middle", "ring"):
+        bones = [f + str(k) + side for k in (1, 2, 3)]
+        indices = [NAMES.index(b) for b in bones]
+        used = W[:, indices].sum(1) > 0.25
+        points, weights = co[used], W[used][:, indices]
+        base = points * (1 - weights.sum(1))[:, None]
+        distal = weights[:, 2] > 0.3
+        rest = fam.ax["fingerRest"][side][f]
+        wanted = cl.HANDS["grip"][f]
+
+        def cost(angles):
+            if sum(angles) > 174:
+                return 1e9
+            D, P = Quaternion(), sk.rest[bones[0]]
+            posed = base.copy()
+            for k, bone in enumerate(bones):
+                if k:
+                    P = P + D @ (sk.rest[bone] - sk.rest[bones[k - 1]])
+                D = D @ RY(sg * (angles[k] - rest[k]))
+                R = np.array(D.to_matrix())
+                posed += weights[:, k, None] * ((points - np.array(sk.rest[bone])) @ R.T + np.array(P))
+            radial = np.linalg.norm((posed - np.array(centre))[:, (0, 2)], axis=1)
+            if radial.min() < radius + 0.0006:
+                return 1e9
+            gap = max(0, (radial[distal].min() if distal.any() else radial.min()) - radius - 0.0006)
+            return sum(((a - b) / 90) ** 2 for a, b in zip(angles, wanted)) + (gap / 0.012) ** 2
+
+        candidates = ((a, b, c) for a in range(0, 71, 10) for b in range(0, 91, 10) for c in range(0, 51, 10))
+        best = min(candidates, key=cost)
+        candidates = ((a, b, c) for a in range(max(0, best[0] - 8), min(70, best[0] + 8) + 1, 2)
+                      for b in range(max(0, best[1] - 8), min(90, best[1] + 8) + 1, 2)
+                      for c in range(max(0, best[2] - 8), min(50, best[2] + 8) + 1, 2))
+        best = min(candidates, key=cost)
+        if cost(best) >= 1e9:
+            raise ValueError("Cannot fit %s %s around %.1f mm handle" % (fam.body, f, radius * 2000))
+        h[f] = best
+    return h
+
+
 SHOULDER_SHARE = 0.5  # the shoulder helpers take this share of armUp's swing
 
 
@@ -758,6 +829,57 @@ def lock_feet(clip, stance=None, eps=0.012, fade=4):
 
 
 # ---------------------------------------------------------------- keying
+
+
+def match_lod_weights(near, far):
+    """Carry near-surface skinning onto the reduced far surface, without moving vertices/UVs.
+
+    Independent reduction can retain a different arm/torso weight mix at sleeve seams.
+    Transfer from the closest near triangle and retain four normalized bone influences.
+    """
+    from mathutils.bvhtree import BVHTree
+    near.data.calc_loop_triangles()
+    triangles = [tuple(t.vertices) for t in near.data.loop_triangles]
+    points = [v.co.copy() for v in near.data.vertices]
+    tree = BVHTree.FromPolygons(points, triangles, all_triangles=True)
+    names = {g.index: g.name for g in near.vertex_groups}
+    weights = [{names[g.group]: g.weight for g in v.groups if names[g.group] in NAMES} for v in near.data.vertices]
+    groups = {n: far.vertex_groups.get(n) or far.vertex_groups.new(name=n) for n in NAMES}
+    changed, largest = 0, 0.0
+    for v in far.data.vertices:
+        p, _, face, distance = tree.find_nearest(v.co)
+        if p is None or distance > 0.065:
+            continue
+        ids = triangles[face]
+        a, b, c = (points[i] for i in ids)
+        u, w, q = b - a, c - a, p - a
+        uu, uw, ww = u.dot(u), u.dot(w), w.dot(w)
+        den = uu * ww - uw * uw
+        if abs(den) < 1e-12:
+            continue
+        y = (ww * q.dot(u) - uw * q.dot(w)) / den
+        z = (uu * q.dot(w) - uw * q.dot(u)) / den
+        shares = (max(0, 1 - y - z), max(0, y), max(0, z))
+        mix = {}
+        for i, share in zip(ids, shares):
+            for name, weight in weights[i].items():
+                mix[name] = mix.get(name, 0) + weight * share
+        top = sorted(mix.items(), key=lambda pair: pair[1], reverse=True)[:4]
+        total = sum(weight for _, weight in top)
+        if total <= 0:
+            continue
+        old = {far.vertex_groups[g.group].name: g.weight for g in v.groups if far.vertex_groups[g.group].name in NAMES}
+        new = {name: weight / total for name, weight in top}
+        difference = sum(abs(old.get(n, 0) - new.get(n, 0)) for n in set(old) | set(new))
+        largest = max(largest, difference)
+        if difference < 0.001:
+            continue
+        for name in old:
+            groups[name].remove([v.index])
+        for name, weight in new.items():
+            groups[name].add([v.index], weight, "REPLACE")
+        changed += 1
+    return changed, largest
 
 
 def key_clip(ao, clip):
