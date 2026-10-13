@@ -90,6 +90,9 @@ public partial class Solid : Node
         var skip = new Dictionary<string, int>();
         void Note(string why) => skip[why] = skip.GetValueOrDefault(why) + 1;
         Collect(world, false, people, Note);
+        ulong tHoles = Time.GetTicksUsec();
+        FindStairHoles(world);
+        GD.Print($"solid: stair holes found in {(Time.GetTicksUsec() - tHoles) / 1000.0:0.0} ms");
         Main.I.World.Report["solidItems"] = items.Count;
         Main.I.World.Report["solidScanMs"] = Math.Round((Time.GetTicksUsec() - t0) / 1000.0, 1);
         GD.Print($"solid: {items.Count} things can be walls; left out: {string.Join(", ", skip.GroupBy(k => k.Key.StartsWith("group") ? "groups" : k.Key).Select(g => $"{g.Key} {g.Sum(k => k.Value)}"))}");
@@ -100,7 +103,7 @@ public partial class Solid : Node
             // start, then a little every frame; a big mesh costs one slow frame when its turn comes).
             all = true;
             Ensure(Vector3.Zero, 1e9f);
-            GD.Print($"solid: the whole town, {Built} shapes, {Triangles} triangles, in {BuildMs:0} ms");
+            GD.Print($"solid: the whole town, {Built} shapes, {Triangles} triangles, in {BuildMs:0} ms (stair holes {CutMs:0.0} ms)");
         }
         Main.I.World.Report["solidShapes"] = Built;
         Main.I.World.Report["solidTriangles"] = Triangles;
@@ -272,6 +275,120 @@ public partial class Solid : Node
         return f;
     }
 
+    // The floors that are open over a flight of steps going down. The street draws the paving and each house's dark
+    // lining over a cellar's stair and "punches" them away only in the picture; here both are walls, and a cellar's
+    // stair under them could never be walked. Each tread of such a flight opens the ground and the lining's floor
+    // above it (a flat triangle of them, at the floor's height), while the room's own passage, landing and treads
+    // stay as they are.
+    private readonly List<Hole> holes = new();
+    private float holeX0 = float.MaxValue, holeX1 = float.MinValue, holeZ0 = float.MaxValue, holeZ1 = float.MinValue;
+
+    /// <summary>One tread's footprint (counter-clockwise, in x, z), its box, and the height of the floor it opens.</summary>
+    private readonly record struct Hole(Vector2[] Poly, float X0, float X1, float Z0, float Z1, float Y);
+    /// <summary>Milliseconds spent opening the floors over stairs while the shapes were made.</summary>
+    public double CutMs { get; private set; }
+
+    private void FindStairHoles(Node world)
+    {
+        if (Main.I.Flag("no-stair-holes")) return; // (dev: the paving and the linings stay solid over the stairs, to compare)
+        foreach (var room in BakedWorld.All(world).Where(n => n.Name.ToString().StartsWith("ROOM_", StringComparison.Ordinal)).ToList())
+        {
+            string name = room.Name.ToString();
+            if (room is not Node3D || !name.StartsWith("ROOM_", StringComparison.Ordinal)) continue;
+            if (world.FindChild("house_lining_" + name["ROOM_".Length..], true, false) is not MeshInstance3D { Mesh: not null } lining) continue;
+            float floor = (lining.GlobalTransform * lining.Mesh.GetAabb()).Position.Y, lowest = float.PositiveInfinity;
+            var meshes = BakedWorld.All(room).OfType<MeshInstance3D>().Where(m => m.Mesh != null).ToList();
+            foreach (var m in meshes) lowest = Math.Min(lowest, (m.GlobalTransform * m.Mesh!.GetAabb()).Position.Y);
+            if (lowest >= floor - 1f) continue; // a room at the street's level: its lining is its floor
+            int before = holes.Count;
+            foreach (var m in meshes)
+            {
+                var f = FacesOf(m.Mesh!);
+                for (int i = 0; i + 2 < f.Length; i += 3)
+                {
+                    Vector3 a = m.GlobalTransform * f[i], b = m.GlobalTransform * f[i + 1], c = m.GlobalTransform * f[i + 2];
+                    var normal = (b - a).Cross(c - a);
+                    float y = (a.Y + b.Y + c.Y) / 3;
+                    if (MathF.Abs(normal.Y) < normal.Length() * 0.9f || normal.Length() * 0.5f < 0.08f || y > floor - 0.1f || y < lowest + 0.3f) continue;
+                    var poly = new[] { new Vector2(a.X, a.Z), new Vector2(b.X, b.Z), new Vector2(c.X, c.Z) };
+                    if ((poly[1] - poly[0]).Cross(poly[2] - poly[0]) < 0) (poly[1], poly[2]) = (poly[2], poly[1]);
+                    float x0 = Math.Min(poly[0].X, Math.Min(poly[1].X, poly[2].X)), x1 = Math.Max(poly[0].X, Math.Max(poly[1].X, poly[2].X));
+                    float z0 = Math.Min(poly[0].Y, Math.Min(poly[1].Y, poly[2].Y)), z1 = Math.Max(poly[0].Y, Math.Max(poly[1].Y, poly[2].Y));
+                    holes.Add(new Hole(poly, x0, x1, z0, z1, floor));
+                    holeX0 = Math.Min(holeX0, x0); holeX1 = Math.Max(holeX1, x1); holeZ0 = Math.Min(holeZ0, z0); holeZ1 = Math.Max(holeZ1, z1);
+                }
+            }
+            if (holes.Count > before) GD.Print($"solid: {name}: {holes.Count - before} stair tread triangles open the lining's floor (at {floor:0.00}) and the paving above them");
+        }
+        if (holes.Count > 0) GD.Print($"solid: {holes.Count} stair tread triangles in all");
+    }
+
+    /// <summary>The triangles of a ground or lining mesh with the footprints of the stairs cut out of their floors.</summary>
+    private Vector3[] OpenStairHoles(Vector3[] pts, Aabb box)
+    {
+        if (box.End.X < holeX0 || box.Position.X > holeX1 || box.End.Z < holeZ0 || box.Position.Z > holeZ1) return pts;
+        var result = new List<Vector3>(pts.Length);
+        var mine = new List<Hole>();
+        for (int t = 0; t + 2 < pts.Length; t += 3)
+        {
+            Vector3 a = pts[t], b = pts[t + 1], c = pts[t + 2];
+            float x0 = Math.Min(a.X, Math.Min(b.X, c.X)), x1 = Math.Max(a.X, Math.Max(b.X, c.X)), z0 = Math.Min(a.Z, Math.Min(b.Z, c.Z)), z1 = Math.Max(a.Z, Math.Max(b.Z, c.Z));
+            mine.Clear();
+            if (x1 >= holeX0 && x0 <= holeX1 && z1 >= holeZ0 && z0 <= holeZ1)
+            {
+                var normal = (b - a).Cross(c - a);
+                if (MathF.Abs(normal.Y) > normal.Length() * 0.9f)
+                {
+                    float y = (a.Y + b.Y + c.Y) / 3;
+                    foreach (var h in holes)
+                        if (h.X0 < x1 && h.X1 > x0 && h.Z0 < z1 && h.Z1 > z0 && MathF.Abs(y - h.Y) < 0.12f) mine.Add(h);
+                }
+            }
+            if (mine.Count == 0) { result.Add(a); result.Add(b); result.Add(c); continue; }
+            var pieces = new List<List<Vector3>> { new() { a, b, c } };
+            foreach (var hole in mine) pieces = pieces.SelectMany(p => Subtract(p, hole)).ToList();
+            foreach (var piece in pieces)
+                for (int k = 1; k + 1 < piece.Count; k++)
+                {
+                    if ((piece[k] - piece[0]).Cross(piece[k + 1] - piece[0]).Length() < 2e-4f) continue;
+                    result.Add(piece[0]); result.Add(piece[k]); result.Add(piece[k + 1]);
+                }
+        }
+        return result.ToArray();
+    }
+
+    /// <summary>A convex polygon without a convex counter-clockwise footprint (in x, z): the pieces outside it.</summary>
+    private static IEnumerable<List<Vector3>> Subtract(List<Vector3> poly, Hole footprint)
+    {
+        float x0 = float.MaxValue, x1 = float.MinValue, z0 = float.MaxValue, z1 = float.MinValue;
+        foreach (var v in poly) { x0 = Math.Min(x0, v.X); x1 = Math.Max(x1, v.X); z0 = Math.Min(z0, v.Z); z1 = Math.Max(z1, v.Z); }
+        if (footprint.X0 >= x1 || footprint.X1 <= x0 || footprint.Z0 >= z1 || footprint.Z1 <= z0) { yield return poly; yield break; }
+        var hole = footprint.Poly;
+        var rest = poly;
+        for (int e = 0; e < hole.Length && rest.Count >= 3; e++)
+        {
+            Vector2 p = hole[e], d = hole[(e + 1) % hole.Length] - p;
+            float Side(Vector3 v) => d.Cross(new Vector2(v.X, v.Z) - p); // > 0: inside this edge
+            var outside = Clip(rest, v => -Side(v));
+            if (outside.Count >= 3) yield return outside;
+            rest = Clip(rest, Side);
+        }
+    }
+
+    /// <summary>The part of a convex polygon where `f` is not negative.</summary>
+    private static List<Vector3> Clip(List<Vector3> poly, Func<Vector3, float> f)
+    {
+        var o = new List<Vector3>();
+        for (int i = 0; i < poly.Count; i++)
+        {
+            Vector3 a = poly[i], b = poly[(i + 1) % poly.Count];
+            float fa = f(a), fb = f(b);
+            if (fa >= 0) o.Add(a);
+            if (fa >= 0 != fb >= 0) o.Add(a.Lerp(b, fa / (fa - fb)));
+        }
+        return o;
+    }
+
     private void Build(Item it)
     {
         it.Built = true;
@@ -279,6 +396,12 @@ public partial class Solid : Node
         if (local.Length < 3) return;
         var pts = new Vector3[local.Length];
         for (int i = 0; i < pts.Length; i++) pts[i] = it.Xf * local[i];
+        if (holes.Count > 0 && (it.Name.Contains("ground", StringComparison.Ordinal) || it.Name.Contains("house_lining_", StringComparison.Ordinal)))
+        {
+            ulong tCut = Time.GetTicksUsec();
+            pts = OpenStairHoles(pts, it.Box);
+            CutMs += (Time.GetTicksUsec() - tCut) / 1000.0;
+        }
         var shape = new ConcavePolygonShape3D { BackfaceCollision = true };
         shape.SetFaces(pts);
         var body = PhysicsServer3D.BodyCreate();
