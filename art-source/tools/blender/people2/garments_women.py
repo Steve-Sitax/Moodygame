@@ -34,6 +34,33 @@ from .clothes_kit import norm, sm, wnorm
 HEAD = {"head": 1.0}
 
 
+def find_out(onto, p):
+    """The nearest point of `onto` and its normal turned outward (away from the body's upright axis): a few faces
+    of a garment made from the cage face inward at the breast, and a band laid on them sank under the garment."""
+    loc, n = onto.find(p)
+    ref = np.array((0.0, loc[1], -0.01))
+    if np.dot(n, loc - ref) < 0:
+        n = -n
+    return loc, n
+
+
+def from_outside(onto, p, reach=0.25):
+    """The surface point of `onto` seen from outside the body in the direction of p (from its upright axis): a
+    point inside the body would otherwise find the nearest surface on the wrong side (a sleeve's inside)."""
+    p = np.asarray(p, np.float64)
+    r = np.array((p[0], 0.0, p[2] + 0.01))
+    o = p + norm(r) * reach + np.array((0.0, 0.0, 0.0))
+    loc, n = onto.find(o)
+    for _ in range(3):
+        loc, n = onto.find(loc + (p - loc) * 0.0 + norm(r) * 0.01)
+    return loc
+
+
+def snap_out(onto, p, d):
+    loc, n = find_out(onto, np.asarray(p, np.float64))
+    return loc + n * d
+
+
 def Yf(fit, f):
     return bd.Y(fit.P, f)
 
@@ -67,12 +94,126 @@ def ease_table(fit, torso=None, neck=0.007, arm=None, medial=0.014):
 
 
 def bodice(fit, cloth, ease, name="bodice", sleeve="w1", rows=(2, 9), neck=0, open_front=None, keep=None,
-           scale=1.0):
+           scale=1.0, min_clear=0.006, snap_arms=False):
     """A fitted bodice (the jak, a dress's body, a habit's): the body's cage pushed out, sleeves to `sleeve`."""
     pc = ck.Piece(name, cloth, scale=scale)
     vm, dup = ck.upper(fit, pc, rows=rows, neck=neck, sleeve=sleeve, ease=ease, open_front=open_front, keep=keep)
     pc.meta["vm"], pc.meta["dup"], pc.meta["rows"] = vm, dup, rows
+    if snap_arms:
+        snap_sleeves(fit, pc, vm, ease)
+    orient_by_cage(fit, pc, vm, dup)
+    pc.meta["pushed"] = clear_body(fit, pc, vm, dup, min_clear) if min_clear else 0
     return pc
+
+
+def clear_body(fit, pc, vm, dup=None, min_clear=0.006, reach=0.07):
+    """Push a cage-made garment out of MakeHuman's skin: the cage the garment is made from is fitted to the body
+    within 1-15 mm, and the upper arm's front and inner side and the breast stood up to 3 cm outside a sleeve or
+    bodice made with an ease of 1 cm. Each garment point looks back along its cage normal; where the skin is less
+    than min_clear under it (or over it) the point moves out to min_clear over the skin."""
+    from mathutils import Vector
+    pairs = list(vm.items()) + list((dup or {}).items())
+    moved = 0
+    for c, v in pairs:
+        n = fit.N[c]
+        p = np.asarray(pc.V[v], np.float64)
+        o = p + n * 0.03
+        loc, nrm, fi, dist = fit.bvh.ray_cast(Vector(o), Vector(-n), reach)
+        if loc is None:
+            continue
+        h = np.array(loc)
+        # the skin's height over the garment point along n (positive: the skin is outside the cloth); a hit that
+        # faces away from the ray is the far side of something (the trunk beside an arm): not this point's skin
+        over = float(np.dot(h - p, n))
+        if np.dot(np.array(nrm), n) <= 0.2 or over > 0.028:
+            continue
+        if over > -min_clear:
+            pc.V[v] = p + n * (over + min_clear)
+            moved += 1
+    return moved
+
+
+def snap_sleeves(fit, pc, vm, ease):
+    """Lay a sleeve round MakeHuman's own arm: each ring of the sleeve is rebuilt round the arm's middle there, its
+    columns at even angles, each laid on the arm's skin (a ray out from the middle) and out by its ease. The stooped
+    old woman's cage arms are flattened (an ellipse 5 cm by 1.5 cm) and her sleeves came out as flat planks."""
+    from mathutils import Vector
+    from mathutils.bvhtree import BVHTree
+    tris = [t for t in fit.tris if all(fit.Spart[i].startswith("arm") for i in t)]
+    for side in "LR":
+        tt = [t for t in tris if fit.Spart[t[0]].endswith(side)]
+        if not tt:
+            continue
+        tree = BVHTree.FromPolygons([tuple(p) for p in fit.S], [tuple(t) for t in tt])
+        rings = {}
+        for c, v in vm.items():
+            part, tg = fit.C.part[c], fit.C.tag[c]
+            if part == "arm" + side and "ring" in tg and "col" in tg:
+                rings.setdefault(tg["ring"], []).append((tg["col"], c, v))
+        order = [r for r in ck.ARM_SEQ if r in rings]
+        cents = {r: np.mean([fit.rest[c] for _, c, _ in rings[r]], axis=0) for r in order}
+        for k, r in enumerate(order):
+            a = cents[order[max(k - 1, 0)]]
+            b = cents[order[min(k + 1, len(order) - 1)]]
+            ax = gw_norm(b - a) if np.linalg.norm(b - a) > 1e-6 else np.array((0.0, -1.0, 0.0))
+            cen = cents[r]
+            # the arm's own middle at this height: mean of the arm skin points near the ring's plane
+            m = (np.abs((fit.S - cen) @ ax) < 0.012) & np.char.startswith(fit.Spart.astype(str), "arm" + side) &                 (np.linalg.norm(fit.S - cen, axis=1) < 0.09)
+            if m.sum() >= 6:
+                cen = fit.S[m].mean(0)
+            u = gw_norm(np.cross(ax, np.array((0.0, 0.0, 1.0))))
+            w = np.cross(ax, u)
+            cols = sorted(rings[r])
+            n = len(cols)
+            # keep the columns' order and their first one's direction
+            d0 = fit.rest[cols[0][1]] - cents[r]
+            ph0 = math.atan2(float(np.dot(d0, w)), float(np.dot(d0, u)))
+            d1 = fit.rest[cols[1][1]] - cents[r]
+            ph1 = math.atan2(float(np.dot(d1, w)), float(np.dot(d1, u)))
+            sgn = 1.0 if ((ph1 - ph0 + math.pi) % (2 * math.pi) - math.pi) >= 0 else -1.0
+            ds, rs = [], []
+            for j in range(n):
+                ph = ph0 + sgn * 2 * math.pi * j / n
+                d = u * math.cos(ph) + w * math.sin(ph)
+                loc, nrm, _, dist = tree.ray_cast(Vector(cen), Vector(d), 0.12)
+                ds.append(d)
+                rs.append(dist if loc is not None else np.nan)
+            rs = np.array(rs, np.float64)
+            med = float(np.nanmedian(rs)) if np.isfinite(rs).any() else 0.04
+            rs = np.where(np.isfinite(rs), np.clip(rs, 0.7 * med, 1.3 * med), med)
+            # a little smoothing round the ring
+            rs = 0.5 * rs + 0.25 * (np.roll(rs, 1) + np.roll(rs, -1))
+            k_ = {"d1": 0.0, "d2": 0.15, "a2": 0.6}.get(r, 1.0)
+            for j, (col, c, v) in enumerate(cols):
+                pc.V[v] = (1 - k_) * np.asarray(pc.V[v]) + k_ * (cen + ds[j] * (rs[j] + ease(c) + 0.004))
+
+
+def gw_norm(v):
+    v = np.asarray(v, np.float64)
+    return v / max(np.linalg.norm(v), 1e-12)
+
+
+def orient_by_cage(fit, pc, vm, dup=None):
+    """Turn every face of a garment made from the cage so it faces the way the body's cage faces there (the sum of
+    its corners' cage normals). ck.from_cage orients by the nearest piece vertices, and at the breast some faces
+    came out turned in: thicken() then laid their facing outside the garment, over a shawl laid on it."""
+    inv = {v: c for c, v in vm.items()}
+    for c, v in (dup or {}).items():
+        inv[v] = c
+    V = np.array(pc.V)
+    flipped = 0
+    for k, f in enumerate(pc.F):
+        cs = [inv.get(v) for v in f]
+        if any(c is None for c in cs):
+            continue
+        p = V[list(f)]
+        n = np.zeros(3)
+        for j in range(len(f)):
+            n += np.cross(p[j], p[(j + 1) % len(f)])
+        if np.dot(n, sum(fit.N[c] for c in cs)) < 0:
+            pc.F[k] = tuple(reversed(f))
+            flipped += 1
+    pc.meta["flipped"] = flipped
 
 
 def basque(fit, pc, drop, flare=0.10, clear=0.020, back_extra=0.0, rows=2, spring=0.2):
@@ -202,10 +343,10 @@ def flounce(fit, pc, on_skirt, y_top, y_bot, n=48, lift=0.006, pleats=24, depth=
         for j in range(n):
             t = 2 * math.pi * j / n
             p = np.array((math.sin(t) * 0.6, y, math.cos(t) * 0.6))
-            q = on_skirt.snap(p, 0.0)
+            q = snap_out(on_skirt, p, 0.0)
             for _ in range(3):
-                q = on_skirt.snap(np.array((q[0], y, q[2])), 0.0)
-            nrm = on_skirt.find(q)[1]
+                q = snap_out(on_skirt, np.array((q[0], y, q[2])), 0.0)
+            nrm = find_out(on_skirt, q)[1]
             pl = depth * (k / 2) * math.cos(2 * math.pi * pleats * j / n)
             behind = max(0.0, -math.cos(t))
             q = q + nrm * (lift + pl + 0.006 * k)
@@ -237,10 +378,10 @@ def drape(fit, pc, onto, angles, top_y, hem, rows=5, clear=0.012, clear_hem=0.03
             if loops is not None:
                 y += loops(a, t)
             p = np.array((math.sin(a) * 0.7, y, math.cos(a) * 0.7))
-            q = onto.snap(p, 0.0)
+            q = snap_out(onto, p, 0.0)
             for _ in range(3):
-                q = onto.snap(np.array((q[0], y, q[2])), 0.0)
-            nrm = onto.find(q)[1]
+                q = snap_out(onto, np.array((q[0], y, q[2])), 0.0)
+            nrm = find_out(onto, q)[1]
             c = clear + (clear_hem - clear) * t
             if folds is not None:
                 c += folds(j, t)
@@ -262,18 +403,21 @@ def apron(fit, pc, on_skirt, top, bottom, half=72.0, n=11, rows=4, clear=0.018, 
     th = np.radians(np.linspace(-half, half, n))
     loop = []
     for t in th:
-        q = on_skirt.snap(np.array((math.sin(t) * 0.4, top, math.cos(t) * 0.4)), 0.0)
-        q = on_skirt.snap(np.array((q[0], top, q[2])), clear)
+        q = snap_out(on_skirt, np.array((math.sin(t) * 0.4, top, math.cos(t) * 0.4)), 0.0)
+        q = snap_out(on_skirt, np.array((q[0], top, q[2])), clear)
         loop.append(pc.add(q, on_skirt.weights(q), zone="skirt"))
     hs = [top + (bottom - top) * k / rows for k in range(1, rows + 1)]
 
     def push(j, p, d):
-        q = on_skirt.snap(p, clear + 0.006 + clear_add * min(1.0, d / 0.3))
+        q = snap_out(on_skirt, p, clear + 0.006 + clear_add * min(1.0, d / 0.3))
         if folds:
-            nrm = on_skirt.find(q)[1]
+            nrm = find_out(on_skirt, q)[1]
             q = q + nrm * folds * min(1.0, d / 0.35) * (0.5 + 0.5 * math.cos(j * 2.4))
         return q
-    ids = ck.hang(fit, pc, loop, hs, clear=0.06, closed=False, push=push, wfn=on_skirt.weights)
+    # the apron's own hanging weights (as the skirt's): taken from the skirt's few rings it stood out from the lap
+    # like a plate when she sat; this way it falls from the knees down the shins
+    ids = ck.hang(fit, pc, loop, hs, clear=0.06, closed=False, push=push,
+                  wfn=lambda p: skirt_weights(fit, p, back_legs=0.75, spring=0.15, shin=1.0))
     pc.meta.update(top=top, bottom=bottom)
     return ids
 
@@ -301,8 +445,8 @@ def straps(fit, pc, on_bodice, x_front, y_front, y_back, width=0.035, lift=0.005
 def bow(pc, onto, centre, size=0.05, tails=0.25, lift=0.008, wfn=None, tail_w=0.045):
     """A bow tied at the back (an apron's strings, a sash): two flat loops either side of a knot, two tails hanging
     from it. Laid on `onto` at `centre` (game space). Returns nothing."""
-    c = onto.snap(np.asarray(centre, np.float64), lift)
-    nrm = onto.find(c)[1]
+    c = snap_out(onto, np.asarray(centre, np.float64), lift)
+    nrm = find_out(onto, c)[1]
     up = np.array((0.0, 1.0, 0.0))
     side = norm(np.cross(up, nrm))
     wf = wfn or onto.weights
@@ -325,7 +469,7 @@ def bow(pc, onto, centre, size=0.05, tails=0.25, lift=0.008, wfn=None, tail_w=0.
         for k in range(5):
             t = k / 4
             p = top + side * sg * (0.012 * t) - up * (tails * t)
-            q = onto.snap(p, lift * (1 - 0.3 * t))
+            q = snap_out(onto, p, lift * (1 - 0.3 * t))
             pts.append(q)
         rows = []
         for q in pts:
@@ -359,7 +503,7 @@ def band_out(fit, pc, onto, path, widths, lifts, cols=5, rows=None, away=None, l
     for k in range(rows):
         t = P[min(k + 1, rows - 1)] - P[max(k - 1, 0)]
         t = t / np.linalg.norm(t)
-        n = onto.find(P[k])[1]
+        n = find_out(onto, P[k])[1]
         a = norm(np.cross(n, t))
         d = away(P[k]) if away is not None else P[k] - neck
         if np.dot(a, d) < 0:
@@ -368,13 +512,13 @@ def band_out(fit, pc, onto, path, widths, lifts, cols=5, rows=None, away=None, l
         for j in range(cols):
             u = j / (cols - 1)
             p = P[k] + a * W[k] * u
-            q = onto.snap(p, 0.0)
-            q = onto.snap(q, Lf[k] + lift_out * u)
+            q = snap_out(onto, p, 0.0)
+            q = snap_out(onto, q, Lf[k] + lift_out * u)
             row.append(q)
         pts.append(row)
     pts = np.array(pts)
     ids = pc.grid(pts, wfn or onto.weights)
-    pc.orient(lambda q: onto.snap(q, 0.05) - onto.snap(q, 0.0))
+    pc.orient(lambda q: snap_out(onto, q, 0.05) - snap_out(onto, q, 0.0))
     return ids
 
 
@@ -385,16 +529,16 @@ def fringe(fit, pc, edge_pts, onto, length=0.055, lift=0.004, wfn=None, tooth=0.
     E = np.asarray(edge_pts, np.float64)
     tops, tips = [], []
     for k, p in enumerate(E):
-        top = onto.snap(p + np.array((0.0, 0.004, 0.0)), lift)
+        top = snap_out(onto, p + np.array((0.0, 0.004, 0.0)), lift)
         L = length * (1.0 if k % 2 == 0 else tooth)
         q = p - np.array((0.0, L, 0.0))
-        s, nrm = onto.find(q)
+        s, nrm = find_out(onto, q)
         if np.dot(q - s, nrm) < lift + 0.002:
             q = s + nrm * (lift + 0.002)
         tops.append(top)
         tips.append(q)
     ids = pc.grid(np.array([tops, tips]), wfn or onto.weights)
-    pc.orient(lambda q: onto.snap(q, 0.05) - onto.snap(q, 0.0))
+    pc.orient(lambda q: snap_out(onto, q, 0.05) - snap_out(onto, q, 0.0))
     # the tips are creased, so each stays a tassel after the subdivision
     for k in range(len(E) - 1):
         pc.set_crease(ids[1, k], ids[1, k + 1], 0.9)
@@ -434,14 +578,14 @@ def pelerine(fit, pc, onto, depth_front, depth_back, n=24, rings=3, lift=0.004, 
             q = p.copy()
             steps = max(1, int(d * t / 0.02))
             for s_ in range(steps):
-                s, nrm = onto.find(q)
+                s, nrm = find_out(onto, q)
                 down = np.array((0.0, -1.0, 0.0))
                 tang = down - nrm * np.dot(down, nrm)
                 tl = np.linalg.norm(tang)
                 if tl < 1e-6:
                     break
                 q = s + tang / tl * (d * t / steps) + nrm * 0.001
-            q = onto.snap(q, lift + lift_out * t) if k > 0 else onto.snap(q, lift)
+            q = snap_out(onto, q, lift + lift_out * t) if k > 0 else snap_out(onto, q, lift)
             row.append(q)
         rows.append(row)
     pts = np.array(rows)
@@ -483,7 +627,7 @@ def kerchief(fit, pc, tie="chin", margin=0.010, front=-30.0, cols=15, rows=9, kn
     nape, the triangle's point hanging over it. Weighted to the head (the knot and ends to the head and neck)."""
     c, top = head_centre(fit)
     if tie == "chin":
-        side, back = 112.0, 118.0
+        side, back = 124.0, 120.0
     else:
         side, back = 92.0, 128.0
     us = np.radians(np.linspace(-side, side, cols))
@@ -626,7 +770,7 @@ def wimple(fit, pc, onto, n=13, rows=5, half=118.0, lift=0.006, margin=0.008):
         d = np.array((math.sin(a), -1.0, math.cos(a)))
         top_p = ck.head_hit(fit, co, [d], margin)[0]
         k = int(np.argmin(np.abs(((bang - a) + math.pi) % (2 * math.pi) - math.pi)))
-        bot = onto.snap(base[k] + np.array((0, -0.012, 0)), lift)
+        bot = snap_out(onto, base[k] + np.array((0, -0.012, 0)), lift)
         col = []
         for r in range(rows + 1):
             t = r / rows
@@ -705,7 +849,7 @@ def hood_mantle(fit, pc, onto, hem_y, margin=0.016, front=-30.0, side=104.0, col
     angs = np.where(angs > math.pi, angs - 2 * math.pi, angs)
     # the hood's bottom edge, in order from the left front to the right front: down the left side column, along
     # the last row, up the right side column (the same loop as the mantle's top ring)
-    hood_edge = list(hid[:, 0][::-1]) + list(hid[-1, 1:-1]) + list(hid[:, -1])
+    hood_edge = list(hid[:, 0]) + list(hid[-1, 1:-1]) + list(hid[::-1, -1])
     # resample the hood edge to n points by angle round the head's axis
     HE = np.array([pc.V[v] for v in hood_edge])
     he_ang = np.arctan2(HE[:, 0], HE[:, 2] - c[2])
@@ -740,8 +884,8 @@ def hood_mantle(fit, pc, onto, hem_y, margin=0.016, front=-30.0, side=104.0, col
         for j, a in enumerate(angs):
             p = np.array((math.sin(a) * need[j], y, cz + math.cos(a) * need[j]))
             if li == 0:
-                q = onto.snap(p, 0.0)
-                p = onto.snap(q, 0.010)
+                q = snap_out(onto, p, 0.0)
+                p = snap_out(onto, q, 0.010)
             if y > Yf(fit, 0.56):
                 w = fit.near_w(p, ("torso", "arm", "neck"))
                 # cloth over the arm follows it about half
@@ -762,8 +906,8 @@ def hood_mantle(fit, pc, onto, hem_y, margin=0.016, front=-30.0, side=104.0, col
     return hid, R
 
 
-def small_hat(fit, crown_pc, brim_pc, band_pc=None, tilt=16.0, fwd=0.035, lift=0.004, rx=0.070, rz=0.082,
-              height=0.055, brim=0.018, n=16):
+def small_hat(fit, crown_pc, brim_pc, band_pc=None, tilt=16.0, fwd=0.035, lift=0.004, rx=0.062, rz=0.076,
+              height=0.034, brim=0.022, n=16):
     """A lady's small hat of 1873 (a toque on a narrow brim): perched forward on the top of the head over the
     chignon, tipped forward by `tilt` degrees; its base sits on the hair (each point dropped onto it). A ribbon band
     round the crown (band_pc). Weighted to the head."""

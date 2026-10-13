@@ -211,6 +211,8 @@ def main():
     # C: the kinds, and independent picture layers and one native material for everybody (docs/people.md "Kinds and clothes")
     from people2 import pictures as at
     from people2 import dress, held
+    from people2 import held_women
+    held.MODELS.update(held_women.MODELS)  # C2's held things (one model each, on hipL)
     kinds = [] if "--nokinds" in ARGS else [k for k in all_kinds()
                                             if (not KINDS_ONLY or k.name in KINDS_ONLY) and k.body in present]
     layout = at.cells([(k.name, k.hero) for k in kinds])
