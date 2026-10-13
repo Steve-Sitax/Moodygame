@@ -329,3 +329,27 @@ Its 210 PNGs add 8 m fronts/low backs, 1/3 m sides and low feet in all three env
 reviewed through its 21 Photocraft contact sheets. The temporary figures use one clear
 exhibit point and are shown individually; earlier wide-rear cameras inside the building
 were discarded and the capture fixture corrected. Combined accepted art proof: 420 PNGs.
+
+## Integration evidence: animals + D2 motion on layered pictures (2026-10-13)
+
+Branch `art3-integrate` merges art3-animals and art3-motion onto the layered-picture export.
+Animals use the people2 shader with `layered_pictures = false` (their own coat picture, normal
+map and albedo); people keep the Texture2DArrays. people2 was rebuilt once from the merged sources
+(Blender plain glb, 1031 s, 199 clips of which 97 D2, one material) and replaced with
+`replace-people2.ps1`; content fingerprint `0798c577...`.
+
+- Shader audit (exclusive): 130 first-frame kinds before (art3) and after; the only change is the
+  people2 kind's hash (its source gained the animal path), and the animals moved from the generic
+  `qf_solid` kind onto it. 29 programs and cache entries; lights unchanged (1 directional, 121 omni).
+  `.scratch/people2-native-a44c6fcb9418438a8a2997d22a2e43ea/shaders/`, baseline
+  `.scratch/integrate-baseline/shaders.json`.
+- Captures: 588 people2 PNGs (14 kinds/bodies; idle, talk, walk, sitting; 1/3/8 m; 13:00 clear and
+  rain, 19:30), D2 motion (150 s: 12 talk turns, never both speaking, stand lock 0 mm), parade foot
+  lock under 0.008 mm, routing, identity (7), pack (341), network (25) all pass:
+  `.scratch/people2-native-8113126f929a41c795f66def2f6ad6f6/`, `.scratch/people2-native-b3dd30a4600f4cddba497418c563804e/`.
+  Animals: slide, 774 captures (18 kinds at 1/3 m walking, sitting, lying; the dog cart), identity,
+  network pass: `.scratch/animals-native-59b38b4840d140a9b2a55204ccf0d8b9/`.
+- Timing: no exclusive window in 60 minutes (9 runs, each overlapped by other worktrees' engines),
+  so no accepted 1.5 ms result. In those runs people+animals means were 0.71-1.48 ms except one
+  Grote Markt at 1.78 ms, caused by a single 235.8 ms spike in the animals' update (median 0.19 ms);
+  20-35 ms animal-update spikes occur in most runs. Re-run `check-people2.ps1 -Modes timing` alone.
