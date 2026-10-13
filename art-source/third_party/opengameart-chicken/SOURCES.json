@@ -1,0 +1,31 @@
+{
+  "url": "https://opengameart.org/sites/default/files/chicken_0.zip",
+  "date": "2026-10-13",
+  "files": [
+    {
+      "file": "chicken_0.zip",
+      "sha256": "0e958040fdb855c192903657d8a9da2d95cf17ea23165676bae2ae1454baa284",
+      "bytes": 6214921
+    },
+    {
+      "file": "original/chickenV2.blend",
+      "sha256": "4b651e4edbfde8f1ee6480e7567530cf3bd034a8938e9b9f738139fcf17f91a1",
+      "bytes": 11252724
+    },
+    {
+      "file": "original/license.txt",
+      "sha256": "74ebda8888af62c1ba221291f2c98a3b58045f90af9198367305681dfb14713e",
+      "bytes": 160
+    },
+    {
+      "file": "original/textures/ChickenNorm.png",
+      "sha256": "4d44ebad6e57adb3e0fd0b908babaf30d24d3cd8859be805fdf4bd476f38b4d0",
+      "bytes": 1213667
+    },
+    {
+      "file": "original/textures/UV-Texture.png",
+      "sha256": "d30db6e3fe0f3d9c644bf3f694b689f11022e785e9a812dc21ac926cb093a689",
+      "bytes": 1221426
+    }
+  ]
+}

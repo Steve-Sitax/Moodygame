@@ -1,0 +1,21 @@
+{
+  "url": "https://dl.polyhaven.org/file/ph-assets/Models/blend/2k/street_rat/street_rat_2k.blend",
+  "date": "2026-10-13",
+  "files": [
+    {
+      "file": "street_rat_2k.blend",
+      "sha256": "a46cc8506dbcfe48f64f48a9215c77510f937c75f557b99cd04c38eafd7bb561",
+      "bytes": 1512059
+    },
+    {
+      "file": "textures/street_rat_diff_2k.jpg",
+      "sha256": "834646d350d4f8b4598cd800ae78b67ac6fa6cd08b7fa1b3257a8221e46b5e8c",
+      "bytes": 1823103
+    },
+    {
+      "file": "textures/street_rat_nor_gl_2k.jpg",
+      "sha256": "d057615fe4063b6d34495f1e7fc6b404e5ff415ad102f25daddd2b93fd7755f3",
+      "bytes": 2965543
+    }
+  ]
+}

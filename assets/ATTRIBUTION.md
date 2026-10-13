@@ -606,3 +606,15 @@ The download adds no new npm dependencies.
 | `art-source/client/public/models/smalllife.glb`; native `smalllife.scn` and baked bone palettes | Original metre-scale lofts, anatomy, weights and IK clips in `art-source/tools/blender/smalllife`, built by `build_smalllife.py`. No downloaded models. | Project original artwork |
 | `art-source/smalllife/pictures/feather-source.png`, `fur-source.png` | Original material sheets generated with OpenAI's built-in imagegen tool on 2026-10-13; exact prompts, original dimensions and file SHA-256 in adjacent `prompts.json`. Adapted to anatomical UV cells, period colours and matching normal relief by `smalllife/paint.py`. | Project original generated artwork |
 | `native-godot/assets/smalllife/*_colour.png`, `*_normal.png` | Original painter combines the retained material sheets with species markings, bare skin, scales, horn and eye zones. Every 1024 px output's file SHA-256 is recorded in `kit.json`; colour is sRGB, normals linear, both mipmapped. | Project original artwork |
+
+## Batch 1 CC0 small-life donors (2026-10-13)
+
+| Asset / retained original | Item URL | Author | Licence | Downloaded | SHA-256 |
+|---|---|---|---|---|---|
+| Hen: `art-source/third_party/opengameart-chicken/chicken_0.zip` | https://opengameart.org/content/chicken-animated | CDmir; collaborator TinyWorlds | CC0 1.0 | 2026-10-13 | `0e958040fdb855c192903657d8a9da2d95cf17ea23165676bae2ae1454baa284` |
+| Rat: `art-source/third_party/polyhaven-street-rat/street_rat_2k.blend` | https://polyhaven.com/a/street_rat | Sean Buckley | CC0 1.0 | 2026-10-13 | `a46cc8506dbcfe48f64f48a9215c77510f937c75f557b99cd04c38eafd7bb561` |
+
+Each donor folder preserves the full CC0 text and a SOURCES.json ledger of every original texture and model.
+`smalllife/cc0.py` scales the hen to 0.43 m and the rat to 0.511 m nose-to-tail, fits the existing palette rig,
+retains authored smooth normals and UVs, and reduces pictures to 1024 px. Thin feather lips, whiskers and claws
+retain their intentional sharp tips; rounded body silhouettes are geometry. No donor code is run.
