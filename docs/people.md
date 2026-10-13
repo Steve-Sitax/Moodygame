@@ -657,8 +657,35 @@ frock coat/top hat/gloves, the thief's repaired dark short coat and the foreman'
 The recipient wears a blue-grey sack coat. The boy has a patched short jacket; the smaller urchin has rolled
 linen sleeves. Both have knee breeches and bare feet. The stooped old man wears a long rust-brown coat and carries
 a blackthorn stick. The undressed old-man root is prefixed `base_` to leave `old_man` for the dressed kind.
-The C4 build registration temporarily selects 16,000 near triangles for cast, 14,000 for crowd, 2,500 far,
-then restores the shared kit's limits. The cloth lane owns reduction and painting changes.
+The C4 wrapper temporarily selects 16,000 near triangles for cast, 14,000 for crowd, 2,500 far, including a hair
+allowance (the fixed recipe for named people, the largest available pieces for crowd), then restores the
+shared kit's limits. It reduces each garment separately, then unwraps and paints the near and far shells
+independently. Both bakes share the existing kind's cloth rectangle (80% near, 20% far), so a coarse triangle
+never crosses a near UV seam. Far copies keep edge facings but omit hidden lining faces and covered undershirts; near garments remain
+closed and fully thickened. Connected far shells receive coherent winding matched to the near surface.
+No additional texture layer is needed.
+`--dress` uses the existing face-aware preview with the real pictures; unused original hair pieces are hidden.
+The fitted C4 layers keep their authored clearance; the shared post-reduction correction is disabled only
+inside the C4 wrapper, because it folds shoulder edges into the shawl. Fientje's cap includes her bun's envelope.
+Coat wear uses each coat's own colour; only the thief, boy and old man's coats receive the separate repair painter.
+
+
+C4 counts (default hair/beard included; props separate):
+
+| Kind | Near | Far |
+|---|---:|---:|
+| peeters | 15995 | 2496 |
+| tuur | 15998 | 2494 |
+| fientje | 15989 | 2495 |
+| sailor | 15991 | 2495 |
+| sailor_b | 13611 | 2420 |
+| stranger | 15984 | 2495 |
+| thief | 15981 | 2496 |
+| foreman | 15990 | 2496 |
+| recipient | 15989 | 2496 |
+| boy | 13267 | 2336 |
+| urchin | 13273 | 2337 |
+| old_man | 13193 | 2268 |
 
 Period references (shape references only, no new downloaded artwork in the game):
 
@@ -666,6 +693,8 @@ Period references (shape references only, no new downloaded artwork in the game)
   worn children's tops, short trousers and bare feet; a regional comparison rather than Antwerp documentation.
 - V&A [bonnet T.163-1923, 1870s](https://collections.vam.ac.uk/item/O233687/bonnet-unknown/):
   the small tied bonnet construction; Peeters' plain black version follows the game's existing widow description.
+- The Met, [Death Becomes Her, gallery labels](https://libmma.contentdm.oclc.org/digital/api/collection/p16028coll12/id/18303/download),
+  p. 7, mourning bonnet C.I.39.80.1, ca. 1870: matte black cloth and matching ties for Peeters' working version.
 - New-York Historical Society [frock coat, 1870–1880](https://emuseum.nyhistory.org/objects/21304/frock-coat):
   full coat skirt, lapels and waist shaping for the stranger, foreman and old man.
 

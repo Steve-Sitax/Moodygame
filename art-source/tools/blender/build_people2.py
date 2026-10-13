@@ -230,7 +230,8 @@ def main():
                 b[key].name = "base_" + b[key].name
     for k in kinds:
         if k in kinds_cast2.KINDS:
-            dressed.append(garments_cast.build(k, make_body, ref_uv, layout, atl, tex=TEX))
+            dressed.append(garments_cast.build(k, make_body, ref_uv, layout, atl, tex=TEX,
+                                               base_body=next(b for b in bodies if b["name"] == k.body)))
         else:
             dressed.append(dress.build(k, make_body, ref_uv, layout, atl, tex=TEX))
     from people2 import held_cast
@@ -311,7 +312,7 @@ def main():
                      "pictures": picture_manifest,
                      "idles": clips_idle.rig_json(idle_meta),
                      "work": clips_work.rig_json(work_meta),
-                     "held": held.json_all(kinds),
+                     "held": held_cast.json_all(kinds),
                      "kinds": {b["name"]: dress.kind_json(b) for b in dressed}})
     shared = os.path.dirname(export.RIG_JSON)
     with open(os.path.join(shared, "peopleSliders.json" if export.RIG_JSON.endswith("peopleRig.json")

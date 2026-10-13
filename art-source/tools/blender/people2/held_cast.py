@@ -6,7 +6,7 @@ their sheet edges; all leather covers and wooden bowls are rounded by subdivisio
 import numpy as np
 
 from . import clothes_kit as ck
-from .clothes_kit import Cloth, sm
+from .clothes_kit import Cloth
 from .held import sweep
 
 
@@ -38,11 +38,18 @@ def pipe():
     wood = ck.Piece("pipe_bowl", Cloth((0.28, 0.12, 0.045), "wood", wear=0.65, folds=0), scale=1.4)
     stem = ck.Piece("pipe_stem", Cloth((0.065, 0.045, 0.025), "wood", wear=0.5, folds=0), scale=1.4)
     sweep(stem, [(0, -0.015, 0), (0, 0.025, 0), (0, 0.08, -0.005), (0, 0.13, -0.018)], 0.005, 0.004, 8)
-    sweep(wood, [(0, 0.14, -0.018), (0, 0.14, -0.045), (0, 0.14, -0.065)],
+    outer = sweep(wood, [(0, 0.14, -0.018), (0, 0.14, -0.045), (0, 0.14, -0.065)],
           [0.012, 0.020, 0.018], [0.012, 0.020, 0.018], 12, caps=(True, False))
     # Bowl inner wall and floor, rather than a solid top disc.
-    sweep(wood, [(0, 0.14, -0.065), (0, 0.14, -0.058), (0, 0.14, -0.046)],
+    start = len(wood.F)
+    inner = sweep(wood, [(0, 0.14, -0.065), (0, 0.14, -0.058), (0, 0.14, -0.046)],
           [0.014, 0.013, 0.007], [0.014, 0.013, 0.007], 12, caps=(False, True))
+    for i in range(start, len(wood.F)):
+        wood.F[i] = tuple(reversed(wood.F[i]))
+    start = len(wood.F)
+    for j in range(12):
+        wood.face((outer[-1, j], outer[-1, (j + 1) % 12], inner[0, (j + 1) % 12], inner[0, j]))
+    wood.orient((0, 0, -1), start=start)
     return [wood, stem]
 
 
@@ -61,3 +68,11 @@ MODELS = {"held_ledger": ledger, "held_pipe": pipe, "held_cane": cane}
 def register():
     from . import held
     held.MODELS.update(MODELS)
+
+
+def json_all(kinds):
+    from . import held
+    metadata = held.json_all(kinds)
+    metadata["grips"].update({"held_ledger": "leather spine 3.2 cm", "held_pipe": "wood stem 1 cm",
+                              "held_cane": "wood knob 3.5 cm"})
+    return metadata

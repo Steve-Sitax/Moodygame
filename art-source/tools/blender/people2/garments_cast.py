@@ -38,6 +38,25 @@ def seams(ctx):
     ctx.mix(elbow * 0.22, ctx.piece.cloth.rgb * 1.2)
 
 
+def coat_seams(ctx):
+    """Tailored fronts, welt pockets and cuffs; wear stays in this coat's own colour."""
+    Y = lambda f: bd.Y(ctx.fit.P, f)
+    arm = ctx.zone == "arm"
+    front = (ctx.z > 0) & ~arm & ~ctx.inner
+    edge = np.abs(ctx.x) - ctx.piece.meta.get("edge_x", 0.055)
+    ck.seam_line(ctx, np.where(front, edge - 0.008, 1.0))
+    ck.seam_line(ctx, np.where((ctx.z < 0) & ~arm, np.abs(ctx.x), 1.0))
+    for sign in (-1, 1):
+        pocket = front & (np.abs(ctx.x - sign * 0.11) < 0.065)
+        ck.seam_line(ctx, np.where(pocket, ctx.y - Y(0.575), 1.0), stitches=False)
+    for k in range(3):
+        ck.button(ctx, ctx.fit.snap((ctx.piece.meta.get("edge_x", 0.055)-0.022, Y(0.72)-k*0.075,0.16),0.034),
+                  r=0.008, rgb=tuple(ctx.piece.cloth.rgb*0.45))
+    ck.seam_line(ctx, np.where(arm,ctx.y-Y(0.535),1.0))
+    elbow=arm*np.exp(-((ctx.y-Y(0.63))/0.045)**2)*(ctx.z<0)
+    ctx.mix(elbow*ctx.piece.cloth.wear*0.25,ctx.piece.cloth.rgb*1.15)
+
+
 def knitted(ctx):
     # Broad rib at the doubled lower band, finer stocking stitch on the crown.
     a = np.arctan2(ctx.x, ctx.z - ctx.piece.meta["centre_z"])
@@ -180,6 +199,8 @@ def tailored(fit, spec):
         if pc.name in ("coat", "coat_collar"):
             pc.cloth.wear = spec.get("wear", 0.5)
             pc.cloth.dust = spec.get("dust", 0.12)
+        if pc.name == "coat":
+            pc.cloth.extra = coat_seams
         if pc.name == "coat" and spec.get("patched"):
             old_extra = pc.cloth.extra
             def extra(ctx, old_extra=old_extra):
@@ -259,6 +280,20 @@ def women(fit, spec):
             pc.cloth.extra = plain_skirt
         if spec.get("mourning") and pc.name == "shawl":
             pc.cloth.extra = plain_shawl
+        if pc.name == "shawl":
+            # Keep the folded wool outside the reduced bodice through shoulder rotation.
+            for i, point in enumerate(pc.V):
+                _, normal = fit.surface(point, parts=("torso", "neck", "arm"))
+                pc.V[i] = point + normal * 0.018
+        if not spec.get("mourning") and pc.name in ("cap", "cap_frill"):
+            centre, top = ck.head_axis(fit)
+            # Fientje pins her fixed bun inside the cap; the bare-head fitting has no bun envelope.
+            for i, point in enumerate(pc.V):
+                q = point.copy()
+                back = float(sm(centre[2] + 0.005, centre[2] - 0.04, q[2]))
+                q[2] -= 0.065 * back
+                q[1] += 0.012 * back * float(sm(top - 0.11, top, q[1]))
+                pc.V[i] = q
     if spec.get("mourning"):
         pcs = [p for p in pcs if p.name not in ("apron", "apron_band", "cap_frill")]
         old = next(p for p in pcs if p.name == "bodice")
@@ -342,24 +377,161 @@ def reduce_cast(ob, budget):
         shell.select_set(True)
     bpy.context.view_layer.objects.active = ob
     bpy.ops.object.join()
+    # Closed shells can reach their local topology floor before their share. Finish evenly,
+    # without vertex-group masks that would repeatedly collapse a neighbouring garment.
+    for _ in range(3):
+        count = lod.tris(ob)
+        if count <= budget:
+            break
+        modifier = ob.modifiers.new("cast_final_budget", "DECIMATE")
+        modifier.ratio = max(0.02, (budget - 4) / count)
+        modifier.use_collapse_triangulate = True
+        bpy.ops.object.modifier_apply(modifier=modifier.name)
 
 
-def build(kind, make_body, ref_uv, layout, atl, tex):
+def orient_far(source, target, garment_names=None):
+    """Orient each connected far shell coherently, then match its authored near side."""
+    import bmesh
+    from mathutils.bvhtree import BVHTree
+    from . import weights as wt
+    source.data.calc_loop_triangles()
+    parts = wt.parts(source)
+    groups = {}
+    for tr in source.data.loop_triangles:
+        groups.setdefault(parts[tr.vertices[0]], []).append(tuple(tr.vertices))
+    vertices = [tuple(v.co) for v in source.data.vertices]
+    trees = {name: BVHTree.FromPolygons(vertices, faces, all_triangles=True) for name, faces in groups.items()}
+    target_parts = wt.parts(target)
+    bm = bmesh.new()
+    bm.from_mesh(target.data)
+    bm.verts.ensure_lookup_table()
+    faces = {f for f in bm.faces if garment_names is None or
+             (target_parts[f.verts[0].index] or "").removeprefix("in_") in garment_names}
+    bmesh.ops.recalc_face_normals(bm, faces=list(faces))
+    flipped = 0
+    while faces:
+        first = faces.pop()
+        component, pending = [first], [first]
+        while pending:
+            face = pending.pop()
+            for edge in face.edges:
+                for neighbour in edge.link_faces:
+                    if neighbour in faces:
+                        faces.remove(neighbour)
+                        component.append(neighbour)
+                        pending.append(neighbour)
+        score = 0.0
+        for face in component:
+            tree = trees.get(target_parts[face.verts[0].index])
+            if tree is not None:
+                _, normal, _, _ = tree.find_nearest(face.calc_center_median())
+                if normal is not None:
+                    score += face.calc_area() * face.normal.dot(normal)
+        if score < 0:
+            bmesh.ops.reverse_faces(bm, faces=component)
+            flipped += len(component)
+    bm.to_mesh(target.data)
+    bm.free()
+    target.data.update()
+    return flipped
+
+
+def visible_far(ob):
+    """Omit hidden lining surfaces at distance; keep mixed outer/inner edge facings."""
+    import bmesh
+    from . import weights as wt
+    parts = wt.parts(ob)
+    covered = {"shirt", "waistcoat", "watch_chain", "kerchief_ends"} if "coat" in parts else set()
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    bm.verts.ensure_lookup_table()
+    hidden = [f for f in bm.faces
+              if all((parts[v.index] or "").startswith("in_") for v in f.verts)
+              or (parts[f.verts[0].index] or "").removeprefix("in_") in covered]
+    bmesh.ops.delete(bm, geom=hidden, context="FACES_ONLY")
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+    bm.to_mesh(ob.data)
+    bm.free()
+
+
+def build(kind, make_body, ref_uv, layout, atl, tex, base_body=None):
     """C4's scoped budget and reducer; restore shared settings even when a trial fails."""
     from . import dress
-    old = dress.NEAR_HERO, dress.NEAR_CROWD, dress.FAR, dress.reduce_cloth
+    old = dress.NEAR_HERO, dress.NEAR_CROWD, dress.FAR, dress.reduce_cloth, dress.paint_clothes, ck.clear_layers
+    original_paint = dress.paint_clothes
+    state = {}
+    reserve = [0, 0]
+    if base_body is None:
+        import bpy
+        from . import lod
+        base, build_name = {n: (b, v) for n, b, v in bd.BODIES}[kind.body]
+        parts = {o.name[len(kind.body) + 1:]: lod.tris(o) for o in bpy.data.objects
+                 if o.type == "MESH" and o.name.startswith(tuple(kind.body + "_" + p for p in ("hair_", "beard_", "mous_")))}
+        base_body = {"P": bd.params(base, build_name), "counts": {"pieces": parts}}
+    if base_body is not None:
+        face = dress.face_of(kind, base_body["P"])
+        parts = base_body["counts"]["pieces"]
+        for level in (0, 1):
+            for prefix, style in (("hair", face.get("hair")), ("beard", face.get("beard")),
+                                  ("mous", face.get("moustache"))):
+                if kind.hero:
+                    reserve[level] += parts.get("%s_%s_lod%d" % (prefix, style, level), 0) if style else 0
+                else:
+                    reserve[level] += max((v for k, v in parts.items()
+                                           if k.startswith(prefix + "_") and k.endswith("_lod%d" % level)), default=0)
+    def defer_paint(ob, pieces, fit, size, seed=3):
+        state.update(pieces=pieces, fit=fit, size=size, seed=seed)
+        defer_paint.zones = np.zeros((size, size), np.float32)
+        return np.full((size, size, 3), 0.4, np.float32), np.tile((0.5, 0.5, 1.0), (size, size, 1)).astype(np.float32)
+    def reduce(ob, budget):
+        if ob.name.endswith("_lod0"):
+            reduce_cast(ob, budget)
+            pieces = state["pieces"]
+            scales = {p.name: p.scale for p in pieces} | {"in_" + p.name: p.scale for p in pieces}
+            ck.unwrap(ob, scales, margin=0.004)
+            rgb, nrm = original_paint(ob, pieces, state["fit"], state["size"], state["seed"])
+            state.update(near=ob, rgb=rgb, nrm=nrm, zones=defer_paint.zones.copy())
+        else:
+            visible_far(ob)
+            reduce_cast(ob, budget)
+            orient_far(state["near"], ob)
+            scales = {p.name: p.scale for p in state["pieces"]} | {"in_" + p.name: p.scale for p in state["pieces"]}
+            ck.unwrap(ob, scales, margin=0.004)
+            rgb, nrm = original_paint(ob, state["pieces"], state["fit"], state["size"], state["seed"])
+            # Bake both LODs into the existing kind's cloth rectangle. Independent UVs
+            # avoid projecting coarse triangles across near seams. No extra texture layer
+            # or shader is needed; the far copy gets 20% of the rectangle's width.
+            width = state["size"]
+            split = int(width * 0.8)
+            def resize(a, count):
+                x = np.linspace(0, a.shape[1] - 1, count)
+                lo = x.astype(int)
+                hi = np.minimum(lo + 1, a.shape[1] - 1)
+                t = (x - lo).reshape((1, count) + (1,) * (a.ndim - 2))
+                return (a[:, lo] * (1 - t) + a[:, hi] * t).astype(np.float32)
+            combine = lambda a, b: np.concatenate((resize(a, split), resize(b, width - split)), axis=1)
+            atl.put("cloth_" + kind.name, combine(state["rgb"], rgb), combine(state["nrm"], nrm))
+            atl.clothes_zones("cloth_" + kind.name, combine(state["zones"], defer_paint.zones))
+            ratio = split / width
+            for loop in state["near"].data.uv_layers.active.data:
+                loop.uv.x *= ratio
+            for loop in ob.data.uv_layers.active.data:
+                loop.uv.x = ratio + loop.uv.x * (1 - ratio)
     try:
-        dress.NEAR_HERO, dress.NEAR_CROWD, dress.FAR = 16000, 14000, 2500
-        dress.reduce_cloth = reduce_cast
+        dress.NEAR_HERO, dress.NEAR_CROWD, dress.FAR = 16000 - reserve[0], 14000 - reserve[0], 2500 - reserve[1]
+        dress.reduce_cloth = reduce
+        dress.paint_clothes = defer_paint
+        # C4 pieces already use fitted ease/Onto offsets. The shared nearest-layer correction
+        # folds their disconnected shoulder seams through the shawl after reduction.
+        ck.clear_layers = lambda *args, **kwargs: 0
         return dress.build(kind, make_body, ref_uv, layout, atl, tex=tex)
     finally:
-        dress.NEAR_HERO, dress.NEAR_CROWD, dress.FAR, dress.reduce_cloth = old
+        dress.NEAR_HERO, dress.NEAR_CROWD, dress.FAR, dress.reduce_cloth, dress.paint_clothes, ck.clear_layers = old
 
 
 def proof(dressed, bodies, actions, move_clips, held_obs, pictures_dir, rig_path):
     """Use the existing face-aware preview for C4 cast/clip sheets, rather than white intake placeholders."""
     import json
-    import os
     from . import preview as pv, preview_c, preview_mh as pm, dress
     pm.PICS = pictures_dir
     pm._MATS.clear()

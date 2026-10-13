@@ -27,7 +27,7 @@ def make_kind(name, body, age, spec, female=False, held=(), hero=True):
         if part.startswith("arm"):
             return y > bd.Y(P, 0.59 if spec.get("rolled") or female else 0.535) + 0.015
         if part.startswith("leg"):
-            return y > bd.Y(P, 0.25) if female else y > bd.Y(P, 0.25) if spec.get("breeches") else y > 0.065
+            return True if female else y > bd.Y(P, 0.25) if spec.get("breeches") else True
         return False
 
     def skin(ctx):
@@ -38,13 +38,17 @@ def make_kind(name, body, age, spec, female=False, held=(), hero=True):
                 ctx.detail_zone[legs] = 1
         exposed = ck.starts(ctx.part, ("finger", "arm", "leg"))
         ctx.mul(exposed, (0.94, 0.92, 0.88))
+        if spec.get("barefoot"):
+            dirt = gc.sm(0.13, 0.025, ctx.y) * exposed
+            speckle = 0.6 + 0.4 * np.sin(ctx.x * 240 + ctx.z * 310) ** 2
+            ctx.mix(dirt * speckle * 0.45, (0.28, 0.21, 0.14))
         if spec.get("gloves"):
             hands = ck.starts(ctx.part, ("finger", "arm")) & (ctx.y < bd.Y(ctx.P, 0.52))
             ctx.rgb[hands] = gc.hexrgb(spec["gloves"])
             if hasattr(ctx, "detail_zone"):
                 ctx.detail_zone[hands] = 4
         ck.undershirt(ctx, gc.hexrgb(spec.get("dress", spec.get("coat", spec.get("jersey", spec.get("shirt", 0x4a4034))))),
-                      0, covers=covers, skip=("leg",))
+                      0, covers=covers, skip=("leg", "neck"))
 
     hat = spec.get("hat", "flatcap")
     hats = ("cap", "bonnet_ties") if spec.get("mourning") else ("cap", "cap_frill") if female else (
