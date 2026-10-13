@@ -7,6 +7,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The game starts after an update with new pictures or models: the launcher imports what is missing first (a few minutes the first time) instead of stopping with "People2 picture failed to load".
 - Detailed dressed townspeople now appear by default, alongside the original kinds that await new clothes. The new animals and wildlife are active too; hens and street rats use adapted CC0 models. Use `--people2 off` or the console switch to compare. The existing horse is retained.
 - People2 now uses independent clothes and full-square face pictures with close-up fabric and skin grain, sharing one compressed layered material.
 - Nearby people2 faces blink, glance and react during conversation. Their skin and clothes have softer indirect shadows and distinct dry/wet surfaces; young bald men keep young faces. Identity meshes build once in the background, with one mesh upload per frame.

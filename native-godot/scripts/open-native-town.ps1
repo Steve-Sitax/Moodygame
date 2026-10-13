@@ -6,6 +6,7 @@ $nativeTownEngine = Resolve-WorkshopGodot $Godot
 & (Join-Path $PSScriptRoot 'prepare-native-package.ps1') -Project $nativeTownProject
 & dotnet build (Join-Path $nativeTownProject 'Scheldemist.Native.csproj') --nologo
 if ($LASTEXITCODE -ne 0) { throw 'Build failed; the game was not launched.' }
+Update-WorkshopImports $nativeTownEngine $nativeTownProject
 if (-not $DataDirectory) {
     $DataDirectory = Join-Path ([Environment]::GetFolderPath('ApplicationData')) 'ScheldemistWorkshop\native-playtest'
 }

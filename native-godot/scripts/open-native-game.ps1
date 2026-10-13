@@ -9,6 +9,7 @@ $nativeGameProject = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $nativeGameEngine = Resolve-WorkshopGodot $Godot
 & dotnet build $nativeGameProject --nologo
 if ($LASTEXITCODE -ne 0) { throw 'Build failed; the game was not launched.' }
+Update-WorkshopImports $nativeGameEngine $nativeGameProject
 $nativeGameSettings = Join-Path ([Environment]::GetFolderPath('ApplicationData')) 'ScheldemistWorkshop\native-game-settings.json'
 $nativeGameArguments = @('--rendering-method', 'forward_plus', '--path', $nativeGameProject, 'res://game.tscn', '--', '--district', $District, '--visuals', $Visuals)
 $nativeGameArguments += @('--surface-only', '--no-mainmenu', '--prefs', $nativeGameSettings)

@@ -32,3 +32,34 @@ function Invoke-WorkshopEngine([string]$Engine, [string]$Project, [string[]]$Eng
     }
     finally { $engineChild.Dispose() }
 }
+
+# Godot's import cache (.godot/imported) is local and not in git. After a pull with new pictures or models the game
+# would stop with "People2 picture failed to load". Import whatever is missing before launching (2026-10-14).
+function Update-WorkshopImports([string]$Engine, [string]$Project, [int]$LimitSeconds = 1500) {
+    $missing = @(Get-ChildItem -LiteralPath $Project -Recurse -File -Filter '*.import' |
+        Where-Object { $_.FullName -notmatch '[\/]\.godot[\/]' } |
+        ForEach-Object {
+            foreach ($line in (Select-String -LiteralPath $_.FullName -Pattern '^dest_files=\[(.*)\]').Matches) {
+                foreach ($dest in [regex]::Matches($line.Groups[1].Value, '"res://([^"]+)"')) {
+                    if (-not (Test-Path -LiteralPath (Join-Path $Project $dest.Groups[1].Value))) { $_.FullName; break }
+                }
+            }
+        } | Select-Object -Unique)
+    if ($missing.Count -eq 0) { return }
+    Write-Output "Importing $($missing.Count) new or changed pictures and models (first start after an update; this can take a few minutes)."
+    $importStart = [Diagnostics.ProcessStartInfo]::new()
+    $importStart.FileName = $Engine; $importStart.WorkingDirectory = $Project
+    $importStart.UseShellExecute = $false; $importStart.CreateNoWindow = $true
+    foreach ($argument in @('--path', $Project, '--rendering-method', 'forward_plus', '--import')) { $importStart.ArgumentList.Add($argument) }
+    $importChild = [Diagnostics.Process]::Start($importStart)
+    try {
+        if (-not $importChild.WaitForExit($LimitSeconds * 1000)) { $importChild.Kill($true); throw "Godot's import exceeded $LimitSeconds seconds." }
+    }
+    finally { $importChild.Dispose() }
+    $still = @($missing | Where-Object {
+        $file = $_
+        [regex]::Matches((Get-Content -LiteralPath $file -Raw), '"res://(\.godot/imported/[^"]+)"') |
+            Where-Object { -not (Test-Path -LiteralPath (Join-Path $Project $_.Groups[1].Value)) }
+    })
+    if ($still.Count) { throw "Godot could not import: $($still -join ', ')" }
+}
