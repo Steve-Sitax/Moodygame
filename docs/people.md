@@ -865,6 +865,10 @@ degenerate C3 faces. The unchanged old `held_scabbard` still has 24 degenerate f
 `full/animation-preservation.json` records 235 clips, 12,220 channels and 1,822 unchanged
 node/rest transforms. Close shoulder/collar reduction shards, skin paint at cuffs and
 finger intersections remain visible in the shared cloth/hands kit; these are lead follow-ups.
+The Forward+ project-resource shader audit passed 538 samples: 130 kinds, exactly one
+people2 kind, no new variants or light-count changes, zero problems. Seven native content
+identity checks passed. The packed-data audit startup exited before reporting; logs and
+the accepted project-resource receipt are indexed in `.scratch/c3/REPORT.md`.
 Period uncertainties above remain open; shader success alone is not art acceptance.
 
 ### For the runtimes (E, F)
