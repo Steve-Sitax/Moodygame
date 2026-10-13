@@ -1,10 +1,11 @@
 """One socket model per C3 prop; rounded wood/leather and machined rifle details.
 
 The bayonet cutting edge is intentionally sharp. Sources in docs/people.md.
-The model grip is at zero, long axes +y in the socket frame, as held.py requires.
+Props use the socket's local axes: the rifle is fitted to handR, and the cane
+hangs along gripR's -z. The book and scabbard follow held.py's +y convention.
 """
 import numpy as np
-from . import B, G, clothes_kit as ck, held
+from . import B, clothes_kit as ck, held
 from .clothes_kit import Cloth
 
 
@@ -20,22 +21,27 @@ _rifle_frame = None
 
 
 def fit_rifle_socket(fit):
-    """Use D3's handR frame, so work clips do not hide the single rifle model.
+    """Fit the upright rifle to the current rifle_idle/walk/talk hand frame.
 
-    Match clips_work.rifle_on_hand's palm offset and rotation exactly. The result
-    is local to the existing hand bone, independent of the pose played later.
+    handR keeps it visible in work clips. Restore the calibration pose at once.
     """
-    from mathutils import Vector
-    from .motion import RY, RX
+    import bpy
+    from . import clips_legacy
     global _rifle_frame
-    wrist = B(fit.J["handR"][0])
-    knuckle = B(fit.J["middle1R"][0])
-    palm = (knuckle - wrist) * .45 + Vector((.016 * fit.P["H"] / 1.67, 0, 0))
-    inv = fit.b["ao"].data.bones["handR"].matrix_local.inverted()
-    rotation = RY(-90) @ RX(-4)
+    ao = fit.b["ao"]
+    saved = {bone.name: bone.matrix_basis.copy() for bone in ao.pose.bones}
+    clips_legacy.pose_now(ao, "rifle_idle", .35, fit.J)
+    bpy.context.view_layer.update()
+    inv = ao.pose.bones["handR"].matrix.inverted().copy()
+    grip = ao.pose.bones["gripR"].head.copy()
     def transform(p):
-        return np.array(G(inv @ (wrist + palm + Vector((0, 0, .02)) + rotation @ B(p))))
+        # Bone attachments retain the bone's local axes; do not convert this
+        # local point through G (that would turn the muzzle sideways).
+        return np.array(inv @ (grip + B(p)))
     _rifle_frame = transform
+    for name, matrix in saved.items():
+        ao.pose.bones[name].matrix_basis = matrix
+    bpy.context.view_layer.update()
 
 
 def rifle():
@@ -85,6 +91,9 @@ def cane():
     tip = ck.Piece("cane_ferrule", STEEL, scale=1.4)
     held.loft_y(tip, [(.838, 0, 0, .0067, .0067, 2), (.858, 0, 0, .0067, .0067, 2),
                      (.863, 0, 0, .004, .004, 2)], 10)
+    # gripR's +z points toward the wrist: the shaft hangs along -z.
+    for piece in (pc, tip):
+        piece.V = [np.array((p[0], p[2], -p[1])) for p in piece.V]
     return [pc, tip]
 
 

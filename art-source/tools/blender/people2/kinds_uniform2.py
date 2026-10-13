@@ -40,6 +40,59 @@ def checked_dress(dress, fit):
     return pieces
 
 
+def finish(b):
+    """Refit sewn stripes and discard collapsed hem faces; preserve vertices/morphs."""
+    import bmesh
+    from . import dress, lod
+    for level in ("lod0", "lod1"):
+        ob = b[level]
+        # Lay the sewn ribbon back on the reduced trouser surface. Keep its
+        # real 0.9 mm thickness, and carry the same correction into every slider.
+        if not ob.get("c3_stripes_finished"):
+            from mathutils.bvhtree import BVHTree
+            outer = ob.vertex_groups.get("part_trouser_stripes")
+            inner = ob.vertex_groups.get("part_in_trouser_stripes")
+            trousers = ob.vertex_groups.get("part_trousers")
+            groups = {vg.index for vg in (outer, inner) if vg}
+            delta = np.zeros((len(ob.data.vertices), 3), np.float32)
+            if groups and trousers:
+                tv = {v.index for v in ob.data.vertices if any(
+                    g.group == trousers.index and g.weight > .5 for g in v.groups)}
+                faces = [tuple(f.vertices) for f in ob.data.polygons if all(i in tv for i in f.vertices)]
+                surface = BVHTree.FromPolygons([v.co[:] for v in ob.data.vertices], faces)
+                for vertex in ob.data.vertices:
+                    if any(g.group in groups and g.weight > .5 for g in vertex.groups):
+                        location, normal, _, _ = surface.find_nearest(vertex.co)
+                        lining = inner and any(g.group == inner.index and g.weight > .5 for g in vertex.groups)
+                        delta[vertex.index] = np.array(location + normal * (.0012 if lining else .0021) - vertex.co)
+            co = np.array([v.co[:] for v in ob.data.vertices], np.float32)
+            if ob.data.shape_keys:
+                for key in ob.data.shape_keys.key_blocks:
+                    values = np.array([v.co[:] for v in key.data], np.float32)
+                    key.data.foreach_set("co", (values + delta).ravel())
+            ob.data.vertices.foreach_set("co", (co + delta).ravel())
+            ob["c3_stripes_finished"] = True
+        vertex_count = len(ob.data.vertices)
+        morph_names = tuple(k.name for k in ob.data.shape_keys.key_blocks) if ob.data.shape_keys else ()
+        bm = bmesh.new()
+        bm.from_mesh(ob.data)
+        bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 3],
+                             quad_method="BEAUTY", ngon_method="EAR_CLIP")
+        gone = [f for f in bm.faces if f.calc_area() < 1e-12]
+        if gone:
+            bmesh.ops.delete(bm, geom=gone, context="FACES_ONLY")
+        bm.to_mesh(ob.data)
+        ob.data.update()
+        bm.free()
+        after = tuple(k.name for k in ob.data.shape_keys.key_blocks) if ob.data.shape_keys else ()
+        if len(ob.data.vertices) != vertex_count or after != morph_names:
+            raise ValueError("Cloth cleanup changed slider topology: " + ob.name)
+        b["counts"][level] = lod.tris(ob)
+        counts = dress.piece_counts(ob)
+        b["piece_counts"][level] = {name: counts.get(name, 0) for name in b["piece_counts"][level]}
+    return b
+
+
 def make(name, age, dress, build="middling", rolled=False, hats=(), held=(), note=""):
     cover = partial(covers, build=build, rolled=rolled)
     k = Kind(name, "uniform", "man_" + build, face=dict(seed=1873300 + len(KINDS), sex="m", age=age),
@@ -48,6 +101,7 @@ def make(name, age, dress, build="middling", rolled=False, hats=(), held=(), not
              hats=hats, held=held, note=note,
              avoid={"walk_f": "male civilian or infantryman", "talk_f": "male voice gestures"})
     k.near_budget, k.far_budget = 14000, 2500
+    k.finish = finish
     KINDS.append(k)
     return k
 
@@ -60,7 +114,7 @@ make("soldier", 23, g.dress_soldier, hats=SHAKO, held=BAYONET,
 make("soldier_b", 30, partial(g.dress_soldier, corporal=True), hats=SHAKO, held=BAYONET,
      note="line infantry corporal; two red forearm chevrons, otherwise the private's kit; rank detail reconstructed")
 make("sentry", 24, partial(g.dress_soldier, sentry=True), hats=SHAKO,
-     held=[("held_rifle", "handR", "Albini-Braendlin M1853/1867; hand socket fitted to D3 palm frame, fixed bayonet")],
+     held=[("held_rifle", "handR", "Albini-Braendlin M1853/1867; fitted rifle clip hand frame, fixed bayonet")],
      note="garrison sentry; cartridge pouches and one separate rifle on handR; remains visible in rifle work clips")
 make("customs", 49, g.dress_customs, hats=("kepi", "peak"),
      held=[("held_sabre", "hipL", "sabre in scabbard"), ("held_scabbard", "hipL", "belt frog"),

@@ -223,7 +223,8 @@ def main():
         atl.face(cname, frgb, fnrm)
     dressed = []
     for k in kinds:
-        dressed.append(dress.build(k, make_body, ref_uv, layout, atl, tex=TEX))
+        b = dress.build(k, make_body, ref_uv, layout, atl, tex=TEX)
+        dressed.append(k.finish(b) if hasattr(k, "finish") else b)
     held_obs = held.build_all(kinds, layout, atl, tex=TEX)
     def default_face(b):
         if "face" in b and b["face"]["cell"] in face_pics:
