@@ -7,13 +7,15 @@ global uniform vec4 psx_hemi_sky;
 global uniform vec4 psx_hemi_ground;
 global uniform vec4 psx_mir0;
 global uniform vec4 psx_mir1;
-uniform sampler2D tex : source_color, filter_linear_mipmap_anisotropic, hint_default_white;
-uniform sampler2D skin_normal : hint_normal, filter_linear_mipmap_anisotropic;
-uniform sampler2D eye_mask : filter_linear_mipmap, hint_default_black;
-uniform vec4 albedo : source_color = vec4(1.0);
-uniform float normal_strength = 1.0;
-uniform float eye_vertex_flag = 0.0;
-uniform float alpha_cut = 0.0;
+uniform sampler2DArray clothes_colour : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
+uniform sampler2DArray clothes_normal : hint_normal, filter_linear_mipmap_anisotropic, repeat_disable;
+uniform sampler2DArray face_colour : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
+uniform sampler2DArray face_normal : hint_normal, filter_linear_mipmap_anisotropic, repeat_disable;
+uniform sampler2DArray detail_colour : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2DArray detail_normal : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
+instance uniform int clothes_layer = 0;
+instance uniform int face_layer = 0;
+instance uniform vec3 skin_tone_shift = vec3(0.0);
 varying vec3 world;
 varying float fog_depth;
 varying float sun_lit;
@@ -74,9 +76,18 @@ void vertex() {
 }
 void fragment() {
     if ((world.y < psx_mir0.w - 0.02 && distance(CAMERA_POSITION_WORLD, psx_mir0.xyz) < 0.02) || (world.y < psx_mir1.w - 0.02 && distance(CAMERA_POSITION_WORLD, psx_mir1.xyz) < 0.02)) discard;
-    vec4 c = texture(tex, UV) * albedo;
-    if (c.a < alpha_cut) discard;
-    eye = max(texture(eye_mask, UV).r, COLOR.r * eye_vertex_flag);
+    bool face = COLOR.g > 0.5;
+    vec4 cloth = texture(clothes_colour, vec3(UV, float(clothes_layer)));
+    vec4 c = face ? texture(face_colour, vec3(UV, float(face_layer))) : cloth;
+    float zone = face ? 5.0 : round(cloth.a * 5.0);
+    if (face || zone > 4.5) c.rgb = clamp(c.rgb + skin_tone_shift, vec3(0.0), vec3(1.0));
+    float close_detail = 1.0 - smoothstep(1.25, 3.5, length(world - CAMERA_POSITION_WORLD));
+    vec2 detail_uv = UV * (face ? 4.0 : 8.0);
+    if (zone > 0.5 && close_detail > 0.0) {
+        vec3 grain = texture(detail_colour, vec3(detail_uv, zone)).rgb;
+        c.rgb *= mix(vec3(1.0), grain / vec3(0.5), close_detail * 0.35);
+    }
+    eye = COLOR.r;
     // Cotangent frame from the actual skinned surface; handles mirrored UVs without imported tangents.
     vec3 dp1 = dFdx(VERTEX), dp2 = dFdy(VERTEX);
     vec2 duv1 = dFdx(UV), duv2 = dFdy(UV);
@@ -84,8 +95,9 @@ void fragment() {
     vec3 t = p2 * duv1.x + p1 * duv2.x;
     vec3 b = p2 * duv1.y + p1 * duv2.y;
     float inv = inversesqrt(max(max(dot(t,t), dot(b,b)), 1e-12));
-    vec3 nm = texture(skin_normal, UV).rgb * 2.0 - 1.0;
-    nm.xy *= normal_strength;
+    vec2 xy = (face ? texture(face_normal, vec3(UV,float(face_layer))).rg : texture(clothes_normal, vec3(UV,float(clothes_layer))).rg) * 2.0 - 1.0;
+    if (zone > 0.5 && close_detail > 0.0 && eye < 0.5) xy += (texture(detail_normal, vec3(detail_uv,zone)).rg * 2.0 - 1.0) * close_detail * 0.4;
+    vec3 nm = vec3(xy, sqrt(max(1.0 - dot(xy,xy), 0.001)));
     NORMAL = normalize(mat3(t * inv, b * inv, NORMAL) * normalize(nm));
     vec3 nw = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
     vec3 sky = mix(psx_hemi_ground.rgb, psx_hemi_sky.rgb, nw.y * 0.5 + 0.5) * psx_sky_seen(world, nw);

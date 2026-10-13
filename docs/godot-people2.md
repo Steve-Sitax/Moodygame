@@ -45,7 +45,7 @@ copies the matching rig and prepares the native pack/fingerprint. It records has
 other model file and checks both manifests' other entries. The intake validates/imports the
 GLB before replacing anything, backs up only people2's three owned paths and the manifests,
 and restores them if saving fails. People2 rejects headless intake, whose dummy renderer cannot
-persist usable ImageTexture resources; atlas images are checked before replacement. No other model can use `--replace`. Stored placements,
+persist usable ImageTexture resources; source placeholder images are checked before replacement. No other model can use `--replace`. Stored placements,
 permanent IDs and editor layouts are untouched. Evidence lives in `.scratch/people2-replace-*`;
 its isolated test data are removed automatically.
 
@@ -59,11 +59,19 @@ reads the extracted data cache. Host and guest must agree on this content identi
 ## Runtime contract
 
 `People2Material` uses `ModelLibrary.NativeScene` before ordinary material conversion.
-It preserves source normal maps and near-copy morphs, removes far-copy morphs if needed,
-and shares prepared materials. Colour mipmaps filter in linear light; normal mipmaps
-renormalize linear vectors. The shader is read with Godot FileAccess, including in PCKs.
-One spatial shader kind covers sun, sky, fog, existing lamp/window spill and normal maps.
-No light counts change. A hidden mesh reference includes the kind in the first-frame audit.
+It preserves morphs, removes far-copy morphs if needed, and assembles compressed clothes/face/detail
+Texture2DArrays synchronously during model preparation. One shared material reads per-mesh instance
+uniforms for clothes layer, face layer and a stable-id skin shift. Source PNGs and the manifest live in
+`res://assets/people2-pictures`; replacement imports them before intake. The scoped PNG import
+presets are committed: colours require high-quality VRAM compression, normals require normal-map
+compression with high quality off so Godot stores RGTC rather than BPTC. Imported colour is BC7/BPTC,
+normals BC5/RGTC, all mipmapped with linear anisotropic shader filtering. Exported games load the
+persisted compressed resources; no editor compression, PNG repaint or GLB decoding occurs at startup.
+The existing people2 spatial shader kind covers sun, sky, fog, lamp/window spill, normal maps and
+near detail. No shader kinds or lights are added. Vertex green selects the full-square head picture;
+red retains the eye highlight. A hidden mesh reference includes the kind in the first-frame audit.
+The current fourteen head pictures retain their authored body/kind assignment; the pending face-type
+schema does not yet replace the existing integration-only `face_id` metadata.
 
 `Human2` samples clips by bone name and blends locomotion at a shared heel phase.
 `HumanLayers` caches attention, cloth springs and foot stance correction, stopping near
@@ -92,7 +100,7 @@ failed-launch dialog titled `.NET assemblies not found` has no game loop and is
 excluded explicitly in the isolation receipt. Engine errors,
 nonzero exits and failed JSON reports fail the runner.
 
-Captures show docker_a, fishwife_a, police and sooi at Vismarkt, at 1 m and 3 m,
+Captures show docker_a, fishwife_a, police, sooi and the ten base bodies at Vismarkt, at 1 m and 3 m,
 at 13:00 clear, 13:00 rain and 19:30 beside an existing lamp, with low rear views too.
 The capture checks the live clock/weather and camera position. Inspect the PNGs.
 The parade samples blend_walk, idle, walk and talk. Ordinary `--snap <dir> --views ...`
@@ -220,3 +228,58 @@ historical port timing above is not a new measurement of these assets. Re-run:
 ```powershell
 & ./native-godot/scripts/check-people2.ps1 -Modes timing -Port 8905
 ```
+
+## Layered picture evidence (2026-10-13)
+
+Full Blender build: 876 seconds, ten bodies, four dressed kinds, 64 bones, 102 clips and
+one tiny intake material. `.scratch/pictures-geometry.json` verifies all 32 mesh primitives,
+finite positions/UVs, authored head selectors, one material and dense morphs. Replacement:
+`.scratch/people2-replace-c100ba8a0ab04db69aa2a48b7fbe2f5d/replacement.json`; all 1,582
+other model files and both manifests’ other entries were preserved.
+
+GPU texture block payload, including every mip level (decimal MB):
+
+| Set | Bytes | MB |
+|---|---:|---:|
+| Previous native atlas colour/normal images | 178,956,968 | 178.96 |
+| Current ten bodies + four kinds, fourteen heads, held layer and shared details | 85,286,048 | 85.29 |
+| Conservative projection: 61 dressed kinds + ten bodies + held layer, 32 faces, details | 295,005,248 | 295.01 |
+
+The current load measures BC7/BPTC colour and BC5/RGTC normals, 1,398,128 bytes per
+1024 px layer and 349,552 bytes per 512 px detail layer, with full mip chains.
+These are measured compressed image/array payloads, not driver allocation measurements:
+`RenderingServer.TextureMemUsed` returns zero at model preparation. Geometry and render
+targets are outside the people-picture budget. The loader rejects a wrong format or size
+and a projection of 300,000,000 bytes or more. The fresh isolated import in
+`.scratch/people2-cold-pictures/result.json` reproduces all six arrays and the exact payload
+from the committed PNG/import presets, without the existing project cache. Imported source textures are disposed after
+extracting their compressed images; only the shared arrays remain in the material.
+
+Accepted captures and routing:
+`.scratch/people2-native-61a8e2eb72f94df3a8167e538076a0e5/`.
+All 210 PNGs were inspected through the 21 Photocraft `captures/review/sheet-*.jpg` contact
+sheets, with separate full-size close-ups. Four kinds and ten bodies appear at 1/3 m,
+front, low back and top, in 13:00 clear/rain and 19:30 lamplight. Fine cloth weave is visible
+at 1 m and fades with distance; head pictures are sharp and layers do not bleed into one
+another. Existing waist/vest gaps and the fishwife’s jagged shawl edges are geometry findings,
+visible in `day-sooi-1m.png`, `day-police-1m.png` and `rain-fishwife_a-1m.png`; this pass
+preserves that authored geometry and its existing edge exceptions. New face types remain pending.
+
+Content and multiplayer receipts:
+`.scratch/people2-native-4e9e6e968fb3446ca0926bdb3477176d/`.
+Identity: seven checks; pack: 341 checks over 320 files; network: 25 checks, including
+matching authenticated guests and rejection of a different content fingerprint.
+The first shader attempt hit the existing four-minute deadline under concurrent native games
+and was discarded. Two subsequent 30-minute exclusive waits expired while other Godot
+runs continued to start. There is no accepted shader-audit or CPU-timing result for this
+change yet; the 1.5 ms mean gate and four-minute internal check deadline were not relaxed.
+Run `check-people2.ps1 -Modes shaders,timing -Port 8931` from PowerShell with a real string
+array for `-Modes` after the other engines finish. The runner now waits before shader
+checks too; CPU timing still rejects overlap throughout the measured run.
+
+Additional accepted and inspected views:
+`.scratch/people2-native-e438ae18bc97482d979d142a354648b4/distance-captures/`.
+Its 210 PNGs add 8 m fronts/low backs, 1/3 m sides and low feet in all three environments,
+reviewed through its 21 Photocraft contact sheets. The temporary figures use one clear
+exhibit point and are shown individually; earlier wide-rear cameras inside the building
+were discarded and the capture fixture corrected. Combined accepted art proof: 420 PNGs.

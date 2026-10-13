@@ -225,6 +225,7 @@ def docker_a_skin(ctx):
     """Grey wool socks above the clogs; grime in the hands' creases."""
     leg = np.char.startswith(ctx.part, "leg")
     sock = leg & (ctx.y < 0.22)
+    if hasattr(ctx, "detail_zone"): ctx.detail_zone[sock] = 1  # wool
     knit = 0.5 + 0.5 * np.sin(ctx.y * 1600) * np.sin(np.arctan2(ctx.x, ctx.z) * 40)
     col = np.array((0.42, 0.40, 0.37)) * (0.9 + 0.12 * knit)[:, None]
     ctx.rgb[sock] = col[sock]

@@ -17,8 +17,8 @@ about 2 min, `--faces --hands --sheet` about 4 min, `--dress` (C's checks) about
 
 | Writes | What |
 |---|---|
-| `art-source/client/public/models/people2.glb` | 10 bodies and the kinds, each an armature (named after the body or kind) with `<name>_lod0` and `<name>_lod1`; the held things under `people2_held`; one material `people2_atlas` (colour and normal map, 4096 px); 102 clips (36 old, their 4 variants for the old, 62 locomotion), the near copies' shape keys; compressed art geometry, JPEG |
-| `art-source/shared/peopleRig.json` | the bones, sockets, grab marks, the Godot BoneMap, the grips and the shape keys, per body its joints, marks, figures and counts, `locomotion` (every D1 clip's speed, cycle, stride, travel and checks; the blend rule; the loads and handles), `heightFactor`, `oldStance`, and C's `kinds`, `held` and `atlas` |
+| `art-source/client/public/models/people2.glb` | 10 bodies and the kinds, each an armature (named after the body or kind) with `<name>_lod0` and `<name>_lod1`; the held things under `people2_held`; one tiny intake placeholder material; independent clothes/face pictures in `native-godot/assets/people2-pictures`; 102 clips (36 old, their 4 variants for the old, 62 locomotion), the near copies' shape keys; compressed art geometry, lossless PNG placeholder |
+| `art-source/shared/peopleRig.json` | the bones, sockets, grab marks, the Godot BoneMap, the grips and the shape keys, per body its joints, marks, figures and counts, `locomotion` (every D1 clip's speed, cycle, stride, travel and checks; the blend rule; the loads and handles), `heightFactor`, `oldStance`, and C's `kinds`, `held` and `pictures` manifest |
 | `.scratch/people2-build/shots/*.png` | the check pictures (not in git) |
 
 Native intake replaces the retired Node decoder and model bake. `--plain` writes a second, dense-morph,
@@ -57,7 +57,8 @@ The kit, `art-source/tools/blender/people2/`:
 | `preview_b.py` | (B) the face, hand and hair check pictures and the grip fit |
 | `clothes_kit.py` | (C) the shared cloth functions: garments with thickness, their weights, the painter, the UVs |
 | `dress.py` | (C) a kind's settings (`Kind`) and how a kind is made (`build`), its face (`face_of`) |
-| `atlas.py` | (C) the one picture atlas for every body, kind and held thing |
+| `pictures.py` | Independent 1024 px clothes/face layers, detail zones, shared 512 px grain and a stable manifest |
+| `atlas.py` | Historical atlas code; image resizing helpers remain shared |
 | `held.py` | (C) held things, one model each: the sabre, its scabbard, the truncheon, the basket of herring |
 | `kinds_workers.py`, `kinds_women.py`, `kinds_uniform.py`, `kinds_cast.py` | (C1-C4) the kinds, one group a file |
 | `preview_c.py` | (C) the kinds' check pictures (`--dress`) |
@@ -460,7 +461,7 @@ as its base body (`kinds.<kind>.body`), so every clip of that body plays on it u
 5. The body under the clothes is cut away (`Kind.covers(point, part)`): what nobody sees costs nothing and cannot
    poke through. Head, eyes and hair always stay.
 6. The cloth picture is painted in 3D on the garments (below).
-7. UVs go into the atlas cells, the clothes are joined into the body's two meshes, hats are made to follow the face
+7. UVs go into the kind’s clothes layer and full-square face layer, the clothes are joined into the body's two meshes, hats are made to follow the face
    shapes of the head under them.
 
 ### Garments (`clothes_kit.py`)
@@ -494,11 +495,16 @@ up to `mud_h` over the ground, dust, tar and coal; `extra` paints the rest (seam
 stripes and checks, piping, badges, a wood grain). A height field painted with it becomes the normal map. Stripes and
 checks are drawn with soft edges (no stair steps up close).
 
-One material for everybody, `people2_atlas`: a 4096 x 4096 colour picture and its normal map, in cells of 1024
-(`atlas.cells`, laid out in `peopleRig.json atlas.cells`): the five skin pictures of the base bodies (A's layout with
-B's face square at 256 px), per kind a body cell and a cloth cell, the face squares (512 px, 1024 for the named), and
-the held things. Linear, mipmapped. With four kinds the sixteen cells are full: the next kinds need a second atlas
-(and material) or 512 px cells for the crowd, which `atlas.cells` and the runtimes then have to know.
+One native material, `people2_pictures`, samples four 1024 px Texture2DArrays: clothes colour/normal and
+face colour/normal. `pictures.py` writes independent lossless PNGs plus `manifest.json` in
+`native-godot/assets/people2-pictures`. Each base body and dressed kind has a stable layer; held models
+share one extra layer. A dressed layer puts exposed body skin in its lower half and garments in its upper
+half, with eight-pixel guards around both rectangles. Head islands use the whole face square, selected
+by vertex green, while red remains the eye flag. The previous sixteen-cell atlas limit is removed.
+Colour alpha carries a linear zone id divided by five: none, wool, linen, canvas, leather, skin.
+Periodic 512 px colour/normal detail pairs add grain near the camera and fade out by 3.5 m.
+Normal PNGs stay lossless; native imports use BC5/RGTC normals and BC7/BPTC colour, with mipmaps and
+linear anisotropic filtering. Geometry, edge exceptions and the motion list remain unchanged.
 
 ### Held things (`held.py`)
 
@@ -596,7 +602,7 @@ The police tunic's exact cut, button metal, collar facing and docker's shoulder 
 
 - Load a kind as a body: its root node is its armature; `<kind>_lod0` and `<kind>_lod1` as for bodies; the kind's
   base body's clips and locomotion meta (`kinds.<kind>.body`). `kinds.<kind>.avoid` lists clips it should not play.
-- One material, `people2_atlas`: keep it as one (no per-material atlas at run time: it would shrink the 4096 picture).
+- One native material, `people2_pictures`: all people share the clothes, face and detail arrays.
 - `hands_hard` is set per kind in `kinds.<kind>.shapeKeys`.
 - Held things: the children of `people2_held`, put on the socket bones (`kinds.<kind>.held`); the scabbard turned
   back by `held.hang`, the sabre in it at `held.sheathed`. `people2_held` is not a person (skip it when listing kinds).
@@ -613,7 +619,7 @@ The police tunic's exact cut, button metal, collar facing and docker's shoulder 
 - No cloth simulation: the legs drive skirts, aprons and smocks; in a wide stride a skirt divides a little between the
   legs, seated it drapes over the lap and down the shins; the spring bones add the swing in the games.
 - Faces are B's until the face package's types arrive (`face_of`).
-- The atlas is full at four kinds.
+- Independent layers allow more kinds without resizing existing pictures.
 - Hair is painted under the hats (B's scalp shells are not built at this commit: `hair.scalp_thickness` returns zero
   unless the style has a fringe), so caps were fitted with room for real hair to come.
 
@@ -775,7 +781,7 @@ for the sack, crate, cart and truck), `blend_<style>.png` (stroll to the fastest
 - **B (faces, hands, hair):** done, see above.
 - **C (clothes, kinds):** the first pass is done (four kinds, "Kinds and clothes" above). The other kinds go into
   the four group files the same way; the shared functions are `clothes_kit.py`'s (ask before changing one another
-  group relies on). The atlas needs a second sheet before more kinds fit.
+  group relies on). New kinds receive independent picture layers from `pictures.py`.
 - **D (motion):** D1 is done ("Motion tools", "Locomotion" above). D2, D3 build on `motion.py`: author on the body
   the clip is for, key the 47 `keyed` bones and the hips translation in every clip (`motion.key_clip` does), check
   with `slide`, `seam`, `joins`; add the clips to `make_all`'s list or a list of their own beside it.

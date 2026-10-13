@@ -38,3 +38,6 @@ recovered/*
 !recovered/bench-model-20261012/
 !recovered/quay-models-20261012/
 dist/
+
+# These presets are required to assemble compressed people2 arrays on a clean checkout.
+!/assets/people2-pictures/*.png.import

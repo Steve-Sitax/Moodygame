@@ -5,7 +5,7 @@ Frames (game axes, metres), as docs/people.md "Sockets" asks: a held thing has i
 along +y (a handle runs along +y through the fist; a blade's edge points along -z, the little finger's side); a
 thing that hangs (a scabbard on hipL) hangs along +y from its origin. Each is a cage subdivided once (rounded,
 bevelled edges from the geometry: cast brass 1-3 mm, leather and wood 1-4 mm), painted in 3D like the clothes, in
-the atlas's "held" cell. In people2.glb they are meshes under one node, people2_held: held_sabre, held_scabbard,
+the independent "held" layer. In people2.glb they are meshes under one node, people2_held: held_sabre, held_scabbard,
 held_truncheon, held_basket.
 
 - held_sabre: the police agent's short sabre (the briquet pattern): a ribbed brass grip with a knuckle bow and a
@@ -316,10 +316,10 @@ def needed(kinds):
 
 
 def build_all(kinds, layout, atl, tex=2048):
-    """Every held model the kinds name: built, painted into the atlas's held cell, under one empty node."""
+    """Every held model the kinds name: built, painted into the independent held layer, under one empty node."""
     import bpy
 
-    from . import atlas as at
+    from . import pictures as at
     from . import dress, lod
 
     names = needed(kinds)

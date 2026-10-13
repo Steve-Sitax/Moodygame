@@ -1,7 +1,8 @@
 param(
     [string]$SourceModels,
     [string]$Rig,
-    [string]$Godot
+    [string]$Godot,
+    [ValidateRange(8900,8939)][int]$Port = 8900
 )
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'engine-tools.ps1')
@@ -40,8 +41,10 @@ $proof = Join-Path $workspace ('.scratch/people2-replace-' + [guid]::NewGuid().T
 $oldData = $env:SCHELDEMIST_USER_DATA
 try {
     $env:SCHELDEMIST_USER_DATA = Join-Path $proof 'userdata'
+    # Import source PNGs to persistent BPTC/RGTC resources before the runtime assembles arrays.
+    Invoke-WorkshopEngine (Resolve-WorkshopGodot $Godot) $project @('--headless','--editor','--import','--path',$project,'--log-file',(Join-Path $proof 'picture-import-live.log')) (Join-Path $proof 'picture-import.log') 240 | Out-Null
     # Forward+ is required: the headless dummy renderer does not retain ImageTexture images.
-    Invoke-WorkshopEngine (Resolve-WorkshopGodot $Godot) $project @('--rendering-method','forward_plus','--path',$project,'--log-file',(Join-Path $proof 'live.log'),'res://recovery/recover-game-models.tscn','--','--no-ai','--port','8900','--db',(Join-Path $proof 'game.sqlite'),'--prefs',(Join-Path $proof 'settings.json'),'--source-models',$SourceModels,'--resume-intake','yes','--only','people2','--replace','people2','--author-root',(Join-Path $proof 'layouts')) (Join-Path $proof 'engine.log') 180
+    Invoke-WorkshopEngine (Resolve-WorkshopGodot $Godot) $project @('--rendering-method','forward_plus','--path',$project,'--log-file',(Join-Path $proof 'live.log'),'res://recovery/recover-game-models.tscn','--','--no-ai','--port',$Port.ToString(),'--db',(Join-Path $proof 'game.sqlite'),'--prefs',(Join-Path $proof 'settings.json'),'--source-models',$SourceModels,'--resume-intake','yes','--only','people2','--replace','people2','--author-root',(Join-Path $proof 'layouts')) (Join-Path $proof 'engine.log') 180
     $after = Other-ModelHashes
     if ($before.Count -ne $after.Count) { throw 'Replacement changed another model inventory.' }
     foreach ($entry in $before.GetEnumerator()) {

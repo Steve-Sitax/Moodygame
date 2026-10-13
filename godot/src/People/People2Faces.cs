@@ -29,6 +29,7 @@ public static class People2Faces
         int face = (int)(Hash(stableId) % 22);
         root.SetMeta("face_id", face);
         root.SetMeta("face_seed", (long)Hash(stableId));
+        People2Material.Tone(root, Hash(stableId));
         return face;
     }
     /// <summary>Assign once at spawn. Reset omitted keys; do not clamp authored weights.</summary>
@@ -51,7 +52,7 @@ public static class People2Faces
     internal static void EyeFlags(MeshInstance3D mi)
     {
         if (mi.Mesh is not ArrayMesh source || mi.Skin == null) return;
-        // Red = eye, green/blue reserved. Colours never multiply the skin picture.
+        // Red = eye; green = full-square head picture. Colours never multiply the skin picture.
         // Interim import derives the flag from skin binds; new models may write the same channel directly.
         var sk = mi.GetNodeOrNull<Skeleton3D>(mi.Skeleton);
         var result = new ArrayMesh { BlendShapeMode = source.BlendShapeMode };
@@ -63,11 +64,9 @@ public static class People2Faces
             var bones = arrays[(int)Mesh.ArrayType.Bones].AsInt32Array();
             var weights = arrays[(int)Mesh.ArrayType.Weights].AsFloat32Array();
             var colours = arrays[(int)Mesh.ArrayType.Color].AsColorArray();
-            bool authored = false;
-            for (int v = 0; v < colours.Length; v++) if (colours[v].R < 0.99f) { authored = true; break; }
-            if (!authored)
+            // Recompute the eye flag while preserving the authored head selector.
             {
-                colours = new Color[vertices.Length];
+                if (colours.Length != vertices.Length) colours = new Color[vertices.Length];
                 int influences = vertices.Length > 0 ? weights.Length / vertices.Length : 0;
                 for (int v = 0; v < vertices.Length; v++)
                 {
@@ -80,7 +79,7 @@ public static class People2Faces
                         if (name == "" && sk != null && bone >= 0) name = sk.GetBoneName(bone);
                         if (name is "eyeL" or "eyeR") eye += weights[v * influences + k];
                     }
-                    colours[v] = new Color(eye > 0.5f ? 1 : 0, 0, 0, 1);
+                    colours[v] = new Color(eye > 0.5f ? 1 : 0, colours[v].G, colours[v].B, 1);
                 }
                 arrays[(int)Mesh.ArrayType.Color] = colours;
             }

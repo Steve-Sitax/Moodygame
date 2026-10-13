@@ -46,8 +46,8 @@ def export_glb(path, plain=False):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     bpy.ops.export_scene.gltf(
         filepath=path, export_format="GLB", export_yup=True, export_texcoords=True, export_normals=True,
-        export_materials="EXPORT", use_selection=False, export_skins=True, export_animations=True,
-        export_animation_mode="ACTIONS", export_force_sampling=True, export_image_format="JPEG",
+        export_materials="EXPORT", export_vertex_color="ACTIVE", use_selection=False, export_skins=True, export_animations=True,
+        export_animation_mode="ACTIONS", export_force_sampling=True, export_image_format="AUTO",
         export_jpeg_quality=88, export_image_quality=88, export_extras=True, export_influence_nb=4,
         export_draco_mesh_compression_enable=not plain, export_draco_mesh_compression_level=7,
         export_draco_position_quantization=14, export_draco_normal_quantization=10,

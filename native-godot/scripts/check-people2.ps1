@@ -1,8 +1,8 @@
 param(
     [string]$Godot,
-    [ValidateSet('captures','dress-captures','routing','shaders','parade','timing','legacy-timing','identity','pack','network')]
+    [ValidateSet('captures','dress-captures','distance-captures','routing','shaders','parade','timing','legacy-timing','identity','pack','network')]
     [string[]]$Modes = @('captures','shaders','parade','timing','identity','pack','network'),
-    [ValidateRange(8900,8909)][int]$Port = 8903,
+    [ValidateRange(8900,8939)][int]$Port = 8903,
     [ValidateRange(0,1800)][int]$WaitForTimingSeconds = 900
 )
 $ErrorActionPreference = 'Stop'
@@ -60,7 +60,8 @@ try {
         $args += @('res://town.tscn','--','--no-ai','--no-mainmenu','--dev','--port',$Port.ToString(),'--db',(Join-Path $dir 'game.sqlite'),'--prefs',(Join-Path $dir 'settings.json'),'--author-root',(Join-Path $dir 'layouts'),'--native-pack-test')
         if ($mode -ne 'legacy-timing') { $args += '--people2' }
         switch ($mode) {
-            'captures' { $args += @('--people2-captures',$dir,'--people2-light-proof') }
+            'captures' { $args += @('--people2-captures',$dir,'--people2-light-proof','--people2-picture-proof') }
+            'distance-captures' { $args += @('--people2-captures',$dir,'--people2-light-proof','--people2-picture-proof','--people2-distance-proof') }
             'dress-captures' { $args += @('--people2-captures',$dir,'--people2-light-proof','--people2-dress-proof') }
             'routing' { $args += @('--people2-proof','--snap',$dir,'--views','routing:-118,1.6,30,180,0,13,clear','--people2-map','docker_a=man_middling,fishwife_a=woman_stout,police=man_stout,sooi=man_slight') }
             'shaders' { $args += @('--shaders',$dir) }
@@ -69,12 +70,12 @@ try {
             'network' { $args += @('--dedicated','--native-network-smoke',$dir) }
         }
         $timing = $mode -in @('timing','legacy-timing')
-        if ($timing) {
+        if ($timing -or $mode -eq "shaders") {
             $exclusiveUntil = [DateTime]::UtcNow.AddSeconds($WaitForTimingSeconds)
             $waiting = 0
             while ((Other-Godot).Count) {
-                if ([DateTime]::UtcNow -ge $exclusiveUntil) { throw 'Exclusive timing requires all other Godot engines to finish.' }
-                if ($waiting++ % 30 -eq 0) { Write-Output 'Waiting for other Godot engines before exclusive timing.' }
+                if ([DateTime]::UtcNow -ge $exclusiveUntil) { throw "Exclusive $mode requires all other Godot engines to finish." }
+                if ($waiting++ % 30 -eq 0) { Write-Output "Waiting for other Godot engines before $mode." }
                 Start-Sleep -Seconds 1
             }
         }
@@ -104,10 +105,10 @@ try {
             if ($timing) { $isolation | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $dir 'process-isolation.json') }
             if ($contaminated) { throw 'People timing contaminated by another Godot process.' }
             if ($child.ExitCode -ne 0 -or $log -match '(?m)^ERROR:') { throw "People2 $mode failed; inspect $dir/engine.log" }
-            $reportFile = switch ($mode) { {$_ -in @('captures','dress-captures')} {'captures.json'} 'routing' {'people2-proof.json'} 'shaders' {'shaders.json'} 'parade' {'parade.json'} 'network' {'network.json'} default {'peopletest.json'} }
+            $reportFile = switch ($mode) { {$_ -in @('captures','dress-captures','distance-captures')} {'captures.json'} 'routing' {'people2-proof.json'} 'shaders' {'shaders.json'} 'parade' {'parade.json'} 'network' {'network.json'} default {'peopletest.json'} }
             $report = Get-Content -LiteralPath (Join-Path $dir $reportFile) -Raw | ConvertFrom-Json
             if ($mode -eq 'shaders' -and ($report.people2ShaderKindCount -ne 1 -or -not $report.ok -or $report.problems.Count)) { throw 'Shader inventory did not add exactly one people2 kind with zero problems.' }
-            if ($mode -in @('captures','dress-captures','timing','legacy-timing') -and -not $report.ok) { throw "People2 $mode report failed." }
+            if ($mode -in @('captures','dress-captures','distance-captures','timing','legacy-timing') -and -not $report.ok) { throw "People2 $mode report failed." }
             if ($mode -eq 'network' -and -not $report.passed) { throw 'Native multiplayer identity proof failed.' }
             if ($mode -eq 'routing' -and (-not $report.switchOkay -or -not $report.faceSetter.ok -or $report.bodyHeights.Count -ne 14 -or $report.figures[0].body -ne 'man_middling' -or $report.figures[1].body -ne 'woman_stout' -or $report.figures[2].body -ne 'man_stout' -or $report.figures[3].body -ne 'man_slight')) { throw 'People2 map/body/toggle proof failed.' }
             Write-Output "PASS $mode"

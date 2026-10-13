@@ -220,6 +220,7 @@ def fishwife_a_skin(ctx):
     leg = np.char.startswith(ctx.part, "leg")
     knit = 0.5 + 0.5 * np.sin(ctx.y * 1500) * np.sin(np.arctan2(ctx.x, ctx.z) * 38)
     col = np.array((0.16, 0.16, 0.18)) * (0.9 + 0.15 * knit)[:, None]
+    if hasattr(ctx, "detail_zone"): ctx.detail_zone[leg] = 1  # wool
     ctx.rgb[leg] = col[leg]
     ctx.h[leg] += 0.00015 * knit[leg]
     hand = ck.starts(ctx.part, ("finger", "arm")) & (ctx.y < bd.Y(ctx.P, 0.52))

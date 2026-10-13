@@ -1,0 +1,150 @@
+{
+  "version": 1,
+  "size": 1024,
+  "clothes": [
+    "man_middling",
+    "man_slight",
+    "man_stout",
+    "woman_middling",
+    "woman_slight",
+    "woman_stout",
+    "child_middling",
+    "child_slight",
+    "old_man",
+    "old_woman",
+    "docker_a",
+    "fishwife_a",
+    "police",
+    "sooi",
+    "held"
+  ],
+  "faces": [
+    "man_middling",
+    "man_slight",
+    "man_stout",
+    "woman_middling",
+    "woman_slight",
+    "woman_stout",
+    "child_middling",
+    "child_slight",
+    "old_man",
+    "old_woman",
+    "docker_a",
+    "fishwife_a",
+    "police",
+    "sooi"
+  ],
+  "entries": {
+    "man_middling": {
+      "clothes": 0,
+      "face": 0
+    },
+    "man_slight": {
+      "clothes": 1,
+      "face": 1
+    },
+    "man_stout": {
+      "clothes": 2,
+      "face": 2
+    },
+    "woman_middling": {
+      "clothes": 3,
+      "face": 3
+    },
+    "woman_slight": {
+      "clothes": 4,
+      "face": 4
+    },
+    "woman_stout": {
+      "clothes": 5,
+      "face": 5
+    },
+    "child_middling": {
+      "clothes": 6,
+      "face": 6
+    },
+    "child_slight": {
+      "clothes": 7,
+      "face": 7
+    },
+    "old_man": {
+      "clothes": 8,
+      "face": 8
+    },
+    "old_woman": {
+      "clothes": 9,
+      "face": 9
+    },
+    "docker_a": {
+      "clothes": 10,
+      "face": 10
+    },
+    "fishwife_a": {
+      "clothes": 11,
+      "face": 11
+    },
+    "police": {
+      "clothes": 12,
+      "face": 12
+    },
+    "sooi": {
+      "clothes": 13,
+      "face": 13
+    },
+    "people2_held": {
+      "clothes": 14,
+      "face": 0
+    }
+  },
+  "heads": {
+    "man_middling": 0,
+    "man_slight": 1,
+    "man_stout": 2,
+    "woman_middling": 3,
+    "woman_slight": 4,
+    "woman_stout": 5,
+    "child_middling": 6,
+    "child_slight": 7,
+    "old_man": 8,
+    "old_woman": 9,
+    "docker_a": 10,
+    "fishwife_a": 11,
+    "police": 12,
+    "sooi": 13
+  },
+  "faceIds": {
+    "0": 0,
+    "1": 1,
+    "2": 2,
+    "3": 3,
+    "4": 4,
+    "5": 5,
+    "6": 6,
+    "7": 7,
+    "8": 8,
+    "9": 9,
+    "10": 10,
+    "11": 11,
+    "12": 12,
+    "13": 13
+  },
+  "zones": {
+    "none": 0,
+    "wool": 1,
+    "linen": 2,
+    "canvas": 3,
+    "leather": 4,
+    "skin": 5
+  },
+  "detail": [
+    "detail_none",
+    "detail_wool",
+    "detail_linen",
+    "detail_canvas",
+    "detail_leather",
+    "detail_skin"
+  ],
+  "zoneChannel": "clothes colour alpha = zone / 5 (linear); face flag = vertex green",
+  "headUV": "full square",
+  "shaderKindsAdded": 0
+}

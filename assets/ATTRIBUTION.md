@@ -546,3 +546,10 @@ self-contained .NET 8 runtime (MIT, `DOTNET-LICENSE.txt`) and Node.js 24 (MIT an
 `runtime/LICENSE.txt`). Sources: https://godotengine.org/license/, https://github.com/dotnet/runtime and
 https://nodejs.org/. Existing server dependencies retain their licence files in production `node_modules`.
 The download adds no new npm dependencies.
+
+## People2 layered pictures (2026-10-13)
+
+| Asset | Authoring / origin | Licence |
+|---|---|---|
+| `native-godot/assets/people2-pictures/*_colour.png`, `*_normal.png` | Original skin, hand, face and garment painters in `art-source/tools/blender/people2`; independent PNG layers assembled by `pictures.py`. No external images. | Project original artwork |
+| `native-godot/assets/people2-pictures/detail_*.png` | Original periodic NumPy painter in `pictures.py`: wool fibres, linen slubs, canvas weave, leather grain and skin pores, 512 px colour/normal pairs. No external images or prompts. | Project original artwork |

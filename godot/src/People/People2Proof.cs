@@ -30,6 +30,8 @@ internal partial class People2Proof : Node
             origin = nearest.at - new Vector3(0, nearest.at.Y, 5f);
         }
         string[] kinds = { "docker_a", "fishwife_a", "police", "sooi" };
+        if (Main.I.Flag("people2-picture-proof"))
+            kinds = kinds.Concat(People2.Kinds.Where(k => !new[] { "p2:docker_a", "p2:fishwife_a", "p2:police", "p2:sooi" }.Contains(k))).ToArray();
         for (int i = 0; i < kinds.Length; i++)
         {
             var human = Humans.Make(kinds[i]); if (human == null) continue;
@@ -42,7 +44,7 @@ internal partial class People2Proof : Node
             people.Add(human);
             shadows.Add(new World.Blobs.Spot(at.X, at.Z, at.Y, 0.4f));
             var meshes = World.BakedWorld.All(human.Root).OfType<MeshInstance3D>().ToArray();
-            figures.Add(new { kind = kinds[i], body = human.Root.Name.ToString(), height = Height(human), bones = human.Root.GetNode<Skeleton3D>("Skeleton3D").GetBoneCount(), materials = meshes.SelectMany(m => Enumerable.Range(0, m.Mesh.GetSurfaceCount()).Select(s => m.Mesh.SurfaceGetMaterial(s).GetInstanceId())).Distinct().Count(), shadows = meshes.All(m => m.CastShadow == GeometryInstance3D.ShadowCastingSetting.Off), lod = meshes.Select(m => new { mesh = m.Name.ToString(), begin = m.VisibilityRangeBegin, end = m.VisibilityRangeEnd, morphs = (m.Mesh as ArrayMesh)?.GetBlendShapeCount(), eyes = m.Mesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Color].AsColorArray().Count(c => c.R > 0.5f) }).ToArray() });
+            figures.Add(new { kind = kinds[i], body = human.Root.Name.ToString(), height = Height(human), bones = human.Root.GetNode<Skeleton3D>("Skeleton3D").GetBoneCount(), materials = meshes.SelectMany(m => Enumerable.Range(0, m.Mesh.GetSurfaceCount()).Select(s => m.Mesh.SurfaceGetMaterial(s).GetInstanceId())).Distinct().Count(), shadows = meshes.All(m => m.CastShadow == GeometryInstance3D.ShadowCastingSetting.Off), lod = meshes.Select(m => new { mesh = m.Name.ToString(), begin = m.VisibilityRangeBegin, end = m.VisibilityRangeEnd, morphs = (m.Mesh as ArrayMesh)?.GetBlendShapeCount(), clothesLayer = m.GetInstanceShaderParameter("clothes_layer").AsInt32(), faceLayer = m.GetInstanceShaderParameter("face_layer").AsInt32(), headVertices = m.Mesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Color].AsColorArray().Count(c => c.G > 0.5f), eyes = m.Mesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Color].AsColorArray().Count(c => c.R > 0.5f) }).ToArray() });
         }
         World.Blobs.I?.Set("people2-proof", shadows);
         // Switching never replaces an existing figure. New copies go through the old routing again.
@@ -61,7 +63,7 @@ internal partial class People2Proof : Node
         if (dir != "")
         {
             Directory.CreateDirectory(dir);
-            File.WriteAllText(Path.Combine(dir, "people2-proof.json"), JsonSerializer.Serialize(new { figures, bodyHeights, faceSetter = FaceProof(), textureBytes = People2Material.TextureBytes, off, on, fallback, fallbackBones, optedIn, optedInBones, switchOkay = fallbackBones == 16 && optedInBones == 64, retained = people[0].Root.Name.ToString(), motions = Humans.Motions }, new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(Path.Combine(dir, "people2-proof.json"), JsonSerializer.Serialize(new { figures, bodyHeights, faceSetter = FaceProof(), textureBytes = People2Material.TextureBytes, projectionBytes = People2Material.ProjectionBytes, gpuBefore = People2Material.GpuBefore, gpuAfter = People2Material.GpuAfter, off, on, fallback, fallbackBones, optedIn, optedInBones, switchOkay = fallbackBones == 16 && optedInBones == 64, retained = people[0].Root.Name.ToString(), motions = Humans.Motions }, new JsonSerializerOptions { WriteIndented = true }));
         }
         if (Main.I.Arg("people2-captures") != "") await Capture(dir);
     }
@@ -72,12 +74,12 @@ internal partial class People2Proof : Node
         {
             var town = Main.I.GetNode<Town.Townspeople>("Townspeople");
             for (int i = 0; town.Data == null && i < 1800; i++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-            if (town.Data == null || people.Count != 4) throw new InvalidOperationException("People2 capture needs the native town and four dressed figures.");
+            if (town.Data == null || people.Count != (Main.I.Flag("people2-picture-proof") ? 14 : 4)) throw new InvalidOperationException("People2 capture needs the native town and four dressed figures.");
             town.ClockRuns = false;
             Game.GameState.I.PlayingWhen = () => false;
             for (int i = 0; !Dev.Kit.I.IsReady && i < 1800; i++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             if (!Dev.Kit.I.IsReady) throw new InvalidOperationException("Native dev API did not become ready.");
-            if (Main.I.Flag("people2-dress-proof"))
+            if (Main.I.Flag("people2-dress-proof") || Main.I.Flag("people2-picture-proof"))
             {
                 // Keep live residents from crossing the close inspection cameras. The four
                 // exhibit humans still use the real sampler, and the town/light resources stay intact.
@@ -90,15 +92,30 @@ internal partial class People2Proof : Node
             Main.I.Cam.SetProcess(false);
             Input.MouseMode = Input.MouseModeEnum.Visible;
             var pictures = new List<object>();
+            var wideExhibit = people[0].Root.GlobalPosition - new Vector3(0, 0, 4);
             foreach (var (label, hour, weather) in new[] { ("day", 13.0, "clear"), ("rain", 13.0, "rain"), ("lamps", 19.5, "clear") })
             {
                 await Dev.Kit.I.Light(hour, weather);
                 for (int settle = 0; settle < 90; settle++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
                 foreach (var human in people)
+                {
+                    var originalPosition = human.Root.GlobalPosition;
+                    if (Main.I.Flag("people2-distance-proof"))
+                    {
+                        foreach (var other in people) other.Root.Visible = other == human;
+                        var spot = wideExhibit;
+                        float ground = World.Lights.I?.GroundAt(spot.X, spot.Z) ?? spot.Y;
+                        if (float.IsFinite(ground)) spot.Y = ground;
+                        human.Root.GlobalPosition = spot;
+                        human.Play("talk", 0); human.Play("idle", 0); // release old stance contacts after relocation
+                        World.Blobs.I?.Set("people2-proof", new List<World.Blobs.Spot> { new(spot.X, spot.Z, spot.Y, 0.4f) });
+                    }
                     foreach (string motion in Main.I.Flag("people2-dress-proof") ? new[] { "idle", "walk", "talk" } : new[] { "current" })
                     foreach (var (distance, angle) in Main.I.Flag("people2-dress-proof")
                         ? new[] { (1f, "front"), (3f, "front"), (1f, "back-low"), (3f, "back-low"), (1f, "feet-low"), (1f, "top"), (3f, "far-front") }
-                        : new[] { (1f, "front"), (3f, "front"), (3f, "back-low") })
+                        : Main.I.Flag("people2-distance-proof")
+                            ? new[] { (8f, "front"), (8f, "back-low"), (1f, "side"), (3f, "side"), (1f, "feet-low") }
+                            : new[] { (1f, "front"), (3f, "front"), (1f, "back-low"), (3f, "back-low"), (1f, "top") })
                     {
                         if (motion != "current") human.Play(motion, 0);
                         foreach (var mesh in World.BakedWorld.All(human.Root).OfType<MeshInstance3D>())
@@ -109,14 +126,15 @@ internal partial class People2Proof : Node
                         var at = human.Root.GlobalPosition;
                         bool front = angle is "front" or "far-front";
                         var from = at + (front ? new Vector3(0, distance == 1 ? 1.55f : 1.3f, -distance)
+                            : angle == "side" ? new Vector3(distance, distance == 1 ? 1.55f : 1.3f, 0)
                             : angle == "feet-low" ? new Vector3(0.6f, 0.12f, -0.8f)
                             : angle == "top" ? new Vector3(0.75f, 2.2f, -0.65f)
                             : new Vector3(distance * 0.8f, 0.35f, distance * 0.6f));
-                        var target = at + new Vector3(0, angle == "feet-low" ? 0.2f : angle == "top" ? 1.0f : angle == "front" && distance == 1 ? 1.5f : 0.85f, 0);
+                        var target = at + new Vector3(0, angle == "feet-low" ? 0.2f : angle == "top" ? 1.0f : (angle == "front" || angle == "side") && distance == 1 ? 1.5f : 0.85f, 0);
                         Main.I.Cam.LookAtFromPosition(from, target);
                         if (Main.I.Cam is Player.FlyCam fly) fly.Face(Main.I.Cam.GlobalBasis.GetRotationQuaternion());
                         for (int settle = 0; settle < 12; settle++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-                        string name = $"{label}-{human.Kind}-{distance:0}m" + (angle == "front" ? "" : "-" + angle) + (motion == "current" ? "" : "-" + motion) + ".png";
+                        string name = $"{label}-{human.Kind.Replace(':', '_')}-{distance:0}m" + (angle == "front" ? "" : "-" + angle) + (motion == "current" ? "" : "-" + motion) + ".png";
                         Main.I.View.GetTexture().GetImage().SavePng(Path.Combine(dir, name));
                         var daylight = World.Daylight.I;
                         if (Math.Abs(daylight.Hour - hour) > 0.02 || daylight.Weather != weather)
@@ -129,7 +147,11 @@ internal partial class People2Proof : Node
                             if (mesh.Name.ToString().EndsWith("_lod1", StringComparison.Ordinal)) mesh.VisibilityRangeBegin = 15;
                         }
                     }
+                    if (Main.I.Flag("people2-distance-proof")) human.Root.GlobalPosition = originalPosition;
+                }
             }
+            foreach (var human in people) human.Root.Visible = true;
+            World.Blobs.I?.Set("people2-proof", shadows);
             File.WriteAllText(Path.Combine(dir, "captures.json"), JsonSerializer.Serialize(new { ok = true, place = "vismarkt", fingerprint = Main.I.WorldFingerprint, pictures }, new JsonSerializerOptions { WriteIndented = true }));
             GetTree().Quit();
         }

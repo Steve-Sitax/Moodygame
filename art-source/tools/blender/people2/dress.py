@@ -9,7 +9,7 @@ steps, in build():
 4. the garments (Kind.dress(fit) -> Pieces), one cage: unwrapped, subdivided (near), on its limit surface (far);
 5. the body under the clothes cut away (Kind.covers);
 6. the cloth picture, painted on the garments in 3D;
-7. UVs into the atlas cells, the clothes joined into the body's two meshes, hats made to follow the face shapes.
+7. UVs into the kind layer and full-square face, the clothes joined into the body's two meshes, hats made to follow the face shapes.
 """
 
 import os
@@ -17,7 +17,7 @@ import os
 import numpy as np
 
 from . import SHOTS
-from . import atlas as at
+from . import pictures as at
 from . import clothes_kit as ck
 from . import lod
 from . import paint
@@ -153,6 +153,7 @@ def paint_body(b, kind, look, size):
     from . import face_paint as fp
     src = np.array((0.80, 0.63, 0.53) if not P["female"] else (0.83, 0.67, 0.58), np.float32)
     rgb = np.clip(rgb * (fp.skin_rgb(look) / src), 0, 1)
+    zones = at.skin_zones(pos, part, names, P)
     hgt = np.zeros(rgb.shape[:2], np.float32)
     rgb, hgt = hands.paint_hands(rgb, hgt, pos, part, names, P, hard=kind.hands_hard)
     if kind.skin is not None:
@@ -164,11 +165,14 @@ def paint_body(b, kind, look, size):
                      None, rgb[idx].copy(), hgt[idx].astype(np.float64), 7)
         ctx.part = pname[idx]
         ctx.P = P
+        ctx.detail_zone = zones[idx].copy()
         kind.skin(ctx)
+        zones[idx] = ctx.detail_zone
         rgb[idx] = ctx.rgb
         hgt[idx] = ctx.h
     rgb = paint.dilate(rgb, part >= 0)
     nmap = hands.normal_from_height(hgt, pos, part >= 0)
+    paint_body.zones = paint.dilate(zones[..., None], part >= 0)[..., 0]
     return rgb, nmap
 
 
@@ -205,6 +209,11 @@ def paint_clothes(ob, pieces, fit, size, seed=3):
         ck.paint_cloth(ctx)
         rgb[idx] = np.clip(ctx.rgb, 0, 1)
         hgt[idx] = ctx.h
+    zones = np.zeros((size, size), np.float32)
+    for pc in pieces:
+        zone = at.ZONES.get(pc.cloth.kind, 1 if pc.cloth.kind in ("felt", "corduroy") else 2 if pc.cloth.kind == "cotton" else 0)
+        zones[(pname == pc.name) | (pname == "in_" + pc.name)] = zone
+    paint_clothes.zones = paint.dilate(zones[..., None], part >= 0)[..., 0]
     has = part >= 0
     rgb = paint.dilate(rgb, has)
     nmap = hands.normal_from_height(hgt.astype(np.float32), pos, has)
@@ -229,7 +238,8 @@ def build(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
     # the pictures of the body and the face
     rgb, nmap = paint_body(b, kind, look, tex)
     atl.put("body_" + kind.name, rgb, nmap)
-    fsz = 1024 if kind.hero else 512
+    atl.clothes_zones("body_" + kind.name, paint_body.zones)
+    fsz = 1024
     frgb, _, fnrm = fp.paint(look, fsz)
     atl.put("face_" + kind.name, frgb, fnrm)
     # the garments
@@ -250,6 +260,7 @@ def build(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
         limit4(ob)
     crgb, cnrm = paint_clothes(near, pieces, fit, tex)
     atl.put("cloth_" + kind.name, crgb, cnrm)
+    atl.clothes_zones("cloth_" + kind.name, paint_clothes.zones)
     if os.environ.get("PEOPLE2_SHOTS_CELLS"):
         paint.to_image("cloth_" + kind.name, crgb, os.path.join(SHOTS, "cloth_%s.png" % kind.name))
     # the body under the clothes
@@ -262,7 +273,7 @@ def build(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
     b["piece_counts"] = {"lod0": piece_counts(near), "lod1": piece_counts(cage)}
     log("[people2]   %s final clothes near/far: %s / %s" %
         (kind.name, b["piece_counts"]["lod0"], b["piece_counts"]["lod1"]))
-    # UVs into the atlas
+    # UVs into this kind's clothes layer and full-square face
     at.remap_uv(b["lod0"], layout["body_" + kind.name], layout["face_" + kind.name])
     at.remap_uv(b["lod1"], layout["body_" + kind.name], layout["face_" + kind.name])
     at.remap_uv(near, layout["cloth_" + kind.name])

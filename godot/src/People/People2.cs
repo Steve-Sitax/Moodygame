@@ -144,6 +144,7 @@ public static class People2
         string body = Body(kind);
         if (!Bodies.ContainsKey(body)) return null;
         if (model?.Copy(body) is not { } root) return null;
+        People2Material.Assign(root, body);
         var sk = root.GetNode<Skeleton3D>("Skeleton3D");
         float height = sk.GetBoneRest(sk.FindBone("hips")).Origin.Y;
         bool female = Humans.Women.Contains(kind);
@@ -159,6 +160,7 @@ public static class People2
                     var copy = (Node3D)source.Duplicate();
                     copy.Position = new Basis(Vector3.Right, Mathf.DegToRad(item.Tilt)) * item.Offset;
                     copy.Rotation = new Vector3(Mathf.DegToRad(item.Tilt), 0, 0);
+                    People2Material.Assign(copy, "people2_held");
                     attachment.AddChild(copy);
                 }
         var human = new Human(kind, root, new AnimationLibrary(), new Dictionary<string, float>(), info.Item1 / 0.95f, runtime);

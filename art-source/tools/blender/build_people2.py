@@ -5,9 +5,9 @@ kinds of package C (docs/people.md).
         [--kinds a,b | --nokinds] [--dress] [--no-move] [--fast]
 
 Writes client/public/models/people2.glb (ten base bodies and the kinds, each an armature with a near and a far
-skinned mesh; the held things; the clips keyed on the first body; one material over one picture atlas) and
+skinned mesh; the held things; the clips keyed on the first body; one material over layered clothes and face pictures) and
 shared/peopleRig.json (bones, sockets, grab marks, the Godot BoneMap, every body's joints and figures, the kinds,
-the atlas). people.glb is not touched: the games switch later (packages E and F).
+the picture manifest). people.glb is not touched: the games switch later (packages E and F).
 
 --preview  data/shots/people2/bodies_front.png, _side, _back, _closeups (every body, lit, no fog)
 --cast     the checks, in data/shots/people2/: turntable_3m.png and turntable_10m.png (in the game's fog),
@@ -42,7 +42,7 @@ import people2  # noqa: E402
 from people2 import body as bd  # noqa: E402
 from people2 import clips_legacy, clips_move, export, lod, paint, rig, weights  # noqa: E402
 from people2 import face_paint as fp  # noqa: E402
-from people2 import hair  # noqa: E402
+from people2 import hair, pictures  # noqa: E402
 from people2 import hands  # noqa: E402
 from people2 import head as hd  # noqa: E402
 
@@ -230,7 +230,7 @@ def main():
         frgb, _, fnrm = fp.paint(fp.BASE_LOOKS[sex], 512)
         rgb = fp.insert(rgb, frgb, TEX)
         nmap = fp.insert(hn_map, fnrm, TEX)
-        skins[sex] = (rgb, nmap)
+        skins[sex] = (rgb, nmap, pictures.skin_zones(pos, part, names, src["P"]))
         img = paint.to_image("people2_skin_" + sex, rgb, os.path.join(people2.SHOTS, "skin_%s.png" % sex))
         nimg = paint.to_image("people2_skin_%s_n" % sex, nmap, os.path.join(people2.SHOTS, "skin_%s_n.png" % sex))
         nimg.colorspace_settings.name = "Non-Color"
@@ -249,7 +249,7 @@ def main():
     # B: the grips (curls and where a handle of each size sits in gripL/gripR), fitted on the first body
     from people2 import preview_b
     grips = preview_b.fit_grips(bodies[0])
-    # A, B and D1 check pictures look at the base bodies with their own pictures (before the atlas)
+    # A, B and D1 check pictures look at the base bodies with their own pictures (before layered UV mapping)
     b_checks = [k for k in ("faces", "hands", "sheet") if "--" + k in ARGS]
     if b_checks:
         preview_b.run(bodies, mats, b_checks)
@@ -264,15 +264,16 @@ def main():
         for ln in preview_move.cast_move(move_clips, bodies):
             print("[people2] " + ln)
     clear_stage()
-    # C: the kinds, and one picture atlas and one material for everybody (docs/people.md "Kinds and clothes")
-    from people2 import atlas as at
+    # C: the kinds, and independent picture layers and one native material for everybody (docs/people.md "Kinds and clothes")
+    from people2 import pictures as at
     from people2 import dress, held
     kinds = [] if "--nokinds" in ARGS else [k for k in all_kinds()
                                             if (not KINDS_ONLY or k.name in KINDS_ONLY) and k.body in present]
     layout = at.cells([(k.name, k.hero) for k in kinds])
-    atl = at.Atlas(layout)
-    for sex, (rgb, nmap) in skins.items():
+    atl = at.Pictures(layout)
+    for sex, (rgb, nmap, zones) in skins.items():
         atl.put("skin_" + sex, rgb, nmap)
+        atl.clothes_zones("skin_" + sex, zones)
     for b in bodies:
         sex = picture_of(b["P"]) if picture_of(b["P"]) in skins else ("f" if b["P"]["female"] else "m")
         for ob in (b["lod0"], b["lod1"]):
@@ -281,8 +282,11 @@ def main():
     for k in kinds:
         dressed.append(dress.build(k, make_body, ref_uv, layout, atl, tex=TEX))
     held_obs = held.build_all(kinds, layout, atl, tex=TEX)
-    img, nimg = atl.images(people2.SHOTS)
-    mat = export.material("people2_atlas", img, nimg)
+    picture_manifest = atl.write(bodies, dressed, os.path.join(people2.ROOT, "..", "native-godot", "assets", "people2-pictures"), picture_of)
+    # Tiny intake placeholder; native load replaces it with one layered material.
+    img = paint.to_image("people2_placeholder", np.ones((4,4,3), np.float32))
+    nimg = paint.to_image("people2_placeholder_n", np.tile((.5,.5,1.), (4,4,1)))
+    mat = export.material("people2_atlas", img, nimg)  # retained intake label; images are tiny placeholders
     for b in bodies + dressed:
         for ob in (b["lod0"], b["lod1"]):
             ob.data.materials.clear()
@@ -343,7 +347,7 @@ def main():
                                            "foot RX(footDeg) (pose convention, before the clip's own turn) and lower "
                                            "the hips by hipsDrop m (docs/people.md 'The old')"},
                      "locomotion": loco,
-                     "atlas": dress.atlas_json(layout),
+                     "pictures": picture_manifest,
                      "held": held.json_all(kinds),
                      "kinds": {b["name"]: dress.kind_json(b) for b in dressed}})
     kb = os.path.getsize(OUT) // 1024

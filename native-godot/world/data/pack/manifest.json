@@ -1,6 +1,6 @@
 {
   "format": 2,
-  "version": "native-pack-c84b8edf5e257979538d9652f214e9effeaaf2c716779287fe5ad87f73d5b660",
+  "version": "native-pack-5074cc39a78a349c7dd710a56601bdd10656e05d3db302926d4eeb502215bf6d",
   "files": [
     {
       "file": "maps/dirt.json",
@@ -1900,9 +1900,9 @@
     },
     {
       "file": "shared/peopleRig.json",
-      "blob": "blobs/7e268e7ef365cc7ebda9fa73ca3b9f682d827c259b4baffd54999bc32a703265.bin",
-      "sha256": "7e268e7ef365cc7ebda9fa73ca3b9f682d827c259b4baffd54999bc32a703265",
-      "bytes": 213573
+      "blob": "blobs/206834a3c20933f8e1ac5b16d125c0fbbbc41c83851563533b9ae427f51dcda5.bin",
+      "sha256": "206834a3c20933f8e1ac5b16d125c0fbbbc41c83851563533b9ae427f51dcda5",
+      "bytes": 214492
     },
     {
       "file": "shared/quaycargo.json",
