@@ -243,7 +243,7 @@ internal partial class AnimalsProof : Node
                 await Pose("idle", 1.2f, YawOf(face));
                 // a metre from the nose (the nose stands about half a shoulder height ahead of the body's middle)
                 await Shoot($"{label}-{kind}-1m-front", spot + face * (1.0f + 0.5f * H) + Vector3.Up * (head + 0.25f), spot + face * 0.25f * H + Vector3.Up * (0.85f * H), hour, weather);
-                if (label == "day")
+                if (label == "day" || Main.I.Flag("animals-integration-proof"))
                 {
                     await Shoot($"{label}-{kind}-3m-front", spot + face * 3f + Vector3.Up * 1.5f, c, hour, weather);
                     // side: the animal turned along the street
@@ -258,8 +258,17 @@ internal partial class AnimalsProof : Node
                     await Shoot($"{label}-{kind}-1m-back-low", spot + face * 1.0f + side * 0.45f + Vector3.Up * 0.12f, c, hour, weather);
                     await Pose("sit", 1.0f, YawOf(side));
                     await Shoot($"{label}-{kind}-3m-sit", spot + face * 3f + Vector3.Up * 1.4f, c, hour, weather);
+                    if (Main.I.Flag("animals-integration-proof"))
+                        await Shoot($"{label}-{kind}-1m-sit", spot + face * 1f + Vector3.Up * (head + 0.25f), c, hour, weather);
                     await Pose(rig.Clips.ContainsKey("sleep") && kind.StartsWith("cat") ? "sleep" : "lie", 1.0f, YawOf(side));
                     await Shoot($"{label}-{kind}-3m-lie", spot + face * 2.6f + side * 1.2f + Vector3.Up * 1.4f, spot, hour, weather);
+                    if (Main.I.Flag("animals-integration-proof"))
+                    {
+                        await Shoot($"{label}-{kind}-1m-lie", spot + face * 1f + Vector3.Up * (mid + 0.3f), spot + Vector3.Up * mid * 0.5f, hour, weather);
+                        await Pose("walk", 0.35f, YawOf(side));
+                        await Shoot($"{label}-{kind}-1m-walk", spot + face * 1f + Vector3.Up * (mid + 0.3f), c, hour, weather);
+                        await Shoot($"{label}-{kind}-3m-walk", spot + face * 3f + Vector3.Up * 1.4f, c, hour, weather);
+                    }
                 }
                 else
                 {

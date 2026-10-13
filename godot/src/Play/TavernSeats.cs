@@ -86,7 +86,7 @@ public partial class TavernSeats : Node
         if(loading||dead||ServerLink.I?.Api is not {} api)return; loading=true; int g=generation;
         try { foreach(var r in Rooms) { if(r.Origin.DistanceTo(new(Jef.I.X,r.Origin.Y,Jef.I.Z))>35)continue; var state=await api.Tavern(r.Id);if(dead||g!=generation)return;r.Open=state.Open;
             foreach(var s in r.Seats)s.Occupant=null;
-            foreach(var p in state.Patrons) { if(p.Stand||p.Age<16||Standers.Contains(p.Kind)||Humans.Women.Contains(p.Kind)||Humans.OwnClips.ContainsKey(p.Kind)||Humans.NoSit.Contains(p.Kind)||r.Seats.Count==0)continue; int first=(int)(Hash(p.Id)%(uint)r.Seats.Count); for(int k=0;k<r.Seats.Count;k++){var s=r.Seats[(first+k)%r.Seats.Count];if(s.Occupant!=null||s==Sitting)continue;s.Occupant=p;break;} }
+            foreach(var p in state.Patrons) { if(p.Stand||p.Age<16||Standers.Contains(p.Kind)||!Humans.CanSitKind(p.Kind)||r.Seats.Count==0)continue; int first=(int)(Hash(p.Id)%(uint)r.Seats.Count); for(int k=0;k<r.Seats.Count;k++){var s=r.Seats[(first+k)%r.Seats.Count];if(s.Occupant!=null||s==Sitting)continue;s.Occupant=p;break;} }
         } FindMate();Pose(); } catch(ApiException){}finally{loading=false;}
     }
     private void Pose()

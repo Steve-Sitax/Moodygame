@@ -169,9 +169,7 @@ public sealed class Animal
                     if (bm.NormalTexture is { } nrm) sm.SetShaderParameter("skin_normal", People2Material.Mipmapped(nrm, false));
                     else sm.SetShaderParameter("normal_strength", 0f);
                     if (Main.I.Arg("animals-normal-strength") is { Length: > 0 } ns) sm.SetShaderParameter("normal_strength", float.Parse(ns, System.Globalization.CultureInfo.InvariantCulture));
-                    sm.SetShaderParameter("alpha_cut", 0f);
                     // the eyes (vertex red 1) and the wet nose (0.45) catch the light
-                    sm.SetShaderParameter("eye_vertex_flag", 1f);
                     mats[bm] = m = sm;
                 }
                 mi.Mesh.SurfaceSetMaterial(s, m);

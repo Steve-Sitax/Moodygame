@@ -11709,7 +11709,104 @@
   "woman_turn_l90",
   "woman_turn_r90",
   "woman_turn_l180",
-  "woman_turn_r180"
+  "woman_turn_r180",
+  "man_idle_shift",
+  "man_idle_feet",
+  "man_idle_hips",
+  "man_idle_behind",
+  "man_fold",
+  "man_pockets",
+  "man_talk_calm",
+  "man_talk_eager",
+  "man_talk_cross",
+  "man_listen",
+  "man_listen_fold",
+  "man_laugh",
+  "man_shrug",
+  "man_point",
+  "woman_idle_shift",
+  "woman_idle_feet",
+  "woman_idle_hips",
+  "woman_fold",
+  "woman_behind",
+  "woman_pockets",
+  "woman_talk_calm",
+  "woman_talk_eager",
+  "woman_talk_cross",
+  "woman_listen",
+  "woman_listen_fold",
+  "woman_laugh",
+  "woman_shrug",
+  "woman_point",
+  "stout_idle_hips",
+  "stout_fold",
+  "stout_pockets",
+  "wstout_idle_hips",
+  "wstout_fold",
+  "wstout_idle_shift",
+  "old_idle_behind",
+  "old_idle_front",
+  "old_idle_back",
+  "old_idle_feet",
+  "old_talk_calm",
+  "old_talk_cross",
+  "old_listen",
+  "old_laugh",
+  "old_point",
+  "oldw_idle_front",
+  "oldw_idle_fold",
+  "oldw_talk_calm",
+  "oldw_listen",
+  "child_idle_shift",
+  "child_idle_rock",
+  "child_idle_feet",
+  "child_pockets",
+  "child_talk",
+  "child_listen",
+  "child_laugh",
+  "man_sit_bench",
+  "man_sit_chair",
+  "man_sit_crate",
+  "man_sit_step",
+  "woman_sit_bench",
+  "woman_sit_chair",
+  "woman_sit_crate",
+  "woman_sit_step",
+  "stout_sit_bench",
+  "wstout_sit_bench",
+  "old_sit_bench",
+  "old_sit_step",
+  "oldw_sit_bench",
+  "child_sit_bench",
+  "child_sit_step",
+  "man_sit_bench_down",
+  "man_sit_bench_up",
+  "man_sit_chair_down",
+  "man_sit_chair_up",
+  "man_sit_crate_down",
+  "man_sit_crate_up",
+  "man_sit_step_down",
+  "man_sit_step_up",
+  "woman_sit_bench_down",
+  "woman_sit_bench_up",
+  "woman_sit_chair_down",
+  "woman_sit_chair_up",
+  "woman_sit_crate_down",
+  "woman_sit_crate_up",
+  "woman_sit_step_down",
+  "woman_sit_step_up",
+  "stout_sit_bench_down",
+  "stout_sit_bench_up",
+  "wstout_sit_bench_down",
+  "wstout_sit_bench_up",
+  "old_sit_bench_down",
+  "old_sit_bench_up",
+  "old_sit_step_down",
+  "old_sit_step_up",
+  "oldw_sit_bench_down",
+  "oldw_sit_bench_up",
+  "child_sit_step_down",
+  "child_sit_step_up"
  ],
  "grips": {
   "note": "hands closed round a handle across the fist (art-source/tools/blender/people2/preview_b.py fit_grips): curls are MCP, PIP, DIP degrees per finger (the little finger rides on the ring bones), the thumb (across, flex at the base, MCP, IP); axisAt is the handle's axis in the grip socket's own frame (metres): put a handle of that radius there, along the socket's +y",
@@ -13618,6 +13715,2282 @@
   "zoneChannel": "clothes colour alpha = zone / 5 (linear); face flag = vertex green",
   "headUV": "full square",
   "shaderKindsAdded": 0
+ },
+ "idles": {
+  "about": "package D2 clips (art-source/tools/blender/people2/clips_idle.py, docs/people.md 'Idles, talk and sitting'). Each is made on its family's body and keyed like the D1 clips (hips translation on trackBase). Every loop of a family starts and ends in the family's neutral stance (weight in the middle, feet at their base): hand one over to another at a seam and no foot moves.",
+  "bodyFamily": {
+   "man_middling": "man",
+   "man_slight": "man",
+   "man_stout": "stout",
+   "woman_middling": "woman",
+   "woman_slight": "woman",
+   "woman_stout": "wstout",
+   "old_man": "old",
+   "old_woman": "oldw",
+   "child_middling": "child",
+   "child_slight": "child"
+  },
+  "families": {
+   "man": {
+    "body": "man_middling",
+    "fallback": null,
+    "idle": [
+     "man_idle_shift",
+     "man_idle_feet",
+     "man_idle_hips"
+    ],
+    "talk": {
+     "calm": [
+      "man_talk_calm"
+     ],
+     "eager": [
+      "man_talk_eager"
+     ],
+     "cross": [
+      "man_talk_cross"
+     ]
+    },
+    "listen": [
+     "man_listen",
+     "man_listen_fold"
+    ],
+    "laugh": [
+     "man_laugh"
+    ],
+    "shrug": [
+     "man_shrug"
+    ],
+    "point": [
+     "man_point"
+    ],
+    "fold": [
+     "man_fold"
+    ],
+    "behind": [
+     "man_idle_behind"
+    ],
+    "pockets": [
+     "man_pockets"
+    ],
+    "sit": {
+     "bench": {
+      "clip": "man_sit_bench",
+      "seat": 0.45,
+      "hips": 0.5911,
+      "dangle": false
+     },
+     "chair": {
+      "clip": "man_sit_chair",
+      "seat": 0.46,
+      "hips": 0.6011,
+      "dangle": false
+     },
+     "crate": {
+      "clip": "man_sit_crate",
+      "seat": 0.4,
+      "hips": 0.5411,
+      "dangle": false
+     },
+     "step": {
+      "clip": "man_sit_step",
+      "seat": 0.2,
+      "hips": 0.3411,
+      "dangle": false
+     }
+    },
+    "sitDown": {
+     "bench": "man_sit_bench_down",
+     "chair": "man_sit_chair_down",
+     "crate": "man_sit_crate_down",
+     "step": "man_sit_step_down"
+    },
+    "standUp": {
+     "bench": "man_sit_bench_up",
+     "chair": "man_sit_chair_up",
+     "crate": "man_sit_crate_up",
+     "step": "man_sit_step_up"
+    }
+   },
+   "woman": {
+    "body": "woman_middling",
+    "fallback": null,
+    "idle": [
+     "woman_idle_shift",
+     "woman_idle_feet",
+     "woman_idle_hips"
+    ],
+    "talk": {
+     "calm": [
+      "woman_talk_calm"
+     ],
+     "eager": [
+      "woman_talk_eager"
+     ],
+     "cross": [
+      "woman_talk_cross"
+     ]
+    },
+    "listen": [
+     "woman_listen",
+     "woman_listen_fold"
+    ],
+    "laugh": [
+     "woman_laugh"
+    ],
+    "shrug": [
+     "woman_shrug"
+    ],
+    "point": [
+     "woman_point"
+    ],
+    "fold": [
+     "woman_fold"
+    ],
+    "behind": [
+     "woman_behind"
+    ],
+    "pockets": [
+     "woman_pockets"
+    ],
+    "sit": {
+     "bench": {
+      "clip": "woman_sit_bench",
+      "seat": 0.45,
+      "hips": 0.5874,
+      "dangle": false
+     },
+     "chair": {
+      "clip": "woman_sit_chair",
+      "seat": 0.46,
+      "hips": 0.5974,
+      "dangle": false
+     },
+     "crate": {
+      "clip": "woman_sit_crate",
+      "seat": 0.4,
+      "hips": 0.5374,
+      "dangle": false
+     },
+     "step": {
+      "clip": "woman_sit_step",
+      "seat": 0.2,
+      "hips": 0.3374,
+      "dangle": false
+     }
+    },
+    "sitDown": {
+     "bench": "woman_sit_bench_down",
+     "chair": "woman_sit_chair_down",
+     "crate": "woman_sit_crate_down",
+     "step": "woman_sit_step_down"
+    },
+    "standUp": {
+     "bench": "woman_sit_bench_up",
+     "chair": "woman_sit_chair_up",
+     "crate": "woman_sit_crate_up",
+     "step": "woman_sit_step_up"
+    }
+   },
+   "stout": {
+    "body": "man_stout",
+    "fallback": "man",
+    "idle": [
+     "stout_idle_hips"
+    ],
+    "talk": {
+     "calm": [],
+     "eager": [],
+     "cross": []
+    },
+    "listen": [],
+    "laugh": [],
+    "shrug": [],
+    "point": [],
+    "fold": [
+     "stout_fold"
+    ],
+    "behind": [],
+    "pockets": [
+     "stout_pockets"
+    ],
+    "sit": {
+     "bench": {
+      "clip": "stout_sit_bench",
+      "seat": 0.45,
+      "hips": 0.6013,
+      "dangle": false
+     }
+    },
+    "sitDown": {
+     "bench": "stout_sit_bench_down"
+    },
+    "standUp": {
+     "bench": "stout_sit_bench_up"
+    }
+   },
+   "wstout": {
+    "body": "woman_stout",
+    "fallback": "woman",
+    "idle": [
+     "wstout_idle_hips",
+     "wstout_idle_shift"
+    ],
+    "talk": {
+     "calm": [],
+     "eager": [],
+     "cross": []
+    },
+    "listen": [],
+    "laugh": [],
+    "shrug": [],
+    "point": [],
+    "fold": [
+     "wstout_fold"
+    ],
+    "behind": [],
+    "pockets": [],
+    "sit": {
+     "bench": {
+      "clip": "wstout_sit_bench",
+      "seat": 0.45,
+      "hips": 0.5974,
+      "dangle": false
+     }
+    },
+    "sitDown": {
+     "bench": "wstout_sit_bench_down"
+    },
+    "standUp": {
+     "bench": "wstout_sit_bench_up"
+    }
+   },
+   "old": {
+    "body": "old_man",
+    "fallback": null,
+    "idle": [
+     "old_idle_behind",
+     "old_idle_front",
+     "old_idle_back",
+     "old_idle_feet"
+    ],
+    "talk": {
+     "calm": [
+      "old_talk_calm"
+     ],
+     "eager": [],
+     "cross": [
+      "old_talk_cross"
+     ]
+    },
+    "listen": [
+     "old_listen"
+    ],
+    "laugh": [
+     "old_laugh"
+    ],
+    "shrug": [],
+    "point": [
+     "old_point"
+    ],
+    "fold": [],
+    "behind": [
+     "old_idle_behind"
+    ],
+    "pockets": [
+     "old_idle_front"
+    ],
+    "sit": {
+     "bench": {
+      "clip": "old_sit_bench",
+      "seat": 0.45,
+      "hips": 0.578,
+      "dangle": false
+     },
+     "step": {
+      "clip": "old_sit_step",
+      "seat": 0.2,
+      "hips": 0.328,
+      "dangle": false
+     }
+    },
+    "sitDown": {
+     "bench": "old_sit_bench_down",
+     "step": "old_sit_step_down"
+    },
+    "standUp": {
+     "bench": "old_sit_bench_up",
+     "step": "old_sit_step_up"
+    }
+   },
+   "oldw": {
+    "body": "old_woman",
+    "fallback": "old",
+    "idle": [
+     "oldw_idle_front"
+    ],
+    "talk": {
+     "calm": [
+      "oldw_talk_calm"
+     ],
+     "eager": [],
+     "cross": []
+    },
+    "listen": [
+     "oldw_listen"
+    ],
+    "laugh": [],
+    "shrug": [],
+    "point": [],
+    "fold": [
+     "oldw_idle_fold"
+    ],
+    "behind": [],
+    "pockets": [
+     "oldw_idle_front"
+    ],
+    "sit": {
+     "bench": {
+      "clip": "oldw_sit_bench",
+      "seat": 0.45,
+      "hips": 0.574,
+      "dangle": false
+     }
+    },
+    "sitDown": {
+     "bench": "oldw_sit_bench_down"
+    },
+    "standUp": {
+     "bench": "oldw_sit_bench_up"
+    }
+   },
+   "child": {
+    "body": "child_middling",
+    "fallback": null,
+    "idle": [
+     "child_idle_shift",
+     "child_idle_feet"
+    ],
+    "talk": {
+     "calm": [],
+     "eager": [
+      "child_talk"
+     ],
+     "cross": []
+    },
+    "listen": [
+     "child_listen"
+    ],
+    "laugh": [
+     "child_laugh"
+    ],
+    "shrug": [],
+    "point": [],
+    "fold": [],
+    "behind": [
+     "child_idle_rock"
+    ],
+    "pockets": [
+     "child_pockets"
+    ],
+    "sit": {
+     "bench": {
+      "clip": "child_sit_bench",
+      "seat": 0.45,
+      "hips": 0.554,
+      "dangle": true
+     },
+     "step": {
+      "clip": "child_sit_step",
+      "seat": 0.2,
+      "hips": 0.304,
+      "dangle": false
+     }
+    },
+    "sitDown": {
+     "step": "child_sit_step_down"
+    },
+    "standUp": {
+     "step": "child_sit_step_up"
+    }
+   }
+  },
+  "seats": {
+   "bench": 0.45,
+   "chair": 0.46,
+   "crate": 0.4,
+   "step": 0.2
+  },
+  "rules": {
+   "variant": "pick a family's clip for a motion from the person's stable id (FNV-1a), the same on every PC; let a standing idle change now and then (20-50 s) to another of the family's idles, only at the end of a loop, with a 1 s crossfade",
+   "talk": "a talker alternates speaking (the talk set) and listening at the end of each loop; a partner within 3 m who also talks takes the other turn; the set comes from the mood if known (angry, cold: cross; warm, amused: eager; else calm), else from the id",
+   "sit": "the seat's height picks the variant: under 0.32 m a step, under 0.43 a crate, else a bench or a chair by the id; the hips are lowered by the clip; move the node by seat - seat(clip) * scale and put the feet back on the floor with leg IK near the camera",
+   "fallback": "a family without a clip for a motion uses its fallback family's"
+  },
+  "clips": {
+   "man_idle_shift": {
+    "role": "idle",
+    "family": "man",
+    "female": false,
+    "kind": "idle",
+    "body": "man_middling",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.181,
+     "slidePlayedMm": 0.181,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.352
+    }
+   },
+   "man_idle_feet": {
+    "role": "idle",
+    "family": "man",
+    "female": false,
+    "kind": "idle",
+    "body": "man_middling",
+    "seconds": 14.7083,
+    "frames": 354,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.247,
+     "slidePlayedMm": 0.312,
+     "scuffMm": 0.5,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 25.116
+    }
+   },
+   "man_idle_hips": {
+    "role": "idle",
+    "family": "man",
+    "female": false,
+    "kind": "idle",
+    "body": "man_middling",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.189,
+     "slidePlayedMm": 0.189,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.364
+    }
+   },
+   "man_idle_behind": {
+    "role": "behind",
+    "family": "man",
+    "female": false,
+    "kind": "idle",
+    "body": "man_middling",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.124,
+     "slidePlayedMm": 0.124,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.194
+    }
+   },
+   "man_fold": {
+    "role": "fold",
+    "family": "man",
+    "female": false,
+    "kind": "idle",
+    "body": "man_middling",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.189,
+     "slidePlayedMm": 0.189,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.365
+    }
+   },
+   "man_pockets": {
+    "role": "pockets",
+    "family": "man",
+    "female": false,
+    "kind": "idle",
+    "body": "man_middling",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.184,
+     "slidePlayedMm": 0.184,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.363
+    }
+   },
+   "man_talk_calm": {
+    "role": "talk_calm",
+    "family": "man",
+    "female": false,
+    "kind": "idle",
+    "body": "man_middling",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.172,
+     "slidePlayedMm": 0.172,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 11.157
+    }
+   },
+   "man_talk_eager": {
+    "role": "talk_eager",
+    "family": "man",
+    "female": false,
+    "kind": "idle",
+    "body": "man_middling",
+    "seconds": 10.5,
+    "frames": 253,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.167,
+     "slidePlayedMm": 0.167,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 71.023
+    }
+   },
+   "man_talk_cross": {
+    "role": "talk_cross",
+    "family": "man",
+    "female": false,
+    "kind": "idle",
+    "body": "man_middling",
+    "seconds": 10.5,
+    "frames": 253,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.173,
+     "slidePlayedMm": 0.173,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 40.79
+    }
+   },
+   "man_listen": {
+    "role": "listen",
+    "family": "man",
+    "female": false,
+    "kind": "idle",
+    "body": "man_middling",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.185,
+     "slidePlayedMm": 0.185,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.359
+    }
+   },
+   "man_listen_fold": {
+    "role": "listen",
+    "family": "man",
+    "female": false,
+    "kind": "idle",
+    "body": "man_middling",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.175,
+     "slidePlayedMm": 0.175,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.416
+    }
+   },
+   "man_laugh": {
+    "role": "laugh",
+    "family": "man",
+    "female": false,
+    "kind": "idle",
+    "body": "man_middling",
+    "seconds": 4.7917,
+    "frames": 116,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.11,
+     "slidePlayedMm": 0.11,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 5.197
+    }
+   },
+   "man_shrug": {
+    "role": "shrug",
+    "family": "man",
+    "female": false,
+    "kind": "idle",
+    "body": "man_middling",
+    "seconds": 3.5833,
+    "frames": 87,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.069,
+     "slidePlayedMm": 0.069,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 7.213
+    }
+   },
+   "man_point": {
+    "role": "point",
+    "family": "man",
+    "female": false,
+    "kind": "idle",
+    "body": "man_middling",
+    "seconds": 7.2083,
+    "frames": 174,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.167,
+     "slidePlayedMm": 0.167,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 5.991
+    }
+   },
+   "woman_idle_shift": {
+    "role": "idle",
+    "family": "woman",
+    "female": true,
+    "kind": "idle",
+    "body": "woman_middling",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.096,
+     "slidePlayedMm": 0.096,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.293
+    }
+   },
+   "woman_idle_feet": {
+    "role": "idle",
+    "family": "woman",
+    "female": true,
+    "kind": "idle",
+    "body": "woman_middling",
+    "seconds": 14.7083,
+    "frames": 354,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.309,
+     "slidePlayedMm": 0.309,
+     "scuffMm": 0.46,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 25.116
+    }
+   },
+   "woman_idle_hips": {
+    "role": "idle",
+    "family": "woman",
+    "female": true,
+    "kind": "idle",
+    "body": "woman_middling",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.08,
+     "slidePlayedMm": 0.08,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.381
+    }
+   },
+   "woman_fold": {
+    "role": "fold",
+    "family": "woman",
+    "female": true,
+    "kind": "idle",
+    "body": "woman_middling",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.087,
+     "slidePlayedMm": 0.087,
+     "scuffMm": 0.0,
+     "seamDeg": 1e-05,
+     "seamJerk": 0.0,
+     "jerkInside": 0.381
+    }
+   },
+   "woman_behind": {
+    "role": "behind",
+    "family": "woman",
+    "female": true,
+    "kind": "idle",
+    "body": "woman_middling",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.072,
+     "slidePlayedMm": 0.072,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.19
+    }
+   },
+   "woman_pockets": {
+    "role": "pockets",
+    "family": "woman",
+    "female": true,
+    "kind": "idle",
+    "body": "woman_middling",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.066,
+     "slidePlayedMm": 0.066,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.267
+    }
+   },
+   "woman_talk_calm": {
+    "role": "talk_calm",
+    "family": "woman",
+    "female": true,
+    "kind": "idle",
+    "body": "woman_middling",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.08,
+     "slidePlayedMm": 0.08,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 6.673
+    }
+   },
+   "woman_talk_eager": {
+    "role": "talk_eager",
+    "family": "woman",
+    "female": true,
+    "kind": "idle",
+    "body": "woman_middling",
+    "seconds": 10.5,
+    "frames": 253,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.053,
+     "slidePlayedMm": 0.053,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.759,
+     "jerkInside": 50.85
+    }
+   },
+   "woman_talk_cross": {
+    "role": "talk_cross",
+    "family": "woman",
+    "female": true,
+    "kind": "idle",
+    "body": "woman_middling",
+    "seconds": 10.5,
+    "frames": 253,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.074,
+     "slidePlayedMm": 0.074,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 49.892
+    }
+   },
+   "woman_listen": {
+    "role": "listen",
+    "family": "woman",
+    "female": true,
+    "kind": "idle",
+    "body": "woman_middling",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.081,
+     "slidePlayedMm": 0.081,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.437
+    }
+   },
+   "woman_listen_fold": {
+    "role": "listen",
+    "family": "woman",
+    "female": true,
+    "kind": "idle",
+    "body": "woman_middling",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.056,
+     "slidePlayedMm": 0.056,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.424
+    }
+   },
+   "woman_laugh": {
+    "role": "laugh",
+    "family": "woman",
+    "female": true,
+    "kind": "idle",
+    "body": "woman_middling",
+    "seconds": 4.7917,
+    "frames": 116,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.034,
+     "slidePlayedMm": 0.035,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 5.197
+    }
+   },
+   "woman_shrug": {
+    "role": "shrug",
+    "family": "woman",
+    "female": true,
+    "kind": "idle",
+    "body": "woman_middling",
+    "seconds": 3.5833,
+    "frames": 87,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.027,
+     "slidePlayedMm": 0.027,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 7.563
+    }
+   },
+   "woman_point": {
+    "role": "point",
+    "family": "woman",
+    "female": true,
+    "kind": "idle",
+    "body": "woman_middling",
+    "seconds": 7.2083,
+    "frames": 174,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.065,
+     "slidePlayedMm": 0.065,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 5.043
+    }
+   },
+   "stout_idle_hips": {
+    "role": "idle",
+    "family": "stout",
+    "female": false,
+    "kind": "idle",
+    "body": "man_stout",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.165,
+     "slidePlayedMm": 0.165,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.337
+    }
+   },
+   "stout_fold": {
+    "role": "fold",
+    "family": "stout",
+    "female": false,
+    "kind": "idle",
+    "body": "man_stout",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.16,
+     "slidePlayedMm": 0.16,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.336
+    }
+   },
+   "stout_pockets": {
+    "role": "pockets",
+    "family": "stout",
+    "female": false,
+    "kind": "idle",
+    "body": "man_stout",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.165,
+     "slidePlayedMm": 0.165,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.336
+    }
+   },
+   "wstout_idle_hips": {
+    "role": "idle",
+    "family": "wstout",
+    "female": true,
+    "kind": "idle",
+    "body": "woman_stout",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.047,
+     "slidePlayedMm": 0.047,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.363
+    }
+   },
+   "wstout_fold": {
+    "role": "fold",
+    "family": "wstout",
+    "female": true,
+    "kind": "idle",
+    "body": "woman_stout",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.047,
+     "slidePlayedMm": 0.047,
+     "scuffMm": 0.0,
+     "seamDeg": 1e-05,
+     "seamJerk": 0.0,
+     "jerkInside": 0.363
+    }
+   },
+   "wstout_idle_shift": {
+    "role": "idle",
+    "family": "wstout",
+    "female": true,
+    "kind": "idle",
+    "body": "woman_stout",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.035,
+     "slidePlayedMm": 0.035,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.273
+    }
+   },
+   "old_idle_behind": {
+    "role": "idle",
+    "family": "old",
+    "female": false,
+    "kind": "idle",
+    "body": "old_man",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.114,
+     "slidePlayedMm": 0.114,
+     "scuffMm": 0.0,
+     "seamDeg": 1e-05,
+     "seamJerk": 0.0,
+     "jerkInside": 0.195
+    }
+   },
+   "old_idle_front": {
+    "role": "idle",
+    "family": "old",
+    "female": false,
+    "kind": "idle",
+    "body": "old_man",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.115,
+     "slidePlayedMm": 0.115,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.17
+    }
+   },
+   "old_idle_back": {
+    "role": "idle",
+    "family": "old",
+    "female": false,
+    "kind": "idle",
+    "body": "old_man",
+    "seconds": 14.7083,
+    "frames": 354,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.107,
+     "slidePlayedMm": 0.107,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 2.127
+    }
+   },
+   "old_idle_feet": {
+    "role": "idle",
+    "family": "old",
+    "female": false,
+    "kind": "idle",
+    "body": "old_man",
+    "seconds": 16.0833,
+    "frames": 387,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.114,
+     "slidePlayedMm": 0.355,
+     "scuffMm": 0.29,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 25.116
+    }
+   },
+   "old_talk_calm": {
+    "role": "talk_calm",
+    "family": "old",
+    "female": false,
+    "kind": "idle",
+    "body": "old_man",
+    "seconds": 13.7917,
+    "frames": 332,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.103,
+     "slidePlayedMm": 0.103,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 9.922
+    }
+   },
+   "old_talk_cross": {
+    "role": "talk_cross",
+    "family": "old",
+    "female": false,
+    "kind": "idle",
+    "body": "old_man",
+    "seconds": 11.5,
+    "frames": 277,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.111,
+     "slidePlayedMm": 0.111,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 48.574
+    }
+   },
+   "old_listen": {
+    "role": "listen",
+    "family": "old",
+    "female": false,
+    "kind": "idle",
+    "body": "old_man",
+    "seconds": 13.7917,
+    "frames": 332,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.109,
+     "slidePlayedMm": 0.109,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.345
+    }
+   },
+   "old_laugh": {
+    "role": "laugh",
+    "family": "old",
+    "female": false,
+    "kind": "idle",
+    "body": "old_man",
+    "seconds": 5.0,
+    "frames": 121,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.07,
+     "slidePlayedMm": 0.07,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 5.197
+    }
+   },
+   "old_point": {
+    "role": "point",
+    "family": "old",
+    "female": false,
+    "kind": "idle",
+    "body": "old_man",
+    "seconds": 7.5833,
+    "frames": 183,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.074,
+     "slidePlayedMm": 0.074,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 5.991
+    }
+   },
+   "oldw_idle_front": {
+    "role": "idle",
+    "family": "oldw",
+    "female": true,
+    "kind": "idle",
+    "body": "old_woman",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.014,
+     "slidePlayedMm": 0.014,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.16
+    }
+   },
+   "oldw_idle_fold": {
+    "role": "fold",
+    "family": "oldw",
+    "female": true,
+    "kind": "idle",
+    "body": "old_woman",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.008,
+     "slidePlayedMm": 0.008,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.216
+    }
+   },
+   "oldw_talk_calm": {
+    "role": "talk_calm",
+    "family": "oldw",
+    "female": true,
+    "kind": "idle",
+    "body": "old_woman",
+    "seconds": 13.7917,
+    "frames": 332,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.015,
+     "slidePlayedMm": 0.015,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 6.04
+    }
+   },
+   "oldw_listen": {
+    "role": "listen",
+    "family": "oldw",
+    "female": true,
+    "kind": "idle",
+    "body": "old_woman",
+    "seconds": 13.7917,
+    "frames": 332,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.01,
+     "slidePlayedMm": 0.01,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.315
+    }
+   },
+   "child_idle_shift": {
+    "role": "idle",
+    "family": "child",
+    "female": false,
+    "kind": "idle",
+    "body": "child_middling",
+    "seconds": 9.0,
+    "frames": 217,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.155,
+     "slidePlayedMm": 0.155,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.01,
+     "jerkInside": 0.6
+    }
+   },
+   "child_idle_rock": {
+    "role": "behind",
+    "family": "child",
+    "female": false,
+    "kind": "idle",
+    "body": "child_middling",
+    "seconds": 9.0,
+    "frames": 217,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.096,
+     "slidePlayedMm": 0.096,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.071,
+     "jerkInside": 0.243
+    }
+   },
+   "child_idle_feet": {
+    "role": "idle",
+    "family": "child",
+    "female": false,
+    "kind": "idle",
+    "body": "child_middling",
+    "seconds": 12.0,
+    "frames": 289,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.18,
+     "slidePlayedMm": 0.254,
+     "scuffMm": 0.3,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 25.116
+    }
+   },
+   "child_pockets": {
+    "role": "pockets",
+    "family": "child",
+    "female": false,
+    "kind": "idle",
+    "body": "child_middling",
+    "seconds": 9.0,
+    "frames": 217,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.154,
+     "slidePlayedMm": 0.154,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.545
+    }
+   },
+   "child_talk": {
+    "role": "talk_eager",
+    "family": "child",
+    "female": false,
+    "kind": "idle",
+    "body": "child_middling",
+    "seconds": 9.0,
+    "frames": 217,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.122,
+     "slidePlayedMm": 0.122,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 77.91
+    }
+   },
+   "child_listen": {
+    "role": "listen",
+    "family": "child",
+    "female": false,
+    "kind": "idle",
+    "body": "child_middling",
+    "seconds": 9.0,
+    "frames": 217,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.14,
+     "slidePlayedMm": 0.14,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.07,
+     "jerkInside": 0.463
+    }
+   },
+   "child_laugh": {
+    "role": "laugh",
+    "family": "child",
+    "female": false,
+    "kind": "idle",
+    "body": "child_middling",
+    "seconds": 4.0,
+    "frames": 97,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.083,
+     "slidePlayedMm": 0.083,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 5.197
+    }
+   },
+   "man_sit_bench": {
+    "role": "sit_bench",
+    "family": "man",
+    "female": false,
+    "kind": "idle",
+    "seat": 0.45,
+    "seatKind": "bench",
+    "seatEdge": 0.26,
+    "sitHips": 0.5911,
+    "body": "man_middling",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.0,
+     "slidePlayedMm": 0.001,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.366
+    }
+   },
+   "man_sit_chair": {
+    "role": "sit_chair",
+    "family": "man",
+    "female": false,
+    "kind": "idle",
+    "seat": 0.46,
+    "seatKind": "chair",
+    "seatEdge": 0.26,
+    "sitHips": 0.6011,
+    "body": "man_middling",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.0,
+     "slidePlayedMm": 0.0,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.364
+    }
+   },
+   "man_sit_crate": {
+    "role": "sit_crate",
+    "family": "man",
+    "female": false,
+    "kind": "idle",
+    "seat": 0.4,
+    "seatKind": "crate",
+    "seatEdge": 0.26,
+    "sitHips": 0.5411,
+    "body": "man_middling",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.0,
+     "slidePlayedMm": 0.0,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.365
+    }
+   },
+   "man_sit_step": {
+    "role": "sit_step",
+    "family": "man",
+    "female": false,
+    "kind": "idle",
+    "seat": 0.2,
+    "seatKind": "step",
+    "seatEdge": 0.26,
+    "sitHips": 0.3411,
+    "body": "man_middling",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.0,
+     "slidePlayedMm": 0.0,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.086,
+     "jerkInside": 0.363
+    }
+   },
+   "woman_sit_bench": {
+    "role": "sit_bench",
+    "family": "woman",
+    "female": true,
+    "kind": "idle",
+    "seat": 0.45,
+    "seatKind": "bench",
+    "seatEdge": 0.244,
+    "sitHips": 0.5874,
+    "body": "woman_middling",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.0,
+     "slidePlayedMm": 0.0,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.364
+    }
+   },
+   "woman_sit_chair": {
+    "role": "sit_chair",
+    "family": "woman",
+    "female": true,
+    "kind": "idle",
+    "seat": 0.46,
+    "seatKind": "chair",
+    "seatEdge": 0.244,
+    "sitHips": 0.5974,
+    "body": "woman_middling",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.0,
+     "slidePlayedMm": 0.0,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.364
+    }
+   },
+   "woman_sit_crate": {
+    "role": "sit_crate",
+    "family": "woman",
+    "female": true,
+    "kind": "idle",
+    "seat": 0.4,
+    "seatKind": "crate",
+    "seatEdge": 0.244,
+    "sitHips": 0.5374,
+    "body": "woman_middling",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.0,
+     "slidePlayedMm": 0.0,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.363
+    }
+   },
+   "woman_sit_step": {
+    "role": "sit_step",
+    "family": "woman",
+    "female": true,
+    "kind": "idle",
+    "seat": 0.2,
+    "seatKind": "step",
+    "seatEdge": 0.244,
+    "sitHips": 0.3374,
+    "body": "woman_middling",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.0,
+     "slidePlayedMm": 0.0,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.363
+    }
+   },
+   "stout_sit_bench": {
+    "role": "sit_bench",
+    "family": "stout",
+    "female": false,
+    "kind": "idle",
+    "seat": 0.45,
+    "seatKind": "bench",
+    "seatEdge": 0.26,
+    "sitHips": 0.6013,
+    "body": "man_stout",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.0,
+     "slidePlayedMm": 0.0,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.364
+    }
+   },
+   "wstout_sit_bench": {
+    "role": "sit_bench",
+    "family": "wstout",
+    "female": true,
+    "kind": "idle",
+    "seat": 0.45,
+    "seatKind": "bench",
+    "seatEdge": 0.244,
+    "sitHips": 0.5974,
+    "body": "woman_stout",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.0,
+     "slidePlayedMm": 0.0,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.364
+    }
+   },
+   "old_sit_bench": {
+    "role": "sit_bench",
+    "family": "old",
+    "female": false,
+    "kind": "idle",
+    "seat": 0.45,
+    "seatKind": "bench",
+    "seatEdge": 0.255,
+    "sitHips": 0.578,
+    "body": "old_man",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.001,
+     "slidePlayedMm": 0.001,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.256
+    }
+   },
+   "old_sit_step": {
+    "role": "sit_step",
+    "family": "old",
+    "female": false,
+    "kind": "idle",
+    "seat": 0.2,
+    "seatKind": "step",
+    "seatEdge": 0.255,
+    "sitHips": 0.328,
+    "body": "old_man",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.0,
+     "slidePlayedMm": 0.0,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.254
+    }
+   },
+   "oldw_sit_bench": {
+    "role": "sit_bench",
+    "family": "oldw",
+    "female": true,
+    "kind": "idle",
+    "seat": 0.45,
+    "seatKind": "bench",
+    "seatEdge": 0.24,
+    "sitHips": 0.574,
+    "body": "old_woman",
+    "seconds": 12.5833,
+    "frames": 303,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.0,
+     "slidePlayedMm": 0.0,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.0,
+     "jerkInside": 0.254
+    }
+   },
+   "child_sit_bench": {
+    "role": "sit_bench",
+    "family": "child",
+    "female": false,
+    "kind": "idle",
+    "seat": 0.45,
+    "seatKind": "bench",
+    "seatEdge": 0.198,
+    "sitHips": 0.554,
+    "dangle": true,
+    "body": "child_middling",
+    "seconds": 9.0,
+    "frames": 217,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.0,
+     "slidePlayedMm": 0.0,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.21,
+     "jerkInside": 0.492
+    }
+   },
+   "child_sit_step": {
+    "role": "sit_step",
+    "family": "child",
+    "female": false,
+    "kind": "idle",
+    "seat": 0.2,
+    "seatKind": "step",
+    "seatEdge": 0.198,
+    "sitHips": 0.304,
+    "body": "child_middling",
+    "seconds": 9.0,
+    "frames": 217,
+    "loop": true,
+    "checks": {
+     "slideKeysMm": 0.0,
+     "slidePlayedMm": 0.0,
+     "scuffMm": 0.0,
+     "seamDeg": 0.0,
+     "seamJerk": 0.07,
+     "jerkInside": 3.984
+    }
+   },
+   "man_sit_bench_down": {
+    "body": "man_middling",
+    "seconds": 1.75,
+    "seat": 0.45,
+    "seatKind": "bench",
+    "seatEdge": 0.26,
+    "family": "man",
+    "female": false,
+    "kind": "idle",
+    "role": "sit_down",
+    "sit": "man_sit_bench",
+    "stand": "man_idle_shift",
+    "frames": 43,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.011,
+     "slidePlayedMm": 2.239,
+     "scuffMm": 2.79
+    }
+   },
+   "man_sit_bench_up": {
+    "body": "man_middling",
+    "seconds": 1.75,
+    "seat": 0.45,
+    "seatKind": "bench",
+    "seatEdge": 0.26,
+    "family": "man",
+    "female": false,
+    "kind": "idle",
+    "role": "stand_up",
+    "sit": "man_sit_bench",
+    "stand": "man_idle_shift",
+    "frames": 43,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.011,
+     "slidePlayedMm": 0.093,
+     "scuffMm": 1.34
+    }
+   },
+   "man_sit_chair_down": {
+    "body": "man_middling",
+    "seconds": 1.75,
+    "seat": 0.46,
+    "seatKind": "chair",
+    "seatEdge": 0.26,
+    "family": "man",
+    "female": false,
+    "kind": "idle",
+    "role": "sit_down",
+    "sit": "man_sit_chair",
+    "stand": "man_idle_shift",
+    "frames": 43,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.011,
+     "slidePlayedMm": 0.961,
+     "scuffMm": 3.01
+    }
+   },
+   "man_sit_chair_up": {
+    "body": "man_middling",
+    "seconds": 1.75,
+    "seat": 0.46,
+    "seatKind": "chair",
+    "seatEdge": 0.26,
+    "family": "man",
+    "female": false,
+    "kind": "idle",
+    "role": "stand_up",
+    "sit": "man_sit_chair",
+    "stand": "man_idle_shift",
+    "frames": 43,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.011,
+     "slidePlayedMm": 0.083,
+     "scuffMm": 1.46
+    }
+   },
+   "man_sit_crate_down": {
+    "body": "man_middling",
+    "seconds": 1.75,
+    "seat": 0.4,
+    "seatKind": "crate",
+    "seatEdge": 0.26,
+    "family": "man",
+    "female": false,
+    "kind": "idle",
+    "role": "sit_down",
+    "sit": "man_sit_crate",
+    "stand": "man_idle_shift",
+    "frames": 43,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.011,
+     "slidePlayedMm": 0.356,
+     "scuffMm": 2.55
+    }
+   },
+   "man_sit_crate_up": {
+    "body": "man_middling",
+    "seconds": 1.75,
+    "seat": 0.4,
+    "seatKind": "crate",
+    "seatEdge": 0.26,
+    "family": "man",
+    "female": false,
+    "kind": "idle",
+    "role": "stand_up",
+    "sit": "man_sit_crate",
+    "stand": "man_idle_shift",
+    "frames": 43,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.011,
+     "slidePlayedMm": 0.108,
+     "scuffMm": 1.18
+    }
+   },
+   "man_sit_step_down": {
+    "body": "man_middling",
+    "seconds": 1.75,
+    "seat": 0.2,
+    "seatKind": "step",
+    "seatEdge": 0.26,
+    "family": "man",
+    "female": false,
+    "kind": "idle",
+    "role": "sit_down",
+    "sit": "man_sit_step",
+    "stand": "man_idle_shift",
+    "frames": 43,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.011,
+     "slidePlayedMm": 0.228,
+     "scuffMm": 2.44
+    }
+   },
+   "man_sit_step_up": {
+    "body": "man_middling",
+    "seconds": 1.75,
+    "seat": 0.2,
+    "seatKind": "step",
+    "seatEdge": 0.26,
+    "family": "man",
+    "female": false,
+    "kind": "idle",
+    "role": "stand_up",
+    "sit": "man_sit_step",
+    "stand": "man_idle_shift",
+    "frames": 43,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.011,
+     "slidePlayedMm": 0.196,
+     "scuffMm": 1.11
+    }
+   },
+   "woman_sit_bench_down": {
+    "body": "woman_middling",
+    "seconds": 1.75,
+    "seat": 0.45,
+    "seatKind": "bench",
+    "seatEdge": 0.244,
+    "family": "woman",
+    "female": true,
+    "kind": "idle",
+    "role": "sit_down",
+    "sit": "woman_sit_bench",
+    "stand": "woman_idle_shift",
+    "frames": 43,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.017,
+     "slidePlayedMm": 0.678,
+     "scuffMm": 2.48
+    }
+   },
+   "woman_sit_bench_up": {
+    "body": "woman_middling",
+    "seconds": 1.75,
+    "seat": 0.45,
+    "seatKind": "bench",
+    "seatEdge": 0.244,
+    "family": "woman",
+    "female": true,
+    "kind": "idle",
+    "role": "stand_up",
+    "sit": "woman_sit_bench",
+    "stand": "woman_idle_shift",
+    "frames": 43,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.017,
+     "slidePlayedMm": 0.048,
+     "scuffMm": 1.19
+    }
+   },
+   "woman_sit_chair_down": {
+    "body": "woman_middling",
+    "seconds": 1.75,
+    "seat": 0.46,
+    "seatKind": "chair",
+    "seatEdge": 0.244,
+    "family": "woman",
+    "female": true,
+    "kind": "idle",
+    "role": "sit_down",
+    "sit": "woman_sit_chair",
+    "stand": "woman_idle_shift",
+    "frames": 43,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.097,
+     "slidePlayedMm": 2.681,
+     "scuffMm": 2.59
+    }
+   },
+   "woman_sit_chair_up": {
+    "body": "woman_middling",
+    "seconds": 1.75,
+    "seat": 0.46,
+    "seatKind": "chair",
+    "seatEdge": 0.244,
+    "family": "woman",
+    "female": true,
+    "kind": "idle",
+    "role": "stand_up",
+    "sit": "woman_sit_chair",
+    "stand": "woman_idle_shift",
+    "frames": 43,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.017,
+     "slidePlayedMm": 0.046,
+     "scuffMm": 1.09
+    }
+   },
+   "woman_sit_crate_down": {
+    "body": "woman_middling",
+    "seconds": 1.75,
+    "seat": 0.4,
+    "seatKind": "crate",
+    "seatEdge": 0.244,
+    "family": "woman",
+    "female": true,
+    "kind": "idle",
+    "role": "sit_down",
+    "sit": "woman_sit_crate",
+    "stand": "woman_idle_shift",
+    "frames": 43,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.017,
+     "slidePlayedMm": 0.313,
+     "scuffMm": 2.25
+    }
+   },
+   "woman_sit_crate_up": {
+    "body": "woman_middling",
+    "seconds": 1.75,
+    "seat": 0.4,
+    "seatKind": "crate",
+    "seatEdge": 0.244,
+    "family": "woman",
+    "female": true,
+    "kind": "idle",
+    "role": "stand_up",
+    "sit": "woman_sit_crate",
+    "stand": "woman_idle_shift",
+    "frames": 43,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.017,
+     "slidePlayedMm": 0.06,
+     "scuffMm": 1.05
+    }
+   },
+   "woman_sit_step_down": {
+    "body": "woman_middling",
+    "seconds": 1.75,
+    "seat": 0.2,
+    "seatKind": "step",
+    "seatEdge": 0.244,
+    "family": "woman",
+    "female": true,
+    "kind": "idle",
+    "role": "sit_down",
+    "sit": "woman_sit_step",
+    "stand": "woman_idle_shift",
+    "frames": 43,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.017,
+     "slidePlayedMm": 0.148,
+     "scuffMm": 2.08
+    }
+   },
+   "woman_sit_step_up": {
+    "body": "woman_middling",
+    "seconds": 1.75,
+    "seat": 0.2,
+    "seatKind": "step",
+    "seatEdge": 0.244,
+    "family": "woman",
+    "female": true,
+    "kind": "idle",
+    "role": "stand_up",
+    "sit": "woman_sit_step",
+    "stand": "woman_idle_shift",
+    "frames": 43,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.017,
+     "slidePlayedMm": 0.114,
+     "scuffMm": 0.95
+    }
+   },
+   "stout_sit_bench_down": {
+    "body": "man_stout",
+    "seconds": 1.75,
+    "seat": 0.45,
+    "seatKind": "bench",
+    "seatEdge": 0.26,
+    "family": "stout",
+    "female": false,
+    "kind": "idle",
+    "role": "sit_down",
+    "sit": "stout_sit_bench",
+    "stand": "stout_idle_hips",
+    "frames": 43,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.003,
+     "slidePlayedMm": 1.911,
+     "scuffMm": 2.82
+    }
+   },
+   "stout_sit_bench_up": {
+    "body": "man_stout",
+    "seconds": 1.75,
+    "seat": 0.45,
+    "seatKind": "bench",
+    "seatEdge": 0.26,
+    "family": "stout",
+    "female": false,
+    "kind": "idle",
+    "role": "stand_up",
+    "sit": "stout_sit_bench",
+    "stand": "stout_idle_hips",
+    "frames": 43,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.007,
+     "slidePlayedMm": 0.102,
+     "scuffMm": 1.33
+    }
+   },
+   "wstout_sit_bench_down": {
+    "body": "woman_stout",
+    "seconds": 1.75,
+    "seat": 0.45,
+    "seatKind": "bench",
+    "seatEdge": 0.244,
+    "family": "wstout",
+    "female": true,
+    "kind": "idle",
+    "role": "sit_down",
+    "sit": "wstout_sit_bench",
+    "stand": "wstout_idle_shift",
+    "frames": 43,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.021,
+     "slidePlayedMm": 1.206,
+     "scuffMm": 2.47
+    }
+   },
+   "wstout_sit_bench_up": {
+    "body": "woman_stout",
+    "seconds": 1.75,
+    "seat": 0.45,
+    "seatKind": "bench",
+    "seatEdge": 0.244,
+    "family": "wstout",
+    "female": true,
+    "kind": "idle",
+    "role": "stand_up",
+    "sit": "wstout_sit_bench",
+    "stand": "wstout_idle_shift",
+    "frames": 43,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.021,
+     "slidePlayedMm": 0.052,
+     "scuffMm": 1.2
+    }
+   },
+   "old_sit_bench_down": {
+    "body": "old_man",
+    "seconds": 1.75,
+    "seat": 0.45,
+    "seatKind": "bench",
+    "seatEdge": 0.255,
+    "family": "old",
+    "female": false,
+    "kind": "idle",
+    "role": "sit_down",
+    "sit": "old_sit_bench",
+    "stand": "old_idle_front",
+    "frames": 43,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.594,
+     "slidePlayedMm": 1.688,
+     "scuffMm": 2.62
+    }
+   },
+   "old_sit_bench_up": {
+    "body": "old_man",
+    "seconds": 1.75,
+    "seat": 0.45,
+    "seatKind": "bench",
+    "seatEdge": 0.255,
+    "family": "old",
+    "female": false,
+    "kind": "idle",
+    "role": "stand_up",
+    "sit": "old_sit_bench",
+    "stand": "old_idle_front",
+    "frames": 43,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.012,
+     "slidePlayedMm": 0.1,
+     "scuffMm": 1.24
+    }
+   },
+   "old_sit_step_down": {
+    "body": "old_man",
+    "seconds": 1.75,
+    "seat": 0.2,
+    "seatKind": "step",
+    "seatEdge": 0.255,
+    "family": "old",
+    "female": false,
+    "kind": "idle",
+    "role": "sit_down",
+    "sit": "old_sit_step",
+    "stand": "old_idle_front",
+    "frames": 43,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.012,
+     "slidePlayedMm": 0.257,
+     "scuffMm": 2.4
+    }
+   },
+   "old_sit_step_up": {
+    "body": "old_man",
+    "seconds": 1.75,
+    "seat": 0.2,
+    "seatKind": "step",
+    "seatEdge": 0.255,
+    "family": "old",
+    "female": false,
+    "kind": "idle",
+    "role": "stand_up",
+    "sit": "old_sit_step",
+    "stand": "old_idle_front",
+    "frames": 43,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.012,
+     "slidePlayedMm": 0.224,
+     "scuffMm": 1.07
+    }
+   },
+   "oldw_sit_bench_down": {
+    "body": "old_woman",
+    "seconds": 1.75,
+    "seat": 0.45,
+    "seatKind": "bench",
+    "seatEdge": 0.24,
+    "family": "oldw",
+    "female": true,
+    "kind": "idle",
+    "role": "sit_down",
+    "sit": "oldw_sit_bench",
+    "stand": "oldw_idle_front",
+    "frames": 43,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.014,
+     "slidePlayedMm": 1.639,
+     "scuffMm": 2.33
+    }
+   },
+   "oldw_sit_bench_up": {
+    "body": "old_woman",
+    "seconds": 1.75,
+    "seat": 0.45,
+    "seatKind": "bench",
+    "seatEdge": 0.24,
+    "family": "oldw",
+    "female": true,
+    "kind": "idle",
+    "role": "stand_up",
+    "sit": "oldw_sit_bench",
+    "stand": "oldw_idle_front",
+    "frames": 43,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.014,
+     "slidePlayedMm": 0.06,
+     "scuffMm": 1.11
+    }
+   },
+   "child_sit_step_down": {
+    "body": "child_middling",
+    "seconds": 1.75,
+    "seat": 0.2,
+    "seatKind": "step",
+    "seatEdge": 0.198,
+    "family": "child",
+    "female": false,
+    "kind": "idle",
+    "role": "sit_down",
+    "sit": "child_sit_step",
+    "stand": "child_idle_shift",
+    "frames": 43,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.004,
+     "slidePlayedMm": 0.12,
+     "scuffMm": 1.59
+    }
+   },
+   "child_sit_step_up": {
+    "body": "child_middling",
+    "seconds": 1.75,
+    "seat": 0.2,
+    "seatKind": "step",
+    "seatEdge": 0.198,
+    "family": "child",
+    "female": false,
+    "kind": "idle",
+    "role": "stand_up",
+    "sit": "child_sit_step",
+    "stand": "child_idle_shift",
+    "frames": 43,
+    "loop": false,
+    "checks": {
+     "slideKeysMm": 0.004,
+     "slidePlayedMm": 0.116,
+     "scuffMm": 1.2
+    }
+   }
+  }
  },
  "held": {
   "node": "people2_held",

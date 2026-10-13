@@ -2,8 +2,8 @@ param(
     [string]$Godot,
     [ValidateSet('captures','slide','shaders','timing','identity','network')]
     [string[]]$Modes = @('slide','captures','shaders','timing','identity','network'),
-    [ValidateRange(8910,8919)][int]$Port = 8912,
-    [ValidateRange(0,1800)][int]$WaitForTimingSeconds = 900,
+    [ValidateRange(8800,8999)][int]$Port = 8912,
+    [ValidateRange(0,3600)][int]$WaitForTimingSeconds = 900,
     [switch]$NoPrepare,
     [string[]]$Extra = @()
 )
@@ -39,8 +39,7 @@ function Other-Godot([int]$OwnId = 0) {
     } while ($changed)
     @($processes | Where-Object {
         if ($_.Name -notlike '*Godot*' -or $owned.Contains([int]$_.ProcessId)) { return $false }
-        $candidate = Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
-        return $candidate -and $candidate.MainWindowTitle -ne '.NET assemblies not found'
+        return $true
     } | Select-Object -ExpandProperty ProcessId)
 }
 try {
@@ -60,14 +59,14 @@ try {
         $args += @('res://town.tscn','--','--no-ai','--no-mainmenu','--dev','--port',$Port.ToString(),'--db',(Join-Path $dir 'game.sqlite'),'--prefs',(Join-Path $dir 'settings.json'),'--author-root',(Join-Path $dir 'layouts'),'--native-pack-test')
         $args += $Extra
         switch ($mode) {
-            'captures' { $args += @('--animals-captures',$dir) }
+            'captures' { $args += @('--animals-captures',$dir,'--animals-integration-proof') }
             'slide' { $args += @('--animals-slide',$dir,'--animals-sun-test') }
             'shaders' { $args += @('--shaders',$dir) }
             'timing' { $args += @('--peopletest',$dir,'--peoplechecks','crowds','--hour','13') }
             'network' { $args += @('--dedicated','--native-network-smoke',$dir) }
         }
         $timing = $mode -eq 'timing'
-        if ($timing) {
+        if ($timing -or $mode -eq 'shaders') {
             $exclusiveUntil = [DateTime]::UtcNow.AddSeconds($WaitForTimingSeconds)
             $waiting = 0
             while ((Other-Godot).Count) {
@@ -75,6 +74,7 @@ try {
                 if ($waiting++ % 30 -eq 0) { Write-Output 'Waiting for other Godot engines before exclusive timing.' }
                 Start-Sleep -Seconds 1
             }
+            tasklist /FI "IMAGENAME eq Godot*" | Set-Content -LiteralPath (Join-Path $dir 'tasklist-before.txt')
         }
         $start = [Diagnostics.ProcessStartInfo]::new($engine)
         $start.WorkingDirectory = $project; $start.UseShellExecute = $false; $start.CreateNoWindow = $true

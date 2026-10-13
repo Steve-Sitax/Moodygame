@@ -18,6 +18,8 @@ public static class People2
     internal static readonly Dictionary<string, Clip> Clips = new();
     internal static string[] BoneNames = Array.Empty<string>();
     internal static readonly Dictionary<string, (float hips, bool female, string style)> Bodies = new();
+    /// <summary>A dressed kind's base body (docker_a: man_middling); a base body is its own.</summary>
+    internal static readonly Dictionary<string, string> BaseBody = new();
     private sealed record Held(string Model, string Socket, float Tilt, Vector3 Offset);
     private static readonly Dictionary<string, Held[]> held = new();
     internal sealed class Clip
@@ -49,7 +51,7 @@ public static class People2
         return model != null && Bodies.ContainsKey(Body(kind)) && model.Roots.ContainsKey(Body(kind));
     }
     private static string Body(string kind) => kind.StartsWith("p2:", StringComparison.Ordinal) ? kind[3..] : map.GetValueOrDefault(kind, kind);
-    public static void Forget() { model?.Scene.Free(); model = null; tried = false; Clips.Clear(); Bodies.Clear(); held.Clear(); map.Clear(); HumanLayers.Forget(); People2Material.Forget(); People2Faces.Forget(); }
+    public static void Forget() { model?.Scene.Free(); model = null; tried = false; Clips.Clear(); Bodies.Clear(); BaseBody.Clear(); held.Clear(); map.Clear(); HumanLayers.Forget(); People2Material.Forget(); People2Faces.Forget(); People2Moves.Forget(); People2Shoulders.Forget(); }
     public static void Load()
     {
         if (tried) return;
@@ -76,6 +78,7 @@ public static class People2
             foreach (var kind in kinds.EnumerateObject())
             {
                 Bodies[kind.Name] = Bodies[kind.Value.GetProperty("body").GetString()!];
+                BaseBody[kind.Name] = kind.Value.GetProperty("body").GetString()!;
                 var items = new List<Held>();
                 if (kind.Value.TryGetProperty("held", out var kit))
                     foreach (var item in kit.EnumerateArray())
@@ -97,6 +100,10 @@ public static class People2
                 held[kind.Name] = items.ToArray();
             }
         var meta = rig.RootElement.GetProperty("locomotion").GetProperty("clips");
+        // D2: idles, talk and sitting (their own block; the families' tables go to People2Moves)
+        JsonElement idleMeta = default;
+        bool idles = rig.RootElement.TryGetProperty("idles", out var idleBlock) && idleBlock.TryGetProperty("clips", out idleMeta);
+        if (idles) People2Moves.Load(idleBlock);
         // All skeletons have the same names; tracks from the source armature are rebound by name.
         var reference = model.Roots["man_middling"].GetNode<Skeleton3D>("Skeleton3D");
         BoneNames = new string[reference.GetBoneCount()];
@@ -114,6 +121,11 @@ public static class People2
                 if (bone < 0) continue;
                 if (animation.TrackGetType(t) == Animation.TrackType.Rotation3D) c.RotationTracks[bone] = t;
                 else if (bone == reference.FindBone("hips") && animation.TrackGetType(t) == Animation.TrackType.Position3D) c.PositionTrack = t;
+            }
+            if (idles && idleMeta.TryGetProperty(name, out var im))
+            {
+                c.Loop = im.GetProperty("loop").GetBoolean();
+                c.Hips = Bodies[im.GetProperty("body").GetString()!].hips;
             }
             if (meta.TryGetProperty(name, out var m))
             {
