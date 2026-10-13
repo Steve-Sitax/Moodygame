@@ -190,6 +190,7 @@ public static class Mv
     public static AnimatableBody3D BoxBody(Node3D owner, Aabb box, string name = "solid")
     {
         var body = new AnimatableBody3D { Name = name, SyncToPhysics = false, CollisionLayer = Solid.Layer, CollisionMask = 0 };
+        if (name != "solid") body.SetMeta("held_by", "a " + name.Replace("_solid", "").Replace('_', ' ')); // (what a walk check says holds him)
         owner.AddChild(body);
         body.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = box.Size }, Position = box.GetCenter() });
         return body;

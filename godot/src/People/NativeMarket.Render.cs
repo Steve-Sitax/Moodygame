@@ -64,7 +64,7 @@ public partial class NativeMarket
     }
     private void BuildBodies(Field f)
     {
-        foreach(var item in f.Items){var bodies=new List<StaticBody3D>();foreach(var r in item.Rects){double height=Math.Max(.05,r.Top);var size=new Vector3((float)Math.Max(.01,r.MaxX-r.MinX),(float)height,(float)Math.Max(.01,r.MaxZ-r.MinZ));var body=new StaticBody3D{CollisionLayer=0,CollisionMask=0,Visible=false,Position=new((float)((r.MinX+r.MaxX)/2),(float)(town.Walk!.BaseAt(item.X,item.Z)+height/2),(float)((r.MinZ+r.MaxZ)/2))};body.AddChild(new CollisionShape3D{Shape=new BoxShape3D{Size=size}});f.Group.AddChild(body);WalkMap.RegisterBody(body,new Aabb(-size/2,size));bodies.Add(body);}f.Bodies[item]=bodies.ToArray();}
+        foreach(var item in f.Items){var bodies=new List<StaticBody3D>();foreach(var r in item.Rects){double height=Math.Max(.05,r.Top);var size=new Vector3((float)Math.Max(.01,r.MaxX-r.MinX),(float)height,(float)Math.Max(.01,r.MaxZ-r.MinZ));var body=new StaticBody3D{CollisionLayer=0,CollisionMask=0,Visible=false,Position=new((float)((r.MinX+r.MaxX)/2),(float)(town.Walk!.BaseAt(item.X,item.Z)+height/2),(float)((r.MinZ+r.MaxZ)/2))};body.AddChild(new CollisionShape3D{Shape=new BoxShape3D{Size=size}});body.SetMeta("held_by",$"a market {item.Kind} ({item.Goods}) at {item.X:0.0}, {item.Z:0.0}");f.Group.AddChild(body);WalkMap.RegisterBody(body,new Aabb(-size/2,size));bodies.Add(body);}f.Bodies[item]=bodies.ToArray();}
     }
     private void Window(Field f,int low,int high)
     {

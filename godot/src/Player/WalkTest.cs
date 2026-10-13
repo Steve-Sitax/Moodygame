@@ -77,7 +77,7 @@ public partial class WalkTest : Node
         routes.Add(new Route
         {
             Name = "square", What = "across the Vismarkt square, at a walk and then at a run",
-            X = -118, Z = 36, EndY = 0,
+            X = -118, Z = 36, Near = float.NaN, EndY = 0,
             Legs = new[] { new Leg(-118, 30, Run: false), new Leg(-124, 22), new Leg(-112, 14), new Leg(-118, 36) },
         });
         routes.Add(new Route
@@ -200,6 +200,15 @@ public partial class WalkTest : Node
             ladderNoWay = $"none of the {tried.Count} ladders at the quay edge can be reached by a swimmer: {string.Join("; ", tried.Take(6))}{(tried.Count > 6 ? "; ..." : "")}";
             return false;
         }
+        if (r.Name == "square")
+        {
+            // The Vismarkt's stalls and the day's market stand on the square; the route is a walk across it, as a player
+            // walks: round whatever stands in the line (a stall's table is a wall, and the walk check says so).
+            r.Near = 0;
+            r.Legs = Around(new Vector2(r.X, r.Z), r.Legs, out var detours);
+            if (detours.Count > 0) r.What += $" (round {string.Join("; ", detours)})";
+            return true;
+        }
         if (r.Name == "door")
         {
             var d = OpenDoor();
@@ -213,6 +222,74 @@ public partial class WalkTest : Node
             return true;
         }
         return true;
+    }
+
+    /// <summary>A body walks the straight line from a to b on the ground level, with 0.3 m to spare on both sides (not
+    /// within `grace` metres of a: he may stand with his shoulder to the thing he walks away from).</summary>
+    private static bool LineFree(Vector2 a, Vector2 b, float grace = 0)
+    {
+        var jef = Jef.I;
+        var d = b - a;
+        float len = d.Length();
+        if (len < 1e-3f) return jef.BodyFree(a.X, 0, a.Y);
+        var side = new Vector2(-d.Y, d.X) / len * 0.3f;
+        for (float s = 0; s <= len + 0.05f; s += 0.1f)
+        {
+            var m = a + d * (MathF.Min(s, len) / len);
+            if (!jef.BodyFree(m.X, 0, m.Y)) return false;
+            if (s >= grace && (!jef.BodyFree(m.X + side.X, 0, m.Y + side.Y) || !jef.BodyFree(m.X - side.X, 0, m.Y - side.Y))) return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// The legs, with a corner added where the straight line to a leg's goal is held by something that stands there (a
+    /// stall, a barrow): the nearest free corner, found on a 0.5 m grid round the line. A leg whose goal itself is
+    /// blocked stays as it is, and fails on it. `detours` says what was walked round, by the name the walk check gives it.
+    /// </summary>
+    private static Leg[] Around(Vector2 from, Leg[] legs, out List<string> detours, float grace = 0)
+    {
+        detours = new List<string>();
+        var result = new List<Leg>();
+        foreach (var leg in legs)
+        {
+            var to = new Vector2(leg.X, leg.Z);
+            if (!LineFree(from, to, grace) && Jef.I.BodyFree(to.X, 0, to.Y))
+            {
+                var mid = (from + to) / 2;
+                Vector2? best = null;
+                float bestLen = float.PositiveInfinity;
+                for (float dx = -12; dx <= 12; dx += 0.5f)
+                    for (float dz = -12; dz <= 12; dz += 0.5f)
+                    {
+                        var w = mid + new Vector2(dx, dz);
+                        float total = (w - from).Length() + (to - w).Length();
+                        if (total >= bestLen || !Jef.I.BodyFree(w.X, 0, w.Y) || !LineFree(from, w, grace) || !LineFree(w, to)) continue;
+                        best = w;
+                        bestLen = total;
+                    }
+                if (best is { } c)
+                {
+                    var hold = Ahead(from, to);
+                    detours.Add($"{(hold != "" ? hold : "something")} on the way from {from.X:0.#}, {from.Y:0.#} to {to.X:0.#}, {to.Y:0.#}, by {c.X:0.#}, {c.Y:0.#}");
+                    result.Add(leg with { X = c.X, Z = c.Y });
+                }
+            }
+            result.Add(leg);
+            from = to;
+        }
+        return result.ToArray();
+    }
+
+    /// <summary>What a ray at hip height from a towards b meets first, as the walk check names it.</summary>
+    private static string Ahead(Vector2 a, Vector2 b)
+    {
+        foreach (float h in new[] { 0.5f, 1.0f, 0.38f, 1.5f })
+        {
+            string s = Solid.I.HeldBy(new Vector3(a.X, h, a.Y), new Vector3(b.X, h, b.Y), out _);
+            if (s != "") return s;
+        }
+        return "";
     }
 
     /// <summary>Can he be here in the water: swimming at the surface, or wading where the bed is within the wade depth (low tide), clear of walls and hulls.</summary>
@@ -369,11 +446,20 @@ public partial class WalkTest : Node
     private Node3D? figure;
     private int doorsTried;
     private bool doorScanWait, swimScanWait;
+    private int squareWaits, detoured;
+    private readonly List<string> detours = new();
     private ulong waitTick;
 
     private void Start()
     {
         var r = routes[route];
+        if (r.Name == "square" && squareWaits < 600 && !(Scheldemist.People.MarketStalls.I is { List.Count: > 0 } && squareWaits >= 2))
+        {
+            // the fixed stalls are stood up a few frames after the town: wait for them, and a physics tick to know them
+            squareWaits++;
+            waitTick = Engine.GetPhysicsFrames() + 1;
+            return;
+        }
         if (r.Name == "swim" && !swimScanWait)
         {
             swimScanWait = true;
@@ -418,6 +504,8 @@ public partial class WalkTest : Node
         splashes = climbOuts = landings = steps = 0;
         legRows = new();
         track = new();
+        detoured = 0;
+        detours.Clear();
         last = new Vector3(r.X, 0, r.Z);
         started = false;
     }
@@ -467,6 +555,7 @@ public partial class WalkTest : Node
         results.Add(new()
         {
             ["route"] = r.Name, ["what"] = r.What, ["ok"] = legsOk && yOk && j.Rescued == 0 && (float.IsNaN(r.High) || maxY >= r.High),
+            ["wentRound"] = detours.ToArray(),
             ["start"] = new[] { r.X, r.Z }, ["end"] = Round(j.X, j.Y, j.Z), ["endState"] = State(j),
             ["seconds"] = Math.Round(routeT, 1), ["metres"] = Math.Round(walked, 1),
             ["stoppedByWall"] = legRows.Any(l => (string)l["result"]! == "blocked"),
@@ -478,16 +567,28 @@ public partial class WalkTest : Node
         shotWait = 0.4f; // stand still a moment, then the picture
     }
 
-    /// <summary>What stands in front of him: rays ahead at shin, hip and chest height.</summary>
-    private static string Ahead(Jef j)
+    /// <summary>
+    /// What stands in front of him: rays ahead at shin, hip and chest height, then whatever touches him. `furniture` is
+    /// true for a thing the game stood in the street (a stall, a parked cart) rather than a wall of the town.
+    /// </summary>
+    private static string Ahead(Jef j, out bool furniture)
     {
+        furniture = false;
         var d = new Vector3(-MathF.Sin(j.Yaw), 0, -MathF.Cos(j.Yaw));
         foreach (float h in new[] { 1.0f, 0.5f, 1.5f, 0.38f })
         {
             var a = new Vector3(j.X, j.Y + h, j.Z);
-            string s = Solid.I.NameAt(a, a + d * 1.2f);
+            string s = Solid.I.HeldBy(a, a + d * 1.2f, out furniture);
             if (s != "") return s;
         }
+        // (a ray that starts inside a box finds nothing: ask what is within reach of him)
+        var q = new PhysicsShapeQueryParameters3D { Shape = new SphereShape3D { Radius = Jef.Radius + 0.2f }, Transform = new Transform3D(Basis.Identity, new Vector3(j.X, j.Y + 1f, j.Z)), CollisionMask = Solid.Layer };
+        foreach (var hit in Main.I.View.FindWorld3D().DirectSpaceState.IntersectShape(q, 4))
+            if (hit["collider"].AsGodotObject() is Node n && n.HasMeta("held_by"))
+            {
+                furniture = true;
+                return n.GetMeta("held_by").AsString();
+            }
         // a swimmer is also held by the boats' hulls (no ray finds those)
         if (j.Swimming && Scheldemist.Movers.Boats.I != null)
         {
@@ -605,6 +706,24 @@ public partial class WalkTest : Node
         j.SetKey(Key.Space, l.Jump);
         blockedT = j.Blocked ? blockedT + dt : 0;
 
+        // Held by something the game stood in the street (a stall, a parked cart that came with the transport data): a
+        // walker goes round it. A wall of the town stays a wall: that is what this check is for.
+        if (l.Until == Until.Reach && blockedT > 0.6f && detoured < 4 && Ahead(j, out bool furniture) is { Length: > 0 } what && furniture)
+        {
+            var round = Around(new Vector2(j.X, j.Z), new[] { l }, out _, 0.8f);
+            if (round.Length > 1)
+            {
+                detoured++;
+                detours.Add($"{what} at {j.X:0.#}, {j.Z:0.#}");
+                var legs = r.Legs.ToList();
+                legs.Insert(leg, round[0]);
+                r.Legs = legs.ToArray();
+                legT = 0;
+                blockedT = 0;
+                return;
+            }
+        }
+
         string? result = null;
         switch (l.Until)
         {
@@ -620,7 +739,7 @@ public partial class WalkTest : Node
         legRows.Add(new()
         {
             ["to"] = new[] { l.X, l.Z }, ["until"] = l.Until.ToString().ToLowerInvariant(), ["result"] = result == "timeout" && blockedT > 0.8f ? "timeout" : result,
-            ["heldByWall"] = blockedT > 0.8f, ["heldBy"] = blockedT > 0.8f || result == "timeout" ? Ahead(j) : null, ["standsOn"] = Solid.I.NameAt(new Vector3(j.X, j.Y + 0.3f, j.Z), new Vector3(j.X, j.Y - 0.5f, j.Z)), ["seconds"] = Math.Round(legT, 1), ["at"] = Round(j.X, j.Y, j.Z), ["state"] = State(j),
+            ["heldByWall"] = blockedT > 0.8f, ["heldBy"] = blockedT > 0.8f || result == "timeout" ? Ahead(j, out _) : null, ["standsOn"] = Solid.I.NameAt(new Vector3(j.X, j.Y + 0.3f, j.Z), new Vector3(j.X, j.Y - 0.5f, j.Z)), ["seconds"] = Math.Round(legT, 1), ["at"] = Round(j.X, j.Y, j.Z), ["state"] = State(j),
         });
         legT = 0;
         blockedT = 0;
