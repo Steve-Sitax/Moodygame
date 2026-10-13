@@ -21,7 +21,9 @@ namespace Scheldemist.Dev;
 /// foot), her waterline against the water where she lies (within 5 cm, the mean of the run), her water cap. Also
 /// the drawn sheet against the boats while it eases after a jump (case 8) and the great storm's surge (case 9).
 /// --boatcheck-spacing runs only the hulls against each other (the moored rows with every part's offset, as drawn) and the
-/// liner's tows: two moored hulls less than 5 cm apart are a problem (issue 98). Writes dir/boatcheck.json; `problems` must be empty (ok). Then quits.
+/// liner's tows: two hulls that lie still (moored, single ships, the ferry) less than 5 cm apart are a problem (issue 98). The landing stage is measured by her
+/// own surface against the hulls beside her: her pontoon and deck may rest 0.5 m into a hull (fenders; 1 m at the ferry's berth), her legs under the water are
+/// listed in `stageClash` and not counted (issue 103; --boatcheck-bite m changes the 0.5). Writes dir/boatcheck.json; `problems` must be empty (ok). Then quits.
 /// </summary>
 [GamePart(985)]
 public partial class BoatWaterCheck : Node
@@ -32,7 +34,7 @@ public partial class BoatWaterCheck : Node
         (-0.65f, "mean high water"), (-0.4f, "spring high water"), (-0.5f, "the great storm's top"),
     };
     private const float Afloat = 0.05f, MudIn = 0.06f, Holds = 0.06f, Cell = 0.25f, CanalBed = -5.05f;
-    private const float SpacingReport = 6f, OutlineUp = 1.5f, SweepMin = 1.0f, SweepLiner = 0.3f, BerthWalk = 2f, BerthAt = 3f, MooredGap = 0.05f;
+    private const float SpacingReport = 6f, OutlineUp = 1.5f, SweepMin = 1.0f, SweepLiner = 0.3f, BerthWalk = 2f, BerthAt = 3f, MooredGap = 0.05f, StageKeel = 0.1f, StageBite = 0.5f, FerryBerth = 1.0f;
     private const float StormSurgeTop = Tide.HwMax - 0.1f; // the browser's rijnkaai.ts STORM_SURGE_TOP
 
     private string dir = "";
@@ -81,6 +83,7 @@ public partial class BoatWaterCheck : Node
         public bool Moving, CapHidden, HasCap;
         public float X, Y, Z;
         public float? Floor;
+        public readonly List<(Mesh Mesh, Transform3D M)> Meshes = new();
         public readonly List<(Vector3[] Pts, Transform3D M)> Hull = new();
     }
 
@@ -210,6 +213,7 @@ public partial class BoatWaterCheck : Node
                 Spacing();
                 Listing();
                 if (t < 40) return;
+                StageClash();
                 Sweep();
                 Write();
                 phase = 4;
@@ -401,6 +405,95 @@ public partial class BoatWaterCheck : Node
         }
     }
 
+    private static bool Lies(string source) => source is "moored" or "still" or "ferry";
+
+    // ---- the landing stage against the hulls that lie by her (issue 103). She is one mesh: pontoon, deck, posts and, under the
+    // water, three pairs of slanting legs that run out 2.3 m to each side to the bed. An outline of all of her is a box 9 m wide
+    // that the barges alongside seem to run into at the water, though they stand clear of her deck. So she is measured by her
+    // own surface: points laid every 0.5 m over every triangle, each against the hull's convex outline at its own height (the
+    // outline of the hull's points at or below it: a hull is narrower lower down, so a point inside is truly inside).
+    private readonly List<string> clashLines = new(), clashProblems = new();
+
+    private static void Spread(Vector3 a, Vector3 b, Vector3 c, List<Vector3> into)
+    {
+        var todo = new Stack<(Vector3, Vector3, Vector3)>();
+        todo.Push((a, b, c));
+        while (todo.Count > 0 && into.Count < 3000000)
+        {
+            var (p, q, r) = todo.Pop();
+            float pq = p.DistanceTo(q), qr = q.DistanceTo(r), rp = r.DistanceTo(p), longest = MathF.Max(pq, MathF.Max(qr, rp));
+            if (longest <= 0.5f) { into.Add((p + q + r) / 3); continue; }
+            if (longest == pq) { var m = (p + q) / 2; todo.Push((p, m, r)); todo.Push((m, q, r)); }
+            else if (longest == qr) { var m = (q + r) / 2; todo.Push((p, q, m)); todo.Push((p, m, r)); }
+            else { var m = (r + p) / 2; todo.Push((p, q, m)); todo.Push((m, q, r)); }
+        }
+    }
+
+    private List<Vector3> StageSurface(Vessel stage)
+    {
+        var pts = new List<Vector3>();
+        foreach (var (mesh, m) in stage.Meshes)
+            for (int s = 0; s < mesh.GetSurfaceCount(); s++)
+            {
+                if (mesh.SurfaceGetMaterial(s)?.ResourceName == "cap") continue;
+                var arr = mesh.SurfaceGetArrays(s);
+                var v = arr[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                var idx = arr[(int)Mesh.ArrayType.Index].AsInt32Array();
+                int count = idx.Length > 0 ? idx.Length : v.Length;
+                for (int k = 0; k + 2 < count; k += 3)
+                    Spread(m * v[idx.Length > 0 ? idx[k] : k], m * v[idx.Length > 0 ? idx[k + 1] : k + 1], m * v[idx.Length > 0 ? idx[k + 2] : k + 2], pts);
+            }
+        return pts;
+    }
+
+    private void StageClash()
+    {
+        var all = Vessels();
+        var stage = all.FirstOrDefault(v => v.Kind == "landing_stage");
+        if (stage == null) return;
+        float keel = stage.Y - StageKeel; // (her pontoon's bottom is at the water; the legs hang below it)
+        float allow = Main.I.Arg("boatcheck-bite") is { Length: > 0 } ab && float.TryParse(ab, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float bite) ? bite : StageBite;
+        var surface = StageSurface(stage).OrderBy(p => p.Y).ToArray();
+        int Lower(float y) { int lo = 0, hi = surface.Length; while (lo < hi) { int mid = (lo + hi) / 2; if (surface[mid].Y <= y) lo = mid + 1; else hi = mid; } return lo; }
+        clashLines.Add($"{surface.Length} points over the stage's surface, from {surface[0].Y:0.00} to {surface[^1].Y:0.00}; her pontoon and deck from {keel:0.00} up, her legs below");
+        foreach (var b in all.Where(v => v != stage && v.Hull.Count > 0 && v.Source is "still" or "moored" or "ferry" && MathF.Abs(v.X - stage.X) < 15 && MathF.Abs(v.Z - stage.Z) < 90))
+        {
+            var bp = b.Hull.SelectMany(h => h.Pts.Select(q => h.M * q)).ToList();
+            var deep = new float[2];
+            var at = new Vector3[2];
+            var count = new int[2];
+            for (float lvl = bp.Min(p => p.Y); lvl <= stage.Y + OutlineUp + 0.25f; lvl += 0.25f)
+            {
+                var low = bp.Where(p => p.Y <= lvl + 0.125f).Select(p => new Vector3(p.X, 0, p.Z)).ToArray();
+                var o = Outline(new Vessel { Y = 100, Hull = { (low, Transform3D.Identity) } });
+                if (o.Count < 3) continue;
+                for (int si = Lower(lvl - 0.125f), se = Lower(lvl + 0.125f); si < se; si++)
+                {
+                    var q = surface[si];
+                    var p2 = new Vector2(q.X, q.Z);
+                    if (!Inside(o, p2)) continue;
+                    int part = q.Y < keel ? 1 : 0; // (0 her pontoon and deck, 1 her legs)
+                    count[part]++;
+                    float d = float.MaxValue;
+                    for (int i = 0; i < o.Count; i++)
+                    {
+                        var a = o[i]; var e = o[(i + 1) % o.Count] - a;
+                        d = MathF.Min(d, p2.DistanceTo(a + e * Mathf.Clamp((p2 - a).Dot(e) / e.LengthSquared(), 0, 1)));
+                    }
+                    if (d > deep[part]) { deep[part] = d; at[part] = q; }
+                }
+            }
+            foreach (int part in new[] { 0, 1 })
+                if (count[part] > 0)
+                {
+                    // (a hull may rest against her fenders: up to half a metre, and a metre where the ferry berths with her side against the head)
+                    if (part == 0 && deep[part] > (b.Source == "ferry" ? Math.Max(allow, FerryBerth) : allow))
+                        clashProblems.Add(Tag(12, $"{b.Name} and the landing stage: her pontoon and deck run {deep[part]:0.00} m into the hull, at ({at[part].X:0.0}, {at[part].Y:0.0}, {at[part].Z:0.0})"));
+                    clashLines.Add($"{b.Name}: {count[part]} points of the stage's {(part == 0 ? "pontoon and deck" : "legs, under the water")} inside her hull, the deepest {deep[part]:0.00} m in, at ({at[part].X:0.0}, {at[part].Y:0.0}, {at[part].Z:0.0})");
+                }
+        }
+    }
+
     private void Spacing()
     {
         var all = Vessels().Where(v => v.Hull.Count > 0 && (!v.Moving || v.Source == "anchorage")).ToList();
@@ -410,6 +503,7 @@ public partial class BoatWaterCheck : Node
             {
                 var a = all[i]; var b = all[j];
                 if (new Vector2(a.X - b.X, a.Z - b.Z).Length() > 90) continue; // (no boat here is longer than 90 m end to end)
+                if (a.Source == "stage" || b.Source == "stage") continue; // (one outline of her is a box 9 m wide: StageClash measures her surface)
                 float g = Gap(outlines[i], outlines[j]);
                 if (g > SpacingReport) continue;
                 var key = string.CompareOrdinal(a.Key, b.Key) < 0 ? (a.Key, b.Key) : (b.Key, a.Key);
@@ -615,7 +709,7 @@ public partial class BoatWaterCheck : Node
                     if (!mi.IsVisibleInTree()) v.CapHidden = true;
                     continue;
                 }
-                if (mi.IsVisibleInTree()) v.Hull.Add((Points(mi.Mesh), mi.GlobalTransform));
+                if (mi.IsVisibleInTree()) { v.Hull.Add((Points(mi.Mesh), mi.GlobalTransform)); if (v.Kind == "landing_stage") v.Meshes.Add((mi.Mesh, mi.GlobalTransform)); }
             }
     }
 
@@ -730,8 +824,10 @@ public partial class BoatWaterCheck : Node
         // penetration above is the check that their actual support agrees.
         problems.AddRange(noCap);
         problems.AddRange(sweepProblems);
+        problems.AddRange(clashProblems);
         // the moored boats against each other (issue 98): the drawn hulls with every part's offset, resting at least 5 cm apart
-        foreach (var pr in pairs.Values.Where(p => p.SourceA == "moored" && p.SourceB == "moored" && p.Gap < MooredGap).OrderBy(p => p.Gap))
+        // and every boat that lies still against another, against the landing stage's pontoon and deck and against the ferry (issue 103)
+        foreach (var pr in pairs.Values.Where(p => Lies(p.SourceA) && Lies(p.SourceB) && p.Gap < MooredGap).OrderBy(p => p.Gap))
             problems.Add(Tag(12, pr.Overlap
                 ? $"{pr.A} and {pr.B}: the hulls run {pr.Depth:0.00} m into each other"
                 : $"{pr.A} and {pr.B}: the hulls lie {pr.Gap:0.00} m apart (at least {MooredGap:0.00} m)"));
@@ -745,6 +841,7 @@ public partial class BoatWaterCheck : Node
             spacing = pairs.Values.OrderBy(p => p.Gap).Select(p => new { a = p.A, b = p.B, gap = MathF.Round(p.Gap, 2), overlap = p.Overlap, depth = MathF.Round(p.Depth, 2), sources = p.SourceA + "/" + p.SourceB }).ToArray(),
             noCap,
             sweep = sweepLines.ToArray(),
+            stageClash = clashLines.ToArray(),
             notes,
             problems,
             notCovered = new[]
