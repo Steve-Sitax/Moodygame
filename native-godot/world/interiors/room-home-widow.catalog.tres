@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="AuthorCatalog" format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="1_wkru8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-widow-fixed-0.tres" id="2_qty2y"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-widow-fixed-1.tres" id="3_5fngq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-widow-fixed-2.tres" id="4_thq2o"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-widow-source-11459-3.tres" id="5_5s75n"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-widow-source-11469-4.tres" id="6_xfrss"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorCatalog.cs" id="7_2qlaf"]
+
+[resource]
+script = ExtResource("7_2qlaf")
+Assets = Array[ExtResource("1_wkru8")]([ExtResource("2_qty2y"), ExtResource("3_5fngq"), ExtResource("4_thq2o"), ExtResource("5_5s75n"), ExtResource("6_xfrss")])

@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-clock_markt-source-11020-10.tscn" id="1_ep816"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_gfbdr"]
+
+[resource]
+PlacementAnchor = Vector3(7.688999e-06, 0, -6.6161156e-06)
+GeometryClearance = true
+script = ExtResource("2_gfbdr")
+Id = "room-shop-clock_markt-source-11020-10"
+Title = "clock · shop:clock_markt · source-11020-10"
+Category = "Room originals"
+Scene = ExtResource("1_ep816")
+Footprint = Vector3(0.21270311, 1.3000016, 0.3600837)
+FootprintOffset = Vector3(7.688999e-06, 1.4999983, -6.6161156e-06)
+FurnitureKind = "clock"
+SeatYaw = 0.2837117
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

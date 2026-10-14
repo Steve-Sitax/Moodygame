@@ -133,6 +133,16 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
             Dress(room);
             if (houses.TryGetValue("house_" + Key(room.Id), out var house)) Doors(room, house);
             Light(room, info.GetProperty("lights"), lit.TryGetValue(room.Id, out var l) ? l : (JsonElement?)null);
+            if(Main.I.World.NativeFurnitureRooms?.Contains(room.Id)==true)
+            {
+                var availableLights=room.Lamps.ToList();
+                foreach(var furniture in Main.I.World.NativeFurniture!.Where(p=>p.Room==room.Id && p.Kind is "stove" or "lamp").OrderBy(p=>p.Id,StringComparer.Ordinal))
+                {
+                    if(availableLights.Count==0)break;
+                    var lamp=availableLights.OrderBy(l=>l.Light.GlobalPosition.DistanceSquaredTo(furniture.LightAt)).First();availableLights.Remove(lamp);
+                    lamp.Light.GlobalPosition=furniture.LightAt;
+                }
+            }
             rooms.Add(room);
             byId[room.Id] = room;
         }

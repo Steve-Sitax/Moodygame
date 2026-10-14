@@ -1,0 +1,852 @@
+[
+  {
+    "asset": "room-carolus-source-9384-0",
+    "triangles": 1,
+    "marker": false
+  },
+  {
+    "asset": "room-carolus-source-9384-5",
+    "triangles": 9,
+    "marker": false
+  },
+  {
+    "asset": "room-carolus-source-9389-6",
+    "triangles": 20,
+    "marker": false
+  },
+  {
+    "asset": "room-carolus-source-9391-97",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-carolus-source-9391-98",
+    "triangles": 28,
+    "marker": false
+  },
+  {
+    "asset": "room-carolus-source-9452-366",
+    "triangles": 28,
+    "marker": false
+  },
+  {
+    "asset": "room-carolus-source-9452-368",
+    "triangles": 28,
+    "marker": false
+  },
+  {
+    "asset": "room-cathedral-source-8902-4",
+    "triangles": 2,
+    "marker": false
+  },
+  {
+    "asset": "room-cathedral-source-8904-9",
+    "triangles": 2,
+    "marker": false
+  },
+  {
+    "asset": "room-cathedral-source-8914-26",
+    "triangles": 88,
+    "marker": false
+  },
+  {
+    "asset": "room-cathedral-source-8915-80",
+    "triangles": 60,
+    "marker": true
+  },
+  {
+    "asset": "room-cathedral-source-8915-81",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-cathedral-source-8915-82",
+    "triangles": 36,
+    "marker": true
+  },
+  {
+    "asset": "room-cathedral-source-8915-83",
+    "triangles": 200,
+    "marker": false
+  },
+  {
+    "asset": "room-cathedral_upper-source-8863-0",
+    "triangles": 428,
+    "marker": false
+  },
+  {
+    "asset": "room-cathedral_upper-source-8863-1",
+    "triangles": 200,
+    "marker": false
+  },
+  {
+    "asset": "room-cathedral_upper-source-8863-2",
+    "triangles": 116,
+    "marker": false
+  },
+  {
+    "asset": "room-cathedral_upper-source-8863-3",
+    "triangles": 60,
+    "marker": true
+  },
+  {
+    "asset": "room-cathedral_upper-source-8869-9",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-cathedral_upper-source-8873-12",
+    "triangles": 200,
+    "marker": false
+  },
+  {
+    "asset": "room-cathedral_upper-source-8873-15",
+    "triangles": 200,
+    "marker": false
+  },
+  {
+    "asset": "room-cathedral_upper-source-8873-16",
+    "triangles": 116,
+    "marker": false
+  },
+  {
+    "asset": "room-cathedral_upper-source-8873-17",
+    "triangles": 60,
+    "marker": true
+  },
+  {
+    "asset": "room-cathedral_upper-source-8882-27",
+    "triangles": 470,
+    "marker": false
+  },
+  {
+    "asset": "room-cathedral_upper-source-8885-28",
+    "triangles": 266,
+    "marker": false
+  },
+  {
+    "asset": "room-home-garret-source-11414-3",
+    "triangles": 1068,
+    "marker": true
+  },
+  {
+    "asset": "room-home-merchant-fixed-8",
+    "triangles": 48,
+    "marker": false
+  },
+  {
+    "asset": "room-home-merchant-source-11617-13",
+    "triangles": 330,
+    "marker": true
+  },
+  {
+    "asset": "room-home-merchant-source-11618-14",
+    "triangles": 10,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9252-0",
+    "triangles": 1864,
+    "marker": false
+  },
+  {
+    "asset": "room-oostershuis-source-9277-17",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-18",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-19",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-20",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-21",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-22",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-23",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-24",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-25",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-26",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-27",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-28",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-29",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-30",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-31",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-32",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-33",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-34",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-35",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-36",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-37",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-38",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-39",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-40",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-41",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-42",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-43",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-44",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-45",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-46",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-47",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-48",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-49",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-50",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-51",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-52",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-53",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-54",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-55",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-56",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-57",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-58",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-59",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-60",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-61",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-62",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-63",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-64",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-65",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-66",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-67",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-68",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-69",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-134",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-135",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-136",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-137",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-138",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-139",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-140",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-141",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-142",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-143",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-144",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-145",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-146",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-147",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-148",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-149",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-150",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-151",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-152",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-153",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-154",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-155",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-156",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-157",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-158",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-159",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-160",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-161",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-162",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-163",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-164",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-165",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-166",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-167",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-168",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-169",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-170",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-171",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-172",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-173",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-174",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-175",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-176",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-177",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-178",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-179",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-180",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-181",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-182",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-183",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-184",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-185",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9277-186",
+    "triangles": 28,
+    "marker": true
+  },
+  {
+    "asset": "room-oostershuis-source-9285-257",
+    "triangles": 1276,
+    "marker": false
+  },
+  {
+    "asset": "room-poesje-source-12158-0",
+    "triangles": 86,
+    "marker": false
+  },
+  {
+    "asset": "room-prison-source-9496-0",
+    "triangles": 1427,
+    "marker": false
+  },
+  {
+    "asset": "room-prison-source-9539-315",
+    "triangles": 4,
+    "marker": false
+  },
+  {
+    "asset": "room-prison-source-9559-575",
+    "triangles": 4,
+    "marker": false
+  },
+  {
+    "asset": "room-prison_chapel-source-9757-0",
+    "triangles": 1,
+    "marker": false
+  },
+  {
+    "asset": "room-prison_governor-source-9783-0",
+    "triangles": 720,
+    "marker": false
+  },
+  {
+    "asset": "room-steen-source-9351-1",
+    "triangles": 56,
+    "marker": false
+  },
+  {
+    "asset": "room-stjacob-source-9899-7",
+    "triangles": 1200,
+    "marker": false
+  },
+  {
+    "asset": "room-stjacob-source-9905-25",
+    "triangles": 28,
+    "marker": false
+  },
+  {
+    "asset": "room-stjacob-source-9924-326",
+    "triangles": 352,
+    "marker": false
+  },
+  {
+    "asset": "room-stpaul-source-9814-3",
+    "triangles": 2151,
+    "marker": false
+  },
+  {
+    "asset": "room-stpaul-source-9819-201",
+    "triangles": 108,
+    "marker": false
+  },
+  {
+    "asset": "room-tavern-bassin-source-11950-19",
+    "triangles": 30,
+    "marker": false
+  },
+  {
+    "asset": "room-tavern-engel-seat-7",
+    "triangles": 24,
+    "marker": true
+  },
+  {
+    "asset": "room-tavern-engel-source-11885-25",
+    "triangles": 10,
+    "marker": true
+  },
+  {
+    "asset": "room-tavern-linde-source-12022-36",
+    "triangles": 10,
+    "marker": false
+  },
+  {
+    "asset": "room-tavern-vliet-source-11799-31",
+    "triangles": 10,
+    "marker": false
+  },
+  {
+    "asset": "room-townhall-source-8989-0",
+    "triangles": 513,
+    "marker": false
+  },
+  {
+    "asset": "room-townhall-source-8989-1",
+    "triangles": 136,
+    "marker": false
+  },
+  {
+    "asset": "room-townhall-source-9004-15",
+    "triangles": 216,
+    "marker": false
+  },
+  {
+    "asset": "room-townhall-source-9053-186",
+    "triangles": 1068,
+    "marker": false
+  },
+  {
+    "asset": "room-vleeshuis-source-9092-0",
+    "triangles": 3586,
+    "marker": false
+  },
+  {
+    "asset": "room-vleeshuis-source-9097-14",
+    "triangles": 36,
+    "marker": true
+  },
+  {
+    "asset": "room-vleeshuis-source-9097-15",
+    "triangles": 36,
+    "marker": true
+  },
+  {
+    "asset": "room-vleeshuis-source-9097-16",
+    "triangles": 36,
+    "marker": true
+  },
+  {
+    "asset": "room-vleeshuis-source-9097-17",
+    "triangles": 36,
+    "marker": true
+  },
+  {
+    "asset": "room-vleeshuis-source-9097-18",
+    "triangles": 36,
+    "marker": true
+  },
+  {
+    "asset": "room-vleeshuis-source-9097-19",
+    "triangles": 36,
+    "marker": true
+  },
+  {
+    "asset": "room-vleeshuis-source-9097-20",
+    "triangles": 36,
+    "marker": true
+  },
+  {
+    "asset": "room-vleeshuis-source-9097-21",
+    "triangles": 36,
+    "marker": true
+  },
+  {
+    "asset": "room-vleeshuis-source-9097-22",
+    "triangles": 36,
+    "marker": true
+  },
+  {
+    "asset": "room-vleeshuis-source-9097-23",
+    "triangles": 36,
+    "marker": true
+  },
+  {
+    "asset": "room-vleeshuis-source-9097-24",
+    "triangles": 36,
+    "marker": true
+  }
+]

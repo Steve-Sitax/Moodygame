@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-barber_lane-source-10702-3.tscn" id="1_hy6a1"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_w107k"]
+
+[resource]
+PlacementAnchor = Vector3(0, 0, -2.0861626e-06)
+GeometryClearance = true
+script = ExtResource("2_w107k")
+Id = "room-shop-barber_lane-source-10702-3"
+Title = "clock · shop:barber_lane · source-10702-3"
+Category = "Room originals"
+Scene = ExtResource("1_hy6a1")
+Footprint = Vector3(0.15212059, 2.639982, 1.0123262)
+FootprintOffset = Vector3(0, -5.9604645e-08, -2.0861626e-06)
+FurnitureKind = "clock"
+SeatYaw = 1.6328664
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

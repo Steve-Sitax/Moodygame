@@ -1,0 +1,117 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_7417j"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-books_kathedraal-counter.tres" id="2_a4y8l"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-books_kathedraal-source-10958-1.tres" id="3_xhdni"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-books_kathedraal-source-10958-2.tres" id="4_2234l"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-books_kathedraal-source-10958-3.tres" id="5_18q2d"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-books_kathedraal-source-10958-4.tres" id="6_xum0k"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-books_kathedraal-source-10958-5.tres" id="7_2ntkq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-books_kathedraal-source-10958-6.tres" id="8_g8pom"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-books_kathedraal-source-10962-7.tres" id="9_ejvf5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-books_kathedraal-source-10963-8.tres" id="10_jdsg3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-books_kathedraal-source-10964-9.tres" id="11_tcr1f"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-books_kathedraal-source-10965-10.tres" id="12_7wj2y"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-books_kathedraal-source-10968-11.tres" id="13_laul2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-books_kathedraal-source-10968-12.tres" id="14_xavqg"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-books_kathedraal-source-10970-13.tres" id="15_xeumc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-books_kathedraal-source-10970-14.tres" id="16_x7xcj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-books_kathedraal-source-11013-15.tres" id="17_eq1r6"]
+
+[node name="Objects" type="Node3D" unique_id=1694327181]
+
+[node name="object_counter" type="Node3D" parent="." unique_id=1028352208]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -196.65, 0.18, 167.12999)
+script = ExtResource("1_7417j")
+ObjectId = "room-shop-books_kathedraal-counter"
+Asset = ExtResource("2_a4y8l")
+
+[node name="object_source-10958-1" type="Node3D" parent="." unique_id=1613626734]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -196.02505, 0.18, 168)
+script = ExtResource("1_7417j")
+ObjectId = "room-shop-books_kathedraal-source-10958-1"
+Asset = ExtResource("3_xhdni")
+
+[node name="object_source-10958-2" type="Node3D" parent="." unique_id=1590765569]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -196.19505, 0.18, 163.38002)
+script = ExtResource("1_7417j")
+ObjectId = "room-shop-books_kathedraal-source-10958-2"
+Asset = ExtResource("4_2234l")
+
+[node name="object_source-10958-3" type="Node3D" parent="." unique_id=657475865]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -196.17007, 0.18, 164.45251)
+script = ExtResource("1_7417j")
+ObjectId = "room-shop-books_kathedraal-source-10958-3"
+Asset = ExtResource("5_18q2d")
+
+[node name="object_source-10958-4" type="Node3D" parent="." unique_id=696884693]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -199.525, 0.18, 167.13751)
+script = ExtResource("1_7417j")
+ObjectId = "room-shop-books_kathedraal-source-10958-4"
+Asset = ExtResource("6_xum0k")
+
+[node name="object_source-10958-5" type="Node3D" parent="." unique_id=627814929]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -193.2701, 0.18, 165.67503)
+script = ExtResource("1_7417j")
+ObjectId = "room-shop-books_kathedraal-source-10958-5"
+Asset = ExtResource("7_2ntkq")
+
+[node name="object_source-10958-6" type="Node3D" parent="." unique_id=1019801706]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -193.24014, 0.18, 165.67505)
+script = ExtResource("1_7417j")
+ObjectId = "room-shop-books_kathedraal-source-10958-6"
+Asset = ExtResource("8_g8pom")
+
+[node name="object_source-10962-7" type="Node3D" parent="." unique_id=2071360288]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -196.47003, 0.18, 164.45251)
+script = ExtResource("1_7417j")
+ObjectId = "room-shop-books_kathedraal-source-10962-7"
+Asset = ExtResource("9_ejvf5")
+
+[node name="object_source-10963-8" type="Node3D" parent="." unique_id=531739264]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -195.97002, 0.18, 164.4525)
+script = ExtResource("1_7417j")
+ObjectId = "room-shop-books_kathedraal-source-10963-8"
+Asset = ExtResource("10_jdsg3")
+
+[node name="object_source-10964-9" type="Node3D" parent="." unique_id=152435845]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -196.47, 0.18, 164.45251)
+script = ExtResource("1_7417j")
+ObjectId = "room-shop-books_kathedraal-source-10964-9"
+Asset = ExtResource("11_tcr1f")
+
+[node name="object_source-10965-10" type="Node3D" parent="." unique_id=1295557357]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -195.97002, 0.18, 164.45251)
+script = ExtResource("1_7417j")
+ObjectId = "room-shop-books_kathedraal-source-10965-10"
+Asset = ExtResource("12_7wj2y")
+
+[node name="object_source-10968-11" type="Node3D" parent="." unique_id=467268042]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -197.33002, 0.18, 167.30002)
+script = ExtResource("1_7417j")
+ObjectId = "room-shop-books_kathedraal-source-10968-11"
+Asset = ExtResource("13_laul2")
+
+[node name="object_source-10968-12" type="Node3D" parent="." unique_id=175673971]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -195.70801, 0.18, 165.07504)
+script = ExtResource("1_7417j")
+ObjectId = "room-shop-books_kathedraal-source-10968-12"
+Asset = ExtResource("14_xavqg")
+
+[node name="object_source-10970-13" type="Node3D" parent="." unique_id=959837994]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -197.33002, 0.18, 167.3)
+script = ExtResource("1_7417j")
+ObjectId = "room-shop-books_kathedraal-source-10970-13"
+Asset = ExtResource("15_xeumc")
+
+[node name="object_source-10970-14" type="Node3D" parent="." unique_id=98651702]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -195.70804, 0.18, 165.07501)
+script = ExtResource("1_7417j")
+ObjectId = "room-shop-books_kathedraal-source-10970-14"
+Asset = ExtResource("16_x7xcj")
+
+[node name="object_source-11013-15" type="Node3D" parent="." unique_id=1279732138]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -200.002, 0.18, 167.13748)
+script = ExtResource("1_7417j")
+ObjectId = "room-shop-books_kathedraal-source-11013-15"
+Asset = ExtResource("17_eq1r6")

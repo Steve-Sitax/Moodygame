@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-shop-chandler_werf.catalog.tres" id="1_6h2uv"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-shop-chandler_werf.structure.tscn" id="2_fhrg2"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-shop-chandler_werf.objects.tscn" id="3_6h2uv"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_nyi8o"]
+
+[resource]
+script = ExtResource("4_nyi8o")
+Id = "room-shop-chandler_werf"
+Title = "shop:chandler_werf"
+Scene = ExtResource("3_6h2uv")
+EditorScenePath = "res://world/interiors/room-shop-chandler_werf.tscn"
+Catalog = ExtResource("1_6h2uv")
+Bounds = Rect2(-382.235, -80, 200, 200)
+WalkSpawn = Vector3(-282.235, 0.2, 20)
+FlySpawn = Vector3(-282.235, 1.78, 20)
+FlyPitch = -0.12
+RoomId = "shop:chandler_werf"
+RoomFrame = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -280.5475, 0.18, 14)
+RoomBounds = Rect2(-4.8625, 0.2, 6.3500004, 11.6)
+EntryPoints = PackedVector3Array(-280.5475, 0.18, 14)
+ReplacedMeshes = PackedInt32Array(10189, 10191, 10192, 10193, 10194, 10195, 10196, 10197, 10198, 10199, 10200, 10201, 10202, 10203, 10204, 10211, 10245)
+RetainedStructure = ExtResource("2_fhrg2")

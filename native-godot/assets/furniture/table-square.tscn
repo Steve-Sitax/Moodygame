@@ -1,0 +1,69 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/tables-r0013.res" id="1_emby6"]
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/tables-r0015.res" id="2_tggaq"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_emby6"]
+size = Vector3(0.88, 0.14, 0.88)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_tggaq"]
+size = Vector3(0.055, 0.61, 0.055)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_kpkng"]
+size = Vector3(0.055, 0.61, 0.055)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_x6w2i"]
+size = Vector3(0.055, 0.61, 0.055)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_s0ea1"]
+size = Vector3(0.055, 0.61, 0.055)
+
+[node name="table_square" type="Node3D" unique_id=608130775]
+
+[node name="table_square" type="Node3D" parent="." unique_id=1824346650]
+metadata/extras = {
+"furniture": "{\"id\": \"table-square\", \"title\": \"Square deal table\", \"category\": \"Furniture: tables\", \"footprint\": [0.88, 0.75, 0.88], \"footprintOffset\": [0.0, 0.0, -0.0], \"collision\": [{\"size\": [0.88, 0.14, 0.88], \"at\": [0, 0.68, 0], \"yaw\": 0.0}, {\"size\": [0.055, 0.61, 0.055], \"at\": [-0.355, 0.305, 0.355], \"yaw\": 0.0}, {\"size\": [0.055, 0.61, 0.055], \"at\": [-0.355, 0.305, -0.355], \"yaw\": 0.0}, {\"size\": [0.055, 0.61, 0.055], \"at\": [0.355, 0.305, 0.355], \"yaw\": 0.0}, {\"size\": [0.055, 0.61, 0.055], \"at\": [0.355, 0.305, -0.355], \"yaw\": 0.0}], \"points\": [{\"kind\": \"use\", \"node\": \"table_square_use_0\", \"at\": [0, 0, 0.62], \"facing\": [0, 0, -1], \"action\": \"sit\"}, {\"kind\": \"use\", \"node\": \"table_square_use_1\", \"at\": [0, 0, -0.62], \"facing\": [0, 0, 1], \"action\": \"sit\"}, {\"kind\": \"use\", \"node\": \"table_square_use_2\", \"at\": [-0.62, 0, 0], \"facing\": [1, 0, 0], \"action\": \"sit\"}, {\"kind\": \"use\", \"node\": \"table_square_use_3\", \"at\": [0.62, 0, 0], \"facing\": [-1, 0, 0], \"action\": \"sit\"}]}"
+}
+
+[node name="table_square_far" type="MeshInstance3D" parent="table_square" unique_id=1417958147]
+visible = false
+mesh = ExtResource("1_emby6")
+
+[node name="table_square_near" type="MeshInstance3D" parent="table_square" unique_id=1427368531]
+mesh = ExtResource("2_tggaq")
+
+[node name="table_square_use_0" type="Node3D" parent="table_square" unique_id=1904954360]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0.62)
+
+[node name="table_square_use_1" type="Node3D" parent="table_square" unique_id=1780119306]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.62)
+
+[node name="table_square_use_2" type="Node3D" parent="table_square" unique_id=1927533872]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -0.62, 0, 0)
+
+[node name="table_square_use_3" type="Node3D" parent="table_square" unique_id=1362061535]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0.62, 0, 0)
+
+[node name="Solid" type="StaticBody3D" parent="." unique_id=1793437271]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Solid" unique_id=762846047]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.68, 0)
+shape = SubResource("BoxShape3D_emby6")
+
+[node name="@CollisionShape3D@8" type="CollisionShape3D" parent="Solid" unique_id=1463729874]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.355, 0.305, 0.355)
+shape = SubResource("BoxShape3D_tggaq")
+
+[node name="@CollisionShape3D@9" type="CollisionShape3D" parent="Solid" unique_id=332218179]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.355, 0.305, -0.355)
+shape = SubResource("BoxShape3D_kpkng")
+
+[node name="@CollisionShape3D@10" type="CollisionShape3D" parent="Solid" unique_id=342017286]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.355, 0.305, 0.355)
+shape = SubResource("BoxShape3D_x6w2i")
+
+[node name="@CollisionShape3D@11" type="CollisionShape3D" parent="Solid" unique_id=1368006925]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.355, 0.305, -0.355)
+shape = SubResource("BoxShape3D_s0ea1")

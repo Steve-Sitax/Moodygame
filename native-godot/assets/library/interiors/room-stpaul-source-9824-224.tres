@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-stpaul-source-9824-224.tscn" id="1_cykpf"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_fbeti"]
+
+[resource]
+PlacementAnchor = Vector3(-9.536743e-07, 0, -2.4557114e-05)
+GeometryClearance = true
+script = ExtResource("2_fbeti")
+Id = "room-stpaul-source-9824-224"
+Title = "fitting · stpaul · source-9824-224"
+Category = "Room originals"
+Scene = ExtResource("1_cykpf")
+Footprint = Vector3(0.19999123, 0.13998103, 0.79977083)
+FootprintOffset = Vector3(-9.536743e-07, 1.569842, -2.4557114e-05)
+FurnitureKind = "fitting"
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000061)

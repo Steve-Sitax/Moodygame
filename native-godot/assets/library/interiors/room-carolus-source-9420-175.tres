@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-carolus-source-9420-175.tscn" id="1_pdsvt"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_42plr"]
+
+[resource]
+PlacementAnchor = Vector3(3.8146973e-06, 0, -1.41859055e-05)
+GeometryClearance = true
+script = ExtResource("2_42plr")
+Id = "room-carolus-source-9420-175"
+Title = "fitting · carolus · source-9420-175"
+Category = "Room originals"
+Scene = ExtResource("1_pdsvt")
+Footprint = Vector3(0.3737049, 0.10170555, 0.37370515)
+FootprintOffset = Vector3(3.8146973e-06, 22.909134, -1.41859055e-05)
+FurnitureKind = "fitting"
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000061)

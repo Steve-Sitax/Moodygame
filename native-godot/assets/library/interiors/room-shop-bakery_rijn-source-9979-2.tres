@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-bakery_rijn-source-9979-2.tscn" id="1_f0w74"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_3l100"]
+
+[resource]
+PlacementAnchor = Vector3(1.1920929e-07, -5.9604645e-08, 3.427267e-06)
+GeometryClearance = true
+script = ExtResource("2_3l100")
+Id = "room-shop-bakery_rijn-source-9979-2"
+Title = "table · shop:bakery_rijn · source-9979-2"
+Category = "Room originals"
+Scene = ExtResource("1_f0w74")
+Footprint = Vector3(2.4454422, 0.7413003, 0.7477688)
+FootprintOffset = Vector3(1.1920929e-07, -5.9604645e-08, 3.427267e-06)
+FurnitureKind = "table"
+SeatYaw = 1.6328664
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

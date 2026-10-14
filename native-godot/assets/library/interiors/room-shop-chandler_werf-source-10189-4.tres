@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-chandler_werf-source-10189-4.tscn" id="1_fhnyp"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_8nu14"]
+
+[resource]
+PlacementAnchor = Vector3(1.2636185e-05, 0, -2.3841858e-07)
+GeometryClearance = true
+script = ExtResource("2_8nu14")
+Id = "room-shop-chandler_werf-source-10189-4"
+Title = "clock · shop:chandler_werf · source-10189-4"
+Category = "Room originals"
+Scene = ExtResource("1_fhnyp")
+Footprint = Vector3(0.38002157, 0.3799863, 0.0400033)
+FootprintOffset = Vector3(1.2636185e-05, 2.2599957, -2.3841858e-07)
+FurnitureKind = "clock"
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000004)

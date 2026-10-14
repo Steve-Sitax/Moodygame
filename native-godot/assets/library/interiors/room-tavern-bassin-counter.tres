@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-tavern-bassin-counter.tscn" id="1_clpt2"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_dohpx"]
+
+[resource]
+PlacementAnchor = Vector3(0.4499892, -1.4901161e-08, -8.8214874e-05)
+GeometryClearance = true
+script = ExtResource("2_dohpx")
+Id = "room-tavern-bassin-counter"
+Title = "counter · tavern:bassin · counter"
+Category = "Room originals"
+Scene = ExtResource("1_clpt2")
+Footprint = Vector3(1.4500287, 1.6799903, 4.0000267)
+FootprintOffset = Vector3(0.4499892, -1.4901161e-08, -8.8214874e-05)
+FurnitureKind = "counter"
+UsePoint = Vector3(-0.6749954, 1.2, 0)
+StandPoint = Vector3(-1.4249954, 0, 0)
+
+
+KeeperPoint = Vector3(0.82500355, 0, -8.8214874e-05)

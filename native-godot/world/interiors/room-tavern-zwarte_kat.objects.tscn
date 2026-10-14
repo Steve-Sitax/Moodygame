@@ -1,0 +1,194 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_330ae"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-zwarte_kat-seat-0.tres" id="2_27741"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-zwarte_kat-seat-2.tres" id="3_3rtvd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-zwarte_kat-seat-4.tres" id="4_uob71"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-zwarte_kat-seat-6.tres" id="5_hvg0y"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-zwarte_kat-seat-8.tres" id="6_3h8tk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-zwarte_kat-seat-10.tres" id="7_nv5gh"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-zwarte_kat-seat-12.tres" id="8_i83rt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-zwarte_kat-seat-13.tres" id="9_bbplf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-zwarte_kat-seat-14.tres" id="10_8ogtj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-zwarte_kat-table-0.tres" id="11_lt5re"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-zwarte_kat-table-1.tres" id="12_hqijm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-zwarte_kat-table-2.tres" id="13_cdtw8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-zwarte_kat-counter.tres" id="14_smuyo"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-zwarte_kat-source-12088-13.tres" id="15_ledw0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-zwarte_kat-source-12088-14.tres" id="16_6kvhq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-zwarte_kat-source-12088-15.tres" id="17_hxkih"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-zwarte_kat-source-12088-16.tres" id="18_ro8rn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-zwarte_kat-source-12088-17.tres" id="19_ktv80"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-zwarte_kat-source-12088-18.tres" id="20_aqp5w"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-zwarte_kat-source-12095-19.tres" id="21_5eg46"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-zwarte_kat-source-12103-20.tres" id="22_31pyr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-zwarte_kat-source-12103-21.tres" id="23_4qtiy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-zwarte_kat-source-12108-22.tres" id="24_raipb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-zwarte_kat-source-12110-23.tres" id="25_cay2v"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-zwarte_kat-source-12110-24.tres" id="26_tlc7m"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-zwarte_kat-source-12110-25.tres" id="27_yi30l"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-zwarte_kat-source-12112-26.tres" id="28_hughr"]
+
+[node name="Objects" type="Node3D" unique_id=1215472606]
+
+[node name="object_seat-0" type="Node3D" parent="." unique_id=138379689]
+transform = Transform3D(-0.1821906, 0, 0.98326325, 0, 1, 0, -0.98326325, 0, -0.1821906, -62.711605, 0.18, 263.81937)
+script = ExtResource("1_330ae")
+ObjectId = "room-tavern-zwarte_kat-seat-0"
+Asset = ExtResource("2_27741")
+
+[node name="object_seat-2" type="Node3D" parent="." unique_id=1175960635]
+transform = Transform3D(0.18219051, 0, -0.98326325, 0, 1, 0, 0.98326325, 0, 0.18219051, -61.295704, 0.18, 263.557)
+script = ExtResource("1_330ae")
+ObjectId = "room-tavern-zwarte_kat-seat-2"
+Asset = ExtResource("3_3rtvd")
+
+[node name="object_seat-4" type="Node3D" parent="." unique_id=1594819854]
+transform = Transform3D(-0.1821906, 0, 0.98326325, 0, 1, 0, -0.98326325, 0, -0.1821906, -62.16503, 0.18, 266.76917)
+script = ExtResource("1_330ae")
+ObjectId = "room-tavern-zwarte_kat-seat-4"
+Asset = ExtResource("4_uob71")
+
+[node name="object_seat-6" type="Node3D" parent="." unique_id=1508881428]
+transform = Transform3D(0.18219051, 0, -0.98326325, 0, 1, 0, 0.98326325, 0, 0.18219051, -60.749134, 0.18, 266.5068)
+script = ExtResource("1_330ae")
+ObjectId = "room-tavern-zwarte_kat-seat-6"
+Asset = ExtResource("5_hvg0y")
+
+[node name="object_seat-8" type="Node3D" parent="." unique_id=1475507874]
+transform = Transform3D(-0.1821906, 0, 0.98326325, 0, 1, 0, -0.98326325, 0, -0.1821906, -61.61846, 0.18, 269.71896)
+script = ExtResource("1_330ae")
+ObjectId = "room-tavern-zwarte_kat-seat-8"
+Asset = ExtResource("6_3h8tk")
+
+[node name="object_seat-10" type="Node3D" parent="." unique_id=1601450393]
+transform = Transform3D(0.18219051, 0, -0.98326325, 0, 1, 0, 0.98326325, 0, 0.18219051, -60.20256, 0.18, 269.4566)
+script = ExtResource("1_330ae")
+ObjectId = "room-tavern-zwarte_kat-seat-10"
+Asset = ExtResource("7_nv5gh")
+
+[node name="object_seat-12" type="Node3D" parent="." unique_id=1201836412]
+transform = Transform3D(-0.1821906, 0, 0.98326325, 0, 1, 0, -0.98326325, 0, -0.1821906, -59.229282, 0.18, 264.4454)
+script = ExtResource("1_330ae")
+ObjectId = "room-tavern-zwarte_kat-seat-12"
+Asset = ExtResource("8_i83rt")
+
+[node name="object_seat-13" type="Node3D" parent="." unique_id=1793838342]
+transform = Transform3D(-0.1821906, 0, 0.98326325, 0, 1, 0, -0.98326325, 0, -0.1821906, -58.992435, 0.18, 265.72366)
+script = ExtResource("1_330ae")
+ObjectId = "room-tavern-zwarte_kat-seat-13"
+Asset = ExtResource("9_bbplf")
+
+[node name="object_seat-14" type="Node3D" parent="." unique_id=1166271136]
+transform = Transform3D(-0.1821906, 0, 0.98326325, 0, 1, 0, -0.98326325, 0, -0.1821906, -58.75559, 0.18, 267.0019)
+script = ExtResource("1_330ae")
+ObjectId = "room-tavern-zwarte_kat-seat-14"
+Asset = ExtResource("10_8ogtj")
+
+[node name="object_table-0" type="Node3D" parent="." unique_id=1728644198]
+transform = Transform3D(0.98326325, 0, 0.1821906, 0, 1, 0, -0.1821906, 0, 0.98326325, -62.003654, 0.18, 263.6882)
+script = ExtResource("1_330ae")
+ObjectId = "room-tavern-zwarte_kat-table-0"
+Asset = ExtResource("11_lt5re")
+
+[node name="object_table-1" type="Node3D" parent="." unique_id=1344602793]
+transform = Transform3D(0.98326325, 0, 0.1821906, 0, 1, 0, -0.1821906, 0, 0.98326325, -61.457085, 0.18, 266.638)
+script = ExtResource("1_330ae")
+ObjectId = "room-tavern-zwarte_kat-table-1"
+Asset = ExtResource("12_hqijm")
+
+[node name="object_table-2" type="Node3D" parent="." unique_id=1218090057]
+transform = Transform3D(0.98326325, 0, 0.1821906, 0, 1, 0, -0.1821906, 0, 0.98326325, -60.91051, 0.18, 269.58777)
+script = ExtResource("1_330ae")
+ObjectId = "room-tavern-zwarte_kat-table-2"
+Asset = ExtResource("13_cdtw8")
+
+[node name="object_counter" type="Node3D" parent="." unique_id=1333637810]
+transform = Transform3D(0.98326325, 0, 0.1821906, 0, 1, 0, -0.1821906, 0, 0.98326325, -58.377895, 0.18, 265.60977)
+script = ExtResource("1_330ae")
+ObjectId = "room-tavern-zwarte_kat-counter"
+Asset = ExtResource("14_smuyo")
+
+[node name="object_source-12088-13" type="Node3D" parent="." unique_id=1201455737]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -57.375015, 0.18, 265.4239)
+script = ExtResource("1_330ae")
+ObjectId = "room-tavern-zwarte_kat-source-12088-13"
+Asset = ExtResource("15_ledw0")
+
+[node name="object_source-12088-14" type="Node3D" parent="." unique_id=147545357]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -57.375015, 0.18, 265.4239)
+script = ExtResource("1_330ae")
+ObjectId = "room-tavern-zwarte_kat-source-12088-14"
+Asset = ExtResource("16_6kvhq")
+
+[node name="object_source-12088-15" type="Node3D" parent="." unique_id=1855452847]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -56.682945, 0.18, 271.87573)
+script = ExtResource("1_330ae")
+ObjectId = "room-tavern-zwarte_kat-source-12088-15"
+Asset = ExtResource("17_hxkih")
+
+[node name="object_source-12088-16" type="Node3D" parent="." unique_id=107779646]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -59.355526, 0.18, 272.64322)
+script = ExtResource("1_330ae")
+ObjectId = "room-tavern-zwarte_kat-source-12088-16"
+Asset = ExtResource("18_ro8rn")
+
+[node name="object_source-12088-17" type="Node3D" parent="." unique_id=1376711140]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -62.88559, 0.18, 265.02112)
+script = ExtResource("1_330ae")
+ObjectId = "room-tavern-zwarte_kat-source-12088-17"
+Asset = ExtResource("19_ktv80")
+
+[node name="object_source-12088-18" type="Node3D" parent="." unique_id=911289867]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -62.655975, 0.18, 266.80923)
+script = ExtResource("1_330ae")
+ObjectId = "room-tavern-zwarte_kat-source-12088-18"
+Asset = ExtResource("20_aqp5w")
+
+[node name="object_source-12095-19" type="Node3D" parent="." unique_id=915324336]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -57.242226, 0.18, 265.39935)
+script = ExtResource("1_330ae")
+ObjectId = "room-tavern-zwarte_kat-source-12095-19"
+Asset = ExtResource("21_5eg46")
+
+[node name="object_source-12103-20" type="Node3D" parent="." unique_id=798011534]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -59.90329, 0.18, 265.30865)
+script = ExtResource("1_330ae")
+ObjectId = "room-tavern-zwarte_kat-source-12103-20"
+Asset = ExtResource("22_31pyr")
+
+[node name="object_source-12103-21" type="Node3D" parent="." unique_id=1953306552]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -59.11266, 0.18, 269.57556)
+script = ExtResource("1_330ae")
+ObjectId = "room-tavern-zwarte_kat-source-12103-21"
+Asset = ExtResource("23_4qtiy")
+
+[node name="object_source-12108-22" type="Node3D" parent="." unique_id=1282573573]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -62.361546, 0.18, 268.17856)
+script = ExtResource("1_330ae")
+ObjectId = "room-tavern-zwarte_kat-source-12108-22"
+Asset = ExtResource("24_raipb")
+
+[node name="object_source-12110-23" type="Node3D" parent="." unique_id=1904518792]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -63.272522, 0.18, 263.2622)
+script = ExtResource("1_330ae")
+ObjectId = "room-tavern-zwarte_kat-source-12110-23"
+Asset = ExtResource("25_cay2v")
+
+[node name="object_source-12110-24" type="Node3D" parent="." unique_id=690106735]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -61.738483, 0.18, 271.54132)
+script = ExtResource("1_330ae")
+ObjectId = "room-tavern-zwarte_kat-source-12110-24"
+Asset = ExtResource("26_tlc7m")
+
+[node name="object_source-12110-25" type="Node3D" parent="." unique_id=16943114]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -57.979538, 0.18, 270.64136)
+script = ExtResource("1_330ae")
+ObjectId = "room-tavern-zwarte_kat-source-12110-25"
+Asset = ExtResource("27_yi30l")
+
+[node name="object_source-12112-26" type="Node3D" parent="." unique_id=1536706820]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -61.56702, 0.18, 272.72998)
+script = ExtResource("1_330ae")
+ObjectId = "room-tavern-zwarte_kat-source-12112-26"
+Asset = ExtResource("28_hughr")

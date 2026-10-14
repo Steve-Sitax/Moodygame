@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-oostershuis-source-9290-531.tscn" id="1_amy07"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_4ke3a"]
+
+[resource]
+PlacementAnchor = Vector3(3.33786e-06, 8.404806, 8.583069e-06)
+GeometryClearance = true
+script = ExtResource("2_4ke3a")
+Id = "room-oostershuis-source-9290-531"
+Title = "cask · oostershuis · source-9290-531"
+Category = "Room originals"
+Scene = ExtResource("1_amy07")
+Footprint = Vector3(0.7211008, 0.95019436, 0.7585316)
+FootprintOffset = Vector3(3.33786e-06, 8.404806, 8.583069e-06)
+FurnitureKind = "cask"
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000061)

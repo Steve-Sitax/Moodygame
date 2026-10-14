@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture-table.tscn" id="1_fnxjl"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_widid"]
+
+[resource]
+script = ExtResource("2_widid")
+Id = "furniture-table"
+Title = "Table"
+Category = "Furniture"
+Scene = ExtResource("1_fnxjl")
+Footprint = Vector3(1.2, 0.8, 0.9)
+FurnitureKind = "table"
+UsePoint = Vector3(0, 0.5, 0.45)
+StandPoint = Vector3(0, 0, -1.05)

@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-tavern-zwarte_kat.catalog.tres" id="1_5pndy"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-tavern-zwarte_kat.structure.tscn" id="2_7ba3i"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-tavern-zwarte_kat.objects.tscn" id="3_5pndy"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_fvt4j"]
+
+[resource]
+script = ExtResource("4_fvt4j")
+Id = "room-tavern-zwarte_kat"
+Title = "tavern:zwarte_kat"
+Scene = ExtResource("3_5pndy")
+EditorScenePath = "res://world/interiors/room-tavern-zwarte_kat.tscn"
+Catalog = ExtResource("1_5pndy")
+Bounds = Rect2(-159.6838, 167.59085, 200, 200)
+WalkSpawn = Vector3(-59.68381, 0.2, 267.59085)
+FlySpawn = Vector3(-59.68381, 1.78, 267.59085)
+FlyYaw = 0.18321387
+FlyPitch = -0.12
+RoomId = "tavern:zwarte_kat"
+RoomFrame = Transform3D(0.98326325, 0, 0.1821906, 0, 1, 0, -0.1821906, 0, 0.98326325, -59.275833, 0.18, 261.50467)
+RoomBounds = Rect2(-4.329985, 0.2, 5.6399803, 11.42)
+EntryPoints = PackedVector3Array(-59.275833, 0.18, 261.50467)
+ReplacedMeshes = PackedInt32Array(12088, 12091, 12092, 12093, 12094, 12095, 12096, 12097, 12098, 12099, 12100, 12101, 12102, 12103, 12104, 12105, 12106, 12107, 12108, 12109, 12110, 12112, 12113)
+RetainedStructure = ExtResource("2_7ba3i")

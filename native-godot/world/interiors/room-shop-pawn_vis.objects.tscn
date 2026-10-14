@@ -1,0 +1,124 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_pfkcf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-counter.tres" id="2_nth0k"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-source-10317-1.tres" id="3_eb8jm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-source-10317-2.tres" id="4_wrapn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-source-10317-3.tres" id="5_cj7wa"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-source-10317-4.tres" id="6_hc2q8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-source-10317-5.tres" id="7_qmrsy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-source-10317-6.tres" id="8_2n1lw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-source-10319-7.tres" id="9_efnlx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-source-10321-8.tres" id="10_pbjoe"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-source-10322-9.tres" id="11_xhivn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-source-10322-10.tres" id="12_iyark"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-source-10322-11.tres" id="13_sl5nx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-source-10322-12.tres" id="14_rtdgw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-source-10324-13.tres" id="15_dluxl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-source-10326-14.tres" id="16_tteeu"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-source-10326-15.tres" id="17_xpasi"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-source-10368-16.tres" id="18_umvpg"]
+
+[node name="Objects" type="Node3D" unique_id=1377195950]
+
+[node name="object_counter" type="Node3D" parent="." unique_id=1881164367]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -129.65, 0.18, 78.53)
+script = ExtResource("1_pfkcf")
+ObjectId = "room-shop-pawn_vis-counter"
+Asset = ExtResource("2_nth0k")
+
+[node name="object_source-10317-1" type="Node3D" parent="." unique_id=603873992]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -130.06757, 0.18, 79.63005)
+script = ExtResource("1_pfkcf")
+ObjectId = "room-shop-pawn_vis-source-10317-1"
+Asset = ExtResource("3_eb8jm")
+
+[node name="object_source-10317-2" type="Node3D" parent="." unique_id=695260546]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -127.135086, 0.18, 79.63005)
+script = ExtResource("1_pfkcf")
+ObjectId = "room-shop-pawn_vis-source-10317-2"
+Asset = ExtResource("4_wrapn")
+
+[node name="object_source-10317-3" type="Node3D" parent="." unique_id=893139]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -129.70004, 0.18, 73.40005)
+script = ExtResource("1_pfkcf")
+ObjectId = "room-shop-pawn_vis-source-10317-3"
+Asset = ExtResource("5_cj7wa")
+
+[node name="object_source-10317-4" type="Node3D" parent="." unique_id=1285149256]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -126.27002, 0.18, 76.495056)
+script = ExtResource("1_pfkcf")
+ObjectId = "room-shop-pawn_vis-source-10317-4"
+Asset = ExtResource("6_hc2q8")
+
+[node name="object_source-10317-5" type="Node3D" parent="." unique_id=955905575]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -126.24007, 0.18, 76.49505)
+script = ExtResource("1_pfkcf")
+ObjectId = "room-shop-pawn_vis-source-10317-5"
+Asset = ExtResource("7_qmrsy")
+
+[node name="object_source-10317-6" type="Node3D" parent="." unique_id=157909288]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -127.100075, 0.18, 73.23004)
+script = ExtResource("1_pfkcf")
+ObjectId = "room-shop-pawn_vis-source-10317-6"
+Asset = ExtResource("8_2n1lw")
+
+[node name="object_source-10319-7" type="Node3D" parent="." unique_id=1738517104]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -130.349, 0.18, 79.62625)
+script = ExtResource("1_pfkcf")
+ObjectId = "room-shop-pawn_vis-source-10319-7"
+Asset = ExtResource("9_efnlx")
+
+[node name="object_source-10321-8" type="Node3D" parent="." unique_id=2055716648]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -131.33, 0.18, 79.40003)
+script = ExtResource("1_pfkcf")
+ObjectId = "room-shop-pawn_vis-source-10321-8"
+Asset = ExtResource("10_pbjoe")
+
+[node name="object_source-10322-9" type="Node3D" parent="." unique_id=1150153146]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -129.65204, 0.18, 78.42003)
+script = ExtResource("1_pfkcf")
+ObjectId = "room-shop-pawn_vis-source-10322-9"
+Asset = ExtResource("11_xhivn")
+
+[node name="object_source-10322-10" type="Node3D" parent="." unique_id=1471564349]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -126.70003, 0.18, 73.74002)
+script = ExtResource("1_pfkcf")
+ObjectId = "room-shop-pawn_vis-source-10322-10"
+Asset = ExtResource("12_iyark")
+
+[node name="object_source-10322-11" type="Node3D" parent="." unique_id=1799314395]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -130.33003, 0.18, 78.70003)
+script = ExtResource("1_pfkcf")
+ObjectId = "room-shop-pawn_vis-source-10322-11"
+Asset = ExtResource("13_sl5nx")
+
+[node name="object_source-10322-12" type="Node3D" parent="." unique_id=761236174]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -128.70801, 0.18, 75.89501)
+script = ExtResource("1_pfkcf")
+ObjectId = "room-shop-pawn_vis-source-10322-12"
+Asset = ExtResource("14_rtdgw")
+
+[node name="object_source-10324-13" type="Node3D" parent="." unique_id=1437630863]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -131.6, 0.18, 73.222)
+script = ExtResource("1_pfkcf")
+ObjectId = "room-shop-pawn_vis-source-10324-13"
+Asset = ExtResource("15_dluxl")
+
+[node name="object_source-10326-14" type="Node3D" parent="." unique_id=1824610135]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -130.33002, 0.18, 78.70001)
+script = ExtResource("1_pfkcf")
+ObjectId = "room-shop-pawn_vis-source-10326-14"
+Asset = ExtResource("16_tteeu")
+
+[node name="object_source-10326-15" type="Node3D" parent="." unique_id=1850653125]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -128.70804, 0.18, 75.89501)
+script = ExtResource("1_pfkcf")
+ObjectId = "room-shop-pawn_vis-source-10326-15"
+Asset = ExtResource("17_xpasi")
+
+[node name="object_source-10368-16" type="Node3D" parent="." unique_id=1841505029]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -133.002, 0.18, 78.247505)
+script = ExtResource("1_pfkcf")
+ObjectId = "room-shop-pawn_vis-source-10368-16"
+Asset = ExtResource("18_umvpg")

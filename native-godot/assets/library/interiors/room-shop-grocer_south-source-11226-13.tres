@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-grocer_south-source-11226-13.tscn" id="1_xo17n"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_qupe7"]
+
+[resource]
+PlacementAnchor = Vector3(-1.5497208e-06, 0, 5.4836273e-06)
+GeometryClearance = true
+script = ExtResource("2_qupe7")
+Id = "room-shop-grocer_south-source-11226-13"
+Title = "sack · shop:grocer_south · source-11226-13"
+Category = "Room originals"
+Scene = ExtResource("1_xo17n")
+Footprint = Vector3(0.53041136, 0.62, 0.5392766)
+FootprintOffset = Vector3(-1.5497208e-06, 0, 5.4836273e-06)
+FurnitureKind = "sack"
+SeatYaw = 3.0468206
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000061)

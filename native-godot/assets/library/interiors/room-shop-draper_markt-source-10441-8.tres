@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-draper_markt-source-10441-8.tscn" id="1_xu2nb"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_thorx"]
+
+[resource]
+PlacementAnchor = Vector3(7.6293945e-06, 0, 3.5762787e-06)
+GeometryClearance = true
+script = ExtResource("2_thorx")
+Id = "room-shop-draper_markt-source-10441-8"
+Title = "fitting · shop:draper_markt · source-10441-8"
+Category = "Room originals"
+Scene = ExtResource("1_xu2nb")
+Footprint = Vector3(0.15998268, 0.080019236, 0.15995884)
+FootprintOffset = Vector3(7.6293945e-06, 2.3099806, 3.5762787e-06)
+FurnitureKind = "fitting"
+SeatYaw = 3.1415925
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

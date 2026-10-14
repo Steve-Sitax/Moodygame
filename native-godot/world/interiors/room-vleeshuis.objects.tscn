@@ -1,0 +1,1806 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_0f51n"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9092-0.tres" id="2_nj100"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9092-1.tres" id="3_2x40n"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9092-2.tres" id="4_k8dvc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9095-3.tres" id="5_opbqq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9097-4.tres" id="6_eeel4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9097-5.tres" id="7_wke4s"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9097-6.tres" id="8_h13hu"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9097-7.tres" id="9_wjfe1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9097-8.tres" id="10_qys0f"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9097-9.tres" id="11_xcnyw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9097-10.tres" id="12_crd0g"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9097-11.tres" id="13_7pek1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9097-12.tres" id="14_0ym4x"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9097-13.tres" id="15_jmyrt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9097-14.tres" id="16_6x3cs"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9097-15.tres" id="17_hb6rj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9097-16.tres" id="18_4o3qi"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9097-17.tres" id="19_ewe0g"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9097-18.tres" id="20_3q1j0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9097-19.tres" id="21_laf4d"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9097-20.tres" id="22_f2hxc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9097-21.tres" id="23_a3lxo"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9097-22.tres" id="24_6h735"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9097-23.tres" id="25_fw20w"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9097-24.tres" id="26_inpit"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9101-25.tres" id="27_baojj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9101-26.tres" id="28_88i8q"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-27.tres" id="29_jhlu1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-28.tres" id="30_vywgr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-29.tres" id="31_fsffw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-30.tres" id="32_3lkua"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-31.tres" id="33_vog4l"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-32.tres" id="34_my1hv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-33.tres" id="35_4538c"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-34.tres" id="36_1urki"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-35.tres" id="37_kalkg"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-36.tres" id="38_j5e16"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-37.tres" id="39_dvkna"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-38.tres" id="40_cf412"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-39.tres" id="41_fe4m3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-40.tres" id="42_e8qnt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-41.tres" id="43_boh2r"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-42.tres" id="44_kc0ja"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-43.tres" id="45_h5xhl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-44.tres" id="46_i5j1c"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-45.tres" id="47_tkqca"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-46.tres" id="48_fbbd0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-47.tres" id="49_olxjy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-48.tres" id="50_qw44l"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-49.tres" id="51_jig5t"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-50.tres" id="52_is3al"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-51.tres" id="53_aj8fv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-52.tres" id="54_afuga"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-53.tres" id="55_v4y0l"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-54.tres" id="56_acobd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-55.tres" id="57_aa7t1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-56.tres" id="58_w4bmg"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-57.tres" id="59_rt0q0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-58.tres" id="60_wifm2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-59.tres" id="61_src17"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-60.tres" id="62_kw4vk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-61.tres" id="63_i0cov"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-62.tres" id="64_onqye"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-63.tres" id="65_uxlc0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-64.tres" id="66_fkwc8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-65.tres" id="67_0cpr7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-66.tres" id="68_uxqmb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-67.tres" id="69_0cebl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-68.tres" id="70_vavwf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-69.tres" id="71_rsgsb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-70.tres" id="72_55w5o"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-71.tres" id="73_rr8uf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-72.tres" id="74_0fi4r"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-73.tres" id="75_eo6n2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-74.tres" id="76_wbket"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9103-75.tres" id="77_ipqve"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9157-76.tres" id="78_ukljr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-vleeshuis-source-9184-77.tres" id="79_ahkjo"]
+[ext_resource type="Resource" path="res://assets/library/furniture-chair.tres" id="80_nj100"]
+
+[node name="Objects" type="Node3D" unique_id=1288034017]
+
+[node name="object_room-vleeshuis-source-9092-0" type="Node3D" parent="." unique_id=1225565789]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -116.0285, 0, 98.86809)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9092-0"
+Asset = ExtResource("2_nj100")
+
+[node name="object_room-vleeshuis-source-9092-1" type="Node3D" parent="." unique_id=45047624]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -137.27013, 0, 96.29999)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9092-1"
+Asset = ExtResource("3_2x40n")
+
+[node name="object_room-vleeshuis-source-9092-2" type="Node3D" parent="." unique_id=870278835]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -137.27013, 0, 103.39997)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9092-2"
+Asset = ExtResource("4_k8dvc")
+
+[node name="object_room-vleeshuis-source-9095-3" type="Node3D" parent="." unique_id=1633010630]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -132.24527, 0, 95.69989)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9095-3"
+Asset = ExtResource("5_opbqq")
+
+[node name="object_room-vleeshuis-source-9097-4" type="Node3D" parent="." unique_id=749603992]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.95015, 0, 93.319916)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9097-4"
+Asset = ExtResource("6_eeel4")
+
+[node name="object_room-vleeshuis-source-9097-5" type="Node3D" parent="." unique_id=352979924]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.95015, 0, 93.87991)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9097-5"
+Asset = ExtResource("7_wke4s")
+
+[node name="object_room-vleeshuis-source-9097-6" type="Node3D" parent="." unique_id=1210532719]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -127.20018, 0, 105.61987)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9097-6"
+Asset = ExtResource("8_h13hu")
+
+[node name="object_room-vleeshuis-source-9097-7" type="Node3D" parent="." unique_id=787380134]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -127.20018, 0, 106.179886)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9097-7"
+Asset = ExtResource("9_wjfe1")
+
+[node name="object_room-vleeshuis-source-9097-8" type="Node3D" parent="." unique_id=53988337]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -112.6504, 0, 105.61987)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9097-8"
+Asset = ExtResource("10_qys0f")
+
+[node name="object_room-vleeshuis-source-9097-9" type="Node3D" parent="." unique_id=1466410436]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -112.6504, 0, 106.179886)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9097-9"
+Asset = ExtResource("11_xcnyw")
+
+[node name="object_room-vleeshuis-source-9097-10" type="Node3D" parent="." unique_id=386049579]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -116.55029, 0, 101.719955)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9097-10"
+Asset = ExtResource("12_crd0g")
+
+[node name="object_room-vleeshuis-source-9097-11" type="Node3D" parent="." unique_id=1544266595]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -116.55029, 0, 102.27985)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9097-11"
+Asset = ExtResource("13_7pek1")
+
+[node name="object_room-vleeshuis-source-9097-12" type="Node3D" parent="." unique_id=1636750720]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.15035, 0, 101.719955)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9097-12"
+Asset = ExtResource("14_0ym4x")
+
+[node name="object_room-vleeshuis-source-9097-13" type="Node3D" parent="." unique_id=725398295]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.15035, 0, 102.27985)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9097-13"
+Asset = ExtResource("15_jmyrt")
+
+[node name="object_room-vleeshuis-source-9097-14" type="Node3D" parent="." unique_id=864954661]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -135.35022, 0, 99.75)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9097-14"
+Asset = ExtResource("16_6x3cs")
+
+[node name="object_room-vleeshuis-source-9097-15" type="Node3D" parent="." unique_id=594816959]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -132.1502, 0, 99.75)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9097-15"
+Asset = ExtResource("17_hb6rj")
+
+[node name="object_room-vleeshuis-source-9097-16" type="Node3D" parent="." unique_id=1134848286]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -128.95016, 0, 99.75)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9097-16"
+Asset = ExtResource("18_4o3qi")
+
+[node name="object_room-vleeshuis-source-9097-17" type="Node3D" parent="." unique_id=1008748399]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -125.75014, 0, 99.75)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9097-17"
+Asset = ExtResource("19_ewe0g")
+
+[node name="object_room-vleeshuis-source-9097-18" type="Node3D" parent="." unique_id=371661366]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -122.5501, 0, 99.75)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9097-18"
+Asset = ExtResource("20_3q1j0")
+
+[node name="object_room-vleeshuis-source-9097-19" type="Node3D" parent="." unique_id=608479206]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -119.350075, 0, 99.75)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9097-19"
+Asset = ExtResource("21_laf4d")
+
+[node name="object_room-vleeshuis-source-9097-20" type="Node3D" parent="." unique_id=1983234017]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -116.15004, 0, 99.75)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9097-20"
+Asset = ExtResource("22_f2hxc")
+
+[node name="object_room-vleeshuis-source-9097-21" type="Node3D" parent="." unique_id=980728017]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -112.95034, 0, 99.75)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9097-21"
+Asset = ExtResource("23_a3lxo")
+
+[node name="object_room-vleeshuis-source-9097-22" type="Node3D" parent="." unique_id=1633739729]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -109.750305, 0, 99.75)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9097-22"
+Asset = ExtResource("24_6h735")
+
+[node name="object_room-vleeshuis-source-9097-23" type="Node3D" parent="." unique_id=293485518]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.550606, 0, 99.75)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9097-23"
+Asset = ExtResource("25_fw20w")
+
+[node name="object_room-vleeshuis-source-9097-24" type="Node3D" parent="." unique_id=1637431669]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -96.95051, 0, 99.75)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9097-24"
+Asset = ExtResource("26_inpit")
+
+[node name="object_room-vleeshuis-source-9101-25" type="Node3D" parent="." unique_id=1053080373]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -127.17519, 0, 105.89998)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9101-25"
+Asset = ExtResource("27_baojj")
+
+[node name="object_room-vleeshuis-source-9101-26" type="Node3D" parent="." unique_id=219591524]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -112.685455, 0, 105.89998)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9101-26"
+Asset = ExtResource("28_88i8q")
+
+[node name="object_room-vleeshuis-source-9103-27" type="Node3D" parent="." unique_id=2072006939]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -136.40027, 0, 94.1)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-27"
+Asset = ExtResource("29_jhlu1")
+
+[node name="object_room-vleeshuis-source-9103-28" type="Node3D" parent="." unique_id=587189210]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -135.58029, 0, 94.1)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-28"
+Asset = ExtResource("30_vywgr")
+
+[node name="object_room-vleeshuis-source-9103-29" type="Node3D" parent="." unique_id=1734473892]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -134.76028, 0, 94.1)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-29"
+Asset = ExtResource("31_fsffw")
+
+[node name="object_room-vleeshuis-source-9103-30" type="Node3D" parent="." unique_id=857063908]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -133.12032, 0, 94.1)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-30"
+Asset = ExtResource("32_3lkua")
+
+[node name="object_room-vleeshuis-source-9103-31" type="Node3D" parent="." unique_id=444650232]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.06027, 0, 94.1)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-31"
+Asset = ExtResource("33_vog4l")
+
+[node name="object_room-vleeshuis-source-9103-32" type="Node3D" parent="." unique_id=683448476]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -111.4801, 0, 94.1)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-32"
+Asset = ExtResource("34_my1hv")
+
+[node name="object_room-vleeshuis-source-9103-33" type="Node3D" parent="." unique_id=420078408]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.38016, 0, 94.1)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-33"
+Asset = ExtResource("35_4538c")
+
+[node name="object_room-vleeshuis-source-9103-34" type="Node3D" parent="." unique_id=1831231930]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.56017, 0, 94.1)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-34"
+Asset = ExtResource("36_1urki")
+
+[node name="object_room-vleeshuis-source-9103-35" type="Node3D" parent="." unique_id=952159921]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -105.74049, 0, 94.1)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-35"
+Asset = ExtResource("37_kalkg")
+
+[node name="object_room-vleeshuis-source-9103-36" type="Node3D" parent="." unique_id=849607747]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.9205, 0, 94.1)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-36"
+Asset = ExtResource("38_j5e16")
+
+[node name="object_room-vleeshuis-source-9103-37" type="Node3D" parent="." unique_id=428406878]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -100.82025, 0, 94.1)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-37"
+Asset = ExtResource("39_dvkna")
+
+[node name="object_room-vleeshuis-source-9103-38" type="Node3D" parent="." unique_id=270824183]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -100.00057, 0, 94.1)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-38"
+Asset = ExtResource("40_cf412")
+
+[node name="object_room-vleeshuis-source-9103-39" type="Node3D" parent="." unique_id=436147236]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -99.18059, 0, 94.1)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-39"
+Asset = ExtResource("41_fe4m3")
+
+[node name="object_room-vleeshuis-source-9103-40" type="Node3D" parent="." unique_id=1981006950]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -98.36028, 0, 94.1)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-40"
+Asset = ExtResource("42_e8qnt")
+
+[node name="object_room-vleeshuis-source-9103-41" type="Node3D" parent="." unique_id=1529506493]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -96.72031, 0, 94.1)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-41"
+Asset = ExtResource("43_boh2r")
+
+[node name="object_room-vleeshuis-source-9103-42" type="Node3D" parent="." unique_id=189309255]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -95.90001, 0, 94.1)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-42"
+Asset = ExtResource("44_kc0ja")
+
+[node name="object_room-vleeshuis-source-9103-43" type="Node3D" parent="." unique_id=1021108906]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -135.58029, 0, 105.4)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-43"
+Asset = ExtResource("45_h5xhl")
+
+[node name="object_room-vleeshuis-source-9103-44" type="Node3D" parent="." unique_id=39849829]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -134.76028, 0, 105.4)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-44"
+Asset = ExtResource("46_i5j1c")
+
+[node name="object_room-vleeshuis-source-9103-45" type="Node3D" parent="." unique_id=1292169767]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -133.9403, 0, 105.4)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-45"
+Asset = ExtResource("47_tkqca")
+
+[node name="object_room-vleeshuis-source-9103-46" type="Node3D" parent="." unique_id=1729751748]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -133.12032, 0, 105.4)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-46"
+Asset = ExtResource("48_fbbd0")
+
+[node name="object_room-vleeshuis-source-9103-47" type="Node3D" parent="." unique_id=1298465177]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -130.66034, 0, 105.4)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-47"
+Asset = ExtResource("49_olxjy")
+
+[node name="object_room-vleeshuis-source-9103-48" type="Node3D" parent="." unique_id=1845985812]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -128.20038, 0, 105.4)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-48"
+Asset = ExtResource("50_qw44l")
+
+[node name="object_room-vleeshuis-source-9103-49" type="Node3D" parent="." unique_id=1923791081]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -126.56041, 0, 105.4)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-49"
+Asset = ExtResource("51_jig5t")
+
+[node name="object_room-vleeshuis-source-9103-50" type="Node3D" parent="." unique_id=579494334]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -125.74042, 0, 105.4)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-50"
+Asset = ExtResource("52_is3al")
+
+[node name="object_room-vleeshuis-source-9103-51" type="Node3D" parent="." unique_id=267656405]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -124.10013, 0, 105.4)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-51"
+Asset = ExtResource("53_aj8fv")
+
+[node name="object_room-vleeshuis-source-9103-52" type="Node3D" parent="." unique_id=234958209]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -120.82048, 0, 105.4)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-52"
+Asset = ExtResource("54_afuga")
+
+[node name="object_room-vleeshuis-source-9103-53" type="Node3D" parent="." unique_id=1047250960]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -119.1802, 0, 105.4)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-53"
+Asset = ExtResource("55_v4y0l")
+
+[node name="object_room-vleeshuis-source-9103-54" type="Node3D" parent="." unique_id=630426994]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.36052, 0, 105.4)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-54"
+Asset = ExtResource("56_acobd")
+
+[node name="object_room-vleeshuis-source-9103-55" type="Node3D" parent="." unique_id=123977556]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -113.30029, 0, 105.4)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-55"
+Asset = ExtResource("57_aa7t1")
+
+[node name="object_room-vleeshuis-source-9103-56" type="Node3D" parent="." unique_id=1377363088]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -133.70023, 0, 97.999954)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-56"
+Asset = ExtResource("58_w4bmg")
+
+[node name="object_room-vleeshuis-source-9103-57" type="Node3D" parent="." unique_id=1124925648]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -132.06056, 0, 96.99988)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-57"
+Asset = ExtResource("59_rt0q0")
+
+[node name="object_room-vleeshuis-source-9103-58" type="Node3D" parent="." unique_id=963256920]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -132.06024, 0, 97.999954)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-58"
+Asset = ExtResource("60_wifm2")
+
+[node name="object_room-vleeshuis-source-9103-59" type="Node3D" parent="." unique_id=1190215839]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -121.66012, 0, 97.999954)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-59"
+Asset = ExtResource("61_src17")
+
+[node name="object_room-vleeshuis-source-9103-60" type="Node3D" parent="." unique_id=1003283591]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -120.84013, 0, 96.99988)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-60"
+Asset = ExtResource("62_kw4vk")
+
+[node name="object_room-vleeshuis-source-9103-61" type="Node3D" parent="." unique_id=20985000]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -120.840126, 0, 97.999954)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-61"
+Asset = ExtResource("63_i0cov")
+
+[node name="object_room-vleeshuis-source-9103-62" type="Node3D" parent="." unique_id=2104633440]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -112.080284, 0, 97.999954)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-62"
+Asset = ExtResource("64_onqye")
+
+[node name="object_room-vleeshuis-source-9103-63" type="Node3D" parent="." unique_id=1169555200]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -111.26029, 0, 97.999954)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-63"
+Asset = ExtResource("65_uxlc0")
+
+[node name="object_room-vleeshuis-source-9103-64" type="Node3D" parent="." unique_id=173088031]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -102.50044, 0, 97.999954)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-64"
+Asset = ExtResource("66_fkwc8")
+
+[node name="object_room-vleeshuis-source-9103-65" type="Node3D" parent="." unique_id=1516041893]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -100.86015, 0, 97.999954)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-65"
+Asset = ExtResource("67_0cpr7")
+
+[node name="object_room-vleeshuis-source-9103-66" type="Node3D" parent="." unique_id=1352782059]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -100.04048, 0, 97.999954)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-66"
+Asset = ExtResource("68_uxqmb")
+
+[node name="object_room-vleeshuis-source-9103-67" type="Node3D" parent="." unique_id=2059582413]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.100494, 0, 101.49988)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-67"
+Asset = ExtResource("69_0cebl")
+
+[node name="object_room-vleeshuis-source-9103-68" type="Node3D" parent="." unique_id=947760930]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.10018, 0, 102.499954)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-68"
+Asset = ExtResource("70_vavwf")
+
+[node name="object_room-vleeshuis-source-9103-69" type="Node3D" parent="." unique_id=570616438]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -117.2802, 0, 102.499954)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-69"
+Asset = ExtResource("71_rsgsb")
+
+[node name="object_room-vleeshuis-source-9103-70" type="Node3D" parent="." unique_id=1379882553]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.70004, 0, 101.49988)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-70"
+Asset = ExtResource("72_55w5o")
+
+[node name="object_room-vleeshuis-source-9103-71" type="Node3D" parent="." unique_id=1278312236]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.70004, 0, 102.499954)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-71"
+Asset = ExtResource("73_rr8uf")
+
+[node name="object_room-vleeshuis-source-9103-72" type="Node3D" parent="." unique_id=1940837263]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.88037, 0, 102.499954)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-72"
+Asset = ExtResource("74_0fi4r")
+
+[node name="object_room-vleeshuis-source-9103-73" type="Node3D" parent="." unique_id=1055369702]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.060074, 0, 101.49988)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-73"
+Asset = ExtResource("75_eo6n2")
+
+[node name="object_room-vleeshuis-source-9103-74" type="Node3D" parent="." unique_id=170786083]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -105.2404, 0, 101.49988)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-74"
+Asset = ExtResource("76_wbket")
+
+[node name="object_room-vleeshuis-source-9103-75" type="Node3D" parent="." unique_id=234839559]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -105.24008, 0, 102.499954)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9103-75"
+Asset = ExtResource("77_ipqve")
+
+[node name="object_room-vleeshuis-source-9157-76" type="Node3D" parent="." unique_id=815122099]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -98.091194, 0, 99.75)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9157-76"
+Asset = ExtResource("78_ukljr")
+
+[node name="object_room-vleeshuis-source-9184-77" type="Node3D" parent="." unique_id=1008508157]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -97.37958, 0, 99.75)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-source-9184-77"
+Asset = ExtResource("79_ahkjo")
+
+[node name="object_room-vleeshuis-role-seat-0" type="Node3D" parent="." unique_id=1702893075]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -131.34999, 10, 99.75)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-0"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-1" type="Node3D" parent="." unique_id=1765725852]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -115.75, 10, 94.35)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-1"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-2" type="Node3D" parent="." unique_id=78497207]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -115.75, 10, 94.97)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-2"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-3" type="Node3D" parent="." unique_id=1445719454]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -115.75, 10, 95.590004)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-3"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-4" type="Node3D" parent="." unique_id=1717432940]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -115.75, 10, 96.21)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-4"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-5" type="Node3D" parent="." unique_id=1233981162]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -115.75, 10, 96.83)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-5"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-6" type="Node3D" parent="." unique_id=168822340]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -115.75, 10, 97.450005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-6"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-7" type="Node3D" parent="." unique_id=1598319174]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -115.75, 10, 98.07)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-7"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-8" type="Node3D" parent="." unique_id=1509730526]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -115.75, 10, 98.69)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-8"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-9" type="Node3D" parent="." unique_id=1654138511]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -115.75, 10, 100.65)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-9"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-10" type="Node3D" parent="." unique_id=97876868]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -115.75, 10, 101.270004)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-10"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-11" type="Node3D" parent="." unique_id=389088487]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -115.75, 10, 101.89)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-11"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-12" type="Node3D" parent="." unique_id=261080169]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -115.75, 10, 102.51)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-12"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-13" type="Node3D" parent="." unique_id=1698425714]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -115.75, 10, 103.130005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-13"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-14" type="Node3D" parent="." unique_id=639896603]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -115.75, 10, 103.75)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-14"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-15" type="Node3D" parent="." unique_id=749702216]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -115.75, 10, 104.37)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-15"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-16" type="Node3D" parent="." unique_id=61673039]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -115.75, 10, 104.990005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-16"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-17" type="Node3D" parent="." unique_id=853639300]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -117, 10, 94.35)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-17"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-18" type="Node3D" parent="." unique_id=2035490551]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -117, 10, 94.97)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-18"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-19" type="Node3D" parent="." unique_id=1825992077]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -117, 10, 95.590004)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-19"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-20" type="Node3D" parent="." unique_id=326241021]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -117, 10, 96.21)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-20"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-21" type="Node3D" parent="." unique_id=488635741]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -117, 10, 96.83)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-21"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-22" type="Node3D" parent="." unique_id=1973351805]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -117, 10, 97.450005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-22"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-23" type="Node3D" parent="." unique_id=2017363735]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -117, 10, 98.07)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-23"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-24" type="Node3D" parent="." unique_id=2134162043]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -117, 10, 98.69)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-24"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-25" type="Node3D" parent="." unique_id=1534766952]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -117, 10, 100.65)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-25"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-26" type="Node3D" parent="." unique_id=79754152]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -117, 10, 101.270004)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-26"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-27" type="Node3D" parent="." unique_id=493028646]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -117, 10, 101.89)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-27"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-28" type="Node3D" parent="." unique_id=1374903226]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -117, 10, 102.51)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-28"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-29" type="Node3D" parent="." unique_id=878530000]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -117, 10, 103.130005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-29"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-30" type="Node3D" parent="." unique_id=1267901089]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -117, 10, 103.75)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-30"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-31" type="Node3D" parent="." unique_id=1088647768]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -117, 10, 104.37)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-31"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-32" type="Node3D" parent="." unique_id=382363710]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -117, 10, 104.990005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-32"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-33" type="Node3D" parent="." unique_id=2137459765]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -118.25, 10, 94.35)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-33"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-34" type="Node3D" parent="." unique_id=1241109920]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -118.25, 10, 94.97)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-34"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-35" type="Node3D" parent="." unique_id=2056037280]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -118.25, 10, 95.590004)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-35"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-36" type="Node3D" parent="." unique_id=1372639806]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -118.25, 10, 96.21)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-36"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-37" type="Node3D" parent="." unique_id=1449335446]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -118.25, 10, 96.83)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-37"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-38" type="Node3D" parent="." unique_id=1001681044]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -118.25, 10, 97.450005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-38"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-39" type="Node3D" parent="." unique_id=1652287477]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -118.25, 10, 98.07)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-39"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-40" type="Node3D" parent="." unique_id=474687278]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -118.25, 10, 98.69)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-40"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-41" type="Node3D" parent="." unique_id=724327995]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -118.25, 10, 100.65)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-41"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-42" type="Node3D" parent="." unique_id=738821787]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -118.25, 10, 101.270004)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-42"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-43" type="Node3D" parent="." unique_id=475547645]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -118.25, 10, 101.89)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-43"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-44" type="Node3D" parent="." unique_id=1539233817]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -118.25, 10, 102.51)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-44"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-45" type="Node3D" parent="." unique_id=240117385]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -118.25, 10, 103.130005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-45"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-46" type="Node3D" parent="." unique_id=1854878743]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -118.25, 10, 103.75)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-46"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-47" type="Node3D" parent="." unique_id=1069082178]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -118.25, 10, 104.37)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-47"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-48" type="Node3D" parent="." unique_id=1701750570]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -118.25, 10, 104.990005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-48"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-49" type="Node3D" parent="." unique_id=186578399]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -119.5, 10, 94.35)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-49"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-50" type="Node3D" parent="." unique_id=1231016953]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -119.5, 10, 94.97)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-50"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-51" type="Node3D" parent="." unique_id=590813191]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -119.5, 10, 95.590004)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-51"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-52" type="Node3D" parent="." unique_id=1058764717]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -119.5, 10, 96.21)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-52"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-53" type="Node3D" parent="." unique_id=1842603409]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -119.5, 10, 96.83)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-53"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-54" type="Node3D" parent="." unique_id=1204322002]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -119.5, 10, 97.450005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-54"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-55" type="Node3D" parent="." unique_id=408763004]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -119.5, 10, 98.07)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-55"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-56" type="Node3D" parent="." unique_id=1595691059]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -119.5, 10, 98.69)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-56"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-57" type="Node3D" parent="." unique_id=1626820692]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -119.5, 10, 100.65)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-57"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-58" type="Node3D" parent="." unique_id=519258482]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -119.5, 10, 101.270004)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-58"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-59" type="Node3D" parent="." unique_id=1082638789]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -119.5, 10, 101.89)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-59"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-60" type="Node3D" parent="." unique_id=1784977070]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -119.5, 10, 102.51)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-60"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-61" type="Node3D" parent="." unique_id=1005075405]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -119.5, 10, 103.130005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-61"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-62" type="Node3D" parent="." unique_id=1100322025]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -119.5, 10, 103.75)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-62"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-63" type="Node3D" parent="." unique_id=1983792746]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -119.5, 10, 104.37)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-63"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-64" type="Node3D" parent="." unique_id=1189136269]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -119.5, 10, 104.990005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-64"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-65" type="Node3D" parent="." unique_id=1529005287]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -120.75, 10, 94.35)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-65"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-66" type="Node3D" parent="." unique_id=1247227046]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -120.75, 10, 94.97)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-66"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-67" type="Node3D" parent="." unique_id=1830326585]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -120.75, 10, 95.590004)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-67"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-68" type="Node3D" parent="." unique_id=2013532508]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -120.75, 10, 96.21)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-68"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-69" type="Node3D" parent="." unique_id=980338419]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -120.75, 10, 96.83)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-69"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-70" type="Node3D" parent="." unique_id=1989026990]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -120.75, 10, 97.450005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-70"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-71" type="Node3D" parent="." unique_id=606863433]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -120.75, 10, 98.07)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-71"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-72" type="Node3D" parent="." unique_id=35474333]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -120.75, 10, 98.69)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-72"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-73" type="Node3D" parent="." unique_id=561586540]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -120.75, 10, 100.65)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-73"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-74" type="Node3D" parent="." unique_id=871259378]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -120.75, 10, 101.270004)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-74"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-75" type="Node3D" parent="." unique_id=2128723995]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -120.75, 10, 101.89)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-75"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-76" type="Node3D" parent="." unique_id=658727375]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -120.75, 10, 102.51)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-76"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-77" type="Node3D" parent="." unique_id=234381561]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -120.75, 10, 103.130005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-77"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-78" type="Node3D" parent="." unique_id=2132280752]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -120.75, 10, 103.75)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-78"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-79" type="Node3D" parent="." unique_id=913645083]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -120.75, 10, 104.37)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-79"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-80" type="Node3D" parent="." unique_id=462255837]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -120.75, 10, 104.990005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-80"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-81" type="Node3D" parent="." unique_id=680638933]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -122, 10, 94.35)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-81"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-82" type="Node3D" parent="." unique_id=119447170]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -122, 10, 94.97)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-82"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-83" type="Node3D" parent="." unique_id=1874144002]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -122, 10, 95.590004)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-83"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-84" type="Node3D" parent="." unique_id=1524441980]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -122, 10, 96.21)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-84"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-85" type="Node3D" parent="." unique_id=126101199]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -122, 10, 96.83)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-85"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-86" type="Node3D" parent="." unique_id=512932964]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -122, 10, 97.450005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-86"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-87" type="Node3D" parent="." unique_id=699358844]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -122, 10, 98.07)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-87"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-88" type="Node3D" parent="." unique_id=355431594]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -122, 10, 98.69)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-88"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-89" type="Node3D" parent="." unique_id=174298883]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -122, 10, 100.65)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-89"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-90" type="Node3D" parent="." unique_id=1469787767]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -122, 10, 101.270004)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-90"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-91" type="Node3D" parent="." unique_id=1440937421]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -122, 10, 101.89)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-91"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-92" type="Node3D" parent="." unique_id=1125446541]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -122, 10, 102.51)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-92"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-93" type="Node3D" parent="." unique_id=414853401]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -122, 10, 103.130005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-93"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-94" type="Node3D" parent="." unique_id=1278836793]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -122, 10, 103.75)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-94"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-95" type="Node3D" parent="." unique_id=1837346684]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -122, 10, 104.37)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-95"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-96" type="Node3D" parent="." unique_id=326629822]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -122, 10, 104.990005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-96"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-97" type="Node3D" parent="." unique_id=1745335621]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -123.25, 10, 94.35)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-97"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-98" type="Node3D" parent="." unique_id=641131935]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -123.25, 10, 94.97)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-98"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-99" type="Node3D" parent="." unique_id=942126905]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -123.25, 10, 95.590004)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-99"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-100" type="Node3D" parent="." unique_id=2057773854]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -123.25, 10, 96.21)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-100"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-101" type="Node3D" parent="." unique_id=1345516010]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -123.25, 10, 96.83)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-101"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-102" type="Node3D" parent="." unique_id=5797997]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -123.25, 10, 97.450005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-102"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-103" type="Node3D" parent="." unique_id=415389345]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -123.25, 10, 98.07)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-103"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-104" type="Node3D" parent="." unique_id=1970846113]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -123.25, 10, 98.69)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-104"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-105" type="Node3D" parent="." unique_id=750103138]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -123.25, 10, 100.65)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-105"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-106" type="Node3D" parent="." unique_id=261046858]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -123.25, 10, 101.270004)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-106"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-107" type="Node3D" parent="." unique_id=943924283]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -123.25, 10, 101.89)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-107"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-108" type="Node3D" parent="." unique_id=1733100699]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -123.25, 10, 102.51)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-108"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-109" type="Node3D" parent="." unique_id=290452683]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -123.25, 10, 103.130005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-109"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-110" type="Node3D" parent="." unique_id=466962006]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -123.25, 10, 103.75)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-110"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-111" type="Node3D" parent="." unique_id=347539019]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -123.25, 10, 104.37)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-111"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-112" type="Node3D" parent="." unique_id=981542632]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -123.25, 10, 104.990005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-112"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-113" type="Node3D" parent="." unique_id=1851794283]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -124.5, 10, 94.35)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-113"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-114" type="Node3D" parent="." unique_id=1684264555]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -124.5, 10, 94.97)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-114"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-115" type="Node3D" parent="." unique_id=1203451628]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -124.5, 10, 95.590004)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-115"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-116" type="Node3D" parent="." unique_id=1002957285]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -124.5, 10, 96.21)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-116"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-117" type="Node3D" parent="." unique_id=1656112325]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -124.5, 10, 96.83)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-117"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-118" type="Node3D" parent="." unique_id=1134816453]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -124.5, 10, 97.450005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-118"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-119" type="Node3D" parent="." unique_id=1007858440]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -124.5, 10, 98.07)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-119"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-120" type="Node3D" parent="." unique_id=2026122522]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -124.5, 10, 98.69)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-120"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-121" type="Node3D" parent="." unique_id=1272526052]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -124.5, 10, 100.65)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-121"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-122" type="Node3D" parent="." unique_id=2064204057]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -124.5, 10, 101.270004)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-122"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-123" type="Node3D" parent="." unique_id=2123653011]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -124.5, 10, 101.89)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-123"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-124" type="Node3D" parent="." unique_id=468082691]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -124.5, 10, 102.51)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-124"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-125" type="Node3D" parent="." unique_id=575310693]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -124.5, 10, 103.130005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-125"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-126" type="Node3D" parent="." unique_id=2125127257]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -124.5, 10, 103.75)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-126"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-127" type="Node3D" parent="." unique_id=137876959]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -124.5, 10, 104.37)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-127"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-128" type="Node3D" parent="." unique_id=561815508]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -124.5, 10, 104.990005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-128"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-129" type="Node3D" parent="." unique_id=875635138]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -125.75, 10, 94.35)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-129"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-130" type="Node3D" parent="." unique_id=1150300823]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -125.75, 10, 94.97)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-130"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-131" type="Node3D" parent="." unique_id=1300476925]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -125.75, 10, 95.590004)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-131"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-132" type="Node3D" parent="." unique_id=239302656]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -125.75, 10, 96.21)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-132"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-133" type="Node3D" parent="." unique_id=400003088]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -125.75, 10, 96.83)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-133"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-134" type="Node3D" parent="." unique_id=671809908]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -125.75, 10, 97.450005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-134"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-135" type="Node3D" parent="." unique_id=1406778713]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -125.75, 10, 98.07)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-135"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-136" type="Node3D" parent="." unique_id=1414269691]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -125.75, 10, 98.69)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-136"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-137" type="Node3D" parent="." unique_id=1012968745]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -125.75, 10, 100.65)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-137"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-138" type="Node3D" parent="." unique_id=386684637]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -125.75, 10, 101.270004)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-138"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-139" type="Node3D" parent="." unique_id=1923400100]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -125.75, 10, 101.89)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-139"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-140" type="Node3D" parent="." unique_id=853463397]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -125.75, 10, 102.51)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-140"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-141" type="Node3D" parent="." unique_id=591093407]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -125.75, 10, 103.130005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-141"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-142" type="Node3D" parent="." unique_id=876232320]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -125.75, 10, 103.75)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-142"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-143" type="Node3D" parent="." unique_id=466352779]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -125.75, 10, 104.37)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-143"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-144" type="Node3D" parent="." unique_id=1561481647]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -125.75, 10, 104.990005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-144"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-145" type="Node3D" parent="." unique_id=1012708447]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -127, 10, 94.35)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-145"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-146" type="Node3D" parent="." unique_id=1407338592]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -127, 10, 94.97)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-146"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-147" type="Node3D" parent="." unique_id=479440410]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -127, 10, 95.590004)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-147"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-148" type="Node3D" parent="." unique_id=1878355179]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -127, 10, 96.21)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-148"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-149" type="Node3D" parent="." unique_id=1617467333]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -127, 10, 96.83)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-149"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-150" type="Node3D" parent="." unique_id=1970016516]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -127, 10, 97.450005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-150"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-151" type="Node3D" parent="." unique_id=1627227703]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -127, 10, 98.07)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-151"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-152" type="Node3D" parent="." unique_id=2078768989]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -127, 10, 98.69)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-152"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-153" type="Node3D" parent="." unique_id=601910677]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -127, 10, 100.65)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-153"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-154" type="Node3D" parent="." unique_id=2129570195]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -127, 10, 101.270004)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-154"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-155" type="Node3D" parent="." unique_id=1922836860]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -127, 10, 101.89)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-155"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-156" type="Node3D" parent="." unique_id=938485542]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -127, 10, 102.51)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-156"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-157" type="Node3D" parent="." unique_id=1022409672]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -127, 10, 103.130005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-157"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-158" type="Node3D" parent="." unique_id=765041229]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -127, 10, 103.75)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-158"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-159" type="Node3D" parent="." unique_id=588168366]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -127, 10, 104.37)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-159"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-160" type="Node3D" parent="." unique_id=557506838]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -127, 10, 104.990005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-160"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-161" type="Node3D" parent="." unique_id=1817798497]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -128.25, 10, 94.35)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-161"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-162" type="Node3D" parent="." unique_id=581559716]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -128.25, 10, 94.97)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-162"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-163" type="Node3D" parent="." unique_id=564848256]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -128.25, 10, 95.590004)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-163"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-164" type="Node3D" parent="." unique_id=1885434493]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -128.25, 10, 96.21)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-164"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-165" type="Node3D" parent="." unique_id=174234762]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -128.25, 10, 96.83)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-165"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-166" type="Node3D" parent="." unique_id=833403144]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -128.25, 10, 97.450005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-166"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-167" type="Node3D" parent="." unique_id=1607814928]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -128.25, 10, 98.07)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-167"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-168" type="Node3D" parent="." unique_id=915564184]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -128.25, 10, 98.69)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-168"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-169" type="Node3D" parent="." unique_id=1308508173]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -128.25, 10, 100.65)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-169"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-170" type="Node3D" parent="." unique_id=665192457]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -128.25, 10, 101.270004)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-170"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-171" type="Node3D" parent="." unique_id=1658941922]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -128.25, 10, 101.89)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-171"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-172" type="Node3D" parent="." unique_id=2131655697]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -128.25, 10, 102.51)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-172"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-173" type="Node3D" parent="." unique_id=1516581237]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -128.25, 10, 103.130005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-173"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-174" type="Node3D" parent="." unique_id=1434086891]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -128.25, 10, 103.75)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-174"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-175" type="Node3D" parent="." unique_id=1239780503]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -128.25, 10, 104.37)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-175"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-176" type="Node3D" parent="." unique_id=1668424185]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -128.25, 10, 104.990005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-176"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-177" type="Node3D" parent="." unique_id=1493682872]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -129.5, 10, 94.35)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-177"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-178" type="Node3D" parent="." unique_id=1947183010]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -129.5, 10, 94.97)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-178"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-179" type="Node3D" parent="." unique_id=1380600512]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -129.5, 10, 95.590004)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-179"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-180" type="Node3D" parent="." unique_id=17483768]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -129.5, 10, 96.21)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-180"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-181" type="Node3D" parent="." unique_id=1847716911]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -129.5, 10, 96.83)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-181"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-182" type="Node3D" parent="." unique_id=141337856]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -129.5, 10, 97.450005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-182"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-183" type="Node3D" parent="." unique_id=1372420673]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -129.5, 10, 98.07)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-183"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-184" type="Node3D" parent="." unique_id=921262802]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -129.5, 10, 98.69)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-184"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-185" type="Node3D" parent="." unique_id=2060077430]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -129.5, 10, 100.65)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-185"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-186" type="Node3D" parent="." unique_id=517708001]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -129.5, 10, 101.270004)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-186"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-187" type="Node3D" parent="." unique_id=663904053]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -129.5, 10, 101.89)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-187"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-188" type="Node3D" parent="." unique_id=1064981630]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -129.5, 10, 102.51)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-188"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-189" type="Node3D" parent="." unique_id=433814090]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -129.5, 10, 103.130005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-189"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-190" type="Node3D" parent="." unique_id=58417603]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -129.5, 10, 103.75)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-190"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-191" type="Node3D" parent="." unique_id=1939789604]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -129.5, 10, 104.37)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-191"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-192" type="Node3D" parent="." unique_id=2109626031]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -129.5, 10, 104.990005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-192"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-193" type="Node3D" parent="." unique_id=1436988463]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -130.75, 10, 94.35)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-193"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-194" type="Node3D" parent="." unique_id=2137388734]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -130.75, 10, 94.97)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-194"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-195" type="Node3D" parent="." unique_id=498059421]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -130.75, 10, 95.590004)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-195"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-196" type="Node3D" parent="." unique_id=1298344836]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -130.75, 10, 96.21)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-196"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-197" type="Node3D" parent="." unique_id=59224517]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -130.75, 10, 96.83)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-197"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-198" type="Node3D" parent="." unique_id=1919837422]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -130.75, 10, 97.450005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-198"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-199" type="Node3D" parent="." unique_id=1531198015]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -130.75, 10, 98.07)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-199"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-200" type="Node3D" parent="." unique_id=703816162]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -130.75, 10, 98.69)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-200"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-201" type="Node3D" parent="." unique_id=1989872831]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -130.75, 10, 100.65)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-201"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-202" type="Node3D" parent="." unique_id=1778993944]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -130.75, 10, 101.270004)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-202"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-203" type="Node3D" parent="." unique_id=794865364]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -130.75, 10, 101.89)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-203"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-204" type="Node3D" parent="." unique_id=538026913]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -130.75, 10, 102.51)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-204"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-205" type="Node3D" parent="." unique_id=1787410303]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -130.75, 10, 103.130005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-205"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-206" type="Node3D" parent="." unique_id=1045032158]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -130.75, 10, 103.75)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-206"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-207" type="Node3D" parent="." unique_id=764023822]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -130.75, 10, 104.37)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-207"
+Asset = ExtResource("80_nj100")
+
+[node name="object_room-vleeshuis-role-seat-208" type="Node3D" parent="." unique_id=2014986139]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -130.75, 10, 104.990005)
+script = ExtResource("1_0f51n")
+ObjectId = "room-vleeshuis-role-seat-208"
+Asset = ExtResource("80_nj100")

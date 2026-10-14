@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AuthorCatalog" format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="1_uynv6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-counter.tres" id="2_f7c7m"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-source-10631-1.tres" id="3_3ohbq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-source-10631-2.tres" id="4_26nr6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-source-10631-3.tres" id="5_2it5i"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-source-10631-4.tres" id="6_twvn5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-source-10631-5.tres" id="7_5wgat"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-source-10631-6.tres" id="8_2jhsp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-source-10636-7.tres" id="9_kvwxs"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-source-10637-8.tres" id="10_xq2ey"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-source-10637-9.tres" id="11_0fjbx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-source-10648-10.tres" id="12_qawo3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-source-10650-11.tres" id="13_gmn5b"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-source-10651-12.tres" id="14_84k3l"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-source-10652-13.tres" id="15_ii6bx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-source-10653-14.tres" id="16_cm56h"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-source-10653-15.tres" id="17_jopqg"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-source-10697-16.tres" id="18_2cwf5"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorCatalog.cs" id="19_ds36l"]
+
+[resource]
+script = ExtResource("19_ds36l")
+Assets = Array[ExtResource("1_uynv6")]([ExtResource("2_f7c7m"), ExtResource("3_3ohbq"), ExtResource("4_26nr6"), ExtResource("5_2it5i"), ExtResource("6_twvn5"), ExtResource("7_5wgat"), ExtResource("8_2jhsp"), ExtResource("9_kvwxs"), ExtResource("10_xq2ey"), ExtResource("11_0fjbx"), ExtResource("12_qawo3"), ExtResource("13_gmn5b"), ExtResource("14_84k3l"), ExtResource("15_ii6bx"), ExtResource("16_cm56h"), ExtResource("17_jopqg"), ExtResource("18_2cwf5")])

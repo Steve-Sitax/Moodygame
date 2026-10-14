@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-home-alley-fixed-2.tscn" id="1_3ewt1"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_l50mr"]
+
+[resource]
+PlacementAnchor = Vector3(-7.867813e-06, 0, -4.7683716e-07)
+GeometryClearance = true
+script = ExtResource("2_l50mr")
+Id = "room-home-alley-fixed-2"
+Title = "chest · home:alley · fixed-2"
+Category = "Room originals"
+Scene = ExtResource("1_3ewt1")
+Footprint = Vector3(0.4600134, 0.42, 0.42000008)
+FootprintOffset = Vector3(-7.867813e-06, -0.009999993, -4.7683716e-07)
+FurnitureKind = "chest"
+SeatYaw = 6.283185
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000061)

@@ -1,0 +1,145 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_ut5ye"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-counter.tres" id="2_s84lf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10373-1.tres" id="3_q8kci"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10373-2.tres" id="4_klt1i"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10373-3.tres" id="5_i4owl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10373-4.tres" id="6_lf64p"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10373-5.tres" id="7_5d7et"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10373-6.tres" id="8_41eau"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10376-7.tres" id="9_2fked"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10377-8.tres" id="10_uphd3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10377-9.tres" id="11_tapc2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10377-10.tres" id="12_2ragn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10378-11.tres" id="13_o5jdq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10379-12.tres" id="14_iniq6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10379-13.tres" id="15_ecfhc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10379-14.tres" id="16_sbmig"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10379-15.tres" id="17_si034"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10379-16.tres" id="18_onvlt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10382-17.tres" id="19_trbcy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10382-18.tres" id="20_70sts"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10425-19.tres" id="21_cw4v4"]
+
+[node name="Objects" type="Node3D" unique_id=1757111817]
+
+[node name="object_counter" type="Node3D" parent="." unique_id=177881923]
+transform = Transform3D(0.99536294, 0, 0.096190296, 0, 1, 0, -0.096190296, 0, 0.99536294, -34.764576, 0.18, 76.243065)
+script = ExtResource("1_ut5ye")
+ObjectId = "room-shop-cobbler_lane-counter"
+Asset = ExtResource("2_s84lf")
+
+[node name="object_source-10373-1" type="Node3D" parent="." unique_id=1123762446]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -35.798912, 0.18, 76.970856)
+script = ExtResource("1_ut5ye")
+ObjectId = "room-shop-cobbler_lane-source-10373-1"
+Asset = ExtResource("3_q8kci")
+
+[node name="object_source-10373-2" type="Node3D" parent="." unique_id=1572390331]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -31.911552, 0.18, 76.449554)
+script = ExtResource("1_ut5ye")
+ObjectId = "room-shop-cobbler_lane-source-10373-2"
+Asset = ExtResource("4_klt1i")
+
+[node name="object_source-10373-3" type="Node3D" parent="." unique_id=1889116038]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -35.088432, 0.18, 73.38597)
+script = ExtResource("1_ut5ye")
+ObjectId = "room-shop-cobbler_lane-source-10373-3"
+Asset = ExtResource("5_i4owl")
+
+[node name="object_source-10373-4" type="Node3D" parent="." unique_id=1731515158]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -33.069443, 0.18, 79.48299)
+script = ExtResource("1_ut5ye")
+ObjectId = "room-shop-cobbler_lane-source-10373-4"
+Asset = ExtResource("6_lf64p")
+
+[node name="object_source-10373-5" type="Node3D" parent="." unique_id=1676267878]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -33.068, 0.18, 79.50493)
+script = ExtResource("1_ut5ye")
+ObjectId = "room-shop-cobbler_lane-source-10373-5"
+Asset = ExtResource("7_5d7et")
+
+[node name="object_source-10373-6" type="Node3D" parent="." unique_id=1802109237]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -30.55781, 0.18, 78.398315)
+script = ExtResource("1_ut5ye")
+ObjectId = "room-shop-cobbler_lane-source-10373-6"
+Asset = ExtResource("8_41eau")
+
+[node name="object_source-10376-7" type="Node3D" parent="." unique_id=1663956383]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -31.165016, 0.18, 76.37742)
+script = ExtResource("1_ut5ye")
+ObjectId = "room-shop-cobbler_lane-source-10376-7"
+Asset = ExtResource("9_2fked")
+
+[node name="object_source-10377-8" type="Node3D" parent="." unique_id=86317620]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -31.026983, 0.18, 78.8456)
+script = ExtResource("1_ut5ye")
+ObjectId = "room-shop-cobbler_lane-source-10377-8"
+Asset = ExtResource("10_uphd3")
+
+[node name="object_source-10377-9" type="Node3D" parent="." unique_id=2041412911]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -34.99921, 0.18, 75.58255)
+script = ExtResource("1_ut5ye")
+ObjectId = "room-shop-cobbler_lane-source-10377-9"
+Asset = ExtResource("11_tapc2")
+
+[node name="object_source-10377-10" type="Node3D" parent="." unique_id=639900598]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -32.708145, 0.18, 76.99071)
+script = ExtResource("1_ut5ye")
+ObjectId = "room-shop-cobbler_lane-source-10377-10"
+Asset = ExtResource("12_2ragn")
+
+[node name="object_source-10378-11" type="Node3D" parent="." unique_id=1117061047]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -30.631496, 0.18, 77.53148)
+script = ExtResource("1_ut5ye")
+ObjectId = "room-shop-cobbler_lane-source-10378-11"
+Asset = ExtResource("13_o5jdq")
+
+[node name="object_source-10379-12" type="Node3D" parent="." unique_id=1316667934]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -31.1311, 0.18, 75.16858)
+script = ExtResource("1_ut5ye")
+ObjectId = "room-shop-cobbler_lane-source-10379-12"
+Asset = ExtResource("14_iniq6")
+
+[node name="object_source-10379-13" type="Node3D" parent="." unique_id=1644727770]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -31.116673, 0.18, 75.31788)
+script = ExtResource("1_ut5ye")
+ObjectId = "room-shop-cobbler_lane-source-10379-13"
+Asset = ExtResource("15_ecfhc")
+
+[node name="object_source-10379-14" type="Node3D" parent="." unique_id=1823016471]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -31.102245, 0.18, 75.467186)
+script = ExtResource("1_ut5ye")
+ObjectId = "room-shop-cobbler_lane-source-10379-14"
+Asset = ExtResource("16_sbmig")
+
+[node name="object_source-10379-15" type="Node3D" parent="." unique_id=1419900048]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -31.087816, 0.18, 75.616486)
+script = ExtResource("1_ut5ye")
+ObjectId = "room-shop-cobbler_lane-source-10379-15"
+Asset = ExtResource("17_si034")
+
+[node name="object_source-10379-16" type="Node3D" parent="." unique_id=355303463]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -31.073387, 0.18, 75.7658)
+script = ExtResource("1_ut5ye")
+ObjectId = "room-shop-cobbler_lane-source-10379-16"
+Asset = ExtResource("18_onvlt")
+
+[node name="object_source-10382-17" type="Node3D" parent="." unique_id=1278987336]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -34.999203, 0.18, 75.58255)
+script = ExtResource("1_ut5ye")
+ObjectId = "room-shop-cobbler_lane-source-10382-17"
+Asset = ExtResource("19_trbcy")
+
+[node name="object_source-10382-18" type="Node3D" parent="." unique_id=401881094]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -32.708153, 0.18, 76.99068)
+script = ExtResource("1_ut5ye")
+ObjectId = "room-shop-cobbler_lane-source-10382-18"
+Asset = ExtResource("20_70sts")
+
+[node name="object_source-10425-19" type="Node3D" parent="." unique_id=1791783142]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -35.134293, 0.18, 72.91118)
+script = ExtResource("1_ut5ye")
+ObjectId = "room-shop-cobbler_lane-source-10425-19"
+Asset = ExtResource("21_cw4v4")

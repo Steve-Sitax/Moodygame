@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/furniture/bench-long.tscn" id="1_ro6uk"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_7qv1j"]
+
+[resource]
+script = ExtResource("2_7qv1j")
+Id = "bench-long"
+Title = "Long bench"
+Category = "Furniture: seating"
+Scene = ExtResource("1_ro6uk")
+Footprint = Vector3(2, 0.4561, 0.3)
+FurnitureKind = "bench"
+SeatPoints = PackedVector3Array(-0.75, 0, 0, -0.75, 0, 0, -0.25, 0, 0, -0.25, 0, 0, 0.25, 0, 0, 0.25, 0, 0, 0.75, 0, 0, 0.75, 0, 0)
+SeatHeight = 0.455
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.7)

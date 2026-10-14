@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AuthorCatalog" format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="1_kmqx2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-counter.tres" id="2_0chfp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-source-10702-1.tres" id="3_v6evn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-source-10702-2.tres" id="4_eqhjg"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-source-10702-3.tres" id="5_cvlo7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-source-10704-4.tres" id="6_acwfm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-source-10704-5.tres" id="7_rctg1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-source-10713-6.tres" id="8_s0otr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-source-10714-7.tres" id="9_wcon3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-source-10714-8.tres" id="10_y607h"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-source-10714-9.tres" id="11_qm4pw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-source-10714-10.tres" id="12_wvhp4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-source-10714-11.tres" id="13_olde7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-source-10715-12.tres" id="14_ttsln"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-source-10716-13.tres" id="15_8i1yp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-source-10716-14.tres" id="16_2gkg5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-source-10722-15.tres" id="17_h2twc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-source-10763-16.tres" id="18_5o4qm"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorCatalog.cs" id="19_mniev"]
+
+[resource]
+script = ExtResource("19_mniev")
+Assets = Array[ExtResource("1_kmqx2")]([ExtResource("2_0chfp"), ExtResource("3_v6evn"), ExtResource("4_eqhjg"), ExtResource("5_cvlo7"), ExtResource("6_acwfm"), ExtResource("7_rctg1"), ExtResource("8_s0otr"), ExtResource("9_wcon3"), ExtResource("10_y607h"), ExtResource("11_qm4pw"), ExtResource("12_wvhp4"), ExtResource("13_olde7"), ExtResource("14_ttsln"), ExtResource("15_8i1yp"), ExtResource("16_2gkg5"), ExtResource("17_h2twc"), ExtResource("18_5o4qm")])

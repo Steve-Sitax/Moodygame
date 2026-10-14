@@ -1,0 +1,32 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/storage-r0001.res" id="1_kjbbk"]
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/storage-r0003.res" id="2_8n8kx"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_kjbbk"]
+size = Vector3(1.46, 2, 0.63)
+
+[node name="armoire" type="Node3D" unique_id=1701158091]
+
+[node name="armoire" type="Node3D" parent="." unique_id=1513839083]
+metadata/extras = {
+"furniture": "{\"id\": \"armoire\", \"title\": \"Two-door cupboard\", \"category\": \"Furniture: storage\", \"footprint\": [1.46, 2.005, 0.63], \"footprintOffset\": [0.0, 0.0, 0.025], \"collision\": [{\"size\": [1.46, 2.0, 0.63], \"at\": [0, 1.0, 0.025], \"yaw\": 0.0}], \"points\": [{\"kind\": \"use\", \"node\": \"armoire_use_0\", \"at\": [0, 0, 0.85], \"facing\": [0, 0, -1], \"action\": \"open\"}]}"
+}
+
+[node name="armoire_far" type="MeshInstance3D" parent="armoire" unique_id=2017747191]
+visible = false
+mesh = ExtResource("1_kjbbk")
+
+[node name="armoire_near" type="MeshInstance3D" parent="armoire" unique_id=558744351]
+mesh = ExtResource("2_8n8kx")
+
+[node name="armoire_use_0" type="Node3D" parent="armoire" unique_id=831748940]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0.85)
+
+[node name="Solid" type="StaticBody3D" parent="." unique_id=1175938366]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Solid" unique_id=862886916]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0.025)
+shape = SubResource("BoxShape3D_kjbbk")

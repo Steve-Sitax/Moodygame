@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-butcher_vlees-source-10498-24.tscn" id="1_x3g83"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_6h8vb"]
+
+[resource]
+PlacementAnchor = Vector3(7.1525574e-07, 0, -1.9073486e-06)
+GeometryClearance = true
+script = ExtResource("2_6h8vb")
+Id = "room-shop-butcher_vlees-source-10498-24"
+Title = "fitting · shop:butcher_vlees · source-10498-24"
+Category = "Room originals"
+Scene = ExtResource("1_x3g83")
+Footprint = Vector3(0.045238018, 0.39999986, 0.047534943)
+FootprintOffset = Vector3(7.1525574e-07, 1.52, -1.9073486e-06)
+FurnitureKind = "fitting"
+SeatYaw = -1.5707964
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

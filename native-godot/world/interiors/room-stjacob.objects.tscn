@@ -1,0 +1,2343 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_k3knj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9899-0.tres" id="2_gxeed"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9899-1.tres" id="3_nosmq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9899-2.tres" id="4_d652u"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9899-3.tres" id="5_8y7vw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9899-4.tres" id="6_evjqk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9899-5.tres" id="7_y6n0q"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9899-6.tres" id="8_wsdog"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9899-7.tres" id="9_g3g5k"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9899-8.tres" id="10_qutlc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9899-9.tres" id="11_klu2f"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9899-10.tres" id="12_hpwj8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9899-11.tres" id="13_pwtr0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9905-12.tres" id="14_thkn5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9905-13.tres" id="15_2cctu"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9905-14.tres" id="16_aed1o"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9905-15.tres" id="17_1e5od"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9905-16.tres" id="18_lmpwc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9905-17.tres" id="19_ycyup"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9905-18.tres" id="20_23p38"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9905-19.tres" id="21_1w0fc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9905-20.tres" id="22_5wlih"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9905-21.tres" id="23_d8mls"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9905-22.tres" id="24_7ywbg"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9905-23.tres" id="25_khr3n"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9905-24.tres" id="26_s7hy3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9905-25.tres" id="27_i6oqu"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-26.tres" id="28_6oc7c"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-27.tres" id="29_4c3ot"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-28.tres" id="30_u4wnj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-29.tres" id="31_i0dwl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-30.tres" id="32_jb7b0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-31.tres" id="33_viy8q"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-32.tres" id="34_jhuea"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-33.tres" id="35_hl2wj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-34.tres" id="36_h0uw7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-35.tres" id="37_2lwg6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-36.tres" id="38_6geof"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-37.tres" id="39_2qn0o"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-38.tres" id="40_lg6om"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-39.tres" id="41_f6v0x"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-40.tres" id="42_sgwpg"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-41.tres" id="43_qfdqe"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-42.tres" id="44_52loc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-43.tres" id="45_spgpm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-44.tres" id="46_rk6a4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-45.tres" id="47_owkph"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-46.tres" id="48_wnnm1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-47.tres" id="49_jmg54"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-48.tres" id="50_y5kum"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-49.tres" id="51_782kd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-50.tres" id="52_7xv0l"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-51.tres" id="53_gyrqn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-52.tres" id="54_qa30f"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-53.tres" id="55_xq4t0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-54.tres" id="56_3evf0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-55.tres" id="57_tqcmq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-56.tres" id="58_01t3h"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-57.tres" id="59_k02yc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-58.tres" id="60_yt1jk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-59.tres" id="61_u5roq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-60.tres" id="62_wyohb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-61.tres" id="63_yirij"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-62.tres" id="64_ywwwc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-63.tres" id="65_yvq6g"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-64.tres" id="66_kw82i"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-65.tres" id="67_5l3no"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-66.tres" id="68_xv1gj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-67.tres" id="69_u615k"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-68.tres" id="70_hdd1c"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-69.tres" id="71_hswhr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-70.tres" id="72_jv30r"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-71.tres" id="73_n7bih"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-72.tres" id="74_5lhvi"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-73.tres" id="75_5fi75"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-74.tres" id="76_qokh0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-75.tres" id="77_0dob4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-76.tres" id="78_mwx5b"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-77.tres" id="79_6yy65"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-78.tres" id="80_n45cc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-79.tres" id="81_ukgkt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-80.tres" id="82_5v4ny"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-81.tres" id="83_r6e45"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-82.tres" id="84_i2ehp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-83.tres" id="85_h7les"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-84.tres" id="86_ywoqh"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-85.tres" id="87_x4okv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-86.tres" id="88_saop6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-87.tres" id="89_fqltj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-88.tres" id="90_b5dup"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-89.tres" id="91_064rg"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-90.tres" id="92_saqh1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-91.tres" id="93_bn2hk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-92.tres" id="94_pwod8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-93.tres" id="95_b3n5m"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-94.tres" id="96_du3hp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-95.tres" id="97_hfynm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-96.tres" id="98_hb8bd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-97.tres" id="99_vbjla"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-98.tres" id="100_w8wpu"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-99.tres" id="101_bf3qr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-100.tres" id="102_b3uns"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-101.tres" id="103_vbo3c"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-102.tres" id="104_gt3ja"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-103.tres" id="105_2rtge"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-104.tres" id="106_k0nrf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-105.tres" id="107_v7lkq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-106.tres" id="108_x3m3u"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-107.tres" id="109_36noq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-108.tres" id="110_00fby"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-109.tres" id="111_bssiv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-110.tres" id="112_50g0i"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-111.tres" id="113_p3167"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-112.tres" id="114_kbtg5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-113.tres" id="115_0nk1i"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-114.tres" id="116_8pgav"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-115.tres" id="117_1wiru"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-116.tres" id="118_ynnt0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-117.tres" id="119_v8aso"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-118.tres" id="120_ot71a"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-119.tres" id="121_jc4fi"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-120.tres" id="122_8itmn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-121.tres" id="123_75grd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-122.tres" id="124_2yek1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-123.tres" id="125_a42s2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-124.tres" id="126_ih5n3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-125.tres" id="127_6eycc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-126.tres" id="128_yerfa"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-127.tres" id="129_3vm86"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-128.tres" id="130_ddcsy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-129.tres" id="131_tsyul"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-130.tres" id="132_evrqi"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-131.tres" id="133_gmtjc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-132.tres" id="134_u3cp2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-133.tres" id="135_2qs7t"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-134.tres" id="136_f0jvu"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-135.tres" id="137_lxn3b"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-136.tres" id="138_ippch"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-137.tres" id="139_45apq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-138.tres" id="140_57kel"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-139.tres" id="141_ldxgv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-140.tres" id="142_y6qde"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-141.tres" id="143_3spyx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-142.tres" id="144_kh2yy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-143.tres" id="145_htpy1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-144.tres" id="146_xgk6i"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-145.tres" id="147_1a1yy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-146.tres" id="148_wbirr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-147.tres" id="149_tbnrw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-148.tres" id="150_0nyhe"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-149.tres" id="151_dkxp4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-150.tres" id="152_52gke"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-151.tres" id="153_ms3cx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-152.tres" id="154_cf8nb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-153.tres" id="155_6te0d"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-154.tres" id="156_jqlss"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-155.tres" id="157_x5k1e"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-156.tres" id="158_2s5t3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-157.tres" id="159_f0v74"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-158.tres" id="160_nj4p8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-159.tres" id="161_8bb25"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-160.tres" id="162_abv0g"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-161.tres" id="163_xhvll"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-162.tres" id="164_kxiqk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-163.tres" id="165_ihlph"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-164.tres" id="166_lu52o"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-165.tres" id="167_rfvpe"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-166.tres" id="168_3x7rw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-167.tres" id="169_u26wl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-168.tres" id="170_lltol"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-169.tres" id="171_l6xa8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-170.tres" id="172_h8ix7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-171.tres" id="173_eiptm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-172.tres" id="174_30q04"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-173.tres" id="175_op4av"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-174.tres" id="176_gsnuc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-175.tres" id="177_tnp78"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-176.tres" id="178_1g0sa"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-177.tres" id="179_7re1f"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-178.tres" id="180_hoov1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-179.tres" id="181_2ck88"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-180.tres" id="182_rsm12"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-181.tres" id="183_868n4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-182.tres" id="184_yi6vj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-183.tres" id="185_xurpy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-184.tres" id="186_2mbef"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-185.tres" id="187_vvtd5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-186.tres" id="188_pdws2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-187.tres" id="189_ahocb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-188.tres" id="190_pa0a1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-189.tres" id="191_xyhsn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-190.tres" id="192_wqhuw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-191.tres" id="193_yg3wv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-192.tres" id="194_kx0g7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-193.tres" id="195_qf30e"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-194.tres" id="196_qmkrb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-195.tres" id="197_686jm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-196.tres" id="198_n6lu0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-197.tres" id="199_bi2d6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-198.tres" id="200_4rmt1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-199.tres" id="201_ogf1p"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-200.tres" id="202_x7qec"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-201.tres" id="203_jbre4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-202.tres" id="204_157kk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-203.tres" id="205_v3wdw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-204.tres" id="206_oex5w"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-205.tres" id="207_40v7y"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-206.tres" id="208_glt5x"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-207.tres" id="209_jlg5u"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-208.tres" id="210_g0ipp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-209.tres" id="211_2d2fu"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-210.tres" id="212_io832"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-211.tres" id="213_7xg7c"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-212.tres" id="214_vqfrm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-213.tres" id="215_i5mda"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-214.tres" id="216_exxoa"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-215.tres" id="217_fhaen"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-216.tres" id="218_amdxe"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-217.tres" id="219_73gkj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-218.tres" id="220_vluwn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-219.tres" id="221_eql7b"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-220.tres" id="222_x5qpj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-221.tres" id="223_sb6ri"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-222.tres" id="224_ne4fs"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-223.tres" id="225_n8tv4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-224.tres" id="226_awjfm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-225.tres" id="227_81ph2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-226.tres" id="228_tceog"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-227.tres" id="229_gj4dk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-228.tres" id="230_kyxuq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-229.tres" id="231_b6odm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-230.tres" id="232_enxdf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-231.tres" id="233_ghsl2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-232.tres" id="234_f5uhh"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-233.tres" id="235_tjue4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-234.tres" id="236_vupbc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-235.tres" id="237_xawf2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-236.tres" id="238_gerqx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-237.tres" id="239_fmbch"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-238.tres" id="240_s5tpe"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-239.tres" id="241_iy57j"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-240.tres" id="242_nplu0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-241.tres" id="243_wcc25"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-242.tres" id="244_kq1d4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-243.tres" id="245_io6jp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-244.tres" id="246_mjggg"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-245.tres" id="247_bf3dk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-246.tres" id="248_mmkn1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-247.tres" id="249_x76ph"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-248.tres" id="250_7leim"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-249.tres" id="251_kvory"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-250.tres" id="252_ro62p"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-251.tres" id="253_axf60"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-252.tres" id="254_s5oh1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-253.tres" id="255_cmp77"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-254.tres" id="256_6ug6s"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-255.tres" id="257_u4fno"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-256.tres" id="258_ji7w3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-257.tres" id="259_4rujt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-258.tres" id="260_i33ef"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-259.tres" id="261_r5ntj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-260.tres" id="262_3l3cm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-261.tres" id="263_20auu"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-262.tres" id="264_0q67c"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9906-263.tres" id="265_6xgg6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-264.tres" id="266_1vwro"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-265.tres" id="267_k0bxs"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-266.tres" id="268_ifi1a"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-267.tres" id="269_o1ly2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-268.tres" id="270_ykfjl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-269.tres" id="271_fpumc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-270.tres" id="272_18ofa"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-271.tres" id="273_1kxt1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-272.tres" id="274_oq4pj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-273.tres" id="275_6w1dd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-274.tres" id="276_vk5gg"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-275.tres" id="277_kkrml"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-276.tres" id="278_0lyrv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-277.tres" id="279_rh28h"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-278.tres" id="280_dahd8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-279.tres" id="281_vgrxx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-280.tres" id="282_pdyil"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-281.tres" id="283_38imm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-282.tres" id="284_p3788"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-283.tres" id="285_f67ig"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-284.tres" id="286_5kcte"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-285.tres" id="287_y8arh"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-286.tres" id="288_nyyib"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-287.tres" id="289_vwstp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-288.tres" id="290_2q2j2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-289.tres" id="291_lgaeo"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-290.tres" id="292_aee7r"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-291.tres" id="293_atu3f"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-292.tres" id="294_soj2g"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-293.tres" id="295_pf3ns"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-294.tres" id="296_qc80x"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-295.tres" id="297_g4vcg"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-296.tres" id="298_n0gkg"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-297.tres" id="299_64dhp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-298.tres" id="300_d83mq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-299.tres" id="301_vbevn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9909-300.tres" id="302_qij3e"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9910-301.tres" id="303_ancka"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9910-302.tres" id="304_3cbmr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9910-303.tres" id="305_0qd27"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9912-304.tres" id="306_4wrgo"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9912-305.tres" id="307_sm4pp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9912-306.tres" id="308_sjc4u"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9912-307.tres" id="309_fpf87"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9912-308.tres" id="310_bu2re"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9912-309.tres" id="311_3wilv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9912-310.tres" id="312_hrk6l"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9912-311.tres" id="313_00fap"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9912-312.tres" id="314_qpbtu"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9912-313.tres" id="315_7tdo7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9912-314.tres" id="316_x28pf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9912-315.tres" id="317_p4iyn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9912-316.tres" id="318_xf315"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9912-317.tres" id="319_yx1nc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9912-318.tres" id="320_m2rck"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9912-319.tres" id="321_mnlur"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9912-320.tres" id="322_rt3u5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9913-321.tres" id="323_5bppi"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9913-322.tres" id="324_3ri8e"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9913-323.tres" id="325_pcewj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9913-324.tres" id="326_pydvc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9913-325.tres" id="327_qvxlk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9924-326.tres" id="328_gui7v"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9925-327.tres" id="329_5prj6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9933-328.tres" id="330_ie3x8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9935-329.tres" id="331_6wobu"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9937-330.tres" id="332_fga01"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9945-331.tres" id="333_idfwe"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9945-332.tres" id="334_5eqgc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stjacob-source-9948-333.tres" id="335_ujpgr"]
+
+[node name="Objects" type="Node3D" unique_id=91113113]
+
+[node name="object_source-9899-0" type="Node3D" parent="." unique_id=878217836]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -66.52, 0, 285.62)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9899-0"
+Asset = ExtResource("2_gxeed")
+
+[node name="object_source-9899-1" type="Node3D" parent="." unique_id=1586305931]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -75.369995, 0, 285.62)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9899-1"
+Asset = ExtResource("3_nosmq")
+
+[node name="object_source-9899-2" type="Node3D" parent="." unique_id=888039839]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -87.17, 0, 285.62)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9899-2"
+Asset = ExtResource("4_d652u")
+
+[node name="object_source-9899-3" type="Node3D" parent="." unique_id=505842616]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -94.57, 0, 285.62)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9899-3"
+Asset = ExtResource("5_8y7vw")
+
+[node name="object_source-9899-4" type="Node3D" parent="." unique_id=1979688995]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -74.369995, 0, 324.38)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9899-4"
+Asset = ExtResource("6_evjqk")
+
+[node name="object_source-9899-5" type="Node3D" parent="." unique_id=2075860835]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -81.770004, 0, 324.38)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9899-5"
+Asset = ExtResource("7_y6n0q")
+
+[node name="object_source-9899-6" type="Node3D" parent="." unique_id=226875761]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -93.57, 0, 324.38)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9899-6"
+Asset = ExtResource("8_wsdog")
+
+[node name="object_source-9899-7" type="Node3D" parent="." unique_id=1276962209]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -94.18697, 0, 305)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9899-7"
+Asset = ExtResource("9_g3g5k")
+
+[node name="object_source-9899-8" type="Node3D" parent="." unique_id=1177955213]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -105.826004, 0, 331.05)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9899-8"
+Asset = ExtResource("10_qutlc")
+
+[node name="object_source-9899-9" type="Node3D" parent="." unique_id=2035626447]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -76.30958, 0, 304.69977)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9899-9"
+Asset = ExtResource("11_klu2f")
+
+[node name="object_source-9899-10" type="Node3D" parent="." unique_id=643911266]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -75.327156, 0, 305)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9899-10"
+Asset = ExtResource("12_hpwj8")
+
+[node name="object_source-9899-11" type="Node3D" parent="." unique_id=618662857]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -92.93, 0, 304.31717)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9899-11"
+Asset = ExtResource("13_pwtr0")
+
+[node name="object_source-9905-12" type="Node3D" parent="." unique_id=1182785032]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -122.469536, 0, 302.18936)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9905-12"
+Asset = ExtResource("14_thkn5")
+
+[node name="object_source-9905-13" type="Node3D" parent="." unique_id=1707005867]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -122.469536, 0, 307.8098)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9905-13"
+Asset = ExtResource("15_2cctu")
+
+[node name="object_source-9905-14" type="Node3D" parent="." unique_id=2075078461]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -132.15352, 0, 304.99957)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9905-14"
+Asset = ExtResource("16_aed1o")
+
+[node name="object_source-9905-15" type="Node3D" parent="." unique_id=178693307]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.0237, 0, 278.8998)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9905-15"
+Asset = ExtResource("17_1e5od")
+
+[node name="object_source-9905-16" type="Node3D" parent="." unique_id=940871113]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.0237, 0, 278.8994)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9905-16"
+Asset = ExtResource("18_lmpwc")
+
+[node name="object_source-9905-17" type="Node3D" parent="." unique_id=1147705235]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -108.91558, 0, 278.8994)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9905-17"
+Asset = ExtResource("19_ycyup")
+
+[node name="object_source-9905-18" type="Node3D" parent="." unique_id=62713550]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -108.91558, 0, 331.0998)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9905-18"
+Asset = ExtResource("20_23p38")
+
+[node name="object_source-9905-19" type="Node3D" parent="." unique_id=1205057933]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -108.91558, 0, 331.0998)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9905-19"
+Asset = ExtResource("21_1w0fc")
+
+[node name="object_source-9905-20" type="Node3D" parent="." unique_id=43711346]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.0237, 0, 331.0998)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9905-20"
+Asset = ExtResource("22_5wlih")
+
+[node name="object_source-9905-21" type="Node3D" parent="." unique_id=559448672]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.0237, 0, 331.0998)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9905-21"
+Asset = ExtResource("23_d8mls")
+
+[node name="object_source-9905-22" type="Node3D" parent="." unique_id=1616506264]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -111.16965, 0, 299.77753)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9905-22"
+Asset = ExtResource("24_7ywbg")
+
+[node name="object_source-9905-23" type="Node3D" parent="." unique_id=1279464497]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -111.16965, 0, 303.42175)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9905-23"
+Asset = ExtResource("25_khr3n")
+
+[node name="object_source-9905-24" type="Node3D" parent="." unique_id=1378480566]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -111.16965, 0, 310.22168)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9905-24"
+Asset = ExtResource("26_s7hy3")
+
+[node name="object_source-9905-25" type="Node3D" parent="." unique_id=2018642510]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -112.61924, 0, 304.99982)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9905-25"
+Asset = ExtResource("27_i6oqu")
+
+[node name="object_source-9906-26" type="Node3D" parent="." unique_id=316049697]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -57.889763, 0, 288.36978)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-26"
+Asset = ExtResource("28_6oc7c")
+
+[node name="object_source-9906-27" type="Node3D" parent="." unique_id=1730342456]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -59.489296, 0, 288.36978)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-27"
+Asset = ExtResource("29_4c3ot")
+
+[node name="object_source-9906-28" type="Node3D" parent="." unique_id=890735345]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -61.089294, 0, 288.36978)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-28"
+Asset = ExtResource("30_u4wnj")
+
+[node name="object_source-9906-29" type="Node3D" parent="." unique_id=451074627]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -62.689766, 0, 288.36978)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-29"
+Asset = ExtResource("31_i0dwl")
+
+[node name="object_source-9906-30" type="Node3D" parent="." unique_id=620495656]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -64.289764, 0, 288.36978)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-30"
+Asset = ExtResource("32_jb7b0")
+
+[node name="object_source-9906-31" type="Node3D" parent="." unique_id=150608371]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -65.88977, 0, 288.36978)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-31"
+Asset = ExtResource("33_viy8q")
+
+[node name="object_source-9906-32" type="Node3D" parent="." unique_id=829951275]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -67.48976, 0, 288.36978)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-32"
+Asset = ExtResource("34_jhuea")
+
+[node name="object_source-9906-33" type="Node3D" parent="." unique_id=813107785]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -69.08977, 0, 288.36978)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-33"
+Asset = ExtResource("35_hl2wj")
+
+[node name="object_source-9906-34" type="Node3D" parent="." unique_id=989699327]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -70.68929, 0, 288.36978)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-34"
+Asset = ExtResource("36_h0uw7")
+
+[node name="object_source-9906-35" type="Node3D" parent="." unique_id=2132403513]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -72.289764, 0, 288.36978)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-35"
+Asset = ExtResource("37_2lwg6")
+
+[node name="object_source-9906-36" type="Node3D" parent="." unique_id=189833259]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -73.88977, 0, 288.36978)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-36"
+Asset = ExtResource("38_6geof")
+
+[node name="object_source-9906-37" type="Node3D" parent="." unique_id=1913739919]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -75.48976, 0, 288.36978)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-37"
+Asset = ExtResource("39_2qn0o")
+
+[node name="object_source-9906-38" type="Node3D" parent="." unique_id=1091960884]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -77.08977, 0, 288.36978)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-38"
+Asset = ExtResource("40_lg6om")
+
+[node name="object_source-9906-39" type="Node3D" parent="." unique_id=1940802409]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -78.68929, 0, 288.36978)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-39"
+Asset = ExtResource("41_f6v0x")
+
+[node name="object_source-9906-40" type="Node3D" parent="." unique_id=1196761301]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -80.289764, 0, 288.36978)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-40"
+Asset = ExtResource("42_sgwpg")
+
+[node name="object_source-9906-41" type="Node3D" parent="." unique_id=1278661596]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -81.88977, 0, 288.36978)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-41"
+Asset = ExtResource("43_qfdqe")
+
+[node name="object_source-9906-42" type="Node3D" parent="." unique_id=481979524]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -83.48976, 0, 288.36978)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-42"
+Asset = ExtResource("44_52loc")
+
+[node name="object_source-9906-43" type="Node3D" parent="." unique_id=1541996835]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -85.089294, 0, 288.36978)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-43"
+Asset = ExtResource("45_spgpm")
+
+[node name="object_source-9906-44" type="Node3D" parent="." unique_id=893539474]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -86.689766, 0, 288.36978)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-44"
+Asset = ExtResource("46_rk6a4")
+
+[node name="object_source-9906-45" type="Node3D" parent="." unique_id=2115953393]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -88.289764, 0, 288.36978)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-45"
+Asset = ExtResource("47_owkph")
+
+[node name="object_source-9906-46" type="Node3D" parent="." unique_id=1357740192]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -89.88977, 0, 288.36978)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-46"
+Asset = ExtResource("48_wnnm1")
+
+[node name="object_source-9906-47" type="Node3D" parent="." unique_id=1487840984]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -91.48976, 0, 288.36978)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-47"
+Asset = ExtResource("49_jmg54")
+
+[node name="object_source-9906-48" type="Node3D" parent="." unique_id=1889275196]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -93.08977, 0, 288.36978)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-48"
+Asset = ExtResource("50_y5kum")
+
+[node name="object_source-9906-49" type="Node3D" parent="." unique_id=197137237]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -94.6893, 0, 288.36978)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-49"
+Asset = ExtResource("51_782kd")
+
+[node name="object_source-9906-50" type="Node3D" parent="." unique_id=528190422]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -96.289764, 0, 288.36978)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-50"
+Asset = ExtResource("52_7xv0l")
+
+[node name="object_source-9906-51" type="Node3D" parent="." unique_id=977579866]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -97.88977, 0, 288.36978)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-51"
+Asset = ExtResource("53_gyrqn")
+
+[node name="object_source-9906-52" type="Node3D" parent="." unique_id=212274025]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -99.48929, 0, 288.36978)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-52"
+Asset = ExtResource("54_qa30f")
+
+[node name="object_source-9906-53" type="Node3D" parent="." unique_id=1264646905]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -70.31941, 0, 321.6299)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-53"
+Asset = ExtResource("55_xq4t0")
+
+[node name="object_source-9906-54" type="Node3D" parent="." unique_id=390657441]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -71.91941, 0, 321.6299)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-54"
+Asset = ExtResource("56_3evf0")
+
+[node name="object_source-9906-55" type="Node3D" parent="." unique_id=764845157]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -73.51941, 0, 321.6299)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-55"
+Asset = ExtResource("57_tqcmq")
+
+[node name="object_source-9906-56" type="Node3D" parent="." unique_id=307472112]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -75.119415, 0, 321.6299)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-56"
+Asset = ExtResource("58_01t3h")
+
+[node name="object_source-9906-57" type="Node3D" parent="." unique_id=35088114]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -76.71941, 0, 321.6299)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-57"
+Asset = ExtResource("59_k02yc")
+
+[node name="object_source-9906-58" type="Node3D" parent="." unique_id=527374336]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -78.31941, 0, 321.6299)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-58"
+Asset = ExtResource("60_yt1jk")
+
+[node name="object_source-9906-59" type="Node3D" parent="." unique_id=597957620]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -79.91942, 0, 321.6299)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-59"
+Asset = ExtResource("61_u5roq")
+
+[node name="object_source-9906-60" type="Node3D" parent="." unique_id=1761910927]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -81.51941, 0, 321.6299)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-60"
+Asset = ExtResource("62_wyohb")
+
+[node name="object_source-9906-61" type="Node3D" parent="." unique_id=315191106]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -83.119415, 0, 321.6299)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-61"
+Asset = ExtResource("63_yirij")
+
+[node name="object_source-9906-62" type="Node3D" parent="." unique_id=1550236758]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -84.71941, 0, 321.6299)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-62"
+Asset = ExtResource("64_ywwwc")
+
+[node name="object_source-9906-63" type="Node3D" parent="." unique_id=558470480]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -86.31941, 0, 321.6299)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-63"
+Asset = ExtResource("65_yvq6g")
+
+[node name="object_source-9906-64" type="Node3D" parent="." unique_id=234583146]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -87.91941, 0, 321.6299)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-64"
+Asset = ExtResource("66_kw82i")
+
+[node name="object_source-9906-65" type="Node3D" parent="." unique_id=1536095709]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -89.51941, 0, 321.6299)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-65"
+Asset = ExtResource("67_5l3no")
+
+[node name="object_source-9906-66" type="Node3D" parent="." unique_id=334281654]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -91.119415, 0, 321.6299)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-66"
+Asset = ExtResource("68_xv1gj")
+
+[node name="object_source-9906-67" type="Node3D" parent="." unique_id=1463028254]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -92.719406, 0, 321.6299)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-67"
+Asset = ExtResource("69_u615k")
+
+[node name="object_source-9906-68" type="Node3D" parent="." unique_id=2078065080]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -94.31941, 0, 321.6299)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-68"
+Asset = ExtResource("70_hdd1c")
+
+[node name="object_source-9906-69" type="Node3D" parent="." unique_id=1570047514]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -95.91942, 0, 321.6299)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-69"
+Asset = ExtResource("71_hswhr")
+
+[node name="object_source-9906-70" type="Node3D" parent="." unique_id=1285536089]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -97.51941, 0, 321.6299)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-70"
+Asset = ExtResource("72_jv30r")
+
+[node name="object_source-9906-71" type="Node3D" parent="." unique_id=1131406313]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -99.119415, 0, 321.6299)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-71"
+Asset = ExtResource("73_n7bih")
+
+[node name="object_source-9906-72" type="Node3D" parent="." unique_id=689915747]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -72.579765, 0, 308.84995)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-72"
+Asset = ExtResource("74_5lhvi")
+
+[node name="object_source-9906-73" type="Node3D" parent="." unique_id=1657272248]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -72.579765, 0, 309.3699)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-73"
+Asset = ExtResource("75_5fi75")
+
+[node name="object_source-9906-74" type="Node3D" parent="." unique_id=644632487]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -73.5294, 0, 308.84995)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-74"
+Asset = ExtResource("76_qokh0")
+
+[node name="object_source-9906-75" type="Node3D" parent="." unique_id=741464729]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -73.5294, 0, 309.3699)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-75"
+Asset = ExtResource("77_0dob4")
+
+[node name="object_source-9906-76" type="Node3D" parent="." unique_id=1554454110]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -74.479706, 0, 308.84995)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-76"
+Asset = ExtResource("78_mwx5b")
+
+[node name="object_source-9906-77" type="Node3D" parent="." unique_id=1154249773]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -74.479706, 0, 309.3699)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-77"
+Asset = ExtResource("79_6yy65")
+
+[node name="object_source-9906-78" type="Node3D" parent="." unique_id=1005328980]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -75.429535, 0, 308.84995)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-78"
+Asset = ExtResource("80_n45cc")
+
+[node name="object_source-9906-79" type="Node3D" parent="." unique_id=90493439]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -75.429535, 0, 309.3699)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-79"
+Asset = ExtResource("81_ukgkt")
+
+[node name="object_source-9906-80" type="Node3D" parent="." unique_id=1471083057]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -76.37983, 0, 308.84995)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-80"
+Asset = ExtResource("82_5v4ny")
+
+[node name="object_source-9906-81" type="Node3D" parent="." unique_id=1589954205]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -76.37983, 0, 309.3699)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-81"
+Asset = ExtResource("83_r6e45")
+
+[node name="object_source-9906-82" type="Node3D" parent="." unique_id=390210512]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -77.32966, 0, 308.84995)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-82"
+Asset = ExtResource("84_i2ehp")
+
+[node name="object_source-9906-83" type="Node3D" parent="." unique_id=392237582]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -77.32966, 0, 309.3699)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-83"
+Asset = ExtResource("85_h7les")
+
+[node name="object_source-9906-84" type="Node3D" parent="." unique_id=1585776485]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -78.27948, 0, 308.84995)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-84"
+Asset = ExtResource("86_ywoqh")
+
+[node name="object_source-9906-85" type="Node3D" parent="." unique_id=1015390809]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -78.27948, 0, 309.3699)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-85"
+Asset = ExtResource("87_x4okv")
+
+[node name="object_source-9906-86" type="Node3D" parent="." unique_id=158894850]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -79.22978, 0, 308.84995)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-86"
+Asset = ExtResource("88_saop6")
+
+[node name="object_source-9906-87" type="Node3D" parent="." unique_id=1314018837]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -79.22978, 0, 309.3699)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-87"
+Asset = ExtResource("89_fqltj")
+
+[node name="object_source-9906-88" type="Node3D" parent="." unique_id=630724066]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -80.17961, 0, 308.84995)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-88"
+Asset = ExtResource("90_b5dup")
+
+[node name="object_source-9906-89" type="Node3D" parent="." unique_id=601030599]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -80.17961, 0, 309.3699)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-89"
+Asset = ExtResource("91_064rg")
+
+[node name="object_source-9906-90" type="Node3D" parent="." unique_id=209034355]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -81.12943, 0, 308.84995)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-90"
+Asset = ExtResource("92_saqh1")
+
+[node name="object_source-9906-91" type="Node3D" parent="." unique_id=1240811859]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -81.12943, 0, 309.3699)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-91"
+Asset = ExtResource("93_bn2hk")
+
+[node name="object_source-9906-92" type="Node3D" parent="." unique_id=804880630]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -82.079735, 0, 308.84995)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-92"
+Asset = ExtResource("94_pwod8")
+
+[node name="object_source-9906-93" type="Node3D" parent="." unique_id=441102964]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -82.079735, 0, 309.3699)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-93"
+Asset = ExtResource("95_b3n5m")
+
+[node name="object_source-9906-94" type="Node3D" parent="." unique_id=1366387506]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -83.02956, 0, 308.84995)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-94"
+Asset = ExtResource("96_du3hp")
+
+[node name="object_source-9906-95" type="Node3D" parent="." unique_id=253503428]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -83.02956, 0, 309.3699)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-95"
+Asset = ExtResource("97_hfynm")
+
+[node name="object_source-9906-96" type="Node3D" parent="." unique_id=1788594508]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -83.97986, 0, 308.84995)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-96"
+Asset = ExtResource("98_hb8bd")
+
+[node name="object_source-9906-97" type="Node3D" parent="." unique_id=1701480192]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -83.97986, 0, 309.3699)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-97"
+Asset = ExtResource("99_vbjla")
+
+[node name="object_source-9906-98" type="Node3D" parent="." unique_id=800939064]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -84.92969, 0, 308.84995)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-98"
+Asset = ExtResource("100_w8wpu")
+
+[node name="object_source-9906-99" type="Node3D" parent="." unique_id=1917217461]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -84.92969, 0, 309.3699)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-99"
+Asset = ExtResource("101_bf3qr")
+
+[node name="object_source-9906-100" type="Node3D" parent="." unique_id=1834434745]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -85.87951, 0, 308.84995)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-100"
+Asset = ExtResource("102_b3uns")
+
+[node name="object_source-9906-101" type="Node3D" parent="." unique_id=1030363684]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -85.87951, 0, 309.3699)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-101"
+Asset = ExtResource("103_vbo3c")
+
+[node name="object_source-9906-102" type="Node3D" parent="." unique_id=1887271612]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -86.82981, 0, 308.84995)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-102"
+Asset = ExtResource("104_gt3ja")
+
+[node name="object_source-9906-103" type="Node3D" parent="." unique_id=1424731974]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -86.82981, 0, 309.3699)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-103"
+Asset = ExtResource("105_2rtge")
+
+[node name="object_source-9906-104" type="Node3D" parent="." unique_id=112560072]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -87.77963, 0, 308.84995)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-104"
+Asset = ExtResource("106_k0nrf")
+
+[node name="object_source-9906-105" type="Node3D" parent="." unique_id=2035489439]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -87.77963, 0, 309.3699)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-105"
+Asset = ExtResource("107_v7lkq")
+
+[node name="object_source-9906-106" type="Node3D" parent="." unique_id=1265282482]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -88.72946, 0, 308.84995)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-106"
+Asset = ExtResource("108_x3m3u")
+
+[node name="object_source-9906-107" type="Node3D" parent="." unique_id=1688864555]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -88.72946, 0, 309.3699)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-107"
+Asset = ExtResource("109_36noq")
+
+[node name="object_source-9906-108" type="Node3D" parent="." unique_id=966724846]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -89.67976, 0, 308.84995)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-108"
+Asset = ExtResource("110_00fby")
+
+[node name="object_source-9906-109" type="Node3D" parent="." unique_id=133824309]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -89.67976, 0, 309.3699)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-109"
+Asset = ExtResource("111_bssiv")
+
+[node name="object_source-9906-110" type="Node3D" parent="." unique_id=174829938]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -90.62959, 0, 308.84995)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-110"
+Asset = ExtResource("112_50g0i")
+
+[node name="object_source-9906-111" type="Node3D" parent="." unique_id=293897797]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -90.62959, 0, 309.3699)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-111"
+Asset = ExtResource("113_p3167")
+
+[node name="object_source-9906-112" type="Node3D" parent="." unique_id=503384371]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -91.57988, 0, 308.84995)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-112"
+Asset = ExtResource("114_kbtg5")
+
+[node name="object_source-9906-113" type="Node3D" parent="." unique_id=1186585513]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -91.57988, 0, 309.3699)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-113"
+Asset = ExtResource("115_0nk1i")
+
+[node name="object_source-9906-114" type="Node3D" parent="." unique_id=652537679]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -92.52971, 0, 308.84995)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-114"
+Asset = ExtResource("116_8pgav")
+
+[node name="object_source-9906-115" type="Node3D" parent="." unique_id=244962499]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -92.52971, 0, 309.3699)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-115"
+Asset = ExtResource("117_1wiru")
+
+[node name="object_source-9906-116" type="Node3D" parent="." unique_id=853241335]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -93.47954, 0, 308.84995)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-116"
+Asset = ExtResource("118_ynnt0")
+
+[node name="object_source-9906-117" type="Node3D" parent="." unique_id=693958240]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -93.47954, 0, 309.3699)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-117"
+Asset = ExtResource("119_v8aso")
+
+[node name="object_source-9906-118" type="Node3D" parent="." unique_id=1460978774]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -94.42984, 0, 308.84995)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-118"
+Asset = ExtResource("120_ot71a")
+
+[node name="object_source-9906-119" type="Node3D" parent="." unique_id=1155311375]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -94.42984, 0, 309.3699)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-119"
+Asset = ExtResource("121_jc4fi")
+
+[node name="object_source-9906-120" type="Node3D" parent="." unique_id=690210973]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -95.37967, 0, 308.84995)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-120"
+Asset = ExtResource("122_8itmn")
+
+[node name="object_source-9906-121" type="Node3D" parent="." unique_id=207429749]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -95.37967, 0, 309.3699)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-121"
+Asset = ExtResource("123_75grd")
+
+[node name="object_source-9906-122" type="Node3D" parent="." unique_id=219613663]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -96.32949, 0, 308.84995)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-122"
+Asset = ExtResource("124_2yek1")
+
+[node name="object_source-9906-123" type="Node3D" parent="." unique_id=1105032994]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -96.32949, 0, 309.3699)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-123"
+Asset = ExtResource("125_a42s2")
+
+[node name="object_source-9906-124" type="Node3D" parent="." unique_id=858398544]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -72.579765, 0, 300.34967)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-124"
+Asset = ExtResource("126_ih5n3")
+
+[node name="object_source-9906-125" type="Node3D" parent="." unique_id=829676899]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -72.579765, 0, 300.86987)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-125"
+Asset = ExtResource("127_6eycc")
+
+[node name="object_source-9906-126" type="Node3D" parent="." unique_id=1432246177]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -72.579765, 0, 301.3899)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-126"
+Asset = ExtResource("128_yerfa")
+
+[node name="object_source-9906-127" type="Node3D" parent="." unique_id=1341217547]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -72.579765, 0, 301.90988)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-127"
+Asset = ExtResource("129_3vm86")
+
+[node name="object_source-9906-128" type="Node3D" parent="." unique_id=1650358977]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -72.579765, 0, 302.42984)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-128"
+Asset = ExtResource("130_ddcsy")
+
+[node name="object_source-9906-129" type="Node3D" parent="." unique_id=884841313]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -72.579765, 0, 302.94983)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-129"
+Asset = ExtResource("131_tsyul")
+
+[node name="object_source-9906-130" type="Node3D" parent="." unique_id=647796365]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -72.579765, 0, 303.4698)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-130"
+Asset = ExtResource("132_evrqi")
+
+[node name="object_source-9906-131" type="Node3D" parent="." unique_id=746931383]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -73.5294, 0, 300.34967)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-131"
+Asset = ExtResource("133_gmtjc")
+
+[node name="object_source-9906-132" type="Node3D" parent="." unique_id=1131362778]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -73.5294, 0, 300.86987)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-132"
+Asset = ExtResource("134_u3cp2")
+
+[node name="object_source-9906-133" type="Node3D" parent="." unique_id=1988677545]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -73.5294, 0, 301.3899)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-133"
+Asset = ExtResource("135_2qs7t")
+
+[node name="object_source-9906-134" type="Node3D" parent="." unique_id=822129222]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -73.5294, 0, 301.90988)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-134"
+Asset = ExtResource("136_f0jvu")
+
+[node name="object_source-9906-135" type="Node3D" parent="." unique_id=1418897378]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -73.5294, 0, 302.42984)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-135"
+Asset = ExtResource("137_lxn3b")
+
+[node name="object_source-9906-136" type="Node3D" parent="." unique_id=837554576]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -73.5294, 0, 302.94983)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-136"
+Asset = ExtResource("138_ippch")
+
+[node name="object_source-9906-137" type="Node3D" parent="." unique_id=1359546094]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -73.5294, 0, 303.4698)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-137"
+Asset = ExtResource("139_45apq")
+
+[node name="object_source-9906-138" type="Node3D" parent="." unique_id=586188896]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -74.479706, 0, 300.34967)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-138"
+Asset = ExtResource("140_57kel")
+
+[node name="object_source-9906-139" type="Node3D" parent="." unique_id=1969392868]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -74.479706, 0, 300.86987)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-139"
+Asset = ExtResource("141_ldxgv")
+
+[node name="object_source-9906-140" type="Node3D" parent="." unique_id=1935914689]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -74.479706, 0, 301.3899)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-140"
+Asset = ExtResource("142_y6qde")
+
+[node name="object_source-9906-141" type="Node3D" parent="." unique_id=9945687]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -74.479706, 0, 301.90988)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-141"
+Asset = ExtResource("143_3spyx")
+
+[node name="object_source-9906-142" type="Node3D" parent="." unique_id=1539524918]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -74.479706, 0, 302.42984)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-142"
+Asset = ExtResource("144_kh2yy")
+
+[node name="object_source-9906-143" type="Node3D" parent="." unique_id=358581198]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -74.479706, 0, 302.94983)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-143"
+Asset = ExtResource("145_htpy1")
+
+[node name="object_source-9906-144" type="Node3D" parent="." unique_id=128658910]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -74.479706, 0, 303.4698)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-144"
+Asset = ExtResource("146_xgk6i")
+
+[node name="object_source-9906-145" type="Node3D" parent="." unique_id=410924327]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -75.429535, 0, 300.34967)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-145"
+Asset = ExtResource("147_1a1yy")
+
+[node name="object_source-9906-146" type="Node3D" parent="." unique_id=2053535078]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -75.429535, 0, 300.86987)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-146"
+Asset = ExtResource("148_wbirr")
+
+[node name="object_source-9906-147" type="Node3D" parent="." unique_id=388871702]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -75.429535, 0, 301.3899)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-147"
+Asset = ExtResource("149_tbnrw")
+
+[node name="object_source-9906-148" type="Node3D" parent="." unique_id=1036719050]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -75.429535, 0, 301.90988)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-148"
+Asset = ExtResource("150_0nyhe")
+
+[node name="object_source-9906-149" type="Node3D" parent="." unique_id=1972243922]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -75.429535, 0, 302.42984)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-149"
+Asset = ExtResource("151_dkxp4")
+
+[node name="object_source-9906-150" type="Node3D" parent="." unique_id=2128338695]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -75.429535, 0, 302.94983)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-150"
+Asset = ExtResource("152_52gke")
+
+[node name="object_source-9906-151" type="Node3D" parent="." unique_id=1076232525]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -75.429535, 0, 303.4698)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-151"
+Asset = ExtResource("153_ms3cx")
+
+[node name="object_source-9906-152" type="Node3D" parent="." unique_id=2054858199]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -76.37983, 0, 300.34967)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-152"
+Asset = ExtResource("154_cf8nb")
+
+[node name="object_source-9906-153" type="Node3D" parent="." unique_id=422799542]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -76.37983, 0, 300.86987)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-153"
+Asset = ExtResource("155_6te0d")
+
+[node name="object_source-9906-154" type="Node3D" parent="." unique_id=589606479]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -76.37983, 0, 301.3899)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-154"
+Asset = ExtResource("156_jqlss")
+
+[node name="object_source-9906-155" type="Node3D" parent="." unique_id=1484957083]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -76.37983, 0, 301.90988)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-155"
+Asset = ExtResource("157_x5k1e")
+
+[node name="object_source-9906-156" type="Node3D" parent="." unique_id=838745313]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -76.37983, 0, 302.42984)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-156"
+Asset = ExtResource("158_2s5t3")
+
+[node name="object_source-9906-157" type="Node3D" parent="." unique_id=805659117]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -76.37983, 0, 302.94983)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-157"
+Asset = ExtResource("159_f0v74")
+
+[node name="object_source-9906-158" type="Node3D" parent="." unique_id=1062288421]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -76.37983, 0, 303.4698)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-158"
+Asset = ExtResource("160_nj4p8")
+
+[node name="object_source-9906-159" type="Node3D" parent="." unique_id=736257748]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -77.32966, 0, 300.34967)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-159"
+Asset = ExtResource("161_8bb25")
+
+[node name="object_source-9906-160" type="Node3D" parent="." unique_id=54085587]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -77.32966, 0, 300.86987)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-160"
+Asset = ExtResource("162_abv0g")
+
+[node name="object_source-9906-161" type="Node3D" parent="." unique_id=539298224]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -77.32966, 0, 301.3899)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-161"
+Asset = ExtResource("163_xhvll")
+
+[node name="object_source-9906-162" type="Node3D" parent="." unique_id=1237539080]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -77.32966, 0, 301.90988)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-162"
+Asset = ExtResource("164_kxiqk")
+
+[node name="object_source-9906-163" type="Node3D" parent="." unique_id=1063904525]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -77.32966, 0, 302.42984)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-163"
+Asset = ExtResource("165_ihlph")
+
+[node name="object_source-9906-164" type="Node3D" parent="." unique_id=1947919293]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -77.32966, 0, 302.94983)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-164"
+Asset = ExtResource("166_lu52o")
+
+[node name="object_source-9906-165" type="Node3D" parent="." unique_id=1491850076]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -77.32966, 0, 303.4698)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-165"
+Asset = ExtResource("167_rfvpe")
+
+[node name="object_source-9906-166" type="Node3D" parent="." unique_id=1057456644]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -83.97986, 0, 300.34967)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-166"
+Asset = ExtResource("168_3x7rw")
+
+[node name="object_source-9906-167" type="Node3D" parent="." unique_id=1216158175]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -83.97986, 0, 300.86987)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-167"
+Asset = ExtResource("169_u26wl")
+
+[node name="object_source-9906-168" type="Node3D" parent="." unique_id=259802175]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -83.97986, 0, 301.3899)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-168"
+Asset = ExtResource("170_lltol")
+
+[node name="object_source-9906-169" type="Node3D" parent="." unique_id=914917153]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -83.97986, 0, 301.90988)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-169"
+Asset = ExtResource("171_l6xa8")
+
+[node name="object_source-9906-170" type="Node3D" parent="." unique_id=1842551203]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -83.97986, 0, 302.42984)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-170"
+Asset = ExtResource("172_h8ix7")
+
+[node name="object_source-9906-171" type="Node3D" parent="." unique_id=1827306517]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -83.97986, 0, 302.94983)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-171"
+Asset = ExtResource("173_eiptm")
+
+[node name="object_source-9906-172" type="Node3D" parent="." unique_id=1511785749]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -83.97986, 0, 303.4698)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-172"
+Asset = ExtResource("174_30q04")
+
+[node name="object_source-9906-173" type="Node3D" parent="." unique_id=2137616586]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -84.92969, 0, 300.34967)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-173"
+Asset = ExtResource("175_op4av")
+
+[node name="object_source-9906-174" type="Node3D" parent="." unique_id=68598541]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -84.92969, 0, 300.86987)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-174"
+Asset = ExtResource("176_gsnuc")
+
+[node name="object_source-9906-175" type="Node3D" parent="." unique_id=108132295]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -84.92969, 0, 301.3899)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-175"
+Asset = ExtResource("177_tnp78")
+
+[node name="object_source-9906-176" type="Node3D" parent="." unique_id=716891452]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -84.92969, 0, 301.90988)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-176"
+Asset = ExtResource("178_1g0sa")
+
+[node name="object_source-9906-177" type="Node3D" parent="." unique_id=194685197]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -84.92969, 0, 302.42984)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-177"
+Asset = ExtResource("179_7re1f")
+
+[node name="object_source-9906-178" type="Node3D" parent="." unique_id=1404772492]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -84.92969, 0, 302.94983)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-178"
+Asset = ExtResource("180_hoov1")
+
+[node name="object_source-9906-179" type="Node3D" parent="." unique_id=44474493]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -84.92969, 0, 303.4698)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-179"
+Asset = ExtResource("181_2ck88")
+
+[node name="object_source-9906-180" type="Node3D" parent="." unique_id=1059337041]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -85.87951, 0, 300.34967)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-180"
+Asset = ExtResource("182_rsm12")
+
+[node name="object_source-9906-181" type="Node3D" parent="." unique_id=447840671]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -85.87951, 0, 300.86987)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-181"
+Asset = ExtResource("183_868n4")
+
+[node name="object_source-9906-182" type="Node3D" parent="." unique_id=718506634]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -85.87951, 0, 301.3899)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-182"
+Asset = ExtResource("184_yi6vj")
+
+[node name="object_source-9906-183" type="Node3D" parent="." unique_id=621386320]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -85.87951, 0, 301.90988)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-183"
+Asset = ExtResource("185_xurpy")
+
+[node name="object_source-9906-184" type="Node3D" parent="." unique_id=423699832]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -85.87951, 0, 302.42984)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-184"
+Asset = ExtResource("186_2mbef")
+
+[node name="object_source-9906-185" type="Node3D" parent="." unique_id=7109280]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -85.87951, 0, 302.94983)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-185"
+Asset = ExtResource("187_vvtd5")
+
+[node name="object_source-9906-186" type="Node3D" parent="." unique_id=1247523029]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -85.87951, 0, 303.4698)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-186"
+Asset = ExtResource("188_pdws2")
+
+[node name="object_source-9906-187" type="Node3D" parent="." unique_id=1451562568]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -86.82981, 0, 300.34967)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-187"
+Asset = ExtResource("189_ahocb")
+
+[node name="object_source-9906-188" type="Node3D" parent="." unique_id=2082868661]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -86.82981, 0, 300.86987)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-188"
+Asset = ExtResource("190_pa0a1")
+
+[node name="object_source-9906-189" type="Node3D" parent="." unique_id=832430333]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -86.82981, 0, 301.3899)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-189"
+Asset = ExtResource("191_xyhsn")
+
+[node name="object_source-9906-190" type="Node3D" parent="." unique_id=1006172528]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -86.82981, 0, 301.90988)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-190"
+Asset = ExtResource("192_wqhuw")
+
+[node name="object_source-9906-191" type="Node3D" parent="." unique_id=1876128311]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -86.82981, 0, 302.42984)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-191"
+Asset = ExtResource("193_yg3wv")
+
+[node name="object_source-9906-192" type="Node3D" parent="." unique_id=2008270848]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -86.82981, 0, 302.94983)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-192"
+Asset = ExtResource("194_kx0g7")
+
+[node name="object_source-9906-193" type="Node3D" parent="." unique_id=1616481962]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -86.82981, 0, 303.4698)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-193"
+Asset = ExtResource("195_qf30e")
+
+[node name="object_source-9906-194" type="Node3D" parent="." unique_id=2104939966]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -87.77963, 0, 300.34967)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-194"
+Asset = ExtResource("196_qmkrb")
+
+[node name="object_source-9906-195" type="Node3D" parent="." unique_id=1420558735]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -87.77963, 0, 300.86987)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-195"
+Asset = ExtResource("197_686jm")
+
+[node name="object_source-9906-196" type="Node3D" parent="." unique_id=138153969]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -87.77963, 0, 301.3899)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-196"
+Asset = ExtResource("198_n6lu0")
+
+[node name="object_source-9906-197" type="Node3D" parent="." unique_id=1075148718]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -87.77963, 0, 301.90988)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-197"
+Asset = ExtResource("199_bi2d6")
+
+[node name="object_source-9906-198" type="Node3D" parent="." unique_id=1618737190]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -87.77963, 0, 302.42984)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-198"
+Asset = ExtResource("200_4rmt1")
+
+[node name="object_source-9906-199" type="Node3D" parent="." unique_id=408526024]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -87.77963, 0, 302.94983)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-199"
+Asset = ExtResource("201_ogf1p")
+
+[node name="object_source-9906-200" type="Node3D" parent="." unique_id=2094542038]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -87.77963, 0, 303.4698)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-200"
+Asset = ExtResource("202_x7qec")
+
+[node name="object_source-9906-201" type="Node3D" parent="." unique_id=911973634]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -88.72946, 0, 300.34967)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-201"
+Asset = ExtResource("203_jbre4")
+
+[node name="object_source-9906-202" type="Node3D" parent="." unique_id=1797570041]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -88.72946, 0, 300.86987)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-202"
+Asset = ExtResource("204_157kk")
+
+[node name="object_source-9906-203" type="Node3D" parent="." unique_id=1947076105]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -88.72946, 0, 301.3899)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-203"
+Asset = ExtResource("205_v3wdw")
+
+[node name="object_source-9906-204" type="Node3D" parent="." unique_id=1144427837]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -88.72946, 0, 301.90988)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-204"
+Asset = ExtResource("206_oex5w")
+
+[node name="object_source-9906-205" type="Node3D" parent="." unique_id=392001270]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -88.72946, 0, 302.42984)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-205"
+Asset = ExtResource("207_40v7y")
+
+[node name="object_source-9906-206" type="Node3D" parent="." unique_id=1431997498]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -88.72946, 0, 302.94983)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-206"
+Asset = ExtResource("208_glt5x")
+
+[node name="object_source-9906-207" type="Node3D" parent="." unique_id=2123912584]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -88.72946, 0, 303.4698)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-207"
+Asset = ExtResource("209_jlg5u")
+
+[node name="object_source-9906-208" type="Node3D" parent="." unique_id=2044174475]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -89.67976, 0, 300.34967)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-208"
+Asset = ExtResource("210_g0ipp")
+
+[node name="object_source-9906-209" type="Node3D" parent="." unique_id=25916098]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -89.67976, 0, 300.86987)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-209"
+Asset = ExtResource("211_2d2fu")
+
+[node name="object_source-9906-210" type="Node3D" parent="." unique_id=899630258]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -89.67976, 0, 301.3899)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-210"
+Asset = ExtResource("212_io832")
+
+[node name="object_source-9906-211" type="Node3D" parent="." unique_id=1345353068]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -89.67976, 0, 301.90988)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-211"
+Asset = ExtResource("213_7xg7c")
+
+[node name="object_source-9906-212" type="Node3D" parent="." unique_id=598971012]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -89.67976, 0, 302.42984)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-212"
+Asset = ExtResource("214_vqfrm")
+
+[node name="object_source-9906-213" type="Node3D" parent="." unique_id=167932517]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -89.67976, 0, 302.94983)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-213"
+Asset = ExtResource("215_i5mda")
+
+[node name="object_source-9906-214" type="Node3D" parent="." unique_id=2007291683]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -89.67976, 0, 303.4698)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-214"
+Asset = ExtResource("216_exxoa")
+
+[node name="object_source-9906-215" type="Node3D" parent="." unique_id=1168897214]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -90.62959, 0, 300.34967)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-215"
+Asset = ExtResource("217_fhaen")
+
+[node name="object_source-9906-216" type="Node3D" parent="." unique_id=1007676099]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -90.62959, 0, 300.86987)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-216"
+Asset = ExtResource("218_amdxe")
+
+[node name="object_source-9906-217" type="Node3D" parent="." unique_id=1906254538]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -90.62959, 0, 301.3899)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-217"
+Asset = ExtResource("219_73gkj")
+
+[node name="object_source-9906-218" type="Node3D" parent="." unique_id=1545568593]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -90.62959, 0, 301.90988)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-218"
+Asset = ExtResource("220_vluwn")
+
+[node name="object_source-9906-219" type="Node3D" parent="." unique_id=990433134]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -90.62959, 0, 302.42984)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-219"
+Asset = ExtResource("221_eql7b")
+
+[node name="object_source-9906-220" type="Node3D" parent="." unique_id=809833767]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -90.62959, 0, 302.94983)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-220"
+Asset = ExtResource("222_x5qpj")
+
+[node name="object_source-9906-221" type="Node3D" parent="." unique_id=848374026]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -90.62959, 0, 303.4698)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-221"
+Asset = ExtResource("223_sb6ri")
+
+[node name="object_source-9906-222" type="Node3D" parent="." unique_id=50928008]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -91.57988, 0, 300.34967)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-222"
+Asset = ExtResource("224_ne4fs")
+
+[node name="object_source-9906-223" type="Node3D" parent="." unique_id=863120614]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -91.57988, 0, 300.86987)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-223"
+Asset = ExtResource("225_n8tv4")
+
+[node name="object_source-9906-224" type="Node3D" parent="." unique_id=1952212106]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -91.57988, 0, 301.3899)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-224"
+Asset = ExtResource("226_awjfm")
+
+[node name="object_source-9906-225" type="Node3D" parent="." unique_id=68907352]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -91.57988, 0, 301.90988)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-225"
+Asset = ExtResource("227_81ph2")
+
+[node name="object_source-9906-226" type="Node3D" parent="." unique_id=1433868210]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -91.57988, 0, 302.42984)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-226"
+Asset = ExtResource("228_tceog")
+
+[node name="object_source-9906-227" type="Node3D" parent="." unique_id=162087576]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -91.57988, 0, 302.94983)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-227"
+Asset = ExtResource("229_gj4dk")
+
+[node name="object_source-9906-228" type="Node3D" parent="." unique_id=1986924886]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -91.57988, 0, 303.4698)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-228"
+Asset = ExtResource("230_kyxuq")
+
+[node name="object_source-9906-229" type="Node3D" parent="." unique_id=2144318547]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -92.52971, 0, 300.34967)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-229"
+Asset = ExtResource("231_b6odm")
+
+[node name="object_source-9906-230" type="Node3D" parent="." unique_id=1897941607]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -92.52971, 0, 300.86987)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-230"
+Asset = ExtResource("232_enxdf")
+
+[node name="object_source-9906-231" type="Node3D" parent="." unique_id=1739201113]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -92.52971, 0, 301.3899)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-231"
+Asset = ExtResource("233_ghsl2")
+
+[node name="object_source-9906-232" type="Node3D" parent="." unique_id=77574268]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -92.52971, 0, 301.90988)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-232"
+Asset = ExtResource("234_f5uhh")
+
+[node name="object_source-9906-233" type="Node3D" parent="." unique_id=2074160428]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -92.52971, 0, 302.42984)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-233"
+Asset = ExtResource("235_tjue4")
+
+[node name="object_source-9906-234" type="Node3D" parent="." unique_id=1055949460]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -92.52971, 0, 302.94983)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-234"
+Asset = ExtResource("236_vupbc")
+
+[node name="object_source-9906-235" type="Node3D" parent="." unique_id=909214819]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -92.52971, 0, 303.4698)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-235"
+Asset = ExtResource("237_xawf2")
+
+[node name="object_source-9906-236" type="Node3D" parent="." unique_id=331207068]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -93.47954, 0, 300.34967)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-236"
+Asset = ExtResource("238_gerqx")
+
+[node name="object_source-9906-237" type="Node3D" parent="." unique_id=1989408125]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -93.47954, 0, 300.86987)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-237"
+Asset = ExtResource("239_fmbch")
+
+[node name="object_source-9906-238" type="Node3D" parent="." unique_id=332051108]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -93.47954, 0, 301.3899)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-238"
+Asset = ExtResource("240_s5tpe")
+
+[node name="object_source-9906-239" type="Node3D" parent="." unique_id=1567836830]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -93.47954, 0, 301.90988)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-239"
+Asset = ExtResource("241_iy57j")
+
+[node name="object_source-9906-240" type="Node3D" parent="." unique_id=69598080]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -93.47954, 0, 302.42984)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-240"
+Asset = ExtResource("242_nplu0")
+
+[node name="object_source-9906-241" type="Node3D" parent="." unique_id=1131045219]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -93.47954, 0, 302.94983)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-241"
+Asset = ExtResource("243_wcc25")
+
+[node name="object_source-9906-242" type="Node3D" parent="." unique_id=1820380242]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -93.47954, 0, 303.4698)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-242"
+Asset = ExtResource("244_kq1d4")
+
+[node name="object_source-9906-243" type="Node3D" parent="." unique_id=776234609]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -94.42984, 0, 300.34967)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-243"
+Asset = ExtResource("245_io6jp")
+
+[node name="object_source-9906-244" type="Node3D" parent="." unique_id=621019017]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -94.42984, 0, 300.86987)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-244"
+Asset = ExtResource("246_mjggg")
+
+[node name="object_source-9906-245" type="Node3D" parent="." unique_id=62225481]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -94.42984, 0, 301.3899)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-245"
+Asset = ExtResource("247_bf3dk")
+
+[node name="object_source-9906-246" type="Node3D" parent="." unique_id=1256228818]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -94.42984, 0, 301.90988)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-246"
+Asset = ExtResource("248_mmkn1")
+
+[node name="object_source-9906-247" type="Node3D" parent="." unique_id=1266103245]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -94.42984, 0, 302.42984)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-247"
+Asset = ExtResource("249_x76ph")
+
+[node name="object_source-9906-248" type="Node3D" parent="." unique_id=750575943]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -94.42984, 0, 302.94983)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-248"
+Asset = ExtResource("250_7leim")
+
+[node name="object_source-9906-249" type="Node3D" parent="." unique_id=1214365832]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -94.42984, 0, 303.4698)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-249"
+Asset = ExtResource("251_kvory")
+
+[node name="object_source-9906-250" type="Node3D" parent="." unique_id=1149037210]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -95.37967, 0, 300.34967)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-250"
+Asset = ExtResource("252_ro62p")
+
+[node name="object_source-9906-251" type="Node3D" parent="." unique_id=361642851]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -95.37967, 0, 300.86987)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-251"
+Asset = ExtResource("253_axf60")
+
+[node name="object_source-9906-252" type="Node3D" parent="." unique_id=2044335659]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -95.37967, 0, 301.3899)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-252"
+Asset = ExtResource("254_s5oh1")
+
+[node name="object_source-9906-253" type="Node3D" parent="." unique_id=2051461196]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -95.37967, 0, 301.90988)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-253"
+Asset = ExtResource("255_cmp77")
+
+[node name="object_source-9906-254" type="Node3D" parent="." unique_id=25085677]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -95.37967, 0, 302.42984)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-254"
+Asset = ExtResource("256_6ug6s")
+
+[node name="object_source-9906-255" type="Node3D" parent="." unique_id=1973060689]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -95.37967, 0, 302.94983)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-255"
+Asset = ExtResource("257_u4fno")
+
+[node name="object_source-9906-256" type="Node3D" parent="." unique_id=1384240203]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -95.37967, 0, 303.4698)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-256"
+Asset = ExtResource("258_ji7w3")
+
+[node name="object_source-9906-257" type="Node3D" parent="." unique_id=2051954234]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -96.32949, 0, 300.34967)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-257"
+Asset = ExtResource("259_4rujt")
+
+[node name="object_source-9906-258" type="Node3D" parent="." unique_id=1010644928]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -96.32949, 0, 300.86987)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-258"
+Asset = ExtResource("260_i33ef")
+
+[node name="object_source-9906-259" type="Node3D" parent="." unique_id=1893173398]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -96.32949, 0, 301.3899)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-259"
+Asset = ExtResource("261_r5ntj")
+
+[node name="object_source-9906-260" type="Node3D" parent="." unique_id=1766590815]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -96.32949, 0, 301.90988)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-260"
+Asset = ExtResource("262_3l3cm")
+
+[node name="object_source-9906-261" type="Node3D" parent="." unique_id=808291845]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -96.32949, 0, 302.42984)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-261"
+Asset = ExtResource("263_20auu")
+
+[node name="object_source-9906-262" type="Node3D" parent="." unique_id=1944877595]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -96.32949, 0, 302.94983)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-262"
+Asset = ExtResource("264_0q67c")
+
+[node name="object_source-9906-263" type="Node3D" parent="." unique_id=184303044]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -96.32949, 0, 303.4698)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9906-263"
+Asset = ExtResource("265_6xgg6")
+
+[node name="object_source-9909-264" type="Node3D" parent="." unique_id=630310750]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -61.86962, 0, 285.61957)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-264"
+Asset = ExtResource("266_1vwro")
+
+[node name="object_source-9909-265" type="Node3D" parent="." unique_id=569729103]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -62.869804, 0, 285.61957)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-265"
+Asset = ExtResource("267_k0bxs")
+
+[node name="object_source-9909-266" type="Node3D" parent="." unique_id=1819370384]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -71.16908, 0, 285.61957)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-266"
+Asset = ExtResource("268_ifi1a")
+
+[node name="object_source-9909-267" type="Node3D" parent="." unique_id=991862162]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -72.16927, 0, 285.61957)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-267"
+Asset = ExtResource("269_o1ly2")
+
+[node name="object_source-9909-268" type="Node3D" parent="." unique_id=1816113252]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -77.56941, 0, 285.61957)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-268"
+Asset = ExtResource("270_ykfjl")
+
+[node name="object_source-9909-269" type="Node3D" parent="." unique_id=1463738649]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -78.569595, 0, 285.61957)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-269"
+Asset = ExtResource("271_fpumc")
+
+[node name="object_source-9909-270" type="Node3D" parent="." unique_id=2037429571]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -83.969734, 0, 285.61957)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-270"
+Asset = ExtResource("272_18ofa")
+
+[node name="object_source-9909-271" type="Node3D" parent="." unique_id=1442487717]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -84.96939, 0, 285.61957)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-271"
+Asset = ExtResource("273_1kxt1")
+
+[node name="object_source-9909-272" type="Node3D" parent="." unique_id=954074177]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -90.36952, 0, 285.61957)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-272"
+Asset = ExtResource("274_oq4pj")
+
+[node name="object_source-9909-273" type="Node3D" parent="." unique_id=819987649]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -91.36918, 0, 285.61957)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-273"
+Asset = ExtResource("275_6w1dd")
+
+[node name="object_source-9909-274" type="Node3D" parent="." unique_id=779394299]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -96.76931, 0, 285.61957)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-274"
+Asset = ExtResource("276_vk5gg")
+
+[node name="object_source-9909-275" type="Node3D" parent="." unique_id=618179959]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -97.7695, 0, 285.61957)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-275"
+Asset = ExtResource("277_kkrml")
+
+[node name="object_source-9909-276" type="Node3D" parent="." unique_id=1165409432]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -71.16908, 0, 324.37964)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-276"
+Asset = ExtResource("278_0lyrv")
+
+[node name="object_source-9909-277" type="Node3D" parent="." unique_id=1497380066]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -72.16927, 0, 324.37964)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-277"
+Asset = ExtResource("279_rh28h")
+
+[node name="object_source-9909-278" type="Node3D" parent="." unique_id=2008271626]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -77.56941, 0, 324.37964)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-278"
+Asset = ExtResource("280_dahd8")
+
+[node name="object_source-9909-279" type="Node3D" parent="." unique_id=678569341]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -78.569595, 0, 324.37964)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-279"
+Asset = ExtResource("281_vgrxx")
+
+[node name="object_source-9909-280" type="Node3D" parent="." unique_id=957596257]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -83.969734, 0, 324.37964)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-280"
+Asset = ExtResource("282_pdyil")
+
+[node name="object_source-9909-281" type="Node3D" parent="." unique_id=600995023]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -84.96939, 0, 324.37964)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-281"
+Asset = ExtResource("283_38imm")
+
+[node name="object_source-9909-282" type="Node3D" parent="." unique_id=812552987]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -90.36952, 0, 324.37964)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-282"
+Asset = ExtResource("284_p3788")
+
+[node name="object_source-9909-283" type="Node3D" parent="." unique_id=141888412]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -91.36918, 0, 324.37964)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-283"
+Asset = ExtResource("285_f67ig")
+
+[node name="object_source-9909-284" type="Node3D" parent="." unique_id=1188920272]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -96.76931, 0, 324.37964)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-284"
+Asset = ExtResource("286_5kcte")
+
+[node name="object_source-9909-285" type="Node3D" parent="." unique_id=1596410904]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -97.7695, 0, 324.37964)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-285"
+Asset = ExtResource("287_y8arh")
+
+[node name="object_source-9909-286" type="Node3D" parent="." unique_id=1742424826]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -132.20372, 0, 304.99957)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-286"
+Asset = ExtResource("288_nyyib")
+
+[node name="object_source-9909-287" type="Node3D" parent="." unique_id=337916317]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.46907, 0, 278.8497)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-287"
+Asset = ExtResource("289_vwstp")
+
+[node name="object_source-9909-288" type="Node3D" parent="." unique_id=1718708477]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.46907, 0, 331.1499)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-288"
+Asset = ExtResource("290_2q2j2")
+
+[node name="object_source-9909-289" type="Node3D" parent="." unique_id=1039221437]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -62.644768, 0, 295.1344)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-289"
+Asset = ExtResource("291_lgaeo")
+
+[node name="object_source-9909-290" type="Node3D" parent="." unique_id=733687082]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -71.66954, 0, 295.1344)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-290"
+Asset = ExtResource("292_aee7r")
+
+[node name="object_source-9909-291" type="Node3D" parent="." unique_id=2019254953]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -78.069534, 0, 295.1344)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-291"
+Asset = ExtResource("293_atu3f")
+
+[node name="object_source-9909-292" type="Node3D" parent="." unique_id=1874573422]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -84.46953, 0, 295.1344)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-292"
+Asset = ExtResource("294_soj2g")
+
+[node name="object_source-9909-293" type="Node3D" parent="." unique_id=65079041]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -90.86953, 0, 295.1344)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-293"
+Asset = ExtResource("295_pf3ns")
+
+[node name="object_source-9909-294" type="Node3D" parent="." unique_id=353377753]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -97.26952, 0, 295.1344)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-294"
+Asset = ExtResource("296_qc80x")
+
+[node name="object_source-9909-295" type="Node3D" parent="." unique_id=1041681989]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -62.644768, 0, 314.86478)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-295"
+Asset = ExtResource("297_g4vcg")
+
+[node name="object_source-9909-296" type="Node3D" parent="." unique_id=1217456675]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -71.66954, 0, 314.86478)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-296"
+Asset = ExtResource("298_n0gkg")
+
+[node name="object_source-9909-297" type="Node3D" parent="." unique_id=1923713215]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -78.069534, 0, 314.86478)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-297"
+Asset = ExtResource("299_64dhp")
+
+[node name="object_source-9909-298" type="Node3D" parent="." unique_id=1482748454]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -84.46953, 0, 314.86478)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-298"
+Asset = ExtResource("300_d83mq")
+
+[node name="object_source-9909-299" type="Node3D" parent="." unique_id=1988753468]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -90.86953, 0, 314.86478)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-299"
+Asset = ExtResource("301_vbevn")
+
+[node name="object_source-9909-300" type="Node3D" parent="." unique_id=622193107]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -97.26952, 0, 314.86478)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9909-300"
+Asset = ExtResource("302_qij3e")
+
+[node name="object_source-9910-301" type="Node3D" parent="." unique_id=1944888188]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -129.04323, 0, 311.95532)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9910-301"
+Asset = ExtResource("303_ancka")
+
+[node name="object_source-9910-302" type="Node3D" parent="." unique_id=818949169]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -131.30392, 0, 305.00372)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9910-302"
+Asset = ExtResource("304_3cbmr")
+
+[node name="object_source-9910-303" type="Node3D" parent="." unique_id=2068001607]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -129.04323, 0, 298.04395)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9910-303"
+Asset = ExtResource("305_0qd27")
+
+[node name="object_source-9912-304" type="Node3D" parent="." unique_id=870419269]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -78.96951, 0, 300.19977)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9912-304"
+Asset = ExtResource("306_4wrgo")
+
+[node name="object_source-9912-305" type="Node3D" parent="." unique_id=1950921247]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -79.09942, 0, 300.19977)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9912-305"
+Asset = ExtResource("307_sm4pp")
+
+[node name="object_source-9912-306" type="Node3D" parent="." unique_id=1731583181]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -79.2298, 0, 300.19977)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9912-306"
+Asset = ExtResource("308_sjc4u")
+
+[node name="object_source-9912-307" type="Node3D" parent="." unique_id=1945118384]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -79.35924, 0, 300.19977)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9912-307"
+Asset = ExtResource("309_fpf87")
+
+[node name="object_source-9912-308" type="Node3D" parent="." unique_id=1966289114]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -79.48962, 0, 300.19977)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9912-308"
+Asset = ExtResource("310_bu2re")
+
+[node name="object_source-9912-309" type="Node3D" parent="." unique_id=1882380286]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -79.61952, 0, 300.19977)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9912-309"
+Asset = ExtResource("311_3wilv")
+
+[node name="object_source-9912-310" type="Node3D" parent="." unique_id=475997475]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -79.74943, 0, 300.19977)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9912-310"
+Asset = ExtResource("312_hrk6l")
+
+[node name="object_source-9912-311" type="Node3D" parent="." unique_id=211634461]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -79.87981, 0, 300.19977)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9912-311"
+Asset = ExtResource("313_00fap")
+
+[node name="object_source-9912-312" type="Node3D" parent="." unique_id=1492364925]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -80.00925, 0, 300.19977)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9912-312"
+Asset = ExtResource("314_qpbtu")
+
+[node name="object_source-9912-313" type="Node3D" parent="." unique_id=1968582381]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -80.139626, 0, 300.19977)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9912-313"
+Asset = ExtResource("315_7tdo7")
+
+[node name="object_source-9912-314" type="Node3D" parent="." unique_id=2120997032]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -80.26953, 0, 300.19977)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9912-314"
+Asset = ExtResource("316_x28pf")
+
+[node name="object_source-9912-315" type="Node3D" parent="." unique_id=1888017007]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -113.969215, 0, 293.0697)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9912-315"
+Asset = ExtResource("317_p4iyn")
+
+[node name="object_source-9912-316" type="Node3D" parent="." unique_id=747683984]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -113.969215, 0, 316.92987)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9912-316"
+Asset = ExtResource("318_xf315")
+
+[node name="object_source-9912-317" type="Node3D" parent="." unique_id=669577763]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -117.96921, 0, 293.0697)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9912-317"
+Asset = ExtResource("319_yx1nc")
+
+[node name="object_source-9912-318" type="Node3D" parent="." unique_id=945114563]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -117.96921, 0, 316.92987)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9912-318"
+Asset = ExtResource("320_m2rck")
+
+[node name="object_source-9912-319" type="Node3D" parent="." unique_id=895510766]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -63.469658, 0, 307.39984)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9912-319"
+Asset = ExtResource("321_mnlur")
+
+[node name="object_source-9912-320" type="Node3D" parent="." unique_id=2117858022]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -112.169556, 0, 304.99982)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9912-320"
+Asset = ExtResource("322_rt3u5")
+
+[node name="object_source-9913-321" type="Node3D" parent="." unique_id=266851419]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -122.56942, 0, 304.99957)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9913-321"
+Asset = ExtResource("323_5bppi")
+
+[node name="object_source-9913-322" type="Node3D" parent="." unique_id=1489133170]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.46907, 0, 278.7998)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9913-322"
+Asset = ExtResource("324_3ri8e")
+
+[node name="object_source-9913-323" type="Node3D" parent="." unique_id=1939247401]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.46907, 0, 331.1994)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9913-323"
+Asset = ExtResource("325_pcewj")
+
+[node name="object_source-9913-324" type="Node3D" parent="." unique_id=1081515888]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -111.26898, 0, 301.5995)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9913-324"
+Asset = ExtResource("326_pydvc")
+
+[node name="object_source-9913-325" type="Node3D" parent="." unique_id=121025122]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -111.26898, 0, 308.39972)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9913-325"
+Asset = ExtResource("327_qvxlk")
+
+[node name="object_source-9924-326" type="Node3D" parent="." unique_id=75148953]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -62.370003, 0, 305)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9924-326"
+Asset = ExtResource("328_gui7v")
+
+[node name="object_source-9925-327" type="Node3D" parent="." unique_id=1467935225]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -64.94997, 0, 304.9999)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9925-327"
+Asset = ExtResource("329_5prj6")
+
+[node name="object_source-9933-328" type="Node3D" parent="." unique_id=1820878]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -62.67, 0, 322.25)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9933-328"
+Asset = ExtResource("330_ie3x8")
+
+[node name="object_source-9935-329" type="Node3D" parent="." unique_id=361370954]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -60.26226, 0, 322.89514)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9935-329"
+Asset = ExtResource("331_6wobu")
+
+[node name="object_source-9937-330" type="Node3D" parent="." unique_id=1667250147]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.47, 0, 305)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9937-330"
+Asset = ExtResource("332_fga01")
+
+[node name="object_source-9945-331" type="Node3D" parent="." unique_id=1264484143]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -122.379974, 0, 284.46497)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9945-331"
+Asset = ExtResource("333_idfwe")
+
+[node name="object_source-9945-332" type="Node3D" parent="." unique_id=126637682]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.369995, 0, 285.79993)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9945-332"
+Asset = ExtResource("334_5eqgc")
+
+[node name="object_source-9948-333" type="Node3D" parent="." unique_id=2078975292]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -117.97, 0, 277.8)
+script = ExtResource("1_k3knj")
+ObjectId = "room-stjacob-source-9948-333"
+Asset = ExtResource("335_ujpgr")

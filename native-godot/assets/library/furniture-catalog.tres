@@ -1,0 +1,195 @@
+[gd_resource type="Resource" script_class="AuthorCatalog" format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="1_1b7mm"]
+[ext_resource type="PackedScene" path="res://assets/props/furniture-chair.tscn" id="2_krsf1"]
+[ext_resource type="PackedScene" path="res://assets/props/furniture-stool.tscn" id="3_2rh0x"]
+[ext_resource type="PackedScene" path="res://assets/props/furniture-bench.tscn" id="4_oo617"]
+[ext_resource type="PackedScene" path="res://assets/props/furniture-settle.tscn" id="5_obvdb"]
+[ext_resource type="PackedScene" path="res://assets/props/furniture-table.tscn" id="6_8y6uq"]
+[ext_resource type="PackedScene" path="res://assets/props/furniture-counter.tscn" id="7_7acss"]
+[ext_resource type="PackedScene" path="res://assets/props/furniture-shelf.tscn" id="8_wx8p6"]
+[ext_resource type="PackedScene" path="res://assets/props/furniture-cupboard.tscn" id="9_efrwg"]
+[ext_resource type="PackedScene" path="res://assets/props/furniture-bed.tscn" id="10_2wph3"]
+[ext_resource type="PackedScene" path="res://assets/props/furniture-stove.tscn" id="11_t65go"]
+[ext_resource type="PackedScene" path="res://assets/props/furniture-clock.tscn" id="12_1w8r3"]
+[ext_resource type="PackedScene" path="res://assets/props/furniture-cask.tscn" id="13_3fitp"]
+[ext_resource type="PackedScene" path="res://assets/props/furniture-lamp.tscn" id="14_s2vak"]
+[ext_resource type="Resource" path="res://assets/library/chair-ladderback.tres" id="15_353pc"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorCatalog.cs" id="15_gc48a"]
+[ext_resource type="Resource" path="res://assets/library/chair-tavern.tres" id="16_klxv8"]
+[ext_resource type="Resource" path="res://assets/library/chair-cafe.tres" id="17_a4nxx"]
+[ext_resource type="Resource" path="res://assets/library/stool-low.tres" id="18_1b3xg"]
+[ext_resource type="Resource" path="res://assets/library/stool-bar.tres" id="19_t815o"]
+[ext_resource type="Resource" path="res://assets/library/settle.tres" id="20_72chw"]
+[ext_resource type="Resource" path="res://assets/library/bench-long.tres" id="21_lb2fe"]
+[ext_resource type="Resource" path="res://assets/library/bench-short.tres" id="22_ulmf4"]
+[ext_resource type="Resource" path="res://assets/library/table-cafe-round.tres" id="23_2gyxc"]
+[ext_resource type="Resource" path="res://assets/library/table-square.tres" id="24_vkl0l"]
+[ext_resource type="Resource" path="res://assets/library/table-kitchen-long.tres" id="25_2q4d2"]
+[ext_resource type="Resource" path="res://assets/library/desk-writing.tres" id="26_pmff0"]
+[ext_resource type="Resource" path="res://assets/library/counter-bar.tres" id="27_0t10r"]
+[ext_resource type="Resource" path="res://assets/library/counter-shop.tres" id="28_lthab"]
+[ext_resource type="Resource" path="res://assets/library/shelf-wall.tres" id="29_83gul"]
+[ext_resource type="Resource" path="res://assets/library/dresser.tres" id="30_2wewf"]
+[ext_resource type="Resource" path="res://assets/library/armoire.tres" id="31_w337d"]
+[ext_resource type="Resource" path="res://assets/library/bed-box.tres" id="32_x8guj"]
+[ext_resource type="Resource" path="res://assets/library/bed-iron.tres" id="33_4yyvf"]
+[ext_resource type="Resource" path="res://assets/library/mattress-straw.tres" id="34_mb1ge"]
+[ext_resource type="Resource" path="res://assets/library/cradle.tres" id="35_et0r3"]
+[ext_resource type="Resource" path="res://assets/library/stove-leuven.tres" id="36_5lpqu"]
+[ext_resource type="Resource" path="res://assets/library/range-kitchen.tres" id="37_p0pd8"]
+[ext_resource type="Resource" path="res://assets/library/clock-wall.tres" id="38_1ms5s"]
+[ext_resource type="Resource" path="res://assets/library/clock-longcase.tres" id="39_imadq"]
+[ext_resource type="Resource" path="res://assets/library/washstand.tres" id="40_of35l"]
+
+[sub_resource type="Resource" id="Resource_skox5"]
+script = ExtResource("1_1b7mm")
+Id = "furniture-chair"
+Title = "Chair"
+Category = "Furniture"
+Scene = ExtResource("2_krsf1")
+Footprint = Vector3(0.46, 1, 0.46)
+FurnitureKind = "chair"
+SeatPoints = PackedVector3Array(0, 0, 0)
+UsePoint = Vector3(0, 0.5, 0.23)
+StandPoint = Vector3(0, 0, -0.83000004)
+
+[sub_resource type="Resource" id="Resource_eeujl"]
+script = ExtResource("1_1b7mm")
+Id = "furniture-stool"
+Title = "Stool"
+Category = "Furniture"
+Scene = ExtResource("3_2rh0x")
+Footprint = Vector3(0.4, 0.69, 0.4)
+FurnitureKind = "stool"
+SeatPoints = PackedVector3Array(0, 0, 0)
+SeatHeight = 0.68
+UsePoint = Vector3(0, 0.5, 0.2)
+StandPoint = Vector3(0, 0, -0.8)
+
+[sub_resource type="Resource" id="Resource_7j61w"]
+script = ExtResource("1_1b7mm")
+Id = "furniture-bench"
+Title = "Bench"
+Category = "Furniture"
+Scene = ExtResource("4_oo617")
+Footprint = Vector3(1.6, 0.49, 0.46)
+FurnitureKind = "bench"
+SeatPoints = PackedVector3Array(-0.4, 0, 0, 0.4, 0, 0)
+UsePoint = Vector3(0, 0.5, 0.23)
+StandPoint = Vector3(0, 0, -0.83000004)
+
+[sub_resource type="Resource" id="Resource_aoik7"]
+script = ExtResource("1_1b7mm")
+Id = "furniture-settle"
+Title = "Settle"
+Category = "Furniture"
+Scene = ExtResource("5_obvdb")
+Footprint = Vector3(1.6, 1, 0.46)
+FurnitureKind = "settle"
+SeatPoints = PackedVector3Array(-0.4, 0, 0, 0.4, 0, 0)
+UsePoint = Vector3(0, 0.5, 0.23)
+StandPoint = Vector3(0, 0, -0.83000004)
+
+[sub_resource type="Resource" id="Resource_y2ouq"]
+script = ExtResource("1_1b7mm")
+Id = "furniture-table"
+Title = "Table"
+Category = "Furniture"
+Scene = ExtResource("6_8y6uq")
+Footprint = Vector3(1.2, 0.8, 0.9)
+FurnitureKind = "table"
+UsePoint = Vector3(0, 0.5, 0.45)
+StandPoint = Vector3(0, 0, -1.05)
+
+[sub_resource type="Resource" id="Resource_0166a"]
+script = ExtResource("1_1b7mm")
+Id = "furniture-counter"
+Title = "Counter"
+Category = "Furniture"
+Scene = ExtResource("7_7acss")
+Footprint = Vector3(2.4, 1.1, 0.65)
+FurnitureKind = "counter"
+UsePoint = Vector3(0, 0.5, 0.325)
+StandPoint = Vector3(0, 0, -0.925)
+
+[sub_resource type="Resource" id="Resource_ck7qg"]
+script = ExtResource("1_1b7mm")
+Id = "furniture-shelf"
+Title = "Shelf"
+Category = "Furniture"
+Scene = ExtResource("8_wx8p6")
+Footprint = Vector3(1.4, 1.8, 0.35)
+FurnitureKind = "shelf"
+UsePoint = Vector3(0, 0.5, 0.175)
+StandPoint = Vector3(0, 0, -0.77500004)
+
+[sub_resource type="Resource" id="Resource_rrstk"]
+script = ExtResource("1_1b7mm")
+Id = "furniture-cupboard"
+Title = "Cupboard"
+Category = "Furniture"
+Scene = ExtResource("9_efrwg")
+Footprint = Vector3(1.2, 1.8, 0.5)
+FurnitureKind = "cupboard"
+UsePoint = Vector3(0, 0.5, 0.25)
+StandPoint = Vector3(0, 0, -0.85)
+
+[sub_resource type="Resource" id="Resource_igdug"]
+script = ExtResource("1_1b7mm")
+Id = "furniture-bed"
+Title = "Bed"
+Category = "Furniture"
+Scene = ExtResource("10_2wph3")
+Footprint = Vector3(1.05, 0.92, 2.05)
+FurnitureKind = "bed"
+UsePoint = Vector3(0, 0.5, 1.025)
+StandPoint = Vector3(0, 0, -1.625)
+
+[sub_resource type="Resource" id="Resource_d7mrq"]
+script = ExtResource("1_1b7mm")
+Id = "furniture-stove"
+Title = "Stove"
+Category = "Furniture"
+Scene = ExtResource("11_t65go")
+Footprint = Vector3(0.62, 2.7, 0.62)
+FurnitureKind = "stove"
+UsePoint = Vector3(0, 0.5, 0.31)
+StandPoint = Vector3(0, 0, -0.91)
+
+[sub_resource type="Resource" id="Resource_jdcos"]
+script = ExtResource("1_1b7mm")
+Id = "furniture-clock"
+Title = "Clock"
+Category = "Furniture"
+Scene = ExtResource("12_1w8r3")
+Footprint = Vector3(0.45, 1.95, 0.25)
+FurnitureKind = "clock"
+UsePoint = Vector3(0, 1.7, 0.125)
+StandPoint = Vector3(0, 0, -0.725)
+
+[sub_resource type="Resource" id="Resource_353pc"]
+script = ExtResource("1_1b7mm")
+Id = "furniture-cask"
+Title = "Cask"
+Category = "Furniture"
+Scene = ExtResource("13_3fitp")
+Footprint = Vector3(0.41198805, 0.52, 0.41198805)
+FurnitureKind = "cask"
+UsePoint = Vector3(0, 0.5, 0.20599402)
+StandPoint = Vector3(0, 0, -0.80599403)
+
+[sub_resource type="Resource" id="Resource_klxv8"]
+script = ExtResource("1_1b7mm")
+Id = "furniture-lamp"
+Title = "Lamp"
+Category = "Furniture"
+Scene = ExtResource("14_s2vak")
+Footprint = Vector3(0.24, 0.5, 0.24)
+FurnitureKind = "lamp"
+UsePoint = Vector3(0, 0.5, 0.12)
+StandPoint = Vector3(0, 0, -0.72)
+
+[resource]
+script = ExtResource("15_gc48a")
+Assets = Array[ExtResource("1_1b7mm")]([SubResource("Resource_skox5"), SubResource("Resource_eeujl"), SubResource("Resource_7j61w"), SubResource("Resource_aoik7"), SubResource("Resource_y2ouq"), SubResource("Resource_0166a"), SubResource("Resource_ck7qg"), SubResource("Resource_rrstk"), SubResource("Resource_igdug"), SubResource("Resource_d7mrq"), SubResource("Resource_jdcos"), SubResource("Resource_353pc"), SubResource("Resource_klxv8"), ExtResource("15_353pc"), ExtResource("16_klxv8"), ExtResource("17_a4nxx"), ExtResource("18_1b3xg"), ExtResource("19_t815o"), ExtResource("20_72chw"), ExtResource("21_lb2fe"), ExtResource("22_ulmf4"), ExtResource("23_2gyxc"), ExtResource("24_vkl0l"), ExtResource("25_2q4d2"), ExtResource("26_pmff0"), ExtResource("27_0t10r"), ExtResource("28_lthab"), ExtResource("29_83gul"), ExtResource("30_2wewf"), ExtResource("31_w337d"), ExtResource("32_x8guj"), ExtResource("33_4yyvf"), ExtResource("34_mb1ge"), ExtResource("35_et0r3"), ExtResource("36_5lpqu"), ExtResource("37_p0pd8"), ExtResource("38_1ms5s"), ExtResource("39_imadq"), ExtResource("40_of35l")])

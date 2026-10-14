@@ -1,0 +1,124 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_ic078"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-counter.tres" id="2_5cu3k"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-source-10631-1.tres" id="3_hcwxa"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-source-10631-2.tres" id="4_u1hsd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-source-10631-3.tres" id="5_s27g7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-source-10631-4.tres" id="6_cqsxm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-source-10631-5.tres" id="7_3sme6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-source-10631-6.tres" id="8_2mg35"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-source-10636-7.tres" id="9_ldjlt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-source-10637-8.tres" id="10_dqrrh"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-source-10637-9.tres" id="11_5bare"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-source-10648-10.tres" id="12_cojp4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-source-10650-11.tres" id="13_0ic1o"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-source-10651-12.tres" id="14_d5tyy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-source-10652-13.tres" id="15_6baot"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-source-10653-14.tres" id="16_bwl1r"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-source-10653-15.tres" id="17_jjeo7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-apothecary_markt-source-10697-16.tres" id="18_0ft8m"]
+
+[node name="Objects" type="Node3D" unique_id=1904872462]
+
+[node name="object_counter" type="Node3D" parent="." unique_id=934497351]
+transform = Transform3D(-1, 0, 1.509958e-07, 0, 1, 0, -1.509958e-07, 0, -1, -209.47, 0.18, 120.65)
+script = ExtResource("1_ic078")
+ObjectId = "room-shop-apothecary_markt-counter"
+Asset = ExtResource("2_5cu3k")
+
+[node name="object_source-10631-1" type="Node3D" parent="." unique_id=697403387]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -208.3725, 0.18, 120.71669)
+script = ExtResource("1_ic078")
+ObjectId = "room-shop-apothecary_markt-source-10631-1"
+Asset = ExtResource("3_hcwxa")
+
+[node name="object_source-10631-2" type="Node3D" parent="." unique_id=295796600]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -208.3725, 0.18, 117.75083)
+script = ExtResource("1_ic078")
+ObjectId = "room-shop-apothecary_markt-source-10631-2"
+Asset = ExtResource("4_u1hsd")
+
+[node name="object_source-10631-3" type="Node3D" parent="." unique_id=320486915]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -214.01, 0.18, 120.09506)
+script = ExtResource("1_ic078")
+ObjectId = "room-shop-apothecary_markt-source-10631-3"
+Asset = ExtResource("5_s27g7")
+
+[node name="object_source-10631-4" type="Node3D" parent="." unique_id=193221232]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -209.66, 0.18, 123.525)
+script = ExtResource("1_ic078")
+ObjectId = "room-shop-apothecary_markt-source-10631-4"
+Asset = ExtResource("6_cqsxm")
+
+[node name="object_source-10631-5" type="Node3D" parent="." unique_id=1639745431]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -211.31995, 0.18, 117.27007)
+script = ExtResource("1_ic078")
+ObjectId = "room-shop-apothecary_markt-source-10631-5"
+Asset = ExtResource("7_3sme6")
+
+[node name="object_source-10631-6" type="Node3D" parent="." unique_id=647628958]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -211.31995, 0.18, 117.24008)
+script = ExtResource("1_ic078")
+ObjectId = "room-shop-apothecary_markt-source-10631-6"
+Asset = ExtResource("8_2mg35")
+
+[node name="object_source-10636-7" type="Node3D" parent="." unique_id=431055391]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -208.6, 0.18, 122.330025)
+script = ExtResource("1_ic078")
+ObjectId = "room-shop-apothecary_markt-source-10636-7"
+Asset = ExtResource("9_ldjlt")
+
+[node name="object_source-10637-8" type="Node3D" parent="." unique_id=1355557952]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -209.29997, 0.18, 121.33002)
+script = ExtResource("1_ic078")
+ObjectId = "room-shop-apothecary_markt-source-10637-8"
+Asset = ExtResource("10_dqrrh")
+
+[node name="object_source-10637-9" type="Node3D" parent="." unique_id=389566759]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -211.91998, 0.18, 119.708046)
+script = ExtResource("1_ic078")
+ObjectId = "room-shop-apothecary_markt-source-10637-9"
+Asset = ExtResource("11_5bare")
+
+[node name="object_source-10648-10" type="Node3D" parent="." unique_id=959353484]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -209.07625, 0.18, 123.524994)
+script = ExtResource("1_ic078")
+ObjectId = "room-shop-apothecary_markt-source-10648-10"
+Asset = ExtResource("12_cojp4")
+
+[node name="object_source-10650-11" type="Node3D" parent="." unique_id=1132406885]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -209.57625, 0.18, 123.524994)
+script = ExtResource("1_ic078")
+ObjectId = "room-shop-apothecary_markt-source-10650-11"
+Asset = ExtResource("13_0ic1o")
+
+[node name="object_source-10651-12" type="Node3D" parent="." unique_id=1299800212]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -210.07625, 0.18, 123.524994)
+script = ExtResource("1_ic078")
+ObjectId = "room-shop-apothecary_markt-source-10651-12"
+Asset = ExtResource("14_d5tyy")
+
+[node name="object_source-10652-13" type="Node3D" parent="." unique_id=363846414]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -214.40799, 0.18, 122.8)
+script = ExtResource("1_ic078")
+ObjectId = "room-shop-apothecary_markt-source-10652-13"
+Asset = ExtResource("15_6baot")
+
+[node name="object_source-10653-14" type="Node3D" parent="." unique_id=771664085]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -209.29999, 0.18, 121.33003)
+script = ExtResource("1_ic078")
+ObjectId = "room-shop-apothecary_markt-source-10653-14"
+Asset = ExtResource("16_bwl1r")
+
+[node name="object_source-10653-15" type="Node3D" parent="." unique_id=1328659434]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -211.91995, 0.18, 119.708015)
+script = ExtResource("1_ic078")
+ObjectId = "room-shop-apothecary_markt-source-10653-15"
+Asset = ExtResource("17_jjeo7")
+
+[node name="object_source-10697-16" type="Node3D" parent="." unique_id=879681433]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -209.66, 0.18, 124.002)
+script = ExtResource("1_ic078")
+ObjectId = "room-shop-apothecary_markt-source-10697-16"
+Asset = ExtResource("18_0ft8m")

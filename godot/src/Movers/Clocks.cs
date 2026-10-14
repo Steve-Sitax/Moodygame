@@ -39,6 +39,22 @@ public partial class Clocks : Node
     }
 
     private readonly List<Dial> dials = new();
+    private readonly List<(Node3D Dial, Node3D Hour, Node3D Minute)> modeled = new();
+    private int modeledMinute = -1;
+    public void AdoptDial(Node3D dial, string kind, string where)
+    {
+        if(modeled.Any(d=>d.Dial==dial))return;
+        var hour=dial.GetChildren().OfType<Node3D>().FirstOrDefault(n=>n.Name.ToString().EndsWith("_hour_hand"));
+        var minute=dial.GetChildren().OfType<Node3D>().FirstOrDefault(n=>n.Name.ToString().EndsWith("_minute_hand"));
+        if(hour==null||minute==null)return;
+        modeled.Add((dial,hour,minute));modeledMinute=-1;TickModeled();
+    }
+    private void TickModeled()
+    {
+        int minute=NowMinute();if(minute==modeledMinute)return;modeledMinute=minute;
+        modeled.RemoveAll(d=>!IsInstanceValid(d.Dial));
+        foreach(var d in modeled){d.Hour.Rotation=new(0,0,-minute%720*Mathf.Tau/720);d.Minute.Rotation=new(0,0,-minute%60*Mathf.Tau/60);}
+    }
     private int gameMinute = -1;
     private readonly Vector3[] pos = new Vector3[Verts];
     private static readonly Vector3[] Normals = MakeNormals();
@@ -80,6 +96,8 @@ public partial class Clocks : Node
         I = this;
         foreach (var n in BakedWorld.All(Main.I.World))
         {
+            if(n is Node3D dial && dial.Name.ToString().EndsWith("_dial")) AdoptDial(dial,"furniture dial",WhereOf(dial));
+            if(n.HasMeta("native_replaced_event_snapshot")||n.HasMeta("native_replaced_visual"))continue;
             if (n is not MeshInstance3D { Mesh: not null } mi || !IsClock(n)) continue;
             if (mi.Mesh.GetSurfaceCount() < 1) continue;
             var v = mi.Mesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array();
@@ -228,6 +246,7 @@ public partial class Clocks : Node
     {
         MoverCost.Begin("clocks");
         Tick(false);
+        TickModeled();
         MoverCost.End("clocks");
     }
 
@@ -285,6 +304,14 @@ public partial class Clocks : Node
             var (hour,minute)=Read(d); int actual=hour*60+minute;
             int off = Math.Min(((actual - m12) % 720 + 720) % 720, ((m12 - actual) % 720 + 720) % 720);
             list.Add(new Row(d.Node.GetPath().ToString(), d.Kind, d.Where, d.Node.GlobalPosition, d.Node.GlobalTransform.Basis.Z.Normalized(), d.Node.IsVisibleInTree(), Hm(actual), off, d.Shows >= 0 && off <= 1));
+        }
+        foreach(var d in modeled)
+        {
+            if(!IsInstanceValid(d.Dial))continue;
+            float angle=-d.Hour.Rotation.Z;
+            int actual=(int)Math.Round(((angle%Mathf.Tau+Mathf.Tau)%Mathf.Tau)*720/Mathf.Tau)%720;
+            int off=Math.Min((actual-m12+720)%720,(m12-actual+720)%720);
+            list.Add(new Row(d.Dial.GetPath().ToString(),"modeled furniture hands","furniture",d.Dial.GlobalPosition,d.Dial.GlobalBasis.Z.Normalized(),d.Dial.IsVisibleInTree(),Hm(actual),off,modeledMinute>=0&&off<=1));
         }
         return list;
     }

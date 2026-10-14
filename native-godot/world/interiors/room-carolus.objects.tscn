@@ -1,0 +1,2679 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_0ihmc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9384-0.tres" id="2_rq7r8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9384-1.tres" id="3_wfepp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9384-2.tres" id="4_nsmyl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9384-3.tres" id="5_1ehiy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9384-4.tres" id="6_v24cr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9384-5.tres" id="7_qhfml"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-6.tres" id="8_fthjn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-7.tres" id="9_tm1n7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-8.tres" id="10_om6hy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-9.tres" id="11_55nyw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-10.tres" id="12_qfiko"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-11.tres" id="13_wmsvt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-12.tres" id="14_pcrk2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-13.tres" id="15_a657m"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-14.tres" id="16_upwor"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-15.tres" id="17_2d0i5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-16.tres" id="18_t8byn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-17.tres" id="19_iix3k"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-18.tres" id="20_xqyy5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-19.tres" id="21_3hc7w"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-20.tres" id="22_i14cd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-21.tres" id="23_iwmo7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-22.tres" id="24_t6urr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-23.tres" id="25_vr3j5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-24.tres" id="26_s1veo"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-25.tres" id="27_fp37f"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-26.tres" id="28_f30a7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-27.tres" id="29_1oajy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-28.tres" id="30_1os6c"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-29.tres" id="31_cu2qo"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-30.tres" id="32_nj408"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-31.tres" id="33_6v0y7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-32.tres" id="34_2fvgt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-33.tres" id="35_io8r2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-34.tres" id="36_5xbmt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-35.tres" id="37_fbyln"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-36.tres" id="38_ohy8m"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-37.tres" id="39_0q35p"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-38.tres" id="40_hxt35"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-39.tres" id="41_hwefh"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-40.tres" id="42_18ui2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-41.tres" id="43_ijtdc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-42.tres" id="44_e0p61"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-43.tres" id="45_45rf1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-44.tres" id="46_db27f"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-45.tres" id="47_df5y6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-46.tres" id="48_x4rd1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-47.tres" id="49_0byxj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-48.tres" id="50_fobyx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-49.tres" id="51_3e0a5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-50.tres" id="52_gtosp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-51.tres" id="53_o58cy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-52.tres" id="54_gdppy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-53.tres" id="55_3tv2g"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-54.tres" id="56_3etj7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-55.tres" id="57_wgqvq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-56.tres" id="58_ha8hq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-57.tres" id="59_xgq3s"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-58.tres" id="60_rtcdl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-59.tres" id="61_58foj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-60.tres" id="62_fg3wg"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-61.tres" id="63_mnxkp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-62.tres" id="64_esige"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-63.tres" id="65_4i7ak"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-64.tres" id="66_iqb0c"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-65.tres" id="67_wghjf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-66.tres" id="68_2kja5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-67.tres" id="69_yp5oq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-68.tres" id="70_j73il"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-69.tres" id="71_n3ld6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-70.tres" id="72_1y5wv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-71.tres" id="73_pwp2y"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-72.tres" id="74_hhsut"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-73.tres" id="75_7gb4d"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-74.tres" id="76_y0520"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-75.tres" id="77_tdvv7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-76.tres" id="78_vjder"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-77.tres" id="79_dhnfx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-78.tres" id="80_yo5pq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-79.tres" id="81_wnd86"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-80.tres" id="82_w0rkx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-81.tres" id="83_dsak6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-82.tres" id="84_0evka"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-83.tres" id="85_8c4k3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-84.tres" id="86_yfvr4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-85.tres" id="87_xr70w"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-86.tres" id="88_24yo8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-87.tres" id="89_fnswq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-88.tres" id="90_h1eco"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-89.tres" id="91_ksl3h"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-90.tres" id="92_730dr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-91.tres" id="93_kylw3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-92.tres" id="94_prtdx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-93.tres" id="95_8awtx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-94.tres" id="96_b27ga"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-95.tres" id="97_fie70"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9389-96.tres" id="98_ug76k"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9391-97.tres" id="99_ifdpp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9391-98.tres" id="100_g45mb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9391-99.tres" id="101_djr4d"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9391-100.tres" id="102_6ajgt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9391-101.tres" id="103_f17bj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9391-102.tres" id="104_1la80"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9391-103.tres" id="105_5wad7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9391-104.tres" id="106_u4arx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9391-105.tres" id="107_rsnpy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9391-106.tres" id="108_w5yaa"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9392-107.tres" id="109_gcidv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9392-108.tres" id="110_0uyg8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9392-109.tres" id="111_mmdry"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9392-110.tres" id="112_pgvq8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9392-111.tres" id="113_urttc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9392-112.tres" id="114_ckeia"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9392-113.tres" id="115_cckyo"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9392-114.tres" id="116_g5pem"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9392-115.tres" id="117_hrwxg"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9392-116.tres" id="118_e2h8a"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9392-117.tres" id="119_q8atw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9392-118.tres" id="120_xbg66"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9392-119.tres" id="121_y8rc0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9392-120.tres" id="122_qm45n"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9392-121.tres" id="123_onv6c"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9392-122.tres" id="124_xran7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9395-123.tres" id="125_gfye0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9395-124.tres" id="126_3q4bv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9395-125.tres" id="127_20om7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9395-126.tres" id="128_biyhx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9395-127.tres" id="129_r1jcc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9395-128.tres" id="130_omc57"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9395-129.tres" id="131_75pdl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9395-130.tres" id="132_2nrpk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9395-131.tres" id="133_jxm3m"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9395-132.tres" id="134_yx766"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9395-133.tres" id="135_haqly"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9395-134.tres" id="136_vjdtp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9395-135.tres" id="137_6pion"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9395-136.tres" id="138_mxu6r"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9397-137.tres" id="139_mu1tu"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9397-138.tres" id="140_c5cs0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9397-139.tres" id="141_b861i"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9397-140.tres" id="142_sjpgd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9397-141.tres" id="143_dwfue"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9397-142.tres" id="144_rddfe"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9397-143.tres" id="145_qartb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9398-144.tres" id="146_13qk2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9398-145.tres" id="147_sybmu"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9398-146.tres" id="148_n5agn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9398-147.tres" id="149_fneo3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9398-148.tres" id="150_blpom"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9398-149.tres" id="151_bnd6s"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9404-150.tres" id="152_xpsic"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9405-151.tres" id="153_h0jij"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9406-152.tres" id="154_fo8gf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9407-153.tres" id="155_5m8am"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9408-154.tres" id="156_ieygn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9419-155.tres" id="157_p7gm7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9420-156.tres" id="158_ur8p0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9420-157.tres" id="159_xkfq7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9420-158.tres" id="160_u3q6d"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9420-159.tres" id="161_h6ai2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9420-160.tres" id="162_syfod"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9420-161.tres" id="163_n1c4b"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9420-162.tres" id="164_av24u"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9420-163.tres" id="165_g6qau"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9420-164.tres" id="166_w2bss"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9420-165.tres" id="167_c8vu7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9420-166.tres" id="168_3fal7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9420-167.tres" id="169_p5bwr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9420-168.tres" id="170_iw14w"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9420-169.tres" id="171_d65s5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9420-170.tres" id="172_eaubu"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9420-171.tres" id="173_bucb4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9420-172.tres" id="174_l3sea"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9420-173.tres" id="175_lkr7h"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9420-174.tres" id="176_qnnv2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9420-175.tres" id="177_wg27a"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9420-176.tres" id="178_tsyls"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9420-177.tres" id="179_7vv48"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9420-178.tres" id="180_w2m24"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9420-179.tres" id="181_7kwf6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9420-180.tres" id="182_oiwhk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9425-181.tres" id="183_ekt60"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9426-182.tres" id="184_vdrfj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9426-183.tres" id="185_r26xy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9426-184.tres" id="186_jx0sb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9426-185.tres" id="187_8lbcl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9426-186.tres" id="188_dnyyc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9426-187.tres" id="189_fv3df"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9426-188.tres" id="190_2e80x"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9426-189.tres" id="191_7n48r"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9426-190.tres" id="192_v4j6y"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9426-191.tres" id="193_c1a55"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9426-192.tres" id="194_m1xf5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9426-193.tres" id="195_3cser"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9426-194.tres" id="196_8g6oe"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9426-195.tres" id="197_qp2ix"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9426-196.tres" id="198_flpgc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9426-197.tres" id="199_d8om0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9426-198.tres" id="200_b2iml"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9426-199.tres" id="201_ux3ug"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9426-200.tres" id="202_vncdu"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9426-201.tres" id="203_2glyv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9426-202.tres" id="204_hkmfr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9426-203.tres" id="205_0pt07"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9426-204.tres" id="206_2dr4e"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9426-205.tres" id="207_eki1a"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9426-206.tres" id="208_mu1ww"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-207.tres" id="209_q3hx7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-208.tres" id="210_34r6m"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-209.tres" id="211_c7jjs"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-210.tres" id="212_genkf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-211.tres" id="213_31go5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-212.tres" id="214_nbqkl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-213.tres" id="215_vleli"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-214.tres" id="216_54ks3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-215.tres" id="217_e6ryf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-216.tres" id="218_f6cqn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-217.tres" id="219_caowm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-218.tres" id="220_jk0tt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-219.tres" id="221_ppqug"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-220.tres" id="222_18a10"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-221.tres" id="223_i46lp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-222.tres" id="224_60gh7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-223.tres" id="225_fv5vh"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-224.tres" id="226_ms003"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-225.tres" id="227_hwrdh"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-226.tres" id="228_we1ec"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-227.tres" id="229_oskt8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-228.tres" id="230_uat64"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-229.tres" id="231_n74mw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-230.tres" id="232_wvk4v"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-231.tres" id="233_hrpf8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-232.tres" id="234_bevpp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-233.tres" id="235_7ycw5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-234.tres" id="236_o15ym"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-235.tres" id="237_hhemg"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-236.tres" id="238_2kyg7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-237.tres" id="239_tnkbo"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-238.tres" id="240_avhgo"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-239.tres" id="241_lu1ty"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-240.tres" id="242_kjh0u"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-241.tres" id="243_m2ybu"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-242.tres" id="244_3goq8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-243.tres" id="245_cw87p"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-244.tres" id="246_6fngv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-245.tres" id="247_fqurf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-246.tres" id="248_qbaxb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-247.tres" id="249_42e41"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-248.tres" id="250_tv2g8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-249.tres" id="251_78p6i"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-250.tres" id="252_d161p"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-251.tres" id="253_5r31q"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-252.tres" id="254_j0vmr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-253.tres" id="255_d2xsf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-254.tres" id="256_2k7t0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-255.tres" id="257_b7gt5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-256.tres" id="258_5iw63"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-257.tres" id="259_0sy33"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-258.tres" id="260_vdasi"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-259.tres" id="261_8ro42"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-260.tres" id="262_wmt8s"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-261.tres" id="263_egms0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-262.tres" id="264_w7yl8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-263.tres" id="265_k18p1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-264.tres" id="266_2knqj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-265.tres" id="267_2apbc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-266.tres" id="268_gbpsh"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-267.tres" id="269_bbrwa"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-268.tres" id="270_imp2u"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-269.tres" id="271_wy7l7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-270.tres" id="272_yrjhh"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-271.tres" id="273_jmagg"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-272.tres" id="274_lmn7b"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-273.tres" id="275_xpufc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-274.tres" id="276_01408"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-275.tres" id="277_vvl4u"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-276.tres" id="278_s6s01"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-277.tres" id="279_gqey3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-278.tres" id="280_21qyv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-279.tres" id="281_qutdr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-280.tres" id="282_vdffd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-281.tres" id="283_ji7r5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-282.tres" id="284_hdf4v"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-283.tres" id="285_tsofa"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-284.tres" id="286_xxlka"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-285.tres" id="287_tg48k"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-286.tres" id="288_ke1kr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-287.tres" id="289_8cw1m"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-288.tres" id="290_dqvuu"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-289.tres" id="291_id6b0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-290.tres" id="292_rxpbr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-291.tres" id="293_yw6gv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-292.tres" id="294_6b5vy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-293.tres" id="295_qns5f"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-294.tres" id="296_w8hoi"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-295.tres" id="297_c7fd7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-296.tres" id="298_d8vhb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-297.tres" id="299_6w1ln"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-298.tres" id="300_4vmph"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-299.tres" id="301_5ti51"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-300.tres" id="302_1g7p1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-301.tres" id="303_33vc5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-302.tres" id="304_d32j7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-303.tres" id="305_625hk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-304.tres" id="306_w1hr0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-305.tres" id="307_tomlh"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-306.tres" id="308_gjeue"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-307.tres" id="309_ym6g4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-308.tres" id="310_asf68"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-309.tres" id="311_4fey1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-310.tres" id="312_36hce"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-311.tres" id="313_13u85"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-312.tres" id="314_1p37u"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-313.tres" id="315_buwth"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-314.tres" id="316_y0fdu"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-315.tres" id="317_c4msk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-316.tres" id="318_k4xk8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-317.tres" id="319_p426q"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-318.tres" id="320_4u4j4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-319.tres" id="321_uvors"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-320.tres" id="322_c7rxy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-321.tres" id="323_fdi2b"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-322.tres" id="324_opg0x"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-323.tres" id="325_oou7d"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-324.tres" id="326_0olnu"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-325.tres" id="327_iuchs"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-326.tres" id="328_jsm1l"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-327.tres" id="329_5se6j"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-328.tres" id="330_omf0s"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-329.tres" id="331_gn41m"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-330.tres" id="332_gvvx3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-331.tres" id="333_x7u3h"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-332.tres" id="334_wuvjt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9430-333.tres" id="335_y401s"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9439-334.tres" id="336_yc5gx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9439-335.tres" id="337_v2moo"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9439-336.tres" id="338_c2l5t"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9439-337.tres" id="339_u26p4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9439-338.tres" id="340_r41vs"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9439-339.tres" id="341_nb1eg"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9439-340.tres" id="342_6hxx0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9439-341.tres" id="343_26m3n"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9439-342.tres" id="344_5c7di"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9439-343.tres" id="345_e0awt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9439-344.tres" id="346_xf8sd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9439-345.tres" id="347_85sb5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9439-346.tres" id="348_wcfuf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9439-347.tres" id="349_m621q"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9439-348.tres" id="350_6i2bt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9439-349.tres" id="351_hrrsd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9440-350.tres" id="352_ok6da"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9440-351.tres" id="353_3f08l"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9440-352.tres" id="354_jhn70"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9440-353.tres" id="355_gt8nx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9440-354.tres" id="356_pxabm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9440-355.tres" id="357_pfhsg"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9440-356.tres" id="358_dob5o"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9440-357.tres" id="359_te8wr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9440-358.tres" id="360_xgoxt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9440-359.tres" id="361_56615"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9440-360.tres" id="362_1j4sk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9440-361.tres" id="363_jshfi"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9440-362.tres" id="364_1t010"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9440-363.tres" id="365_hok33"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9440-364.tres" id="366_e7bsy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9440-365.tres" id="367_ye5hj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9452-366.tres" id="368_n8gsx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9452-367.tres" id="369_ec282"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9452-368.tres" id="370_lq8od"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9452-369.tres" id="371_j5g46"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9452-370.tres" id="372_femxq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9452-371.tres" id="373_6qnih"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9452-372.tres" id="374_goh18"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9452-373.tres" id="375_hrtw0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9453-374.tres" id="376_rkaax"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9454-375.tres" id="377_f43lj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9455-376.tres" id="378_c7y6c"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9457-377.tres" id="379_kchfx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9464-378.tres" id="380_upfdq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9464-379.tres" id="381_hakxm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9464-380.tres" id="382_yell5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-carolus-source-9465-381.tres" id="383_ei2om"]
+
+[node name="Objects" type="Node3D" unique_id=322786066]
+
+[node name="object_source-9384-0" type="Node3D" parent="." unique_id=126225783]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -117.19003, 0, 197.75491)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9384-0"
+Asset = ExtResource("2_rq7r8")
+
+[node name="object_source-9384-1" type="Node3D" parent="." unique_id=1422087196]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.296005, 0, 194.8)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9384-1"
+Asset = ExtResource("3_wfepp")
+
+[node name="object_source-9384-2" type="Node3D" parent="." unique_id=280352745]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -116, 0, 183.63284)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9384-2"
+Asset = ExtResource("4_nsmyl")
+
+[node name="object_source-9384-3" type="Node3D" parent="." unique_id=1903447131]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -116.682846, 0, 177.75)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9384-3"
+Asset = ExtResource("5_1ehiy")
+
+[node name="object_source-9384-4" type="Node3D" parent="." unique_id=319522983]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -116.30009, 0, 190.0499)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9384-4"
+Asset = ExtResource("6_v24cr")
+
+[node name="object_source-9384-5" type="Node3D" parent="." unique_id=1932715161]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.69671, 0, 182.2)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9384-5"
+Asset = ExtResource("7_qhfml")
+
+[node name="object_source-9389-6" type="Node3D" parent="." unique_id=330146228]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -127.50766, 0, 183.25)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-6"
+Asset = ExtResource("8_fthjn")
+
+[node name="object_source-9389-7" type="Node3D" parent="." unique_id=1596743483]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -117.10016, 0, 177.35995)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-7"
+Asset = ExtResource("9_tm1n7")
+
+[node name="object_source-9389-8" type="Node3D" parent="." unique_id=731442890]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -117.62019, 0, 177.35995)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-8"
+Asset = ExtResource("10_om6hy")
+
+[node name="object_source-9389-9" type="Node3D" parent="." unique_id=2091611739]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.14021, 0, 177.35995)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-9"
+Asset = ExtResource("11_55nyw")
+
+[node name="object_source-9389-10" type="Node3D" parent="." unique_id=2044419805]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.66023, 0, 177.35995)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-10"
+Asset = ExtResource("12_qfiko")
+
+[node name="object_source-9389-11" type="Node3D" parent="." unique_id=1945264208]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -119.18013, 0, 177.35995)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-11"
+Asset = ExtResource("13_wmsvt")
+
+[node name="object_source-9389-12" type="Node3D" parent="." unique_id=469211410]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -119.7001, 0, 177.35995)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-12"
+Asset = ExtResource("14_pcrk2")
+
+[node name="object_source-9389-13" type="Node3D" parent="." unique_id=135373681]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -120.22012, 0, 177.35995)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-13"
+Asset = ExtResource("15_a657m")
+
+[node name="object_source-9389-14" type="Node3D" parent="." unique_id=340937732]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -120.74014, 0, 177.35995)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-14"
+Asset = ExtResource("16_upwor")
+
+[node name="object_source-9389-15" type="Node3D" parent="." unique_id=644712604]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -117.10016, 0, 178.2998)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-15"
+Asset = ExtResource("17_2d0i5")
+
+[node name="object_source-9389-16" type="Node3D" parent="." unique_id=219412397]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -117.62019, 0, 178.2998)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-16"
+Asset = ExtResource("18_t8byn")
+
+[node name="object_source-9389-17" type="Node3D" parent="." unique_id=1218518108]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.14021, 0, 178.2998)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-17"
+Asset = ExtResource("19_iix3k")
+
+[node name="object_source-9389-18" type="Node3D" parent="." unique_id=329933740]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.66023, 0, 178.2998)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-18"
+Asset = ExtResource("20_xqyy5")
+
+[node name="object_source-9389-19" type="Node3D" parent="." unique_id=1778982460]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -119.18013, 0, 178.2998)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-19"
+Asset = ExtResource("21_3hc7w")
+
+[node name="object_source-9389-20" type="Node3D" parent="." unique_id=454701013]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -119.7001, 0, 178.2998)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-20"
+Asset = ExtResource("22_i14cd")
+
+[node name="object_source-9389-21" type="Node3D" parent="." unique_id=128195053]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -120.22012, 0, 178.2998)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-21"
+Asset = ExtResource("23_iwmo7")
+
+[node name="object_source-9389-22" type="Node3D" parent="." unique_id=32598402]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -120.74014, 0, 178.2998)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-22"
+Asset = ExtResource("24_t6urr")
+
+[node name="object_source-9389-23" type="Node3D" parent="." unique_id=805586982]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -117.10016, 0, 179.23973)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-23"
+Asset = ExtResource("25_vr3j5")
+
+[node name="object_source-9389-24" type="Node3D" parent="." unique_id=1934165628]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -117.62019, 0, 179.23973)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-24"
+Asset = ExtResource("26_s1veo")
+
+[node name="object_source-9389-25" type="Node3D" parent="." unique_id=1483216672]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.14021, 0, 179.23973)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-25"
+Asset = ExtResource("27_fp37f")
+
+[node name="object_source-9389-26" type="Node3D" parent="." unique_id=1825300511]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.66023, 0, 179.23973)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-26"
+Asset = ExtResource("28_f30a7")
+
+[node name="object_source-9389-27" type="Node3D" parent="." unique_id=1182772147]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -119.18013, 0, 179.23973)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-27"
+Asset = ExtResource("29_1oajy")
+
+[node name="object_source-9389-28" type="Node3D" parent="." unique_id=386138331]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -119.7001, 0, 179.23973)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-28"
+Asset = ExtResource("30_1os6c")
+
+[node name="object_source-9389-29" type="Node3D" parent="." unique_id=578699116]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -120.22012, 0, 179.23973)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-29"
+Asset = ExtResource("31_cu2qo")
+
+[node name="object_source-9389-30" type="Node3D" parent="." unique_id=1304134552]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -120.74014, 0, 179.23973)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-30"
+Asset = ExtResource("32_nj408")
+
+[node name="object_source-9389-31" type="Node3D" parent="." unique_id=1023974157]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -117.10016, 0, 180.17984)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-31"
+Asset = ExtResource("33_6v0y7")
+
+[node name="object_source-9389-32" type="Node3D" parent="." unique_id=308272625]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -117.62019, 0, 180.17984)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-32"
+Asset = ExtResource("34_2fvgt")
+
+[node name="object_source-9389-33" type="Node3D" parent="." unique_id=1131867970]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.14021, 0, 180.17984)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-33"
+Asset = ExtResource("35_io8r2")
+
+[node name="object_source-9389-34" type="Node3D" parent="." unique_id=707814597]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.66023, 0, 180.17984)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-34"
+Asset = ExtResource("36_5xbmt")
+
+[node name="object_source-9389-35" type="Node3D" parent="." unique_id=1437539302]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -119.18013, 0, 180.17984)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-35"
+Asset = ExtResource("37_fbyln")
+
+[node name="object_source-9389-36" type="Node3D" parent="." unique_id=1776388576]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -119.7001, 0, 180.17984)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-36"
+Asset = ExtResource("38_ohy8m")
+
+[node name="object_source-9389-37" type="Node3D" parent="." unique_id=1749980046]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -120.22012, 0, 180.17984)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-37"
+Asset = ExtResource("39_0q35p")
+
+[node name="object_source-9389-38" type="Node3D" parent="." unique_id=831291036]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -120.74014, 0, 180.17984)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-38"
+Asset = ExtResource("40_hxt35")
+
+[node name="object_source-9389-39" type="Node3D" parent="." unique_id=1501781527]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -117.10016, 0, 185.81982)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-39"
+Asset = ExtResource("41_hwefh")
+
+[node name="object_source-9389-40" type="Node3D" parent="." unique_id=2101733236]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -117.62019, 0, 185.81982)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-40"
+Asset = ExtResource("42_18ui2")
+
+[node name="object_source-9389-41" type="Node3D" parent="." unique_id=223449552]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.14021, 0, 185.81982)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-41"
+Asset = ExtResource("43_ijtdc")
+
+[node name="object_source-9389-42" type="Node3D" parent="." unique_id=746533580]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.66023, 0, 185.81982)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-42"
+Asset = ExtResource("44_e0p61")
+
+[node name="object_source-9389-43" type="Node3D" parent="." unique_id=1243524013]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -119.18013, 0, 185.81982)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-43"
+Asset = ExtResource("45_45rf1")
+
+[node name="object_source-9389-44" type="Node3D" parent="." unique_id=611171088]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -119.7001, 0, 185.81982)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-44"
+Asset = ExtResource("46_db27f")
+
+[node name="object_source-9389-45" type="Node3D" parent="." unique_id=705257069]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -120.22012, 0, 185.81982)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-45"
+Asset = ExtResource("47_df5y6")
+
+[node name="object_source-9389-46" type="Node3D" parent="." unique_id=642733429]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -120.74014, 0, 185.81982)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-46"
+Asset = ExtResource("48_x4rd1")
+
+[node name="object_source-9389-47" type="Node3D" parent="." unique_id=1977611383]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -117.10016, 0, 186.75977)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-47"
+Asset = ExtResource("49_0byxj")
+
+[node name="object_source-9389-48" type="Node3D" parent="." unique_id=22211598]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -117.62019, 0, 186.75977)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-48"
+Asset = ExtResource("50_fobyx")
+
+[node name="object_source-9389-49" type="Node3D" parent="." unique_id=894716578]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.14021, 0, 186.75977)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-49"
+Asset = ExtResource("51_3e0a5")
+
+[node name="object_source-9389-50" type="Node3D" parent="." unique_id=2048931407]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.66023, 0, 186.75977)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-50"
+Asset = ExtResource("52_gtosp")
+
+[node name="object_source-9389-51" type="Node3D" parent="." unique_id=1201421964]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -119.18013, 0, 186.75977)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-51"
+Asset = ExtResource("53_o58cy")
+
+[node name="object_source-9389-52" type="Node3D" parent="." unique_id=1769885245]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -119.7001, 0, 186.75977)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-52"
+Asset = ExtResource("54_gdppy")
+
+[node name="object_source-9389-53" type="Node3D" parent="." unique_id=1714432203]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -120.22012, 0, 186.75977)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-53"
+Asset = ExtResource("55_3tv2g")
+
+[node name="object_source-9389-54" type="Node3D" parent="." unique_id=1883433105]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -120.74014, 0, 186.75977)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-54"
+Asset = ExtResource("56_3etj7")
+
+[node name="object_source-9389-55" type="Node3D" parent="." unique_id=773709375]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -117.10016, 0, 187.69989)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-55"
+Asset = ExtResource("57_wgqvq")
+
+[node name="object_source-9389-56" type="Node3D" parent="." unique_id=371545262]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -117.62019, 0, 187.69989)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-56"
+Asset = ExtResource("58_ha8hq")
+
+[node name="object_source-9389-57" type="Node3D" parent="." unique_id=1171755075]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.14021, 0, 187.69989)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-57"
+Asset = ExtResource("59_xgq3s")
+
+[node name="object_source-9389-58" type="Node3D" parent="." unique_id=1871058807]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.66023, 0, 187.69989)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-58"
+Asset = ExtResource("60_rtcdl")
+
+[node name="object_source-9389-59" type="Node3D" parent="." unique_id=122049433]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -119.18013, 0, 187.69989)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-59"
+Asset = ExtResource("61_58foj")
+
+[node name="object_source-9389-60" type="Node3D" parent="." unique_id=1967555317]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -119.7001, 0, 187.69989)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-60"
+Asset = ExtResource("62_fg3wg")
+
+[node name="object_source-9389-61" type="Node3D" parent="." unique_id=1141129008]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -120.22012, 0, 187.69989)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-61"
+Asset = ExtResource("63_mnxkp")
+
+[node name="object_source-9389-62" type="Node3D" parent="." unique_id=14848181]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -120.74014, 0, 187.69989)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-62"
+Asset = ExtResource("64_esige")
+
+[node name="object_source-9389-63" type="Node3D" parent="." unique_id=1111406171]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -117.10016, 0, 188.63983)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-63"
+Asset = ExtResource("65_4i7ak")
+
+[node name="object_source-9389-64" type="Node3D" parent="." unique_id=1284292318]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -117.62019, 0, 188.63983)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-64"
+Asset = ExtResource("66_iqb0c")
+
+[node name="object_source-9389-65" type="Node3D" parent="." unique_id=1426941229]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.14021, 0, 188.63983)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-65"
+Asset = ExtResource("67_wghjf")
+
+[node name="object_source-9389-66" type="Node3D" parent="." unique_id=1062466622]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.66023, 0, 188.63983)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-66"
+Asset = ExtResource("68_2kja5")
+
+[node name="object_source-9389-67" type="Node3D" parent="." unique_id=140762024]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -119.18013, 0, 188.63983)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-67"
+Asset = ExtResource("69_yp5oq")
+
+[node name="object_source-9389-68" type="Node3D" parent="." unique_id=714373487]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -119.7001, 0, 188.63983)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-68"
+Asset = ExtResource("70_j73il")
+
+[node name="object_source-9389-69" type="Node3D" parent="." unique_id=1453759322]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -120.22012, 0, 188.63983)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-69"
+Asset = ExtResource("71_n3ld6")
+
+[node name="object_source-9389-70" type="Node3D" parent="." unique_id=1941221790]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -120.74014, 0, 188.63983)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-70"
+Asset = ExtResource("72_1y5wv")
+
+[node name="object_source-9389-71" type="Node3D" parent="." unique_id=875521092]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -117.10016, 0, 189.57976)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-71"
+Asset = ExtResource("73_pwp2y")
+
+[node name="object_source-9389-72" type="Node3D" parent="." unique_id=388790054]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -117.62019, 0, 189.57976)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-72"
+Asset = ExtResource("74_hhsut")
+
+[node name="object_source-9389-73" type="Node3D" parent="." unique_id=1896436503]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.14021, 0, 189.57976)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-73"
+Asset = ExtResource("75_7gb4d")
+
+[node name="object_source-9389-74" type="Node3D" parent="." unique_id=1357822767]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.66023, 0, 189.57976)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-74"
+Asset = ExtResource("76_y0520")
+
+[node name="object_source-9389-75" type="Node3D" parent="." unique_id=1704775684]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -119.18013, 0, 189.57976)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-75"
+Asset = ExtResource("77_tdvv7")
+
+[node name="object_source-9389-76" type="Node3D" parent="." unique_id=1785962493]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -119.7001, 0, 189.57976)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-76"
+Asset = ExtResource("78_vjder")
+
+[node name="object_source-9389-77" type="Node3D" parent="." unique_id=789497867]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -120.22012, 0, 189.57976)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-77"
+Asset = ExtResource("79_dhnfx")
+
+[node name="object_source-9389-78" type="Node3D" parent="." unique_id=857756386]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -120.74014, 0, 189.57976)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-78"
+Asset = ExtResource("80_yo5pq")
+
+[node name="object_source-9389-79" type="Node3D" parent="." unique_id=2088470801]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -117.10016, 0, 190.51987)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-79"
+Asset = ExtResource("81_wnd86")
+
+[node name="object_source-9389-80" type="Node3D" parent="." unique_id=626195257]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -117.62019, 0, 190.51987)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-80"
+Asset = ExtResource("82_w0rkx")
+
+[node name="object_source-9389-81" type="Node3D" parent="." unique_id=1512938098]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.14021, 0, 190.51987)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-81"
+Asset = ExtResource("83_dsak6")
+
+[node name="object_source-9389-82" type="Node3D" parent="." unique_id=1421655923]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.66023, 0, 190.51987)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-82"
+Asset = ExtResource("84_0evka")
+
+[node name="object_source-9389-83" type="Node3D" parent="." unique_id=981768078]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -119.18013, 0, 190.51987)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-83"
+Asset = ExtResource("85_8c4k3")
+
+[node name="object_source-9389-84" type="Node3D" parent="." unique_id=1724409341]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -119.7001, 0, 190.51987)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-84"
+Asset = ExtResource("86_yfvr4")
+
+[node name="object_source-9389-85" type="Node3D" parent="." unique_id=573482830]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -120.22012, 0, 190.51987)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-85"
+Asset = ExtResource("87_xr70w")
+
+[node name="object_source-9389-86" type="Node3D" parent="." unique_id=1757412114]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -120.74014, 0, 190.51987)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-86"
+Asset = ExtResource("88_24yo8")
+
+[node name="object_source-9389-87" type="Node3D" parent="." unique_id=1879072330]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -114.90014, 0, 190.51987)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-87"
+Asset = ExtResource("89_fnswq")
+
+[node name="object_source-9389-88" type="Node3D" parent="." unique_id=314063468]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -114.38011, 0, 190.51987)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-88"
+Asset = ExtResource("90_h1eco")
+
+[node name="object_source-9389-89" type="Node3D" parent="." unique_id=1751181971]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -113.8601, 0, 190.51987)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-89"
+Asset = ExtResource("91_ksl3h")
+
+[node name="object_source-9389-90" type="Node3D" parent="." unique_id=927934834]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -113.34006, 0, 190.51987)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-90"
+Asset = ExtResource("92_730dr")
+
+[node name="object_source-9389-91" type="Node3D" parent="." unique_id=1394967421]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -112.82023, 0, 190.51987)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-91"
+Asset = ExtResource("93_kylw3")
+
+[node name="object_source-9389-92" type="Node3D" parent="." unique_id=652917946]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -112.30022, 0, 190.51987)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-92"
+Asset = ExtResource("94_prtdx")
+
+[node name="object_source-9389-93" type="Node3D" parent="." unique_id=2006213046]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -111.7802, 0, 190.51987)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-93"
+Asset = ExtResource("95_8awtx")
+
+[node name="object_source-9389-94" type="Node3D" parent="." unique_id=1939438048]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -111.2601, 0, 190.51987)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-94"
+Asset = ExtResource("96_b27ga")
+
+[node name="object_source-9389-95" type="Node3D" parent="." unique_id=1979424828]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -99.20017, 0, 187.29984)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-95"
+Asset = ExtResource("97_fie70")
+
+[node name="object_source-9389-96" type="Node3D" parent="." unique_id=1941190810]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -99.20017, 0, 188.49991)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9389-96"
+Asset = ExtResource("98_ug76k")
+
+[node name="object_source-9391-97" type="Node3D" parent="." unique_id=1820933260]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -116.00018, 0, 173.78973)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9391-97"
+Asset = ExtResource("99_ifdpp")
+
+[node name="object_source-9391-98" type="Node3D" parent="." unique_id=2021253760]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -116.00018, 0, 171.49994)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9391-98"
+Asset = ExtResource("100_g45mb")
+
+[node name="object_source-9391-99" type="Node3D" parent="." unique_id=720170786]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -121.200066, 0, 182.0799)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9391-99"
+Asset = ExtResource("101_djr4d")
+
+[node name="object_source-9391-100" type="Node3D" parent="." unique_id=1769030544]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -127.65021, 0, 175.34985)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9391-100"
+Asset = ExtResource("102_6ajgt")
+
+[node name="object_source-9391-101" type="Node3D" parent="." unique_id=594348462]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -127.65021, 0, 180.64972)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9391-101"
+Asset = ExtResource("103_f17bj")
+
+[node name="object_source-9391-102" type="Node3D" parent="." unique_id=1552856618]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -127.65021, 0, 185.94974)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9391-102"
+Asset = ExtResource("104_1la80")
+
+[node name="object_source-9391-103" type="Node3D" parent="." unique_id=696206927]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -127.65021, 0, 191.24976)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9391-103"
+Asset = ExtResource("105_5wad7")
+
+[node name="object_source-9391-104" type="Node3D" parent="." unique_id=352215183]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.35016, 0, 175.34985)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9391-104"
+Asset = ExtResource("106_u4arx")
+
+[node name="object_source-9391-105" type="Node3D" parent="." unique_id=1037409875]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.35016, 0, 179.64993)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9391-105"
+Asset = ExtResource("107_rsnpy")
+
+[node name="object_source-9391-106" type="Node3D" parent="." unique_id=115496229]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.35016, 0, 190.14983)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9391-106"
+Asset = ExtResource("108_w5yaa")
+
+[node name="object_source-9392-107" type="Node3D" parent="." unique_id=232382792]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -119.84003, 0, 171.85)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9392-107"
+Asset = ExtResource("109_gcidv")
+
+[node name="object_source-9392-108" type="Node3D" parent="." unique_id=335366310]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -119.62862, 0, 171.85)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9392-108"
+Asset = ExtResource("110_0uyg8")
+
+[node name="object_source-9392-109" type="Node3D" parent="." unique_id=1044909523]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -119.41722, 0, 171.85)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9392-109"
+Asset = ExtResource("111_mmdry")
+
+[node name="object_source-9392-110" type="Node3D" parent="." unique_id=53503944]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -119.20575, 0, 171.85)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9392-110"
+Asset = ExtResource("112_pgvq8")
+
+[node name="object_source-9392-111" type="Node3D" parent="." unique_id=1402430102]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.99434, 0, 171.85)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9392-111"
+Asset = ExtResource("113_urttc")
+
+[node name="object_source-9392-112" type="Node3D" parent="." unique_id=926666529]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.782936, 0, 171.85)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9392-112"
+Asset = ExtResource("114_ckeia")
+
+[node name="object_source-9392-113" type="Node3D" parent="." unique_id=1012060627]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.57147, 0, 171.85)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9392-113"
+Asset = ExtResource("115_cckyo")
+
+[node name="object_source-9392-114" type="Node3D" parent="." unique_id=444321843]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.36006, 0, 171.85)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9392-114"
+Asset = ExtResource("116_g5pem")
+
+[node name="object_source-9392-115" type="Node3D" parent="." unique_id=1148156887]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -113.64006, 0, 171.85)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9392-115"
+Asset = ExtResource("117_hrwxg")
+
+[node name="object_source-9392-116" type="Node3D" parent="." unique_id=1175960519]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -113.42865, 0, 171.85)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9392-116"
+Asset = ExtResource("118_e2h8a")
+
+[node name="object_source-9392-117" type="Node3D" parent="." unique_id=456318064]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -113.21718, 0, 171.85)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9392-117"
+Asset = ExtResource("119_q8atw")
+
+[node name="object_source-9392-118" type="Node3D" parent="." unique_id=1041796558]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -113.005775, 0, 171.85)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9392-118"
+Asset = ExtResource("120_xbg66")
+
+[node name="object_source-9392-119" type="Node3D" parent="." unique_id=821871350]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -112.79437, 0, 171.85)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9392-119"
+Asset = ExtResource("121_y8rc0")
+
+[node name="object_source-9392-120" type="Node3D" parent="." unique_id=1989032359]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -112.5829, 0, 171.85)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9392-120"
+Asset = ExtResource("122_qm45n")
+
+[node name="object_source-9392-121" type="Node3D" parent="." unique_id=1904387370]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -112.371506, 0, 171.85)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9392-121"
+Asset = ExtResource("123_onv6c")
+
+[node name="object_source-9392-122" type="Node3D" parent="." unique_id=996769734]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -112.160034, 0, 171.85)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9392-122"
+Asset = ExtResource("124_xran7")
+
+[node name="object_source-9395-123" type="Node3D" parent="." unique_id=97884571]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -116.00037, 0, 200.54987)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9395-123"
+Asset = ExtResource("125_gfye0")
+
+[node name="object_source-9395-124" type="Node3D" parent="." unique_id=671371494]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -125.20041, 0, 194.94974)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9395-124"
+Asset = ExtResource("126_3q4bv")
+
+[node name="object_source-9395-125" type="Node3D" parent="." unique_id=80647125]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.80031, 0, 194.89984)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9395-125"
+Asset = ExtResource("127_20om7")
+
+[node name="object_source-9395-126" type="Node3D" parent="." unique_id=1421090580]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.80031, 0, 194.94974)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9395-126"
+Asset = ExtResource("128_biyhx")
+
+[node name="object_source-9395-127" type="Node3D" parent="." unique_id=1778473087]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -128.2001, 0, 172.94983)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9395-127"
+Asset = ExtResource("129_r1jcc")
+
+[node name="object_source-9395-128" type="Node3D" parent="." unique_id=1335754055]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -128.2001, 0, 183.14981)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9395-128"
+Asset = ExtResource("130_omc57")
+
+[node name="object_source-9395-129" type="Node3D" parent="." unique_id=231967143]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -128.2001, 0, 193.34978)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9395-129"
+Asset = ExtResource("131_75pdl")
+
+[node name="object_source-9395-130" type="Node3D" parent="." unique_id=76516270]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -103.80015, 0, 172.94983)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9395-130"
+Asset = ExtResource("132_2nrpk")
+
+[node name="object_source-9395-131" type="Node3D" parent="." unique_id=1370446039]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -103.80015, 0, 193.34978)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9395-131"
+Asset = ExtResource("133_jxm3m")
+
+[node name="object_source-9395-132" type="Node3D" parent="." unique_id=498440223]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -101.40036, 0, 183.74965)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9395-132"
+Asset = ExtResource("134_yx766")
+
+[node name="object_source-9395-133" type="Node3D" parent="." unique_id=1640797458]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -97.20018, 0, 183.74965)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9395-133"
+Asset = ExtResource("135_haqly")
+
+[node name="object_source-9395-134" type="Node3D" parent="." unique_id=1246498907]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -101.40036, 0, 189.24979)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9395-134"
+Asset = ExtResource("136_vjdtp")
+
+[node name="object_source-9395-135" type="Node3D" parent="." unique_id=638759960]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -97.20018, 0, 189.24979)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9395-135"
+Asset = ExtResource("137_6pion")
+
+[node name="object_source-9395-136" type="Node3D" parent="." unique_id=1200503097]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -99.425415, 0, 194.07974)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9395-136"
+Asset = ExtResource("138_mxu6r")
+
+[node name="object_source-9397-137" type="Node3D" parent="." unique_id=457912665]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.70621, 0, 200.44987)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9397-137"
+Asset = ExtResource("139_mu1tu")
+
+[node name="object_source-9397-138" type="Node3D" parent="." unique_id=171307237]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -113.29429, 0, 200.44989)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9397-138"
+Asset = ExtResource("140_c5cs0")
+
+[node name="object_source-9397-139" type="Node3D" parent="." unique_id=707138210]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -113.29412, 0, 200.44987)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9397-139"
+Asset = ExtResource("141_b861i")
+
+[node name="object_source-9397-140" type="Node3D" parent="." unique_id=751496039]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -101.76723, 0, 193.97978)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9397-140"
+Asset = ExtResource("142_sjpgd")
+
+[node name="object_source-9397-141" type="Node3D" parent="." unique_id=1999875950]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -97.08314, 0, 193.97978)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9397-141"
+Asset = ExtResource("143_dwfue")
+
+[node name="object_source-9397-142" type="Node3D" parent="." unique_id=1506682099]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -97.08314, 0, 193.97978)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9397-142"
+Asset = ExtResource("144_rddfe")
+
+[node name="object_source-9397-143" type="Node3D" parent="." unique_id=248056599]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -102.80005, 0, 181.74985)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9397-143"
+Asset = ExtResource("145_qartb")
+
+[node name="object_source-9398-144" type="Node3D" parent="." unique_id=2141288239]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -116.340195, 0, 194.86966)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9398-144"
+Asset = ExtResource("146_13qk2")
+
+[node name="object_source-9398-145" type="Node3D" parent="." unique_id=500322598]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -115.6604, 0, 194.86966)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9398-145"
+Asset = ExtResource("147_sybmu")
+
+[node name="object_source-9398-146" type="Node3D" parent="." unique_id=644195675]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -125.30008, 0, 172.54988)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9398-146"
+Asset = ExtResource("148_n5agn")
+
+[node name="object_source-9398-147" type="Node3D" parent="." unique_id=1411398976]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -116.0004, 0, 177.74995)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9398-147"
+Asset = ExtResource("149_fneo3")
+
+[node name="object_source-9398-148" type="Node3D" parent="." unique_id=1367817963]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -116.0004, 0, 183.74979)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9398-148"
+Asset = ExtResource("150_blpom")
+
+[node name="object_source-9398-149" type="Node3D" parent="." unique_id=1203742265]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -116.0004, 0, 189.74979)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9398-149"
+Asset = ExtResource("151_bnd6s")
+
+[node name="object_source-9404-150" type="Node3D" parent="." unique_id=624126746]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -128.16, 0, 172.95001)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9404-150"
+Asset = ExtResource("152_xpsic")
+
+[node name="object_source-9405-151" type="Node3D" parent="." unique_id=1363622765]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -128.16, 0, 183.15)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9405-151"
+Asset = ExtResource("153_h0jij")
+
+[node name="object_source-9406-152" type="Node3D" parent="." unique_id=501668901]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -128.16, 0, 193.35)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9406-152"
+Asset = ExtResource("154_fo8gf")
+
+[node name="object_source-9407-153" type="Node3D" parent="." unique_id=516983155]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -103.84, 0, 172.95001)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9407-153"
+Asset = ExtResource("155_5m8am")
+
+[node name="object_source-9408-154" type="Node3D" parent="." unique_id=1200504942]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -103.84, 0, 193.35)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9408-154"
+Asset = ExtResource("156_ieygn")
+
+[node name="object_source-9419-155" type="Node3D" parent="." unique_id=1060607568]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -130.05, 0, 171.72)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9419-155"
+Asset = ExtResource("157_p7gm7")
+
+[node name="object_source-9420-156" type="Node3D" parent="." unique_id=1339081978]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -130.05, 0, 171.25)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9420-156"
+Asset = ExtResource("158_ur8p0")
+
+[node name="object_source-9420-157" type="Node3D" parent="." unique_id=180796761]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -129.56198, 0, 171.73802)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9420-157"
+Asset = ExtResource("159_xkfq7")
+
+[node name="object_source-9420-158" type="Node3D" parent="." unique_id=287275808]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -129.56198, 0, 171.73802)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9420-158"
+Asset = ExtResource("160_u3q6d")
+
+[node name="object_source-9420-159" type="Node3D" parent="." unique_id=799168054]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -129.56198, 0, 171.73802)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9420-159"
+Asset = ExtResource("161_h6ai2")
+
+[node name="object_source-9420-160" type="Node3D" parent="." unique_id=1811177389]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -129.56198, 0, 171.73802)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9420-160"
+Asset = ExtResource("162_syfod")
+
+[node name="object_source-9420-161" type="Node3D" parent="." unique_id=957598837]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -129.56198, 0, 171.73802)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9420-161"
+Asset = ExtResource("163_n1c4b")
+
+[node name="object_source-9420-162" type="Node3D" parent="." unique_id=316767447]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -129.56198, 0, 171.73802)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9420-162"
+Asset = ExtResource("164_av24u")
+
+[node name="object_source-9420-163" type="Node3D" parent="." unique_id=1825900612]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -130.53806, 0, 171.73802)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9420-163"
+Asset = ExtResource("165_g6qau")
+
+[node name="object_source-9420-164" type="Node3D" parent="." unique_id=142370994]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -130.53806, 0, 171.73802)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9420-164"
+Asset = ExtResource("166_w2bss")
+
+[node name="object_source-9420-165" type="Node3D" parent="." unique_id=1330754642]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -130.53806, 0, 171.73802)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9420-165"
+Asset = ExtResource("167_c8vu7")
+
+[node name="object_source-9420-166" type="Node3D" parent="." unique_id=853963807]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -130.53806, 0, 171.73802)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9420-166"
+Asset = ExtResource("168_3fal7")
+
+[node name="object_source-9420-167" type="Node3D" parent="." unique_id=716181425]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -130.53806, 0, 171.73802)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9420-167"
+Asset = ExtResource("169_p5bwr")
+
+[node name="object_source-9420-168" type="Node3D" parent="." unique_id=1070798426]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -130.53806, 0, 171.73802)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9420-168"
+Asset = ExtResource("170_iw14w")
+
+[node name="object_source-9420-169" type="Node3D" parent="." unique_id=458757380]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -130.53806, 0, 170.76196)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9420-169"
+Asset = ExtResource("171_d65s5")
+
+[node name="object_source-9420-170" type="Node3D" parent="." unique_id=434132468]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -130.53806, 0, 170.76196)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9420-170"
+Asset = ExtResource("172_eaubu")
+
+[node name="object_source-9420-171" type="Node3D" parent="." unique_id=49059626]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -130.53806, 0, 170.76196)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9420-171"
+Asset = ExtResource("173_bucb4")
+
+[node name="object_source-9420-172" type="Node3D" parent="." unique_id=521931684]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -130.53806, 0, 170.76196)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9420-172"
+Asset = ExtResource("174_l3sea")
+
+[node name="object_source-9420-173" type="Node3D" parent="." unique_id=383691293]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -130.53806, 0, 170.76196)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9420-173"
+Asset = ExtResource("175_lkr7h")
+
+[node name="object_source-9420-174" type="Node3D" parent="." unique_id=391990752]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -130.53806, 0, 170.76196)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9420-174"
+Asset = ExtResource("176_qnnv2")
+
+[node name="object_source-9420-175" type="Node3D" parent="." unique_id=1930253231]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -129.56198, 0, 170.76196)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9420-175"
+Asset = ExtResource("177_wg27a")
+
+[node name="object_source-9420-176" type="Node3D" parent="." unique_id=1999679962]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -129.56198, 0, 170.76196)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9420-176"
+Asset = ExtResource("178_tsyls")
+
+[node name="object_source-9420-177" type="Node3D" parent="." unique_id=2145106753]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -129.56198, 0, 170.76196)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9420-177"
+Asset = ExtResource("179_7vv48")
+
+[node name="object_source-9420-178" type="Node3D" parent="." unique_id=564434304]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -129.56198, 0, 170.76196)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9420-178"
+Asset = ExtResource("180_w2m24")
+
+[node name="object_source-9420-179" type="Node3D" parent="." unique_id=450476102]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -129.56198, 0, 170.76196)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9420-179"
+Asset = ExtResource("181_7kwf6")
+
+[node name="object_source-9420-180" type="Node3D" parent="." unique_id=240996598]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -129.56198, 0, 170.76196)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9420-180"
+Asset = ExtResource("182_oiwhk")
+
+[node name="object_source-9425-181" type="Node3D" parent="." unique_id=146862450]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -101.95, 0, 171.72)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9425-181"
+Asset = ExtResource("183_ekt60")
+
+[node name="object_source-9426-182" type="Node3D" parent="." unique_id=1102773524]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -101.95, 0, 171.25)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9426-182"
+Asset = ExtResource("184_vdrfj")
+
+[node name="object_source-9426-183" type="Node3D" parent="." unique_id=990015250]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -101.461975, 0, 171.73802)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9426-183"
+Asset = ExtResource("185_r26xy")
+
+[node name="object_source-9426-184" type="Node3D" parent="." unique_id=757118423]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -101.461975, 0, 171.73802)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9426-184"
+Asset = ExtResource("186_jx0sb")
+
+[node name="object_source-9426-185" type="Node3D" parent="." unique_id=183134519]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -101.461975, 0, 171.73802)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9426-185"
+Asset = ExtResource("187_8lbcl")
+
+[node name="object_source-9426-186" type="Node3D" parent="." unique_id=294830914]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -101.461975, 0, 171.73802)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9426-186"
+Asset = ExtResource("188_dnyyc")
+
+[node name="object_source-9426-187" type="Node3D" parent="." unique_id=2121676828]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -101.461975, 0, 171.73802)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9426-187"
+Asset = ExtResource("189_fv3df")
+
+[node name="object_source-9426-188" type="Node3D" parent="." unique_id=1297499849]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -101.461975, 0, 171.73802)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9426-188"
+Asset = ExtResource("190_2e80x")
+
+[node name="object_source-9426-189" type="Node3D" parent="." unique_id=1617846920]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -102.43805, 0, 171.73802)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9426-189"
+Asset = ExtResource("191_7n48r")
+
+[node name="object_source-9426-190" type="Node3D" parent="." unique_id=1094344254]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -102.43805, 0, 171.73802)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9426-190"
+Asset = ExtResource("192_v4j6y")
+
+[node name="object_source-9426-191" type="Node3D" parent="." unique_id=1696163656]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -102.43805, 0, 171.73802)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9426-191"
+Asset = ExtResource("193_c1a55")
+
+[node name="object_source-9426-192" type="Node3D" parent="." unique_id=2100536680]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -102.43805, 0, 171.73802)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9426-192"
+Asset = ExtResource("194_m1xf5")
+
+[node name="object_source-9426-193" type="Node3D" parent="." unique_id=2023727841]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -102.43805, 0, 171.73802)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9426-193"
+Asset = ExtResource("195_3cser")
+
+[node name="object_source-9426-194" type="Node3D" parent="." unique_id=587567744]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -102.43805, 0, 171.73802)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9426-194"
+Asset = ExtResource("196_8g6oe")
+
+[node name="object_source-9426-195" type="Node3D" parent="." unique_id=1887427191]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -102.43805, 0, 170.76196)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9426-195"
+Asset = ExtResource("197_qp2ix")
+
+[node name="object_source-9426-196" type="Node3D" parent="." unique_id=1299823286]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -102.43805, 0, 170.76196)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9426-196"
+Asset = ExtResource("198_flpgc")
+
+[node name="object_source-9426-197" type="Node3D" parent="." unique_id=1424352819]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -102.43805, 0, 170.76196)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9426-197"
+Asset = ExtResource("199_d8om0")
+
+[node name="object_source-9426-198" type="Node3D" parent="." unique_id=1153226407]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -102.43805, 0, 170.76196)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9426-198"
+Asset = ExtResource("200_b2iml")
+
+[node name="object_source-9426-199" type="Node3D" parent="." unique_id=1437949643]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -102.43805, 0, 170.76196)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9426-199"
+Asset = ExtResource("201_ux3ug")
+
+[node name="object_source-9426-200" type="Node3D" parent="." unique_id=815648107]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -102.43805, 0, 170.76196)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9426-200"
+Asset = ExtResource("202_vncdu")
+
+[node name="object_source-9426-201" type="Node3D" parent="." unique_id=1266248102]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -101.461975, 0, 170.76196)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9426-201"
+Asset = ExtResource("203_2glyv")
+
+[node name="object_source-9426-202" type="Node3D" parent="." unique_id=419172157]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -101.461975, 0, 170.76196)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9426-202"
+Asset = ExtResource("204_hkmfr")
+
+[node name="object_source-9426-203" type="Node3D" parent="." unique_id=607591441]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -101.461975, 0, 170.76196)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9426-203"
+Asset = ExtResource("205_0pt07")
+
+[node name="object_source-9426-204" type="Node3D" parent="." unique_id=533433373]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -101.461975, 0, 170.76196)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9426-204"
+Asset = ExtResource("206_2dr4e")
+
+[node name="object_source-9426-205" type="Node3D" parent="." unique_id=1391458880]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -101.461975, 0, 170.76196)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9426-205"
+Asset = ExtResource("207_eki1a")
+
+[node name="object_source-9426-206" type="Node3D" parent="." unique_id=1842861991]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -101.461975, 0, 170.76196)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9426-206"
+Asset = ExtResource("208_mu1ww")
+
+[node name="object_source-9430-207" type="Node3D" parent="." unique_id=613732955]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35, 0, 199.8)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-207"
+Asset = ExtResource("209_q3hx7")
+
+[node name="object_source-9430-208" type="Node3D" parent="." unique_id=1760680561]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35, 0, 199.8)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-208"
+Asset = ExtResource("210_34r6m")
+
+[node name="object_source-9430-209" type="Node3D" parent="." unique_id=715971880]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35, 0, 199.8)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-209"
+Asset = ExtResource("211_c7jjs")
+
+[node name="object_source-9430-210" type="Node3D" parent="." unique_id=1305692736]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 197.19995)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-210"
+Asset = ExtResource("212_genkf")
+
+[node name="object_source-9430-211" type="Node3D" parent="." unique_id=1892907153]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 202.84991)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-211"
+Asset = ExtResource("213_31go5")
+
+[node name="object_source-9430-212" type="Node3D" parent="." unique_id=1094235538]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 202.84991)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-212"
+Asset = ExtResource("214_nbqkl")
+
+[node name="object_source-9430-213" type="Node3D" parent="." unique_id=54804890]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 202.84991)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-213"
+Asset = ExtResource("215_vleli")
+
+[node name="object_source-9430-214" type="Node3D" parent="." unique_id=1580880029]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 202.84991)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-214"
+Asset = ExtResource("216_54ks3")
+
+[node name="object_source-9430-215" type="Node3D" parent="." unique_id=1068405068]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 202.84991)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-215"
+Asset = ExtResource("217_e6ryf")
+
+[node name="object_source-9430-216" type="Node3D" parent="." unique_id=1096038170]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 202.84991)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-216"
+Asset = ExtResource("218_f6cqn")
+
+[node name="object_source-9430-217" type="Node3D" parent="." unique_id=1935789064]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 202.84991)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-217"
+Asset = ExtResource("219_caowm")
+
+[node name="object_source-9430-218" type="Node3D" parent="." unique_id=427473745]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 202.84991)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-218"
+Asset = ExtResource("220_jk0tt")
+
+[node name="object_source-9430-219" type="Node3D" parent="." unique_id=2139913969]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 202.84991)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-219"
+Asset = ExtResource("221_ppqug")
+
+[node name="object_source-9430-220" type="Node3D" parent="." unique_id=890399801]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 202.84991)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-220"
+Asset = ExtResource("222_18a10")
+
+[node name="object_source-9430-221" type="Node3D" parent="." unique_id=1442027320]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 202.84991)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-221"
+Asset = ExtResource("223_i46lp")
+
+[node name="object_source-9430-222" type="Node3D" parent="." unique_id=1915644631]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 202.84991)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-222"
+Asset = ExtResource("224_60gh7")
+
+[node name="object_source-9430-223" type="Node3D" parent="." unique_id=1684872803]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 202.84991)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-223"
+Asset = ExtResource("225_fv5vh")
+
+[node name="object_source-9430-224" type="Node3D" parent="." unique_id=194000068]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 202.84991)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-224"
+Asset = ExtResource("226_ms003")
+
+[node name="object_source-9430-225" type="Node3D" parent="." unique_id=961372339]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 202.84991)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-225"
+Asset = ExtResource("227_hwrdh")
+
+[node name="object_source-9430-226" type="Node3D" parent="." unique_id=138528232]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 202.84991)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-226"
+Asset = ExtResource("228_we1ec")
+
+[node name="object_source-9430-227" type="Node3D" parent="." unique_id=1474238064]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 202.84991)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-227"
+Asset = ExtResource("229_oskt8")
+
+[node name="object_source-9430-228" type="Node3D" parent="." unique_id=1221220983]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 202.84991)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-228"
+Asset = ExtResource("230_uat64")
+
+[node name="object_source-9430-229" type="Node3D" parent="." unique_id=2017106314]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.350044, 0, 202.84991)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-229"
+Asset = ExtResource("231_n74mw")
+
+[node name="object_source-9430-230" type="Node3D" parent="." unique_id=1107873802]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -103.85005, 0, 199.79994)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-230"
+Asset = ExtResource("232_wvk4v")
+
+[node name="object_source-9430-231" type="Node3D" parent="." unique_id=1885937332]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -103.85005, 0, 199.79994)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-231"
+Asset = ExtResource("233_hrpf8")
+
+[node name="object_source-9430-232" type="Node3D" parent="." unique_id=182255959]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -103.85005, 0, 199.79994)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-232"
+Asset = ExtResource("234_bevpp")
+
+[node name="object_source-9430-233" type="Node3D" parent="." unique_id=2005169666]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -103.85005, 0, 199.79994)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-233"
+Asset = ExtResource("235_7ycw5")
+
+[node name="object_source-9430-234" type="Node3D" parent="." unique_id=2060085715]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -103.85005, 0, 199.79994)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-234"
+Asset = ExtResource("236_o15ym")
+
+[node name="object_source-9430-235" type="Node3D" parent="." unique_id=1606008899]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -103.85005, 0, 199.79994)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-235"
+Asset = ExtResource("237_hhemg")
+
+[node name="object_source-9430-236" type="Node3D" parent="." unique_id=224695846]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -103.85005, 0, 199.79994)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-236"
+Asset = ExtResource("238_2kyg7")
+
+[node name="object_source-9430-237" type="Node3D" parent="." unique_id=435225951]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -103.85005, 0, 199.79994)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-237"
+Asset = ExtResource("239_tnkbo")
+
+[node name="object_source-9430-238" type="Node3D" parent="." unique_id=142309819]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -103.85005, 0, 199.79994)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-238"
+Asset = ExtResource("240_avhgo")
+
+[node name="object_source-9430-239" type="Node3D" parent="." unique_id=1747921176]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -103.85005, 0, 199.79994)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-239"
+Asset = ExtResource("241_lu1ty")
+
+[node name="object_source-9430-240" type="Node3D" parent="." unique_id=948340140]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -103.85005, 0, 199.79994)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-240"
+Asset = ExtResource("242_kjh0u")
+
+[node name="object_source-9430-241" type="Node3D" parent="." unique_id=1324369410]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -103.85005, 0, 199.79994)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-241"
+Asset = ExtResource("243_m2ybu")
+
+[node name="object_source-9430-242" type="Node3D" parent="." unique_id=771834022]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -103.85005, 0, 199.79994)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-242"
+Asset = ExtResource("244_3goq8")
+
+[node name="object_source-9430-243" type="Node3D" parent="." unique_id=1667497008]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -103.85005, 0, 199.79994)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-243"
+Asset = ExtResource("245_cw87p")
+
+[node name="object_source-9430-244" type="Node3D" parent="." unique_id=1665812303]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -103.85005, 0, 199.79994)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-244"
+Asset = ExtResource("246_6fngv")
+
+[node name="object_source-9430-245" type="Node3D" parent="." unique_id=147017522]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -103.85005, 0, 199.79994)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-245"
+Asset = ExtResource("247_fqurf")
+
+[node name="object_source-9430-246" type="Node3D" parent="." unique_id=214889791]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -103.85005, 0, 199.79994)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-246"
+Asset = ExtResource("248_qbaxb")
+
+[node name="object_source-9430-247" type="Node3D" parent="." unique_id=1676753203]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -103.85005, 0, 199.79994)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-247"
+Asset = ExtResource("249_42e41")
+
+[node name="object_source-9430-248" type="Node3D" parent="." unique_id=2064738424]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -103.85005, 0, 199.79994)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-248"
+Asset = ExtResource("250_tv2g8")
+
+[node name="object_source-9430-249" type="Node3D" parent="." unique_id=1476002573]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 196.74998)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-249"
+Asset = ExtResource("251_78p6i")
+
+[node name="object_source-9430-250" type="Node3D" parent="." unique_id=1305675778]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 196.74998)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-250"
+Asset = ExtResource("252_d161p")
+
+[node name="object_source-9430-251" type="Node3D" parent="." unique_id=1955827283]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 196.74998)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-251"
+Asset = ExtResource("253_5r31q")
+
+[node name="object_source-9430-252" type="Node3D" parent="." unique_id=1086623476]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 196.74998)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-252"
+Asset = ExtResource("254_j0vmr")
+
+[node name="object_source-9430-253" type="Node3D" parent="." unique_id=1963201689]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 196.74998)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-253"
+Asset = ExtResource("255_d2xsf")
+
+[node name="object_source-9430-254" type="Node3D" parent="." unique_id=304171210]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 196.74998)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-254"
+Asset = ExtResource("256_2k7t0")
+
+[node name="object_source-9430-255" type="Node3D" parent="." unique_id=738795131]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 196.74998)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-255"
+Asset = ExtResource("257_b7gt5")
+
+[node name="object_source-9430-256" type="Node3D" parent="." unique_id=454708638]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 196.74998)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-256"
+Asset = ExtResource("258_5iw63")
+
+[node name="object_source-9430-257" type="Node3D" parent="." unique_id=1837112212]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 196.74998)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-257"
+Asset = ExtResource("259_0sy33")
+
+[node name="object_source-9430-258" type="Node3D" parent="." unique_id=1190525732]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 196.74998)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-258"
+Asset = ExtResource("260_vdasi")
+
+[node name="object_source-9430-259" type="Node3D" parent="." unique_id=1350910111]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 196.74998)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-259"
+Asset = ExtResource("261_8ro42")
+
+[node name="object_source-9430-260" type="Node3D" parent="." unique_id=1966559625]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 196.74998)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-260"
+Asset = ExtResource("262_wmt8s")
+
+[node name="object_source-9430-261" type="Node3D" parent="." unique_id=1887647534]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 196.74998)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-261"
+Asset = ExtResource("263_egms0")
+
+[node name="object_source-9430-262" type="Node3D" parent="." unique_id=1638615087]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 196.74998)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-262"
+Asset = ExtResource("264_w7yl8")
+
+[node name="object_source-9430-263" type="Node3D" parent="." unique_id=1158574595]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 196.74998)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-263"
+Asset = ExtResource("265_k18p1")
+
+[node name="object_source-9430-264" type="Node3D" parent="." unique_id=847687539]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 196.74998)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-264"
+Asset = ExtResource("266_2knqj")
+
+[node name="object_source-9430-265" type="Node3D" parent="." unique_id=77117121]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 196.74998)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-265"
+Asset = ExtResource("267_2apbc")
+
+[node name="object_source-9430-266" type="Node3D" parent="." unique_id=763300533]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 196.74998)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-266"
+Asset = ExtResource("268_gbpsh")
+
+[node name="object_source-9430-267" type="Node3D" parent="." unique_id=1365351911]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.350044, 0, 196.74998)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-267"
+Asset = ExtResource("269_bbrwa")
+
+[node name="object_source-9430-268" type="Node3D" parent="." unique_id=711861630]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.350044, 0, 199.79999)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-268"
+Asset = ExtResource("270_imp2u")
+
+[node name="object_source-9430-269" type="Node3D" parent="." unique_id=1123441285]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.953224, 0, 201.19682)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-269"
+Asset = ExtResource("271_wy7l7")
+
+[node name="object_source-9430-270" type="Node3D" parent="." unique_id=778680781]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.953224, 0, 201.19682)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-270"
+Asset = ExtResource("272_yrjhh")
+
+[node name="object_source-9430-271" type="Node3D" parent="." unique_id=16607950]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.953224, 0, 201.19682)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-271"
+Asset = ExtResource("273_jmagg")
+
+[node name="object_source-9430-272" type="Node3D" parent="." unique_id=318306988]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.953224, 0, 201.19682)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-272"
+Asset = ExtResource("274_lmn7b")
+
+[node name="object_source-9430-273" type="Node3D" parent="." unique_id=1389428756]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.953224, 0, 201.19682)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-273"
+Asset = ExtResource("275_xpufc")
+
+[node name="object_source-9430-274" type="Node3D" parent="." unique_id=1659652918]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.953224, 0, 201.19682)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-274"
+Asset = ExtResource("276_01408")
+
+[node name="object_source-9430-275" type="Node3D" parent="." unique_id=335013649]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.953224, 0, 201.19682)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-275"
+Asset = ExtResource("277_vvl4u")
+
+[node name="object_source-9430-276" type="Node3D" parent="." unique_id=1964043159]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.953224, 0, 201.19682)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-276"
+Asset = ExtResource("278_s6s01")
+
+[node name="object_source-9430-277" type="Node3D" parent="." unique_id=1659970626]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.9527, 0, 201.19727)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-277"
+Asset = ExtResource("279_gqey3")
+
+[node name="object_source-9430-278" type="Node3D" parent="." unique_id=1855790975]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.9527, 0, 201.19727)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-278"
+Asset = ExtResource("280_21qyv")
+
+[node name="object_source-9430-279" type="Node3D" parent="." unique_id=349207279]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.9527, 0, 201.19727)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-279"
+Asset = ExtResource("281_qutdr")
+
+[node name="object_source-9430-280" type="Node3D" parent="." unique_id=1689170929]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.9527, 0, 201.19727)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-280"
+Asset = ExtResource("282_vdffd")
+
+[node name="object_source-9430-281" type="Node3D" parent="." unique_id=759621017]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.9527, 0, 201.19727)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-281"
+Asset = ExtResource("283_ji7r5")
+
+[node name="object_source-9430-282" type="Node3D" parent="." unique_id=2060042921]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.74687, 0, 201.19682)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-282"
+Asset = ExtResource("284_hdf4v")
+
+[node name="object_source-9430-283" type="Node3D" parent="." unique_id=176669384]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.74687, 0, 201.19682)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-283"
+Asset = ExtResource("285_tsofa")
+
+[node name="object_source-9430-284" type="Node3D" parent="." unique_id=1540995579]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.74687, 0, 201.19682)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-284"
+Asset = ExtResource("286_xxlka")
+
+[node name="object_source-9430-285" type="Node3D" parent="." unique_id=128950359]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.74687, 0, 201.19682)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-285"
+Asset = ExtResource("287_tg48k")
+
+[node name="object_source-9430-286" type="Node3D" parent="." unique_id=2116439349]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.74687, 0, 201.19682)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-286"
+Asset = ExtResource("288_ke1kr")
+
+[node name="object_source-9430-287" type="Node3D" parent="." unique_id=226766859]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.74687, 0, 201.19682)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-287"
+Asset = ExtResource("289_8cw1m")
+
+[node name="object_source-9430-288" type="Node3D" parent="." unique_id=1547518290]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.74687, 0, 201.19682)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-288"
+Asset = ExtResource("290_dqvuu")
+
+[node name="object_source-9430-289" type="Node3D" parent="." unique_id=79674729]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.74687, 0, 201.19682)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-289"
+Asset = ExtResource("291_id6b0")
+
+[node name="object_source-9430-290" type="Node3D" parent="." unique_id=224437995]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.74739, 0, 201.19727)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-290"
+Asset = ExtResource("292_rxpbr")
+
+[node name="object_source-9430-291" type="Node3D" parent="." unique_id=990909143]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.74739, 0, 201.19727)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-291"
+Asset = ExtResource("293_yw6gv")
+
+[node name="object_source-9430-292" type="Node3D" parent="." unique_id=466187672]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.74739, 0, 201.19727)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-292"
+Asset = ExtResource("294_6b5vy")
+
+[node name="object_source-9430-293" type="Node3D" parent="." unique_id=1278725236]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.74739, 0, 201.19727)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-293"
+Asset = ExtResource("295_qns5f")
+
+[node name="object_source-9430-294" type="Node3D" parent="." unique_id=148655867]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.74739, 0, 201.19727)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-294"
+Asset = ExtResource("296_w8hoi")
+
+[node name="object_source-9430-295" type="Node3D" parent="." unique_id=412349166]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.74687, 0, 198.40308)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-295"
+Asset = ExtResource("297_c7fd7")
+
+[node name="object_source-9430-296" type="Node3D" parent="." unique_id=1640121640]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.74687, 0, 198.40308)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-296"
+Asset = ExtResource("298_d8vhb")
+
+[node name="object_source-9430-297" type="Node3D" parent="." unique_id=1541168696]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.74687, 0, 198.40308)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-297"
+Asset = ExtResource("299_6w1ln")
+
+[node name="object_source-9430-298" type="Node3D" parent="." unique_id=893349863]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.74687, 0, 198.40308)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-298"
+Asset = ExtResource("300_4vmph")
+
+[node name="object_source-9430-299" type="Node3D" parent="." unique_id=677841893]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.74687, 0, 198.40308)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-299"
+Asset = ExtResource("301_5ti51")
+
+[node name="object_source-9430-300" type="Node3D" parent="." unique_id=1207955902]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.74687, 0, 198.40308)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-300"
+Asset = ExtResource("302_1g7p1")
+
+[node name="object_source-9430-301" type="Node3D" parent="." unique_id=889440048]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.74687, 0, 198.40308)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-301"
+Asset = ExtResource("303_33vc5")
+
+[node name="object_source-9430-302" type="Node3D" parent="." unique_id=251458559]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.74687, 0, 198.40308)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-302"
+Asset = ExtResource("304_d32j7")
+
+[node name="object_source-9430-303" type="Node3D" parent="." unique_id=328456911]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.74739, 0, 198.40262)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-303"
+Asset = ExtResource("305_625hk")
+
+[node name="object_source-9430-304" type="Node3D" parent="." unique_id=716086064]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.74739, 0, 198.40262)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-304"
+Asset = ExtResource("306_w1hr0")
+
+[node name="object_source-9430-305" type="Node3D" parent="." unique_id=326599513]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.74739, 0, 198.40262)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-305"
+Asset = ExtResource("307_tomlh")
+
+[node name="object_source-9430-306" type="Node3D" parent="." unique_id=502604727]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.74739, 0, 198.40262)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-306"
+Asset = ExtResource("308_gjeue")
+
+[node name="object_source-9430-307" type="Node3D" parent="." unique_id=7289067]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.74739, 0, 198.40262)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-307"
+Asset = ExtResource("309_ym6g4")
+
+[node name="object_source-9430-308" type="Node3D" parent="." unique_id=1822929060]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.953224, 0, 198.40308)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-308"
+Asset = ExtResource("310_asf68")
+
+[node name="object_source-9430-309" type="Node3D" parent="." unique_id=159378025]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.953224, 0, 198.40308)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-309"
+Asset = ExtResource("311_4fey1")
+
+[node name="object_source-9430-310" type="Node3D" parent="." unique_id=1154516824]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.953224, 0, 198.40308)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-310"
+Asset = ExtResource("312_36hce")
+
+[node name="object_source-9430-311" type="Node3D" parent="." unique_id=1073404688]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.953224, 0, 198.40308)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-311"
+Asset = ExtResource("313_13u85")
+
+[node name="object_source-9430-312" type="Node3D" parent="." unique_id=1306281884]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.953224, 0, 198.40308)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-312"
+Asset = ExtResource("314_1p37u")
+
+[node name="object_source-9430-313" type="Node3D" parent="." unique_id=645726552]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.953224, 0, 198.40308)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-313"
+Asset = ExtResource("315_buwth")
+
+[node name="object_source-9430-314" type="Node3D" parent="." unique_id=897135662]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.953224, 0, 198.40308)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-314"
+Asset = ExtResource("316_y0fdu")
+
+[node name="object_source-9430-315" type="Node3D" parent="." unique_id=1998837193]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.953224, 0, 198.40308)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-315"
+Asset = ExtResource("317_c4msk")
+
+[node name="object_source-9430-316" type="Node3D" parent="." unique_id=23516012]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.9527, 0, 198.40262)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-316"
+Asset = ExtResource("318_k4xk8")
+
+[node name="object_source-9430-317" type="Node3D" parent="." unique_id=420484995]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.9527, 0, 198.40262)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-317"
+Asset = ExtResource("319_p426q")
+
+[node name="object_source-9430-318" type="Node3D" parent="." unique_id=7568707]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.9527, 0, 198.40262)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-318"
+Asset = ExtResource("320_4u4j4")
+
+[node name="object_source-9430-319" type="Node3D" parent="." unique_id=1826640187]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.9527, 0, 198.40262)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-319"
+Asset = ExtResource("321_uvors")
+
+[node name="object_source-9430-320" type="Node3D" parent="." unique_id=1439391232]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -104.9527, 0, 198.40262)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-320"
+Asset = ExtResource("322_c7rxy")
+
+[node name="object_source-9430-321" type="Node3D" parent="." unique_id=575164250]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.35005, 0, 199.79996)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-321"
+Asset = ExtResource("323_fdi2b")
+
+[node name="object_source-9430-322" type="Node3D" parent="." unique_id=242541075]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.021454, 0, 200.1285)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-322"
+Asset = ExtResource("324_opg0x")
+
+[node name="object_source-9430-323" type="Node3D" parent="." unique_id=1076841299]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.021454, 0, 200.1285)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-323"
+Asset = ExtResource("325_oou7d")
+
+[node name="object_source-9430-324" type="Node3D" parent="." unique_id=1734733771]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.021454, 0, 200.1285)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-324"
+Asset = ExtResource("326_0olnu")
+
+[node name="object_source-9430-325" type="Node3D" parent="." unique_id=1178024133]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.678635, 0, 200.1285)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-325"
+Asset = ExtResource("327_iuchs")
+
+[node name="object_source-9430-326" type="Node3D" parent="." unique_id=531916365]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.678635, 0, 200.1285)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-326"
+Asset = ExtResource("328_jsm1l")
+
+[node name="object_source-9430-327" type="Node3D" parent="." unique_id=80776534]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.678635, 0, 200.1285)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-327"
+Asset = ExtResource("329_5se6j")
+
+[node name="object_source-9430-328" type="Node3D" parent="." unique_id=778929266]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.678635, 0, 199.47139)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-328"
+Asset = ExtResource("330_omf0s")
+
+[node name="object_source-9430-329" type="Node3D" parent="." unique_id=1087271672]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.678635, 0, 199.47139)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-329"
+Asset = ExtResource("331_gn41m")
+
+[node name="object_source-9430-330" type="Node3D" parent="." unique_id=312214926]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.678635, 0, 199.47139)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-330"
+Asset = ExtResource("332_gvvx3")
+
+[node name="object_source-9430-331" type="Node3D" parent="." unique_id=627447879]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.021454, 0, 199.47139)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-331"
+Asset = ExtResource("333_x7u3h")
+
+[node name="object_source-9430-332" type="Node3D" parent="." unique_id=384991160]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.021454, 0, 199.47139)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-332"
+Asset = ExtResource("334_wuvjt")
+
+[node name="object_source-9430-333" type="Node3D" parent="." unique_id=1595322470]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.021454, 0, 199.47139)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9430-333"
+Asset = ExtResource("335_y401s")
+
+[node name="object_source-9439-334" type="Node3D" parent="." unique_id=68988311]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -133.38, 0, 172.03494)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9439-334"
+Asset = ExtResource("336_yc5gx")
+
+[node name="object_source-9439-335" type="Node3D" parent="." unique_id=1143500683]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -133.38, 0, 178.9497)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9439-335"
+Asset = ExtResource("337_v2moo")
+
+[node name="object_source-9439-336" type="Node3D" parent="." unique_id=998180371]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -133.38, 0, 185.54996)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9439-336"
+Asset = ExtResource("338_c2l5t")
+
+[node name="object_source-9439-337" type="Node3D" parent="." unique_id=1485621836]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -133.38, 0, 192.15)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9439-337"
+Asset = ExtResource("339_u26p4")
+
+[node name="object_source-9439-338" type="Node3D" parent="." unique_id=561600946]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -133.38, 0, 199.51459)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9439-338"
+Asset = ExtResource("340_r41vs")
+
+[node name="object_source-9439-339" type="Node3D" parent="." unique_id=458781483]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -133.38, 0, 172.03479)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9439-339"
+Asset = ExtResource("341_nb1eg")
+
+[node name="object_source-9439-340" type="Node3D" parent="." unique_id=1652544043]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -133.38, 0, 178.9497)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9439-340"
+Asset = ExtResource("342_6hxx0")
+
+[node name="object_source-9439-341" type="Node3D" parent="." unique_id=703883249]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -133.38, 0, 185.54965)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9439-341"
+Asset = ExtResource("343_26m3n")
+
+[node name="object_source-9439-342" type="Node3D" parent="." unique_id=1385499864]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -133.38, 0, 192.14961)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9439-342"
+Asset = ExtResource("344_5c7di")
+
+[node name="object_source-9439-343" type="Node3D" parent="." unique_id=12252646]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -133.38, 0, 199.51459)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9439-343"
+Asset = ExtResource("345_e0awt")
+
+[node name="object_source-9439-344" type="Node3D" parent="." unique_id=898394936]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -133.38, 0, 172.03479)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9439-344"
+Asset = ExtResource("346_xf8sd")
+
+[node name="object_source-9439-345" type="Node3D" parent="." unique_id=1841127786]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -134.38, 0, 186)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9439-345"
+Asset = ExtResource("347_85sb5")
+
+[node name="object_source-9439-346" type="Node3D" parent="." unique_id=1277025376]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -133.38, 0, 178.9497)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9439-346"
+Asset = ExtResource("348_wcfuf")
+
+[node name="object_source-9439-347" type="Node3D" parent="." unique_id=1671029648]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -133.38, 0, 185.54965)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9439-347"
+Asset = ExtResource("349_m621q")
+
+[node name="object_source-9439-348" type="Node3D" parent="." unique_id=1435000477]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -133.38, 0, 192.14961)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9439-348"
+Asset = ExtResource("350_6i2bt")
+
+[node name="object_source-9439-349" type="Node3D" parent="." unique_id=1728592749]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -133.38, 0, 199.51459)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9439-349"
+Asset = ExtResource("351_hrrsd")
+
+[node name="object_source-9440-350" type="Node3D" parent="." unique_id=551096993]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -133.62003, 0, 172.0348)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9440-350"
+Asset = ExtResource("352_ok6da")
+
+[node name="object_source-9440-351" type="Node3D" parent="." unique_id=530166990]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -135.18504, 0, 172.03479)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9440-351"
+Asset = ExtResource("353_3f08l")
+
+[node name="object_source-9440-352" type="Node3D" parent="." unique_id=226725883]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -135.18504, 0, 178.94968)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9440-352"
+Asset = ExtResource("354_jhn70")
+
+[node name="object_source-9440-353" type="Node3D" parent="." unique_id=1169921893]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -135.83502, 0, 178.94968)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9440-353"
+Asset = ExtResource("355_gt8nx")
+
+[node name="object_source-9440-354" type="Node3D" parent="." unique_id=291092541]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -134.53506, 0, 178.94968)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9440-354"
+Asset = ExtResource("356_pxabm")
+
+[node name="object_source-9440-355" type="Node3D" parent="." unique_id=559508306]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -133.70004, 0, 181.51958)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9440-355"
+Asset = ExtResource("357_pfhsg")
+
+[node name="object_source-9440-356" type="Node3D" parent="." unique_id=1383368803]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -133.62003, 0, 185.54964)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9440-356"
+Asset = ExtResource("358_dob5o")
+
+[node name="object_source-9440-357" type="Node3D" parent="." unique_id=1573027063]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -135.18504, 0, 185.5499)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9440-357"
+Asset = ExtResource("359_te8wr")
+
+[node name="object_source-9440-358" type="Node3D" parent="." unique_id=1338797643]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -133.62003, 0, 192.14958)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9440-358"
+Asset = ExtResource("360_xgoxt")
+
+[node name="object_source-9440-359" type="Node3D" parent="." unique_id=1748297349]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -135.18504, 0, 192.14984)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9440-359"
+Asset = ExtResource("361_56615")
+
+[node name="object_source-9440-360" type="Node3D" parent="." unique_id=1480744438]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -135.18504, 0, 199.51483)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9440-360"
+Asset = ExtResource("362_1j4sk")
+
+[node name="object_source-9440-361" type="Node3D" parent="." unique_id=84779759]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -135.83502, 0, 199.51483)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9440-361"
+Asset = ExtResource("363_jshfi")
+
+[node name="object_source-9440-362" type="Node3D" parent="." unique_id=405485983]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -134.53506, 0, 199.51483)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9440-362"
+Asset = ExtResource("364_1t010")
+
+[node name="object_source-9440-363" type="Node3D" parent="." unique_id=169441408]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -133.70004, 0, 202.84976)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9440-363"
+Asset = ExtResource("365_hok33")
+
+[node name="object_source-9440-364" type="Node3D" parent="." unique_id=351014162]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -134.38, 0, 186)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9440-364"
+Asset = ExtResource("366_e7bsy")
+
+[node name="object_source-9440-365" type="Node3D" parent="." unique_id=1986176856]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -134.38, 0, 186)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9440-365"
+Asset = ExtResource("367_ye5hj")
+
+[node name="object_source-9452-366" type="Node3D" parent="." unique_id=1379167363]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -99.91004, 0, 174.50455)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9452-366"
+Asset = ExtResource("368_n8gsx")
+
+[node name="object_source-9452-367" type="Node3D" parent="." unique_id=438436756]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -97.77003, 0, 179.71973)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9452-367"
+Asset = ExtResource("369_ec282")
+
+[node name="object_source-9452-368" type="Node3D" parent="." unique_id=475312906]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -95.63002, 0, 174.50455)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9452-368"
+Asset = ExtResource("370_lq8od")
+
+[node name="object_source-9452-369" type="Node3D" parent="." unique_id=21959982]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -97.77003, 0, 169.2899)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9452-369"
+Asset = ExtResource("371_j5g46")
+
+[node name="object_source-9452-370" type="Node3D" parent="." unique_id=1054980835]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -99.68001, 0, 199.14484)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9452-370"
+Asset = ExtResource("372_femxq")
+
+[node name="object_source-9452-371" type="Node3D" parent="." unique_id=1537708522]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -99.78002, 0, 202.69476)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9452-371"
+Asset = ExtResource("373_6qnih")
+
+[node name="object_source-9452-372" type="Node3D" parent="." unique_id=335710502]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -97.770035, 0, 199.24452)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9452-372"
+Asset = ExtResource("374_goh18")
+
+[node name="object_source-9452-373" type="Node3D" parent="." unique_id=240464571]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -97.770004, 0, 186)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9452-373"
+Asset = ExtResource("375_hrtw0")
+
+[node name="object_source-9453-374" type="Node3D" parent="." unique_id=82446569]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -97.770004, 0, 174.505)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9453-374"
+Asset = ExtResource("376_rkaax")
+
+[node name="object_source-9454-375" type="Node3D" parent="." unique_id=1547626796]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -97.770004, 0, 179.91)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9454-375"
+Asset = ExtResource("377_f43lj")
+
+[node name="object_source-9455-376" type="Node3D" parent="." unique_id=1290123089]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -100.07, 0, 199.145)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9455-376"
+Asset = ExtResource("378_c7y6c")
+
+[node name="object_source-9457-377" type="Node3D" parent="." unique_id=96758156]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -97.770004, 0, 195.39)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9457-377"
+Asset = ExtResource("379_kchfx")
+
+[node name="object_source-9464-378" type="Node3D" parent="." unique_id=1048018106]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -127.83, 0, 200.14996)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9464-378"
+Asset = ExtResource("380_upfdq")
+
+[node name="object_source-9464-379" type="Node3D" parent="." unique_id=1121906468]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -127.930016, 0, 197.19998)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9464-379"
+Asset = ExtResource("381_hakxm")
+
+[node name="object_source-9464-380" type="Node3D" parent="." unique_id=1779884787]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -125.650024, 0, 200.24994)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9464-380"
+Asset = ExtResource("382_yell5")
+
+[node name="object_source-9465-381" type="Node3D" parent="." unique_id=789373372]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -128.22, 0, 200.15)
+script = ExtResource("1_0ihmc")
+ObjectId = "room-carolus-source-9465-381"
+Asset = ExtResource("383_ei2om")

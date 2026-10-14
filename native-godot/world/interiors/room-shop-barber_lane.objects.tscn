@@ -1,0 +1,124 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_shr2d"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-counter.tres" id="2_x41y4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-source-10702-1.tres" id="3_p5e20"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-source-10702-2.tres" id="4_cdign"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-source-10702-3.tres" id="5_npoll"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-source-10704-4.tres" id="6_72v41"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-source-10704-5.tres" id="7_11tkd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-source-10713-6.tres" id="8_acvgf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-source-10714-7.tres" id="9_rfs60"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-source-10714-8.tres" id="10_65gh4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-source-10714-9.tres" id="11_usmnw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-source-10714-10.tres" id="12_klg0r"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-source-10714-11.tres" id="13_aewof"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-source-10715-12.tres" id="14_s1j6u"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-source-10716-13.tres" id="15_ww4v6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-source-10716-14.tres" id="16_lfcbw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-source-10722-15.tres" id="17_v6l5n"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-barber_lane-source-10763-16.tres" id="18_rwlr0"]
+
+[node name="Objects" type="Node3D" unique_id=2116722415]
+
+[node name="object_counter" type="Node3D" parent="." unique_id=1952421356]
+transform = Transform3D(-0.062030207, 0, 0.9980743, 0, 1, 0, -0.9980743, 0, -0.062030207, 3.1566875, 0.18, 84.757385)
+script = ExtResource("1_shr2d")
+ObjectId = "room-shop-barber_lane-counter"
+Asset = ExtResource("2_x41y4")
+
+[node name="object_source-10702-1" type="Node3D" parent="." unique_id=1964382140]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.720524, 0.18, 85.76936)
+script = ExtResource("1_shr2d")
+ObjectId = "room-shop-barber_lane-source-10702-1"
+Asset = ExtResource("3_p5e20")
+
+[node name="object_source-10702-2" type="Node3D" parent="." unique_id=1390898501]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.30056107, 0.18, 85.15034)
+script = ExtResource("1_shr2d")
+ObjectId = "room-shop-barber_lane-source-10702-2"
+Asset = ExtResource("4_cdign")
+
+[node name="object_source-10702-3" type="Node3D" parent="." unique_id=1510585413]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.4707036, 0.18, 83.50885)
+script = ExtResource("1_shr2d")
+ObjectId = "room-shop-barber_lane-source-10702-3"
+Asset = ExtResource("5_npoll")
+
+[node name="object_source-10704-4" type="Node3D" parent="." unique_id=1930104330]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.1134732, 0.18, 81.644104)
+script = ExtResource("1_shr2d")
+ObjectId = "room-shop-barber_lane-source-10704-4"
+Asset = ExtResource("6_72v41")
+
+[node name="object_source-10704-5" type="Node3D" parent="." unique_id=1732916803]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.1699145, 0.18, 82.57591)
+script = ExtResource("1_shr2d")
+ObjectId = "room-shop-barber_lane-source-10704-5"
+Asset = ExtResource("7_11tkd")
+
+[node name="object_source-10713-6" type="Node3D" parent="." unique_id=321753384]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.4780254, 0.18, 85.83126)
+script = ExtResource("1_shr2d")
+ObjectId = "room-shop-barber_lane-source-10713-6"
+Asset = ExtResource("8_acvgf")
+
+[node name="object_source-10714-7" type="Node3D" parent="." unique_id=1800001915]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.1698956, 0.18, 82.552376)
+script = ExtResource("1_shr2d")
+ObjectId = "room-shop-barber_lane-source-10714-7"
+Asset = ExtResource("9_rfs60")
+
+[node name="object_source-10714-8" type="Node3D" parent="." unique_id=1600012619]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.1420116, 0.18, 82.10323)
+script = ExtResource("1_shr2d")
+ObjectId = "room-shop-barber_lane-source-10714-8"
+Asset = ExtResource("10_65gh4")
+
+[node name="object_source-10714-9" type="Node3D" parent="." unique_id=182055500]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.9273033, 0.18, 81.779816)
+script = ExtResource("1_shr2d")
+ObjectId = "room-shop-barber_lane-source-10714-9"
+Asset = ExtResource("11_usmnw")
+
+[node name="object_source-10714-10" type="Node3D" parent="." unique_id=470918420]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.4885154, 0.18, 84.96926)
+script = ExtResource("1_shr2d")
+ObjectId = "room-shop-barber_lane-source-10714-10"
+Asset = ExtResource("12_klg0r")
+
+[node name="object_source-10714-11" type="Node3D" parent="." unique_id=725232226]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.9951334, 0.18, 83.06213)
+script = ExtResource("1_shr2d")
+ObjectId = "room-shop-barber_lane-source-10714-11"
+Asset = ExtResource("13_aewof")
+
+[node name="object_source-10715-12" type="Node3D" parent="." unique_id=283317145]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.9987187, 0.18, 81.37868)
+script = ExtResource("1_shr2d")
+ObjectId = "room-shop-barber_lane-source-10715-12"
+Asset = ExtResource("14_s1j6u")
+
+[node name="object_source-10716-13" type="Node3D" parent="." unique_id=611225052]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.488522, 0.18, 84.96927)
+script = ExtResource("1_shr2d")
+ObjectId = "room-shop-barber_lane-source-10716-13"
+Asset = ExtResource("15_ww4v6")
+
+[node name="object_source-10716-14" type="Node3D" parent="." unique_id=1723121086]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.9951, 0.18, 83.06213)
+script = ExtResource("1_shr2d")
+ObjectId = "room-shop-barber_lane-source-10716-14"
+Asset = ExtResource("16_lfcbw")
+
+[node name="object_source-10722-15" type="Node3D" parent="." unique_id=1840900306]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1044352, 0.18, 81.56055)
+script = ExtResource("1_shr2d")
+ObjectId = "room-shop-barber_lane-source-10722-15"
+Asset = ExtResource("17_v6l5n")
+
+[node name="object_source-10763-16" type="Node3D" parent="." unique_id=1993491728]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.17552039, 0.18, 85.1799)
+script = ExtResource("1_shr2d")
+ObjectId = "room-shop-barber_lane-source-10763-16"
+Asset = ExtResource("18_rwlr0")

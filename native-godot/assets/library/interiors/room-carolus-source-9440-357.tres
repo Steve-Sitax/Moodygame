@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-carolus-source-9440-357.tscn" id="1_i08qv"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_d5kwv"]
+
+[resource]
+PlacementAnchor = Vector3(9.536743e-07, 0.100000024, -4.7683716e-07)
+GeometryClearance = true
+script = ExtResource("2_d5kwv")
+Id = "room-carolus-source-9440-357"
+Title = "table · carolus · source-9440-357"
+Category = "Room originals"
+Scene = ExtResource("1_i08qv")
+Footprint = Vector3(0.8999958, 0.8999504, 2.219987)
+FootprintOffset = Vector3(9.536743e-07, 0.100000024, -4.7683716e-07)
+FurnitureKind = "table"
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000061)

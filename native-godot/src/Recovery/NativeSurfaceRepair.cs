@@ -19,7 +19,7 @@ public partial class NativeSurfaceRepair : Node
     }
     private static void Repair()
     {
-        string input = Path.GetFullPath(WorkshopSession.Arg("source"));
+        string input = Path.GetFullPath(Scheldemist.Native.Game.NativeArguments.Arg("source"));
         var report = JsonNode.Parse(File.ReadAllText(ProjectSettings.GlobalizePath("res://recovered/rijnkaai-recovered/recovery-report.json")))!;
         using (var stream = File.OpenRead(input))
             if (Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant() != report["source"]!["sha256"]!.GetValue<string>()) throw new InvalidDataException("The source is not the district's recorded snapshot.");
@@ -33,7 +33,7 @@ public partial class NativeSurfaceRepair : Node
             if (ResourceSaver.Save(resource, path, ResourceSaver.SaverFlags.Compress) != Error.Ok) throw new IOException("Could not save " + path);
         }
         var old = ResourceLoader.Load<ArrayMesh>("res://recovered/rijnkaai-20261012/resources/r0085.res");
-        if (!old.HasMeta("native_coping_projection") || old.GetMeta("native_coping_projection").AsInt32() < 3 || WorkshopSession.Arg("rebuild-coping") == "yes")
+        if (!old.HasMeta("native_coping_projection") || old.GetMeta("native_coping_projection").AsInt32() < 3 || Scheldemist.Native.Game.NativeArguments.Arg("rebuild-coping") == "yes")
         {
             using var source = new RecoveryGlb(input, new JsonObject(), new Rect2(-1000, -1000, 2000, 2000));
             int node = source.Json["nodes"]!.AsArray().Select((n, i) => (n, i)).Single(p => p.n!["name"]?.GetValue<string>() == "quay_coping").i;

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/furniture/stove-leuven.tscn" id="1_aj2r7"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_kid85"]
+
+[resource]
+script = ExtResource("2_kid85")
+Id = "stove-leuven"
+Title = "Cast-iron stove"
+Category = "Furniture: stoves"
+Scene = ExtResource("1_aj2r7")
+Footprint = Vector3(0.656, 1.9793, 0.7976)
+FootprintOffset = Vector3(0, -0.0066, -0.0812)
+FurnitureKind = "stove"
+UsePoint = Vector3(0, 0, 0.8)
+StandPoint = Vector3(0, 0, 0.7)

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/furniture/mattress-straw.tscn" id="1_how8v"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_ympbe"]
+
+[resource]
+script = ExtResource("2_ympbe")
+Id = "mattress-straw"
+Title = "Straw mattress on the floor"
+Category = "Furniture: beds"
+Scene = ExtResource("1_how8v")
+Footprint = Vector3(1.8847, 0.1788, 0.8448)
+FootprintOffset = Vector3(0.0174, 0.0161, -0.0003)
+FurnitureKind = "bed"
+UsePoint = Vector3(0.05, 0.12, 0)
+StandPoint = Vector3(0, 0, 0.7)

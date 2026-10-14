@@ -24,7 +24,7 @@ public partial class NativeWorldRecovery : Node
         {
             NativeGlobals.Ensure();
             if (DisplayServer.GetName() == "headless") throw new InvalidOperationException("Full intake requires a renderer for layered texture data.");
-            string source = WorkshopSession.Arg("source");
+            string source = Scheldemist.Native.Game.NativeArguments.Arg("source");
             if (!File.Exists(source)) throw new FileNotFoundException(source);
             if (Directory.Exists(ProjectSettings.GlobalizePath(Output))) throw new IOException("Keep native world edits; output already exists.");
             using var input = File.OpenRead(source); string sha = Convert.ToHexString(SHA256.HashData(input)).ToLowerInvariant();
@@ -40,7 +40,7 @@ public partial class NativeWorldRecovery : Node
             using var raw = new RecoveryGlb(source, new JsonObject(), new Rect2(-480, -80, 820, 560));
             RepairCoping(town, raw);
             PreserveRijnkaaiObjects(town);
-            string city = WorkshopSession.Arg("city", Path.GetFullPath(Path.Combine(ProjectSettings.GlobalizePath("res://"), "../shared/city.json")));
+            string city = Scheldemist.Native.Game.NativeArguments.Arg("city", Path.GetFullPath(Path.Combine(ProjectSettings.GlobalizePath("res://"), "../shared/city.json")));
             town.AddChild(NativeSteenRamp.Create(File.ReadAllText(city)));
             var attributes = new JsonArray();
             foreach (string name in new[] { "alive_gutter_stains", "works_smoke" })

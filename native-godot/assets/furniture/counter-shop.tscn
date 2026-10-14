@@ -1,0 +1,38 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/counters-r0005.res" id="1_gdi73"]
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/counters-r0007.res" id="2_h5kqh"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_gdi73"]
+size = Vector3(1.8, 0.92, 0.65)
+
+[node name="counter_shop" type="Node3D" unique_id=1928684314]
+
+[node name="counter_shop" type="Node3D" parent="." unique_id=905538194]
+metadata/extras = {
+"furniture": "{\"id\": \"counter-shop\", \"title\": \"Shop counter with drawers\", \"category\": \"Furniture: counters\", \"footprint\": [1.8, 0.92, 0.676], \"footprintOffset\": [0.0, 0.0, 0.002], \"collision\": [{\"size\": [1.8, 0.92, 0.65], \"at\": [0, 0.46, 0.0], \"yaw\": 0.0}], \"points\": [{\"kind\": \"use\", \"node\": \"counter_shop_use_0\", \"at\": [0, 0, -0.65], \"facing\": [0, 0, 1], \"action\": \"serve\"}, {\"kind\": \"use\", \"node\": \"counter_shop_use_1\", \"at\": [-0.5, 0, 0.65], \"facing\": [0, 0, -1], \"action\": \"buy\"}, {\"kind\": \"use\", \"node\": \"counter_shop_use_2\", \"at\": [0.5, 0, 0.65], \"facing\": [0, 0, -1], \"action\": \"buy\"}]}"
+}
+
+[node name="counter_shop_far" type="MeshInstance3D" parent="counter_shop" unique_id=114088467]
+visible = false
+mesh = ExtResource("1_gdi73")
+
+[node name="counter_shop_near" type="MeshInstance3D" parent="counter_shop" unique_id=1569599461]
+mesh = ExtResource("2_h5kqh")
+
+[node name="counter_shop_use_0" type="Node3D" parent="counter_shop" unique_id=1765258236]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.65)
+
+[node name="counter_shop_use_1" type="Node3D" parent="counter_shop" unique_id=728518691]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, -0.5, 0, 0.65)
+
+[node name="counter_shop_use_2" type="Node3D" parent="counter_shop" unique_id=855465191]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.5, 0, 0.65)
+
+[node name="Solid" type="StaticBody3D" parent="." unique_id=942187827]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Solid" unique_id=1315433094]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.46, 0)
+shape = SubResource("BoxShape3D_gdi73")

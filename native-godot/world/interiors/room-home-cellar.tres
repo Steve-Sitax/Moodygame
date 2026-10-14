@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-home-cellar.catalog.tres" id="1_skpeh"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-home-cellar.structure.tscn" id="2_dobnd"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-home-cellar.objects.tscn" id="3_skpeh"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_ecify"]
+
+[resource]
+script = ExtResource("4_ecify")
+Id = "room-home-cellar"
+Title = "home:cellar"
+Scene = ExtResource("3_skpeh")
+EditorScenePath = "res://world/interiors/room-home-cellar.tscn"
+Catalog = ExtResource("1_skpeh")
+Bounds = Rect2(-206.62764, 44.57271, 200, 200)
+WalkSpawn = Vector3(-106.62764, -2.18, 144.57271)
+FlySpawn = Vector3(-106.62764, -0.6, 144.57271)
+FlyYaw = -2.8784664
+FlyPitch = -0.12
+RoomId = "home:cellar"
+RoomFrame = Transform3D(0.96558154, 0, -0.2601005, 0, 1, 0, -0.2601005, 0, -0.96558154, -106.10744, -2.2, 146.50388)
+RoomBounds = Rect2(-1.75, 0, 3.5, 4)
+RoomHeight = 2.1
+EntryPoints = PackedVector3Array(-106.52614, -2.2, 146.82379)
+ReplacedMeshes = PackedInt32Array(11339, 11340, 11341, 11342, 11343, 11349, 11352, 11353)
+RetainedStructure = ExtResource("2_dobnd")

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/furniture/washstand.tscn" id="1_jii7t"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_kys3n"]
+
+[resource]
+script = ExtResource("2_kys3n")
+Id = "washstand"
+Title = "Washstand with basin and jug"
+Category = "Furniture: washing"
+Scene = ExtResource("1_jii7t")
+Footprint = Vector3(0.8235, 1, 0.44)
+FootprintOffset = Vector3(0.0058, 0, 0)
+FurnitureKind = "washstand"
+UsePoint = Vector3(0, 0, 0.55)
+StandPoint = Vector3(0, 0, 0.7)

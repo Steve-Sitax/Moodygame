@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-cathedral_upper-source-8873-14.tscn" id="1_d5ayt"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_46yuo"]
+
+[resource]
+PlacementAnchor = Vector3(-1.9550323e-05, 0, -7.6293945e-06)
+GeometryClearance = true
+script = ExtResource("2_46yuo")
+Id = "room-cathedral_upper-source-8873-14"
+Title = "fitting · cathedral_upper · source-8873-14"
+Category = "Room originals"
+Scene = ExtResource("1_d5ayt")
+Footprint = Vector3(0.80003643, 0.1999321, 3.6000137)
+FootprintOffset = Vector3(-1.9550323e-05, 18.69966, -7.6293945e-06)
+FurnitureKind = "fitting"
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000061)

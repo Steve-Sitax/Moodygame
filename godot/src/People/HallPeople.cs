@@ -118,6 +118,17 @@ public partial class HallPeople : Node
             else if ((spec.TryGetProperty("set", out var setName) || loop) && h.Plan.GetProperty("sets").TryGetProperty((loop ? loopName : setName).GetString()!, out var set)) marks.AddRange(set.EnumerateArray());
             else if (spec.TryGetProperty("set", out setName) && setName.GetString() == "funeralChairs") foreach (var chair in h.Plan.GetProperty("sets").GetProperty("chairs").EnumerateArray()) if (chair.GetProperty("z").GetDouble() < 32 && Math.Abs(chair.GetProperty("x").GetDouble()) > 1) marks.Add(chair);
             points.AddRange(marks.Select(m => World(h, m)));
+            var nativeSeats=new List<(float Height,float Yaw,bool Authored)>();
+            if(spec.TryGetProperty("sit",out var plannedSeat))
+            {
+                for(int i=0;i<points.Count;i++)
+                {
+                    int status=Main.I.World.ResolveNativeSeat(h.Id,points[i],out var atSeat,out var seatHeight,out var seatYaw);
+                    if(status<0){points.RemoveAt(i);marks.RemoveAt(i);i--;continue;}
+                    if(status>0)points[i]=atSeat;
+                    nativeSeats.Add((status>0?seatHeight:plannedSeat.GetSingle(),status>0?seatYaw:(float)h.Yaw+marks[i].GetProperty("yaw").GetSingle(),status>0));
+                }
+            }
             if (points.Count == 0) continue;
             bool front = spec.TryGetProperty("front", out var frontFlag) && frontFlag.GetBoolean();
             int first = front ? points.Count - 1 - (int)(Whereabouts.HashId(id) % (uint)Math.Min(points.Count, 12)) : (int)(Whereabouts.HashId(id + (reply.TryGetProperty("day", out var rosterDay) ? rosterDay.GetInt32() : 0)) % (uint)points.Count);
@@ -125,18 +136,19 @@ public partial class HallPeople : Node
             if (occupied.Any(p => p.DistanceTo(points[first]) < 0.3f)) continue;
             var human = Humans.Make(Humans.IsKind(kind) ? kind : "docker_a"); if (human == null) continue;
             var group = new Node3D { Name = "hall_person_" + id, Position = points[first], Rotation = new Vector3(0, (float)(h.Yaw + marks[first].GetProperty("yaw").GetDouble()), 0) };
+            if(nativeSeats.Count>first)group.Rotation=new(0,nativeSeats[first].Yaw,0);
             group.AddChild(human.Root); Main.I.View.AddChild(group); human.Start();
             var body = new StaticBody3D { CollisionLayer = Solid.Layer, CollisionMask = 0 };
             body.AddChild(new CollisionShape3D { Shape = new CylinderShape3D { Radius = 0.3f, Height = 1.5f }, Position = new Vector3(0, 0.75f, 0) }); group.AddChild(body);
             string motion = spec.TryGetProperty("motion", out var m) ? m.GetString()! : "idle";
             float lift = 0;
-            if (spec.TryGetProperty("sit", out var seat) && human.CanSit) { motion = "sit"; lift = human.SitDrop(seat.GetSingle()); }
+            if (spec.TryGetProperty("sit", out var seat) && human.CanSit) { motion = "sit"; lift = human.SitDrop(nativeSeats.Count>first?nativeSeats[first].Height:seat.GetSingle()); }
             else if (motion == "sit") motion = "idle";
             if (!human.CanSit && spec.TryGetProperty("standBack", out var standBack))
                 points[first] -= new Vector3(MathF.Sin(group.Rotation.Y), 0, MathF.Cos(group.Rotation.Y)) * standBack.GetSingle();
             group.Position = points[first];
             human.Play(motion); human.Root.Position = new Vector3(0, lift, 0);
-            if (motion == "sit")
+            if (motion == "sit" && !(nativeSeats.Count>first && nativeSeats[first].Authored))
             {
                 var chair = ModelLibrary.Get("lively", new ModelLibrary.Look(TwoSided: true, Affine: 0, VertexColor: true))?.Copy("chair");
                 if (chair != null) { chair.Scale = new Vector3(1, seat.GetSingle() / 0.45f, 1); group.AddChild(chair); }

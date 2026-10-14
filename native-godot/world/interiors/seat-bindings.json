@@ -1,0 +1,7682 @@
+[
+  {
+    "room": "townhall",
+    "id": "room-townhall-role-seat-0",
+    "original": [
+      -253.3,
+      0.3,
+      57.69
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.48,
+    "yaw": 0
+  },
+  {
+    "room": "townhall",
+    "id": "room-townhall-role-seat-1",
+    "original": [
+      -272.5,
+      0.3,
+      57.44
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.5,
+    "yaw": 0
+  },
+  {
+    "room": "townhall",
+    "id": "room-townhall-role-seat-2",
+    "original": [
+      -272.5,
+      0.3,
+      53.94
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.5,
+    "yaw": 0
+  },
+  {
+    "room": "townhall",
+    "id": "room-townhall-source-9006-16",
+    "original": [
+      -272.5,
+      0.3,
+      50.44
+    ],
+    "local": [
+      -0.00012207031,
+      0.3,
+      -8.010864E-05
+    ],
+    "height": 0.5,
+    "yaw": -3.1415925
+  },
+  {
+    "room": "townhall",
+    "id": "room-townhall-source-9006-17",
+    "original": [
+      -275.2,
+      0.3,
+      57.44
+    ],
+    "local": [
+      -0.00012207031,
+      0.3,
+      -0.00021743774
+    ],
+    "height": 0.5,
+    "yaw": -3.1415925
+  },
+  {
+    "room": "townhall",
+    "id": "room-townhall-source-9006-18",
+    "original": [
+      -275.2,
+      0.3,
+      53.94
+    ],
+    "local": [
+      -0.00012207031,
+      0.3,
+      -0.0001487732
+    ],
+    "height": 0.5,
+    "yaw": -3.1415925
+  },
+  {
+    "room": "townhall",
+    "id": "room-townhall-source-9006-19",
+    "original": [
+      -271.5,
+      7,
+      38.39
+    ],
+    "local": [
+      -0.00012207031,
+      7,
+      -4.5776367E-05
+    ],
+    "height": 0.5,
+    "yaw": 2.3841858E-07
+  },
+  {
+    "room": "townhall",
+    "id": "room-townhall-role-seat-3",
+    "original": [
+      -266.3,
+      0.3,
+      44.54
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.45,
+    "yaw": 0
+  },
+  {
+    "room": "townhall",
+    "id": "room-townhall-role-seat-4",
+    "original": [
+      -267.4,
+      0.3,
+      44.54
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.45,
+    "yaw": 0
+  },
+  {
+    "room": "townhall",
+    "id": "room-townhall-role-seat-5",
+    "original": [
+      -268.5,
+      0.3,
+      44.54
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.45,
+    "yaw": 0
+  },
+  {
+    "room": "townhall",
+    "id": "room-townhall-role-seat-6",
+    "original": [
+      -275.42,
+      7,
+      54.89
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "townhall",
+    "id": "room-townhall-role-seat-7",
+    "original": [
+      -275.42,
+      7,
+      54.09
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "townhall",
+    "id": "room-townhall-role-seat-8",
+    "original": [
+      -275.42,
+      7,
+      53.29
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "townhall",
+    "id": "room-townhall-role-seat-9",
+    "original": [
+      -275.42,
+      7,
+      50.89
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "townhall",
+    "id": "room-townhall-role-seat-10",
+    "original": [
+      -275.42,
+      7,
+      50.09
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "townhall",
+    "id": "room-townhall-role-seat-11",
+    "original": [
+      -275.42,
+      7,
+      49.29
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "townhall",
+    "id": "room-townhall-role-seat-12",
+    "original": [
+      -274.12,
+      7,
+      54.89
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "townhall",
+    "id": "room-townhall-role-seat-13",
+    "original": [
+      -274.12,
+      7,
+      54.09
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "townhall",
+    "id": "room-townhall-role-seat-14",
+    "original": [
+      -274.12,
+      7,
+      53.29
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "townhall",
+    "id": "room-townhall-role-seat-15",
+    "original": [
+      -274.12,
+      7,
+      50.89
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "townhall",
+    "id": "room-townhall-role-seat-16",
+    "original": [
+      -274.12,
+      7,
+      50.09
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "townhall",
+    "id": "room-townhall-role-seat-17",
+    "original": [
+      -274.12,
+      7,
+      49.29
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "townhall",
+    "id": "room-townhall-role-seat-18",
+    "original": [
+      -272.82,
+      7,
+      54.89
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "townhall",
+    "id": "room-townhall-role-seat-19",
+    "original": [
+      -272.82,
+      7,
+      54.09
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "townhall",
+    "id": "room-townhall-role-seat-20",
+    "original": [
+      -272.82,
+      7,
+      53.29
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "townhall",
+    "id": "room-townhall-role-seat-21",
+    "original": [
+      -272.82,
+      7,
+      50.89
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "townhall",
+    "id": "room-townhall-role-seat-22",
+    "original": [
+      -272.82,
+      7,
+      50.09
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "townhall",
+    "id": "room-townhall-role-seat-23",
+    "original": [
+      -272.82,
+      7,
+      49.29
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-0",
+    "original": [
+      -131.34999,
+      10,
+      99.75
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.48,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-1",
+    "original": [
+      -115.75,
+      10,
+      94.35
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-2",
+    "original": [
+      -115.75,
+      10,
+      94.97
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-3",
+    "original": [
+      -115.75,
+      10,
+      95.590004
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-4",
+    "original": [
+      -115.75,
+      10,
+      96.21
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-5",
+    "original": [
+      -115.75,
+      10,
+      96.83
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-6",
+    "original": [
+      -115.75,
+      10,
+      97.450005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-7",
+    "original": [
+      -115.75,
+      10,
+      98.07
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-8",
+    "original": [
+      -115.75,
+      10,
+      98.69
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-9",
+    "original": [
+      -115.75,
+      10,
+      100.65
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-10",
+    "original": [
+      -115.75,
+      10,
+      101.270004
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-11",
+    "original": [
+      -115.75,
+      10,
+      101.89
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-12",
+    "original": [
+      -115.75,
+      10,
+      102.51
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-13",
+    "original": [
+      -115.75,
+      10,
+      103.130005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-14",
+    "original": [
+      -115.75,
+      10,
+      103.75
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-15",
+    "original": [
+      -115.75,
+      10,
+      104.37
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-16",
+    "original": [
+      -115.75,
+      10,
+      104.990005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-17",
+    "original": [
+      -117,
+      10,
+      94.35
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-18",
+    "original": [
+      -117,
+      10,
+      94.97
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-19",
+    "original": [
+      -117,
+      10,
+      95.590004
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-20",
+    "original": [
+      -117,
+      10,
+      96.21
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-21",
+    "original": [
+      -117,
+      10,
+      96.83
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-22",
+    "original": [
+      -117,
+      10,
+      97.450005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-23",
+    "original": [
+      -117,
+      10,
+      98.07
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-24",
+    "original": [
+      -117,
+      10,
+      98.69
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-25",
+    "original": [
+      -117,
+      10,
+      100.65
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-26",
+    "original": [
+      -117,
+      10,
+      101.270004
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-27",
+    "original": [
+      -117,
+      10,
+      101.89
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-28",
+    "original": [
+      -117,
+      10,
+      102.51
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-29",
+    "original": [
+      -117,
+      10,
+      103.130005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-30",
+    "original": [
+      -117,
+      10,
+      103.75
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-31",
+    "original": [
+      -117,
+      10,
+      104.37
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-32",
+    "original": [
+      -117,
+      10,
+      104.990005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-33",
+    "original": [
+      -118.25,
+      10,
+      94.35
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-34",
+    "original": [
+      -118.25,
+      10,
+      94.97
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-35",
+    "original": [
+      -118.25,
+      10,
+      95.590004
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-36",
+    "original": [
+      -118.25,
+      10,
+      96.21
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-37",
+    "original": [
+      -118.25,
+      10,
+      96.83
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-38",
+    "original": [
+      -118.25,
+      10,
+      97.450005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-39",
+    "original": [
+      -118.25,
+      10,
+      98.07
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-40",
+    "original": [
+      -118.25,
+      10,
+      98.69
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-41",
+    "original": [
+      -118.25,
+      10,
+      100.65
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-42",
+    "original": [
+      -118.25,
+      10,
+      101.270004
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-43",
+    "original": [
+      -118.25,
+      10,
+      101.89
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-44",
+    "original": [
+      -118.25,
+      10,
+      102.51
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-45",
+    "original": [
+      -118.25,
+      10,
+      103.130005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-46",
+    "original": [
+      -118.25,
+      10,
+      103.75
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-47",
+    "original": [
+      -118.25,
+      10,
+      104.37
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-48",
+    "original": [
+      -118.25,
+      10,
+      104.990005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-49",
+    "original": [
+      -119.5,
+      10,
+      94.35
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-50",
+    "original": [
+      -119.5,
+      10,
+      94.97
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-51",
+    "original": [
+      -119.5,
+      10,
+      95.590004
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-52",
+    "original": [
+      -119.5,
+      10,
+      96.21
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-53",
+    "original": [
+      -119.5,
+      10,
+      96.83
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-54",
+    "original": [
+      -119.5,
+      10,
+      97.450005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-55",
+    "original": [
+      -119.5,
+      10,
+      98.07
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-56",
+    "original": [
+      -119.5,
+      10,
+      98.69
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-57",
+    "original": [
+      -119.5,
+      10,
+      100.65
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-58",
+    "original": [
+      -119.5,
+      10,
+      101.270004
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-59",
+    "original": [
+      -119.5,
+      10,
+      101.89
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-60",
+    "original": [
+      -119.5,
+      10,
+      102.51
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-61",
+    "original": [
+      -119.5,
+      10,
+      103.130005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-62",
+    "original": [
+      -119.5,
+      10,
+      103.75
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-63",
+    "original": [
+      -119.5,
+      10,
+      104.37
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-64",
+    "original": [
+      -119.5,
+      10,
+      104.990005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-65",
+    "original": [
+      -120.75,
+      10,
+      94.35
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-66",
+    "original": [
+      -120.75,
+      10,
+      94.97
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-67",
+    "original": [
+      -120.75,
+      10,
+      95.590004
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-68",
+    "original": [
+      -120.75,
+      10,
+      96.21
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-69",
+    "original": [
+      -120.75,
+      10,
+      96.83
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-70",
+    "original": [
+      -120.75,
+      10,
+      97.450005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-71",
+    "original": [
+      -120.75,
+      10,
+      98.07
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-72",
+    "original": [
+      -120.75,
+      10,
+      98.69
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-73",
+    "original": [
+      -120.75,
+      10,
+      100.65
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-74",
+    "original": [
+      -120.75,
+      10,
+      101.270004
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-75",
+    "original": [
+      -120.75,
+      10,
+      101.89
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-76",
+    "original": [
+      -120.75,
+      10,
+      102.51
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-77",
+    "original": [
+      -120.75,
+      10,
+      103.130005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-78",
+    "original": [
+      -120.75,
+      10,
+      103.75
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-79",
+    "original": [
+      -120.75,
+      10,
+      104.37
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-80",
+    "original": [
+      -120.75,
+      10,
+      104.990005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-81",
+    "original": [
+      -122,
+      10,
+      94.35
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-82",
+    "original": [
+      -122,
+      10,
+      94.97
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-83",
+    "original": [
+      -122,
+      10,
+      95.590004
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-84",
+    "original": [
+      -122,
+      10,
+      96.21
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-85",
+    "original": [
+      -122,
+      10,
+      96.83
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-86",
+    "original": [
+      -122,
+      10,
+      97.450005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-87",
+    "original": [
+      -122,
+      10,
+      98.07
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-88",
+    "original": [
+      -122,
+      10,
+      98.69
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-89",
+    "original": [
+      -122,
+      10,
+      100.65
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-90",
+    "original": [
+      -122,
+      10,
+      101.270004
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-91",
+    "original": [
+      -122,
+      10,
+      101.89
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-92",
+    "original": [
+      -122,
+      10,
+      102.51
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-93",
+    "original": [
+      -122,
+      10,
+      103.130005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-94",
+    "original": [
+      -122,
+      10,
+      103.75
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-95",
+    "original": [
+      -122,
+      10,
+      104.37
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-96",
+    "original": [
+      -122,
+      10,
+      104.990005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-97",
+    "original": [
+      -123.25,
+      10,
+      94.35
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-98",
+    "original": [
+      -123.25,
+      10,
+      94.97
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-99",
+    "original": [
+      -123.25,
+      10,
+      95.590004
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-100",
+    "original": [
+      -123.25,
+      10,
+      96.21
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-101",
+    "original": [
+      -123.25,
+      10,
+      96.83
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-102",
+    "original": [
+      -123.25,
+      10,
+      97.450005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-103",
+    "original": [
+      -123.25,
+      10,
+      98.07
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-104",
+    "original": [
+      -123.25,
+      10,
+      98.69
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-105",
+    "original": [
+      -123.25,
+      10,
+      100.65
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-106",
+    "original": [
+      -123.25,
+      10,
+      101.270004
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-107",
+    "original": [
+      -123.25,
+      10,
+      101.89
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-108",
+    "original": [
+      -123.25,
+      10,
+      102.51
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-109",
+    "original": [
+      -123.25,
+      10,
+      103.130005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-110",
+    "original": [
+      -123.25,
+      10,
+      103.75
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-111",
+    "original": [
+      -123.25,
+      10,
+      104.37
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-112",
+    "original": [
+      -123.25,
+      10,
+      104.990005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-113",
+    "original": [
+      -124.5,
+      10,
+      94.35
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-114",
+    "original": [
+      -124.5,
+      10,
+      94.97
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-115",
+    "original": [
+      -124.5,
+      10,
+      95.590004
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-116",
+    "original": [
+      -124.5,
+      10,
+      96.21
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-117",
+    "original": [
+      -124.5,
+      10,
+      96.83
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-118",
+    "original": [
+      -124.5,
+      10,
+      97.450005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-119",
+    "original": [
+      -124.5,
+      10,
+      98.07
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-120",
+    "original": [
+      -124.5,
+      10,
+      98.69
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-121",
+    "original": [
+      -124.5,
+      10,
+      100.65
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-122",
+    "original": [
+      -124.5,
+      10,
+      101.270004
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-123",
+    "original": [
+      -124.5,
+      10,
+      101.89
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-124",
+    "original": [
+      -124.5,
+      10,
+      102.51
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-125",
+    "original": [
+      -124.5,
+      10,
+      103.130005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-126",
+    "original": [
+      -124.5,
+      10,
+      103.75
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-127",
+    "original": [
+      -124.5,
+      10,
+      104.37
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-128",
+    "original": [
+      -124.5,
+      10,
+      104.990005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-129",
+    "original": [
+      -125.75,
+      10,
+      94.35
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-130",
+    "original": [
+      -125.75,
+      10,
+      94.97
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-131",
+    "original": [
+      -125.75,
+      10,
+      95.590004
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-132",
+    "original": [
+      -125.75,
+      10,
+      96.21
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-133",
+    "original": [
+      -125.75,
+      10,
+      96.83
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-134",
+    "original": [
+      -125.75,
+      10,
+      97.450005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-135",
+    "original": [
+      -125.75,
+      10,
+      98.07
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-136",
+    "original": [
+      -125.75,
+      10,
+      98.69
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-137",
+    "original": [
+      -125.75,
+      10,
+      100.65
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-138",
+    "original": [
+      -125.75,
+      10,
+      101.270004
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-139",
+    "original": [
+      -125.75,
+      10,
+      101.89
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-140",
+    "original": [
+      -125.75,
+      10,
+      102.51
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-141",
+    "original": [
+      -125.75,
+      10,
+      103.130005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-142",
+    "original": [
+      -125.75,
+      10,
+      103.75
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-143",
+    "original": [
+      -125.75,
+      10,
+      104.37
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-144",
+    "original": [
+      -125.75,
+      10,
+      104.990005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-145",
+    "original": [
+      -127,
+      10,
+      94.35
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-146",
+    "original": [
+      -127,
+      10,
+      94.97
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-147",
+    "original": [
+      -127,
+      10,
+      95.590004
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-148",
+    "original": [
+      -127,
+      10,
+      96.21
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-149",
+    "original": [
+      -127,
+      10,
+      96.83
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-150",
+    "original": [
+      -127,
+      10,
+      97.450005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-151",
+    "original": [
+      -127,
+      10,
+      98.07
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-152",
+    "original": [
+      -127,
+      10,
+      98.69
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-153",
+    "original": [
+      -127,
+      10,
+      100.65
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-154",
+    "original": [
+      -127,
+      10,
+      101.270004
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-155",
+    "original": [
+      -127,
+      10,
+      101.89
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-156",
+    "original": [
+      -127,
+      10,
+      102.51
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-157",
+    "original": [
+      -127,
+      10,
+      103.130005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-158",
+    "original": [
+      -127,
+      10,
+      103.75
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-159",
+    "original": [
+      -127,
+      10,
+      104.37
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-160",
+    "original": [
+      -127,
+      10,
+      104.990005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-161",
+    "original": [
+      -128.25,
+      10,
+      94.35
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-162",
+    "original": [
+      -128.25,
+      10,
+      94.97
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-163",
+    "original": [
+      -128.25,
+      10,
+      95.590004
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-164",
+    "original": [
+      -128.25,
+      10,
+      96.21
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-165",
+    "original": [
+      -128.25,
+      10,
+      96.83
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-166",
+    "original": [
+      -128.25,
+      10,
+      97.450005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-167",
+    "original": [
+      -128.25,
+      10,
+      98.07
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-168",
+    "original": [
+      -128.25,
+      10,
+      98.69
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-169",
+    "original": [
+      -128.25,
+      10,
+      100.65
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-170",
+    "original": [
+      -128.25,
+      10,
+      101.270004
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-171",
+    "original": [
+      -128.25,
+      10,
+      101.89
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-172",
+    "original": [
+      -128.25,
+      10,
+      102.51
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-173",
+    "original": [
+      -128.25,
+      10,
+      103.130005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-174",
+    "original": [
+      -128.25,
+      10,
+      103.75
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-175",
+    "original": [
+      -128.25,
+      10,
+      104.37
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-176",
+    "original": [
+      -128.25,
+      10,
+      104.990005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-177",
+    "original": [
+      -129.5,
+      10,
+      94.35
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-178",
+    "original": [
+      -129.5,
+      10,
+      94.97
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-179",
+    "original": [
+      -129.5,
+      10,
+      95.590004
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-180",
+    "original": [
+      -129.5,
+      10,
+      96.21
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-181",
+    "original": [
+      -129.5,
+      10,
+      96.83
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-182",
+    "original": [
+      -129.5,
+      10,
+      97.450005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-183",
+    "original": [
+      -129.5,
+      10,
+      98.07
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-184",
+    "original": [
+      -129.5,
+      10,
+      98.69
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-185",
+    "original": [
+      -129.5,
+      10,
+      100.65
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-186",
+    "original": [
+      -129.5,
+      10,
+      101.270004
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-187",
+    "original": [
+      -129.5,
+      10,
+      101.89
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-188",
+    "original": [
+      -129.5,
+      10,
+      102.51
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-189",
+    "original": [
+      -129.5,
+      10,
+      103.130005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-190",
+    "original": [
+      -129.5,
+      10,
+      103.75
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-191",
+    "original": [
+      -129.5,
+      10,
+      104.37
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-192",
+    "original": [
+      -129.5,
+      10,
+      104.990005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-193",
+    "original": [
+      -130.75,
+      10,
+      94.35
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-194",
+    "original": [
+      -130.75,
+      10,
+      94.97
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-195",
+    "original": [
+      -130.75,
+      10,
+      95.590004
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-196",
+    "original": [
+      -130.75,
+      10,
+      96.21
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-197",
+    "original": [
+      -130.75,
+      10,
+      96.83
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-198",
+    "original": [
+      -130.75,
+      10,
+      97.450005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-199",
+    "original": [
+      -130.75,
+      10,
+      98.07
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-200",
+    "original": [
+      -130.75,
+      10,
+      98.69
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-201",
+    "original": [
+      -130.75,
+      10,
+      100.65
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-202",
+    "original": [
+      -130.75,
+      10,
+      101.270004
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-203",
+    "original": [
+      -130.75,
+      10,
+      101.89
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-204",
+    "original": [
+      -130.75,
+      10,
+      102.51
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-205",
+    "original": [
+      -130.75,
+      10,
+      103.130005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-206",
+    "original": [
+      -130.75,
+      10,
+      103.75
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-207",
+    "original": [
+      -130.75,
+      10,
+      104.37
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "vleeshuis",
+    "id": "room-vleeshuis-role-seat-208",
+    "original": [
+      -130.75,
+      10,
+      104.990005
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-role-seat-0",
+    "original": [
+      -262,
+      7.55,
+      154.78
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.5,
+    "yaw": 6.283185
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-role-seat-1",
+    "original": [
+      -237.75,
+      0.3,
+      186.08
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.45,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-122",
+    "original": [
+      -263.45,
+      0.3,
+      163.05
+    ],
+    "local": [
+      -0.011566162,
+      0.3,
+      0.017303467
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-123",
+    "original": [
+      -264.2,
+      0.3,
+      163.05
+    ],
+    "local": [
+      0.017578125,
+      0.3,
+      0.000289917
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-124",
+    "original": [
+      -264.95,
+      0.3,
+      163.05
+    ],
+    "local": [
+      -0.006286621,
+      0.3,
+      0.0059661865
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-125",
+    "original": [
+      -265.7,
+      0.3,
+      163.05
+    ],
+    "local": [
+      -0.014678955,
+      0.3,
+      0.02607727
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-126",
+    "original": [
+      -266.45,
+      0.3,
+      163.05
+    ],
+    "local": [
+      0.018920898,
+      0.3,
+      0.027618408
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-127",
+    "original": [
+      -260.55,
+      0.3,
+      163.05
+    ],
+    "local": [
+      -0.012512207,
+      0.3,
+      0.040512085
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-128",
+    "original": [
+      -259.8,
+      0.3,
+      163.05
+    ],
+    "local": [
+      -0.0010375977,
+      0.3,
+      0.009567261
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-129",
+    "original": [
+      -259.05,
+      0.3,
+      163.05
+    ],
+    "local": [
+      -0.0038452148,
+      0.3,
+      0.025299072
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-130",
+    "original": [
+      -258.3,
+      0.3,
+      163.05
+    ],
+    "local": [
+      -0.01586914,
+      0.3,
+      0.0023345947
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-131",
+    "original": [
+      -257.55,
+      0.3,
+      163.05
+    ],
+    "local": [
+      0.001953125,
+      0.3,
+      -0.00022888184
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-132",
+    "original": [
+      -263.45,
+      0.3,
+      164.5
+    ],
+    "local": [
+      -0.017028809,
+      0.3,
+      0.00016784668
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-133",
+    "original": [
+      -264.2,
+      0.3,
+      164.5
+    ],
+    "local": [
+      -0.0047302246,
+      0.3,
+      0.04248047
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-134",
+    "original": [
+      -264.95,
+      0.3,
+      164.5
+    ],
+    "local": [
+      -0.006225586,
+      0.3,
+      0.02355957
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-135",
+    "original": [
+      -265.7,
+      0.3,
+      164.5
+    ],
+    "local": [
+      -0.015563965,
+      0.3,
+      0.04057312
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-136",
+    "original": [
+      -266.45,
+      0.3,
+      164.5
+    ],
+    "local": [
+      0.018615723,
+      0.3,
+      0.024932861
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-137",
+    "original": [
+      -260.55,
+      0.3,
+      164.5
+    ],
+    "local": [
+      -0.0039367676,
+      0.3,
+      -0.0029296875
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-138",
+    "original": [
+      -259.8,
+      0.3,
+      164.5
+    ],
+    "local": [
+      -0.015625,
+      0.3,
+      0.021331787
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-139",
+    "original": [
+      -259.05,
+      0.3,
+      164.5
+    ],
+    "local": [
+      0.017333984,
+      0.3,
+      0.033355713
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-140",
+    "original": [
+      -258.3,
+      0.3,
+      164.5
+    ],
+    "local": [
+      0.0076293945,
+      0.3,
+      0.016677856
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-141",
+    "original": [
+      -257.55,
+      0.3,
+      164.5
+    ],
+    "local": [
+      0.0061035156,
+      0.3,
+      0.0043029785
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-142",
+    "original": [
+      -263.45,
+      0.3,
+      165.95
+    ],
+    "local": [
+      -0.009857178,
+      0.3,
+      0.023880005
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-143",
+    "original": [
+      -264.2,
+      0.3,
+      165.95
+    ],
+    "local": [
+      0.009277344,
+      0.3,
+      0.025863647
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-144",
+    "original": [
+      -264.95,
+      0.3,
+      165.95
+    ],
+    "local": [
+      -0.0037841797,
+      0.3,
+      0.03111267
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-145",
+    "original": [
+      -265.7,
+      0.3,
+      165.95
+    ],
+    "local": [
+      0.010650635,
+      0.3,
+      0.0098724365
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-146",
+    "original": [
+      -266.45,
+      0.3,
+      165.95
+    ],
+    "local": [
+      0.019256592,
+      0.3,
+      0.042892456
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-147",
+    "original": [
+      -260.55,
+      0.3,
+      165.95
+    ],
+    "local": [
+      0.018371582,
+      0.3,
+      0.0011901855
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-148",
+    "original": [
+      -259.8,
+      0.3,
+      165.95
+    ],
+    "local": [
+      -0.0014648438,
+      0.3,
+      0.038497925
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-149",
+    "original": [
+      -259.05,
+      0.3,
+      165.95
+    ],
+    "local": [
+      0.006591797,
+      0.3,
+      -0.0039520264
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-150",
+    "original": [
+      -258.3,
+      0.3,
+      165.95
+    ],
+    "local": [
+      0.015075684,
+      0.3,
+      0.04194641
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-151",
+    "original": [
+      -257.55,
+      0.3,
+      165.95
+    ],
+    "local": [
+      0.011657715,
+      0.3,
+      0.03781128
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-152",
+    "original": [
+      -263.45,
+      0.3,
+      167.4
+    ],
+    "local": [
+      -0.016296387,
+      0.3,
+      0.01802063
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-153",
+    "original": [
+      -264.2,
+      0.3,
+      167.4
+    ],
+    "local": [
+      -0.009765625,
+      0.3,
+      0.042785645
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-154",
+    "original": [
+      -264.95,
+      0.3,
+      167.4
+    ],
+    "local": [
+      0.018676758,
+      0.3,
+      0.03427124
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-155",
+    "original": [
+      -265.7,
+      0.3,
+      167.4
+    ],
+    "local": [
+      -0.00079345703,
+      0.3,
+      0.024475098
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-156",
+    "original": [
+      -266.45,
+      0.3,
+      167.4
+    ],
+    "local": [
+      -0.0043945312,
+      0.3,
+      0.031951904
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-157",
+    "original": [
+      -260.55,
+      0.3,
+      167.4
+    ],
+    "local": [
+      -0.012390137,
+      0.3,
+      0.014923096
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-158",
+    "original": [
+      -259.8,
+      0.3,
+      167.4
+    ],
+    "local": [
+      -0.00592041,
+      0.3,
+      0.026794434
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-159",
+    "original": [
+      -259.05,
+      0.3,
+      167.4
+    ],
+    "local": [
+      -0.010437012,
+      0.3,
+      0.019836426
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-160",
+    "original": [
+      -258.3,
+      0.3,
+      167.4
+    ],
+    "local": [
+      0.0044555664,
+      0.3,
+      0.0040893555
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-161",
+    "original": [
+      -257.55,
+      0.3,
+      167.4
+    ],
+    "local": [
+      0.00894165,
+      0.3,
+      0.038909912
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-162",
+    "original": [
+      -263.45,
+      0.3,
+      168.85
+    ],
+    "local": [
+      0.009613037,
+      0.3,
+      0.028259277
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-163",
+    "original": [
+      -264.2,
+      0.3,
+      168.85
+    ],
+    "local": [
+      -0.0018920898,
+      0.3,
+      0.041137695
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-164",
+    "original": [
+      -264.95,
+      0.3,
+      168.85
+    ],
+    "local": [
+      -0.003479004,
+      0.3,
+      0.006072998
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-165",
+    "original": [
+      -265.7,
+      0.3,
+      168.85
+    ],
+    "local": [
+      -0.0024414062,
+      0.3,
+      0.015014648
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-166",
+    "original": [
+      -266.45,
+      0.3,
+      168.85
+    ],
+    "local": [
+      0.018341064,
+      0.3,
+      0.022750854
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-167",
+    "original": [
+      -260.55,
+      0.3,
+      168.85
+    ],
+    "local": [
+      0.018981934,
+      0.3,
+      0.04321289
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-168",
+    "original": [
+      -259.8,
+      0.3,
+      168.85
+    ],
+    "local": [
+      0.0015258789,
+      0.3,
+      -0.0020141602
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-169",
+    "original": [
+      -259.05,
+      0.3,
+      168.85
+    ],
+    "local": [
+      -0.006286621,
+      0.3,
+      -0.0016784668
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-170",
+    "original": [
+      -258.3,
+      0.3,
+      168.85
+    ],
+    "local": [
+      -0.008270264,
+      0.3,
+      -0.0045776367
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-171",
+    "original": [
+      -257.55,
+      0.3,
+      168.85
+    ],
+    "local": [
+      0.01159668,
+      0.3,
+      0.04321289
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-172",
+    "original": [
+      -263.45,
+      0.3,
+      170.3
+    ],
+    "local": [
+      -0.015136719,
+      0.3,
+      0.0045166016
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-173",
+    "original": [
+      -264.2,
+      0.3,
+      170.3
+    ],
+    "local": [
+      0.0045776367,
+      0.3,
+      0.025650024
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-174",
+    "original": [
+      -264.95,
+      0.3,
+      170.3
+    ],
+    "local": [
+      -0.011779785,
+      0.3,
+      0.035461426
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-175",
+    "original": [
+      -265.7,
+      0.3,
+      170.3
+    ],
+    "local": [
+      -0.009246826,
+      0.3,
+      0.034423828
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-176",
+    "original": [
+      -266.45,
+      0.3,
+      170.3
+    ],
+    "local": [
+      0.0037231445,
+      0.3,
+      -0.0032196045
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-177",
+    "original": [
+      -260.55,
+      0.3,
+      170.3
+    ],
+    "local": [
+      -0.019836426,
+      0.3,
+      0.04319763
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-178",
+    "original": [
+      -259.8,
+      0.3,
+      170.3
+    ],
+    "local": [
+      0.010559082,
+      0.3,
+      0.031326294
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-179",
+    "original": [
+      -259.05,
+      0.3,
+      170.3
+    ],
+    "local": [
+      0.014587402,
+      0.3,
+      0.014221191
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-180",
+    "original": [
+      -258.3,
+      0.3,
+      170.3
+    ],
+    "local": [
+      0.014343262,
+      0.3,
+      0.034942627
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-181",
+    "original": [
+      -257.55,
+      0.3,
+      170.3
+    ],
+    "local": [
+      0.006652832,
+      0.3,
+      0.03855896
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-182",
+    "original": [
+      -263.45,
+      0.3,
+      171.75
+    ],
+    "local": [
+      0.015319824,
+      0.3,
+      0.008972168
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-183",
+    "original": [
+      -264.2,
+      0.3,
+      171.75
+    ],
+    "local": [
+      0.014862061,
+      0.3,
+      -0.00289917
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-184",
+    "original": [
+      -264.95,
+      0.3,
+      171.75
+    ],
+    "local": [
+      -0.010925293,
+      0.3,
+      0.01876831
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-185",
+    "original": [
+      -265.7,
+      0.3,
+      171.75
+    ],
+    "local": [
+      0.01687622,
+      0.3,
+      0.005355835
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-186",
+    "original": [
+      -266.45,
+      0.3,
+      171.75
+    ],
+    "local": [
+      -0.0126953125,
+      0.3,
+      -0.0010986328
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-187",
+    "original": [
+      -260.55,
+      0.3,
+      171.75
+    ],
+    "local": [
+      0.0087890625,
+      0.3,
+      0.012054443
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-188",
+    "original": [
+      -259.8,
+      0.3,
+      171.75
+    ],
+    "local": [
+      -0.008758545,
+      0.3,
+      0.028045654
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-189",
+    "original": [
+      -259.05,
+      0.3,
+      171.75
+    ],
+    "local": [
+      -0.010528564,
+      0.3,
+      0.019805908
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-190",
+    "original": [
+      -258.3,
+      0.3,
+      171.75
+    ],
+    "local": [
+      -0.018554688,
+      0.3,
+      0.011550903
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-191",
+    "original": [
+      -257.55,
+      0.3,
+      171.75
+    ],
+    "local": [
+      0.012664795,
+      0.3,
+      0.031143188
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-192",
+    "original": [
+      -263.45,
+      0.3,
+      173.2
+    ],
+    "local": [
+      0.0058898926,
+      0.3,
+      0.019180298
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-193",
+    "original": [
+      -264.2,
+      0.3,
+      173.2
+    ],
+    "local": [
+      -0.0034484863,
+      0.3,
+      0.035339355
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-194",
+    "original": [
+      -264.95,
+      0.3,
+      173.2
+    ],
+    "local": [
+      -0.012786865,
+      0.3,
+      0.031814575
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-195",
+    "original": [
+      -265.7,
+      0.3,
+      173.2
+    ],
+    "local": [
+      0.018585205,
+      0.3,
+      0.00061035156
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-196",
+    "original": [
+      -266.45,
+      0.3,
+      173.2
+    ],
+    "local": [
+      -0.005706787,
+      0.3,
+      0.037490845
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-197",
+    "original": [
+      -260.55,
+      0.3,
+      173.2
+    ],
+    "local": [
+      0.011230469,
+      0.3,
+      0.042556763
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-198",
+    "original": [
+      -259.8,
+      0.3,
+      173.2
+    ],
+    "local": [
+      0.015411377,
+      0.3,
+      0.03224182
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-199",
+    "original": [
+      -259.05,
+      0.3,
+      173.2
+    ],
+    "local": [
+      0.01586914,
+      0.3,
+      -0.0004119873
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-200",
+    "original": [
+      -258.3,
+      0.3,
+      173.2
+    ],
+    "local": [
+      -0.008850098,
+      0.3,
+      0.041366577
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-201",
+    "original": [
+      -257.55,
+      0.3,
+      173.2
+    ],
+    "local": [
+      0.014953613,
+      0.3,
+      0.03337097
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-202",
+    "original": [
+      -263.45,
+      0.3,
+      174.65
+    ],
+    "local": [
+      0.004760742,
+      0.3,
+      -0.0025024414
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-203",
+    "original": [
+      -264.2,
+      0.3,
+      174.65
+    ],
+    "local": [
+      -0.0060424805,
+      0.3,
+      0.02432251
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-204",
+    "original": [
+      -264.95,
+      0.3,
+      174.65
+    ],
+    "local": [
+      0.011688232,
+      0.3,
+      0.016586304
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-205",
+    "original": [
+      -265.7,
+      0.3,
+      174.65
+    ],
+    "local": [
+      0.015380859,
+      0.3,
+      0.039276123
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-206",
+    "original": [
+      -266.45,
+      0.3,
+      174.65
+    ],
+    "local": [
+      0.007019043,
+      0.3,
+      0.033081055
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-207",
+    "original": [
+      -260.55,
+      0.3,
+      174.65
+    ],
+    "local": [
+      0.014099121,
+      0.3,
+      0.039978027
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-208",
+    "original": [
+      -259.8,
+      0.3,
+      174.65
+    ],
+    "local": [
+      0.006958008,
+      0.3,
+      0.0021362305
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-209",
+    "original": [
+      -259.05,
+      0.3,
+      174.65
+    ],
+    "local": [
+      0.016723633,
+      0.3,
+      0.0020446777
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-210",
+    "original": [
+      -258.3,
+      0.3,
+      174.65
+    ],
+    "local": [
+      -0.013122559,
+      0.3,
+      0.019165039
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-211",
+    "original": [
+      -257.55,
+      0.3,
+      174.65
+    ],
+    "local": [
+      -0.01852417,
+      0.3,
+      0.03352356
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-212",
+    "original": [
+      -263.45,
+      0.3,
+      176.1
+    ],
+    "local": [
+      0.016174316,
+      0.3,
+      0.035491943
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-213",
+    "original": [
+      -264.2,
+      0.3,
+      176.1
+    ],
+    "local": [
+      0.010559082,
+      0.3,
+      0.030334473
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-214",
+    "original": [
+      -264.95,
+      0.3,
+      176.1
+    ],
+    "local": [
+      -0.0014648438,
+      0.3,
+      0.015899658
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-215",
+    "original": [
+      -265.7,
+      0.3,
+      176.1
+    ],
+    "local": [
+      -0.011108398,
+      0.3,
+      0.0256958
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-216",
+    "original": [
+      -266.45,
+      0.3,
+      176.1
+    ],
+    "local": [
+      0.013305664,
+      0.3,
+      0.011001587
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-217",
+    "original": [
+      -260.55,
+      0.3,
+      176.1
+    ],
+    "local": [
+      0.010223389,
+      0.3,
+      0.02053833
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-218",
+    "original": [
+      -259.8,
+      0.3,
+      176.1
+    ],
+    "local": [
+      0.012390137,
+      0.3,
+      0.005844116
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-219",
+    "original": [
+      -259.05,
+      0.3,
+      176.1
+    ],
+    "local": [
+      0.0021362305,
+      0.3,
+      0.005584717
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-220",
+    "original": [
+      -258.3,
+      0.3,
+      176.1
+    ],
+    "local": [
+      0.016906738,
+      0.3,
+      0.030853271
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-221",
+    "original": [
+      -257.55,
+      0.3,
+      176.1
+    ],
+    "local": [
+      0.018249512,
+      0.3,
+      0.021057129
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-222",
+    "original": [
+      -263.45,
+      0.3,
+      177.55
+    ],
+    "local": [
+      0.014343262,
+      0.3,
+      0.045211792
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-223",
+    "original": [
+      -264.2,
+      0.3,
+      177.55
+    ],
+    "local": [
+      0.016082764,
+      0.3,
+      0.021987915
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-224",
+    "original": [
+      -264.95,
+      0.3,
+      177.55
+    ],
+    "local": [
+      0.019989014,
+      0.3,
+      0.02482605
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-225",
+    "original": [
+      -265.7,
+      0.3,
+      177.55
+    ],
+    "local": [
+      0.0077819824,
+      0.3,
+      0.043136597
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-226",
+    "original": [
+      -266.45,
+      0.3,
+      177.55
+    ],
+    "local": [
+      -0.008728027,
+      0.3,
+      -0.0046539307
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-227",
+    "original": [
+      -260.55,
+      0.3,
+      177.55
+    ],
+    "local": [
+      -0.0029296875,
+      0.3,
+      0.012359619
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-228",
+    "original": [
+      -259.8,
+      0.3,
+      177.55
+    ],
+    "local": [
+      0.00982666,
+      0.3,
+      0.037719727
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-229",
+    "original": [
+      -259.05,
+      0.3,
+      177.55
+    ],
+    "local": [
+      -0.012023926,
+      0.3,
+      0.022750854
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-230",
+    "original": [
+      -258.3,
+      0.3,
+      177.55
+    ],
+    "local": [
+      0.0070495605,
+      0.3,
+      0.029373169
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-231",
+    "original": [
+      -257.55,
+      0.3,
+      177.55
+    ],
+    "local": [
+      -0.0053710938,
+      0.3,
+      0.03968811
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-232",
+    "original": [
+      -263.45,
+      0.3,
+      179
+    ],
+    "local": [
+      0.014190674,
+      0.3,
+      0.03555298
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-233",
+    "original": [
+      -264.2,
+      0.3,
+      179
+    ],
+    "local": [
+      0.015136719,
+      0.3,
+      0.014923096
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-234",
+    "original": [
+      -264.95,
+      0.3,
+      179
+    ],
+    "local": [
+      -0.0009765625,
+      0.3,
+      0.002380371
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-235",
+    "original": [
+      -265.7,
+      0.3,
+      179
+    ],
+    "local": [
+      0.0013427734,
+      0.3,
+      0.033828735
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-236",
+    "original": [
+      -266.45,
+      0.3,
+      179
+    ],
+    "local": [
+      -0.015991211,
+      0.3,
+      0.008728027
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-237",
+    "original": [
+      -260.55,
+      0.3,
+      179
+    ],
+    "local": [
+      -0.00048828125,
+      0.3,
+      0.043029785
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-238",
+    "original": [
+      -259.8,
+      0.3,
+      179
+    ],
+    "local": [
+      0.0020446777,
+      0.3,
+      0.015258789
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-239",
+    "original": [
+      -259.05,
+      0.3,
+      179
+    ],
+    "local": [
+      0.004272461,
+      0.3,
+      0.03640747
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-240",
+    "original": [
+      -258.3,
+      0.3,
+      179
+    ],
+    "local": [
+      -0.0126953125,
+      0.3,
+      0.043289185
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-241",
+    "original": [
+      -257.55,
+      0.3,
+      179
+    ],
+    "local": [
+      -0.012237549,
+      0.3,
+      0.01423645
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-242",
+    "original": [
+      -263.45,
+      0.3,
+      180.45
+    ],
+    "local": [
+      0.009765625,
+      0.3,
+      0.029006958
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-243",
+    "original": [
+      -264.2,
+      0.3,
+      180.45
+    ],
+    "local": [
+      -0.015899658,
+      0.3,
+      0.020751953
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-244",
+    "original": [
+      -264.95,
+      0.3,
+      180.45
+    ],
+    "local": [
+      -0.012634277,
+      0.3,
+      0.01689148
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-245",
+    "original": [
+      -265.7,
+      0.3,
+      180.45
+    ],
+    "local": [
+      -0.006652832,
+      0.3,
+      0.00012207031
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-246",
+    "original": [
+      -266.45,
+      0.3,
+      180.45
+    ],
+    "local": [
+      -0.0012817383,
+      0.3,
+      0.0385437
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-247",
+    "original": [
+      -260.55,
+      0.3,
+      180.45
+    ],
+    "local": [
+      0.009216309,
+      0.3,
+      0.012496948
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-248",
+    "original": [
+      -259.8,
+      0.3,
+      180.45
+    ],
+    "local": [
+      0.018005371,
+      0.3,
+      0.013534546
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-249",
+    "original": [
+      -259.05,
+      0.3,
+      180.45
+    ],
+    "local": [
+      -0.0057373047,
+      0.3,
+      0.013534546
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-250",
+    "original": [
+      -258.3,
+      0.3,
+      180.45
+    ],
+    "local": [
+      -0.013000488,
+      0.3,
+      0.03364563
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-251",
+    "original": [
+      -257.55,
+      0.3,
+      180.45
+    ],
+    "local": [
+      -0.0030822754,
+      0.3,
+      0.0021820068
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-252",
+    "original": [
+      -263.45,
+      0.3,
+      181.9
+    ],
+    "local": [
+      0.008300781,
+      0.3,
+      0.04144287
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-253",
+    "original": [
+      -264.2,
+      0.3,
+      181.9
+    ],
+    "local": [
+      -0.011749268,
+      0.3,
+      0.009552002
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-254",
+    "original": [
+      -264.95,
+      0.3,
+      181.9
+    ],
+    "local": [
+      -0.009765625,
+      0.3,
+      0.035354614
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-255",
+    "original": [
+      -265.7,
+      0.3,
+      181.9
+    ],
+    "local": [
+      -0.008972168,
+      0.3,
+      0.006378174
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-256",
+    "original": [
+      -266.45,
+      0.3,
+      181.9
+    ],
+    "local": [
+      0.013061523,
+      0.3,
+      0.018585205
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-257",
+    "original": [
+      -260.55,
+      0.3,
+      181.9
+    ],
+    "local": [
+      -0.011657715,
+      0.3,
+      0.015151978
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-258",
+    "original": [
+      -259.8,
+      0.3,
+      181.9
+    ],
+    "local": [
+      0.010925293,
+      0.3,
+      0.008529663
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-259",
+    "original": [
+      -259.05,
+      0.3,
+      181.9
+    ],
+    "local": [
+      -0.0107421875,
+      0.3,
+      0.040924072
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-260",
+    "original": [
+      -258.3,
+      0.3,
+      181.9
+    ],
+    "local": [
+      -0.003967285,
+      0.3,
+      0.039733887
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-261",
+    "original": [
+      -257.55,
+      0.3,
+      181.9
+    ],
+    "local": [
+      -0.013793945,
+      0.3,
+      0.040771484
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-262",
+    "original": [
+      -263.45,
+      0.3,
+      183.35
+    ],
+    "local": [
+      0.019348145,
+      0.3,
+      0.012298584
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-263",
+    "original": [
+      -264.2,
+      0.3,
+      183.35
+    ],
+    "local": [
+      -0.012878418,
+      0.3,
+      0.035598755
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-264",
+    "original": [
+      -264.95,
+      0.3,
+      183.35
+    ],
+    "local": [
+      -0.013214111,
+      0.3,
+      0.012908936
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-265",
+    "original": [
+      -265.7,
+      0.3,
+      183.35
+    ],
+    "local": [
+      -0.013031006,
+      0.3,
+      0.0050964355
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-role-seat-2",
+    "original": [
+      -266.45,
+      0.3,
+      183.35
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-266",
+    "original": [
+      -260.55,
+      0.3,
+      183.35
+    ],
+    "local": [
+      0.012390137,
+      0.3,
+      0.03552246
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-267",
+    "original": [
+      -259.8,
+      0.3,
+      183.35
+    ],
+    "local": [
+      0.016998291,
+      0.3,
+      0.0025024414
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-268",
+    "original": [
+      -259.05,
+      0.3,
+      183.35
+    ],
+    "local": [
+      0.0045776367,
+      0.3,
+      -0.0036010742
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-269",
+    "original": [
+      -258.3,
+      0.3,
+      183.35
+    ],
+    "local": [
+      -0.0068359375,
+      0.3,
+      0.025802612
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-270",
+    "original": [
+      -257.55,
+      0.3,
+      183.35
+    ],
+    "local": [
+      -0.0016479492,
+      0.3,
+      0.034240723
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-271",
+    "original": [
+      -263.45,
+      0.3,
+      184.8
+    ],
+    "local": [
+      -0.004272461,
+      0.3,
+      0.044204712
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-272",
+    "original": [
+      -264.2,
+      0.3,
+      184.8
+    ],
+    "local": [
+      0.017303467,
+      0.3,
+      0.032333374
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-273",
+    "original": [
+      -264.95,
+      0.3,
+      184.8
+    ],
+    "local": [
+      0.015380859,
+      0.3,
+      0.043685913
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-274",
+    "original": [
+      -260.55,
+      0.3,
+      184.8
+    ],
+    "local": [
+      0.009094238,
+      0.3,
+      0.01890564
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-275",
+    "original": [
+      -259.8,
+      0.3,
+      184.8
+    ],
+    "local": [
+      -0.009460449,
+      0.3,
+      0.043685913
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-276",
+    "original": [
+      -259.05,
+      0.3,
+      184.8
+    ],
+    "local": [
+      -0.0029907227,
+      0.3,
+      0.013748169
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-277",
+    "original": [
+      -258.3,
+      0.3,
+      184.8
+    ],
+    "local": [
+      0.014556885,
+      0.3,
+      0.022537231
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-278",
+    "original": [
+      -257.55,
+      0.3,
+      184.8
+    ],
+    "local": [
+      0.0033569336,
+      0.3,
+      0.038528442
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-279",
+    "original": [
+      -263.45,
+      0.3,
+      186.25
+    ],
+    "local": [
+      0.0134887695,
+      0.3,
+      -0.002166748
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-280",
+    "original": [
+      -264.2,
+      0.3,
+      186.25
+    ],
+    "local": [
+      -0.010009766,
+      0.3,
+      0.008239746
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-281",
+    "original": [
+      -264.95,
+      0.3,
+      186.25
+    ],
+    "local": [
+      0.017913818,
+      0.3,
+      0.04486084
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-282",
+    "original": [
+      -260.55,
+      0.3,
+      186.25
+    ],
+    "local": [
+      -0.007080078,
+      0.3,
+      0.005142212
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-283",
+    "original": [
+      -259.8,
+      0.3,
+      186.25
+    ],
+    "local": [
+      0.0005493164,
+      0.3,
+      0.025680542
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-284",
+    "original": [
+      -259.05,
+      0.3,
+      186.25
+    ],
+    "local": [
+      -0.019317627,
+      0.3,
+      0.03805542
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-285",
+    "original": [
+      -258.3,
+      0.3,
+      186.25
+    ],
+    "local": [
+      -0.008605957,
+      0.3,
+      0.037124634
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-286",
+    "original": [
+      -257.55,
+      0.3,
+      186.25
+    ],
+    "local": [
+      0.00036621094,
+      0.3,
+      0.01727295
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-287",
+    "original": [
+      -263.45,
+      0.3,
+      187.7
+    ],
+    "local": [
+      -0.01928711,
+      0.3,
+      0.025497437
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-288",
+    "original": [
+      -264.2,
+      0.3,
+      187.7
+    ],
+    "local": [
+      -0.019195557,
+      0.3,
+      0.028076172
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-289",
+    "original": [
+      -264.95,
+      0.3,
+      187.7
+    ],
+    "local": [
+      -0.010925293,
+      0.3,
+      0.020339966
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-290",
+    "original": [
+      -260.55,
+      0.3,
+      187.7
+    ],
+    "local": [
+      0.012939453,
+      0.3,
+      0.031173706
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-291",
+    "original": [
+      -259.8,
+      0.3,
+      187.7
+    ],
+    "local": [
+      -0.01449585,
+      0.3,
+      0.016204834
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-292",
+    "original": [
+      -259.05,
+      0.3,
+      187.7
+    ],
+    "local": [
+      0.011169434,
+      0.3,
+      0.01776123
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-293",
+    "original": [
+      -258.3,
+      0.3,
+      187.7
+    ],
+    "local": [
+      0.0030517578,
+      0.3,
+      0.0001373291
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-294",
+    "original": [
+      -257.55,
+      0.3,
+      187.7
+    ],
+    "local": [
+      -0.0034179688,
+      0.3,
+      0.002456665
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-295",
+    "original": [
+      -263.45,
+      0.3,
+      189.15
+    ],
+    "local": [
+      -0.005859375,
+      0.3,
+      0.008300781
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-296",
+    "original": [
+      -264.2,
+      0.3,
+      189.15
+    ],
+    "local": [
+      -0.00030517578,
+      0.3,
+      0.01449585
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-297",
+    "original": [
+      -264.95,
+      0.3,
+      189.15
+    ],
+    "local": [
+      -0.014953613,
+      0.3,
+      0.034606934
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-298",
+    "original": [
+      -265.7,
+      0.3,
+      189.15
+    ],
+    "local": [
+      -0.012542725,
+      0.3,
+      -0.0033111572
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-299",
+    "original": [
+      -266.45,
+      0.3,
+      189.15
+    ],
+    "local": [
+      0.0056152344,
+      0.3,
+      0.033294678
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-300",
+    "original": [
+      -260.55,
+      0.3,
+      189.15
+    ],
+    "local": [
+      0.005065918,
+      0.3,
+      0.0206604
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-301",
+    "original": [
+      -259.8,
+      0.3,
+      189.15
+    ],
+    "local": [
+      -0.015411377,
+      0.3,
+      0.0046691895
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-302",
+    "original": [
+      -259.05,
+      0.3,
+      189.15
+    ],
+    "local": [
+      -0.014587402,
+      0.3,
+      0.012939453
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-303",
+    "original": [
+      -258.3,
+      0.3,
+      189.15
+    ],
+    "local": [
+      -0.007385254,
+      0.3,
+      0.005706787
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-304",
+    "original": [
+      -257.55,
+      0.3,
+      189.15
+    ],
+    "local": [
+      0.0063476562,
+      0.3,
+      0.03277588
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-305",
+    "original": [
+      -263.45,
+      0.3,
+      190.6
+    ],
+    "local": [
+      0.014190674,
+      0.3,
+      0.0027923584
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-306",
+    "original": [
+      -264.2,
+      0.3,
+      190.6
+    ],
+    "local": [
+      0.004852295,
+      0.3,
+      0.00021362305
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-307",
+    "original": [
+      -264.95,
+      0.3,
+      190.6
+    ],
+    "local": [
+      0.0078125,
+      0.3,
+      0.021606445
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-308",
+    "original": [
+      -265.7,
+      0.3,
+      190.6
+    ],
+    "local": [
+      0.010192871,
+      0.3,
+      0.023162842
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-309",
+    "original": [
+      -266.45,
+      0.3,
+      190.6
+    ],
+    "local": [
+      0.008605957,
+      0.3,
+      0.03555298
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-310",
+    "original": [
+      -260.55,
+      0.3,
+      190.6
+    ],
+    "local": [
+      -0.009216309,
+      0.3,
+      0.028076172
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-311",
+    "original": [
+      -259.8,
+      0.3,
+      190.6
+    ],
+    "local": [
+      -0.01977539,
+      0.3,
+      0.037261963
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-312",
+    "original": [
+      -259.05,
+      0.3,
+      190.6
+    ],
+    "local": [
+      0.015014648,
+      0.3,
+      0.027801514
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-313",
+    "original": [
+      -258.3,
+      0.3,
+      190.6
+    ],
+    "local": [
+      -0.013122559,
+      0.3,
+      0.03503418
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-314",
+    "original": [
+      -257.55,
+      0.3,
+      190.6
+    ],
+    "local": [
+      0.0115356445,
+      0.3,
+      0.023162842
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-315",
+    "original": [
+      -263.45,
+      0.3,
+      192.05
+    ],
+    "local": [
+      0.007751465,
+      0.3,
+      0.014373779
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-316",
+    "original": [
+      -264.2,
+      0.3,
+      192.05
+    ],
+    "local": [
+      0.0034179688,
+      0.3,
+      0.021072388
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-317",
+    "original": [
+      -264.95,
+      0.3,
+      192.05
+    ],
+    "local": [
+      0.003967285,
+      0.3,
+      0.0011444092
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-318",
+    "original": [
+      -265.7,
+      0.3,
+      192.05
+    ],
+    "local": [
+      0.018951416,
+      0.3,
+      0.0056152344
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-319",
+    "original": [
+      -266.45,
+      0.3,
+      192.05
+    ],
+    "local": [
+      -0.012207031,
+      0.3,
+      -0.0026397705
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-320",
+    "original": [
+      -260.55,
+      0.3,
+      192.05
+    ],
+    "local": [
+      0.0047912598,
+      0.3,
+      0.033462524
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-321",
+    "original": [
+      -259.8,
+      0.3,
+      192.05
+    ],
+    "local": [
+      -0.01663208,
+      0.3,
+      0.037582397
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-322",
+    "original": [
+      -259.05,
+      0.3,
+      192.05
+    ],
+    "local": [
+      0.007293701,
+      0.3,
+      0.009216309
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-323",
+    "original": [
+      -258.3,
+      0.3,
+      192.05
+    ],
+    "local": [
+      0.009765625,
+      0.3,
+      0.030029297
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-324",
+    "original": [
+      -257.55,
+      0.3,
+      192.05
+    ],
+    "local": [
+      0.015258789,
+      0.3,
+      0.011795044
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-325",
+    "original": [
+      -263.45,
+      0.3,
+      193.5
+    ],
+    "local": [
+      -0.0070495605,
+      0.3,
+      0.033294678
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-326",
+    "original": [
+      -264.2,
+      0.3,
+      193.5
+    ],
+    "local": [
+      -0.0017089844,
+      0.3,
+      -0.0012817383
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-327",
+    "original": [
+      -264.95,
+      0.3,
+      193.5
+    ],
+    "local": [
+      0.011230469,
+      0.3,
+      0.009033203
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-328",
+    "original": [
+      -265.7,
+      0.3,
+      193.5
+    ],
+    "local": [
+      -0.0005187988,
+      0.3,
+      0.0043945312
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-329",
+    "original": [
+      -266.45,
+      0.3,
+      193.5
+    ],
+    "local": [
+      -0.00012207031,
+      0.3,
+      0.028121948
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-330",
+    "original": [
+      -260.55,
+      0.3,
+      193.5
+    ],
+    "local": [
+      -0.010803223,
+      0.3,
+      0.041793823
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-331",
+    "original": [
+      -259.8,
+      0.3,
+      193.5
+    ],
+    "local": [
+      -0.016204834,
+      0.3,
+      0.002319336
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-332",
+    "original": [
+      -259.05,
+      0.3,
+      193.5
+    ],
+    "local": [
+      -0.017456055,
+      0.3,
+      -0.0012817383
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-333",
+    "original": [
+      -258.3,
+      0.3,
+      193.5
+    ],
+    "local": [
+      0.0048828125,
+      0.3,
+      0.03895569
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-334",
+    "original": [
+      -257.55,
+      0.3,
+      193.5
+    ],
+    "local": [
+      -0.013946533,
+      0.3,
+      0.019866943
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-335",
+    "original": [
+      -263.45,
+      0.3,
+      194.95
+    ],
+    "local": [
+      0.0073242188,
+      0.3,
+      0.0066070557
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-336",
+    "original": [
+      -264.2,
+      0.3,
+      194.95
+    ],
+    "local": [
+      -0.007019043,
+      0.3,
+      0.016677856
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-337",
+    "original": [
+      -264.95,
+      0.3,
+      194.95
+    ],
+    "local": [
+      0.010803223,
+      0.3,
+      0.005996704
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-338",
+    "original": [
+      -265.7,
+      0.3,
+      194.95
+    ],
+    "local": [
+      0.0019226074,
+      0.3,
+      0.018218994
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-339",
+    "original": [
+      -266.45,
+      0.3,
+      194.95
+    ],
+    "local": [
+      -0.019378662,
+      0.3,
+      -0.004470825
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-340",
+    "original": [
+      -260.55,
+      0.3,
+      194.95
+    ],
+    "local": [
+      0.008728027,
+      0.3,
+      0.017715454
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-341",
+    "original": [
+      -259.8,
+      0.3,
+      194.95
+    ],
+    "local": [
+      -0.0119018555,
+      0.3,
+      0.015640259
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-342",
+    "original": [
+      -259.05,
+      0.3,
+      194.95
+    ],
+    "local": [
+      0.0025634766,
+      0.3,
+      -0.0012054443
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-343",
+    "original": [
+      -258.3,
+      0.3,
+      194.95
+    ],
+    "local": [
+      -0.012573242,
+      0.3,
+      0.007385254
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-344",
+    "original": [
+      -257.55,
+      0.3,
+      194.95
+    ],
+    "local": [
+      0.0040893555,
+      0.3,
+      0.044692993
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-345",
+    "original": [
+      -263.45,
+      0.3,
+      196.4
+    ],
+    "local": [
+      -0.010559082,
+      0.3,
+      0.03314209
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-346",
+    "original": [
+      -264.2,
+      0.3,
+      196.4
+    ],
+    "local": [
+      0.015991211,
+      0.3,
+      0.019927979
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-347",
+    "original": [
+      -264.95,
+      0.3,
+      196.4
+    ],
+    "local": [
+      -0.016082764,
+      0.3,
+      0.0034179688
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-348",
+    "original": [
+      -265.7,
+      0.3,
+      196.4
+    ],
+    "local": [
+      -0.008544922,
+      0.3,
+      0.03514099
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-349",
+    "original": [
+      -266.45,
+      0.3,
+      196.4
+    ],
+    "local": [
+      -0.0011291504,
+      0.3,
+      0.024383545
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-350",
+    "original": [
+      -260.55,
+      0.3,
+      196.4
+    ],
+    "local": [
+      0.013519287,
+      0.3,
+      0.039520264
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-351",
+    "original": [
+      -259.8,
+      0.3,
+      196.4
+    ],
+    "local": [
+      0.00869751,
+      0.3,
+      0.0140686035
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-352",
+    "original": [
+      -259.05,
+      0.3,
+      196.4
+    ],
+    "local": [
+      0.016601562,
+      0.3,
+      0.0068511963
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-353",
+    "original": [
+      -258.3,
+      0.3,
+      196.4
+    ],
+    "local": [
+      0.0057373047,
+      0.3,
+      0.026885986
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "cathedral",
+    "id": "room-cathedral-source-8941-354",
+    "original": [
+      -257.55,
+      0.3,
+      196.4
+    ],
+    "local": [
+      -0.006225586,
+      0.3,
+      0.030578613
+    ],
+    "height": 0.46,
+    "yaw": 0
+  },
+  {
+    "room": "prison",
+    "id": "room-prison-role-seat-0",
+    "original": [
+      -350.31204,
+      0,
+      206.84238
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.45,
+    "yaw": 6.2831855
+  },
+  {
+    "room": "prison",
+    "id": "room-prison-role-seat-1",
+    "original": [
+      -350.89676,
+      0,
+      196.22032
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.5,
+    "yaw": 0
+  },
+  {
+    "room": "prison",
+    "id": "room-prison-source-9535-161",
+    "original": [
+      -338.3684,
+      0,
+      181.98619
+    ],
+    "local": [
+      0.0062561035,
+      0,
+      -0.2099762
+    ],
+    "height": 0.55,
+    "yaw": 3.1118834
+  },
+  {
+    "room": "prison",
+    "id": "room-prison-role-seat-2",
+    "original": [
+      -333.0574,
+      0,
+      215.35869
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.55,
+    "yaw": 1.8626451E-09
+  },
+  {
+    "room": "prison",
+    "id": "room-prison-role-seat-3",
+    "original": [
+      -350.21088,
+      4.2,
+      193.33942
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.45,
+    "yaw": 0
+  },
+  {
+    "room": "prison",
+    "id": "room-prison-role-seat-4",
+    "original": [
+      -349.38272,
+      4.2,
+      205.86955
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.45,
+    "yaw": 6.2831855
+  },
+  {
+    "room": "prison",
+    "id": "room-prison-role-seat-5",
+    "original": [
+      -348.81195,
+      0,
+      223.69437
+    ],
+    "local": [
+      0,
+      0,
+      0
+    ],
+    "height": 0.45,
+    "yaw": 6.2831855
+  }
+]

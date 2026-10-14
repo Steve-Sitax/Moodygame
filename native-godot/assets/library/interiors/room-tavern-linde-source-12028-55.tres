@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-tavern-linde-source-12028-55.tscn" id="1_ou17k"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_ea172"]
+
+[resource]
+PlacementAnchor = Vector3(2.3841858e-07, 0, 3.33786e-06)
+GeometryClearance = true
+script = ExtResource("2_ea172")
+Id = "room-tavern-linde-source-12028-55"
+Title = "fitting · tavern:linde · source-12028-55"
+Category = "Room originals"
+Scene = ExtResource("1_ou17k")
+Footprint = Vector3(0.08666372, 0.29537606, 0.100001335)
+FootprintOffset = Vector3(2.3841858e-07, 1.4149961, 3.33786e-06)
+FurnitureKind = "fitting"
+SeatYaw = 3.1415925
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000061)

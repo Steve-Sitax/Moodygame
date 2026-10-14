@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/furniture/shelf-wall.tscn" id="1_h6f68"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_6k5yn"]
+
+[resource]
+script = ExtResource("2_6k5yn")
+Id = "shelf-wall"
+Title = "Wall shelves with crockery"
+Category = "Furniture: storage"
+Scene = ExtResource("1_h6f68")
+Footprint = Vector3(0.9, 0.8035, 0.2)
+FootprintOffset = Vector3(0, 1.3, 0.1)
+FurnitureKind = "shelf"
+UsePoint = Vector3(0, 0, 0.55)
+StandPoint = Vector3(0, 0, 0.7)

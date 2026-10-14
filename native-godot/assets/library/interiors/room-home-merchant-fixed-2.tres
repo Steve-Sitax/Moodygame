@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-home-merchant-fixed-2.tscn" id="1_l3sh1"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_lyibp"]
+
+[resource]
+PlacementAnchor = Vector3(4.2915344e-06, 0, 0.0075104237)
+GeometryClearance = true
+script = ExtResource("2_lyibp")
+Id = "room-home-merchant-fixed-2"
+Title = "wardrobe · home:merchant · fixed-2"
+Category = "Room originals"
+Scene = ExtResource("1_l3sh1")
+Footprint = Vector3(1.060008, 2.02502, 0.5550208)
+FootprintOffset = Vector3(4.2915344e-06, 0.00497045, 0.0075104237)
+FurnitureKind = "wardrobe"
+UsePoint = Vector3(0, 0.50000024, 0)
+StandPoint = Vector3(0.093559265, 0, -0.592659)

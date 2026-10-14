@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/furniture/chair-ladderback.tscn" id="1_5wm6v"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_syd67"]
+
+[resource]
+script = ExtResource("2_syd67")
+Id = "chair-ladderback"
+Title = "Rush-seat ladder-back chair"
+Category = "Furniture: seating"
+Scene = ExtResource("1_5wm6v")
+Footprint = Vector3(0.452, 0.964, 0.4596)
+FootprintOffset = Vector3(0, 0, -0.0223)
+FurnitureKind = "chair"
+SeatPoints = PackedVector3Array(0, 0, 0.01)
+SeatHeight = 0.452
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.7)

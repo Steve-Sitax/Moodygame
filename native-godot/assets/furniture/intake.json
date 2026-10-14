@@ -1,0 +1,71 @@
+{
+  "format": 1,
+  "contract": "docs/furniture.md",
+  "pieces": [
+    "chair-ladderback",
+    "chair-tavern",
+    "chair-cafe",
+    "stool-low",
+    "stool-bar",
+    "settle",
+    "bench-long",
+    "bench-short",
+    "table-cafe-round",
+    "table-square",
+    "table-kitchen-long",
+    "desk-writing",
+    "counter-bar",
+    "counter-shop",
+    "shelf-wall",
+    "dresser",
+    "armoire",
+    "bed-box",
+    "bed-iron",
+    "mattress-straw",
+    "cradle",
+    "stove-leuven",
+    "range-kitchen",
+    "clock-wall",
+    "clock-longcase",
+    "washstand"
+  ],
+  "mipmaps": true,
+  "sources": [
+    {
+      "file": "beds.glb",
+      "sha256": "74edbdaa2dc3741f11725498f09e2b4a3ca63a70115ad6b7a6be9e668dcaeb8c"
+    },
+    {
+      "file": "clocks.glb",
+      "sha256": "225529b0de5808df03d2c2cd661cae02a88313477bc01bb9c3d4f906d8d509cf"
+    },
+    {
+      "file": "counters.glb",
+      "sha256": "1b7a6847e638aa3cca6d1dcc67d9a8afbb9294532b1df2b7ca32c6e16d5c888e"
+    },
+    {
+      "file": "furniture.json",
+      "sha256": "62cc3c33a39e876d006c1e37949458dbd423b81c92a3f09a994015dd9ac23a1e"
+    },
+    {
+      "file": "seating.glb",
+      "sha256": "a8cb0ee776f68bbd7af46e3f8d1db01a0f5899df6263dbd8b330d7e86a50f9ba"
+    },
+    {
+      "file": "storage.glb",
+      "sha256": "ff5f8dd8a29994c49a43484c6cb416206ff18a3bff0d150b969968dd6c570ed2"
+    },
+    {
+      "file": "stoves.glb",
+      "sha256": "4cdcad17765d8f98d3e4e5695d08795b5321da1a18ffde3ae358f5b0323a2cd9"
+    },
+    {
+      "file": "tables.glb",
+      "sha256": "6d3b601a2d20c2e8f906fb7e65f96ccefa66ad23e1a3aba508d96f0e09bcdbf9"
+    },
+    {
+      "file": "wash.glb",
+      "sha256": "7658495e9bc020ec895cccff8108db2f3575fdd185162ab38030442d76c0a336"
+    }
+  ]
+}

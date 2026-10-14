@@ -15,11 +15,13 @@ public partial class WorkshopSession : Node3D
     public Dictionary<string, AuthorAsset> Assets { get; private set; } = new();
     public LayoutDocument Document { get; private set; } = null!;
     public LayoutStore Store { get; private set; } = null!;
-    public EditHistory History { get; } = new();
+    public EditHistory History { get; private set; } = new();
     public WorkshopCamera Camera { get; private set; } = null!;
     public bool Editing => Camera.Editing;
     public bool Night { get; private set; }
-    public bool Dirty => saved != Document.Encode();
+    public bool Dirty => saved != Document.Encode() || suspended.Values.Any(s => s.Saved != s.Document.Encode());
+    private sealed record Suspended(LayoutDocument Document, LayoutStore Store, EditHistory History, string Saved);
+    private readonly Dictionary<string, Suspended> suspended = new();
     public string? SelectedId { get; private set; }
     public IReadOnlyDictionary<string, AuthoredObject> Instances => objects;
     public WorkshopUi Ui { get; private set; } = null!;
@@ -29,6 +31,7 @@ public partial class WorkshopSession : Node3D
     private Node3D objectRoot = null!;
     private readonly Dictionary<string, AuthoredObject> objects = new();
     private string saved = "";
+    private bool quitConnected;
     private string? previewAsset, movingId;
     private Node3D? ghost;
     private Placement? candidate;
@@ -54,13 +57,13 @@ public partial class WorkshopSession : Node3D
                 string native = World.NativeDistrictLayouts.ResourcePath(requested);
                 if (ResourceLoader.Exists(native)) path = native;
                 if (!ResourceLoader.Exists(path)) throw new FileNotFoundException("Recover this district first: " + requested);
-                if (path.StartsWith(World.NativeDistrictLayouts.DistrictDirectory + "/", StringComparison.Ordinal)) Game.NativeGlobals.Ensure();
+                if (path.StartsWith(World.NativeDistrictLayouts.DistrictDirectory + "/", StringComparison.Ordinal) || requested.StartsWith("room-")) Game.NativeGlobals.Ensure();
                 District = ResourceLoader.Load<AuthorDistrict>(path);
             }
             District.Validate();
             // main.tscn retains a visible seed for the Godot editor. Runtime selects the requested native district.
             if (GetNodeOrNull<Node3D>("District") is { } seed) { RemoveChild(seed); seed.Free(); }
-            var districtScene = District.Scene.Instantiate<Node3D>(); districtScene.Name = "District"; AddChild(districtScene);
+            var districtScene = EditorScene(District).Instantiate<Node3D>(); districtScene.Name = "District"; AddChild(districtScene);
             Assets = Catalog.Index();
             Camera = GetNode<WorkshopCamera>("Camera");
             Camera.Configure(District);
@@ -83,9 +86,11 @@ public partial class WorkshopSession : Node3D
             Ui = new WorkshopUi(); GetNode<CanvasLayer>("Ui").AddChild(Ui); Ui.Bind(this);
             GetTree().AutoAcceptQuit = false;
             GetTree().Root.CloseRequested += RequestQuit;
+            quitConnected=true;
             if (warning != null) Ui.Note(warning);
             var proof = Arg("author-test");
-            if (Arg("recovery-test") != "") _ = Recovery.RecoveryWorkshopProof.Run(this, Arg("recovery-test"), Arg("proof-stage", "write"));
+            if(Arg("furniture-proof")!="") _ = Interiors.FurnitureWorkshopProof.Run(this,Arg("furniture-proof"),Arg("proof-stage","write"));
+            else if (Arg("recovery-test") != "") _ = Recovery.RecoveryWorkshopProof.Run(this, Arg("recovery-test"), Arg("proof-stage", "write"));
             else if (proof != "") _ = WorkshopProof.Run(this, proof, Arg("proof-stage", "write"));
             else if (Arg("author-shot") != "") _ = WorkshopProof.Picture(this, Arg("author-shot"));
             else if (Arg("surface-shot") != "") _ = Game.NativeSurfaceProof.Workshop(this, Arg("surface-shot"));
@@ -98,13 +103,52 @@ public partial class WorkshopSession : Node3D
         var args = OS.GetCmdlineUserArgs(); int i = Array.IndexOf(args, "--" + key);
         return i >= 0 && i + 1 < args.Length && !args[i + 1].StartsWith("--") ? args[i + 1] : fallback;
     }
+    public void EnterRoom(string id)
+    {
+        if (id == DistrictId) return;
+        try
+        {
+            var district = World.NativeDistrictLayouts.Descriptor(id); district.Validate();
+            var assets = district.Catalog.Index();
+            string authorDirectory=Arg("author-dir");
+            string layoutDirectory=Arg("author-root")=="" && authorDirectory!="" ? Path.Combine(authorDirectory,"rooms",id) : World.NativeDistrictLayouts.LayoutDirectory(id);
+            var store = new LayoutStore(Path.Combine(layoutDirectory, "layout.json"));
+            var scene = EditorScene(district).Instantiate<Node3D>();
+            var seed = new LayoutDocument { District=id, Objects=scene.GetNode<Node3D>("Objects").GetChildren().OfType<AuthoredObject>().Select(o=>o.Record()).ToList() };
+            string? warning = null;
+            try { if(store.Read() is {} loaded) { loaded.Validate(id,assets); seed=loaded; } }
+            catch(Exception e) when(e is IOException or System.Text.Json.JsonException or InvalidOperationException) { store.RefuseWrites(); warning=e.Message; }
+            seed.Validate(id,assets);
+            suspended[DistrictId]=new(Document.Copy(),Store,History,saved);
+            CancelPreview();SelectedId=null;
+            var old=GetNode<Node3D>("District"); RemoveChild(old);old.Free();objects.Clear();
+            District=district;Assets=assets;scene.Name="District";AddChild(scene);objectRoot=scene.GetNode<Node3D>("Objects");
+            foreach(var obj in objectRoot.GetChildren().OfType<AuthoredObject>())objects.Add(obj.ObjectId,obj);
+            if(suspended.Remove(id,out var state)){Store=state.Store;History=state.History;saved=state.Saved;Apply(state.Document);}
+            else {Store=store;History=new();Apply(seed);saved=Document.Encode();}
+            Camera.Configure(District);Ui.Refresh();Ui.RefreshLibrary();
+            Ui.Note(warning == null ? "Editing " + District.Title + ". Save writes all changed rooms; switching keeps unsaved edits." : "Saved layout preserved; saving disabled. " + warning);
+        }
+        catch(Exception e) when(e is IOException or InvalidOperationException) {Ui.Note(e.Message);}
+    }
     private void RequestQuit()
     {
         if (Dirty) Ui.ConfirmQuit(); else GetTree().Quit();
     }
+    private static PackedScene EditorScene(AuthorDistrict district)=>district.EditorScenePath!=""?ResourceLoader.Load<PackedScene>(district.EditorScenePath):district.Scene;
+    public bool PromoteMap()
+    {
+        if(!Save())return false;
+        try
+        {
+            foreach(var pair in suspended){var district=World.NativeDistrictLayouts.Descriptor(pair.Key);MapPromotion.Write(district,pair.Value.Document,district.Catalog.Index());}
+            MapPromotion.Write(District,Document,Assets);Ui.Note("Saved into the repository map. Commit the object scenes and prepare the game package.");return true;
+        }
+        catch(Exception e) when(e is IOException or InvalidOperationException or UnauthorizedAccessException){Ui.Note(e.Message);return false;}
+    }
     public override void _ExitTree()
     {
-        GetTree().Root.CloseRequested -= RequestQuit;
+        if(quitConnected) GetTree().Root.CloseRequested -= RequestQuit;
         Input.MouseMode = Input.MouseModeEnum.Visible;
     }
 
@@ -167,6 +211,7 @@ public partial class WorkshopSession : Node3D
         next.Validate(DistrictId, Assets);
         if (move != null && !objects.ContainsKey(move)) return false;
         if (!Clear(placement, out var why)) { Ui.Note(why); return false; }
+        if(!Interiors.InteriorRoutes.KeepsRoutes(this,next,out why)){Ui.Note(why);return false;}
         CancelPreview(); Commit(next); Select(placement.Id); return true;
     }
     public bool SetSelectedPose(Vector3 position, float yawDegrees)
@@ -180,6 +225,9 @@ public partial class WorkshopSession : Node3D
         try
         {
             Document.Validate(DistrictId, Assets); Store.Save(Document); saved = Document.Encode();
+            foreach(var pair in suspended.ToArray())
+                if(pair.Value.Saved != pair.Value.Document.Encode())
+                {pair.Value.Store.Save(pair.Value.Document);suspended[pair.Key]=pair.Value with {Saved=pair.Value.Document.Encode()};}
             Ui.Refresh(); Ui.Note("Town layout saved."); return true;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException)
@@ -212,6 +260,16 @@ public partial class WorkshopSession : Node3D
         var size = asset.Footprint * scale;
         var basis = Basis.FromEuler(rotation);
         var offset = asset.FootprintOffset * scale + new Vector3(0, size.Y * 0.5f, 0);
+        if (District.RoomId != "")
+        {
+            var inverse=District.RoomFrame.AffineInverse();
+            foreach(float dx in new[]{-.5f,.5f}) foreach(float dy in new[]{-.5f,.5f}) foreach(float dz in new[]{-.5f,.5f})
+            {
+                var local=inverse*(position+basis*(offset+new Vector3(size.X*dx,size.Y*dy,size.Z*dz)));
+                if(!District.RoomBounds.Grow(.005f).HasPoint(new(local.X,local.Z)) || local.Y < -.04f || local.Y > District.RoomHeight+.01f)
+                {why="The whole object must fit inside this room, below its ceiling.";return false;}
+            }
+        }
         bool inside = true;
         foreach (float dx in new[] { -0.5f, 0.5f }) foreach (float dz in new[] { -0.5f, 0.5f })
         {
@@ -223,16 +281,17 @@ public partial class WorkshopSession : Node3D
         foreach (float dx in new[] { -0.5f, 0.5f }) foreach (float dz in new[] { -0.5f, 0.5f })
         {
             var foot = position + basis * (offset + new Vector3(size.X * dx, 0, size.Z * dz));
-            using var support = PhysicsRayQueryParameters3D.Create(new(foot.X, position.Y + 0.2f, foot.Z), new(foot.X, position.Y - 0.2f, foot.Z), 1);
+            float floorY=(position+basis*(asset.PlacementAnchor*scale)).Y;
+            using var support = PhysicsRayQueryParameters3D.Create(new(foot.X, floorY + 0.2f, foot.Z), new(foot.X, floorY - 0.2f, foot.Z), 1);
             var ground = GetWorld3D().DirectSpaceState.IntersectRay(support);
-            if (ground.Count == 0 || ground["normal"].AsVector3().Dot(Vector3.Up) < 0.7f)
+            if (ground.Count == 0 || (District.RoomId!=""?Math.Abs(ground["normal"].AsVector3().Dot(Vector3.Up)):ground["normal"].AsVector3().Dot(Vector3.Up)) < 0.7f)
             { why = "The object needs solid ground under its footprint."; return false; }
         }
         var exclude = new Godot.Collections.Array<Rid>();
         if (objects.TryGetValue(p.Id, out var own)) foreach (var body in Nodes(own).OfType<CollisionObject3D>()) exclude.Add(body.GetRid());
         using var shape = new BoxShape3D { Size = size * 0.98f };
         using var query = new PhysicsShapeQueryParameters3D { Shape = shape,
-            Transform = new Transform3D(basis, position + basis * offset), CollisionMask = 2, Exclude = exclude, Margin = 0.001f };
+            Transform = new Transform3D(basis, position + basis * offset), CollisionMask = District.RoomId != "" ? 3u : 2u, Exclude = exclude, Margin = 0.001f };
         bool free = GetWorld3D().DirectSpaceState.IntersectShape(query, 1).Count == 0;
         why = free ? "Click to place. R turns the object; Esc cancels." : "There is another object here.";
         return free;
@@ -258,13 +317,14 @@ public partial class WorkshopSession : Node3D
         previewRotation = move != null ? objects[move].Rotation : Vector3.Zero;
         previewScale = move != null ? objects[move].Scale : Vector3.One;
         ghost = Assets[asset].Scene!.Instantiate<Node3D>(); ghost.Name = "PlacementPreview";
+        AddChild(ghost);
         foreach (var node in Nodes(ghost))
         {
             if (node is CollisionObject3D body) { body.CollisionLayer = 0; body.CollisionMask = 0; }
             if (node is Light3D light) light.Visible = false;
             if (node is MeshInstance3D mesh) mesh.MaterialOverride = previewMaterial;
         }
-        AddChild(ghost); ghost.Visible = false;
+        ghost.Visible = false;
         if (move != null) objects[move].Visible = false;
         Ui.Refresh();
     }
@@ -296,6 +356,7 @@ public partial class WorkshopSession : Node3D
                 if (Snap) { position.X = Mathf.Snapped(position.X, Grid); position.Z = Mathf.Snapped(position.Z, Grid); }
                 // Retain the surface height: ramparts, steps and raised pavements are real native geometry.
                 if (Math.Abs(position.Y) < 0.03f) position.Y = 0;
+                position-=Basis.FromEuler(previewRotation)*(Assets[previewAsset].PlacementAnchor*previewScale);
                 candidate = new() { Id = movingId ?? "preview", Asset = previewAsset, Position = LayoutDocument.Floats(position),
                     Rotation = LayoutDocument.Floats(previewRotation), Scale = LayoutDocument.Floats(previewScale) };
                 previewValid = Clear(candidate, out previewReason);

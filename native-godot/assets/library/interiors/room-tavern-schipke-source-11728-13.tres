@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-tavern-schipke-source-11728-13.tscn" id="1_nc8vf"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_5qf73"]
+
+[resource]
+PlacementAnchor = Vector3(7.1525574e-07, 0, -9.536743e-07)
+GeometryClearance = true
+script = ExtResource("2_5qf73")
+Id = "room-tavern-schipke-source-11728-13"
+Title = "shelf · tavern:schipke · source-11728-13"
+Category = "Room originals"
+Scene = ExtResource("1_nc8vf")
+Footprint = Vector3(0.29003763, 0.33004117, 4.000057)
+FootprintOffset = Vector3(7.1525574e-07, 1.2199588, -9.536743e-07)
+FurnitureKind = "shelf"
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000004)

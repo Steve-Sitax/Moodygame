@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-shop-books_kathedraal.catalog.tres" id="1_4jbrn"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-shop-books_kathedraal.structure.tscn" id="2_3liis"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-shop-books_kathedraal.objects.tscn" id="3_4jbrn"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_wjdwl"]
+
+[resource]
+script = ExtResource("4_wjdwl")
+Id = "room-shop-books_kathedraal"
+Title = "shop:books_kathedraal"
+Scene = ExtResource("3_4jbrn")
+EditorScenePath = "res://world/interiors/room-shop-books_kathedraal.tscn"
+Catalog = ExtResource("1_4jbrn")
+Bounds = Rect2(-294.56, 65.67499, 200, 200)
+WalkSpawn = Vector3(-194.56, 0.2, 165.67499)
+FlySpawn = Vector3(-194.56, 1.78, 165.67499)
+FlyYaw = 1.5707964
+FlyPitch = -0.12
+RoomId = "shop:books_kathedraal"
+RoomFrame = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -200, 0.18, 164.2125)
+RoomBounds = Rect2(-4.1875, 0.2, 5.45, 10.4800005)
+EntryPoints = PackedVector3Array(-200, 0.18, 164.2125)
+ReplacedMeshes = PackedInt32Array(10958, 10960, 10961, 10962, 10963, 10964, 10965, 10966, 10967, 10968, 10969, 10970, 10971, 10972, 10979, 11013)
+RetainedStructure = ExtResource("2_3liis")

@@ -1,0 +1,131 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_0wkpx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-counter.tres" id="2_jsc35"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11210-1.tres" id="3_fitdc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11210-2.tres" id="4_g84dw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11210-3.tres" id="5_x0al0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11210-4.tres" id="6_6uj3q"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11210-5.tres" id="7_aefnl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11217-6.tres" id="8_y2ih1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11217-7.tres" id="9_xkku6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11218-8.tres" id="10_6aeoh"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11225-9.tres" id="11_mkf2r"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11225-10.tres" id="12_312bk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11225-11.tres" id="13_0qbv8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11225-12.tres" id="14_r2jfk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11226-13.tres" id="15_nyel5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11226-14.tres" id="16_ojdrg"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11232-15.tres" id="17_v2jvq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11232-16.tres" id="18_1td3k"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11272-17.tres" id="19_7nwwi"]
+
+[node name="Objects" type="Node3D" unique_id=1492685664]
+
+[node name="object_counter" type="Node3D" parent="." unique_id=1770610199]
+transform = Transform3D(-0.9955125, 0, 0.094630204, 0, 1, 0, -0.094630204, 0, -0.9955125, -117.41635, 0.18, 257.965)
+script = ExtResource("1_0wkpx")
+ObjectId = "room-shop-grocer_south-counter"
+Asset = ExtResource("2_jsc35")
+
+[node name="object_source-11210-1" type="Node3D" parent="." unique_id=398105348]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -116.48448, 0.18, 257.44693)
+script = ExtResource("1_0wkpx")
+ObjectId = "room-shop-grocer_south-source-11210-1"
+Asset = ExtResource("3_fitdc")
+
+[node name="object_source-11210-2" type="Node3D" parent="." unique_id=701078408]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.08906, 0.18, 260.789)
+script = ExtResource("1_0wkpx")
+ObjectId = "room-shop-grocer_south-source-11210-2"
+Asset = ExtResource("4_g84dw")
+
+[node name="object_source-11210-3" type="Node3D" parent="." unique_id=937643327]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -119.35982, 0.18, 254.37006)
+script = ExtResource("1_0wkpx")
+ObjectId = "room-shop-grocer_south-source-11210-3"
+Asset = ExtResource("5_x0al0")
+
+[node name="object_source-11210-4" type="Node3D" parent="." unique_id=300453120]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -119.3584, 0.18, 254.3551)
+script = ExtResource("1_0wkpx")
+ObjectId = "room-shop-grocer_south-source-11210-4"
+Asset = ExtResource("6_6uj3q")
+
+[node name="object_source-11210-5" type="Node3D" parent="." unique_id=380592166]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -122.92906, 0.18, 254.87953)
+script = ExtResource("1_0wkpx")
+ObjectId = "room-shop-grocer_south-source-11210-5"
+Asset = ExtResource("7_aefnl")
+
+[node name="object_source-11217-6" type="Node3D" parent="." unique_id=382882462]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -117.31143, 0.18, 258.65805)
+script = ExtResource("1_0wkpx")
+ObjectId = "room-shop-grocer_south-source-11217-6"
+Asset = ExtResource("8_y2ih1")
+
+[node name="object_source-11217-7" type="Node3D" parent="." unique_id=1977225259]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -120.18929, 0.18, 256.7552)
+script = ExtResource("1_0wkpx")
+ObjectId = "room-shop-grocer_south-source-11217-7"
+Asset = ExtResource("9_xkku6")
+
+[node name="object_source-11218-8" type="Node3D" parent="." unique_id=409639117]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -122.88741, 0.18, 257.29425)
+script = ExtResource("1_0wkpx")
+ObjectId = "room-shop-grocer_south-source-11218-8"
+Asset = ExtResource("10_6aeoh")
+
+[node name="object_source-11225-9" type="Node3D" parent="." unique_id=1182942722]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -123.34438, 0.18, 259.3589)
+script = ExtResource("1_0wkpx")
+ObjectId = "room-shop-grocer_south-source-11225-9"
+Asset = ExtResource("11_mkf2r")
+
+[node name="object_source-11225-10" type="Node3D" parent="." unique_id=1861484276]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -123.23083, 0.18, 258.1643)
+script = ExtResource("1_0wkpx")
+ObjectId = "room-shop-grocer_south-source-11225-10"
+Asset = ExtResource("12_312bk")
+
+[node name="object_source-11225-11" type="Node3D" parent="." unique_id=1000134886]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -123.11727, 0.18, 256.96967)
+script = ExtResource("1_0wkpx")
+ObjectId = "room-shop-grocer_south-source-11225-11"
+Asset = ExtResource("13_0qbv8")
+
+[node name="object_source-11225-12" type="Node3D" parent="." unique_id=883979972]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -123.00372, 0.18, 255.77505)
+script = ExtResource("1_0wkpx")
+ObjectId = "room-shop-grocer_south-source-11225-12"
+Asset = ExtResource("14_r2jfk")
+
+[node name="object_source-11226-13" type="Node3D" parent="." unique_id=1815434306]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -122.048676, 0.18, 254.65884)
+script = ExtResource("1_0wkpx")
+ObjectId = "room-shop-grocer_south-source-11226-13"
+Asset = ExtResource("15_nyel5")
+
+[node name="object_source-11226-14" type="Node3D" parent="." unique_id=2023444544]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -121.49533, 0.18, 254.6644)
+script = ExtResource("1_0wkpx")
+ObjectId = "room-shop-grocer_south-source-11226-14"
+Asset = ExtResource("16_ojdrg")
+
+[node name="object_source-11232-15" type="Node3D" parent="." unique_id=1348099627]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -117.31145, 0.18, 258.65802)
+script = ExtResource("1_0wkpx")
+ObjectId = "room-shop-grocer_south-source-11232-15"
+Asset = ExtResource("17_v2jvq")
+
+[node name="object_source-11232-16" type="Node3D" parent="." unique_id=412851102]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -120.189285, 0.18, 256.75516)
+script = ExtResource("1_0wkpx")
+ObjectId = "room-shop-grocer_south-source-11232-16"
+Asset = ExtResource("18_1td3k")
+
+[node name="object_source-11272-17" type="Node3D" parent="." unique_id=1864811428]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.13424, 0.18, 261.26385)
+script = ExtResource("1_0wkpx")
+ObjectId = "room-shop-grocer_south-source-11272-17"
+Asset = ExtResource("19_7nwwi")

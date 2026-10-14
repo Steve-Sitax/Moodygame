@@ -1,0 +1,502 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_4abvc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-seat-0.tres" id="2_00sgj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-seat-1.tres" id="3_pmov6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-seat-2.tres" id="4_g0rji"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-seat-3.tres" id="5_ohj4q"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-seat-4.tres" id="6_ukbnw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-seat-5.tres" id="7_gj8js"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-seat-6.tres" id="8_m5nc8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-seat-7.tres" id="9_43hil"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-seat-8.tres" id="10_oxi6o"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-seat-9.tres" id="11_onu2u"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-seat-10.tres" id="12_dix8u"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-seat-11.tres" id="13_va745"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-seat-12.tres" id="14_760lq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-seat-13.tres" id="15_oscm7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-seat-14.tres" id="16_j6mry"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-seat-15.tres" id="17_t6iqi"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-seat-16.tres" id="18_g8eu7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-seat-17.tres" id="19_44uok"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-seat-18.tres" id="20_crwec"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-seat-19.tres" id="21_8kmfs"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-seat-20.tres" id="22_mdpya"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-seat-21.tres" id="23_11gt0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-seat-22.tres" id="24_c2icr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-seat-23.tres" id="25_7or67"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-seat-24.tres" id="26_jji5e"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-table-0.tres" id="27_d1xpl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-table-1.tres" id="28_j3f7y"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-table-2.tres" id="29_hgy88"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-table-3.tres" id="30_i4jgf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-table-4.tres" id="31_yx33v"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-table-5.tres" id="32_2uexy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-table-6.tres" id="33_5whtw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-table-7.tres" id="34_7g7h0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-table-8.tres" id="35_8w1nh"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-table-10.tres" id="36_acr2a"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-counter.tres" id="37_32uky"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12022-36.tres" id="38_a83eh"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12022-37.tres" id="39_3bnwn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12022-38.tres" id="40_8u405"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12022-39.tres" id="41_pu0i8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12022-40.tres" id="42_y026v"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12022-41.tres" id="43_ey5ht"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12022-42.tres" id="44_2abg3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12022-43.tres" id="45_q1hf0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12022-44.tres" id="46_2n0bn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12022-45.tres" id="47_4pm3e"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12022-46.tres" id="48_tlwcf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12022-47.tres" id="49_wlfd8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12022-48.tres" id="50_76qu4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12022-49.tres" id="51_ci7p0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12022-50.tres" id="52_djwxl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12022-51.tres" id="53_ctmlv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12022-52.tres" id="54_b7v1v"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12022-53.tres" id="55_ldiu1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12022-54.tres" id="56_iebpe"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12028-55.tres" id="57_yw6bw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12028-56.tres" id="58_wos3n"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12028-57.tres" id="59_r7asb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12028-58.tres" id="60_25tga"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12028-59.tres" id="61_ba5f4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12028-60.tres" id="62_hf2cb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12028-61.tres" id="63_rma3e"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12028-62.tres" id="64_y5al4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12028-63.tres" id="65_jdnd1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12032-64.tres" id="66_c7m18"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12034-65.tres" id="67_ugkmo"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12034-66.tres" id="68_2wwbt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12034-67.tres" id="69_6wg3a"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12036-68.tres" id="70_u0ru7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12040-69.tres" id="71_6ceyn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-linde-source-12041-70.tres" id="72_h2fh2"]
+
+[node name="Objects" type="Node3D" unique_id=1073550968]
+
+[node name="object_seat-0" type="Node3D" parent="." unique_id=1908961650]
+transform = Transform3D(1.9470718e-07, 0, 1, 0, 1, 0, -1, 0, 1.9470718e-07, -177.48, 0.18, 203.6)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-seat-0"
+Asset = ExtResource("2_00sgj")
+
+[node name="object_seat-1" type="Node3D" parent="." unique_id=557595526]
+transform = Transform3D(-1, 0, 1.509958e-07, 0, 1, 0, -1.509958e-07, 0, -1, -176.86, 0.18, 204.2)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-seat-1"
+Asset = ExtResource("3_pmov6")
+
+[node name="object_seat-2" type="Node3D" parent="." unique_id=405584817]
+transform = Transform3D(1.9470718e-07, 0, 1, 0, 1, 0, -1, 0, 1.9470718e-07, -177.48, 0.18, 202.05)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-seat-2"
+Asset = ExtResource("4_g0rji")
+
+[node name="object_seat-3" type="Node3D" parent="." unique_id=1098257066]
+transform = Transform3D(-1, 0, 1.509958e-07, 0, 1, 0, -1.509958e-07, 0, -1, -176.86, 0.18, 202.65)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-seat-3"
+Asset = ExtResource("5_ohj4q")
+
+[node name="object_seat-4" type="Node3D" parent="." unique_id=1808628088]
+transform = Transform3D(1.9470718e-07, 0, 1, 0, 1, 0, -1, 0, 1.9470718e-07, -177.48, 0.18, 200.5)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-seat-4"
+Asset = ExtResource("6_ukbnw")
+
+[node name="object_seat-5" type="Node3D" parent="." unique_id=1092479038]
+transform = Transform3D(-1, 0, 1.509958e-07, 0, 1, 0, -1.509958e-07, 0, -1, -176.86, 0.18, 201.1)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-seat-5"
+Asset = ExtResource("7_gj8js")
+
+[node name="object_seat-6" type="Node3D" parent="." unique_id=657033584]
+transform = Transform3D(1.9470718e-07, 0, 1, 0, 1, 0, -1, 0, 1.9470718e-07, -177.48, 0.18, 198.95)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-seat-6"
+Asset = ExtResource("8_m5nc8")
+
+[node name="object_seat-7" type="Node3D" parent="." unique_id=1333697213]
+transform = Transform3D(-1, 0, 1.509958e-07, 0, 1, 0, -1.509958e-07, 0, -1, -176.86, 0.18, 199.55)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-seat-7"
+Asset = ExtResource("9_43hil")
+
+[node name="object_seat-8" type="Node3D" parent="." unique_id=1079804761]
+transform = Transform3D(1.9470718e-07, 0, 1, 0, 1, 0, -1, 0, 1.9470718e-07, -177.48, 0.18, 197.4)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-seat-8"
+Asset = ExtResource("10_oxi6o")
+
+[node name="object_seat-9" type="Node3D" parent="." unique_id=919701240]
+transform = Transform3D(-1, 0, 1.509958e-07, 0, 1, 0, -1.509958e-07, 0, -1, -176.86, 0.18, 198)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-seat-9"
+Asset = ExtResource("11_onu2u")
+
+[node name="object_seat-10" type="Node3D" parent="." unique_id=1075246749]
+transform = Transform3D(1.9470718e-07, 0, 1, 0, 1, 0, -1, 0, 1.9470718e-07, -177.48, 0.18, 195.85)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-seat-10"
+Asset = ExtResource("12_dix8u")
+
+[node name="object_seat-11" type="Node3D" parent="." unique_id=1047706922]
+transform = Transform3D(-1, 0, 1.509958e-07, 0, 1, 0, -1.509958e-07, 0, -1, -176.86, 0.18, 196.45)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-seat-11"
+Asset = ExtResource("13_va745")
+
+[node name="object_seat-12" type="Node3D" parent="." unique_id=549112756]
+transform = Transform3D(1.9470718e-07, 0, 1, 0, 1, 0, -1, 0, 1.9470718e-07, -177.48, 0.18, 194.3)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-seat-12"
+Asset = ExtResource("14_760lq")
+
+[node name="object_seat-13" type="Node3D" parent="." unique_id=1537268545]
+transform = Transform3D(-1, 0, 1.509958e-07, 0, 1, 0, -1.509958e-07, 0, -1, -176.86, 0.18, 194.9)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-seat-13"
+Asset = ExtResource("15_oscm7")
+
+[node name="object_seat-14" type="Node3D" parent="." unique_id=88547024]
+transform = Transform3D(-1, 0, 1.509958e-07, 0, 1, 0, -1.509958e-07, 0, -1, -178.735, 0.18, 202.2)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-seat-14"
+Asset = ExtResource("16_j6mry")
+
+[node name="object_seat-15" type="Node3D" parent="." unique_id=92348552]
+transform = Transform3D(1, 0, -3.019916e-07, 0, 1, 0, 3.019916e-07, 0, 1, -178.735, 0.18, 201)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-seat-15"
+Asset = ExtResource("17_t6iqi")
+
+[node name="object_seat-16" type="Node3D" parent="." unique_id=1551057624]
+transform = Transform3D(-1, 0, 1.509958e-07, 0, 1, 0, -1.509958e-07, 0, -1, -178.735, 0.18, 199.8)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-seat-16"
+Asset = ExtResource("18_g8eu7")
+
+[node name="object_seat-17" type="Node3D" parent="." unique_id=1077411491]
+transform = Transform3D(1, 0, -3.019916e-07, 0, 1, 0, 3.019916e-07, 0, 1, -178.735, 0.18, 198.6)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-seat-17"
+Asset = ExtResource("19_44uok")
+
+[node name="object_seat-18" type="Node3D" parent="." unique_id=1763901841]
+transform = Transform3D(-1, 0, 1.509958e-07, 0, 1, 0, -1.509958e-07, 0, -1, -178.735, 0.18, 197.4)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-seat-18"
+Asset = ExtResource("20_crwec")
+
+[node name="object_seat-19" type="Node3D" parent="." unique_id=704719658]
+transform = Transform3D(1, 0, -3.019916e-07, 0, 1, 0, 3.019916e-07, 0, 1, -178.735, 0.18, 196.2)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-seat-19"
+Asset = ExtResource("21_8kmfs")
+
+[node name="object_seat-20" type="Node3D" parent="." unique_id=130687374]
+transform = Transform3D(-1, 0, 1.509958e-07, 0, 1, 0, -1.509958e-07, 0, -1, -178.735, 0.18, 195)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-seat-20"
+Asset = ExtResource("22_mdpya")
+
+[node name="object_seat-21" type="Node3D" parent="." unique_id=1625750696]
+transform = Transform3D(1, 0, -3.019916e-07, 0, 1, 0, 3.019916e-07, 0, 1, -178.735, 0.18, 193.8)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-seat-21"
+Asset = ExtResource("23_11gt0")
+
+[node name="object_seat-22" type="Node3D" parent="." unique_id=696048855]
+transform = Transform3D(1.1924881e-08, 0, -1, 0, 1, 0, 1, 0, 1.1924881e-08, -180.46, 0.18, 202.1)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-seat-22"
+Asset = ExtResource("24_c2icr")
+
+[node name="object_seat-23" type="Node3D" parent="." unique_id=640563898]
+transform = Transform3D(1.1924881e-08, 0, -1, 0, 1, 0, 1, 0, 1.1924881e-08, -180.46, 0.18, 200.8)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-seat-23"
+Asset = ExtResource("25_7or67")
+
+[node name="object_seat-24" type="Node3D" parent="." unique_id=1658692519]
+transform = Transform3D(1.1924881e-08, 0, -1, 0, 1, 0, 1, 0, 1.1924881e-08, -180.46, 0.18, 199.5)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-seat-24"
+Asset = ExtResource("26_jji5e")
+
+[node name="object_table-0" type="Node3D" parent="." unique_id=555864218]
+transform = Transform3D(-1, 0, 1.509958e-07, 0, 1, 0, -1.509958e-07, 0, -1, -177.17, 0.18, 203.9)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-table-0"
+Asset = ExtResource("27_d1xpl")
+
+[node name="object_table-1" type="Node3D" parent="." unique_id=2128010664]
+transform = Transform3D(-1, 0, 1.509958e-07, 0, 1, 0, -1.509958e-07, 0, -1, -177.17, 0.18, 202.35)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-table-1"
+Asset = ExtResource("28_j3f7y")
+
+[node name="object_table-2" type="Node3D" parent="." unique_id=2059965198]
+transform = Transform3D(-1, 0, 1.509958e-07, 0, 1, 0, -1.509958e-07, 0, -1, -177.17, 0.18, 200.8)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-table-2"
+Asset = ExtResource("29_hgy88")
+
+[node name="object_table-3" type="Node3D" parent="." unique_id=469215139]
+transform = Transform3D(-1, 0, 1.509958e-07, 0, 1, 0, -1.509958e-07, 0, -1, -177.17, 0.18, 199.25)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-table-3"
+Asset = ExtResource("30_i4jgf")
+
+[node name="object_table-4" type="Node3D" parent="." unique_id=177354778]
+transform = Transform3D(-1, 0, 1.509958e-07, 0, 1, 0, -1.509958e-07, 0, -1, -177.17, 0.18, 197.7)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-table-4"
+Asset = ExtResource("31_yx33v")
+
+[node name="object_table-5" type="Node3D" parent="." unique_id=737950156]
+transform = Transform3D(-1, 0, 1.509958e-07, 0, 1, 0, -1.509958e-07, 0, -1, -177.17, 0.18, 196.15)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-table-5"
+Asset = ExtResource("32_2uexy")
+
+[node name="object_table-6" type="Node3D" parent="." unique_id=962503350]
+transform = Transform3D(-1, 0, 1.509958e-07, 0, 1, 0, -1.509958e-07, 0, -1, -177.17, 0.18, 194.6)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-table-6"
+Asset = ExtResource("33_5whtw")
+
+[node name="object_table-7" type="Node3D" parent="." unique_id=1433830337]
+transform = Transform3D(-1, 0, 1.509958e-07, 0, 1, 0, -1.509958e-07, 0, -1, -178.735, 0.18, 201.6)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-table-7"
+Asset = ExtResource("34_7g7h0")
+
+[node name="object_table-8" type="Node3D" parent="." unique_id=663194349]
+transform = Transform3D(-1, 0, 1.509958e-07, 0, 1, 0, -1.509958e-07, 0, -1, -178.735, 0.18, 199.2)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-table-8"
+Asset = ExtResource("35_8w1nh")
+
+[node name="object_table-10" type="Node3D" parent="." unique_id=1305042952]
+transform = Transform3D(-1, 0, 1.509958e-07, 0, 1, 0, -1.509958e-07, 0, -1, -178.735, 0.18, 194.4)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-table-10"
+Asset = ExtResource("36_acr2a")
+
+[node name="object_counter" type="Node3D" parent="." unique_id=131735873]
+transform = Transform3D(-1, 0, 1.509958e-07, 0, 1, 0, -1.509958e-07, 0, -1, -181.085, 0.18, 200.8)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-counter"
+Asset = ExtResource("37_32uky")
+
+[node name="object_source-12022-36" type="Node3D" parent="." unique_id=1001483390]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -179.135, 0.18, 198.735)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12022-36"
+Asset = ExtResource("38_a83eh")
+
+[node name="object_source-12022-37" type="Node3D" parent="." unique_id=759595737]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -182.10498, 0.18, 200.80008)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12022-37"
+Asset = ExtResource("39_3bnwn")
+
+[node name="object_source-12022-38" type="Node3D" parent="." unique_id=1670202833]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -182.10498, 0.18, 200.80008)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12022-38"
+Asset = ExtResource("40_8u405")
+
+[node name="object_source-12022-39" type="Node3D" parent="." unique_id=607358728]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -176.56995, 0.18, 203.89009)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12022-39"
+Asset = ExtResource("41_pu0i8")
+
+[node name="object_source-12022-40" type="Node3D" parent="." unique_id=376350701]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -176.56995, 0.18, 203.3101)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12022-40"
+Asset = ExtResource("42_y026v")
+
+[node name="object_source-12022-41" type="Node3D" parent="." unique_id=1799420896]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -176.56995, 0.18, 202.34013)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12022-41"
+Asset = ExtResource("43_ey5ht")
+
+[node name="object_source-12022-42" type="Node3D" parent="." unique_id=1321951781]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -176.56995, 0.18, 201.76006)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12022-42"
+Asset = ExtResource("44_2abg3")
+
+[node name="object_source-12022-43" type="Node3D" parent="." unique_id=957757743]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -176.56995, 0.18, 200.79016)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12022-43"
+Asset = ExtResource("45_q1hf0")
+
+[node name="object_source-12022-44" type="Node3D" parent="." unique_id=492296414]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -176.56995, 0.18, 200.21008)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12022-44"
+Asset = ExtResource("46_2n0bn")
+
+[node name="object_source-12022-45" type="Node3D" parent="." unique_id=769733019]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -176.56995, 0.18, 199.24002)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12022-45"
+Asset = ExtResource("47_4pm3e")
+
+[node name="object_source-12022-46" type="Node3D" parent="." unique_id=1476684158]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -176.56995, 0.18, 198.66013)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12022-46"
+Asset = ExtResource("48_tlwcf")
+
+[node name="object_source-12022-47" type="Node3D" parent="." unique_id=299795166]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -176.56995, 0.18, 197.69006)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12022-47"
+Asset = ExtResource("49_wlfd8")
+
+[node name="object_source-12022-48" type="Node3D" parent="." unique_id=2063782074]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -176.56995, 0.18, 197.11008)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12022-48"
+Asset = ExtResource("50_76qu4")
+
+[node name="object_source-12022-49" type="Node3D" parent="." unique_id=672121456]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -176.56995, 0.18, 196.1401)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12022-49"
+Asset = ExtResource("51_ci7p0")
+
+[node name="object_source-12022-50" type="Node3D" parent="." unique_id=1880326769]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -176.56995, 0.18, 195.56003)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12022-50"
+Asset = ExtResource("52_djwxl")
+
+[node name="object_source-12022-51" type="Node3D" parent="." unique_id=738802423]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -176.56995, 0.18, 194.59015)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12022-51"
+Asset = ExtResource("53_ctmlv")
+
+[node name="object_source-12022-52" type="Node3D" parent="." unique_id=1246513136]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -176.56995, 0.18, 194.01007)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12022-52"
+Asset = ExtResource("54_b7v1v")
+
+[node name="object_source-12022-53" type="Node3D" parent="." unique_id=154489522]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -178.73499, 0.18, 196.80008)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12022-53"
+Asset = ExtResource("55_ldiu1")
+
+[node name="object_source-12022-54" type="Node3D" parent="." unique_id=1217641287]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -182.21994, 0.18, 198.40018)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12022-54"
+Asset = ExtResource("56_iebpe")
+
+[node name="object_source-12028-55" type="Node3D" parent="." unique_id=693250479]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -181.10997, 0.18, 202.20004)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12028-55"
+Asset = ExtResource("57_yw6bw")
+
+[node name="object_source-12028-56" type="Node3D" parent="." unique_id=735515085]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -181.10997, 0.18, 201.85004)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12028-56"
+Asset = ExtResource("58_wos3n")
+
+[node name="object_source-12028-57" type="Node3D" parent="." unique_id=1469148688]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -181.10997, 0.18, 201.50003)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12028-57"
+Asset = ExtResource("59_r7asb")
+
+[node name="object_source-12028-58" type="Node3D" parent="." unique_id=1321419869]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -176.06998, 0.18, 204.30002)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12028-58"
+Asset = ExtResource("60_25tga")
+
+[node name="object_source-12028-59" type="Node3D" parent="." unique_id=1227914141]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -176.06998, 0.18, 204.05008)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12028-59"
+Asset = ExtResource("61_ba5f4")
+
+[node name="object_source-12028-60" type="Node3D" parent="." unique_id=1607875856]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -176.06998, 0.18, 203.80008)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12028-60"
+Asset = ExtResource("62_hf2cb")
+
+[node name="object_source-12028-61" type="Node3D" parent="." unique_id=240877734]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -176.06998, 0.18, 203.55006)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12028-61"
+Asset = ExtResource("63_rma3e")
+
+[node name="object_source-12028-62" type="Node3D" parent="." unique_id=892173978]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -179.33496, 0.18, 201.16107)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12028-62"
+Asset = ExtResource("64_y5al4")
+
+[node name="object_source-12028-63" type="Node3D" parent="." unique_id=1240532484]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -179.33496, 0.18, 196.30902)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12028-63"
+Asset = ExtResource("65_jdnd1")
+
+[node name="object_source-12032-64" type="Node3D" parent="." unique_id=963979346]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -176.04999, 0.18, 199.40001)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12032-64"
+Asset = ExtResource("66_c7m18")
+
+[node name="object_source-12034-65" type="Node3D" parent="." unique_id=1241716790]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -178.78499, 0.18, 194.07007)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12034-65"
+Asset = ExtResource("67_ugkmo")
+
+[node name="object_source-12034-66" type="Node3D" parent="." unique_id=1767359068]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -179.33499, 0.18, 201.16104)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12034-66"
+Asset = ExtResource("68_2wwbt")
+
+[node name="object_source-12034-67" type="Node3D" parent="." unique_id=1331818432]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -179.33499, 0.18, 196.30908)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12034-67"
+Asset = ExtResource("69_6wg3a")
+
+[node name="object_source-12036-68" type="Node3D" parent="." unique_id=1274137372]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -181.76001, 0.18, 198.35)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12036-68"
+Asset = ExtResource("70_u0ru7")
+
+[node name="object_source-12040-69" type="Node3D" parent="." unique_id=1342791408]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -176.042, 0.18, 202.79999)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12040-69"
+Asset = ExtResource("71_6ceyn")
+
+[node name="object_source-12041-70" type="Node3D" parent="." unique_id=732156111]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -176.042, 0.18, 201.1)
+script = ExtResource("1_4abvc")
+ObjectId = "room-tavern-linde-source-12041-70"
+Asset = ExtResource("72_h2fh2")

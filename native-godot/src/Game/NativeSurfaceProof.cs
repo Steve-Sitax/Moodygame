@@ -93,6 +93,7 @@ public static class NativeSurfaceProof
         catch (Exception e) { GD.PrintErr(e); game.GetTree().Quit(1); }
     }
 
+#if DEBUG
     public static async Task Workshop(WorkshopSession session, string output)
     {
         try
@@ -111,4 +112,5 @@ public static class NativeSurfaceProof
         }
         catch (Exception e) { GD.PrintErr(e); session.GetTree().Quit(1); }
     }
+#endif
 }

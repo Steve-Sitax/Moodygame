@@ -53,11 +53,11 @@ public partial class NativeVisualRecovery : Node
         {
             NativeGlobals.Ensure();
             if (DisplayServer.GetName() == "headless") throw new InvalidOperationException("This intake needs the renderer to serialize texture arrays. Run it without --headless.");
-            string source = WorkshopSession.Arg("source");
+            string source = Scheldemist.Native.Game.NativeArguments.Arg("source");
             if (source == "") throw new ArgumentException("--source must name the completed town GLB for this one-time intake.");
-            output = WorkshopSession.Arg("visuals", output);
+            output = Scheldemist.Native.Game.NativeArguments.Arg("visuals", output);
             if (!output.StartsWith("res://game/") || !LayoutDocument.ValidId(output["res://game/".Length..])) throw new ArgumentException("--visuals must be res://game/<id>.");
-            string districtId = WorkshopSession.Arg("district", "rijnkaai-recovered");
+            string districtId = Scheldemist.Native.Game.NativeArguments.Arg("district", "rijnkaai-recovered");
             if (!LayoutDocument.ValidId(districtId)) throw new ArgumentException("Invalid district id.");
             var recoveryReport = JsonNode.Parse(File.ReadAllText(ProjectSettings.GlobalizePath("res://recovered/" + districtId + "/recovery-report.json")))!;
             using (var fingerprintInput = File.OpenRead(source))
@@ -88,7 +88,7 @@ public partial class NativeVisualRecovery : Node
             var builder = new BakedWorld();
             var table = new JsonObject(); int fixedSamplers = 0;
             string backup = ProjectSettings.GlobalizePath("res://proof/wall-mapping/material-backup"); Directory.CreateDirectory(backup);
-            string materialSource = WorkshopSession.Arg("material-source", "res://recovered/rijnkaai-20261012/resources");
+            string materialSource = Scheldemist.Native.Game.NativeArguments.Arg("material-source", "res://recovered/rijnkaai-20261012/resources");
             foreach (string file in Directory.GetFiles(ProjectSettings.GlobalizePath(materialSource), "*.res").Order())
             {
                 if (ResourceLoader.Load(file) is not Material material || !material.HasMeta("legacy_material_index")) continue;

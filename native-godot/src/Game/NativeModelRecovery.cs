@@ -21,17 +21,17 @@ public partial class NativeModelRecovery : Node
         bool committed = false;
         try
         {
-            string source = WorkshopSession.Arg("source-models");
+            string source = Scheldemist.Native.Game.NativeArguments.Arg("source-models");
             string output = "res://assets/game-models";
             if (!Directory.Exists(source)) throw new DirectoryNotFoundException(source);
-            bool resume = WorkshopSession.Arg("resume-intake") == "yes";
+            bool resume = Scheldemist.Native.Game.NativeArguments.Arg("resume-intake") == "yes";
             if (Directory.Exists(ProjectSettings.GlobalizePath(output)) && !resume) throw new IOException("Keep existing native models; intake output already exists.");
             Directory.CreateDirectory(ProjectSettings.GlobalizePath(output));
             var manifest = resume ? JsonNode.Parse(File.ReadAllText(ProjectSettings.GlobalizePath(output + "/intake.json")))!.AsObject() : new JsonObject();
             string fullPath = ProjectSettings.GlobalizePath(output + "/full-intake.json");
             var full = File.Exists(fullPath) ? JsonNode.Parse(File.ReadAllText(fullPath))!.AsObject() : new JsonObject();
-            string only = WorkshopSession.Arg("only");
-            string replace = WorkshopSession.Arg("replace");
+            string only = Scheldemist.Native.Game.NativeArguments.Arg("only");
+            string replace = Scheldemist.Native.Game.NativeArguments.Arg("replace");
             if (replace != "" && (replace != "people2" || only != "people2" || !resume))
                 throw new ArgumentException("Replacement is restricted to --resume-intake yes --only people2 --replace people2.");
             if (only.Split(',').Contains("people2") && (DisplayServer.GetName() == "headless" || OS.GetCmdlineArgs().Contains("--headless")))

@@ -1,0 +1,96 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_ywo3d"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-prison_chapel-source-9757-0.tres" id="2_auwo4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-prison_chapel-source-9762-1.tres" id="3_kqbgr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-prison_chapel-source-9762-2.tres" id="4_e4c3e"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-prison_chapel-source-9762-3.tres" id="5_tujln"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-prison_chapel-source-9766-4.tres" id="6_bjgat"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-prison_chapel-source-9766-5.tres" id="7_0v3jh"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-prison_chapel-source-9766-6.tres" id="8_3ld7n"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-prison_chapel-source-9766-7.tres" id="9_1toyd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-prison_chapel-source-9766-8.tres" id="10_7pthf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-prison_chapel-source-9766-9.tres" id="11_t8d2e"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-prison_chapel-source-9766-10.tres" id="12_enpfb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-prison_chapel-source-9766-11.tres" id="13_2xwcm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-prison_chapel-source-9766-12.tres" id="14_v5brd"]
+
+[node name="Objects" type="Node3D" unique_id=1183253304]
+
+[node name="object_source-9757-0" type="Node3D" parent="." unique_id=1289886062]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -348.45447, 0, 209.84996)
+script = ExtResource("1_ywo3d")
+ObjectId = "room-prison_chapel-source-9757-0"
+Asset = ExtResource("2_auwo4")
+
+[node name="object_source-9762-1" type="Node3D" parent="." unique_id=65237457]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -352.1085, 0, 216.79346)
+script = ExtResource("1_ywo3d")
+ObjectId = "room-prison_chapel-source-9762-1"
+Asset = ExtResource("3_kqbgr")
+
+[node name="object_source-9762-2" type="Node3D" parent="." unique_id=976274403]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -349.7096, 0, 216.86475)
+script = ExtResource("1_ywo3d")
+ObjectId = "room-prison_chapel-source-9762-2"
+Asset = ExtResource("4_e4c3e")
+
+[node name="object_source-9762-3" type="Node3D" parent="." unique_id=67900953]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -347.3106, 0, 216.93604)
+script = ExtResource("1_ywo3d")
+ObjectId = "room-prison_chapel-source-9762-3"
+Asset = ExtResource("5_tujln")
+
+[node name="object_source-9766-4" type="Node3D" parent="." unique_id=1141329103]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -347.15045, 0, 220.43628)
+script = ExtResource("1_ywo3d")
+ObjectId = "room-prison_chapel-source-9766-4"
+Asset = ExtResource("6_bjgat")
+
+[node name="object_source-9766-5" type="Node3D" parent="." unique_id=392061243]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -349.61337, 0, 220.3631)
+script = ExtResource("1_ywo3d")
+ObjectId = "room-prison_chapel-source-9766-5"
+Asset = ExtResource("7_0v3jh")
+
+[node name="object_source-9766-6" type="Node3D" parent="." unique_id=1245258845]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -352.0763, 0, 220.2899)
+script = ExtResource("1_ywo3d")
+ObjectId = "room-prison_chapel-source-9766-6"
+Asset = ExtResource("8_3ld7n")
+
+[node name="object_source-9766-7" type="Node3D" parent="." unique_id=1253088530]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -351.8687, 0, 213.305)
+script = ExtResource("1_ywo3d")
+ObjectId = "room-prison_chapel-source-9766-7"
+Asset = ExtResource("9_1toyd")
+
+[node name="object_source-9766-8" type="Node3D" parent="." unique_id=2107467999]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -349.4058, 0, 213.37817)
+script = ExtResource("1_ywo3d")
+ObjectId = "room-prison_chapel-source-9766-8"
+Asset = ExtResource("10_7pthf")
+
+[node name="object_source-9766-9" type="Node3D" parent="." unique_id=706570075]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -346.94287, 0, 213.45139)
+script = ExtResource("1_ywo3d")
+ObjectId = "room-prison_chapel-source-9766-9"
+Asset = ExtResource("11_t8d2e")
+
+[node name="object_source-9766-10" type="Node3D" parent="." unique_id=1435166495]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -353.7517, 0, 216.74457)
+script = ExtResource("1_ywo3d")
+ObjectId = "room-prison_chapel-source-9766-10"
+Asset = ExtResource("12_enpfb")
+
+[node name="object_source-9766-11" type="Node3D" parent="." unique_id=999772238]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -342.1424, 0, 218.33607)
+script = ExtResource("1_ywo3d")
+ObjectId = "room-prison_chapel-source-9766-11"
+Asset = ExtResource("13_2xwcm")
+
+[node name="object_source-9766-12" type="Node3D" parent="." unique_id=1683864010]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -342.06836, 0, 215.84528)
+script = ExtResource("1_ywo3d")
+ObjectId = "room-prison_chapel-source-9766-12"
+Asset = ExtResource("14_v5brd")

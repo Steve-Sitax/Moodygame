@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-tavern-engel-table-4.tscn" id="1_7jmdu"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_78o4q"]
+
+[resource]
+PlacementAnchor = Vector3(0.015003085, 0, -4.9591064e-05)
+GeometryClearance = true
+script = ExtResource("2_78o4q")
+Id = "room-tavern-engel-table-4"
+Title = "table · tavern:engel · table-4"
+Category = "Room originals"
+Scene = ExtResource("1_7jmdu")
+Footprint = Vector3(0.68000007, 0.76, 0.6799526)
+FootprintOffset = Vector3(0.015003085, 0, -4.9591064e-05)
+FurnitureKind = "table"
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(-0.5999985, 0, 0)

@@ -57,7 +57,13 @@ public partial class HomeLife : Node
                 if (kind is "hearth" or "mantel") f.Fire = at;
             }
             frames.Add(f.Id, f);
-            prompts.Add(Interact.I.Add(f.Bed, 1.4f, () => Mine(f) && f.Inside ? "go to bed" : null, () => Day.I.ChooseHome(Info!.Homes.First(h => h.Id == f.Id).Label)));
+            if(Main.I.World.NativeFurnitureRooms?.Contains("home:"+f.Id)==true)
+            {
+                var furniture=Main.I.World.NativeFurniture!.Where(p=>p.Room=="home:"+f.Id).ToArray();
+                f.Bed=furniture.FirstOrDefault(p=>p.Kind=="bed")?.UseAt??Vector3.Zero;
+                f.Fire=furniture.FirstOrDefault(p=>p.Kind=="stove")?.UseAt??Vector3.Zero;
+            }
+            if(f.Bed!=Vector3.Zero) prompts.Add(Interact.I.Add(f.Bed, 1.4f, () => Mine(f) && f.Inside ? "go to bed" : null, () => Day.I.ChooseHome(Info!.Homes.First(h => h.Id == f.Id).Label)));
             if (f.Fire != Vector3.Zero) prompts.Add(Interact.I.Add(f.Fire, 1.3f, () => Mine(f) && f.Inside ? "warm yourself at the fire" : null, () => _ = Change(() => ServerLink.I!.Api!.HomeWarm())));
         }
         notice = new Window("home notice", WriteNotice, NoticeKey);

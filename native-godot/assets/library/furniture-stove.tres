@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture-stove.tscn" id="1_opwgj"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_dxok2"]
+
+[resource]
+script = ExtResource("2_dxok2")
+Id = "furniture-stove"
+Title = "Stove"
+Category = "Furniture"
+Scene = ExtResource("1_opwgj")
+Footprint = Vector3(0.62, 2.7, 0.62)
+FurnitureKind = "stove"
+UsePoint = Vector3(0, 0.5, 0.31)
+StandPoint = Vector3(0, 0, -0.91)

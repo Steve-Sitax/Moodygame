@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-cobbler_lane-source-10379-13.tscn" id="1_ieun6"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_g8obp"]
+
+[resource]
+PlacementAnchor = Vector3(-1.1920929e-07, 0, 3.4570694e-06)
+GeometryClearance = true
+script = ExtResource("2_g8obp")
+Id = "room-shop-cobbler_lane-source-10379-13"
+Title = "fitting · shop:cobbler_lane · source-10379-13"
+Category = "Room originals"
+Scene = ExtResource("1_ieun6")
+Footprint = Vector3(0.10723162, 0.17999905, 0.08924794)
+FootprintOffset = Vector3(-1.1920929e-07, 0.6109995, 3.4570694e-06)
+FurnitureKind = "fitting"
+SeatYaw = 0.09633925
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

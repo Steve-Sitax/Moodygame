@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-shop-cobbler_east.catalog.tres" id="1_qmsv5"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-shop-cobbler_east.structure.tscn" id="2_3qb2p"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-shop-cobbler_east.objects.tscn" id="3_qmsv5"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_js56h"]
+
+[resource]
+script = ExtResource("4_js56h")
+Id = "room-shop-cobbler_east"
+Title = "shop:cobbler_east"
+Scene = ExtResource("3_qmsv5")
+EditorScenePath = "res://world/interiors/room-shop-cobbler_east.tscn"
+Catalog = ExtResource("1_qmsv5")
+Bounds = Rect2(-88.368484, 110.90979, 200, 200)
+WalkSpawn = Vector3(11.631516, 0.2, 210.90979)
+FlySpawn = Vector3(11.631516, 1.78, 210.90979)
+FlyYaw = 2.4667642
+FlyPitch = -0.12
+RoomId = "shop:cobbler_east"
+RoomFrame = Transform3D(-0.7808142, 0, 0.62476337, 0, 1, 0, -0.62476337, 0, -0.7808142, 7.3052635, 0.18, 213.72366)
+RoomBounds = Rect2(-4.659974, 0.2, 6.0799656, 9.400001)
+EntryPoints = PackedVector3Array(7.3052635, 0.18, 213.72366)
+ReplacedMeshes = PackedInt32Array(11277, 11279, 11280, 11281, 11282, 11283, 11284, 11285, 11286, 11287, 11288, 11295, 11329)
+RetainedStructure = ExtResource("2_3qb2p")

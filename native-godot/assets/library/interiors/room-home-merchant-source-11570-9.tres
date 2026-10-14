@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-home-merchant-source-11570-9.tscn" id="1_wqqi8"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_i6oxe"]
+
+[resource]
+PlacementAnchor = Vector3(1.1920929e-07, 0, 4.4703484e-07)
+GeometryClearance = true
+script = ExtResource("2_i6oxe")
+Id = "room-home-merchant-source-11570-9"
+Title = "fitting · home:merchant · source-11570-9"
+Category = "Room originals"
+Scene = ExtResource("1_wqqi8")
+Footprint = Vector3(1.7018917, 2.81375, 0.4684381)
+FootprintOffset = Vector3(1.1920929e-07, 0.00999999, 4.4703484e-07)
+FurnitureKind = "fitting"
+SeatYaw = 0.15656859
+UsePoint = Vector3(0, 0.50000024, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

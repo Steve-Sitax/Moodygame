@@ -1,0 +1,39 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/seating-r0013.res" id="1_hby3h"]
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/seating-r0015.res" id="2_vsu4m"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_hby3h"]
+size = Vector3(0.46, 0.46, 0.41)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_vsu4m"]
+size = Vector3(0.38, 0.52, 0.08)
+
+[node name="chair_ladderback" type="Node3D" unique_id=506130807]
+
+[node name="chair_ladderback" type="Node3D" parent="." unique_id=1055637716]
+metadata/extras = {
+"furniture": "{\"id\": \"chair-ladderback\", \"title\": \"Rush-seat ladder-back chair\", \"category\": \"Furniture: seating\", \"footprint\": [0.452, 0.964, 0.4596], \"footprintOffset\": [0.0, 0.0, -0.0223], \"collision\": [{\"size\": [0.46, 0.46, 0.41], \"at\": [0, 0.23, 0.01], \"yaw\": 0.0}, {\"size\": [0.38, 0.52, 0.08], \"at\": [0, 0.72, -0.215], \"yaw\": 0.0}], \"points\": [{\"kind\": \"seat\", \"node\": \"chair_ladderback_seat_0\", \"at\": [0, 0.452, 0.01], \"facing\": [0, 0, 1]}]}"
+}
+
+[node name="chair_ladderback_far" type="MeshInstance3D" parent="chair_ladderback" unique_id=823247341]
+visible = false
+mesh = ExtResource("1_hby3h")
+
+[node name="chair_ladderback_near" type="MeshInstance3D" parent="chair_ladderback" unique_id=1038710924]
+mesh = ExtResource("2_vsu4m")
+
+[node name="chair_ladderback_seat_0" type="Node3D" parent="chair_ladderback" unique_id=473082821]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.452, 0.01)
+
+[node name="Solid" type="StaticBody3D" parent="." unique_id=1929511228]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Solid" unique_id=2035952137]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.23, 0.01)
+shape = SubResource("BoxShape3D_hby3h")
+
+[node name="@CollisionShape3D@2" type="CollisionShape3D" parent="Solid" unique_id=301643716]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.72, -0.215)
+shape = SubResource("BoxShape3D_vsu4m")

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/furniture/desk-writing.tscn" id="1_60736"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_ux5uj"]
+
+[resource]
+script = ExtResource("2_ux5uj")
+Id = "desk-writing"
+Title = "Writing desk"
+Category = "Furniture: tables"
+Scene = ExtResource("1_60736")
+Footprint = Vector3(1.12, 0.7616, 0.64)
+FurnitureKind = "table"
+UsePoint = Vector3(0, 0, 0.55)
+StandPoint = Vector3(0, 0, 0.7)

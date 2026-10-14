@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Workshop: enter the town's real rooms and add, move, turn, copy or remove their furniture, with undo, saved permanent object ids, wall/ceiling and walking-route checks. The game and multiplayer guests use those saved placements for seats, beds and counters.
 - Night pickpockets now work from behind. When you look at one, he stops or strolls away instead of walking up to you, and he waits for your back to turn. They no longer rob you while a talk window is open. A thief you catch by the collar runs off and leaves you alone.
 - Jef's hands stay hidden when empty and rise smoothly for work. He holds his lantern in the left hand and puts it on his belt for two-hand tasks; carried crates leave room to see. The character screen's clothes, hats, shoes, colours and twenty face/build sliders now match his sleeves, reflection and lantern shadow.
 

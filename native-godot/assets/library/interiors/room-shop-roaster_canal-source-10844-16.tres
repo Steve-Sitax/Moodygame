@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-roaster_canal-source-10844-16.tscn" id="1_s6frv"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_2mtsx"]
+
+[resource]
+PlacementAnchor = Vector3(9.536743e-07, 0, -1.1026859e-06)
+GeometryClearance = true
+script = ExtResource("2_2mtsx")
+Id = "room-shop-roaster_canal-source-10844-16"
+Title = "sack · shop:roaster_canal · source-10844-16"
+Category = "Room originals"
+Scene = ExtResource("1_s6frv")
+Footprint = Vector3(0.51976585, 0.62, 0.506592)
+FootprintOffset = Vector3(9.536743e-07, 0, -1.1026859e-06)
+FurnitureKind = "sack"
+SeatYaw = -2.9849927
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="AuthorCatalog" format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="1_8kdbq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-books_kathedraal-counter.tres" id="2_ofboh"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-books_kathedraal-source-10958-1.tres" id="3_rapf7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-books_kathedraal-source-10958-2.tres" id="4_ls2c6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-books_kathedraal-source-10958-3.tres" id="5_1ec8c"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-books_kathedraal-source-10958-4.tres" id="6_t6b6j"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-books_kathedraal-source-10958-5.tres" id="7_6jd2v"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-books_kathedraal-source-10958-6.tres" id="8_64qos"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-books_kathedraal-source-10962-7.tres" id="9_5uihm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-books_kathedraal-source-10963-8.tres" id="10_xdl6q"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-books_kathedraal-source-10964-9.tres" id="11_uroon"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-books_kathedraal-source-10965-10.tres" id="12_rqwgf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-books_kathedraal-source-10968-11.tres" id="13_8jpjm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-books_kathedraal-source-10968-12.tres" id="14_ircfv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-books_kathedraal-source-10970-13.tres" id="15_s2x8l"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-books_kathedraal-source-10970-14.tres" id="16_32wi0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-books_kathedraal-source-11013-15.tres" id="17_tsfu1"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorCatalog.cs" id="18_5fhkq"]
+
+[resource]
+script = ExtResource("18_5fhkq")
+Assets = Array[ExtResource("1_8kdbq")]([ExtResource("2_ofboh"), ExtResource("3_rapf7"), ExtResource("4_ls2c6"), ExtResource("5_1ec8c"), ExtResource("6_t6b6j"), ExtResource("7_6jd2v"), ExtResource("8_64qos"), ExtResource("9_5uihm"), ExtResource("10_xdl6q"), ExtResource("11_uroon"), ExtResource("12_rqwgf"), ExtResource("13_8jpjm"), ExtResource("14_ircfv"), ExtResource("15_s2x8l"), ExtResource("16_32wi0"), ExtResource("17_tsfu1")])

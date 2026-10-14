@@ -12,8 +12,18 @@ public static class NativeDistrictLayouts
 {
     public const string DistrictDirectory = "res://world/districts";
     public const string ReviewedDistrict = "rijnkaai-recovered";
+    public const string InteriorDirectory = "res://world/interiors";
     /// <summary>Authenticated host layouts apply only to this visit. Never save them over the editor's own files.</summary>
     public static IReadOnlyDictionary<string, LayoutDocument>? RemoteLayouts { get; set; }
+    private static readonly Dictionary<string,AuthorDistrict> descriptors=new(StringComparer.Ordinal);
+    private static readonly Dictionary<string,Dictionary<string,AuthorAsset>> libraries=new(StringComparer.Ordinal);
+    public static AuthorDistrict Descriptor(string id)
+    {
+        if(descriptors.TryGetValue(id,out var existing))return existing;
+        var district=ResourceLoader.Load<AuthorDistrict>(ResourcePath(id),cacheMode:ResourceLoader.CacheMode.Ignore)
+            ??throw new InvalidDataException("Cannot load the native district descriptor: "+id);
+        district.Validate();descriptors.Add(id,district);libraries.Add(id,district.Catalog.Index());return district;
+    }
 
     public sealed record DistrictState(AuthorDistrict District, Node3D Objects, LayoutStore Store, string LayoutSource)
     {
@@ -30,22 +40,24 @@ public static class NativeDistrictLayouts
     public static string ResourcePath(string id)
     {
         if (!LayoutDocument.ValidId(id)) throw new InvalidDataException("Invalid native district id.");
-        return id == ReviewedDistrict ? "res://recovered/" + id + "/district.tres" : DistrictDirectory + "/" + id + ".tres";
+        return id.StartsWith("room-") ? InteriorDirectory + "/" + id + ".tres" : id == ReviewedDistrict ? "res://recovered/" + id + "/district.tres" : DistrictDirectory + "/" + id + ".tres";
     }
 
     public static string LayoutDirectory(string id)
     {
         if (!LayoutDocument.ValidId(id)) throw new InvalidDataException("Invalid native district id.");
         // Retain the old review command's exact folder semantics. A full-town proof can instead supply an isolated root.
-        string reviewedOverride = WorkshopSession.Arg("author-dir");
+        string reviewedOverride = Scheldemist.Native.Game.NativeArguments.Arg("author-dir");
         if (id == ReviewedDistrict && reviewedOverride != "") return reviewedOverride;
-        string root = WorkshopSession.Arg("author-root");
+        string root = Scheldemist.Native.Game.NativeArguments.Arg("author-root");
         return root != "" ? Path.Combine(root, id) : ProjectSettings.GlobalizePath("user://layouts/" + id);
     }
 
     public static IReadOnlyList<AuthorDistrict> Available()
     {
         var paths = new List<string> { ResourcePath(ReviewedDistrict) };
+        if (DirAccess.DirExistsAbsolute(InteriorDirectory))
+            paths.AddRange(ResourceLoader.ListDirectory(InteriorDirectory).Where(f => f.EndsWith(".tres", StringComparison.Ordinal) && !f.EndsWith(".catalog.tres", StringComparison.Ordinal)).Order(StringComparer.Ordinal).Select(f => InteriorDirectory + "/" + f));
         if (DirAccess.DirExistsAbsolute(DistrictDirectory))
             // Exported text resources are remapped; enumerate their logical editor names.
             paths.AddRange(ResourceLoader.ListDirectory(DistrictDirectory)
@@ -54,8 +66,8 @@ public static class NativeDistrictLayouts
         var result = new List<AuthorDistrict>(); var ids = new HashSet<string>(StringComparer.Ordinal);
         foreach (string path in paths)
         {
-            var district = ResourceLoader.Load<AuthorDistrict>(path)
-                ?? throw new InvalidDataException("Cannot load the native district descriptor: " + path);
+            string id=path.EndsWith("/district.tres",StringComparison.Ordinal)?ReviewedDistrict:Path.GetFileNameWithoutExtension(path);
+            var district = Descriptor(id);
             district.Validate();
             if (!ids.Add(district.Id)) throw new InvalidDataException("Duplicate native district id: " + district.Id);
             result.Add(district);
@@ -85,7 +97,7 @@ public static class NativeDistrictLayouts
                         ReplaceObjects(objects, shared, assets);
                         source = "shared Godot server";
                     }
-                    else if (!HasArgument("scene-seed") && store.Read() is { } saved)
+                    else if (!OS.HasFeature("native_standalone")&&!HasArgument("scene-seed")&&(HasArgument("author-root")||HasArgument("author-dir"))&&store.Read() is { } saved)
                     {
                         saved.Validate(district.Id, assets);
                         ReplaceObjects(objects, saved, assets);
@@ -103,7 +115,17 @@ public static class NativeDistrictLayouts
                 }
                 catch { objects.Free(); throw; }
             }
-            foreach (var item in prepared) town.AddChild(item.Objects);
+            foreach (var item in prepared)
+            {
+                if (item.District.RoomId != "")
+                {
+                    var room = Scheldemist.World.BakedWorld.All(town).OfType<Node3D>().Single(n => n.HasMeta("extras") && n.GetMeta("extras").AsGodotDictionary().TryGetValue("room", out var r) && r.AsGodotDictionary()["id"].AsString() == item.District.RoomId);
+                    HideRecovered(room, item.District);
+                    if (item.District.RetainedStructure != null) room.AddChild(item.District.RetainedStructure.Instantiate<Node3D>());
+                    room.AddChild(item.Objects);
+                }
+                else town.AddChild(item.Objects);
+            }
             town.SetMeta("native_district_layouts", true);
             return new(prepared);
         }
@@ -120,13 +142,14 @@ public static class NativeDistrictLayouts
 
     private static bool HasArgument(string flag) => OS.GetCmdlineUserArgs().Any(a => a == "--" + flag);
 
-    private static Node3D ReadSeed(AuthorDistrict district)
+    public static Node3D ReadSeed(AuthorDistrict district)
     {
-        string seedPath = DistrictDirectory + "/" + district.Id + ".objects.tscn";
-        if (district.Id != ReviewedDistrict && ResourceLoader.Exists(seedPath))
+        string seedPath = (district.RoomId != "" ? InteriorDirectory : DistrictDirectory) + "/" + district.Id + ".objects.tscn";
+        if (ResourceLoader.Exists(seedPath))
             return ResourceLoader.Load<PackedScene>(seedPath).Instantiate<Node3D>();
         // The reviewed scene remains canonical. Detach its Objects child and discard its scenery; never save this scene.
         var scene = district.Scene.Instantiate<Node3D>();
+        if(scene.Name=="Objects")return scene;
         try
         {
             var objects = scene.GetNodeOrNull<Node3D>("Objects")
@@ -137,6 +160,22 @@ public static class NativeDistrictLayouts
             return objects;
         }
         finally { scene.Free(); }
+    }
+
+    public static void HideRecovered(Node root, AuthorDistrict district)
+    {
+        var ids = district.ReplacedMeshes.ToHashSet();
+        foreach (var node in Scheldemist.World.BakedWorld.All(root).OfType<Node3D>())
+            if (node.HasMeta("source_node_index") && ids.Contains(node.GetMeta("source_node_index").AsInt32()))
+            {
+                node.Visible = false;
+                foreach (var child in Scheldemist.World.BakedWorld.All(node))
+                {
+                    child.SetMeta("native_replaced_event_snapshot", true);
+                    if(child is CollisionObject3D body)body.CollisionLayer=0;
+                    if(child is CollisionShape3D shape)shape.Disabled=true;
+                }
+            }
     }
 
     private static void ReplaceObjects(Node3D root, LayoutDocument document, IReadOnlyDictionary<string, AuthorAsset> assets)

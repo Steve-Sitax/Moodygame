@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-tavern-schipke-source-11750-23.tscn" id="1_1kpei"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_4xa6n"]
+
+[resource]
+PlacementAnchor = Vector3(-2.861023e-06, 0, -1.1920929e-07)
+GeometryClearance = true
+script = ExtResource("2_4xa6n")
+Id = "room-tavern-schipke-source-11750-23"
+Title = "fitting · tavern:schipke · source-11750-23"
+Category = "Room originals"
+Scene = ExtResource("1_1kpei")
+Footprint = Vector3(0.11405754, 0.53260493, 0.55992913)
+FootprintOffset = Vector3(-2.861023e-06, 1.2836907, -1.1920929e-07)
+FurnitureKind = "fitting"
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000004)

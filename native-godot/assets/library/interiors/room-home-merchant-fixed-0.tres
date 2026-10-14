@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-home-merchant-fixed-0.tscn" id="1_s8ho4"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_y7drt"]
+
+[resource]
+PlacementAnchor = Vector3(6.365776e-05, -2.3841858e-08, -0.007449627)
+GeometryClearance = true
+script = ExtResource("2_y7drt")
+Id = "room-home-merchant-fixed-0"
+Title = "bed · home:merchant · fixed-0"
+Category = "Room originals"
+Scene = ExtResource("1_s8ho4")
+Footprint = Vector3(1.4200492, 1.6999836, 1.9650745)
+FootprintOffset = Vector3(6.365776e-05, -2.3841858e-08, -0.007449627)
+FurnitureKind = "bed"
+UsePoint = Vector3(0, 0.50000024, 0)
+StandPoint = Vector3(0.093559265, 0, -0.592659)

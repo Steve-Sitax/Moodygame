@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-grocer_south-counter.tscn" id="1_xed88"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_yve2h"]
+
+[resource]
+PlacementAnchor = Vector3(-0.5600271, -1.4901161e-08, 8.225441e-06)
+GeometryClearance = true
+script = ExtResource("2_yve2h")
+Id = "room-shop-grocer_south-counter"
+Title = "counter · shop:grocer_south · counter"
+Category = "Room originals"
+Scene = ExtResource("1_xed88")
+Footprint = Vector3(1.4199505, 1.3174865, 3.5199678)
+FootprintOffset = Vector3(-0.5600271, -1.4901161e-08, 8.225441e-06)
+FurnitureKind = "counter"
+UsePoint = Vector3(0.62999725, 1.2, 3.0517578e-05)
+StandPoint = Vector3(1.3299942, 0, 3.0517578e-05)
+
+
+KeeperPoint = Vector3(-0.92000235, 0, 8.225441e-06)

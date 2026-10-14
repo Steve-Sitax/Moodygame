@@ -1,0 +1,32 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/storage-r0009.res" id="1_h0wdh"]
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/storage-r0011.res" id="2_ui1bn"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_h0wdh"]
+size = Vector3(0.9, 0.68, 0.2)
+
+[node name="shelf_wall" type="Node3D" unique_id=1047353985]
+
+[node name="shelf_wall" type="Node3D" parent="." unique_id=235166184]
+metadata/extras = {
+"furniture": "{\"id\": \"shelf-wall\", \"title\": \"Wall shelves with crockery\", \"category\": \"Furniture: storage\", \"footprint\": [0.9, 0.8035, 0.2], \"footprintOffset\": [-0.0, 1.3, 0.1], \"collision\": [{\"size\": [0.9, 0.68, 0.2], \"at\": [0, 1.64, 0.1], \"yaw\": 0.0}], \"points\": [{\"kind\": \"use\", \"node\": \"shelf_wall_use_0\", \"at\": [0, 0, 0.55], \"facing\": [0, 0, -1], \"action\": \"take\"}]}"
+}
+
+[node name="shelf_wall_far" type="MeshInstance3D" parent="shelf_wall" unique_id=183835080]
+visible = false
+mesh = ExtResource("1_h0wdh")
+
+[node name="shelf_wall_near" type="MeshInstance3D" parent="shelf_wall" unique_id=976047501]
+mesh = ExtResource("2_ui1bn")
+
+[node name="shelf_wall_use_0" type="Node3D" parent="shelf_wall" unique_id=754756308]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0.55)
+
+[node name="Solid" type="StaticBody3D" parent="." unique_id=620333418]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Solid" unique_id=749735485]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.64, 0.1)
+shape = SubResource("BoxShape3D_h0wdh")

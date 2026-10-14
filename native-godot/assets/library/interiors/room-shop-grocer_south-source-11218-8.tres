@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-grocer_south-source-11218-8.tscn" id="1_iua2p"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_5472l"]
+
+[resource]
+PlacementAnchor = Vector3(1.6093254e-06, -1.4901161e-08, -6.67572e-06)
+GeometryClearance = true
+script = ExtResource("2_5472l")
+Id = "room-shop-grocer_south-source-11218-8"
+Title = "table · shop:grocer_south · source-11218-8"
+Category = "Room originals"
+Scene = ExtResource("1_iua2p")
+Footprint = Vector3(1.071443, 0.65, 4.8371305)
+FootprintOffset = Vector3(1.6093254e-06, -1.4901161e-08, -6.67572e-06)
+FurnitureKind = "table"
+SeatYaw = 3.0468206
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000061)

@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-tavern-linde-seat-24.tscn" id="1_iuxd6"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_2b6h3"]
+
+[resource]
+PlacementAnchor = Vector3(0.00017023087, 0, -4.607439e-05)
+GeometryClearance = true
+script = ExtResource("2_2b6h3")
+Id = "room-tavern-linde-seat-24"
+Title = "stool · tavern:linde · seat-24"
+Category = "Room originals"
+Scene = ExtResource("1_iuxd6")
+Footprint = Vector3(0.36000347, 0.6849775, 0.3600173)
+FootprintOffset = Vector3(0.00017023087, -1.4901161e-08, -4.607439e-05)
+FurnitureKind = "stool"
+SeatPoints = PackedVector3Array(0, 0, 0)
+SeatHeight = 0.68
+Table = 9
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0.6000061, 0, 0)

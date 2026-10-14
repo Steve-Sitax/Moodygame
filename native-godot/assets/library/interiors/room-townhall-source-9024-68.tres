@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-townhall-source-9024-68.tscn" id="1_q8d3c"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_hrmn3"]
+
+[resource]
+PlacementAnchor = Vector3(-1.1444092e-05, 0, -1.5497208e-06)
+GeometryClearance = true
+script = ExtResource("2_hrmn3")
+Id = "room-townhall-source-9024-68"
+Title = "fitting · townhall · source-9024-68"
+Category = "Room originals"
+Scene = ExtResource("1_q8d3c")
+Footprint = Vector3(0.46003342, 0.04, 0.31999993)
+FootprintOffset = Vector3(-1.1444092e-05, 14.679841, -1.5497208e-06)
+FurnitureKind = "fitting"
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

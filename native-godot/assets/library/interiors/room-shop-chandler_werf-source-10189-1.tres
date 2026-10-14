@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-chandler_werf-source-10189-1.tscn" id="1_nvc42"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_plf3y"]
+
+[resource]
+PlacementAnchor = Vector3(-1.1444092e-05, 0, -2.3841858e-07)
+GeometryClearance = true
+script = ExtResource("2_plf3y")
+Id = "room-shop-chandler_werf-source-10189-1"
+Title = "shelf · shop:chandler_werf · source-10189-1"
+Category = "Room originals"
+Scene = ExtResource("1_nvc42")
+Footprint = Vector3(0.7999897, 2.48, 5.05012)
+FootprintOffset = Vector3(-1.1444092e-05, -5.9604645e-08, -2.3841858e-07)
+FurnitureKind = "shelf"
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000004)

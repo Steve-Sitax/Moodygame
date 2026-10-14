@@ -1,0 +1,49 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/beds-r0005.res" id="1_77kis"]
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/beds-r0007.res" id="2_s2hy2"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_77kis"]
+size = Vector3(1.99, 0.5, 0.99)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_s2hy2"]
+size = Vector3(0.05, 1.05, 0.99)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_nf6gh"]
+size = Vector3(0.05, 0.8, 0.99)
+
+[node name="bed_iron" type="Node3D" unique_id=888726118]
+
+[node name="bed_iron" type="Node3D" parent="." unique_id=1177090251]
+metadata/extras = {
+"furniture": "{\"id\": \"bed-iron\", \"title\": \"Iron bed\", \"category\": \"Furniture: beds\", \"footprint\": [2.0197, 1.092, 1.1242], \"footprintOffset\": [0.0129, 0.0, -0.0002], \"collision\": [{\"size\": [1.99, 0.5, 0.99], \"at\": [0, 0.25, 0], \"yaw\": 0.0}, {\"size\": [0.05, 1.05, 0.99], \"at\": [-0.975, 0.525, 0], \"yaw\": 0.0}, {\"size\": [0.05, 0.8, 0.99], \"at\": [0.975, 0.4, 0], \"yaw\": 0.0}], \"points\": [{\"kind\": \"sleep\", \"node\": \"bed_iron_sleep_0\", \"at\": [0.05, 0.5, 0], \"facing\": [0, 0, 1], \"head\": [-1, 0, 0]}, {\"kind\": \"use\", \"node\": \"bed_iron_use_0\", \"at\": [0, 0, 0.75], \"facing\": [0, 0, -1], \"action\": \"lie\"}]}"
+}
+
+[node name="bed_iron_far" type="MeshInstance3D" parent="bed_iron" unique_id=1233853219]
+visible = false
+mesh = ExtResource("1_77kis")
+
+[node name="bed_iron_near" type="MeshInstance3D" parent="bed_iron" unique_id=1544808215]
+mesh = ExtResource("2_s2hy2")
+
+[node name="bed_iron_sleep_0" type="Node3D" parent="bed_iron" unique_id=975895074]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.05, 0.5, 0)
+
+[node name="bed_iron_use_0" type="Node3D" parent="bed_iron" unique_id=91534347]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0.75)
+
+[node name="Solid" type="StaticBody3D" parent="." unique_id=1270655117]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Solid" unique_id=1640801654]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
+shape = SubResource("BoxShape3D_77kis")
+
+[node name="@CollisionShape3D@21" type="CollisionShape3D" parent="Solid" unique_id=1869058939]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.975, 0.525, 0)
+shape = SubResource("BoxShape3D_s2hy2")
+
+[node name="@CollisionShape3D@22" type="CollisionShape3D" parent="Solid" unique_id=1842799005]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.975, 0.4, 0)
+shape = SubResource("BoxShape3D_nf6gh")

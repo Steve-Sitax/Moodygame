@@ -24,6 +24,7 @@ public static class NativeNetworkProof
         void Check(string name, bool pass) { checks.Add(new JsonObject { ["name"] = name, ["passed"] = pass }); if (!pass) throw new InvalidOperationException(name); }
         try
         {
+            int expectedDistricts=NativeDistrictLayouts.Available().Count;
             string allowed = Path.GetFullPath(output) + Path.DirectorySeparatorChar;
             Check("network proof uses its own database", Path.GetFullPath(Scheldemist.Paths.Database).StartsWith(allowed, StringComparison.OrdinalIgnoreCase));
             Check("dedicated default saves are separate from the local game", Scheldemist.Paths.NativeUserDirectory == Path.Combine(Godot.ProjectSettings.GlobalizePath("user://"), "native-server"));
@@ -58,7 +59,9 @@ public static class NativeNetworkProof
             Check("guest cannot change authoritative weather", (await Call("POST", "/api/dev/set", at, new JsonObject { ["weather"] = "storm" })).Status == 403);
             Check("guest cannot use host controls", (await Call("GET", "/api/mp/host", at)).Status == 403);
             var layouts = await Call("GET", "/api/native/world", at);
-            Check("guest receives authenticated district layouts", layouts.Status == 200 && layouts.Body["fingerprint"]?.GetValue<string>() == backend.WorldFingerprint && layouts.Body["layouts"] is JsonObject districts && districts.Count == 11);
+            Check("guest receives authenticated district layouts", layouts.Status == 200 && layouts.Body["fingerprint"]?.GetValue<string>() == backend.WorldFingerprint && layouts.Body["layouts"] is JsonObject districts && districts.Count == expectedDistricts);
+            var hostLayouts=await Call("GET","/api/native/world",backend.HostToken);
+            Check("host and guest receive identical authored room edits",hostLayouts.Status==200&&hostLayouts.Body.ToJsonString()==layouts.Body.ToJsonString());
             Check("anonymous clients cannot download world layouts", (await Call("GET", "/api/native/world")).Status == 401);
 
             using var movementA = await Open(backend.ServerUrl, "/mp", new JsonObject { ["type"] = "hello", ["token"] = at, ["protocol"] = MpProtocol.Protocol, ["version"] = "godot", ["fingerprint"] = backend.WorldFingerprint });

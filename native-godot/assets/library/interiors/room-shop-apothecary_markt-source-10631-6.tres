@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-apothecary_markt-source-10631-6.tscn" id="1_jxhf3"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_awoc8"]
+
+[resource]
+PlacementAnchor = Vector3(-1.7881393e-06, 0, 2.3841858e-06)
+GeometryClearance = true
+script = ExtResource("2_awoc8")
+Id = "room-shop-apothecary_markt-source-10631-6"
+Title = "clock · shop:apothecary_markt · source-10631-6"
+Category = "Room originals"
+Scene = ExtResource("1_jxhf3")
+Footprint = Vector3(0.3799131, 0.3799863, 0.04)
+FootprintOffset = Vector3(-1.7881393e-06, 2.2599957, 2.3841858e-06)
+FurnitureKind = "clock"
+SeatYaw = 3.1415925
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

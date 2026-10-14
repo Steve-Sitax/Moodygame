@@ -1,0 +1,138 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_25url"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-counter.tres" id="2_5lpdq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10557-1.tres" id="3_domt7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10557-2.tres" id="4_s2ibt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10557-3.tres" id="5_8i61x"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10557-4.tres" id="6_njaw4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10557-5.tres" id="7_dv1g6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10560-6.tres" id="8_njm1j"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10563-7.tres" id="9_rmuu7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10563-8.tres" id="10_wxo1y"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10570-9.tres" id="11_jfa7a"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10570-10.tres" id="12_x145o"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10571-11.tres" id="13_s1enp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10571-12.tres" id="14_16l6u"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10571-13.tres" id="15_nus7i"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10571-14.tres" id="16_midxq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10571-15.tres" id="17_qitd0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10571-16.tres" id="18_jv0ol"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10571-17.tres" id="19_1kadj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10626-18.tres" id="20_0tkrl"]
+
+[node name="Objects" type="Node3D" unique_id=1340453898]
+
+[node name="object_counter" type="Node3D" parent="." unique_id=734286398]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -196.65, 0.18, 52.280003)
+script = ExtResource("1_25url")
+ObjectId = "room-shop-colonial_steen-counter"
+Asset = ExtResource("2_5lpdq")
+
+[node name="object_source-10557-1" type="Node3D" parent="." unique_id=543561492]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -196.02507, 0.18, 53.15)
+script = ExtResource("1_25url")
+ObjectId = "room-shop-colonial_steen-source-10557-1"
+Asset = ExtResource("3_domt7")
+
+[node name="object_source-10557-2" type="Node3D" parent="." unique_id=86206268]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -196.145, 0.18, 47.72001)
+script = ExtResource("1_25url")
+ObjectId = "room-shop-colonial_steen-source-10557-2"
+Asset = ExtResource("4_s2ibt")
+
+[node name="object_source-10557-3" type="Node3D" parent="." unique_id=566844905]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -199.525, 0.18, 52.08503)
+script = ExtResource("1_25url")
+ObjectId = "room-shop-colonial_steen-source-10557-3"
+Asset = ExtResource("5_8i61x")
+
+[node name="object_source-10557-4" type="Node3D" parent="." unique_id=359440882]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -193.27008, 0.18, 50.42005)
+script = ExtResource("1_25url")
+ObjectId = "room-shop-colonial_steen-source-10557-4"
+Asset = ExtResource("6_njaw4")
+
+[node name="object_source-10557-5" type="Node3D" parent="." unique_id=1094273167]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -193.24013, 0.18, 50.42005)
+script = ExtResource("1_25url")
+ObjectId = "room-shop-colonial_steen-source-10557-5"
+Asset = ExtResource("7_dv1g6")
+
+[node name="object_source-10560-6" type="Node3D" parent="." unique_id=409513197]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -196.025, 0.18, 53.39)
+script = ExtResource("1_25url")
+ObjectId = "room-shop-colonial_steen-source-10560-6"
+Asset = ExtResource("8_njm1j")
+
+[node name="object_source-10563-7" type="Node3D" parent="." unique_id=742048253]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -197.33002, 0.18, 52.45002)
+script = ExtResource("1_25url")
+ObjectId = "room-shop-colonial_steen-source-10563-7"
+Asset = ExtResource("9_rmuu7")
+
+[node name="object_source-10563-8" type="Node3D" parent="." unique_id=898202435]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -195.70804, 0.18, 49.82001)
+script = ExtResource("1_25url")
+ObjectId = "room-shop-colonial_steen-source-10563-8"
+Asset = ExtResource("10_wxo1y")
+
+[node name="object_source-10570-9" type="Node3D" parent="." unique_id=1316898606]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -197.33002, 0.18, 52.450027)
+script = ExtResource("1_25url")
+ObjectId = "room-shop-colonial_steen-source-10570-9"
+Asset = ExtResource("11_jfa7a")
+
+[node name="object_source-10570-10" type="Node3D" parent="." unique_id=1628189034]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -195.70801, 0.18, 49.820015)
+script = ExtResource("1_25url")
+ObjectId = "room-shop-colonial_steen-source-10570-10"
+Asset = ExtResource("12_x145o")
+
+[node name="object_source-10571-11" type="Node3D" parent="." unique_id=1157567106]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -197.99922, 0.18, 47.6066)
+script = ExtResource("1_25url")
+ObjectId = "room-shop-colonial_steen-source-10571-11"
+Asset = ExtResource("13_s1enp")
+
+[node name="object_source-10571-12" type="Node3D" parent="." unique_id=150264141]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -197.39603, 0.18, 47.61266)
+script = ExtResource("1_25url")
+ObjectId = "room-shop-colonial_steen-source-10571-12"
+Asset = ExtResource("14_16l6u")
+
+[node name="object_source-10571-13" type="Node3D" parent="." unique_id=493579798]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -196.8017, 0.18, 47.605537)
+script = ExtResource("1_25url")
+ObjectId = "room-shop-colonial_steen-source-10571-13"
+Asset = ExtResource("15_nus7i")
+
+[node name="object_source-10571-14" type="Node3D" parent="." unique_id=1195223005]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -196.20456, 0.18, 47.607006)
+script = ExtResource("1_25url")
+ObjectId = "room-shop-colonial_steen-source-10571-14"
+Asset = ExtResource("16_midxq")
+
+[node name="object_source-10571-15" type="Node3D" parent="." unique_id=524564346]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -195.5973, 0.18, 47.615086)
+script = ExtResource("1_25url")
+ObjectId = "room-shop-colonial_steen-source-10571-15"
+Asset = ExtResource("17_qitd0")
+
+[node name="object_source-10571-16" type="Node3D" parent="." unique_id=1902643841]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -194.99852, 0.18, 47.615475)
+script = ExtResource("1_25url")
+ObjectId = "room-shop-colonial_steen-source-10571-16"
+Asset = ExtResource("18_jv0ol")
+
+[node name="object_source-10571-17" type="Node3D" parent="." unique_id=1496596909]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -194.3977, 0.18, 47.608833)
+script = ExtResource("1_25url")
+ObjectId = "room-shop-colonial_steen-source-10571-17"
+Asset = ExtResource("19_1kadj")
+
+[node name="object_source-10626-18" type="Node3D" parent="." unique_id=90735899]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -200.002, 0.18, 52.085)
+script = ExtResource("1_25url")
+ObjectId = "room-shop-colonial_steen-source-10626-18"
+Asset = ExtResource("20_0tkrl")

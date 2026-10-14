@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/furniture/table-kitchen-long.tscn" id="1_etrw0"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_gd8c0"]
+
+[resource]
+script = ExtResource("2_gd8c0")
+Id = "table-kitchen-long"
+Title = "Long kitchen table with a drawer"
+Category = "Furniture: tables"
+Scene = ExtResource("1_etrw0")
+Footprint = Vector3(1.8, 0.76, 0.78)
+FurnitureKind = "table"
+UsePoint = Vector3(-0.55, 0, 0.7)
+StandPoint = Vector3(0, 0, 0.7)

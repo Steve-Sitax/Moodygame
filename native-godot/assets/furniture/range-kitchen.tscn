@@ -1,0 +1,42 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/stoves-r0001.res" id="1_kbdtw"]
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/stoves-r0003.res" id="2_1vldx"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_kbdtw"]
+size = Vector3(1.06, 0.82, 0.68)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_1vldx"]
+size = Vector3(1.05, 0.4, 0.2)
+
+[node name="range_kitchen" type="Node3D" unique_id=1037912136]
+
+[node name="range_kitchen" type="Node3D" parent="." unique_id=2097192160]
+metadata/extras = {
+"furniture": "{\"id\": \"range-kitchen\", \"title\": \"Kitchen range with pipe\", \"category\": \"Furniture: stoves\", \"footprint\": [1.05, 2.0576, 0.8436], \"footprintOffset\": [0.0, 0.0, -0.0282], \"collision\": [{\"size\": [1.06, 0.82, 0.68], \"at\": [0, 0.41, 0.03], \"yaw\": 0.0}, {\"size\": [1.05, 0.4, 0.2], \"at\": [0, 0.994, -0.19], \"yaw\": 0.0}], \"points\": [{\"kind\": \"use\", \"node\": \"range_kitchen_use_0\", \"at\": [0, 0, 0.75], \"facing\": [0, 0, -1], \"action\": \"cook\"}, {\"kind\": \"use\", \"node\": \"range_kitchen_use_1\", \"at\": [-0.27, 0, 0.7], \"facing\": [0, 0, -1], \"action\": \"stoke\"}]}"
+}
+
+[node name="range_kitchen_far" type="MeshInstance3D" parent="range_kitchen" unique_id=2038119880]
+visible = false
+mesh = ExtResource("1_kbdtw")
+
+[node name="range_kitchen_near" type="MeshInstance3D" parent="range_kitchen" unique_id=1019802248]
+mesh = ExtResource("2_1vldx")
+
+[node name="range_kitchen_use_0" type="Node3D" parent="range_kitchen" unique_id=87007197]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0.75)
+
+[node name="range_kitchen_use_1" type="Node3D" parent="range_kitchen" unique_id=425422848]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, -0.27, 0, 0.7)
+
+[node name="Solid" type="StaticBody3D" parent="." unique_id=2134493820]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Solid" unique_id=1067971795]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.41, 0.03)
+shape = SubResource("BoxShape3D_kbdtw")
+
+[node name="@CollisionShape3D@24" type="CollisionShape3D" parent="Solid" unique_id=121085490]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.994, -0.19)
+shape = SubResource("BoxShape3D_1vldx")

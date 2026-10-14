@@ -1,0 +1,10 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Interiors/FurnitureVisual.cs" id="1_igp3i"]
+
+[node name="fitting" type="Node3D" unique_id=1653119075]
+script = ExtResource("1_igp3i")
+GeometryCollision = true
+Kind = "architecture-marker"
+ModelSize = Vector3(0.21987724, 0.25003815, 8.799999)
+ModelOffset = Vector3(-2.861023e-06, 15.949858, -1.0967255e-05)

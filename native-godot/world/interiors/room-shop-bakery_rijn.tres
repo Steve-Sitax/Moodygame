@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-shop-bakery_rijn.catalog.tres" id="1_jitv5"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-shop-bakery_rijn.structure.tscn" id="2_oeby6"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-shop-bakery_rijn.objects.tscn" id="3_jitv5"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_iswji"]
+
+[resource]
+script = ExtResource("4_iswji")
+Id = "room-shop-bakery_rijn"
+Title = "shop:bakery_rijn"
+Scene = ExtResource("3_jitv5")
+EditorScenePath = "res://world/interiors/room-shop-bakery_rijn.tscn"
+Catalog = ExtResource("1_jitv5")
+Bounds = Rect2(-94.875656, -21.664223, 200, 200)
+WalkSpawn = Vector3(5.124342, 0.2, 78.33578)
+FlySpawn = Vector3(5.124342, 1.78, 78.33578)
+FlyYaw = 1.6328664
+FlyPitch = -0.12
+RoomId = "shop:bakery_rijn"
+RoomFrame = Transform3D(-0.062030207, 0, 0.9980743, 0, 1, 0, -0.9980743, 0, -0.062030207, -0.66416794, 0.18, 77.33041)
+RoomBounds = Rect2(-3.8874824, 0.2, 5.0499763, 11.03)
+EntryPoints = PackedVector3Array(-0.66416794, 0.18, 77.33041)
+ReplacedMeshes = PackedInt32Array(9979, 9981, 9982, 9983, 9984, 9985, 9986, 9987, 9988, 9989, 9990, 9991, 9992, 9993, 9994, 9995, 9996, 9997, 9998, 9999, 10000, 10001, 10002, 10003, 10004, 10012, 10046)
+RetainedStructure = ExtResource("2_oeby6")

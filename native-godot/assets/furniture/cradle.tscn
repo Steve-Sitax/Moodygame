@@ -1,0 +1,35 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/beds-r0009.res" id="1_waanm"]
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/beds-r0011.res" id="2_x1br6"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_waanm"]
+size = Vector3(0.98, 0.5, 0.54)
+
+[node name="cradle" type="Node3D" unique_id=839852554]
+
+[node name="cradle" type="Node3D" parent="." unique_id=931120347]
+metadata/extras = {
+"furniture": "{\"id\": \"cradle\", \"title\": \"Rocking cradle\", \"category\": \"Furniture: beds\", \"footprint\": [0.957, 0.6699, 0.5564], \"footprintOffset\": [0.0, 0.0001, -0.0], \"collision\": [{\"size\": [0.98, 0.5, 0.54], \"at\": [0, 0.25, 0], \"yaw\": 0.0}], \"points\": [{\"kind\": \"sleep\", \"node\": \"cradle_sleep_0\", \"at\": [0.0, 0.25, 0], \"facing\": [0, 0, 1], \"head\": [-1, 0, 0], \"size\": \"infant\"}, {\"kind\": \"use\", \"node\": \"cradle_use_0\", \"at\": [0, 0, 0.55], \"facing\": [0, 0, -1], \"action\": \"rock\"}]}"
+}
+
+[node name="cradle_far" type="MeshInstance3D" parent="cradle" unique_id=1426759623]
+visible = false
+mesh = ExtResource("1_waanm")
+
+[node name="cradle_near" type="MeshInstance3D" parent="cradle" unique_id=1000058153]
+mesh = ExtResource("2_x1br6")
+
+[node name="cradle_sleep_0" type="Node3D" parent="cradle" unique_id=2073440978]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
+
+[node name="cradle_use_0" type="Node3D" parent="cradle" unique_id=2036066781]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0.55)
+
+[node name="Solid" type="StaticBody3D" parent="." unique_id=536307027]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Solid" unique_id=290842040]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
+shape = SubResource("BoxShape3D_waanm")

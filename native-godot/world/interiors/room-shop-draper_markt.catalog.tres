@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="AuthorCatalog" format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="1_3wh1k"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-draper_markt-counter.tres" id="2_b84nf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-draper_markt-source-10430-1.tres" id="3_vr1v7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-draper_markt-source-10430-2.tres" id="4_rntsq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-draper_markt-source-10430-3.tres" id="5_pov4d"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-draper_markt-source-10430-4.tres" id="6_r7wna"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-draper_markt-source-10430-5.tres" id="7_4qhpn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-draper_markt-source-10430-6.tres" id="8_sya4n"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-draper_markt-source-10430-7.tres" id="9_vjk3f"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-draper_markt-source-10441-8.tres" id="10_cwb25"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-draper_markt-source-10441-9.tres" id="11_f4ydm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-draper_markt-source-10444-10.tres" id="12_eiv7x"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-draper_markt-source-10444-11.tres" id="13_oxiu4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-draper_markt-source-10488-12.tres" id="14_vcxs3"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorCatalog.cs" id="15_1b8x1"]
+
+[resource]
+script = ExtResource("15_1b8x1")
+Assets = Array[ExtResource("1_3wh1k")]([ExtResource("2_b84nf"), ExtResource("3_vr1v7"), ExtResource("4_rntsq"), ExtResource("5_pov4d"), ExtResource("6_r7wna"), ExtResource("7_4qhpn"), ExtResource("8_sya4n"), ExtResource("9_vjk3f"), ExtResource("10_cwb25"), ExtResource("11_f4ydm"), ExtResource("12_eiv7x"), ExtResource("13_oxiu4"), ExtResource("14_vcxs3")])

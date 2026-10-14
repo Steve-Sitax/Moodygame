@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-tavern-linde-source-12036-68.tscn" id="1_h6m8j"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_n0odr"]
+
+[resource]
+PlacementAnchor = Vector3(9.179115e-06, -1.4901161e-08, -6.198883e-06)
+GeometryClearance = true
+script = ExtResource("2_n0odr")
+Id = "room-tavern-linde-source-12036-68"
+Title = "cask · tavern:linde · source-12036-68"
+Category = "Room originals"
+Scene = ExtResource("1_h6m8j")
+Footprint = Vector3(0.6276972, 0.8, 0.65999985)
+FootprintOffset = Vector3(9.179115e-06, -1.4901161e-08, -6.198883e-06)
+FurnitureKind = "cask"
+SeatYaw = 3.1415925
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000061)

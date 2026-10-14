@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-grocer_canal-source-10144-16.tscn" id="1_v233v"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_jroqx"]
+
+[resource]
+PlacementAnchor = Vector3(2.1457672e-06, 0, 6.3180923e-06)
+GeometryClearance = true
+script = ExtResource("2_jroqx")
+Id = "room-shop-grocer_canal-source-10144-16"
+Title = "fitting · shop:grocer_canal · source-10144-16"
+Category = "Room originals"
+Scene = ExtResource("1_v233v")
+Footprint = Vector3(0.04, 0.5999999, 0.04)
+FootprintOffset = Vector3(2.1457672e-06, 2.5, 6.3180923e-06)
+FurnitureKind = "fitting"
+SeatYaw = 1.5707964
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

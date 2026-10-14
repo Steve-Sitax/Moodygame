@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-tavern-engel-seat-15.tscn" id="1_nhnq2"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_yu5bt"]
+
+[resource]
+PlacementAnchor = Vector3(3.2544136e-05, 0, 0.029955119)
+GeometryClearance = true
+script = ExtResource("2_yu5bt")
+Id = "room-tavern-engel-seat-15"
+Title = "stool · tavern:engel · seat-15"
+Category = "Room originals"
+Scene = ExtResource("1_nhnq2")
+Footprint = Vector3(3.799929, 0.6849775, 0.42003077)
+FootprintOffset = Vector3(3.2544136e-05, -1.4901161e-08, 0.029955119)
+FurnitureKind = "stool"
+SeatPoints = PackedVector3Array(0, 0, 0)
+SeatHeight = 0.68
+Table = 9
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, -0.5999985)

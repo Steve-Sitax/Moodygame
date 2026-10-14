@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-pawn_vis-source-10317-3.tscn" id="1_kbo55"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_ba2hw"]
+
+[resource]
+PlacementAnchor = Vector3(-1.1920929e-06, 0, -1.4305115e-06)
+GeometryClearance = true
+script = ExtResource("2_ba2hw")
+Id = "room-shop-pawn_vis-source-10317-3"
+Title = "fitting · shop:pawn_vis · source-10317-3"
+Category = "Room originals"
+Scene = ExtResource("1_kbo55")
+Footprint = Vector3(2.200049, 0.46998173, 0.42009068)
+FootprintOffset = Vector3(-1.1920929e-06, -5.9604645e-08, -1.4305115e-06)
+FurnitureKind = "fitting"
+SeatYaw = 1.5707964
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

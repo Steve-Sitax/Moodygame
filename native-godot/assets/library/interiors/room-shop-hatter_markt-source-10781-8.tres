@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-hatter_markt-source-10781-8.tscn" id="1_rj2h7"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_vlf23"]
+
+[resource]
+PlacementAnchor = Vector3(-8.821487e-06, 0, -1.66893e-06)
+GeometryClearance = true
+script = ExtResource("2_vlf23")
+Id = "room-shop-hatter_markt-source-10781-8"
+Title = "stove · shop:hatter_markt · source-10781-8"
+Category = "Room originals"
+Scene = ExtResource("1_rj2h7")
+Footprint = Vector3(0.6200423, 3.1, 0.6200795)
+FootprintOffset = Vector3(-8.821487e-06, 0, -1.66893e-06)
+FurnitureKind = "stove"
+SeatYaw = 1.5707964
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

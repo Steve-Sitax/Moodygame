@@ -21,6 +21,7 @@ public partial class Checks : Node
     private RenderAudit? renderAudit;
     private int frames;
     private readonly ulong began = Time.GetTicksMsec();
+    private ulong limit = 240_000;
     private bool running;
     private ulong frameStart;
     private double lastMainMs;
@@ -53,6 +54,9 @@ public partial class Checks : Node
                 if (dir == "" || dir.StartsWith("--")) dir = Main.I.Arg("check-out", ProjectSettings.GlobalizePath("res://baked/checks"));
             }
         if (mode == "") { SetProcess(false); return; }
+        if (int.TryParse(Main.I.Arg("check-timeout-seconds", "240"),out int seconds) && seconds is >=30 and <=900)
+            limit=(ulong)seconds*1000;
+        else throw new ArgumentException("check-timeout-seconds must be 30..900");
         Directory.CreateDirectory(dir);
         GameState.I.PlayingWhen = () => false;
         Jef.I.TestInput = true;
@@ -135,7 +139,7 @@ public partial class Checks : Node
         frames++;
         // The baseline is the first processed frame after all game parts were added, not after late loads.
         renderAudit?.Sample("frame " + frames);
-        if (Time.GetTicksMsec() - began > 240_000) { Finish(new { ok = false, problems = new[] { "check exceeded its four-minute limit" } }); return; }
+        if (Time.GetTicksMsec() - began > limit) { Finish(new { ok = false, problems = new[] { "check exceeded its configured time limit" } }); return; }
         if (running) return;
         if (Kit.I.Error != "") { Finish(new { ok = false, problems = new[] { Kit.I.Error } }); return; }
         // Short checks must not quit while background audio tasks still create native resources.

@@ -1,0 +1,41 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/seating-r0005.res" id="1_nxowk"]
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/seating-r0007.res" id="2_3kqdx"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_nxowk"]
+size = Vector3(1.1, 0.455, 0.3)
+
+[node name="bench_short" type="Node3D" unique_id=2041415742]
+
+[node name="bench_short" type="Node3D" parent="." unique_id=608565444]
+metadata/extras = {
+"furniture": "{\"id\": \"bench-short\", \"title\": \"Short bench\", \"category\": \"Furniture: seating\", \"footprint\": [1.1, 0.4561, 0.3], \"footprintOffset\": [0.0, 0.0, -0.0], \"collision\": [{\"size\": [1.1, 0.455, 0.3], \"at\": [0, 0.2275, 0], \"yaw\": 0.0}], \"points\": [{\"kind\": \"seat\", \"node\": \"bench_short_seat_0\", \"at\": [-0.275, 0.455, -0.0], \"facing\": [0, 0, 1]}, {\"kind\": \"seat\", \"node\": \"bench_short_seat_1\", \"at\": [-0.275, 0.455, -0.0], \"facing\": [0, 0, -1]}, {\"kind\": \"seat\", \"node\": \"bench_short_seat_2\", \"at\": [0.275, 0.455, -0.0], \"facing\": [0, 0, 1]}, {\"kind\": \"seat\", \"node\": \"bench_short_seat_3\", \"at\": [0.275, 0.455, -0.0], \"facing\": [0, 0, -1]}]}"
+}
+
+[node name="bench_short_far" type="MeshInstance3D" parent="bench_short" unique_id=1697152116]
+visible = false
+mesh = ExtResource("1_nxowk")
+
+[node name="bench_short_near" type="MeshInstance3D" parent="bench_short" unique_id=1738371435]
+mesh = ExtResource("2_3kqdx")
+
+[node name="bench_short_seat_0" type="Node3D" parent="bench_short" unique_id=271830921]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.275, 0.455, 0)
+
+[node name="bench_short_seat_1" type="Node3D" parent="bench_short" unique_id=658003679]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, -0.275, 0.455, 0)
+
+[node name="bench_short_seat_2" type="Node3D" parent="bench_short" unique_id=627577464]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.275, 0.455, 0)
+
+[node name="bench_short_seat_3" type="Node3D" parent="bench_short" unique_id=995255967]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.275, 0.455, 0)
+
+[node name="Solid" type="StaticBody3D" parent="." unique_id=60645305]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Solid" unique_id=1825811208]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2275, 0)
+shape = SubResource("BoxShape3D_nxowk")

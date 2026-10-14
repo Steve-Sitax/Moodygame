@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/furniture/settle.tscn" id="1_l62h5"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_pepr5"]
+
+[resource]
+script = ExtResource("2_pepr5")
+Id = "settle"
+Title = "High-backed settle"
+Category = "Furniture: seating"
+Scene = ExtResource("1_l62h5")
+Footprint = Vector3(1.53, 1.401, 0.5)
+FootprintOffset = Vector3(0, -0.14, -0.01)
+FurnitureKind = "settle"
+SeatPoints = PackedVector3Array(-0.48, 0, 0.04, 0, 0, 0.04, 0.48, 0, 0.04)
+SeatHeight = 0.447
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.7)

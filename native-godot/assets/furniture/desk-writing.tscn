@@ -1,0 +1,60 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/tables-r0001.res" id="1_skv0u"]
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/tables-r0003.res" id="2_ma8sn"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_skv0u"]
+size = Vector3(1.12, 0.148, 0.64)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ma8sn"]
+size = Vector3(0.05, 0.612, 0.05)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_4b53l"]
+size = Vector3(0.05, 0.612, 0.05)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_qok1v"]
+size = Vector3(0.05, 0.612, 0.05)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_bxibd"]
+size = Vector3(0.05, 0.612, 0.05)
+
+[node name="desk_writing" type="Node3D" unique_id=517247712]
+
+[node name="desk_writing" type="Node3D" parent="." unique_id=1534645432]
+metadata/extras = {
+"furniture": "{\"id\": \"desk-writing\", \"title\": \"Writing desk\", \"category\": \"Furniture: tables\", \"footprint\": [1.12, 0.7616, 0.64], \"footprintOffset\": [0.0, 0.0, -0.0], \"collision\": [{\"size\": [1.12, 0.148, 0.64], \"at\": [0, 0.686, 0], \"yaw\": 0.0}, {\"size\": [0.05, 0.612, 0.05], \"at\": [-0.5, 0.306, 0.27], \"yaw\": 0.0}, {\"size\": [0.05, 0.612, 0.05], \"at\": [-0.5, 0.306, -0.27], \"yaw\": 0.0}, {\"size\": [0.05, 0.612, 0.05], \"at\": [0.5, 0.306, 0.27], \"yaw\": 0.0}, {\"size\": [0.05, 0.612, 0.05], \"at\": [0.5, 0.306, -0.27], \"yaw\": 0.0}], \"points\": [{\"kind\": \"use\", \"node\": \"desk_writing_use_0\", \"at\": [0, 0, 0.55], \"facing\": [0, 0, -1], \"action\": \"write\"}]}"
+}
+
+[node name="desk_writing_far" type="MeshInstance3D" parent="desk_writing" unique_id=1716750366]
+visible = false
+mesh = ExtResource("1_skv0u")
+
+[node name="desk_writing_near" type="MeshInstance3D" parent="desk_writing" unique_id=2033800680]
+mesh = ExtResource("2_ma8sn")
+
+[node name="desk_writing_use_0" type="Node3D" parent="desk_writing" unique_id=664338553]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0.55)
+
+[node name="Solid" type="StaticBody3D" parent="." unique_id=1547704535]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Solid" unique_id=1718138514]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.686, 0)
+shape = SubResource("BoxShape3D_skv0u")
+
+[node name="@CollisionShape3D@16" type="CollisionShape3D" parent="Solid" unique_id=356881730]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 0.306, 0.27)
+shape = SubResource("BoxShape3D_ma8sn")
+
+[node name="@CollisionShape3D@17" type="CollisionShape3D" parent="Solid" unique_id=1717502159]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 0.306, -0.27)
+shape = SubResource("BoxShape3D_4b53l")
+
+[node name="@CollisionShape3D@18" type="CollisionShape3D" parent="Solid" unique_id=1227825751]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0.306, 0.27)
+shape = SubResource("BoxShape3D_qok1v")
+
+[node name="@CollisionShape3D@19" type="CollisionShape3D" parent="Solid" unique_id=2007716900]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0.306, -0.27)
+shape = SubResource("BoxShape3D_bxibd")

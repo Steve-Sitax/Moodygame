@@ -1,14 +1,15 @@
 [gd_resource type="Resource" script_class="AuthorDistrict" format=3]
 
 [ext_resource type="Resource" path="res://recovered/rijnkaai-recovered/catalog.tres" id="1_h7rgw"]
-[ext_resource type="PackedScene" path="res://recovered/rijnkaai-recovered/district.tscn" id="2_gw8b1"]
+[ext_resource type="PackedScene" path="res://world/districts/rijnkaai-recovered.objects.tscn" id="2_h7rgw"]
 [ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="3_vuals"]
 
 [resource]
 script = ExtResource("3_vuals")
 Id = "rijnkaai-recovered"
 Title = "Rijnkaai · updated town"
-Scene = ExtResource("2_gw8b1")
+Scene = ExtResource("2_h7rgw")
+EditorScenePath = "res://recovered/rijnkaai-recovered/district.tscn"
 Catalog = ExtResource("1_h7rgw")
 Bounds = Rect2(-12, -6, 72, 68)
 WalkSpawn = Vector3(20, 0.02, 26)

@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-cobbler_east-source-11286-18.tscn" id="1_yri4e"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_lvh1i"]
+
+[resource]
+PlacementAnchor = Vector3(7.1525574e-07, 0, -1.1920929e-07)
+GeometryClearance = true
+script = ExtResource("2_lvh1i")
+Id = "room-shop-cobbler_east-source-11286-18"
+Title = "fitting · shop:cobbler_east · source-11286-18"
+Category = "Room originals"
+Scene = ExtResource("1_yri4e")
+Footprint = Vector3(0.1590352, 0.08001518, 0.15903974)
+FootprintOffset = Vector3(7.1525574e-07, 2.3099847, -1.1920929e-07)
+FurnitureKind = "fitting"
+SeatYaw = 2.4667642
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000061)

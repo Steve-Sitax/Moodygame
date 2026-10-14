@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-bakery_rijn-counter.tscn" id="1_d3tga"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_wtigq"]
+
+[resource]
+PlacementAnchor = Vector3(-0.5599973, -1.4901161e-08, -1.6212463e-05)
+GeometryClearance = true
+script = ExtResource("2_wtigq")
+Id = "room-shop-bakery_rijn-counter"
+Title = "counter · shop:bakery_rijn · counter"
+Category = "Room originals"
+Scene = ExtResource("1_d3tga")
+Footprint = Vector3(1.4200001, 1.3174865, 3.5199676)
+FootprintOffset = Vector3(-0.5599973, -1.4901161e-08, -1.6212463e-05)
+FurnitureKind = "counter"
+UsePoint = Vector3(0.62999725, 1.2, 0)
+StandPoint = Vector3(1.3300018, 0, 0)
+
+
+KeeperPoint = Vector3(-0.91999735, 0, -1.6212463e-05)

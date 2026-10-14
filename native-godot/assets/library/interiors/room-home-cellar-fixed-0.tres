@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-home-cellar-fixed-0.tscn" id="1_b28qw"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_w6caq"]
+
+[resource]
+PlacementAnchor = Vector3(5.9604645e-08, -2.9802338e-10, 2.3841858e-07)
+GeometryClearance = true
+script = ExtResource("2_w6caq")
+Id = "room-home-cellar-fixed-0"
+Title = "bed · home:cellar · fixed-0"
+Category = "Room originals"
+Scene = ExtResource("1_b28qw")
+Footprint = Vector3(0.9, 0.22, 1.9000001)
+FootprintOffset = Vector3(5.9604645e-08, -2.9802338e-10, 2.3841858e-07)
+FurnitureKind = "bed"
+SeatYaw = 6.2831855
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(-0.1560669, 0, 0.5793457)

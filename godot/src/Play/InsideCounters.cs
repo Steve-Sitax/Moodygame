@@ -36,6 +36,12 @@ public partial class InsideCounters : Node
             var p = item.GetProperty("counter"); var o = item.GetProperty("origin"); float yaw = item.GetProperty("yaw").GetSingle(), x = p.GetProperty("x").GetSingle(), z = p.GetProperty("z").GetSingle();
             var c = new Counter { Id = item.GetProperty("id").GetString()!, Kind = item.GetProperty("kind").GetString()!, At = new(o.GetProperty("x").GetSingle()+x*MathF.Cos(yaw)+z*MathF.Sin(yaw), item.GetProperty("floor_y").GetSingle()+1.2f, o.GetProperty("z").GetSingle()-x*MathF.Sin(yaw)+z*MathF.Cos(yaw)) }; Counters.Add(c);
             var stand = item.GetProperty("stand"); x = stand.GetProperty("x").GetSingle(); z = stand.GetProperty("z").GetSingle(); c.Stand = new(o.GetProperty("x").GetSingle()+x*MathF.Cos(yaw)+z*MathF.Sin(yaw), c.At.Y-1.2f, o.GetProperty("z").GetSingle()-x*MathF.Sin(yaw)+z*MathF.Cos(yaw));
+            if(Main.I.World.NativeFurnitureRooms?.Contains(c.Id)==true)
+            {
+                var furniture=System.Linq.Enumerable.FirstOrDefault(Main.I.World.NativeFurniture!,p=>p.Room==c.Id&&p.Kind=="counter");
+                if(furniture==null){Counters.Remove(c);continue;}
+                c.At=furniture.UseAt;c.Stand=furniture.StandAt;
+            }
             prompts.Add(Interact.I.Add(c.At, c.Kind == "shop" ? 1.4f : 1.2f, () => Available(c) ? c.Kind == "tavern" ? "talk to " + c.Name + ", the keeper" : c.Id == "shop:pawn_vis" ? "the Berg's counter: pawn or redeem" : "buy from " + c.Name : null, () => { if (c.Kind == "tavern") Talk.I!.Open(c.Keeper, c.Name, c.Label); else Open(c); }));
             prompts.Add(Interact.I.Add(c.At, c.Kind == "shop" ? 1.4f : 1.2f, () => Available(c) ? c.Kind == "tavern" ? "buy at the counter" : "talk to " + c.Name : null, () => { if (c.Kind == "tavern") Open(c); else Talk.I!.Open(c.Keeper, c.Name, c.Label); }, Key.F));
         }

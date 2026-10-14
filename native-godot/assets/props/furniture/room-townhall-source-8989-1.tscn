@@ -1,0 +1,37 @@
+[gd_scene format=4]
+
+[ext_resource type="Script" path="res://src/Interiors/FurnitureVisual.cs" id="1_v563u"]
+[ext_resource type="Material" path="res://world/town/resources/r006256.res" id="3_a3eeo"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_lg287"]
+size = Vector3(8.643242, 19, 8.965945)
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_v563u"]
+_surfaces = [{
+"aabb": AABB(-5.4437304, 0.3000002, -3.4759834, 8.643242, 19, 8.965945),
+"attribute_data": PackedByteArray("AAAAAAAAgD8AAIA/AACAPwAAAAAAAAAAAAAAAAAAAAAAAIA/AACAPwAAgD8AAAAAAAAAAAAAgD8AAIA/AACAPwAAAAAAAAAAAAAAAAAAAAAAAIA/AACAPwAAgD8AAAAA"),
+"format": 34359738391,
+"material": ExtResource("3_a3eeo"),
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 12,
+"vertex_data": PackedByteArray("66ljwKCZmT6Ddl7ACjOuwKCZmT6eBRbA66kDwGZmmkEJ2nm/66kDwGZmmkEJ2nm/CjOuwKCZmT6eBRbAFWZ8wGZmmkEwph8+yExMPqCZmT5QvZ6+ztQMwKCZmT4Ut74/zsRMQGZmmkFWKGxAzsRMQGZmmkFWKGxAztQMwKCZmT4Ut74/zqxMP2ZmmkHFra9AK6sfc99VF5srqx9z31UXmyurH3PfVRebK6sfc99VF5srqx9z31UXmyurH3PfVRebLa6/awZR4J0trr9rBlHgnS2uv2sGUeCdLa6/awZR4J0trr9rBlHgnS2uv2sGUeCd")
+}]
+
+[node name="fitting" type="Node3D" unique_id=1754015138]
+script = ExtResource("1_v563u")
+GeometryCollision = true
+Kind = "fitting"
+ModelSize = Vector3(8.643242, 19, 8.965945)
+ModelOffset = Vector3(-1.1221094, 0.3000002, 1.0069892)
+
+[node name="Solid" type="StaticBody3D" parent="." unique_id=1741117428]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Solid" unique_id=1193254637]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.1221094, 9.8, 1.0069892)
+shape = SubResource("BoxShape3D_lg287")
+
+[node name="Batch" type="MeshInstance3D" parent="." unique_id=1960284916]
+mesh = SubResource("ArrayMesh_v563u")

@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-grocer_canal-source-10122-1.tscn" id="1_7w3xk"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_on2c5"]
+
+[resource]
+PlacementAnchor = Vector3(1.1920929e-06, 0, -2.7418137e-06)
+GeometryClearance = true
+script = ExtResource("2_on2c5")
+Id = "room-shop-grocer_canal-source-10122-1"
+Title = "shelf · shop:grocer_canal · source-10122-1"
+Category = "Room originals"
+Scene = ExtResource("1_7w3xk")
+Footprint = Vector3(5.0500793, 2.45, 0.7999809)
+FootprintOffset = Vector3(1.1920929e-06, -5.9604645e-08, -2.7418137e-06)
+FurnitureKind = "shelf"
+SeatYaw = 1.5707964
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-clock_markt-counter.tscn" id="1_ajmpy"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_qty6f"]
+
+[resource]
+PlacementAnchor = Vector3(-0.1700176, -2.9802322e-08, 0.3249917)
+GeometryClearance = true
+script = ExtResource("2_qty6f")
+Id = "room-shop-clock_markt-counter"
+Title = "counter · shop:clock_markt · counter"
+Category = "Room originals"
+Scene = ExtResource("1_ajmpy")
+Footprint = Vector3(2.1999848, 0.931, 4.0499907)
+FootprintOffset = Vector3(-0.1700176, -2.9802322e-08, 0.3249917)
+FurnitureKind = "counter"
+UsePoint = Vector3(0.6299896, 1.2, 3.8146973e-06)
+StandPoint = Vector3(1.3299866, 0, -3.8146973e-06)
+
+
+KeeperPoint = Vector3(-0.920032071, 0, 0.324999875)

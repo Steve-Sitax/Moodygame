@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Godot;
@@ -46,12 +47,30 @@ public partial class TavernSeats : Node
             var o = c.GetProperty("origin"); var r = new Room { Id = c.GetProperty("id").GetString()!, Yaw = c.GetProperty("yaw").GetSingle(), Origin = new(o.GetProperty("x").GetSingle(), c.GetProperty("floor_y").GetSingle(), o.GetProperty("z").GetSingle()) }; var rect=c.GetProperty("rect");r.Bounds=new(rect.GetProperty("minX").GetSingle(),rect.GetProperty("minZ").GetSingle(),rect.GetProperty("maxX").GetSingle()-rect.GetProperty("minX").GetSingle(),rect.GetProperty("maxZ").GetSingle()-rect.GetProperty("minZ").GetSingle());Rooms.Add(r);
             foreach (var s in c.GetProperty("seats").EnumerateArray())
             {
+                if(Main.I.World.NativeFurnitureRooms?.Contains(r.Id)==true) continue;
                 var via = s.GetProperty("via"); var end = via[via.GetArrayLength()-1];
                 var seat = new Seat { Room = r, At = World(r, s.GetProperty("x").GetSingle(), s.GetProperty("z").GetSingle()), Approach = World(r, end[0].GetSingle(), end[1].GetSingle()), Height = s.GetProperty("h").GetSingle(), Yaw = r.Yaw+s.GetProperty("yaw").GetSingle(), Table = s.GetProperty("table").GetInt32() }; r.Seats.Add(seat);
                 prompts.Add(Interact.I.Add(seat.At + Vector3.Up*.45f, 1.05f, () => Sitting == null && r.Open && seat.Occupant == null && MathF.Abs(Jef.I.Y-r.Origin.Y)<.6f ? seat.Table==9 ? "sit at the counter" : "sit down at the table" : null, () => Sit(seat)));
             }
+            if(Main.I.World.NativeFurnitureRooms?.Contains(r.Id)==true)
+                foreach(var furniture in Main.I.World.NativeFurniture!.Where(p=>p.Room==r.Id&&p.Seats.Length>0).OrderBy(p=>p.Id,StringComparer.Ordinal))
+                    foreach(var point in furniture.Seats)
+                    {
+                        var seat=new Seat {Room=r,At=furniture.Node.ToGlobal(point),Approach=furniture.StandAt,Height=furniture.Height*furniture.Node.Scale.Y,Yaw=furniture.Yaw,Table=furniture.Table};r.Seats.Add(seat);
+                        prompts.Add(Interact.I.Add(seat.At+Vector3.Up*.45f,1.05f,()=>Sitting==null&&r.Open&&seat.Occupant==null&&MathF.Abs(Jef.I.Y-r.Origin.Y)<.6f?"sit down":null,()=>Sit(seat)));
+                    }
         }
         standAction = Act.Me(Key.E, "stand up", Stand);
+        if(Main.I.World.NativeFurniture is {} allFurniture)
+            foreach(var group in allFurniture.Where(p=>p.Seats.Length>0 && !Rooms.Any(r=>r.Id==p.Room)).GroupBy(p=>p.Room))
+            {
+                var room=new Room{Id=group.Key,Open=true,Origin=group.First().Node.GlobalPosition,Bounds=new(-100000,-100000,200000,200000)};Rooms.Add(room);
+                foreach(var furniture in group)foreach(var point in furniture.Seats)
+                {
+                    var seat=new Seat{Room=room,At=furniture.Node.ToGlobal(point),Approach=furniture.StandAt,Height=furniture.Height*furniture.Node.Scale.Y,Yaw=furniture.Yaw,Table=-1};room.Seats.Add(seat);
+                    prompts.Add(Interact.I.Add(seat.At+Vector3.Up*.45f,1.05f,()=>Sitting==null&&MathF.Abs(Jef.I.Y-room.Origin.Y)<.6f?"sit down":null,()=>Sit(seat)));
+                }
+            }
         diceAction = Act.Me(Key.G, "play pitjesbak", () => _ = PlayDice());
         talkAction = Act.Me(Key.F, "talk to the person at your table", () => { if(mate!=null) Talk.I!.Open(mate.Id,mate.Name,"at your table"); });
         Interact.I.AddProvider(SeatedKeys);
@@ -65,7 +84,7 @@ public partial class TavernSeats : Node
         if (GuestAction?.Invoke() is { } guest) only.Add(guest);else if(mate!=null)only.Add(talkAction);
         return seatedOffers;
     }
-    private void Reset(string how, ClientState? state) { generation++;tableLines=null;talkingRoom=null;TableLinesShown=0;chatClock=20; Stand(); foreach (var r in Rooms) { r.Open=false; foreach(var s in r.Seats)s.Occupant=null; } poll=0; }
+    private void Reset(string how, ClientState? state) { generation++;tableLines=null;talkingRoom=null;TableLinesShown=0;chatClock=20; Stand(); foreach (var r in Rooms) { r.Open=!r.Id.StartsWith("tavern:"); foreach(var s in r.Seats)s.Occupant=null; } poll=0; }
     private static Vector3 World(Room r, float x, float z) => r.Origin + new Vector3(x*MathF.Cos(r.Yaw)+z*MathF.Sin(r.Yaw),0,-x*MathF.Sin(r.Yaw)+z*MathF.Cos(r.Yaw));
     private static uint Hash(string id) { uint h=2166136261; foreach(char c in id) h=unchecked((h^c)*16777619); return h; }
     public void Sit(Seat seat) { if (seat.Occupant!=null || Sitting!=null || !seat.Room.Open) return; returnAt=new(Jef.I.X,Jef.I.Y,Jef.I.Z); Sitting=seat; Jef.I.X=seat.At.X; Jef.I.Z=seat.At.Z; yaw=seat.Yaw+MathF.PI; pitch=0; Jef.I.Frozen=true; FindMate();if(seat.Table!=9)_ = Overhear(true); }
@@ -84,7 +103,7 @@ public partial class TavernSeats : Node
     public async Task Load()
     {
         if(loading||dead||ServerLink.I?.Api is not {} api)return; loading=true; int g=generation;
-        try { foreach(var r in Rooms) { if(r.Origin.DistanceTo(new(Jef.I.X,r.Origin.Y,Jef.I.Z))>35)continue; var state=await api.Tavern(r.Id);if(dead||g!=generation)return;r.Open=state.Open;
+        try { foreach(var r in Rooms) { if(!r.Id.StartsWith("tavern:") || r.Origin.DistanceTo(new(Jef.I.X,r.Origin.Y,Jef.I.Z))>35)continue; var state=await api.Tavern(r.Id);if(dead||g!=generation)return;r.Open=state.Open;
             foreach(var s in r.Seats)s.Occupant=null;
             foreach(var p in state.Patrons) { if(p.Stand||p.Age<16||Standers.Contains(p.Kind)||!Humans.CanSitKind(p.Kind)||r.Seats.Count==0)continue; int first=(int)(Hash(p.Id)%(uint)r.Seats.Count); for(int k=0;k<r.Seats.Count;k++){var s=r.Seats[(first+k)%r.Seats.Count];if(s.Occupant!=null||s==Sitting)continue;s.Occupant=p;break;} }
         } FindMate();Pose(); } catch(ApiException){}finally{loading=false;}

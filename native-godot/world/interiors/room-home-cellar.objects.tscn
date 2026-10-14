@@ -1,0 +1,40 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_uyxwl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-cellar-fixed-0.tres" id="2_re8g5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-cellar-fixed-1.tres" id="3_lsrmj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-cellar-source-11349-2.tres" id="4_aiukt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-cellar-source-11352-3.tres" id="5_qj480"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-cellar-source-11353-4.tres" id="6_5mnuk"]
+
+[node name="Objects" type="Node3D" unique_id=782555030]
+
+[node name="object_fixed-0" type="Node3D" parent="." unique_id=1522656307]
+transform = Transform3D(0.9655816, 0, 0.26010042, 0, 1, 0, -0.26010042, 0, 0.9655816, -108.09472, -2.2, 143.93225)
+script = ExtResource("1_uyxwl")
+ObjectId = "room-home-cellar-fixed-0"
+Asset = ExtResource("2_re8g5")
+
+[node name="object_fixed-1" type="Node3D" parent="." unique_id=1570599564]
+transform = Transform3D(0.9655816, 0, 0.26010042, 0, 1, 0, -0.26010042, 0, 0.9655816, -105.634445, -2.2, 142.4928)
+script = ExtResource("1_uyxwl")
+ObjectId = "room-home-cellar-fixed-1"
+Asset = ExtResource("3_lsrmj")
+
+[node name="object_source-11349-2" type="Node3D" parent="." unique_id=876080067]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.10744, -2.2, 146.50388)
+script = ExtResource("1_uyxwl")
+ObjectId = "room-home-cellar-source-11349-2"
+Asset = ExtResource("4_aiukt")
+
+[node name="object_source-11352-3" type="Node3D" parent="." unique_id=1544436712]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.856476, -2.2, 138.83339)
+script = ExtResource("1_uyxwl")
+ObjectId = "room-home-cellar-source-11352-3"
+Asset = ExtResource("5_qj480")
+
+[node name="object_source-11353-4" type="Node3D" parent="." unique_id=868914043]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.43519, -2.2, 142.51193)
+script = ExtResource("1_uyxwl")
+ObjectId = "room-home-cellar-source-11353-4"
+Asset = ExtResource("6_5mnuk")

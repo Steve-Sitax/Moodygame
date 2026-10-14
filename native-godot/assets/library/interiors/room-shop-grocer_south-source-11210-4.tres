@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-grocer_south-source-11210-4.tscn" id="1_wujrg"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_ce64r"]
+
+[resource]
+PlacementAnchor = Vector3(4.7683716e-07, 0, -7.390976e-06)
+GeometryClearance = true
+script = ExtResource("2_ce64r")
+Id = "room-shop-grocer_south-source-11210-4"
+Title = "clock · shop:grocer_south · source-11210-4"
+Category = "Room originals"
+Scene = ExtResource("1_wujrg")
+Footprint = Vector3(0.38202953, 0.3799863, 0.0757699)
+FootprintOffset = Vector3(4.7683716e-07, 2.2599957, -7.390976e-06)
+FurnitureKind = "clock"
+SeatYaw = 3.0468206
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000061)

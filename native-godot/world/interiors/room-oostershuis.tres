@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-oostershuis.catalog.tres" id="1_mfmej"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-oostershuis.structure.tscn" id="2_rynbf"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-oostershuis.objects.tscn" id="3_mfmej"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_7y077"]
+
+[resource]
+script = ExtResource("4_7y077")
+Id = "room-oostershuis"
+Title = "oostershuis"
+Scene = ExtResource("3_mfmej")
+EditorScenePath = "res://world/interiors/room-oostershuis.tscn"
+Catalog = ExtResource("1_mfmej")
+Bounds = Rect2(20, 42.800003, 200, 200)
+WalkSpawn = Vector3(120, 0.19999991, 142.8)
+FlySpawn = Vector3(120, 1.78, 142.8)
+FlyPitch = -0.12
+RoomId = "oostershuis"
+RoomFrame = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.17999992, 0)
+RoomBounds = Rect2(88, 123.9, 64, 37.799995)
+RoomHeight = 39.1
+EntryPoints = PackedVector3Array(120, 0.17999992, 123.9, 90, 0.17999992, 124, 94, 0.17999992, 124, 98, 0.17999992, 124, 102, 0.17999992, 124, 106, 0.17999992, 124, 110, 0.17999992, 124, 114, 0.17999992, 124, 126, 0.17999992, 124, 130, 0.17999992, 124, 134, 0.17999992, 124, 138, 0.17999992, 124, 142, 0.17999992, 124, 146, 0.17999992, 124, 150, 0.17999992, 124, 90, 0.17999992, 162, 94, 0.17999992, 162, 98, 0.17999992, 162, 102, 0.17999992, 162, 106, 0.17999992, 162, 110, 0.17999992, 162, 114, 0.17999992, 162, 118, 0.17999992, 162, 122, 0.17999992, 162, 126, 0.17999992, 162, 130, 0.17999992, 162, 134, 0.17999992, 162, 138, 0.17999992, 162, 142, 0.17999992, 162, 146, 0.17999992, 162, 150, 0.17999992, 162, 88, 0.17999992, 126.5, 88, 0.17999992, 131.5, 88, 0.17999992, 136.25, 88, 0.17999992, 140.75, 88, 0.17999992, 145.25, 88, 0.17999992, 149.75, 88, 0.17999992, 154.5, 88, 0.17999992, 159.5, 152, 0.17999992, 126.5, 152, 0.17999992, 131.5, 152, 0.17999992, 136.25, 152, 0.17999992, 140.75, 152, 0.17999992, 145.25, 152, 0.17999992, 149.75, 152, 0.17999992, 154.5, 152, 0.17999992, 159.5)
+ReplacedMeshes = PackedInt32Array(9252, 9253, 9254, 9255, 9256, 9257, 9258, 9259, 9260, 9261, 9263, 9264, 9265, 9266, 9267, 9268, 9269, 9271, 9272, 9273, 9274, 9277, 9278, 9279, 9280, 9281, 9282, 9283, 9285, 9288, 9289, 9290, 9291, 9292, 9293, 9295, 9297, 9298, 9299, 9300, 9301, 9302, 9303, 9305, 9307, 9308, 9309, 9310, 9311, 9312, 9313, 9316, 9317, 9319, 9322, 9324, 9329)
+RetainedStructure = ExtResource("2_rynbf")

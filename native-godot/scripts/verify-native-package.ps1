@@ -49,6 +49,12 @@ try {
         Assert-Package ($path -notmatch '^(proof|recovery|scripts|world/notes|services/(fixtures|proof|proofs)|dist)/|^recovered/recovery-fixture-[^/]+/|^services/(coverage|legacy-routes|north-network-notes|north-services-notes)\.json$|(^|/)(layouts|node_modules|baked)/|\.(glb|js|mjs|ts|tsx|sqlite|db)$|(?i)(ai-config|credentials|mp-tokens|mp-config|server-admin|settings|keys)\.json$') "Unwanted packed file: $path"
         $entries.Add($path,[pscustomobject]@{offset=$offset;size=$size})
     }
+    foreach($path in $entries.Keys) {
+        Assert-Package ($path -notmatch '^main\.tscn(?:\.|$)|^furniture-kit-intake\.tscn(?:\.|$)|^src/Authoring/(WorkshopSession|WorkshopUi|WorkshopCamera|WorkshopProof|EditHistory|MapPromotion)\.cs(?:\.|$)|^src/Interiors/.*Intake\.cs(?:\.|$)') "Owner editor resource was shipped: $path"
+    }
+    $nativeAssembly=$all | Where-Object Name -eq 'Scheldemist.Native.dll' | Select-Object -First 1
+    $symbols=[Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($nativeAssembly.FullName))
+    foreach($type in @('WorkshopSession','WorkshopUi','WorkshopCamera','MapPromotion','FurnitureKitIntake')) { Assert-Package (-not $symbols.Contains($type)) "Owner editor code was shipped: $type" }
     function Read-Packed([string]$Path) {
         Assert-Package ($entries.ContainsKey($Path)) "Missing packed resource: $Path"
         $entry = $entries[$Path]

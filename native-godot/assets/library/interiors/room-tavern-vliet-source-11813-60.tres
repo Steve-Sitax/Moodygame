@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-tavern-vliet-source-11813-60.tscn" id="1_w1ylv"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_qxlru"]
+
+[resource]
+PlacementAnchor = Vector3(0, -1.4901161e-08, -1.4305115e-06)
+GeometryClearance = true
+script = ExtResource("2_qxlru")
+Id = "room-tavern-vliet-source-11813-60"
+Title = "cask · tavern:vliet · source-11813-60"
+Category = "Room originals"
+Scene = ExtResource("1_w1ylv")
+Footprint = Vector3(0.62769747, 0.8, 0.65999985)
+FootprintOffset = Vector3(0, -1.4901161e-08, -1.4305115e-06)
+FurnitureKind = "cask"
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

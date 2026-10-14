@@ -1,0 +1,84 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/tables-r0009.res" id="1_iwk3m"]
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/tables-r0011.res" id="2_1e1k0"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_iwk3m"]
+size = Vector3(1.8, 0.17, 0.78)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_1e1k0"]
+size = Vector3(0.065, 0.59, 0.065)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_cpr47"]
+size = Vector3(0.065, 0.59, 0.065)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_rb2i6"]
+size = Vector3(0.065, 0.59, 0.065)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_1lm5i"]
+size = Vector3(0.065, 0.59, 0.065)
+
+[node name="table_kitchen_long" type="Node3D" unique_id=125803638]
+
+[node name="table_kitchen_long" type="Node3D" parent="." unique_id=35916905]
+metadata/extras = {
+"furniture": "{\"id\": \"table-kitchen-long\", \"title\": \"Long kitchen table with a drawer\", \"category\": \"Furniture: tables\", \"footprint\": [1.8, 0.76, 0.78], \"footprintOffset\": [0.0, 0.0, -0.0], \"collision\": [{\"size\": [1.8, 0.17, 0.78], \"at\": [0, 0.675, 0], \"yaw\": 0.0}, {\"size\": [0.065, 0.59, 0.065], \"at\": [-0.78, 0.295, 0.32], \"yaw\": 0.0}, {\"size\": [0.065, 0.59, 0.065], \"at\": [-0.78, 0.295, -0.32], \"yaw\": 0.0}, {\"size\": [0.065, 0.59, 0.065], \"at\": [0.78, 0.295, 0.32], \"yaw\": 0.0}, {\"size\": [0.065, 0.59, 0.065], \"at\": [0.78, 0.295, -0.32], \"yaw\": 0.0}], \"points\": [{\"kind\": \"use\", \"node\": \"table_kitchen_long_use_0\", \"at\": [-0.55, 0, 0.7], \"facing\": [0, 0, -1], \"action\": \"sit\"}, {\"kind\": \"use\", \"node\": \"table_kitchen_long_use_1\", \"at\": [-0.55, 0, -0.7], \"facing\": [0, 0, 1], \"action\": \"sit\"}, {\"kind\": \"use\", \"node\": \"table_kitchen_long_use_2\", \"at\": [0.0, 0, 0.7], \"facing\": [0, 0, -1], \"action\": \"sit\"}, {\"kind\": \"use\", \"node\": \"table_kitchen_long_use_3\", \"at\": [0.0, 0, -0.7], \"facing\": [0, 0, 1], \"action\": \"sit\"}, {\"kind\": \"use\", \"node\": \"table_kitchen_long_use_4\", \"at\": [0.55, 0, 0.7], \"facing\": [0, 0, -1], \"action\": \"sit\"}, {\"kind\": \"use\", \"node\": \"table_kitchen_long_use_5\", \"at\": [0.55, 0, -0.7], \"facing\": [0, 0, 1], \"action\": \"sit\"}, {\"kind\": \"use\", \"node\": \"table_kitchen_long_use_6\", \"at\": [-1.2, 0, 0], \"facing\": [1, 0, 0], \"action\": \"sit\"}, {\"kind\": \"use\", \"node\": \"table_kitchen_long_use_7\", \"at\": [1.2, 0, 0], \"facing\": [-1, 0, 0], \"action\": \"sit\"}, {\"kind\": \"use\", \"node\": \"table_kitchen_long_use_8\", \"at\": [0, 0, 0.62], \"facing\": [0, 0, -1], \"action\": \"open\"}]}"
+}
+
+[node name="table_kitchen_long_far" type="MeshInstance3D" parent="table_kitchen_long" unique_id=287428965]
+visible = false
+mesh = ExtResource("1_iwk3m")
+
+[node name="table_kitchen_long_near" type="MeshInstance3D" parent="table_kitchen_long" unique_id=218739892]
+mesh = ExtResource("2_1e1k0")
+
+[node name="table_kitchen_long_use_0" type="Node3D" parent="table_kitchen_long" unique_id=1108567365]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, -0.55, 0, 0.7)
+
+[node name="table_kitchen_long_use_1" type="Node3D" parent="table_kitchen_long" unique_id=199764172]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.55, 0, -0.7)
+
+[node name="table_kitchen_long_use_2" type="Node3D" parent="table_kitchen_long" unique_id=1572597036]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0.7)
+
+[node name="table_kitchen_long_use_3" type="Node3D" parent="table_kitchen_long" unique_id=1833084363]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.7)
+
+[node name="table_kitchen_long_use_4" type="Node3D" parent="table_kitchen_long" unique_id=1955622865]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.55, 0, 0.7)
+
+[node name="table_kitchen_long_use_5" type="Node3D" parent="table_kitchen_long" unique_id=1380362919]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.55, 0, -0.7)
+
+[node name="table_kitchen_long_use_6" type="Node3D" parent="table_kitchen_long" unique_id=898159093]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -1.2, 0, 0)
+
+[node name="table_kitchen_long_use_7" type="Node3D" parent="table_kitchen_long" unique_id=1925087806]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 1.2, 0, 0)
+
+[node name="table_kitchen_long_use_8" type="Node3D" parent="table_kitchen_long" unique_id=906484781]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0.62)
+
+[node name="Solid" type="StaticBody3D" parent="." unique_id=134782057]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Solid" unique_id=1813438879]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.675, 0)
+shape = SubResource("BoxShape3D_iwk3m")
+
+[node name="@CollisionShape3D@12" type="CollisionShape3D" parent="Solid" unique_id=1134605479]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.78, 0.295, 0.32)
+shape = SubResource("BoxShape3D_1e1k0")
+
+[node name="@CollisionShape3D@13" type="CollisionShape3D" parent="Solid" unique_id=1648133673]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.78, 0.295, -0.32)
+shape = SubResource("BoxShape3D_cpr47")
+
+[node name="@CollisionShape3D@14" type="CollisionShape3D" parent="Solid" unique_id=2069505728]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.78, 0.295, 0.32)
+shape = SubResource("BoxShape3D_rb2i6")
+
+[node name="@CollisionShape3D@15" type="CollisionShape3D" parent="Solid" unique_id=1493008875]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.78, 0.295, -0.32)
+shape = SubResource("BoxShape3D_1lm5i")

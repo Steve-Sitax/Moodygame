@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-tavern-bassin.catalog.tres" id="1_3qr5n"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-tavern-bassin.structure.tscn" id="2_y5nns"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-tavern-bassin.objects.tscn" id="3_3qr5n"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_awn4v"]
+
+[resource]
+script = ExtResource("4_awn4v")
+Id = "room-tavern-bassin"
+Title = "tavern:bassin"
+Scene = ExtResource("3_3qr5n")
+EditorScenePath = "res://world/interiors/room-tavern-bassin.tscn"
+Catalog = ExtResource("1_3qr5n")
+Bounds = Rect2(-22.929993, 32.770004, 200, 200)
+WalkSpawn = Vector3(77.07001, 0.2, 132.77)
+FlySpawn = Vector3(77.07001, 1.78, 132.77)
+FlyPitch = -0.12
+RoomId = "tavern:bassin"
+RoomFrame = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 78.535, 0.18, 126)
+RoomBounds = Rect2(-4.195, 0.2, 5.46, 13.14)
+EntryPoints = PackedVector3Array(78.535, 0.18, 126)
+ReplacedMeshes = PackedInt32Array(11950, 11951, 11953, 11954, 11955, 11956, 11957, 11958, 11960, 11962, 11963, 11964, 11965, 11966, 11967, 11968, 11969, 11970, 11971, 11972, 11974, 11975, 11976, 11977)
+RetainedStructure = ExtResource("2_y5nns")

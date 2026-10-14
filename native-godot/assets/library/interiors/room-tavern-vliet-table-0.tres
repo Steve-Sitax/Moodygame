@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-tavern-vliet-table-0.tscn" id="1_tkk0v"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_8vses"]
+
+[resource]
+PlacementAnchor = Vector3(0.30996954, -1.4901161e-08, 0.29994118)
+GeometryClearance = true
+script = ExtResource("2_8vses")
+Id = "room-tavern-vliet-table-0"
+Title = "table · tavern:vliet · table-0"
+Category = "Room originals"
+Scene = ExtResource("1_tkk0v")
+Footprint = Vector3(0.700053, 0.77, 0.6998794)
+FootprintOffset = Vector3(0.30996954, -1.4901161e-08, 0.29994118)
+FurnitureKind = "table"
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

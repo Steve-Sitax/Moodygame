@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-home-merchant-fixed-4.tscn" id="1_02u3f"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_hwmy4"]
+
+[resource]
+PlacementAnchor = Vector3(-2.7060509e-05, 0, -0.012510896)
+GeometryClearance = true
+script = ExtResource("2_hwmy4")
+Id = "room-home-merchant-fixed-4"
+Title = "desk · home:merchant · fixed-4"
+Category = "Room originals"
+Scene = ExtResource("1_02u3f")
+Footprint = Vector3(1.0000541, 1.62, 0.97496295)
+FootprintOffset = Vector3(-2.7060509e-05, -0.5, -0.012510896)
+FurnitureKind = "desk"
+UsePoint = Vector3(0, 0.50000024, 0)
+StandPoint = Vector3(-0.09355545, 0, 0.592659)

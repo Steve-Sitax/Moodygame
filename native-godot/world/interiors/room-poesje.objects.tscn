@@ -1,0 +1,12 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_ws1mo"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-poesje-source-12158-0.tres" id="2_olra7"]
+
+[node name="Objects" type="Node3D" unique_id=1226144676]
+
+[node name="object_source-12158-0" type="Node3D" parent="." unique_id=535424473]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -118.34, 0, 73.405)
+script = ExtResource("1_ws1mo")
+ObjectId = "room-poesje-source-12158-0"
+Asset = ExtResource("2_olra7")

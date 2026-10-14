@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-prison-source-9535-46.tscn" id="1_4n78j"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_7gmwv"]
+
+[resource]
+PlacementAnchor = Vector3(1.04904175e-05, 0, 9.059906e-06)
+GeometryClearance = true
+script = ExtResource("2_7gmwv")
+Id = "room-prison-source-9535-46"
+Title = "fitting · prison · source-9535-46"
+Category = "Room originals"
+Scene = ExtResource("1_4n78j")
+Footprint = Vector3(0.04182625, 0.060014248, 0.73618793)
+FootprintOffset = Vector3(1.04904175e-05, 7.519867, 9.059906e-06)
+FurnitureKind = "fitting"
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000061)

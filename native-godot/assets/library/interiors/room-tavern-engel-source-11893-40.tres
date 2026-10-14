@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-tavern-engel-source-11893-40.tscn" id="1_h7yfe"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_poa5h"]
+
+[resource]
+PlacementAnchor = Vector3(7.748604e-07, 0, 3.33786e-06)
+GeometryClearance = true
+script = ExtResource("2_poa5h")
+Id = "room-tavern-engel-source-11893-40"
+Title = "fitting · tavern:engel · source-11893-40"
+Category = "Room originals"
+Scene = ExtResource("1_h7yfe")
+Footprint = Vector3(0.8999771, 1.5999978, 0.04)
+FootprintOffset = Vector3(7.748604e-07, 1.55, 3.33786e-06)
+FurnitureKind = "fitting"
+SeatYaw = 1.5707964
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture-clock.tscn" id="1_htqyr"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_purl3"]
+
+[resource]
+script = ExtResource("2_purl3")
+Id = "furniture-clock"
+Title = "Clock"
+Category = "Furniture"
+Scene = ExtResource("1_htqyr")
+Footprint = Vector3(0.45, 1.95, 0.25)
+FurnitureKind = "clock"
+UsePoint = Vector3(0, 1.7, 0.125)
+StandPoint = Vector3(0, 0, -0.725)

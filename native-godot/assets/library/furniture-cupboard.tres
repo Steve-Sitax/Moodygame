@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture-cupboard.tscn" id="1_svop2"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_4ublo"]
+
+[resource]
+script = ExtResource("2_4ublo")
+Id = "furniture-cupboard"
+Title = "Cupboard"
+Category = "Furniture"
+Scene = ExtResource("1_svop2")
+Footprint = Vector3(1.2, 1.8, 0.5)
+FurnitureKind = "cupboard"
+UsePoint = Vector3(0, 0.5, 0.25)
+StandPoint = Vector3(0, 0, -0.85)

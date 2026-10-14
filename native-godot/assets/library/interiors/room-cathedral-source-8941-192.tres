@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-cathedral-source-8941-192.tscn" id="1_cj2sl"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_hl22t"]
+
+[resource]
+PlacementAnchor = Vector3(2.026558e-06, 0.3, 0)
+GeometryClearance = true
+script = ExtResource("2_hl22t")
+Id = "room-cathedral-source-8941-192"
+Title = "chair · cathedral · source-8941-192"
+Category = "Room originals"
+Scene = ExtResource("1_cj2sl")
+Footprint = Vector3(0.4400189, 0.955, 0.41991425)
+FootprintOffset = Vector3(2.026558e-06, 0.3, 0)
+FurnitureKind = "chair"
+SeatPoints = PackedVector3Array(0.0058898926, 0.3, 0.019180298)
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000061)

@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-shop-colonial_steen.catalog.tres" id="1_7aafj"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-shop-colonial_steen.structure.tscn" id="2_g4xn5"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-shop-colonial_steen.objects.tscn" id="3_7aafj"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_rteyb"]
+
+[resource]
+script = ExtResource("4_rteyb")
+Id = "room-shop-colonial_steen"
+Title = "shop:colonial_steen"
+Scene = ExtResource("3_7aafj")
+EditorScenePath = "res://world/interiors/room-shop-colonial_steen.tscn"
+Catalog = ExtResource("1_7aafj")
+Bounds = Rect2(-294.495, -49.579998, 200, 200)
+WalkSpawn = Vector3(-194.495, 0.2, 50.420002)
+FlySpawn = Vector3(-194.495, 1.78, 50.420002)
+FlyYaw = 1.5707964
+FlyPitch = -0.12
+RoomId = "shop:colonial_steen"
+RoomFrame = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -200, 0.18, 48.755)
+RoomBounds = Rect2(-4.795, 0.2, 6.26, 10.610001)
+EntryPoints = PackedVector3Array(-200, 0.18, 48.755)
+ReplacedMeshes = PackedInt32Array(10557, 10559, 10560, 10561, 10562, 10563, 10566, 10567, 10568, 10569, 10570, 10571, 10572, 10573, 10574, 10575, 10576, 10577, 10578, 10579, 10580, 10581, 10582, 10583, 10584, 10585, 10592, 10626)
+RetainedStructure = ExtResource("2_g4xn5")

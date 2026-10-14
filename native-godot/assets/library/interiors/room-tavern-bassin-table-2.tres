@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-tavern-bassin-table-2.tscn" id="1_icyii"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_j52fp"]
+
+[resource]
+PlacementAnchor = Vector3(-0.31001842, 0, 0.29995084)
+GeometryClearance = true
+script = ExtResource("2_j52fp")
+Id = "room-tavern-bassin-table-2"
+Title = "table · tavern:bassin · table-2"
+Category = "Room originals"
+Scene = ExtResource("1_icyii")
+Footprint = Vector3(0.6799557, 0.81999636, 0.6800742)
+FootprintOffset = Vector3(-0.31001842, 0, 0.29995084)
+FurnitureKind = "table"
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000061)

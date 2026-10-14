@@ -1,0 +1,37 @@
+[gd_scene format=4]
+
+[ext_resource type="Script" path="res://src/Interiors/FurnitureVisual.cs" id="1_2imp7"]
+[ext_resource type="Material" path="res://world/town/resources/r006834.res" id="2_3wvfv"]
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_abqlb"]
+_surfaces = [{
+"aabb": AABB(-0.009189606, 9.5, -0.30986977, 0.018415451, 1.0500002, 0.6197281),
+"attribute_data": PackedByteArray("zcz8QZRkQ0FI4QBC4Xo0QQrX90HhejRBzcz8QZRkQ0FI4QBCIbBCQUjhAELhejRBzcz8QZRkQ0E1wgBC+4ZEQUjhAEIhsEJBzcz8QZRkQ0EHaABCvi9GQTXCAEL7hkRBzcz8QZRkQ0Elt/9B1oBHQQdoAEK+L0ZBzcz8QZRkQ0EtVf5BRFlIQSW3/0HWgEdBzcz8QZRkQ0HNzPxB16NIQS1V/kFEWUhBzcz8QZRkQ0FsRPtBRFlIQc3M/EHXo0hBzcz8QZRkQ0F04vlB1oBHQWxE+0FEWUhBzcz8QZRkQ0GLyfhBvi9GQXTi+UHWgEdBzcz8QZRkQ0EwFfhB+4ZEQYvJ+EG+L0ZBzcz8QZRkQ0EK1/dBIbBCQTAV+EH7hkRBzcz8QZRkQ0EK1/dB4Xo0QQrX90EhsEJB"),
+"format": 34359738385,
+"material": ExtResource("2_3wvfv"),
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 39,
+"vertex_data": PackedByteArray("AACgN2ttJEEAAMC2AJAWvAAAGEHApZ4+ACgXPAAAGEFAp56+AACgN2ttJEEAAMC2AJAWvAvXI0HApZ4+AJAWvAAAGEHApZ4+AACgN2ttJEEAAMC2ADAPvGtfJUHA4ZY+AJAWvAvXI0HApZ4+AACgN2ttJEEAAMC2AIDzu2PBJkHAWIA+ADAPvGtfJUHA4ZY+AACgN2ttJEEAAMC2AMCwu03aJ0GAfzo+AIDzu2PBJkHAWIA+AACgN2ttJEEAAMC2AEA5u6iOKEEAF8Q9AMCwu03aJ0GAfzo+AACgN2ttJEEAAMC2AACgN83MKEEAAMC2AEA5u6iOKEEAF8Q9AACgN2ttJEEAAMC2AKA7O6iOKEEAHcS9AACgN83MKEEAAMC2AACgN2ttJEEAAMC2APCxO03aJ0GAgjq+AKA7O6iOKEEAHcS9AACgN2ttJEEAAMC2ALD0O2PBJkGAWoC+APCxO03aJ0GAgjq+AACgN2ttJEEAAMC2AMgPPGtfJUFA45a+ALD0O2PBJkGAWoC+AACgN2ttJEEAAMC2ACgXPAvXI0FAp56+AMgPPGtfJUFA45a+AACgN2ttJEEAAMC2ACgXPAAAGEFAp56+ACgXPAvXI0FAp56+")
+}]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_d24ek"]
+size = Vector3(0.04, 1.0500002, 0.6197281)
+
+[node name="fitting" type="Node3D" unique_id=440872224]
+script = ExtResource("1_2imp7")
+GeometryCollision = true
+Kind = "fitting"
+ModelSize = Vector3(0.04, 1.0500002, 0.6197281)
+ModelOffset = Vector3(1.8119812e-05, 9.5, -5.722046e-06)
+
+[node name="Part" type="MeshInstance3D" parent="." unique_id=160798999]
+mesh = SubResource("ArrayMesh_abqlb")
+
+[node name="Solid" type="StaticBody3D" parent="." unique_id=1220678544]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Solid" unique_id=1232349049]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.8119812e-05, 10.025, -5.722046e-06)
+shape = SubResource("BoxShape3D_d24ek")

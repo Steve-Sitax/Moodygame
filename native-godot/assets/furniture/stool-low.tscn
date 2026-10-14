@@ -1,0 +1,32 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/seating-r0029.res" id="1_icab6"]
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/seating-r0031.res" id="2_7wdb3"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_icab6"]
+size = Vector3(0.34, 0.29, 0.34)
+
+[node name="stool_low" type="Node3D" unique_id=1027374673]
+
+[node name="stool_low" type="Node3D" parent="." unique_id=1186784134]
+metadata/extras = {
+"furniture": "{\"id\": \"stool-low\", \"title\": \"Low three-legged stool\", \"category\": \"Furniture: seating\", \"footprint\": [0.3311, 0.2986, 0.337], \"footprintOffset\": [0.0, -0.0043, -0.0203], \"collision\": [{\"size\": [0.34, 0.29, 0.34], \"at\": [0, 0.145, 0], \"yaw\": 0.0}], \"points\": [{\"kind\": \"seat\", \"node\": \"stool_low_seat_0\", \"at\": [0, 0.29, 0], \"facing\": [0, 0, 1]}]}"
+}
+
+[node name="stool_low_far" type="MeshInstance3D" parent="stool_low" unique_id=351819548]
+visible = false
+mesh = ExtResource("1_icab6")
+
+[node name="stool_low_near" type="MeshInstance3D" parent="stool_low" unique_id=96555888]
+mesh = ExtResource("2_7wdb3")
+
+[node name="stool_low_seat_0" type="Node3D" parent="stool_low" unique_id=317405274]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.29, 0)
+
+[node name="Solid" type="StaticBody3D" parent="." unique_id=745033422]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Solid" unique_id=1666961878]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.145, 0)
+shape = SubResource("BoxShape3D_icab6")

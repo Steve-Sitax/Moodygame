@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-bakery_steen-source-10065-12.tscn" id="1_hminw"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_68dsp"]
+
+[resource]
+PlacementAnchor = Vector3(1.3828278e-05, 0, -1.6987324e-06)
+GeometryClearance = true
+script = ExtResource("2_68dsp")
+Id = "room-shop-bakery_steen-source-10065-12"
+Title = "sack · shop:bakery_steen · source-10065-12"
+Category = "Room originals"
+Scene = ExtResource("1_hminw")
+Footprint = Vector3(1.114088, 0.62, 0.57491606)
+FootprintOffset = Vector3(1.3828278e-05, 0, -1.6987324e-06)
+FurnitureKind = "sack"
+SeatYaw = 1.5707964
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

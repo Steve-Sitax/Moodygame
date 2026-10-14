@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-vleeshuis-source-9095-3.tscn" id="1_1ueli"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_asdv7"]
+
+[resource]
+PlacementAnchor = Vector3(-5.2452087e-06, 0.15838769, 7.1525574e-07)
+GeometryClearance = true
+script = ExtResource("2_asdv7")
+Id = "room-vleeshuis-source-9095-3"
+Title = "cask · vleeshuis · source-9095-3"
+Category = "Room originals"
+Scene = ExtResource("1_1ueli")
+Footprint = Vector3(0.72985554, 1.0762258, 0.53558016)
+FootprintOffset = Vector3(-5.2452087e-06, 0.15838769, 7.1525574e-07)
+FurnitureKind = "cask"
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

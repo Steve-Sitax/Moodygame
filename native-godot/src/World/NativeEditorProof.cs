@@ -16,8 +16,8 @@ public partial class NativeEditorProof : Node
     {
         try
         {
-            string output = WorkshopSession.Arg("editor-proof");
-            string isolated = WorkshopSession.Arg("author-root");
+            string output = Scheldemist.Native.Game.NativeArguments.Arg("editor-proof");
+            string isolated = Scheldemist.Native.Game.NativeArguments.Arg("author-root");
             if (output == "" || isolated == "" || !Path.GetFullPath(isolated).StartsWith(Path.GetFullPath(output) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Supply an isolated --editor-proof directory and its child --author-root.");
             Directory.CreateDirectory(output); NativeGlobals.Ensure();

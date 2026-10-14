@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-tavern-zwarte_kat-seat-14.tscn" id="1_q5eg2"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_0nex3"]
+
+[resource]
+PlacementAnchor = Vector3(0.00010442734, 0, -5.0023198e-05)
+GeometryClearance = true
+script = ExtResource("2_0nex3")
+Id = "room-tavern-zwarte_kat-seat-14"
+Title = "stool · tavern:zwarte_kat · seat-14"
+Category = "Room originals"
+Scene = ExtResource("1_q5eg2")
+Footprint = Vector3(0.36000252, 0.684997, 0.36001965)
+FootprintOffset = Vector3(0.00010442734, -1.4901161e-08, -5.0023198e-05)
+FurnitureKind = "stool"
+SeatPoints = PackedVector3Array(0, 0, 0)
+SeatHeight = 0.68
+Table = 9
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(-0.5899658, 0, -0.109313965)

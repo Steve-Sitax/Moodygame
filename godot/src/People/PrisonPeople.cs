@@ -67,7 +67,12 @@ public partial class PrisonPeople:Node
         {
             var round=f.Round;var world=frame*new Vector3((float)round.X,f.Y,(float)round.Z);bool visible=State!=null&&On(f)&&new Vector2(world.X-Jef.I.X,world.Z-Jef.I.Z).Length()<130;f.Root.Visible=visible;if(!visible)continue;
             bool visitor=f.On=="visitor"&&Visitor!=null;round.Update(dt,visitor||Whereabouts.Hypot(j.X-round.X,j.Z-round.Z)<.9);bool home=Whereabouts.Hypot(round.X-round.Home.x,round.Z-round.Home.z)<.01&&!round.Walking;
-            bool sit=home&&f.Motion=="sit"&&f.Human.CanSit;f.Root.Position=frame*new Vector3((float)round.X,f.Y+(sit?f.Human.SitDrop(f.Seat):0),(float)round.Z);f.Root.Rotation=new(0,(float)(Floor.Yaw+(round.Walking?round.Yaw:home?f.Yaw:round.Yaw)),0);f.Human.Play(round.Walking?"walk":home?f.Motion:"behind");f.Human.SetPace((float)round.Speed);f.Human.Update((float)dt);
+            bool sit=home&&f.Motion=="sit"&&f.Human.CanSit;var originalSeat=frame*new Vector3((float)round.Home.x,f.Y,(float)round.Home.z);
+            int authored=Main.I.World.ResolveNativeSeat("prison",originalSeat,out var seatAt,out var seatHeight,out var seatYaw);
+            if(authored<0)sit=false;
+            f.Root.Position=sit&&authored>0?seatAt+Vector3.Up*f.Human.SitDrop(seatHeight):frame*new Vector3((float)round.X,f.Y+(sit?f.Human.SitDrop(f.Seat):0),(float)round.Z);
+            f.Root.Rotation=new(0,sit&&authored>0?seatYaw:(float)(Floor.Yaw+(round.Walking?round.Yaw:home?f.Yaw:round.Yaw)),0);
+            f.Human.Play(round.Walking?"walk":home?(f.Motion=="sit"&&!sit?"idle":f.Motion):"behind");f.Human.SetPace((float)round.Speed);f.Human.Update((float)dt);
         }
         RingCount=0;for(int i=0;i<ringers.Count;i++){var r=ringers[i];r.Root.Visible=State?.Exercise==true&&i<Math.Min(State.Ring,10)&&frame.Origin.DistanceTo(new(Jef.I.X,0,Jef.I.Z))<130;if(!r.Root.Visible)continue;RingCount++;r.Angle-=(float)(.8/ringR*dt);r.Root.Position=frame*new Vector3(ringX+MathF.Cos(r.Angle)*ringR,.05f,ringZ+MathF.Sin(r.Angle)*ringR);r.Root.Rotation=new(0,r.Angle+MathF.PI/2+(float)Floor.Yaw,0);r.Human.Play("walk");r.Human.Update((float)dt);}
         ended.Clear();foreach(var pair in roomActors){bool present=false;foreach(var run in Actors.I!.Runs)if(run.Action.Id==pair.Key){present=true;break;}if(!present)ended.Add(pair.Key);}foreach(var id in ended){roomActors[id].Root.QueueFree();roomActors.Remove(id);}

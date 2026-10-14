@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-tavern-engel-counter.tscn" id="1_hg2m3"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_2vsd7"]
+
+[resource]
+PlacementAnchor = Vector3(0.44997457, 0, -6.043911e-05)
+GeometryClearance = true
+script = ExtResource("2_2vsd7")
+Id = "room-tavern-engel-counter"
+Title = "counter · tavern:engel · counter"
+Category = "Room originals"
+Scene = ExtResource("1_hg2m3")
+Footprint = Vector3(1.4500467, 1.4199703, 3.999873)
+FootprintOffset = Vector3(0.44997457, 0, -6.043911e-05)
+FurnitureKind = "counter"
+UsePoint = Vector3(-0.67500305, 1.2, 0)
+StandPoint = Vector3(-1.425003, 0, 0)
+
+
+KeeperPoint = Vector3(0.82499792, 0, -6.043911e-05)

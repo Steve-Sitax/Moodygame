@@ -11,6 +11,7 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <Compile Remove="proof/**/*.cs;services/proofs/**/*.cs;services/proof/**/*.cs" />
     <Compile Remove="addons/**/*.cs" Condition="'$(Configuration)' != 'Debug'" />
+    <Compile Remove="src/Authoring/WorkshopSession.cs;src/Authoring/WorkshopUi.cs;src/Authoring/WorkshopCamera.cs;src/Authoring/WorkshopProof.cs;src/Authoring/EditHistory.cs;src/Authoring/MapPromotion.cs;src/Interiors/*Intake.cs;src/Interiors/*Proof.cs;src/Interiors/InteriorRoutes.cs;src/World/NativeEditorProof.cs;src/Recovery/RecoveryWorkshopProof.cs" Condition="'$(Configuration)' != 'Debug'" />
     <ProjectReference Include="../godot/Scheldemist.csproj" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.30" />
   </ItemGroup>

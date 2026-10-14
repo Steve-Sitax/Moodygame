@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-tavern-zwarte_kat-source-12103-21.tscn" id="1_yscid"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_aqoaf"]
+
+[resource]
+PlacementAnchor = Vector3(5.9604645e-08, 0, 6.4373016e-06)
+GeometryClearance = true
+script = ExtResource("2_aqoaf")
+Id = "room-tavern-zwarte_kat-source-12103-21"
+Title = "fitting · tavern:zwarte_kat · source-12103-21"
+Category = "Room originals"
+Scene = ExtResource("1_yscid")
+Footprint = Vector3(0.20978272, 0.78000283, 0.20974588)
+FootprintOffset = Vector3(5.9604645e-08, 2.119997, 6.4373016e-06)
+FurnitureKind = "fitting"
+SeatYaw = 0.18321387
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000061)

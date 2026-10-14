@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-vleeshuis.catalog.tres" id="1_6o0qd"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-vleeshuis.structure.tscn" id="2_kku6l"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-vleeshuis.objects.tscn" id="3_6o0qd"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_tualh"]
+
+[resource]
+script = ExtResource("4_tualh")
+Id = "room-vleeshuis"
+Title = "vleeshuis"
+Scene = ExtResource("3_6o0qd")
+EditorScenePath = "res://world/interiors/room-vleeshuis.tscn"
+Catalog = ExtResource("1_6o0qd")
+Bounds = Rect2(-216.0285, -1.1319122, 200, 200)
+WalkSpawn = Vector3(-116.0285, 0.06, 98.86809)
+FlySpawn = Vector3(-116.0285, 1.64, 98.86809)
+FlyPitch = -0.12
+RoomId = "vleeshuis"
+RoomFrame = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.04, 0)
+RoomBounds = Rect2(-139.142, 88.666, 46.226997, 20.404182)
+RoomHeight = 29.81
+EntryPoints = PackedVector3Array(-121.95, 0.04, 92.4, -115.65, 0.04, 107.1)
+ReplacedMeshes = PackedInt32Array(9092, 9093, 9095, 9097, 9100, 9101, 9102, 9103, 9104, 9105, 9107, 9108, 9109, 9110, 9111, 9113, 9114, 9115, 9116, 9117, 9119, 9120, 9121, 9122, 9123, 9124, 9125, 9126, 9127, 9129, 9130, 9141, 9142, 9143, 9144, 9145, 9147, 9148, 9149, 9152, 9153, 9154, 9157, 9158, 9159, 9162, 9163, 9164, 9166, 9184, 9202, 9220)
+RetainedStructure = ExtResource("2_kku6l")

@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="AuthorCatalog" format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="1_8wleb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_rijn-counter.tres" id="2_h4qyv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_rijn-source-9979-1.tres" id="3_m2rvi"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_rijn-source-9979-2.tres" id="4_v4fl1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_rijn-source-9979-3.tres" id="5_xmj2l"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_rijn-source-9979-4.tres" id="6_8a3rd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_rijn-source-9979-5.tres" id="7_tkrv2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_rijn-source-9979-6.tres" id="8_e6obf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_rijn-source-9979-7.tres" id="9_yr18j"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_rijn-source-9986-8.tres" id="10_u4qt8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_rijn-source-9986-9.tres" id="11_4k7ox"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_rijn-source-9987-10.tres" id="12_p63x1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_rijn-source-9987-11.tres" id="13_7uqjm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_rijn-source-9994-12.tres" id="14_sw1uy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_rijn-source-9996-13.tres" id="15_rdhxr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_rijn-source-9997-14.tres" id="16_jhpmr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_rijn-source-9997-15.tres" id="17_cl3vw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_rijn-source-10002-16.tres" id="18_2crnm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_rijn-source-10046-17.tres" id="19_7vf8p"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorCatalog.cs" id="20_saoic"]
+
+[resource]
+script = ExtResource("20_saoic")
+Assets = Array[ExtResource("1_8wleb")]([ExtResource("2_h4qyv"), ExtResource("3_m2rvi"), ExtResource("4_v4fl1"), ExtResource("5_xmj2l"), ExtResource("6_8a3rd"), ExtResource("7_tkrv2"), ExtResource("8_e6obf"), ExtResource("9_yr18j"), ExtResource("10_u4qt8"), ExtResource("11_4k7ox"), ExtResource("12_p63x1"), ExtResource("13_7uqjm"), ExtResource("14_sw1uy"), ExtResource("15_rdhxr"), ExtResource("16_jhpmr"), ExtResource("17_cl3vw"), ExtResource("18_2crnm"), ExtResource("19_7vf8p")])

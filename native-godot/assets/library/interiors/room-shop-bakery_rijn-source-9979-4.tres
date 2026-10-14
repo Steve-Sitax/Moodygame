@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-bakery_rijn-source-9979-4.tscn" id="1_wav5c"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_flljk"]
+
+[resource]
+PlacementAnchor = Vector3(-2.9802322e-08, 0, -6.1392784e-06)
+GeometryClearance = true
+script = ExtResource("2_flljk")
+Id = "room-shop-bakery_rijn-source-9979-4"
+Title = "fitting · shop:bakery_rijn · source-9979-4"
+Category = "Room originals"
+Scene = ExtResource("1_wav5c")
+Footprint = Vector3(0.63781816, 0.79800004, 1.4641675)
+FootprintOffset = Vector3(-2.9802322e-08, -5.9604645e-08, -6.1392784e-06)
+FurnitureKind = "fitting"
+SeatYaw = 1.6328664
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

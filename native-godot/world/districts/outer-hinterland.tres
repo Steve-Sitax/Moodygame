@@ -1,17 +1,18 @@
-[gd_resource type="Resource" script_class="AuthorDistrict" load_steps=4 format=3]
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
 
-[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="script"]
-[ext_resource type="PackedScene" path="res://world/districts/outer-hinterland.tscn" id="scene"]
+[ext_resource type="PackedScene" path="res://world/districts/outer-hinterland.objects.tscn" id="2_mh7qr"]
 [ext_resource type="Resource" path="res://recovered/rijnkaai-recovered/catalog.tres" id="catalog"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="script"]
 
 [resource]
 script = ExtResource("script")
 Id = "outer-hinterland"
 Title = "Far bank, industry and countryside"
-Scene = ExtResource("scene")
+Scene = ExtResource("2_mh7qr")
+EditorScenePath = "res://world/districts/outer-hinterland.tscn"
 Catalog = ExtResource("catalog")
-Bounds = Rect2(-1910.0,-610.0,3577.0,2500.0)
-WalkSpawn = Vector3(215.0,0.2,176.0)
-FlySpawn = Vector3(210.0,28.0,170.0)
-FlyYaw = 1.5707963267948966
-FlyPitch = -0.17453292519943295
+Bounds = Rect2(-1910, -610, 3577, 2500)
+WalkSpawn = Vector3(215, 0.2, 176)
+FlySpawn = Vector3(210, 28, 170)
+FlyYaw = 1.5707964
+FlyPitch = -0.17453292

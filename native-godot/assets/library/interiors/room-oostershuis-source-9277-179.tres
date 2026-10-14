@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-oostershuis-source-9277-179.tscn" id="1_nuk4y"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_k1ftk"]
+
+[resource]
+GeometryClearance = true
+script = ExtResource("2_k1ftk")
+Id = "room-oostershuis-source-9277-179"
+Title = "Architecture marker · oostershuis · room-oostershuis-source-9277-179"
+Category = "Room originals"
+Scene = ExtResource("1_nuk4y")
+Footprint = Vector3(0.04, 0.04, 0.04)
+FurnitureKind = "architecture-marker"
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000061)

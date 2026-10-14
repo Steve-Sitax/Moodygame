@@ -12,7 +12,7 @@ public partial class WorkshopCamera : CharacterBody3D
     private Vector3 walkSpawn = new(0, 0.02f, 8);
     public void Configure(AuthorDistrict district)
     {
-        walkSpawn = district.WalkSpawn; Position = district.FlySpawn;
+        walkSpawn = district.WalkSpawn; Position = district.FlySpawn - (district.RoomId != "" ? Eye.Position : Vector3.Zero);
         yaw = district.FlyYaw; pitch = district.FlyPitch; Eye.Rotation = new(pitch, yaw, 0);
     }
     public override void _Ready()

@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-steen-source-9360-39.tscn" id="1_s308q"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_wu44b"]
+
+[resource]
+PlacementAnchor = Vector3(8.046627e-06, 0, -2.3841858e-07)
+GeometryClearance = true
+script = ExtResource("2_wu44b")
+Id = "room-steen-source-9360-39"
+Title = "fitting · steen · source-9360-39"
+Category = "Room originals"
+Scene = ExtResource("1_s308q")
+Footprint = Vector3(0.32646835, 0.26000428, 0.2661109)
+FootprintOffset = Vector3(8.046627e-06, 3.799976, -2.3841858e-07)
+FurnitureKind = "fitting"
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000004)

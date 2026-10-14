@@ -1,0 +1,39 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/storage-r0005.res" id="1_tmkak"]
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/storage-r0007.res" id="2_oyo6v"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_tmkak"]
+size = Vector3(1.33, 0.88, 0.525)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_oyo6v"]
+size = Vector3(1.2, 1.12, 0.24)
+
+[node name="dresser" type="Node3D" unique_id=935517072]
+
+[node name="dresser" type="Node3D" parent="." unique_id=939148038]
+metadata/extras = {
+"furniture": "{\"id\": \"dresser\", \"title\": \"Dresser with crockery\", \"category\": \"Furniture: storage\", \"footprint\": [1.33, 2.001, 0.53], \"footprintOffset\": [0.0, 0.0, 0.015], \"collision\": [{\"size\": [1.33, 0.88, 0.525], \"at\": [0, 0.44, 0.0125], \"yaw\": 0.0}, {\"size\": [1.2, 1.12, 0.24], \"at\": [0, 1.436, -0.13], \"yaw\": 0.0}], \"points\": [{\"kind\": \"use\", \"node\": \"dresser_use_0\", \"at\": [0, 0, 0.7], \"facing\": [0, 0, -1], \"action\": \"open\"}]}"
+}
+
+[node name="dresser_far" type="MeshInstance3D" parent="dresser" unique_id=209421646]
+visible = false
+mesh = ExtResource("1_tmkak")
+
+[node name="dresser_near" type="MeshInstance3D" parent="dresser" unique_id=878105371]
+mesh = ExtResource("2_oyo6v")
+
+[node name="dresser_use_0" type="Node3D" parent="dresser" unique_id=1107501107]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0.7)
+
+[node name="Solid" type="StaticBody3D" parent="." unique_id=988352848]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Solid" unique_id=1347993609]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.44, 0.0125)
+shape = SubResource("BoxShape3D_tmkak")
+
+[node name="@CollisionShape3D@20" type="CollisionShape3D" parent="Solid" unique_id=1451607114]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.436, -0.13)
+shape = SubResource("BoxShape3D_oyo6v")

@@ -1,0 +1,26 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_002n0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-prison_governor-source-9783-0.tres" id="2_54si2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-prison_governor-source-9784-1.tres" id="3_rppq2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-prison_governor-source-9784-2.tres" id="4_gyxnj"]
+
+[node name="Objects" type="Node3D" unique_id=505869706]
+
+[node name="object_source-9783-0" type="Node3D" parent="." unique_id=229082416]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -350.5578, 0, 226.89392)
+script = ExtResource("1_002n0")
+ObjectId = "room-prison_governor-source-9783-0"
+Asset = ExtResource("2_54si2")
+
+[node name="object_source-9784-1" type="Node3D" parent="." unique_id=221437226]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -354.90845, 0, 224.6637)
+script = ExtResource("1_002n0")
+ObjectId = "room-prison_governor-source-9784-1"
+Asset = ExtResource("3_rppq2")
+
+[node name="object_source-9784-2" type="Node3D" parent="." unique_id=1109821220]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -355.0332, 0, 228.8619)
+script = ExtResource("1_002n0")
+ObjectId = "room-prison_governor-source-9784-2"
+Asset = ExtResource("4_gyxnj")

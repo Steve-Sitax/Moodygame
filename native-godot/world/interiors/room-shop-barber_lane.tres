@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-shop-barber_lane.catalog.tres" id="1_p7jfl"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-shop-barber_lane.structure.tscn" id="2_d2efy"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-shop-barber_lane.objects.tscn" id="3_p7jfl"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_vxq40"]
+
+[resource]
+script = ExtResource("4_vxq40")
+Id = "room-shop-barber_lane"
+Title = "shop:barber_lane"
+Scene = ExtResource("3_p7jfl")
+EditorScenePath = "res://world/interiors/room-shop-barber_lane.tscn"
+Catalog = ExtResource("1_p7jfl")
+Bounds = Rect2(-94.667145, -16.41986, 200, 200)
+WalkSpawn = Vector3(5.332854, 0.2, 83.58014)
+FlySpawn = Vector3(5.332854, 1.78, 83.58014)
+FlyYaw = 1.6328664
+FlyPitch = -0.12
+RoomId = "shop:barber_lane"
+RoomFrame = Transform3D(-0.062030207, 0, 0.9980743, 0, 1, 0, -0.9980743, 0, -0.062030207, -0.32921955, 0.18, 82.67462)
+RoomBounds = Rect2(-3.5649838, 0.2, 4.6199784, 10.79)
+EntryPoints = PackedVector3Array(-0.32921955, 0.18, 82.67462)
+ReplacedMeshes = PackedInt32Array(10702, 10704, 10705, 10706, 10707, 10708, 10709, 10710, 10711, 10712, 10713, 10714, 10715, 10716, 10717, 10718, 10719, 10720, 10721, 10722, 10729, 10763)
+RetainedStructure = ExtResource("2_d2efy")

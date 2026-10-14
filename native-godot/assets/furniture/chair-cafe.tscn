@@ -1,0 +1,39 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/seating-r0009.res" id="1_gl1yw"]
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/seating-r0011.res" id="2_lhluu"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_gl1yw"]
+size = Vector3(0.42, 0.46, 0.44)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_lhluu"]
+size = Vector3(0.3, 0.43, 0.08)
+
+[node name="chair_cafe" type="Node3D" unique_id=912931436]
+
+[node name="chair_cafe" type="Node3D" parent="." unique_id=1420447049]
+metadata/extras = {
+"furniture": "{\"id\": \"chair-cafe\", \"title\": \"Bentwood cafe chair\", \"category\": \"Furniture: seating\", \"footprint\": [0.424, 0.9008, 0.4923], \"footprintOffset\": [0.0, -0.0023, -0.0291], \"collision\": [{\"size\": [0.42, 0.46, 0.44], \"at\": [0, 0.23, -0.0], \"yaw\": 0.0}, {\"size\": [0.3, 0.43, 0.08], \"at\": [0, 0.67, -0.21], \"yaw\": 0.0}], \"points\": [{\"kind\": \"seat\", \"node\": \"chair_cafe_seat_0\", \"at\": [0, 0.458, 0.01], \"facing\": [0, 0, 1]}]}"
+}
+
+[node name="chair_cafe_far" type="MeshInstance3D" parent="chair_cafe" unique_id=2135721003]
+visible = false
+mesh = ExtResource("1_gl1yw")
+
+[node name="chair_cafe_near" type="MeshInstance3D" parent="chair_cafe" unique_id=1805355933]
+mesh = ExtResource("2_lhluu")
+
+[node name="chair_cafe_seat_0" type="Node3D" parent="chair_cafe" unique_id=1231300149]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.458, 0.01)
+
+[node name="Solid" type="StaticBody3D" parent="." unique_id=301501363]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Solid" unique_id=881071884]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.23, 0)
+shape = SubResource("BoxShape3D_gl1yw")
+
+[node name="@CollisionShape3D@4" type="CollisionShape3D" parent="Solid" unique_id=1269670415]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.67, -0.21)
+shape = SubResource("BoxShape3D_lhluu")

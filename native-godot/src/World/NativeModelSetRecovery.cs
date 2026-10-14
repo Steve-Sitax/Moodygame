@@ -16,7 +16,7 @@ public partial class NativeModelSetRecovery : Node
     {
         try
         {
-            string source = WorkshopSession.Arg("source-models");
+            string source = Scheldemist.Native.Game.NativeArguments.Arg("source-models");
             const string output = "res://assets/game-models";
             var store = new NativeResourceStore(output + "/resources");
             var manifest = new JsonObject();

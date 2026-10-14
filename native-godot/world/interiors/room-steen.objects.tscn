@@ -1,0 +1,285 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_64r55"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9349-0.tres" id="2_pxp0d"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9351-1.tres" id="3_hhr4d"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9351-2.tres" id="4_aypnl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9351-3.tres" id="5_a3l7v"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9351-4.tres" id="6_o3fnm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9351-5.tres" id="7_4mjdj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9351-6.tres" id="8_k3pwn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9351-7.tres" id="9_tl0as"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9351-8.tres" id="10_m1ogy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9351-9.tres" id="11_nek4h"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9351-10.tres" id="12_g0idc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9351-11.tres" id="13_j1hi3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9351-12.tres" id="14_tfjtk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9351-13.tres" id="15_ttk56"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9351-14.tres" id="16_gps04"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9351-15.tres" id="17_pbxu6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9351-16.tres" id="18_eh6v5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9351-17.tres" id="19_4wga1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9351-18.tres" id="20_rtg2o"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9351-19.tres" id="21_sv6do"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9355-20.tres" id="22_poj6a"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9355-21.tres" id="23_wuc7q"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9355-22.tres" id="24_eu38w"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9355-23.tres" id="25_xspuo"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9355-24.tres" id="26_1vh3p"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9355-25.tres" id="27_5isvm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9356-26.tres" id="28_bc7m3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9356-27.tres" id="29_0jm7s"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9356-28.tres" id="30_4aspd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9356-29.tres" id="31_yvewb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9356-30.tres" id="32_2eilu"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9356-31.tres" id="33_gierd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9356-32.tres" id="34_25wey"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9356-33.tres" id="35_cja7f"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9359-34.tres" id="36_eeovr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9359-35.tres" id="37_pm0b4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9359-36.tres" id="38_m2th4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9359-37.tres" id="39_752yu"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9360-38.tres" id="40_b47xm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-steen-source-9360-39.tres" id="41_p4hvk"]
+
+[node name="Objects" type="Node3D" unique_id=1821711121]
+
+[node name="object_room-steen-source-9349-0" type="Node3D" parent="." unique_id=1595450076]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -172.6, 0, -27.45)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9349-0"
+Asset = ExtResource("2_pxp0d")
+
+[node name="object_room-steen-source-9351-1" type="Node3D" parent="." unique_id=1479976778]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -177.7, 0, -27.45)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9351-1"
+Asset = ExtResource("3_hhr4d")
+
+[node name="object_room-steen-source-9351-2" type="Node3D" parent="." unique_id=898934652]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -178.89996, 0, -25.05)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9351-2"
+Asset = ExtResource("4_aypnl")
+
+[node name="object_room-steen-source-9351-3" type="Node3D" parent="." unique_id=696210386]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -175.69997, 0, -25.05)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9351-3"
+Asset = ExtResource("5_a3l7v")
+
+[node name="object_room-steen-source-9351-4" type="Node3D" parent="." unique_id=1259919004]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -172.49997, 0, -25.05)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9351-4"
+Asset = ExtResource("6_o3fnm")
+
+[node name="object_room-steen-source-9351-5" type="Node3D" parent="." unique_id=1483506161]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -178.49982, 0, -30.099972)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9351-5"
+Asset = ExtResource("7_4mjdj")
+
+[node name="object_room-steen-source-9351-6" type="Node3D" parent="." unique_id=428190797]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -176.19998, 0, -30.099972)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9351-6"
+Asset = ExtResource("8_k3pwn")
+
+[node name="object_room-steen-source-9351-7" type="Node3D" parent="." unique_id=2030493594]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -170.24982, 0, -26.849972)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9351-7"
+Asset = ExtResource("9_tl0as")
+
+[node name="object_room-steen-source-9351-8" type="Node3D" parent="." unique_id=921748039]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -177.19986, 0, -27.549953)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9351-8"
+Asset = ExtResource("10_m1ogy")
+
+[node name="object_room-steen-source-9351-9" type="Node3D" parent="." unique_id=1567638677]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -177.19986, 0, -27.549953)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9351-9"
+Asset = ExtResource("11_nek4h")
+
+[node name="object_room-steen-source-9351-10" type="Node3D" parent="." unique_id=1162502965]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -177.19986, 0, -27.549953)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9351-10"
+Asset = ExtResource("12_g0idc")
+
+[node name="object_room-steen-source-9351-11" type="Node3D" parent="." unique_id=815996270]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -177.19986, 0, -27.549953)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9351-11"
+Asset = ExtResource("13_j1hi3")
+
+[node name="object_room-steen-source-9351-12" type="Node3D" parent="." unique_id=1721011897]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -173.49986, 0, -27.549953)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9351-12"
+Asset = ExtResource("14_tfjtk")
+
+[node name="object_room-steen-source-9351-13" type="Node3D" parent="." unique_id=684160644]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -173.49986, 0, -27.549953)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9351-13"
+Asset = ExtResource("15_ttk56")
+
+[node name="object_room-steen-source-9351-14" type="Node3D" parent="." unique_id=289338868]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -173.49986, 0, -27.549953)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9351-14"
+Asset = ExtResource("16_gps04")
+
+[node name="object_room-steen-source-9351-15" type="Node3D" parent="." unique_id=562142994]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -173.49986, 0, -27.549953)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9351-15"
+Asset = ExtResource("17_pbxu6")
+
+[node name="object_room-steen-source-9351-16" type="Node3D" parent="." unique_id=1455592564]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -185.09988, 0, -25.85667)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9351-16"
+Asset = ExtResource("18_eh6v5")
+
+[node name="object_room-steen-source-9351-17" type="Node3D" parent="." unique_id=291359838]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -185.09988, 0, -27.856647)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9351-17"
+Asset = ExtResource("19_4wga1")
+
+[node name="object_room-steen-source-9351-18" type="Node3D" parent="." unique_id=1787931630]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -185.44987, 0, -29.499992)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9351-18"
+Asset = ExtResource("20_rtg2o")
+
+[node name="object_room-steen-source-9351-19" type="Node3D" parent="." unique_id=429098069]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -183.32977, 0, -29.569134)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9351-19"
+Asset = ExtResource("21_sv6do")
+
+[node name="object_room-steen-source-9355-20" type="Node3D" parent="." unique_id=62352940]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -177.69992, 0, -30.127525)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9355-20"
+Asset = ExtResource("22_poj6a")
+
+[node name="object_room-steen-source-9355-21" type="Node3D" parent="." unique_id=1164984367]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -178.65991, 0, -30.22954)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9355-21"
+Asset = ExtResource("23_wuc7q")
+
+[node name="object_room-steen-source-9355-22" type="Node3D" parent="." unique_id=1046373318]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -175.39993, 0, -30.197763)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9355-22"
+Asset = ExtResource("24_eu38w")
+
+[node name="object_room-steen-source-9355-23" type="Node3D" parent="." unique_id=702373571]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -176.35994, 0, -30.058002)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9355-23"
+Asset = ExtResource("25_xspuo")
+
+[node name="object_room-steen-source-9355-24" type="Node3D" parent="." unique_id=741579324]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -170.40746, 0, -26.049965)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9355-24"
+Asset = ExtResource("26_1vh3p")
+
+[node name="object_room-steen-source-9355-25" type="Node3D" parent="." unique_id=410244175]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -170.27927, 0, -27.00998)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9355-25"
+Asset = ExtResource("27_5isvm")
+
+[node name="object_room-steen-source-9356-26" type="Node3D" parent="." unique_id=1853237616]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -178.0199, 0, -30.020813)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9356-26"
+Asset = ExtResource("28_bc7m3")
+
+[node name="object_room-steen-source-9356-27" type="Node3D" parent="." unique_id=22467272]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -178.97989, 0, -30.045708)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9356-27"
+Asset = ExtResource("29_0jm7s")
+
+[node name="object_room-steen-source-9356-28" type="Node3D" parent="." unique_id=1907198300]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -175.71983, 0, -30.085075)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9356-28"
+Asset = ExtResource("30_4aspd")
+
+[node name="object_room-steen-source-9356-29" type="Node3D" parent="." unique_id=1426063039]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -176.67984, 0, -29.924805)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9356-29"
+Asset = ExtResource("31_yvewb")
+
+[node name="object_room-steen-source-9356-30" type="Node3D" parent="." unique_id=1979411630]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -170.06906, 0, -26.369926)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9356-30"
+Asset = ExtResource("32_2eilu")
+
+[node name="object_room-steen-source-9356-31" type="Node3D" parent="." unique_id=1163262671]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -170.07599, 0, -27.32993)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9356-31"
+Asset = ExtResource("33_gierd")
+
+[node name="object_room-steen-source-9356-32" type="Node3D" parent="." unique_id=580791404]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -185.6499, 0, -25.249966)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9356-32"
+Asset = ExtResource("34_25wey")
+
+[node name="object_room-steen-source-9356-33" type="Node3D" parent="." unique_id=417893875]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -185.6499, 0, -27.249977)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9356-33"
+Asset = ExtResource("35_cja7f")
+
+[node name="object_room-steen-source-9359-34" type="Node3D" parent="." unique_id=1103236181]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -172.44992, 0, -29.799984)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9359-34"
+Asset = ExtResource("36_eeovr")
+
+[node name="object_room-steen-source-9359-35" type="Node3D" parent="." unique_id=732991597]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -169.77747, 0, -25.449982)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9359-35"
+Asset = ExtResource("37_pm0b4")
+
+[node name="object_room-steen-source-9359-36" type="Node3D" parent="." unique_id=1486021796]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -169.77747, 0, -28.449955)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9359-36"
+Asset = ExtResource("38_m2th4")
+
+[node name="object_room-steen-source-9359-37" type="Node3D" parent="." unique_id=593585322]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -175.42249, 0, -26.24995)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9359-37"
+Asset = ExtResource("39_752yu")
+
+[node name="object_room-steen-source-9360-38" type="Node3D" parent="." unique_id=808688242]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -185.07324, 0, -25.856892)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9360-38"
+Asset = ExtResource("40_b47xm")
+
+[node name="object_room-steen-source-9360-39" type="Node3D" parent="." unique_id=1120970651]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -185.07324, 0, -27.856907)
+script = ExtResource("1_64r55")
+ObjectId = "room-steen-source-9360-39"
+Asset = ExtResource("41_p4hvk")

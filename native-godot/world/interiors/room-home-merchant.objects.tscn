@@ -1,0 +1,110 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_y4iho"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-merchant-fixed-0.tres" id="2_jaqq0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-merchant-fixed-1.tres" id="3_rmlij"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-merchant-fixed-2.tres" id="4_mofx6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-merchant-fixed-3.tres" id="5_edbdj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-merchant-fixed-4.tres" id="6_yk5o5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-merchant-fixed-5.tres" id="7_qf0p7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-merchant-fixed-6.tres" id="8_dojr8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-merchant-fixed-7.tres" id="9_puyoq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-merchant-fixed-8.tres" id="10_7gpwo"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-merchant-source-11570-9.tres" id="11_cwcxk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-merchant-source-11570-10.tres" id="12_unvon"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-merchant-source-11574-11.tres" id="13_xv4n5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-merchant-source-11574-12.tres" id="14_i1gdl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-merchant-source-11617-13.tres" id="15_8vusf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-merchant-source-11618-14.tres" id="16_fagoc"]
+
+[node name="Objects" type="Node3D" unique_id=1501678692]
+
+[node name="object_fixed-0" type="Node3D" parent="." unique_id=901175181]
+transform = Transform3D(-0.9877682, 0, -0.15592971, 0, 1, 0, 0.15592971, 0, -0.9877682, -39.68947, 3.8, 119.287544)
+script = ExtResource("1_y4iho")
+ObjectId = "room-home-merchant-fixed-0"
+Asset = ExtResource("2_jaqq0")
+
+[node name="object_fixed-1" type="Node3D" parent="." unique_id=1551535633]
+transform = Transform3D(-0.9877682, 0, -0.15592971, 0, 1, 0, 0.15592971, 0, -0.9877682, -39.63744, 3.8, 118.013855)
+script = ExtResource("1_y4iho")
+ObjectId = "room-home-merchant-fixed-1"
+Asset = ExtResource("3_rmlij")
+
+[node name="object_fixed-2" type="Node3D" parent="." unique_id=1925084747]
+transform = Transform3D(-0.9877682, 0, -0.15592971, 0, 1, 0, 0.15592971, 0, -0.9877682, -34.880623, 3.8, 119.287704)
+script = ExtResource("1_y4iho")
+ObjectId = "room-home-merchant-fixed-2"
+Asset = ExtResource("4_mofx6")
+
+[node name="object_fixed-3" type="Node3D" parent="." unique_id=820396558]
+transform = Transform3D(-0.9877682, 0, -0.15592971, 0, 1, 0, 0.15592971, 0, -0.9877682, -35.868393, 3.8, 119.443634)
+script = ExtResource("1_y4iho")
+ObjectId = "room-home-merchant-fixed-3"
+Asset = ExtResource("5_edbdj")
+
+[node name="object_fixed-4" type="Node3D" parent="." unique_id=1705333905]
+transform = Transform3D(0.9877682, 0, 0.15592968, 0, 1, 0, -0.15592968, 0, 0.9877682, -38.168674, 3.8, 114.491745)
+script = ExtResource("1_y4iho")
+ObjectId = "room-home-merchant-fixed-4"
+Asset = ExtResource("6_yk5o5")
+
+[node name="object_fixed-5" type="Node3D" parent="." unique_id=1959431804]
+transform = Transform3D(0.15592964, 0, -0.9877682, 0, 1, 0, 0.9877682, 0, 0.15592964, -35.023506, 3.8, 116.779305)
+script = ExtResource("1_y4iho")
+ObjectId = "room-home-merchant-fixed-5"
+Asset = ExtResource("7_qf0p7")
+
+[node name="object_fixed-6" type="Node3D" parent="." unique_id=633556536]
+transform = Transform3D(-0.15592979, 0, 0.9877681, 0, 1, 0, -0.9877681, 0, -0.15592979, -36.167202, 3.8, 115.947464)
+script = ExtResource("1_y4iho")
+ObjectId = "room-home-merchant-fixed-6"
+Asset = ExtResource("8_dojr8")
+
+[node name="object_fixed-7" type="Node3D" parent="." unique_id=1973976985]
+transform = Transform3D(-0.15592979, 0, 0.9877681, 0, 1, 0, -0.9877681, 0, -0.15592979, -35.855343, 3.8, 117.923004)
+script = ExtResource("1_y4iho")
+ObjectId = "room-home-merchant-fixed-7"
+Asset = ExtResource("9_puyoq")
+
+[node name="object_fixed-8" type="Node3D" parent="." unique_id=1914438321]
+transform = Transform3D(0.9877682, 0, 0.15592968, 0, 1, 0, -0.15592968, 0, 0.9877682, -37.77885, 3.8, 116.96117)
+script = ExtResource("1_y4iho")
+ObjectId = "room-home-merchant-fixed-8"
+Asset = ExtResource("10_7gpwo")
+
+[node name="object_source-11570-9" type="Node3D" parent="." unique_id=1779064079]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -40.32487, 3.8, 114.42641)
+script = ExtResource("1_y4iho")
+ObjectId = "room-home-merchant-source-11570-9"
+Asset = ExtResource("11_cwcxk")
+
+[node name="object_source-11570-10" type="Node3D" parent="." unique_id=1446705427]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -36.79853, 3.8, 113.869736)
+script = ExtResource("1_y4iho")
+ObjectId = "room-home-merchant-source-11570-10"
+Asset = ExtResource("12_unvon")
+
+[node name="object_source-11574-11" type="Node3D" parent="." unique_id=1469986960]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -40.97767, 3.8, 115.74504)
+script = ExtResource("1_y4iho")
+ObjectId = "room-home-merchant-source-11574-11"
+Asset = ExtResource("13_xv4n5")
+
+[node name="object_source-11574-12" type="Node3D" parent="." unique_id=1159060485]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -40.79835, 3.8, 116.88097)
+script = ExtResource("1_y4iho")
+ObjectId = "room-home-merchant-source-11574-12"
+Asset = ExtResource("14_i1gdl")
+
+[node name="object_source-11617-13" type="Node3D" parent="." unique_id=1506971096]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -36.19937, 3.8, 123.14778)
+script = ExtResource("1_y4iho")
+ObjectId = "room-home-merchant-source-11617-13"
+Asset = ExtResource("15_8vusf")
+
+[node name="object_source-11618-14" type="Node3D" parent="." unique_id=909520743]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -36.809433, 3.8, 113.77099)
+script = ExtResource("1_y4iho")
+ObjectId = "room-home-merchant-source-11618-14"
+Asset = ExtResource("16_fagoc")

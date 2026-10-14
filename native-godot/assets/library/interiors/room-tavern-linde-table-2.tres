@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-tavern-linde-table-2.tscn" id="1_6gmeq"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_abxuj"]
+
+[resource]
+PlacementAnchor = Vector3(-0.31000364, -1.4901161e-08, 0.29991603)
+GeometryClearance = true
+script = ExtResource("2_abxuj")
+Id = "room-tavern-linde-table-2"
+Title = "table · tavern:linde · table-2"
+Category = "Room originals"
+Scene = ExtResource("1_6gmeq")
+Footprint = Vector3(0.6999867, 0.77, 0.7000842)
+FootprintOffset = Vector3(-0.31000364, -1.4901161e-08, 0.29991603)
+FurnitureKind = "table"
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, -0.6000061)

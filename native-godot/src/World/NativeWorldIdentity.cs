@@ -24,7 +24,21 @@ public static class NativeWorldIdentity
     {
         var layouts = new JsonObject();
         foreach (var state in town.Layouts.Districts.OrderBy(d => d.District.Id, StringComparer.Ordinal))
-            layouts[state.District.Id] = JsonNode.Parse(NativeDistrictLayouts.Capture(state.District, state.Objects).Encode());
+        {
+            var seed=NativeDistrictLayouts.ReadSeed(state.District);
+            try
+            {
+                var original=NativeDistrictLayouts.Capture(state.District,seed).Objects.ToDictionary(p=>p.Id,StringComparer.Ordinal);
+                var current=NativeDistrictLayouts.Capture(state.District,state.Objects);
+                var ids=current.Objects.Select(p=>p.Id).ToHashSet(StringComparer.Ordinal);
+                var edits=current.Objects.Where(p=>!original.TryGetValue(p.Id,out var old)||!Same(old,p)).ToList();
+                // Scene seeds are already covered by the content fingerprint. Send only edits within the existing
+                // authenticated world packet's 512 KiB expansion limit; guests reconstruct the complete document.
+                var delta=JsonNode.Parse((current with {Objects=edits}).Encode())!.AsObject();
+                delta["seed"]=true;delta["removed"]=new JsonArray(original.Keys.Where(id=>!ids.Contains(id)).Order(StringComparer.Ordinal).Select(id=>(JsonNode)JsonValue.Create(id)!).ToArray());layouts[state.District.Id]=delta;
+            }
+            finally {seed.Free();}
+        }
         return new JsonObject { ["fingerprint"] = fingerprint, ["layoutHash"] = Hash(layouts), ["layouts"] = layouts };
     }
 
@@ -41,10 +55,25 @@ public static class NativeWorldIdentity
             if (!districts.TryGetValue(pair.Key, out var district) || pair.Value == null) throw new InvalidDataException("The host sent an unknown district.");
             var document = LayoutDocument.Decode(pair.Value.ToJsonString());
             document.Validate(district.Id, district.Catalog.Index());
+            if(pair.Value["seed"]?.GetValue<bool>()==true)
+            {
+                var seed=NativeDistrictLayouts.ReadSeed(district);
+                try
+                {
+                    var complete=NativeDistrictLayouts.Capture(district,seed);var removed=pair.Value["removed"] as JsonArray??throw new InvalidDataException("Missing removed object ids.");
+                    var deleted=removed.Select(n=>n?.GetValue<string>()??"").ToHashSet(StringComparer.Ordinal);
+                    if(deleted.Any(id=>!complete.Objects.Any(p=>p.Id==id))||deleted.Count!=removed.Count)throw new InvalidDataException("Unknown or duplicate removed object id.");
+                    var overrides=document.Objects.Select(p=>p.Id).ToHashSet(StringComparer.Ordinal);
+                    document=document with {Objects=complete.Objects.Where(p=>!deleted.Contains(p.Id)&&!overrides.Contains(p.Id)).Concat(document.Objects).ToList()};
+                    document.Validate(district.Id,district.Catalog.Index());
+                }
+                finally {seed.Free();}
+            }
             checkedLayouts.Add(pair.Key, document);
         }
         NativeDistrictLayouts.RemoteLayouts = checkedLayouts;
     }
 
     private static string Hash(JsonObject value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value.ToJsonString()))).ToLowerInvariant();
+    private static bool Same(Placement a,Placement b)=>a.Asset==b.Asset&&a.Position.SequenceEqual(b.Position)&&a.Rotation.SequenceEqual(b.Rotation)&&a.Scale.SequenceEqual(b.Scale);
 }

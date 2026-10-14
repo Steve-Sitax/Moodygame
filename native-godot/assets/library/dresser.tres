@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/furniture/dresser.tscn" id="1_y2imn"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_seian"]
+
+[resource]
+script = ExtResource("2_seian")
+Id = "dresser"
+Title = "Dresser with crockery"
+Category = "Furniture: storage"
+Scene = ExtResource("1_y2imn")
+Footprint = Vector3(1.33, 2.001, 0.53)
+FootprintOffset = Vector3(0, 0, 0.015)
+FurnitureKind = "dresser"
+UsePoint = Vector3(0, 0, 0.7)
+StandPoint = Vector3(0, 0, 0.7)

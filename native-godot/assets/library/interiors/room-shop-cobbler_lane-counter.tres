@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-cobbler_lane-counter.tscn" id="1_jo5rj"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_c7lc7"]
+
+[resource]
+PlacementAnchor = Vector3(-0.5600275, -1.4901161e-08, -6.556511e-06)
+GeometryClearance = true
+script = ExtResource("2_c7lc7")
+Id = "room-shop-cobbler_lane-counter"
+Title = "counter · shop:cobbler_lane · counter"
+Category = "Room originals"
+Scene = ExtResource("1_jo5rj")
+Footprint = Vector3(1.4199498, 0.969997, 3.519968)
+FootprintOffset = Vector3(-0.5600275, -1.4901161e-08, -6.556511e-06)
+FurnitureKind = "counter"
+UsePoint = Vector3(0.63000107, 1.2, 0)
+StandPoint = Vector3(1.329998, 0, 7.6293945e-06)
+
+
+KeeperPoint = Vector3(-0.920021582, 0, -1.04801523e-05)

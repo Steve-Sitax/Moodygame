@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-tavern-vliet-seat-14.tscn" id="1_iyaen"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_tbd6p"]
+
+[resource]
+PlacementAnchor = Vector3(-5.865097e-05, 0, -9.3221664e-05)
+GeometryClearance = true
+script = ExtResource("2_tbd6p")
+Id = "room-tavern-vliet-seat-14"
+Title = "chair · tavern:vliet · seat-14"
+Category = "Room originals"
+Scene = ExtResource("1_iyaen")
+Footprint = Vector3(0.39994335, 1.0659578, 0.39995146)
+FootprintOffset = Vector3(-5.865097e-05, -1.4901161e-08, -9.3221664e-05)
+FurnitureKind = "chair"
+SeatPoints = PackedVector3Array(0, 0, 0)
+SeatHeight = 0.47
+Table = 7
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

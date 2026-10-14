@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="AuthorCatalog" format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="1_8kvwo"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-poesje-source-12158-0.tres" id="2_ym45e"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorCatalog.cs" id="3_huc2y"]
+
+[resource]
+script = ExtResource("3_huc2y")
+Assets = Array[ExtResource("1_8kvwo")]([ExtResource("2_ym45e")])

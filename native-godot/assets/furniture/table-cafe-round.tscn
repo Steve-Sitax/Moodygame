@@ -1,0 +1,52 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/tables-r0005.res" id="1_qy406"]
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/tables-r0007.res" id="2_hga47"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_qy406"]
+size = Vector3(0.62, 0.05, 0.62)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_hga47"]
+size = Vector3(0.08, 0.685, 0.08)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_1qlhu"]
+size = Vector3(0.52, 0.06, 0.52)
+
+[node name="table_cafe_round" type="Node3D" unique_id=1136431978]
+
+[node name="table_cafe_round" type="Node3D" parent="." unique_id=1249086181]
+metadata/extras = {
+"furniture": "{\"id\": \"table-cafe-round\", \"title\": \"Round marble-top cafe table\", \"category\": \"Furniture: tables\", \"footprint\": [0.62, 0.7465, 0.62], \"footprintOffset\": [0.0, -0.0115, -0.0], \"collision\": [{\"size\": [0.62, 0.05, 0.62], \"at\": [0, 0.71, 0], \"yaw\": 0.0}, {\"size\": [0.08, 0.685, 0.08], \"at\": [0, 0.3425, 0], \"yaw\": 0.0}, {\"size\": [0.52, 0.06, 0.52], \"at\": [0, 0.03, 0], \"yaw\": 0.0}], \"points\": [{\"kind\": \"use\", \"node\": \"table_cafe_round_use_0\", \"at\": [-0.4763, 0, -0.275], \"facing\": [0.866, 0, 0.5], \"action\": \"sit\"}, {\"kind\": \"use\", \"node\": \"table_cafe_round_use_1\", \"at\": [-0.0, 0, 0.55], \"facing\": [0.0, 0, -1.0], \"action\": \"sit\"}, {\"kind\": \"use\", \"node\": \"table_cafe_round_use_2\", \"at\": [0.4763, 0, -0.275], \"facing\": [-0.866, 0, 0.5], \"action\": \"sit\"}]}"
+}
+
+[node name="table_cafe_round_far" type="MeshInstance3D" parent="table_cafe_round" unique_id=628980285]
+visible = false
+mesh = ExtResource("1_qy406")
+
+[node name="table_cafe_round_near" type="MeshInstance3D" parent="table_cafe_round" unique_id=695610623]
+mesh = ExtResource("2_hga47")
+
+[node name="table_cafe_round_use_0" type="Node3D" parent="table_cafe_round" unique_id=1780732014]
+transform = Transform3D(0.5, 0, 0.8660254, 0, 1, 0, -0.8660254, 0, 0.5, -0.47631398, 0, -0.275)
+
+[node name="table_cafe_round_use_1" type="Node3D" parent="table_cafe_round" unique_id=532649119]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0.55)
+
+[node name="table_cafe_round_use_2" type="Node3D" parent="table_cafe_round" unique_id=827200531]
+transform = Transform3D(0.5, 0, -0.8660254, 0, 1, 0, 0.8660254, 0, 0.5, 0.47631398, 0, -0.275)
+
+[node name="Solid" type="StaticBody3D" parent="." unique_id=191413519]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Solid" unique_id=2093921018]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.71, 0)
+shape = SubResource("BoxShape3D_qy406")
+
+[node name="@CollisionShape3D@6" type="CollisionShape3D" parent="Solid" unique_id=652850882]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.3425, 0)
+shape = SubResource("BoxShape3D_hga47")
+
+[node name="@CollisionShape3D@7" type="CollisionShape3D" parent="Solid" unique_id=1426932208]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.03, 0)
+shape = SubResource("BoxShape3D_1qlhu")

@@ -1,0 +1,40 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_v6b1w"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-garret-fixed-0.tres" id="2_qkewj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-garret-fixed-1.tres" id="3_8rvp0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-garret-source-11406-2.tres" id="4_du8oo"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-garret-source-11414-3.tres" id="5_fthe1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-garret-source-11414-4.tres" id="6_0c0yr"]
+
+[node name="Objects" type="Node3D" unique_id=572173123]
+
+[node name="object_fixed-0" type="Node3D" parent="." unique_id=587501521]
+transform = Transform3D(-1, 0, 8.742278e-08, 0, 1, 0, -8.742278e-08, 0, -1, -115.415, 15.8, 121.7)
+script = ExtResource("1_v6b1w")
+ObjectId = "room-home-garret-fixed-0"
+Asset = ExtResource("2_qkewj")
+
+[node name="object_fixed-1" type="Node3D" parent="." unique_id=275003454]
+transform = Transform3D(-1, 0, 8.742278e-08, 0, 1, 0, -8.742278e-08, 0, -1, -118.165, 15.8, 122.45)
+script = ExtResource("1_v6b1w")
+ObjectId = "room-home-garret-fixed-1"
+Asset = ExtResource("3_8rvp0")
+
+[node name="object_source-11406-2" type="Node3D" parent="." unique_id=44535126]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -116.665, 15.8, 118.2)
+script = ExtResource("1_v6b1w")
+ObjectId = "room-home-garret-source-11406-2"
+Asset = ExtResource("4_du8oo")
+
+[node name="object_source-11414-3" type="Node3D" parent="." unique_id=858908342]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -115.64, 15.8, 126.1)
+script = ExtResource("1_v6b1w")
+ObjectId = "room-home-garret-source-11414-3"
+Asset = ExtResource("5_fthe1")
+
+[node name="object_source-11414-4" type="Node3D" parent="." unique_id=1425554237]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -115.64, 15.8, 123.49992)
+script = ExtResource("1_v6b1w")
+ObjectId = "room-home-garret-source-11414-4"
+Asset = ExtResource("6_0c0yr")

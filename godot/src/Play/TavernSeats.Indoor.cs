@@ -17,8 +17,8 @@ public partial class TavernSeats
     public int TableLinesShown { get; private set; }
     private Room? ChatterRoom()
     {
-        if(Sitting is {} s)return s.Room;
-        foreach(var r in Rooms)if(r.Open&&MathF.Abs(Jef.I.Y-r.Origin.Y)<.6f){float dx=Jef.I.X-r.Origin.X,dz=Jef.I.Z-r.Origin.Z;var local=new Vector2(dx*MathF.Cos(r.Yaw)-dz*MathF.Sin(r.Yaw),dx*MathF.Sin(r.Yaw)+dz*MathF.Cos(r.Yaw));if(r.Bounds.HasPoint(local))return r;}return null;
+        if(Sitting is {} s)return s.Room.Id.StartsWith("tavern:")?s.Room:null;
+        foreach(var r in Rooms)if(r.Id.StartsWith("tavern:")&&r.Open&&MathF.Abs(Jef.I.Y-r.Origin.Y)<.6f){float dx=Jef.I.X-r.Origin.X,dz=Jef.I.Z-r.Origin.Z;var local=new Vector2(dx*MathF.Cos(r.Yaw)-dz*MathF.Sin(r.Yaw),dx*MathF.Sin(r.Yaw)+dz*MathF.Cos(r.Yaw));if(r.Bounds.HasPoint(local))return r;}return null;
     }
     private void UpdateChatter(double dt)
     {
