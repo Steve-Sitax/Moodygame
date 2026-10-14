@@ -1180,10 +1180,35 @@ had none either): the runtime shows the coat's kind. Shawls stay a woman's garme
   get 1.6 times the texel density of the rest (`SLEEVE_BOOST`). The hands are the body's MakeHuman hands
   (`hands_hard` 0.3 men, 0.15 women).
 
+**How they are made** (`kinds_player.build_player` around `dress.build`): the garments are the townspeople's
+(`clothes_kit`, `garments_women`), each tagged with its colour slot; the men's waistcoat buttons to a V and runs over
+the shoulders in narrow straps to the neck's foot. Each kind states its layer order (`layers_of`: skirt under coat or
+smock, bodice under coat, shirt under waistcoat and trousers), so the clearance does not depend on the rays' votes.
+Under a jacket, coat or smock the skirt's faces above the outer hem are cut away (outside the open front), and every
+body face that the cuts always hide (the trunk below the collar line, the shoulders' tops, the arms to 5 cm above the
+wrist, the legs above the ankle or, under a skirt, the knee) is cut whatever the rays said: a posed shoulder pushed it
+through the cloth. The near reduction keeps the forearms (weight at most 0.35) and the occlusion bake lets a ray go on
+past a limb it does not count (`ao_through`), so a resting arm does not shield the cloth behind it. The women's hats get 5 mm
+more room (10 mm at the back, over the knot of the hair) and more triangles than the men's.
+
 Checks: `people2_sheets.py -- player [kinds=...] [what=views,close,builds,acc,hair] out=<dir>` (`preview_player.py`):
 front, side and back at 3 m and 1 m; collar, nape, shoulder, forearms, cuffs and hands at 0.35-0.5 m and the arms
 seen from the eyes; slight, stout and old builds; every hat with its hair, boots and clogs; every hair, beard and
 moustache.
+
+Counts (full build of 2026-10-14, 2,672 s, 65 kinds): the jef kinds 12,841-12,999 near and 2,284-2,299 far
+triangles for body and clothes; shoes 559-560 each, hats 898 (flat cap), 1,298 (knitted cap), 1,598 (round and
+tall hat), 1,500 (bonnet, headscarf), 1,698 (white cap): a dressed, shod and hatted player 14,000-15,800 near.
+Texel density 230-350 px/m for the clothes (forearms 1.6 times that), 393 / 479 px/m for the men's / women's hats and
+shoes. The tint pack reproduces a direct repaint in other colours within a mean 0.0003-0.0007 per channel (99th
+percentile 0). Parts `people2_player1..5.glb` (2.6-3.9 MB); 5.4 MB of tint pictures. Native: replaced with
+`replace-people2.ps1` (all other model files preserved); `--people2-map` dress captures of seven cuts in the
+fixture's places (13:00, rain, 19:30; 1 m, 3 m, low backs, feet, tops) with their default boots on the foot bones.
+The fixture gives each place its own face recipe, so a woman's kind in a man's place gets his face and no hair: map
+women's kinds to `fishwife_a`.
+Known limits: the forearm and its cuff are still the clothes layer's texels (with the detail layers' weave) at 0.3 m;
+the idle_f clasped hands meet the front of a long coat; the pose-time armpit occlusion shows as a soft dark mark at
+the front of the shoulder when the arms come forward.
 
 ## Checks
 

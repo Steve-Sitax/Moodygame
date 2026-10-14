@@ -1,7 +1,7 @@
 {
   "man_middling": {
     "part": "people2",
-    "bytes": 14408416
+    "bytes": 14521632
   },
   "baker": {
     "part": "people2_uniform1",
@@ -214,6 +214,62 @@
   "child_slight": {
     "part": "people2_child_slight",
     "bytes": 1842112
+  },
+  "jef_m_apron": {
+    "part": "people2_player1",
+    "bytes": 3848512
+  },
+  "jef_m_coat": {
+    "part": "people2_player1",
+    "bytes": 3848512
+  },
+  "jef_m_jacket": {
+    "part": "people2_player1",
+    "bytes": 3848512
+  },
+  "jef_m_jacket_apron": {
+    "part": "people2_player2",
+    "bytes": 3723392
+  },
+  "jef_m_shirt": {
+    "part": "people2_player2",
+    "bytes": 3723392
+  },
+  "jef_m_smock": {
+    "part": "people2_player2",
+    "bytes": 3723392
+  },
+  "jef_w_apron": {
+    "part": "people2_player3",
+    "bytes": 3870868
+  },
+  "jef_w_coat": {
+    "part": "people2_player3",
+    "bytes": 3870868
+  },
+  "jef_w_jacket": {
+    "part": "people2_player3",
+    "bytes": 3870868
+  },
+  "jef_w_jacket_apron": {
+    "part": "people2_player4",
+    "bytes": 3850088
+  },
+  "jef_w_plain": {
+    "part": "people2_player4",
+    "bytes": 3850088
+  },
+  "jef_w_shawl": {
+    "part": "people2_player4",
+    "bytes": 3850088
+  },
+  "jef_w_shawl_apron": {
+    "part": "people2_player5",
+    "bytes": 2590664
+  },
+  "jef_w_smock": {
+    "part": "people2_player5",
+    "bytes": 2590664
   },
   "man_slight": {
     "part": "people2_man_slight",
