@@ -19,6 +19,7 @@ var g=Make();g.Clear=p=>p.Z<3;Tick(g,2,true,new AntigoonBrain.Player(1,new(0,20)
 var h=Make();Check(!h.Strike(new(1,new(0,7))),"remote melee rejected");Check(h.Strike(victim),"nearby melee accepted");Check(!h.Strike(victim)&&h.Health==105,"duplicate melee is rate limited");
 for(int i=0;i<7;i++){Tick(h,.85,true);h.Strike(victim);}Check(h.Health==0&&h.State=="death","eight valid strikes defeat Antigoon");Tick(h,2,true,victim);Check(h.State=="death"&&!h.Strike(victim),"death persists and rejects more strikes");
 var k=Make();Tick(k,2,true,new AntigoonBrain.Player(1,new(0,20)));Tick(k,3,false);Check(k.State=="hidden"&&k.Position.Distance(k.Home)<.45,"returns home and hides in daylight");
+Tick(k,.1,true);Check(k.State!="hidden"&&k.Health>0,"living Antigoon resumes automatically on the following night");
 var m=Make();damage=0;int target=0;m.HurtPlayer=(id,v)=>{target=id;damage+=v;};Tick(m,.8,true,new(7,new(0,2)),new(9,new(0,2.2)));Check(damage==2&&target==7,"one shared swing hits only its selected multiplayer target");
 var n=Make();n.Sight=(_,_)=>false;Check(!n.Strike(victim),"player cannot strike through a wall");
 Console.WriteLine($"ANTIGOON_BRAIN_PASS {checks} checks");

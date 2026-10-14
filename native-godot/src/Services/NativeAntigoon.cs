@@ -28,6 +28,7 @@ public sealed partial class NativeAntigoon : INativeServiceModule
     public void Register(NativeServiceHost service)
     {
         RegisterEvent(service);
+        RegisterDevelopment(service);
         service.Register("GET","/api/antigoon",r=>{Advance();return View(r.PlayerId);});
         service.Register("POST","/api/antigoon/investigate",r=>
         {

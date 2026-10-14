@@ -57,6 +57,14 @@ internal static class AntigoonServiceProof
         Check(panic["residents"]!.AsArray().Count==1,"owned outdoor witness enters host panic simulation");
         var shared=JsonNode.Parse(await autoHost.Call("GET","/api/antigoon",null,2))!;
         Check(shared["residents"]!.ToJsonString()==panic["residents"]!.ToJsonString(),"both peers receive identical resident panic state");
+        automatic.DevelopmentStage=_=>(new P(0,28),new P(0,18));autoHost.Clock.SetTime(1,13,0);autoHost.Saves.SetPausedAll(true);
+        var selected=JsonNode.Parse(await autoHost.Call("POST","/api/dev/antigoon","{}",1))!;
+        Check(selected["active"]!.GetValue<bool>()&&selected["health"]!.GetValue<int>()==120,"development event starts fresh while Events panel pauses the town");
+        Check(NativeGoods.Number(autoHost.Clock.View()["hour"])==22&&selected["watch_z"]!.GetValue<double>()==18&&selected["world"]!=null,"development event sets night and returns viewing position and current world");
+        refused=false;try{await autoHost.Call("POST","/api/dev/antigoon","{}",2);}catch(NativeServiceException ex){refused=ex.Status==403;}Check(refused,"only the multiplayer host can start development encounter");
+        autoHost.Clock.SetTime(1,14,12);automatic.DevelopmentStage=_=>null;
+        refused=false;try{await autoHost.Call("POST","/api/dev/antigoon","{}",1);}catch(NativeServiceException ex){refused=ex.Status==409;}
+        Check(refused&&NativeGoods.Number(autoHost.Clock.View()["hour"])==14&&NativeGoods.Number(autoHost.Clock.View()["minute"])==12,"unavailable development stage reports failure and preserves clock");
         GD.Print($"ANTIGOON_SERVICE_PASS {checks} checks");
     }
 }

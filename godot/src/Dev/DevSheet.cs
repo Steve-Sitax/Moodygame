@@ -104,6 +104,7 @@ public static class DevSheet
             Btn("ev_shower", "Rain shower on/off", () => Task.FromResult(t.Shower(Daylight.I.ManualRain < 0.5f))),
         };
         foreach (string tp in DevTools.Templates) events.Add(Btn("ev_" + tp, "Event: " + DevTools.Words(tp), () => t.Event(tp)));
+        events.Add(Btn("ev_antigoon", "Event: Antigoon", t.Antigoon));
         events.Add(Btn("ev_think", "Director: think now", () => t.Director(false)));
         events.Add(Btn("ev_invent", "Director: invent an event now", () => t.Director(true)));
         body.AddChild(Flow(events, c => c));

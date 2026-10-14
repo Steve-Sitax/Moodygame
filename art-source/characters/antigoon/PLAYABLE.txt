@@ -62,7 +62,7 @@ or cloth simulation; hair is sculpted geometry. The roar clip has no voice
 performance. Footsteps/impact reuse the project's Kenney CC0 sounds;
 heartbeat is original runtime synthesis.
 
-Street verification: 18 brain + 17 event + 21 host checks. Native street
+Street verification: 19 brain + 17 event + 25 host checks. Native street
 preview: review/night-event-proof-06/antigoon-street-event.png. The staged
 proof checks an authored alley, a giant-sized route out, actual resident
 panic and rendering. Character maps use native sky/lamp light and fog.
@@ -76,3 +76,9 @@ the standalone GLB and editable Blender source with:
   python art-source/characters/antigoon/pack_delivery.py unpack
 After editing/exporting both files, run the same command with pack.
 Hashes verify exact model, embedded textures and source reconstruction.
+
+Selectable encounter: F8 > Events > Event: Antigoon (development mode).
+It starts a fresh giant at 22:00 and puts Jef at a validated alley entrance.
+Close the panel to let the encounter run. Console: event antigoon.
+Automatic encounters remain enabled every night 20:00-06:00. Defeating
+Antigoon persists in the save; the dev button can restart him for testing.

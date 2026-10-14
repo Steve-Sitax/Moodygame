@@ -73,6 +73,22 @@ public partial class NativeTownGame
                 return points;
             }
         };
+        // The dev panel can stage an encounter anywhere in the town, even when Jef is at the quay.
+        var lampPositions=((NativeTown)World).LampFacts.Select(l=>new P(NativeGoods.Number(l?["x"]),NativeGoods.Number(l?["z"]))).ToArray();
+        encounter.DevelopmentStage=player=>
+        {
+            foreach(var lamp in lampPositions.OrderBy(p=>p.Distance(player)))for(int i=0;i<16;i++)
+            {
+                var candidate=encounter.Snap(new(lamp.X+Math.Sin(i*Math.PI/8)*12,lamp.Z+Math.Cos(i*Math.PI/8)*12));
+                if(candidate is not {} home||!Alley(home)||!Clear(home)||Light(home)>=.25)continue;
+                for(int k=0;k<16;k++)
+                {
+                    var exit=encounter.Snap(new(home.X+Math.Sin(k*Math.PI/8)*10,home.Z+Math.Cos(k*Math.PI/8)*10));
+                    if(exit is {} watch&&watch.Distance(home)>7&&Clear(watch)&&Sight(home,watch)&&encounter.Path(home,watch) is {Count:>0})return (home,watch);
+                }
+            }
+            return null;
+        };
         host.AddModule(encounter);
         AntigoonService=encounter;
         var priorReservation=actions.Reserved;actions.Reserved=id=>encounter.Controls(id)||priorReservation?.Invoke(id)==true;
