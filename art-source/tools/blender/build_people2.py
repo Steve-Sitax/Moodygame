@@ -116,9 +116,9 @@ def grips_json(g):
 
 def all_kinds():
     """Every kind of package C, from the group files (people2/kinds_*.py), in a fixed order."""
-    from people2 import kinds_cast, kinds_uniform, kinds_women, kinds_women2, kinds_workers, kinds_workers2
+    from people2 import kinds_cast, kinds_uniform, kinds_uniform2, kinds_women, kinds_women2, kinds_workers, kinds_workers2
     out = []
-    for mod in (kinds_workers, kinds_workers2, kinds_women, kinds_women2, kinds_uniform, kinds_cast):
+    for mod in (kinds_workers, kinds_workers2, kinds_women, kinds_women2, kinds_uniform, kinds_uniform2, kinds_cast):
         out += mod.KINDS
     return out
 
@@ -226,7 +226,8 @@ def main():
         atl.face(cname, frgb, fnrm)
     dressed = []
     for k in kinds:
-        dressed.append(getattr(k, "build", dress.build)(k, make_body, ref_uv, layout, atl, tex=TEX))
+        b = getattr(k, "build", dress.build)(k, make_body, ref_uv, layout, atl, tex=TEX)
+        dressed.append(k.finish(b) if hasattr(k, "finish") else b)
     held_obs = held.build_all(kinds, layout, atl, tex=TEX)
     from people2 import motion
     for b in bodies + dressed:
