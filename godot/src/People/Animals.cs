@@ -113,10 +113,15 @@ public partial class Animals : Node
         if (town?.Data != null) MakeHaunts();
         // compiled now rather than at an animal's first gait change or route in the street (each first call cost
         // about a millisecond there)
-        foreach (var type in new[] { typeof(Animal), typeof(Animals) })
+        // Native crowds use their own routes; the first animal can otherwise be the first caller of NavGrid.Path.
+        // Include its generated local-function methods so their first compilation also happens during loading.
+        foreach (var type in new[] { typeof(Animal), typeof(Animals), typeof(NavGrid) }
+            .Concat(typeof(NavGrid).GetNestedTypes(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)))
             foreach (var m in type.GetMethods(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.DeclaredOnly))
                 if (!m.IsAbstract && !m.ContainsGenericParameters && m.GetMethodBody() != null)
                     try { System.Runtime.CompilerServices.RuntimeHelpers.PrepareMethod(m.MethodHandle); } catch (Exception) { }
+        var pathOn = typeof(Crowd).GetMethod(nameof(Crowd.PathOn));
+        if (pathOn != null) System.Runtime.CompilerServices.RuntimeHelpers.PrepareMethod(pathOn.MethodHandle);
     }
 
     /// <summary>How many copies of a kind to keep ready: its share of the strays or cats, the cart dogs, the pigs.</summary>

@@ -608,3 +608,6 @@ people+animals CPU means 1.470 / 1.197 ms and town logic means 1.389 / 1.261 ms 
 Whole-frame mean/worst times were 15.301/182.659 ms and 18.893/40.185 ms; startup/upload stalls remain visible.
 Dedicated startup also captures the same solid-triangle scan without creating viewport physics bodies. Antigoon's
 clearance index previously dereferenced the absent rendered Solid node, stopping the headless network proof.
+The animal loading warmup includes NavGrid's generated route methods and Crowd.PathOn. Their first compilation
+caused a 5.909 ms animal-update spike on the first detour. The isolated 90-second rerun covers 5,319 frames:
+mean 0.104 ms, p99 0.292 ms, worst 0.464 ms, no update over 1 ms and no cold model creation.
