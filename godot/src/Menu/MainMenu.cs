@@ -61,7 +61,7 @@ public partial class MainMenu : Node
     private string walkTitle = "", walkText = "";
 
     /// <summary>A self-test that works the menus by script (no benchmark, no pause when its window loses focus).</summary>
-    public static bool ScriptedRun => Main.I.Arg("menutest") != "" || Main.I.Arg("devsheettest") != "" || Main.I.Arg("flytest") != "" || Main.I.Arg("native-play-proof") != "" || Main.I.Arg("native-smoke") != "" || Main.I.Arg("native-extras-proof") != "" || Main.I.Arg("native-journey-proof") != "" || Main.I.Arg("native-package-smoke") != "";
+    public static bool ScriptedRun => Main.I.Arg("antigoon-event-proof") != "" || Main.I.Arg("menutest") != "" || Main.I.Arg("devsheettest") != "" || Main.I.Arg("flytest") != "" || Main.I.Arg("native-play-proof") != "" || Main.I.Arg("native-smoke") != "" || Main.I.Arg("native-extras-proof") != "" || Main.I.Arg("native-journey-proof") != "" || Main.I.Arg("native-package-smoke") != "";
 
     /// <summary>Do the menus belong in this run? Not in one that takes its own pictures or tests another part.</summary>
     public static bool Wanted(Main main)

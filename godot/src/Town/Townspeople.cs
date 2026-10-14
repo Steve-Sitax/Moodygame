@@ -104,6 +104,7 @@ public partial class Townspeople : Node
         public bool MillRun;
         /// <summary>An action owns this resident until it releases him; his day must not pull him away.</summary>
         public bool ActionHeld;
+        public bool ServerEventDriven;
         public object? ActionOwner;
         public Scheldemist.Play.ResidentJourneys.Trip? Journey;
         public bool InTrip,Aboard;

@@ -161,6 +161,7 @@ public partial class NativeTownGame : Scheldemist.Main
             host.AddModule(multiplayer);
             host.MultiplayerEnabled = () => multiplayer.Enabled;
             host.OnlinePlayers = multiplayer.OnlineIds;
+            AttachAntigoon(host, multiplayer, navigation, streetLighting, actions, population.City);
             actions.Walker = multiplayer.Walker;
             goods.NpcMayReport = multiplayer.MayReportNpc;
             park.PositionOf = player => {
@@ -226,6 +227,7 @@ public partial class NativeTownGame : Scheldemist.Main
             if (Arg("native-package-smoke") is { Length: > 0 } packageProof) _ = NativePackageProof.Run(this, Paths.Absolute(packageProof));
             if (Arg("native-journey-proof") is { Length: > 0 } journeyProof) _ = RunJourneyProof(Paths.Absolute(journeyProof));
             if (Arg("native-extras-proof") is { Length: > 0 } extrasProof) _ = RunExtrasProof(Paths.Absolute(extrasProof));
+            if (Arg("antigoon-event-proof") is { Length: > 0 } antigoonProof) _ = NativeAntigoonEventProof.Run(this, Paths.Absolute(antigoonProof));
         }
         catch (System.Exception error) { GD.PrintErr(error); GetTree().Quit(1); }
     }

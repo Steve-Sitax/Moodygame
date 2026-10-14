@@ -1,0 +1,37 @@
+{
+  "file": "antigoon-playable.blend",
+  "bytes": 141574766,
+  "sha256": "138d79778d607d432f8542a30e48fb26b5541a97bccdc4c228fe780157b494e7",
+  "parts": [
+    {
+      "file": "part-00.bin",
+      "bytes": 25165824,
+      "sha256": "8ed8aaa91fdbd29ec3ce505ff6214e0f825514d757bf83fc6bfbcc81bc884b55"
+    },
+    {
+      "file": "part-01.bin",
+      "bytes": 25165824,
+      "sha256": "7a1640e952a893a4a9a72c3e17664f7d02b37e7b3e49b15731667a6f52c4d847"
+    },
+    {
+      "file": "part-02.bin",
+      "bytes": 25165824,
+      "sha256": "d55add0dc9d243805372c8e6a0b5583839d5a8ac056885d254bb13d15f9d19e5"
+    },
+    {
+      "file": "part-03.bin",
+      "bytes": 25165824,
+      "sha256": "f6aea1ca18beb148759778aa9a9b26488937493110ba56fd27ff84b5dfc2b335"
+    },
+    {
+      "file": "part-04.bin",
+      "bytes": 25165824,
+      "sha256": "5f9210c30c6ed65f819e37c7f39ccfa50774d46e6ad78768df0fa9d7bd6d9248"
+    },
+    {
+      "file": "part-05.bin",
+      "bytes": 15745646,
+      "sha256": "06534dc5ec3540cf37b78809155bf0e57c2fe94a612da422ec1d801ecff3c8d1"
+    }
+  ]
+}

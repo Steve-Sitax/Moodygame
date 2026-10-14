@@ -1,0 +1,27 @@
+{
+  "file": "antigoon-playable.glb",
+  "bytes": 84792152,
+  "sha256": "cbb050698a79830aeab135b6d60674bf23066fa69e786e925d68ff5490b86afc",
+  "parts": [
+    {
+      "file": "part-00.bin",
+      "bytes": 25165824,
+      "sha256": "b4ccf0a9dd5fbcb60c8032c8c46625e222fa397bd0d1db40c30fac152017cd30"
+    },
+    {
+      "file": "part-01.bin",
+      "bytes": 25165824,
+      "sha256": "3c4d1fe88bfa2712d6ffbf785d85d5282b546ff4da7e56f0e49b651e3cb0ca74"
+    },
+    {
+      "file": "part-02.bin",
+      "bytes": 25165824,
+      "sha256": "5dd7c32d6601c33602c460b7ac1450bc9a2f3f4cfed36b9d4eec93526ecc400a"
+    },
+    {
+      "file": "part-03.bin",
+      "bytes": 9294680,
+      "sha256": "244db9549fc183160f10804c5e386ac17c315c308210a084b347daf7520abb5f"
+    }
+  ]
+}

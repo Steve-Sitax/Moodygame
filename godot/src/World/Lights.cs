@@ -158,6 +158,8 @@ public partial class Lights : Node
     {
         if (byId.TryGetValue(id, out var l)) l.Want = on ? 1 : 0;
     }
+    private readonly HashSet<string> eventExtinguished = new();
+    public void SetEventExtinguished(IEnumerable<string> ids) {eventExtinguished.Clear();eventExtinguished.UnionWith(ids);}
 
     /// <summary>The gas lamps by id and where they stand (the lamplighter's round).</summary>
     public IEnumerable<(string id, Vector3 at)> Lamps => lamps.Select(l => (l.Id, l.At));
@@ -451,7 +453,7 @@ void fragment() {
         {
             var l = lamps[i];
             float was = l.Lit;
-            l.Lit += (l.Want - l.Lit) * catchK;
+            l.Lit += ((eventExtinguished.Contains(l.Id)?0:l.Want) - l.Lit) * catchK;
             float lv = Mathf.Clamp(l.Lit * v, 0, 1);
             l.B = lv * Flicker(t, l.Seed);
             l.G = l.B * ground;
