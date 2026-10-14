@@ -103,6 +103,8 @@ public partial class Dialogs : Node
     public bool Escapable => stack.Any(d => d.EscCloses);
     /// <summary>Is a dialog up that the mouse works?</summary>
     public bool Cursor => stack.Any(d => d.Cursor);
+    /// <summary>The mouse is let go for a dialog now (not lost: the game still has the player, the menu does not pause).</summary>
+    public bool MouseFree => mouseFreed;
     /// <summary>The names of the dialogs up now, the lowest first (the checks).</summary>
     public IReadOnlyList<string> Up => stack.Select(d => d.DialogName).ToList();
     public bool IsUp(IDialog d) => stack.Contains(d);

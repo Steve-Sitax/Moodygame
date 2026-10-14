@@ -61,7 +61,7 @@ public partial class MainMenu : Node
     private string walkTitle = "", walkText = "";
 
     /// <summary>A self-test that works the menus by script (no benchmark, no pause when its window loses focus).</summary>
-    public static bool ScriptedRun => Main.I.Arg("antigoon-event-proof") != "" || Main.I.Arg("menutest") != "" || Main.I.Arg("devsheettest") != "" || Main.I.Arg("flytest") != "" || Main.I.Arg("native-play-proof") != "" || Main.I.Arg("native-smoke") != "" || Main.I.Arg("native-extras-proof") != "" || Main.I.Arg("native-journey-proof") != "" || Main.I.Arg("native-package-smoke") != "";
+    public static bool ScriptedRun => Main.I.Arg("antigoon-event-proof") != "" || Main.I.Arg("menutest") != "" || Main.I.Arg("devsheettest") != "" || Main.I.Arg("flytest") != "" || Main.I.Arg("native-play-proof") != "" || Main.I.Arg("native-smoke") != "" || Main.I.Arg("native-extras-proof") != "" || Main.I.Arg("native-journey-proof") != "" || Main.I.Arg("native-package-smoke") != "" || Main.I.Arg("dialog-pause-proof") != "";
 
     /// <summary>Do the menus belong in this run? Not in one that takes its own pictures or tests another part.</summary>
     public static bool Wanted(Main main)
@@ -85,7 +85,9 @@ public partial class MainMenu : Node
         ProcessMode = ProcessModeEnum.Always;
     }
 
-    private bool HasInput => Input.MouseMode is Input.MouseModeEnum.Captured or Input.MouseModeEnum.ConfinedHidden;
+    // a window up (a bill, a talk) lets the mouse go as the quill: the player still has the game, so it is no pause
+    // (the pause stopped the window's own keys: E and Esc did nothing, 2026-10-14)
+    private bool HasInput => Input.MouseMode is Input.MouseModeEnum.Captured or Input.MouseModeEnum.ConfinedHidden || Windows.Dialogs.I is { MouseFree: true };
 
     public override void _Ready()
     {
@@ -561,7 +563,8 @@ public partial class MainMenu : Node
         pauseCard.Visible = false;
         resume.Visible = false;
         GetViewport().GuiReleaseFocus();
-        Input.MouseMode = Input.MouseModeEnum.Captured;
+        // back to a window still up: its quill stays, the window takes the mouse back when it closes
+        Input.MouseMode = Windows.Dialogs.I is { MouseFree: true } ? Input.MouseModeEnum.Visible : Input.MouseModeEnum.Captured;
         Pause.Set("key", false);
         Pause.Set("menu", false);
         RefreshNav();
@@ -589,7 +592,7 @@ public partial class MainMenu : Node
     }
 
     /// <summary>The menu's reason to pause: entered once, and the menu is up or the game does not have the mouse.</summary>
-    private void SyncPause() => Pause.Set("menu", Entered && (start.Visible || !HasInput));
+    private void SyncPause() => Pause.Set("menu", Entered && (start.Visible || quiet || !HasInput));
 
     /// <summary>P: the "Paused" card; P, a walking key or a click goes on.</summary>
     public void KeyPause(bool on)
