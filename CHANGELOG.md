@@ -11,6 +11,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Antigoon (development event) no longer stands frozen on one spot. He has his own map of the wide streets and squares he fits through, steps over crates and benches, and walks it all night, starting at a different dark spot each time. Narrow lanes and back yards are safe from him. He bellows before he charges, lunges in and kicks hard: the boot throws you about 3 m and costs 3 health, with a red flash and a shaking view. In lamp light he shields his eyes and gropes back to the dark instead of getting stuck.
+
 - Workshop: opening the town no longer prints pages of "shader uses global parameter ... removed" warnings, and the quay's walls, roofs and paving show with their proper materials from the first frame.
 
 - Reading a poster, a bus stop notice or a letter, or talking to someone, no longer pauses the game. E, Esc and the "step back" line close the window again at once; Esc no longer opens the menu over it.

@@ -31,29 +31,40 @@ internal sealed class AntigoonGeometry
         for(int z=(int)Math.Floor(min.Z/8);z<=(int)Math.Floor(max.Z/8);z++)
         {if(!cells.TryGetValue((x,z),out var list))cells[(x,z)]=list=new();list.Add(tri);}
     }
-    public bool Clear(Vector3 feet,float radius,float height)
+    /// <summary>Nothing solid between `step` and `height` over the feet within `radius`. Lower things he steps over.</summary>
+    public bool Clear(Vector3 feet,float radius,float height,float step=.36f)
     {
-        Span<Vector3> a=stackalloc Vector3[8],b=stackalloc Vector3[8];
         for(int x=(int)Math.Floor((feet.X-radius)/8);x<=(int)Math.Floor((feet.X+radius)/8);x++)
         for(int z=(int)Math.Floor((feet.Z-radius)/8);z<=(int)Math.Floor((feet.Z+radius)/8);z++)
-        if(cells.TryGetValue((x,z),out var list))foreach(var t in list)
-        {
-            var box=t.Bounds;
-            if(box.End.Y<=feet.Y+.36f||box.Position.Y>=feet.Y+height||feet.X+radius<box.Position.X||feet.X-radius>box.End.X||feet.Z+radius<box.Position.Z||feet.Z-radius>box.End.Z)continue;
-            a[0]=t.A;a[1]=t.B;a[2]=t.C;
-            int n=Clip(a,3,b,feet.Y+.36f,true);n=Clip(b,n,a,feet.Y+height,false);
-            bool inside=false;
-            for(int i=0;i<n;i++)
-            {
-                var u=a[i];var v=a[(i+1)%n];
-                if((u.Z>feet.Z)!=(v.Z>feet.Z)&&feet.X<(v.X-u.X)*(feet.Z-u.Z)/(v.Z-u.Z)+u.X)inside=!inside;
-                var edge=new Vector2(v.X-u.X,v.Z-u.Z);var point=new Vector2(feet.X-u.X,feet.Z-u.Z);
-                float at=edge.LengthSquared()>0?Math.Clamp(point.Dot(edge)/edge.LengthSquared(),0,1):0;
-                if((point-edge*at).LengthSquared()<radius*radius)return false;
-            }
-            if(inside)return false;
-        }
+        if(cells.TryGetValue((x,z),out var list))foreach(var t in list)if(Hits(t,feet,radius,height,step))return false;
         return true;
+    }
+    private static bool Hits(Triangle t,Vector3 feet,float radius,float height,float step)
+    {
+        var box=t.Bounds;
+        if(box.End.Y<=feet.Y+step||box.Position.Y>=feet.Y+height||feet.X+radius<box.Position.X||feet.X-radius>box.End.X||feet.Z+radius<box.Position.Z||feet.Z-radius>box.End.Z)return false;
+        Span<Vector3> a=stackalloc Vector3[8],b=stackalloc Vector3[8];
+        a[0]=t.A;a[1]=t.B;a[2]=t.C;
+        int n=Clip(a,3,b,feet.Y+step,true);n=Clip(b,n,a,feet.Y+height,false);
+        bool inside=false;
+        for(int i=0;i<n;i++)
+        {
+            var u=a[i];var v=a[(i+1)%n];
+            if((u.Z>feet.Z)!=(v.Z>feet.Z)&&feet.X<(v.X-u.X)*(feet.Z-u.Z)/(v.Z-u.Z)+u.X)inside=!inside;
+            var edge=new Vector2(v.X-u.X,v.Z-u.Z);var point=new Vector2(feet.X-u.X,feet.Z-u.Z);
+            float at=edge.LengthSquared()>0?Math.Clamp(point.Dot(edge)/edge.LengthSquared(),0,1):0;
+            if((point-edge*at).LengthSquared()<radius*radius)return true;
+        }
+        return inside;
+    }
+    /// <summary>Proof aid: how many triangles block a giant standing at `feet`, and their height span over the feet.</summary>
+    public string Blocker(Vector3 feet,float radius,float height,float step=.36f)
+    {
+        int count=0;float low=float.MaxValue,high=float.MinValue;
+        for(int x=(int)Math.Floor((feet.X-radius)/8);x<=(int)Math.Floor((feet.X+radius)/8);x++)
+        for(int z=(int)Math.Floor((feet.Z-radius)/8);z<=(int)Math.Floor((feet.Z+radius)/8);z++)
+        if(cells.TryGetValue((x,z),out var list))foreach(var t in list)if(Hits(t,feet,radius,height,step)){count++;low=Math.Min(low,t.Bounds.Position.Y-feet.Y);high=Math.Max(high,t.Bounds.End.Y-feet.Y);}
+        return count==0?"clear":$"{count} triangles from {low:0.00} to {high:0.00} m over the feet";
     }
     private static int Clip(Span<Vector3> input,int n,Span<Vector3> output,float y,bool above)
     {

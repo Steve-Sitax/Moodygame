@@ -6,6 +6,12 @@ namespace Scheldemist.Native.Services;
 public sealed partial class NativeAntigoon
 {
     public Func<P,(P Home,P Watch)?> DevelopmentStage=_=>null;
+    public Func<P,string> BlockReason=_=>"";
+    /// <summary>Raw giant clearance, without his reachability map. Proof aid.</summary>
+    public Func<P,bool> Fits=_=>false;
+    public Func<AntigoonReach>? ReachMap;
+    /// <summary>Proof trace of the live brain. Call through WithState.</summary>
+    internal string DevelopmentTrace()=>brain==null?"none":$"{brain.State} at ({brain.Position.X:0.0},{brain.Position.Z:0.0}) target {brain.Target} patrol {brain.Patrol.Count} light {Light(brain.Position):0.00}";
     private void RegisterDevelopment(NativeServiceHost service)
     {
         service.Register("POST","/api/dev/antigoon",r=>
@@ -15,10 +21,10 @@ public sealed partial class NativeAntigoon
             var clock=host.Clock.View();int day=(int)NativeGoods.Number(clock["day"]),hour=(int)NativeGoods.Number(clock["hour"]),minute=(int)NativeGoods.Number(clock["minute"]);
             host.Clock.SetTime(day,22,0);
             var stage=DevelopmentStage(player);
-            if(stage is not {} at||!Clear(at.Home)||!BackAlley(at.Home)||Light(at.Home)>=.25||!Clear(at.Watch)||Path(at.Home,at.Watch) is not {Count:>0})
+            if(stage is not {} at||!Clear(at.Home)||Light(at.Home)>=.25||!Clear(at.Watch)||Path(at.Home,at.Watch) is not {Count:>0})
             {
                 host.Clock.SetTime(day,hour,minute);
-                throw new NativeServiceException("No dark alley with a clear street exit is available for Antigoon.",409);
+                throw new NativeServiceException("No dark street on Antigoon's map is near enough.",409);
             }
             observed.Clear();developmentEnabled=true;Create(at.Home);brain!.Patrol.Insert(0,at.Watch);brain.Reveal();last=host.Context.Now;Save();
             host.Clock.ResetLimits();host.PublishState();

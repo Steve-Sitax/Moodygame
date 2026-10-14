@@ -25,11 +25,16 @@ public partial class AntigoonArena : Node3D
     private string output="";
     private bool faceShot;
     private string shotPose="smirk";
+    private double shotTime=-1;
+    private float shotYaw=.15f;
     public override void _Ready()
     {
         var args=OS.GetCmdlineUserArgs();proof=args.Contains("--antigoon-proof");faceShot=args.Contains("--antigoon-face");
         int ix=Array.IndexOf(args,"--antigoon-shot");if(ix>=0&&ix+1<args.Length)output=args[ix+1];
         int pose=Array.IndexOf(args,"--antigoon-pose");if(pose>=0&&pose+1<args.Length)shotPose=args[pose+1];
+        // A frozen moment of a clip, seen from any side: --antigoon-time 0.62 --antigoon-yaw -1.57
+        int at=Array.IndexOf(args,"--antigoon-time");if(at>=0&&at+1<args.Length)shotTime=double.Parse(args[at+1],System.Globalization.CultureInfo.InvariantCulture);
+        int yaw=Array.IndexOf(args,"--antigoon-yaw");if(yaw>=0&&yaw+1<args.Length)shotYaw=float.Parse(args[yaw+1],System.Globalization.CultureInfo.InvariantCulture);
         var environment=new Godot.Environment { BackgroundMode=Godot.Environment.BGMode.Color, BackgroundColor=new Color(.025f,.035f,.047f), AmbientLightSource=Godot.Environment.AmbientSource.Color, AmbientLightColor=new Color(.52f,.61f,.74f), AmbientLightEnergy=.6f, TonemapMode=Godot.Environment.ToneMapper.Filmic };
         AddChild(new WorldEnvironment { Environment=environment });
         sun=new DirectionalLight3D { RotationDegrees=new Vector3(-55,-25,0),LightColor=new Color(.62f,.72f,1),LightEnergy=.8f,ShadowEnabled=true };AddChild(sun);
@@ -51,6 +56,9 @@ public partial class AntigoonArena : Node3D
         if(!proof&&output=="")Input.MouseMode=Input.MouseModeEnum.Captured;
         if(output!="") {player.Position=new Vector3(4,0,.5f);camera.GlobalPosition=new Vector3(4,3.1f,.5f);camera.Fov=43;camera.LookAt(new Vector3(0,2.7f,-8));hud.Visible=false;
             AddChild(new OmniLight3D {Position=new Vector3(2,5,-3),LightColor=new Color(1,.88f,.73f),LightEnergy=4,OmniRange=13});
+            // A man's-eye camera from the side, with a 1.3 m chest-height post beside the giant as a ruler.
+            if(Array.IndexOf(OS.GetCmdlineUserArgs(),"--antigoon-low")>=0)
+            {camera.GlobalPosition=new Vector3(9,1.3f,-8);camera.Fov=60;camera.LookAt(new Vector3(0,2.2f,-8));Box("ChestPost",new Vector3(0,.65f,-5.6f),new Vector3(.12f,1.3f,.12f),new Color(.8f,.2f,.1f));}
             if(faceShot){camera.GlobalPosition=new Vector3(.6f,5.05f,-5.6f);camera.Fov=32;camera.LookAt(new Vector3(0,4.96f,-8));}
         }
     }
@@ -72,7 +80,8 @@ public partial class AntigoonArena : Node3D
         elapsed+=delta;
         if(output!="")
         {
-            giant.Snapshot(new Vector3(0,0,-8),.15f,faceShot?"laugh":shotPose,elapsed,0,true);
+            giant.Snapshot(new Vector3(0,0,-8),shotYaw,faceShot?"laugh":shotPose,shotTime>=0?shotTime:elapsed,0,true);
+            if(shotTime>=0)giant.Animations.Seek(shotTime,true);
             if(elapsed>2) {SetPhysicsProcess(false);_ = Shot();}return;
         }
         if(proof)

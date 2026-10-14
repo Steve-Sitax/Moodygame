@@ -65,11 +65,11 @@ public sealed class AntigoonNightEvent
             }
         }
         var victim=Residents.Values.FirstOrDefault(p=>p.TargetId==selected);
-        if(victim==null||victim.Phase!="flee"||giant.State=="shield"||giant.Light(victim.At)>=AntigoonBrain.SafeLight||!giant.Sight(giant.Position,victim.At)||!active||giant.State=="idle"&&victim.At.Distance(giant.Position)>AntigoonBrain.AttackRange)
+        if(victim==null||victim.Phase!="flee"||giant.State=="shield"||!giant.Reach(victim.At)||giant.Light(victim.At)>=AntigoonBrain.SafeLight||!giant.Sight(giant.Position,victim.At)||!active||giant.State=="idle"&&victim.At.Distance(giant.Position)>AntigoonBrain.AttackRange)
         {if(selected!=0)chaseAt=Now+12;selected=0;}
         if(active&&giant.State!="shield"&&selected==0&&Now>=chaseAt)
         {
-            var choices=Residents.Values.Where(p=>p.Phase=="flee"&&p.At.Distance(giant.Position)<24&&giant.Light(p.At)<AntigoonBrain.SafeLight&&giant.Sight(giant.Position,p.At)).OrderBy(p=>p.At.Distance(giant.Position)).ToArray();
+            var choices=Residents.Values.Where(p=>p.Phase=="flee"&&p.At.Distance(giant.Position)<24&&giant.Light(p.At)<AntigoonBrain.SafeLight&&giant.Reach(p.At)&&giant.Sight(giant.Position,p.At)).OrderBy(p=>p.At.Distance(giant.Position)).ToArray();
             if(choices.Length>0)selected=choices[(serial+screams)%choices.Length].TargetId;
             chaseAt=Now+18;
         }

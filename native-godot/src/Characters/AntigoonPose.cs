@@ -12,8 +12,11 @@ public partial class AntigoonPose : SkeletonModifier3D
     private readonly int[] hips=new int[2],knees=new int[2],ankles=new int[2],arms=new int[2],elbows=new int[2],hands=new int[2];
     private readonly Transform3D[] restFeet=new Transform3D[2],restHands=new Transform3D[2];
     private readonly float[] floor=new float[2],slope=new float[2];
-    private int head,chest,pelvis;
+    private int head,chest,pelvis,jaw;
+    private Quaternion jawOpen=Quaternion.Identity;
+    private bool hasJaw;
     private double clock;
+    private static float Smooth(double x){float t=Math.Clamp((float)x,0,1);return t*t*(3-2*t);}
     public override void _Ready()
     {
         rig=GetSkeleton();head=rig.FindBone("head");chest=rig.FindBone("chest");pelvis=rig.FindBone("pelvis");
@@ -23,6 +26,14 @@ public partial class AntigoonPose : SkeletonModifier3D
             hips[i]=rig.FindBone("thigh."+side);knees[i]=rig.FindBone("shin."+side);ankles[i]=rig.FindBone("foot."+side);
             arms[i]=rig.FindBone("upper_arm."+side);elbows[i]=rig.FindBone("forearm."+side);hands[i]=rig.FindBone("hand."+side);
             restFeet[i]=rig.GetBoneGlobalRest(ankles[i]);restHands[i]=rig.GetBoneGlobalRest(hands[i]);
+        }
+        // Borrow the bellow's open jaw from the roar clip for the kick's snarl.
+        jaw=rig.FindBone("jaw");
+        if(jaw>=0&&Actor.Animations.HasAnimation("roar"))
+        {
+            var roar=Actor.Animations.GetAnimation("roar");
+            for(int t=0;t<roar.GetTrackCount();t++)
+                if(roar.TrackGetType(t)==Animation.TrackType.Rotation3D&&roar.TrackGetPath(t).ToString().EndsWith(":jaw")){jawOpen=roar.RotationTrackInterpolate(t,.9);hasJaw=true;break;}
         }
     }
     private Vector3 FootTarget(int side,out bool planted)
@@ -70,6 +81,8 @@ public partial class AntigoonPose : SkeletonModifier3D
         {
             var hipsPose=rig.GetBoneGlobalPose(pelvis);hipsPose.Origin-=Vector3.Up*(Actor.State is "run" or "retreat"?.22f:.14f);rig.SetBoneGlobalPose(pelvis,hipsPose);
         }
+        if(Actor.State=="attack")KickBody(Actor.Animations.CurrentAnimationPosition);
+        if(Actor.State=="roar")RoarBody(Actor.Animations.CurrentAnimationPosition);
         // Let the pelvis settle when one boot is on a lower tread. IK must not stretch a straight leg.
         float settle=0;
         for(int i=0;i<2;i++)
@@ -82,7 +95,7 @@ public partial class AntigoonPose : SkeletonModifier3D
             settle=Math.Max(settle,hip.Y-target.Y-Mathf.Sqrt(Math.Max(.01f,reach*reach-horizontal)));
         }
         if(settle>0){var hipsPose=rig.GetBoneGlobalPose(pelvis);hipsPose.Origin-=Vector3.Up*settle;rig.SetBoneGlobalPose(pelvis,hipsPose);}
-        if(Actor.State!="shield")
+        if(Actor.State is not ("shield" or "attack" or "roar"))
         {
             float glance=(moving?.065f:.22f)*(float)(Math.Sin(clock*.61)*.75+Math.Sin(clock*1.23)*.25);
             rig.SetBonePoseRotation(head,rig.GetBonePoseRotation(head)*new Quaternion(Vector3.Up,glance));
@@ -91,11 +104,11 @@ public partial class AntigoonPose : SkeletonModifier3D
         }
         for(int i=0;i<2;i++)
         {
-            // The kicking leg keeps its attack arc; the support leg remains planted.
-            if(Actor.State=="attack"&&i==1)continue;
-            var target=FootTarget(i,out _);target.Y+=floor[i];
+            // The kicking leg follows its own arc; the support leg remains planted.
+            var target=FootTarget(i,out _);target.Y+=floor[i];var point=-slope[i];
+            if(Actor.State=="attack"&&i==1)(target,point)=KickFoot(Actor.Animations.CurrentAnimationPosition,target);
             var pole=rig.GetBoneGlobalPose(hips[i]).Origin+new Vector3(i==0?.1f:-.1f,-1,2);
-            Limb(hips[i],knees[i],ankles[i],target,pole,new Basis(new Quaternion(Vector3.Right,-slope[i]))*restFeet[i].Basis);
+            Limb(hips[i],knees[i],ankles[i],target,pole,new Basis(new Quaternion(Vector3.Right,point))*restFeet[i].Basis);
         }
         if(Actor.State=="shield")
         {
@@ -106,6 +119,62 @@ public partial class AntigoonPose : SkeletonModifier3D
                 var palm=new Basis(new Quaternion(Vector3.Right,Mathf.Pi))*restHands[i].Basis;
                 Limb(arms[i],elbows[i],hands[i],target,face+new Vector3(sign*1,-.45f,.7f),palm);
             }
+        }
+    }
+    // Kick timeline in clip seconds: wind-up back, accelerating swing to contact at 0.62, follow-through, stomp, settle.
+    private static (float Wind,float Strike,float Follow,float Stomp,float Settle) KickPhases(double t)
+    {
+        float strike=Math.Clamp((float)(t-.34)/.28f,0,1);
+        return (Smooth(t/.34),strike*strike,Smooth((t-.62)/.16),Smooth((t-.80)/.30),Smooth((t-1.10)/.25));
+    }
+    private (Vector3 Target,float Point) KickFoot(double t,Vector3 rest)
+    {
+        var k=KickPhases(t);
+        // Skeleton space: +Z ahead, metres. A man's chest is at the giant's knee, so the boot drives low and long.
+        var p=rest.Lerp(rest+new Vector3(0,1.35f,-1.35f),k.Wind);
+        p=p.Lerp(rest+new Vector3(.07f,.95f,1.75f),k.Strike);
+        p=p.Lerp(rest+new Vector3(.12f,1.85f,1.95f),k.Follow);
+        p=p.Lerp(rest+new Vector3(0,0,.75f),k.Stomp);
+        p=p.Lerp(rest,k.Settle);p.Y+=.22f*Mathf.Sin(Mathf.Pi*k.Settle);
+        float point=-.35f*k.Wind*(1-k.Strike)+.55f*k.Strike*(1-k.Stomp);
+        return (p,point);
+    }
+    private void Turn(int bone,Vector3 axis,float angle)
+    {
+        if(bone<0||Math.Abs(angle)<1e-5f)return;var g=rig.GetBoneGlobalPose(bone);rig.SetBoneGlobalPose(bone,new(new Basis(axis,angle)*g.Basis,g.Origin));
+    }
+    private void KickBody(double t)
+    {
+        var k=KickPhases(t);
+        var hipsPose=rig.GetBoneGlobalPose(pelvis);
+        hipsPose.Origin+=new Vector3(0,-.14f*k.Wind*(1-k.Stomp),.28f*k.Strike*(1-k.Settle));
+        hipsPose.Basis=new Basis(Vector3.Up,-.2f*k.Wind*(1-k.Strike)+.26f*k.Strike*(1-k.Stomp))*hipsPose.Basis;
+        rig.SetBoneGlobalPose(pelvis,hipsPose);
+        // Coil forward over the wind-up, throw the shoulders back against the swing, then lean over the stomp.
+        Turn(chest,Vector3.Right,.2f*k.Wind*(1-k.Strike)-.32f*k.Strike*(1-k.Stomp)+.14f*k.Stomp*(1-k.Settle));
+        Turn(head,Vector3.Right,.22f*k.Wind*(1-k.Settle));
+        if(hasJaw)rig.SetBonePoseRotation(jaw,rig.GetBonePoseRotation(jaw).Slerp(jawOpen,k.Wind*(1-k.Settle)));
+        for(int i=0;i<2;i++)
+        {
+            // The arm opposite the kicking leg swings through with it; the other flares out for balance.
+            float side=Math.Sign(restHands[i].Origin.X);var shoulder=rig.GetBoneGlobalPose(arms[i]).Origin;var hand=rig.GetBoneGlobalPose(hands[i]);
+            var wind=shoulder+(i==0?new Vector3(side*.55f,-1.0f,-.55f):new Vector3(side*.75f,-.9f,.35f));
+            var swing=shoulder+(i==0?new Vector3(side*.45f,-.35f,1.05f):new Vector3(side*1.05f,-.55f,-.45f));
+            var target=hand.Origin.Lerp(wind,k.Wind).Lerp(swing,k.Strike).Lerp(hand.Origin,k.Stomp);
+            Limb(arms[i],elbows[i],hands[i],target,shoulder+new Vector3(side*.8f,-.3f,-.8f),hand.Basis);
+        }
+    }
+    private void RoarBody(double t)
+    {
+        // A bellow over the prey: weight down, shoulders forward, arms thrown wide with the hands clawed.
+        float w=Smooth(t/.25)*(1-Smooth((t-1.2)/.3));
+        var hipsPose=rig.GetBoneGlobalPose(pelvis);hipsPose.Origin-=Vector3.Up*.16f*w;rig.SetBoneGlobalPose(pelvis,hipsPose);
+        Turn(chest,Vector3.Right,.18f*w);Turn(head,Vector3.Right,-.12f*w);
+        for(int i=0;i<2;i++)
+        {
+            float side=Math.Sign(restHands[i].Origin.X);var shoulder=rig.GetBoneGlobalPose(arms[i]).Origin;var hand=rig.GetBoneGlobalPose(hands[i]);
+            var target=hand.Origin.Lerp(shoulder+new Vector3(side*1.12f,-.2f,.55f),w);
+            Limb(arms[i],elbows[i],hands[i],target,shoulder+new Vector3(side*.6f,-.6f,-.9f),hand.Basis);
         }
     }
     private void Limb(int upper,int lower,int end,Vector3 target,Vector3 pole,Basis orientation)

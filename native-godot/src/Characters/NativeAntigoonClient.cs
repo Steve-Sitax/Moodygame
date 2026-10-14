@@ -14,12 +14,21 @@ public partial class NativeAntigoonClient : Node
     private Label hint = null!;
     private double poll;
     private bool busy, warned, stopped;
+    private int kicked = -1;
+    /// <summary>Kicks this client has thrown Jef back for.</summary>
+    public int KicksFelt { get; private set; }
+    private ColorRect flash = null!;
+    private AudioStreamPlayer blow = null!;
     public override void _Ready()
     {
         StartStreetEvent();
         hint = new Label { Position = new Vector2(24, 150), MouseFilter = Control.MouseFilterEnum.Ignore };
         hint.AddThemeColorOverride("font_color",new Color(.82f,.79f,.68f));
         Main.I.Ui.AddChild(hint);
+        flash = new ColorRect { Name="AntigoonKickFlash", Color=new Color(.35f,0,0,0), MouseFilter=Control.MouseFilterEnum.Ignore };
+        flash.SetAnchorsPreset(Control.LayoutPreset.FullRect); Main.I.Ui.AddChild(flash);
+        blow = new AudioStreamPlayer { Stream=ResourceLoader.Load<AudioStream>("res://world/data/public/audio/kenney-impact/impactWood_heavy_001.ogg"), PitchScale=.55f, VolumeDb=-1 };
+        AddChild(blow);
         BuildDevelopmentPointer();
     }
     public override void _Process(double delta)
@@ -33,7 +42,7 @@ public partial class NativeAntigoonClient : Node
         if (poll >= .1) { poll = 0; _ = Refresh(); }
         hint.Text = "";
         if (actor is { Visible: true } && Jef.I?.Body != null && Jef.I.Body.GlobalPosition.DistanceTo(actor.GlobalPosition)<7)
-            hint.Text = "Stay in the light. Dodge his kick.\nLeft mouse · strike when within reach";
+            hint.Text = "Stay in the light, or slip into a lane too narrow for him.\nDodge his kick. Left mouse · strike when within reach";
     }
     private async Task Refresh()
     {
@@ -55,6 +64,21 @@ public partial class NativeAntigoonClient : Node
         actor.Snapshot(new Vector3((float)N(v["x"]),(float)N(v["y"]),(float)N(v["z"])),(float)N(v["yaw"]),v["state"]!.GetValue<string>(),N(v["state_time"]),(int)N(v["attack_serial"]),visible);
         if(visible&&!warned&&Jef.I?.Body!=null&&Jef.I.Body.GlobalPosition.DistanceTo(actor.GlobalPosition)<20){warned=true;Hud.I?.Say("Heavy footsteps. Stay near a burning lamp.");}
         if(v["health"]?.GetValue<int>()==0) hint.Text="Antigoon has fallen.";
+        int kicks=(int)N(v["kicked"]);
+        if(kicked>=0&&kicks>kicked)Kicked();
+        kicked=kicks;
+    }
+    /// <summary>The host says his boot landed on this player: throw Jef back from the giant, black out red, shake the street.</summary>
+    private void Kicked()
+    {
+        if(actor==null||Jef.I?.Body==null)return;
+        var away=Jef.I.Body.GlobalPosition-actor.GlobalPosition;away.Y=0;
+        away=away.LengthSquared()<1e-4f?-actor.GlobalBasis.Z:away.Normalized();
+        Jef.I.Knock(new Vector2(away.X,away.Z)*6.5f,3.4f,.75f);KicksFelt++;
+        blow.Play();
+        flash.Color=new Color(.35f,0,0,.62f);
+        CreateTween().TweenProperty(flash,"color:a",0f,.9).SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Quad);
+        Hud.I?.Say("His boot throws you across the stones. Get into the light!");
     }
     public override void _UnhandledInput(InputEvent e)
     {
@@ -78,5 +102,5 @@ public partial class NativeAntigoonClient : Node
         catch(Exception e){Hud.I?.Say(e.Message);}
         finally{busy=false;}
     }
-    public override void _ExitTree(){StopStreetEvent();if(IsInstanceValid(actor))actor!.QueueFree();if(IsInstanceValid(hint))hint.QueueFree();if(IsInstanceValid(developmentPointer))developmentPointer.QueueFree();}
+    public override void _ExitTree(){StopStreetEvent();if(IsInstanceValid(actor))actor!.QueueFree();if(IsInstanceValid(hint))hint.QueueFree();if(IsInstanceValid(flash))flash.QueueFree();if(IsInstanceValid(developmentPointer))developmentPointer.QueueFree();}
 }

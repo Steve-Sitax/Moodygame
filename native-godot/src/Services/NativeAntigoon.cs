@@ -20,6 +20,9 @@ public sealed partial class NativeAntigoon : INativeServiceModule
     public Func<P,P,bool> Sight = (_,_)=>false;
     public Func<P,bool> BackAlley = _=>true;
     public Func<P,P?> Snap = p=>p;
+    public Func<P,double,IReadOnlyList<P>>? Roamable;
+    /// <summary>(giant, spot): can he stand within kicking reach of the spot, walking from where he is?</summary>
+    public Func<P,P,bool> Reach = (_,_)=>true;
     private bool developmentEnabled;
     public NativeAntigoon(NativeServiceHost host)=>this.host=host;
     internal System.Threading.Tasks.Task<T> WithState<T>(Func<NativeAntigoon,T> operation)=>host.WithState(_=>operation(this));
@@ -64,7 +67,15 @@ public sealed partial class NativeAntigoon : INativeServiceModule
             if(NativeGoods.Number(host.Player(id)["health"])<=0)host.Clock.End(id,"health");
             host.PublishState(id);
         }};
-        for(int i=0;i<16;i++)
+        var giant=brain;brain.Reach=p=>Reach(giant.Position,p);
+        // Patrol a shuffled loop of reachable dark streets, ordered so each leg goes to the nearest next spot.
+        var spots=(Roamable?.Invoke(home,46)??Array.Empty<P>()).ToList();var at=home;
+        while(spots.Count>0&&brain.Patrol.Count<10)
+        {
+            var next=spots.OrderBy(p=>p.Distance(at)).First();spots.Remove(next);
+            if(brain.Patrol.All(q=>q.Distance(next)>9)){brain.Patrol.Add(next);at=next;}
+        }
+        for(int i=0;i<16&&brain.Patrol.Count<4;i++)
         {
             double a=i*Math.PI/8;var candidate=Snap(new(home.X+Math.Sin(a)*(16+i%3*12),home.Z+Math.Cos(a)*(16+i%3*12)));
             if(candidate is {} p&&Clear(p)&&Path(home,p)!=null)brain.Patrol.Add(p);
@@ -84,7 +95,7 @@ public sealed partial class NativeAntigoon : INativeServiceModule
     {
         var v=new JsonObject{["active"]=developmentEnabled&&brain!=null&&brain.State!="hidden",["night"]=Night,["multiplayer"]=host.MultiplayerEnabled(),["development_only"]=true,["server_ms"]=host.Context.Now};
         v["development_spawn"]=developmentEnabled&&brain!=null;
-        if(brain!=null){v["x"]=brain.Position.X;v["y"]=Ground(brain.Position);v["z"]=brain.Position.Z;v["yaw"]=brain.Yaw;v["health"]=brain.Health;v["state"]=brain.State;v["state_time"]=brain.StateTime;v["attack_serial"]=brain.AttackSerial;v["target"]=brain.Target;}
+        if(brain!=null){v["x"]=brain.Position.X;v["y"]=Ground(brain.Position);v["z"]=brain.Position.Z;v["yaw"]=brain.Yaw;v["health"]=brain.Health;v["state"]=brain.State;v["state_time"]=brain.StateTime;v["attack_serial"]=brain.AttackSerial;v["target"]=brain.Target;v["kicked"]=brain.Kicks.GetValueOrDefault(player);}
         EventView(v);
         return v;
     }

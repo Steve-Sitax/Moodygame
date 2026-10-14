@@ -144,7 +144,7 @@ public partial class Jef : Node, Mantle.IWorld
     private float coyoteT, bufferT;
     private bool jumpedOff;
     /// <summary>The view's dip as the legs take a landing: a spring, metres down (negative) and m/s.</summary>
-    private float dip, dipV;
+    private float dip, dipV, shake, stagger;
     /// <summary>The last jump's measures (for the move check): when it left, its top, its time in the air.</summary>
     public (ulong Frame, float From, float Top, float Air, float Impact) LastJump { get; private set; }
     private float airT;
@@ -435,6 +435,9 @@ public partial class Jef : Node, Mantle.IWorld
         if (K(Key.D) || K(Key.Right)) fx += 1;
         Crouching = K(Key.C) || K(Key.Ctrl);
         bool hurry = K(Key.Shift) && !Crouching;
+        // knocked flat-footed: the keys do nothing until he has his legs under him again
+        stagger = Math.Max(0, stagger - dt);
+        if (stagger > 0) { fx = fz = 0; hurry = false; }
         float len = MathF.Sqrt(fx * fx + fz * fz);
         Hurrying = hurry && len > 0;
         float speed = (hurry ? Hurry : Walk) * SpeedFactor * Fatigue * (Crouching ? 0.5f : 1);
@@ -603,6 +606,28 @@ public partial class Jef : Node, Mantle.IWorld
         Look(dt, bobX, MathF.Cos(bobPhase) * 0.0015f * bobAmp * Bob, eye + bobY + stepLag);
     }
 
+    /// <summary>A blow that throws him: `push` m/s over the ground, `lift` m/s up, the keys dead for `stun` seconds.</summary>
+    public void Knock(Vector2 push, float lift, float stun)
+    {
+        if (Fly || Swimming || climb != null || Drive != null) return;
+        vel = push;
+        vy = Math.Max(vy, lift);
+        Grounded = false;
+        jumpedOff = true;
+        coyoteT = 0;
+        fallTop = Y;
+        airT = 0;
+        stagger = Math.Max(stagger, stun);
+        Jolt(0.7f, 3.5f);
+    }
+
+    /// <summary>The view shakes (`strength` fades in about its own seconds) and drops by a blow of `drop` m/s.</summary>
+    public void Jolt(float strength, float drop)
+    {
+        shake = Math.Max(shake, strength);
+        dipV = Math.Min(dipV, -drop);
+    }
+
     /// <summary>The legs take a landing at this speed (m/s down): the view dips and comes up again.</summary>
     private void Land(float impact)
     {
@@ -631,7 +656,9 @@ public partial class Jef : Node, Mantle.IWorld
         float sin = MathF.Sin(Yaw), cos = MathF.Cos(Yaw);
         viewCarry *= MathF.Exp(-dt * 8);
         Cam.GlobalPosition = new Vector3(X + cos * side, Y + up + dip * Bob, Z - sin * side) + viewCarry;
-        Cam.Rotation = new Vector3(lookPitch + dip * 0.35f * Bob, lookYaw, roll);
+        shake = Math.Max(0, shake - dt);
+        float jar = shake * shake;
+        Cam.Rotation = new Vector3(lookPitch + dip * 0.35f * Bob + jar * 0.06f * MathF.Sin((float)Clock * 53), lookYaw + jar * 0.04f * MathF.Sin((float)Clock * 41 + 1.3f), roll + jar * 0.08f * MathF.Sin((float)Clock * 37 + 0.6f));
     }
 
     // ------------------------------------------------------------ in the water: Jef.Swim.cs

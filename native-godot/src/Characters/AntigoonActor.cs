@@ -44,6 +44,7 @@ public partial class AntigoonActor : Node3D
     private float facing;
     private double footTimer;
     private int serial = -1;
+    public int AttackSerial => serial;
     private bool placed;
     private bool paused;
     public override void _Ready()
@@ -111,6 +112,11 @@ public partial class AntigoonActor : Node3D
         Animations.Play(clip, .13);
         double length = Animations.GetAnimation(clip).Length;
         Animations.Seek(Animations.GetAnimation(clip).LoopMode == Animation.LoopModeEnum.Linear ? time % length : Math.Min(time, length), true);
+    }
+    /// <summary>The kicking boot lands: the street shakes under anyone close.</summary>
+    public void Stomped()
+    {
+        if(Scheldemist.Player.Jef.I?.Body is {} body&&body.GlobalPosition.DistanceTo(GlobalPosition) is var d&&d<14)Scheldemist.Player.Jef.I.Jolt(.45f*(1-d/14),1.6f*(1-d/14));
     }
     public void Pause(bool on)
     {
