@@ -13,7 +13,7 @@ public sealed class AntigoonBrain
         public Point Toward(Point p,double distance) { double d=Distance(p); return d<1e-6?this:new(X+(p.X-X)*Math.Min(1,distance/d),Z+(p.Z-Z)*Math.Min(1,distance/d)); }
     }
     public sealed record Player(int Id,Point At,bool Available=true);
-    public const double WalkSpeed=1.8, RunSpeed=4.8, AttackRange=2.2, ContactTime=.62, AttackDuration=1.35, SafeLight=.45;
+    public const double WalkSpeed=1.8, RunSpeed=4.8, AttackRange=2.2, ContactTime=.62, AttackDuration=1.35, SafeLight=.45, ShieldSpeed=.7;
     public Point Position { get; private set; }
     public Point Home { get; private set; }
     public double Yaw { get; private set; }
@@ -32,14 +32,15 @@ public sealed class AntigoonBrain
     private IReadOnlyList<Point>? route;
     private Point routeGoal;
     private int routeIndex, patrolIndex;
-    private double routeAge,now,lostSight,patrolStall;
+    private double routeAge,now,calmUntil;
+    private Point shieldGoal;
     private bool contacted;
     public AntigoonBrain(Point home) { Position=Home=home; }
     public void Restore(Point p,int health) { Position=p;Health=Math.Clamp(health,0,120);Set(Health==0?"death":"hidden"); }
     public void Reveal() { if(Health>0)Set("idle"); }
     public bool BeginThrow(Point lamp)
     {
-        if(Health<=0||State is "hidden" or "attack" or "hit" or "recoil_light" or "retreat"||Light(Position)>=SafeLight)return false;
+        if(Health<=0||State is "hidden" or "attack" or "hit" or "recoil_light" or "retreat" or "shield"||Light(Position)>=SafeLight)return false;
         Target=0;Yaw=Math.Atan2(lamp.X-Position.X,lamp.Z-Position.Z);Set("throw");return true;
     }
     private void Set(string state) { if(State==state)return;State=state;StateTime=0;contacted=false;if(state=="attack")AttackSerial++; }
@@ -47,28 +48,32 @@ public sealed class AntigoonBrain
     {
         if(!p.Available||Health<=0||State=="hidden"||p.At.Distance(Position)>2.5||!Sight(p.At,Position))return false;
         if(swings.TryGetValue(p.Id,out double last)&&now-last<.8)return false;
-        swings[p.Id]=now;Health=Math.Max(0,Health-15);Target=p.Id;
-        if(Health==0)Set("death");else if(State!="attack")Set("hit");return true;
+        swings[p.Id]=now;Health=Math.Max(0,Health-15);Target=State=="shield"?0:p.Id;
+        if(Health==0)Set("death");else if(State is not ("attack" or "shield"))Set("hit");return true;
     }
     public void Step(double dt,bool night,IReadOnlyList<Player> players)
     {
         dt=Math.Clamp(dt,0,.1);now+=dt;StateTime+=dt;routeAge+=dt;
         if(Health<=0){Set("death");return;}
-        bool lit=Light(Position)>=SafeLight;
-        if(lit&&State!="recoil_light"&&State!="retreat")Set("recoil_light");
-        if(State=="recoil_light") { if(StateTime>=.65)Set("retreat");else return; }
-        if(!night||State=="retreat")
+        if(!night)
         {
             Target=0;
             if(Position.Distance(Home)<.45){Set("hidden");return;}
-            Set("retreat");Move(Home,RunSpeed,dt,true);
-            if(night&&!lit&&StateTime>2.5)Set("idle");
+            Set("retreat");Move(Home,RunSpeed,dt,true);return;
+        }
+        if(State=="shield"||Light(Position)>=SafeLight)
+        {
+            if(State!="shield") { shieldGoal=RoamGoal();Set("shield"); }
+            Target=0;calmUntil=now+1.2;
+            if(Position.Distance(shieldGoal)<.55) {patrolIndex++;shieldGoal=RoamGoal();route=null;}
+            Move(shieldGoal,ShieldSpeed,dt,true);
+            if(Light(Position)<.25&&StateTime>.8)Set("walk");
             return;
         }
         if(State=="hidden")Set("idle");
         if(State=="hit") {if(StateTime<.36)return;Set("idle");}
         if(State=="throw") {if(StateTime<2.4)return;Set("idle");}
-        var target=players.Where(p=>p.Available&&Light(p.At)<SafeLight&&p.At.Distance(Position)<24&&Sight(Position,p.At)).OrderBy(p=>p.At.Distance(Position)).FirstOrDefault();
+        var target=players.Where(p=>now>=calmUntil&&p.Available&&Light(p.At)<SafeLight&&p.At.Distance(Position)<24&&Sight(Position,p.At)).OrderBy(p=>p.At.Distance(Position)).FirstOrDefault();
         if(State=="attack")
         {
             var victim=players.FirstOrDefault(p=>p.Id==Target&&p.Available);
@@ -91,30 +96,43 @@ public sealed class AntigoonBrain
         }
         if(target!=null)
         {
-            Target=target.Id;lostSight=0;Yaw=Math.Atan2(target.At.X-Position.X,target.At.Z-Position.Z);
+            Target=target.Id;Yaw=Math.Atan2(target.At.X-Position.X,target.At.Z-Position.Z);
             if(Position.Distance(target.At)<=AttackRange){Set("attack");return;}
-            Set("run");Move(target.At,RunSpeed,dt,false);return;
+            Set("run");if(!Move(target.At,RunSpeed,dt,false)&&State!="shield")Roam(dt);return;
         }
-        lostSight+=dt;
-        if(lostSight>3)Target=0;
-        if(Patrol.Count==0){Set("idle");return;}
-        var goal=Patrol[patrolIndex%Patrol.Count];
-        if(Position.Distance(goal)<.55){patrolIndex++;patrolStall=0;Set("idle");return;}
-        var before=Position;Set("walk");Move(goal,WalkSpeed,dt,false);
-        patrolStall=Position.Distance(before)<.001?patrolStall+dt:0;
-        if(patrolStall>3){patrolIndex++;patrolStall=0;route=null;}
+        Target=0;Roam(dt);
     }
-    private void Move(Point goal,double speed,double dt,bool escaping)
+    private Point RoamGoal()=>Patrol.Count>0?Patrol[patrolIndex%Patrol.Count]:new(Position.X+Math.Sin(Yaw)*3,Position.Z+Math.Cos(Yaw)*3);
+    private void Roam(double dt)
+    {
+        // Move straight through reached waypoints and immediately skip unusable routes.
+        for(int i=0;i<Patrol.Count;i++)
+        {
+            var goal=RoamGoal();
+            if(Position.Distance(goal)<.55){patrolIndex++;route=null;continue;}
+            Set("walk");if(Move(goal,WalkSpeed,dt,false)||State=="shield")return;
+            patrolIndex++;route=null;
+        }
+        // A changed prop may block the authored circuit. Find another nearby walking direction.
+        for(int i=0;i<12;i++)
+        {
+            double angle=Yaw+i*Math.PI/6;var goal=new Point(Position.X+Math.Sin(angle)*3,Position.Z+Math.Cos(angle)*3);
+            if(!Clear(goal)||Path(Position,goal) is not {Count:>0})continue;
+            Set("walk");if(Move(goal,WalkSpeed,dt,false)||State=="shield")return;
+        }
+        Set("idle");
+    }
+    private bool Move(Point goal,double speed,double dt,bool allowLight)
     {
         if(route==null||routeAge>1.2||routeGoal.Distance(goal)>2)
         { route=Path(Position,goal);routeGoal=goal;routeAge=0;routeIndex=0; }
-        if(route==null||route.Count==0){if(!escaping)Set("idle");return;}
+        if(route==null||route.Count==0)return false;
         while(routeIndex<route.Count-1&&Position.Distance(route[routeIndex])<.3)routeIndex++;
         Point next=Position.Toward(route[routeIndex],speed*dt);
-        double currentLight=Light(Position),nextLight=Light(next);
-        if(!Clear(next)||nextLight>=SafeLight&&(!escaping||nextLight>currentLight+.005))
-        { route=null;if(!escaping)Set("idle");return; }
+        if(!Clear(next)){route=null;return false;}
+        if(!allowLight&&Light(next)>=SafeLight)
+        {shieldGoal=goal;Target=0;Set("shield");return false;}
         if(Position.Distance(next)>1e-5)Yaw=Math.Atan2(next.X-Position.X,next.Z-Position.Z);
-        Position=next;
+        bool moved=Position.Distance(next)>1e-5;Position=next;return moved;
     }
 }

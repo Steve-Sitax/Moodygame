@@ -119,6 +119,7 @@ public partial class MainMenu : Node
         Loading.Done += OnLoaded;
         ServerLink.I?.WhenUp(() =>
         {
+            if (I != this || !IsInsideTree()) return;
             Apply.All();
             RefreshAiNote();
             Saves.Refresh();
@@ -129,6 +130,15 @@ public partial class MainMenu : Node
 
     public override void _ExitTree()
     {
+        Dialogs.Changed -= OnDialogs;
+        GetViewport().SizeChanged -= OnResize;
+        if (ServerLink.I is { } link)
+        {
+            link.StatusChanged -= OnLink;
+            if (link.Api != null && Saves != null) link.Api.SystemPushed -= Saves.OnPush;
+        }
+        if (Dialogs.Host == sheets) Dialogs.Host = null;
+        if (IsInstanceValid(host) && !host.IsQueuedForDeletion()) host.QueueFree();
         Kit.LookChanged -= Rebuild;
         Keys.Changed -= WriteKeys;
         Prefs.Changed -= OnPrefs;
@@ -166,18 +176,26 @@ public partial class MainMenu : Node
 
     // ------------------------------------------------------------------ building
 
+    private bool rebuilding;
     private void Rebuild()
     {
+        if(rebuilding||I!=this||!IsInstanceValid(host)||!IsInstanceValid(start))return;
+        rebuilding=true;
+        try
+        {
         bool open = start.Visible, card = pauseCard.Visible, hintOn = resume.Visible;
         foreach (var c in host.GetChildren())
             if (c != sheets && c is not InkCursor)
                 c.QueueFree();
+        toast = null;
         Build(sheets);
         start.Visible = open;
         pauseCard.Visible = card;
         resume.Visible = hintOn;
         RefreshNav();
         Saves.Rebuilt();
+        }
+        finally {rebuilding=false;}
     }
 
     private void Build(Control? keepSheets = null)
@@ -301,6 +319,7 @@ public partial class MainMenu : Node
     private void BuildPaper(Vector2 win)
     {
         paper = new PaperCard(PaperCard.Kind.Title) { Tilt = -0.8f, MouseDefaultCursorShape = Control.CursorShape.Arrow };
+        var ownPaper=paper;
         // the CSS padding is 22px 34px 16px; 20 of the 34 at the sides is the paper's, 14 each line's own, so the
         // title (wider than its column, as the browser lets it run over) is not cut by the list's scroll
         paper.Pad(20, 22, 20, 16);
@@ -393,12 +412,13 @@ public partial class MainMenu : Node
         paperScroll = scroll;
         void Size()
         {
+            if(!IsInsideTree()||!IsInstanceValid(ownPaper)||ownPaper.IsQueuedForDeletion()||paper!=ownPaper)return;
             var w = GetViewport().GetVisibleRect().Size;
             float want = col.GetCombinedMinimumSize().Y + Kit.Px(38);
             float h = Math.Min(want, w.Y * 0.96f);
 
-            paper.Size = new Vector2(width, h);
-            paper.Position = ((w - paper.Size) / 2).Round();
+            ownPaper.Size = new Vector2(width, h);
+            ownPaper.Position = ((w - ownPaper.Size) / 2).Round();
         }
         col.MinimumSizeChanged += Size;
         start.AddChild(paper);
@@ -486,6 +506,7 @@ public partial class MainMenu : Node
         if (api == null) return;
         api.Run(api.AiConfig(5000), v =>
         {
+            if (I != this || !IsInsideTree()) return;
             walkMode = v.TryGetProperty("mode", out var m) && m.GetString() == "walk";
             if (v.TryGetProperty("status", out var s))
             {
@@ -498,6 +519,7 @@ public partial class MainMenu : Node
 
     private void OnDialogs()
     {
+        if (I != this || !IsInsideTree() || !IsInstanceValid(paper) || paper.IsQueuedForDeletion()) return;
         // a sheet up: the handbill under it steps back
         paper.Visible = Dialogs.Count == 0;
         if (Dialogs.Count == 0 && start.Visible) Dialogs.FocusFirst(nav);

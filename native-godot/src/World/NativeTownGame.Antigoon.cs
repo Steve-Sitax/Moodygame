@@ -79,7 +79,7 @@ public partial class NativeTownGame
             foreach(var lamp in lampPositions.OrderBy(p=>p.Distance(player)))for(int i=0;i<16;i++)
             {
                 var candidate=encounter.Snap(new(lamp.X+Math.Sin(i*Math.PI/8)*12,lamp.Z+Math.Cos(i*Math.PI/8)*12));
-                if(candidate is not {} home||!Alley(home)||!Clear(home)||Light(home)>=.25)continue;
+                if(candidate is not {} home||home.Distance(player)<18||!Alley(home)||!Clear(home)||Light(home)>=.25)continue;
                 for(int k=0;k<16;k++)
                 {
                     var exit=encounter.Snap(new(home.X+Math.Sin(k*Math.PI/8)*10,home.Z+Math.Cos(k*Math.PI/8)*10));

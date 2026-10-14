@@ -65,15 +65,15 @@ public sealed class AntigoonNightEvent
             }
         }
         var victim=Residents.Values.FirstOrDefault(p=>p.TargetId==selected);
-        if(victim==null||victim.Phase!="flee"||giant.Light(victim.At)>=AntigoonBrain.SafeLight||!giant.Sight(giant.Position,victim.At)||!active||giant.State=="idle"&&victim.At.Distance(giant.Position)>AntigoonBrain.AttackRange)
+        if(victim==null||victim.Phase!="flee"||giant.State=="shield"||giant.Light(victim.At)>=AntigoonBrain.SafeLight||!giant.Sight(giant.Position,victim.At)||!active||giant.State=="idle"&&victim.At.Distance(giant.Position)>AntigoonBrain.AttackRange)
         {if(selected!=0)chaseAt=Now+12;selected=0;}
-        if(active&&selected==0&&Now>=chaseAt)
+        if(active&&giant.State!="shield"&&selected==0&&Now>=chaseAt)
         {
             var choices=Residents.Values.Where(p=>p.Phase=="flee"&&p.At.Distance(giant.Position)<24&&giant.Light(p.At)<AntigoonBrain.SafeLight&&giant.Sight(giant.Position,p.At)).OrderBy(p=>p.At.Distance(giant.Position)).ToArray();
             if(choices.Length>0)selected=choices[(serial+screams)%choices.Length].TargetId;
             chaseAt=Now+18;
         }
-        if(!active||Now<throwAt||selected!=0||giant.State is "attack" or "hit" or "retreat" or "recoil_light" or "throw")return;
+        if(!active||Now<throwAt||selected!=0||giant.State is "attack" or "hit" or "retreat" or "recoil_light" or "throw" or "shield")return;
         var lamp=Lamps().Where(l=>l.At.Distance(giant.Position) is >=7 and <=26&&giant.Sight(giant.Position,l.At)).OrderBy(l=>l.At.Distance(giant.Position)).FirstOrDefault();
         throwAt=Now+(lamp==null?4:14);
         if(lamp!=null&&giant.BeginThrow(lamp.At))

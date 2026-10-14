@@ -173,17 +173,13 @@ public partial class DevTools : Node
             : $"planned \"{plan.Title}\": it starts in a game minute, and you are put right in front of it.";
     }
 
-    /// <summary>Start the native street encounter and put Jef at its alley entrance.</summary>
+    /// <summary>Start the native street encounter while keeping Jef at his current position.</summary>
     public async Task<string> Antigoon()
     {
         var result = await Api.Post<JsonElement>("api/dev/antigoon", new { }, timeoutMs: 30000);
         GameState.I.Apply(JsonSerializer.Deserialize<JobsPayload>(result.GetProperty("world"), Scheldemist.Net.Api.Json)!);
-        float x = result.GetProperty("watch_x").GetSingle(), z = result.GetProperty("watch_z").GetSingle();
-        float yaw = MathF.Atan2(-(result.GetProperty("x").GetSingle() - x), -(result.GetProperty("z").GetSingle() - z));
-        if (Jef.I.Fly) ToggleFly();
-        Jef.I.Place(x, z, yaw, -.08f, Jef.I.GroundAt(x, z, result.GetProperty("watch_y").GetSingle()));
         People?.Refill();
-        return "Antigoon is ready in the back alley at 22:00. Close this panel to watch. Stay near a burning lamp.";
+        return $"Antigoon is walking from a back alley at 22:00 (x {result.GetProperty("x").GetDouble():0}, z {result.GetProperty("z").GetDouble():0}). Your position stays the same. Close this panel to watch.";
     }
 
     /// <summary>An event a button planned that has not begun yet (its id, its title).</summary>

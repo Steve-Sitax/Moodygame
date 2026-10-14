@@ -27,6 +27,11 @@ Kick wind-up: 0.62 seconds; full attack: 1.35 seconds; range: 2.2 metres.
 The host validates range, walls, light and target health at contact.
 Street lamps and working carried lanterns protect players. Rain/wet lantern
 rules use the existing native service. Daylight makes him return home.
+He crosses blocking light at 0.7 m/s with both hands shielding his head.
+While shielding he cannot chase, attack or throw; pursuit resumes only
+after he is back in darkness and his brief recovery has ended.
+Unoccupied Antigoon keeps roaming, with breathing and glances during pauses.
+Runtime pose reset and two-bone foot planting keep soles on sampled terrain.
 
 Native town: development-only encounter, selected through F8 > Events.
 Ordinary play, previous saves and subsequent nights never enable him.
@@ -57,12 +62,12 @@ and review/. This test arena is a functional lab, not finished city artwork.
 Limits: the full authored Ruien map and branching quest campaign are not
 included. Native street placement is conservative and can refuse to spawn
 when no giant-sized dark route exists. A live two-client town playthrough
-still needs acceptance. Animation is authored in place without terrain IK
-or cloth simulation; hair is sculpted geometry. The roar clip has no voice
+still needs acceptance. Animation is authored in place with runtime terrain
+foot planting, without cloth simulation; hair is sculpted geometry. The roar clip has no voice
 performance. Footsteps/impact reuse the project's Kenney CC0 sounds;
 heartbeat is original runtime synthesis.
 
-Street verification: 18 brain + 17 event + 28 host checks. Native street
+Street verification: 18 brain + 22 event + 28 host checks. Native street
 preview: review/night-event-proof-06/antigoon-street-event.png. The staged
 proof checks an authored alley, a giant-sized route out, actual resident
 panic and rendering. Character maps use native sky/lamp light and fog.
@@ -78,7 +83,10 @@ After editing/exporting both files, run the same command with pack.
 Hashes verify exact model, embedded textures and source reconstruction.
 
 Selectable encounter: F8 > Events > Event: Antigoon (development mode).
-It starts a fresh giant at 22:00 and puts Jef at a validated alley entrance.
+It starts a fresh giant at 22:00, at least 18 m from Jef, and leaves Jef in place.
 Close the panel to let the encounter run. Console: event antigoon.
 There are no automatic nightly encounters. The selected DEV encounter ends
 at dawn; select it again to repeat the test. The button restarts defeated giants.
+Menu recreation, repeated panel opening/closing and window resizing pass
+the native proof without disposed PaperCard callbacks. Selecting the real
+Events button also verifies unchanged player position and flight state.

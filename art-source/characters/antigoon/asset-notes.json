@@ -26,12 +26,12 @@
     "geometry": "Locally installed Hunyuan3D 2.0 draft and Hunyuan3D 2.1 refinement.",
     "textures": "Locally installed Hunyuan3D Paint 2.0, six views, separate body and head atlases.",
     "assembly": "Blender 5.2; original sources retained, metric scaling, editable skeletal rig and facial morphs, authored in-place clips, Cycles review.",
-    "validation": "Native Godot: 46 bones, 12 clips, finite animated poses and 172 surface LODs. 18 brain, 17 event and 28 host checks pass. Real Events panel button and native resident panic were verified; developer-only gating checks cover ordinary nights, saved enemies, investigation rejection and following-night inactivity."
+    "validation": "Native Godot: 46 bones, 12 authored clips plus runtime RESET, finite animated poses and 172 surface LODs. 18 brain, 22 event and 28 host checks pass. Foot contact passes across walking, running and shielding phases and unequal supports. Real Events panel button, unchanged player position, menu recreation/resizing and native resident panic were verified; developer-only gating checks cover ordinary nights, saved enemies, investigation rejection and following-night inactivity."
   },
   "remaining_work": [
     "Full authored Ruien map, scripted first-sighting quest sequence and branching campaign are not included.",
     "Live two-client native-town playthrough and broader city spawn/path acceptance remain unverified. The staged native street proof passed; placement refuses routes too small for the giant.",
-    "Animation remains a first playable pass, without terrain IK, cloth simulation or ragdoll. Hair is sculpted geometry; automatic source topology limits deformation polish.",
+    "Animation remains a first playable pass with runtime two-bone terrain foot planting and head shielding, without cloth simulation or ragdoll. Hair is sculpted geometry; automatic source topology limits deformation polish.",
     "Roar/laugh clips have no recorded voice performance.",
     "Exact visual approval of the reconstructed laughing mesh remains with the user; expression concept approval does not automatically approve the model."
   ],
@@ -70,6 +70,7 @@
   "street_event": {
     "trigger": "Development-only: F8 > Events > Event: Antigoon, or DEV console event antigoon. Stages a fresh giant at 22:00; ordinary nights and saved enemy records never activate him. Encounter ends at dawn or save/load.",
     "lamps": "timed rock throw; persistent outage until next evening at 20:00",
+    "movement": "Continuous street roaming; quiet breathing and glances during pauses. Blocking light triggers a 0.7 m/s crossing with hands shielding the head, no pursuit, attack or throw, followed by a brief recovery in darkness. Development selection leaves the player in place and chooses a spawn at least 18 m away.",
     "residents": "host-controlled panic, occasional pursuit, protected light and home escape, knockdown, stand after 14m separation, home recovery and schedule release",
     "scope": "ordinary outdoor residents; existing actor actions and transport are not preempted",
     "audio": "original runtime synthetic alarm cry; existing Kenney CC0 impact",

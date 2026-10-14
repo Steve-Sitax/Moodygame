@@ -10,6 +10,7 @@ using Scheldemist.Net;
 using Scheldemist.Player;
 using Scheldemist.Town;
 using Scheldemist.World;
+using Scheldemist.Ui;
 using P=Scheldemist.Native.Services.AntigoonBrain.Point;
 namespace Scheldemist.Native.World;
 
@@ -27,6 +28,16 @@ public static class NativeAntigoonEventProof
             while(!game.Loaded||Loading.Busy||ServerLink.I?.Up!=true||!GameState.I.Live||game.GetNodeOrNull<Townspeople>("Townspeople")?.Sims.Count is not >500)
             {if(DateTime.UtcNow>deadline)throw new TimeoutException("Native town not ready");await Frames(1);}
             MainMenu.I!.Start();Jef.I.TestInput=true;Pause.Clear();var api=ServerLink.I!.Api!;var town=game.GetNode<Townspeople>("Townspeople");
+            // Exercise scene replacement and responsive menu rebuilds before pressing the real event button.
+            Dialogs.CloseAll();MainMenu.I!.QueueFree();await Frames(3);
+            game.AddChild(new MainMenu{Name="MenuLifecycleProof"});await Frames(8);MainMenu.I!.Start();
+            foreach(var size in new[]{new Vector2I(1360,900),new Vector2I(1440,1000),new Vector2I(1440,900)})
+            {
+                game.GetWindow().Size=size;await Frames(8);
+                Scheldemist.Dev.DevSheet.Open();await Frames(4);Scheldemist.Dev.DevSheet.Close();await Frames(4);
+                MainMenu.I!.ShowMenu(true);await Frames(2);MainMenu.I.Start();await Frames(2);
+            }
+            GD.Print("MENU_LIFECYCLE_PASS: replaced menu, resized and repeatedly opened/closed panels without stale callbacks.");
             GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set",new{day=1,hour=13,minute=0,weather="clear"}));
             Scheldemist.Dev.DevSheet.Open();await Frames(8);
             var sheet=Scheldemist.Dev.DevSheet.Current!;
@@ -34,13 +45,16 @@ public static class NativeAntigoonEventProof
             sheet.Scroll.EnsureControlVisible(button);await Frames(8);
             await game.ToSignal(RenderingServer.Singleton,RenderingServer.SignalName.FramePostDraw);
             game.GetViewport().GetTexture().GetImage().SavePng(Path.Combine(output,"antigoon-event-button.png"));
+            var playerBefore=new Vector2(Jef.I.X,Jef.I.Z);bool flyingBefore=Jef.I.Fly;
             var click=button.GetGlobalRect().GetCenter();
             Input.ParseInputEvent(new InputEventMouseMotion{Position=click,GlobalPosition=click});
             Input.ParseInputEvent(new InputEventMouseButton{ButtonIndex=MouseButton.Left,Pressed=true,Position=click,GlobalPosition=click});await Frames(2);
             Input.ParseInputEvent(new InputEventMouseButton{ButtonIndex=MouseButton.Left,Pressed=false,Position=click,GlobalPosition=click});
             var buttonDeadline=DateTime.UtcNow.AddSeconds(45);
-            while(Scheldemist.Dev.DevSheet.Busy||!Scheldemist.Dev.DevSheet.Last.StartsWith("Antigoon is ready"))
+            while(Scheldemist.Dev.DevSheet.Busy||!Scheldemist.Dev.DevSheet.Last.StartsWith("Antigoon is walking"))
             {if(DateTime.UtcNow>buttonDeadline)throw new Exception("Antigoon Events button failed: "+Scheldemist.Dev.DevSheet.Last);await Frames(1);}
+            if(playerBefore.DistanceTo(new(Jef.I.X,Jef.I.Z))>.02f||Jef.I.Fly!=flyingBefore)throw new Exception("Event moved the player");
+            GD.Print("ANTIGOON_PLAYER_POSITION_PASS: DEV event leaves player position and fly mode unchanged.");
             var selected=JsonNode.Parse(await api.GetJson("api/antigoon"))!.AsObject();
             if(selected["active"]?.GetValue<bool>()!=true||GameState.I.HourF<22)throw new Exception("Button did not start a nighttime encounter.");
             var encounter=game.AntigoonService!;var home=new P(selected["x"]!.GetValue<double>(),selected["z"]!.GetValue<double>());
@@ -48,7 +62,10 @@ public static class NativeAntigoonEventProof
             Scheldemist.Dev.DevSheet.Close();Pause.Clear();
             GameState.I.PlayingWhen=()=>true;GameState.I.Hold=false;
             if(!Jef.I.Fly)Jef.I.ToggleFly();
-            var view=new Vector2(Jef.I.X,Jef.I.Z);
+            // Move only this disposable proof camera/player to inspect the remote encounter after checking no teleport.
+            var view=Enumerable.Range(0,16).Select(i=>encounter.Snap(new(home.X+Math.Sin(i*Math.PI/8)*9,home.Z+Math.Cos(i*Math.PI/8)*9)))
+                .Where(p=>p is {} q&&encounter.Clear(q)&&encounter.Sight(q,home)).Select(p=>new Vector2((float)p!.Value.X,(float)p.Value.Z)).First();
+            Jef.I.Place(view.X,view.Y,0,0,(float)encounter.Ground(home));
             game.Cam.SetProcess(false);game.Cam.SetPhysicsProcess(false);game.Cam.SetProcessInput(false);game.Cam.SetProcessUnhandledInput(false);
             Input.MouseMode=Input.MouseModeEnum.Visible;
             game.Cam.GlobalPosition=new(view.X,(float)encounter.Ground(home)+3.2f,view.Y);game.Cam.LookAt(new((float)home.X,(float)encounter.Ground(home)+2.7f,(float)home.Z));

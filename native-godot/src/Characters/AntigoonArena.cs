@@ -24,10 +24,12 @@ public partial class AntigoonArena : Node3D
     private string? preview;
     private string output="";
     private bool faceShot;
+    private string shotPose="smirk";
     public override void _Ready()
     {
         var args=OS.GetCmdlineUserArgs();proof=args.Contains("--antigoon-proof");faceShot=args.Contains("--antigoon-face");
         int ix=Array.IndexOf(args,"--antigoon-shot");if(ix>=0&&ix+1<args.Length)output=args[ix+1];
+        int pose=Array.IndexOf(args,"--antigoon-pose");if(pose>=0&&pose+1<args.Length)shotPose=args[pose+1];
         var environment=new Godot.Environment { BackgroundMode=Godot.Environment.BGMode.Color, BackgroundColor=new Color(.025f,.035f,.047f), AmbientLightSource=Godot.Environment.AmbientSource.Color, AmbientLightColor=new Color(.52f,.61f,.74f), AmbientLightEnergy=.6f, TonemapMode=Godot.Environment.ToneMapper.Filmic };
         AddChild(new WorldEnvironment { Environment=environment });
         sun=new DirectionalLight3D { RotationDegrees=new Vector3(-55,-25,0),LightColor=new Color(.62f,.72f,1),LightEnergy=.8f,ShadowEnabled=true };AddChild(sun);
@@ -43,6 +45,7 @@ public partial class AntigoonArena : Node3D
         player.AddChild(new CollisionShape3D {Position=new Vector3(0,.875f,0),Shape=new CapsuleShape3D {Radius=.32f,Height=1.75f}});
         camera=new Camera3D {Position=new Vector3(0,1.65f,0),Current=true,Fov=75,Far=150};player.AddChild(camera);
         giant=new AntigoonActor {Name="Antigoon"};AddChild(giant);
+        if(proof)Box("UnevenBootSupport",new Vector3(.52f,.06f,-.19f),new Vector3(.45f,.12f,.8f),new Color(.2f,.22f,.24f));
         var canvas=new CanvasLayer();AddChild(canvas);hud=new Label {Position=new Vector2(24,24)};hud.AddThemeFontSizeOverride("font_size",20);canvas.AddChild(hud);
         Reset();
         if(!proof&&output=="")Input.MouseMode=Input.MouseModeEnum.Captured;
@@ -69,7 +72,7 @@ public partial class AntigoonArena : Node3D
         elapsed+=delta;
         if(output!="")
         {
-            giant.Snapshot(new Vector3(0,0,-8),.15f,faceShot?"laugh":"smirk",0,0,true);
+            giant.Snapshot(new Vector3(0,0,-8),.15f,faceShot?"laugh":shotPose,elapsed,0,true);
             if(elapsed>2) {SetPhysicsProcess(false);_ = Shot();}return;
         }
         if(proof)
@@ -85,6 +88,23 @@ public partial class AntigoonArena : Node3D
                     for(int i=0;i<46;i++)if(!giant.Skeleton.GetBoneGlobalPose(i).Origin.IsFinite())throw new Exception("Invalid pose "+clip);
                 }
                 if(giant.LodCount<1)throw new Exception("Distance LODs missing");
+                giant.SetState("idle");giant.Animations.Advance(.25);giant.Pose._PhysicsProcess(.01);giant.Pose.ApplyPose(.01);
+                if(giant.Pose.PlantedFootError(0)>.025f||giant.Pose.PlantedFootError(1)>.025f)
+                { GD.PrintErr($"Idle foot contact: {giant.Pose.PlantedFootError(0)}, {giant.Pose.PlantedFootError(1)}; {giant.Pose.Diagnostics()}");SetPhysicsProcess(false);GetTree().Quit(1);return; }
+                foreach(string gait in new[]{"walk","run","shield"})
+                {
+                    giant.SetState(gait);giant.Animations.Advance(.25);
+                    double period=gait=="run"?.72:1.2;
+                    for(int step=0;step<12;step++)
+                    {
+                        giant.Animations.Seek(period*step/12,true);giant.Pose._PhysicsProcess(.01);giant.Pose.ApplyPose(.01);
+                        for(int foot=0;foot<2;foot++)if(giant.Pose.IsPlanted(foot)&&giant.Pose.PlantedFootError(foot)>.03f)
+                        {GD.PrintErr($"Unplanted {gait} foot {foot} at phase {step}: {giant.Pose.PlantedFootError(foot)}");SetPhysicsProcess(false);GetTree().Quit(1);return;}
+                    }
+                }
+                giant.SetState("shield");giant.Animations.Advance(.25);giant.Pose.ApplyPose(.01);
+                foreach(string hand in new[]{"hand.L","hand.R"})if(giant.Skeleton.GetBoneGlobalPose(giant.Skeleton.FindBone(hand)).Origin.Y<4.6f)throw new Exception("Shielding hand does not protect the head");
+                GD.Print("ANTIGOON_POSE_PASS: grounded idle feet and hands shielding the head.");
                 GD.Print($"ANTIGOON_SCENE_PASS: 46 bones, 12 clips, {giant.LodCount} surface LODs, collision, finite animated poses, same gameplay brain.");SetPhysicsProcess(false);_ = ProveService();
             }
             return;
