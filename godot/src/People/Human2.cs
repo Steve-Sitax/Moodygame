@@ -60,6 +60,10 @@ internal sealed class Human2
     // D3: work
     private readonly People2Moves.WorkFamily? workFam;
     private readonly People2Things things;
+    private readonly People2Vehicle vehicle;
+    internal bool OwnVehicle => vehicle.Present;
+    internal bool CanSit => !Humans.OwnClips.ContainsKey(kind);
+    internal void UseExternalVehicle(bool external) => vehicle.UseExternal(external);
     private string? load;          // what is carried: "sack", "crate", "fishbox", "keg" (Crowd.PuppetLoad)
     private bool dropPending;      // a sack just let go: set it down before standing
     private float roll;            // the distance walked (a rolled cask turns by it)
@@ -164,6 +168,7 @@ internal sealed class Human2
         run = People2.Clips.GetValueOrDefault(style + "_run", hurry); sprint = People2.Clips.GetValueOrDefault(style + "_sprint", hurry);
         layers = new HumanLayers(root, sk);
         things = new People2Things(sk);
+        vehicle = new People2Vehicle(kind, root, sk);
         string body = root.Name.ToString();
         fam = People2Moves.Of(People2.BaseBody.GetValueOrDefault(body, body));
         workFam = People2Moves.WorkOf(fam?.Name);
@@ -261,6 +266,8 @@ internal sealed class Human2
     private string? WorkClip(string m)
     {
         if (People2Moves.KindClip(kind, m) is { } own && People2.Clips.ContainsKey(own)) return own;
+        if (vehicle.Present && m is "talk" or "fold" or "behind" or "lean" or "sit")
+            return People2Moves.KindClip(kind, "idle");
         // a load decides how he walks and stands with it
         if (load != null && People2Moves.Loads.TryGetValue(load == "sack" ? "sack" : "crate", out var spec))
         {
@@ -485,6 +492,8 @@ internal sealed class Human2
     private void Seam()
     {
         if (fam == null) return;
+        // Loads keep their authored grip through idle/talk loops rather than borrowing a free-hand idle.
+        if (People2Moves.KindClip(kind, motion) != null || vehicle.Present && motion is "talk" or "fold" or "behind" or "lean" or "sit") return;
         if (motion == "idle" && idleClock > idleNext && !clip.Work)
         {
             var list = fam.List("idle");
@@ -624,6 +633,7 @@ internal sealed class Human2
         if (root.GlobalPosition.DistanceSquaredTo(Main.I.Cam.GlobalPosition) < 3600)
             layers.Hands(clipName, time, bodyRatio, blend);
         BasketPose();
+        vehicle.Update(dt, clipName.StartsWith("truck_", StringComparison.Ordinal) || clipName.StartsWith("cart_", StringComparison.Ordinal));
         things.Tick(dt);
     }
 
@@ -655,5 +665,6 @@ internal sealed class Human2
     {
         People2Moves.Drop(this, id);
         things.Dispose();
+        vehicle.Dispose();
     }
 }

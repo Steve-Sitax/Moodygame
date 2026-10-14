@@ -78,6 +78,7 @@ public static class Carters
     /// <summary>Fold away the handcart bound to the hips in people.glb (traffic.ts hideBakedCart). Keep the file's shared mesh.</summary>
     public static void HideBakedCart(Human human)
     {
+        if (human.OwnPushedVehicle) { human.UseExternalVehicle(true); return; }
         var sk = BakedWorld.All(human.Root).OfType<Skeleton3D>().FirstOrDefault();
         int hips = sk?.FindBone("hips") ?? -1;
         if (hips < 0) return;

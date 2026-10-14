@@ -263,10 +263,12 @@ public sealed class Human
 
     /// <summary>A woman's clips (hands folded in front, shorter steps)?</summary>
     public bool Woman => newer?.Female ?? Humans.Women.Contains(Kind);
+    internal bool OwnPushedVehicle => newer?.OwnVehicle ?? false;
+    internal void UseExternalVehicle(bool external) => newer?.UseExternalVehicle(external);
 
     /// <summary>Can this body sit? People2 bodies all sit (women in skirts and aprons too) unless they carry a
     /// load; the old models only the men without a long apron.</summary>
-    public bool CanSit => newer != null ? !Humans.OwnClips.ContainsKey(Kind) : !Woman && !Humans.OwnClips.ContainsKey(Kind) && !Humans.NoSit.Contains(Kind);
+    public bool CanSit => newer?.CanSit ?? (!Woman && !Humans.OwnClips.ContainsKey(Kind) && !Humans.NoSit.Contains(Kind));
 
     /// <summary>How far to lower the body (negative) so it sits on a seat `seat` metres high (the sit clip). A
     /// people2 body picks its seated clip by the seat's height (a step, a crate, a bench or a chair), whose hips

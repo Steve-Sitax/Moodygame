@@ -545,6 +545,7 @@ public sealed partial class Crowd
     /// <summary>A carter's handcart in place of the one in his model: on its own wheels, tipped up to his grip, swinging round behind him on a bend.</summary>
     private void PushTheCart(Puppet p, double dt, bool shown, double ground)
     {
+        if (p.Human.OwnPushedVehicle) return;
         if (p.Cart == null)
         {
             if (!PushCart.Has) return;

@@ -31,6 +31,7 @@ public sealed partial class Crowd
     public void PuppetVehicle(Puppet p, int kind, int load = 0, int goods = 0)
     {
         kind = kind is >= 0 and <= 3 ? kind : 0;
+        p.Human.UseExternalVehicle(kind != 0);
         load = Math.Clamp(load, 0, 255); goods = Math.Clamp(goods, 0, 5);
         p.NetworkVehicle = kind; p.NetworkLoad = load; p.NetworkGoods = goods;
         if (p.Vehicle is { } same && same.Kind == kind) {
