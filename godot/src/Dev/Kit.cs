@@ -29,7 +29,7 @@ public partial class Kit : Node
     public Townspeople? People => Main.I.GetNodeOrNull<Townspeople>("Townspeople");
     private Api Api => ServerLink.I?.Api ?? throw new InvalidOperationException("the server is not ready");
     public Kit() => I = this;
-    public const string Help = "commands: help, dev on|off; in dev mode: hour 13 [clear], weather rain, go vismarkt | go -118 36, summon fishwife, clear, job {...}, skip 10, tide high|low|clock, event musicians, pass canal|vliet, lock in|out, fog on|off, shower on|off, fly";
+    public const string Help = "commands: help, dev on|off; in dev mode: hour 13 [clear], weather rain, go vismarkt | go -118 36, summon fishwife, clear, job {...}, skip 10, tide high|low|clock, event musicians, pass canal|vliet, lock in|out, fog on|off, shower on|off, fly, where (place and view on screen)";
     public override void _Ready()
     {
         ProcessMode = ProcessModeEnum.Always; // the console works over the paused town too
@@ -189,6 +189,7 @@ public partial class Kit : Node
                 case "fog" when tools != null: said.Add(tools.ThickFog(arg != "off")); break;
                 case "shower" when tools != null: said.Add(tools.Shower(arg != "off")); break;
                 case "fly" when tools != null: said.Add(tools.ToggleFly()); break;
+                case "where": said.Add(WhereOverlay.Toggle(this)); break;
                 default: throw new ArgumentException(Help);
             }
             GD.Print("dev: " + command);

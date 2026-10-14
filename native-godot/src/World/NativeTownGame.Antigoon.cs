@@ -27,7 +27,6 @@ public partial class NativeTownGame
         Vector3 At(P p,float height=0)=>new((float)p.X,(float)map.BaseAt(p.X,p.Z)+height,(float)p.Z);
         bool Clear(P p)=>map.PathFree(p.X,p.Z)&&geometry.Clear(At(p),.65f,5.5f);
         bool Sight(P a,P b)=>geometry.Visible(At(a,1.7f),At(b,1.7f));
-        bool HeadVisible(P a,P b)=>geometry.Visible(At(a,1.7f),At(b,5.4f));
         P? PlayerAt(int id)
         {
             if(multiplayer.Enabled)return multiplayer.Position(id) is {} p?new P(NativeGoods.Number(p["x"]),NativeGoods.Number(p["z"])):null;
@@ -62,7 +61,7 @@ public partial class NativeTownGame
             HumanPath=(a,b)=>Ways.Path(new Vector2((float)a.X,(float)a.Z),new Vector2((float)b.X,(float)b.Z))?.Select(p=>new P(p.X,p.Y)).ToArray(),
             MayObserve=(player,id)=>(!multiplayer.Enabled||multiplayer.Walker(id)==player)&&actions.Of(id)==null,
             ResidentHome=id=>actions.Resident(id)?["home"] is JsonObject h?new P(NativeGoods.Number(h["sx"]),NativeGoods.Number(h["sz"])):null,
-            Clear=Clear, Ground=p=>map.BaseAt(p.X,p.Z), Light=Light, Sight=Sight, SpawnVisible=(a,b)=>Sight(a,b)||HeadVisible(a,b),
+            Clear=Clear, Ground=p=>map.BaseAt(p.X,p.Z), Light=Light, Sight=Sight,
             Path=(a,b)=> {
                 var route=Ways.Path(new Vector2((float)a.X,(float)a.Z),new Vector2((float)b.X,(float)b.Z));
                 if(route==null)return null;
@@ -72,6 +71,22 @@ public partial class NativeTownGame
                 foreach(var point in points) { int n=Math.Max(1,(int)Math.Ceiling(last.Distance(point)/.4)); for(int i=1;i<=n;i++) if(!Clear(new(last.X+(point.X-last.X)*i/n,last.Z+(point.Z-last.Z)*i/n)))return null;last=point; }
                 return points;
             }
+        };
+        // The dev panel can stage an encounter anywhere in the town, even when Jef is at the quay.
+        var lampPositions=((NativeTown)World).LampFacts.Select(l=>new P(NativeGoods.Number(l?["x"]),NativeGoods.Number(l?["z"]))).ToArray();
+        encounter.DevelopmentStage=player=>
+        {
+            foreach(var lamp in lampPositions.OrderBy(p=>p.Distance(player)))for(int i=0;i<16;i++)
+            {
+                var candidate=encounter.Snap(new(lamp.X+Math.Sin(i*Math.PI/8)*12,lamp.Z+Math.Cos(i*Math.PI/8)*12));
+                if(candidate is not {} home||home.Distance(player)<18||!Alley(home)||!Clear(home)||Light(home)>=.25)continue;
+                for(int k=0;k<16;k++)
+                {
+                    var exit=encounter.Snap(new(home.X+Math.Sin(k*Math.PI/8)*10,home.Z+Math.Cos(k*Math.PI/8)*10));
+                    if(exit is {} watch&&watch.Distance(home)>7&&Clear(watch)&&Sight(home,watch)&&encounter.Path(home,watch) is {Count:>0})return (home,watch);
+                }
+            }
+            return null;
         };
         host.AddModule(encounter);
         AntigoonService=encounter;

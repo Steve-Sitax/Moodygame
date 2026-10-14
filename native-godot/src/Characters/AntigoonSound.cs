@@ -22,7 +22,7 @@ public partial class AntigoonSound : Node
             short sample=(short)(15000*(Beat(.025,1)+Beat(.205,.6)));bytes[i*2]=(byte)(sample&255);bytes[i*2+1]=(byte)(sample>>8);
         }
         pulse=new AudioStreamPlayer {Stream=new AudioStreamWav {Format=AudioStreamWav.FormatEnum.Format16Bits,MixRate=rate,Stereo=false,Data=bytes,LoopMode=AudioStreamWav.LoopModeEnum.Forward,LoopBegin=0,LoopEnd=count},VolumeDb=-80};AddChild(pulse);pulse.Play();
-        kick=new AudioStreamPlayer3D {Stream=AudioStreamOggVorbis.LoadFromFile(ProjectSettings.GlobalizePath("res://world/data/public/audio/kenney-impact/impactSoft_heavy_001.ogg")),PitchScale=.6f,VolumeDb=-9,MaxDistance=30,UnitSize=5};actor.AddChild(kick);
+        kick=new AudioStreamPlayer3D {Stream=ResourceLoader.Load<AudioStream>("res://world/data/public/audio/kenney-impact/impactSoft_heavy_001.ogg"),PitchScale=.6f,VolumeDb=-9,MaxDistance=30,UnitSize=5};actor.AddChild(kick);
     }
     public override void _Process(double delta)
     {

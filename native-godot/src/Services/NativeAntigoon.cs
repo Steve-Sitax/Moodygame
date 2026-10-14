@@ -18,63 +18,41 @@ public sealed partial class NativeAntigoon : INativeServiceModule
     public Func<P,double> Light = _=>1;
     public Func<P,P,IReadOnlyList<P>?> Path = (_,_)=>null;
     public Func<P,P,bool> Sight = (_,_)=>false;
-    public Func<P,P,bool>? SpawnVisible;
     public Func<P,bool> BackAlley = _=>true;
     public Func<P,P?> Snap = p=>p;
-    private long spawnAttempt;
+    private bool developmentEnabled;
     public NativeAntigoon(NativeServiceHost host)=>this.host=host;
+    internal System.Threading.Tasks.Task<T> WithState<T>(Func<NativeAntigoon,T> operation)=>host.WithState(_=>operation(this));
     private double Hour { get { var c=host.Clock.View();return NativeGoods.Number(c["hour"])+NativeGoods.Number(c["minute"])/60; } }
     private bool Night=>Hour>=20||Hour<6;
     public void Register(NativeServiceHost service)
     {
         RegisterEvent(service);
+        RegisterDevelopment(service);
         service.Register("GET","/api/antigoon",r=>{Advance();return View(r.PlayerId);});
-        service.Register("POST","/api/antigoon/investigate",r=>
-        {
-            if(host.MultiplayerEnabled())throw new NativeServiceException("The scripted investigation is single-player only.",409);
-            host.Context.SetPlayerState(r.PlayerId,"antigoon_quest",JsonValue.Create("investigate"));
-            Advance();return View(r.PlayerId);
-        });
+        service.Register("POST","/api/antigoon/investigate",r=>throw new NativeServiceException("Antigoon is currently a development-only event. Use the developer Events panel.",409));
         service.Register("POST","/api/antigoon/strike",r=>
         {
             if(host.Saves.Paused)throw new NativeServiceException("The town is paused.",409);
-            Advance();bool hit=brain!=null&&PositionOf(r.PlayerId) is {} p&&brain.Strike(new(r.PlayerId,p,Available(r.PlayerId)));
+            Advance();bool hit=developmentEnabled&&brain!=null&&PositionOf(r.PlayerId) is {} p&&brain.Strike(new(r.PlayerId,p,Available(r.PlayerId)));
             if(hit)Save();var v=View(r.PlayerId);v["hit"]=hit;return v;
         });
         service.NewGame+=Reset;service.Loaded+=Reset;
     }
-    private void Reset(){brain=null;last=0;saved=0;spawnAttempt=0;street=null;observed.Clear();}
+    private void Reset(){brain=null;last=0;saved=0;developmentEnabled=false;street=null;observed.Clear();}
     private bool Available(int id)=>NativeGoods.Number(host.Player(id)["health"])>0&&host.Clock.Where(id)["shelter"]?.GetValue<string>()=="outside";
     private void Advance()
     {
         long now=host.Context.Now;
-        if(host.Saves.Paused){last=now;return;}
+        if(!developmentEnabled||host.Saves.Paused){last=now;return;}
         var players=host.OnlinePlayers().Distinct().Select(id=>(id,p:PositionOf(id))).Where(v=>v.p!=null).Select(v=>new AntigoonBrain.Player(v.id,v.p!.Value,Available(v.id))).ToArray();
-        if(brain==null)
-        {
-            if(!Night||players.Length==0){last=now;return;}
-            if(host.Context.World("antigoon") is JsonObject old)
-            {
-                var home=new P(NativeGoods.Number(old["hx"]),NativeGoods.Number(old["hz"]));
-                if(Clear(home)){Create(home);brain!.Restore(new P(NativeGoods.Number(old["x"]),NativeGoods.Number(old["z"])),(int)NativeGoods.Number(old["health"]));}
-            }
-            if(brain==null&&now>=spawnAttempt)
-            {
-                spawnAttempt=now+5000;
-                P from=players[0].At;
-                for(int i=0;i<96;i++)
-                {
-                    double a=i*Math.PI*2/32,r=28+i/32*18;var candidate=Snap(new P(from.X+Math.Sin(a)*r,from.Z+Math.Cos(a)*r));if(candidate is not {} p)continue;
-                    if(!Clear(p)||!BackAlley(p)||Light(p)>=.25||players.Any(v=>(SpawnVisible??Sight)(v.At,p))||Path(p,from)==null)continue;
-                    Create(p);Save();break;
-                }
-            }
-        }
         double elapsed=last==0||now-last>1000?0:Math.Clamp((now-last)/1000.0,0,.5);last=now;
         if(brain==null)return;
         var witnesses=observed.Values.Where(v=>now-v.At<1500).Select(v=>v.Person).ToArray();
         while(elapsed>.0001){double dt=Math.Min(.05,elapsed);street!.Step(dt,Night,brain,witnesses);brain.Step(dt,Night,players.Concat(street.Targets()).ToArray());elapsed-=dt;}
         if(now-saved>2000)Save();
+        if(!Night&&brain.State=="hidden")
+        {developmentEnabled=false;brain=null;street=null;observed.Clear();}
     }
     private void Create(P home)
     {
@@ -104,7 +82,7 @@ public sealed partial class NativeAntigoon : INativeServiceModule
     }
     private JsonObject View(int player)
     {
-        var v=new JsonObject{["active"]=brain!=null&&brain.State!="hidden",["night"]=Night,["multiplayer"]=host.MultiplayerEnabled(),["quest"]=host.Context.PlayerState(player,"antigoon_quest")?.DeepClone(),["server_ms"]=host.Context.Now};
+        var v=new JsonObject{["active"]=developmentEnabled&&brain!=null&&brain.State!="hidden",["night"]=Night,["multiplayer"]=host.MultiplayerEnabled(),["development_only"]=true,["server_ms"]=host.Context.Now};
         if(brain!=null){v["x"]=brain.Position.X;v["y"]=Ground(brain.Position);v["z"]=brain.Position.Z;v["yaw"]=brain.Yaw;v["health"]=brain.Health;v["state"]=brain.State;v["state_time"]=brain.StateTime;v["attack_serial"]=brain.AttackSerial;v["target"]=brain.Target;}
         EventView(v);
         return v;

@@ -20,7 +20,7 @@ internal static class AntigoonEventAudio
     }
     public static void Impact(Node parent,Vector3 at)
     {
-        var sound=new AudioStreamPlayer3D{Position=at,MaxDistance=55,UnitSize=8,VolumeDb=-6,PitchScale=1.2f,Stream=AudioStreamOggVorbis.LoadFromFile(ProjectSettings.GlobalizePath("res://world/data/public/audio/kenney-impact/impactPlank_medium_001.ogg"))};
+        var sound=new AudioStreamPlayer3D{Position=at,MaxDistance=55,UnitSize=8,VolumeDb=-6,PitchScale=1.2f,Stream=ResourceLoader.Load<AudioStream>("res://world/data/public/audio/kenney-impact/impactPlank_medium_001.ogg")};
         parent.AddChild(sound);sound.Finished+=sound.QueueFree;sound.Play();
     }
 }

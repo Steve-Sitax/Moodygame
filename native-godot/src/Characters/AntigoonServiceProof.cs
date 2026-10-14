@@ -18,13 +18,15 @@ internal static class AntigoonServiceProof
         host.MultiplayerEnabled=()=>multiplayer;host.Saves.EnsurePlayer(2,"Second player");host.OnlinePlayers=()=>multiplayer?new[]{1,2}:new[]{1};
         host.Clock.SetTime(1,22,0);
         var position=new P(0,2);
-        var service=new NativeAntigoon(host){PositionOf=_=>position,Clear=_=>true,Light=_=>0,Ground=_=>0,Sight=(_,_)=>true,Path=(_,b)=>new[]{b}};
+        var service=new NativeAntigoon(host){PositionOf=_=>position,Clear=_=>true,Light=_=>0,Ground=_=>0,Sight=(_,_)=>true,Path=(_,b)=>new[]{b},DevelopmentStage=_=>(new P(0,0),new P(0,10))};
         host.AddModule(service);
         async Task<JsonObject> Call(string method,string path,int player=1)=>JsonNode.Parse(await host.Call(method,"/api/antigoon"+path,"{}",player))!.AsObject();
         int checks=0;void Check(bool yes,string title){if(!yes)throw new Exception("Antigoon service: "+title);checks++;GD.Print("PASS "+title);}
-        var initial=await Call("GET","");Check(initial["active"]!.GetValue<bool>()==false,"visible spawn candidates are rejected");
+        var initial=await Call("GET","");Check(initial["active"]!.GetValue<bool>()==false,"night never starts Antigoon without development selection");
         host.Context.SetWorld("antigoon",new JsonObject{["x"]=0,["z"]=0,["hx"]=0,["hz"]=0,["health"]=120});
-        await Call("POST","/investigate");now+=100;var first=await Call("GET","");Check(first["state"]!.GetValue<string>()=="attack","saved enemy restores into authoritative encounter");
+        now+=100;Check((await Call("GET",""))["active"]!.GetValue<bool>()==false,"previously saved enemy does not restore into ordinary play");
+        bool investigation=false;try{await Call("POST","/investigate");}catch(NativeServiceException ex){investigation=ex.Status==409;}Check(investigation,"normal-play investigation cannot enable development encounter");
+        await host.Call("POST","/api/dev/antigoon","{}",1);now+=100;var first=await Call("GET","");Check(first["state"]!.GetValue<string>()=="attack","development selection starts authoritative encounter");
         var again=await Call("GET","");Check(again["state_time"]!.GetValue<double>()==first["state_time"]!.GetValue<double>(),"extra polls cannot accelerate simulation");
         host.Saves.SetPausedAll(true);now+=500;
         var paused=await Call("GET","");Check(paused["state_time"]!.GetValue<double>()==first["state_time"]!.GetValue<double>(),"host pause freezes enemy");
@@ -45,10 +47,11 @@ internal static class AntigoonServiceProof
         host.Clock.SetTime(5,2,0);lights.Extinguish("test-lamp");host.Clock.SetTime(5,20,0);Check(!lights.Disabled().Contains("test-lamp"),"after-midnight damage expires at that evening");
         using var autoHost=new NativeServiceHost(new NativeServiceOptions(":memory:",data,Path.Combine(Path.GetTempPath(),"antigoon-auto-proof-unused"),()=>now));
         autoHost.Clock.SetTime(1,22,0);
-        var automatic=new NativeAntigoon(autoHost){PositionOf=_=>new P(0,0),Clear=_=>true,BackAlley=_=>true,Light=_=>0,Sight=(_,_)=>true,SpawnVisible=(_,_)=>false,Path=(_,b)=>new[]{b},HumanClear=_=>true,HumanPath=(_,b)=>new[]{b},MayObserve=(p,id)=>p==1&&id=="witness",ResidentHome=_=>new P(0,90)};
+        var automatic=new NativeAntigoon(autoHost){PositionOf=_=>new P(0,0),Clear=_=>true,BackAlley=_=>true,Light=_=>0,Sight=(_,_)=>true,Path=(_,b)=>new[]{b},HumanClear=_=>true,HumanPath=(_,b)=>new[]{b},MayObserve=(p,id)=>p==1&&id=="witness",ResidentHome=_=>new P(0,90),DevelopmentStage=_=>(new P(0,28),new P(0,18))};
         autoHost.AddModule(automatic);await autoHost.Call("GET","/api/antigoon",null);now+=100;
         var automaticView=JsonNode.Parse(await autoHost.Call("GET","/api/antigoon",null))!;
-        Check(automaticView["active"]!.GetValue<bool>()&&automaticView["quest"]==null,"night street event starts without investigation quest");
+        Check(!automaticView["active"]!.GetValue<bool>(),"valid dark alley never enables an unselected encounter");
+        await autoHost.Call("POST","/api/dev/antigoon","{}",1);
         autoHost.Saves.EnsurePlayer(2,"Observer");
         string observation=new JsonObject{["people"]=new JsonArray(new JsonObject{["id"]="witness",["x"]=0,["z"]=31})}.ToJsonString();
         now+=100;var denied=JsonNode.Parse(await autoHost.Call("POST","/api/antigoon/observe",observation,2))!;
@@ -57,6 +60,18 @@ internal static class AntigoonServiceProof
         Check(panic["residents"]!.AsArray().Count==1,"owned outdoor witness enters host panic simulation");
         var shared=JsonNode.Parse(await autoHost.Call("GET","/api/antigoon",null,2))!;
         Check(shared["residents"]!.ToJsonString()==panic["residents"]!.ToJsonString(),"both peers receive identical resident panic state");
+        automatic.DevelopmentStage=_=>(new P(0,28),new P(0,18));autoHost.Clock.SetTime(1,13,0);autoHost.Saves.SetPausedAll(true);
+        var selected=JsonNode.Parse(await autoHost.Call("POST","/api/dev/antigoon","{}",1))!;
+        Check(selected["active"]!.GetValue<bool>()&&selected["health"]!.GetValue<int>()==120,"development event starts fresh while Events panel pauses the town");
+        Check(NativeGoods.Number(autoHost.Clock.View()["hour"])==22&&selected["watch_z"]!.GetValue<double>()==18&&selected["world"]!=null,"development event sets night and returns viewing position and current world");
+        refused=false;try{await autoHost.Call("POST","/api/dev/antigoon","{}",2);}catch(NativeServiceException ex){refused=ex.Status==403;}Check(refused,"only the multiplayer host can start development encounter");
+        autoHost.Clock.SetTime(1,14,12);automatic.DevelopmentStage=_=>null;
+        refused=false;try{await autoHost.Call("POST","/api/dev/antigoon","{}",1);}catch(NativeServiceException ex){refused=ex.Status==409;}
+        Check(refused&&NativeGoods.Number(autoHost.Clock.View()["hour"])==14&&NativeGoods.Number(autoHost.Clock.View()["minute"])==12,"unavailable development stage reports failure and preserves clock");
+        autoHost.Saves.SetPausedAll(false);autoHost.Clock.SetTime(1,7,0);now+=100;await autoHost.Call("GET","/api/antigoon",null,1);
+        autoHost.Clock.SetTime(2,22,0);now+=100;
+        var followingNight=JsonNode.Parse(await autoHost.Call("GET","/api/antigoon",null,1))!;
+        Check(!followingNight["active"]!.GetValue<bool>(),"completed development encounter does not return on the next night");
         GD.Print($"ANTIGOON_SERVICE_PASS {checks} checks");
     }
 }

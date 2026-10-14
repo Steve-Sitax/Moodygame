@@ -161,6 +161,7 @@ public partial class DevTools : Node
     /// </summary>
     public async Task<string> Event(string template)
     {
+        if (template == "antigoon") return await Antigoon();
         if (!Templates.Contains(template) && template != "ballad") throw new ArgumentException("event " + string.Join(", ", Templates));
         var plan = await Api.DevEvent(template);
         if (!plan.Ok) return $"{Words(template)}: not now ({plan.Why})";
@@ -170,6 +171,15 @@ public partial class DevTools : Node
         return GetTree().Paused
             ? $"planned \"{plan.Title}\": it starts a game minute after you go on, and you are put right in front of it. Close this and watch."
             : $"planned \"{plan.Title}\": it starts in a game minute, and you are put right in front of it.";
+    }
+
+    /// <summary>Start the native street encounter while keeping Jef at his current position.</summary>
+    public async Task<string> Antigoon()
+    {
+        var result = await Api.Post<JsonElement>("api/dev/antigoon", new { }, timeoutMs: 30000);
+        GameState.I.Apply(JsonSerializer.Deserialize<JobsPayload>(result.GetProperty("world"), Scheldemist.Net.Api.Json)!);
+        People?.Refill();
+        return $"Antigoon is walking from a back alley at 22:00 (x {result.GetProperty("x").GetDouble():0}, z {result.GetProperty("z").GetDouble():0}). Your position stays the same. Close this panel to watch.";
     }
 
     /// <summary>An event a button planned that has not begun yet (its id, its title).</summary>

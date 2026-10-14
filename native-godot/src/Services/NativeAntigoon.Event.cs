@@ -15,12 +15,11 @@ public sealed partial class NativeAntigoon
     public Func<int,string,bool> MayObserve=(_,_)=>false;
     public Func<string,P?> ResidentHome=_=>null;
     public bool Controls(string id)=>street?.Owns(id)==true;
-    internal System.Threading.Tasks.Task StageProof(P at)=>host.WithState(_=>{Create(at);brain!.Reveal();last=host.Context.Now;Save();return true;});
     private void RegisterEvent(NativeServiceHost service)
     {
         service.Register("POST","/api/antigoon/observe",r=>
         {
-            if(host.Saves.Paused)return View(r.PlayerId);
+            if(!developmentEnabled||host.Saves.Paused)return View(r.PlayerId);
             if(PositionOf(r.PlayerId) is {} eye)foreach(var node in (r.Body["people"] as JsonArray??new()).Take(60))
             {
                 string id=NativeGoods.S(node,"id");var p=new P(NativeGoods.Number(node?["x"]),NativeGoods.Number(node?["z"]));

@@ -13,7 +13,7 @@ public partial class NativeAntigoonClient : Node
     private AntigoonActor? actor;
     private Label hint = null!;
     private double poll;
-    private bool busy, quest, night, warned, stopped;
+    private bool busy, warned, stopped;
     public override void _Ready()
     {
         StartStreetEvent();
@@ -29,7 +29,7 @@ public partial class NativeAntigoonClient : Node
         if (!playing || busy) return;
         poll += delta;
         if (poll >= .1) { poll = 0; _ = Refresh(); }
-        hint.Text = !quest && night && !ServerLink.I!.Together ? "F6 · Follow the rumour about Antigoon" : "";
+        hint.Text = "";
         if (actor is { Visible: true } && Jef.I?.Body != null && Jef.I.Body.GlobalPosition.DistanceTo(actor.GlobalPosition)<7)
             hint.Text = "Stay in the light. Dodge his kick.\nLeft mouse · strike when within reach";
     }
@@ -43,12 +43,11 @@ public partial class NativeAntigoonClient : Node
     private void Apply(JsonObject v)
     {
         if(!IsInsideTree())return;
-        night = v["night"]?.GetValue<bool>()==true; quest = v["quest"]!=null;
         ApplyStreetEvent(v);
         bool visible = v["active"]?.GetValue<bool>()==true;
         if (!visible && actor == null) return;
         if(actor==null){actor=new AntigoonActor { Name="Antigoon", TownLighting=true };Main.I.View.AddChild(actor);}
-        if(v["x"]==null){actor.Visible=false;return;}
+        if(v["x"]==null){actor.Snapshot(actor.GlobalPosition,actor.Rotation.Y,"hidden",0,0,false);return;}
         static double N(JsonNode? n)=>n?.GetValue<double>()??0;
         actor.Snapshot(new Vector3((float)N(v["x"]),(float)N(v["y"]),(float)N(v["z"])),(float)N(v["yaw"]),v["state"]!.GetValue<string>(),N(v["state_time"]),(int)N(v["attack_serial"]),visible);
         if(visible&&!warned&&Jef.I?.Body!=null&&Jef.I.Body.GlobalPosition.DistanceTo(actor.GlobalPosition)<20){warned=true;Hud.I?.Say("Heavy footsteps. Stay near a burning lamp.");}
@@ -57,8 +56,6 @@ public partial class NativeAntigoonClient : Node
     public override void _UnhandledInput(InputEvent e)
     {
         if(!GameState.I.Playing||ServerLink.I?.Paused!=false||busy)return;
-        if(e is InputEventKey { Pressed:true,Echo:false,Keycode:Key.F6 } && !quest && !ServerLink.I.Together)
-        { GetViewport().SetInputAsHandled();_ = Act("investigate"); }
         if(e is InputEventMouseButton { Pressed:true,ButtonIndex:MouseButton.Left } && actor is { Visible:true } && Jef.I?.Body!=null)
         {
             var direction=actor.GlobalPosition-Jef.I.Body.GlobalPosition;
@@ -73,7 +70,7 @@ public partial class NativeAntigoonClient : Node
         try
         {
             var result=JsonNode.Parse(await ServerLink.I!.Api!.PostJson("api/antigoon/"+action,new {}))!.AsObject();Apply(result);
-            Hud.I?.Say(action=="investigate" ? "They say he sleeps below the streets. Look for him after dark. Keep a lamp close." : result["hit"]?.GetValue<bool>()==true ? "Your strike connects." : "Out of reach. Watch his feet.");
+            Hud.I?.Say(result["hit"]?.GetValue<bool>()==true ? "Your strike connects." : "Out of reach. Watch his feet.");
         }
         catch(Exception e){Hud.I?.Say(e.Message);}
         finally{busy=false;}
