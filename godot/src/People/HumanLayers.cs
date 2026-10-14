@@ -296,7 +296,7 @@ internal sealed class HumanLayers
         People2Shoulders.Apply(sk);
     }
 
-    internal void Arm(int side, Vector3 target, Quaternion rotation)
+    internal void Arm(int side, Vector3 target, Quaternion rotation, Vector3? bend = null)
     {
         // Interpolated clips and attention can leave a target just outside the current
         // shoulder's reach. Let the clavicle follow it; keep both limb lengths unchanged.
@@ -309,7 +309,7 @@ internal sealed class HumanLayers
             if (excess <= 0) break;
             Aim(clavicle[side], shoulder, shoulder + (target - shoulder).Normalized() * Math.Min(excess, 0.036f));
         }
-        Vector3 pole = new Vector3(side == 0 ? 0.8f : -0.8f, -0.35f, -0.6f);
+        Vector3 pole = bend ?? new Vector3(side == 0 ? 0.8f : -0.8f, -0.35f, -0.6f);
         Reach(arm[side], forearm[side], hand[side], target, pole);
         int parent = sk.GetBoneParent(hand[side]);
         sk.SetBonePoseRotation(hand[side], (sk.GetBoneGlobalPose(parent).Basis.GetRotationQuaternion().Inverse() * rotation).Normalized());

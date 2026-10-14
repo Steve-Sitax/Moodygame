@@ -16,6 +16,7 @@ internal sealed class Human2
     private readonly People2.Clip stroll, walking, hurry, run, sprint;
     private float legacyStride = 1.2f;
     private readonly int hipBone;
+    private readonly Vector3 hipRest;
     private readonly float hips;
     private readonly Quaternion[] rest, fadeFrom;
     private readonly Quaternion[] writtenPose;
@@ -71,7 +72,7 @@ internal sealed class Human2
         for (int b = 0; b < cachePose.Length; b++)
         {
             string name = sk.GetBoneName(b).ToString();
-            if (name == "head" || name.StartsWith("thumb") || name.StartsWith("index") || name.StartsWith("middle") || name.StartsWith("ring")) cachePose[b] = false;
+            if (name is "head" or "spine" or "upperChest" || name.StartsWith("thumb") || name.StartsWith("index") || name.StartsWith("middle") || name.StartsWith("ring")) cachePose[b] = false;
         }
     }
     internal bool CanSit => !Humans.OwnClips.ContainsKey(kind);
@@ -176,6 +177,7 @@ internal sealed class Human2
                 || name.StartsWith("middle", StringComparison.Ordinal) || name.StartsWith("ring", StringComparison.Ordinal);
         }
         hipBone = sk.FindBone("hips");
+        hipRest = sk.GetBoneRest(hipBone).Origin;
         stroll = People2.Clips[style + "_stroll"]; walking = People2.Clips[style + "_walk"]; hurry = People2.Clips[style + "_hurry"];
         run = People2.Clips.GetValueOrDefault(style + "_run", hurry); sprint = People2.Clips.GetValueOrDefault(style + "_sprint", hurry);
         layers = new HumanLayers(root, sk);
@@ -603,8 +605,8 @@ internal sealed class Human2
         {
             int source = boneMap[bone];
             int track = source >= 0 ? a.RotationTracks[source] : -1, other = source >= 0 ? b.RotationTracks[source] : -1;
-            Quaternion q = track >= 0 ? a.Rotations.At(track, ta).Normalized() : rest[bone];
-            if (a != b && other >= 0) q = q.Slerp(b.Rotations.At(other, tb).Normalized(), weight);
+            Quaternion q = track >= 0 ? a.Rotations.NormalizedAt(track, ta) : rest[bone];
+            if (a != b && other >= 0) q = q.Slerp(b.Rotations.NormalizedAt(other, tb), weight);
             q = blend < 1 ? fadeFrom[bone].Normalized().Slerp(q.Normalized(), blend) : q;
             if (!cachePose[bone] || !poseWritten[bone] || writtenPose[bone] != q)
             {
@@ -618,12 +620,12 @@ internal sealed class Human2
         }
         Dev.PeopleTiming.ProfileEnd(poseStart, 0);
         long layerStart = Dev.PeopleTiming.ProfileStart();
-        Vector3 p = sk.GetBoneRest(hipBone).Origin;
+        Vector3 p = hipRest;
         // Position keys are authored on trackBase, not on the receiving body's rest height.
         if (a.PositionTrack >= 0) p += (a.Animation.PositionTrackInterpolate(a.PositionTrack, ta) - HumanLayers.TrackBase) * bodyRatio;
         if (a != b && b.PositionTrack >= 0)
         {
-            Vector3 pb = sk.GetBoneRest(hipBone).Origin + (b.Animation.PositionTrackInterpolate(b.PositionTrack, tb) - HumanLayers.TrackBase) * bodyRatio;
+            Vector3 pb = hipRest + (b.Animation.PositionTrackInterpolate(b.PositionTrack, tb) - HumanLayers.TrackBase) * bodyRatio;
             p = p.Lerp(pb, weight);
         }
         sk.SetBonePosePosition(hipBone, blend < 1 ? fadeHips.Lerp(p, blend) : p);
