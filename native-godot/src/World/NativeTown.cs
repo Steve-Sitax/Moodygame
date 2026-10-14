@@ -105,12 +105,19 @@ public partial class NativeTown : BakedWorld
         // Its footprint is cut out of the mesh, so what is drawn, what is walked on and what is solid agree with the steps.
         // (dev: --no-werf-cut leaves the ground as the bake has it, for a before-and-after)
         int werfCut = Scheldemist.Main.I.Flag("no-werf-cut") ? 0 : QuayNotch.Cut(town, "city_-4_0_3", QuayExits.WerfFrame, QuayExits.WerfNotchS0, QuayExits.WerfNotchS1, QuayExits.WerfNotchU0, QuayExits.WerfNotchU1);
+        // Houses pulled down after the bake (city_build.json "razed"): cut out before collision and navigation read the meshes.
+        // (dev: --keep-razed leaves them standing, for a before-and-after)
+        var razed = Scheldemist.Main.I.Flag("keep-razed") ? new NativeRazedHouses.Result(0, 0, 0, Array.Empty<string>()) : NativeRazedHouses.Cut(town, Scheldemist.Paths.Shared("city_build.json"));
+        foreach (var note in razed.Notes) GD.Print("razed houses: " + note);
         // The baked quay ladders ran through the coping and into the stone (issue 85): the native ladder replaces them.
         var ladders = Scheldemist.Native.World.NativeQuayLadders.Install(town);
         quayLadders = ladders.Ladders;
         foreach (var note in ladders.Notes) GD.Print("quay ladders: " + note);
         AddChild(town);
         Report["werfStepsCutTriangles"] = werfCut;
+        Report["razedHouses"] = razed.Houses;
+        Report["razedTriangles"] = razed.Triangles;
+        Report["razedWindowGlows"] = razed.WindowGlows;
         Report["source"] = "complete native Godot town";
         Report["quayLadders"] = ladders.Ladders.Count;
         Report["quayLadderMeshes"] = ladders.Meshes;
