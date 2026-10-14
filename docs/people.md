@@ -288,19 +288,17 @@ near mesh (about 5 MB each for 51 keys) and a value per slider per person; the b
 without sliders costs, every frame, and pays once at spawn instead. A town that spawns several people in one frame
 pays about 3.5 ms each there (see the known limits).
 
-### The character creator (proposal; nothing of it is built)
+### The native character creator (package G)
 
-- **Sliders the player moves:** the `player: true` sliders of `peopleSliders.json` (all but `face_age`, which
-  follows the chosen age), each within `playerRange`: the eyes' size, spacing and opening within -0.8..0.8, the body's
-  shape sliders within -0.6..0.6 (the belly -0.6..0.8), the origin sliders 0..1, everything else -1..1. On
-  MakeHuman's targets that range stays a plausible face and body of the period; no slider goes past its target. Then a face picture from the cells of the chosen sex, age and skin, a hair
-  style, beard and moustache from the same lists the types use, and a build.
-- **Stored** with the player's character in the game's database as one small JSON object (`{"v": 1, "base":
-  "man_middling", "cell": "m_mid_brown", "hair": "crop", "beard": null, "moustache": "walrus", "sliders": {"nose_long":
-  0.4, ...}}`, only non-zero sliders, values rounded to 1/100).
-- **Sent** to other players where the network now sends a person's kind and stable id: the same object, validated on
-  arrival (known names only, values clamped to `playerRange`), and baked by `People2Faces.Bake` like any other face.
-  No change to the wire format now.
+The native screen has a turning 3D preview, face-type presets and twenty curated MakeHuman controls, each within
+its authored `playerRange`; age supplies `face_age`. Skin, hair, separate beard/moustache choices, clothes and
+period colours are stored in the existing profile, with sparse slider overrides rounded to hundredths. The same
+recipe drives the preview, first-person sleeves/hands and planar-reflection body. The separate Jef clothing intake
+still supplies the final selectable cuts/hats; work clothes are the interim fallback. Runtime, geometry notes and
+proof commands: [Jef in Godot](godot-jef.md).
+
+The compact multiplayer appearance code and puppet packets stay unchanged. Other players keep the existing remote
+look until [the proposed appearance message](jef-look-network.md) is approved and implemented.
 
 ### Known limits (2026-10-13)
 

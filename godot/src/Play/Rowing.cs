@@ -42,6 +42,7 @@ public partial class Rowing:Node,RowPhysics.IWorld
     private RowSaved? savedRow;
     private static readonly string[] Kinds={"rowboat","punt","workboat","dinghy","shipsboat","gig","bumboat","eelboat","oldboat"};
     private const float Out=2,In=.7f,Blade=.55f;
+    internal Vector3? PlayerGrip(int side) => Boat?.Feather[side].ToGlobal(new Vector3(-In + .07f, 0, 0));
     public Rowing(){I=this;drive=Drive;rowWhere=()=>new(Rower.X,Rower.Z);}
     public override void _Ready()
     {

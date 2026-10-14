@@ -24,6 +24,7 @@ public partial class Deeds : Node
     private readonly Dictionary<string, Node3D> lamps = new();
     private readonly Dictionary<string, Action<Vector3, float>> lampLight = new();
     private Node3D? hand;
+    private LanternPool.Source? playerLight;
     private bool owned, held, busy, polling, leaving, heldTick, disposed;
     public bool Lit => owned && held && Goods.I?.Carried == null;
     public bool Held => held;
@@ -75,6 +76,9 @@ public partial class Deeds : Node
         hand.Position = new Vector3(0.28f, -0.17f, -0.5f);
         hand.GetNode<Node3D>("halo").Visible = false;
         Jef.I.Cam.AddChild(hand);
+        foreach (var mi in BakedWorld.All(hand).OfType<MeshInstance3D>()) mi.Layers = Mirrors.NoMirror;
+        playerLight = LanternPool.I?.Add();
+        if (playerLight != null) playerLight.Player = true;
         GameState.I.PocketsChanged += PocketChanged;
         PocketChanged();
         priorWhere = GameState.I.Where;
@@ -357,8 +361,13 @@ public partial class Deeds : Node
     public override void _Process(double delta)
     {
         if(disposed || Jef.I==null) return; clock+=(float)delta;
-        if(hand!=null) { hand.Visible=Lit; hand.Position=new Vector3(0.28f,-0.17f+MathF.Sin(clock*3)*0.008f,-0.5f); }
-        if(Lights.I!=null) Lights.I.Lantern=Lit && hand!=null ? new Vector4(hand.GlobalPosition.X,hand.GlobalPosition.Y,hand.GlobalPosition.Z,0.9f+MathF.Sin(clock*7.3f)*0.05f+MathF.Sin(clock*17.9f)*0.04f) : null;
+        if(hand!=null) {
+            hand.Visible=Lit || Arms.I?.ProofLantern == true || Arms.I?.Pose == "lantern";
+            hand.Position=new Vector3(0.28f,-0.17f+MathF.Sin(clock*3)*0.008f,-0.5f);
+            if (Arms.I?.LanternGrip is { } grip) hand.GlobalPosition = grip - Vector3.Up * .054f;
+        }
+        if (playerLight != null && hand != null) { playerLight.On = hand.Visible; playerLight.Pos = hand.GlobalPosition; }
+        if(Lights.I!=null) Lights.I.Lantern=hand?.Visible == true ? new Vector4(hand.GlobalPosition.X,hand.GlobalPosition.Y,hand.GlobalPosition.Z,0.9f+MathF.Sin(clock*7.3f)*0.05f+MathF.Sin(clock*17.9f)*0.04f) : null;
         foreach(var pair in lamps) { var n=pair.Value; lampLight[pair.Key](n.GlobalPosition, n.Visible && (GameState.I.HourF>=19 || GameState.I.HourF<6.5) ? 1 : 0); }
         if(!GameState.I.Live || GameState.I.Paused) return;
         if((pollT-=delta)<=0) { pollT=2; _=Poll(); }
@@ -407,6 +416,7 @@ public partial class Deeds : Node
     public async Task Catch(string id) { if(busy || Api==null) return; busy=true; try { var r=await Api.CatchPocketThief(id); Answered?.Invoke(new { catchThief=id },r); Apply(r); robbed.Remove(id); thieves.Remove(id); caught.Add(id); fled[id]=GameState.PlayNow; } catch(ApiException e) { Fail(e); } finally { busy=false; } }
     public override void _ExitTree()
     {
+        LanternPool.I?.Remove(playerLight);
         disposed=true; cell.Close(); foreach(var e in entries) e.Dispose();
         GameState.I.PocketsChanged-=PocketChanged;
         if(Talk.I is { } t) { t.OnClose-=TalkClosed; t.OnReply-=TalkReplied; }

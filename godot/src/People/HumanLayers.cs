@@ -10,6 +10,7 @@ namespace Scheldemist.People;
 // Cached bone layers. Every-frame work uses value types and the body's existing arrays only.
 internal sealed class HumanLayers
 {
+    internal bool LocalPlayer;
     private sealed record Rig(int[] Springs, Vector3[] Contacts);
     private static readonly Dictionary<string, Rig> rigs = new();
     private sealed record HandTrack(string Model, float[] Keys);
@@ -159,7 +160,7 @@ internal sealed class HumanLayers
         if (distance >= 225) { look = Vector2.Zero; ReleaseFeet(); return; }
         Vector3 target = root.GlobalTransform.AffineInverse() * Main.I.Cam.GlobalPosition;
         Vector2 want = Vector2.Zero;
-        if (distance < 36 && target.Z > MathF.Sqrt(target.X * target.X + target.Z * target.Z) * 0.5f)
+        if (!LocalPlayer && distance < 36 && target.Z > MathF.Sqrt(target.X * target.X + target.Z * target.Z) * 0.5f)
         {
             float yaw = MathF.Atan2(target.X, target.Z);
             float pitch = MathF.Atan2(target.Y - sk.GetBoneGlobalPose(head).Origin.Y, MathF.Sqrt(target.X * target.X + target.Z * target.Z));

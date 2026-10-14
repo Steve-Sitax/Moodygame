@@ -166,6 +166,7 @@ public sealed class Human
     private readonly People2Eyes? eyes;
     private string? stableIdentity;
     private bool identityReady;
+    private bool localPlayer, viewmodel;
 
     internal Human(string kind, Node3D root, AnimationLibrary clips, Dictionary<string, float> lengths, float scale, Human2? newer = null)
     {
@@ -348,6 +349,14 @@ public sealed class Human
     }
 
     public int SetFace(IReadOnlyDictionary<string, float> weights) => People2Faces.SetFace(Root, weights);
+    internal void PlayerAppearance(Menu.Profile profile, bool arms = false)
+    {
+        identityReady = true;
+        localPlayer = true; viewmodel = arms;
+        newer?.PlayerArms();
+        newer?.SetIdentity("local-player");
+        People2Faces.Player(Root, profile, arms);
+    }
     internal long EyeAllocationProof() => eyes?.AllocationProof() ?? -1;
     public int SetIdentity(string stableId)
     {
@@ -373,7 +382,7 @@ public sealed class Human
                 identityReady = true;
                 if (Root.HasMeta("face_seed")) eyes?.Seed((uint)Root.GetMeta("face_seed").AsInt64());
             }
-            newer.Update(dt); eyes?.Update(dt, newer.Speaking); return;
+            newer.Update(dt); if (!viewmodel) eyes?.Update(dt, newer.Speaking, localPlayer); return;
         }
         mixer.SpeedScale = SpeedOf(Motion);
         mixer.Advance(dt);

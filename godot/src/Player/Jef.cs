@@ -71,6 +71,7 @@ public partial class Jef : Node, Mantle.IWorld
     /// <summary>Under the water, holding his breath.</summary>
     public bool Diving { get; private set; }
     public bool Climbing => climb != null;
+    public bool Vaulting => climb != null && climb.Rungs < 0;
     public bool Fly { get; private set; }
     /// <summary>He pushes on and something solid holds him (for the checks).</summary>
     public bool Blocked { get; private set; }
@@ -597,9 +598,9 @@ public partial class Jef : Node, Mantle.IWorld
         if (moving && side != lastStepSide) Stepped?.Invoke(hurry);
         lastStepSide = side;
 
-        float bobY = -MathF.Abs(MathF.Sin(bobPhase)) * 0.045f * bobAmp * (hurry ? 1.4f : 1) * Bob;
-        float bobX = MathF.Cos(bobPhase) * 0.025f * bobAmp * Bob;
-        Look(dt, bobX, MathF.Cos(bobPhase) * 0.004f * bobAmp * Bob, eye + bobY + stepLag);
+        float bobY = -MathF.Abs(MathF.Sin(bobPhase)) * 0.008f * bobAmp * (hurry ? 1.25f : 1) * Bob;
+        float bobX = MathF.Cos(bobPhase) * 0.006f * bobAmp * Bob;
+        Look(dt, bobX, MathF.Cos(bobPhase) * 0.0015f * bobAmp * Bob, eye + bobY + stepLag);
     }
 
     /// <summary>The legs take a landing at this speed (m/s down): the view dips and comes up again.</summary>

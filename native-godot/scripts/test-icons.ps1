@@ -45,6 +45,9 @@ if ($Full) {
     else {
         $target = $shell.CreateShortcut($play.FullName).TargetPath
         $data = Join-Path $DataRoot ('icon-full-' + [guid]::NewGuid().ToString('N')); [void](New-Item -ItemType Directory -Path $data)
+        $iconDataRoot = [IO.Path]::GetFullPath($DataRoot).TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+        $data = [IO.Path]::GetFullPath($data)
+        if (-not $data.StartsWith($iconDataRoot, [StringComparison]::OrdinalIgnoreCase)) { throw 'Icon test data escaped its requested root.' }
         $saved = $env:PATH; $env:PATH = $strippedPath; $started = $null; $cmdProcess = $null
         try {
             $cmdProcess = Start-Process cmd -ArgumentList '/c', "`"`"$target`" -DataDirectory `"$data`" -Port $Port`"" -WorkingDirectory (Split-Path $target) -PassThru -WindowStyle Hidden
@@ -59,7 +62,9 @@ if ($Full) {
             $env:PATH = $saved
             Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -and $_.CommandLine.Contains($data) } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
             if ($cmdProcess -and -not $cmdProcess.HasExited) { Stop-Process -Id $cmdProcess.Id -Force -ErrorAction SilentlyContinue }
-            Start-Sleep 3; Remove-Item -LiteralPath $data -Recurse -Force -ErrorAction SilentlyContinue
+            Start-Sleep 3
+            if (-not ([IO.Path]::GetFullPath($data)).StartsWith($iconDataRoot, [StringComparison]::OrdinalIgnoreCase)) { throw 'Icon cleanup escaped its requested root.' }
+            Remove-Item -LiteralPath $data -Recurse -Force -ErrorAction SilentlyContinue
         }
     }
 }

@@ -119,6 +119,11 @@ public sealed class Profile
     [JsonPropertyName("clothes")] public ProfileClothes Clothes { get; set; } = new();
     /// <summary>Dressed in Sunday best (the look line says so).</summary>
     [JsonPropertyName("best")] public bool Best { get; set; }
+    // Local native appearance extension. The compact multiplayer appearance code stays version A.
+    [JsonPropertyName("faceType")] public string FaceType { get; set; } = "";
+    [JsonPropertyName("beard")] public string Beard { get; set; } = "";
+    [JsonPropertyName("moustache")] public string Moustache { get; set; } = "";
+    [JsonPropertyName("sliders")] public Dictionary<string, float> Sliders { get; set; } = new(StringComparer.Ordinal);
 
     /// <summary>A deep copy: nothing is shared with this profile.</summary>
     public Profile Clone() => new()
@@ -134,11 +139,31 @@ public sealed class Profile
         Face = Face,
         Clothes = Clothes.Clone(),
         Best = Best,
+        FaceType = FaceType,
+        Beard = Beard, Moustache = Moustache,
+        Sliders = new Dictionary<string, float>(Sliders, StringComparer.Ordinal),
     };
 }
 
 public static class Character
 {
+    public sealed record Shape(string Id, string Label, float Min, float Max);
+    // Curated MakeHuman controls; limits are a subset of peopleSliders.json playerRange.
+    public static readonly Shape[] Shapes = {
+        new("weight", "Weight", -.6f, .6f), new("muscle", "Muscle", -.6f, .6f),
+        new("belly", "Belly", -.6f, .8f), new("shoulders", "Shoulders", -.6f, .6f),
+        new("hips_wide", "Hips", -.6f, .6f), new("head_wide", "Head width", -.8f, .8f),
+        new("face_round", "Round face", 0, .8f), new("face_square", "Square face", 0, .8f),
+        new("eyes_big", "Eye size", -.8f, .8f), new("eyes_apart", "Eye spacing", -.8f, .8f),
+        new("eyes_open", "Eye opening", -.6f, .6f), new("nose_long", "Nose length", -.8f, .8f),
+        new("nose_wide", "Nose width", -.8f, .8f), new("nose_hump", "Nose bridge", -.8f, .8f),
+        new("mouth_wide", "Mouth width", -.8f, .8f), new("lips_full", "Lips", -.8f, .8f),
+        new("cheekbones", "Cheekbones", -.8f, .8f), new("chin_out", "Chin", -.8f, .8f),
+        new("jaw_wide", "Jaw", -.8f, .8f), new("ears_out", "Ears", -.8f, .8f),
+    };
+    public static readonly string[] FaceTypes = { "flemish_docker", "walloon", "dutch_skipper", "pale_clerk", "gaunt_porter", "gentleman", "southern_sailor", "african_sailor", "chinese_cook", "round_flemish_woman", "lean_widow", "young_woman", "southern_woman", "shrunken_old", "heavy_old_man" };
+    public static readonly string[] Beards = { "none", "short", "full", "chops", "sideburns" };
+    public static readonly string[] Moustaches = { "none", "walrus", "chevron", "handlebar" };
     // ------------------------------------------------------------------ the palette
 
     /// <summary>The period palette for cloth (Antwerp 1873: dyed wool and linen, worn and faded; black and white linen for Sunday).</summary>
@@ -703,6 +728,21 @@ public static class Character
             p.Clothes.Apron.Kind = "none";
             Push("apron.kind");
         }
+        var faceType = Str(Get(r, "faceType"));
+        if (faceType != null && FaceTypes.Contains(faceType) && (faceType == "shrunken_old" || (faceType is "round_flemish_woman" or "lean_widow" or "young_woman" or "southern_woman") == (sex == "woman"))) p.FaceType = faceType;
+        string? beard = Str(Get(r, "beard")), moustache = Str(Get(r, "moustache"));
+        if (sex == "man" && Beards.Contains(beard)) p.Beard = beard!;
+        if (sex == "man" && Moustaches.Contains(moustache)) p.Moustache = moustache!;
+        var sliders = Get(r, "sliders");
+        if (sliders.ValueKind == JsonValueKind.Object)
+            foreach (var shape in Shapes)
+                if (sliders.TryGetProperty(shape.Id, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetSingle(out float v) && float.IsFinite(v))
+                {
+                    float kept = MathF.Round(Math.Clamp(v, shape.Min, shape.Max), 2);
+                    // Zero is an explicit override of a preset's nonzero mean.
+                    p.Sliders[shape.Id] = kept == 0 ? 0 : kept;
+                    if (kept != v) Push("sliders." + shape.Id);
+                }
         return (p, fixedFields);
     }
 
@@ -785,6 +825,15 @@ public static class Character
                 w.WriteEndObject();
             }
             w.WriteBoolean("best", p.Best);
+            if (p.FaceType != "") w.WriteString("faceType", p.FaceType);
+            if (p.Beard != "") w.WriteString("beard", p.Beard);
+            if (p.Moustache != "") w.WriteString("moustache", p.Moustache);
+            if (p.Sliders.Count > 0)
+            {
+                w.WriteStartObject("sliders");
+                foreach (var pair in p.Sliders.OrderBy(x => x.Key, StringComparer.Ordinal)) w.WriteNumber(pair.Key, pair.Value);
+                w.WriteEndObject();
+            }
             w.WriteEndObject();
         }
         return stream.ToArray();

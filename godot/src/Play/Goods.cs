@@ -476,6 +476,7 @@ public partial class Goods : Node
     /// <summary>goods.ts toHands: before the camera, where the kind is held (props.ts hold), turned a little.</summary>
     private void ToHands(Item it)
     {
+        Arms.I?.Gesture("take");
         Carried = it;
         var jef = Jef.I;
         jef.Laden = true;
@@ -486,6 +487,7 @@ public partial class Goods : Node
         var g = GoodsRules.Of(it.Kind);
         it.Obj.Visible = true;
         it.Obj.Position = new Vector3(g.HoldX, g.HoldY, g.HoldZ);
+        if (it.Kind == "crates") it.Obj.Position += new Vector3(0, .08f, .14f);
         it.Obj.Rotation = new Vector3(0.05f, 0.08f, 0);
         // goods.ts toHands: a big model is held smaller, so it does not fill the view
         float size = PropOf(it.S.Look) != null ? Math.Max(0.7f, 0.7f * (float)(it.S.Sc ?? 1) * 1.3f) : 0.7f;
@@ -611,6 +613,7 @@ public partial class Goods : Node
         if (it == null) return null;
         var p = GoodsRules.PlaceAt(all.Values.Select(i => i.S), it.Kind, x, z, it.Id);
         if (p == null) return null;
+        Arms.I?.Gesture("give");
         Release();
         it.S = it.S with { By = null, X = p.X, Z = p.Z, Y = p.Y, On = p.On, Rot = GoodsRules.RotFor(it.Id, it.S.N + 1), N = it.S.N + 1 };
         Lay(it);
@@ -623,6 +626,7 @@ public partial class Goods : Node
     {
         var it = Carried;
         if (it == null) return null;
+        if (why is "handed" or "sold") Arms.I?.Gesture("give");
         Release();
         all.Remove(it.Id);
         if (it.Obj != null)

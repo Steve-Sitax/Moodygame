@@ -63,6 +63,9 @@ public sealed class NativeTownProfile : INativeServiceModule
         if (input["best"] is JsonValue best && best.TryGetValue<bool>(out var b)) shape["best"] = b;
         if (input["hair"] is JsonObject hair) { var h = new JsonObject(); Text(hair, h, "colour", 24); Text(hair, h, "style", 24); shape["hair"] = h; }
         if (input["clothes"] is JsonObject clothes) { var c = new JsonObject(); foreach (string slot in new[] { "head", "coat", "shirt", "vest", "lower", "apron", "feet" }) if (clothes.ContainsKey(slot)) { var result = new JsonObject(); if (clothes[slot] is JsonObject value) { Text(value, result, "kind", 24); Text(value, result, "colour", 24); } c[slot] = result; } shape["clothes"] = c; }
+        Text(input, shape, "faceType", 32);
+        Text(input, shape, "beard", 24); Text(input, shape, "moustache", 24);
+        if (input["sliders"] is JsonObject sliders && sliders.Count <= 64) shape["sliders"] = sliders.DeepClone();
         using var document = JsonDocument.Parse(shape.ToJsonString()); return Character.ClampProfile(document.RootElement);
     }
     public JsonObject Save(int player, JsonNode? raw)
