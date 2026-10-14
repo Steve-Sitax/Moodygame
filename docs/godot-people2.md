@@ -603,11 +603,17 @@ sampler was the largest cost. Exactly constant rotation curves now keep their va
 interpolation mode; nonconstant unsupported curves still use Godot. Routing compares 11,996 tracks across all
 252 clips at keys, midpoints and boundaries: 4,493,048 samples, maximum component difference 0.000000179.
 `--people2-profile` adds optional bone/layer/prop timings to the crowd report without changing animation rates.
-Exclusive batch-2 timing passed at `.scratch/people2-native-642740ce849a49a79fbd799e2df2e3fb/timing/`:
-people+animals CPU means 1.470 / 1.197 ms and town logic means 1.389 / 1.261 ms (Vismarkt / Grote Markt).
-Whole-frame mean/worst times were 15.301/182.659 ms and 18.893/40.185 ms; startup/upload stalls remain visible.
+Final exclusive timing passed at `.scratch/animals-native-8f05668d47a340f5a75b26c5d35fb103/timing/`:
+people+animals CPU means 1.418 / 1.122 ms and town logic means 1.314 / 1.121 ms (Vismarkt / Grote Markt).
+Whole-frame mean/worst times were 14.762/135.844 ms and 17.144/30.422 ms; frame stalls remain visible.
 Dedicated startup also captures the same solid-triangle scan without creating viewport physics bodies. Antigoon's
 clearance index previously dereferenced the absent rendered Solid node, stopping the headless network proof.
 The animal loading warmup includes NavGrid's generated route methods and Crowd.PathOn. Their first compilation
 caused a 5.909 ms animal-update spike on the first detour. The isolated 90-second rerun covers 5,319 frames:
 mean 0.104 ms, p99 0.292 ms, worst 0.464 ms, no update over 1 ms and no cold model creation.
+
+All people2 and animal proof modes passed across isolated runs; final motion/work/parade/routing, identity,
+343 pack checks, dedicated network checks, rendered multiplayer and `test-icons.ps1 -Full` passed too.
+The pack holds 322 files / 71,959,156 bytes. Final fingerprint:
+`f28f075142fa1b9800a534306c3a6ea6a25b5884b6b0b09cbefebff070828ffe`.
+Local handoff receipts and reviewed-picture manifest: `.scratch/batch2-review/`; report: `.scratch/report.md`.
