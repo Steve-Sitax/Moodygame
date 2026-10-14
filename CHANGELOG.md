@@ -11,6 +11,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Workshop: opening the town no longer prints pages of "shader uses global parameter ... removed" warnings, and the quay's walls, roofs and paving show with their proper materials from the first frame.
+
 - Reading a poster, a bus stop notice or a letter, or talking to someone, no longer pauses the game. E, Esc and the "step back" line close the window again at once; Esc no longer opens the menu over it.
 - Workshop: enter the town's real rooms and add, move, turn, copy or remove their furniture, with undo, saved permanent object ids, wall/ceiling and walking-route checks. The game and multiplayer guests use those saved placements for seats, beds and counters.
 - Night pickpockets now work from behind. When you look at one, he stops or strolls away instead of walking up to you, and he waits for your back to turn. They no longer rob you while a talk window is open. A thief you catch by the collar runs off and leaves you alone.

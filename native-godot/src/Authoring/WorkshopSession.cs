@@ -49,6 +49,8 @@ public partial class WorkshopSession : Node3D
     {
         try
         {
+            // The shader globals must exist before any material (the seed district in main.tscn included) updates.
+            Game.NativeGlobals.Ensure();
             var requested = Arg("district");
             if (requested != "")
             {
@@ -57,7 +59,6 @@ public partial class WorkshopSession : Node3D
                 string native = World.NativeDistrictLayouts.ResourcePath(requested);
                 if (ResourceLoader.Exists(native)) path = native;
                 if (!ResourceLoader.Exists(path)) throw new FileNotFoundException("Recover this district first: " + requested);
-                if (path.StartsWith(World.NativeDistrictLayouts.DistrictDirectory + "/", StringComparison.Ordinal) || requested.StartsWith("room-")) Game.NativeGlobals.Ensure();
                 District = ResourceLoader.Load<AuthorDistrict>(path);
             }
             District.Validate();
