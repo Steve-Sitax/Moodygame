@@ -547,6 +547,20 @@ def w_smock(fit, sk):
     return [sm_] + cuff_pieces(fit, sm_.cloth, "coat", ring_in=("f2", "w1"), out=(0.013, 0.015), name="smock_cuff")
 
 
+def hide_skirt_under(sk, hem, front_gap=None):
+    """The skirt under a jacket, coat or smock: its faces from 4 cm below the outer garment's hem up are cut away
+    (they never show, and the bell of a gathered skirt came through the cloth at the hips); front_gap: half the width
+    of the open front of a jacket or coat, where the skirt stays."""
+    V = np.array(sk.V)
+
+    def hidden(v):
+        x, y, z = V[v]
+        if y < hem + 0.04:
+            return False
+        return front_gap is None or z < 0.0 or abs(x) > front_gap
+    sk.F = [f for f in sk.F if not all(hidden(v) for v in f)]
+
+
 def women_dress(fit, cut):
     """plain, apron, shawl, shawl_apron (the old player's), jacket, jacket_apron, coat, smock."""
     pieces = []
@@ -561,6 +575,7 @@ def women_dress(fit, cut):
         pieces += jk
         if cut == "jacket_apron":
             pieces += w_apron(fit, sk, bo, outer=jk[0])
+        hide_skirt_under(sk, jk[0].meta["hem"], front_gap=0.13)  # after the apron: it is laid on the skirt
         return pieces
     ap = []
     if cut in ("apron", "shawl_apron"):
@@ -569,5 +584,7 @@ def women_dress(fit, cut):
     if cut in ("shawl", "shawl_apron"):
         pieces += w_shawl(fit, bo, sk, ap[0] if ap else None)
     if cut == "smock":
-        pieces += w_smock(fit, sk)
+        sm_ = w_smock(fit, sk)
+        pieces += sm_
+        hide_skirt_under(sk, sm_[0].meta["hem"])
     return pieces
