@@ -69,8 +69,11 @@ internal partial class People2Proof : Node
             bodyHeights.Add(new { kind = body, height = Height(h) }); h.Dispose();
         }
         var defaultRouting = new List<object>();
-        foreach (var (kind, bones) in new[] { ("old_man", 16), ("docker_b", 16), ("old_woman", 64), ("maid", 64), ("p2:girl", 64), ("p2:girl_b", 64) })
+        var defaultKinds = People2.BaseBody.Keys.Select(k => k is "old_man_dressed" or "old_woman_dressed" ? k[..^8] : k)
+            .Concat(new[] { "p2:girl", "p2:girl_b" }).ToArray();
+        foreach (string kind in defaultKinds)
         {
+            const int bones = 64;
             var h = Humans.Make(kind) ?? throw new InvalidOperationException("Missing default kind: " + kind);
             int actual = h.Root.GetNode<Skeleton3D>("Skeleton3D").GetBoneCount();
             bool female = h.Root.HasMeta("people2_female") && h.Root.GetMeta("people2_female").AsBool();
@@ -156,6 +159,7 @@ internal partial class People2Proof : Node
                     var standingPosition = human.Root.GlobalPosition;
                     foreach (string motion in integration ? new[] { "idle", "talk", "walk", "sit" } : Main.I.Flag("people2-dress-proof") ? new[] { "idle", "walk", "talk" } : new[] { "current" })
                     {
+                    if (motion == "sit" && !human.CanSit) continue;
                     human.Root.GlobalPosition = standingPosition;
                     if (stool != null)
                     {
@@ -188,6 +192,7 @@ internal partial class People2Proof : Node
                             : angle == "top" ? new Vector3(0.75f, 2.2f, -0.65f)
                             : new Vector3(distance * 0.8f, 0.35f, distance * 0.6f));
                         var target = at + new Vector3(0, angle == "feet-low" ? 0.2f : angle == "top" ? 1.0f : (angle == "front" || angle == "side") && distance == 1 ? 1.5f : 0.85f, 0);
+                        if (front && human.Kind.EndsWith("carter", StringComparison.Ordinal)) from=at+new Vector3(distance*.8f,from.Y-at.Y,-distance*.6f);
                         if (integration && (front || angle == "side"))
                         {
                             var skeleton = human.Root.GetNode<Skeleton3D>("Skeleton3D");

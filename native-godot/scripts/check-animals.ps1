@@ -2,7 +2,7 @@ param(
     [string]$Godot,
     [ValidateSet('captures','slide','trace','shaders','timing','identity','network')]
     [string[]]$Modes = @('slide','captures','trace','shaders','timing','identity','network'),
-    [ValidateRange(8800,9119)][int]$Port = 9002,
+    [ValidateRange(8800,9139)][int]$Port = 9002,
     [ValidateRange(0,3600)][int]$WaitForTimingSeconds = 900,
     [switch]$NoPrepare,
     [string[]]$Extra = @()

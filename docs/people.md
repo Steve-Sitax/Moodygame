@@ -23,7 +23,7 @@ about 2 min, `--faces --hands --sheet` about 4 min, `--dress` (C's checks) about
 
 | Writes | What |
 |---|---|
-| `art-source/client/public/models/people2.glb`, `people2_<root>.glb`, `people2_parts.json` | 26 parts: ten base bodies and sixteen dressed kinds, with near/far meshes and sparse shape keys. The core holds `man_middling`, `people2_held` and all 252 shared clips; each remaining root loads on demand. Every art/native/morph file is below 20 MB. Pictures live in `native-godot/assets/people2-pictures`. |
+| `art-source/client/public/models/people2.glb`, `people2_<group><chunk>.glb`, `people2_parts.json` | Clothing-group parts (up to three kinds each), plus ten base bodies: 51 dressed kinds, with near/far meshes and sparse shape keys. The core holds `man_middling`, `people2_held` and all 252 shared clips; each remaining group or base body loads on demand. Every art/native/morph file is below 20 MB. Pictures live in `native-godot/assets/people2-pictures`. |
 | `art-source/shared/peopleRig.json` | the bones, sockets, grab marks, the Godot BoneMap, the grips and the shape keys, per body its joints, marks, figures and counts, `locomotion` (every D1 clip's speed, cycle, stride, travel and checks; the blend rule; the loads and handles), `idles` (D2 families, seats and clip checks), `heightFactor`, `oldStance`, and C's `kinds`, `held` and `pictures` manifest |
 | `art-source/shared/peopleSliders.json`, `faceTypes.json` | the sliders and the face types, pictures, cast and face recipe ("Bodies from MakeHuman" below) |
 | `art-source/third_party/makehuman/USED.json` | (full builds) the MakeHuman files the build read: nothing else is kept there |

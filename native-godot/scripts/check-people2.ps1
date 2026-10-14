@@ -2,13 +2,14 @@ param(
     [string]$Godot,
     # Comma lists are normalized below for pwsh -File.
     [string[]]$Modes = @('captures','shaders','parade','timing','identity','pack','network'),
-    [ValidateRange(8800,9119)][int]$Port = 8980,
+    [ValidateRange(8800,9139)][int]$Port = 8980,
     [ValidateRange(0,3600)][int]$WaitForTimingSeconds = 900,
-    [switch]$AllowSharedTiming
+    [switch]$AllowSharedTiming,
+    [string[]]$Extra = @()
 )
 $ErrorActionPreference = 'Stop'
 $Modes = @($Modes | ForEach-Object { $_.Split(',') })
-$allowed = @('captures','integration-captures','crowd-captures','motion','work','dress-captures','distance-captures','routing','shaders','parade','timing','legacy-timing','identity','pack','network')
+$allowed = @('captures','batch2-captures','integration-captures','crowd-captures','motion','work','dress-captures','distance-captures','routing','shaders','parade','timing','legacy-timing','identity','pack','network')
 if ($Modes.Count -eq 1 -and $Modes[0] -eq 'all') { $Modes = $allowed }
 foreach ($mode in $Modes) { if ($mode -notin $allowed) { throw "Unknown people2 mode: $mode" } }
 . (Join-Path $PSScriptRoot 'engine-tools.ps1')
@@ -64,7 +65,9 @@ try {
         if ($mode -eq 'network') { $args += '--headless' }
         $args += @('res://town.tscn','--','--no-ai','--no-mainmenu','--dev','--port',$Port.ToString(),'--db',(Join-Path $dir 'game.sqlite'),'--prefs',(Join-Path $dir 'settings.json'),'--author-root',(Join-Path $dir 'layouts'),'--native-pack-test')
         if ($mode -eq 'legacy-timing') { $args += @('--people2','off') }
+        $args += $Extra
         switch ($mode) {
+            'batch2-captures' { $args += @('--people2-batch2-captures',$dir) }
             'captures' { $args += @('--people2-captures',$dir,'--people2-light-proof','--people2-picture-proof') }
             'integration-captures' { $args += @('--people2-captures',$dir,'--people2-light-proof','--people2-picture-proof','--people2-integration-proof') }
             'distance-captures' { $args += @('--people2-captures',$dir,'--people2-light-proof','--people2-picture-proof','--people2-distance-proof') }
@@ -96,7 +99,9 @@ try {
         foreach ($arg in $args) { $start.ArgumentList.Add($arg) }
         $child = [Diagnostics.Process]::new(); $child.StartInfo = $start
         $isolation = [Collections.Generic.List[object]]::new()
-        $limit = if ($mode -in @('captures','integration-captures','distance-captures','dress-captures')) { 1200 } else { 420 }
+        $limit = if ($mode -in @('captures','batch2-captures','integration-captures','distance-captures','dress-captures')) { 1200 } else { 420 }
+        if ($mode -in @('captures','distance-captures')) { $limit *= [Math]::Ceiling($expectedRoots / 26.0) }
+        if ($mode -eq 'integration-captures') { $limit *= [Math]::Ceiling($expectedRoots / 26.0) }
         try {
             [void]$child.Start()
             $stdout = $child.StandardOutput.ReadToEndAsync(); $stderr = $child.StandardError.ReadToEndAsync()
@@ -116,10 +121,10 @@ try {
             if ($contaminated -and -not $AllowSharedTiming) { throw 'People timing contaminated by another Godot process.' }
             if ($contaminated) { Write-Warning 'Shared-process timing trace only: not an accepted exclusive performance gate.' }
             if ($child.ExitCode -ne 0 -or $log -match '(?m)^ERROR:') { throw "People2 $mode failed; inspect $dir/engine.log" }
-            $reportFile = switch ($mode) { {$_ -in @('captures','integration-captures','dress-captures','distance-captures','crowd-captures')} {'captures.json'} 'motion' {'motion.json'} 'work' {'work.json'} 'routing' {'people2-proof.json'} 'shaders' {'shaders.json'} 'parade' {'parade.json'} 'network' {'network.json'} default {'peopletest.json'} }
+            $reportFile = switch ($mode) { {$_ -in @('captures','batch2-captures','integration-captures','dress-captures','distance-captures','crowd-captures')} {'captures.json'} 'motion' {'motion.json'} 'work' {'work.json'} 'routing' {'people2-proof.json'} 'shaders' {'shaders.json'} 'parade' {'parade.json'} 'network' {'network.json'} default {'peopletest.json'} }
             $report = Get-Content -LiteralPath (Join-Path $dir $reportFile) -Raw | ConvertFrom-Json
             if ($mode -eq 'shaders' -and ($report.firstKinds.Count -ne 130 -or $report.people2ShaderKindCount -ne 1 -or -not $report.ok -or $report.problems.Count)) { throw 'Shader inventory must keep 130 kinds, exactly one people2 kind, and zero problems.' }
-            if ($mode -in @('captures','integration-captures','crowd-captures','motion','work','dress-captures','distance-captures','timing','legacy-timing') -and -not $report.ok) { throw "People2 $mode report failed." }
+            if ($mode -in @('captures','batch2-captures','integration-captures','crowd-captures','motion','work','dress-captures','distance-captures','timing','legacy-timing') -and -not $report.ok) { throw "People2 $mode report failed." }
             if ($mode -eq 'network' -and -not $report.passed) { throw 'Native multiplayer identity proof failed.' }
             if ($mode -eq 'routing' -and (-not $report.switchOkay -or -not $report.faceSetter.ok -or $report.bodyHeights.Count -ne $expectedRoots -or $report.figures[0].body -ne 'man_middling' -or $report.figures[1].body -ne 'woman_stout' -or $report.figures[2].body -ne 'man_stout' -or $report.figures[3].body -ne 'man_slight')) { throw 'People2 map/body/toggle proof failed.' }
             Write-Output "PASS $mode"

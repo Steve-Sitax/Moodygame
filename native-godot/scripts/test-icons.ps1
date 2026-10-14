@@ -1,7 +1,9 @@
 param(
     [string]$IconFolder = (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Scheldemist'),
     [switch]$Full,
-    [int]$StartSeconds = 240
+    [int]$StartSeconds = 240,
+    [int]$Port = 8800,
+    [string]$DataRoot = $env:TEMP
 )
 # Proves the desktop icons start. Without -Full each icon's launcher is run with a stripped PATH (what Explorer gives it) up to
 # the PowerShell call, and its target script must exist. With -Full the Play icon is also run for real in an isolated data
@@ -42,10 +44,10 @@ if ($Full) {
     if (-not $play) { Add-Result 'Play (full run)' $false 'no Play icon'; }
     else {
         $target = $shell.CreateShortcut($play.FullName).TargetPath
-        $data = Join-Path $env:TEMP ('icon-full-' + [guid]::NewGuid().ToString('N')); [void](New-Item -ItemType Directory -Path $data)
+        $data = Join-Path $DataRoot ('icon-full-' + [guid]::NewGuid().ToString('N')); [void](New-Item -ItemType Directory -Path $data)
         $saved = $env:PATH; $env:PATH = $strippedPath; $started = $null; $cmdProcess = $null
         try {
-            $cmdProcess = Start-Process cmd -ArgumentList '/c', "`"`"$target`" -DataDirectory `"$data`"`"" -WorkingDirectory (Split-Path $target) -PassThru -WindowStyle Hidden
+            $cmdProcess = Start-Process cmd -ArgumentList '/c', "`"`"$target`" -DataDirectory `"$data`" -Port $Port`"" -WorkingDirectory (Split-Path $target) -PassThru -WindowStyle Hidden
             $deadline = (Get-Date).AddSeconds($StartSeconds)
             while ((Get-Date) -lt $deadline -and -not $started -and -not $cmdProcess.HasExited) {
                 Start-Sleep 4

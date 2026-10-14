@@ -193,10 +193,10 @@ pwsh -File native-godot/scripts/check-people2.ps1
 & ./native-godot/scripts/check-people2.ps1 -Modes routing
 ```
 
-The routing fixture verifies the map overrides, all fourteen body/kind roots, the
+The routing fixture verifies the map overrides, all 61 body/kind roots, the
 16/64-bone off/on switch and the face setter/reset contract.
 
-The runner builds/prepares once, accepts ports 8800–8999 with `-Port`, disables AI and writes evidence
+The runner builds/prepares once, accepts ports 8800–9139 with `-Port`, disables AI and writes evidence
 under `.scratch/people2-native-*`. Each process has separate saves, settings, layouts
 and static cache, a 420-second timeout and guaranteed shutdown/data cleanup.
 Timing rejects every other Godot process before and throughout the run, including failed-launch
@@ -219,7 +219,7 @@ The shader audit requires exactly one people2 kind, zero late kinds and zero pro
 PeopleTest directly times every `Human.Update` and the existing `Townspeople.LogicMs`
 bracket for 600 frames per square. Each mean must be below 1.5 ms. Layer timings are
 included in animation timings, not extra costs; frame subtraction is diagnostic.
-These CPU gates exclude GPU rendering and animal logic. Pack proofs compare every raw
+The combined gate includes animal and small-life CPU updates; GPU execution is excluded. Pack proofs compare every raw
 file and test corrupt/path-escaping packets. The native multiplayer proof rejects a
 mismatched fingerprint before joining and accepts matching authenticated clients.
 
@@ -570,3 +570,30 @@ Human2 also omits exact repeated rotations on joints without a procedural writer
 unmodified torso joints). Starting a pooled figure invalidates that cache. IK, attention, eyes, cloth springs
 and shoulder helpers always receive the authored pose again. Routing, work, motion and parade runs check
 every omitted write against the skeleton's actual rotation; an unexpected external writer fails the proof.
+
+## Batch 2 integration
+
+All 51 dressed kinds are registered. Clothing parts hold at most three kinds of one group; base-body hair libraries
+remain separate. Both art and native indices map roots to parts, and each file must stay below 20,000,000 bytes.
+A group loaded by a sibling kind still loads the requested kind's base hair library. `old_man` routes to
+`old_man_dressed`, with `p2:old_man` retained as the undressed reference, matching the old-woman alias.
+
+`cast_build.py` adapts the cast's per-garment reducer to the shared reduce-before-unwrap clothing pass.
+The authored C1/C3/C4 garment and prop modules remain unchanged. Workers retain their scoped build via
+`dress.reduce_cloth`'s compatibility entry. Every explicit `p2:` figure uses its canonical kind for work clips.
+
+Porters and carters own the shared sack truck/handcart, placed from their two grip sockets. Existing traffic,
+journey and bus vehicles suppress that personal cart; the legacy mesh-stripping routine skips dressed figures.
+The one C4 blackthorn cane serves the old man, gentleman and tourist, rotated into gripR's hanging frame.
+No motion-list or network-field changes, shader kinds or lights are added.
+
+`check-people2.ps1 -Modes batch2-captures -Port 9120` captures all 35 additions through default routing, at their
+quay, market, street, barracks or church locations, at 3/8 m and close side/back/top/foot views in clear daylight,
+rain and 19:30. It also captures mixed crowds at both squares. `-Modes all` includes every existing proof.
+Use `-WaitForTimingSeconds 2700` for the exclusive shader/timing window.
+
+Asset exceptions retained from the incoming sources: cloth hems/openings are thin sheet lips; shared truck/cart
+edges remain visibly coarse and need a separate material-specific bevel pass. The static audit finds 64 zero-area
+triangles in existing base hair, beguine LOD1 and the incoming scabbard, without nonfinite attributes or bad weights.
+Close captures also show rolled-sleeve/cuff clipping and basket/cane pose limitations; these are handoff faults,
+not reasons to change the shared batch-1 geometry or authored placements during this integration.

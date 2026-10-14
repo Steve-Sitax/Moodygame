@@ -1,4 +1,4 @@
-param([string]$Godot, [switch]$SceneSeed, [string]$DataDirectory)
+param([string]$Godot, [switch]$SceneSeed, [string]$DataDirectory, [int]$Port = 8800)
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'engine-tools.ps1')
 $nativeTownProject = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -14,6 +14,7 @@ $nativeTownData = [IO.Path]::GetFullPath($DataDirectory)
 [void](New-Item -ItemType Directory -Path $nativeTownData -Force)
 $env:SCHELDEMIST_USER_DATA = $nativeTownData
 $nativeTownArguments = @('--rendering-method', 'forward_plus', '--path', $nativeTownProject, 'res://town.tscn', '--', '--native-services', '--no-ai', '--db', (Join-Path $nativeTownData 'game.sqlite'), '--prefs', (Join-Path $nativeTownData 'settings.json'))
+$nativeTownArguments += @('--port', $Port.ToString())
 if ($SceneSeed) { $nativeTownArguments += '--scene-seed' }
 Write-Output "Starting the native Godot town. Game data: $nativeTownData"
 & $nativeTownEngine @nativeTownArguments
