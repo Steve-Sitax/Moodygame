@@ -22,6 +22,7 @@ public sealed partial class NativeAntigoon : INativeServiceModule
     public Func<P,P?> Snap = p=>p;
     private bool developmentEnabled;
     public NativeAntigoon(NativeServiceHost host)=>this.host=host;
+    internal System.Threading.Tasks.Task<T> WithState<T>(Func<NativeAntigoon,T> operation)=>host.WithState(_=>operation(this));
     private double Hour { get { var c=host.Clock.View();return NativeGoods.Number(c["hour"])+NativeGoods.Number(c["minute"])/60; } }
     private bool Night=>Hour>=20||Hour<6;
     public void Register(NativeServiceHost service)

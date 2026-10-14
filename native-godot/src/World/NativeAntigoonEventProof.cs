@@ -70,11 +70,18 @@ public static class NativeAntigoonEventProof
             Input.MouseMode=Input.MouseModeEnum.Visible;
             game.Cam.GlobalPosition=new(view.X,(float)encounter.Ground(home)+3.2f,view.Y);game.Cam.LookAt(new((float)home.X,(float)encounter.Ground(home)+2.7f,(float)home.Z));
             await Frames(8);
-            var person=town.Sims.Where(s=>!s.ActionHeld&&!s.Aboard&&!s.InTrip&&new P(s.R.HomeSx,s.R.HomeSz).Distance(home)>25&&encounter.MayObserve(1,s.R.Id)&&encounter.HumanPath(home,new(s.R.HomeSx,s.R.HomeSz)) is {Count:>0}).OrderBy(s=>new P(s.R.HomeSx,s.R.HomeSz).Distance(home)).First();
+            // Database-backed eligibility shares the service gate with the client's polling requests.
+            var candidates=town.Sims.Where(s=>!s.ActionHeld&&!s.Aboard&&!s.InTrip&&new P(s.R.HomeSx,s.R.HomeSz).Distance(home)>25).ToArray();
+            var chosen=await encounter.WithState(_=>
+            {
+                var eligible=candidates.Where(s=>encounter.MayObserve(1,s.R.Id)&&encounter.HumanPath(home,new(s.R.HomeSx,s.R.HomeSz)) is {Count:>0}).OrderBy(s=>new P(s.R.HomeSx,s.R.HomeSz).Distance(home)).First();
+                return (person:eligible,home:encounter.ResidentHome(eligible.R.Id));
+            });
+            var person=chosen.person;
             var foot=Enumerable.Range(0,16).Select(i=>new P(home.X+Math.Sin(i*Math.PI/8)*3,home.Z+Math.Cos(i*Math.PI/8)*3)).First(p=>encounter.HumanClear(p)&&encounter.Sight(home,p));
             town.ActionOutside(person);person.X=foot.X;person.Z=foot.Z;
             if(town.ActionClaim(person) is {} puppet)town.RemotePose(person,new Scheldemist.Net.Mp.Pose{X=(float)foot.X,Z=(float)foot.Z},puppet.Size);
-            GD.Print($"ANTIGOON_WITNESS {person.R.Id} at {foot}; allowed {encounter.MayObserve(1,person.R.Id)}, home {encounter.ResidentHome(person.R.Id)}, sees {encounter.Sight(foot,home)}; playing {GameState.I.Playing}");
+            GD.Print($"ANTIGOON_WITNESS {person.R.Id} at {foot}; allowed True, home {chosen.home}, sees {encounter.Sight(foot,home)}; playing {GameState.I.Playing}");
             var observed=await api.PostJson("api/antigoon/observe",new{people=new[]{new{id=person.R.Id,x=foot.X,z=foot.Z}}});
             File.WriteAllText(Path.Combine(output,"observation.json"),observed);
             JsonObject state=new();var until=DateTime.UtcNow.AddSeconds(8);
